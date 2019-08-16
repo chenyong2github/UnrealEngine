@@ -151,12 +151,13 @@ public:
 	 * @param Message The message to publish.
 	 * @param TypeInfo The message's type information.
 	 * @param Scope The message scope.
+	 * @param Annotations An optional message annotations header.
 	 * @param Delay The delay after which to send the message.
 	 * @param Expiration The time at which the message expires.
 	 * @param Publisher The message publisher.
 	 * @see Forward, Send
 	 */
-	virtual void Publish(void* Message, UScriptStruct* TypeInfo, EMessageScope Scope, const FTimespan& Delay, const FDateTime& Expiration, const TSharedRef<IMessageSender, ESPMode::ThreadSafe>& Publisher) = 0;
+	virtual void Publish(void* Message, UScriptStruct* TypeInfo, EMessageScope Scope, const TMap<FName, FString>& Annotations, const FTimespan& Delay, const FDateTime& Expiration, const TSharedRef<IMessageSender, ESPMode::ThreadSafe>& Publisher) = 0;
 
 	/**
 	 * Registers a message recipient with the message bus.
@@ -176,6 +177,7 @@ public:
 	 * @param Message The message to send.
 	 * @param TypeInfo The message's type information.
 	 * @param Flags The message flags.
+	 * @param Annotations An optional message annotations header.
 	 * @param Attachment The binary data to attach to the message.
 	 * @param Recipients The list of message recipients.
 	 * @param Delay The delay after which to send the message.
@@ -183,7 +185,7 @@ public:
 	 * @param Sender The message sender.
 	 * @see Forward, Publish
 	 */
-	virtual void Send(void* Message, UScriptStruct* TypeInfo, EMessageFlags Flags, const TSharedPtr<IMessageAttachment, ESPMode::ThreadSafe>& Attachment, const TArray<FMessageAddress>& Recipients, const FTimespan& Delay, const FDateTime& Expiration, const TSharedRef<IMessageSender, ESPMode::ThreadSafe>& Sender) = 0;
+	virtual void Send(void* Message, UScriptStruct* TypeInfo, EMessageFlags Flags, const TMap<FName, FString>& Annotations, const TSharedPtr<IMessageAttachment, ESPMode::ThreadSafe>& Attachment, const TArray<FMessageAddress>& Recipients, const FTimespan& Delay, const FDateTime& Expiration, const TSharedRef<IMessageSender, ESPMode::ThreadSafe>& Sender) = 0;
 
 	/**
 	 * Shuts down the message bus.

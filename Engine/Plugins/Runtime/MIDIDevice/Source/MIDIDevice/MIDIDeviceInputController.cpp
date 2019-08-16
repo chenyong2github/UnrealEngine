@@ -143,7 +143,7 @@ void UMIDIDeviceInputController::ProcessIncomingMIDIEvents()
 
 					case EMIDIEventType::PitchBend:
 					{
-						int32 pitchBend = (PMMessageData1 & 0x7F) << 7;
+						int32 pitchBend = (PMMessageData2 & 0x7F) << 7;
 
 						pitchBend |= (PMMessageData1 & 0x7F);
 

@@ -21,12 +21,19 @@
 #include "Engine/Engine.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Engine/TextureLODSettings.h"
+#include "RenderUtils.h"
 
 #if WITH_EDITORONLY_DATA
 	#include "EditorFramework/AssetImportData.h"
 #endif
 
 #include "Engine/TextureCube.h"
+
+static TAutoConsoleVariable<int32> CVarVirtualTextures(
+	TEXT("r.VirtualTextures"),
+	0,
+	TEXT("Is virtual texture streaming enabled?"),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
 
 DEFINE_LOG_CATEGORY(LogTexture);
@@ -79,6 +86,7 @@ UTexture::UTexture(const FObjectInitializer& ObjectInitializer)
 	PaddingColor = FColor::Black;
 	ChromaKeyColor = FColorList::Magenta;
 	ChromaKeyThreshold = 1.0f / 255.0f;
+	VirtualTextureStreaming = 0;
 	
 #endif // #if WITH_EDITORONLY_DATA
 
@@ -130,11 +138,18 @@ bool UTexture::CanEditChange(const UProperty* InProperty) const
 {
 	if (InProperty)
 	{
-		FString PropertyName = InProperty->GetName();
+		const FName PropertyName = InProperty->GetFName();
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UTexture, AdjustVibrance))
 		{
 			return !HasHDRSource();
+		}
+
+		// Virtual Texturing is only supported for Texture2D 
+		static const FName VirtualTextureStreamingName = GET_MEMBER_NAME_CHECKED(UTexture, VirtualTextureStreaming);
+		if (PropertyName == VirtualTextureStreamingName)
+		{
+			return this->IsA<UTexture2D>();
 		}
 	}
 
@@ -158,6 +173,7 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 		static const FName LODGroupName = GET_MEMBER_NAME_CHECKED(UTexture, LODGroup);
 		static const FName DeferCompressionName = GET_MEMBER_NAME_CHECKED(UTexture, DeferCompression);
 		static const FName SrgbName = GET_MEMBER_NAME_CHECKED(UTexture, SRGB);
+		static const FName VirtualTextureStreamingName = GET_MEMBER_NAME_CHECKED(UTexture, VirtualTextureStreaming);
 #if WITH_EDITORONLY_DATA
 		static const FName MaxTextureSizeName = GET_MEMBER_NAME_CHECKED(UTexture, MaxTextureSize);
 		static const FName CompressionQualityName = GET_MEMBER_NAME_CHECKED(UTexture, CompressionQuality);
@@ -170,6 +186,20 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 			(PropertyName == SrgbName))
 		{
 			RequiresNotifyMaterials = true;
+
+			if (PropertyName == LODGroupName)
+			{
+				if (LODGroup == TEXTUREGROUP_8BitData)
+				{
+					CompressionSettings = TC_VectorDisplacementmap;
+					SRGB = false;
+				}
+				else if (LODGroup == TEXTUREGROUP_16BitData)
+				{
+					CompressionSettings = TC_HDR;
+					SRGB = false;
+				}
+			}
 		}
 		else if (PropertyName == DeferCompressionName)
 		{
@@ -190,6 +220,10 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 			{
 				MaxTextureSize = FMath::Min<int32>(FMath::RoundUpToPowerOfTwo(MaxTextureSize), GetMaximumDimension());
 			}
+		}
+		else if (PropertyName == VirtualTextureStreamingName)
+		{
+			RequiresNotifyMaterials = true;
 		}
 #endif //WITH_EDITORONLY_DATA
 
@@ -298,6 +332,14 @@ void UTexture::Serialize(FArchive& Ar)
 	if ( GetLinkerUE4Version() < VER_UE4_TEXTURE_LEGACY_GAMMA )
 	{
 		bUseLegacyGamma = true;
+	}
+
+	if (Ar.IsCooking())
+	{
+		if (VirtualTextureStreaming && UseVirtualTexturing(GMaxRHIFeatureLevel, Ar.CookingTarget()) == false)
+		{
+			UE_LOG(LogTexture, Warning, TEXT("%s is marked for virtual streaming but virtual texture streaming is not available."), *GetName());
+		}
 	}
 
 #endif // #if WITH_EDITORONLY_DATA
@@ -598,15 +640,18 @@ const TArray<UAssetUserData*>* UTexture::GetAssetUserDataArray() const
 
 FTextureSource::FTextureSource()
 	: LockedMipData(NULL)
-	, LockedMips(0)
+	, NumLockedMips(0u)
 #if WITH_EDITOR
 	, bHasHadBulkDataCleared(false)
 #endif
 #if WITH_EDITORONLY_DATA
+	, BaseBlockX(0)
+	, BaseBlockY(0)
 	, SizeX(0)
 	, SizeY(0)
 	, NumSlices(0)
 	, NumMips(0)
+	, NumLayers(1) // Default to 1 so old data has the correct value
 	, bPNGCompressed(false)
 	, bGuidIsHash(false)
 	, Format(TSF_Invalid)
@@ -614,34 +659,100 @@ FTextureSource::FTextureSource()
 {
 }
 
+FTextureSourceBlock::FTextureSourceBlock()
+	: BlockX(0)
+	, BlockY(0)
+	, SizeX(0)
+	, SizeY(0)
+	, NumSlices(0)
+	, NumMips(0)
+{
+}
+
 #if WITH_EDITOR
 
-void FTextureSource::Init(
-		int32 NewSizeX,
-		int32 NewSizeY,
-		int32 NewNumSlices,
-		int32 NewNumMips,
-		ETextureSourceFormat NewFormat,
-		const uint8* NewData
-		)
+void FTextureSource::InitBlocked(const ETextureSourceFormat* InLayerFormats,
+	const FTextureSourceBlock* InBlocks,
+	int32 InNumLayers,
+	int32 InNumBlocks,
+	const uint8** InDataPerBlock)
+{
+	check(InNumBlocks > 0);
+	check(InNumLayers > 0);
+
+	RemoveSourceData();
+
+	BaseBlockX = InBlocks[0].BlockX;
+	BaseBlockY = InBlocks[0].BlockY;
+	SizeX = InBlocks[0].SizeX;
+	SizeY = InBlocks[0].SizeY;
+	NumSlices = InBlocks[0].NumSlices;
+	NumMips = InBlocks[0].NumMips;
+
+	NumLayers = InNumLayers;
+	Format = InLayerFormats[0];
+
+	Blocks.Reserve(InNumBlocks - 1);
+	for (int32 BlockIndex = 1; BlockIndex < InNumBlocks; ++BlockIndex)
+	{
+		Blocks.Add(InBlocks[BlockIndex]);
+	}
+
+	LayerFormat.SetNum(InNumLayers, true);
+	for (int i = 0; i < InNumLayers; ++i)
+	{
+		LayerFormat[i] = InLayerFormats[i];
+	}
+
+	int32 TotalBytes = 0;
+	for (int i = 0; i < InNumBlocks; ++i)
+	{
+		TotalBytes += CalcBlockSize(i);
+	}
+
+	BulkData.Lock(LOCK_READ_WRITE);
+	uint8* DestData = (uint8*)BulkData.Realloc(TotalBytes);
+	if (InDataPerBlock)
+	{
+		for (int i = 0; i < InNumBlocks; ++i)
+		{
+			const int32 BlockSize = CalcBlockSize(i);
+			if (InDataPerBlock[i])
+			{
+				FMemory::Memcpy(DestData, InDataPerBlock[i], BlockSize);
+			}
+			DestData += BlockSize;
+		}
+	}
+	BulkData.Unlock();
+}
+
+void FTextureSource::InitLayered(
+	int32 NewSizeX,
+	int32 NewSizeY,
+	int32 NewNumSlices,
+	int32 NewNumLayers,
+	int32 NewNumMips,
+	const ETextureSourceFormat* NewLayerFormat,
+	const uint8* NewData)
 {
 	RemoveSourceData();
 	SizeX = NewSizeX;
 	SizeY = NewSizeY;
+	NumLayers = NewNumLayers;
 	NumSlices = NewNumSlices;
 	NumMips = NewNumMips;
-	Format = NewFormat;
+	Format = NewLayerFormat[0];
+	LayerFormat.SetNum(NewNumLayers, true);
+	for (int i = 0; i < NewNumLayers; ++i)
+	{
+		LayerFormat[i] = NewLayerFormat[i];
+	}
 
 	int32 TotalBytes = 0;
-	int32 BytesPerPixel = GetBytesPerPixel();
-	int32 MipSizeX = SizeX;
-	int32 MipSizeY = SizeY;
-
-	while (NewNumMips-- > 0)
+	for (int i = 0; i < NewNumLayers; ++i)
 	{
-		TotalBytes += MipSizeX * MipSizeY * NumSlices * BytesPerPixel;
-		MipSizeX = FMath::Max(MipSizeX >> 1, 1);
-		MipSizeY = FMath::Max(MipSizeY >> 1, 1);
+		TotalBytes += CalcLayerSize(0, i);
 	}
 
 	BulkData.Lock(LOCK_READ_WRITE);
@@ -653,6 +764,18 @@ void FTextureSource::Init(
 	BulkData.Unlock();
 }
 
+void FTextureSource::Init(
+		int32 NewSizeX,
+		int32 NewSizeY,
+		int32 NewNumSlices,
+		int32 NewNumMips,
+		ETextureSourceFormat NewFormat,
+		const uint8* NewData
+		)
+{
+	InitLayered(NewSizeX, NewSizeY, NewNumSlices, 1, NewNumMips, &NewFormat, NewData);
+}
+
 void FTextureSource::Init2DWithMipChain(
 	int32 NewSizeX,
 	int32 NewSizeY,
@@ -661,6 +784,16 @@ void FTextureSource::Init2DWithMipChain(
 {
 	int32 NewMipCount = FMath::Max(FMath::CeilLogTwo(NewSizeX),FMath::CeilLogTwo(NewSizeY)) + 1;
 	Init(NewSizeX, NewSizeY, 1, NewMipCount, NewFormat);
+}
+
+void FTextureSource::InitLayered2DWithMipChain(
+	int32 NewSizeX,
+	int32 NewSizeY,
+	int32 NewNumLayers,
+	const ETextureSourceFormat* NewFormat)
+{
+	int32 NewMipCount = FMath::Max(FMath::CeilLogTwo(NewSizeX), FMath::CeilLogTwo(NewSizeY)) + 1;
+	InitLayered(NewSizeX, NewSizeY, 1, NewNumLayers, NewMipCount, NewFormat);
 }
 
 void FTextureSource::InitCubeWithMipChain(
@@ -703,10 +836,10 @@ void FTextureSource::Compress()
 	}
 }
 
-uint8* FTextureSource::LockMip(int32 MipIndex)
+uint8* FTextureSource::LockMip(int32 BlockIndex, int32 LayerIndex, int32 MipIndex)
 {
 	uint8* MipData = NULL;
-	if (MipIndex < NumMips)
+	if (BlockIndex < GetNumBlocks() && LayerIndex < NumLayers && MipIndex < NumMips)
 	{
 		if (LockedMipData == NULL)
 		{
@@ -714,7 +847,7 @@ uint8* FTextureSource::LockMip(int32 MipIndex)
 			if (bPNGCompressed)
 			{
 				bool bCanPngCompressFormat = (Format == TSF_G8 || Format == TSF_RGBA8 || Format == TSF_BGRA8 || Format == TSF_RGBA16);
-				check(NumSlices == 1 && bCanPngCompressFormat);
+				check(Blocks.Num() == 0 && NumLayers == 1 && NumSlices == 1 && bCanPngCompressFormat);
 				if (MipIndex != 0)
 				{
 					return NULL;
@@ -751,48 +884,49 @@ uint8* FTextureSource::LockMip(int32 MipIndex)
 			}
 		}
 
-		MipData = LockedMipData + CalcMipOffset(MipIndex);
-		LockedMips |= (1 << MipIndex);
+		MipData = LockedMipData + CalcMipOffset(BlockIndex, LayerIndex, MipIndex);
+		++NumLockedMips;
 	}
 	return MipData;
 }
 
-void FTextureSource::UnlockMip(int32 MipIndex)
+void FTextureSource::UnlockMip(int32 BlockIndex, int32 LayerIndex, int32 MipIndex)
 {
+	check(BlockIndex < GetNumBlocks());
+	check(LayerIndex < NumLayers);
 	check(MipIndex < MAX_TEXTURE_MIP_COUNT);
 
-	uint32 LockBit = 1 << MipIndex;
-	if (LockedMips & LockBit)
+	check(NumLockedMips > 0u);
+	--NumLockedMips;
+	if (NumLockedMips == 0u)
 	{
-		LockedMips &= (~LockBit);
-		if (LockedMips == 0)
+		if (bPNGCompressed)
 		{
-			if (bPNGCompressed)
-			{
-				check(MipIndex == 0);
-				int32 MipSize = CalcMipSize(0);
-				uint8* UncompressedData = (uint8*)BulkData.Realloc(MipSize);
-				FMemory::Memcpy(UncompressedData, LockedMipData, MipSize);
-				FMemory::Free(LockedMipData);
-				bPNGCompressed = false;
-			}
-			LockedMipData = NULL;
-			BulkData.Unlock();
-			ForceGenerateGuid();
+			check(BlockIndex == 0);
+			check(LayerIndex == 0);
+			check(MipIndex == 0);
+			int32 MipSize = CalcMipSize(0, 0, 0);
+			uint8* UncompressedData = (uint8*)BulkData.Realloc(MipSize);
+			FMemory::Memcpy(UncompressedData, LockedMipData, MipSize);
+			FMemory::Free(LockedMipData);
+			bPNGCompressed = false;
 		}
+		LockedMipData = NULL;
+		BulkData.Unlock();
+		ForceGenerateGuid();
 	}
 }
 
-bool FTextureSource::GetMipData(TArray<uint8>& OutMipData, int32 MipIndex, IImageWrapperModule* ImageWrapperModule)
+bool FTextureSource::GetMipData(TArray64<uint8>& OutMipData, int32 BlockIndex, int32 LayerIndex, int32 MipIndex, IImageWrapperModule* ImageWrapperModule)
 {
 	bool bSuccess = false;
-	if (MipIndex < NumMips && BulkData.GetBulkDataSize() > 0)
+	if (BlockIndex < GetNumBlocks() && LayerIndex < NumLayers && MipIndex < NumMips && BulkData.GetBulkDataSize() > 0)
 	{
 		void* RawSourceData = BulkData.Lock(LOCK_READ_ONLY);
 		if (bPNGCompressed)
 		{
 			bool bCanPngCompressFormat = (Format == TSF_G8 || Format == TSF_RGBA8 || Format == TSF_BGRA8 || Format == TSF_RGBA16);
-			if (MipIndex == 0 && NumSlices == 1 && bCanPngCompressFormat)
+			if (MipIndex == 0 && NumLayers == 1 && NumSlices == 1 && Blocks.Num() == 0 && bCanPngCompressFormat)
 			{
 				if (!ImageWrapperModule) // Optional if called from the gamethread, see FModuleManager::WarnIfItWasntSafeToLoadHere()
 				{
@@ -838,8 +972,8 @@ bool FTextureSource::GetMipData(TArray<uint8>& OutMipData, int32 MipIndex, IImag
 		}
 		else
 		{
-			int32 MipOffset = CalcMipOffset(MipIndex);
-			int32 MipSize = CalcMipSize(MipIndex);
+			int32 MipOffset = CalcMipOffset(BlockIndex, LayerIndex, MipIndex);
+			int32 MipSize = CalcMipSize(BlockIndex, LayerIndex, MipIndex);
 			if (BulkData.GetBulkDataSize() >= MipOffset + MipSize)
 			{
 				OutMipData.Empty(MipSize);
@@ -857,15 +991,19 @@ bool FTextureSource::GetMipData(TArray<uint8>& OutMipData, int32 MipIndex, IImag
 	return bSuccess;
 }
 
-int32 FTextureSource::CalcMipSize(int32 MipIndex) const
+int32 FTextureSource::CalcMipSize(int32 BlockIndex, int32 LayerIndex, int32 MipIndex) const
 {
-	int32 MipSizeX = FMath::Max(SizeX >> MipIndex, 1);
-	int32 MipSizeY = FMath::Max(SizeY >> MipIndex, 1);
-	int32 BytesPerPixel = GetBytesPerPixel();
-	return MipSizeX * MipSizeY * NumSlices * BytesPerPixel;
+	FTextureSourceBlock Block;
+	GetBlock(BlockIndex, Block);
+	check(MipIndex < Block.NumMips);
+
+	const int32 MipSizeX = FMath::Max(Block.SizeX >> MipIndex, 1);
+	const int32 MipSizeY = FMath::Max(Block.SizeY >> MipIndex, 1);
+	const int32 BytesPerPixel = GetBytesPerPixel(LayerIndex);
+	return MipSizeX * MipSizeY * Block.NumSlices * BytesPerPixel;
 }
 
-int32 FTextureSource::GetBytesPerPixel() const
+int32 FTextureSource::GetBytesPerPixel(ETextureSourceFormat Format)
 {
 	int32 BytesPerPixel = 0;
 	switch (Format)
@@ -880,15 +1018,74 @@ int32 FTextureSource::GetBytesPerPixel() const
 	return BytesPerPixel;
 }
 
-bool FTextureSource::IsPowerOfTwo() const
+int32 FTextureSource::GetBytesPerPixel(int32 LayerIndex) const
 {
-	return FMath::IsPowerOfTwo(SizeX) && FMath::IsPowerOfTwo(SizeY);
+	return GetBytesPerPixel(GetFormat(LayerIndex));
+}
+
+bool FTextureSource::IsPowerOfTwo(int32 BlockIndex) const
+{
+	FTextureSourceBlock Block;
+	GetBlock(BlockIndex, Block);
+	return FMath::IsPowerOfTwo(Block.SizeX) && FMath::IsPowerOfTwo(Block.SizeY);
 }
 
 bool FTextureSource::IsValid() const
 {
-	return SizeX > 0 && SizeY > 0 && NumSlices > 0 && NumMips > 0 &&
+	return SizeX > 0 && SizeY > 0 && NumSlices > 0 && NumLayers > 0 && NumMips > 0 &&
 		Format != TSF_Invalid && BulkData.GetBulkDataSize() > 0;
+}
+
+void FTextureSource::GetBlock(int32 Index, FTextureSourceBlock& OutBlock) const
+{
+	check(Index < GetNumBlocks());
+	if (Index == 0)
+	{
+		OutBlock.BlockX = BaseBlockX;
+		OutBlock.BlockY = BaseBlockY;
+		OutBlock.SizeX = SizeX;
+		OutBlock.SizeY = SizeY;
+		OutBlock.NumSlices = NumSlices;
+		OutBlock.NumMips = NumMips;
+	}
+	else
+	{
+		OutBlock = Blocks[Index - 1];
+	}
+}
+
+FIntPoint FTextureSource::GetLogicalSize() const
+{
+	const int32 NumBlocks = GetNumBlocks();
+	int32 SizeInBlocksX = 0;
+	int32 SizeInBlocksY = 0;
+	int32 BlockSizeX = 0;
+	int32 BlockSizeY = 0;
+	for (int32 BlockIndex = 0; BlockIndex < NumBlocks; ++BlockIndex)
+	{
+		FTextureSourceBlock SourceBlock;
+		GetBlock(BlockIndex, SourceBlock);
+		SizeInBlocksX = FMath::Max(SizeInBlocksX, SourceBlock.BlockX + 1);
+		SizeInBlocksY = FMath::Max(SizeInBlocksY, SourceBlock.BlockY + 1);
+		BlockSizeX = FMath::Max(BlockSizeX, SourceBlock.SizeX);
+		BlockSizeY = FMath::Max(BlockSizeY, SourceBlock.SizeY);
+	}
+	return FIntPoint(SizeInBlocksX * BlockSizeX, SizeInBlocksY * BlockSizeY);
+}
+
+FIntPoint FTextureSource::GetSizeInBlocks() const
+{
+	const int32 NumBlocks = GetNumBlocks();
+	int32 SizeInBlocksX = 0;
+	int32 SizeInBlocksY = 0;
+	for (int32 BlockIndex = 0; BlockIndex < NumBlocks; ++BlockIndex)
+	{
+		FTextureSourceBlock SourceBlock;
+		GetBlock(BlockIndex, SourceBlock);
+		SizeInBlocksX = FMath::Max(SizeInBlocksX, SourceBlock.BlockX + 1);
+		SizeInBlocksY = FMath::Max(SizeInBlocksY, SourceBlock.BlockY + 1);
+	}
+	return FIntPoint(SizeInBlocksX, SizeInBlocksY);
 }
 
 FString FTextureSource::GetIdString() const
@@ -906,8 +1103,10 @@ bool FTextureSource::CanPNGCompress() const
 	bool bCanPngCompressFormat = (Format == TSF_G8 || Format == TSF_RGBA8 || Format == TSF_BGRA8 || Format == TSF_RGBA16);
 
 	if (!bPNGCompressed &&
+		NumLayers == 1 &&
 		NumMips == 1 &&
 		NumSlices == 1 &&
+		Blocks.Num() == 0 &&
 		SizeX > 4 &&
 		SizeY > 4 &&
 		BulkData.GetBulkDataSize() > 0 &&
@@ -939,11 +1138,14 @@ void FTextureSource::RemoveSourceData()
 	SizeX = 0;
 	SizeY = 0;
 	NumSlices = 0;
+	NumLayers = 0;
 	NumMips = 0;
 	Format = TSF_Invalid;
+	LayerFormat.Empty();
+	Blocks.Empty();
 	bPNGCompressed = false;
 	LockedMipData = NULL;
-	LockedMips = 0;
+	NumLockedMips = 0u;
 	if (BulkData.IsLocked())
 	{
 		BulkData.Unlock();
@@ -952,16 +1154,62 @@ void FTextureSource::RemoveSourceData()
 	ForceGenerateGuid();
 }
 
-int32 FTextureSource::CalcMipOffset(int32 MipIndex) const
+int32 FTextureSource::CalcBlockSize(int32 BlockIndex) const
+{
+	int32 TotalSize = 0;
+	for (int32 LayerIndex = 0; LayerIndex < GetNumLayers(); ++LayerIndex)
+	{
+		TotalSize += CalcLayerSize(BlockIndex, LayerIndex);
+	}
+	return TotalSize;
+}
+
+int32 FTextureSource::CalcLayerSize(int32 BlockIndex, int32 LayerIndex) const
+{
+	FTextureSourceBlock Block;
+	GetBlock(BlockIndex, Block);
+
+	int32 BytesPerPixel = GetBytesPerPixel(LayerIndex);
+	int32 MipSizeX = Block.SizeX;
+	int32 MipSizeY = Block.SizeY;
+
+	int32 TotalSize = 0;
+	for(int32 MipIndex = 0; MipIndex < Block.NumMips; ++MipIndex)
+	{
+		TotalSize += MipSizeX * MipSizeY * BytesPerPixel * Block.NumSlices;
+		MipSizeX = FMath::Max(MipSizeX >> 1, 1);
+		MipSizeY = FMath::Max(MipSizeY >> 1, 1);
+	}
+	return TotalSize;
+}
+
+int32 FTextureSource::CalcMipOffset(int32 BlockIndex, int32 LayerIndex, int32 MipIndex) const
 {
 	int32 MipOffset = 0;
-	int32 BytesPerPixel = GetBytesPerPixel();
-	int32 MipSizeX = SizeX;
-	int32 MipSizeY = SizeY;
+
+	// Skip over the initial tiles
+	for (int i = 0; i < BlockIndex; ++i)
+	{
+		MipOffset += CalcBlockSize(i);
+	}
+
+	// Skip over the initial layers within the tile
+	for (int i = 0; i < LayerIndex; ++i)
+	{
+		MipOffset += CalcLayerSize(BlockIndex, i);
+	}
+
+	FTextureSourceBlock Block;
+	GetBlock(BlockIndex, Block);
+	check(MipIndex < Block.NumMips);
+	
+	int32 BytesPerPixel = GetBytesPerPixel(LayerIndex);
+	int32 MipSizeX = Block.SizeX;
+	int32 MipSizeY = Block.SizeY;
 
 	while (MipIndex-- > 0)
 	{
-		MipOffset += MipSizeX * MipSizeY * BytesPerPixel * NumSlices;
+		MipOffset += MipSizeX * MipSizeY * BytesPerPixel * Block.NumSlices;
 		MipSizeX = FMath::Max(MipSizeX >> 1, 1);
 		MipSizeY = FMath::Max(MipSizeY >> 1, 1);
 	}
@@ -993,9 +1241,58 @@ uint32 UTexture::GetMaximumDimension() const
 {
 	return GetMax2DTextureDimension();
 }
+
+void UTexture::GetDefaultFormatSettings(FTextureFormatSettings& OutSettings) const
+{
+	OutSettings.CompressionSettings = CompressionSettings;
+	OutSettings.CompressionNone = CompressionNone;
+	OutSettings.CompressionNoAlpha = CompressionNoAlpha;
+	OutSettings.SRGB = SRGB;
+}
+
+void UTexture::GetLayerFormatSettings(int32 LayerIndex, FTextureFormatSettings& OutSettings) const
+{
+	check(LayerIndex >= 0);
+	if (LayerIndex < LayerFormatSettings.Num())
+	{
+		OutSettings = LayerFormatSettings[LayerIndex];
+	}
+	else
+	{
+		GetDefaultFormatSettings(OutSettings);
+	}
+}
+
+void UTexture::SetLayerFormatSettings(int32 LayerIndex, const FTextureFormatSettings& InSettings)
+{
+	check(LayerIndex >= 0);
+	if (LayerIndex == 0 && LayerFormatSettings.Num() == 0)
+	{
+		// Apply layer0 settings directly to texture properties
+		CompressionSettings = InSettings.CompressionSettings;
+		CompressionNone = InSettings.CompressionNone;
+		CompressionNoAlpha = InSettings.CompressionNoAlpha;
+		SRGB = InSettings.SRGB;
+	}
+	else
+	{
+		if (LayerIndex >= LayerFormatSettings.Num())
+		{
+			FTextureFormatSettings DefaultSettings;
+			GetDefaultFormatSettings(DefaultSettings);
+			LayerFormatSettings.Reserve(LayerIndex + 1);
+			while (LayerIndex >= LayerFormatSettings.Num())
+			{
+				LayerFormatSettings.Add(DefaultSettings);
+			}
+		}
+		LayerFormatSettings[LayerIndex] = InSettings;
+	}
+}
+
 #endif // #if WITH_EDITOR
 
-FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const UTexture* Texture, const FConfigFile& EngineSettings, bool bSupportDX11TextureFormats, bool bSupportCompressedVolumeTexture, int32 BlockSize )
+FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const UTexture* Texture, int32 LayerIndex, const FConfigFile& EngineSettings, bool bSupportDX11TextureFormats, bool bSupportCompressedVolumeTexture, int32 BlockSize )
 {
 	FName TextureFormatName = NAME_None;
 
@@ -1022,9 +1319,15 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 
 	check(TargetPlatform);
 
-	bool bNoCompression = Texture->CompressionNone				// Code wants the texture uncompressed.
+	static const auto CVarVirtualTexturesEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextures")); check(CVarVirtualTexturesEnabled);
+	const bool bVirtualTextureStreaming = CVarVirtualTexturesEnabled->GetValueOnAnyThread() && TargetPlatform->SupportsFeature(ETargetPlatformFeatures::VirtualTextureStreaming) && Texture->VirtualTextureStreaming;
+
+	FTextureFormatSettings FormatSettings;
+	Texture->GetLayerFormatSettings(LayerIndex, FormatSettings);
+
+	bool bNoCompression = FormatSettings.CompressionNone				// Code wants the texture uncompressed.
 		|| (TargetPlatform->HasEditorOnlyData() && Texture->DeferCompression)	// The user wishes to defer compression, this is ok for the Editor only.
-		|| (Texture->CompressionSettings == TC_EditorIcon)
+		|| (FormatSettings.CompressionSettings == TC_EditorIcon)
 		|| (Texture->LODGroup == TEXTUREGROUP_ColorLookupTable)	// Textures in certain LOD groups should remain uncompressed.
 		|| (Texture->LODGroup == TEXTUREGROUP_Bokeh)
 		|| (Texture->LODGroup == TEXTUREGROUP_IESLightProfile)
@@ -1036,7 +1339,7 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 		uint32 SizeY = Texture->Source.GetSizeY();
 #if WITH_EDITORONLY_DATA
 		const UTextureLODSettings& LODSettings = TargetPlatform->GetTextureLODSettings();
- 		const uint32 LODBiasNoCinematics = FMath::Max<uint32>(LODSettings.CalculateLODBias(SizeX, SizeY, Texture->MaxTextureSize, Texture->LODGroup, Texture->LODBias, 0, Texture->MipGenSettings), 0);
+ 		const uint32 LODBiasNoCinematics = FMath::Max<uint32>(LODSettings.CalculateLODBias(SizeX, SizeY, Texture->MaxTextureSize, Texture->LODGroup, Texture->LODBias, 0, Texture->MipGenSettings, bVirtualTextureStreaming), 0);
 		SizeX = FMath::Max<uint32>(SizeX >> LODBiasNoCinematics, 1);
 		SizeY = FMath::Max<uint32>(SizeY >> LODBiasNoCinematics, 1);
 #endif
@@ -1053,20 +1356,20 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 		bUseDXT5NormalMap = FCString::ToBool(*UseDXT5NormalMapsString);
 	}
 
-	ETextureSourceFormat SourceFormat = Texture->Source.GetFormat();
+	const ETextureSourceFormat SourceFormat = Texture->Source.GetFormat(LayerIndex);
 
 	// Determine the pixel format of the (un/)compressed texture
 	if (bNoCompression)
 	{
-		if (Texture->HasHDRSource())
+		if (Texture->HasHDRSource(LayerIndex))
 		{
 			TextureFormatName = NameRGBA16F;
 		}
-		else if (SourceFormat == TSF_G8 || Texture->CompressionSettings == TC_Grayscale)
+		else if (SourceFormat == TSF_G8 || FormatSettings.CompressionSettings == TC_Grayscale)
 		{
 			TextureFormatName = NameG8;
 		}
-		else if (Texture->CompressionSettings == TC_Normalmap && bUseDXT5NormalMap)
+		else if (FormatSettings.CompressionSettings == TC_Normalmap && bUseDXT5NormalMap)
 		{
 			TextureFormatName = NameXGXR8;
 		}
@@ -1075,43 +1378,43 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 			TextureFormatName = NameBGRA8;
 		}
 	}
-	else if (Texture->CompressionSettings == TC_HDR)
+	else if (FormatSettings.CompressionSettings == TC_HDR)
 	{
 		TextureFormatName = NameRGBA16F;
 	}
-	else if (Texture->CompressionSettings == TC_Normalmap)
+	else if (FormatSettings.CompressionSettings == TC_Normalmap)
 	{
 		TextureFormatName = bUseDXT5NormalMap ? NameDXT5n : NameBC5;
 	}
-	else if (Texture->CompressionSettings == TC_Displacementmap)
+	else if (FormatSettings.CompressionSettings == TC_Displacementmap)
 	{
 		TextureFormatName = NameG8;
 	}
-	else if (Texture->CompressionSettings == TC_VectorDisplacementmap)
+	else if (FormatSettings.CompressionSettings == TC_VectorDisplacementmap)
 	{
 		TextureFormatName = NameBGRA8;
 	}
-	else if (Texture->CompressionSettings == TC_Grayscale)
+	else if (FormatSettings.CompressionSettings == TC_Grayscale)
 	{
 		TextureFormatName = NameG8;
 	}
-	else if ( Texture->CompressionSettings == TC_Alpha)
+	else if ( FormatSettings.CompressionSettings == TC_Alpha)
 	{
 		TextureFormatName = NameBC4;
 	}
-	else if (Texture->CompressionSettings == TC_DistanceFieldFont)
+	else if (FormatSettings.CompressionSettings == TC_DistanceFieldFont)
 	{
 		TextureFormatName = NameG8;
 	}
-	else if ( Texture->CompressionSettings == TC_HDR_Compressed )
+	else if ( FormatSettings.CompressionSettings == TC_HDR_Compressed )
 	{
 		TextureFormatName = NameBC6H;
 	}
-	else if ( Texture->CompressionSettings == TC_BC7 )
+	else if ( FormatSettings.CompressionSettings == TC_BC7 )
 	{
 		TextureFormatName = NameBC7;
 	}
-	else if (Texture->CompressionNoAlpha)
+	else if (FormatSettings.CompressionNoAlpha)
 	{
 		TextureFormatName = NameDXT1;
 	}
@@ -1126,9 +1429,9 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 
 	// Some PC GPUs don't support sRGB read from G8 textures (e.g. AMD DX10 cards on ShaderModel3.0)
 	// This solution requires 4x more memory but a lot of PC HW emulate the format anyway
-	if ((TextureFormatName == NameG8) && Texture->SRGB && !TargetPlatform->SupportsFeature(ETargetPlatformFeatures::GrayscaleSRGB))
+	if ((TextureFormatName == NameG8) && FormatSettings.SRGB && !TargetPlatform->SupportsFeature(ETargetPlatformFeatures::GrayscaleSRGB))
 	{
-			TextureFormatName = NameBGRA8;
+		TextureFormatName = NameBGRA8;
 	}
 
 	// fallback to non-DX11 formats if one was chosen, but we can't use it
@@ -1149,6 +1452,16 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 	return TextureFormatName;
 }
 
+void GetDefaultTextureFormatNamePerLayer(TArray<FName>& OutFormatNames, const class ITargetPlatform* TargetPlatform, const class UTexture* Texture, const class FConfigFile& EngineSettings, bool bSupportDX11TextureFormats, bool bSupportCompressedVolumeTexture, int32 BlockSize)
+{
+#if WITH_EDITOR
+	OutFormatNames.Reserve(Texture->Source.GetNumLayers());
+	for (int32 LayerIndex = 0; LayerIndex < Texture->Source.GetNumLayers(); ++LayerIndex)
+	{
+		OutFormatNames.Add(GetDefaultTextureFormatName(TargetPlatform, Texture, LayerIndex, EngineSettings, bSupportDX11TextureFormats, bSupportCompressedVolumeTexture, BlockSize));
+	}
+#endif // WITH_EDITOR
+}
 
 void GetAllDefaultTextureFormats(const class ITargetPlatform* TargetPlatform, TArray<FName>& OutFormats, bool bSupportDX11TextureFormats)
 {

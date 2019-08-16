@@ -1,0 +1,35 @@
+﻿INTSourceChangelist:3782314
+Title:iOS クイックスタート
+Crumbs:%ROOT%, Platforms, Platforms/Mobile/iOS
+Description:iOS デバイス上でのゲーム設定と起動に関するインストラクション
+Availability:Public
+Version:4.18
+tags:iOS
+tags:mobile
+parent:Platforms/Mobile/iOS
+Skilllevel:Intermediate
+type:quick start
+Checkpoint:iOSQS
+order:1
+topic-image:iOSQuickStart_topic.png
+
+![](iOSQuickStart_topic.png)
+
+## 目標
+
+Apple iOS クイックスタートでは、アンリアル エンジン 4 (UE4) で Android を開発するための PC もしくは iOS の基本的な設定を一通り説明します。
+さらに、アンリアル エディタの起動およびパッケージ化機能を使って、iOS デバイスにテンプレート ゲームを取り込む方法も説明します。
+
+## 目的
+
+* 必要な Apple 要件をインストールおよび設定する
+* 必要な Apple development certificates (開発証明書) を生成および設定する
+* iOS モバイル開発をターゲットにしたプロジェクトを作成する
+* Apple デバイスにレベルをデプロイする
+* プロジェクトをリリース用にパッケージする
+
+[DIR(output:"checkpoint" parent:"Platforms/Mobile/iOS/QuickStart")]
+
+[REGION:call_to_action]
+ [クリックして開始](Platforms/Mobile/iOS/QuickStart/1 "%Platforms/Mobile/iOS/QuickStart/1:title%")
+[/REGION]

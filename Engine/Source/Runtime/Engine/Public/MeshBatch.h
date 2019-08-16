@@ -8,6 +8,7 @@
 #include "MaterialShared.h"
 #include "Engine/Scene.h"
 #include "PrimitiveUniformShaderParameters.h"
+#include "VT/RuntimeVirtualTextureEnum.h"
 
 class FLightCacheInterface;
 
@@ -44,11 +45,11 @@ struct FMeshBatchElement
 	 * Primitive uniform buffer RHI
 	 * Must be null for vertex factories that manually fetch primitive data from scene data, in which case FPrimitiveSceneProxy::UniformBuffer will be used.
 	 */
-	FUniformBufferRHIParamRef PrimitiveUniformBuffer;
+	FRHIUniformBuffer* PrimitiveUniformBuffer;
 
 	/** 
 	 * Primitive uniform buffer to use for rendering, used when PrimitiveUniformBuffer is null. 
-	 * This interface allows a FMeshBatchElement to be setup for a uniform buffer that has not been initialized yet, (TUniformBuffer* is known but not the FUniformBufferRHIParamRef)
+	 * This interface allows a FMeshBatchElement to be setup for a uniform buffer that has not been initialized yet, (TUniformBuffer* is known but not the FRHIUniformBuffer*)
 	 */
 	const TUniformBuffer<FPrimitiveUniformShaderParameters>* PrimitiveUniformBufferResource;
 
@@ -95,7 +96,25 @@ struct FMeshBatchElement
 	/** Conceptual element index used for debug viewmodes. */
 	int8 VisualizeElementIndex;
 #endif
-	FVertexBufferRHIParamRef IndirectArgsBuffer;
+	FRHIVertexBuffer* IndirectArgsBuffer;
+	uint32 IndirectArgsOffset;
+
+	FORCEINLINE int32 GetNumPrimitives() const
+	{
+		if (bIsInstanceRuns && InstanceRuns)
+		{
+			int32 Count = 0;
+			for (uint32 Run = 0; Run < NumInstances; Run++)
+			{
+				Count += NumPrimitives * (InstanceRuns[Run * 2 + 1] - InstanceRuns[Run * 2] + 1);
+			}
+			return Count;
+		}
+		else
+		{
+			return NumPrimitives * NumInstances;
+		}
+	}
 
 	FMeshBatchElement()
 	:	PrimitiveUniformBuffer(nullptr)
@@ -121,6 +140,7 @@ struct FMeshBatchElement
 	,	VisualizeElementIndex(INDEX_NONE)
 #endif
 	,	IndirectArgsBuffer(nullptr)
+	,	IndirectArgsOffset(0)
 	{
 	}
 };
@@ -192,6 +212,11 @@ struct FMeshBatch
 	/** Whether the mesh batch should apply dithered LOD. */
 	uint32 bDitheredLODTransition : 1;
 
+	/** Whether the mesh batch can be rendered to virtual textures. */
+	uint32 bRenderToVirtualTexture : 1;
+	/** What virtual texture material type this mesh batch should be rendered with. */
+	uint32 RuntimeVirtualTextureMaterialType : ERuntimeVirtualTextureMaterialType_NumBits;
+
 	// can be NULL
 	const FLightCacheInterface* LCI;
 
@@ -243,22 +268,24 @@ struct FMeshBatch
 
 	FORCEINLINE int32 GetNumPrimitives() const
 	{
-		int32 Count=0;
-		for( int32 ElementIdx=0;ElementIdx<Elements.Num();ElementIdx++ )
+		int32 Count = 0;
+		for (int32 ElementIdx = 0; ElementIdx < Elements.Num(); ++ElementIdx)
 		{
-			if (Elements[ElementIdx].bIsInstanceRuns && Elements[ElementIdx].InstanceRuns)
-			{
-				for (uint32 Run = 0; Run < Elements[ElementIdx].NumInstances; Run++)
-				{
-					Count += Elements[ElementIdx].NumPrimitives * (Elements[ElementIdx].InstanceRuns[Run * 2 + 1] - Elements[ElementIdx].InstanceRuns[Run * 2] + 1);
-				}
-			}
-			else
-			{
-				Count += Elements[ElementIdx].NumPrimitives * Elements[ElementIdx].NumInstances;
-			}
+			Count += Elements[ElementIdx].GetNumPrimitives();
 		}
 		return Count;
+	}
+
+	FORCEINLINE bool HasAnyDrawCalls() const
+	{
+		for (int32 ElementIdx = 0; ElementIdx < Elements.Num(); ++ElementIdx)
+		{
+			if (Elements[ElementIdx].GetNumPrimitives() > 0 || Elements[ElementIdx].IndirectArgsBuffer)
+			{
+				return true;
+			}
+		}
+		return false;
 	}
 
 	ENGINE_API void PreparePrimitiveUniformBuffer(const FPrimitiveSceneProxy* PrimitiveSceneProxy, ERHIFeatureLevel::Type FeatureLevel);
@@ -290,6 +317,8 @@ struct FMeshBatch
 	,	bSelectable(true)
 	,	bRequiresPerElementVisibility(false)
 	,	bDitheredLODTransition(false)
+	,	bRenderToVirtualTexture(false)
+	,	RuntimeVirtualTextureMaterialType(0)
 	,	LCI(NULL)
 	,	VertexFactory(NULL)
 	,	MaterialRenderProxy(NULL)
@@ -303,7 +332,7 @@ struct FMeshBatch
 struct FUniformBufferValue
 {
 	const FShaderParametersMetadata* Type = nullptr;
-	FUniformBufferRHIParamRef UniformBuffer;
+	FRHIUniformBuffer* UniformBuffer;
 };
 
 

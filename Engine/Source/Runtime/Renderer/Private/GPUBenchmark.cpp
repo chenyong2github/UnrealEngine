@@ -70,7 +70,7 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, TRefCountPtr<IPooledRenderTarget>& Src)
 	{
-		const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = GetPixelShader();
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
@@ -133,7 +133,7 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View)
 	{
-		const FVertexShaderRHIParamRef ShaderRHI = GetVertexShader();
+		FRHIVertexShader* ShaderRHI = GetVertexShader();
 		
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 	}
@@ -191,7 +191,7 @@ struct FVertexThroughputDeclaration : public FRenderResource
 TGlobalResource<FVertexThroughputDeclaration> GVertexThroughputDeclaration;
 
 template <uint32 VsMethod, uint32 PsMethod>
-void RunBenchmarkShader(FRHICommandList& RHICmdList, FVertexBufferRHIParamRef VertexThroughputBuffer, const FSceneView& View, TRefCountPtr<IPooledRenderTarget>& Src, float WorkScale)
+void RunBenchmarkShader(FRHICommandList& RHICmdList, FRHIVertexBuffer* VertexThroughputBuffer, const FSceneView& View, TRefCountPtr<IPooledRenderTarget>& Src, float WorkScale)
 {
 	auto ShaderMap = GetGlobalShaderMap(View.GetFeatureLevel());
 
@@ -205,7 +205,7 @@ void RunBenchmarkShader(FRHICommandList& RHICmdList, FVertexBufferRHIParamRef Ve
 	TShaderMapRef<FPostProcessBenchmarkPS<PsMethod>> PixelShader(ShaderMap);
 
 	bool bVertexTest = VsMethod != 0;
-	FVertexDeclarationRHIParamRef VertexDeclaration = bVertexTest
+	FRHIVertexDeclaration* VertexDeclaration = bVertexTest
 		? GVertexThroughputDeclaration.DeclRHI
 		: GFilterVertexDeclaration.VertexDeclarationRHI;
 
@@ -268,7 +268,7 @@ void RunBenchmarkShader(FRHICommandList& RHICmdList, FVertexBufferRHIParamRef Ve
 	}
 }
 
-void RunBenchmarkShader(FRHICommandListImmediate& RHICmdList, FVertexBufferRHIParamRef VertexThroughputBuffer, const FSceneView& View, uint32 MethodId, TRefCountPtr<IPooledRenderTarget>& Src, float WorkScale)
+void RunBenchmarkShader(FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexThroughputBuffer, const FSceneView& View, uint32 MethodId, TRefCountPtr<IPooledRenderTarget>& Src, float WorkScale)
 {
 	SCOPED_DRAW_EVENTF(RHICmdList, Benchmark, TEXT("Benchmark Method:%d"), MethodId);
 
@@ -413,8 +413,6 @@ void RendererGPUBenchmark(FRHICommandListImmediate& RHICmdList, FSynthBenchmarkR
 {
 	check(IsInRenderingThread());
 
-	FRenderQueryPool TimerQueryPool(RQT_AbsoluteTime);
-
 	bool bValidGPUTimer = (FGPUTiming::GetTimingFrequency() / (1000 * 1000)) != 0;
 
 	if(!bValidGPUTimer)
@@ -498,18 +496,7 @@ void RendererGPUBenchmark(FRHICommandListImmediate& RHICmdList, FSynthBenchmarkR
 		// 0 / 1
 		uint32 DestRTIndex = 0;
 
-		const uint32 TimerSampleCount = IterationCount * MethodCount + 1;
-
-		static FRenderQueryRHIRef TimerQueries[TimerSampleCount];
-		static float LocalWorkScale[IterationCount];
-
-		for(uint32  i = 0; i < TimerSampleCount; ++i)
-		{
-			TimerQueries[i] = TimerQueryPool.AllocateQuery();
-		}
-
-		const bool bSupportsTimerQueries = (TimerQueries[0] != NULL);
-		if(!bSupportsTimerQueries)
+		if(!GSupportsTimestampRenderQueries)
 		{
 #if !PLATFORM_MAC
 			UE_LOG(LogSynthBenchmark, Warning, TEXT("GPU driver does not support timer queries."));
@@ -545,6 +532,16 @@ void RendererGPUBenchmark(FRHICommandListImmediate& RHICmdList, FSynthBenchmarkR
 			return;
 		}
 
+		const uint32 TimerSampleCount = IterationCount * MethodCount + 1;
+		FRenderQueryPoolRHIRef TimerQueryPool = RHICreateRenderQueryPool(RQT_AbsoluteTime, TimerSampleCount * 2);
+		FRHIPooledRenderQuery TimerQueries[TimerSampleCount];
+		float LocalWorkScale[IterationCount];
+
+		for (uint32 i = 0; i < TimerSampleCount; ++i)
+		{
+			TimerQueries[i] = TimerQueryPool->AllocateQuery();
+		}
+
 		IssueScalableLongGPUTask(RHICmdList, -1);
 		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
 
@@ -559,7 +556,7 @@ void RendererGPUBenchmark(FRHICommandListImmediate& RHICmdList, FSynthBenchmarkR
 			TimingSeries[MethodIterator].Init(IterationCount);
 		}
 
-		RHICmdList.EndRenderQuery(TimerQueries[0]);
+		RHICmdList.EndRenderQuery(TimerQueries[0].GetQuery());
 
 		// multiple iterations to see how trust able the values are
 		for(uint32 Iteration = 0; Iteration < IterationCount; ++Iteration)
@@ -610,7 +607,7 @@ void RendererGPUBenchmark(FRHICommandListImmediate& RHICmdList, FSynthBenchmarkR
 					RHIUnmapStagingSurface(RTItems[2]->GetRenderTargetItem().ShaderResourceTexture);
 				}*/
 
-				RHICmdList.EndRenderQuery(TimerQueries[QueryIndex]);
+				RHICmdList.EndRenderQuery(TimerQueries[QueryIndex].GetQuery());
 
 				// ping pong
 				DestRTIndex = 1 - DestRTIndex;
@@ -621,8 +618,7 @@ void RendererGPUBenchmark(FRHICommandListImmediate& RHICmdList, FSynthBenchmarkR
 			uint64 OldAbsTime = 0;
 			// flushes the RHI thread to make sure all RHICmdList.EndRenderQuery() commands got executed.
 			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
-			RHICmdList.GetRenderQueryResult(TimerQueries[0], OldAbsTime, true);
-			TimerQueryPool.ReleaseQuery(TimerQueries[0]);
+			RHICmdList.GetRenderQueryResult(TimerQueries[0].GetQuery(), OldAbsTime, true);
 
 			for(uint32 Iteration = 0; Iteration < IterationCount; ++Iteration)
 			{
@@ -633,8 +629,7 @@ void RendererGPUBenchmark(FRHICommandListImmediate& RHICmdList, FSynthBenchmarkR
 					uint32 QueryIndex = 1 + Iteration * MethodCount + MethodId;
 
 					uint64 AbsTime;
-					RHICmdList.GetRenderQueryResult(TimerQueries[QueryIndex], AbsTime, true);
-					TimerQueryPool.ReleaseQuery(TimerQueries[QueryIndex]);
+					RHICmdList.GetRenderQueryResult(TimerQueries[QueryIndex].GetQuery(), AbsTime, true);
 
 					uint64 RelTime = FMath::Max(AbsTime - OldAbsTime, 1ull);
 
@@ -667,7 +662,7 @@ void RendererGPUBenchmark(FRHICommandListImmediate& RHICmdList, FSynthBenchmarkR
 				}
 			}
 
-			if(bSupportsTimerQueries)
+			if(GSupportsTimestampRenderQueries)
 			{
 				for(uint32 MethodId = 0; MethodId < MethodCount; ++MethodId)
 				{

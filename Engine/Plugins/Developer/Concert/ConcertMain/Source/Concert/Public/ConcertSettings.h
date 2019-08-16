@@ -10,20 +10,26 @@
 #include "ConcertTransportSettings.h"
 #include "ConcertSettings.generated.h"
 
+namespace ConcertSettingsUtils
+{
+
+/** Returns an error messages if the user display name is invalid, otherwise, returns an empty text. */
+FText CONCERT_API ValidateDisplayName(const FString& Name);
+
+/** Returns an error messages if the specified session name is invalid, otherwise, returns an empty text. */
+FText CONCERT_API ValidateSessionName(const FString& Name);
+
+}
+
 USTRUCT()
 struct FConcertSessionSettings
 {
 	GENERATED_BODY()
 
-	FConcertSessionSettings()
-		: BaseRevision(0)
-	{}
-
 	void Initialize()
 	{
 		ProjectName = FApp::GetProjectName();
-		CompatibleVersion = FEngineVersion::CompatibleWith().ToString(EVersionComponent::Changelist);
-		BaseRevision = FEngineVersion::Current().GetChangelist(); // TODO: This isn't good enough for people using binary builds
+		// TODO: BaseRevision should have a robust way to know which content version a project is on, as we currently check this using the current build version (see EngineVersion in FConcertSessionVersionInfo), which works for UGS but isn't reliable for public binary builds
 	}
 
 	bool ValidateRequirements(const FConcertSessionSettings& Other, FText* OutFailureReason = nullptr) const
@@ -33,15 +39,6 @@ struct FConcertSessionSettings
 			if (OutFailureReason)
 			{
 				*OutFailureReason = FText::Format(NSLOCTEXT("ConcertMain", "Error_InvalidProjectNameFmt", "Invalid project name (expected '{0}', got '{1}')"), FText::AsCultureInvariant(ProjectName), FText::AsCultureInvariant(Other.ProjectName));
-			}
-			return false;
-		}
-
-		if (CompatibleVersion != Other.CompatibleVersion)
-		{
-			if (OutFailureReason)
-			{
-				*OutFailureReason = FText::Format(NSLOCTEXT("ConcertMain", "Error_InvalidEngineVersionFmt", "Invalid engine version (expected '{0}', got '{1}')"), FText::AsCultureInvariant(CompatibleVersion), FText::AsCultureInvariant(Other.CompatibleVersion));
 			}
 			return false;
 		}
@@ -66,36 +63,18 @@ struct FConcertSessionSettings
 	FString ProjectName;
 
 	/**
-	 * Compatible editor version for the session.
-	 * Can be specified on the server cmd with `-CONCERTVERSION=`
-	 */
-	UPROPERTY(config, VisibleAnywhere, Category="Session Settings")
-	FString CompatibleVersion;
-
-	/**
-	 * Base Revision the session is created at.
+	 * Base Revision the session was created at.
 	 * Can be specified on the server cmd with `-CONCERTREVISION=`
 	 */
 	UPROPERTY(config, VisibleAnywhere, Category="Session Settings")
-	uint32 BaseRevision;
+	uint32 BaseRevision = 0;
 
 	/**
-	 * This allow the session to be created with the data from a saved session.
-	 * Set the name of the desired save to restore its content in your session.
-	 * Leave this blank if you want to create an empty session.
-	 * Can be specified on the server cmd with `-CONCERTSESSIONTORESTORE=`
-	 */
-	UPROPERTY(config, VisibleAnywhere, Category="Session Settings")
-	FString SessionToRestore;
-
-	/**
-	 * This allow the session data to be saved when the session is deleted.
-	 * Set the name desired for the save and the session data will be moved in that save when the session is deleted
-	 * Leave this blank if you don't want to save the session data.
+	 * Override the default name chosen when archiving this session.
 	 * Can be specified on the server cmd with `-CONCERTSAVESESSIONAS=`
 	 */
 	UPROPERTY(config, VisibleAnywhere, Category="Session Settings")
-	FString SaveSessionAs;
+	FString ArchiveNameOverride;
 
 	// TODO: private session, password, etc etc,
 };
@@ -105,18 +84,13 @@ struct FConcertServerSettings
 {
 	GENERATED_BODY()
 
-	FConcertServerSettings()
-		: bIgnoreSessionSettingsRestriction(false)
-		, SessionTickFrequencySeconds(1)
-	{}
-
 	/** The server will allow client to join potentially incompatible sessions */
 	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category="Server Settings")
-	bool bIgnoreSessionSettingsRestriction;
+	bool bIgnoreSessionSettingsRestriction = false;
 
 	/** The timespan at which session updates are processed. */
 	UPROPERTY(config, EditAnywhere, DisplayName="Session Tick Frequency", AdvancedDisplay, Category="Server Settings", meta=(ForceUnits=s))
-	int32 SessionTickFrequencySeconds;
+	int32 SessionTickFrequencySeconds = 1;
 };
 
 UCLASS(config=Engine)
@@ -127,11 +101,31 @@ public:
 	UConcertServerConfig();
 
 	/**
+	 * If true, instruct the server to auto-archive sessions that were left in the working directory because the server did not exit properly rather than
+	 * restoring them as 'live' (the default).
+	 */
+	UPROPERTY(config)
+	bool bAutoArchiveOnReboot = false;
+
+	/**
 	 * Clean server sessions working directory when booting
 	 * Can be specified on the server cmd with `-CONCERTCLEAN`
 	 */
 	UPROPERTY(config, EditAnywhere, Category="Server Settings")
 	bool bCleanWorkingDir;
+
+	/**
+	 * Number of archived sessions to keep when booting, or <0 to keep all archived sessions
+	 */
+	UPROPERTY(config, EditAnywhere, Category="Server Settings")
+	int32 NumSessionsToKeep;
+
+	/** 
+	 * Name of the server, or empty to use the default name.
+	 * Can be specified on the server cmd with `-CONCERTSERVER=`
+	 */
+	UPROPERTY(config, EditAnywhere, Category="Server Settings")
+	FString ServerName;
 
 	/** 
 	 * Name of the default session created on the server.
@@ -139,6 +133,15 @@ public:
 	 */
 	UPROPERTY(config, EditAnywhere, Category="Session Settings")
 	FString DefaultSessionName;
+
+	/**
+	 * Name of the default session to restore on the server.
+	 * Set the name of the desired save to restore its content in your session.
+	 * Leave this blank if you want to create an empty session.
+	 * Can be specified on the editor cmd with `-CONCERTSESSIONTORESTORE=`.
+	 */
+	UPROPERTY(config, EditAnywhere, Category="Session Settings")
+	FString DefaultSessionToRestore;
 
 	/** Default server session settings */
 	UPROPERTY(config, EditAnywhere, Category="Session Settings")
@@ -151,6 +154,14 @@ public:
 	/** Endpoint settings passed down to endpoints on creation */
 	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category="Endpoint Settings", meta=(ShowOnlyInnerProperties))
 	FConcertEndpointSettings EndpointSettings;
+
+	/** The directory where the server keeps the live session files. Can be specified on the server command line with `-CONCERTWORKINGDIR=`*/
+	UPROPERTY(config)
+	FString WorkingDir;
+
+	/** The directory where the server keeps the archived session files. Can be specified on the server command line with `-CONCERTSAVEDDIR=`*/
+	UPROPERTY(config)
+	FString ArchiveDir;
 };
 
 USTRUCT()
@@ -198,6 +209,10 @@ struct FConcertClientSettings
 	/** Amount of latency compensation to apply to time-synchronization sensitive interactions */
 	UPROPERTY(config, EditAnywhere, DisplayName="Latency Compensation", AdvancedDisplay, Category="Client Settings", meta=(ForceUnits=ms))
 	float LatencyCompensationMs;
+
+	/** Array of tags that can be used for grouping and categorizing. */
+	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Client Settings")
+	TArray<FName> Tags;
 };
 
 UCLASS(config=Engine)
@@ -206,6 +221,29 @@ class CONCERT_API UConcertClientConfig : public UObject
 	GENERATED_BODY()
 public:
 	UConcertClientConfig();
+
+	/*
+	 * Mark this setting object as editor only.
+	 * This so soft object path reference made by this setting object won't be automatically grabbed by the cooker.
+	 * @see UPackage::Save, FSoftObjectPathThreadContext::GetSerializationOptions, FSoftObjectPath::ImportTextItem
+	 * @todo: cooker should have a better way to filter editor only objects for 'unsollicited' references.
+	 */
+	virtual bool IsEditorOnly() const
+	{
+		return true;
+	}
+
+	/**
+	 * True if this client should be "headless"? (ie, not display any UI).
+	 */
+	UPROPERTY(config)
+	bool bIsHeadless;
+
+	/**
+	 * True if the Multi-User module should install shortcut button and its drop-down menu in the level editor toolbar.
+	 */
+	UPROPERTY(config, EditAnywhere, Category="Client Settings", Meta=(ConfigRestartRequired=true, DisplayName="Enable Multi-User Toolbar Button"))
+	bool bInstallEditorToolbarButton;
 
 	/** 
 	 * Automatically connect or create default session on default server. 

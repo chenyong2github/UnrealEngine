@@ -5,6 +5,7 @@
 
 void FRigUnit_DeltaFromPreviousFloat::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
 	{
 		Delta = 0.f;
@@ -19,6 +20,7 @@ void FRigUnit_DeltaFromPreviousFloat::Execute(const FRigUnitContext& Context)
 
 void FRigUnit_DeltaFromPreviousVector::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
 	{
 		Delta = FVector::ZeroVector;
@@ -33,6 +35,7 @@ void FRigUnit_DeltaFromPreviousVector::Execute(const FRigUnitContext& Context)
 
 void FRigUnit_DeltaFromPreviousQuat::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
 	{
 		Delta = FQuat::Identity;
@@ -47,6 +50,7 @@ void FRigUnit_DeltaFromPreviousQuat::Execute(const FRigUnitContext& Context)
 
 void FRigUnit_DeltaFromPreviousTransform::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
 	{
 		Delta = FTransform::Identity;

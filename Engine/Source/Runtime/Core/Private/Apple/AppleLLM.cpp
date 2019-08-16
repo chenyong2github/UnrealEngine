@@ -26,8 +26,10 @@ const FLLMTagInfoApple ELLMTagNamesApple[] =
 	{ TEXT("Objective-C"),				GET_STATFNAME(STAT_ObjectiveCLLM),		NAME_None },									// ELLMTagApple::ObjectiveC
 };
 
-static IMP AllocWithZoneOriginal = nullptr;
-static IMP DeallocOriginal = nullptr;
+typedef id (*AllocWithZoneIMP)(id Obj, SEL Sel, struct _NSZone* Zone);
+typedef id (*DeallocIMP)(id Obj, SEL Sel);
+static AllocWithZoneIMP AllocWithZoneOriginal = nullptr;
+static DeallocIMP DeallocOriginal = nullptr;
 
 static id AllocWithZoneInterposer(id Obj, SEL Sel, struct _NSZone * Zone)
 {
@@ -117,9 +119,9 @@ void AppleLLM::Initialise()
 	Method AllocZone = class_getClassMethod([NSObject class], @selector(allocWithZone:));
 	Method Dealloc = class_getInstanceMethod([NSObject class], @selector(dealloc));
 	
-	AllocWithZoneOriginal = method_getImplementation(AllocZone);
-	DeallocOriginal = method_getImplementation(Dealloc);
-	
+	AllocWithZoneOriginal = (AllocWithZoneIMP)method_getImplementation(AllocZone);
+	DeallocOriginal = (DeallocIMP)method_getImplementation(Dealloc);
+
 	check(AllocWithZoneOriginal);
 	check(DeallocOriginal);
 	

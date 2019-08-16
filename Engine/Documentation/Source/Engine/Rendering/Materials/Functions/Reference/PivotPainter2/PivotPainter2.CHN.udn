@@ -1,12 +1,12 @@
-﻿Availability:Public
-Crumbs:%ROOT%
-Title:Pivot Painter 2 材质函数
-Description:用于在虚幻着色器网络中启用 Pivot Painter 2 MAXScript 利用的材质函数。
+﻿INTSourceChangelist:6180235
+Availability:Public
+Title:枢轴绘制器工具2.0材质函数
+Description: 旨在使枢轴绘制器2 MAXScript能够用于虚幻引擎着色器网络的材质函数。
 Type:reference
 Version:4.16
 Parent:Engine/Rendering/Materials/Functions/Reference
-Related:Engine/Content/Tools/PivotPainter2
-Related:Engine/Content/Tools/PivotPainter2/Reference
+Related:Engine/Content/Tools/PivotPainter/PivotPainter2
+Related:Engine/Content/Tools/PivotPainter/PivotPainter2/Reference
 Order:1
 Topic-image:PivotPainter2MF_Topic.png
 Social-image:PP2MaterialFunction_Social.png
@@ -25,48 +25,54 @@ Tags:Materials
 	560
 	[/PARAMLITERAL]
 	[PARAMLITERAL:videoid]
-	Kcqm89nu0tw
+	KO3y3b4cHb4
 	[/PARAMLITERAL]
 [/OBJECT]
 
-用户可利用 Pivot Painter 2 材质函数点入并解码使用 Pivot Painter 2 MAXScript 的纹理所存储的有用模型信息。MAXScript 输出的每个材质均可直接在材质中引用；但如果对纹理采样后未应用正确步骤，将出现不正确的值。利用此页面中的这些材质函数可快速解码纹理信息。 
+枢轴绘制器2的材质函数使您能够利用纹理来访问和解码枢轴绘制器2 MAXScript存储的有用模型信息。MAXScript输出的每个纹理都可以在材质中直接引用，但是如果在采样纹理之后没有应用适当的步骤，那么这些值将不正确。本页中给出的这些材质函数可让您轻松快速解码纹理信息。 
 
-此页面中包含的大量材质函数使用户能够使用 Pivot Painter 2 枢轴和旋转信息，通过材质实现特定效果。然而，Pivot Painter 2 更大的好处是易于结合提供的植物采样着色器 **PivotPainter2FoliageShader** 使用。该特定材质函数使用户能够用植物快速设置模型与其通过 Pivot Painter 2 生成的纹理，从而创建风和湍流效果，且无需自行创建材质网络。
+本页中包含的很多材质函数将使您能够使用枢轴绘制器2枢轴和旋转信息通过您的材质做出特定的效果，然而，
+枢轴绘制器2的更大的好处之一是它容易与提供的植物样本着色器  **PivotPainter2FoliageShader** 配合使用。该特定材质函数使您能够 
+快速设置您的模型及其枢轴绘制器2用您的植物生成的纹理，以快速创建风和湍流，而无需创建您自己的材质网络。
 
 
 
 
-## Pivot Painter 2 函数
+## 枢轴绘制器2函数
 
-以下是与 Pivot Painter 2 相关联的所有函数的列表。 
+以下是与枢轴绘制器2.0相关的所有函数的列表。 
 
 
 ### PivotPainter2FoliageShader
 
 ![](PP2_FoliageShader.png)
 
-此材质函数包含纹理和数字参数，应对其进行调整，匹配特定资源。 
+此材质函数包含纹理和数值参数，这些参数应加以修改以适合您的特定资源。 
 
-此外，建议为此特定函数创建一个材质实例，可在其中访问材质函数的参数，对 Pivot Painter 2 着色器进行修改。 
+#### PivotPainter2FoliageShader工作流
+
+对于此特定函数，您应该为您的材质创建一个材质实例，这样您就可以访问材质函数已经设置好的关于风吹和湍流的参数。 
+
+此外，对于此特定函数，建议您创建一个材质实例，其中材质函数的参数将可用于对枢轴绘制器2着色器进行更改。 
 
 [REGION:lightbox]
 [![](PP2FoliageShaderMaterialInstanceParams.png)(w:300)](PP2FoliageShaderMaterialInstanceParams.png)
 [/REGION]
 [REGION:caption]
-_点击图片查看全图。_
+单击图像以查看完整尺寸视图。
 [/REGION]
 
 
 [REGION:raw]
-| 项目 | 描述 |
-| -------- | -------- |
+| 项目 | 说明 |
+| --- | --- |
 |[REGION:tablesection]输入[/REGION] ||
-| **Material Attributes** | 确认在材质中使用切线空间法线，已取消勾选 **Use Tangent Space Normals** 选项。法线内部将转换为世界空间。|
-| **Pivot Painter Texture Coordinate** | 接受输入，引用正在使用的纹理坐标 UV。|
+| **材质属性（Material Attributes）** | 确保您在材质中使用了切线空间法线，并且 **使用切线空间法线（Use Tangent Space Normals）** 选项未选中。法线将在内部转换为世界场景空间。|
+| **枢轴绘制器纹理坐标（Pivot Painter Texture Coordinate）** | 获取一个输入来引用正在使用的纹理坐标UV。|
 |[REGION:tablesection]输出[/REGION] ||
-| **Final Material with World Space Normals** | 如材质实例中启用了 **Animate Level "X" Normals**，这个输出材质属性将替代输入材质属性的世界位置偏差和法线输出。[REGION:note] 更新模型的法线开销较大，需要有选择性地进行。[/REGION]|
-| **Modified World Space Normal Component** | 此输出自动返回修改的资源法线。|
-| **World Position Offset Component** | 此输出返回新的世界位置偏差值。|
+| **具有世界场景法线的最终材质（Final Material with World Space Normals）** | 如果材质实例启用了 **Animate Level "X" Normals**，它将输出材质属性以取代输入材质属性的世界场景位置偏移和法线输出。[REGION:note] 更新模型的法线开销非常高昂，可以有选择的执行。[/REGION] |
+| **修改的世界场景空间法线组件（Modified World Space Normal Component）** | 它输出本身返回修改后的资源法线。|
+| **世界场景位置偏移组件（World Position Offset Component）** | 它输出返回新世界场景位置偏移值。|
 [/REGION]
 
 
@@ -75,16 +81,16 @@ _点击图片查看全图。_
 
 ![](PP2_CalculateMeshElementIndex.png)
 
-此材质函数从模型的 UV 中拉取模型的元素 ID。
+此材质函数从模型的UV中提取模型的元素ID。
 
 [REGION:raw]
-| 项目 | 描述 |
-| -------- | -------- |
+| 项目 | 说明 |
+| --- | --- |
 |[REGION:tablesection]输入[/REGION] ||
-| **Data Texture Dimensions** | 使用纹理属性节点收集纹理的有效维度。|
-| **Pivot Painter UV Coordinates** | 从模型的 UV 拉取模型的元素 ID。|
+| **数据纹理维度（Data Texture Dimensions）** | 使用纹理属性节点来收集纹理的维度。|
+| **枢轴绘制器UV坐标（Pivot Painter UV Coordinates）** | 从模型的UV中提取模型元素ID。|
 |[REGION:tablesection]输出[/REGION] ||
-| **Index** | 此输出从模型的 UV 中拉取模型元素 ID。|
+| **索引（Index）** | 此输出从模型的UV中提取模型元素ID。|
 [/REGION]
 
 
@@ -93,15 +99,15 @@ _点击图片查看全图。_
 
 ![](PP2_Decode8bitAlphaAxisExtent.png)
 
-此材质函数将 8 位轴范围纹理数据信息从 Pivot Painter 2 MAXScript 重新调整比例到世界空间数据中。
+此材质函数将8位轴扩展纹理数据信息从枢轴绘制器2 MAXScript重新缩放到世界场景空间数据中。
 
 [REGION:raw]
-| 项目 | 描述 |
-| -------- | -------- |
+| 项目 | 说明 |
+| --- | --- |
 |[REGION:tablesection]输入[/REGION] ||
-| **8 Bit Alpha Extent Value** | 用一个 8 位透明度范围值从一个纹理插入一个 Pivot Painter 2 透明纹理组件。在 Render 选项下 Pivot Painter 2 MAXScript 中的透明度输出下拉选项中选择适当选项，即可将其生成。|
+| **8位Alpha扩展值（8 Bit Alpha Extent Value）** | 从具有8位alpha扩展值的纹理中插入枢轴绘制器2 alpha纹理组件。这可以通过在渲染选项（Render Options）下的枢轴绘制器2 MAXScript中的alpha输出下拉选项内选择适当的选项来生成。|
 |[REGION:tablesection]输出[/REGION] ||
-| **Rescaled Extent** | 输出值代表所选模型从物体的枢轴点开始、沿给定轴的长度。此返回值可代表 8 到 2048 之间增量为 8 的值。|
+| **重新缩放扩展（Rescaled Extent）** | 此输出值表示所选模型从对象的轴心点开始沿给定轴的长度。返回值可以8为增量表示8到2048之间的值。|
 [/REGION]
 
 
@@ -110,15 +116,15 @@ _点击图片查看全图。_
 
 ![](PP2_DecodeAxisVector.png)
 
-此材质函数将 Pivot Painter 2 的本地空间矢量信息转换到世界空间矢量中。
+此材质函数将枢轴绘制器2的局部空间矢量信息转换为世界场景空间矢量。
 
 [REGION:raw]
-| 项目 | 描述 |
-| -------- | -------- |
+| 项目 | 说明 |
+| --- | --- |
 |[REGION:tablesection]输入[/REGION] ||
-| **Axis Vector RGB** | 从输出这些数值的 Pivot Painter 2 纹理输入 RGB 矢量信息。|
+| **轴矢量RGB（Axis Vector RGB）** | 从输出这些值的从枢轴绘制器2纹理中输入RGB矢量信息。|
 |[REGION:tablesection]输出[/REGION] ||
-| **Result** | 输入的轴矢量信息已被转换为世界空间。|
+| **结果（Result）** | 输入轴矢量信息现在已经转换到世界场景空间。|
 [/REGION]
 
 
@@ -127,33 +133,33 @@ _点击图片查看全图。_
 
 ![](PP2_DecodePosition.png)
 
-此材质函数将 Pivot Painter 2 的本地空间信息转换到世界位置信息中。
+此材质函数将枢轴绘制器2的局部空间信息转化为世界场景位置信息。
 
 [REGION:raw]
-| 项目 | 描述 |
-| -------- | -------- |
+| 项目 | 说明 |
+| --- | --- |
 |[REGION:tablesection]输入[/REGION] ||
-|** Position RGB** | 插入包含 Pivot Painter 2 **枢轴位置（16 位）** 数据的纹理的 RGB 值。|
+| **位置RGB（Position RGB）** | 插入包含枢轴绘制器2 **枢轴位置（16位）** 数据的纹理的RGB值。|
 |[REGION:tablesection]输出[/REGION] ||
-| **Result** | 输出值是每个模型枢轴点位置的世界空间位置（因其由 Pivot Painter 2 所采集）。|
+| **结果（Result）** | 由于轴心点位置被枢轴绘制器2所捕获，因此输出值为每个模型的轴心点位置的世界场景空间位置。|
 [/REGION]
 
 ### ms_PivotPainter2_ReturnParentTextureInfo
 
 ![](PP2_ReturnParentTextureInfo.png)
 
-此材质函数使用 Pivot Painter 2 的 **父索引（整数作为浮点）Parent Index (Integer as Float)** 纹理数据读取父项子对象的纹理数据。
+此材质函数使用枢轴绘制器2的 **父级索引（整数视为浮点数）** 纹理数据读取父级子对象的纹理数据。
 
 [REGION:raw]
-| 项目 | 描述 |
-| -------- | -------- |
+| 项目 | 说明 |
+| --- | --- |
 |[REGION:tablesection]输入[/REGION] ||
-| **Parent Index As Float** | 此输入假定数据为浮点形式。如从父索引“整数为浮点”纹理进行读取，首先使用材质函数 **ms_PivotPainter2_UnpackIntegerAsFloat** 解码资源。|
-| **Texture Dimensions** | 纹理的当前有效维度。|
-| **Current Index** | 如需要确定此资源是否为另一个组件的子项，才有必要提供此值。|
+| **父级索引视为浮点数（Parent Index As Float）** | 此输入假设数据均以浮点形式表示。如果您正在从父级索引“整数存储为浮点数”纹理中读取数据，那么请首先使用材质函数 **ms_PivotPainter2_UnpackIntegerAsFloat** 对资源进行解码。|
+| **纹理维度（Texture Dimensions）** | 纹理的当前维度。|
+| **当前索引（Current Index）** | 只有当您想确定该资源是否是另一个组件的子项时，才需要提供此值。|
 |[REGION:tablesection]输出[/REGION] ||
-| **Parent UVs** | 返回元素的父元素像素位置的 UV 坐标。|
-| **Is Child?**| 如物体是另一个物体的子项，此项则返回 1。否则它将返回 0。这需要当前索引被输入到 **Current Index** 输入中。如使用模型的 UV 引用纹理，则可使用 **ms_PivotPainter2_CalculateMeshElementIndex** 寻找当前索引。|
+| **父级UV（Parent UVs）** | 它输出元素的父元素像素位置的UV坐标。|
+| **是否为子项？（Is Child?）**| 如果对象是另一个对象的子项，则返回1。否则返回0。这要求在 **当前索引（Current Index）** 输入中输入当前索引。如果您正在使用模型的UV引用纹理，则可以使用 **ms_PivotPainter2_CalculateMeshElementIndex** 找到当前索引。|
 [/REGION]
 
 
@@ -161,15 +167,15 @@ _点击图片查看全图。_
 
 ![](PP2_UnpackIntegerAsFloat.png)
 
-此材质函数可解码 Pivot Painter 2 的 **Integer as Float** 纹理数据。 
+此材质函数对枢轴绘制器2的 **整数视为浮点数（Integer as Float）** 纹理数据进行解码。 
 
 [REGION:raw]
-| 项目 | 描述 |
-| -------- | -------- |
+| 项目 | 说明 |
+| --- | --- |
 |[REGION:tablesection]输入[/REGION] ||
-| **Integer as Float** | 它解码整数数据，以便转换为浮点数据。|
+| **整数视为浮点数（Integer as Float）** | 此函数将对整数数据进行解码，以便将其转换为浮点数据。|
 |[REGION:tablesection]输出[/REGION] ||
-| **Result** | 将 Pivot Painter 整数输出为浮点数据。|
+| **结果（Result）** | 此函数将输出枢轴绘制器整数作为浮点数据。|
 [/REGION]
 
 

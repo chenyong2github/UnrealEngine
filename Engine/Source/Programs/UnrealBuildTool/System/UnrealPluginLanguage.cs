@@ -51,6 +51,7 @@ namespace UnrealBuildTool
 	 *	$S(BuildDir) = project's platform appropriate build directory (within the Intermediate folder)
 	 *	$S(Configuration) = configuration type (Debug, DebugGame, Development, Test, Shipping)
 	 *	$B(Distribution) = true if distribution build
+	 *	$B(IsEmbedded) = true if project compiled for embedded use [Android-only]
 	 *	$I(EngineMajorVersion) = major version of engine (ex. 4)
 	 *	$I(EngineMinorVersion) = minor version of engine (ex. 21)
 	 *	$I(EnginePatchVersion) = patch version of engine (ex. 0)
@@ -2401,9 +2402,10 @@ namespace UnrealBuildTool
 			return GlobalContext.StringVariables["Output"];
 		}
 
-		public void Init(List<string> Architectures, bool bDistribution, string EngineDirectory, string BuildDirectory, string ProjectDirectory, string Configuration)
+		public void Init(List<string> Architectures, bool bDistribution, string EngineDirectory, string BuildDirectory, string ProjectDirectory, string Configuration, bool bIsEmbedded)
 		{
 			GlobalContext.BoolVariables["Distribution"] = bDistribution;
+			GlobalContext.BoolVariables["IsEmbedded"] = bIsEmbedded;
 			GlobalContext.StringVariables["Configuration"] = Configuration;
 
 			GlobalContext.StringVariables["EngineDir"] = EngineDirectory.Replace("\\", "/");

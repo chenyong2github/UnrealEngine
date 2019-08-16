@@ -260,21 +260,21 @@ void SPinTypeSelector::Construct(const FArguments& InArgs, FGetPinTypeTree GetPi
 	TreeViewHeight = InArgs._TreeViewHeight;
 
 	TargetPinType = InArgs._TargetPinType;
-	bIsCompactSelector = InArgs._bCompactSelector;
+	SelectorType = InArgs._SelectorType;
 
 	bIsRightMousePressed = false;
 
 	// Depending on if this is a compact selector or not, we generate a different compound widget
 	TSharedPtr<SWidget> Widget;
 
-	if (InArgs._bCompactSelector)
+	if (SelectorType == ESelectorType::Compact)
 	{
 		// Only have a combo button with an icon
 		Widget = SAssignNew( TypeComboButton, SComboButton )
 			.OnGetMenuContent(this, &SPinTypeSelector::GetMenuContent, false)
 			.ContentPadding(0)
 			.ToolTipText(this, &SPinTypeSelector::GetToolTipForComboBoxType)
-			.HasDownArrow(!InArgs._bCompactSelector)
+			.HasDownArrow(false)
 			.ButtonStyle(FEditorStyle::Get(),  "BlueprintEditor.CompactPinTypeSelector")
 			.ButtonContent()
 			[
@@ -287,7 +287,18 @@ void SPinTypeSelector::Construct(const FArguments& InArgs, FGetPinTypeTree GetPi
 				.ColorAndOpacity(this, &SPinTypeSelector::GetTypeIconColor)
 			];
 	}
-	else
+	else if (SelectorType == ESelectorType::None)
+	{
+		Widget = SNew(
+					SDoubleImage,
+					TAttribute<const FSlateBrush*>(this, &SPinTypeSelector::GetSecondaryTypeIconImage),
+					TAttribute<FSlateColor>(this, &SPinTypeSelector::GetSecondaryTypeIconColor)
+				)
+				.ToolTipText(this, &SPinTypeSelector::GetToolTipForComboBoxType)
+				.Image(this, &SPinTypeSelector::GetTypeIconImage)
+				.ColorAndOpacity(this, &SPinTypeSelector::GetTypeIconColor);
+	}
+	else if (SelectorType == ESelectorType::Full)
 	{
 		// Traditional Pin Type Selector with a combo button, the icon, the current type name, and a toggle button for being an array
 		TSharedPtr<SWidget> ContainerControl = SNew(SComboButton)
@@ -423,6 +434,8 @@ void SPinTypeSelector::Construct(const FArguments& InArgs, FGetPinTypeTree GetPi
 				.ButtonContent()
 				[
 					SNew(SHorizontalBox)
+					.Clipping(EWidgetClipping::OnDemand)
+
 					+SHorizontalBox::Slot()
 					.AutoWidth()
 					.VAlign(VAlign_Center)
@@ -433,7 +446,6 @@ void SPinTypeSelector::Construct(const FArguments& InArgs, FGetPinTypeTree GetPi
 						.ColorAndOpacity( this, &SPinTypeSelector::GetSecondaryTypeIconColor )
 					]
 					+SHorizontalBox::Slot()
-					.AutoWidth()
 					.VAlign(VAlign_Center)
 					.HAlign(HAlign_Left)
 					[
@@ -531,6 +543,8 @@ void SPinTypeSelector::OnArrayStateToggled()
 
 void SPinTypeSelector::OnContainerTypeSelectionChanged( EPinContainerType PinContainerType)
 {
+	const FScopedTransaction Transaction(LOCTEXT("ChangeParam", "Change Parameter Type"));
+
 	FEdGraphPinType NewTargetPinType = TargetPinType.Get();
 	NewTargetPinType.ContainerType = PinContainerType;
 
@@ -1062,21 +1076,21 @@ FText SPinTypeSelector::GetToolTipForComboBoxType() const
 	FText EditText;
 	if(IsEnabled())
 	{
-		if (bIsCompactSelector)
+		if (SelectorType == ESelectorType::Compact)
 		{
-			EditText = LOCTEXT("CompactPinTypeSelector", "Left click to select the variable's pin type. Right click to toggle the type as an array.");
+			EditText = LOCTEXT("CompactPinTypeSelector", "Left click to select the variable's pin type. Right click to toggle the type as an array.\n");
 		}
-		else
+		else if (SelectorType == ESelectorType::Full)
 		{
-			EditText = LOCTEXT("PinTypeSelector", "Select the variable's pin type.");
+			EditText = LOCTEXT("PinTypeSelector", "Select the variable's pin type.\n");
 		}
 	}
 	else
 	{
-		EditText = LOCTEXT("PinTypeSelector_Disabled", "Cannot edit variable type when they are inherited from parent.");
+		EditText = LOCTEXT("PinTypeSelector_Disabled", "Cannot edit variable type when they are inherited from parent.\n");
 	}
 
-	return FText::Format(LOCTEXT("PrimaryTypeTwoLines", "{0}\nCurrent Type: {1}"), EditText, GetTypeDescription());
+	return FText::Format(LOCTEXT("PrimaryTypeTwoLines", "{0}Current Type: {1}"), EditText, GetTypeDescription());
 }
 
 FText SPinTypeSelector::GetToolTipForComboBoxSecondaryType() const
@@ -1147,7 +1161,7 @@ FText SPinTypeSelector::GetToolTipForContainerWidget() const
 
 FReply SPinTypeSelector::OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
 {
-	if(bIsCompactSelector && MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
+	if (SelectorType == ESelectorType::Compact && MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
 	{
 		bIsRightMousePressed = true;
 		return FReply::Handled();
@@ -1158,7 +1172,7 @@ FReply SPinTypeSelector::OnMouseButtonDown( const FGeometry& MyGeometry, const F
 
 FReply SPinTypeSelector::OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
 {
-	if(bIsCompactSelector && MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
+	if (SelectorType == ESelectorType::Compact && MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
 	{
 		if (bIsRightMousePressed)
 		{

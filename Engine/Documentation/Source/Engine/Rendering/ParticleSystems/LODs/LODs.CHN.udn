@@ -1,9 +1,11 @@
-﻿INTSourceChangelist:2603854
+﻿INTSourceChangelist:3782314
 Availability:Public
 Title:粒子系统细节级别（LOD）
 Crumbs: %ROOT%, Engine, Engine/Rendering/ParticleSystems
 Description:粒子的 GPU 模拟，可允许成百上千的粒子同时存在。
-Version:4.9
+Version: 4.9
+tags:Particles
+topic-image:ParticleSystemLOD_topic.png
 
 [TOC(start:2 end:3)]
 
@@ -31,6 +33,7 @@ Version:4.9
 该文档讲述粒子系统中细节层级（LODs）的创建以及在游戏中的实际用法。
 
 
+(#CascadeLODControls)
 ## 级联 LOD 功能键
 
 以下部分讲述级联工具栏中的 LOD 功能键。
@@ -59,6 +62,7 @@ Version:4.9
 
 
 
+(#CreatingLODLevelsinaParticleSystem)
 ## 在粒子系统中创建 LOD 层
 
 以下部分将讲述 LOD 全支持粒子系统创建的常规设计流程。流程的步骤详解如下：
@@ -124,6 +128,7 @@ Version:4.9
 ![LOD_66.png](LOD_66.png)
 
 
+(#LODMethodandDistanceSettings)
 ## LOD 方法和距离设置
 
 粒子系统的游戏内操作由两个模式中的一个完成。每个粒子系统中名为 LODMethod 的列举提供确定此模式的方法。该模式交替控制 LOD 距离的处理方法。

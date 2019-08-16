@@ -2,7 +2,7 @@
 
 
 #pragma once
-
+#include "CollisionQueryFilterCallbackCore.h"
 #include "CollisionQueryParams.h"
 #include "Physics/PhysicsInterfaceTypes.h"
 
@@ -14,24 +14,13 @@
 
 struct FBodyInstance;
 
-/** 
- *
- * Make sure this matches PxQueryHitType for HitTypeToPxQueryHitType to work
- */
-enum class ECollisionQueryHitType : uint8
-{
-	None = 0,
-	Touch = 1,
-	Block = 2
-};
-
 /** TArray typedef of components to ignore. */
 typedef FCollisionQueryParams::IgnoreComponentsArrayType FilterIgnoreComponentsArrayType;
 
 /** TArray typedef of actors to ignore. */
 typedef FCollisionQueryParams::IgnoreActorsArrayType FilterIgnoreActorsArrayType;
 
-class FCollisionQueryFilterCallback
+class FCollisionQueryFilterCallback : public ICollisionQueryFilterCallbackBase
 {
 public:
 	/** Result of PreFilter callback. */
@@ -66,16 +55,42 @@ public:
 		bIgnoreBlocks = InQueryParams.bIgnoreBlocks;
 		bDiscardInitialOverlaps = !InQueryParams.bFindInitialOverlaps;
 	}
+	~FCollisionQueryFilterCallback() {}
 
 
 	static ECollisionQueryHitType CalcQueryHitType(const FCollisionFilterData& QueryFilter, const FCollisionFilterData& ShapeFilter, bool bPreFilter = false);
 
-	ECollisionQueryHitType PreFilter(const FCollisionFilterData& FilterData, const FCollisionFilterData& ShapeFilterData, uint32 ComponentID, const FBodyInstance* BodyInstance);
+	ECollisionQueryHitType PreFilterImp(const FCollisionFilterData& FilterData, const FCollisionFilterData& ShapeFilterData, uint32 ComponentID, const FBodyInstance* BodyInstance);
 
-	ECollisionQueryHitType PostFilter(const FCollisionFilterData& FilterData, bool bIsOverlap);
+	ECollisionQueryHitType PostFilterImp(const FCollisionFilterData& FilterData, bool bIsOverlap);
 
-	ECollisionQueryHitType PostFilter(const FCollisionFilterData& FilterData, const FPhysicsQueryHit& Hit);
-	ECollisionQueryHitType PreFilter(const FCollisionFilterData& FilterData, const FPhysicsShape& Shape, const FPhysicsActor& Actor);
+#if WITH_PHYSX
+	ECollisionQueryHitType PostFilterImp(const FCollisionFilterData& FilterData, const physx::PxQueryHit& Hit);
+	ECollisionQueryHitType PreFilterImp(const FCollisionFilterData& FilterData, const physx::PxShape& Shape, const physx::PxActor& Actor);
+#endif
+
+#if INCLUDE_CHAOS
+	ECollisionQueryHitType PreFilterImp(const FCollisionFilterData& FilterData, const Chaos::TPerShapeData<float,3>& Shape, const Chaos::TGeometryParticle<float,3>& Actor);
+	ECollisionQueryHitType PostFilterImp(const FCollisionFilterData& FilterData, const ChaosInterface::FQueryHit& Hit);
+#endif
+
+#if INCLUDE_CHAOS
+	virtual ECollisionQueryHitType PostFilter(const FCollisionFilterData& FilterData, const ChaosInterface::FQueryHit& Hit) override
+	{
+		return PostFilterImp(FilterData, Hit);
+	}
+	virtual ECollisionQueryHitType PreFilter(const FCollisionFilterData& FilterData, const Chaos::TPerShapeData<float,3>& Shape, const Chaos::TGeometryParticle<float,3>& Actor) override
+	{
+		return PreFilterImp(FilterData, Shape, Actor);
+	}
+#endif
+
+#if WITH_PHYSX
+	virtual ECollisionQueryHitType PostFilter(const FCollisionFilterData& FilterData, const physx::PxQueryHit& Hit) override { return PostFilterImp(FilterData, Hit); }
+	virtual ECollisionQueryHitType PreFilter(const FCollisionFilterData& FilterData, const physx::PxShape& Shape, physx::PxRigidActor& Actor) override { return PreFilterImp(FilterData, Shape, Actor); }
+	virtual PxQueryHitType::Enum preFilter(const PxFilterData& filterData, const PxShape* shape, const PxRigidActor* actor, PxHitFlags& queryFlags) override;
+	virtual PxQueryHitType::Enum postFilter(const PxFilterData& filterData, const PxQueryHit& hit) override;
+#endif
 
 #if DETECT_SQ_HITCHES
 	// Util struct to record what preFilter was called with

@@ -6,7 +6,6 @@
 #include "MeshEditorCommands.h"
 #include "EditableMesh.h"
 #include "GeometryCollection/GeometryCollectionObject.h"
-#include "GeometryCollection/GeometryCollectionBoneNode.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "MeshFractureSettings.h"
 
@@ -29,11 +28,14 @@ protected:
 	/** Find the editable mesh associated with this actor */
 	UEditableMesh* GetEditableMeshForActor(AActor* Actor, TArray<UEditableMesh *>& SelectedMeshes);
 
+	/** Find the editable mesh associated with this component */
+	UEditableMesh* GetEditableMeshForComponent(UActorComponent* PrimitiveActorComponent, TArray<UEditableMesh *>& SelectedMeshes);
+
 	/** Create a Geometry Actor */
-	class AGeometryCollectionActor* CreateNewGeometryActor(const FString& Name, const FTransform& Transform, UEditableMesh* SourceMesh);
+	// class AGeometryCollectionActor* CreateNewGeometryActor(const FString& Name, const FTransform& Transform, UEditableMesh* SourceMesh, bool AddMaterials = false);
 
 	/** Create a geomerty Collection asset */
-	class UPackage* CreateGeometryCollectionPackage(UGeometryCollection*& GeometryCollection);
+	// class UPackage* CreateGeometryCollectionPackage(UGeometryCollection*& GeometryCollection);
 
 	/** Where fracturing is concerned we expect a single parent root node */
 	void AddSingleRootNodeIfRequired(UGeometryCollection* GeometryCollection);
@@ -54,7 +56,7 @@ protected:
 	int GetRootBone(const UGeometryCollection* GeometryCollection);
 
 	/** Appen all the selected meshes to a geometry collection */
-	void AppendMeshesToGeometryCollection(TArray<UEditableMesh*>& SelectedMeshes, UEditableMesh* SourceMesh, FTransform &SourceActorTransform, UGeometryCollection* GeometryCollection, bool DeleteSourceMesh, TArray<int32>& OutNewNodeElements);
+	void AppendMeshesToGeometryCollection(TArray<AActor*>& SelectedActors, TArray<UEditableMesh*>& SelectedMeshes, UEditableMesh* SourceMesh, FTransform &SourceActorTransform, UGeometryCollection* GeometryCollection, bool DeleteSourceMesh, TArray<int32>& OutNewNodeElements);
 
 	/** Merge two lists of selections into one */
 	void MergeSelections(const UGeometryCollectionComponent* SourceComponent, const TArray<int32>& SelectionB, TArray<int32>& MergedSelectionOut);
@@ -63,7 +65,7 @@ protected:
 	void GetCenterOfBone(UGeometryCollection* GeometryCollection, int Element, FVector& CentreOut);
 
 	/** recursively find centres of child geometry nodes */
-	void CombineCenterOfGeometryRecursive(TArray<FTransform>& Transforms, const TManagedArray<FGeometryCollectionBoneNode>& Hierarchy, int Element, FVector& SumCOMOut, int& CountOut);
+	void CombineCenterOfGeometryRecursive(const FGeometryCollection* GeometryCollection, TArray<FTransform>& Transforms, const TManagedArray<TSet<int32>>& ChildrenArray, int Element, FVector& SumCOMOut, int& CountOut);
 
 	/** Get array of selected actors */
 	TArray<AActor*> GetSelectedActors();

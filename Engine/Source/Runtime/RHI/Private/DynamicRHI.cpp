@@ -335,22 +335,87 @@ void FDynamicRHI::EnableIdealGPUCaptureOptions(bool bEnabled)
 	}	
 }
 
-void FDynamicRHI::RHITransferIndexBufferUnderlyingResource(FIndexBufferRHIParamRef DestIndexBuffer, FIndexBufferRHIParamRef SrcIndexBuffer)
+void FDynamicRHI::RHITransferIndexBufferUnderlyingResource(FRHIIndexBuffer* DestIndexBuffer, FRHIIndexBuffer* SrcIndexBuffer)
 {
 	UE_LOG(LogRHI, Fatal, TEXT("RHITransferIndexBufferUnderlyingResource isn't implemented for the current RHI"));
 }
 
-void FDynamicRHI::RHITransferVertexBufferUnderlyingResource(FVertexBufferRHIParamRef DestVertexBuffer, FVertexBufferRHIParamRef SrcVertexBuffer)
+void FDynamicRHI::RHITransferVertexBufferUnderlyingResource(FRHIVertexBuffer* DestVertexBuffer, FRHIVertexBuffer* SrcVertexBuffer)
 {
 	UE_LOG(LogRHI, Fatal, TEXT("RHITransferVertexBufferUnderlyingResource isn't implemented for the current RHI"));
 }
 
-void FDynamicRHI::RHIUpdateShaderResourceView(FShaderResourceViewRHIParamRef SRV, FVertexBufferRHIParamRef VertexBuffer, uint32 Stride, uint8 Format)
+void FDynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FRHIVertexBuffer* VertexBuffer, uint32 Stride, uint8 Format)
 {
 	UE_LOG(LogRHI, Fatal, TEXT("RHIUpdateShaderResourceView isn't implemented for the current RHI"));
 }
 
-void FDynamicRHI::RHIUpdateShaderResourceView(FShaderResourceViewRHIParamRef SRV, FIndexBufferRHIParamRef IndexBuffer)
+void FDynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FRHIIndexBuffer* IndexBuffer)
 {
 	UE_LOG(LogRHI, Fatal, TEXT("RHIUpdateShaderResourceView isn't implemented for the current RHI"));
+}
+
+FDefaultRHIRenderQueryPool::FDefaultRHIRenderQueryPool(ERenderQueryType InQueryType, FDynamicRHI* InDynamicRHI, uint32 InNumQueries)
+	: DynamicRHI(InDynamicRHI)
+	, QueryType(InQueryType)
+	, NumQueries(InNumQueries)
+{
+	if (NumQueries != UINT32_MAX && (GSupportsTimestampRenderQueries || InQueryType != RQT_AbsoluteTime))
+	{
+		Queries.Reserve(NumQueries);
+		for (uint32 i = 0; i < NumQueries; i++)
+		{
+			Queries.Push(DynamicRHI->RHICreateRenderQuery(QueryType));
+			check(Queries.Last().IsValid());
+			++AllocatedQueries;
+		}
+	}
+}
+
+FDefaultRHIRenderQueryPool::~FDefaultRHIRenderQueryPool()
+{
+	check(IsInRenderingThread());
+	checkf(AllocatedQueries == Queries.Num(), TEXT("Querypool deleted before all Queries have been released"));
+}
+
+FRHIPooledRenderQuery FDefaultRHIRenderQueryPool::AllocateQuery()
+{
+	check(IsInRenderingThread());
+	if (Queries.Num() > 0)
+	{
+		return FRHIPooledRenderQuery(this, Queries.Pop());
+	}
+	else
+	{
+		FRHIPooledRenderQuery Query = FRHIPooledRenderQuery(this, DynamicRHI->RHICreateRenderQuery(QueryType));
+		if (Query.IsValid())
+		{
+			++AllocatedQueries;
+		}
+		ensure(AllocatedQueries <= NumQueries);
+		return Query;
+	}
+}
+
+void FDefaultRHIRenderQueryPool::ReleaseQuery(TRefCountPtr<FRHIRenderQuery>&& Query)
+{
+	if (QueryType == ERenderQueryType::RQT_Occlusion)
+	{
+		static int dbg = 0;
+		dbg++;
+	}
+	check(IsInRenderingThread());
+	//Hard to validate because of Resource resurrection, better to remove GetQueryRef entirely
+	//checkf(Query.IsValid() && Query.GetRefCount() <= 2, TEXT("Query has been released but reference still held: use FRHIPooledRenderQuery::GetQueryRef() with extreme caution"));
+	
+	checkf(Query.IsValid(), TEXT("Only release valid queries"));
+	checkf((uint32)Queries.Num() < NumQueries, TEXT("Pool contains more queries than it started with, double release somewhere?"));
+
+	Queries.Push(MoveTemp(Query));
+	check(!Query.IsValid());
+}
+
+FRenderQueryPoolRHIRef RHICreateRenderQueryPool(ERenderQueryType QueryType, uint32 NumQueries)
+{
+	return GDynamicRHI->RHICreateRenderQueryPool(QueryType, NumQueries);
 }

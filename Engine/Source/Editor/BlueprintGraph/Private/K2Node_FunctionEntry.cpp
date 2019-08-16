@@ -24,6 +24,8 @@
 #include "KismetCompilerMisc.h"
 #include "KismetCompiler.h"
 #include "Misc/OutputDeviceNull.h"
+#include "DiffResults.h"
+#include "Kismet2/Kismet2NameValidators.h"
 
 #define LOCTEXT_NAMESPACE "K2Node_FunctionEntry"
 
@@ -130,10 +132,10 @@ public:
 			{
 				UEdGraphPin* Net = FEdGraphUtilities::GetNetFromPin(Pin);
 
-				if (Context.NetMap.Find(Net) == NULL)
+				if (Context.NetMap.Find(Net) == nullptr)
 				{
 					// New net, resolve the term that will be used to construct it
-					FBPTerminal* Term = NULL;
+					FBPTerminal* Term = nullptr;
 
 					check(Net->Direction == EGPD_Output);
 
@@ -151,7 +153,7 @@ public:
 		{
 			UEdGraphPin* EntryPointPin = Node->FindPin(UEdGraphSchema_K2::PN_EntryPoint);
 			FBPTerminal** pTerm = Context.NetMap.Find(EntryPointPin);
-			if ((EntryPointPin != NULL) && (pTerm != NULL))
+			if ((EntryPointPin != nullptr) && (pTerm != nullptr))
 			{
 				FBlueprintCompiledStatement& ComputedGotoStatement = Context.AppendStatementForNode(Node);
 				ComputedGotoStatement.Type = KCST_ComputedGoto;
@@ -195,6 +197,8 @@ UK2Node_FunctionEntry::UK2Node_FunctionEntry(const FObjectInitializer& ObjectIni
 {
 	// Enforce const-correctness by default
 	bEnforceConstCorrectness = true;
+	bUpdatedDefaultValuesOnLoad = false;
+	bCanRenameNode = bIsEditable;
 }
 
 void UK2Node_FunctionEntry::PreSave(const class ITargetPlatform* TargetPlatform)
@@ -202,38 +206,23 @@ void UK2Node_FunctionEntry::PreSave(const class ITargetPlatform* TargetPlatform)
 	Super::PreSave(TargetPlatform);
 	
 	const UBlueprint* Blueprint = HasValidBlueprint() ? GetBlueprint() : nullptr;
-	if (LocalVariables.Num() > 0 && Blueprint)
+	if (Blueprint && LocalVariables.Num() > 0)
 	{
-		// This code is here as it's unsafe to call when GIsSavingPackage is true
-		UFunction* Function = FindField<UFunction>(Blueprint->SkeletonGeneratedClass, *GetOuter()->GetName());
+		// Forcibly fixup defaults before we save
+		UpdateLoadedDefaultValues(true);
+	}
+}
 
-		if (Function)
-		{
-			if (Function->GetStructureSize() > 0 || !ensure(Function->PropertyLink == nullptr))
-			{
-				TSharedPtr<FStructOnScope> LocalVarData = MakeShareable(new FStructOnScope(Function));
+void UK2Node_FunctionEntry::PostLoad()
+{
+	Super::PostLoad();
 
-				for (TFieldIterator<UProperty> It(Function); It; ++It)
-				{
-					if (const UProperty* Property = *It)
-					{
-						const UStructProperty* PotentialUDSProperty = Cast<const UStructProperty>(Property);
-						// UDS requires default data even when the LocalVariable value is empty
+	if (GIsEditor)
+	{
+		// In the editor, we need to handle processing function default values at load time so they get picked up properly by the cooker
+		// This normally won't do anything because it gets called during the duplicate save during BP compilation, but if compilation gets skipped we need to make sure they get updated
 
-						for (FBPVariableDescription& LocalVar : LocalVariables)
-						{
-							if (LocalVar.VarName == Property->GetFName() && !LocalVar.DefaultValue.IsEmpty())
-							{
-								// Go to property and back, this handles redirector fixup and will sanitize the output
-								// The asset registry only knows about these references because when the node is expanded it turns into a hard reference
-								FBlueprintEditorUtils::PropertyValueFromString(Property, LocalVar.DefaultValue, LocalVarData->GetStructMemory());
-								FBlueprintEditorUtils::PropertyValueToString(Property, LocalVarData->GetStructMemory(), LocalVar.DefaultValue);
-							}
-						}
-					}
-				}
-			}
-		}
+		UpdateLoadedDefaultValues();
 	}
 }
 
@@ -244,38 +233,18 @@ void UK2Node_FunctionEntry::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FBlueprintsObjectVersion::GUID);
 
 	if (Ar.IsSaving())
-	{
-		for (FBPVariableDescription& LocalVariable : LocalVariables)
+	{		
+		if (Ar.IsObjectReferenceCollector() || Ar.Tell() < 0)
 		{
-			if (!LocalVariable.DefaultValue.IsEmpty())
+			// If this is explicitly a reference collector, or it's a save with no backing archive, then we want to use the function variable cache if it exists
+			// It's not safe to regenerate the cache at this point as we could be in GIsSaving
+			if (FunctionVariableCache.IsValid() && FunctionVariableCache->IsValid())
 			{
-				// If looking for references during save, expand any default values on the local variables
-				// This is only reliable when saving in the editor, the cook case is handled below
-				if (Ar.IsObjectReferenceCollector() && LocalVariable.VarType.PinCategory == UEdGraphSchema_K2::PC_Struct && LocalVariable.VarType.PinSubCategoryObject.IsValid())
-				{
-					UScriptStruct* Struct = Cast<UScriptStruct>(LocalVariable.VarType.PinSubCategoryObject.Get());
+				UStruct* Struct = const_cast<UStruct*>(FunctionVariableCache->GetStruct());
+				Struct->SerializeBin(Ar, FunctionVariableCache->GetStructMemory());
 
-					if (Struct)
-					{
-						TSharedPtr<FStructOnScope> StructData = MakeShareable(new FStructOnScope(Struct));
-
-						// Import the literal text to a dummy struct and then serialize that. Hard object references will not properly import, this is only useful for soft references!
-						FOutputDeviceNull NullOutput;
-						Struct->ImportText(*LocalVariable.DefaultValue, StructData->GetStructMemory(), nullptr, PPF_SerializedAsImportText, &NullOutput, LocalVariable.VarName.ToString());
-						Struct->SerializeItem(Ar, StructData->GetStructMemory(), nullptr);
-					}
-				}
-
-				if (LocalVariable.VarType.PinCategory == UEdGraphSchema_K2::PC_SoftObject || LocalVariable.VarType.PinCategory == UEdGraphSchema_K2::PC_SoftClass)
-				{
-					FSoftObjectPath TempRef(LocalVariable.DefaultValue);
-
-					// Serialize the asset reference, this will do the save fixup. It won't actually serialize the string if this is a real archive like linkersave
-					FSoftObjectPathSerializationScope DisableSerialize(NAME_None, NAME_None, ESoftObjectPathCollectType::AlwaysCollect, ESoftObjectPathSerializeType::SkipSerializeIfArchiveHasSize);
-					Ar << TempRef;
-
-					LocalVariable.DefaultValue = TempRef.ToString();
-				}
+				// Copy back into defaults as they may have changed
+				UpdateDefaultsFromVariableStruct(FunctionVariableCache->GetStruct(), FunctionVariableCache->GetStructMemory());
 			}
 		}
 	}
@@ -338,24 +307,6 @@ void UK2Node_FunctionEntry::Serialize(FArchive& Ar)
 				}
 			}
 		}
-
-		// In editor, fixup soft object ptrs on load on to handle redirects and finding refs for cooking
-		// We're not handling soft object ptrs inside FStructs because it's a rare edge case and would be a performance hit on load
-		if (GIsEditor)
-		{
-			FSoftObjectPathSerializationScope SetPackage(GetOutermost()->GetFName(), NAME_None, ESoftObjectPathCollectType::AlwaysCollect, ESoftObjectPathSerializeType::SkipSerializeIfArchiveHasSize);
-
-			for (FBPVariableDescription& LocalVariable : LocalVariables)
-			{
-				if (!LocalVariable.DefaultValue.IsEmpty() && (LocalVariable.VarType.PinCategory == UEdGraphSchema_K2::PC_SoftObject || LocalVariable.VarType.PinCategory == UEdGraphSchema_K2::PC_SoftClass))
-				{
-					FSoftObjectPath TempRef(LocalVariable.DefaultValue);
-					TempRef.PostLoadPath(&Ar);
-					TempRef.PreSavePath();
-					LocalVariable.DefaultValue = TempRef.ToString();
-				}
-			}
-		}
 	}
 }
 
@@ -368,10 +319,40 @@ FText UK2Node_FunctionEntry::GetNodeTitle(ENodeTitleType::Type TitleType) const
 	return DisplayInfo.DisplayName;
 }
 
+void UK2Node_FunctionEntry::OnRenameNode(const FString& NewName)
+{
+	CustomGeneratedFunctionName = FName(*NewName);
+	FBlueprintEditorUtils::RenameGraph(GetGraph(), NewName);
+}
+
+TSharedPtr<class INameValidatorInterface> UK2Node_FunctionEntry::MakeNameValidator() const
+{
+	if (CustomGeneratedFunctionName.IsNone())
+	{
+		FText TextName = GetNodeTitle(ENodeTitleType::Type::EditableTitle);
+		return MakeShareable(new FKismetNameValidator(GetBlueprint(), *TextName.ToString()));
+	}
+	else
+	{
+		return MakeShareable(new FKismetNameValidator(GetBlueprint(), CustomGeneratedFunctionName));
+	}
+}
+
+bool UK2Node_FunctionEntry::GetCanRenameNode() const
+{
+	UEdGraph* const Graph = GetGraph();
+
+	return (Graph && (Graph->bAllowDeletion || Graph->bAllowRenaming) && (bCanRenameNode || bIsEditable));
+}
+
 void UK2Node_FunctionEntry::AllocateDefaultPins()
 {
+	// Update our default values before copying them into pins
+	UpdateLoadedDefaultValues();
+
 	CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Exec, UEdGraphSchema_K2::PN_Then);
 
+	// Find any pins inherited from parent
 	if (UFunction* Function = FunctionReference.ResolveMember<UFunction>(GetBlueprintClassFromNode()))
 	{
 		CreatePinsForFunctionEntryExit(Function, /*bIsFunctionEntry=*/ true);
@@ -434,6 +415,157 @@ UEdGraphPin* UK2Node_FunctionEntry::CreatePinFromUserDefinition(const TSharedPtr
 	return NewPin;
 }
 
+TSharedPtr<FStructOnScope> UK2Node_FunctionEntry::GetFunctionVariableCache(bool bForceRefresh)
+{
+	if (bForceRefresh && FunctionVariableCache.IsValid())
+	{
+		// On force refresh, delete old one if it exists
+		FunctionVariableCache.Reset();
+	}
+
+	if (!FunctionVariableCache.IsValid() || !FunctionVariableCache->IsValid())
+	{
+		if (UFunction* const Function = FindSignatureFunction())
+		{
+			if (LocalVariables.Num() > 0)
+			{
+				FunctionVariableCache = MakeShared<FStructOnScope>(Function);
+				FunctionVariableCache->SetPackage(GetOutermost());
+
+				RefreshFunctionVariableCache();
+			}
+		}
+	}
+	
+	return FunctionVariableCache;
+}
+
+bool UK2Node_FunctionEntry::RefreshFunctionVariableCache()
+{
+	GetFunctionVariableCache(false);
+
+	if (FunctionVariableCache.IsValid())
+	{
+		// Update the cache if it was created
+		return UpdateVariableStructFromDefaults(FunctionVariableCache->GetStruct(), FunctionVariableCache->GetStructMemory());
+	}
+	return false;
+}
+
+bool UK2Node_FunctionEntry::UpdateLoadedDefaultValues(bool bForceRefresh)
+{
+	// If we don't have a cache or it's force refresh, create one
+	if (!bUpdatedDefaultValuesOnLoad || bForceRefresh)
+	{
+		GetFunctionVariableCache(bForceRefresh);
+
+		bUpdatedDefaultValuesOnLoad = true;
+
+		if (FunctionVariableCache.IsValid())
+		{
+			// Now copy back into the default value strings
+			return UpdateDefaultsFromVariableStruct(FunctionVariableCache->GetStruct(), FunctionVariableCache->GetStructMemory());
+		}
+		else
+		{
+			// No variable cache created
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void UK2Node_FunctionEntry::ClearCachedBlueprintData(UBlueprint* Blueprint)
+{
+	FunctionVariableCache.Reset();
+}
+
+bool UK2Node_FunctionEntry::UpdateVariableStructFromDefaults(const UStruct* VariableStruct, uint8* VariableStructData)
+{
+	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
+
+	if (!VariableStruct || !VariableStructData)
+	{
+		return false;
+	}
+
+	for (FBPVariableDescription& LocalVariable : LocalVariables)
+	{
+		if (!LocalVariable.DefaultValue.IsEmpty())
+		{
+			UProperty* PinProperty = VariableStruct->FindPropertyByName(LocalVariable.VarName);
+
+			if (PinProperty && (!PinProperty->HasAnyPropertyFlags(CPF_OutParm) || PinProperty->HasAnyPropertyFlags(CPF_ReferenceParm)))
+			{
+				FEdGraphPinType PinType;
+				K2Schema->ConvertPropertyToPinType(PinProperty, /*out*/ PinType);
+
+				if (PinType != LocalVariable.VarType)
+				{
+					//UE_LOG(LogBlueprint, Log, TEXT("Pin type for local variable %s does not match type on struct %s during UpdateVariableStructFromDefaults, ignoring old default"), *LocalVariable.VarName.ToString(), *VariableStruct->GetName());
+				}
+				else
+				{
+					FBlueprintEditorUtils::PropertyValueFromString(PinProperty, LocalVariable.DefaultValue, VariableStructData, this);
+				}
+			}
+			else
+			{
+				//UE_LOG(LogBlueprint, Log, TEXT("Could not find local variable property %s on struct %s during UpdateVariableStructFromDefaults"), *LocalVariable.VarName.ToString(), *VariableStruct->GetName());
+			}
+		}
+	}
+
+	return true;
+}
+
+bool UK2Node_FunctionEntry::UpdateDefaultsFromVariableStruct(const UStruct* VariableStruct, uint8* VariableStructData)
+{
+	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
+
+	if (!VariableStruct || !VariableStructData)
+	{
+		return false;
+	}
+
+	for (FBPVariableDescription& LocalVariable : LocalVariables)
+	{
+		if (!LocalVariable.DefaultValue.IsEmpty())
+		{
+			// We don't want to write out fields that were empty before, as they were guaranteed to not have actual real data
+			UProperty* PinProperty = VariableStruct->FindPropertyByName(LocalVariable.VarName);
+
+			if (PinProperty && (!PinProperty->HasAnyPropertyFlags(CPF_OutParm) || PinProperty->HasAnyPropertyFlags(CPF_ReferenceParm)))
+			{
+				FEdGraphPinType PinType;
+				K2Schema->ConvertPropertyToPinType(PinProperty, /*out*/ PinType);
+
+				if (PinType != LocalVariable.VarType)
+				{
+					//UE_LOG(LogBlueprint, Log, TEXT("Pin type for local variable %s does not match type on struct %s during UpdateDefaultsFromVariableStruct, ignoring old default"), *LocalVariable.VarName.ToString(), *VariableStruct->GetName());
+				}
+				else
+				{
+					FString NewValue;
+					FBlueprintEditorUtils::PropertyValueToString(PinProperty, VariableStructData, NewValue, this);
+					if (NewValue != LocalVariable.DefaultValue)
+					{
+						LocalVariable.DefaultValue = NewValue;
+					}
+				}
+			}
+			else
+			{
+				//UE_LOG(LogBlueprint, Log, TEXT("Could not find local variable property %s on struct %s during UpdateDefaultsFromVariableStruct"), *LocalVariable.VarName.ToString(), *VariableStruct->GetName());
+			}
+		}
+	}
+
+	return true;
+}
+
+
 FNodeHandlingFunctor* UK2Node_FunctionEntry::CreateNodeHandler(FKismetCompilerContext& CompilerContext) const
 {
 	return new FKCHandler_FunctionEntry(CompilerContext);
@@ -459,36 +591,136 @@ void UK2Node_FunctionEntry::GetRedirectPinNames(const UEdGraphPin& Pin, TArray<F
 	}
 }
 
-bool UK2Node_FunctionEntry::IsDeprecated() const
+bool UK2Node_FunctionEntry::HasDeprecatedReference() const
 {
+	// We only show deprecated for inherited functions
 	if (UFunction* const Function = FunctionReference.ResolveMember<UFunction>(GetBlueprintClassFromNode()))
 	{
 		return Function->HasMetaData(FBlueprintMetadata::MD_DeprecatedFunction);
 	}
-
-	return false;
+	else
+	{
+		return MetaData.bIsDeprecated;
+	}
 }
 
-FString UK2Node_FunctionEntry::GetDeprecationMessage() const
+FEdGraphNodeDeprecationResponse UK2Node_FunctionEntry::GetDeprecationResponse(EEdGraphNodeDeprecationType DeprecationType) const
 {
-	if (UFunction* const Function = FunctionReference.ResolveMember<UFunction>(GetBlueprintClassFromNode()))
+	FEdGraphNodeDeprecationResponse Response = Super::GetDeprecationResponse(DeprecationType);
+	if (DeprecationType == EEdGraphNodeDeprecationType::NodeHasDeprecatedReference)
 	{
-		if (Function->HasMetaData(FBlueprintMetadata::MD_DeprecationMessage))
+		// Only warn on non-editable (i.e. override) usage.
+		if (!IsEditable())
 		{
-			return FString::Printf(TEXT("%s %s"), *LOCTEXT("FunctionDeprecated_Warning", "@@ is deprecated;").ToString(), *Function->GetMetaData(FBlueprintMetadata::MD_DeprecationMessage));
+			UFunction* const Function = FunctionReference.ResolveMember<UFunction>(GetBlueprintClassFromNode());
+			if (ensureMsgf(Function != nullptr, TEXT("This node should not be able to report having a deprecated reference if the override function cannot be resolved.")))
+			{
+				FText FunctionName = FText::FromName(FunctionReference.GetMemberName());
+				FText DetailedMessage = FText::FromString(Function->GetMetaData(FBlueprintMetadata::MD_DeprecationMessage));
+				Response.MessageText = FBlueprintEditorUtils::GetDeprecatedMemberUsageNodeWarning(FunctionName, DetailedMessage);
+			}
+		}
+		else
+		{
+			// Allow the function to be marked as deprecated in the class that defines it without warning, but use a note to visually indicate that the definition itself has been deprecated.
+			Response.MessageType = EEdGraphNodeDeprecationMessageType::Note;
+			Response.MessageText = LOCTEXT("DeprecatedFunctionMessage", "@@: This function has been marked as deprecated. It can be safely deleted if all references have been replaced or removed.");
 		}
 	}
 
-	return Super::GetDeprecationMessage();
+	return Response;
 }
 
 FText UK2Node_FunctionEntry::GetTooltipText() const
 {
-	if (UFunction* const Function = FunctionReference.ResolveMember<UFunction>(GetBlueprintClassFromNode()))
+	if (UFunction* const Function = FindSignatureFunction())
 	{
 		return FText::FromString(UK2Node_CallFunction::GetDefaultTooltipForFunction(Function));
 	}
 	return Super::GetTooltipText();
+}
+
+void UK2Node_FunctionEntry::FindDiffs(UEdGraphNode* OtherNode, struct FDiffResults& Results)
+{
+	Super::FindDiffs(OtherNode, Results);
+	UK2Node_FunctionEntry* OtherFunction = Cast<UK2Node_FunctionEntry>(OtherNode);
+
+	if (OtherFunction)
+	{
+		if (ExtraFlags != OtherFunction->ExtraFlags)
+		{
+			FDiffSingleResult Diff;
+			Diff.Diff = EDiffType::NODE_PROPERTY;
+			Diff.Node1 = this;
+			Diff.Node2 = OtherNode;
+			Diff.DisplayString = LOCTEXT("DIF_FunctionFlags", "Function flags have changed");
+			Diff.DisplayColor = FLinearColor(0.25f, 0.71f, 0.85f);
+
+			Results.Add(Diff);
+		}
+
+		if (!FKismetUserDeclaredFunctionMetadata::StaticStruct()->CompareScriptStruct(&MetaData, &OtherFunction->MetaData, 0))
+		{
+			FDiffSingleResult Diff;
+			Diff.Diff = EDiffType::NODE_PROPERTY;
+			Diff.Node1 = this;
+			Diff.Node2 = OtherNode;
+			Diff.DisplayString = LOCTEXT("DIF_FunctionMetadata", "Function metadata has changed");
+			Diff.DisplayColor = FLinearColor(0.25f, 0.71f, 0.85f);
+
+			Results.Add(Diff);
+		}
+
+		bool bLocalVarsDiffer = (LocalVariables.Num() != OtherFunction->LocalVariables.Num());
+
+		for (int32 i = 0; i < LocalVariables.Num() && !bLocalVarsDiffer; i++)
+		{
+			const FBPVariableDescription& ThisVar = LocalVariables[i];
+			const FBPVariableDescription& OtherVar = OtherFunction->LocalVariables[i];
+			
+			// Can't do a raw compare, for local variable defaults we need to compare the struct
+			if (ThisVar.VarName != OtherVar.VarName
+				|| ThisVar.VarType != OtherVar.VarType
+				|| ThisVar.FriendlyName != OtherVar.FriendlyName
+				|| !ThisVar.Category.EqualTo(OtherVar.Category)
+				|| ThisVar.PropertyFlags != OtherVar.PropertyFlags
+				|| ThisVar.RepNotifyFunc != OtherVar.RepNotifyFunc
+				|| ThisVar.ReplicationCondition != OtherVar.ReplicationCondition)
+			{
+				bLocalVarsDiffer = true;
+			}
+		}
+
+		if (bLocalVarsDiffer)
+		{
+			FDiffSingleResult Diff;
+			Diff.Diff = EDiffType::NODE_PROPERTY;
+			Diff.Node1 = this;
+			Diff.Node2 = OtherNode;
+			Diff.DisplayString = LOCTEXT("DIF_FunctionLocalVariables", "Function local variables have changed in structure");
+			Diff.DisplayColor = FLinearColor(0.25f, 0.71f, 0.85f);
+
+			Results.Add(Diff);
+		}
+		else
+		{
+			TSharedPtr<FStructOnScope> MyLocals = GetFunctionVariableCache();
+			TSharedPtr<FStructOnScope> OtherLocals = OtherFunction->GetFunctionVariableCache();
+
+			if (MyLocals.IsValid() && MyLocals->IsValid() && OtherLocals.IsValid() && OtherLocals->IsValid())
+			{
+				// Check for local var diffs
+				FDiffSingleResult Diff;
+				Diff.Diff = EDiffType::NODE_PROPERTY;
+				Diff.Node1 = this;
+				Diff.Node2 = OtherNode;
+				Diff.ToolTip = LOCTEXT("DIF_FunctionLocalVariableDefaults", "Function local variable default values have changed");
+				Diff.DisplayColor = FLinearColor(0.25f, 0.71f, 0.85f);
+
+				DiffProperties(const_cast<UStruct*>(MyLocals->GetStruct()), const_cast<UStruct*>(OtherLocals->GetStruct()), MyLocals->GetStructMemory(), OtherLocals->GetStructMemory(), Results, Diff);
+			}
+		}
+	}
 }
 
 int32 UK2Node_FunctionEntry::GetFunctionFlags() const
@@ -631,12 +863,38 @@ void UK2Node_FunctionEntry::PostReconstructNode()
 	Super::PostReconstructNode();
 }
 
+void UK2Node_FunctionEntry::FixupPinStringDataReferences(FArchive* SavingArchive)
+{
+	Super::FixupPinStringDataReferences(SavingArchive);
+	if (SavingArchive)
+	{
+		const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
+		// If any of our pins got fixed up, we need to refresh our user pin default values
+		// For custom events, the Pin default values are authoritative
+		for (TSharedPtr<FUserPinInfo> PinInfo : UserDefinedPins)
+		{
+			if (UEdGraphPin* Pin = FindPin(PinInfo->PinName))
+			{
+				if (Pin->Direction == PinInfo->DesiredPinDirection)
+				{
+					if(!K2Schema->DoesDefaultValueMatch(*Pin, PinInfo->PinDefaultValue))
+					{
+						ModifyUserDefinedPinDefaultValue(PinInfo, Pin->GetDefaultAsString());
+					}
+				}
+			}
+		}
+	}
+}
+
 bool UK2Node_FunctionEntry::ModifyUserDefinedPinDefaultValue(TSharedPtr<FUserPinInfo> PinInfo, const FString& NewDefaultValue)
 {
 	if (Super::ModifyUserDefinedPinDefaultValue(PinInfo, NewDefaultValue))
 	{
 		const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 		K2Schema->HandleParameterDefaultValueChanged(this);
+
+		RefreshFunctionVariableCache();
 
 		return true;
 	}

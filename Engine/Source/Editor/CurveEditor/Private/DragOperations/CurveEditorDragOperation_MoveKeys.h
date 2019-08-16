@@ -43,4 +43,6 @@ private:
 
 	/** Key dragging data stored per-curve */
 	TArray<FKeyData> KeysByCurve;
+
+	FCurveEditorAxisSnap::FSnapState SnappingState;
 };

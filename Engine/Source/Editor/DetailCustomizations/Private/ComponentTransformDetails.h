@@ -81,15 +81,31 @@ private:
 	 */
 	void OnSetTransformAxis(float NewValue, ETextCommit::Type CommitInfo, ETransformField::Type TransformField, EAxisList::Type Axis, bool bCommitted);
 
-	/**
-	 * Called when the one of the axis sliders for object rotation begins to change for the first time 
-	 */
-	void OnBeginRotatonSlider();
 
-	/**
-	 * Called when the one of the axis sliders for object rotation is released
+	/** 
+	 * Helper to begin a new transaction for a slider interaction. 
+	 * @param ActorTransaction		The name to give the transaction when changing an actor transform.
+	 * @param ComponentTransaction	The name to give the transaction when directly editing a component transform.
 	 */
+	void BeginSliderTransaction(FText ActorTransaction, FText ComponentTransaction) const;
+
+	/** Called when the one of the axis sliders for object rotation begins to change for the first time */
+	void OnBeginRotationSlider();
+
+	/** Called when the one of the axis sliders for object rotation is released */
 	void OnEndRotationSlider(float NewValue);
+
+	/** Called when one of the axis sliders for object location begins to change */
+	void OnBeginLocationSlider();
+
+	/** Called when one of the axis sliders for object location is released */
+	void OnEndLocationSlider(float NewValue);
+
+	/** Called when one of the axis sliders for object scale begins to change */
+	void OnBeginScaleSlider();
+
+	/** Called when one of the axis sliders for object scale is released */
+	void OnEndScaleSlider(float NewValue);
 
 	/** @return Icon to use in the preserve scale ratio check box */
 	const FSlateBrush* GetPreserveScaleRatioImage() const;
@@ -216,7 +232,7 @@ private:
 	/** @return The visibility of the "Reset to Default" button for the scale component */
 	EVisibility GetScaleResetVisibility() const;
 
-	/** Cache a single unit to display all location comonents in */
+	/** Cache a single unit to display all location components in */
 	void CacheCommonLocationUnits();
 
 private:
@@ -254,7 +270,7 @@ private:
 		TOptional<float> Y;
 		TOptional<float> Z;
 	};
-	
+
 	FSelectedActorInfo SelectedActorInfo;
 	/** Copy of selected actor references in the details view */
 	TArray< TWeakObjectPtr<UObject> > SelectedObjects;
@@ -266,6 +282,8 @@ private:
 	FOptionalVector CachedScale;
 	/** Notify hook to use */
 	FNotifyHook* NotifyHook;
+	/** Mapping from object to relative rotation values which are not affected by Quat->Rotator conversions during transform calculations */
+	TMap< UObject*, FRotator > ObjectToRelativeRotationMap;
 	/** Whether or not we are in absolute translation mode */
 	bool bAbsoluteLocation;
 	/** Whether or not we are in absolute rotation mode */
@@ -274,10 +292,10 @@ private:
 	bool bAbsoluteScale;
 	/** Whether or not to preserve scale ratios */
 	bool bPreserveScaleRatio;
-	/** Mapping from object to relative rotation values which are not affected by Quat->Rotator conversions during transform calculations */
-	TMap< UObject*, FRotator > ObjectToRelativeRotationMap;
 	/** Flag to indicate we are currently editing the rotation in the UI, so we should rely on the cached value in objectToRelativeRotationMap, not the value from the object */
 	bool bEditingRotationInUI;
+	/** Flag to indicate we are currently performing a slider transaction */
+	bool bIsSliderTransaction;
 	/** Bitmask to indicate which fields should be hidden (if any) */
 	uint8 HiddenFieldMask;
 };

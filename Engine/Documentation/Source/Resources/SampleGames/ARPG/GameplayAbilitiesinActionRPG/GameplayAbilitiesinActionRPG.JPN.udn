@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4357683
+INTSourceChangelist:4357683
 Availability: Public
 Crumbs: 
 Title: Action RPG のゲームプレイ アビリティ
@@ -8,6 +8,7 @@ Version: 4.20
 Parent: Resources/SampleGames/ARPG
 Order: 1
 Tags: 
+topic-image:GameplayAbilitiesinActionRPG.png
 
 
 **Action RPG (ARPG)** のサンプルでは **Gameplay Abilities** **プラグイン** を使用して、プレイヤーおよび敵の攻撃の実行を処理し、ヘルスやマナなどのステータス値を変更します。これらのドキュメントの目的は、 [ゲームプレイ アビリティ システム](https://docs.unrealengine.com/en-us/Gameplay/GameplayAbilitySystem) が使用される理由と、 ARPG のゲーム特有の機能を追加するためにどのようにカスタマイズされたかを説明することです。このページには、アビリティ システムを構成する要素ごとに分類されたさまざまなドキュメントへのリンクが記載されています。これらのシステムがどのように連携して機能するのかについて理解を深めるため、このページにあるドキュメントのリストを記載順にお読みになることをお勧めします。 

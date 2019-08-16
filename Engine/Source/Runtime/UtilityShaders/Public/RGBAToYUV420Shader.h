@@ -58,7 +58,7 @@ public:
 		return bShaderHasOutdatedParameters;
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> SrcTex, FUnorderedAccessViewRHIParamRef OutUAV, float TargetHeight, float ScaleFactorX, float ScaleFactorY, float TextureYOffset);
+	void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> SrcTex, FRHIUnorderedAccessView* OutUAV, float TargetHeight, float ScaleFactorX, float ScaleFactorY, float TextureYOffset);
 	void UnbindBuffers(FRHICommandList& RHICmdList);
 
 protected:

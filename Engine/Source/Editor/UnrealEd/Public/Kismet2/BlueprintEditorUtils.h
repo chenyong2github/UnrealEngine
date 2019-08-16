@@ -349,7 +349,7 @@ public:
 					ExtraFunctionFlags |= FUNC_Static;
 				}
 				// We need to mark the function entry as editable so that we can
-				// set metadata on it if it is a blutility:
+				// set metadata on it if it is an editor utility blueprint/widget:
 				K2Schema->MarkFunctionEntryAsEditable(Graph, true);
 				if( IsEditorUtilityBlueprint( Blueprint ))
 				{
@@ -380,6 +380,17 @@ public:
 
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
 	}
+
+	/**
+	* Get the override class of a given function from its name
+	* 
+	* @param Blueprint		Blueprint to check the function on
+	* @param FuncName		Name of the function
+	* @param OutFunction	The function that has this name
+	* 
+	* @return The override class of a given function
+	*/
+	static UClass* const GetOverrideFunctionClass(UBlueprint* Blueprint, const FName FuncName, UFunction** OutFunction = nullptr);
 
 	/** Adds a macro graph to this blueprint.  If bIsUserCreated is true, the entry/exit nodes will be editable. SignatureFromClass is used to find signature for entry/exit nodes if using an existing signature. */
 	static void AddMacroGraph(UBlueprint* Blueprint, class UEdGraph* Graph,  bool bIsUserCreated, UClass* SignatureFromClass);
@@ -524,7 +535,7 @@ public:
 	/** Returns whether or not the blueprint is const during execution */
 	static bool IsBlueprintConst(const UBlueprint* Blueprint);
 
-	/** Returns whether or not the blueprint is a blutility */
+	/** Returns whether or not the blueprint is an editor utility blueprint or widget */
 	static bool IsEditorUtilityBlueprint(const UBlueprint* Blueprint);
 
 	/**
@@ -1019,6 +1030,14 @@ public:
 	 */
 	static void SetVariableAdvancedDisplayFlag(UBlueprint* InBlueprint, const FName& InVarName, const bool bInIsAdvancedDisplay);
 
+	/**
+	 * Sets the Deprecated flag on the variable with the specified name
+	 *
+	 * @param	InVarName				Name of the var to set the flag on
+	 * @param	bInIsDeprecated			The new value to set the bitflag to
+	 */
+	static void SetVariableDeprecatedFlag(UBlueprint* InBlueprint, const FName& InVarName, const bool bInIsDeprecated);
+
 	/** Sets a metadata key/value on the specified variable
 	 *
 	 * @param Blueprint				The Blueprint to find the variable in
@@ -1166,16 +1185,16 @@ public:
 	static bool IsVariableUsed(const UBlueprint* Blueprint, const FName& Name, UEdGraph* LocalGraphScope = nullptr);
 
 	/** Copies the value from the passed in string into a property. ContainerMem points to the Struct or Class containing Property */
-	static bool PropertyValueFromString(const UProperty* Property, const FString& StrValue, uint8* Container);
+	static bool PropertyValueFromString(const UProperty* Property, const FString& StrValue, uint8* Container, UObject* OwningObject = nullptr);
 
 	/** Copies the value from the passed in string into a property. DirectValue is the raw memory address of the property value */
-	static bool PropertyValueFromString_Direct(const UProperty* Property, const FString& StrValue, uint8* DirectValue);
+	static bool PropertyValueFromString_Direct(const UProperty* Property, const FString& StrValue, uint8* DirectValue, UObject* OwningObject = nullptr);
 
 	/** Copies the value from a property into the string OutForm. ContainerMem points to the Struct or Class containing Property */
-	static bool PropertyValueToString(const UProperty* Property, const uint8* Container, FString& OutForm);
+	static bool PropertyValueToString(const UProperty* Property, const uint8* Container, FString& OutForm, UObject* OwningObject = nullptr);
 
 	/** Copies the value from a property into the string OutForm. DirectValue is the raw memory address of the property value */
-	static bool PropertyValueToString_Direct(const UProperty* Property, const uint8* DirectValue, FString& OutForm);
+	static bool PropertyValueToString_Direct(const UProperty* Property, const uint8* DirectValue, FString& OutForm, UObject* OwningObject = nullptr);
 
 	/** Call PostEditChange() on all Actors based on the given Blueprint */
 	static void PostEditChangeBlueprintActors(UBlueprint* Blueprint, bool bComponentEditChange = false);
@@ -1249,6 +1268,14 @@ public:
 
 	/** Remove an implemented interface, and its associated member function graphs.  If bPreserveFunctions is true, then the interface will move its functions to be normal implemented blueprint functions */
 	static void RemoveInterface(UBlueprint* Blueprint, const FName& InterfaceClassName, bool bPreserveFunctions = false);
+	
+	/**
+	* Attempt to remove a function from an interfaces list of function graphs.
+	* Note that this will NOT remove interface events (i.e. functions with no outputs)
+	* 
+	* @return	True if the function was removed from the blueprint
+	*/
+	static bool RemoveInterfaceFunction(class UBlueprint* Blueprint, struct FBPInterfaceDescription& Interface, class UFunction* Function, bool bPreserveFunction);
 
 	/**
 	* Promotes a Graph from being an Interface Override to a full member function
@@ -1260,6 +1287,28 @@ public:
 
 	/** Gets the graphs currently in the blueprint associated with the specified interface */
 	static void GetInterfaceGraphs(UBlueprint* Blueprint, const FName& InterfaceClassName, TArray<UEdGraph*>& ChildGraphs);
+
+	/**
+	* Checks if the given function is a part of an interface on this blueprint
+	* 
+	* @param Blueprint		The blueprint to consider
+	* @param Function		Function to check if it is an interface or not
+	* @return	True if the given function is implemented as part of an interface
+	*/
+	static bool IsInterfaceFunction(UBlueprint* Blueprint, UFunction* Function);
+
+	/**
+	* Get the corresponding UFunction pointer to the name given on the blueprint.
+	* Searches the given blueprints implemented interfaces first, and then looks 
+	* in the parent. 
+	* 
+	* @param Blueprint		The blueprint to consider
+	* @param FuncName		The name of the function to look for
+	*
+	* @return	Corresponding UFunction pointer to the name given; Nullptr if not 
+	*			part of any interfaces
+	*/
+	static UFunction* GetInterfaceFunction(UBlueprint* Blueprint, const FName FuncName);
 
 	/** Makes sure that all graphs for all interfaces we implement exist, and add if not */
 	static void ConformImplementedInterfaces(UBlueprint* Blueprint);
@@ -1617,6 +1666,21 @@ public:
 	 * Returns a class name for the specified class that has no automatic suffixes, but is otherwise unmodified.  Class can be nullptr.
 	 */
 	static FString GetClassNameWithoutSuffix(const UClass* Class);
+
+	/**
+	 * Returns a formatted menu item label for a deprecated variable or function member with the given name.
+	 *
+	 * @param MemberName		(Required) User-facing name of the deprecated variable or function.
+	 */
+	static FText GetDeprecatedMemberMenuItemName(const FText& MemberName);
+
+	/**
+	 * Returns a formatted warning message regarding usage of a deprecated variable or function member with the given name.
+	 *
+	 * @param MemberName		(Required) User-facing name of the deprecated variable or function.
+	 * @param DetailedMessage	(Optional) Instructional text or other details from the owner. If empty, a default message will be used.
+	 */
+	static FText GetDeprecatedMemberUsageNodeWarning(const FText& MemberName, const FText& DetailedMessage);
 
 	/**
 	 * Remove overridden component templates from instance component handlers when a parent class disables editable when inherited boolean.

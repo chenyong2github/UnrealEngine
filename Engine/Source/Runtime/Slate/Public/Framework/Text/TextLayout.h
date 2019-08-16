@@ -5,7 +5,6 @@
 #include "UObject/ObjectMacros.h"
 #include "Misc/Attribute.h"
 #include "Layout/Margin.h"
-#include "Framework/Text/TextRange.h"
 #include "Framework/Text/TextRunRenderer.h"
 #include "Framework/Text/TextLineHighlight.h"
 #include "Framework/Text/IRun.h"
@@ -262,8 +261,7 @@ public:
 
 		TSharedRef< IRun > Run;
 		TArray< FTextRange > MeasuredRanges;
-		// HACK: This should be a Vector2D, but changing to a FVector4 to overcome a compiler issue with vectorization running off the end of the array.
-		TArray< FVector4 > MeasuredRangeSizes;
+		TArray< FVector2D > MeasuredRangeSizes;
 	};
 
 	struct ELineModelDirtyState

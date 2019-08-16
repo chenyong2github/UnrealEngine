@@ -16,6 +16,7 @@
 #include "Misc/EnumClassFlags.h"
 
 class FMaterial;
+class FMeshDrawSingleShaderBindings;
 
 #if PLATFORM_SUPPORTS_PRAGMA_PACK
 	#pragma pack (push,4)
@@ -25,7 +26,7 @@ struct FVertexInputStream
 {
 	uint32 StreamIndex : 4;
 	uint32 Offset : 28;
-	FVertexBufferRHIParamRef VertexBuffer;
+	FRHIVertexBuffer* VertexBuffer;
 
 	FVertexInputStream() :
 		StreamIndex(0),
@@ -33,7 +34,7 @@ struct FVertexInputStream
 		VertexBuffer(nullptr)
 	{}
 
-	FVertexInputStream(uint32 InStreamIndex, uint32 InOffset, FVertexBufferRHIParamRef InVertexBuffer)
+	FVertexInputStream(uint32 InStreamIndex, uint32 InOffset, FRHIVertexBuffer* InVertexBuffer)
 		: StreamIndex(InStreamIndex), Offset(InOffset), VertexBuffer(InVertexBuffer)
 	{
 		// Verify no overflow
@@ -75,6 +76,14 @@ enum class EVertexStreamUsage : uint8
 	Instancing		= 1 << 0,
 	Overridden		= 1 << 1,
 	ManualFetch		= 1 << 2
+};
+
+
+enum class EVertexInputStreamType : uint8
+{
+	Default = 0,
+	PositionOnly,
+	PositionAndNormalOnly
 };
 
 ENUM_CLASS_FLAGS(EVertexStreamUsage);
@@ -158,7 +167,7 @@ public:
 		const class FSceneInterface* Scene,
 		const class FSceneView* View,
 		const class FMeshMaterialShader* Shader,
-		bool bShaderRequiresPositionOnlyStream,
+		const EVertexInputStreamType InputStreamType,
 		ERHIFeatureLevel::Type FeatureLevel,
 		const class FVertexFactory* VertexFactory,
 		const struct FMeshBatchElement& BatchElement,
@@ -479,11 +488,9 @@ public:
 
 	virtual FVertexFactoryType* GetType() const { return NULL; }
 
-	void GetStreams(ERHIFeatureLevel::Type InFeatureLevel, FVertexInputStreamArray& OutVertexStreams) const;
+	void GetStreams(ERHIFeatureLevel::Type InFeatureLevel, EVertexInputStreamType VertexStreamType, FVertexInputStreamArray& OutVertexStreams) const;
 
-	void OffsetInstanceStreams(uint32 InstanceOffset, bool bOperateOnPositionOnly, FVertexInputStreamArray& VertexStreams) const;
-
-	void GetPositionOnlyStream(FVertexInputStreamArray& OutVertexStreams) const;
+	void OffsetInstanceStreams(uint32 InstanceOffset, EVertexInputStreamType VertexStreamType, FVertexInputStreamArray& VertexStreams) const;
 
 	/**
 	* Can be overridden by FVertexFactory subclasses to modify their compile environment just before compilation occurs.
@@ -507,13 +514,24 @@ public:
 	FVertexDeclarationRHIRef& GetDeclaration() { return Declaration; }
 	void SetDeclaration(FVertexDeclarationRHIRef& NewDeclaration) { Declaration = NewDeclaration; }
 
-	const FVertexDeclarationRHIRef& GetDeclaration() const { return Declaration; }
-	const FVertexDeclarationRHIRef& GetPositionDeclaration() const { return PositionDeclaration; }
+	const FVertexDeclarationRHIRef& GetDeclaration(EVertexInputStreamType InputStreamType/* = FVertexInputStreamType::Default*/) const 
+	{
+		switch (InputStreamType)
+		{
+		case EVertexInputStreamType::Default:				return Declaration;
+		case EVertexInputStreamType::PositionOnly:			return PositionDeclaration;
+		case EVertexInputStreamType::PositionAndNormalOnly:	return PositionAndNormalDeclaration;
+		}
+		return Declaration;
+	}
 
 	virtual bool IsGPUSkinned() const { return false; }
 
 	/** Indicates whether the vertex factory supports a position-only stream. */
 	virtual bool SupportsPositionOnlyStream() const { return !!PositionStream.Num(); }
+
+	/** Indicates whether the vertex factory supports a position-and-normal-only stream. */
+	virtual bool SupportsPositionAndNormalOnlyStream() const { return !!PositionAndNormalStream.Num(); }
 
 	/** Indicates whether the vertex factory supports a null pixel shader. */
 	virtual bool SupportsNullPixelShader() const { return true; }
@@ -533,9 +551,9 @@ public:
 		return bSupportsManualVertexFetch && (InFeatureLevel > ERHIFeatureLevel::ES3_1) && RHISupportsManualVertexFetch(GMaxRHIShaderPlatform);
 	}
 
-	inline int32 GetPrimitiveIdStreamIndex(bool bPositionOnly) const
+	inline int32 GetPrimitiveIdStreamIndex(EVertexInputStreamType InputStreamType) const
 	{
-		return bPositionOnly ? PositionOnlyPrimitiveIdStreamIndex : PrimitiveIdStreamIndex;
+		return PrimitiveIdStreamIndex[static_cast<uint8>(InputStreamType)];
 	}
 
 protected:
@@ -549,25 +567,19 @@ protected:
 	FVertexElement AccessStreamComponent(const FVertexStreamComponent& Component,uint8 AttributeIndex);
 
 	/**
-	 * Creates a vertex element for a position vertex stream component.  Adds a unique position stream index for the vertex buffer used by the component.
-	 * @param Component - The position vertex stream component.
+	 * Creates a vertex element for a vertex stream component.  Adds a unique position stream index for the vertex buffer used by the component.
+	 * @param Component - The vertex stream component.
 	 * @param Usage - The vertex element usage semantics.
 	 * @param AttributeIndex - The attribute index to which the stream component is bound.
 	 * @return The vertex element which corresponds to Component.
 	 */
-	FVertexElement AccessPositionStreamComponent(const FVertexStreamComponent& Component,uint8 AttributeIndex);
+	FVertexElement AccessStreamComponent(const FVertexStreamComponent& Component, uint8 AttributeIndex, EVertexInputStreamType InputStreamType);
 
 	/**
 	 * Initializes the vertex declaration.
 	 * @param Elements - The elements of the vertex declaration.
 	 */
-	void InitDeclaration(FVertexDeclarationElementList& Elements);
-
-	/**
-	 * Initializes the position-only vertex declaration.
-	 * @param Elements - The elements of the vertex declaration.
-	 */
-	void InitPositionDeclaration(const FVertexDeclarationElementList& Elements);
+	void InitDeclaration(const FVertexDeclarationElementList& Elements, EVertexInputStreamType StreamType = EVertexInputStreamType::Default);
 
 	/**
 	 * Information needed to set a vertex stream.
@@ -598,19 +610,20 @@ protected:
 	
 	bool bSupportsManualVertexFetch = false;
 
-	int8 PositionOnlyPrimitiveIdStreamIndex = -1;
-	int8 PrimitiveIdStreamIndex = -1;
+	int8 PrimitiveIdStreamIndex[3] = { -1, -1, -1 }; // Need to match entry count of EVertexInputStreamType
 
 private:
 
 	/** The position only vertex stream used to render the factory during depth only passes. */
 	TArray<FVertexStream,TInlineAllocator<2> > PositionStream;
+	TArray<FVertexStream, TInlineAllocator<3> > PositionAndNormalStream;
 
 	/** The RHI vertex declaration used to render the factory normally. */
 	FVertexDeclarationRHIRef Declaration;
 
 	/** The RHI vertex declaration used to render the factory during depth only passes. */
 	FVertexDeclarationRHIRef PositionDeclaration;
+	FVertexDeclarationRHIRef PositionAndNormalDeclaration;
 };
 
 /**
@@ -636,11 +649,11 @@ public:
 		const class FSceneInterface* Scene,
 		const FSceneView* View,
 		const class FMeshMaterialShader* Shader,
-		bool bShaderRequiresPositionOnlyStream,
+		const EVertexInputStreamType InputStreamType,
 		ERHIFeatureLevel::Type FeatureLevel,
 		const FVertexFactory* VertexFactory,
 		const struct FMeshBatchElement& BatchElement,
-		FMeshDrawSingleShaderBindings& ShaderBindings,
+		class FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams
 		) const
 	{
@@ -648,7 +661,7 @@ public:
 		{
 			checkSlow(VertexFactory->GetType() == VertexFactoryType);
 			checkSlow(View || VertexFactoryType->SupportsCachingMeshDrawCommands());
-			Parameters->GetElementShaderBindings(Scene, View, Shader, bShaderRequiresPositionOnlyStream, FeatureLevel, VertexFactory, BatchElement, ShaderBindings, VertexStreams);
+			Parameters->GetElementShaderBindings(Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, ShaderBindings, VertexStreams);
 		}
 	}
 

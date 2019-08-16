@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3454749
+﻿INTSourceChangelist:6341512
 Availability:Public
 Title:5 - 自由发挥！
 Crumbs:
@@ -24,7 +24,7 @@ tags:Lighting
 如需了解此快速入门指南中各要点的详细内容，请查阅 [虚幻编辑器手册](https://docs.unrealengine.com/latest/INT/Engine/index.html)。
 
 * 如需了解胶囊体阴影的内容，请查阅 [](Engine/Rendering/LightingAndShadows/CapsuleShadows/Overview)。
-* 如需了解物理资源工具的内容，请查阅 [物理资源工具（PhAT）](https://docs.unrealengine.com/latest/INT/Engine/Physics/PhAT/)。
+* 如需了解物理资源工具的内容，请查阅 [物理资源工具（PhAT）](https://docs.unrealengine.com/latest/INT/Engine/Physics/PhysicsAssetEditor/)。
 * 如需了解光照的内容，请查阅 [光照环境](https://docs.unrealengine.com/latest/INT/Engine/Rendering/LightingAndShadows/)。
 
 [Nav]

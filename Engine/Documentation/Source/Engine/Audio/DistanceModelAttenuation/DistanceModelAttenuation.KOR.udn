@@ -1,7 +1,7 @@
-﻿INTSourceChangelist:3429236
+INTSourceChangelist:3429236
 Availability: Public
 Title:사운드 어테뉴에이션
-Description:언리얼 엔진 4 에서 소리의 attenuation, 감쇠 제어에 쓰이는 여러가지 디스턴스 모델에 대한 참고서입니다.
+Description:언리얼 엔진 4 에서 소리의 attenuation, 감쇠 제어에 쓰이는 여러가지 디스턴스 모델에 대한 레퍼런스입니다.
 Crumbs: %ROOT%, Engine, Engine/Audio
 version: 4.9
 Parent:Engine/Audio

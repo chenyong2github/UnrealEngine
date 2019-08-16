@@ -1,5 +1,6 @@
 Availability: Public
 Title:Collision Response Reference
+type:reference
 Crumbs: %ROOT%, Engine, Engine/Physics, Engine/Physics/Collision
 Description:The Collision Presets section in the Collision Property Category has a large number of properties broken out here for clarity.
 Version: 4.9

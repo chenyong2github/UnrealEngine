@@ -22,7 +22,7 @@ namespace Gauntlet.SelfTest
 		public override void TickTest()
 		{
 			// Grab the most recent Release build of Orion
-			UnrealBuildSource Build = new UnrealBuildSource(this.GameName, this.UsesSharedBuildType, null, this.BuildPath);
+			UnrealBuildSource Build = new UnrealBuildSource(this.ProjectName, this.ProjectFile, this.UnrealPath, this.UsesSharedBuildType, this.BuildPath);
 
 			// create client and server riles
 			UnrealSessionRole ClientRole = new UnrealSessionRole(UnrealTargetRole.Client, UnrealTargetPlatform.Win64, UnrealTargetConfiguration.Development);

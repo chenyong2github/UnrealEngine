@@ -1,42 +1,36 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
-Title: 컴포셔 에디터
-Crumbs: %ROOT%, Engine
-Description:Composure, 컴포셔는 언리얼 엔진 4 에서 디지털 콘텐츠와 현실의 영상을 실시간으로 합성하는 데 사용되는 합성 에디터입니다.
-Type: Landing
-Version: 4.17
-parent:Engine
-order:4
-topic-image:ComposureTopic.png
-related: Engine/Sequencer
-tags:Sequencer
+INTSourceChangelist:6429916
+Availability: Public
+Title: 컴포셔를 사용한 실시간 합성
+Description: Composure, 컴포셔는 언리얼 엔진에서 사용할 수 있는 그래픽 유틸리티 플러그인으로, 새로 툴세트가 추가되어 합성이 더욱 쉬워졌습니다.
+Type:landing
+Version: 4.22
+Parent: Engine
+Tags: Composure
+Tags: Early Access
+Tags: Landing Page
+topic-image:CompositingOverview_Layered.png
+Order: 35
 
-![](ComposureBanner.png)
 
-**Composure**, 컴포셔 에디터는 영화나 TV 쇼에서 보던 것처럼 시퀀서 에디터와 함께 사용하여 컴퓨터 생성 영상을 현실의 영상과 합성하는 데 사용됩니다. 카메라 렌즈 디스토션을 맞추는 기능부터 배경과 전경의 오브젝트 사이 차이를 감지하는 기능까지, 컴포셔 에디터는 시중의 다른 합성 소프트웨어와 비슷한 방식으로 작동합니다. 하지만 큰 차이점이라면, 컴포셔는 모든 것을 실시간으로 해낸다는 것입니다.
+[TOC (start:2 end:4)]
 
-여기서는 언리얼 엔진 4 (UE4) 에서 컴포셔를 사용하는 데 관련된 여러가지 부분을 다루는 다양한 문서에 대한 링크를 찾을 수 있습니다. 컴포셔에 익숙치 않은 경우, 먼저 컴포셔 퀵 스타트를 참고해 보시면 시퀀서와 같이 사용하는 법을 파악할 수 있을 것입니다.
+![](CompositingOverview_Layered.png "CompositingOverview_Layered.png")
+
+  
+
+Composure, 컴포셔는 언리얼 엔진에서 사용할 수 있는 그래픽 유틸리티 플러그인으로, 새로 툴세트가 추가되어 합성이 더욱 쉬워졌습니다.
+
+합성이란 서로 다른 소스의 시각적 요소를 단일 이미지로 합치는 것입니다. 시각 효과 업계에서 단일 프레임을 합성하는 것은 일반적으로 오프라인 프로세스이며 시간이 오래 걸릴 수 있습니다. 이제 엔진에 내장된 합성 기능으로, 사용자는 그린 스크린 씬과 CG 를 실시간으로 쉽게 시각화시킬 수 있습니다. 특히나 프리비즈의 경우, 디렉터는 최종 씬이 어때 보일지 쉽게 파악할 수 있고, 오프라인 합성 툴의 기준으로 사용할 수도 있습니다. 합성은 에디터에서도 인게임에서도 실행됩니다.
+
+  
 
 ## 시작하기
 
-[DIR(output:"topic" parent:"Engine/Composure" org:"hierarchy" end:"1" tags:"Getting Started")]
+[DIR(output:"topic" parent:"Engine/Composure" tags:"Getting Started")]
 
-[COMMENT:none]
+## 레퍼런스
 
-## 필독서
-
-
-
-## 가이드
-
-[DIR(output:"fancy" parent:"Engine/Composure/HowTo" org:"hierarchy" skill_Level:"Beginner")]
-[DIR(output:"fancy" parent:"Engine/Composure/HowTo" org:"hierarchy" skill_Level:"Intermediate")]
-[DIR(output:"fancy" parent:"Engine/Composure/HowTo" org:"hierarchy" skill_Level:"Advanced")]
-
-## 샘플
-
-
-[/COMMENT]
+[DIR(output:"topic" parent:"Engine/Composure" tags:"Reference")]
 
 
 

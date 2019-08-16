@@ -86,6 +86,11 @@ bool UBlueprintGameplayTagLibrary::HasAllTags(const FGameplayTagContainer& TagCo
 	return TagContainer.HasAll(OtherContainer);
 }
 
+bool UBlueprintGameplayTagLibrary::IsTagQueryEmpty(const FGameplayTagQuery& TagQuery)
+{
+	return TagQuery.IsEmpty();
+}
+
 bool UBlueprintGameplayTagLibrary::DoesContainerMatchTagQuery(const FGameplayTagContainer& TagContainer, const FGameplayTagQuery& TagQuery)
 {
 	return TagQuery.Matches(TagContainer);

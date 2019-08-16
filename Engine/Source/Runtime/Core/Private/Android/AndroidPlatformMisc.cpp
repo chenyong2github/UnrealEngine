@@ -1765,7 +1765,8 @@ bool FAndroidMisc::ShouldUseVulkan()
 		static const auto CVarDisableVulkan = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Android.DisableVulkanSupport"));
 
 		const bool bVulkanAvailable = IsVulkanAvailable();
-		const bool bVulkanDisabledCVar = CVarDisableVulkan->GetValueOnAnyThread() == 1;
+
+		const bool bVulkanDisabledCVar = !IsStandaloneStereoOnlyDevice() && CVarDisableVulkan->GetValueOnAnyThread() == 1;
 
 		if (bVulkanAvailable && !bVulkanDisabledCVar)
 		{
@@ -2177,6 +2178,18 @@ FAndroidMisc::ReInitWindowCallbackType FAndroidMisc::GetOnReInitWindowCallback()
 void FAndroidMisc::SetOnReInitWindowCallback(FAndroidMisc::ReInitWindowCallbackType InOnReInitWindowCallback)
 {
 	OnReInitWindowCallback = InOnReInitWindowCallback;
+}
+
+static FAndroidMisc::ReleaseWindowCallbackType OnReleaseWindowCallback;
+
+FAndroidMisc::ReleaseWindowCallbackType FAndroidMisc::GetOnReleaseWindowCallback()
+{
+	return OnReleaseWindowCallback;
+}
+
+void FAndroidMisc::SetOnReleaseWindowCallback(FAndroidMisc::ReleaseWindowCallbackType InOnReleaseWindowCallback)
+{
+	OnReleaseWindowCallback = InOnReleaseWindowCallback;
 }
 
 static FAndroidMisc::OnPauseCallBackType OnPauseCallback;

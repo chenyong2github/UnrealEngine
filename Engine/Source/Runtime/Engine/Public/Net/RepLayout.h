@@ -55,12 +55,6 @@ enum class ERepDataBufferType
 
 namespace UE4_RepLayout_Private
 {
-	// The purpose of this class is to allow us to translate or preserve const volatileness between disparate classes.
-	template<typename T, typename U> struct TTranslateConstVolatile { typedef typename TRemoveCV<U>::Type Type; };
-	template<typename T, typename U> struct TTranslateConstVolatile<const T, U> { typedef const typename TRemoveCV<U>::Type Type; };
-	template<typename T, typename U> struct TTranslateConstVolatile<volatile T, U> { typedef volatile typename TRemoveCV<U>::Type Type; };
-	template<typename T, typename U> struct TTranslateConstVolatile<const volatile T, U> { typedef const volatile typename TRemoveCV<U>::Type Type;  };
-
 	/**
 	 * TRepDataBuffer and TConstRepDataBuffer act as wrapper around internal data
 	 * buffers that FRepLayout may use. This allows FRepLayout to properly interact
@@ -70,7 +64,7 @@ namespace UE4_RepLayout_Private
 	struct TRepDataBufferBase
 	{
 		static constexpr ERepDataBufferType Type = DataType;
-		using ConstOrNotVoid = typename TTranslateConstVolatile<ConstOrNotType, void>::Type;
+		using ConstOrNotVoid = typename TCopyQualifiersFromTo<ConstOrNotType, void>::Type;
 
 	public:
 
@@ -83,19 +77,14 @@ namespace UE4_RepLayout_Private
 			return InBuffer.Data + Offset;
 		}
 
-		operator bool()
+		explicit operator bool() const
 		{
 			return Data != nullptr;
 		}
 
-		operator ConstOrNotType* ()
+		operator ConstOrNotType* () const
 		{
 			return Data;
-		}
-
-		operator ConstOrNotVoid* ()
-		{
-			return (ConstOrNotVoid*)Data;
 		}
 
 		ConstOrNotType* RESTRICT Data;
@@ -520,6 +509,12 @@ public:
 
 	/** List of properties that have RepNotifies that we will need to call on Clients. */
 	TArray<UProperty*> RepNotifies;
+
+	/**
+	 * Holds MetaData (such as array index) for RepNotifies.
+	 * Only used for CustomDeltaProperties.
+	 */
+	TMap<UProperty*, TArray<uint8>> RepNotifyMetaData;
 };
 
 /** Replication State that is only needed when sending properties. */
@@ -597,6 +592,9 @@ public:
 	/** Circular buffer of changelists. */
 	FRepChangedHistory ChangeHistory[MAX_CHANGE_HISTORY];
 
+	/** Array of property retirements that we'll use to track retransmission for Custom Delta Properties. */
+	TArray<FPropertyRetirement> Retirement;
+
 	/** List of changelists that were generated before the channel was fully opened.*/
 	TArray<FRepChangedHistory> PreOpenAckHistory;
 
@@ -613,6 +611,15 @@ public:
 
 	/** Cached set of inactive parent commands. */
 	TBitArray<> InactiveParents;
+
+	/** This is the delta state we need to compare with when determining what to send to a client for custom delta properties. */
+	TArray<TSharedPtr<INetDeltaBaseState>> RecentCustomDeltaState;
+
+	/** Same as RecentCustomDeltaState, but this will always remain as the initial CDO version. We use this to send all properties since channel was first opened (for bResendAllDataSinceOpen). */
+	TArray<TSharedPtr<INetDeltaBaseState>>	CDOCustomDeltaState;
+
+	/** Same as RecentCustomDeltaState, but will represent the state at the last checkpoint. */
+	TArray<TSharedPtr<INetDeltaBaseState>>	CheckpointCustomDeltaState;
 };
 
 /** Replication State that is unique Per Object Per Net Connection. */
@@ -1074,13 +1081,14 @@ enum class ERepLayoutState
  * explicit changelist is required. As each Handle is read, a Layout Command is applied
  * that serializes the data from the network bunch and applies it to an object.
  */
-class FRepLayout : public FGCObject, public TSharedFromThis<FRepLayout>
+class ENGINE_VTABLE FRepLayout : public FGCObject, public TSharedFromThis<FRepLayout>
 {
 private:
 
 	friend struct FRepStateStaticBuffer;
 	friend class UPackageMapClient;
 	friend class FNetSerializeCB;
+	friend struct FCustomDeltaPropertyIterator;
 
 	FRepLayout();
 
@@ -1096,22 +1104,6 @@ public:
 
 	/** Creates a new FRepLayout for the given function. */
 	static TSharedPtr<FRepLayout> CreateFromFunction(UFunction* InFunction, const UNetConnection* ServerConnection = nullptr, const ECreateRepLayoutFlags Flags = ECreateRepLayoutFlags::None);
-
-	/**
-	 * Used to signal that the channel that owns a given object has been opened and acknowledged
-	 * by a client.
-	 *
-	 * @param RepState	RepState for the Object whose channel was acked.
-	 *					This is expected to be valid.
-	 */
-	void OpenAcked(FSendingRepState* RepState) const;
-
-	UE_DEPRECATED(4.23, "Use OpenAcked that accepts a FSendingRepState")
-	void OpenAcked(FRepState* RepState) const
-	{
-		check(RepState);
-		OpenAcked(RepState->GetSendingRepState());
-	}
 
 	/**
 	 * Creates and initialize a new Shadow Buffer.
@@ -1183,32 +1175,6 @@ public:
 		FNetBitWriter& Writer,
 		const FReplicationFlags& RepFlags) const;
 
-	UE_DEPRECATED(4.23, "Use ReplicateProperties that accepts a FSendingRepState")
-	bool ReplicateProperties(
-		FRepState* RESTRICT RepState,
-		FRepChangelistState* RESTRICT RepChangelistState,
-		const uint8* RESTRICT Data,
-		UClass* ObjectClass,
-		UActorChannel* OwningChannel,
-		FNetBitWriter& Writer,
-		const FReplicationFlags& RepFlags) const
-	{
-		return ReplicateProperties(RepState->GetSendingRepState(), RepChangelistState, Data, ObjectClass, OwningChannel, Writer, RepFlags);
-	}
-
-	UE_DEPRECATED(4.23, "This method will be made private in future versions. Use ReplicateProperties (or SendProperties_BackwardsCompatible for replays).")
-	void SendProperties(
-		FRepState* RESTRICT RepState,
-		FRepChangedPropertyTracker* ChangedTracker,
-		const uint8* RESTRICT Data,
-		UClass* ObjectClass,
-		FNetBitWriter& Writer,
-		TArray<uint16>& Changed,
-		const FRepSerializationSharedInfo& SharedInfo) const
-	{
-		SendProperties(RepState->GetSendingRepState(), ChangedTracker, Data, ObjectClass, Writer, Changed, SharedInfo);
-	}
-
 	/**
 	 * Reads all property values from the received buffer, and applies them to the
 	 * property memory.
@@ -1233,20 +1199,6 @@ public:
 		bool& bOutGuidsChanged,
 		const EReceivePropertiesFlags Flags) const;
 
-	UE_DEPRECATED(4.23, "Use ReceiveProperties that accepts a FReceivingRepState")
-	bool ReceiveProperties(
-		UActorChannel* OwningChannel,
-		UClass* InObjectClass,
-		FRepState* RESTRICT RepState,
-		void* RESTRICT Data,
-		FNetBitReader& InBunch,
-		bool& bOutHasUnmapped,
-		bool& bOutGuidsChanged,
-		const EReceivePropertiesFlags Flags) const
-	{
-		return ReceiveProperties(OwningChannel, InObjectClass, RepState->GetReceivingRepState(), Data, InBunch, bOutHasUnmapped, bOutGuidsChanged, Flags);
-	}
-
 	/**
 	 * Finds any properties in the Shadow Buffer of the given Rep State that are currently valid
 	 * (mapped or unmapped) references to other network objects, and retrieves the associated
@@ -1259,17 +1211,9 @@ public:
 	 */
 	void GatherGuidReferences(
 		FReceivingRepState* RESTRICT RepState,
+		struct FNetDeltaSerializeInfo& Params,
 		TSet<FNetworkGUID>& OutReferencedGuids,
 		int32& OutTrackedGuidMemoryBytes) const;
-
-	UE_DEPRECATED(4.23, "Use GatherGuidReferences that accepts a FReceivingRepState")
-	void GatherGuidReferences(
-		FRepState* RepState,
-		TSet<FNetworkGUID>& OutReferencedGuids,
-		int32& OutTrackedGuidMemoryBytes) const
-	{
-		GatherGuidReferences(RepState->GetReceivingRepState(), OutReferencedGuids, OutTrackedGuidMemoryBytes);
-	}
 
 	/**
 	 * Called to indicate that the object referenced by the FNetworkGUID is no longer mapped.
@@ -1280,14 +1224,12 @@ public:
 	 * @param RepState	The RepState that holds a reference to the object.
 	 *					This is expected to be valid.
 	 * @param GUID		The Network GUID of the object to unmap.
+	 * @param Params	Delta Serialization Params used for Custom Delta Properties.
 	 */
-	bool MoveMappedObjectToUnmapped(FReceivingRepState* RESTRICT RepState, const FNetworkGUID& GUID) const;
-
-	UE_DEPRECATED(4.23, "Use MoveMappedObjectToUnmapped that accepts a FReceivingRepState")
-	bool MoveMappedObjectToUnmapped(FRepState* RepState, const FNetworkGUID& GUID) const
-	{
-		return MoveMappedObjectToUnmapped(RepState->GetReceivingRepState(), GUID);
-	}
+	bool MoveMappedObjectToUnmapped(
+		FReceivingRepState* RESTRICT RepState,
+		struct FNetDeltaSerializeInfo& Params,
+		const FNetworkGUID& GUID) const;
 
 	/**
 	 * Attempts to update any unmapped network guids referenced by the RepState.
@@ -1305,21 +1247,10 @@ public:
 		FReceivingRepState* RESTRICT RepState,
 		UPackageMap* PackageMap,
 		UObject* Object,
+		struct FNetDeltaSerializeInfo& Params,
 		bool& bCalledPreNetReceive,
 		bool& bOutSomeObjectsWereMapped,
 		bool& bOutHasMoreUnmapped) const;
-
-	UE_DEPRECATED(4.23, "Use UpdateUnmappedObjects that accepts a FReceivingRepState")
-	void UpdateUnmappedObjects(
-		FRepState* RepState,
-		UPackageMap* PackageMap,
-		UObject* Object,
-		bool& bOutSomeObjectsWereMapped,
-		bool& bOutHasMoreUnmapped) const
-	{
-		bool bCalledPreNetReceive = false;
-		UpdateUnmappedObjects(RepState->GetReceivingRepState(), PackageMap, Object, bCalledPreNetReceive, bOutSomeObjectsWereMapped, bOutHasMoreUnmapped);
-	}
 
 	/**
 	 * Fire any RepNotifies that have been queued for an object while receiving properties.
@@ -1329,12 +1260,6 @@ public:
 	 * @param Object	The Object that received properties.
 	 */
 	void CallRepNotifies(FReceivingRepState* RepState, UObject* Object) const;
-
-	UE_DEPRECATED(4.23, "Use CallRepNotifies that accepts a FReceivingRepState")
-	void CallRepNotifies(FRepState* RepState, UObject* Object) const
-	{
-		return CallRepNotifies(RepState->GetReceivingRepState(), Object);
-	}
 
 	/**
 	 * Called after an object has finished replicating its properties.
@@ -1349,43 +1274,10 @@ public:
 		FPacketIdRange& PacketRange,
 		bool bReliable) const;
 
-	UE_DEPRECATED(4.23, "Use PostReplicate that accepts a FSendingRepState")
-	void PostReplicate(
-		FRepState* RepState,
-		FPacketIdRange& PacketRange,
-		bool bReliable) const
-	{
-		PostReplicate(RepState->GetSendingRepState(), PacketRange, bReliable);
-	}
-
-	void ReceivedNak(FRepState* RepState, int32 NakPacketId) const;
-	bool AllAcked(FRepState* RepState) const;
-	bool ReadyForDormancy(FRepState* RepState) const;
-
 	template<ERepDataBufferType DataType>
 	void ValidateWithChecksum(TConstRepDataBuffer<DataType> Data, FBitArchive & Ar) const;
 
 	uint32 GenerateChecksum(const FRepState* RepState) const;
-
-	UE_DEPRECATED(4.23, "This method will be made private in future versions.")
-	void PruneChangeList(
-		FRepState* RepState,
-		const void* RESTRICT Data,
-		const TArray<uint16>& Changed,
-		TArray<uint16>& PrunedChanged) const
-	{
-		PruneChangeList(Data, Changed, PrunedChanged);
-	}
-
-	UE_DEPRECATED(4.23, "This method will be made private in future versions.")
-	void MergeChangeList(
-		const uint8* RESTRICT Data,
-		const TArray<uint16>& Dirty1,
-		const TArray<uint16>& Dirty2,
-		TArray<uint16>& MergedDirty) const
-	{
-		MergeChangeList(FConstRepObjectDataBuffer(Data), Dirty1, Dirty2, MergedDirty);
-	}
 
 	/**
 	 * Compare all properties between source and destination buffer, and optionally update the destination
@@ -1428,18 +1320,6 @@ public:
 		TArray<UObject*>* ObjReferences,
 		TRepDataBuffer<DstType> Destination,
 		TConstRepDataBuffer<SrcType> Source) const;
-
-	UE_DEPRECATED(4.23, "This method is deprecated. Please use GetLifetimeCustomDeltaProperties that returns an ArrayView and GetPropertyLifetimeCondition instead.")
-	void GetLifetimeCustomDeltaProperties(TArray<int32>& OutCustom, TArray<ELifetimeCondition>& OutConditions) const;
-
-	/** Returns the RepIndices of any Lifetime Custom Delta properties. */
-	const TArrayView<const uint16> GetLifetimeCustomDeltaProperties() const;
-
-	/** Returns the Lifetime Condition for the Replicated property associated with the given RepIndex. */
-	const ELifetimeCondition GetPropertyLifetimeCondition(uint16 RepIndex) const
-	{
-		return Parents[RepIndex].Condition;
-	}
 
 	/** @see SendProperties. */
 	void ENGINE_API SendPropertiesForRPC(
@@ -1495,16 +1375,9 @@ public:
 		const bool bEnableRepNotifies,
 		bool& bOutGuidsChanged) const;
 
-	void UpdateChangelistMgr(
-		FSendingRepState* RESTRICT RepState,
-		FReplicationChangelistMgr& InChangelistMgr,
-		const UObject* InObject,
-		const uint32 ReplicationFrame,
-		const FReplicationFlags& RepFlags,
-		const bool bForceCompare) const;
-
 	//~ Begin FGCObject Interface
 	ENGINE_API virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	ENGINE_API virtual FString GetReferencerName() const override;
 	//~ End FGCObject Interface
 
 	/**
@@ -1546,12 +1419,6 @@ public:
 	}
 
 	void CountBytes(FArchive& Ar) const;
-
-	UE_DEPRECATED(4.23, "This method is only temporary to support existing behavior, and will be removed in future versions.")
-	UProperty* GetPropertyForRepIndex(uint32 RepIndex) const
-	{
-		return Parents[RepIndex].Property;
-	}
 
 private:
 
@@ -1807,60 +1674,30 @@ private:
 		const int32 CmdEnd,
 		TArray<FHandleToCmdIndex>& HandleToCmdIndex);
 
+	void UpdateChangelistMgr(
+		FSendingRepState* RESTRICT RepState,
+		FReplicationChangelistMgr& InChangelistMgr,
+		const UObject* InObject,
+		const uint32 ReplicationFrame,
+		const FReplicationFlags& RepFlags,
+		const bool bForceCompare) const;
+
 	void InitRepStateStaticBuffer(FRepStateStaticBuffer& ShadowData, const FConstRepObjectDataBuffer Source) const;
 	void ConstructProperties(FRepStateStaticBuffer& ShadowData) const;
 	void CopyProperties(FRepStateStaticBuffer& ShadowData, const FConstRepObjectDataBuffer Source) const;
 	void DestructProperties(FRepStateStaticBuffer& RepStateStaticBuffer) const;
 
 	/**
-	 * Similar to GatherGuidReferences, except works for CustomDeltaProperties.
-	 *
-	 * @param Params	Params that we'll use to gather guids.
-	 *					The GatherGuidReferences member must not be null.
-	 *					The Object member must not be null.
+	 * @param CustomDeltaIndex	The index of the Custom Delta Property.
+	 *							This is not the same as UProperty::RepIndex!
+	 *							@see FLifetimeCustomDeltaState.
 	 */
-	void GatherGuidReferencesForCustomDeltaProperties(FNetDeltaSerializeInfo& Params) const;
-
-	/**
-	 * Similar to MoveMappedObjectToUnmapped, except works for CustomDeltaProperties.
-	 *
-	 * @param Params	Params that we'll use to gather guids.
-	 *					The MoveGuidToUnmapped member must not be null.
-	 *					The Object member must not be null.
-	 */
-	bool MoveMappedObjectToUnmappedForCustomDeltaProperties(FNetDeltaSerializeInfo& Params) const;
-
-	//~ Remove this when FObjectReplicator::UnmappedCustomProperties goes away.
-	UE_DEPRECATED(4.23, "This method is only temporary to support existing behavior, and will be removed in future versions.")
-	bool MoveMappedObjectToUnmappedForCustomDeltaProperties(FNetDeltaSerializeInfo& Params, TMap<int32, UStructProperty*>& UnmappedProperties) const;
-
-	/**
-	 * Similar to UpdateUnmappedObjects, except works for CustomDeltaProperties.
-	 *
-	 * @param Params					Params that we'll use to gather guids.
-	 *									The bUpdateUnmappedObjects member must be true.
-	 *									The PackageMap member must be non null.
-	 *									The Object member must be non null.
-	 */
-	void UpdateUnmappedObjectsForCustomDeltaProperties(FNetDeltaSerializeInfo& Params) const;
-
-	//~ Remove this when FObjectReplicator::UnmappedCustomProperties goes away.
-	UE_DEPRECATED(4.23, "This method is only temporary to support existing behavior, and will be removed in future versions.")
-	void UpdateUnmappedObjectsForCustomDeltaProperties(
-		FNetDeltaSerializeInfo& Params,
-		TArray<TPair<int32, UStructProperty*>>& CompletelyMapped,
-		TArray<TPair<int32, UStructProperty*>>& Updated) const;
-
-	bool SendCustomDeltaProperty(FNetDeltaSerializeInfo& Params, uint16 CustomDeltaRepIndex) const;
-
-	UE_DEPRECATED(4.23, "This method is only temporary to support existing behavior, and will be removed in future versions.")
-	bool SendCustomDeltaProperty(
-		FNetDeltaSerializeInfo& Params,
-		UProperty* Property,
-		int32 StaticArrayIndex) const;
+	bool SendCustomDeltaProperty(FNetDeltaSerializeInfo& Params, const uint16 CustomDeltaIndex) const;
 
 	/**
 	 * Attempts to receive the custom delta property.
+	 *
+	 *
 	 *
 	 * @param Params			Params that we'll use to receive.
 	 *							The PackageMap member must be non null.
@@ -1869,10 +1706,10 @@ private:
 	 * @param Property			The Property that we're trying to received.
 	 *							This is expected to be a valid Replicated property that is a CustomDelta type.
 	 */
-	bool ReceiveCustomDeltaProperty(FNetDeltaSerializeInfo& Params, UStructProperty* Property) const;
-
-	UE_DEPRECATED(4.23, "This method is only temporary to support existing behavior, and will be removed in future versions.")
-	bool ReceiveCustomDeltaProperty(FNetDeltaSerializeInfo& Params, UStructProperty* Property, uint32& StaticArrayIndex, int32& Offset) const;
+	bool ReceiveCustomDeltaProperty(
+		FReceivingRepState* RESTRICT ReceivingRepState,
+		FNetDeltaSerializeInfo& Params,
+		UStructProperty* Property) const;
 
 	bool DeltaSerializeFastArrayProperty(struct FFastArrayDeltaSerializeParams& Params, FReplicationChangelistMgr* ChangelistMgr) const;
 
@@ -1886,13 +1723,19 @@ private:
 		UObject* Object,
 		UNetConnection* Connection,
 		FReplicationChangelistMgr& ChangelistMgr,
-		TMap<int32, TSharedPtr<INetDeltaBaseState>>& CustomDeltaStates) const;
+		TArray<TSharedPtr<INetDeltaBaseState>>& CustomDeltaStates) const;
 
 	void PostSendCustomDeltaProperties(
 		UObject* Object,
 		UNetConnection* Connection,
 		FReplicationChangelistMgr& ChangelistMgr,
-		TMap<int32, TSharedPtr<INetDeltaBaseState>>& CustomDeltaStates) const;
+		TArray<TSharedPtr<INetDeltaBaseState>>& CustomDeltaStates) const;
+
+	const uint16 GetNumLifetimeCustomDeltaProperties() const;
+
+	UProperty* GetLifetimeCustomDeltaProperty(const uint16 CustomDeltaPropertyIndex) const;
+
+	const ELifetimeCondition GetLifetimeCustomDeltaPropertyCondition(const uint16 RepIndCustomDeltaPropertyIndexex) const;
 
 	ERepLayoutState LayoutState;
 
@@ -1927,5 +1770,5 @@ private:
 	FRepSerializationSharedInfo SharedInfoRPC;
 
 	/** Shared comparison to default state for multicast rpc */
-	TBitArray<> SharedInfoRPCParentsChanged;	
+	TBitArray<> SharedInfoRPCParentsChanged;
 };

@@ -55,6 +55,7 @@ CommandMap::CommandMap(void)
 	RegisterDefaultAction<commands::CompilationFinished>(m_actions);
 	RegisterDefaultAction<commands::DisconnectClient>(m_actions);
 	RegisterDefaultAction<commands::TriggerRecompile>(m_actions);	
+	RegisterDefaultAction<commands::LogMessage>(m_actions);
 	RegisterDefaultAction<commands::BuildPatch>(m_actions);
 	RegisterDefaultAction<commands::HandleException>(m_actions);
 	RegisterDefaultAction<commands::HandleExceptionFinished>(m_actions);

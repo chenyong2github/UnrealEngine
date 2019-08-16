@@ -5,6 +5,7 @@ sh FixMonoFiles.sh
 sh FixDependencyFiles.sh
 
 IS_MONO_INSTALLED=0
+IS_MS_BUILD_AVAILABLE=0
 MONO_VERSION_PATH=`which mono` || true
 
 # if we can't find mono path, try one last hail mary of a standard install location
@@ -18,7 +19,7 @@ if [ "$MONO_VERSION_PATH" == "" ] || [ ! -f $MONO_VERSION_PATH ]; then
 fi
 
 if [ ! $MONO_VERSION_PATH == "" ] && [ -f $MONO_VERSION_PATH ]; then
-	# If Mono is installed, check if it's 4.0.2 or higher
+	# If Mono is installed, check if it's 5.0 or higher
 	MONO_VERSION_PREFIX="Mono JIT compiler version "
 	MONO_VERSION_PREFIX_LEN=${#MONO_VERSION_PREFIX}
 	MONO_VERSION=`"${MONO_VERSION_PATH}" --version |grep "$MONO_VERSION_PREFIX"`
@@ -26,16 +27,11 @@ if [ ! $MONO_VERSION_PATH == "" ] && [ -f $MONO_VERSION_PATH ]; then
 	MONO_VERSION=(`echo ${MONO_VERSION:MONO_VERSION_PREFIX_LEN} |tr '.' ' '`)
 	if [ ${MONO_VERSION[0]} -ge 5 ]; then # Allow any Mono 5.x and up
 		IS_MONO_INSTALLED=1
-	elif [ ${MONO_VERSION[0]} -eq 4 ]; then
-		if [ ${MONO_VERSION[1]} -eq 0 ] && [ ${MONO_VERSION[2]} -ge 2 ]; then
-			IS_MONO_INSTALLED=1
-		elif [ ${MONO_VERSION[1]} -gt 0 ] && [ ${MONO_VERSION[1]} -lt 6 ]; then # Mono 4.6 has issues on macOS 10.12
-			IS_MONO_INSTALLED=1
-		fi
+		IS_MS_BUILD_AVAILABLE=1
 	fi
 fi
 
-# Setup bundled Mono if cannot use installed one
+# Setup bundled Mono if cannot use installed one. Note this is 5.16 but does not currently have msbuild bundled
 if [ $IS_MONO_INSTALLED -eq 0 ]; then
 	echo Setting up Mono
 	CUR_DIR=`pwd`
@@ -43,6 +39,9 @@ if [ $IS_MONO_INSTALLED -eq 0 ]; then
 	export PATH=$UE_MONO_DIR/bin:$PATH
 	export MONO_PATH=$UE_MONO_DIR/lib:$MONO_PATH
 	export LD_LIBRARY_PATH=$UE_MONO_DIR/lib:$LD_LIBRARY_PATH
+else
+	export IS_MONO_INSTALLED=$IS_MONO_INSTALLED
+	export IS_MS_BUILD_AVAILABLE=$IS_MS_BUILD_AVAILABLE
 fi
 
 cd "$START_DIR"

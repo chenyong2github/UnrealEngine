@@ -25,7 +25,6 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Misc/Optional.h"
-#include "Widgets/Input/SVectorInputBox.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/Colors/SColorPicker.h"
 #include "Widgets/Input/SComboButton.h"
@@ -409,7 +408,7 @@ void FCompElementDetailsCustomization::ForceRefreshLayout()
 
 void FCompElementDetailsCustomization::GetInstanceCameraSourceComboStrings(TArray<TSharedPtr<FString>>& OutComboBoxStrings, TArray<TSharedPtr<SToolTip>>& OutToolTips, TArray<bool>& OutRestrictedItems)
 {
-	const UEnum* CamSourceEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("ESceneCameraLinkType"));
+	const UEnum* CamSourceEnum = StaticEnum<ESceneCameraLinkType>();
 	if (ensure(CamSourceEnum))
 	{
 		for (int32 EnumIndex = 0; EnumIndex < CamSourceEnum->NumEnums()-1; ++EnumIndex)
@@ -445,7 +444,7 @@ FString FCompElementDetailsCustomization::GetInstanceCameraSourceValueStr(TShare
 		}
 		else
 		{
-			const UEnum* CamSourceEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("ESceneCameraLinkType"));
+			const UEnum* CamSourceEnum = StaticEnum<ESceneCameraLinkType>();
 			if (ensure(CamSourceEnum))
 			{
 				DisplayStr = CamSourceEnum->GetDisplayNameTextByValue(CurrentValue).ToString();
@@ -458,7 +457,7 @@ FString FCompElementDetailsCustomization::GetInstanceCameraSourceValueStr(TShare
 
 void FCompElementDetailsCustomization::OnCameraSourceSelected(const FString& Selection, TSharedPtr<IPropertyHandle> PropertyHandle)
 {
-	const UEnum* CamSourceEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("ESceneCameraLinkType"));
+	const UEnum* CamSourceEnum = StaticEnum<ESceneCameraLinkType>();
 	if (ensure(CamSourceEnum) && PropertyHandle.IsValid())
 	{
 		const int64 FoundValue = CamSourceEnum->GetValueByNameString(Selection);
@@ -709,11 +708,11 @@ void FCompositingMaterialPassCustomization::CustomizeChildren(TSharedRef<IProper
 
 					RebuildTextureSourceList();
 
-					FIsResetToDefaultVisible IsResetVisible = FIsResetToDefaultVisible::CreateRaw(this, &FCompositingMaterialPassCustomization::TextureShouldShowResetToDefault);
-					FResetToDefaultHandler ResetHandler = FResetToDefaultHandler::CreateRaw(this, &FCompositingMaterialPassCustomization::TextureResetToDefault, PassComboButton);
+					FIsResetToDefaultVisible IsResetVisible = FIsResetToDefaultVisible::CreateSP(this, &FCompositingMaterialPassCustomization::TextureShouldShowResetToDefault);
+					FResetToDefaultHandler ResetHandler = FResetToDefaultHandler::CreateSP(this, &FCompositingMaterialPassCustomization::TextureResetToDefault, PassComboButton);
 					FResetToDefaultOverride ResetOverride = FResetToDefaultOverride::Create(IsResetVisible, ResetHandler);
 
-					//ChildHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateRaw(this, &FCompositingMaterialPassCustomization::OnTextureOverrideChanged, ChildHandle));
+					//ChildHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FCompositingMaterialPassCustomization::OnTextureOverrideChanged, ChildHandle));
 
 					PropertyRow.OverrideResetToDefault(ResetOverride);
 					PropertyRow.GetDefaultWidgets(NameWidget, ValueWidget, Row);
@@ -849,11 +848,11 @@ void FCompositingMaterialPassCustomization::CustomizeChildren(TSharedRef<IProper
 					}
 				}
 
-				FIsResetToDefaultVisible IsResetVisible = FIsResetToDefaultVisible::CreateRaw(this, &FCompositingMaterialPassCustomization::VectorShouldShowResetToDefault);
-				FResetToDefaultHandler ResetHandler = FResetToDefaultHandler::CreateRaw(this, &FCompositingMaterialPassCustomization::VectorResetToDefault);
+				FIsResetToDefaultVisible IsResetVisible = FIsResetToDefaultVisible::CreateSP(this, &FCompositingMaterialPassCustomization::VectorShouldShowResetToDefault);
+				FResetToDefaultHandler ResetHandler = FResetToDefaultHandler::CreateSP(this, &FCompositingMaterialPassCustomization::VectorResetToDefault);
 				FResetToDefaultOverride ResetOverride = FResetToDefaultOverride::Create(IsResetVisible, ResetHandler);
 
-				ChildHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateRaw(this, &FCompositingMaterialPassCustomization::OnVectorOverrideChanged, ChildHandle));
+				ChildHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FCompositingMaterialPassCustomization::OnVectorOverrideChanged, ChildHandle));
 
 				TSharedPtr<SWidget> NameWidget;
 				TSharedPtr<SWidget> ValueWidget;

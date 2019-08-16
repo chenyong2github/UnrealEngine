@@ -1,0 +1,29 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+using UnrealBuildTool;
+
+public class SoundCueTemplates : ModuleRules
+{
+    public SoundCueTemplates(ReadOnlyTargetRules Target) : base(Target)
+    {
+        OptimizeCode = CodeOptimization.Never;
+        PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
+
+        PublicDependencyModuleNames.AddRange(
+            new string[]
+            {
+                "Core"
+            }
+        );
+
+        PrivateDependencyModuleNames.AddRange(
+            new string[]
+            {
+                "CoreUObject",
+                "Engine",
+                "Slate",
+                "SlateCore"
+            }
+        );
+    }
+}

@@ -7,161 +7,42 @@
 #endif
 
 #include "Components/MeshComponent.h"
-#include "GeometryCollection/ManagedArray.h"
 
 #include "GeometryCollectionDebugDrawComponent.generated.h"
+
+#if INCLUDE_CHAOS && GEOMETRYCOLLECTION_DEBUG_DRAW
+#include "GeometryCollection/GeometryCollectionParticlesData.h"
+#endif  // #if INCLUDE_CHAOS && GEOMETRYCOLLECTION_DEBUG_DRAW
 
 class AGeometryCollectionRenderLevelSetActor;
 class UGeometryCollectionComponent;
 class AGeometryCollectionDebugDrawActor;
+class AChaosSolverActor;
 
-// class responsible for debug drawing functionality for GeometryCollectionComponents
-// @todo: formalize the idea of a "debug draw mode" in some class hierarchy to make it easy 
-// to implement new types of visualizations
-UCLASS(meta = (BlueprintSpawnableComponent))
-class GEOMETRYCOLLECTIONENGINE_API UGeometryCollectionDebugDrawComponent : public UMeshComponent
+#if INCLUDE_CHAOS && GEOMETRYCOLLECTION_DEBUG_DRAW
+namespace Chaos { template<class T, int d> class TImplicitObject; }
+namespace Chaos { template<class T, int d> class TPBDRigidParticles; }
+#endif  // #if INCLUDE_CHAOS && GEOMETRYCOLLECTION_DEBUG_DRAW
+
+/**
+* UGeometryCollectionDebugDrawComponent
+*   Component adding debug drawing functionality to a GeometryCollectionActor.
+*   This component is automatically added to every GeometryCollectionActor.
+*/
+UCLASS(meta = (BlueprintSpawnableComponent), HideCategories = ("Tags", "Activation", "Cooking", "AssetUserData", "Collision"))
+class GEOMETRYCOLLECTIONENGINE_API UGeometryCollectionDebugDrawComponent : public UActorComponent
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 
-	/**
-	* Singleton actor, containing the debug draw properties. Automatically populated at play time.
-	*/
-	UPROPERTY(EditAnywhere, Category = "Debug Draw|Settings")
+	/** Singleton actor, containing the debug draw properties. Automatically populated at play time unless explicitly set. */
+	UPROPERTY(EditAnywhere, Category = "Debug Draw", AdvancedDisplay)
 	AGeometryCollectionDebugDrawActor* GeometryCollectionDebugDrawActor;
 
-	/**
-	* Level Set singleton actor, containing the Render properties. Automatically populated at play time.
-	*/
-	UPROPERTY(EditAnywhere, Category = "Debug Draw|Settings")
-	AGeometryCollectionRenderLevelSetActor* GeometryCollectionRenderLevelSet;
-
-	/**
-	* Enable Level Set visualization.
-	*/
-	UPROPERTY(EditAnywhere, Category = "Debug Draw|Level Set")
-	bool bDebugDrawLevelSet;
-
-	/**
-	* Enable to visualize the selected level sets at the world origin.
-	*/
-	UPROPERTY(EditAnywhere, Category = "Debug Draw|Level Set")
-	bool bRenderLevelSetAtOrigin;
-
-	/**
-	* Transform index of the level set to visualize.
-	*/
-	UPROPERTY(EditAnywhere, Category = "Debug Draw|Level Set", meta = (ClampMin="0"))
-	int LevelSetIndex;
-
-	/**
-	* Enable transform visualization.
-	*/
-	UPROPERTY(EditAnywhere, Category = "Debug Draw|Geometry")
-	bool bDebugDrawTransform;
-
-	/**
-	* Enable transform indices visualization.
-	*/
-	UPROPERTY(EditAnywhere, Category = "Debug Draw|Geometry")
-	bool bDebugDrawTransformIndex;
-
-	/**
-	* Enable bounding boxes visualization.
-	*/
-	UPROPERTY(EditAnywhere, Category = "Debug Draw|Geometry")
-	bool bDebugDrawBoundingBox;
-
-	/**
-	* Color tint used for visualizing all geometry elements.
-	*/
-	UPROPERTY(EditAnywhere, Category = "Debug Draw|Geometry")
-	FLinearColor GeometryColor;
-
-	/**
-	* Enable proximity visualization.
-	*/
-	UPROPERTY(EditAnywhere, Category = "Debug Draw|Breaking")
-	bool bDebugDrawProximity;
-
-	/**
-	* Enable breaking faces visualization.
-	*/
-	UPROPERTY(EditAnywhere, Category = "Debug Draw|Breaking")
-	bool bDebugDrawBreakingFace;
-
-	/**
-	* Enable breaking regions visualization.
-	*/
-	UPROPERTY(EditAnywhere, Category = "Debug Draw|Breaking")
-	bool bDebugDrawBreakingRegionData;
-
-	/**
-	* Color tint for the breaking visualization.
-	*/
-	UPROPERTY(EditAnywhere, Category = "Debug Draw|Breaking")
-	FLinearColor BreakingColor;
-
-	/**
-	* Enable face visualization.
-	*/
-	UPROPERTY(EditAnywhere, Category = "Debug Draw|Face")
-	bool bDebugDrawFace;
-
-	/**
-	* Enable face indices visualization.
-	*/
-	UPROPERTY(EditAnywhere, Category = "Debug Draw|Face")
-	bool bDebugDrawFaceIndex;
-
-	/**
-	* Enable face normals visualization.
-	*/
-	UPROPERTY(EditAnywhere, Category = "Debug Draw|Face")
-	bool bDebugDrawFaceNormal;
-
-	/**
-	* Enable single face visualization.
-	*/
-	UPROPERTY(EditAnywhere, Category = "Debug Draw|Face")
-	bool bDebugDrawSingleFace;
-
-	/**
-	* Index of the single face to visualize.
-	*/
-	UPROPERTY(EditAnywhere, Category = "Debug Draw|Face", meta = (ClampMin="0"))
-	int32 SingleFaceIdx;
-
-	/**
-	* Color tint used for visualizing all faces elements.
-	*/
-	UPROPERTY(EditAnywhere, Category = "Debug Draw|Face")
-	FLinearColor FaceColor;
-
-	/**
-	* Enable vertex visualization.
-	*/
-	UPROPERTY(EditAnywhere, Category = "Debug Draw|Vertex")
-	bool bDebugDrawVertex;
-
-	/**
-	* Enable vertex indices visualization.
-	*/
-	UPROPERTY(EditAnywhere, Category = "Debug Draw|Vertex")
-	bool bDebugDrawVertexIndex;
-
-	/**
-	* Enable vertex normals visualization.
-	*/
-	UPROPERTY(EditAnywhere, Category = "Debug Draw|Vertex")
-	bool bDebugDrawVertexNormal;
-
-	/**
-	* Color tint used for visualizing all vertex elements.
-	*/
-	UPROPERTY(EditAnywhere, Category = "Debug Draw|Vertex")
-	FLinearColor VertexColor;
+	/** Level Set singleton actor, containing the Render properties. Automatically populated at play time unless explicitly set. */
+	UPROPERTY(EditAnywhere, Category = "Debug Draw", AdvancedDisplay)
+	AGeometryCollectionRenderLevelSetActor* GeometryCollectionRenderLevelSetActor;
 
 	UGeometryCollectionComponent* GeometryCollectionComponent;  // the component we are debug rendering for, set by the GeometryCollectionActor after creation
 
@@ -169,24 +50,67 @@ public:
 	virtual void EndPlay(EEndPlayReason::Type ReasonEnd) override;
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 	
-#if WITH_EDITOR
-	/**
-	* Property changed callback. Used to clamp the level set and single face index properties.
-	*/
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
+#if GEOMETRYCOLLECTION_DEBUG_DRAW
+	/** Update selection and visibility after any change in properties. Also enable/disable this component tick update. Return true if this geometry collection is selected. */
+	bool OnDebugDrawPropertiesChanged(bool bForceVisibilityUpdate);
+
+	/** Update selection and visibility after a change in cluster. Only handled when the debug drawing is active (the component is ticking). */
+	void OnClusterChanged();
+
+	/** Return whether the geometry collection rigid body id array is not completely initialized. This can happen when running the physics multithreaded. */
+	FORCEINLINE bool HasIncompleteRigidBodyIdSync() const { return bHasIncompleteRigidBodyIdSync;  }
 
 private:
-	void DebugDrawLevelSetBeginPlay();
-	void DebugDrawLevelSetEndPlay();
-	void DebugDrawLevelSetResetVisiblity();
-	void DebugDrawLevelSetTick();
+	/** Recursively compute global cluster transforms. Only gives geometry transforms for the leaf nodes, mid-level transforms are those of the clusters. */
+	void ComputeClusterTransforms(int32 Index, TArray<bool>& IsComputed, TArray<FTransform>& InOutGlobalTransforms);
 
-	void DebugDrawBeginPlay();
+	/** 
+	* Compute global transforms.
+	* Unlike GeometryCollectionAlgo::GlobalMatrices(), this also calculates the correct mid-level geometry transforms and includes the actor transform.
+	*/
+	void ComputeTransforms(TArray<FTransform>& OutClusterTransforms, TArray<FTransform>& OutGeometryTransforms);
+
+	/** Geometry collection debug draw. */
 	void DebugDrawTick();
 
+	/** Update the transform index dependending on the current filter settings. */
+	void UpdateSelectedTransformIndex();
+
+	/** Return the number of faces for the given geometry (includes its children, and includes its detached children when bDebugDrawClustering is true). */
+	int32 CountFaces(int32 TransformIndex, bool bDebugDrawClustering) const;
+
+	/** Update visible array to hide the selected geometry and its children, and includes its detached children when bDebugDrawClustering is true)*/
+	void HideFaces(int32 TransformIndex, bool bDebugDrawClustering);
+
+	/** Update geometry visibility. Set bForceVisibilityUpdate to true to force the visibility array update. */
+	void UpdateGeometryVisibility(bool bForceVisibilityUpdate = false);
+
+	/** Update ticking status. */
+	void UpdateTickStatus();
+
+#if INCLUDE_CHAOS
+	/** Chaos dependent debug draw. */
+	void DebugDrawChaosTick();
+
+	/** Update level set visibility. */
+	void UpdateLevelSetVisibility();
+#endif  // #if INCLUDE_CHAOS
+#endif  // #if GEOMETRYCOLLECTION_DEBUG_DRAW
+
 private:
-	bool bLevelSetTextureDirty;
-	int LevelSetTextureTransformIndex;
-	TSharedPtr<TManagedArray<bool>> BaseVisibilityArray;
+	static UGeometryCollectionDebugDrawComponent* RenderLevelSetOwner;
+	static int32 LastRenderedId;
+
+#if GEOMETRYCOLLECTION_DEBUG_DRAW
+#if INCLUDE_CHAOS
+	FGeometryCollectionParticlesData ParticlesData;
+#endif  // #if INCLUDE_CHAOS
+	int32 ParentCheckSum;
+	int32 SelectedRigidBodyId;
+	int32 SelectedTransformIndex;
+	int32 HiddenTransformIndex;
+	bool bWasVisible;
+	bool bHasIncompleteRigidBodyIdSync;
+	AChaosSolverActor* SelectedChaosSolver;
+#endif  // #if GEOMETRYCOLLECTION_DEBUG_DRAW
 };

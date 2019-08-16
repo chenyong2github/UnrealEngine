@@ -19,7 +19,7 @@
         {
             "Name": "AISupportModule",
             "Type": "Runtime",
-            "LoadingPhase": "PreDefault"
+            "LoadingPhase": "PostConfigInit"
         }
 	]
 }

@@ -35,7 +35,7 @@ First thing we are going to do is use the class wizard within the Unreal Editor 
 The second step in the process tells the wizard the name of the class you want generated. Here's the second step with the default name used.
 
 ![image alt text](image_2.png)
-Once you choose to create the class, the wizard will generate the files and open your development environment so that you can start editing it. Here is the class definition that is generated for you. For more information on the Class Wizard, follow this [link.](Programming/Development/ManagingGameCode/CppClassWizard)
+Once you choose to create the class, the wizard will generate the files and open your development environment so that you can start editing it. Here is the class definition that is generated for you. For more information on the Class Wizard, follow [this link.](Programming/Development/ManagingGameCode/CppClassWizard)
 
 	#include "GameFramework/Actor.h"
 	#include "MyActor.generated.h"
@@ -57,7 +57,7 @@ Once you choose to create the class, the wizard will generate the files and open
 		virtual void BeginPlay() override;
 	};
 
-The class wizard generates your class with **BeginPlay()** and **Tick()** specified as overloads. **BeginPlay()** is an event that lets you know the Actor has entered the game in a playable state. This is a good place to initiate gameplay logic for your class. **Tick()** is called once per frame with the amount of elapsed time since the last call passed in. There you can do any recurring logic. However if you do not need that functionality, it is best to remove it to save yourself a small amount of performance. If you remove it, make sure to remove the line in the constructor that indicated ticking should occur. The constructor below contains the line in question.
+The class wizard generates your class with `BeginPlay` and `Tick` specified as overloads. `BeginPlay` is an event that lets you know the Actor has entered the game in a playable state. This is a good place to initiate gameplay logic for your class. `Tick` is called once per frame with the amount of elapsed time since the last call passed in. You can do any recurring logic there. However, if you do not need that functionality, it is best to remove it to save yourself a small amount of performance. If you remove it, make sure to remove the line in the constructor that indicated ticking should occur. The constructor below contains the line in question.
 
 	AMyActor::AMyActor()
 
@@ -71,7 +71,7 @@ The class wizard generates your class with **BeginPlay()** and **Tick()** specif
 
 ### Making a property show up in the editor
 
-We have our class created, so now let us create some properties that can be set by designers in the Unreal Editor. Exposing a property to the editor is quite easy using our special macro, **UPROPERTY()**. All you have to do is use the **UPROPERTY(EditAnywhere)** macro before your property declaration as seen in the class below.
+We have our class created, so now let us create some properties that can be set by designers in the Unreal Editor. Exposing a property to the editor is quite easy using our `UPROPERTY` Specifier. All you have to do is put `UPROPERTY(EditAnywhere)` on the line above your property declaration, as seen in the class below.
 
 	UCLASS()
 	class AMyActor : public AActor
@@ -85,21 +85,21 @@ We have our class created, so now let us create some properties that can be set 
 		...
 	};
 
-That is all you need to do to be able to edit that value in the editor. There are more ways to control how and where it is edited. This is done by passing more information into the **UPROPERTY()** macro. For instance, if you want the TotalDamage property to appear in a section with related properties, you can use the categorization feature. The property declaration below shows this.
+That is all you need to do to be able to edit that value in the editor. There are more ways to control how and where it is edited. This is done by passing more information into the `UPROPERTY()` Specifier. For instance, if you want the TotalDamage property to appear in a section with related properties, you can use the categorization feature. The property declaration below shows this.
 
 	UPROPERTY(EditAnywhere, Category="Damage")
 	int32 TotalDamage;
 
 When the user looks to edit this property, it now appears under the Damage heading along with any other properties that you have marked with this category name. This is a great way to place commonly used settings together for editing by designers.
 
-Now let us expose that same property to Blueprints.
+Now let's expose that same property to Blueprints.
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Damage")
 	int32 TotalDamage;
 
-As you can see, there is a Blueprint specific parameter to make a property available for reading and writing. There's a separate option, BlueprintReadOnly, you can use if you want the property to be treated as const in Blueprints. There are quite a few options available for controlling how a property is exposed to the engine. To see more options, follow this [link.](Programming/UnrealArchitecture/Reference/Properties/Specifiers)
+As you can see, there is a Specifier to make a property available for reading and writing in Blueprint graphs. There's a separate Specifier, `BlueprintReadOnly`, that you can use if you want the property to be treated as `const` in Blueprints. There are quite a few options available for controlling how a property is exposed to the Editor. To see more options, follow [this link.](Programming/UnrealArchitecture/Reference/Properties/Specifiers)
 
-Before continuing to the section below, let us add a couple of properties to this sample class. There is already a property to control the total amount of damage this actor will deal out, but let us take that further and make that damage happen over time. The code below adds one designer settable property and one that is visible to the designer but not changeable by them.
+Before continuing to the section below, let's add a couple of properties to this sample class. There is already a property to control the total amount of damage this actor will deal out, but let us take that further and make that damage happen over time. The code below adds one designer settable property and one that is visible to the designer but not changeable by them.
 
 	UCLASS()
 	class AMyActor : public AActor
@@ -119,7 +119,7 @@ Before continuing to the section below, let us add a couple of properties to thi
 		...
 	};
 
-DamageTimeInSeconds is a property the designer can modify. The DamagePerSecond property is a calculated value using the designer's settings (see the next section). The VisibleAnywhere flag marks that property as viewable, but not editable in the Unreal Editor. The Transient flag means that it won't be saved or loaded from disk; it is meant to be a derived, non-persistent value. The image below shows the properties as part of the class defaults.
+DamageTimeInSeconds is a property the designer can modify. The DamagePerSecond property is a calculated value using the designer's settings (see the next section). The `VisibleAnywhere` Specifier marks that property as viewable, but not editable in the Unreal Editor. The `Transient` Specifier means that it won't be saved or loaded from disk; it is meant to be a derived, non-persistent value, so there is no need to store it. The image below shows the properties as part of the class defaults.
 
 ![image alt text](image_3.png)
 
@@ -143,9 +143,9 @@ Here is the same view of the properties after adding default values in the const
 
 ![image alt text](image_4.png)
 
-In order to support per instance designer set properties, values are also loaded from the instance data for a given object. This data is applied after the constructor. You can create default values based off of designer set values by hooking into the **PostInitProperties()** call chain. Here is an example of that process where **TotalDamage** and **DamageTimeInSeconds** are designer specified values. Even though these are designer specified, you can still provide sensible default values for them, as we did in the example above. 
+In order to support per-instance designer-set properties, values are also loaded from the instance data for a given object. This data is applied after the constructor. You can create defaults based off of designer-set values by hooking into the `PostInitProperties()` call chain. Here is an example of that process where `TotalDamage` and `DamageTimeInSeconds` are designer-specified values. Even though these are designer-specified, you can still provide sensible default values for them, as we did in the example above. 
 [REGION:note]
-If you do not provide a default value for a property, the engine will automatically set that property to zero or nullptr in the case of pointer types.
+If you do not provide a default value for a property, the engine will automatically set that property to zero, or null in the case of pointer types.
 [/REGION]
 	void AMyActor::PostInitProperties()
 	{
@@ -153,7 +153,7 @@ If you do not provide a default value for a property, the engine will automatica
 		DamagePerSecond = TotalDamage / DamageTimeInSeconds;
 	}
 
-Here again is the same view of the properties after we have added the **PostInitProperties()** code that you see above.
+Here is the same view of the properties after we have added the `PostInitProperties()` code that you see above.
 
 ![image alt text](image_5.png)
 
@@ -167,7 +167,7 @@ Here is a cool feature of Unreal that you might be surprised about if you are us
 	[REGION:note]
 	If you are attached with the debugger, you'll need to detach first so that Visual Studio will allow you to Build.
 	[/REGION]
-2. Or, simply click the **Compile **button on the editor's main toolbar.
+2. Or, simply click the **Compile** button on the editor's main toolbar.
 
 	![image alt text](image_7.png)
 
@@ -175,21 +175,21 @@ You can use this feature in the sections below as we advance through the tutoria
 
 ### Extending a C++ Class via Blueprints
 
-So far, we have created a simple gameplay class with the C++ Class Wizard and added some properties for the designer to set. Let us now take a look at how a designer can start creating unique classes from our humble beginnings here.
+So far, we have created a simple gameplay class with the C++ Class Wizard and added some properties for the designer to set. Now, let's take a look at how a designer can start creating unique classes from our humble beginnings here.
 
-First thing we are going to do is create a new Blueprint class from our AMyActor class. Notice in the image below that the name of the base class selected shows up as MyActor instead of AMyActor. This is intentional and hides the naming conventions used by our tools from the designer, making the name friendlier to them.
+The first thing we are going to do is create a new Blueprint class from our `AMyActor` class. Notice in the image below that the name of the base class selected shows up as **MyActor** instead of **AMyActor**. This is intentional and hides the naming conventions used by our tools from the designer, making the name friendlier to them.
 
 ![image alt text](image_8.png)
 
-Once you choose **Select**, a new, default named Blueprint class is created for you. In this case, I set the name to CustomActor1 as you can see in the snapshot of the **Content Browser** below.
+Once you choose **Select**, a new, default named Blueprint class is created for you. In this case, I set the name to **CustomActor1** as you can see in the snapshot of the **Content Browser** below.
 
 ![image alt text](image_9.png)
 
-This is the first class that we are going to customize with our designer hats on. First thing we are going to do is change the default values for our damage properties. In this case, the designer changed the **TotalDamage** to 300 and the time it takes to deliver that damage to 2 seconds. This is how the properties now appear.
+This is the first class that we are going to customize with our designer hats on. First thing we are going to do is change the default values for our damage properties. In this case, the designer changed the `TotalDamage` to 300 and the time it takes to deliver that damage to 2 seconds. This is how the properties now appear.
 
 ![image alt text](image_10.png)
 
-Our calculated value does not match what we would expect. It should be 150 but it is still at the default value of 200. The reason for this is that we are only calculating our damage per second value after the properties have been initialized from the loading process. Runtime changes in the Unreal Editor are not accounted for. There is a simple solution to this problem because the engine notifies the target object when it has been changed in the editor. The code below shows the added hooks needed to calculate the derived value as it changes in the editor.
+Our calculated value does not match what we would expect. It should be 150 but it is still at the default value of 200. The reason for this is that we are only calculating our damage per second value after the properties have been initialized from the loading process. Runtime changes in the Editor are not accounted for. There is a simple solution to this problem because the Engine notifies the target object when it has been changed in the Editor. The code below shows the added hooks needed to calculate the derived value as it changes in the Editor.
 
 	void AMyActor::PostInitProperties()
 	{
@@ -212,7 +212,7 @@ Our calculated value does not match what we would expect. It should be 150 but i
 	}
 	#endif
 
-One thing to note is that the **PostEditChangeProperty()** method is inside an editor specific #ifdef. This is so that building your game only the code that you need for the game, removing any extra code that might increase the size of your executable unnecessarily. Now that we have that code compiled in, the **DamagePerSecond** value matches what we would expect it to be as seen in the image below.
+One thing to note is that the `PostEditChangeProperty` method is inside an editor specific `#ifdef`. This is so that building your game only the code that you need for the game, removing any extra code that might increase the size of your executable unnecessarily. Now that we have that code compiled in, the `DamagePerSecond` value matches what we would expect it to be, as seen in the image below.
 
 ![image alt text](image_11.png)
 
@@ -223,7 +223,7 @@ So far, we have shown how to expose properties to Blueprints, but there is one l
 	UFUNCTION(BlueprintCallable, Category="Damage")
 	void CalculateValues();
 
-The **UFUNCTION()** macro handles exposing the C++ function to the reflection system. The BlueprintCallable option exposes it to Blueprints, so that users can call the function from within a Blueprint Graph. The image below shows how the category affects the context menu:
+The `UFUNCTION()` macro handles exposing the C++ function to the reflection system. The `BlueprintCallable` option exposes it to the Blueprint virtual machine. Every Blueprint exposed function requires a category associated with it, so that the right click context menu works properly. The image below shows how the category affects the context menu:
 
 ![image alt text](image_12.png)
 
@@ -352,16 +352,16 @@ Here is an example declaration of a UCLASS:
 	public:
 		MyUObject();
 
-		UPROPERTY(BlueprintReadOnly, EditAnywhere, Category="Example")
+		UPROPERTY(BlueprintReadOnly, EditAnywhere)
 		float ExampleProperty;
 
-		UFUNCTION(BlueprintCallable, Category="Example")
+		UFUNCTION(BlueprintCallable)
 		void ExampleFunction();
 	};
 
 You'll first notice the inclusion of "MyClass.generated.h".  Unreal will generate all the reflection data and put it into this file.  You must include this file as the last include in the header file that declares your type.
 
-The UCLASS, UPROPERTY, and UFUNCTION markups in this example include additional specifiers. These are not required, but some common specifiers have been added for demonstration purposes. Specifiers enable or change certain behaviors or properties.
+The UCLASS, UPROPERTY, and UFUNCTION markups in this example include additional specifiers. These are not required, but some common specifiers have been added for demonstration purposes. These allow us to specify certain behaviors or properties.
 
 * **Blueprintable** - This class can be extended by a Blueprint.
 * **BlueprintReadOnly** - This property can be read from a Blueprint, but not written to.
@@ -833,7 +833,7 @@ Remember that the **auto** keyword does not automatically specify a pointer/refe
 
 TSet and TMap require the use of *hash functions* internally.  If you create your own class that you want to use it in a TSet or as the key to a TMap, you need to create your own hash function first.  Most UE4 types that you would commonly put in these types already define their own hash function.
 
-A hash function takes a const pointer/reference to your type and returns a uint64.  This return value is known as the *hash code *for an object, and should be a number that is pseudo-unique to that object.  Two objects that are equal should always return the same hash code.
+A hash function takes a const pointer/reference to your type and returns a uint64.  This return value is known as the *hash code* for an object, and should be a number that is pseudo-unique to that object.  Two objects that are equal should always return the same hash code.
 
 	class FMyClass
 	{
@@ -857,7 +857,7 @@ A hash function takes a const pointer/reference to your type and returns a uint6
 		}
 	};
 
-Now, TSet&lt;FMyClass&gt; and TMap&lt;FMyClass, ...&gt; will use the proper hash function when hashing keys.  If you using pointers as keys (i.e. `TSet<FMyClass*>`) implement `uint32 GetTypeHash(const FMyClass* MyClass)` as well.
+Now, `TSet<FMyClass>` and `TMap<FMyClass, ...>` will use the proper hash function when hashing keys.  If you using pointers as keys (i.e. `TSet<FMyClass*>`) implement `uint32 GetTypeHash(const FMyClass* MyClass)` as well.
 
 [Blog Post: UE4 Libraries You Should Know About](https://www.unrealengine.com/blog/ue4-libraries-you-should-know-about)
 

@@ -114,7 +114,7 @@ void FVulkanAndroidPlatform::FreeVulkanLibrary()
 void FVulkanAndroidPlatform::CreateSurface(void* WindowHandle, VkInstance Instance, VkSurfaceKHR* OutSurface)
 {
 	// don't use cached window handle coming from VulkanViewport, as it could be gone by now
-	WindowHandle = FAndroidWindow::GetHardwareWindow();
+	WindowHandle = FAndroidWindow::GetHardwareWindow_EventThread();
 	if (WindowHandle == NULL)
 	{
 
@@ -184,29 +184,15 @@ void FVulkanAndroidPlatform::OverridePlatformHandlers(bool bInit)
 		// Want to see the actual crash report on Android so unregister signal handlers
 		FPlatformMisc::SetCrashHandler((void(*)(const FGenericCrashContext& Context)) -1);
 		FPlatformMisc::SetOnReInitWindowCallback(FVulkanDynamicRHI::RecreateSwapChain);
+		FPlatformMisc::SetOnReleaseWindowCallback(FVulkanDynamicRHI::DestroySwapChain);
 		FPlatformMisc::SetOnPauseCallback(FVulkanDynamicRHI::SavePipelineCache);
 	}
 	else
 	{
 		FPlatformMisc::SetCrashHandler(nullptr);
 		FPlatformMisc::SetOnReInitWindowCallback(nullptr);
+		FPlatformMisc::SetOnReleaseWindowCallback(nullptr);
 		FPlatformMisc::SetOnPauseCallback(nullptr);
-	}
-}
-
-void FVulkanAndroidPlatform::BlockUntilWindowIsAvailable()
-{
-	void* WindowHandle = FAndroidWindow::GetHardwareWindow();
-	if (WindowHandle == nullptr)
-	{
-		// Sleep if the hardware window isn't currently available.
-		// The Window may not exist if the activity is pausing/resuming, in which case we make this thread wait
-		FPlatformMisc::LowLevelOutputDebugString(TEXT("Waiting for Native window in FVulkanAndroidPlatform::BlockUntilWindowIsAvailable()"));
-		while (WindowHandle == nullptr)
-		{
-			FPlatformProcess::Sleep(0.001f);
-			WindowHandle = FAndroidWindow::GetHardwareWindow();
-		}
 	}
 }
 

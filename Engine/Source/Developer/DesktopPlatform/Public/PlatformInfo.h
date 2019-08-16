@@ -172,6 +172,9 @@ namespace PlatformInfo
 		/** Whether or not the platform is confidential in nature */
 		bool bIsConfidential;
 
+		/** Whether or not the platform can use Crash Reporter */
+		bool bTargetPlatformCanUseCrashReporter;
+
 		/** An identifier that corresponds to UBT's UnrealTargetPlatform enum (and by proxy, FGenericPlatformMisc::GetUBTPlatform()) */
 		FName UBTTargetId;
 

@@ -1,29 +1,21 @@
-﻿INTSourceChangelist:3372845
+﻿INTSourceChangelist:6622979
 Availability:Public
-Title:VR 前向着色渲染器
+Title:前向着色渲染器
 Crumbs:
 Description:说明使用前向着色渲染器提升 VR 性能的优势。
 type: overview
-version:4.14
+version: 4.14
 parent:Engine/Performance
 tags:Performance and Profiling
-tags:Rendering
-tags:VR
-topic-image:ForwardRenderingTopic.png
-social-image:ForwardRenderingSocial.png
-related:Engine/Performance
-related:Engine/Performance/GPU
-related:Engine/Rendering
-
-[REGION:warning]
-此功能当前仍在实验阶段，一些部分可能无法正常工作，在未来更新中也可能被修改。 
-[/REGION]
-
-[REGION:banner]
-![](ForwardRenderingBanner.png)
-[/REGION]
-
-[TOC(start:2 end:2)]
+tags: Rendering
+tags: VR
+tags: Experimental
+topic-image: ForwardRenderingTopic.png
+social-image: ForwardRenderingSocial.png
+related: Engine/Performance
+related: Engine/Performance/GPU
+related: Engine/Rendering
+hero-image: ForwardRenderingBanner.png
 
 [EXCERPT:intro]
 虚幻引擎 4 默认使用延迟渲染器，因为它的功能最全面，渲染功能更多。 
@@ -32,7 +24,6 @@ related:Engine/Rendering
 前向渲染不仅速度更快，相较于延迟渲染器它还拥有更多抗锯齿选项，带来更为清晰明快的显示效果。 
 [/EXCERPT]
 
-(#EnablingForwardShading)
 ## 启用前向着色
 
 启用前向着色渲染器的步骤：
@@ -47,7 +38,6 @@ related:Engine/Rendering
 
 此时将弹出重启编辑器的提示。完成重启后，即可开始使用前向渲染器的选项和功能。 
 
-(#EnablingMultisampleAnti-Aliasing)
 ## 启用多重采样抗锯齿
 
 使用多重采样抗锯齿（MSAA）的步骤：
@@ -83,7 +73,6 @@ related:Engine/Rendering
 指定 `r.MSAACount 0` 将退回使用 TAA，可在抗锯齿方法之间便利地进行切换。 
 [/REGION]
 
-(#PerformanceandFeatures)
 ## 性能与功能
 
 从延迟渲染器切换至前向渲染器后，项目性能可能有所提升。 
@@ -103,7 +92,6 @@ related:Engine/Rendering
 从延迟渲染器切换到前向渲染器时，必须使用虚幻引擎的 [](Engine/Performance) 工具测量游戏的性能。 
 需要对 [](Engine/Performance/GPU) 多加关注，了解 GPU 开销的来龙去脉；并使用 [](Engine/Performance/StatCommands) 协助分析。
 
-(#CurrentlySupportedFeatures)
 ### 当前支持的功能
 
 此列表中包含前向渲染器当前支持的功能： 

@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3810557
+INTSourceChangelist:3810557
 Title: 모바일 패키징 마법사
 Description: 모바일 패키징 마법사를 사용하여 UE4 모바일 프로젝트의 설치 크기를 줄이는 법입니다.
 Crumbs:%ROOT%, Platforms, Platforms/Mobile, Platforms/Mobile/MobilePackagingWizard/
@@ -241,7 +241,7 @@ Related:Engine/Deployment/UnrealFrontend
 	[/OBJECT]
 
 	[region:note]
-	선택한 맵에 레퍼런싱된 콘텐츠만 플레이 스토어에 업로드할 어플리케이션에 패키징합니다. 전형적으로 다운로드 진행 (및 적용되는 오류) 상황을 표시하는 데 쓰이는 **UMG** 유저 인터페이스 포함 **BuildPatchServices** 코드가 실행용 레벨 블루프린트가 들어있는 맵 하나만 선택하게 됩니다.
+	선택한 맵에 참조된 콘텐츠만 플레이 스토어에 업로드할 어플리케이션에 패키징합니다. 전형적으로 다운로드 진행 (및 적용되는 오류) 상황을 표시하는 데 쓰이는 **UMG** 유저 인터페이스 포함 **BuildPatchServices** 코드가 실행용 레벨 블루프린트가 들어있는 맵 하나만 선택하게 됩니다.
 	[/region]
 
 1. **Downloadable Content** (다운로드가능 콘텐츠) 메뉴에서는, 다운로드해야 하는 맵과 함께 어플리케이션에서 지원하는 Android 텍스처 포맷을 선택합니다. 완료되면 **Create Profile** (프로파일 생성) 버튼을 눌러 새로운 커스텀 실행 프로파일을 만듭니다.
@@ -638,7 +638,7 @@ mac
 	[/OBJECT]
 
 	[region:note]
-	선택한 맵에 레퍼런싱된 콘텐츠만 앱 스토어에 업로드할 어플리케이션에 패키징합니다. 전형적으로 다운로드 진행 (및 적용되는 오류) 상황을 표시하는 데 쓰이는 **UMG** 유저 인터페이스 포함 **BuildPatchServices** 코드가 실행용 레벨 블루프린트가 들어있는 맵 하나만 선택하게 됩니다.
+	선택한 맵에 참조된 콘텐츠만 앱 스토어에 업로드할 어플리케이션에 패키징합니다. 전형적으로 다운로드 진행 (및 적용되는 오류) 상황을 표시하는 데 쓰이는 **UMG** 유저 인터페이스 포함 **BuildPatchServices** 코드가 실행용 레벨 블루프린트가 들어있는 맵 하나만 선택하게 됩니다.
 	[/region]
 
 1. **Downloadable Content** (다운로드가능 콘텐츠) 메뉴에서는, 다운로드해야 하는 맵을 선택하고 **Create Profile** (프로파일 생성) 버튼을 눌러 새로운 커스텀 실행 프로파일을 만듭니다.

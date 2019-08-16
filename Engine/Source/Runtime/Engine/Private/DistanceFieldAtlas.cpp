@@ -96,6 +96,13 @@ FAutoConsoleVariableRef CVarDistFieldForceAtlasRealloc(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarDistFieldThrottleCopyToAtlasInBytes(
+	TEXT("r.DistanceFields.ThrottleCopyToAtlasInBytes"),
+	0,
+	TEXT("When enabled (higher than 0), throttle mesh distance field copy to global mesh distance field atlas volume (in bytes uncompressed)."),
+	ECVF_Default);
+
+
 static TAutoConsoleVariable<int32> CVarLandscapeGI(
 	TEXT("r.GenerateLandscapeGIData"),
 	0,
@@ -204,7 +211,7 @@ void FDistanceFieldVolumeTextureAtlas::ListMeshDistanceFields() const
 		Stats.MemoryBytes = AtlasMemory + BackingMemory;
 		Stats.Mesh = Texture->GetStaticMesh();
 #if WITH_EDITORONLY_DATA
-		Stats.ResolutionScale = Stats.Mesh->SourceModels[0].BuildSettings.DistanceFieldResolutionScale;
+		Stats.ResolutionScale = Stats.Mesh->GetSourceModel(0).BuildSettings.DistanceFieldResolutionScale;
 #else
 		Stats.ResolutionScale = -1;
 #endif
@@ -243,6 +250,12 @@ void FDistanceFieldVolumeTextureAtlas::AddAllocation(FDistanceFieldVolumeTexture
 {
 	InitializeIfNeeded();
 	PendingAllocations.AddUnique(Texture);
+	const int32 ThrottleSize = CVarDistFieldThrottleCopyToAtlasInBytes.GetValueOnAnyThread();
+	if (ThrottleSize >= 1024)
+	{
+		Texture->bThrottled = true;
+	}
+	
 }
 
 void FDistanceFieldVolumeTextureAtlas::RemoveAllocation(FDistanceFieldVolumeTexture* Texture)
@@ -273,26 +286,59 @@ void FDistanceFieldVolumeTextureAtlas::UpdateAllocations()
 	{
 		const double StartTime = FPlatformTime::Seconds();
 
+		const int32 FormatSize = GPixelFormats[Format].BlockBytes;
+
 		// Sort largest to smallest for best packing
 		PendingAllocations.Sort(FCompareVolumeAllocation());
+		
+		TArray<FDistanceFieldVolumeTexture*> ThrottledAllocations;
+		TArray<FDistanceFieldVolumeTexture*>* LocalPendingAllocations = &PendingAllocations;
+		int ThrottledCopyCount = 0;
+		int PendingCopyCount = PendingAllocations.Num();
 
-		for (int32 AllocationIndex = 0; AllocationIndex < PendingAllocations.Num(); AllocationIndex++)
+		const int32 ThrottleSize = CVarDistFieldThrottleCopyToAtlasInBytes.GetValueOnAnyThread();
+		const bool bThrottleUpdateAllocation = ThrottleSize >= 1024;
+
+		auto AllocateBlocks = [&]()
 		{
-			FDistanceFieldVolumeTexture* Texture = PendingAllocations[AllocationIndex];
-			const FIntVector Size = Texture->VolumeData.Size;
-
-			if (!BlockAllocator.AddElement((uint32&)Texture->AtlasAllocationMin.X, (uint32&)Texture->AtlasAllocationMin.Y, (uint32&)Texture->AtlasAllocationMin.Z, Size.X, Size.Y, Size.Z))
+			for (int32 AllocationIndex = 0; AllocationIndex < LocalPendingAllocations->Num(); AllocationIndex++)
 			{
-				UE_LOG(LogStaticMesh,Error,TEXT("Failed to allocate %ux%ux%u in distance field atlas"), Size.X, Size.Y, Size.Z);
+				FDistanceFieldVolumeTexture* Texture = (*LocalPendingAllocations)[AllocationIndex];
+				const FIntVector Size = Texture->VolumeData.Size;
+				Texture->bThrottled = false;
+
+				if (!BlockAllocator.AddElement((uint32&)Texture->AtlasAllocationMin.X, (uint32&)Texture->AtlasAllocationMin.Y, (uint32&)Texture->AtlasAllocationMin.Z, Size.X, Size.Y, Size.Z))
+				{
+					UE_LOG(LogStaticMesh, Error, TEXT("Failed to allocate %ux%ux%u in distance field atlas"), Size.X, Size.Y, Size.Z);
+					LocalPendingAllocations->RemoveAt(AllocationIndex);
+					AllocationIndex--;
+				}
+			}
+		};
+
+		if (bThrottleUpdateAllocation)
+		{
+			int32 CurrentSize = 0;
+
+			for (int32 AllocationIndex = 0; AllocationIndex < PendingAllocations.Num() && CurrentSize < ThrottleSize; ++AllocationIndex)
+			{
+				FDistanceFieldVolumeTexture* Texture = PendingAllocations[AllocationIndex];
+				const FIntVector Size = Texture->VolumeData.Size;
+				CurrentSize += Size.X * Size.Y * Size.Z * FormatSize;
+				ThrottledAllocations.Add(Texture);
 				PendingAllocations.RemoveAt(AllocationIndex);
 				AllocationIndex--;
 			}
+
+			LocalPendingAllocations = &ThrottledAllocations;
+			ThrottledCopyCount = ThrottledAllocations.Num();
+			PendingCopyCount = PendingAllocations.Num();
 		}
 
+		AllocateBlocks();
+			
 		static const auto CVarCompress = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DistanceFieldBuild.Compress"));
 		const bool bDataIsCompressed = CVarCompress->GetValueOnAnyThread() != 0;
-
-		const int32 FormatSize = GPixelFormats[Format].BlockBytes;
 
 		if (!VolumeTextureRHI
 			|| BlockAllocator.GetSizeX() > VolumeTextureRHI->GetSizeX()
@@ -315,27 +361,30 @@ void FDistanceFieldVolumeTextureAtlas::UpdateAllocations()
 
 				// Re-upload all textures since we had to reallocate
 				PendingAllocations.Append(CurrentAllocations);
+				if (bThrottleUpdateAllocation)
+				{
+					PendingAllocations.Append(ThrottledAllocations);
+					ThrottledAllocations.Empty();
+				}
 				CurrentAllocations.Empty();
 
 				// Sort largest to smallest for best packing
 				PendingAllocations.Sort(FCompareVolumeAllocation());
 
-				// Add all allocations back to the layout
-				for (int32 AllocationIndex = 0; AllocationIndex < PendingAllocations.Num(); AllocationIndex++)
+				if (bThrottleUpdateAllocation)
 				{
-					FDistanceFieldVolumeTexture* Texture = PendingAllocations[AllocationIndex];
-					const FIntVector Size = Texture->VolumeData.Size;
-
-					if (!BlockAllocator.AddElement((uint32&)Texture->AtlasAllocationMin.X, (uint32&)Texture->AtlasAllocationMin.Y, (uint32&)Texture->AtlasAllocationMin.Z, Size.X, Size.Y, Size.Z))
-					{
-						UE_LOG(LogStaticMesh,Error,TEXT("Failed to allocate %ux%ux%u in distance field atlas"), Size.X, Size.Y, Size.Z);
-						PendingAllocations.RemoveAt(AllocationIndex);
-						AllocationIndex--;
-					}
+					// Throttling during a full realloc when not using the max sime of volume texture will make the same blocks being reused over and over
+					// allocate everything pending to avoid this
+					LocalPendingAllocations = &PendingAllocations;
+					ThrottledCopyCount = ThrottledAllocations.Num();
+					PendingCopyCount = PendingAllocations.Num();
 				}
+
+				// Add all allocations back to the layout
+				AllocateBlocks();
 			}
 
-			// Fully free the previous atlas memory before allocating a new one
+			// Fully free the previous atlas memory before allocating a new one6
 			{
 				// Remove last ref, add to deferred delete list
 				VolumeTextureRHI = NULL;
@@ -377,9 +426,9 @@ void FDistanceFieldVolumeTextureAtlas::UpdateAllocations()
 
 				TArray<uint8> UncompressedData;
 
-				for (int32 AllocationIndex = 0; AllocationIndex < PendingAllocations.Num(); AllocationIndex++)
+				for (int32 AllocationIndex = 0; AllocationIndex < LocalPendingAllocations->Num(); AllocationIndex++)
 				{
-					FDistanceFieldVolumeTexture* Texture = PendingAllocations[AllocationIndex];
+					FDistanceFieldVolumeTexture* Texture = (*LocalPendingAllocations)[AllocationIndex];
 					const FIntVector Size = Texture->VolumeData.Size;
 					const int32 UncompressedSize = Size.X * Size.Y * Size.Z * FormatSize;
 
@@ -426,7 +475,7 @@ void FDistanceFieldVolumeTextureAtlas::UpdateAllocations()
 		}
 		else
 		{
-			const int32 NumUpdates = PendingAllocations.Num();
+			const int32 NumUpdates = LocalPendingAllocations->Num();
 			TArray<FUpdateTexture3DData> UpdateDataArray;
 			UpdateDataArray.Empty(NumUpdates);
 			UpdateDataArray.AddUninitialized(NumUpdates);
@@ -434,7 +483,7 @@ void FDistanceFieldVolumeTextureAtlas::UpdateAllocations()
 			// Allocate upload buffers
 			for (int32 Idx = 0; Idx < NumUpdates; ++Idx)
 			{
-				FDistanceFieldVolumeTexture* Texture = PendingAllocations[Idx];
+				FDistanceFieldVolumeTexture* Texture = (*LocalPendingAllocations)[Idx];
 				const FIntVector& Size = Texture->VolumeData.Size;
 				const FUpdateTextureRegion3D UpdateRegion(Texture->AtlasAllocationMin, FIntVector::ZeroValue, Size);
 
@@ -448,10 +497,10 @@ void FDistanceFieldVolumeTextureAtlas::UpdateAllocations()
 			// Copy data to upload buffers and decompress source data if necessary
 			ParallelFor(
 				NumUpdates,
-				[this, FormatSize, bDataIsCompressed, &UpdateDataArray](int32 Idx)
+				[this, FormatSize, bDataIsCompressed, &UpdateDataArray, LocalPendingAllocations](int32 Idx)
 			{
 				FUpdateTexture3DData& UpdateData = UpdateDataArray[Idx];
-				FDistanceFieldVolumeTexture* Texture = PendingAllocations[Idx];
+				FDistanceFieldVolumeTexture* Texture = (*LocalPendingAllocations)[Idx];
 				const FIntVector& Size = Texture->VolumeData.Size;
 
 				TArray<uint8> UncompressedData;
@@ -507,8 +556,8 @@ void FDistanceFieldVolumeTextureAtlas::UpdateAllocations()
 			RHIEndMultiUpdateTexture3D(UpdateDataArray);
 		}
 
-		CurrentAllocations.Append(PendingAllocations);
-		PendingAllocations.Empty();
+		CurrentAllocations.Append(*LocalPendingAllocations);
+		LocalPendingAllocations->Empty();
 
 		const double EndTime = FPlatformTime::Seconds();
 		const float UpdateDurationMs = (float)(EndTime - StartTime) * 1000.0f;
@@ -585,11 +634,11 @@ FString BuildDistanceFieldDerivedDataKey(const FString& InMeshKey)
 {
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DistanceFields.MaxPerMeshResolution"));
 	const int32 PerMeshMax = CVar->GetValueOnAnyThread();
-	const FString PerMeshMaxString = PerMeshMax == 128 ? TEXT("") : FString(TEXT("_%u"), PerMeshMax);
+	const FString PerMeshMaxString = PerMeshMax == 128 ? TEXT("") : FString::Printf(TEXT("_%u"), PerMeshMax);
 
 	static const auto CVarDensity = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.DistanceFields.DefaultVoxelDensity"));
 	const float VoxelDensity = CVarDensity->GetValueOnAnyThread();
-	const FString VoxelDensityString = VoxelDensity == .1f ? TEXT("") : FString(TEXT("_%.3f"), VoxelDensity);
+	const FString VoxelDensityString = VoxelDensity == .1f ? TEXT("") : FString::Printf(TEXT("_%.3f"), VoxelDensity);
 
 	static const auto CVarCompress = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DistanceFieldBuild.Compress"));
 	const bool bCompress = CVarCompress->GetValueOnAnyThread() != 0;
@@ -897,6 +946,11 @@ void FDistanceFieldAsyncQueue::AddReferencedObjects(FReferenceCollector& Collect
 		Collector.AddReferencedObject(ReferencedTasks[TaskIndex]->StaticMesh);
 		Collector.AddReferencedObject(ReferencedTasks[TaskIndex]->GenerateSource);
 	}
+}
+
+FString FDistanceFieldAsyncQueue::GetReferencerName() const
+{
+	return TEXT("FDistanceFieldAsyncQueue");
 }
 
 void FDistanceFieldAsyncQueue::ProcessAsyncTasks()

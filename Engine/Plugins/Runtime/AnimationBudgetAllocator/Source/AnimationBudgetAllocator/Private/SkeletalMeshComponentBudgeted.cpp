@@ -25,7 +25,13 @@ void USkeletalMeshComponentBudgeted::BeginPlay()
 
 	if(bAutoRegisterWithBudgetAllocator && !UKismetSystemLibrary::IsDedicatedServer(this))
 	{
-		IAnimationBudgetAllocator::Get(GetWorld())->RegisterComponent(this);
+		if (UWorld* LocalWorld = GetWorld())
+		{
+			if (IAnimationBudgetAllocator* LocalAnimationBudgetAllocator = IAnimationBudgetAllocator::Get(LocalWorld))
+			{
+				LocalAnimationBudgetAllocator->RegisterComponent(this);
+			}
+		}
 	}
 }
 
@@ -35,10 +41,40 @@ void USkeletalMeshComponentBudgeted::EndPlay(const EEndPlayReason::Type EndPlayR
 	// As reciprocal ptrs are null, handles are all invalid.
 	if(!IsUnreachable())	
 	{
-		IAnimationBudgetAllocator::Get(GetWorld())->UnregisterComponent(this);
+		if (UWorld* LocalWorld = GetWorld())
+		{
+			if (IAnimationBudgetAllocator* LocalAnimationBudgetAllocator = IAnimationBudgetAllocator::Get(LocalWorld))
+			{
+				LocalAnimationBudgetAllocator->UnregisterComponent(this);
+			}
+		}
 	}
 
 	Super::EndPlay(EndPlayReason);
+}
+
+void USkeletalMeshComponentBudgeted::SetComponentTickEnabled(bool bEnabled)
+{
+	if (AnimationBudgetAllocator)
+	{
+		AnimationBudgetAllocator->SetComponentTickEnabled(this, bEnabled);
+	}
+	else
+	{
+		Super::SetComponentTickEnabled(bEnabled);
+	}
+}
+
+void USkeletalMeshComponentBudgeted::SetComponentSignificance(float Significance, bool bNeverSkip, bool bTickEvenIfNotRendered, bool bAllowReducedWork, bool bForceInterpolate)
+{
+	if (AnimationBudgetAllocator)
+	{
+		AnimationBudgetAllocator->SetComponentSignificance(this, Significance, bNeverSkip, bTickEvenIfNotRendered, bAllowReducedWork, bForceInterpolate);
+	}
+	else if (HasBegunPlay())
+	{
+		UE_LOG(LogSkeletalMesh, Warning, TEXT("SetComponentSignificance called on [%s] before registering with budget allocator"), *GetName());
+	}
 }
 
 void USkeletalMeshComponentBudgeted::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)

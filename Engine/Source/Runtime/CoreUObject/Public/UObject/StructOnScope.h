@@ -216,6 +216,81 @@ public:
 		}
 	}
 
+	/**
+	 * Initialize the TStructOnScope from a FStructOnScope containing data that derives from T
+	 * @params InOther The FStructOnScope to initialize from
+	 * @return True if the conversion was successful, false otherwise
+	 */
+	bool InitializeFrom(const FStructOnScope& InOther)
+	{
+		if (const UScriptStruct* ScriptStructPtr = ::Cast<const UScriptStruct>(InOther.GetStruct()))
+		{
+			if (ScriptStructPtr->IsChildOf(TBaseStructure<T>::Get()))
+			{
+				Initialize(ScriptStructPtr);
+				ScriptStructPtr->CopyScriptStruct(SampleStructMemory, InOther.GetStructMemory());
+				return true;
+			}
+		}
+		else
+		{
+			Destroy();
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * Initialize the TStructOnScope from a FStructOnScope containing data that derives from T
+	 * @params InOther The FStructOnScope to initialize from
+	 * @return True if the conversion was successful, false otherwise
+	 */
+	bool InitializeFrom(FStructOnScope&& InOther)
+	{
+		if (this == &InOther)
+		{
+			return true;
+		}
+		if (const UScriptStruct* ScriptStructPtr = ::Cast<const UScriptStruct>(InOther.GetStruct()))
+		{
+			if (ScriptStructPtr->IsChildOf(TBaseStructure<T>::Get()) && InOther.OwnsStructMemory())
+			{
+				*static_cast<FStructOnScope*>(this) = MoveTemp(InOther);
+				return true;
+			}
+		}
+		else
+		{
+			Destroy();
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * Initialize the TStructOnScope from a FStructOnScope containing data that derives from T
+	 * @params InOther The FStructOnScope to initialize from (will assert if it contains an invalid type to store for T)
+	 */
+	void InitializeFromChecked(const FStructOnScope& InOther)
+	{
+		if (!InitializeFrom(InOther))
+		{
+			UE_LOG(LogClass, Fatal, TEXT("Initialize of %s to %s failed"), *InOther.GetStruct()->GetName(), *TBaseStructure<T>::Get()->GetName());
+		}
+	}
+
+	/**
+	 * Initialize the TStructOnScope from a FStructOnScope containing data that derives from T
+	 * @params InOther The FStructOnScope to initialize from (will assert if it contains an invalid type to store for T)
+	 */
+	void InitializeFromChecked(FStructOnScope&& InOther)
+	{
+		if (!InitializeFrom(MoveTemp(InOther)))
+		{
+			UE_LOG(LogClass, Fatal, TEXT("Initialize of %s failed"), *TBaseStructure<T>::Get()->GetName());
+		}
+	}
+
 	T* Get() const
 	{
 		return reinterpret_cast<T*>(SampleStructMemory);
@@ -226,7 +301,7 @@ public:
 		return Get();
 	}
 
-	operator bool() const
+	explicit operator bool() const
 	{
 		return IsValid();
 	}
@@ -234,11 +309,17 @@ public:
 	template<typename U>
 	U* Cast()
 	{
-		if (TBaseStructure<U>::Get()->IsChildOf(ScriptStruct.Get()))
+		if (GetStruct()->IsChildOf(TBaseStructure<U>::Get()))
 		{
 			return reinterpret_cast<U*>(SampleStructMemory);
 		}
 		return nullptr;
+	}
+
+	template<typename U>
+	const U* Cast() const
+	{
+		return const_cast<TStructOnScope*>(this)->Cast<U>();
 	}
 
 	template<typename U>
@@ -247,16 +328,22 @@ public:
 		U* Result = nullptr;
 		if (!IsValid())
 		{
-			UE_LOG(LogClass, Fatal, TEXT("Cast of nullptr to %s failed"), *GetTypeName<U>());
+			UE_LOG(LogClass, Fatal, TEXT("Cast of nullptr to %s failed"), *TBaseStructure<U>::Get()->GetName());
 			return Result;
 		}
 
 		Result = Cast<U>();
 		if (!Result)
 		{
-			UE_LOG(LogClass, Fatal, TEXT("Cast of %s to %s failed"), *GetTypeName<T>(), *GetTypeName<U>());
+			UE_LOG(LogClass, Fatal, TEXT("Cast of %s to %s failed"), *TBaseStructure<T>::Get()->GetName(), *TBaseStructure<U>::Get()->GetName());
 		}
 		return Result;
+	}
+
+	template<typename U>
+	const U* CastChecked() const
+	{
+		return const_cast<TStructOnScope*>(this)->CastChecked<U>();
 	}
 
 	friend FArchive& operator<<(FArchive& Ar, TStructOnScope& InStruct)

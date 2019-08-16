@@ -51,7 +51,7 @@ public:
 		const FSceneInterface* Scene,
 		const FSceneView* View,
 		const FMeshMaterialShader* Shader,
-		bool bShaderRequiresPositionOnlyStream,
+		const EVertexInputStreamType InputStreamType,
 		ERHIFeatureLevel::Type FeatureLevel,
 		const FVertexFactory* VertexFactory,
 		const FMeshBatchElement& BatchElement,
@@ -137,12 +137,12 @@ public:
 		return TEXT("FDummyPrevTransformBuffer");
 	}
 
-	inline FVertexBufferRHIParamRef GetVB() const
+	inline FRHIVertexBuffer* GetVB() const
 	{
 		return VB;
 	}
 
-	inline FShaderResourceViewRHIParamRef GetSRV() const
+	inline FRHIShaderResourceView* GetSRV() const
 	{
 		return SRV;
 	}
@@ -321,7 +321,7 @@ void FMeshParticleVertexFactory::UnlockPreviousTransformBuffer()
 	PrevTransformBuffer.Unlock();
 }
 
-FShaderResourceViewRHIParamRef FMeshParticleVertexFactory::GetPreviousTransformBufferSRV() const
+FRHIShaderResourceView* FMeshParticleVertexFactory::GetPreviousTransformBufferSRV() const
 {
 	return PrevTransformBuffer.SRV;
 }

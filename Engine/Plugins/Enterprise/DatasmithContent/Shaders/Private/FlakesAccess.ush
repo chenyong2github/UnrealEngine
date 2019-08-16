@@ -44,7 +44,7 @@ to access flakes slices and finally applies bilinear interpolation.
     TexOffset *= InvSideCount; \
     TexOffset += TexPadding * AtlasTexelSize; \
  \
-    float2 SampleTexCoord = frac(UV * Tiling); \
+    float2 SampleTexCoord = frac(UV); \
     SampleTexCoord *= InvSideCount * (TexSize / PaddedTexSize); \
     SampleTexCoord += TexOffset; \
     SAMPLE_TEX_COORD(SampleTexCoord, Result); \
@@ -60,8 +60,8 @@ to access flakes slices and finally applies bilinear interpolation.
 }
 
 //ThetaF sampling defines the angular sampling, i.e. angular flake lifetime
-float ThetaF = clamp(ThetaAngles.x, 0.0, 1.0 / PI2) * NumThetaF + 0.5;
-float ThetaI = clamp(ThetaAngles.y, 0.0, 1.0 / PI2) * NumThetaF + 0.5;
+float ThetaF = clamp(ThetaAngles.x / PI2, 0.0, 1.0) * NumThetaF + 0.5;
+float ThetaI = clamp(ThetaAngles.y / PI2, 0.0, 1.0) * NumThetaF + 0.5;
 
 //bilinear interpolation indices
 float LowThetaF = floor(ThetaF);
@@ -69,7 +69,9 @@ float HighThetaF = LowThetaF + 1.0;
 float LowThetaI = floor(ThetaI);
 float HighThetaI = LowThetaI + 1.0;
 
-float2 UV = TexCoord;
+float2 UV = TexCoord * Tiling;
+float2 DdxUV = DDX(UV);
+float2 DdyUV = DDY(UV);
 if (NumThetaI < NumThetaF)
 {
     if ((LowThetaI % 2) == 1 || (HighThetaI % 2) == 1) 

@@ -65,6 +65,9 @@ namespace Audio
 		/** Frees any resources for this sound source. */
 		void FreeResources();
 
+		/** Updates modulation parameters set from the modulation plugin. */
+		void UpdateModulation();
+
 		/** Updates the pitch parameter set from the game thread. */
 		void UpdatePitch();
 		
@@ -97,6 +100,9 @@ namespace Audio
 
 		/** Whether or not to use the spatialization plugin. */
 		bool UseSpatializationPlugin() const;
+
+		/** Whether or not to use the occlusion plugin. */
+		bool UseModulationPlugin() const;
 
 		/** Whether or not to use the occlusion plugin. */
 		bool UseOcclusionPlugin() const;
@@ -151,6 +157,7 @@ namespace Audio
 		FChannelMapInfo ChannelMaps[(int32) ESubmixChannelFormat::Count];
 
 		float PreviousAzimuth;
+		mutable float PreviousPlaybackPercent;
 
 		FSpatializationParams SpatializationParams;
 

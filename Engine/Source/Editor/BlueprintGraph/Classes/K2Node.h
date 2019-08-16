@@ -270,6 +270,9 @@ class UK2Node : public UEdGraphNode
 	/** Expands a node while compiling, which may add additional nodes or delete this node */
 	BLUEPRINTGRAPH_API virtual void ExpandNode(class FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph);
 
+	/** Clears out any cached data that needs to be regenerated after a structural blueprint change */
+	BLUEPRINTGRAPH_API virtual void ClearCachedBlueprintData(UBlueprint* Blueprint) {}
+
 	/** Performs a node-specific deprecation fixup, which may delete this node and replace it with another one */
 	BLUEPRINTGRAPH_API virtual void ConvertDeprecatedNode(UEdGraph* Graph, bool bOnlySafeChanges) {}
 
@@ -455,7 +458,11 @@ protected:
 		}
 	}
 
-	void FixupPinDefaultValues();
+	/** Handle backwards compatible fixes on load */
+	BLUEPRINTGRAPH_API virtual void FixupPinDefaultValues();
+
+	/** Fixes up structure/soft object ref pins, on both save and load */
+	BLUEPRINTGRAPH_API virtual void FixupPinStringDataReferences(FArchive* SavingArchive);
 
 private:
 

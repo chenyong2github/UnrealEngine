@@ -57,29 +57,31 @@ void FFloatChannelCurveModel::AddKeys(TArrayView<const FKeyPosition> InKeyPositi
 		TMovieSceneChannelData<FMovieSceneFloatValue> ChannelData = Channel->GetData();
 		FFrameRate TickResolution = Section->GetTypedOuter<UMovieScene>()->GetTickResolution();
 
+		TArray<FKeyHandle> NewKeyHandles;
+		NewKeyHandles.SetNumUninitialized(InKeyPositions.Num());
+
 		for (int32 Index = 0; Index < InKeyPositions.Num(); ++Index)
 		{
 			FKeyPosition   Position   = InKeyPositions[Index];
-			FKeyAttributes Attributes = InKeyAttributes[Index];
 
 			FFrameNumber Time = (Position.InputValue * TickResolution).RoundToFrame();
 			Section->ExpandToFrame(Time);
 
 			FMovieSceneFloatValue Value(Position.OutputValue);
 
-			if (Attributes.HasInterpMode())    { Value.InterpMode            = Attributes.GetInterpMode();    }
-			if (Attributes.HasTangentMode())   { Value.TangentMode           = Attributes.GetTangentMode();   }
-			if (Attributes.HasArriveTangent()) { Value.Tangent.ArriveTangent = Attributes.GetArriveTangent(); }
-			if (Attributes.HasLeaveTangent())  { Value.Tangent.LeaveTangent  = Attributes.GetLeaveTangent();  }
-
 			int32 KeyIndex = ChannelData.AddKey(Time, Value);
+			FKeyHandle NewHandle = ChannelData.GetHandle(KeyIndex);
+			NewKeyHandles[Index] = NewHandle;
+
 			if (OutKeyHandles)
 			{
-				(*OutKeyHandles)[Index] = ChannelData.GetHandle(KeyIndex);
+				(*OutKeyHandles)[Index] = NewHandle;
 			}
 		}
 
-		Channel->AutoSetTangents();
+		// We reuse SetKeyAttributes here as there is complex logic determining which parts of the attributes are valid to set.
+		// For now we need to duplicate the new key handle array due to API mismatch. This will auto calculate tangents if needed.
+		SetKeyAttributes(NewKeyHandles, InKeyAttributes);
 	}
 }
 

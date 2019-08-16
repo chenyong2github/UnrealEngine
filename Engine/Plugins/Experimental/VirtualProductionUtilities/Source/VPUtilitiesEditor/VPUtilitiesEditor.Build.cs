@@ -11,10 +11,13 @@ public class VPUtilitiesEditor : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
+                "Blutility",
 				"Core",
 				"CoreUObject",
-				"VPUtilities",
-			}
+				"EditorSubsystem",
+				"VPUtilities",                
+				"VREditor",
+            }
 		);
 
 		PrivateDependencyModuleNames.AddRange(
@@ -22,6 +25,7 @@ public class VPUtilitiesEditor : ModuleRules
 			{
 				"EditorStyle",
 				"Engine",
+				"GameplayTags",
 				"LevelEditor",
 				"Settings",
 				"Slate",
@@ -31,9 +35,9 @@ public class VPUtilitiesEditor : ModuleRules
 				"UMGEditor",
 				"UnrealEd",
 				"VPBookmark",
-				"VREditor",
 				"WorkspaceMenuStructure",
-			}
+                "CinematicCamera",
+            }
 		);
 	}
 }

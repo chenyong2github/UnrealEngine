@@ -65,6 +65,9 @@ namespace Audio
 		// Does a faded stop (to avoid discontinuity)
 		void StopFade(int32 NumFrames);
 
+		// Get the source's Id
+		int32 GetSourceId() const { return SourceId; }
+
 		// Queries if the voice is playing
 		bool IsPlaying() const;
 

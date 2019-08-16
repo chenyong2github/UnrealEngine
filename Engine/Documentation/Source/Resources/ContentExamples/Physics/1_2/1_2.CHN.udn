@@ -5,7 +5,7 @@ Crumbs:%ROOT%, Resources, Resources/ContentExamples, Resources/ContentExamples/P
 Description:物理表现示例关卡概述，示例1.2： 骨架网格刚体的模拟物体表现
 Description:An overview of the Physics example level, example 1.2: SkeletalMesh RigidBody Simulating Physics
 Related: Engine/Physics/PhysicsBodies
-Related: Engine/Physics/PhAT/HowTo
+Related: Engine/Physics/PhysicsAssetEditor/HowTo
 Related: Engine/Physics/Constraints/ConstraintsReference
 Related: Engine/Physics/Constraints/ConstraintsUserGuide
 Related: Engine/Physics/Collision

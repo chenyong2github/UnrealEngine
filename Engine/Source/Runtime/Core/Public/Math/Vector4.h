@@ -66,6 +66,13 @@ public:
 	explicit FVector4(FVector2D InXY, FVector2D InZW);
 
 	/**
+	 * Creates and initializes a new vector from an int vector value.
+	 *
+	 * @param InVector IntVector used to set vector.
+	 */
+	FVector4(const FIntVector4& InVector);
+
+	/**
 	 * Creates and initializes a new vector to zero.
 	 *
 	 * @param EForceInit Force Init Enum.
@@ -493,6 +500,13 @@ FORCEINLINE FVector4::FVector4(FVector2D InXY, FVector2D InZW)
 	DiagnosticCheckNaN();
 }
 
+FORCEINLINE FVector4::FVector4(const FIntVector4& InVector)
+	: X(InVector.X)
+	, Y(InVector.Y)
+	, Z(InVector.Z)
+	, W(InVector.W)
+{
+}
 
 FORCEINLINE float& FVector4::operator[](int32 ComponentIndex)
 {

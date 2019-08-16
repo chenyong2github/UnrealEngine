@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:3782314
 Availability: Public
 Title: 2.3 - 캐릭터 동작 함수 구현
 Crumbs: %ROOT%, Programming, Programming/Tutorials/FirstPersonShooter, Programming/Tutorials/FirstPersonShooter/2
@@ -86,7 +86,7 @@ Version: 4.15
 
 ## 동작 함수 구현
 
-전형적인 FPS 조작법에서, 캐릭터의 동작 축은 카메라에 상대적입니다. "전방" 이란 "카메라가 향하는 방향" 을, "우측" 이란 "카메라가 향하는 방향의 우측"을 뜻합니다. 캐릭터의 제어 방향을 구하는 데는 `PlayerController` 를 사용할 것입니다. 또한 `MoveForward` 함수는 제어 회전의 핏치 컴포넌트를 무시하고 입력을 XY 면으로 제한시켜 위아래를 처다보더라도 캐릭터는 땅과 평행으로 움직일 수 있도록 합니다.
+전형적인 FPS 조작법에서, 캐릭터의 동작 축은 카메라에 상대적입니다. "전방" 이란 "카메라가 향하는 방향" 을, "우측" 이란 "카메라가 향하는 방향의 우측"을 뜻합니다. 캐릭터의 제어 방향을 구하는 데는 `PlayerController` 를 사용할 것입니다. 또한 `MoveForward` 함수는 제어 회전의 피치 컴포넌트를 무시하고 입력을 XY 면으로 제한시켜 위아래를 처다보더라도 캐릭터는 땅과 평행으로 움직일 수 있도록 합니다.
 
 1.	`FPSCharacter.cpp` 에서, `SetupPlayerInputComponent` 함수의 `Super::SetupPlayerInputComponent(PlayerInputComponent)` 아래 다음 줄을 추가합니다:
 

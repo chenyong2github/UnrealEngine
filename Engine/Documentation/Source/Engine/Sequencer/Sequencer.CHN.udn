@@ -1,7 +1,6 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6572592
 Availability:Public
 Title:Sequencer 编辑器
-Crumbs: %ROOT%, Engine
 Description:Sequencer 是虚幻引擎 4 的多轨迹编辑器，用于实时创建和预览动画序列。 
 Navigation:topic
 parent:Engine
@@ -10,34 +9,87 @@ topic-image:sequencer_topic.png
 social-image:sequencer_social.png
 related:Engine/Matinee
 tags:Sequencer
+hero-image:SequencerBanner_hero.png
 
 [REGION:banner]
 ![](SequencerBanner.png)(convert:false)
 [/REGION]
 
-**Sequencer** 是虚幻引擎中的两大动画编辑工具之一。在 Sequencer 之前，编辑动画的主要手段是 [**Matinee**](Engine/Matinee) 编辑器。
-和 Matinee 相似，Sequencer 使用诸多特殊 **轨迹** 定义动画场的组成。 
-为 Sequencer 添加一些骨架网格体轨迹，然后添加动画轨迹为骨架网格体设置动画，放入镜头轨迹和镜头切换轨迹构成镜头之间的透视和循环。这样便拥有了设置动画序列的基础。 
+**Sequencer** 编辑器时虚幻引擎4内置的动画编辑工具。Sequencer使用各种专用的轨迹工具来定义你的场景组成。在Sequencer中添加一些骨架网格体 **轨迹**，然后添加动画轨迹来驱动这些骨架网格体，再加入摄像机轨迹和摄像机剪辑轨迹以提供视角，并在多个摄像机间切换。这样，您就有了设置一个动画序列所需的全部基础。 
 
 此页面包含指向 Sequencer 编辑器各方面的文档链接。 
 如您刚开始接触 Sequencer，推荐阅读 **概要** 部分。其中包括 Sequencer 编辑器的高阶总览、详解 Sequencer 编辑器组件的编辑器参考、帮助用户快速上手的快速入门指南、多个讲述如何利用 Sequencer 执行特定任务的单页指南，以及一个工作流提示章节。 
 
 可在 Epic Games Launcher 的 Learn 标签中下载的 Sequencer Subway 项目范例将为您展示如何使用虚幻引擎 4 的 Sequencer 编辑器创建电影级的动画序列。 
 
-(#StartingOut)
 ## 开始
 
 [DIR(output:"topic" parent:"Engine/Sequencer" org:"hierarchy" end:"1" type:"landing,overview,reference,quick start")]
 
-(#Guides)
+## 基础概念
+
+[DIR(output:"topic" parent:"Engine/Sequencer/Workflow" org:"hierarchy")]
+[DIR(output:"topic" parent:"Engine/Sequencer/Overview" org:"hierarchy")]
+
 ## 指南
 
 [DIR(output:"fancy" parent:"Engine/Sequencer/HowTo" org:"hierarchy" skill_Level:"Beginner")]
+
 [DIR(output:"fancy" parent:"Engine/Sequencer/HowTo" org:"hierarchy" skill_Level:"Intermediate")]
-[DIR(output:"fancy" parent:"Engine/Sequencer/HowTo" org:"hierarchy" skill_Level:"Advanced")]
+
+[DIR(output:"fancy" parent:"Engine/Sequencer/HowTo" type:"how-to" org:"hierarchy" skill_Level:"Advanced")]
 
 
-(#Samples)
 ## 示例
 
 [DIR(output:"topiccompact" parent:"Resources/Showcases" tags:"Sequencer")]
+
+[REGION:section]
+[REGION:normaltitle]
+Related Courses
+[/REGION]
+[OBJECT:CourseLink]
+	[PARAMLITERAL:title]
+	Sequencer培训：动画的拍摄制作
+	[/PARAMLITERAL]
+	[PARAMLITERAL:courseid]
+	Sequencer For Cinematics
+	[/PARAMLITERAL]
+	[PARAMLITERAL:imageid]
+	7012
+	[/PARAMLITERAL]
+	[PARAMLITERAL:description]
+	了解如何在初始布局阶段准备您的场景装配，以便配合Sequencer使用。
+	[/PARAMLITERAL]
+	[PARAMLITERAL:video_count]
+	1
+	[/PARAMLITERAL]
+	[PARAMLITERAL:skill_level]
+	Advancing your Skills
+	[/PARAMLITERAL]
+	[PARAMLITERAL:engine_version]
+	4.20
+	[/PARAMLITERAL]
+[/OBJECT]
+
+[OBJECT:CourseLink]
+	[PARAMLITERAL:title]
+	面向建筑可视化的摄像机Sequencer
+	[/PARAMLITERAL]
+	[PARAMLITERAL:courseid]
+	arch_sequencer
+	[/PARAMLITERAL]
+	[PARAMLITERAL:imageid]
+	3109
+	[/PARAMLITERAL]
+	[PARAMLITERAL:description]
+	了解虚幻引擎的Sequencer的高端用法，并将其用于创建建筑可视化应用。
+	[/PARAMLITERAL]
+	[PARAMLITERAL:video_count]
+	12
+	[/PARAMLITERAL]
+	[PARAMLITERAL:skill_level]
+	Master Level
+	[/PARAMLITERAL]
+[/OBJECT]
+[/REGION]

@@ -23,7 +23,7 @@ Now that you have created a sample Shadow Physics Asset for Capsule Shadowing, y
 For more information on topics covered in this Quick Start guide, see the [Unreal Enditor Manual](https://docs.unrealengine.com/latest/INT/Engine/index.html).
 
 * For information covering Capsule Shadows, see [](Engine/Rendering/LightingAndShadows/CapsuleShadows/Overview).
-* For information covering the Physics Asset Tool, see [Physics Asset Tool (PhAT)](https://docs.unrealengine.com/latest/INT/Engine/Physics/PhAT/).
+* For information covering the Physics Asset Tool, see [Physics Asset Tool (PhAT)](https://docs.unrealengine.com/latest/INT/Engine/Physics/PhysicsAssetEditor/).
 * For information covering Lighting, see [Lighting the Environment](https://docs.unrealengine.com/latest/INT/Engine/Rendering/LightingAndShadows/).
 
 [Nav]

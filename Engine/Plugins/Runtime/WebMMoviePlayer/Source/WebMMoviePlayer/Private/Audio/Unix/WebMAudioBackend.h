@@ -22,9 +22,13 @@ public:
 	virtual void StopStreaming();
 	virtual bool SendAudio(const uint8* Buffer, size_t BufferSize);
 
+	virtual bool IsPaused() const;
+	virtual void Tick(float DeltaTime);
+	virtual FString GetDefaultDeviceName();
+
 private:
+	FCriticalSection AudioDeviceMutex;
+
 	SDL_AudioDeviceID AudioDevice;
 	bool bSDLInitialized;
 };
-
-using FWebMAudioBackend = FWebMAudioBackendSDL;

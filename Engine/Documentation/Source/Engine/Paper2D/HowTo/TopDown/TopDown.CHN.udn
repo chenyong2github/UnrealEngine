@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:2746215
+﻿INTSourceChangelist:3108692
 Availability:Public
 Title:顶视 2D 游戏设置
 Crumbs: %ROOT%, Engine, Engine/Paper2D
@@ -17,6 +17,7 @@ SkillLevel:Intermediate
 
 * [样本资源](SampleAssets.rar)
 
+(#SetupProject)
 ## 项目设置
 
 我们将进行此教程的项目设置，您可导入自己的资源，也可使用样本资源。 
@@ -61,6 +62,7 @@ SkillLevel:Intermediate
 
 项目现已设置完成，即可开始设置顶视角色。 
 
+(#CharacterSetup)
 ## 角色设置
 
 我们将新建一个 Paper 2D 角色蓝图并设置角色。 
@@ -136,6 +138,7 @@ SkillLevel:Intermediate
 角色便设置完成，然后尚未对其应用移动脚本，需要从 **Third Person Character** 蓝图中抓取。 
 
 
+(#FinishingUp)
 ## 完成
 
 无需进行重复工作，因为此模板的角色自带移动的脚本功能，我们可将该功能复制到 Paper Character，使其可移动。 

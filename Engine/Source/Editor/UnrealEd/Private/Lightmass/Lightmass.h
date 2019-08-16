@@ -14,6 +14,7 @@
 #include "StaticLightingSystem/StaticLightingPrivate.h"
 #include "Lightmass/LightmassImportanceVolume.h"
 #include "Components/LightmassPortalComponent.h"
+#include "Atmosphere/AtmosphericFogComponent.h"
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
 #endif
@@ -114,6 +115,11 @@ public:
 		Portals.Add(InPortalComponent->GetComponentTransform().ToMatrixWithScale());
 	}
 
+	void SetAtmosphericComponent(const UAtmosphericFogComponent* AtmosphericFog)
+	{
+		AtmosphericFogComponent = AtmosphericFog;
+	}
+
 	// if provided, InStaticLightingMesh is used to UV unwrap the material into the static lighting textures
 	void AddMaterial(UMaterialInterface* InMaterialInterface, const FStaticLightingMesh* InStaticLightingMesh = nullptr);
 
@@ -198,6 +204,8 @@ private:
 	TArray<FBox>				ImportanceVolumes;
 	TArray<FBox>				CharacterIndirectDetailVolumes;
 	TArray<FMatrix>				Portals;
+
+	const UAtmosphericFogComponent*	AtmosphericFogComponent;
 
 	FLightmassWorldInfoSettings LevelSettings;
 	/** The number of local cores to leave unused */

@@ -1,5 +1,4 @@
 Availability: Public
-Crumbs: 
 Title: Augmented Reality Overview
 Description: An overview of Epic's Augmented Reality implementation.
 Type: 
@@ -11,7 +10,11 @@ Tags: Android
 Tags: StartingOut
 Tags: AR
 Tags: Mobile AR
+Related: Platforms/AR/HandheldAR/ARQuickStart
+Related: Platforms/AR/HandheldAR/ARKitPrerequisites
+Related: Platforms/AR/HandheldAR/ARCorePrerequisites
 
+[TOC (start:2 end:3)]
 
 Augmented reality (AR) is a technology that overlays a computer-generated image on a user's view of the real world, providing a composite view. 
 
@@ -71,11 +74,11 @@ It's worth mentioning that support for handheld iOS and Android devices isn't ne
 
 ### iOS
 
-For detailed iOS augmented reality prerequisite information, see the [](Platforms/AR/HandheldAR/ARKitPrerequisites) topic. Additionally, basic configuration of Unreal Engine and iOS devices is covered in the [](Platforms/iOS) section of the Unreal Engine  documentation.   
+For detailed iOS augmented reality prerequisite information, see the [](Platforms/AR/HandheldAR/ARKitPrerequisites) topic. Additionally, basic configuration of Unreal Engine and iOS devices is covered in the [](Platforms/Mobile/iOS) section of the Unreal Engine  documentation.   
 
 ### Android
 
-For detailed Android augmented reality prerequisite information, see the [](Platforms/AR/HandheldAR/ARCorePrerequisites) topic. Basic configuration of Unreal Engine and Android devices is covered in the [](Platforms/Android/GettingStarted) section of the Unreal  Engine documentation. 
+For detailed Android augmented reality prerequisite information, see the [](Platforms/AR/HandheldAR/ARCorePrerequisites) topic. Basic configuration of Unreal Engine and Android devices is covered in the [](Platforms/Mobile/Android/GettingStarted) section of the Unreal  Engine documentation. 
 
 ## Getting Started with Unreal AR
 

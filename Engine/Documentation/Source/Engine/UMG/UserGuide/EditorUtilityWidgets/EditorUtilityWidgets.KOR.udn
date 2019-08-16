@@ -1,0 +1,41 @@
+INTSourceChangelist:5898831
+Availability: Public
+Crumbs:
+Title: 에디터 유틸리티 위젯
+Description: Editor Utility, 에디터 유틸리티 위젯과 그 생성 방법을 설명합니다.
+Version: 4.22
+Parent: Engine/UMG/UserGuide
+SkillLevel:Intermediate
+Tags: Experimental
+Tags: UMG
+Tags: Landing Page
+Tags: Blutilities
+Tags: Editor Utility
+
+
+[TOC]
+
+언리얼 에디터의 유저 인터페이스(UI)를 수정하려면, **Editor Utility Widgets** (에디터 유틸리티 위젯)을 사용해서 UI 요소를 추가하면 됩니다. 에디터 유틸리티 위젯은 **언리얼 모션 그래픽** (UMG) 기반이라, 다른 UMG 위젯 블루프린트처럼 블루프린트에서 위젯을 구성할 수 있습니다.
+
+이 위젯은 특히 에디터 UI 용이므로 커스텀 에디터 탭을 만드는 데 활용할 수 있습니다. 만든 다음 창 메뉴에서 다른 에디터 탭처럼 이 커스텀 탭을 선택할 수 있습니다.
+
+## 에디터 유틸리티 위젯
+
+1.  **콘텐츠 브라우저** 를 우클릭하고 **Editor Utilities > Editor Widget** (에디터 유틸리티 > 에디터 위젯)을 선택합니다.  
+    ![](Menu-EditorWidget.png)(w:200)
+
+2.  에디터 유틸리티 위젯 애셋 이름을 짓습니다. 이 예제에서는 **TestEditorUtility** 입니다. **에디터 유틸리티 위젯 애셋** 을 더블클릭하면 위젯 블루프린트가 열려 편집할 수 있습니다.  
+    ![](TestEditorUtility-AssetIcon.png)(w:100)
+
+3.  필요에 따라 위젯 블루프린트를 편집합니다.  
+    [REGION:lightbox]
+    [![](EditEditorUtilityWidgetBlueprint.png)](EditEditorUtilityWidgetBlueprint.png)
+    
+    *클릭하면 이미지 원본을 확인합니다.*
+    [/REGION]
+    
+4.  **에디터 유틸리티 위젯 애셋** 을 우클릭하고 **실행** 을 선택하면 에디터 유틸리티와 함께 에디터 탭이 열립니다. 이 탭은 레벨 에디터 탭에만 도킹할 수 있습니다.  
+    ![](RunEditorUtilityWidget.png)(w:200)
+
+5.  에디터 유틸리티 위젯을 실행했으면, 레벨 에디터의 창 드롭다운에서 에디터 유틸리티 위젯 카테고리 아래 나타납니다.  
+    ![EditorUtilityWidgets/WindowsMenu-EditorUtilities.png](WindowsMenu-EditorUtilities.png)(w:300)

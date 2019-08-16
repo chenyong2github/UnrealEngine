@@ -49,6 +49,11 @@ protected:
 	UPROPERTY(Transient)
 	AActor* ActorOwner;
 
+	/** If any of the Tick functions is implemented, how ofter should they be ticked.
+	 *	Values < 0 mean 'every tick'. */
+	UPROPERTY(EditAnywhere, Category = Task)
+	FIntervalCountdown TickInterval;
+	
 	/** temporary variable for ReceiveExecute(Abort)-FinishExecute(Abort) chain */
 	mutable TEnumAsByte<EBTNodeResult::Type> CurrentCallResult;
 

@@ -55,12 +55,6 @@ void SGridPanel::Construct( const FArguments& InArgs )
 
 int32 SGridPanel::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const
 {
-	if(GSlateLayoutCaching)
-	{
-		// HACK
-		GetDesiredSize();
-	}
-
 	FArrangedChildren ArrangedChildren(EVisibility::All);
 	this->ArrangeChildren(AllottedGeometry, ArrangedChildren);
 
@@ -76,36 +70,43 @@ int32 SGridPanel::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeom
 	//
 	// GridLayers must ensure that everything in LayerN is below LayerN+1. In other words,
 	// every grid layer group must start at the current MaxLayerId (similar to how SOverlay works).
-	int32 LastGridLayer = 0;
-	for (int32 ChildIndex = 0; ChildIndex < Slots.Num(); ++ChildIndex)
+	if(ArrangedChildren.Num())
 	{
-		FArrangedWidget& CurWidget = ArrangedChildren[ChildIndex];
-		if (CurWidget.Widget->GetVisibility().IsVisible())
+		int32 LastGridLayer = 0;
+		for (int32 ChildIndex = 0; ChildIndex < Slots.Num(); ++ChildIndex)
 		{
-			const FSlot& CurSlot = Slots[ChildIndex];
-
-			if (!IsChildWidgetCulled(MyCullingRect, CurWidget))
+			FArrangedWidget& CurWidget = ArrangedChildren[ChildIndex];
+			if (CurWidget.Widget->GetVisibility().IsVisible())
 			{
-				if ( LastGridLayer != CurSlot.LayerParam )
-				{
-					// We starting a new grid layer group?
-					LastGridLayer = CurSlot.LayerParam;
-					// Ensure that everything here is drawn on top of 
-					// previously drawn grid content.
-					LayerId = MaxLayerId + 1;
-				}
+				const FSlot& CurSlot = Slots[ChildIndex];
 
-				const int32 CurWidgetsMaxLayerId = CurWidget.Widget->Paint(
-					NewArgs,
-					CurWidget.Geometry,
-					MyCullingRect,
-					OutDrawElements,
-					LayerId,
-					InWidgetStyle,
-					bShouldBeEnabled
+				if (!IsChildWidgetCulled(MyCullingRect, CurWidget))
+				{
+					if (LastGridLayer != CurSlot.LayerParam)
+					{
+						// We starting a new grid layer group?
+						LastGridLayer = CurSlot.LayerParam;
+						// Ensure that everything here is drawn on top of 
+						// previously drawn grid content.
+						LayerId = MaxLayerId + 1;
+					}
+
+					const int32 CurWidgetsMaxLayerId = CurWidget.Widget->Paint(
+						NewArgs,
+						CurWidget.Geometry,
+						MyCullingRect,
+						OutDrawElements,
+						LayerId,
+						InWidgetStyle,
+						bShouldBeEnabled
 					);
 
-				MaxLayerId = FMath::Max(MaxLayerId, CurWidgetsMaxLayerId);
+					MaxLayerId = FMath::Max(MaxLayerId, CurWidgetsMaxLayerId);
+				}
+				else
+				{
+					//SlateGI - RemoveContent
+				}
 			}
 		}
 	}

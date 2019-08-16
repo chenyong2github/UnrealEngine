@@ -43,7 +43,10 @@ static const TCHAR* GetAppEventName(EAppEventState State)
 		TEXT("APP_EVENT_STATE_ON_START"),
 		TEXT("APP_EVENT_STATE_WINDOW_LOST_FOCUS"),
 		TEXT("APP_EVENT_STATE_WINDOW_GAINED_FOCUS"),
-		TEXT("APP_EVENT_STATE_SAVE_STATE")
+		TEXT("APP_EVENT_STATE_SAVE_STATE"),
+		TEXT("APP_EVENT_STATE_APP_SUSPENDED"),
+		TEXT("APP_EVENT_STATE_APP_ACTIVATED"),
+		TEXT("APP_EVENT_RUN_CALLBACK"),
 		};
 
 
@@ -51,7 +54,7 @@ static const TCHAR* GetAppEventName(EAppEventState State)
 	{
 		return TEXT("APP_EVENT_STATE_INVALID");
 	}
-	else if (State > APP_EVENT_STATE_SAVE_STATE || State < 0)
+	else if (State > APP_EVENT_RUN_CALLBACK || State < 0)
 	{
 		return TEXT("UnknownEAppEventStateValue");
 	}
@@ -64,101 +67,47 @@ static const TCHAR* GetAppEventName(EAppEventState State)
 
 void FAppEventManager::Tick()
 {
-	static const bool bIsDaydreamApp = FAndroidMisc::IsDaydreamApplication();
-	bool bWindowCreatedThisTick = false;
-	
+	check(IsInGameThread());
 	while (!Queue.IsEmpty())
 	{
-		bool bDestroyWindow = false;
-
-		FAppEventData Event = DequeueAppEvent();
+		FAppEventPacket Event = DequeueAppEvent();
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("FAppEventManager::Tick processing, %d"), int(Event.State));
 
 		switch (Event.State)
 		{
 		case APP_EVENT_STATE_WINDOW_CREATED:
-			// if we have a "destroy window" event pending, the data has been invalidated
-			if (!bDestroyWindowPending)
-			{
-				bCreateWindow = true;
-				PendingWindow = (ANativeWindow*)Event.Data;
-				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("APP_EVENT_STATE_WINDOW_CREATED %d, %d, %d, %d"), int(bDestroyWindowPending), int(bRunning), int(bHaveWindow), int(bHaveGame));
-
-			}
-			else
-			{
-				// If we skip a create window because it is destroyed before we created the window *something* gets out of sync
-				// resulting in either one buffer still in the wrong orienation or just a black screen.
-				// So reset everything here. When the new window is created we will recover successfully.
-
-				FAndroidAppEntry::DestroyWindow();
-				FAndroidWindow::SetHardwareWindow(NULL);
-
-				PauseRendering();
-				PauseAudio();
-				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("APP_EVENT_STATE_WINDOW_CREATED window creation skipped because a destroy is pending %d, %d, %d, %d"), int(bDestroyWindowPending), int(bRunning), int(bHaveWindow), int(bHaveGame));
-
-			}
+			FAndroidWindow::EventManagerUpdateWindowDimensions(Event.Data.WindowWidth, Event.Data.WindowHeight);
+			bCreateWindow = true;
 			break;
-		
 		case APP_EVENT_STATE_WINDOW_RESIZED:
+			// Cache the new window's dimensions for the game thread.
+			FAndroidWindow::EventManagerUpdateWindowDimensions(Event.Data.WindowWidth, Event.Data.WindowHeight);
+			ExecWindowResized();
+			break;
 		case APP_EVENT_STATE_WINDOW_CHANGED:
 			// React on device orientation/windowSize changes only when application has window
 			// In case window was created this tick it should already has correct size
-			if (bHaveWindow && !bWindowCreatedThisTick)
-			{
-				ExecWindowResized();
-			}
-			break;
+			// see 'Java_com_epicgames_ue4_GameActivity_nativeOnConfigurationChanged' for event thread/game thread mismatches.
+			ExecWindowResized();
+		break;
 		case APP_EVENT_STATE_SAVE_STATE:
 			bSaveState = true; //todo android: handle save state.
 			break;
 		case APP_EVENT_STATE_WINDOW_DESTROYED:
-			// only if precedeed by a a successfull "create window" event 
-			if (bHaveWindow)
-			{
-				if (bIsDaydreamApp)
-				{
-					bCreateWindow = false;
-				}
-				else
-				{
-					if (GEngine != nullptr && GEngine->IsInitialized() && GEngine->XRSystem.IsValid() && GEngine->XRSystem->GetHMDDevice() && GEngine->XRSystem->GetHMDDevice()->IsHMDConnected())
-					{
-						// delay the destruction until after the renderer teardown on Gear VR
-						bDestroyWindow = true;
-					}
-					else
-					{
-						FAndroidAppEntry::DestroyWindow();
-						FAndroidWindow::SetHardwareWindow(NULL);
-					}
-				}
-			}
-
 			bHaveWindow = false;
-
-			// allow further "create window" events to be processed 
-			bDestroyWindowPending = false;
 			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("APP_EVENT_STATE_WINDOW_DESTROYED, %d, %d, %d"), int(bRunning), int(bHaveWindow), int(bHaveGame));
 			break;
 		case APP_EVENT_STATE_ON_START:
 			//doing nothing here
 			break;
 		case APP_EVENT_STATE_ON_DESTROY:
-			if (FTaskGraphInterface::IsRunning())
-			{
-				FGraphEventRef WillTerminateTask = FFunctionGraphTask::CreateAndDispatchWhenReady([&]()
-				{
-					FCoreDelegates::ApplicationWillTerminateDelegate.Broadcast();
-				}, TStatId(), NULL, ENamedThreads::GameThread);
-				FTaskGraphInterface::Get().WaitUntilTaskCompletes(WillTerminateTask);
-			}
-			GIsRequestingExit = true; //destroy immediately. Game will shutdown.
-			FirstInitialized = false;
+			check(bHaveWindow == false);
+			check(GIsRequestingExit); //destroy immediately. Game will shutdown.
 			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("APP_EVENT_STATE_ON_DESTROY"));
 			break;
 		case APP_EVENT_STATE_ON_STOP:
 			bHaveGame = false;
+			ReleaseMicrophone(true);
 			break;
 		case APP_EVENT_STATE_ON_PAUSE:
 			FAndroidAppEntry::OnPauseEvent();
@@ -169,14 +118,26 @@ void FAppEventManager::Tick()
 			break;
 
 		// window focus events that follow their own hierarchy, and might or might not respect App main events hierarchy
-
 		case APP_EVENT_STATE_WINDOW_GAINED_FOCUS: 
 			bWindowInFocus = true;
 			break;
 		case APP_EVENT_STATE_WINDOW_LOST_FOCUS:
 			bWindowInFocus = false;
 			break;
-
+		case APP_EVENT_RUN_CALLBACK:
+		{
+			UE_LOG(LogAndroidEvents, Display, TEXT("Event thread callback running."));
+			Event.Data.CallbackFunc();
+			break;
+		}
+		case APP_EVENT_STATE_APP_ACTIVATED:
+			bRunning = true;
+			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Execution will be resumed!"));
+			break;
+		case APP_EVENT_STATE_APP_SUSPENDED:
+			bRunning = false;
+			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Execution will be paused..."));
+			break;
 		default:
 			UE_LOG(LogAndroidEvents, Display, TEXT("Application Event : %u  not handled. "), Event.State);
 		}
@@ -189,68 +150,8 @@ void FAppEventManager::Tick()
 				ExecWindowCreated();
 				bCreateWindow = false;
 				bHaveWindow = true;
-				bWindowCreatedThisTick = true;
-
 				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("ExecWindowCreated, %d, %d, %d"), int(bRunning), int(bHaveWindow), int(bHaveGame));
 			}
-		}
-
-		if (!bRunning && bHaveWindow && bHaveGame)
-		{
-			ResumeRendering();
-			ResumeAudio();
-
-			// broadcast events after the rendering thread has resumed
-			if (FTaskGraphInterface::IsRunning())
-			{
-				FGraphEventRef EnterForegroundTask = FFunctionGraphTask::CreateAndDispatchWhenReady([&]()
-				{
-					FCoreDelegates::ApplicationHasEnteredForegroundDelegate.Broadcast();
-				}, TStatId(), NULL, ENamedThreads::GameThread);
-
-				FGraphEventRef ReactivateTask = FFunctionGraphTask::CreateAndDispatchWhenReady([&]()
-				{
-					FCoreDelegates::ApplicationHasReactivatedDelegate.Broadcast();
-				}, TStatId(), EnterForegroundTask, ENamedThreads::GameThread);
-				FTaskGraphInterface::Get().WaitUntilTaskCompletes(ReactivateTask);
-
-				extern void AndroidThunkCpp_ShowHiddenAlertDialog();
-				AndroidThunkCpp_ShowHiddenAlertDialog();
-			}
-
-			bRunning = true;
-			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Execution has been resumed!"));
-		}
-		else if (bRunning && (!bHaveWindow || !bHaveGame))
-		{
-			// broadcast events before rendering thread suspends
-			if (FTaskGraphInterface::IsRunning())
-			{
-				FGraphEventRef DeactivateTask = FFunctionGraphTask::CreateAndDispatchWhenReady([&]()
-				{
-					FCoreDelegates::ApplicationWillDeactivateDelegate.Broadcast();
-				}, TStatId(), NULL, ENamedThreads::GameThread);
-				FGraphEventRef EnterBackgroundTask = FFunctionGraphTask::CreateAndDispatchWhenReady([&]()
-				{
-					FCoreDelegates::ApplicationWillEnterBackgroundDelegate.Broadcast();
-				}, TStatId(), DeactivateTask, ENamedThreads::GameThread);
-				FTaskGraphInterface::Get().WaitUntilTaskCompletes(EnterBackgroundTask);
-			}
-
-			PauseRendering();
-			PauseAudio();
-
-			bRunning = false;
-			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Execution has been paused..."));
-		}
-
-		if (bDestroyWindow)
-		{
-			FAndroidAppEntry::DestroyWindow();
-			FAndroidWindow::SetHardwareWindow(NULL);
-			bDestroyWindow = false;
-
-			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("FAndroidAppEntry::DestroyWindow() called"));
 		}
 	}
 
@@ -258,19 +159,21 @@ void FAppEventManager::Tick()
 	{
 		EmptyQueueHandlerEvent->Trigger();
 	}
-	if (bIsDaydreamApp)
+
+	if (!bRunning)
 	{
-		if (!bRunning && FAndroidWindow::GetHardwareWindow() != NULL)
-		{
-			EventHandlerEvent->Wait();
-		}
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("FAppEventManager::Tick EventHandlerEvent Wait "));
+		EventHandlerEvent->Wait();
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("FAppEventManager::Tick EventHandlerEvent DONE Wait "));
 	}
-	else
+}
+
+void FAppEventManager::ReleaseMicrophone(bool shuttingDown)
+{
+	if (FModuleManager::Get().IsModuleLoaded("Voice"))
 	{
-		if (!bRunning && FirstInitialized)
-		{
-			EventHandlerEvent->Wait();
-		}
+		UE_LOG(LogTemp, Log, TEXT("Android release microphone"));
+		FModuleManager::Get().UnloadModule("Voice", shuttingDown);
 	}
 }
 
@@ -290,13 +193,10 @@ FAppEventManager::FAppEventManager():
 	,bWindowInFocus(true)
 	,bSaveState(false)
 	,bAudioPaused(false)
-	,PendingWindow(NULL)
 	,bHaveWindow(false)
 	,bHaveGame(false)
 	,bRunning(false)
-	,bDestroyWindowPending(false)
 {
-	pthread_mutex_init(&MainMutex, NULL);
 	pthread_mutex_init(&QueueMutex, NULL);
 
 	IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MobileContentScaleFactor"));
@@ -312,98 +212,33 @@ void FAppEventManager::OnScaleFactorChanged(IConsoleVariable* CVar)
 	}
 }
 
-void FAppEventManager::HandleWindowCreated(void* InWindow)
+void FAppEventManager::HandleWindowCreated_EventThread(void* InWindow)
 {
-	static const bool bIsDaydreamApp = FAndroidMisc::IsDaydreamApplication();
-	if (bIsDaydreamApp)
-	{
-		// We must ALWAYS set the hardware window immediately,
-		// Otherwise we will temporarily end up with an abandoned Window
-		// when the application is pausing/resuming. This is likely
-		// to happen in a Gvr app due to the DON flow pushing an activity
-		// during initialization.
-
-		int rc = pthread_mutex_lock(&MainMutex);
-		check(rc == 0);
-
-		// If we already have a window, destroy it
-		ExecDestroyWindow();
-
-		FAndroidWindow::SetHardwareWindow(InWindow);
-
-		rc = pthread_mutex_unlock(&MainMutex);
-		check(rc == 0);
-
-		// Make sure window will not be deleted until event is processed
-		// Window could be deleted by OS while event queue stuck at game start-up phase
-		FAndroidWindow::AcquireWindowRef((ANativeWindow*)InWindow);
-
-		EnqueueAppEvent(APP_EVENT_STATE_WINDOW_CREATED, InWindow);
-		return;
-	}
-
-	int rc = pthread_mutex_lock(&MainMutex);
-	check(rc == 0);
 	bool AlreadyInited = FirstInitialized;
-	rc = pthread_mutex_unlock(&MainMutex);
-	check(rc == 0);
 
 	// Make sure window will not be deleted until event is processed
 	// Window could be deleted by OS while event queue stuck at game start-up phase
 	FAndroidWindow::AcquireWindowRef((ANativeWindow*)InWindow);
 
-	if (AlreadyInited)
-	{
-		EnqueueAppEvent(APP_EVENT_STATE_WINDOW_CREATED, InWindow);
-	}
-	else
+	check(FAndroidWindow::GetHardwareWindow_EventThread() == NULL);
+	FAndroidWindow::SetHardwareWindow_EventThread(InWindow);
+
+	if (!AlreadyInited)
 	{
 		//This cannot wait until first tick. 
-
-		rc = pthread_mutex_lock(&MainMutex);
-		check(rc == 0);
-
-		check(FAndroidWindow::GetHardwareWindow() == NULL);
-		FAndroidWindow::SetHardwareWindow(InWindow);
 		FirstInitialized = true;
-
-		rc = pthread_mutex_unlock(&MainMutex);
-		check(rc == 0);
-
-		EnqueueAppEvent(APP_EVENT_STATE_WINDOW_CREATED, InWindow);
 	}
+	EnqueueAppEvent(APP_EVENT_STATE_WINDOW_CREATED, FAppEventData((ANativeWindow*)InWindow));
 }
 
-void FAppEventManager::HandleWindowClosed()
+void FAppEventManager::HandleWindowClosed_EventThread()
 {
-	static const bool bIsDaydreamApp = FAndroidMisc::IsDaydreamApplication();
-	if (bIsDaydreamApp)
-	{
-		// We must ALWAYS destroy the hardware window immediately,
-		// Otherwise we will temporarily end up with an abandoned Window
-		// when the application is pausing/resuming. This is likely
-		// to happen in a Gvr app due to the DON flow pushing an activity
-		// during initialization.
+	check(FAndroidWindow::GetHardwareWindow_EventThread());
 
-		int rc = pthread_mutex_lock(&MainMutex);
-		check(rc == 0);
+	FAndroidWindow::ReleaseWindowRef((ANativeWindow*)FAndroidWindow::GetHardwareWindow_EventThread());
+	FAndroidWindow::SetHardwareWindow_EventThread(nullptr);
 
-		ExecDestroyWindow();
-
-		rc = pthread_mutex_unlock(&MainMutex);
-		check(rc == 0);
-	}
-
-	// a "destroy window" event appears on the game preInit routine
-	//     before creating a valid Android window
-	// - override the "create window" data
-	if (!GEngine || !GEngine->IsInitialized())
-	{
-		FirstInitialized = false;
-		FAndroidWindow::SetHardwareWindow(NULL);
-		bDestroyWindowPending = true;
-	}
-	EnqueueAppEvent(APP_EVENT_STATE_WINDOW_DESTROYED, NULL);
+	EnqueueAppEvent(APP_EVENT_STATE_WINDOW_DESTROYED);
 }
 
 
@@ -452,30 +287,13 @@ void FAppEventManager::ResumeRendering()
 void FAppEventManager::ExecWindowCreated()
 {
 	UE_LOG(LogAndroidEvents, Display, TEXT("ExecWindowCreated"));
-
-	static bool bIsDaydreamApp = FAndroidMisc::IsDaydreamApplication();
-	if (!bIsDaydreamApp)
-	{
-		check(PendingWindow);
-		FAndroidWindow::SetHardwareWindow(PendingWindow);
-	}
-
 	// When application launched while device is in sleep mode SystemResolution could be set to opposite orientation values
 	// Force to update SystemResolution to current values whenever we create a new window
 	FPlatformRect ScreenRect = FAndroidWindow::GetScreenRect();
 	FSystemResolution::RequestResolutionChange(ScreenRect.Right, ScreenRect.Bottom, EWindowMode::Fullscreen);
 
-	// ReInit with the new window handle, null for daydream case.
-	FAndroidAppEntry::ReInitWindow(!bIsDaydreamApp ? PendingWindow : nullptr);
-
-	if (!bIsDaydreamApp)
-	{
-		// We hold this reference to ensure that window will not be deleted while game starting up
-		// release it when window is finally initialized
-		FAndroidWindow::ReleaseWindowRef(PendingWindow);
-		PendingWindow = nullptr;
-	}
-
+	// ReInit with the new window handle
+	FAndroidAppEntry::ReInitWindow();
 	FAndroidApplication::OnWindowSizeChanged();
 }
 
@@ -488,17 +306,6 @@ void FAppEventManager::ExecWindowResized()
 	FAndroidWindow::InvalidateCachedScreenRect();
 	FAndroidAppEntry::ReInitWindow();
 	FAndroidApplication::OnWindowSizeChanged();
-}
-
-void FAppEventManager::ExecDestroyWindow()
-{
-	if (FAndroidWindow::GetHardwareWindow() != NULL)
-	{
-		FAndroidWindow::ReleaseWindowRef((ANativeWindow*)FAndroidWindow::GetHardwareWindow());
-
-		FAndroidAppEntry::DestroyWindow();
-		FAndroidWindow::SetHardwareWindow(NULL);
-	}
 }
 
 void FAppEventManager::PauseAudio()
@@ -517,6 +324,10 @@ void FAppEventManager::PauseAudio()
 	{
 		if (AudioDevice->IsAudioMixerEnabled())
 		{
+			FAudioCommandFence Fence;
+			Fence.BeginFence();
+			Fence.Wait();
+
 			AudioDevice->SuspendContext();
 		}
 		else
@@ -558,9 +369,9 @@ void FAppEventManager::ResumeAudio()
 }
 
 
-void FAppEventManager::EnqueueAppEvent(EAppEventState InState, void* InData)
+void FAppEventManager::EnqueueAppEvent(EAppEventState InState, FAppEventData&& InData)
 {
-	FAppEventData Event;
+	FAppEventPacket Event;
 	Event.State = InState;
 	Event.Data = InData;
 
@@ -576,22 +387,21 @@ void FAppEventManager::EnqueueAppEvent(EAppEventState InState, void* InData)
 	rc = pthread_mutex_unlock(&QueueMutex);
 	check(rc == 0);
 
-	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("LogAndroidEvents::EnqueueAppEvent : %u, %u, tid = %d, %s"), InState, (uintptr_t)InData, gettid(), GetAppEventName(InState));
+	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("LogAndroidEvents::EnqueueAppEvent : %u, [width=%d, height=%d], tid = %d, %s"), InState, InData.WindowWidth, InData.WindowHeight, gettid(), GetAppEventName(InState));
 }
 
-
-FAppEventData FAppEventManager::DequeueAppEvent()
+FAppEventPacket FAppEventManager::DequeueAppEvent()
 {
 	int rc = pthread_mutex_lock(&QueueMutex);
 	check(rc == 0);
 
-	FAppEventData OutData;
+	FAppEventPacket OutData;
 	Queue.Dequeue( OutData );
 
 	rc = pthread_mutex_unlock(&QueueMutex);
 	check(rc == 0);
 
-	UE_LOG(LogAndroidEvents, Display, TEXT("LogAndroidEvents::DequeueAppEvent : %u, %u, %s"), OutData.State, (uintptr_t)OutData.Data, GetAppEventName(OutData.State))
+	UE_LOG(LogAndroidEvents, Display, TEXT("LogAndroidEvents::DequeueAppEvent : %u, [width=%d, height=%d], %s"), OutData.State, OutData.Data.WindowWidth, OutData.Data.WindowHeight, GetAppEventName(OutData.State))
 
 	return OutData;
 }
@@ -614,7 +424,7 @@ bool FAppEventManager::WaitForEventInQueue(EAppEventState InState, double Timeou
 	bool FoundEvent = false;
 	double StopTime = FPlatformTime::Seconds() + TimeoutSeconds;
 
-	TQueue<FAppEventData, EQueueMode::Spsc> HoldingQueue;
+	TQueue<FAppEventPacket, EQueueMode::Spsc> HoldingQueue;
 	while (!FoundEvent)
 	{
 		int rc = pthread_mutex_lock(&QueueMutex);
@@ -623,7 +433,7 @@ bool FAppEventManager::WaitForEventInQueue(EAppEventState InState, double Timeou
 		// Copy the existing queue (and check for our event)
 		while (!Queue.IsEmpty())
 		{
-			FAppEventData OutData;
+			FAppEventPacket OutData;
 			Queue.Dequeue(OutData);
 
 			if (OutData.State == InState)
@@ -648,7 +458,7 @@ bool FAppEventManager::WaitForEventInQueue(EAppEventState InState, double Timeou
 	// Add events back to queue from holding
 	while (!HoldingQueue.IsEmpty())
 	{
-		FAppEventData OutData;
+		FAppEventPacket OutData;
 		HoldingQueue.Dequeue(OutData);
 		Queue.Enqueue(OutData);
 	}
@@ -660,13 +470,5 @@ bool FAppEventManager::WaitForEventInQueue(EAppEventState InState, double Timeou
 }
 
 extern volatile bool GEventHandlerInitialized;
-
-void FAppEventManager::WaitForEmptyQueue()
-{
-	if (EmptyQueueHandlerEvent && GEventHandlerInitialized && !GIsRequestingExit)
-	{
-		EmptyQueueHandlerEvent->Wait();
-	}
-}
 
 #endif

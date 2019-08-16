@@ -1,0 +1,47 @@
+﻿INTSourceChangelist:6549201
+Availability: Public
+Title:iOS 패키징된 게임 크기
+Crumbs:%ROOT%, Platforms, Platforms/Mobile/iOS
+Type: overview
+Version: 4.18
+Parent: Platforms/Mobile/iOS
+Tags: mobile
+Tags: iOS
+Tags: Reference
+topic-image: iOS_QS_Editor_TopicImage.png
+
+iOS 패키지 게임 크기에 영향을 끼치는 것은, 참조된 콘텐츠에서 선택한 빌드 환경설정에 이르기까지 여러가지 있습니다.
+
+## 대상 환경설정
+
+가장 크게 차이가 나는 부분 중 하나는, 대상 환경설정을 Development 대신 Shipping 으로만 바꿔줘요 31 MB 정도 절약됩니다. Shipping 환경설정은 최적화가 더욱 잘 된 세팅을 사용하며, 디버깅 심볼과 로깅 및 프로파일링 코드 다수를 제거하여 실행파일 크기가 훨씬 작아집니다.
+
+## 게임 콘텐츠 레퍼런스
+
+게임에서 참조된 콘텐츠가 있으면 쿠킹된다는 점을 이해하는 것이 중요합니다. 주로 실수하게 되는 부분은, 별달리 사용되지도 않는 거대한 텍스처를 머티리얼 함수 또는 머티리얼의 텍스처 샘플 기본값으로 참조한다든가, 블루프린트의 미사용 변수 또는 연결이 끊긴 노드에 미사용 콘텐츠를 참조한다든가 하는 부분입니다. 그런 것들이 있게 되면 모든 머티리얼 인스턴스에서 다른 것으로 대체한다 할지라도 참조된 것으로 치게됩니다. 쿠킹된 애셋 폴더를 살펴서 예상치 못했던 애셋을 발견한 경우, [레퍼런스 뷰어](Engine/Content/Browser/ReferenceViewer) 를 사용하여 무엇이 참조하는지를 찾아볼 수 있습니다.
+
+[REGION:note]
+툴바의 [Launch](Engine\Deployment\Launching) (실행) 버튼으로 쿠킹을 하는 경우 선택된 맵에 참조된 콘텐츠만 쿠킹되지만, [프로젝트를 패키징](Engine\Basics\Projects\Packaging) 하는 경우, 참조되지 않았더라도 게임 내 모든 콘텐츠가 쿠킹될 것입니다.
+[/REGION]
+
+## 슬레이트 끄기
+
+콘텐츠 전용 프로젝트의 경우, 어떤 플러그인이나 라이브러리를 사용하게 될 지 알 수 없기 때문에 실행파일이 커지게 됩니다. 보통 C++ 로 전환을 하거나, (`EnabledPlugins` 나 `Project.Build.cs` 및 `Project.Target.cs` 파일을 통해) 컴파일 시간에 불필요한 플러그인이나 라이브러리를 꺼 줌으로써 실행파일 크기를 약간 줄일 수 있습니다. 하지만 Slate 를 사용하지 않는 콘텐츠 전용 게임의 경우, 슬레이트 애셋을 사용하지 않도록 하여 30 MB 이상의 최적화가 가능합니다. 슬레이트를 사용하지 않는 C++ 프로젝트를 만든 경우, `Project.Target.cs` 의 `TargetRules` 클래스의 생성자에 `bUsesSlate = false` 설정을 해 주면 이 공간을 줄일 수 있습니다.
+
+## Obj List
+
+**Obj List** 명령은 프로젝트에 메모리를 가장 많이 소모하는 애셋 유형을 이해하기 좋습니다. Obj List 명령을 UE4 콘솔에 입력하면 다음과 같은 이미지가 나옵니다.
+
+[REGION:lightbox]
+[![](PackagedGameSize_OBJList.png)(w:500px)](PackagedGameSize_OBJList.png)
+[/REGION]
+[REGION:caption]
+이미지를 클릭하면 원본을 확인합니다.
+[/REGION]
+이 목록을 통해 메모리를 가장 많이 차지하는 항목이 무엇인지 파악하고 그에 맞게 최적화할 수 있습니다.
+
+## 로우 레벨 메모리 트래커
+
+Low-Level Memory Tracker (로우 레벨 메모리 트래커), 줄여서 **LLM** 은 언리얼 엔진 프로젝트의 메모리 사용량을 추척하는 툴입니다. LLM 은 스코프(범위) 태그 시스템을 사용하여 언리얼 엔진과 운영 체제가 할당하는 모든 메모리를 기록합니다. LLM 을 사용하면 메모리의 흐름을 파악하는 데 도움이 됩니다. 자세한 내용은 다음 문서를 참고하세요.
+
+*   [](Programming/Development/Tools/LowLevelMemoryTracker)

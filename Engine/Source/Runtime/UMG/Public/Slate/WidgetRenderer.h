@@ -81,7 +81,7 @@ public:
 
 	void DrawWindow(
 		FRenderTarget* RenderTarget,
-		TSharedRef<FHittestGrid> HitTestGrid,
+		FHittestGrid& HitTestGrid,
 		TSharedRef<SWindow> Window,
 		float Scale,
 		FVector2D DrawSize,
@@ -90,7 +90,7 @@ public:
 
 	void DrawWindow(
 		UTextureRenderTarget2D* RenderTarget,
-		TSharedRef<FHittestGrid> HitTestGrid,
+		FHittestGrid& HitTestGrid,
 		TSharedRef<SWindow> Window,
 		float Scale,
 		FVector2D DrawSize,
@@ -99,7 +99,7 @@ public:
 
 	void DrawWindow(
 		FRenderTarget* RenderTarget,
-		TSharedRef<FHittestGrid> HitTestGrid,
+		FHittestGrid& HitTestGrid,
 		TSharedRef<SWindow> Window,
 		FGeometry WindowGeometry,
 		FSlateRect WindowClipRect,
@@ -108,7 +108,7 @@ public:
 
 	void DrawWindow(
 		UTextureRenderTarget2D* RenderTarget,
-		TSharedRef<FHittestGrid> HitTestGrid,
+		FHittestGrid& HitTestGrid,
 		TSharedRef<SWindow> Window,
 		FGeometry WindowGeometry,
 		FSlateRect WindowClipRect,
@@ -131,6 +131,13 @@ public:
 		FGeometry WindowGeometry,
 		FSlateRect WindowClipRect,
 		float DeltaTime,
+		bool bDeferRenderTargetUpdate = false);
+
+	bool DrawInvalidationRoot(
+		TSharedRef<SVirtualWindow>& VirtualWindow,
+		UTextureRenderTarget2D* RenderTarget,
+		FSlateInvalidationRoot& Root,
+		const FSlateInvalidationContext& Context,
 		bool bDeferRenderTargetUpdate = false);
 
 	TArray< TSharedPtr<FSlateWindowElementList::FDeferredPaint> > DeferredPaints;

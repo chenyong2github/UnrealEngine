@@ -29,12 +29,20 @@ class UMG_API USlider : public UWidget
 
 public:
 	/** The volume value to display. */
-	UPROPERTY(EditAnywhere, Category=Appearance, meta=( ClampMin="0", ClampMax="1", UIMin="0", UIMax="1"))
+	UPROPERTY(EditAnywhere, Category=Appearance, meta=(UIMin="0", UIMax="1"))
 	float Value;
 
 	/** A bindable delegate to allow logic to drive the value of the widget */
 	UPROPERTY()
 	FGetFloat ValueDelegate;
+
+	/** The minimum value the slider can be set to. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Appearance)
+	float MinValue;
+
+	/** The maximum value the slider can be set to. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Appearance)
+	float MaxValue;
 
 public:
 	
@@ -71,7 +79,7 @@ public:
 	bool RequiresControllerLock;
 
 	/** The amount to adjust the value by, when using a controller or keyboard */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Appearance, meta=( ClampMin="0", ClampMax="1", UIMin="0", UIMax="1"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Appearance, meta=(UIMin="0", UIMax="1"))
 	float StepSize;
 
 	/** Should the slider be focusable? */
@@ -104,9 +112,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Behavior")
 	float GetValue() const;
 
+	/** Get the current value scaled from 0 to 1 */
+	UFUNCTION(BlueprintCallable, Category = "Behavior")
+	float GetNormalizedValue() const;
+
 	/** Sets the current value of the slider. */
 	UFUNCTION(BlueprintCallable, Category="Behavior")
 	void SetValue(float InValue);
+
+	/** Sets the minimum value of the slider. */
+	UFUNCTION(BlueprintCallable, Category = "Behavior")
+	void SetMinValue(float InValue);
+
+	/** Sets the maximum value of the slider. */
+	UFUNCTION(BlueprintCallable, Category = "Behavior")
+	void SetMaxValue(float InValue);
 
 	/** Sets if the slidable area should be indented to fit the handle */
 	UFUNCTION(BlueprintCallable, Category="Behavior")
@@ -153,6 +173,10 @@ protected:
 	void HandleOnMouseCaptureEnd();
 	void HandleOnControllerCaptureBegin();
 	void HandleOnControllerCaptureEnd();
+
+#if WITH_ACCESSIBILITY
+	virtual TSharedPtr<SWidget> GetAccessibleWidget() const override;
+#endif
 
 	PROPERTY_BINDING_IMPLEMENTATION(float, Value);
 };

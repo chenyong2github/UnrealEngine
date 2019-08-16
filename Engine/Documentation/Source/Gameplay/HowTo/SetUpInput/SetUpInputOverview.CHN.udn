@@ -15,7 +15,6 @@ order:8
 
 在您定义完映射之后，便可以将它们与蓝图或 C++ 中的行为相绑定（参见下面的 “设置” 部分）。 
 
-(#ImplementationGuides)
 ## 实现指南
 
 [DIR(output:"role" parent:"Gameplay/HowTo/SetUpInput" org:"hierarchy" end:"1")]

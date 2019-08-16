@@ -1,0 +1,229 @@
+﻿INTSourceChangelist:6572517
+Availability: Public
+Crumbs: 
+Title: Revit 에서 데이터스미스 사용
+Description: 데이터스미스로 Autodesk Revit 씬을 언리얼 에디터에 가져올 때만 적용되는 특수 사항을 설명합니다.
+Type:landing
+Version: 4.21
+Parent: Studio/Datasmith/SoftwareInteropGuides
+Order: 2
+topic-image:datasmith-revit-topic.png
+Tags: Datasmith
+Tags: overview
+Tags: interop
+Tags: Early Access
+Tags: Landing Page
+hero-image: datasmith-revit-compare-unreal.png
+
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![Revit](datasmith-revit-compare-revit.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![UE4](datasmith-revit-compare-unreal.png) 
+ [/PARAM]
+[/OBJECT]
+
+여기서는 데이터스미스가 Autodesk Revit 씬을 언리얼 에디터로 임포트하는 방법을 설명합니다. [](Studio/Datasmith/Overview), [](Studio/Datasmith/Overview/ImportProcess) 에 설명된 기본 프로세스를 따르지만, Revit 에만 적용되는 특수 변환 동작이 추가됩니다. 데이터스미스를 사용해서 Revit 씬을 언리얼 에디터로 임포트하려는 경우, 이 글이 씬의 변환 방식과 언리얼 에디터에서 그 결과물을 활용하는 방법에 대한 이해도를 높이는 데 도움이 될 수 있습니다.
+
+[REGION:note]
+Revit 용 데이터스미스 익스포터 플러그인은 얼리 액세스 상태라 Revit 과 언리얼 엔진 간의 일부 핵심 데이터 유형 변환 방식을 마무리하는 중입니다. 플러그인을 다운로드해서 자신의 씬에 시험해 볼 수는 있지만, 현재 결과물에 문제가 있을 수 있습니다. 특히 아직도 정확한 변환 작업 중인 내용은 다음과 같습니다.
+
+*   씬 계층구조
+*   피벗 포인트
+*   라이트
+*   카메라
+*   머티리얼 및 텍스처
+*   UV 좌표 및 텍스처 크기
+*   서베이 포인트 및 프로젝트 위치
+
+곧 업데이트를 발표할 예정이니, [Unreal Studio forums](https://forums.unrealengine.com/unreal-engine/unreal-studio) 에서 소식을 기다려 주세요.
+[/REGION]
+
+## Revit 워크플로
+
+데이터스미스는 Revit 용 **Export Plugin** (익스포트 플러그인) 워크플로를 사용합니다. 데이터스미스를 사용해서 Revit 콘텐츠를 언리얼 엔진으로 가져오려면, 다음과 같은 작업이 필요합니다.
+
+1.  Revit 용 플러그인을 설치합니다. 자세한 내용은 [](Studio/Datasmith/SoftwareInteropGuides/Revit/InstallingExporterPlugin) 문서를 참고하세요.
+2.  Revit 콘텐츠를 *.udatasmith* 파일로 익스포트합니다. 자세한 내용은 [](Studio/Datasmith/SoftwareInteropGuides/Revit/ExportingDatasmithContentfromRevit) 문서를 참고하세요.
+3.  데이터스미스 임포터를 사용하여 그 *.udatasmith* 파일을 언리얼 에디터로 가져옵니다. 자세한 내용은 [](Studio/Datasmith/HowTo/ImportingContent) 문서를 참고하세요.
+
+## 익스포트되는 내용 제어
+
+데이터스미스 익스포터 플러그인을 사용하여 씬을 익스포트하려면 항상 Revit 에서 3D 뷰를 선택하고 활성 상태여야 합니다. 그 3D 뷰의 가시성 설정이 Revit 의 어떤 요소를 익스포트되는 *.udatasmith* 파일에 포함시킬지 결정합니다. 이 동작을 활용하면 Revit 에서 언리얼 엔진으로 익스포트할 콘텐츠를 완벽 제어할 수 있습니다.
+
+Revit 파일에 이미 있는 3D 뷰를 사용할 수 있습니다. 그러나 언리얼 엔진으로 가져올 오브젝트를 완벽 제어하려면, Revit 에서 3D View 를 새로 구성하고, 실시간 시각화에 필요한 오브젝트만 표시되도록 뷰를 구성합니다.
+
+Revit 은 3D View 안에서 오브젝트 가시성 제어를 위한 툴과 기법을 다수 제공합니다. 예:
+
+*   **Graphics > Visibility/Graphics Overrides** 로 레벨의 다양한 오브젝트 및 오브젝트 카테고리 가시성을 제어할 수 있습니다.
+    [REGION:lightbox]
+    [![Revit Visibility/Graphics Overrides](revit-visibility-overrides.png "Revit Visibility/Graphics Overrides")](revit-visibility-overrides.png) *클릭하면 이미지 원본을 확인합니다.*
+    [/REGION]
+*   [Section Box](http://help.autodesk.com/view/RVT/2019/ENU/?guid=GUID-C9EA51CB-3214-4BD8-AD55-3BEB1CCD15B6) (섹션 박스)로 익스포트할 지오메트리를 잘라낼 수 있습니다. 섹션 박스 안의 오브젝트만 언리얼 엔진으로 익스포트됩니다. 참고로 섹션 박스 경계에 걸치는 오브젝트는, 아래 이미지에서 벽, 바닥, 가구같은 경우 지오메트리가 잘립니다. 언리얼 엔진 안에서 익스포트된 오브젝트를 표현하는 스태틱 메시 애셋은 Section Box 안의 부분만 남습니다.
+    [REGION:lightbox]
+    [![Section Box results in Revit and Unreal Engine](revit-unreal-sectionbox.png "Section Box results in Revit and Unreal Engine")](revit-unreal-sectionbox.png) *클릭하면 이미지 원본을 확인합니다.*
+    [/REGION]
+*   Revit 의 **Temporary Hide and Isolate** (임시 숨김 및 고립) 설정이 유지됩니다.
+*   현재 3D View 에 보이는 지오메트리 오브젝트만 익스포트됩니다. 지오메트리가 아닌 오브젝트는 무시합니다.
+
+[REGION:note]
+데이터스미스 익스포터는 오브젝트 표시 숨김 선택 사항을 따르지만, Revit 뷰포트에 3D View 를 그리는 방식을 제어하는 다른 세팅은 고려하지 않습니다. 예를 들어 3D View 에 설정된 **Graphics > Graphic Display Options** (Realistic vs. Shaded Model Display, Cast Shadows 등) 또는 **Camera > Rendering Settings** (Draft vs. High Quality settings, Lighting schemes, 등)은 고려하지 않습니다.
+[/REGION]
+
+Revit 3D View 의 가시성 제어 관련 자세한 정보는 [Visibility and Graphic Display in Project Views](http://help.autodesk.com/view/RVT/2019/ENU/?guid=GUID-A2FC119B-51D7-4C2E-84ED-CD51983EC532) Revit 도움말 페이지를 참고하세요.
+
+## 지오메트리
+
+일반적으로 Revit 씬에서 개별적으로 선택할 수 있는 각 요소는 언리얼에 별도의 스태틱 메시 애셋으로 변환됩니다. 일부 요소는 난간처럼 더 작은 부분으로 이루어진 경우 더 작은 스태틱 메시로 나뉠 수도 있습니다.
+
+모든 경우, 각 스태틱 메시 애셋의 지오메트리는 파일 익스포트 당시 Revit 오브젝트 치수에 일치하도록 설정됩니다. 파라미터 세팅 및 컨스트레인트는 언리얼 엔진으로 가져오지 않습니다. 즉 예를 들어, 언리얼 에디터에서 바닥을 위 아래로 이동한 경우, Revit 에서는 새 위치에 맞도록 벽의 높이가 늘고 줄지만, 여기서는 그렇지 않습니다.
+
+### 인스턴싱
+
+같은 군에 속하는 오브젝트가 둘 있고, 파라미터 값이 똑같은 경우, 두 오브젝트 모두 데이터스미스 씬에서 같은 스태틱 메시 애셋의 인스턴스로 표현됩니다.
+
+### 테셀레이션
+
+데이터스미스는 Revit 의 내장 테셀레이션 서비스를 사용하여 씬 지오메트리의 트라이앵글 메시를 생성하며, 가능한 최고 수준 디테일을 사용합니다. 대부분의 경우 언리얼 엔진에서 사용하기에 적합한 지오메트리가 생성됩니다. 그러나 Revit 에서 생성된 메시의 경우 특히 곡면 부분에서 밀도가 과도하게 높을 수 있습니다. 예:
+
+![Dense geometry for curved surfaces](revit-tessellation.png "Dense geometry for curved surfaces")
+
+현재 데이터스미스가 임포트할 때 이러한 메시의 리토폴로지 또는 단순화를 하지는 않습니다. 그러나 프로젝트에서 이 표면에 문제가 있는 경우, 언리얼 에디터에 제공되는 메시 복잡도 감소 툴, 예를 들면 [](Engine/ProxyGeoTool) 같은 것을 사용할 수 있습니다.
+
+## 머티리얼 및 텍스처
+
+Revit 씬의 각기 다른 유형의 표면에 대해 데이터스미스는 언리얼 엔진 프로젝트에 새 머티리얼 애셋을 생성하고, 데이터스미스 씬 애셋 옆 **Materials** 폴더에 저장합니다. 이 머티리얼의 목표는 Revit 의 표면 모습 구성 방식을 따르는 동시에, Revit 에서 사용하던 것과 거의 비슷한 프로퍼티 세트를 노출시키는 것입니다.
+
+[REGION:lightbox]
+[![](revit-material-definition.png)](revit-material-definition.png "Revit")
+[/REGION]
+
+Revit
+
+[REGION:lightbox]
+[![](unreal-material-definition.png)](unreal-material-definition.png "Unreal")
+[/REGION]
+
+언리얼
+
+데이터스미스가 현재 언리얼 엔진 머티리얼로 변환 생성을 지원하는 것은 Revit 의 디퓨즈 맵과 컬러, Transparency, Cutouts, Bump 세팅입니다.
+
+언리얼 에디터에서 머티리얼을 수정하려면:
+
+1.  **콘텐츠 브라우저** 에서 더블클릭합니다. 또는 수정하려는 머티리얼을 사용하는 레벨의 액터를 선택한 다음, 디테일 패널에서 머티리얼을 더블클릭합니다.
+2.  위에 표시된 머티리얼 에디터를 열면 디테일 패널 상단의 **Parameter Groups** 섹션에서 이 파라미터를 수정할 수 있습니다. 언리얼 렌더러에 노출된 다른 내장 파라미터를 수정할 수도 있습니다.
+3.  프로퍼티 기본값을 덮어쓰려면, 먼저 머티리얼의 프로퍼티 이름 왼쪽 박스를 체크하여 활성화합니다. 그런 다음 프로퍼티에 사용하려는 값을 설정합니다.
+
+[REGION:tip]
+이 애셋 각각은 머티리얼 인스턴스이며, 그 부모는 데이터스미스 플러그인에 내장된 **RevitMaster** 머티리얼입니다. 이 부모 머티리얼을 열면 머티리얼 인스턴스에 노출된 프로퍼티 각각이 머티리얼 그래프에 어떻게 연결되어 있는지 확인할 수 있습니다.
+[/REGION]
+
+### 텍스처 및 UV 래핑
+
+데이터스미스는 Revit Material 에 사용된 텍스처를 애셋으로 임포트하고, 데이터스미스 씬 애셋 옆 Textures 폴더에 저장합니다.
+
+텍스처 애셋을 사용하는 각 머티리얼 애셋에는 Revit Texture Editor 와 비슷한 컨트롤이 제공되므로, 머티리얼을 사용하는 3D 오브젝트 표면에 적용된 텍스처 매핑 방식을 제어할 수 있습니다.
+
+![Texture mapping and UV settings](revit-uvs.png "Texture mapping and UV settings")
+
+  
+
+1.  Revit 의 **Position > Offset** 값은 각 맵 유형에 대한 **UVOffsetX** 및 **UVOffsetY** 세팅으로 모델링됩니다.
+2.  Revit 의 **Position > Rotation** 값은 각 맵 유형에 대한 **UVWAngle** 세팅으로 모델링됩니다.
+3.  Revit 의 **Scale** 값은 실제 치수 기반이며, 언리얼 엔진 머티리얼에서 스케일 배율로 변환됩니다. 이 스케일의 절대값을 높이면, 오브젝트의 텍스처가 작아집니다.
+
+[REGION:note]
+데이터스미스는 체크무늬, 노이즈, 타일 등과 같은 절차적 텍스처를 변환하지 않습니다.
+[/REGION]
+
+## 데이터스미스 씬 계층구조 생성
+
+데이터스미스 익스포터 플러그인은 Revit 의 씬 전체 계층구조를 반영하기 위한 의도로 데이터스미스 씬에 부모 자손 액터 계층구조를 생성합니다. Revit 에서와 똑같은 개념으로 언리얼 엔진 레벨의 액터 체계를 정리하여 오브젝트 검색과 조작을 쉽게 하기 위한 것입니다. 
+
+이 씬 계층구조를 생성하는 규칙은 다음과 같습니다.
+
+*   Revit 의 각 *Level* (레벨), 예로 Ground Floor, Level 1, Level 2 등은 데이터스미스 씬 계층구조에 별도의 액터로 반영됩니다.
+*   각 레벨 안에서 Revit 의 다른 씬 요소의 *host* (호스트)가 되는 오브젝트는 그 오브젝트의 부모가 됩니다. 
+*   Revit 레벨 및 호스트를 나타내는 부모 액터 아래, 각 지오메트리 오브젝트를 나타내는 스태틱 메시 액터를 찾을 수 있습니다.
+
+예를 들어, Level 1 이라는 액터에는 각 벽을 나타내는 액터가 들어 있습니다. 이 액터 각각은 차례로 벽이 호스트인 각 지오메트리 오브젝트 (즉 각 문, 창문, 또는 벽 섹션)에 대해 자손이 있는 다른 부모 액터로 나타납니다.
+
+![Example scene hierarchy in the Unreal Editor](scene-hierarchy.png "Example scene hierarchy in the Unreal Editor")
+
+## 라이트
+
+데이터스미스가 Revit 씬의 라이트를 언리얼 엔진으로 임포트할 때, 강도에 설정한 물리적 단위를 유지합니다.
+
+## 카메라
+
+Revit 3D View 를 임포트할 때, 데이터스미스는 언리얼 에디터 레벨에 **CineCameraActor** 를 하나 만듭니다. Revit 3D View 의 카메라 위치와 방향으로 이 카메라를 배치하여 비슷한 시야를 유지합니다. 레벨 뷰포트 또는 **월드 아웃라이너** 에서 이 CineCameraActor 를 선택하면, 그 시점의 프리뷰가 *.udatasmith* 파일 익스포트 당시 Revit 3D View 의 Crop Region 과 매우 비슷한 것을 확인할 수 있습니다.
+
+[REGION:note]
+데이터스미스는 직교 투영 모드, 기울임(tilt), 이동(shift), 크롭 영역(Crop Region)같은 원근 보정을 포함하여 Revit에서 사용할 수 있는 일부 카메라 개념을 처리하지 못합니다.
+[/REGION]
+
+최상의 결과를 얻으려면:
+
+1.  3D View 의 **Camera > Projection Mode** 세팅을 **Perspective** 로 설정합니다.
+2.  Revit 3D View 의 Crop Region 이 언리얼 엔진에서 잡으려는 카메라 뷰에 집중되도록 설정합니다.
+3.  Revit 의 카메라 대상 지점 중심이 크롭 영역 안에 있는지 확인합니다. 카메라를 다른 평면도와 입면도 모드로 확인할 수 있습니다.  
+    원근 뷰를 이동한 경우, 언리얼 엔진의 결과가 예상되로 표시되지 않을 수 있습니다.
+
+예를 들어 아래 3D View 는 원근 카메라 중심이 크롭 영역에 있어, 변환이 잘 됩니다.
+
+[REGION:imagetable]
+|||
+|---|---|
+| [REGION:lightbox][![](revit-camera-3d-crop-good.png)(w:450)](revit-camera-3d-crop-good.png)[/REGION] | [REGION:lightbox][![](revit-camera-plan-good.png)(w:450)](revit-camera-plan-good.png)[/REGION] |
+[/REGION]
+
+그러나 다음 3D View 는 크롭 영역을 수동 조정해서 원근 영역의 한 쪽 모서리가 대상 지점 쪽으로 균등하지 않게 이동했습니다. 그러면 잘 변환되지 않습니다.
+
+[REGION:imagetable]
+|||
+|---|---|
+| [REGION:lightbox][![](revit-camera-3d-crop-shifted.png)(w:450)](revit-camera-3d-crop-shifted.png)[/REGION] | [REGION:lightbox][![](revit-camera-plan-shifted.png)(w:450)](revit-camera-plan-shifted.png)[/REGION] |
+[/REGION]
+
+
+## 카테고리
+
+씬의 오브젝트가 최소 하나는 들어 있는 Revit Category (카테고리) 각각은 언리얼 에디터에 별도의 레이어로 가져옵니다.
+
+![](revit_layers.png "revit_layers.png")
+
+언리얼 에디터에서 이 레이어를 사용하여 카테고리를 표시하고 숨기거나, 할당된 오브젝트를 조사하고 선택할 수 있습니다.
+
+참고로 Revit SDK 가 익스포터에 제공하는 정보가 항상 모든 씬 오브젝트를 카테고리에 연결해 주지는 않습니다. Revit 에서 할당된 카테고리가 없는 오브젝트는 언리얼 에디터에서 어떤 레이어에도 할당되지 않습니다.
+
+## 메타데이터
+
+데이터스미스는 Revit 오브젝트 관련 메타데이터를 임포트하고, 그 메타데이터를 언리얼 엔진 내 각 Revit 오브젝트를 나타내는 액터에 붙입니다.
+
+언리얼 엔진에서 만드는 런타임 환경에서 사용하려는 대부분의 메타데이터는 데이터스미스 메타데이터로 임포트됩니다. 여기에는 Revit 에서 각 오브젝트에 설정한 인스턴스 프로퍼티와 비어 있지 않은 유형 프로퍼티가 포함됩니다. 임포트되는 프로퍼티 유형과 에디터 애셋 준비 스크립트 및 런타임 게임플레이 스크립트에서 액세스하는 방법 관련 자세한 내용은, [](Studio/Datasmith/Overview/UsingDatasmithMetadata) 문서를 참고하세요.
+
+일부 다른 더 기술적인 내부 정보는 컴포넌트 태그를 사용해서 각 액터에 붙입니다. 특히 언리얼 에디터에서 데이터 준비를 자동화하기 위해 블루프린트나 Python 스크립트를 사용하는 경우, 이 정보를 액터 식별에 유용하게 사용할 수 있습니다. 예:
+
+*   **Revit.Instance.Depth. -** Revit 씬 계층구조에서 오브젝트의 패밀리 인스턴스 또는 패밀리 심볼의 깊이입니다.
+*   **Revit.Instance.Id. -** Revit 문서에서 오브젝트의 패밀리 인스턴스 또는 패밀리 심볼의 ID 입니다.
+*   **Revit.Host.Id. -** 오브젝트의 패밀리 인스턴스가 호스트일 때, 이 값이 Revit 문서의 패밀리 인스턴스 호스트 ID 가 됩니다.
+
+![Metadata saved in Component Tags](metadata-component-tags.png "Metadata saved in Component Tags")
+
+## RPC 오브젝트
+
+Rich Photorealistic Content (RPC) 오브젝트의 라이선스는 Revit 안에서만 사용할 수 있습니다. 따라서 이러한 오브젝트는 데이터스미스가 언리얼 엔진에 동일한 지오메트리와 시각적 특성을 유지한 채 그대로 가져올 수 없습니다.
+
+대신 Revit 씬의 각 RPC 오브젝트에 대해서, 데이터스미스 씬에 액터를 3D 공간 같은 위치와 방향으로 배치합니다.
+
+![RPC Actors in the World Outliner](rpc-objects-in-outliner.png "RPC Actors in the World Outliner")
+
+언리얼 엔진 레벨에서 이 RPC 오브젝트는 **Revit.RPC** 컴포넌트 태그가 할당된 액터를 찾으면 됩니다.
+
+![Component Tag for an RPC Actor](rpc-objects-component-tags.png "Component Tag for an RPC Actor")
+
+[REGION:note]
+이 페이지에 사용된 모든 씬과 모델은 [Turbosquid](https://www.turbosquid.com/) 에서 제공해 주셨습니다.
+[/REGION]

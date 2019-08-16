@@ -26,43 +26,21 @@ Event::~Event(void)
 }
 
 
-void Event::Signal(void)
-{
-	::SetEvent(m_event);
-}
-
-
 void Event::Reset(void)
 {
 	::ResetEvent(m_event);
 }
 
 
-void Event::Wait(void)
+void Event::Signal(void)
 {
-	const DWORD result = ::WaitForSingleObject(m_event, INFINITE);
-	switch (result)
-	{
-		case WAIT_OBJECT_0:
-			// event was successfully signaled
-			break;
+	::SetEvent(m_event);
+}
 
-		case WAIT_TIMEOUT:
-			// the operation timed out, which should never happen with a timeout of INFINITE
-			LC_ERROR_DEV("Event timed out.");
-			break;
 
-		case WAIT_ABANDONED:
-			LC_ERROR_DEV("Wait() was called on a stale event which was not released by the owning thread.");
-			break;
-
-		case WAIT_FAILED:
-			LC_ERROR_DEV("Failed to Wait() on an event.");
-			break;
-
-		default:
-			break;
-	}
+bool Event::Wait(void)
+{
+	return WaitTimeout(INFINITE);
 }
 
 
@@ -72,9 +50,15 @@ bool Event::WaitTimeout(unsigned int milliSeconds)
 	switch (result)
 	{
 		case WAIT_OBJECT_0:
+			// event was successfully signaled
 			return true;
 
 		case WAIT_TIMEOUT:
+			// the operation timed out, which should never happen with a timeout of INFINITE
+			if (milliSeconds == INFINITE)
+			{
+				LC_ERROR_DEV("Event timed out.");
+			}
 			return false;
 
 		case WAIT_ABANDONED:
@@ -88,4 +72,10 @@ bool Event::WaitTimeout(unsigned int milliSeconds)
 		default:
 			return false;
 	}
+}
+
+
+bool Event::TryWait(void)
+{
+	return WaitTimeout(0u);
 }

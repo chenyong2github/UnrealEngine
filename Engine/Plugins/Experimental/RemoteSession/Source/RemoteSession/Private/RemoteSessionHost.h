@@ -10,6 +10,7 @@ class FFrameGrabber;
 class IImageWrapper;
 class FRemoteSessionInputChannel;
 
+
 class FRemoteSessionHost : public FRemoteSessionRole, public TSharedFromThis<FRemoteSessionHost>
 {
 public:
@@ -22,8 +23,6 @@ public:
 	bool StartListening(const uint16 Port);
 
 	void SetScreenSharing(const bool bEnabled);
-
-	void SetConsumeInput(const bool bConsume);
 
 	virtual void Tick(float DeltaTime) override;
 

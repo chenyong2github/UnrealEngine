@@ -1,5 +1,6 @@
 {
 	"FileVersion": 3,
+	"EngineAssociation": "",
 	"Category": "",
 	"Description": "",
 	"Plugins": [
@@ -12,7 +13,10 @@
 		},
 		{
 			"Name": "AppleARKit",
-			"Enabled": true
+			"Enabled": true,
+			"SupportedTargetPlatforms": [
+				"IOS"
+			]
 		}
 	],
 	"TargetPlatforms": [

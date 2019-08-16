@@ -162,9 +162,8 @@ void FFadeTrackEditor::HandleAddFadeTrackMenuEntryExecute()
 	FadeTrack->AddSection(*NewSection);
 	if (GetSequencer().IsValid())
 	{
-		GetSequencer()->OnAddTrack(FadeTrack);
+		GetSequencer()->OnAddTrack(FadeTrack, FGuid());
 	}
-	GetSequencer()->NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::MovieSceneStructureItemAdded );
 }
 
 bool FFadeTrackEditor::HandleAddFadeTrackMenuEntryCanExecute() const

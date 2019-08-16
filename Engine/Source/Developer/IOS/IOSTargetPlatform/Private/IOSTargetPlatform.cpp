@@ -589,76 +589,91 @@ static FName FormatRemap[] =
 static FName NameBGRA8(TEXT("BGRA8"));
 static FName NameG8 = FName(TEXT("G8"));
 
-void FIOSTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray<FName>& OutFormats ) const
+void FIOSTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray< TArray<FName> >& OutFormats) const
 {
 	check(Texture);
 
 	static FName NamePOTERROR(TEXT("POTERROR"));
 
-	FName TextureFormatName = NAME_None;
+	const int32 NumLayers = Texture->Source.GetNumLayers();
+
+	if (Texture->bForcePVRTC4 && CookPVRTC())
+	{
+		TArray<FName> NamesPVRTC4;
+		TArray<FName> NamesPVRTCN;
+		NamesPVRTC4.Init(FName(TEXT("PVRTC4")), NumLayers);
+		NamesPVRTCN.Init(FName(TEXT("PVRTCN")), NumLayers);
+
+		OutFormats.AddUnique(NamesPVRTC4);
+		OutFormats.AddUnique(NamesPVRTCN);
+		return;
+	}
+
+	TArray<FName> TextureFormatNames;
 
 	// forward rendering only needs one channel for shadow maps
 	if (Texture->LODGroup == TEXTUREGROUP_Shadowmap && !SupportsMetalMRT())
 	{
-		TextureFormatName = NameG8;
+		TextureFormatNames.Init(NameG8, NumLayers);
 	}
 
 	// if we didn't assign anything specially, then use the defaults
     bool bIncludePVRTC = !bIsTVOS && CookPVRTC();
     bool bIncludeASTC = bIsTVOS || CookASTC();
-	if (TextureFormatName == NAME_None)
+	if (TextureFormatNames.Num() == 0)
 	{
         int32 BlockSize = 4;
         if (!Texture->bForcePVRTC4 && !bIncludePVRTC && bIncludeASTC)
         {
             BlockSize = 1;
         }
-		TextureFormatName = GetDefaultTextureFormatName(this, Texture, EngineSettings, false, false, BlockSize);
+		GetDefaultTextureFormatNamePerLayer(TextureFormatNames, this, Texture, EngineSettings, false, false, BlockSize);
 	}
 
-	// perform any remapping away from defaults
-	bool bFoundRemap = false;
-
-	if (Texture->bForcePVRTC4 && CookPVRTC())
+	// include the formats we want (use ASTC first so that it is preferred at runtime if they both exist and it's supported)
+	if (bIncludeASTC)
 	{
-		OutFormats.AddUnique(FName(TEXT("PVRTC4")));
-		OutFormats.AddUnique(FName(TEXT("PVRTCN")));
-		return;
-	}
-
-	for (int32 RemapIndex = 0; RemapIndex < ARRAY_COUNT(FormatRemap); RemapIndex += 3)
-	{
-		if (TextureFormatName == FormatRemap[RemapIndex])
+		TArray<FName> TextureFormatNamesASTC(TextureFormatNames);
+		for (FName& TextureFormatName : TextureFormatNamesASTC)
 		{
-			// we found a remapping
-			bFoundRemap = true;
-			// include the formats we want (use ASTC first so that it is preferred at runtime if they both exist and it's supported)
-			if (bIncludeASTC)
+			for (int32 RemapIndex = 0; RemapIndex < ARRAY_COUNT(FormatRemap); RemapIndex += 3)
 			{
-				OutFormats.AddUnique(FormatRemap[RemapIndex + 2]);
-			}
-			if (bIncludePVRTC)
-			{
-				// handle non-power of 2 textures
-				if (!Texture->Source.IsPowerOfTwo() && Texture->PowerOfTwoMode == ETexturePowerOfTwoSetting::None)
+				if (TextureFormatName == FormatRemap[RemapIndex])
 				{
-					// option 1: Uncompress, but users will get very large textures unknowningly
-					// OutFormats.AddUnique(NameBGRA8);
-					// option 2: Use an "error message" texture so they see it in game
-					OutFormats.AddUnique(NamePOTERROR);
-				}
-				else
-				{
-					OutFormats.AddUnique(FormatRemap[RemapIndex + 1]);
+					TextureFormatName = FormatRemap[RemapIndex + 2];
+					break;
 				}
 			}
 		}
+		OutFormats.AddUnique(TextureFormatNamesASTC);
 	}
 
-	// if we didn't already remap above, add it now
-	if (!bFoundRemap)
+	if (bIncludePVRTC)
 	{
-		OutFormats.Add(TextureFormatName);
+		TArray<FName> TextureFormatNamesPVRTC(TextureFormatNames);
+		for (FName& TextureFormatName : TextureFormatNamesPVRTC)
+		{
+			for (int32 RemapIndex = 0; RemapIndex < ARRAY_COUNT(FormatRemap); RemapIndex += 3)
+			{
+				if (TextureFormatName == FormatRemap[RemapIndex])
+				{
+					// handle non-power of 2 textures
+					if (!Texture->Source.IsPowerOfTwo() && Texture->PowerOfTwoMode == ETexturePowerOfTwoSetting::None)
+					{
+						// option 1: Uncompress, but users will get very large textures unknowingly
+						// TextureFormatName = NameBGRA8;
+						// option 2: Use an "error message" texture so they see it in game
+						TextureFormatName = NamePOTERROR;
+					}
+					else
+					{
+						TextureFormatName = FormatRemap[RemapIndex + 1];
+					}
+					break;
+				}
+			}
+		}
+		OutFormats.AddUnique(TextureFormatNamesPVRTC);
 	}
 }
 
@@ -712,11 +727,22 @@ void FIOSTargetPlatform::GetAllWaveFormats(TArray<FName>& OutFormat) const
 	OutFormat.Add(NAME_ADPCM);
 }
 
-namespace
+namespace IOS
 {
 	void CachePlatformAudioCookOverrides(FPlatformAudioCookOverrides& OutOverrides)
 	{
 		const TCHAR* CategoryName = TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings");
+
+		GConfig->GetBool(CategoryName, TEXT("bUseAudioStreamCaching"), OutOverrides.bUseStreamCaching, GEngineIni);
+
+		/** Memory Load On Demand Settings */
+		if (OutOverrides.bUseStreamCaching)
+		{
+			// Cache size:
+			int32 RetrievedCacheSize = 32 * 1024;
+			GConfig->GetInt(CategoryName, TEXT("CacheSizeKB"), RetrievedCacheSize, GEngineIni);
+			OutOverrides.StreamCachingSettings.CacheSizeKB = RetrievedCacheSize;
+		}
 
 		GConfig->GetBool(CategoryName, TEXT("bResampleForDevice"), OutOverrides.bResampleForDevice, GEngineIni);
 
@@ -819,17 +845,13 @@ FPlatformAudioCookOverrides* FIOSTargetPlatform::GetAudioCompressionSettings() c
 {
 	static FPlatformAudioCookOverrides Settings;
 
-#if !WITH_EDITOR
 	static bool bCachedPlatformSettings = false;
 
 	if (!bCachedPlatformSettings)
 	{
-		CachePlatformAudioCookOverrides(Settings);
+		IOS::CachePlatformAudioCookOverrides(Settings);
 		bCachedPlatformSettings = true;
 	}
-#else
-	CachePlatformAudioCookOverrides(Settings);
-#endif
 
 	return &Settings;
 }

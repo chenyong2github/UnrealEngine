@@ -1,0 +1,178 @@
+﻿INTSourceChangelist:6581714
+Availability: Docs
+Title: 网格体绘制工具参考
+Description: 本页介绍网格体绘制工具的各个部分的设置。
+Version: 4.22
+Parent: Engine/UI/LevelEditor/Modes/MeshPaintMode/VertexColor
+Tags: Reference
+Tags: mesh paint tool
+Tags: vertex color
+
+
+[TOC]
+
+网格体绘制（Mesh Paint）模式面板中有几个使用网格体绘制系统的选项，每个选项都有用于绘制顶点颜色、混合纹理或直接在纹理文件上绘制的专门设置。
+
+下面列出的是各种可用的绘制方法、可用于处理顶点颜色数据的工具、绘制时可用的画刷设置，以及可用的视图模式。
+
+## 顶点绘制方法
+
+网格体绘制工具有三个不同的绘制模式：**顶点颜色绘制（Vertex Color Painting）**，该模式将颜色数据直接绘制到网格体的顶点上；**顶点权重绘制（Vertex Weight Painting）**，该模式在您绘制时混合不同的纹理；**纹理权重绘制（Texture Weight Painting）**，该模式允许在纹理上绘制。默认模式是顶点颜色绘制（Vertex Color Painting）。下面的部分显示每种模式下可用的选项。  
+![](PaintingModeIcons.png)(w:200)
+
+选择一种方法后，其设置将填充到绘制部分下面的面板中。
+
+### 顶点颜色绘制
+
+**顶点颜色绘制（Vertex Color Painting）** 模式允许您在网格体上绘制顶点颜色，并在此过程中访问其可用属性。  
+![](VertexPaintingSettings.png)(w:300)
+
+   
+| 设置 | 说明 |
+| --- | --- |
+| **绘制颜色（Paint Color）** | 绘制（**LMB + 拖动**）时要应用的颜色。矩形样本显示当前颜色的预览。单击该样本打开颜色选择器。也可在R、G、B和A字段中键入值。如果看不到R、G、B和A字段，单击左侧的三角形展开设置。|
+| **擦除颜色（Erase Color）** | 擦除时（**Shift + LMB + 拖动**）用作“橡皮擦”颜色的颜色。矩形样本显示当前颜色的预览。单击该样本打开颜色选择器。也可在R、G、B和A字段中键入值。如果看不到R、G、B和A字段，单击左侧的三角形展开设置。|
+| **通道（Channels）** | 这些复选框设置受绘制画刷影响的颜色/alpha通道。|
+| **LOD模型绘制（LOD Model Painting）** | 这是要应用顶点颜色绘制的特定细节层级（LOD）。|
+
+### 顶点权重绘制
+
+顶点权重绘制（Vertex Weight Painting）模式允许您在网格体上绘制顶点权重，并在此过程中访问其可用属性。  
+![](VertexWeightPaintingSettings.png)(w:300)
+
+   
+| 设置 | 说明 |
+| --- | --- |
+| **纹理权重类型（Texture Weight Type）** | 通过设置在与网格体相关材质中混合的纹理数量，来配置混合权重“策略”。更改此选项时，可用于 **绘制纹理（Paint Texture）** 和 **擦除纹理（Erase Texture）** 的选项将会更新。每种设置都需要不同类型的材质，方可正常使用。详情请参阅 **[材质设置](Engine/UI/LevelEditor/Modes/MeshPaintMode/VertexColor/MaterialSetup)** 页面。|
+| **Alpha（两个纹理）（Alpha (Two Textures)）** | 提供两个纹理通道，通过绘制alpha进行控制。这意味着材质将只使用0（黑色）和1（白色）的alpha值进行混合。此设置需要对象应用了双路插值混合材质，类似于 **[双路纹理混合材质设置页面](Engine/UI/LevelEditor/Modes/MeshPaintMode/VertexColor/MaterialSetup/2Way)**[页面](Engine/UI/LevelEditor/Modes/MeshPaintMode/VertexColor/MaterialSetup/2Way)**** 上展示的材质。|
+| **RGB（三个纹理）（RGB (Three Textures)）** | 提供三个纹理通道，由绘制RGB值控制。这意味着材质将仅使用RGB值以混合纹理。此设置需要对象应用了三路插值混合材质，类似于 **[三路纹理混合材质设置](Engine/UI/LevelEditor/Modes/MeshPaintMode/VertexColor/MaterialSetup/3Way)** 页面上展示的材质。|
+| **ARGB（四个纹理）（ARGB (Four Textures)）** | 提供四个纹理通道，由绘制ARGB值控制。这意味着材质将使用RGB值以及alpha以混合纹理。此设置需要对象应用了四路插值混合材质，类似于 **[三路纹理混合材质设置](Engine/UI/LevelEditor/Modes/MeshPaintMode/VertexColor/MaterialSetup/4Way)** 页面上展示的材质。|
+| **ARGB - 1（五个纹理）（ARGB - 1 (Five Textures)）** | 提供五个纹理通道，由绘制ARGB值控制。这意味着材质将使用RGB值以及alpha以混合前四个纹理。内部的一个纹理减去alpha上的计算值，得出用于混合的第五个通道。此设置需要对象应用了五路插值混合材质，类似于 **[五路纹理混合材质设置](Engine/UI/LevelEditor/Modes/MeshPaintMode/VertexColor/MaterialSetup/5Way)** 页面上展示的材质。|
+| **绘制纹理权重指数（Paint Texture Weight Index）** | 绘制期间应用时会使用的纹理混合权重指数。|
+| **擦除纹理权重指数（Erase Texture Weight Index）** | 绘制期间擦除时会使用的纹理混合权重指数。|
+
+### 纹理绘制
+
+纹理绘制（Texture Painting）模式允许您在纹理上进行绘制，并在此过程中访问其可用属性。  
+![](TexturePaintingSettings.png)(w:350)
+
+   
+| 设置 | 说明 |
+| --- | --- |
+| **绘制颜色（Paint Color）** | 绘制（**LMB + 拖动**）时要应用的颜色。矩形样本显示当前颜色的预览。单击该样本打开颜色选择器。也可在 **R、G、B和A** 字段中键入值。如果看不到R、G、B和A字段，单击左侧的三角形展开设置。|
+| **擦除颜色（Erase Color）** | 擦除（**LMB + 拖动**）时要应用的颜色。矩形样本显示当前颜色的预览。单击该样本打开颜色选择器。也可在 **R、G、B和A** 字段中键入值。如果看不到R、G、B和A字段，单击左侧的三角形展开设置。|
+| **启用接缝绘制（Enable Seam Painting）** | 如果勾选此框，则使用膨胀来允许绘制纹理接缝。|
+| **通道（Channels）** | 这些复选框设置受绘制画刷影响的颜色/alpha通道。|
+| **UV通道（UV Channel）** | 选定Actor的将用于已绘制纹理的UV通道。|
+| **绘制纹理（Paint Texture）** | 该样本显示要应用绘制的纹理。要更改纹理，单击样本右侧的名称字段。|
+
+## 网格体绘制工具
+
+本节介绍可用于顶点颜色数据的工具。这包括从一个实例复制颜色数据，并将其粘贴到另一个实例，用一个颜色值填充静态网格体颜色数据，将应用的绘制值从实例传播到基本资源，等等。  
+![](MeshPaintTools.png)(w:300)
+
+  
+| 设置 | 说明 |
+| --- | --- |
+| [INCLUDE:#excerpt_0] | 将填充使用该 **绘制颜色** 绘制的网格体或实例，同时考虑到 **通道（Channels）** 设置。|
+| [INCLUDE:#excerpt_1] | 将实例顶点颜色传播到源网格体。|
+| [INCLUDE:#excerpt_2] | 导入一个TGA图像文件来填充所选实例的顶点颜色。|
+| [INCLUDE:#excerpt_3] | 保存选定网格体实例的源网格体。|
+| [INCLUDE:#excerpt_4] | 将顶点颜色从选定实例复制到源网格体资源。|
+| [INCLUDE:#excerpt_5] | 尝试将顶点颜色粘贴到选定网格体实例上。|
+| [INCLUDE:#excerpt_6] | 从选定网格体实例移除顶点颜色。|
+| [INCLUDE:#excerpt_7] | 必要时，修复应用于选定网格体的顶点颜色。|
+| [INCLUDE:#excerpt_8] | 将LOD0中的顶点颜色应用于所有LOD级别。|
+
+<!--
+[EXCERPT:excerpt_8]
+**应用（Apply）**  
+![](ApplyTool.png)(w:30)
+[/EXCERPT:excerpt_8]
+-->
+<!--
+[EXCERPT:excerpt_7]
+**修复（Fix）**  
+![](FixTool.png)(w:30)
+[/EXCERPT:excerpt_7]
+-->
+<!--
+[EXCERPT:excerpt_6]
+**移除（Remove）**  
+![](RemoveTool.png)(w:30)
+[/EXCERPT:excerpt_6]
+-->
+<!--
+[EXCERPT:excerpt_5]
+**粘贴（Paste）**  
+![](PasteTool.png)(w:30)
+[/EXCERPT:excerpt_5]
+-->
+<!--
+[EXCERPT:excerpt_4]
+**复制（Copy）**  
+![](CopyTool.png)(w:30)
+[/EXCERPT:excerpt_4]
+-->
+<!--
+[EXCERPT:excerpt_3]
+**保存（Save）**  
+![](SaveTool.png)(w:30)
+[/EXCERPT:excerpt_3]
+-->
+<!--
+[EXCERPT:excerpt_2]
+**导入（Import）**  
+![](ImportTool.png)(w:30)
+[/EXCERPT:excerpt_2]
+-->
+<!--
+[EXCERPT:excerpt_1]
+**传播（Propagate）**  
+![](PropagateTool.png)(w:30)
+[/EXCERPT:excerpt_1]
+-->
+<!--
+[EXCERPT:excerpt_0]
+**填充（Fill）**  
+![](FillTool.png)(w:30)
+[/EXCERPT:excerpt_0]
+-->
+
+## 画刷设置
+
+网格体绘制工具是一个基于画刷的系统。您可以使用所含的设置，制作出适用于广泛领域或细节出众的画刷。由于网格体绘制工具在实际的顶点上绘制颜色，您可能需要根据网格体的顶点密度调整设置。
+
+本节介绍在网格体上绘制时，所有工具模式之间通用的画刷设置。
+
+![](BrushSettings.png)(w:350)
+[REGION:note]
+对于由滑块控制的选项，您可以单击并拖动滑块来快速更改值，或者可以单击字段并键入一个数字。
+[/REGION]
+
+   
+| 设置 | 说明 |
+| --- | --- |
+| **半径（Radius）** | 用虚幻单位设置画刷的半径。此外，画刷有一个 **基于深度的衰减**，等于该半径的一半。|
+| **强度（Strength）** | 设置启用绘制后每次单击或移动鼠标光标时要应用的绘制量。另外，如果启用了 **画刷流量（brush flow）**，将对表面应用该画刷强度的某个百分比（流量）。|
+| **衰减（Falloff）** | 设置画刷的强度如何随着距离而下降。衰减值为1.0表示画刷的中心处强度为100%，并向画笔半径方向线性衰减。衰减值0.5表示画刷在其一半半径处强度为100%，然后线性衰减。衰减值0.0表示画刷在整个半径内的强度都是100%。记住，无论设置如何，**基于深度的衰减** 始终是有效的。|
+| **启用画刷流量（Enable Brush Flow）** | 勾选此框可将画刷配置为每个渲染帧都应用绘制，即使未移动光标。它产生的结果类似于气刷。|
+| **忽略背向（Ignore Back-Facing）** | 勾选此框可忽略背对摄像机的三角形，这样它们就不会受到画刷的影响。|
+
+## 视图模式
+
+本节介绍所有工具模式之间通用的视图模式设置，您可以使用这些设置单独或一起查看绘制的顶点颜色。  
+![](ViewModeSettings.png)(w:350)
+
+  
+| 设置 | 说明 |
+| --- | --- |
+| **颜色视图模式（Color View Mode）** | 此设置启用不同的视图模式，帮助将顶点颜色应用于视口中的网格体这一过程可视化。您可以选择只显示顶点颜色，也可以查看单独的颜色通道。|
+| **关闭（Off）** | 这是颜色视图模式列表中的第一个选项。它可以恢复默认编辑器视图模式。|
+| **RGB通道（RGB Channels）** | 这是颜色视图模式列表中的第二个选项。它使用RGB顶点颜色显示无光照Actor。|
+| **Alpha通道（Alpha Channel）** | 这是颜色视图模式列表中的第三个选项。它仅使用顶点alpha显示无光照Actor。|
+| **红色通道（Red Channel）** | 这是颜色视图模式列表中的第四个选项。它使用红色顶点颜色显示无光照Actor。|
+| **绿色通道（Green Channel）** | 这是颜色视图模式列表中的第五个选项。它使用绿色顶点颜色显示无光照Actor。|
+| **蓝色通道（Blue Channel）** | 这是颜色视图模式列表中的第六个选项。它使用蓝色顶点颜色显示无光照Actor。|
+
+![viewmodes_demo.png](ViewModes_Demo.png)(w:500)

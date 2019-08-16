@@ -15,6 +15,8 @@ struct FNiagaraVMExecutableData;
 class UNiagaraScript;
 class FNiagaraCompileOptions;
 class FNiagaraCompileRequestDataBase;
+class INiagaraMergeManager;
+class INiagaraEditorOnlyDataUtilities;
 
 extern NIAGARA_API int32 GEnableVerboseNiagaraChangeIdLogging;
 
@@ -25,37 +27,7 @@ class NIAGARA_API INiagaraModule : public IModuleInterface
 {
 public:
 #if WITH_EDITOR
-	struct FMergeEmitterResults
-	{
-		FMergeEmitterResults()
-			: bSucceeded(true)
-			, bModifiedGraph(false)
-		{
-		}
-
-		bool bSucceeded;
-		TArray<FText> ErrorMessages;
-		bool bModifiedGraph;
-		UNiagaraEmitter* MergedInstance;
-
-		FString GetErrorMessagesString() const
-		{
-			TArray<FString> ErrorMessageStrings;
-			for (FText ErrorMessage : ErrorMessages)
-			{
-				ErrorMessageStrings.Add(ErrorMessage.ToString());
-			}
-			return FString::Join(ErrorMessageStrings, TEXT("\n"));
-		}
-	};
-	
-#endif
-
-public:
-#if WITH_EDITOR
 	typedef TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> CompileRequestPtr;
-	DECLARE_DELEGATE_RetVal_ThreeParams(FMergeEmitterResults, FOnMergeEmitter, UNiagaraEmitter&, UNiagaraEmitter&, UNiagaraEmitter&);
-	DECLARE_DELEGATE_RetVal_OneParam(class UNiagaraScriptSourceBase*, FOnCreateDefaultScriptSource, UObject*);
 	DECLARE_DELEGATE_RetVal_TwoParams(TSharedPtr<FNiagaraVMExecutableData>, FScriptCompiler,const FNiagaraCompileRequestDataBase*, const FNiagaraCompileOptions&);
 	DECLARE_DELEGATE_RetVal_OneParam(CompileRequestPtr, FOnPrecompile, UObject*);
 #endif
@@ -73,6 +45,9 @@ public:
 
 	static FNiagaraWorldManager* GetWorldManager(UWorld* World);
 
+	// Gamethread callback to cleanup references to the given batcher before it gets deleted on the renderthread.
+	static void OnBatcherDestroyed(class NiagaraEmitterInstanceBatcher* InBatcher);
+
 	void DestroyAllSystemSimulations(class UNiagaraSystem* System);
 
 	// Callback function registered with global world delegates to instantiate world manager when a game world is created
@@ -87,17 +62,17 @@ public:
 	void TickWorld(UWorld* World, ELevelTick TickType, float DeltaSeconds);
 
 #if WITH_EDITOR
-	FMergeEmitterResults MergeEmitter(UNiagaraEmitter& Source, UNiagaraEmitter& LastMergedSource, UNiagaraEmitter& Instance);
+	const INiagaraMergeManager& GetMergeManager() const;
 
-	FDelegateHandle RegisterOnMergeEmitter(FOnMergeEmitter OnMergeEmitter);
+	void RegisterMergeManager(TSharedRef<INiagaraMergeManager> InMergeManager);
 
-	void UnregisterOnMergeEmitter(FDelegateHandle DelegateHandle);
+	void UnregisterMergeManager(TSharedRef<INiagaraMergeManager> InMergeManager);
 
-	UNiagaraScriptSourceBase* CreateDefaultScriptSource(UObject* Outer);
+	const INiagaraEditorOnlyDataUtilities& GetEditorOnlyDataUtilities() const;
 
-	FDelegateHandle RegisterOnCreateDefaultScriptSource(FOnCreateDefaultScriptSource OnCreateDefaultScriptSource);
+	void RegisterEditorOnlyDataUtilities(TSharedRef<INiagaraEditorOnlyDataUtilities> InEditorOnlyDataUtilities);
 
-	void UnregisterOnCreateDefaultScriptSource(FDelegateHandle DelegateHandle);
+	void UnregisterEditorOnlyDataUtilities(TSharedRef<INiagaraEditorOnlyDataUtilities> InEditorOnlyDataUtilities);
 
 	TSharedPtr<FNiagaraVMExecutableData> CompileScript(const FNiagaraCompileRequestDataBase* InCompileData, const FNiagaraCompileOptions& InCompileOptions);
 	FDelegateHandle RegisterScriptCompiler(FScriptCompiler ScriptCompiler);
@@ -112,6 +87,7 @@ public:
 	FORCEINLINE static int32 GetDetailLevel() { return EngineDetailLevel; }
 	FORCEINLINE static float GetGlobalSpawnCountScale() { return EngineGlobalSpawnCountScale; }
 	FORCEINLINE static float GetGlobalSystemCountScale() { return EngineGlobalSystemCountScale; }
+	static bool IsTargetPlatformIncludedInLevelRangeForCook(const ITargetPlatform* InTargetPlatform, const class UNiagaraEmitter* InEmitter);
 
 	static float EngineGlobalSpawnCountScale;
 	static float EngineGlobalSystemCountScale;
@@ -159,6 +135,8 @@ public:
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Emitter_RandomSeed() { return Emitter_RandomSeed; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Emitter_SpawnRate() { return Emitter_SpawnRate; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Emitter_SpawnInterval() { return Emitter_SpawnInterval; }
+	FORCEINLINE static const FNiagaraVariable&  GetVar_Emitter_SimulationTarget() { return Emitter_SimulationTarget; }
+	FORCEINLINE static const FNiagaraVariable&  GetVar_ScriptUsage() { return ScriptUsage; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Emitter_InterpSpawnStartDt() { return Emitter_InterpSpawnStartDt; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Emitter_SpawnGroup() { return Emitter_SpawnGroup; }
 
@@ -200,8 +178,9 @@ private:
 	FOnProcessQueue OnProcessQueue;
 
 #if WITH_EDITORONLY_DATA
-	FOnMergeEmitter OnMergeEmitterDelegate;
-	FOnCreateDefaultScriptSource OnCreateDefaultScriptSourceDelegate;
+	TSharedPtr<INiagaraMergeManager> MergeManager;
+	TSharedPtr<INiagaraEditorOnlyDataUtilities> EditorOnlyDataUtilities;
+
 	FScriptCompiler ScriptCompilerDelegate;
 	FOnPrecompile ObjectPrecompilerDelegate;
 #endif
@@ -252,6 +231,7 @@ private:
 	static FNiagaraVariable Emitter_Age;
 	static FNiagaraVariable Emitter_LocalSpace;
 	static FNiagaraVariable Emitter_Determinism;
+	static FNiagaraVariable Emitter_SimulationTarget;
 	static FNiagaraVariable Emitter_RandomSeed;
 	static FNiagaraVariable Emitter_SpawnRate;
 	static FNiagaraVariable Emitter_SpawnInterval;
@@ -289,6 +269,7 @@ private:
 	static FNiagaraVariable Particles_RibbonFacing;
 	static FNiagaraVariable Particles_RibbonLinkOrder;
 
+	static FNiagaraVariable ScriptUsage;
 	static FNiagaraVariable DataInstance_Alive;
 	static FNiagaraVariable Translator_BeginDefaults;
 };

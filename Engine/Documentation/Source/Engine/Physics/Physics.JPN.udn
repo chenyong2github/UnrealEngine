@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:3782314
 Availability:Public
 Title:物理のシミュレーション
 Crumbs: %ROOT%, Engine
@@ -43,7 +43,7 @@ topic-icon:%ROOT%/physics_icon.png
 
 [REGION:buttonlist]
 * [ビークル ユーザー ガイド](Engine/Physics/Vehicles/VehicleUserGuide "%Engine/Physics/Vehicles/VehicleUserGuide:description%")
-* [ビークル コンテンツ作成ガイド](Engine/Physics/Vehicles/VehcileContentCreation "%Engine/Physics/Vehicles/VehcileContentCreation:description%")
+* [ビークル コンテンツ作成ガイド](Engine/Physics/Vehicles/VehicleContentCreation "%Engine/Physics/Vehicles/VehicleContentCreation:description%")
 * [シンプルな車輪付きビークルの移動コンポーネント](Engine/Physics/Vehicles/SimpleWheeledVehicleMovementComponent "%Engine/Physics/Vehicles/SimpleWheeledVehicleMovementComponent:description%")
 * [高度なビークル テンプレート](Engine/Physics/Vehicles/DoubleWishboneVehicle "%Engine/Physics/Vehicles/DoubleWishboneVehicle:description%")
 *  [ビークルの API リファレンス](API:AWheeledVehicle)
@@ -55,14 +55,14 @@ topic-icon:%ROOT%/physics_icon.png
 * [物理ボディ](Engine/Physics/PhysicsBodies "%Engine/Physics/PhysicsBodies:description%")
 * [複雑なコリジョンとシンプルなコリジョン](Engine/Physics/SimpleVsComplex "%Engine/Physics/SimpleVsComplex:description%")
 * [物理マテリアル](Engine/Physics/PhysicalMaterials "%Engine/Physics/PhysicalMaterials:description%")
-* [PhAT ユーザー ガイドとリファレンス](Engine/Physics/PhAT "%Engine/Physics/PhAT:description%")
+* [PhAT ユーザー ガイドとリファレンス](Engine/Physics/PhysicsAssetEditor "%Engine/Physics/PhysicsAssetEditor:description%")
 [/REGION]
 
 ## 関連リンク
 
 [REGION:buttonlist]
-* [スタティックメッシュ エディタ](Engine/Content/Types/StaticMeshes/Editor "%Engine/Physics/PhAT:description%")
-* [FBX パイプライン： スタティックメッシュ](Engine/Content/FBX/StaticMeshes "%Engine/Physics/PhAT:description%")
+* [スタティックメッシュ エディタ](Engine/Content/Types/StaticMeshes/Editor "%Engine/Physics/PhysicsAssetEditor:description%")
+* [FBX パイプライン： スタティックメッシュ](Engine/Content/FBX/StaticMeshes "%Engine/Physics/PhysicsAssetEditor:description%")
 [/REGION]
 
 

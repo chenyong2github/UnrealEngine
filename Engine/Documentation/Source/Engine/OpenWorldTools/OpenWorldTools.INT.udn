@@ -8,9 +8,8 @@ Version: 4.8
 parent:Engine
 order:9
 topic-image:Engine\OpenWorldTools\Overview\T_Kite_Demo_00.png
-
-
-![](T_OWT_Header_00.png)
+hero-image:T_OWT_Header_00.png
+tags:Experimental
 
 During the 2015 Games Developer Conference Epic showed off to the world Unreal Engine 4's ability to render massive open worlds full of both flora and fauna.
 With the release of Unreal Engine 4.8 the tools used to create this demo, referred to as the **Open World Tools**, are now available for use in your UE4 projects. 

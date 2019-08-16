@@ -1,43 +1,35 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6507894
 Availability:Public
-Title: Persona：骨架网格体动画系统
+Title: 骨架网格体动画系统
 Crumbs: %ROOT%, Engine
 Description: 基于关键帧动画数据和顶点变形对象的变形骨架网格物体的系统。
 Navigation:topic
 parent:Engine
 order:3
 topic-image:animation_topic.png
+hero-image:animation_banner.png
 
-
-[REGION:banner]
-![Animation System](animation_banner.png)(convert:false)
-[/REGION]
 
 [INCLUDE:Engine/Animation/Overview#Intro]
 
-(#StartingOut)
 ## 入门
 
-[DIR(output:"topic" parent:"Engine/Animation" org:"flat" tags:"Getting Started" type:"landing,overview,reference,quick start")]
+[DIR(output:"topic" parent:"Engine/Animation" org:"flat" tags:"Getting Started" type:"!how-to")]
 
-(#Asset Types)
 ## 资源类型
 
-[DIR(output:"topic" parent:"Engine/Animation" org:"flat" tags:"Animation Assets" type:"landing,overview,reference,quick start")]
+[DIR(output:"topic" parent:"Engine/Animation" org:"flat" tags:"Animation Assets" type:"!how-to" title:"!Animation Montage Overview")]
 
-(#Tools)
 ## 工具
 
-[DIR(output:"topic" parent:"Engine/Animation" end:"3" org:"hierarchy" tags:"Animation Tools" type:"landing,overview,reference,quick start")]
+[DIR(output:"topic" parent:"Engine/Animation" end:"3" org:"hierarchy" tags:"!Assets" tags:"Tools" type:"!how-to")]
 
-(#Features)
 ## 功能
 
-[DIR(output:"topic" parent:"Engine/Animation" end:"1" org:"hierarchy" tags:"Animation Features" type:"landing,overview,reference,quick start")]
+[DIR(output:"topic" parent:"Engine/Animation" end:"1" org:"hierarchy" tags:"!Assets" tags:"!Getting Started" tags:"!Tools" type:"!how-to")]
 
-(#Guides)
 ## 指南
 
-[DIR(output:"fancy" parent:"Engine/Animation/AnimHowTo" end:"1" org:"hierarchy" type:"how-to" skilllevel:"Beginner")]
-[DIR(output:"fancy" parent:"Engine/Animation/AnimHowTo" end:"1" org:"hierarchy" type:"how-to" skilllevel:"Intermediate")]
-[DIR(output:"fancy" parent:"Engine/Animation/AnimHowTo" end:"1" org:"hierarchy" type:"how-to" skilllevel:"Advanced")]
+[DIR(output:"fancy" parent:"Engine/Animation/AnimHowTo" end:"1" org:"hierarchy" tags:"!Assets" tags:"!Getting Started" type:"how-to" skilllevel:"Beginner")]
+[DIR(output:"fancy" parent:"Engine/Animation/AnimHowTo" end:"1" org:"hierarchy" tags:"!Assets" tags:"!Getting Started" type:"how-to" skilllevel:"Intermediate")]
+[DIR(output:"fancy" parent:"Engine/Animation/AnimHowTo" end:"1" org:"hierarchy" tags:"!Assets" tags:"!Getting Started" type:"how-to" skilllevel:"Advanced")]

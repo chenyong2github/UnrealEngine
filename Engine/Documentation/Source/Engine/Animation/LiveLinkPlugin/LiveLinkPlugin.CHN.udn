@@ -1,13 +1,15 @@
-﻿INTSourceChangelist:4401262
+﻿INTSourceChangelist:6413733
 Availability: Public
-Crumbs: 
 Title: Live Link插件
 Description: 描述如何启用并使用Live Link插件及虚幻引擎4的动画系统中的功能。 
-Type:landing
+Type: overview
 Version: 4.19
 Parent: Engine/Animation
-Order: 1
-Tags: Animation, Animation Tools, Live Link
+Tags: Animation
+Tags: Animation Tools
+Tags: Live Link
+topic-image: LiveLink_01.png
+social-image: LiveLink_01_Social.png
 
 
 [OBJECT:EmbeddedVideo]

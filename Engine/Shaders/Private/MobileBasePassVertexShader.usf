@@ -41,9 +41,14 @@ void Main(
 	)
 {
 #if MOBILE_MULTI_VIEW
+#if (COMPILER_GLSL_ES2 || COMPILER_GLSL_ES3_1 || COMPILER_GLSL_ES3_1_EXT)
 	const int MultiViewId = int(ViewId);
 	ResolvedView = ResolveView(uint(MultiViewId));
 	Output.BasePassInterpolants.MultiViewId = float(MultiViewId);
+#else
+	ResolvedView = ResolveView(ViewId);
+	Output.BasePassInterpolants.MultiViewId = float(ViewId);
+#endif
 #else
 	ResolvedView = ResolveView();
 #endif
@@ -91,6 +96,8 @@ void Main(
 #if LANDSCAPE_BUG_WORKAROUND
 	Output.BasePassInterpolants.DummyInterp = 0;
 #endif
+
+
 
 	Output.FactoryInterpolants = VertexFactoryGetInterpolants(Input, VFIntermediates, VertexParameters);
 

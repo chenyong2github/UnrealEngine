@@ -1,13 +1,12 @@
 Availability:Public
 Title: Sequencer Editor Reference
-Crumbs: %ROOT%, Engine
 Description:UI and Control Reference Page for the Sequencer Editor. 
 Type: Reference
 Version: 4.17
 parent:Engine/Sequencer
 Order: 1
 Tags: Sequencer
-Related: Engine\Sequencer\Overview
+Related: Engine/Sequencer/Overview
 Related: Engine/Sequencer/HowTo
 
 [TOC(start:2 end:2)]
@@ -56,6 +55,34 @@ What follows is a description of each of the toolbar buttons, from left to right
 | ![](tb_8.png) | Enables/Disables grid snapping for the Tracks Area as well as grid snapping options. |
 | ![](tb_9.png) | Allows for adjustment of the time snapping interval. |
 | ![](tb_10.png) | Opens the [Curve Editor](Engine/UI/CurveEditor) which allows you to fine tune the animation keys placed in the Tracks Area. |
+
+## Sequencer Curve Editor
+
+When working with tangents inside the Curve Editor, weighted tangents are supported on float curves as depicted below.  
+
+![](WeightedCurves_03.gif "WeightedCurves_03.gif")
+
+The Curve Editor also supports continuous Euler Angle changes when changing rotations. Euler angles are not limited to -180, 180, which is necessary to avoid flips in animation. 
+
+You can turn on **Quaternion Rotation** on a 3D Transform section through the track's **Properties **menu to utilize quaternion interpolation to smoothly interpolate between two rotations. 
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:videoid]
+ OY_UYJQOxYs
+ [/PARAMLITERAL]
+ [PARAMLITERAL:width]
+ 100
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 56.25
+ [/PARAMLITERAL]
+ [PARAMLITERAL:units]
+ %
+ [/PARAMLITERAL]
+ [PARAMLITERAL:type]
+ simple
+ [/PARAMLITERAL]
+[/OBJECT]
 
 ## Sequence Breadcrumbs
 

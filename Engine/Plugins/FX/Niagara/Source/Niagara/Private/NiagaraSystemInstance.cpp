@@ -12,6 +12,7 @@
 #include "NiagaraRenderer.h"
 #include "Templates/AlignmentTemplates.h"
 #include "NiagaraEmitterInstanceBatcher.h"
+#include "GameFramework/PlayerController.h"
 
 
 DECLARE_CYCLE_STAT(TEXT("System Activate [GT]"), STAT_NiagaraSystemActivate, STATGROUP_Niagara);
@@ -69,6 +70,53 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UNiagaraComponent* InComponent)
 	}
 }
 
+
+void FNiagaraSystemInstance::SetEmitterEnable(FName EmitterName, bool bNewEnableState)
+{
+	UNiagaraSystem* System = GetSystem();
+	if (System != nullptr)
+	{
+		const TArray<FNiagaraEmitterHandle>& EmitterHandles = GetSystem()->GetEmitterHandles();
+		int32 FoundIdx = INDEX_NONE;
+		for (int32 EmitterIdx = 0; EmitterIdx < GetSystem()->GetEmitterHandles().Num(); ++EmitterIdx)
+		{
+			const FNiagaraEmitterHandle& EmitterHandle = EmitterHandles[EmitterIdx];
+			if (EmitterName == EmitterHandle.GetName())
+			{
+				FoundIdx = EmitterIdx;
+				break;
+			}
+		}
+
+		if (FoundIdx != INDEX_NONE && Emitters.IsValidIndex(FoundIdx))
+		{
+			if (Emitters[FoundIdx]->IsAllowedToExecute())
+			{
+				
+				{
+					if (bNewEnableState)
+					{
+						Emitters[FoundIdx]->SetExecutionState(ENiagaraExecutionState::Active);
+					}
+					else
+					{
+						Emitters[FoundIdx]->SetExecutionState(ENiagaraExecutionState::Inactive);
+					}
+				}
+			}
+			else
+			{
+				UE_LOG(LogNiagara, Log, TEXT("SetEmitterEnable: Emitter \"%s\" was found in the system's list of emitters, but it does not pass FNiagaraEmitterInstance::IsAllowedToExecute() and therefore cannot be manually enabled!"), *EmitterName.ToString());
+			}
+		}
+		else
+		{
+			UE_LOG(LogNiagara, Log, TEXT("SetEmitterEnable: Emitter \"%s\" was not found in the system's list of emitters!"), *EmitterName.ToString());
+		}
+	}
+}
+
+
 void FNiagaraSystemInstance::Init(bool bInForceSolo)
 {
 	bForceSolo = bInForceSolo;
@@ -79,7 +127,7 @@ void FNiagaraSystemInstance::Init(bool bInForceSolo)
 	// In order to get user data interface parameters in the component to work properly,
 	// we need to bind here, otherwise the instances when we init data interfaces during reset will potentially
 	// be the defaults (i.e. null) for things like static mesh data interfaces.
-	Reset(EResetMode::ReInit, true);
+	Reset(EResetMode::ReInit);
 
 #if WITH_EDITORONLY_DATA
 	InstanceParameters.DebugName = *FString::Printf(TEXT("SystemInstance %p"), this);
@@ -308,7 +356,7 @@ void FNiagaraSystemInstance::Activate(EResetMode InResetMode)
 	UNiagaraSystem* System = GetSystem();
 	if (System && System->IsValid() && IsReadyToRun())
 	{
-		Reset(InResetMode, true);
+		Reset(InResetMode);
 	}
 	else
 	{
@@ -445,7 +493,7 @@ void FNiagaraSystemInstance::SetPaused(bool bInPaused)
 	bPaused = bInPaused;
 }
 
-void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode, bool bBindParams)
+void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemReset);
 
@@ -481,6 +529,9 @@ void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode, bool
 		Mode = EResetMode::ReInit;
 	}
 		
+	// Depending on the rest mode we may need to bind or can possibly skip it
+	// We must bind if we were previously complete as unbind will have been called, we can not get here if the system was disabled
+	bool bBindParams = IsComplete();
 	if (Mode == EResetMode::ResetSystem)
 	{
 		//UE_LOG(LogNiagara, Log, TEXT("FNiagaraSystemInstance::Reset false"));
@@ -490,13 +541,13 @@ void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode, bool
 	{
 		//UE_LOG(LogNiagara, Log, TEXT("FNiagaraSystemInstance::Reset true"));
 		ResetInternal(true);
+		bBindParams = !IsDisabled();
 	}
 	else if (Mode == EResetMode::ReInit)
 	{
 		//UE_LOG(LogNiagara, Log, TEXT("FNiagaraSystemInstance::ReInit"));
 		ReInitInternal();
-		// If the system was reinitialized successfully than we need to force a rebind of the parameters.
-		bBindParams = IsComplete() == false;
+		bBindParams = !IsDisabled();
 	}
 	
 	if (bBindParams)
@@ -507,8 +558,7 @@ void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode, bool
 	SetRequestedExecutionState(ENiagaraExecutionState::Active);
 	SetActualExecutionState(ENiagaraExecutionState::Active);
 
-	// We avoid calling InitDataInterfaces in the ResetSystem path so as to not clear out the System's DI on this frame.
-	if (Mode == EResetMode::ResetAll || Mode == EResetMode::ReInit)
+	if (bBindParams)
 	{
 		InitDataInterfaces();
 	}
@@ -864,6 +914,8 @@ void FNiagaraSystemInstance::BindParameters()
 	}
 
 	Component->GetOverrideParameters().Bind(&InstanceParameters);
+	InstanceParameters.Bind(&SystemSimulation->GetSpawnExecutionContext().Parameters);
+	InstanceParameters.Bind(&SystemSimulation->GetUpdateExecutionContext().Parameters);
 
 	if (SystemSimulation->GetIsSolo())
 	{
@@ -896,6 +948,8 @@ void FNiagaraSystemInstance::UnbindParameters()
 
 	if (SystemSimulation.IsValid())
 	{
+		InstanceParameters.Unbind(&SystemSimulation->GetSpawnExecutionContext().Parameters);
+		InstanceParameters.Unbind(&SystemSimulation->GetUpdateExecutionContext().Parameters);
 		if (SystemSimulation->GetIsSolo())
 		{
 			if (Component)
@@ -1041,7 +1095,9 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 			if (!bResult)
 			{
 				UE_LOG(LogNiagara, Error, TEXT("Error initializing data interface \"%s\" for system. %u | %s"), *Interface->GetPathName(), Component, *Component->GetAsset()->GetName());
-			}
+			}		
+
+			
 		}
 		else
 		{
@@ -1118,40 +1174,78 @@ void FNiagaraSystemInstance::TickDataInterfaces(float DeltaSeconds, bool bPostSi
 float FNiagaraSystemInstance::GetLODDistance()
 {
 	check(Component);
-	FVector CurrPos = Component->GetComponentLocation();
 #if WITH_EDITOR
 	if (Component->bEnablePreviewLODDistance)
 	{
 		return Component->PreviewLODDistance;
 	}
-	else
 #endif
+
+	constexpr float DefaultLODDistance = 0.0f;
+
+	FNiagaraWorldManager* WorldManager = GetWorldManager();
+	if ( WorldManager == nullptr )
 	{
-		constexpr float DefaultLODDistance = 0.0f;
+		return DefaultLODDistance;
+	}
 
-		FNiagaraWorldManager* WorldManager = GetWorldManager();
-		if ( WorldManager == nullptr )
-		{
-			return DefaultLODDistance;
-		}
+	const FVector EffectLocation = Component->GetComponentLocation();
 
+	// If we are inside the WorldManager tick we will use the cache player view locations as we can be ticked on different threads
+	if (WorldManager->CachedPlayerViewLocationsValid())
+	{
 		TArrayView<const FVector> PlayerViewLocations = WorldManager->GetCachedPlayerViewLocations();
-		if ( PlayerViewLocations.Num() == 0 )
+		if (PlayerViewLocations.Num() == 0)
 		{
 			return DefaultLODDistance;
 		}
 
+		// We are being ticked inside the WorldManager and can safely use the list of cached player view locations
 		float LODDistanceSqr = FMath::Square(WORLD_MAX);
 		for (const FVector& ViewLocation : PlayerViewLocations)
 		{
-			const float DistanceToEffectSqr = FVector(ViewLocation - CurrPos).SizeSquared();
-			if (DistanceToEffectSqr < LODDistanceSqr)
-			{
-				LODDistanceSqr = DistanceToEffectSqr;
-			}
+			const float DistanceToEffectSqr = FVector(ViewLocation - EffectLocation).SizeSquared();
+			LODDistanceSqr = FMath::Min(LODDistanceSqr, DistanceToEffectSqr);
 		}
 		return FMath::Sqrt(LODDistanceSqr);
 	}
+
+	// If we are not inside the WorldManager tick (solo tick) we must look over the player view locations manually
+	ensureMsgf(IsInGameThread(), TEXT("FNiagaraSystemInstance::GetLODDistance called in potentially thread unsafe way"));
+
+	if ( UWorld* World = Component->GetWorld() )
+	{
+		TArray<FVector, TInlineAllocator<8> > PlayerViewLocations;
+		if (World->GetPlayerControllerIterator())
+		{
+			for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
+			{
+				APlayerController* PlayerController = Iterator->Get();
+				if (PlayerController && PlayerController->IsLocalPlayerController())
+				{
+					FVector* ViewLocation = new(PlayerViewLocations) FVector;
+					FRotator ViewRotation;
+					PlayerController->GetPlayerViewPoint(*ViewLocation, ViewRotation);
+				}
+			}
+		}
+		else
+		{
+			PlayerViewLocations = World->ViewLocationsRenderedLastFrame;
+		}
+
+		if (PlayerViewLocations.Num() > 0)
+		{
+			float LODDistanceSqr = FMath::Square(WORLD_MAX);
+			for (const FVector& ViewLocation : PlayerViewLocations)
+			{
+				const float DistanceToEffectSqr = FVector(ViewLocation - EffectLocation).SizeSquared();
+				LODDistanceSqr = FMath::Min(LODDistanceSqr, DistanceToEffectSqr);
+			}
+			return FMath::Sqrt(LODDistanceSqr);
+		}
+	}
+	return DefaultLODDistance;
 }
 
 void FNiagaraSystemInstance::TickInstanceParameters(float DeltaSeconds)
@@ -1257,7 +1351,7 @@ bool FNiagaraSystemInstance::UsesScript(const UNiagaraScript* Script)const
 	{
 		for (FNiagaraEmitterHandle EmitterHandle : GetSystem()->GetEmitterHandles())
 		{
-			if ((EmitterHandle.GetSource() && EmitterHandle.GetSource()->UsesScript(Script)) || (EmitterHandle.GetInstance() && EmitterHandle.GetInstance()->UsesScript(Script)))
+			if (EmitterHandle.GetInstance() && EmitterHandle.GetInstance()->UsesScript(Script))
 			{
 				return true;
 			}
@@ -1292,6 +1386,8 @@ void FNiagaraSystemInstance::InitEmitters()
 	{
 		Component->MarkRenderStateDirty();
 	}
+
+	bHasGPUEmitters = false;
 
 	Emitters.Empty();
 	UNiagaraSystem* System = GetSystem();

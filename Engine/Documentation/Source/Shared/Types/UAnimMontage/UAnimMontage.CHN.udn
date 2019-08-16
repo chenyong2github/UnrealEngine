@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:2284738
+﻿INTSourceChangelist:3108692
 Availability:NoPublish
 Title:UAnimMontage
 Crumbs:
@@ -12,3 +12,13 @@ Description:AnimMontage类的概述
 Engine/Animation/AnimMontage
 [/VAR]
 [/EXCERPT:UAnimMontage]
+
+[EXCERPT:BlendIn]
+WIP - 淡入选项。 http://easings.net/#
+
+[/EXCERPT:BlendIn]
+
+[EXCERPT:BlendOut]
+WIP - 淡出选项。 http://easings.net/#
+
+[/EXCERPT:BlendOut]

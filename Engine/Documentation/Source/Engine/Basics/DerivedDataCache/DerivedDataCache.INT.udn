@@ -11,28 +11,18 @@ tags:Programming
 
 The **Derived Data Cache** (DDC) stores versions of Assets in the formats used by the Unreal Engine on its target platforms, as opposed to the source formats artists create that are imported into the Editor and stored in `.uasset` files. Content stored in the DDC is disposable in that it can always be regenerated at any time using the data stored in the `.uasset` file. Storing these derived formats externally makes it possible to easily add or change the formats used by the engine without needing to modify the source asset file.
 
-
-
-
-
-
 ## Using a Shared DDC
 
 Studios should use a shared DDC that all users in a particular location can access. This way, only one person needs to build the derived Asset format(s) and they will be automatically available to all other users. There will occasionally be stalls when Assets need to be processed, but the results are stored and shared. Even on a fairly small team sharing Asset processing work in this way will eliminate most processing time.
 
+[REGION:warning]
+It is not advised to copy an entire DDC across the Internet, back up your DDC, or restore a DDC from a backup. This will not do any harm, but it is a waste of time, as it takes longer to transfer the amount of data stored in the DDC than it would to simply generate it from scratch locally.
+[/REGION]
 
+To set up a shared DDC, override the paths for the `[InstalledDerivedDataBackendGraph]` or `[DerivedDataBackendGraph]` (depending on whether you use the binary install from the Epic Games Launcher or compile from source) by declaring the following section in your game's `DefaultEngine.ini` file. This section is originally declared in the `BaseEngine.ini` where the paths are set to Epic's internal DDC share. Re-declare the section and change the paths to point to a share on your network.
 
-
-[REGION:warning]It is not advised to copy an entire DDC across the Internet, back up your DDC, or restore a DDC from a backup. This will not do any harm, but it is a waste of time, as it takes longer to transfer the amount of data stored in the DDC than it would to simply generate it from scratch locally.[/REGION]
-
-
-
-
-
-To set up a shared DDC, override the paths for the `[InstalledDerivedDataBackendGraph]` or `[DerivedDataBackendGraph]` (depending on whether you use the binary install from the Epic Games Launcher or compile from source) by declaring the following section in your game's `DefaultEngine.ini` file. This section is originally declared in the `BaseEngine.ini` where the paths are set to Epic's internal DDC share. Re-declare the section and change the paths to point to a share on your network (e.g. `Path=\\mystudio.net\DDC`):
-
-
-
+* For Windows: (`Path=\\mystudio.net\DDC`)
+* For Mac: (`Path=/Volumes/UE4DDC`)
 
 %Globals:BinarySourceSelectVar%
 
@@ -84,19 +74,13 @@ To set up a shared DDC, override the paths for the `[InstalledDerivedDataBackend
     [/PARAM]
 [/OBJECT]
 
-
-
 Satellite studios working out of a single shared code base can set the `UE-SharedDataCachePath` environment variable to a path that all users at each location can read and write to. This allows each location to have its own shared DDC.
-
-
 
 For example:
 
     UE-SharedDataCachePath=\\mystudio.net\DDC
 
 ## Using a Local DDC
-
-
 
 Lone developers or developers working remotely generally just use a local DDC. To tell the engine not to use a shared DDC, use one of the methods below:
 
@@ -121,14 +105,13 @@ windows
 The user who imports the Asset is the one who builds the derived data since they will most likely be using and testing that Asset in the Engine. However, there may be occasions when a new Asset needs to be processed. This happens automatically on an as-needed basis and should not result in much of an impact when running on fast hardware, though there may be occasional stalls.
 
 
-
- 
-
 You can fill your DDCs at any time by running the following command:
  
     UE4\Engine\Binaries\Win64\UE4Editor.exe ProjectName -run=DerivedDataCache -fill
 
+[REGION:tip]
 Epic Games does this on a nightly basis to ensure that the DDC is always primed, but it is not necessary as the general automatic caching feature should suffice.
+[/REGION]
 
 [/PARAM]
 [/OBJECT]
@@ -146,9 +129,6 @@ mac
 The user who imports the Asset is the one who builds the derived data since they will most likely be using and testing that Asset in the Engine. However, there may be occasions when a new Asset needs to be processed. This happens automatically on an as-needed basis and should not result in much of an impact when running fast hardware, though there may be occasional stalls.
 
 
-
- 
-
 You can fill your DDCs at any time by running the following command:
  
     open -a "ProjectName.app" --args -run=DerivedDataCache -fill
@@ -157,6 +137,12 @@ Epic Games does this on a nightly basis to ensure that the DDC is always primed,
 
 [/PARAM]
 [/OBJECT]
+
+## Mounting Your DDC Folder
+
+For the DDC to be used over your internal network, the folder which contains the DDC must be mounted to a Network drive. If you are unfamiliar with how to do this, check out the following link for more information:
+
+*[Map A Network Drive on Windows](https://support.microsoft.com/en-us/help/4026635/windows-map-a-network-drive)
 
 
 ## Distributing with a DDC
@@ -173,7 +159,6 @@ windows
 [/PARAMLITERAL]
 [PARAM:content]
 Cooking is the preferred method for packaging games since cooked builds do not need (or use) a DDC. However, DDCs can be packaged for distribution if the need arises.
-
 
 **To package a DDC:**
  
@@ -198,7 +183,6 @@ mac
 [/PARAMLITERAL]
 [PARAM:content]
 Cooking is the preferred method for packaging games since cooked builds do not need (or use) a DDC. However, DDCs can be packaged for distribution if the need arises.
-
 
 **To package a DDC:**
  

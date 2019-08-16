@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4300247
+﻿INTSourceChangelist:6429227
 Availability: Public
 title:材质表达式参考
 Crumbs: %ROOT%, Engine, Engine/Rendering/Materials
@@ -9,35 +9,30 @@ order:9
 topic-image:exp_ref_topic.png
 type:overview
 tags:Materials
+hero-image:compendium.png
 
-[REGION:banner]
-![Materials Compendium](compendium.png)
-[/REGION]
 
 [TOC (start:2 end:3)]
 
 
 此页面是材质编辑器中可用的所有材质表达式节点的参考。材质编辑器即是构建块，用于在虚幻引擎4中构建完整功能材质。每个材质表达式都是一个自含式黑盒，输出一套一个或多个特定值；或是在一个或多个输入上执行单个运算，然后输出运算的结果。
 
-(#parameters)
 ## 参数
 
 部分材质表达式是参数，意味着其值可在包含参数的基础材质的材质实例中进行修改（部分情况下是在运行时动态进行）。应通过 **参数命名** 属性为这些表达式赋予特殊命名，以便在识别材质实例中的特定参数时使用。如两个相同类型的参数在相同材质中拥有相同命名，其将被假定为相同的参数。修改材质实例中的参数值的同时将修改材质中两个参数表达式的值。参数的默认值也将在基础材质中进行设置。这将是材质实例中参数的值，除非其被覆盖和修改。
 
-(#materialexpressions)
 ## 材质表达式
 
 ![](materialexpression.png)
 
 
-1. **描述** - 所有材质表达式均拥有一个通用的 **Desc**属性。在此属性中输入的文本将显示在材质编辑器中工作区表达式的上方。其用途广泛，主要作用是简单介绍表达式的作用或函数。
+1. **描述** - 所有材质表达式均拥有一个通用的 **Desc** 属性。在此属性中输入的文本将显示在材质编辑器中工作区表达式的上方。其用途广泛，主要作用是简单介绍表达式的作用或函数。
 1. **标题栏**——显示材质表达式属性的命名和/或相关信息。
 1. **输入**——接收材质表达式所用值的链接。
 1. **预览**——显示材质表达式所输出值的预览。实时更新启用时自动进行更新。可使用空格键手动更新。
 1. **输出**——输出材质表达式运算结果的链接。
 
 
-(#expressiontypes)
 ### 表达式类型
 
 
@@ -251,7 +246,6 @@ tags:Materials
 
 [/REGION]
 
-(#expressionindex)
 ## 表达式索引
 
 此列表的用途是便于使用者对此页面进行标记。使用 **Ctrl+F** 查找所需的表达式节点，并跟随链接到其描述。 
@@ -318,7 +312,7 @@ tags:Materials
 
 [**自定义**](Engine/Rendering/Materials\ExpressionReference\Custom)
 [REGION:indentedlist]
-* [自定义](Engine/Rendering/Materials\ExpressionReference\Custom#Custom)
+* [自定义](Engine/Rendering/Materials\ExpressionReference\Custom)
 [/REGION]
 
 

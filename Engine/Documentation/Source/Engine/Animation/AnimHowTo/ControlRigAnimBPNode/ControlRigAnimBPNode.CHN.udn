@@ -1,0 +1,112 @@
+﻿INTSourceChangelist:5531919
+Availability: Public
+Crumbs: 
+Title: Control Rig动画蓝图节点
+Description:描述如何使用Control Rig动画蓝图节点将Control Rig内容包含在动画蓝图中，以便进行混合或直接在动画中使用Rig内容。 
+Type: how-to
+Version: 4.21
+Parent: Engine/Animation/AnimHowTo
+Order: 
+SkillLevel:Advanced
+Tags: Animation Blueprints
+Tags: Experimental
+Tags: Rigging
+Tags: control rig list
+topic-image:ControlRigAnimBPTopic.png
+
+
+创建一个[Control Rig蓝图](Engine/Animation/ControlRig/Blueprint)后，可使用[动画蓝图](Engine/Animation/AnimBlueprints)AnimGraph中的Control Rig节点来增大Control Rig蓝图中提供内容的动画数据。这能帮助使用者完成诸如以下此类任务：将动画数据与Control Rig蓝图的内容混合，或将Control Rig蓝图的内容放置在现有动画数据之上。
+
+下例展示了如何使用Control Rig蓝图来指示一个关节瞄准并跟随另一个关节。Control Rig创建后，即可使用Control Rig节点并将Control Rig内容合并到正在播放动画的一个现有动画蓝图中。
+
+[OBJECT:EmbeddedVideo]
+	[PARAMLITERAL:width]
+	640
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	360
+	[/PARAMLITERAL]
+	[PARAMLITERAL:videoid]
+	fhrbYhjUF80
+	[/PARAMLITERAL]
+[/OBJECT]
+
+(#steps)
+
+## 步骤
+
+此范例中使用的是全新的 **蓝图第三人称模板** 项目。 
+
+1.  在项目中[启用Control Rig插件](Engine/Animation/ControlRig)后点击 **新增（Add New）** 按钮并在 **动画（Animation）** 中选择 **Control Rig**。   
+    ![](1_CRNode.png "1_CRNode.png")
+
+1.  将 **ControlRig** 选为父Rig，然后点击 **创建（Create）** 并为其赋予任意命名。    
+    ![](2_CRNode.png "2_CRNode.png")  
+    
+1.  在Control Rig蓝图中右键点击 **层级（Hierarchy）** 选项卡，然后在“导入（Import）”下指定 **SK_Mannequin**。   
+    ![](3_CRNode.png "3_CRNode.png")
+    
+1.  在 **预览场景设置（Preview Scene Settings）** 选项卡中，将 **SK_Mannequin** 指定为 **预览网格体（Preview Mesh）**。   
+    ![](4_CRNode.png "4_CRNode.png")
+    
+1.  编译Control Rig蓝图。   
+    ![](5_CRNode.png "5_CRNode.png")
+    
+1.  在图表中点击右键并创建一个 **Rig Hierarchy Ref** 变量。   
+    ![](6_CRNode.png "6_CRNode.png")
+    
+1.  在 **Rig Hierarchy Ref** 的 **细节（Details）** 面板中将 **变量名（Variable Name）** 改为 **Base_Hierarchy**。   
+    ![](7_CRNode.png "7_CRNode.png")  
+    这将创建一个对层级的引用，通常建议将其重设为表述更清楚的命名，例如“Base Hierarchy”。  
+    
+1.  在输出引脚后使用 **Get Joint Transform** 节点，**Joint** 设为 **hand_r**、**Type** 设为 **Current**。  
+    ![](8_CRNode.png "8_CRNode.png")  
+    这将成为要瞄准的目标关节，我们将获取此关节当前的变换值。  
+    
+1.  在图表中点击右键并添加一个 **Aim Constraint** 节点。  
+    ![](9_CRNode.png "9_CRNode.png")  
+    
+1.  编译蓝图。
+
+1.  用以下设置将 **Base_Hierarchy** 和 **Get Joint Transform** 节点如下所示连接到 **Aim Constraint**：  
+    ![](10_CRNode.png "10_CRNode.png") 
+    **Joint** = **head**  
+    **Aim Vector Y** = **1.0**  
+    **Aim Target Weight** = **1.0** 
+    我们在此指示头部关节沿Y轴瞄准右手的变换。  
+    
+1.  在 **内容浏览器** 中 **内容（Content） > 人体模型（Mannequin） > 角色（Character） > 网格体（Mesh）**，右键点击 **UE4\_Mannequin\_Skeleton** 并选择 **创建（Create） > 动画蓝图（Anim Blueprint）**，并为其赋予任意命名。  
+    ![](11_CRNode.png "11_CRNode.png")  
+    
+1.  在动画蓝图的AnimGraph中将一个 **Control Rig** 节点（已指定 **Control Rig类**）连接到 **Final Animation Pose**。  
+    ![](12_CRNode.png "12_CRNode.png")
+
+1.  添加并连接 **ThirdPersonIdle** 动画到 **Control Rig**，然后编译。  
+    ![](13_CRNode.png "13_CRNode.png")  
+    角色将进入待机状态，并看向右手边。右手移动时，角色将自动移动头瞄准（看向）右手。将一个Transform Modify Bone节点添加到图表便可进行进一步测试，以便在视口中进行操纵。  
+    
+1.  在 **Control Rig** 和 **Play ThirdPersonIdle** 动画之间添加一个 **Transform Modify Bone** 节点（将自动创建转换节点）。  
+    ![](14_CRNode.png "14_CRNode.png")
+
+1.  在 **Transform Modify Bone** 的 **细节（Details）** 面板中将 **Bone to Modify** 设为 **upperarm_r**、**Rotation Mode** 设为 **Add to Existing**。  
+    ![](15_CRNode.png "15_CRNode.png")
+
+1.  编译动画蓝图。
+
+(#endresult)
+
+## 最终结果
+
+现在可以在视口中旋转右臂，头部将跟随手部的位置。也可修改不同动画或调整旋转空间（Rotation Space）来实现不同结果。
+
+[OBJECT:EmbeddedVideo]
+	[PARAMLITERAL:width]
+	640
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	360
+	[/PARAMLITERAL]
+	[PARAMLITERAL:videoid]
+	fhrbYhjUF80
+	[/PARAMLITERAL]
+[/OBJECT]

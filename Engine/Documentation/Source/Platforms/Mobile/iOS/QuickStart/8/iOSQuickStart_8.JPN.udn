@@ -1,0 +1,147 @@
+﻿INTSourceChangelist:3782314
+Title:8.ゲームをパッケージ化する
+Crumbs:%ROOT%, Platforms, Platforms/Mobile/iOS, Platforms/Mobile/iOS/QuickStart
+Description:ゲームをパッケージ化して iOS デバイスにインストールする方法
+Availability:Public
+Version:4.18
+SkillLevel:Intermediate
+Checkpoint:iOSQS
+order:8
+
+[VAR:Steps]
+[OBJECT:Navigation]
+    [PARAM:previous]
+        [前のステップ](Platforms/Mobile/iOS/QuickStart/7 "%Platforms/Mobile/iOS/QuickStart/7:title%")
+    [/PARAM]
+    [PARAM:current]
+    [/PARAM]
+    [PARAM:home]
+        [クイック スタートのホーム](Platforms/Mobile/iOS/QuickStart)
+    [/PARAM]
+    [PARAM:next]
+        [次のステップ](Platforms/Mobile/iOS/QuickStart/9 "%Platforms/Mobile/iOS/QuickStart/9:title%")
+    [/PARAM]
+[/OBJECT]
+[/VAR]
+
+
+%Steps%
+
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    windows
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+    %windows%
+    [/PARAM]
+[/OBJECT]
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    mac
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    %macos%
+    [/PARAM]
+[/OBJECT]
+
+
+
+
+[VAR:windows]
+
+%Globals:OSSelect%
+## ステップ
+
+次のセクションでは、UE4 エディタなしでインストール可能な UE4 プロジェクトの **.IPA** の作成方法を説明します。
+
+1. まだ接続していない場合は、デバイスをコンピューターに接続してください。
+
+1. アンリアル エディタでプロジェクトを開きます。
+
+    ![](Platforms/Mobile/iOS\QuickStart\7\open_project.png)
+
+1. **[File (ファイル)]** メニューから **[Package Project (プロジェクトをパッケージ)] > [iOS]** の順に選択します。
+
+    ![](package_menu.png)
+
+1. ディレクトリ ダイアログで `.ipa` ファイルの保存場所を選択します。
+
+1. ゲームのパッケージ化処理中に、パッケージ化に関するメッセージが右下隅に表示されます。
+    
+    ![](project_package.png)
+
+1. プロジェクトが正常にパッケージ化されるとメッセージが表示されます。
+
+    ![](package_complete.png)
+
+## 最終結果
+
+以上の設定を完了すると、iOS デバイスへデプロイ可能な状態の .IPA が出来上がります。
+
+![](app_Install_xCode_6.png)
+
+
+[/VAR]
+
+[VAR:macos]
+
+%Globals:OSSelect%
+## ステップ
+
+次のセクションでは、UE4 エディタなしでインストール可能な UE4 プロジェクトの **.IPA** の作成方法を説明します。
+
+1. まだ接続していない場合は、デバイスをコンピューターに接続してください。
+
+1. アンリアル エディタでプロジェクトを開きます。
+
+    ![](Platforms/Mobile/iOS\QuickStart\7\open_project.png)
+
+1. **[File (ファイル)]** メニューから **[Package Project (プロジェクトをパッケージ)] > [iOS]** の順に選択します。
+
+    ![](package_menu.png)
+
+1. ディレクトリ ダイアログで、プロジェクトのディレクトリを選択します。そこがパッケージ化したプロジェクト (`.ipa` ファイル) が置かれる場所になります。
+
+1. ゲームのパッケージ化処理中に、パッケージ化に関するメッセージが右下隅に表示されます。
+    
+    ![](project_package.png)
+
+1. プロジェクトが正常にパッケージ化されるとメッセージが表示されます。
+
+    ![](package_complete.png)
+
+1. xCode から **[Window]** へ行き、 **[Devices and Simulators]** をします。
+
+	![](app_Install_xCode_1.png)
+
+1. **[Devices]** セクションの **[プラス]** 記号を押すと、アプリケーションのインストール処理が開始します。
+
+	![](app_Install_xCode_2.png)
+
+1. UE4 が作成した **.ipa** ファイルを探して選択して、**[Open]** ボタンを押すとインストール処理が開始します。
+
+	![](app_Install_xCode_3.png)
+
+1. インストールの進捗はデバイスウィンドウの上部に表示されます。
+
+## 最終結果
+
+完了すると ipa が iOS デバイスに追加されます。
+
+![](app_Install_xCode_5.png)
+
+
+[/VAR]
+%Steps%

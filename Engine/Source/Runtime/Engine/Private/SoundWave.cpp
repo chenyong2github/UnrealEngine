@@ -31,11 +31,19 @@
 
 #include "Misc/CommandLine.h"
 
-static int32 BypassVirtualizeWhenSilentCVar = 0;
-FAutoConsoleVariableRef CVarBypassVirtualizeWhenSilent(
-	TEXT("au.BypassVirtualizeWhenSilent"),
-	BypassVirtualizeWhenSilentCVar,
+static int32 BypassPlayWhenSilentCVar = 0;
+FAutoConsoleVariableRef CVarBypassPlayWhenSilent(
+	TEXT("au.BypassPlayWhenSilent"),
+	BypassPlayWhenSilentCVar,
 	TEXT("When set to 1, ignores the Play When Silent flag for non-procedural sources.\n")
+	TEXT("0: Honor the Play When Silent flag, 1: stop all silent non-procedural sources."),
+	ECVF_Default);
+
+static int32 LoadIntoCacheOnPostLoadCVar = 0;
+FAutoConsoleVariableRef CVarLoadIntoCacheOnPostLoad(
+	TEXT("au.streamcache.LoadIntoCacheOnPostLoad"),
+	LoadIntoCacheOnPostLoadCVar,
+	TEXT("When set to 1, immediately loads any sounds that are loaded into the cache on load.\n")
 	TEXT("0: Honor the Play When Silent flag, 1: stop all silent non-procedural sources."),
 	ECVF_Default);
 
@@ -141,6 +149,8 @@ uint32 FStreamedAudioChunk::StoreInDerivedDataCache(const FString& InDerivedData
 	TArray<uint8> DerivedData;
 	FMemoryWriter Ar(DerivedData, /*bIsPersistent=*/ true);
 	Ar << BulkDataSizeInBytes;
+	Ar << AudioDataSize;
+
 	{
 		void* BulkChunkData = BulkData.Lock(LOCK_READ_ONLY);
 		Ar.Serialize(BulkChunkData, BulkDataSizeInBytes);
@@ -166,12 +176,13 @@ USoundWave::USoundWave(const FObjectInitializer& ObjectInitializer)
 	RawPCMDataSize = 0;
 	SetPrecacheState(ESoundWavePrecacheState::NotStarted);
 
-#if WITH_EDITORONLY_DATA
-	FFTSize = ESoundWaveFFTSize::Medium_512;
 	FrequenciesToAnalyze.Add(100.0f);
 	FrequenciesToAnalyze.Add(500.0f);
 	FrequenciesToAnalyze.Add(1000.0f);
 	FrequenciesToAnalyze.Add(5000.0f);
+
+#if WITH_EDITORONLY_DATA
+	FFTSize = ESoundWaveFFTSize::Medium_512;
 	FFTAnalysisFrameSize = 1024;
 	FFTAnalysisAttackTime = 10;
 	FFTAnalysisReleaseTime = 3000;
@@ -298,10 +309,16 @@ void USoundWave::Serialize( FArchive& Ar )
 
 	bool bShouldStreamSound = false;
 
+#if WITH_EDITORONLY_DATA
+		if (bVirtualizeWhenSilent_DEPRECATED)
+		{
+			bVirtualizeWhenSilent_DEPRECATED = 0;
+			VirtualizationMode = EVirtualizationMode::PlayWhenSilent;
+		}
+#endif // WITH_EDITORONLY_DATA
+
 	if (Ar.IsSaving() || Ar.IsCooking())
 	{
-		bHasVirtualizeWhenSilent = bVirtualizeWhenSilent;
-
 #if WITH_ENGINE
 		// If there is an AutoStreamingThreshold set for the platform we're cooking to,
 		// we use it to determine whether this USoundWave should be streaming:
@@ -445,9 +462,9 @@ float USoundWave::GetSubtitlePriority() const
 	return SubtitlePriority;
 };
 
-bool USoundWave::IsAllowedVirtual() const
+bool USoundWave::SupportsSubtitles() const
 {
-	return bVirtualizeWhenSilent || (Subtitles.Num() > 0);
+	return VirtualizationMode == EVirtualizationMode::PlayWhenSilent || (Subtitles.Num() > 0);
 }
 
 void USoundWave::PostInitProperties()
@@ -693,8 +710,6 @@ void USoundWave::PostLoad()
 		return;
 	}
 
-	bHasVirtualizeWhenSilent = bVirtualizeWhenSilent;
-
 #if WITH_EDITORONLY_DATA
 	// Log a warning after loading if the source has effect chains but has channels greater than 2.
 	if (SourceEffectChain && SourceEffectChain->Chain.Num() > 0 && NumChannels > 2)
@@ -709,7 +724,7 @@ void USoundWave::PostLoad()
 		return;
 	}
 
-	// In case any code accesses bStreaming directly, we update it based on the current platform's cook overrides.
+	// In case any code accesses bStreaming directly, we fix up bStreaming based on the current platform's cook overrides.
 	bStreaming = IsStreaming();
 
 	// Compress to whatever formats the active target platforms want
@@ -724,6 +739,8 @@ void USoundWave::PostLoad()
 			BeginGetCompressedData(Platforms[Index]->GetWaveFormat(this), Platforms[Index]->GetAudioCompressionSettings());
 		}
 	}
+
+	
 
 	// We don't precache default objects and we don't precache in the Editor as the latter will
 	// most likely cause us to run out of memory.
@@ -751,6 +768,19 @@ void USoundWave::PostLoad()
 		IStreamingManager::Get().GetAudioStreamingManager().AddStreamingSoundWave(this);
 	}
 
+	if (ShouldUseStreamCaching() && IsStreaming())
+	{
+		EnsureZerothChunkIsLoaded();
+	}
+
+	const bool bShouldPrimeSound = LoadIntoCacheOnPostLoadCVar || bLoadCompressedAudioWhenSoundWaveIsLoaded;
+
+	if (bShouldPrimeSound && FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching())
+	{
+		// Load rest of the audio into cache.
+		IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(this, 1, [](EAudioChunkLoadResult) {});
+	}
+
 #if WITH_EDITORONLY_DATA
 	if (!SourceFilePath_DEPRECATED.IsEmpty() && AssetImportData)
 	{
@@ -764,6 +794,73 @@ void USoundWave::PostLoad()
 
 	INC_FLOAT_STAT_BY( STAT_AudioBufferTime, Duration );
 	INC_FLOAT_STAT_BY( STAT_AudioBufferTimeChannels, NumChannels * Duration );
+}
+
+void USoundWave::EnsureZerothChunkIsLoaded()
+{
+	// If the zeroth chunk is already loaded, early exit.
+	if (ZerothChunkData.Num() > 0 || !ShouldUseStreamCaching())
+	{
+		return;
+	}
+
+#if WITH_EDITOR 
+	if (RunningPlatformData == nullptr)
+	{
+		CachePlatformData(false);
+	}
+
+	// If we're running the editor, we'll need to retrieve the chunked audio from the DDC:
+	uint8* TempChunkBuffer = nullptr;
+	int32 ChunkSizeInBytes = RunningPlatformData->GetChunkFromDDC(0, &TempChunkBuffer, true);
+	// Since we block for the DDC in the previous call we should always have the chunk loaded.
+	check(ChunkSizeInBytes > 0);
+
+	// TODO: Support passing a TArray by ref into FStreamedAudioPlatformData::GetChunkFromDDC.
+	// Currently not feasible unless FUntypedBulkData::GetCopy API was changed.
+	// For now in editor, we have an extra allocated buffer in this scope.
+	ZerothChunkData.Reset();
+	ZerothChunkData.AddUninitialized(ChunkSizeInBytes);
+	FMemory::Memcpy(ZerothChunkData.GetData(), TempChunkBuffer, ChunkSizeInBytes);
+	FMemory::Free(TempChunkBuffer);
+#else // WITH_EDITOR
+	// Otherwise, the zeroth chunk is cooked out to RunningPlatformData, and we just need to retrieve it.
+	check(RunningPlatformData && RunningPlatformData->Chunks.Num() > 0);
+	FStreamedAudioChunk& ZerothChunk = RunningPlatformData->Chunks[0];
+	// Some sanity checks to ensure that the bulk size set up
+	check(ZerothChunk.BulkData.GetBulkDataSize() == ZerothChunk.DataSize && ZerothChunk.DataSize >= ZerothChunk.AudioDataSize);
+
+	ZerothChunkData.Reset();
+	ZerothChunkData.AddUninitialized(ZerothChunk.AudioDataSize);
+	uint8* Destination = ZerothChunkData.GetData();
+	ZerothChunk.BulkData.GetCopy((void**)&Destination, true);
+#endif // WITH_EDITOR
+}
+
+uint32 USoundWave::GetNumChunks() const
+{
+	if (RunningPlatformData)
+	{
+		return RunningPlatformData->Chunks.Num();
+	}
+	else
+	{
+		return 0;
+	}
+}
+
+uint32 USoundWave::GetSizeOfChunk(uint32 ChunkIndex)
+{
+	check(ChunkIndex < GetNumChunks());
+
+	if(RunningPlatformData)
+	{
+		return RunningPlatformData->Chunks[ChunkIndex].AudioDataSize;
+	}
+	else
+	{
+		return 0;
+	}
 }
 
 void USoundWave::BeginDestroy()
@@ -858,7 +955,7 @@ void USoundWave::RemoveAudioResource()
 	delete OwnedBulkDataPtr;
 	OwnedBulkDataPtr = nullptr;
 	ResourceData = nullptr;
-		ResourceSize = 0;
+	ResourceSize = 0;
 #endif
 }
 
@@ -1341,12 +1438,12 @@ void USoundWave::FreeResources()
 	ResourceID = 0;
 	bDynamicResource = false;
 	DecompressionType = DTYPE_Setup;
+	SetPrecacheState(ESoundWavePrecacheState::NotStarted);
 	bDecompressedFromOgg = false;
 
-	USoundWave* SoundWave = this;
-	if (SoundWave->ResourceState == ESoundWaveResourceState::Freeing)
+	if (ResourceState == ESoundWaveResourceState::Freeing)
 	{
-		SoundWave->ResourceState = ESoundWaveResourceState::Freed;
+		ResourceState = ESoundWaveResourceState::Freed;
 	}
 }
 
@@ -1380,12 +1477,10 @@ bool USoundWave::CleanupDecompressor(bool bForceWait)
 	return false;
 }
 
-FWaveInstance* USoundWave::HandleStart( FActiveSound& ActiveSound, const UPTRINT WaveInstanceHash ) const
+FWaveInstance& USoundWave::HandleStart( FActiveSound& ActiveSound, const UPTRINT WaveInstanceHash ) const
 {
 	// Create a new wave instance and associate with the ActiveSound
-	FWaveInstance* WaveInstance = new FWaveInstance( &ActiveSound );
-	WaveInstance->WaveInstanceHash = WaveInstanceHash;
-	ActiveSound.WaveInstances.Add( WaveInstanceHash, WaveInstance );
+	FWaveInstance& WaveInstance = ActiveSound.AddWaveInstance(WaveInstanceHash);
 
 	// Add in the subtitle if they exist
 	if (ActiveSound.bHandleSubtitles && Subtitles.Num() > 0)
@@ -1394,7 +1489,7 @@ FWaveInstance* USoundWave::HandleStart( FActiveSound& ActiveSound, const UPTRINT
 		{
 			QueueSubtitleParams.AudioComponentID = ActiveSound.GetAudioComponentID();
 			QueueSubtitleParams.WorldPtr = ActiveSound.GetWeakWorld();
-			QueueSubtitleParams.WaveInstance = (PTRINT)WaveInstance;
+			QueueSubtitleParams.WaveInstance = (PTRINT)&WaveInstance;
 			QueueSubtitleParams.SubtitlePriority = ActiveSound.SubtitlePriority;
 			QueueSubtitleParams.Duration = Duration;
 			QueueSubtitleParams.bManualWordWrap = bManualWordWrap;
@@ -1449,19 +1544,21 @@ void USoundWave::FinishDestroy()
 	IStreamingManager::Get().GetAudioStreamingManager().RemoveStreamingSoundWave(this);
 }
 
-void USoundWave::Parse( FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound, const FSoundParseParameters& ParseParams, TArray<FWaveInstance*>& WaveInstances )
+void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound, const FSoundParseParameters& ParseParams, TArray<FWaveInstance*>& WaveInstances)
 {
 	FWaveInstance* WaveInstance = ActiveSound.FindWaveInstance(NodeWaveInstanceHash);
 
+	const bool bIsNewWave = WaveInstance == nullptr;
+
 	// Create a new WaveInstance if this SoundWave doesn't already have one associated with it.
-	if( WaveInstance == NULL )
+	if(!WaveInstance)
 	{
-		if( !ActiveSound.bRadioFilterSelected )
+		if (!ActiveSound.bRadioFilterSelected)
 		{
 			ActiveSound.ApplyRadioFilter(ParseParams);
 		}
 
-		WaveInstance = HandleStart( ActiveSound, NodeWaveInstanceHash);
+		WaveInstance = &HandleStart(ActiveSound, NodeWaveInstanceHash);
 	}
 
 	// Looping sounds are never actually finished
@@ -1469,7 +1566,7 @@ void USoundWave::Parse( FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanc
 	{
 		WaveInstance->bIsFinished = false;
 #if !(NO_LOGGING || UE_BUILD_SHIPPING || UE_BUILD_TEST)
-		if (!ActiveSound.bWarnedAboutOrphanedLooping && ActiveSound.GetAudioComponentID() == 0)
+		if (!ActiveSound.bWarnedAboutOrphanedLooping && ActiveSound.GetAudioComponentID() == 0 && ActiveSound.FadeOut == FActiveSound::EFadeOut::None)
 		{
 			UE_LOG(LogAudio, Warning, TEXT("Detected orphaned looping sound '%s'."), *ActiveSound.GetSound()->GetName());
 			ActiveSound.bWarnedAboutOrphanedLooping = true;
@@ -1477,218 +1574,229 @@ void USoundWave::Parse( FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanc
 #endif
 	}
 
-	// Check for finished paths.
-	if( !WaveInstance->bIsFinished )
+	// Early out if finished.
+	if (WaveInstance->bIsFinished)
 	{
-		// Propagate properties and add WaveInstance to outgoing array of FWaveInstances.
-		WaveInstance->SetVolume(ParseParams.Volume * Volume);
-		WaveInstance->SetVolumeMultiplier(ParseParams.VolumeMultiplier);
-		WaveInstance->SetDistanceAttenuation(ParseParams.DistanceAttenuation);
-		WaveInstance->SetVolumeApp(ParseParams.VolumeApp);
-		WaveInstance->Pitch = ParseParams.Pitch * Pitch;
-		WaveInstance->bEnableLowPassFilter = ParseParams.bEnableLowPassFilter;
-		WaveInstance->bIsOccluded = ParseParams.bIsOccluded;
-		WaveInstance->LowPassFilterFrequency = ParseParams.LowPassFilterFrequency;
-		WaveInstance->OcclusionFilterFrequency = ParseParams.OcclusionFilterFrequency;
-		WaveInstance->AttenuationLowpassFilterFrequency = ParseParams.AttenuationLowpassFilterFrequency;
-		WaveInstance->AttenuationHighpassFilterFrequency = ParseParams.AttenuationHighpassFilterFrequency;
-		WaveInstance->AmbientZoneFilterFrequency = ParseParams.AmbientZoneFilterFrequency;
-		WaveInstance->bApplyRadioFilter = ActiveSound.bApplyRadioFilter;
-		WaveInstance->StartTime = ParseParams.StartTime;
-		WaveInstance->UserIndex = ActiveSound.UserIndex;
-		WaveInstance->OmniRadius = ParseParams.OmniRadius;
-		WaveInstance->StereoSpread = ParseParams.StereoSpread;
-		WaveInstance->AttenuationDistance = ParseParams.AttenuationDistance;
-		WaveInstance->ListenerToSoundDistance = ParseParams.ListenerToSoundDistance;
-		WaveInstance->ListenerToSoundDistanceForPanning = ParseParams.ListenerToSoundDistanceForPanning;
-		WaveInstance->AbsoluteAzimuth = ParseParams.AbsoluteAzimuth;
+		return;
+	}
 
-		if (NumChannels <= 2)
+	// Propagate properties and add WaveInstance to outgoing array of FWaveInstances.
+	WaveInstance->SetVolume(ParseParams.Volume * Volume);
+	WaveInstance->SetVolumeMultiplier(ParseParams.VolumeMultiplier);
+	WaveInstance->SetDistanceAttenuation(ParseParams.DistanceAttenuation);
+	WaveInstance->SetPitch(ParseParams.Pitch * Pitch);
+	WaveInstance->bEnableLowPassFilter = ParseParams.bEnableLowPassFilter;
+	WaveInstance->bIsOccluded = ParseParams.bIsOccluded;
+	WaveInstance->LowPassFilterFrequency = ParseParams.LowPassFilterFrequency;
+	WaveInstance->OcclusionFilterFrequency = ParseParams.OcclusionFilterFrequency;
+	WaveInstance->AttenuationLowpassFilterFrequency = ParseParams.AttenuationLowpassFilterFrequency;
+	WaveInstance->AttenuationHighpassFilterFrequency = ParseParams.AttenuationHighpassFilterFrequency;
+	WaveInstance->AmbientZoneFilterFrequency = ParseParams.AmbientZoneFilterFrequency;
+	WaveInstance->bApplyRadioFilter = ActiveSound.bApplyRadioFilter;
+	WaveInstance->StartTime = ParseParams.StartTime;
+	WaveInstance->UserIndex = ActiveSound.UserIndex;
+	WaveInstance->OmniRadius = ParseParams.OmniRadius;
+	WaveInstance->StereoSpread = ParseParams.StereoSpread;
+	WaveInstance->AttenuationDistance = ParseParams.AttenuationDistance;
+	WaveInstance->ListenerToSoundDistance = ParseParams.ListenerToSoundDistance;
+	WaveInstance->ListenerToSoundDistanceForPanning = ParseParams.ListenerToSoundDistanceForPanning;
+	WaveInstance->AbsoluteAzimuth = ParseParams.AbsoluteAzimuth;
+
+	if (NumChannels <= 2)
+	{
+		WaveInstance->SourceEffectChain = ParseParams.SourceEffectChain;
+	}
+
+	bool bAlwaysPlay = false;
+
+	// Properties from the sound class
+	WaveInstance->SoundClass = ParseParams.SoundClass;
+	if (ParseParams.SoundClass)
+	{
+		FSoundClassProperties* SoundClassProperties = AudioDevice->GetSoundClassCurrentProperties(ParseParams.SoundClass);
+		// Use values from "parsed/ propagated" sound class properties
+		float VolumeMultiplier = WaveInstance->GetVolumeMultiplier();
+		WaveInstance->SetVolumeMultiplier(VolumeMultiplier* SoundClassProperties->Volume);
+		WaveInstance->SetPitch(WaveInstance->Pitch * SoundClassProperties->Pitch);
+		//TODO: Add in HighFrequencyGainMultiplier property to sound classes
+
+		WaveInstance->VoiceCenterChannelVolume = SoundClassProperties->VoiceCenterChannelVolume;
+		WaveInstance->RadioFilterVolume = SoundClassProperties->RadioFilterVolume * ParseParams.VolumeMultiplier;
+		WaveInstance->RadioFilterVolumeThreshold = SoundClassProperties->RadioFilterVolumeThreshold * ParseParams.VolumeMultiplier;
+		WaveInstance->StereoBleed = SoundClassProperties->StereoBleed;
+		WaveInstance->LFEBleed = SoundClassProperties->LFEBleed;
+
+		WaveInstance->bIsUISound = ActiveSound.bIsUISound || SoundClassProperties->bIsUISound;
+		WaveInstance->bIsMusic = ActiveSound.bIsMusic || SoundClassProperties->bIsMusic;
+		WaveInstance->bCenterChannelOnly = ActiveSound.bCenterChannelOnly || SoundClassProperties->bCenterChannelOnly;
+		WaveInstance->bEQFilterApplied = ActiveSound.bEQFilterApplied || SoundClassProperties->bApplyEffects;
+		WaveInstance->bReverb = ActiveSound.bReverb || SoundClassProperties->bReverb;
+		WaveInstance->OutputTarget = SoundClassProperties->OutputTarget;
+
+		if (SoundClassProperties->bApplyAmbientVolumes)
 		{
-			WaveInstance->SourceEffectChain = ParseParams.SourceEffectChain;
+			VolumeMultiplier = WaveInstance->GetVolumeMultiplier();
+			WaveInstance->SetVolumeMultiplier(VolumeMultiplier * ParseParams.InteriorVolumeMultiplier);
+			WaveInstance->RadioFilterVolume *= ParseParams.InteriorVolumeMultiplier;
+			WaveInstance->RadioFilterVolumeThreshold *= ParseParams.InteriorVolumeMultiplier;
 		}
 
-		bool bAlwaysPlay = false;
+		bAlwaysPlay = ActiveSound.bAlwaysPlay || SoundClassProperties->bAlwaysPlay;
+	}
+	else
+	{
+		WaveInstance->VoiceCenterChannelVolume = 0.f;
+		WaveInstance->RadioFilterVolume = 0.f;
+		WaveInstance->RadioFilterVolumeThreshold = 0.f;
+		WaveInstance->StereoBleed = 0.f;
+		WaveInstance->LFEBleed = 0.f;
+		WaveInstance->bEQFilterApplied = ActiveSound.bEQFilterApplied;
+		WaveInstance->bIsUISound = ActiveSound.bIsUISound;
+		WaveInstance->bIsMusic = ActiveSound.bIsMusic;
+		WaveInstance->bReverb = ActiveSound.bReverb;
+		WaveInstance->bCenterChannelOnly = ActiveSound.bCenterChannelOnly;
 
-		// Properties from the sound class
-		WaveInstance->SoundClass = ParseParams.SoundClass;
-		if (ParseParams.SoundClass)
-		{
-			FSoundClassProperties* SoundClassProperties = AudioDevice->GetSoundClassCurrentProperties(ParseParams.SoundClass);
-			// Use values from "parsed/ propagated" sound class properties
-			float VolumeMultiplier = WaveInstance->GetVolumeMultiplier();
-			WaveInstance->SetVolumeMultiplier(VolumeMultiplier* SoundClassProperties->Volume);
-			WaveInstance->Pitch *= SoundClassProperties->Pitch;
-			//TODO: Add in HighFrequencyGainMultiplier property to sound classes
+		bAlwaysPlay = ActiveSound.bAlwaysPlay;
+	}
 
-			WaveInstance->VoiceCenterChannelVolume = SoundClassProperties->VoiceCenterChannelVolume;
-			WaveInstance->RadioFilterVolume = SoundClassProperties->RadioFilterVolume * ParseParams.VolumeMultiplier;
-			WaveInstance->RadioFilterVolumeThreshold = SoundClassProperties->RadioFilterVolumeThreshold * ParseParams.VolumeMultiplier;
-			WaveInstance->StereoBleed = SoundClassProperties->StereoBleed;
-			WaveInstance->LFEBleed = SoundClassProperties->LFEBleed;
+	// If set to bAlwaysPlay, increase the current sound's priority scale by 10x. This will still result in a possible 0-priority output if the sound has 0 actual volume
+	if (bAlwaysPlay)
+	{
+		WaveInstance->Priority = MAX_FLT;
+	}
+	else
+	{
+		WaveInstance->Priority = ParseParams.Priority;
+	}
 
-			WaveInstance->bIsUISound = ActiveSound.bIsUISound || SoundClassProperties->bIsUISound;
-			WaveInstance->bIsMusic = ActiveSound.bIsMusic || SoundClassProperties->bIsMusic;
-			WaveInstance->bCenterChannelOnly = ActiveSound.bCenterChannelOnly || SoundClassProperties->bCenterChannelOnly;
-			WaveInstance->bEQFilterApplied = ActiveSound.bEQFilterApplied || SoundClassProperties->bApplyEffects;
-			WaveInstance->bReverb = ActiveSound.bReverb || SoundClassProperties->bReverb;
-			WaveInstance->OutputTarget = SoundClassProperties->OutputTarget;
+	WaveInstance->Location = ParseParams.Transform.GetTranslation();
+	WaveInstance->bIsStarted = true;
+	WaveInstance->bAlreadyNotifiedHook = false;
+	WaveInstance->SetUseSpatialization(ParseParams.bUseSpatialization);
+	WaveInstance->SpatializationMethod = ParseParams.SpatializationMethod;
+	WaveInstance->WaveData = this;
+	WaveInstance->NotifyBufferFinishedHooks = ParseParams.NotifyBufferFinishedHooks;
+	WaveInstance->LoopingMode = ((bLooping || ParseParams.bLooping) ? LOOP_Forever : LOOP_Never);
+	WaveInstance->bIsPaused = ParseParams.bIsPaused;
 
-			if (SoundClassProperties->bApplyAmbientVolumes)
-			{
-				VolumeMultiplier = WaveInstance->GetVolumeMultiplier();
-				WaveInstance->SetVolumeMultiplier(VolumeMultiplier * ParseParams.InteriorVolumeMultiplier);
-				WaveInstance->RadioFilterVolume *= ParseParams.InteriorVolumeMultiplier;
-				WaveInstance->RadioFilterVolumeThreshold *= ParseParams.InteriorVolumeMultiplier;
-			}
+	// If we're normalizing 3d stereo spatialized sounds, we need to scale by -6 dB
+	if (WaveInstance->GetUseSpatialization() && ParseParams.bApplyNormalizationToStereoSounds && NumChannels == 2)
+	{
+		float WaveInstanceVolume = WaveInstance->GetVolume();
+		WaveInstance->SetVolume(WaveInstanceVolume * 0.5f);
+	}
 
-			bAlwaysPlay = ActiveSound.bAlwaysPlay || SoundClassProperties->bAlwaysPlay;
-		}
-		else
-		{
-			WaveInstance->VoiceCenterChannelVolume = 0.f;
-			WaveInstance->RadioFilterVolume = 0.f;
-			WaveInstance->RadioFilterVolumeThreshold = 0.f;
-			WaveInstance->StereoBleed = 0.f;
-			WaveInstance->LFEBleed = 0.f;
-			WaveInstance->bEQFilterApplied = ActiveSound.bEQFilterApplied;
-			WaveInstance->bIsUISound = ActiveSound.bIsUISound;
-			WaveInstance->bIsMusic = ActiveSound.bIsMusic;
-			WaveInstance->bReverb = ActiveSound.bReverb;
-			WaveInstance->bCenterChannelOnly = ActiveSound.bCenterChannelOnly;
+	// Copy reverb send settings
+	WaveInstance->ReverbSendMethod = ParseParams.ReverbSendMethod;
+	WaveInstance->ManualReverbSendLevel = ParseParams.ManualReverbSendLevel;
+	WaveInstance->CustomRevebSendCurve = ParseParams.CustomReverbSendCurve;
+	WaveInstance->ReverbSendLevelRange = ParseParams.ReverbSendLevelRange;
+	WaveInstance->ReverbSendLevelDistanceRange = ParseParams.ReverbSendLevelDistanceRange;
 
-			bAlwaysPlay = ActiveSound.bAlwaysPlay;
-		}
+	// Get the envelope follower settings
+	WaveInstance->EnvelopeFollowerAttackTime = ParseParams.EnvelopeFollowerAttackTime;
+	WaveInstance->EnvelopeFollowerReleaseTime = ParseParams.EnvelopeFollowerReleaseTime;
 
-		// If set to bAlwaysPlay, increase the current sound's priority scale by 10x. This will still result in a possible 0-priority output if the sound has 0 actual volume
-		if (bAlwaysPlay)
-		{
-			WaveInstance->Priority = MAX_FLT;
-		}
-		else
-		{
-			WaveInstance->Priority = ParseParams.Priority;
-		}
+	// Copy over the submix sends.
+	WaveInstance->SoundSubmix = ParseParams.SoundSubmix;
+	WaveInstance->SoundSubmixSends = ParseParams.SoundSubmixSends;
 
-		WaveInstance->Location = ParseParams.Transform.GetTranslation();
-		WaveInstance->bIsStarted = true;
-		WaveInstance->bAlreadyNotifiedHook = false;
-		WaveInstance->SetUseSpatialization(ParseParams.bUseSpatialization);
+	// Copy over the source bus send and data
+	if (!WaveInstance->ActiveSound->bIsPreviewSound)
+	{
+		WaveInstance->bOutputToBusOnly = ParseParams.bOutputToBusOnly;
+	}
+
+	for (int32 BusSendType = 0; BusSendType < (int32)EBusSendType::Count; ++BusSendType)
+	{
+		WaveInstance->SoundSourceBusSends[BusSendType] = ParseParams.SoundSourceBusSends[BusSendType];
+	}
+
+	if (AudioDevice->IsHRTFEnabledForAll() && ParseParams.SpatializationMethod == ESoundSpatializationAlgorithm::SPATIALIZATION_Default)
+	{
+		WaveInstance->SpatializationMethod = ESoundSpatializationAlgorithm::SPATIALIZATION_HRTF;
+	}
+	else
+	{
 		WaveInstance->SpatializationMethod = ParseParams.SpatializationMethod;
-		WaveInstance->WaveData = this;
-		WaveInstance->NotifyBufferFinishedHooks = ParseParams.NotifyBufferFinishedHooks;
-		WaveInstance->LoopingMode = ((bLooping || ParseParams.bLooping) ? LOOP_Forever : LOOP_Never);
-		WaveInstance->bIsPaused = ParseParams.bIsPaused;
+	}
 
-		// If we're normalizing 3d stereo spatialized sounds, we need to scale by -6 dB
-		if (WaveInstance->GetUseSpatialization() && ParseParams.bApplyNormalizationToStereoSounds && NumChannels == 2)
+	// Pass along plugin settings to the wave instance
+	WaveInstance->SpatializationPluginSettings = ParseParams.SpatializationPluginSettings;
+	WaveInstance->OcclusionPluginSettings = ParseParams.OcclusionPluginSettings;
+	WaveInstance->ReverbPluginSettings = ParseParams.ReverbPluginSettings;
+	WaveInstance->ModulationPluginSettings = ParseParams.ModulationPluginSettings;
+
+	WaveInstance->bIsAmbisonics = bIsAmbisonics;
+
+	// Recompute the virtualizability here even though we did it up-front in the active sound parse.
+	// This is because an active sound can generate multiple sound waves, not all of them are necessarily virtualizable.
+	bool bHasSubtitles = ActiveSound.bHandleSubtitles && (ActiveSound.bHasExternalSubtitles || (Subtitles.Num() > 0));
+
+	// When the BypassVirtualizeWhenSilent cvar is enabled, we should only honor bVirtualizeWhenSilent for procedural sounds:
+	const bool bCanPlayWhenSilent = IsPlayWhenSilent() && (!BypassPlayWhenSilentCVar || bProcedural);
+	const float WaveInstanceVolume = WaveInstance->GetVolumeWithDistanceAttenuation() * WaveInstance->GetDynamicVolume();
+	if (WaveInstanceVolume > KINDA_SMALL_NUMBER || (bCanPlayWhenSilent || bHasSubtitles))
+	{
+		WaveInstances.Add(WaveInstance);
+		ActiveSound.bFinished = false;
+	}
+	else if (WaveInstance->LoopingMode == LOOP_Forever)
+	{
+		ActiveSound.bFinished = false;
+	}
+	// Not looping, silent, and not set to play when silent
+	else
+	{
+		// If no wave instance added to transient array not looping, and just created, immediately delete
+		// to avoid initializing on a later tick (achieved by adding to active sound's wave instance map
+		// but not the passed transient WaveInstance array)
+		if (bIsNewWave)
 		{
-			float WaveInstanceVolume = WaveInstance->GetVolume();
-			WaveInstance->SetVolume(WaveInstanceVolume * 0.5f);
-		}
-
-		// Copy reverb send settings
-		WaveInstance->ReverbSendMethod = ParseParams.ReverbSendMethod;
-		WaveInstance->ManualReverbSendLevel = ParseParams.ManualReverbSendLevel;
-		WaveInstance->CustomRevebSendCurve = ParseParams.CustomReverbSendCurve;
-		WaveInstance->ReverbSendLevelRange = ParseParams.ReverbSendLevelRange;
-		WaveInstance->ReverbSendLevelDistanceRange = ParseParams.ReverbSendLevelDistanceRange;
-
-		// Get the envelope follower settings
-		WaveInstance->EnvelopeFollowerAttackTime = ParseParams.EnvelopeFollowerAttackTime;
-		WaveInstance->EnvelopeFollowerReleaseTime = ParseParams.EnvelopeFollowerReleaseTime;
-
-		// Copy over the submix sends.
-		WaveInstance->SoundSubmix = ParseParams.SoundSubmix;
-		WaveInstance->SoundSubmixSends = ParseParams.SoundSubmixSends;
-
-		// Copy over the source bus send and data
-		if (!WaveInstance->ActiveSound->bIsPreviewSound)
-		{
-			WaveInstance->bOutputToBusOnly = ParseParams.bOutputToBusOnly;
-		}
-
-		for (int32 BusSendType = 0; BusSendType < (int32)EBusSendType::Count; ++BusSendType)
-		{
-			WaveInstance->SoundSourceBusSends[BusSendType] = ParseParams.SoundSourceBusSends[BusSendType];
-		}
-
-		if (AudioDevice->IsHRTFEnabledForAll() && ParseParams.SpatializationMethod == ESoundSpatializationAlgorithm::SPATIALIZATION_Default)
-		{
-			WaveInstance->SpatializationMethod = ESoundSpatializationAlgorithm::SPATIALIZATION_HRTF;
-		}
-		else
-		{
-			WaveInstance->SpatializationMethod = ParseParams.SpatializationMethod;
-		}
-
-		// Pass along plugin settings to the wave instance
-		WaveInstance->SpatializationPluginSettings = ParseParams.SpatializationPluginSettings;
-		WaveInstance->OcclusionPluginSettings = ParseParams.OcclusionPluginSettings;
-		WaveInstance->ReverbPluginSettings = ParseParams.ReverbPluginSettings;
-
-		WaveInstance->bIsAmbisonics = bIsAmbisonics;
-
-		bool bAddedWaveInstance = false;
-
-		// Recompute the virtualizability here even though we did it up-front in the active sound parse.
-		// This is because an active sound can generate multiple sound waves, not all of them are necessarily virtualizable.
-		bool bHasSubtitles = ActiveSound.bHandleSubtitles && (ActiveSound.bHasExternalSubtitles || (Subtitles.Num() > 0));
-
-		// When the BypassVirtualizeWhenSilent cvar is enabled, we should only honor bVirtualizeWhenSilent for procedural sounds:
-		const bool bShouldVirtualize = bVirtualizeWhenSilent && (!BypassVirtualizeWhenSilentCVar || bProcedural);
-		if (WaveInstance->GetVolumeWithDistanceAttenuation() > KINDA_SMALL_NUMBER || ((bShouldVirtualize || bHasSubtitles) && AudioDevice->VirtualSoundsEnabled()))
-		{
-			bAddedWaveInstance = true;
-			WaveInstances.Add(WaveInstance);
-		}
-
-		// We're still alive.
-		if (bAddedWaveInstance || WaveInstance->LoopingMode == LOOP_Forever)
-		{
-			ActiveSound.bFinished = false;
-		}
-
-		// Sanity check
-		if( NumChannels > 2 && WaveInstance->GetUseSpatialization() && !WaveInstance->bReportedSpatializationWarning)
-		{
-			static TSet<USoundWave*> ReportedSounds;
-			if (!ReportedSounds.Contains(this))
-			{
-				FString SoundWarningInfo = FString::Printf(TEXT("Spatialisation on sounds with channels greater than 2 is not supported. SoundWave: %s"), *GetName());
-				if (ActiveSound.GetSound() != this)
-				{
-					SoundWarningInfo += FString::Printf(TEXT(" SoundCue: %s"), *ActiveSound.GetSound()->GetName());
-				}
-
-#if !NO_LOGGING
-				const uint64 AudioComponentID = ActiveSound.GetAudioComponentID();
-				if (AudioComponentID > 0)
-				{
-					FAudioThread::RunCommandOnGameThread([AudioComponentID, SoundWarningInfo]()
-					{
-						if (UAudioComponent* AudioComponent = UAudioComponent::GetAudioComponentFromID(AudioComponentID))
-						{
-							AActor* SoundOwner = AudioComponent->GetOwner();
-							UE_LOG(LogAudio, Warning, TEXT( "%s Actor: %s AudioComponent: %s" ), *SoundWarningInfo, (SoundOwner ? *SoundOwner->GetName() : TEXT("None")), *AudioComponent->GetName() );
-						}
-						else
-						{
-							UE_LOG(LogAudio, Warning, TEXT("%s"), *SoundWarningInfo );
-						}
-					});
-				}
-				else
-				{
-					UE_LOG(LogAudio, Warning, TEXT("%s"), *SoundWarningInfo );
-				}
-#endif
-
-				ReportedSounds.Add(this);
-			}
-			WaveInstance->bReportedSpatializationWarning = true;
+			ActiveSound.RemoveWaveInstance(NodeWaveInstanceHash);
+			return;
 		}
 	}
+
+#if !NO_LOGGING
+	// Sanity check
+	if(NumChannels > 2 && WaveInstance->GetUseSpatialization() && !WaveInstance->bReportedSpatializationWarning)
+	{
+		static TSet<USoundWave*> ReportedSounds;
+		if (!ReportedSounds.Contains(this))
+		{
+			FString SoundWarningInfo = FString::Printf(TEXT("Spatialization on sounds with channels greater than 2 is not supported. SoundWave: %s"), *GetName());
+			if (ActiveSound.GetSound() != this)
+			{
+				SoundWarningInfo += FString::Printf(TEXT(" SoundCue: %s"), *ActiveSound.GetSound()->GetName());
+			}
+
+			const uint64 AudioComponentID = ActiveSound.GetAudioComponentID();
+			if (AudioComponentID > 0)
+			{
+				FAudioThread::RunCommandOnGameThread([AudioComponentID, SoundWarningInfo]()
+				{
+					if (UAudioComponent* AudioComponent = UAudioComponent::GetAudioComponentFromID(AudioComponentID))
+					{
+						AActor* SoundOwner = AudioComponent->GetOwner();
+						UE_LOG(LogAudio, Warning, TEXT( "%s Actor: %s AudioComponent: %s" ), *SoundWarningInfo, (SoundOwner ? *SoundOwner->GetName() : TEXT("None")), *AudioComponent->GetName() );
+					}
+					else
+					{
+						UE_LOG(LogAudio, Warning, TEXT("%s"), *SoundWarningInfo );
+					}
+				});
+			}
+			else
+			{
+				UE_LOG(LogAudio, Warning, TEXT("%s"), *SoundWarningInfo );
+			}
+
+			ReportedSounds.Add(this);
+		}
+		WaveInstance->bReportedSpatializationWarning = true;
+	}
+#endif // !NO_LOGGING
 }
 
 bool USoundWave::IsPlayable() const
@@ -1703,16 +1811,71 @@ float USoundWave::GetDuration()
 
 bool USoundWave::IsStreaming(const FPlatformAudioCookOverrides* Overrides /* = nullptr */) const
 {
-	// TODO: add in check on whether it's part of a streaming SoundGroup
+	// TODO: add in check on whether it's part of a streaming SoundGroup.
 	if (!Overrides)
 	{
 		Overrides = GetPlatformCompressionOverridesForCurrentPlatform();
 	}
 
-	return bStreaming
-		|| (Overrides != nullptr
-			&& Overrides->AutoStreamingThreshold > SMALL_NUMBER
-			&& Duration > Overrides->AutoStreamingThreshold);
+	// We stream if (A) bStreaming is set to true, (B) bForceInline is false and either bUseLoadOnDemand was set to true in
+	// our cook overrides, or the AutoStreamingThreshold was set and this sound is longer than the auto streaming threshold.
+	
+	if (bStreaming)
+	{
+		return true;
+	}
+	else if (bForceInline)
+	{
+		return false;
+	}
+	else if (bProcedural)
+	{
+		return false;
+	}
+	else if (Overrides)
+	{
+		// For stream caching, the auto streaming threshold is used to force sounds to be inlined:
+		const bool bUsesStreamCache = (Overrides->bUseStreamCaching && Duration > Overrides->AutoStreamingThreshold);
+		const bool bOverAutoStreamingThreshold = (Overrides->AutoStreamingThreshold > SMALL_NUMBER  && Duration > Overrides->AutoStreamingThreshold);
+
+		return bUsesStreamCache || bOverAutoStreamingThreshold;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+bool USoundWave::ShouldUseStreamCaching() const
+{
+	return  FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching() && IsStreaming();
+}
+
+TArrayView<const uint8> USoundWave::GetZerothChunk()
+{
+	if (ShouldUseStreamCaching())
+	{
+		// In editor, we actually don't have a zeroth chunk until we try to play an audio file.
+		if (GIsEditor)
+		{
+			EnsureZerothChunkIsLoaded();
+		}
+
+		check(ZerothChunkData.Num() > 0);
+
+		if (GetNumChunks() > 1)
+		{
+			// Prime first chunk for playback.
+			IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(this, 1, [](EAudioChunkLoadResult InResult) {});
+		}
+
+		return TArrayView<const uint8>(ZerothChunkData);
+	}
+	else
+	{
+		FAudioChunkHandle ChunkHandle = IStreamingManager::Get().GetAudioStreamingManager().GetLoadedChunk(this, 0);
+		return TArrayView<const uint8>(ChunkHandle.GetData(), ChunkHandle.Num());
+	}
 }
 
 bool USoundWave::IsSeekableStreaming() const
@@ -1812,14 +1975,14 @@ float USoundWave::GetSampleRateForCompressionOverrides(const FPlatformAudioCookO
 
 bool USoundWave::GetChunkData(int32 ChunkIndex, uint8** OutChunkData, bool bMakeSureChunkIsLoaded /* = false */)
 {
-	if (RunningPlatformData->TryLoadChunk(ChunkIndex, OutChunkData, bMakeSureChunkIsLoaded) == false)
+	if (RunningPlatformData->GetChunkFromDDC(ChunkIndex, OutChunkData, bMakeSureChunkIsLoaded) == 0)
 	{
 #if WITH_EDITORONLY_DATA
 		// Unable to load chunks from the cache. Rebuild the sound and attempt to recache it.
 		UE_LOG(LogAudio, Display, TEXT("GetChunkData failed, rebuilding %s"), *GetPathName());
 
 		ForceRebuildPlatformData();
-		if (RunningPlatformData->TryLoadChunk(ChunkIndex, OutChunkData, bMakeSureChunkIsLoaded) == false)
+		if (RunningPlatformData->GetChunkFromDDC(ChunkIndex, OutChunkData, bMakeSureChunkIsLoaded) == 0)
 		{
 			UE_LOG(LogAudio, Display, TEXT("Failed to build sound %s."), *GetPathName());
 		}

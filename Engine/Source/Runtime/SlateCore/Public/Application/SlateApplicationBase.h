@@ -9,15 +9,22 @@
 #include "Layout/SlateRect.h"
 #include "Rendering/SlateRenderer.h"
 #include "Misc/CoreDelegates.h"
+#include "Async/TaskGraphInterfaces.h"
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnDebugSafeZoneChanged, const FMargin&, bool);
 
+
 class FActiveTimerHandle;
+#if WITH_ACCESSIBILITY
+class FSlateAccessibleMessageHandler;
+#endif
 class FSlateApplicationBase;
 class FWidgetPath;
 class IToolTip;
 class SWidget;
 class SWindow;
+class SImage;
+enum class EInvalidateWidgetReason : uint8;
 
 template< typename ObjectType > class TAttribute;
 
@@ -27,7 +34,6 @@ template< typename ObjectType > class TAttribute;
 class IWindowTitleBar
 {
 public:
-
 	virtual void Flash( ) = 0;
 };
 
@@ -127,11 +133,26 @@ public:
 	virtual bool FindPathToWidget( TSharedRef<const SWidget> InWidget, FWidgetPath& OutWidgetPath, EVisibility VisibilityFilter = EVisibility::Visible ) = 0;
 
 	/**
+	 * Returns the window the provided widget is contained in 
+
+	 * @param  InWidget       Widget to find the window for
+	 * @return	returns the window the provided widget is contained in or nullptr if it's not currently in a window
+	 */
+	virtual TSharedPtr<SWindow> FindWidgetWindow(TSharedRef<const SWidget> InWidget) const = 0;
+
+	/**
 	 * Gets the active top-level window.
 	 *
 	 * @return The top level window, or nullptr if no Slate windows are currently active.
 	 */
 	virtual TSharedPtr<SWindow> GetActiveTopLevelWindow() const = 0;
+
+	/**
+	 * Get a list of all top-level windows in the application, excluding virtual windows.
+	 *
+	 * @return An array of all current top-level SWindows.
+	 */
+	virtual const TArray<TSharedRef<SWindow>> GetTopLevelWindows() const = 0;
 
 	/**
 	 * Gets the global application icon.
@@ -224,9 +245,19 @@ public:
 
 	virtual EUINavigation GetNavigationDirectionFromKey( const FKeyEvent& InKeyEvent ) const = 0;
 	virtual EUINavigation GetNavigationDirectionFromAnalog(const FAnalogInputEvent& InAnalogEvent) = 0;
+	virtual EUINavigationAction GetNavigationActionForKey(const FKey& InKey) const = 0;
 
 	/** @return	Returns true if there are any pop-up menus summoned */
 	virtual bool AnyMenusVisible() const = 0;
+
+#if WITH_ACCESSIBILITY
+	/** 
+	 * Accessor for the accessible message handler. One must always exist, even if it's never activated.
+	 *
+	 * @return A reference to the assigned accessible message handler
+	 */
+	TSharedRef<FSlateAccessibleMessageHandler> GetAccessibleMessageHandler() const { return AccessibleMessageHandler; }
+#endif
 protected:
 	/**
 	 * Implementation of GetMouseCaptor which can be overridden without warnings.
@@ -315,7 +346,7 @@ public:
 	 *
 	 * @return The new image widget.
 	 */
-	virtual TSharedRef<SWidget> MakeImage( const TAttribute<const FSlateBrush*>& Image, const TAttribute<FSlateColor>& Color, const TAttribute<EVisibility>& Visibility ) const = 0;
+	virtual TSharedRef<SImage> MakeImage( const TAttribute<const FSlateBrush*>& Image, const TAttribute<FSlateColor>& Color, const TAttribute<EVisibility>& Visibility ) const = 0;
 
 	/**
 	 * Creates a tool tip with the specified text.
@@ -397,14 +428,19 @@ public:
 	/**
 	 * Gets a delegate that is invoked when a global invalidate of all widgets should occur
 	 */
-	DECLARE_EVENT(FSlateApplicationBase, FOnGlobalInvalidate);
-	FOnGlobalInvalidate& OnGlobalInvalidate()  { return OnGlobalInvalidateEvent; }
+	DECLARE_EVENT_OneParam(FSlateApplicationBase, FOnInvalidateAllWidgets, bool);
+	FOnInvalidateAllWidgets& OnInvalidateAllWidgets() { return OnInvalidateAllWidgetsEvent; }
+
+	DECLARE_EVENT_OneParam(FSlateApplicationBase, FOnGlobalInvalidationToggled, bool);
+	FOnGlobalInvalidationToggled& OnGlobalInvalidationToggled() { return OnGlobalInvalidationToggledEvent; }
+
+	void ToggleGlobalInvalidation(bool bIsGlobalInvalidationEnabled);
 
 	/**
 	 * Notifies all invalidation panels that they should invalidate their contents
 	 * Note: this is a very expensive call and should only be done in non-performance critical situations
 	 */
-	void InvalidateAllWidgets() const;
+	void InvalidateAllWidgets(bool bClearResourcesImmediately) const;
 private:
 	/**
 	 * Implementation for active timer registration. See SWidget::RegisterActiveTimer.
@@ -572,8 +608,14 @@ public:
 #endif
 
 protected:
+#if WITH_ACCESSIBILITY
+	/** Manager for widgets and application to interact with accessibility API */
+	TSharedRef<FSlateAccessibleMessageHandler> AccessibleMessageHandler;
+#endif
+
 	/** multicast delegate to broadcast when a global invalidate is requested */
-	FOnGlobalInvalidate OnGlobalInvalidateEvent;
+	FOnInvalidateAllWidgets OnInvalidateAllWidgetsEvent;
+	FOnGlobalInvalidationToggled OnGlobalInvalidationToggledEvent;
 
 	/** Critical section for active timer registration as it can be called from the movie thread and the game thread */
 	FCriticalSection ActiveTimerCS;

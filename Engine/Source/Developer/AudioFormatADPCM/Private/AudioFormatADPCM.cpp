@@ -347,8 +347,7 @@ namespace ADPCM
 		const int32 SourceSampleStride = 1;
 
 		// Input source samples are 2-bytes
-		const int32 SourceNumSamples = QualityInfo.SampleDataSize / 2;
-		const int32 SourceNumSamplesPerChannel = SourceNumSamples / QualityInfo.NumChannels;
+		const int32 SourceNumSamplesPerChannel = QualityInfo.SampleDataSize / 2;
 
 		// Output samples are 4-bits
 		const int32 CompressedNumSamplesPerByte = 2;
@@ -374,7 +373,11 @@ namespace ADPCM
 
 			for (int32 BlockIndex = 0; BlockIndex < NumBlocksPerChannel; ++BlockIndex)
 			{
-				EncodeBlock(ChannelPCMSamples + SourceSampleOffset, SourceSampleStride, SourceNumSamples - SourceSampleOffset, BlockSize, EncodedADPCMChannelData + DestDataOffset);
+				const int16* InputPCMSampleOffset = ChannelPCMSamples + SourceSampleOffset;
+				const int32 NumBlockSamples = (SourceNumSamplesPerChannel * QualityInfo.NumChannels) - SourceSampleOffset;
+				uint8* NewlyEncodedADPCMData = EncodedADPCMChannelData + DestDataOffset;
+
+				EncodeBlock(InputPCMSampleOffset, SourceSampleStride, NumBlockSamples, BlockSize, NewlyEncodedADPCMData);
 
 				SourceSampleOffset += CompressedSamplesPerBlock * SourceSampleStride;
 				DestDataOffset += BlockSize;
@@ -430,7 +433,7 @@ class FAudioFormatADPCM : public IAudioFormat
 
 		while (CurrentByte < Bytes)
 		{
-			for (auto SrcBuffer : SrcBuffers)
+			for (const TArray<uint8>& SrcBuffer : SrcBuffers)
 			{
 				// our data is int16 
 				InterleavedBuffer.Push(SrcBuffer[CurrentByte]);
@@ -509,7 +512,19 @@ public:
 		return 0;
 	}
 
-	virtual bool SplitDataForStreaming(const TArray<uint8>& SrcBuffer, TArray<TArray<uint8>>& OutBuffers, const int32 MaxChunkSize) const override
+	virtual int32 GetMinimumSizeForInitialChunk(FName Format, const TArray<uint8>& SrcBuffer) const override
+	{
+		uint8 const*	SrcData = SrcBuffer.GetData();
+		int32			SrcSize = SrcBuffer.Num();
+		uint32			BytesProcessed = 0;
+
+		FWaveModInfo	WaveInfo;
+		WaveInfo.ReadWaveInfo((uint8*)SrcData, SrcSize);
+
+		return WaveInfo.SampleDataStart - SrcData;
+	}
+
+	virtual bool SplitDataForStreaming(const TArray<uint8>& SrcBuffer, TArray<TArray<uint8>>& OutBuffers, const int32 InitialMaxChunkSize, const int32 MaxChunkSize) const override
 	{
 		uint8 const*	SrcData = SrcBuffer.GetData();
 		int32			SrcSize = SrcBuffer.Num();
@@ -537,18 +552,23 @@ public:
 
 			// Add a new chunk for the header
 			int32 HeaderSize = WaveInfo.SampleDataStart - SrcData;
-			AddNewChunk(OutBuffers, MaxChunkSize);
-			AddChunkData(OutBuffers, SrcData, HeaderSize);
 
+			check(InitialMaxChunkSize >= HeaderSize);
+			AddNewChunk(OutBuffers, InitialMaxChunkSize);
+			AddChunkData(OutBuffers, SrcData, HeaderSize);
 			int32 CurChunkDataSize = HeaderSize;
+
+			// Start looping through the rest of the chunks:
+			int32 ThisChunkMaxSize = InitialMaxChunkSize;
 
 			for (int32 BlockIndex = 0; BlockIndex < NumBlocksPerChannel; ++BlockIndex)
 			{
 				// If the next block size will put us over the max chunk size, then add a new chunk
-				if (CurChunkDataSize + NumChannels * BlockSize >= MaxChunkSize)
+				if (CurChunkDataSize + NumChannels * BlockSize >= ThisChunkMaxSize)
 				{
 					// Start a new chunk with the reserve memory for the max chunk size
 					AddNewChunk(OutBuffers, MaxChunkSize);
+					ThisChunkMaxSize = MaxChunkSize;
 					CurChunkDataSize = 0;
 				}
 
@@ -568,16 +588,17 @@ public:
 			int32 FrameSize = sizeof(uint16) * NumChannels;
 
 			// Add the first chunk and the header data
-			AddNewChunk(OutBuffers, MaxChunkSize);	
+			AddNewChunk(OutBuffers, InitialMaxChunkSize);	
 
 			// Add the header data
 			int32 HeaderSize = WaveInfo.SampleDataStart - SrcData;
+			check(InitialMaxChunkSize >= HeaderSize);
 			AddChunkData(OutBuffers, SrcData, HeaderSize);
 
 			SrcSize -= HeaderSize;
 			SrcData = WaveInfo.SampleDataStart;
 
-			int32 DataLeftInCurChunk = MaxChunkSize - HeaderSize;
+			int32 DataLeftInCurChunk = InitialMaxChunkSize - HeaderSize;
 
 			while (SrcSize > 0)
 			{

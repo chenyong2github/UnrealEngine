@@ -110,18 +110,19 @@ void UMovieSceneSkeletalAnimationSection::PostLoad()
 		Params.SlotName = SlotName_DEPRECATED;
 	}
 
-	FFrameRate LegacyFrameRate = GetLegacyConversionFrameRate();
+	FFrameRate DisplayRate = GetTypedOuter<UMovieScene>()->GetDisplayRate();
+	FFrameRate TickResolution = GetTypedOuter<UMovieScene>()->GetTickResolution();
 
 	if (Params.StartOffset_DEPRECATED != SkeletalDeprecatedMagicNumber)
 	{
-		Params.StartFrameOffset = UpgradeLegacyMovieSceneTime(this, LegacyFrameRate, Params.StartOffset_DEPRECATED).Value;
+		Params.StartFrameOffset = ConvertFrameTime(FFrameTime::FromDecimal(DisplayRate.AsDecimal() * Params.StartOffset_DEPRECATED), DisplayRate, TickResolution).FrameNumber;
 
 		Params.StartOffset_DEPRECATED = SkeletalDeprecatedMagicNumber;
 	}
 
 	if (Params.EndOffset_DEPRECATED != SkeletalDeprecatedMagicNumber)
 	{
-		Params.EndFrameOffset = UpgradeLegacyMovieSceneTime(this, LegacyFrameRate, Params.EndOffset_DEPRECATED).Value;
+		Params.EndFrameOffset = ConvertFrameTime(FFrameTime::FromDecimal(DisplayRate.AsDecimal() * Params.EndOffset_DEPRECATED), DisplayRate, TickResolution).FrameNumber;
 
 		Params.EndOffset_DEPRECATED = SkeletalDeprecatedMagicNumber;
 	}
@@ -185,8 +186,9 @@ TOptional<TRange<FFrameNumber> > UMovieSceneSkeletalAnimationSection::GetAutoSiz
 	FFrameRate FrameRate = GetTypedOuter<UMovieScene>()->GetTickResolution();
 
 	FFrameTime AnimationLength = Params.GetSequenceLength() * FrameRate;
+	int32 IFrameNumber = AnimationLength.FrameNumber.Value + (int)(AnimationLength.GetSubFrame() + 0.5f);
 
-	return TRange<FFrameNumber>(GetInclusiveStartFrame(), GetInclusiveStartFrame() + AnimationLength.FrameNumber);
+	return TRange<FFrameNumber>(GetInclusiveStartFrame(), GetInclusiveStartFrame() + IFrameNumber + 1);
 }
 
 

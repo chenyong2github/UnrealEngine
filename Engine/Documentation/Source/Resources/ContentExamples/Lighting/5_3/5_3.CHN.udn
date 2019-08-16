@@ -1,7 +1,8 @@
-﻿Availability: Public
+﻿INTSourceChangelist:3782314
+Availability: Public
 Title:5.3 - 光源长度
 Crumbs:%ROOT%, Resources, Resources/ContentExamples, Resources/ContentExamples/Lighting
-Description:光照示例关卡的概述,示例5.3: 光源长度 (反射特效)
+Description:概述光照示例关卡，示例5.3：光源长度（对反射的影响）
 Related: Engine/Rendering/LightingAndShadows/Basics
 Related: Engine/Rendering/LightingAndShadows/LightTypes/Point
 Related: Engine/Rendering/LightingAndShadows/LightTypes/Spot
@@ -11,19 +12,20 @@ Related: Engine/Rendering/LightingAndShadows/Lightmass
 Related: Engine/Rendering/LightingAndShadows/Shadows
 Related: Engine/Rendering/LightingAndShadows/IndirectLightingCache
 Related: Engine/Rendering/LightingAndShadows/LightMobility
+Version: 4.9
 
 [VAR:Steps]
 [OBJECT:Navigation]
 	[PARAM:previous]
-		[前一个示例](Resources/ContentExamples/Lighting/5_2 "%Resources/ContentExamples/Lighting/5_2:title%")
+		[上一个示例](Resources/ContentExamples/Lighting/5_2 “%Resources/ContentExamples/Lighting/5_2:title%”)
 	[/PARAM]
 	[PARAM:current]
 	[/PARAM]
 	[PARAM:home]
-		[光照主页](Resources/ContentExamples/Lighting)
+		[光照主页](Resources/ContentExamples/Networking)
 	[/PARAM]
 	[PARAM:next]
-		[下一个示例](Resources/ContentExamples/Lighting/5_4 "%Resources/ContentExamples/Lighting/5_4:title%")
+		[下一个示例](Resources/ContentExamples/Lighting/5_4 “%Resources/ContentExamples/Lighting/5_4:title%”)
 	[/PARAM]
 [/OBJECT]
 [/VAR]
@@ -56,9 +58,9 @@ Related: Engine/Rendering/LightingAndShadows/LightMobility
 [/REGION]
 
 
-本示例示范了如何在反射性表面应用 **Source Length（光源长度）** 。设置光源长度的目的是给予光源拉长的或筒状的反射形状，犹如光源来自于荧光灯一般。请注意光发射仍按从单一点处发射般进行计算。该特效仅存在于反射中。
+本例演示了在反射表面上使用 **光源长度（Source Length）**。**光源长度（Source Length）** 是为了向光源提供一个细长或管状的反射形状，好像光是从一个荧光灯具中发出的。应该指出的是，光发射仍像从一个点发出的一样进行计算。这种效应仅存在于反射内。
 
-光源长度沿着光源的X轴向下拉伸，并且可通过旋转光源来进行旋转。另外，在选中光源后，可通过观察从光源处伸展出的黄色线条来观察到光源的长度。当旋转光源时，光源长度将任继续沿着本地空间 X-轴对齐，但当选择世界空间时，光源可能不会遵循直轴方向。
+光源长度沿着光的X轴向下，可以通过旋转光来进行旋转。此外，当选择光源时，光源长度可以用一条从光本身延伸出来的黄线来表示。当旋转光源时，光源长度将沿着局部空间的X轴继续，但当检查场景空间时，光源可能不沿着一个直轴。
 
 ![](SourceLength.png)(w:400)
 

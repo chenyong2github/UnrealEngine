@@ -92,15 +92,10 @@ public:
 
 	bool ReferencesSameInput(UNiagaraNodeInput* Other) const;
 
-	virtual void BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive = true) const override;
+	virtual void BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive = true, bool bFilterForCompilation = true) const override;
 
 	static const FLinearColor TitleColor_Attribute;
 	static const FLinearColor TitleColor_Constant;
-
-	/** Verify that the text about to be committed will be valid and doesn't duplicate existing variables based on type.
-	Type validation is done based on the input UObject type, preferably a UNiagaraNodeInput or UNiagaraNodeOutput.*/
-	static bool VerifyNodeRenameTextCommit(const FText& NewText, UNiagaraNode* NodeBeingChanged, FText& OutErrorMessage);
-
 
 	/** Generate a unique name based off of the existing names in the system.*/
 	static FName GenerateUniqueName(const UNiagaraGraph* Graph, FName& ProposedName, ENiagaraInputNodeUsage Usage);

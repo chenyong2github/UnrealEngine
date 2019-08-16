@@ -1624,6 +1624,11 @@ FLinearColor FRectLight::GetDirectIntensity(const FVector4& Point, bool bCalcula
 	Poly[3] = ToLight - AxisX * Extent.X + AxisY * Extent.Y;
 
 	float DistanceAttenuation = PolygonIrradiance( Poly ).Size();
+
+	if (!FMath::IsFinite(DistanceAttenuation))
+	{
+		DistanceAttenuation = 0;
+	}
 			
 	// TODO Move CPU cide
 	DistanceAttenuation /= 2 * Extent.X * Extent.Y;

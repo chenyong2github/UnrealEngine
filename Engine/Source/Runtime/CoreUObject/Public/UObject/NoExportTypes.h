@@ -238,6 +238,7 @@ enum EPixelFormat
 	PF_PLATFORM_HDR_1,
 	PF_PLATFORM_HDR_2,
 	PF_NV12,
+	PF_R32G32_UINT,
 	PF_MAX,
 };
 
@@ -1425,6 +1426,19 @@ struct FAutomationExecutionEntry
 	UPROPERTY()
 	FDateTime Timestamp;
 };
+
+/** Enum used by DataValidation plugin to see if an asset has been validated for correctness (mirrored in UObjectGlobals.h)*/
+UENUM(BlueprintType)
+enum class EDataValidationResult : uint8
+{
+	/** Asset has failed validation */
+	Invalid,
+	/** Asset has passed validation */
+	Valid,
+	/** Asset has not yet been validated */
+	NotValidated
+};
+
 
 /**
  * Direct base class for all UE4 objects

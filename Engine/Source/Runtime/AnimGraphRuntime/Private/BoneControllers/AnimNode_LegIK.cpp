@@ -31,6 +31,7 @@ FAnimNode_LegIK::FAnimNode_LegIK()
 
 void FAnimNode_LegIK::GatherDebugData(FNodeDebugData& DebugData)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(GatherDebugData)
 	FString DebugLine = DebugData.GetNodeName(this);
 
 	// 	DebugLine += "(";
@@ -62,6 +63,7 @@ static void DrawDebugLeg(const FAnimLegIKData& InLegData, FAnimInstanceProxy* My
 
 void FAnimNode_LegIK::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Initialize_AnyThread)
 	FAnimNode_SkeletalControlBase::Initialize_AnyThread(Context);
 
 	MyAnimInstanceProxy = Context.AnimInstanceProxy;
@@ -90,6 +92,7 @@ void FAnimLegIKData::InitializeTransforms(FAnimInstanceProxy* MyAnimInstanceProx
 
 void FAnimNode_LegIK::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(EvaluateSkeletalControl_AnyThread)
 	SCOPE_CYCLE_COUNTER(STAT_LegIK_Eval);
 
 	check(OutBoneTransforms.Num() == 0);
@@ -799,6 +802,7 @@ static void PopulateLegBoneIndices(FAnimLegIKData& InLegData, const FCompactPose
 
 void FAnimNode_LegIK::InitializeBoneReferences(const FBoneContainer& RequiredBones)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(InitializeBoneReferences)
 	// Preserve FIKChain for each leg, as we're trying to maintain CachedBendDir between LOD transitions.
 	TMap<FName, FIKChain> IKChainLUT;
 	for(const FAnimLegIKData& LegData : LegsData)

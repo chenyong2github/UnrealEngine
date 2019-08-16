@@ -13,10 +13,11 @@
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
 #include "GeometryCollection/GeometryCollectionObject.h"
+#include "Serialization/BulkData.h"
 
 #if PLATFORM_WINDOWS
 #include "PxPhysicsAPI.h"
-#include "NvBlast.h" 
+#include "NvBlast.h"
 #include "NvBlastAssert.h"
 #include "NvBlastGlobals.h"
 #include "NvBlastExtAuthoring.h"
@@ -26,6 +27,9 @@
 #endif
 
 #define LOCTEXT_NAMESPACE "FractureMesh"
+
+#define FVEC_TO_PHYSX(x) (physx::PxVec3(x.X, x.Y, x.Z))
+#define PHYSX_TO_FVEC(x) (FVector(x.x, x.y, x.z))
 
 DEFINE_LOG_CATEGORY(LogFractureMesh);
 
@@ -52,11 +56,26 @@ static UWorld* FindEditorWorld()
 		}
 	}
 
-	return NULL;
+	return nullptr;
 }
 
-void UFractureMesh::FractureMesh(const UEditableMesh* SourceMesh, const FString& ParentName, const UMeshFractureSettings& FractureSettings, int32 FracturedChunkIndex, const FTransform& Transform, int RandomSeed, UGeometryCollection* FracturedGeometryCollection, TArray<FGeneratedFracturedChunk>& GeneratedChunksOut, TArray<int32>& DeletedChunksOut)
+bool UFractureMesh::FractureMesh(const UEditableMesh* SourceMesh, const FString& ParentName, const UMeshFractureSettings& FractureSettings, int32 FracturedChunkIndex, const FTransform& Transform, int RandomSeed, UGeometryCollection* FracturedGeometryCollection, TArray<FGeneratedFracturedChunk>& GeneratedChunksOut, TArray<int32>& DeletedChunksOut, FBox Bounds, const FVector& InBoundsOffset)
 {
+	bool bAllChunksGood = false;
+
+	FVector FBoundsCenter(Bounds.GetCenter());
+	FTransform ChunkTransform(Transform);
+
+	bool bUseReferenceActor = false;
+	FTransform ReferenceTransform;
+	if (FractureSettings.CommonSettings->ReferenceActor != nullptr)
+	{
+		bUseReferenceActor = true;
+		Bounds = FractureSettings.CommonSettings->ReferenceActor->CalculateComponentsBoundingBoxInLocalSpace();
+		ReferenceTransform = FractureSettings.CommonSettings->ReferenceActor->GetActorTransform();
+		FBoundsCenter = ReferenceTransform.GetTranslation();
+	}
+
 #if PLATFORM_WINDOWS
 	const double CacheStartTime = FPlatformTime::Seconds();
 	check(FractureSettings.CommonSettings);
@@ -66,14 +85,32 @@ void UFractureMesh::FractureMesh(const UEditableMesh* SourceMesh, const FString&
 
 	check(BlastFractureTool);
 
-	BlastFractureTool->setInteriorMaterialId(FracturedGeometryCollection->GetInteriorMaterialIndex());
-
 	// convert mesh and assign to fracture tool
 	Nv::Blast::Mesh* NewBlastMesh = nullptr;
+
 	if (FracturedChunkIndex == -1)
+	{
 		FMeshUtility::EditableMeshToBlastMesh(SourceMesh, NewBlastMesh);
+	}
 	else
+	{
 		FMeshUtility::EditableMeshToBlastMesh(SourceMesh, FracturedChunkIndex, NewBlastMesh);
+
+		UGeometryCollection* GeometryCollectionObject = Cast<UGeometryCollection>(static_cast<UObject*>(SourceMesh->GetSubMeshAddress().MeshObjectPtr));
+
+		if (GeometryCollectionObject)
+		{
+			TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
+			FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get();
+
+			if (GeometryCollection)
+			{
+				TArray<FTransform> Transforms;
+				GeometryCollectionAlgo::GlobalMatrices(GeometryCollection->Transform, GeometryCollection->Parent, Transforms);
+				ChunkTransform = Transforms[FracturedChunkIndex];
+			}
+		}
+	}
 
 	if (NewBlastMesh)
 	{
@@ -87,17 +124,88 @@ void UFractureMesh::FractureMesh(const UEditableMesh* SourceMesh, const FString&
 			SiteGenerator = NvBlastExtAuthoringCreateVoronoiSitesGenerator(NewBlastMesh, &RandomGenerator);
 		}
 
+		FRandomStream RandomStream(RandomSeed);
+
 		// Where Voronoi sites are required
 		switch (FractureSettings.CommonSettings->FractureMode)
 		{
 		case EMeshFractureMode::Uniform:
 			check(FractureSettings.UniformSettings);
-			SiteGenerator->uniformlyGenerateSitesInMesh(FractureSettings.UniformSettings->NumberVoronoiSites);
-			break;
+			{
+				uint32 SitesCount = RandomStream.RandRange(FractureSettings.UniformSettings->NumberVoronoiSitesMin, FractureSettings.UniformSettings->NumberVoronoiSitesMax);
 
+				TArray<FVector> Sites;
+				GenerateUniformSites(RandomStream, FVector::ZeroVector, Bounds, SitesCount, Sites);
+
+				if (bUseReferenceActor)
+				{
+					FVector ReferenceScale(ReferenceTransform.GetScale3D());
+					FQuat ReferenceRotation(ReferenceTransform.GetRotation());
+
+					for (auto& Site : Sites)
+					{
+						Site *= ReferenceScale;
+						Site = ReferenceRotation.RotateVector(Site);
+						Site += ReferenceTransform.GetLocation();
+						Site = Transform.InverseTransformPosition(Site);
+						Site -= FBoundsCenter;
+					}
+				}
+
+				for (const FVector& Site : Sites)
+				{
+					FVector TransformedPosition(ChunkTransform.InverseTransformPosition(Site + FBoundsCenter));
+					const physx::PxVec3 Position(FVEC_TO_PHYSX(TransformedPosition));
+					SiteGenerator->addSite(Position);
+				}
+
+			}
+			break;
 		case EMeshFractureMode::Clustered:
 			check(FractureSettings.ClusterSettings);
-			SiteGenerator->clusteredSitesGeneration(FractureSettings.ClusterSettings->NumberClusters, FractureSettings.ClusterSettings->SitesPerCluster, FractureSettings.ClusterSettings->ClusterRadius);
+			{
+				check(FractureSettings.ClusterSettings);
+
+				// we're going to do some maths to get a reasonable radius based on the bbox dimension.
+				FVector Extents = Bounds.GetSize();
+				float AxisClusterSum = (Extents.X + Extents.Y + Extents.Z) / 3.0f;
+				float ClusterRadius = (RandomStream.FRandRange(FractureSettings.ClusterSettings->ClusterRadiusPercentageMin, FractureSettings.ClusterSettings->ClusterRadiusPercentageMax)  * AxisClusterSum) + FractureSettings.ClusterSettings->ClusterRadius;
+
+				uint32 NumberOfClusters = RandomStream.RandRange(FractureSettings.ClusterSettings->NumberClustersMin, FractureSettings.ClusterSettings->NumberClustersMax);
+
+				TArray<FVector> Sites;
+				GenerateUniformSites(RandomStream, FVector::ZeroVector, Bounds, NumberOfClusters, Sites);
+
+				FRandomStream RandomStreamSphere(RandomStream.GetUnsignedInt());
+
+				for (uint32 ii = 0, ni = Sites.Num(); ii < ni; ++ii)
+				{
+					int32 SitesPerClusters = RandomStream.RandRange(FractureSettings.ClusterSettings->SitesPerClusterMin, FractureSettings.ClusterSettings->SitesPerClusterMax);
+					GenerateSitesInSphere(RandomStreamSphere, Sites[ii], ClusterRadius, SitesPerClusters, Sites);
+				}
+
+				if (bUseReferenceActor)
+				{
+					FVector ReferenceScale(ReferenceTransform.GetScale3D());
+					FQuat ReferenceRotation(ReferenceTransform.GetRotation());
+
+					for (auto& Site : Sites)
+					{
+						Site *= ReferenceScale;
+						Site = ReferenceRotation.RotateVector(Site);
+						Site += ReferenceTransform.GetLocation();
+						Site = Transform.InverseTransformPosition(Site);
+						Site -= FBoundsCenter;
+					}
+				}
+
+				for (const FVector& Site : Sites)
+				{
+					FVector TransformedPosition(ChunkTransform.InverseTransformPosition(Site + FBoundsCenter));
+					const physx::PxVec3 Position(FVEC_TO_PHYSX(TransformedPosition));
+					SiteGenerator->addSite(Position);
+				}
+			}
 			break;
 
 		case EMeshFractureMode::Radial:
@@ -116,7 +224,7 @@ void UFractureMesh::FractureMesh(const UEditableMesh* SourceMesh, const FString&
 
 		switch (FractureSettings.CommonSettings->FractureMode)
 		{
-		// Voronoi
+			// Voronoi
 		case EMeshFractureMode::Uniform:
 		case EMeshFractureMode::Clustered:
 		case EMeshFractureMode::Radial:
@@ -129,7 +237,6 @@ void UFractureMesh::FractureMesh(const UEditableMesh* SourceMesh, const FString&
 			}
 		}
 		break;
-
 		// Slicing
 		case EMeshFractureMode::Slicing:
 		{
@@ -141,6 +248,11 @@ void UFractureMesh::FractureMesh(const UEditableMesh* SourceMesh, const FString&
 			SlicingConfiguration.z_slices = FractureSettings.SlicingSettings->SlicesZ;
 			SlicingConfiguration.angle_variations = FractureSettings.SlicingSettings->SliceAngleVariation;
 			SlicingConfiguration.offset_variations = FractureSettings.SlicingSettings->SliceOffsetVariation;
+
+			SlicingConfiguration.noise.amplitude = FractureSettings.PlaneCutSettings->Amplitude;
+			SlicingConfiguration.noise.frequency = FractureSettings.PlaneCutSettings->Frequency;
+			SlicingConfiguration.noise.octaveNumber = FractureSettings.PlaneCutSettings->OctaveNumber;
+			SlicingConfiguration.noise.surfaceResolution = FractureSettings.PlaneCutSettings->SurfaceResolution;
 
 			ReturnCode = BlastFractureTool->slicing(ChunkID, SlicingConfiguration, ReplaceChunk, &RandomGenerator);
 			if (ReturnCode != 0)
@@ -154,47 +266,45 @@ void UFractureMesh::FractureMesh(const UEditableMesh* SourceMesh, const FString&
 		case EMeshFractureMode::PlaneCut:
 		{
 			check(FractureSettings.PlaneCutSettings);
-			TArray<FTransform> Transforms;
-			UGeometryCollection* GeometryCollectionObject = Cast<UGeometryCollection>(static_cast<UObject*>(SourceMesh->GetSubMeshAddress().MeshObjectPtr));
-			FGeometryCollection* GeometryCollection = nullptr;
-
-			if (GeometryCollectionObject)
-			{
-				TSharedPtr<FGeometryCollection> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
-				GeometryCollection = GeometryCollectionPtr.Get();
-
-				if (GeometryCollection)
-				{
-					GeometryCollectionAlgo::GlobalMatrices(GeometryCollection, Transforms);
-				}
-			}
 
 			TArray<int32> ChunkIDs;
 			ChunkIDs.Push(ChunkID);
 			int CutNumber = 0;
 
-			for (UPlaneCut& Cut : FractureSettings.PlaneCutSettings->PlaneCuts)
-			{
-				const NoiseConfiguration Noise;
+			Nv::Blast::NoiseConfiguration Noise;
+			Noise.amplitude = FractureSettings.PlaneCutSettings->Amplitude;
+			Noise.frequency = FractureSettings.PlaneCutSettings->Frequency;
+			Noise.octaveNumber = FractureSettings.PlaneCutSettings->OctaveNumber;
+			Noise.surfaceResolution = FractureSettings.PlaneCutSettings->SurfaceResolution;
 
-				if (GeometryCollection)
+			TArray<FVector> Positions;
+			TArray<FVector> Normals;
+
+			if (bUseReferenceActor)
+			{
+				FVector Site(ReferenceTransform.GetLocation());
+				Site = Transform.InverseTransformPosition(Site);
+				Site -= FBoundsCenter;
+
+				Positions.Add(Site);
+				Normals.Add(Transform.InverseTransformVector(ReferenceTransform.GetRotation().GetUpVector()));
+			}
+			else
+			{
+				ScatterInBounds(RandomStream, Bounds, FractureSettings.PlaneCutSettings->NumberOfCuts, Positions, Normals);
+			}
+
+			for (int32 ii = 0, ni = Positions.Num(); ii < ni; ++ii)
+			{
+				for (int32 CID : ChunkIDs)
 				{
-					for (int32 CID : ChunkIDs)
+					if (RandomStream.GetFraction() <= FractureSettings.PlaneCutSettings->CutChunkChance)
 					{
-						FVector TransNormal = Transforms[FracturedChunkIndex].InverseTransformVector(Cut.Normal);
-						FVector TransPosition = Transforms[FracturedChunkIndex].InverseTransformPosition(Cut.Position);
-						const physx::PxVec3 Normal(TransNormal.X, TransNormal.Y, TransNormal.Z);
-						const physx::PxVec3 Position(TransPosition.X, TransPosition.Y, TransPosition.Z);
-						ReturnCode = BlastFractureTool->cut(CID, Normal, Position, Noise, CutNumber != 0, &RandomGenerator);
-					}
-				}
-				else
-				{
-					for (int32 CID : ChunkIDs)
-					{
-						const physx::PxVec3 Normal(Cut.Normal.X, Cut.Normal.Y, Cut.Normal.Z);
-						const physx::PxVec3 Position(Cut.Position.X, Cut.Position.Y, Cut.Position.Z);
-						ReturnCode = BlastFractureTool->cut(CID, Normal, Position, Noise, CutNumber != 0, &RandomGenerator);
+						FVector TransformedNormal(ChunkTransform.Inverse().GetRotation().RotateVector(Normals[ii]));
+						const physx::PxVec3 Normal(FVEC_TO_PHYSX(TransformedNormal));
+						FVector TransformedPosition(ChunkTransform.InverseTransformPosition(Positions[ii] + FBoundsCenter));
+						const physx::PxVec3 Position(FVEC_TO_PHYSX(TransformedPosition));
+						BlastFractureTool->cut(CID, Normal, Position, Noise, CutNumber != 0, &RandomGenerator);
 					}
 				}
 
@@ -219,11 +329,10 @@ void UFractureMesh::FractureMesh(const UEditableMesh* SourceMesh, const FString&
 			}
 
 			// ReturnCode zero is a success, if we end with one chunk then the chunk we started with hasn't been split
-			ReturnCode = !(BlastFractureTool->getChunkCount()>2);
+			ReturnCode = !(BlastFractureTool->getChunkCount() > 2);
 		}
 		break;
 
-#ifdef CUTOUT_ENABLED
 		// Bitmap Cutout
 		case EMeshFractureMode::Cutout:
 		{
@@ -240,11 +349,15 @@ void UFractureMesh::FractureMesh(const UEditableMesh* SourceMesh, const FString&
 
 				CutoutConfiguration cutoutConfig;
 				{
-					physx::PxVec3 axis = FractureSettings.CutoutSettings->Normal
-						if (axis.isZero())
-						{
-							axis = PxVec3(0.f, 0.f, 1.f);
-						}
+					cutoutConfig.scale.x = FractureSettings.CutoutSettings->Scale.X;
+					cutoutConfig.scale.y = FractureSettings.CutoutSettings->Scale.Y;
+#if 1
+					physx::PxVec3 axis = PxVec3(0.f, 0.f, 1.f);
+					//					physx::PxVec3 axis = FractureSettings.CutoutSettings->;
+					if (axis.isZero())
+					{
+						axis = PxVec3(0.f, 0.f, 1.f);
+					}
 					axis.normalize();
 					float d = axis.dot(physx::PxVec3(0.f, 0.f, 1.f));
 					if (d < (1e-6f - 1.0f))
@@ -260,6 +373,8 @@ void UFractureMesh::FractureMesh(const UEditableMesh* SourceMesh, const FString&
 						cutoutConfig.transform.q.normalize();
 					}
 					cutoutConfig.transform.p = PxVec3(0, 0, 0);// = point.getValue();
+#endif
+
 				}
 
 				CutoutConfig.cutoutSet = NvBlastExtAuthoringCreateCutoutSet();
@@ -272,10 +387,11 @@ void UFractureMesh::FractureMesh(const UEditableMesh* SourceMesh, const FString&
 
 				CutoutConfig.transform = PxTransform(PPos, PQuat);
 
-				bool Periodic = false;
-				bool ExpandGaps = true;
+				bool Periodic = true;
+				bool ExpandGaps = false;
 
-				NvBlastExtAuthoringBuildCutoutSet(*CutoutConfig.cutoutSet, RawData.GetData(), Width, Height, FractureSettings.CutoutSettings->SegmentationErrorThreshold, FractureSettings.CutoutSettings->SnapThreshold, Periodic, ExpandGaps);
+				const uint8_t* pixelBuffer = RawData.GetData();
+				NvBlastExtAuthoringBuildCutoutSet(*CutoutConfig.cutoutSet, pixelBuffer, Width, Height, FractureSettings.CutoutSettings->SegmentationErrorThreshold, FractureSettings.CutoutSettings->SnapThreshold, Periodic, ExpandGaps);
 
 				ReturnCode = BlastFractureTool->cutout(ChunkID, CutoutConfig, false, &RandomGenerator);
 				if (ReturnCode != 0)
@@ -288,32 +404,151 @@ void UFractureMesh::FractureMesh(const UEditableMesh* SourceMesh, const FString&
 
 		case EMeshFractureMode::Brick:
 		{
-			if (ReturnCode != 0)
+			Nv::Blast::NoiseConfiguration Noise;
+
+			FVector StartPosition(0, 0, 0);
+			FVector Normal(0, 0, 1);
+
+			for (int ii = 0; ii < 10; ++ii)
 			{
-				UE_LOG(LogFractureMesh, Error, TEXT("Mesh Brick failed ReturnCode=%d"), ReturnCode);
+				FVector TransformedNormal(ChunkTransform.Inverse().GetRotation().RotateVector(Normal));
+				FVector TransformedPosition(ChunkTransform.InverseTransformPosition(StartPosition + FBoundsCenter));
+
+				PlaneCut(BlastFractureTool, Noise, &RandomGenerator, TransformedPosition, TransformedNormal);
+				StartPosition.Z += 37.5;
 			}
+
+
+			TMap<FVector, uint32> SortedBrickLayers;
+			TMap<float, FVector> SortedBricksY;
+			{
+				uint32 ChunkCount = BlastFractureTool->getChunkCount();
+
+				for (uint32 ChunkIndex = 0; ChunkIndex < ChunkCount; ++ChunkIndex)
+				{
+					const ChunkInfo& Info = BlastFractureTool->getChunkInfo(ChunkIndex);
+					if (Info.chunkId != 0)
+					{
+						const physx::PxBounds3& ChunkBounds = Info.meshData->getBoundingBox();
+						const physx::PxVec3 Center = ChunkBounds.getCenter();
+						SortedBrickLayers.Add(FVector(Center.x, Center.y, Center.z), Info.chunkId);
+						SortedBricksY.Add(Center.z, FVector(Center.x, Center.y, Center.z));
+					}
+				}
+			}
+			TArray<FVector> BricksSortedInY;
+			TArray<uint32> BricksInY, AltBricksInY;
+			SortedBricksY.GenerateValueArray(BricksSortedInY);
+			for (int32 ii = 0, ni = BricksSortedInY.Num(); ii < ni; ++ii)
+			{
+				if (ii % 2)
+				{
+					BricksInY.Add(SortedBrickLayers[BricksSortedInY[ii]]);
+				}
+				else
+				{
+					AltBricksInY.Add(SortedBrickLayers[BricksSortedInY[ii]]);
+				}
+			}
+
+
+			Normal = FVector(1, 0, 0);
+
+			for (int32 kk = 0, nk = BricksInY.Num(); kk < nk; ++kk)
+			{
+				StartPosition = FVector(0, 0, 0);
+				TSet<int32> ChunksToCut;
+				ChunksToCut.Add(BricksInY[kk]);
+
+				while (ChunksToCut.Num() > 0)
+				{
+					TArray<int32> PreChunks = GetChunkIDs(BlastFractureTool);
+					for (int32 ChunkIndex : ChunksToCut)
+					{
+						int32 ResultCode = PlaneCut(BlastFractureTool, Noise, &RandomGenerator, StartPosition, Normal, ChunkIndex);
+						if (ResultCode != 0)
+						{
+							ChunksToCut.Remove(ChunkIndex);
+						}
+					}
+					StartPosition.X += 115;
+					TArray<int32> PostChunks = GetChunkIDs(BlastFractureTool);
+					TArray<int32> DiffChunks = GetAddedIDs(PreChunks, PostChunks);
+					if (DiffChunks.Num() > 1)
+					{
+						ChunksToCut.Empty();
+						ChunksToCut.Append(DiffChunks);
+					}
+					else if (DiffChunks.Num() > 0)
+					{
+						ChunksToCut.Append(DiffChunks);
+					}
+					else
+					{
+						ChunksToCut.Empty();
+					}
+				}
+
+			}
+
+
+			// 			for (int32 ii = 0; ii < 10; ++ii)
+			// 			{
+			// 				for (int32 kk = 0, nk = BricksInY.Num(); kk < nk; ++kk)
+			// 				{
+			// 					uint32 ChunkIndex = BricksInY[kk];
+			//  					PlaneCut(BlastFractureTool, Noise, &RandomGenerator, StartPosition, Normal, ChunkIndex);
+			// 				}
+			// 				for (int32 kk = 0, nk = AltBricksInY.Num(); kk < nk; ++kk)
+			// 				{
+			// 					uint32 ChunkIndex = AltBricksInY[kk];
+			// 					PlaneCut(BlastFractureTool, Noise, &RandomGenerator, StartPosition + FVector(57.5,0,0), Normal, ChunkIndex);
+			// 				}
+			// 				StartPosition.X += 115;
+			// 			}
+
+			// 			StartPosition = FVector(0, 0, 0);
+			// 			Normal = FVector(1, 0, 0);
+			// 			for (int ii = 0; ii < 5; ++ii)
+			// 			{
+			// 				PlaneCut(BlastFractureTool, Noise, &RandomGenerator, StartPosition, Normal);
+			// 				StartPosition.X += 37.0;
+			// 			}
+
+
+			//if (ReturnCode != 0)
+			//{
+			//	UE_LOG(LogFractureMesh, Error, TEXT("Mesh Brick failed ReturnCode=%d"), ReturnCode);
+			//}
 		}
 		break;
-
-#endif // CUTOUT_ENABLED
 
 		default:
 			UE_LOG(LogFractureMesh, Error, TEXT("Invalid Mesh Fracture Mode"));
 
 		}
-
+		
 		if (ReturnCode == 0)
 		{
 			// triangulates cut surfaces and fixes up UVs
 			BlastFractureTool->finalizeFracturing();
 
+			TArray<FGeneratedFracturedChunk> LocalGeneratedChunks;
+			TArray<int32> LocalDeletedChunks;
 			// Makes a Geometry collection for each of fracture chunks
-			GenerateChunkMeshes(BlastFractureTool, FractureSettings, FracturedChunkIndex, ParentName, Transform, NewBlastMesh, FracturedGeometryCollection, GeneratedChunksOut, DeletedChunksOut);
+			bAllChunksGood = GenerateChunkMeshes(BlastFractureTool, FractureSettings, FracturedChunkIndex, ParentName, Transform, NewBlastMesh, FracturedGeometryCollection, LocalGeneratedChunks, LocalDeletedChunks);
+
+			static FCriticalSection Mutex;
+
+			Mutex.Lock();
+			GeneratedChunksOut += LocalGeneratedChunks;
+			DeletedChunksOut += LocalDeletedChunks;
+			Mutex.Unlock();
 
 			float ProcessingTime = static_cast<float>(FPlatformTime::Seconds() - CacheStartTime);
 			LogStatsAndTimings(NewBlastMesh, BlastFractureTool, Transform, FractureSettings, ProcessingTime);
 
-			if (FractureMesh::CVarEnableBlastDebugVisualization.GetValueOnGameThread() != 0)
+			if (IsInGameThread() && FractureMesh::CVarEnableBlastDebugVisualization.GetValueOnGameThread() != 0)
 			{
 				RenderDebugGraphics(BlastFractureTool, FractureSettings, Transform);
 			}
@@ -332,10 +567,11 @@ void UFractureMesh::FractureMesh(const UEditableMesh* SourceMesh, const FString&
 
 	BlastFractureTool->release();
 #endif
+	return bAllChunksGood;
 }
 
 #if PLATFORM_WINDOWS
-void UFractureMesh::GenerateChunkMeshes(Nv::Blast::FractureTool* BlastFractureTool, const UMeshFractureSettings& FractureSettings, int32 FracturedChunkIndex, const FString& ParentName, const FTransform& ParentTransform, Nv::Blast::Mesh* BlastMesh, UGeometryCollection* FracturedGeometryCollection, TArray<FGeneratedFracturedChunk>& GeneratedChunksOut, TArray<int32>& DeletedChunksOut)
+bool UFractureMesh::GenerateChunkMeshes(Nv::Blast::FractureTool* BlastFractureTool, const UMeshFractureSettings& FractureSettings, int32 FracturedChunkIndex, const FString& ParentName, const FTransform& ParentTransform, Nv::Blast::Mesh* BlastMesh, UGeometryCollection* FracturedGeometryCollection, TArray<FGeneratedFracturedChunk>& GeneratedChunksOut, TArray<int32>& DeletedChunksOut)
 {
 	check(BlastFractureTool);
 	check(BlastMesh);
@@ -343,59 +579,60 @@ void UFractureMesh::GenerateChunkMeshes(Nv::Blast::FractureTool* BlastFractureTo
 	check(FractureSettings.CommonSettings);
 
 	// -1 special case when fracturing a fresh static mesh
-	if (FracturedChunkIndex <  0)
+	if (FracturedChunkIndex < 0)
 		FracturedChunkIndex = 0;
-	FMeshUtility::AddBlastMeshToGeometryCollection(BlastFractureTool, FracturedChunkIndex, ParentName, ParentTransform, FracturedGeometryCollection, GeneratedChunksOut, DeletedChunksOut);
+	return FMeshUtility::AddBlastMeshToGeometryCollection(BlastFractureTool, FracturedChunkIndex, ParentName, ParentTransform, FracturedGeometryCollection, GeneratedChunksOut, DeletedChunksOut);
 }
 #endif
 
 void UFractureMesh::FixupHierarchy(int32 FracturedChunkIndex, class UGeometryCollection* GeometryCollectionObject, FGeneratedFracturedChunk& GeneratedChunk, const FString& Name)
 {
-	TSharedPtr<FGeometryCollection> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
+	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
 	FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get();
 
-	TSharedRef<TManagedArray<FVector> > ExplodedVectorsArray = GeometryCollection->GetAttribute<FVector>("ExplodedVector", FGeometryCollection::TransformGroup);
-	TSharedRef<TManagedArray<FGeometryCollectionBoneNode > > HierarchyArray = GeometryCollection->GetAttribute<FGeometryCollectionBoneNode>("BoneHierarchy", FGeometryCollection::TransformGroup);
-	TSharedRef<TManagedArray<FString> > BoneNamesArray = GeometryCollection->GetAttribute<FString>("BoneName", FGeometryCollection::TransformGroup);
-	TSharedRef<TManagedArray<FTransform> > ExplodedTransformsArray = GeometryCollection->GetAttribute<FTransform>("ExplodedTransform", FGeometryCollection::TransformGroup);
+	if (!GeometryCollection->HasAttribute("Level", FGeometryCollection::TransformGroup))
+	{
+		GeometryCollection->AddAttribute<int32>("Level", FGeometryCollection::TransformGroup);
+	}
 
-	TManagedArray<FTransform>& ExplodedTransforms = *ExplodedTransformsArray;
-	TManagedArray<FVector>& ExplodedVectors = *ExplodedVectorsArray;
-	TManagedArray<FGeometryCollectionBoneNode >& Hierarchy = *HierarchyArray;
-	TManagedArray<FString>& BoneNames = *BoneNamesArray;
+	TManagedArray<FTransform>& ExplodedTransforms = GeometryCollection->GetAttribute<FTransform>("ExplodedTransform", FGeometryCollection::TransformGroup);
+	TManagedArray<FVector>& ExplodedVectors = GeometryCollection->GetAttribute<FVector>("ExplodedVector", FGeometryCollection::TransformGroup);
+	TManagedArray<int32>& Level = GeometryCollection->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
+	TManagedArray<int32>& Parent = GeometryCollection->Parent;
+	TManagedArray<TSet<int32>>& Children = GeometryCollection->Children;
+	TManagedArray<int32>& SimulationType = GeometryCollection->SimulationType;
+	TManagedArray<FString>& BoneNames = GeometryCollection->BoneName;
 
 	int32 LastTransformGroupIndex = GeometryCollection->NumElements(FGeometryCollection::TransformGroup) - 1;
 
-	TManagedArray<FTransform> & TransformsOut = *GeometryCollection->Transform;
+	TManagedArray<FTransform> & TransformsOut = GeometryCollection->Transform;
 	// additional data to allow us to operate the exploded view slider in the editor
 	ExplodedTransforms[LastTransformGroupIndex] = TransformsOut[LastTransformGroupIndex];
 	ExplodedVectors[LastTransformGroupIndex] = GeneratedChunk.ChunkLocation;
 
 	// bone hierarchy and chunk naming
-	int32 ParentFractureLevel = Hierarchy[FracturedChunkIndex].Level;
+	int32 ParentFractureLevel = Level[FracturedChunkIndex];
 
 	if (GeneratedChunk.FirstChunk)
 	{
 		// the root/un-fractured piece, fracture level 0, No parent bone
-		Hierarchy[LastTransformGroupIndex].Level = 0;
+		Level[LastTransformGroupIndex] = 0;
 		BoneNames[LastTransformGroupIndex] = Name;
 	}
 	else
 	{
 		// all of the chunk fragments, fracture level > 0, has valid parent bone
-		Hierarchy[LastTransformGroupIndex].Level = ParentFractureLevel + 1;
+		Level[LastTransformGroupIndex] = ParentFractureLevel + 1;
 	}
 
-	Hierarchy[LastTransformGroupIndex].Parent = GeneratedChunk.ParentBone;
-	Hierarchy[LastTransformGroupIndex].SetFlags(FGeometryCollectionBoneNode::ENodeFlags::FS_Geometry);
+	Parent[LastTransformGroupIndex] = GeneratedChunk.ParentBone;
 
 	if (GeneratedChunk.ParentBone >= 0)
 	{
-		Hierarchy[GeneratedChunk.ParentBone].Children.Add(LastTransformGroupIndex);
-		Hierarchy[GeneratedChunk.ParentBone].ClearFlags(FGeometryCollectionBoneNode::ENodeFlags::FS_Geometry);
+		Children[GeneratedChunk.ParentBone].Add(LastTransformGroupIndex);
 	}
 
-	FGeometryCollectionClusteringUtility::RecursivelyUpdateChildBoneNames(FracturedChunkIndex, Hierarchy, BoneNames);
+	FGeometryCollectionClusteringUtility::RecursivelyUpdateChildBoneNames(FracturedChunkIndex, Children, BoneNames);
 	FMeshUtility::ValidateGeometryCollectionState(GeometryCollectionObject);
 
 }
@@ -443,35 +680,83 @@ void UFractureMesh::ExtractDataFromTexture(const TWeakObjectPtr<UTexture> Source
 
 	if (TextureSource != nullptr)
 	{
-		TArray<uint8> TextureRawData;
+		TArray64<uint8> TextureRawData;
 		TextureSource->GetMipData(TextureRawData, 0);
 		int32 BytesPerPixel = TextureSource->GetBytesPerPixel();
 		ETextureSourceFormat PixelFormat = TextureSource->GetFormat();
 		WidthOut = TextureSource->GetSizeX();
 		HeightOut = TextureSource->GetSizeY();
-		RawDataOut.SetNumZeroed(WidthOut * HeightOut);
 
-		for (int Y = 0; Y < HeightOut; ++Y)
+		// 		WidthOut = 100;
+		// 		HeightOut = 100;
+
+
+		RawDataOut.SetNumZeroed(WidthOut * HeightOut * 3);
+
+		for (int32 ii = 0, ni = WidthOut * HeightOut; ii < ni; ++ii)
 		{
-			for (int X = 0; X < WidthOut; ++X)
-			{
-				int32 PixelByteOffset = (X + Y * WidthOut) * BytesPerPixel;
-				const uint8* PixelPtr = TextureRawData.GetData() + PixelByteOffset;
-				FColor Color;
-				if (PixelFormat == TSF_BGRA8)
-				{
-					Color = *((FColor*)PixelPtr);
-				}
-				else
-				{
-					checkSlow(PixelFormat == TSF_G8);
-					const uint8 Intensity = *PixelPtr;
-					Color = FColor(Intensity, Intensity, Intensity, Intensity);
-				}
+			// 			uint8 val = (TextureRawData[ii*BytesPerPixel] + TextureRawData[1+ii*BytesPerPixel] + TextureRawData[2+ii*BytesPerPixel]) / 3;
+			// 			RawDataOut[ii] = val > 25 ? val : 0;
+			// 			int32 PixelByteOffset = (X + Y * WidthOut) * 3;
+			RawDataOut[ii * 3 + 0] = TextureRawData[ii*BytesPerPixel + 0];
+			RawDataOut[ii * 3 + 1] = TextureRawData[ii*BytesPerPixel + 1];
+			RawDataOut[ii * 3 + 2] = TextureRawData[ii*BytesPerPixel + 2];
 
-				RawDataOut[Y * WidthOut + X] = Color.A;
-			}
+
+			// 			RawDataOut[ii] = TextureRawData[ii*BytesPerPixel];
 		}
+
+		//
+		// 		for (int Y = 20; Y < 25; ++Y)
+		// 		{
+		// 			for (int X = 0; X < WidthOut; ++X)
+		// 			{
+		// 				int32 PixelByteOffset = (X + Y * WidthOut) * 3;
+		// 				RawDataOut[PixelByteOffset + 0] = 255;
+		// 				RawDataOut[PixelByteOffset + 1] = 255;
+		// 				RawDataOut[PixelByteOffset + 2] = 255;
+		// 			}
+		// 		}
+		//
+		// 		for (int Y = 75; Y < 80; ++Y)
+		// 		{
+		// 			for (int X = 0; X < WidthOut; ++X)
+		// 			{
+		// 				int32 PixelByteOffset = (X + Y * WidthOut) * 3;
+		// 				RawDataOut[PixelByteOffset + 0] = 255;
+		// 				RawDataOut[PixelByteOffset + 1] = 255;
+		// 				RawDataOut[PixelByteOffset + 2] = 255;
+		// 			}
+		// 		}
+
+
+		// 		for (int Y = 0; Y < HeightOut; ++Y)
+		// 		{
+		// 			for (int X = 0; X < WidthOut; ++X)
+		// 			{
+		// 				int32 PixelByteOffset = (X + Y * WidthOut) * BytesPerPixel;
+		// 				const uint8* PixelPtr = TextureRawData.GetData() + PixelByteOffset;
+		// 				FColor Color;
+		// 				if (PixelFormat == TSF_BGRA8)
+		// 				{
+		// 					Color = *((FColor*)PixelPtr);
+		// 				}
+		// 				else
+		// 				{
+		// 					checkSlow(PixelFormat == TSF_G8);
+		// 					const uint8 Intensity = *PixelPtr;
+		// 					Color = FColor(Intensity, Intensity, Intensity, Intensity);
+		// 				}
+		//
+		// 				uint8 Val = (Color.R + Color.G + Color.B ) /3;
+		// // 				if (Val > 100)
+		// // 					RawDataOut[Y * WidthOut + X] = 255;
+		// // 				else
+		// // 					RawDataOut[Y * WidthOut + X] = 0;
+		//
+		// 				RawDataOut[Y * WidthOut + X] = Val;
+		// 			}
+		// 		}
 	}
 }
 
@@ -511,13 +796,13 @@ void UFractureMesh::DrawDebugBlastMesh(const Nv::Blast::Mesh* ChunkMesh, int Chu
 	uint32 NumEdges = ChunkMesh->getEdgesCount();
 	const Nv::Blast::Edge* Edges = ChunkMesh->getEdges();
 	const Nv::Blast::Vertex* Vertices = ChunkMesh->getVertices();
-	for (uint32 i = 0; i < NumEdges; i++)
+	for (uint32 i = 0; i < NumEdges; ++i)
 	{
 		const Nv::Blast::Vertex& V1 = Vertices[Edges[i].s];
 		const Nv::Blast::Vertex& V2 = Vertices[Edges[i].e];
 
-		PxVec3 S = V1.p + ApproxChunkCenter*MaxBounds*5.0f;
-		PxVec3 E = V2.p + ApproxChunkCenter*MaxBounds*5.0f;
+		PxVec3 S = V1.p + ApproxChunkCenter * MaxBounds*5.0f;
+		PxVec3 E = V2.p + ApproxChunkCenter * MaxBounds*5.0f;
 
 		FVector Start = FVector(S.x, S.y, S.z)*MagicScaling;
 		FVector End = FVector(E.x, E.y, E.z)*MagicScaling;
@@ -527,6 +812,127 @@ void UFractureMesh::DrawDebugBlastMesh(const Nv::Blast::Mesh* ChunkMesh, int Chu
 		DrawDebugLine(InWorld, TStart, TEnd, UseColor, true);
 	}
 }
+
+void UFractureMesh::GenerateUniformSites(const FRandomStream &RandomStream, const FVector Offset, const FBox& Bounds, uint32 NumberToGenerate, TArray<FVector> &Sites) const
+{
+	const FVector Extents = Bounds.GetExtent();
+	Sites.Reserve(Sites.Num() + NumberToGenerate);
+	for (uint32 ii = 0; ii < NumberToGenerate; ++ii)
+	{
+		FVector Site(RandomStream.FRandRange(-Extents.X, Extents.X), RandomStream.FRandRange(-Extents.Y, Extents.Y), RandomStream.FRandRange(-Extents.Z, Extents.Z));
+		Site += Offset;
+		Sites.Emplace(Site);
+	}
+}
+
+void UFractureMesh::GenerateSitesInSphere(const FRandomStream &RandomStream, const FVector Offset, float Radius, uint32 NumberToGenerate, TArray<FVector> &Sites) const
+{
+	Sites.Reserve(Sites.Num() + NumberToGenerate);
+	for (uint32 ii = 0; ii < NumberToGenerate; ++ii)
+	{
+		FVector Site(RandomStream.GetUnitVector());
+		float Distance = RandomStream.GetFraction();
+		Site *= Radius * Distance * Distance;
+		Site += Offset;
+		Sites.Emplace(Site);
+	}
+}
+
+void UFractureMesh::ScatterInBounds(const FRandomStream& RandomStream, const FBox& Bounds, uint32 NumberToGenerate, TArray<FVector>& Positions, TArray<FVector>& Normals) const
+{
+	check(Positions.Num() == Normals.Num());
+
+	int32 PositionCount = Positions.Num();
+	Positions.Reserve(PositionCount + NumberToGenerate);
+	FBox ShrunkBounds(ForceInitToZero);
+	ShrunkBounds += Bounds.Min * 0.9;
+	ShrunkBounds += Bounds.Max * 0.9;
+
+	GenerateUniformSites(RandomStream, FVector::ZeroVector, ShrunkBounds, NumberToGenerate, Positions);
+
+	Normals.SetNum(PositionCount + NumberToGenerate);
+
+	FVector ScaleVector(Bounds.GetExtent());
+	ScaleVector /= ScaleVector.GetMax();
+
+	for (int32 ii = PositionCount, ni = Normals.Num(); ii < ni; ++ii)
+	{
+		Normals[ii] = RandomStream.GetUnitVector();
+		Normals[ii] *= FMath::Lerp(ScaleVector, FVector::OneVector, (float)ii / (float)ni);
+		Normals[ii].Normalize();
+	}
+}
+
+int32 UFractureMesh::PlaneCut(Nv::Blast::FractureTool* BlastFractureTool, const Nv::Blast::NoiseConfiguration& Noise, FractureRandomGenerator* RandomGenerator, const FVector& InPosition, const FVector& InNormal, int32 ChunkID) const
+{
+	TArray<int32> ChunkIDs;
+	ChunkIDs.Push(ChunkID);
+	int CutNumber = 0;
+
+	int32 NumChunks = static_cast<int32>(BlastFractureTool->getChunkCount());
+	if (NumChunks > 2 && ChunkID == 0)
+	{
+		CutNumber++;
+		ChunkIDs.Empty();
+
+		// All generated chunks are candidates for any further cuts (however we must exclude the initial chunk from now on)
+		for (int32 ChunkIndex = 0; ChunkIndex < NumChunks; ChunkIndex++)
+		{
+			int32 NewChunkID = BlastFractureTool->getChunkId(ChunkIndex);
+
+			// don't try and fracture the initial chunk again
+			if (NewChunkID != ChunkID)
+			{
+				ChunkIDs.Push(NewChunkID);
+			}
+		}
+	}
+
+	bool Replace = CutNumber != 0;
+	if (ChunkID != 0)
+	{
+		Replace = true;
+	}
+
+	for (int32 CID : ChunkIDs)
+	{
+		// 		if (RandomStream.GetFraction() <= FractureSettings.PlaneCutSettings->CutChunkChance)
+		{
+			BlastFractureTool->cut(CID, FVEC_TO_PHYSX(InNormal), FVEC_TO_PHYSX(InPosition), Noise, Replace, RandomGenerator);
+		}
+	}
+
+	// ReturnCode zero is a success, if we end with one chunk then the chunk we started with hasn't been split
+	return !(BlastFractureTool->getChunkCount() > 2);
+}
+
+TArray<int32> UFractureMesh::GetChunkIDs(Nv::Blast::FractureTool* BlastFractureTool) const
+{
+	TArray<int32> ReturnArray;
+
+	int32 NumChunks = static_cast<int32>(BlastFractureTool->getChunkCount());
+	for (int32 ChunkIndex = 0; ChunkIndex < NumChunks; ++ChunkIndex)
+	{
+		int32 ChunkID = BlastFractureTool->getChunkId(ChunkIndex);
+		ReturnArray.Push(ChunkID);
+	}
+	return ReturnArray;
+}
+
+TArray<int32> UFractureMesh::GetAddedIDs(const TArray<int32>& StartingArray, const TArray<int32>& EndingArray) const
+{
+	TArray<int32> ReturnArray;
+
+	for (int32 Value : EndingArray)
+	{
+		if (!StartingArray.Contains(Value))
+		{
+			ReturnArray.Add(Value);
+		}
+	}
+	return ReturnArray;
+}
+
 #endif
 
 #undef LOCTEXT_NAMESPACE

@@ -2,9 +2,12 @@
 
 #include "ConcertSyncArchives.h"
 #include "ConcertSyncSettings.h"
+#include "ConcertVersion.h"
 
 #include "Misc/Paths.h"
 #include "Misc/PackageName.h"
+#include "Misc/EngineVersion.h"
+#include "Serialization/CustomVersion.h"
 #include "UObject/Object.h"
 #include "UObject/Package.h"
 #include "UObject/LinkerLoad.h"
@@ -121,7 +124,10 @@ FArchive& FConcertSyncObjectWriter::operator<<(UObject*& Obj)
 FArchive& FConcertSyncObjectWriter::operator<<(FLazyObjectPtr& LazyObjectPtr)
 {
 	UObject* Obj = LazyObjectPtr.Get();
+	FUniqueObjectGuid ObjectGuid = LazyObjectPtr.GetUniqueID();
+	// Serialize both the object path and the object guid
 	*this << Obj;
+	*this << ObjectGuid;
 	return *this;
 }
 
@@ -157,7 +163,7 @@ bool FConcertSyncObjectWriter::ShouldSkipProperty(const UProperty* InProperty) c
 		ConcertSyncUtil::ShouldSkipTransientProperty(InProperty);
 }
 
-FConcertSyncObjectReader::FConcertSyncObjectReader(const FConcertLocalIdentifierTable* InLocalIdentifierTable, FConcertSyncWorldRemapper InWorldRemapper, UObject* InObj, const TArray<uint8>& InBytes)
+FConcertSyncObjectReader::FConcertSyncObjectReader(const FConcertLocalIdentifierTable* InLocalIdentifierTable, FConcertSyncWorldRemapper InWorldRemapper, const FConcertSessionVersionInfo* InVersionInfo, UObject* InObj, const TArray<uint8>& InBytes)
 	: FConcertIdentifierReader(InLocalIdentifierTable, InBytes, /*bIsPersistent*/false)
 	, WorldRemapper(MoveTemp(InWorldRemapper))
 {
@@ -165,6 +171,20 @@ FConcertSyncObjectReader::FConcertSyncObjectReader(const FConcertLocalIdentifier
 	ArIgnoreArchetypeRef = false;
 	ArNoDelta = true;
 	//SetWantBinaryPropertySerialization(true);
+
+	if (InVersionInfo)
+	{
+		SetUE4Ver(InVersionInfo->FileVersion.FileVersionUE4);
+		SetLicenseeUE4Ver(InVersionInfo->FileVersion.FileVersionLicenseeUE4);
+		SetEngineVer(FEngineVersionBase(InVersionInfo->EngineVersion.Major, InVersionInfo->EngineVersion.Minor, InVersionInfo->EngineVersion.Patch, InVersionInfo->EngineVersion.Changelist));
+
+		FCustomVersionContainer EngineCustomVersions;
+		for (const FConcertCustomVersionInfo& CustomVersion : InVersionInfo->CustomVersions)
+		{
+			EngineCustomVersions.SetVersion(CustomVersion.Key, CustomVersion.Version, CustomVersion.FriendlyName);
+		}
+		SetCustomVersions(EngineCustomVersions);
+	}
 
 	SetIsTransacting(true);
 	SetFilterEditorOnly(!WITH_EDITORONLY_DATA);
@@ -230,8 +250,17 @@ FArchive& FConcertSyncObjectReader::operator<<(UObject*& Obj)
 FArchive& FConcertSyncObjectReader::operator<<(FLazyObjectPtr& LazyObjectPtr)
 {
 	UObject* Obj = nullptr;
+	FUniqueObjectGuid SavedObjectGuid;
 	*this << Obj;
-	LazyObjectPtr = Obj;
+	*this << SavedObjectGuid;
+
+	// if the resolved object already has an associated Guid, use that instead of the saved one
+	// otherwise used the saved guid since it should refer to the Obj path once its state get applied.
+	FUniqueObjectGuid ObjectGuid = Obj != nullptr ? FUniqueObjectGuid(Obj) : FUniqueObjectGuid();
+	LazyObjectPtr = ObjectGuid.IsValid() ? ObjectGuid : SavedObjectGuid;
+	// technically the saved object guid should be the same as the resolved object guid if any.
+	ensure(!ObjectGuid.IsValid() || ObjectGuid == SavedObjectGuid);
+
 	return *this;
 }
 

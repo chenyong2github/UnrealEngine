@@ -55,7 +55,7 @@ public:
 	/**
 	 * Enable Multithreading (Experimental)
 	 */
-	UPROPERTY(GlobalConfig, EditAnywhere, Category=Emscripten, Meta = (DisplayName = "Multithreading support"))
+	UPROPERTY(GlobalConfig, EditAnywhere, Category=Emscripten, Meta = (DisplayName = "Multithreading support [experimental]"))
 	bool EnableMultithreading;
 
 	/**

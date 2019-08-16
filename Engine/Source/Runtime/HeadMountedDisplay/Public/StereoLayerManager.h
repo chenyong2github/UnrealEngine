@@ -85,6 +85,12 @@ protected:
 		}
 	}
 
+	void WithLayer(uint32 LayerId, TFunction<void(LayerType*)> Func)
+	{
+		FScopeLock LockLayers(&LayerCritSect);
+		Func(StereoLayers.Find(LayerId));
+	}
+
 public:
 
 	TStereoLayerManager()
@@ -166,6 +172,6 @@ protected:
 	{}
 };
 
-bool GetLayerDescMember(IStereoLayers::FLayerDesc& Layer, IStereoLayers::FLayerDesc& OutLayerDesc);
-void SetLayerDescMember(IStereoLayers::FLayerDesc& OutLayer, const IStereoLayers::FLayerDesc& InLayerDesc);
-void MarkLayerTextureForUpdate(IStereoLayers::FLayerDesc& Layer);
+HEADMOUNTEDDISPLAY_API bool GetLayerDescMember(IStereoLayers::FLayerDesc& Layer, IStereoLayers::FLayerDesc& OutLayerDesc);
+HEADMOUNTEDDISPLAY_API void SetLayerDescMember(IStereoLayers::FLayerDesc& OutLayer, const IStereoLayers::FLayerDesc& InLayerDesc);
+HEADMOUNTEDDISPLAY_API void MarkLayerTextureForUpdate(IStereoLayers::FLayerDesc& Layer);

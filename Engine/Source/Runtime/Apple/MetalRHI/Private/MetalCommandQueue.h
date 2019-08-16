@@ -17,94 +17,60 @@ class FMetalCommandList;
  */
 typedef NS_OPTIONS(uint64, EMetalFeatures)
 {
-	/** Support for separate front & back stencil ref. values */
-	EMetalFeaturesSeparateStencil = 1 << 0,
 	/** Support for specifying an update to the buffer offset only */
-	EMetalFeaturesSetBufferOffset = 1 << 1,
-	/** Support for specifying the depth clip mode */
-	EMetalFeaturesDepthClipMode = 1 << 2,
-	/** Support for specifying resource usage & memory options */
-	EMetalFeaturesResourceOptions = 1 << 3,
-	/** Supports texture->buffer blit options for depth/stencil blitting */
-	EMetalFeaturesDepthStencilBlitOptions = 1 << 4,
-    /** Supports creating a native stencil texture view from a depth/stencil texture */
-    EMetalFeaturesStencilView = 1 << 5,
-    /** Supports a depth-16 pixel format */
-    EMetalFeaturesDepth16 = 1 << 6,
+	EMetalFeaturesSetBufferOffset = 1 << 0,
 	/** Supports NSUInteger counting visibility queries */
-	EMetalFeaturesCountingQueries = 1 << 7,
+	EMetalFeaturesCountingQueries = 1 << 1,
 	/** Supports base vertex/instance for draw calls */
-	EMetalFeaturesBaseVertexInstance = 1 << 8,
+	EMetalFeaturesBaseVertexInstance = 1 << 2,
 	/** Supports indirect buffers for draw calls */
-	EMetalFeaturesIndirectBuffer = 1 << 9,
+	EMetalFeaturesIndirectBuffer = 1 << 3,
 	/** Supports layered rendering */
-	EMetalFeaturesLayeredRendering = 1 << 10,
+	EMetalFeaturesLayeredRendering = 1 << 4,
 	/** Support for specifying small buffers as byte arrays */
-	EMetalFeaturesSetBytes = 1 << 11,
-	/** Supports different shader standard versions */
-	EMetalFeaturesShaderVersions = 1 << 12,
+	EMetalFeaturesSetBytes = 1 << 5,
 	/** Supports tessellation rendering */
-	EMetalFeaturesTessellation = 1 << 13,
-	/** Supports arbitrary buffer/texture writes from graphics shaders */
-	EMetalFeaturesGraphicsUAVs = 1 << 14,
+	EMetalFeaturesTessellation = 1 << 6,
 	/** Supports framework-level validation */
-	EMetalFeaturesValidation = 1 << 15,
-	/** Supports absolute-time emulation using command-buffer completion handlers */
-	EMetalFeaturesAbsoluteTimeQueries = 1 << 16,
+	EMetalFeaturesValidation = 1 << 7,
 	/** Supports detailed statistics */
-	EMetalFeaturesStatistics= 1 << 17,
-	/** Supports memory-less texture resources */
-	EMetalFeaturesMemoryLessResources = 1 << 18,
+	EMetalFeaturesStatistics = 1 << 8,
 	/** Supports the explicit MTLHeap APIs */
-	EMetalFeaturesHeaps = 1 << 19,
+	EMetalFeaturesHeaps = 1 << 9,
 	/** Supports the explicit MTLFence APIs */
-	EMetalFeaturesFences = 1 << 20,
-	/** Supports deferred store action speficication */
-	EMetalFeaturesDeferredStoreActions = 1 << 21,
+	EMetalFeaturesFences = 1 << 10,
 	/** Supports MSAA Depth Resolves */
-	EMetalFeaturesMSAADepthResolve = 1 << 22,
+	EMetalFeaturesMSAADepthResolve = 1 << 11,
 	/** Supports Store & Resolve in a single store action */
-	EMetalFeaturesMSAAStoreAndResolve = 1 << 23,
+	EMetalFeaturesMSAAStoreAndResolve = 1 << 12,
 	/** Supports framework GPU frame capture */
-	EMetalFeaturesGPUTrace = 1 << 24,
-	/** Supports combined depth-stencil formats */
-	EMetalFeaturesCombinedDepthStencil = 1 << 25,
+	EMetalFeaturesGPUTrace = 1 << 13,
 	/** Supports the use of cubemap arrays */
-	EMetalFeaturesCubemapArrays = 1 << 26,
-	/** Supports the creation of texture-views using buffers as the backing store */
-	EMetalFeaturesLinearTextures = 1 << 27,
-	/** Supports the creation of texture-views for UAVs using buffers as the backing store */
-	EMetalFeaturesLinearTextureUAVs = 1 << 28,
+	EMetalFeaturesCubemapArrays = 1 << 14,
 	/** Supports the specification of multiple viewports and scissor rects */
-	EMetalFeaturesMultipleViewports = 1 << 29,
-	/** Supports accurate GPU times for commandbuffer start/end */
-    EMetalFeaturesGPUCommandBufferTimes = 1 << 30,
+	EMetalFeaturesMultipleViewports = 1 << 15,
     /** Supports minimum on-glass duration for drawables */
-    EMetalFeaturesPresentMinDuration = 1llu << 31llu,
+    EMetalFeaturesPresentMinDuration = 1llu << 16llu,
     /** Supports programmatic frame capture API */
-    EMetalFeaturesGPUCaptureManager = 1llu << 32llu,
-	/** Supports toggling V-Sync on & off */
-	EMetalFeaturesSupportsVSyncToggle = 1llu << 33llu,
-	/** Supports function-constants for runtime shader specialisation */
-	EMetalFeaturesFunctionConstants = 1llu << 34llu,
+    EMetalFeaturesGPUCaptureManager = 1llu << 17llu,
 	/** Supports efficient buffer-blits */
-	EMetalFeaturesEfficientBufferBlits = 1llu << 35llu,
+	EMetalFeaturesEfficientBufferBlits = 1llu << 18llu,
 	/** Supports any kind of buffer sub-allocation */
-	EMetalFeaturesBufferSubAllocation = 1llu << 36llu,
+	EMetalFeaturesBufferSubAllocation = 1llu << 19llu,
 	/** Supports private buffer sub-allocation */
-	EMetalFeaturesPrivateBufferSubAllocation = 1llu << 37llu,
+	EMetalFeaturesPrivateBufferSubAllocation = 1llu << 20llu,
 	/** Supports texture buffers */
-	EMetalFeaturesTextureBuffers = 1llu << 38llu,
+	EMetalFeaturesTextureBuffers = 1llu << 21llu,
 	/** Supports max. compute threads per threadgroup */
-	EMetalFeaturesMaxThreadsPerThreadgroup = 1llu << 39llu,
+	EMetalFeaturesMaxThreadsPerThreadgroup = 1llu << 22llu,
 	/** Supports parallel render encoders */
-	EMetalFeaturesParallelRenderEncoders = 1llu << 40llu,
+	EMetalFeaturesParallelRenderEncoders = 1llu << 23llu,
 	/** Supports indirect argument buffers */
-	EMetalFeaturesIABs = 1llu << 41llu,
+	EMetalFeaturesIABs = 1llu << 24llu,
 	/** Supports specifying the mutability of buffers bound to PSOs */
-	EMetalFeaturesPipelineBufferMutability = 1llu << 42llu,
+    EMetalFeaturesPipelineBufferMutability = 1llu << 25llu,
     /** Supports tile shaders */
-    EMetalFeaturesTileShaders = 1llu << 43llu,
+    EMetalFeaturesTileShaders = 1llu << 26llu,
 };
 
 /**

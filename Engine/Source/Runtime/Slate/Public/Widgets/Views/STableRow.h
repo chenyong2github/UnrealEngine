@@ -823,7 +823,7 @@ public:
 	}
 
 	/** @return The border to be drawn around this list item */
-	const FSlateBrush* GetBorder() const 
+	virtual const FSlateBrush* GetBorder() const 
 	{
 		TSharedPtr< ITypedTableView<ItemType> > OwnerWidget = OwnerTablePtr.Pin();
 

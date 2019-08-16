@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6278513
 Availability: Licensee
 Crumbs: %ROOT%
 Title: 硬件基准（2017年中）
@@ -98,7 +98,7 @@ _*以上是与（D）变体相同的计算机，只是删除了一个CPU。_
 ![](HB_6.png)
 [/REGION]
 
-自 [IWYU（包括你使用的）](Programming/UnrealBuildSystem/IWYUReferenceGuide) 重构以来，我们发现 **编辑器（Editor）** 编译高度并行化，几乎没有PCH（预编译标头）瓶颈，因此可以看到上面显示的关系。
+自 [IWYU（包括你使用的）](Programming/BuildTools/UnrealBuildTool/IWYU) 重构以来，我们发现 **编辑器（Editor）** 编译高度并行化，几乎没有PCH（预编译标头）瓶颈，因此可以看到上面显示的关系。
 
 ###存储器
 

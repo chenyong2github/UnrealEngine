@@ -10,6 +10,7 @@ FString FRigUnit_SetRelativeBoneTransform::GetUnitLabel() const
 
 void FRigUnit_SetRelativeBoneTransform::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	FRigHierarchyRef& HierarchyRef = ExecuteContext.HierarchyReference;
 	FRigHierarchy* Hierarchy = HierarchyRef.Get();
 	if (Hierarchy)

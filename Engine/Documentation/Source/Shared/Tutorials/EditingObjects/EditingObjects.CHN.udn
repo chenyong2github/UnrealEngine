@@ -1,16 +1,18 @@
-﻿Availability:NoPublish
-Title: 镜头控制
+INTSourceChangelist:3108692
+Availability:NoPublish
+Title:摄像机控制
 Crumbs:
-Description: 基本镜头控制介绍
+Description:基本摄像机控制简介
 
 
-注意： 这是一个正在制作中的教程，很可能会被全部替换掉。 我现在正在使用这个文件测试互动功能。
+注：本文所述基本是半成品，可能会被完全取代。我只是使用这个文件测试互动功能。
 
 
 [EXCERPT:SelectingObjects]
+(#selectingobjects)
 ## 选择对象
 
-1. 在视口中对球体点击鼠标左键以选择它。
+1. 使用鼠标左键单击视口中的球体来将其选中。
 
 ![](SelectSphere.png)
 
@@ -18,31 +20,33 @@ Description: 基本镜头控制介绍
 
 
 [EXCERPT:TranslatingObjects]
+(#translatingobjects)
 ## 平移对象
 
-1. 如还没有选择平移工具，则现在选中它。
+1. 如果还未选中平移工具，将其选中。
 
 ![](SelectTranslateTool.png)
 
-1. 对平移小工具的轴点击并按下鼠标左键。
+1. 在平移小工具轴上，单击并按住鼠标左键。
 
 ![](SelectTranslateAxis.png)
 
-1. 前后移动鼠标以将对象沿该坐标轴移动。
+1. 前后移动鼠标，沿着该轴移动对象。
 
 [/EXCERPT:TranslatingObjects]
 
 
 [EXCERPT:TranslatingObjects2]
+(#translatingobjects)
 ## 平移对象
 
-1. 在两条轴线间小工具的部分点击并按下鼠标左键。
+1. 在两轴之间的小工具部分上，单击并按住鼠标左键。
 
 ![](SelectTranslateTwoAxis.png)
 
-1. 前后移动鼠标以将对象沿此两条坐标轴移动。
+1. 前后移动鼠标，沿着这些轴移动对象。
 
-1. 选择小工具的球体部分以将对象沿所有轴线移动。
+1. 选择小工具的球体部分，沿着所有轴移动对象。
 
 ![](SelectTranslateAllAxis.png)
 
@@ -50,56 +54,62 @@ Description: 基本镜头控制介绍
 
 
 [EXCERPT:RotatingObjects]
+(#rotatingobjects)
 ## 旋转对象
 
-TODO
+待定
 
 [/EXCERPT:RotatingObjects]
 
 
 [EXCERPT:ScalingObjects]
+(#scalingobjects)
 ## 缩放对象
 
-TODO
+待定
 
 [/EXCERPT:ScalingObjects]
 
 
 [EXCERPT:EditingDetails]
-## 编辑细节
+(#editingdetails)
+## 编辑详情
 
-1. 当球体被选中时，勾选细节选项卡以查看有关球体的信息。
+1. 选中球体后，查看细节选项卡以查看关于该球体的信息。
 
 ![](SphereDetails.png)
 
-1. 在Z轴的缩放框中点击一次，输入 "5",然后按回车。
+1. 在“Z缩放”（Z-Scale）框中单击一次，输入“5”并按Enter键。
 
 ![](EditDetailsScale.png)
 
-记录球体当前在Z轴是如何进行缩放的。
+记录球体在Z轴的缩放方式。
 
 [/EXCERPT:EditingDetails]
 
 
 [EXCERPT:SceneOutliner]
+(#sceneoutliner)
 ## 场景大纲视图
 
-TODO
+待定
 
 [/EXCERPT:SceneOutliner]
 
 
 [EXCERPT:Snapping]
+(#snapping)
 ## 对齐
 
-TODO
+待定
 
 [/EXCERPT:Snapping]
 
 
 [EXCERPT:WorldLocalSpace]
-## 世界和本地空间
+(#worldandlocalspace)
+## 场景和局部空间
 
-TODO
+待定
 
 [/EXCERPT:WorldLocalSpace]

@@ -9,16 +9,19 @@
 #include "Misc/Paths.h"
 #include "UObject/StructOnScope.h"
 
-// TODO: change ptr to ref
-FConcertClientSession::FConcertClientSession(const FConcertSessionInfo& InSessionInfo, const FConcertClientInfo& InClientInfo, const FConcertClientSettings& InSettings, TSharedPtr<IConcertLocalEndpoint> Endpoint)
-	: SessionInfo(InSessionInfo)
+const FName ConcertClientMessageIdName("ConcertMessageId");
+
+FConcertClientSession::FConcertClientSession(const FConcertSessionInfo& InSessionInfo, const FConcertClientInfo& InClientInfo, const FConcertClientSettings& InSettings, TSharedPtr<IConcertLocalEndpoint> InClientSessionEndpoint, const FString& InSessionDirectory)
+	: FConcertSessionCommonImpl(InSessionInfo)
 	, ClientInfo(InClientInfo)
 	, ConnectionStatus(EConcertConnectionStatus::Disconnected)
-	, ClientSessionEndpoint(MoveTemp(Endpoint))
+	, ClientSessionEndpoint(MoveTemp(InClientSessionEndpoint))
 	, SuspendedCount(0)
 	, LastConnectionTick(0)
 	, SessionTickFrequency(0, 0, InSettings.SessionTickFrequencySeconds)
-{}
+	, SessionDirectory(InSessionDirectory)
+{
+}
 
 FConcertClientSession::~FConcertClientSession()
 {
@@ -26,57 +29,25 @@ FConcertClientSession::~FConcertClientSession()
 	check(!SessionTick.IsValid());
 }
 
-FString FConcertClientSession::GetSessionWorkingDirectory() const
-{
-	return FPaths::ProjectIntermediateDir() / TEXT("Concert") / FString::Printf(TEXT("%s_%s"), *GetName(), *FApp::GetInstanceId().ToString());
-}
-
-TArray<FGuid> FConcertClientSession::GetSessionClientEndpointIds() const
-{
-	TArray<FGuid> EndpointIds;
-	SessionClients.GenerateKeyArray(EndpointIds);
-	return EndpointIds;
-}
-
-TArray<FConcertSessionClientInfo> FConcertClientSession::GetSessionClients() const
-{
-	TArray<FConcertSessionClientInfo> ClientInfos;
-	ClientInfos.Reserve(SessionClients.Num());
-	for (const auto& SessionClientPair : SessionClients)
-	{
-		ClientInfos.Add(SessionClientPair.Value.ClientInfo);
-	}
-	return ClientInfos;
-}
-
-bool FConcertClientSession::FindSessionClient(const FGuid& EndpointId, FConcertSessionClientInfo& OutSessionClientInfo) const
-{
-	if (const FSessionClient* FoundSessionClient =  SessionClients.Find(EndpointId))
-	{
-		OutSessionClientInfo = FoundSessionClient->ClientInfo;
-		return true;
-	}
-	return false;
-}
-
 void FConcertClientSession::Startup()
 {
 	// if the session tick isn't valid we haven't started
 	if (!SessionTick.IsValid())
 	{
+		CommonStartup();
+
 		// Register to connection changed event
-		RemoteConnectionChangedHandle = ClientSessionEndpoint->OnRemoteEndpointConnectionChanged().AddRaw(this, &FConcertClientSession::HandleRemoteConnectionChanged);
+		ClientSessionEndpoint->OnRemoteEndpointConnectionChanged().AddRaw(this, &FConcertClientSession::HandleRemoteConnectionChanged);
 
 		// Setup the session handlers
 		ClientSessionEndpoint->RegisterEventHandler<FConcertSession_JoinSessionResultEvent>(this, &FConcertClientSession::HandleJoinSessionResultEvent);
 		ClientSessionEndpoint->RegisterEventHandler<FConcertSession_ClientListUpdatedEvent>(this, &FConcertClientSession::HandleClientListUpdatedEvent);
+		ClientSessionEndpoint->RegisterEventHandler<FConcertSession_SessionRenamedEvent>(this, &FConcertClientSession::HandleSessionRenamedEvent);
+		ClientSessionEndpoint->RegisterEventHandler<FConcertSession_UpdateClientInfoEvent>(this, &FConcertClientSession::HandleClientInfoUpdatedEvent);
 
 		// Setup Handlers for custom session messages
-		ClientSessionEndpoint->RegisterEventHandler<FConcertSession_CustomEvent>(this, &FConcertClientSession::HandleCustomEvent);
-		ClientSessionEndpoint->RegisterRequestHandler<FConcertSession_CustomRequest, FConcertSession_CustomResponse>(this, &FConcertClientSession::HandleCustomRequest);
-
-		// Create your local scratchpad
-		Scratchpad = MakeShared<FConcertScratchpad, ESPMode::ThreadSafe>();
+		ClientSessionEndpoint->RegisterEventHandler<FConcertSession_CustomEvent>(this, &FConcertClientSession::CommonHandleCustomEvent);
+		ClientSessionEndpoint->RegisterRequestHandler<FConcertSession_CustomRequest, FConcertSession_CustomResponse>(this, &FConcertClientSession::CommonHandleCustomRequest);
 
 		// Setup the session tick
 		SessionTick = FTicker::GetCoreTicker().AddTicker(TEXT("ClientSession"), 0, [this](float DeltaSeconds) {
@@ -85,7 +56,7 @@ void FConcertClientSession::Startup()
 			return true;
 		});
 
-		UE_LOG(LogConcert, Display, TEXT("Initialized Concert session '%s' (Owner: %s)."), *SessionInfo.SessionName, *SessionInfo.OwnerUserName);
+		UE_LOG(LogConcert, Display, TEXT("Initialized Concert session '%s' (Id: %s, Owner: %s)."), *SessionInfo.SessionName, *SessionInfo.SessionId.ToString(), *SessionInfo.OwnerUserName);
 	}
 }
 
@@ -94,25 +65,25 @@ void FConcertClientSession::Shutdown()
 	if (SessionTick.IsValid())
 	{
 		// Unregister connection changed
-		ClientSessionEndpoint->OnRemoteEndpointConnectionChanged().Remove(RemoteConnectionChangedHandle);
-		RemoteConnectionChangedHandle.Reset();
+		ClientSessionEndpoint->OnRemoteEndpointConnectionChanged().RemoveAll(this);
 
 		// Unregister the session handlers
 		ClientSessionEndpoint->UnregisterEventHandler<FConcertSession_JoinSessionResultEvent>();
 		ClientSessionEndpoint->UnregisterEventHandler<FConcertSession_ClientListUpdatedEvent>();
+		ClientSessionEndpoint->UnregisterEventHandler<FConcertSession_SessionRenamedEvent>();
+		ClientSessionEndpoint->UnregisterEventHandler<FConcertSession_UpdateClientInfoEvent>();
 
 		// Unregister handlers for the custom session messages
 		ClientSessionEndpoint->UnregisterEventHandler<FConcertSession_CustomEvent>();
 		ClientSessionEndpoint->UnregisterRequestHandler<FConcertSession_CustomRequest>();
 
-		// Reset your scratchpad
-		Scratchpad.Reset();
-
 		// Unregister the session tick
 		FTicker::GetCoreTicker().RemoveTicker(SessionTick);
 		SessionTick.Reset();
 
-		UE_LOG(LogConcert, Display, TEXT("Shutdown Concert session '%s' (Owner: %s)."), *SessionInfo.SessionName, *SessionInfo.OwnerUserName);
+		CommonShutdown();
+
+		UE_LOG(LogConcert, Display, TEXT("Shutdown Concert session '%s' (Id: %s, Owner: %s)."), *SessionInfo.SessionName, *SessionInfo.SessionId.ToString(), *SessionInfo.OwnerUserName);
 	}
 }
 
@@ -123,7 +94,7 @@ void FConcertClientSession::Connect()
 		// Start connection handshake with server session
 		ConnectionStatus = EConcertConnectionStatus::Connecting;
 		OnConnectionChangedDelegate.Broadcast(*this, ConnectionStatus);
-		UE_LOG(LogConcert, Display, TEXT("Connecting to Concert session '%s' (Owner: %s)."), *SessionInfo.SessionName, *SessionInfo.OwnerUserName);
+		UE_LOG(LogConcert, Display, TEXT("Connecting to Concert session '%s' (Id: %s, Owner: %s)."), *SessionInfo.SessionName, *SessionInfo.SessionId.ToString(), *SessionInfo.OwnerUserName);
 		SendConnectionRequest();
 	}
 }
@@ -142,7 +113,7 @@ void FConcertClientSession::Disconnect()
 		// Send Disconnected event
 		OnConnectionChangedDelegate.Broadcast(*this, ConnectionStatus);
 
-		UE_LOG(LogConcert, Display, TEXT("Disconnected from Concert session '%s' (Owner: %s)."), *SessionInfo.SessionName, *SessionInfo.OwnerUserName);
+		UE_LOG(LogConcert, Display, TEXT("Disconnected from Concert session '%s' (Id: %s, Owner: %s)."), *SessionInfo.SessionName, *SessionInfo.SessionId.ToString(), *SessionInfo.OwnerUserName);
 	}
 }
 
@@ -151,14 +122,14 @@ void FConcertClientSession::Resume()
 	check(IsSuspended());
 	--SuspendedCount;
 
-	UE_LOG(LogConcert, Display, TEXT("Resumed Concert session '%s' (Owner: %s)."), *SessionInfo.SessionName, *SessionInfo.OwnerUserName);
+	UE_LOG(LogConcert, Display, TEXT("Resumed Concert session '%s' (Id: %s, Owner: %s)."), *SessionInfo.SessionName, *SessionInfo.SessionId.ToString(), *SessionInfo.OwnerUserName);
 }
 
 void FConcertClientSession::Suspend()
 {
 	++SuspendedCount;
 
-	UE_LOG(LogConcert, Display, TEXT("Suspended Concert session '%s' (Owner: %s)."), *SessionInfo.SessionName, *SessionInfo.OwnerUserName);
+	UE_LOG(LogConcert, Display, TEXT("Suspended Concert session '%s' (Id: %s, Owner: %s)."), *SessionInfo.SessionName, *SessionInfo.SessionId.ToString(), *SessionInfo.OwnerUserName);
 }
 
 bool FConcertClientSession::IsSuspended() const
@@ -181,28 +152,14 @@ FOnConcertClientSessionClientChanged& FConcertClientSession::OnSessionClientChan
 	return OnSessionClientChangedDelegate;
 }
 
-FConcertScratchpadRef FConcertClientSession::GetScratchpad() const
+FOnConcertSessionRenamed& FConcertClientSession::OnSessionRenamed()
 {
-	return Scratchpad.ToSharedRef();
+	return OnSessionRenamedDelegate;
 }
 
-FConcertScratchpadPtr FConcertClientSession::GetClientScratchpad(const FGuid& ClientEndpointId) const
+FString FConcertClientSession::GetSessionWorkingDirectory() const
 {
-	if (const FSessionClient* FoundSessionClient = SessionClients.Find(ClientEndpointId))
-	{
-		return FoundSessionClient->Scratchpad;
-	}
-	return nullptr;
-}
-
-void FConcertClientSession::InternalRegisterCustomEventHandler(const FName& EventMessageType, const TSharedRef<IConcertSessionCustomEventHandler>& Handler)
-{
-	CustomEventHandlers.Add(EventMessageType, Handler);
-}
-
-void FConcertClientSession::InternalUnregisterCustomEventHandler(const FName& EventMessageType)
-{
-	CustomEventHandlers.Remove(EventMessageType);
+	return SessionDirectory;
 }
 
 void FConcertClientSession::InternalSendCustomEvent(const UScriptStruct* EventType, const void* EventData, const TArray<FGuid>& DestinationEndpointIds, EConcertMessageFlags Flags)
@@ -214,68 +171,58 @@ void FConcertClientSession::InternalSendCustomEvent(const UScriptStruct* EventTy
 
 	// TODO: don't send if not connected
 
-	// Serialize the event
+	// Build the event
 	FConcertSession_CustomEvent CustomEvent;
-	CustomEvent.SerializedPayload.SetPayload(EventType, EventData);
+	CommonBuildCustomEvent(EventType, EventData, GetSessionClientEndpointId(), DestinationEndpointIds, CustomEvent);
 
-	// Set the source endpoint
-	CustomEvent.SourceEndpointId = GetSessionClientEndpointId();
-
-	// Set the destination endpoints
-	CustomEvent.DestinationEndpointIds = DestinationEndpointIds;
+	// If the message is sent with the UniqueId flag, add an annotations so that we can uniquely identify multiple message bus copies of that message.
+	TMap<FName, FString> Annotations;
+	if (EnumHasAnyFlags(Flags, EConcertMessageFlags::UniqueId))
+	{
+		Annotations.Add(ConcertClientMessageIdName, FGuid::NewGuid().ToString());
+	}
 
 	// Send the event
-	ClientSessionEndpoint->SendEvent(CustomEvent, SessionInfo.ServerEndpointId, Flags);
-}
-
-void FConcertClientSession::InternalRegisterCustomRequestHandler(const FName& RequestMessageType, const TSharedRef<IConcertSessionCustomRequestHandler>& Handler)
-{
-	CustomRequestHandlers.Add(RequestMessageType, Handler);
-}
-
-void FConcertClientSession::InternalUnregisterCustomRequestHandler(const FName& RequestMessageType)
-{
-	CustomRequestHandlers.Remove(RequestMessageType);
+	ClientSessionEndpoint->SendEvent(CustomEvent, SessionInfo.ServerEndpointId, Flags, Annotations);
 }
 
 void FConcertClientSession::InternalSendCustomRequest(const UScriptStruct* RequestType, const void* RequestData, const FGuid& DestinationEndpointId, const TSharedRef<IConcertSessionCustomResponseHandler>& Handler)
 {
 	// TODO: don't send if not connected
 
-	// Serialize the request
+	// Build the request
 	FConcertSession_CustomRequest CustomRequest;
-	CustomRequest.SerializedPayload.SetPayload(RequestType, RequestData);
+	CommonBuildCustomRequest(RequestType, RequestData, GetSessionClientEndpointId(), DestinationEndpointId, CustomRequest);
 
-	// Set the source endpoint
-	CustomRequest.SourceEndpointId = GetSessionClientEndpointId();
-
-	// Set the destination endpoint
-	CustomRequest.DestinationEndpointId = DestinationEndpointId;
-
+	// Send the request
 	ClientSessionEndpoint->SendRequest<FConcertSession_CustomRequest, FConcertSession_CustomResponse>(CustomRequest, SessionInfo.ServerEndpointId)
-		.Next([Handler = Handler, SessionEndpointId = CustomRequest.SourceEndpointId](const FConcertSession_CustomResponse& Response)
+		.Next([Handler](const FConcertSession_CustomResponse& Response)
 		{
-			// TODO: Improve all of this? generalized erased Promise?
-			const void* ResponseStruct = nullptr;
-			FStructOnScope ResponseRawPayload;
-
-			if (Response.ResponseCode != EConcertResponseCode::Success)
-			{
-				// TODO: error
-			}
-			// Attempt to deserialize the payload
-			else if (!Response.SerializedPayload.GetPayload(ResponseRawPayload))
-			{
-				// TODO: error
-			}
-			else
-			{
-				ResponseStruct = ResponseRawPayload.GetStructMemory();
-			}
-
-			// Dispatch to external handler
-			Handler->HandleResponse(ResponseStruct);
+			// Handle the response
+			CommonHandleCustomResponse(Response, Handler);
 		});
+}
+
+void FConcertClientSession::UpdateLocalClientInfo(const FConcertClientInfoUpdate& UpdatedFields)
+{
+	bool bUpdated = UpdatedFields.ApplyTo(ClientInfo);
+	if (bUpdated)
+	{
+		// Notifies remote clients about the change.
+		FConcertSession_UpdateClientInfoEvent ClientInfoUpdateEvent;
+		ClientInfoUpdateEvent.SessionClient = FConcertSessionClientInfo{GetSessionClientEndpointId(), ClientInfo};
+		ClientSessionEndpoint->SendEvent(ClientInfoUpdateEvent, SessionInfo.ServerEndpointId);
+	}
+}
+
+void FConcertClientSession::HandleClientInfoUpdatedEvent(const FConcertMessageContext& Context)
+{
+	const FConcertSession_UpdateClientInfoEvent* Message = Context.GetMessage<FConcertSession_UpdateClientInfoEvent>();
+	if (FSessionClient* SessionClient = SessionClients.Find(Message->SessionClient.ClientEndpointId))
+	{
+		SessionClient->ClientInfo.ClientInfo = Message->SessionClient.ClientInfo;
+		OnSessionClientChangedDelegate.Broadcast(*this, EConcertClientStatus::Updated, SessionClient->ClientInfo);
+	}
 }
 
 void FConcertClientSession::HandleRemoteConnectionChanged(const FConcertEndpointContext& RemoteEndpointContext, EConcertRemoteEndpointConnection Connection)
@@ -309,7 +256,7 @@ void FConcertClientSession::HandleJoinSessionResultEvent(const FConcertMessageCo
 		case EConcertConnectionResult::ConnectionRefused:
 			ConnectionStatus = EConcertConnectionStatus::Disconnected;
 			OnConnectionChangedDelegate.Broadcast(*this, ConnectionStatus);
-			UE_LOG(LogConcert, Display, TEXT("Disconnected from Concert session '%s' (Owner: %s): Connection Refused."), *SessionInfo.SessionName, *SessionInfo.OwnerUserName);
+			UE_LOG(LogConcert, Display, TEXT("Disconnected from Concert session '%s' (Id: %s, Owner: %s): Connection Refused."), *SessionInfo.SessionName, *SessionInfo.SessionId.ToString(), *SessionInfo.OwnerUserName);
 			break;
 		case EConcertConnectionResult::AlreadyConnected:
 			// falls through
@@ -330,64 +277,14 @@ void FConcertClientSession::HandleClientListUpdatedEvent(const FConcertMessageCo
 	UpdateSessionClients(Message->SessionClients);
 }
 
-void FConcertClientSession::HandleCustomEvent(const FConcertMessageContext& Context)
+void FConcertClientSession::HandleSessionRenamedEvent(const FConcertMessageContext& Context)
 {
-	const FConcertSession_CustomEvent* Message = Context.GetMessage<FConcertSession_CustomEvent>();
+	const FConcertSession_SessionRenamedEvent* Message = Context.GetMessage<FConcertSession_SessionRenamedEvent>();
+	check(Message->ConcertEndpointId == SessionInfo.ServerEndpointId);
 
-	FConcertScratchpadPtr SenderScratchpad = GetClientScratchpad(Message->SourceEndpointId);
-
-	// Attempt to deserialize the payload
-	FStructOnScope RawPayload;
-	if (Message->SerializedPayload.GetPayload(RawPayload))
-	{
-		// Dispatch to external handler
-		FConcertSessionContext SessionContext{ Message->SourceEndpointId, Message->GetMessageFlags(), SenderScratchpad };
-		TSharedPtr<IConcertSessionCustomEventHandler> Handler = CustomEventHandlers.FindRef(RawPayload.GetStruct()->GetFName());
-		if (Handler.IsValid())
-		{
-			Handler->HandleEvent(SessionContext, RawPayload.GetStructMemory());
-		}
-		else
-		{
-			// TODO: Unhandled event
-		}
-	}
-}
-
-TFuture<FConcertSession_CustomResponse> FConcertClientSession::HandleCustomRequest(const FConcertMessageContext& Context)
-{
-	const FConcertSession_CustomRequest* Message = Context.GetMessage<FConcertSession_CustomRequest>();
-
-	FConcertScratchpadPtr SenderScratchpad = GetClientScratchpad(Message->SourceEndpointId);
-
-	// Default response
-	FConcertSession_CustomResponse ResponseData;
-	ResponseData.ResponseCode = EConcertResponseCode::UnknownRequest;
-
-	// Attempt to deserialize the payload
-	FStructOnScope RawPayload;
-	if (Message->SerializedPayload.GetPayload(RawPayload))
-	{
-		// Dispatch to external handler
-		TSharedPtr<IConcertSessionCustomRequestHandler> Handler = CustomRequestHandlers.FindRef(RawPayload.GetStruct()->GetFName()); // TODO: thread safety?
-
-		if (Handler.IsValid())
-		{
-			FStructOnScope ResponsePayload(Handler->GetResponseType());
-			FConcertSessionContext SessionContext{ Message->SourceEndpointId, Message->GetMessageFlags(), SenderScratchpad };
-			ResponseData.SetResponseCode(Handler->HandleRequest(SessionContext, RawPayload.GetStructMemory(), ResponsePayload.GetStructMemory()));
-			if (ResponseData.ResponseCode == EConcertResponseCode::Success || ResponseData.ResponseCode == EConcertResponseCode::Failed)
-			{
-				ResponseData.SerializedPayload.SetPayload(ResponsePayload);
-			}
-		}
-		else
-		{
-			// TODO: unhandled Request
-		}
-	}
-
-	return FConcertSession_CustomResponse::AsFuture(MoveTemp(ResponseData));
+	FString OldName = SessionInfo.SessionName;
+	SessionInfo.SessionName = Message->NewName;
+	OnSessionRenamedDelegate.Broadcast(OldName, Message->NewName);
 }
 
 void FConcertClientSession::TickConnection(float DeltaSeconds, const FDateTime& UtcNow)
@@ -436,7 +333,7 @@ void FConcertClientSession::ConnectionAccepted(const TArray<FConcertSessionClien
 	// Raise connected event
 	OnConnectionChangedDelegate.Broadcast(*this, ConnectionStatus);
 
-	UE_LOG(LogConcert, Display, TEXT("Connected to Concert session '%s' (Owner: %s)."), *SessionInfo.SessionName, *SessionInfo.OwnerUserName);
+	UE_LOG(LogConcert, Display, TEXT("Connected to Concert session '%s' (Id: %s, Owner: %s)."), *SessionInfo.SessionName, *SessionInfo.SessionId.ToString(), *SessionInfo.OwnerUserName);
 
 	UpdateSessionClients(InSessionClients);
 }
@@ -461,7 +358,7 @@ void FConcertClientSession::UpdateSessionClients(const TArray<FConcertSessionCli
 			{
 				const FSessionClient& SessionClient = SessionClients.Add(SessionClientInfo.ClientEndpointId, FSessionClient{ SessionClientInfo, MakeShared<FConcertScratchpad, ESPMode::ThreadSafe>() });
 				OnSessionClientChangedDelegate.Broadcast(*this, EConcertClientStatus::Connected, SessionClientInfo);
-				UE_LOG(LogConcert, Display, TEXT("User '%s' (Endpoint: %s) joined Concert session '%s' (Owner: %s)."), *SessionClient.ClientInfo.ClientInfo.UserName, *SessionClient.ClientInfo.ClientEndpointId.ToString(), *SessionInfo.SessionName, *SessionInfo.OwnerUserName);
+				UE_LOG(LogConcert, Display, TEXT("User '%s' (Endpoint: %s) joined Concert session '%s' (Id: %s, Owner: %s)."), *SessionClient.ClientInfo.ClientInfo.UserName, *SessionClient.ClientInfo.ClientEndpointId.ToString(), *SessionInfo.SessionName, *SessionInfo.SessionId.ToString(), *SessionInfo.OwnerUserName);
 			}
 		}
 	}
@@ -471,10 +368,12 @@ void FConcertClientSession::UpdateSessionClients(const TArray<FConcertSessionCli
 	{
 		if (!AvailableClientIds.Contains(SessionClientIt.Key()))
 		{
-			const FSessionClient& SessionClient = SessionClientIt.Value();
-			OnSessionClientChangedDelegate.Broadcast(*this, EConcertClientStatus::Disconnected, SessionClient.ClientInfo);
-			UE_LOG(LogConcert, Display, TEXT("User '%s' (Endpoint: %s) left Concert session '%s' (Owner: %s)."), *SessionClient.ClientInfo.ClientInfo.UserName, *SessionClient.ClientInfo.ClientEndpointId.ToString(), *SessionInfo.SessionName, *SessionInfo.OwnerUserName);
+			// Update array before broadcasting to ensure a client calling GetSessionClients() during broacast gets the up-to-date list.
+			FSessionClient SessionClient = MoveTemp(SessionClientIt.Value());
 			SessionClientIt.RemoveCurrent();
+
+			OnSessionClientChangedDelegate.Broadcast(*this, EConcertClientStatus::Disconnected, SessionClient.ClientInfo);
+			UE_LOG(LogConcert, Display, TEXT("User '%s' (Endpoint: %s) left Concert session '%s' (Id: %s, Owner: %s)."), *SessionClient.ClientInfo.ClientInfo.UserName, *SessionClient.ClientInfo.ClientEndpointId.ToString(), *SessionInfo.SessionName, *SessionInfo.SessionId.ToString(), *SessionInfo.OwnerUserName);
 		}
 	}
 }

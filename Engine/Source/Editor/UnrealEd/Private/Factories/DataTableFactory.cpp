@@ -1,17 +1,21 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Factories/DataTableFactory.h"
+#include "DataTableEditorUtils.h"
 #include "Engine/DataTable.h"
+#include "Editor.h"
 
-#include "UObject/Class.h"
+#include "Modules/ModuleManager.h"
+#include "StructViewerModule.h"
+#include "StructViewerFilter.h"
+
 #include "Widgets/SWindow.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/Input/SComboBox.h"
+#include "Widgets/Input/SComboButton.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Widgets/Layout/SBox.h"
 #include "EditorStyleSet.h"
 #include "Input/Reply.h"
-#include "DataTableEditorUtils.h"
-#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "DataTableFactory"
 
@@ -25,29 +29,28 @@ UDataTableFactory::UDataTableFactory(const FObjectInitializer& ObjectInitializer
 
 bool UDataTableFactory::ConfigureProperties()
 {
-	class FDataTableFactoryUI : public TSharedFromThis < FDataTableFactoryUI >
+	class FDataTableStructFilter : public IStructViewerFilter
 	{
-		TSharedPtr<SWindow> PickerWindow;
-		TSharedPtr<SComboBox<UScriptStruct*>> RowStructCombo;
-		TSharedPtr<SButton> OkButton;
-		UScriptStruct* ResultStruct;
 	public:
-		FDataTableFactoryUI() : ResultStruct(nullptr) {}
-
-		TSharedRef<SWidget> MakeRowStructItemWidget(class UScriptStruct* InStruct) const
+		virtual bool IsStructAllowed(const FStructViewerInitializationOptions& InInitOptions, const UScriptStruct* InStruct, TSharedRef<FStructViewerFilterFuncs> InFilterFuncs) override
 		{
-			return SNew(STextBlock).Text(InStruct ? InStruct->GetDisplayNameText() : FText::GetEmpty());
+			return FDataTableEditorUtils::IsValidTableStruct(InStruct);
 		}
 
-		FText GetSelectedRowOptionText() const
+		virtual bool IsUnloadedStructAllowed(const FStructViewerInitializationOptions& InInitOptions, const FName InStructPath, TSharedRef<FStructViewerFilterFuncs> InFilterFuncs) override
 		{
-			UScriptStruct* RowStruct = RowStructCombo.IsValid() ? RowStructCombo->GetSelectedItem() : nullptr;
-			return RowStruct ? RowStruct->GetDisplayNameText() : FText::GetEmpty();
+			// Unloaded structs are always User Defined Structs, and User Defined Structs are always allowed
+			// They will be re-validated by IsStructAllowed once loaded during the pick
+			return true;
 		}
+	};
 
+	class FDataTableFactoryUI : public TSharedFromThis<FDataTableFactoryUI>
+	{
+	public:
 		FReply OnCreate()
 		{
-			ResultStruct = RowStructCombo.IsValid() ? RowStructCombo->GetSelectedItem() : nullptr;
+			check(ResultStruct);
 			if (PickerWindow.IsValid())
 			{
 				PickerWindow->RequestDestroyWindow();
@@ -65,74 +68,122 @@ bool UDataTableFactory::ConfigureProperties()
 			return FReply::Handled();
 		}
 
-		bool IsAnyRowSelected() const
+		bool IsStructSelected() const
 		{
-			return  RowStructCombo.IsValid() && RowStructCombo->GetSelectedItem();
+			return ResultStruct != nullptr;
 		}
 
-		UScriptStruct* OpenStructSelector()
+		void OnPickedStruct(const UScriptStruct* ChosenStruct)
 		{
-			ResultStruct = nullptr;
-			auto RowStructs = FDataTableEditorUtils::GetPossibleStructs();
+			ResultStruct = ChosenStruct;
+			StructPickerAnchor->SetIsOpen(false);
+		}
 
-			RowStructCombo = SNew(SComboBox<UScriptStruct*>)
-				.OptionsSource(&RowStructs)
-				.OnGenerateWidget(this, &FDataTableFactoryUI::MakeRowStructItemWidget)
+		FText OnGetComboTextValue() const
+		{
+			return ResultStruct
+				? FText::AsCultureInvariant(ResultStruct->GetName())
+				: LOCTEXT("None", "None");
+		}
+
+		TSharedRef<SWidget> GenerateStructPicker()
+		{
+			FStructViewerModule& StructViewerModule = FModuleManager::LoadModuleChecked<FStructViewerModule>("StructViewer");
+
+			// Fill in options
+			FStructViewerInitializationOptions Options;
+			Options.Mode = EStructViewerMode::StructPicker;
+			Options.StructFilter = MakeShared<FDataTableStructFilter>();
+
+			return
+				SNew(SBox)
+				.WidthOverride(330)
 				[
-					SNew(STextBlock)
-					.Text(this, &FDataTableFactoryUI::GetSelectedRowOptionText)
+					SNew(SVerticalBox)
+
+					+SVerticalBox::Slot()
+					.FillHeight(1.0f)
+					.MaxHeight(500)
+					[
+						SNew(SBorder)
+						.Padding(4)
+						.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+						[
+							StructViewerModule.CreateStructViewer(Options, FOnStructPicked::CreateSP(this, &FDataTableFactoryUI::OnPickedStruct))
+						]
+					]
 				];
+		}
+
+		const UScriptStruct* OpenStructSelector()
+		{
+			FStructViewerModule& StructViewerModule = FModuleManager::LoadModuleChecked<FStructViewerModule>("StructViewer");
+			ResultStruct = nullptr;
+
+			// Fill in options
+			FStructViewerInitializationOptions Options;
+			Options.Mode = EStructViewerMode::StructPicker;
+			Options.StructFilter = MakeShared<FDataTableStructFilter>();
 
 			PickerWindow = SNew(SWindow)
 				.Title(LOCTEXT("DataTableFactoryOptions", "Pick Row Structure"))
 				.ClientSize(FVector2D(350, 100))
-				.SupportsMinimize(false).SupportsMaximize(false)
+				.SupportsMinimize(false)
+				.SupportsMaximize(false)
 				[
 					SNew(SBorder)
 					.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
-				.Padding(10)
-				[
-					SNew(SVerticalBox)
-					+ SVerticalBox::Slot()
-				.AutoHeight()
-				[
-					RowStructCombo.ToSharedRef()
-				]
-			+ SVerticalBox::Slot()
-				.HAlign(HAlign_Right)
-				.AutoHeight()
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SAssignNew(OkButton, SButton)
-					.Text(LOCTEXT("OK", "OK"))
-				.OnClicked(this, &FDataTableFactoryUI::OnCreate)
-				]
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew(SButton)
-					.Text(LOCTEXT("Cancel", "Cancel"))
-				.OnClicked(this, &FDataTableFactoryUI::OnCancel)
-				]
-				]
-				]
+					.Padding(10)
+					[
+						SNew(SVerticalBox)
+						+SVerticalBox::Slot()
+						.AutoHeight()
+						[
+							SAssignNew(StructPickerAnchor, SComboButton)
+							.ContentPadding(FMargin(2,2,2,1))
+							.MenuPlacement(MenuPlacement_BelowAnchor)
+							.ButtonContent()
+							[
+								SNew(STextBlock)
+								.Text(this, &FDataTableFactoryUI::OnGetComboTextValue)
+							]
+							.OnGetMenuContent(this, &FDataTableFactoryUI::GenerateStructPicker)
+						]
+						+SVerticalBox::Slot()
+						.HAlign(HAlign_Right)
+						.AutoHeight()
+						[
+							SNew(SHorizontalBox)
+							+SHorizontalBox::Slot()
+							.AutoWidth()
+							[
+								SNew(SButton)
+								.Text(LOCTEXT("OK", "OK"))
+								.IsEnabled(this, &FDataTableFactoryUI::IsStructSelected)
+								.OnClicked(this, &FDataTableFactoryUI::OnCreate)
+							]
+							+SHorizontalBox::Slot()
+							.AutoWidth()
+							[
+								SNew(SButton)
+								.Text(LOCTEXT("Cancel", "Cancel"))
+								.OnClicked(this, &FDataTableFactoryUI::OnCancel)
+							]
+						]
+					]
 				];
 
-			OkButton->SetEnabled(
-				TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FDataTableFactoryUI::IsAnyRowSelected)));
-
 			GEditor->EditorAddModalWindow(PickerWindow.ToSharedRef());
-
 			PickerWindow.Reset();
-			RowStructCombo.Reset();
 
 			return ResultStruct;
 		}
-	};
 
+	private:
+		TSharedPtr<SWindow> PickerWindow;
+		TSharedPtr<SComboButton> StructPickerAnchor;
+		const UScriptStruct* ResultStruct = nullptr;
+	};
 
 	TSharedRef<FDataTableFactoryUI> StructSelector = MakeShareable(new FDataTableFactoryUI());
 	Struct = StructSelector->OpenStructSelector();
@@ -149,7 +200,7 @@ UObject* UDataTableFactory::FactoryCreateNew(UClass* Class, UObject* InParent, F
 		DataTable = MakeNewDataTable(InParent, Name, Flags);
 		if (DataTable)
 		{
-			DataTable->RowStruct = Struct;
+			DataTable->RowStruct = const_cast<UScriptStruct*>(Struct);
 		}
 	}
 	return DataTable;

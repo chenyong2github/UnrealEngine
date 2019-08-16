@@ -18,6 +18,7 @@ namespace UnrealBuildTool.Rules
                     "RHI",
 					"Chaos",
 					"ChaosSolvers",
+					"ChaosSolverEngine",
                     "FieldSystemCore",
                     "FieldSystemSimulationCore"
                 }

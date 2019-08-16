@@ -91,6 +91,14 @@ public:
 			ResizeTo(ArrayNum, NumBytesPerElement);
 		}
 	}
+	void MoveAssign(FScriptArray& Other, int32 NumBytesPerElement)
+	{
+		checkSlow(this != &Other);
+		Empty(0, NumBytesPerElement);
+		MoveToEmpty(Other);
+		ArrayNum = Other.ArrayNum; Other.ArrayNum = 0;
+		ArrayMax = Other.ArrayMax; Other.ArrayMax = 0;
+	}
 	void Empty( int32 Slack, int32 NumBytesPerElement )
 	{
 		checkSlow(Slack>=0);

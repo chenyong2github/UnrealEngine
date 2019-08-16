@@ -16,6 +16,7 @@ public class VPUtilities : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"GameplayTags",
+				"TimeManagement",
 				"VPBookmark",
 			}
 		);
@@ -29,8 +30,9 @@ public class VPUtilities : ModuleRules
 					"UnrealEd",
 					"ViewportInteraction",
 					"VREditor",
-				}
-			);
+					"Blutility",
+                }
+            );
 		}
 	}
 }

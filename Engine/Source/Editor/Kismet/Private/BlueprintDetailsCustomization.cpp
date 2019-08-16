@@ -107,9 +107,10 @@ void FBlueprintDetails::AddEventsCategory(IDetailLayoutBuilder& DetailBuilder, U
 					UProperty* Property = *PropertyIt;
 
 					FName PropertyName = ComponentProperty->GetFName();
-
+					static const FName HideInDetailPanelName("HideInDetailPanel");
 					// Check for multicast delegates that we can safely assign
-					if ( !Property->HasAnyPropertyFlags(CPF_Parm) && Property->HasAllPropertyFlags(CPF_BlueprintAssignable) )
+					if ( !Property->HasAnyPropertyFlags(CPF_Parm) && Property->HasAllPropertyFlags(CPF_BlueprintAssignable) &&
+						!Property->HasMetaData(HideInDetailPanelName) )
 					{
 						FName EventName = Property->GetFName();
 						FText EventText = Property->GetDisplayNameText();
@@ -283,28 +284,31 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 		.Font(IDetailLayoutBuilder::GetDetailFont())
 	];
 
-	TSharedPtr<SToolTip> VarTypeTooltip = IDocumentation::Get()->CreateToolTip(LOCTEXT("VarTypeTooltip", "The type of the variable."), NULL, DocLink, TEXT("VariableType"));
+	if (GetVariableTypeChangeEnabled())
+	{
+		TSharedPtr<SToolTip> VarTypeTooltip = IDocumentation::Get()->CreateToolTip(LOCTEXT("VarTypeTooltip", "The type of the variable."), NULL, DocLink, TEXT("VariableType"));
 
-	Category.AddCustomRow( LOCTEXT("VariableTypeLabel", "Variable Type") )
-	.NameContent()
-	[
-		SNew(STextBlock)
-		.Text( LOCTEXT("VariableTypeLabel", "Variable Type") )
-		.ToolTip(VarTypeTooltip)
-		.Font(DetailFontInfo)
-	]
-	.ValueContent()
-	.MaxDesiredWidth(980.f)
-	[
-		SNew(SPinTypeSelector, FGetPinTypeTree::CreateUObject(Schema, &UEdGraphSchema_K2::GetVariableTypeTree))
-		.TargetPinType(this, &FBlueprintVarActionDetails::OnGetVarType)
-		.OnPinTypeChanged(this, &FBlueprintVarActionDetails::OnVarTypeChanged)
-		.IsEnabled(this, &FBlueprintVarActionDetails::GetVariableTypeChangeEnabled)
-		.Schema(Schema)
-		.TypeTreeFilter(ETypeTreeFilter::None)
-		.Font( DetailFontInfo )
-		.ToolTip(VarTypeTooltip)
-	];
+		Category.AddCustomRow(LOCTEXT("VariableTypeLabel", "Variable Type"))
+			.NameContent()
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("VariableTypeLabel", "Variable Type"))
+			.ToolTip(VarTypeTooltip)
+			.Font(DetailFontInfo)
+			]
+		.ValueContent()
+			.MaxDesiredWidth(980.f)
+			[
+				SNew(SPinTypeSelector, FGetPinTypeTree::CreateUObject(Schema, &UEdGraphSchema_K2::GetVariableTypeTree))
+				.TargetPinType(this, &FBlueprintVarActionDetails::OnGetVarType)
+			.OnPinTypeChanged(this, &FBlueprintVarActionDetails::OnVarTypeChanged)
+			.IsEnabled(this, &FBlueprintVarActionDetails::GetVariableTypeChangeEnabled)
+			.Schema(Schema)
+			.TypeTreeFilter(ETypeTreeFilter::None)
+			.Font(DetailFontInfo)
+			.ToolTip(VarTypeTooltip)
+			];
+	}
 
 	TSharedPtr<SToolTip> EditableTooltip = IDocumentation::Get()->CreateToolTip(LOCTEXT("VarEditableTooltip", "Whether this variable is publicly editable on instances of this Blueprint."), NULL, DocLink, TEXT("Editable"));
 
@@ -830,7 +834,6 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 				UFunction* StructScope = Cast<UFunction>(VariableProperty->GetOuter());
 				check(StructScope);
 
-				TSharedPtr<FStructOnScope> StructData = MakeShareable(new FStructOnScope((UFunction*)StructScope));
 				UEdGraph* Graph = FBlueprintEditorUtils::FindScopeGraph(GetBlueprintObj(), (UFunction*)StructScope);
 
 				// Find the function entry nodes in the current graph
@@ -843,18 +846,9 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 				const UStructProperty* PotentialUDSProperty = Cast<const UStructProperty>(VariableProperty);
 				
 				UK2Node_FunctionEntry* FuncEntry = EntryNodes[0];
-				for (const FBPVariableDescription& LocalVar : FuncEntry->LocalVariables)
-				{
-					if(LocalVar.VarName == VariableProperty->GetFName()) //Property->GetFName())
-					{
-						// Only set the default value if there is one
-						if(!LocalVar.DefaultValue.IsEmpty())
-						{
-							FBlueprintEditorUtils::PropertyValueFromString(VariableProperty, LocalVar.DefaultValue, StructData->GetStructMemory());
-						}
-						break;
-					}
-				}
+
+				// This uses the cached struct data inside the node, which is updated on change
+				TSharedPtr<FStructOnScope> StructData = FuncEntry->GetFunctionVariableCache();
 
 				if(BlueprintEditor.IsValid())
 				{
@@ -979,6 +973,48 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 				.OnCheckStateChanged(this, &FBlueprintVarActionDetails::OnMultilineChanged)
 				.IsEnabled(IsVariableInBlueprint())
 				.ToolTip(MultilineTooltip)
+			];
+
+		TSharedPtr<SToolTip> DeprecatedTooltip = IDocumentation::Get()->CreateToolTip(LOCTEXT("VariableDeprecated_Tooltip", "Deprecate usage of this variable. Any nodes that reference it will produce a compiler warning indicating that it should be removed or replaced."), nullptr, DocLink, TEXT("Deprecated"));
+
+		Category.AddCustomRow(LOCTEXT("VariableDeprecated", "Deprecated"), true)
+			.Visibility(TAttribute<EVisibility>(this, &FBlueprintVarActionDetails::GetDeprecatedVisibility))
+			.NameContent()
+			[
+				SNew(STextBlock)
+				.ToolTip(DeprecatedTooltip)
+				.Text(LOCTEXT("VariableDeprecated", "Deprecated"))
+				.Font(DetailFontInfo)
+			]
+			.ValueContent()
+			[
+				SNew(SCheckBox)
+				.IsChecked(this, &FBlueprintVarActionDetails::OnGetDeprecatedCheckboxState)
+				.OnCheckStateChanged(this, &FBlueprintVarActionDetails::OnDeprecatedChanged)
+				.IsEnabled(IsVariableInBlueprint())
+				.ToolTip(DeprecatedTooltip)
+			];
+
+		TSharedPtr<SToolTip> DeprecationMessageTooltip = IDocumentation::Get()->CreateToolTip(LOCTEXT("VariableDeprecationMessage_Tooltip", "Optional message to include with the deprecation compiler warning. For example: \'X is no longer being used. Please replace with Y.\'"), nullptr, DocLink, TEXT("DeprecationMessage"));
+
+		Category.AddCustomRow(LOCTEXT("VariableDeprecationMessageLabel", "Deprecation Message"), true)
+			.Visibility(TAttribute<EVisibility>(this, &FBlueprintVarActionDetails::GetDeprecatedVisibility))
+			.IsEnabled(TAttribute<bool>(this, &FBlueprintVarActionDetails::IsVariableDeprecated))
+			.NameContent()
+			[
+				SNew(STextBlock)
+				.ToolTip(DeprecationMessageTooltip)
+				.Text(LOCTEXT("VariableDeprecationMessageLabel", "Deprecation Message"))
+				.Font(DetailFontInfo)
+			]
+			.ValueContent()
+			[
+				SNew(SEditableTextBox)
+				.Text(this, &FBlueprintVarActionDetails::GetDeprecationMessageText)
+				.OnTextCommitted(this, &FBlueprintVarActionDetails::OnDeprecationMessageTextCommitted, CachedVariableName)
+				.IsEnabled(IsVariableInBlueprint())
+				.ToolTipText(this, &FBlueprintVarActionDetails::GetDeprecationMessageText)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
 			];
 
 		TSharedPtr<SToolTip> PropertyFlagsTooltip = IDocumentation::Get()->CreateToolTip(LOCTEXT("DefinedPropertyFlags_Tooltip", "List of defined flags for this property"), NULL, DocLink, TEXT("PropertyFlags"));
@@ -1235,7 +1271,7 @@ void FBlueprintVarActionDetails::OnVarNameCommitted(const FText& InNewText, ETex
 bool FBlueprintVarActionDetails::GetVariableTypeChangeEnabled() const
 {
 	UProperty* VariableProperty = CachedVariableProperty.Get();
-	if(VariableProperty && IsVariableInBlueprint())
+	if(VariableProperty && !VariableProperty->IsA<UMulticastDelegateProperty>() && IsVariableInBlueprint())
 	{
 		if (!IsALocalVariable(VariableProperty))
 		{
@@ -2472,17 +2508,32 @@ void FBlueprintVarActionDetails::OnAdvancedDisplayChanged(ECheckBoxState InNewSt
 
 EVisibility FBlueprintVarActionDetails::GetMultilineVisibility() const
 {
-	if (UProperty* VariableProperty = CachedVariableProperty.Get())
+	UProperty* VariableProperty = nullptr;
+	if (UProperty* RawVariableProperty = CachedVariableProperty.Get())
 	{
-		if (IsABlueprintVariable(VariableProperty))
+		if (IsABlueprintVariable(RawVariableProperty))
 		{
-			if (VariableProperty->IsA(UTextProperty::StaticClass()) || VariableProperty->IsA(UStrProperty::StaticClass()))
+			if (const UArrayProperty* ArrayProperty = Cast<UArrayProperty>(RawVariableProperty))
 			{
-				return EVisibility::Visible;
+				VariableProperty = ArrayProperty->Inner;
+			}
+			else if (const USetProperty* SetProperty = Cast<USetProperty>(RawVariableProperty))
+			{
+				VariableProperty = SetProperty->ElementProp;
+			}
+			else if (const UMapProperty* MapProperty = Cast<UMapProperty>(RawVariableProperty))
+			{
+				VariableProperty = MapProperty->ValueProp;
+			}
+			else
+			{
+				VariableProperty = RawVariableProperty;
 			}
 		}
 	}
-	return EVisibility::Collapsed;
+
+	const bool bCanBeMultiline = (VariableProperty != nullptr) && (VariableProperty->IsA(UTextProperty::StaticClass()) || VariableProperty->IsA(UStrProperty::StaticClass()));
+	return bCanBeMultiline ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 ECheckBoxState FBlueprintVarActionDetails::OnGetMultilineCheckboxState() const
@@ -2502,6 +2553,60 @@ void FBlueprintVarActionDetails::OnMultilineChanged(ECheckBoxState InNewState)
 	{
 		const bool bMultiline = (InNewState == ECheckBoxState::Checked);
 		FBlueprintEditorUtils::SetBlueprintVariableMetaData(GetBlueprintObj(), Property->GetFName(), GetLocalVariableScope(CachedVariableProperty.Get()), TEXT("MultiLine"), bMultiline ? TEXT("true") : TEXT("false"));
+	}
+}
+
+EVisibility FBlueprintVarActionDetails::GetDeprecatedVisibility() const
+{
+	if (UProperty* VariableProperty = CachedVariableProperty.Get())
+	{
+		if (IsABlueprintVariable(VariableProperty) && IsAUserVariable(VariableProperty))
+		{
+			return EVisibility::Visible;
+		}
+	}
+	return EVisibility::Collapsed;
+}
+
+ECheckBoxState FBlueprintVarActionDetails::OnGetDeprecatedCheckboxState() const
+{
+	return IsVariableDeprecated() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void FBlueprintVarActionDetails::OnDeprecatedChanged(ECheckBoxState InNewState)
+{
+	UProperty* Property = CachedVariableProperty.Get();
+	if (Property)
+	{
+		const bool bDeprecatedFlag = (InNewState == ECheckBoxState::Checked);
+		FBlueprintEditorUtils::SetVariableDeprecatedFlag(GetBlueprintObj(), Property->GetFName(), bDeprecatedFlag);
+	}
+}
+
+FText FBlueprintVarActionDetails::GetDeprecationMessageText() const
+{
+	FName VarName = CachedVariableName;
+	if (VarName != NAME_None)
+	{
+		if (UBlueprint* OwnerBlueprint = GetPropertyOwnerBlueprint())
+		{
+			FString Result;
+			FBlueprintEditorUtils::GetBlueprintVariableMetaData(GetPropertyOwnerBlueprint(), VarName, GetLocalVariableScope(CachedVariableProperty.Get()), FBlueprintMetadata::MD_DeprecationMessage, Result);
+			return FText::FromString(Result);
+		}
+	}
+	return FText();
+}
+
+void FBlueprintVarActionDetails::OnDeprecationMessageTextCommitted(const FText& NewText, ETextCommit::Type InTextCommit, FName VarName)
+{
+	if (NewText.IsEmpty())
+	{
+		FBlueprintEditorUtils::RemoveBlueprintVariableMetaData(GetBlueprintObj(), VarName, GetLocalVariableScope(CachedVariableProperty.Get()), FBlueprintMetadata::MD_DeprecationMessage);
+	}
+	else
+	{
+		FBlueprintEditorUtils::SetBlueprintVariableMetaData(GetBlueprintObj(), VarName, GetLocalVariableScope(CachedVariableProperty.Get()), FBlueprintMetadata::MD_DeprecationMessage, NewText.ToString());
 	}
 }
 
@@ -2539,12 +2644,12 @@ void FBlueprintVarActionDetails::OnFinishedChangingProperties(const FPropertyCha
 
 	if (InStructData.IsValid())
 	{
-		bDefaultValueSet = FBlueprintEditorUtils::PropertyValueToString(DirectProperty, InStructData->GetStructMemory(), DefaultValueString);
+		UK2Node_FunctionEntry* FuncEntry = Cast<UK2Node_FunctionEntry>(InEntryNode.Get());
+
+		bDefaultValueSet = FBlueprintEditorUtils::PropertyValueToString(DirectProperty, InStructData->GetStructMemory(), DefaultValueString, FuncEntry);
 
 		if(bDefaultValueSet)
 		{
-			UK2Node_FunctionEntry* FuncEntry = Cast<UK2Node_FunctionEntry>(InEntryNode.Get());
-
 			// Search out the correct local variable in the Function Entry Node and set the default value
 			for (FBPVariableDescription& LocalVar : FuncEntry->LocalVariables)
 			{
@@ -2555,6 +2660,7 @@ void FBlueprintVarActionDetails::OnFinishedChangingProperties(const FPropertyCha
 					FuncEntry->Modify();
 					GetBlueprintObj()->Modify();
 					LocalVar.DefaultValue = DefaultValueString;
+					FuncEntry->RefreshFunctionVariableCache();
 					FBlueprintEditorUtils::MarkBlueprintAsModified(GetBlueprintObj());
 					break;
 				}
@@ -2575,6 +2681,13 @@ bool FBlueprintVarActionDetails::IsVariableInheritedByBlueprint() const
 		PropertyOwnerClass = CachedVariableProperty->GetOwnerClass();
 	}
 	return GetBlueprintObj()->SkeletonGeneratedClass->IsChildOf(PropertyOwnerClass);
+}
+
+bool FBlueprintVarActionDetails::IsVariableDeprecated() const
+{
+	UProperty* Property = CachedVariableProperty.Get();
+
+	return Property && Property->HasAnyPropertyFlags(CPF_Deprecated);
 }
 
 static FDetailWidgetRow& AddRow( TArray<TSharedRef<FDetailWidgetRow> >& OutChildRows )
@@ -2973,7 +3086,7 @@ void FBlueprintGraphArgumentLayout::OnArgNameTextCommitted(const FText& NewText,
 	{
 		const FName OldName = ParamItemPtr.Pin()->PinName;
 		const FString& NewName = NewText.ToString();
-		if (OldName.ToString() != NewName)
+		if (!OldName.ToString().Equals(NewName))
 		{
 			GraphActionDetailsPtr.Pin()->OnPinRenamed(TargetNode, OldName, NewName);
 		}
@@ -3006,8 +3119,10 @@ ECheckBoxState FBlueprintGraphArgumentLayout::IsRefChecked() const
 
 void FBlueprintGraphArgumentLayout::OnRefCheckStateChanged(ECheckBoxState InState)
 {
+	const FScopedTransaction Transaction(LOCTEXT("ChangeByRef", "Change Pass By Reference"));
+
 	FEdGraphPinType PinType = OnGetPinInfo();
-	PinType.bIsReference = (InState == ECheckBoxState::Checked)? true : false;
+	PinType.bIsReference = (InState == ECheckBoxState::Checked) ? true : false;
 	
 	PinInfoChanged(PinType);
 }
@@ -3038,6 +3153,7 @@ void FBlueprintGraphArgumentLayout::PinInfoChanged(const FEdGraphPinType& PinTyp
 						});
 						if (UDPinPtr)
 						{
+							Node->Modify();
 							(*UDPinPtr)->PinType = PinType;
 
 							// Inputs flagged as pass-by-reference will also be flagged as 'const' here to conform to the expected native C++
@@ -3096,6 +3212,9 @@ void FBlueprintGraphActionDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 
 	if (FunctionEntryNode && FunctionEntryNode->IsEditable())
 	{
+		const bool bIsCustomEvent = IsCustomEvent();
+		const bool bIsFunctionGraph = FunctionEntryNode->IsA<UK2Node_FunctionEntry>();
+
 		IDetailCategoryBuilder& Category = DetailLayout.EditCategory("Graph", LOCTEXT("FunctionDetailsGraph", "Graph"));
 		if (bHasAGraph)
 		{
@@ -3293,7 +3412,7 @@ void FBlueprintGraphActionDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 			}
 		}
 
-		if (IsCustomEvent())
+		if (bIsCustomEvent)
 		{
 			/** A collection of static utility callbacks to provide the custom-event details ui with */
 			struct LocalCustomEventUtils
@@ -3418,7 +3537,7 @@ void FBlueprintGraphActionDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 				]
 			];
 		}
-		const bool bShowCallInEditor = IsCustomEvent() || FBlueprintEditorUtils::IsEditorUtilityBlueprint( GetBlueprintObj() ) || (FunctionEntryNode && FunctionEntryNode->IsEditable());
+		const bool bShowCallInEditor = bIsCustomEvent || FBlueprintEditorUtils::IsEditorUtilityBlueprint( GetBlueprintObj() ) || (FunctionEntryNode && FunctionEntryNode->IsEditable());
 		if( bShowCallInEditor )
 		{
 			Category.AddCustomRow( LOCTEXT( "EditorCallable", "Call In Editor" ) )
@@ -3445,6 +3564,67 @@ void FBlueprintGraphActionDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 						.OnCheckStateChanged( this, &FBlueprintGraphActionDetails::OnEditorCallableEventModified )
 					]
 				]
+			];
+		}
+
+		const bool bShowDeprecated = bIsFunctionGraph || bIsCustomEvent;
+		if (bShowDeprecated)
+		{
+			FFormatNamedArguments DeprecationTooltipFormatArgs;
+			if (bIsFunctionGraph)
+			{
+				DeprecationTooltipFormatArgs.Add(TEXT("FunctionOrCustomEvent"), LOCTEXT("FunctionOrEvent_Function", "function"));
+			}
+			else
+			{
+				DeprecationTooltipFormatArgs.Add(TEXT("FunctionOrCustomEvent"), LOCTEXT("FunctionOrEvent_CustomEvent", "custom event"));
+			}
+
+			bool bIsOverride = false;
+			FFunctionFromNodeHelper FunctionFromNode(FunctionEntryNode);
+			if (FunctionFromNode.Function)
+			{
+				bIsOverride = (UEdGraphSchema_K2::GetCallableParentFunction(FunctionFromNode.Function) != nullptr);
+			}
+
+			const FText DeprecatedTooltipText = FText::Format(LOCTEXT("DeprecatedFunction_Tooltip", "Deprecate usage of this {FunctionOrCustomEvent}. Any nodes that reference it will produce a compiler warning indicating that it should be removed or replaced."), DeprecationTooltipFormatArgs);
+
+			Category.AddCustomRow(LOCTEXT("DeprecatedFunction", "Deprecated"), true)
+			.NameContent()
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("DeprecatedFunction", "Deprecated"))
+				.ToolTipText(DeprecatedTooltipText)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+			]
+			.ValueContent()
+			[
+				SNew(SCheckBox)
+				.IsChecked(this, &FBlueprintGraphActionDetails::OnGetDeprecatedCheckboxState)
+				.ToolTipText(DeprecatedTooltipText)
+				.OnCheckStateChanged(this, &FBlueprintGraphActionDetails::OnDeprecatedChanged)
+				.IsEnabled(!bIsOverride)
+			];
+
+			const FText DeprecationMessageTooltipText = LOCTEXT("DeprecationMessage_Tooltip", "Optional message to include with the deprecation compiler warning. For example: \'X is no longer being used. Please replace with Y.\'");
+
+			Category.AddCustomRow(LOCTEXT("DeprecationMessage", "Deprecation Message"), true)
+			.IsEnabled(TAttribute<bool>(this, &FBlueprintGraphActionDetails::IsFunctionDeprecated))
+			.NameContent()
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("DeprecationMessage", "Deprecation Message"))
+				.ToolTipText(DeprecationMessageTooltipText)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+			]
+			.ValueContent()
+			[
+				SNew(SEditableTextBox)
+				.Text(this, &FBlueprintGraphActionDetails::GetDeprecationMessageText)
+				.OnTextCommitted(this, &FBlueprintGraphActionDetails::OnDeprecationMessageTextCommitted)
+				.IsEnabled(!bIsOverride)
+				.ToolTipText(this, &FBlueprintGraphActionDetails::GetDeprecationMessageText)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
 			];
 		}
 
@@ -3745,6 +3925,103 @@ void FBlueprintGraphActionDetails::OnEditorCallableEventModified( const ECheckBo
 	}
 }
 
+bool FBlueprintGraphActionDetails::IsFunctionDeprecated() const
+{
+	bool bIsDeprecated = false;
+
+	UK2Node_EditablePinBase* Node = FunctionEntryNodePtr.Get();
+	if (Node != nullptr)
+	{
+		UK2Node_CustomEvent* CustomEventNode = Cast<UK2Node_CustomEvent>(Node);
+		if (CustomEventNode != nullptr)
+		{
+			bIsDeprecated = CustomEventNode->bIsDeprecated;
+		}
+		else
+		{
+			UK2Node_FunctionEntry* FunctionEntryNode = Cast<UK2Node_FunctionEntry>(Node);
+			if (FunctionEntryNode != nullptr)
+			{
+				bIsDeprecated = FunctionEntryNode->MetaData.bIsDeprecated;
+			}
+		}
+	}
+
+	return bIsDeprecated;
+}
+
+ECheckBoxState FBlueprintGraphActionDetails::OnGetDeprecatedCheckboxState() const
+{
+	return IsFunctionDeprecated() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void FBlueprintGraphActionDetails::OnDeprecatedChanged(ECheckBoxState InNewState)
+{
+	const bool bIsDeprecated = (InNewState == ECheckBoxState::Checked);
+
+	UK2Node_EditablePinBase* Node = FunctionEntryNodePtr.Get();
+	if (Node != nullptr)
+	{
+		UK2Node_CustomEvent* CustomEventNode = Cast<UK2Node_CustomEvent>(Node);
+		if (CustomEventNode != nullptr)
+		{
+			CustomEventNode->bIsDeprecated = bIsDeprecated;
+		}
+		else
+		{
+			CastChecked<UK2Node_FunctionEntry>(Node)->MetaData.bIsDeprecated = bIsDeprecated;
+		}
+
+		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Node->GetBlueprint());
+	}
+}
+
+FText FBlueprintGraphActionDetails::GetDeprecationMessageText() const
+{
+	FText DeprecationMessage;
+
+	UK2Node_EditablePinBase* Node = FunctionEntryNodePtr.Get();
+	if (Node != nullptr)
+	{
+		UK2Node_CustomEvent* CustomEventNode = Cast<UK2Node_CustomEvent>(Node);
+		if (CustomEventNode != nullptr)
+		{
+			DeprecationMessage = FText::FromString(CustomEventNode->DeprecationMessage);
+		}
+		else
+		{
+			UK2Node_FunctionEntry* FunctionEntryNode = Cast<UK2Node_FunctionEntry>(Node);
+			if (FunctionEntryNode != nullptr)
+			{
+				DeprecationMessage = FText::FromString(FunctionEntryNode->MetaData.DeprecationMessage);
+			}
+		}
+	}
+
+	return DeprecationMessage;
+}
+
+void FBlueprintGraphActionDetails::OnDeprecationMessageTextCommitted(const FText& NewText, ETextCommit::Type InTextCommit)
+{
+	const FString DeprecationMessage = NewText.ToString();
+
+	UK2Node_EditablePinBase* Node = FunctionEntryNodePtr.Get();
+	if (Node != nullptr)
+	{
+		UK2Node_CustomEvent* CustomEventNode = Cast<UK2Node_CustomEvent>(Node);
+		if (CustomEventNode != nullptr)
+		{
+			CustomEventNode->DeprecationMessage = DeprecationMessage;
+		}
+		else
+		{
+			CastChecked<UK2Node_FunctionEntry>(Node)->MetaData.DeprecationMessage = DeprecationMessage;
+		}
+
+		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Node->GetBlueprint());
+	}
+}
+
 UMulticastDelegateProperty* FBlueprintDelegateActionDetails::GetDelegateProperty() const
 {
 	if (MyBlueprint.IsValid())
@@ -3795,84 +4072,6 @@ UEdGraph* FBlueprintDelegateActionDetails::GetGraph() const
 	return NULL;
 }
 
-FText FBlueprintDelegateActionDetails::OnGetTooltipText() const
-{
-	if (UMulticastDelegateProperty* DelegateProperty = GetDelegateProperty())
-	{
-		FString Result;
-		FBlueprintEditorUtils::GetBlueprintVariableMetaData(GetBlueprintObj(), DelegateProperty->GetFName(), NULL, TEXT("tooltip"), Result);
-		return FText::FromString(Result);
-	}
-	return FText();
-}
-
-void FBlueprintDelegateActionDetails::OnTooltipTextCommitted(const FText& NewText, ETextCommit::Type InTextCommit)
-{
-	if (UMulticastDelegateProperty* DelegateProperty = GetDelegateProperty())
-	{
-		FBlueprintEditorUtils::SetBlueprintVariableMetaData(GetBlueprintObj(), DelegateProperty->GetFName(), NULL, TEXT("tooltip"), NewText.ToString() );
-	}
-}
-
-FText FBlueprintDelegateActionDetails::OnGetCategoryText() const
-{
-	if (UMulticastDelegateProperty* DelegateProperty = GetDelegateProperty())
-	{
-		FName DelegateName = DelegateProperty->GetFName();
-		FText Category = FBlueprintEditorUtils::GetBlueprintVariableCategory(GetBlueprintObj(), DelegateName, NULL);
-
-		// Older blueprints will have their name as the default category
-		if( Category.EqualTo(FText::FromString(GetBlueprintObj()->GetName())) || Category.EqualTo(UEdGraphSchema_K2::VR_DefaultCategory) )
-		{
-			return LOCTEXT("DefaultCategory", "Default");
-		}
-		else
-		{
-			return Category;
-		}
-	}
-	return FText();
-}
-
-void FBlueprintDelegateActionDetails::OnCategoryTextCommitted(const FText& NewText, ETextCommit::Type InTextCommit)
-{
-	if (InTextCommit == ETextCommit::OnEnter || InTextCommit == ETextCommit::OnUserMovedFocus)
-	{
-		if (UMulticastDelegateProperty* DelegateProperty = GetDelegateProperty())
-		{
-			// Remove excess whitespace and prevent categories with just spaces
-			FText CategoryName = FText::TrimPrecedingAndTrailing(NewText);
-			
-			FBlueprintEditorUtils::SetBlueprintVariableCategory(GetBlueprintObj(), DelegateProperty->GetFName(), NULL, CategoryName);
-			check(MyBlueprint.IsValid());
-			FBlueprintVarActionDetails::PopulateCategories(MyBlueprint.Pin().Get(), CategorySource);
-			MyBlueprint.Pin()->ExpandCategory(CategoryName);
-		}
-	}
-}
-
-TSharedRef< ITableRow > FBlueprintDelegateActionDetails::MakeCategoryViewWidget( TSharedPtr<FText> Item, const TSharedRef< STableViewBase >& OwnerTable )
-{
-	return SNew(STableRow<TSharedPtr<FString>>, OwnerTable)
-		[
-			SNew(STextBlock) .Text(*Item.Get())
-		];
-}
-
-void FBlueprintDelegateActionDetails::OnCategorySelectionChanged( TSharedPtr<FText> ProposedSelection, ESelectInfo::Type /*SelectInfo*/ )
-{
-	UMulticastDelegateProperty* DelegateProperty = GetDelegateProperty();
-	if (DelegateProperty && ProposedSelection.IsValid())
-	{
-		FText NewCategory = *ProposedSelection.Get();
-
-		FBlueprintEditorUtils::SetBlueprintVariableCategory(GetBlueprintObj(), DelegateProperty->GetFName(), NULL, NewCategory);
-		CategoryListView.Pin()->ClearSelection();
-		CategoryComboButton.Pin()->SetIsOpen(false);
-		MyBlueprint.Pin()->ExpandCategory(NewCategory);
-	}
-}
-
 void FBlueprintDelegateActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailLayout )
 {
 	DetailsLayoutPtr = &DetailLayout;
@@ -3882,72 +4081,6 @@ void FBlueprintDelegateActionDetails::CustomizeDetails( IDetailLayoutBuilder& De
 
 	const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
 	const FSlateFontInfo DetailFontInfo = IDetailLayoutBuilder::GetDetailFont();
-
-	{
-		IDetailCategoryBuilder& Category = DetailLayout.EditCategory("Delegate", LOCTEXT("DelegateDetailsCategory", "Delegate"));
-		Category.AddCustomRow( LOCTEXT("VariableToolTipLabel", "Tooltip") )
-		.NameContent()
-		[
-			SNew(STextBlock)
-				.Text( LOCTEXT("VariableToolTipLabel", "Tooltip") )
-				.Font( DetailFontInfo )
-		]
-		.ValueContent()
-		[
-			SNew(SEditableTextBox)
-				.Text( this, &FBlueprintDelegateActionDetails::OnGetTooltipText )
-				.OnTextCommitted( this, &FBlueprintDelegateActionDetails::OnTooltipTextCommitted)
-				.Font( DetailFontInfo )
-		];
-
-		FBlueprintVarActionDetails::PopulateCategories(MyBlueprint.Pin().Get(), CategorySource);
-		TSharedPtr<SComboButton> NewComboButton;
-		TSharedPtr<SListView<TSharedPtr<FText>>> NewListView;
-
-		Category.AddCustomRow( LOCTEXT("CategoryLabel", "Category") )
-		.NameContent()
-		[
-			SNew(STextBlock)
-				.Text( LOCTEXT("CategoryLabel", "Category") )
-				.Font( DetailFontInfo )
-		]
-		.ValueContent()
-		[
-			SAssignNew(NewComboButton, SComboButton)
-			.ContentPadding(FMargin(0,0,5,0))
-			.IsEnabled(this, &FBlueprintDelegateActionDetails::IsBlueprintProperty)
-			.ButtonContent()
-			[
-				SNew(SBorder)
-				.BorderImage( FEditorStyle::GetBrush("NoBorder") )
-				.Padding(FMargin(0, 0, 5, 0))
-				[
-					SNew(SEditableTextBox)
-						.Text(this, &FBlueprintDelegateActionDetails::OnGetCategoryText)
-						.OnTextCommitted(this, &FBlueprintDelegateActionDetails::OnCategoryTextCommitted)
-						.SelectAllTextWhenFocused(true)
-						.RevertTextOnEscape(true)
-						.Font( DetailFontInfo )
-				]
-			]
-			.MenuContent()
-			[
-				SNew(SVerticalBox)
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				.MaxHeight(400.0f)
-				[
-					SAssignNew(NewListView, SListView<TSharedPtr<FText>>)
-						.ListItemsSource(&CategorySource)
-						.OnGenerateRow(this, &FBlueprintDelegateActionDetails::MakeCategoryViewWidget)
-						.OnSelectionChanged(this, &FBlueprintDelegateActionDetails::OnCategorySelectionChanged)
-				]
-			]
-		];
-
-		CategoryComboButton = NewComboButton;
-		CategoryListView = NewListView;
-	}
 
 	if (UK2Node_EditablePinBase* FunctionEntryNode = FunctionEntryNodePtr.Get())
 	{
@@ -4786,8 +4919,6 @@ bool FBlueprintGraphActionDetails::IsConstFunctionVisible() const
 	UK2Node_EditablePinBase * FunctionEntryNode = FunctionEntryNodePtr.Get();
 	if(FunctionEntryNode)
 	{
-		UBlueprint* Blueprint = FunctionEntryNode->GetBlueprint();
-
 		bSupportedType = FunctionEntryNode->IsA<UK2Node_FunctionEntry>();
 		bIsEditable = FunctionEntryNode->IsEditable();
 	}
@@ -5142,21 +5273,16 @@ TSharedRef<SWidget> FBlueprintInterfaceLayout::OnGetAddInterfaceMenuContent()
 	TArray<UBlueprint*> Blueprints;
 	Blueprints.Add(Blueprint);
 	TSharedRef<SWidget> ClassPicker = FBlueprintEditorUtils::ConstructBlueprintInterfaceClassPicker(Blueprints, FOnClassPicked::CreateSP(this, &FBlueprintInterfaceLayout::OnClassPicked));
-	return
-		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+	// Achieving fixed width by nesting items within a fixed width box.
+	return SNew(SBox)
+		.WidthOverride(350.0f)
 		[
-			// Achieving fixed width by nesting items within a fixed width box.
-			SNew(SBox)
-			.WidthOverride(350.0f)
+			SNew(SVerticalBox)
+			+SVerticalBox::Slot()
+			.MaxHeight(400.0f)
+			.AutoHeight()
 			[
-				SNew(SVerticalBox)
-				+SVerticalBox::Slot()
-				.MaxHeight(400.0f)
-				.AutoHeight()
-				[
-					ClassPicker
-				]
+				ClassPicker
 			]
 		];
 }
@@ -5199,21 +5325,16 @@ TSharedRef<SWidget> FBlueprintGlobalOptionsDetails::GetParentClassMenuContent()
 	Blueprints.Add(GetBlueprintObj());
 	TSharedRef<SWidget> ClassPicker = FBlueprintEditorUtils::ConstructBlueprintParentClassPicker(Blueprints, FOnClassPicked::CreateSP(this, &FBlueprintGlobalOptionsDetails::OnClassPicked));
 
-	return
-		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+	// Achieving fixed width by nesting items within a fixed width box.
+	return SNew(SBox)
+		.WidthOverride(350.0f)
 		[
-			// Achieving fixed width by nesting items within a fixed width box.
-			SNew(SBox)
-			.WidthOverride(350.0f)
+			SNew(SVerticalBox)
+			+SVerticalBox::Slot()
+			.MaxHeight(400.0f)
+			.AutoHeight()
 			[
-				SNew(SVerticalBox)
-				+SVerticalBox::Slot()
-				.MaxHeight(400.0f)
-				.AutoHeight()
-				[
-					ClassPicker
-				]
+				ClassPicker
 			]
 		];
 }
@@ -5689,16 +5810,26 @@ void FBlueprintComponentDetails::OnVariableTextChanged(const FText& InNewText)
 
 	bIsVariableNameInvalid = true;
 
-	USCS_Node* SCS_Node = CachedNodePtr->GetSCSNode();
-	if(SCS_Node != NULL && !InNewText.IsEmpty() && !FComponentEditorUtils::IsValidVariableNameString(SCS_Node->ComponentTemplate, InNewText.ToString()))
+	const FString& NewTextStr = InNewText.ToString();
+
+	if (USCS_Node* SCS_Node = CachedNodePtr->GetSCSNode())
 	{
-		VariableNameEditableTextBox->SetError(LOCTEXT("ComponentVariableRenameFailed_NotValid", "This name is reserved for engine use."));
-		return;
+		if (!NewTextStr.IsEmpty() && !FComponentEditorUtils::IsValidVariableNameString(SCS_Node->ComponentTemplate, NewTextStr))
+		{
+			VariableNameEditableTextBox->SetError(LOCTEXT("ComponentVariableRenameFailed_NotValid", "This name is reserved for engine use."));
+			return;
+		}
+
+		if (!FComponentEditorUtils::IsComponentNameAvailable(NewTextStr, SCS_Node->ComponentTemplate->GetOuter(), SCS_Node->ComponentTemplate))
+		{
+			VariableNameEditableTextBox->SetError(FText::Format(LOCTEXT("ComponentVariableRenameFailed_InUse", "{0} is in use by another variable or function!"), InNewText));
+			return;
+		}
 	}
 
 	TSharedPtr<INameValidatorInterface> VariableNameValidator = MakeShareable(new FKismetNameValidator(GetBlueprintObj(), CachedNodePtr->GetVariableName()));
 
-	EValidatorResult ValidatorResult = VariableNameValidator->IsValid(InNewText.ToString());
+	EValidatorResult ValidatorResult = VariableNameValidator->IsValid(NewTextStr);
 	if(ValidatorResult == EValidatorResult::AlreadyInUse)
 	{
 		VariableNameEditableTextBox->SetError(FText::Format(LOCTEXT("ComponentVariableRenameFailed_InUse", "{0} is in use by another variable or function!"), InNewText));
@@ -5759,8 +5890,8 @@ void FBlueprintComponentDetails::OnTooltipTextCommitted(const FText& NewText, ET
 bool FBlueprintComponentDetails::OnVariableCategoryChangeEnabled() const
 {
 	check(CachedNodePtr.IsValid());
-
-	return !CachedNodePtr->CanRename();
+	
+	return !CachedNodePtr->IsInherited();
 }
 
 FText FBlueprintComponentDetails::OnGetVariableCategoryText() const
@@ -5899,7 +6030,7 @@ void FBlueprintComponentDetails::OnBrowseSocket()
 
 		if (ParentFNode.IsValid())
 		{
-			if (USceneComponent* ParentSceneComponent = Cast<USceneComponent>(ParentFNode->GetEditableComponentTemplate(Editor->GetBlueprint())))
+			if (USceneComponent* ParentSceneComponent = Cast<USceneComponent>(ParentFNode->GetOrCreateEditableComponentTemplate(Editor->GetBlueprint())))
 			{
 				if (ParentSceneComponent->HasAnySockets())
 				{
@@ -5955,7 +6086,7 @@ void FBlueprintGraphNodeDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 		}
 	}
 
-	if(!GraphNodePtr.IsValid() || !GraphNodePtr.Get()->bCanRenameNode)
+	if(!GraphNodePtr.IsValid() || !GraphNodePtr.Get()->GetCanRenameNode())
 	{
 		return;
 	}

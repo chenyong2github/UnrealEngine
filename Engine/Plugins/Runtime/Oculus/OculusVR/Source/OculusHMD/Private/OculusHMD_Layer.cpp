@@ -68,10 +68,10 @@ FLayer::FLayer(const FLayer& Layer) :
 	Desc(Layer.Desc),
 	OvrpLayerId(Layer.OvrpLayerId),
 	OvrpLayer(Layer.OvrpLayer),
-	TextureSetProxy(Layer.TextureSetProxy),
-	DepthTextureSetProxy(Layer.DepthTextureSetProxy),
-	RightTextureSetProxy(Layer.RightTextureSetProxy),
-	RightDepthTextureSetProxy(Layer.RightDepthTextureSetProxy),
+	SwapChain(Layer.SwapChain),
+	DepthSwapChain(Layer.DepthSwapChain),
+	RightSwapChain(Layer.RightSwapChain),
+	RightDepthSwapChain(Layer.RightDepthSwapChain),
 	bUpdateTexture(Layer.bUpdateTexture),
 	bInvertY(Layer.bInvertY),
 	bHasDepth(Layer.bHasDepth),
@@ -431,10 +431,10 @@ void FLayer::Initialize_RenderThread(const FSettings* Settings, FCustomPresent* 
 	{
 		OvrpLayerId = InLayer->OvrpLayerId;
 		OvrpLayer = InLayer->OvrpLayer;
-		TextureSetProxy = InLayer->TextureSetProxy;
-		DepthTextureSetProxy = InLayer->DepthTextureSetProxy;
-		RightTextureSetProxy = InLayer->RightTextureSetProxy;
-		RightDepthTextureSetProxy = InLayer->RightDepthTextureSetProxy;
+		SwapChain = InLayer->SwapChain;
+		DepthSwapChain = InLayer->DepthSwapChain;
+		RightSwapChain = InLayer->RightSwapChain;
+		RightDepthSwapChain = InLayer->RightDepthSwapChain;
 		bUpdateTexture = InLayer->bUpdateTexture;
 		bNeedsTexSrgbCreate = InLayer->bNeedsTexSrgbCreate;
 	}
@@ -537,20 +537,20 @@ void FLayer::Initialize_RenderThread(const FSettings* Settings, FCustomPresent* 
 			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 			FClearValueBinding DepthTextureBinding = SceneContext.GetDefaultDepthClear();
 
-			TextureSetProxy = CustomPresent->CreateTextureSetProxy_RenderThread(SizeX, SizeY, ColorFormat, ColorTextureBinding, NumMips, NumSamples, NumSamplesTileMem, ResourceType, ColorTextures, ColorTexCreateFlags);
+			SwapChain = CustomPresent->CreateSwapChain_RenderThread(SizeX, SizeY, ColorFormat, ColorTextureBinding, NumMips, NumSamples, NumSamplesTileMem, ResourceType, ColorTextures, ColorTexCreateFlags);
 
 			if (bHasDepth)
 			{
-				DepthTextureSetProxy = CustomPresent->CreateTextureSetProxy_RenderThread(SizeX, SizeY, DepthFormat, DepthTextureBinding, 1, NumSamples, NumSamplesTileMem, ResourceType, DepthTextures, DepthTexCreateFlags);
+				DepthSwapChain = CustomPresent->CreateSwapChain_RenderThread(SizeX, SizeY, DepthFormat, DepthTextureBinding, 1, NumSamples, NumSamplesTileMem, ResourceType, DepthTextures, DepthTexCreateFlags);
 			}
 
 			if (OvrpLayerDesc.Layout == ovrpLayout_Stereo)
 			{
-				RightTextureSetProxy = CustomPresent->CreateTextureSetProxy_RenderThread(SizeX, SizeY, ColorFormat, ColorTextureBinding, NumMips, NumSamples, NumSamplesTileMem, ResourceType, RightColorTextures, ColorTexCreateFlags);
+				RightSwapChain = CustomPresent->CreateSwapChain_RenderThread(SizeX, SizeY, ColorFormat, ColorTextureBinding, NumMips, NumSamples, NumSamplesTileMem, ResourceType, RightColorTextures, ColorTexCreateFlags);
 
 				if (bHasDepth)
 				{
-					RightDepthTextureSetProxy = CustomPresent->CreateTextureSetProxy_RenderThread(SizeX, SizeY, DepthFormat, DepthTextureBinding, 1, NumSamples, NumSamplesTileMem, ResourceType, RightDepthTextures, DepthTexCreateFlags);
+					RightDepthSwapChain = CustomPresent->CreateSwapChain_RenderThread(SizeX, SizeY, DepthFormat, DepthTextureBinding, 1, NumSamples, NumSamplesTileMem, ResourceType, RightDepthTextures, DepthTexCreateFlags);
 				}
 			}
 		}
@@ -568,7 +568,7 @@ void FLayer::UpdateTexture_RenderThread(FCustomPresent* CustomPresent, FRHIComma
 {
 	CheckInRenderThread();
 
-	if (bUpdateTexture && TextureSetProxy.IsValid())
+	if (bUpdateTexture && SwapChain.IsValid())
 	{
 		// Copy textures
 		if (Desc.Texture.IsValid())
@@ -580,7 +580,7 @@ void FLayer::UpdateTexture_RenderThread(FCustomPresent* CustomPresent, FRHIComma
 			// Left
 			{
 				FRHITexture* SrcTexture = Desc.LeftTexture.IsValid() ? Desc.LeftTexture : Desc.Texture;
-				FRHITexture* DstTexture = TextureSetProxy->GetTexture();
+				FRHITexture* DstTexture = SwapChain->GetTexture();
 
 				const ovrpRecti& OvrpViewportRect = OvrpLayerSubmit.ViewportRect[ovrpEye_Left];
 				FIntRect DstRect(OvrpViewportRect.Pos.x, OvrpViewportRect.Pos.y, OvrpViewportRect.Pos.x + OvrpViewportRect.Size.w, OvrpViewportRect.Pos.y + OvrpViewportRect.Size.h);
@@ -592,7 +592,7 @@ void FLayer::UpdateTexture_RenderThread(FCustomPresent* CustomPresent, FRHIComma
 			if(OvrpLayerDesc.Layout != ovrpLayout_Mono)
 			{
 				FRHITexture* SrcTexture = Desc.Texture;
-				FRHITexture* DstTexture = RightTextureSetProxy.IsValid() ? RightTextureSetProxy->GetTexture() : TextureSetProxy->GetTexture();
+				FRHITexture* DstTexture = RightSwapChain.IsValid() ? RightSwapChain->GetTexture() : SwapChain->GetTexture();
 
 				const ovrpRecti& OvrpViewportRect = OvrpLayerSubmit.ViewportRect[ovrpEye_Right];
 				FIntRect DstRect(OvrpViewportRect.Pos.x, OvrpViewportRect.Pos.y, OvrpViewportRect.Pos.x + OvrpViewportRect.Size.w, OvrpViewportRect.Pos.y + OvrpViewportRect.Size.h);
@@ -604,11 +604,11 @@ void FLayer::UpdateTexture_RenderThread(FCustomPresent* CustomPresent, FRHIComma
 		}
 
 		// Generate mips
-		TextureSetProxy->GenerateMips_RenderThread(RHICmdList);
+		SwapChain->GenerateMips_RenderThread(RHICmdList);
 
-		if (RightTextureSetProxy.IsValid())
+		if (RightSwapChain.IsValid())
 		{
-			RightTextureSetProxy->GenerateMips_RenderThread(RHICmdList);
+			RightSwapChain->GenerateMips_RenderThread(RHICmdList);
 		}
 	}
 }
@@ -617,7 +617,7 @@ void FLayer::UpdateTexture_RenderThread(FCustomPresent* CustomPresent, FRHIComma
 const ovrpLayerSubmit* FLayer::UpdateLayer_RHIThread(const FSettings* Settings, const FGameFrame* Frame, const int LayerIndex)
 {
 	OvrpLayerSubmit.LayerId = OvrpLayerId;
-	OvrpLayerSubmit.TextureStage = TextureSetProxy.IsValid() ? TextureSetProxy->GetSwapChainIndex_RHIThread() : 0;
+	OvrpLayerSubmit.TextureStage = SwapChain.IsValid() ? SwapChain->GetSwapChainIndex_RHIThread() : 0;
 
 	bool injectColorScale = Id == 0 || Settings->bApplyColorScaleAndOffsetToAllLayers;
 	OvrpLayerSubmit.ColorOffset = injectColorScale ? Settings->ColorOffset : ovrpVector4f{ 0, 0, 0, 0 };
@@ -724,24 +724,24 @@ void FLayer::IncrementSwapChainIndex_RHIThread(FCustomPresent* CustomPresent)
 {
 	CheckInRHIThread();
 
-	if (TextureSetProxy.IsValid())
+	if (SwapChain.IsValid())
 	{
-		TextureSetProxy->IncrementSwapChainIndex_RHIThread(CustomPresent);
+		SwapChain->IncrementSwapChainIndex_RHIThread();
 	}
 
-	if (DepthTextureSetProxy.IsValid())
+	if (DepthSwapChain.IsValid())
 	{
-		DepthTextureSetProxy->IncrementSwapChainIndex_RHIThread(CustomPresent);
+		DepthSwapChain->IncrementSwapChainIndex_RHIThread();
 	}
 
-	if (RightTextureSetProxy.IsValid())
+	if (RightSwapChain.IsValid())
 	{
-		RightTextureSetProxy->IncrementSwapChainIndex_RHIThread(CustomPresent);
+		RightSwapChain->IncrementSwapChainIndex_RHIThread();
 	}
 
-	if (RightDepthTextureSetProxy.IsValid())
+	if (RightDepthSwapChain.IsValid())
 	{
-		RightDepthTextureSetProxy->IncrementSwapChainIndex_RHIThread(CustomPresent);
+		RightDepthSwapChain->IncrementSwapChainIndex_RHIThread();
 	}
 }
 
@@ -752,10 +752,10 @@ void FLayer::ReleaseResources_RHIThread()
 
 	OvrpLayerId = 0;
 	OvrpLayer.Reset();
-	TextureSetProxy.Reset();
-	DepthTextureSetProxy.Reset();
-	RightTextureSetProxy.Reset();
-	RightDepthTextureSetProxy.Reset();
+	SwapChain.Reset();
+	DepthSwapChain.Reset();
+	RightSwapChain.Reset();
+	RightDepthSwapChain.Reset();
 	bUpdateTexture = false;
 }
 

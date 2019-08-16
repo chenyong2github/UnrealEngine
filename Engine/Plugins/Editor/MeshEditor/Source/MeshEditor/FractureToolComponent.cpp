@@ -15,18 +15,20 @@
 #include "Materials/Material.h"
 #include "FractureToolDelegates.h"
 #include "EditorSupportDelegates.h"
-
+#include "SceneOutlinerDelegates.h"
+#include "Kismet/GameplayStatics.h"
 
 DEFINE_LOG_CATEGORY_STATIC(UFractureToolComponentLogging, NoLogging, All);
 
+bool UFractureToolComponent::bInFractureMode = true;
 
-UFractureToolComponent::UFractureToolComponent(const FObjectInitializer& ObjectInitializer) : ShowBoneColors(true)
+UFractureToolComponent::UFractureToolComponent(const FObjectInitializer& ObjectInitializer) : ShowBoneColors(true), bInMeshEditorMode(false)
 {
 }
 
-
 void UFractureToolComponent::OnRegister()
 {
+	bInMeshEditorMode = true;
 	Super::OnRegister();
 
 	FFractureToolDelegates::Get().OnFractureExpansionEnd.AddUObject(this, &UFractureToolComponent::OnFractureExpansionEnd);
@@ -36,13 +38,28 @@ void UFractureToolComponent::OnRegister()
 	FFractureToolDelegates::Get().OnUpdateFractureLevelView.AddUObject(this, &UFractureToolComponent::OnUpdateFractureLevelView);
 }
 
+
+void UFractureToolComponent::OnUnregister()
+{
+	bInMeshEditorMode = false;
+	Super::OnUnregister();
+
+	FFractureToolDelegates::Get().OnFractureExpansionEnd.RemoveAll(this);
+	FFractureToolDelegates::Get().OnFractureExpansionUpdate.RemoveAll(this);
+	FFractureToolDelegates::Get().OnVisualizationSettingsChanged.RemoveAll(this);
+	FFractureToolDelegates::Get().OnUpdateExplodedView.RemoveAll(this);
+	FFractureToolDelegates::Get().OnUpdateFractureLevelView.RemoveAll(this);
+
+	LeaveFracturingCleanup();
+}
+
 void UFractureToolComponent::OnFractureExpansionEnd()
 {
 	UGeometryCollectionComponent* GeometryCollectionComponent = GetGeometryCollectionComponent();
 	if (GeometryCollectionComponent)
 	{
 		FScopedColorEdit EditBoneColor = GeometryCollectionComponent->EditBoneSelection();
-		EditBoneColor.SetShowBoneColors(ShowBoneColors);
+		EditBoneColor.SetShowBoneColors(ShowBoneColors & bInMeshEditorMode & bInFractureMode);
 	}
 }
 
@@ -94,7 +111,7 @@ void UFractureToolComponent::UpdateBoneState(UPrimitiveComponent* Component)
 	if (GeometryCollectionComponent)
 	{
 		// this scoped method will refresh bone colors
-		FScopedColorEdit EditBoneColor = GeometryCollectionComponent->EditBoneSelection();
+		FScopedColorEdit EditBoneColor( GeometryCollectionComponent, true );
 	}
 }
 
@@ -107,7 +124,7 @@ void UFractureToolComponent::SetSelectedBones(UEditableMesh* EditableMesh, int32
 
 		if (UGeometryCollection* MeshGeometryCollection = GetGeometryCollection(EditableMesh))
 		{
-			TSharedPtr<FGeometryCollection> GeometryCollectionPtr = MeshGeometryCollection->GetGeometryCollection();
+			TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = MeshGeometryCollection->GetGeometryCollection();
 			if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
 			{
 
@@ -117,7 +134,7 @@ void UFractureToolComponent::SetSelectedBones(UEditableMesh* EditableMesh, int32
 				{
 					EditBoneColor.SetShowBoneColors(ShowBoneColors);
 				}
-				EditBoneColor.SetShowSelectedBones(true);
+				EditBoneColor.SetEnableBoneSelection(true);
 				bool BoneWasAlreadySelected = EditBoneColor.IsBoneSelected(BoneSelected);
 
 				// if multiselect then append new BoneSelected to what is already selected, otherwise we just clear and replace the old selection with BoneSelected
@@ -146,7 +163,7 @@ void UFractureToolComponent::SetSelectedBones(UEditableMesh* EditableMesh, int32
 					EditBoneColor.SetSelectedBones(RevisedSelected);
 					EditBoneColor.SetHighlightedBones(Highlighted);
 
-					FFractureToolDelegates::Get().OnComponentSelectionChanged.Broadcast(GeometryCollectionComponent);
+					SceneOutliner::FSceneOutlinerDelegates::Get().OnComponentSelectionChanged.Broadcast(GeometryCollectionComponent);
 				}
 			}
 
@@ -165,9 +182,12 @@ void UFractureToolComponent::OnSelected(UPrimitiveComponent* SelectedComponent)
 		FScopedColorEdit EditBoneColor = GeometryCollectionComponent->EditBoneSelection();
 
 		EditBoneColor.SetShowBoneColors(ShowBoneColors);
-		EditBoneColor.SetShowSelectedBones(true);
+		EditBoneColor.SetEnableBoneSelection(true);
 	}
-
+	if (bInMeshEditorMode && bInFractureMode)
+	{
+		FFractureToolDelegates::Get().OnUpdateExplodedView.Broadcast(static_cast<uint8>(EViewResetType::RESET_TRANSFORMS), static_cast<uint8>(0));
+	}
 }
 
 void UFractureToolComponent::OnDeselected(UPrimitiveComponent* DeselectedComponent)
@@ -178,34 +198,44 @@ void UFractureToolComponent::OnDeselected(UPrimitiveComponent* DeselectedCompone
 		FScopedColorEdit EditBoneColor = GeometryCollectionComponent->EditBoneSelection();
 
 		EditBoneColor.SetShowBoneColors(false);
-		EditBoneColor.SetShowSelectedBones(false);
+		EditBoneColor.SetEnableBoneSelection(false);
 	}
 }
 
 void UFractureToolComponent::OnEnterFractureMode()
 {
-
+	bInFractureMode = true;
+	for(const AActor* SelectedActor : GetSelectedActors())
+	{
+		TArray<UActorComponent*> PrimitiveComponents = SelectedActor->GetComponentsByClass(UPrimitiveComponent::StaticClass());
+		for (UActorComponent* PrimitiveActorComponent : PrimitiveComponents)
+		{
+			UPrimitiveComponent* Component = CastChecked<UPrimitiveComponent>(PrimitiveActorComponent);
+			if (Component)
+			{
+				OnSelected(Component);
+			}
+		}
+	}
 }
 
 void UFractureToolComponent::OnExitFractureMode()
 {
+	bInFractureMode = false;
 	// find all the selected geometry collections and turn off color rendering mode
-	AActor* ReturnActor = nullptr;
-	const TArray<AActor*>& SelectedActors = GetSelectedActors();
-
-	for (int i = 0; i < SelectedActors.Num(); i++)
+	for (const AActor* SelectedActor : GetSelectedActors())
 	{
-		TArray<UActorComponent*> PrimitiveComponents = SelectedActors[i]->GetComponentsByClass(UPrimitiveComponent::StaticClass());
+		TArray<UActorComponent*> PrimitiveComponents = SelectedActor->GetComponentsByClass(UPrimitiveComponent::StaticClass());
 		for (UActorComponent* PrimitiveActorComponent : PrimitiveComponents)
 		{
 			UPrimitiveComponent* Component = CastChecked<UPrimitiveComponent>(PrimitiveActorComponent);
-
 			if (Component)
 			{
 				OnDeselected(Component);
 			}
 		}
 	}
+	LeaveFracturingCleanup();
 }
 
 TArray<AActor*> UFractureToolComponent::GetSelectedActors() const
@@ -295,6 +325,60 @@ UGeometryCollectionComponent* UFractureToolComponent::GetGeometryCollectionCompo
 	}
 
 	return GeometryCollectionComponent;
+}
+
+void UFractureToolComponent::LeaveFracturingCleanup()
+{
+	TArray<AActor*> ActorList;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AGeometryCollectionActor::StaticClass(), ActorList);
+
+	if (ActorList.Num() == 0)
+	{
+		return;
+	}
+
+	float OldExpansion = UMeshFractureSettings::ExplodedViewExpansion;
+	UMeshFractureSettings::ExplodedViewExpansion = 0.0f;
+
+	EMeshFractureLevel FractureLevel = static_cast<EMeshFractureLevel>(0);
+	EViewResetType ResetType = static_cast<EViewResetType>(0);
+	EExplodedViewMode ViewMode = EExplodedViewMode::Linear;
+
+	for (AActor* Actor : ActorList)
+	{
+		AGeometryCollectionActor* GeometryActor = Cast<AGeometryCollectionActor>(Actor);
+
+		if (GeometryActor)
+		{
+			// hide the bones
+			TArray<UActorComponent*> PrimitiveComponents = Actor->GetComponentsByClass(UPrimitiveComponent::StaticClass());
+			for (UActorComponent* PrimitiveActorComponent : PrimitiveComponents)
+			{
+				UPrimitiveComponent* Component = CastChecked<UPrimitiveComponent>(PrimitiveActorComponent);
+				if (Component)
+				{
+					UGeometryCollectionComponent* GeometryCollectionComponent = Cast<UGeometryCollectionComponent>(Component);
+					if (GeometryCollectionComponent)
+					{
+						FScopedColorEdit EditBoneColor = GeometryCollectionComponent->EditBoneSelection();
+						EditBoneColor.SetShowBoneColors(false);
+						EditBoneColor.SetEnableBoneSelection(false);
+					}
+				}
+			}
+
+			check(GeometryActor->GeometryCollectionComponent);
+			if (HasExplodedAttributes(GeometryActor))
+			{
+				ExplodeInLevels(GeometryActor);
+			}
+			GeometryActor->GeometryCollectionComponent->MarkRenderStateDirty();
+		}
+	}
+
+	FFractureToolDelegates::Get().OnFractureExpansionEnd.Broadcast();
+	FEditorSupportDelegates::RedrawAllViewports.Broadcast();
+	UMeshFractureSettings::ExplodedViewExpansion = OldExpansion;
 }
 
 UGeometryCollection* UFractureToolComponent::GetGeometryCollection(const UEditableMesh* SourceMesh)
@@ -388,35 +472,30 @@ void UFractureToolComponent::ExplodeInLevels(AGeometryCollectionActor* GeometryA
 
 	if (GeometryCollection)
 	{
-		TSharedPtr<FGeometryCollection> GeometryCollectionPtr = GeometryCollection->GetGeometryCollection();
+		TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollection->GetGeometryCollection();
 		if (FGeometryCollection* Collection = GeometryCollectionPtr.Get())
 		{
-			float ComponentScaling = CalculateComponentScaling(GeometryActor->GeometryCollectionComponent);
+			float ComponentScaling = CalculateComponentScaling(GeometryActor->GeometryCollectionComponent);  // TODO: This also resets all transforms, but the root transform is not set back to its correct value in the loop below!
 
-			TSharedRef<TManagedArray<FTransform> > TransformArray = Collection->GetAttribute<FTransform>("Transform", FGeometryCollection::TransformGroup);
-			TSharedRef<TManagedArray<FVector> > ExplodedVectorsArray = Collection->GetAttribute<FVector>("ExplodedVector", FGeometryCollection::TransformGroup);
-			TSharedRef<TManagedArray<FTransform> > ExplodedTransformsArray = Collection->GetAttribute<FTransform>("ExplodedTransform", FGeometryCollection::TransformGroup);
-			TSharedRef<TManagedArray<FGeometryCollectionBoneNode > > HierarchyArray = Collection->GetAttribute<FGeometryCollectionBoneNode>("BoneHierarchy", FGeometryCollection::TransformGroup);
-
-			TManagedArray<FTransform> & Transform = *TransformArray;
-			TManagedArray<FVector>& ExplodedVectors = *ExplodedVectorsArray;
-			TManagedArray<FTransform>& ExplodedTransforms = *ExplodedTransformsArray;
-			TManagedArray<FGeometryCollectionBoneNode >& Hierarchy = *HierarchyArray;
+			TManagedArray<FTransform> & Transform = Collection->Transform;
+			TManagedArray<FVector>& ExplodedVectors = Collection->GetAttribute<FVector>("ExplodedVector", FGeometryCollection::TransformGroup);
+			TManagedArray<FTransform>& ExplodedTransforms = Collection->GetAttribute<FTransform>("ExplodedTransform", FGeometryCollection::TransformGroup);
+			TManagedArray<int32>& Levels = Collection->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
 
 
 			int32 NumTransforms = Collection->NumElements(FGeometryCollection::TransformGroup);
 			int32 MaxFractureLevel = -1;
 			for (int i = 0; i < NumTransforms; i++)
 			{
-				if (Hierarchy[i].Level > MaxFractureLevel)
-					MaxFractureLevel = Hierarchy[i].Level;
+				if (Levels[i] > MaxFractureLevel)
+					MaxFractureLevel = Levels[i];
 			}
 
 			for (int Level = 1; Level <= MaxFractureLevel; Level++)
 			{
 				for (int t = 0; t < NumTransforms; t++)
 				{
-					if (Hierarchy[t].Level != Level)
+					if (Levels[t] != Level)
 						continue;
 
 					int32 FractureLevel = Level - 1;
@@ -453,18 +532,16 @@ void UFractureToolComponent::ExplodeLinearly(AGeometryCollectionActor* GeometryA
 
 	if (GeometryCollection)
 	{
-		TSharedPtr<FGeometryCollection> GeometryCollectionPtr = GeometryCollection->GetGeometryCollection();
+		TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollection->GetGeometryCollection();
 		if (FGeometryCollection* Collection = GeometryCollectionPtr.Get())
 		{
-			float ComponentScaling = CalculateComponentScaling(GeometryActor->GeometryCollectionComponent);
+			float ComponentScaling = CalculateComponentScaling(GeometryActor->GeometryCollectionComponent);  // TODO: This also resets all transforms, but the root transform is not set back to its correct value in the loop below!
 
-			const TSharedRef<TManagedArray<FVector> > ExplodedVectorsArray = Collection->GetAttribute<FVector>("ExplodedVector", FGeometryCollection::TransformGroup);
-			const TSharedRef<TManagedArray<FTransform> > ExplodedTransformsArray = Collection->GetAttribute<FTransform>("ExplodedTransform", FGeometryCollection::TransformGroup);
-			const TManagedArray<FVector>& ExplodedVectors = *ExplodedVectorsArray;
-			const TManagedArray<FTransform>& ExplodedTransforms = *ExplodedTransformsArray;
+			const TManagedArray<FVector>& ExplodedVectors = Collection->GetAttribute<FVector>("ExplodedVector", FGeometryCollection::TransformGroup);
+			const TManagedArray<FTransform>& ExplodedTransforms = Collection->GetAttribute<FTransform>("ExplodedTransform", FGeometryCollection::TransformGroup);
 
-			TManagedArray<FTransform> & Transform = *Collection->Transform;
-			const TManagedArray<FGeometryCollectionBoneNode >& Hierarchy = *Collection->BoneHierarchy;
+			TManagedArray<FTransform>& Transform = Collection->Transform;
+			TManagedArray<int32>& Levels = Collection->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
 
 
 			int32 NumTransforms = Collection->NumElements(FGeometryCollection::TransformGroup);
@@ -472,15 +549,15 @@ void UFractureToolComponent::ExplodeLinearly(AGeometryCollectionActor* GeometryA
 			int32 MaxFractureLevel = FractureLevelNumber;
 			for (int i = 0; i < NumTransforms; i++)
 			{
-				if (Hierarchy[i].Level > MaxFractureLevel)
-					MaxFractureLevel = Hierarchy[i].Level;
+				if (Levels[i] > MaxFractureLevel)
+					MaxFractureLevel = Levels[i];
 			}
 
 			for (int Level = 1; Level <= MaxFractureLevel; Level++)
 			{
 				for (int t = 0; t < NumTransforms; t++)
 				{
-					if (Hierarchy[t].Level == FractureLevelNumber)
+					if (Levels[t] == FractureLevelNumber)
 					{
 						FVector NewPos = ExplodedTransforms[t].GetLocation() + ComponentScaling * ExplodedVectors[t] * UMeshFractureSettings::ExplodedViewExpansion;
 						Transform[t].SetLocation(NewPos);
@@ -504,13 +581,16 @@ float UFractureToolComponent::CalculateComponentScaling(UGeometryCollectionCompo
 	FGeometryCollectionEdit GeometryCollectionEdit = GeometryCollectionComponent->EditRestCollection();
 	if (UGeometryCollection* GeometryCollectionObject = GeometryCollectionEdit.GetRestCollection())
 	{
-		TSharedPtr<FGeometryCollection> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
+		TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
 		if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
 		{
+			// TODO: The transforms' locations should probably not be reset in here.
+			//   And as they do, the root location shouldn't be cleared up since it never gets set back to a correct value after this.
+			//   This could cause a shift on the root geometry whose vertices may already have been translated and will no longer align
+			//   with its cluster's due to the now missing transform location information.
 
 			// reset the transforms so the component is no longer exploded, otherwise get bounds of exploded state which is a moving target
-			TSharedRef<TManagedArray<FTransform> > TransformsArray = GeometryCollection->GetAttribute<FTransform>("Transform", FGeometryCollection::TransformGroup);
-			TManagedArray<FTransform> & Transforms = *TransformsArray;
+			TManagedArray<FTransform>& Transforms = GeometryCollection->Transform;
 
 			for (int i = 0; i < Transforms.Num(); i++)
 			{
@@ -524,17 +604,14 @@ float UFractureToolComponent::CalculateComponentScaling(UGeometryCollectionCompo
 
 void UFractureToolComponent::ShowGeometry(class UGeometryCollection* GeometryCollectionObject, int Index, bool GeometryVisible, bool IncludeChildren)
 {
-	TSharedPtr<FGeometryCollection> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
+	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
 	if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
 	{
 		// #todo: the way the visibility is defined in the GeometryCollection makes this operation really slow - best if the visibility was at bone level
-		TSharedRef<TManagedArray<int32> > BoneMapArray = GeometryCollection->GetAttribute<int32>("BoneMap", FGeometryCollection::VerticesGroup);
-		TSharedRef<TManagedArray<FIntVector> > IndicesArray = GeometryCollection->GetAttribute<FIntVector>("Indices", FGeometryCollection::FacesGroup);
-		TSharedRef<TManagedArray<bool> > VisibleArray = GeometryCollection->GetAttribute<bool>("Visible", FGeometryCollection::FacesGroup);
 
-		TManagedArray<int32>& BoneMap = *BoneMapArray;
-		TManagedArray<FIntVector>&  Indices = *IndicesArray;
-		TManagedArray<bool>&  Visible = *VisibleArray;
+		TManagedArray<int32>& BoneMap = GeometryCollection->BoneMap;
+		TManagedArray<FIntVector>&  Indices = GeometryCollection->Indices;
+		TManagedArray<bool>&  Visible = GeometryCollection->Visible;
 
 
 		for (int32 i = 0; i < Indices.Num(); i++)

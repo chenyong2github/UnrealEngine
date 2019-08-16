@@ -231,7 +231,7 @@ void FClothingSimulationNv::CreateActor(USkeletalMeshComponent* InOwnerComponent
 
 	// Force update LODs so we're in the correct state now, need to resolve MPC if one is present
 	USkinnedMeshComponent* TransformComponent = InOwnerComponent->MasterPoseComponent.IsValid() ? InOwnerComponent->MasterPoseComponent.Get() : InOwnerComponent;
-	UpdateLod(InOwnerComponent->PredictedLODLevel, InOwnerComponent->GetComponentTransform(), TransformComponent->GetComponentSpaceTransforms(), true, true);
+	UpdateLod(InOwnerComponent->PredictedLODLevel, InOwnerComponent->GetComponentTransform(), TransformComponent->GetComponentSpaceTransforms(), RefToLocals, true, true);
 
 	// Compute normals for all active actors for first frame
 	for(FClothingActorNv& Actor : Actors)
@@ -507,7 +507,7 @@ void FClothingSimulationNv::Simulate(IClothingSimulationContext* InContext)
 		return;
 	}
 
-	UpdateLod(NvContext->PredictedLod, NvContext->ComponentToWorld, NvContext->BoneTransforms);
+	UpdateLod(NvContext->PredictedLod, NvContext->ComponentToWorld, NvContext->BoneTransforms, NvContext->RefToLocals);
 
 	// Pre-sim work
 	for(FClothingActorNv& Actor : Actors)
@@ -975,7 +975,7 @@ FBoxSphereBounds FClothingSimulationNv::GetBounds(const USkeletalMeshComponent* 
 	return CurrentBounds;
 }
 
-void FClothingSimulationNv::UpdateLod(int32 InPredictedLod, const FTransform& ComponentToWorld, const TArray<FTransform>& CSTransforms, bool bForceNoRemap, bool bForceActorChecks)
+void FClothingSimulationNv::UpdateLod(int32 InPredictedLod, const FTransform& ComponentToWorld, const TArray<FTransform>& CSTransforms, const TArray<FMatrix>& RefToLocals, bool bForceNoRemap, bool bForceActorChecks)
 {
 	if(InPredictedLod != CurrentMeshLodIndex || bForceActorChecks)
 	{
@@ -1001,8 +1001,22 @@ void FClothingSimulationNv::UpdateLod(int32 InPredictedLod, const FTransform& Co
 			bool bOldLodMapped = LodMap.IsValidIndex(CurrentMeshLodIndex) && LodMap[CurrentMeshLodIndex] != INDEX_NONE;
 
 			// Get the clothing LOD mapped from the mesh predicted LOD
-			const int32 PredictedClothingLod = LodMap[InPredictedLod];
+
+
 			const int32 OldClothingLod = bOldLodMapped ? LodMap[CurrentMeshLodIndex] : INDEX_NONE;
+
+			// If potentialLod doesn't map to a valid LOD, we try higher LOD levels for a valid LOD.
+			// Asset might only have lod on LOD 1 and not 0, however if mesh doesn't force LOD to 1, 
+			// asset will not be assigned valid LOD index and will not generate sim data, breaking things.
+			int32 PredictedClothingLod = INDEX_NONE;
+			for (int32 PotentialLod = InPredictedLod; PotentialLod < LodMap.Num(); ++PotentialLod)
+			{
+				if (LodMap[PotentialLod] != INDEX_NONE)
+				{
+					PredictedClothingLod = LodMap[PotentialLod];
+					break;
+				}
+			}
 
 			if(PredictedClothingLod == Actor.CurrentLodIndex)
 			{
@@ -1105,6 +1119,15 @@ void FClothingSimulationNv::UpdateLod(int32 InPredictedLod, const FTransform& Co
 				NewLodData.Cloth->setRotation(U2PQuat(SimRootTransform.GetRotation()));
 				NewLodData.Cloth->clearInertia();
 
+				// clear spheres and planes double buffering since cloth kept collision data from last time it was simulated
+				// and clearInertia does not fully empty buffers
+				NewLodData.Cloth->setSpheres(nv::cloth::Range<const PxVec4>(), 0, NewLodData.Cloth->getNumSpheres()); // empty spheres
+				NewLodData.Cloth->setPlanes(nv::cloth::Range<const PxVec4>(), 0, NewLodData.Cloth->getNumPlanes()); // empty planes
+
+				// clear constraints from previous sim
+				NewLodData.Cloth->clearMotionConstraints();
+				NewLodData.Cloth->clearSeparationConstraints();
+
 				Actor.CurrentLodIndex = PredictedClothingLod;
 			}
 			else
@@ -1114,17 +1137,52 @@ void FClothingSimulationNv::UpdateLod(int32 InPredictedLod, const FTransform& Co
 				{
 					Solver->addCloth(NewLodData.Cloth);
 
-					for(int32 ParticleIndex = 0; ParticleIndex < NumNewParticles; ++ParticleIndex)
+					if(CSTransforms.Num() > Actor.AssetCreatedFrom->ReferenceBoneIndex)
 					{
-						NewLodParticles[ParticleIndex] = NewLodData.Px_RestPositions[ParticleIndex];
-						NewLodPrevParticles[ParticleIndex] = NewLodData.Px_RestPositions[ParticleIndex];
-						NewAccelerations[ParticleIndex] = physx::PxVec4(0.0f);
+						// compute skinned positions to init sim mesh
+						const FClothPhysicalMeshData& PhysMesh = Actor.AssetCreatedFrom->LodData[PredictedClothingLod].PhysicalMeshData;
+						TArray<FVector> SkinnedPhysicsMeshPositions;
+						TArray<FVector> SkinnedPhysicsMeshNormals;
+						FClothingSimulationBase::SkinPhysicsMesh(
+							Actor.AssetCreatedFrom,
+							PhysMesh,
+							CSTransforms[Actor.AssetCreatedFrom->ReferenceBoneIndex],
+							RefToLocals.GetData(),
+							RefToLocals.Num(),
+							SkinnedPhysicsMeshPositions,
+							SkinnedPhysicsMeshNormals);
+
+						for(int32 ParticleIndex = 0; ParticleIndex < NumNewParticles; ++ParticleIndex)
+						{
+							NewLodParticles[ParticleIndex] = PxVec4(U2PVector(SkinnedPhysicsMeshPositions[ParticleIndex]), NewLodParticles[ParticleIndex].w);
+							NewLodPrevParticles[ParticleIndex] = PxVec4(U2PVector(SkinnedPhysicsMeshPositions[ParticleIndex]), NewLodPrevParticles[ParticleIndex].w);
+							NewAccelerations[ParticleIndex] = physx::PxVec4(0.0f);
+						}
+
+						FTransform SimRootTransform = CSTransforms[Actor.AssetCreatedFrom->ReferenceBoneIndex] * ComponentToWorld;
+						NewLodData.Cloth->setTranslation(U2PVector(SimRootTransform.GetTranslation()));
+						NewLodData.Cloth->setRotation(U2PQuat(SimRootTransform.GetRotation()));
+					}
+					else
+					{
+						for(int32 ParticleIndex = 0; ParticleIndex < NumNewParticles; ++ParticleIndex)
+						{
+							NewLodParticles[ParticleIndex] = NewLodData.Px_RestPositions[ParticleIndex];
+							NewLodPrevParticles[ParticleIndex] = NewLodData.Px_RestPositions[ParticleIndex];
+							NewAccelerations[ParticleIndex] = physx::PxVec4(0.0f);
+						}
 					}
 
-					FTransform SimRootTransform = CSTransforms[Actor.AssetCreatedFrom->ReferenceBoneIndex] * ComponentToWorld;
-					NewLodData.Cloth->setTranslation(U2PVector(SimRootTransform.GetTranslation()));
-					NewLodData.Cloth->setRotation(U2PQuat(SimRootTransform.GetRotation()));
 					NewLodData.Cloth->clearInertia();
+
+					// clear spheres and planes double buffering since cloth kept collision data from last time it was simulated
+					// and clearInertia does not fully empty buffers
+					NewLodData.Cloth->setSpheres(nv::cloth::Range<const PxVec4>(), 0, NewLodData.Cloth->getNumSpheres()); // empty spheres
+					NewLodData.Cloth->setPlanes(nv::cloth::Range<const PxVec4>(), 0, NewLodData.Cloth->getNumPlanes()); // empty planes
+
+					// clear constraints from previous sim
+					NewLodData.Cloth->clearMotionConstraints();
+					NewLodData.Cloth->clearSeparationConstraints();
 
 					Actor.CurrentLodIndex = PredictedClothingLod;
 				}

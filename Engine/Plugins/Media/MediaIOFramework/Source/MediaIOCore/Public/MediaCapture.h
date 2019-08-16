@@ -17,7 +17,9 @@
 #include "MediaCapture.generated.h"
 
 class FSceneViewport;
+class FTextureRenderTargetResource;
 class UTextureRenderTarget2D;
+class FRHICommandListImmediate;
 
 /**
  * Possible states of media capture.
@@ -226,7 +228,7 @@ protected:
 	 * Capture the data that will pass along to the callback.
 	 * @note The capture is done on the Render Thread but triggered from the Game Thread.
 	 */
-	virtual TSharedPtr<FMediaCaptureUserData> GetCaptureFrameUserData_GameThread() { return TSharedPtr<FMediaCaptureUserData>(); }
+	virtual TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> GetCaptureFrameUserData_GameThread() { return TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe>(); }
 
 	/** Should we call OnFrameCaptured_RenderingThread() with a RHI Texture -or- copy the memory to CPU ram and call OnFrameCaptured_RenderingThread(). */
 	virtual bool ShouldCaptureRHITexture() const { return false; }
@@ -236,14 +238,28 @@ protected:
 	 * The callback in called from a critical point. If you intend to process the buffer, do so in another thread.
 	 * The buffer is only valid for the duration of the callback.
 	 */
-	virtual void OnFrameCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData> InUserData, void* InBuffer, int32 Width, int32 Height) { }
+	virtual void OnFrameCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, void* InBuffer, int32 Width, int32 Height) { }
 
 	/**
 	 * Callback when the buffer was successfully copied on the GPU ram.
 	 * The callback in called from a critical point. If you intend to process the texture, do so in another thread.
 	 * The texture is valid for the duration of the callback.
 	 */
-	virtual void OnRHITextureCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData> InUserData, FTextureRHIRef InTexture) { }
+	virtual void OnRHITextureCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, FTextureRHIRef InTexture) { }
+
+	/**
+	 * Callback when the buffer is ready to be copied on the GPU. You need to copy yourself. You may use the callback to do texel operation or other conversion.
+	 * The callback in called from a critical point be fast.
+	 * The texture is valid for the duration of the callback.
+	 * Only called when the conversion operation is custom.
+	 */
+	virtual void OnCustomCapture_RenderingThread(FRHICommandListImmediate& RHICmdList, const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, FTexture2DRHIRef InSourceTexture, FTextureRHIRef TargetableTexture, FResolveParams& ResolveParams, FVector2D CropU, FVector2D CropV) { }
+
+	/** Get the size of the buffer when the conversion operation is custom. The function is called once at initialization and the result is cached. */
+	virtual FIntPoint GetCustomOutputSize(const FIntPoint& InSize) const { return InSize; }
+
+	/** Get the pixel format of the buffer when the conversion operation is custom. The function is called once at initialization and the result is cached. */
+	virtual EPixelFormat GetCustomOutputPixelFormat(const EPixelFormat& InPixelFormat) const { return InPixelFormat; }
 
 protected:
 	UTextureRenderTarget2D* GetTextureRenderTarget() { return CapturingRenderTarget; }
@@ -256,15 +272,21 @@ protected:
 	UMediaOutput* MediaOutput;
 
 private:
+	struct FCaptureFrame;
+
 	void InitializeResolveTarget(int32 InNumberOfBuffers);
 	void OnEndFrame_GameThread();
 	void CacheMediaOutput(EMediaCaptureSourceType InSourceType);
 	void CacheOutputOptions();
-	FIntPoint GetOutputSize(const FIntPoint & InSize, const EMediaCaptureConversionOperation & InConversionOperation) const;
-	EPixelFormat GetOutputPixelFormat(const EPixelFormat & InPixelFormat, const EMediaCaptureConversionOperation & InConversionOperation) const;
+	FIntPoint GetOutputSize(const FIntPoint& InSize, const EMediaCaptureConversionOperation & InConversionOperation) const;
+	EPixelFormat GetOutputPixelFormat(const EPixelFormat& InPixelFormat, const EMediaCaptureConversionOperation & InConversionOperation) const;
 	void BroadcastStateChanged();
 	void SetFixedViewportSize(TSharedPtr<FSceneViewport> InSceneViewport);
 	void ResetFixedViewportSize(TSharedPtr<FSceneViewport> InViewport, bool bInFlushRenderingCommands);
+
+	void Capture_RenderThread(FRHICommandListImmediate& RHICmdList, UMediaCapture* InMediaCapture, FCaptureFrame* CapturingFrame, FCaptureFrame* ReadyFrame,
+		FSceneViewport* InCapturingSceneViewport, FTextureRenderTargetResource* InTextureRenderTargetResource,
+		FIntPoint InDesiredSize, FMediaCaptureStateChangedSignature InOnStateChanged);
 
 private:
 	struct FCaptureFrame
@@ -273,8 +295,8 @@ private:
 
 		FTexture2DRHIRef ReadbackTexture;
 		FCaptureBaseData CaptureBaseData;
-		bool bResolvedTargetRequested;
-		TSharedPtr<FMediaCaptureUserData> UserData;
+		TAtomic<bool> bResolvedTargetRequested;
+		TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> UserData;
 	};
 
 	TArray<FCaptureFrame> CaptureFrames;
@@ -296,8 +318,8 @@ private:
 	FString MediaOutputName;
 	bool bUseRequestedTargetSize;
 
-	bool bResolvedTargetInitialized;
-	bool bShouldCaptureRHITexture;
 	bool bViewportHasFixedViewportSize;
+	TAtomic<bool> bResolvedTargetInitialized;
+	TAtomic<bool> bShouldCaptureRHITexture;
 	TAtomic<int32> WaitingForResolveCommandExecutionCounter;
 };

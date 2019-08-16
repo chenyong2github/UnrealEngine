@@ -258,7 +258,7 @@ public:
 	}
 	void Release()
 	{
-		check(IsInGameThread() || IsInAsyncLoadingThread());
+		check(IsInGameThread() || IsInAsyncLoadingThread() || IsInGarbageCollectorThread());
 		checkSlow(NumRefs > 0);
 		if (--NumRefs == 0)
 		{

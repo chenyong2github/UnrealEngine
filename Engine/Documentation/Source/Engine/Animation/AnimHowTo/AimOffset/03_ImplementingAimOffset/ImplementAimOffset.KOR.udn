@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3782314
-Availability: Public
+﻿INTSourceChangelist:6277736
+Availability: Docs
 Title:3 - 에임 오프셋 구현
 Crumbs: %ROOT%, Engine, Engine\Animation, Engine\Animation\AnimHowTo
 Description:이번 단계에서는 애니메이션 블루프린트에 에임 오프셋을 추가하고 기존 애님 그래프에 연결해 봅니다.

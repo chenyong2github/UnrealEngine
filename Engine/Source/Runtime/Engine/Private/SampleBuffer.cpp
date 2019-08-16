@@ -81,6 +81,11 @@ namespace Audio
 		}
 	}
 
+	FString FSoundWavePCMLoader::GetReferencerName() const
+	{
+		return TEXT("FSoundWavePCMLoader");
+	}
+
 	FSoundWavePCMWriter::FSoundWavePCMWriter(int32 InChunkSize)
 		: CurrentSoundWave(0)
 		, CurrentState(ESoundWavePCMWriterState::Idle)

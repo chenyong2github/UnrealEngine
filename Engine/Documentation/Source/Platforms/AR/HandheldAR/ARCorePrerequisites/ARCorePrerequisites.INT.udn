@@ -1,5 +1,4 @@
-Availability: Public
-Crumbs: 
+﻿Availability: Public
 Title: ARCore Prerequisites
 Description: Google's ARCore prerequisites for augmented reality.
 Type: 
@@ -9,13 +8,18 @@ Order: 2
 Tags: mobile
 Tags: Android
 Tags: AR
+Related: Platforms/Mobile/Android
+Related: Platforms/AR/HandheldAR/ARQuickStart
+Related: Platforms/AR/HandheldAR/AROverview
+Related: Platforms/AR/HandheldAR/ARKitPrerequisites
 
+[TOC (start:3 end:3)]
 
 Support for Android devices is not new to the Unreal Engine; however, there are some additional requirements when working with augmented reality and Unreal. In addition to the standard Unreal Engine configuration for Android, there is an additional step of installing the ARCore app on the Android device. If you are already working with Unreal Engine and Android devices, this may be the only step that is required to start working with augmented reality and Unreal Engine.
 
 ## General Prerequisites
 
-The basic configuration of Unreal Engine and Android devices is covered in detail in the [Android Game Development](Platforms/Android) section of the Unreal Engine documentation.  
+The basic configuration of Unreal Engine and Android devices is covered in detail in the [Android Game Development](Platforms/Mobile/Android) section of the Unreal Engine documentation.  
 
 **ARCore 1.1 Prerequisites**  
 
@@ -30,7 +34,7 @@ The basic configuration of Unreal Engine and Android devices is covered in deta
 *   A development machine that meets our [Recommended Specifications](GettingStarted/RecommendedSpecifications).
 *   Unreal Engine 4.20 or greater installed.
 *   Codeworks for Android installed.
-*   Android Version 24 or greater installed.
+*   Android Version 26 or greater installed.
 *   A supported, configured, and connected handheld Android device.
 
 [REGION:note]

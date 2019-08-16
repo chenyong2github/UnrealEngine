@@ -17,12 +17,13 @@ UAnimCompress_Automatic::UAnimCompress_Automatic(const FObjectInitializer& Objec
 }
 
 #if WITH_EDITOR
-void UAnimCompress_Automatic::DoReduction(UAnimSequence* AnimSeq, const TArray<FBoneData>& BoneData)
+void UAnimCompress_Automatic::DoReduction(const FCompressibleAnimData& CompressibleAnimData, FCompressibleAnimDataResult& OutResult)
 {
 	FAnimCompressContext CompressContext(MaxEndEffectorError > 0.0f, false);
 #if WITH_EDITORONLY_DATA
 	FAnimationUtils::CompressAnimSequenceExplicit(
-		AnimSeq,
+		CompressibleAnimData,
+		OutResult,
 		CompressContext,
 		MaxEndEffectorError,
 		bRunCurrentDefaultCompressor,
@@ -31,8 +32,7 @@ void UAnimCompress_Automatic::DoReduction(UAnimSequence* AnimSeq, const TArray<F
 		bTryExhaustiveSearch,
 		bEnableSegmenting,
 		IdealNumFramesPerSegment,
-		MaxNumFramesPerSegment,
-		BoneData);
+		MaxNumFramesPerSegment);
 #endif // WITH_EDITORONLY_DATA
 }
 

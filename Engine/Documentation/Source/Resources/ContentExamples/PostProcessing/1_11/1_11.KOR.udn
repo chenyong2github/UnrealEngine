@@ -1,4 +1,4 @@
-INTSourceChangelist:4312754
+INTSourceChangelist:6430248
 Availability: Public
 Title:1.11 - 뎁스 오브 필드
 Crumbs:%ROOT%, Resources, Resources/ContentExamples, Resources/ContentExamples/PostProcessing
@@ -23,5 +23,5 @@ Gaussian (가우시안) DoF 는 표준 가우시안 블러를 사용하여 씬�
 
 ## 보케
 
-[INCLUDE:Engine/Rendering\PostProcessEffects\DepthOfField\Cinematic#DepthOfField_Bokeh]
+[INCLUDE:Engine/Rendering\PostProcessEffects\DepthOfField\CinematicDOFMethods#DepthOfField_Bokeh]
 

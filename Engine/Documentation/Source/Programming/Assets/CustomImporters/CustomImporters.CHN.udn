@@ -1,183 +1,203 @@
-INTSourceChangelist:2033300
+﻿INTSourceChangelist:3108692
 Availability:Docs
 Title:自定义导入器技术指南
 Crumbs: %ROOT%, Engine, Engine/UI, Programming
-Description:为程序员撰写特殊组件类型导入工具的指南。
+Description:有关为自定义资源类型编写导入器的程序员指南。
 
 [REGION:todo]
-	本页面的内容从虚幻引擎3的文档检查并转化而来，有些信息可能已经过期。
+	本页面是从虚幻引擎3的文档转换而来，目前正在审阅中。信息可能已过时。
 [/REGION]
 
 [TOC(start:2)]
 
+在编辑器中，UFactory类用于创建新资源，最常见的是基于外部文件。
 
-
-## 概述
-
-在编辑器中使用 UFactory 创建新资源，最常见的是以外部文件为基础。
-
-UFactory 的同类型类是 UExporter，可以使用它导出资源进行复制操作，也可以将资源导出到文件中。请参阅[编写自定义导出器] 了解有关如何编写导出器的信息。
+UFactory的姊妹类是UExporter，它用于为拷贝/复制操作导出资源以及将资源导出到文件。请参阅[编写自定义导出器](Programming/Assets/CustomExporters)了解如何编写导出器的信息。
 
 
 
-## 添加新的 UFactory 类
+(#addinganewufactoryclass)
 
-您将需要创建您自己的 UFactory 类，可能是在您的游戏编辑器项目中创建。在基础虚幻引擎 3 中定义的 UFactory 类是'固有类'，表示它们是由 UObject 衍生而来的，但是没有对应的 .uc 文件。您可能恰好想要按照这种模式创建；参照 UnEdFact.cpp 中的 EditorPrivate.h 及相关函数执行，例如随虚幻引擎 3 发行的 UFactory 衍生类型。需要注意的一件事情是，如果工厂类型是固有的，那么您必须手动将您的新 UFactory 类添加到 AUTO_INITIALIZE_REGISTRANTS_UNREALED 代码块中的自动生成的 C++ 头文件中。如果您没有这样做，编辑器将无法找到您的新类，将其作为导入选项。
+## 添加新的UFactory类
 
-
-
-## UFactory 成员的主意事项
-
-工厂希望从那些一般是通过在他们的 InitializeIntrinsicPropertyValues() 覆盖函数中声明 UProperty 封装类将成员发布给用户的用户开始输入。 然后可以使用这些 UProperty 对象填充导入/创建对话框上的属性窗口。
-
-接下来是 UFactory 成员的列表，通常由 UFactory 衍生类型在其 UFactory::InitializeIntrinsicPropertyValues() 覆盖函数中进行设置。
+您可能想要在游戏编辑器项目中创建自己的UFactory类。请查阅在Editor/UnrealEd/Classes/Factories中找到的类，了解与虚幻引擎4一起提供的UFactory派生类型示例。
 
 
-### SupportedClass
 
-可以表示这个工厂创建的对象的类型。NULL 表示工厂支持多个类型，而且必须执行 ResolveSupportedClass 消除歧义，下面会提供更多相关信息。
+(#ufactorymembersofnote)
 
+## 需要注意的UFactory成员
+
+需要用户输入的factory通常通过向其UPROPERTY()声明中添加类别来公开其成员。这些UProperty用于填充导入/创建对话框上的属性窗口。
+
+下面是UFactory成员的列表，通常由其构造函数中的UFactory派生类型设置。
+
+
+(#supportedclass)
+
+### 支持的类
+
+说明该factory创建的对象类型。空表示该factory支持多种类型并且必须实现ResolveSupportedClass来消除歧义，更多信息见下文。
+
+
+(#Description)
 
 ### 描述
 
-描述该工厂支持的类型。假设用户在编辑器界面中。
+描述该factory支持的类型。在编辑器UI中向用户呈现。 
 
+
+(#btext)
 
 ### bText
 
-如果该属性为 true，表示工厂可以通过 FactoryCreateText 导入文本。 如果为 false，表示工厂可以通过 FactoryCreateBinary 导入二进制数据。
+如果为_true_，说明该factory通过FactoryCreateText导入文本。如果为_false_，说明该factory通过FactoryCreateBinary导入二进制数据。
 
+
+(#bcreatenew)
 
 ### bCreateNew
-如果该属性为 true，工厂可以通过执行 FactoryCreateNew 创建对象，而不是通过 FactoryCreateText 或 FactoryCreateBinary 导入数据。
+如果为_true_，该factory通过实现FactoryCreateNew，而不是通过FactoryCreateText或FactoryCreateBinary导入数据，来创建对象。
 
+
+(#beditorimport)
 
 ### bEditorImport
 
-如果该属性为 true，表示 UI 会将该工厂作为可以导入数据的工厂 -- 换句话说，工厂可以在外部数据的基础上创建资源类型。
+如果为_true_，说明UI应将该factory视为用于导入数据的factory，换言之，该factory基于外部数据创建资源类型。
 
 
-### AutoPriority
+(#autopriority)
 
-可选项；整数型，可以用来划分支持相同类型的工厂的优先顺序。
+### 自动优先级
+
+可选项；一个用于对支持同一个类型的多个factory进行优先排序的整数。
 
 
 
-## 工厂支持单一类型
+(#factoriessupportingasingletype)
 
-大多数 UFactory 衍生类型可以导入或创建单一类型对象，由工厂通过在您的工厂类 StaticConstructor() 覆盖函数中设置 SupportedClass 成员指定。 下面是一个简单工厂的实现过程示例，可以使用它创建新的 UDecalMaterial 对象。
+## 支持单一类型的factory
+
+UFactory派生的大多数类型导入或创建单一类型的对象，这由factory通过在factory类的StaticConstructor()覆盖中设置SupportedClass成员指定。下面是一个用于创建新的UDecalMaterial对象的简单factory的实现示例。
 
 
     
-    void UDecalMaterialFactoryNew::StaticConstructor()
-    {
-        // 不需要对用户显示 UObject 的属性。
-        new(GetClass()->HideCategories) FName(TEXT("Object"));
-    }
+	UCurveFactory::UCurveFactory(const FObjectInitializer& ObjectInitializer)
+		: Super(ObjectInitializer)
+	{
+		// 属性初始化
+		bCreateNew = true;
+		bEditAfterNew = true;
+		SupportedClass = UCurveBase::StaticClass();
+		Description = TEXT("Curve");
+
+		CurveClass = UCurveFloat::StaticClass();
+	}
     
-    /**
-     * 初始化固有类的属性值。 根据原始状态初始化类默认对象后立即调用，
-     * 但是要再创建这个类的任何对象之前。
-     */
-    void UDecalMaterialFactoryNew::InitializeIntrinsicPropertyValues()
-    {
-        // 指定该工厂创建的对象的类型。
-        SupportedClass      = UDecalMaterial::StaticClass();
-    
-        // 表示这个类会覆盖 UFactory::FactoryCreateNew(...)。
-        bCreateNew          = true;
-    
-        // 为该工厂创建的类型提供描述文本。
-        Description         = TEXT("Decal Material");
-    }
-    
-    UObject* UDecalMaterialFactoryNew::FactoryCreateNew(UClass* Class,
-                                                        UObject* InParent,
-                                                        FName Name,
-                                                        EObjectFlags Flags,
-                                                        UObject* Context,
-                                                        FFeedbackContext* Warn)
-    {
-       return StaticConstructObject( Class, InParent, Name, Flags );
-    }
-    
-    IMPLEMENT_CLASS(UDecalMaterialFactoryNew);
+    UObject* UCurveFactory::FactoryCreateNew(UClass* Class,
+												UObject* InParent,
+												FName Name,
+												EObjectFlags Flags,
+												UObject* Context,
+												FFeedbackContext* Warn)
+	{
+		UCurveBase* NewCurve = NULL;
+		if(CurveClass != NULL)
+		{
+			NewCurve = CastChecked<UCurveBase>(StaticConstructObject(CurveClass,InParent,Name,Flags));		
+		}
+
+		return NewCurve;
+	}
     
 
 
 
 
 
-## 工厂支持多个类型
+(#factoriessupportingmultipletypes)
 
-通过声明 SupportedClass 为 NULL 实现执行可以支持返回多个类型的工厂，然后执行 ResolveSupportedClass() 在导入之前分解这个类。
+## 支持多种类型的factory
 
-例如，下面一段工厂代码使用的是虚拟 .ABC 文本文件格式，而且会根据用户的选择使用它创建类型 A 或类型 B 对象：
+通过将空声明为SupportedClass，然后实现ResolveSupportedClass()来在导入之前解析该类，来实现支持多种返回类型的factory。
+
+例如，为factory考虑以下代码，它以虚构的.ABC文本文件格式读取，并使用它来根据用户的选择创建类型A或类型B的对象： 
 
 
     
-    class UYourFactory : public UFactory
-    {
-        DECLARE_CLASS( UYourFactory, UFactory, 0, Editor )
+	UCLASS(hidecategories=Object)
+	class UYourFactory : public UFactory
+	{
+		GENERATED_UCLASS_BODY()
     
-        // 表示是否应该是输入文件的标志
-        // 视作类型 A 或类型 B。它将由
-        // 导入对话框中的用户进行设置，并在
-        // ResolveSupportedClass() 中进行检查，确定
-        // 要创建的对象类型。
+        // 标记指示输入文件是应作为
+        // 类型A还是类型B进行处理。它将由
+        // 用户在导入对话框中设置，在
+        // ResolveSupportedClass()中查看它，以确定要创建的
+        // 对象的类型。
+		UPROPERTY(Category=ABCOptions)
         bool bTreatAsTypeA;
-    
-        UYourFactory()
-        {
-            // 表示该工厂应该由"导入" UI 考虑。
-            bEditorImport = true;
-        }
-    
-        void StaticConstructor()
-        {
-            // 声明没有支持的类表示导入
-            // 声明没有支持的类表示导入路径应该在关闭导入对话框中选中'确定'后
-            // 调用 ResolveSupportedClass()。
-            SupportedClass = NULL;
-    
-            // 记录该工厂对 .ABC 文件感兴趣。
-            new(Formats) FString( TEXT("abc;Ye Olde ABC Type") );
-    
-            bCreateNew = false;
-            bText = true;          // 表示 ABC 是文本文件格式。
-    
-            // 创建要显示在导入对话框属性窗口中
-            // 的 bool 属性。
-            new(GetClass(), TEXT("bTreatAsTypeA"), RF_Public)
-            UBoolProperty(CPP_PROPERTY(bTreatAsTypeA), TEXT(""), CPF_Edit);
-        }
-    
-        // 在 SupportedClass 为 NULL 时导入对话框会调用它。
-        UClass* ResolveSupportedClass()
-        {
-            UClass* UserSpecifiedClass = bTreatAsTypeA ? UTypeA::StaticClass() : UTypeB::StaticClass();
-            return UserSpecifiedClass;
-        }
-    
-        UObject* FactoryCreateText(UClass* Class, /* more args */, FFeedbackContext* Warn)
-        {
-            UObject* NewObject;
-            if ( bTreatAsTypeA )
-            {
-                NewObject = CreateTypeA( Class, /* more args */, Warn );
-            }
-            else
-            {
-                NewObject = CreateTypeB( Class, /* more args */, Warn );
-            }
-            return NewObject;
-        }
-    
-        UObject* CreateTypeA(UClass* Class, /* more args */, FFeedbackContext* Warn)
-        { ... }
-        UObject* CreateTypeB(UClass* Class, /* more args */, FFeedbackContext* Warn)
-        { ... }
+
+	(#ifcpp)
+#if CPP
+		// UFactory实现
+		UClass* ResolveSupportedClass();
+		UObject* FactoryCreateText(UClass* Class, /* more args */, FFeedbackContext* Warn);
+
+		/** 创建类型A的对象 */
+		UObject* UYourFactory::CreateTypeA(UClass* Class, /* more args */, FFeedbackContext* Warn)
+
+		/** 创建类型B的对象 */
+		UObject* UYourFactory::CreateTypeB(UClass* Class, /* more args */, FFeedbackContext* Warn)
+	#endif // CPP
     }
+
+    UYourFactory::UYourFactory(const FObjectInitializer& ObjectInitializer)
+		: Super(ObjectInitializer)
+	{
+		// 属性初始化
+
+		// 说明“导入” UI应考虑该factory。
+        bEditorImport = true;
+
+		// 声明不支持的类，表明在选择“确定”关闭
+        // 导入对话框时，导入路径应该调用
+        // ResolveSupportedClass()。
+        SupportedClass = NULL;
+
+        // 记录该factory对.ABC文件有兴趣。
+        new(Formats) FString( TEXT("abc;Ye Olde ABC Type") );
+
+        bCreateNew = false;
+        bText = true;          // 指示ABC是文本文件格式。
+	}
+    
+    // 当SupportedClass为空时，导入对话框将调用它。
+    UClass* UYourFactory::ResolveSupportedClass()
+    {
+        UClass* UserSpecifiedClass = bTreatAsTypeA ? UTypeA::StaticClass() : UTypeB::StaticClass();
+        return UserSpecifiedClass;
+    }
+    
+    UObject* UYourFactory::FactoryCreateText(UClass* Class, /* more args */, FFeedbackContext* Warn)
+    {
+        UObject* NewObject;
+        if ( bTreatAsTypeA )
+        {
+            NewObject = CreateTypeA( Class, /* more args */, Warn );
+        }
+        else
+        {
+            NewObject = CreateTypeB( Class, /* more args */, Warn );
+        }
+        return NewObject;
+    }
+    
+    UObject* UYourFactory::CreateTypeA(UClass* Class, /* more args */, FFeedbackContext* Warn)
+    { ...}
+    UObject* UYourFactory::CreateTypeB(UClass* Class, /* more args */, FFeedbackContext* Warn)
+    { ...}
     
     
 

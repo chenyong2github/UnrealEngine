@@ -1,0 +1,45 @@
+﻿INTSourceChangelist:6054503
+Availability: Public
+Title: Windows Mixed Reality开发要求
+Description: Windows Mixed Reality开发要求，包括硬件、软件和SDK信息。 
+Type: reference
+Version: 4.21
+Parent: Platforms/MR
+Tags: VR
+Tags: Specifications
+Tags: Windows Mixed Reality
+Tags: XR
+Order: 5
+
+
+[TOC (start:2 end:2)]
+
+在本页中，您将了解开始为[Windows Mixed Reality](platforms/mr)平台开发所需的硬件和软件开发工具包(SDK)要求。 
+
+## 虚幻引擎4.22
+
+| 硬件要求 ||
+| --- | --- |
+| **推荐桌面硬件** | 请参阅[硬件和软件规格](GettingStarted/RecommendedSpecifications)。|
+| **支持的视频设备** | 请参阅[支持的视频设备](Platforms/MR/MRSupportedVideoDevices)。|
+| [REGION:tablesection]软件要求[/REGION] ||
+| **桌面操作系统** | Windows 10 2018年10月更新版（1809版）或更高版本。|
+| **录制输出视频** | 需要第三方软件，例如[OBS](https://obsproject.com/)或[NVIDIA ShadowPlay](https://www.nvidia.com/en-us/geforce/geforce-experience/shadowplay/)，用于录制采集。[](https://www.mozilla.org/en-US/firefox/all/) |
+
+[REGION:note]
+当前支持的SDK版本可在`UEBuildTODO.cs`中找到。您可以在`[UE4根目录]/Engine/Source/Programs/UnrealBuildTool/Platforms/TODO`文件夹中找到它。
+[/REGION]
+
+## 虚幻引擎4.21
+
+| 硬件要求 ||
+| --- | --- |
+| **推荐桌面硬件** | 请参阅[硬件和软件规格](GettingStarted/RecommendedSpecifications)。|
+| **支持的视频设备** | 请参阅[支持的视频设备](Platforms/MR/MRSupportedVideoDevices)。|
+| [REGION:tablesection]软件要求[/REGION] ||
+| **桌面操作系统** | Windows 10 秋季创作者更新版或更高版本。|
+| **录制输出视频** | 需要第三方软件，例如[OBS](https://obsproject.com/)或[NVIDIA ShadowPlay](https://www.nvidia.com/en-us/geforce/geforce-experience/shadowplay/)，用于录制采集。[](https://www.mozilla.org/en-US/firefox/all/) |
+
+[REGION:note]
+当前支持的SDK版本可在`UEBuildTODO.cs`中找到。您可以在`[UE4根目录]/Engine/Source/Programs/UnrealBuildTool/Platforms/TODO`文件夹中找到它。
+[/REGION]

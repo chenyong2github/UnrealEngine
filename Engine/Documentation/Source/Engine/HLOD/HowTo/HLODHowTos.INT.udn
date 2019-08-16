@@ -1,13 +1,14 @@
-title:Hierarchical Level of Detail How-To's
-description:Guides that walk you through enabling the Hierarchical Level of Detail (HLOD) system and setting up HLOD in your game.
-crumbs:
-availability:Public
-version:4.13
-parent:Engine/HLOD
-tags:HLOD
-type:how-to
-order:3
-topic-image:Engine/HLOD/HowTo/HLOD_howto_Topic_02.png
+Availability: Public
+Title: Hierarchical Level of Detail How-To's
+Description: Guides that walk you through enabling the Hierarchical Level of Detail (HLOD) system and setting up HLOD in your game.
+Type: landing
+Version: 4.22
+Parent: Engine/HLOD
+Tags: HLOD
+topic-image: HLOD_HowTo_Topic.png
+social-image: HLOD_HowTo_Topic.png
+topic-icon: HLOD_HowTo_Topic.png
+SkillLevel: Beginner
  
 ![](Engine/HLOD/HowTo/HLOD_howto_Topic_02.png)
 
@@ -15,16 +16,14 @@ These guides walk you through enabling the **Hierarchical Level of Detail** (HLO
 
 ## Beginner
 
-[DIR(output:"fancy" parent:"Engine/HLOD/HowTo" skill_level:"beginner")]
+[DIR(output:"fancy" parent:"Engine/HLOD/HowTo" tags:"HLOD" skill_level:"beginner")]
 
 ## Intermediate
 
 [DIR(output:"fancy" parent:"Engine/HLOD/HowTo" skill_level:"intermediate")]
 
-[COMMENT:none]
 
+<!--
 ## Advanced
-
 [DIR(output:"fancy" parent:"Engine/HLOD/HowTo" skill_level:"advanced")]
-
-[/COMMENT]
+-->

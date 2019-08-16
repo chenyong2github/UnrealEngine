@@ -61,7 +61,7 @@ void UAndroidRuntimeSettings::PostReloadConfig(UProperty* PropertyThatWasLoaded)
 
 void UAndroidRuntimeSettings::HandlesRGBHWSupport()
 {
-	const bool SupportssRGB = bBuildForES31 && bPackageForGearVR;
+	const bool SupportssRGB = bBuildForES31 && PackageForOculusMobile.Num() > 0;
 	URendererSettings* const Settings = GetMutableDefault<URendererSettings>();
 	static auto* MobileUseHWsRGBEncodingCVAR = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.UseHWsRGBEncoding"));
 
@@ -189,6 +189,17 @@ void UAndroidRuntimeSettings::PostInitProperties()
 		UpdateDefaultConfigFile();
 	}
 
+	// Upgrade old Oculus packaging settings as necessary.
+	const TCHAR* AndroidSettings = TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings");
+	bool bPackageForGearVR = false;
+	GConfig->GetBool(AndroidSettings, TEXT("bPackageForGearVR"), bPackageForGearVR, GEngineIni);
+	if (bPackageForGearVR)
+	{
+		// Update default config
+		PackageForOculusMobile.Add(EOculusMobileDevice::GearGo);
+		UpdateDefaultConfigFile();
+	}
+
 	// Enable ES2 if no GPU arch is selected. (as can be the case with the removal of ESDeferred) 
 	EnsureValidGPUArch();
 	HandlesRGBHWSupport();
@@ -199,8 +210,8 @@ void UAndroidRuntimeSettings::EnsureValidGPUArch()
 	// Ensure that at least one GPU architecture is supported
 	if (!bBuildForES2 && !bSupportsVulkan && !bBuildForES31)
 	{
-		bBuildForES2 = true;
-		UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, bBuildForES2)), GetDefaultConfigFilename());
+		bBuildForES31 = true;
+		UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, bBuildForES31)), GetDefaultConfigFilename());
 
 		// Supported shader formats changed so invalidate cache
 		InvalidateAllAndroidPlatforms();

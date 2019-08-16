@@ -8,6 +8,7 @@
 
 void FAnimNode_Slot::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Initialize_AnyThread)
 	FAnimNode_Base::Initialize_AnyThread(Context);
 
 	Source.Initialize(Context);
@@ -21,13 +22,15 @@ void FAnimNode_Slot::Initialize_AnyThread(const FAnimationInitializeContext& Con
 	}
 }
 
-void FAnimNode_Slot::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) 
+void FAnimNode_Slot::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(CacheBones_AnyThread)
 	Source.CacheBones(Context);
 }
 
 void FAnimNode_Slot::Update_AnyThread(const FAnimationUpdateContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Update_AnyThread)
 	// Update weights.
 	Context.AnimInstanceProxy->GetSlotWeight(SlotName, WeightData.SlotNodeWeight, WeightData.SourceWeight, WeightData.TotalNodeWeight);
 
@@ -44,6 +47,7 @@ void FAnimNode_Slot::Update_AnyThread(const FAnimationUpdateContext& Context)
 
 void FAnimNode_Slot::Evaluate_AnyThread(FPoseContext & Output)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
 	// If not playing a montage, just pass through
 	if (WeightData.SlotNodeWeight <= ZERO_ANIMWEIGHT_THRESH)
 	{
@@ -66,6 +70,7 @@ void FAnimNode_Slot::Evaluate_AnyThread(FPoseContext & Output)
 
 void FAnimNode_Slot::GatherDebugData(FNodeDebugData& DebugData)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(GatherDebugData)
 	FString DebugLine = DebugData.GetNodeName(this);
 	DebugLine += FString::Printf(TEXT("(Slot Name: '%s' Weight:%.1f%%)"), *SlotName.ToString(), WeightData.SlotNodeWeight*100.f);
 	

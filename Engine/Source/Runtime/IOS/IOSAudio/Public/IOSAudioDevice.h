@@ -180,6 +180,8 @@ private:
 	                                       const AudioTimeStamp *InTimeStamp, UInt32 InBusNumber,
 	                                       UInt32 InNumberFrames, AudioBufferList *IOData);
 
+	void CleanupAudioBuffer();
+
 	friend class FIOSAudioDevice;
 };
 

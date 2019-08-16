@@ -5,6 +5,7 @@
 
 void FRigUnit_MergeHierarchy::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	// merge input hierarchy to base
 	TargetHierarchy.MergeHierarchy(SourceHierarchy);
 }

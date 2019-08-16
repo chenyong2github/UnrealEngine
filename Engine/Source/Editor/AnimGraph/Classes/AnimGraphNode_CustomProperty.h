@@ -30,7 +30,6 @@ public:
 
 	// UAnimGraphNode_Base interface
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
-
 	// Gets the property on InOwnerInstanceClass that corresponds to InInputPin
 	void GetInstancePinProperty(const UClass* InOwnerInstanceClass, UEdGraphPin* InInputPin, UProperty*& OutProperty);
 	// Gets the unique name for the property linked to a given pin
@@ -42,6 +41,19 @@ public:
 	// Helper used to get the skeleton class we are targeting
 	virtual UClass* GetTargetSkeletonClass() const;
 
+	// ----- UI CALLBACKS ----- //
+	// User changed the instance class etc.
+	void OnStructuralPropertyChanged(IDetailLayoutBuilder* DetailBuilder);
+	// If given property exposed on this node
+	virtual ECheckBoxState IsPropertyExposed(FName PropertyName) const;
+	// User chose to expose, or unexpose a property
+	virtual void OnPropertyExposeCheckboxChanged(ECheckBoxState NewState, FName PropertyName);
+	// If all possible properties are exposed on this node
+	virtual ECheckBoxState AreAllPropertiesExposed() const;
+	// User chose to expose, or unexpose all properties
+	virtual void OnPropertyExposeAllCheckboxChanged(ECheckBoxState NewState);
+	// User changed the instance class
+	void OnInstanceClassChanged(IDetailLayoutBuilder* DetailBuilder);
 protected:
 
 	/** List of property names we know to exist on the target class, so we can detect when
@@ -60,20 +72,6 @@ protected:
 	FText GetPropertyTypeText(UProperty* Property);
 	// Given a new class, rebuild the known property list (for tracking class changes and moving pins)
 	virtual void RebuildExposedProperties();
-
-	// ----- UI CALLBACKS ----- //
-	// User changed the instance class etc.
-	void OnStructuralPropertyChanged(IDetailLayoutBuilder* DetailBuilder);
-	// If given property exposed on this node
-	virtual ECheckBoxState IsPropertyExposed(FName PropertyName) const;
-	// User chose to expose, or unexpose a property
-	virtual void OnPropertyExposeCheckboxChanged(ECheckBoxState NewState, FName PropertyName);
-	// If all possible properties are exposed on this node
-	virtual ECheckBoxState AreAllPropertiesExposed() const;
-	// User chose to expose, or unexpose all properties
-	virtual void OnPropertyExposeAllCheckboxChanged(ECheckBoxState NewState);
-	// User changed the instance class
-	void OnInstanceClassChanged(IDetailLayoutBuilder* DetailBuilder);
 
 	// internal node accessor
 	virtual FAnimNode_CustomProperty* GetCustomPropertyNode() PURE_VIRTUAL(UAnimGraphNode_CustomProperty::GetCustomPropertyNode, return nullptr;);

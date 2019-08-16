@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+﻿INTSourceChangelist:6341512
 Availability:NoPublish
 Title:UDestructibleComponent RTTs
 Crumbs:
@@ -8,7 +8,7 @@ Crumbs:
 피직스 블렌드 - 재생중인 애니메이션과 피직스 애셋 툴의 피직스 시뮬레이션 사이의 블렌딩을 조절하는 값입니다. 값이 0.0 보다 크면 일정량의 피직스가 적용되는 반면, 1.0 이면 스켈레탈 메시는 완벽히 피직스 애셋의 제어를 받습니다.
 
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsassettoolproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsassettoolproperties
 [/VAR]
 
 [/EXCERPT:PhysicsBlend]
@@ -21,7 +21,7 @@ Engine/Physics/PhAT/Properties#physicsassettoolproperties
  래그돌을 찌른 이후 다시 블렌딩해 돌아올 때까지 걸리는 시간입니다.
 
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsassettoolproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsassettoolproperties
 [/VAR]
 
 [/EXCERPT:PokePauseTime]
@@ -34,7 +34,7 @@ Engine/Physics/PhAT/Properties#physicsassettoolproperties
 물리에서 애니메이션으로 블렌딩하는 데 걸리는 시간입니다.
  
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsassettoolproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsassettoolproperties
 [/VAR]
 
 [/EXCERPT:PokeBlendTime]
@@ -62,7 +62,7 @@ Engine/Physics/PhAT/Properties#physicsassettoolproperties
  바닥 & 물리 오브젝트 사이의 간격입니다.
 
  [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsassettoolproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsassettoolproperties
 [/VAR]
 
 [/EXCERPT:FloorGap]
@@ -75,7 +75,7 @@ Engine/Physics/PhAT/Properties#physicsassettoolproperties
  시뮬레이션에 사용되는 중력 스케일 인수입니다.
 
  [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsassettoolproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsassettoolproperties
 [/VAR]
 
 [/EXCERPT:GravScale]
@@ -88,7 +88,7 @@ Engine/Physics/PhAT/Properties#physicsassettoolproperties
  마우스 스프링 포스의 선형 감쇠입니다.
 
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsassettoolproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsassettoolproperties
 [/VAR]
 
 [/EXCERPT:HandleLinearDamping]
@@ -104,7 +104,7 @@ Engine/Physics/PhAT/Properties#physicsassettoolproperties
 Handle Linear Damping 값과 Handle Linear Stiffness 값이 낮으면 피직스 바디의 위치에 영향을 끼칠 수 없게 됩니다.
 
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsassettoolproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsassettoolproperties
 [/VAR]
 
 [/EXCERPT:HandleLinearStiffness]
@@ -128,7 +128,7 @@ Engine/Physics/PhAT/Properties#physicsassettoolproperties
 ![](PhAT_AngularStiffness.png)
 
  [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsassettoolproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsassettoolproperties
 [/VAR]
 
 [/EXCERPT:HandleAngularStiffness]
@@ -149,7 +149,7 @@ Engine/Physics/PhAT/Properties#physicsassettoolproperties
 포크 세기 - 시뮬레이션 도중 "Ctrl + 좌클릭" 포크(쿡 찌르기)시 적용할 뉴튼 단위 세기입니다. 대부분의 경우 기본 100 뉴튼으로는 별다른 반응이 없습니다. 인간형 캐릭터의 경우 1500 뉴튼은 되어야 따귀 정도이며, 15000 뉴튼 정도면 둔기같은 것으로 제대로 맞았을 경우입니다. 그 이상 되면 차량에 치이는 정도의 반응이 납니다.
 
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsassettoolproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsassettoolproperties
 [/VAR]
 
 [/EXCERPT:PokeStrength]
@@ -197,7 +197,7 @@ Engine/Physics/PhAT/Properties#physicsassettoolproperties
 ![](PhAT_ConstPoint.png)
 
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsassettoolproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsassettoolproperties
 [/VAR]
 
 [/EXCERPT:bShowConstraintsAsPoints]
@@ -224,7 +224,7 @@ Engine/Physics/PhAT/Properties#physicsassettoolproperties
 이 값을 올리면 십자선 크기가 커지고, 내리면 작아집니다.
 
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsassettoolproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsassettoolproperties
 [/VAR]
 
 [/EXCERPT:ConstraintDrawSize]

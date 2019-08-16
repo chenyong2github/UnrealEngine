@@ -142,12 +142,16 @@ namespace Gauntlet
 				{
 					Flags |= BuildFlags.CanReplaceExecutable;
 				}
-                if (AbsPath.Contains("Bulk"))
-                {
-                    Flags |= BuildFlags.Bulk;
-                }
+				if (AbsPath.Contains("Bulk"))
+				{
+					Flags |= BuildFlags.Bulk;
+				}
+				else
+				{
+					Flags |= BuildFlags.NotBulk;
+				}
 
-                AndroidBuild NewBuild = new AndroidBuild(UnrealConfig, AndroidPackageName, SourceApkPath, FilesToInstall, Flags);
+				AndroidBuild NewBuild = new AndroidBuild(UnrealConfig, AndroidPackageName, SourceApkPath, FilesToInstall, Flags);
 
 				DiscoveredBuilds.Add(NewBuild);
 

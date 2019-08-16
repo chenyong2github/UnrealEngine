@@ -6,8 +6,10 @@
 #include "IMovieScenePlayer.h"
 #include "GameFramework/Actor.h"
 #include "ContentStreaming.h"
+#include "Evaluation/IMovieSceneMotionVectorSimulation.h"
 
 DECLARE_CYCLE_STAT(TEXT("Camera Cut Track Token Execute"), MovieSceneEval_CameraCutTrack_TokenExecute, STATGROUP_MovieSceneEval);
+
 
 /** A movie scene execution token that sets up the streaming system with the camera cut location */
 struct FCameraCutPreRollExecutionToken : IMovieSceneExecutionToken
@@ -139,6 +141,7 @@ struct FCameraCutExecutionToken : IMovieSceneExecutionToken
 		{
 			Player.UpdateCameraCut(CameraObject, CameraCutCache.LastLockedCamera.Get(), Context.HasJumped());
 			CameraCutCache.LastLockedCamera = CameraObject;
+			IMovieSceneMotionVectorSimulation::EnableThisFrame(PersistentData);
 		}
 		else if (CameraObject)
 		{

@@ -1,4 +1,4 @@
-Availability: Licensee
+Availability: Docs
 Title:Setting up P4Win for Unreal Engine 4
 Crumbs:%ROOT%, Engine, Programming, Programming/Basics, GettingStarted/DownloadingUnrealEngine/Perforce
 Description:Guide to installing, setting up, and syncing builds with the Perforce P4Win windows client for use with Unreal Engine 4.

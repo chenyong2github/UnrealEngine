@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:2785029
+﻿INTSourceChangelist:3108692
 Availability:Public
 Title:Flurry 分析软件
 Crumbs: %ROOT%, Gameplay, Gameplay/Analytics
@@ -13,6 +13,7 @@ Description: 提供一组蓝图节点，以允许您用分析服务
 然后下载已编译到 Flurry 插件的库。请查看该插件相应的 “<PlatformAndName>.Build.cs” 文件，
 以了解应将库和标头置于何处。
 
+(#Configuration)
 ## 配置
 
 完成先决条件并且成功为目标平台构建插件后，您便可为游戏配置插件。

@@ -263,11 +263,7 @@ bool ACharacter::CanJumpInternal_Implementation() const
 	bool bCanJump = !bIsCrouched;
 
 	// Ensure that the CharacterMovement state is valid
-	bCanJump &= CharacterMovement &&
-				CharacterMovement->IsJumpAllowed() &&
-				!CharacterMovement->bWantsToCrouch &&
-				// Can only jump from the ground, or multi-jump if already falling.
-				(CharacterMovement->IsMovingOnGround() || CharacterMovement->IsFalling());
+	bCanJump &= CharacterMovement->CanAttemptJump();
 
 	if (bCanJump)
 	{
@@ -376,7 +372,7 @@ void ACharacter::SetReplicateMovement(bool bInReplicateMovement)
 	}
 }
 
-bool ACharacter::CanCrouch()
+bool ACharacter::CanCrouch() const
 {
 	return !bIsCrouched && CharacterMovement && CharacterMovement->CanEverCrouch() && GetRootComponent() && !GetRootComponent()->IsSimulatingPhysics();
 }
@@ -1179,15 +1175,6 @@ void ACharacter::OnRep_RootMotion()
 			FSimulatedRootMotionReplicatedMove& NewMove = RootMotionRepMoves.Last();
 			NewMove.RootMotion = RepRootMotion;
 			NewMove.Time = GetWorld()->GetTimeSeconds();
-
-			// Convert RootMotionSource Server IDs -> Local IDs in AuthoritativeRootMotion and cull invalid
-			// so that when we use this root motion it has the correct IDs
-			if (CharacterMovement)
-			{
-				CharacterMovement->ConvertRootMotionServerIDsToLocalIDs(CharacterMovement->CurrentRootMotion, NewMove.RootMotion.AuthoritativeRootMotion, NewMove.Time);
-			}
-			
-			NewMove.RootMotion.AuthoritativeRootMotion.CullInvalidSources();
 		}
 		else
 		{

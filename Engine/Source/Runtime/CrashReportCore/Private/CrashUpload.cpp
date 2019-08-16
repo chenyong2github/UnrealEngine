@@ -723,10 +723,19 @@ FCrashUploadToDataRouter::FCrashUploadToDataRouter(const FString& InDataRouterUr
 	{
 		SetCurrentState(EUploadState::Disabled);
 	}
+
+#if PRIMARY_UPLOAD_DATAROUTER
+	// first stage of any upload to DR so send analytics
+	FPrimaryCrashProperties::Get()->SendPreUploadAnalytics();
+#endif
 }
 
 FCrashUploadToDataRouter::~FCrashUploadToDataRouter()
 {
+#if PRIMARY_UPLOAD_DATAROUTER
+	// completed upload to DR so send analytics
+	FPrimaryCrashProperties::Get()->SendPostUploadAnalytics();
+#endif		
 }
 
 void FCrashUploadToDataRouter::BeginUpload(const FPlatformErrorReport& PlatformErrorReport)
@@ -747,11 +756,6 @@ void FCrashUploadToDataRouter::BeginUpload(const FPlatformErrorReport& PlatformE
 
 void FCrashUploadToDataRouter::CompressAndSendData()
 {
-#if PRIMARY_UPLOAD_DATAROUTER
-	// first stage of any upload to DR so send analytics
-	FPrimaryCrashProperties::Get()->SendPreUploadAnalytics();
-#endif
-
 	FCompressedHeader CompressedHeader;
 	CompressedHeader.DirectoryName = ErrorReport.GetReportDirectoryLeafName();
 	CompressedHeader.FileName = ErrorReport.GetReportDirectoryLeafName() + TEXT(".ue4crash");
@@ -785,10 +789,6 @@ void FCrashUploadToDataRouter::CompressAndSendData()
 
 	if (Request->ProcessRequest())
 	{
-#if PRIMARY_UPLOAD_DATAROUTER
-		// completed upload to DR so send analytics
-		FPrimaryCrashProperties::Get()->SendPostUploadAnalytics();
-#endif		
 		return;
 	}
 	else

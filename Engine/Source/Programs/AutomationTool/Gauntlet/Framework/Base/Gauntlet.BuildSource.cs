@@ -19,7 +19,8 @@ namespace Gauntlet
 		CanReplaceCommandLine = (1 << 2),		// build can run arbitrary command lines
 		CanReplaceExecutable = (1 << 3),		// build can use exes from elsewhere
         Bulk = (1 << 4),						// build is full-content, now startup download
-		ContentOnlyProject = (1 << 5)			// build is a content-only project, e.g. exe is ue4game.exe
+		NotBulk = (1 << 5),						// build is not bulk
+		ContentOnlyProject = (1 << 6)			// build is a content-only project, e.g. exe is ue4game.exe
     }
 
 	/// <summary>

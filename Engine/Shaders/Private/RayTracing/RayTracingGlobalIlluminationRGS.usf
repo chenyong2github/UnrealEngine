@@ -7,10 +7,12 @@
 #include "../ShadingModels.ush"
 #include "RayTracingCommon.ush"
 #include "RayTracingHitGroupCommon.ush"
+#include "../SceneTextureParameters.ush"
 
-#include "../PathTracing/Utilities/PathTracingRandomSequence.ush" 
 #include "../PathTracing/Light/PathTracingLightSampling.ush"
 #include "../PathTracing/Material/PathTracingMaterialSampling.ush"
+
+#include "../QuasiRandom.ush"
 
 #define USE_PATHTRACING_MATERIALS 0
 
@@ -29,26 +31,10 @@ bool EvalSkyLight;
 bool UseRussianRoulette;
 float MaxNormalBias;
 
-// #dxr_todo: Unify with reflections and translucency in RayTracingCommon.ush
-uint2 GetPixelCoord(uint2 DispatchThreadId)
-{
-	uint UpscaleFactorPow2 = UpscaleFactor * UpscaleFactor;
-
-	// TODO: find a way to not interfer with TAA's jittering.
-	uint SubPixelId = View.StateFrameIndex & (UpscaleFactorPow2 - 1);
-
-	return DispatchThreadId * UpscaleFactor + uint2(SubPixelId & (UpscaleFactor - 1), SubPixelId / UpscaleFactor);
-}
-
-uint CalcLinearIndex(uint2 PixelCoord)
-{
-	return PixelCoord.y * View.BufferSizeAndInvSize.x + PixelCoord.x;
-}
-
 void GenerateCosineNormalRay(
 	float3 WorldPosition,
 	float3 WorldNormal,
-	inout RandomSequence RandSequence,
+	float2 RandSample,
 	out float3 RayOrigin,
 	out float3 RayDirection,
 	out float RayTMin,
@@ -56,11 +42,6 @@ void GenerateCosineNormalRay(
 	out float RayPdf
 )
 {
-	// Draw random variable
-	float2 BufferSize = View.BufferSizeAndInvSize.xy;
-	uint DummyVariable;
-	float2 RandSample = RandomSequence_GenerateSample2D(RandSequence, DummyVariable);
-
 	// Perform cosine-hemispherical sampling and convert to world-space
 	float4 Direction_Tangent = CosineSampleHemisphere(RandSample);
 	float3 Direction_World = TangentToWorld(Direction_Tangent.xyz, WorldNormal);
@@ -72,45 +53,33 @@ void GenerateCosineNormalRay(
 	RayPdf = Direction_Tangent.w;
 }
 
-float GetHitT(FMaterialClosestHitPayload HitInfo)
-{
-	return HitInfo.HitT;
-}
-
-bool IsHit(RayDesc Ray, FMaterialClosestHitPayload HitInfo)
-{
-	return HitInfo.HitT >= 0.0;
-}
-
 [shader("raygeneration")]
 void GlobalIlluminationRGS()
 {
-	uint2 DispatchThreadId = DispatchRaysIndex().xy;
+	uint2 DispatchThreadId = DispatchRaysIndex().xy + View.ViewRectMin;
 	RWGlobalIlluminationUAV[DispatchThreadId] = 0.0;
 	RWRayDistanceUAV[DispatchThreadId] = float2(-1.0, 0.0);
 
-	uint2 PixelCoord = GetPixelCoord(DispatchThreadId);
-	RandomSequence RandSequence;
+	uint2 PixelCoord = GetPixelCoord(DispatchThreadId, UpscaleFactor);
 	uint LinearIndex = CalcLinearIndex(PixelCoord);
-	RandomSequence_Initialize(RandSequence, LinearIndex, View.FrameNumber);
 
 	bool IsUnidirectionalEnabled = false;
 
 	// Get G-Buffer surface data
 	float2 InvBufferSize = View.BufferSizeAndInvSize.zw;
 	float2 UV = (float2(PixelCoord) + 0.5) * InvBufferSize;
-	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(UV);
+	FGBufferData GBufferData = GetGBufferDataFromSceneTextures(UV);
 	// Remap DiffuseColor when using SubsurfaceProfile (GBuffer decoding replaces with 100% albedo)
-	if (UseSubsurfaceProfile(ScreenSpaceData.GBuffer.ShadingModelID))
+	if (UseSubsurfaceProfile(GBufferData.ShadingModelID))
 	{
-		ScreenSpaceData.GBuffer.DiffuseColor = ScreenSpaceData.GBuffer.StoredBaseColor;
+		GBufferData.DiffuseColor = GBufferData.StoredBaseColor;
 	}
-	float Depth = ScreenSpaceData.GBuffer.Depth;
-	float3 WorldPosition = ReconstructWorldPositionFromDepth(UV, Depth);
-	float3 CameraOrigin = ReconstructWorldPositionFromDepth(UV, 0.0);
-	float3 CameraDirection = normalize(WorldPosition - CameraOrigin);
-	float3 WorldNormal = ScreenSpaceData.GBuffer.WorldNormal;
-	uint ShadingModelID = ScreenSpaceData.GBuffer.ShadingModelID;
+	float DeviceZ = SceneDepthBuffer.Load(int3(PixelCoord, 0)).r;
+	float3 WorldPosition;
+	float3 CameraDirection;
+	ReconstructWorldPositionAndCameraDirectionFromDeviceZ(PixelCoord, DeviceZ, WorldPosition, CameraDirection);
+	float3 WorldNormal = GBufferData.WorldNormal;
+	uint ShadingModelID = GBufferData.ShadingModelID;
 	if (ShadingModelID == SHADINGMODELID_UNLIT
 		|| ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE
 		)
@@ -119,11 +88,14 @@ void GlobalIlluminationRGS()
 	}
 
 	// Diffuse color rejection threshold
-	float3 DiffuseColor = ScreenSpaceData.GBuffer.DiffuseColor;
+	float3 DiffuseColor = GBufferData.DiffuseColor;
 	if (Luminance(DiffuseColor) < DiffuseThreshold)
 	{
 		return;
 	}
+
+	FQuasiRandom QuasiRandom;
+	QuasiRandom_Initialize(QuasiRandom, DispatchThreadId, 0, SamplesPerPixel);
 
 	float3 Irradiance = 0;
 	float HitDistance = 0.0;
@@ -131,18 +103,15 @@ void GlobalIlluminationRGS()
 	float AmbientOcclusion = 0.0;
 	for (uint SampleIndex = 0; SampleIndex < SamplesPerPixel; ++SampleIndex)
 	{
-		// Use Scrambled Halton sequence
-		uint FrameIndex = View.FrameNumber % 1024;
-		RandomSequence_Initialize(RandSequence, LinearIndex, FrameIndex * SamplesPerPixel + SampleIndex);
-		RandSequence.Type = 2;
+		QuasiRandom_Update(QuasiRandom, SampleIndex, SamplesPerPixel);
 
 		float3 RayThroughput = 1.0;
+		float3 RandSample = QuasiRandom_Sample3(QuasiRandom);
 
 		// Russian roulette based on DiffuseColor
 		if (UseRussianRoulette)
 		{
-			uint DummyVariable;
-			float RRSample = RandomSequence_GenerateSample1D(RandSequence, DummyVariable);
+			float RRSample = RandSample.x;
 			float ProbabilityOfSuccess = Luminance(DiffuseColor);
 			float ProbabilityOfTermination = 1.0 - ProbabilityOfSuccess;
 			if (RRSample < ProbabilityOfTermination) continue;
@@ -153,13 +122,13 @@ void GlobalIlluminationRGS()
 		RayDesc Ray;
 		float RayPdf = 1.0;
 #if 1
-		GenerateCosineNormalRay(WorldPosition, WorldNormal, RandSequence, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax, RayPdf);
+		GenerateCosineNormalRay(WorldPosition, WorldNormal, RandSample.yz, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax, RayPdf);
 		half3 N = WorldNormal;
 		half3 V = -CameraDirection;
 		half3 L = Ray.Direction;
 		float NoL = saturate(dot(N, L));
 		FShadowTerms ShadowTerms = { 0.0, 0.0, 0.0 };
-		FDirectLighting LightingSample = EvaluateBxDF(ScreenSpaceData.GBuffer, N, V, L, NoL, ShadowTerms);
+		FDirectLighting LightingSample = EvaluateBxDF(GBufferData, N, V, L, NoL, ShadowTerms);
 		RayThroughput *= LightingSample.Diffuse / DiffuseColor;
 #else
 		uint DummyVariable;
@@ -172,7 +141,7 @@ void GlobalIlluminationRGS()
 		float3 RayThroughput = 1.0;
 #endif
 		Ray.TMax = max(MaxRayDistanceForGI, MaxRayDistanceForAO);
-        ApplyPositionBias(Ray, WorldNormal, MaxNormalBias);
+		ApplyCameraRelativeDepthBias(Ray, PixelCoord, DeviceZ, WorldNormal, MaxNormalBias);
 		
 		float MaterialPdf = 0.0;
 		uint Bounce = 0;
@@ -180,6 +149,9 @@ void GlobalIlluminationRGS()
 		{
 			// Cast ray
 			uint RayFlags = 0;
+#if !ENABLE_TWO_SIDED_GEOMETRY
+			RayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+#endif
 			FRayCone RayCone = (FRayCone)0;
 			FMaterialClosestHitPayload Payload = TraceRayInternal(
 				TLAS,   // AccelerationStructure
@@ -193,7 +165,7 @@ void GlobalIlluminationRGS()
 			);
 
 			// Environment hit
-			if (!IsHit(Ray, Payload))
+			if (Payload.IsMiss())
 			{
 				// Optional multi-bounce SkyLight contribution
 				if (EvalSkyLight && Bounce > 0)
@@ -205,7 +177,6 @@ void GlobalIlluminationRGS()
 				}
 				break;
 			}
-			// #dxr_todo: Allow for material emission?
 
 			if (Bounce == 0)
 			{
@@ -245,8 +216,10 @@ void GlobalIlluminationRGS()
 				int LightId;
 				float3 LightUV;
 				float NeePdf = 0.0;
-				uint DummyVariable;
-				float4 RandSample4 = RandomSequence_GenerateSample4D(RandSequence, DummyVariable);
+
+				float4 RandSample4;
+				RandSample4.xyz = QuasiRandom_Sample3(QuasiRandom);
+				RandSample4.w = QuasiRandom_Sample3(QuasiRandom).x;
 				SampleLight(Ray, Payload, RandSample4, LightId, LightUV, NeePdf);
 
 				if (NeePdf > 0.0)
@@ -257,12 +230,15 @@ void GlobalIlluminationRGS()
 
 					// Trace visibility ray
 					uint RayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;
+#if !ENABLE_TWO_SIDED_GEOMETRY
+					RayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+#endif
 					FRayCone LightRayCone = (FRayCone)0;
 					FMaterialClosestHitPayload NeePayload = TraceRayInternal(
 						TLAS,   // AccelerationStructure
 						RayFlags,
 						RAY_TRACING_MASK_OPAQUE,
-						RAY_TRACING_SHADER_SLOT_MATERIAL, // RayContributionToHitGroupIndex
+						RAY_TRACING_SHADER_SLOT_SHADOW,  // RayContributionToHitGroupIndex
 						RAY_TRACING_NUM_SHADER_SLOTS,     // MultiplierForGeometryContributionToShaderIndex
 						0,      // MissShaderIndex
 						LightRay,    // RayDesc
@@ -270,7 +246,7 @@ void GlobalIlluminationRGS()
 					);
 
 					// No hit indicates successful next-event connection
-					if (!IsHit(LightRay, NeePayload))
+					if (NeePayload.IsMiss())
 					{
 						// Evaluate radiance
 						float3 Radiance;
@@ -307,18 +283,20 @@ void GlobalIlluminationRGS()
 			}
 
 			// Perform material sampling
-			// dxr_todo: only worth doing when Bounce + 1 < MaxBounces
 			if (Bounce + 1 < MaxBounces)
 			{
 				float3 Direction;
 				float3 Throughput = 1.0;
 #if USE_PATHTRACING_MATERIALS
-				uint DummyVariable;
-				float4 RandSample = RandomSequence_GenerateSample4D(RandSequence, DummyVariable);
-				SampleMaterial(Ray.Direction, Payload, RandSample, Direction, Throughput, MaterialPdf);
+				float4 RandSample;
+				RandSample.xyz = QuasiRandom_Sample3(QuasiRandom);
+				RandSample.w = QuasiRandom_Sample3(QuasiRandom).x;
+				float PositionBiasSign;
+				SampleMaterial(Ray.Direction, Payload, RandSample, Direction, Throughput, MaterialPdf, PositionBiasSign);
 #else
+				float3 RandSample3 = QuasiRandom_Sample3(QuasiRandom);
 				float3 RayOrigin = Ray.Origin;
-				GenerateCosineNormalRay(RayOrigin, Payload.WorldNormal, RandSequence, Ray.Origin, Direction, Ray.TMin, Ray.TMax, MaterialPdf);
+				GenerateCosineNormalRay(RayOrigin, Payload.WorldNormal, RandSample3.xy, Ray.Origin, Direction, Ray.TMin, Ray.TMax, MaterialPdf);
 				
 				half3 N = Payload.WorldNormal;
 				half3 V = -Ray.Direction;
@@ -328,7 +306,6 @@ void GlobalIlluminationRGS()
 				FDirectLighting LightingSample = EvaluateBxDF(GBufferData, N, V, L, NoL, ShadowTerms);
 				Throughput = LightingSample.Diffuse;
 #endif
-				// #dxr_todo: Degenerate guard?
 				if (MaterialPdf <= 0.0)
 				{
 					break;
@@ -338,10 +315,6 @@ void GlobalIlluminationRGS()
 				Ray.Direction = Direction;
 				RayThroughput *= Throughput;
 				RayPdf *= MaterialPdf;
-
-				// #dxr_todo: Russian roulette?
-
-				// #dxr_todo: Firefly rejection?
 			}
 
 			Bounce++;
@@ -375,13 +348,6 @@ void GlobalIlluminationRGS()
 	// For AO denoiser..
 	//RWRayDistanceUAV[DispatchThreadId] = float2(Luminance(Irradiance), HitDistance);
 }
-
-[shader("miss")]
-void RayTracingGlobalIlluminationMS(inout FPackedMaterialClosestHitPayload PackedPayload)
-{
-	PackedPayload.HitT = -1;
-}
-
 
 [shader("closesthit")]
 void RayTracingGlobalIlluminationCHS(inout FPackedMaterialClosestHitPayload PackedPayload, in FDefaultAttributes Attributes)

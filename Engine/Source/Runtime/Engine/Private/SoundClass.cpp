@@ -2,6 +2,7 @@
 
 
 #include "Sound/SoundClass.h"
+#include "Sound/AudioSettings.h"
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
 #include "Audio.h"
@@ -220,6 +221,15 @@ void USoundClass::Serialize( FArchive& Ar )
 		// load this to match size and then throw away
 		TMap<USoundClass*, FSoundClassEditorData>	EditorData_DEPRECATED;
 		Ar << EditorData_DEPRECATED;
+	}
+
+	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
+	const int32 ReleaseObjectVersion = Ar.CustomVer(FReleaseObjectVersion::GUID);
+
+	if (ReleaseObjectVersion < FReleaseObjectVersion::SoundClass2DReverbSend)
+	{
+		const UAudioSettings* AudioSettings = GetDefault<UAudioSettings>();
+		Properties.Default2DReverbSendAmount = AudioSettings->DefaultReverbSendLevel_DEPRECATED;
 	}
 }
 

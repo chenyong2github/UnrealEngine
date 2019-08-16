@@ -5,6 +5,17 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Notifications/SPopUpErrorText.h"
 
+#if WITH_ACCESSIBILITY
+#include "Widgets/Accessibility/SlateAccessibleWidgets.h"
+#endif
+
+SEditableTextBox::SEditableTextBox()
+{
+#if WITH_ACCESSIBILITY
+	AccessibleData = FAccessibleWidgetData(EAccessibleBehavior::Auto, EAccessibleBehavior::Auto, false);
+#endif
+}
+
 /**
  * Construct this widget
  *
@@ -80,6 +91,17 @@ void SEditableTextBox::Construct( const FArguments& InArgs )
 		];
 	}
 
+#if WITH_ACCESSIBILITY
+	// These functions need to be called again because SWidget::Construct is called before SEditableText is created.
+	if (AccessibleData.AccessibleBehavior != EAccessibleBehavior::Custom)
+	{
+		SetDefaultAccessibleText(EAccessibleType::Main);
+	}
+	if (AccessibleData.AccessibleSummaryBehavior != EAccessibleBehavior::Custom)
+	{
+		SetDefaultAccessibleText(EAccessibleType::Summary);
+	}
+#endif
 }
 
 void SEditableTextBox::SetStyle(const FEditableTextBoxStyle* InStyle)
@@ -396,3 +418,21 @@ void SEditableTextBox::SetVirtualKeyboardDismissAction(TAttribute<EVirtualKeyboa
 {
 	EditableText->SetVirtualKeyboardDismissAction(InVirtualKeyboardDismissAction);
 }
+
+#if WITH_ACCESSIBILITY
+TSharedRef<FSlateAccessibleWidget> SEditableTextBox::CreateAccessibleWidget()
+{
+	return MakeShareable<FSlateAccessibleWidget>(new FSlateAccessibleEditableTextBox(SharedThis(this)));
+}
+
+void SEditableTextBox::SetDefaultAccessibleText(EAccessibleType AccessibleType)
+{
+	// The parent Construct() function will call this before EditableText exists,
+	// so we need a guard here to ignore that function call.
+	if (EditableText.IsValid())
+	{
+		TAttribute<FText>& Text = (AccessibleType == EAccessibleType::Main) ? AccessibleData.AccessibleText : AccessibleData.AccessibleSummaryText;
+		Text.Bind(EditableText.Get(), &SEditableText::GetHintText);
+	}
+}
+#endif

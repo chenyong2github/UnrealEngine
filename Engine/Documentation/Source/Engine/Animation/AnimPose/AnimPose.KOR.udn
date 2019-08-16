@@ -1,14 +1,14 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6411923
 Availability:Public
 Title: 애니메이션 포즈 애셋
-Crumbs: %ROOT%, Engine, Engine/Animation
 Description:가중치를 입힌 커브 데이터를 통해 애니메이션을 구동시키는 데 사용할 수 있는 애니메이션 포즈 애셋에 대한 설명입니다.
 Parent: Engine/Animation
 Related: Engine\Animation\Persona\AnimCurves
 Related: Engine\Animation\AnimBlueprints
 Related: Engine\Animation\AnimHowTo\CurveDrivenAnimation
 version: 4.14
-tags:Assets
+tags:Animation Assets
+type:landing
 topic-image:AnimationPoseAssets_topic.png
 
 전통적인 애니메이션은 일련의 키프레임 포즈를 타임라인상에서 블렌딩하여 원하는 모션을 만들어내는 것입니다.

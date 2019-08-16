@@ -303,7 +303,7 @@ public:
 	{
 	}
 
-	// interface IConsoleVariable -----------------------------------
+	// interface IConsoleVariable ----------------------------------- 
 
 	virtual void Release()
 	{
@@ -321,7 +321,9 @@ public:
 	virtual int32 GetInt() const;
 	virtual float GetFloat() const;
 	virtual FString GetString() const;
-	virtual bool IsVariableInt() const { return false; }
+	virtual bool IsVariableInt() const override { return false; }
+	virtual bool IsVariableFloat() const override { return false; }
+	virtual bool IsVariableString() const override { return false; }
 	virtual class TConsoleVariableData<int32>* AsVariableInt() { return 0; }
 	virtual class TConsoleVariableData<float>* AsVariableFloat() { return 0; }
 	virtual class TConsoleVariableData<FString>* AsVariableString() { return 0; }
@@ -385,9 +387,13 @@ template<> FString FConsoleVariable<float>::GetString() const
 {
 	return FString::Printf(TEXT("%g"), Value());
 }
+template<> bool FConsoleVariable<float>::IsVariableFloat() const
+{
+	return true;
+}
 template<> TConsoleVariableData<float>* FConsoleVariable<float>::AsVariableFloat()
 {
-	return &Data; 
+	return &Data;
 }
 
 // specialization for FString
@@ -412,7 +418,10 @@ template<> FString FConsoleVariable<FString>::GetString() const
 {
 	return Value();
 }
-
+template<> bool FConsoleVariable<FString>::IsVariableString() const
+{
+	return true;
+}
 template<> TConsoleVariableData<FString>* FConsoleVariable<FString>::AsVariableString()
 {
 	return &Data;
@@ -456,6 +465,9 @@ public:
 	{
 		return TTypeToString<T>::ToString(MainValue);
 	}
+	virtual bool IsVariableInt() const override { return false; }
+	virtual bool IsVariableFloat() const override { return false; }
+	virtual bool IsVariableString() const override { return false; }
 
 private: // ----------------------------------------------------
 
@@ -489,6 +501,18 @@ FString FConsoleVariableRef<float>::GetString() const
 {
 	// otherwise we get 2.1f would become "2.100000"
 	return FString::SanitizeFloat(RefValue);
+}
+template<> bool FConsoleVariableRef<bool>::IsVariableInt() const
+{
+	return true;
+}
+template<> bool FConsoleVariableRef<int32>::IsVariableInt() const
+{
+	return true;
+}
+template<> bool FConsoleVariableRef<float>::IsVariableFloat() const
+{
+	return true;
 }
 
 // string version
@@ -532,6 +556,10 @@ public:
 	virtual FString GetString() const
 	{
 		return MainValue;
+	}
+	virtual bool IsVariableString() const override
+	{
+		return true;
 	}
 
 private: // ----------------------------------------------------
@@ -971,9 +999,9 @@ IConsoleCommand* FConsoleManager::RegisterConsoleCommand(const TCHAR* Name, cons
 }
 
 
-IConsoleVariable* FConsoleManager::FindConsoleVariable(const TCHAR* Name) const
+IConsoleVariable* FConsoleManager::FindConsoleVariable(const TCHAR* Name, bool bTrackFrequentCalls) const
 {
-	IConsoleObject* Obj = FindConsoleObject(Name);
+	IConsoleObject* Obj = FindConsoleObject(Name, bTrackFrequentCalls);
 
 	if(Obj)
 	{
@@ -988,11 +1016,12 @@ IConsoleVariable* FConsoleManager::FindConsoleVariable(const TCHAR* Name) const
 	return 0;
 }
 
-IConsoleObject* FConsoleManager::FindConsoleObject(const TCHAR* Name) const
+IConsoleObject* FConsoleManager::FindConsoleObject(const TCHAR* Name, bool bTrackFrequentCalls) const
 {
 	IConsoleObject* CVar = FindConsoleObjectUnfiltered(Name);
 
 #if TRACK_CONSOLE_FIND_COUNT
+	if (bTrackFrequentCalls)
 	{
 		const bool bEarlyAppPhase = GFrameCounter < 1000;
 		if(CVar)
@@ -1412,6 +1441,33 @@ IConsoleObject* FConsoleManager::AddConsoleObject(const TCHAR* Name, IConsoleObj
 				ConsoleObjects.Add(Name, Var);
 				return Var;
 			}
+#if WITH_HOT_RELOAD
+			else if (GIsHotReload)
+			{
+				// Variable is being replaced due to a hot reload - copy state across to new variable, but only if the type hasn't changed
+				{
+					if (ExistingVar->IsVariableFloat())
+					{
+						Var->Set(ExistingVar->GetFloat());
+					}
+				}
+				{
+					if (ExistingVar->IsVariableInt())
+					{
+						Var->Set(ExistingVar->GetInt());
+					}
+				}
+				{
+					if (ExistingVar->IsVariableString())
+					{
+						Var->Set(*ExistingVar->GetString());
+					}
+				}
+				ExistingVar->Release();
+				ConsoleObjects.Add(Name, Var);
+				return Var;
+			}
+#endif
 			else
 			{
 				// Copy data over from the new variable,
@@ -2613,12 +2669,6 @@ static TAutoConsoleVariable<int32> CVarLuminOverrideExternalTextureSupport(
 	TEXT("  3 = force ImageExternal300 (version #300 with GL_OES_EGL_image_external)\n")
 	TEXT("  4 = force ImageExternalESSL300 (version #300 with GL_OES_EGL_image_external_essl3)"),
 	ECVF_ReadOnly);
-
-static TAutoConsoleVariable<int32> GLSLCvar(
-	TEXT("r.Vulkan.UseGLSL"),
-	0,
-	TEXT("2 to use ES GLSL\n1 to use GLSL\n0 to use SPIRV")
-);
 
 static TAutoConsoleVariable<FString> CVarCustomUnsafeZones(
 	TEXT("r.CustomUnsafeZones"),

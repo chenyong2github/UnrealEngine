@@ -25,6 +25,12 @@ class ANIMATIONBUDGETALLOCATOR_API USkeletalMeshComponentBudgeted : public USkel
 public:
 	USkeletalMeshComponentBudgeted(const FObjectInitializer& ObjectInitializer);
 
+	// UActorComponent interface
+	virtual void SetComponentTickEnabled(bool bEnabled) override;
+
+	/** Updates significance budget if this component has been registered with a AnimationBudgetAllocator */
+	void SetComponentSignificance(float Significance, bool bNeverSkip = false, bool bTickEvenIfNotRendered = false, bool bAllowReducedWork = true, bool bForceInterpolate = false);
+
 	/** Set this component to automatically register with the budget allocator */
 	UFUNCTION(BlueprintSetter)
 	void SetAutoRegisterWithBudgetAllocator(bool bInAutoRegisterWithBudgetAllocator) { bAutoRegisterWithBudgetAllocator = bInAutoRegisterWithBudgetAllocator; }

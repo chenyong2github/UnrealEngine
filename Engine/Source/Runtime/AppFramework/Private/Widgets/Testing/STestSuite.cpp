@@ -42,7 +42,6 @@
 #include "Framework/Commands/InputChord.h"
 #include "Framework/Commands/Commands.h"
 #include "Framework/Commands/UICommandList.h"
-#include "Framework/Text/TextRange.h"
 #include "Framework/Text/IRun.h"
 #include "Framework/Text/TextLayout.h"
 #include "Framework/Text/ISlateRun.h"
@@ -1152,9 +1151,9 @@ private:
 		const FVector2D Center = InParams.Geometry.AbsolutePosition + InParams.Geometry.GetLocalSize() * 0.5f;
 
 		const FSlateBrush* MyBrush = FCoreStyle::Get().GetBrush("ColorWheel.HueValueCircle");
-		// @todo this is not the correct way to do this
-		FSlateShaderResourceProxy* ResourceProxy = FSlateDataPayload::ResourceManager->GetShaderResource(*MyBrush);
-		FSlateResourceHandle Handle = FSlateApplication::Get().GetRenderer()->GetResourceHandle( *MyBrush );
+
+		FSlateResourceHandle Handle = MyBrush->GetRenderingResource();
+		const FSlateShaderResourceProxy* ResourceProxy = Handle.GetResourceProxy();
 
 		FVector2D UVCenter = FVector2D::ZeroVector;
 		FVector2D UVRadius = FVector2D(1,1);
@@ -2275,7 +2274,7 @@ public:
 
 	FSlateWidgetRun::FWidgetRunInfo OnCreateWidgetDecoratorWidget( const FTextRunInfo& RunInfo, const ISlateStyle* Style ) const
 	{
-		TSharedRef< SWidget > Widget = SNew( SButton ) .OnClicked( this, &SRichTextTest::OnWidgetDecoratorClicked ) 
+		TSharedRef< SWidget > Widget = SNew( SButton ) .OnClicked( const_cast<SRichTextTest*>(this), &SRichTextTest::OnWidgetDecoratorClicked ) 
 			.ToolTip( 
 				SNew( SToolTip )
 				.BorderImage( FTestStyle::Get().GetBrush( "RichText.Tagline.Background" ) )
@@ -4475,7 +4474,6 @@ class SInvalidationTest : public SCompoundWidget
 			.AutoHeight()
 			[
 				SNew(SInvalidationPanel)
-				.CacheRelativeTransforms(true)
 				[
 					SNew(SVerticalBox)
 
@@ -4493,7 +4491,7 @@ class SInvalidationTest : public SCompoundWidget
 private:
 	FReply ManuallyInvalidatePanel1()
 	{
-		CachePanel1->InvalidateCache();
+		CachePanel1->InvalidateRoot();
 		return FReply::Handled();
 	}
 
@@ -6027,7 +6025,7 @@ TSharedRef<SDockTab> SpawnTestSuite1( const FSpawnTabArgs& Args )
 			//The first cell in the primary area will be occupied by a stack of tabs.
 			// They are all opened.
 			FTabManager::NewStack()
-			->SetSizeCoefficient(0.35f)
+			->SetSizeCoefficient(0.2f)
 			->AddTab("LayoutExampleTab", ETabState::OpenedTab)
 			->AddTab("DocumentsTestTab", ETabState::OpenedTab)
 		)
@@ -6036,7 +6034,7 @@ TSharedRef<SDockTab> SpawnTestSuite1( const FSpawnTabArgs& Args )
 			// We can subdivide a cell further by using an additional splitter
 			FTabManager::NewSplitter()
 			->SetOrientation( Orient_Vertical )
-			->SetSizeCoefficient(0.65f)
+			->SetSizeCoefficient(0.8f)
 			->Split
 			(
 				FTabManager::NewStack()
@@ -6052,6 +6050,7 @@ TSharedRef<SDockTab> SpawnTestSuite1( const FSpawnTabArgs& Args )
 				->SetSizeCoefficient(0.75f)
 				#if PLATFORM_SUPPORTS_MULTIPLE_NATIVE_WINDOWS
 				->AddTab("TableViewTestTab", ETabState::OpenedTab)
+				->SetForegroundTab(FName("TableViewTestTab"))
 				#endif
 				->AddTab("LayoutRoundingTab", ETabState::OpenedTab)
 				->AddTab("EditableTextTab", ETabState::OpenedTab)
@@ -6293,7 +6292,7 @@ void RestoreSlateTestSuite()
 	TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout( "SlateTestSuite_Layout" )
 	->AddArea
 	(
-		FTabManager::NewArea(720, 600)
+		FTabManager::NewArea(1600, 1200)
 #if PLATFORM_MAC
 		->SetWindow( FVector2D(420, 32), false )
 #else
@@ -6306,6 +6305,7 @@ void RestoreSlateTestSuite()
 			->AddTab( "TestSuite1", ETabState::OpenedTab )
 			->AddTab("RenderTransformManipulator", ETabState::OpenedTab)
 			->AddTab("WidgetGalleryTab", ETabState::OpenedTab)
+			->SetForegroundTab(FName("TestSuite1"))
 		)		
 	)
 	#if PLATFORM_SUPPORTS_MULTIPLE_NATIVE_WINDOWS

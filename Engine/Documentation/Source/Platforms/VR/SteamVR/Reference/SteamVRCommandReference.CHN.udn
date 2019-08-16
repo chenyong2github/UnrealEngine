@@ -1,0 +1,71 @@
+INTSourceChangelist:3782314
+Availability: Public
+Crumbs: %ROOT%, Platforms
+Title:SteamVR命令参考
+Description:关于可用于SteamVR的各种命令的信息。
+Type:reference
+Version: 4.17
+Parent: Platforms/VR/SteamVR
+Order: 2
+tags: VR
+topic-image:Platforms\VR\SteamVR\SteamVRDevelopment_topic.png
+related: Engine/Performance/GPU/ 
+related: Engine/Performance/CPU/
+related: Platforms/VR/DevelopVR/VRSpectatorScreen/
+
+在下面你可以找到可用来调节虚幻引擎4（UE4）与SteamVR的交互方式的各种控制台命令。 
+
+[COMMENT:none]
+
+(#steamvrvrmirrormode)
+## SteamVR VR镜像模式
+
+“VR镜像（VR Mirror）”是让非VR用户看到VR用户所见图像的视口窗口的名称。使用SteamVR时，你可以使用几种方法来更改VR镜像的显示方式。 
+在下面，你将找到用于更改VR镜像模式的命令，以及它们将对VR镜像的显示造成的影响。
+
+[REGION:note]
+要输入下列命令之一，请按反引号 **`** 键打开UE4控制台，然后输入 **VR.MirrorMode**，后跟下列任一数字。
+[/REGION]
+
+
+|命令|描述|图像|
+|-----------|-------------------|----------------|
+| **VR.SpectatorScreenMode 0** | 禁用VR镜像|不适用|
+| **VR.SpectatorScreenMode 1** | 显示不带任何畸变的单眼图像。|[REGION:lightbox][![](SteamVRCR_00.png)(w:160)](SteamVRCR_00.png)[/REGION]|
+| **VR.SpectatorScreenMode 2** | 显示不带镜头畸变的双眼立体图像。|[REGION:lightbox][![](SteamVRCR_01.png)(w:160)](SteamVRCR_01.png)[/REGION]|
+| **VR.SpectatorScreenMode 3** | 在填满屏幕的裁切矩形中显示一个眼睛的图像。|[REGION:lightbox][![](SteamVRCR_02.png)(w:160)](SteamVRCR_02.png)[/REGION]|
+| **VR.SpectatorScreenMode 4** | 显示单眼立体图像。|[REGION:lightbox][![](SteamVRCR_03.png)(w:160)](SteamVRCR_03.png)[/REGION]|
+| **VR.SpectatorScreenMode 7** | 在裁切矩形中显示单眼图像，并有显示其他纹理的选项。|[REGION:lightbox][![](SteamVRCR_04.png)(w:160)](SteamVRCR_04.png)[/REGION]|
+
+[/COMMENT]
+
+|命令|描述|
+|-----------|-------------------|
+|**vr.SteamVR.AdaptiveDebugGPUTime**|以毫秒为单位添加到GPU帧时间用于测试。|
+|**vr.SteamVR.AdaptiveGPUTimeThreshold**|以毫秒为单位的时间，作为稳定GPU帧时间的目标。|
+|**vr.SteamVR.PixelDensityAdaptiveDebugCycle**|如果不为零，则自适应像素密度将从最大像素密度循环至最小像素密度，然后再跳转至最大密度。|
+|**vr.SteamVR.PixelDensityAdaptiveDebugOutput**|如果不为零，则自适应像素密度将把调试信息输出到日志。|
+|**vr.SteamVR.PixelDensityAdaptivePostProcess**|如果不为零，当自适应像素密度更改时，我们将对若干帧禁用时空抗锯齿（TAA）以清除缓冲区。|
+|**vr.SteamVR.PixelDensityMax**|浮点形式的最大像素密度。|
+|**vr.SteamVR.PixelDensityMin**|浮点形式的最小像素密度。|
+|**vr.SteamVR.ShowDebug**|	如果不为零，则将调试信息绘制到画布。|
+|**vr.SteamVR.UsePostPresentHandoff**|	是否使用PostPresentHandoff。如果为true，将有更多GPU时间可用，但前提是场景中没有活动的SceneCaptureComponent2D或WidgetComponents。否则，将破坏异步重投影。|
+|**vr.SteamVR.UseVisibleAreaMesh**|如果不为零，SteamVR除了隐藏区域网格体优化之外，还将使用可用的可见区域网格体。这可能在平台的Beta版本上造成问题。|
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

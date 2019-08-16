@@ -6,7 +6,7 @@
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 #include "OculusHMD_Settings.h"
 #include "OculusHMD_GameFrame.h"
-#include "OculusHMD_TextureSetProxy.h"
+#include "XRSwapChain.h"
 #include "RHI.h"
 #include "RendererInterface.h"
 #include "IStereoLayers.h"
@@ -35,7 +35,7 @@ namespace OculusHMD
 class FCustomPresent : public FXRRenderBridge
 {
 public:
-	FCustomPresent(class FOculusHMD* InOculusHMD, ovrpRenderAPIType InRenderAPI, EPixelFormat InDefaultPixelFormat, bool InSupportsSRGB, bool InSupportsDepth);
+	FCustomPresent(class FOculusHMD* InOculusHMD, ovrpRenderAPIType InRenderAPI, EPixelFormat InDefaultPixelFormat, bool InSupportsSRGB);
 
 	// FXRRenderBridge/FRHICustomPresent
 	virtual bool NeedsNativePresent() override;
@@ -66,9 +66,8 @@ public:
 	virtual int GetLayerFlags() const { return 0; }
 
 	virtual FTextureRHIRef CreateTexture_RenderThread(uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, FClearValueBinding InBinding, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, ERHIResourceType InResourceType, ovrpTextureHandle InTexture, uint32 TexCreateFlags) = 0;
-	FTextureSetProxyPtr CreateTextureSetProxy_RenderThread(uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, FClearValueBinding InBinding, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, ERHIResourceType InResourceType, const TArray<ovrpTextureHandle>& InTextures, uint32 InTexCreateFlags);
-	void CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FTextureRHIParamRef DstTexture, FTextureRHIParamRef SrcTexture, FIntRect DstRect = FIntRect(), FIntRect SrcRect = FIntRect(), bool bAlphaPremultiply = false, bool bNoAlphaWrite = false, bool bInvertY = true, bool sRGBSource = false) const;
-	virtual void AliasTextureResources_RHIThread(FTextureRHIParamRef DestTexture, FTextureRHIParamRef SrcTexture) = 0;
+	FXRSwapChainPtr CreateSwapChain_RenderThread(uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, FClearValueBinding InBinding, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, ERHIResourceType InResourceType, const TArray<ovrpTextureHandle>& InTextures, uint32 InTexCreateFlags);
+	void CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture* DstTexture, FRHITexture* SrcTexture, FIntRect DstRect = FIntRect(), FIntRect SrcRect = FIntRect(), bool bAlphaPremultiply = false, bool bNoAlphaWrite = false, bool bInvertY = true, bool sRGBSource = false) const;
 	virtual void SubmitGPUFrameTime(float GPUFrameTime) { }
 
 	bool supportsSRGB() { return bSupportsSRGB; }
@@ -78,7 +77,6 @@ protected:
 	ovrpRenderAPIType RenderAPI;
 	EPixelFormat DefaultPixelFormat;
 	bool bSupportsSRGB;
-	bool bSupportsDepth;
 	ovrpTextureFormat DefaultOvrpTextureFormat;
 	ovrpTextureFormat DefaultDepthOvrpTextureFormat;
 	IRendererModule* RendererModule;

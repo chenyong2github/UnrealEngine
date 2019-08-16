@@ -217,6 +217,16 @@ public:
 
 	virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click);
 
+	/**
+	 * Allows an editor mode to override the bounding box used to focus the viewport on a selection
+	 * 
+	 * @param Actor			The selected actor that is being considered for focus
+	 * @param PrimitiveComponent	The component in the actor being considered for focus
+	 * @param InOutBox		The box that should be computed for the actor and component
+	 * @return bool			true if the mode overrides the box and populated InOutBox, false if it did not populate InOutBox
+	 */
+	virtual bool ComputeBoundingBoxForViewportFocus(AActor* Actor, UPrimitiveComponent* PrimitiveComponent, FBox& InOutBox) const { return false; }
+
 	/** Handling SelectActor */
 	virtual bool Select( AActor* InActor, bool bInSelected ) { return 0; }
 
@@ -278,11 +288,21 @@ public:
 	/** True if this mode uses a toolkit mode (eventually they all should) */
 	virtual bool UsesToolkits() const;
 
+	/** Gets the toolkit created by this mode */
+	TSharedPtr<FModeToolkit> GetToolkit() { return Toolkit; }
+
 	/** Returns the world this toolkit is editing */
 	UWorld* GetWorld() const;
 
 	/** Returns the owning mode manager for this mode */
 	class FEditorModeTools* GetModeManager() const;
+
+	/** 
+	 * Called when the editor mode should rebuild its toolbar 
+	 *
+	 * @param ToolbarBuilder	The builder which should be used to add toolbar widgets
+	 */
+	virtual void BuildModeToolbar(class FToolBarBuilder& ToolbarBuilder) {}
 
 	// Property Widgets
 

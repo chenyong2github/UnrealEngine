@@ -3,19 +3,22 @@
 #include "Field/FieldSystemComponent.h"
 
 #include "Async/ParallelFor.h"
+#include "ChaosSolversModule.h"
+#include "Chaos/RigidParticles.h"
 #include "Field/FieldSystemCoreAlgo.h"
 #include "Field/FieldSystemSceneProxy.h"
-#include "Misc/CoreMiscDefines.h"
-#include "Physics/Experimental/PhysScene_Chaos.h"
-#include "Field/FieldSystemCoreAlgo.h"
 #include "Field/FieldSystemNodes.h"
 #include "Modules/ModuleManager.h"
-#include "ChaosSolversModule.h"
+#include "Misc/CoreMiscDefines.h"
+#include "Physics/Experimental/PhysScene_Chaos.h"
+#include "PhysicsProxy/FieldSystemPhysicsProxy.h"
+#include "PBDRigidsSolver.h"
 
 DEFINE_LOG_CATEGORY_STATIC(FSC_Log, NoLogging, All);
 
 UFieldSystemComponent::UFieldSystemComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, FieldSystem(nullptr)
 #if INCLUDE_CHAOS
 	, PhysicsProxy(nullptr)
 	, ChaosModule(nullptr)
@@ -23,34 +26,8 @@ UFieldSystemComponent::UFieldSystemComponent(const FObjectInitializer& ObjectIni
 	, bHasPhysicsState(false)
 {
 	UE_LOG(FSC_Log, Log, TEXT("FieldSystemComponent[%p]::UFieldSystemComponent()"),this);
-}
 
-
-FBoxSphereBounds UFieldSystemComponent::CalcBounds(const FTransform& LocalToWorldIn) const
-{
-	UE_LOG(FSC_Log, Log, TEXT("FieldSystemComponent[%p]::CalcBounds()[%p]"), this, FieldSystem);
-	return FBox(ForceInit);
-}
-
-void UFieldSystemComponent::CreateRenderState_Concurrent()
-{
-	UE_LOG(FSC_Log, Log, TEXT("FieldSystemComponent[%p]::CreateRenderState_Concurrent()"), this);
-
-	Super::CreateRenderState_Concurrent();
-
-	if (SceneProxy && FieldSystem )
-	{
-		FFieldSystemSampleData * SampleData = ::new FFieldSystemSampleData;
-		InitSampleData(SampleData);
-
-		// Enqueue command to send to render thread
-		FFieldSystemSceneProxy* FieldSystemSceneProxy = (FFieldSystemSceneProxy*)SceneProxy;
-		ENQUEUE_RENDER_COMMAND(FSendFieldSystemData)(
-			[FieldSystemSceneProxy, SampleData](FRHICommandListImmediate& RHICmdList)
-			{
-				//FieldSystemSceneProxy->SetSampleData_RenderThread(SampleData);
-			});
-	}
+	SetGenerateOverlapEvents(false);
 }
 
 
@@ -58,87 +35,29 @@ FPrimitiveSceneProxy* UFieldSystemComponent::CreateSceneProxy()
 {
 	UE_LOG(FSC_Log, Log, TEXT("FieldSystemComponent[%p]::CreateSceneProxy()"), this);
 
-	if (FieldSystem)
-	{
-		return new FFieldSystemSceneProxy(this);
-	}
-	return nullptr;
+	return new FFieldSystemSceneProxy(this);
 }
 
-void UFieldSystemComponent::InitSampleData(FFieldSystemSampleData * SampleData)
-{
-	UE_LOG(FSC_Log, Log, TEXT("FieldSystemComponent[%p]::InitSampleData()"), this);
-
-	check(SampleData);
-
-	//
-	// build and sample grid
-	//
-}
-
-void UFieldSystemComponent::BeginPlay()
-{
-	Super::BeginPlay();
-}
-
-void UFieldSystemComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
-{
-	UE_LOG(FSC_Log, Log, TEXT("FieldSystemComponent[%p]::TickComponent()"), this);
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-	if (FieldSystem && FieldSystem->IsVisible() )
-	{
-		MarkRenderDynamicDataDirty();
-	}
-}
-
-void UFieldSystemComponent::SendRenderDynamicData_Concurrent()
-{
-	UE_LOG(FSC_Log, Log, TEXT("FieldSystemComponent[%p]::SendRenderDynamicData_Concurrent()"), this);
-	Super::SendRenderDynamicData_Concurrent();
-	if (SceneProxy)
-	{
-		if (FieldSystem)
-		{
-			FFieldSystemSampleData * SampleData = ::new FFieldSystemSampleData;
-			InitSampleData(SampleData);
-
-			// Enqueue command to send to render thread
-			FFieldSystemSceneProxy* FieldSystemSceneProxy = (FFieldSystemSceneProxy*)SceneProxy;
-			ENQUEUE_RENDER_COMMAND(FSendFieldSystemData)(
-				[FieldSystemSceneProxy, SampleData](FRHICommandListImmediate& RHICmdList)
-				{
-					//FieldSystemSceneProxy->SetSampleData_RenderThread(SampleData);
-				});
-		}
-	}
-}
 
 void UFieldSystemComponent::OnCreatePhysicsState()
 {
 	UActorComponent::OnCreatePhysicsState();
 	
-	FieldSystem = NewObject<UFieldSystem>();
-	
-	if (!FieldSystem)
+	const bool bValidWorld = GetWorld() && GetWorld()->IsGameWorld();
+	if(bValidWorld)
 	{
-		return;
-	}
-
-	// @hack(Serialization) to hard code the field system.
-	FieldSystemAlgo::InitDefaultFieldData(FieldSystem->GetFieldData());
-
 #if INCLUDE_CHAOS
-	// Check we can get a suitable dispatcher
-	ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
-	check(ChaosModule);
+		// Check we can get a suitable dispatcher
+		ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
+		check(ChaosModule);
 
-	PhysicsProxy = new FFieldSystemSimulationProxy(FieldSystem->GetFieldData());
-	TSharedPtr<FPhysScene_Chaos> Scene = FPhysScene_Chaos::GetInstance();
-	Scene->AddFieldProxy(PhysicsProxy);
+		PhysicsProxy = new FFieldSystemPhysicsProxy(this);
+		TSharedPtr<FPhysScene_Chaos> Scene = GetOwner()->GetWorld()->PhysicsScene_Chaos;
+		Scene->AddObject(this, PhysicsProxy);
 #endif
 
-	bHasPhysicsState = true;
-	
+		bHasPhysicsState = true;
+	}
 }
 
 void UFieldSystemComponent::OnDestroyPhysicsState()
@@ -151,9 +70,9 @@ void UFieldSystemComponent::OnDestroyPhysicsState()
 		return;
 	}
 
-	TSharedPtr<FPhysScene_Chaos> Scene = FPhysScene_Chaos::GetInstance();
-	Scene->RemoveFieldProxy(PhysicsProxy);
-	
+	TSharedPtr<FPhysScene_Chaos> Scene = GetOwner()->GetWorld()->PhysicsScene_Chaos;
+	Scene->RemoveObject(PhysicsProxy);
+
 	ChaosModule = nullptr;
 	PhysicsProxy = nullptr;
 #endif
@@ -172,226 +91,164 @@ bool UFieldSystemComponent::HasValidPhysicsState() const
 	return bHasPhysicsState;
 }
 
-
-//
-//
-//
-
-void UFieldSystemComponent::ClearFieldSystem()
-{
-	if (FieldSystem)
-	{
-		FieldSystem->Reset();
-		FieldSystemAlgo::InitDefaultFieldData(FieldSystem->GetFieldData());
-	}
-}
-
-int
-UFieldSystemComponent::AddRadialIntMask(FName Name, FVector Position, float Radius, int32 InteriorValue, int32 ExteriorValue, TEnumAsByte<ESetMaskConditionType> Set)
-{
-	if (FieldSystem)
-	{
-		FRadialIntMask & RadialMask = FieldSystem->NewNode<FRadialIntMask>(Name);
-		RadialMask.Position = Position;
-		RadialMask.Radius = Radius;
-		RadialMask.InteriorValue = InteriorValue;
-		RadialMask.ExteriorValue = ExteriorValue;
-		RadialMask.SetMaskCondition = Set;
-		// ?? RecreatePhysicsState();
-		return RadialMask.GetTerminalID();
-	}
-	//ensure(false);
-	return FFieldNodeBase::Invalid;
-}
-
-
-int
-UFieldSystemComponent::AddRadialFalloff(FName Name, float Magnitude, FVector Position, float Radius)
-{
-	if (FieldSystem)
-	{
-		FRadialFalloff & RadialFalloff = FieldSystem->NewNode<FRadialFalloff>(Name);
-		RadialFalloff.Position = Position;
-		RadialFalloff.Radius = Radius;
-		RadialFalloff.Magnitude = Magnitude;
-		// ??RecreatePhysicsState();
-		return RadialFalloff.GetTerminalID();
-	}
-	//ensure(false);
-	return FFieldNodeBase::Invalid;
-}
-
-
-int
-UFieldSystemComponent::AddUniformVector(FName Name, float Magnitude, FVector Direction)
-{
-	if (FieldSystem)
-	{
-		FUniformVector & UniformVector = FieldSystem->NewNode<FUniformVector>(Name);
-		UniformVector.Direction = Direction;
-		UniformVector.Magnitude = Magnitude;
-		// ?? RecreatePhysicsState();
-		return UniformVector.GetTerminalID();
-	}
-	//ensure(false);
-	return FFieldNodeBase::Invalid;
-}
-
-
-int
-UFieldSystemComponent::AddRadialVector(FName Name, float Magnitude, FVector Position)
-{
-	if (FieldSystem)
-	{
-		FRadialVector & RadialVector = FieldSystem->NewNode<FRadialVector>(Name);
-		RadialVector.Position = Position;
-		RadialVector.Magnitude = Magnitude;
-		// ?? RecreatePhysicsState();
-		return RadialVector.GetTerminalID();
-	}
-	//ensure(false);
-	return FFieldNodeBase::Invalid;
-}
-
-int
-UFieldSystemComponent::AddSumVector(FName Name, float Magnitude, int32 ScalarField, int32 RightVectorField, int32 LeftVectorField, EFieldOperationType Operation)
-{
-	if (FieldSystem)
-	{
-		FSumVector & SumVector = FieldSystem->NewNode<FSumVector>(Name);
-		SumVector.Magnitude = Magnitude;
-		SumVector.Scalar = ScalarField;
-		SumVector.VectorRight = RightVectorField;
-		SumVector.VectorLeft = LeftVectorField;
-		SumVector.Operation = Operation;
-		// ?? RecreatePhysicsState();
-		return SumVector.GetTerminalID();
-	}
-	//ensure(false);
-	return FFieldNodeBase::Invalid;
-}
-
-int
-UFieldSystemComponent::AddSumScalar(FName Name, float Magnitude, int32 RightScalarField, int32 LeftScalarField, EFieldOperationType Operation)
-{
-	if (FieldSystem)
-	{
-		FSumScalar & SumVector = FieldSystem->NewNode<FSumScalar>(Name);
-		SumVector.Magnitude = Magnitude;
-		SumVector.ScalarRight = RightScalarField;
-		SumVector.ScalarLeft = LeftScalarField;
-		SumVector.Operation = Operation;
-		// ?? RecreatePhysicsState();
-		return SumVector.GetTerminalID();
-	}
-	//ensure(false);
-	return FFieldNodeBase::Invalid;
-}
-
-FName FieldTypeToName(EFieldPhysicsDefaultFields InType)
-{
-	switch(InType)
-	{
-	case EFieldPhysicsDefaultFields::Field_RadialIntMask:
-		return "RadialIntMask";
-	case EFieldPhysicsDefaultFields::Field_RadialFalloff:
-		return "RadialFalloff";
-	case EFieldPhysicsDefaultFields::Field_RadialVector:
-		return "RadialVector";
-	case EFieldPhysicsDefaultFields::Field_UniformVector:
-		return "UniformVector";
-	case EFieldPhysicsDefaultFields::Field_RadialVectorFalloff:
-		return "RadialVectorFalloff";
-	default:
-		break;
-	}
-
-	return NAME_None;
-}
-
 void UFieldSystemComponent::DispatchCommand(const FFieldSystemCommand& InCommand)
 {
 #if INCLUDE_CHAOS
-	checkSlow(ChaosModule && PhysicsProxy && PhysicsProxy->GetCallbacks()); // Should already be checked from OnCreatePhysicsState
-	Chaos::IDispatcher* PhysicsDispatcher = ChaosModule->GetDispatcher();
-	checkSlow(PhysicsDispatcher); // Should always have one of these
-
-	PhysicsDispatcher->EnqueueCommand([PhysicsProxy = this->PhysicsProxy, NewCommand = InCommand]()
+	if (HasValidPhysicsState())
 	{
-		FFieldSystemSolverCallbacks* Callbacks = (FFieldSystemSolverCallbacks*)PhysicsProxy->GetCallbacks();
-		Callbacks->BufferCommand(NewCommand);
-	});
+		checkSlow(ChaosModule); // Should already be checked from OnCreatePhysicsState
+		Chaos::IDispatcher* PhysicsDispatcher = ChaosModule->GetDispatcher();
+		checkSlow(PhysicsDispatcher); // Should always have one of these
+
+		// Assemble a list of compatible solvers
+		TArray<Chaos::FPhysicsSolver*> SolverList;
+		if(SupportedSolvers.Num() > 0)
+		{
+			for(TSoftObjectPtr<AChaosSolverActor>& SolverActorPtr : SupportedSolvers)
+			{
+				if(AChaosSolverActor* CurrActor = SolverActorPtr.Get())
+				{
+					SolverList.Add(CurrActor->GetSolver());
+				}
+			}
+		}
+
+		PhysicsDispatcher->EnqueueCommandImmediate([PhysicsProxy = this->PhysicsProxy, NewCommand = InCommand, ChaosModule = this->ChaosModule, SolverList]()
+		{
+			const int32 NumFilterSolvers = SolverList.Num();
+			const TArray<Chaos::FPhysicsSolver*>& Solvers = ChaosModule->GetSolvers();
+
+			for(Chaos::FPhysicsSolver* Solver : Solvers)
+			{
+				const bool bSolverValid = NumFilterSolvers == 0 || SolverList.Contains(Solver);
+
+				if(Solver->Enabled() && Solver->HasActiveParticles() && bSolverValid)
+				{
+					PhysicsProxy->BufferCommand(Solver, NewCommand);
+				}
+			}
+		});
+	}
 #endif
 }
 
-void UFieldSystemComponent::DispatchCommand(const FName& InName, EFieldPhysicsType InType, const FVector& InPosition, const FVector& InDirection, float InRadius, float InMagnitude)
+void UFieldSystemComponent::ApplyStayDynamicField(bool Enabled, FVector Position, float Radius)
 {
-	DispatchCommand({InName, InType, InPosition, InDirection, InRadius, InMagnitude});
-}
-
-void UFieldSystemComponent::ApplyField(TEnumAsByte<EFieldPhysicsDefaultFields> FieldName, TEnumAsByte<EFieldPhysicsType> Type, bool Enabled, FVector Position, FVector Direction, float Radius, float Magnitude)
-{
-	if (FieldSystem)
+	if (Enabled && HasValidPhysicsState())
 	{
-		DispatchCommand(FieldTypeToName(FieldName), Type, Position, Direction, Radius, Magnitude);
+		DispatchCommand({"DynamicState",new FRadialIntMask(Radius, Position, (int32)Chaos::EObjectStateType::Dynamic, 
+			(int32)Chaos::EObjectStateType::Kinematic, ESetMaskConditionType::Field_Set_IFF_NOT_Interior)});
 	}
 }
 
-
 void UFieldSystemComponent::ApplyLinearForce(bool Enabled, FVector Direction, float Magnitude)
 {
-	if (Enabled)
+	if (Enabled && HasValidPhysicsState())
 	{
-		if (FieldSystem)
-		{
-			DispatchCommand("UniformVector", EFieldPhysicsType::Field_LinearForce, FVector::ZeroVector, Direction, 0.0f, Magnitude);
-		}
+		DispatchCommand({ "LinearForce", new FUniformVector(Magnitude, Direction) });
 	}
 }
 
 void UFieldSystemComponent::ApplyRadialForce(bool Enabled, FVector Position, float Magnitude)
 {
-	if(Enabled)
+	if (Enabled && HasValidPhysicsState())
 	{
-		if(FieldSystem)
-		{
-			DispatchCommand("RadialVector", EFieldPhysicsType::Field_LinearForce, Position, FVector::ZeroVector, 0.0f, Magnitude);
-		}
-	}
-}
-
-void UFieldSystemComponent::ApplyStayDynamicField(bool Enabled, FVector Position, float Radius, int MaxLevelPerCommand)
-{
-	if (Enabled)
-	{
-		if (FieldSystem)
-		{
-			FFieldSystemCommand StayDynamicCommand("RadialIntMask", EFieldPhysicsType::Field_StayDynamic, Position, FVector::ZeroVector, Radius, 0.0f);
-			StayDynamicCommand.MaxClusterLevel = MaxLevelPerCommand;
-
-			DispatchCommand(StayDynamicCommand);
-		}
+		DispatchCommand({ "LinearForce", new FRadialVector(Magnitude, Position) });
 	}
 }
 
 void UFieldSystemComponent::ApplyRadialVectorFalloffForce(bool Enabled, FVector Position, float Radius, float Magnitude)
 {
-	if (Enabled)
+	if (Enabled && HasValidPhysicsState())
 	{
-		if (FieldSystem)
-		{
-			DispatchCommand("RadialVectorFalloff", EFieldPhysicsType::Field_LinearForce, Position, FVector::ZeroVector, Radius, Magnitude);
-		}
+		FRadialFalloff * FalloffField = new FRadialFalloff(Magnitude,0.f, 1.f, 0.f, Radius, Position);
+		FRadialVector* VectorField = new FRadialVector(Magnitude, Position);
+		DispatchCommand({"LinearForce", new FSumVector(1.0, FalloffField, VectorField, nullptr, Field_Multiply)});
 	}
 }
 
 void UFieldSystemComponent::ApplyUniformVectorFalloffForce(bool Enabled, FVector Position, FVector Direction, float Radius, float Magnitude)
 {
-	if (Enabled)
+	if (Enabled && HasValidPhysicsState())
 	{
-		if (FieldSystem)
+		FRadialFalloff * FalloffField = new FRadialFalloff(Magnitude, 0.f, 1.f, 0.f, Radius, Position);
+		FUniformVector* VectorField = new FUniformVector(Magnitude, Direction);
+		DispatchCommand({ "LinearForce", new FSumVector(1.0, FalloffField, VectorField, nullptr, Field_Multiply) });
+	}
+}
+
+void UFieldSystemComponent::ApplyStrainField(bool Enabled, FVector Position, float Radius, float Magnitude, int32 Iterations)
+{
+	if (Enabled && HasValidPhysicsState())
+	{
+		FFieldSystemCommand Command = { "ExternalClusterStrain", new FRadialFalloff(Magnitude,0.f, 1.f, 0.f, Radius, Position) };
+		DispatchCommand(Command);
+	}
+}
+
+UFUNCTION(BlueprintCallable, Category = "Field")
+void UFieldSystemComponent::ApplyPhysicsField(bool Enabled, EFieldPhysicsType Target, UFieldSystemMetaData* MetaData, UFieldNodeBase* Field)
+{
+	if (Enabled && Field && HasValidPhysicsState())
+	{
+		TArray<const UFieldNodeBase*> Nodes;
+		FFieldSystemCommand Command = { GetFieldPhysicsName(Target), Field->NewEvaluationGraph(Nodes) };
+		if (ensureMsgf(Command.RootNode, 
+			TEXT("Failed to generate physics field command for target attribute.")))
 		{
-			DispatchCommand("UniformVectorFalloff", EFieldPhysicsType::Field_LinearForce, Position, Direction, Radius, Magnitude);
+			if (MetaData)
+			{
+				switch (MetaData->Type())
+				{
+				case FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution:
+					Command.MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution).Reset(new FFieldSystemMetaDataProcessingResolution(static_cast<UFieldSystemMetaDataProcessingResolution*>(MetaData)->ResolutionType));
+					break;
+				case FFieldSystemMetaData::EMetaType::ECommandData_Iteration:
+					Command.MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_Iteration).Reset(new FFieldSystemMetaDataIteration(static_cast<UFieldSystemMetaDataIteration*>(MetaData)->Iterations));
+					break;
+				}
+			}
+			ensure(!Command.TargetAttribute.IsEqual("None"));
+			DispatchCommand(Command);
 		}
 	}
 }
+
+void UFieldSystemComponent::ResetFieldSystem()
+{
+	if (FieldSystem)
+	{
+		BlueprintBufferedCommands.Reset();
+	}
+}
+
+void UFieldSystemComponent::AddFieldCommand(bool Enabled, EFieldPhysicsType Target, UFieldSystemMetaData* MetaData, UFieldNodeBase* Field)
+{
+	if (Field && FieldSystem)
+	{
+		TArray<const UFieldNodeBase*> Nodes;
+		FFieldSystemCommand Command = { GetFieldPhysicsName(Target), Field->NewEvaluationGraph(Nodes) };
+		if (ensureMsgf(Command.RootNode,
+			TEXT("Failed to generate physics field command for target attribute.")))
+		{
+			if (MetaData)
+			{
+				switch (MetaData->Type())
+				{
+				case FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution:
+					Command.MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution).Reset(new FFieldSystemMetaDataProcessingResolution(static_cast<UFieldSystemMetaDataProcessingResolution*>(MetaData)->ResolutionType));
+					break;
+				case FFieldSystemMetaData::EMetaType::ECommandData_Iteration:
+					Command.MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_Iteration).Reset(new FFieldSystemMetaDataIteration(static_cast<UFieldSystemMetaDataIteration*>(MetaData)->Iterations));
+					break;
+				}
+			}
+			ensure(!Command.TargetAttribute.IsEqual("None"));
+			BlueprintBufferedCommands.Add(Command);
+		}
+	}
+}
+
+
+
+

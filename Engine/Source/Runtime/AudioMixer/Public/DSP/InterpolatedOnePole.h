@@ -63,10 +63,10 @@ namespace Audio
 		TArray<float> Z1; // multi-channel delay terms
 		float* Z1Data{ nullptr };
 		int32 CurrInterpLength{ 0 };
-		int32 CurrInterpCounter{ 0 };
 		int32 NumInterpSteps;
 		float SampleRate{ 0 };
 		int32 NumChannels{ 1 };
+		int32 isFirstFrequencyChange : 1;
 
 	}; // class Interpolated Low pass filter
 
@@ -136,10 +136,11 @@ namespace Audio
 		TArray<float> Z1; // multi-channel delay terms
 		float* Z1Data{ nullptr };
 		int32 CurrInterpLength{ 0 };
-		int32 CurrInterpCounter{ 0 };
 		int32 NumInterpSteps;
 		float SampleRate{ 0 };
 		float NyquistLimit{ 0.0f };
 		int32 NumChannels{ 1 };
+		int32 isFirstFrequencyChange : 1;
+	
 	}; // class Interpolated High pass filter
 } // namespace Audio

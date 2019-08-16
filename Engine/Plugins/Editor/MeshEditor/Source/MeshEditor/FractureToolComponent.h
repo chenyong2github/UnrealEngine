@@ -23,7 +23,9 @@ class UFractureToolComponent : public UActorComponent
 	GENERATED_BODY()
 public:
 	UFractureToolComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
 	virtual void OnRegister()  override;
+	virtual void OnUnregister()  override;
 
 	/** Called at end of expansion slider movement, or after a fracture command */
 	void OnFractureExpansionEnd();
@@ -54,6 +56,9 @@ private:
 	UGeometryCollectionComponent* GetGeometryCollectionComponent(UEditableMesh* SourceMesh);
 	UGeometryCollectionComponent* GetGeometryCollectionComponent();
 
+	/** Cleanup bone colors and exploded geo */
+	void LeaveFracturingCleanup();
+
 	void ExplodeInLevels(class AGeometryCollectionActor* GeometryActor) const;
 	void ExplodeLinearly(class AGeometryCollectionActor* GeometryActor, EMeshFractureLevel FractureLevel) const;
 	float CalculateComponentScaling(class UGeometryCollectionComponent* GeometryCollectionComponent) const;
@@ -61,5 +66,6 @@ private:
 	bool HasExplodedAttributes(AGeometryCollectionActor* GeometryActor) const;
 
 	bool ShowBoneColors;
-
+	bool bInMeshEditorMode;
+	static bool bInFractureMode ;
 };

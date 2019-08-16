@@ -8,18 +8,18 @@ parent: Engine/Sequencer/HowTo
 order: 1
 tags: Sequencer
 type: how-to
+hero-image:image_0.png
 
 Within Sequencer, it is possible to animate variables on Anim Instances through Possessables, enabling you direct control of Anim Blueprint variables, functions and other content. By adding a Skeletal Mesh Component Track, you can gain access to the Anim Instance Track where any variables that are exposed to cinematics will be shown and available to keyframe. 
 
 In this how-to, we blend between multiple animation poses that are defined within an Animation Blueprint by keyframing those changes inside Sequencer. 
 
-[REGION:banner]
-![image alt text](image_0.png)
-[/REGION]
 
 ## Steps
 
+[REGION:note]
 For this guide we are using a new **Blueprint Third Person** template project.
+[/REGION]
 
 1. In the **Content/Mannequin/Character/Mesh **folder, right-click the **SK_Mannequin **then select **Anim Blueprint **under **Create **and give it any name. 
 

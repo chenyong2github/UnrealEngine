@@ -1,0 +1,43 @@
+Availability: Public
+Crumbs: 
+Title: Networking Requirements for the Multi-User Viewer
+Description: Describes requirements and considerations that apply when you connect multiple computers together into a design review experience.
+Type: 
+Version: 4.21
+Parent: Studio/UnrealStudioProjectTemplates/MultiUserViewer
+Order: 4
+Tags: Reference
+Tags: multi-user viewer
+topic-image:multiuserviewer-networking-topic.png
+
+
+This page describes some of the network requirements and considerations involved in getting multiple computers to connect together into the same runtime design review session using the Multi-User Viewer Template.
+
+## Connecting Over a Local Area Network
+
+The instructions on the [Getting Started](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MultiUserViewerIntro) page show how to connect multiple computers that are running within a simple local area network. You should have no problems connecting in this scenario as long as:
+
+1.  All computers are connected to the same network.
+2.  All computers have the standard Unreal Engine networking port **7777** open for communication within that network.
+3.  No intermediate network components, such as routers or network address traversal (NAT) services, are set up to block the connection.
+
+If you have problems connecting, please contact your network administrator.
+
+## Connecting Across Networks
+
+If you need to have computers join a session across multiple sub-nets or over the open Internet, you will almost certainly need to do some extra network configuration. The exact steps you'll need to follow depend on your network configuration. However, in general:   
+
+*   Your server host needs to be visible to all clients from a specific IP address. This may involve setting up NAT traversal rules on your router and opening your firewall to external communications on port 7777.
+*   Do not expect automatic server detection to work outside of the same network. Clients will need to manually specify the IP address of the server they want to connect to.
+
+[REGION:note]
+To avoid latency and lags, the Multi-User Viewer is best used locally within the same network.
+[/REGION]
+
+## Bandwidth Requirements
+
+Because the Multi-User Viewer template only replicates lightweight data across the network, such as the positions and view orientations of the users in the session and their laser pointers, network bandwidth usage should be relatively low. If you need exact measurements, you can profile how the template performs on your network using the [Network Profiler](Gameplay/Tools/NetworkProfiler).
+
+## Other Resources
+
+For additional information on how networking works in the Unreal Engine, see the documentation in the [Networking and Multiplayer](Gameplay/Networking) section.

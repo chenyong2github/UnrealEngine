@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	LUTBlender.usf: Filter pixel shader source.
+	LUTBlender.usf: Filter pixel shader source.   
 =============================================================================*/
 
 #define USE_COLOR_MATRIX	1
@@ -254,8 +254,13 @@ float4 CombineLUTsCommon(float2 InUV, uint InLayerIndex)
 	float3 LUTEncodedColor = Neutral.rgb;
 	float3 LinearColor;
 	// Decode texture values as ST-2084 (Dolby PQ)
-	if( GetOutputDevice() >= 3 )
-		LinearColor = ST2084ToLinear( LUTEncodedColor );
+	if (GetOutputDevice() >= 3)
+	{
+		// Since ST2084 returns linear values in nits, divide by a scale factor to convert
+		// the reference nit result to be 1.0 in linear.
+		// (for efficiency multiply by precomputed inverse)
+		LinearColor = ST2084ToLinear(LUTEncodedColor) * LinearToNitsScaleInverse;
+	}
 	// Decode log values
 	else
 		LinearColor = LogToLin( LUTEncodedColor ) - LogToLin( 0 );
@@ -294,7 +299,7 @@ float4 CombineLUTsCommon(float2 InUV, uint InLayerIndex)
 
 	ColorAP1 = ColorCorrectAll( ColorAP1 );
 
-	// Store for Legacy tonemap later
+	// Store for Legacy tonemap later and for Linear HDR output without tone curve
 	float3 GradedColor = mul( AP1_2_sRGB, ColorAP1 );
 
 	const float3x3 BlueCorrect =
@@ -434,6 +439,11 @@ float4 CombineLUTsCommon(float2 InUV, uint InLayerIndex)
 	{
 			float3 OutputGamutColor = mul( AP1_2_Output, mul( sRGB_2_AP1, GradedColor ) );
 			OutDeviceColor = LinearToST2084( OutputGamutColor );
+	}
+	// Linear HDR, including all color correction, but no tone curve
+	else if( GetOutputDevice() == 8 ) 
+	{
+			OutDeviceColor = GradedColor;
 	}
 
 	// OutputDevice == 2

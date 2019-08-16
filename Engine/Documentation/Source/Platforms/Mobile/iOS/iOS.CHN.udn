@@ -1,0 +1,28 @@
+﻿INTSourceChangelist:3782314
+Availability: Public
+Title: iOS游戏开发
+Crumbs:%ROOT%, Platforms
+Description:为iOS平台开发游戏。
+Platform:iOS
+Navigation:platform
+Version: 4.9
+type:landing
+parent:Platforms/Mobile
+tags:Mobile
+tags:iOS
+topic-image:iOSGameDevelopment_topic.png
+
+(#StartingOut)
+## 开始
+
+[DIR(output:"topiccompact" parent:"Platforms/Mobile/iOS" type:"quick start")]
+
+(#iOSHow-Tos)
+## iOS 开发指南
+
+[DIR(end:"1" output:"listbutton" type:"how-to" parent:"Platforms/Mobile/iOS")]
+
+(#GeneraliOSDevelopment)
+## 通用 iOS 开发
+
+[DIR(end:"1" output:"listbutton" type:"overview" parent:"Platforms/Mobile/iOS")]

@@ -104,16 +104,6 @@ TOptional<FWidgetAndPointer> FWidgetPath::FindArrangedWidgetAndCursor( TSharedRe
 		: FWidgetAndPointer();
 }
 
-	
-TSharedRef<SWindow> FWidgetPath::GetWindow()
-{
-	check(IsValid());
-
-	TSharedRef<SWindow> FirstWidgetWindow = StaticCastSharedRef<SWindow>(Widgets[0].Widget);
-	return FirstWidgetWindow;
-}
-
-
 TSharedRef<SWindow> FWidgetPath::GetWindow() const
 {
 	check(IsValid());
@@ -122,6 +112,17 @@ TSharedRef<SWindow> FWidgetPath::GetWindow() const
 	return FirstWidgetWindow;
 }
 
+TSharedRef<SWindow> FWidgetPath::GetDeepestWindow() const
+{
+	check(IsValid());
+	const int32 WindowIndex = Widgets.FindLastByPredicate([](const FArrangedWidget& SomeWidget)
+	{
+		return SomeWidget.Widget->Advanced_IsWindow();
+	});
+	check(WindowIndex != INDEX_NONE);
+	TSharedRef<SWindow> FirstWidgetWindow = StaticCastSharedRef<SWindow>(Widgets[WindowIndex].Widget);
+	return FirstWidgetWindow;
+}
 
 bool FWidgetPath::IsValid() const
 {
@@ -416,7 +417,7 @@ bool FWeakWidgetPath::ContainsWidget( const TSharedRef< const SWidget >& SomeWid
 
 FWidgetPath FWeakWidgetPath::ToNextFocusedPath(EUINavigation NavigationType) const
 {
-	return ToNextFocusedPath(NavigationType, FNavigationReply::Escape(), FArrangedWidget::NullWidget);
+	return ToNextFocusedPath(NavigationType, FNavigationReply::Escape(), FArrangedWidget::GetNullWidget());
 }
 
 FWidgetPath FWeakWidgetPath::ToNextFocusedPath(EUINavigation NavigationType, const FNavigationReply& NavigationReply, const FArrangedWidget& RuleWidget) const

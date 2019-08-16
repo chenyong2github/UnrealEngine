@@ -1,0 +1,24 @@
+INTSourceChangelist:6080284
+Availability: Public
+Title: 온라인 유저 인터페이스
+Description: Online User Interface 개요입니다.
+Type: overview
+Version: 4.21
+Parent: Programming/Online
+Tags: Online Subsystem
+Tags: online user interface
+Tags: userinfo
+Order: 15
+
+
+[TOC]
+
+**OnlineUser Interface** (온라인 유저 인터페이스)는 원격 및 로컬 사용자에 대해 캐시에 저장된 모든 정보와 메타데이터의 중앙 저장소입니다. 또한 이 인터페이스는 역방향 조회 기능을 제공하므로, 개발자는 표시명이나 이메일 주소에 따라 사용자 ID 를 검색하고 언리얼 엔진 4 의 네이티브 `FUniqueId` 시스템에 다시 매핑시킬 수 있습니다.
+
+## 사용자 메타데이터 얻기 및 조사
+
+사용자 메타데이터에 액세스하려면, 먼저 온라인 서비스에서 그 데이터를 요청하고 캐시에 저장해야 합니다. `QueryUserInfo` 를 호출할 때 정보를 원하는 사용자에 대한 `FUniqueNetId` 값 목록, 요청을 한 로컬 사용자의 인덱스를 붙이면 됩니다. 이는 비동기 프로세스이며, 완료되면 `OnQueryUserInfoComplete` 유형 델리게이트를 호출합니다. 쿼리에 성공하면 캐시에 사용자 정보가 채워지고, `GetAllUserInfo` 함수는 수집된 모든 데이터를 반환합니다. 데이터를 원하는 특정 사용자의 `FUniqueNetId` 가 있는 경우, `GetUserInfo` 에 그 `FUniqueNetId` 를 붙여 호출하면 그 사용자의 데이터만 얻을 수 있습니다.
+
+## 외부 사용자 ID 매핑
+
+대부분의 온라인 서비스는 표시명이나 이메일 주소로 사용자를 검색하는 기능을 지원합니다. OnlineUser Interface 는 `QueryUserIdMapping` 으로 이 기능에 대한 미러링을 제공하는데, 표시명이나 이메일 주소를 받아 온라인 서비스를 통해 `FUniqueNetId` 로 매핑을 시도합니다. 그 과정에서 온라인 서비스에 접속하므로 비동기식이며, 완료되면 `FOnQueryUserMappingComplete` 를 호출합니다. 대부분의 정보 요청과 달리 이 함수는 캐시를 업데이트하지 않습니다. 대신, 작업이 성공하면 델리게이트의 페이로드에 검색해서 알고 있는 표시명이나 이메일 주소와, 온라인 서비스가 찾은 `FUniqueNetId` 결과가 포함됩니다.

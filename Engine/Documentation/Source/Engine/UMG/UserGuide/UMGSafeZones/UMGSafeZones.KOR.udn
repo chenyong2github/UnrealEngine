@@ -1,10 +1,10 @@
-﻿INTSourceChangelist:4284888
+﻿INTSourceChangelist:6417486
 Availability: Public
 Crumbs: 
 Title: UMG 세이프 존
 Description: 플레이어가 볼 수 없는 디스플레이 영역으로 UI 가 넘어가지 않도록 해주는 Safe Zone 에 대한 설명입니다.
 Version: 4.20
-Parent: Engine/
+Parent: Engine/UMG/UserGuide
 Order: 5 
 Tags: UMG UI Designer
 Tags: UMG

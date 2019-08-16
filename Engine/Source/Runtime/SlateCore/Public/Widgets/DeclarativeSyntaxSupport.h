@@ -11,6 +11,7 @@
 #include "GenericPlatform/ICursor.h"
 #include "Types/ISlateMetaData.h"
 #include "Widgets/SNullWidget.h"
+#include "Widgets/Accessibility/SlateWidgetAccessibleTypes.h"
 
 class IToolTip;
 class SUserWidget;
@@ -783,11 +784,13 @@ struct TSlateBaseNamedArgs
 	, _IsEnabled( true )
 	, _Visibility( EVisibility::Visible )
 	, _RenderOpacity(1.0f)
-	, _RenderTransform( )
-	, _RenderTransformPivot( FVector2D::ZeroVector )
 	, _ForceVolatile( false )
 	, _Clipping( EWidgetClipping::Inherit )
 	, _FlowDirectionPreference( EFlowDirectionPreference::Inherit )
+	, _RenderTransform( )
+	, _RenderTransformPivot( FVector2D::ZeroVector )
+	, _AccessibleParams()
+	, _AccessibleText()
 	{
 	}
 
@@ -826,12 +829,14 @@ struct TSlateBaseNamedArgs
 	SLATE_ATTRIBUTE( bool, IsEnabled )
 	SLATE_ATTRIBUTE( EVisibility, Visibility )
 	SLATE_ARGUMENT( float, RenderOpacity )
-	SLATE_ATTRIBUTE( TOptional<FSlateRenderTransform>, RenderTransform )
-	SLATE_ATTRIBUTE( FVector2D, RenderTransformPivot )
-	SLATE_ARGUMENT( FName, Tag )
 	SLATE_ARGUMENT( bool, ForceVolatile )
 	SLATE_ARGUMENT( EWidgetClipping, Clipping )
 	SLATE_ARGUMENT( EFlowDirectionPreference, FlowDirectionPreference)
+	SLATE_ATTRIBUTE( TOptional<FSlateRenderTransform>, RenderTransform )
+	SLATE_ATTRIBUTE( FVector2D, RenderTransformPivot )
+	SLATE_ARGUMENT( FName, Tag )
+	SLATE_ARGUMENT(TOptional<FAccessibleWidgetData>, AccessibleParams)
+	SLATE_ATTRIBUTE(FText, AccessibleText)
 
 	TArray<TSharedRef<ISlateMetaData>> MetaData;
 };
@@ -1105,6 +1110,7 @@ struct TDecl
 			InArgs._ForceVolatile,
 			InArgs._Clipping,
 			InArgs._FlowDirectionPreference,
+			InArgs._AccessibleText.IsSet() ? FAccessibleWidgetData(InArgs._AccessibleText) : InArgs._AccessibleParams,
 			InArgs.MetaData );
 
 		_RequiredArgs.CallConstruct(_Widget, InArgs);

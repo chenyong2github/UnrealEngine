@@ -1,20 +1,20 @@
 Availability: Public
-Crumbs: %ROOT%
 Title: Mobile Previewer
 Description: Previewing your games inside the UE4 Editor is based on the selected Mobile Platforms.
-Type: Overview
+Type: overview
+Version: 4.22
+Parent: Platforms/Mobile
+Tags: mobile
 skilllevel:Beginner
-Version:4.16
-Parent:Platforms/Mobile
-Related:Platforms/Mobile
-Related:Engine/Rendering
-Related:Engine/UI/LevelEditor
-Order:7
-Tags:Mobile
-Topic-image:MobilePreview_topic.png
-Social-Image:T_Rendering_Level_Examples.png
+topic-image: MobilePreview_topic.png
+social-image: T_Rendering_Level_Examples.png
+Order: 16
+Related: Engine/UI/LevelEditor
+Related: Engine/Rendering
+Related: Platforms/Mobile
 
-[TOC(start:2 end:2)]
+
+[TOC (start:2 end:2)]
 
 ![](T_Rendering_Level_Examples.png)
 
@@ -22,7 +22,7 @@ Social-Image:T_Rendering_Level_Examples.png
 1:Mobile / HTML5 - Open GL ES2, 2:Shader Model 4.0 - DX10/ OpenGL 3.3+, 3:Shader Model 5.0 - DX11/ OpenGL 4.3+.
 [/REGION]
 
-In Unreal Engine 4 (UE4), you can use the **Mobile Previewer** to preview what your scene will look like on different mobile devices directly in the UE4 Editor viewport. When enabling the different preview rendering levels, the Materials in your scene will be recompiled to best emulate the look and feature set of the renderer preview that you selected. The Mobile Previewer enables you to switch back and forth between rendering levels seamlessly without having to restart the editor.
+In Unreal Engine 4 (UE4), you can use the **Mobile Previewer** to preview what your scene will look like on different mobile devices directly in the UE4 Editor viewport. When enabling the different preview rendering levels, the Materials in your scene will be recompiled to best emulate the look and feature set of the renderer preview that you selected. The Mobile Previewer enables you to switch back and forth between rendering levels seamlessly, without having to restart the editor.
 
 ## Using the Mobile Previewer
 
@@ -32,84 +32,80 @@ The **Mobile Previewer** enables you to quickly change between different rendere
 While you do not need to restart the Editor for the new preview rendering level to take effect, the first time you change to a preview rendering level the editor will need to time to recompile the shaders. Subsequent changes to previously used rendering levels should be nearly instantaneous.
 [/REGION]
 
-1.  From the Main Toolbar, select the **Settings** button to expand the listed menu items. Under the **Scalability** section, hover over the **Preview Rendering Level** to expose the different rendering levels options you can select from.
+1.  From the Main Toolbar, select the **Settings** button to expand the listed menu items. Under the **Scalability** section, hover over the **Preview Rendering Level** to expose the different rendering levels options you can select from.  
+    ![](mobile_preview_level.png "mobile_preview_level.png")  
     
-    ![](PreviewRenderingLevel.png)(w:475)
-2.  Hover the mouse over the section rendering level you'd like to preview and then left-mouse click to select it. In this example, **Android Vulkan Preview** was selected.
+1.  Hover the mouse over the section rendering level you'd like to preview and then left-mouse click to select it.  
+    You will see the Changing Preview Rendering Level progress bar pop-up. Wait for this to finish and recompile shaders.  
+    ![](ChangingPreviewRenderingLevel.png)(w:450)  
+    The **Preview Mode** button appears next to the **Settings** button, the button shows the icon for the selected preview mode. Clicking it disables the Mobile Previewer.   
+    ![](previewer_icon.png "previewer_icon.png")
+
+1.  Once a rendering level has been selected, the Materials in the viewport will automatically update to reflect the new rendering method using the Material Qualities enabled or disabled for for that target platform. (See the [Platform Material Quality Settings](Platforms/Mobile/Previewer#platformmaterialqualitysettings) section of this page for more details on how to adjust these further.)
     
-    ![](SelectTargetPlatform.png)
-    
-    You will see the **Changing Preview Rendering Level** progress bar pop-up. Wait for this to finish and recompile shaders.
-    
-    ![](ChangingPreviewRenderingLevel.png)(w:450)
-3.  Once a rendering level has been selected, the Materials in the viewport will automatically update to reflect the new rendering method using the Material Qualities enabled or disabled for for that target platform. (See the [Platform Material Quality Settings](Platforms/Mobile/Previewer#platformmaterialqualitysettings) section of this page for more details on how to adjust these further.)
-    
-    [OBJECT:ComparisonSlider]
-     [PARAM:before]
-     ![Android Vulkan Preview](VulkanPreview.png) 
-     [/PARAM]
-     [PARAM:after]
-     ![Desktop Shader Model 5 (SM5) Preview](Sm5Preview.png) 
-     [/PARAM]
-    [/OBJECT]
-    
+	[OBJECT:ComparisonSlider]
+		[PARAM:before]
+		![Android Vulkan Preview](VulkanPreview.png)
+		Android Vulkan Preview
+		[/PARAM]
+		[PARAM:after]
+		![Desktop Shader Model 5 (SM5) Preview](Sm5Preview.png)
+		Desktop Shader Model 5 (SM5) Preview
+		[/PARAM]
+	[/OBJECT]
 
 [REGION:note]
 The Mobile Previewer is intended to match mobile devices as closely as possible but it may not always be indicative of what your project is going to look like on the target device. You should always make sure to fully test your project on your target device and only use the mobile previewer to see if your work is headed in the right direction.
 [/REGION]
 
-### Using Mobile Previewer in 4.8 or Earlier
+### Mobile Previewer in PIE
 
-In version 4.8 of Unreal Engine, you do not have the ability to change the editor viewport rendering method to simulate mobile rendering. To see what your project could like on mobile, you have to launch a Standalone game using the **Enable Mobile Preview** option.
+You can use the **Mobile Preview ES2 (PIE)** option to launch a standalone version of your UE4 mobile project that will use the same rendering path as if the project was run on a mobile device. This is a great way to preview the changes you are making without having to go through the entire cooking and deploying process. To launch your UE4 project in a Standalone game that uses the Mobile Preview, you will need to do the following:
 
-To enable Mobile Preview mode you will need to do the following:
+1.  From the **Main Toolbar,** click on the drop-down button that is next to the **Play** button to expose the **Change Play Mode and Play Settings** settings.  
+    ![](ShowPlayModeOptions.png "ShowPlayModeOptions.png")
 
-1.  From the Main Toolbar, select the arrow that is next to the **Play** button to expose the different play modes.
+1.  Select **Mobile Preview ES2 (PIE)** option and your project will then be launched in a new window that simulates what your project should look like on a mobile device.  
     
-2.  Select **Mobile Preview** and your project will then be launched in a new window that simulates what your project should look like on a mobile device.
-    
-    ![](T_Activate_Mobile_Preview.png)
-    
+    ![](T_Activate_Mobile_Preview-1.png "T_Activate_Mobile_Preview-1.png")  
 
-## Enabling High-End Mobile Preview Platforms
+## Enabling Vulkan Mobile Preview
 
-For some platforms, like the high-end ones for Android OPENGLES 3.1, Android Vulkan, and iOS Metal, you can choose to enable or disable these individually as a Preview Rendering Level that will populate the preview list for **High-End Mobile / Metal**. When these target platforms are enabled or disabled, they will be added or removed from the list accordingly.
+You can use the **Vulkan Mobile Preview (PIE)** option to launch a standalone version of your UE4 mobile project using the Vulkan render. This is a great way to preview the changes you are making without having to go through the entire cooking and deploying process. To launch your UE4 project in a Standalone game that uses the Vulkan Mobile Preview, you will need to do the following:
 
-Use the steps below to learn how to enable or disable these target platforms from being used with the Mobile Previewer.
+1.  To enable the Vulkan Previewer you will need to first open up the **Editor Preferences** by going to the **Main Toolbar** and clicking on **Edit** and then select **Editor Preferences**.  
+    ![](VulkanMobilePreview_EditorPreferences-2.png "VulkanMobilePreview_EditorPreferences-2.png")
 
-1.  Start by opening the **Project Settings** window by going to the file menu > **Edit** \> **Window** \> **Project Settings**.
-    
-    ![](OpenProjectSettings.png)(w:300)
-2.  In the **Project Settings** under the **Platforms** section, select either the **Android** or **iOS** section.
-    
+1.  In the Editor Preferences menu, locate the **General** heading and then click on the **Experimental** section.  
     [REGION:lightbox]
-    [![](PS_SelectPlatform.png)(w:900)](PS_SelectPlatform.png)
+    [![](VulkanMobilePreview_ExpermentalOptions.png)(w:500px)](VulkanMobilePreview_ExpermentalOptions.png)
     [/REGION]
     [REGION:caption]
-    Click image for full size view.
+    Click for full image.
     [/REGION]
-    
-    For **Android OPENGLES 3.1** and **VULKAN** previews, in the **Android** section under **Build**, set the options for **Support OpenGLES 3.1** or **Support Vulkan**.
-    
-    ![](AndroidTarget.png)(w:650)
-    
-    For **iOS Metal**, in the **iOS** section under **Rendering**, set the option for **Support Forward Rendering with Metal (A7 and up devices)**.
-    
-    ![](MetalTarget.png)(w:650)
-3.  Once any of these have been enabled or disabled you will see the list of supported platforms update in the Preview Rendering Levels list.
-    
-    ![](HighEndPreviewEnabled.png)
-    
+
+1.  Locate the **PIE** section and then click on the **Allow Vulkan Mobile Preview** option to enable it.  
+    [REGION:lightbox]
+    [![](VulkanMobilePreview_EnableVulkan.png)(w:500px)](VulkanMobilePreview_EnableVulkan.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Close the Editor Preferences menu and then from the **Main Toolbar**, click on the drop-down button that is next to the **Play** button to expose the **Change Play Mode and Play Settings** settings.  
+    ![](ShowPlayModeOptions.png "ShowPlayModeOptions.png")
+
+1.  Select the **Vulkan Mobile Preview (PIE)** option and your project will then be launched in a new window that simulates what your project should look like on a mobile device.  
+    ![](VulkanMobilePreview_UseVulkanMobilePreview.png "VulkanMobilePreview_UseVulkanMobilePreview.png")  
 
 ## Platform Material Quality Settings
 
-In the **Project Settings** under the **Platforms** category, you can select different platform **Material Quality** sections to enable or disable specific features for the target platform.
-
+In the **Project Settings** under the **Platforms** category, you can select different platform **Material Quality** sections to enable or disable specific features for the target platform.  
 [REGION:lightbox]
-[![](MaterialQualityProjectSettings.png)(w:900)](MaterialQualityProjectSettings.png)
+[![](MaterialQualityProjectSettings.png)(w:500px)](MaterialQualityProjectSettings.png)
 [/REGION]
 [REGION:caption]
-Click image for full size view.
+Click for full image.
 [/REGION]
 
 For any of these changes to take effect, be sure to click the **Update Preview Shaders** button.
@@ -118,21 +114,53 @@ For any of these changes to take effect, be sure to click the **Update Preview S
 
 ## Preview Rendering Level Selections
 
-When you select your Preview Rendering Level, you will have a few options select from. Use the table below to select the option that best fits your target device.
+When you select your Preview Rendering Level, you will have a few options to select from. Use the table below to select the option that best fits your target device.
 
+[REGION:raw]
 | Device Target | Description |
 | --- | --- |
-| [REGION:tablesection]High-End Mobile / Metal [/REGION] ||
+| [REGION:tablesection]High-End Mobile / Metal[/REGION] ||
 | **Default High-End Mobile** | This will emulate the default high-end mobile material quality settings without using any material quality overrides specified in the Project Settings. |
-| **Android GLES 3.1** | Provides a preview emulation of supported Android OpenGL ES3.1 quality settings. The Material Quality settings can be set in the **Project Settings** \> **Android Material Quality - ES31** section. |
-| **Android Vulkan** | Provides a preview emulation of supported Android Vulkan quality settings. The Material Quality settings can be set in the **Project Settings** \> **Android Material Quality - Vulkan** section. |
-| **iOS Metal** | Provides a preview emulation of supported iOS Metal quality settings. The Material Quality settings can be set in the **Project Settings** \> **iOS Material Quality - Metal** section. |
-| [REGION:tablesection]Mobile / HTML5[/REGION]||
+| **Android GLES 3.1** | Provides a preview emulation of supported Android OpenGL ES3.1 quality settings. The Material Quality settings can be set in the **Project Settings** > **Android Material Quality - ES31** section. |
+| **Android Vulkan** | Provides a preview emulation of supported Android Vulkan quality settings. The Material Quality settings can be set in the **Project Settings** > **Android Material Quality - Vulkan** section. |
+| **iOS Metal** | Provides a preview emulation of supported iOS Metal quality settings. The Material Quality settings can be set in the **Project Settings** > **iOS Material Quality - Metal** section. |
+| [REGION:tablesection]Mobile / HTML5[/REGION] ||
 | **Default Mobile / HTML5** | This will emulate the default mobile material quality settings without using any material quality overrides specified in the **Project Settings**. |
-| **Android** | Provides a preview emulation of supported Android OpenGL ES2 quality settings. The Material Quality settings can be set in the **Project Settings** \> **Android Material Quality - ES2** section. |
-| **iOS ES2** | Provides a preview emulation of supported iOS OpenGL ES2 quality settings. The Material Quality settings can be set in the **Project Settings** \> **iOS Material Quality - ES2** section. |
-
-
-[REGION: note]
+| **Android** | Provides a preview emulation of supported Android OpenGL ES2 quality settings. The Material Quality settings can be set in the **Project Settings** > **Android Material Quality - ES2** section. |
+| **iOS ES2** | Provides a preview emulation of supported iOS OpenGL ES2 quality settings. The Material Quality settings can be set in the **Project Settings** > **iOS Material Quality - ES2** section. |
+[/REGION]
+[REGION:note]
 Some of the available Preview Rendering Levels are not visible until you've enabled them as a target platform via the Project Settings, namely, Android OpenGLES 3.1 and Android Vulkan. iOS Metal defaults to on, however, it will also be removed as an available preview option if its target platform is disabled.
 [/REGION]
+
+## Mobile Device Preview Options
+
+Due to the wide range of mobile phone bezel designs, it can be challenging to make sure that parts of your UI are not obscured by the mobile device's bevel. To help make sure your UI is not obscured by the device, you can use the **Device Launch** option to overlay different mobile phone bezel designs. To use this in your UE4 project, all you need to do is the following.
+
+1.  First, open up your **Editor Preferences** by going to the **Main Toolbar** and clicking on **Edit** and then select **Editor Preferences**.  
+    ![](VulkanMobilePreview_EditorPreferences-2.png "VulkanMobilePreview_EditorPreferences-2.png")
+
+1.  In the **Editor Preferences** menu, locate the **General** heading and then click on the **Experimental** section.  
+    [REGION:lightbox]
+    [![](VulkanMobilePreview_ExpermentalOptions.png)(w:500px)](VulkanMobilePreview_ExpermentalOptions.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Locate the **PIE** section and then click on the **Enable mobile PIE with preview device launch options** to enable the bezel overlays.  
+    [REGION:lightbox]
+    [![](EnableDevicePreview.png)(w:500px)](EnableDevicePreview.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Close the Editor Preferences menu and then from the **Main Toolbar**, click on the drop-down button that is next to the **Play** button to expose the **Change Play Mode and Play Settings** settings.  
+    ![](ShowPlayModeOptions.png "ShowPlayModeOptions.png")
+
+1.  From the displayed menu, go to **Mobile Preview (PIE)** > **Android** and then select the device you want to test against from the list.  
+    ![](SelectDevicePreview.png "SelectDevicePreview.png")
+
+1.  Now click the **Launch** button to launch your project. When your project loads it will be using the device preview like in the following image.  
+    ![](PhoneBezel.png "PhoneBezel.png")

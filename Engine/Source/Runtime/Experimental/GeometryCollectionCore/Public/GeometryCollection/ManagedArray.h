@@ -1,13 +1,66 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "Containers/Array.h"
-#include "GeometryCollection/GeometryCollectionBoneNode.h"
 #include "GeometryCollection/GeometryCollectionSection.h"
 #include "Templates/SharedPointer.h"
 #include "Templates/UnrealTemplate.h"
+#include "Chaos/ChaosArchive.h"
+#include "UObject/DestructionObjectVersion.h"
 
 class FManagedArrayCollection;
 DEFINE_LOG_CATEGORY_STATIC(UManagedArrayLogging, NoLogging, All);
+
+template <typename T>
+void TryBulkSerializeManagedArray(Chaos::FChaosArchive& Ar, TArray<T>& Array)
+{
+	Ar << Array;
+}
+
+//Note: see TArray::BulkSerialize for requirements
+inline void TryBulkSerializeManagedArray(Chaos::FChaosArchive& Ar, TArray<FVector>& Array)
+{
+	Array.BulkSerialize(Ar);
+}
+
+inline void TryBulkSerializeManagedArray(Chaos::FChaosArchive& Ar, TArray<FGuid>& Array)
+{
+	Array.BulkSerialize(Ar);
+}
+
+inline void TryBulkSerializeManagedArray(Chaos::FChaosArchive& Ar, TArray<FIntVector>& Array)
+{
+	Array.BulkSerialize(Ar);
+}
+
+inline void TryBulkSerializeManagedArray(Chaos::FChaosArchive& Ar, TArray<FVector2D>& Array)
+{
+	Array.BulkSerialize(Ar);
+}
+
+inline void TryBulkSerializeManagedArray(Chaos::FChaosArchive& Ar, TArray<float>& Array)
+{
+	Array.BulkSerialize(Ar);
+}
+
+inline void TryBulkSerializeManagedArray(Chaos::FChaosArchive& Ar, TArray<FQuat>& Array)
+{
+	Array.BulkSerialize(Ar);
+}
+
+inline void TryBulkSerializeManagedArray(Chaos::FChaosArchive& Ar, TArray<bool>& Array)
+{
+	Array.BulkSerialize(Ar);
+}
+
+inline void TryBulkSerializeManagedArray(Chaos::FChaosArchive& Ar, TArray<int32>& Array)
+{
+	Array.BulkSerialize(Ar);
+}
+
+inline void TryBulkSerializeManagedArray(Chaos::FChaosArchive& Ar, TArray<uint8>& Array)
+{
+	Array.BulkSerialize(Ar);
+}
 
 /***
 *  Managed Array Base
@@ -27,6 +80,23 @@ protected:
 	virtual void Resize(const int32 Num) {};
 
 	/**
+	* Protected access to array reservation. Only the managers of the Array
+	* are allowed to perform a reserve. (see friend list above).
+	*/
+	virtual void Reserve(const int32 Num) {};
+
+	/**
+	 * Reorder elements given a new ordering. Sizes must match
+	 */
+	virtual void Reorder(const TArray<int32>& NewOrder) = 0;
+
+	/** 
+	* Reindex given a lookup table
+	*/
+	//todo: this should really assert, but material is currently relying on both faces and vertices
+	virtual void ReindexFromLookup(const TArray<int32>& NewOrder) { }
+
+	/**
 	* Init from a predefined Array
 	*/
 	virtual void Init(const FManagedArrayBase& ) {};
@@ -35,11 +105,16 @@ public:
 
 	virtual ~FManagedArrayBase() {}
 
-	/** Return unmanaged copy of array. */
-	virtual FManagedArrayBase * NewCopy() 
-	{ 
-		check(false); 
-		return nullptr; 
+	
+	//todo(ocohen): these should all be private with friend access to managed collection
+	
+	/** Perform a memory move between the two arrays */
+	virtual void ExchangeArrays(FManagedArrayBase& Src) = 0;
+
+	/** Remove elements */
+	virtual void RemoveElements(const TArray<int32>& SortedDeletionList)
+	{
+		check(false);
 	}
 
 	/** Return unmanaged copy of array with input indices. */
@@ -55,8 +130,14 @@ public:
 		return 0; 
 	};
 
+	/** The reserved length of the array.*/
+	virtual int32 Max() const
+	{
+		return 0;
+	};
+
 	/** Serialization */
-	virtual void Serialize(FArchive& Ar) 
+	virtual void Serialize(Chaos::FChaosArchive& Ar) 
 	{
 		check(false);
 	}
@@ -74,8 +155,20 @@ public:
 	*/
 	virtual void Reindex(const TArray<int32> & Offsets, const int32 & FinalSize, const TArray<int32> & SortedDeletionList) { }
 
+#if 0 //not needed until per instance serialization
+	/** Swap elements*/
+	virtual void Swap(int32 Index1, int32 Index2) = 0;
+#endif
+
 };
 
+template <typename T>
+class TManagedArrayBase;
+
+template <typename T>
+void InitHelper(TArray<T>& Array, const TManagedArrayBase<T>& NewTypedArray, int32 Size);
+template <typename T>
+void InitHelper(TArray<TUniquePtr<T>>& Array, const TManagedArrayBase<TUniquePtr<T>>& NewTypedArray, int32 Size);
 
 /***
 *  Managed Array
@@ -113,12 +206,19 @@ public:
 	/**
 	* Move Constructor
 	*/
-	FORCEINLINE TManagedArrayBase(TManagedArrayBase<ElementType>&& Other) = delete;
+	FORCEINLINE TManagedArrayBase(TManagedArrayBase<ElementType>&& Other)
+		: Array(MoveTemp(Other.Array))
+	{}
 
 	/**
 	* Assignment operator
 	*/
-	FORCEINLINE TManagedArrayBase& operator=(TManagedArrayBase<ElementType>&& Other) = delete;
+	FORCEINLINE TManagedArrayBase& operator=(TManagedArrayBase<ElementType>&& Other)
+	{
+		Array = MoveTemp(Other.Array);
+		return *this;
+	}
+
 
 
 	/**
@@ -128,36 +228,32 @@ public:
 	virtual ~TManagedArrayBase()
 	{}
 
-	/**
-	* Return a copy of the ManagedArray.
-	*/
-	virtual FManagedArrayBase * NewCopy() override
-	{
-		return new TManagedArrayBase<ElementType>(Array);
-	}
 
-	virtual FManagedArrayBase * NewCopy(const TArray<int32> & SortedDeletionList) override
+	virtual void RemoveElements(const TArray<int32>& SortedDeletionList) override
 	{
-		int32 ArraySize = Array.Num();
-		int32 DeletionListSize = SortedDeletionList.Num();
-		TManagedArrayBase<ElementType>* BaseArray = new TManagedArrayBase<ElementType>();
-		BaseArray->Resize(ArraySize - DeletionListSize);
-
-		// walk the old array skipping the deleted indices
-		int32 IndexA = 0, IndexB = 0, DelIndex = 0;
-		for (; DelIndex < DeletionListSize; DelIndex++, IndexA++)
+		if (SortedDeletionList.Num() == 0)
 		{
-			while (IndexA < SortedDeletionList[DelIndex])
+			return;
+		}
+
+		int32 RangeStart = SortedDeletionList.Last();
+		for (int32 ii = SortedDeletionList.Num()-1 ; ii > -1 ; --ii)
+		{
+			if (ii == 0)
 			{
-				BaseArray->operator[](IndexB++) = Array[IndexA++];
+				Array.RemoveAt(SortedDeletionList[0], RangeStart - SortedDeletionList[0] + 1, false);
+
+			}
+			else if (SortedDeletionList[ii] != (SortedDeletionList[ii - 1]+1)) // compare this and previous values to make sure the difference is only 1.
+			{
+				Array.RemoveAt(SortedDeletionList[ii], RangeStart - SortedDeletionList[ii] + 1, false);
+				RangeStart = SortedDeletionList[ii-1];
 			}
 		}
-		for (int32 Index = IndexA; Index < ArraySize && IndexB<BaseArray->Num(); Index++)
-		{
-			BaseArray->operator[](IndexB++) = Array[Index];
-		}
-		return BaseArray;
+
+ 		Array.Shrink();
 	}
+
 
 	/**
 	* Init from a predefined Array of matching type
@@ -169,10 +265,23 @@ public:
 		int32 Size = NewTypedArray.Num();
 
 		Resize(Size);
-		for (int32 Index = 0; Index < Size; Index++)
-		{
-			Array[Index] = NewTypedArray[Index];
-		}
+		InitHelper(Array, NewTypedArray, Size);
+	};
+
+#if 0
+	virtual void Swap(int32 Index1, int32 Index2) override
+	{
+		Exchange(Array[Index1], Array[Index2]);
+	}
+#endif
+
+	virtual void ExchangeArrays(FManagedArrayBase& NewArray) override
+	{
+		//It's up to the caller to make sure that the two arrays are of the same type
+		ensureMsgf(NewArray.GetTypeSize() == GetTypeSize(), TEXT("TManagedArrayBase<T>::Exchange : Invalid array types."));
+		TManagedArrayBase<ElementType>& NewTypedArray = static_cast<TManagedArrayBase<ElementType>& >(NewArray);
+
+		Exchange(*this, NewTypedArray);
 	};
 
 	/**
@@ -192,6 +301,16 @@ public:
 	FORCEINLINE const ElementType & operator[](int Index) const
 	{
 		return Array[Index];
+	}
+
+	/**
+	* Helper function for returning a typed pointer to the first array entry.
+	*
+	* @returns Pointer to first array entry or nullptr if ArrayMax == 0.
+	*/
+	FORCEINLINE ElementType* GetData()
+	{
+		return &Array.operator[](0);
 	}
 
 	/**
@@ -224,6 +343,16 @@ public:
 		return Array.Num();
 	}
 
+	FORCEINLINE int32 Max() const override
+	{
+		return Array.Max();
+	}
+
+	FORCEINLINE bool Contains(const ElementType& Item) const
+	{
+		return Array.Contains(Item);
+	}
+
 	/**
 	* Find first index of the element
 	*/
@@ -246,18 +375,54 @@ public:
 	/**
 	* Serialization Support
 	*
-	* @param FArchive& Ar
+	* @param Chaos::FChaosArchive& Ar
 	*/
-	virtual void Serialize(FArchive& Ar)
+	virtual void Serialize(Chaos::FChaosArchive& Ar)
 	{		
+		Ar.UsingCustomVersion(FDestructionObjectVersion::GUID);
 		int Version = 1;
 		Ar << Version;
-		Ar << Array;
+	
+		if (Ar.CustomVer(FDestructionObjectVersion::GUID) < FDestructionObjectVersion::BulkSerializeArrays)
+		{
+			Ar << Array;
+		}
+		else
+		{
+			TryBulkSerializeManagedArray(Ar, Array);
+		}
 	}
 
 	// @todo Add RangedFor support. 
 
+
+	// TARRAY_RANGED_FOR_CHECKS Is defined in Array.h based on build state.
+#if TARRAY_RANGED_FOR_CHECKS
+	// @todo: What is the appropriate size type?
+	typedef TCheckedPointerIterator<      ElementType, int32> RangedForIteratorType;
+	typedef TCheckedPointerIterator<const ElementType, int32> RangedForConstIteratorType;
+#else
+	typedef       ElementType* RangedForIteratorType;
+	typedef const ElementType* RangedForConstIteratorType;
+#endif
+
 private:
+
+	/**
+	* DO NOT USE DIRECTLY
+	* STL-like iterators to enable range-based for loop support.
+	*/
+#if TARRAY_RANGED_FOR_CHECKS
+	FORCEINLINE friend RangedForIteratorType      begin(      TManagedArrayBase& ManagedArray) { return RangedForIteratorType     (ManagedArray.Num(), ManagedArray.GetData()); }
+	FORCEINLINE friend RangedForConstIteratorType begin(const TManagedArrayBase& ManagedArray) { return RangedForConstIteratorType(ManagedArray.Num(), ManagedArray.GetData()); }
+	FORCEINLINE friend RangedForIteratorType      end  (      TManagedArrayBase& ManagedArray) { return RangedForIteratorType     (ManagedArray.Num(), ManagedArray.GetData() + ManagedArray.Num()); }
+	FORCEINLINE friend RangedForConstIteratorType end  (const TManagedArrayBase& ManagedArray) { return RangedForConstIteratorType(ManagedArray.Num(), ManagedArray.GetData() + ManagedArray.Num()); }
+#else
+	FORCEINLINE friend RangedForIteratorType      begin(      TManagedArrayBase& ManagedArray) { return ManagedArray.GetData(); }
+	FORCEINLINE friend RangedForConstIteratorType begin(const TManagedArrayBase& ManagedArray) { return ManagedArray.GetData(); }
+	FORCEINLINE friend RangedForIteratorType      end  (      TManagedArrayBase& ManagedArray) { return ManagedArray.GetData() + ManagedArray.Num(); }
+	FORCEINLINE friend RangedForConstIteratorType end  (const TManagedArrayBase& ManagedArray) { return ManagedArray.GetData() + ManagedArray.Num(); }
+#endif
 
 	/**
 	* Protected Resize to prevent external resizing of the array
@@ -269,9 +434,48 @@ private:
 		Array.SetNum(Size,true);
 	}
 
+	/**
+	* Protected Reserve to prevent external reservation of the array
+	*
+	* @param New array reservation size.
+	*/
+	void Reserve(const int32 Size)
+	{
+		Array.Reserve(Size);
+	}
+
+	void Reorder(const TArray<int32>& NewOrder) override
+	{
+		const int32 NumElements = Num();
+		check(NewOrder.Num() == NumElements);
+		TArray<InElementType> NewArray;
+		NewArray.AddDefaulted(NumElements);
+		for (int32 OriginalIdx = 0; OriginalIdx < NumElements; ++OriginalIdx)
+		{
+			NewArray[OriginalIdx] = MoveTemp(Array[NewOrder[OriginalIdx]]);
+		}
+		Exchange(Array, NewArray);
+	}
+
 	TArray<InElementType> Array;
 
 };
+
+template <typename T>
+void InitHelper(TArray<T>& Array, const TManagedArrayBase<T>& NewTypedArray, int32 Size)
+{
+	for (int32 Index = 0; Index < Size; Index++)
+	{
+		Array[Index] = NewTypedArray[Index];
+	}
+}
+
+template <typename T>
+void InitHelper(TArray<TUniquePtr<T>>& Array, const TManagedArrayBase<TUniquePtr<T>>& NewTypedArray, int32 Size)
+{
+	check(false);	//Cannot make copies of a managed array with unique pointers. Typically used for shared data
+}
+
 
 template<class InElementType>
 class TManagedArray : public TManagedArrayBase<InElementType>
@@ -284,9 +488,17 @@ public:
 		: TManagedArrayBase<InElementType>(Other)
 	{}
 
+	FORCEINLINE TManagedArray(TManagedArray<InElementType>&& Other)
+		: TManagedArrayBase<InElementType>(MoveTemp(Other))
+	{}
+
+	FORCEINLINE TManagedArray& operator=(TManagedArray<InElementType>&& Other)
+	{
+		TManagedArrayBase<InElementType>::operator=(MoveTemp(Other));
+		return *this;
+	}
+
 	FORCEINLINE TManagedArray(const TManagedArray<InElementType>& Other) = delete;
-	FORCEINLINE TManagedArray(TManagedArray<InElementType>&& Other) = delete;
-	FORCEINLINE TManagedArray& operator=(TManagedArray<InElementType>&& Other) = delete;
 
 	virtual ~TManagedArray()
 	{}
@@ -306,8 +518,8 @@ public:
 	{}
 
 	FORCEINLINE TManagedArray(const TManagedArray<int32>& Other) = delete;
-	FORCEINLINE TManagedArray(TManagedArray<int32>&& Other) = delete;
-	FORCEINLINE TManagedArray& operator=(TManagedArray<int32>&& Other) = delete;
+	FORCEINLINE TManagedArray(TManagedArray<int32>&& Other) = default;
+	FORCEINLINE TManagedArray& operator=(TManagedArray<int32>&& Other) = default;
 
 	virtual ~TManagedArray()
 	{}
@@ -328,6 +540,19 @@ public:
 			}
 		}
 	}
+
+	virtual void ReindexFromLookup(const TArray<int32>& NewOrder) override
+	{
+		const int32 ArraySize = Num();
+		for (int32 Index = 0; Index < ArraySize; ++Index)
+		{
+			int32& Mapping = this->operator[](Index);
+			if (Mapping >= 0)
+			{
+				Mapping = NewOrder[Mapping];
+			}
+		}
+	}
 };
 
 
@@ -345,8 +570,8 @@ public:
 	{}
 
 	FORCEINLINE TManagedArray(const TManagedArray<TSet<int32>>& Other) = delete;
-	FORCEINLINE TManagedArray(TManagedArray<TSet<int32>>&& Other) = delete;
-	FORCEINLINE TManagedArray& operator=(TManagedArray<TSet<int32>>&& Other) = delete;
+	FORCEINLINE TManagedArray(TManagedArray<TSet<int32>>&& Other) = default;
+	FORCEINLINE TManagedArray& operator=(TManagedArray<TSet<int32>>&& Other) = default;
 
 	virtual ~TManagedArray()
 	{}
@@ -360,23 +585,41 @@ public:
 
 		for (int32 Index = 0; Index < ArraySize; Index++)
 		{
-			TSet<int32>& RemapVal = this->operator[](Index);
-
-			RemapVal = RemapVal.Difference(RemapVal.Intersect(SortedDeletionSet));
-
-			for (int i = 0; i < RemapVal.Num(); i++)
+			TSet<int32>& NewSet = this->operator[](Index);
+			
+			for (int32 Del : SortedDeletionList)
 			{
-				FSetElementId Id = RemapVal.FindId(RemapVal.Array()[i]);
-				ensure(Id.IsValidId());
-				if (0 <= RemapVal[Id])
-				{
-					ensure(RemapVal[Id] < MaskSize);
-					this->operator[](Index)[Id] -= Offsets[RemapVal[Id]];
-					ensure(-1 <= this->operator[](Index)[Id] && this->operator[](Index)[Id] < FinalSize);
-				}
+				NewSet.Remove(Del);
+			}
+
+			TSet<int32> OldSet = this->operator[](Index);	//need a copy since we're modifying the entries in the set (can't edit in place because value desyncs from hash)
+			NewSet.Reset();	//maybe we should remove 
+
+			for (int32 StaleEntry : OldSet)
+			{
+				const int32 NewEntry = StaleEntry - Offsets[StaleEntry];
+				NewSet.Add(NewEntry);
 			}
 		}
+	}
+
+	virtual void ReindexFromLookup(const TArray<int32> & NewOrder) override
+	{
+
+		int32 ArraySize = Num();
 		
+		for (int32 Index = 0; Index < ArraySize; Index++)
+		{
+			TSet<int32>& NewSet = this->operator[](Index);
+			TSet<int32> OldSet = this->operator[](Index);	//need a copy since we're modifying the entries in the set
+			NewSet.Reset();	//maybe we should remove 
+
+			for (int32 StaleEntry : OldSet)
+			{
+				const int32 NewEntry = StaleEntry >= 0 ? NewOrder[StaleEntry] : StaleEntry;	//only remap if valid
+				NewSet.Add(NewEntry);
+			}
+		}
 	}
 };
 
@@ -394,8 +637,8 @@ public:
 	{}
 
 	FORCEINLINE TManagedArray(const TManagedArray<FIntVector>& Other) = delete;
-	FORCEINLINE TManagedArray(TManagedArray<FIntVector>&& Other) = delete;
-	FORCEINLINE TManagedArray& operator=(TManagedArray<FIntVector>&& Other) = delete;
+	FORCEINLINE TManagedArray(TManagedArray<FIntVector>&& Other) = default;
+	FORCEINLINE TManagedArray& operator=(TManagedArray<FIntVector>&& Other) = default;
 
 	virtual ~TManagedArray()
 	{}
@@ -413,61 +656,26 @@ public:
 				{
 					ensure(RemapVal[i] < MaskSize);
 					this->operator[](Index)[i] -= Offsets[RemapVal[i]];
-					ensure(-1 <= this->operator[](Index)[i] && this->operator[](Index)[i] < FinalSize);
+					ensure(-1 <= this->operator[](Index)[i] && this->operator[](Index)[i] <= FinalSize);
 				}
 			}
 		}
 	}
-};
 
-template<>
-class TManagedArray<FGeometryCollectionBoneNode> : public TManagedArrayBase<FGeometryCollectionBoneNode>
-{
-public:
-    using TManagedArrayBase<FGeometryCollectionBoneNode>::Num;
-
-	FORCEINLINE TManagedArray()
-	{}
-
-	FORCEINLINE TManagedArray(const TArray<FGeometryCollectionBoneNode>& Other)
-		: TManagedArrayBase<FGeometryCollectionBoneNode>(Other)
-	{}
-
-	FORCEINLINE TManagedArray(const TManagedArray<FGeometryCollectionBoneNode>& Other) = delete;
-	FORCEINLINE TManagedArray(TManagedArray<FGeometryCollectionBoneNode>&& Other) = delete;
-	FORCEINLINE TManagedArray& operator=(TManagedArray<FGeometryCollectionBoneNode>&& Other) = delete;
-
-	virtual ~TManagedArray()
-	{}
-
-	virtual void Reindex(const TArray<int32> & Offsets, const int32 & FinalSize, const TArray<int32> & SortedDeletionList) override
+	virtual void ReindexFromLookup(const TArray<int32> & NewOrder) override
 	{
-		UE_LOG(UManagedArrayLogging, Log, TEXT("TManagedArray<FGeometryCollectionBoneNode>[%p]::Reindex()"), this);
-	
-		int32 ArraySize = Num(), OffsetsSize = Offsets.Num();
+		int32 ArraySize = Num();
 		for (int32 Index = 0; Index < ArraySize; Index++)
 		{
-			FGeometryCollectionBoneNode & Node = this->operator[](Index);
-	
-			// remap the parents (-1 === Invalid )
-			if (Node.Parent != -1)
-				Node.Parent -= Offsets[Node.Parent];
-			ensure(-1 <= Node.Parent && Node.Parent < FinalSize);
-	
-			// remap children
-			TSet<int32> Children = Node.Children;
-			Node.Children.Empty();
-			for (int32 ChildID : Children)
+			FIntVector& RemapVal = this->operator[](Index);
+			for (int i = 0; i < 3; i++)
 			{
-				if (0 <= ChildID && ChildID < OffsetsSize)
+				if (RemapVal[i] >= 0)
 				{
-					int32 NewChildID = ChildID - Offsets[ChildID];
-					if (0 <= NewChildID && NewChildID < FinalSize)
-					{
-						Node.Children.Add(NewChildID);
-					}
+					RemapVal[i] = NewOrder[RemapVal[i]];
 				}
 			}
 		}
 	}
 };
+

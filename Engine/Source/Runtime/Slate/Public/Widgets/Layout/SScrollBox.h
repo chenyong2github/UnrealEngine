@@ -89,8 +89,11 @@ public:
 		, _ScrollBarVisibility(EVisibility::Visible)
 		, _ScrollBarAlwaysVisible(false)
 		, _ScrollBarDragFocusCause(EFocusCause::Mouse)
-		, _ScrollBarThickness(FVector2D(5, 5))
+		, _ScrollBarThickness(FVector2D(9.0f, 9.0f))
+		, _ScrollBarPadding(2.0f)
 		, _AllowOverscroll(EAllowOverscroll::Yes)
+		, _AnimateWheelScrolling(false)
+		, _WheelScrollMultiplier(1.f)
 		, _NavigationDestination(EDescendantScrollDestination::IntoView)
 		, _NavigationScrollPadding(0.0f)
 		, _OnUserScrolled()
@@ -121,7 +124,13 @@ public:
 
 		SLATE_ARGUMENT( FVector2D, ScrollBarThickness )
 
+		SLATE_ARGUMENT( FMargin, ScrollBarPadding )
+
 		SLATE_ARGUMENT(EAllowOverscroll, AllowOverscroll);
+
+		SLATE_ARGUMENT(bool, AnimateWheelScrolling);
+
+		SLATE_ARGUMENT(float, WheelScrollMultiplier);
 
 		SLATE_ARGUMENT(EDescendantScrollDestination, NavigationDestination);
 
@@ -162,11 +171,18 @@ public:
 
 	void SetAllowOverscroll( EAllowOverscroll NewAllowOverscroll );
 
+	void SetAnimateWheelScrolling(bool bInAnimateWheelScrolling);
+
+	void SetWheelScrollMultiplier(float NewWheelScrollMultiplier);
+
 	float GetScrollOffset() const;
 
 	float GetViewFraction() const;
 
 	float GetViewOffsetFraction() const;
+
+	/** Gets the scroll offset of the bottom of the ScrollBox in Slate Units. */
+	float GetScrollOffsetOfEnd() const;
 
 	void SetScrollOffset( float NewScrollOffset );
 
@@ -200,6 +216,8 @@ public:
 	void SetScrollBarTrackAlwaysVisible(bool InAlwaysVisible);
 
 	void SetScrollBarThickness(FVector2D InThickness);
+
+	void SetScrollBarPadding(const FMargin& InPadding);
 
 	void SetScrollBarRightClickDragAllowed(bool bIsAllowed);
 public:
@@ -356,6 +374,12 @@ protected:
 	TSharedPtr<FActiveTimerHandle> UpdateInertialScrollHandle;
 
 	double LastScrollTime;
+
+	/** Multiplier applied to each click of the scroll wheel (applied alongside the global scroll amount) */
+	float WheelScrollMultiplier = 1.f;
+
+	/** Whether to animate wheel scrolling */
+	bool bAnimateWheelScrolling : 1;
 
 	/**	Whether the software cursor should be drawn in the viewport */
 	bool bShowSoftwareCursor : 1;

@@ -24,26 +24,40 @@ namespace MetadataTool
 		public string JobStepName;
 
 		/// <summary>
+		/// The url of this job step
+		/// </summary>
+		[DataMember(Order = 1)]
+		public string JobStepUrl;
+
+		/// <summary>
 		/// The diagnostic message
 		/// </summary>
-		[DataMember(Order = 1, IsRequired = true)]
+		[DataMember(Order = 2, IsRequired = true)]
 		public string Message;
 
 		/// <summary>
 		/// Url to the error
 		/// </summary>
-		[DataMember(Order = 2, IsRequired = true)]
+		[DataMember(Order = 3, IsRequired = true)]
 		public string ErrorUrl;
+
+		/// <summary>
+		/// Whether or not this diagnostic has been posted to the server
+		/// </summary>
+		[DataMember(Order = 4)]
+		public bool bPostedToServer = false;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="JobStepName">Name of the job step</param>
+		/// <param name="JobStepUrl">Url of the job step</param>
 		/// <param name="Message">Message to display</param>
 		/// <param name="ErrorUrl">Url to link to</param>
-		public BuildHealthDiagnostic(string JobStepName, string Message, string ErrorUrl)
+		public BuildHealthDiagnostic(string JobStepName, string JobStepUrl, string Message, string ErrorUrl)
 		{
 			this.JobStepName = JobStepName;
+			this.JobStepUrl = JobStepUrl;
 			this.Message = Message;
 			this.ErrorUrl = ErrorUrl;
 		}
@@ -62,15 +76,21 @@ namespace MetadataTool
 		public long Id = -1;
 
 		/// <summary>
-		/// Type common to all diagnostics within this issue.
+		/// Project that this belongs to
 		/// </summary>
 		[DataMember(Order = 1, IsRequired = true)]
+		public string Project;
+
+		/// <summary>
+		/// Type common to all diagnostics within this issue.
+		/// </summary>
+		[DataMember(Order = 2, IsRequired = true)]
 		public string Category;
 
 		/// <summary>
 		/// The initial job that this error was seen on. Allows other issues from the same job to be merged.
 		/// </summary>
-		[DataMember(Order = 2, IsRequired = true)]
+		[DataMember(Order = 3, IsRequired = true)]
 		public string InitialJobUrl;
 
 		/// <summary>
@@ -92,16 +112,16 @@ namespace MetadataTool
 		public SortedSet<string> Identifiers = new SortedSet<string>();
 
 		/// <summary>
+		/// Other arbitrary references to assets or files
+		/// </summary>
+		[DataMember(Order = 7)]
+		public SortedSet<string> References = new SortedSet<string>();
+
+		/// <summary>
 		/// The last posted issue summary. Will be updated if it changes.
 		/// </summary>
 		[DataMember(Order = 20)]
 		public string PostedSummary;
-
-		/// <summary>
-		/// The last posted issue details. Will be updated if it changes.
-		/// </summary>
-		[DataMember(Order = 21)]
-		public string PostedDetails;
 
 		/// <summary>
 		/// Whether we've posted an update to the resolved flag to the server
@@ -145,8 +165,9 @@ namespace MetadataTool
 		/// <param name="Category">Category of this issue</param>
 		/// <param name="InitialJobUrl">Url of the initial job that this error was seen with</param>
 		/// <param name="ErrorUrl"></param>
-		public BuildHealthIssue(string Category, string InitialJobUrl, BuildHealthDiagnostic Diagnostic)
+		public BuildHealthIssue(string Project, string Category, string InitialJobUrl, BuildHealthDiagnostic Diagnostic)
 		{
+			this.Project = Project;
 			this.Category = Category;
 			this.InitialJobUrl = InitialJobUrl;
 			this.Diagnostics.Add(Diagnostic);

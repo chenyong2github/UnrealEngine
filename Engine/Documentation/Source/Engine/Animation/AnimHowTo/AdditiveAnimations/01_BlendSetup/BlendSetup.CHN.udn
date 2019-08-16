@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
+﻿INTSourceChangelist:6277736
+Availability: Docs
 Title:1 - 设置动画进行混合
 Crumbs: %ROOT%, Engine, Engine\Animation, Engine\Animation\AnimHowTo
 Description:在此步骤中，我们将更新玩家角色，并为需要放置在运动动画上的动画创建 AnimMontage。

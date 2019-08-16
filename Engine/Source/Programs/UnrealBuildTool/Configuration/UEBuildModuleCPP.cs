@@ -22,12 +22,14 @@ namespace UnrealBuildTool
 		class InputFileCollection
 		{
 			public readonly List<FileItem> HeaderFiles = new List<FileItem>();
+			public readonly List<FileItem> ISPCHeaderFiles = new List<FileItem>();
 
 			public readonly List<FileItem> CPPFiles = new List<FileItem>();
 			public readonly List<FileItem> CFiles = new List<FileItem>();
 			public readonly List<FileItem> CCFiles = new List<FileItem>();
 			public readonly List<FileItem> MMFiles = new List<FileItem>();
 			public readonly List<FileItem> RCFiles = new List<FileItem>();
+			public readonly List<FileItem> ISPCFiles = new List<FileItem>();
 		}
 
 		/// <summary>
@@ -349,6 +351,13 @@ namespace UnrealBuildTool
 
 			// Set up the environment with which to compile the CPP files
 			CppCompileEnvironment CompileEnvironment = ModuleCompileEnvironment;
+
+			// Generate ISPC headers first so C++ can consume them
+			if (InputFiles.ISPCFiles.Count > 0)
+			{
+				CreateHeadersForISPC(ToolChain, CompileEnvironment, InputFiles.ISPCFiles, IntermediateDirectory, Makefile.Actions);
+			}
+
 			if (Target.bUsePCHFiles && Rules.PCHUsage != ModuleRules.PCHUsageMode.NoPCHs)
 			{
 				// If this module doesn't need a shared PCH, configure that
@@ -385,6 +394,7 @@ namespace UnrealBuildTool
 						{
 							// Remove the module _API definition for cases where there are circular dependencies between the shared PCH module and modules using it
 							Writer.WriteLine("#undef {0}", ModuleApiDefine);
+							Writer.WriteLine("#undef {0}", ModuleVTableDefine);
 
 							// Games may choose to use shared PCHs from the engine, so allow them to change the value of these macros
 							if(!Rules.bTreatAsEngineModule)
@@ -477,6 +487,12 @@ namespace UnrealBuildTool
 						LinkInputFiles.AddRange(ToolChain.CompileCPPFiles(GeneratedCPPCompileEnvironment, GeneratedFileItems, IntermediateDirectory, Name, Makefile.Actions).ObjectFiles);
 					}
 				}
+			}
+
+			// Compile ISPC files directly
+			if (InputFiles.ISPCFiles.Count > 0)
+			{
+				LinkInputFiles.AddRange(ToolChain.CompileISPCFiles(CompileEnvironment, InputFiles.ISPCFiles, IntermediateDirectory, Makefile.Actions).ObjectFiles);
 			}
 
 			// Compile C files directly. Do not use a PCH here, because a C++ PCH is not compatible with C source files.
@@ -933,6 +949,22 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Creates header files from ISPC for inclusion and adds them as dependencies.
+		/// </summary>
+		/// <param name="ToolChain">The toolchain to generate the PCH</param>
+		/// <param name="CompileEnvironment">Compile environment</param>
+		/// <param name="InputFiles">List of ISPC source files</param>
+		/// <param name="IntermediateDirectory">Directory to create the intermediate file</param>
+		/// <param name="Actions">List of actions to be executed. Additional actions will be added to this list.</param>
+		static void CreateHeadersForISPC(UEToolChain ToolChain, CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference IntermediateDirectory, List<Action> Actions)
+		{
+			CPPOutput Output = ToolChain.GenerateISPCHeaders(CompileEnvironment, InputFiles, IntermediateDirectory, Actions);
+
+			CompileEnvironment.AdditionalPrerequisites.AddRange(Output.GeneratedHeaderFiles);
+			CompileEnvironment.UserIncludePaths.Add(IntermediateDirectory);
+		}
+
+		/// <summary>
 		/// Create a header file containing the module definitions, which also includes the PCH itself. Including through another file is necessary on 
 		/// Clang, since we get warnings about #pragma once otherwise, but it also allows us to consistently define the preprocessor state on all 
 		/// platforms.
@@ -1241,6 +1273,7 @@ namespace UnrealBuildTool
 			{
 				DirectoryItem ModuleDirectoryItem = DirectoryItem.GetItemByDirectoryReference(Dir);
 				FindInputFilesFromDirectoryRecursive(ModuleDirectoryItem, ExcludedNames, SourceDirectories, Makefile.DirectoryToSourceFiles, InputFiles);
+				Makefile.SourceDirectories.Add(ModuleDirectoryItem);
 			}
 
 			return InputFiles;
@@ -1287,6 +1320,10 @@ namespace UnrealBuildTool
 				{
 					InputFiles.HeaderFiles.Add(InputFile);
 				}
+				else if (InputFile.HasExtension(".isph"))
+				{
+					InputFiles.ISPCHeaderFiles.Add(InputFile);
+				}
 				if (InputFile.HasExtension(".cpp"))
 				{
 					SourceFiles.Add(InputFile);
@@ -1311,6 +1348,11 @@ namespace UnrealBuildTool
 				{
 					SourceFiles.Add(InputFile);
 					InputFiles.RCFiles.Add(InputFile);
+				}
+				else if (InputFile.HasExtension(".ispc"))
+				{
+					SourceFiles.Add(InputFile);
+					InputFiles.ISPCFiles.Add(InputFile);
 				}
 			}
 			return SourceFiles.ToArray();

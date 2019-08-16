@@ -3,12 +3,12 @@
 
 #include "Chaos/PBDLongRangeConstraintsBase.h"
 #include "Chaos/PBDParticles.h"
-#include "Chaos/PerParticleRule.h"
+#include "Chaos/PBDConstraintContainer.h"
 
 namespace Chaos
 {
 template<class T, int d>
-class CHAOS_API PBDLongRangeConstraints : public TParticleRule<T, d>, public TPBDLongRangeConstraintsBase<T, d>
+class CHAOS_API PBDLongRangeConstraints : public TPBDLongRangeConstraintsBase<T, d>, public TPBDConstraintContainer<T, d>
 {
 	typedef TPBDLongRangeConstraintsBase<T, d> Base;
 	using Base::MConstraints;
@@ -18,9 +18,9 @@ class CHAOS_API PBDLongRangeConstraints : public TParticleRule<T, d>, public TPB
 	    : TPBDLongRangeConstraintsBase<T, d>(InParticles, Mesh, NumberOfAttachments, Stiffness) {}
 	virtual ~PBDLongRangeConstraints() {}
 
-	void Apply(TPBDParticles<T, d>& InParticles, const T Dt) const override //-V762
+	void Apply(TPBDParticles<T, d>& InParticles, const T Dt, const TArray<int32>& InConstraintIndices) const
 	{
-		for (int32 i = 0; i < MConstraints.Num(); ++i)
+		for (int32 i : InConstraintIndices)
 		{
 			const auto& Constraint = MConstraints[i];
 			int32 i2 = Constraint[Constraint.Num() - 1];

@@ -6,16 +6,16 @@
 #include "Components/SceneComponent.h"
 #include "GameFramework/Actor.h"
 
-void UDatasmithActorTemplate::Apply(UObject* Destination, bool bForce)
+UObject* UDatasmithActorTemplate::UpdateObject(UObject* Destination, bool bForce)
 {
-#if WITH_EDITORONLY_DATA
 	const USceneComponent* SceneComponent = Cast<USceneComponent>(Destination);
 	AActor* ImportedActor = SceneComponent ? SceneComponent->GetOwner() : Cast<AActor>(Destination);
 	if (!ImportedActor)
 	{
-		return;
+		return nullptr;
 	}
 
+#if WITH_EDITORONLY_DATA
 	UDatasmithActorTemplate* PreviousTemplate = !bForce ? FDatasmithObjectTemplateUtils::GetObjectTemplate<UDatasmithActorTemplate>(ImportedActor) : nullptr;
 
 	if (!PreviousTemplate)
@@ -28,9 +28,9 @@ void UDatasmithActorTemplate::Apply(UObject* Destination, bool bForce)
 		ImportedActor->Layers = FDatasmithObjectTemplateUtils::ThreeWaySetMerge(PreviousTemplate->Layers, TSet<FName>(ImportedActor->Layers), Layers).Array();
 		ImportedActor->Tags = FDatasmithObjectTemplateUtils::ThreeWaySetMerge(PreviousTemplate->Tags, TSet<FName>(ImportedActor->Tags), Tags).Array();
 	}
-
-	FDatasmithObjectTemplateUtils::SetObjectTemplate(ImportedActor, this);
 #endif // #if WITH_EDITORONLY_DATA
+
+	return ImportedActor;
 }
 
 void UDatasmithActorTemplate::Load(const UObject* Source)

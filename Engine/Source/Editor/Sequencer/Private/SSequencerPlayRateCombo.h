@@ -56,10 +56,12 @@ private:
 
 	void SetClockSource(EUpdateClockSource NewClockSource);
 
-	FText GetFrameRateErrorDescription() const;
+	FText GetFrameRateIsMultipleOfErrorDescription() const;
+	FText GetFrameRateMismatchErrorDescription() const;
 
 	EVisibility GetFrameLockedVisibility() const;
-	EVisibility GetFrameRateErrorVisibility() const;
+	EVisibility GetFrameRateIsMultipleOfErrorVisibility() const;
+	EVisibility GetFrameRateMismatchErrorVisibility() const;
 
 	/** Sequencer pointer */
 	TWeakPtr<FSequencer> WeakSequencer;

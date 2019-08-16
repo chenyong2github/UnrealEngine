@@ -252,6 +252,26 @@ public:
 
 	/** Set the display name for the secondary toolbar and its associated menu item */
 	virtual void SetSecondaryToolbarDisplayName(FText DisplayName) = 0;
+
+	DECLARE_EVENT_OneParam(IStaticMeshEditor, FStaticMeshEditorDockingExtentionTabsEvent, const TSharedRef<FTabManager::FStack>&)
+	virtual FStaticMeshEditorDockingExtentionTabsEvent& OnStaticMeshEditorDockingExtentionTabs() { return StaticMeshEditorDockingExtentionTabsEvent; };
+
+	DECLARE_EVENT(IStaticMeshEditor, FStaticMeshEditorClosedEvent);
+	virtual FStaticMeshEditorClosedEvent& OnStaticMeshEditorClosed() { return StaticMeshEditorClosedEvent; };
+
+	/** Delegate to be called when the tabs are being registered **/
+	DECLARE_EVENT_OneParam(IStaticMeshEditor, FRegisterTabSpawnersEvent, const TSharedRef<class FTabManager>&);
+	virtual FRegisterTabSpawnersEvent& OnRegisterTabSpawners() { return RegisterTabSpawnersEvent; };
+
+	/** Delegate to be called when the tabs are being unregistered **/
+	DECLARE_EVENT_OneParam(IStaticMeshEditor, FUnregisterTabSpawnersEvent, const TSharedRef<class FTabManager>&);
+	virtual FUnregisterTabSpawnersEvent& OnUnregisterTabSpawners() { return UnregisterTabSpawnersEvent; };
+
+private:
+	FStaticMeshEditorDockingExtentionTabsEvent StaticMeshEditorDockingExtentionTabsEvent;
+	FStaticMeshEditorClosedEvent StaticMeshEditorClosedEvent;
+	FRegisterTabSpawnersEvent RegisterTabSpawnersEvent;
+	FUnregisterTabSpawnersEvent UnregisterTabSpawnersEvent;
 };
 
 

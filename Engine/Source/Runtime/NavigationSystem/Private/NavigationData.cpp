@@ -21,7 +21,7 @@
 //----------------------------------------------------------------------//
 FPathFindingQuery::FPathFindingQuery(const UObject* InOwner, const ANavigationData& InNavData, const FVector& Start, const FVector& End, FSharedConstNavQueryFilter SourceQueryFilter, FNavPathSharedPtr InPathInstanceToFill) :
 	FPathFindingQueryData(InOwner, Start, End, SourceQueryFilter), 
-	NavData(&InNavData), PathInstanceToFill(InPathInstanceToFill), NavAgentProperties(FNavAgentProperties::DefaultProperties)
+	NavData(&InNavData), PathInstanceToFill(InPathInstanceToFill), NavAgentProperties(InNavData.GetConfig())
 {
 	if (!QueryFilter.IsValid() && NavData.IsValid())
 	{
@@ -71,9 +71,14 @@ FPathFindingQuery::FPathFindingQuery(FNavPathSharedRef PathToRecalculate, const 
 		}
 	}
 
-	if (!QueryFilter.IsValid() && NavData.IsValid())
+	if (NavData.IsValid())
 	{
-		QueryFilter = NavData->GetDefaultQueryFilter();
+		if (!QueryFilter.IsValid())
+		{
+			QueryFilter = NavData->GetDefaultQueryFilter();
+		}
+
+		NavAgentProperties = NavData->GetConfig();
 	}
 }
 
@@ -215,7 +220,7 @@ void ANavigationData::RequestRegistration()
 		UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
 		if (NavSys)
 		{
-			NavSys->RequestRegistration(this);
+			NavSys->RequestRegistrationDeferred(*this);
 		}
 	}
 }
@@ -319,7 +324,6 @@ void ANavigationData::TickActor(float DeltaTime, enum ELevelTick TickType, FActo
 			}
 
 			FPathFindingQuery Query(PinnedPath.ToSharedRef());
-			// @todo consider supplying NavAgentPropertied from path's querier
 			const FPathFindingResult Result = FindPath(Query.NavAgentProperties, Query.SetPathInstanceToUpdate(PinnedPath));
 
 			// update time stamp to give observers any means of telling if it has changed
@@ -423,7 +427,7 @@ void ANavigationData::PostEditUndo()
 		}
 		else
 		{
-			NavSys->RequestRegistration(this);
+			NavSys->RequestRegistrationDeferred(*this);
 		}
 	}
 }
@@ -556,12 +560,12 @@ TArray<FBox> ANavigationData::GetNavigableBounds() const
 	TArray<FBox> Result;
 	const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<const UNavigationSystemV1>(GetWorld());
 	
-	const auto& NavigationBounds = NavSys->GetNavigationBounds();
-	Result.Reserve(NavigationBounds.Num());
-
-	for (const auto& Bounds : NavigationBounds)
+	if (NavSys)
 	{
-		Result.Add(Bounds.AreaBox);
+		// @note this has been switched over from calling GetNavigationBounds
+		// to get navigable bounds relevant to this one nav data instance
+		// This implements the original intension of the function
+		NavSys->GetNavigationBoundsForNavData(*this, Result);
 	}
 	
 	return Result;
@@ -572,20 +576,11 @@ TArray<FBox> ANavigationData::GetNavigableBoundsInLevel(ULevel* InLevel) const
 	TArray<FBox> Result;
 	const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<const UNavigationSystemV1>(GetWorld());
 
-	if (NavSys != nullptr)
+	if (NavSys)
 	{
-		const auto& NavigationBounds = NavSys->GetNavigationBounds();
-		Result.Reserve(NavigationBounds.Num());
-
-		for (const auto& Bounds : NavigationBounds)
-		{
-			if (Bounds.Level == InLevel)
-			{
-				Result.Add(Bounds.AreaBox);
-			}
-		}
+		NavSys->GetNavigationBoundsForNavData(*this, Result, InLevel);
 	}
-	
+
 	return Result;
 }
 

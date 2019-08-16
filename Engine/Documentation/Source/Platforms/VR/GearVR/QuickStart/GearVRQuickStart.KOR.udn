@@ -1,0 +1,222 @@
+﻿INTSourceChangelist:6426975
+Availability:Public
+Title:삼성 Gear VR UE4 퀵스타트
+Description:삼성 Gear VR 헤드셋과 함께 사용할 프로젝트를 빠르게 구성하고 디플로이하는 법에 대한 안내입니다.
+Type: quick start
+Version: 4.17
+Parent: Platforms/VR/GearVR
+Tags: VR
+Tags: Getting Started
+Tags: Gear VR
+topic-image: SamsungGearVRDevelopment_topic.png
+Order: 5
+
+[TOC (start:2 end:2)]
+
+![](GearVRHT_BannerImage_00.png "GearVRHT_BannerImage_00.png")
+
+## 목표
+
+이 Gear VR 퀵스타트에서는 개발 PC 와 삼성 스마트폰이 Gear VR 헤드셋에 작동되도록 하는 방법을 안내해 드립니다.
+
+## 목적
+
+* Gear VR 개발을 타깃으로 한 UE4 프로젝트를 새로 만듭니다.
+* 프로젝트를 Gear VR 과 사용할 수 있도록 하기 위해 필요한 프로젝트 세팅을 설정합니다.
+* Gear VR HMD 로 UE4 프로젝트를 실행시켜 확인합니다.
+
+## 1 - Gear VR 프로젝트 생성
+
+Gear VR 퀵 스타트 여기서는 Gear VR 에 사용할 수 있도록 새로운 UE4 프로젝트를 구성하는 법을 살펴보겠습니다.
+
+### 단계
+
+1.  [언리얼 엔진 런처](http://tinyurl.com/oawb7x2) 에서 UE4 **4.17** 이상 버전을 다운로드하여 설치했는지 확인합니다. 그런 다음 **실행** 하면 **언리얼 프로젝트 브라우저** 가 열립니다.
+    [REGION:lightbox]
+    [![](GVR_New_Project_00.png)(w:550)](GVR_New_Project_00.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  언리얼 프로젝트 브라우저의 새 프로젝트 탭에서, 새 **블루프린트** 기반 프로젝트를 **공백** 으로 만들고 다음 세팅을 사용합니다.
+    [REGION:lightbox]
+    [![](GVR_New_Project_01.png)(w:550)](GVR_New_Project_01.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+    * **기본 프로젝트**
+    
+    * **모바일 / 태블릿**
+    
+    * **스케일가능 3D / 2D**
+    
+    * **시작용 콘텐츠 없음**
+    
+1.  다음, 프로젝트의 위치와 이름을 정합니다. 이 예제에서 이름은 **GearVRQS** 로 하지만 아무렇게나 해도 괜찮습니다. 완료 후 **프로젝트 생성** 버튼을 누르면 프로젝트가 생성되어 UE4 에디터가 로드됩니다.
+    [REGION:lightbox]
+    [![](GVR_New_Project_02.png)(w:550)](GVR_New_Project_02.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+    
+
+### 최종 결과
+
+완료되면 Gear VR 에 사용할 수 있는 공백 프로젝트가 새로 생성되었을 것입니다.
+
+## 2 - Gear VR 프로젝트 구성
+
+Gear VR 퀵 스타트 이번에는 Gear VR HMD 에 사용할 수 있도록 언리얼 엔진 4 프로젝트를 구성하는 법을 알아보겠습니다.
+
+### 단계
+
+1.  에디터가 로드되면, **메인 툴바** 에서 **편집** > **Plugins** (플러그인)을 통해 플러그인 메뉴를 엽니다. 플러그인 메뉴에서, **Virtuality Reality** (가상 현실) 섹션의 **OculusVR Plugin** 이 켜졌는지 확인합니다.
+    [REGION:lightbox]
+    [![](GVR_Plugin_Options_Toggle.png)(w:703)](GVR_Plugin_Options_Toggle.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+    [REGION:note]
+    엔진 이전 버전에서는, Gear VR 전용 플러그인을 켜줘야 했습니다. 현재 사용중인 언리얼 엔진 4 버전에서 Gear VR 을 사용할 수 없는 경우, VR Plugins 섹션에서 Gear VR 플러그인이 보이고 켜졌는지 확인하시기 바랍니다.
+    [/REGION]
+
+1.  언리얼 엔진 프로젝트를 디바이스에 디플로이했을 때 실행되도록 하기 위해서는, 레벨을 최소 하나 저장해야 합니다. 현재 레벨을 유지하려면, **툴바** 에서 **저장** 아이콘을 눌러 저장하고, 이름을 **GearVRQSMap** 이라 합니다.
+    [REGION:lightbox]
+    [![](GVR_QS_Saved_Map.png)(w:299)](GVR_QS_Saved_Map.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  다음, 메인 메뉴에서 **편집** > **프로젝트 세팅** 으로 갑니다. **프로젝트** 아래 **맵 & 모드** 섹션에서, **Default Maps** (기본 맵)을 찾아 방금 **Editor Start Up** 과 **Game Default Map** 에 저장한 레벨로 설정합니다.
+    [REGION:lightbox]
+    [![](GVR_QS_Default_Maps.png)(w:546)](GVR_QS_Default_Maps.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  **Engine** (엔진) > **Input** (입력)으로 갑니다. **Mobile** 섹션에서 **Default Touch Interface** (기본 터치 인터페이스)를 클릭하고 드롭다운에서 **None** (없음)을 선택합니다.
+    [REGION:lightbox]
+    [![](GVR_QS_Remove_Touch.png)(w:546)](GVR_QS_Remove_Touch.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  **Platforms** (플랫폼)에서 **Android** 아래 **ApkPackaging** 섹션에서 **Configure Now** (지금 환경설정) 버튼을 누른 뒤 다음과 같이 설정합니다:
+    [REGION:lightbox]
+    [![](GVR_Android_SDK_Version.png)(w:546)](GVR_Android_SDK_Version.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+    * **Minimum SDK Version:** 19
+    
+    * **Target SDK Version:** 19
+    
+    * **Enable FullScreen Immersive on KitKat and above devices:** True 
+
+1.  **Advanced APKPackaging** 섹션에서 **Configure the AndroidManifest for deployment to Gear VR** 박스를 체크합니다.
+    [REGION:lightbox]
+    [![](GVR_Deployment_Checkbox.png)(w:546)](GVR_Deployment_Checkbox.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  **Android SDK** 섹션을 클릭하고 프로젝트를 빌드하는 데 필요한 Android SDK 툴이 PC 의 올바른 폴더를 가리키는지와 다음 API 레벨로 설정되었는지 확인합니다:
+    [REGION:lightbox]
+    [![](GVR_Android_SDK_Setup.png)(w:546)](GVR_Android_SDK_Setup.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+    
+
+### 최종 결과
+
+완료되면, Gear VR HMD 에 디플로이하여 볼 수 있는 언리얼 엔진 4 프로젝트가 생겼을 것입니다.
+
+## 3 - Gear VR 프로젝트 패키징 & 디플로이
+
+Gear VR 퀵 스타트 이번에는 UE4 프로젝트를 Gear VR HMD 로 볼 수 있도록 실행하는 법에 대해 알아보겠습니다.
+
+### 단계
+
+1.  삼성 갤럭시 스마트폰이 USB 케이블로 개발 PC 에 연결되었는지와 PC 에서 **ADB Devices** 명령으로 디바이스가 보이는지 확인합니다.
+	[REGION:note]
+	자세한 방법은 [](Platforms\VR\GearVR\Prerequisites\) 문서를 참고하세요.
+	[/REGION]
+
+1.  메인 툴바에서 **실행** 아이콘 옆 작은 흰색 삼각형을 클릭하고 **디바이스에서 실행 옵션** 을 엽니다.
+    [REGION:lightbox]
+    [![](GVR_Deploy_To_Android.png)(w:550)](GVR_Deploy_To_Android.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  메인 툴바에서 **실행** 아이콘 옆 작은 흰색 삼각형을 클릭하고 **디바이스에서 실행 옵션** 을 엽니다.
+    [REGION:lightbox]
+    [![](GVR_Deployed_Files.png)(w:550)](GVR_Deployed_Files.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+    [REGION:note]
+    저장 확인 창이 뜨면, 방금 저장을 했더라도 디바이스에 최신 콘텐츠가 올라갈 수 있도록 다시 저장하세요.
+    [/REGION]
+    
+1.  UE4 에디터 하단 구석을 보면 진행상황 창이 표시되어 현재 패키징 단계를 확인할 수 있습니다. 프로젝트를 처음 패키징하는 경우, 프로젝트 크기에 따라 몇 분 걸릴 수 있습니다.
+    [REGION:lightbox]
+    [![](GVR_Deployment_Window.png)(w:550)](GVR_Deployment_Window.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+    [REGION:note]
+    패키징 프로세스 도중 현재 벌어지는 일 관련 자세한 정보는 진행상황 창의 **Show Output Log** (출력 로그 표시) 링크를 클릭하세요.
+    [/REGION]
+    
+1.  패키징 및 인스톨 프로세스가 완료되면, 알림창이 표시되면서 소리가 재생됩니다.
+
+### End Result
+
+프로젝트 패키징과 디바이스에 설치가 완료되면, 삼성 갤럭시 스마트폰과 Gear VR HMD 를 사용하여 프로젝트를 실행시켜 볼 수 있을 것입니다. 그러면 다음 비디오와 같은 화면이 보일 것입니다.
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ Bq3Ov32Bwy8
+ [/PARAMLITERAL]
+[/OBJECT]
+
+## 4 - 직접 해보기!
+
+Gear VR HMD 에 UE4 프로젝트를 설치할 수 있게 되었으니, 프로젝트에 다음과 같은 항목을 추가해 봅니다.
+
+* [이주 툴](Engine/Content/Browser/UserGuide/Migrate/) 을 사용하여 모바일 콘텐츠 예제 중 하나의 콘텐츠를 사용할 프로젝트로 이동시킵니다.
+
+* [기본 디바이스 프로파일](Platforms/Mobile/Performance/TipsAndTricks) 세팅을 조절하여 프로젝트를 Android 기반 스마트폰에 설치했을 때 가급적 빠르게 실행될 수 있도록 합니다.
+
+* [GPU 프로파일러](Engine/Performance/GPU/) 를 사용하면 프로젝트 빌드시의 퍼포먼스 트래킹에 도움이 됩니다.
+
+이 퀵스타트에 다른 주제에 대한 구체적인 내용이 궁금하신 경우:
+
+* Android SDK 구성 방법 관련 정보: [](Platforms/Mobile/Android/InstallingAndroidCodeWorksAndroid)
+
+* UE4 개발을 위한 Android 디바이스 구성 관련 정보: [](Platforms/Mobile/Android/SettingAndroidDeviceDevelopment)
+
+* Android 디바이스가 지원하는 기능 관련 정보: [](Platforms/Mobile/Android/DeviceCompatibility)
+
+* 프로젝트의 패키지 크기를 줄이는 방법 관련 정보: [](Platforms/Mobile/Android/ReducingAPKSize)

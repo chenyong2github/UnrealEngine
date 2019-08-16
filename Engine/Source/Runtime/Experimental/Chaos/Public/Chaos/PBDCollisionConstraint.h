@@ -1,17 +1,19 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Chaos/BoundingVolume.h"
 #include "Chaos/PBDCollisionTypes.h"
-#include "Chaos/PBDContactGraph.h"
-#include "Chaos/PerParticleRule.h"
+#include "Framework/BufferedData.h"
+#include "Chaos/PBDCollisionConstraint.h"
 
 #include <memory>
 #include <queue>
 #include <sstream>
+#include "BoundingVolume.h"
 
 namespace Chaos
 {
-template<class T, int d>
+template<typename T, int d>
 class TPBDCollisionConstraintAccessor;
 
 template <typename T, int d>
@@ -26,70 +28,126 @@ class TBVHParticles;
 template <typename T, int d>
 class TBox;
 
-template<class T, int d>
-class TPBDCollisionConstraint
+template<class T>
+class TChaosPhysicsMaterial;
+
+template <typename T, int d>
+class TPBDRigidsSOAs;
+
+/** Specifies the type of work we should do*/
+enum class ECollisionUpdateType
+{
+	Any,	//stop if we have at least one deep penetration. Does not compute location or normal
+	Deepest	//find the deepest penetration. Compute location and normal
+};
+
+
+/**
+ * Manages a set of contact constraints:
+ *	- Performs collision detection to generate constraints.
+ *	- Responsible for applying corrections to particles affected by the constraints.
+ * @todo(ccaulfield): rename to TPBDCollisionConstraints
+ */
+template<typename T, int d>
+class CHAOS_API TPBDCollisionConstraint
 {
   public:
 	friend class TPBDCollisionConstraintAccessor<T, d>;
-	template<class T_PARTICLES, class T2, int d2>
-	friend void UpdateConstraintImp(const T_PARTICLES&, const TImplicitObject<T2, d2>&, const TRigidTransform<T2, d2>&, const TImplicitObject<T2, d2>&, const TRigidTransform<T2, d2>&, T2, TRigidBodyContactConstraint<T2, d2>&);
 
 	typedef TRigidBodyContactConstraint<T, d> FRigidBodyContactConstraint;
 
-	TPBDCollisionConstraint(TPBDRigidParticles<T, d>& InParticles, TArrayCollectionArray<bool>& Collided, const int32 PushOutIterations = 1, const int32 PushOutPairIterations = 1, const T Thickness = (T)0, const T Restitution = (T)0, const T Friction = (T)0);
+	TPBDCollisionConstraint(const TPBDRigidsSOAs<T,d>& InParticles, TArrayCollectionArray<bool>& Collided, const TArrayCollectionArray<TSerializablePtr<TChaosPhysicsMaterial<T>>>& PerParticleMaterials, const int32 PairIterations = 1, const T Thickness = (T)0);
 	virtual ~TPBDCollisionConstraint() {}
 
-	void Reset(TPBDRigidParticles<T, d>& InParticles, const int32 PushOutIterations = 1, const int32 PushOutPairIterations = 1, const T Thickness = (T)0, const T Restitution = (T)0, const T Friction = (T)0)
-	{
-		MConstraints.Empty();
-		MContactGraph = TPBDContactGraph<FRigidBodyContactConstraint, T, d>(InParticles);
-		MNumIterations = PushOutIterations;
-		MPairIterations = PushOutPairIterations;
-		MThickness = Thickness;
-		MRestitution = Restitution;
-		MFriction = Friction;
-		MAngularFriction = 0;
-		bUseCCD = false;
-	}
+	/**
+	 * Generate all contact constraints.
+	 */
+	void UpdatePositionBasedState(/*const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices,*/ const T Dt);
 
-	void ComputeConstraints(const TPBDRigidParticles<T, d>& InParticles, T Dt);
+	/**
+	 * Apply corrections for the specified list of constraints.
+	 */
+	// @todo(ccaulfield): this runs wide. The serial/parallel decision should be in the ConstraintRule
+	void Apply(const T Dt, const TArray<int32>& InConstraintIndices);
 
-	void Apply(TPBDRigidParticles<T, d>& InParticles, const T Dt, const int32 Island);
-	void ApplyPushOut(TPBDRigidParticles<T, d>& InParticles, const T Dt, const TArray<int32>& ActiveIndices, const int32 Island);
+	/** 
+	 * Apply push out for the specified list of constraints.
+	 * Return true if we need another iteration 
+	 */
+	 // @todo(ccaulfield): this runs wide. The serial/parallel decision should be in the ConstraintRule
+	bool ApplyPushOut(const T Dt, const TArray<int32>& InConstraintIndices, const TSet<TGeometryParticleHandle<T,d>*>& IsTemporarilyStatic, int32 Iteration, int32 NumIterations);
 
-	void CopyOutConstraints(int32 NumIslands);
-
-	void RemoveConstraints(const TSet<uint32>& RemovedParticles);
-	void UpdateConstraints(const TPBDRigidParticles<T, d>& InParticles, T Dt, const TSet<uint32>& AddedParticles, const TArray<uint32>& ActiveParticles);
-
-	/* Pass through for the ContactGraph*/
-	void UpdateIslandsFromConstraints(TPBDRigidParticles<T, d>& InParticles, TArray<TSet<int32>>& IslandParticles, TArray<int32>& IslandSleepCounts, TSet<int32>& ActiveIndices);
-	bool SleepInactive(TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& ActiveIndices, int32& IslandSleepCount, const int32 Island, const T LinearSleepThreshold, const T AngularSleepThreshold) const;
-	void UpdateAccelerationStructures(const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& ActiveIndices, const int32 Island);
+	void RemoveConstraints(const TSet<TGeometryParticleHandle<T, d>*>& RemovedParticles);
+	void UpdateConstraints(/*const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices,*/ T Dt, const TSet<TGeometryParticleHandle<T, d>*>& AddedParticles);
 
 	static bool NearestPoint(TArray<Pair<TVector<T, d>, TVector<T, d>>>& Points, TVector<T, d>& Direction, TVector<T, d>& ClosestPoint);
 
-	const TArray<FRigidBodyContactConstraint>& GetAllConstraints() const { return MConstraints; }
+	const TArray<FRigidBodyContactConstraint>& GetAllConstraints() const { return Constraints; }
+	const ISpatialAcceleration<TGeometryParticleHandle<T, d>*, T, d>& GetSpatialAcceleration() const { return SpatialAccelerationResource.GetRead(); }
+	void ReleaseSpatialAcceleration() const;
+	void SwapSpatialAcceleration();
 
-  private:
-	template<class T_PARTICLES>
-	void UpdateConstraint(const T_PARTICLES& InParticles, const T Thickness, FRigidBodyContactConstraint& Constraint);
-	template<class T_PARTICLES>
-	static void UpdateLevelsetConstraint(const T_PARTICLES& InParticles, const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint);
-	template<class T_PARTICLES>
-	static void UpdateLevelsetConstraintGJK(const T_PARTICLES& InParticles, const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint);
+	// @todo(ccaulfield) We should probably wrap the LevelsetConstraint functions in a utility class and remove them from here.
+	// They are currently public for the Linux build, and member functions for Headless Chaos (TPBDCollisionConstraintAccessor). 
+	template<ECollisionUpdateType>
+	static void UpdateLevelsetConstraint(const T Thickness, FRigidBodyContactConstraint& Constraint);
+	template<ECollisionUpdateType>
+	static void UpdateLevelsetConstraintGJK(const T Thickness, FRigidBodyContactConstraint& Constraint);
 
-	FRigidBodyContactConstraint ComputeConstraint(const TPBDRigidParticles<T, d>& InParticles, int32 Body1Index, int32 Body2Index, const T Thickness);
 
-	TArray<FRigidBodyContactConstraint> MConstraints;
+	int32 NumConstraints() const { return Constraints.Num(); }
+
+	/**
+	 * Get the particles that are affected by the specified constraint.
+	 */
+	TVector<TGeometryParticleHandle<T, d>*, 2> ConstraintParticles(int32 ContactIndex) const { return { Constraints[ContactIndex].Particle, Constraints[ContactIndex].Levelset }; }
+
+	void SetPushOutPairIterations(int32 InPushOutPairIterations) { MPairIterations = InPushOutPairIterations; }
+
+private:
+	void Reset(/*const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices*/);
+
+	void Apply(const T Dt, FRigidBodyContactConstraint& Constraint);
+	void ApplyPushOut(const T Dt, FRigidBodyContactConstraint& Constraint, const TSet<TGeometryParticleHandle<T,d>*>& IsTemporarilyStatic, int32 Iteration, int32 NumIterations, bool& NeedsAnotherIteration);
+
+	template <bool bGatherStats = false>
+	void ComputeConstraints(/*const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices,*/ T Dt);
+
+	template<ECollisionUpdateType>
+	void UpdateConstraint(const T Thickness, FRigidBodyContactConstraint& Constraint);
+
+	FRigidBodyContactConstraint ComputeConstraint(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const T Thickness);
+
+	template <typename SPATIAL_ACCELERATION, bool bGatherStats>
+	void ComputeConstraintsHelper(T Dt, const SPATIAL_ACCELERATION& SpatialAcceleration);
+
+	template<typename SPATIAL_ACCELERATION>
+	void UpdateConstraintsHelper(/*const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices,*/ T Dt, const TSet<TGeometryParticleHandle<T, d>*>& AddedParticles, SPATIAL_ACCELERATION& SpatialAcceleration);
+
+	// @todo(ccaulfield): move spatial acceleration out of constraint container and make shareable
+#if CHAOS_PARTICLEHANDLE_TODO
+	TChaosReadWriteResource<TBoundingVolume<TPBDRigidParticles<T, d>, T, d>> SpatialAccelerationResource;
+	TChaosReadWriteResource<TBoundingVolumeHierarchy<TPBDRigidParticles<T, d>, TBoundingVolume<TPBDRigidParticles<T, d>, T, d>, T, d>> SpatialAccelerationResource2;
+#endif
+
+	const TPBDRigidsSOAs<T,d>& Particles;
+	TChaosReadWriteResource<TBoundingVolume<TGeometryParticles<T, d>, TGeometryParticleHandle<T,d>*, T, d>> SpatialAccelerationResource;
+
+	TArray<FRigidBodyContactConstraint> Constraints;
 	TArrayCollectionArray<bool>& MCollided;
-	TPBDContactGraph<FRigidBodyContactConstraint, T, d> MContactGraph;
-	int32 MNumIterations;
+	const TArrayCollectionArray<TSerializablePtr<TChaosPhysicsMaterial<T>>>& MPhysicsMaterials;
 	int32 MPairIterations;
 	T MThickness;
-	T MRestitution;
-	T MFriction;
 	T MAngularFriction;
 	bool bUseCCD;
 };
+
+extern template void TPBDCollisionConstraint<float, 3>::UpdateConstraint<ECollisionUpdateType::Any>(const float Thickness, FRigidBodyContactConstraint& Constraint);
+extern template void TPBDCollisionConstraint<float, 3>::UpdateConstraint<ECollisionUpdateType::Deepest>(const float Thickness, FRigidBodyContactConstraint& Constraint);
+extern template void TPBDCollisionConstraint<float, 3>::UpdateLevelsetConstraint<ECollisionUpdateType::Any>(const float Thickness, FRigidBodyContactConstraint& Constraint);
+extern template void TPBDCollisionConstraint<float, 3>::UpdateLevelsetConstraint<ECollisionUpdateType::Deepest>(const float Thickness, FRigidBodyContactConstraint& Constraint);
+extern template void TPBDCollisionConstraint<float, 3>::UpdateLevelsetConstraintGJK<ECollisionUpdateType::Any>(const float Thickness, FRigidBodyContactConstraint& Constraint);
+extern template void TPBDCollisionConstraint<float, 3>::UpdateLevelsetConstraintGJK<ECollisionUpdateType::Deepest>(const float Thickness, FRigidBodyContactConstraint& Constraint);
+extern template void TPBDCollisionConstraint<float, 3>::ComputeConstraints<false>(float Dt);
+extern template void TPBDCollisionConstraint<float, 3>::ComputeConstraints<true>(float Dt);
 }

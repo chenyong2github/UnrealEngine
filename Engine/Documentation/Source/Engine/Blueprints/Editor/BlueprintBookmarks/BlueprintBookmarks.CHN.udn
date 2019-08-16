@@ -1,36 +1,35 @@
-﻿INTSourceChangelist:4669081
+﻿INTSourceChangelist:6623299
 Availability: Public
-Crumbs: 
 Title: 蓝图书签
 Description: 包括虚幻引擎4适用参考和指南在内的产品文档
-Type: 
+Type: overview
 Version: 4.21
-Parent: Blueprints/Editor
-Order: 
+Parent: Engine/Blueprints/Editor
+Order:
+tags:Blueprints
 Tags: Blueprint Bookmarks
 
+
+[TOC (start:2 end:2)]
 
 ![](BookmarksHeroImage.png)
 
   
 使用 **蓝图书签（Blueprint Bookmarks）**，您可以在蓝图编辑器中的任何函数图中创建已命名书签。此书签将捕获您在创建书签时正在查看的视口和活动选项卡的位置和缩放级别。书签存储在您的本地机器上，因此它们不会影响到蓝图本身，同步内容时不会用其他用户的书签覆盖您的书签。
 
-(#creatingbookmarks)
-
 ## 创建书签
 
-  
+ 
 若要创建蓝图书签，请执行以下操作： 
 
-1. 对于要加书签的图表和缩放位置，单击图表左上角的 **星形** 图标。  
+1. 对于要加书签的图表和缩放位置，单击图表左上角的 **星形** 图标。
+  
     ![](BlueprintBookmarks_Creation_01.png "BlueprintBookmarks_Creation_01.png") 
-2. 在 **新书签（New Bookmark）** 对话框中，输入所需名称并单击 **添加（Add）** 按钮。   
+
+2. 在 **新书签（New Bookmark）** 对话框中，输入所需名称并单击 **添加（Add）** 按钮。
+   
     ![](BlueprintBookmarks_Creation_02.png "BlueprintBookmarks_Creation_02.png")  
       
-    
-
-(#viewingandusingbookmarks)
-
 ## 查看和使用书签
 
 若要查看或使用之前创建的书签，请从 **窗口（Window）** 菜单中选择 **书签（Bookmarks）** 选项。
@@ -60,13 +59,12 @@ Tags: Blueprint Bookmarks
 跳转到某个书签时，图表左上角的 **星形** 图标也将填充，表示您在该书签上。
 [/REGION]
 
-(#quickjumpbookmarks)
 ## 快速跳转书签
 
 除了创建 **书签（Bookmarks）** 之外，您还可以创建 **快速跳转书签（Quick Jump Bookmark）**，其工作方式与书签在[关卡编辑器视口](Engine/UI/LevelEditor/Viewports/ViewportOptions)中的工作方式相似。正如蓝图编辑器中的已标记书签那样，快速跳转书签将在编辑器会话之间持续存在，并且对于创建它们的用户和机器来说是本地书签。 
 
   
-若要指定和使用 **快速跳转书签（Quick Jump Bookmark）**，请执行以下操作：   
+若要指定和使用快速跳转书签（Quick Jump Bookmark），请执行以下操作：   
 
 1. 打开一个图表，按 **Ctrl + 0-9**（任意数字键）以记住您的当前蓝图、图表位置和缩放级别。 
 2. 在图表内，按 **Shift + 0-9**（上一步骤中的相同数字）以返回到该蓝图、图表位置和缩放级别。 

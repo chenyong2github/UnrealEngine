@@ -1,20 +1,23 @@
-Availability:Public
+Availability: Public
 Title: Use Cascaded Shadows
-Crumbs:%ROOT%, Platforms, Platforms/Mobile
-Description:Setting up Cascaded Shadows for mobile games.
-Platform:Mobile
+Description: Setting up Cascaded Shadows for mobile games.
+Type: how-to
+Version: 4.20
+Parent: Platforms/Mobile
+Tags: mobile
+SkillLevel: Advanced
+Related: Engine/Rendering/Materials/ExpressionReference/Utility
+Related: Engine/Rendering/Materials/MaterialProperties/BlendModes
+Related: Engine/Rendering/Materials/CustomizedUVs
 Related: Platforms/Mobile/Performance
 Related: Platforms/Mobile/Textures
-Related: Engine/Rendering/Materials/CustomizedUVs
-Related: Engine/Rendering/Materials/MaterialProperties/BlendModes
 Related: Engine/Rendering/Materials/ExpressionReference/Utility
-version: 4.20
-parent:Platforms/Mobile
-order:3
-type:overview
-tags:mobile
+Related: Engine/Rendering/Materials/MaterialProperties/BlendModes
+Related: Engine/Rendering/Materials/CustomizedUVs
+Related: Platforms/Mobile/Performance
+Related: Platforms/Mobile/Textures
 
-Stationary Directional lights can be used to cast Dynamic Cascade Shadow Maps (CSM) for the dynamic objects in your scene. When you use CSM shadows, the shadows on dynamic objects will blend correctly with the precomputed shadows cast by static objects in the scene.
+Stationary Directional lights can be used to cast Dynamic Cascade Shadow Maps (CSM) for the dynamic objects in your scene. When you use CSM shadows, the shadows on dynamic objects will blend correctly with the precomputed shadows cast by static objects in the scene.
 
 In this How To, we set the CSM for specific objects in a level.
 
@@ -26,69 +29,70 @@ In this How To, we set the CSM for specific objects in a level.
 **Required Setup:** CSM will only work if you have a Directional Light in your scene. If you do not have one, add one now and make sure it is selected. See the [Lighting Quick Start Guide](Engine/Rendering/LightingAndShadows/QuickStart) for steps on building a simple room and adding lighting to it.
 [/REGION]
 
-1. Select the Directional Light in your scene. Then under the **Transform** section, ensure that the **Mobility** setting has been set to **Stationary**.
-   [REGION:lightbox]
-   [![CSM_Setup_01](CSM_Setup_01.png)(w:640)](CSM_Setup_01.png)
-   [/REGION]
-   [REGION:caption]
-   Click image for full size.
-   [/REGION]
-1. With the Directional Light still selected, go to the **Details** panel and locate the **Cascaded Shadows Maps** section. Adjust the following properties on your Directional Light.
-   [REGION:lightbox]
-   [![CSM_Setup_02](CSM_Setup_02.png)(w:640)](CSM_Setup_02.png)
-   [/REGION]
-   [REGION:caption]
-   Click image for full size.
-   [/REGION]
+1.  Select the Directional Light in your scene. Then under the **Transform** section, ensure that the **Mobility** setting has been set to **Stationary**.
 
-   | Property Name | Value |
-   |---|---|
-   | **Dynamic Shadow Distance Stationary Light** | 2,000 |
-   |** Num Dynamic Shadows Cascades** | 1 |
+    [REGION:lightbox]
+    [![](CSM_Setup_01.png)(w:300)](CSM_Setup_01.png)
+    [/REGION]
+    [REGION:caption]
+    *Click for full image*.
+    [/REGION]    
+1.  With the Directional Light still selected, go to the **Details** panel and locate the **Cascaded Shadows Maps** section. Adjust the following properties on your Directional Light.
+
+    [REGION:lightbox]
+    [![](CSM_Setup_02.png)(w:300)](CSM_Setup_02.png)
+    [/REGION]
+    [REGION:caption]
+    *Click for full image*.
+    [/REGION]
+    
+	[REGION:simpletable]
+    | **Property Name** | **Value** |
+    | --- | --- |
+    | **Dynamic Shadow Distance Stationary Light** | 2,000 |
+    | **Num Dynamic Shadows Cascades** | 1 |
+    | **Dynamic Inset Shadow** | False |
+	[/REGION]
+    
+    [REGION:note]
+    The above settings are only suggestions. Feel free to experiment with the values, to find a result that will best fit your project.
+    [/REGION]
+1.  In the current release, the default setting is for all static meshes to have CSM enabled. However, you may want to turn off CSM for meshes that don't need them. To turn off CSM, select the mesh that doesn't need CSM enabled. In the **Details** panel under the **Mobile** section, click to uncheck the box for **Receive CSM Shadows**.  
+
+    ![](CascadedShadows_Steps_MobileSectionReceiveCSMShadows.png)(w:90%)
+1.  From the **Main Toolbar**, change the **Play Mode** to **Mobile Preview** and press the **Play** button to launch the level.
+
+    [REGION:tip]
+    If you do not see the Mobile Preview window being displayed, make sure that it did not launch behind the Unreal Editor window.
+    [/REGION]
+    [REGION:lightbox]
+    [![](CSM_Setup_04.png)(w:640)](CSM_Setup_04.png)
+    [/REGION]
+    [REGION:caption]
+    *Click for full image*.
+    [/REGION]
 
 [REGION:note]
-The above settings are only suggestions. Feel free to experiment with the values, to find a result that will best fit your project.
-[/REGION]
-
-1. In the current release, the default setting is for all static meshes to have CSM enabled. However, you may want to turn off CSM for meshes that don't need them. To turn off CSM, select the mesh that doesn't need CSM enabled. In the **Details** panel under the **Mobile** section, click to uncheck the box for **Receive CSM Shadows**.
-   ![](CascadedShadows_Steps_MobileSectionReceiveCSMShadows.png)
-
-1. From the **Main Toolbar**, change the **Play Mode** to **Mobile Preview** and press the **Play** button to launch the level.
-   
-[REGION:tip]
-If you do not see the Mobile Preview window being displayed, make sure that it did not launch behind the Unreal Editor window.
-[/REGION]
-
-[REGION:lightbox]
-[![](CSM_Setup_04.png)(w:640)](CSM_Setup_04.png)
-[/REGION]
-[REGION:caption]
-Click image for full size.
-[/REGION]
-
-[REGION:note]
-The following video demonstrates what the **Receive CSM Shadows** setting does. In this video, the **Receive CSM Shadows** setting is turned on for the Static Mesh that makes up the floor, but turned off for the Static Mesh that makes up the stairs. Notice that when the player character is on the floor, they have a shadow, but when they are on the stairs they do not have a shadow. This is because the floor has the **Receive CSM Shadows** setting enabled, while the setting is disabled on the stairs.
-
+The following video demonstrates what the **Receive CSM Shadows** setting does. In this video, the **Receive CSM Shadows** setting is turned on for the Static Mesh that makes up the floor, but turned off for the Static Mesh that makes up the stairs. Notice that when the player character is on the floor, they have a shadow, but when they are on the stairs they do not have a shadow. This is because the floor has the **Receive CSM Shadows** setting enabled, while the setting is disabled on the stairs.  
 If you want shadows from Static Meshes placed in the environment to cast shadows on the character, you will need to change the **Mobility** settings on the Static Mesh from **Static** to **Movable**.
 
 [OBJECT:EmbeddedVideo]
-    [PARAMLITERAL:videoid]
-    nrGejxSnJwI
-    [/PARAMLITERAL]
-    [PARAMLITERAL:width]
-    78
-    [/PARAMLITERAL]
-    [PARAMLITERAL:height]
-    56.25
-    [/PARAMLITERAL]
-    [PARAMLITERAL:units]
-    %
-    [/PARAMLITERAL]
-    [PARAMLITERAL:type]
-    simple
-    [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ nrGejxSnJwI
+ [/PARAMLITERAL]
+ [PARAMLITERAL:width]
+ 100
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 56.25
+ [/PARAMLITERAL]
+ [PARAMLITERAL:units]
+ %
+ [/PARAMLITERAL]
+ [PARAMLITERAL:type]
+ simple
+ [/PARAMLITERAL]
 [/OBJECT]
-
 [/REGION]
 
 ## End Results
@@ -96,8 +100,5 @@ If you want shadows from Static Meshes placed in the environment to cast shadows
 Once your level successfully launches, position your character in a location that has static shadows and when you go in and out of the shadow, your character's Dynamic Shadows should now blend seamlessly with any baked shadows in the level, like in the image below.
 
 [REGION:lightbox]
-[![](CSM_Final_Result.png)(w:640)](CSM_Final_Result.png)
-[/REGION]
-[REGION:caption]
-Click image for full size.
+[![](CSM_Final_Result.png)(w:300)](CSM_Final_Result.png)
 [/REGION]

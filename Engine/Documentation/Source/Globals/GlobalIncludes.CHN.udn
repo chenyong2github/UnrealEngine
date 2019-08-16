@@ -21,7 +21,7 @@ Description:
 	[/REGION]
 	[OBJECT:ToggleButton]
 		[PARAMLITERAL:category]
-		操作系统
+		OS
 		[/PARAMLITERAL]
 		[PARAMLITERAL:id]
 		windows
@@ -35,7 +35,7 @@ Description:
 	[/OBJECT]
 	[OBJECT:ToggleButton]
 		[PARAMLITERAL:category]
-		操作系统
+		OS
 		[/PARAMLITERAL]
 		[PARAMLITERAL:id]
 		mac
@@ -56,7 +56,7 @@ Description:
 	[/REGION]
 	[OBJECT:ToggleButton]
 		[PARAMLITERAL:category]
-		操作系统
+		OS
 		[/PARAMLITERAL]
 		[PARAMLITERAL:id]
 		windows
@@ -70,7 +70,7 @@ Description:
 	[/OBJECT]
 	[OBJECT:ToggleButton]
 		[PARAMLITERAL:category]
-		操作系统
+		OS
 		[/PARAMLITERAL]
 		[PARAMLITERAL:id]
 		mac
@@ -83,7 +83,7 @@ Description:
 	[/OBJECT]
 	[OBJECT:ToggleButton]
 		[PARAMLITERAL:category]
-		操作系统
+		OS
 		[/PARAMLITERAL]
 		[PARAMLITERAL:id]
 		linux
@@ -247,7 +247,7 @@ Description:
 	[/REGION]
 	[OBJECT:ToggleButton]
 		[PARAMLITERAL:category]
-		平台
+		Platform
 		[/PARAMLITERAL]
 		[PARAMLITERAL:id]
 		android
@@ -261,7 +261,7 @@ Description:
 	[/OBJECT]
 	[OBJECT:ToggleButton]
 		[PARAMLITERAL:category]
-		平台
+		Platform
 		[/PARAMLITERAL]
 		[PARAMLITERAL:id]
 		ios
@@ -343,7 +343,7 @@ Description:
 	[/REGION]
 	[OBJECT:ToggleButton]
 		[PARAMLITERAL:category]
-		方法
+		Method
 		[/PARAMLITERAL]
 		[PARAMLITERAL:id]
 		method01
@@ -352,12 +352,12 @@ Description:
 		active_button
 		[/PARAMLITERAL]
 		[PARAM:label]
-		方法1
+		Method 1
 		[/PARAM]
 	[/OBJECT]
 	[OBJECT:ToggleButton]
 		[PARAMLITERAL:category]
-		方法
+		Method
 		[/PARAMLITERAL]
 		[PARAMLITERAL:id]
 		method02
@@ -365,7 +365,7 @@ Description:
 		[PARAMLITERAL:active]
 		[/PARAMLITERAL]
 		[PARAM:label]
-		方法2
+		Method 2
 		[/PARAM]
 	[/OBJECT]
 [/REGION]

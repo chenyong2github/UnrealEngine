@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "ProfilingDebugging/PlatformFileTrace.h"
+
 class FWindowsReadRequest;
 class FWindowsAsyncReadFileHandle;
 
@@ -125,6 +127,7 @@ public:
 				OverlappedIO.OffsetHigh = LI.HighPart;
 			}
 			OverlappedIO.hEvent = GetIOPooledEvent();
+			TRACE_PLATFORMFILE_BEGIN_READ(&OverlappedIO, FileHandle, AlignedOffset, AlignedBytesToRead);
 			if (!ReadFile(FileHandle, TempMemory ? TempMemory : Memory, AlignedBytesToRead, (LPDWORD)&NumRead, &OverlappedIO))
 			{
 				uint32 ErrorCode = GetLastError();
@@ -162,10 +165,15 @@ public:
 
 		if (GTriggerFailedWindowsRead || !GetOverlappedResult(FileHandle, &OverlappedIO, (LPDWORD)&BytesRead, TRUE))
 		{
+			TRACE_PLATFORMFILE_END_READ(&OverlappedIO, 0);
 			GTriggerFailedWindowsRead = false;
 			uint32 ErrorCode = GetLastError();
 			FailedMessage = FString::Printf(TEXT("FWindowsReadRequest GetOverlappedResult Code = %x Offset = %lld Size = %lld FileSize = %lld File = %s"), ErrorCode, AlignedOffset, AlignedBytesToRead, FileSize, GetFileNameForErrorMessagesAndPanicRetry());
 			bFailed = true;
+		}
+		else
+		{
+			TRACE_PLATFORMFILE_END_READ(&OverlappedIO, BytesRead);
 		}
 		if (!bFailed && int64(BytesRead) < BytesToRead + (Offset - AlignedOffset))
 		{
@@ -383,7 +391,9 @@ public:
 		FScopeLock Lock(&LiveRequestsCritical);
 		check(!LiveRequests.Num()); // must delete all requests before you delete the handle
 #endif
+		TRACE_PLATFORMFILE_BEGIN_CLOSE(FileHandle);
 		CloseHandle(FileHandle);
+		TRACE_PLATFORMFILE_END_CLOSE();
 	}
 	void RemoveRequest(FWindowsReadRequest* Req)
 	{

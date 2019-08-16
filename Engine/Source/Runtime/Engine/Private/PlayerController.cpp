@@ -75,6 +75,25 @@ DECLARE_CYCLE_STAT(TEXT("  PC Tick Input"), STAT_PC_TickInput, STATGROUP_PlayerC
 DECLARE_CYCLE_STAT(TEXT("    PC Build Input Stack"), STAT_PC_BuildInputStack, STATGROUP_PlayerController);
 DECLARE_CYCLE_STAT(TEXT("    PC Process Input Stack"), STAT_PC_ProcessInputStack, STATGROUP_PlayerController);
 
+// CVars
+namespace PlayerControllerCVars
+{
+	// Resync timestamps on pawn ack
+	static int32 NetResetServerPredictionDataOnPawnAck = 1;
+	FAutoConsoleVariableRef CVarNetResetServerPredictionDataOnPawnAck(
+		TEXT("PlayerController.NetResetServerPredictionDataOnPawnAck"),
+		NetResetServerPredictionDataOnPawnAck,
+		TEXT("Whether to reset server prediction data for the possessed Pawn when the pawn ack handshake completes.\n")
+		TEXT("0: Disable, 1: Enable"),
+		ECVF_Default);
+
+	static bool LevelVisibilityDontSerializeFileName = false;
+	FAutoConsoleVariableRef CVarLevelVisibilityDontSerializeFileName(
+		TEXT("PlayerController.LevelVisibilityDontSerializeFileName"),
+		LevelVisibilityDontSerializeFileName,
+		TEXT("When true, we'll always skip serializing FileName with FUpdateLevelVisibilityLevelInfo's. This will save bandwidth when games don't need both.")
+	);
+}
 
 const float RetryClientRestartThrottleTime = 0.5f;
 const float RetryServerAcknowledgeThrottleTime = 0.25f;
@@ -82,6 +101,41 @@ const float RetryServerCheckSpectatorThrottleTime = 0.25f;
 
 // Note: This value should be sufficiently small such that it is considered to be in the past before RetryClientRestartThrottleTime and RetryServerAcknowledgeThrottleTime.
 const float ForceRetryClientRestartTime = -100.0f;
+
+FUpdateLevelVisibilityLevelInfo::FUpdateLevelVisibilityLevelInfo(const ULevel* const Level, const bool bInIsVisible)
+	: bIsVisible(bInIsVisible)
+{
+	const UPackage* const LevelPackage = Level->GetOutermost();
+	PackageName = LevelPackage->GetFName();
+
+	// When packages are duplicated for PIE, they may not have a FileName.
+	// For now, just revert to the old behavior.
+	FileName = (LevelPackage->FileName == NAME_None) ? PackageName : LevelPackage->FileName;
+}
+
+bool FUpdateLevelVisibilityLevelInfo::NetSerialize(FArchive& Ar, UPackageMap* PackageMap, bool& bOutSuccess)
+{
+	bool bArePackageAndFileTheSame = !!((PlayerControllerCVars::LevelVisibilityDontSerializeFileName) || (FileName == PackageName) || (FileName == NAME_None));
+	bool bLocalIsVisible = !!bIsVisible;
+
+	Ar.SerializeBits(&bArePackageAndFileTheSame, 1);
+	Ar.SerializeBits(&bLocalIsVisible, 1);
+	Ar << PackageName;
+
+	if (!bArePackageAndFileTheSame)
+	{
+		Ar << FileName;
+	}
+	else if (Ar.IsLoading())
+	{
+		FileName = PackageName;
+	}
+
+	bIsVisible = bLocalIsVisible;
+
+	bOutSuccess = !Ar.IsError();
+	return true;
+}
 
 //////////////////////////////////////////////////////////////////////////
 // APlayerController
@@ -315,25 +369,27 @@ void APlayerController::ClientFlushLevelStreaming_Implementation()
 }
 
 
-void APlayerController::ServerUpdateLevelVisibility_Implementation(FName PackageName, bool bIsVisible)
+void APlayerController::ServerUpdateLevelVisibility_Implementation(const FUpdateLevelVisibilityLevelInfo& LevelVisibility)
 {
 	UNetConnection* Connection = Cast<UNetConnection>(Player);
 	if (Connection != NULL)
 	{
-		PackageName = NetworkRemapPath(PackageName, true);
-		Connection->UpdateLevelVisibility(PackageName, bIsVisible);
+		FUpdateLevelVisibilityLevelInfo LevelVisibilityCopy = LevelVisibility;
+		LevelVisibilityCopy.PackageName = NetworkRemapPath(LevelVisibilityCopy.PackageName, true);
+
+		Connection->UpdateLevelVisibility(LevelVisibilityCopy);
 	}
 }
 
-bool APlayerController::ServerUpdateLevelVisibility_Validate(FName PackageName, bool bIsVisible)
+bool APlayerController::ServerUpdateLevelVisibility_Validate(const FUpdateLevelVisibilityLevelInfo& LevelVisibility)
 {
-	RPC_VALIDATE( PackageName.IsValid() );
+	RPC_VALIDATE(LevelVisibility.PackageName.IsValid());
 
 	FText Reason;
 
-	if ( !FPackageName::IsValidLongPackageName( PackageName.ToString(), true, &Reason ) )
+	if (!FPackageName::IsValidLongPackageName(LevelVisibility.PackageName.ToString(), true, &Reason))
 	{
-		UE_LOG( LogPlayerController, Warning, TEXT( "ServerUpdateLevelVisibility() Invalid package name: %s (%s)" ), *PackageName.ToString(), *Reason.ToString() );
+		UE_LOG(LogPlayerController, Warning, TEXT( "ServerUpdateLevelVisibility() Invalid package name: %s (%s)" ), *LevelVisibility.PackageName.ToString(), *Reason.ToString());
 		return false;
 	}
 
@@ -342,17 +398,17 @@ bool APlayerController::ServerUpdateLevelVisibility_Validate(FName PackageName, 
 
 void APlayerController::ServerUpdateMultipleLevelsVisibility_Implementation( const TArray<FUpdateLevelVisibilityLevelInfo>& LevelVisibilities )
 {
-	for( const FUpdateLevelVisibilityLevelInfo& LevelVisibility : LevelVisibilities )
+	for(const FUpdateLevelVisibilityLevelInfo& LevelVisibility : LevelVisibilities)
 	{
-		ServerUpdateLevelVisibility_Implementation( LevelVisibility.PackageName, LevelVisibility.bIsVisible );
+		ServerUpdateLevelVisibility_Implementation(LevelVisibility);
 	}
 }
 
 bool APlayerController::ServerUpdateMultipleLevelsVisibility_Validate( const TArray<FUpdateLevelVisibilityLevelInfo>& LevelVisibilities )
 {
-	for( const FUpdateLevelVisibilityLevelInfo& LevelVisibility : LevelVisibilities )
+	for(const FUpdateLevelVisibilityLevelInfo& LevelVisibility : LevelVisibilities)
 	{
-		if( !ServerUpdateLevelVisibility_Validate( LevelVisibility.PackageName, LevelVisibility.bIsVisible ) )
+		if(!ServerUpdateLevelVisibility_Validate(LevelVisibility))
 		{
 			return false;
 		}
@@ -1204,6 +1260,18 @@ void APlayerController::ServerAcknowledgePossession_Implementation(APawn* P)
 {
 	UE_LOG(LogPlayerController, Verbose, TEXT("ServerAcknowledgePossession_Implementation %s"), *GetNameSafe(P));
 	AcknowledgedPawn = P;
+
+	if (PlayerControllerCVars::NetResetServerPredictionDataOnPawnAck != 0)
+	{
+		if (AcknowledgedPawn && AcknowledgedPawn == GetPawn())
+		{
+			INetworkPredictionInterface* NetworkPredictionInterface = GetPawn() ? Cast<INetworkPredictionInterface>(GetPawn()->GetMovementComponent()) : NULL;
+			if (NetworkPredictionInterface)
+			{
+				NetworkPredictionInterface->ResetPredictionData_Server();
+			}
+		}
+	}
 }
 
 bool APlayerController::ServerAcknowledgePossession_Validate(APawn* P)
@@ -1710,6 +1778,31 @@ void APlayerController::ServerUpdateCamera_Implementation(FVector_NetQuantize Ca
 
 /// @endcond
 
+bool APlayerController::ServerExecRPC_Validate(const FString& Msg)
+{
+	return true;
+}
+
+void APlayerController::ServerExecRPC_Implementation(const FString& Msg)
+{
+#if !UE_BUILD_SHIPPING
+	ClientMessage(ConsoleCommand(Msg));
+#endif
+}
+	
+void APlayerController::ServerExec(const FString& Msg)
+{
+#if !UE_BUILD_SHIPPING
+
+	if (Msg.Len() > 128)
+	{
+		UE_LOG(LogPlayerController, Warning, TEXT("APlayerController::ServerExec. Msg too big for network RPC. Truncating to 128 character"));
+	}
+
+	ServerExecRPC(Msg.Left(128));
+#endif
+}
+
 void APlayerController::RestartLevel()
 {
 	if( GetNetMode()==NM_Standalone )
@@ -2044,6 +2137,7 @@ bool APlayerController::ProjectWorldLocationToScreenWithDistance(FVector WorldLo
 				}
 
 				ScreenLocation = FVector(ScreenPosition2D.X, ScreenPosition2D.Y, FVector::Dist(ProjectionData.ViewOrigin, WorldLocation));
+				PostProcessWorldToScreen(WorldLocation, ScreenPosition2D, bPlayerViewportRelative);
 
 				return true;
 			}
@@ -3892,6 +3986,19 @@ void APlayerController::PlayDynamicForceFeedback(float Intensity, float Duration
 	}
 }
 
+
+void APlayerController::TestServerLevelVisibilityChange(const FName PackageName, const FName FileName)
+{
+#if !(UE_BUILD_TEST||UE_BUILD_SHIPPING)
+	FUpdateLevelVisibilityLevelInfo LevelInfo;
+	LevelInfo.bIsVisible = true;
+	LevelInfo.PackageName = PackageName;
+	LevelInfo.FileName = FileName;
+	ServerUpdateLevelVisibility(LevelInfo);
+#endif
+}
+
+
 FDynamicForceFeedbackHandle APlayerController::PlayDynamicForceFeedback(float Intensity, float Duration, bool bAffectsLeftLarge, bool bAffectsLeftSmall, bool bAffectsRightLarge, bool bAffectsRightSmall, EDynamicForceFeedbackAction::Type Action, FDynamicForceFeedbackHandle ActionHandle)
 {
 	FDynamicForceFeedbackHandle FeedbackHandle = 0;
@@ -4842,7 +4949,6 @@ void APlayerController::DestroySpectatorPawn()
 			SetViewTarget(this);
 		}
 
-		GetSpectatorPawn()->UnPossessed();
 		GetWorld()->DestroyActor(GetSpectatorPawn());
 		SetSpectatorPawn(NULL);
 	}

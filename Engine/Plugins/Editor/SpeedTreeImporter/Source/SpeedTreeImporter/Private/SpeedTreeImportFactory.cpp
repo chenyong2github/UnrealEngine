@@ -1578,8 +1578,8 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary7(UClass* InClass, UObject*
 				
 				// clear out any old data
 				StaticMesh->SetNumSourceModels(0);
-				StaticMesh->SectionInfoMap.Clear();
-				StaticMesh->OriginalSectionInfoMap.Clear();
+				StaticMesh->GetSectionInfoMap().Clear();
+				StaticMesh->GetOriginalSectionInfoMap().Clear();
 				StaticMesh->StaticMaterials.Empty();
 
 				// Lightmap data
@@ -1809,16 +1809,16 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary7(UClass* InClass, UObject*
 						LODModel.BuildSettings.bUseHighPrecisionTangentBasis = false;
 						LODModel.BuildSettings.bUseFullPrecisionUVs = false;
 						LODModel.BuildSettings.bGenerateLightmapUVs = false;
-						LODModel.ScreenSize.Default = 0.1f / FMath::Pow(2.0f, StaticMesh->SourceModels.Num() - 1);
+						LODModel.ScreenSize.Default = 0.1f / FMath::Pow(2.0f, StaticMesh->GetNumSourceModels() - 1);
 						StaticMesh->CommitMeshDescription(LODIndex);
 
 						for (int32 MaterialIndex = 0; MaterialIndex < StaticMesh->StaticMaterials.Num(); ++MaterialIndex)
 						{
-							FMeshSectionInfo Info = StaticMesh->SectionInfoMap.Get(LODIndex, MaterialIndex);
+							FMeshSectionInfo Info = StaticMesh->GetSectionInfoMap().Get(LODIndex, MaterialIndex);
 							Info.MaterialIndex = MaterialIndex;
-							StaticMesh->SectionInfoMap.Set(LODIndex, MaterialIndex, Info);
+							StaticMesh->GetSectionInfoMap().Set(LODIndex, MaterialIndex, Info);
 						}
-						StaticMesh->OriginalSectionInfoMap.CopyFrom(StaticMesh->SectionInfoMap);
+						StaticMesh->GetOriginalSectionInfoMap().CopyFrom(StaticMesh->GetSectionInfoMap());
 					}
 				}
 
@@ -1826,7 +1826,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary7(UClass* InClass, UObject*
 				if (Options->SpeedTreeImportData->ImportGeometryType != EImportGeometryType::IGT_3D && SpeedTreeGeometry->m_sVertBBs.m_nNumBillboards > 0)
 				{
 					FStaticMeshSourceModel& LODModel = StaticMesh->AddSourceModel();
-					const int32 LODIndex = StaticMesh->SourceModels.Num() - 1;
+					const int32 LODIndex = StaticMesh->GetNumSourceModels() - 1;
 					FMeshDescription* MeshDescription = StaticMesh->CreateMeshDescription(LODIndex);
 					StaticMesh->RegisterMeshAttributes(*MeshDescription);
 
@@ -1958,13 +1958,13 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary7(UClass* InClass, UObject*
 					LODModel.BuildSettings.bUseHighPrecisionTangentBasis = false;
 					LODModel.BuildSettings.bUseFullPrecisionUVs = false;
 					LODModel.BuildSettings.bGenerateLightmapUVs = false;
-					LODModel.ScreenSize.Default = 0.1f / FMath::Pow(2.0f, StaticMesh->SourceModels.Num() - 1);
+					LODModel.ScreenSize.Default = 0.1f / FMath::Pow(2.0f, StaticMesh->GetNumSourceModels() - 1);
 					StaticMesh->CommitMeshDescription(LODIndex);
 					// Add mesh section info entry for billboard LOD (only one section/material index)
-					FMeshSectionInfo Info = StaticMesh->SectionInfoMap.Get(LODIndex, 0);
+					FMeshSectionInfo Info = StaticMesh->GetSectionInfoMap().Get(LODIndex, 0);
 					Info.MaterialIndex = MaterialIndex;
-					StaticMesh->SectionInfoMap.Set(LODIndex, 0, Info);
-					StaticMesh->OriginalSectionInfoMap.Set(LODIndex, MaterialIndex, Info);
+					StaticMesh->GetSectionInfoMap().Set(LODIndex, 0, Info);
+					StaticMesh->GetOriginalSectionInfoMap().Set(LODIndex, MaterialIndex, Info);
 				}
 
 				if (OldMaterials.Num() == StaticMesh->StaticMaterials.Num())
@@ -2093,9 +2093,9 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 		Cast<USpeedTreeImportData>(StaticMesh->AssetImportData)->CopyFrom(Options->SpeedTreeImportData);
 
 		// clear out any old data
-		StaticMesh->SectionInfoMap.Clear();
+		StaticMesh->GetSectionInfoMap().Clear();
 		StaticMesh->StaticMaterials.Empty();
-		if (StaticMesh->SourceModels.Num() != SpeedTree.Lods().Count())
+		if (StaticMesh->GetNumSourceModels() != SpeedTree.Lods().Count())
 		{
 			StaticMesh->SetNumSourceModels(0);
 			float Denominator = 1.0f / FMath::Max(1.0f, SpeedTree.Lods().Count() - 1.0f);
@@ -2222,9 +2222,9 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 				const int32 MaterialIndex = MaterialMap[MaterialKey];
 				const FPolygonGroupID CurrentPolygonGroupID(MaterialIndex);
 
-				FMeshSectionInfo Info = StaticMesh->SectionInfoMap.Get(LODIndex, DrawCallIndex);
+				FMeshSectionInfo Info = StaticMesh->GetSectionInfoMap().Get(LODIndex, DrawCallIndex);
 				Info.MaterialIndex = MaterialIndex;
-				StaticMesh->SectionInfoMap.Set(LODIndex, DrawCallIndex, Info);
+				StaticMesh->GetSectionInfoMap().Set(LODIndex, DrawCallIndex, Info);
 
 				int32 TriangleCount = DrawCall.m_uiIndexCount / 3;
 				for (int32 TriangleIndex = 0; TriangleIndex < TriangleCount; ++TriangleIndex)

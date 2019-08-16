@@ -3,8 +3,7 @@ Crumbs:%ROOT%, Support/Builds
 Description:
 Availability:Public
 version: 4.2
-order:2
-
+Order: 42
 [TOC(start:2 end:2)]
 
 [PUBLISH:Licensee]
@@ -49,8 +48,8 @@ Vehicles are now fully supported in Unreal Engine! This sample game features an 
 ![](vehicleProps2.png)(w:935)
 
 * Documentation can be found here:
-	* [Vehicle Content Guide](https://docs.unrealengine.com/latest/INT/Engine/Physics/Vehicles/VehcileContentCreation)
-	* [Vehicle Setup Guide](https://docs.unrealengine.com/latest/INT/Engine/Physics/Vehicles/VehicleUserGuide)
+	* [Vehicle Content Guide](Engine/Physics/Vehicles/VehicleContentCreation)
+	* [Vehicle Setup Guide](Engine/Physics/Vehicles/VehicleUserGuide)
 
 #### New: Camera Animation System
 Support for **CameraAnims** has now been added into Unreal Engine 4! These are very similar to CameraAnims from Unreal Engine 3, but now expanded with Blueprint support.
@@ -280,7 +279,7 @@ In the 4.2 Preview Notes it was listed that the EndPlay event would replace the 
 
 **Documentation**
 * New: [Vehicle Setup Guide](Engine/Physics/Vehicles/VehicleUserGuide) - How to setup a vehicle in Unreal Engine 4.
-* New: [Vehicle Content Guide](Engine/Physics/Vehicles/VehcileContentCreation) - Setting up the art content for a vehicle.
+* New: [Vehicle Content Guide](Engine/Physics/Vehicles/VehicleContentCreation) - Setting up the art content for a vehicle.
 * New: [Particle User Guide](Engine/Rendering/ParticleSystems/UserGuide) - Cascade User guide updates.
 * Texture Painting - Painting textures and vertices in the editor.
 * [Audio Documentation Updates](Engine/Audio) - The reference for all things auditory in Unreal Engine 4.

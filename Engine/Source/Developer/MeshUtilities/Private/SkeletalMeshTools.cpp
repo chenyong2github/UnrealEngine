@@ -24,17 +24,17 @@ namespace SkeletalMeshTools
 			}
 		}
 
-		if(!NormalsEqual(V1.TangentX.ToFVector(), V2.TangentX.ToFVector(), OverlappingThresholds))
+		if(!NormalsEqual(V1.TangentX, V2.TangentX, OverlappingThresholds))
 		{
 			return false;
 		}
 
-		if(!NormalsEqual(V1.TangentY.ToFVector(), V2.TangentY.ToFVector(), OverlappingThresholds))
+		if(!NormalsEqual(V1.TangentY, V2.TangentY, OverlappingThresholds))
 		{
 			return false;
 		}
 
-		if(!NormalsEqual(V1.TangentZ.ToFVector(), V2.TangentZ.ToFVector(), OverlappingThresholds))
+		if(!NormalsEqual(V1.TangentZ, V2.TangentZ, OverlappingThresholds))
 		{
 			return false;
 		}

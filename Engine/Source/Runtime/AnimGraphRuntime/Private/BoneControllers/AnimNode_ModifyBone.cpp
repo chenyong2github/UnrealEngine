@@ -22,6 +22,7 @@ FAnimNode_ModifyBone::FAnimNode_ModifyBone()
 
 void FAnimNode_ModifyBone::GatherDebugData(FNodeDebugData& DebugData)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(GatherDebugData)
 	FString DebugLine = DebugData.GetNodeName(this);
 
 	DebugLine += "(";
@@ -34,6 +35,7 @@ void FAnimNode_ModifyBone::GatherDebugData(FNodeDebugData& DebugData)
 
 void FAnimNode_ModifyBone::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(EvaluateSkeletalControl_AnyThread)
 	check(OutBoneTransforms.Num() == 0);
 
 	// the way we apply transform is same as FMatrix or FTransform
@@ -111,5 +113,6 @@ bool FAnimNode_ModifyBone::IsValidToEvaluate(const USkeleton* Skeleton, const FB
 
 void FAnimNode_ModifyBone::InitializeBoneReferences(const FBoneContainer& RequiredBones) 
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(InitializeBoneReferences)
 	BoneToModify.Initialize(RequiredBones);
 }

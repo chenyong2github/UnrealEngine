@@ -32,7 +32,7 @@ public class Niagara : ModuleRules
                 "RHI",
                 "UtilityShaders",
                 "NiagaraVertexFactories",
-                "RenderCore"
+                "RenderCore",
             }
         );
 

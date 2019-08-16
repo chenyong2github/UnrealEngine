@@ -152,14 +152,8 @@ void UControlRigGraphSchema::BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNo
 	if (RigBlueprint != nullptr)
 	{
 		FString Left, Right;
-		if (!TargetPin.GetName().Split(TEXT("."), &Left, &Right))
-		{
-			return;
-		}
-		if (RigBlueprint->ModelController->BreakLinks(*Left, *Right, TargetPin.Direction == EGPD_Input))
-		{
-			FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
-		}
+		RigBlueprint->Model->SplitPinPath(TargetPin.GetName(), Left, Right);
+		RigBlueprint->ModelController->BreakLinks(*Left, *Right, TargetPin.Direction == EGPD_Input);
 	}
 }
 
@@ -178,20 +172,10 @@ void UControlRigGraphSchema::BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraph
 			SourcePin = Temp;
 		}
 		
-		FString SourceLeft, SourceRight;
-		if (!SourcePin->GetName().Split(TEXT("."), &SourceLeft, &SourceRight))
-		{
-			return;
-		}
-		FString TargetLeft, TargetRight;
-		if (!TargetPin->GetName().Split(TEXT("."), &TargetLeft, &TargetRight))
-		{
-			return;
-		}
-		if (RigBlueprint->ModelController->BreakLink(*SourceLeft, *SourceRight, *TargetLeft, *TargetRight))
-		{
-			FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
-		}
+		FString SourceLeft, SourceRight, TargetLeft, TargetRight;
+		RigBlueprint->Model->SplitPinPath(SourcePin->GetName(), SourceLeft, SourceRight);
+		RigBlueprint->Model->SplitPinPath(TargetPin->GetName(), TargetLeft, TargetLeft);
+		RigBlueprint->ModelController->BreakLink(*SourceLeft, *SourceRight, *TargetLeft, *TargetRight);
 	}
 }
 
@@ -222,7 +206,7 @@ UControlRigGraphNode* UControlRigGraphSchema::CreateGraphNode(UControlRigGraph* 
 	return ControlRigGraphNode;
 }
 
-void UControlRigGraphSchema::TrySetDefaultValue(UEdGraphPin& InPin, const FString& InNewDefaultValue) const
+void UControlRigGraphSchema::TrySetDefaultValue(UEdGraphPin& InPin, const FString& InNewDefaultValue, bool bMarkAsModified) const
 {
 #if WITH_EDITOR
 	if (GEditor)
@@ -230,10 +214,10 @@ void UControlRigGraphSchema::TrySetDefaultValue(UEdGraphPin& InPin, const FStrin
 		GEditor->CancelTransaction(0);
 	}
 #endif
-	GetDefault<UEdGraphSchema_K2>()->TrySetDefaultValue(InPin, InNewDefaultValue);
+	GetDefault<UEdGraphSchema_K2>()->TrySetDefaultValue(InPin, InNewDefaultValue, false);
 }
 
-void UControlRigGraphSchema::TrySetDefaultObject(UEdGraphPin& InPin, UObject* InNewDefaultObject) const
+void UControlRigGraphSchema::TrySetDefaultObject(UEdGraphPin& InPin, UObject* InNewDefaultObject, bool bMarkAsModified) const
 {
 #if WITH_EDITOR
 	if (GEditor)
@@ -241,10 +225,10 @@ void UControlRigGraphSchema::TrySetDefaultObject(UEdGraphPin& InPin, UObject* In
 		GEditor->CancelTransaction(0);
 	}
 #endif
-	GetDefault<UEdGraphSchema_K2>()->TrySetDefaultObject(InPin, InNewDefaultObject);
+	GetDefault<UEdGraphSchema_K2>()->TrySetDefaultObject(InPin, InNewDefaultObject, false);
 }
 
-void UControlRigGraphSchema::TrySetDefaultText(UEdGraphPin& InPin, const FText& InNewDefaultText) const
+void UControlRigGraphSchema::TrySetDefaultText(UEdGraphPin& InPin, const FText& InNewDefaultText, bool bMarkAsModified) const
 {
 #if WITH_EDITOR
 	if (GEditor)
@@ -252,7 +236,7 @@ void UControlRigGraphSchema::TrySetDefaultText(UEdGraphPin& InPin, const FText& 
 		GEditor->CancelTransaction(0);
 	}
 #endif
-	GetDefault<UEdGraphSchema_K2>()->TrySetDefaultText(InPin, InNewDefaultText);
+	GetDefault<UEdGraphSchema_K2>()->TrySetDefaultText(InPin, InNewDefaultText, false);
 }
 
 bool UControlRigGraphSchema::ArePinsCompatible(const UEdGraphPin* PinA, const UEdGraphPin* PinB, const UClass* CallingContext, bool bIgnoreArray /*= false*/) const

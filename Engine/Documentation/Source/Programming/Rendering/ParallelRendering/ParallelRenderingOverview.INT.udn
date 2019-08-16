@@ -1,4 +1,4 @@
-Availability: Docs
+Availability: Public
 Crumbs: %ROOT%
 Title: Parallel Rendering Overview
 Description: Taking a high-level look at Parallel Rendering Overview in Unreal Engine 4
@@ -15,13 +15,13 @@ Tags: rendering
 
 Originally, the renderer ran in the Render Thread, and commands for that thread were enqueued by the Game Thread to be run later in the frame. These commands made calls into the Render Hardware Interface (RHI) layer, which serves as our cross-platform interface into the different graphics APIs on the platforms we support.
 
-In order to improve the efficiency of this process and take advantage of the capabilities of our supported platforms, the Render Thread now serves as a frontend that enqueues platform-agnostic graphical commands into the renderer's command list, and a new thread, the RHI Thread, translates (executes) them via the appropriate graphics API on the backend. This separation enables independent backend parallelization on platforms that support it, such as game consoles, DX12, and Vulkan. In general, anything generated in parallel on the frontend is translated in parallel on the backend.
+In order to improve the efficiency of this process and take advantage of the capabilities of our supported platforms, the Render Thread now serves as a frontend that enqueues platform-agnostic graphical commands into the renderer's command list. Then, a new thread, the RHI Thread, translates (executes) them via the appropriate graphics API on the backend. This separation enables independent backend parallelization on platforms that support it, such as game consoles, DX12, and Vulkan. In general, anything generated in parallel on the frontend is translated in parallel on the backend.
 
-[REGION:note]There are certain commands which are carried out without the use of the command list system, such as Lock and Unlock operations. These commands are issued by the Render Thread directly. In these cases, we either flush the RHI Thread and wait for the operations to finish, or we copy the data and queue it. This is implemented differently depending on the operation and the platform.[/REGION]
+[REGION:note]There are certain commands which are carried out without the use of the command list system, such as Lock and Unlock operations. These commands are issued by the Render Thread directly. In these cases, the Engine will either flush the RHI Thread and wait for the operations to finish, or it will copy the data and queue it. This is implemented differently depending on the operation and the platform.[/REGION]
 
 ## Graphical Commands and the Command List
 
-The commands enqueued by the Render Thread are instances of structs derived from the `FRHICommand` template. They override the `Execute` function, which is called during the translation process, and store any data that they require. Commands can be submitted to the GPU differently on different platforms (e.g., submitted multiple times per frame, all at once at the end of the frame, etc.) based on heuristics for that platform's optimal performance, or can be submitted by issuing the `FRHISubmitCommandsHint` command.
+The commands enqueued by the Render Thread are instances of structs derived from the `FRHICommand` template. They override the `Execute` function, which is called during the translation process, and store any data that they require. Commands can be submitted to the GPU differently on different platforms (for example, submitted multiple times per frame, all at once at the end of the frame, and so on) based on heuristics for that platform's optimal performance, or they can be submitted by issuing the `FRHISubmitCommandsHint` command.
 
 The main interface used in translation is the `IRHICommandContext`. There is a derived `RHICommandContext` for each platform and API. During translation, the `RHICommandList` is given an `RHICommandContext` to operate on, and each command's `Execute` function calls into the `RHICommandContext` API. The command's context is responsible for state-shadowing, validation, and any API-specific details necessary to perform the given operation.
 
@@ -31,7 +31,7 @@ Synchronization of the renderer between the GameThread, RenderThread, RHI Thread
 
 ## Debugging
 
-There are various CVARs to control this behavior.  Because many of these stages are orthogonal, they can be independently disabled for testing, and new platforms can be brought up in stages as time allows.  e.g.
+There are several console variables that you can use to control this behavior.  Because many of these stages are orthogonal, they can be independently disabled for testing, and new platforms can be brought up in stages as time allows. For example:
 
 |Command|Description|
 |--------------|--------------|

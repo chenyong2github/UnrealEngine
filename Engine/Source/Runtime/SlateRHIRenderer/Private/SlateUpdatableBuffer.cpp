@@ -7,24 +7,41 @@ DECLARE_CYCLE_STAT(TEXT("UpdateInstanceBuffer Time"), STAT_SlateUpdateInstanceBu
 
 struct FSlateUpdateInstanceBufferCommand final : public FRHICommand<FSlateUpdateInstanceBufferCommand>
 {
+	TArray<FVector4> InstanceData;
 	FVertexBufferRHIRef VertexBufferRHI;
-	const TArray<FVector4>& InstanceData;
 
-	FSlateUpdateInstanceBufferCommand(TSlateElementVertexBuffer<FVector4>& InInstanceBuffer, const TArray<FVector4>& InInstanceData )
-		: VertexBufferRHI(InInstanceBuffer.VertexBufferRHI)
-		, InstanceData(InInstanceData)
+	FSlateUpdateInstanceBufferCommand(TSlateElementVertexBuffer<FVector4>& InInstanceBuffer, const TArray<FVector4>& InInstanceData)
+		: InstanceData(InInstanceData)
+		, VertexBufferRHI(InInstanceBuffer.VertexBufferRHI)
 	{}
 
 	void Execute(FRHICommandListBase& CmdList)
 	{
 		SCOPE_CYCLE_COUNTER( STAT_SlateUpdateInstanceBuffer );
+		const bool bIsInRenderingThread = !IsRunningRHIInSeparateThread() || CmdList.Bypass();
 
-		int32 RequiredVertexBufferSize = InstanceData.Num()*sizeof(FVector4);
-		uint8* InstanceBufferData = (uint8*)GDynamicRHI->RHILockVertexBuffer( VertexBufferRHI, 0, RequiredVertexBufferSize, RLM_WriteOnly );
+		uint32 RequiredBufferSize = InstanceData.Num() * sizeof(FVector4);
+		uint8* InstanceBufferData = nullptr;
 
-		FMemory::Memcpy( InstanceBufferData, InstanceData.GetData(), InstanceData.Num()*sizeof(FVector4) );
+		if (bIsInRenderingThread)
+		{
+			InstanceBufferData = static_cast<uint8*>(RHILockVertexBuffer(VertexBufferRHI, 0, RequiredBufferSize, RLM_WriteOnly));
+		}
+		else
+		{
+			InstanceBufferData = static_cast<uint8*>(GDynamicRHI->RHILockVertexBuffer(VertexBufferRHI, 0, RequiredBufferSize, RLM_WriteOnly));
+		}
+
+		FMemory::Memcpy(InstanceBufferData, InstanceData.GetData(), RequiredBufferSize);
 	
-		GDynamicRHI->RHIUnlockVertexBuffer( VertexBufferRHI );
+		if (bIsInRenderingThread)
+		{
+			RHIUnlockVertexBuffer(VertexBufferRHI);
+		}
+		else
+		{
+			GDynamicRHI->RHIUnlockVertexBuffer(VertexBufferRHI);
+		}
 	}
 };
 
@@ -92,11 +109,8 @@ void FSlateUpdatableInstanceBuffer::UpdateRenderingData_RenderThread(FRHICommand
 
 	if(!IsRunningRHIInSeparateThread() || RHICmdList.Bypass())
 	{
-		uint8* InstanceBufferData = (uint8*)InstanceBufferResource.LockBuffer_RenderThread(RenderThreadBufferData.Num());
-
-		FMemory::Memcpy(InstanceBufferData, RenderThreadBufferData.GetData(), RenderThreadBufferData.Num()*sizeof(FVector4) );
-	
-		InstanceBufferResource.UnlockBuffer_RenderThread();
+		FSlateUpdateInstanceBufferCommand Command(InstanceBufferResource, RenderThreadBufferData);
+		Command.Execute(RHICmdList);
 	}
 	else
 	{

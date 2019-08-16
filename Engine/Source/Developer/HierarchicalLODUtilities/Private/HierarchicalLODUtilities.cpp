@@ -931,7 +931,6 @@ void FHierarchicalLODUtilities::DestroyLODActor(ALODActor* InActor)
 	ALODActor* ParentActor = GetParentLODActor(InActor);
 
 	DestroyCluster(InActor);
-	World->DestroyActor(InActor);
 
 	if (ParentActor && !ParentActor->HasAnySubActors())
 	{
@@ -968,7 +967,6 @@ void FHierarchicalLODUtilities::DeleteLODActorsInHLODLevel(UWorld* InWorld, cons
 		if (LodActor && LodActor->LODLevel == (HLODLevelIndex + 1))
 		{
 			DestroyCluster(LodActor);
-			InWorld->DestroyActor(LodActor);
 		}
 	}
 }
@@ -994,9 +992,9 @@ int32 FHierarchicalLODUtilities::GetLODLevelForScreenSize(const UStaticMeshCompo
 
 	const FStaticMeshRenderData* RenderData = StaticMeshComponent->GetStaticMesh()->RenderData.Get();
 	checkf(RenderData != nullptr, TEXT("StaticMesh in StaticMeshComponent %s contains invalid render data"), *StaticMeshComponent->GetName());
-	checkf(StaticMeshComponent->GetStaticMesh()->SourceModels.Num() > 0, TEXT("StaticMesh in StaticMeshComponent %s contains no SourceModels"), *StaticMeshComponent->GetName());
+	checkf(StaticMeshComponent->GetStaticMesh()->GetNumSourceModels() > 0, TEXT("StaticMesh in StaticMeshComponent %s contains no SourceModels"), *StaticMeshComponent->GetName());
 
-	return ComputeStaticMeshLODLevel(StaticMeshComponent->GetStaticMesh()->SourceModels, RenderData, ScreenSize);
+	return ComputeStaticMeshLODLevel(StaticMeshComponent->GetStaticMesh()->GetSourceModels(), RenderData, ScreenSize);
 }
 
 AHierarchicalLODVolume* FHierarchicalLODUtilities::CreateVolumeForLODActor(ALODActor* InLODActor, UWorld* InWorld)

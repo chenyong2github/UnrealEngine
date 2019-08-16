@@ -5,6 +5,7 @@
 
 void FRigUnit_DebugRectangle::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
 	{
 		return;
@@ -18,7 +19,7 @@ void FRigUnit_DebugRectangle::Execute(const FRigUnitContext& Context)
 	FTransform DrawTransform = Transform;
 	if (Space != NAME_None && Context.HierarchyReference.Get() != nullptr)
 	{
-		DrawTransform = Context.HierarchyReference.Get()->GetGlobalTransform(Space) * DrawTransform;
+		DrawTransform = DrawTransform * Context.HierarchyReference.Get()->GetGlobalTransform(Space);
 	}
 
 	Context.DrawInterface->DrawRectangle(WorldOffset, DrawTransform, Scale, Color, Thickness);
@@ -26,6 +27,7 @@ void FRigUnit_DebugRectangle::Execute(const FRigUnitContext& Context)
 
 void FRigUnit_DebugArc::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
 	{
 		return;
@@ -39,7 +41,7 @@ void FRigUnit_DebugArc::Execute(const FRigUnitContext& Context)
 	FTransform DrawTransform = Transform;
 	if (Space != NAME_None && Context.HierarchyReference.Get() != nullptr)
 	{
-		DrawTransform = Context.HierarchyReference.Get()->GetGlobalTransform(Space) * DrawTransform;
+		DrawTransform = DrawTransform * Context.HierarchyReference.Get()->GetGlobalTransform(Space);
 	}
 
 	Context.DrawInterface->DrawArc(WorldOffset, DrawTransform, Radius, FMath::DegreesToRadians(MinimumDegrees), FMath::DegreesToRadians(MaximumDegrees), Color, Thickness, Detail);

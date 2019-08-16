@@ -27,6 +27,7 @@ public class UnrealEd : ModuleRules
 			{
 				"BehaviorTreeEditor",
 				"ClassViewer",
+				"StructViewer",
 				"ContentBrowser",
 				"DerivedDataCache",
 				"DesktopPlatform",
@@ -63,6 +64,7 @@ public class UnrealEd : ModuleRules
 				"ClothingSystemEditorInterface",
 				"NavigationSystem",
 				"Media",
+				"VirtualTexturingEditor",
 			}
 		);
 
@@ -167,6 +169,8 @@ public class UnrealEd : ModuleRules
 				"PIEPreviewDeviceProfileSelector",
 				"PakFileUtilities",
 				"TimeManagement",
+                "LandscapeEditorUtilities",
+                "DerivedDataCache",
 			}
 		);
 
@@ -181,6 +185,7 @@ public class UnrealEd : ModuleRules
 				"Matinee",
 				"AssetTools",
 				"ClassViewer",
+				"StructViewer",
 				"CollectionManager",
 				"ContentBrowser",
 				"CurveTableEditor",
@@ -230,6 +235,7 @@ public class UnrealEd : ModuleRules
 				"ClothPainter",
 				"Media",
 				"TimeManagementEditor",
+				"VirtualTexturingEditor",
 			}
 		);
 
@@ -323,5 +329,10 @@ public class UnrealEd : ModuleRules
 		{
 			PublicDefinitions.Add( "WITH_RECAST=0" );
 		}
+
+        if (Target.bWithLiveCoding)
+        {
+			PrivateIncludePathModuleNames.Add("LiveCoding");
+        }
 	}
 }

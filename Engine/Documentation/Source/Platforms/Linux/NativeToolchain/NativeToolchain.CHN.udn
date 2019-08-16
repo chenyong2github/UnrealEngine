@@ -1,0 +1,27 @@
+﻿INTSourceChangelist:5820874
+Availability: Public
+Crumbs: 
+Title: 原生工具链
+Description: 
+Type: reference
+Version: 4.22
+Parent: Platforms/Linux
+Order: 6
+Tags: Linux
+topic-image: LinuxDevelopment_topic.png
+
+
+自虚幻引擎4.20版本起，我们的设置shell脚本(Setup.sh)会自动下载一个原生工具链，这保证编译器和连接器能够使用我们的基本代码。使用原生工具链，您可以针对一个固定的sysroot（至少是glibc）进行编译，因此，例如当您在Ubuntu 18.04上编译一个游戏时，您将能够在CentOS 7上启动二进制文件。
+
+(#gettingthetoolchain)
+
+## 获取工具链
+
+请使用下表以下载相应的工具链：
+
+  
+| UE4 版本 | 工具链 |
+| --- | --- |
+| 4.22 | **-v13** [基于clang 7.0.1](http://cdn.unrealengine.com/Toolchain_Linux/native-linux-v13_clang-7.0.1-centos7.tar.gz) |
+| 4.21 | **-v12** [基于clang 6.0.1](http://cdn.unrealengine.com/Toolchain_Linux/native-linux-v12_clang-6.0.1-centos7.tar.gz) |
+| 4.20 | **-v11** [基于clang 5.0.0](http://cdn.unrealengine.com/Toolchain_Linux/native-linux-v11_clang-5.0.0-centos7.tar.gz) |

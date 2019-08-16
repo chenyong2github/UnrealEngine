@@ -1,0 +1,455 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+#include "OSCStream.h"
+
+#include "OSCLog.h"
+
+
+FOSCStream::FOSCStream()
+	: Position(0)
+{
+}
+
+FOSCStream::FOSCStream(const uint8* InData, int32 InSize)
+	: Data(InData, InSize)
+	, Position(0)
+{
+}
+
+FOSCStream::FOSCStream(int32 InSize)
+	: Position(0)
+{
+	Data.AddZeroed(InSize);
+}
+
+const uint8* FOSCStream::GetData() const
+{
+	return Data.GetData();
+}
+
+int32 FOSCStream::GetLength() const
+{
+	return Data.Num();
+}
+
+bool FOSCStream::HasReachedEnd() const
+{
+	return Position >= Data.Num();
+}
+
+int32 FOSCStream::GetPosition() const
+{
+	return Position;
+}
+
+void FOSCStream::SetPosition(int32 InPosition)
+{
+	Position = InPosition;
+}
+
+TCHAR FOSCStream::ReadChar()
+{
+	uint8 Temp;
+	if (Read(&Temp, 1) > 0)
+	{
+		TCHAR* OutChar = ANSI_TO_TCHAR((ANSICHAR*)&Temp);
+		return *OutChar;
+	}
+
+	return '\0';
+}
+
+void FOSCStream::WriteChar(TCHAR Char)
+{
+	const uint8* ToWrite = (uint8*)TCHAR_TO_ANSI(&Char);
+	Write(ToWrite, 1);
+}
+
+FColor FOSCStream::ReadColor()
+{
+	uint32 Packed = static_cast<uint32>(ReadInt32());
+	return FColor(Packed);
+}
+
+void FOSCStream::WriteColor(FColor Color)
+{
+#if PLATFORM_LITTLE_ENDIAN
+	uint32 Packed = Color.ToPackedABGR();
+#else // PLATFORM_LITTLE_ENDIAN
+	uint32 Packed = Color.ToPackedRGBA();
+#endif // !PLATFORM_LITTLE_ENDIAN
+
+	WriteInt32(static_cast<int32>(Packed));
+}
+
+int32 FOSCStream::ReadInt32()
+{
+	uint8 Temp[4];
+	if (Read(Temp, 4) == 4)
+	{
+#if PLATFORM_LITTLE_ENDIAN
+		union {
+			int32 i;
+			uint8 c[4];
+		} u;
+
+		u.c[0] = Temp[3];
+		u.c[1] = Temp[2];
+		u.c[2] = Temp[1];
+		u.c[3] = Temp[0];
+
+		return u.i;
+#else
+		return *(int32*)(Temp);
+#endif // !PLATFORM_LITTLE_ENDIAN
+	}
+
+	return 0;
+}
+
+void FOSCStream::WriteInt32(int32 Value)
+{
+	uint8 Temp[4];
+
+#ifdef PLATFORM_LITTLE_ENDIAN
+	union {
+		int32 i;
+		uint8 c[4];
+	} u;
+
+	u.i = Value;
+
+	Temp[3] = u.c[0];
+	Temp[2] = u.c[1];
+	Temp[1] = u.c[2];
+	Temp[0] = u.c[3];
+#else // PLATFORM_LITTLE_ENDIAN
+	*(int32*)(Temp) = Value;
+#endif // !PLATFORM_LITTLE_ENDIAN
+	Write(Temp, 4);
+}
+
+double FOSCStream::ReadDouble()
+{
+	uint8 Temp[8];
+	if (Read(Temp, 8) == 8)
+	{
+#if PLATFORM_LITTLE_ENDIAN
+		union {
+			double d;
+			uint8 c[8];
+		} u;
+
+		u.c[0] = Temp[7];
+		u.c[1] = Temp[6];
+		u.c[2] = Temp[5];
+		u.c[3] = Temp[4];
+		u.c[4] = Temp[3];
+		u.c[5] = Temp[2];
+		u.c[6] = Temp[1];
+		u.c[7] = Temp[0];
+
+		return u.d;
+#else // PLATFORM_LITTLE_ENDIAN
+		return *(double*)Temp;
+#endif // !PLATFORM_LITTLE_ENDIAN
+
+	}
+
+	return 0;
+}
+
+void FOSCStream::WriteDouble(uint64 Value)
+{
+	uint8 Temp[8];
+
+#ifdef PLATFORM_LITTLE_ENDIAN
+	union {
+		double i;
+		uint8 c[8];
+	} u;
+
+	u.i = Value;
+
+	Temp[7] = u.c[0];
+	Temp[6] = u.c[1];
+	Temp[5] = u.c[2];
+	Temp[4] = u.c[3];
+	Temp[3] = u.c[4];
+	Temp[2] = u.c[5];
+	Temp[1] = u.c[6];
+	Temp[0] = u.c[7];
+#else // PLATFORM_LITTLE_ENDIAN
+	*(double*)(Temp) = Value;
+#endif // !PLATFORM_LITTLE_ENDIAN
+	Write(Temp, 8);
+}
+
+int64 FOSCStream::ReadInt64()
+{
+	uint8 Temp[8];
+	if (Read(Temp, 8) == 8)
+	{
+#if PLATFORM_LITTLE_ENDIAN
+		union {
+			int64 i;
+			uint8 c[8];
+		} u;
+
+		u.c[0] = Temp[7];
+		u.c[1] = Temp[6];
+		u.c[2] = Temp[5];
+		u.c[3] = Temp[4];
+		u.c[4] = Temp[3];
+		u.c[5] = Temp[2];
+		u.c[6] = Temp[1];
+		u.c[7] = Temp[0];
+
+		return u.i;
+#else // PLATFORM_LITTLE_ENDIAN
+		return *(int64*)Temp;
+#endif // !PLATFORM_LITTLE_ENDIAN
+	}
+
+	return 0;
+}
+
+void FOSCStream::WriteInt64(int64 Value)
+{
+	uint8 Temp[8];
+
+#ifdef PLATFORM_LITTLE_ENDIAN
+	union {
+		int64 i;
+		uint8 c[8];
+	} u;
+
+	u.i = Value;
+
+	Temp[7] = u.c[0];
+	Temp[6] = u.c[1];
+	Temp[5] = u.c[2];
+	Temp[4] = u.c[3];
+	Temp[3] = u.c[4];
+	Temp[2] = u.c[5];
+	Temp[1] = u.c[6];
+	Temp[0] = u.c[7];
+#else // PLATFORM_LITTLE_ENDIAN
+	*(int64*)(Temp) = Value;
+#endif // !PLATFORM_LITTLE_ENDIAN
+	Write(Temp, 8);
+}
+
+uint64 FOSCStream::ReadUInt64()
+{
+	uint8 Temp[8];
+	if (Read(Temp, 8) == 8)
+	{
+#if PLATFORM_LITTLE_ENDIAN
+		union {
+			uint64 i;
+			uint8 c[8];
+		} u;
+
+		u.c[0] = Temp[7];
+		u.c[1] = Temp[6];
+		u.c[2] = Temp[5];
+		u.c[3] = Temp[4];
+		u.c[4] = Temp[3];
+		u.c[5] = Temp[2];
+		u.c[6] = Temp[1];
+		u.c[7] = Temp[0];
+
+		return u.i;
+#else // PLATFORM_LITTLE_ENDIAN
+		return *(uint64*)Temp;
+#endif // !PLATFORM_LITTLE_ENDIAN
+
+	}
+
+	return 0;
+}
+
+void FOSCStream::WriteUInt64(uint64 Value)
+{
+	uint8 Temp[8];
+
+#ifdef PLATFORM_LITTLE_ENDIAN
+	union {
+		uint64 i;
+		uint8 c[8];
+	} u;
+
+	u.i = Value;
+
+	Temp[7] = u.c[0];
+	Temp[6] = u.c[1];
+	Temp[5] = u.c[2];
+	Temp[4] = u.c[3];
+	Temp[3] = u.c[4];
+	Temp[2] = u.c[5];
+	Temp[1] = u.c[6];
+	Temp[0] = u.c[7];
+#else // PLATFORM_LITTLE_ENDIAN
+	*reinterpret_cast<uint64*>(Temp) = Value;
+#endif // !PLATFORM_LITTLE_ENDIAN
+	Write(Temp, 8);
+}
+
+float FOSCStream::ReadFloat()
+{
+	uint8 Temp[4];
+	if (Read(Temp, 4) == 4)
+	{
+#if PLATFORM_LITTLE_ENDIAN
+		union {
+			float f;
+			uint8 c[4];
+		} u;
+
+		u.c[0] = Temp[3];
+		u.c[1] = Temp[2];
+		u.c[2] = Temp[1];
+		u.c[3] = Temp[0];
+
+		return u.f;
+#else // PLATFORM_LITTLE_ENDIAN
+		return *(float*)Temp;
+#endif // !PLATFORM_LITTLE_ENDIAN
+	}
+
+	return 0.0f;
+}
+
+void FOSCStream::WriteFloat(float Value)
+{
+	uint8 Temp[4];
+
+#ifdef PLATFORM_LITTLE_ENDIAN
+	union {
+		float f;
+		uint8 c[4];
+	} u;
+
+	u.f = Value;
+
+	Temp[3] = u.c[0];
+	Temp[2] = u.c[1];
+	Temp[1] = u.c[2];
+	Temp[0] = u.c[3];
+#else // if !PLATFORM_LITTLE_ENDIAN
+	*(float*)(Temp) = Value;
+#endif // !PLATFORM_LITTLE_ENDIAN
+
+	Write(Temp, 4);
+}
+
+FString FOSCStream::ReadString()
+{
+	const int32 DataSize = Data.Num();
+	const int32 InitPosition = Position;
+	check(Position < DataSize);
+
+	const ANSICHAR* StrStart = (ANSICHAR*)(&Data[InitPosition]);
+
+	for (; Position < DataSize; Position++)
+	{
+		if (Data[Position] == '\0')
+		{
+			break;
+		}
+	}
+
+	if (Position == DataSize)
+	{
+		UE_LOG(LogOSC, Error, TEXT("Invalid string: Terminator not found"));
+		return FString();
+	}
+
+	// Note end for string copy, increment to next read
+	// location, and pad position.
+	const int32 EndPosition = Position;
+	Position++;
+	Position = ((Position + 3) / 4) * 4;
+
+	return FString(EndPosition - InitPosition, StrStart);
+}
+
+void FOSCStream::WriteString(const FString& InString)
+{
+	const TArray<TCHAR>& CharArr = InString.GetCharArray();
+	const int32 Count = CharArr.Num();
+
+	if (Count == 0)
+	{
+		WriteChar('\0');
+	}
+	else
+	{
+		for (int32 i = 0; i < Count; i++)
+		{
+			WriteChar(CharArr[i]);
+		}
+	}
+
+	// Increment & pad string with null terminator
+	const int32 NumPaddingZeros = ((Count + 3) / 4) * 4;
+	for (int32 i = 0; i < NumPaddingZeros - Count; i++)
+	{
+		WriteChar('\0');
+	}
+}
+
+TArray<uint8> FOSCStream::ReadBlob()
+{
+	TArray<uint8> Blob;
+
+	const int32 BlobSize = ReadInt32();
+	for (int32 i = 0; i < BlobSize; i++)
+	{
+		Blob.Add(ReadChar());
+	}
+
+	Position = ((Position + 3) / 4) * 4; // padded
+
+	return Blob;
+}
+
+void FOSCStream::WriteBlob(TArray<uint8>& Blob)
+{
+	WriteInt32(Blob.Num());
+	for (int32 i = 0; i < Blob.Num(); i++)
+	{
+		Write(&Blob[i], 4u);
+	}
+}
+
+int32 FOSCStream::Read(uint8* Buffer, int32 InSize)
+{
+	const int32 DataSize = Data.Num();
+	if (InSize == 0 || Position >= DataSize)
+	{
+		return 0;
+	}
+
+	const int32 Num = FMath::Min<int32>(InSize, DataSize - Position);
+	if (Num > 0)
+	{
+		FMemory::Memcpy(Buffer, &Data[Position], Num);
+		Position += Num;
+	}
+
+	return Num;
+}
+
+int32 FOSCStream::Write(const uint8* InBuffer, int32 InSize)
+{
+	if (InSize > 0)
+	{
+		FMemory::Memcpy(&Data[Position], InBuffer, InSize);
+		Position += InSize;
+		return InSize;
+	}
+
+	return 0;
+}
+

@@ -15,8 +15,6 @@
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 
-#include "BlutilityDetailsPanel.h"
-#include "BlutilityShelf.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "BlutilityContentBrowserExtensions.h"
 #include "BlutilityLevelEditorExtensions.h"
@@ -44,7 +42,6 @@ DEFINE_LOG_CATEGORY(LogEditorUtilityBlueprint);
 
 namespace BlutilityModule
 {
-	static const FName BlutilityShelfApp = FName(TEXT("BlutilityShelfApp"));
 }
 
 /////////////////////////////////////////////////////
@@ -54,7 +51,7 @@ namespace BlutilityModule
 class FBlutilityModule : public IBlutilityModule, public FGCObject
 {
 public:
-	/** Asset type actions for blutility assets.  Cached here so that we can unregister it during shutdown. */
+	/** Asset type actions for editor utility assets.  Cached here so that we can unregister it during shutdown. */
 	TSharedPtr<FAssetTypeActions_EditorUtilityBlueprint> EditorBlueprintAssetTypeActions;
 	TSharedPtr<FAssetTypeActions_EditorUtilityWidgetBlueprint> EditorWidgetBlueprintAssetTypeActions;
 
@@ -69,9 +66,6 @@ public:
 		EditorWidgetBlueprintAssetTypeActions = MakeShareable(new FAssetTypeActions_EditorUtilityWidgetBlueprint);
 		AssetTools.RegisterAssetTypeActions(EditorWidgetBlueprintAssetTypeActions.ToSharedRef());
 
-		FGlobalTabmanager::Get()->RegisterTabSpawner(BlutilityModule::BlutilityShelfApp, FOnSpawnTab::CreateStatic(&SpawnBlutilityShelfTab))
-			.SetDisplayName(NSLOCTEXT("BlutilityShelf", "TabTitle", "Blutility Shelf"))
-			.SetGroup(WorkspaceMenu::GetMenuStructure().GetToolsCategory());
 		FKismetCompilerContext::RegisterCompilerForBP(UEditorUtilityWidgetBlueprint::StaticClass(), &UWidgetBlueprint::GetCompilerForWidgetBP);
 
 		// Register widget blueprint compiler we do this no matter what.
@@ -117,7 +111,7 @@ public:
 						FName RegistrationName = FName(*(Blueprint->GetPathName() + LOCTEXT("ActiveTabSuffix", "_ActiveTab").ToString()));
 						Blueprint->SetRegistrationName(RegistrationName);
 						FText DisplayName = FText::FromString(Blueprint->GetName());
-						if (LevelEditorTabManager && !LevelEditorTabManager->CanSpawnTab(RegistrationName))
+						if (LevelEditorTabManager && !LevelEditorTabManager->HasTabSpawner(RegistrationName))
 						{
 							LevelEditorTabManager->RegisterTabSpawner(RegistrationName, FOnSpawnTab::CreateUObject(Blueprint, &UEditorUtilityWidgetBlueprint::SpawnEditorUITab))
 								.SetDisplayName(DisplayName)
@@ -185,8 +179,6 @@ public:
 		FBlutilityLevelEditorExtensions::RemoveHooks();
 		FBlutilityContentBrowserExtensions::RemoveHooks();
 
-		FGlobalTabmanager::Get()->UnregisterTabSpawner(BlutilityModule::BlutilityShelfApp);
-
 		// Only unregister if the asset tools module is loaded.  We don't want to forcibly load it during shutdown phase.
 		check( EditorBlueprintAssetTypeActions.IsValid() );
 		if (FModuleManager::Get().IsModuleLoaded("AssetTools"))
@@ -197,15 +189,6 @@ public:
 		}
 		EditorBlueprintAssetTypeActions.Reset();
 		EditorWidgetBlueprintAssetTypeActions.Reset();
-
-		// Unregister the details customization
-		if (FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
-		{
-			FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-			PropertyModule.UnregisterCustomClassLayout("PlacedEditorUtilityBase");
-			PropertyModule.UnregisterCustomClassLayout("GlobalEditorUtilityBase");
-			PropertyModule.NotifyCustomizationModuleChanged();
-		}
 
 		FEditorSupportDelegates::PrepareToCleanseEditorObject.RemoveAll(this);
 	}
@@ -249,14 +232,6 @@ public:
 	}
 
 protected:
-	static TSharedRef<SDockTab> SpawnBlutilityShelfTab(const FSpawnTabArgs& Args)
-	{
-		return SNew(SDockTab)
-			.TabRole(ETabRole::NomadTab)
-			[
-				SNew(SBlutilityShelf)
-			];
-	}
 
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override
 	{

@@ -1,0 +1,47 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#ifndef PLATFORM_HOLOLENS
+#define PLATFORM_HOLOLENS 0
+#endif
+
+#if PLATFORM_HOLOLENS || PLATFORM_WINDOWS
+
+#include "MixedRealityInteropBuildInfo.h"
+
+// Check for baseline remoting players support as our 1.0 feature level
+#if WINDOWS_MIXED_REALITY_INTEROP__WINDOWS_SDK_VERSION__BUILD >= 17763
+#define SUPPORTS_WINDOWS_MIXED_REALITY_AR 1
+#else
+#define SUPPORTS_WINDOWS_MIXED_REALITY_AR 0
+#endif
+
+//TODO: use this define
+#if WINDOWS_MIXED_REALITY_INTEROP__WINDOWS_SDK_VERSION__BUILD >= 18317
+#define SUPPORTS_WINDOWS_MIXED_REALITY_HAND_TRACKING 1
+#else
+#define SUPPORTS_WINDOWS_MIXED_REALITY_HAND_TRACKING 0
+#endif
+
+// Expression: !is_sta()  when remoting.
+#if PLATFORM_HOLOLENS && WINDOWS_MIXED_REALITY_INTEROP__WINDOWS_SDK_VERSION__BUILD >= 18362
+#define SUPPORTS_WINDOWS_MIXED_REALITY_SPEECH_RECOGNITION 1
+#else
+#define SUPPORTS_WINDOWS_MIXED_REALITY_SPEECH_RECOGNITION 0
+#endif
+
+// m_GestureRecognizer.CaptureInteraction(args.Interaction()); exception when remoting, looked like bad interface use?/?
+#if WINDOWS_MIXED_REALITY_INTEROP__WINDOWS_SDK_VERSION__BUILD >= 18362
+#define SUPPORTS_WINDOWS_MIXED_REALITY_GESTURES 1
+#else
+#define SUPPORTS_WINDOWS_MIXED_REALITY_GESTURES 0
+#endif
+
+#else
+
+#define SUPPORTS_WINDOWS_MIXED_REALITY_AR 0
+#define SUPPORTS_WINDOWS_MIXED_REALITY_SPEECH_RECOGNITION 0
+#define SUPPORTS_WINDOWS_MIXED_REALITY_GESTURES 0
+
+#endif

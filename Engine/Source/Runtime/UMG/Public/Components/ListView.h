@@ -20,7 +20,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnListItemScrolledIntoViewDynamic,
  * The list itself is based on a list of n items, but only creates as many entry widgets as can fit on screen.
  * For example, a scrolling ListView of 200 items with 5 currently visible will only have created 5 entry widgets.
  *
- * To make a widget usable an an entry in a ListView, it must inherit from the IUserObjectListEntry interface.
+ * To make a widget usable as an entry in a ListView, it must inherit from the IUserObjectListEntry interface.
  */
 UCLASS(meta = (EntryInterface = UserObjectListEntry))
 class UMG_API UListView : public UListViewBase, public ITypedUMGListView<UObject*>
@@ -132,19 +132,35 @@ protected:
 	virtual void OnSelectionChangedInternal(UObject* FirstSelectedItem) override;
 	virtual void OnItemScrolledIntoViewInternal(UObject* Item, UUserWidget& EntryWidget) override;
 
+	void HandleOnEntryInitializedInternal(UObject* Item, const TSharedRef<ITableRow>& TableRow);
+
 	/** SListView construction helper - useful if using a custom STreeView subclass */
 	template <template<typename> class ListViewT = SListView>
 	TSharedRef<ListViewT<UObject*>> ConstructListView()
 	{
-		MyListView = ITypedUMGListView<UObject*>::ConstructListView<ListViewT>(this, ListItems, bIsFocusable, SelectionMode, bClearSelectionOnClick, ConsumeMouseWheel, bReturnFocusToSelection);
-		if (MyListView)
-		{
-			MyListView->SetOnEntryInitialized(SListView<UObject*>::FOnEntryInitialized::CreateUObject(this, &ThisClass::HandleOnEntryInitializedInternal));
-		}
+		FListViewConstructArgs Args;
+		Args.bAllowFocus = bIsFocusable;
+		Args.SelectionMode = SelectionMode;
+		Args.bClearSelectionOnClick = bClearSelectionOnClick;
+		Args.ConsumeMouseWheel = ConsumeMouseWheel;
+		Args.bReturnFocusToSelection = bReturnFocusToSelection;
+		Args.Orientation = Orientation;
+		MyListView = ITypedUMGListView<UObject*>::ConstructListView<ListViewT>(this, ListItems, Args);
+		
+		MyListView->SetOnEntryInitialized(SListView<UObject*>::FOnEntryInitialized::CreateUObject(this, &UListView::HandleOnEntryInitializedInternal));
+
 		return StaticCastSharedRef<ListViewT<UObject*>>(MyListView.ToSharedRef());
 	}
 
 protected:
+	/** 
+	 * The scroll & layout orientation of the list. ListView and TileView only. 
+	 * Vertical will scroll vertically and arrange tiles into rows.
+	 * Horizontal will scroll horizontally and arrange tiles into columns.
+	 */
+	UPROPERTY(EditAnywhere, Category = ListView)
+	TEnumAsByte<EOrientation> Orientation;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = ListView)
 	TEnumAsByte<ESelectionMode::Type> SelectionMode = ESelectionMode::Single;
 
@@ -214,8 +230,6 @@ private:
 	/** Gets the first selected item, if any; recommended that you only use this for single selection lists. */
 	UFUNCTION(BlueprintCallable, Category = ListView, meta = (DisplayName = "Get Selected Item", AllowPrivateAccess = true))
 	UObject* BP_GetSelectedItem() const;
-
-	void HandleOnEntryInitializedInternal(UObject* Item, const TSharedRef<ITableRow>& TableRow);
 
 private:
 	/** Called when a row widget is generated for a list item */

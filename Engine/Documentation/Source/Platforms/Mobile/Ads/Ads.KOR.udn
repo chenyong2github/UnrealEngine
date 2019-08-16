@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6549201
 Title: 게임내 광고 사용법
 Description:게임 수익을 올리기 위해 게임내 광고를 사용하는 법입니다.
 Crumbs:
@@ -28,8 +28,8 @@ topic-image:ads_topic.png
 각 플랫폼별 게임내 광고 환경설정 관련 자세한 내용은 아래 각 플랫폼별 문서를 참고하세요:
 
 [REGION:buttonlist]
-* [](Platforms/Android/Ads)
-* [](Platforms/iOS/Ads)
+* [](Platforms/Mobile/Android/Ads)
+* [](Platforms/Mobile/iOS/Ads)
 [/REGION]
 
 [EXCERPT:Usage]

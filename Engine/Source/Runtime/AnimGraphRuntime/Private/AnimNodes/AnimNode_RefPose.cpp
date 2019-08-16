@@ -7,6 +7,7 @@
 
 void FAnimNode_RefPose::Evaluate_AnyThread(FPoseContext& Output)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
 	// I don't have anything to evaluate. Should this be even here?
 	// EvaluateGraphExposedInputs.Execute(Context);
 
@@ -25,6 +26,7 @@ void FAnimNode_RefPose::Evaluate_AnyThread(FPoseContext& Output)
 
 void FAnimNode_MeshSpaceRefPose::EvaluateComponentSpace_AnyThread(FComponentSpacePoseContext& Output)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(EvaluateComponentSpace_AnyThread)
 	Output.ResetToRefPose();
 }
 
@@ -44,6 +46,7 @@ const TCHAR* GetRefPostTypeText(ERefPoseType RefPose)
 
 void FAnimNode_RefPose::GatherDebugData(FNodeDebugData& DebugData)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(GatherDebugData)
 	FString DebugLine = DebugData.GetNodeName(this);
 	DebugLine += FString::Printf(TEXT("(Ref Pose Type: %s)"), GetRefPostTypeText(RefPoseType));
 	DebugData.AddDebugItem(DebugLine, true);

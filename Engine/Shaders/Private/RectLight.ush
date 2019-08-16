@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 //
-#ifndef __RECTLIGHT__
-#define __RECTLIGHT__
+
+#pragma once
 
 #include "CapsuleLight.ush"
 #include "MonteCarlo.ush"
@@ -725,4 +725,3 @@ FRect GetRect(
 	return Rect;
 }
 
-#endif // __RECTLIGHT__

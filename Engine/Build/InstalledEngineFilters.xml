@@ -31,6 +31,8 @@
 	<Property Name="TVOSStripFilter" Value="*.a;"/>
 	<Property Name="LinuxStripFilter" Value="Engine\Binaries\Linux\*."/>
 	<Property Name="LuminStripFilter" Value="*.a;*.so"/>
+	<Property Name="HoloLensStripFilter" Value="*.pdb"/>
+
 
 	<Property Name="WindowsSignFilter" Value="*.exe;*.dll"/>
 	<Property Name="MacSignFilter" Value="*.dylib;*.app"/>
@@ -54,10 +56,11 @@
 		Samples/MobileStarterContent/MobileStarterContent.uproject
 	</Property>
 	<!-- Don't add VR template for Mac and Linux -->
+	<!--
 	<Property Name="ProjectsToBuildDDC" Value="$(ProjectsToBuildDDC)" If="'$(HostPlatform)' != 'Linux'">
 		Templates/TP_VirtualRealityBP/TP_VirtualRealityBP.uproject
 	</Property>
-	
+	-->
 	<!-- Define Editor Filters -->
 	<Property Name="CopyEditorFilter">
 		<!-- This assembly is normally embedded into the UBT executable, but it can technically be rebuilt from an installed build -->
@@ -201,10 +204,12 @@
 			Engine/Build/BatchFiles/Clean.bat
 			Engine/Build/BatchFiles/Rebuild.bat
 			Engine/Build/BatchFiles/RunUAT.bat
+			Engine/Build/BatchFiles/FindPlatformExtensionSources.bat
 			Engine/Build/BatchFiles/GetMSBuildPath.bat
 
 			<!-- Build utilities -->
 			Engine/Build/Windows/cl-filter/cl-filter.exe
+			Engine/Source/ThirdParty/IntelISPC/bin/Windows/ispc.exe
 
 			<!-- Default resource files -->
 			Engine/Build/Windows/Resources/...
@@ -215,6 +220,7 @@
 			<!-- Extra tools -->
 			Engine/Extras/3dsMaxScripts/...
 			Engine/Extras/VisualStudioDebugging/UE4.natvis
+			Engine/Extras/MayaLiveLink/...
 			Engine/Extras/MayaVelocityGridExporter/...
 			Engine/Extras/UnrealVS/...
 			Engine/Extras/Redist/en-us/*
@@ -243,6 +249,7 @@
 		Engine/Build/BatchFiles/Mac/XcodeBuild.sh
 		Engine/Build/BatchFiles/RunUAT.command
 		Engine/Build/BatchFiles/RunUAT.sh
+		Engine/Build/BatchFiles/FindPlatformExtensionSources.sh
 
 		<!-- Mono -->
 		Engine/Binaries/ThirdParty/Mono/Mac/...
@@ -281,6 +288,7 @@
 			Engine/Build/BatchFiles/Linux/RunMono.sh
 			Engine/Build/BatchFiles/Linux/RunXBuild.sh
 			Engine/Build/BatchFiles/RunUAT.sh
+			Engine/Build/BatchFiles/FindPlatformExtensionSources.sh
 
 			<!-- Debug tools -->
 			Engine/Binaries/Linux/dump_syms
@@ -523,6 +531,15 @@
 	</Property>
 	
 	<Property Name="CopyLuminExceptions">
+	</Property>
+
+	<!-- HoloLens -->
+	<Property Name="CopyHoloLensFilter">
+		<!-- Build Files -->
+		Engine/Build/HoloLens/...
+	</Property>
+
+	<Property Name="CopyHoloLensExceptions">
 	</Property>
 
 </BuildGraph>

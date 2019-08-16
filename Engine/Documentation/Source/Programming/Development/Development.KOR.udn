@@ -1,36 +1,32 @@
-﻿INTSourceChangelist:3150504
+﻿INTSourceChangelist:6537167
 Availability:Public
 Title:개발 셋업
-Crumbs: %ROOT%, Programming
 Description:코딩 환경, 코드 프로젝트 생성, 언리얼 엔진 소스 작업용 셋업을 하는 프로그래머를 위한 정보입니다.
+type:landing
 version: 4.9
+parent: Programming
 
 ## 일반 개발자 정보
 
-[REGION:buttonlist]
-* [](Programming/Development/VisualStudioSetup "%Programming/Development/VisualStudioSetup:description%")
-* [](Programming/Development/Tools "%Programming/Development/Tools:description%")
-* [](Programming/Development/CodingStandard "%Programming/Development/CodingStandard:description%")
-[/REGION]
+[DIR(output:"topic" parent:"Programming/Development" tags:"Visual Studio" end:"1")]
+[DIR(output:"topic" parent:"Programming/Development" type:"landing" end:"1")]
+[DIR(output:"topic" parent:"Programming/Development" type:"reference" end:"1")]
+-->
 
 ## 코드 프로젝트 작업
 
-[REGION:buttonlist]
-* [](Programming/Development/ManagingGameCode "%Programming/Development/ManagingGameCode:description%")
-	* [](Programming/Development/ManagingGameCode/CppClassWizard "%Programming/Development/ManagingGameCode/CppClassWizard:description%")
-* [](Programming/Development/CompilingProjects "%Programming/Development/CompilingProjects:description%")
-[/REGION]
+[DIR(output:"topic" parent:"Programming/Development" tags:"managing game code" type:"overview" end:"1")]
+[DIR(output:"topic" parent:"Programming/Development/ManagingGameCode" type:"overview" end:"1")]
+[DIR(output:"topic" parent:"Programming/Development" tags:"compiling" type:"overview" end:"1")]
+
 
 ## 엔진 소스 작업
 
-[REGION:buttonlist]
-* [](GettingStarted/DownloadingUnrealEngine "%GettingStarted/DownloadingUnrealEngine:description%")
-* [](Programming/Development/BuildingUnrealEngine "%Programming/Development/BuildingUnrealEngine:description%")
-[/REGION]
+[DIR(output:"topic" parent:"GettingStarted" type:"landing" end:"1")]
+[DIR(output:"topic" parent:"Programming/Development" tags:"Unreal Build System" end:"1")]
+
 
 ## 엔진 빌드 생성
 
-[REGION:buttonlist]
-* [](Programming/Development/BuildGraph "%Programming/Development/BuildGraph:description%")
-* [](Programming/Development/InstalledBuildReference "%Programming/Development/InstalledBuildReference:description%")
-[/REGION]
+[DIR(output:"topic" parent:"Programming/BuildTools/AutomationTool" tags:"BuildGraph" end:"1")]
+%Programming/Deployment:topic%

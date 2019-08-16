@@ -1,4 +1,4 @@
-Availability:Public
+Availability:Docs
 Crumbs: %ROOT%
 Title:2 - Setting up the Media Texture and Material
 Description:In this step, we set up our Media Texture and Material that will be used for video playback. 
@@ -12,6 +12,8 @@ order:2
 tags:Media Framework
 tags:Materials
  
+ ## Marked as Docs as the page has been combined into one page. 
+
 [NAV]
 
 In the previous step, we imported content and created some of the assets that we will use for this guide, up next we will create our Material that we will use to play our video. This requires us to incorporate our Media Texture inside a [Material](Engine/Rendering/Materials) and a little bit of work to get the content to fit on our TV's screen correctly.

@@ -252,7 +252,7 @@ bool CompareValueArraysByExpressionGUID(const TArray<T>& InA, const TArray<T>& I
 
 
 UCLASS(abstract, BlueprintType,MinimalAPI)
-class UMaterialInstance : public UMaterialInterface
+class ENGINE_VTABLE UMaterialInstance : public UMaterialInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -370,7 +370,7 @@ class UMaterialInstance : public UMaterialInterface
 	 * This is used to link uniform texture expressions which were stored in the DDC with the UTextures that they reference.
 	 */
 	UPROPERTY(transient)
-	TArray<UTexture*> PermutationTextureReferences;
+	TArray<UObject*> PermutationTextureReferences;
 
 	ENGINE_API virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
 	ENGINE_API virtual float GetTextureDensity(FName TextureName, const struct FMeshUVChannelInfo& UVChannelData) const override;
@@ -467,6 +467,7 @@ public:
 	ENGINE_API virtual bool IsMasked() const override;
 	
 	ENGINE_API virtual USubsurfaceProfile* GetSubsurfaceProfile_Internal() const override;
+	ENGINE_API virtual bool CastsRayTracedShadows() const override;
 
 	/** Checks to see if an input property should be active, based on the state of the material */
 	ENGINE_API virtual bool IsPropertyActive(EMaterialProperty InProperty) const override;
@@ -526,7 +527,7 @@ public:
 	 * The results will be applied to this FMaterial in the renderer when they are finished compiling.
 	 * Note: This modifies material variables used for rendering and is assumed to be called within a FMaterialUpdateContext!
 	 */
-	void CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, TArray<FMaterialResource*>& OutCachedMaterialResources);
+	void CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, TArray<FMaterialResource*>& OutCachedMaterialResources, const ITargetPlatform* TargetPlatform = nullptr);
 
 	/** 
 	 * Gathers actively used shader maps from all material resources used by this material instance
@@ -573,7 +574,7 @@ public:
 #endif
 
 	/** Appends textures referenced by expressions, including nested functions. */
-	ENGINE_API virtual void AppendReferencedTextures(TArray<UTexture*>& InOutTextures) const override;
+	ENGINE_API virtual void AppendReferencedTextures(TArray<UObject*>& InOutTextures) const override;
 
 	void GetBasePropertyOverridesHash(FSHAHash& OutHash)const;
 	ENGINE_API virtual bool HasOverridenBaseProperties()const;
@@ -673,7 +674,7 @@ protected:
 	void CacheResourceShadersForRendering();
 
 	/** Caches shader maps for an array of material resources. */
-	void CacheShadersForResources(EShaderPlatform ShaderPlatform, const TArray<FMaterialResource*>& ResourcesToCache, bool bApplyCompletedShaderMapForRendering);
+	void CacheShadersForResources(EShaderPlatform ShaderPlatform, const TArray<FMaterialResource*>& ResourcesToCache, const ITargetPlatform* TargetPlatform = nullptr);
 
 	/** 
 	 * Copies over material instance parameters from the base material given a material interface.

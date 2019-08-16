@@ -528,114 +528,119 @@ bool FShaderPipelineCache::Precompile(FRHICommandListImmediate& RHICmdList, ESha
 	INC_DWORD_STAT(STAT_PreCompileShadersNum);
     
     uint64 StartTime = FPlatformTime::Cycles64();
-		
+
 	bool bOk = false;
 	
-	TArray<uint8> DummyCode;
-	
-	if(FPipelineCacheFileFormatPSO::DescriptorType::Graphics == PSO.Type)
+	if(PSO.Verify())
 	{
-		FGraphicsPipelineStateInitializer GraphicsInitializer;
+		TArray<uint8> DummyCode;
 		
-		FRHIVertexDeclaration* VertexDesc = PipelineStateCache::GetOrCreateVertexDeclaration(PSO.GraphicsDesc.VertexDescriptor);
-		GraphicsInitializer.BoundShaderState.VertexDeclarationRHI = VertexDesc;
-		
-		FVertexShaderRHIRef VertexShader;
-		if (PSO.GraphicsDesc.VertexShader != FSHAHash())
+		if(FPipelineCacheFileFormatPSO::DescriptorType::Graphics == PSO.Type)
 		{
-			VertexShader = FShaderCodeLibrary::CreateVertexShader(Platform, PSO.GraphicsDesc.VertexShader, DummyCode);
-			GraphicsInitializer.BoundShaderState.VertexShaderRHI = VertexShader;
-		}
+			FGraphicsPipelineStateInitializer GraphicsInitializer;
+			
+			FRHIVertexDeclaration* VertexDesc = PipelineStateCache::GetOrCreateVertexDeclaration(PSO.GraphicsDesc.VertexDescriptor);
+			GraphicsInitializer.BoundShaderState.VertexDeclarationRHI = VertexDesc;
+			
+			FVertexShaderRHIRef VertexShader;
+			if (PSO.GraphicsDesc.VertexShader != FSHAHash())
+			{
+				VertexShader = FShaderCodeLibrary::CreateVertexShader(Platform, PSO.GraphicsDesc.VertexShader, DummyCode);
+				GraphicsInitializer.BoundShaderState.VertexShaderRHI = VertexShader;
+			}
 
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-		FHullShaderRHIRef HullShader;
-		if (PSO.GraphicsDesc.HullShader != FSHAHash())
-		{
-			HullShader = FShaderCodeLibrary::CreateHullShader(Platform, PSO.GraphicsDesc.HullShader, DummyCode);
-			GraphicsInitializer.BoundShaderState.HullShaderRHI = HullShader;
-		}
+	#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+			FHullShaderRHIRef HullShader;
+			if (PSO.GraphicsDesc.HullShader != FSHAHash())
+			{
+				HullShader = FShaderCodeLibrary::CreateHullShader(Platform, PSO.GraphicsDesc.HullShader, DummyCode);
+				GraphicsInitializer.BoundShaderState.HullShaderRHI = HullShader;
+			}
 
-		FDomainShaderRHIRef DomainShader;
-		if (PSO.GraphicsDesc.DomainShader != FSHAHash())
-		{
-			DomainShader = FShaderCodeLibrary::CreateDomainShader(Platform, PSO.GraphicsDesc.DomainShader, DummyCode);
-			GraphicsInitializer.BoundShaderState.DomainShaderRHI = DomainShader;
-		}
-#endif
-		FPixelShaderRHIRef FragmentShader;
-		if (PSO.GraphicsDesc.FragmentShader != FSHAHash())
-		{
-			FragmentShader = FShaderCodeLibrary::CreatePixelShader(Platform, PSO.GraphicsDesc.FragmentShader, DummyCode);
-			GraphicsInitializer.BoundShaderState.PixelShaderRHI = FragmentShader;
-		}
+			FDomainShaderRHIRef DomainShader;
+			if (PSO.GraphicsDesc.DomainShader != FSHAHash())
+			{
+				DomainShader = FShaderCodeLibrary::CreateDomainShader(Platform, PSO.GraphicsDesc.DomainShader, DummyCode);
+				GraphicsInitializer.BoundShaderState.DomainShaderRHI = DomainShader;
+			}
+	#endif
+			FPixelShaderRHIRef FragmentShader;
+			if (PSO.GraphicsDesc.FragmentShader != FSHAHash())
+			{
+				FragmentShader = FShaderCodeLibrary::CreatePixelShader(Platform, PSO.GraphicsDesc.FragmentShader, DummyCode);
+				GraphicsInitializer.BoundShaderState.PixelShaderRHI = FragmentShader;
+			}
 
-#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-		FGeometryShaderRHIRef GeometryShader;
-		if (PSO.GraphicsDesc.GeometryShader != FSHAHash())
-		{
-			GeometryShader = FShaderCodeLibrary::CreateGeometryShader(Platform, PSO.GraphicsDesc.GeometryShader, DummyCode);
-			GraphicsInitializer.BoundShaderState.GeometryShaderRHI = GeometryShader;
-		}
-#endif
-		auto BlendState = RHICmdList.CreateBlendState(PSO.GraphicsDesc.BlendState);
-		GraphicsInitializer.BlendState = BlendState;
-		
-		auto RasterState = RHICmdList.CreateRasterizerState(PSO.GraphicsDesc.RasterizerState);
-		GraphicsInitializer.RasterizerState = RasterState;
-		
-		auto DepthState = RHICmdList.CreateDepthStencilState(PSO.GraphicsDesc.DepthStencilState);
-		GraphicsInitializer.DepthStencilState = DepthState;
-		
-		for (uint32 i = 0; i < MaxSimultaneousRenderTargets; ++i)
-		{
-			GraphicsInitializer.RenderTargetFormats[i] = PSO.GraphicsDesc.RenderTargetFormats[i];
-			GraphicsInitializer.RenderTargetFlags[i] = PSO.GraphicsDesc.RenderTargetFlags[i];
-		}
-		
-		GraphicsInitializer.RenderTargetsEnabled = PSO.GraphicsDesc.RenderTargetsActive;
-		GraphicsInitializer.NumSamples = PSO.GraphicsDesc.MSAASamples;
-		
-		if(GraphicsInitializer.RenderTargetsEnabled > MaxSimultaneousRenderTargets || GraphicsInitializer.NumSamples > 16)
-		{
-			return false;
-		}
+	#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
+			FGeometryShaderRHIRef GeometryShader;
+			if (PSO.GraphicsDesc.GeometryShader != FSHAHash())
+			{
+				GeometryShader = FShaderCodeLibrary::CreateGeometryShader(Platform, PSO.GraphicsDesc.GeometryShader, DummyCode);
+				GraphicsInitializer.BoundShaderState.GeometryShaderRHI = GeometryShader;
+			}
+	#endif
+			auto BlendState = RHICmdList.CreateBlendState(PSO.GraphicsDesc.BlendState);
+			GraphicsInitializer.BlendState = BlendState;
+			
+			auto RasterState = RHICmdList.CreateRasterizerState(PSO.GraphicsDesc.RasterizerState);
+			GraphicsInitializer.RasterizerState = RasterState;
+			
+			auto DepthState = RHICmdList.CreateDepthStencilState(PSO.GraphicsDesc.DepthStencilState);
+			GraphicsInitializer.DepthStencilState = DepthState;
+			
+			for (uint32 i = 0; i < MaxSimultaneousRenderTargets; ++i)
+			{
+				GraphicsInitializer.RenderTargetFormats[i] = PSO.GraphicsDesc.RenderTargetFormats[i];
+				GraphicsInitializer.RenderTargetFlags[i] = PSO.GraphicsDesc.RenderTargetFlags[i];
+			}
+			
+			GraphicsInitializer.RenderTargetsEnabled = PSO.GraphicsDesc.RenderTargetsActive;
+			GraphicsInitializer.NumSamples = PSO.GraphicsDesc.MSAASamples;
 
-		GraphicsInitializer.SubpassHint = (ESubpassHint)PSO.GraphicsDesc.SubpassHint;
-		GraphicsInitializer.SubpassIndex = PSO.GraphicsDesc.SubpassIndex;
-		
-		GraphicsInitializer.DepthStencilTargetFormat = PSO.GraphicsDesc.DepthStencilFormat;
-		GraphicsInitializer.DepthStencilTargetFlag = PSO.GraphicsDesc.DepthStencilFlags;
-		GraphicsInitializer.DepthTargetLoadAction = PSO.GraphicsDesc.DepthLoad;
-		GraphicsInitializer.StencilTargetLoadAction = PSO.GraphicsDesc.StencilLoad;
-		GraphicsInitializer.DepthTargetStoreAction = PSO.GraphicsDesc.DepthStore;
-		GraphicsInitializer.StencilTargetStoreAction = PSO.GraphicsDesc.StencilStore;
-		
-		GraphicsInitializer.PrimitiveType = PSO.GraphicsDesc.PrimitiveType;
-		GraphicsInitializer.bFromPSOFileCache = true;
-		
-		// This indicates we do not want a fatal error if this compilation fails
-		// (ie, if this entry in the file cache is bad)
-		GraphicsInitializer.bFromPSOFileCache = 1;
-		
-		// Use SetGraphicsPipelineState to call down into PipelineStateCache and also handle the fallback case used by OpenGL.
-		SetGraphicsPipelineState(RHICmdList, GraphicsInitializer, EApplyRendertargetOption::DoNothing);
-		bOk = true;
+			GraphicsInitializer.SubpassHint = (ESubpassHint)PSO.GraphicsDesc.SubpassHint;
+			GraphicsInitializer.SubpassIndex = PSO.GraphicsDesc.SubpassIndex;
+			
+			GraphicsInitializer.DepthStencilTargetFormat = PSO.GraphicsDesc.DepthStencilFormat;
+			GraphicsInitializer.DepthStencilTargetFlag = PSO.GraphicsDesc.DepthStencilFlags;
+			GraphicsInitializer.DepthTargetLoadAction = PSO.GraphicsDesc.DepthLoad;
+			GraphicsInitializer.StencilTargetLoadAction = PSO.GraphicsDesc.StencilLoad;
+			GraphicsInitializer.DepthTargetStoreAction = PSO.GraphicsDesc.DepthStore;
+			GraphicsInitializer.StencilTargetStoreAction = PSO.GraphicsDesc.StencilStore;
+			
+			GraphicsInitializer.PrimitiveType = PSO.GraphicsDesc.PrimitiveType;
+			GraphicsInitializer.bFromPSOFileCache = true;
+			
+			// This indicates we do not want a fatal error if this compilation fails
+			// (ie, if this entry in the file cache is bad)
+			GraphicsInitializer.bFromPSOFileCache = 1;
+			
+			// Use SetGraphicsPipelineState to call down into PipelineStateCache and also handle the fallback case used by OpenGL.
+			SetGraphicsPipelineState(RHICmdList, GraphicsInitializer, EApplyRendertargetOption::DoNothing);
+			bOk = true;
+		}
+		else if(FPipelineCacheFileFormatPSO::DescriptorType::Compute == PSO.Type)
+		{
+			FComputeShaderRHIRef ComputeInitializer = FShaderCodeLibrary::CreateComputeShader(GMaxRHIShaderPlatform, PSO.ComputeDesc.ComputeShader, DummyCode);
+			if(ComputeInitializer.IsValid())
+			{
+				FComputePipelineState* ComputeResult = PipelineStateCache::GetAndOrCreateComputePipelineState(RHICmdList, ComputeInitializer);
+				bOk = ComputeResult != nullptr;
+			}
+		}
+		else
+		{
+			check(false);
+		}
 	}
-	else if(FPipelineCacheFileFormatPSO::DescriptorType::Compute == PSO.Type)
-	{
-		FComputeShaderRHIRef ComputeInitializer = FShaderCodeLibrary::CreateComputeShader(GMaxRHIShaderPlatform, PSO.ComputeDesc.ComputeShader, DummyCode);
-		if(ComputeInitializer.IsValid())
-		{
-			FComputePipelineState* ComputeResult = PipelineStateCache::GetAndOrCreateComputePipelineState(RHICmdList, ComputeInitializer);
-			bOk = ComputeResult != nullptr;
-		}
-	}
+#if !UE_BUILD_SHIPPING
 	else
 	{
-		check(false);
+		UE_LOG(LogRHI, Warning, TEXT("FShaderPipelineCache::Precompile() - PSO Verify failure - Did not attempt to precompile"));
 	}
-    
-    if (bOk)
+#endif
+	
+    // All read dependencies have given the green light - always update task counts
+    // Otherwise we end up with outstanding compiles that we can't progress or external tools may think this has not been completed and may run again.
     {
         uint64 TimeDelta = FPlatformTime::Cycles64() - StartTime;
         FPlatformAtomics::InterlockedIncrement(&TotalCompleteTasks);

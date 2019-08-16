@@ -52,3 +52,46 @@
 	__pragma(section(LPP_COMPILE_ERROR_MESSAGE_SECTION, read))																									\
 	__declspec(allocate(LPP_COMPILE_ERROR_MESSAGE_SECTION)) extern void (*LPP_IDENTIFIER(lpp_compile_error_message_hook_function))(const wchar_t*) = &_function
 
+/******************************************************************************/
+/* API                                                                        */
+/******************************************************************************/
+
+// version string
+#define LPP_VERSION "1.5.0"
+
+#ifdef __cplusplus
+#	define LPP_NS_BEGIN			namespace lpp {
+#	define LPP_NS_END			}
+#	define LPP_API				inline
+#else
+#	define LPP_NS_BEGIN
+#	define LPP_NS_END
+#	define LPP_API				static inline
+#endif
+
+// helper macros to call a function in a DLL with an arbitrary signature without a compiler warning
+#define LPP_CALL1(_module, _functionName, _return, _args1)								((_return (__cdecl*)(_args1))((uintptr_t)GetProcAddress(_module, _functionName)))
+#define LPP_CALL2(_module, _functionName, _return, _args1, _args2)						((_return (__cdecl*)(_args1, _args2))((uintptr_t)GetProcAddress(_module, _functionName)))
+#define LPP_CALL3(_module, _functionName, _return, _args1, _args2, _args3)				((_return (__cdecl*)(_args1, _args2, _args3))((uintptr_t)GetProcAddress(_module, _functionName)))
+#define LPP_CALL4(_module, _functionName, _return, _args1, _args2, _args3, _args4)		((_return (__cdecl*)(_args1, _args2, _args3, _args4))((uintptr_t)GetProcAddress(_module, _functionName)))
+
+
+LPP_NS_BEGIN
+
+enum RestartBehaviour
+{
+	// BEGIN EPIC MODS - Use UE4 codepath for termination to ensure logs are flushed and session analytics are sent
+	LPP_RESTART_BEHAVIOR_REQUEST_EXIT,				// FPlatforMisc::RequestExit(true)
+	// END EPIC MODS
+	LPP_RESTART_BEHAVIOUR_DEFAULT_EXIT,				// ExitProcess()
+	LPP_RESTART_BEHAVIOUR_EXIT_WITH_FLUSH,			// exit()
+	LPP_RESTART_BEHAVIOUR_EXIT,						// _Exit()
+	LPP_RESTART_BEHAVIOUR_INSTANT_TERMINATION		// TerminateProcess
+};
+
+LPP_NS_END
+
+
+#undef LPP_CALL1
+#undef LPP_CALL2
+#undef LPP_CALL3

@@ -1,4 +1,4 @@
-Availability: Public
+Availability: Docs
 Title:3 - Implementing the Aim Offset
 Crumbs: %ROOT%, Engine, Engine\Animation, Engine\Animation\AnimHowTo
 Description:In this step, we add the Aim Offset to our Animation Blueprint and hook it up to our existing Anim Graph. 

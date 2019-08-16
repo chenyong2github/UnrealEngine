@@ -24,7 +24,7 @@ class FMeshEditorModule : public IModuleInterface
 {
 public:
 	FMeshEditorModule() :
-		bIsEnabled( true ),
+		bIsEnabled( false ),
 		MeshEditorEnable( TEXT( "MeshEditor.Enable" ), TEXT( "Makes MeshEditor mode available" ), FConsoleCommandDelegate::CreateRaw( this, &FMeshEditorModule::Register ) ),
 		MeshEditorDisable( TEXT( "MeshEditor.Disable" ), TEXT( "Makes MeshEditor mode unavailable" ), FConsoleCommandDelegate::CreateRaw( this, &FMeshEditorModule::Unregister ) )
 	{

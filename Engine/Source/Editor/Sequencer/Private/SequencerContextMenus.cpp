@@ -154,6 +154,7 @@ void FKeyContextMenu::PopulateMenu(FMenuBuilder& MenuBuilder)
 		{
 			MenuBuilder.AddMenuEntry(FGenericCommands::Get().Cut);
 			MenuBuilder.AddMenuEntry(FGenericCommands::Get().Copy);
+			MenuBuilder.AddMenuEntry(FGenericCommands::Get().Duplicate);
 		}
 	}
 	MenuBuilder.EndSection(); // SequencerKeyEdit
@@ -753,7 +754,7 @@ void FSectionContextMenu::SplitSection()
 	FQualifiedFrameTime SplitFrame = FQualifiedFrameTime(CurrentFrame, Sequencer->GetFocusedTickResolution());
 
 	MovieSceneToolHelpers::SplitSection(Sequencer->GetSelection().GetSelectedSections(), SplitFrame);
-	Sequencer->NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::MovieSceneStructureItemAdded );
+	Sequencer->NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::RefreshAllImmediately );
 }
 
 
@@ -1557,6 +1558,7 @@ void FPasteContextMenu::PasteInto(int32 DestinationIndex, FName KeyAreaName)
 		// @todo sequencer: selection in transactions
 		FSequencerSelection& Selection = Sequencer->GetSelection();
 		Selection.SuspendBroadcast();
+		Selection.EmptySelectedSections();
 		Selection.EmptySelectedKeys();
 
 		for (const FSequencerSelectedKey& Key : NewSelection)
@@ -1565,6 +1567,7 @@ void FPasteContextMenu::PasteInto(int32 DestinationIndex, FName KeyAreaName)
 		}
 		Selection.ResumeBroadcast();
 		Selection.GetOnKeySelectionChanged().Broadcast();
+		Selection.GetOnSectionSelectionChanged().Broadcast();
 
 		Sequencer->OnClipboardUsed(Args.Clipboard);
 		Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged);

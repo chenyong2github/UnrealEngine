@@ -1013,6 +1013,28 @@ FProcHandle FUnixPlatformProcess::CreateProc(const TCHAR* URL, const TCHAR* Parm
 	return FProcHandle(new FProcState(ChildPid, bLaunchDetached));
 }
 
+/*
+ * Return a limited use FProcHandle from a PID. Currently can only use w/ IsProcRunning().
+ *
+ * WARNING (from Arciel): PIDs can and will be reused. We have had that issue
+ * before: the editor was tracking ShaderCompileWorker by their PIDs, and a
+ * long-running process (something from PS4 SDK) got a reused SCW PID,
+ * resulting in compilation never ending.
+ */
+FProcHandle FUnixPlatformProcess::OpenProcess(uint32 ProcessID)
+{
+	pid_t Pid = static_cast< pid_t >(ProcessID);
+
+	// check if actually running
+	int KillResult = kill(Pid, 0);	// no actual signal is sent
+	check(KillResult != -1 || errno != EINVAL);
+
+	// errno == EPERM: don't have permissions to send signal
+	// errno == ESRCH: proc doesn't exist
+	bool bIsRunning = (KillResult == 0);
+	return FProcHandle(bIsRunning ? Pid : -1);
+}
+
 /** Initialization constructor. */
 FProcState::FProcState(pid_t InProcessId, bool bInFireAndForget)
 	:	ProcessId(InProcessId)
@@ -1165,8 +1187,25 @@ void FProcState::Wait()
 
 bool FUnixPlatformProcess::IsProcRunning( FProcHandle & ProcessHandle )
 {
+	bool bIsRunning = false;
 	FProcState * ProcInfo = ProcessHandle.GetProcessInfo();
-	return ProcInfo ? ProcInfo->IsRunning() : false;
+
+	if (ProcInfo)
+	{
+		bIsRunning = ProcInfo->IsRunning();
+	}
+	else if (ProcessHandle.Get() != -1)
+	{
+		// Process opened with OpenProcess() call (we only have pid)
+		int KillResult = kill(ProcessHandle.Get(), 0);	// no actual signal is sent
+		check(KillResult != -1 || errno != EINVAL);
+
+		// errno == EPERM: don't have permissions to send signal
+		// errno == ESRCH: proc doesn't exist
+		bIsRunning = (KillResult == 0);
+	}
+
+	return bIsRunning;
 }
 
 void FUnixPlatformProcess::WaitForProc( FProcHandle & ProcessHandle )
@@ -1175,6 +1214,10 @@ void FUnixPlatformProcess::WaitForProc( FProcHandle & ProcessHandle )
 	if (ProcInfo)
 	{
 		ProcInfo->Wait();
+	}
+	else if (ProcessHandle.Get() != -1)
+	{
+		STUBBED("FUnixPlatformProcess::WaitForProc() : Waiting on OpenProcess() handle not implemented yet");
 	}
 }
 
@@ -1200,6 +1243,10 @@ void FUnixPlatformProcess::TerminateProc( FProcHandle & ProcessHandle, bool Kill
 	{
 		int KillResult = kill(ProcInfo->GetProcessId(), SIGTERM);	// graceful
 		check(KillResult != -1 || errno != EINVAL);
+	}
+	else if (ProcessHandle.Get() != -1)
+	{
+		STUBBED("FUnixPlatformProcess::TerminateProc() : Terminating OpenProcess() handle not implemented");
 	}
 }
 
@@ -1480,7 +1527,16 @@ bool FUnixPlatformProcess::GetProcReturnCode(FProcHandle& ProcHandle, int32* Ret
 	}
 
 	FProcState * ProcInfo = ProcHandle.GetProcessInfo();
-	return ProcInfo ? ProcInfo->GetReturnCode(ReturnCode) : false;
+	if (ProcInfo)
+	{
+		return ProcInfo->GetReturnCode(ReturnCode);
+	}
+	else if (ProcHandle.Get() != -1)
+	{
+		STUBBED("FUnixPlatformProcess::GetProcReturnCode() : Return code of OpenProcess() handle not implemented yet");
+	}
+
+	return false;
 }
 
 bool FUnixPlatformProcess::Daemonize()

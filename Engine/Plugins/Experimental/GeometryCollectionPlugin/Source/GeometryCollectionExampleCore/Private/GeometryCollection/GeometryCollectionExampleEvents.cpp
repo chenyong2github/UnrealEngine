@@ -1,0 +1,182 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "GeometryCollection/GeometryCollectionExampleEvents.h"
+#include "EventManager.h"
+#include "EventsData.h"
+#include "PBDRigidsSolver.h"
+#include "ChaosSolversModule.h"
+
+namespace GeometryCollectionExample
+{
+	// deliberately choosing values outside EEventType defaults
+	static const int32 CustomEvent1 = 5;
+	static const int32 CustomEvent2 = 6;
+
+	struct EventTestData
+	{
+		EventTestData(int InData1, FVector InData2) : Data1(InData1), Data2(InData2) {}
+		EventTestData() {}
+
+		bool operator==(const EventTestData& Other) const
+		{
+			return (Data1 == Other.Data1) && (Data2 == Other.Data2);
+		}
+
+		int Data1;
+		FVector Data2;
+	};
+
+	class MyEventHandler
+	{
+	public:
+
+		MyEventHandler(Chaos::FEventManager& InEventManager) : EventManager(InEventManager)
+		{
+		}
+		~MyEventHandler()
+		{
+			EventManager.Reset();
+		}
+
+		void HandleEvent(const EventTestData& EventData)
+		{
+			ResultFromHandler = EventData;
+		}
+
+		void HandleEvent(const TArray<EventTestData>& EventData)
+		{
+			ResultFromHandler2 = EventData;
+		}
+
+		void RegisterHandler1()
+		{
+			EventManager.RegisterHandler<EventTestData>(CustomEvent1, this, &MyEventHandler::HandleEvent);
+		}
+
+		void RegisterHandler2()
+		{
+			EventManager.RegisterHandler<TArray<EventTestData>>(CustomEvent2, this, &MyEventHandler::HandleEvent);
+		}
+
+		void UnregisterHandler1()
+		{
+			EventManager.UnregisterHandler(CustomEvent1, this);
+		}
+
+		void UnregisterHandler2()
+		{
+			EventManager.UnregisterHandler(CustomEvent2, this);
+		}
+
+		// Prove data is reference to original and not copy passed to the event handler
+		EventTestData ResultFromHandler;
+
+		// the data dispatched can also be a frames worth of events
+		TArray<EventTestData> ResultFromHandler2;
+
+	private:
+		Chaos::FEventManager& EventManager;
+	};
+
+
+	template<class T>
+	bool Event_Handler(ExampleResponse&& R)
+	{
+#if INCLUDE_CHAOS
+		Chaos::FEventManager EventManager(Chaos::EMultiBufferMode::Single);
+		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
+
+		MyEventHandler HandlerTest(EventManager);
+		MyEventHandler AnotherHandlerTest(EventManager);
+
+		// the data injected into the buffer for CustomEvent1 will be whatever is currently the variable TestData
+		EventTestData TestData;
+		EventTestData* TestDataPtr = &TestData;
+		EventManager.RegisterEvent<EventTestData>(CustomEvent1, [TestDataPtr]
+		(const Chaos::FPBDRigidsSolver* Solver, EventTestData& MyData)
+		{
+			MyData = *TestDataPtr;
+		});
+
+		// the data injected into the buffer for CustomEvent2 will be whatever is currently the variable TestArrayData
+		TArray<EventTestData> TestArrayData;
+		TArray<EventTestData>* TestDataPtr2 = &TestArrayData;
+		EventManager.RegisterEvent<TArray<EventTestData>>(CustomEvent2, [TestDataPtr2]
+		(const Chaos::FPBDRigidsSolver* Solver, TArray<EventTestData>& MyData)
+		{
+			MyData = *TestDataPtr2;
+		});
+
+		HandlerTest.RegisterHandler1();
+		HandlerTest.RegisterHandler2();
+		AnotherHandlerTest.RegisterHandler2();
+
+		TestData.Data1 = 123;
+		TestData.Data2 = FVector(1, 2, 3);
+
+		EventManager.FillProducerData(Solver);
+		EventManager.FlipBuffersIfRequired();
+		EventManager.DispatchEvents();
+		R.ExpectTrue(HandlerTest.ResultFromHandler == TestData);
+
+		TestData.Data1 = 789;
+		TestData.Data2 = FVector(7, 8, 9);
+
+		EventManager.FillProducerData(Solver);
+		EventManager.FlipBuffersIfRequired();
+		EventManager.DispatchEvents();
+		R.ExpectTrue(HandlerTest.ResultFromHandler == TestData);
+
+		// Unregister - data should no longer update
+		HandlerTest.UnregisterHandler1();
+
+		EventTestData OriginalTestData = TestData;
+		TestData.Data1 = 999;
+		TestData.Data2 = FVector(9, 9, 9);
+
+		EventManager.FillProducerData(Solver);
+		EventManager.FlipBuffersIfRequired();
+		EventManager.DispatchEvents();
+		R.ExpectTrue(HandlerTest.ResultFromHandler == OriginalTestData);
+
+		EventTestData Data;
+		TestArrayData.Push(EventTestData(123, FVector(1, 2, 3)));
+		TestArrayData.Push(EventTestData(456, FVector(4, 5, 6)));
+		TestArrayData.Push(EventTestData(789, FVector(7, 8, 9)));
+
+		EventManager.FillProducerData(Solver);
+		EventManager.FlipBuffersIfRequired();
+		EventManager.DispatchEvents();
+		// dispatched to multiple handlers
+		R.ExpectTrue(HandlerTest.ResultFromHandler2 == TestArrayData);
+		R.ExpectTrue(AnotherHandlerTest.ResultFromHandler2 == TestArrayData);
+
+		// Unregister one of the handlers from the events
+		HandlerTest.UnregisterHandler2();
+
+		TArray<EventTestData> OriginalTestArrayData = TestArrayData;
+		TestArrayData.Reset();
+		TestArrayData.Push(EventTestData(999, FVector(9, 9, 9)));
+
+		EventManager.FillProducerData(Solver);
+		EventManager.FlipBuffersIfRequired();
+		EventManager.DispatchEvents();
+		R.ExpectTrue(HandlerTest.ResultFromHandler2 == OriginalTestArrayData); // Unregistered - data should no longer update
+		R.ExpectTrue(AnotherHandlerTest.ResultFromHandler2 == TestArrayData); // Still registered so should get updates
+
+		HandlerTest.RegisterHandler2();
+
+		EventManager.FillProducerData(Solver);
+		EventManager.FlipBuffersIfRequired();
+		EventManager.DispatchEvents();
+		R.ExpectTrue(HandlerTest.ResultFromHandler2 == TestArrayData);
+		R.ExpectTrue(AnotherHandlerTest.ResultFromHandler2 == TestArrayData);
+#endif
+		return !R.HasError();
+
+	}
+	template bool Event_Handler<float>(ExampleResponse&& R);
+
+}
+
+

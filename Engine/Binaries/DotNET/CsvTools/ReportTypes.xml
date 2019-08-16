@@ -52,6 +52,8 @@
 			<autodetection requiredstats="frametime">
 				<requiredmetadata key="targetframerate" allowedValues="60" stopIfKeyFound="1" ignoreIfKeyNotFound="1"/>
 			</autodetection>
+			
+			<metadataToShow>buildversion,platform,deviceprofile</metadataToShow>
 
 			<summary type="fpschart" fps="60" hitchThreshold="60" useEngineHitchMetric="1">
 				<stats>Frametime,GameThreadtime,RenderThreadtime,RHIThreadTime,GPUtime,RHI/Drawcalls,DynamicResolutionPercentage,MemoryFreeMB(min),PhysicalUsedMB(max),Basic/TicksQueued</stats>
@@ -102,6 +104,8 @@
 			<autodetection requiredstats="frametime">
 				<requiredmetadata key="targetframerate" allowedValues="30" stopIfKeyFound="1" ignoreIfKeyNotFound="1"/>
 			</autodetection>
+
+			<metadataToShow>buildversion,platform,deviceprofile</metadataToShow>
 
 			<summary type="fpschart" fps="30" hitchThreshold="60" useEngineHitchMetric="1">
 				<stats>Frametime,GameThreadtime,RenderThreadtime,RHIThreadTime,GPUtime,RHI/Drawcalls,DynamicResolutionPercentage,MemoryFreeMB(min),PhysicalUsedMB(max),Basic/TicksQueued</stats>

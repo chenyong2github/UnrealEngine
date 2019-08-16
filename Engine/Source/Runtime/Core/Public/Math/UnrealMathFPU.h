@@ -488,6 +488,32 @@ FORCEINLINE VectorRegister VectorCompareLE(const VectorRegister& Vec1, const Vec
 }
 
 /**
+ * Returns an integer bit-mask (0x00 - 0x0f) based on the sign-bit for each component in a vector.
+ *
+ * @param VecMask		Vector
+ * @return				Bit 0 = sign(VecMask.x), Bit 1 = sign(VecMask.y), Bit 2 = sign(VecMask.z), Bit 3 = sign(VecMask.w)
+ */
+FORCEINLINE int VectorCompareZero(const VectorRegister& Mask)
+{
+	return
+		(Mask.V[0] >= 0 ? 0x1 : 0) +
+		(Mask.V[1] >= 0 ? 0x2 : 0) +
+		(Mask.V[2] >= 0 ? 0x4 : 0) +
+		(Mask.V[3] >= 0 ? 0x8 : 0);
+}
+
+//other platforms get this in UnrealMathFPU.h
+#if PLATFORM_HOLOLENS
+#define VectorMask_LT( Vec1, Vec2 )			VectorCompareLT(Vec1, Vec2)
+#define VectorMask_LE( Vec1, Vec2 )			VectorCompareLE(Vec1, Vec2)
+#define VectorMask_GT( Vec1, Vec2 )			VectorCompareGT(Vec1, Vec2)
+#define VectorMask_GE( Vec1, Vec2 )			VectorCompareGE(Vec1, Vec2)
+#define VectorMask_EQ( Vec1, Vec2 )			VectorCompareEQ(Vec1, Vec2)
+#define VectorMask_NE( Vec1, Vec2 )			VectorCompareNE(Vec1, Vec2)
+#define VectorMaskBits( VecMask )			VectorCompareZero( VecMask )
+#endif
+
+/**
  * Does a bitwise vector selection based on a mask (e.g., created from VectorCompareXX)
  *
  * @param Mask  Mask (when 1: use the corresponding bit from Vec1 otherwise from Vec2)
@@ -1279,20 +1305,20 @@ FORCEINLINE VectorRegister VectorMod(const VectorRegister& X, const VectorRegist
 FORCEINLINE VectorRegister VectorSign(const VectorRegister& X)
 {
 	return MakeVectorRegister(
-		(float)(VectorGetComponent(X, 0) >= 0.0f ? 1.0f : 0.0f),
-		(float)(VectorGetComponent(X, 1) >= 0.0f ? 1.0f : 0.0f),
-		(float)(VectorGetComponent(X, 2) >= 0.0f ? 1.0f : 0.0f),
-		(float)(VectorGetComponent(X, 3) >= 0.0f ? 1.0f : 0.0f));
+		(float)(VectorGetComponent(X, 0) >= 0.0f ? 1.0f : -1.0f),
+		(float)(VectorGetComponent(X, 1) >= 0.0f ? 1.0f : -1.0f),
+		(float)(VectorGetComponent(X, 2) >= 0.0f ? 1.0f : -1.0f),
+		(float)(VectorGetComponent(X, 3) >= 0.0f ? 1.0f : -1.0f));
 }
 
 //TODO: Vectorize
 FORCEINLINE VectorRegister VectorStep(const VectorRegister& X)
 {
 	return MakeVectorRegister(
-		(float)(VectorGetComponent(X, 0) >= 0.0f ? 1.0f : -1.0f),
-		(float)(VectorGetComponent(X, 1) >= 0.0f ? 1.0f : -1.0f),
-		(float)(VectorGetComponent(X, 2) >= 0.0f ? 1.0f : -1.0f),
-		(float)(VectorGetComponent(X, 3) >= 0.0f ? 1.0f : -1.0f));
+		(float)(VectorGetComponent(X, 0) >= 0.0f ? 1.0f : 0.0f),
+		(float)(VectorGetComponent(X, 1) >= 0.0f ? 1.0f : 0.0f),
+		(float)(VectorGetComponent(X, 2) >= 0.0f ? 1.0f : 0.0f),
+		(float)(VectorGetComponent(X, 3) >= 0.0f ? 1.0f : 0.0f));
 }
 
 /**

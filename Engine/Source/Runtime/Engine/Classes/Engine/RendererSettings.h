@@ -255,6 +255,57 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConfigRestartRequired=true))
 	uint32 bUseDXT5NormalMaps:1;
 
+	/**
+	 * Virtual Texture
+	 */
+	UPROPERTY(config, EditAnywhere, Category = VirtualTextures, meta = (
+		ConsoleVariable = "r.VirtualTextures", DisplayName = "Enable virtual texture support",
+		ToolTip = "When enabled, Textures can be streamed using the virtual texture system. Changing this setting requires restarting the editor.",
+		ConfigRestartRequired = true))
+	uint32 bVirtualTextures : 1;
+
+	UPROPERTY(config, EditAnywhere, Category = VirtualTextures, meta = (
+		EditCondition = "bVirtualTextures",
+		ConsoleVariable = "r.VirtualTexturedLightmaps", DisplayName = "Enable virtual texture lightmaps",
+		ToolTip = "When enabled, lightmaps will be streamed using the virtual texture system. Changing this setting requires restarting the editor.",
+		ConfigRestartRequired = true))
+	uint32 bVirtualTexturedLightmaps : 1;
+
+	UPROPERTY(config, EditAnywhere, Category = VirtualTextures, meta = (
+		EditCondition = "bVirtualTextures",
+		ConsoleVariable = "r.VT.TileSize", DisplayName = "Tile size",
+		ToolTip = "Size in pixels for virtual texture tiles, will be rounded to next power-of-2. Changing this setting requires restarting the editor.",
+		ConfigRestartRequired = true))
+	uint32 VirtualTextureTileSize;
+
+	UPROPERTY(config, EditAnywhere, Category = VirtualTextures, meta = (
+		EditCondition = "bVirtualTextures",
+		ConsoleVariable = "r.VT.TileBorderSize", DisplayName = "Tile border size",
+		ToolTip = "Size in pixels for virtual texture tile borders, will be rounded to next power-of-2. Larger borders allow higher degree of anisotropic filtering, but uses more disk/cache memory. Changing this setting requires restarting the editor.",
+		ConfigRestartRequired = true))
+	uint32 VirtualTextureTileBorderSize;
+
+	UPROPERTY(config, EditAnywhere, Category = VirtualTextures, meta = (
+		EditCondition = "bVirtualTextures",
+		ConsoleVariable = "r.vt.FeedbackFactor", DisplayName = "Feedback resolution factor",
+		ToolTip = "Lower factor will increase virtual texture feedback resolution which increases CPU/GPU overhead, but may decrease streaming latency, especially if materials use many virtual textures. Changing this setting requires restarting the editor.",
+		ConfigRestartRequired = true))
+	uint32 VirtualTextureFeedbackFactor;
+
+	UPROPERTY(config, EditAnywhere, Category = VirtualTextures, meta = (
+		EditCondition = "bVirtualTextures",
+		ConsoleVariable = "r.VT.EnableCompressZlib", DisplayName = "Enable Zlib compression",
+		ToolTip = "Use zlib to compress virtual textures. Changing this setting requires restarting the editor.",
+		ConfigRestartRequired = true))
+	uint32 bVirtualTextureEnableCompressZlib : 1;
+
+	UPROPERTY(config, EditAnywhere, Category = VirtualTextures, meta = (
+		EditCondition = "bVirtualTextures",
+		ConsoleVariable = "r.VT.EnableCompressCrunch", DisplayName = "Enable Crunch compression",
+		ToolTip = "Use Crunch library to compress virtual textures for supported formats, this is a lossy compression format that gives much better ratio than zlib. Changing this setting requires restarting the editor.",
+		ConfigRestartRequired = true))
+	uint32 bVirtualTextureEnableCompressCrunch : 1;
+
 	UPROPERTY(config, EditAnywhere, Category = Materials, meta =(
 		ConfigRestartRequired = true,
 		ConsoleVariable = "r.ClearCoatNormal",
@@ -357,11 +408,6 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConfigRestartRequired = true))
 	TEnumAsByte<EAlphaChannelMode::Type> bEnableAlphaChannelInPostProcessing;
 
-	UPROPERTY(config, EditAnywhere, Category = Postprocessing, meta = (
-		ConsoleVariable = "r.DOF.Algorithm", DisplayName = "Use new DOF algorithm",
-		ToolTip = "Whether to use the new DOF implementation for Circle DOF method."))
-	uint32 bUseNewAlgorithm : 1;
-
 	UPROPERTY(config, EditAnywhere, Category = DefaultSettings, meta = (
 		ConsoleVariable = "r.DefaultFeature.Bloom", DisplayName = "Bloom",
 		ToolTip = "Whether the default for Bloom is enabled or not (postprocess volume/camera/game setting can still override and enable or disable it independently)"))
@@ -410,7 +456,7 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 	uint32 bDefaultFeatureLensFlare : 1;
 
 	UPROPERTY(config, EditAnywhere, Category = DefaultSettings, meta = (
-		EditCondition = "DefaultFeatureAntiAliasing == AAM_TemporalAA",
+		EditCondition = "DefaultFeatureAntiAliasing == EAntiAliasingMethod::AAM_TemporalAA",
 		ConsoleVariable = "r.TemporalAA.Upsampling", DisplayName = "Temporal Upsampling",
 		ToolTip = "Whether to do primary screen percentage with temporal AA or not."))
 	uint32 bTemporalUpsampling : 1;
@@ -448,7 +494,7 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 	TEnumAsByte<EEarlyZPass::Type> EarlyZPass;
 
 	UPROPERTY(config, EditAnywhere, Category = Optimizations, meta = (
-		EditCondition = "EarlyZPass == OpaqueAndMasked && bEarlyZPassMovable",
+		EditCondition = "EarlyZPass == EEarlyZPass::OpaqueAndMasked",
 		ConsoleVariable = "r.EarlyZPassOnlyMaterialMasking", DisplayName = "Mask material only in early Z-pass",
 		ToolTip = "Whether to compute materials' mask opacity only in early Z pass. Changing this setting requires restarting the editor.",
 		ConfigRestartRequired = true))
@@ -533,14 +579,14 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 
 	UPROPERTY(config, EditAnywhere, Category = VR, meta = (
 		ConsoleVariable = "vr.MobileMultiView", DisplayName = "Mobile Multi-View",
-		ToolTip = "Enable mobile multi-view rendering (only available on some Gear VR Android devices using OpenGL ES 2.0).",
+		ToolTip = "Enable mobile multi-view rendering (only available on Oculus Mobile and some Gear VR Android devices).",
 		ConfigRestartRequired = true))
 		uint32 bMobileMultiView : 1;
 
 	UPROPERTY(config, EditAnywhere, Category = VR, meta = (
 		EditCondition = "bMobileMultiView",
 		ConsoleVariable = "vr.MobileMultiView.Direct", DisplayName = "Mobile Multi-View Direct",
-		ToolTip = "Enable direct mobile multi-view rendering (only available on multi-view enabled Gear VR and Daydream Android devices).",
+		ToolTip = "Enable direct mobile multi-view rendering (only available on multi-view enabled Oculus Mobile, Gear VR, and Daydream Android devices).",
 		ConfigRestartRequired = true))
 		uint32 bMobileMultiViewDirect : 1;
 
@@ -691,6 +737,7 @@ public:
 	virtual void PostInitProperties() override;
 
 #if WITH_EDITOR
+	virtual void PreEditChange(UProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual bool CanEditChange(const UProperty* InProperty) const override;
 #endif
@@ -698,6 +745,11 @@ public:
 	//~ End UObject Interface
 
 private:
+#if WITH_EDITOR
+	/** shadow copy saved before effects of PostEditChange() to provide option to roll back edit. */
+	int32 PreEditReflectionCaptureResolution = 128;
+#endif // WITH_EDITOR
+
 	void SanatizeReflectionCaptureResolution();
 };
 

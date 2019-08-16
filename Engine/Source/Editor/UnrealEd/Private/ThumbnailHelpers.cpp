@@ -359,6 +359,11 @@ void FMaterialThumbnailScene::SetMaterialInterface(UMaterialInterface* InMateria
 	PreviewActor->GetStaticMeshComponent()->RecreateRenderState_Concurrent();
 }
 
+bool FMaterialThumbnailScene::ShouldSetSeparateTranslucency(class UMaterialInterface* InMaterial) const
+{
+	return InMaterial->GetMaterialResource(GMaxRHIFeatureLevel) != nullptr ? InMaterial->GetMaterialResource(GMaxRHIFeatureLevel)->IsTranslucencyAfterDOFEnabled() : false;
+}
+
 void FMaterialThumbnailScene::GetViewMatrixParameters(const float InFOVDegrees, FVector& OutOrigin, float& OutOrbitPitch, float& OutOrbitYaw, float& OutOrbitZoom) const
 {
 	check(PreviewActor);

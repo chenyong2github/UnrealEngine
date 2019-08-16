@@ -99,6 +99,10 @@ FPreviewScene::~FPreviewScene()
 	
 	PreviewWorld->CleanupWorld();
 	GEngine->DestroyWorldContext(GetWorld());
+
+	// Release PhysicsScene for fixing big fbx importing bug
+	PreviewWorld->ReleasePhysicsScene();
+
 }
 
 void FPreviewScene::AddComponent(UActorComponent* Component,const FTransform& LocalToWorld, bool bAttachToRoot /*= false*/)
@@ -146,6 +150,11 @@ void FPreviewScene::AddReferencedObjects( FReferenceCollector& Collector )
 {
 	Collector.AddReferencedObjects( Components );
 	Collector.AddReferencedObject( PreviewWorld );
+}
+
+FString FPreviewScene::GetReferencerName() const
+{
+	return TEXT("FPreviewScene");
 }
 
 void FPreviewScene::UpdateCaptureContents()

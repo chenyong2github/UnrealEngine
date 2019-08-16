@@ -6,11 +6,24 @@
 #include "OVR_Platform_Defs.h"
 #include "OVR_SystemVoipStatus.h"
 #include "OVR_Types.h"
+#include "OVR_VoipBitrate.h"
 #include "OVR_VoipMuteState.h"
+#include "OVR_VoipOptions.h"
 #include "OVR_VoipSampleRate.h"
 
 /// Accepts a VoIP connection from a given user.
 OVRP_PUBLIC_FUNCTION(void) ovr_Voip_Accept(ovrID userID);
+
+/// Gets whether or not a voice connection is using discontinuous transmission
+/// (DTX). Both sides must set to using DTX when their connection is
+/// established in order for this to be true. Returns unknown if there is no
+/// connection.
+OVRP_PUBLIC_FUNCTION(ovrVoipDtxState) ovr_Voip_GetIsConnectionUsingDtx(ovrID peerID);
+
+/// Gets the current local bitrate used for the connection to the specified
+/// user. This is set by the current client. Returns unknown if there is no
+/// connection.
+OVRP_PUBLIC_FUNCTION(ovrVoipBitrate) ovr_Voip_GetLocalBitrate(ovrID peerID);
 
 /// Returns the size of the internal ringbuffer used by the voip system in
 /// elements. This size is the maximum number of elements that can ever be
@@ -61,6 +74,11 @@ OVRP_PUBLIC_FUNCTION(size_t) ovr_Voip_GetPCMWithTimestamp(ovrID senderID, int16_
 /// See ovr_Voip_GetPCMWithTimestamp(). Uses a 32-bit floating-point data
 /// format.
 OVRP_PUBLIC_FUNCTION(size_t) ovr_Voip_GetPCMWithTimestampFloat(ovrID senderID, float *outputBuffer, size_t outputBufferNumElements, uint32_t *timestamp);
+
+/// Gets the current remote bitrate used for the connection to the specified
+/// user. This is set by the client on the other side of the connection.
+/// Returns unknown if there is no connection.
+OVRP_PUBLIC_FUNCTION(ovrVoipBitrate) ovr_Voip_GetRemoteBitrate(ovrID peerID);
 
 /// Returns a timestamp used for synchronizing audio samples sent to the given
 /// user with an external data stream.
@@ -118,6 +136,11 @@ OVRP_PUBLIC_FUNCTION(void) ovr_Voip_SetMicrophoneFilterCallback(VoipFilterCallba
 ///
 /// This function can be safely called from any thread.
 OVRP_PUBLIC_FUNCTION(void) ovr_Voip_SetMicrophoneMuted(ovrVoipMuteState state);
+
+/// The options set for newly created connections to use. Existing connections
+/// will continue to use their current settings until they are destroyed and
+/// recreated.
+OVRP_PUBLIC_FUNCTION(void) ovr_Voip_SetNewConnectionOptions(ovrVoipOptionsHandle voipOptions);
 
 /// Sets the output sample rate. Audio data will be resampled as it is placed
 /// into the internal ringbuffer.

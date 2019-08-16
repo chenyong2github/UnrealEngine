@@ -23,6 +23,21 @@ typedef GLsync UGLsync;
 #undef GL_TEXTURE_MAX_LEVEL
 #define GL_TEXTURE_MAX_LEVEL	GL_TEXTURE_MAX_LEVEL_APPLE
 
+#ifndef GL_TEXTURE_1D
+#define GL_TEXTURE_1D			0x0DE0
+#endif
+
+#ifndef GL_TEXTURE_1D_ARRAY
+#define GL_TEXTURE_1D_ARRAY		0x8C18
+#endif
+
+#ifndef GL_TEXTURE_2D_ARRAY
+#define GL_TEXTURE_2D_ARRAY		0x8C1A
+#endif
+
+#ifndef GL_TEXTURE_RECTANGLE
+#define GL_TEXTURE_RECTANGLE	0x84F5
+#endif
 
 struct FIOSOpenGL : public FOpenGLES2
 {
@@ -87,10 +102,10 @@ struct FIOSOpenGL : public FOpenGLES2
 
 	static FORCEINLINE void* MapBufferRange(GLenum Type, uint32 InOffset, uint32 InSize, EResourceLockMode LockMode)
 	{
-		checkf(LockMode == RLM_WriteOnly || LockMode == RLM_WriteOnlyUnsynchronized, TEXT("OpenGL ES 2.0 only supports write-only buffer locks"));
+		checkf(LockMode == EResourceLockMode::RLM_WriteOnly || LockMode == EResourceLockMode::RLM_WriteOnlyUnsynchronized, TEXT("OpenGL ES 2.0 only supports write-only buffer locks"));
 		check(Type == GL_ARRAY_BUFFER || Type == GL_ELEMENT_ARRAY_BUFFER);
 		GLuint Flags = GL_MAP_WRITE_BIT_EXT | GL_MAP_FLUSH_EXPLICIT_BIT_EXT;
-		if (LockMode == RLM_WriteOnlyUnsynchronized)
+		if (LockMode == EResourceLockMode::RLM_WriteOnlyUnsynchronized)
 		{
 			Flags |= GL_MAP_UNSYNCHRONIZED_BIT_EXT;
 		}
@@ -122,6 +137,10 @@ struct FIOSOpenGL : public FOpenGLES2
 	static FORCEINLINE EShaderPlatform GetShaderPlatform()
 	{
 		return SP_OPENGL_ES2_IOS;
+	}
+
+	static FORCEINLINE void	CopyTexSubImage1D(GLenum Target, GLint Level, GLint XOffset, GLint X, GLint Y, GLsizei Width)
+	{
 	}
 
 	static FORCEINLINE bool SupportsFramebufferSRGBEnable()				{ return false; }

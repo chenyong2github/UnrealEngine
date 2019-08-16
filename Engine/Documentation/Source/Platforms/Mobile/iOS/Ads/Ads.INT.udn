@@ -1,0 +1,65 @@
+Availability: Public
+Title: Using iAd In-Game Ads on iOS
+Description: Using the iAd in-game advertisement system on iOS.
+Type: how-to
+Version: 4.10
+Parent: Platforms/Mobile/iOS
+Tags: mobile
+Tags: iOS
+Tags: Guides
+tags:ads
+Tags: mobileservices
+topic-image: iOS_QS_Editor_TopicImage.png
+SkillLevel: Intermediate
+
+
+[TOC (start:2 end:4)]
+
+[REGION:warning]
+Since Apple has deprecated iAds you will now need to select a different ad provider like [Google AdMob](https://www.google.com/admob/), [Chartboost](https://www.chartboost.com/) or [Facebook Ads](https://www.facebook.com/business/products/ads) to display add's in your iOS games.
+[/REGION]
+
+![](iAd.png)(w:240)
+
+## Configuration
+
+All configuration for the iAd system is handled through the Apple ecosystem. See [Configuring Store Technologies](https://developer.apple.com/library/ios/documentation/LanguagesUtilities/Conceptual/iTunesConnect_Guide/Chapters/ConfiguringStoreTechnologies.html) for more information.
+
+### C++ Projects
+
+If you project is a C++ project you will also need to add the appropriate modules to your Target.cs file, for example:
+
+    ...
+            if (Target.Platform == UnrealTargetPlatform.IOS)
+            {
+            ModuleNames.Add("OnlineSubsystemFacebook");
+            ModuleNames.Add("OnlineSubsystemIOS");
+            ModuleNames.Add("IOSAdvertising");
+            ModuleNames.Add("MetalRHI");
+            }
+
+Look at the Unreal Match 3 Target.cs file, `Match3\Source\Match3.Target.cs`, to see how this fits into the entire file.
+
+## Showing the Ad Banner
+
+The **Show Ad Banner** function is used to display an ad banner in your game. Call it somewhere in the logic where you want to show an ad, such as when the main menu is shown.
+
+**In Blueprints:**
+
+The example below is from the Unreal Match 3 sample game, which displays an ad banner when the victory/defeat screen is shown using the **Construct** event of that Widget Blueprint:
+
+![](show_ad.png)
+
+See the [Show Ad Banner](http://api.unrealengine.com/INT/BlueprintAPI/Utilities/Platform/ShowAdBanner/index.html) reference for more information on the node.
+
+## Hiding the Ad Banner
+
+The **Hide Ad Banner** functions hides the visible ad banner. Call it when you no longer want the ad to be displayed, such as when you exit the main menu.
+
+**In Blueprints:**
+
+The example below is from the Unreal Match 3 sample game, which hides the ad banner when the victory/defeat screen is exited using the **Destruct** event of that Widget Blueprint:
+
+![](hide_ad.png)
+
+See the [Hide Ad Banner](http://api.unrealengine.com/INT/BlueprintAPI/Utilities/Platform/HideAdBanner/index.html) reference for more information on the node.

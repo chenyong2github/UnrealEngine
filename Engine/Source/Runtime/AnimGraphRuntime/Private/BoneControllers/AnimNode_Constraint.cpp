@@ -14,6 +14,7 @@ FAnimNode_Constraint::FAnimNode_Constraint()
 
 void FAnimNode_Constraint::GatherDebugData(FNodeDebugData& DebugData)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(GatherDebugData)
 	const float ActualBiasedAlpha = AlphaScaleBias.ApplyTo(Alpha);
 
 	FString DebugLine = DebugData.GetNodeName(this);
@@ -34,6 +35,7 @@ void FAnimNode_Constraint::GatherDebugData(FNodeDebugData& DebugData)
 
 void FAnimNode_Constraint::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(EvaluateSkeletalControl_AnyThread)
  	const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
 	const int32 ConstraintNum = ConstraintSetup.Num();
 #if WITH_EDITOR
@@ -89,6 +91,7 @@ bool FAnimNode_Constraint::IsValidToEvaluate(const USkeleton* Skeleton, const FB
 
 void FAnimNode_Constraint::InitializeBoneReferences(const FBoneContainer& RequiredBones) 
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(InitializeBoneReferences)
 	BoneToModify.Initialize(RequiredBones);
 
 	ConstraintData.Reset(ConstraintSetup.Num());

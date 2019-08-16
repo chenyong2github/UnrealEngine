@@ -58,6 +58,7 @@ FName FMapErrors::LODActorMissingStaticMesh(TEXT("LODActorMissingStaticMesh"));
 FName FMapErrors::LODActorMissingActor(TEXT("LODActorMissingActor"));
 FName FMapErrors::LODActorNoActorFound(TEXT("LODActorNoActor"));
 FName FMapErrors::HLODSystemNotEnabled(TEXT("HLODSystemNotEnabled"));
+FName FMapErrors::InvalidVirtualTextureUsage(TEXT("InvalidVirtualTextureUsage"));
 
 static const FString MapErrorsPath = TEXT("Shared/Editor/MapErrors");
 

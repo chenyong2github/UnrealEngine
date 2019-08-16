@@ -41,6 +41,9 @@
 #include "Framework/Commands/UICommandInfo.h"
 #include "EditorStyleSet.h"
 #include "MaterialStats.h"
+#include "MaterialEditingLibrary.h"
+#include "Widgets/Layout/SScrollBox.h"
+#include "DebugViewModeHelpers.h"
 
 #define LOCTEXT_NAMESPACE "MaterialInstanceEditor"
 
@@ -612,6 +615,7 @@ FMaterialInstanceEditor::~FMaterialInstanceEditor()
 		UPackage* Package = MaterialEditorInstance->SourceInstance->GetOutermost();
 		if (Package && Package->IsDirty() && Package != GetTransientPackage())
 		{
+			ClearDebugViewMaterials(MaterialEditorInstance->SourceInstance);
 			FMaterialEditorUtilities::BuildTextureStreamingData(MaterialEditorInstance->SourceInstance);
 		}
 	}
@@ -634,13 +638,6 @@ void FMaterialInstanceEditor::AddReferencedObjects(FReferenceCollector& Collecto
 {
 	// Serialize our custom object instance
 	Collector.AddReferencedObject(MaterialEditorInstance);
-
-	// Serialize all parent material instances that are stored in the list.
-	for (int32 Index = 0; Index < MaterialParentList.Num(); Index++)
-	{
-		UMaterialInterface* Parent = MaterialParentList[Index].Get();
-		Collector.AddReferencedObject(Parent);
-	}
 }
 
 void FMaterialInstanceEditor::BindCommands()
@@ -726,30 +723,6 @@ void FMaterialInstanceEditor::ToggleShowAllMaterialParameters()
 bool FMaterialInstanceEditor::IsShowAllMaterialParametersChecked() const
 {
 	return bShowAllMaterialParameters;
-}
-
-void FMaterialInstanceEditor::OnOpenMaterial(TWeakObjectPtr<UMaterialInterface> InMaterial)
-{
-	OpenSelectedParentEditor(InMaterial.Get());
-}
-
-void FMaterialInstanceEditor::OnOpenFunction(TWeakObjectPtr<UMaterialFunctionInterface> InFunction)
-{
-	OpenSelectedParentEditor(InFunction.Get());
-}
-
-void FMaterialInstanceEditor::OnShowMaterialInContentBrowser(TWeakObjectPtr<UMaterialInterface> InMaterial)
-{
-	TArray<UObject*> SyncedObject;
-	SyncedObject.Add(InMaterial.Get());
-	GEditor->SyncBrowserToObjects(SyncedObject);
-}
-
-void FMaterialInstanceEditor::OnShowFunctionInContentBrowser(TWeakObjectPtr<UMaterialFunctionInterface> InFunction)
-{
-	TArray<UObject*> SyncedObject;
-	SyncedObject.Add(InFunction.Get());
-	GEditor->SyncBrowserToObjects(SyncedObject);
 }
 
 void FMaterialInstanceEditor::CreateInternalWidgets()
@@ -853,30 +826,30 @@ TSharedRef< SWidget > FMaterialInstanceEditor::GenerateInheritanceMenu()
 {
 	struct Local
 	{
-		static void MakeFunctionSubmenu(FMenuBuilder& MenuBuilder, FMaterialInstanceEditor* InEditor, TWeakObjectPtr<UMaterialFunctionInterface> InFunction)
+		static void MakeFunctionSubmenu(FMenuBuilder& MenuBuilder, FAssetData InFunction)
 		{
 			MenuBuilder.AddMenuEntry(LOCTEXT("OpenInEditor", "Open In Editor"),
 				FText::GetEmpty(),
 				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.OpenInExternalEditor"),
-				FUIAction(FExecuteAction::CreateSP(InEditor, &FMaterialInstanceEditor::OnOpenFunction, InFunction)));
+				FUIAction(FExecuteAction::CreateStatic(&FMaterialEditorUtilities::OnOpenFunction, InFunction)));
 			
 			MenuBuilder.AddMenuEntry(LOCTEXT("FindInContentBrowser", "Find In Content Browser"),
 				FText::GetEmpty(),
 				FSlateIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.FindInContentBrowser"),
-				FUIAction(FExecuteAction::CreateSP(InEditor, &FMaterialInstanceEditor::OnShowFunctionInContentBrowser, InFunction)));
+				FUIAction(FExecuteAction::CreateStatic(&FMaterialEditorUtilities::OnShowFunctionInContentBrowser, InFunction)));
 		}
 
-		static void MakeMaterialSubmenu(FMenuBuilder& MenuBuilder, FMaterialInstanceEditor* InEditor, TWeakObjectPtr<UMaterialInterface> InMaterial)
+		static void MakeMaterialSubmenu(FMenuBuilder& MenuBuilder, FAssetData InMaterial)
 		{
 			MenuBuilder.AddMenuEntry(LOCTEXT("OpenInEditor", "Open In Editor"),
 				FText::GetEmpty(),
 				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.OpenInExternalEditor"),
-				FUIAction(FExecuteAction::CreateSP(InEditor, &FMaterialInstanceEditor::OnOpenMaterial, InMaterial)));
+				FUIAction(FExecuteAction::CreateStatic(&FMaterialEditorUtilities::OnOpenMaterial, InMaterial)));
 			
 			MenuBuilder.AddMenuEntry(LOCTEXT("FindInContentBrowser", "Find In Content Browser"),
 				FText::GetEmpty(),
 				FSlateIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.FindInContentBrowser"),
-				FUIAction(FExecuteAction::CreateSP(InEditor, &FMaterialInstanceEditor::OnShowMaterialInContentBrowser, InMaterial)));
+				FUIAction(FExecuteAction::CreateStatic(&FMaterialEditorUtilities::OnShowMaterialInContentBrowser, InMaterial)));
 		}
 	};
 
@@ -885,41 +858,79 @@ TSharedRef< SWidget > FMaterialInstanceEditor::GenerateInheritanceMenu()
 	const bool bShouldCloseWindowAfterMenuSelection = true;
 	TSharedPtr<FUICommandList> InCommandList = MakeShareable(new FUICommandList);
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, InCommandList, ToolbarExtender);
-
+	const FName ParentName = TEXT("ParentChain");
+	MenuBuilder.BeginSection(ParentName, LOCTEXT("ParentChain", "Parent Chain"));
 	if (bIsFunctionPreviewMaterial)
 	{
-		for (TWeakObjectPtr<UMaterialFunctionInterface> FunctionParent : FunctionParentList)
+		if (FunctionParentList.Num() == 0)
 		{
-			if (FunctionParent.IsValid())
-			{
-				FFormatNamedArguments Args;
-				Args.Add(TEXT("ParentName"), FText::FromString(FunctionParent->GetName()));
-				MenuBuilder.AddSubMenu(FText::Format(LOCTEXT("InstanceParentName", "{ParentName}"), Args),
-					FText::GetEmpty(),
-					FNewMenuDelegate::CreateStatic(&Local::MakeFunctionSubmenu, this, FunctionParent),
-					false,
-					FSlateIcon());
-			}
+			const FText NoParentText = LOCTEXT("NoParentFound", "No Parent Found");
+			TSharedRef<SWidget> NoParentWidget = SNew(STextBlock)
+				.Text(NoParentText);
+			MenuBuilder.AddWidget(NoParentWidget, FText::GetEmpty());
+		}
+		for (FAssetData FunctionParent : FunctionParentList)
+		{
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("ParentName"), FText::FromName(FunctionParent.AssetName));
+			MenuBuilder.AddSubMenu(FText::Format(LOCTEXT("InstanceParentName", "{ParentName}"), Args),
+				FText::GetEmpty(),
+				FNewMenuDelegate::CreateStatic(&Local::MakeFunctionSubmenu, FunctionParent),
+				false,
+				FSlateIcon());
 		}
 	}
 	else
 	{
-		for (TWeakObjectPtr<UMaterialInterface> MaterialParent : MaterialParentList)
+		if (MaterialParentList.Num() == 0)
 		{
-			if (MaterialParent.IsValid())
-			{
-				FFormatNamedArguments Args;
-				Args.Add(TEXT("ParentName"), FText::FromString(MaterialParent->GetName()));
-				MenuBuilder.AddSubMenu(FText::Format(LOCTEXT("InstanceParentName", "{ParentName}"), Args),
-					FText::GetEmpty(),
-					FNewMenuDelegate::CreateStatic(&Local::MakeMaterialSubmenu, this, MaterialParent),
-					false,
-					FSlateIcon());
-			}
+			const FText NoParentText = LOCTEXT("NoParentFound", "No Parent Found");
+			TSharedRef<SWidget> NoParentWidget = SNew(STextBlock)
+				.Text(NoParentText);
+			MenuBuilder.AddWidget(NoParentWidget, FText::GetEmpty());
+		}
+		for (FAssetData MaterialParent : MaterialParentList)
+		{
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("ParentName"), FText::FromName(MaterialParent.AssetName));
+			MenuBuilder.AddSubMenu(FText::Format(LOCTEXT("InstanceParentName", "{ParentName}"), Args),
+				FText::GetEmpty(),
+				FNewMenuDelegate::CreateStatic(&Local::MakeMaterialSubmenu, MaterialParent),
+				false,
+				FSlateIcon());
 		}
 	}
+	MenuBuilder.EndSection();
 
-	return MenuBuilder.MakeWidget();
+	if (!bIsFunctionPreviewMaterial)
+	{
+		const FName MaterialInstances = TEXT("MaterialInstances");
+		MenuBuilder.BeginSection(MaterialInstances, LOCTEXT("MaterialInstances", "Material Instances"));
+		for (FAssetData MaterialChild : MaterialChildList)
+		{
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("ChildName"), FText::FromName(MaterialChild.AssetName));
+			MenuBuilder.AddSubMenu(FText::Format(LOCTEXT("MaterialInstanceName", "{ChildName}"), Args),
+				FText::GetEmpty(),
+				FNewMenuDelegate::CreateStatic(&Local::MakeMaterialSubmenu, MaterialChild),
+				false,
+				FSlateIcon());
+		}
+		MenuBuilder.EndSection();
+	}
+
+	TSharedRef<SWidget> ConstrainedMenu = SNew(SVerticalBox)
+		+SVerticalBox::Slot()
+		.MaxHeight(500.0f)
+		[		
+			SNew(SScrollBox)
+			+ SScrollBox::Slot()
+			[
+				MenuBuilder.MakeWidget()
+			]
+		];
+
+	return ConstrainedMenu;
 }
 
 
@@ -1149,8 +1160,6 @@ void FMaterialInstanceEditor::RebuildInheritanceList()
 	if (bIsFunctionPreviewMaterial)
 	{
 		FunctionParentList.Empty();
-		
-		FunctionParentList.Add(MaterialFunctionOriginal);
 
 		// Append function instance parent chain
 		UMaterialFunctionInstance* Current = MaterialFunctionOriginal;
@@ -1165,6 +1174,7 @@ void FMaterialInstanceEditor::RebuildInheritanceList()
 	}
 	else
 	{
+		MaterialChildList.Empty();
 		MaterialParentList.Empty();
 
 		// Travel up the parent chain for this material instance until we reach the root material.
@@ -1172,7 +1182,7 @@ void FMaterialInstanceEditor::RebuildInheritanceList()
 
 		if(InstanceConstant)
 		{
-			MaterialParentList.Add(InstanceConstant);
+			UMaterialEditingLibrary::GetChildInstances(InstanceConstant, MaterialChildList);
 
 			// Add all parents
 			UMaterialInterface* Parent = InstanceConstant->Parent;
@@ -1262,35 +1272,52 @@ void FMaterialInstanceEditor::DrawSamplerWarningStrings(FCanvas* Canvas, int32& 
 							EMaterialSamplerType SamplerType = UMaterialExpressionTextureBase::GetSamplerTypeForTexture( Texture );
 							UMaterialExpressionTextureSampleParameter* Expression = BaseMaterial->FindExpressionByGUID<UMaterialExpressionTextureSampleParameter>( TextureParameterValue->ExpressionId );
 
-							if ( Expression && Expression->SamplerType != SamplerType )
+							FString ErrorMessage;
+							if (!Expression->TextureIsValid(Texture, ErrorMessage))
 							{
-								FString SamplerTypeDisplayName = SamplerTypeEnum->GetDisplayNameTextByValue(Expression->SamplerType).ToString();
-
 								Canvas->DrawShadowedString(
 									5,
 									DrawPositionY,
-									*FString::Printf( TEXT("Warning: %s samples %s as %s."),
-									*TextureParameterValue->ParameterInfo.Name.ToString(),
-									*Texture->GetPathName(),
-									*SamplerTypeDisplayName ),
+									*FString::Printf(TEXT("Error: %s has invalid texture %s: %s."),
+										*TextureParameterValue->ParameterInfo.Name.ToString(),
+										*Texture->GetPathName(),
+										*ErrorMessage),
 									FontToUse,
-									FLinearColor(1,1,0) );
+									FLinearColor(1, 0, 0));
 								DrawPositionY += SpacingBetweenLines;
 							}
-							if( Expression && ((Expression->SamplerType == (EMaterialSamplerType)TC_Normalmap || Expression->SamplerType ==  (EMaterialSamplerType)TC_Masks) && Texture->SRGB))
+							else
 							{
-								FString SamplerTypeDisplayName = SamplerTypeEnum->GetDisplayNameTextByValue(Expression->SamplerType).ToString();
-								
-								Canvas->DrawShadowedString(
-									5,
-									DrawPositionY,
-									*FString::Printf( TEXT("Warning: %s samples texture as '%s'. SRGB should be disabled for '%s'."),
-									*TextureParameterValue->ParameterInfo.Name.ToString(),
-									*SamplerTypeDisplayName,
-									*Texture->GetPathName()),
-									FontToUse,
-									FLinearColor(1,1,0) );
-								DrawPositionY += SpacingBetweenLines;
+								if (Expression && Expression->SamplerType != SamplerType)
+								{
+									FString SamplerTypeDisplayName = SamplerTypeEnum->GetDisplayNameTextByValue(Expression->SamplerType).ToString();
+
+									Canvas->DrawShadowedString(
+										5,
+										DrawPositionY,
+										*FString::Printf(TEXT("Warning: %s samples %s as %s."),
+											*TextureParameterValue->ParameterInfo.Name.ToString(),
+											*Texture->GetPathName(),
+											*SamplerTypeDisplayName),
+										FontToUse,
+										FLinearColor(1, 1, 0));
+									DrawPositionY += SpacingBetweenLines;
+								}
+								if (Expression && ((Expression->SamplerType == (EMaterialSamplerType)TC_Normalmap || Expression->SamplerType == (EMaterialSamplerType)TC_Masks) && Texture->SRGB))
+								{
+									FString SamplerTypeDisplayName = SamplerTypeEnum->GetDisplayNameTextByValue(Expression->SamplerType).ToString();
+
+									Canvas->DrawShadowedString(
+										5,
+										DrawPositionY,
+										*FString::Printf(TEXT("Warning: %s samples texture as '%s'. SRGB should be disabled for '%s'."),
+											*TextureParameterValue->ParameterInfo.Name.ToString(),
+											*SamplerTypeDisplayName,
+											*Texture->GetPathName()),
+										FontToUse,
+										FLinearColor(1, 1, 0));
+									DrawPositionY += SpacingBetweenLines;
+								}
 							}
 						}
 					}

@@ -63,6 +63,11 @@ public:
 	virtual bool GetViewport(int32 idx, FDisplayClusterConfigViewport& viewport) const override;
 	virtual bool GetViewport(const FString& id, FDisplayClusterConfigViewport& viewport) const override;
 
+	virtual TArray<FDisplayClusterConfigPostprocess> GetPostprocess() const override;
+	virtual int32 GetPostprocessAmount() const override;
+	virtual bool GetPostprocess(int32 idx, FDisplayClusterConfigPostprocess& postprocess) const override;
+	virtual bool GetPostprocess(const FString& id, FDisplayClusterConfigPostprocess& postprocess) const override;
+
 	virtual TArray<FDisplayClusterConfigSceneNode> GetSceneNodes() const override;
 	virtual int32 GetSceneNodesAmount() const override;
 	virtual bool GetSceneNode(int32 idx, FDisplayClusterConfigSceneNode& actor) const override;
@@ -75,6 +80,9 @@ public:
 
 	virtual TArray<FDisplayClusterConfigInputSetup> GetInputSetupRecords() const override;
 	virtual bool GetInputSetupRecord(const FString& id, FDisplayClusterConfigInputSetup& input) const override;
+
+	virtual TArray<FDisplayClusterConfigProjection> GetProjections() const override;
+	virtual bool GetProjection(const FString& id, FDisplayClusterConfigProjection& projection) const override;
 
 	virtual FDisplayClusterConfigGeneral GetConfigGeneral() const override
 	{ return CfgGeneral; }
@@ -94,6 +102,8 @@ public:
 	virtual FDisplayClusterConfigCustom  GetConfigCustom() const override
 	{ return CfgCustom; }
 
+	virtual FString GetFullPathToFile(const FString& FileName) const override;
+
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IPDisplayClusterConfigManager
@@ -112,6 +122,7 @@ public:
 	virtual void AddWindow(const FDisplayClusterConfigWindow& InCfgWindow) override;
 	virtual void AddScreen(const FDisplayClusterConfigScreen& InCfgScreen) override;
 	virtual void AddViewport(const FDisplayClusterConfigViewport& InCfgViewport) override;
+	virtual void AddPostprocess(const FDisplayClusterConfigPostprocess& InCfgPostprocess) override;
 	virtual void AddCamera(const FDisplayClusterConfigCamera& InCfgCamera) override;
 	virtual void AddSceneNode(const FDisplayClusterConfigSceneNode& InCfgSNode)  override;
 	virtual void AddGeneral(const FDisplayClusterConfigGeneral& InCfgGeneral)  override;
@@ -122,6 +133,7 @@ public:
 	virtual void AddInput(const FDisplayClusterConfigInput& InCfgInput)  override;
 	virtual void AddInputSetup(const FDisplayClusterConfigInputSetup& InCfgInputSetup) override;
 	virtual void AddCustom(const FDisplayClusterConfigCustom& InCfgCustom) override;
+	virtual void AddProjection(const FDisplayClusterConfigProjection& InCfgProjection) override;
 
 private:
 	enum class EConfigFileType
@@ -152,10 +164,12 @@ private:
 	TArray<FDisplayClusterConfigWindow>      CfgWindows;
 	TArray<FDisplayClusterConfigScreen>      CfgScreens;
 	TArray<FDisplayClusterConfigViewport>    CfgViewports;
+	TArray<FDisplayClusterConfigPostprocess> CfgPostprocess;
 	TArray<FDisplayClusterConfigCamera>      CfgCameras;
 	TArray<FDisplayClusterConfigSceneNode>   CfgSceneNodes;
 	TArray<FDisplayClusterConfigInput>       CfgInputDevices;
 	TArray<FDisplayClusterConfigInputSetup>  CfgInputSetupRecords;
+	TArray<FDisplayClusterConfigProjection>  CfgProjections;
 
 	FDisplayClusterConfigInfo    CfgInfo;
 	FDisplayClusterConfigGeneral CfgGeneral;

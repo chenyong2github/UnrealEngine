@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6377065
 Title: 모바일 퍼포먼스 팁과 정보
 Description:Unreal Match 3 게임에서 지원되는 모바일 디바이스에 최적의 퍼포먼스를 내기 위해 활용했던 최적화 기법입니다.
 Crumbs:%ROOT%, Platforms, Platforms/Mobile
@@ -8,6 +8,7 @@ Platform:Mobile
 parent:Platforms/Mobile
 order:6
 type:overview
+skilllevel:Intermediate
 tags:mobile
 topic-image:perf_topic.png
 

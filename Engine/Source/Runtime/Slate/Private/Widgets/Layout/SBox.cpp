@@ -22,29 +22,32 @@ void SBox::Construct( const FArguments& InArgs )
 	MaxDesiredWidth = InArgs._MaxDesiredWidth;
 	MaxDesiredHeight = InArgs._MaxDesiredHeight;
 
+	MinAspectRatio = InArgs._MinAspectRatio;
 	MaxAspectRatio = InArgs._MaxAspectRatio;
 
 	ChildSlot
 		.HAlign( InArgs._HAlign )
 		.VAlign( InArgs._VAlign )
 		.Padding( InArgs._Padding )
-	[
-		InArgs._Content.Widget
-	];
+		[
+			InArgs._Content.Widget
+		];
 }
 
 void SBox::SetContent(const TSharedRef< SWidget >& InContent)
 {
 	ChildSlot
-	[
-		InContent
-	];
+		[
+			InContent
+		];
 
+	// TODO SlateGI - This seems no longer needed.
 	Invalidate(EInvalidateWidget::Layout);
 }
 
 void SBox::SetHAlign(EHorizontalAlignment HAlign)
 {
+	// TODO SlateGI - Fix Slots
 	if (ChildSlot.HAlignment != HAlign)
 	{
 		ChildSlot.HAlignment = HAlign;
@@ -54,6 +57,7 @@ void SBox::SetHAlign(EHorizontalAlignment HAlign)
 
 void SBox::SetVAlign(EVerticalAlignment VAlign)
 {
+	// TODO SlateGI - Fix Slots
 	if (ChildSlot.VAlignment != VAlign)
 	{
 		ChildSlot.VAlignment = VAlign;
@@ -63,6 +67,7 @@ void SBox::SetVAlign(EVerticalAlignment VAlign)
 
 void SBox::SetPadding(const TAttribute<FMargin>& InPadding)
 {
+	// TODO SlateGI - Fix Slots
 	if (!ChildSlot.SlotPadding.IdenticalTo(InPadding))
 	{
 		ChildSlot.SlotPadding = InPadding;
@@ -72,79 +77,47 @@ void SBox::SetPadding(const TAttribute<FMargin>& InPadding)
 
 void SBox::SetWidthOverride(TAttribute<FOptionalSize> InWidthOverride)
 {
-	if (!WidthOverride.IdenticalTo(InWidthOverride))
-	{
-		WidthOverride = InWidthOverride;
-		Invalidate(EInvalidateWidget::LayoutAndVolatility);
-	}
+	SetAttribute(WidthOverride, InWidthOverride, EInvalidateWidgetReason::Layout);
 }
 
 void SBox::SetHeightOverride(TAttribute<FOptionalSize> InHeightOverride)
 {
-	if (!HeightOverride.IdenticalTo(InHeightOverride))
-	{
-		HeightOverride = InHeightOverride;
-		Invalidate(EInvalidateWidget::LayoutAndVolatility);
-	}
+	SetAttribute(HeightOverride, InHeightOverride, EInvalidateWidgetReason::Layout);
 }
 
 void SBox::SetMinDesiredWidth(TAttribute<FOptionalSize> InMinDesiredWidth)
 {
-	if (!MinDesiredWidth.IdenticalTo(InMinDesiredWidth))
-	{
-		MinDesiredWidth = InMinDesiredWidth;
-		Invalidate(EInvalidateWidget::LayoutAndVolatility);
-	}
+	SetAttribute(MinDesiredWidth, InMinDesiredWidth, EInvalidateWidgetReason::Layout);
 }
 
 void SBox::SetMinDesiredHeight(TAttribute<FOptionalSize> InMinDesiredHeight)
 {
-	if (!MinDesiredHeight.IdenticalTo(InMinDesiredHeight))
-	{
-		MinDesiredHeight = InMinDesiredHeight;
-		Invalidate(EInvalidateWidget::LayoutAndVolatility);
-	}
+	SetAttribute(MinDesiredHeight, InMinDesiredHeight, EInvalidateWidgetReason::Layout);
 }
 
 void SBox::SetMaxDesiredWidth(TAttribute<FOptionalSize> InMaxDesiredWidth)
 {
-	if (!MaxDesiredWidth.IdenticalTo(InMaxDesiredWidth))
-	{
-		MaxDesiredWidth = InMaxDesiredWidth;
-		Invalidate(EInvalidateWidget::LayoutAndVolatility);
-	}
+	SetAttribute(MaxDesiredWidth, InMaxDesiredWidth, EInvalidateWidgetReason::Layout);
 }
 
 void SBox::SetMaxDesiredHeight(TAttribute<FOptionalSize> InMaxDesiredHeight)
 {
-	if (!MaxDesiredHeight.IdenticalTo(InMaxDesiredHeight))
+	SetAttribute(MaxDesiredHeight, InMaxDesiredHeight, EInvalidateWidgetReason::Layout);
+}
+
+void SBox::SetMinAspectRatio(TAttribute<FOptionalSize> InMinAspectRatio)
+{
+	if (!MinAspectRatio.IdenticalTo(InMinAspectRatio))
 	{
-		MaxDesiredHeight = InMaxDesiredHeight;
+		MinAspectRatio = InMinAspectRatio;
 		Invalidate(EInvalidateWidget::LayoutAndVolatility);
 	}
 }
 
 void SBox::SetMaxAspectRatio(TAttribute<FOptionalSize> InMaxAspectRatio)
 {
-	if (!MaxAspectRatio.IdenticalTo(InMaxAspectRatio))
-	{
-		MaxAspectRatio = InMaxAspectRatio;
-		Invalidate(EInvalidateWidget::LayoutAndVolatility);
-	}
+	SetAttribute(MaxAspectRatio, InMaxAspectRatio, EInvalidateWidgetReason::Layout);
 }
-
-void SBox::ChildLayoutChanged(EInvalidateWidget InvalidateReason)
-{
-	if (WidthOverride.IsSet() && HeightOverride.IsSet() && !EnumHasAnyFlags(InvalidateReason, EInvalidateWidget::Visibility))
-	{
-		// Done.  We don't need to notify anyone else that our desired size has changed.
-	}
-	else
-	{
-		SPanel::ChildLayoutChanged(InvalidateReason);
-	}
-}
-
 
 FVector2D SBox::ComputeDesiredSize( float ) const
 {
@@ -214,6 +187,7 @@ void SBox::OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildr
 	const EVisibility ChildVisibility = ChildSlot.GetWidget()->GetVisibility();
 	if ( ArrangedChildren.Accepts(ChildVisibility) )
 	{
+		const FOptionalSize CurrentMinAspectRatio = MinAspectRatio.Get();
 		const FOptionalSize CurrentMaxAspectRatio = MaxAspectRatio.Get();
 		const FMargin SlotPadding(ChildSlot.SlotPadding.Get());
 		bool bAlignChildren = true;
@@ -221,26 +195,39 @@ void SBox::OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildr
 		AlignmentArrangeResult XAlignmentResult(0, 0);
 		AlignmentArrangeResult YAlignmentResult(0, 0);
 
-		if ( CurrentMaxAspectRatio.IsSet() )
+		if (CurrentMaxAspectRatio.IsSet() || CurrentMinAspectRatio.IsSet())
 		{
 			float CurrentWidth = FMath::Min(AllottedGeometry.Size.X, ChildSlot.GetWidget()->GetDesiredSize().X);
 			float CurrentHeight = FMath::Min(AllottedGeometry.Size.Y, ChildSlot.GetWidget()->GetDesiredSize().Y);
 
-			float AspectRatioWidth = CurrentMaxAspectRatio.Get();
-			if ( AspectRatioWidth != 0 && CurrentHeight > 0 && CurrentWidth > 0 )
+			float MinAspectRatioWidth = CurrentMinAspectRatio.IsSet() ? CurrentMinAspectRatio.Get() : 0;
+			float MaxAspectRatioWidth = CurrentMaxAspectRatio.IsSet() ? CurrentMaxAspectRatio.Get() : 0;
+			if (CurrentHeight > 0 && CurrentWidth > 0)
 			{
-				const float AspectRatioHeight = 1.0f / AspectRatioWidth;
+				const float CurrentRatioWidth = (AllottedGeometry.GetLocalSize().X / AllottedGeometry.GetLocalSize().Y);
 
-				const float CurrentRatioWidth = ( AllottedGeometry.GetLocalSize().X / AllottedGeometry.GetLocalSize().Y );
-				const float CurrentRatioHeight = 1.0f / CurrentRatioWidth;
-
-				if ( CurrentRatioWidth > AspectRatioWidth /*|| CurrentRatioHeight > AspectRatioHeight*/ )
+				bool bFitMaxRatio = (CurrentRatioWidth > MaxAspectRatioWidth && MaxAspectRatioWidth != 0);
+				bool bFitMinRatio = (CurrentRatioWidth < MinAspectRatioWidth && MinAspectRatioWidth != 0);
+				if (bFitMaxRatio || bFitMinRatio)
 				{
 					XAlignmentResult = AlignChild<Orient_Horizontal>(AllottedGeometry.GetLocalSize().X, ChildSlot, SlotPadding);
 					YAlignmentResult = AlignChild<Orient_Vertical>(AllottedGeometry.GetLocalSize().Y, ChildSlot, SlotPadding);
 
-					float NewWidth = AspectRatioWidth * XAlignmentResult.Size;
-					float NewHeight = AspectRatioHeight * NewWidth;
+					float NewWidth;
+					float NewHeight;
+
+					if (bFitMaxRatio)
+					{
+						const float MaxAspectRatioHeight = 1.0f / MaxAspectRatioWidth;
+						NewWidth = MaxAspectRatioWidth * XAlignmentResult.Size;
+						NewHeight = MaxAspectRatioHeight * NewWidth;
+					}
+					else
+					{
+						const float MinAspectRatioHeight = 1.0f / MinAspectRatioWidth;
+						NewWidth = MinAspectRatioWidth * XAlignmentResult.Size;
+						NewHeight = MinAspectRatioHeight * NewWidth;
+					}
 
 					const float MaxWidth = AllottedGeometry.Size.X - SlotPadding.GetTotalSpaceAlong<Orient_Horizontal>();
 					const float MaxHeight = AllottedGeometry.Size.Y - SlotPadding.GetTotalSpaceAlong<Orient_Vertical>();

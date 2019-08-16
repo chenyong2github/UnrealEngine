@@ -9,12 +9,7 @@ order:2
 type:landing
 tags:Materials
 topic-image:materials_topic.png
-
-
-
-[REGION:banner]
-![Materials](materials.png)
-[/REGION]
+hero-image:materials.png
 
 A **Material** is an asset that can be applied to a mesh to control the visual look of the scene. At a high level, it is probably easiest to think of a Material as the "paint" that is applied to an object. But even that can be a little misleading, since a Material literally defines the type of surface from which your object appears to be made. You can define its color, how shiny it is, whether you can see through the object, and much more. 
 

@@ -1,0 +1,34 @@
+﻿INTSourceChangelist:0
+Availability: Docs <!--[R] Enter Docs (default), Public, or Licensee-->
+Title: New How-To Directory Page <!--[R] Enter New Title-->
+Description: Temporary Description <!--[R] Enter New Description-->
+Type: how-to
+Version: <!--[R] Enter Engine Version-->
+Parent: <!--[R] Enter Parent Page-->
+Order: <!--[O] Enter Page Order-->
+Tags: <!--[O][+] Enter Document Tag-->
+<!--topic-image: [O] Enter Topic Image File Name (tip, make sure it is in the 'Images' folder)-->
+
+
+[R] ADD Overview Text
+[REGION:note]
+The Overview text should describe the system, features, or processes being covered in the How-Tos.
+[/REGION]
+
+
+[O][+] ADD Beginner Topic List
+[REGION:note]
+The Beginner Topic List should link to all beginner How-To guides using fancy links.
+[/REGION]
+
+
+[O][+] ADD Intermediate Topic List
+[REGION:note]
+The Intermediate Topic List should link to all intermediate How-To guides using fancy links.
+[/REGION]
+
+
+[O][+] ADD Advanced Topic List
+[REGION:note]
+The Advanced Topic List should link to all advanced How-To guides using fancy links.
+[/REGION]

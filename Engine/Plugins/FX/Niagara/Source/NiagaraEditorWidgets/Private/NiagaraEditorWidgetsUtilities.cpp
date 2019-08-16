@@ -31,7 +31,7 @@ FName FNiagaraStackEditorWidgetsUtilities::GetIconNameForExecutionSubcategory(FN
 {
 	if (bIsHighlighted)
 	{
-		if (ExecutionSubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::Parameters)
+		if (ExecutionSubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::Settings)
 		{
 			return "NiagaraEditor.Stack.ParametersIconHighlighted";
 		}
@@ -47,10 +47,14 @@ FName FNiagaraStackEditorWidgetsUtilities::GetIconNameForExecutionSubcategory(FN
 		{
 			return "NiagaraEditor.Stack.EventIconHighlighted";
 		}
+		else if (ExecutionSubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::Render)
+		{
+			return "NiagaraEditor.Stack.RenderIconHighlighted";
+		}
 	}
 	else
 	{
-		if (ExecutionSubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::Parameters)
+		if (ExecutionSubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::Settings)
 		{
 			return "NiagaraEditor.Stack.ParametersIcon";
 		}
@@ -65,6 +69,10 @@ FName FNiagaraStackEditorWidgetsUtilities::GetIconNameForExecutionSubcategory(FN
 		else if (ExecutionSubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::Event)
 		{
 			return "NiagaraEditor.Stack.EventIcon";
+		}
+		else if (ExecutionSubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::Render)
+		{
+			return "NiagaraEditor.Stack.RenderIcon";
 		}
 	}
 

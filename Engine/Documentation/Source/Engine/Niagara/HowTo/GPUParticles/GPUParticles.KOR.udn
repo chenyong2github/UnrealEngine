@@ -1,4 +1,4 @@
-INTSourceChangelist:4703316
+INTSourceChangelist:6417095
 Availability: Public
 Crumbs: 
 Title: GPU 파티클 이펙트 생성
@@ -10,12 +10,7 @@ Parent: Engine/Niagara/HowTo
 Order: 2
 Tags: Niagara
 Tags: Early Access
-
-전제조건 주제
-
-이 문서는 다음 주제에 대한 사전 지식을 요합니다. 진행하기 전 확인하세요.
-
-*   [나이아가라 플러그인 활성화](Engine/Niagara/HowTo/EnableNiagara "나이아가라 플러그인 활성화 방법을 설명합니다.")
+prereq: Engine/Niagara/HowTo/EnableNiagara
     
 
 일부 이펙트의 경우 파티클을 수만 개씩 스폰해야 할 수 있습니다. 하지만 표준 CPU 를 사용하여 그렇게 많은 파티클을 생성하면 게임이 느려질 수 있습니다. 이번 하우투에서는 CPU 대신 GPU 를 사용하여 파티클을 스폰하는 방법을 선보이겠습니다.
@@ -42,13 +37,13 @@ Tags: Early Access
     ![](CreateGPUParticle_SetVariablesParticleSpriteSize.png)(w:500)
 9.  **Sphere Location** (구체 위치) 모듈에서 **Sphere Radius** (구체 반경)을 **100** 으로 설정합니다.  
     ![](CreateGPUParticle_Steps_Step04-SphereRadius.png)(w:500)
-10.  **컴파일**, **적용**, **저장** 버튼을 클릭하여 컴파일 및 저장합니다. 그런 다음 **FX_GPU** 이미터를 닫습니다.  
+10.  **컴파일**, **적용**, **저장** 버튼을 클릭하여 컴파일 및 저장합니다. 그런 다음 **FX_GPU** 이미터를 닫습니다.  
     ![](ME_09.png)(w:400)
 11.  **콘텐츠 브라우저** 에 우클릭하여 표시되는 메뉴에서 **FX > Niagara System** (FX > 나이아가라 시스템)을 선택합니다. 나이아가라 시스템 마법사가 표시됩니다.  
     ![](SE_16.png)(w:400)
 12.  **Create an empty system with no emitters** (이미터가 없는 빈 시스템 생성) 옆 동글 버튼을 클릭합니다. 그런 다음 **OK** (확인) 버튼을 누르면 콘텐츠 브라우저에 나이아가라 시스템이 새로 생깁니다.  
     ![](NiagaraSystem_EmptySystem.png)(w:400)
-13.  새 나이아가라 시스템 이름은 **GPU** 라 합니다.   
+13.  새 나이아가라 시스템 이름은 **GPU** 라 합니다.  
     ![](NiagaraSystem_GPUIcon.png)(w:100)
 14.  **GPU 나이아가라 시스템** 을 더블클릭하여 연 다음 콘텐츠 브라우저에서 **FX_GPU** 나이아가라 시스템을 끌어 **타임라인** 에 놓습니다.  
     ![](CreateGPUParticle_Steps_Step10-AddEmitterToSystem.png)(w:400)

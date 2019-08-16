@@ -30,6 +30,9 @@
 #include "Framework/Application/GestureDetector.h"
 
 class FNavigationConfig;
+#if WITH_ACCESSIBILITY
+class FSlateAccessibleMessageHandler;
+#endif
 class IInputInterface;
 class IInputProcessor;
 class IPlatformTextField;
@@ -369,6 +372,9 @@ public:
 
 	virtual EUINavigation GetNavigationDirectionFromKey(const FKeyEvent& InKeyEvent) const override;
 	virtual EUINavigation GetNavigationDirectionFromAnalog(const FAnalogInputEvent& InAnalogEvent) override;
+
+	/** Returns the navigation action corresponding to this key, or Invalid if not found */
+	virtual EUINavigationAction GetNavigationActionForKey(const FKey& InKey) const override;
 
 	/**
 	 * Adds a modal window to the application.  
@@ -723,7 +729,7 @@ public:
 	 * @param InWidget		The widget to find the window for
 	 * @return The window where the widget resides, or null if the widget wasn't found.  Remember, a widget might not be found simply because its parent decided not to report the widget in ArrangeChildren.
 	 */
-	TSharedPtr<SWindow> FindWidgetWindow( TSharedRef<const SWidget> InWidget ) const;
+	virtual TSharedPtr<SWindow> FindWidgetWindow( TSharedRef<const SWidget> InWidget ) const override;
 
 	/**
 	 * Finds the window that the provided widget resides in
@@ -941,18 +947,6 @@ public:
 	 * @return true if taking the screenshot was successful.
 	 */
 	bool TakeScreenshot(const TSharedRef<SWidget>& Widget, const FIntRect& InnerWidgetArea, TArray<FColor>& OutColorData, FIntVector& OutSize);
-
-	/**
-	 * 
-	 */
-	TSharedPtr< FSlateWindowElementList > GetCachableElementList(const TSharedPtr<SWindow>& CurrentWindow, const ILayoutCache* LayoutCache);
-
-	/**
-	 * Once a layout cache is destroyed it needs to free any resources it was using in a safe way to prevent
-	 * any in-flight rendering from being interrupted by referencing resources that go away.  So when a layout
-	 * cache is destroyed it should call this function so any associated resources can be collected when it's safe.
-	 */
-	void ReleaseResourcesForLayoutCache(const ILayoutCache* LayoutCache);
 
 	/**
 	 * @return a handle for the existing or newly created virtual slate user.  This is handy when you need to create
@@ -1320,6 +1314,13 @@ public:
 	 */
 	void UnregisterInputPreProcessor(TSharedPtr<class IInputProcessor> InputProcessor);
 
+	/**
+	 * Get the index of a registered pre-processor.
+	 * @param InputProcessor	The input pre-processor to find.
+	 * @return The index of the pre-processor, or INDEX_NONE if not registered.
+	 */
+	int32 FindInputPreProcessor(TSharedPtr<class IInputProcessor> InputProcessor) const;
+
 	/** Sets the hit detection radius of the cursor */
 	void SetCursorRadius(float NewRadius);
 
@@ -1403,7 +1404,7 @@ public:
 	virtual bool IsExternalUIOpened() override;
 	virtual FWidgetPath LocateWindowUnderMouse( FVector2D ScreenspaceMouseCoordinate, const TArray<TSharedRef<SWindow>>& Windows, bool bIgnoreEnabledStatus = false ) override;
 	virtual bool IsWindowHousingInteractiveTooltip(const TSharedRef<const SWindow>& WindowToTest) const override;
-	virtual TSharedRef<SWidget> MakeImage( const TAttribute<const FSlateBrush*>& Image, const TAttribute<FSlateColor>& Color, const TAttribute<EVisibility>& Visibility ) const override;
+	virtual TSharedRef<SImage> MakeImage( const TAttribute<const FSlateBrush*>& Image, const TAttribute<FSlateColor>& Color, const TAttribute<EVisibility>& Visibility ) const override;
 	virtual TSharedRef<SWidget> MakeWindowTitleBar( const TSharedRef<SWindow>& Window, const TSharedPtr<SWidget>& CenterContent, EHorizontalAlignment CenterContentAlignment, TSharedPtr<IWindowTitleBar>& OutTitleBar ) const override;
 	virtual TSharedRef<IToolTip> MakeToolTip( const TAttribute<FText>& ToolTipText ) override;
 	virtual TSharedRef<IToolTip> MakeToolTip( const FText& ToolTipText ) override;
@@ -1413,6 +1414,7 @@ public:
 	virtual void SetAllUserFocus(const FWidgetPath& InFocusPath, const EFocusCause InCause) override;
 	virtual void SetAllUserFocusAllowingDescendantFocus(const FWidgetPath& InFocusPath, const EFocusCause InCause) override;
 	virtual TSharedPtr<SWidget> GetUserFocusedWidget(uint32 UserIndex) const override;
+	virtual const TArray<TSharedRef<SWindow>> GetTopLevelWindows() const override { return SlateWindows; }
 
 	DECLARE_EVENT_OneParam(FSlateApplication, FApplicationActivationStateChangedEvent, const bool /*IsActive*/)
 	virtual FApplicationActivationStateChangedEvent& OnApplicationActivationStateChanged() { return ApplicationActivationStateChangedEvent; }
@@ -1741,7 +1743,7 @@ private:
 
 	/** These windows will be destroyed next tick. */
 	TArray< TSharedRef<SWindow> > WindowDestroyQueue;
-	
+
 	/** The stack of menus that are open */
 	FMenuStack MenuStack;
 
@@ -1942,6 +1944,11 @@ private:
 	/** Pointer to the currently registered game viewport widget if any */
 	TWeakPtr<SViewport> GameViewportWidget;
 
+#if WITH_EDITOR
+	/** List of all registered game viewports since the last time UnregisterGameViewport was called. */
+	TSet<TWeakPtr<SViewport>> AllGameViewports;
+#endif
+
 	TSharedPtr<ISlateSoundDevice> SlateSoundDevice;
 
 	/** The current cached absolute real time, right before we tick widgets */
@@ -2117,26 +2124,14 @@ private:
 	// but there could be another monitor on any of the sides.
 	FSlateRect VirtualDesktopRect;
 
-	//
-	// Invalidation Support
-	//
-
-	class FCacheElementPools
-	{
-	public:
-		TSharedPtr< FSlateWindowElementList > GetNextCachableElementList(const TSharedPtr<SWindow>& CurrentWindow );
-		bool IsInUse() const;
-
-	private:
-		TArray< TSharedPtr< FSlateWindowElementList > > ActiveCachedElementListPool;
-		TArray< TSharedPtr< FSlateWindowElementList > > InactiveCachedElementListPool;
-	};
-
-	TMap< const ILayoutCache*, TSharedPtr<FCacheElementPools> > CachedElementLists;
-	TArray< TSharedPtr<FCacheElementPools> > ReleasedCachedElementLists;
-
 	/** This factory function creates a navigation config for each slate user. */
 	TSharedRef<FNavigationConfig> NavigationConfig;
+
+#if WITH_EDITOR
+	/** When PIE runs, the game's navigation config will overwrite the editor's navigation config.
+	    This separate config allows editor navigation to work even when PIE is running. */
+	TSharedRef<FNavigationConfig> EditorNavigationConfig;
+#endif
 
 	/** The simulated gestures Slate Application will be in charge of. */
 	TBitArray<FDefaultBitArrayAllocator> SimulateGestures;
@@ -2169,7 +2164,6 @@ private:
 	class InputPreProcessorsHelper
 	{
 	public:
-
 		// Wrapper functions that call the corresponding function of IInputProcessor for each InputProcessor in the list.
 		void Tick(const float DeltaTime, FSlateApplication& SlateApp, TSharedRef<ICursor> Cursor);
 		bool HandleKeyDownEvent(FSlateApplication& SlateApp, const FKeyEvent& InKeyEvent);
@@ -2200,10 +2194,26 @@ private:
 		 */
 		void RemoveAll();
 
+		/**
+		 * Get the index of an input pre-processor.
+		 * @param InputProcessor	The InputProcessor to find.
+		 * @return The index of the pre-processor, or INDEX_NONE if not registered.
+		 */
+		int32 Find(TSharedPtr<IInputProcessor> InputProcessor) const;
+
+
 	private:
+
+		bool PreProcessInput(TFunctionRef<bool(TSharedPtr<IInputProcessor>)> ToRun);
 
 		/** The list of input pre-processors. */
 		TArray<TSharedPtr<IInputProcessor>> InputPreProcessorList;
+
+		/** Guard value for if we are currently iterating our preprocessors. */
+		bool bIsIteratingPreProcessors = false;
+
+		/** A list of pre-processors to remove if we are iterating them while removal is requested. */
+		TArray<TSharedPtr<IInputProcessor>> ProcessorsPendingRemoval;
 	};
 
 	/** A list of input pre-processors, gets an opportunity to parse input before anything else. */

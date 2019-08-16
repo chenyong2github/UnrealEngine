@@ -24,10 +24,19 @@
 
 #define LOCTEXT_NAMESPACE "MeshMergingTool"
 
+UMeshMergingSettingsObject* UMeshMergingSettingsObject::DefaultSettings = nullptr;
+bool UMeshMergingSettingsObject::bInitialized = false;
+
 FMeshMergingTool::FMeshMergingTool()
 	: bReplaceSourceActors(false)
 {
 	SettingsObject = UMeshMergingSettingsObject::Get();
+}
+
+FMeshMergingTool::~FMeshMergingTool()
+{
+	UMeshMergingSettingsObject::Destroy();
+	SettingsObject = nullptr;
 }
 
 TSharedRef<SWidget> FMeshMergingTool::GetWidget()
@@ -172,3 +181,6 @@ bool FMeshMergingTool::CanMerge() const
 }
 
 #undef LOCTEXT_NAMESPACE
+
+
+

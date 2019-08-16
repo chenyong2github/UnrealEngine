@@ -3,11 +3,11 @@
 #include "DisplayClusterClusterSyncClient.h"
 #include "DisplayClusterClusterSyncMsg.h"
 
-#include "Misc/DisplayClusterLog.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/FrameRate.h"
 #include "Misc/Timecode.h"
 
+#include "DisplayClusterLog.h"
 
 
 FDisplayClusterClusterSyncClient::FDisplayClusterClusterSyncClient() :

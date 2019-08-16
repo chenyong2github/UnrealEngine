@@ -1,119 +1,56 @@
-﻿INTSourceChangelist:3151855
-Title: 游戏性指南
+﻿INTSourceChangelist:6407797
+Title:Gameplay指南
 Crumbs:%ROOT%
-Description:供程序员和可视化脚本设计师使用的游戏功能概述和示例。
+Description:面向程序员和视觉脚本设计师的Gameplay功能概述和示例。
 Availability:Public
 version: 4.9
 parent:%ROOT%
 order:6
 type:landing
+topic-icon:%ROOT%/gameplay_icon.png
 
-[VAR:Params]
-[PARAM:image]
-	![](%ROOT%/placeholder_topic.png)
-[/PARAM]
-[PARAM:icon]
-	![](%ROOT%/gameplay_icon.png)(convert:false)
-[/PARAM]
-[PARAM:title]
-	%Gameplay:title%
-[/PARAM]
-[PARAM:description]
-	%Gameplay:description%
-[/PARAM]
-[PARAM:path]
-	[RELATIVE:Gameplay]
-[/PARAM]
-[/VAR]
+## 基本Gameplay概念
 
-[VAR:Topic]
-[OBJECT:Topic]
-%params%
-[/OBJECT]
-[/VAR]
+这些页面将向您介绍一些关键的虚幻术语。要添加新类型的Gameplay对象，通常要创建一个新类。 
+类是新项目的模板或者规则集合，这样您可以创建所需数量的副本，每个副本包含 
+您在模板中设置的属性和行为。
 
-[VAR:TopicCompact]
-[OBJECT:TopicCompact]
-%params%
-[/OBJECT]
-[/VAR]
+%Gameplay/UnrealTerminology:role%
+%Gameplay/ClassCreation:role%
 
-[VAR:Role]
-[OBJECT:Role]
-%params%
-[PARAMLITERAL:id]
-游戏性
-[/PARAMLITERAL]
-[/OBJECT]
-[/VAR]
-
-[OBJECT:TopicList]
-	[PARAM:icon]
-		![](%ROOT%/gameplay_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		基础游戏性概念
-	[/PARAM]
-	[PARAM:description]
-		这些页面将会让您了解关键的虚幻引擎术语。 如需添加新类型的游戏对象，一般来说您需要创建一个新类。 一个类指的就是您的新对象的模板或规则集合，这样您就可以创建尽可能多的拷贝，每个都包含了您可以在模板中设置的属性和行为。
-	[/PARAM]
-	[PARAM:links]
-		* [](Gameplay/UnrealTerminology "%Gameplay/UnrealTerminology:description%")
-		* [](Gameplay/ClassCreation "%Gameplay/ClassCreation:description%")
-	[/PARAM]
-[/OBJECT]
-
-[OBJECT:TopicList]
-	[PARAM:icon]
-		![](%ROOT%/gameplay_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		框架
-	[/PARAM]
-	[PARAM:description]
-		在虚幻引擎4中，伴随预制操作的有多个类，可以帮助您启动游戏。 您可以阅读更多关于这些编译块的内容，并了解其在框架概述或快速引用中是如何运行的，或直接跳转到特定的类页面以获得更多信息。
-	[/PARAM]
-	[PARAM:links]
-	[DIR(output:"listbutton" type:"reference" tags:"Gameplay Framework" parent:"Gameplay" org:"hierarchy")]
-	[/PARAM]
-[/OBJECT]
-
-## 游戏性元素
-
-[REGION:buttonlist]
-
-		* [](Gameplay/Input "%Gameplay/Input:description%")
-		* [](Gameplay/Networking "%Gameplay/Networking:description%")
-		* [](Gameplay/SaveGame "%Gameplay/SaveGame:description%")
-		* [](Gameplay/DataDriven "%Gameplay/DataDriven:description%")
-		* [](Gameplay/AI "%Gameplay/AI:description%")
-		* [](Gameplay/Localization "%Gameplay/Localization:description%")
-		* [](Gameplay/Analytics "%Gameplay/Analytics:description%")
+## 框架
 	
-[/REGION]
+在虚幻引擎4中，有一些类具有预设行为以帮助您启动游戏。在框架概述或快速参考中，进一步了解 
+这些构建块以及它们的协作方式，或者直接跳转到 
+特定类页面以了解更多信息。
 
-## 游戏性工具
+[DIR(output:"role" path:"Gameplay/Framework" org:"flat" orderby:"parent,position")]
 
-[REGION:buttonlist]
-
-		* [](Gameplay/Tools/GameplayDebugger "%Gameplay/Tools/GameplayDebugger:description%")
-		* [](Gameplay/Tools/NetworkProfiler "%Gameplay/Tools/NetworkProfiler:description%")
-		* [](Gameplay/Tools/VisualLogger "%Gameplay/Tools/VisualLogger:description%")
+## Gameplay元素
 	
-[/REGION]
+虽然每个游戏都有不同的角色、规则和视觉风格，但有一些更加通用的核心元素。 
+在下面的页面中，查找C++和/或蓝图中关于从输入到保存的主题和示例设置的概述。
 
-[OBJECT:TopicList]
-	[PARAM:icon]
-		![](%ROOT%/gameplay_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		游戏性指南
-	[/PARAM]
-	[PARAM:description]
-		这个部分提供了如何生成一些最常见的游戏情节的按部就班的指南。 无论是需要了解如何生成敌人或在游戏中的可拾取物、变更相机角度或设置玩家输入；您都可以从这些页面中找到以蓝图和C++两者所编写的示例设置。
-	[/PARAM]
-	[PARAM:links]
-	[DIR(end:"3" type:"how-to" output:"listbutton" parent:"Gameplay" org:"hierarchy")]
-	[/PARAM]
-[/OBJECT]
+%Gameplay/Input:role%
+%Gameplay/Networking:role%
+%Gameplay/SaveGame:role%
+%Gameplay/DataDriven:role%
+%Gameplay/AI:role%
+%Gameplay/Localization:role%
+%Gameplay/Analytics:role%
+%Gameplay/Tags:role%
 
+## Gameplay工具
+	
+%Gameplay/Tools/GameplayDebugger:role%
+%Gameplay/Tools/NetworkProfiler:role%
+%Gameplay/Tools/VisualLogger:role%
+
+## Gameplay操作指南
+	
+本部分提供如何生成一些最常见Gameplay场景的逐步说明。 
+无论是如何在游戏中产生敌人或拾取物，更改摄像头角度，还是设置玩家输入，这些页面都提供了蓝图和C++中的示例设置。
+
+[DIR(type:"overview" output:"fancy" parent:"Gameplay" org:"flat" skilllevel:"Beginner")]
+[DIR(type:"overview" output:"fancy" parent:"Gameplay" org:"flat" skilllevel:"Intermediate")]
+[DIR(type:"overview" output:"fancy" parent:"Gameplay" org:"flat" skilllevel:"Advanced")]

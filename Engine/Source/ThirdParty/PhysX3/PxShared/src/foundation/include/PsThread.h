@@ -374,7 +374,9 @@ typedef ThreadT<> Thread;
 PX_FOUNDATION_API uint32_t TlsAlloc();
 PX_FOUNDATION_API void TlsFree(uint32_t index);
 PX_FOUNDATION_API void* TlsGet(uint32_t index);
+PX_FOUNDATION_API size_t TlsGetValue(uint32_t index);
 PX_FOUNDATION_API uint32_t TlsSet(uint32_t index, void* value);
+PX_FOUNDATION_API uint32_t TlsSetValue(uint32_t index, size_t value);
 
 } // namespace shdfnd
 } // namespace physx

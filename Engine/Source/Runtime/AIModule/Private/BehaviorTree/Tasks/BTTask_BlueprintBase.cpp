@@ -97,20 +97,29 @@ EBTNodeResult::Type UBTTask_BlueprintBase::AbortTask(UBehaviorTreeComponent& Own
 
 void UBTTask_BlueprintBase::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
 {
-	if (AIOwner != nullptr && (ReceiveTickImplementations & FBTNodeBPImplementationHelper::AISpecific))
+	if (TickInterval.Tick(DeltaSeconds))
 	{
-		ReceiveTickAI(AIOwner, AIOwner->GetPawn(), DeltaSeconds);
-	}
-	else if (ReceiveTickImplementations & FBTNodeBPImplementationHelper::Generic)
-	{
-		ReceiveTick(ActorOwner, DeltaSeconds);
+		DeltaSeconds = TickInterval.GetElapsedTimeWithFallback(DeltaSeconds);
+
+		if (AIOwner != nullptr && (ReceiveTickImplementations & FBTNodeBPImplementationHelper::AISpecific))
+		{
+			ReceiveTickAI(AIOwner, AIOwner->GetPawn(), DeltaSeconds);
+		}
+		else if (ReceiveTickImplementations & FBTNodeBPImplementationHelper::Generic)
+		{
+			ReceiveTick(ActorOwner, DeltaSeconds);
+		}
+
+		TickInterval.Reset();
 	}
 }
 
 void UBTTask_BlueprintBase::OnTaskFinished(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTNodeResult::Type TaskResult)
 {
 	Super::OnTaskFinished(OwnerComp, NodeMemory, TaskResult);
-	
+
+	TickInterval.Set(0); // so that we tick as soon as enabled back
+
 	if (TaskResult != EBTNodeResult::InProgress)
 	{
 		BlueprintNodeHelpers::AbortLatentActions(OwnerComp, *this);

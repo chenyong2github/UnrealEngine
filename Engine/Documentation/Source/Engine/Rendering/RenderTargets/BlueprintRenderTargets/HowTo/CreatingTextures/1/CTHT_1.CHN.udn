@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3259022
-availability:Public
+﻿INTSourceChangelist:6077448
+availability:Docs
 title:1.项目设置
 description:了解使用蓝图和渲染目标创建纹理的项目设置。
 crumbs:%ROOT%, Engine, Engine\Rendering\RenderTargets
@@ -11,6 +11,8 @@ Navigation:multi-step
 tags:Render Targets
 order:1
 checkpoint:CTUB
+
+## 页面已被合并，标记为Docs。 
 
 [NAV]
 

@@ -108,6 +108,12 @@ public:
 	FOnlinePartyData() = default;
 	virtual ~FOnlinePartyData() = default;
 
+	FOnlinePartyData(const FOnlinePartyData&) = default;
+	FOnlinePartyData& operator=(const FOnlinePartyData&) = default;
+
+	FOnlinePartyData(FOnlinePartyData&&) = default;
+	FOnlinePartyData& operator=(FOnlinePartyData&&) = default;
+
 	/**
 	 * Equality operator
 	 *
@@ -766,7 +772,7 @@ DECLARE_DELEGATE_ThreeParams(FOnRejectPartyInvitationComplete, const FUniqueNetI
  * @param MemberId - id of member being kicked
  * @param Result - string with error info if any
  */
-DECLARE_DELEGATE_FourParams(FOnKickPartyMemberComplete, const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const FUniqueNetId& /*LocalUserId*/, const EKickMemberCompletionResult /*Result*/);
+DECLARE_DELEGATE_FourParams(FOnKickPartyMemberComplete, const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const FUniqueNetId& /*MemberId*/, const EKickMemberCompletionResult /*Result*/);
 /**
  * Promoting a member of a party async task completed callback
  *
@@ -775,7 +781,7 @@ DECLARE_DELEGATE_FourParams(FOnKickPartyMemberComplete, const FUniqueNetId& /*Lo
  * @param MemberId - id of member being promoted to leader
  * @param Result - string with error info if any
  */
-DECLARE_DELEGATE_FourParams(FOnPromotePartyMemberComplete, const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const FUniqueNetId& /*LocalUserId*/, const EPromoteMemberCompletionResult /*Result*/);
+DECLARE_DELEGATE_FourParams(FOnPromotePartyMemberComplete, const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const FUniqueNetId& /*MemberId*/, const EPromoteMemberCompletionResult /*Result*/);
 
 
 
@@ -1162,6 +1168,19 @@ public:
 	 * @return true if task was started
 	 */
 	virtual bool LeaveParty(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FOnLeavePartyComplete& Delegate = FOnLeavePartyComplete()) = 0;
+
+	/**
+	 * Leave an existing party
+	 * All existing party members notified of member leaving (see FOnPartyMemberLeft)
+	 *
+	 * @param LocalUserId - user making the request
+	 * @param PartyId - id of an existing party
+	 * @param bSynchronizeLeave - Whether we synchronize the leave with remote server/clients or only do a local cleanup
+	 * @param Delegate - called on completion
+	 *
+	 * @return true if task was started
+	 */
+	virtual bool LeaveParty(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, bool bSynchronizeLeave, const FOnLeavePartyComplete& Delegate = FOnLeavePartyComplete()) = 0;
 
 	/**
 	* Approve a request to join a party
@@ -1871,6 +1890,7 @@ enum class ESendPartyInvitationCompletionResult : int8
 	AlreadyInParty,
 	PartyFull,
 	NoPermission,
+	RateLimited,
 	UnknownInternalFailure = 0,
 	Succeeded = 1
 };

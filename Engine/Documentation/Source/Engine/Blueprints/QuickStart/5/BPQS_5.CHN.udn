@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
+﻿INTSourceChangelist:6111272
+Availability: Docs
 Title:5.测试重叠 Actor
 Crumbs:%ROOT%, Engine, Engine/Blueprints, Engine/Blueprints/QuickStart
 Description:角色必须重叠在 launchpad 之上，这样才能确保角色被发射。

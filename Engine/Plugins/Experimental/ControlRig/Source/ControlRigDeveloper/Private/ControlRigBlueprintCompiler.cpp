@@ -21,6 +21,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogControlRigCompiler, Log, All);
 
 bool FControlRigBlueprintCompiler::CanCompile(const UBlueprint* Blueprint)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (Blueprint && Blueprint->ParentClass && Blueprint->ParentClass->IsChildOf(UControlRig::StaticClass()))
 	{
 		return true;
@@ -31,12 +33,16 @@ bool FControlRigBlueprintCompiler::CanCompile(const UBlueprint* Blueprint)
 
 void FControlRigBlueprintCompiler::Compile(UBlueprint* Blueprint, const FKismetCompilerOptions& CompileOptions, FCompilerResultsLog& Results)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	FControlRigBlueprintCompilerContext Compiler(Blueprint, Results, CompileOptions);
 	Compiler.Compile();
 }
 
 void FControlRigBlueprintCompilerContext::MarkCompilationFailed(const FString& Message)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	UControlRigBlueprint* ControlRigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
 	if (ControlRigBlueprint)
 	{
@@ -59,6 +65,8 @@ void FControlRigBlueprintCompilerContext::MarkCompilationFailed(const FString& M
 
 void FControlRigBlueprintCompilerContext::BuildPropertyLinks()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	UControlRigBlueprint* ControlRigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
 	if (ControlRigBlueprint)
 	{
@@ -93,7 +101,6 @@ void FControlRigBlueprintCompilerContext::BuildPropertyLinks()
 						if (bDisplayAsDisabled != RigNode->IsDisplayAsDisabledForced())
 						{
 							RigNode->SetForceDisplayAsDisabled(bDisplayAsDisabled);
-							RigNode->Modify();
 							bEncounteredChange = true;
 						}
 					}
@@ -110,11 +117,15 @@ void FControlRigBlueprintCompilerContext::BuildPropertyLinks()
 
 void FControlRigBlueprintCompilerContext::MergeUbergraphPagesIn(UEdGraph* Ubergraph)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	BuildPropertyLinks();
 }
 
 void FControlRigBlueprintCompilerContext::PostCompile()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	UControlRigBlueprint* ControlRigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
 	if (ControlRigBlueprint)
 	{
@@ -124,19 +135,22 @@ void FControlRigBlueprintCompilerContext::PostCompile()
 
 		TArray<FName> UnitNames;
 		TMap<FName, int32> UnitNameToIndex;
-		for (const FControlRigBlueprintPropertyLink& Link : PropertyLinks)
 		{
-			FName SourceUnitName(*Link.GetSourceUnitName());
-			if (!UnitNameToIndex.Contains(SourceUnitName))
+			DECLARE_SCOPE_HIERARCHICAL_COUNTER(CreateUnitNameMap)
+			for (const FControlRigBlueprintPropertyLink& Link : PropertyLinks)
 			{
-				UnitNames.Add(SourceUnitName);
-				UnitNameToIndex.Add(SourceUnitName, UnitNameToIndex.Num());
-			}
-			FName DestUnitName(*Link.GetDestUnitName());
-			if (!UnitNameToIndex.Contains(DestUnitName))
-			{
-				UnitNames.Add(DestUnitName);
-				UnitNameToIndex.Add(DestUnitName, UnitNameToIndex.Num());
+				FName SourceUnitName(*Link.GetSourceUnitName());
+				if (!UnitNameToIndex.Contains(SourceUnitName))
+				{
+					UnitNames.Add(SourceUnitName);
+					UnitNameToIndex.Add(SourceUnitName, UnitNameToIndex.Num());
+				}
+				FName DestUnitName(*Link.GetDestUnitName());
+				if (!UnitNameToIndex.Contains(DestUnitName))
+				{
+					UnitNames.Add(DestUnitName);
+					UnitNameToIndex.Add(DestUnitName, UnitNameToIndex.Num());
+				}
 			}
 		}
 
@@ -169,11 +183,14 @@ void FControlRigBlueprintCompilerContext::PostCompile()
 
 		if (UnitNames.Num() > 0)
 		{
+			DECLARE_SCOPE_HIERARCHICAL_COUNTER(CycleDetection)
+
 			// add all of the nodes
 			FControlRigDAG SortGraph;
 			for (int32 UnitIndex = 0; UnitIndex < UnitNames.Num(); UnitIndex++)
 			{
 				bool IsMutableUnit = false;
+				bool IsOutputParameter = false;
 				UStructProperty* StructProperty = Cast<UStructProperty>(ControlRigBlueprint->GeneratedClass->FindPropertyByName(UnitNames[UnitIndex]));
 				if (StructProperty)
 				{
@@ -186,7 +203,13 @@ void FControlRigBlueprintCompilerContext::PostCompile()
 						IsMutableUnit = true;
 					}
 				}
-				SortGraph.AddNode(IsMutableUnit, UnitNames[UnitIndex]);
+
+				const FControlRigModelNode* UnitNode = ControlRigBlueprint->Model->FindNode(UnitNames[UnitIndex]);
+				if (UnitNode)
+				{
+					IsOutputParameter = UnitNode->IsParameter() && UnitNode->ParameterType == EControlRigModelParameterType::Output;
+				}
+				SortGraph.AddNode(IsMutableUnit, IsOutputParameter, UnitNames[UnitIndex]);
 			}
 
 			// add all of the links
@@ -227,7 +250,6 @@ void FControlRigBlueprintCompilerContext::PostCompile()
 										RigNode->ErrorMsg = TEXT("The node is part of a cycle.");
 										RigNode->ErrorType = EMessageSeverity::Error;
 										RigNode->bHasCompilerMessage = true;
-										RigNode->Modify();
 
 										MessageLog.Error(*FString::Printf(TEXT("Node '%s' is part of a cycle."), *Property->GetName()));
 									}
@@ -245,75 +267,86 @@ void FControlRigBlueprintCompilerContext::PostCompile()
 
 #if WITH_EDITORONLY_DATA
 			// clear the errors on the graph
-			for (UEdGraph* UbergraphPage : Blueprint->UbergraphPages)
 			{
-				if (UControlRigGraph* ControlRigGraph = Cast<UControlRigGraph>(UbergraphPage))
+				DECLARE_SCOPE_HIERARCHICAL_COUNTER(ClearNodeErrors)
+
+				for (UEdGraph* UbergraphPage : Blueprint->UbergraphPages)
 				{
-					for (UEdGraphNode* Node : ControlRigGraph->Nodes)
+					if (UControlRigGraph* ControlRigGraph = Cast<UControlRigGraph>(UbergraphPage))
 					{
-						if(Node->ErrorType < (int32)EMessageSeverity::Info+1)
+						for (UEdGraphNode* Node : ControlRigGraph->Nodes)
 						{
-							Node->ErrorMsg.Reset();
-							Node->ErrorType = (int32)EMessageSeverity::Info+1;
-							Node->bHasCompilerMessage = false;
-							Node->Modify();
+							if (Node->ErrorType < (int32)EMessageSeverity::Info + 1)
+							{
+								Node->ErrorMsg.Reset();
+								Node->ErrorType = (int32)EMessageSeverity::Info + 1;
+								Node->bHasCompilerMessage = false;
+							}
 						}
 					}
 				}
 			}
 
-			int32 SortedPropertyLinkIndex = 1;
-			for (const FControlRigDAG::FNode Node : UnitOrder)
 			{
-				UE_LOG(LogControlRigCompiler, Log, TEXT("%d. %s"), SortedPropertyLinkIndex++, *Node.Name.ToString());
-				for (const FControlRigDAG::FPin& Pin : Node.Outputs)
+				DECLARE_SCOPE_HIERARCHICAL_COUNTER(PrintGraphToConsole)
+
+				int32 SortedPropertyLinkIndex = 1;
+				for (const FControlRigDAG::FNode Node : UnitOrder)
 				{
-					const int32 Index = Pin.Link;
-					UE_LOG(LogControlRigCompiler, Log, TEXT("%d. %s -> %s"), SortedPropertyLinkIndex++, *PropertyLinks[Index].GetSourcePropertyPath(), *PropertyLinks[Index].GetDestPropertyPath());
+					UE_LOG(LogControlRigCompiler, Log, TEXT("%d. %s"), SortedPropertyLinkIndex++, *Node.Name.ToString());
+					for (const FControlRigDAG::FPin& Pin : Node.Outputs)
+					{
+						const int32 Index = Pin.Link;
+						UE_LOG(LogControlRigCompiler, Log, TEXT("%d. %s -> %s"), SortedPropertyLinkIndex++, *PropertyLinks[Index].GetSourcePropertyPath(), *PropertyLinks[Index].GetDestPropertyPath());
+					}
 				}
 			}
 #endif
 
-			for (const FControlRigDAG::FNode Node : UnitOrder)
 			{
-				// copy all properties not originating from a unit
-				for (const FControlRigDAG::FPin& Pin : Node.Outputs)
+				DECLARE_SCOPE_HIERARCHICAL_COUNTER(CreateOperatorsForVM)
+
+				for (const FControlRigDAG::FNode Node : UnitOrder)
 				{
-					const int32 PropertyLinkIndex = Pin.Link;
-					const FControlRigBlueprintPropertyLink& Link = PropertyLinks[PropertyLinkIndex];
-					FString SourceUnitName = Link.GetSourceUnitName();
+					// copy all properties not originating from a unit
+					for (const FControlRigDAG::FPin& Pin : Node.Outputs)
+					{
+						const int32 PropertyLinkIndex = Pin.Link;
+						const FControlRigBlueprintPropertyLink& Link = PropertyLinks[PropertyLinkIndex];
+						FString SourceUnitName = Link.GetSourceUnitName();
+						UStructProperty* StructProperty = Cast<UStructProperty>(ControlRigBlueprint->GeneratedClass->FindPropertyByName(Node.Name));
+						if (StructProperty)
+						{
+							if (StructProperty->Struct->IsChildOf(FRigUnit::StaticStruct()))
+							{
+								continue;
+							}
+						}
+
+						Operators.Add(FControlRigOperator(EControlRigOpCode::Copy, Link.GetSourcePropertyPath(), Link.GetDestPropertyPath()));
+					}
+
 					UStructProperty* StructProperty = Cast<UStructProperty>(ControlRigBlueprint->GeneratedClass->FindPropertyByName(Node.Name));
 					if (StructProperty)
 					{
 						if (StructProperty->Struct->IsChildOf(FRigUnit::StaticStruct()))
 						{
-							continue;
+							Operators.Add(FControlRigOperator(EControlRigOpCode::Exec, Node.Name.ToString(), FCachedPropertyPath()));
 						}
 					}
 
-					Operators.Add(FControlRigOperator(EControlRigOpCode::Copy, Link.GetSourcePropertyPath(), Link.GetDestPropertyPath()));
-				}
-
-				UStructProperty* StructProperty = Cast<UStructProperty>(ControlRigBlueprint->GeneratedClass->FindPropertyByName(Node.Name));
-				if (StructProperty)
-				{
-					if (StructProperty->Struct->IsChildOf(FRigUnit::StaticStruct()))
+					// copy all properties to outputs
+					for (const FControlRigDAG::FPin& Pin : Node.Outputs)
 					{
-						Operators.Add(FControlRigOperator(EControlRigOpCode::Exec, Node.Name.ToString(), FCachedPropertyPath()));
+						const int32 PropertyLinkIndex = Pin.Link;
+						const FControlRigBlueprintPropertyLink& Link = PropertyLinks[PropertyLinkIndex];
+						Operators.Add(FControlRigOperator(EControlRigOpCode::Copy, Link.GetSourcePropertyPath(), Link.GetDestPropertyPath()));
 					}
 				}
-
-				// copy all properties to outputs
-				for (const FControlRigDAG::FPin& Pin : Node.Outputs)
-				{
-					const int32 PropertyLinkIndex = Pin.Link;
-					const FControlRigBlueprintPropertyLink& Link = PropertyLinks[PropertyLinkIndex];
-					Operators.Add(FControlRigOperator(EControlRigOpCode::Copy, Link.GetSourcePropertyPath(), Link.GetDestPropertyPath()));
-				}
 			}
-		}
 
-		Operators.Add(FControlRigOperator(EControlRigOpCode::Done));
+			Operators.Add(FControlRigOperator(EControlRigOpCode::Done));
+		}
 
 		// guard against the control rig failing due to serialization changes
 		if (PreviousOperatorCount > 1 && Operators.Num() == 1 && bIsFromVersionBeforeBeginExecution)
@@ -325,6 +358,8 @@ void FControlRigBlueprintCompilerContext::PostCompile()
 
 		// update allow source access properties
 		{
+			DECLARE_SCOPE_HIERARCHICAL_COUNTER(AllowAccessToSourceProperties)
+
 			TArray<FName> SourcePropertyLinkArray;
 			TArray<FName> DestPropertyLinkArray;
 
@@ -390,14 +425,18 @@ void FControlRigBlueprintCompilerContext::PostCompile()
 		}
 	}
 
-	FKismetCompilerContext::PostCompile();
+	{
+		DECLARE_SCOPE_HIERARCHICAL_COUNTER(FKismetCompilerContext::PostCompile)
+		FKismetCompilerContext::PostCompile();
+	}
 
 	// ask the model to update all defaults
-	bool bSetDefaultsFromModel = false;
 	if (ControlRigBlueprint)
 	{
 		if (ControlRigBlueprint->ModelController)
 		{
+			DECLARE_SCOPE_HIERARCHICAL_COUNTER(UpdateModelAfterCompilation)
+
 			// ensure that blueprint storage arrays have the right size.
 			// they might get out of sync due to compilation order.
 			for (const FControlRigModelNode& Node : ControlRigBlueprint->Model->Nodes())
@@ -430,35 +469,16 @@ void FControlRigBlueprintCompilerContext::PostCompile()
 				}
 			}
 
-			bSetDefaultsFromModel = ControlRigBlueprint->ModelController->ResendAllPinDefaultNotifications();
-		}
-	}
-
-	if (!bSetDefaultsFromModel)
-	{
-		// We need to copy any pin defaults over to underlying properties once the class is built
-		// as the defaults may not have been propagated from new nodes yet
-		for (UEdGraph* UbergraphPage : Blueprint->UbergraphPages)
-		{
-			if (UControlRigGraph* ControlRigGraph = Cast<UControlRigGraph>(UbergraphPage))
-			{
-				for (UEdGraphNode* Node : ControlRigGraph->Nodes)
-				{
-					if (UControlRigGraphNode* ControlRigGraphNode = Cast<UControlRigGraphNode>(Node))
-					{
-						for (UEdGraphPin* Pin : ControlRigGraphNode->Pins)
-						{
-							ControlRigGraphNode->CopyPinDefaultsToModel(Pin);
-						}
-					}
-				}
-			}
+			TGuardValue<bool> GuardNotifs(ControlRigBlueprint->bSuspendModelNotificationsForOthers, true);
+			ControlRigBlueprint->ModelController->ResendAllPinDefaultNotifications();
 		}
 	}
 }
 
 void FControlRigBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObject* DefaultObject)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	FKismetCompilerContext::CopyTermDefaultsToDefaultObject(DefaultObject);
 
 	UControlRigBlueprint* ControlRigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
@@ -466,6 +486,7 @@ void FControlRigBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObjec
 	{
 		UControlRig* ControlRig = CastChecked<UControlRig>(DefaultObject);
 		ControlRig->Hierarchy.BaseHierarchy = ControlRigBlueprint->Hierarchy;
+		ControlRig->CurveContainer = ControlRigBlueprint->CurveContainer;
 		// copy available rig units info, so that control rig can do things with it
 		ControlRig->AllowSourceAccessProperties = ControlRigBlueprint->AllowSourceAccessProperties;
 		ControlRigBlueprint->UpdateParametersOnControlRig(ControlRig);
@@ -474,6 +495,8 @@ void FControlRigBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObjec
 
 void FControlRigBlueprintCompilerContext::EnsureProperGeneratedClass(UClass*& TargetUClass)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if( TargetUClass && !((UObject*)TargetUClass)->IsA(UControlRigBlueprintGeneratedClass::StaticClass()) )
 	{
 		FKismetCompilerUtilities::ConsignToOblivion(TargetUClass, Blueprint->bIsRegeneratingOnLoad);
@@ -483,6 +506,8 @@ void FControlRigBlueprintCompilerContext::EnsureProperGeneratedClass(UClass*& Ta
 
 void FControlRigBlueprintCompilerContext::SpawnNewClass(const FString& NewClassName)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	NewControlRigBlueprintGeneratedClass = FindObject<UControlRigBlueprintGeneratedClass>(Blueprint->GetOutermost(), *NewClassName);
 
 	if (NewControlRigBlueprintGeneratedClass == nullptr)
@@ -499,11 +524,15 @@ void FControlRigBlueprintCompilerContext::SpawnNewClass(const FString& NewClassN
 
 void FControlRigBlueprintCompilerContext::OnNewClassSet(UBlueprintGeneratedClass* ClassToUse)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	NewControlRigBlueprintGeneratedClass = CastChecked<UControlRigBlueprintGeneratedClass>(ClassToUse);
 }
 
 void FControlRigBlueprintCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedClass* ClassToClean, UObject*& InOldCDO)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	FKismetCompilerContext::CleanAndSanitizeClass(ClassToClean, InOldCDO);
 
 	// Make sure our typed pointer is set

@@ -8,6 +8,7 @@
 #include "NiagaraWorldManager.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraEmitterInstance.h"
+#include "NiagaraGPUInstanceCountManager.h"
 
 DECLARE_CYCLE_STAT(TEXT("Register Setup"), STAT_NiagaraSimRegisterSetup, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Context Ticking"), STAT_NiagaraScriptExecContextTick, STATGROUP_Niagara);
@@ -155,6 +156,7 @@ bool FNiagaraScriptExecutionContext::Execute(uint32 NumInstances)
 {
 	if (NumInstances == 0)
 	{
+		DataSetInfo.Reset();
 		return true;
 	}
 
@@ -323,6 +325,11 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 	FNiagaraComputeInstanceData* Instances = (FNiagaraComputeInstanceData*)(InstanceData_ParamData_Packed);
 	uint8* ParamDataBufferPtr = InstanceData_ParamData_Packed + PackedDispatchesSizeAligned;
 
+	int32 TickCount = InSystemInstance->GetTickCount();
+	check(TickCount > 0);
+	bNeedsReset = ( TickCount == 1);
+
+
 	// Now we will generate instance data for every GPU simulation we want to run on the render thread.
 	// This is spawn rate as well as DataInterface per instance data and the ParameterData for the emitter.
 	// @todo Ideally we would only update DataInterface and ParameterData bits if they have changed.
@@ -338,8 +345,8 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 
 			InstanceData->Context = Emitter->GetGPUContext();
 			check(InstanceData->Context->MainDataSet);
-			InstanceData->SpawnRateInstances = Emitter->GetGPUContext()->SpawnRateInstances_GT;
-			InstanceData->EventSpawnTotal = Emitter->GetGPUContext()->EventSpawnTotal_GT;
+
+			InstanceData->SpawnInfo = Emitter->GetGPUContext()->GpuSpawnInfo_GT;
 
 			int32 ParmSize = Emitter->GetGPUContext()->CombinedParamStore.GetPaddedParameterSizeInBytes();
 
@@ -390,27 +397,24 @@ FNiagaraComputeExecutionContext::FNiagaraComputeExecutionContext()
 	, GPUScript_RT(nullptr)
 	, CBufferLayout(TEXT("Niagara Compute Sim CBuffer"))
 	, DataToRender(nullptr)
-	, GPUDataReadback(nullptr)
-	, AccumulatedSpawnRate(0)
-	, NumIndicesPerInstance(0)
 #if WITH_EDITORONLY_DATA
 	, GPUDebugDataReadbackFloat(nullptr)
 	, GPUDebugDataReadbackInt(nullptr)
 	, GPUDebugDataReadbackCounts(nullptr)
 	, GPUDebugDataFloatSize(0)
 	, GPUDebugDataIntSize(0)
+	, GPUDebugDataFloatStride(0)
+	, GPUDebugDataIntStride(0)
+	, GPUDebugDataCountOffset(INDEX_NONE)
 #endif	  
 {
 }
 
 FNiagaraComputeExecutionContext::~FNiagaraComputeExecutionContext()
 {
-	checkf(IsInRenderingThread(), TEXT("Can only delete the gpu readback from the render thread"));
-	if (GPUDataReadback)
-	{
-		delete GPUDataReadback;
-		GPUDataReadback = nullptr;
-	}
+	// EmitterInstanceReadback.GPUCountOffset should be INDEX_NONE at this point to ensure the index is reused.
+	// When the batcher is being destroyed though, we don't free the index, but this would not be leaking.
+	// check(EmitterInstanceReadback.GPUCountOffset == INDEX_NONE);
 
 #if WITH_EDITORONLY_DATA
 	if (GPUDebugDataReadbackFloat)
@@ -433,23 +437,29 @@ FNiagaraComputeExecutionContext::~FNiagaraComputeExecutionContext()
 	SetDataToRender(nullptr);
 }
 
-void FNiagaraComputeExecutionContext::Reset()
+void FNiagaraComputeExecutionContext::Reset(NiagaraEmitterInstanceBatcher* Batcher)
 {
 	FNiagaraComputeExecutionContext* Context = this;
+	NiagaraEmitterInstanceBatcher* B = Batcher && !Batcher->IsPendingKill() ? Batcher : nullptr;
 	ENQUEUE_RENDER_COMMAND(ResetRT)(
-		[Context](FRHICommandListImmediate& RHICmdList)
+		[B, Context](FRHICommandListImmediate& RHICmdList)
 	{
-		Context->ResetInternal();
+		Context->ResetInternal(B);
 	}
 	);
 }
 
-void FNiagaraComputeExecutionContext::InitParams(UNiagaraScript* InGPUComputeScript, ENiagaraSimTarget InSimTarget, const FString& InDebugSimName)
+void FNiagaraComputeExecutionContext::InitParams(UNiagaraScript* InGPUComputeScript, ENiagaraSimTarget InSimTarget, const FString& InDebugSimName, const int32 InMaxUpdateIterations, const TSet<uint32> InSpawnStages)
 {
 	DebugSimName = InDebugSimName;
 	GPUScript = InGPUComputeScript;
 	CombinedParamStore.InitFromOwningContext(InGPUComputeScript, InSimTarget, true);
+	MaxUpdateIterations = InMaxUpdateIterations;
+	SpawnStages.Empty();
 
+	SpawnStages.Append(InSpawnStages);
+	
+	
 #if DO_CHECK
 	FNiagaraShader *Shader = InGPUComputeScript->GetRenderThreadScript()->GetShaderGameThread();
 	DIParamInfo.Empty();
@@ -511,14 +521,18 @@ void FNiagaraComputeExecutionContext::PostTick()
 	}
 }
 
-void FNiagaraComputeExecutionContext::ResetInternal()
+void FNiagaraComputeExecutionContext::ResetInternal(NiagaraEmitterInstanceBatcher* Batcher)
 {
 	checkf(IsInRenderingThread(), TEXT("Can only reset the gpu context from the render thread"));
-	AccumulatedSpawnRate = 0;
-	if (GPUDataReadback)
+
+	// Release and reset readback data.
+	if (Batcher)
 	{
-		delete GPUDataReadback;
-		GPUDataReadback = nullptr;
+		Batcher->GetGPUInstanceCounterManager().FreeEntry(EmitterInstanceReadback.GPUCountOffset);
+	}
+	else // In this case the batcher is pending kill so no need to putback entry in the pool.
+	{
+		EmitterInstanceReadback.GPUCountOffset = INDEX_NONE;
 	}
 
 #if WITH_EDITORONLY_DATA

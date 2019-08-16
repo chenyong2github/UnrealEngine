@@ -1,0 +1,105 @@
+Availability: Public
+Crumbs: 
+Title: CCDIK
+Description: Describes how to access and use the CCDIK Skeletal Control node to set up and control IK chains.
+Type: 
+Version: 4.21
+Parent: Engine/Animation/NodeReference/SkeletalControls
+Order: 
+Tags: Animation
+Tags: Experimental
+Tags: Landing Page
+Tags: CCDIK
+Tags: Skeletal Control
+Tags: IK
+
+
+The **CCDIK **(Cyclic Coordinate Descent Inverse Kinematics) Skeletal Control node is a light-weight IK solver (similar to [FABRIK](Engine/Animation/NodeReference/Fabrik)) typically used to drive a chain of bones. Unlike FABRIK however, CCDIK provides the ability to define angular constraints which can prove useful if you want to limit rotations of any of those bones during the solve. 
+
+The CCDIK node can be used to drive procedural animations like the illustrated below: 
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ mI9CGwtozOk
+ [/PARAMLITERAL]
+[/OBJECT]
+
+In the video above, we use the **Solver** section of the CCDIKnode's properties and set the **Root Bone** of our character to the left shoulder. We then set the **Tip Bone** to the last digit on our character's index finger. When we adjust the **Effector Location**, the IK solver takes over, and each of the bones in the chain follow, based on the **Rotation Limit Per Joints** values we defineThese angular limits prevent bones from rotating awkwardly and some adjustments to the values (on a per bone basis) may be needed to achieve your desired results.  
+
+## Input and Output Pins
+
+Listed below are the available **Input** and **Output** pins for the **CCDIK** node:
+
+![](CCDIK_Node.png "CCDIK_Node.png")
+
+| Pin Type | Description |
+| --- | --- |
+|[REGION:tablesection]Input Pins[/REGION] ||
+| **Effector Location** | Coordinates for the target location of the assigned Tip Bone (if **Effector Location Space **is set to **Bone**). This will be the offset from the Target Bone to use as Target Location. |
+| **Component Pose** | The input pose to be transformed. |
+| **Alpha** | A float value in the range \[0.0, 1.0\] to use as the alpha value to determine the weighting of the Transform applied by the Skeletal Control. A value of 0.0 gives full weighting to the input pose, while a value of 1.0 gives full weighting to the control's computed Transform. |
+|[REGION:tablesection]Output Pins[/REGION] ||
+| **Component Pose** | The final pose after the Transform has been applied. |
+
+
+## Node Properties
+
+Below are the properties available when using the CCDIK node which are available from the **Details** panel:   
+
+![](CCDIK_Details.png "CCDIK_Details.png")
+
+| Option | Description |
+| --- | --- |
+| [REGION:tablesection]Effector Location[/REGION] ||
+| **(As pin) Effector Location** | Whether to show this property as a pin on the node. |
+| **Effector Location Space** | Which coordinate space to set the position of the bone (World Space, Component Space, Parent Bone Space, or Bone Space). | 
+| **Effector Target** | If the **Effector Transform Space** is a bone, this is the target bone to use. |
+| [REGION:tablesection]Solver[/REGION] ||
+| **Tip Bone** | Bone to designate at the Tip Bone (or final Bone) in the chain. |
+| **Root Bone** | Bone to designate as the Root Bone (or initial Bone) in the chain. |
+| **Precision** | Tolerance for final tip location delta from the **Effector Location**. |
+| **Max Iterations** | Maximum number of iterations allowed (used to control performance). |
+| **Start from Tail** | Whether to draw the axes to debug joint rotation. |
+| **Enable Rotation Limit** | Tolerance for final tip location delta from **Effector Location**. |
+| **Rotation Limit Per Joints** | Symmetry rotation limit per bone. Index 0 matches with the **Root Bone** and the last index matches with the **Tip Bone**. |
+| [REGION:tablesection]Performance[/REGION] ||
+| **LOD Threshold** | Max Level of Detail (LOD) that this node is allowed to run. |
+| [REGION:tablesection]Alpha[/REGION] ||
+| **Alpha Input Type** | Define the Alpha Input Type (Float Value, Boolean Value, or Anim Curve Value). |
+| **(As pin)** | Enable to show the **Alpha **property as a pin on the node. Disable to remove it from being displayed as a pin. |
+
+
+## Example: Button Press
+
+In the video below, we use the CCDIK node and some [Blueprint](Engine/Blueprints) to make the character press a button on the wall. 
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ -Fd-BZKQMsA
+ [/PARAMLITERAL]
+[/OBJECT]
+
+Below in the AnimGraph of our Animation Blueprint, we use the CCDIK node with the Effector Location being driven from the location of the button inside our Level. If the player is in range of the button and presses the corresponding key, we blend to the pose that uses the CCDIK node, causing the character to reach for the Effector Location (pressing the button). 
+
+[REGION:lightbox]
+[![](CCDIK_AnimGraph.png)(w:900)](CCDIK_AnimGraph.png)
+[/REGION]
+[REGION:caption]
+Click image for full view.
+[/REGION]
+
+Below we assign the clavicle_l (left shoulder) as the **Root Bone** and the index\_03\_l (last digit on the left index finger) as the **Tip Bone** as our bone chain. We also define use the **Rotation Limit Per Joints** section to constrain how much rotation is applied to each bone.   
+
+![](CCDIK_Example_Details.png "CCDIK_Example_Details.png")

@@ -7,6 +7,13 @@
 
 namespace Chaos
 {
+
+/**
+ * A Particle Rule that applies some effect to all particles in parallel.
+ * This should only be used if the effect on any particle is independent of
+ * all others (i.e., the implementation of ApplySingle only reads/writes to
+ * the one particle).
+ */
 template<class T, int d>
 class TPerParticleRule : public TParticleRule<T, d>
 {
@@ -39,5 +46,7 @@ class TPerParticleRule : public TParticleRule<T, d>
 	virtual void Apply(TPBDParticles<T, d>& InParticles, const T Dt, const int Index) const { Apply(static_cast<TDynamicParticles<T, d>&>(InParticles), Dt, Index); };
 	virtual void Apply(TRigidParticles<T, d>& InParticles, const T Dt, const int Index) const { Apply(static_cast<TParticles<T, d>&>(InParticles), Dt, Index); };
 	virtual void Apply(TPBDRigidParticles<T, d>& InParticles, const T Dt, const int Index) const { Apply(static_cast<TRigidParticles<T, d>&>(InParticles), Dt, Index); };
+
+	virtual void Apply(TTransientPBDRigidParticleHandle<T, d>& Particle, const T Dt) const { check(0); }
 };
 }

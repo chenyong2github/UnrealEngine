@@ -5,15 +5,15 @@
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
 #include "AI/Navigation/NavigationTypes.h"
-#include "GenericOctreePublic.h"
+#include "Math/GenericOctreePublic.h"
 #include "NavigationSystemTypes.h"
 #include "EngineStats.h"
 #include "AI/NavigationModifier.h"
 #include "AI/Navigation/NavRelevantInterface.h"
-#include "GenericOctree.h"
+#include "Math/GenericOctree.h"
 
 class INavRelevantInterface;
-
+class FNavigationOctree;
 typedef FNavigationRelevantDataFilter FNavigationOctreeFilter;
 
 struct NAVIGATIONSYSTEM_API FNavigationOctreeElement
@@ -21,10 +21,20 @@ struct NAVIGATIONSYSTEM_API FNavigationOctreeElement
 	FBoxSphereBounds Bounds;
 	TSharedRef<FNavigationRelevantData, ESPMode::ThreadSafe> Data;
 
-	FNavigationOctreeElement(UObject& SourceObject)
+public:
+	explicit FNavigationOctreeElement(UObject& SourceObject)
 		: Data(new FNavigationRelevantData(SourceObject))
-	{
+	{}
 
+	FNavigationOctreeElement(const FNavigationOctreeElement& Other)
+		: Bounds(Other.Bounds)
+		, Data(Other.Data)
+	{}
+
+	FNavigationOctreeElement& operator=(const FNavigationOctreeElement& Other)
+	{
+		new(this) FNavigationOctreeElement(Other);
+		return *this;
 	}
 
 	FORCEINLINE bool IsEmpty() const
@@ -68,11 +78,12 @@ struct NAVIGATIONSYSTEM_API FNavigationOctreeElement
 		Data->ValidateAndShrink();
 	}
 
-	FORCEINLINE UObject* GetOwner() const { return Data->SourceObject.Get(); }
+	FORCEINLINE UObject* GetOwner(bool bEvenIfPendingKill = false) const { return Data->SourceObject.Get(bEvenIfPendingKill); }
 };
 
 struct FNavigationOctreeSemantics
 {
+	typedef TOctree<FNavigationOctreeElement, FNavigationOctreeSemantics> FOctree;
 	enum { MaxElementsPerLeaf = 16 };
 	enum { MinInclusiveElementsPerNode = 7 };
 	enum { MaxNodeDepth = 12 };
@@ -90,13 +101,18 @@ struct FNavigationOctreeSemantics
 		return A.Data->SourceObject == B.Data->SourceObject;
 	}
 
+	FORCEINLINE static void ApplyOffset(FNavigationOctreeElement& Element, const FVector& InOffset)
+	{
+		ensureMsgf(false, TEXT("Not implemented yet"));
+	}
+
 #if NAVSYS_DEBUG
 	FORCENOINLINE 
 #endif // NAVSYS_DEBUG
-	static void SetElementId(const FNavigationOctreeElement& Element, FOctreeElementId Id);
+	static void SetElementId(FOctree& OctreeOwner, const FNavigationOctreeElement& Element, FOctreeElementId Id);
 };
 
-class FNavigationOctree : public TOctree<FNavigationOctreeElement, FNavigationOctreeSemantics>, public TSharedFromThis<FNavigationOctree, ESPMode::ThreadSafe>
+class NAVIGATIONSYSTEM_API FNavigationOctree : public TOctree<FNavigationOctreeElement, FNavigationOctreeSemantics>, public TSharedFromThis<FNavigationOctree, ESPMode::ThreadSafe>
 {
 public:
 	DECLARE_DELEGATE_TwoParams(FNavigableGeometryComponentExportDelegate, UActorComponent*, FNavigationRelevantData&);
@@ -137,7 +153,19 @@ public:
 	void DemandLazyDataGathering(const FNavigationOctreeElement& Element);
 	void DemandLazyDataGathering(FNavigationRelevantData& ElementData);
 
+
+	FORCEINLINE static uint32 HashObject(const UObject& Object)
+	{
+		return Object.GetUniqueID();
+	}
+
 protected:
+	friend struct FNavigationOctreeController;
+	friend struct FNavigationOctreeSemantics;
+
+	void SetElementIdImpl(const UObject& Object, FOctreeElementId Id);
+
+	TMap<uint32, FOctreeElementId> ObjectToOctreeId;
 	ENavDataGatheringMode DefaultGeometryGatheringMode;
 	uint32 bGatherGeometry : 1;
 	uint32 NodesMemory;

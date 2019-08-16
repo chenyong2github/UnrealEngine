@@ -14,8 +14,8 @@ class TPerParticlePBDLongRangeConstraints : public TPerParticleRule<T, d>, publi
 	using Base::MConstraints;
 
   public:
-	TPerParticlePBDLongRangeConstraints(const TDynamicParticles<T, d>& InParticles, const TTriangleMesh<T>& Mesh, const int32 NumberOfAttachments = 1, const T Stiffness = (T)1)
-	    : TPBDLongRangeConstraintsBase<T, d>(InParticles, Mesh, NumberOfAttachments, Stiffness)
+	TPerParticlePBDLongRangeConstraints(const TDynamicParticles<T, d>& InParticles, const TMap<int32, TSet<uint32>>& PointToNeighbors, const int32 NumberOfAttachments = 1, const T Stiffness = (T)1)
+	    : TPBDLongRangeConstraintsBase<T, d>(InParticles, PointToNeighbors, NumberOfAttachments, Stiffness)
 	{
 		MParticleToConstraints.SetNum(InParticles.Size());
 		for (int32 i = 0; i < MConstraints.Num(); ++i)
@@ -41,7 +41,7 @@ class TPerParticlePBDLongRangeConstraints : public TPerParticleRule<T, d>, publi
 
 	void Apply(TPBDParticles<T, d>& InParticles, const T Dt) const override //-V762
 	{
-		PhysicsParallelFor(InParticles.Size(), [&](int32 Index) {
+		PhysicsParallelFor(MParticleToConstraints.Num(), [&](int32 Index) {
 			Apply(InParticles, Dt, Index);
 		});
 	}

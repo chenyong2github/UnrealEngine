@@ -1,0 +1,153 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Title: Ray Tracing Features Settings
+Description: A settings and properties reference for Ray Tracing features and the Path Tracer in Unreal Engine 4.
+Type: reference
+Version: 4.22
+Parent: Engine/Rendering/RayTracing
+Tags: Early Access
+Tags: Ray Tracing
+Order: 1
+
+
+[TOC (start:2 end:4)]
+
+In this page you'll find the properties and settings available for the [Ray Tracer](Engine/Rendering/RayTracing) and [Path Tracer](Engine/Rendering/RayTracing/PathTracer) features.  
+
+## Post Process Volume
+
+Use the following properties for Post Process Volumes to affect Ray Tracing features.  
+
+![PPV_Settings636892585207724016](PPV_Settings636892585207724016.png "PPV_Settings636892585207724016")(w:400)
+
+| Property | Description |
+| --- | --- |
+| [REGION:tablesection]Ambient Occlusion[/REGION] ||
+| **Intensity** | Defines how much ambient occlusion affects non-direct lighting for Ray Traced Ambient Occlusion. Lower values decrease the effect while higher values increase how strong the effect is. |
+| **Radius** | Controls the distance in Unreal Units that ambient occlusion affects. |
+| [REGION:tablesection]Ray Tracing Ambient Occlusion[/REGION] ||
+| **Samples Per Pixel** | Sets the number of samples to use per pixel for Ray Traced Ambient Occlusion (RTAO). Additional samples decrease performance while increasing quality and accuracy. Set to 1 sample per pixel by default. |
+| [REGION:tablesection]Ray Tracing Global Illumination[/REGION] ||
+| **Enabled** | Enables Ray Tracing Global Illumination (RTGI). |
+| **Max Bounces** | Sets the maximum number of bounces of light that will be used by RTGI. |
+| **Samples Per Pixel** | Sets the number of samples to use per pixel for RTGI. Additional samples decrease performance while increasing quality and accuracy. Set to 1 sample per pixel by default. |
+| [REGION:tablesection]Reflections[/REGION] ||
+| **Type** | Sets whether to use **Ray Tracing** or **Screen Space** method for reflections within this volume. When selecting Raster, Screen Space Reflections (SSR) instead of raytraced ones. |
+| [REGION:tablesection]Ray Tracing Reflections[/REGION] ||
+| **Max Roughness** | Sets the maximum roughness value that Ray Traced Reflections will be visible before falling back to raster methods that are less expensive. Reflection contribution is smoothly faded when close to the roughness threshold and this parameter behaves similarly to SSR’s Max Roughness setting. Lower values fall back to other methods more quickly. |
+| **Max Bounces** | Sets the maximum number of bounces that Ray Traced Reflections uses. More bounces create inter-reflection but comes at a higher cost. Set to 1 bounce by default. |
+| **Samples Per Pixel** | Sets the number of samples to use per pixel for Ray Traced Reflections. Additional samples decrease performance while increasing quality and accuracy. Set to 1 sample per pixel by default. |
+| **Shadows** | [INCLUDE:#excerpt_0] |
+| [REGION:tablesection]Translucency[/REGION] ||
+| **Type** | Sets whether to use **Ray Tracing** or **Raster** method for reflections within this volume. When selecting Raster, default translucency methods will be used instead of ray traced ones. |
+| [REGION:tablesection]Ray Tracing Translucency[/REGION] ||
+| **Max Roughness** | Sets the maximum roughness value that Ray Traced Translucency will be visible before falling back to raster methods that are less expensive. Translucency contribution is smoothly faded when close to the roughness threshold and this parameter behaves similarly to SSR’s Max Roughness setting. Lower values fall back to other methods more quickly. |
+| **Max Refraction Rays** | Sets the maximum number of refraction rays that Ray Traced Translucency uses. Additional Samples decrease performance while increasing quality and accuracy. Set to 3 refraction rays by default. |
+| **Samples Per Pixel** | Sets the number of samples to use per pixel for Ray Traced Translucency. Additional samples decrease performance while increasing quality and accuracy. Set to 1 sample per pixel by default. |
+| **Shadows** | [INCLUDE:#excerpt_1] |
+| **Refraction** | Sets whether refraction should be enabled or not for Ray Traced Translucency. If disabled, rays will not scatter and only travel in the same direction as before the intersection event. |
+| [REGION:tablesection]Path Tracing[/REGION] ||
+| **Max Bounces** | Sets the maximum number of bounces that the Path Tracer uses. |
+| **Samples Per Pixel** | Sets the number of samples to use per pixel for the Path Tracer. |
+
+<!--
+[EXCERPT:excerpt_0]
+
+Sets how shadows should be reflected. Choose between:
+
+*   **Hard Shadows** which has no soft shadows
+
+*   **Area Shadows** to have soft shadowing like raytraced shadows
+
+*   **Disable **to disable shadowing in Ray Traced Reflections
+
+[/EXCERPT:excerpt_0]
+-->
+<!--
+[EXCERPT:excerpt_1]
+
+Sets how shadows should be reflected. Choose between:
+
+*   **Hard Shadows** which has no soft shadows
+
+*   **Area Shadows** to have soft shadowing like raytraced shadows
+
+*   **Disable** to disable shadowing in Ray Traced Translucency
+
+[/EXCERPT:excerpt_1]
+-->
+
+## Types of Lights
+
+### Directional Light
+
+Use the following properties for **Directional Lights **to affect Ray Tracing features.  
+
+![Directional_Settings](Directional_Settings.png "Directional_Settings")(w:400)
+
+| Property | Description |
+| --- | --- |
+| [REGION:tablesection]Light[/REGION] ||
+| **Source Angle** | The angle subtended by light source in degrees (also known as angular diameter). Lower angles give sharper shadow contacts whereas higher degree angles give softer shadows. |
+| **Cast Ray Traced Shadow** | Whether the light shadows are computed with shadowmapping or ray tracing. |
+| **Affects Reflections** | Whether the light affects objects in reflections when Ray Traced Reflections is enabled. |
+| [REGION:tablesection]Ray Tracing[/REGION] ||
+| **Samples Per Pixel** | Sets the number of samples to use per pixel for Ray Traced Shadows from a Directional Light. Additional samples decrease performance while increasing quality and accuracy. Set to 1 sample per pixel by default. |
+
+### Point and Spot Lights
+
+Use the following properties for **Point** and **Spot Lights** to affect Ray Tracing features.  
+
+![Point_Spot_Settings](Point_Spot_Settings.png "Point_Spot_Settings")(w:400)
+
+| Property | Description |
+| --- | --- |
+| [REGION:tablesection]Light[/REGION] ||
+| **Source Radius** | The radius of the light sources shape. A smaller radius gives sharper shadow contacts whereas a higher radius gives softer shadows. |
+| **Cast Ray Traced Shadow** | Whether the light shadows are computed with shadowmapping or ray tracing. |
+| **Affects Reflections** | Whether the light affects objects in reflections when Ray Traced Reflections is enabled. |
+| [REGION:tablesection]Ray Tracing[/REGION] ||
+| **Samples Per Pixel** | Sets the number of samples to use per pixel for Ray Traced Shadows from Point and Spot Lights. Additional samples decrease performance while increasing quality and accuracy. Set to 1 sample per pixel by default. |
+
+### Rect Light
+
+Use the following properties for **Rect Lights** to affect Ray Tracing features.
+
+![RectLight_Settings](RectLight_Settings.png "RectLight_Settings")(w:400)
+
+| Property | Description |
+| --- | --- |
+| [REGION:tablesection]Light[/REGION] ||
+| **Source Width** | The width of the light source shape. |
+| **Source Height** | The height of the light source shape. |
+| **Barn Door Angle** | The angle of the barn door attached to the light source. |
+| **Barn Door Length** | The length of the barn door attached to the light source. |
+| **Cast Ray Traced Shadow** | Whether the light shadows are computed with shadowmapping or ray tracing. |
+| **Affects Reflections** | Whether the light affects objects in reflections when Ray Traced Reflections is enabled. |
+| [REGION:tablesection]Ray Tracing[/REGION] ||
+| **Samples Per Pixel** | Sets the number of samples to use per pixel for Ray Traced Shadows from a Rect Light. Additional samples decrease performance while increasing quality and accuracy. Set to 1 sample per pixel by default. |
+
+### Sky Light
+
+Use the following properties for the **Sky Light** to affect Ray Tracing features.
+
+![SkyLight_Settings](SkyLight_Settings.png "SkyLight_Settings")(w:400)
+
+| Property | Description |
+| --- | --- |
+| [REGION:tablesection]Light[/REGION] ||
+| **Cast Ray Traced Shadow** | Whether the light shadows are computed with shadowmapping or ray tracing. |
+| **Affects Reflections** | Whether the light affects objects in reflections when Ray Traced Reflections is enabled. |
+| [REGION:tablesection]Ray Tracing[/REGION] ||
+| **Samples Per Pixel** | Sets the number of samples to use per pixel for Ray Traced Shadows from a Sky Light. Additional samples decrease performance while increasing quality and accuracy. Set to 1 sample per pixel by default. |
+
+## Actors
+
+Use the following properties for **Actors** to affect Ray Tracing features.  
+
+![Actor_Settings](Actor_Settings.png "Actor_Settings")(w:400)
+
+| Property | Description |
+| --- | --- |
+| [REGION:tablesection]Light[/REGION] ||
+| **Visible in Ray Tracing** | When enabled, this component will be visible in ray tracing effects. When disabled, it will be removed from ray tracing effects like reflections, translucency, shadows, and more. |

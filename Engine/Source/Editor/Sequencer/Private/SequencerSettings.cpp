@@ -33,7 +33,10 @@ USequencerSettings::USequencerSettings( const FObjectInitializer& ObjectInitiali
 	ZoomPosition = ESequencerZoomPosition::SZP_CurrentTime;
 	bAutoScrollEnabled = false;
 	bLinkCurveEditorTimeRange = false;
+	bSynchronizeCurveEditorSelection = true;
+	bIsolateCurveEditorToSelection = true;
 	LoopMode = ESequencerLoopMode::SLM_NoLoop;
+	bSnapKeysAndSectionsToPlayRange = false;
 	bKeepCursorInPlayRangeWhileScrubbing = false;
 	bKeepCursorInPlayRange = true;
 	bKeepPlayRangeInSectionBounds = true;
@@ -47,6 +50,7 @@ USequencerSettings::USequencerSettings( const FObjectInitializer& ObjectInitiali
 	bRerunConstructionScripts = true;
 	bVisualizePreAndPostRoll = true;
 	TrajectoryPathCap = 250;
+	bShowOutlinerInfoColumn = true;
 	FrameNumberDisplayFormat = EFrameNumberDisplayFormats::Seconds;
 }
 
@@ -235,6 +239,20 @@ void USequencerSettings::SetSnapSectionTimesToSections( bool InbSnapSectionTimes
 	if ( bSnapSectionTimesToSections != InbSnapSectionTimesToSections )
 	{
 		bSnapSectionTimesToSections = InbSnapSectionTimesToSections;
+		SaveConfig();
+	}
+}
+
+bool USequencerSettings::GetSnapKeysAndSectionsToPlayRange() const
+{
+	return bSnapKeysAndSectionsToPlayRange;
+}
+
+void USequencerSettings::SetSnapKeysAndSectionsToPlayRange(bool bInSnapKeysAndSectionsToPlayRange)
+{
+	if (bSnapKeysAndSectionsToPlayRange != bInSnapKeysAndSectionsToPlayRange)
+	{
+		bSnapKeysAndSectionsToPlayRange = bInSnapKeysAndSectionsToPlayRange;
 		SaveConfig();
 	}
 }
@@ -467,6 +485,23 @@ void USequencerSettings::SetLinkCurveEditorTimeRange(bool InbLinkCurveEditorTime
 	}
 }
 
+void USequencerSettings::SyncCurveEditorSelection(bool bInSynchronizeCurveEditorSelection)
+{
+	if (bSynchronizeCurveEditorSelection != bInSynchronizeCurveEditorSelection)
+	{
+		bSynchronizeCurveEditorSelection = bInSynchronizeCurveEditorSelection;
+		SaveConfig();
+	}
+}
+
+void USequencerSettings::IsolateCurveEditorToSelection(bool bInIsolateCurveEditorToSelection)
+{
+	if (bIsolateCurveEditorToSelection != bInIsolateCurveEditorToSelection)
+	{
+		bIsolateCurveEditorToSelection = bInIsolateCurveEditorToSelection;
+		SaveConfig();
+	}
+}
 
 uint8 USequencerSettings::GetZeroPadFrames() const
 {
@@ -623,6 +658,20 @@ void USequencerSettings::SetCompileDirectorOnEvaluate(bool bInCompileDirectorOnE
 	if (bInCompileDirectorOnEvaluate != bCompileDirectorOnEvaluate)
 	{
 		bCompileDirectorOnEvaluate = bInCompileDirectorOnEvaluate;
+		SaveConfig();
+	}
+}
+
+bool USequencerSettings::GetShowOutlinerInfoColumn() const
+{
+	return bShowOutlinerInfoColumn;
+}
+
+void USequencerSettings::SetShowOutlinerInfoColumn(bool bInShowOutlinerInfoColumn)
+{
+	if (bInShowOutlinerInfoColumn != bShowOutlinerInfoColumn)
+	{
+		bShowOutlinerInfoColumn = bInShowOutlinerInfoColumn;
 		SaveConfig();
 	}
 }

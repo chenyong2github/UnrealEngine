@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Tools.DotNETCommon;
 
@@ -120,6 +121,44 @@ namespace UnrealBuildTool
 
 	static class HotReload
 	{
+		/// <summary>
+		/// Checks whether a live coding session is currently active for a target. If so, we don't want to allow modifying any object files before they're loaded.
+		/// </summary>
+		/// <param name="Makefile">Makefile for the target being built</param>
+		/// <returns>True if a live coding session is active, false otherwise</returns>
+		public static bool IsLiveCodingSessionActive(TargetMakefile Makefile)
+		{
+			// Find the first output executable
+			FileReference Executable = Makefile.ExecutableFile;
+			if(Executable != null)
+			{
+				// Build the mutex name. This should match the name generated in LiveCodingModule.cpp.
+				StringBuilder MutexName = new StringBuilder("Global\\LiveCoding_");
+				for(int Idx = 0; Idx < Executable.FullName.Length; Idx++)
+				{
+					char Character = Executable.FullName[Idx];
+					if(Character == '/' || Character == '\\' || Character == ':')
+					{
+						MutexName.Append('+');
+					}
+					else
+					{
+						MutexName.Append(Character);
+					}
+				}
+				Log.TraceLog("Checking for live coding mutex: {0}", MutexName);
+
+				// Try to open the mutex
+				Mutex Mutex;
+				if(Mutex.TryOpenExisting(MutexName.ToString(), out Mutex))
+				{
+					Mutex.Dispose();
+					return true;
+				}
+			}
+			return false;
+		}
+
 		/// <summary>
 		/// Checks if the editor is currently running and this is a hot-reload
 		/// </summary>
@@ -408,6 +447,106 @@ namespace UnrealBuildTool
 		static bool IsBaseFileNameCharacter(char Character)
 		{
 			return Char.IsLetterOrDigit(Character) || Character == '_';
+		}
+
+		/// <summary>
+		/// Patches a set of actions for use with live coding. The new action list will output object files to a different location.
+		/// </summary>
+		/// <param name="Actions">Set of actions</param>
+		/// <param name="OriginalFileToPatchedFile">Dictionary that receives a map of original object file to patched object file</param>
+		public static void PatchActionGraphForLiveCoding(IEnumerable<Action> Actions, Dictionary<FileReference, FileReference> OriginalFileToPatchedFile)
+		{
+			foreach (Action Action in Actions)
+			{
+				if(Action.ActionType == ActionType.Compile)
+				{
+					if(!Action.CommandPath.GetFileName().Equals("cl-filter.exe", StringComparison.OrdinalIgnoreCase))
+					{
+						throw new BuildException("Unable to patch action graph - unexpected executable in compile action ({0})", Action.CommandPath);
+					}
+
+					List<string> Arguments = Utils.ParseArgumentList(Action.CommandArguments);
+
+					// Find the index of the cl-filter argument delimiter
+					int DelimiterIdx = Arguments.IndexOf("--");
+					if(DelimiterIdx == -1)
+					{
+						throw new BuildException("Unable to patch action graph - missing '--' delimiter to cl-filter");
+					}
+
+					// Fix the dependencies path
+					const string DependenciesPrefix = "-dependencies=";
+
+					int DependenciesIdx = 0;
+					for(;;DependenciesIdx++)
+					{
+						if(DependenciesIdx == DelimiterIdx)
+						{
+							throw new BuildException("Unable to patch action graph - missing '{0}' argument to cl-filter", DependenciesPrefix);
+						}
+						else if(Arguments[DependenciesIdx].StartsWith(DependenciesPrefix, StringComparison.OrdinalIgnoreCase))
+						{
+							break;
+						}
+					}
+
+					FileReference OldDependenciesFile = new FileReference(Arguments[DependenciesIdx].Substring(DependenciesPrefix.Length));
+					FileItem OldDependenciesFileItem = Action.ProducedItems.First(x => x.Location == OldDependenciesFile);
+					Action.ProducedItems.Remove(OldDependenciesFileItem);
+
+					FileReference NewDependenciesFile = OldDependenciesFile.ChangeExtension(".lc.response");
+					FileItem NewDependenciesFileItem = FileItem.GetItemByFileReference(NewDependenciesFile);
+					Action.ProducedItems.Add(NewDependenciesFileItem);
+
+					Arguments[DependenciesIdx] = DependenciesPrefix + NewDependenciesFile.FullName;
+
+					// Fix the response file
+					int ResponseFileIdx = DelimiterIdx + 1;
+					for (; ; ResponseFileIdx++)
+					{
+						if (ResponseFileIdx == Arguments.Count)
+						{
+							throw new BuildException("Unable to patch action graph - missing response file argument to cl-filter");
+						}
+						else if (Arguments[ResponseFileIdx].StartsWith("@", StringComparison.Ordinal))
+						{
+							break;
+						}
+					}
+
+					FileReference OldResponseFile = new FileReference(Arguments[ResponseFileIdx].Substring(1));
+					FileReference NewResponseFile = new FileReference(OldResponseFile.FullName + ".lc");
+
+					const string OutputFilePrefix = "/Fo";
+
+					string[] ResponseLines = FileReference.ReadAllLines(OldResponseFile);
+					for(int Idx = 0; Idx < ResponseLines.Length; Idx++)
+					{
+						string ResponseLine = ResponseLines[Idx];
+						if(ResponseLine.StartsWith(OutputFilePrefix, StringComparison.Ordinal))
+						{
+							FileReference OldOutputFile = new FileReference(ResponseLine.Substring(3).Trim('\"'));
+							FileItem OldOutputFileItem = Action.ProducedItems.First(x => x.Location == OldOutputFile);
+							Action.ProducedItems.Remove(OldOutputFileItem);
+
+							FileReference NewOutputFile = OldOutputFile.ChangeExtension(".lc.obj");
+							FileItem NewOutputFileItem = FileItem.GetItemByFileReference(NewOutputFile);
+							Action.ProducedItems.Add(NewOutputFileItem);
+
+							OriginalFileToPatchedFile[OldOutputFile] = NewOutputFile;
+
+							ResponseLines[Idx] = OutputFilePrefix + "\"" + NewOutputFile.FullName + "\"";
+							break;
+						}
+					}
+					FileReference.WriteAllLines(NewResponseFile, ResponseLines);
+
+					Arguments[ResponseFileIdx] = "@" + NewResponseFile.FullName;
+
+					// Update the final arguments
+					Action.CommandArguments = Utils.FormatCommandLine(Arguments);
+				}
+			}
 		}
 
 		/// <summary>
@@ -728,7 +867,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="ManifestFile">File to write to</param>
 		/// <param name="Actions">List of actions that are part of the graph</param>
-		public static void WriteLiveCodingManifest(FileReference ManifestFile, List<Action> Actions)
+		/// <param name="OriginalFileToPatchedFile">Map of original object files to patched object files</param>
+		public static void WriteLiveCodingManifest(FileReference ManifestFile, List<Action> Actions, Dictionary<FileReference, FileReference> OriginalFileToPatchedFile)
 		{
 			// Find all the output object files
 			HashSet<FileItem> ObjectFiles = new HashSet<FileItem>();
@@ -764,7 +904,7 @@ namespace UnrealBuildTool
 					if(Action.ActionType == ActionType.Link)
 					{
 						FileItem OutputFile = Action.ProducedItems.FirstOrDefault(x => x.HasExtension(".exe") || x.HasExtension(".dll"));
-						if(OutputFile != null)
+						if(OutputFile != null && Action.PrerequisiteItems.Any(x => OriginalFileToPatchedFile.ContainsKey(x.Location)))
 						{
 							Writer.WriteObjectStart();
 							Writer.WriteValue("Output", OutputFile.Location.FullName);
@@ -772,9 +912,10 @@ namespace UnrealBuildTool
 							Writer.WriteArrayStart("Inputs");
 							foreach(FileItem InputFile in Action.PrerequisiteItems)
 							{
-								if(ObjectFiles.Contains(InputFile))
+								FileReference PatchedFile;
+								if(OriginalFileToPatchedFile.TryGetValue(InputFile.Location, out PatchedFile))
 								{
-									Writer.WriteValue(InputFile.AbsolutePath);
+									Writer.WriteValue(PatchedFile.FullName);
 								}
 							}
 							Writer.WriteArrayEnd();

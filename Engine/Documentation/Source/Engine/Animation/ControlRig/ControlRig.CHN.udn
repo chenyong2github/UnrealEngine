@@ -1,0 +1,61 @@
+﻿INTSourceChangelist:5295800
+Availability: Public
+Crumbs: 
+Title: Control Rig
+Description:虚幻引擎4中的Control Rig是一个基于蓝图的可编脚本绑定系统，主要用于控制属性来驱动动画。
+Type:
+Version: 4.21
+Parent: Engine/Animation
+Order: 
+Tags: Animation
+Tags: Experimental
+Tags: Landing Page
+Tags: Control Rig
+Tags: Rigging
+
+
+![](ControlRigBanner.png "ControlRigBanner.png")
+
+虚幻引擎4中的Control Rig是一个基于蓝图的可编脚本绑定系统，主要用于控制属性来驱动动画。然而与蓝图不同，Control Rig不依赖于蓝图虚拟机（VM），而使用其自身的轻量级VM来转化代码（通常为复制和执行）。Control Rig使用一个基于图表的节点接口，在此处将节点（其为代码的可执行部分，称为 **Rig Units**）连接起来，实现并驱动由Rig Unit网络和属性所定义的动画。
+
+导入一个骨架网格体将生成一个层级，以便用户使用Rig Units来驱动和设置骨架网格体中骨骼的动画。**层级（Hierarchy）** 可以是到Rig Units的输入或输出，与正在被输入或输出到动画蓝图中动画节点的姿势相似。层级自身可被导入，关节可被添加、移除、甚至被重命名。Control Rig并非只绑定到骨架网格体，因为用户可以通过Rig Units提供并应用变换属性，从而使用蓝图actor或对静态网格体设置动画（例如移动平台）。 
+
+需要完成过程化绑定、在引擎中设置动画，或设置重定向或完整形体IK解决方案时，均可在项目中使用Control Rig。不使用引擎中的Control Rigs也可完成重定向和完整形体IK；然而较之于其他方法，Control Rigs整合度更高、自定义程度更高，脚本编辑性也更高。
+
+[OBJECT:EmbeddedVideo]
+	[PARAMLITERAL:width]
+	640
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	360
+	[/PARAMLITERAL]
+	[PARAMLITERAL:videoid]
+	aUZsx5GorB8
+	[/PARAMLITERAL]
+[/OBJECT]
+
+(#enablingthecontrolrigplugin)
+
+## 启用Control Rig插件
+
+要使用Control Rig，首先需要启用Control Rig插件：
+
+1.  在主编辑器的 **编辑（Edit）** 下选择 **插件（Plugins）**。  
+    ![](ControlRig_EditPlugins.png "ControlRig_EditPlugins.png")
+2.  在 **动画（Animation）** 选项卡中启用 **Control Rig** 插件。   
+    ![](ControlRigPlugin.png "ControlRigPlugin.png")
+3.  重新启动编辑器应用插件。 
+
+可以用 **动画（Animation）** 下的 **新增（Add New）** 按钮来创建 **Control Rig蓝图** 和 **Control Rig序列**：
+
+![](ControlRigAssets.png "ControlRigAssets.png")
+
+(#furtherreading)
+
+## 延展阅读
+
+%Engine/Animation/ControlRig/Blueprint:topic%
+
+%Engine/Animation/ControlRig/Sequences:topic%
+
+%Engine/Animation/AnimHowTo/ControlRigAnimBPNode:topic%

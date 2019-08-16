@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "NiagaraEditorModule.h"
 #include "Modules/ModuleInterface.h"
 #include "Delegates/IDelegateInstance.h"
 #include "UObject/ObjectKey.h"
@@ -42,6 +43,13 @@ class UObject;
 /** A module containing widgets for editing niagara data. */
 class FNiagaraEditorWidgetsModule : public IModuleInterface
 {
+private:
+	class FNiagaraEditorWidgetProvider : public INiagaraEditorWidgetProvider
+	{
+	public:
+		virtual TSharedRef<SWidget> CreateStackView(UNiagaraStackViewModel& StackViewModel) override;
+		virtual TSharedRef<SWidget> CreateSystemOverview(TSharedRef<FNiagaraSystemViewModel> SystemViewModel) override;
+	};
 
 public:
 	// IModuleInterface
@@ -51,7 +59,12 @@ public:
 	TSharedRef<FNiagaraStackCurveEditorOptions> GetOrCreateStackCurveEditorOptionsForObject(UObject* Object, bool bDefaultAreCurvesVisible, float DefaultHeight);
 
 private:
-	FDelegateHandle OnCreateStackWidgetHandle;
+	void ReinitializeStyle();
 
+private:
 	TMap<FObjectKey, TSharedRef<FNiagaraStackCurveEditorOptions>> ObjectToStackCurveEditorOptionsMap;
+
+	TSharedPtr<FNiagaraEditorWidgetProvider> WidgetProvider;
+
+	IConsoleCommand* ReinitializeStyleCommand;
 };

@@ -1,0 +1,130 @@
+﻿Availability: Public
+Title: Oculus Rift Development Requirements
+Description: Oculus Rift development requirements including hardware, software, and SDK information. 
+Type: reference
+Version: 4.22
+Parent: Platforms/VR/OculusVR/OculusRift
+Tags: Specifications
+Tags: Oculus
+Order: 11
+
+
+[TOC (start:2 end:2)]
+
+In this page you'll find hardware and software development kit (SDK) requirements needed to start developing for the [Oculus Rift](Platforms/VR/OculusVR/OculusRift) platform. 
+
+## Unreal Engine 4.22
+
+| Hardware Requirements ||
+| --- | --- |
+| **Recommended Desktop Hardware** | [INCLUDE:#excerpt_0] |
+| **Supported VR Headsets** | See [Oculus' System and Hardware Requirements](https://developer.oculus.com/documentation/mobilesdk/latest/concepts/mobile-reqs/#mobile-reqs) |
+
+| Software Requirements ||
+| --- | --- |
+| **Desktop Operating System** | [INCLUDE:#excerpt_1] |
+| **SDK Version** | Oculus Runtime 1.28 |
+
+<!--
+[EXCERPT:excerpt_0]
+See [Oculus' System and Hardware Requirements](https://developer.oculus.com/documentation/mobilesdk/latest/concepts/mobile-reqs/#mobile-reqs)  
+[](GettingStarted/RecommendedSpecifications)
+[/EXCERPT:excerpt_0]
+-->
+<!--
+[EXCERPT:excerpt_1]
+Windows 7 or later  
+MacOS 10.10 or later (x86 only)
+[/EXCERPT:excerpt_1]
+-->
+
+[REGION:note]
+The currently supported SDK version(s) can be found in `UEBuildTODO.cs`. You can find it in your `[UE4 Root Director]/Engine/Source/Programs/UnrealBuildTool/Platforms/TODO` folder.
+[/REGION]
+
+## Unreal Engine 4.21
+
+| Hardware Requirements ||
+| --- | --- |
+| **Recommended Desktop Hardware** | [INCLUDE:#excerpt_2] |
+| **Supported VR Headsets** | See [Oculus' System and Hardware Requirements](https://developer.oculus.com/documentation/mobilesdk/latest/concepts/mobile-reqs/#mobile-reqs) |
+
+| Software Requirements ||
+| --- | --- |
+| **Desktop Operating System** | [INCLUDE:#excerpt_3] |
+| **SDK Version** | Oculus Runtime 1.28 |
+
+<!--
+[EXCERPT:excerpt_2]
+See [Oculus' System and Hardware Requirements](https://developer.oculus.com/documentation/mobilesdk/latest/concepts/mobile-reqs/#mobile-reqs)  
+[](GettingStarted/RecommendedSpecifications)
+[/EXCERPT:excerpt_2]
+-->
+<!--
+[EXCERPT:excerpt_3]
+Windows 7 or later.  
+MacOS 10.10 or Later (x86 only)
+[/EXCERPT:excerpt_3]
+-->
+
+[REGION:note]
+The currently supported SDK version(s) can be found in `UEBuildTODO.cs`. You can find it in your `[UE4 Root Director]/Engine/Source/Programs/UnrealBuildTool/Platforms/TODO` folder.
+[/REGION]
+
+## Unreal Engine 4.20
+
+| Hardware Requirements ||
+| --- | --- |
+| **Recommended Desktop Hardware** | [INCLUDE:#excerpt_4] |
+| **Supported VR Headsets** | See [Oculus' System and Hardware Requirements](https://developer.oculus.com/documentation/mobilesdk/latest/concepts/mobile-reqs/#mobile-reqs) |
+
+| Software Requirements ||
+| --- | --- |
+| **Desktop Operating System** | [INCLUDE:#excerpt_5] |
+| **SDK Version** | Oculus Runtime 1.25 |
+
+<!--
+[EXCERPT:excerpt_4]
+See [Oculus' System and Hardware Requirements](https://developer.oculus.com/documentation/mobilesdk/latest/concepts/mobile-reqs/#mobile-reqs)  
+[](GettingStarted/RecommendedSpecifications)
+[/EXCERPT:excerpt_4]
+-->
+<!--
+[EXCERPT:excerpt_5]
+Windows 7 or later.  
+MacOS 10.10 or Later (x86 only)
+[/EXCERPT:excerpt_5]
+-->
+
+[REGION:note]
+The currently supported SDK version(s) can be found in `UEBuildTODO.cs`. You can find it in your `[UE4 Root Director]/Engine/Source/Programs/UnrealBuildTool/Platforms/TODO` folder.
+[/REGION]
+
+## Unreal Engine 4.19
+
+| Hardware Requirements ||
+| --- | --- |
+| **Recommended Desktop Hardware** | [INCLUDE:#excerpt_6] |
+| **Supported VR Headsets** | See [Oculus' System and Hardware Requirements](https://developer.oculus.com/documentation/mobilesdk/latest/concepts/mobile-reqs/#mobile-reqs) |
+
+| Software Requirements ||
+| --- | --- |
+| **Desktop Operating System** | [INCLUDE:#excerpt_7] |
+| **SDK Version** | Oculus Runtime 1.17 |
+
+<!--
+[EXCERPT:excerpt_6]
+See [Oculus' System and Hardware Requirements](https://developer.oculus.com/documentation/mobilesdk/latest/concepts/mobile-reqs/#mobile-reqs)  
+[](GettingStarted/RecommendedSpecifications)
+[/EXCERPT:excerpt_6]
+-->
+<!--
+[EXCERPT:excerpt_7]
+Windows 7 or later.  
+MacOS 10.10 or Later (x86 only)
+[/EXCERPT:excerpt_7]
+-->
+
+[REGION:note]
+The currently supported SDK version(s) can be found in `UEBuildTODO.cs`. You can find it in your `[UE4 Root Director]/Engine/Source/Programs/UnrealBuildTool/Platforms/TODO` folder.
+[/REGION]

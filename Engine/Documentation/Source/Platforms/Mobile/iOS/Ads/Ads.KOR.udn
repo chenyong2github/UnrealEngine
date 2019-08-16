@@ -1,0 +1,66 @@
+﻿INTSourceChangelist:6549091
+Availability: Public
+Title: iOS 에서 iAd 게임내 광고 사용법
+Description: iOS 에서 iAd 게임내 광고 시스템 사용법입니다.
+Type: how-to
+Version: 4.10
+Parent: Platforms/Mobile/iOS
+Tags: mobile
+Tags: iOS
+Tags: Guides
+tags:ads
+Tags: mobileservices
+topic-image: iOS_QS_Editor_TopicImage.png
+SkillLevel: Intermediate
+
+
+[TOC (start:2 end:4)]
+
+[REGION:warning]
+Apple 에서 iAds 를 폐기했으므로 [Google AdMob](https://www.google.com/admob/), [Chartboost](https://www.chartboost.com/), 또는 [Facebook Ads](https://www.facebook.com/business/products/ads) 같은 다른 제공사를 통해 iOS 게임에 광고를 추가해야 합니다.
+[/REGION]
+
+![](iAd.png)(w:240)
+
+## 환경설정
+
+iAd 시스템의 모든 환경설정은 애플 에코시스템을 통해 처리됩니다. 자세한 정보는 [Configuring Store Technologies](https://developer.apple.com/library/ios/documentation/LanguagesUtilities/Conceptual/iTunesConnect_Guide/Chapters/ConfiguringStoreTechnologies.html) 페이지를 참고하세요.
+
+### C++ 프로젝트
+
+C++ 프로젝트인 경우 Target.cs 파일에 적합한 모듈을 추가해 주기도 해야 합니다:
+
+    ...
+            if (Target.Platform == UnrealTargetPlatform.IOS)
+            {
+            ModuleNames.Add("OnlineSubsystemFacebook");
+            ModuleNames.Add("OnlineSubsystemIOS");
+            ModuleNames.Add("IOSAdvertising");
+            ModuleNames.Add("MetalRHI");
+            }
+
+언리얼 매치 3 의 Target.cs 파일 `Match3\Source\Match3.Target.cs` 를 보시면 전체 파일에 어떻게 어우러지는지 확인할 수 있습니다.
+
+## 광고 배너 표시
+
+**Show Ad Banner** 함수는 게임네 광고 배너를 표시하는 데 사용됩니다. 광고를 표시하고자 하는 로직 어딘가, 이를테면 메인 메뉴가 표시될 때 호출합니다.
+
+**블루프린트에서:**
+
+아래 예제는 Unreal Match 3 (언리얼 매치 3) 샘플 게임에서 따온 것인데, 위젯 블루프린트의 **Construct** 이벤트를 사용해서 승리/패배 화면이 표시될 때 광고 배너를 표시합니다:
+
+![](show_ad.png)
+
+노드 관련 자세한 정보는 [Show Ad Banner](http://api.unrealengine.com/INT/BlueprintAPI/Utilities/Platform/ShowAdBanner/index.html) 문서를 참고하세요.
+
+## 광고 배너 숨기기
+
+**Hide Ad Banner** 함수는 현재 보이는 광고 배너를 숨깁니다. 광고를 더이상 표시하고 싶지 않을 때, 이를테면 메인 메뉴를 빠져나갈 때 호출해 줍니다.
+
+**블루프린트에서:**
+
+아래 예제는 언리얼 매치 3 샘플 게임에서 따온 것인데, 위젯 블루프린트의 **Destruct** 이벤트를 사용해서 승리/패배 화면을 빠져나갈 때 광고 배너를 숨깁니다.
+
+![](hide_ad.png)
+
+노드 관련 자세한 정보는 [Hide Ad Banner](http://api.unrealengine.com/INT/BlueprintAPI/Utilities/Platform/HideAdBanner/index.html) 문서를 참고하세요.

@@ -1,0 +1,13 @@
+﻿INTSourceChangelist:6421927
+Availability: Public
+Title: 언리얼 스튜디오 릴리즈 노트
+Description: 언리얼 스튜디오 릴리즈 노트입니다.
+Type: reference
+Parent: Studio
+Tags: Release Notes
+Tags: Builds
+topic-icon: %ROOT%/outline_icon.png
+Order: 3
+
+[DIR(output:"listbutton" parent:"Studio/Builds" end:"1")]
+

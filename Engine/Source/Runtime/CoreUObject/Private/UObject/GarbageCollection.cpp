@@ -9,6 +9,7 @@
 #include "Misc/TimeGuard.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/App.h"
+#include "Misc/CoreDelegates.h"
 #include "UObject/ScriptInterface.h"
 #include "UObject/UObjectAllocator.h"
 #include "UObject/UObjectBase.h"
@@ -23,8 +24,11 @@
 #include "UObject/UObjectClusters.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "UObject/GarbageCollectionVerification.h"
+#include "UObject/Package.h"
 #include "Async/ParallelFor.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "HAL/Runnable.h"
+#include "HAL/RunnableThread.h"
 
 /*-----------------------------------------------------------------------------
    Garbage collection.
@@ -37,8 +41,6 @@ DEFINE_LOG_CATEGORY(LogGarbage);
 
 /** Object count during last mark phase																				*/
 FThreadSafeCounter		GObjectCountDuringLastMarkPhase;
-/** Count of objects purged since last mark phase																	*/
-int32		GPurgedObjectCountSinceLastMarkPhase	= 0;
 /** Whether incremental object purge is in progress										*/
 bool GObjIncrementalPurgeIsInProgress = false;
 /** Whether GC is currently routing BeginDestroy to objects										*/
@@ -57,13 +59,9 @@ static int32 GGCObjectsPendingDestructionCount = 0;
 /** Whether we need to purge objects or not.											*/
 static bool GObjPurgeIsRequired = false;
 /** Current object index for incremental purge.											*/
-static FRawObjectIterator GObjCurrentPurgeObjectIndex;
+static int32 GObjCurrentPurgeObjectIndex = 0;
 /** Current object index for incremental purge.											*/
 static bool GObjCurrentPurgeObjectIndexNeedsReset = true;
-static bool GObjCurrentPurgeObjectIndexResetPastPermanent = false;
-
-/** Whether we are currently purging an object in the GC purge pass. */
-static bool GIsPurgingObject = false;
 
 /** Contains a list of objects that stayed marked as unreachable after the last reachability analysis */
 static TArray<FUObjectItem*> GUnreachableObjects;
@@ -137,12 +135,6 @@ bool IsGarbageCollectionWaiting()
 	return FGCCSyncObject::Get().IsGCWaiting();
 }
 
-/** Called on shutdown to free GC memory */
-void CleanupGCArrayPools()
-{
-	FGCArrayPool::Get().Cleanup();
-}
-
 // Minimum number of objects to spawn a GC sub-task for
 static int32 GMinDesiredObjectsPerSubTask = 128;
 static FAutoConsoleVariableRef CVarMinDesiredObjectsPerSubTask(
@@ -157,6 +149,14 @@ static FAutoConsoleVariableRef CIncrementalBeginDestroyEnabled(
 	TEXT("gc.IncrementalBeginDestroyEnabled"),
 	GIncrementalBeginDestroyEnabled,
 	TEXT("If true, the engine will destroy objects incrementally using time limit each frame"),
+	ECVF_Default
+);
+
+int32 GMultithreadedDestructionEnabled = 0;
+static FAutoConsoleVariableRef CMultithreadedDestructionEnabled(
+	TEXT("gc.MultithreadedDestructionEnabled"),
+	GMultithreadedDestructionEnabled,
+	TEXT("If true, the engine will free objects' memory from a worker thread"),
 	ECVF_Default
 );
 
@@ -239,6 +239,273 @@ static void LogClassCountInfo( const TCHAR* LogText, TMap<const FName,uint32>& C
 	ClassToCountMap.Empty();
 };
 #endif
+
+/**
+ * Helper class for destroying UObjects on a worker thread
+ */
+class FAsyncPurge : public FRunnable
+{
+	/** Thread to run the worker FRunnable on. Destroys objects. */
+	volatile FRunnableThread* Thread;
+	/** Id of the worker thread */
+	uint32 AsyncPurgeThreadId;
+	/** Stops this thread */
+	FThreadSafeCounter StopTaskCounter;
+	/** Event that triggers the UObject destruction */
+	FEvent* BeginPurgeEvent;
+	/** Event that signales the UObject destruction is finished */
+	FEvent* FinishedPurgeEvent;
+	/** Current index into the global unreachable objects array (GUnreachableObjects) of the object being destroyed */
+	int32 ObjCurrentPurgeObjectIndex;
+	/** Number of unreachable objects the last time single-threaded tick was called */
+	int32 LastUnreachableObjectsCount;
+	/** A list of objects that were not thread safe to destroy on the worker thread */
+	TLockFreePointerListUnordered<UObject, PLATFORM_CACHE_LINE_SIZE> GameThreadObjects;
+	/** Stats for the number of objects destroyed */
+	int32 ObjectsDestroyedSinceLastMarkPhase;
+
+	/** [PURGE/GAME THREAD] Destroys objects that are unreachable */
+	bool TickDestroyObjects(bool bUseTimeLimit, float TimeLimit, double StartTime)
+	{
+		const int32 TimeLimitEnforcementGranularityForDeletion = 100;
+		int32 ProcessedObjectsCount = 0;
+		bool bFinishedDestroyingObjects = true;
+
+		while (ObjCurrentPurgeObjectIndex < GUnreachableObjects.Num())
+		{
+			FUObjectItem* ObjectItem = GUnreachableObjects[ObjCurrentPurgeObjectIndex];
+			check(ObjectItem->IsUnreachable());
+
+			UObject* Object = (UObject*)ObjectItem->Object;
+			check(Object->HasAllFlags(RF_FinishDestroyed | RF_BeginDestroyed));
+			if (!Thread || Object->IsDestructionThreadSafe())
+			{
+				Object->~UObject();
+				GUObjectAllocator.FreeUObject(Object);
+			}
+			else
+			{
+				// This object will be destroyed incrementally on the game thread
+				GameThreadObjects.Push(Object);
+			}
+			++ProcessedObjectsCount;
+			++ObjectsDestroyedSinceLastMarkPhase;
+			++ObjCurrentPurgeObjectIndex;
+
+			// Time slicing when running on the game thread
+			if (bUseTimeLimit && (ProcessedObjectsCount == TimeLimitEnforcementGranularityForDeletion))
+			{
+				ProcessedObjectsCount = 0;
+				if ((FPlatformTime::Seconds() - StartTime) > TimeLimit)
+				{
+					bFinishedDestroyingObjects = false;
+					break;
+				}				
+			}
+		}
+		return bFinishedDestroyingObjects;
+	}
+
+	/** [GAME THREAD] Destroys objects that are unreachable and couldn't be destroyed on the worker thread */
+	bool TickDestroyGameThreadObjects(bool bUseTimeLimit, float TimeLimit, double StartTime)
+	{
+		const int32 TimeLimitEnforcementGranularityForDeletion = 100;
+		int32 ProcessedObjectsCount = 0;
+		bool bFinishedDestroyingObjects = true;
+
+		while (UObject* Object = GameThreadObjects.Pop())
+		{
+			Object->~UObject();
+			GUObjectAllocator.FreeUObject(Object);
+
+			if (bUseTimeLimit && (ProcessedObjectsCount == TimeLimitEnforcementGranularityForDeletion))
+			{
+				ProcessedObjectsCount = 0;
+				if ((FPlatformTime::Seconds() - StartTime) > TimeLimit)
+				{
+					bFinishedDestroyingObjects = false;
+					break;
+				}				
+			}
+		}
+
+		return bFinishedDestroyingObjects;
+	}
+
+	/** Waits for the worker thread to finish destroying objects */
+	void WaitForAsyncDestructionToFinish()
+	{
+		FinishedPurgeEvent->Wait();
+	}
+
+public:
+
+	/** 
+	 * Constructor
+	 * @param bMultithreaded if true, the destruction of objects will happen on a worker thread
+	 */
+	FAsyncPurge(bool bMultithreaded)
+		: Thread(nullptr)
+		, AsyncPurgeThreadId(0)
+		, BeginPurgeEvent(nullptr)
+		, FinishedPurgeEvent(nullptr)
+		, ObjCurrentPurgeObjectIndex(0)
+		, LastUnreachableObjectsCount(0)
+		, ObjectsDestroyedSinceLastMarkPhase(0)
+	{
+		BeginPurgeEvent = FPlatformProcess::GetSynchEventFromPool(true);
+		FinishedPurgeEvent = FPlatformProcess::GetSynchEventFromPool(true);
+		FinishedPurgeEvent->Trigger();
+		if (bMultithreaded)
+		{
+			check(FPlatformProcess::SupportsMultithreading());
+			FPlatformAtomics::InterlockedExchangePtr((void**)&Thread, FRunnableThread::Create(this, TEXT("FAsyncPurge"), 0, TPri_BelowNormal));			
+		}
+		else
+		{
+			AsyncPurgeThreadId = GGameThreadId;
+		}
+	}
+
+	virtual ~FAsyncPurge()
+	{
+		check(IsFinished());
+		delete Thread;
+		Thread = nullptr;
+		FPlatformProcess::ReturnSynchEventToPool(BeginPurgeEvent);
+		FPlatformProcess::ReturnSynchEventToPool(FinishedPurgeEvent);
+		BeginPurgeEvent = nullptr;
+		FinishedPurgeEvent = nullptr;
+	}
+
+	/** [MAIN THREAD] Adds objects to the purge queue */
+	void BeginPurge()
+	{
+		check(IsFinished()); // In single-threaded mode we need to be finished or the condition below will hang
+		if (FinishedPurgeEvent->Wait())
+		{
+			FinishedPurgeEvent->Reset();
+
+			ObjCurrentPurgeObjectIndex = 0;
+			ObjectsDestroyedSinceLastMarkPhase = 0;
+
+			BeginPurgeEvent->Trigger();
+		}
+	}
+
+	/** [GAME THREAD] Ticks the purge process on the game thread */
+	void TickPurge(bool bUseTimeLimit, float TimeLimit, double StartTime)
+	{
+		bool bCanStartDestroyingGameThreadObjects = true;
+		if (!Thread)
+		{
+			// If we're running single-threaded we need to tick the main loop here too
+			LastUnreachableObjectsCount = GUnreachableObjects.Num();
+			bCanStartDestroyingGameThreadObjects = TickDestroyObjects(bUseTimeLimit, TimeLimit, StartTime);
+		}
+		else if (!bUseTimeLimit)
+		{
+			// Wait for the worker thread to finish processing all objects
+			WaitForAsyncDestructionToFinish();
+		}
+		if (bCanStartDestroyingGameThreadObjects)
+		{
+			// Deal with objects that couldn't be destroyed on the worker thread. This will do nothing when running single-threaded
+			bool bFinishedDestroyingObjectsOnGameThread = TickDestroyGameThreadObjects(bUseTimeLimit, TimeLimit, StartTime);
+			if (!Thread && bFinishedDestroyingObjectsOnGameThread)
+			{
+				FinishedPurgeEvent->Trigger();
+			}
+		}
+	}
+
+	/** Returns true if the destruction process is finished */
+	bool IsFinished() const
+	{
+		if (Thread)
+		{
+			return FinishedPurgeEvent->Wait(0, true) && GameThreadObjects.IsEmpty();
+		}
+		else
+		{
+			return (ObjCurrentPurgeObjectIndex >= LastUnreachableObjectsCount && GameThreadObjects.IsEmpty());
+		}
+	}
+
+	/** Returns the number of objects already destroyed */
+	int32 GetObjectsDestroyedSinceLastMarkPhase() const
+	{
+		return ObjectsDestroyedSinceLastMarkPhase;
+	}
+
+	/** Resets the number of objects already destroyed */
+	void ResetObjectsDestroyedSinceLastMarkPhase()
+	{
+		ObjectsDestroyedSinceLastMarkPhase = 0;
+	}
+
+	/** 
+	  * Returns true if this function is called from the async destruction thread. 
+	  * It will also return true if we're running single-threaded and this function is called on the game thread
+	  */
+	bool IsInAsyncPurgeThread() const
+	{
+		return AsyncPurgeThreadId == FPlatformTLS::GetCurrentThreadId();
+	}
+
+	/* Returns true if it can run multi-threaded destruction */
+	bool IsMultithreaded() const
+	{
+		return !!Thread;
+	}
+
+	//~ Begin FRunnable Interface.
+	virtual bool Init()
+	{
+		return true;
+	}
+
+	virtual uint32 Run()
+	{
+		AsyncPurgeThreadId = FPlatformTLS::GetCurrentThreadId();
+		
+		while (StopTaskCounter.GetValue() == 0)
+		{
+			if (BeginPurgeEvent->Wait(15, true))
+			{
+				BeginPurgeEvent->Reset();
+				TickDestroyObjects(/* bUseTimeLimit = */ false, /* TimeLimit = */ 0.0f, /* StartTime = */ 0.0);
+				FinishedPurgeEvent->Trigger();
+			}
+		}
+		FinishedPurgeEvent->Trigger();
+		return 0;
+	}
+
+	virtual void Stop()
+	{
+		StopTaskCounter.Increment();
+	}
+	//~ End FRunnable Interface
+};
+static FAsyncPurge* GAsyncPurge = nullptr;
+
+/**
+  * Returns true if this function is called from the async destruction thread.
+  * It will also return true if we're running single-threaded and this function is called on the game thread
+  */
+bool IsInGarbageCollectorThread()
+{
+	return GAsyncPurge ? GAsyncPurge->IsInAsyncPurgeThread() : IsInGameThread();
+}
+
+/** Called on shutdown to free GC memory */
+void ShutdownGarbageCollection()
+{
+	FGCArrayPool::Get().Cleanup();
+	delete GAsyncPurge;
+	GAsyncPurge = nullptr;
+}
 
 /**
 * Handles UObject references found by TFastReferenceCollector
@@ -501,11 +768,15 @@ public:
 			{
 #if ENABLE_GC_DEBUG_OUTPUT
 				// this message is to help track down culprits behind "Object in PIE world still referenced" errors
-				if (GIsEditor && !GIsPlayInEditorWorld && ReferencingObject != NULL && !ReferencingObject->RootPackageHasAnyFlags(PKG_PlayInEditor) && Object->RootPackageHasAnyFlags(PKG_PlayInEditor))
+				if (GIsEditor && !GIsPlayInEditorWorld && ReferencingObject != nullptr && !ReferencingObject->HasAnyFlags(RF_Transient) && Object->RootPackageHasAnyFlags(PKG_PlayInEditor))
 				{
-					UE_LOG(LogGarbage, Warning, TEXT("GC detected illegal reference to PIE object from content [possibly via [todo]]:"));
-					UE_LOG(LogGarbage, Warning, TEXT("      PIE object: %s"), *Object->GetFullName());
-					UE_LOG(LogGarbage, Warning, TEXT("  NON-PIE object: %s"), *ReferencingObject->GetFullName());
+					UPackage* ReferencingPackage = ReferencingObject->GetOutermost();
+					if (!ReferencingPackage->HasAnyPackageFlags(PKG_PlayInEditor) && !ReferencingPackage->HasAnyFlags(RF_Transient))
+					{
+						UE_LOG(LogGarbage, Warning, TEXT("GC detected illegal reference to PIE object from content [possibly via [todo]]:"));
+						UE_LOG(LogGarbage, Warning, TEXT("      PIE object: %s"), *Object->GetFullName());
+						UE_LOG(LogGarbage, Warning, TEXT("  NON-PIE object: %s"), *ReferencingObject->GetFullName());
+					}
 				}
 #endif
 
@@ -946,8 +1217,29 @@ public:
 	}
 };
 
+// Allow parallel GC to be overridden to single threaded via console command.
+static int32 GAllowParallelGC = 1;
 
-static void AcquireGCLock()
+static FAutoConsoleVariableRef CVarAllowParallelGC(
+	TEXT("gc.AllowParallelGC"),
+	GAllowParallelGC,
+	TEXT("sed to control parallel GC."),
+	ECVF_Default
+);
+
+/** Returns true if Garbage Collection should be forced to run on a single thread */
+static bool ShouldForceSingleThreadedGC()
+{
+	const bool bForceSingleThreadedGC = !FApp::ShouldUseThreadingForPerformance() || !FPlatformProcess::SupportsMultithreading() ||
+#if PLATFORM_SUPPORTS_MULTITHREADED_GC
+	(FPlatformMisc::NumberOfCores() < 2 || GAllowParallelGC == 0 || PERF_DETAILED_PER_CLASS_GC_STATS);
+#else	//PLATFORM_SUPPORTS_MULTITHREADED_GC
+		true;
+#endif	//PLATFORM_SUPPORTS_MULTITHREADED_GC
+	return bForceSingleThreadedGC;
+}
+
+void AcquireGCLock()
 {
 	const double StartTime = FPlatformTime::Seconds();
 	FGCCSyncObject::Get().GCLock();
@@ -958,7 +1250,7 @@ static void AcquireGCLock()
 	}
 }
 
-static void ReleaseGCLock()
+void ReleaseGCLock()
 {
 	FGCCSyncObject::Get().GCUnlock();
 }
@@ -985,6 +1277,8 @@ struct FConditionalGCLock
 	}
 };
 
+static bool IncrementalDestroyGarbage(bool bUseTimeLimit, float TimeLimit);
+
 /**
  * Incrementally purge garbage by deleting all unreferenced objects after routing Destroy.
  *
@@ -994,7 +1288,7 @@ struct FConditionalGCLock
  * @param	bUseTimeLimit	whether the time limit parameter should be used
  * @param	TimeLimit		soft time limit for this function call
  */
-void IncrementalPurgeGarbage( bool bUseTimeLimit, float TimeLimit )
+void IncrementalPurgeGarbage(bool bUseTimeLimit, float TimeLimit)
 {
 	SCOPED_NAMED_EVENT(IncrementalPurgeGarbage, FColor::Red);
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("IncrementalPurgeGarbage"), STAT_IncrementalPurgeGarbage, STATGROUP_GC);
@@ -1005,10 +1299,9 @@ void IncrementalPurgeGarbage( bool bUseTimeLimit, float TimeLimit )
 		GObjPurgeIsRequired = true;
 		GUObjectArray.DisableDisregardForGC();
 		GObjCurrentPurgeObjectIndexNeedsReset = true;
-		GObjCurrentPurgeObjectIndexResetPastPermanent = false;
 	}
 	// Early out if there is nothing to do.
-	if( !GObjPurgeIsRequired )
+	if (!GObjPurgeIsRequired)
 	{
 		return;
 	}
@@ -1037,14 +1330,9 @@ void IncrementalPurgeGarbage( bool bUseTimeLimit, float TimeLimit )
 	} ResetPurgeProgress(bCompleted);
 
 	// Keep track of start time to enforce time limit unless bForceFullPurge is true;
-	GCStartTime							= FPlatformTime::Seconds();
-	bool		bTimeLimitReached							= false;
-	// Depending on platform FPlatformTime::Seconds might take a noticeable amount of time if called thousands of times so we avoid
-	// enforcing the time limit too often, especially as neither Destroy nor actual deletion should take significant
-	// amounts of time.
-	const int32	TimeLimitEnforcementGranularityForDestroy	= 10;
-	const int32	TimeLimitEnforcementGranularityForDeletion	= 100;
+	GCStartTime = FPlatformTime::Seconds();
 
+	bool bTimeLimitReached = false;
 	if (GUnrechableObjectIndex < GUnreachableObjects.Num())
 	{
 		{
@@ -1056,6 +1344,38 @@ void IncrementalPurgeGarbage( bool bUseTimeLimit, float TimeLimit )
 			FScopedCBDProfile::DumpProfile();
 		}
 	}
+
+	if (!bTimeLimitReached)
+	{
+		bCompleted = IncrementalDestroyGarbage(bUseTimeLimit, TimeLimit);
+	}
+}
+
+bool IncrementalDestroyGarbage(bool bUseTimeLimit, float TimeLimit)
+{
+	const bool bMultithreadedPurge = !ShouldForceSingleThreadedGC() && GMultithreadedDestructionEnabled;
+	if (!GAsyncPurge)
+	{
+		GAsyncPurge = new FAsyncPurge(bMultithreadedPurge);
+	}
+	else if (GAsyncPurge->IsMultithreaded() != bMultithreadedPurge)
+	{
+		check(GAsyncPurge->IsFinished());
+		delete GAsyncPurge;
+		GAsyncPurge = new FAsyncPurge(bMultithreadedPurge);
+	}
+
+	bool bCompleted = false;
+	bool bTimeLimitReached = false;
+
+	// Keep track of time it took to destroy objects for stats
+	double IncrementalDestroyGarbageStartTime = FPlatformTime::Seconds();
+
+	// Depending on platform FPlatformTime::Seconds might take a noticeable amount of time if called thousands of times so we avoid
+	// enforcing the time limit too often, especially as neither Destroy nor actual deletion should take significant
+	// amounts of time.
+	const int32	TimeLimitEnforcementGranularityForDestroy = 10;
+	const int32	TimeLimitEnforcementGranularityForDeletion = 100;
 
 	// Set 'I'm garbage collecting' flag - might be checked inside UObject::Destroy etc.
 	FGCScopeLock GCLock;
@@ -1072,21 +1392,18 @@ void IncrementalPurgeGarbage( bool bUseTimeLimit, float TimeLimit )
 
 		if (GObjCurrentPurgeObjectIndexNeedsReset)
 		{
-			// iterators don't have an op=, so we destroy it and reconstruct it with a placement new
-			// GObjCurrentPurgeObjectIndex	= FRawObjectIterator(GObjCurrentPurgeObjectIndexResetPastPermanent);
-			GObjCurrentPurgeObjectIndex.~FRawObjectIterator();
-			new (&GObjCurrentPurgeObjectIndex) FRawObjectIterator(GObjCurrentPurgeObjectIndexResetPastPermanent);
+			GObjCurrentPurgeObjectIndex = 0;
 			GObjCurrentPurgeObjectIndexNeedsReset = false;
 		}
 
-		while( GObjCurrentPurgeObjectIndex )
+		while (GObjCurrentPurgeObjectIndex < GUnreachableObjects.Num())
 		{
-			FUObjectItem* ObjectItem = *GObjCurrentPurgeObjectIndex;
+			FUObjectItem* ObjectItem = GUnreachableObjects[GObjCurrentPurgeObjectIndex];
 			checkSlow(ObjectItem);
 
 			//@todo UE4 - A prefetch was removed here. Re-add it. It wasn't right anyway, since it was ten items ahead and the consoles on have 8 prefetch slots
 
-			if (ObjectItem->IsUnreachable())
+			check(ObjectItem->IsUnreachable());
 			{
 				UObject* Object = static_cast<UObject*>(ObjectItem->Object);
 				// Object should always have had BeginDestroy called on it and never already be destroyed
@@ -1131,8 +1448,13 @@ void IncrementalPurgeGarbage( bool bUseTimeLimit, float TimeLimit )
 		}
 
 		// Have we finished the first round of attempting to call FinishDestroy on unreachable objects?
-		if( !GObjCurrentPurgeObjectIndex )
+		if (GObjCurrentPurgeObjectIndex >= GUnreachableObjects.Num())
 		{
+			double MaxTimeForFinishDestroy = 10.00;
+			bool bFinishDestroyTimeExtended = false;
+			FString FirstObjectNotReadyWhenTimeExtended;
+			int32 StartObjectsPendingDestructionCount = GGCObjectsPendingDestructionCount;
+
 			// We've finished iterating over all unreachable objects, but we need still need to handle
 			// objects that were deferred.
 			int32 LastLoopObjectsPendingDestructionCount = GGCObjectsPendingDestructionCount;
@@ -1199,10 +1521,17 @@ void IncrementalPurgeGarbage( bool bUseTimeLimit, float TimeLimit )
 					if (FPlatformProperties::RequiresCookedData())
 					{
 						const bool bPollTimeLimit = ((FinishDestroyTimePollCounter++) % TimeLimitEnforcementGranularityForDestroy == 0);
-#if PLATFORM_IOS
-                        const double MaxTimeForFinishDestroy = 30.0;
-#else
-						const double MaxTimeForFinishDestroy = 10.0;
+#if PLATFORM_IOS || PLATFORM_ANDROID
+						if(bPollTimeLimit && !bFinishDestroyTimeExtended && (FPlatformTime::Seconds() - GCStartTime) > MaxTimeForFinishDestroy )
+						{
+							MaxTimeForFinishDestroy = 30.0;
+							bFinishDestroyTimeExtended = true;
+#if USE_HITCH_DETECTION
+							GHitchDetected = true;
+#endif
+							FirstObjectNotReadyWhenTimeExtended = GetFullNameSafe(GGCObjectsPendingDestruction[0]);
+						}
+						else
 #endif
 						// Check if we spent too much time on waiting for FinishDestroy without making any progress
 						if (LastLoopObjectsPendingDestructionCount == GGCObjectsPendingDestructionCount && bPollTimeLimit &&
@@ -1257,81 +1586,67 @@ void IncrementalPurgeGarbage( bool bUseTimeLimit, float TimeLimit )
 			// Have all objects been destroyed now?
 			if( GGCObjectsPendingDestructionCount == 0 )
 			{
+				if (bFinishDestroyTimeExtended)
+				{
+					FString Msg = FString::Printf(TEXT("Additional time was required to finish routing FinishDestroy, spent %.2fs on routing FinishDestroy to %d objects. 1st obj not ready: '%s'."), (FPlatformTime::Seconds() - GCStartTime), StartObjectsPendingDestructionCount, *FirstObjectNotReadyWhenTimeExtended);
+					UE_LOG(LogGarbage, Warning, TEXT("%s"), *Msg );
+					FCoreDelegates::OnGCFinishDestroyTimeExtended.Broadcast(Msg);
+				}
+
 				// Release memory we used for objects pending destruction, leaving some slack space
 				GGCObjectsPendingDestruction.Empty( 256 );
 
 				// Destroy has been routed to all objects so it's safe to delete objects now.
 				GObjFinishDestroyHasBeenRoutedToAllObjects = true;
 				GObjCurrentPurgeObjectIndexNeedsReset = true;
-				GObjCurrentPurgeObjectIndexResetPastPermanent = !GExitPurge;
 			}
 		}
 	}		
-
-	if( GObjFinishDestroyHasBeenRoutedToAllObjects && !bTimeLimitReached )
+	
+	if (GObjFinishDestroyHasBeenRoutedToAllObjects && !bTimeLimitReached)
 	{
 		// Perform actual object deletion.
-		// @warning: Can't use FObjectIterator here because classes may be destroyed before objects.
 		int32 ProcessCount = 0;
 		if (GObjCurrentPurgeObjectIndexNeedsReset)
 		{
-			// iterators don't have an op=, so we destroy it and reconstruct it with a placement new
-			// GObjCurrentPurgeObjectIndex	= FRawObjectIterator(GObjCurrentPurgeObjectIndexResetPastPermanent);
-			GObjCurrentPurgeObjectIndex.~FRawObjectIterator();
-			new (&GObjCurrentPurgeObjectIndex) FRawObjectIterator(GObjCurrentPurgeObjectIndexResetPastPermanent);
+			GAsyncPurge->BeginPurge();
+			// Reset the reset flag but don't reset the actual index yet for stat purposes
 			GObjCurrentPurgeObjectIndexNeedsReset = false;
 		}
-		while( GObjCurrentPurgeObjectIndex )
-		{
-			//@todo UE4 - A prefetch was removed here. Re-add it. It wasn't right anyway, since it was ten items ahead and the consoles on have 8 prefetch slots
 
-			FUObjectItem* ObjectItem = *GObjCurrentPurgeObjectIndex;
-			checkSlow(ObjectItem);
-			if (ObjectItem->IsUnreachable())
-			{
-				UObject* Object = (UObject*)ObjectItem->Object;
-				check(Object->HasAllFlags(RF_FinishDestroyed|RF_BeginDestroyed));
-				GIsPurgingObject				= true; 
-				Object->~UObject();
-				GUObjectAllocator.FreeUObject(Object);
-				GIsPurgingObject				= false;
-				// Keep track of purged stats.
-				GPurgedObjectCountSinceLastMarkPhase++;
-			}
+		GAsyncPurge->TickPurge(bUseTimeLimit, TimeLimit, GCStartTime);
 
-			// Advance to the next object.
-			++GObjCurrentPurgeObjectIndex;
-
-			ProcessCount++;
-
-			// Only check time limit every so often to avoid calling FPlatformTime::Seconds too often.
-			if( bUseTimeLimit && (ProcessCount == TimeLimitEnforcementGranularityForDeletion))
-			{
-				if ((FPlatformTime::Seconds() - GCStartTime) > TimeLimit)
-				{
-					bTimeLimitReached = true;
-					break;
-				}
-				ProcessCount = 0;
-			}
-		}
-
-		if( !GObjCurrentPurgeObjectIndex )
+		if (GAsyncPurge->IsFinished())
 		{
 			bCompleted = true;
 			// Incremental purge is finished, time to reset variables.
 			GObjFinishDestroyHasBeenRoutedToAllObjects		= false;
 			GObjPurgeIsRequired								= false;
 			GObjCurrentPurgeObjectIndexNeedsReset			= true;
-			GObjCurrentPurgeObjectIndexResetPastPermanent	= true;
 
 			// Log status information.
-			UE_LOG(LogGarbage, Log, TEXT("GC purged %i objects (%i -> %i)"), GPurgedObjectCountSinceLastMarkPhase, GObjectCountDuringLastMarkPhase.GetValue(), GObjectCountDuringLastMarkPhase.GetValue() - GPurgedObjectCountSinceLastMarkPhase );
+			const int32 PurgedObjectCountSinceLastMarkPhase = GAsyncPurge->GetObjectsDestroyedSinceLastMarkPhase();
+			UE_LOG(LogGarbage, Log, TEXT("GC purged %i objects (%i -> %i) in %.3fms"), PurgedObjectCountSinceLastMarkPhase, 
+				GObjectCountDuringLastMarkPhase.GetValue(), 
+				GObjectCountDuringLastMarkPhase.GetValue() - PurgedObjectCountSinceLastMarkPhase,
+				(FPlatformTime::Seconds() - IncrementalDestroyGarbageStartTime) * 1000);
 #if PERF_DETAILED_PER_CLASS_GC_STATS
-			LogClassCountInfo( TEXT("objects of"), GClassToPurgeCountMap, 10, GPurgedObjectCountSinceLastMarkPhase );
+			LogClassCountInfo( TEXT("objects of"), GClassToPurgeCountMap, 10, PurgedObjectCountSinceLastMarkPhase);
 #endif
+			GAsyncPurge->ResetObjectsDestroyedSinceLastMarkPhase();
 		}
 	}
+
+	if (bUseTimeLimit && !bCompleted)
+	{
+		UE_LOG(LogGarbage, Log, TEXT("%.3f ms for incrementally purging unreachable objects (FinishDestroyed: %d, Destroyed: %d / %d)"),
+			(FPlatformTime::Seconds() - IncrementalDestroyGarbageStartTime) * 1000,
+			GObjCurrentPurgeObjectIndex,
+			GAsyncPurge->GetObjectsDestroyedSinceLastMarkPhase(),
+			GUnreachableObjects.Num());
+	}
+
+	return bCompleted;
 }
 
 /**
@@ -1344,15 +1659,6 @@ bool IsIncrementalPurgePending()
 	return GObjIncrementalPurgeIsInProgress || GObjPurgeIsRequired;
 }
 
-// Allow parallel GC to be overridden to single threaded via console command.
-static int32 GAllowParallelGC = 1;
-
-static FAutoConsoleVariableRef CVarAllowParallelGC(
-	TEXT("gc.AllowParallelGC"),
-	GAllowParallelGC,
-	TEXT("sed to control parallel GC."),
-	ECVF_Default
-	);
 
 // This counts how many times GC was skipped
 static int32 GNumAttemptsSinceLastGC = 0;
@@ -1384,7 +1690,7 @@ void GatherUnreachableObjects(bool bForceSingleThreaded)
 	GUnreachableObjects.Reset();
 	GUnrechableObjectIndex = 0;
 
-	int32 MaxNumberOfObjects = GUObjectArray.GetObjectArrayNum() - GUObjectArray.GetFirstGCIndex();
+	int32 MaxNumberOfObjects = GUObjectArray.GetObjectArrayNum() - (GExitPurge ? 0 : GUObjectArray.GetFirstGCIndex());
 	int32 NumThreads = FMath::Max(1, FTaskGraphInterface::Get().GetNumWorkerThreads());
 	int32 NumberOfObjectsPerThread = (MaxNumberOfObjects / NumThreads) + 1;
 
@@ -1395,7 +1701,7 @@ void GatherUnreachableObjects(bool bForceSingleThreaded)
 	// are part of the array so we don't suffer from cache misses as much as we would if we were to check ObjectFlags.
 	ParallelFor(NumThreads, [&ClusterItemsToDestroy, NumberOfObjectsPerThread, NumThreads, MaxNumberOfObjects](int32 ThreadIndex)
 	{
-		int32 FirstObjectIndex = ThreadIndex * NumberOfObjectsPerThread + GUObjectArray.GetFirstGCIndex();
+		int32 FirstObjectIndex = ThreadIndex * NumberOfObjectsPerThread + (GExitPurge ? 0 : GUObjectArray.GetFirstGCIndex());
 		int32 NumObjects = (ThreadIndex < (NumThreads - 1)) ? NumberOfObjectsPerThread : (MaxNumberOfObjects - (NumThreads - 1) * NumberOfObjectsPerThread);
 		int32 LastObjectIndex = FMath::Min(GUObjectArray.GetObjectArrayNum() - 1, FirstObjectIndex + NumObjects - 1);
 		TArray<FUObjectItem*> ThisThreadUnreachableObjects;
@@ -1535,12 +1841,7 @@ void CollectGarbageInternal(EObjectFlags KeepFlags, bool bPerformFullPurge)
 		// Fall back to single threaded GC if processor count is 1 or parallel GC is disabled
 		// or detailed per class gc stats are enabled (not thread safe)
 		// Temporarily forcing single-threaded GC in the editor until Modify() can be safely removed from HandleObjectReference.
-		const bool bForceSingleThreadedGC = !FApp::ShouldUseThreadingForPerformance() || !FPlatformProcess::SupportsMultithreading() ||
-#if PLATFORM_SUPPORTS_MULTITHREADED_GC
-		(FPlatformMisc::NumberOfCores() < 2 || GAllowParallelGC == 0 || PERF_DETAILED_PER_CLASS_GC_STATS);
-#else	//PLATFORM_SUPPORTS_MULTITHREADED_GC
-			true;
-#endif	//PLATFORM_SUPPORTS_MULTITHREADED_GC
+		const bool bForceSingleThreadedGC = ShouldForceSingleThreadedGC();
 
 		// Perform reachability analysis.
 		{
@@ -1575,9 +1876,6 @@ void CollectGarbageInternal(EObjectFlags KeepFlags, bool bPerformFullPurge)
 
 		// Set flag to indicate that we are relying on a purge to be performed.
 		GObjPurgeIsRequired = true;
-		// Reset purged count.
-		GPurgedObjectCountSinceLastMarkPhase = 0;
-		GObjCurrentPurgeObjectIndexResetPastPermanent = true;
 
 		// Perform a full purge by not using a time limit for the incremental purge. The Editor always does a full purge.
 		if (bPerformFullPurge || GIsEditor)
@@ -1723,6 +2021,11 @@ void UObject::AddReferencedObjects(UObject* This, FReferenceCollector& Collector
 		Collector.AddReferencedObject( Class, This );
 	}
 #endif
+}
+
+bool UObject::IsDestructionThreadSafe() const
+{
+	return true;
 }
 
 /*-----------------------------------------------------------------------------

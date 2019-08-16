@@ -306,7 +306,7 @@ int32 FMovieSceneChannelProxyData::AddInternal(ChannelType& InChannel)
 	FName ChannelTypeName = ChannelType::StaticStruct()->GetFName();
 
 	// Find the first entry that has a >= channel ID
-	int32 ChannelTypeIndex = Algo::LowerBoundBy(Entries, ChannelTypeName, &FMovieSceneChannelEntry::GetChannelTypeName);
+	int32 ChannelTypeIndex = Algo::LowerBoundBy(Entries, ChannelTypeName, &FMovieSceneChannelEntry::GetChannelTypeName, FNameLexicalLess());
 
 	// If the index we found isn't valid, or it's not the channel we want, we need to add a new entry there
 	if (ChannelTypeIndex >= Entries.Num() || Entries[ChannelTypeIndex].GetChannelTypeName() != ChannelTypeName)

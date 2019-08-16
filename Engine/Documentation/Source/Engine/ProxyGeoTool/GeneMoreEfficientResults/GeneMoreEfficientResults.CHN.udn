@@ -1,0 +1,36 @@
+﻿INTSourceChangelist:6674882
+Availability: Public
+Crumbs: 
+Title: 产生更高效的结果
+Description: 如何通过添加一个小几何体来生成更高效的代理结果。
+Type: how-to
+SkillLevel:Intermediate
+Version: 4.19
+Parent: Engine/ProxyGeoTool
+Order: 
+Tags: HLOD
+Tags: Optimization
+Tags: ProxyGeometryTool
+
+
+令人惊讶的是，有时添加一个小的几何体实际上会得到更高效的代理结果。这是因为代理LOD管道中底层的空间采样和网格体重划分步骤是围绕删除不可访问几何体的概念而构建的。在下面的教程中，我们将了解如何在虚幻引擎4(UE4)项目中解决类似的问题。
+
+## 步骤
+
+1. 首先，找到一组静态网格体，它们被安排构成某种类型的房间，房间具有如下图所示的开口。  
+    ![Proxy_Geo_HT_GettingMore_01.png](Proxy_Geo_HT_GettingMore_01-resize793x274.png "Proxy_Geo_HT_GettingMore_01.png")
+2. 选择组成房间的所有静态网格体以及房间可能包含的任何项目，然后运行代理几何体工具创建一个新的代理静态网格体。  
+    ![Proxy_Geo_HT_GettingMore_02.png](Proxy_Geo_HT_GettingMore_02-resize784x271.png "Proxy_Geo_HT_GettingMore_02.png")  
+    
+3. 虽然代理几何体工具在创建新的静态网格体方面做得很好，但是房间内部有很多细节可以删除。为了帮助代理几何体工具更好地理解，它应该删除建筑内部的所有几何体，在水平面上添加一个小的静态网格体，并通过正确放置使其涵盖房间的任何开口。  
+    ![Proxy_Geo_HT_GettingMore_03.png](Proxy_Geo_HT_GettingMore_03-resize779x277.png "Proxy_Geo_HT_GettingMore_03.png")
+4. 一旦所有开口都被几何体覆盖，再一次运行代理几何体工具。 
+
+## 最终结果
+
+当代理几何体工具完成时，查看一下房间内部。注意，内部几乎所有三角形都已被删除，如下图所示。  
+![](Proxy_Geo_HT_GettingMore_04.png "Proxy_Geo_HT_GettingMore_04.png")
+
+这样做的原因是，在该模型中添加一个新的静态网格体作为拦阻器，会使代理几何体工具能够在生成代理的早期就删除房间的所有内部结构。这大大缩短了制作时间，减少了最终三角形数量，还能够更好地使用纹理空间。在许多情况下，以封闭的门、地板或者几个平面的形式添加几何体来密封复杂立面的背面，将大大简化结果。  
+
+[](#)[](#)

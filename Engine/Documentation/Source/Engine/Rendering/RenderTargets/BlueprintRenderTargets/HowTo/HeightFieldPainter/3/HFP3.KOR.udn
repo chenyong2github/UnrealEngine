@@ -1,5 +1,5 @@
-INTSourceChangelist:4309000
-availability:Public
+INTSourceChangelist:6277736
+Availability: Docs
 title:3. 블루프린트 구성
 description:하이트 맵 페인터 블루프린트를 만들고 구성하는 법에 대해 다룹니다.
 crumbs:%ROOT%, Engine, Engine\Rendering\RenderTargets

@@ -80,7 +80,10 @@ namespace SceneOutliner
 
 		/** Overridden in derived types to filter actors */
 		virtual bool PassesFilter(const AActor* Actor) const { return DefaultBehaviour == EDefaultFilterBehaviour::Pass; }
-		
+
+		/** Overridden in derived types to filter actor components */
+		virtual bool PassesFilter(const UActorComponent* ActorComponent) const { return DefaultBehaviour == EDefaultFilterBehaviour::Pass; }
+
 		/** Overridden in derived types to filter worlds */
 		virtual bool PassesFilter(const UWorld* World) const { return DefaultBehaviour == EDefaultFilterBehaviour::Pass; }
 
@@ -97,6 +100,18 @@ namespace SceneOutliner
 			if (const AActor* Actor = ActorItem.Actor.Get())
 			{
 				bTransientFilterResult = PassesFilter(Actor);
+			}
+			else
+			{
+				bTransientFilterResult = false;
+			}
+		}
+
+		virtual void Visit(const FComponentTreeItem& ComponentItem) const override
+		{
+			if (const UActorComponent* ActorComponent = ComponentItem.Component.Get())
+			{
+				bTransientFilterResult = PassesFilter(ActorComponent);
 			}
 			else
 			{
@@ -130,6 +145,7 @@ namespace SceneOutliner
 	};
 
 	DECLARE_DELEGATE_RetVal_OneParam( bool, FActorFilterPredicate, const AActor* );
+	DECLARE_DELEGATE_RetVal_OneParam( bool, FComponentFilterPredicate, const UActorComponent* );
 	DECLARE_DELEGATE_RetVal_OneParam( bool, FWorldFilterPredicate, const UWorld* );
 	DECLARE_DELEGATE_RetVal_OneParam( bool, FFolderFilterPredicate, FName );
 
@@ -137,15 +153,22 @@ namespace SceneOutliner
 	struct FOutlinerPredicateFilter : public FOutlinerFilter
 	{
 		/** Predicate used to filter actors */
-		mutable FActorFilterPredicate	ActorPred;
+		mutable FActorFilterPredicate		ActorPred;
+		/** Predicate used to filter actor components */
+		mutable FComponentFilterPredicate	ComponentPred;
 		/** Predicate used to filter worlds */
-		mutable FWorldFilterPredicate	WorldPred;
+		mutable FWorldFilterPredicate		WorldPred;
 		/** Predicate used to filter Folders */
-		mutable FFolderFilterPredicate	FolderPred;
+		mutable FFolderFilterPredicate		FolderPred;
 
 		FOutlinerPredicateFilter(FActorFilterPredicate InActorPred, EDefaultFilterBehaviour InDefaultBehaviour, EFailedFilterState InFailedFilterState = EFailedFilterState::NonInteractive)
 			: FOutlinerFilter(InDefaultBehaviour, InFailedFilterState)
 			, ActorPred(InActorPred)
+		{}
+
+		FOutlinerPredicateFilter(FComponentFilterPredicate InComponentPred, EDefaultFilterBehaviour InDefaultBehaviour, EFailedFilterState InFailedFilterState = EFailedFilterState::NonInteractive)
+			: FOutlinerFilter(InDefaultBehaviour, InFailedFilterState)
+			, ComponentPred(InComponentPred)
 		{}
 
 		FOutlinerPredicateFilter(FWorldFilterPredicate InWorldPred, EDefaultFilterBehaviour InDefaultBehaviour, EFailedFilterState InFailedFilterState = EFailedFilterState::NonInteractive)
@@ -161,6 +184,11 @@ namespace SceneOutliner
 		virtual bool PassesFilter(const AActor* Actor) const override
 		{
 			return ActorPred.IsBound() ? ActorPred.Execute(Actor) : DefaultBehaviour == EDefaultFilterBehaviour::Pass;
+		}
+
+		virtual bool PassesFilter(const UActorComponent* Component) const override
+		{
+			return ComponentPred.IsBound() ? ComponentPred.Execute(Component) : DefaultBehaviour == EDefaultFilterBehaviour::Pass;
 		}
 
 		virtual bool PassesFilter(const UWorld* World) const override

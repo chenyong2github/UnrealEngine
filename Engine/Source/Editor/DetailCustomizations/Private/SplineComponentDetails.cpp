@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "SplineComponentDetails.h"
+#include "SplineMetadataDetailsFactory.h"
 #include "Misc/MessageDialog.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Class.h"
@@ -28,10 +29,16 @@
 
 #define LOCTEXT_NAMESPACE "SplineComponentDetails"
 
+USplineMetadataDetailsFactoryBase::USplineMetadataDetailsFactoryBase(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+
+}
+
 class FSplinePointDetails : public IDetailCustomNodeBuilder, public TSharedFromThis<FSplinePointDetails>
 {
 public:
-	FSplinePointDetails();
+	FSplinePointDetails(USplineComponent* InOwningSplineComponent);
 
 	//~ Begin IDetailCustomNodeBuilder interface
 	virtual void SetOnRebuildChildren(FSimpleDelegate InOnRegenerateChildren) override;
@@ -185,11 +192,14 @@ private:
 	FSplineComponentVisualizer* SplineVisualizer;
 	UProperty* SplineCurvesProperty;
 	TArray<TSharedPtr<FString>> SplinePointTypes;
+	TSharedPtr<ISplineMetadataDetails> SplineMetaDataDetails;
+	FSimpleDelegate OnRegenerateChildren;
 };
 
-FSplinePointDetails::FSplinePointDetails()
+FSplinePointDetails::FSplinePointDetails(USplineComponent* InOwningSplineComponent)
 	: SplineComp(nullptr)
 {
+
 	TSharedPtr<FComponentVisualizer> Visualizer = GUnrealEd->FindComponentVisualizer(USplineComponent::StaticClass());
 	SplineVisualizer = (FSplineComponentVisualizer*)Visualizer.Get();
 	check(SplineVisualizer);
@@ -202,10 +212,13 @@ FSplinePointDetails::FSplinePointDetails()
 	{
 		SplinePointTypes.Add(MakeShareable(new FString(SplinePointTypeEnum->GetNameStringByIndex(EnumIndex))));
 	}
+
+	SplineComp = InOwningSplineComponent;
 }
 
 void FSplinePointDetails::SetOnRebuildChildren(FSimpleDelegate InOnRegenerateChildren)
 {
+	OnRegenerateChildren = InOnRegenerateChildren;
 }
 
 void FSplinePointDetails::GenerateHeaderRowContent(FDetailWidgetRow& NodeRow)
@@ -272,6 +285,7 @@ void FSplinePointDetails::GenerateChildContent(IDetailChildrenBuilder& ChildrenB
 		.Y(this, &FSplinePointDetails::GetPositionY)
 		.Z(this, &FSplinePointDetails::GetPositionZ)
 		.AllowResponsiveLayout(true)
+		.AllowSpin(false)
 		.OnXCommitted(this, &FSplinePointDetails::OnSetPosition, 0)
 		.OnYCommitted(this, &FSplinePointDetails::OnSetPosition, 1)
 		.OnZCommitted(this, &FSplinePointDetails::OnSetPosition, 2)
@@ -298,6 +312,7 @@ void FSplinePointDetails::GenerateChildContent(IDetailChildrenBuilder& ChildrenB
 		.Y(this, &FSplinePointDetails::GetArriveTangentY)
 		.Z(this, &FSplinePointDetails::GetArriveTangentZ)
 		.AllowResponsiveLayout(true)
+		.AllowSpin(false)
 		.OnXCommitted(this, &FSplinePointDetails::OnSetArriveTangent, 0)
 		.OnYCommitted(this, &FSplinePointDetails::OnSetArriveTangent, 1)
 		.OnZCommitted(this, &FSplinePointDetails::OnSetArriveTangent, 2)
@@ -324,6 +339,7 @@ void FSplinePointDetails::GenerateChildContent(IDetailChildrenBuilder& ChildrenB
 		.Y(this, &FSplinePointDetails::GetLeaveTangentY)
 		.Z(this, &FSplinePointDetails::GetLeaveTangentZ)
 		.AllowResponsiveLayout(true)
+		.AllowSpin(false)
 		.OnXCommitted(this, &FSplinePointDetails::OnSetLeaveTangent, 0)
 		.OnYCommitted(this, &FSplinePointDetails::OnSetLeaveTangent, 1)
 		.OnZCommitted(this, &FSplinePointDetails::OnSetLeaveTangent, 2)
@@ -350,6 +366,7 @@ void FSplinePointDetails::GenerateChildContent(IDetailChildrenBuilder& ChildrenB
 		.Y(this, &FSplinePointDetails::GetRotationPitch)
 		.Z(this, &FSplinePointDetails::GetRotationYaw)
 		.AllowResponsiveLayout(true)
+		.AllowSpin(false)
 		.OnXCommitted(this, &FSplinePointDetails::OnSetRotation, 0)
 		.OnYCommitted(this, &FSplinePointDetails::OnSetRotation, 1)
 		.OnZCommitted(this, &FSplinePointDetails::OnSetRotation, 2)
@@ -375,6 +392,7 @@ void FSplinePointDetails::GenerateChildContent(IDetailChildrenBuilder& ChildrenB
 		.X(this, &FSplinePointDetails::GetScaleX)
 		.Y(this, &FSplinePointDetails::GetScaleY)
 		.Z(this, &FSplinePointDetails::GetScaleZ)
+		.AllowSpin(false)
 		.AllowResponsiveLayout(true)
 		.OnXCommitted(this, &FSplinePointDetails::OnSetScale, 0)
 		.OnYCommitted(this, &FSplinePointDetails::OnSetScale, 1)
@@ -407,6 +425,25 @@ void FSplinePointDetails::GenerateChildContent(IDetailChildrenBuilder& ChildrenB
 			.Text(this, &FSplinePointDetails::GetPointType)
 		]
 	];
+
+	if (SplineComp && SplineVisualizer && SplineVisualizer->GetSelectedKeys().Num() > 0)
+	{
+		for (TObjectIterator<UClass> ClassIterator; ClassIterator; ++ClassIterator)
+		{
+			if (ClassIterator->IsChildOf(USplineMetadataDetailsFactoryBase::StaticClass()) && !ClassIterator->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists))
+			{
+				USplineMetadataDetailsFactoryBase* Factory = ClassIterator->GetDefaultObject<USplineMetadataDetailsFactoryBase>();
+				USplineMetadata* SplinePointsMetadata = SplineComp->GetSplinePointsMetadata();
+				if (SplinePointsMetadata != nullptr && Factory->GetMetadataClass() == SplinePointsMetadata->GetClass())
+				{
+					SplineMetaDataDetails = Factory->Create();
+					IDetailGroup& Group = ChildrenBuilder.AddGroup(SplineMetaDataDetails->GetName(), SplineMetaDataDetails->GetDisplayName());
+					SplineMetaDataDetails->GenerateChildContent(Group);
+					break;
+				}
+			}
+		}
+	}
 }
 
 void FSplinePointDetails::Tick(float DeltaTime)
@@ -417,7 +454,15 @@ void FSplinePointDetails::Tick(float DeltaTime)
 void FSplinePointDetails::UpdateValues()
 {
 	SplineComp = SplineVisualizer->GetEditedSplineComponent();
-	SelectedKeys = SplineVisualizer->GetSelectedKeys();
+
+	bool bNeedsRebuild = false;
+	const TSet<int32>& NewSelectedKeys = SplineVisualizer->GetSelectedKeys();
+
+	if (NewSelectedKeys.Num() != SelectedKeys.Num())
+	{
+		bNeedsRebuild = true;
+	}
+	SelectedKeys = NewSelectedKeys;
 
 	// Cache values to be shown by the details customization.
 	// An unset optional value represents 'multiple values' (in the case where multiple points are selected).
@@ -441,6 +486,16 @@ void FSplinePointDetails::UpdateValues()
 			Scale.Add(SplineComp->GetSplinePointsScale().Points[Index].OutVal);
 			PointType.Add(ConvertInterpCurveModeToSplinePointType(SplineComp->GetSplinePointsPosition().Points[Index].InterpMode));
 		}
+	}
+
+	if (SplineMetaDataDetails)
+	{
+		SplineMetaDataDetails->Update(SplineComp, SelectedKeys);
+	}
+
+	if (bNeedsRebuild)
+	{
+		OnRegenerateChildren.ExecuteIfBound();
 	}
 }
 
@@ -696,10 +751,20 @@ void FSplineComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 	// Hide the SplineCurves property
 	TSharedPtr<IPropertyHandle> SplineCurvesProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(USplineComponent, SplineCurves));
 	SplineCurvesProperty->MarkHiddenByCustomization();
+	 
 
-	IDetailCategoryBuilder& Category = DetailBuilder.EditCategory("Selected Points");
-	TSharedRef<FSplinePointDetails> SplinePointDetails = MakeShareable(new FSplinePointDetails);
-	Category.AddCustomBuilder(SplinePointDetails);
+	TArray<TWeakObjectPtr<UObject>> ObjectsBeingCustomized;
+	DetailBuilder.GetObjectsBeingCustomized(ObjectsBeingCustomized);
+
+	if (ObjectsBeingCustomized.Num() == 1)
+	{
+		if (USplineComponent* SplineComp = Cast<USplineComponent>(ObjectsBeingCustomized[0]))
+		{
+			IDetailCategoryBuilder& Category = DetailBuilder.EditCategory("Selected Points");
+			TSharedRef<FSplinePointDetails> SplinePointDetails = MakeShareable(new FSplinePointDetails(SplineComp));
+			Category.AddCustomBuilder(SplinePointDetails);
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

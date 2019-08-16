@@ -3,7 +3,6 @@
 #include "Widgets/SBoxPanel.h"
 #include "Layout/LayoutUtils.h"
 
-
 /**
  * Construct this widget
  *
@@ -205,6 +204,7 @@ static FVector2D ComputeDesiredSizeForBox( const TPanelChildren<SBoxPanel::FSlot
 		
 		if ( CurChild.GetWidget()->GetVisibility() != EVisibility::Collapsed )
 		{
+
 			const FVector2D& CurChildDesiredSize = CurChild.GetWidget()->GetDesiredSize();
 
 			if (Orientation == Orient_Vertical)

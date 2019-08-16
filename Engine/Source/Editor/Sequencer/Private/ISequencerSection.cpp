@@ -39,7 +39,7 @@ struct FGroupData
 	FText GroupText;
 
 	/** Sort order of the group */
-	uint8 SortOrder;
+	uint32 SortOrder;
 
 	/** Array of channels within this group */
 	TArray<FChannelData, TInlineAllocator<4>> Channels;
@@ -111,7 +111,7 @@ void ISequencerSection::GenerateSectionLayout( ISectionLayoutBuilder& LayoutBuil
 		Pair.Value.Channels.Sort([](const FChannelData& A, const FChannelData& B){
 			if (A.MetaData.SortOrder == B.MetaData.SortOrder)
 			{
-				return A.MetaData.Name < B.MetaData.Name;
+				return A.MetaData.Name.LexicalLess(B.MetaData.Name);
 			}
 			return A.MetaData.SortOrder < B.MetaData.SortOrder;
 		});

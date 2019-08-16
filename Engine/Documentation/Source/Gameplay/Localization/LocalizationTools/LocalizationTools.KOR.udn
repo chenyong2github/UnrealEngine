@@ -1,0 +1,110 @@
+INTSourceChangelist:6412660
+Availability: Public
+Crumbs: 
+Title: 현지화 툴
+Description: 언리얼 엔진 4 에서 사용할 수 있는 다양한 현지화 툴을 설명합니다.
+Type: 
+Version: 4.22
+Parent: Gameplay/Localization
+Order: 6
+Tags: Localization
+Tags: localization tools
+Tags: localization dashboard
+
+
+## 현지화 대시보드
+
+언리얼 엔진 4 (UE4)의 Localization Dashboard (현지화 대시보드)는 Localization Target (현지화 타깃)을 관리하는 툴입니다. 아직 실험단계로 분류되어 있지만, 안정적이고 내부 프로젝트에 사용하고 있습니다. 현지화 타깃을 관리하는 데 권장되는 방법이며, 에디터의 **창** 메뉴로 액세스할 수 있습니다.
+
+대시보드는 **Game** 현지화 타깃을 기본으로 생성하며, 프로젝트가 특히 복잡하지 않는 한 하나로 충분할 것입니다. **Gather Text** (텍스트 수집) 세팅으로 소스 코드가 어딨는지 애셋을 어디서 찾을 수 있는지 지정하고, **Cultures** (컬처) 세팅으로 프로젝트를 현지화하려는 언어를 지정할 수 있습니다. 여기에는 **Native** (네이티브) 컬처를 콘텐츠를 저작하는 언어로 설정하는 것이 포함됩니다.
+
+[REGION:note]
+새 현지화 타깃을 추가한 경우, 적합한 로딩 정책을 지정했는지 (보통 **Game**) 확인하세요. 지정하지 않으면, 현지화 타깃이 런타임에 로드되지 않습니다.
+[/REGION]
+
+현지화 타깃 구성이 완료되면, 툴바에서 **컬처** 섹션 아래에서 프로젝트 텍스트를  **수집**, **익스포트**, **임포트**, **컴파일** 할 수 있습니다. 새로운 번역이 생기거나 새 소스 텍스트가 추가됨에 따라 반복처리식으로 실행할 수 있는 프로세스입니다.
+
+이 동작을 실행한 후, `Config/Localization` 폴더에 INI 파일을 찾을 수 있습니다. 대시보드로 그 동작을 실행할 때마다 생성되며, [현지화 자동화](#현지화자동화) 파이프라인을 만들 계획이 없다면 소스 컨트롤에 제출하지 않아도 됩니다.
+
+[REGION:note]
+현재 (현지화 파이프라인을 이루는) 현지화 커맨드릿과 현지화 대시보드에는 (커맨드릿 버전을 생성하는 현지화 대시보드와 함께) 하나의 현지화 타깃에 대해 완전히 다른 두 개의 환경설정 레이아웃이 있습니다.
+[/REGION]
+
+## 번역 에디터
+
+Translation Editor (번역 에디터)는 현지화 대시보드에서 액세스할 수 있습니다. 텍스트 조각 번역을 간단히 확인할 수 있습니다. 자체 UI 에 세 개의 번역 탭을 제공합니다.
+
+*   **Untranslated** 미번역: 번역이 없는 텍스트입니다.
+
+*   **Needs Review** 검토 필요: 구버전 소스 텍스트에 대한 번역이 있는 텍스트입니다.
+
+*   **Completed** 완료: 현재 버전 소스 텍스트에 대해 번역이 완료된 텍스트입니다.
+
+번역 에디터는 단순한 툴로 자주 업데이트되지 않으며, 아마 제대로 된 번역 기능을 갖추고 있지는 못할 것입니다 (예를 들면 번역 메모리 기능이 없습니다). 그래서 번역 에디터는 특정 부분을 짚어서 수정할 때만 사용하는 것이 좋습니다. 일반적인 번역 작업은 이 번역 에디터 대신, PO 익스포트/임포트 파이프라인에 외부 번역 툴(, 예를 들면 [Poedit](https://poedit.net/), [OneSky](https://www.oneskyapp.com/), [XLOC](http://www.xloc.com/) 등)을 사용하는 것이 좋습니다.
+
+## 번역 선택 툴
+
+Translation Picker (번역 선택 툴)은 자주 업데이트되지 않는 실험단계 툴입니다. 에디터에서 플레이(PIE) 모드를 포함해서 UI 에 사용되는 텍스트 값의 정보를 조회해 볼 수 있습니다.
+
+번역 선택 툴은 **에디터 개인설정 > 실험단계** 에서 활성화할 수 있습니다. 활성화한 이후, 에디터 **창** 메뉴에서 액세스할 수 있습니다.
+
+번역 선택 툴이 활성화되면, 커서 주변에 떠다니는 창이 표시되며 커서 아래 위젯에 사용된 텍스트 값을 전부 나열합니다. 조사하려는 텍스트를 찾았으면, ESC 키를 눌러 선택 툴을 해당 선택에 고정시킬 수 있습니다.
+
+현지화 가능 텍스트(, 다른 말로 ID 가 있고 수집도 되었고 LocRes 파일로 컴파일도 된 텍스트)가 인라인 편집가능 텍스트 간에 표시되어 현재 번역을 바로 고칠 수 있습니다.  
+![](LocTools-01.png)
+
+[REGION:note]
+번역을 인라인 편집하는 기능은 언리얼 엔진 4.13 - 4.21 까지 사용할 수 없는 상태였지만, 4.22 버전에서 사용할 수 있도록 수정되었습니다.
+[/REGION]
+
+## 현지화 자동화
+
+현지화 자동화는 **Unreal Automation Tool** (언리얼 자동화 툴, UAT)의 Localize 스크립트를 사용합니다. 이 스크립트로 현지화 파이프라인 여러 부분을 실행할 수 있으며, 제품의 야간 현지화 업데이트를 생성하고, 외부 현지화 프로바이더와의 인터페이스 역할도 합니다. 이 스크립트는 현재 Win64 Development Editor 빌드용으로 하드코딩되어 있습니다.
+
+[REGION:note]
+언리얼 엔진 4.22 버전 이전:
+
+*   이 스크립트 이름은 **Localise** 였습니다. 이 이름은 여전히 별칭으로 존재합니다.
+
+*   `LocalizationProvider` 인수의 기본값은 `OneSky` 였습니다. 현지화 프로바이더를 사용하지 않는 경우, 이 인수를 빈 스트링으로 설정해야 합니다.
+[/REGION]
+
+외부 현지화 프로바이더 없이 인 소스 (언리얼 엔진 4 루트 폴더 아래 있는 프로젝트) 빌드에 대한 기본 호출은 이렇습니다.
+
+    Localize-UEProjectDirectory="YourProject"-UEProjectName="YourProject"-LocalizationProjectNames="TargetName"
+
+외부 현지화 프로바이더 없이 아웃 오브 소스 (UE4 루트 폴더 외부 프로젝트) 빌드에 대한 기본 호출은 이렇습니다.
+
+    Localize-UEProjectRoot="Path/To/Project"-UEProjectDirectory=""-UEProjectName="YourProject"-LocalizationProjectNames="TargetName"
+
+외부 현지화 프로바이더와의 인터페이스는 `LocalizationProvider` 에서 파생되는 클래스를 생성해야 합니다. 기본으로 두 가지 현지화 프로바이더를 제공하는데, OneSky 와 XLOC 입니다.
+
+| 현지화 프로바이더 | 구현 정보 |
+| --- | --- |
+| **OneSky** | [INCLUDE:#excerpt_1] |
+| **XLOC** | [INCLUDE:#excerpt_2] |
+
+<!--
+[EXCERPT:excerpt_2]
+
+*   `XLocLocalizationProvider` 로 구현합니다.
+
+*   `XLocLocalizationProvider` 파생 클래스를 생성하고 `Config` 변수를 환경설정 데이터로 채웁니다.
+
+*   `StaticGetLocalizationProviderId` 와 `GetLocalizationProviderId` 를 오버라이드하여 환경설정 이름을 반환하고, 이 이름을 `-LocalizationProvider` 인수에 전달하여 올바른 환경설정을 선택합니다.
+
+[/EXCERPT:excerpt_2]
+-->
+<!--
+[EXCERPT:excerpt_1]
+
+*   `OneSkyLocalizationProvider` 로 구현합니다.
+
+*   `OneSkyConfigData` 파생 클래스를 생성하여 환경설정 데이터를 저장하고, 그 환경설정 이름을 `-OneSkyConfigName` 인수에 전달하여 올바른 환경설정을 선택합니다.
+
+*   OneSky 그룹 이름을 `-OneSkyProjectGroupName` 인수에 전달합니다.
+
+*   `-LocalizationProvider=OneSky` 를 전달하여 OneSky 현지화 프로바이더를 사용합니다.
+
+[/EXCERPT:excerpt_1]
+-->

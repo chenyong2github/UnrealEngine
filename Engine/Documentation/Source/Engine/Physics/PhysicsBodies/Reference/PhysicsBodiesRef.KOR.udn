@@ -1,138 +1,155 @@
-﻿INTSourceChangelist:4649792
+﻿INTSourceChangelist:0
 Availability: Public
-Title:피직스 바디 참고서
-Crumbs: %ROOT%
-Description:피직스 바디, 또는 바디 인스턴스의 프로퍼티 참고서입니다.
-topic-image:Engine/Physics/physics_topic.png
+Title: Physics Bodies Reference
+Description: Physics Body, or Body Instance, property reference.
+Parent: Engine/Physics/PhysicsBodies
+topic-image: physics_topic.png
 
-이 글은 프로퍼티 중 Physics (피직스) 및 Collision (콜리전) 카테고리의 프로퍼티 참고 목록입니다. Collision Responses (콜리전 반응)이나 Collision Presets (콜리전 프리셋) 관련해서는, [](Engine/Physics/Collision/Reference) 문서를 참고하세요.
+This page contains a reference listing of properties in the Physics and Collision categories of properties. If you are looking for reference on Collision Responses or Collision Presets please see: [Collision Response Reference](Engine/Physics/Collision/Reference).
 
+## Properties
 
-## 프로퍼티
-
-Physics Body (피직스 바디), 또는 Body Instance (바디 인스턴스)의 프로퍼티를 주요 카테고리별로 나눈 것입니다.
+Below are the properties for Physics Bodies (Body Instances) separated by major category.
 
 [EXCERPT:PropPhysicsCat]
 ## Physics
 
 ![](physicsProps.png)
 
-[REGION:raw]
-| 프로퍼티 | 설명 |
-| --- | :--- |
-| **Simulate Physics** | [TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"BodyInstance:bSimulatePhysics" output:"block")] |
+[REGION:simpletable]
+| Property | Description |
+| --- | --- |
+| **Simulate Physics** | If true, this body will use simulation. If false, will be 'fixed' (ie kinematic) and move where it is told. For a Skeletal Mesh Component, simulating requires a physics asset setup and assigned on the SkeletalMesh asset. For a Static Mesh Component, simulating requires simple collision to be setup on the StaticMesh asset. |
 | **Mass in KG** | Mass of the body in KG. |
-| **Angular Damping** | [TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"BodyInstance:AngularDamping" output:"block")] |
-| **Linear Damping** | [TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"BodyInstance:LinearDamping" output:"block")] |
-| **Enable Gravity** | [TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"BodyInstance:bEnableGravity" output:"block")] |
-|[REGION:tablesection]**Constraints**[/REGION]||
-| **Lock Position** | [INCLUDE:#lockpos] |
-| **Lock Rotation** | [INCLUDE:#lockrot] |
-| **Mode** | [INCLUDE:#mode] |
+| **Angular Damping** | 'Drag' force added to reduce angular movement |
+| **Linear Damping** | 'Drag' force added to reduce linear movement |
+| **Enable Gravity** | If object should have the force of gravity applied |
+| [REGION:tablesection]**Constraints**[/REGION] ||
+| **Lock Position** | [INCLUDE:#excerpt_0] |
+| **Lock Rotation** | [INCLUDE:#excerpt_1] |
+| **Mode** | [INCLUDE:#excerpt_2] |
+
+<!--
+[EXCERPT:excerpt_0]
+
+When a Locked Axis Mode is selected, will lock translation on the specified axis
+
+  
+| Property | Description |
+| --- | --- |
+| **Lock X Translation** | Lock translation along the X-axis |
+| **Lock Y Translation** | Lock translation along the Y-axis |
+| **Lock Z Translation** | Lock translation along the Z-axis |
+
+  
+[/EXCERPT:excerpt_0]
+-->
+<!--
+[EXCERPT:excerpt_1]
+
+When a Locked Axis Mode is selected, will lock rotation to the specified axis
+
+  
+| Property | Description |
+| --- | --- |
+| **Lock X Rotation** | Lock rotation about the X-axis |
+| **Lock Y Rotation** | Lock rotation about the Y-axis |
+| **Lock Z Rotation** | Lock rotation about the Z-axis |
+
+  
+[/EXCERPT:excerpt_1]
+-->
+<!--
+[EXCERPT:excerpt_2]
+Locks physical movement along specified axis.  
+  
+[REGION:simpletable]
+| Property | Description |
+| --- | --- |
+| **Default** | Inherits the degrees of freedom from the project settings. |
+| **Six DOF** | Specifies which axis to freeze rotation and movement along. |
+| **YZPlane** | Allows 2D movement along the Y-Z plane. |
+| **XZPlane** | Allows 2D movement along the X-Z plane. |
+| **XYPlane** | Allows 2D movement along the X-Y plane. |
+| **Custom Plane** | Allows 2D movement along the plane of a given normal. |
+| **None** | No constraints. |
+[/REGION]
+
+[/EXCERPT:excerpt_2]
+-->
 [/REGION]
 
 ### Advanced
 
 ![](physicsPropsAdv.png)
 
-[REGION:raw]
-| 프로퍼티 | 설명 |
-| --- | :--- |
-| **Auto Weld** | [TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"BodyInstance:bAutoWeld" output:"block")] |
-| **Start Awake** |[TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"BodyInstance:bStartAwake" output:"block")] |
-| **Center Of Mass Offset** |[TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"BodyInstance:COMNudge" output:"block")] |
-| **Mass Scale** |[TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"BodyInstance:MassScale" output:"block")] |
-| **Max Angular Velocity** |[TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"BodyInstance:MaxAngularVelocity" output:"block")] |
-| **Use Async Scene** |[TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"BodyInstance:bUseAsyncScene" output:"block")] |
-| **Override Max Depenetration Velocity** |[TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"BodyInstance:bOverrideMaxDepenetrationVelocity" output:"block")] |
-| **Max Depenetration Velocity** |[TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"BodyInstance:MaxDepenetrationVelocity" output:"block")] |
-| **Override Walkable Slope on Instance** |[TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"BodyInstance:bOverrideWalkableSlopeOnInstance" output:"block")] |
-| **Walkable Slope Override** | [TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"BodySetup:WalkableSlopeOverride" output:"block")] See the **[](Engine/Physics/WalkableSlope)** documentation for usage information. |
-| **Walkable Slope Behavior** | [TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"WalkableSlopeOverride:WalkableSlopeBehavior" output:"block")] |
-| **Walkable Slope Angle** | [TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"WalkableSlopeOverride:WalkableSlopeAngle" output:"block")] |
-| **Sleep Family** | [TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"BodyInstance:SleepFamily" output:"block")] |
-| **Position Solver Iteration Count** | [TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"BodyInstance:PositionSolverIterationCount" output:"block")] |
-| **Velocity Solver Iteration Count** | [TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"BodyInstance:VelocitySolverIterationCount" output:"block")] |
-| **Should Update Physics Volume** | [TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"SceneComponent:bShouldUpdatePhysicsVolume" output:"block")] |
+[REGION:simpletable]
+| Property | Description |
+| --- | --- |
+| **Auto Weld** | If true and is attached to a parent, the two bodies will be joined into a single rigid body. Physical settings like collision profile and body settings are determined by the root |
+| **Start Awake** | If object should start awake, or if it should initially be sleeping |
+| **Center Of Mass Offset** | User specified offset for the center of mass of this object, from the calculated location |
+| **Mass Scale** | Per-instance scaling of mass |
+| **Max Angular Velocity** | The maximum angular velocity for this instance |
+| **Use Async Scene** | If true, this body will be put into the asynchronous physics scene. If false, it will be put into the synchronous physics scene. If the body is static, it will be placed into both scenes regardless of the value of bUseAsyncScene. |
+| **Override Max Depenetration Velocity** | Whether this body instance has its own custom MaxDepenetrationVelocity |
+| **Max Depenetration Velocity** | The maximum velocity used to depenetrate this object |
+| **Override Walkable Slope on Instance** | Whether this instance of the object has its own custom walkable slope override setting. |
+| **Walkable Slope Override** | [INCLUDE:#excerpt_3] |
+| **Walkable Slope Behavior** | Behavior of this surface (whether we affect the walkable slope). |
+| **Walkable Slope Angle** | Override walkable slope, applying the rules of the Walkable Slope Behavior. |
+| **Sleep Family** | The set of values used in considering when put this body to sleep. |
+| **Position Solver Iteration Count** | This physics body's solver iteration count for position. Increasing this will be more CPU intensive, but better stabilized. |
+| **Velocity Solver Iteration Count** | This physics body's solver iteration count for velocity. Increasing this will be more CPU intensive, but better stabilized. |
+| **Should Update Physics Volume** | Whether or not the cached PhysicsVolume this component overlaps should be updated when the component is moved. @see GetPhysicsVolume() |
 
+<!--
+[EXCERPT:excerpt_3]
+
+Custom walkable slope setting for this body.
+
+See the **[Walkable Slope](Engine/Physics/WalkableSlope)** documentation for usage information.
+
+[/EXCERPT:excerpt_3]
+-->
 [/REGION]
-[/EXCERPT]
+[/EXCERPT:PropPhysicsCat]
 
 [EXCERPT:PropColCat]
 ## Collision
 
 ![](collisionProps.png)
 
-[REGION:raw]
-| 프로퍼티 | 설명 |
-| --- | :--- |
-| **Simulation Generates Hit Events** | [TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"BodyInstance:bNotifyRigidBodyCollision" output:"block")] |
-| **Phys Material Override** | [TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"BodyInstance:PhysMaterialOverride" output:"block")] |
-| **Generate Overlap Events** | [TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"PrimitiveComponent:bGenerateOverlapEvents" output:"block")] |
-| **Collision Responses** | See the **[](Engine/Physics/Collision/Reference)** documentation for more information. |
+[REGION:simpletable]
+| Property | Description |
+| --- | --- |
+| **Simulation Generates Hit Events** | Should 'Hit' events fire when this object collides during physics simulation. |
+| **Phys Material Override** | Allows you to override the PhysicalMaterial to use for simple collision on this body. |
+| **Generate Overlap Events** | [INCLUDE:#excerpt_4] |
+| **Collision Responses** | See the [Collision Response Reference](Engine/Physics/Collision/Reference) documentation for more information. |
+
+<!--
+[EXCERPT:excerpt_4]
+
+If true, this component will generate overlap events when it is overlapping other components (for example, Begin Overlap). Both components (this and the other) must have this enabled for overlap events to occur. See Overlap Events in [Collision](Engine/Physics/Collision).
+
+[/EXCERPT:excerpt_4]
+-->
 [/REGION]
 
-### 고급
+### Advanced
 
 ![](collisionPropsAdv.png)
 
-[REGION:raw]
-| 프로퍼티 | 설명 |
-| --- | :--- |
-| **Use CCD** | [TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"BodyInstance:bUseCCD" output:"block")] |
-| **Always Create Physics State** | [TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"PrimitiveComponent:bAlwaysCreatePhysicsState" output:"block")] |
-| **Multi Body Overlap** | [TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"PrimitiveComponent:bMultiBodyOverlap" output:"block")] | 
-| **Check Async Scene On Move** | [TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"PrimitiveComponent:bCheckAsyncSceneOnMove" output:"block")] |
-| **Trace Complex On Move** | [TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"PrimitiveComponent:bTraceComplexOnMove" output:"block")] |
-| **Return Material On Move** | [TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"PrimitiveComponent:bReturnMaterialOnMove" output:"block")] |
+[REGION:simpletable]
+| Property | Description |
+| --- | --- |
+| **Use CCD** | If true Continuous Collision Detection (CCD) will be used for this component |
+| **Always Create Physics State** | Indicates if we'd like to create physics state all the time (for collision and simulation). If you set this to false, it still will create physics state if collision or simulation activated. This can help performance if you'd like to avoid overhead of creating physics state when triggers |
+| **Multi Body Overlap** | If true, this component will generate individual overlaps for each overlapping physics body if it is a multi-body component. When false, this component will generate only one overlap, regardless of how many physics bodies it has and how many of them are overlapping another component/body. This flag has no influence on single body components. |
+| **Check Async Scene On Move** | If true, this component will look for collisions on both physic scenes during movement. Only required if the asynchronous physics scene is enabled and has geometry in it, and you wish to test for collisions with objects in that scene. @see MoveComponent() |
+| **Trace Complex On Move** | If true, component sweeps with this component should trace against complex collision during movement (for example, each triangle of a mesh). If false, collision will be resolved against simple collision bounds instead. @see MoveComponent() |
+| **Return Material On Move** | If true, component sweeps will return the material in their hit result. @see MoveComponent(), FHitResult |
 | **Can Ever Affect Navigation** | Whether this component can potentially influence navigation |
-
 [/REGION]
-[/EXCERPT]
-
-[COMMENT:none]
-
-[EXCERPT:lockpos]
-
-[TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"BodyInstance:bLockTranslation" output:"block")]
-
-[REGION:simpletable]
-| 프로퍼티 | 설명 |
-| --- | :--- |
-| **Lock X Translation** | [TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"BodyInstance:bLockXTranslation" output:"block")] |
-| **Lock Y Translation** | [TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"BodyInstance:bLockYTranslation" output:"block")] |
-| **Lock Z Translation** | [TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"BodyInstance:bLockZTranslation" output:"block")] |
-[/REGION]
-[/EXCERPT]
-
-[EXCERPT:lockrot]
-
-[TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"BodyInstance:bLockRotation" output:"block")]
-
-[REGION:simpletable]
-| 프로퍼티 | 설명 |
-| --- | :--- |
-| **Lock X Rotation** | [TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"BodyInstance:bLockXRotation" output:"block")] |
-| **Lock Y Rotation** | [TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"BodyInstance:bLockYRotation" output:"block")] |
-| **Lock Z Rotation** | [TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"BodyInstance:bLockZRotation" output:"block")] |
-[/REGION]
-[/EXCERPT]
-
-[EXCERPT:mode]
-
-[TEXT(type:"tooltip" namespace:"UObjectToolTips" key:"BodyInstance:DOFMode" output:"block")]
-
-[REGION:simpletable]
-| 프로퍼티 | 설명 |
-| --- | :--- |
-| **Default** | 프로젝트 세팅에서 자유도를 물려받습니다. |
-| **Six DOF** | 이동과 회전을 고정시킬 축을 지정합니다. |
-| **YZPlane** | Y-Z 면의 2D 운동이 가능합니다. |
-| **XZPlane** | X-Z 면의 2D 운동이 가능합니다. |
-| **XYPlane** | X-Y 면의 2D 운동이 가능합니다. |
-| **Custom Plane** | 주어진 노멀 면으로의 2D 운동이 가능합니다. |
-| **None** | 컨스트레인트가 없습니다. |
-[/REGION]
-[/EXCERPT]
-
-[/COMMENT]
+[/EXCERPT:PropColCat]

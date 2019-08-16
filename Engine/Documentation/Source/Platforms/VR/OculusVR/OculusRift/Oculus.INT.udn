@@ -1,0 +1,38 @@
+Title: Oculus Rift
+Availability: Public
+Crumbs: %ROOT%, Platforms
+Description: Information on getting UE4 to work with the Oculus Rift HMD.
+Navigation: platform
+Platform: Oculus
+Version: 4.17
+type: landing
+parent: Platforms/VR/OculusVR
+order:2
+tags:VR
+Tags: Desktop VR
+tags: Oculus Rift
+tags: Platform
+Tags: VR
+topic-image: OculusRiftDevelopment_topic.png
+
+![](Rift_Touch_Tracker.png)(w:1000)
+
+## Starting Out 
+
+[DIR(end:"1" output:"topic" type:"quick start" parent:"Platforms/VR/OculusVR/OculusRift")]
+
+## Oculus Rift Development
+
+[DIR(end:"1" output:"topic" type:"reference,overview" parent:"Platforms/VR/OculusVR/OculusRift")]
+
+## Guides
+
+[DIR(output:"fancy" type:"how-to" skilllevel:"Beginner" parent:"Platforms/VR/OculusVR/OculusRift" org:"flat")]
+[DIR(output:"fancy" type:"how-to" skilllevel:"Intermediate" parent:"Platforms/VR/OculusVR/OculusRift" org:"flat")]
+[DIR(output:"fancy" type:"how-to" skilllevel:"Advanced" parent:"Platforms/VR/OculusVR/OculusRift" org:"flat")]
+[DIR(output:"fancy" type:"how-to" skilllevel:"Expert" parent:"Platforms/VR/OculusVR/OculusRift" org:"flat")]
+
+
+
+
+

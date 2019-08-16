@@ -8,7 +8,7 @@ import java.util.List;
 
 public class MulticastBroadcastReceiver extends BroadcastReceiver
 {
-	public static Logger Log = new Logger("UE4-BroadcastReceiver");
+	public static Logger Log = new Logger("UE4", "BroadcastReceiver");
 
 	@Override
 	public void onReceive(Context context, Intent intent)

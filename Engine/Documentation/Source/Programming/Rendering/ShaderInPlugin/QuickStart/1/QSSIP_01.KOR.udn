@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3967023
+INTSourceChangelist:3967023
 Availability:Public 
 Crumbs: %ROOT%
 Title: 플러그인에 새로운 글로벌 셰이더 생성 - 코드 구성
@@ -42,7 +42,7 @@ Checkpoint:shaderqs
     클릭하면 이미지 원본을 확인합니다.
     [/REGION]
 
-1. **새 플러그인** 창에서 **Blank** (공백) 플러그인을 선택하고 이름을 **Foo** 라 입력한 뒤, 기본 설정 그대로 놔둡니다. 그 작업이 전부 완료된 후 **Create Plugin** (플러그인 생성) 버튼을 클릭하면 플러그인에 필요한 초기 필수 콘텐츠가 전부 생성됩니다.
+1. **새 플러그인** 창에서 **Blank** (기본) 플러그인을 선택하고 이름을 **Foo** 라 입력한 뒤, 기본 설정 그대로 놔둡니다. 그 작업이 전부 완료된 후 **Create Plugin** (플러그인 생성) 버튼을 클릭하면 플러그인에 필요한 초기 필수 콘텐츠가 전부 생성됩니다.
 
     [REGION:lightbox]
     [![](HT_ShadersInPlugins_03.png)(w:564)](HT_ShadersInPlugins_03.png)

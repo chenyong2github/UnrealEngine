@@ -28,7 +28,7 @@ public:
 	static TSharedRef<FAndroidWindow> Make();
 
 	
-	virtual void* GetOSWindowHandle() const override { return Window; } //can be null.
+	virtual void* GetOSWindowHandle() const override { return nullptr; }
 
 	void Initialize( class FAndroidApplication* const Application, const TSharedRef< FGenericWindowDefinition >& InDefinition, const TSharedPtr< FAndroidWindow >& InParent, const bool bShowImmediately );
 
@@ -37,10 +37,12 @@ public:
 
 	virtual void SetOSWindowHandle(void*);
 
-	static FPlatformRect GetScreenRect();
+	static FPlatformRect GetScreenRect(bool bUseEventThreadWindow = false);
 	static void InvalidateCachedScreenRect();
 
-	static void CalculateSurfaceSize(void* InWindow, int32_t& SurfaceWidth, int32_t& SurfaceHeight);
+	// When bUseEventThreadWindow == false this uses dimensions cached when the game thread processes android events.
+	// When bUseEventThreadWindow == true this uses dimensions directly from the android event thread, unless called from event thread this requires acquiring GAndroidWindowLock to use.
+	static void CalculateSurfaceSize(int32_t& SurfaceWidth, int32_t& SurfaceHeight, bool bUseEventThreadWindow = false);
 	static bool OnWindowOrientationChanged(bool bIsPortrait);
 
 	static int32 GetDepthBufferPreference();
@@ -48,8 +50,9 @@ public:
 	static void AcquireWindowRef(ANativeWindow* InWindow);
 	static void ReleaseWindowRef(ANativeWindow* InWindow);
 
-	static void* GetHardwareWindow();
-	static void SetHardwareWindow(void* InWindow);
+	// This returns the current hardware window as set from the event thread.
+	static void* GetHardwareWindow_EventThread();
+	static void SetHardwareWindow_EventThread(void* InWindow);
 
 	/** Waits on the current thread for a hardware window and returns it. 
 	 *  May return nullptr if the application is shutting down.
@@ -59,6 +62,12 @@ public:
 	static bool IsPortraitOrientation();
 	static FVector4 GetSafezone(bool bPortrait);
 
+	// called by the Android event thread to initially set the current window dimensions.
+	static void SetWindowDimensions_EventThread(ANativeWindow* DimensionWindow);
+
+	// Called by the event manager to update the cached window dimensions to match the event it is processing.
+	static void EventManagerUpdateWindowDimensions(int32 Width, int32 Height);
+
 protected:
 	/** @return true if the native window is currently in fullscreen mode, false otherwise */
 	virtual EWindowMode::Type GetWindowMode() const override { return EWindowMode::Fullscreen; }
@@ -66,9 +75,9 @@ protected:
 private:
 	/** called from GetScreenRect function */
 	/** test cached values from the latest computations stored by CacheRect to decide their validity with the provided arguments */
-	static bool IsCachedRectValid(const bool bMosaicEnabled, const float RequestedContentScaleFactor, ANativeWindow* Window);
+	static bool IsCachedRectValid(bool bUseEventThreadWindow, const bool bMosaicEnabled, const float RequestedContentScaleFactor, ANativeWindow* Window);
 	/** caches some values used to compute the size of the window by GetScreenRect function */
-	static void CacheRect(ANativeWindow* Window, const int32 Width, const int32 Height, const float RequestedContentScaleFactor, const bool bMosaicEnabled);
+	static void CacheRect(bool bUseEventThreadWindow, const int32 Width, const int32 Height, const float RequestedContentScaleFactor, const bool bMosaicEnabled, ANativeWindow* Window);
 
 	/**
 	 * Protect the constructor; only TSharedRefs of this class can be made.
@@ -77,12 +86,16 @@ private:
 
 	FAndroidApplication* OwningApplication;
 
-	/** iOS window handle, typically, only one should ever exist */
-	ANativeWindow *Window;
-
 	/** Store the window region size for querying whether a point lies within the window */
 	int32 RegionX;
 	int32 RegionY;
 
 	static void* NativeWindow;
+
+	// Waits for the event thread to report an initial window size.
+	static bool WaitForWindowDimensions();
+
+	static bool bAreCachedNativeDimensionsValid;
+	static int32 CachedNativeWindowWidth;
+	static int32 CachedNativeWindowHeight;
 };

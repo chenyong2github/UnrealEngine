@@ -617,6 +617,13 @@ bool UMediaPlayer::SetLooping(bool Looping)
 }
 
 
+void UMediaPlayer::SetMediaOptions(const UMediaSource* Options)
+{
+	UE_LOG(LogMediaAssets, Verbose, TEXT("%s.SetMediaOptions"), *GetFName().ToString());
+	PlayerFacade->SetMediaOptions(Options);
+}
+
+
 bool UMediaPlayer::SetRate(float Rate)
 {
 	UE_LOG(LogMediaAssets, Verbose, TEXT("%s.SetRate %f"), *GetFName().ToString(), Rate);

@@ -16,6 +16,9 @@
 #include "NiagaraNodeParameterMapGet.h"
 #include "NiagaraConstants.h"
 #include "NiagaraCustomVersion.h"
+#include "NiagaraDataInterfaceSkeletalMesh.h"
+#include "SNiagaraGraphNodeFunctionCallWithSpecifiers.h"
+#include "Misc/SecureHash.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeFunctionCall"
 
@@ -69,9 +72,77 @@ void UNiagaraNodeFunctionCall::PostLoad()
 		}
 	}
 
+	// Clean up invalid old references to propagated parameters
+	CleanupPropagatedSwitchValues();
+	
 	if (FunctionDisplayName.IsEmpty())
 	{
 		ComputeNodeName();
+	}
+}
+
+void UNiagaraNodeFunctionCall::UpgradeDIFunctionCalls()
+{
+	UClass* InterfaceClass = nullptr;
+	UNiagaraDataInterface* InterfaceCDO = nullptr;
+	if (Signature.IsValid() && FunctionScript == nullptr)
+	{
+		if (Signature.Inputs.Num() > 0)
+		{
+			if (Signature.Inputs[0].GetType().IsDataInterface())
+			{
+				InterfaceClass = Signature.Inputs[0].GetType().GetClass();
+				InterfaceCDO = Cast<UNiagaraDataInterface>(InterfaceClass->GetDefaultObject());
+			}
+		}
+	}
+
+	FString UpgradeNote;
+
+	//TODO: Move this out into DI specific functions or helper classes?
+	if (InterfaceClass && InterfaceCDO)
+	{		
+		if (InterfaceClass == UNiagaraDataInterfaceSkeletalMesh::StaticClass())
+		{
+			if (Signature.Name == TEXT("RandomTriCoord"))
+			{
+				if (Signature.Inputs.Num() == 1)//If this is before we added the additional seed inputs. TODO: Add a per DI version number to make this simpler and clearer. In this case we can detect old data easy enough but a version number is better.
+				{
+					UpgradeNote = TEXT("Adding RandomInfo parameter to support deterministic random sampling.");
+
+					Signature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(FNiagaraRandInfo::StaticStruct()), TEXT("RandomInfo")));
+					ReallocatePins();
+				}
+			}
+		}
+	}
+
+	if (!UpgradeNote.IsEmpty())
+	{
+		UE_LOG(LogNiagaraEditor, Log, TEXT("Upgradeing Niagara Data Interface fuction call node. This may cause unnessessary recompiles. Please resave these assets if this occurs. Or use fx.UpgradeAllNiagaraAssets."));
+		UE_LOG(LogNiagaraEditor, Log, TEXT("Node: %s"), *GetFullName());
+		if (InterfaceCDO)
+		{
+			UE_LOG(LogNiagaraEditor, Log, TEXT("Interface: %s"), *InterfaceCDO->GetFullName());
+		}
+		UE_LOG(LogNiagaraEditor, Log, TEXT("Function: %s"), *Signature.GetName());
+		UE_LOG(LogNiagaraEditor, Log, TEXT("Upgrade Note: %s"),* UpgradeNote);
+	}
+}
+
+TSharedPtr<SGraphNode> UNiagaraNodeFunctionCall::CreateVisualWidget()
+{
+	if (!FunctionScript && FunctionSpecifiers.Num() == 0)
+	{
+		FunctionSpecifiers = Signature.FunctionSpecifiers;
+	}
+	if (FunctionSpecifiers.Num() == 0)
+	{
+		return Super::CreateVisualWidget();
+	}
+	else
+	{
+		return SNew(SNiagaraGraphNodeFunctionCallWithSpecifiers, this);
 	}
 }
 
@@ -155,18 +226,32 @@ void UNiagaraNodeFunctionCall::AllocateDefaultPins()
 		}
 
 		TArray<FNiagaraVariable> SwitchNodeInputs = Graph->FindStaticSwitchInputs();
-		for (const FNiagaraVariable& Input : SwitchNodeInputs)
+		for (FNiagaraVariable& Input : SwitchNodeInputs)
 		{
 			UEdGraphPin* NewPin = CreatePin(EGPD_Input, Schema->TypeDefinitionToPinType(Input.GetType()), Input.GetName());
-			NewPin->bDefaultValueIsIgnored = false;
 			NewPin->bNotConnectable = true;
+			NewPin->bDefaultValueIsIgnored = FindPropagatedVariable(Input) != nullptr;
 
 			FString PinDefaultValue;
-			if (Schema->TryGetPinDefaultValueFromNiagaraVariable(Input, PinDefaultValue))
+			TOptional<FNiagaraVariableMetaData> MetaData = Graph->GetMetaData(Input);
+			if (MetaData.IsSet())
 			{
-				NewPin->DefaultValue = PinDefaultValue;
+				int32 DefaultValue = MetaData->StaticSwitchDefaultValue;
+				Input.AllocateData();
+				Input.SetValue<FNiagaraInt32>({ DefaultValue });
+				
+				if (Schema->TryGetPinDefaultValueFromNiagaraVariable(Input, PinDefaultValue))
+				{
+					NewPin->DefaultValue = PinDefaultValue;
+				}
 			}
-			NewPin->bDefaultValueIsIgnored = PropagatedStaticSwitchParameters.Contains(Input);
+			else
+			{
+				if (Schema->TryGetPinDefaultValueFromNiagaraVariable(Input, PinDefaultValue))
+				{
+					NewPin->DefaultValue = PinDefaultValue;
+				}
+			}
 		}
 
 		for (FNiagaraVariable& Output : Outputs)
@@ -357,7 +442,7 @@ void UNiagaraNodeFunctionCall::Compile(class FHlslNiagaraTranslator* Translator,
 
 		TArray<UEdGraphPin*> CallerInputPins;
 		GetInputPins(CallerInputPins);
-
+		
 		UNiagaraScriptSource* Source = CastChecked<UNiagaraScriptSource>(FunctionScript->GetSource());
 		UNiagaraGraph* FunctionGraph = Source->NodeGraph;
 
@@ -446,6 +531,9 @@ void UNiagaraNodeFunctionCall::Compile(class FHlslNiagaraTranslator* Translator,
 				}
 			}
 		}
+
+		FCompileConstantResolver ConstantResolver(Translator);
+		FNiagaraEditorUtilities::SetStaticSwitchConstants(GetCalledGraph(), CallerInputPins, ConstantResolver);
 	}
 	else if (Signature.IsValid())
 	{
@@ -473,7 +561,7 @@ void UNiagaraNodeFunctionCall::Compile(class FHlslNiagaraTranslator* Translator,
 				}
 			}
 		}
-
+		Signature.FunctionSpecifiers = FunctionSpecifiers;
 		bError = CompileInputPins(Translator, Inputs);
 	}		
 	else
@@ -548,6 +636,7 @@ bool UNiagaraNodeFunctionCall::RefreshFromExternalChanges()
 	UNiagaraGraph* CalledGraph = GetCalledGraph();
 	if (CalledGraph)
 	{
+		CleanupPropagatedSwitchValues();
 		TArray<UEdGraphPin*> InputPins;
 		GetInputPins(InputPins);
 		for (FNiagaraVariable InputVar : CalledGraph->FindStaticSwitchInputs())
@@ -556,7 +645,7 @@ bool UNiagaraNodeFunctionCall::RefreshFromExternalChanges()
 			{
 				if (InputVar.GetName().IsEqual(Pin->GetFName()))
 				{
-					Pin->bDefaultValueIsIgnored = PropagatedStaticSwitchParameters.Contains(InputVar);
+					Pin->bDefaultValueIsIgnored = FindPropagatedVariable(InputVar) != nullptr;
 					break;
 				}
 			}
@@ -617,6 +706,12 @@ void UNiagaraNodeFunctionCall::GatherExternalDependencyIDs(ENiagaraScriptUsage I
 	}
 }
 
+void UNiagaraNodeFunctionCall::UpdateCompileHashForNode(FSHA1& HashState) const
+{
+	Super::UpdateCompileHashForNode(HashState);
+	HashState.UpdateWithString(*GetFunctionName(), GetFunctionName().Len());
+}
+
 bool UNiagaraNodeFunctionCall::ScriptIsValid() const
 {
 	if (FunctionScript != nullptr)
@@ -630,9 +725,9 @@ bool UNiagaraNodeFunctionCall::ScriptIsValid() const
 	return false;
 }
 
-void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive) const
+void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive /*= true*/, bool bFilterForCompilation /*= true*/) const
 {
-	Super::BuildParameterMapHistory(OutHistory, bRecursive);
+	Super::BuildParameterMapHistory(OutHistory, bRecursive, bFilterForCompilation);
 	if (!IsNodeEnabled() && OutHistory.GetIgnoreDisabled())
 	{
 		RouteParameterMapAroundMe(OutHistory, bRecursive);
@@ -644,7 +739,7 @@ void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHist
 	{
 		UNiagaraScriptSource* Source = CastChecked<UNiagaraScriptSource>(FunctionScript->GetSource());
 		UNiagaraGraph* FunctionGraph = CastChecked<UNiagaraGraph>(Source->NodeGraph);
-		
+
 		UNiagaraNodeOutput* OutputNode = FunctionGraph->FindOutputNode(ENiagaraScriptUsage::Function);
 		if (OutputNode == nullptr)
 		{
@@ -654,6 +749,10 @@ void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHist
 		{
 			OutputNode = FunctionGraph->FindOutputNode(ENiagaraScriptUsage::DynamicInput);
 		}
+
+		TArray<UEdGraphPin*> InputPins;
+		GetInputPins(InputPins);
+		FNiagaraEditorUtilities::SetStaticSwitchConstants(FunctionGraph, InputPins, OutHistory.ConstantResolver);
 
 		int32 ParamMapIdx = INDEX_NONE;
 		uint32 NodeIdx = INDEX_NONE;
@@ -665,13 +764,13 @@ void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHist
 				ParamMapIdx = OutHistory.TraceParameterMapOutputPin(UNiagaraNode::TraceOutputPin(GetInputPin(0)->LinkedTo[0]));
 			}
 		}
-		
+
 		OutHistory.EnterFunction(GetFunctionName(), FunctionScript, this);
 		if (ParamMapIdx != INDEX_NONE)
 		{
 			NodeIdx = OutHistory.BeginNodeVisitation(ParamMapIdx, this);
 		}
-		OutputNode->BuildParameterMapHistory(OutHistory, true);
+		OutputNode->BuildParameterMapHistory(OutHistory, true, bFilterForCompilation);
 
 		// Since we're about to lose the pin calling context, we finish up the function call parameter map pin wiring
 		// here when we have the calling context and the child context still available to us...
@@ -679,12 +778,12 @@ void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHist
 		GetOutputPins(OutputPins);
 
 		TArray<TPair<UEdGraphPin*, int32> > MatchedPairs;
-		
+
 		// Find the matches of names and types of the sub-graph output pins and this function call nodes' outputs.
 		for (UEdGraphPin* ChildOutputNodePin : OutputNode->GetAllPins())
 		{
 			FNiagaraVariable VarChild = Schema->PinToNiagaraVariable(ChildOutputNodePin);
-			
+
 			if (ChildOutputNodePin->LinkedTo.Num() > 0 && VarChild.GetType() == FNiagaraTypeDefinition::GetParameterMapDef())
 			{
 				for (int32 i = 0; i < OutputPins.Num(); i++)
@@ -765,6 +864,30 @@ void UNiagaraNodeFunctionCall::SuggestName(FString SuggestedName)
 UNiagaraNodeFunctionCall::FOnInputsChanged& UNiagaraNodeFunctionCall::OnInputsChanged()
 {
 	return OnInputsChangedDelegate;
+}
+
+FNiagaraPropagatedVariable* UNiagaraNodeFunctionCall::FindPropagatedVariable(const FNiagaraVariable& Variable)
+{
+	for (FNiagaraPropagatedVariable& Propagated : PropagatedStaticSwitchParameters)
+	{
+		if (Propagated.SwitchParameter == Variable)
+		{
+			return &Propagated;
+		}
+	}
+	return nullptr;
+}
+
+void UNiagaraNodeFunctionCall::RemovePropagatedVariable(const FNiagaraVariable& Variable)
+{
+	for (int i = 0; i < PropagatedStaticSwitchParameters.Num(); i++)
+	{
+		if (PropagatedStaticSwitchParameters[i].SwitchParameter == Variable)
+		{
+			PropagatedStaticSwitchParameters.RemoveAt(i);
+			return;
+		}
+	}
 }
 
 ENiagaraNumericOutputTypeSelectionMode UNiagaraNodeFunctionCall::GetNumericOutputTypeSelectionMode() const
@@ -851,6 +974,35 @@ void UNiagaraNodeFunctionCall::SetPinAutoGeneratedDefaultValue(UEdGraphPin& Func
 			}
 		}
 	}
+}
+
+void UNiagaraNodeFunctionCall::CleanupPropagatedSwitchValues()
+{
+	for (int i = PropagatedStaticSwitchParameters.Num() - 1; i >= 0; i--)
+	{
+		FNiagaraPropagatedVariable& Propagated = PropagatedStaticSwitchParameters[i];
+		if (Propagated.SwitchParameter.GetName().IsNone() || !IsValidPropagatedVariable(Propagated.SwitchParameter))
+		{
+			PropagatedStaticSwitchParameters.RemoveAt(i);
+		}
+	}
+}
+
+bool UNiagaraNodeFunctionCall::IsValidPropagatedVariable(const FNiagaraVariable& Variable) const
+{
+	UNiagaraGraph* Graph = GetCalledGraph();
+	if (!Graph)
+	{
+		return false;
+	}
+	for (const FNiagaraVariable& Var : Graph->FindStaticSwitchInputs(false))
+	{
+		if (Var == Variable)
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 bool UNiagaraNodeFunctionCall::FindAutoBoundInput(UNiagaraNodeInput* InputNode, UEdGraphPin* PinToAutoBind, FNiagaraVariable& OutFoundVar, ENiagaraInputNodeUsage& OutNodeUsage)

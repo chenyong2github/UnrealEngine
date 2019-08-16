@@ -1,19 +1,22 @@
-INTSourceChangelist:4378815
-Availability:Public
+INTSourceChangelist:6519566
+Availability: Public
 Title: 캐스케이드 섀도 사용법
-Crumbs:%ROOT%, Platforms, Platforms/Mobile
 Description:모바일 게임용 Cascaded Shadow 설정 방법입니다.
-Platform:Mobile
+Type: how-to
+Version: 4.20
+Parent: Platforms/Mobile
+Tags: mobile
+SkillLevel: Advanced
+Related: Engine/Rendering/Materials/ExpressionReference/Utility
+Related: Engine/Rendering/Materials/MaterialProperties/BlendModes
+Related: Engine/Rendering/Materials/CustomizedUVs
 Related: Platforms/Mobile/Performance
 Related: Platforms/Mobile/Textures
-Related: Engine/Rendering/Materials/CustomizedUVs
-Related: Engine/Rendering/Materials/MaterialProperties/BlendModes
 Related: Engine/Rendering/Materials/ExpressionReference/Utility
-version: 4.20
-parent:Platforms/Mobile
-order:3
-type:overview
-tags:mobile
+Related: Engine/Rendering/Materials/MaterialProperties/BlendModes
+Related: Engine/Rendering/Materials/CustomizedUVs
+Related: Platforms/Mobile/Performance
+Related: Platforms/Mobile/Textures
 
 Stationary Directional Light (스테이셔너리 디렉셔널 라이트)를 사용하면 씬의 다이내믹 오브젝트에 Dynamic Cascade Shadow Maps (다이내믹 캐스케이드 섀도 맵, CSM)을 드리울 수 있습니다. CSM 섀도를 사용하면, 씬의 정적 오브젝트가 드리우는 미리계산 그림자와 동적 오브젝트의 그림자가 제대로 어우러집니다.
 
@@ -28,68 +31,69 @@ Stationary Directional Light (스테이셔너리 디렉셔널 라이트)를 사�
 [/REGION]
 
 1. 씬의 디렉셔널 라이트를 선택합니다. **Transform** (트랜스폼) 섹션 아래 **Mobility** (모빌리티) 세팅이 **Stationary** (스테이셔너리) 설정되었는지 확인합니다.
-   [REGION:lightbox]
-   [![CSM_Setup_01](CSM_Setup_01.png)(w:640)](CSM_Setup_01.png)
-   [/REGION]
-   [REGION:caption]
-   이미지를 클릭하면 원본을 확인합니다.
-   [/REGION]
+
+    [REGION:lightbox]
+    [![](CSM_Setup_01.png)(w:300)](CSM_Setup_01.png)
+    [/REGION]
+    [REGION:caption]
+    *이미지를 클릭하면 원본을 확인합니다.*
+    [/REGION]    
 1. 계속 디렉셔널 라이트를 선택한 채 **디테일** 패널에서 **Cascaded Shadows Maps** (캐스케이드 섀도 맵) 섹션을 찾습니다. 디렉셔널 라이트의 다음 프로퍼티를 조정합니다.
-   [REGION:lightbox]
-   [![CSM_Setup_02](CSM_Setup_02.png)(w:640)](CSM_Setup_02.png)
-   [/REGION]
-   [REGION:caption]
-   이미지를 클릭하면 원본을 확인합니다.
-   [/REGION]
 
-   | 프로퍼티 이름 | 값 |
-   |---|---|
-   | **Dynamic Shadow Distance Stationary Light** | 2,000 |
-   |** Num Dynamic Shadows Cascades** | 1 |
-
-[REGION:note]
-위는 제안일 뿐입니다. 자유롭게 시험해 보면서 프로젝트에 가장 잘 맞는 결과를 찾아보세요.
-[/REGION]
-
+    [REGION:lightbox]
+    [![](CSM_Setup_02.png)(w:300)](CSM_Setup_02.png)
+    [/REGION]
+    [REGION:caption]
+    *이미지를 클릭하면 원본을 확인합니다.*
+    [/REGION]
+    
+	[REGION:simpletable]
+    | **프로퍼티 이름** | **값** |
+    | --- | --- |
+    | **Dynamic Shadow Distance Stationary Light** | 2,000 |
+    | **Num Dynamic Shadows Cascades** | 1 |
+    | **Dynamic Inset Shadow** | False |
+	[/REGION]
+    
+    [REGION:note]
+    위는 제안일 뿐입니다. 자유롭게 시험해 보면서 프로젝트에 가장 잘 맞는 결과를 찾아보세요.
+    [/REGION]
 1. 현재 릴리즈에서 모든 스태틱 메시는 기본적으로 CSM 이 활성화되어 있습니다. 하지만 필요 없는 메시의 경우 CSM 을 끄는 것이 좋습니다. CSM 을 끄는 방법은, 먼저 메시를 선택한 뒤  **디테일** 패널의 **Mobile** (모바일) 섹션에서 **Receive CSM Shadows** (CSM 섀도 받기) 옆 박스의 체크를 해제합니다.
-   ![](CascadedShadows_Steps_MobileSectionReceiveCSMShadows.png)
 
+    ![](CascadedShadows_Steps_MobileSectionReceiveCSMShadows.png)(w:90%)
 1. **메인 툴바** 에서 **플레이 모드** 를 **모바일 프리뷰** 로 변경하고 **플레이** 버튼을 눌러 레벨을 시작합니다.
-   
-[REGION:tip]
-모바일 프리뷰 창이 표시되지 않으면, 언리얼 에디터 창 뒤에 숨어있지는 않은지 확인하세요.
-[/REGION]
 
-[REGION:lightbox]
-[![](CSM_Setup_04.png)(w:640)](CSM_Setup_04.png)
-[/REGION]
-[REGION:caption]
-이미지를 클릭하면 원본을 확인합니다.
-[/REGION]
+    [REGION:tip]
+    모바일 프리뷰 창이 표시되지 않으면, 언리얼 에디터 창 뒤에 숨어있지는 않은지 확인하세요.
+    [/REGION]
+    [REGION:lightbox]
+    [![](CSM_Setup_04.png)(w:640)](CSM_Setup_04.png)
+    [/REGION]
+    [REGION:caption]
+    *이미지를 클릭하면 원본을 확인합니다.*
+    [/REGION]
 
 [REGION:note]
-다음 비디오는 **Receive CSM Shadows** 세팅의 효과를 보여줍니다. 바닥을 이루는 스태틱 메시에는 **Receive CSM Shadows** 세팅을 켜고, 계단을 이루는 스태틱 메시에는 껐습니다. 플레이어 캐릭터가 바닥에 있을 때는 그림자가 있는데, 계단에서는 그림자가 없습니다. 바닥은 **Receive CSM Shadows** 세팅이 활성화, 계단에서는 비활성화되었기 때문입니다.
-
+다음 비디오는 **Receive CSM Shadows** 세팅의 효과를 보여줍니다. 바닥을 이루는 스태틱 메시에는 **Receive CSM Shadows** 세팅을 켜고, 계단을 이루는 스태틱 메시에는 껐습니다. 플레이어 캐릭터가 바닥에 있을 때는 그림자가 있는데, 계단에서는 그림자가 없습니다. 바닥은 **Receive CSM Shadows** 세팅이 활성화, 계단에서는 비활성화되었기 때문입니다.  
 배경에 배치된 스태틱 메시의 그림자가 캐릭터에 드리워지도록 하려면, 스태틱 메시의 **모빌리티** 세팅을 **스태틱** 에서 **Movable** (무버블)로 변경해야 합니다.
 
 [OBJECT:EmbeddedVideo]
-    [PARAMLITERAL:videoid]
-    nrGejxSnJwI
-    [/PARAMLITERAL]
-    [PARAMLITERAL:width]
-    78
-    [/PARAMLITERAL]
-    [PARAMLITERAL:height]
-    56.25
-    [/PARAMLITERAL]
-    [PARAMLITERAL:units]
-    %
-    [/PARAMLITERAL]
-    [PARAMLITERAL:type]
-    simple
-    [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ nrGejxSnJwI
+ [/PARAMLITERAL]
+ [PARAMLITERAL:width]
+ 100
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 56.25
+ [/PARAMLITERAL]
+ [PARAMLITERAL:units]
+ %
+ [/PARAMLITERAL]
+ [PARAMLITERAL:type]
+ simple
+ [/PARAMLITERAL]
 [/OBJECT]
-
 [/REGION]
 
 ## 최종 결과
@@ -97,8 +101,5 @@ Stationary Directional Light (스테이셔너리 디렉셔널 라이트)를 사�
 레벨이 성공적으로 실행되면 스태틱 섀도가 있는 곳으로 캐릭터를 움직입니다. 그림자를 드나들 때 아래 이미지처럼 캐릭터의 다이내믹 섀도가 레벨에 구워 넣은 그림자와 매끄럽게 섞일 것입니다.
 
 [REGION:lightbox]
-[![](CSM_Final_Result.png)(w:640)](CSM_Final_Result.png)
-[/REGION]
-[REGION:caption]
-이미지를 클릭하면 원본을 확인합니다.
+[![](CSM_Final_Result.png)(w:300)](CSM_Final_Result.png)
 [/REGION]

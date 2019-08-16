@@ -8,9 +8,8 @@
 #include "Input/DisplayClusterInputManager.h"
 #include "Render/DisplayClusterRenderManager.h"
 
-#include "Misc/DisplayClusterLog.h"
-
 #include "DisplayClusterGlobals.h"
+#include "DisplayClusterLog.h"
 
 
 FDisplayClusterModule::FDisplayClusterModule()
@@ -18,6 +17,15 @@ FDisplayClusterModule::FDisplayClusterModule()
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterModule);
 
 	GDisplayCluster = this;
+
+	UE_LOG(LogDisplayClusterModule, Log, TEXT("Instantiating subsystem managers..."));
+
+	// Initialize internals (the order is important)
+	Managers.Add(MgrConfig  = new FDisplayClusterConfigManager);
+	Managers.Add(MgrCluster = new FDisplayClusterClusterManager);
+	Managers.Add(MgrGame    = new FDisplayClusterGameManager);
+	Managers.Add(MgrRender  = new FDisplayClusterRenderManager);
+	Managers.Add(MgrInput   = new FDisplayClusterInputManager);
 }
 
 FDisplayClusterModule::~FDisplayClusterModule()
@@ -72,16 +80,7 @@ bool FDisplayClusterModule::Init(EDisplayClusterOperationMode OperationMode)
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterModule);
 
-	UE_LOG(LogDisplayClusterModule, Log, TEXT("Instantiating subsystem managers..."));
-
 	CurrentOperationMode = OperationMode;
-
-	// Initialize internals (the order is important)
-	Managers.Add(MgrConfig  = new FDisplayClusterConfigManager);
-	Managers.Add(MgrRender  = new FDisplayClusterRenderManager);
-	Managers.Add(MgrCluster = new FDisplayClusterClusterManager);
-	Managers.Add(MgrInput   = new FDisplayClusterInputManager);
-	Managers.Add(MgrGame    = new FDisplayClusterGameManager);
 
 	UE_LOG(LogDisplayClusterModule, Log, TEXT("Initializing subsystems to %s operation mode"), *FDisplayClusterTypesConverter::ToString(CurrentOperationMode));
 
@@ -125,21 +124,12 @@ bool FDisplayClusterModule::StartSession(const FString& configPath, const FStrin
 
 	UE_LOG(LogDisplayClusterModule, Log, TEXT("StartSession: config path is %s"), *configPath);
 
-	bool bIsConfigManagerDone = false;
-
 	bool result = true;
 	auto it = Managers.CreateIterator();
 	while (result && it)
 	{
 		result = result && (*it)->StartSession(configPath, nodeId);
 		++it;
-
-		//! hack!? First Manager is FDisplayClusterConfigManager, required to other ext modules auto-setup
-		if (!bIsConfigManagerDone)
-		{
-			bIsConfigManagerDone = true;
-			DisplayClusterBeforeStartSessionEvent.Broadcast();
-		}
 	}
 
 	DisplayClusterStartSessionEvent.Broadcast();
@@ -158,12 +148,12 @@ void FDisplayClusterModule::EndSession()
 
 	UE_LOG(LogDisplayClusterModule, Log, TEXT("Stopping DisplayCluster session..."));
 
+	DisplayClusterEndSessionEvent.Broadcast();
+
 	for (auto pMgr : Managers)
 	{
 		pMgr->EndSession();
 	}
-
-	DisplayClusterEndSessionEvent.Broadcast();
 }
 
 bool FDisplayClusterModule::StartScene(UWorld* pWorld)

@@ -129,9 +129,14 @@ public:
 	virtual bool SupportsSubscenes() const { return true; }
 
 	/**
-	* When recorded to a Subscenes track, what should the name of the Section be?
+	* When recorded to a Subscenes track, what should the subscene track name of the Section be?
 	*/
-	virtual FString GetSubsceneName(ULevelSequence* InSequence) const { return TEXT("Unnamed_Source"); }
+	virtual FString GetSubsceneTrackName(ULevelSequence* InSequence) const { return TEXT("Unnamed_Source"); }
+
+	/**
+	* When recorded to a Subscenes track, what should the sub level sequence asset name be? By default, returns the name of the track
+	*/
+	virtual FString GetSubsceneAssetName(ULevelSequence* InSequence) const { return GetSubsceneTrackName(InSequence); }
 
 	/**
 	* If you are not recording into a sub-sequence then this will be called after PreRecording is called and will specify the folder

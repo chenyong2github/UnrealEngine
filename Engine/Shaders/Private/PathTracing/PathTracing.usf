@@ -7,7 +7,7 @@ PathTracingRayGenShader.usf: Reference path tracing
 #include "../Common.ush"
 #include "../PostProcessCommon.ush"
 #include "../RectLight.ush"
-//#include "../Montecarlo.ush"
+#include "../RayTracing/RayTracingCommon.ush"
 
 #include "PathTracingCommon.ush"
 #include "../RayTracing/RayTracingHitGroupCommon.ush"
@@ -25,21 +25,10 @@ RWTexture2D<uint>	RayCountPerPixelRT;
 RaytracingAccelerationStructure TLAS;
 
 
-float GetHitT(FMaterialClosestHitPayload HitInfo)
-{
-	return HitInfo.HitT;
-}
-
-bool IsHit(RayDesc Ray, FMaterialClosestHitPayload HitInfo)
-{
-	float t = HitInfo.HitT;
-	return t > Ray.TMin && t < Ray.TMax;
-}
-
 [shader("raygeneration")]
 void PathTracingMainRG()
 {
-	uint2 LaunchIndex = DispatchRaysIndex().xy;
+	uint2 LaunchIndex = DispatchRaysIndex().xy + View.ViewRectMin;
 	
 	bool IsUnidirectionalEnabled = true;
 	bool IsNextEventEstimationEnabled = true;
@@ -54,7 +43,6 @@ void PathTracingMainRG()
 	float2 BufferSize = View.BufferSizeAndInvSize.xy; 
 	uint LinearIndex = LaunchIndex.x + (LaunchIndex.y * BufferSize.x); 
 	RandomSequence RandSequence;
-	// #dxr_todo: unify initialization between ray tracing and path tracing raygen shaders
 	RandomSequence_Initialize(RandSequence, LinearIndex, AdaptiveSamplingData.Iteration);
 	RandSequence.Type = AdaptiveSamplingData.RandomSequence;
 	uint SampleIndex = 0;
@@ -100,7 +88,7 @@ void PathTracingMainRG()
 		while (Bounces < PathTracingData.MaxBounces)
 		{
 			// Environment contribution
-			if (!IsHit(Ray, Payload))
+			if (Payload.IsMiss())
 			{
 				// WARNING: Until ray payload encodes NEE LightId, the execution depends on this ordering!
 				uint SkyLightId = 0;
@@ -162,7 +150,7 @@ void PathTracingMainRG()
 
 			Bounces = Bounces + 1;
 			// Update origin
-			Ray.Origin = Ray.Origin + Ray.Direction * GetHitT(Payload);
+			Ray.Origin = Ray.Origin + Ray.Direction * Payload.HitT;
 			FMaterialClosestHitPayload RayHitInfo = Payload; 
 
 			// Perform next-event estimation
@@ -190,8 +178,8 @@ void PathTracingMainRG()
 					FMaterialClosestHitPayload NeePayload = TraceRayInternal(
 						TLAS,      // AccelerationStructure
 						RayFlags,
-						RAY_TRACING_MASK_ALL,
-						RAY_TRACING_SHADER_SLOT_MATERIAL, // RayContributionToHitGroupIndex
+						RAY_TRACING_MASK_SHADOW,
+						RAY_TRACING_SHADER_SLOT_SHADOW,   // RayContributionToHitGroupIndex
 						RAY_TRACING_NUM_SHADER_SLOTS,     // MultiplierForGeometryContributionToShaderIndex
 						0,         // MissShaderIndex
 						LightRay,
@@ -199,7 +187,7 @@ void PathTracingMainRG()
 					);
 					RayCounter++;
 
-					if (!IsHit(LightRay, NeePayload))
+					if (NeePayload.IsMiss())
 					{
 						FMaterialClosestHitPayload RayHitInfo = Payload; 
 #if 0
@@ -266,7 +254,6 @@ void PathTracingMainRG()
 			float EnergyThreshold = 1.0; 
 			if (PathEnergy < EnergyThreshold && Bounces > 4)
 			{
-
 				float Q = 1.0 - PathEnergy;
 				if (RandomSequence_GenerateSample1D(RandSequence, SampleIndex) < Q)
 				{
@@ -285,7 +272,6 @@ void PathTracingMainRG()
 			}
 
 			// Trace again
-			//#dxr-todo: check ray flags when hit shaders are supported
 			Payload = TraceRayInternal(TLAS,
 				RAY_FLAG_CULL_BACK_FACING_TRIANGLES,
 				RAY_TRACING_MASK_ALL,

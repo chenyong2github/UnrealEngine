@@ -15,6 +15,9 @@ public:
 
 	/** Gets the crash debug helper singleton or returns NULL */
 	CRASHDEBUGHELPER_API ICrashDebugHelper* Get();
+	
+	/** Gets a new crash debug helper singleton for use with multiple report sending */
+	CRASHDEBUGHELPER_API ICrashDebugHelper* GetNew();
 
 private:
 	class ICrashDebugHelper* CrashDebugHelper;

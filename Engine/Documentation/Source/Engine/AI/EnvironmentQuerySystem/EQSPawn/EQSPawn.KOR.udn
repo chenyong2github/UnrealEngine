@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:3782314
 Availability:Public
 Title:EQS 테스팅 폰
 Crumbs:%ROOT%, Engine, Gameplay/AI, Engine/AI/EnvironmentQuerySystem
@@ -41,7 +41,7 @@ version: 4.9
 
 **초록-빨강**: 초록은 빨강보다 바람직합니다. 여기에 나열된 번호는 항목의 가중치입니다. 디버그 스텝 하나만 미리보는 중이라면, 이 값은 선택된 테스트에서 최종 값이 됩니다.
 
-## EQS 테스팅 폰 프로퍼티 참고서
+## EQS 테스팅 폰 프로퍼티 레퍼런스
 
 | 프로퍼티 | 설명 |
 | --- | --- |

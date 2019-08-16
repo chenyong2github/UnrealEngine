@@ -13,12 +13,11 @@
 UCurveLinearColorAtlas::UCurveLinearColorAtlas(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-#if WITH_EDITOR
 	TextureSize = 256;
-	GradientPixelSize = 1;
+#if WITH_EDITORONLY_DATA
 	bHasAnyDirtyTextures = false;
 	bShowDebugColorsForNullGradients = false;
-	SizeXY = { (float)TextureSize, (float)GradientPixelSize };
+	SizeXY = { (float)TextureSize,  1.0f };
 	MipGenSettings = TMGS_NoMipmaps;
 #endif
 	Filter = TextureFilter::TF_Bilinear;
@@ -48,7 +47,7 @@ void UCurveLinearColorAtlas::PostEditChangeProperty(struct FPropertyChangedEvent
 
 			Source.Init(TextureSize, TextureSize, 1, 1, TSF_RGBA16F);
 
-			SizeXY = { (float)TextureSize, (float)GradientPixelSize };
+			SizeXY = { (float)TextureSize, 1.0f };
 			UpdateTextures();
 			bRequiresNotifyMaterials = true;
 		}
@@ -93,7 +92,7 @@ void UCurveLinearColorAtlas::PostLoad()
 		}
 	}
 	Source.Init(TextureSize, TextureSize, 1, 1, TSF_RGBA16F);
-	SizeXY = { (float)TextureSize, (float)GradientPixelSize };
+	SizeXY = { (float)TextureSize, 1.0f };
 	UpdateTextures();
 #endif
 
@@ -133,7 +132,7 @@ void UCurveLinearColorAtlas::UpdateGradientSlot(UCurveLinearColor* Gradient)
 	if (SlotIndex != INDEX_NONE && (uint32)SlotIndex < MaxSlotsPerTexture())
 	{
 		// Determine the position of the gradient
-		int32 StartXY = SlotIndex * TextureSize * GradientPixelSize;
+		int32 StartXY = SlotIndex * TextureSize;
 
 		// Render the single gradient to the render target
 		RenderGradient(SrcData, Gradient, StartXY, SizeXY);
@@ -164,7 +163,7 @@ void UCurveLinearColorAtlas::UpdateTextures()
 	{
 		if (GradientCurves[i] != nullptr)
 		{
-			int32 StartXY = i * TextureSize * GradientPixelSize;
+			int32 StartXY = i * TextureSize;
 			RenderGradient(SrcData, GradientCurves[i], StartXY, SizeXY);
 		}
 
@@ -205,7 +204,7 @@ bool UCurveLinearColorAtlas::GetCurvePosition(UCurveLinearColor* InCurve, float&
 	Position = 0.0f;
 	if (Index != INDEX_NONE)
 	{
-		Position = ((float)Index * GradientPixelSize) / TextureSize + (0.5f * GradientPixelSize) / TextureSize;
+		Position = (float)Index;
 		return true;
 	}
 	return false;

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Misc/Guid.h"
+#include "ConcertVersion.h"
 #include "ConcertSettings.h"
 #include "ConcertMessageData.generated.h"
 
@@ -43,6 +44,9 @@ struct FConcertInstanceInfo
 	/** Holds the instance type (Editor, Game, Server, etc). */
 	UPROPERTY(VisibleAnywhere, Category="Instance Info")
 	FString InstanceType; // TODO: enum?
+
+	CONCERT_API bool operator==(const FConcertInstanceInfo& Other) const;
+	CONCERT_API bool operator!=(const FConcertInstanceInfo& Other) const;
 };
 
 /** Holds info on a Concert server */
@@ -116,6 +120,10 @@ struct FConcertClientInfo
 	UPROPERTY(VisibleAnywhere, Category = "Client Info")
 	FString VRAvatarActorClass;
 
+	/** Holds an array of tags that can be used for grouping and categorizing. */
+	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category = "Client Info")
+	TArray<FName> Tags;
+
 	/** True if this instance was built with editor-data */
 	UPROPERTY(VisibleAnywhere, Category="Client Info")
 	bool bHasEditorData;
@@ -123,6 +131,9 @@ struct FConcertClientInfo
 	/** True if this platform requires cooked data */
 	UPROPERTY(VisibleAnywhere, Category="Client Info")
 	bool bRequiresCookedData;
+
+	CONCERT_API bool operator==(const FConcertClientInfo& Other) const;
+	CONCERT_API bool operator!=(const FConcertClientInfo& Other) const;
 };
 
 /** Holds information on session client */
@@ -160,6 +171,9 @@ struct FConcertSessionInfo
 	FGuid OwnerInstanceId;
 
 	UPROPERTY(VisibleAnywhere, Category="Session Info")
+	FGuid SessionId;
+
+	UPROPERTY(VisibleAnywhere, Category="Session Info")
 	FString SessionName;
 
 	UPROPERTY(VisibleAnywhere, Category="Session Info")
@@ -168,9 +182,46 @@ struct FConcertSessionInfo
 	UPROPERTY(VisibleAnywhere, Category = "Session Info")
 	FString OwnerDeviceName;
 
-	/** Settings pertaining to project, build version, change list number etc */ 
+	/** Settings pertaining to project, change list number etc */ 
 	UPROPERTY(VisibleAnywhere, Category="Session Info")
 	FConcertSessionSettings Settings;
+
+	/** Version information for this session. This is set during creation, and updated each time the session is restored */
+	UPROPERTY()
+	TArray<FConcertSessionVersionInfo> VersionInfos;
+};
+
+/** Holds filter rules used when migrating session data */
+USTRUCT()
+struct FConcertSessionFilter
+{
+	GENERATED_BODY()
+
+	/**
+	 * Return true if the given activity ID passes the ID tests of this filter.
+	 * @note This function only tests the ID conditions, not any data specific checks like bOnlyLiveData.
+	 */
+	CONCERT_API bool ActivityIdPassesFilter(const int64 InActivityId) const;
+
+	/** The lower-bound (inclusive) of activity IDs to include (unless explicitly excluded via ActivityIdsToExclude) */
+	UPROPERTY()
+	int64 ActivityIdLowerBound = 1;
+
+	/** The upper-bound (inclusive) of activity IDs to include (unless explicitly excluded via ActivityIdsToExclude) */
+	UPROPERTY()
+	int64 ActivityIdUpperBound = MAX_int64;
+
+	/** Activity IDs to explicitly exclude, even if inside of the bounded-range specified above */
+	UPROPERTY()
+	TArray<int64> ActivityIdsToExclude;
+
+	/** Activity IDs to explicitly include, even if outside of the bounded-range specified above (takes precedence over ActivityIdsToExclude) */
+	UPROPERTY()
+	TArray<int64> ActivityIdsToInclude;
+
+	/** True if only live data should be included (live transactions and head package revisions) */
+	UPROPERTY()
+	bool bOnlyLiveData = false;
 };
 
 USTRUCT()
@@ -182,11 +233,21 @@ struct FConcertSessionSerializedPayload
 	CONCERT_API bool SetPayload(const FStructOnScope& InPayload);
 	CONCERT_API bool SetPayload(const UScriptStruct* InPayloadType, const void* InPayloadData);
 
+	template <typename T>
+	bool SetTypedPayload(const T& InPayloadData)
+	{
+		return SetPayload(TBaseStructure<T>::Get(), &InPayloadData);
+	}
+
 	/** Extract the payload into an in-memory instance */
 	CONCERT_API bool GetPayload(FStructOnScope& OutPayload) const;
+	CONCERT_API bool GetPayload(const UScriptStruct* InPayloadType, void* InOutPayloadData) const;
 
-	/** Get a hash of the payload data */
-	CONCERT_API uint32 GetPayloadDataHash() const;
+	template <typename T>
+	bool GetTypedPayload(T& OutPayloadData) const
+	{
+		return GetPayload(TBaseStructure<T>::Get(), &OutPayloadData);
+	}
 
 	/** The typename of the user-defined payload. */
 	UPROPERTY(VisibleAnywhere, Category="Payload")
@@ -194,9 +255,47 @@ struct FConcertSessionSerializedPayload
 
 	/** The uncompressed size of the user-defined payload data. */
 	UPROPERTY(VisibleAnywhere, Category="Payload")
-	int32 UncompressedPayloadSize;
+	int32 UncompressedPayloadSize = 0;
 
 	/** The data of the user-defined payload (stored as compressed binary for compact transfer). */
+	UPROPERTY()
+	TArray<uint8> CompressedPayload;
+};
+
+USTRUCT()
+struct FConcertSessionSerializedCborPayload
+{
+	GENERATED_BODY()
+
+	/** Initialize this payload from the given data */
+	CONCERT_API bool SetPayload(const FStructOnScope& InPayload);
+	CONCERT_API bool SetPayload(const UScriptStruct* InPayloadType, const void* InPayloadData);
+
+	template <typename T>
+	bool SetTypedPayload(const T& InPayloadData)
+	{
+		return SetPayload(TBaseStructure<T>::Get(), &InPayloadData);
+	}
+
+	/** Extract the payload into an in-memory instance */
+	CONCERT_API bool GetPayload(FStructOnScope& OutPayload) const;
+	CONCERT_API bool GetPayload(const UScriptStruct* InPayloadType, void* InOutPayloadData) const;
+
+	template <typename T>
+	bool GetTypedPayload(T& OutPayloadData)
+	{
+		return GetPayload(TBaseStructure<T>::Get(), &OutPayloadData);
+	}
+
+	/** The typename of the user-defined payload. */
+	UPROPERTY(VisibleAnywhere, Category="Payload")
+	FName PayloadTypeName;
+
+	/** The uncompressed size of the user-defined payload data. */
+	UPROPERTY(VisibleAnywhere, Category="Payload")
+	int32 UncompressedPayloadSize = 0;
+
+	/** The data of the user-defined payload (stored as compressed Cbor for compact transfer). */
 	UPROPERTY()
 	TArray<uint8> CompressedPayload;
 };

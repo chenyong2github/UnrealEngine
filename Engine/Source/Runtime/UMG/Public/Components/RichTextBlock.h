@@ -75,13 +75,6 @@ public:
 	void SetDefaultStrikeBrush(FSlateBrush& InStrikeBrush);
 
 	/**
-	 *  Set the text justification for this rich text block
-	 *  @param InJustification new justification
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	void SetJustification(ETextJustify::Type InJustification);
-	
-	/**
 	 *  Set the minimum desired width for this rich text block
 	 *  @param InMinDesiredWidth new minimum desired width
 	 */
@@ -108,7 +101,11 @@ public:
 
 public:
 	URichTextBlock(const FObjectInitializer& ObjectInitializer);
-	
+
+	//~ Begin UTextLayoutWidget Interface
+	virtual void SetJustification(ETextJustify::Type InJustification) override;
+	//~ End UTextLayoutWidget Interface
+
 	// UWidget interface
 	virtual void SynchronizeProperties() override;
 	// End of UWidget interface
@@ -125,6 +122,12 @@ public:
 	// End UWidget interface
 #endif
 
+	/**
+	 * Returns widgets text.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Widget")
+	FText GetText() const;
+	
 	/**
 	 * Directly sets the widget text.
 	 * Warning: This will wipe any binding created for the Text property!

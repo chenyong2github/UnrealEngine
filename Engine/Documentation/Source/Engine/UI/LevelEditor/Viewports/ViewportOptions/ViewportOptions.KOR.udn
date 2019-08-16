@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:3782314
 Availability:Public
 Title:뷰포트 옵션
 Crumbs: %ROOT%, Engine, Engine/UI, Engine/UI/LevelEditor/Viewports
@@ -15,7 +15,7 @@ topic-image:ViewportOptions_Topic.png
 
 ![](ViewportOptionsMenu.png)
 
-## 옵션 참고서
+## 옵션 레퍼런스
 
 | 옵션 | 설명 |
 |--------|-------------|

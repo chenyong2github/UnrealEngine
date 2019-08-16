@@ -9,7 +9,7 @@ public class RSA : ModuleRules
 		PrivateDependencyModuleNames.Add("Core");
 
         if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32 ||
-			Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Linux)
+			Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Linux)				
 		{
 			PrivateDependencyModuleNames.Add("OpenSSL");
 			PrivateDefinitions.Add("RSA_USE_OPENSSL=1");

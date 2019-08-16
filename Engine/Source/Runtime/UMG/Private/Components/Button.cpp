@@ -11,12 +11,21 @@
 /////////////////////////////////////////////////////
 // UButton
 
+static FButtonStyle* DefaultButtonStyle = nullptr;
+
 UButton::UButton(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-	static const FButtonStyle StaticButtonStyle = FCoreStyle::Get().GetWidgetStyle< FButtonStyle >("Button");
-	WidgetStyle = StaticButtonStyle;
+	if (DefaultButtonStyle == nullptr)
+	{
+		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
+		DefaultButtonStyle = new FButtonStyle(FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("Button"));
+
+		// Unlink UMG default colors from the editor settings colors.
+		DefaultButtonStyle->UnlinkColors();
+	}
+
+	WidgetStyle = *DefaultButtonStyle;
 
 	ColorAndOpacity = FLinearColor::White;
 	BackgroundColor = FLinearColor::White;
@@ -25,6 +34,9 @@ UButton::UButton(const FObjectInitializer& ObjectInitializer)
 	TouchMethod = EButtonTouchMethod::DownAndUp;
 
 	IsFocusable = true;
+
+	AccessibleBehavior = ESlateAccessibleBehavior::Summary;
+	bCanChildrenBeAccessible = false;
 }
 
 void UButton::ReleaseSlateResources(bool bReleaseChildren)
@@ -210,6 +222,13 @@ void UButton::SlateHandleUnhovered()
 {
 	OnUnhovered.Broadcast();
 }
+
+#if WITH_ACCESSIBILITY
+TSharedPtr<SWidget> UButton::GetAccessibleWidget() const
+{
+	return MyButton;
+}
+#endif
 
 #if WITH_EDITOR
 

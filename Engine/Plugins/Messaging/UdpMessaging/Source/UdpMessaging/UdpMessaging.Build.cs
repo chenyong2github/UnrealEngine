@@ -41,20 +41,39 @@ namespace UnrealBuildTool.Rules
 					"UdpMessaging/Private/Tunnel",
 				});
 
-			if (Target.Type == TargetType.Editor || Target.Type == TargetType.Program)
+			if (Target.Type == TargetType.Editor)
 			{
 				DynamicallyLoadedModuleNames.AddRange(
 					new string[] {
 						"Settings",
-						"TargetPlatform",
 					});
 
 				PrivateIncludePathModuleNames.AddRange(
 					new string[] {
 						"Settings",
+					});
+			}
+
+			//temporary workaround to allow automatic configuration of static endpoints in editor/UFE for certain target devices, pending proper API
+			if (Target.Type == TargetType.Editor || (Target.Type == TargetType.Program && Target.Name == "UnrealFrontend"))
+			{
+				PublicDefinitions.Add("WITH_TARGETPLATFORM_SUPPORT=1");
+
+				DynamicallyLoadedModuleNames.AddRange(
+					new string[] {
+						"TargetPlatform",
+					});
+
+				PrivateIncludePathModuleNames.AddRange(
+					new string[] {
 						"TargetPlatform",
 					});
 			}
+			else
+			{
+				PublicDefinitions.Add("WITH_TARGETPLATFORM_SUPPORT=0");
+			}
+
 		}
 	}
 }

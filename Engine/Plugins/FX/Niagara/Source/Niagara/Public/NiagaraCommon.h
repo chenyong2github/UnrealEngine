@@ -25,6 +25,10 @@ const uint32 NIAGARA_MAX_COMPUTE_THREADGROUPS = 65535;
 
 const FString INTERPOLATED_PARAMETER_PREFIX = TEXT("PREV_");
 
+/** The maximum number of spawn infos we can run on the GPU, modifying this will require a version update as it is used in the shader compiler  */
+constexpr uint32 NIAGARA_MAX_GPU_SPAWN_INFOS = 8;
+constexpr uint32 NIAGARA_MAX_GPU_SPAWN_INFOS_V4 = (NIAGARA_MAX_GPU_SPAWN_INFOS + 3) / 4;
+
 enum ENiagaraBaseTypes
 {
 	NBT_Float,
@@ -37,8 +41,7 @@ UENUM()
 enum class ENiagaraSimTarget : uint8
 {
 	CPUSim,
-	GPUComputeSim,
-	DynamicLoadBalancedSim UMETA(Hidden)
+	GPUComputeSim
 };
 
 
@@ -214,6 +217,9 @@ struct NIAGARA_API FNiagaraFunctionSignature
 	/** True if this is the signature for a "member" function of a data interface. If this is true, the first input is the owner. */
 	UPROPERTY()
 	bool bMemberFunction;
+	/** Function specifiers verified at bind time. */
+	UPROPERTY()
+	TMap<FName, FName> FunctionSpecifiers;
 
 	/** Localized description of this node. Note that this is *not* used during the operator == below since it may vary from culture to culture.*/
 #if WITH_EDITORONLY_DATA
@@ -233,11 +239,43 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, Outputs(InOutputs)
 		, bRequiresContext(bInRequiresContext)
 		, bMemberFunction(bInMemberFunction)
+		, FunctionSpecifiers()
+	{
+
+	}
+
+	FNiagaraFunctionSignature(FName InName, TArray<FNiagaraVariable>& InInputs, TArray<FNiagaraVariable>& InOutputs, FName InSource, bool bInRequiresContext, bool bInMemberFunction, TMap<FName, FName>& InFunctionSpecifiers)
+		: Name(InName)
+		, Inputs(InInputs)
+		, Outputs(InOutputs)
+		, bRequiresContext(bInRequiresContext)
+		, bMemberFunction(bInMemberFunction)
+		, FunctionSpecifiers(InFunctionSpecifiers)
 	{
 
 	}
 
 	bool operator==(const FNiagaraFunctionSignature& Other) const
+	{
+		bool bFunctionSpecifiersEqual = [&]()
+		{
+			if (Other.FunctionSpecifiers.Num() != FunctionSpecifiers.Num())
+			{
+				return false;
+			}
+			for (const TTuple<FName, FName>& Specifier : FunctionSpecifiers)
+			{
+				if (Other.FunctionSpecifiers.FindRef(Specifier.Key) != Specifier.Value)
+				{
+					return false;
+				}
+			}
+			return true;
+		}();
+		return EqualsIgnoringSpecifiers(Other) && bFunctionSpecifiersEqual;
+	}
+
+	bool EqualsIgnoringSpecifiers(const FNiagaraFunctionSignature& Other) const
 	{
 		bool bNamesEqual = Name.ToString().Equals(Other.Name.ToString());
 		bool bInputsEqual = Inputs == Other.Inputs;
@@ -380,6 +418,9 @@ struct FVMExternalFunctionBindingInfo
 
 	UPROPERTY()
 	int32 NumOutputs;
+
+	UPROPERTY()
+	TMap<FName, FName> Specifiers;
 
 	FORCEINLINE int32 GetNumInputs()const { return InputParamLocations.Num(); }
 	FORCEINLINE int32 GetNumOutputs()const { return NumOutputs; }
@@ -570,4 +611,52 @@ namespace FNiagaraUtilities
 	 */
 	void NIAGARA_API PrepareRapidIterationParameters(const TArray<UNiagaraScript*>& Scripts, const TMap<UNiagaraScript*, UNiagaraScript*>& ScriptDependencyMap, const TMap<UNiagaraScript*, FString>& ScriptToEmitterNameMap);
 #endif
+};
+
+USTRUCT()
+struct FNiagaraUserParameterBinding
+{
+	GENERATED_USTRUCT_BODY()
+
+	FNiagaraUserParameterBinding();
+
+	UPROPERTY(EditAnywhere, Category = "User Parameter")
+	FNiagaraVariable Parameter;
+
+	FORCEINLINE bool operator==(const FNiagaraUserParameterBinding& Other)const
+	{
+		return Other.Parameter == Parameter;
+	}
+};
+
+USTRUCT()
+struct FNiagaraRandInfo
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "Random")
+	int32 Seed1;
+	
+	UPROPERTY(EditAnywhere, Category = "Random")
+	int32 Seed2;
+
+	UPROPERTY(EditAnywhere, Category = "Random")
+	int32 Seed3;
+};
+
+
+//////////////////////////////////////////////////////////////////////////
+// Legacy Anim Trail Support
+
+
+/** 
+Controls the way that the width scale property affects animation trails. 
+Only used for Legacy Anim Trail support when converting from Cascade to Niagara.
+*/
+UENUM()
+enum class ENiagaraLegacyTrailWidthMode : uint32
+{
+	FromCentre,
+	FromFirst,
+	FromSecond,
 };

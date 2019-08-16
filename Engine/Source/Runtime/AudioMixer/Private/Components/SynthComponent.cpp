@@ -13,7 +13,7 @@ USynthSound::USynthSound(const FObjectInitializer& ObjectInitializer)
 void USynthSound::Init(USynthComponent* InSynthComponent, const int32 InNumChannels, const int32 InSampleRate, const int32 InCallbackSize)
 {
 	OwningSynthComponent = InSynthComponent;
-	bVirtualizeWhenSilent = true;
+	VirtualizationMode = EVirtualizationMode::PlayWhenSilent;
 	NumChannels = InNumChannels;
 	NumSamplesToGeneratePerCallback = InCallbackSize;
 	// Turn off async generation in old audio engine on mac.
@@ -61,7 +61,7 @@ int32 USynthSound::OnGeneratePCMAudio(TArray<uint8>& OutAudio, int32 NumSamples)
 		// Use the float scratch buffer instead of the out buffer directly
 		FloatBuffer.Reset();
 		FloatBuffer.AddZeroed(NumSamples * sizeof(float));
-		
+
 		float* FloatBufferDataPtr = FloatBuffer.GetData();
 		int32 NumSamplesGenerated = OwningSynthComponent->OnGeneratePCMAudio(FloatBufferDataPtr, NumSamples);
 
@@ -84,8 +84,8 @@ void USynthSound::OnEndGenerate()
 	OwningSynthComponent->OnEndGenerate();
 }
 
-Audio::EAudioMixerStreamDataFormat::Type USynthSound::GetGeneratedPCMDataFormat() const 
-{ 
+Audio::EAudioMixerStreamDataFormat::Type USynthSound::GetGeneratedPCMDataFormat() const
+{
 	// Only audio mixer supports return float buffers
 	return bAudioMixer ? Audio::EAudioMixerStreamDataFormat::Float : Audio::EAudioMixerStreamDataFormat::Int16;
 }
@@ -179,7 +179,7 @@ void USynthComponent::Initialize(int32 SampleRateOverride)
 		NumChannels = 2;
 		TestSineLeft.Init(SampleRate, 440.0f, 0.5f);
 		TestSineRight.Init(SampleRate, 220.0f, 0.5f);
-#else	
+#else
 		// Initialize the synth component
 		Init(SampleRate);
 
@@ -233,6 +233,7 @@ void USynthComponent::CreateAudioComponent()
 		AudioComponent->bStopWhenOwnerDestroyed = true;
 		AudioComponent->bShouldRemainActiveIfDropped = true;
 		AudioComponent->Mobility = EComponentMobility::Movable;
+		AudioComponent->Modulation = Modulation;
 
 #if WITH_EDITORONLY_DATA
 		AudioComponent->bVisualizeComponent = false;
@@ -386,7 +387,7 @@ void USynthComponent::Start()
 	// We will also ensure that this synth was initialized before attempting to play.
 	Initialize();
 
-	// If there is no Synth USoundBase, we can't start. This can happen if start is called in a cook, a server, or 
+	// If there is no Synth USoundBase, we can't start. This can happen if start is called in a cook, a server, or
 	// if the audio engine is set to "noaudio".
 	// TODO: investigate if this should be handled elsewhere before this point
 	if (!Synth)

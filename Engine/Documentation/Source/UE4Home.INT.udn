@@ -5,70 +5,55 @@ Description: Complete resources for learning to use Unreal Engine 4
 Navigation:home
 social-image:home_social.png
 type:landing
+toc:false
 
-[PUBLISH:Rocket]
-## Search
+[DIR(end:"1" output:"role" org:"hierarchy" parent:"%ROOT%" type:"landing" path:"!API" path:"!EarlyAccessFeatures" path:"!ExperimentalFeatures")]
 
-[REGION:frontpage]
-	[OBJECT:SearchBox]
-		[PARAMLITERAL:path]
-		https://www.unrealengine.com/bing-search
-		[/PARAMLITERAL]
-		[PARAMLITERAL:placeholder]
-		Need Help? Find a topic by searching
-		[/PARAMLITERAL]
-		[PARAM:message]
-		[/PARAM]
-		[PARAMLITERAL:label]
-			Quick Search Terms:
-		[/PARAMLITERAL]
-		[PARAMLITERAL:terms]
-			Quick Start
-		[/PARAMLITERAL]
-		[PARAMLITERAL:terms]
-			How-To
-		[/PARAMLITERAL]
-		[PARAMLITERAL:terms]
-			C++
-		[/PARAMLITERAL]
-		[PARAMLITERAL:terms]
-			Blueprint
-		[/PARAMLITERAL]
-		[PARAMLITERAL:terms]
-			iOS
-		[/PARAMLITERAL]
-		[PARAMLITERAL:terms]
-			Android
-		[/PARAMLITERAL]
-		[PARAMLITERAL:terms]
-			Actor
-		[/PARAMLITERAL]
-		[PARAMLITERAL:terms]
-			Component
-		[/PARAMLITERAL]
-		[PARAMLITERAL:terms]
-			Materials
-		[/PARAMLITERAL]
-		[PARAMLITERAL:terms]
-			Lighting
-		[/PARAMLITERAL]
-		[PARAMLITERAL:terms]
-			Camera
-		[/PARAMLITERAL]
-		[PARAMLITERAL:terms]
-			UMG UI
-		[/PARAMLITERAL]
-		[PARAMLITERAL:terms]
-			Sequencer
-		[/PARAMLITERAL]
-		[PARAMLITERAL:terms]
-			VR
-		[/PARAMLITERAL]
-	[/OBJECT]
-[/REGION]
+## Programming and Scripting Reference
 
-## Browse by Topic
+[OBJECT:Role]
+	[PARAM:icon]
+	![](%ROOT%/ue4_icon.png)
+	[/PARAM]
+	[PARAM:title]
+	Unreal Engine C++ API Reference
+	[/PARAM]
+	[PARAM:description]
+	A complete reference for the Unreal Engine C++ API.
+	[/PARAM]
+	[PARAMLITERAL:path]
+	https://docs.unrealengine.com/en-US/API/index.html
+	[/PARAMLITERAL]
+[/OBJECT]
+[OBJECT:Role]
+	[PARAM:icon]
+	![](%ROOT%/ue4_icon.png)
+	[/PARAM]
+	[PARAM:title]
+	Unreal Engine Blueprint API Reference
+	[/PARAM]
+	[PARAM:description]
+	A complete reference for the Unreal Engine Blueprint API.
+	[/PARAM]
+	[PARAMLITERAL:path]
+	https://docs.unrealengine.com/en-US/BlueprintAPI/index.html
+	[/PARAMLITERAL]
+[/OBJECT]
+[OBJECT:Role]
+	[PARAM:icon]
+	![](%ROOT%/ue4_icon.png)
+	[/PARAM]
+	[PARAM:title]
+	Unreal Engine Python API Reference
+	[/PARAM]
+	[PARAM:description]
+	A complete reference for the Unreal Engine Python API.
+	[/PARAM]
+	[PARAMLITERAL:path]
+	https://docs.unrealengine.com/en-US/PythonAPI/index.html
+	[/PARAMLITERAL]
+[/OBJECT]
 
-[/PUBLISH:Rocket]
+## Unreal Labs
 
-[DIR(end:"1" output:"role" org:"hierarchy" parent:"%ROOT%" type:"landing")]
+[DIR(end:"1" output:"role" org:"hierarchy" parent:"%ROOT%" type:"landing" path:"EarlyAccess,Experimental")]

@@ -1,13 +1,17 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Containers/Queue.h"
+#include "Audio/AudioDebug.h"
 #include "AudioThread.h"
+#include "Containers/Queue.h"
+#include "CoreMinimal.h"
 #include "Sound/SoundEffectSource.h"
 
-class FAudioDevice;
+
+#if ENABLE_AUDIO_DEBUG
+class FAudioDebugger;
+#endif // ENABLE_AUDIO_DEBUG
+
 class FReferenceCollector;
 class FSoundBuffer;
 class IAudioDeviceModule;
@@ -16,8 +20,8 @@ class USoundClass;
 class USoundMix;
 class USoundSubmix;
 class USoundWave;
-struct FSourceEffectChainEntry;
 
+struct FSourceEffectChainEntry;
 
 enum class ESoundType : uint8
 {
@@ -138,6 +142,9 @@ public:
 	/** Updates source effect chain on all sources currently using the source effect chain. */
 	void UpdateSourceEffectChain(const uint32 SourceEffectChainId, const TArray<FSourceEffectChainEntry>& SourceEffectChain, const bool bPlayEffectChainTails);
 
+	/** Updates this submix for any changes made. Broadcasts to all submix instances. */
+	void UpdateSubmix(USoundSubmix* SoundSubmix);
+
 	/** Sets which audio device is the active audio device. */
 	void SetActiveDevice(uint32 InAudioDeviceHandle);
 
@@ -177,9 +184,6 @@ public:
 	/** Toggles 3d visualization of 3d sounds on/off */
 	void ToggleVisualize3dDebug();
 
-	/** Toggles the given debug stat bitmask for all current audio devices. */
-	void ToggleDebugStat(const uint8 StatBitMask);
-
 	/** Debug solos the given sound class name. Sounds that play with this sound class will be solo'd */
 	void SetDebugSoloSoundClass(const TCHAR* SoundClassName);
 
@@ -215,6 +219,11 @@ public:
 	void ResetDynamicSoundVolume(ESoundType SoundType, const FName& SoundName);
 	void SetDynamicSoundVolume(ESoundType SoundType, const FName& SoundName, float Volume);
 
+#if ENABLE_AUDIO_DEBUG
+	/** Get the audio debugger instance */
+	FAudioDebugger& GetDebugger();
+#endif // ENABLE_AUDIO_DEBUG
+
 public:
 
 	/** Array of all created buffers */
@@ -226,7 +235,12 @@ public:
 	/** Returns all the audio devices managed by device manager. */
 	TArray<FAudioDevice*>& GetAudioDevices() { return Devices; }
 
+
 private:
+#if ENABLE_AUDIO_DEBUG
+	/** Instance of audio debugger shared across audio devices */
+	FAudioDebugger AudioDebugger;
+#endif // ENABLE_AUDIO_DEBUG
 
 	/** Struct which contains debug names for run-time debugging of sounds. */
 	struct FDebugNames
@@ -242,9 +256,6 @@ private:
 			: bDebugSoundName(false)
 		{}
 	};
-
-	/** Call back for garbage collector, ensures no processing is happening on the thread before collecting resources */
-	void OnPreGarbageCollect();
 
 	/** Returns index of the given handle */
 	uint32 GetIndex(uint32 Handle) const;
@@ -317,9 +328,6 @@ private:
 
 	/** Whether or not to play all audio in all active audio devices. */
 	bool bPlayAllDeviceAudio;
-
-	/** Whether or not 3d debug visualization is enabled. */
-	bool bVisualize3dDebug;
 
 	/** Whether or not we check to toggle audio mixer once. */
 	bool bOnlyToggleAudioMixerOnce;

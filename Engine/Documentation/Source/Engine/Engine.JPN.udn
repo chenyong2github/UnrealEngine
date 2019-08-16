@@ -9,6 +9,7 @@ order:3
 topic-image:Engine/Rendering/rendering_topic.png
 topic-icon:%ROOT%/docs_icon.png
 type:landing
+toc:false
 
 
 [DIR(end:"1" output:"topiccompact" parent:"Engine" org:"hierarchy")]

@@ -43,7 +43,9 @@ class SAppIconWidget
 {
 	SLATE_BEGIN_ARGS( SAppIconWidget )
 		: _IconColorAndOpacity( FLinearColor::White )
-	{}
+	{
+		_AccessibleText = NSLOCTEXT("AppIconWidget", "System", "System Menu");
+	}
 
 	/** Icon color and opacity */
 	SLATE_ATTRIBUTE( FSlateColor, IconColorAndOpacity )
@@ -207,6 +209,7 @@ protected:
 						SNew(SImage)
 							.Image(this, &SWindowTitleBar::GetMinimizeImage)
 							.ColorAndOpacity(this, &SWindowTitleBar::GetWindowTitleContentColor)
+							.AccessibleText(NSLOCTEXT("WindowTitleBar", "Minimize", "Minimize"))
 					]
 				;
 
@@ -222,6 +225,7 @@ protected:
 						SNew(SImage)
 							.Image(this, &SWindowTitleBar::GetMaximizeRestoreImage)
 							.ColorAndOpacity(this, &SWindowTitleBar::GetWindowTitleContentColor)
+							.AccessibleText(NSLOCTEXT("WindowTitleBar", "Maximize", "Maximize"))
 					]
 				;
 
@@ -237,6 +241,7 @@ protected:
 						SNew(SImage)
 							.Image(this, &SWindowTitleBar::GetCloseImage)
 							.ColorAndOpacity(this, &SWindowTitleBar::GetWindowTitleContentColor)
+							.AccessibleText(NSLOCTEXT("WindowTitleBar", "Close", "Close"))
 					]
 				;
 		}

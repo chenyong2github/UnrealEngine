@@ -6,7 +6,7 @@
 #include "Math/IntRect.h"
 
 // Windows has special needs with RECT, and we don't need this class on Windows anyway, so just skip it
-#if !PLATFORM_WINDOWS
+#if !PLATFORM_WINDOWS && !PLATFORM_HOLOLENS
 
 class FGenericPlatformSoftwareCursor : public ICursor
 {

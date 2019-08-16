@@ -1,4 +1,4 @@
-INTSourceChangelist:4717155
+INTSourceChangelist:6650148
 Availability: Public
 Crumbs: 
 Title: 호스팅 및 네트워킹 가이드
@@ -6,7 +6,7 @@ Description: 픽셀 스트리밍 시스템의 호스팅을 위한 고급 네트�
 Type: 
 Version: 4.21
 Parent: Platforms/PixelStreaming
-Order: 
+Order: 2
 topic-image:hosting-topic.png
 Tags: Guide
 Tags: Early Access

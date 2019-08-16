@@ -1,249 +1,312 @@
-﻿INTSourceChangelist:3481084
-Availability:Public
-Title:材质编辑器 UI
-Crumbs: %ROOT%, Engine, Engine/Rendering/Materials, Engine/Rendering/Materials/Editor
-Description:材质编辑器 UI 的使用指南。
-Version:4.9
-tags:Materials
+﻿INTSourceChangelist:6425568
+Availability: Public
+Title: 材质编辑器UI
+Description: 材质编辑器UI的使用指南。
+Version: 4.9
+Parent: Engine/Rendering/Materials/Editor
+Tags: Materials
 
 
-[TOC(start:2)]
+材质编辑器UI由菜单栏、工具栏和默认的4个开启面板组成。
 
+![](MaterialEditor_Windows.png "MaterialEditor_Windows.png")
 
+| **数字** | **描述** |
+| --- | --- |
+| 1 | 菜单栏 |
+| 2 | 工具栏 |
+| 3 | 视口面板 |
+| 4 | 细节面板 |
+| 5 | 图表面板 |
+| 6 | 控制板面板 |
 
-材质编辑器 UI 由菜单栏、工具栏和默认的四个开启面板组成。
-
-[OBJECT:ToggleButtonContent]
-[PARAMLITERAL:category]
-OS
-[/PARAMLITERAL]
-[PARAMLITERAL:id]
-windows
-[/PARAMLITERAL]
-[PARAMLITERAL:active]
-[/PARAMLITERAL]
-[PARAM:content]
-![](MaterialEditor_Windows.png)
-[/PARAM]
-[/OBJECT]
-
-[OBJECT:ToggleButtonContent]
-[PARAMLITERAL:category]
-OS
-[/PARAMLITERAL]
-[PARAMLITERAL:id]
-mac
-[/PARAMLITERAL]
-[PARAMLITERAL:active]
-[/PARAMLITERAL]
-[PARAM:content]
-![](MaterialEditor_Mac.png)
-[/PARAM]
-[/OBJECT]
-
-1. [菜单栏](#MenuBar) - 列出当前材质的菜单选项。
-1. [工具栏](#Toolbar) - 含材质使用工具。
-1. [视口面板（Viewport Panel）](#ViewportPanel) - 预览材质在网格体上的效果。
-1. [细节面板（Details Panel）](#DetailsPanel) - 列出材质、所选材质表现或函数节点的属性。
-1. [图表面板（Graph Panel）](#GraphPanel) - 显示创建材质着色器指令的材质表现和函数节点。
-1. [调色板面板（Palette Panel）](#PalettePanel) - 列出所有材质表现和函数节点。
-[REGION:note]
-此外还有一个默认不显示的 HLSL 代码面板。在 **Window** 菜单中点击 **HLSL Code** 即可显示。如需了解更多内容，请查阅 [HLSL 代码](#hlslcodepanel)。
+[REGION:tip]
+* 点击选项卡右上角的小“X”即可关闭面板。在选项卡上点击右键也能隐藏面板，然后在出现的快捷菜单上点击 **隐藏选项卡**。在 **窗口** 菜单中点击面板名即可再次显示已关闭的面板。
+* 按下 **F1** 键将显示虚幻引擎4材质文档。
 [/REGION]
 
-[INCLUDE:Shared/Editors/Common/EditorMenuItems#UITabTips]
-
-(#MenuBar)
 ## 菜单栏
 
-### File
+### 文件
 
-%Shared/Editors/Common/EditorMenuItems:MenuFileSave%
-%Shared/Editors/Common/EditorMenuItems:MenuFileSaveOptions%
+[REGION:lightbox]
+[![](Material_Editor_1.png)(w:400px)](Material_Editor_1.png)
+[/REGION]
 
-### Edit
+*   **保存** - 保存当前正在使用的资源。
+*   **另存为** - 将此资源以另一个命名保存。
+*   **打开资源** - 打开全局资源选取器，以便迅速找到资源并打开正确的编辑器。
+*   **保存所有** - 保存项目所有未保存的关卡的资源。
+*   **选择文件进行保存** - 呼出一个对话框，以选择要为项目保存的关卡和资源。
+*   **提交到源码管理** - 将把当前资源迁入源码管理。
 
-%Shared/Editors/Common/EditorMenuItems:MenuEditUndo%
-%Shared/Editors/Common/EditorMenuItems:MenuEditSettings%
+### 编辑
 
-### Assets
+*   **撤销** - 撤销最近的操作。
+*   **重新执行** - 如上次执行的操作为撤销，此选项将重新执行最近的撤销。
+*   **撤销历史** - 显示撤销操作的历史。
+*   **编辑器偏好** - 提供一个选项列表，其中选项将打开对应的 **编辑器偏好** 窗口，使用者可在其中修改虚幻编辑器偏好。
+*   **项目设置** - 提供一个选项列表，其中选项将打开对应的 **项目设置** 窗口，使用者可在其中修改虚幻引擎项目的诸多设置。
+*   **插件** - 打开插件浏览器选项卡。
 
-%Shared/Editors/Common/EditorMenuItems:MenuAssetContentBrowser%
+### 资源
 
-### Window
+*   **在内容浏览器中找到** - 在 **内容浏览器** 中找到并选择当前资源。
+*   **引用查看器** - 启动引用查看器，显示选中资源的引用。
+*   **大小图** - 显示一个交互图，展示此资源与其引用所有内容的大概大小。
+*   **审计资源** - 打开资源音频UI，显示关于选中资源的信息。
 
-%Shared/Editors/Common/EditorMenuItems:MenuWindowToolbar%
-%Shared/Editors/Common/EditorMenuItems:MenuWindowViewport%
-* **Graph** - 开关 **Graph** 面板的显示。
-%Shared/Editors/Common/EditorMenuItems:MenuWindowDetails%
-* **Palette** - 开关 **Palette** 面板的显示。
-* **Stats** - 开关 **Stats** 面板的显示。
-* **HLSL Code** - 开关 **HLSL Code** 面板的显示（默认为关闭）。
-%Shared/Editors/Common/EditorMenuItems:MenuWindow%
+### 窗口
 
-### Help
+*   **工具栏** - 切换 **工具栏** 显示。
+*   **视口** - 切换 **视口** 面板显示。
+*   **图表** - 切换 **图表** 面板显示。
+*   **细节** - 切换 **细节** 面板显示。
+*   **控制板** - 切换 **控制板** 面板显示。
+*   **查找结果**- 允许在材质图表中搜索项目。
+*   **统计数据** - 切换 **统计数据** 面板显示。
+*   **预览场景设置** - 调整 **材质预览** 视口选项。
+*   **参数默认项**- 切换显示 **材质** 全局参数。  
+    
+*   **平台统计数据** - 切换显示逐平台 **材质** 开销。
+*   **统计数据** - 切换 **材质** 开销。
+*   **着色器代码** - 切换显示所选平台的 **材质** **HLSL** 代码。
+    *   **HLSL代码** - 切换显示 **HLSL** 代码。  
+        *   **桌面** - 切换显示诸多桌面渲染的 **HLSL** 代码。
+            
+            *   **DirectX SM5** - 切换显示 **Windows SM5** 的 **HLSL** 代码。
+            
+            *   **DirectX SM4** - 切换显示 **Windows SM4** 的 **HLSL** 代码。
+            *   **Vulkan SM5** - 切换显示 **Vulkan SM5** 的 **HLSL** 代码。
+            *   **Vulkan SM4** - 切换显示 **Vulkan SM4** 的 **HLSL** 代码。  
+                
+            *   **OpenGL SM5** - 切换显示 **OpenGL SM5** 的 **HLSL** 代码。
+            *   **OpenGL SM4** - 切换显示 **OpenGL SM4** 的 **HLSL** 代码。
+        *   **Android** - 切换显示诸多 **Android** 渲染的 **HLSL** 代码。
+            *   **Android GLES 3.1** - 切换显示 **Android GLES 3.1** 的 **HLSL** 代码。
+            *   **Android GLES 2.0** - 切换显示 **Android GLES 2.0** 的 **HLSL** 代码。  
+                
+            *   **Android Vulkan** - 切换显示 **Android Vulkan** 的 **HLSL** 代码。
+        *   **iOS** - 切换显示诸多 **iOS** 渲染的 **HLSL** 代码。
+            *   **Metal SM5** - 切换显示 **Metal SM5** 的 **HLSL** 代码。
+*   **内容浏览器** - 在单独的窗口中呼出 **内容浏览器**。
+*   **开发者工具** - 在单独的窗口中呼出选中的 **开发者工具**。
+    *   **蓝图调试器** - 在单独的窗口中呼出 **蓝图调试器**。
+    *   **碰撞分析器** - 在单独的窗口中呼出 **碰撞分析器**。
+    *   **调试工具** - 在单独的窗口中呼出 **调试工具**。
+    *   **分析器数据显示器** - 在单独的窗口中打开 **分析器数据显示器** 选项卡。
+    *   **消息日志** - 在单独的窗口中呼出 **消息日志**。
+    *   **输出日志** - 在单独的窗口中呼出 **输出日志**。
+    *   **可视记录器** - 在单独的窗口中呼出 **可视记录器** 工具。
+    *   **类查看器** - 在单独的窗口中呼出 **类查看器**。
+    *   **设备管理器** - 在单独的窗口中呼出 **设备管理器**。
+    *   **设备描述** - 在单独的窗口中呼出 **设备描述**。
+    *   **合并Actor** - 在单独的窗口中呼出 **合并Actor** 工具。
+    *   **会话前端** - 在单独的窗口中呼出 **虚幻前端**。
+    *   **控件反射器** - 在单独的窗口中呼出 **控件反射器**。
+*   **在蓝图中查找** - 在所有蓝图中查找对函数、事件和变量的引用。
+*   **GameplayCue编辑器** - 在单独的窗口中打开 **Gameplay Cue** 编辑器选项卡。
+*   **项目Launcher** - **项目Launcher** 提供打包、部署和启动项目的高级工作流。
+*   **本地化控制板** - 打开此项目的 **本地化控制板**。
+*   **重设布局** - 将布局重设为默认。保存变更并创建设置备份后需要重新启动编辑器。
+*   **保存布局** - 将面板的当前布局保存为新默认布局。
+*   **启用全屏** - 启用应用程序的全屏模式，延展到整个显示器。
 
-%Shared/Editors/Common/EditorMenuItems:MenuHelp%
+### 帮助
 
-(#Toolbar)
+*   **浏览材质编辑器文档** - 打开一个浏览器窗口并导航到此工具相关的文档。
+*   **支持** - 打开浏览器窗口访问虚幻引擎开发者网络（UDN）论坛页面，您可在此处询问关于虚幻引擎的问题。
+*   **论坛** - 前往虚幻引擎论坛查看公告，并与其他开发者展开讨论。
+*   **答疑中心** - 前往答疑中心提出问题、搜索已有答案，并和其他UE4开发者分享知识。
+*   **Wiki** - 前往虚幻引擎Wiki页面查看社区创建的资源，或创建您自己的资源。
+*   **访问UnrealEngine.com** - 导航到UnrealEngine.com，了解更多虚幻引擎技术。
+*   **制作人员列表** - 显示应用程序的制作人员列表。
+*   **关于虚幻编辑器** - 显示应用程序的制作人员列表、版权信息和版本信息。
+
 ## 工具栏
 
-![Material Editor Toolbar](MaterialEditor_Toolbar.png)
+[REGION:lightbox]
+[![](Material_Editor_2.png)(w:800px)](Material_Editor_2.png)
+[/REGION]
 
 下表列出了工具栏中的选项以及它们的功能。
 
-| **图标** | **描述** | 
+[REGION:simpletable]
+| **图标** | **描述** |
 | --- | --- |
-| [Include:Shared/Editors/Common/EditorToolbarItems/#ToolbarSaveIcon] | [Include:Shared/Editors/Common/EditorToolbarItems/#ToolbarSaveDescription] |
-| [Include:Shared/Editors/Common/EditorToolbarItems/#ToolbarCBIcon] | [Include:Shared/Editors/Common/EditorToolbarItems/#ToolbarCBDescription] |
-| ![toolbar_apply.png](toolbar_apply.png)| 应用材质编辑器中对原始材质进行的变更，以及该材质在世界场景中的使用。 |
-|![toolbar_search.png](Material_Toolbar_Button_Search.png) | 找到当前材质中的表现和注解。 |
-| ![toolbar_home.png](toolbar_home.png)| 在 **Graph** 面板中使基础材质节点居中。 |
-| ![toolbar_clean.png](toolbar_clean.png)| 删除未与材质连接的材质节点。 |
-| ![toolbar_show.png](toolbar_show.png)| 显示或隐藏未连接的材质节点。 |
-| ![toolbar_live_nodes.png](Engine/Rendering/Materials/Editor/toolbar_live_nodes.png)| 启用后将实时更新每个材质节点中的材质。禁用此项后材质编辑器性能更佳。请查阅 [实时节点和实时更新](Engine/Rendering/Materials/Editor/#LiveNodesAndLiveUpdate) 部分。|
-| ![toolbar_live_update.png](Engine/Rendering/Materials/Editor/toolbar_live_update.png)|启用后，在节点被添加、被删除、被连接、被断开连接，或其属性值发生改变时对所有子表现的着色器进行编译。禁用此项后材质编辑器性能更佳。请查阅 [实时节点和实时更新](Engine/Rendering/Materials/Editor/#LiveNodesAndLiveUpdate) 部分。 |
-| ![toolbar_stats.png](Engine/Rendering/Materials/Editor/toolbar_stats.png)| 隐藏或显示 **Graph** 面板中的材质统计。 |
-| ![toobar_release_stats](Material_Toolbar_Button_Release_Stats.png)| 在状态报告中切换使用发布着色器或开发着色器。 |
-| ![toolbar_built_in_stats](Material_Toolbar_Button_Built_In_Stats.png)| 切换空材质的状态显示。有助于确定图表中变更的开销。|
-| ![toolbar_mobile_stats](Material_Toolbar_Button_Mobile_Stats.png)| 切换移动平台材质状态和汇编错误。 |
+| ![](Common_Toolbar_Save.png) | 保存当前资源。 |
+| ![](UE4_Browse_Icon_01.png "UE4_Browse_Icon_01.png") | 在内容浏览器中寻找并选择当前资源。 |
+| ![](toolbar_apply.png) | 将在材质编辑器中进行的修改应用到原始材质，以及场景中应用此材质之处。 |
+| ![toolbar_search.png](Material_Toolbar_Button_Search.png) | 在当前材质中找到表达式和注释。 |
+| ![](toolbar_home.png) | 在 **图表** 面板中居中基础材质节点。 |
+| ![](toolbar_clean.png) | 删除未连接到材质的所有材质节点。 |
+| ![](toolbar_show.png) | 显示或隐藏没有任何连接的材质节点。 |
+| ![](MaterailEditor_LivePreview.png "MaterailEditor_LivePreview.png") | 启用后将切换预览材质的实时更新。禁用此选项可提高材质编辑器性能。请参见[实时节点和实时更新](Engine/Rendering/Materials/Editor/#实时预览、实时节点和实时更新)部分。 |
+| ![](MaterailEditor_LiveNodes.png "MaterailEditor_LiveNodes.png") | 切换图表画布的实时更新。 |
+| ![](toolbar_live_update.png) | 启用后，将在每次添加、删除、连接、断开连接，或修改其属性值时编译所有子表达式的着色器。禁用此选项可提升材质编辑器性能。请参阅[实时节点和实时更新](Engine/Rendering/Materials/Editor/#LiveNodesAndLiveUpdate)部分。 |
+| ![](toolbar_stats.png) | 在 **图表** 面板中显示或隐藏材质统计数据。 |
+| ![](MaterialEditor_PlatformStats.png "MaterialEditor_PlatformStats.png") | 切换窗口显示多个平台的材质统计数据和编译错误。 |
+[/REGION]
 
-(#ViewportPanel)
 ## 视口面板
 
-![Material Editor Preview Panel](MaterialEditor_Preview.png)
+![](Material_Editor_3.png "Material_Editor_3.png")
 
-**视口** 面板显示应用到网格体的材质（正处于编辑中）。 
+**视口** 面板显示当前编辑中的材质。
 
 可使用下表中的选项在 **视口** 面板中导航。
 
-| **操作** | **描述** |
-| ----- | ----- |
-| 鼠标左键拖动 |  旋转网格体  |
+[REGION:simpletable]
+| 操作 | 描述 |
+| --- | --- |
+| 鼠标左键拖动 | 旋转网格体 |
 | 鼠标中键拖动 | 平移 |
 | 鼠标右键拖动 | 缩放 |
-| 长按 **L** 鼠标左键拖动 | 旋转光源方向  |
+| 长按 **L** 并按住鼠标左键拖动 | 旋转光源方向  |
+[/REGION]
 
+可使用关联的工具栏功能按钮（形状按钮、**选择预览网格体** 组合件，以及 **使用所选静态网格体** 按钮）修改视口网格体。视口网格体将随材质保存，因此材质下次在材质编辑器中打开时将在同一个网格体上进行预览。
 
-使用相关工具栏功能按钮（形状按钮、**选择预览网格体（Select Preview Mesh）** 组合按钮、**使用所选静态网格体（Use Selected StaticMesh）** 按钮）可变更视口网格体。视口网格体和材质一同保存， 
-材质下次在材质编辑器中打开时即可在相同的网格体上进行预览。
+**预览** 面板顶部有数个图标，下表是它们的用途详述。
 
-**预览（Preview）** 面板顶部有数个图标，下表为它们的用法细节。
-
-| **图标** | **描述** | 
+[REGION:simpletable]
+| **图标** | **描述** |
 | --- | --- |
-| ![toolbar_cylinder.png](toolbar_cylinder.png)![toolbar_sphere.png](toolbar_sphere.png)![toolbar_plane.png](toolbar_plane.png)![toolbar_cube.png](toolbar_cube.png)| 在 **Preview** 面板中显示当前材质在各个原始形态上的效果。 |
-| ![toolbar_mesh.png](toolbar_mesh.png)| 将 **Content Browser** 中选中的静态网格体设为预览网格体。 |
-| ![toolbar_grid.png](toolbar_grid.png)| 开关 **Preview** 面板中的背景网格。 |
-| ![toolbar_realtime_preview.png](toolbar_realtime_preview.png)| 启用后将实时更新预览网格体上的材质。禁用此项后材质编辑器性能更佳。 |
+| ![](toolbar_cylinder.png)![](toolbar_sphere.png)![](toolbar_plane.png)![](toolbar_cube.png) | 在 **预览** 面板中相应的基元形状上显示当前材质的结果。 |
+| ![](toolbar_mesh.png) | 将 **内容浏览器** 中选中的静态网格体设为预览网格体。 |
+| ![](MaterailEditor_ViewportOptions.png "MaterailEditor_ViewportOptions.png") | 切换材质 **视口选项**。 |
+| ![](MaterailEditor_ViewportType.png "MaterailEditor_ViewportType.png") | 修改使用的 **视口** 类型。 |
+| ![](MaterailEditor_ViewportLightingType.png "MaterailEditor_ViewportLightingType.png") | 修改 **视口** 使用的光源类型。 |
+| ![](MaterailEditor_ViewportShow.png "MaterailEditor_ViewportShow.png") | 启用材质视口的额外选项。 |
+[/REGION]
 
-(#DetailsPanel)
-## Details 面板
+## 细节面板
 
-![Material Editor Details Panel](MaterialEditor_Details.png)
+![](Material_Editor_4.png "Material_Editor_4.png")
 
-此面板包含所有当前选中材质表现和函数节点。如未选中节点，将显示 
-编辑中材质的属性。
+此面板包含所有当前选中的材质表达式和函数节点的属性窗口。如未选择节点，将显示正在编辑的材质的属性。
 
-可在 [](Engine/Rendering/Materials/MaterialProperties) 中查阅所有材质属性 
-的描述。
+参见[材质属性](Engine/Rendering/Materials/MaterialProperties)，了解所有材质属性的描述。
 
-(#GraphPanel)
-## Graph 面板
+## 图表面板
 
-![](MaterialGraph1.jpg)
+![](Material_Editor_5.png "Material_Editor_5.png")
 
-此面板包含属于此材质的所有材质表现的图表。每个材质默认包含一个单独基础材质节点。此节点拥有一系列输入，每个都和材质的一个不同方面 
-（其他材质节点可进行连接）相关。
+  
+此图表包含属于此材质的所有材质表达式的一个图表。每个材质默认包含一个单一基础材质节点。此节点拥有一系列输入，每个皆与材质的不同方面相关（其他材质节点可进行连接）。
 
-![Material Editor Material Node](MaterialEditor_MaterialNode.png)
+![](MaterialEditor_MaterialNode.png "MaterialEditor_MaterialNode.png")
 
-可在 [](Engine/Rendering/Materials\MaterialInputs) 中查阅基础材质节点 
-诸多输入的描述。
+参见[材质输入](Engine/Rendering/Materials/MaterialInputs)，了解基础材质节点诸多输入的描述。  
 
-(#PalettePanel)
-## Palette 面板
+## 控制板面板
 
-**Palette** 面板包含可通过“拖放”放置到材质中的材质节点列表。如需放置一个新的材质节点， 
-将其拖入 **Graph** 面板即可。
+![](Material_Editor_6.png "Material_Editor_6.png")
+
+  
+**控制板** 面板包含一个材质节点列表，可通过“拖放”放置在材质中。将新材质节点拖入 **图表** 面板即可放置一个新的材质节点。
 
 [REGION:tip]
-可在 **Category** 下拉列表中选择 **Expressions** 或 **Functions**，对 **Palette** 面板中列出的材质节点进行过滤。
+可在 **类目（Category）** 下拉列表中选择 **表达式（Expressions）** 或 **函数（Functions）**，对 **控制板** 面板中列出的材质节点进行过滤。
 [/REGION]
 
-如需了解材质函数的更多内容，请查阅 [材质函数](Engine/Rendering/Materials/Functions)。
+欲知材质函数的更多信息，请参阅[材质函数](Engine/Rendering/Materials/Functions)。
 
+## 统计数据面板
 
-(#StatsPanel)
-## Stats 面板
+![](StatsPanel.png "StatsPanel.png")
 
-![](StatsPanel.jpg)
+在材质中使用的着色器指令数量以及[编译器错误](Engine/Rendering/Materials/Editor/#CompilerErrors)均显示在此面板中。指令数量越少，材质的开销越低。未连接到基础材质节点的材质表达式节点不会记入材质的指定数（开销）。
 
-此面板显示材质中使用的着色器指令数量和 [编译器错误](Engine/Rendering/Materials/Editor/#CompilerErrors)。指令数越少，材质的开销越低。未和基础材质节点连接的材质表现节点不计算在材质的指令数（开销）以内。
+### HLSL代码面板
 
-(#hlslcodepanel)
-## HLSL 代码面板
+![](MaterialEditor_HLSLPanel.png "MaterialEditor_HLSLPanel.png")
 
-![](MaterialEditor_HLSLPanel.png)
-
-此面板显示当前材质生成的 **高级着色器语言（High Level Shader Language）**（HLSL） 代码。注意：这并非是一个编辑器；无法修改 HLSL 代码。这只是一个查看器，显示材质网络定义的代码。
+此面板显示了由当前材质生成的 **高级着色器语言（High Level Shader Language）** （HLSL）代码。注意这并非编辑器；使用者无法修改HLSL代码。这只是一个查看器，允许使用者显示由材质网络定义的代码。
 
 [REGION:note]
-Code View 面板默认不显示。在 **Window** 菜单中点击 **HLSL Code** 即可显示。
+**代码视图** 面板默认不可见。在 **窗口** 菜单上点击 **HLSL代码（HLSL Code）** 即可显示 **代码视图** 面板。
 [/REGION]
 
+### 平台统计数据
 
-(#GraphControls)
+点击“平台统计数据”图标即可查看您的材质在诸多平台上的开销。 
+
+ ![](PlatformStats.png "PlatformStats.png")
+
+点击 **设置** 选项，然后选择需要查看数据的渲染，即可查看UE4支持的每个渲染API的统计数据。 
+
+![](PlatformStats_More.png "PlatformStats_More.png")
+
+如需查看 **Android** 的统计数据，首先需要执行以下步骤来安装 **Mali离线编译器**：
+
+1.  下载并安装[Mali离线编译器](https://developer.arm.com/products/software-development-tools/graphics-development-tools/mali-offline-compiler/downloads)。
+
+1.  安装Mali离线编译器后，打开UE4，在 **主菜单** 中选择 **编辑（Edit）> 编辑器偏好（Editor Preferences）> 内容编辑器（Content Editors）> 材质编辑器（Material Editor）**。
+
+    ![](PlatformStats_CEMaterialEditor.png "PlatformStats_CEMaterialEditor.png")
+
+1.  点击 **Mali离线编译器** 选项右边的 **3个点**，然后找到Mali离线编译器安装时安装的 **malisc.exe** 文件。
+
+    ![](PlatformStats_LoadOfflineCompiler.png "PlatformStats_LoadOfflineCompiler.png")
+
+1.  之前的步骤完成后便能看到UE4支持的诸多Android渲染的统计数据。
+
+    ![](PlatformStats_SeeingStatsr.png "PlatformStats_SeeingStatsr.png")  
+
+[REGION:note]
+不借助离线编译器将无法看到Android平台数据。
+[/REGION]
+
 ## 图表功能键
 
-材质编辑器中的功能键通常和虚幻编辑器中其他工具的功能键相匹配。例如以其他连接对象编辑器的方式在材质表现图表中导航，材质预览网格体可根据其他网格体进行导向，等等。
+材质编辑器中的功能键通常与虚幻编辑器中其他工具的功能键相匹配。举例而言，材质表达式图表可以像其他链接的对象编辑器一样进行导航，可按照其他网格体工具那样对材质预览网格体的朝向进行定义。
 
-
-(#MouseControls)
 ### 鼠标功能键
 
+[REGION:simpletable]
 | **功能键** | **操作** |
 | --- | --- |
-| **在背景上拖动鼠标左键或右键**  | 平移材质表现图表 |
-| **旋转鼠标滚轮**  | 放大缩小  |
-| **鼠标左键加右键拖动**  | 放大缩小  |
-| **在对象上按下鼠标左键**  | 选择表现/注释 |
-| **在对象上按下 Ctrl + 鼠标左键**  | 切换选择表现/注释 |
-| **Ctrl + 鼠标左键拖动**  | 移动当前选择/注释  |
-| **Ctrl + Alt + 鼠标左键拖动**  | 框选  |
-| **Ctrl + Alt + Shift + 鼠标左键拖动**  | 框选（添加到当前选择）  |
-| **在接头上拖动鼠标左键**  | 创建连接（在接头上松开）  |
-| **从连接拖动鼠标左键**  | 移动连接（在同类接头上松开）  |
-| **在接头上 Shift + 鼠标左键双击**  | 标记接头。在已标记的接头上再次执行此操作将在两个接头之间建立连接。通过此法可快速创建长距离连接。|
-| **在背景上按下鼠标右键**  | 呼出 **New Expression** 菜单  |
-| **在对象上按下鼠标右键**  | 呼出 **Object** 菜单  |
-| **在接头上按下鼠标右键**  | 呼出 **Object** 菜单  |
-| **在接头上按下 Alt + 鼠标左键**  | 断开到接头的所有连接  |
+| **在背景上拖动鼠标左键或右键*  | 平移材质表达式图表 |
+| **旋转鼠标滚轮** | 放大缩小 |
+| **鼠标左键加右键拖动** | 放大缩小 |
+| **在对象上按下鼠标左键** | 选择表达式/注释 |
+| **在对象上按下Ctrl+鼠标左键** | 切换选择表达式/注释 |
+| **Ctrl+鼠标左键拖动** | 移动当前选择/注释 |
+| **Ctrl+Alt+鼠标左键拖动** | 框选 |
+| **Ctrl+Alt+Shift+鼠标左键拖动** | 框选（添加到当前选择） |
+| **在连接器上拖动鼠标左键** | 创建连接（在连接器上松开） |
+| **从连接拖动鼠标左键** | 移动连接（在同类连接器上松开） |
+| **Shift+在连接器上双击鼠标左键** | 标记连接器。在一个已标记的连接器上再次进行操作将在两个连接器之间创建连接。这是一种快速建立长距离连接的方法。 |
+| **在背景上按下鼠标右键** | 呼出 **新建表达式（New Expression）** 菜单 |
+| **在对象上按下鼠标右键** | 呼出 **对象（Object）** 菜单 |
+| **在连接器上按下鼠标右键** | 呼出 **对象（Object）** 菜单  |
+| **在连接器上按下Alt+鼠标左键** | 断开到连接器的所有连接 |
+[/REGION]
 
-
-(#KeyboardControls)
 ### 键盘功能键
 
+[REGION:simpletable]
 | **功能键** | **操作** |
 | --- | --- |
-| **Ctrl + B**  | 在 Content Browser 中进行寻找 |
-| **Ctrl + C**  | 复制选中的表现 |
-| **Ctrl + S**  | 全部保存 |
-| **Ctrl + V**  | 粘贴  |
-| **Ctrl + W**  | 生成选中对象的副本  |
-| **Ctrl + Y**  | 重做  |
-| **Ctrl + Z**  | 撤销  |
-| **Delete**  | 删除选中的对象  |
-| **空格键**  | 强制更新所有材质表现预览 |
-| **Enter**  | （和点击应用相同） |
+| **Ctrl + B** | 在内容浏览器中查找 |
+| **Ctrl + C** | 复制选中的表达式 |
+| **Ctrl + S** | 全部保存 |
+| **Ctrl + V** | 粘贴 |
+| **Ctrl + W** | 生成选中对象的副本 |
+| **Ctrl + Y** | 重做 |
+| **Ctrl + Z** | 撤销 |
+| **Delete** | 删除选中的对象 |
+| **空格键** | 强制更新所有材质表达式预览 |
+| **Enter** | （和点击应用相同） |
+[/REGION]
 
-
-(#Hotkeys)
 ### 热键
 
-可使用热键放置常用的材质表现类型。长按热键并 **单击左键** 在节点中进行放置。热键如下：
+可以使用热键来放置常用的材质表达式类型。按住热键并 **点击左键** 放置到节点中。热键如下：
 
-| **热键** | **表现** |
+[REGION:simpletable]
+| **热键** | **表达式** |
 | --- | --- |
 | **A** | Add |
 | **B** | BumpOffset |
@@ -266,5 +329,5 @@ Code View 面板默认不显示。在 **Window** 菜单中点击 **HLSL Code** �
 | **2** | Constant2Vector |
 | **3** | Constant3Vector |
 | **4** | Constant4Vector |
-| **Shift + C**  | ComponentMask |
-
+| **Shift + C** | ComponentMask |
+[/REGION]

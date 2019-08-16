@@ -35,7 +35,7 @@ bool UNiagaraNodeUsageSelector::AllowNiagaraTypeForAddPin(const FNiagaraTypeDefi
 void UNiagaraNodeUsageSelector::InsertInputPinsFor(const FNiagaraVariable& Var)
 {
 	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
-	UEnum* ENiagaraScriptGroupEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("ENiagaraScriptGroup"), true);
+	UEnum* ENiagaraScriptGroupEnum = StaticEnum<ENiagaraScriptGroup>();
 	int64 GroupCount = (int64)ENiagaraScriptGroup::Max;
 
 	TArray<UEdGraphPin*> OldPins(Pins);
@@ -191,7 +191,7 @@ void UNiagaraNodeUsageSelector::AppendFunctionAliasForContext(const FNiagaraGrap
 	}
 }
 
-void UNiagaraNodeUsageSelector::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive) const
+void UNiagaraNodeUsageSelector::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive /*= true*/, bool bFilterForCompilation /*= true*/) const
 {
 	const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(GetSchema());
 
@@ -223,7 +223,7 @@ void UNiagaraNodeUsageSelector::BuildParameterMapHistory(FNiagaraParameterMapHis
 
 			for (int32 i = 0; i < OutputVars.Num(); i++)
 			{
-				OutHistory.VisitInputPin(InputPins[VarIdx + i], this);
+				OutHistory.VisitInputPin(InputPins[VarIdx + i], this, bFilterForCompilation);
 			}
 		}
 	}

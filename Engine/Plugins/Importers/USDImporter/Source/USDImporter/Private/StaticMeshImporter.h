@@ -9,6 +9,8 @@ struct FUsdGeomData;
 
 class FUSDStaticMeshImporter
 {
+#if USE_USD_SDK
 public:
 	static UStaticMesh* ImportStaticMesh(FUsdImportContext& ImportContext, const FUsdAssetPrimToImport& PrimToImport);
+#endif // #if USE_USD_SDK
 };

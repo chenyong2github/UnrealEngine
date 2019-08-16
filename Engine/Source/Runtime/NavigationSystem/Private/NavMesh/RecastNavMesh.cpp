@@ -104,6 +104,7 @@ void FNavMeshTileData::MakeUnique()
 }
 
 float ARecastNavMesh::DrawDistanceSq = 0.0f;
+float ARecastNavMesh::MinimumSizeForChaosNavMeshInfluenceSq = 0.0f;
 #if !WITH_RECAST
 
 ARecastNavMesh::ARecastNavMesh(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
@@ -212,6 +213,58 @@ namespace FNavMeshConfig
 	}
 }
 
+FRecastNavMeshGenerationProperties::FRecastNavMeshGenerationProperties()
+{
+	TilePoolSize = 1024;
+	TileSizeUU = 1000.f;
+	CellSize = 19;
+	CellHeight = 10;
+	AgentRadius = 34.f;
+	AgentHeight = 144.f;
+	AgentMaxSlope = 44.f;
+	AgentMaxStepHeight = 35.f;
+	MinRegionArea = 0.f;
+	MergeRegionSize = 400.f;
+	MaxSimplificationError = 1.3f;	// from RecastDemo
+	TileNumberHardLimit = 1 << 20;
+	RegionPartitioning = ERecastPartitioning::Watershed;
+	LayerPartitioning = ERecastPartitioning::Watershed;
+	RegionChunkSplits = 2;
+	LayerChunkSplits = 2;
+	bSortNavigationAreasByCost = false;
+	bPerformVoxelFiltering = true;
+	bMarkLowHeightAreas = false;
+	bFilterLowSpanSequences = false;
+	bFilterLowSpanFromTileCache = false;
+	bFixedTilePoolSize = false;
+}
+
+FRecastNavMeshGenerationProperties::FRecastNavMeshGenerationProperties(const ARecastNavMesh& RecastNavMesh)
+{
+	TilePoolSize = RecastNavMesh.TilePoolSize;
+	TileSizeUU = RecastNavMesh.TileSizeUU;
+	CellSize = RecastNavMesh.CellSize;
+	CellHeight = RecastNavMesh.CellHeight;
+	AgentRadius = RecastNavMesh.AgentRadius;
+	AgentHeight = RecastNavMesh.AgentHeight;
+	AgentMaxSlope = RecastNavMesh.AgentMaxSlope;
+	AgentMaxStepHeight = RecastNavMesh.AgentMaxStepHeight;
+	MinRegionArea = RecastNavMesh.MinRegionArea;
+	MergeRegionSize = RecastNavMesh.MergeRegionSize;
+	MaxSimplificationError = RecastNavMesh.MaxSimplificationError;
+	TileNumberHardLimit = RecastNavMesh.TileNumberHardLimit;
+	RegionPartitioning = RecastNavMesh.RegionPartitioning;
+	LayerPartitioning = RecastNavMesh.LayerPartitioning;
+	RegionChunkSplits = RecastNavMesh.RegionChunkSplits;
+	LayerChunkSplits = RecastNavMesh.LayerChunkSplits;
+	bSortNavigationAreasByCost = RecastNavMesh.bSortNavigationAreasByCost;
+	bPerformVoxelFiltering = RecastNavMesh.bPerformVoxelFiltering;
+	bMarkLowHeightAreas = RecastNavMesh.bMarkLowHeightAreas;
+	bFilterLowSpanSequences = RecastNavMesh.bFilterLowSpanSequences;
+	bFilterLowSpanFromTileCache = RecastNavMesh.bFilterLowSpanFromTileCache;
+	bFixedTilePoolSize = RecastNavMesh.bFixedTilePoolSize;
+}
+
 ARecastNavMesh::FNavPolyFlags ARecastNavMesh::NavLinkFlag = ARecastNavMesh::FNavPolyFlags(0);
 
 ARecastNavMesh::ARecastNavMesh(const FObjectInitializer& ObjectInitializer)
@@ -290,37 +343,6 @@ void ARecastNavMesh::DestroyRecastPImpl()
 		delete RecastNavMeshImpl;
 		RecastNavMeshImpl = NULL;
 	}
-}
-
-ARecastNavMesh* ARecastNavMesh::SpawnInstance(UNavigationSystem* NavSys, const FNavDataConfig* AgentProps)
-{
-	FActorSpawnParameters SpawnInfo;
-	SpawnInfo.OverrideLevel = NavSys->GetWorld()->PersistentLevel;
-	ARecastNavMesh* Instance = NavSys->GetWorld()->SpawnActor<ARecastNavMesh>( SpawnInfo );
-
-	if (Instance != NULL && AgentProps != NULL)
-	{
-		Instance->SetConfig(*AgentProps);
-		if (AgentProps->Name != NAME_None)
-		{
-			FString StrName = FString::Printf(TEXT("%s-%s"), *(Instance->GetFName().GetPlainNameString()), *(AgentProps->Name.ToString()));
-			// temporary solution to make sure we don't try to change name while there's already
-			// an object with this name
-			UObject* ExistingObject = StaticFindObject(/*Class=*/ NULL, Instance->GetOuter(), *StrName, true);
-			if (ExistingObject != NULL)
-			{
-				ExistingObject->Rename(NULL, NULL, REN_DontCreateRedirectors | REN_ForceGlobalUnique | REN_DoNotDirty | REN_NonTransactional);
-			}
-
-			// Set descriptive name
-			Instance->Rename(*StrName);
-#if WITH_EDITOR
-			Instance->SetActorLabel(StrName);
-#endif // WITH_EDITOR
-		}
-	}
-
-	return Instance;
 }
 
 UPrimitiveComponent* ARecastNavMesh::ConstructRenderingComponent() 
@@ -706,7 +728,7 @@ void ARecastNavMesh::Serialize( FArchive& Ar )
 void ARecastNavMesh::SetConfig(const FNavDataConfig& Src) 
 { 
 	NavDataConfig = Src; 
-	AgentMaxHeight = AgentHeight = Src.AgentHeight;
+	AgentHeight = Src.AgentHeight;
 	AgentRadius = Src.AgentRadius;
 
 	if (Src.HasStepHeightOverride())
@@ -975,26 +997,28 @@ bool ARecastNavMesh::GetRandomReachablePointInRadius(const FVector& Origin, floa
 	if (QueryFilter)
 	{
 		// find starting poly
+		const FVector ProjectionExtent(NavDataConfig.DefaultQueryExtent.X, NavDataConfig.DefaultQueryExtent.Y, BIG_NUMBER);
+		const FVector RcExtent = Unreal2RecastPoint(ProjectionExtent).GetAbs();
 		// convert start/end pos to Recast coords
-		const float Extent[3] = { Radius, Radius, Radius };
 		const FVector RecastOrigin = Unreal2RecastPoint(Origin);
 		NavNodeRef OriginPolyID = INVALID_NAVNODEREF;
-		NavQuery.findNearestPoly(&RecastOrigin.X, Extent, QueryFilter, &OriginPolyID, nullptr);
+		NavQuery.findNearestPoly(&RecastOrigin.X, &RcExtent.X, QueryFilter, &OriginPolyID, nullptr);
 
-		dtPolyRef Poly;
-		float RandPt[3];
-		dtStatus Status = NavQuery.findRandomPointAroundCircle(OriginPolyID, &RecastOrigin.X, Radius
-			, QueryFilter, FMath::FRand, &Poly, RandPt);
+		if (OriginPolyID != INVALID_NAVNODEREF)
+		{
+			dtPolyRef Poly;
+			float RandPt[3];
+			dtStatus Status = NavQuery.findRandomPointAroundCircle(OriginPolyID, &RecastOrigin.X, Radius
+				, QueryFilter, FMath::FRand, &Poly, RandPt);
 
-		if (dtStatusSucceed(Status))
-		{
-			OutResult = FNavLocation(Recast2UnrealPoint(RandPt), Poly);
-			return true;
+			if (dtStatusSucceed(Status))
+			{
+				OutResult = FNavLocation(Recast2UnrealPoint(RandPt), Poly);
+				return true;
+			}
 		}
-		else
-		{
-			OutResult = FNavLocation(Origin, OriginPolyID);
-		}
+
+		OutResult = FNavLocation(Origin, OriginPolyID);
 	}
 
 	return false;
@@ -1548,6 +1572,7 @@ bool ARecastNavMesh::GetPolyFlags(NavNodeRef PolyID, FNavMeshNodeFlags& Flags) c
 			const UClass* AreaClass = GetAreaClass(Flags.Area);
 			const UNavArea* DefArea = AreaClass ? ((UClass*)AreaClass)->GetDefaultObject<UNavArea>() : NULL;
 			Flags.AreaFlags = DefArea ? DefArea->GetAreaFlags() : 0;
+			// @todo what is this literal?
 			Flags.PathFlags = (PolyFlags & GetNavLinkFlag()) ? 4 : 0;
 		}
 	}
@@ -2402,6 +2427,32 @@ void ARecastNavMesh::ConditionalConstructGenerator()
 			RestrictBuildingToActiveTiles(NavSys->IsActiveTilesGenerationEnabled());
 		}
 	}
+}
+
+void ARecastNavMesh::UpdateGenerationProperties(const FRecastNavMeshGenerationProperties& GenerationProps)
+{
+	TilePoolSize = GenerationProps.TilePoolSize;
+	TileSizeUU = GenerationProps.TileSizeUU;
+	CellSize = GenerationProps.CellSize;
+	CellHeight = GenerationProps.CellHeight;
+	AgentRadius = GenerationProps.AgentRadius;
+	AgentHeight = GenerationProps.AgentHeight;
+	AgentMaxSlope = GenerationProps.AgentMaxSlope;
+	AgentMaxStepHeight = GenerationProps.AgentMaxStepHeight;
+	MinRegionArea = GenerationProps.MinRegionArea;
+	MergeRegionSize = GenerationProps.MergeRegionSize;
+	MaxSimplificationError = GenerationProps.MaxSimplificationError;
+	TileNumberHardLimit = GenerationProps.TileNumberHardLimit;
+	RegionPartitioning = GenerationProps.RegionPartitioning;
+	LayerPartitioning = GenerationProps.LayerPartitioning;
+	RegionChunkSplits = GenerationProps.RegionChunkSplits;
+	LayerChunkSplits = GenerationProps.LayerChunkSplits;
+	bSortNavigationAreasByCost = GenerationProps.bSortNavigationAreasByCost;
+	bPerformVoxelFiltering = GenerationProps.bPerformVoxelFiltering;
+	bMarkLowHeightAreas = GenerationProps.bMarkLowHeightAreas;
+	bFilterLowSpanSequences = GenerationProps.bFilterLowSpanSequences;
+	bFilterLowSpanFromTileCache = GenerationProps.bFilterLowSpanFromTileCache;
+	bFixedTilePoolSize = GenerationProps.bFixedTilePoolSize;
 }
 
 bool ARecastNavMesh::IsVoxelCacheEnabled()

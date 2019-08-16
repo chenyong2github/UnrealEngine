@@ -47,6 +47,7 @@ namespace ELandscapeToolTargetType
 class ILandscapeEdModeInterface
 {
 public:
+	virtual void PostUpdateLayerContent() = 0;
 	virtual ELandscapeToolTargetType::Type GetLandscapeToolTargetType() const = 0;
 	virtual const FLandscapeLayer* GetLandscapeSelectedLayer() const = 0;
 	virtual ULandscapeLayerInfoObject* GetSelectedLandscapeLayerInfo() const = 0;
@@ -61,7 +62,7 @@ struct FLandscapeTextureDataInfo
 		TArray<FUpdateTextureRegion2D> MipUpdateRegions;
 	};
 
-	FLandscapeTextureDataInfo(UTexture2D* InTexture);
+	FLandscapeTextureDataInfo(UTexture2D* InTexture, bool bShouldDirtyPackage);
 	virtual ~FLandscapeTextureDataInfo();
 
 	// returns true if we need to block on the render thread before unlocking the mip data
@@ -104,6 +105,9 @@ struct LANDSCAPE_API FLandscapeTextureDataInterface
 {
 	FLandscapeTextureDataInterface(bool bInUploadTextureChangesToGPU = true);
 	virtual ~FLandscapeTextureDataInterface();
+		
+	void SetShouldDirtyPackage(bool bValue) { bShouldDirtyPackage = bValue; }
+	bool GetShouldDirtyPackage() const { return bShouldDirtyPackage; }
 
 	// Texture data access
 	FLandscapeTextureDataInfo* GetTextureDataInfo(UTexture2D* Texture);
@@ -129,8 +133,8 @@ struct LANDSCAPE_API FLandscapeTextureDataInterface
 private:
 	TMap<UTexture2D*, FLandscapeTextureDataInfo*> TextureDataMap;
 	bool bUploadTextureChangesToGPU;
+	bool bShouldDirtyPackage;
 };
-
 
 struct LANDSCAPE_API FLandscapeEditDataInterface : public FLandscapeTextureDataInterface
 {
@@ -143,13 +147,13 @@ struct LANDSCAPE_API FLandscapeEditDataInterface : public FLandscapeTextureDataI
 	//
 	// Heightmap access
 	//
-	void SetHeightData(int32 X1, int32 Y1, int32 X2, int32 Y2, const uint16* InData, int32 InStride, bool InCalcNormals, const uint16* InNormalData = nullptr, const uint8* InHeightAlphaBlendData = nullptr, const uint8* InHeightRaiseLowerData = nullptr, bool InCreateComponents = false, UTexture2D* InHeightmap = nullptr, UTexture2D* InXYOffsetmapTexture = nullptr,
+	void SetHeightData(int32 X1, int32 Y1, int32 X2, int32 Y2, const uint16* InData, int32 InStride, bool InCalcNormals, const uint16* InNormalData = nullptr, const uint16* InHeightAlphaBlendData = nullptr, const uint8* InHeightRaiseLowerData = nullptr, bool InCreateComponents = false, UTexture2D* InHeightmap = nullptr, UTexture2D* InXYOffsetmapTexture = nullptr,
 					   bool InUpdateBounds = true, bool InUpdateCollision = true, bool InGenerateMips = true);
 
 	// Helper accessor
 	FORCEINLINE uint16 GetHeightMapData(const ULandscapeComponent* Component, int32 TexU, int32 TexV, FColor* TextureData = NULL);
 	// Helper accessor
-	FORCEINLINE uint8 GetHeightMapAlphaBlendData(const ULandscapeComponent* Component, int32 TexU, int32 TexV, FColor* TextureData = NULL);
+	FORCEINLINE uint16 GetHeightMapAlphaBlendData(const ULandscapeComponent* Component, int32 TexU, int32 TexV, FColor* TextureData = NULL);
 	// Helper accessor
 	FORCEINLINE uint8 GetHeightMapFlagsData(const ULandscapeComponent* Component, int32 TexU, int32 TexV, FColor* TextureData = NULL);
 	// Generic
@@ -165,7 +169,7 @@ struct LANDSCAPE_API FLandscapeEditDataInterface : public FLandscapeTextureDataI
 	// Implementation for fixed array
 	void GetHeightData(int32& X1, int32& Y1, int32& X2, int32& Y2, uint16* Data, int32 Stride);
 	void GetHeightDataFast(const int32 X1, const int32 Y1, const int32 X2, const int32 Y2, uint16* Data, int32 Stride, uint16* NormalData = NULL, UTexture2D* InHeightmap = nullptr);
-	void GetHeightAlphaBlendData(int32& X1, int32& Y1, int32& X2, int32& Y2, uint8* Data, int32 Stride);
+	void GetHeightAlphaBlendData(int32& X1, int32& Y1, int32& X2, int32& Y2, uint16* Data, int32 Stride);
 	void GetHeightFlagsData(int32& X1, int32& Y1, int32& X2, int32& Y2, uint8* Data, int32 Stride);
 	// Implementation for sparse array
 	void GetHeightData(int32& X1, int32& Y1, int32& X2, int32& Y2, TMap<FIntPoint, uint16>& SparseData);
@@ -292,6 +296,31 @@ private:
 	const ULandscapeLayerInfoObject* ChooseReplacementLayer(const ULandscapeLayerInfoObject* LayerInfo, int32 ComponentIndexX, int32 SubIndexX, int32 SubX, int32 ComponentIndexY, int32 SubIndexY, int32 SubY, TMap<FIntPoint, TMap<const ULandscapeLayerInfoObject*, uint32>>& LayerInfluenceCache, TArrayView<const uint8* const> LayerDataPtrs);
 };
 
+struct LANDSCAPE_API FLandscapeDoNotDirtyScope
+{
+	FLandscapeDoNotDirtyScope(FLandscapeEditDataInterface& InEditInterface, bool bInScopeEnabled = true)
+		: EditInterface(InEditInterface), bScopeEnabled(bInScopeEnabled)
+	{
+		if (bScopeEnabled)
+		{
+			bPreviousValue = EditInterface.GetShouldDirtyPackage();
+			EditInterface.SetShouldDirtyPackage(false);
+		}
+	}
+
+	~FLandscapeDoNotDirtyScope()
+	{
+		if (bScopeEnabled)
+		{
+			EditInterface.SetShouldDirtyPackage(bPreviousValue);
+		}
+	}
+
+	FLandscapeEditDataInterface& EditInterface;
+	bool bPreviousValue;
+	bool bScopeEnabled;
+};
+
 template<typename T>
 void FLandscapeEditDataInterface::ShrinkData(TArray<T>& Data, int32 OldMinX, int32 OldMinY, int32 OldMaxX, int32 OldMaxY, int32 NewMinX, int32 NewMinY, int32 NewMaxX, int32 NewMaxY)
 {
@@ -364,12 +393,13 @@ struct FHeightmapAccessor
 						
 			// Notify foliage to move any attached instances
 			bool bUpdateFoliage = false;
-
-			ALandscapeProxy::InvalidateGeneratedComponentData(Components);
+			bool bUpdateNormals = false;
 
             // Landscape Layers are updates are delayed and done in  ALandscape::TickLayers
 			if (!LandscapeEdit->HasLandscapeLayersContent())
 			{
+				ALandscapeProxy::InvalidateGeneratedComponentData(Components);
+				bUpdateNormals = true;
 				for (ULandscapeComponent* Component : Components)
 				{
 					ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
@@ -400,7 +430,7 @@ struct FHeightmapAccessor
 				}
 
 				// Update landscape.
-				LandscapeEdit->SetHeightData(X1, Y1, X2, Y2, Data, 0, true);
+				LandscapeEdit->SetHeightData(X1, Y1, X2, Y2, Data, 0, bUpdateNormals);
 
 				// Snap foliage for each component.
 				for (int32 Index = 0; Index < CollisionComponents.Num(); ++Index)
@@ -412,7 +442,7 @@ struct FHeightmapAccessor
 			else
 			{
 				// No foliage, just update landscape.
-				LandscapeEdit->SetHeightData(X1, Y1, X2, Y2, Data, 0, true);
+				LandscapeEdit->SetHeightData(X1, Y1, X2, Y2, Data, 0, bUpdateNormals);
 			}
 		}
 	}
@@ -424,6 +454,9 @@ struct FHeightmapAccessor
 
 	virtual ~FHeightmapAccessor()
 	{
+		// Flush here manually so it will release the lock of the textures, as we will re lock for other things afterward
+		Flush();
+
 		// Landscape Layers are updates are delayed and done in  ALandscape::TickLayers
 		if (!LandscapeEdit->HasLandscapeLayersContent())
 		{
@@ -523,7 +556,6 @@ struct FAlphamapAccessor
 		TSet<ULandscapeComponent*> Components;
 		if (LandscapeEdit.GetComponentsInRegion(X1, Y1, X2, Y2, &Components))
 		{
-			ALandscapeProxy::InvalidateGeneratedComponentData(Components);
 			for (ULandscapeComponent* LandscapeComponent : Components)
 			{
 				// Flag both modes depending on client calling SetData
@@ -532,6 +564,7 @@ struct FAlphamapAccessor
 			
 			if (!LandscapeEdit.HasLandscapeLayersContent())
 			{
+				ALandscapeProxy::InvalidateGeneratedComponentData(Components);
 				ModifiedComponents.Append(Components);
 			}
 

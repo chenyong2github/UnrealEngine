@@ -14,6 +14,7 @@ FDetailsDiff::FDetailsDiff(const UObject* InObject, FOnDisplayedPropertiesChange
 {
 	FDetailsViewArgs DetailsViewArgs;
 	DetailsViewArgs.bShowDifferingPropertiesOption = true;
+	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
 
 	FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	DetailsView = EditModule.CreateDetailView(DetailsViewArgs);
@@ -62,7 +63,7 @@ TArray<FPropertySoftPath> FDetailsDiff::GetDisplayedProperties() const
 	return Ret;
 }
 
-void FDetailsDiff::DiffAgainst(const FDetailsDiff& Newer, TArray< FSingleObjectDiffEntry > &OutDifferences) const
+void FDetailsDiff::DiffAgainst(const FDetailsDiff& Newer, TArray< FSingleObjectDiffEntry > &OutDifferences, bool bSortByDisplayOrder) const
 {
 	TSharedPtr< class IDetailsView > OldDetailsView = DetailsView;
 	TSharedPtr< class IDetailsView > NewDetailsView = Newer.DetailsView;
@@ -113,6 +114,103 @@ void FDetailsDiff::DiffAgainst(const FDetailsDiff& Newer, TArray< FSingleObjectD
 			{
 				OutDifferences.Push(FSingleObjectDiffEntry(DifferingSubProperty, EPropertyDiffType::PropertyValueChanged));
 			}
+		}
+	}
+
+	if (bSortByDisplayOrder)
+	{
+		TArray<FSingleObjectDiffEntry> AllDifferingProperties = OutDifferences;
+		OutDifferences.Reset();
+
+		// OrderedProperties will contain differences in the order they are displayed:
+		TArray< const FSingleObjectDiffEntry* > OrderedProperties;
+
+		// create differing properties list based on what is displayed by the old properties..
+		TArray<FPropertySoftPath> SoftOldProperties = GetDisplayedProperties();
+		TArray<FPropertySoftPath> SoftNewProperties = Newer.GetDisplayedProperties();
+
+		const auto FindAndPushDiff = [&OrderedProperties, &AllDifferingProperties](const FPropertySoftPath& PropertyIdentifier) -> bool
+		{
+			bool bDiffers = false;
+			for (const auto& Difference : AllDifferingProperties)
+			{
+				if (Difference.Identifier == PropertyIdentifier)
+				{
+					bDiffers = true;
+					// if there are any nested differences associated with PropertyIdentifier, add those
+					// as well:
+					OrderedProperties.AddUnique(&Difference);
+				}
+				else if (Difference.Identifier.IsSubPropertyMatch(PropertyIdentifier))
+				{
+					bDiffers = true;
+					OrderedProperties.AddUnique(&Difference);
+				}
+			}
+			return bDiffers;
+		};
+
+		// zip the two sets of properties, zip iterators are not trivial to write in c++,
+		// so this procedural stuff will have to do:
+		int IterOld = 0;
+		int IterNew = 0;
+		while (IterOld < SoftOldProperties.Num() || IterNew < SoftNewProperties.Num())
+		{
+			const bool bOldIterValid = IterOld < SoftOldProperties.Num();
+			const bool bNewIterValid = IterNew < SoftNewProperties.Num();
+
+			// We've reached the end of the new list, but still have properties in the old list.
+			// Continue over the old list to catch any remaining diffs.
+			if (bOldIterValid && !bNewIterValid)
+			{
+				FindAndPushDiff(SoftOldProperties[IterOld]);
+				++IterOld;
+			}
+			// We've reached the end of the old list, but still have properties in the new list.
+			// Continue over the new list to catch any remaining diffs.
+			else if (!bOldIterValid && bNewIterValid)
+			{
+				FindAndPushDiff(SoftNewProperties[IterNew]);
+				++IterNew;
+			}
+			else
+			{
+				// If both properties have the same path, check to ensure the property hasn't changed.
+				if (SoftOldProperties[IterOld] == SoftNewProperties[IterNew])
+				{
+					FindAndPushDiff(SoftOldProperties[IterOld]);
+					++IterNew;
+					++IterOld;
+				}
+				else
+				{
+					// If the old property is different, add it to the list and increment the old iter.
+					// This indicates the property was removed.
+					if (FindAndPushDiff(SoftOldProperties[IterOld]))
+					{
+						++IterOld;
+					}
+					// If the new property is different, add it to the list and increment the new iter.
+					// This indicates the property was added.
+					else if (FindAndPushDiff(SoftNewProperties[IterNew]))
+					{
+						++IterNew;
+					}
+					// Neither property was different.
+					// This indicates the iterators were just out of step from a previous addition or removal.
+					else
+					{
+						++IterOld;
+						++IterNew;
+					}
+				}
+			}
+		}
+
+		// Readd to OutDifferences
+		for (const FSingleObjectDiffEntry* Difference : OrderedProperties)
+		{
+			OutDifferences.Add(*Difference);
 		}
 	}
 }

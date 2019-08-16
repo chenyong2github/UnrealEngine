@@ -4,8 +4,7 @@
 	SubsurfaceProfileCommon.ush: Subsurface scattering parameter lookup / decoding constants.
 =============================================================================================*/
 
-#ifndef __SUBSURFACE_PROFILE_COMMON__
-#define __SUBSURFACE_PROFILE_COMMON__
+#pragma once
 
 // NOTE: Changing offsets below requires updating all instances of #SSSS_CONSTANTS
 // TODO: This needs to be defined in a single place and shared between C++ and shaders!
@@ -35,4 +34,3 @@ Texture2D SSProfilesTexture;
 #define ActualSSProfilesTexture SSProfilesTexture
 #endif
 
-#endif // __SUBSURFACE_PROFILE_COMMON__

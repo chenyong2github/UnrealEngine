@@ -15,12 +15,14 @@
 #define MAX_NUM_GPUS 4
 extern RHI_API uint32 GNumExplicitGPUsForRendering;
 extern RHI_API uint32 GNumAlternateFrameRenderingGroups;
+extern RHI_API uint32 GVirtualMGPU;
 #else
 #define WITH_SLI 0
 #define WITH_MGPU 0
 #define MAX_NUM_GPUS 1
 #define GNumExplicitGPUsForRendering 1
 #define GNumAlternateFrameRenderingGroups 1
+#define GVirtualMGPU 0
 #endif
 
 /** A mask where each bit is a GPU index. Can not be empty so that non SLI platforms can optimize it to be always 1.  */
@@ -86,10 +88,12 @@ public:
 	FORCEINLINE bool Intersects(const FRHIGPUMask& Rhs) const { return (GPUMask & Rhs.GPUMask) != 0; }
 
 	FORCEINLINE bool operator ==(const FRHIGPUMask& Rhs) const { return GPUMask == Rhs.GPUMask; }
+	FORCEINLINE bool operator !=(const FRHIGPUMask& Rhs) const { return GPUMask != Rhs.GPUMask; }
 
 	void operator |=(const FRHIGPUMask& Rhs) { GPUMask |= Rhs.GPUMask; }
 	void operator &=(const FRHIGPUMask& Rhs) { GPUMask &= Rhs.GPUMask; }
-	FORCEINLINE operator uint32() const { return GPUMask; }
+
+	FORCEINLINE explicit operator uint32() const { return GVirtualMGPU ? 1 : GPUMask; }
 
 	FORCEINLINE FRHIGPUMask operator &(const FRHIGPUMask& Rhs) const
 	{
@@ -106,11 +110,15 @@ public:
 
 	struct FIterator
 	{
-		FORCEINLINE FIterator(const uint32 InGPUMask) : GPUMask(InGPUMask), FirstGPUIndexInMask(0)
+		FORCEINLINE explicit FIterator(const uint32 InGPUMask) : GPUMask(InGPUMask), FirstGPUIndexInMask(0)
 		{
 #if WITH_MGPU
 			FirstGPUIndexInMask = FPlatformMath::CountTrailingZeros(InGPUMask);
 #endif
+		}
+
+		FORCEINLINE explicit FIterator(const FRHIGPUMask& InGPUMask) : FIterator(InGPUMask.GPUMask)
+		{
 		}
 
 		FORCEINLINE void operator++()

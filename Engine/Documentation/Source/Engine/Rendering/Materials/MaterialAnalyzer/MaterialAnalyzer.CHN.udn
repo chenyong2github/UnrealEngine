@@ -1,0 +1,50 @@
+﻿INTSourceChangelist:6095755
+Availability: Public
+Title: 材质分析器
+Description: 本页介绍如何找到和使用材质分析器工具。
+Type: overview
+Version: 4.22
+Parent: Engine/Rendering/Materials
+Tags: Materials
+Tags: Material Analyzer
+Order: 17
+
+
+[TOC]
+
+材质分析器是一个开发者工具，帮助您识别和分析项目中的所有材质或材质实例。这样使您能够进行一些更改，从而节约Permutation和存储数据成本。当您选择要分析的材质或材质实例后，该工具将查找该材质的所有后代（或材质实例的父材质的所有后代）。该工具还将查找所有基础属性覆盖、静态切换和静态组件遮罩参数。
+
+## 打开材质分析器
+
+1.  在菜单栏中，单击 **窗口（Window）> 开发者工具（Developer Tools）> 材质分析器（Material Analyzer）**。**材质分析器（Material Analyzer）** 窗口将会打开。  
+    ![](WindowMenu-01.png)(w:350)
+
+1.  单击 **要分析的材质（Material to Analyze）** 旁边的下拉菜单。选择想要分析的材质或材质实例。  
+    ![](MaterialAnalyzerWindow-01.png)(w:450)
+
+1.  材质分析器工具显示您选择的材质的所有实例列表。  
+    [REGION:lightbox]
+    [![](MaterialInstanceList.png)](MaterialInstanceList.png)
+    
+    *单击查看大图*
+    [/REGION]
+    
+
+## 查看建议列表
+
+材质树下面是一个建议列表。建议列表将具有一组相同静态覆盖的所有材质实例分组到一起。您可以单击每一行旁边的箭头来查看标识的静态实例。  
+![](SuggestionList.png)(w:700)
+
+## 创建本地集合
+
+每个建议列表都有一个 **创建本地集合（Create Local Collection）** 按钮。单击该按钮来将所有相关实例放置在一个本地集合中，这样就可以轻松找到它们并进行更新，让它们拥有更高效的参数设置。  
+![](LocalCollectionButton.png)
+
+## 查看静态切换参数列表
+
+要查看材质实例的静态切换参数，单击“静态切换参数”（Static Switch Parameter）列下面的箭头来显示完整列表。这些列的大小是可以调整的，因此如果文本被裁减掉，可以移动列。  
+![](StaticSwitchParameters.png)(w:500)
+
+## 重设材质实例父项
+
+您可以将这些材质实例的父项重设为拥有相同静态覆盖的新实例，以便重设父项的材质实例只更改它们的唯一覆盖。这样就节省了Permutation和存储数据方面的成本。确保从您重设了父项的材质实例移除所有静态参数覆盖，否则仍会存储多余数据。

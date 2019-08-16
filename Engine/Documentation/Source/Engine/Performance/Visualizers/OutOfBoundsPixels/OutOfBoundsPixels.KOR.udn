@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6431408
 Availability:Public
 Title: 경계를 벗어난 픽셀
 Crumbs: %ROOT%, Engine, Engine/Performance/Visualizers
@@ -65,4 +65,4 @@ topic-image:OOBP_Topic.png
 스켈레탈 메시의 위치가 그 경계에서 변하는(displace) 주요 이유는, 메시의 액터 루트에서 메시를 멀리 이동시키는 애니메이션 때문입니다. 
 그러나 피직스 애셋이 있는 스켈레탈 메시는 경계를 계산하는 데 피직스 애셋을 사용합니다. 그렇게 하기 위해서는, 콘텐츠 브라우저에서 스켈레탈 메시에 우클릭한 다음 
 **피직스 애셋 생성** 을 선택합니다. 기본 세팅을 사용하는 것으로 스켈레탈 메시 경계로 발생되는 오차는 넘길 수 있지만 거의 최종 결과물을 수정하고 싶을 것이기에, 
-**피직스 애셋** 편집 관련 상세 정보는 [**피직스 애셋 툴**](Engine/Physics\PhAT) 문서를 참고해 주시기 바랍니다.
+**피직스 애셋** 편집 관련 상세 정보는 [**피직스 애셋 툴**](Engine/Physics/PhysicsAssetEditor) 문서를 참고해 주시기 바랍니다.

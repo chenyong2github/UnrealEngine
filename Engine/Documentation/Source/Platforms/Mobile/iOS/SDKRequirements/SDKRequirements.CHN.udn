@@ -1,0 +1,152 @@
+﻿INTSourceChangelist:6426658
+Availability: Public
+Title: iOS和tvOS开发要求
+Description: Apple iOS开发要求，包括硬件、软件和SDK信息。
+Type: reference
+Version: 4.22
+Parent: Platforms/Mobile/iOS
+Tags: Specifications
+Tags: mobile
+Tags: iOS
+Tags: StartingOut
+Tags: tvOS
+topic-image: iOS_QS_Editor_TopicImage.png
+Order: 16
+
+在本页中，您将了解开始为[iOS和tvOS](Platforms/Mobile/iOS)平台开发所需的硬件和软件开发工具包(SDK)要求。   
+
+## 虚幻引擎4.22
+
+### iOS开发要求
+
+| 硬件要求 ||
+| --- | --- |
+| **推荐桌面硬件** | 请参阅[硬件和软件规格](GettingStarted/RecommendedSpecifications)。|
+| **支持的设备硬件** | 请参阅[iOS设备兼容性](Platforms/Mobile/iOS/DeviceCompatibility)。|
+| [REGION:tablesection]软件要求[/REGION] ||
+| **桌面操作系统** | macOS 10.14 Mojave或更高版本 |
+| **SDK版本** | iOS 12或更高版本 |
+| **iTunes版本** | [iTunes 11或更高版本](http://www.apple.com/itunes/) |
+| **Xcode版本** | 10.1 |
+
+[REGION:note]
+当前支持的SDK版本可在`UEBuildIOS.cs`中找到。您可以在`[UE4根目录]/Engine/Source/Programs/UnrealBuildTool/Platforms/Mobile/iOS`文件夹中找到它。
+[/REGION]
+
+### tvOS开发要求
+
+| 硬件要求 ||
+| --- | --- |
+| **推荐桌面硬件** | 请参阅[硬件和软件规格](GettingStarted/RecommendedSpecifications)。|
+| **支持的设备硬件** | Apple TV |
+| [REGION:tablesection]软件要求[/REGION] ||
+| **桌面操作系统** | macOS 10.14 Mojave或更高版本 |
+| **SDK版本** | tvOS 12或更高版本 |
+| **iTunes版本** | [iTunes 11或更高版本](http://www.apple.com/itunes/) |
+| **Xcode版本** | 10.1 |
+
+[REGION:note]
+当前支持的SDK版本可在`UEBuildTVOS.cs`中找到。您可以在`[UE4根目录]/Engine/Source/Programs/UnrealBuildTool/Platforms/TVOS`文件夹中找到它。
+[/REGION]
+
+## 虚幻引擎4.21
+
+### iOS开发要求
+
+| 硬件要求 ||
+| --- | --- |
+| **推荐桌面硬件** | 请参阅[硬件和软件规格](GettingStarted/RecommendedSpecifications)。|
+| **支持的设备硬件** | 请参阅[iOS设备兼容性](Platforms/Mobile/iOS/DeviceCompatibility)。|
+| [REGION:tablesection]软件要求[/REGION] ||
+| **桌面操作系统** | macOS 10.14 Mojave或更高版本 |
+| **SDK版本** | iOS 12或更高版本 |
+| **iTunes版本** | [iTunes 11或更高版本](http://www.apple.com/itunes/) |
+| **Xcode版本** | 9.4 |
+
+[REGION:note]
+当前支持的SDK版本可在`UEBuildIOS.cs`中找到。您可以在`[UE4根目录]/Engine/Source/Programs/UnrealBuildTool/Platforms/Mobile/iOS`文件夹中找到它。
+[/REGION]
+
+### tvOS开发要求
+
+| 硬件要求 ||
+| --- | --- |
+| **推荐桌面硬件** | 请参阅[硬件和软件规格](GettingStarted/RecommendedSpecifications)。|
+| **支持的设备硬件** | Apple TV |
+| [REGION:tablesection]软件要求[/REGION] ||
+| **桌面操作系统** | macOS 10.14 Mojave或更高版本 |
+| **SDK版本** | tvOS 12或更高版本 |
+| **iTunes版本** | [iTunes 11或更高版本](http://www.apple.com/itunes/) |
+| **Xcode版本** | 9.4 |
+
+[REGION:note]
+当前支持的SDK版本可在`UEBuildTVOS.cs`中找到。您可以在`[UE4根目录]/Engine/Source/Programs/UnrealBuildTool/Platforms/TVOS`文件夹中找到它。
+[/REGION]
+
+## 虚幻引擎4.20
+
+### iOS开发要求
+
+| 硬件要求 ||
+| --- | --- |
+| **推荐桌面硬件** | 请参阅[硬件和软件规格](GettingStarted/RecommendedSpecifications)。|
+| **支持的设备硬件** | 请参阅[iOS设备兼容性](Platforms/Mobile/iOS/DeviceCompatibility)。|
+| [REGION:tablesection]软件要求[/REGION] ||
+| **桌面操作系统** | macOS 10.13 High Sierra或更高版本 |
+| **SDK版本** | iOS 11或更高版本 |
+| **iTunes版本** | [iTunes 11或更高版本](http://www.apple.com/itunes/) |
+| **Xcode版本** | 9.4 |
+
+[REGION:note]
+当前支持的SDK版本可在`UEBuildIOS.cs`中找到。您可以在`[UE4根目录]/Engine/Source/Programs/UnrealBuildTool/Platforms/Mobile/iOS`文件夹中找到它。
+[/REGION]
+
+### tvOS开发要求
+
+| 硬件要求 ||
+| --- | --- |
+| **推荐桌面硬件** | 请参阅[硬件和软件规格](GettingStarted/RecommendedSpecifications)。|
+| **支持的设备硬件** | Apple TV |
+| [REGION:tablesection]软件要求[/REGION] ||
+| **桌面操作系统** | macOS 10.13 High Sierra或更高版本 |
+| **SDK版本** | tvOS 11或更高版本 |
+| **iTunes版本** | [iTunes 11或更高版本](http://www.apple.com/itunes/) |
+| **Xcode版本** | 9.4 |
+
+[REGION:note]
+当前支持的SDK版本可在`UEBuildTVOS.cs`中找到。您可以在`[UE4根目录]/Engine/Source/Programs/UnrealBuildTool/Platforms/TVOS`文件夹中找到它。
+[/REGION]
+
+## 虚幻引擎4.19
+
+### iOS开发要求
+
+| 硬件要求 ||
+| --- | --- |
+| **推荐桌面硬件** | 请参阅[硬件和软件规格](GettingStarted/RecommendedSpecifications)。|
+| **支持的设备硬件** | 请参阅[iOS设备兼容性](Platforms/Mobile/iOS/DeviceCompatibility)。|
+| [REGION:tablesection]软件要求[/REGION] ||
+| **桌面操作系统** | macOS 10.13 High Sierra或更高版本 |
+| **SDK版本** | iOS 11或更高版本 |
+| **iTunes版本** | [iTunes 11或更高版本](http://www.apple.com/itunes/) |
+| **Xcode版本** | 9.4 |
+
+[REGION:note]
+当前支持的SDK版本可在`UEBuildIOS.cs`中找到。您可以在`[UE4根目录]/Engine/Source/Programs/UnrealBuildTool/Platforms/Mobile/iOS`文件夹中找到它。
+[/REGION]
+
+### tvOS开发要求
+
+| 硬件要求 ||
+| --- | --- |
+| **推荐桌面硬件** | 请参阅[硬件和软件规格](GettingStarted/RecommendedSpecifications)。|
+| **支持的设备硬件** | Apple TV |
+| [REGION:tablesection]软件要求[/REGION] ||
+| **桌面操作系统** | macOS 10.13 High Sierra或更高版本 |
+| **SDK版本** | tvOS 11或更高版本 |
+| **iTunes版本** | [iTunes 11或更高版本](http://www.apple.com/itunes/) |
+| **Xcode版本** | 9.4 |
+
+[REGION:note]
+当前支持的SDK版本可在`UEBuildTVOS.cs`中找到。您可以在`[UE4根目录]/Engine/Source/Programs/UnrealBuildTool/Platforms/TVOS`文件夹中找到它。
+[/REGION]

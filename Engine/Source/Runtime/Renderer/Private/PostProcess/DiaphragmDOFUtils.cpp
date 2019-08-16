@@ -5,7 +5,6 @@
 =============================================================================*/
 
 #include "PostProcess/DiaphragmDOF.h"
-#include "PostProcess/PostProcessCircleDOF.h"
 
 
 namespace 
@@ -24,6 +23,79 @@ TAutoConsoleVariable<float> CVarMaxBackgroundRadius(
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 } // namespace
+
+float DiaphragmDOF::ComputeFocalLengthFromFov(const FSceneView& View)
+{
+	// Convert FOV to focal length,
+	// 
+	// fov = 2 * atan(d/(2*f))
+	// where,
+	//   d = sensor dimension (APS-C 24.576 mm)
+	//   f = focal length
+	// 
+	// f = 0.5 * d * (1/tan(fov/2))
+
+	float const d = View.FinalPostProcessSettings.DepthOfFieldSensorWidth;
+	float const HalfFOV = FMath::Atan(1.0f / View.ViewMatrices.GetProjectionMatrix().M[0][0]);
+	float const FocalLength = 0.5f * d * (1.0f/FMath::Tan(HalfFOV));
+
+	return FocalLength;
+}
+
+// Convert f-stop and focal distance into projected size in half resolution pixels.
+// Setup depth based blur.
+FVector4 DiaphragmDOF::CircleDofHalfCoc(const FViewInfo& View)
+{
+	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DepthOfFieldQuality"));
+	bool bDepthOfField = View.Family->EngineShowFlags.DepthOfField && CVar->GetValueOnRenderThread() > 0 && View.FinalPostProcessSettings.DepthOfFieldFstop > 0 && View.FinalPostProcessSettings.DepthOfFieldFocalDistance > 0;
+
+	FVector4 Ret(0, 1, 0, 0);
+
+	if(bDepthOfField)
+	{
+		float FocalLengthInMM = DiaphragmDOF::ComputeFocalLengthFromFov(View);
+	 
+		// Convert focal distance in world position to mm (from cm to mm)
+		float FocalDistanceInMM = View.FinalPostProcessSettings.DepthOfFieldFocalDistance * 10.0f;
+
+		// Convert f-stop, focal length, and focal distance to
+		// projected circle of confusion size at infinity in mm.
+		//
+		// coc = f * f / (n * (d - f))
+		// where,
+		//   f = focal length
+		//   d = focal distance
+		//   n = fstop (where n is the "n" in "f/n")
+		float Radius = FMath::Square(FocalLengthInMM) / (View.FinalPostProcessSettings.DepthOfFieldFstop * (FocalDistanceInMM - FocalLengthInMM));
+
+		// Convert mm to pixels.
+		float const Width = (float)View.ViewRect.Width();
+		float const SensorWidth = View.FinalPostProcessSettings.DepthOfFieldSensorWidth;
+		Radius = Radius * Width * (1.0f / SensorWidth);
+
+		// Convert diameter to radius at half resolution (algorithm radius is at half resolution).
+		Radius *= 0.25f;
+
+		// Comment out for now, allowing settings which the algorithm cannot cleanly do.
+		#if 0
+			// Limit to algorithm max size.
+			if(Radius > 6.0f) 
+			{
+				Radius = 6.0f; 
+			}
+		#endif
+
+		// The DepthOfFieldDepthBlurAmount = km at which depth blur is 50%.
+		// Need to convert to cm here.
+		Ret = FVector4(
+			Radius, 
+			1.0f / (View.FinalPostProcessSettings.DepthOfFieldDepthBlurAmount * 100000.0f),
+			View.FinalPostProcessSettings.DepthOfFieldDepthBlurRadius * Width / 1920.0f,
+			Width / 1920.0f);
+	}
+
+	return Ret;
+}
 
 void DiaphragmDOF::FPhysicalCocModel::Compile(const FViewInfo& View)
 {
@@ -46,7 +118,7 @@ void DiaphragmDOF::FPhysicalCocModel::Compile(const FViewInfo& View)
 	// Compile coc model equation.
 	{
 
-		float FocalLengthInMM = ComputeFocalLengthFromFov(View);
+		float FocalLengthInMM = DiaphragmDOF::ComputeFocalLengthFromFov(View);
 
 		// Convert focal distance in world position to mm (from cm to mm)
 		float FocalDistanceInMM = View.FinalPostProcessSettings.DepthOfFieldFocalDistance * 10.0f;

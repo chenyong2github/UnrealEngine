@@ -1,8 +1,8 @@
-﻿INTSourceChangelist:0
+﻿INTSourceChangelist:4640840
 Availability: Public
 Crumbs: 
-Title: Using the Geometry Cache Track
-Description: Describes how you can add and use the Geometry Cache Track to scrub through and utilize Geometry Cache assets within Sequencer. 
+Title: ジオメトリ キャッシュ トラックを使用する
+Description: ジオメトリ キャッシュ トラックを追加し、シーケンサ内でジオメトリ キャッシュ アセットをスクラブして活用する方法について説明します。
 Type: 
 Version: 4.21
 Parent: 
@@ -14,7 +14,7 @@ Tags: Geometry Cache
 Tags: Alembic
 
 
-The new (and experimental) **Geometry Cache Track** enables you to scrub through a **Geometry Cache** and render it out with frame accuracy. Once you have imported your Alembic file into Unreal Engine 4 (UE4) and added it to a Level, you can add it to a **Level Sequence** and add the **Geometry Cache Track** to play back your content.
+**ジオメトリ キャッシュ トラック** は、 **ジオメトリ キャッシュ** をスクラブして、フレーム精度の高い出力を実現する実験的な新機能です。Alembic ファイルを Unreal Engine 4 (UE4) にインポートしてレベルに追加すると、Alembic ファイルを **レベル シーケンス** に追加できるようになり、さらに **ジオメトリ キャッシュ トラック** を追加してコンテンツを再生できるようになります。
 
 [OBJECT:EmbeddedVideo]
  [PARAMLITERAL:width]
@@ -28,29 +28,29 @@ The new (and experimental) **Geometry Cache Track** enables you to scrub throug
  [/PARAMLITERAL]
 [/OBJECT]
 
-## Steps
+## 手順
 
 [REGION:note]
-For this How-to guide, we are using the **Blueprint Third Person **template project. You will also need an Alembic file to import into the Engine. If you do not have your own Asset, download this [Sample File](https://epicgames.box.com/s/l74nagy14ttaium5j41gu61ljz4v5rul).
+この操作ガイドでは、 **ブループリントのサードパーソン** テンプレート プロジェクトを使用します。また、エンジンに Alembic ファイルをインポートする必要があります。アセットをお持ちでない場合は、こちらの [サンプル ファイル](https://epicgames.box.com/s/l74nagy14ttaium5j41gu61ljz4v5rul) をダウンロードしてください。
 [/REGION]
 
-2.  Import your Alembic file(s) into UE4  [as a Geometry Cache](https://docs.unrealengine.com/en-us/Engine/Content/AlembicImporter#importasgeometrycache) and define your desired settings.  
+2. Alembic ファイルを [ジオメトリ キャッシュとして](https://docs.unrealengine.com/en-us/Engine/Content/AlembicImporter#importasgeometrycache) UE4 にインポートして、必要に応じて設定を行います。
     ![](GeoCache_01-2.png "GeoCache_01-2.png")
 
-5.  Place your **Geometry Cache** in the Level, then create a **Level Sequence** and add it to **Sequencer** with the **\+ Track** button.   
+5. **ジオメトリ キャッシュ** をレベルに配置して **レベル シーケンス** を作成し、 **[\+ Track (トラックの追加)]** ボタンを使用して **シーケンサ** に追加します。   
     ![](GeoCache_02.png "GeoCache_02.png")
 
-8.  Click the **\+ Track **button for the newly created Track and select **Geometry Cache **from the **Tracks **menu.   
+8. 新しく作成したトラックの **[\+ Track]** ボタンをクリックし、 **[Tracks (トラック)]** メニューから **[Geometry Cache (ジオメトリ キャッシュ)]** を選択します。   
     ![](GeoCache_03.png "GeoCache_03.png")
 
-11.  Scrub the **Timeline** to view a playback.  
+11. **タイムライン** をスクラブして、各再生シーンを表示します。
     [REGION:note]
-    You can also set the **Level Sequence** to **Auto Play** before selecting Play in the Level.
+    レベルで [Play] を実行する前に、 **レベル シーケンス** を **[Auto Play (自動再生)]** に設定することも可能です。
     [/REGION]
 
-## End Result
+## まとめ
 
-With the **Geometry Cache ****Track **set, you can scrub through your content or it will play back automatically when your Level Sequence plays. 
+**ジオメトリ キャッシュ トラック** を設定することで、レベル シーケンスの再生時にコンテンツをスクラブしたり、自動再生させたりすることが可能になります。 
 
 [OBJECT:EmbeddedVideo]
  [PARAMLITERAL:width]
@@ -64,15 +64,15 @@ With the **Geometry Cache ****Track **set, you can scrub through your content
  [/PARAMLITERAL]
 [/OBJECT]
 
-You can access the properties of the Geometry Cache by right-clicking on the Track in the **Tracks Window**. From the properties menu, you can change which **Geometry Cache **asset is being used, add a **Start **or **End ****Offset**, or adjust the **Play Rate**. The ability to adjust **Section **options and whether to play the animation in **Reverse** are available.   
+**[Tracks] ウィンドウ** でトラックを右クリックすると、ジオメトリ キャッシュのプロパティにアクセスできます。プロパティのメニューからは、使用する **ジオメトリ キャッシュ** アセットを変更したり、 **[Start Offset (開始オフセット)]** または **[End Offset (終了オフセット)]** を追加したり、 **[Play Rate (再生レート)]** を調整したりすることができます。**[Section]** のオプションを調整したり、アニメーションを逆再生 ( **[Reverse]** オプション) させたりすることも可能です。   
 
 ![](GeoCache_04.png "GeoCache_04.png")
 
-The following properties are available for Geometry Cache tracks from the right-click context menu, under **Properties**: 
+右クリックして表示されるコンテキスト メニューの **[Properties]** には、ジオメトリ キャッシュ トラックに関する次のプロパティが含まれます。 
 
-| Property | Description |
-| --- | --- |
-| **Geometry Cache** | Specifies the Geometry Cache asset to play. |
-| **Start Offset** | Number of frames to offset into the beginning of the animation clip. |
-| **End Offset** | Number of frames to offset into the end of the animation clip. |
-| **Play Rate** | Defines the playback rate of the animation clip (lower to slow down, increase to speed up). |
+| プロパティ| 説明|
+| ---| ---|
+| **Geometry Cache**| 再生するジオメトリ キャッシュ アセットを指定します。|
+| **Start Offset**| アニメーション クリップの開始位置にオフセットするフレーム数です。|
+| **End Offset**| アニメーション クリップの終了位置にオフセットするフレーム数です。|
+| **Play Rate**| アニメーション クリップの再生レートを定義します (この値を下げると低速に、上げると高速になります)。|

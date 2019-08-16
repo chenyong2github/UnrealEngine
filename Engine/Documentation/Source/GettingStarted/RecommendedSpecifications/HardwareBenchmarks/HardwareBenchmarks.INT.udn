@@ -97,7 +97,7 @@ Looking at compile times for the **Editor**, build times are fairly linear with 
 ![](HB_6.png)
 [/REGION]
 
-Since the [IWYU (Include-What-You-Use)](Programming/UnrealBuildSystem/IWYUReferenceGuide) refactor, we found that **Editor** compilation is highly parallel, having few PCH (Precompiled Header) bottlenecks, so seeing the correlation shown above is expected.
+Since the [IWYU (Include-What-You-Use)](Programming/BuildTools/UnrealBuildTool/IWYU) refactor, we found that **Editor** compilation is highly parallel, having few PCH (Precompiled Header) bottlenecks, so seeing the correlation shown above is expected.
 
 ###Memory
 

@@ -1,0 +1,49 @@
+﻿INTSourceChangelist:6093455
+Availability:Docs
+Title:6.自由发挥
+Crumbs:%ROOT%, Platforms, Platforms/Mobile/Android, Platforms/Mobile/Android/GettingStarted
+Description:利用虚幻引擎进行Android开发的延伸阅读。
+Version:4.17
+Skilllevel:Intermediate
+tags:Android
+tags:Mobile
+type:multi-step
+parent:Platforms/Mobile/Android/GettingStarted
+order:6
+Checkpoint:AndroidQS
+
+以下部分将讲述一些可自行进行的练习，提高将UE4项目部署到Android设备的技巧。
+
+[nav]
+
+
+您已经学习了如何打包UE4项目和在Android设备上进行测试， 
+现在使用在快速入门指南中学到的知识点来完成以下操作吧。 
+
+* 使用一个默认模板新建项目，并让项目在Android设备上运行。
+* 尝试用不同的Android纹理格式为项目打包，确定您的Android设备所支持的格式。
+* 检查包的大小，然后通过[缩减APK包容量](Platforms/Mobile/Android/ReducingAPKSize)文档中的讲解来缩减打包游戏的容量。
+* 查看[Gear VR调试](Platforms/GearVR/Debugging)文档，尝试通过无线网络将项目部署到Android设备。
+
+
+以下链接中讲述了所有必备知识点，例如UE4支持哪些Android设备、创建针对移动设备的游戏内容时应考虑哪些点，等等。 
+如果您尚未通读这些链接中的文档，强烈建议您先行阅读。
+
+如需了解设备兼容性和性能的更多信息，请查阅以下链接：
+
+* [](Platforms/Mobile/Android\DeviceCompatibility)
+* [](Platforms\DeviceProfiles)
+* [](Platforms\Mobile\Performance)
+
+如需了解移动设备游戏内容和关卡设计的更多详情，请查阅以下链接：
+
+* [](Platforms\Mobile\Meshes)
+* [](Platforms\Mobile\Lighting)
+* [](Platforms\Mobile\Materials)
+* [](Platforms\Mobile\PostProcessEffects)
+* [](Platforms\Mobile\Textures)
+
+使用[](Platforms\Mobile\Previewer)便能预览移动平台游戏，无需部署到设备。
+
+
+[nav]

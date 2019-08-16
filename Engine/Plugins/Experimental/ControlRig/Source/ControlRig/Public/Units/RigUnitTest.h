@@ -6,6 +6,7 @@
 #include "RigUnit.h"
 #include "RigUnitContext.h"
 #include "Hierarchy.h"
+#include "CurveContainer.h"
 
 class FControlRigUnitTestBase : public FAutomationTestBase
 {
@@ -15,16 +16,21 @@ public:
 		, HierarchyContainer(FRigHierarchyContainer())
 		, HierarchyRef(FRigHierarchyRef())
 		, Hierarchy(HierarchyContainer.BaseHierarchy)
+		, CurveContainer(FRigCurveContainer())
+		, CurveContainerRef(&CurveContainer)
 	{
 		HierarchyRef.Container = &HierarchyContainer;
 		HierarchyRef.bUseBaseHierarchy = true;
 		Context.HierarchyReference = HierarchyRef;
 		ExecuteContext.HierarchyReference = HierarchyRef;
+		ExecuteContext.CurveReference = CurveContainerRef;
 	}
 
 	FRigHierarchyContainer HierarchyContainer;
 	FRigHierarchyRef HierarchyRef;
 	FRigHierarchy& Hierarchy;
+	FRigCurveContainer CurveContainer;
+	FRigCurveContainerRef CurveContainerRef;
 	FControlRigExecuteContext ExecuteContext;
 	FRigUnitContext Context;
 };
@@ -52,6 +58,7 @@ public:
 		virtual bool RunTest(const FString& Parameters) override \
 		{ \
 			Hierarchy.Reset(); \
+			CurveContainer.Reset(); \
 			Unit = TUnitStruct(); \
 			return RunControlRigUnitTest(Parameters); \
 		} \

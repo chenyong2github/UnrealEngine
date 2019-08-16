@@ -12,6 +12,7 @@ FAnimNode_ModifyCurve::FAnimNode_ModifyCurve()
 
 void FAnimNode_ModifyCurve::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Initialize_AnyThread)
 	Super::Initialize_AnyThread(Context);
 	SourcePose.Initialize(Context);
 
@@ -25,12 +26,14 @@ void FAnimNode_ModifyCurve::Initialize_AnyThread(const FAnimationInitializeConte
 
 void FAnimNode_ModifyCurve::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(CacheBones_AnyThread)
 	Super::CacheBones_AnyThread(Context);
 	SourcePose.CacheBones(Context);
 }
 
 void FAnimNode_ModifyCurve::Evaluate_AnyThread(FPoseContext& Output)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
 	FPoseContext SourceData(Output);
 	SourcePose.Evaluate(SourceData);
 
@@ -64,7 +67,7 @@ void FAnimNode_ModifyCurve::Evaluate_AnyThread(FPoseContext& Output)
 				check(LastCurveValues.Num() == CurveValues.Num());
 
 				const float LastCurveValue = LastCurveValues[ModIdx];
-				const float WAvg = (CurrentValue * Alpha) + (LastCurveValue * (1.f - Alpha));
+				const float WAvg = FMath::WeightedMovingAverage(CurrentValue, LastCurveValue, Alpha);
 				// Update the last curve value for next run
 				LastCurveValues[ModIdx] = WAvg;
 
@@ -87,6 +90,7 @@ void FAnimNode_ModifyCurve::Evaluate_AnyThread(FPoseContext& Output)
 
 void FAnimNode_ModifyCurve::Update_AnyThread(const FAnimationUpdateContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Update_AnyThread)
 	// Run update on input pose nodes
 	SourcePose.Update(Context);
 

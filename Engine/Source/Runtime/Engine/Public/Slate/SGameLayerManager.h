@@ -57,8 +57,8 @@ class IGameLayerManager
 public:
 	virtual void SetSceneViewport(FSceneViewport* SceneViewport) = 0;
 
-	virtual const FGeometry& GetViewportWidgetHostGeometry() const = 0;
-	virtual const FGeometry& GetPlayerWidgetHostGeometry(ULocalPlayer* Player) const = 0;
+	virtual FGeometry GetViewportWidgetHostGeometry() const = 0;
+	virtual FGeometry GetPlayerWidgetHostGeometry(ULocalPlayer* Player) const = 0;
 
 	virtual void NotifyPlayerAdded(int32 PlayerIndex, ULocalPlayer* AddedPlayer) = 0;
 	virtual void NotifyPlayerRemoved(int32 PlayerIndex, ULocalPlayer* RemovedPlayer) = 0;
@@ -108,8 +108,8 @@ public:
 
 	// Begin IGameLayerManager
 	virtual void SetSceneViewport(FSceneViewport* InSceneViewport) override;
-	virtual const FGeometry& GetViewportWidgetHostGeometry() const override;
-	virtual const FGeometry& GetPlayerWidgetHostGeometry(ULocalPlayer* Player) const override;
+	virtual FGeometry GetViewportWidgetHostGeometry() const override;
+	virtual FGeometry GetPlayerWidgetHostGeometry(ULocalPlayer* Player) const override;
 
 	virtual void NotifyPlayerAdded(int32 PlayerIndex, ULocalPlayer* AddedPlayer) override;
 	virtual void NotifyPlayerRemoved(int32 PlayerIndex, ULocalPlayer* RemovedPlayer) override;
@@ -215,7 +215,7 @@ private:
 	TSharedPtr<SWidget> DefaultTitleBarContentWidget;
 	float DefaultWindowTitleBarHeight;
 	bool bIsGameUsingBorderlessWindow;
-
 	FIntPoint ScaledDPIViewportReference;
 	bool bUseScaledDPI;
+	float CachedInverseDPIScale;
 };

@@ -54,6 +54,14 @@ TArray<FPooledUniformBuffer> UniformBufferPool[NumPoolBuckets];
 /** Uniform buffers that have been freed more recently than NumSafeFrames ago. */
 TArray<FPooledUniformBuffer> SafeUniformBufferPools[NumSafeFrames][NumPoolBuckets];
 
+static int32 GD3DUniformPoolRecycleDepth = 30;
+static FAutoConsoleVariableRef CVarD3DUniformPoolRecycleDepth(
+	TEXT("r.d3d.uniformbufferrecycledepth"),
+	GD3DUniformPoolRecycleDepth,
+	TEXT("Number of frames before recycling freed uniform buffers .\n"),	
+	ECVF_Default
+);
+
 /** Does per-frame global updating for the uniform buffer pool. */
 void UniformBufferBeginFrame()
 {
@@ -71,7 +79,7 @@ void UniformBufferBeginFrame()
 			check(IsValidRef(PoolEntry.Buffer));
 
 			// Clean entries that are unlikely to be reused
-			if (GFrameNumberRenderThread - PoolEntry.FrameFreed > 30)
+			if (GFrameNumberRenderThread - PoolEntry.FrameFreed > (uint32)GD3DUniformPoolRecycleDepth)
 			{
 				DEC_DWORD_STAT(STAT_D3D11NumFreeUniformBuffers);
 				DEC_MEMORY_STAT_BY(STAT_D3D11FreeUniformBufferMemory, PoolEntry.CreatedSize);
@@ -215,9 +223,9 @@ FUniformBufferRHIRef FD3D11DynamicRHI::RHICreateUniformBuffer(const void* Conten
 			// No pooling
 			D3D11_BUFFER_DESC Desc;
 			Desc.ByteWidth = NumBytes;
-			Desc.Usage = D3D11_USAGE_IMMUTABLE;
+			Desc.Usage = D3D11_USAGE_DYNAMIC;
 			Desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-			Desc.CPUAccessFlags = 0;
+			Desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 			Desc.MiscFlags = 0;
 			Desc.StructureByteStride = 0;
 
@@ -280,7 +288,7 @@ void UpdateUniformBufferContents(FD3D11Device* Direct3DDevice, FD3D11DeviceConte
 	}
 }
 
-void FD3D11DynamicRHI::RHIUpdateUniformBuffer(FUniformBufferRHIParamRef UniformBufferRHI, const void* Contents)
+void FD3D11DynamicRHI::RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRHI, const void* Contents)
 {
 	check(IsInRenderingThread());
 	check(UniformBufferRHI);

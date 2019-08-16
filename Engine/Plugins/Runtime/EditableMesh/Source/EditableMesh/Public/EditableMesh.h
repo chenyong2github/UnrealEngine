@@ -10,7 +10,7 @@
 #include "Misc/Change.h"		// For TUniquePtr<FChange>
 #include "Logging/LogMacros.h"
 #include "Materials/MaterialInterface.h"
-#include "GenericOctreePublic.h"	// For FOctreeElementId
+#include "Math/GenericOctreePublic.h"	// For FOctreeElementId
 #include "GeometryHitTest.h"
 #include "EditableMesh.generated.h"
 

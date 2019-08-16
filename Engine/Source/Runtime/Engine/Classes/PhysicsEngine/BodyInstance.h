@@ -505,7 +505,8 @@ public:
 
 
 	/** Get the scene that owns this body. */
-	FPhysScene* GetPhysicsScene() const;
+	FPhysScene* GetPhysicsScene();
+	const FPhysScene* GetPhysicsScene() const;
 
 	/** Initialise dynamic properties for this instance when using physics - this must be done after scene addition.
 	 *  Note: This function is not thread safe. Make sure to obtain the appropriate physics scene locks before calling this function
@@ -1005,7 +1006,7 @@ public:
 
 public:
 	// #PHYS2 Rename, not just for physx now.
-	FPhysxUserData PhysxUserData;
+	FPhysicsUserData PhysicsUserData;
 
 	struct FWeldInfo
 	{

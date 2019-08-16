@@ -30,7 +30,9 @@ enum class EClientRequestType : uint8
 	/** Simple reconnect (checks for existing reservation) */
 	Reconnect,
 	/** Abandon the reservation beacon (game specific handling)*/
-	Abandon
+	Abandon,
+	/** Remove members from an existing reservation */
+	ReservationRemoveMembers,
 };
 
 inline const TCHAR* ToString(EClientRequestType RequestType)
@@ -56,6 +58,10 @@ inline const TCHAR* ToString(EClientRequestType RequestType)
 	case EClientRequestType::Reconnect:
 	{
 		return TEXT("Reconnect Only");
+	}
+	case EClientRequestType::ReservationRemoveMembers:
+	{
+		return TEXT("Reservation Remove Members");
 	}
 	}
 	return TEXT("");
@@ -131,7 +137,7 @@ class ONLINESUBSYSTEMUTILS_API APartyBeaconClient : public AOnlineBeaconClient
 	 *
 	 * @return true if the request able to be sent, false if it failed to send
 	 */
-	virtual bool RequestReservationUpdate(const FUniqueNetIdRepl& RequestingPartyLeader, const TArray<FPlayerReservation>& PlayersToAdd);
+	virtual bool RequestReservationUpdate(const FUniqueNetIdRepl& RequestingPartyLeader, const TArray<FPlayerReservation>& PlayersToAdd, bool bRemovePlayers = false);
 
 	/**
 	 * Sends an update request to the remote host to append additional members to an existing party
@@ -144,7 +150,7 @@ class ONLINESUBSYSTEMUTILS_API APartyBeaconClient : public AOnlineBeaconClient
 	 *
 	 * @return true if the request able to be sent, false if it failed to send
 	 */
-	virtual bool RequestReservationUpdate(const FString& ConnectInfoStr, const FString& InSessionId, const FUniqueNetIdRepl& RequestingPartyLeader, const TArray<FPlayerReservation>& PlayersToAdd);
+	virtual bool RequestReservationUpdate(const FString& ConnectInfoStr, const FString& InSessionId, const FUniqueNetIdRepl& RequestingPartyLeader, const TArray<FPlayerReservation>& PlayersToAdd, bool bRemovePlayers = false);
 
 	/**
 	 * Sends an update request to the remote host to append additional members to an existing party
@@ -156,7 +162,7 @@ class ONLINESUBSYSTEMUTILS_API APartyBeaconClient : public AOnlineBeaconClient
 	 *
 	 * @return true if the request able to be sent, false if it failed to send
 	 */
-	virtual bool RequestReservationUpdate(const FOnlineSessionSearchResult& DesiredHost, const FUniqueNetIdRepl& RequestingPartyLeader, const TArray<FPlayerReservation>& PlayersToAdd);
+	virtual bool RequestReservationUpdate(const FOnlineSessionSearchResult& DesiredHost, const FUniqueNetIdRepl& RequestingPartyLeader, const TArray<FPlayerReservation>& PlayersToAdd, bool bRemovePlayers = false);
 
 	/**
 	 * Cancel an existing request to the remote host to revoke allocated space on the server.
@@ -284,6 +290,16 @@ protected:
 	 */
 	UFUNCTION(server, reliable, WithValidation)
 	virtual void ServerUpdateReservationRequest(const FString& SessionId, const FPartyReservation& ReservationUpdate);
+
+	/**
+	 * Tell the server that we are removing members from our reservation
+	 *
+	 * @param SessionId expected session id on the other end (must match)
+	 * @param ReservationUpdate pending reservation request to make with server
+	 */
+	UFUNCTION(server, reliable, WithValidation)
+	virtual void ServerRemoveMemberFromReservationRequest(const FString& SessionId, const FPartyReservation& ReservationUpdate);
+
 
 	/**
 	 * Tell the server to cancel a pending or existing reservation

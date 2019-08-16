@@ -120,12 +120,12 @@ public:
 	void SetParameters(const FRenderingCompositePassContext& Context, const FViewInfo& View, IPooledRenderTarget& DistortionRT)
 	{
 		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(Context.RHICmdList);
-		const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = GetPixelShader();
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(Context.RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
-		FTextureRHIParamRef DistortionTextureValue = DistortionRT.GetRenderTargetItem().TargetableTexture;
-		FTextureRHIParamRef SceneColorTextureValue = SceneContext.GetSceneColor()->GetRenderTargetItem().TargetableTexture;
+		FRHITexture* DistortionTextureValue = DistortionRT.GetRenderTargetItem().TargetableTexture;
+		FRHITexture* SceneColorTextureValue = SceneContext.GetSceneColor()->GetRenderTargetItem().TargetableTexture;
 
 		// Here we use SF_Point as in fullscreen the pixels are 1:1 mapped.
 		SetTextureParameter(
@@ -214,10 +214,10 @@ public:
 	}
 	TDistortionMergePS() {}
 
-	void SetParameters(const FRenderingCompositePassContext& Context, const FViewInfo& View, const FTextureRHIParamRef& PassTexture)
+	void SetParameters(const FRenderingCompositePassContext& Context, const FViewInfo& View, FRHITexture* PassTexture)
 	{
 		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(Context.RHICmdList);
-		const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = GetPixelShader();
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(Context.RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
@@ -294,9 +294,9 @@ protected:
 	{
 	}
 
-	static bool ShouldCompilePermutation(EShaderPlatform Platform,const FMaterial* Material,const FVertexFactoryType* VertexFactoryType)
+	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return Material && IsTranslucentBlendMode(Material->GetBlendMode()) && Material->IsDistorted();
+		return Parameters.Material && IsTranslucentBlendMode(Parameters.Material->GetBlendMode()) && Parameters.Material->IsDistorted();
 	}
 };
 
@@ -318,10 +318,10 @@ protected:
 
 	FDistortionMeshHS() {}
 
-	static bool ShouldCompilePermutation(EShaderPlatform Platform,const FMaterial* Material,const FVertexFactoryType* VertexFactoryType)
+	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return FBaseHS::ShouldCompilePermutation(Platform, Material, VertexFactoryType)
-			&& Material && IsTranslucentBlendMode(Material->GetBlendMode()) && Material->IsDistorted();
+		return FBaseHS::ShouldCompilePermutation(Parameters)
+			&& Parameters.Material && IsTranslucentBlendMode(Parameters.Material->GetBlendMode()) && Parameters.Material->IsDistorted();
 	}
 };
 
@@ -342,10 +342,10 @@ protected:
 
 	FDistortionMeshDS() {}
 
-	static bool ShouldCompilePermutation(EShaderPlatform Platform,const FMaterial* Material,const FVertexFactoryType* VertexFactoryType)
+	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return FBaseDS::ShouldCompilePermutation(Platform, Material, VertexFactoryType)
-			&& Material && IsTranslucentBlendMode(Material->GetBlendMode()) && Material->IsDistorted();
+		return FBaseDS::ShouldCompilePermutation(Parameters)
+			&& Parameters.Material && IsTranslucentBlendMode(Parameters.Material->GetBlendMode()) && Parameters.Material->IsDistorted();
 	}
 };
 
@@ -363,9 +363,9 @@ class FDistortionMeshPS : public FMeshMaterialShader
 	DECLARE_SHADER_TYPE(FDistortionMeshPS,MeshMaterial);
 
 public:
-	static bool ShouldCompilePermutation(EShaderPlatform Platform,const FMaterial* Material,const FVertexFactoryType* VertexFactoryType)
+	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return Material && IsTranslucentBlendMode(Material->GetBlendMode()) && Material->IsDistorted();
+		return Parameters.Material && IsTranslucentBlendMode(Parameters.Material->GetBlendMode()) && Parameters.Material->IsDistorted();
 	}
 
 	FDistortionMeshPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -382,14 +382,15 @@ public:
 		}
 	}
 
-	static void ModifyCompilationEnvironment(EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FMeshMaterialShader::ModifyCompilationEnvironment(Platform, Material, OutEnvironment);
+		FMeshMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
-		if (GetMaxSupportedFeatureLevel(Platform) <= ERHIFeatureLevel::ES3_1)
+		if (IsVulkanMobilePlatform(Parameters.Platform))
 		{
-			// do not allow to sample scene textures on mobile during accumulation path
-			OutEnvironment.SetDefine(TEXT("SCENE_TEXTURES_DISABLED"), 1);
+			// depth fetch only available during base pass rendering
+			// TODO: find better place to enable frame buffer fetch feature only for base pass
+			OutEnvironment.SetDefine(TEXT("VULKAN_SUBPASS_DEPTHFETCH"), 0);
 		}
 	}
 	
@@ -467,7 +468,7 @@ static void DrawDistortionApplyScreenPass(FRHICommandListImmediate& RHICmdList, 
 }
 
 template <bool UseMSAA>
-static void DrawDistortionMergePass(FRHICommandListImmediate& RHICmdList, FSceneRenderTargets& SceneContext, FViewInfo& View, const FTextureRHIParamRef& PassTexture) {
+static void DrawDistortionMergePass(FRHICommandListImmediate& RHICmdList, FSceneRenderTargets& SceneContext, FViewInfo& View, FRHITexture* PassTexture) {
 	TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
 	TShaderMapRef<TDistortionMergePS<UseMSAA>> PixelShader(View.ShaderMap);
 

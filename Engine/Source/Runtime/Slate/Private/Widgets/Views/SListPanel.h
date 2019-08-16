@@ -41,6 +41,7 @@ public:
 		, _ItemHeight(16)
 		, _NumDesiredItems(0)
 		, _ItemAlignment(EListItemAlignment::EvenlyDistributed)
+		, _ListOrientation(Orient_Vertical)
 		{
 			_Visibility = EVisibility::SelfHitTestInvisible;
 			_Clipping = EWidgetClipping::ClipToBounds;
@@ -50,6 +51,7 @@ public:
 		SLATE_ATTRIBUTE( float, ItemHeight )
 		SLATE_ATTRIBUTE( int32, NumDesiredItems )
 		SLATE_ATTRIBUTE( EListItemAlignment, ItemAlignment )
+		SLATE_ARGUMENT( EOrientation, ListOrientation )
 
 	SLATE_END_ARGS()
 	
@@ -67,12 +69,13 @@ public:
 	// SWidget interface
 	virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
 	virtual FVector2D ComputeDesiredSize(float) const override;
+	virtual FChildren* GetAllChildren() override;
 	virtual FChildren* GetChildren() override;
 	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
 	// End of SWidget interface
 
-	/** Fraction of the first item that we should offset by to simulate smooth scrolling. */
-	void SmoothScrollOffset(float OffsetInItems);
+	/** Fraction of the first line that we should offset by to account for the current scroll amount. */
+	void SetFirstLineScrollOffset(float InFirstLineScrollOffset);
 
 	/** Set how much we should appear to have scrolled past the beginning/end of the list. */
 	void SetOverscrollAmount( float InOverscrollAmount );
@@ -80,17 +83,14 @@ public:
 	/** Remove all the children from this panel */
 	void ClearItems();
 
-	/** @return the uniform desired item width used when arranging children. */
-	float GetDesiredItemWidth() const;
-
-	/** @return the uniform item height used when arranging children. */
-	float GetDesiredItemHeight() const;
+	/** @return the uniform desired item dimensions used when arranging children. */
+	FTableViewDimensions GetDesiredItemDimensions() const;
 
 	/** @return the uniform item width used when arranging children. */
-	FVector2D GetItemSize(const FGeometry& AllottedGeometry) const;
+	FTableViewDimensions GetItemSize(const FGeometry& AllottedGeometry) const;
 
 	/** @return the uniform item width used when arranging children. */
-	FVector2D GetItemSize(const FGeometry& AllottedGeometry, const EListItemAlignment ListItemAlignment) const;
+	FTableViewDimensions GetItemSize(const FGeometry& AllottedGeometry, const EListItemAlignment ListItemAlignment) const;
 
 	/** @return the horizontal padding applied to each tile item */
 	float GetItemPadding(const FGeometry& AllottedGeometry) const;
@@ -112,11 +112,11 @@ public:
 
 	/** See ItemWidth attribute */
 	void SetItemWidth(TAttribute<float> Width);
-	
+
 protected:
 
-	/** @return true if this panel should arrange items horizontally until it runs out of room, then create new rows */
-	bool ShouldArrangeHorizontally() const;
+	/** @return true if this panel should arrange items as tiles placed alongside one another in each line */
+	bool ShouldArrangeAsTiles() const;
 	
 protected:
 
@@ -132,26 +132,30 @@ protected:
 	/** Total number of items that the tree wants to visualize */
 	TAttribute<int32> NumDesiredItems;
 	
-	/** How should be horizontally aligned? Only relevant for tile views. */
-	TAttribute<EListItemAlignment> ItemAlignment;
-
 	/**
 	 * The offset of the view area from the top of the list in item heights.
-	 * Translate to physical units based on first item in list.
+	 * Translate to physical units based on first line in list.
 	 */
-	float SmoothScrollOffsetInItems;
+	float FirstLineScrollOffset = 0.f;
 
 	/** Amount scrolled past beginning/end of list in Slate Units. */
-	float OverscrollAmount;
-
-	/** The preferred number of rows that this widget should have */
-	int32 PreferredRowNum;
+	float OverscrollAmount = 0.f;
 
 	/**
 	 * When true, a refresh of the table view control that is using this panel is pending.
 	 * Some of the widgets in this panel are associated with items that may no longer be sound data.
 	 */
-	bool bIsRefreshPending;
+	bool bIsRefreshPending = false;
+
+	/** How should be horizontally aligned? Only relevant for tile views. */
+	TAttribute<EListItemAlignment> ItemAlignment;
+
+	/** Overall orientation of the list for layout and scrolling. Only relevant for tile views. */
+	EOrientation Orientation;
+
+	/** The preferred number of lines that this widget should have orthogonal to the scroll axis. Only relevant for tile views. */
+	int32 PreferredNumLines = 1;
+
 
 private:
 	

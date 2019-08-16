@@ -81,7 +81,7 @@ public:
 	 * @param ObjectBinding The object binding this is for.
 	 * @param ObjectClass The class of the object this is for.
 	 */
-	virtual void BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const FGuid& ObjectBinding, const UClass* ObjectClass) = 0;
+	virtual void BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass) = 0;
 
 	/**
 	 * Extend the object binding track menu for the specified binding and class
@@ -90,7 +90,7 @@ public:
 	 * @param ObjectBinding The object binding this is for.
 	 * @param ObjectClass The class of the object this is for.
 	 */
-	virtual void ExtendObjectBindingTrackMenu(TSharedRef<FExtender> Extender, const FGuid& ObjectBinding, const UClass* ObjectClass) { }
+	virtual void ExtendObjectBindingTrackMenu(TSharedRef<FExtender> Extender, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass) { }
 
 	/**
 	 * Builds an edit widget for the outliner nodes which represent tracks which are edited by this editor.
@@ -128,9 +128,6 @@ public:
 	 */
 	virtual bool OnAllowDrop(const FDragDropEvent& DragDropEvent, UMovieSceneTrack* Track, int32 RowIndex, const FGuid& TargetObjectGuid) = 0;
 
-	UE_DEPRECATED(4.19, "Use OnAllowDrop with a given RowIndex and Guid")
-	virtual bool OnAllowDrop(const FDragDropEvent& DragDropEvent, UMovieSceneTrack* Track) { return OnAllowDrop(DragDropEvent, Track, 0, FGuid()); }
-
 	/**
 	 * Called when an asset is dropped directly onto a track.
 	 *
@@ -141,9 +138,6 @@ public:
 	 * @return Whether the drop event was handled.
 	 */	
 	virtual FReply OnDrop(const FDragDropEvent& DragDropEvent, UMovieSceneTrack* Track, int32 RowIndex, const FGuid& TargetObjectGuid) = 0;
-
-	UE_DEPRECATED(4.19, "Use OnDrop with a given RowIndex")
-	virtual FReply OnDrop(const FDragDropEvent& DragDropEvent, UMovieSceneTrack* Track) { return OnDrop(DragDropEvent, Track, 0, FGuid()); }
 
 	/**
 	 * Called to generate a section layout for a particular section.

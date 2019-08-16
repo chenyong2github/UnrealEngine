@@ -16,7 +16,7 @@ class ENGINE_API ALight : public AActor
 
 private:
 	/** @todo document */
-	UPROPERTY(Category = Light, VisibleAnywhere, BlueprintReadOnly, meta = (ExposeFunctionCategories = "Light,Rendering,Rendering|Components|Light", AllowPrivateAccess = "true"))
+	UPROPERTY(Category = Light, BlueprintReadOnly, meta = (ExposeFunctionCategories = "Light,Rendering,Rendering|Components|Light", AllowPrivateAccess = "true"))
 	class ULightComponent* LightComponent;
 public:
 

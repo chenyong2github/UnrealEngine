@@ -26,7 +26,8 @@
 #include "EditorSupportDelegates.h"
 #include "Misc/RuntimeErrors.h"
 #include "SceneTypes.h"
-
+#include "AssetRegistryModule.h"
+#include "DebugViewModeHelpers.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMaterialEditingLibrary, Warning, All);
 
@@ -563,6 +564,16 @@ bool UMaterialEditingLibrary::SetMaterialUsage(UMaterial* Material, EMaterialUsa
 	return bResult;
 }
 
+bool UMaterialEditingLibrary::HasMaterialUsage(UMaterial* Material, EMaterialUsage Usage)
+{
+	bool bResult = false;
+	if (Material)
+	{
+		bResult = Material->GetUsageByFlag(Usage);
+	}
+	return bResult;
+}
+
 bool UMaterialEditingLibrary::ConnectMaterialProperty(UMaterialExpression* FromExpression, FString FromOutputName, EMaterialProperty Property)
 {
 	bool bResult = false;
@@ -639,6 +650,7 @@ void UMaterialEditingLibrary::RecompileMaterial(UMaterial* Material)
 
 		UMaterialEditingLibrary::RebuildMaterialInstanceEditors(Material);
 
+		ClearDebugViewMaterials(Material);
 		FMaterialEditorUtilities::BuildTextureStreamingData(Material);
 	}
 }
@@ -646,6 +658,47 @@ void UMaterialEditingLibrary::RecompileMaterial(UMaterial* Material)
 void UMaterialEditingLibrary::LayoutMaterialExpressions(UMaterial* Material)
 {
 	MaterialEditingLibraryImpl::LayoutMaterialExpressions( Material );
+}
+
+float UMaterialEditingLibrary::GetMaterialDefaultScalarParameterValue(UMaterial* Material, FName ParameterName)
+{
+	float Result = 0.f;
+	if (Material)
+	{
+		Material->GetScalarParameterDefaultValue(ParameterName, Result);
+	}
+	return Result;
+}
+
+UTexture* UMaterialEditingLibrary::GetMaterialDefaultTextureParameterValue(UMaterial* Material, FName ParameterName)
+{
+	UTexture* Result = nullptr;
+	if (Material)
+	{
+		Material->GetTextureParameterDefaultValue(ParameterName, Result);
+	}
+	return Result;
+}
+
+FLinearColor UMaterialEditingLibrary::GetMaterialDefaultVectorParameterValue(UMaterial* Material, FName ParameterName)
+{
+	FLinearColor Result = FLinearColor::Black;
+	if (Material)
+	{
+		Material->GetVectorParameterDefaultValue(ParameterName, Result);
+	}
+	return Result;
+}
+
+bool UMaterialEditingLibrary::GetMaterialDefaultStaticSwitchParameterValue(UMaterial* Material, FName ParameterName)
+{
+	bool bResult = false;
+	if (Material)
+	{
+		FGuid OutGuid;
+		Material->GetStaticSwitchParameterDefaultValue(ParameterName, bResult, OutGuid);
+	}
+	return bResult;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -888,6 +941,17 @@ bool UMaterialEditingLibrary::SetMaterialInstanceVectorParameterValue(UMaterialI
 }
 
 
+bool UMaterialEditingLibrary::GetMaterialInstanceStaticSwitchParameterValue(UMaterialInstanceConstant* Instance, FName ParameterName)
+{
+	bool bResult = false;
+	if (Instance)
+	{
+		FGuid OutGuid;
+		Instance->GetStaticSwitchParameterValue(ParameterName, bResult, OutGuid);
+	}
+	return bResult;
+}
+
 void UMaterialEditingLibrary::UpdateMaterialInstance(UMaterialInstanceConstant* Instance)
 {
 	if (Instance)
@@ -903,4 +967,167 @@ void UMaterialEditingLibrary::UpdateMaterialInstance(UMaterialInstanceConstant* 
 		FEditorDelegates::RefreshEditor.Broadcast();
 		FEditorSupportDelegates::RedrawAllViewports.Broadcast();
 	}
+}
+
+void UMaterialEditingLibrary::GetChildInstances(UMaterialInterface* Parent, TArray< FAssetData>& ChildInstances)
+{
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+	TArray<FAssetData> AssetList;
+	TMultiMap<FName, FString> TagsAndValues;
+	const FString ParentNameString = FAssetData(Parent).GetExportTextName();
+	TagsAndValues.Add(GET_MEMBER_NAME_CHECKED(UMaterialInstance, Parent), ParentNameString);
+	AssetRegistryModule.Get().GetAssetsByTagValues(TagsAndValues, AssetList);
+	
+	for (const FAssetData MatInstRef : AssetList)
+	{
+		ChildInstances.Add(MatInstRef);
+	}
+}
+
+void UMaterialEditingLibrary::GetScalarParameterNames(UMaterialInterface* Material, TArray<FName>& ParameterNames)
+{
+	ParameterNames.Empty();
+	if (Material)
+	{
+		TArray<FMaterialParameterInfo> MaterialInfo;
+		TArray<FGuid> MaterialGuids;
+		Material->GetAllScalarParameterInfo(MaterialInfo, MaterialGuids);
+
+		for (const FMaterialParameterInfo& Info : MaterialInfo)
+		{
+			ParameterNames.Add(Info.Name);
+		}
+	}
+}
+
+void UMaterialEditingLibrary::GetVectorParameterNames(UMaterialInterface* Material, TArray<FName>& ParameterNames)
+{
+	ParameterNames.Empty();
+	if (Material)
+	{
+		TArray<FMaterialParameterInfo> MaterialInfo;
+		TArray<FGuid> MaterialGuids;
+		Material->GetAllVectorParameterInfo(MaterialInfo, MaterialGuids);
+
+		for (const FMaterialParameterInfo& Info : MaterialInfo)
+		{
+			ParameterNames.Add(Info.Name);
+		}
+	}
+}
+
+void UMaterialEditingLibrary::GetTextureParameterNames(UMaterialInterface* Material, TArray<FName>& ParameterNames)
+{
+	ParameterNames.Empty();
+	if (Material)
+	{
+		TArray<FMaterialParameterInfo> MaterialInfo;
+		TArray<FGuid> MaterialGuids;
+		Material->GetAllTextureParameterInfo(MaterialInfo, MaterialGuids);
+
+		for (const FMaterialParameterInfo& Info : MaterialInfo)
+		{
+			ParameterNames.Add(Info.Name);
+		}
+	}
+}
+
+void UMaterialEditingLibrary::GetStaticSwitchParameterNames(UMaterialInterface* Material, TArray<FName>& ParameterNames)
+{
+	ParameterNames.Empty();
+	if (Material)
+	{
+		TArray<FMaterialParameterInfo> MaterialInfo;
+		TArray<FGuid> MaterialGuids;
+		Material->GetAllStaticSwitchParameterInfo(MaterialInfo, MaterialGuids);
+
+		for (const FMaterialParameterInfo& Info : MaterialInfo)
+		{
+			ParameterNames.Add(Info.Name);
+		}
+	}
+}
+
+bool UMaterialEditingLibrary::GetScalarParameterSource(UMaterialInterface* Material, const FName ParameterName, FSoftObjectPath& ParameterSource)
+{
+	if (Material)
+	{
+		TArray<FMaterialParameterInfo> MaterialInfo;
+		TArray<FGuid> MaterialGuids;
+		Material->GetAllScalarParameterInfo(MaterialInfo, MaterialGuids);
+		FMaterialParameterInfo* ParameterInfo = MaterialInfo.FindByPredicate([ParameterName](const FMaterialParameterInfo& Parameter)
+		{
+			return ParameterName == Parameter.Name;
+		});
+		
+		if (ParameterInfo)
+		{
+			ParameterSource = ParameterInfo->ParameterLocation;
+			return true;
+		}
+	}
+	return false;
+}
+
+bool UMaterialEditingLibrary::GetVectorParameterSource(UMaterialInterface* Material, const FName ParameterName, FSoftObjectPath& ParameterSource)
+{
+	if (Material)
+	{
+		TArray<FMaterialParameterInfo> MaterialInfo;
+		TArray<FGuid> MaterialGuids;
+		Material->GetAllVectorParameterInfo(MaterialInfo, MaterialGuids);
+		FMaterialParameterInfo* ParameterInfo = MaterialInfo.FindByPredicate([ParameterName](const FMaterialParameterInfo& Parameter)
+		{
+			return ParameterName == Parameter.Name;
+		});
+
+		if (ParameterInfo)
+		{
+			ParameterSource = ParameterInfo->ParameterLocation;
+			return true;
+		}
+	}
+	return false;
+}
+
+bool UMaterialEditingLibrary::GetTextureParameterSource(UMaterialInterface* Material, const FName ParameterName, FSoftObjectPath& ParameterSource)
+{
+	if (Material)
+	{
+		TArray<FMaterialParameterInfo> MaterialInfo;
+		TArray<FGuid> MaterialGuids;
+		Material->GetAllTextureParameterInfo(MaterialInfo, MaterialGuids);
+		FMaterialParameterInfo* ParameterInfo = MaterialInfo.FindByPredicate([ParameterName](const FMaterialParameterInfo& Parameter)
+		{
+			return ParameterName == Parameter.Name;
+		});
+
+		if (ParameterInfo)
+		{
+			ParameterSource = ParameterInfo->ParameterLocation;
+			return true;
+		}
+	}
+	return false;
+}
+
+bool UMaterialEditingLibrary::GetStaticSwitchParameterSource(UMaterialInterface* Material, const FName ParameterName, FSoftObjectPath& ParameterSource)
+{
+	if (Material)
+	{
+		TArray<FMaterialParameterInfo> MaterialInfo;
+		TArray<FGuid> MaterialGuids;
+		Material->GetAllStaticSwitchParameterInfo(MaterialInfo, MaterialGuids);
+		FMaterialParameterInfo* ParameterInfo = MaterialInfo.FindByPredicate([ParameterName](const FMaterialParameterInfo& Parameter)
+		{
+			return ParameterName == Parameter.Name;
+		});
+
+		if (ParameterInfo)
+		{
+			ParameterSource = ParameterInfo->ParameterLocation;
+			return true;
+		}
+	}
+	return false;
 }

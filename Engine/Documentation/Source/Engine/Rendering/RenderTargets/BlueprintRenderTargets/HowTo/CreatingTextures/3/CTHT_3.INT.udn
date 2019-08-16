@@ -1,4 +1,4 @@
-availability:Public
+availability:docs
 title:3. Blueprint Setup
 description:Going over setting up the Blueprint to work with Render Targets.
 crumbs:%ROOT%, Engine, Engine\Rendering\RenderTargets
@@ -11,6 +11,7 @@ tags: Render Targets
 Order:3
 checkpoint:CTUB
 
+## Marking as Docs as the page has been combined. 
 [NAV]
 
 In this section, we will take a look at creating a Blueprint that will work with the assets that were created in the previous steps.

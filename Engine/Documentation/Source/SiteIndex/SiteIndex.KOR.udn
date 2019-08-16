@@ -1,11 +1,10 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6409500
 Title:사이트 맵
 Availability:Public
 Crumbs:%ROOT%
 Description:언리얼 엔진 문서 모든 페이지에 대한 인덱스입니다.
 parent:%ROOT%
 order:1000
-Template:DefaultSiteMap.html
 
 [OBJECT:Expander]
 	[PARAMLITERAL:id]

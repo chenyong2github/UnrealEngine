@@ -10,9 +10,9 @@
 #include "Network/Session/DisplayClusterSessionInternal.h"
 
 #include "Misc/DisplayClusterAppExit.h"
-#include "Misc/DisplayClusterLog.h"
 
 #include "DisplayClusterGlobals.h"
+#include "DisplayClusterLog.h"
 
 
 FDisplayClusterClusterSyncService::FDisplayClusterClusterSyncService(const FString& InAddr, const int32 InPort) :
@@ -51,9 +51,9 @@ void FDisplayClusterClusterSyncService::Shutdown()
 	return FDisplayClusterServer::Shutdown();
 }
 
-FDisplayClusterSessionBase* FDisplayClusterClusterSyncService::CreateSession(FSocket* InSocket, const FIPv4Endpoint& InEP)
+TSharedPtr<FDisplayClusterSessionBase> FDisplayClusterClusterSyncService::CreateSession(FSocket* InSocket, const FIPv4Endpoint& InEP)
 {
-	return new FDisplayClusterSessionInternal(InSocket, this, GetName() + FString("_session_") + InEP.ToString());
+	return TSharedPtr<FDisplayClusterSessionBase>(new FDisplayClusterSessionInternal(InSocket, this, GetName() + FString("_session_") + InEP.ToString()));
 }
 
 
@@ -73,8 +73,8 @@ void FDisplayClusterClusterSyncService::NotifySessionClose(FDisplayClusterSessio
 	BarrierFrameEnd.Deactivate();
 	BarrierTickEnd.Deactivate();
 
-	FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::ExitType::NormalSoft, GetName() + FString(" - Connection interrupted. Application exit requested."));
 	FDisplayClusterService::NotifySessionClose(InSession);
+	FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::ExitType::NormalSoft, GetName() + FString(" - Connection interrupted. Application exit requested."));
 }
 
 TSharedPtr<FDisplayClusterMessage> FDisplayClusterClusterSyncService::ProcessMessage(const TSharedPtr<FDisplayClusterMessage>& Request)

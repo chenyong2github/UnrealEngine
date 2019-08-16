@@ -8,6 +8,7 @@
 #include "Modules/ModuleInterface.h"
 #include "Containers/Queue.h"
 #include "PacketTraits.h"
+#include "IPAddress.h"
 
 PACKETHANDLER_API DECLARE_LOG_CATEGORY_EXTERN(PacketHandlerLog, Log, All);
 
@@ -129,8 +130,8 @@ struct PACKETHANDLER_API BufferedPacket
 	/** Used by ReliabilityHandlerComponent, to track packet id's */
 	uint32 Id;
 
-	/** For connectionless packets, the address to send to (format is abstract, determined by active net driver) */
-	FString Address;
+	/** For connectionless packets, the address to send to */
+	TSharedPtr<const FInternetAddr> Address;
 
 	/** If buffering a packet through 'SendHandlerPacket', track the originating component */
 	HandlerComponent* FromComponent;
@@ -145,10 +146,12 @@ private:
 		, Traits()
 		, ResendTime(0.0)
 		, Id(0)
-		, Address()
+		, Address(nullptr)
 		, FromComponent(nullptr)
 	{
 	}
+
+	void SetAddressFromIP(const FString& InAddress);
 
 public:
 	UE_DEPRECATED(4.21, "Please use the new constructor that adds support for analytics and better precision")
@@ -157,7 +160,7 @@ public:
 		, Traits()
 		, ResendTime(double(InResendTime))
 		, Id(InId)
-		, Address()
+		, Address(nullptr)
 		, FromComponent(nullptr)
 	{
 		check(InCopyData != nullptr);
@@ -171,7 +174,7 @@ public:
 		, Traits(InTraits)
 		, ResendTime(InResendTime)
 		, Id(InId)
-		, Address()
+		, Address(nullptr)
 		, FromComponent(nullptr)
 	{
 		check(InCopyData != nullptr);
@@ -180,24 +183,14 @@ public:
 		FMemory::Memcpy(Data, InCopyData, FMath::DivideAndRoundUp(InCountBits, 8u));
 	}
 
-	UE_DEPRECATED(4.21, "Please use the new constructor that adds support for analytics")
-	BufferedPacket(const FString& InAddress, uint8* InCopyData, uint32 InCountBits, double InResendTime=0.0, uint32 InId=0)
-		: CountBits(InCountBits)
-		, Traits()
-		, ResendTime(InResendTime)
-		, Id(InId)
-		, Address()
-		, FromComponent(nullptr)
-	{
-		check(InCopyData != nullptr);
-
-		Data = new uint8[FMath::DivideAndRoundUp(InCountBits, 8u)];
-		FMemory::Memcpy(Data, InCopyData, FMath::DivideAndRoundUp(InCountBits, 8u));
-
-		Address = InAddress;
-	}
-
+	UE_DEPRECATED(4.23, "Please use the new constructor takes in a FInternetAddr")
 	BufferedPacket(const FString& InAddress, uint8* InCopyData, uint32 InCountBits, FOutPacketTraits& InTraits, double InResendTime=0.0, uint32 InId=0)
+		: BufferedPacket(InCopyData, InCountBits, InTraits, double(InResendTime), InId)
+	{
+		SetAddressFromIP(InAddress);
+	}
+
+	BufferedPacket(TSharedPtr<const FInternetAddr> InAddress, uint8* InCopyData, uint32 InCountBits, FOutPacketTraits& InTraits, double InResendTime=0.0, uint32 InId=0)
 		: BufferedPacket(InCopyData, InCountBits, InTraits, InResendTime, InId)
 	{
 		Address = InAddress;
@@ -215,7 +208,6 @@ public:
 	{
 		Ar.CountBytes(sizeof(*this), sizeof(*this));
 		Ar.CountBytes(FMath::DivideAndRoundUp(CountBits, 8u), FMath::DivideAndRoundUp(CountBits, 8u));
-		Address.CountBytes(Ar);
 	}
 };
 
@@ -259,6 +251,13 @@ public:
 	void InitializeDelegates(FPacketHandlerLowLevelSendTraits InLowLevelSendDel)
 	{
 		LowLevelSendDel = InLowLevelSendDel;
+	}
+
+	typedef TFunction<TSharedPtr<FInternetAddr>(const FString&)> NetDriverAddressFunc;
+	UE_DEPRECATED(4.23, "Do not use this function directly, it is provided for backwards compatibility with older versions of LowLevelSend")
+	void InitializeAddressSerializer(NetDriverAddressFunc InAddressSerializerFunc)
+	{
+		NetDriverGetAddressFromString_Deprecated = InAddressSerializerFunc;
 	}
 
 	/**
@@ -342,8 +341,8 @@ public:
 	 */
 	FORCEINLINE const ProcessedPacket Incoming(uint8* Packet, int32 CountBytes)
 	{
-		static const FString EmptyString(TEXT(""));
-		return Incoming_Internal(Packet, CountBytes, false, EmptyString);
+		const TSharedPtr<const FInternetAddr> EmptyAddress = nullptr;
+		return Incoming_Internal(Packet, CountBytes, false, EmptyAddress);
 	}
 
 	UE_DEPRECATED(4.21, "Please move to the functional flow that includes support for PacketTraits.")
@@ -366,8 +365,16 @@ public:
 	 */
 	FORCEINLINE const ProcessedPacket Outgoing(uint8* Packet, int32 CountBits, FOutPacketTraits& Traits)
 	{
-		static const FString EmptyString(TEXT(""));
-		return Outgoing_Internal(Packet, CountBits, Traits, false, EmptyString);
+		const TSharedPtr<const FInternetAddr> EmptyAddress = nullptr;
+		return Outgoing_Internal(Packet, CountBits, Traits, false, EmptyAddress);
+	}
+
+	UE_DEPRECATED(4.22, "Use the FInternetAddr structure version.")
+	FORCEINLINE const ProcessedPacket IncomingConnectionless(const FString& Address, uint8* Packet, int32 CountBytes)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return IncomingConnectionless(GetAddressFromString(Address), Packet, CountBytes);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	/**
@@ -375,12 +382,12 @@ public:
 	 * IMPORTANT: Net drivers triggering this, should call 'UNetDriver::FlushHandler' shortly afterwards, to minimize packet buffering
 	 * NOTE: Connectionless packets are unreliable.
 	 *
-	 * @param Address		The address the packet was received from (format is abstract, determined by active net driver)
+	 * @param Address		The address the packet was received from
 	 * @param Packet		The packet data to be processed
 	 * @param CountBytes	The size of the packet data in bytes
 	 * @return				Returns the final packet
 	 */
-	FORCEINLINE const ProcessedPacket IncomingConnectionless(const FString& Address, uint8* Packet, int32 CountBytes)
+	FORCEINLINE const ProcessedPacket IncomingConnectionless(const TSharedPtr<const FInternetAddr>& Address, uint8* Packet, int32 CountBytes)
 	{
 		return Incoming_Internal(Packet, CountBytes, true, Address);
 	}
@@ -389,20 +396,30 @@ public:
 	FORCEINLINE const ProcessedPacket OutgoingConnectionless(const FString& Address, uint8* Packet, int32 CountBits)
 	{
 		FOutPacketTraits EmptyTraits;
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return OutgoingConnectionless(Address, Packet, CountBits, EmptyTraits);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	UE_DEPRECATED(4.22, "Use the FInternetAddr structure version.")
+	FORCEINLINE const ProcessedPacket OutgoingConnectionless(const FString& Address, uint8* Packet, int32 CountBits, FOutPacketTraits& Traits)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return OutgoingConnectionless(GetAddressFromString(Address), Packet, CountBits, Traits);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	/**
 	 * Processes outgoing packets without a UNetConnection, in the same manner as 'Outgoing' above
 	 * NOTE: Connectionless packets are unreliable.
 	 *
-	 * @param Address		The address the packet is being sent to (format is abstract, determined by active net driver)
+	 * @param Address		The address the packet is being sent to
 	 * @param Packet		The packet data to be processed
 	 * @param CountBits		The size of the packet data in bits
 	 * @param Traits		Traits for the packet, if applicable
 	 * @return				Returns the final packet
 	 */
-	FORCEINLINE const ProcessedPacket OutgoingConnectionless(const FString& Address, uint8* Packet, int32 CountBits, FOutPacketTraits& Traits)
+	FORCEINLINE const ProcessedPacket OutgoingConnectionless(const TSharedPtr<const FInternetAddr>& Address, uint8* Packet, int32 CountBits, FOutPacketTraits& Traits)
 	{
 		return Outgoing_Internal(Packet, CountBits, Traits, true, Address);
 	}
@@ -416,6 +433,7 @@ public:
 	virtual void CountBytes(FArchive& Ar) const;
 
 protected:
+
 	/**
 	 * Internal handling for Incoming/IncomingConnectionless
 	 *
@@ -425,7 +443,24 @@ protected:
 	 * @param Address			The address the packet was received from (format is abstract, determined by active net driver)
 	 * @return					Returns the final packet
 	 */
-	const ProcessedPacket Incoming_Internal(uint8* Packet, int32 CountBytes, bool bConnectionless, const FString& Address);
+	UE_DEPRECATED(4.23, "Address is now taken as a shared pointer to remove the burden of format differences from the packethandler")
+	const ProcessedPacket Incoming_Internal(uint8* Packet, int32 CountBytes, bool bConnectionless, const FString& Address)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return Incoming_Internal(Packet, CountBytes, bConnectionless, GetAddressFromString(Address));
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	/**
+	 * Internal handling for Incoming/IncomingConnectionless
+	 *
+	 * @param Packet			The packet data to be processed
+	 * @param CountBytes		The size of the packet data in bytes
+	 * @param bConnectionless	Whether or not this should be processed as a connectionless packet
+	 * @param Address			The address the packet was received from
+	 * @return					Returns the final packet
+	 */
+	const ProcessedPacket Incoming_Internal(uint8* Packet, int32 CountBytes, bool bConnectionless, const TSharedPtr<const FInternetAddr>& Address);
 
 	/**
 	 * Internal handling for Outgoing/OutgoingConnectionless
@@ -437,9 +472,33 @@ protected:
 	 * @param Address			The address the packet is being sent to (format is abstract, determined by active net driver)
 	 * @return					Returns the final packet
 	 */
-	const ProcessedPacket Outgoing_Internal(uint8* Packet, int32 CountBits, FOutPacketTraits& Traits, bool bConnectionless, const FString& Address );
+	UE_DEPRECATED(4.23, "Address is now taken as a shared pointer to remove the burden of format differences from the packethandler")
+	const ProcessedPacket Outgoing_Internal(uint8* Packet, int32 CountBits, FOutPacketTraits& Traits, bool bConnectionless, const FString& Address)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return Outgoing_Internal(Packet, CountBits, Traits, bConnectionless, GetAddressFromString(Address));
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	/**
+	 * Internal handling for Outgoing/OutgoingConnectionless
+	 *
+	 * @param Packet			The packet data to be processed
+	 * @param CountBits			The size of the packet data in bits
+	 * @param Traits			Traits for the packet, passed down from the NetConnection, if applicable
+	 * @param bConnectionless	Whether or not this should be sent as a connectionless packet
+	 * @param Address			The address the packet is being sent to
+	 * @return					Returns the final packet
+	 */
+	const ProcessedPacket Outgoing_Internal(uint8* Packet, int32 CountBits, FOutPacketTraits& Traits, bool bConnectionless, const TSharedPtr<const FInternetAddr>& Address);
 
 public:
+
+	/*
+	 * Allows for easy translation from string to FInternetAddr. Only used for compatibility in deprecated functions, do not use in new code flow.
+	 */
+	UE_DEPRECATED(4.23, "This function should not be used except for backwards compatibility with deprecated functions.")
+	TSharedPtr<const FInternetAddr> GetAddressFromString(const FString& Address);
 
 	UE_DEPRECATED(4.21, "Please use the packet traits when sending to handle modifications of packets and analytics.")
 	void SendHandlerPacket(HandlerComponent* InComponent, FBitWriter& Writer)
@@ -618,6 +677,9 @@ private:
 	/** Delegate used for triggering PacketHandler/HandlerComponent-sourced sends (DEPRECATED) */
 	FPacketHandlerLowLevelSend LowLevelSendDel_Deprecated;
 
+	/** Function for the netdriver to provide serialization of FStrings in deprecated use cases (DEPRECATED) */
+	NetDriverAddressFunc NetDriverGetAddressFromString_Deprecated;
+
 	/** Delegate used for notifying that handshaking has completed */
 	FPacketHandlerHandshakeComplete HandshakeCompleteDel;
 
@@ -751,29 +813,53 @@ public:
 	 */
 	virtual void Outgoing(FBitWriter& Packet, FOutPacketTraits& Traits) = 0;
 
+	UE_DEPRECATED(4.23, "Use a FInternetAddr instead of a string for more versitile behavior")
+	virtual void IncomingConnectionless(const FString& Address, FBitReader& Packet)
+	{
+		if (Handler)
+		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			IncomingConnectionless(Handler->GetAddressFromString(Address), Packet);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		}
+	}
+
 	/**
 	 * Handles incoming packets not associated with a UNetConnection
 	 *
-	 * @param Address	The address the packet was received from (format is abstract, determined by active net driver)
+	 * @param Address	The address the packet was received from
 	 * @param Packet	The packet to be handled
 	 */
-	virtual void IncomingConnectionless(const FString& Address, FBitReader& Packet) = 0;
+	virtual void IncomingConnectionless(const TSharedPtr<const FInternetAddr>& Address, FBitReader& Packet) = 0;
 
 	UE_DEPRECATED(4.21, "Use the method that allows traits on the packet.")
 	virtual void OutgoingConnectionless(const FString& Address, FBitWriter& Packet)
 	{
 		FOutPacketTraits EmptyTraits;
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		OutgoingConnectionless(Address, Packet, EmptyTraits);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	UE_DEPRECATED(4.23, "Use a FInternetAddr instead of a string for more versitile behavior")
+	virtual void OutgoingConnectionless(const FString& Address, FBitWriter& Packet, FOutPacketTraits& Traits)
+	{
+		if (Handler)
+		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			OutgoingConnectionless(Handler->GetAddressFromString(Address), Packet, Traits);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		}
 	}
 
 	/**
 	 * Handles any outgoing packets not associated with a UNetConnection
 	 *
-	 * @param Address	The address the packet is being sent to (format is abstract, determined by active net driver)
+	 * @param Address	The address the packet is being sent to
 	 * @param Packet	The packet to be handled
 	 * @param Traits	Traits for the packet, passed down through the packet pipeline (if applicable)
 	 */
-	virtual void OutgoingConnectionless(const FString& Address, FBitWriter& Packet, FOutPacketTraits& Traits) = 0;
+	virtual void OutgoingConnectionless(const TSharedPtr<const FInternetAddr>& Address, FBitWriter& Packet, FOutPacketTraits& Traits) = 0;
 
 
 	/**

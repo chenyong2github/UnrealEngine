@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3730858
+INTSourceChangelist:3730858
 Availability:Public
 Title: 미디어 프레임워크 콘텐츠 4.18 업그레이드
 Crumbs:%ROOT%, Engine
@@ -19,7 +19,7 @@ Related: Engine\MediaFramework\TechReference
 
 ## 미디어 플레이어 변경사항
 
-**Media Player** (미디어 플레이어) 애셋이 약간 변경되었습니다. **Media Textures** (미디어 텍스처) 레퍼런싱 방식과 사운드 적용 방식이 달라졌습니다.
+**Media Player** (미디어 플레이어) 애셋이 약간 변경되었습니다. **Media Textures** (미디어 텍스처) 참조 방식과 사운드 적용 방식이 달라졌습니다.
 
 ### 미디어 사운드 컴포넌트
 
@@ -47,7 +47,7 @@ Related: Engine\MediaFramework\TechReference
 
 ### 미디어 텍스처 레퍼런스
 
-또한 미디어 플레이어는 미디어 텍스처를 다르게 레퍼런싱하기도 하는데, 이제 미디어 텍스처가 미디어 플레이어를 (그 반대가 아니라) 가리키기 때문입니다.
+또한 미디어 플레이어는 미디어 텍스처를 다르게 참조하기도 하는데, 이제 미디어 텍스처가 미디어 플레이어를 (그 반대가 아니라) 가리키기 때문입니다.
 
 아래는 4.18 이전 미디어 플레이어 그림입니다:
 

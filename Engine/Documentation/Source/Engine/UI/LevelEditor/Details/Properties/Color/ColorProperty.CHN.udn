@@ -1,8 +1,9 @@
-﻿INTSourceChangelist:1635970
+﻿INTSourceChangelist:3108692
+Availability:Public
 Title: 颜色控件
 Crumbs: %ROOT%, Engine, Engine/UI, Engine/UI/LevelEditor, Engine/UI/LevelEditor/Details
 Description:用于存放字节和线性颜色值的属性。
-Availability:Public
+Version: 4.9
 
 Color（颜色）和LinearColor （线性颜色）属性提供了颜色 _样本_ 和构成该颜色的每个独立分量的数值， 
 以这种形式可视化地显示了颜色。

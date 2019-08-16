@@ -1,0 +1,182 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+#include "/Engine/Public/Platform.ush"
+#include "MPCDIUtils.ush"
+
+//Draw rectangle support
+float4 DrawRectanglePosScaleBias;
+float4 DrawRectangleInvTargetSizeAndTextureSize;
+float4 DrawRectangleUVScaleBias;
+
+// Pixel SHADER parameters
+Texture2D PostprocessInput0;
+SamplerState PostprocessInput0Sampler;
+
+Texture2D	WarpMap;
+SamplerState WarpMapSampler;
+
+Texture2D	AlphaMap;
+SamplerState AlphaMapSampler;
+
+Texture2D	BetaMap;
+SamplerState BetaMapSampler;
+
+float		AlphaEmbeddedGamma;
+float4x4	TextureProjectionMatrix;
+
+TextureCube  SceneCubemap;
+SamplerState SceneCubemapSampler;
+
+float3		EyePosition;
+float3		EyeLookAt;
+float		VignetteEV;
+
+
+struct InputVS
+{
+	float4 Position : ATTRIBUTE0;
+	float2 UV       : ATTRIBUTE1;
+};
+
+struct OutputVS
+{
+	float4	Position : SV_POSITION;
+	float4	UV       : TEXCOORD0;
+};
+
+struct OutputPS
+{
+	float4 Color : SV_Target0;
+};
+
+/** Used for calculating vertex positions and UVs when drawing with DrawRectangle */
+void DrawRectangle(in float4 InPosition, in float2 InTexCoord, out float4 OutPosition, out float2 OutTexCoord)
+{
+	OutPosition = InPosition;
+	OutPosition.xy = -1.0f + 2.0f * (DrawRectanglePosScaleBias.zw + (InPosition.xy * DrawRectanglePosScaleBias.xy)) * DrawRectangleInvTargetSizeAndTextureSize.xy;
+	OutPosition.xy *= float2(1, -1);
+	OutTexCoord.xy = (DrawRectangleUVScaleBias.zw + (InTexCoord.xy * DrawRectangleUVScaleBias.xy)) * DrawRectangleInvTargetSizeAndTextureSize.zw;
+}
+
+float4 ApplyBlending(float3 color, OutputVS IN)
+{
+	color = MPCDI_sRGBToLinear(color);
+
+	// Load alpha
+	float alpha = pow(AlphaMap.Sample(AlphaMapSampler, IN.UV.xy).r, AlphaEmbeddedGamma);
+
+	// Load beta
+	float beta = BetaMap.Sample(BetaMapSampler, IN.UV.xy).r;
+
+	color = (color*alpha*(1 - beta)) + beta;
+
+	return float4(MPCDI_LinearTosRGB(color), 1.f);
+}
+
+OutputVS MainVS( InputVS IN)
+{
+	OutputVS OUT;
+	DrawRectangle(IN.Position, IN.UV, OUT.Position, OUT.UV.xy);
+	OUT.Position.zw = float2(0.f, 1.f);
+	OUT.UV = float4(IN.UV, 0.f, 1.f);
+	return OUT;
+}
+
+OutputPS Passthrough_PS( OutputVS IN )
+{
+	OutputPS OUT;
+	float4 UV = mul(IN.UV,TextureProjectionMatrix);
+	OUT.Color = PostprocessInput0.Sample(PostprocessInput0Sampler, UV.xy);
+	return OUT; 
+}
+OutputPS ShowWarpTexture_PS(OutputVS IN)
+{
+	OutputPS OUT;
+	// Load warped UV
+	float4 WarpedUV = WarpMap.Sample(WarpMapSampler, IN.UV.xy);
+	// Transform WarpedUV to ScreenSpaceUV
+	float4 UVW = mul(WarpedUV, TextureProjectionMatrix);
+
+	float2 UV = UVW.xy / UVW.w;
+
+	OUT.Color = float4(UV, 0, 0.5f);
+	return OUT;
+}
+
+OutputPS WarpAndBlend_PS( OutputVS IN )
+{
+	OutputPS OUT;
+
+	// Load warped UV
+	float4 WarpedUV = WarpMap.Sample(WarpMapSampler, IN.UV.xy);
+
+	// Transform WarpedUV to ScreenSpaceUV
+	float4 UV =  mul(WarpedUV, TextureProjectionMatrix);
+
+	// Load from color map
+	float3 Color = PostprocessInput0.Sample(PostprocessInput0Sampler, UV.xy/UV.w).rgb;
+
+#if RENDER_CASE_APPLYBLENDING
+	// Apply blending
+	OUT.Color = ApplyBlending(Color, IN);
+#else
+	// No blending
+	OUT.Color = float4(Color,1.f);
+#endif
+
+	return OUT;
+}
+
+OutputPS WarpAndBlendCube_PS(OutputVS IN)
+{
+	OutputPS OUT;
+
+	// Load warped UV
+	float4 WarpedPos = WarpMap.Sample(WarpMapSampler, IN.UV.xy);
+
+	// Construct world space Vector from mesh position to eye position
+	float3 ViewVector = normalize(WarpedPos.xyz - EyePosition);
+
+	// Load from color map
+	float3 Color = SceneCubemap.Sample(SceneCubemapSampler, ViewVector).rgb;
+
+	// Apply blending
+	OUT.Color = ApplyBlending(Color, IN);
+
+	// Apply Vignetting
+	float radius = 1.f - saturate(dot(ViewVector, EyeLookAt));
+	float ev = radius * radius*VignetteEV;
+	OUT.Color = OUT.Color*pow(2.f, -ev);
+	return OUT;
+}
+
+OutputPS BuildProjectedAABB_PS(OutputVS IN)
+{
+	OutputPS OUT;
+	// Load warped UV
+	float4 WarpedUV = WarpMap.Sample(WarpMapSampler, IN.UV.xy);
+
+	// Transform WarpedUV to ScreenSpaceUV
+	float4 UV = mul(WarpedUV, TextureProjectionMatrix);
+
+	float ExcludeMult = clamp(WarpedUV.w, 0, 1);
+
+	UV = UV * ExcludeMult;
+
+	// return <0,0,0> if warp point not defined (W=-1)
+	OUT.Color = float4(UV.xyz, 1.f);		
+	return OUT;
+}
+
+
+OutputVS DirectProjectionVS(InputVS IN)
+{
+	float2 Pos = IN.Position.xy;
+
+	Pos.xy = Pos.xy * 2 - 1.0f;
+	Pos.xy *= float2(1, -1);
+
+	OutputVS Out;
+	Out.Position = float4(Pos, 0, 1);
+	Out.UV = float4(IN.UV, 0.f, 1.f);
+	return Out;
+}

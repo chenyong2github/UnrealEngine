@@ -1,20 +1,19 @@
-﻿INTSourceChangelist:4649792
+﻿INTSourceChangelist:6441094
 Availability: Public
 Title:碰撞响应参考
+type:reference
 Crumbs: %ROOT%, Engine, Engine/Physics, Engine/Physics/Collision
 Description:“碰撞（Collision）”属性类别中的“碰撞预设值（Collision Presets）”部分中包含大量属性，我们在此参考中分别对这些属性进行了介绍。
 Version: 4.9
 
 “碰撞（Collision）”属性类别中的“碰撞预设值（Collision Presets）”/“碰撞响应（Collision Response）”部分中包含大量属性和设置，我们在此对它们进行了分类介绍。
 
-(#properties)
 ## 属性
 
 以下是物理形体（BodyInstance）上的“碰撞（Collision）”属性中的“碰撞预设值（Collision Presets）”子类别中包含的属性。
 
 ![](collProp.png)(convert:false)
 
-(#collisionpresets)
 ### 碰撞预设值（Collision Presets）
 
 [REGION:raw]

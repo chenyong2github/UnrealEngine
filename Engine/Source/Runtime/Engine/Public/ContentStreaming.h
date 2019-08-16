@@ -8,6 +8,8 @@
 
 #include "CoreMinimal.h"
 #include "UObject/WeakObjectPtr.h"
+#include "CanvasTypes.h"
+#include "UnrealClient.h"
 
 class AActor;
 class FSoundSource;
@@ -17,6 +19,8 @@ class ICompressedAudioInfo;
 class UTexture2D;
 struct FRenderAssetStreamingManager;
 struct FWaveInstance;
+class UAnimStreamable;
+struct FCompressedAnimSequence;
 
 /*-----------------------------------------------------------------------------
 	Stats.
@@ -81,13 +85,51 @@ struct FStreamingViewInfo
 };
 
 /**
+ * This structure allows audio chunk data to be accessed, and guarantees that the chunk in question will not be deleted
+ * during it's lifecycle.
+ */
+class FAudioChunkHandle
+{
+public:
+	FAudioChunkHandle();
+	FAudioChunkHandle(const FAudioChunkHandle& Other);
+
+	FAudioChunkHandle& operator=(const FAudioChunkHandle& Other);
+
+	~FAudioChunkHandle();
+
+	// gets a pointer to the compressed chunk.
+	const uint8* GetData() const;
+
+	// Returns the num bytes pointed to by GetData().
+	uint32 Num() const;
+
+	// Checks whether this points to a valid compressed chunk.
+	bool IsValid() const;
+
+private:
+	// This constructor should only be called by an implementation of IAudioStreamingManager.
+	FAudioChunkHandle(const uint8* InData, uint32 NumBytes, const USoundWave* InSoundWave, const FName& SoundWaveName, uint32 InChunkIndex);
+
+	const uint8*  CachedData;
+	int32 CachedDataNumBytes;
+
+	const USoundWave* CorrespondingWave;
+	FName CorrespondingWaveName;
+	int32 ChunkIndex;
+
+	friend struct IAudioStreamingManager;
+	friend struct FCachedAudioStreamingManager;
+};
+
+/**
  * Pure virtual base class of a streaming manager.
  */
-struct IStreamingManager
+struct ENGINE_VTABLE IStreamingManager
 {
 	IStreamingManager()
-	:	NumWantingResources(0)
-	,	NumWantingResourcesCounter(0)
+		: NumWantingResources(0)
+		, NumWantingResourcesCounter(0)
 	{
 	}
 
@@ -111,7 +153,7 @@ struct IStreamingManager
 	 * @param DeltaTime				Time since last call in seconds
 	 * @param bProcessEverything	[opt] If true, process all resources with no throttling limits
 	 */
-	ENGINE_API virtual void Tick( float DeltaTime, bool bProcessEverything=false );
+	ENGINE_API virtual void Tick(float DeltaTime, bool bProcessEverything = false);
 
 	/**
 	 * Updates streaming, taking into account all current view infos. Can be called multiple times per frame.
@@ -119,7 +161,7 @@ struct IStreamingManager
 	 * @param DeltaTime				Time since last call in seconds
 	 * @param bProcessEverything	[opt] If true, process all resources with no throttling limits
 	 */
-	virtual void UpdateResourceStreaming( float DeltaTime, bool bProcessEverything=false ) = 0;
+	virtual void UpdateResourceStreaming(float DeltaTime, bool bProcessEverything = false) = 0;
 
 	/**
 	 * Streams in/out all resources that wants to and blocks until it's done.
@@ -127,7 +169,7 @@ struct IStreamingManager
 	 * @param TimeLimit					Maximum number of seconds to wait for streaming I/O. If zero, uses .ini setting
 	 * @return							Number of streaming requests still in flight, if the time limit was reached before they were finished.
 	 */
-	virtual int32 StreamAllResources( float TimeLimit=0.0f )
+	virtual int32 StreamAllResources(float TimeLimit = 0.0f)
 	{
 		return 0;
 	}
@@ -139,7 +181,7 @@ struct IStreamingManager
 	 * @param bLogResults	Whether to dump the results to the log.
 	 * @return				Number of streaming requests still in flight, if the time limit was reached before they were finished.
 	 */
-	virtual int32 BlockTillAllRequestsFinished( float TimeLimit = 0.0f, bool bLogResults = false ) = 0;
+	virtual int32 BlockTillAllRequestsFinished(float TimeLimit = 0.0f, bool bLogResults = false) = 0;
 
 	/**
 	 * Cancels the timed Forced resources (i.e used the Kismet action "Stream In Textures").
@@ -156,7 +198,7 @@ struct IStreamingManager
 	 *
 	 * @param RemovalType	What types of views to remove (all or just the normal views)
 	 */
-	void RemoveStreamingViews( ERemoveStreamingViews RemovalType );
+	void RemoveStreamingViews(ERemoveStreamingViews RemovalType);
 
 	/**
 	 * Adds the passed in view information to the static array.
@@ -168,7 +210,7 @@ struct IStreamingManager
 	 * @param Duration				How long the streaming system should keep checking this location, in seconds. 0 means just for the next Tick.
 	 * @param InActorToBoost		Optional pointer to an actor who's textures should have their streaming priority boosted
 	 */
-	ENGINE_API void AddViewInformation( const FVector& ViewOrigin, float ScreenSize, float FOVScreenSize, float BoostFactor=1.0f, bool bOverrideLocation=false, float Duration=0.0f, TWeakObjectPtr<AActor> InActorToBoost = NULL );
+	ENGINE_API void AddViewInformation(const FVector& ViewOrigin, float ScreenSize, float FOVScreenSize, float BoostFactor = 1.0f, bool bOverrideLocation = false, float Duration = 0.0f, TWeakObjectPtr<AActor> InActorToBoost = NULL);
 
 	/**
 	 * Queue up view "slave" locations to the streaming system. These locations will be added properly at the next call to AddViewInformation,
@@ -179,10 +221,10 @@ struct IStreamingManager
 	 * @param bOverrideLocation		Whether this is an override location, which forces the streaming system to ignore all other locations
 	 * @param Duration				How long the streaming system should keep checking this location, in seconds. 0 means just for the next Tick.
 	 */
-	ENGINE_API void AddViewSlaveLocation( const FVector& SlaveLocation, float BoostFactor=1.0f, bool bOverrideLocation=false, float Duration=0.0f );
+	ENGINE_API void AddViewSlaveLocation(const FVector& SlaveLocation, float BoostFactor = 1.0f, bool bOverrideLocation = false, float Duration = 0.0f);
 
 	/** Don't stream world resources for the next NumFrames. */
-	virtual void SetDisregardWorldResourcesForFrames( int32 NumFrames ) = 0;
+	virtual void SetDisregardWorldResourcesForFrames(int32 NumFrames) = 0;
 
 	/**
 	 * Allows the streaming manager to process exec commands.
@@ -192,39 +234,39 @@ struct IStreamingManager
 	 * @param Ar	Output device for feedback
 	 * @return		true if the command was handled
 	 */
-	virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) 
+	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 	{
 		return false;
 	}
 
 	/** Adds a ULevel that has already prepared StreamingData to the streaming manager. */
-	virtual void AddLevel( class ULevel* Level ) = 0;
+	virtual void AddLevel(class ULevel* Level) = 0;
 
 	/** Removes a ULevel from the streaming manager. */
-	virtual void RemoveLevel( class ULevel* Level ) = 0;
+	virtual void RemoveLevel(class ULevel* Level) = 0;
 
 	/**
 	 * Notifies manager that level primitives were shifted
 	 */
-	virtual void NotifyLevelOffset( class ULevel* Level, const FVector& Offset ) = 0;
+	virtual void NotifyLevelOffset(class ULevel* Level, const FVector& Offset) = 0;
 
 	/** Called when a spawned actor is destroyed. */
-	virtual void NotifyActorDestroyed( AActor* Actor )
+	virtual void NotifyActorDestroyed(AActor* Actor)
 	{
 	}
 
 	/** Called when a primitive is detached from an actor or another component. */
-	virtual void NotifyPrimitiveDetached( const UPrimitiveComponent* Primitive )
+	virtual void NotifyPrimitiveDetached(const UPrimitiveComponent* Primitive)
 	{
 	}
 
 	/** Called when a primitive streaming data needs to be updated. */
-	virtual void NotifyPrimitiveUpdated( const UPrimitiveComponent* Primitive )
+	virtual void NotifyPrimitiveUpdated(const UPrimitiveComponent* Primitive)
 	{
 	}
 
 	/**  Called when a primitive streaming data needs to be updated in the last stage of the frame. */
-	virtual void NotifyPrimitiveUpdated_Concurrent( const UPrimitiveComponent* Primitive )
+	virtual void NotifyPrimitiveUpdated_Concurrent(const UPrimitiveComponent* Primitive)
 	{
 	}
 
@@ -235,9 +277,9 @@ struct IStreamingManager
 	}
 
 	/** Returns the view info by the specified index. */
-	ENGINE_API const FStreamingViewInfo& GetViewInformation( int32 ViewIndex ) const
+	ENGINE_API const FStreamingViewInfo& GetViewInformation(int32 ViewIndex) const
 	{
-		return CurrentViewInfos[ ViewIndex ];
+		return CurrentViewInfos[ViewIndex];
 	}
 
 	/** Returns the number of resources that currently wants to be streamed in. */
@@ -258,9 +300,13 @@ struct IStreamingManager
 	}
 
 	/** Propagates a change to the active lighting scenario. */
-	virtual void PropagateLightingScenarioChange() 
+	virtual void PropagateLightingScenarioChange()
 	{
 	}
+
+#if WITH_EDITOR
+	ENGINE_API virtual void OnAudioStreamingParamsChanged() {};
+#endif
 
 protected:
 
@@ -390,6 +436,12 @@ struct IRenderAssetStreamingManager : public IStreamingManager
 	/** Return all bounds related to the ref object */
 	ENGINE_API virtual void GetObjectReferenceBounds(const UObject* RefObject, TArray<FBox>& AssetBoxes) = 0;
 
+	/** Return all components referencing the asset */
+	ENGINE_API virtual void GetAssetComponents(
+		const UStreamableRenderAsset* RenderAsset,
+		TArray<const UPrimitiveComponent*>& OutComps,
+		TFunction<bool(const UPrimitiveComponent*)> ShouldChoose = [](const UPrimitiveComponent*) { return true; }) = 0;
+
 	//BEGIN: APIs for backward compatibility
 	ENGINE_API void UpdateIndividualTexture(UTexture2D* Texture);
 	ENGINE_API bool StreamOutTextureData(int64 RequiredMemorySize);
@@ -397,6 +449,15 @@ struct IRenderAssetStreamingManager : public IStreamingManager
 	ENGINE_API void RemoveStreamingTexture(UTexture2D* Texture);
 	ENGINE_API void PauseTextureStreaming(bool bInShouldPause);
 	//END: APIs for backward compatibility
+};
+
+enum class EAudioChunkLoadResult : uint8
+{
+	Completed,
+	AlreadyLoaded,
+	Interrupted,
+	ChunkOutOfBounds,
+	CacheBlown
 };
 
 /**
@@ -433,21 +494,77 @@ struct IAudioStreamingManager : public IStreamingManager
 	/** Returns true if this is a streaming Sound Source that is managed by the streaming manager. */
 	virtual bool IsManagedStreamingSoundSource(const FSoundSource* SoundSource) const = 0;
 
+	/** Manually prepare a chunk to start playing back. This should only be used when the Load On Demand feature is enabled, and returns false on failure. */
+	virtual bool RequestChunk(USoundWave* SoundWave, uint32 ChunkIndex, TFunction<void(EAudioChunkLoadResult)> OnLoadCompleted) = 0;
+
 	/**
 	 * Gets a pointer to a chunk of audio data
 	 *
 	 * @param SoundWave		SoundWave we want a chunk from
 	 * @param ChunkIndex	Index of the chunk we want
+	 * @return a handle to the loaded chunk. Can return a default constructed FAudioChunkHandle if the chunk is not loaded yet.
+	 */
+	virtual FAudioChunkHandle GetLoadedChunk(const USoundWave* SoundWave, uint32 ChunkIndex,  bool bBlockForLoad = false) const = 0;
+
+	/**
+	 * This will start evicting elements from the cache until either hit our target of bytes or run out of chunks we can free.
+	 *
+	 * @param NumBytesToFree	The amount of memory we would like to free, in bytes.
+	 * @return the amount of bytes we managed to free.
+	 */
+	virtual uint64 TrimMemory(uint64 NumBytesToFree) = 0;
+
+	/**
+	 * Used for rendering debug info:
+	 */
+	virtual int32 RenderStatAudioStreaming(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation) = 0;
+
+protected:
+	friend FAudioChunkHandle;
+
+	/** This can be called by implementers of IAudioStreamingManager to construct an FAudioChunkHandle using an otherwise inaccessible constructor. */
+	static FAudioChunkHandle BuildChunkHandle(const uint8* InData, uint32 NumBytes, const USoundWave* InSoundWave, const FName& SoundWaveName, uint32 InChunkIndex);
+
+	/**
+	 * This can be used to increment reference counted handles to audio chunks. Called by the copy constructor of FAudioChunkHandle.
+	 */
+	virtual void AddReferenceToChunk(const FAudioChunkHandle& InHandle) = 0;
+
+	/**
+	 * This can be used to decrement reference counted handles to audio chunks. Called by the destructor of FAudioChunkHandle.
+	 */
+	virtual void RemoveReferenceToChunk(const FAudioChunkHandle& InHandle) = 0;
+};
+
+/**
+ * Interface to add functions specifically related to animation streaming
+ */
+struct IAnimationStreamingManager : public IStreamingManager
+{
+	/** Adds a new Streamable Anim to the streaming manager. */
+	virtual void AddStreamingAnim(UAnimStreamable* Anim) = 0;
+
+	/** Removes a Streamable Anim from the streaming manager. */
+	virtual bool RemoveStreamingAnim(UAnimStreamable* Anim) = 0;
+
+	/** Returns the memory a Streamable Anim is currently using */
+	virtual SIZE_T GetMemorySizeForAnim(const UAnimStreamable* Anim) = 0;
+
+	/**
+	 * Gets a pointer to a chunk of animation data
+	 *
+	 * @param Anim			AnimStreamable we want a chunk from
+	 * @param ChunkIndex	Index of the chunk we want
 	 * @return Either the desired chunk or NULL if it's not loaded
 	 */
-	virtual const uint8* GetLoadedChunk(const USoundWave* SoundWave, uint32 ChunkIndex, uint32* OutChunkSize = NULL) const = 0;
+	virtual const FCompressedAnimSequence* GetLoadedChunk(const UAnimStreamable* Anim, uint32 ChunkIndex, bool bRequestNextChunk) const = 0;
 };
 
 /**
  * Streaming manager collection, routing function calls to streaming managers that have been added
  * via AddStreamingManager.
  */
-struct FStreamingManagerCollection : public IStreamingManager
+struct ENGINE_VTABLE FStreamingManagerCollection : public IStreamingManager
 {
 	/** Default constructor, initializing all member variables. */
 	ENGINE_API FStreamingManagerCollection();
@@ -514,7 +631,12 @@ struct FStreamingManagerCollection : public IStreamingManager
 	/**
 	 * Checks whether texture streaming is active
 	 */
-	virtual bool IsTextureStreamingEnabled() const;
+	ENGINE_API bool IsTextureStreamingEnabled() const;
+
+	/**
+	 * Checks whether texture/mesh streaming is active
+	 */
+	virtual bool IsRenderAssetStreamingEnabled() const;
 
 	/**
 	 * Gets a reference to the Texture Streaming Manager interface
@@ -522,9 +644,19 @@ struct FStreamingManagerCollection : public IStreamingManager
 	ENGINE_API IRenderAssetStreamingManager& GetTextureStreamingManager() const;
 
 	/**
+	 * Get the streaming manager for textures and meshes
+	 */
+	ENGINE_API IRenderAssetStreamingManager& GetRenderAssetStreamingManager() const;
+
+	/**
 	 * Gets a reference to the Audio Streaming Manager interface
 	 */
 	ENGINE_API IAudioStreamingManager& GetAudioStreamingManager() const;
+
+	/**
+	 * Gets a reference to the Animation Streaming Manager interface
+	 */
+	ENGINE_API IAnimationStreamingManager& GetAnimationStreamingManager() const;
 
 	/**
 	 * Adds a streaming manager to the array of managers to route function calls to.
@@ -596,6 +728,10 @@ struct FStreamingManagerCollection : public IStreamingManager
 	/** Propagates a change to the active lighting scenario. */
 	void PropagateLightingScenarioChange() override;
 
+#if WITH_EDITOR
+	virtual void OnAudioStreamingParamsChanged() override;
+#endif
+
 protected:
 
 	virtual void AddOrRemoveTextureStreamingManagerIfNeeded(bool bIsInit=false);
@@ -616,5 +752,13 @@ protected:
 
 	/** The audio streaming manager, should always exist */
 	IAudioStreamingManager* AudioStreamingManager;
+
+	/** The animation streaming manager, should always exist */
+	IAnimationStreamingManager* AnimationStreamingManager;
+
+#if WITH_EDITOR
+	// Locks out any audio streaming manager call when we are re-initializing the audio streaming manager.
+	mutable FCriticalSection AudioStreamingManagerCriticalSection;
+#endif
 };
 

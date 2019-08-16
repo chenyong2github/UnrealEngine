@@ -5,7 +5,7 @@ Description: An overview of Sky Lights in Unreal Engine 4.
 Type: Overview
 SkillLevel:Beginner
 Version:4.18
-Parent:Engine/Rendering/LightingAndShadows
+Parent:Engine/Rendering/LightingAndShadows/LightTypes
 Related:Engine/Rendering/LightingAndShadows/Lightmass
 Related:Engine/Rendering/LightingAndShadows/LightTypes
 Related:Engine/Rendering/LightingAndShadows/DistanceFieldAmbientOcclusion
@@ -23,7 +23,7 @@ Social-Image:SkyLight_1.png
 
 
 The Sky Light captures the distant parts of your level and applies that to the scene as a light. That means the sky�s appearance and its lighting/reflections will match, even if your sky is 
-coming from atmosphere, or layered clouds on top of a skybox, or distant mountains. You can also manually specify a cubemap to use. 
+coming from atmosphere, or layered clouds on top of a skybox, or distant mountains. You can also manually specify a cubemap to use.
 
 ## Scene Capture
 
@@ -136,7 +136,7 @@ To see an example of this type of interaction, go to **Engine Content** > **MapT
 [/OBJECT]
 [REGION:caption]  [/REGION]
 [REGION:caption]
-An exmaple of the improvement using the starting office level from Epic's [Robo Recall](Modding/RoboRecall). 
+An exmaple of the improvement using the starting office level from Epic's **Robo Recall**. 
 [/REGION]
 
 The biggest difference can be seen in heavily occluded scenes with a Sky Light cubemap that has a lot of brightness and color variations. 

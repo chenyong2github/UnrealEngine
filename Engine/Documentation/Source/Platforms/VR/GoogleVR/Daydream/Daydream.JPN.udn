@@ -1,0 +1,200 @@
+﻿INTSourceChangelist:3721937
+Availability:Public
+Crumbs: %ROOT%
+Title:Google VR と Daydream デバイス
+Description:Daydream デバイス固有の Google VR 機能
+Type:Overview
+SkillLevel:Intermediate
+Version:4.17
+Parent:Platforms/VR/GoogleVR
+Order:2
+tags:Google VR
+tags:Daydream
+topic-image:Platforms\VR\GoogleVR\GoogleVR_Topic_Image.png
+
+[TOC(start:2)]
+
+[region:note]
+Google では、Daydream の詳しい使用方法を解説したマニュアルを提供しています。[Google Daydream Unreal 公式サイト](https://developers.google.com/vr/unreal/) のヘルプをご覧ください。
+[/region]
+
+
+Google VR はほとんどの Android ベースのデバイスで使用できますが、Daydream デバイス固有の機能もいくつかあります。これらの機能およびプロジェクトでの使用方法について、次のセクションで説明します。
+
+## アンリアル エンジン向け Google Daydream をダウンロードする
+
+Google Daydream は、エピック ゲームズ ランチャーからダウンロード可能なアンリアル エンジン バイナリに備わりました。Github からダウンロードおよびコンパイルするアンリアル エンジン ソースでも使用することができます。
+* [Epic Games Launcher](https://www.epicgames.com/unrealtournament/download)
+* [Epic Games Github](https://github.com/EpicGames)
+
+## Android NDK 12b
+
+Daydream のすべての機能にアクセスする場合、Android NDK のバージョンが 12b に更新されていることを確認してください。Android Works のインストール方法ににいては以下の各リンクを参照してください。 
+
+* [Android Works の設定](Platforms/Mobile/Android/GettingStarted/1)
+
+ダウンロードおよびインストールが完了したら、**[Android SDK]** > **[SDKConfig]** セクションで SDK API Level を **[matchndk]** に、また NDK API Level を **[android-24]** にそれぞれ設定して、アンリアル エンジン プロジェクトが新しい NDK ファイルを使用していることを確認する必要があります。
+
+[REGION:lightbox]
+[![](GDaydream_New_NDK_00.png)(w:502)](GDaydream_New_NDK_00.png)
+[/REGION]
+
+[REGION:caption]
+クリックしてフルサイズで表示
+[/REGION]
+
+## スキャンライン レーシング
+
+**Scanline Racing** は、VR プロジェクトでのレイテンシーを低減できる Daydream 固有の機能です。Daydream デバイス向け Google VR プロジェクトでスキャンライン レーシングを有効にするには、以下の操作を行います。
+
+1. **[Project Settings (プロジェクト設定)]** の **[Platforms]** で **[Android]** を選択します。**[APKPackaging]** セクションで、以下の設定を行います。 
+
+    * Minimum SDK Version:**24**
+    * Target SDK Version:**24**
+
+    [REGION:lightbox]
+    [![](GDaydream_Arm64_Support_00.png)(w:502)](GDaydream_Arm64_Support_00.png)
+    [/REGION]
+
+    [REGION:caption]
+    クリックしてフルサイズで表示
+    [/REGION]
+
+1. **[Build]** セクションで以下の設定を行います。
+    * Support armv7(aka armeabi-v7a):**Disabled** 
+    * Support arm64 (aka arm64-v8a):**Enabled**
+
+    [REGION:lightbox]
+    [![](GDaydream_Build_Support.png)(w:502)](GDaydream_Build_Support.png)
+    [/REGION]
+
+    [REGION:caption]
+    クリックしてフルサイズで表示
+    [/REGION]
+
+    [region:note]
+    これを有効にしておくと、arm64 ライブラリのコンパイルが必要な時に、初回クック時間が大幅に追加されます。
+    [/region]
+
+1. 次に、**[Advanced APKPackaging]** セクションの以下のオプションを有効にします。
+    * [Configure GoogleVR Deployment Mode]:**Daydream**
+    * [Configure GoogleVR for sustained-performance mode]:**Enabled**
+
+    [REGION:lightbox]
+    [![](GDaydream_Scanline_Racing_Support_00.png)(w:502)](GDaydream_Scanline_Racing_Support_00.png)
+    [/REGION]
+
+    [REGION:caption]
+    クリックしてフルサイズで表示
+    [/REGION]
+
+
+次回アンリアル エンジン プロジェクトをクックして Daydream デバイスにデプロイする時に、低レイテンシー レンダリング設定が有効になります。
+
+## Daydream モーション コントローラー
+
+Daydream デバイスのユニークな機能の 1 つに、モーション コントローラーのサポートがあります。Daydream デバイス用のモーション コントローラーの設定方法は、以下の操作ガイドを参照してください。
+
+* [Daydream モーション コントローラー](Platforms\VR\GoogleVR\HowTo\MotionController)
+
+
+## トレーニング ストリーム
+
+これらのトレーニング ストリームは、Motion Controller の設定、Motion Controller を使った VR でのインタラクション作成に関する追加リソースです。 
+
+
+[OBJECT:VideoSeriesLink]
+    [PARAMLITERAL:title]
+    ライブ トレーニング - モーション コントローラーの設定
+    [/PARAMLITERAL]
+    [PARAMLITERAL:videoid]
+    6ALnsdQnkVQ
+    [/PARAMLITERAL]
+    [PARAMLITERAL:playlist]
+    PLZlv_N0_O1gY7G589Z3I5-Dz7AdFSIWaG
+    [/PARAMLITERAL]
+    [PARAMLITERAL:duration]
+    1:05:05
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAMLITERAL:linktype]
+    block
+    [/PARAMLITERAL]
+    [PARAMLITERAL:thumbnail]
+    https://i.ytimg.com/vi/6ALnsdQnkVQ/maxresdefault.jpg
+    [/PARAMLITERAL]
+[/OBJECT]
+
+[OBJECT:VideoSeriesLink]
+    [PARAMLITERAL:title]
+    01 - モーション コントローラーで VR でインタラクションを作成するブループリント
+    [/PARAMLITERAL]
+    [PARAMLITERAL:videoid]
+    eRNtgFo6iU0
+    [/PARAMLITERAL]
+    [PARAMLITERAL:playlist]
+    PLZlv_N0_O1gY7G589Z3I5-Dz7AdFSIWaG
+    [/PARAMLITERAL]
+    [PARAMLITERAL:duration]
+    59:50
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAMLITERAL:linktype]
+    block
+    [/PARAMLITERAL]
+    [PARAMLITERAL:thumbnail]
+    https://i.ytimg.com/vi/eRNtgFo6iU0/maxresdefault.jpg
+    [/PARAMLITERAL]
+[/OBJECT]
+
+[OBJECT:VideoSeriesLink]
+    [PARAMLITERAL:title]
+    02 - モーション コントローラーで VR でインタラクションを作成するブループリント
+    [/PARAMLITERAL]
+    [PARAMLITERAL:videoid]
+    utOahIZgKgc
+    [/PARAMLITERAL]
+    [PARAMLITERAL:playlist]
+    PLZlv_N0_O1gY7G589Z3I5-Dz7AdFSIWaG
+    [/PARAMLITERAL]
+    [PARAMLITERAL:duration]
+    57:44
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAMLITERAL:linktype]
+    block
+    [/PARAMLITERAL]
+    [PARAMLITERAL:thumbnail]
+    https://i.ytimg.com/vi/utOahIZgKgc/maxresdefault.jpg
+    [/PARAMLITERAL]
+[/OBJECT]
+[OBJECT:VideoSeriesLink]
+    [PARAMLITERAL:title]
+    01 - モーション コントローラーで VR でインタラクションを作成するブループリント
+    [/PARAMLITERAL]
+    [PARAMLITERAL:videoid]
+    fcmRGkpWefY
+    [/PARAMLITERAL]
+    [PARAMLITERAL:playlist]
+    PLZlv_N0_O1gY7G589Z3I5-Dz7AdFSIWaG
+    [/PARAMLITERAL]
+    [PARAMLITERAL:duration]
+    48:20
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAMLITERAL:linktype]
+    block
+    [/PARAMLITERAL]
+    [PARAMLITERAL:thumbnail]
+    https://i.ytimg.com/vi/fcmRGkpWefY/maxresdefault.jpg
+    [/PARAMLITERAL]
+[/OBJECT]
+
+[region:blank]
+
+[/region]
+

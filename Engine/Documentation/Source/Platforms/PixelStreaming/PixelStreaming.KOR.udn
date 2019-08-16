@@ -1,20 +1,17 @@
-﻿INTSourceChangelist:4677050
+﻿INTSourceChangelist:6429916
 Availability: Public
 Crumbs: 
 Title: 픽셀 스트리밍
 Description: 언리얼 엔진 응용 프로그램을 클라우드의 서버에서 실행하고, 그 렌더링되는 프레임과 오디오를 WebRTC 를 통해 브라우저와 모바일 디바이스에 스트리밍합니다.
-Type: 
+Type:landing
 Version: 4.21
 Parent: Platforms
 Order: 
 topic-image:PixelStreaming_Topic_01.png
 Tags: Early Access
-Tags: Landing Page
 Tags: Pixel Streaming
 Tags: Cloud Platform
-
-
-![](PixelStreaming_Banner_01.png "PixelStreaming_Banner_01.png")
+hero-image:PixelStreaming_Banner_01.png
 
 *이미지 제공: McLaren*
 

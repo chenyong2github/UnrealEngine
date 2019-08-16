@@ -10,6 +10,7 @@ using System.Text.RegularExpressions;
 using System.Drawing;
 using System.Linq;
 using System.Reflection;
+using Tools.DotNETCommon;
 
 namespace Gauntlet
 {
@@ -45,10 +46,16 @@ namespace Gauntlet
 		public Params Params { get; protected set; }
 
 		/// <summary>
-		/// Name of this project
+		/// Name or path to this this project. This will be normalized to the project name
+		/// and the path to the project file available via the ProjectPath argument,
 		/// </summary>
 		[AutoParam]
 		public string Project = "";
+
+		/// <summary>
+		/// Returns the path to the project file. Created based on the Project argument
+		/// </summary>
+		public FileReference ProjectPath { get; set; }
 
 		/// <summary>
 		/// Reference to the build that is being tested
@@ -215,6 +222,27 @@ namespace Gauntlet
 			else
 			{
 				Globals.LogDir = LogDir;
+			}
+
+
+			// normalize the project name and get the path
+			if (File.Exists(Project))
+			{
+				ProjectPath = new FileReference(Project);
+				Project = ProjectPath.GetFileNameWithoutExtension();
+			}
+			else
+			{
+				if (!string.IsNullOrEmpty(Project))
+				{
+					ProjectPath = ProjectUtils.FindProjectFileFromName(Project);
+
+					if (ProjectPath == null)
+					{
+						throw new AutomationException("Could not find project file for {0}", Project);
+					}
+					Project = ProjectPath.GetFileNameWithoutExtension();
+				}
 			}
 
 			if (string.IsNullOrEmpty(Sandbox))

@@ -1,10 +1,12 @@
-﻿Availability: Public
+﻿Availability: docs
 Title:6 - Running the Build Process
 Crumbs:%ROOT%, GettingStarted, Engine/QuickStart
 Description:With a number of Actors placed and customized, one of the final steps for creating any level is the Build Process.
 SkillLevel:Beginner
 Version:4.9
 checkpoint: editorqs
+
+## Marking as docs as the pages have been combined. 
 
 [VAR:Steps]
 [OBJECT:Navigation]

@@ -1,14 +1,12 @@
-﻿INTSourceChangelist:3108692
+﻿INTSourceChangelist:6537038
 Title:虚幻引擎4.3版本说明
 Crumbs:%ROOT%, Support/Builds
 Description:
 Availability:Public
 version: 4.3
-order:3
-
+Order: 41
 [TOC(start:2 end:2)]
 
-(#4.3releasenotes)
 ## 4.3版本说明 
 虚幻引擎4.3极大地改善了对移动平台的支持，加入了全新的渲染功能、改良的蓝图工作流，并在Mac和笔记本电脑上实现了优秀的用户体验。新加入的场景合成工具、样条功能、2D工具集Paper 2D的预览全都不容错过！此更新还包含对SpeedTree 7的支持，最新iOS 8 Metal API的功能，以及时间扭曲等全新Oculus Rift功能。
 
@@ -16,19 +14,15 @@ order:3
 
 3dluvr、abergmeier、alixSilkin、Allegorithmic、bigzer、Chris-Bond、CoherentUE4、EverNewJoy、Ixiguis、mpolaczyk、pzurita、raziel2001au、robert-wallis、RushPL、solid-angle、stephenwhittle、thk123、timdonkssbc100、vakathil、Xaklse、Zoubi
 
-(#majornewfeatures)
 ## 主要新功能
 
-(#rendering)
 ### 渲染 
 
-(#new:movableskylight)
 ##### 新增内容：可移动天空光照
 新版本现支持移动性设置“可移动”！
 * 此类光照支持动态场景修改。
 * 它从SSAO和一个名为距离场AO的全新功能中获取阴影。 
 
-(#new:distancefieldambientocclusion)
 ##### 新增内容：距离场环境光遮蔽
 此功能计算来自有向距离场（用于代表场景中的静态网格体）的AO。静态网格体可在运行时移动，AO将更新。
 
@@ -40,7 +34,6 @@ order:3
 
 ![](DistanceFieldAO_02.png)
 
-(#new:skylightglobalillumination)
 ##### 新增内容：天空光照全局光照
 新版本中，Lightmass将计算静止和静态天空光照的全局光照！
 
@@ -57,7 +50,6 @@ order:3
 
 
 
-(#new:translucencyshadowingfromstationarylights)
 ##### 新增内容：来自静止光照的半透明阴影
 新版本中静止光照能对半透明材质进行良好投影！
 
@@ -72,7 +64,6 @@ order:3
 * 其工作原理是在Lightmass中计算一个阴影深度图，覆盖光照影响。
  
 
-(#2dgametoolspreview)
 ### 2D游戏工具预览
 新版本中，**Paper2D** 插件在引擎中默认启用，可在纯内容的游戏中使用 
 
@@ -92,10 +83,8 @@ order:3
 * 图像序列视图组件改良（播放/暂停、循环控制、反向播放等）
 
 
-(#aitools:behaviortree)
 ### AI工具：行为树
 
-(#blackboardediting&debugginginthebehaviortreeeditor)
 ##### 行为树编辑器中的黑板编辑与调试
 新版本中，使用者可在行为树编辑器中编辑并调试黑板条目。切换至全新的“黑板”模式即可访问黑板编辑器：
 
@@ -115,7 +104,6 @@ order:3
 
 ![](BehaviorTree04.png)
 
-(#new:”newnode”shortcuts)
 ##### 新增内容：“新建节点”快捷方式
 行为树编辑器已将一些新按钮添加至其工具栏，使用户可为任务、装饰器和服务迅速新建蓝图节点类型：
 
@@ -123,10 +111,8 @@ order:3
 
 * 这些新节点的蓝图被创建在当前被编辑的行为树的路径中。如存在多个可创建节点类型的潜在类，按钮将含下拉菜单，以便对类进行选择。
 
-(#largeworldsupport)
 ### 大型场景支持
 
-(#new:worldcomposition)
 ##### 新增内容： 
 使用者可创建子关卡并将其放置在此地图上的任意处。其将在游戏中自动加载。
 
@@ -140,7 +126,6 @@ order:3
 * 之后将提供新文档和游戏样本。
 * 此功能替代旧版本中的实验性功能 **场景浏览器**。
 
-(#levelbrowserredesign)
 ##### 重新设计关卡浏览器
 在4.3版本中，**关卡浏览器**（通过“窗口”菜单访问）得到了大幅更新。
 
@@ -153,7 +138,6 @@ order:3
 * 将一个关卡拖入蓝图图表时，将创建该关卡的 **GetStreamingLevel** 节点。
 * 如更新的关卡工具中出现内容缺失或功能错误，可使用 **-oldlevels commandline** 参数切换回旧关卡工具。
 
-(#new:rendertotextureblueprint)
 ### 新增内容：渲染至纹理蓝图
 “RenderToTexture_LevelBP”蓝图中有全新的纹理烘焙功能可用！**Engine\Content\ArtTools\** 目录现在保存了一个命名为RenderToTexture_LevelBP的蓝图。此蓝图将提供多个不同的烘焙选项。
  
@@ -200,7 +184,6 @@ Imposter样本：
 
 ![](FlipbookAnim2.png)(w:900)
 
-(#new:credits(thankyou!))
 ### 新增内容：制作人员列表（感谢您！）
 为表彰长期以来对虚幻引擎做出不朽贡献的开发者，新版本中加入了制作人员列表。感谢你们付出的心血！
 
@@ -208,7 +191,6 @@ Imposter样本：
 
 通过编辑器的 **帮助 -> 制作人员列表** 菜单即可访问。
 
-(#new:oculusriftupgrade)
 ### 新增内容：Oculus Rift更新
 * 已更新至Oculus SDK（0.3.3-pre.1 SDK），包含最新内容！
 * 原生支持Oculus Rift DK2，带完整运动追踪。
@@ -217,7 +199,6 @@ Imposter样本：
 
 ![](OculusRiftUpgrade.png)
 
-(#new:speedtree7supported)
 ### 新增内容：已支持SpeedTree 7
 新版本中使用者可将SpeedTree资源导入虚幻引擎！
 
@@ -231,10 +212,8 @@ SpeedTree树木和植物所有均包含光照图UV、动态LOD和风效果。下
 
 ![](Speedtree02.png)
 
-(#blueprints)
 ### 蓝图
 
-(#new:splineandsplinemeshcomponents)
 ##### 新增内容：样条与样条网格体组件
 新版本中可以直接在场景中编辑样条了！将样条组件或样条网格体组件添加到蓝图并选择该蓝图的一个实例后，用户即可在关卡中编辑样条。 
 
@@ -252,7 +231,6 @@ SpeedTree树木和植物所有均包含光照图UV、动态LOD和风效果。下
 
 如果需要，也可使用 **AddSplineWorldPoint** 和 **SetSplineWorldPoints** 函数在构造脚本中构建样条。
 
-(#new:reroutenodes)
 ##### 新增内容：重路由节点
 点击引脚连出引线时 **添加重路由节点** 将显示在快捷菜单中，可正常连接到重路由引脚，将其移动（拖拽其周围或在其上方 **按住ctrl拖动**），**按住Alt点击** 则可将其移除。 
 
@@ -260,7 +238,6 @@ SpeedTree树木和植物所有均包含光照图UV、动态LOD和风效果。下
 
 ![](RerouteNodes.png)
 
-(#new:splitstructpins)
 ##### 新增内容：分离结构体引脚
 新版本中使用者可以在节点上直接分离结构体引脚，而无需再插入Make和Break节点。 
 
@@ -268,7 +245,6 @@ SpeedTree树木和植物所有均包含光照图UV、动态LOD和风效果。下
 
 这可用于所有结构体的输入和输出引脚；如果分离结构体也包含结构体，其也能够扩张。
 
-(#new:expandenumforoutputpins)
 ##### 新增内容：扩展输出引脚列举
 新版本中用户可以启用蓝图节点执行引脚的扩展列举。输入引脚的此内容已存在一段时间，新版本中已为输出执行引脚将其启用：
 
@@ -276,7 +252,6 @@ SpeedTree树木和植物所有均包含光照图UV、动态LOD和风效果。下
 
 * 使用者可创建一个列举，将其设为函数的一个输出参数，并将该输出参数标记为UFunction元数据（C++）中的ExpandEnumAsExecs。
 
-(#new:dataandcurvetablesupport)
 ##### 新增内容：支持数据和曲线表
 “计算曲线表行（Evaluate Curve Table Row）”将返回XY处行命名的输出值：
 
@@ -286,7 +261,6 @@ SpeedTree树木和植物所有均包含光照图UV、动态LOD和风效果。下
 
 ![](DataandCurve02.png)
 
-(#new:blueprintscontrolofanimtrails)
 ##### 新增内容：动画尾迹的蓝图控制
 新版本中，使用者可对蓝图（和代码）中不带动画通知的动画尾迹发射器进行控制。
 * 唯一限制是粒子系统组件必须为骨架网格体组件（正是从此处采样插槽位置）的子项。
@@ -302,7 +276,6 @@ SpeedTree树木和植物所有均包含光照图UV、动态LOD和风效果。下
 
 ![](AnimTrails04.png)
 
-(#new:globalblueprintsearch)
 ##### 新增内容：全局蓝图搜索
 蓝图搜索已得到大幅改进，功能与实用性均更加强大，足以满足使用者的需求。
 
@@ -318,7 +291,6 @@ SpeedTree树木和植物所有均包含光照图UV、动态LOD和风效果。下
 
 * **注意**：并不完全支持关卡蓝图，但使用者应该能够毫无障碍地搜索当前关卡。
 
-(#scalabilityupdates)
 ### 可延展性更新
 在4.3版本中，我们着重改善了编辑器性能和编辑器CPU使用率
  
@@ -334,7 +306,6 @@ SpeedTree树木和植物所有均包含光照图UV、动态LOD和风效果。下
 * 笔记本电脑使用电池电量时，编辑器帧率将节流为最高60 hz，以节约电量。
 
 
-(#staticmesheditor)
 ### 静态网格体编辑器
 
 (#new:customizablestaticmeshcollision)

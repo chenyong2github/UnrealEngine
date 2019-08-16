@@ -6,6 +6,7 @@
 
 void FRigUnit_ApplyFK::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	FRigHierarchyRef& HierarchyRef = ExecuteContext.HierarchyReference;
 	
 	if (Context.State == EControlRigState::Init)
@@ -54,7 +55,7 @@ void FRigUnit_ApplyFK::Execute(const FRigUnitContext& Context)
 FTransform FRigUnit_ApplyFK::GetBaseTransform(int32 BoneIndex, const FRigHierarchy* CurrentHierarchy) const
 {
 	return UtilityHelpers::GetBaseTransformByMode(ApplyTransformSpace, [CurrentHierarchy](const FName& BoneName) { return CurrentHierarchy->GetGlobalTransform(BoneName); },
-		CurrentHierarchy->Bones[BoneIndex].ParentName, BaseJoint, BaseTransform);
+		CurrentHierarchy->GetBones()[BoneIndex].ParentName, BaseJoint, BaseTransform);
 }
 
 #if WITH_DEV_AUTOMATION_TESTS

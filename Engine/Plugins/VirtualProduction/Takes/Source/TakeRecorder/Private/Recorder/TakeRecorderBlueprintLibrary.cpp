@@ -15,6 +15,11 @@ namespace
 {
 	static UTakeRecorderPanel* CurrentTakeRecorderPanel;
 	static UTakeRecorderBlueprintLibrary::FOnTakeRecorderPanelChanged TakeRecorderPanelChanged;
+	static UTakeRecorderBlueprintLibrary::FOnTakeRecorderStarted TakeRecorderStarted;
+	static UTakeRecorderBlueprintLibrary::FOnTakeRecorderStopped TakeRecorderStopped;
+	static UTakeRecorderBlueprintLibrary::FOnTakeRecorderFinished TakeRecorderFinished;
+	static UTakeRecorderBlueprintLibrary::FOnTakeRecorderCancelled TakeRecorderCancelled;
+	static UTakeRecorderBlueprintLibrary::FOnTakeRecorderMarkedFrameAdded TakeRecorderMarkedFrameAdded;
 }
 
 
@@ -125,6 +130,56 @@ void UTakeRecorderBlueprintLibrary::SetOnTakeRecorderPanelChanged(FOnTakeRecorde
 {
 	TakeRecorderPanelChanged = OnTakeRecorderPanelChanged;
 };
+
+void UTakeRecorderBlueprintLibrary::SetOnTakeRecorderStarted(FOnTakeRecorderStarted OnTakeRecorderStarted)
+{
+	TakeRecorderStarted = OnTakeRecorderStarted;
+};
+
+void UTakeRecorderBlueprintLibrary::SetOnTakeRecorderStopped(FOnTakeRecorderStopped OnTakeRecorderStopped)
+{
+	TakeRecorderStopped = OnTakeRecorderStopped;
+};
+
+void UTakeRecorderBlueprintLibrary::SetOnTakeRecorderFinished(FOnTakeRecorderFinished OnTakeRecorderFinished)
+{
+	TakeRecorderFinished = OnTakeRecorderFinished;
+};
+
+void UTakeRecorderBlueprintLibrary::SetOnTakeRecorderCancelled(FOnTakeRecorderCancelled OnTakeRecorderCancelled)
+{
+	TakeRecorderCancelled = OnTakeRecorderCancelled;
+};
+
+void UTakeRecorderBlueprintLibrary::SetOnTakeRecorderMarkedFrameAdded(FOnTakeRecorderMarkedFrameAdded OnTakeRecorderMarkedFrameAdded)
+{
+	TakeRecorderMarkedFrameAdded = OnTakeRecorderMarkedFrameAdded;
+};
+
+void UTakeRecorderBlueprintLibrary::OnTakeRecorderStarted()
+{
+	TakeRecorderStarted.ExecuteIfBound();
+}
+
+void UTakeRecorderBlueprintLibrary::OnTakeRecorderStopped()
+{
+	TakeRecorderStopped.ExecuteIfBound();
+}
+
+void UTakeRecorderBlueprintLibrary::OnTakeRecorderFinished(ULevelSequence* InSequenceAsset)
+{
+	TakeRecorderFinished.ExecuteIfBound(InSequenceAsset);
+}
+
+void UTakeRecorderBlueprintLibrary::OnTakeRecorderCancelled()
+{
+	TakeRecorderCancelled.ExecuteIfBound();
+}
+
+void UTakeRecorderBlueprintLibrary::OnTakeRecorderMarkedFrameAdded(const FMovieSceneMarkedFrame& InMarkedFrame)
+{
+	TakeRecorderMarkedFrameAdded.ExecuteIfBound(InMarkedFrame);
+}
 
 void UTakeRecorderBlueprintLibrary::SetTakeRecorderPanel(UTakeRecorderPanel* InNewPanel)
 {

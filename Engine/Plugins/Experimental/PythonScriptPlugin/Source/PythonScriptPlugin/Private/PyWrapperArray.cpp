@@ -211,7 +211,15 @@ int FPyWrapperArray::Init(FPyWrapperArray* InSelf, const FPyWrapperOwnerContext&
 
 			ArrayInstanceToUse = FMemory::Malloc(PropToUse->GetSize(), PropToUse->GetMinAlignment());
 			PropToUse->InitializeValue(ArrayInstanceToUse);
-			PropToUse->CopyCompleteValue(ArrayInstanceToUse, InValue);
+			if (InConversionMethod == EPyConversionMethod::Steal)
+			{
+				FScriptArrayHelper SelfScriptArrayHelper(PropToUse, ArrayInstanceToUse);
+				SelfScriptArrayHelper.MoveAssign(InValue);
+			}
+			else
+			{
+				PropToUse->CopyCompleteValue(ArrayInstanceToUse, InValue);
+			}
 		}
 		break;
 

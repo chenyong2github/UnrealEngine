@@ -11,6 +11,8 @@
 /////////////////////////////////////////////////////
 // UEditableTextBox
 
+static FEditableTextBoxStyle* DefaultEditableTextBoxStyle = nullptr;
+
 UEditableTextBox::UEditableTextBox(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -36,9 +38,19 @@ UEditableTextBox::UEditableTextBox(const FObjectInitializer& ObjectInitializer)
 	AllowContextMenu = true;
 	VirtualKeyboardDismissAction = EVirtualKeyboardDismissAction::TextChangeOnDismiss;
 
-	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-	static const FEditableTextBoxStyle StaticNormalEditableTextBox = FCoreStyle::Get().GetWidgetStyle< FEditableTextBoxStyle >("NormalEditableTextBox");
-	WidgetStyle = StaticNormalEditableTextBox;
+	if (DefaultEditableTextBoxStyle == nullptr)
+	{
+		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
+		DefaultEditableTextBoxStyle = new FEditableTextBoxStyle(FCoreStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox"));
+
+		// Unlink UMG default colors from the editor settings colors.
+		DefaultEditableTextBoxStyle->UnlinkColors();
+	}
+
+	WidgetStyle = *DefaultEditableTextBoxStyle;
+
+	AccessibleBehavior = ESlateAccessibleBehavior::Auto;
+	bCanChildrenBeAccessible = false;
 }
 
 void UEditableTextBox::ReleaseSlateResources(bool bReleaseChildren)
@@ -166,6 +178,15 @@ bool UEditableTextBox::HasError() const
 	return false;
 }
 
+void UEditableTextBox::SetJustification(ETextJustify::Type InJustification)
+{
+	Justification = InJustification;
+	if (MyEditableTextBlock.IsValid())
+	{
+		MyEditableTextBlock->SetJustification(InJustification);
+	}
+}
+
 void UEditableTextBox::HandleOnTextChanged(const FText& InText)
 {
 	Text = InText;
@@ -227,11 +248,18 @@ void UEditableTextBox::PostLoad()
 	}
 }
 
+#if WITH_ACCESSIBILITY
+TSharedPtr<SWidget> UEditableTextBox::GetAccessibleWidget() const
+{
+	return MyEditableTextBlock;
+}
+#endif
+
 #if WITH_EDITOR
 
 const FText UEditableTextBox::GetPaletteCategory()
 {
-	return LOCTEXT("Common", "Common");
+	return LOCTEXT("Input", "Input");
 }
 
 #endif

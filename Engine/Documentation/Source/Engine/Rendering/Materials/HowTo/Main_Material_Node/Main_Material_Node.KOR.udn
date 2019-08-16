@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3242329
+INTSourceChangelist:3242329
 Availability: Public
 Title:메인 머티리얼 노드 사용법
 Crumbs: %ROOT%, Engine, Engine/Rendering/Materials, Engine/Rendering/Materials/HowTo
@@ -18,7 +18,7 @@ tags:Materials
 
 머티리얼 그래프의 메인 머티리얼 노드는 머티리얼 그래프에 추가된 모든 머티리얼 표현식 노드가 최종적으로 연결되는 곳입니다.
 머티리얼을 컴파일하고 게임 내 오브젝트에 적용하면, 메인 머티리얼 노드에 입력된 것에 대한 결과가 표시됩니다.
-다음 비법 안내에서는, 메인 머티리얼 노드를 사용하는 데 있어 알아야 할 모든 것에 대해 다루도록 하겠습니다.
+다음 하우투 안내에서는, 메인 머티리얼 노드를 사용하는 데 있어 알아야 할 모든 것에 대해 다루도록 하겠습니다.
 
 ## 메인 머티리얼 노드
 

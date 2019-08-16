@@ -1,6 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "Chaos/PBDRigidsEvolution.h"
-
 #include "Chaos/Box.h"
 #include "Chaos/Defines.h"
 #include "Chaos/Framework/Parallel.h"
@@ -8,8 +7,6 @@
 #include "Chaos/ImplicitObjectUnion.h"
 #include "Chaos/PBDCollisionConstraint.h"
 #include "Chaos/PBDCollisionSpringConstraints.h"
-#include "Chaos/PBDRigidsEvolutionGBF.h"
-#include "Chaos/PBDRigidsEvolutionPGS.h"
 #include "Chaos/PerParticleEtherDrag.h"
 #include "Chaos/PerParticleEulerStepVelocity.h"
 #include "Chaos/PerParticleGravity.h"
@@ -18,39 +15,26 @@
 #include "Chaos/PerParticlePBDGroundConstraint.h"
 #include "Chaos/PerParticlePBDUpdateFromDeltaPosition.h"
 #include "ChaosStats.h"
-#include "ChaosLog.h"
 
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "Chaos/DebugDrawQueue.h"
+#include "Chaos/Levelset.h"
+#include "Chaos/ChaosPerfTest.h"
+#include "Chaos/PBDRigidsEvolutionGBF.h"
 
-#define LOCTEXT_NAMESPACE "Chaos"
-
-DEFINE_LOG_CATEGORY(LogChaos);
-
-using namespace Chaos;
-
-template<class FPBDRigidsEvolution, class FPBDCollisionConstraint, class T, int d>
-TPBDRigidsEvolutionBase<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::TPBDRigidsEvolutionBase(TPBDRigidParticles<T, d>&& InParticles, int32 NumIterations)
-    : MParticles(MoveTemp(InParticles))
-    , MClustering(static_cast<FPBDRigidsEvolution&>(*this), MParticles)
-	, MTime(0)
-	, MCollisionRule(InParticles, MCollided)
-    , MWaitEvent(FPlatformProcess::GetSynchEventFromPool())
-    , MDebugMode(false)
-	, MFriction(0.5)
-	, MRestitution(0.1)
-	, SleepLinearThreshold(1.f)
-	, SleepAngularThreshold(1.f)
-	, MNumIterations(NumIterations)
-	, MPushOutIterations(5)
-	, MPushOutPairIterations(2)
+namespace Chaos
 {
-	MParticles.AddArray(&MCollided);
-	InitializeFromParticleData();
+	template<class FPBDRigidsEvolution, class FPBDCollisionConstraint, class T, int d>
+	TPBDRigidsEvolutionBase<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::TPBDRigidsEvolutionBase(TPBDRigidsSOAs<T, d>& InParticles, int32 InNumIterations)
+		: Particles(InParticles)
+		, Clustering(static_cast<FPBDRigidsEvolution&>(*this), Particles.GetClusteredParticles())
+		, NumIterations(InNumIterations)
+	{
+		Particles.GetParticleHandles().AddArray(&PhysicsMaterials);
+		Particles.GetParticleHandles().AddArray(&PerParticlePhysicsMaterials);
+		Particles.GetParticleHandles().AddArray(&ParticleDisableCount);
+		Particles.GetParticleHandles().AddArray(&Collided);
+	}
 }
 
-template class Chaos::TPBDRigidsEvolutionBase<TPBDRigidsEvolutionGBF<float, 3>, TPBDCollisionConstraint<float, 3>, float, 3>;
-template class Chaos::TPBDRigidsEvolutionBase<TPBDRigidsEvolutionPGS<float, 3>, TPBDCollisionConstraintPGS<float, 3>, float, 3>;
-
-
-#undef LOCTEXT_NAMESPACE
+template class Chaos::TPBDRigidsEvolutionBase<Chaos::TPBDRigidsEvolutionGBF<float, 3>, Chaos::TPBDCollisionConstraint<float,3>, float, 3>;

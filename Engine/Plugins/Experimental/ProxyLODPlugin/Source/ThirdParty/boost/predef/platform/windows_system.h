@@ -10,7 +10,7 @@ http://www.boost.org/LICENSE_1_0.txt)
 
 #include <boost/predef/make.h>
 #include <boost/predef/os/windows.h>
-#include <boost/predef/platform/windows_uwp.h>
+#include <boost/predef/platform/windows_hololens.h>
 #include <boost/predef/version_number.h>
 
 /*`

@@ -1,0 +1,593 @@
+﻿INTSourceChangelist:4476116
+title:Unreal Studio の入門ガイド
+description:Unreal Studio ユーザーがこれまでの経験に基づき Unreal Engine 4 (UE4) に移行するための Unreal Engine 4 の概要です。
+crumbs:
+availability:Public
+parent:Studio
+order:1
+type:overview
+tags:Getting Started
+version:4.19
+topic-image:GettingStarted_topic.jpg
+
+[TOC]
+
+このガイドは、Unreal Studio ユーザーがこれまでの経験に基づき Unreal Engine 4 (UE4) に移行するための Unreal Engine 4 の概要を説明します。このページでは Unreal Editor の一般的なエリアとツールについての説明、UE4 のツールに慣れるためのドキュメントがある場所、リアルタイム エンジン開発に最適なワークフローなどについての情報が記されています。
+
+Unreal Studio 製品の一部である [｢Datasmith｣](Studio/Datasmith) は、オフラインのレンダリング アプリケーションで作成されたシーンやアセットをリアルタイム エンジンにインポートするために設計されたツールとプラグインの集合です。Datasmith を初めて使用する Unreal Studio ユーザーでも、使用経験があるユーザーのいずれであっても、このページにある情報を読むことで、リアルタイム エンジンで作業しながらワークフローを改善することができます。また、現在 Datasmith を使用していなかったとしても、エンタープライズのバックグラウンドを持つ関係者が UE4 を使う際には、ここで説明しているベスト プラクティスや提案が役立つことでしょう。
+
+## Unreal Engine 4 向けにプロジェクトを作成する
+
+Unreal Engine 4 向けにプロジェクトを作成するには、エンジンをインストールして起動時に [[プロジェクト ブラウザ]](Engine/Basics/Projects/Browser/) を使用します。[プロジェクト ブラウザ] を使用して既存のプロジェクトを選択したり、ブループリント、C++、または Unreal Studio の新規プロジェクトを作成することができます。
+
+![image alt text](image_0.png)(w:617 h:429 convert:false)
+
+[New Project (新規プロジェクト)] タブで、作成するプロジェクトの種類を選択します。Unreal Studio ユーザーの場合、Unreal Studio 製品の一部として使用可能なプラグイン (Datasmith など) が自動的に使用可能になるように、 **[Unreal Studio]** タブの使用をおすすめします。
+
+[REGION:note]
+[Unreal Studio] タブが表示されていない場合は、Unreal Studio の Entitlement (利用資格) がまだ有効になっていないか、問題が生じていますが、問題ありません。**[Blueprint]** タブまたは **[C++]** タブのいずれかからプロジェクトを作成して、後で Unreal Studio プロジェクトに変換することができます。既存のプロジェクトや以前に作成した Unreal Studio プロジェクトではないものを変換する方法については、[](Studio/Datasmith/HowTo/SettingUpUnrealProject) の **既存のプロジェクトを Unreal Studio プロジェクトに変換する** セクションをご覧ください。
+[/REGION]
+
+![image alt text](image_1.png)(w:616 h:429 convert:false)
+
+[Unreal Studio] タブで、プロジェクトの作成元となるテンプレートを選択します。現在、Unreal Studio には以下の 2 種類のテンプレートがあります。
+
+* **Blank** - 空のプロジェクトでコンテンツが入っていないもの。
+
+* **Product Viewer** - 事前にビルドされたインタラクションやナビゲーションを持つ個々のアセットを見てオブジェクトを表示できるテンプレートです。
+
+テンプレートに関する情報は、 [](Studio/UnrealStudioProjectTemplates/) のページをご覧ください。
+
+Unreal Studio のプロジェクト作成に関する詳しい情報については、 [
+](Studio/Datasmith/HowTo/SettingUpUnrealProject) のページをご覧ください。
+
+## エディタ
+
+[REGION:note]
+インターフェースを比較する目的で、多くのユーザーが使用している Autodesk 3ds Max を選びました。
+[/REGION]
+
+以下は Autodesk 3ds Max と Unreal Editor の画面です。共通の機能がわかるように色分けされています。各ブロックには、該当する UE4 用語が示されています。Unreal Editor のレイアウトは、エディタにある任意のタブをドラッグ ＆ ドロップすることで全面的にカスタマイズ可能です。
+
+[REGION:imagetable]
+| [INCLUDE:#image1] | [INCLUDE:#image2] |
+| ---| ---|
+|クリックしてフルサイズ表示| クリックしてフルサイズ表示|
+[/REGION]
+
+<!---
+[INCLUDE:#image2]
+[EXCERPT:image1]
+[REGION:lightbox]
+[![image alt text](image_2.png)(w:575 convert:false)](image_2.png)
+[/REGION]
+[/EXCERPT]
+
+[EXCERPT:image2]
+[REGION:lightbox]
+[![image alt text](image_3.png)(w:575 convert:false)](image_3.png)
+[/REGION]
+[/EXCERPT]
+--->
+
+| ---| ---| ---|
+| 1 | [Placement (配置)] パネル | パネルの作成 |
+| 2 | メイン ツールバー | メイン ツールバー |
+| 3 | [World Outliner (ワールド アウトライナー)] | [Scene Explorer (シーン エクスプローラー)] |
+| 4 | [Details (詳細)] パネル | [Command (コマンド)] パネル |
+| 5 | [Viewport (ビューポート)] | [Viewport (ビューポート)] |
+| 6 | [Content Browser (コンテンツ ブラウザ)] | -- |
+
+
+### アセットを編集する
+
+Autodesk 3ds Max では、選択したオブジェクトのプロパティを コマンド パネル で公開します。UE4 では、**[Details (詳細)]** パネルに選択したオブジェクトのプロパティが表示されますが、編集タスクが大きい場合は、独自のウィンドウやタブを持つ専用エディタになります。例えば、テクスチャ、マテリアル、スタティックメッシュを開いている場合に専用エディタが表示されます。編集した各アセットに対して新しくタブ化されたウィンドウが開きます。ウェブ ブラウザのタブと同様です。
+
+![image alt text](image_4.jpg)(w:1013 h:570 convert:false)
+
+*メインの [Unreal Editor] タブにドッキングされたマテリアル エディタ。*
+
+エディタ ウィンドウがドッキングすると、そのタブを選択して前面に表示させることができます。別のタブを選択すると、(上の例のように) 背景に移動します。メイン エディタのタブ以外は、独立したウィンドウとしてドラッグしたり、他の独立したウィンドウやエディタ内のタブにドッキングすることができます。
+
+### メイン ツールバー
+
+ほとんどのアプリケーション同様に、メイン ツールバー (またはレベル エディタ ツールバー) は頻繁に使用するツールや操作を素早く行うためのコマンドの集まりです。
+
+![image alt text](image_5.png)(w:952 h:64 convert:false)
+
+### シーン ナビゲーション
+
+Unreal Engine 4 には、(VR で操作中であっても) シーンを移動、アクタを選択して操作、ビューポートでのコンテンツの見え方を変更する方法がいくつかあります。
+
+マウスやキーボードを使う **デスクトップ** ユーザーが、ビューポートのシーンを移動するための制御については、 [｢Viewport Controls (ビューポートの制御)｣](Engine/UI/LevelEditor/Viewports/ViewportControls) のページをご覧ください。このページでは、アクタの選択とトランスフォーム、カメラのパン、軌道、ズーム、そしてナビゲーションの制御について説明します。
+
+コントローラーで **Virtual Reality (VR)** を使用したいユーザーは、 [｢VR Mode Controls (VR モード制御)｣](Engine/Editor/VR/Controls) と [｢Navigating the World in VR Mode (VR モードでワールドをナビゲートする)｣](Engine/Editor/VR/WorldInteraction) のページをご覧ください。オブジェクトをつかんで操作する、ワールドを動き回る、ワールドで自分をスケーリングしてシーンのビジュアライゼーションで現実世界のスケールに近いものにする方法についても説明します。
+
+## クイック用語集
+
+以下のセクションでは、一般的なエンタープライズや、Autodesk 3ds Max の用語と、それに相当する (またはほぼ同等の) UE4 の用語を表示しています。Unreal Engine 4 のキーワードは UE4 のドキュメント内にある詳細情報に直接リンクしています。
+
+
+| カテゴリ| Autodesk 3ds Max| UE4| 注記|
+| ---| ---| ---| ---|
+| [REGION:tablesection]メッシュ[/REGION]||||
+|  | メッシュまたはメッシュのオブジェクト| [｢スタティックメッシュ｣](Engine/Actors/StaticMeshActor)|  |
+|   | リギングしたスキンメッシュ| [｢スケルタル メッシュ｣](Engine/Content/Types/SkeletalMeshes)|  |
+|  | オブジェクト/ノード| [｢レベル アクタ｣](Engine/Actors/StaticMeshActor)|  |
+|  | モディファイヤスタック結果/ベース オブジェクト| [｢スタティックメッシュ｣](Engine/Actors/Types)|  |
+| [REGION:tablesection]エディタの UI[/REGION]||||
+|  | [Scene Explorer (シーン エクスプローラー)]| [｢[World Outliner (ワールド アウトライナー)]｣](Engine/UI/LevelEditor#ワールドアウトライナー)|  |
+|   | [Modify (修正)] パネル| [｢[Details (詳細)] パネル｣](Engine/UI/LevelEditor#details)|  |
+|   | [Layers (レイヤー)] パネル| [｢[Layers (レイヤー)] パネル｣](Engine/UI/LevelEditor/Layers)|  |
+|   | [Asset Browser Utility (アセット ブラウザ ユーティリティ)]| [｢[コンテンツ ブラウザ]｣](Engine/Content/Browser)|  |
+|  | [Viewport (ビューポート)]| [｢[Viewport (ビューポート)]｣](Engine/UI/LevelEditor/Viewports)|  |
+| [REGION:tablesection]マテリアル[/REGION]||||
+|  | マテリアル| [｢マテリアル｣](Engine/Rendering/Materials)|  |
+|   | インスタンス化されたテクスチャを持つマテリアル| [｢マテリアル インスタンス｣](Engine/Rendering/Materials/MaterialInstances)|  |
+|   | マテリアル エディタ| [｢マテリアル エディタ｣](Engine/Rendering/Materials/Editor)|  |
+| [REGION:tablesection]エフェクト[/REGION]||||
+|  | パーティクル システム| [｢エフェクト、パーティクル システム、 カスケード｣](Engine/Rendering/ParticleSystems)|  |
+|   | パーティクル ビュー| [｢カスケード｣](Engine/Rendering/ParticleSystems)|  |
+| [REGION:tablesection]アニメーション[/REGION]||||
+|  | Biped アニメーション| [｢スケルタル アニメーション システム｣](Engine/Animation)| この 2 つは全く同じではありませんが、比較をしたり Unreal がインポートされたアニメーションに対してどのように動作するかを確認するのに便利です。|
+|   | 頂点サブオブジェクト レベルのアニメーション| [｢頂点アニメーション｣](Engine/Animation/Tools/VertexAnimationTool/)| 頂点アニメーションをアセットに適用する専用ツールはありませんが Autodesk 3ds Max 用のプラグインを使って、UE4 に取り込み、マテリアル エディタで適用することができます。|
+| [REGION:tablesection]プログラミング[/REGION]||||
+|  | MAXScript| Python|  |
+|   | MAXScript スクリプト| [｢ブループリント｣](Engine/Blueprints)|  |
+| [REGION:tablesection]物理[/REGION]||||
+|  | --| [｢ライン トレース、形状のトレース｣](Engine/Physics/Tracing)|  |
+|   | MassFX| [｢コリジョン、物理｣](Engine/Physics)|  |
+| [REGION:tablesection]ライト[/REGION]||||
+|  | 指向性ライト| [｢指向性ライト｣](Engine/Rendering/LightingAndShadows/LightTypes/Directional)|  |
+|   |  ポイント ライト| [｢ポイント ライト｣](Engine/Rendering/LightingAndShadows/LightTypes/Point)|  |
+|   |  スポット ライト| [｢スポット ライト｣](Engine/Rendering/LightingAndShadows/LightTypes/Spot)|  |
+|   |  スカイ ライト| [｢スカイ ライト｣](Engine/Rendering/LightingAndShadows/LightTypes/SkyLight)|  |
+|   | ライト ポータル| ライトマス ポータル、 [｢Lightmass Importance Volume｣](Engine/Rendering/LightingAndShadows/Lightmass/Basics/#lightmassimportancevolume)| |
+|   | フォトメトリック ライト| [｢IES プロファイル｣](Engine/Rendering/LightingAndShadows/IESLightProfiles/) 、物理ライト ユニット|  |
+| [REGION:tablesection]ポストプロセス[/REGION]||||
+|  | 背景の露出制御、カメラの露出制御| [｢ポストプロセス ボリューム｣](Engine/Rendering/PostProcessEffects)|  |
+| [REGION:tablesection]レンダリング[/REGION]||||
+|  | グローバル イルミネーション| [｢ライトマス｣](Engine/Rendering/LightingAndShadows/Lightmass/)|  |
+| [REGION:tablesection]シネマティックス[/REGION]||||
+|  | トラック ビュー| [｢シーケンス エディタ｣](Engine/Sequencer)|  |
+| [REGION:tablesection]テクスチャ[/REGION]||||
+|  | UV マップ チャンネル| スタティックメッシュ / スケルタルメッシュの UV チャンネル|  |
+| [REGION:tablesection]Unreal Engine のアーキテクチャ[/REGION]||||
+|  | --| [｢レベル (マップ)｣](Engine/Levels/)| 各シーンのファイルは独立していますが、Unreal Engine 4 では個別に開いたり、Unreal Editor 内ですべてを結合可能な複数のレベル (またはシーン) を持つことができます。|
+
+
+
+## プロジェクトとファイル
+
+**ディレクトリとファイルについて**
+
+エンタープライズ空間で作られたプロジェクトでは、シーンのプロジェクト ファイルを構成するテクスチャやメッシュのソース ファイルを管理する独自のフォルダを用意しなければならない事があります。Unreal Engine では、プロジェクトは常に独自のディレクトリにあります。プロジェクトは、Unreal Engine Editor の特定バージョンを参照する独自のプロジェクト ファイルを持ち、そのコンテンツが保存されているフォルダ一式を参照します。
+
+![image alt text](image_6.jpg)(w:693 h:349 convert:false)
+
+*Windows エクスプローラーのフォルダ構造と Unreal のコンテンツ ブラウザの例*
+
+プロジェクトを開くには、Epic Games Launcher を使ってプロジェクトの **[Library (ライブラリ)]** を探します。
+
+![image alt text](image_7.png)(w:941 h:609 convert:false)
+
+または、Windows でそのフォルダに移動し、 ***｢.uproject｣** ファイル上でダブルクリックして、プロジェクトを Unreal Editor にロードします。
+
+![image alt text](image_8.png)(w:613 h:293 convert:false)
+
+プロジェクト フォルダには、複数プラットフォーム向けにデプロイする場合の様々なコンフィギュレーション ファイルやバイナリ データだけでなく、プロジェクトのコンテンツやソース コードが入っている様々なサブフォルダがあります。重要度が非常に高いフォルダとして、 **｢Content｣** フォルダと **｢Source｣** フォルダの 2 つがあります。｢Content｣フォルダには、コンテンツ ブラウザ内で参照したり開いたりできるすべてのアセットが入っています。｢Source｣フォルダには、Unreal Engine のソース バージョンを使っている場合、C++ ファイルや編集したものが入っています。
+
+**自分のアセットの置き場所は？**
+
+UE4 では、各プロジェクトに **｢Content｣** フォルダがあります。これは Unreal Editor を開いたときのコンテンツ ブラウザと同じです。ここにプロジェクトのすべてのアセットが保存されます。
+
+![image alt text](image_9.png)(w:1026 h:462 convert:false)
+
+こうしたフォルダ内にあるアセットは、***｢.uasset｣**ファイルです。これらは、サポートされるファイル形式でインポートした場合に Unreal によって作成されるファイルです。Unreal Engine にインポートされたアセットを維持するためにソース ファイルは不要ですが、後で編集目的で必要になる場合に備えて、こうしたファイルを保存しておくことをお勧めします。
+
+[REGION:warning]
+Unreal Editor 外部で、プロジェクトの｢Content｣フォルダにあるアセットを再編成しないでください。コンテンツを壊したり、さらにひどければプロジェクトを破損するおそれがあります。コンテンツをそのように動かすと、Unreal Editor におけるアセットの参照が壊れます。例えば、プロジェクトの Windows フォルダでテクスチャ アセットを移動すると、そのテクスチャを参照するマテリアルが行先を失い、レベルのスタティックメッシュに割り当てられているマテリアルのテクスチャが正確に表示されなくなります。
+
+アセットを移動する場合は Unreal Editor を使うようにしてください。Unreal Editor では、コンテンツを壊すことなく参照を維持するためです。
+[/REGION]
+
+**アセットを Unreal Engine 4 にインポートする**
+
+アセットをプロジェクトにインポートするには、以下の方法があります。
+
+1.[Datasmith を使用して Unreal Datasmith をインポートし、CAD ファイル タイプをサポートする](Studio/Datasmith/HowTo/ImportingContent/)
+
+2.[コンテンツ ブラウザを使用して Datasmith に関連付けられていないサポート アセット タイプをインポートする](Engine/Content/ImportingContent/ContentBrowserImport)
+
+こうしたいずれかの方法でアセットをインポートすると、コンテンツ ブラウザに保存されます。これは Windows のプロジェクトのフォルダ構造をミラーリングします。コンテンツ ブラウザを使ってアセットを開き、コンテンツ ブラウザを通してそれぞれのエディタでアセットを編集します。編集を加えるとエディタ内およびアセットが参照されていればレベル内で、アセットがリアルタイムで自動更新されます。
+
+![image alt text](image_10.jpg)(w:582 h:293 convert:false)
+
+[REGION:note]
+
+コンテンツ ブラウザのインポート ボタンを使う場合など、Datasmith Import プロセスの一部ではないコンテンツをインポートする場合、アセットは選択したフォルダの｢Content｣フォルダに入ります。Datasmith Importer を使うと、多様なアセット (メッシュ、マテリアル、テクスチャ) がシーンをすっきりと保つためにサブディレクトリに入ります。Datasmith のシーンとそのサブディレクトリは、インポートする Datasmith ファイルの名前が付いたフォルダにインポートされます。
+[/REGION]
+
+**サポートされる一般的なファイル形式は？**
+
+他のソフトウェア アプリケーションは、幅広いファイル形式をサポートしています。Unreal Engine 4 では以下のような一般的によく使用されているファイル形式をネイティブでサポートしています。
+
+
+| ネイティブ アセット タイプ| サポートされているフォーマット|
+| ---| ---|
+| 3D| .fbx、.obj、.abc、.srt|
+| テクスチャ| .png, .jpeg, .jpg、.bmp、.tga、.dds、.exr、.psd、.hdr、.ies、.float、.pcx|
+| サウンド| .wav、.wave、.wmv、.caf、.aif、.aiff、.au、.adts、.as、.ac3、.amr、.bwf、.cdda、.acc、.mp3、.snd|
+| フォント| .ttf、.otf|
+| ビデオ| .mov、.mp4、.m4v、.m4a、.wmv、.avi、.asf、.3gp、.3g2、.sdv|
+
+
+Unreal Engine 4 の [Datasmith](Studio/Datasmith/Overview) のようなプラグインでは、さらにサポートされるファイル形式を追加できます。サポートされるファイル形式の包括的リストについては、[](Studio/Datasmith/SupportedSoftwareAndFileTypes) のページをご覧ください。
+
+**シーンの保存方法は？**
+
+ソフトウェア アプリケーションでは、シーンを構成するアセットが単一のシーンファイルを作ります。Unreal では、Level または マップファイルと呼ばれるものを使用して別の考え方をしています。これらは独自のアセットが配置された個別のシーンです。個別に開いたり、結合して大きなものを小さなレベルに分けることもできます。マップ ファイルには、レベル固有の設定だけでなく、レベルとその中のオブジェクトに関するデータも格納されます。
+
+レベルと Unreal Editor がどのようにこれらを格納するかについてさらに学びたければ、 [｢Working with Level Assets (Level アセットで作業する)｣](Engine/Levels/HowTo/WorkWithLevelAssets) のページをご覧ください。
+
+<!---
+**エディタ設定、プロジェクト設定の変更方法**
+
+すべての設定はメイン メニューの **[Edit > Editor Preferences (エディタの環境設定)]** 、または **[Project Settings (プロジェクト設定)]** にあります。ソフトウェア アプリケーションの環境設定や設定などを使用して、プロジェクトの機能の一部をカスタマイズしたり変更したりすることができます。
+
+Unreal Engine 4 では、 [[Editor Preferences (エディタの環境設定)]](Engine/UI/EditorSettings) で、一般的な色覚障碍のための色補正のようなものを設定したり、エディタで実験的機能を有効にしたり、測定単位をセンチメートルから使い慣れているものに変更したりすることができます。
+
+[[Project Settings (プロジェクト設定)]](Engine/UI/ProjectSettings) では、プロジェクトに関する情報 (プロジェクト名やアイコンなど) を指定できます。ゲームの入力バインディングを設定したり、プロジェクト実行時のエンジンの挙動を定義できます。
+
+--->
+
+##アート ソースの自動再インポート
+
+[REGION:note]
+現時点で、Datasmith ではワークフローで Auto-Reimport (自動再インポート) の使用はおすすめしません。ただし、ネイティブにサポートされているアセットを作成し、インポートする場合は自動再インポートの監視をセットアップすることができます。
+[/REGION]
+
+[｢Datasmith｣](Studio/Datasmith/Overview/) プラグインで使用したもの以外の追加のコンテンツを使うプロジェクトでは、[｢Auto Reimport｣](Engine/Content/AutoReImport)を使うように Unreal をセットアップすることができます。FBX、OBJ、PSD、Texture、Audio、および UE4 でインポートをサポートする他のネイティブ ファイルのようなアセットを保存するソース アセット フォルダを監視します。ソース アセットが更新されると、監視対象のフォルダは自動的にファイルを再インポートするか、再インポートを促し、エンジン内の変更を反映します。Datasmith とは異なり、こうしたアセットはレベルに直接配置されず、エディタでコンテンツを取得する方法を用いますが、セットアップは行いません。
+
+**オブジェクト (シーン エンティティ) からアクタへ**
+
+**オブジェクトはどこに？**
+
+Autodesk 3ds Max のようなソフトウェア アプリケーションでは、シーン内のアセットはシーン エンティティ、ジオメトリ オブジェクト名で呼ばれます。またはシーンを構成するオブジェクトに対応する一般的な用語で呼称されます。UE4 でこれに相当するものは、アクタです。アクタはレベルに追加されるオブジェクトで、スタティックメッシュやマテリアルなどの他のアセットを参照します。
+
+[OBJECT:EmbeddedVideo]
+	[PARAMLITERAL:videoid]
+	UXGFtZ71mfQ
+	[/PARAMLITERAL]
+	[PARAMLITERAL:width]
+	50
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	65
+	[/PARAMLITERAL]
+	[PARAMLITERAL:units]
+	%
+	[/PARAMLITERAL]
+[/OBJECT]
+
+空のアクタ (動画の中にあるアクタのように) からプロジェクトをビルドできますが、UE4 には (プレイヤーまたは AI のオブジェクト用の) [ポーン](Gameplay/Framework/Pawn) 、Exponential Height Fog (指数関数的高さフォグ) ボリュームやライトなどのビルトイン機能を持つ特殊なタイプのアクタがあります。レベルのアクタのプロパティをカスタマイズしたり、[Details (詳細)] パネルを使ってさらにコンポーネントを追加したりすることもできます。アクタ、マテリアル、ブループリントから参照するコンテンツ ブラウザのアセットにも同様の設定が可能です。これらに対してもプロパティを設定し、コンポーネントを追加することができます。
+
+**何もかもがアクタということでしょうか？**
+
+いいえ、違います。**Actor (アクタ)** は、UE4 でゲームプレイに使用される非常に一般的なクラスであり、レベルにスポーンできる唯一のタイプです。そのため、レベルに配置するものは何でもアクタになります。
+
+もうひとつ理解すべき重要なタイプは、**Object (オブジェクト)** です。オブジェクトはアクタやその他多くのものを含むすべての Unreal クラスの基本クラスです。これはアクタよりもはるかに低レベルの構造体ですが、リフレクションやシリアル化といった Unreal クラスのような機能を持っています。オブジェクトは、アクタの型にはまらない新しいタイプを定義する必要がある場合に使用するクラスです。例えば、**Actor コンポーネント** はすべてのコンポーネントの基本クラスであり、アクタの代わりにオブジェクトから派生します。
+
+とはいえ、Actor コンポーネントがどのように機能するかは気にする必要はありませんが、仕組みが分かるとアクタとオブジェクトが近い意味で使われたり、アクタの代わりに使われる理由について理解しやすくなります。
+
+**コンポーネントとは何か？**
+
+Autodesk 3ds Max のようなソフトウェア アプリケーションでは、 [モディファイヤ スタック (Modifier stack)] を使って機能を追加したりオブジェクトにプロパティを適用することができます。
+
+注記：これは実際にシーン内のミニ シーンになり、Unreal が持つパワーと柔軟性が示される場所です。
+典型的な適用例を見てみましょう。料理用コンロ一式のアクタでは、ドアと引き出し部分のコンポーネント、ライトなど必要なものがあります。
+
+
+UE4 では、 [コンポーネント](Engine/Components/) がレベルやブループリントでアクタに追加可能な機能の一つとなっています。コンポーネントはそれ自体では存在できませんが、アクタに追加することで、コンポーネントの機能へアクセスし使用することができます。これらをミニシーンを作成する手段として、または単一オブジェクトとして扱われるアクタのグループとして考えることができます。このプロセスによって、Unreal で管理可能な方法でシーンの柔軟性と制御を大幅に高めることができます。
+
+例えば、料理用コンロ一式のアセットがある場合、ベースとなるアセットの他の部分を構成するドア、下部引き出し部分、ライトなど様々なコンポーネントを追加することができます。
+
+スタティックメッシュ、パーティクル システム、ライトなどの様々なアセットを参照するアクタに追加できる多様なコンポーネントがあります。これらをアクタに追加するには、**[Details (詳細)]** パネルを使ってリストから追加するコンポーネントを選択します。
+
+[OBJECT:EmbeddedVideo]
+	[PARAMLITERAL:videoid]
+	SknellY4I4g
+	[/PARAMLITERAL]
+	[PARAMLITERAL:width]
+	50
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	45
+	[/PARAMLITERAL]
+	[PARAMLITERAL:units]
+	%
+	[/PARAMLITERAL]
+[/OBJECT]
+
+この例では、Static Mesh、Point Light、Particle System といったコンポーネントをシーンに配置された Empty Actor (空のアクタ) に追加しました。このアクタは、ブループリント アクタに変換されない限り、このレベルのみに存在し、コンテンツ ブラウザで単一アセットとして存在することができます。
+
+詳細については、[｢Components (コンポーネント)｣](Engine/Components/)のページをご覧ください。
+
+**最後に作業したプロジェクトを自動的にロードするには？**
+
+ソフトウェア アプリケーションでシーン ファイルを開くと、そのシーンのコンテンツにただちにアクセスします。しかし、Unreal Engine 4 では、Epic Games Launcher からエディタを開くと [｢Unreal プロジェクト ブラウザ｣](Engine/Basics/Projects/Browser/) に移動し、そこでプロジェクトの選択が可能になっています (作成済の場合)。Unreal Editor を開いたときに最後にロードしたプロジェクトを有効にして使用するには、以下の 2 つの方法があります。
+
+プロジェクト ブラウザで、 **[Always load last project on Startup (最後に使用したプロジェクトを起動時に常にロードする)]** にチェックを入れてください。
+
+![image alt text](image_28.png)(w:965 h:398 convert:false)
+
+**プロジェクトのキーボート入力やゲームパッドの入力はどこで定義しますか？**
+
+UE4 では、様々なボタン (アクション) やアナログ コントロール (軸) を追加して入力イベントがトリガーされたときにゲームのキャラクター (ポーン) をコールバックします。入力バインドは **[Input]** セクションの [Project Settings (プロジェクト設定)] にあります。ここでは各コントロールに名前を付けて、キーボード上のキーまたはコントローラーのボタンへのデフォルトのバインドを決めます。こうした入力バインドの名前をブループリントで使用してキーやボタンが押されたときにアクションを行うようにすることができます。複数の入力をひとつの名前に設定することが可能です。例えば、レベルで前方に動かしたいプレイヤー キャラクターがいるとします。「Forward」という入力バインディングを呼び出して、キーボードから [W] キーと、コントローラーのジョイスティックの [Up] ポジションをこの「Forward」イベントにバインドすることが可能です。
+
+詳しい情報については、 [｢Input (インプット)｣](Gameplay/Input) ページをご覧ください。
+
+**プロジェクトで開始レベル (マップ) を変更するには？**
+
+**[Project Settings (プロジェクト設定)]** からプロジェクトのスタートアップ マップを変更できます。メイン メニューから **[Edit > Project Settings]** を選択します。次に、**[Maps & Modes]** で **[Startup Map]** を、コンテンツ ブラウザで必要なものに変更します。
+
+![image alt text](image_29.png)(w:1026 h:400 convert:false)
+
+**ゲームを実行するには？**
+
+ゲームを実行する一番簡単な方法は、メイン ツールバーで **[Play]** ボタンをクリックすることです。これで、エディタのビューポート内ですべての機能と現在選択されているゲーム モードでゲームが実行されます。スタンドアローンのアプリケーションとして実行したい場合は、 **[Play]** ボタンの隣のドロップダウンをクリックして、 **[Standalone Game]** を選択します。最後に、モバイル デバイスまたはウェブ ブラウザで実行したい場合、ツールバーの **[Launch]** ボタンを使用して、利用可能なプラットフォームの中から選択します。一部のプラットフォームではさらに設定が必要になり、必要なものをインストールした後に使用可能になります。
+
+![image alt text](image_30.png)(w:506 h:220 convert:false)
+
+サポートされる様々なプラットフォームの詳しい情報は、 [｢Platform Development (プラットフォーム開発)｣](Platforms) のページをご覧ください。
+
+**Unreal Engine 4 で使われる単位は？**
+
+ソフトウェア アプリケーションでは、計測の基本単位を設定で調整することができます。UE4 では、計測の基本単位は 1 cm です。そのため、計測の基本単位を Unreal の単位と合わせるように変更することをお勧めします。
+
+**座標系についてどの方向が上ですか？**
+
+Unreal Engine 4 では左手座標系を使っています。UE4 では + X 軸は「前」で、+ Y 軸は「右」、+ Z 軸は「上」になっています。
+
+**プロジェクトのログ出力はどのようにしたら見ることができますか？**
+
+エディタで、ファイル メニューから **[Window -> Developer Tools]** メニューを選択し、 **[Output Log]** を開くことができます。
+
+![image alt text](image_31.png)(w:421 h:613 convert:false)
+
+
+
+##従来のレイトレーサーとリアルタイムのレンダリングの比較
+
+Unreal Engine 4 のライティング システムは柔軟性があり、各自のプロジェクトとリアルタイムのゲーム エンジンに適した様々なライティング機能があります。つまり、ワールドで完全に静的な (すなわちプリベイクされた) ライティングや、動的なライティングを使うことができます。エンタープライズの建築ビジュアライゼーションの用途では、静的ライティングを使用して UE4 のライトマス グローバル イルミネーションを活用します。
+
+![image alt text](Datasmith_HFB.jpg)
+[REGION:caption]
+_HFB Visuals のご厚意により提供された画像_
+[/REGION]
+
+UE4 のライティング システムを最大限活用するために、以下ではレベルのライティングをビルドし、最小限の労力で品質を向上させるための考え方を示します。まず、結果を確認するために変更を加えた後にライティングをビルドする必要があることを理解することが重要です。さらに、シャドウ情報はライトマップ テクスチャに格納され、美しいディテールをキャプチャするには解像度を上げる必要があります。
+
+###レベルのライティングのビルドと、その意味
+
+Unreal では、特にエンタープライズの建築分野の作品では、ご利用のソフトウェア アプリケーションのレンダーに匹敵する美しくライティングされたシーンが重要となります。Unreal の [｢Lightmass Global Illumination (ライトマス グローバル イルミネーション)｣](Engine/Rendering/LightingAndShadows/Lightmass) システムを使ってレベルのライティングを生成します。これを行う前に、ライトとシャドウの情報を適切に保存するためにアセットに対して適切な
+ライトマップ UV を生成する必要があります。Unreal Engine 4 はライトマップを作るために沢山の面倒な作業をしています。インポート時にライトマップを自動生成し、オーバーラップする面がないようにして、UV チャートが UV の 0,1 空間にきちんと収まるようにします。Unreal Studio ユーザーにとって、Datasmith はこれをさらに合理化したものです。再パックする前にインポート中に実際にメッシュの UV をアンラップします。これにより、問題の発生は少なくなります。UE4 のデフォルト設定では、既存の UV の再パックのみ行うためです。このプロセスについては、以下のライトマップ UV のセクションで詳しく説明します。
+
+Datasmith のシーンをインポートすると直接レベルにインポートされ、ライトはアプリケーションのシーン ファイルで存在していた場所に配置されます。ここでは、プレビュー ライティングでシーンがどのように見えるかがわかります。
+
+![image alt text](image_12.png)(w:569 h:364 convert:false)
+
+シャドウがかかっているエリアに「Preview」 というラベルがあり、以下を示しています。まず、静的または固定に設定されている光源を使っているため、使用している光源のライティングをレベルに対してビルドする必要があります。次に、表示されているシャドウは動的シャドウを使っていて、ビルドするとライティングがどのように見えるかを示しています。これが起こると、GI バウンスから正確なライティングまたはレベルに対して完全に正確なシャドウイングは得られません。
+
+ライトのビルドを開始するには、メイン ツールバーにある **[Build]** ボタンをクリックします。
+
+![image alt text](image_13.png)(w:248 h:64 convert:false)
+
+**[Build]** ボタンを押すとライティングの再ビルド、リフレクション キャプチャ アクタの反射を再キャプチャー、他のゲーム関連のタスクなど一連のタスクが開始します。
+Unreal Studio ユーザーにとっては、設定しなければならないレベルのライティング品質設定があります。これを行うには、[Build] のドロップダウンから **[Lighting Quality]** を選択します。
+
+![image alt text](image_14.png)(w:489 h:261 convert:false)
+
+Lighting Quality レベルは、**[Preview (プレビュー)]** から **[Production (プロダクション)]** までのレベルから選択することができます。Quality レベルによって、レベルのライティングをビルドしたときにライティングの正確度が決まります。Preview の方が多くのシーンにおいてビルドは速くなりますが、正確度は下がります。Production 品質の方が時間はかかりますが、はるかに正確となり、レベル設定の最終的なライトのビルドを表現します。
+
+[REGION:note]
+品質を比較するには、コミュニティによって作成、公開された [｢Lighting Troubleshooting Guide｣ ](https://wiki.unrealengine.com/LightingTroubleshootingGuide)にある[｢Lighting Quality Comparison｣](https://wiki.unrealengine.com/LightingTroubleshootingGuide#Lighting_Quality_comparison.2C_or_Production_.3E_Preview)のサンプルをご覧ください。
+[/REGION]
+
+ライティングのビルド中に、画面の隅に進捗を示すパーセンテージのポップアップが表示されます。進捗のパーセンテージがしばらく進まない場合、ライティングを生成していることから、その間はしばらく待たなければならない可能性があります。レベルの複雑度と選択したライティング品質のレベルに応じて生成までしばらく時間がかかることがあります。
+
+![](BuildLighting1.png)
+
+ライティングがビルドされ、シーンに適用されると、「preview」のラベルが消えます。ただし、生成されたシャドウの品質が想定通りでないことがあります。レベルで設定した Lighting Quality は、Unreal のライトマスに正確度を伝えるだけで、ライトマップ UV のシャドウ情報をキャプチャするために使うテクスチャ解像度は指定しないことに注意してください。こうした理由から、次のセクションでは、ライトマップ UV の重要性とその解像度の調整方法について説明します。
+
+![image alt text](image_15.png)(w:600 h:397 convert:false)
+
+
+###ライトマップ UV
+
+インポート中に各スタティックメッシュのライトマップ UV が UV チャンネルに基づき自動的に生成されます。UE4 はライトマップ UV 生成にチャンネル 0 をデフォルトで使います。これまで Unreal Studio ユーザー向けに説明してきたように、Datasmith ではこのステップをさらに進めてプロセスを合理化します。これは、一回でアンラップと再パックを行い、オーバーラップする面がないようにし、すべての UV チャートが 0,1 UV 空間内に含まれるようにすることで行います。このプロセスは適切なアンラップを作成するための UV エディタがない CAD のようなアプリケーションが必要なとき、またはシーンを UE4 に取り込みたいが、適切なライトマップ UV を時間をかけて手作業で作らなくても済むようにしたいときに必要となります。Datasmith ではこうした作業を内部で行います。
+
+![image alt text](image_16.png)(w:1026 h:602 convert:false)
+*左側は Datasmith を使って CAD ファイルから取り込んだアセット。右側は UV アンラップと再パックの結果。*
+
+この例では、複雑なオブジェクトに沢山の異なる面があり、分割されてライトマップ UV にパックされて、オーバーラップする面がないようにし、すべてが 0,1 UV 空間内に収まるようにしています。これにより、このメッシュにライティングがビルドされるときに、Unreal Editor 外部で UV チャートの編集が必要となるようなライトマップ エラーが生じないようにします。
+
+ライトマップ UV を調べるには、コンテンツ ブラウザでスタティックメッシュを選択して、ダブルクリックして開きます。
+
+![](StaticMeshEditor.png) 
+
+ツールバーで **[UV]** ボタンをクリックして、表示する UV チャンネルを選択します。
+
+![](StaticMeshEditor2.png) 
+
+スタティックメッシュのエディタのビューポートに選択した UV チャンネルが表示されます。
+
+![](StaticMeshEditor3.png)
+
+[REGION:tip]
+自分のライトマップがどの UV チャンネルなのか確信がない場合は、UV チャンネルをクリックして上の例に似ているものを確認します。確認を確実に行いたい場合は、**[Details (詳細)]** パネルを使って、どの UV チャンネルが **[Lightmap Coordinate Index]** として割り当てられているかを調べます。
+[/REGION]
+
+このメッシュについて特に注意することは、ライトマップ UV 内で大きなサイズのメッシュに非常に小さな多くの面を持ってしまうため、レベルのライティングをビルドしたときに品質関連のエラーが生じる可能性があるということです。以下のいずれかの方法を用いてこうした問題を解決することができます。
+
+* スタティックメッシュのライトマップ解像度を高くする。
+* メッシュを手動でアンラップし再インポートする。
+* ソフトウェア アプリケーションで、モデルを小さなチャンクに分割する。
+
+###ライトマップの解像度
+
+ライトマップ解像度は、テクスチャの解像度を高めます。ライトのビルド中に生成されるライトマップの品質を向上します。これは非常に小さな UV チャート (ただし、テクスチャの解像度を上げてもクオリティに問題が生じるほど小さくはない UV チャート) が含まれているライトマップの UV がある場合に役立ちます。
+
+スタティックメッシュのエディタの **[General]** セクションの [Details (詳細)] パネルでメッシュの **[Lightmap Resolution]** を調整することができます。**Lightmap Resolution** を探して、2 の累乗 (64、128、256、512 など) に設定します。
+
+![](LightmapResolution.png)
+
+この単一のメッシュですべての UV チャートをひとつのライトマップ UV 内に収まるようにスケーリングすると、ライトマップ解像度がベイクしたライトとシャドウ情報の品質に大きな影響を与えるようになります。また、テクスチャ解像度 2048 のような高いライトマップ解像度を使う場合でも、UV チャートの一部の面はまだ小さすぎて適切なライティング情報を許容可能な解像度で格納できないため、問題が生じることがあります。
+
+![image alt text](image_17.png)(w:437 h:437 convert:false)![image alt text](image_18.png)(w:470 h:437 convert:false)
+
+ライトマップ解像度を高くすると、ライトのビルドによる品質に関するアーティファクトを減らすことができます。ただし、テクスチャの全体的なメモリ量も増え、レベルのライティングを生成する所要時間も長くなります。
+
+![image alt text](image_19.png)(w:488 h:453 convert:false)
+
+*ライトマップ解像度を高くして 2048 にした単一メッシュ。*
+
+**メッシュを小さなチャンクに分ける**
+
+ライトマップ解像度を高くする代わりに、モデルを小さなチャンクに分けた方が効果的なことがあります。これにより、低解像度のライトマップを使用し、カメラの視野内にない場合に、メモリから一部を取り除いて、最終的に一段と高品質なライティングを実現します。UV チャートがライトマップ UV 空間をより効率的に使用できるからです。
+
+単一メッシュのオリジナルの UV レイアウトを例に挙げます (左側)。非常に多くのジオメトリが単一ライトマップ UV に詰め込まれたため、ライティングのディテールが簡単に失われライトマップ解像度を高くしてもライトのビルドが正しく見えなくなることがあります。モデルを小さなチャンクに分けることで (中央)、それぞれ個別のライトマップを持つようになりますが (右側)、UV 空間をより多く使用し、ライティング情報を適切に、より低い解像度のライトマップを一段と高い品質で保存できます。
+
+![image alt text](image_20.png)(w:977 h:933 convert:false)
+
+[REGION:tip]
+シームやパーツのエッジのような適切な場所で、モデルを小さく分割してみてください。これは、ベイクの問題やピース間の解像度の違いを隠す際に便利です。
+[/REGION]
+
+![image alt text](image_21.png)(w:505 h:468 convert:false)![image alt text](image_22.png)(w:502 h:466 convert:false)
+
+*左側は、ライトマップ解像度 2048 の単一メッシュ。右側は、分割したモデルのチャンクでライトマップ解像度は 512。*
+
+上の画像では、ライトマップ解像度を高くしても単一メッシュ （左側） はまだ暗いままですが、シャドウの品質は上がっているのがわかります。ただし、ライトのバウンスはそれほど保たれません。UV チャートではその情報を格納する十分な UV 空間を使用していないからです。右側の画像では、品質は同様ですが、UV チャートでより広いライトマップ UV 空間を使っているため、GI 情報をはるかに正確にキャプチャーします。
+
+ライティングとビルドの問題に関する追加情報については、コミュニティで管理している [｢Lighting Troubleshooting Guide (ライティング トラベルシューティング ガイド)｣](https://wiki.unrealengine.com/LightingTroubleshootingGuide) をご覧ください。ライトのビルドに関する一般的な問題について、多くの例とその対策が載っています。
+
+以下は UE4 のライティングに関する入門ガイドのリンクです。
+
+* [｢Lighting Basics (ライティングの基礎)｣](Engine/Rendering/LightingAndShadows/Basics) - ライトのレベル配置および設定のための基本操作。
+* [｢Lightmass Global Illumination (ライトマス グローバル イルミネーション)｣](Engine/Rendering/LightingAndShadows/Lightmass) - UE4 で事前計算されたライティングを生成するためのライトマスの機能と設定の概要。
+* [｢Static Lighting (静的ライト)｣](Engine/Rendering/LightingAndShadows/LightMobility/StaticLights) - 静的ライトの概要。
+* [｢Lighting And Shadows Topics (ライティングとシャドウのトピック)｣](Engine/Rendering/LightingAndShadows) - ライティング機能の主要分野毎のドキュメント一覧。
+[COMMENT:none]
+* [｢Shadow Casting (シャドウのキャスト)｣](Engine/Rendering/LightingAndShadows/Shadows) - UE4 のシャドウのハイレベルな概要。
+[/COMMENT]
+
+##マテリアルとテクスチャ
+
+UE4 ではテクスチャをマテリアルに適用し、マテリアル エディタで編集することができます。マテリアル エディタは一部の他のアプリケーションと同様に、ノードベースのグラフ インターフェースを使用し、スタティック メッシュやスケルタル メッシュなどジオメトリに適用可能なシェーダーを作成したり、カスケードなどのシステムで興味深いマテリアルを作成します。
+
+![image alt text](image_23.jpg)(w:709 h:260 convert:false)
+
+Unreal Engine 4 では、物理ベースのシェーディング モデルを使用します。これは、[｢Disney "Principled" BRDF Physically-Based Rendering model｣](https://disney-animation.s3.amazonaws.com/library/s2012_pbs_disney_brdf_notes_v2.pdf)に似ています。
+つまり、マテリアルを定義するために、任意のプロパティ (ディフューズカラーやスペキュラパワーなど) ではなく、もっと簡単に現実世界に関連付けることができるプロパティを使用します。例えば、ベースカラー、スペキュラ、ラフネスなどです。
+
+###スタティックメッシュにマテリアルを割り当てる簡単なコツ
+
+コンテンツ ブラウザからマテリアルを迅速に探してスタティックメッシュに割り当てるには、いくつかの方法があります。。
+
+* **コンテンツ ブラウザからマテリアルを割り当てる** - コンテンツ ブラウザでマテリアルを選択し、[Details (詳細)] パネルで Material スロットの隣にある **矢印** をクリックして、選択したマテリアルを割り当てます。
+
+	![image alt text](image_24.png)(w:445 h:256 convert:false)
+
+* **レベルにあるメッシュからマテリアルを探す** - マテリアル スロットの隣にある **[Search]** (虫眼鏡) をクリックして、コンテンツ ブラウザでマテリアルの場所にただちに移動します。
+	
+	![image alt text](image_25.png)(w:446 h:257 convert:false)
+
+* **デフォルトにリセット** - マテリアル スロットの隣にある **[デフォルトにリセット]** (黄色) の矢印をクリックして、マテリアルをデフォルトとしてメッシュに割り当てられたものに戻します。
+
+
+以下は UE4 でマテリアルとテクスチャ使用に関する入門ガイドへのリンクです。
+
+* [｢Texture Editor (テクスチャ エディタ)｣](Engine/Content/Types/Textures/Properties/Interface) - テクスチャ エディタのリファレンス ガイド。
+
+* [｢Material Editor (マテリアル エディタ)｣](Engine/Rendering/Materials/Editor) - Unreal Engine 4 で使用するマテリアル エディタのリファレンス ガイド。
+
+* [｢Essential Material Concepts (マテリアルの基本概念)｣](Engine/Rendering/Materials/IntroductionToMaterials) - Unreal Engine 4 のマテリアルと仕組みに関する入門ガイド。
+
+* [｢Using the Main Material Node (Main Material ノードの操作ガイド)｣](Engine/Rendering/Materials/HowTo/Main_Material_Node) - Unreal Engine 4 でシェーダーを作成するために使うメイン マテリアル ノードの概要。
+
+* [｢Material How-To's (マテリアルの操作ガイド)｣](Engine/Rendering/Materials/HowTo) - マテリアル エディタの様々な機能を使用するマテリアルに関するトピック一覧。
+
+* [｢Physically Based Materials (物理ベースのマテリアル)｣](Engine/Rendering/Materials/PhysicallyBased) - 主なマテリアル入力の概要と物理ベースのシェーディング モデルを使って最適に使用する方法。
+
+##ブループリントとスクリプティング
+
+Unreal Engine の **ブループリント ビジュアル スクリプティング** システムは、ノードベースのインターフェースを使用して Unreal Editor 内からゲームプレイ エレメントを作成するゲームプレイ スクリプティング システムです。一般的な多くのスクリプト処理言語と同様に、Unreal Engine でオブジェクト指向のクラスまたはオブジェクトを定義します。UE4 を使う場合、ブループリントを使って定義したオブジェクトは通常、単純に「ブループリント」と呼びます。
+
+非常に柔軟かつパワフルなシステムで、プログラマーだけが使用できるとされてきたコンセプトとツールをデザイナーでも事実上すべて使うことができます。
+
+![image alt text](image_26.png)(w:786 h:441 convert:false)
+
+以下はブループリントの使用に関する入門ガイドへのリンクです。
+
+*  [｢Introduction to Blueprints (ブループリント入門)｣](Engine/Blueprints/GettingStarted) - 入門者向けの機能の概要で、ブループリントとは何か、それで何ができるのかがわかります。
+
+* [｢Blueprint Quick Start (ブループリントのクイックスタート)｣](Engine/Blueprints/QuickStart) - ブループリントを作成し、使用するためのガイド。
+<!-- Removing link for now
+* [｢Blueprint How-To's (ブループリントの操作ガイド)｣](Engine/Blueprints/BP_HowTo)と[｢Video Tutorials (動画チュートリアル)｣](https://academy.unrealengine.com/Class/blueprint-essential-concepts) - ビジュアル スクリプティングについて学ぶための文書のチュートリアルと動画チュートリアル。
+-->
+
+##シーケンサ
+
+**Sequencer (シーケンサ)** エディタには、特殊なマルチ トラック エディタを通してインゲームのシネマティックスを作成する機能があります。これがシネマティック シーンの構成を定義するトラックを使用してシネマティックスを作成する主要な手段となります。例えば、シーケンサを使って建築ビジュアライゼーションのシーン内を複数のカメラをゆっくりとパンさせたり、シーケンサと一緒に [｢Composure (コンポージャ)｣](Engine/Composure) を使ってコンポジット作業を行うこともできます。
+
+他の動画編集ソフトウェアと同様に、必要に応じてドラッグして並べ替えてシーンを迅速に編集できるカメラ トラックを作成することができます。
+
+![image alt text](Col05.jpg)(w:781 h:433 convert:false)
+[REGION:caption]
+_"Church of Light" のシーン。制作: Fabrice Bourrelly 氏_
+[/REGION]
+
+以下はシーケンサに関する入門ガイドのリンクです。
+
+* [｢Sequencer (シーケンサ)｣](Engine/Sequencer/Overview) -  シーケンサ エディタの概要。
+
+* [｢Sequencer Quick Start (シーケンサのクイックスタート)｣](Engine/Sequencer/QuickStart) - シーケンサ エディタの作業を開始するためのガイド。
+
+* [｢Composure Editor (Composure エディタ)｣](Engine/Composure) - UE4 を使ってリアルタイムでデジタルと現実世界の映像を一緒にコンポジットするためのコンポジット エディタ。
+
+##プロジェクトをビルドしてパブリッシュする
+
+テストを開始したり、プロジェクトの最終リリース版を作成して他の人に渡してそのマシーンで開けるようにする場合、Unreal ビルド システムを使ってプロジェクトをクックしてスタンドアロンの実行ファイルにパッケージングします。このプロセスによって、プロジェクトを他の人々と簡単に扱いやすい方法で共有することができます。相手側のマシン上で Unreal Engine 4 をインストールする必要はありません。すべてのアセットを Pak ファイルに格納することでコンテンツの保護も行います。Pak ファイルは、実行ファイル起動時アセットを参照するために Unreal によって使用されます。
+
+プロジェクトをクックし、パッケージングする処理では以下の操作を行います。
+
+1.**[File > Package Project]** メニューからターゲット プラットフォームを選択するとクックとパッケージの処理が開始します。
+
+2.プロジェクトのマップでは、参照されたアセットをコンテンツ ブラウザから取り出してステージング ディレクトリでそれらのコピーを作ります。
+
+3.クック プロセスが終了すると、Unreal Build Tool がファイルのパッケージングを開始し、必要な Engine ファイルを Unreal Engine 4 のインストールなしで実行可能な実行ファイルにします。
+
+4.終了したら、作成されたプロジェクトの実行可能ファイルを実行して、パッケージ化されたバージョンのプロジェクトを読み込むことができます。アセットは、単一の Pak ファイルに格納され、ソース コードやブループリント スクリプティングが取り出されて、アクセス不可能なマシン コードに変換されます。
+
+以下はプロジェクトをパッケージングしたときに何が起こるかについての概要です。詳細については、[｢Packaging Projects (プロジェクトのパッケージング)｣](Engine/Basics/Projects/Packaging)のページをご覧ください。
+
+[REGION:note]
+Android や iOS など、一部のプラットフォーム向けのコンテンツのクックとパッケージングでは、プロジェクトを適切にパッケージングするために、特定の SDK やハードウェアが事前に必要になります。
+[/REGION]
+
+
+
+
+##ここから先のこと
+
+最後までお読み頂き、ありがとうございます！本ガイドは、多くの Unreal デベロッパーの助けを借りて Enterprise コミュニティ向けに作成されたものです。フィードバックや訂正がある場合、ご指摘いただければ幸いです。UE4 への移行時に最も役立つことは何かを調べつつ、今後もこのガイドを改善していく予定です。
+
+また、以下のように多くの Unreal Engine 4 学習リソースをご用意しております。リンク先は以下のとおりです。
+
+* [｢Documentation (ドキュメント)｣](%ROOT%)
+    *  [｢Getting Started (入門編)｣](GettingStarted)
+<!-- Removing link for now
+* [チュートリアルとトレーニングビデオ Unreal Engine Online Learning](https://academy.unrealengine.com/)
+-->
+* API リファレンス - [\[C++\]](https://docs.unrealengine.com/latest/INT/API) [\[ブループリント\]](https://docs.unrealengine.com/latest/INT/BlueprintAPI)

@@ -19,47 +19,6 @@ namespace UnrealBuildTool.Rules
 			get { return Path.GetFullPath( Path.Combine( ModulePath, "../ThirdParty/" ) ); }
 		}
 		
-		private void LoadMixedReality(ReadOnlyTargetRules Target)
-        {
-            int releaseId = 0;
-            string releaseIdString = Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion", "ReleaseId", "") as String;
-            if (!String.IsNullOrEmpty(releaseIdString))
-            {
-                releaseId = Convert.ToInt32(releaseIdString);
-            }
-            bool bAllowWindowsMixedReality = (releaseId >= 1803);
-
-            if (bAllowWindowsMixedReality)
-            {
-                string LibrariesPath = Path.Combine(ThirdPartyPath, "Lib", "x64");
-
-                if (Target.Platform == UnrealTargetPlatform.Win32)
-                {
-                    LibrariesPath = Path.Combine(ThirdPartyPath, "Lib", "x86");
-                    RuntimeDependencies.Add("$(EngineDir)/Binaries/Win32/HolographicStreamerDesktop.dll");
-                    RuntimeDependencies.Add("$(EngineDir)/Binaries/Win32/Microsoft.Perception.Simulation.dll");
-                    RuntimeDependencies.Add("$(EngineDir)/Binaries/Win32/PerceptionSimulationManager.dll");
-                }
-                else if (Target.Platform == UnrealTargetPlatform.Win64)
-                {
-                    RuntimeDependencies.Add("$(EngineDir)/Binaries/Win64/HolographicStreamerDesktop.dll");
-                    RuntimeDependencies.Add("$(EngineDir)/Binaries/Win64/Microsoft.Perception.Simulation.dll");
-                    RuntimeDependencies.Add("$(EngineDir)/Binaries/Win64/PerceptionSimulationManager.dll");
-                }
-
-                PublicLibraryPaths.Add(LibrariesPath);
-                PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "MixedRealityInterop.lib"));
-                PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "HolographicStreamerDesktop.lib"));
-                PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "Microsoft.Perception.Simulation.lib"));
-                PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "PerceptionSimulationManager.lib"));
-
-                // Win10 support
-                PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "onecore.lib"));
-
-                PublicIncludePaths.Add(Path.Combine(ThirdPartyPath, "Include"));
-            }
-        }
-		
         public WindowsMixedRealitySpatialInput(ReadOnlyTargetRules Target) : base(Target)
         {	
             PrivateIncludePathModuleNames.AddRange(
@@ -71,6 +30,15 @@ namespace UnrealBuildTool.Rules
 					"WindowsMixedRealityHMD"
 				});
 
+			PublicDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"MixedRealityInteropLibrary",
+					"HeadMountedDisplay",
+					"ProceduralMeshComponent"
+                }
+			);
+
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
@@ -79,8 +47,12 @@ namespace UnrealBuildTool.Rules
                     "Engine",
                     "InputCore",
                     "HeadMountedDisplay",
-                    "WindowsMixedRealityHMD"
+                    "WindowsMixedRealityHMD",
+					"Slate",
+					"SlateCore",
 				});
+
+            AddEngineThirdPartyPrivateStaticDependencies(Target, "WindowsMixedRealityInterop");
 
             if (Target.bBuildEditor == true)
             {
@@ -88,10 +60,9 @@ namespace UnrealBuildTool.Rules
             }
 
             if (Target.Platform == UnrealTargetPlatform.Win32 ||
-                Target.Platform == UnrealTargetPlatform.Win64)
-            {
-				LoadMixedReality(Target);
-				
+                Target.Platform == UnrealTargetPlatform.Win64 ||
+                Target.Platform == UnrealTargetPlatform.HoloLens)
+            {	
                 bFasterWithoutUnity = true;
                 bEnableExceptions = true;
 

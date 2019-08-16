@@ -1,11 +1,14 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Components/ScrollBar.h"
+#include "UObject/EditorObjectVersion.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////
 // UScrollBar
+
+static FScrollBarStyle* DefaultScrollBarStyle = nullptr;
 
 UScrollBar::UScrollBar(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -15,11 +18,19 @@ UScrollBar::UScrollBar(const FObjectInitializer& ObjectInitializer)
 	bAlwaysShowScrollbar = true;
 	bAlwaysShowScrollbarTrack = true;
 	Orientation = Orient_Vertical;
-	Thickness = FVector2D(12.0f, 12.0f);
+	Thickness = FVector2D(16.0f, 16.0f);
+	Padding = FMargin(2.0f);
 
-	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-	static const FScrollBarStyle StaticScrollbar = FCoreStyle::Get().GetWidgetStyle<FScrollBarStyle>("Scrollbar");
-	WidgetStyle = StaticScrollbar;
+	if (DefaultScrollBarStyle == nullptr)
+	{
+		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
+		DefaultScrollBarStyle = new FScrollBarStyle(FCoreStyle::Get().GetWidgetStyle<FScrollBarStyle>("Scrollbar"));
+
+		// Unlink UMG default colors from the editor settings colors.
+		DefaultScrollBarStyle->UnlinkColors();
+	}
+	
+	WidgetStyle = *DefaultScrollBarStyle;
 }
 
 void UScrollBar::ReleaseSlateResources(bool bReleaseChildren)
@@ -36,7 +47,8 @@ TSharedRef<SWidget> UScrollBar::RebuildWidget()
 		.AlwaysShowScrollbar(bAlwaysShowScrollbar)
 		.AlwaysShowScrollbarTrack(bAlwaysShowScrollbarTrack)
 		.Orientation(Orientation)
-		.Thickness(Thickness);
+		.Thickness(Thickness)
+		.Padding(Padding);
 
 	//SLATE_EVENT(FOnUserScrolled, OnUserScrolled)
 
@@ -58,6 +70,28 @@ void UScrollBar::SetState(float InOffsetFraction, float InThumbSizeFraction)
 	}
 }
 
+#if WITH_EDITORONLY_DATA
+
+void UScrollBar::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
+
+	const bool bDeprecateThickness = Ar.IsLoading() && Ar.CustomVer(FEditorObjectVersion::GUID) < FEditorObjectVersion::ScrollBarThicknessChange;
+	if (bDeprecateThickness)
+	{
+		// Set Thickness property to previous default value.
+		Thickness.Set(12.0f, 12.0f);
+	}
+
+	Super::Serialize(Ar);
+
+	if (bDeprecateThickness)
+	{
+		// Implicit padding of 2 was removed, so Thickness value must be incremented by 4.
+		Thickness += FVector2D(4.0f, 4.0f);
+	}
+}
+
 void UScrollBar::PostLoad()
 {
 	Super::PostLoad();
@@ -76,6 +110,8 @@ void UScrollBar::PostLoad()
 		}
 	}
 }
+
+#endif // if WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
 

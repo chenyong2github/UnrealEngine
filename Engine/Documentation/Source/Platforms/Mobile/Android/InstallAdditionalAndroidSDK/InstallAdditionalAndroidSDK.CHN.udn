@@ -1,0 +1,180 @@
+﻿INTSourceChangelist:3782314
+Availability: Public
+Crumbs: %ROOT%
+Title: 安装额外的Android SDK
+Description: 展示如何安装额外的Android SDKs
+Type: how-to
+SkillLevel: advanced
+Version: 4.17
+parent:Platforms/Mobile/Android
+Order: 1
+Tags: Android
+
+你可能需要安装额外的Android SDK才能使你的虚幻引擎4项目能够正常运行，具体取决于你正在针对哪种类型的Android设备进行开发。在以下文档中，我们将为你介绍如何安装额外的Android SDK。
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    windows
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#WindowsSetup]
+    [/PARAM]
+[/OBJECT]
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    mac
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#MacOSSetup]
+    [/PARAM]
+[/OBJECT]
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    linux
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#LinuxSetup]
+    [/PARAM]
+[/OBJECT]
+
+
+
+[COMMENT:none]
+
+[EXCERPT:WindowsSetup]
+## 步骤
+
+要安装额外的Android SDK，需要首先执行以下步骤打开 **Android SDK Manager**。
+
+1. 首先，在PC上找到 **NVPACK\android-sdk-windows\tools** 文件夹。
+
+    ![](AddSDK_01.png)
+
+1. 找到 **Android.bat** 文件，然后双击将其打开。
+
+     ![](AddSDK_02.png)
+
+1. **Android SDK Manager** 加载后，按 **Deselect All** 选项来确保不会卸载任何可能需要的SDK。
+
+     ![](AddSDK_04.png)
+
+1. 接下来，找到要安装的Android API版本并展开可用的选项。在此示例中，我们将使用 **Android 7.1.1（API 25）**，因此请确保在“Android 7.1.1（API 25）”部分下面选中 **SDK Platform** 旁边的复选框。
+
+     ![](AddSDK_05.png)
+
+1. 最后，按 **Install 1 package** 按钮以开始下载和安装。
+
+     ![](AddSDK_06.png)
+
+
+## 最终结果
+
+完成后，**Status** 处将变为上面带有勾号的文件夹图标，表示该版本已安装。 
+
+![](AddSDK_07.png)
+
+[/EXCERPT:WindowsSetup]
+
+
+[EXCERPT:MacOSSetup]
+## 步骤
+
+要安装额外的Android SDK，需要首先执行以下步骤打开 **Android SDK Manager**。
+
+1. 首先，在Mac上找到 **NVPACK\android-sdk-windows\tools** 文件夹。
+
+    ![](MACSDK_01.png)
+
+1. 找到 **Android** 文件，然后双击以将其打开。
+
+     ![](MACSDK_02.png)
+
+    [region:note]
+    如果在尝试启动Android更新程序时收到以下错误，需要从苹果网站上安装以下版本的[Java](https://support.apple.com/kb/dl1572?locale=en_US)。
+
+    ![](MACSDK_07.png)
+
+    * [**Java for OS X 2017-001**](https://support.apple.com/kb/dl1572?locale=en_US)
+    [/region]
+    
+1. **Android SDK Manager** 加载后，按 **Deselect All** 选项来确保不会卸载任何可能需要的SDK。
+
+     ![](MACSDK_03.png)
+
+1. 接下来，找到要安装的Android API版本并选中 **SDK Platform** 旁边的复选框来对它进行标记以下载和安装。
+
+     ![](MACSDK_04.png)
+
+1. 最后，按 **Install 1 package** 按钮以开始下载和安装。
+
+     ![](MACSDK_05.png)
+
+
+## 最终结果
+
+完成后，**Status** 处将变为上面带有勾号的文件夹图标，表示该版本已安装。 
+
+![](MACSDK_06.png)
+
+[/EXCERPT:MacOSSetup]
+
+
+[EXCERPT:LinuxSetup]
+## 步骤
+
+要安装额外的Android SDK，需要首先执行以下步骤打开 **Android SDK Manager**。
+
+1. 首先，在PC上找到 **NVPACK\android-sdk-linux\tools** 文件夹。
+
+    ![](LinuxSDK_01.png)
+
+1. 找到 **Android** 文件，然后双击以将其打开。
+
+    ![](LinuxSDK_02.png)
+
+1. **Android SDK Manager** 加载后，按 **Deselect All** 选项来确保不会卸载任何可能需要的SDK。
+
+    ![](LinuxSDK_03.png)
+
+1. 接下来，找到要安装的Android API版本并展开可用的选项。在此示例中，我们将使用 **Android 8.1.0（API 27）**，因此请确保在“Android 8.1.0（API 27）”部分下面选中 **SDK Platform** 旁边的复选框。
+
+    ![](LinuxSDK_04.png)
+
+1. 最后，按 **Install 1 package** 按钮以开始下载和安装。
+
+     ![](LinuxSDK_05.png)
+
+
+## 最终结果
+
+完成后，**Status** 处将变为上面带有勾号的文件夹图标，表示该版本已安装。 
+
+![](LinuxSDK_06.png)
+
+[/EXCERPT:LinuxSetup]
+
+[/COMMENT]
+
+
+
+
+
+

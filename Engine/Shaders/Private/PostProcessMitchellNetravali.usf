@@ -98,8 +98,11 @@ RWTexture2D<float4>	Output0;
 [numthreads(THREADGROUP_SIZEX, THREADGROUP_SIZEY, 1)]
 void DownsampleMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
-	// Frame exposure
-	const float FrameExposureScale = EyeAdaptationLookup();
+	#if USE_PREEXPOSURE
+		const float FrameExposureScale = ToScalarMemory(EyeAdaptationLookup() * View.OneOverPreExposure);
+	#else
+		const float FrameExposureScale = ToScalarMemory(EyeAdaptationLookup());
+	#endif
 
 	const float B = rcp(3.0);
 	const float C = rcp(3.0);

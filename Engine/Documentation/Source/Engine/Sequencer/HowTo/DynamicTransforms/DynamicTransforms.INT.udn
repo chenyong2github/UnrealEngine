@@ -1,0 +1,56 @@
+Availability: Public
+Title: Creating Level Sequences with Dynamic Transforms
+Description: Describes how to create Level Sequences with Actors that have dynamic world transforms that can be changed at run time. 
+Parent: Engine/Sequencer/HowTo
+Tags: Sequencer
+Tags: how-to
+Order: 29
+
+
+When creating cinematic sequences, you may want to apply transform data to an Actor in your scene but move the entire scene to a new location in your level. You can now override the Instance Data on the Level Sequence and assign a new **Transform Origin Actor** to use as the sequence's new origin. This enables you to keyframe actors in your sequence and have the transforms applied be relative to the specified Transform Origin Actor. 
+
+In this example, we add a character to a sequence and give it a path. We then override the Instance Data and assign a Transform Origin Actor so that we can move the entire scene to a new location in the level while keeping our defined path intact. 
+
+![](DynamicTransformBanner-2.png "DynamicTransformBanner-2.png")
+
+## Steps
+
+[REGION:note]
+For this guide we are using a new **Blueprint Third Person** project.
+[/REGION]
+
+1. in the **Content/Mannequin/Character/Mesh **folder, drag the **SK_Mannequin **into the Level.
+![](DynamicTransform_01-3.png "DynamicTransform_01-3.png")
+1. From the Main Toolbar, click the **Cinematics **button and **Add Level Sequence **then give it any name and save location.      
+![](DynamicTransform_02-2.png "DynamicTransform_02-2.png")
+1. Add the **SK_Mannequin **to the Level Sequence, then add the **ThirdPersonWalk **Animation and loop it to the **150 **mark.   
+![](DynamicTransform_03-1.png "DynamicTransform_03-1.png")
+1. Select the **SK_Mannequin **in the Level, then in the **Details **panel set the **Location **values to **0,0,0. **  
+![](DynamicTransform_04-3.png "DynamicTransform_04-3.png")
+<p></p>For best results, you will want to zero out the Actor's transform prior to keyframing it in Sequencer. If you keyframe the Transform data and it is not at zero, an offset will be applied when moving the Transform Origin Actor around in your level. 
+1. In the Level Sequence, add a keyframe to the **Transform **track for the **SK_Mannequin **at its starting position, then move the character forward adding a keyframe at **150 **to generate a path.   
+![](DynamicTransform_05-1.png "DynamicTransform_05-1.png")
+1. In the **Modes **panel, drag an **Empty Actor **into the Level.   
+![](DynamicTransform_06-1.png "DynamicTransform_06-1.png")
+<p></p>This Actor will be used as the origin for our scene in which the Level Sequence's transform will be based upon. 
+1. Select the Level Sequence in the Level, then in the **Details** panel, enable **Auto Play**, **Loop Indefinitely**, and **Override Instance Data**. 
+1. Select the **Actor** from Step 6 as the **Transform Origin Actor.**  
+![](DynamicTransform_07.png "DynamicTransform_07.png")
+1. **Simulate** or **Play** in the Level.
+
+
+## End Result
+
+When Simulating or Playing in the Level, the Level Sequence will automatically start. You can also move the Actor that is assigned as the Transform Origin Actor around in the Level to move the Level Sequence's origin. 
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ Vy6cvfjECN8
+ [/PARAMLITERAL]
+[/OBJECT]

@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:2735872
+﻿INTSourceChangelist:3108692
 Availability:Public
 Title:发布项目
 Crumbs:%ROOT%, Engine, Engine/Deployment
@@ -21,13 +21,16 @@ Description:创建包含已进行烘培的内容的发行版项目，以便进�
 
 发布过程有许多可用的设置。
 
+(#Project)
 #### 项目
 1. 您可设置所要使用的特定项目，或使用 **任何项目（Any Project）**来修补当前项目。
 
+(#Build)
 #### 构建
 1. 请将构建配置设置为“交付”（Shipping）。
 1. （可选）如果您需要在发布过程中构建 UAT，请展开 **高级设置（Advanced Settings）**。
 
+(#Cook)
 #### 烘培
 1. 从下拉菜单中，选择 **按常规（By the Book）**作为烘培方法。
 1. 选中烘培内容时所要针对的所有平台的框。在本例中，为了进行 Windows 测试，我们已选中 **WindowsNoEditor**。
@@ -43,9 +46,11 @@ Description:创建包含已进行烘培的内容的发行版项目，以便进�
 	* 将所有内容存储到单个文件 (UnrealPak)（Store all content in a single file (UnrealPak)）
 1. 并且，在 **高级设置（Advanced Settings）**下，将烘培程序配置设置为 **交付（Shipping）**。
 
+(#Package)
 #### 打包 
 1. 将构建设置为 **打包并存储在本地（Package & store locally）**。 
 
+(#Deploy)
 #### 部署
 1. 将构建设置为 **不部署（Do Not Deploy）**。
 

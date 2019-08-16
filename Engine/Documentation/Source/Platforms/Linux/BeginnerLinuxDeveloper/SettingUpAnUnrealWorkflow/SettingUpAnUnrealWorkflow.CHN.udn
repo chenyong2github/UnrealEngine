@@ -1,47 +1,225 @@
-﻿INTSourceChangelist:3872326
+﻿INTSourceChangelist:6572999
 Availability: Public
-Title:Linux快速入门
-Crumbs:
-Description:学习如何在Linux上下载、编译和运行UE4。
-Platform:Linux
+Title: Linux快速入门
+Description: 了解如何在Linux上下载、编译和运行UE4。
+Type: quick start
 Version: 4.13
-type:quick start
-parent:Platforms/Linux
-order: 2
-tags:Linux
-SkillLevel:Beginner
-prereq:GettingStarted/RecommendedSpecifications
-prereq:Platforms/Linux/BeginnerLinuxDeveloper/SupportedGfxDrivers
-topic-image:linuxQS_topic.png
+Parent: Platforms/Linux
+Tags: Linux
+skilllevel:Beginner
+topic-image: linuxQS_topic.png
+Order: 2
 
+
+[TOC (start:2 end:3)]
 
 [REGION:imagetable]
-![](CompiledEditor_Linux.png)(w:920)  
-[REGION:caption]
-完成此教程学习后，您便能在装有Linux操作系统的电脑上运行虚幻引擎4（UE4）。
+![](CompiledEditor_Linux.png)(w:920) 
+
+在本教程结束时，您将已经在您的Linux计算机上运行了虚幻引擎4（UE4），并且已经了解了如何设置Git（用于下载UE4源代码），如何fork和克隆我们的源代码，如何根据源代码编译虚幻引擎，以及如何在您的Linux计算机上运行虚幻引擎。最后，本指南的重点是向您展示如何设置在Linux计算机上运行UE4所需的主要工作流。
 [/REGION]
+
+## 1 - 必要的设置
+
+目前，我们没有为Linux用户提供UE4的二进制安装程序。好消息是，您可以根据我们用于开发引擎的相同源代码编译一个虚幻引擎的二进制文件。如果您想访问我们的源代码，您必须注册一个Epic Games帐户，注册一个GitHub帐户，将您的GitHub用户名与您的Epic Games帐户关联起来，并在Linux计算机上设置Git。
+
+### 注册一个Epic Games帐户
+
+如果您想要使用虚幻引擎创建游戏，或者为未来Linux上的UE4做出贡献，您需要拥有一个有效的Epic Games帐户。
+
+1.  导航到[UnrealEngine.com](https://www.unrealengine.com/what-is-unreal-engine-4)。
+
+1.  单击 **获取虚幻（Get Unreal）**。    
+    [REGION:lightbox]
+    [![](Download_Unreal-2.PNG "Download_Unreal-2.PNG")(w:1200)](Download_Unreal-2.PNG)
+    [/REGION]
+
+	*单击显示全图。*
+    
+1.  填写我们的 **'加入社区（Join the Community）'** 表格，然后单击 **注册（Sign Up）**。注册前，务必确保阅读了我们的[服务条款](http://epicgames.com/tos)。  
+    [REGION:lightbox]
+    [![](Create_Account-1.PNG "Create_Account-1.PNG")(w:400)](Create_Account-1.PNG)
+    [/REGION]
+
+	*单击显示全图。*
+      
+1.  单击 **接受（Accept）** 前，阅读我们的[虚幻引擎最终用户许可协议](https://www.unrealengine.com/eula)（EULA）。如果您对EULA的条款和条件有其他疑问，请参阅我们的[EULA常见问题](https://www.unrealengine.com/faq#legal)。  
+    [REGION:lightbox]
+    [![](EULA-1.PNG "EULA-1.PNG")(w:400)](EULA-1.PNG)
+    [/REGION]
+
+	*单击显示全图。*
+    
+拥有一个帐户有很多好处，包括（但不限于）可以访问虚幻引擎社区，在这里，您将可以与其他UE4 Linux开发人员进行联系，并且能够了解有关虚幻引擎的最新消息。
+
+### 设置Git  
+
+现在您已经注册了一个Epic Games帐户，您可以通过以下步骤访问GitHub上的UE4源代码。
+
+1.  在[GitHub.com](https://github.com/EpicGames)上注册一个GitHub帐户。    
+    [REGION:lightbox]
+    [![](GItHub_Header.PNG "GItHub_Header.PNG")(w:600)](GItHub_Header.PNG)
+    [/REGION]
+    
+	*单击显示全图。*
+
+1.  前往[您的Epic Games帐户](https://accounts.unrealengine.com/login)，并单击 **已关联帐户（Connected Accounts）**。  
+    ![](Connected_Accounts-1.PNG "Connected_Accounts-1.PNG")
+
+1.  单击GitHub图标下面的 **关联（Connect）** 来关联您的GitHub用户名。   
+    ![Connect Accounts-1.PNG](ConnectAccounts-1.PNG "Connect Accounts-1.PNG")(w:600)
+
+1.  要授权此连接，单击 **授权EpicGames（Authorize EpicGames）**。  
+    ![](Authoriize_Connect.PNG "Authoriize_Connect.PNG")(w:600)
+
+1.  最后，在进入下一步之前设置[Git](https://help.github.com/articles/set-up-git/)。
+
+### 分段结果
+
+到目前为止，您已经注册了一个Epic Games帐户，并将其与您的GitHub用户名关联。此外，您还安装了Git，可以开始执行下一步，在下一步中，您将从虚幻引擎GitHub元库fork并克隆UE4源代码。
+
+## 2 - 下载UE4 on Linux
+
+既然您已经在Linux计算机上设置了Git，那么就可以从我们的[GitHub网站](http://github.com/EpicGames)下载虚幻引擎源代码了。有两种方法可以下载UE4源代码，一种方法是使用我们GitHub页面上的下载功能，另一种方法是使用Git客户端克隆虚幻引擎元库。我们将在本页介绍这两种方法。
+
+### 从GitHub下载
+
+如果您不想使用Git克隆虚幻引擎元库，可以使用我们的[GitHub网站](http://github.com/EpicGames)上的 **下载ZIP（Download ZIP）** 按钮。
+
+1. 首先，单击页面左侧的 **分支：（Branch:）**，选择要下载的分支。有关虚幻引擎GitHub元库中的分支的更多信息，请参见[源代码分支参考](GettingStarted/DownloadingUnrealEngine/SourceBranches)页面。 
+    [REGION:lightbox]
+    [![](SelectRepoBranch.png)(w:800)](SelectRepoBranch.png)
+    [/REGION]
+    
+    *单击显示全图。*
+    
+1.  选择要下载的分支之后，单击位于页面右侧的克隆或下载（Clone or download）。   
+    [REGION:lightbox]
+    [![](CloneorDownloadButton.png)(w:800)](CloneorDownloadButton.png)
+    [/REGION]
+     
+    *单击显示全图。*
+
+1.  单击 **下载ZIP（Download ZIP）** 以下载虚幻引擎源代码。 
+    [REGION:lightbox]
+    [![](DownloadSourceButton.png)(w:800)](DownloadSourceButton.png)
+    [/REGION]
+     
+    *单击显示全图。*
+
+1.  最后，将`UnrealEngine-(branch_name).zip`解压缩到您的硬盘上。
+
+### 使用Git克隆
+
+如果您刚开始使用Git进行克隆，在执行以下步骤之前，请参阅[GitHub的克隆指南](https://help.github.com/articles/cloning-a-repository/#platform-linux)。  
+
+1.  单击 **虚幻引擎（Unreal Engine）** 链接以访问我们的[元库](https://github.com/EpicGames/UnrealEngine)。   
+    [REGION:lightbox]
+    [![](Git_Repository-1.PNG "Git_Repository-1.PNG")(w:800)](Git_Repository-1.PNG)
+    [/REGION]
+
+    *单击显示全图。*
+
+1.  单击 **克隆或下载（Clone or download）**。 
+    [REGION:lightbox]
+    [![](CloneorDownloadButton.png)(w:800)](CloneorDownloadButton.png)
+    [/REGION]
+
+    *单击显示全图。*
+
+1.  单击 **复制URL（Copy URL）** 按钮以复制元库的克隆URL。 
+    [REGION:lightbox]
+    [![](CopyHTTPS.png)(w:800)](CopyHTTPS.png)
+    [/REGION]
+
+    *单击显示全图。* 
+
+1.  打开Git Bash，键入`git clone`，并然后粘贴上一步复制的URL。 
+    [REGION:lightbox]
+    [![](GitBashClone.png)(w:800)](GitBashClone.png)
+    [/REGION]
+
+    *单击显示全图。* 
+
+1.  最后，按 **Enter** 以创建您的本地克隆。
+    [REGION:note]
+    如果您需要回顾从命令行使用Git，请参阅[GitHub的文档](https://help.github.com/articles/set-up-git/#platform-linux)。
+    [/REGION]
+    
+
+
+### 分段结果
+
+[REGION:lightbox]
+[![](end_result.png)(w:800)](end_result.png)
 [/REGION]
 
-(#goal)
-## 目标
+ *单击显示全图。*
+  
 
-此指南将着重说明如何设置工作流，在装有Linux操作系统的电脑上成功运行UE4。
+无论您是通过在我们的[GitHub site](http://github.com/EpicGames)上使用 **下载ZIP（Download ZIP）** 按钮还是通过使用Git克隆虚幻引擎元库来下载了虚幻引擎的源代码，您都可以通过使用位于硬盘上的虚幻引擎源代码，来在Linux上编译UE4。
 
-(#objectives)
-## 任务
+## 3 - 在Linux上编译UE4
 
-在此教程的学习中，您将了解以下内容：
+为了准备这一关键步骤，您已下载一份虚幻引擎的源代码到您的硬盘上。在本教程的这一部分中，您将从终端运行几个工具，以便在Linux计算机上编译UE4二进制文件。  
+  
+[INCLUDE:Programming/Development/BuildingUnrealEngine#linuxcompile]
 
-* 如何设置Git来下载虚幻引擎的源代码。
-* 如何提交并复制虚幻引擎源代码。
-* 如何从源代码生成虚幻引擎。
-* 如何在 Linux 电脑上运行虚幻引擎。
+### 分段结果
 
-(#steps)
-## 步骤
+![](built_engine.png)  
 
-[DIR(output:"checkpoint" parent:"Platforms/Linux/BeginnerLinuxDeveloper/SettingUpAnUnrealWorkflow" org:"hierarchy")]
+此时，您的硬盘上应该有一个完全编译好的UE4二进制文件。现在是时候在Linux系统上运行引擎了！
 
-[REGION:call_to_action]
-	[点击开始](Platforms/Linux/BeginnerLinuxDeveloper/SettingUpAnUnrealWorkflow/1 "%Platforms/Linux/BeginnerLinuxDeveloper/SettingUpAnUnrealWorkflow/1:title%")
-[/REGION]
+## 4 - 在Linux上运行UE4
+
+在完成最后一步时，您已经将您的Epic Games帐户与您的GitHub用户名关联起来，从我们的GitHub网站下载了虚幻引擎源代码，还在Linux系统上编译了UE4二进制文件。剩下的唯一任务是运行UE4编辑器，以便您可以开始为Linux平台制作游戏。
+
+[INCLUDE:Programming/Development/BuildingUnrealEngine#linuxrun]
+
+### 在Linux上启动UE4
+
+因为您已经在Linux上根据源代码编译了引擎，所以引擎将在启动UE4后编译着色器几分钟。
+
+![](howTo_compilingshaders.png)(w:1200)
+
+### 创建您的第一个项目
+
+如果您还没有建立一个集成开发环境（IDE）来使用UE4，我们建议您从创建一个 **蓝图（Blueprint）** 项目开始。
+
+![](howTo_creatingprrjwithoutIDE.png)(w:1200)
+
+### 分段结果
+
+![](howTo_endResult.png)(w:1200)
+
+如果您要在Linux上创建您的第一个游戏，那么您刚刚了解了如何在Linux上建立UE4主要工作流。在学习本教程的过程中，您了解到：
+
+✓ 如何设置Git来下载虚幻引擎的源代码。  
+✓ 如何fork和克隆虚幻引擎的源代码。  
+✓ 如何根据源代码编译虚幻引擎。  
+✓ 如何在您的Linux计算机上运行虚幻引擎。
+
+您准备好独立地做一些练习了吗？
+
+## 5 - 看你的了！
+
+提高工作效率的一种方法是编写可以从终端运行的自定义shell脚本。如果您知道如何在Linux中编写shell脚本，请尝试编写一个能够自动执行设置和编译UE4进程的脚本。
+
+![](autobuild_onyourown.jpg "autobuild_onyourown.jpg")(w:1200)
+
+如果您想在Linux上追踪UE4的最新开发动态，请阅读[这篇文章](https://www.unrealengine.com/blog/unreal-engine-public-issues-tracker-is-now-available)，并前往[虚幻引擎公开问题追踪库](https://issues.unrealengine.com/)查看影响Linux上UE4的最新公开问题。
+
+![](UE4_publicJira.jpg "UE4_publicJira.jpg")(w:1200)
+
+您是否发现了一个可以解决的公开问题？如果您知道如何使用Git[fork和克隆](http://api.unrealengine.com/INT/GettingStarted/DownloadingUnrealEngine/GitHub/index.html)我们的[元库](https://github.com/EpicGames/UnrealEngine)来提交[拉取请求](https://help.github.com/articles/using-pull-requests/)，请加入我们不断壮大的开发者社区，帮助塑造Linux上的UE4的未来。
+
+![](gitHub_pullrequests.jpg "gitHub_pullrequests.jpg")(w:1200)
+
+如果您想快速开始使用UE4制作项目，请查看以下教程：
+
+*   [美工师快速入门](Engine/Content/QuickStart)
+
+*   [编程快速入门](Programming/QuickStart)
+
+*   [关卡设计师快速入门](Engine/QuickStart)

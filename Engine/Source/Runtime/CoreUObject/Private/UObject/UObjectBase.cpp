@@ -33,9 +33,16 @@ DEFINE_LOG_CATEGORY_STATIC(LogUObjectBootstrap, Display, Display);
 /** Whether uobject system is initialized.												*/
 namespace Internal
 {
-	bool GObjInitialized = false;
+	static bool& GetUObjectSubsystemInitialised()
+	{
+		static bool ObjInitialized = false;
+		return ObjInitialized;
+	}
 };
-
+bool UObjectInitialized()
+{
+	return Internal::GetUObjectSubsystemInitialised();
+}
 
 /** Objects to automatically register once the object system is ready.					*/
 struct FPendingRegistrantInfo
@@ -125,7 +132,7 @@ UObjectBase::~UObjectBase()
 	{
 		// Validate it.
 		check(IsValidLowLevel());
-		LowLevelRename(NAME_None);
+		check(GetFName() == NAME_None);
 		GUObjectArray.FreeUObjectIndex(this);
 	}
 
@@ -207,7 +214,7 @@ void UObjectBase::CreateStatID() const
  */
 void UObjectBase::DeferredRegister(UClass *UClassStaticClass,const TCHAR* PackageName,const TCHAR* InName)
 {
-	check(Internal::GObjInitialized);
+	check(UObjectInitialized());
 	// Set object properties.
 	UPackage* Package = CreatePackage(nullptr, PackageName);
 	check(Package);
@@ -1119,7 +1126,7 @@ void UObjectBaseInit()
 	InitAsyncThread();
 
 	// Note initialized.
-	Internal::GObjInitialized = true;
+	Internal::GetUObjectSubsystemInitialised() = true;
 
 	UObjectProcessRegistrants();
 }
@@ -1130,7 +1137,7 @@ void UObjectBaseInit()
 void UObjectBaseShutdown()
 {
 	GUObjectArray.ShutdownUObjectArray();
-	Internal::GObjInitialized = false;
+	Internal::GetUObjectSubsystemInitialised() = false;
 }
 
 /**

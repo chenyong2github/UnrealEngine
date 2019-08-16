@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3967023
+INTSourceChangelist:3967023
 Availability:Public
 Title:C++ 전용
 Crumbs: %ROOT%, Gameplay, Gameplay/ClassCreation
@@ -203,7 +203,7 @@ LightSwitchCodeOnly.cpp
 	}
 
 [REGION:note]
-`BasicClasses.h` 는 클래스가 구성되어 있는 프로젝트 이름을 레퍼런싱합니다.
+`BasicClasses.h` 는 클래스가 구성되어 있는 프로젝트 이름을 참조합니다.
 [/Region]
 
 빈 프로젝트에 처음 코드 클래스를 추가한 경우, 언리얼 에디터를 닫고, Visual Studio 나 XCode 에서 프로젝트를 컴파일한 다음 언리얼 에디터를 열거나 프로젝트를 다시 열면 게임 모듈이 제대로 

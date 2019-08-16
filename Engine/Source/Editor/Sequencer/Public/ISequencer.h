@@ -92,7 +92,10 @@ enum class ESequencerCommandBindings
 	Sequencer,
 
 	/** Bindings that are shared between Sequencer and non-Sequencer widgets (subset of Sequencer commands). */
-	Shared
+	Shared,
+
+	/** Bindings that are available in the Curve Editor. */
+	CurveEditor
 };
 
 
@@ -239,10 +242,11 @@ public:
 	virtual TArray<FGuid> AddActors(const TArray<TWeakObjectPtr<AActor> >& InActors, bool bSelectActors = true) = 0;
 
 	/**
-	 * Calling this function will add the specified track to the currently selected folder
-	 * if there is one, and will set the newly created track as the current selection.
+	 * Should be called after adding a track to the MovieScene. This will set the specified track as your current selection
+	 * cause it to throb, notify the sequence to rebuild any data required. The track will be added to the selected folder
+	 * unless ObjectBinding points to a valid FGuid.
 	 */
-	virtual void OnAddTrack(const TWeakObjectPtr<UMovieSceneTrack>& InTrack) = 0;
+	virtual void OnAddTrack(const TWeakObjectPtr<UMovieSceneTrack>& InTrack, const FGuid& ObjectBinding) = 0;
 
 	/**
 	 * Adds a movie scene as a section inside the current movie scene
@@ -466,6 +470,9 @@ public:
 
 	/** Gets the currently selected sections. */
 	virtual void GetSelectedSections(TArray<UMovieSceneSection*>& OutSelectedSections) = 0;
+
+	/** Gets the currently selected folders. */
+	virtual void GetSelectedFolders(TArray<UMovieSceneFolder*>& OutSelectedFolders) = 0;
 
 	/** Selects an object by GUID */
 	virtual void SelectObject(FGuid ObjectBinding) = 0;

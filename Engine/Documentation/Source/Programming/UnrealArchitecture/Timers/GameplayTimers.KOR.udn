@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3600525
+INTSourceChangelist:3600525
 Availability:Public
 Crumbs: %ROOT%
 Title: 게임플레이 타이머
@@ -30,7 +30,7 @@ Related: Programming/UnrealArchitecture/Delegates
 
 타이머는 시간 간격이 아니라 다음 프레임에 실행되도록 설정할 수도 있습니다. `SetTimerForNextTick` 를 호출하면 되는데, 이 함수는 타이머 핸들을 채우지 않는다는 점 참고하시기 바랍니다.
 
-타이머를 해제(clear)하려면, `SetTimer` 호출 도중 채워진 `FTimerHandle` 을 `ClearTimer` 라는 `FTimerManager` 함수에 전달하면 됩니다. 이 시점에서 타이머 핸들은 유효하지 않은 상태가 되며, 새로운 타이머 관리를 위해 재사용할 수 있습니다. 기존 타이머 핸들로 `SetTimer` 를 호출하면 그 타이머 핸들에 레퍼런싱된 타이머를 해제하고 새로운 것으로 대체합니다.
+타이머를 해제(clear)하려면, `SetTimer` 호출 도중 채워진 `FTimerHandle` 을 `ClearTimer` 라는 `FTimerManager` 함수에 전달하면 됩니다. 이 시점에서 타이머 핸들은 유효하지 않은 상태가 되며, 새로운 타이머 관리를 위해 재사용할 수 있습니다. 기존 타이머 핸들로 `SetTimer` 를 호출하면 그 타이머 핸들에 참조된 타이머를 해제하고 새로운 것으로 대체합니다.
 
 마지막으로 특정 오브젝트에 연관된 모든 타이머는 `ClearAllTimersForObject` 를 호출하여 해제시킬 수 있습니다.
 

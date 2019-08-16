@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3403467
+INTSourceChangelist:3403467
 Availability: Public
 crumbs:%ROOT%
 Title: UMG 에 폰트 사용
@@ -26,7 +26,7 @@ topic-image:FontsWithUMG_Topic.png
 UMG UI 디자이너에서 사용할 폰트 애셋을 할당하는 방법은 다음과 같습니다.
 
 [REGION:note]
-여기서는 **공백 템플릿** 프로젝트에 **시작용 콘텐츠** 없음, 기본 **타깃 하드웨어** 및 **프로젝트 세팅** 을 사용하고 있습니다.
+여기서는 **기본 템플릿** 프로젝트에 **시작용 콘텐츠** 없음, 기본 **타깃 하드웨어** 및 **프로젝트 세팅** 을 사용하고 있습니다.
 [/REGION]
 
 1. 새 [위젯 블루프린트](Engine/UMG/UserGuide/WidgetBlueprints) 생성을 위해서는, 콘텐츠 브라우저에서 **신규 추가** 버튼을 클릭한 뒤, **유저 인터페이스** 에 커서를 올리고 **위젯 블루프린트** 를 선택합니다.

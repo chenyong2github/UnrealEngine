@@ -38,6 +38,10 @@ namespace Audio
 	void AUDIOMIXER_API MultiplyBufferByConstantInPlace(AlignedFloatBuffer& InBuffer, float InGain);
 	void AUDIOMIXER_API MultiplyBufferByConstantInPlace(float* RESTRICT InBuffer, int32 NumSamples, float InGain);
 
+	/** Adds a constant to a buffer (useful for DC offset removal) */
+	void AUDIOMIXER_API AddConstantToBufferInplace(AlignedFloatBuffer& InBuffer, float Constant);
+	void AUDIOMIXER_API AddConstantToBufferInplace(float* RESTRICT InBuffer, int32 NumSamples, float Constant);
+
 	/* Performs an element-wise weighted sum OutputBuffer = (InBuffer1 x InGain1) + (InBuffer2 x InGain2) */
 	void AUDIOMIXER_API BufferWeightedSumFast(const AlignedFloatBuffer& InBuffer1, float InGain1, const AlignedFloatBuffer& InBuffer2, float InGain2, AlignedFloatBuffer& OutBuffer);
 

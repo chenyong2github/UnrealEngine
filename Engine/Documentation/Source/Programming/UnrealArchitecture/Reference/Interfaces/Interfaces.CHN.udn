@@ -1,84 +1,119 @@
-﻿INTSourceChangelist:2669538
+﻿INTSourceChangelist:3688188
 Availability:Public
-Title:接口
-Crumbs:%ROOT%, Programming, Programming/UnrealArchitecture/Reference
-Description:创建和实现接口的参考。
-Version:4.9
+Title: 接口
+Crumbs:%ROOT%
+Description:创建和实现接口的引用。
+Tags: Programming
+Version: 4.14
+Parent:Programming/UnrealArchitecture/Reference
+Order:
+SkillLevel:Intermediate
+Type:overview
 
 [TOC(start:2)]
 
 
-接口类的声明和常规类的声明非常相似。语法中唯一的主要区别是描述符被传递到 `UINTERFACE` 宏，而非 `UCLASS` 宏。
+接口类有助于确保一组（可能）不相关的类实现一组通用函数。在某些游戏功能可能被大量复杂而不同的类共享的情况下，这非常有用。例如，某个游戏可能有这样一个系统，依靠该系统输入一个触发器体积可以激活陷阱、警告敌人或向玩家奖励点数。这可以通过针对陷阱、敌人和点数奖励器执行“ReactToTrigger”函数来实现。然而，陷阱可能派生自“AActor”，敌人可能派生自专门的“APawn”或“ACharacter”子类，点数奖励可能派生自“UDataAsset”。所有这些类都需要共享功能，但它们没有除“UObject”之外的共同上级。在这种情况下，推荐使用接口。
 
-	UINTERFACE([specifier, specifier, ...], [meta(key=value, key=value, ...)])
-	class ClassName :ParentName
+(#interfacedeclaration)
 
 ## 接口声明
 
-在 .h 文件中（如 `ItemInterface.h`）：
+声明接口类与声明普通的虚幻类相似，但仍有两个主要区别。首先，接口类使用UINTERFACE宏而不是UCLASS宏，且直接从“UInterface”而不是“UObject”继承。
+
+	UINTERFACE([specifier, specifier, ...], [meta(key=value, key=value, ...)])
+	class UClassName : public UInterface
+	{
+		GENERATED_BODY()
+	};
+
+其次，UINTERFACE类不是实际的接口；它是一个空白类，它的存在只是为了向虚幻引擎反射系统确保可见性。将由其他类继承的实际接口必须具有相同的类名，但是开头字母“U”必须改为“I”。
+
+在您的.h文件（例如“ReactToTriggerInterface.h”）中：
 
     #pragma once
 
-    #include "ItemInterface.generated.h"
+    #include "ReactToTriggerInterface.generated.h"
 
     UINTERFACE(Blueprintable)
-    class UItemInterface : public UInterface
+    class UReactToTriggerInterface : public UInterface
     {
-        GENERATED_UINTERFACE_BODY()
+        GENERATED_BODY()
     };
 
-    class IItemInterface
-    {    GENERATED_IINTERFACE_BODY()
+    class IReactToTriggerInterface
+    {    
+		GENERATED_BODY()
 
     public:
-
-        UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category="Item")
-        FItemStruct GetItem() const;
+		/** 对激活该对象的触发器体积做出响应。如果响应成功，返回“真（true）”。*/
+        UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category="Trigger Reaction")
+        bool ReactToTrigger() const;
     };
 
-在 .cpp 文件中（如 `ItemInterface.cpp`）：
+函数可以直接写入.h文件中，且写入操作通常是在函数不执行任何操作时（默认）或者具有诸如返回false、零、空白字符串（或类似内容）等简单行为时执行。更为复杂的函数可以写入.cpp文件中以缩短编译时间，而且系统也支持纯虚拟函数。虽然我们的示例函数很简单而且按理可以写入.h文件中，但是我们选择将其写入.cpp文件中。您的.cpp文件（例如“ReactToTriggerInterface.cpp”）现在应包含以下内容：
 
-    #include "ItemInterface.h"
+    #include "ReactToTriggerInterface.h"
+	
+	bool IReactToTriggerInterface::ReactToTrigger() const
+	{
+		return false;
+	}
 
-    UItemInterface::UItemInterface(const FObjectInitializer& ObjectInitializer) :Super(ObjectInitializer)
-    {
-    }
+“U-prefixed”类不需要构造函数或任何其他函数，而“I-prefixed”类将包含所有接口函数，且此类实际上将被您的其他类继承。
 
-声明包含一个类的标准 C++ 类声明。在标准声明上，描述符（如类说明符和元数据）将被传递到 UINTERFACE 宏。它们用于为被声明的接口创建 UInterface，它可被看作引擎对类的专有表达。而且，GENERATED_UINTERFACE_BODY() 宏必须被放置在类体的最前方。
+[REGION:NOTE]如果您想要让蓝图实现此接口，则需要“Blueprintable”说明符。[/REGION:NOTE]
 
-对于引擎将要识别的接口，必须创建两个类，一个继承自 UInterface 的 UINTERFACE 类、一个纯粹的接口类。
-
-UINTERFACE 需带 U 前缀，因其从 UObject 扩展而来。接口需以 I 为前缀。
-
-如需要蓝图实现此接口，则 `Blueprintable` 说明符为必需。
+(#interfacespecifiers)
 
 ### 接口说明符
 
-[INCLUDE:Programming/UnrealArchitecture/Reference/Interfaces/Specifiers#main(offset:1)]
+| 接口说明符 | 含义 |
+| --- | --- |
+| “BlueprintType” | 将该类公开为可用于蓝图中的变量的类型。|
+| “DependsOn=(ClassName1, ClassName2, ...)” | 所有列出的类都将在该类之前编译。ClassName必须在同一个（或上一个）包中指定一个类。多个依赖性类可以使用以逗号分隔的单个“DependsOn”行来指定，也可以使用单个“DependsOn”行为每个类指定。当一个类使用在另一个类中声明的结构体或枚举时，这一点非常重要，因为编译器只知道它已经编译的类中的内容。|
+| “MinimalAPI” | 仅导致该类的类型信息被导出以供其他模块使用。您可以向该类投射，但不能调用该类的函数（内联方法除外）。对于不需要其所有函数在其他模块中均可供访问的类，通过不导出这些类的所有内容，这可以缩短编译时间。|
 
-## 在 C++ 中实现接口
 
-在 C++ 中声明类时，直接从接口（并非 UInterface 类）进行继承。
+(#implementingyourinterfaceinc++)
 
-    class AItem : public AActor, public IItemInterface
+## 在C++中实现接口
+
+若要在一个新的类中使用您的接口，只需从“前缀为I（I-prefixed）”接口类继承（除了您正在使用的任何基于“UObject”的类）即可。
+
+    class ATrap : public AActor, public IReactToTriggerInterface
     {
         GENERATED_BODY()
 
     public:
-
-        FItemStruct GetItem_Implementation() const;
+        virtual bool ReactToTrigger() const override;
     };
 
-## 确定特定 Actor 是否实现接口
+(#determiningifagivenclassimplementsyourinterface)
 
-为保证 C++ 和实现接口的蓝图类之间的兼容性，使用以下代码：
+## 确定给定的类是否实现了接口
 
-    obj->GetClass()->ImplementsInterface(UItemInterface::StaticClass());
+为了与实现接口的C++和蓝图类兼容，可以使用以下任意一个函数：
+
+    bool bIsImplemented = OriginalObject->GetClass()->ImplementsInterface(UReactToTriggerInterface::StaticClass()); // 如果OriginalObject实现了UReactToTriggerInterface，则bisimplemated将为true。
+	IReactToTriggerInterface* ReactingObject = Cast<IReactToTriggerInterface>(OriginalObject); // 如果OriginalObject实现了UReactToTriggerInterface，则ReactingObject将为非空。
 
 [REGION:note]
-必须使用类的 UInterface 版本确定接口是否已实现。
+尝试在“U为前缀（U-prefixed）”类上使用“投射（Cast）”将失败，而“StaticClass”函数在“I为前缀（I-prefixed）”类中没有实现，将无法编译。
 [/REGION]
+
+(#castingtootherunrealtypes)
+
+## 投射到其他虚幻类型
+
+虚幻引擎的投射系统支持从一个接口投射到另一个接口，或者在适当的情况下，从一个接口投射到一个虚幻类型。
+
+	IReactToTriggerInterface* ReactingObject = Cast<IReactToTriggerInterface>(OriginalObject); // 如果接口被实现，则ReactingObject将为非空。
+	ISomeOtherInterface* DifferentInterface = Cast<ISomeOtherInterface>(ReactingObject); // 如果ReactingObject为非空而且还实现了ISomeOtherInterface，则DifferentInterface将为非空。
+	AActor* Actor = Cast<AActor>(ReactingObject); // 如果ReactingObject为非空且OriginalObject为AActor或AActor派生的类，则Actor将为非空。
+
+(#blueprintimplementableclasses)
 
 ## 蓝图可实现类
 
-如需蓝图实现此节点，必须使用 `Blueprintable` 元数据说明符，接口中的每个函数必须为一个 `BlueprintNativeEvent` 或 `BlueprintImplementableEvent`。否则，实现接口的蓝图类可能无法实现接口的所有方法。
+如果您想要蓝图能够实现此接口，则必须使用“Blueprintable”元数据说明符。蓝图类要覆盖的每个接口函数都必须是“BlueprintNativeEvent”或“BlueprintImplementableEvent”。标记为“BlueprintCallable”的函数仍然可以被调用，但不能被覆盖。您将无法从蓝图访问所有其他函数。

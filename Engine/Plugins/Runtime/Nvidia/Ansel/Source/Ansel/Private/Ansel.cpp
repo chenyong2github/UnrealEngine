@@ -364,31 +364,10 @@ void FNVAnselCameraPhotographyPrivate::DoCustomUIControls(FPostProcessSettings& 
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (bEffectUIAllowed[DepthOfField])
 		{
-			bool bAnyDofVisible =
-				(InOutPPSettings.DepthOfFieldMethod == DOFM_CircleDOF && InOutPPSettings.DepthOfFieldDepthBlurRadius > 0.f) ||
-				(InOutPPSettings.DepthOfFieldMethod == DOFM_CircleDOF && InOutPPSettings.DepthOfFieldDepthBlurAmount > 0.f) ||
-				(InOutPPSettings.DepthOfFieldMethod == DOFM_BokehDOF && InOutPPSettings.DepthOfFieldScale > 0.f)
-				;
+			const bool bAnyDofVisible = InOutPPSettings.DepthOfFieldFstop > 0 && InOutPPSettings.DepthOfFieldFocalDistance > 0;
 
 			if (bAnyDofVisible)
 			{
-				if (InOutPPSettings.DepthOfFieldMethod == DOFM_BokehDOF)
-				{
-					DeclareSlider(
-						control_dofscale,
-						LOCTEXT("control_dofscale", "Focus Scale"),
-						0.f, 2.f,
-						InOutPPSettings.DepthOfFieldScale
-					);
-
-					DeclareSlider(
-						control_doffocalregion,
-						LOCTEXT("control_doffocalregion", "Focus Region"),
-						0.f, 10000.f, // UU
-						InOutPPSettings.DepthOfFieldFocalRegion
-					);
-				}
-
 				DeclareSlider(
 					control_dofsensorwidth,
 					LOCTEXT("control_dofsensorwidth", "Focus Sensor"), // n.b. similar effect to focus scale
@@ -403,23 +382,19 @@ void FNVAnselCameraPhotographyPrivate::DoCustomUIControls(FPostProcessSettings& 
 					InOutPPSettings.DepthOfFieldFocalDistance
 				);
 
-				if (InOutPPSettings.DepthOfFieldMethod == DOFM_CircleDOF)
-				{
-					// circledof
-					DeclareSlider(
-						control_dofdepthbluramount,
-						LOCTEXT("control_dofbluramount", "Blur Distance km"),
-						0.000001f, 1.f, // km; doc'd as up to 100km but that's too coarse for a narrow UI control
-						InOutPPSettings.DepthOfFieldDepthBlurAmount
-					);
-					// circledof
-					DeclareSlider(
-						control_dofdepthblurradius,
-						LOCTEXT("control_dofblurradius", "Blur Radius"),
-						0.f, 4.f,
-						InOutPPSettings.DepthOfFieldDepthBlurRadius
-					);
-				}
+				DeclareSlider(
+					control_dofdepthbluramount,
+					LOCTEXT("control_dofbluramount", "Blur Distance km"),
+					0.000001f, 1.f, // km; doc'd as up to 100km but that's too coarse for a narrow UI control
+					InOutPPSettings.DepthOfFieldDepthBlurAmount
+				);
+
+				DeclareSlider(
+					control_dofdepthblurradius,
+					LOCTEXT("control_dofblurradius", "Blur Radius"),
+					0.f, 4.f,
+					InOutPPSettings.DepthOfFieldDepthBlurRadius
+				);
 			}
 		}
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS

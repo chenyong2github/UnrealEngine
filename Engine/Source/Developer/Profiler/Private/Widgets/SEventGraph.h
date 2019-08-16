@@ -318,7 +318,7 @@ public:
 	const FUIAction SelectAllFrames_Custom() const
 	{
 		FUIAction UIAction;
-		UIAction.ExecuteAction = FExecuteAction::CreateSP( this, &SEventGraph::SelectAllFrames_Execute );
+		UIAction.ExecuteAction = FExecuteAction::CreateSP( const_cast<SEventGraph*>(this), &SEventGraph::SelectAllFrames_Execute );
 		UIAction.CanExecuteAction = FCanExecuteAction::CreateSP( this, &SEventGraph::SelectAllFrames_CanExecute );
 		return UIAction;
 	}
@@ -384,7 +384,7 @@ public:
 	const FUIAction SetRoot_Custom() const
 	{
 		FUIAction UIAction;
-		UIAction.ExecuteAction = FExecuteAction::CreateSP( this, &SEventGraph::SetRoot_Execute );
+		UIAction.ExecuteAction = FExecuteAction::CreateSP( const_cast<SEventGraph*>(this), &SEventGraph::SetRoot_Execute );
 		UIAction.CanExecuteAction = FCanExecuteAction::CreateSP( this, &SEventGraph::SetRoot_CanExecute );
 		return UIAction;
 	}
@@ -405,7 +405,7 @@ public:
 	const FUIAction ClearHistory_Custom() const
 	{
 		FUIAction UIAction;
-		UIAction.ExecuteAction = FExecuteAction::CreateSP( this, &SEventGraph::ClearHistory_Execute );
+		UIAction.ExecuteAction = FExecuteAction::CreateSP( const_cast<SEventGraph*>(this), &SEventGraph::ClearHistory_Execute );
 		UIAction.CanExecuteAction = FCanExecuteAction::CreateSP( this, &SEventGraph::ClearHistory_CanExecute );
 		return UIAction;
 	}
@@ -425,7 +425,7 @@ public:
 	const FUIAction ShowSelectedEventsInViewMode_Custom( EEventGraphViewModes::Type NewViewMode ) const
 	{
 		FUIAction UIAction;
-		UIAction.ExecuteAction = FExecuteAction::CreateSP( this, &SEventGraph::ShowSelectedEventsInViewMode_Execute, NewViewMode );
+		UIAction.ExecuteAction = FExecuteAction::CreateSP( const_cast<SEventGraph*>(this), &SEventGraph::ShowSelectedEventsInViewMode_Execute, NewViewMode );
 		UIAction.CanExecuteAction = FCanExecuteAction::CreateSP( this, &SEventGraph::ShowSelectedEventsInViewMode_CanExecute, NewViewMode );
 		UIAction.GetActionCheckState = FGetActionCheckState::CreateSP( this, &SEventGraph::ShowSelectedEventsInViewMode_GetCheckState, NewViewMode );
 		return UIAction;
@@ -448,7 +448,7 @@ public:
 	const FUIAction FilterOutByProperty_Custom( const FEventGraphSamplePtr EventPtr, const FName PropertyName, const bool bReset ) const
 	{
 		FUIAction UIAction;
-		UIAction.ExecuteAction = FExecuteAction::CreateSP( this, &SEventGraph::FilterOutByProperty_Execute, EventPtr, PropertyName, bReset );
+		UIAction.ExecuteAction = FExecuteAction::CreateSP( const_cast<SEventGraph*>(this), &SEventGraph::FilterOutByProperty_Execute, EventPtr, PropertyName, bReset );
 		UIAction.CanExecuteAction = FCanExecuteAction::CreateSP( this, &SEventGraph::FilterOutByProperty_CanExecute, EventPtr, PropertyName, bReset );
 		return UIAction;
 	}
@@ -469,7 +469,7 @@ public:
 	const FUIAction CullByProperty_Custom( const FEventGraphSamplePtr EventPtr, const FName PropertyName, const bool bReset ) const
 	{
 		FUIAction UIAction;
-		UIAction.ExecuteAction = FExecuteAction::CreateSP( this, &SEventGraph::CullByProperty_Execute, EventPtr, PropertyName, bReset );
+		UIAction.ExecuteAction = FExecuteAction::CreateSP( const_cast<SEventGraph*>(this), &SEventGraph::CullByProperty_Execute, EventPtr, PropertyName, bReset );
 		UIAction.CanExecuteAction = FCanExecuteAction::CreateSP( this, &SEventGraph::CullByProperty_CanExecute, EventPtr, PropertyName, bReset );
 		return UIAction;
 	}
@@ -489,7 +489,7 @@ public:
 	const FUIAction HistoryList_GoTo_Custom( int32 StateIndex ) const
 	{
 		FUIAction UIAction;
-		UIAction.ExecuteAction = FExecuteAction::CreateSP( this, &SEventGraph::HistoryList_GoTo_Execute, StateIndex );
+		UIAction.ExecuteAction = FExecuteAction::CreateSP( const_cast<SEventGraph*>(this), &SEventGraph::HistoryList_GoTo_Execute, StateIndex );
 		UIAction.CanExecuteAction = FCanExecuteAction();
 		UIAction.GetActionCheckState = FGetActionCheckState::CreateSP( this, &SEventGraph::HistoryList_GoTo_GetCheckState, StateIndex );
 		return UIAction;
@@ -522,7 +522,7 @@ public:
 	const FUIAction SetExpansionForEvents_Custom( const ESelectedEventTypes::Type SelectedEventType, bool bShouldExpand ) const
 	{
 		FUIAction UIAction;
-		UIAction.ExecuteAction = FExecuteAction::CreateSP( this, &SEventGraph::SetExpansionForEvents_Execute, SelectedEventType, bShouldExpand );
+		UIAction.ExecuteAction = FExecuteAction::CreateSP( const_cast<SEventGraph*>(this), &SEventGraph::SetExpansionForEvents_Execute, SelectedEventType, bShouldExpand );
 		UIAction.CanExecuteAction = FCanExecuteAction::CreateSP( this, &SEventGraph::SetExpansionForEvents_CanExecute, SelectedEventType, bShouldExpand );
 		return UIAction;
 	}

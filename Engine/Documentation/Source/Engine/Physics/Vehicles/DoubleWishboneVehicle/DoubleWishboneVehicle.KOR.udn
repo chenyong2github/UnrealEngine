@@ -1,11 +1,12 @@
-﻿INTSourceChangelist:4649792
+INTSourceChangelist:6411601
 Availability:Public
 Title:더블 위시본 서스펜션 비히클 만드는 법
-Crumbs:%ROOT%, Engine, Engine/Physics
+Parent: Engine/Physics/Vehicles
 Description: 언리얼 엔진 4 에서 더블 위시본 서스펜션 차량을 구성하는 방법에 대한 설명입니다.
 Navigation:topic
 SkillLevel: Advanced
 Version: 4.9
+Order:3
 
 [TOC (start:2)]
 
@@ -159,7 +160,7 @@ _보이는 휠의 위치를 잡고, 샥 컴포넌트를 조절합니다._
 
 ## PhAT
 
-프로토타입의 피직스 애셋 구성은 표준 비히클 템플릿과 대체적으로 비슷하되 약간의 예외는 있습니다. 가장 명확한 차이점이라면 안테나를 이루는 다수의 작은 구체형 바디이며, 보다 중요한 부분은 주요 비히클 프레임을 둘러싼 커스텀 콜리전 모양입니다.
+프로토타입의 피직스 애셋 구성은 표준 비히클 템플릿과 대체적으로 비슷하지만 약간의 예외는 있습니다. 가장 명확한 차이점이라면 안테나를 이루는 다수의 작은 구체형 바디이며, 보다 중요한 부분은 주요 비히클 프레임을 둘러싼 커스텀 콜리전 모양입니다.
 
 ![](phat_1.png)
 

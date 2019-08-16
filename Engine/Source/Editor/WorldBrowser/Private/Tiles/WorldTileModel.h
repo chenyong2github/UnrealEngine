@@ -32,7 +32,7 @@ public:
 		FORCEINLINE bool operator()(const TSharedPtr<FLevelModel>& A, 
 									const TSharedPtr<FLevelModel>& B) const
 		{
-			return A->GetLongPackageName() < B->GetLongPackageName();
+			return A->GetLongPackageName().LexicalLess(B->GetLongPackageName());
 		}
 	};
 

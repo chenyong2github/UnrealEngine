@@ -4,7 +4,6 @@ Crumbs:%ROOT%
 Description:Index of all pages in the Unreal Engine documentation
 parent:%ROOT%
 order:1000
-Template:DefaultSiteMap.html
 
 [OBJECT:Expander]
 	[PARAMLITERAL:id]

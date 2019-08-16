@@ -14,7 +14,7 @@ import java.util.Set;
 
 public final class NetworkChangedManager {
 
-	private static final Logger Log = new Logger("UE4-NetworkChangedManager");
+	private static final Logger Log = new Logger("UE4", "NetworkChangedManager");
 	private static final String SYSTEM = "NetworkManager";
 	private static final String COMPONENT = "ConnectivityManager";
 	private static final String ACTION_ERROR = "InstanceNotAvailable";
@@ -36,6 +36,12 @@ public final class NetworkChangedManager {
 	}
 
 	public void initNetworkCallback(@NonNull Context context) {
+		if (android.os.Build.VERSION.SDK_INT < 21)
+		{
+			// unsupported before Lollipop
+			return;
+		}
+
 		ConnectivityManager connectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
 		if (connectivityManager != null) {
 			NetworkRequest.Builder builder = new NetworkRequest.Builder();

@@ -1,0 +1,34 @@
+INTSourceChangelist:6536090
+Availability:Public
+Title: 언리얼 스튜디오
+Description:차량, 항공, 건축, 소비자 가전, 복합 데이터 시각화 앱에 사용되는 언리얼 엔진입니다.
+Crumbs:%ROOT%,
+version:4.19
+Parent:%ROOT%
+tags:Studio
+type:landing
+Order: 7
+topic-image:Enterprise_Topic.png
+topic-icon:%ROOT%/enterprise_icon.png
+hero-image:Enterprise_Hero.png
+
+
+언리얼 엔진과 그 **실시간** 상호작용 및 렌더링 능력은 차량, 항공, 건축, 소비자 가전, 복합 데이터 시각화와 같은 폭넓은 분야의 다양한 엔터프라이즈 앱에 적합합니다.
+
+
+## 시작하기
+
+[DIR(output:"topic" org:"hierarchy" parent:"Studio" tags:"Getting Started" end:"1")]
+
+## 언리얼 스튜디오 툴
+
+%Studio/Datasmith:topic%
+%Engine/Editor/ScriptingAndAutomation/Python:topic%
+
+## 언리얼 스튜디오 릴리즈 노트
+
+[DIR(output:"topic" org:"hierarchy" parent:"Studio/Builds" end:"1")]
+
+## 추가 콘텐츠 자료
+
+%Studio/Automotive/AutomotiveMaterialPack:topic%

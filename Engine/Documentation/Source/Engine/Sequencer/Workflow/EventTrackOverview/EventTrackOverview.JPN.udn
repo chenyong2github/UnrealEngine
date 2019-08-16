@@ -1,0 +1,189 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Crumbs: 
+Title: Event Track Overview
+Description: Describes the features available when using Sequencers Event Track to fire off Events. 
+Type: 
+Version: 4.21
+Parent: Engine/Sequencer/Workflow
+Order: 
+Tags: Sequencer
+Tags: Event Track
+
+
+With **Event Tracks**, you can define points in your cinematic where you want to execute some form of scripted functionality. Perhaps in your cinematic, you want to unlock a chest for a player to receive items they can collect. Or maybe you want to spawn in some particle effects that surround your player. Whatever your case may be, Event Tracks can be used to fire a single keyed Event or section of Events that repeat every frame. 
+
+This page outlines some of the features available, and underlying systems tied to working with Event Tracks in Sequencer. 
+
+## Adding Events
+
+To add an **Event Track** inside a Sequence, click the **\+ Track** button and select **Event Track**.   
+
+![](AddingAnEventTrack.png "AddingAnEventTrack.png")
+
+After adding the Event Track, you can then add a Section or single keyframe as an Event at the specified frame in your Sequence.   
+
+![](AddedKeyframeType.png "AddedKeyframeType.png")
+
+After adding an Event, you can then script functionality for that Event using a **Director** Blueprint.
+
+[REGION:note]
+Please see the [Calling Events through Sequencer](Engine/Sequencer/HowTo/TracksEvent) How-to for a step-by-step guide to creating and using the Event Track.
+[/REGION]
+
+## Director Blueprints
+
+The **Director **Blueprint is any [Blueprint](Engine/Blueprints) type that a given Sequence can use to direct its playback and generate the necessary byte code for triggering Events (below, a **Level Sequence Director** Blueprint is depicted). 
+
+[REGION:lightbox]
+[![](DirectorBlueprint.png)(w:900)](DirectorBlueprint.png)
+[/REGION]
+[REGION:caption]
+Click image for full view.
+[/REGION]
+
+  
+In the Director Blueprint, you can provide the scripted functionality you want to occur for a given target (or targets). You can also use the Director Blueprint to call a [Blueprint Interface](Engine/Blueprints/UserGuide/Types/Interface) that other Blueprints implement and execute when getting the call.  
+
+In order to support Events for a given Sequence type, the Event must define how to interact with its Director. This is achieved through an editor-only **Movie Scene Sequence Editor** which is registered per-Sequence type. Each Sequence type may define its own kinds of Director Blueprint. 
+
+For example: 
+
+*   **Level Sequence Event** \- creates its own Level Sequence Director and generated class. 
+*   **Widget Animation Event** \- uses the [Widget Blueprint](Engine/UMG/UserGuide/WidgetBlueprints) that owns the animation. By extension, all animations for a given Widget will use the same Director (the Widget instance itself). 
+*   **Actor Sequence Event** \- uses either the owing Blueprint, or the Level Blueprint if the Actor Sequence exists as a raw instanced component. 
+
+[REGION:note]
+As of 4.21, Director Blueprints are not supported with [Control Rigs](Engine/Animation/ControlRig).
+[/REGION]
+
+Where sub-Sequences exist, Director instances will be created for all sub-Sequences that attempt to use their Director instance. Additionally, Director instances are created on-demand (by the Event Track) and are not Assets that are accessed through the **Content Browser** (however, this may change in future iterations). 
+
+The Director Blueprint is opened automatically when an **Event Endpoint** has been created or accessed from an Event Track's defined key or section. 
+
+## Event Endpoints
+
+An **Event Endpoint** grants access to the associated Director Class Blueprint and is created automatically when double-clicking on a key or repeater section of an Event Track. You can also right-click on a key or repeater section and create new Endpoints through the **Properties** option in the context menu.   
+
+![](CreatingAnEndPoint.png "CreatingAnEndPoint.png")
+
+Newly created Endpoints will attempt to define a sensible default pin for the Endpoint (of the object binding's type for instance), however, this can be changed or removed.   
+
+![](EndpointOutPin.png "EndpointOutPin.png")
+
+Endpoints may have either 0 or 1 pins. When no pins are specified, the Event will always be triggered regardless of whether any valid object is specified for that Event or not (this is the default for **Master Tracks** without **Event Receivers**). When a single object or interface pin is present, the Event will be triggered once per bound object provided the object is of the correct type or implements the interface. All other function signatures are incompatible with Sequencer Events, and will fail to trigger. 
+
+The Event properties section also provide options for binding to an existing compatible function, or quickly auto-wiring a new Endpoint to a Blueprint callable function on the target class.   
+
+![](EndPointBindings.png "EndPointBindings.png")
+
+Above, we have some **Exisiting** Endpoints we could bind to called **Disable HUD** or **Enable AI**, or we can create a **Quick Binding** to a Blueprint callable function such as resetting Anim Dynamics on a Skeletal Mesh. Once we have assigned an Event Endpoint, double-click on the Event or click on the magnifying glass icon in the properties menu to browse directly to the definition of that Event.
+
+### Endpoints and Interfaces
+
+When defining an Endpoint in a Director Blueprint, you can implement a **Blueprint Interface** to communicate with varying Blueprints or even the **Level Blueprint**. Below we have an Event and Endpoint created. We also implemented a Blueprint Interface through the **Class Settings** option. 
+
+![](Interface_01.PNG "Interface_01.PNG")
+
+When we execute the message call for our sample function, any Blueprints that implement the Interface (including the **Level Blueprint** depicted below) will execute their associated Events. 
+
+![](Interface_02.PNG "Interface_02.PNG")
+
+Above, our **Level Blueprint** gets the call from the Interface to execute a **Print String**, printing text to the screen. 
+
+[REGION:note]
+Please see the [Blueprint Interface](Engine/Blueprints/UserGuide/Types/Interface) documentation for more information.
+[/REGION]
+
+## Event Targets
+
+Several different options exist for defining what targets Events should be triggered on. Some of these remain supported for legacy and consistency reasons. When multiple targets are specified for a single Event, the Event will be triggered multiple times for each one.  
+  
+Please refer to each section below for the available target types and additional information on each. 
+
+### Event Receivers
+
+An **Event Receiver** enables you to define a list of object bindings on which to trigger the Events in the track. When empty, Events will trigger in the default Event contexts for the playback environment (such as the Level Blueprint, or Widget).   
+  
+You can assign an **Event Receiver** from the Event Track's properties menu by right-clicking on the **Event Track** in the **Tracks** window.   
+
+![](EventReciever_RightClick.png "EventReciever_RightClick.png")
+
+Clicking the **+** sign next to **Event Receivers** enables you to specify an object binding from the Sequence hierarchy (even on parents or children). 
+
+![](AssignedEventReciever.png "AssignedEventReciever.png")
+
+Above we select **ThirdPersonCharacter** as the object binding. Since we assigned an Event Receiver, when we add an Event Endpoint, we know what the target object will be and can therefore access or execute any script on that object. 
+
+![](ChangeTargetType-1.png "ChangeTargetType-1.png")
+
+Above, we change the Target pin type to **ThirdPersonCharacter** Object Reference. When this Event is executed, Sequencer will internally perform a [cast](Engine/Blueprints/UserGuide/CastNodes) to confirm the Object Type matches and not invoke if it fails. If there is a match, you can then access the properties, components, or call any functions or script on the Object. 
+
+[REGION:note]
+Event Receivers affect all Event sections within the Track and honors binding overrides.
+[/REGION]
+
+### Object Bindings
+
+In addition to adding an Event Track to your Sequence, you can add Event Tracks to existing objects in your Sequence hierarchy. This creates an **Object Binding** for the Event Track where the target object of the Event Endpoint becomes bound to the object the Event Track has been added to. 
+
+[REGION:note]
+Object Bindings are bound to the Event Endpoint only if no Event Receivers are assigned to the Track.
+[/REGION]
+
+For example, below we have added a Character Blueprint to our Sequence. We then add the Skeletal Mesh to the Sequence, followed by the Anim Blueprint Instance that is assigned to the Skeletal Mesh. For the Anim Blueprint track, we add an Event Track. 
+
+![](ObjectBinding_01-1.PNG "ObjectBinding_01-1.PNG")
+
+When we add a keyframe for an Event and assign an Event Endpoint, under the **Quick Bindings** section, we get access to function calls that are related to Anim Blueprints. 
+
+![](ObjectBinding_02-1.PNG "ObjectBinding_02-1.PNG")
+
+Using a Quick Binding, the associated Director Blueprint is automatically set up. Below we bind to the **Reset Dynamics** function call.   
+
+![](ObjectBinding_03-1.PNG "ObjectBinding_03-1.PNG")
+
+### Additional Event Recievers
+
+You can assign **Additional Event Receivers** through the **Details** panel of a **Level Sequence Actor**. 
+
+![](AdditionalEventReceivers.PNG "AdditionalEventReceivers.PNG")
+
+This allows Event Contexts to be specified in addition to the Level Script Actor, by adding a user-defined set of Actors from the world. In the image above, we assign the ThirdPersonCharacter that exists within our Level. This gives us a context when calling an Event and a target when defining the Event Endpoint as depicted below where we instruct the mesh associated with a character to simulate physics and change the collision profile. 
+
+![](SimulateExample.png "SimulateExample.png")
+
+## Event Section Types
+
+Event Tracks support individual keyed Events as well as Sections:
+
+*   **Trigger Sections** \- Defines a channel of Events that can each have their own Endpoint (or share the same one). Events are triggered as they are traversed during evaluation.
+*   **Repeater Sections** \- Define a single Event (and Endpoint) that will be triggered every time it's evaluated.  
+    
+
+You can add an Event Section by clicking the **Section** button on an Event Track and choosing your desired type.   
+
+![](Section_01_update.png "Section_01_update.png")
+
+Trigger Sections are useful for grouping together several keyed Events as you move the section (along with all keys) around more easily in your Timeline.  Below we have a Trigger Section with two keyframes. We can grab the Trigger Section and move it around along our Timeline to a position we desire, keeping the amount of frames between each Event intact as we move. 
+
+![](TriggerSection_01.PNG "TriggerSection_01.PNG")
+
+Repeater Sections will fire the assigned Event and Endpoint every frame for the duration of the section.   
+
+![](RepeaterSection.PNG "RepeaterSection.PNG")
+
+Above, we have a Repeater Section from frame 30 to frame 75 called **Print String Event**. This event will print text to the screen every frame for our specified frame range. Repeater Sections are useful for situations where you need an Event to be fired every frame for a specified duration of your Sequence. 
+
+## Frequently Asked Questions
+
+Below are some questions that may arise when working with Event Tracks in Sequencer: 
+
+*   **How do I trigger an event on the Level Blueprint?**
+    *   With a Master Track in a Level Sequence and a Blueprint Interface on the Level Blueprint, changing the pin type to the Blueprint Interface, and calling the Blueprint Interface function from the Endpoint. 
+*   **How do events trigger for bindings with multiple objects?**
+    *   The Event Endpoint is invoked for each bound object that can be cast to the pin type.
+*   **What does the pin-type represent on Event Endpoints?**
+    *   When on an object binding, the object will be cast to the pin type, and only invoked if the object matches. When on a Master Track, the Event is invoked if the Level Blueprint matches the pin type.
+*   **How do I trigger events in UMG?**
+    *   In exactly the same way as Level Sequences - the Widget itself is the context for Master Event Tracks. The bound-Widget is the context for Event Tracks on object bindings.

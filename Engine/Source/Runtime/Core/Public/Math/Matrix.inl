@@ -267,6 +267,15 @@ inline FMatrix FMatrix::InverseFast() const
 	{
 		ErrorEnsure(TEXT("FMatrix::InverseFast(), trying to invert a NIL matrix, this results in NaNs! Use Inverse() instead."));
 	}
+	else
+	{
+		const float	Det = Determinant();
+
+		if (Det == 0.0f || !FMath::IsFinite(Det))
+		{
+			ErrorEnsure(TEXT("FMatrix::InverseFast(), trying to invert a non-invertible matrix, this results in NaNs! Use Inverse() instead."));
+		}
+	}
 #endif
 	FMatrix Result;
 	VectorMatrixInverse( &Result, this );

@@ -184,6 +184,7 @@ private:
 #endif // WITH_EDITOR
 
 private:
+
 	/**
 	 * Callback function to show the DefaultTexture
 	 */
@@ -202,10 +203,14 @@ private:
 	 */
 	void RefreshLensDisplacementMap();
 	
+public:
+
+#if WITH_EDITOR
 	/**
 	 * Create other assets required for a MediaBundle to work. Used for duplication and factory
 	 */
-	void CreateInternalsEditor();
+	TArray<UPackage*> CreateInternalsEditor();
+#endif
 	
 public:
 
@@ -215,6 +220,6 @@ public:
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	friend class UMediaBundleFactoryNew;
 #endif
+	//~ End UObject interface
 };

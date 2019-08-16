@@ -8,10 +8,7 @@ parent:Engine
 order:17
 tags:Performance and Profiling
 topic-image:performance_topic.png
-
-[REGION:banner]
-![Performance Profiling](ppe_landing_banner.png)
-[/REGION]
+hero-image: ppe_landing_banner.png
 
 
 [EXCERPT:Intro]

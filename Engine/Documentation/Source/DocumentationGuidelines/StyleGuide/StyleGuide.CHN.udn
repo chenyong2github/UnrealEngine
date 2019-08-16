@@ -1,313 +1,345 @@
-﻿INTSourceChangelist:2601055
+INTSourceChangelist:3108692
 Availability:Docs
-Title:Epic Games 文档风格指引
+Title:Epic Games文档风格指南
 Crumbs:DocumentationGuidelines
-Description:虚幻引擎 4 的文档风格指引
+Description:为虚幻引擎4创建文档的风格指南。
 
 [TOC(start:2)]
 
-## Documentation Policies
+(#documentationpolicies)
+## 文档策略
 
-### Document Location and Naming
+(#documentlocationandnaming)
+### 文档位置和命名
 
-Documentation source files are stored in Perforce in the Engine/Documentation/Source folder as .udn files. The filename must include a language code specifying what language the document is written in. The file name should be descriptive of the document's contents.
-Documents are stored one file per folder making the directory path the identifier for the document. Take care in naming the folders so they are descriptive and intuitive. Try not to duplicate elements in the folder names making up the paths. Duplication in the actual document name is acceptable, and generally preferred.
+文档源文件作为.udn文件存储在Perforce中的Engine/Documentation/Source文件夹中。文件名必须包含一个语言代码，指定用来编写文档的语言。文件名应当是对文档内容的描述。
+文档的存储方式是每个文件一个文件夹，这样文档的目录路径更具辨识度。在命名文件夹时务必谨慎，名称应当含义明确，清楚直观。尽量不要在文件夹名称中使用重复元素来构成路径。实际文档名称重复是可以接受的，而且通常倾向于使用重复名称。
 
-| Good | Bad |
+| 好示例 | 差示例 |
 | --- | --- |
 | Materials/Editor/UserGuide | Materials/MaterialEditor/MaterialEditorUserGuide |
 
-For example, the English language version of the **Unreal Editor User Guide** document is named `UnrealEditorUserGuide.INT.udn` and is stored in the `Editor/UserGuide` directory.
+例如，英语版本的 **虚幻编辑器用户指南** 文档命名为`UnrealEditorUserGuide.INT.udn`，并存储在`Editor/UserGuide`目录中。
 
-In the same way, redundancy should be avoided in the titles of pages whenever possible. As an example, imagine a **Getting Started** section that contains a **Content** section which in turn contains a **Materials** page. In isolation, each of these pages might end up named:
+同样，仅可能避免页面标题冗长繁琐。例如，想象一个 **开始** 部分，其中包含一个 **内容** 部分，后者又包含一个 **材质** 页面。其中每一个页面最后可能都采用如下命名：
 
-* Getting Started with Unreal Engine
-* Getting Started with Content Development
-* Getting Started with Material Creation
-
-
-These names are all perfectly fine, but become redundant when viewed side by side. This is especially problematic when it comes to the breadcrumbs displayed at the top of the page as each of these names will be displayed in succession. It would be much better to use variety in the names so that the name is still descriptive of the page's content, but not redundant when compared to each other.
-
-### Content Chunking
-
-There is often a tendency to lump too much content into a single page. It is better to break the content up into logical chunks and keep individual pages to more reasonable and easily digestible sizes.
-
-An example of this might be the topic of _BlendSpaces_ in Animation. Everything about _BlendSpaces_ - creating them, editing them, using them in Vim Blueprints, etc. - could be put into a single page, but it is preferable to break each of those sub-topics off into their own pages with a general overview page as their parent:
-
-* Blendspaces
-	* Creating Blendspaces
-	* Editing Blendspaces
-	* Using Blendspaces
+* 开始虚幻引擎之旅
+* 开始内容开发之旅
+* 开始材质创建之旅
 
 
-### Identity and Branding
+这些名称完全没有问题，但并排查看就显得冗长。这尤其是在页面顶部以面包屑形式显示时，这些名字会连续显示，这个问题就尤为明显。如果在名称中使用多种变化会更加有用，这样名称仍能描述页面内容，但彼此对比起来不会显得冗余。
 
-The names of companies, the engine, games, etc. should be consistent throughout every document. The proper spelling, capitalization, numbering, and punctuation for these are provided below.
+(#contentchunking)
+### 内容分块
+
+大家往往容易在一页中塞入过多的内容。最好将内容按照逻辑划分成多个块，让各个页面保持合理大小，便于理解。
+
+比如，动画中的_混合空间_主题。关于_混合空间_的所有内容都可以放在一页当中，如创建、在Vim蓝图中使用等，但最好将这些子主题拆分成独立页面，并以一般概述页面作为其父级：
+
+* 混合空间
+	* 创建混合空间
+	* 编辑混合空间
+	* 使用混合空间
+
+
+(#identityandbranding)
+### 身份和品牌
+
+公司、引擎、游戏等名称应当在所有文档中保持一致。下文提供了这些名称的正确拼写、大小写、编号和标点。
 
 * Epic Games, Inc.
-* Unreal Engine 3/Unreal Engine 4
-* Gears of War/Gears of War 2/Gears of War 3
-* Infinity Blade/Infinity Blade 2/Infinity Blade 3
-* Fortnite
+* 虚幻引擎3/虚幻引擎4
+* 战争机器/战争机器2/战争机器3
+* 无尽之剑/无尽之剑2/无尽之剑3
+* 堡垒之夜
 
 
 [REGION:note]
-Only use short names (UE3/UE4/GoW/IBD) after previously defining them on the page, e.g. Unreal Engine 4 (UE4).
+在页面上定义后仅使用简短名称（UE3/UE4/GoW/IBD），如虚幻引擎4（UE4）。
 [/REGION]
 
-### Types
+(#types)
+### 类型
 
-When discussing data types - class names, asset types, etc. - always use the correct capitalization to match the type definition. This helps to avoid confusion between a specific type within Unreal Engine and more generic usage of certain words. Also, use italic text with these names to denote they are special.
+在讨论数据类型——类名、资源类型等——时，始终使用正确的大小写来匹配类型定义。这有助于区分虚幻引擎中的特定类型和某些词语的泛指使用。此外，让这些名称使用斜体来表示它们是有特殊意义的。
 
-For example:
+例如：
 
-| Correct | Incorrect |
+| 正确 | 不正确 |
 | ------- | --------- |
 | _Actor_ | actor |
 | _Material_ | material |
-| _StaticMesh_ or _Static Mesh_ | staticmesh or static mesh |
-| _ParticleSystem_ or _Particle System_ | particlesystem or particle system |
+| _StaticMesh_或_Static Mesh_ | staticmesh或static mesh |
+| _ParticleSystem_或_Particle System_ | particlesystem或particle system |
 
-### UI Elements
+(#uielements)
+### UI元素
 
-Specific parts of the user interface, such as the **Content Browser** or **Scene Outliner**, should use appropriate capitalization and be displayed in bold.
+用户界面的特定部分，如 **内容浏览器** 或 **场景大纲视图** 应使用适当的大小写，并显示为粗体。
 
 [REGION:tip]
-	Some panels are referred to by their names with "panel" following - the **Details** panel, for example - but the "panel" portion is not capitalized or emboldened. The only exception to this would be if "Panel" was displayed in the UI as part of the name of a window, panel, or other part of the interface.
+	某些面板用名称加“面板”来指代，例如 **细节** 面板，但“面板”二字无需大写或加粗。这里唯一例外的情况是，在UI中显示“面板”作为窗口、面板或其他界面部分的一部分。
 [/REGION]
 
-| Correct | Incorrect |
+| 正确 | 不正确 |
 | ------- | --------- |
-| **Content Browser** | Content Browser or **content browser** |
-| **Scene Outliner** | Scene outliner or **scene outliner** 
-| **Details** panel | Details panel or **Details Panel** |
+| **Content Browser** | Content Browser或 **content browser** |
+| **Scene Outliner** | Scene outliner或 **scene outliner** 
+| **Details** panel | Details panel或 **Details Panel** |
 
-## Grammar and Punctuation
+(#grammarandpunctuation)
+## 语法和标点
 
-### Spacing between sentences
+(#spacingbetweensentences)
+### 句子间隔
 
-Only one space is necessary between consecutive sentences.
+连续句子之间只需要一个空格。
 
-### Commas with Series
+(#commaswithseries)
+### 列举用逗号
 
-Series of items separated by commas should always use a comma preceding the last item in the series. While it is technically valid to leave off the last comma, always using it leaves no room for confusing whether items are separate or part of a set.
+用逗号分隔的一连串列举项始终在最后一项前面使用一个逗号。虽然严格来说可以省略最后一个逗号，但始终使用一个逗号有助于避免模棱两可，让读者不清楚这些项是独立的还是作为一个整体。
 
-| Clear | Ambiguous |
+| 清楚明确 | 模棱两可 |
 | --- | --- |
 | This, that and those, them, and the other one | This, that and those, them and the other |
 
-## Formatting and Layout
+(#formattingandlayout)
+## 格式和布局
 
-### Metadata
+(#metadata)
+### 元数据
 
-All documentation pages are required to have the following metadata:
+所有文档页面都必须有以下元数据：
 
-* Title - the title of the document; displayed in the title bar of the browser and as the level 1 page heading.
-* Crumbs - comma separated list of paths to form navigation hierarchy. Each page can have any number of Crumbs metadata entries.
-* Description - a short summary; displayed on search results pageMetadata is stored at the top of all source documents as key:value pairs, one per line.
-
-
-### Headings
-
-Major sections within a document should be denoted using headings (level 2 through 6). 
-
-Headings should always have some text or other content following them before any subheadings. If a heading does not warrant content, consider removing it and reorganizing.
-
-Do not skip levels of headings within the document. For instance, a level 4 heading should never follow a level 2 heading.
-
-#### Page Titles
-
-The page title is inserted into pages automatically and is always denoted using the level 1 heading. This should be the only level 1 heading in any document. Never use a level 1 heading for sections within the document.
-
-#### Capitalization of Headings
-
-Headings should use initial capital letters for all words other than conjunctions (and, or, etc.) and prepositions (to, of, on, etc.). We capitalize all headings the same and rely on proper styling of the different heading levels to distinguish them. 
-
-### Lists
-
-Lists can be ordered, unordered, or definition lists. Unordered lists should always be used for items where the order is not important. Sequential instructions, such as tutorials, should always use ordered lists. Defining specific terms should make use of definition lists.
-
-#### Unordered Lists
-
-Unordered lists should always be created using the '* ' syntax. This makes it immediately obvious when viewing the source where lists are present.
-
-	* unordered item 1
-	* unordered item 2
-	* unordered item 3
-	* unordered item 4
-
-* unordered item 1
-* unordered item 2
-* unordered item 3
-* unordered item 4
+* Title——文档的标题；显示在浏览器的标题栏中，作为1级页面标题。
+* Crumbs——以逗号分隔的路径列表，形成导航层级。每个页面都有任意数量的Crumbs元数据条目。
+* Description——简短摘要；显示在搜索结果页面上。元数据以key:value对形式存储在所有源文档顶部，一行一对。
 
 
-While using the '- ' or '+ ' syntax is valid for creating lists, we want to keep uniformity in all documents.
+(#headings)
+### 标题
 
-#### Ordered Lists
+文档中的主要部分应当使用标题表示（2级到6级）。 
 
-Ordered can be created by starting a line with any number followed by a period. It is natural to want to number the items 1, 2, 3, 4, 5, etc.; however, each item in an ordered list should always be created using the '1.' syntax.
+标题后面应始终有一些文本或其他内容，但需放在任何副标题前面。如果标题不能具体指代内容，请考虑将其移除并重新组织。
 
-	1. First item
-	1. Second item
-	1. Third item
-	1. Fourth item
+不要在文档中跳过标题级别。例如，4级标题一定不可以紧跟在2级标题后面。
 
-1. First item
-1. Second item
-1. Third item
-1. Fourth item
+(#pagetitles)
+#### 页面标题
+
+页面标题会自动插入到页面中，始终使用1级标题表示。在任意文档中，都应该只有这一个1级标题。不要对文档中的其他部分使用1级标题。
+
+(#capitalizationofheadings)
+#### 标题大小写
+
+在标题中，除了连词（and、or等）和介词（to、of、on等），其他单词都应该首字母大写。所有标题都采用相同的大小写方式，不同的标题级别采用正确的样式来加以区分。 
+
+(#lists)
+### 列表
+
+列表可以是有序列表、无序列表或定义列表。无序列表应始终用于顺序并不重要的项。教程等有顺序的说明应始终使用有序列表。定义特定术语应使用定义列表。
+
+(#unorderedlists)
+#### 无序列表
+
+无序列表应始终使用“* ”语法定义。在查看存在列表的源代码时，就可以一目了然的看到这一点。
+
+	* 无序项目 1
+	* 无序项目 2
+	* 无序项目 3
+	* 无序项目 4
+
+* 无序项目 1
+* 无序项目 2
+* 无序项目 3
+* 无序项目 4
 
 
-This makes it easy to insert and reorder the items without needing to worry about the numbering.
+虽然使用“- ”或“+ ”语法对于创建列表是有效的，我们想要在所有文件档中保持统一。
 
-#### Defining Items
+(#orderedlists)
+#### 有序列表
 
-When defining terms, use definition lists.
+要创建有序列表，可以用任意数字后跟一个句点来作为一行的开头。按照1、2、3、4、5等对项目编号是很自然的做法；但是，有序列表中的每个项应始终使用“1.”语法创建。
 
-Note: For descriptions of properties, menu options, toolbar buttons, etc., tables should be used. See Tables for more information.
+	1.第一项
+	1.第二项
+	1.第三项
+	1.第四项
 
-### Text Effects
+1. 第一项
+1. 第二项
+1. 第三项
+1. 第四项
 
-#### Bold and Italics
 
-Bold or strong text should always use the '**' syntax as opposed to the '__' version:
+这样便于插入和对项目重新排序，而不必担心编号问题。
 
-**bold text**
+(#definingitems)
+#### 定义项目
 
-Italic or emphasized text should use the '_' syntax as opposed to the '*' version:
+在定义术语时，使用定义列表。
 
-_emphasized text_
+注意：对于属性、菜单选项、工具栏按钮等描述，应使用表格。详见“表格”部分。
 
-When creating bold, italic text, the syntax should be '**_' and '_**':
+(#texteffects)
+### 文字效果
 
-**_bold emphasized text_**
+(#boldanditalics)
+#### 加粗和斜体
 
-By keeping with these conventions, there will never be any question about what the intentions of the writer were. It would be very easy for a * or _ to be left off when trying to create bold text or to accidentally add a double ** or __ when meaning to create italic text. If we know that using ** is always bold and _ is always italic, there is no question what formatting the writer meant to add.
+粗体或加粗文本应始终使用“**”语法，相对应的是“__”版本：
 
-### Notes, Tips, Warnings, and Quotes
+**加粗文本**
 
-Special information in the form of notes, tips, or warnings should be set off from other content using the containers for these items. A `<div>` element using the note, tip, or warning class will automatically create a colored box with a special icon around the information within the `<div>`.
+粗体或强调文本应始终使用“_”语法，相对应的是“*”版本：
 
-#### Note
+_强调文本_
+
+在创建加粗斜体文本时，语法是“**_”和“_**”：
+
+**_加粗强调文本_**
+
+通过遵守这些约定，就可以清楚地表达作者的本意。在尝试创建粗体文本时很容易遗漏*或_，或者想要创建斜体文本时意外添加了两个**或__。如果我们知道使用**始终表示粗体，_始终表示斜体，那么不会对作者想要添加的格式存疑了。
+
+(#notes,tips,warnings,andquotes)
+### 注释、提示、警告和引用
+
+以注释、提示或警告形式表示的特殊信息应当使用容器来与其他内容区分开来。使用注释、提示或警告类的`<div>`元素将自动创建一个有颜色的框和特殊图标，将`<div>`中的信息包裹起来。
+
+(#note)
+#### 注释
 
 	[REGION:note]
-	This is a note. It is inside a yellow box and you can see the note icon at the top left.
+	这是注释。它在黄色框中，您可以在左上角看到注释图标。
 	[/REGION]
 
 [REGION:note]
-This is a note. It is inside a yellow box and you can see the note icon at the top left.
+这是注释。它在黄色框中，您可以在左上角看到注释图标。
 [/REGION]
  
-#### Tip
+(#tip)
+#### 提示
 
 	[REGION:tip]
-	This is a tip. It is inside a green box and you can see the tip icon at the top left.
+	这是提示。它在绿色框中，您可以在左上角看到提示图标。
 	[/REGION]
 
 [REGION:tip]
-This is a tip. It is inside a green box and you can see the tip icon at the top left.
+这是提示。它在绿色框中，您可以在左上角看到提示图标。
 [/REGION]
  
-#### Warning
+(#warning)
+#### 警告
 
 	[REGION:warning]
-	This is a warning. It is inside a red box and you can see the warning icon at the top left.
+	这是警告。它在红色框中，您可以在左上角看到警告图标。
 	[/REGION]
 
 [REGION:warning]
-This is a warning. It is inside a red box and you can see the warning icon at the top left.
+这是警告。它在红色框中，您可以在左上角看到警告图标。
 [/REGION]
  
-#### Quote
+(#quote)
+#### 引用
 
 	[REGION:quote]
-	This is quoted text. It is inside a blue box and you can see the quote icon at the top left.
+	这是引用文本。它在蓝色框中，您可以在左上角看到引用图标。
 	[/REGION]
 
 [REGION:quote]
-This is quoted text. It is inside a blue box and you can see the quote icon at the top left.
+这是引用文本。它在蓝色框中，您可以在左上角看到引用图标。
 [/REGION]
  
-### Images
+(#images)
+### 图像
 
-Images are any graphic displayed within a document.
+图像是指文档中显示的任何图形。
 
-#### Formats and Resolution 
+(#formatsandresolution)
+#### 格式和分辨率 
 
-Use PNG files for source images whenever possible as these are high quality and offer decent file size. 
-Author images at the resolution they are to be displayed. If the same image is to be used multiple times 
-at different resolutions, author it at the largest resolution it will be displayed at. Resizing on the 
-fly generally results in less than desirable quality.
+源图像尽可能使用PNG文件，因为此类文件质量较高，而且文件大小很合适。 
+按照将要显示的分辨率来创作图片。如果同一个图像要多次使用， 
+且每次使用分辨率不同，则以将会显示的最高分辨率创作。动态调节大小 
+通常结果的质量不如预期。
 
-Image sizes:
+图像大小：
 
-| Use | Max Image Width |
+| 用途 | 最大图像宽度 |
 | --- | -------------- |
-| Standard | 720 px |
-| Banner | 1180 px |
-| Material Networks, Blueprint Graphs | No limit, but should use [lightboxing](#Lightboxing). |
+| 标准 | 720像素 |
+| 条幅 | 1180像素 |
+| 材质网络、蓝图图表 | 无限制，但应该符合[lightboxing](#Lightboxing)要求。|
 
-#### Quality
+(#quality)
+#### 质量
 
-By default, all images are converted to jpeg and compressed. Image quality can sometimes be an issue 
-when compressing to jpeg. The [image properties](DocumentationGuidelines/Syntax#ImageProperties) can be used 
-to control the compression quality and even override the conversion altogether to use the original 
-source image in the published page.
+默认情况下，所有图像都会转换为jpeg并进行压缩。图像质量有时可能会在 
+压缩为jpeg时成为问题。可以使用[图像属性](DocumentationGuidelines/Syntax#ImageProperties)。 
+来控制压缩质量，甚至完全覆盖转换以在 
+发布的页面中使用原始源图像。
 
-#### Effects
+(#effects)
+#### 效果
 
-Images should never have any sort of styling or effects. Do not use rounded corners, drop shadows, and other border effects. These will be handled by styles so they can easily be changed as desired without regenerating the source content.
+图像不应该有任何类型的样式或效果。请勿使用圆角、阴影和其他边框效果。这些应该通过样式来处理，这样才能根据需要自由更改，而不必重新生成源内容。
 
-#### Image Tables
+(#imagetables)
+#### 图像表
 
-It is often useful to display images using tables with the first row containing columns of images and the second row containing captions. Using a normal table will result in some ugliness because of the styles applied. 
+通常使用表格来显示图像，第一行包含图像列，第二行包含选项。如果使用普通表格，因为应用的样式，可能会在一定程度上不够美观。 
 
-	| ![Layers Unfiltered](Engine/UI/LevelEditor/Layers/layer_search_unfiltered.png) | ![Layers Filtered](Engine/UI/LevelEditor/Layers/layer_search_filtered.png) |
+	| ![未过滤层](Engine/UI/LevelEditor/Layers/layer_search_unfiltered.png) | ![过滤层](Engine/UI/LevelEditor/Layers/layer_search_filtered.png) |
 	| ------ | ------ |
-	| Unfiltered Layer List | Filtered Layer List |
+	| 未过滤层列表 | 过滤层列表 |
 
-| ![Layers Unfiltered](Engine/UI/LevelEditor/Layers/layer_search_unfiltered.png) | ![Layers Filtered](Engine/UI/LevelEditor/Layers/layer_search_filtered.png) |
+| ![未过滤层](Engine/UI/LevelEditor/Layers/layer_search_unfiltered.png) | ![过滤层](Engine/UI/LevelEditor/Layers/layer_search_filtered.png) |
 | ------ | ------ |
-| Unfiltered Layer List | Filtered Layer List |
+| 未过滤层列表 | 过滤层列表 |
 
-For this reason, a special _imagetable_ region has been provided. Wrapping the table in one of these regions will result in a much cleaner and more polished look:
+因此，已经提供了特殊_imagetable_区域。在这类区域中放入表格，会使界面看起来更简洁，更美观：
 
 	[REGION:imagetable]
-	| ![Layers Unfiltered](Engine/UI/LevelEditor/Layers/layer_search_unfiltered.png) | ![Layers Filtered](Engine/UI/LevelEditor/Layers/layer_search_filtered.png) |
+	| ![未过滤层](Engine/UI/LevelEditor/Layers/layer_search_unfiltered.png) | ![过滤层](Engine/UI/LevelEditor/Layers/layer_search_filtered.png) |
 	| ------ | ------ |
-	| Unfiltered Layer List | Filtered Layer List |
+	| 未过滤层列表 | 过滤层列表 |
 	[/REGION]
 
 [REGION:imagetable]
-| ![Layers Unfiltered](Engine/UI/LevelEditor/Layers/layer_search_unfiltered.png) | ![Layers Filtered](Engine/UI/LevelEditor/Layers/layer_search_filtered.png) |
+| ![未过滤层](Engine/UI/LevelEditor/Layers/layer_search_unfiltered.png) | ![过滤层](Engine/UI/LevelEditor/Layers/layer_search_filtered.png) |
 | ------ | ------ |
-| Unfiltered Layer List | Filtered Layer List |
+| 未过滤层列表 | 过滤层列表 |
 [/REGION]
 
-#### Image Callouts
+(#imagecallouts)
+#### 图像注标
 
-Often, it will be necessary to create numbered callouts in an image that reference a numbered list in the text. When producing these numbered callouts within the image, the region being called out needs to be outlined with a yellow stroke. Rounded corners are useful to delineate areas of the interface that are adjacent. This should be followed immediately by a numbered list.
+通常，需要在图像中创建编号注标来引用文本中的编号列表。在图像中产生这些编号注标时，被标注的区域需要用黄色笔画勾勒出来。圆角用于描绘相邻界面的区域。后面应当紧跟编号列表。
 
-The number itself should have the following styling for consistency:
+编号本身应该采用以下样式来确保一致：
 
 
-* **Font:** Arial or similar sans serif font
-* **Style:** Bold + Italic
-* **Color:** Yellow (#fdf242)
+* **字体：**Arial或相似的无衬线字体
+* **样式：**粗体+斜体
+* **颜色：**黄色(#fdf242)
 
 
 ![imagecallouts.jpg](imagecallouts.jpg)
 
-1. **Toolbar** - Displays the name of the _Animation Sequence_ currently being edited.
-1. **Track List** - Editable list of tracks for creating/editing notifies. See below for instructions on creating and removing tracks as well as creating and working with notifies.
-1. **Timeline** - Displays information about, and provides controls for, playback of the preview in the **Viewport** panel.
+1. **工具栏**——显示当前正在编辑的_动画序列_的名称。
+1. **轨迹列表**——可编辑的轨迹列表，用于创建/编辑通知。请参阅下文，以了解有关创建和移除轨迹以及创建和处理通知的说明。
+1. **时间轴**——在 **视口** 面板中显示关于预览播放的信息并提供相关控制。
 
 
-In this example, you can see how parts of the interface were broken out and numbered, followed immediately by a numbered list.
+在该示例中，您可以看到界面各个部分的分解图和编号方式，后面紧跟着一个编号列表。
 
+(#lightboxing)
 ### Lightboxing
 
-Large image and other content that would be best displayed overlaid on the page should make use of lightboxing. In general, this means enclosing a link within a `lightbox` [region](DocumentationGuidelines/Syntax#Regions). The exact syntax depends on the type of content being lightboxed. See the [Lightboxes](DocumentationGuidelines/Syntax#ImageLightboxing) section on the syntax page for more details.
+对于在页面上以覆层形式能呈现最佳显示效果的大图像和其他内容，应当使用Lightbox。一般而言，这意味着将链接包含在`lightbox`[区域](DocumentationGuidelines/Syntax#Regions)中。具体的语法取决于使用lightbox的内容类型。请参阅语法页面上的[Lightbox](DocumentationGuidelines/Syntax#ImageLightboxing)部分以了解更多详细信息。
 
-[refepiclogo]: Logo_Epic-New.jpg "Here's a title"(w:50 h:50 a:left convert:true quality:75 fill:#000000)
+[refepiclogo]：Logo_Epic-New.jpg "Here's a title"(w:50 h:50 a:left convert:true quality:75 fill:#000000)

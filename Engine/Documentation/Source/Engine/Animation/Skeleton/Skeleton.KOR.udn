@@ -66,7 +66,7 @@ UE4 의 애니메이션이 처음이고 스켈레탈 애셋에 대해 더욱 자
 ## 스켈레톤 애셋 생성
 
 스켈레톤 애셋을 만드는 방법은 주로 스켈레탈 메시를 [임포트](Engine/Content/ImportingContent/ImportingSkeletalMeshes) 할 때 사용됩니다.
-스켈레탈 메시를 임포트할 때, [FBX 임포트 옵션](Engine/Content/FBX/ImportOptions) 창 안에서, **Skeleton** (스켈레톤) 칸을 공백으로 놔두면 임포트중인 스켈레탈 메시를 기반으로 스켈레톤을 자동 생성해줍니다.
+스켈레탈 메시를 임포트할 때, [FBX 임포트 옵션](Engine/Content/FBX/ImportOptions) 창 안에서, **Skeleton** (스켈레톤) 칸을 비워 두면 임포트중인 스켈레탈 메시를 기반으로 스켈레톤을 자동 생성합니다.
 
 ![](FBXImportOptionsWindow.png)
 

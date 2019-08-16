@@ -172,7 +172,7 @@ static float GetWindowUpscaleFactor()
 	// and return that scalar.
 
 	int32_t SurfaceWidth, SurfaceHeight;
-	FAndroidWindow::CalculateSurfaceSize(FAndroidWindow::GetHardwareWindow(), SurfaceWidth, SurfaceHeight);
+	FAndroidWindow::CalculateSurfaceSize(SurfaceWidth, SurfaceHeight);
 
 	FPlatformRect ScreenRect = FAndroidWindow::GetScreenRect();
 

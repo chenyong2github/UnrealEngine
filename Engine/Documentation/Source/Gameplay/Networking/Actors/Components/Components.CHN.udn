@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:2713380
+﻿INTSourceChangelist:3108692
 Availability:Public
 Title: 组件复制
 Crumbs:Gameplay, Gameplay/Networking, Gameplay/Networking/Actors
@@ -26,6 +26,7 @@ version: 4.9
 动态组件需通过复制的方式存在于所有客户端。另外，客户端可以生成自己的本地非复制组件。这适合于很多种情形。只有当那些在服务器上触发的 
 属性或事件需要自动同步到客户端时，才会出现复制行为。
 
+(#Usage)
 ## 使用方法
 在组件上设置属性和 RPC 的过程与 Actor 并无区别。将一个类设置为具有复本后，这些组件的实际实例也必须经过设置后才能复制。 
 
@@ -51,6 +52,7 @@ version: 4.9
 		}
 	}
 
+(#Blueprints)
 ### 蓝图
 
 要进行静态蓝图组件复制，只需在组件默认设置中切换 **Replicates** 布尔变量。同样，只有当组件中拥有需要复制的属性或事件时，才需要 
@@ -64,6 +66,7 @@ version: 4.9
 
 ![](components_function.png)
  
+(#Timelines)
 ## 时间轴
 
 时间轴必须通过其属性中的 Replicated 选项来启用复制。这会将服务器控制的运行位置、速率和方向复制到客户端。这是一种基本的
@@ -71,11 +74,13 @@ version: 4.9
 操作 (start/stop etc)。客户端只应当查看运行位置的复本，而不应尝试改变时间轴本身。在进行复制更新的间歇，客户端将推测
 运行位置。
 
+(#BandwidthOverhead)
 ## 带宽消耗
 
 复制组件时的资源消耗量是比较低的。要复制的 Actor 中的每个组件都需要添加一个额外的 NetGUID（4 字节）“标头”和一个大约 1 字节的“标脚”（footer） 
 及其属性。在 CPU 层面上，基于 Actor 的属性复制与基于组件的复制之间应当有一个最小差异。
 
+(#GeneralizedSubobjectReplication)
 ## 一般性的子对象复制
 
 对这个问题，我们可以更进一步：所有 Actor 子对象都可以复制，而不只限于组件。
@@ -93,14 +98,16 @@ version: 4.9
 
 对于希望复制非 ActorComponent 子对象的类，应当实施以上三种方法。
 
+(#UseCase)
 ### 使用情形
 这是一种很有用的手段，因为它能在 Actor 通道的层面上使用 UObject 和多态（polymorphism）。之前用于复杂数据结构的复制方法只适合那些 
 在 Actor 类中对类型进行静态定义的结构。利用子对象复制，您可以享受诸多优势，例如建立一个道具栏系统，使其中的每个物品作为一个从基本道具栏类扩展而来的类， 
 也可以进行完整复制，同时无需让这些项成为 Actor（资源负担太大）。
 
+(#Optimizations)
 ## 优化
 如果有很多子对象需要复制，Actor 只需了解哪些子对象（如存在）最近发生过变化且需要复制，从而节省了大量时间。这需要通过访问器（accessor）函数来持续跟踪子对象的更改情况。
-这一过程所用的接口位于 AActorChannel 中：
+这一过程所用的接口位于 UActorChannel 中：
 	bool KeyNeedsToReplicate(int32 ObjID, int32 RepKey);
 该函数应当由 Actor 在其 `::ReplicateSubobjects` 实施中调用。Actor 类可以设置一个任意的对象 ID 和复制键，供复制系统跟踪每个客户端。当 ReplicateSubobjects 返回 _true_ 时，调用方应当在使用该对象 ID 接受跟踪的任意子对象上调用 ReplicateSubobjects。
 相关示例请查看 AQAInventory::ReplicateSubobjects。一定不要忘记，对象 ID 和复制键完全是任意指定的。对象 ID 仅用于引用“事情”。它可以是整个子对象列表、部分列表或单个对象。复制键同样可以任意指定 - 它可以是一个在对象 ID 跟踪变化时递增的计数器。这里讨论的优化问题完全是选读内容。

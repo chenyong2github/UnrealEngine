@@ -9,6 +9,7 @@
  * @param argc - number of arguments in argv[]
  * @param argv - array of arguments
  * @param RealMain - the next main routine to call in chain
+ * @param AppExitCallback - workaround for Launch module that needs to call FEngineLoop::AppExit() at certain point
  * @return error code to return to the OS
  */
-int UNIXCOMMONSTARTUP_API CommonUnixMain(int argc, char *argv[], int (*RealMain)(const TCHAR * CommandLine));
+int UNIXCOMMONSTARTUP_API CommonUnixMain(int argc, char *argv[], int (*RealMain)(const TCHAR * CommandLine), void (*AppExitCallback)() = nullptr);

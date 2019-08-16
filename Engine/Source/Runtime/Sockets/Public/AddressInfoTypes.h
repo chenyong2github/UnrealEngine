@@ -40,8 +40,19 @@ ENUM_CLASS_FLAGS(EAddressInfoFlags);
 
 struct FAddressInfoResultData
 {
+	UE_DEPRECATED(4.23, "Use constructor that supports an FName as the AddressProtocol property is now deprecated. AddressProtocolName supports multiple protocol types as should be used instead.")
 	FAddressInfoResultData(TSharedRef<FInternetAddr> InAddr, SIZE_T InAddrLen, ESocketProtocolFamily InProtocol, ESocketType InSocketConfiguration) :
 		AddressProtocol(InProtocol),
+		AddressProtocolName(NAME_None),
+		SocketConfiguration(InSocketConfiguration),
+		AddressLen(InAddrLen),
+		Address(InAddr)
+	{
+	}
+
+	FAddressInfoResultData(TSharedRef<FInternetAddr> InAddr, SIZE_T InAddrLen, const FName InProtocol, ESocketType InSocketConfiguration) :
+		AddressProtocol(ESocketProtocolFamily::None),
+		AddressProtocolName(InProtocol),
 		SocketConfiguration(InSocketConfiguration),
 		AddressLen(InAddrLen),
 		Address(InAddr)
@@ -65,8 +76,17 @@ struct FAddressInfoResultData
 		}
 	}
 
+	bool operator==(const FAddressInfoResultData& rhs) const
+	{
+		return SocketConfiguration == rhs.SocketConfiguration &&
+			AddressProtocolName == rhs.AddressProtocolName &&
+			*Address == *(rhs.Address);
+	}
+
 	/* The protocol of the address stored */
 	ESocketProtocolFamily AddressProtocol;
+	/* The protocol name of the address stored */
+	FName AddressProtocolName;
 	/* Streaming or datagram */
 	ESocketType SocketConfiguration;
 	/* Length of the returned address data */
@@ -79,16 +99,19 @@ struct FAddressInfoResult
 {
 	FAddressInfoResult(const TCHAR* InHostName, const TCHAR* InServiceName) :
 		QueryHostName(InHostName),
-		QueryServiceName(InServiceName)
+		QueryServiceName(InServiceName),
+		ReturnCode(SE_NO_DATA)
 	{
 	}
 
-	/* The hostname that generated these results */
+	/* The hostname/ip that generated these results */
 	FString QueryHostName;
 	/* The service name that was used in the query */
 	FString QueryServiceName;
 	/* The Canonical Name of the query (empty unless FQDomainName or CanonicalName are specified) */
 	FString CanonicalNameResult;
+	/* The return code of the query */
+	ESocketErrors ReturnCode;
 	/* The list of results */
 	TArray<FAddressInfoResultData> Results;
 };

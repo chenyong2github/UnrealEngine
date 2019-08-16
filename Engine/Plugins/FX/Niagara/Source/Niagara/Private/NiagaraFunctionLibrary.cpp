@@ -27,14 +27,23 @@ UNiagaraFunctionLibrary::UNiagaraFunctionLibrary(const FObjectInitializer& Objec
 }
 
 
-UNiagaraComponent* CreateNiagaraSystem(UNiagaraSystem* SystemTemplate, UWorld* World, AActor* Actor, bool bAutoDestroy, EPSCPoolMethod PoolingMethod)
+UNiagaraComponent* CreateNiagaraSystem(UNiagaraSystem* SystemTemplate, UWorld* World, AActor* Actor, bool bAutoDestroy, ENCPoolMethod PoolingMethod)
 {
-	// todo : implement pooling method.
+	UNiagaraComponent* NiagaraComponent;
+	if (PoolingMethod == ENCPoolMethod::None)
+	{
+		NiagaraComponent = NewObject<UNiagaraComponent>((Actor ? Actor : (UObject*)World));
+		NiagaraComponent->SetAsset(SystemTemplate);
+		NiagaraComponent->bAutoActivate = false;
+	}
+	else
+	{
+		UNiagaraComponentPool* ComponentPool = FNiagaraWorldManager::Get(World)->GetComponentPool();
+		NiagaraComponent = ComponentPool->CreateWorldParticleSystem(SystemTemplate, World, PoolingMethod);
+	}	
 
-	UNiagaraComponent* NiagaraComponent = NewObject<UNiagaraComponent>((Actor ? Actor : (UObject*)World));
 	NiagaraComponent->SetAutoDestroy(bAutoDestroy);
 	NiagaraComponent->bAllowAnyoneToDestroyMe = true;
-	NiagaraComponent->SetAsset(SystemTemplate);
 	return NiagaraComponent;
 }
 
@@ -43,7 +52,7 @@ UNiagaraComponent* CreateNiagaraSystem(UNiagaraSystem* SystemTemplate, UWorld* W
 * Spawns a Niagara System at the specified world location/rotation
 * @return			The spawned UNiagaraComponent
 */
-UNiagaraComponent* UNiagaraFunctionLibrary::SpawnSystemAtLocation(UObject* WorldContextObject, UNiagaraSystem* SystemTemplate, FVector SpawnLocation, FRotator SpawnRotation, bool bAutoDestroy)
+UNiagaraComponent* UNiagaraFunctionLibrary::SpawnSystemAtLocation(const UObject* WorldContextObject, UNiagaraSystem* SystemTemplate, FVector SpawnLocation, FRotator SpawnRotation, FVector Scale, bool bAutoDestroy, bool bAutoActivate, ENCPoolMethod PoolingMethod)
 {
 	UNiagaraComponent* PSC = NULL;
 	if (SystemTemplate)
@@ -51,17 +60,19 @@ UNiagaraComponent* UNiagaraFunctionLibrary::SpawnSystemAtLocation(UObject* World
 		UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 		if (World != nullptr)
 		{
-			PSC = CreateNiagaraSystem(SystemTemplate, World, World->GetWorldSettings(), bAutoDestroy, EPSCPoolMethod::None);
+			PSC = CreateNiagaraSystem(SystemTemplate, World, World->GetWorldSettings(), bAutoDestroy, PoolingMethod);
 #if WITH_EDITORONLY_DATA
 			PSC->bWaitForCompilationOnActivate = true;
 #endif
-			PSC->bAutoActivate = false;
 			PSC->RegisterComponentWithWorld(World);
 
 			PSC->SetAbsolute(true, true, true);
 			PSC->SetWorldLocationAndRotation(SpawnLocation, SpawnRotation);
-			PSC->SetRelativeScale3D(FVector(1.f));
-			PSC->Activate(true);
+			PSC->SetRelativeScale3D(Scale);
+			if (bAutoActivate)
+			{
+				PSC->Activate(true);
+			}
 		}
 	}
 	return PSC;
@@ -75,7 +86,7 @@ UNiagaraComponent* UNiagaraFunctionLibrary::SpawnSystemAtLocation(UObject* World
 * Spawns a Niagara System attached to a component
 * @return			The spawned UNiagaraComponent
 */
-UNiagaraComponent* UNiagaraFunctionLibrary::SpawnSystemAttached(UNiagaraSystem* SystemTemplate, USceneComponent* AttachToComponent, FName AttachPointName, FVector Location, FRotator Rotation, EAttachLocation::Type LocationType, bool bAutoDestroy)
+UNiagaraComponent* UNiagaraFunctionLibrary::SpawnSystemAttached(UNiagaraSystem* SystemTemplate, USceneComponent* AttachToComponent, FName AttachPointName, FVector Location, FRotator Rotation, EAttachLocation::Type LocationType, bool bAutoDestroy, bool bAutoActivate, ENCPoolMethod PoolingMethod)
 {
 	UNiagaraComponent* PSC = nullptr;
 	if (SystemTemplate)
@@ -86,7 +97,7 @@ UNiagaraComponent* UNiagaraFunctionLibrary::SpawnSystemAttached(UNiagaraSystem* 
 		}
 		else
 		{
-			PSC = CreateNiagaraSystem(SystemTemplate, AttachToComponent->GetWorld(), AttachToComponent->GetOwner(), bAutoDestroy, EPSCPoolMethod::None);
+			PSC = CreateNiagaraSystem(SystemTemplate, AttachToComponent->GetWorld(), AttachToComponent->GetOwner(), bAutoDestroy, PoolingMethod);
 #if WITH_EDITOR
 			if (GForceNiagaraSpawnAttachedSolo > 0)
 			{
@@ -105,6 +116,11 @@ UNiagaraComponent* UNiagaraFunctionLibrary::SpawnSystemAttached(UNiagaraSystem* 
 				PSC->SetRelativeLocationAndRotation(Location, Rotation);
 			}
 			PSC->SetRelativeScale3D(FVector(1.f));
+
+			if (bAutoActivate)
+			{
+				PSC->Activate();
+			}
 		}
 	}
 	return PSC;
@@ -124,7 +140,8 @@ UNiagaraComponent* UNiagaraFunctionLibrary::SpawnSystemAttached(
 	FVector Scale,
 	EAttachLocation::Type LocationType,
 	bool bAutoDestroy,
-	EPSCPoolMethod PoolingMethod
+	ENCPoolMethod PoolingMethod,
+	bool bAutoActivate
 )
 {
 	UNiagaraComponent* PSC = nullptr;
@@ -178,7 +195,10 @@ UNiagaraComponent* UNiagaraFunctionLibrary::SpawnSystemAttached(
 					}
 
 					PSC->RegisterComponentWithWorld(World);
-					PSC->Activate(true);
+					if (bAutoActivate)
+					{
+						PSC->Activate(true);
+					}
 
 					// Notify the texture streamer so that PSC gets managed as a dynamic component.
 					IStreamingManager::Get().NotifyPrimitiveUpdated(PSC);

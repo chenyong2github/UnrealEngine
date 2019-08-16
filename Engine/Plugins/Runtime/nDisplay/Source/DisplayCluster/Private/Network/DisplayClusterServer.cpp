@@ -1,9 +1,9 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Network/DisplayClusterServer.h"
-
-#include "Misc/DisplayClusterLog.h"
 #include "Misc/ScopeLock.h"
+
+#include "DisplayClusterLog.h"
 
 
 FDisplayClusterServer::FDisplayClusterServer(const FString& InName, const FString& InAddr, const int32 InPort) :
@@ -22,17 +22,11 @@ FDisplayClusterServer::~FDisplayClusterServer()
 {
 	// Call from child .dtor
 	Shutdown();
-
-	// Now we can safely free all memory from our sessions. Need to be refactored in future.
-	for (auto* Session : Sessions)
-	{
-		delete Session;
-	}
 }
 
 bool FDisplayClusterServer::Start()
 {
-	FScopeLock lock(&InternalsSyncScope);
+	FScopeLock lock(&InternalsCritSec);
 
 	if (bIsRunning == true)
 	{
@@ -53,9 +47,9 @@ bool FDisplayClusterServer::Start()
 
 void FDisplayClusterServer::Shutdown()
 {
-	FScopeLock lock(&InternalsSyncScope);
+	FScopeLock lock(&InternalsCritSec);
 
-	if (bIsRunning == false)
+	if (!bIsRunning)
 	{
 		return;
 	}
@@ -70,15 +64,15 @@ void FDisplayClusterServer::Shutdown()
 	bIsRunning = false;
 }
 
-bool FDisplayClusterServer::IsRunning()
+bool FDisplayClusterServer::IsRunning() const
 {
-	FScopeLock lock(&InternalsSyncScope);
+	FScopeLock lock(&InternalsCritSec);
 	return bIsRunning;
 }
 
 bool FDisplayClusterServer::ConnectionHandler(FSocket* InSock, const FIPv4Endpoint& InEP)
 {
-	FScopeLock lock(&InternalsSyncScope);
+	FScopeLock lock(&InternalsCritSec);
 	check(InSock);
 
 	if (IsRunning() && IsConnectionAllowed(InSock, InEP))
@@ -86,12 +80,12 @@ bool FDisplayClusterServer::ConnectionHandler(FSocket* InSock, const FIPv4Endpoi
 		InSock->SetLinger(false, 0);
 		InSock->SetNonBlocking(false);
 
-		int32 newSize = static_cast<int32>(DisplayClusterConstants::net::SocketBufferSize);
-		int32 setSize;
-		InSock->SetReceiveBufferSize(newSize, setSize);
-		InSock->SetSendBufferSize(newSize, setSize);
+		const int32 RequestedBufferSize = static_cast<int32>(DisplayClusterConstants::net::SocketBufferSize);
+		int32 FinalBufferSize;
+		InSock->SetReceiveBufferSize(RequestedBufferSize, FinalBufferSize);
+		InSock->SetSendBufferSize(RequestedBufferSize, FinalBufferSize);
 
-		FDisplayClusterSessionBase* Session = CreateSession(InSock, InEP);
+		TSharedPtr<FDisplayClusterSessionBase> Session = CreateSession(InSock, InEP);
 		Session->StartSession();
 		Sessions.Add(Session);
 

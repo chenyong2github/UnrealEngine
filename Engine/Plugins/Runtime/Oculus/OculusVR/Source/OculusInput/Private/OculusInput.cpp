@@ -6,6 +6,7 @@
 #include "OculusHMD.h"
 #include "Misc/CoreDelegates.h"
 #include "Features/IModularFeatures.h"
+#include "Misc/ConfigCacheIni.h"
 
 #define OVR_DEBUG_LOGGING 0
 
@@ -77,6 +78,9 @@ float FOculusInput::TriggerThreshold = 0.8f;
 
 /** Are Remote keys mapped to gamepad or not. */
 bool FOculusInput::bRemoteKeysMappedToGamepad = true;
+
+float FOculusInput::InitialButtonRepeatDelay = 0.2f;
+float FOculusInput::ButtonRepeatDelay = 0.1f;
 
 FOculusInput::FOculusInput( const TSharedRef< FGenericApplicationMessageHandler >& InMessageHandler )
 	: OVRPluginHandle(nullptr)
@@ -169,6 +173,9 @@ void FOculusInput::LoadConfig()
 	{
 		bRemoteKeysMappedToGamepad = b;
 	}
+
+	GConfig->GetFloat(TEXT("/Script/Engine.InputSettings"), TEXT("InitialButtonRepeatDelay"), InitialButtonRepeatDelay, GInputIni);
+	GConfig->GetFloat(TEXT("/Script/Engine.InputSettings"), TEXT("ButtonRepeatDelay"), ButtonRepeatDelay, GInputIni);
 }
 
 void FOculusInput::Tick( float DeltaTime )
@@ -180,15 +187,11 @@ void FOculusInput::Tick( float DeltaTime )
 void FOculusInput::SendControllerEvents()
 {
 	const double CurrentTime = FPlatformTime::Seconds();
-
-	// @todo: Should be made configurable and unified with other controllers handling of repeat
-	const float InitialButtonRepeatDelay = 0.2f;
-	const float ButtonRepeatDelay = 0.1f;
 	const float AnalogButtonPressThreshold = TriggerThreshold;
 
 	if(IOculusHMDModule::IsAvailable() && ovrp_GetInitialized() && FApp::HasVRFocus())
 	{
-		if (MessageHandler.IsValid())
+		if (MessageHandler.IsValid() && GEngine->XRSystem->GetHMDDevice())
 		{
 			OculusHMD::FOculusHMD* OculusHMD = static_cast<OculusHMD::FOculusHMD*>(GEngine->XRSystem->GetHMDDevice());
 			ovrp_Update3(ovrpStep_Render, OculusHMD->GetNextFrameNumber(), 0.0);

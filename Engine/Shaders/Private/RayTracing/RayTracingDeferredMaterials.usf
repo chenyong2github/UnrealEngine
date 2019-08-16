@@ -1,5 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+#include "../Common.ush"
 #include "RayTracingCommon.ush"
 #include "RayTracingHitGroupCommon.ush"
 
@@ -8,11 +9,4 @@ void DeferredMaterialCHS(inout FDeferredMaterialPayload Payload, in FDefaultAttr
 {
 	Payload.SortKey = GetHitGroupUserData();
 	Payload.HitT    = RayTCurrent();
-}
-
-[shader("miss")]
-void DeferredMaterialMS(inout FDeferredMaterialPayload Payload)
-{
-	Payload.SortKey = RAY_TRACING_DEFERRED_MATERIAL_KEY_RAY_MISS;
-	Payload.HitT    = -1;
 }

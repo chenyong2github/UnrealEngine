@@ -4,6 +4,9 @@
 
 UWidgetDesignerSettings::UWidgetDesignerSettings()
 {
+
+	Favorites = CreateDefaultSubobject<UWidgetPaletteFavorites>(TEXT("WidgetPaletteFavorites"));
+
 	CategoryName = TEXT("ContentEditors");
 
 	GridSnapEnabled = true;

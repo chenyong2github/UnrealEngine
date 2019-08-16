@@ -16,6 +16,7 @@ void FRayTracingInstance::BuildInstanceMaskAndFlags()
 
 	bool bAllSegmentsOpaque = true;
 	bool bAnySegmentsCastShadow = false;
+	bool bAllSegmentsCastShadow = true;
 
 	for (int32 SegmentIndex = 0; SegmentIndex < Materials.Num(); SegmentIndex++)
 	{
@@ -26,10 +27,11 @@ void FRayTracingInstance::BuildInstanceMaskAndFlags()
 		const EBlendMode BlendMode = Material.GetBlendMode();
 		Mask |= ComputeBlendModeMask(BlendMode);
 		bAllSegmentsOpaque &= BlendMode == BLEND_Opaque;
-		bAnySegmentsCastShadow |= MeshBatch.CastRayTracedShadow;
+		bAnySegmentsCastShadow |= MeshBatch.CastRayTracedShadow && Material.CastsRayTracedShadows();
+		bAllSegmentsCastShadow &= MeshBatch.CastRayTracedShadow && Material.CastsRayTracedShadows();
 	}
 
-	bForceOpaque = bAllSegmentsOpaque;
+	bForceOpaque = bAllSegmentsOpaque && bAllSegmentsCastShadow;
 	Mask |= bAnySegmentsCastShadow ? RAY_TRACING_MASK_SHADOW : 0;
 }
 

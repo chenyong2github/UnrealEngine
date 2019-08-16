@@ -1,10 +1,9 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/BoundingVolumeHierarchy.h"
+#include "Chaos/BoundingVolume.h"
 #include "Chaos/BoundingVolumeUtilities.h"
 #include "ChaosStats.h"
-
-#define MIN_NUM_OBJECTS 5
 
 using namespace Chaos;
 
@@ -17,32 +16,133 @@ namespace Chaos
 	FAutoConsoleVariableRef CVarMinBoundsThickness(TEXT("p.MinBoundsThickness"), MinBoundsThickness, TEXT(""));
 }
 
-template<class OBJECT_ARRAY, class T, int d>
-TBoundingVolumeHierarchy<OBJECT_ARRAY, T, d>::TBoundingVolumeHierarchy(const OBJECT_ARRAY& Objects, const int32 MaxLevels)
+template<class OBJECT_ARRAY, class LEAF_TYPE, class T, int d>
+TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>::TBoundingVolumeHierarchy(const OBJECT_ARRAY& Objects, const int32 MaxLevels, const bool bUseVelocity, const T Dt)
     : MObjects(&Objects), MMaxLevels(MaxLevels)
 {
 	if (GetObjectCount(Objects) > 0)
 	{
-		UpdateHierarchy();
+		UpdateHierarchy(DefaultAllowMultipleSplitting, bUseVelocity, DefaultDt);
 	}
 }
 
-template<class OBJECT_ARRAY, class T, int d>
-void TBoundingVolumeHierarchy<OBJECT_ARRAY, T, d>::UpdateHierarchy(const bool bAllowMultipleSplitting)
+template<class OBJECT_ARRAY, class LEAF_TYPE, class T, int d>
+TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>::TBoundingVolumeHierarchy(const OBJECT_ARRAY& Objects, const TArray<uint32>& ActiveIndices, const int32 MaxLevels, const bool bUseVelocity, const T Dt)
+	: MObjects(&Objects), MMaxLevels(MaxLevels)
 {
-	check(GetObjectCount(*MObjects) > 0);
-	TArray<int32> AllObjects;
-	for (int32 i = 0; i < GetObjectCount(*MObjects); ++i)
+	if (GetObjectCount(Objects) > 0)
 	{
-		if (HasBoundingBox(*MObjects, i))
+		UpdateHierarchy(ActiveIndices, DefaultAllowMultipleSplitting, bUseVelocity, DefaultDt);
+	}
+}
+
+template<class OBJECT_ARRAY, class LEAF_TYPE, class T, int d>
+const TBox<T, d>& TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>::GetWorldSpaceBoundingBox(const TGeometryParticles<T, d>& InParticles, const int32 Index)
+{
+	return Chaos::GetWorldSpaceBoundingBox(InParticles, Index, MWorldSpaceBoxes);
+}
+
+#if !UE_BUILD_SHIPPING
+template<typename T, int d>
+void DrawNodeRecursive(ISpacialDebugDrawInterface<T>* InInterface, const TBVHNode<T, d>& InNode, const TArray<TBVHNode<T,d>>& InAllNodes)
+{
+	TBox<T, d> Box(InNode.MMin, InNode.MMax);
+
+	InInterface->Box(Box, {1.0f, 1.0f, 1.0f}, 1.0f);
+
+	for(const int32 Child : InNode.MChildren)
+	{
+		DrawNodeRecursive(InInterface, InAllNodes[Child], InAllNodes);
+	}
+}
+
+template<class OBJECT_ARRAY, class LEAF_TYPE, class T, int d>
+void Chaos::TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>::DebugDraw(ISpacialDebugDrawInterface<T>* InInterface) const
+{
+	if(Elements.Num() > 0)
+	{
+		DrawNodeRecursive(InInterface, Elements[0], Elements);
+	}
+}
+#endif
+
+template<class OBJECT_ARRAY, class T, int d, typename TPayloadType>
+TArray<int32> MakeNewLeaf(const OBJECT_ARRAY& Objects, const TArray<int32>& AllObjects, const TArray<int32>* /*Type*/)
+{
+	return TArray<int32>(AllObjects);
+}
+
+template<class OBJECT_ARRAY, class T, int d, typename TPayloadType>
+TBoundingVolume<OBJECT_ARRAY, TPayloadType, T, d> MakeNewLeaf(const OBJECT_ARRAY& Objects, const TArray<int32>& AllObjects, const TBoundingVolume<OBJECT_ARRAY, TPayloadType, T, d>* /*Type*/)
+{
+#if CHAOS_PARTICLEHANDLE_TODO
+	// @todo(mlentine): This is pretty dirty but should work for now.
+	return TBoundingVolume<OBJECT_ARRAY, TPayloadType, T, d>(Objects, reinterpret_cast<const TArray<uint32>&>(AllObjects));
+#else
+	TArray<TSOAView<OBJECT_ARRAY>> SOAs;
+	SOAs.Add(TSOAView<OBJECT_ARRAY>(const_cast<OBJECT_ARRAY*>(&Objects)));	//todo: this const_cast is here because bvh is holding on to things as const but giving it out as non const. Not sure if we should change API or not
+	//return TBoundingVolume<OBJECT_ARRAY, T, d>(MakeParticleView<OBJECT_ARRAY>({ {&Objects} }));
+	return TBoundingVolume<OBJECT_ARRAY, TPayloadType, T, d>(MakeParticleView<OBJECT_ARRAY>(MoveTemp(SOAs)));
+#endif
+}
+
+template<class OBJECT_ARRAY, class LEAF_TYPE, class T, int d>
+void TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>::UpdateHierarchy(const bool bAllowMultipleSplitting, const bool bUseVelocity, const T Dt)
+{
+	const int32 NumObjects = GetObjectCount(*MObjects);
+	
+	MScratchAllObjects.Reset();
+	Leafs.Reset();
+
+	MGlobalObjects.Reset();
+	for (int32 Idx = 0; Idx < NumObjects; ++Idx)	//todo: check for disabled objects if possible? (this is what BV does)
+	{
+		if (IsDisabled(*MObjects, Idx))
 		{
-			AllObjects.Add(i);
+			continue;
+		}
+
+		if (HasBoundingBox(*MObjects, Idx))
+		{
+			MScratchAllObjects.Add(Idx);
 		}
 		else
 		{
-			MGlobalObjects.Add(i);
+			MGlobalObjects.Add(Idx);
 		}
 	}
+
+	UpdateHierarchyImp(MScratchAllObjects, bAllowMultipleSplitting, bUseVelocity, Dt);
+}
+
+template<class OBJECT_ARRAY, class LEAF_TYPE, class T, int d>
+void TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>::UpdateHierarchy(const TArray<uint32>& ActiveIndices, const bool bAllowMultipleSplitting, const bool bUseVelocity, const T Dt)
+{
+	const int32 NumObjects = ActiveIndices.Num();
+
+	MScratchAllObjects.Reset();
+	MScratchAllObjects.Reserve(NumObjects);
+
+	MGlobalObjects.Reset();
+	for(uint32 Idx : ActiveIndices)
+	{
+		check(!IsDisabled(*MObjects, Idx));
+		if (HasBoundingBox(*MObjects, Idx))
+		{
+			MScratchAllObjects.Add(Idx);
+		}
+		else
+		{
+			MGlobalObjects.Add(Idx);
+		}
+	}
+
+	UpdateHierarchyImp(MScratchAllObjects, bAllowMultipleSplitting, bUseVelocity, Dt);
+}
+
+template<class OBJECT_ARRAY, class LEAF_TYPE, class T, int d>
+void TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>::UpdateHierarchyImp(const TArray<int32>& AllObjects, const bool bAllowMultipleSplitting, const bool bUseVelocity, const T Dt)
+{
 	Elements.Reset();
 	MWorldSpaceBoxes.Reset();
 
@@ -50,16 +150,18 @@ void TBoundingVolumeHierarchy<OBJECT_ARRAY, T, d>::UpdateHierarchy(const bool bA
 	{
 		return;
 	}
-	ComputeAllWorldSpaceBoundingBoxes(*MObjects, AllObjects, false, (T)0, MWorldSpaceBoxes);
+	ComputeAllWorldSpaceBoundingBoxes(*MObjects, AllObjects, bUseVelocity, Dt, MWorldSpaceBoxes);
 
 	int32 Axis;
 	const TBox<T, d> GlobalBox = ComputeGlobalBoxAndSplitAxis(*MObjects, AllObjects, MWorldSpaceBoxes, bAllowMultipleSplitting, Axis);
 
-	Node RootNode;
+	TBVHNode<T,d> RootNode;
 	RootNode.MMin = GlobalBox.Min();
 	RootNode.MMax = GlobalBox.Max();
 	RootNode.MAxis = Axis;
-	RootNode.MObjects = AllObjects;
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+	RootNode.LeafIndex = -1;
+#endif
 	Elements.Add(RootNode);
 	if (AllObjects.Num() > MIN_NUM_OBJECTS) // TODO(mlentine): What is a good number to stop at?
 	{
@@ -69,12 +171,35 @@ void TBoundingVolumeHierarchy<OBJECT_ARRAY, T, d>::UpdateHierarchy(const bool bA
 			Elements[0].MChildren.Add(StartIndex + i);
 		}
 	}
+	else
+	{
+		Elements[0].LeafIndex = Leafs.Num();
+		Leafs.Add(MakeNewLeaf<OBJECT_ARRAY, T, d, TPayloadType>(*MObjects, AllObjects, static_cast<LEAF_TYPE*>(nullptr)));
+	}
+	check(Elements[0].LeafIndex < Leafs.Num() || Elements[0].MChildren.Num() > 0);
 	UE_LOG(LogChaos, Verbose, TEXT("Generated Tree with %d Nodes"), Elements.Num());
 	//PrintTree("", &Elements[0]);
 }
 
-template<class OBJECT_ARRAY, class T, int d>
-TArray<int32> TBoundingVolumeHierarchy<OBJECT_ARRAY, T, d>::FindAllIntersectionsHelper(const Node& MyNode, const TVector<T, d>& Point) const
+template<class OBJECT_ARRAY, typename TPayloadType, class T, int d>
+TArray<int32> FindAllIntersectionsLeafHelper(const TArray<int32>& Leaf, const TVector<T, d>& Point)
+{
+	return Leaf;
+}
+
+template<class OBJECT_ARRAY,typename TPayloadType, class T, int d>
+TArray<int32> FindAllIntersectionsLeafHelper(const TBoundingVolume<OBJECT_ARRAY, TPayloadType, T, d>& Leaf, const TVector<T, d>& Point)
+{
+#if CHAOS_PARTICLEHANDLE_TODO
+	return Leaf.FindAllIntersections(Point);
+#else
+	check(false);
+	return TArray<int32>();
+#endif
+}
+
+template<class OBJECT_ARRAY, typename TPayloadType, class T, int d>
+TArray<int32> TBoundingVolumeHierarchy<OBJECT_ARRAY, TPayloadType, T, d>::FindAllIntersectionsHelper(const TBVHNode<T,d>& MyNode, const TVector<T, d>& Point) const
 {
 	TBox<T, d> MBox(MyNode.MMin, MyNode.MMax);
 	if (MBox.SignedDistance(Point) > 0)
@@ -83,7 +208,7 @@ TArray<int32> TBoundingVolumeHierarchy<OBJECT_ARRAY, T, d>::FindAllIntersections
 	}
 	if (MyNode.MChildren.Num() == 0)
 	{
-		return MyNode.MObjects;
+		return FindAllIntersectionsLeafHelper<OBJECT_ARRAY, TPayloadType, T, d>(Leafs[MyNode.LeafIndex], Point);
 	}
 	const TVector<T, d> ObjectCenter = MBox.Center();
 	int32 Child = 0;
@@ -104,21 +229,36 @@ TArray<int32> TBoundingVolumeHierarchy<OBJECT_ARRAY, T, d>::FindAllIntersections
 	return FindAllIntersectionsHelper(Elements[MyNode.MChildren[Child]], Point);
 }
 
+template <typename T, int d>
+bool IntersectsHelper(const TBox<T, d>& WorldSpaceBox, const TBox<T, d>& LocalBox)
+{
+	return WorldSpaceBox.Intersects(LocalBox);
+}
+
+template <typename T, int d>
+bool IntersectsHelper(const TBox<T, d>& WorldSpaceBox, const TSpatialRay<T, d>& Ray)
+{
+	//Very slow, should look at using slab algorithm
+	const FBox VolumeBox(WorldSpaceBox.Min(), WorldSpaceBox.Max());
+	FVector Hit;
+	FVector Normal;
+	float Time;
+	return FMath::LineExtentBoxIntersection(VolumeBox, Ray.Start, Ray.End, FVector::ZeroVector, Hit, Normal, Time);
+
+	//return WorldSpaceBox.FindClosestIntersection(Ray.Start, Ray.End, 0).Second;
+}
+
 template <typename OBJECT_ARRAY>
 struct TSpecializeParticlesHelper
 {
-	template <typename T, int d>
-	static void AccumulateChildrenResults(TArray<int32>& AccumIntersectionList, TSet<int32>& AccumIntersectionSet, const TArray<int32>& PotentialChildren, const TBox<T, d>& ObjectBox, const TArray<TBox<T,d>>& WorldSpaceBoxes)
+	template <typename T, int d, typename QUERY_OBJECT>
+	static void AccumulateChildrenResults(TArray<int32>& AccumIntersectionList, const TArray<int32>& PotentialChildren, const QUERY_OBJECT& QueryObject, const TMap<int32, TBox<T,d>>& WorldSpaceBoxes)
 	{
 		for (int32 ChildIndex : PotentialChildren)
 		{
-			if (!AccumIntersectionSet.Contains(ChildIndex))
+			if (IntersectsHelper(WorldSpaceBoxes[ChildIndex], QueryObject)) //todo(ocohen): actually just a single point so should call Contains
 			{
-				if (WorldSpaceBoxes[ChildIndex].Intersects(ObjectBox))
-				{
-					AccumIntersectionSet.Add(ChildIndex);
-					AccumIntersectionList.Add(ChildIndex);
-				}
+				AccumIntersectionList.Add(ChildIndex);
 			}
 		}
 	}
@@ -130,13 +270,14 @@ FAutoConsoleVariableRef CVarCheckBox(TEXT("p.checkbox"), CheckBox, TEXT(""));
 template <typename T, int d>
 struct TSpecializeParticlesHelper<TParticles<T,d>>
 {
-	static void AccumulateChildrenResults(TArray<int32>& AccumIntersectionList, TSet<int32>& AccumIntersectionSet, const TArray<int32>& PotentialChildren, const TBox<T, d>& ObjectBox, const TArray<TBox<T, d>>& WorldSpaceBoxes)
+	template <typename QUERY_OBJECT>
+	static void AccumulateChildrenResults(TArray<int32>& AccumIntersectionList, const TArray<int32>& PotentialChildren, const QUERY_OBJECT& QueryObject, const TMap<int32, TBox<T, d>>& WorldSpaceBoxes)
 	{
 		if (CheckBox)
 		{
 			for (int32 ChildIndex : PotentialChildren)
 			{
-				if (WorldSpaceBoxes[ChildIndex].Intersects(ObjectBox))	//todo(ocohen): actually just a single point so should call Contains
+				if (IntersectsHelper(WorldSpaceBoxes[ChildIndex], QueryObject))	//todo(ocohen): actually just a single point so should call Contains
 				{
 					AccumIntersectionList.Add(ChildIndex);
 				}
@@ -149,49 +290,92 @@ struct TSpecializeParticlesHelper<TParticles<T,d>>
 	}
 };
 
+template<class OBJECT_ARRAY, typename TPayloadType, typename T, int d, typename QUERY_OBJECT>
+TArray<int32> FindAllIntersectionsLeafHelper(const TArray<int32>& Leaf, const QUERY_OBJECT& QueryObject)
+{
+	return Leaf;
+}
+
+template<class OBJECT_ARRAY, typename TPayloadType, class T, int d, typename QUERY_OBJECT>
+TArray<int32> FindAllIntersectionsLeafHelper(const TBoundingVolume<OBJECT_ARRAY, TPayloadType, T, d>& Leaf, const QUERY_OBJECT& QueryObject)
+{
+#if CHAOS_PARTICLEHANDLE_TODO
+	return Leaf.FindAllIntersectionsImp(QueryObject);
+#else
+	return TArray<int32>();
+#endif
+}
+
 int32 FindAllIntersectionsSingleThreaded = 1;
 FAutoConsoleVariableRef CVarFindAllIntersectionsSingleThreaded(TEXT("p.FindAllIntersectionsSingleThreaded"), FindAllIntersectionsSingleThreaded, TEXT(""));
 
-
-template<class OBJECT_ARRAY, class T, int d>
-void TBoundingVolumeHierarchy<OBJECT_ARRAY, T, d>::FindAllIntersectionsHelperRecursive(const Node& MyNode, const TBox<T, d>& ObjectBox, TArray<int32>& AccumulateElements, TSet<int32>& AccumulateSet) const
+template<class OBJECT_ARRAY, class LEAF_TYPE, class T, int d>
+template <typename QUERY_OBJECT>
+void TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>::FindAllIntersectionsHelperRecursive(const TBVHNode<T,d>& MyNode, const QUERY_OBJECT& QueryObject, TArray<int32>& AccumulateElements) const
 {
 	TBox<T, d> MBox(MyNode.MMin, MyNode.MMax);
-	if (!MBox.Intersects(ObjectBox))
+	if (!IntersectsHelper(MBox, QueryObject))
 	{
 		return;
 	}
 	if (MyNode.MChildren.Num() == 0)
 	{
-		TSpecializeParticlesHelper<OBJECT_ARRAY>::AccumulateChildrenResults(AccumulateElements, AccumulateSet, MyNode.MObjects, ObjectBox, MWorldSpaceBoxes);
+		TSpecializeParticlesHelper<OBJECT_ARRAY>::AccumulateChildrenResults(AccumulateElements, FindAllIntersectionsLeafHelper<OBJECT_ARRAY, TPayloadType, T, d>(Leafs[MyNode.LeafIndex], QueryObject), QueryObject, MWorldSpaceBoxes);
 		return;
 	}
-
 	
 	int32 NumChildren = MyNode.MChildren.Num();
 	for (int32 Child = 0; Child < NumChildren; ++Child)
 	{
-		FindAllIntersectionsHelperRecursive(Elements[MyNode.MChildren[Child]], ObjectBox, AccumulateElements, AccumulateSet);
+		FindAllIntersectionsHelperRecursive(Elements[MyNode.MChildren[Child]], QueryObject, AccumulateElements);
 	}
 }
 
 int32 UseAccumulationArray = 1;
 FAutoConsoleVariableRef CVarUseAccumulationArray(TEXT("p.UseAccumulationArray"), UseAccumulationArray, TEXT(""));
 
-template<class OBJECT_ARRAY, class T, int d>
-TArray<int32> TBoundingVolumeHierarchy<OBJECT_ARRAY, T, d>::FindAllIntersectionsHelper(const Node& MyNode, const TBox<T, d>& ObjectBox) const
+template<class OBJECT_ARRAY, class LEAF_TYPE, class T, int d>
+TArray<int32> TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>::FindAllIntersectionsHelper(const TBVHNode<T,d>& MyNode, const TBox<T, d>& ObjectBox) const
 {
-		TArray<int32> IntersectionList;
-		TSet<int32> IntersectionSet;
-		FindAllIntersectionsHelperRecursive(MyNode, ObjectBox, IntersectionList, IntersectionSet);
-		return IntersectionList;
+	TArray<int32> IntersectionList;
+	FindAllIntersectionsHelperRecursive(MyNode, ObjectBox, IntersectionList);
+
+	IntersectionList.Sort();
+
+	for (int32 i = IntersectionList.Num() - 1; i > 0; i--)
+	{
+		if (IntersectionList[i] == IntersectionList[i - 1])
+		{
+			IntersectionList.RemoveAtSwap(i, 1, false);
+		}
+	}
+
+	return IntersectionList;
 }
 
-
-template<class OBJECT_ARRAY, class T, int d>
-TArray<int32> TBoundingVolumeHierarchy<OBJECT_ARRAY, T, d>::FindAllIntersections(const TGeometryParticles<T, d>& InParticles, const int32 i) const
+template<class OBJECT_ARRAY, class LEAF_TYPE, class T, int d>
+TArray<int32> TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>::FindAllIntersectionsHelper(const TBVHNode<T, d>& MyNode, const TSpatialRay<T, d>& Ray) const
 {
-	return FindAllIntersections(GetWorldSpaceBoundingBox(InParticles, i, MWorldSpaceBoxes));
+	TArray<int32> IntersectionList;
+	FindAllIntersectionsHelperRecursive(MyNode, Ray, IntersectionList);
+
+	IntersectionList.Sort();
+
+	for (int32 i = IntersectionList.Num() - 1; i > 0; i--)
+	{
+		if (IntersectionList[i] == IntersectionList[i - 1])
+		{
+			IntersectionList.RemoveAtSwap(i, 1, false);
+		}
+	}
+
+	return IntersectionList;
+}
+
+template<class OBJECT_ARRAY, class LEAF_TYPE, class T, int d>
+TArray<int32> TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>::FindAllIntersections(const TGeometryParticles<T, d>& InParticles, const int32 i) const
+{
+	return FindAllIntersections(Chaos::GetWorldSpaceBoundingBox(InParticles, i, MWorldSpaceBoxes));
 }
 
 template <int d>
@@ -220,18 +404,21 @@ void AccumulateNextLevelCount(const TBox<T, d>& Box, const TVector<T, d>& MidPoi
 		Counts.Pos[i] += (Box.Min()[i] > MidPoint[i] || Box.Max()[i] > MidPoint[i]) ? 1 : 0;
 	}
 }
-template<class OBJECT_ARRAY, class T, int d>
-int32 TBoundingVolumeHierarchy<OBJECT_ARRAY, T, d>::GenerateNextLevel(const TVector<T, d>& GlobalMin, const TVector<T, d>& GlobalMax, const TArray<int32>& Objects, const int32 Axis, const int32 Level, const bool AllowMultipleSplitting)
+template<class OBJECT_ARRAY, class LEAF_TYPE, class T, int d>
+int32 TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>::GenerateNextLevel(const TVector<T, d>& GlobalMin, const TVector<T, d>& GlobalMax, const TArray<int32>& Objects, const int32 Axis, const int32 Level, const bool AllowMultipleSplitting)
 {
 	if (Axis == -1)
 	{
 		return GenerateNextLevel(GlobalMin, GlobalMax, Objects, Level);
 	}
-
 	
 	FSplitCount<d> Counts[2];
-	TArray<Node> LocalElements;
+	TArray<TBVHNode<T,d>> LocalElements;
+	TArray<TArray<int32>> LocalObjects;
+	TArray<LEAF_TYPE> LocalLeafs;
 	LocalElements.SetNum(2);
+	LocalObjects.SetNum(2);
+	LocalLeafs.SetNum(2);
 	TBox<T, d> GlobalBox(GlobalMin, GlobalMax);
 	const TVector<T, d> WorldCenter = GlobalBox.Center();
 	const TVector<T, d> MinCenterSearch = TBox<T, d>(GlobalMin, WorldCenter).Center();
@@ -240,7 +427,7 @@ int32 TBoundingVolumeHierarchy<OBJECT_ARRAY, T, d>::GenerateNextLevel(const TVec
 	for (int32 i = 0; i < Objects.Num(); ++i)
 	{
 		check(Objects[i] >= 0 && Objects[i] < GetObjectCount(*MObjects));
-		const TBox<T, d>& ObjectBox = GetWorldSpaceBoundingBox(*MObjects, Objects[i], MWorldSpaceBoxes);
+		const TBox<T, d>& ObjectBox = Chaos::GetWorldSpaceBoundingBox(*MObjects, Objects[i], MWorldSpaceBoxes);
 		const TVector<T, d> ObjectCenter = ObjectBox.Center();
 		bool MinA = false, MaxA = false;
 		if (ObjectBox.Min()[Axis] < WorldCenter[Axis])
@@ -251,15 +438,15 @@ int32 TBoundingVolumeHierarchy<OBJECT_ARRAY, T, d>::GenerateNextLevel(const TVec
 		{
 			MaxA = true;
 		}
-		check(MinA || MaxA);
+		ensure(MinA || MaxA); // If this is not true we have a nan and the object gets ignored
 		if (MinA)
 		{
-			LocalElements[0].MObjects.Add(Objects[i]);
+			LocalObjects[0].Add(Objects[i]);
 			AccumulateNextLevelCount(ObjectBox, MinCenterSearch, Counts[0]);
 		}
 		if (MaxA)
 		{
-			LocalElements[1].MObjects.Add(Objects[i]);
+			LocalObjects[1].Add(Objects[i]);
 			AccumulateNextLevelCount(ObjectBox, MaxCenterSearch, Counts[1]);
 		}
 	}
@@ -273,7 +460,10 @@ int32 TBoundingVolumeHierarchy<OBJECT_ARRAY, T, d>::GenerateNextLevel(const TVec
 		LocalElements[i].MMin = Min;
 		LocalElements[i].MMax = Max;
 		LocalElements[i].MAxis = -1;
-		if (LocalElements[i].MObjects.Num() > MIN_NUM_OBJECTS && Level < MMaxLevels && LocalElements[i].MObjects.Num() < Objects.Num())
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+		LocalElements[i].LeafIndex = -1;
+#endif
+		if (LocalObjects[i].Num() > MIN_NUM_OBJECTS && Level < MMaxLevels && LocalObjects[i].Num() < Objects.Num())
 		{
 			//we pick the axis that gives us the most culled even in the case when it goes in the wrong direction (i.e the biggest min)
 			int32 BestAxis = 0;
@@ -291,31 +481,48 @@ int32 TBoundingVolumeHierarchy<OBJECT_ARRAY, T, d>::GenerateNextLevel(const TVec
 			//todo(ocohen): use multi split when counts are very close
 			int32 NextAxis = BestAxis;
 			LocalElements[i].MAxis = NextAxis;
-			int32 StartIndex = GenerateNextLevel(LocalElements[i].MMin, LocalElements[i].MMax, LocalElements[i].MObjects, NextAxis, Level + 1, AllowMultipleSplitting);
+			int32 StartIndex = GenerateNextLevel(LocalElements[i].MMin, LocalElements[i].MMax, LocalObjects[i], NextAxis, Level + 1, AllowMultipleSplitting);
 			for (int32 j = 0; j < (NextAxis == -1 ? 8 : 2); j++)
 			{
 				LocalElements[i].MChildren.Add(StartIndex + j);
 			}
 		}
+		else
+		{
+			LocalLeafs[i] = MakeNewLeaf<OBJECT_ARRAY, T, d, TPayloadType>(*MObjects, LocalObjects[i], static_cast<LEAF_TYPE*>(nullptr));
+		}
 	});
 	CriticalSection.Lock();
+	for (int i = 0; i < 2; ++i)
+	{
+		if (!LocalElements[i].MChildren.Num())
+		{
+			LocalElements[i].LeafIndex = Leafs.Num();
+			Leafs.Add(MoveTemp(LocalLeafs[i]));
+		}
+		check(LocalElements[i].LeafIndex < Leafs.Num() || LocalElements[i].MChildren.Num() > 0);
+	}
 	int32 MinElem = Elements.Num();
 	Elements.Append(LocalElements);
 	CriticalSection.Unlock();
 	return MinElem;
 }
 
-template<class OBJECT_ARRAY, class T, int d>
-int32 TBoundingVolumeHierarchy<OBJECT_ARRAY, T, d>::GenerateNextLevel(const TVector<T, d>& GlobalMin, const TVector<T, d>& GlobalMax, const TArray<int32>& Objects, const int32 Level)
+template<class OBJECT_ARRAY, class LEAF_TYPE, class T, int d>
+int32 TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>::GenerateNextLevel(const TVector<T, d>& GlobalMin, const TVector<T, d>& GlobalMax, const TArray<int32>& Objects, const int32 Level)
 {
-	TArray<Node> LocalElements;
+	TArray<TBVHNode<T,d>> LocalElements;
+	TArray<TArray<int32>> LocalObjects;
+	TArray<LEAF_TYPE> LocalLeafs;
 	LocalElements.SetNum(8);
+	LocalObjects.SetNum(8);
+	LocalLeafs.SetNum(8);
 	TBox<T, d> GlobalBox(GlobalMin, GlobalMax);
 	const TVector<T, d> WorldCenter = GlobalBox.Center();
 	for (int32 i = 0; i < Objects.Num(); ++i)
 	{
 		check(Objects[i] >= 0 && Objects[i] < GetObjectCount(*MObjects));
-		const TBox<T, d>& ObjectBox = GetWorldSpaceBoundingBox(*MObjects, Objects[i], MWorldSpaceBoxes);
+		const TBox<T, d>& ObjectBox = Chaos::GetWorldSpaceBoundingBox(*MObjects, Objects[i], MWorldSpaceBoxes);
 		const TVector<T, d> ObjectCenter = ObjectBox.Center();
 		bool MinX = false, MaxX = false, MinY = false, MaxY = false, MinZ = false, MaxZ = false;
 		if (ObjectBox.Min()[0] < WorldCenter[0])
@@ -347,35 +554,35 @@ int32 TBoundingVolumeHierarchy<OBJECT_ARRAY, T, d>::GenerateNextLevel(const TVec
 		check(MinZ || MaxZ);
 		if (MinX && MinY && MinZ)
 		{
-			LocalElements[0].MObjects.Add(Objects[i]);
+			LocalObjects[0].Add(Objects[i]);
 		}
 		if (MaxX && MinY && MinZ)
 		{
-			LocalElements[1].MObjects.Add(Objects[i]);
+			LocalObjects[1].Add(Objects[i]);
 		}
 		if (MinX && MaxY && MinZ)
 		{
-			LocalElements[2].MObjects.Add(Objects[i]);
+			LocalObjects[2].Add(Objects[i]);
 		}
 		if (MaxX && MaxY && MinZ)
 		{
-			LocalElements[3].MObjects.Add(Objects[i]);
+			LocalObjects[3].Add(Objects[i]);
 		}
 		if (MinX && MinY && MaxZ)
 		{
-			LocalElements[4].MObjects.Add(Objects[i]);
+			LocalObjects[4].Add(Objects[i]);
 		}
 		if (MaxX && MinY && MaxZ)
 		{
-			LocalElements[5].MObjects.Add(Objects[i]);
+			LocalObjects[5].Add(Objects[i]);
 		}
 		if (MinX && MaxY && MaxZ)
 		{
-			LocalElements[6].MObjects.Add(Objects[i]);
+			LocalObjects[6].Add(Objects[i]);
 		}
 		if (MaxX && MaxY && MaxZ)
 		{
-			LocalElements[7].MObjects.Add(Objects[i]);
+			LocalObjects[7].Add(Objects[i]);
 		}
 	}
 	PhysicsParallelFor(8, [&](int32 i) {
@@ -396,7 +603,10 @@ int32 TBoundingVolumeHierarchy<OBJECT_ARRAY, T, d>::GenerateNextLevel(const TVec
 		LocalElements[i].MMin = Min;
 		LocalElements[i].MMax = Max;
 		LocalElements[i].MAxis = -1;
-		if (LocalElements[i].MObjects.Num() > MIN_NUM_OBJECTS && Level < MMaxLevels && LocalElements[i].MObjects.Num() < Objects.Num())
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+		LocalElements[i].LeafIndex = -1;
+#endif
+		if (LocalObjects[i].Num() > MIN_NUM_OBJECTS && Level < MMaxLevels && LocalObjects[i].Num() < Objects.Num())
 		{
 			TBox<T, d> LocalBox(Min, Max);
 			int32 NextAxis = 0;
@@ -409,27 +619,71 @@ int32 TBoundingVolumeHierarchy<OBJECT_ARRAY, T, d>::GenerateNextLevel(const TVec
 			{
 				NextAxis = 1;
 			}
-			if (LocalExtents[NextAxis] < LocalExtents[(NextAxis + 1) % 3] * 1.25 && LocalExtents[NextAxis] < LocalExtents[(NextAxis + 2) % 3] * 1.25 && LocalElements[i].MObjects.Num() > 4 * MIN_NUM_OBJECTS)
+			if (LocalExtents[NextAxis] < LocalExtents[(NextAxis + 1) % 3] * 1.25 && LocalExtents[NextAxis] < LocalExtents[(NextAxis + 2) % 3] * 1.25 && LocalObjects[i].Num() > 4 * MIN_NUM_OBJECTS)
 			{
 				NextAxis = -1;
 			}
 			LocalElements[i].MAxis = NextAxis;
-			int32 StartIndex = GenerateNextLevel(LocalElements[i].MMin, LocalElements[i].MMax, LocalElements[i].MObjects, NextAxis, Level + 1, true);
+			int32 StartIndex = GenerateNextLevel(LocalElements[i].MMin, LocalElements[i].MMax, LocalObjects[i], NextAxis, Level + 1, true);
 			for (int32 j = 0; j < (NextAxis == -1 ? 8 : 2); j++)
 			{
 				LocalElements[i].MChildren.Add(StartIndex + j);
 			}
 		}
+		else
+		{
+			LocalLeafs[i] = MakeNewLeaf<OBJECT_ARRAY, T, d, TPayloadType>(*MObjects, LocalObjects[i], static_cast<LEAF_TYPE*>(nullptr));
+		}
 	});
 	CriticalSection.Lock();
+	for (int i = 0; i < 8; ++i)
+	{
+		if (!LocalElements[i].MChildren.Num())
+		{
+			LocalElements[i].LeafIndex = Leafs.Num();
+			Leafs.Add(MoveTemp(LocalLeafs[i]));
+		}
+		check(LocalElements[i].LeafIndex < Leafs.Num() || LocalElements[i].MChildren.Num() > 0);
+	}
 	int32 MinElem = Elements.Num();
 	Elements.Append(LocalElements);
-
 	CriticalSection.Unlock();
 	return MinElem;
 }
 
-template class Chaos::TBoundingVolumeHierarchy<TArray<Chaos::TSphere<float, 3>*>, float, 3>;
-template class Chaos::TBoundingVolumeHierarchy<Chaos::TPBDRigidParticles<float, 3>, float, 3>;
-template class Chaos::TBoundingVolumeHierarchy<Chaos::TParticles<float, 3>, float, 3>;
-template class Chaos::TBoundingVolumeHierarchy<Chaos::TGeometryParticles<float, 3>, float, 3>;
+namespace Chaos
+{
+template <typename OBJECT_ARRAY, typename TPayloadType, typename T, int d>
+void FixupLeafObj(const OBJECT_ARRAY& Objects, TArray<TBoundingVolume<OBJECT_ARRAY, TPayloadType, T, d>>& Leafs)
+{
+#if CHAOS_PARTICLEHANDLE_TODO
+	for (TBoundingVolume<OBJECT_ARRAY, TPayloadType, T, d>& Leaf : Leafs)
+	{
+		Leaf.SetObjects(Objects);
+	}
+#endif
+}
+
+template <typename OBJECT_ARRAY>
+void FixupLeafObj(const OBJECT_ARRAY& Objects, TArray<TArray<int32>>& Leafs)
+{
+}
+
+template<class OBJECT_ARRAY, class LEAF_TYPE, class T, int d>
+void TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>::Serialize(FArchive& Ar)
+{
+	Ar << MGlobalObjects << MWorldSpaceBoxes << MMaxLevels << Elements << Leafs;
+	if (Ar.IsLoading())
+	{
+		FixupLeafObj(*MObjects, Leafs);
+	}
+}
+}
+
+template class CHAOS_API Chaos::TBoundingVolume<TArray<Chaos::TSphere<float, 3>*>, int32, float, 3>;
+template class CHAOS_API Chaos::TBoundingVolumeHierarchy<TArray<Chaos::TSphere<float, 3>*>, TArray<int32>, float, 3>;
+template class CHAOS_API Chaos::TBoundingVolumeHierarchy<Chaos::TPBDRigidParticles<float, 3>, TArray<int32>, float, 3>;
+template class CHAOS_API Chaos::TBoundingVolumeHierarchy<Chaos::TParticles<float, 3>, TArray<int32>, float, 3>;
+template class CHAOS_API Chaos::TBoundingVolumeHierarchy<Chaos::TGeometryParticles<float, 3>, TArray<int32>, float, 3>;
+template class CHAOS_API Chaos::TBoundingVolumeHierarchy<Chaos::TPBDRigidParticles<float, 3>, TBoundingVolume<Chaos::TPBDRigidParticles<float, 3>, TPBDRigidParticleHandle<float,3>*, float, 3>, float, 3>;
+template class CHAOS_API Chaos::TBoundingVolumeHierarchy<Chaos::TGeometryParticles<float, 3>, TBoundingVolume<Chaos::TGeometryParticles<float, 3>, TGeometryParticleHandle<float,3>*, float, 3>, float, 3>;

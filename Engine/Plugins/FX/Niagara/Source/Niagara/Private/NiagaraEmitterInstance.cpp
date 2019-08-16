@@ -153,6 +153,20 @@ void FNiagaraEmitterInstance::Dump()const
 	ParticleDataSet->Dump(0, INDEX_NONE, TEXT("Particle Data"));
 }
 
+bool FNiagaraEmitterInstance::IsAllowedToExecute() const
+{
+	int32 DetailLevel = ParentSystemInstance->GetDetailLevel();
+	const FNiagaraEmitterHandle& EmitterHandle = GetEmitterHandle();
+	if (!EmitterHandle.GetIsEnabled()
+		|| !CachedEmitter->IsAllowedByDetailLevel(DetailLevel)
+		|| (!FNiagaraUtilities::SupportsGPUParticles(GMaxRHIFeatureLevel) && CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)  // skip if GPU sim and <SM5. TODO: fall back to CPU sim instead once we have scalability functionality to do so
+		)
+	{
+		return false;
+	}
+	return true;
+}
+
 void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FName InSystemInstanceName)
 {
 	check(ParticleDataSet);
@@ -164,11 +178,8 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FName InSystemInstanceNam
 	checkSlow(CachedEmitter);
 	CachedIDName = EmitterHandle.GetIdName();
 
-	int32 DetailLevel = ParentSystemInstance->GetDetailLevel();
-	if (!EmitterHandle.GetIsEnabled()
-		|| !CachedEmitter->IsAllowedByDetailLevel(DetailLevel)
-		|| (GMaxRHIFeatureLevel != ERHIFeatureLevel::SM5 && GMaxRHIFeatureLevel != ERHIFeatureLevel::ES3_1 && CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)  // skip if GPU sim and <SM5. TODO: fall back to CPU sim instead once we have scalability functionality to do so
-		)
+	if (!IsAllowedToExecute())
+
 	{
 		ExecutionState = ENiagaraExecutionState::Disabled;
 		return;
@@ -272,7 +283,7 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FName InSystemInstanceNam
 	if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
 	{
 		GPUExecContext = new FNiagaraComputeExecutionContext();
-		GPUExecContext->InitParams(CachedEmitter->GetGPUComputeScript(), CachedEmitter->SimTarget, CachedEmitter->GetUniqueEmitterName());
+		GPUExecContext->InitParams(CachedEmitter->GetGPUComputeScript(), CachedEmitter->SimTarget, CachedEmitter->GetUniqueEmitterName(), CachedEmitter->MaxUpdateIterations, CachedEmitter->SpawnStages);
 		GPUExecContext->MainDataSet = &Data;
 		GPUExecContext->GPUScript_RT = CachedEmitter->GetGPUComputeScript()->GetRenderThreadScript();
 
@@ -296,13 +307,6 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FName InSystemInstanceNam
 	SpawnIntervalBinding.Init(SpawnExecContext.Parameters, CachedEmitter->ToEmitterParameter(SYS_PARAM_EMITTER_SPAWN_INTERVAL));
 	InterpSpawnStartBinding.Init(SpawnExecContext.Parameters, CachedEmitter->ToEmitterParameter(SYS_PARAM_EMITTER_INTERP_SPAWN_START_DT));
 	SpawnGroupBinding.Init(SpawnExecContext.Parameters, CachedEmitter->ToEmitterParameter(SYS_PARAM_EMITTER_SPAWN_GROUP));
-
-	if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && GPUExecContext != nullptr)
-	{
-		SpawnIntervalBindingGPU.Init(GPUExecContext->CombinedParamStore, CachedEmitter->ToEmitterParameter(SYS_PARAM_EMITTER_SPAWN_INTERVAL));
-		InterpSpawnStartBindingGPU.Init(GPUExecContext->CombinedParamStore, CachedEmitter->ToEmitterParameter(SYS_PARAM_EMITTER_INTERP_SPAWN_START_DT));
-		SpawnGroupBindingGPU.Init(GPUExecContext->CombinedParamStore, CachedEmitter->ToEmitterParameter(SYS_PARAM_EMITTER_SPAWN_GROUP));
-	}
 
 	FNiagaraVariable EmitterAgeParam = CachedEmitter->ToEmitterParameter(SYS_PARAM_EMITTER_AGE);
 	SpawnEmitterAgeBinding.Init(SpawnExecContext.Parameters, EmitterAgeParam);
@@ -387,7 +391,7 @@ void FNiagaraEmitterInstance::ResetSimulation(bool bKillExisting)
 
 		if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && GPUExecContext != nullptr)
 		{
-			GPUExecContext->Reset();
+			GPUExecContext->Reset(Batcher);
 		}
 	}
 }
@@ -428,7 +432,7 @@ void FNiagaraEmitterInstance::CheckForErrors()
 		return;
 	}
 
-	if (CachedEmitter->SimTarget == ENiagaraSimTarget::CPUSim || CachedEmitter->SimTarget == ENiagaraSimTarget::DynamicLoadBalancedSim)
+	if (CachedEmitter->SimTarget == ENiagaraSimTarget::CPUSim)
 	{
 		bool bFailed = false;
 		if (!CachedEmitter->SpawnScriptProps.Script->DidScriptCompilationSucceed(false))
@@ -462,7 +466,7 @@ void FNiagaraEmitterInstance::CheckForErrors()
 		}
 	}
 
-	if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim || CachedEmitter->SimTarget == ENiagaraSimTarget::DynamicLoadBalancedSim)
+	if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
 	{
 		if (CachedEmitter->GetGPUComputeScript()->IsScriptCompilationPending(true))
 		{
@@ -678,7 +682,7 @@ FBox FNiagaraEmitterInstance::CalculateDynamicBounds(const bool bReadGPUSimulati
 		if (!bReadGPUSimulation || (GPUExecContext == nullptr))
 			return FBox(ForceInit);
 
-		ScopedGPUReadback.ReadbackData(GPUExecContext->MainDataSet);
+		ScopedGPUReadback.ReadbackData(Batcher, GPUExecContext->MainDataSet);
 		NumInstances = ScopedGPUReadback.GetNumInstances();
 	}
 	else
@@ -1018,18 +1022,6 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 		check(GPUExecContext->GPUScript_RT == CachedEmitter->GetGPUComputeScript()->GetRenderThreadScript());
 		GPUExecContext->GPUScript_RT = CachedEmitter->GetGPUComputeScript()->GetRenderThreadScript();
 
-		if (CachedEmitter->GetRenderers().Num() > 0 && CachedEmitter->GetRenderers()[0] != nullptr)
-		{
-			GPUExecContext->NumIndicesPerInstance = CachedEmitter->GetRenderers()[0]->GetNumIndicesPerInstance();
-		}
-		else
-		{
-			GPUExecContext->NumIndicesPerInstance = 0;
-		}
-
-		GPUExecContext->EventSpawnTotal_GT = EventSpawnTotal;
-		GPUExecContext->SpawnRateInstances_GT = SpawnTotal;
-		
 #if WITH_EDITORONLY_DATA
 		if (ParentSystemInstance->ShouldCaptureThisFrame())
 		{
@@ -1049,29 +1041,54 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 			}
 		}
 #endif
-		// If this is not correct we will not propagate all data correctly.
-		// @todo-threadsafety we keep a counter of this, so 
-		//check(ParentSystemInstance->HasGPUEmitters());
 
-		bool bOnlySetOnce = false;
-		for (FNiagaraSpawnInfo& Info : SpawnInfos)
+		// Calculate spawn information to pass to the RT
 		{
-			if (Info.Count > 0 && !bOnlySetOnce)
+			static_assert((NIAGARA_MAX_GPU_SPAWN_INFOS == NIAGARA_MAX_GPU_SPAWN_INFOS_V4 * 4) && (NIAGARA_MAX_GPU_SPAWN_INFOS > 0), "NIAGARA_MAX_GPU_SPAWN_INFOS should be greater than zero and a multiple of 4");
+
+			FNiagaraGpuSpawnInfo& GpuSpawnInfo = GPUExecContext->GpuSpawnInfo_GT;
+			GpuSpawnInfo.EventSpawnTotal = EventSpawnTotal;
+			GpuSpawnInfo.SpawnRateInstances = 0;
+
+			int NumSpawnInfos = 0;
+			if (ExecutionState == ENiagaraExecutionState::Active)
 			{
-				// @todo-threadsafety do these need to propagate to the RT?
-				SpawnIntervalBindingGPU.SetValue(Info.IntervalDt);
-				InterpSpawnStartBindingGPU.SetValue(Info.InterpStartDt);
-				SpawnGroupBindingGPU.SetValue(Info.SpawnGroup);
-				bOnlySetOnce = true;
-			}
-			else if (Info.Count > 0)
-			{
-				UE_LOG(LogNiagara, Log, TEXT("Multiple spawns are happening this frame. Only doing the first!"));
-				break;
+				for (FNiagaraSpawnInfo& Info : SpawnInfos)
+				{
+					if (Info.Count > 0 && (NumSpawnInfos < NIAGARA_MAX_GPU_SPAWN_INFOS))
+					{
+						GpuSpawnInfo.SpawnInfoParams[NumSpawnInfos].X = Info.IntervalDt;
+						GpuSpawnInfo.SpawnInfoParams[NumSpawnInfos].Y = Info.InterpStartDt;
+						reinterpret_cast<int32&>(GpuSpawnInfo.SpawnInfoParams[NumSpawnInfos].Z) = Info.SpawnGroup;
+						reinterpret_cast<int32&>(GpuSpawnInfo.SpawnInfoParams[NumSpawnInfos].W) = GpuSpawnInfo.SpawnRateInstances;
+
+						GpuSpawnInfo.SpawnRateInstances += Info.Count;
+						reinterpret_cast<float*>(GpuSpawnInfo.SpawnInfoStartOffsets)[NumSpawnInfos] = (float)GpuSpawnInfo.SpawnRateInstances;
+
+						++NumSpawnInfos;
+					}
+					else if (Info.Count > 0)
+					{
+						UE_LOG(LogNiagara, Log, TEXT("Exceeded Gpu spawn info count, see NIAGARA_MAX_GPU_SPAWN_INFOS for more information!"));
+						break;
+					}
+
+					// NOTE(mv): Separate particle count path for GPU emitters, as they early out..
+					TotalSpawnedParticles += Info.Count;
+				}
 			}
 
-			// NOTE(mv): Separate particle count path for GPU emitters, as they early out..
-			TotalSpawnedParticles += Info.Count;
+			// If we have spawning make sure we clear out the remaining data and leave the end slot as MAX to avoid reading off end of the array on the GPU
+			if ( GpuSpawnInfo.EventSpawnTotal + GpuSpawnInfo.SpawnRateInstances >  0 )
+			{
+				while (NumSpawnInfos < NIAGARA_MAX_GPU_SPAWN_INFOS - 1)
+				{
+					reinterpret_cast<float*>(GpuSpawnInfo.SpawnInfoStartOffsets)[NumSpawnInfos] = MAX_FLT;
+					GpuSpawnInfo.SpawnInfoParams[NumSpawnInfos] = FVector4(ForceInitToZero);
+					++NumSpawnInfos;
+				}
+				reinterpret_cast<float*>(GpuSpawnInfo.SpawnInfoStartOffsets)[NIAGARA_MAX_GPU_SPAWN_INFOS - 1] = MAX_FLT;
+			}
 		}
 
 		//GPUExecContext.UpdateInterfaces = CachedEmitter->UpdateScriptProps.Script->GetCachedDefaultDataInterfaces();
@@ -1604,7 +1621,7 @@ void FNiagaraEmitterInstance::SetExecutionState(ENiagaraExecutionState InState)
 	else
 	{
 		//Try to gracefully fail in this case.
-		InState = ENiagaraExecutionState::Inactive;
+		ExecutionState = ENiagaraExecutionState::Inactive;
 	}
 
 }

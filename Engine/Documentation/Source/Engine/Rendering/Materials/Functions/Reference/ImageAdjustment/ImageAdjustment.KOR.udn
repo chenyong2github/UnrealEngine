@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3242329
+INTSourceChangelist:3242329
 Availability: Public
 title:이미지 조절
 Crumbs: %ROOT%, Engine, Engine/Rendering/Materials,  Engine/Rendering/Materials/Functions
@@ -124,14 +124,14 @@ tags:Materials
 
 ### SmoothThreshold
 
-그레디언트, 보간 정도, 한계치 (Cutoff Value) 을 받은 다음, 그레디언트에는 입력에 따라 부드러운 대비를 적용합니다. 각 입력의 하는 일을 자세히 살펴보면:
+그레이디언트, 보간 정도, 한계치 (Cutoff Value) 을 받은 다음, 그레이디언트에는 입력에 따라 부드러운 대비를 적용합니다. 각 입력의 하는 일을 자세히 살펴보면:
 
 | 항목 | 설명 |
 | ---- | ---- |
 |[REGION:tablesection]입력[/REGION] ||
-| **Cutoff Value** | 한계치 - 그레디언트 입력 값 중 이 값 미만의 값은 연산에 영향을 받습니다. |
+| **Cutoff Value** | 한계치 - 그레이디언트 입력 값 중 이 값 미만의 값은 연산에 영향을 받습니다. |
 | **Lerp Value** | 선형보간값 - 음수 또는 양수를 더해 원래 값을 부드럽게 올리고 내립니다. 증감은 한계치보다 낮은 값에서 일어납니다. |
-| **Gradient** | 그레디언트 - 대비 연산의 기반 값이 됩니다. |
+| **Gradient** | 그레이디언트 - 대비 연산의 기반 값이 됩니다. |
 
 
 ![Smooth Threshold](SmoothThreshold_Demo.png)

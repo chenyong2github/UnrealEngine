@@ -1,4 +1,4 @@
-Availability: Public
+Availability: Docs
 Title:1 - Creating Aim Poses
 Crumbs: %ROOT%, Engine, Engine/Animation, Engine/Animation/AnimHowTo
 Description:In this step, we update our default playable character and create all the poses that will be needed for the Aim Offset. 

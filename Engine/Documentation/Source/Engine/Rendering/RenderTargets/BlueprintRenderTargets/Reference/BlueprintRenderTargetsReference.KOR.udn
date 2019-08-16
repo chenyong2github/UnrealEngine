@@ -1,6 +1,6 @@
-﻿INTSourceChangelist:3580824
+INTSourceChangelist:3580824
 availability:Public
-title: 블루프린트와 렌더 타깃 참고서
+title: 블루프린트와 렌더 타깃 레퍼런스
 description: 블루프린트 & 렌더 타깃의 프로퍼티 목록 및 설명입니다.
 crumbs:%ROOT%,
 version:4.13
@@ -13,7 +13,7 @@ topic-image:Engine/Rendering/RenderTargets/Render_Targets_Reference.png
 
 [TOC (start:2 end:3)]
 
-렌더 타깃 블루프린트 노드에서 찾을 수 있는 프로퍼티 목록 참고서입니다.
+렌더 타깃 블루프린트 노드에서 찾을 수 있는 프로퍼티 목록 레퍼런스입니다.
 
 ## Begin Draw Canvas to Render Target
 

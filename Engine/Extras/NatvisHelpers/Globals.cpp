@@ -3,5 +3,5 @@
 struct FNameEntry;
 class FChunkedFixedUObjectArray;
 
-FNameEntry*** GFNameTableForDebuggerVisualizers_MT = nullptr;
+uint8** GNameBlocksDebug = nullptr;
 FChunkedFixedUObjectArray* GObjectArrayForDebugVisualizers = nullptr;

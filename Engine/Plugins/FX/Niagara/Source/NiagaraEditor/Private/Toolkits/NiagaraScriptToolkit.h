@@ -20,6 +20,8 @@ class UNiagaraScriptSource;
 class FNiagaraScriptViewModel;
 class FNiagaraObjectSelection;
 struct FEdGraphEditAction;
+class FNiagaraMessageLogViewModel;
+class FNiagaraStandaloneScriptViewModel;
 
 /** Viewer/editor for a DataTable */
 class FNiagaraScriptToolkit : public FAssetEditorToolkit, public FGCObject
@@ -51,11 +53,6 @@ public:
 
 	/** FGCObject interface */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-
-	/**
-	* Updates list of Niagara messages in message log
-	*/
-	void UpdateMessageLog();
 
 	/**
 	* Updates list of module info used to show stats
@@ -121,19 +118,19 @@ private:
 	/** Navigates to element in graph (node, pin, etc.) 
 	* @Param ElementToFocus Defines the graph element to navigate to and select.
 	*/
-	void FocusGraphElement(const INiagaraScriptGraphFocusInfo* ElementToFocus);
+	void FocusGraphElementIfSameScriptID(const FNiagaraScriptIDAndGraphFocusInfo* ElementToFocus);
 
 private:
 
 	/** The Script being edited */
-	TSharedPtr<FNiagaraScriptViewModel> ScriptViewModel;
+	TSharedPtr<FNiagaraStandaloneScriptViewModel> ScriptViewModel;
 
 	/** The selection displayed by the details tab. */
 	TSharedPtr<FNiagaraObjectSelection> DetailsScriptSelection;
 
 	/** Message log, with the log listing that it reflects */
+	TSharedPtr<FNiagaraMessageLogViewModel> NiagaraMessageLogViewModel;
 	TSharedPtr<class SWidget> NiagaraMessageLog;
-	TSharedPtr<class IMessageLogListing> NiagaraMessageLogListing;
 
 	/**	The tab ids for the Niagara editor */
 	static const FName NodeGraphTabId; 

@@ -1,0 +1,44 @@
+﻿INTSourceChangelist:6604630
+Availability:Docs
+Title:行为树
+Description:介绍虚幻引擎4中的行为树资源，以及如何用它为项目中的非玩家角色创建人工智能（AI）。
+Version:4.21
+Parent:Engine/ArtificialIntelligence
+Tags:Behavior Trees
+Tags:Artificial Intelligence
+Tags:AI
+Tags:AI Systems
+topic-image:BehaviorTree_Landing_Topic.png
+social-image:BehaviorTree_Landing_Topic.png
+topic-icon:BehaviorTree_Landing_Topic.png
+Order:0
+
+
+[TOC (start:2 end:2)]
+
+**![](BehaviorTree_Landing_Topic.png "BehaviorTree_Landing_Topic.png")**
+
+我们可以用虚幻引擎4中的 **行为树资源** 为项目中的非玩家角色创建人工智能（AI）。虽然行为树资源将被用于执行包含逻辑的分支，从而决定应该执行的分支，但行为树依赖于另一种称为 **黑板** 的资源，它充当了行为树的“大脑”。 
+
+黑板包含了数个用户定义的 **键**，这些键会保存行为树用于进行决策的信息。举例而言，用户可以设置一个名为 *Is Light On* 的布尔键，行为树可以引用该键来查看数值是否已变化。如果该值为true，它就会执行一个让蟑螂逃跑的分支。如果该值为false，它就会执行另一个分支，使蟑螂在环境中随机移动。蟑螂范例中给出的行为树非常简单。而在多人游戏中则十分复杂，其能模拟另一个真人玩家，进行寻找掩护、向玩家射击和寻找拾取物等操作。 
+
+如您还不熟悉UE4中的行为树，建议先行阅读 **行为树快速入门指南**，快速创建并运行AI角色。如果您已经熟悉其他应用程序中行为树的概念，则建议阅读 **概要** 部分，其中包含行为树在UE4中工作方式的概述、行为树和黑板的用户指南，以及行为树中可用的各种节点的参考页面。 
+
+
+
+## 开始
+
+%Engine\ArtificialIntelligence\BehaviorTrees\BehaviorTreeQuickStart:topic%
+
+
+## 概要
+
+%Engine\ArtificialIntelligence\BehaviorTrees\BehaviorTreesOverview:topic%
+%Engine\ArtificialIntelligence\BehaviorTrees\BehaviorTreeUserGuide:topic%
+%Engine\ArtificialIntelligence\BehaviorTrees\BehaviorTreeNodeReference:topic%
+
+
+
+
+
+

@@ -110,6 +110,7 @@ PFNeglQueryTimestampSupportedANDROID eglQueryTimestampSupportedANDROID_p = NULL;
 PFNeglQueryTimestampSupportedANDROID eglGetCompositorTimingSupportedANDROID_p = NULL;
 PFNeglQueryTimestampSupportedANDROID eglGetFrameTimestampsSupportedANDROID_p = NULL;
 
+PFNGLFRAMEBUFFERFETCHBARRIERQCOMPROC glFramebufferFetchBarrierQCOM = NULL;
 
 int32 FAndroidOpenGL::GLMajorVerion = 0;
 int32 FAndroidOpenGL::GLMinorVersion = 0;
@@ -143,8 +144,8 @@ FPlatformOpenGLDevice::FPlatformOpenGLDevice()
 {
 }
 
-// call out to JNI to see if the application was packaged for Gear VR
-extern bool AndroidThunkCpp_IsGearVRApplication();
+// call out to JNI to see if the application was packaged for Oculus Mobile
+extern bool AndroidThunkCpp_IsOculusMobileApplication();
 
 
 // RenderDoc
@@ -158,7 +159,7 @@ void FPlatformOpenGLDevice::Init()
 	bRunningUnderRenderDoc = glIsEnabled(GL_DEBUG_TOOL_EXT) != GL_FALSE;
 
 	FPlatformMisc::LowLevelOutputDebugString(TEXT("FPlatformOpenGLDevice:Init"));
-	bool bCreateSurface = !AndroidThunkCpp_IsGearVRApplication();
+	bool bCreateSurface = !AndroidThunkCpp_IsOculusMobileApplication();
 	AndroidEGL::GetInstance()->InitSurface(false, bCreateSurface);
 	PlatformRenderingContextSetup(this);
 
@@ -236,7 +237,7 @@ void PlatformSharedContextSetup(FPlatformOpenGLDevice* Device)
 
 void PlatformNULLContextSetup()
 {
-	AndroidEGL::GetInstance()->SetCurrentContext(EGL_NO_CONTEXT, EGL_NO_SURFACE);
+	AndroidEGL::GetInstance()->ReleaseContextOwnership();
 }
 
 EOpenGLCurrentContext PlatformOpenGLCurrentContext(FPlatformOpenGLDevice* Device)
@@ -312,10 +313,24 @@ bool PlatformInitOpenGL()
 			// If we're here and there's no ES2 data then we're in trouble.
 			if (!bBuildForES2)
 			{
-				Message.Append(TEXT("This device only supports OpenGL ES 2 but the app was not packaged with ES2 support."));
-				FPlatformMisc::LowLevelOutputDebugString(*Message);
-				FAndroidMisc::MessageBoxExt(EAppMsgType::Ok, *Message, TEXT("Unable to run on this device!"));
-				checkf(bBuildForES2, TEXT("This device only supports OpenGL ES 2 but the app was not packaged with ES2 support."));
+				if (bES31Supported)
+				{
+					Message.Append(TEXT("This device does not support Vulkan but the app was not packaged with either OpenGL ES 2 or ES 3.1 support."));
+					if (FAndroidMisc::GetAndroidBuildVersion() < 26)
+					{
+						Message.Append(TEXT(" Updating to a newer Android version may resolve this issue."));
+					}
+					FPlatformMisc::LowLevelOutputDebugString(*Message);
+					FAndroidMisc::MessageBoxExt(EAppMsgType::Ok, *Message, TEXT("Unable to run on this device!"));
+					checkf(bBuildForES2, TEXT("This device does not support Vulkan but the app was not packaged with either OpenGL ES 2 or ES 3.1 support."));
+				}
+				else
+				{
+					Message.Append(TEXT("This device only supports OpenGL ES 2 but the app was not packaged with ES2 support."));
+					FPlatformMisc::LowLevelOutputDebugString(*Message);
+					FAndroidMisc::MessageBoxExt(EAppMsgType::Ok, *Message, TEXT("Unable to run on this device!"));
+					checkf(bBuildForES2, TEXT("This device does not support Vulkan but the app was not packaged with either OpenGL ES 2 or ES 3.1 support."));
+				}
 			}
 		}
 	}
@@ -457,7 +472,7 @@ void PlatformDestroyOpenGLDevice(FPlatformOpenGLDevice* Device)
 
 void FPlatformOpenGLDevice::SetCurrentRenderingContext()
 {
-	AndroidEGL::GetInstance()->SetCurrentRenderingContext();
+	AndroidEGL::GetInstance()->AcquireCurrentRenderingContext();
 }
 
 void PlatformLabelObjects()
@@ -813,6 +828,16 @@ FAndroidOpenGL::EFeatureLevelSupport FAndroidOpenGL::CurrentFeatureLevelSupport 
 
 extern bool AndroidThunkCpp_GetMetaDataBoolean(const FString& Key);
 extern FString AndroidThunkCpp_GetMetaDataString(const FString& Key);
+
+void FAndroidOpenGL::SetupDefaultGLContextState(const FString& ExtensionsString)
+{
+	// Enable QCOM non-coherent framebuffer fetch if supported
+	if (ExtensionsString.Contains(TEXT("GL_QCOM_shader_framebuffer_fetch_noncoherent")) && 
+		ExtensionsString.Contains(TEXT("GL_EXT_shader_framebuffer_fetch")))
+	{
+		glEnable(GL_FRAMEBUFFER_FETCH_NONCOHERENT_QCOM);
+	}
+}
 
 void FAndroidOpenGL::ProcessExtensions(const FString& ExtensionsString)
 {
@@ -1280,6 +1305,17 @@ void FAndroidOpenGL::ProcessExtensions(const FString& ExtensionsString)
 			}
 		}
 		bSupportsCopyImage = (glCopyImageSubData != nullptr);
+	}
+
+	// Qualcomm non-coherent framebuffer_fetch
+	if (ExtensionsString.Contains(TEXT("GL_QCOM_shader_framebuffer_fetch_noncoherent")) && 
+		ExtensionsString.Contains(TEXT("GL_EXT_shader_framebuffer_fetch")))
+	{
+		glFramebufferFetchBarrierQCOM = (PFNGLFRAMEBUFFERFETCHBARRIERQCOMPROC)((void*)eglGetProcAddress("glFramebufferFetchBarrierQCOM"));
+		if (glFramebufferFetchBarrierQCOM != nullptr)
+		{
+			UE_LOG(LogRHI, Log, TEXT("Using QCOM_shader_framebuffer_fetch_noncoherent"));
+		}
 	}
 }
 

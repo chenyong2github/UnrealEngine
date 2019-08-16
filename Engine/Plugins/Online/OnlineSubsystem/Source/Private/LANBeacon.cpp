@@ -39,17 +39,22 @@ bool FLanBeacon::Init(int32 Port)
 {
 	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
 	bool bSuccess = false;
+	// Now the listen address
+	ListenAddr = SocketSubsystem->GetLocalBindAddr(*GWarn);
+	ListenAddr->SetPort(Port);
 	// Set our broadcast address
 	BroadcastAddr = SocketSubsystem->CreateInternetAddr();
 	BroadcastAddr->SetBroadcastAddress();
 	BroadcastAddr->SetPort(Port);
-	// Now the listen address
-	ListenAddr = SocketSubsystem->GetLocalBindAddr(*GWarn);
-	ListenAddr->SetPort(Port);
 	// A temporary "received from" address
 	SockAddr = SocketSubsystem->CreateInternetAddr();
+
 	// Now create and set up our sockets (no VDP)
-	ListenSocket = SocketSubsystem->CreateSocket(NAME_DGram, TEXT("LAN beacon"), true);
+	// TODO: @jleonard - for the time being this will be fine, but on hybrid stacks this will be an issue as 
+	// we have no guarantee that the address protocol from GetLocalBindAddr and BroadcastAddr will match.
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	ListenSocket = SocketSubsystem->CreateSocket(NAME_DGram, TEXT("LAN beacon"), ListenAddr->GetProtocolType());
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	if (ListenSocket != NULL)
 	{
 		ListenSocket->SetReuseAddr();

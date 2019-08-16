@@ -1,0 +1,95 @@
+Availability: Public
+Title: Material Layers
+Description: Product documentation including reference and guides for Unreal Engine 4
+Parent: Engine/Rendering/Materials
+Tags: Materials
+Tags: Rendering
+Tags: Experimental
+Tags: Material Layers
+Tags: Landing Page
+topic-image: MaterialLayers_Topic.png
+Order: 15
+
+
+We have provided early access to this content in draft form in order to get you up and running. Check back soon for updates!
+
+Material Layering enables you to **combine your Materials in a stack**, using the new Material Layer and Material Layer Blend assets! This enables you to build the correct Material Graph without building sections of nodes by hand. This functionality is similar to Material Functions, but supports the creation of child instances.
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ vc5Jg-iqPgk
+ [/PARAMLITERAL]
+[/OBJECT]
+
+To enable this feature, navigate to the **Project Settings > Rendering > Experimental** and set **Support Material Layers** true.
+  
+**Material Layering** is a new way to combine materials in a stack, which builds out the correct material graph without needing to build the node graph by hand. There are two new asset types that we use to do this:
+
+*   Material Layer
+
+*   Material Layer Blends
+
+Functionally, these behave similarly to Material Functions. These new asset types also enable you to create child instances, which you could not do with Material Functions.  
+  
+**Material Layer** assets have a default input node which pipes base Material Attributes in from the Material. **Material Layer Blend** assets have two default input nodes which enable you to access the Material Attributes from layers above and below.  
+  
+![](MaterialBlendGraph.png)  
+  
+Once you have created a Material Layer and Material Layer Blend asset, you can combine them using a **Material Attributes Layers** node in a Material. With the node selected, you can add layers and set the assets that each layer and blend should from the node Details panel.  
+  
+![](MaterialLayer_RN.png)  
+  
+When editing a Material Instance with a parent Material that contains a Material Attribute Layers node, the Material Instance Editor also contains a **Layer Parameters** tab. Here, you can change the assets used for any of the existing Layers or Blends that have been set. Use the **Add (+)** button to add additional Layers to the stack as needed. You can also see the parameters contained in each of the Material Layer and Material Layer Blends and override their values individually by entering a new one.  
+  
+![](MaterialLayerInstance_RN.png) 
+ 
+
+## Passing Parameters to Layers
+
+There are three main methods at present to do this, most of which apply to Blends and Layers.
+
+1.  **Create a parameter within the layer which behaves similarly to existing Materials and Material Functions.**  
+      
+    Parameters added within the layer graphs will be unique to that layer, and editable within the layer's section. Even if multiple copies of the same layer are added, each will have its own copy of that parameter to control.
+
+1.  **Use the Input pin to the Material Attribute Layers stack.**  
+      
+    This takes another Material Attribute as input which will be piped into every layer added. For example, we could pass a base normal map for the mesh as an input, like so:  
+       
+    ![](layer_ma_output.png)
+    
+    Then within our example Material Layer, we get the Input and blend in:  
+      
+    ![](layer_ma_input.png)  
+      
+    Each layer can optionally use or ignore the base stack material attributes input. Currently, this method is not accessible within a blend graph.
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ 2dfkedfW1yI
+ [/PARAMLITERAL]
+[/OBJECT]
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ 7ieuiaZNwII
+ [/PARAMLITERAL]
+[/OBJECT]

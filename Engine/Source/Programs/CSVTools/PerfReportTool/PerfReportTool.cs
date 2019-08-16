@@ -19,7 +19,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "3.81";
+        private static string VersionString = "3.85";
 
         public static string Get() { return VersionString; }
     };
@@ -260,7 +260,9 @@ namespace PerfReportTool
             "       -noStripEvents : if specified, don't strip out excluded events from the stats\n" +
 			"       -perfLog : output performance logging information\n" +
 			"       -writeSummaryCsv : if specified, a csv file containing summary information will be generated. Not available in bulk mode.\n" +
-            "\n" +
+			"       -beginEvent <event> : strip data before this event\n"+
+			"       -endEvent <event> : strip data after this event\n" +
+			"\n" +
 			"Optional bulk mode args: (use with -csvdir)\n" +
 			"       -recurse \n" +
 			"       -searchpattern <pattern>, e.g -searchpattern csvprofile*\n" +
@@ -273,9 +275,11 @@ namespace PerfReportTool
 			"       -summaryTable <name> :\n" +
 			"           Selects a custom summary table type from the list in reportTypes.xml \n"+
 			"           (if not specified, 'default' will be used)\n" +
+			"       -summaryTableFilename <name> : use the specified filename for the summary table (instead of SummaryTable.html)\n"+
             "       -metadataFilter <key=value,key=value...> : filters based on CSV metadata\n" +
             "       -precacheCount <n> : number of CSV files to precache in the lookahead cache (0 for no precache)\n" +
             "       -precacheThreadCount <n> : number of threads to use for the CSV lookahead cache (default 8)\n" +
+			"       -readAllStats : reads all stats so that any stat can be output to the summary table. Useful with -customtable in bulk mode (off by default)\n" +
 			"       -externalGraphs : enables external graphs (off by default)\n" +
 			"";
 			/*
@@ -448,6 +452,11 @@ namespace PerfReportTool
             // Write out the metadata table, if there is one
             if (metadataTable.Count > 0)
 			{
+				string summaryTableFilename = GetArg("summaryTableFilename", "SummaryTable");
+				if ( summaryTableFilename.ToLower().EndsWith(".html"))
+				{
+					summaryTableFilename = summaryTableFilename.Substring(0, summaryTableFilename.Length - 5);
+				}
 				string customSummaryTableFilter = GetArg("customTable");
 				bool bCsvTable = GetBoolArg("csvTable");
 				bool bCollateTable = GetBoolArg("collateTable");
@@ -458,11 +467,11 @@ namespace PerfReportTool
 					{
 						customSummaryTableRowSort = "buildversion,deviceprofile";
 					}
-					WriteMetadataTableReport(outputDir, "SummaryTable", metadataTable, customSummaryTableFilter.Split(',').ToList(), customSummaryTableRowSort.Split(',').ToList(), false, bCsvTable);
+					WriteMetadataTableReport(outputDir, summaryTableFilename, metadataTable, customSummaryTableFilter.Split(',').ToList(), customSummaryTableRowSort.Split(',').ToList(), false, bCsvTable);
 
 					if (bCollateTable)
 					{
-						WriteMetadataTableReport(outputDir, "SummaryTable_Collated", metadataTable, customSummaryTableFilter.Split(',').ToList(), customSummaryTableRowSort.Split(',').ToList(), true, bCsvTable);
+						WriteMetadataTableReport(outputDir, summaryTableFilename+"_Collated", metadataTable, customSummaryTableFilter.Split(',').ToList(), customSummaryTableRowSort.Split(',').ToList(), true, bCsvTable);
 					}
 				}
 				else
@@ -473,10 +482,10 @@ namespace PerfReportTool
 						summaryTableName = "default";
 					}
 					SummaryTableInfo tableInfo = reportXML.GetSummaryTable(summaryTableName);
-					WriteMetadataTableReport(outputDir, "SummaryTable", metadataTable, tableInfo, false, bCsvTable);
+					WriteMetadataTableReport(outputDir, summaryTableFilename, metadataTable, tableInfo, false, bCsvTable);
 					if (bCollateTable)
 					{
-						WriteMetadataTableReport(outputDir, "SummaryTable", metadataTable, tableInfo, true, bCsvTable);
+						WriteMetadataTableReport(outputDir, summaryTableFilename, metadataTable, tableInfo, true, bCsvTable);
 					}
 				}
 
@@ -484,7 +493,7 @@ namespace PerfReportTool
 				if (GetBoolArg("emailSummary") || GetBoolArg("emailTable"))
 				{
 					SummaryTableInfo tableInfo = reportXML.GetSummaryTable("condensed");
-					WriteMetadataTableReport(outputDir, "SummaryTable_Email", metadataTable, tableInfo, true);
+					WriteMetadataTableReport(outputDir, summaryTableFilename+"_Email", metadataTable, tableInfo, true);
 				}
                 perfLog.LogTiming("WriteSummaryTable");
             }
@@ -734,14 +743,17 @@ namespace PerfReportTool
                 statsToSummarise[i] = statsToSummarise[i].ToLower();
             }
 
-            List<string> ListOfKeys = new List<string>(csvStats.Stats.Keys);
-            for (int i = csvStats.Stats.Keys.Count - 1; i >= 0; i--)
-            {
-                if (!statsToSummarise.Contains(ListOfKeys[i]))
-                {
-                    csvStats.Stats.Remove(ListOfKeys[i]);
-                }
-            }
+			if (!GetBoolArg("readAllStats"))
+			{
+				List<string> ListOfKeys = new List<string>(csvStats.Stats.Keys);
+				for (int i = csvStats.Stats.Keys.Count - 1; i >= 0; i--)
+				{
+					if (!statsToSummarise.Contains(ListOfKeys[i]))
+					{
+						csvStats.Stats.Remove(ListOfKeys[i]);
+					}
+				}
+			}
 
             // Generate CSV metadata
 			if (summaryMetadata != null)
@@ -778,9 +790,19 @@ namespace PerfReportTool
 						summaryMetadata.Add(pair.Key.ToLower(), pair.Value);
 					}
 				}
-            }
 
-            if (htmlFilename != null && !string.IsNullOrEmpty(outputDir))
+				// Add every stat avg value to the metadata
+				if (GetBoolArg("readAllStats") )
+				{
+					foreach ( StatSamples stat in csvStats.Stats.Values )
+					{
+						summaryMetadata.Add( stat.Name.ToLower(), stat.average.ToString());
+					}
+				}
+
+			}
+
+			if (htmlFilename != null && !string.IsNullOrEmpty(outputDir))
             {
                 htmlFilename = Path.Combine(outputDir, htmlFilename);
             }
@@ -802,6 +824,39 @@ namespace PerfReportTool
         {
             CsvStats csvStats = CsvStats.ReadCSVFromLines(csvFile.lines, null);
 			reportXML.ApplyDerivedMetadata(csvStats.metaData);
+
+			if ( csvStats.metaData == null )
+			{
+				csvStats.metaData = new CsvMetadata();
+			}
+			csvStats.metaData.Values.Add("csvfilename", csvFile.filename);
+
+			// Adjust min/max x based on the event delimiters
+			string beginEventStr = GetArg("beginEvent").ToLower();
+			if (beginEventStr != "")
+			{
+				foreach (CsvEvent ev in csvStats.Events)
+				{
+					if (ev.Name.ToLower() == beginEventStr)
+					{
+						minX = Math.Max(minX, ev.Frame);
+						break;
+					}
+				}
+			}
+			string endEventStr = GetArg("endEvent").ToLower();
+			if ( endEventStr != "")
+			{ 
+				for (int i = csvStats.Events.Count - 1; i >= 0; i--)
+				{
+					CsvEvent ev = csvStats.Events[i];
+					if (ev.Name.ToLower() == endEventStr)
+					{
+						maxX = Math.Min(maxX, ev.Frame);
+						break;
+					}
+				}
+			}
 
 			// Crop the stats to the range
 			csvStats.CropStats(minX, maxX);
@@ -864,10 +919,33 @@ namespace PerfReportTool
 				}
 
 				htmlFile.WriteLine("  <h2>Summary</h2>");
-                htmlFile.WriteLine("<p>Frame count : " + csvStats.SampleCount + " (" + numFramesStripped + " excluded)</p>");
-            }
 
-            if (summaryMetadata != null)
+				htmlFile.WriteLine("<table border='0'  bgcolor='#000000' style='width:800'>");
+
+				if ( reportTypeInfo.metadataToShowList != null )
+				{
+				    Dictionary<string, string> displayNameMapping = reportXML.GetDisplayNameMapping();
+    
+				    foreach (string metadataStr in reportTypeInfo.metadataToShowList)
+				    {
+					    string value = csvStats.metaData.GetValue(metadataStr, null);
+					    if (value != null)
+					    {
+						    string friendlyName = metadataStr;
+						    if (displayNameMapping.ContainsKey(metadataStr.ToLower()))
+						    {
+							    friendlyName = displayNameMapping[metadataStr];
+						    }
+						    htmlFile.WriteLine("<tr bgcolor='#ffffff'><td bgcolor='#F0F0F0'>" + friendlyName + "</td><td><b>" + value + "</b></td></tr>");
+					    }
+				    }
+				}
+				htmlFile.WriteLine("<tr bgcolor='#ffffff'><td bgcolor='#F0F0F0'>Frame count</td><td>" + csvStats.SampleCount + " (" + numFramesStripped + " excluded)</td></tr>");
+				htmlFile.WriteLine("</table>");
+
+			}
+
+			if (summaryMetadata != null)
             {
                 summaryMetadata.Add("framecount", csvStats.SampleCount.ToString());
                 if (numFramesStripped > 0)
@@ -1148,13 +1226,14 @@ namespace PerfReportTool
 
 
 
-            string csvToolPath = GetBaseDirectory() + "\\CSVToSVG.exe";
+            string csvToolPath = GetBaseDirectory() + "/CSVToSVG.exe";
 			string binary = csvToolPath;
 
 			// run mono on non-Windows hosts
 			if (Host != HostPlatform.Windows)
 			{
-				binary = "mono";
+				// note, on Mac mono will not be on path
+				binary = Host == HostPlatform.Linux ? "mono" : "/Library/Frameworks/Mono.framework/Versions/Current/Commands/mono";
 				args = csvToolPath + " " + args;
 			}
             
@@ -1233,35 +1312,39 @@ namespace PerfReportTool
             title = element.Attribute("title").Value;
             foreach (XElement child in element.Elements())
             {
-                if (child.Name == "graph")
-                {
-                    ReportGraph graph = new ReportGraph(child);
-                    graphs.Add(graph);
-                }
-                else if (child.Name == "summary")
-                {
-                    string summaryType = child.Attribute("type").Value;
-                    if (summaryType == "histogram")
-                    {
-                        summaries.Add(new HistogramSummary(child));
-                    }
-                    else if (summaryType == "peak")
-                    {
-                        summaries.Add(new PeakSummary(child));
-                    }
-                    else if (summaryType == "fpschart")
-                    {
-                        summaries.Add(new FPSChartSummary(child));
-                    }
-                    else if (summaryType == "hitches")
-                    {
-                        summaries.Add(new HitchSummary(child));
-                    }
-                    else if (summaryType == "event")
-                    {
-                        summaries.Add(new EventSummary(child));
-                    }
-                }
+				if (child.Name == "graph")
+				{
+					ReportGraph graph = new ReportGraph(child);
+					graphs.Add(graph);
+				}
+				else if (child.Name == "summary")
+				{
+					string summaryType = child.Attribute("type").Value;
+					if (summaryType == "histogram")
+					{
+						summaries.Add(new HistogramSummary(child));
+					}
+					else if (summaryType == "peak")
+					{
+						summaries.Add(new PeakSummary(child));
+					}
+					else if (summaryType == "fpschart")
+					{
+						summaries.Add(new FPSChartSummary(child));
+					}
+					else if (summaryType == "hitches")
+					{
+						summaries.Add(new HitchSummary(child));
+					}
+					else if (summaryType == "event")
+					{
+						summaries.Add(new EventSummary(child));
+					}
+				}
+				else if (child.Name == "metadataToShow")
+				{
+					metadataToShowList = child.Value.Split(',');
+				}
 
             }
         }
@@ -1269,6 +1352,7 @@ namespace PerfReportTool
 		public List<ReportGraph> graphs;
         public List<Summary> summaries;
         public string title;
+		public string [] metadataToShowList;
 	};
 
 
@@ -1709,7 +1793,7 @@ namespace PerfReportTool
 
 			foreach (Summary summary in reportTypeInfo.summaries)
 			{
-				summary.PostInit(reportTypeInfo);
+				summary.PostInit(reportTypeInfo, csvFile.dummyCsvStats);
 			}
 			return reportTypeInfo;
 		} 

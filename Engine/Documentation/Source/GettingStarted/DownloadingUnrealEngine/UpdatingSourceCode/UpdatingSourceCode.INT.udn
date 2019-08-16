@@ -1,0 +1,89 @@
+Availability: Public
+Title: Updating to the Latest Changes from Epic
+Description: Describes how to update your fork of the Unreal Engine source code to get the latest fixes and new features.
+Type: overview
+Parent: GettingStarted/DownloadingUnrealEngine
+Tags: GitHub
+Order: 0
+Related: GettingStarted/DownloadingUnrealEngine/ContributingToUnreal
+
+
+[TOC (start:2 end:3)]
+
+One of the biggest benefits of working from source is that you always have access to the very latest improvements and new features that our team adds to Unreal Engine. As we make changes in the source code and issue new official releases, we continuously update the various branches of the [Unreal Engine GitHub repository](https://github.com/EpicGames). You’ll probably want to pick up these changes periodically: perhaps every time we publish a new official release, every month, or even every day.
+
+This page describes two different approaches you can use to update a branch of your fork so that it matches the latest changes in the main Unreal Engine repository.  
+
+## Option 1: Using an Upstream Remote
+
+In this approach, you add the original Epic Games Unreal Engine repository to your local copy of your fork as a new remote repository. This is usually referred to as the *upstream* remote. You pull changes from that upstream remote into your local branch. Then you can push those changes back up to your own fork on GitHub (usually referred to as the *origin* remote).
+
+Although this may at first seem trickier than using a GitHub pull request as described in Option 2 below, we recommend this approach. It has a couple of advantages:
+
+*   Once you’ve set up your upstream remote, you never have to set it up again as long as you keep using the same local clone of your fork. This makes it very quick and easy to pick up new changes as frequently as you feel is necessary for your project.
+
+*   Each time you use a GitHub pull request to update your fork, you create a new commit in your branch and a new pull request in your project’s history. This is usually harmless, but it’s better to avoid these unnecessary entries.
+
+The instructions below show how to use the Git command-line tools to add the new remote and pick up changes. If you use a visual Git client, the steps should be roughly the same. See your tool’s documentation for details.
+
+[REGION:note]
+If you use [GitHub Desktop](https://desktop.github.com/), the upstream remote is automatically created for you when you clone your fork. You only need to merge the changes from the upstream branch into your local branch, then push those changes up to your origin repository.
+[/REGION]
+
+To set up the upstream remote:
+
+1.  If you haven’t already done so, clone your fork to your computer.
+
+1.  Open a command prompt, and navigate to the folder that contains your repository.
+
+1.  Add the base Epic Games repository as a new remote, named “upstream”.
+    
+        > git remote add upstream https://github.com/EpicGames/UnrealEngine
+    
+
+To bring the changes from the upstream remote into your fork:
+
+1.  Checkout the branch you want to update. For example:
+    
+        > git checkout master
+    
+
+1.  Pull the changes from the upstream remote into your local branch.
+    
+        > git fetch upstream
+        > git merge upstream/master
+    
+
+1.  Push the changes up to your origin remote.
+    
+        > git push origin master
+    
+
+## Option 2: Using a GitHub Pull Request
+
+1.  In a web browser, go to your repository’s home page on [github.com](http://www.github.com).  
+    This typically follows the format `https://github.com/<username>/UnrealEngine`, where `<username>` is your GitHub user name.
+
+1.  Choose the branch you want to update from the **Branch** widget.  
+    ![Selecting the master branch](updating-github-1-branches.png "Selecting the master branch")
+
+1.  Click the **Compare** link.  
+    ![Compare](updating-github-2-compare.png "Compare")
+
+1.  Typically, as long as you haven’t made changes to this branch in your fork, GitHub will tell you that the Epic Games repository already has all the commits from your repository.  
+    Click the link for **switching the base**, which reverses the comparison and shows the commits that have been made in the engine repository but that are not in your fork.  
+    ![Switching the base](updating-github-3-switching.png "Switching the base")
+
+1.  Take a quick look at the list of changes. If the dates shown match what you're expecting, click **Create Pull Request**.  
+    ![Comparing changes between branches](updating-github-4-create.png "Comparing changes between branches")
+
+1.  Enter a brief description to indicate what branch your pull request is updating. When you’re done, click **Create Pull Request**.  
+    ![Open a new pull request](updating-github-5-open.png "Open a new pull request")
+
+1.  GitHub shows the Conversation tab of your new pull request. At the bottom of the list of changes, click **Merge Pull Request**.  
+    ![Merge pull request](updating-github-6-merge.png "Merge pull request")
+
+1.  Click **Confirm Merge**.  
+    ![Confirm merge](updating-github-7-confirm.png "Confirm merge")
+
+When the merge is done, your fork’s branch will be up-to-date on GitHub. You can now use the Git command line or your choice of visual tools to checkout the branch and pull the latest changes to your local computer.

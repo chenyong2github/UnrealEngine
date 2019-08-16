@@ -31,6 +31,10 @@ namespace Audio
 		// Start the envelope, puts envelope in attack state
 		virtual void Start();
 
+		// For truly legato envelope logic, we need to know the new sustain gain (if its being changed).
+		virtual void StartLegato(const float InNewDepth);
+		virtual void StartLegato() { StartLegato(Depth); }
+
 		// Stop the envelope, puts in the release state. Can optionally force to off state.
 		virtual void Stop();
 
@@ -122,6 +126,7 @@ namespace Audio
 		float ShutdownDelta;
 		float Depth;
 		float BiasDepth;
+		float OutputGain;
 
 		FEnvData AttackData;
 		FEnvData DecayData;
@@ -136,21 +141,25 @@ namespace Audio
 		FPatchSource BiasedEnvSource;
 
 		// Whether or not we want to simulate analog behavior
-		bool bIsSimulatingAnalog;
+		uint8 bIsSimulatingAnalog:1;
 
 		// Whether or not the envelope is reset back to attack when started
-		bool bIsLegatoMode;
+		uint8 bIsLegatoMode:1;
 
 		// Whether or not the envelope value is set to zero when finished
-		bool bIsRetriggerMode;
+		uint8 bIsRetriggerMode:1;
 
 		// Whether or not this envelope has changed and needs to have values recomputed
-		bool bChanged;
+		uint8 bChanged:1;
 
 		// Inverts the output
-		bool bInvert;
+		uint8 bInvert:1;
 
 		// Bias output inversions
-		bool bBiasInvert;
+		uint8 bBiasInvert:1;
+
+		// tracks if the current envelope was started with sustain at 0.0
+		// (avoids bug where sustain being turned up during decay phase makes note hang)
+		uint8 bCurrentCycleIsADOnly:1;
 	};
 }

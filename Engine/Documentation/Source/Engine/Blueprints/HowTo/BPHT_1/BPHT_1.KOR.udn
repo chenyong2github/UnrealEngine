@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6430399
 Availability: Public
 Title:1. 필수 애셋 구성
 Crumbs: %ROOT%, Engine, Engine/Blueprints, Engine/Blueprints/HowTo
@@ -75,7 +75,7 @@ order:1
 	**위치** 는 **7.0m, 0.0m, 0.0m**, **회전** 은 **0.0, 40.0, 0.0** 입니다. 
 
 	[REGION:note]
-	7.0m 를 입력하면 700cm 으로 변환되는데, 똑같은 값입니다. VR 실전 사례의 [월드 스케일](Platforms/VR/ContentSetup) 부분을 보시면 언리얼 유닛 계산 방식 분석과 아울러 측정 단위 변경 방법을 확인하실 수 있습니다.
+	7.0m 를 입력하면 700cm 으로 변환되는데, 똑같은 값입니다. VR 실전 사례의 [월드 스케일](Platforms/VR/DevelopVR/ContentSetup) 부분을 보시면 언리얼 유닛 계산 방식 분석과 아울러 측정 단위 변경 방법을 확인하실 수 있습니다.
 	[/REGION]
 
 1.	레벨에서 **타깃 포인트** 를 선택한 채로 **Ctrl+W** 를 눌러 복제한 뒤 **디테일** 에서 아래와 같이 설정합니다.

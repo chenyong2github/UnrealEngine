@@ -4,90 +4,83 @@
 
 #include "Async/ParallelFor.h"
 #include "Components/BoxComponent.h"
+#include "Components/CapsuleComponent.h"
+#include "Components/SphereComponent.h"
 #include "GeometryCollection/GeometryCollectionSimulationTypes.h"
-#include "GeometryCollection/StaticMeshSolverCallbacks.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
 #include "Chaos/DebugDrawQueue.h"
 #include "DrawDebugHelpers.h"
-#include "GeometryCollection/StaticMeshSimulationComponentPhysicsProxy.h"
 #include "Modules/ModuleManager.h"
 #include "ChaosSolversModule.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "PhysicsProxy/StaticMeshPhysicsProxy.h"
+#include "PhysicsSolver.h"
+#include "Chaos/ChaosGameplayEventDispatcher.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(UStaticMeshSimulationComponentLogging, NoLogging, All);
 
 UStaticMeshSimulationComponent::UStaticMeshSimulationComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, Simulating(false)
-	, ObjectType(EObjectTypeEnum::Chaos_Object_Dynamic)
+	, Simulating(true)
+	, bNotifyCollisions(false)
+	, ObjectType(EObjectStateTypeEnum::Chaos_Object_Dynamic)
 	, Mass(1.0)
 	, CollisionType(ECollisionTypeEnum::Chaos_Surface_Volumetric)
+	, ImplicitType(EImplicitTypeEnum::Chaos_Max)
+	, MinLevelSetResolution(5)
+	, MaxLevelSetResolution(10)
 	, InitialVelocityType(EInitialVelocityTypeEnum::Chaos_Initial_Velocity_User_Defined)
-	, Friction(0.8)
-	, Bouncyness(0.0)
 	, ChaosSolverActor(nullptr)
 {
+	PrimaryComponentTick.TickGroup = TG_PrePhysics;
+	PrimaryComponentTick.bStartWithTickEnabled = true;
+	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.SetTickFunctionEnable(true);
+	ChaosMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<float>>();
 }
 
-void UStaticMeshSimulationComponent::BeginPlay()
+// We tick to detect components that unreal has moved, so we can update the solver.
+// The better solution long-term is to tie into UPrimitiveComponent::OnUpdateTransform() like we do for physx
+void UStaticMeshSimulationComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
-	Super::BeginPlay();
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
 #if INCLUDE_CHAOS
-	// #BG TODO - Find a better place for this - something that gets hit once on scene begin.
-	FChaosSolversModule* ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
-	Chaos::PBDRigidsSolver* Solver = ChaosSolverActor != nullptr ? ChaosSolverActor->GetSolver() : FPhysScene_Chaos::GetInstance()->GetSolver();
-	ChaosModule->GetDispatcher()->EnqueueCommand(Solver,
-		[InFriction = Friction
-		, InRestitution = Bouncyness
-		, InCollisionIters = ChaosSolverActor != nullptr ? ChaosSolverActor->CollisionIterations : 5
-		, InPushOutIters = ChaosSolverActor != nullptr ? ChaosSolverActor->PushOutIterations : 1
-		, InPushOutPairIters = ChaosSolverActor != nullptr ? ChaosSolverActor->PushOutPairIterations : 1
-		, InCollisionDataSizeMax = ChaosSolverActor != nullptr ? ChaosSolverActor->CollisionDataSizeMax : 1024
-		, InCollisionDataTimeWindow = ChaosSolverActor != nullptr ? ChaosSolverActor->CollisionDataTimeWindow : 0.1
-		, InHasFloor = ChaosSolverActor != nullptr ? ChaosSolverActor->HasFloor : true
-		, InFloorHeight = ChaosSolverActor != nullptr ? ChaosSolverActor->FloorHeight : 0.f]
-		(Chaos::PBDRigidsSolver* InSolver)
+	// for kinematic objects, we assume that UE4 can and will move them, so we need to pass the new data to the phys solver
+	if ((ObjectType == EObjectStateTypeEnum::Chaos_Object_Kinematic) && Simulating)
 	{
-		InSolver->SetFriction(InFriction);
-		InSolver->SetRestitution(InRestitution);
-		InSolver->SetIterations(InCollisionIters);
-		InSolver->SetPushOutIterations(InPushOutIters);
-		InSolver->SetPushOutPairIterations(InPushOutPairIters);
-		InSolver->SetMaxCollisionDataSize(InCollisionDataSizeMax);
-		InSolver->SetCollisionDataTimeWindow(InCollisionDataTimeWindow);
-		InSolver->SetHasFloor(InHasFloor);
-		InSolver->SetFloorHeight(InFloorHeight);
-		InSolver->SetEnabled(true);
-	});
+		FChaosSolversModule* ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
+		checkSlow(ChaosModule);
+
+		Chaos::IDispatcher* PhysicsDispatcher = ChaosModule->GetDispatcher();
+		checkSlow(PhysicsDispatcher); // Should always have one of these
+
+		for (int32 Idx = 0; Idx < PhysicsProxies.Num(); ++Idx)
+		{
+			FStaticMeshPhysicsProxy* const PhysicsProxy = PhysicsProxies[Idx];
+			UPrimitiveComponent* const Comp = SimulatedComponents[Idx];
+
+			FPhysicsProxyKinematicUpdate ParamUpdate;
+			ParamUpdate.NewTransform = Comp->GetComponentTransform();
+			ParamUpdate.NewVelocity = Comp->ComponentVelocity;
+
+			PhysicsDispatcher->EnqueueCommandImmediate([PhysObj = PhysicsProxy, Params = ParamUpdate]()
+			{
+				PhysObj->BufferKinematicUpdate(Params);
+			});
+		}
+	}
 #endif
 }
 
 #if INCLUDE_CHAOS
-Chaos::PBDRigidsSolver* GetSolver(const UStaticMeshSimulationComponent& StaticMeshSimulationComponent)
+Chaos::FPhysicsSolver* GetSolver(const UStaticMeshSimulationComponent& StaticMeshSimulationComponent)
 {
-	return	StaticMeshSimulationComponent.ChaosSolverActor != nullptr ? StaticMeshSimulationComponent.ChaosSolverActor->GetSolver() : FPhysScene_Chaos::GetInstance()->GetSolver();
+	return	StaticMeshSimulationComponent.ChaosSolverActor != nullptr ? StaticMeshSimulationComponent.ChaosSolverActor->GetSolver() : StaticMeshSimulationComponent.GetOwner()->GetWorld()->PhysicsScene_Chaos->GetSolver();
 }
 #endif
-
-void UStaticMeshSimulationComponent::EndPlay(EEndPlayReason::Type ReasonEnd)
-{
-#if INCLUDE_CHAOS
-	// @todo : This needs to be removed from the component. 
-	Chaos::PBDRigidsSolver* Solver = GetSolver(*this);
-	ensure(Solver);
-
-	FChaosSolversModule* ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
-	ChaosModule->GetDispatcher()->EnqueueCommand(Solver, [](Chaos::PBDRigidsSolver* InSolver)
-	{
-		InSolver->Reset();
-	});
-#endif
-
-	Super::EndPlay(ReasonEnd);
-}
 
 void UStaticMeshSimulationComponent::OnCreatePhysicsState()
 {
@@ -99,53 +92,300 @@ void UStaticMeshSimulationComponent::OnCreatePhysicsState()
 
 	// Need to see if we actually have a target for the component
 	AActor* OwningActor = GetOwner();
-	UStaticMeshComponent* TargetComponent = OwningActor->FindComponentByClass<UStaticMeshComponent>();
+	TArray<UStaticMeshComponent*> StaticMeshComponents;
+	OwningActor->GetComponents<UStaticMeshComponent>(StaticMeshComponents);
+	TArray<UShapeComponent*> ShapeComponents;
+	OwningActor->GetComponents<UShapeComponent>(ShapeComponents);
+	TMap<UShapeComponent*, TArray<UStaticMeshComponent*>> ParentToChildMap;
 
-	if(bValidWorld && TargetComponent)
+	if (bValidWorld)
 	{
-		auto InitFunc = [this, TargetComponent](FStaticMeshSolverCallbacks::Params& InParams)
+		TSharedPtr<FPhysScene_Chaos> const Scene = GetPhysicsScene();
+		AChaosSolverActor* const SolverActor = Scene ? Cast<AChaosSolverActor>(Scene->GetSolverActor()) : nullptr;
+		UChaosGameplayEventDispatcher* const EventDispatcher = SolverActor ? SolverActor->GetGameplayEventDispatcher() : nullptr;
+
+		for (UStaticMeshComponent* TargetComponent : StaticMeshComponents)
 		{
-			GetPathName(this, InParams.Name);
-			InParams.InitialTransform = GetOwner()->GetTransform();
-			if(InitialVelocityType == EInitialVelocityTypeEnum::Chaos_Initial_Velocity_User_Defined)
+			if (TargetComponent->GetAttachParent())
 			{
-				InParams.InitialLinearVelocity = InitialLinearVelocity;
-				InParams.InitialAngularVelocity = InitialAngularVelocity;
-			}
-
-			InParams.Mass = Mass;
-			InParams.ObjectType = ObjectType;
-
-			UStaticMesh* StaticMesh = TargetComponent->GetStaticMesh();
-
-			if(StaticMesh)
-			{
-				FStaticMeshVertexBuffers& VB = StaticMesh->RenderData->LODResources[0].VertexBuffers;
-				const int32 NumVerts = VB.PositionVertexBuffer.GetNumVertices();
-				InParams.MeshVertexPositions.Reset(NumVerts);
-
-				for(int32 VertexIndex = 0; VertexIndex < NumVerts; ++VertexIndex)
+				if (UShapeComponent* ShapeComponent = Cast<UShapeComponent>(TargetComponent->GetAttachParent()))
 				{
-					InParams.MeshVertexPositions.Add(VB.PositionVertexBuffer.VertexPosition(VertexIndex));
+					ParentToChildMap.FindOrAdd(ShapeComponent).Add(TargetComponent);
 				}
-
-				if(NumVerts > 0)
+			}
+			else
+			{
+				if (PhysicalMaterial)
 				{
-					TargetComponent->SetMobility(EComponentMobility::Movable);
+					ChaosMaterial->Friction = PhysicalMaterial->Friction;
+					ChaosMaterial->Restitution = PhysicalMaterial->Restitution;
+					ChaosMaterial->SleepingLinearThreshold = PhysicalMaterial->SleepingLinearVelocityThreshold;
+					ChaosMaterial->SleepingAngularThreshold = PhysicalMaterial->SleepingAngularVelocityThreshold;
+				}
+				auto InitFunc = [this, TargetComponent](FStaticMeshPhysicsProxy::Params& InParams)
+				{
+					GetPathName(this, InParams.Name);
+					InParams.InitialTransform = GetOwner()->GetTransform();
+					if (InitialVelocityType == EInitialVelocityTypeEnum::Chaos_Initial_Velocity_User_Defined)
+					{
+						InParams.InitialLinearVelocity = InitialLinearVelocity;
+						InParams.InitialAngularVelocity = InitialAngularVelocity;
+					}
+
+					InParams.Mass = Mass;
+					InParams.MinRes = MinLevelSetResolution;
+					InParams.MaxRes = MaxLevelSetResolution;
+					InParams.ObjectType = ObjectType;
+					InParams.ShapeType = ImplicitType;
+					InParams.PhysicalMaterial = MakeSerializable(ChaosMaterial);
+
+					if (UStaticMesh* StaticMesh = TargetComponent->GetStaticMesh())
+					{
+						// TODO: Figure out where we want to get collision geometry from.  GetPhysicsTriMeshData() pulls
+						// from the render mesh.
+						FTriMeshCollisionData CollisionData;
+						if (StaticMesh->GetPhysicsTriMeshData(&CollisionData, true)) // 0 = use LOD, 1 = all 
+						{
+							if ((InParams.InitialTransform.GetScale3D() - FVector(1.f, 1.f, 1.f)).SizeSquared() < SMALL_NUMBER)
+							{
+								auto& TVectorArray = reinterpret_cast<TArray<Chaos::TVector<float, 3>>&>(CollisionData.Vertices);
+								InParams.MeshVertexPositions = MoveTemp(TVectorArray);
+							}
+							else
+							{
+								InParams.MeshVertexPositions.Resize(CollisionData.Vertices.Num());
+								for (int32 i = 0; i < CollisionData.Vertices.Num(); ++i)
+								{
+									InParams.MeshVertexPositions.X(i) = CollisionData.Vertices[i] * InParams.InitialTransform.GetScale3D();
+								}
+							}
+							check(sizeof(Chaos::TVector<int32, 3>) == sizeof(FTriIndices)); // binary compatible?
+							InParams.TriIndices = MoveTemp(*reinterpret_cast<TArray<Chaos::TVector<int32, 3>>*>(&CollisionData.Indices));
+
+							TargetComponent->SetMobility(EComponentMobility::Movable);
+							InParams.bSimulating = Simulating;
+						}
+					}
+
+					if (ImplicitType == EImplicitTypeEnum::Chaos_Max)
+					{
+						FVector Min, Max;
+						TargetComponent->GetLocalBounds(Min, Max);
+
+						InParams.ShapeType = EImplicitTypeEnum::Chaos_Implicit_LevelSet;
+
+						FVector Extents = (Max - Min);
+						if (Extents.X < KINDA_SMALL_NUMBER || Extents.Y < KINDA_SMALL_NUMBER || Extents.Z < KINDA_SMALL_NUMBER)
+						{
+							InParams.ShapeType = EImplicitTypeEnum::Chaos_Implicit_None;
+						}
+					}
+
+					if (InParams.ShapeType == EImplicitTypeEnum::Chaos_Implicit_Box)
+					{
+						FVector Min, Max;
+						TargetComponent->GetLocalBounds(Min, Max);
+						InParams.bSimulating = Simulating;
+						InParams.ShapeParams.BoxExtents = (Max - Min) * InParams.InitialTransform.GetScale3D();
+					}
+					else if (InParams.ShapeType == EImplicitTypeEnum::Chaos_Implicit_Sphere)
+					{
+						FVector Min, Max;
+						TargetComponent->GetLocalBounds(Min, Max);
+						FVector Extents = (Max - Min) * InParams.InitialTransform.GetScale3D();
+						float Radius = Extents.X;
+						if (Extents.Y < Extents.X && Extents.Y < Extents.Z)
+						{
+							Radius = Extents.Y;
+						}
+						else if (Extents.Z < Extents.X)
+						{
+							Radius = Extents.Z;
+						}
+						InParams.bSimulating = Simulating;
+						InParams.ShapeParams.SphereRadius = Radius / 2.f;
+					}
+					else if (InParams.ShapeType == EImplicitTypeEnum::Chaos_Implicit_Capsule)
+					{
+						FVector Min, Max;
+						TargetComponent->GetLocalBounds(Min, Max);
+						FVector Extents = (Max - Min) * InParams.InitialTransform.GetScale3D();
+						float Radius = Extents.X;
+						if (Extents.Y < Extents.X && Extents.Y < Extents.Z)
+						{
+							Radius = Extents.Y;
+						}
+						else if (Extents.Z < Extents.X)
+						{
+							Radius = Extents.Z;
+						}
+						float Height = Extents.X;
+						if (Extents.Y > Extents.X && Extents.Y > Extents.Z)
+						{
+							Height = Extents.Y;
+						}
+						else if (Extents.Z > Extents.X)
+						{
+							Height = Extents.Z;
+						}
+						InParams.bSimulating = Simulating;
+						InParams.ShapeParams.CapsuleHalfHeightAndRadius = FVector2D((Height - Radius) / 2.f, Radius / 2.f);
+					}
+				};
+
+				auto SyncFunc = [TargetComponent](const FTransform& InTransform)
+				{
+					TargetComponent->SetWorldTransform(InTransform);
+				};
+
+				FStaticMeshPhysicsProxy* const NewPhysicsProxy = new FStaticMeshPhysicsProxy(this, InitFunc, SyncFunc);
+				PhysicsProxies.Add(NewPhysicsProxy);
+				SimulatedComponents.Add(TargetComponent);
+				check(PhysicsProxies.Num() == SimulatedComponents.Num());
+
+				Scene->AddObject(TargetComponent, NewPhysicsProxy);
+
+				if (EventDispatcher)
+				{
+					if (bNotifyCollisions)
+					{
+						// I want the more-detailed Chaos events
+						EventDispatcher->RegisterForCollisionEvents(TargetComponent, this);
+					}
+
+					if (FBodyInstance const* const BI = TargetComponent->GetBodyInstance())
+					{
+						if (BI->bNotifyRigidBodyCollision)
+						{
+							// target component wants the old-school events
+							EventDispatcher->RegisterForCollisionEvents(TargetComponent, TargetComponent);
+						}
+					}
+				}
+			}
+		}
+
+		for (UShapeComponent* TargetComponent : ShapeComponents)
+		{
+			if (!TargetComponent->GetAttachParent())
+			{
+				if (PhysicalMaterial)
+				{
+					ChaosMaterial->Friction = PhysicalMaterial->Friction;
+					ChaosMaterial->Restitution = PhysicalMaterial->Restitution;
+					ChaosMaterial->SleepingLinearThreshold = PhysicalMaterial->SleepingLinearVelocityThreshold;
+					ChaosMaterial->SleepingAngularThreshold = PhysicalMaterial->SleepingAngularVelocityThreshold;
+				}
+				const TArray<UStaticMeshComponent*>* StaticMeshComponentChildren = ParentToChildMap.Find(TargetComponent);
+				auto InitFunc = [this, StaticMeshComponentChildren, TargetComponent](FStaticMeshPhysicsProxy::Params& InParams)
+				{
+					GetPathName(this, InParams.Name);
+					InParams.InitialTransform = GetOwner()->GetTransform();
+					if (InitialVelocityType == EInitialVelocityTypeEnum::Chaos_Initial_Velocity_User_Defined)
+					{
+						InParams.InitialLinearVelocity = InitialLinearVelocity;
+						InParams.InitialAngularVelocity = InitialAngularVelocity;
+					}
+
+					InParams.Mass = Mass;
+					InParams.ObjectType = ObjectType;
 					InParams.bSimulating = Simulating;
+					InParams.PhysicalMaterial = MakeSerializable(ChaosMaterial);
+
+#if 0
+					//TArray<USceneComponent*> SceneComponents = TargetComponent->GetAttachChildren();
+					if (StaticMeshComponentChildren)
+					{
+						for (UStaticMeshComponent* StaticMeshComponent : *StaticMeshComponentChildren)
+						{
+							if (UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh())
+							{
+								// TODO: Figure out where we want to get collision geometry from.  GetPhysicsTriMeshData() pulls
+								// from the render mesh.
+								FTriMeshCollisionData CollisionData;
+								if (StaticMesh->GetPhysicsTriMeshData(&CollisionData, true)) // 0 = use LOD, 1 = all 
+								{
+									if ((InParams.InitialTransform.GetScale3D() - FVector(1.f, 1.f, 1.f)).SizeSquared() < SMALL_NUMBER)
+									{
+										InParams.MeshVertexPositions = MoveTemp(CollisionData.Vertices);
+									}
+									else
+									{
+										InParams.MeshVertexPositions.SetNum(CollisionData.Vertices.Num());
+										for (int32 i = 0; i < CollisionData.Vertices.Num(); ++i)
+										{
+											InParams.MeshVertexPositions[i] = CollisionData.Vertices[i] * InParams.InitialTransform.GetScale3D();
+										}
+									}
+									check(sizeof(Chaos::TVector<int32, 3>) == sizeof(FTriIndices)); // binary compatible?
+									InParams.TriIndices = MoveTemp(*reinterpret_cast<TArray<Chaos::TVector<int32, 3>>*>(&CollisionData.Indices));
+									// If there are multiple static meshes we are just going to use the first one for now.
+									break;
+								}
+							}
+						}
+					}
+#endif
+
+					if (UCapsuleComponent* CapsuleComponent = Cast<UCapsuleComponent>(TargetComponent))
+					{
+						if (ImplicitType != EImplicitTypeEnum::Chaos_Implicit_Capsule && ImplicitType != EImplicitTypeEnum::Chaos_Max)
+						{
+							UE_LOG(LogStaticMesh, Warning, TEXT("ImplicitType does not match component type capsule, ignoring."), this);
+						}
+						InParams.ShapeType = EImplicitTypeEnum::Chaos_Implicit_Capsule;
+						InParams.ShapeParams.CapsuleHalfHeightAndRadius = FVector2D(CapsuleComponent->GetScaledCapsuleHalfHeight(), CapsuleComponent->GetScaledCapsuleRadius());
+					}
+					else if (UBoxComponent* BoxComponent = Cast<UBoxComponent>(TargetComponent))
+					{
+						if (ImplicitType != EImplicitTypeEnum::Chaos_Implicit_Box && ImplicitType != EImplicitTypeEnum::Chaos_Max)
+						{
+							UE_LOG(LogStaticMesh, Warning, TEXT("ImplicitType does not match component type box, ignoring."), this);
+						}
+						InParams.ShapeType = EImplicitTypeEnum::Chaos_Implicit_Box;
+						InParams.ShapeParams.BoxExtents = BoxComponent->GetScaledBoxExtent();
+					}
+					else if (USphereComponent* SphereComponent = Cast<USphereComponent>(TargetComponent))
+					{
+						if (ImplicitType != EImplicitTypeEnum::Chaos_Implicit_Sphere && ImplicitType != EImplicitTypeEnum::Chaos_Max)
+						{
+							UE_LOG(LogStaticMesh, Warning, TEXT("ImplicitType does not match component type sphere, ignoring."), this);
+						}
+						InParams.ShapeType = EImplicitTypeEnum::Chaos_Implicit_Sphere;
+						InParams.ShapeParams.SphereRadius = SphereComponent->GetScaledSphereRadius();
+					}
+				};
+
+				auto SyncFunc = [TargetComponent](const FTransform& InTransform)
+				{
+					TargetComponent->SetWorldTransform(InTransform);
+				};
+
+				FStaticMeshPhysicsProxy* const NewPhysicsProxy = new FStaticMeshPhysicsProxy(this, InitFunc, SyncFunc);
+				PhysicsProxies.Add(NewPhysicsProxy);
+				SimulatedComponents.Add(TargetComponent);
+				check(PhysicsProxies.Num() == SimulatedComponents.Num());
+
+				Scene->AddObject(TargetComponent, NewPhysicsProxy);
+
+				if (EventDispatcher)
+				{
+					if (bNotifyCollisions)
+					{
+						// I want the more-detailed Chaos events
+						EventDispatcher->RegisterForCollisionEvents(TargetComponent, this);
+					}
+
+					if (FBodyInstance const* const BI = TargetComponent->GetBodyInstance())
+					{
+						if (BI->bNotifyRigidBodyCollision)
+						{
+							EventDispatcher->RegisterForCollisionEvents(TargetComponent, TargetComponent);
+						}
+					}
 				}
 			}
-		};
-
-		auto SyncFunc = [TargetComponent](const FTransform& InTransform)
-		{
-			TargetComponent->SetWorldTransform(InTransform);
-		};
-
-		PhysicsProxy = new FStaticMeshSimulationComponentPhysicsProxy(InitFunc, SyncFunc);
-
-		TSharedPtr<FPhysScene_Chaos> Scene = GetPhysicsScene();
-		Scene->AddProxy(PhysicsProxy);
+		}
 	}
 #endif
 }
@@ -155,15 +395,33 @@ void UStaticMeshSimulationComponent::OnDestroyPhysicsState()
 	UActorComponent::OnDestroyPhysicsState();
 
 #if INCLUDE_CHAOS
-	if(PhysicsProxy)
-	{
-		// Handle scene remove, right now we rely on the reset of EndPlay to clean up
-		TSharedPtr<FPhysScene_Chaos> Scene = GetPhysicsScene();
-		Scene->RemoveProxy(PhysicsProxy);
+	TSharedPtr<FPhysScene_Chaos> Scene = GetPhysicsScene();
+	AChaosSolverActor* const SolverActor = Scene ? Cast<AChaosSolverActor>(Scene->GetSolverActor()) : nullptr;
+	UChaosGameplayEventDispatcher* const EventDispatcher = SolverActor ? SolverActor->GetGameplayEventDispatcher() : nullptr;
 
-		// Discard the pointer
-		PhysicsProxy = nullptr;
+	if (Scene)
+	{
+		for (FStaticMeshPhysicsProxy* PhysicsProxy : PhysicsProxies)
+		{
+			if (PhysicsProxy)
+			{
+				// Handle scene remove, right now we rely on the reset of EndPlay to clean up
+				Scene->RemoveObject(PhysicsProxy);
+
+				if (EventDispatcher)
+				{
+					if (UPrimitiveComponent* const Comp = Scene->GetOwningComponent<UPrimitiveComponent>(PhysicsProxy))
+					{
+						EventDispatcher->UnRegisterForCollisionEvents(Comp, this);
+						EventDispatcher->UnRegisterForCollisionEvents(Comp, Comp);
+					}
+				}
+			}
+		}
 	}
+
+	PhysicsProxies.Empty();
+	SimulatedComponents.Empty();
 #endif
 }
 
@@ -174,7 +432,7 @@ bool UStaticMeshSimulationComponent::ShouldCreatePhysicsState() const
 
 bool UStaticMeshSimulationComponent::HasValidPhysicsState() const
 {
-	return PhysicsProxy != nullptr;
+	return PhysicsProxies.Num() > 0;
 }
 
 #if INCLUDE_CHAOS
@@ -184,10 +442,25 @@ const TSharedPtr<FPhysScene_Chaos> UStaticMeshSimulationComponent::GetPhysicsSce
 	{
 		return ChaosSolverActor->GetPhysicsScene();
 	}
-	else
+	else if (UWorld* W = GetOwner()->GetWorld())
 	{
-		return FPhysScene_Chaos::GetInstance();
+		return W->PhysicsScene_Chaos;
 	}
+
+	return nullptr;
 }
 #endif
+
+void UStaticMeshSimulationComponent::DispatchChaosPhysicsCollisionBlueprintEvents(const FChaosPhysicsCollisionInfo& CollisionInfo)
+{
+	ReceivePhysicsCollision(CollisionInfo);
+	OnChaosPhysicsCollision.Broadcast(CollisionInfo);
+}
+
+void UStaticMeshSimulationComponent::ForceRecreatePhysicsState()
+{
+	RecreatePhysicsState();
+}
+
+
 

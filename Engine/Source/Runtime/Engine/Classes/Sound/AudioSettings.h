@@ -8,6 +8,8 @@
 #include "Engine/DeveloperSettings.h"
 #include "AudioSettings.generated.h"
 
+struct FPropertyChangedChainEvent;
+
 struct ENGINE_API FAudioPlatformSettings
 {
 	/** Sample rate to use on the platform for the mixing engine. Higher sample rates will incur more CPU cost. */
@@ -100,8 +102,13 @@ class ENGINE_API UAudioSettings : public UDeveloperSettings
 
 #if WITH_EDITOR
 	virtual void PreEditChange(UProperty* PropertyAboutToChange) override;
-	virtual void PostEditChangeChainProperty( struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
-#endif
+	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
+
+	/** Event to listen for when settings reflected properties are changed. */
+	DECLARE_EVENT(UAudioSettings, FAudioSettingsChanged)
+#endif // WITH_EDITOR
+
+	virtual void Serialize(FArchive& Ar) override;
 
 	/** The SoundClass assigned to newly created sounds */
 	UPROPERTY(config, EditAnywhere, Category="Audio", meta=(AllowedClasses="SoundClass", DisplayName="Default Sound Class"))
@@ -115,7 +122,7 @@ class ENGINE_API UAudioSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category = "Audio", meta = (AllowedClasses = "SoundConcurrency", DisplayName = "Default Sound Concurrency"))
 	FSoftObjectPath DefaultSoundConcurrencyName;
 
-	/** The SoundMix to use as base when no other system has speciicefied a Base SoundMix */
+	/** The SoundMix to use as base when no other system has specified a Base SoundMix */
 	UPROPERTY(config, EditAnywhere, Category="Audio", meta=(AllowedClasses="SoundMix"))
 	FSoftObjectPath DefaultBaseSoundMix;
 
@@ -132,8 +139,8 @@ class ENGINE_API UAudioSettings : public UDeveloperSettings
 	float VoipBufferingDelay;
 
 	/** The amount of audio to send to reverb submixes if no reverb send is setup for the source through attenuation settings. Only used in audio mixer. */
-	UPROPERTY(config, EditAnywhere, Category = "Audio", AdvancedDisplay)
-	float DefaultReverbSendLevel;
+	UPROPERTY(config)
+	float DefaultReverbSendLevel_DEPRECATED;
 
 	/** Enables legacy version of reverb. The legacy reverb runs more slowly, but by most other measures is functionally equivalent. It has a slight perceptual difference. */
 	UPROPERTY(config, EditAnywhere, Category = "Audio", AdvancedDisplay)
@@ -156,7 +163,7 @@ class ENGINE_API UAudioSettings : public UDeveloperSettings
 
 	/** Allows sounds to play at 0 volume. */
 	UPROPERTY(config, EditAnywhere, Category = "Quality", AdvancedDisplay)
-	uint32 bAllowVirtualizedSounds:1;
+	uint32 bAllowPlayWhenSilent:1;
 
 	/** Disables master EQ effect in the audio DSP graph. */
 	UPROPERTY(config, EditAnywhere, Category = "Quality", AdvancedDisplay)
@@ -197,7 +204,16 @@ class ENGINE_API UAudioSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category="Dialogue")
 	FString DialogueFilenameFormat;
 
+#if WITH_EDITOR
+	FAudioSettingsChanged AudioSettingsChanged;
+#endif // WITH_EDITOR
+
+public:
+	// Get the quality level settings at the provided level index
 	const FAudioQualitySettings& GetQualityLevelSettings(int32 QualityLevel) const;
+
+	// Get the total number of quality level settings
+	int32 GetQualityLevelSettingsNum() const;
 
 	// Sets whether audio mixer is enabled. Set once an audio mixer platform module is loaded.
 	void SetAudioMixerEnabled(const bool bInAudioMixerEnabled);
@@ -208,11 +224,15 @@ class ENGINE_API UAudioSettings : public UDeveloperSettings
 	/** Returns the highest value for MaxChannels among all quality levels */
 	int32 GetHighestMaxChannels() const;
 
-private:
+#if WITH_EDITOR
+	/** Returns event to be bound to if caller wants to know when audio settings are modified */
+	FAudioSettingsChanged& OnAudioSettingsChanged() { return AudioSettingsChanged; }
+#endif // WITH_EDITOR
 
+private:
 #if WITH_EDITOR
 	TArray<FAudioQualitySettings> CachedQualityLevels;
-#endif
+#endif // WITH_EDITOR
 
 	void AddDefaultSettings();
 

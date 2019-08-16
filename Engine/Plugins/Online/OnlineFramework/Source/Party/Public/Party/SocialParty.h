@@ -131,9 +131,6 @@ public:
 	EPartyState GetOssPartyPreviousState() const;
 
 	bool IsCurrentlyCrossplaying() const;
-	void StayWithPartyOnExit(bool bInStayWithParty);
-	bool ShouldStayWithPartyOnExit() const;
-
 	bool IsPartyFunctionalityDegraded() const;
 
 	bool IsPartyFull() const;
@@ -146,7 +143,7 @@ public:
 	/** Is the specified net driver for our reservation beacon? */
 	bool IsNetDriverFromReservationBeacon(const UNetDriver* InNetDriver) const;
 
-	void DisconnectParty();
+	virtual void DisconnectParty();
 
 	template <typename MemberT = UPartyMember>
 	TArray<MemberT*> GetPartyMembers() const
@@ -329,6 +326,7 @@ private:	// Handlers
 
 	void HandleLeavePartyComplete(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, ELeavePartyCompletionResult LeaveResult, FOnLeavePartyAttemptComplete OnAttemptComplete);
 
+	void RemovePlayerFromReservationBeacon(const FUniqueNetId& LocalUserId, const FUniqueNetId& PlayerToRemove);
 private:
 	TSharedPtr<const FOnlineParty> OssParty;
 
@@ -354,6 +352,7 @@ private:
 		FUniqueNetIdRepl SenderId;
 		FUserPlatform Platform;
 		bool bIsJIPApproval;
+		bool bIsPlayerRemoval = false;
 		TSharedPtr<const FOnlinePartyData> JoinData;
 	};
 	TQueue<FPendingMemberApproval> PendingApprovals;

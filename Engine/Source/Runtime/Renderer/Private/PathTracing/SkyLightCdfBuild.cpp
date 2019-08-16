@@ -52,7 +52,7 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, uint32 Mode, const FTexture& TextureCube, uint32 CubeFace, uint32 Level, FIntVector RowCdfDimensions, const FRWBuffer& RowCdf)
 	{
-		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 
 		SetShaderValue(RHICmdList, ShaderRHI, ModeParameter, Mode);
 		SetTextureParameter(RHICmdList, ShaderRHI, TextureCubeParameter, TextureCubeSamplerParameter, TStaticSamplerState<SF_Bilinear>::GetRHI(), TextureCube.TextureRHI);
@@ -63,19 +63,19 @@ public:
 		bool IsBound = RowCdfParameter.IsUAVBound();
 		RowCdfParameter.SetBuffer(RHICmdList, ShaderRHI, RowCdf);
 
-		FUnorderedAccessViewRHIParamRef UAVs[] = {
+		FRHIUnorderedAccessView* UAVs[] = {
 			RowCdf.UAV
 		};
 		RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, UAVs, 1);
 	}
 
 	void UnsetParameters(FRHICommandList& RHICmdList, EResourceTransitionAccess TransitionAccess, EResourceTransitionPipeline TransitionPipeline,
-		const FRWBuffer& Buffer, FComputeFenceRHIParamRef Fence)
+		const FRWBuffer& Buffer, FRHIComputeFence* Fence)
 	{
-		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 		RowCdfParameter.UnsetUAV(RHICmdList, ShaderRHI);
 
-		FUnorderedAccessViewRHIParamRef UAVs[] = {
+		FRHIUnorderedAccessView* UAVs[] = {
 			Buffer.UAV
 		};
 		RHICmdList.TransitionResources(TransitionAccess, TransitionPipeline, UAVs, 1, Fence);
@@ -142,7 +142,7 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, uint32 Mode, FIntVector RowCdfDimensions, const FRWBuffer& RowCdf, uint32 Level, const FRWBuffer& ColumnCdf)
 	{
-		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 
 		SetShaderValue(RHICmdList, ShaderRHI, ModeParameter, Mode);
 		SetShaderValue(RHICmdList, ShaderRHI, RowCdfDimensionsParameter, RowCdfDimensions);
@@ -150,19 +150,19 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI, LevelParameter, Level);
 		ColumnCdfParameter.SetBuffer(RHICmdList, ShaderRHI, ColumnCdf);
 
-		FUnorderedAccessViewRHIParamRef UAVs[] = {
+		FRHIUnorderedAccessView* UAVs[] = {
 			ColumnCdf.UAV
 		};
 		RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, UAVs, 1);
 	}
 
 	void UnsetParameters(FRHICommandList& RHICmdList, EResourceTransitionAccess TransitionAccess, EResourceTransitionPipeline TransitionPipeline,
-		const FRWBuffer& ColumnCdf, FComputeFenceRHIParamRef Fence)
+		const FRWBuffer& ColumnCdf, FRHIComputeFence* Fence)
 	{
-		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 		ColumnCdfParameter.UnsetUAV(RHICmdList, ShaderRHI);
 
-		FUnorderedAccessViewRHIParamRef UAVs[] = {
+		FRHIUnorderedAccessView* UAVs[] = {
 			ColumnCdf.UAV
 		};
 		RHICmdList.TransitionResources(TransitionAccess, TransitionPipeline, UAVs, 1, Fence);
@@ -223,25 +223,25 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, FIntVector ColumnCdfDimensions, const FRWBuffer& ColumnCdf, const FRWBuffer& CubeFaceCdf)
 	{
-		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 
 		SetShaderValue(RHICmdList, ShaderRHI, ColumnCdfDimensionsParameter, ColumnCdfDimensions);
 		ColumnCdfParameter.SetBuffer(RHICmdList, ShaderRHI, ColumnCdf);
 		CubeFaceCdfParameter.SetBuffer(RHICmdList, ShaderRHI, CubeFaceCdf);
 
-		FUnorderedAccessViewRHIParamRef UAVs[] = {
+		FRHIUnorderedAccessView* UAVs[] = {
 			CubeFaceCdf.UAV
 		};
 		RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, UAVs, 1);
 	}
 
 	void UnsetParameters(FRHICommandList& RHICmdList, EResourceTransitionAccess TransitionAccess, EResourceTransitionPipeline TransitionPipeline,
-		const FRWBuffer& CubeFaceCdf, FComputeFenceRHIParamRef Fence)
+		const FRWBuffer& CubeFaceCdf, FRHIComputeFence* Fence)
 	{
-		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 		CubeFaceCdfParameter.UnsetUAV(RHICmdList, ShaderRHI);
 
-		FUnorderedAccessViewRHIParamRef UAVs[] = {
+		FRHIUnorderedAccessView* UAVs[] = {
 			CubeFaceCdf.UAV
 		};
 		RHICmdList.TransitionResources(TransitionAccess, TransitionPipeline, UAVs, 1, Fence);
@@ -300,7 +300,7 @@ class FVisualizeCdfPS : public FGlobalShader
 		const FRWBuffer& ColumnCdf,
 		const FRWBuffer& CubeFaceCdf)
 	{
-		const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = GetPixelShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
 		SetShaderValue(RHICmdList, ShaderRHI, DimensionsParameter, Dimensions);
@@ -433,7 +433,7 @@ void FDeferredShadingSceneRenderer::VisualizeSkyLightCdf(FRHICommandListImmediat
 	const auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
 	TShaderMapRef<FPostProcessVS> VertexShader(ShaderMap);
 	TShaderMapRef<FVisualizeCdfPS> PixelShader(ShaderMap);
-	FTextureRHIParamRef RenderTargets[1] =
+	FRHITexture* RenderTargets[1] =
 	{
 		OutputRT->GetRenderTargetItem().TargetableTexture
 	};

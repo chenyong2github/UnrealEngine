@@ -41,6 +41,7 @@ UPhysicalAnimationComponent::UPhysicalAnimationComponent(const FObjectInitialize
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.bTickEvenWhenPaused = true;
 	PrimaryComponentTick.TickGroup = TG_PrePhysics;
+	bPhysicsEngineNeedsUpdating = false;
 
 	StrengthMultiplyer = 1.f;
 }
@@ -216,10 +217,10 @@ FTransform ComputeWorldSpaceTargetTM(const USkeletalMeshComponent& SkeletalMeshC
 	return SpaceBases[BoneIndex] * SkeletalMeshComponent.GetComponentToWorld();
 }
 
-FTransform ComputeLocalSpaceTargetTM(const USkeletalMeshComponent& SkeletalMeshComponent, const UPhysicsAsset& PhysAsset, int32 BoneIndex)
+FTransform ComputeLocalSpaceTargetTM(const USkeletalMeshComponent& SkeletalMeshComponent, const UPhysicsAsset& PhysAsset, const TArray<FTransform>& LocalTransforms, int32 BoneIndex)
 {
 	const FReferenceSkeleton& RefSkeleton = SkeletalMeshComponent.SkeletalMesh->RefSkeleton;
-	FTransform AccumulatedDelta = SkeletalMeshComponent.BoneSpaceTransforms[BoneIndex];
+	FTransform AccumulatedDelta = LocalTransforms[BoneIndex];
 	int32 CurBoneIdx = BoneIndex;
 	while ((CurBoneIdx = RefSkeleton.GetParentIndex(CurBoneIdx)) != INDEX_NONE)
 	{
@@ -246,15 +247,15 @@ FTransform ComputeLocalSpaceTargetTM(const USkeletalMeshComponent& SkeletalMeshC
 			}
 		}
 
-		AccumulatedDelta = AccumulatedDelta * SkeletalMeshComponent.BoneSpaceTransforms[CurBoneIdx];
+		AccumulatedDelta = AccumulatedDelta * LocalTransforms[CurBoneIdx];
 	}
 
 	return FTransform::Identity;
 }
 
-FTransform ComputeTargetTM(const FPhysicalAnimationData& PhysAnimData, const USkeletalMeshComponent& SkeletalMeshComponent, const UPhysicsAsset& PhysAsset, const TArray<FTransform>& SpaceBases, int32 BoneIndex)
+FTransform ComputeTargetTM(const FPhysicalAnimationData& PhysAnimData, const USkeletalMeshComponent& SkeletalMeshComponent, const UPhysicsAsset& PhysAsset, const TArray<FTransform>& LocalTransforms, const TArray<FTransform>& SpaceBases, int32 BoneIndex)
 {
-	return PhysAnimData.bIsLocalSimulation ? ComputeLocalSpaceTargetTM(SkeletalMeshComponent, PhysAsset, BoneIndex) : ComputeWorldSpaceTargetTM(SkeletalMeshComponent, SpaceBases, BoneIndex);
+	return PhysAnimData.bIsLocalSimulation ? ComputeLocalSpaceTargetTM(SkeletalMeshComponent, PhysAsset, LocalTransforms, BoneIndex) : ComputeWorldSpaceTargetTM(SkeletalMeshComponent, SpaceBases, BoneIndex);
 }
 
 void UPhysicalAnimationComponent::UpdateTargetActors(ETeleportType TeleportType)
@@ -271,6 +272,7 @@ void UPhysicalAnimationComponent::UpdateTargetActors(ETeleportType TeleportType)
 #if WITH_PHYSX
 		FPhysicsCommand::ExecuteWrite(SkeletalMeshComponent, [&]()
 		{
+			TArray<FTransform> LocalTransforms = SkeletalMeshComponent->GetBoneSpaceTransforms();
 			for (int32 DataIdx = 0; DataIdx < DriveData.Num(); ++DataIdx)
 			{
 				const FPhysicalAnimationData& PhysAnimData = DriveData[DataIdx];
@@ -280,7 +282,7 @@ void UPhysicalAnimationComponent::UpdateTargetActors(ETeleportType TeleportType)
 					const int32 BoneIdx = RefSkeleton.FindBoneIndex(PhysAnimData.BodyName);
 					if (BoneIdx != INDEX_NONE)	//It's possible the skeletal mesh has changed out from under us. In that case we should probably reset, but at the very least don't do work on non-existent bones
 					{
-						const FTransform TargetTM = ComputeTargetTM(PhysAnimData, *SkeletalMeshComponent, *PhysAsset, SpaceBases, BoneIdx);
+						const FTransform TargetTM = ComputeTargetTM(PhysAnimData, *SkeletalMeshComponent, *PhysAsset, LocalTransforms, SpaceBases, BoneIdx);
 						TargetActor->setKinematicTarget(U2PTransform(TargetTM));	//TODO: this doesn't work with sub-stepping!
 						
 						if(TeleportType == ETeleportType::TeleportPhysics)
@@ -303,6 +305,11 @@ void UPhysicalAnimationComponent::OnTeleport()
 
 void UPhysicalAnimationComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
+	if (bPhysicsEngineNeedsUpdating)
+	{
+		UpdatePhysicsEngineImp();
+	}
+
 	UpdateTargetActors(ETeleportType::None);
 }
 
@@ -321,6 +328,12 @@ void SetMotorStrength(FConstraintInstance& ConstraintInstance, const FPhysicalAn
 
 void UPhysicalAnimationComponent::UpdatePhysicsEngine()
 {
+	bPhysicsEngineNeedsUpdating = true;	//must defer until tick so that animation can finish
+}
+
+void UPhysicalAnimationComponent::UpdatePhysicsEngineImp()
+{
+	bPhysicsEngineNeedsUpdating = false;
 	UPhysicsAsset* PhysAsset = SkeletalMeshComponent ? SkeletalMeshComponent->GetPhysicsAsset() : nullptr;
 	if(PhysAsset && SkeletalMeshComponent->SkeletalMesh)
 	{
@@ -338,6 +351,8 @@ void UPhysicalAnimationComponent::UpdatePhysicsEngine()
 #if WITH_PHYSX
 		FPhysicsCommand::ExecuteWrite(SkeletalMeshComponent, [&]()
 		{
+			TArray<FTransform> LocalTransforms = SkeletalMeshComponent->GetBoneSpaceTransforms();
+
 			for (int32 DataIdx = 0; DataIdx < DriveData.Num(); ++DataIdx)
 			{
 				bool bNewConstraint = false;
@@ -360,7 +375,7 @@ void UPhysicalAnimationComponent::UpdatePhysicsEngine()
 					int32 ChildBodyIdx = PhysAsset->FindBodyIndex(PhysAnimData.BodyName);
 					if (FBodyInstance* ChildBody = (ChildBodyIdx == INDEX_NONE ? nullptr : SkeletalMeshComponent->Bodies[ChildBodyIdx]))
 					{
-#if WITH_CHAOS || WITH_IMMEDIATE_PHYSX || PHYSICS_INTERFACE_LLIMMEDIATE
+#if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
                         ensure(false);
 #else
 						if (PxRigidActor* PRigidActor = FPhysicsInterface_PhysX::GetPxRigidActor_AssumesLocked(ChildBody->ActorHandle))
@@ -368,7 +383,7 @@ void UPhysicalAnimationComponent::UpdatePhysicsEngine()
 							ConstraintInstance->SetRefFrame(EConstraintFrame::Frame1, FTransform::Identity);
 							ConstraintInstance->SetRefFrame(EConstraintFrame::Frame2, FTransform::Identity);
 
-							const FTransform TargetTM = ComputeTargetTM(PhysAnimData, *SkeletalMeshComponent, *PhysAsset, SpaceBases, ChildBody->InstanceBoneIndex);
+							const FTransform TargetTM = ComputeTargetTM(PhysAnimData, *SkeletalMeshComponent, *PhysAsset, LocalTransforms, SpaceBases, ChildBody->InstanceBoneIndex);
 
 							// Create kinematic actor we are going to create joint with. This will be moved around with calls to SetLocation/SetRotation.
 							PxScene* PScene = PRigidActor->getScene();
@@ -413,11 +428,15 @@ void UPhysicalAnimationComponent::SetStrengthMultiplyer(float InStrengthMultiply
 			{
 				bool bNewConstraint = false;
 				const FPhysicalAnimationData& PhysAnimData = DriveData[DataIdx];
-				FPhysicalAnimationInstanceData& InstanceData = RuntimeInstanceData[DataIdx];
-				if(FConstraintInstance* ConstraintInstance = InstanceData.ConstraintInstance)
+				//added guard around crashing animation dereference
+				if (DataIdx < RuntimeInstanceData.Num())
 				{
-					//Apply drive forces
-					SetMotorStrength(*ConstraintInstance, PhysAnimData, StrengthMultiplyer);
+					FPhysicalAnimationInstanceData& InstanceData = RuntimeInstanceData[DataIdx];
+					if (FConstraintInstance* ConstraintInstance = InstanceData.ConstraintInstance)
+					{
+						//Apply drive forces
+						SetMotorStrength(*ConstraintInstance, PhysAnimData, StrengthMultiplyer);
+					}
 				}
 			}
 		});

@@ -455,8 +455,15 @@ UPackage* ReloadPackage(UPackage* InPackageToReload, const uint32 InLoadFlags)
 	return ReloadedPackages[0];
 }
 
-void ReloadPackages(const TArrayView<FReloadPackageData>& InPackagesToReload, TArray<UPackage*>& OutReloadedPackages, const int32 InNumPackagesPerBatch)
+void ReloadPackages(const TArrayView<FReloadPackageData>& InPackagesToReload, TArray<UPackage*>& OutReloadedPackages, int32 InNumPackagesPerBatch)
 {
+	// Interdependencies between packages (in particular Blueprints) make it unsafe to run this logic in batches. 
+	// There are a number of edge cases that would have to be addressed if the batching logic were to be re-enabled, but 
+	// most likely the blueprint reparenting step would have to take in a TMap<UObject*, UObject*> that it could update
+	// when it decided that it needed to replace an instance due to hierarchy changes (e.g. class layout changing
+	// due to SuperStruct changes). For now, just process assets in a batch size of 1:
+	InNumPackagesPerBatch = 1;
+
 	FString Msg;
 	Msg.Append(FString::Printf(TEXT("Reloading %d Package(s):"), InPackagesToReload.Num()));
 	const int32 MAX_PACKAGES_TO_LOG = 10;
@@ -521,6 +528,11 @@ void ReloadPackages(const TArrayView<FReloadPackageData>& InPackagesToReload, TA
 					: NSLOCTEXT("CoreUObject", "ReloadingPackages", "Reloading Packages");
 				ReloadingPackagesSlowTask.EnterProgressFrame(1, ProgressText);
 
+				{
+					FPackageReloadedEvent TempReloadEvent(ExistingPackage, nullptr, TMap<UObject*, UObject*>());
+					FCoreUObjectDelegates::OnPackageReloaded.Broadcast(EPackageReloadPhase::PrePackageLoad, &TempReloadEvent);
+				}
+
 				check(NewPackages.Refs.Num() == PackageIndex);
 				NewPackages.Refs.Emplace(PackageReloadInternal::LoadReplacementPackage(ExistingPackage, InPackagesToReload[PackageIndex].LoadFlags));
 
@@ -570,7 +582,7 @@ void ReloadPackages(const TArrayView<FReloadPackageData>& InPackagesToReload, TA
 				// in class layout change and subsequently crashes because instances will not match this new class layout:
 				if(UClass* AsClass = Cast<UClass>(PotentialReferencer))
 				{
-					if(AsClass->HasAnyClassFlags(CLASS_NewerVersionExists))
+					if(AsClass->HasAnyClassFlags(CLASS_NewerVersionExists) || AsClass->HasAnyFlags(RF_NewerVersionExists))
 					{
 						continue;
 					}

@@ -25,6 +25,7 @@ float2 TemporalJitterPixels;
 // Mip bias for the gathering kernel.
 float MipBias;
 
+uint4 ViewportRect;
 float2 DispatchThreadIdToInputBufferUV;
 float MaxRecombineAbsCocRadius;
 
@@ -35,14 +36,17 @@ float2 ConsiderAbsCocRadiusAffineTransformation;
 
 float2 InputBufferUVToOutputPixel;
 
+Texture2D TileClassification_Foreground;
+Texture2D TileClassification_Background;
+
 
 //------------------------------------------------------- OUTPUTS
 
-RWTexture2D<float4>	Output0;
-RWTexture2D<float4>	Output1;
+RWTexture2D<float4>	ConvolutionOutput_SceneColor;
+RWTexture2D<float4>	ConvolutionOutput_SeparateAlpha;
 
 #if CONFIG_GENERATE_SCATTER_OCCLUSION_BUFFER
-RWTexture2D<float4>	Output2;
+RWTexture2D<float4>	ScatterOcclusionOutput;
 #endif
 
 
@@ -79,20 +83,19 @@ void StoreAccumulatorOutput(in uint2 OutputPixelPosition, in FAccumulatorOutput 
 	#if CONFIG_DOF_ALPHA
 	{
 		#if DIM_LAYER_PROCESSING == LAYER_PROCESSING_FOREGROUND_ONLY
-			Output0[OutputPixelPosition] = AccumulatorOutput.ForegroundColor * AccumulatorOutput.ForegroundAlpha;
-			Output1[OutputPixelPosition] = AccumulatorOutput.ForegroundAlpha;
+			ConvolutionOutput_SceneColor[OutputPixelPosition] = AccumulatorOutput.ForegroundColor * AccumulatorOutput.ForegroundAlpha;
+			ConvolutionOutput_SeparateAlpha[OutputPixelPosition] = AccumulatorOutput.ForegroundAlpha;
 
 		#elif DIM_LAYER_PROCESSING == LAYER_PROCESSING_FOREGROUND_HOLE_FILLING
-			Output0[OutputPixelPosition] = AccumulatorOutput.ForegroundHoleFillingColor;
-			Output1[OutputPixelPosition] = AccumulatorOutput.ForegroundHoleFillingAlpha;
+			ConvolutionOutput_SceneColor[OutputPixelPosition] = AccumulatorOutput.ForegroundHoleFillingColor;
+			ConvolutionOutput_SeparateAlpha[OutputPixelPosition] = AccumulatorOutput.ForegroundHoleFillingAlpha;
 
 		#elif DIM_LAYER_PROCESSING == LAYER_PROCESSING_BACKGROUND_ONLY
-			Output0[OutputPixelPosition] = AccumulatorOutput.BackgroundColor;
-			Output1[OutputPixelPosition] = AccumulatorOutput.BackgroundWeight > 0 ? 1 : 0;
-			//Output1[OutputPixelPosition] = float4(1, 0, 0, 0);
+			ConvolutionOutput_SceneColor[OutputPixelPosition] = AccumulatorOutput.BackgroundColor;
+			ConvolutionOutput_SeparateAlpha[OutputPixelPosition] = AccumulatorOutput.BackgroundWeight > 0 ? 1 : 0;
 		
 		#elif DIM_LAYER_PROCESSING == LAYER_PROCESSING_SLIGHT_OUT_OF_FOCUS
-			Output0[OutputPixelPosition] = float4(
+			ConvolutionOutput_SceneColor[OutputPixelPosition] = float4(
 				AccumulatorOutput.SlightFocusColor.rgb,
 				AccumulatorOutput.SlightFocusOpacity);
 		
@@ -104,22 +107,22 @@ void StoreAccumulatorOutput(in uint2 OutputPixelPosition, in FAccumulatorOutput 
 	#else // !CONFIG_DOF_ALPHA
 	{
 		#if DIM_LAYER_PROCESSING == LAYER_PROCESSING_FOREGROUND_ONLY
-			Output0[OutputPixelPosition] = float4(
+			ConvolutionOutput_SceneColor[OutputPixelPosition] = float4(
 				AccumulatorOutput.ForegroundColor.rgb * AccumulatorOutput.ForegroundAlpha,
 				AccumulatorOutput.ForegroundAlpha);
 
 		#elif DIM_LAYER_PROCESSING == LAYER_PROCESSING_FOREGROUND_HOLE_FILLING
-			Output0[OutputPixelPosition] = float4(
+			ConvolutionOutput_SceneColor[OutputPixelPosition] = float4(
 				AccumulatorOutput.ForegroundHoleFillingColor.rgb,
 				AccumulatorOutput.ForegroundHoleFillingAlpha);
 
 		#elif DIM_LAYER_PROCESSING == LAYER_PROCESSING_BACKGROUND_ONLY
-			Output0[OutputPixelPosition] = float4(
+			ConvolutionOutput_SceneColor[OutputPixelPosition] = float4(
 				AccumulatorOutput.BackgroundColor.rgb,
 				AccumulatorOutput.BackgroundWeight > 0 ? 1 : 0);
 		
 		#elif DIM_LAYER_PROCESSING == LAYER_PROCESSING_SLIGHT_OUT_OF_FOCUS
-			Output0[OutputPixelPosition] = float4(
+			ConvolutionOutput_SceneColor[OutputPixelPosition] = float4(
 				AccumulatorOutput.SlightFocusColor.rgb,
 				AccumulatorOutput.SlightFocusOpacity);
 		
@@ -131,7 +134,7 @@ void StoreAccumulatorOutput(in uint2 OutputPixelPosition, in FAccumulatorOutput 
 	#endif // !CONFIG_DOF_ALPHA
 
 	#if CONFIG_GENERATE_SCATTER_OCCLUSION_BUFFER
-		Output2[OutputPixelPosition] = OutScatterOcclusion;
+		ScatterOcclusionOutput[OutputPixelPosition] = OutScatterOcclusion;
 
 	#endif
 }
@@ -222,7 +225,7 @@ void GatherMainCS(
 		#else
 			const uint2 TilePos = GroupId;
 		#endif
-		const FCocTileSample CocTileInfos = LoadCocTile(COC_TILE_LAYOUT_FGD_SEP_BGD, PostprocessInput2, PostprocessInput3, int2(TilePos));
+		const FCocTileSample CocTileInfos = LoadCocTile(COC_TILE_LAYOUT_FGD_SEP_BGD, TileClassification_Foreground, TileClassification_Background, int2(TilePos));
 
 		TileSuggestion = InferGatherTileSuggestion(CocTileInfos,
 			/* LayerProcessing = */ DIM_LAYER_PROCESSING,
@@ -268,19 +271,6 @@ void GatherMainCS(
 
 		#endif
 	}
-	#endif
-
-	#if DIM_LAYER_PROCESSING == LAYER_PROCESSING_FOREGROUND_HOLE_FILLING && 0
-		if (all(DispatchThreadId < ViewportRect.zw) && bSkipGathering)
-		{
-			//Output0[DispatchThreadId] = float4(
-			//	GatherParameters.KernelRadius,
-			//	MaxCocRadiusAbs,
-			//	MinCocRadiusAbs,
-			//	1);
-			Output0[DispatchThreadId] = float4(1, 0, 0, 0);
-		}
-		return;
 	#endif
 
 	// Early return if there is no convolution to do.
@@ -381,7 +371,7 @@ void GatherMainCS(
 		#if DEBUG_FAST_ACCUMULATOR
 		{
 			#if CONFIG_KERNEL_SAMPLING_DENSITY_DRIVER > 0
-			UNROLL
+			UNROLL_N(CONFIG_MAX_SAMPLING_DENSITY_CHANGES)
 			for (uint i = 0; i < CONFIG_MAX_SAMPLING_DENSITY_CHANGES; i++)
 			{
 				if (i < DebugGatherDensityChanges)

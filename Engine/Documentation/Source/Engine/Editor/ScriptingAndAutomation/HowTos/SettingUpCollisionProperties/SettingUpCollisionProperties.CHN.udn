@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4284256
+﻿INTSourceChangelist:6536708
 Availability: Public
 Crumbs: 
 Title: 在蓝图和Python中使用静态网格体设置碰撞
@@ -7,7 +7,7 @@ Version: 4.20
 type:how-to
 SkillLevel:Intermediate
 Parent: Engine/Editor/ScriptingAndAutomation/HowTos
-Order: 2
+Order: 1
 Tags: Blueprints
 Tags: Physics
 Tags: Collision

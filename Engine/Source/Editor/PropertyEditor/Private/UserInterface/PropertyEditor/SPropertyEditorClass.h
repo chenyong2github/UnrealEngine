@@ -14,6 +14,10 @@
 #include "Presentation/PropertyEditor/PropertyEditor.h"
 #include "UserInterface/PropertyEditor/PropertyEditorConstants.h"
 #include "PropertyCustomizationHelpers.h"
+#include "ClassViewerModule.h"
+
+class IClassViewerFilter;
+class FClassViewerFilterFuncs;
 
 /**
  * A widget used to edit Class properties (UClass type properties).
@@ -69,6 +73,8 @@ private:
 	virtual void OnDragLeave(const FDragDropEvent& DragDropEvent) override;
 	virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
 
+	TSharedRef<SWidget> ConstructClassViewer();
+
 	/** 
 	 * Generates a class picker with a filter to show only classes allowed to be selected. 
 	 *
@@ -95,6 +101,15 @@ private:
 	/** Used when the property deals with Classes and will display a Class Picker. */
 	TSharedPtr<class SComboButton> ComboButton;
 
+	/** Class filter that the class viewer is using. */
+	TSharedPtr<IClassViewerFilter> ClassFilter;
+
+	/** Filter functions for class viewer. */
+	TSharedPtr<FClassViewerFilterFuncs> ClassFilterFuncs;
+
+	/** Options used for creating the class viewer. */
+	FClassViewerInitializationOptions ClassViewerOptions;
+
 	/** The meta class that the selected class must be a child-of */
 	const UClass* MetaClass;
 	/** An interface that the selected class must implement */
@@ -113,9 +128,16 @@ private:
 	bool bShowTree;
 	/** Should we prettify class names on the class picker? (ie show their display name) */
 	bool bShowDisplayNames;
+	/** Classes that can be picked with this property */
+	TArray<const UClass*> AllowedClassFilters;
+	/** Classes that can NOT be picked with this property */
+	TArray<const UClass*> DisallowedClassFilters;
+
 
 	/** Attribute used to get the currently selected class (required if PropertyEditor == null) */
 	TAttribute<const UClass*> SelectedClass;
 	/** Delegate used to set the currently selected class (required if PropertyEditor == null) */
 	FOnSetClass OnSetClass;
+
+	void CreateClassFilter();
 };

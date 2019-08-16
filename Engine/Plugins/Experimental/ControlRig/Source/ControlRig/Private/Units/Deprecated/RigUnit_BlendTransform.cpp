@@ -6,6 +6,7 @@
 
 void FRigUnit_BlendTransform::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Targets.Num() > 0)
 	{
 		float TotalSum = 0.f;

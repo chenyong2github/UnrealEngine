@@ -82,287 +82,6 @@
 DEFINE_LOG_CATEGORY_STATIC(LogEditorClassViewer, Log, All);
 
 //////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////
-
-EFilterReturn::Type FClassViewerFilterFuncs::IfInChildOfClassesSet(TSet< const UClass* >& InSet, const UClass* InClass)
-{
-	check(InClass);
-
-	if(InSet.Num())
-	{
-		// If a class is a child of any classes on this list, it will be allowed onto the list, unless it also appears on a disallowed list.
-		for( auto CurClassIt = InSet.CreateConstIterator(); CurClassIt; ++CurClassIt )
-		{
-			if(InClass->IsChildOf(*CurClassIt))
-			{
-				return EFilterReturn::Passed;
-			}
-		}
-
-		return EFilterReturn::Failed;
-	}
-
-	// Since there are none on this list, return that there is no items.
-	return EFilterReturn::NoItems;
-}
-
-EFilterReturn::Type FClassViewerFilterFuncs::IfInChildOfClassesSet(TSet< const UClass* >& InSet, const TSharedPtr< const IUnloadedBlueprintData > InClass)
-{
-	check(InClass.IsValid());
-
-	if(InSet.Num())
-	{
-		// If a class is a child of any classes on this list, it will be allowed onto the list, unless it also appears on a disallowed list.
-		for( auto CurClassIt = InSet.CreateConstIterator(); CurClassIt; ++CurClassIt )
-		{
-			if(InClass->IsChildOf(*CurClassIt))
-			{
-				return EFilterReturn::Passed;
-			}
-		}
-
-		return EFilterReturn::Failed;
-	}
-
-	// Since there are none on this list, return that there is no items.
-	return EFilterReturn::NoItems;
-}
-
-EFilterReturn::Type FClassViewerFilterFuncs::IfMatchesAllInChildOfClassesSet(TSet< const UClass* >& InSet, const UClass* InClass)
-{
-	check(InClass);
-
-	if(InSet.Num())
-	{
-		// If a class is a child of any classes on this list, it will be allowed onto the list, unless it also appears on a disallowed list.
-		for( auto CurClassIt = InSet.CreateConstIterator(); CurClassIt; ++CurClassIt )
-		{
-			if(!InClass->IsChildOf(*CurClassIt))
-			{
-				// Since it doesn't match one, it fails.
-				return EFilterReturn::Failed;
-			}
-		}
-
-		// It matches all of them, so it passes.
-		return EFilterReturn::Passed;
-	}
-
-	// Since there are none on this list, return that there is no items.
-	return EFilterReturn::NoItems;
-}
-
-EFilterReturn::Type FClassViewerFilterFuncs::IfMatchesAllInChildOfClassesSet(TSet< const UClass* >& InSet, const TSharedPtr< const IUnloadedBlueprintData > InClass)
-{
-	check(InClass.IsValid());
-
-	if(InSet.Num())
-	{
-		// If a class is a child of any classes on this list, it will be allowed onto the list, unless it also appears on a disallowed list.
-		for( auto CurClassIt = InSet.CreateConstIterator(); CurClassIt; ++CurClassIt )
-		{
-			if(!InClass->IsChildOf(*CurClassIt))
-			{
-				// Since it doesn't match one, it fails.
-				return EFilterReturn::Failed;
-			}
-		}
-
-		// It matches all of them, so it passes.
-		return EFilterReturn::Passed;
-	}
-
-	// Since there are none on this list, return that there is no items.
-	return EFilterReturn::NoItems;
-}
-
-EFilterReturn::Type FClassViewerFilterFuncs::IfMatchesAll_ObjectsSetIsAClass(TSet< const UObject* >& InSet, const UClass* InClass)
-{
-	check(InClass);
-
-	if(InSet.Num())
-	{
-		// If a class is a child of any classes on this list, it will be allowed onto the list, unless it also appears on a disallowed list.
-		for( auto CurClassIt = InSet.CreateConstIterator(); CurClassIt; ++CurClassIt )
-		{
-			if(!(*CurClassIt)->IsA(InClass))
-			{
-				// Since it doesn't match one, it fails.
-				return EFilterReturn::Failed;
-			}
-		}
-
-		// It matches all of them, so it passes.
-		return EFilterReturn::Passed;
-	}
-
-	// Since there are none on this list, return that there is no items.
-	return EFilterReturn::NoItems;
-}
-
-EFilterReturn::Type FClassViewerFilterFuncs::IfMatchesAll_ObjectsSetIsAClass(TSet< const UObject* >& InSet, const TSharedPtr< const IUnloadedBlueprintData > InClass)
-{
-	check(InClass.IsValid());
-
-	if(InSet.Num())
-	{
-		// If a class is a child of any classes on this list, it will be allowed onto the list, unless it also appears on a disallowed list.
-		for( auto CurClassIt = InSet.CreateConstIterator(); CurClassIt; ++CurClassIt )
-		{
-			if(!(*CurClassIt)->IsA(UBlueprintGeneratedClass::StaticClass()))
-			{
-				// Since it doesn't match one, it fails.
-				return EFilterReturn::Failed;
-			}
-		}
-
-		// It matches all of them, so it passes.
-		return EFilterReturn::Passed;
-	}
-
-	// Since there are none on this list, return that there is no items.
-	return EFilterReturn::NoItems;
-}
-
-EFilterReturn::Type FClassViewerFilterFuncs::IfMatchesAll_ClassesSetIsAClass(TSet< const UClass* >& InSet, const UClass* InClass)
-{
-	check(InClass);
-
-	if(InSet.Num())
-	{
-		// If a class is a child of any classes on this list, it will be allowed onto the list, unless it also appears on a disallowed list.
-		for( auto CurClassIt = InSet.CreateConstIterator(); CurClassIt; ++CurClassIt )
-		{
-			const UObject* Object = *CurClassIt;
-			if(!Object->IsA(InClass))
-			{
-				// Since it doesn't match one, it fails.
-				return EFilterReturn::Failed;
-			}
-		}
-
-		// It matches all of them, so it passes.
-		return EFilterReturn::Passed;
-	}
-
-	// Since there are none on this list, return that there is no items.
-	return EFilterReturn::NoItems;
-}
-
-EFilterReturn::Type FClassViewerFilterFuncs::IfMatchesAll_ClassesSetIsAClass(TSet< const UClass* >& InSet, const TSharedPtr< const IUnloadedBlueprintData > InClass)
-{
-	check(InClass.IsValid());
-
-	if(InSet.Num())
-	{
-		// If a class is a child of any classes on this list, it will be allowed onto the list, unless it also appears on a disallowed list.
-		for( auto CurClassIt = InSet.CreateConstIterator(); CurClassIt; ++CurClassIt )
-		{
-			const UObject* Object = *CurClassIt;
-			if(!Object->IsA(UBlueprintGeneratedClass::StaticClass()))
-			{
-				// Since it doesn't match one, it fails.
-				return EFilterReturn::Failed;
-			}
-		}
-
-		// It matches all of them, so it passes.
-		return EFilterReturn::Passed;
-	}
-
-	// Since there are none on this list, return that there is no items.
-	return EFilterReturn::NoItems;
-}
-
-EFilterReturn::Type FClassViewerFilterFuncs::IfMatches_ClassesSetIsAClass(TSet< const UClass* >& InSet, const UClass* InClass)
-{
-	check(InClass);
-
-	if(InSet.Num())
-	{
-		// If a class is a child of any classes on this list, it will be allowed onto the list, unless it also appears on a disallowed list.
-		for( auto CurClassIt = InSet.CreateConstIterator(); CurClassIt; ++CurClassIt )
-		{
-			const UObject* Object = *CurClassIt;
-			if(Object->IsA(InClass))
-			{
-				return EFilterReturn::Passed;
-			}
-		}
-
-		return EFilterReturn::Failed;
-	}
-
-	// Since there are none on this list, return that there is no items.
-	return EFilterReturn::NoItems;
-}
-
-EFilterReturn::Type FClassViewerFilterFuncs::IfMatches_ClassesSetIsAClass(TSet< const UClass* >& InSet, const TSharedPtr< const IUnloadedBlueprintData > InClass)
-{
-	check(InClass.IsValid());
-
-	if(InSet.Num())
-	{
-		// If a class is a child of any classes on this list, it will be allowed onto the list, unless it also appears on a disallowed list.
-		for( auto CurClassIt = InSet.CreateConstIterator(); CurClassIt; ++CurClassIt )
-		{
-			const UObject* Object = *CurClassIt;
-			if(Object->IsA(UBlueprintGeneratedClass::StaticClass()))
-			{
-				return EFilterReturn::Passed;
-			}
-		}
-
-		return EFilterReturn::Failed;
-	}
-
-	// Since there are none on this list, return that there is no items.
-	return EFilterReturn::NoItems;
-}
-
-EFilterReturn::Type FClassViewerFilterFuncs::IfInClassesSet(TSet< const UClass* >& InSet, const UClass* InClass)
-{
-	check(InClass);
-
-	if(InSet.Num())
-	{
-		for( auto CurClassIt = InSet.CreateConstIterator(); CurClassIt; ++CurClassIt )
-		{
-			if(InClass == *CurClassIt)
-			{
-				return EFilterReturn::Passed;
-			}
-		}
-		return EFilterReturn::Failed;
-	}
-
-	// Since there are none on this list, return that there is no items.
-	return EFilterReturn::NoItems;
-}
-
-EFilterReturn::Type FClassViewerFilterFuncs::IfInClassesSet(TSet< const UClass* >& InSet, const TSharedPtr< const IUnloadedBlueprintData > InClass)
-{
-	check(InClass.IsValid());
-
-	if(InSet.Num())
-	{
-		for( auto CurClassIt = InSet.CreateConstIterator(); CurClassIt; ++CurClassIt )
-		{
-			const TSharedPtr<const FUnloadedBlueprintData> UnloadedBlueprintData = StaticCastSharedPtr<const FUnloadedBlueprintData>(InClass);
-			if(*UnloadedBlueprintData->GetClassViewerNode().Pin()->GetClassName() == (*CurClassIt)->GetName())
-			{
-				return EFilterReturn::Passed;
-			}
-		}
-		return EFilterReturn::Failed;
-	}
-
-	// Since there are none on this list, return that there is no items.
-	return EFilterReturn::NoItems;
-}
-
-//////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////
 
 // A hack to make IMPLEMENT_COMPARE_CONSTREF with a templated type
 typedef TSharedPtr<FClassViewerNode> FClassViewerNodeSharedPtr;
@@ -430,9 +149,9 @@ public:
 private:
 	/** Recursive function to build a tree, will not filter.
 	 *	@param InOutRootNode						The node that this function will add the children of to the tree.
-	 *  @param PackageNameToAssetDataMap			The asset registry map of blueprint package names to blueprint data
+	 *  @param InOutClassPathToNode			        Map that will be populated with the class path to the corresponding class node.
 	 */	
-	void AddChildren_NoFilter( TSharedPtr< FClassViewerNode >& InOutRootNode, const TMultiMap<FName,FAssetData>& BlueprintPackageToAssetDataMap );
+	void AddChildren_NoFilter( TSharedPtr< FClassViewerNode >& InOutRootNode, TMap<FName, TSharedPtr< FClassViewerNode >>& InOutClassPathToNode );
 
 	/** Called when hot reload has finished */
 	void OnHotReload( bool bWasTriggeredAutomatically );
@@ -500,7 +219,6 @@ namespace ClassViewer
 		static bool bPopulateClassHierarchy;
 
 		// Pre-declare these functions.
-		static bool CheckIfBlueprintBase( TSharedPtr< FClassViewerNode> InNode );
 		static UBlueprint* GetBlueprint( UClass* InClass );
 		static void UpdateClassInNode(FName InGeneratedClassPath, UClass* InNewClass, UBlueprint* InNewBluePrint );
 
@@ -526,24 +244,6 @@ namespace ClassViewer
 			return bCanCreateBlueprintOfClass;
 		}
 
-		/** Checks if a particular class is a brush.
-		 *	@param InClass				The Class to check.
-		 *	@return Returns true if the class is a brush.
-		 */
-		static bool IsBrush(const UClass* InClass)
-		{
-			return InClass->IsChildOf( ABrush::StaticClass() );
-		}
-
-		/** Checks if a particular class is placeable.
-		 *	@param InClass				The Class to check.
-		 *	@return Returns true if the class is placeable.
-		 */
-		static bool IsPlaceable(const UClass* InClass)
-		{
-			return !InClass->HasAnyClassFlags(CLASS_Abstract | CLASS_NotPlaceable) && InClass->IsChildOf<AActor>();
-		}
-
 		/** Checks if a particular class is abstract.
 		 *	@param InClass				The Class to check.
 		 *	@return Returns true if the class is abstract.
@@ -551,67 +251,6 @@ namespace ClassViewer
 		static bool IsAbstract(const UClass* InClass)
 		{
 			return InClass->HasAnyClassFlags(CLASS_Abstract);
-		}
-
-		/** Checks if the class is allowed under the init options of the class viewer currently building it's tree/list.
-		 *	@param InInitOptions		The class viewer's options, holds the AllowedClasses and DisallowedClasses.
-		 *	@param InClass				The class to test against.
-		 */
-		static bool IsClassAllowed( const FClassViewerInitializationOptions& InInitOptions, const TWeakObjectPtr<const UClass> InClass )
-		{
-			if(InInitOptions.ClassFilter.IsValid())
-			{
-				return InInitOptions.ClassFilter->IsClassAllowed(InInitOptions, InClass.Get(), MakeShared<FClassViewerFilterFuncs>());
-			}
-
-			return true;
-		}
-
-		/** Checks if the unloaded class is allowed under the init options of the class viewer currently building it's tree/list.
-		 *	@param InInitOptions		The class viewer's options, holds the AllowedClasses and DisallowedClasses.
-		 *	@param InNode				The node to pull the unloaded class from.
-		 */
-		bool IsClassAllowed_UnloadedBlueprint(const FClassViewerInitializationOptions& InInitOptions, TSharedPtr< FClassViewerNode > InNode )
-		{
-			if(InInitOptions.ClassFilter.IsValid() && InNode->UnloadedBlueprintData.IsValid())
-			{
-				return InInitOptions.ClassFilter->IsUnloadedClassAllowed(InInitOptions, InNode->UnloadedBlueprintData.ToSharedRef(), MakeShared<FClassViewerFilterFuncs>());
-			}
-
-			return true;
-		}
-
-		/** Checks if the TestString passes the filter.
-		 *	@param InTestString			The string to test against the filter.
-		 *	@param InTextFilter			Compiled text filter to apply.
-		 *
-		 *	@return	true if it passes the filter.
-		 */
-		static bool PassesFilter( const FString& InTestString, const FTextFilterExpressionEvaluator& InTextFilter )
-		{
-			class FClassFilterContext : public ITextFilterExpressionContext
-			{
-			public:
-				explicit FClassFilterContext(const FString& InStr)
-					: StrPtr(&InStr)
-				{
-				}
-
-				virtual bool TestBasicStringExpression(const FTextFilterString& InValue, const ETextFilterTextComparisonMode InTextComparisonMode) const override
-				{
-					return TextFilterUtils::TestBasicStringExpression(*StrPtr, InValue, InTextComparisonMode);
-				}
-
-				virtual bool TestComplexExpression(const FName& InKey, const FTextFilterString& InValue, const ETextFilterComparisonOperation InComparisonOperation, const ETextFilterTextComparisonMode InTextComparisonMode) const override
-				{
-					return false;
-				}
-
-			private:
-				const FString* StrPtr;
-			};
-
-			return InTextFilter.TestTextFilter(FClassFilterContext(InTestString));
 		}
 
 		/** Will create the instance of FClassHierarchy and populate the class hierarchy tree. */
@@ -660,319 +299,127 @@ namespace ClassViewer
 		}
 
 		/** Recursive function to build a tree, filtering out nodes based on the InitOptions and filter search terms.
-		 *	@param InInitOptions						The class viewer's options, holds the AllowedClasses and DisallowedClasses.
 		 *	@param InOutRootNode						The node that this function will add the children of to the tree.
 		 *	@param InRootClassIndex						The index of the root node.
-		 *	@param InTextFilter							Compiled text filter to apply.
-		 *	@param bInOnlyActors						Filter option to remove non-actor classes.
-		 *	@param bInOnlyPlaceables					Filter option to remove non-placeable classes.
-		 *	@param bInOnlyBlueprintBases				Filter option to remove non-blueprint base classes.
-		 *	@param bInShowUnloadedBlueprints			Filter option to not remove unloaded blueprints due to class filter options.
-		 *  @param InAllowedDeveloperType               Filter option for dealing with developer folders.
-		 *  @param bInInternalClasses                   Filter option for showing internal classes.
-		 *  @param InternalClasses                      The classes that have been marked as Internal Only.
-		 *  @param InternalPaths                        The paths that have been marked Internal Only.
+		 *	@param InClassFilter						The class filter to use to filter nodes.
+		 *	@param InInitOptions						The class viewer's options, holds the AllowedClasses and DisallowedClasses.
 		 *
 		 *	@return Returns true if the child passed the filter.
 		 */		
-		static bool AddChildren_Tree(const FClassViewerInitializationOptions& InInitOptions, TSharedPtr< FClassViewerNode >& InOutRootNode, 
-			const TSharedPtr< FClassViewerNode >& InOriginalRootNode, const FTextFilterExpressionEvaluator& InTextFilter, bool bInOnlyActors, 
-			bool bInOnlyPlaceables, bool bInOnlyBlueprintBases, bool bInShowUnloadedBlueprints, EClassViewerDeveloperType InAllowedDeveloperType, bool bInInternalClasses,
-			const TArray<UClass*>& InternalClasses, const TArray<FDirectoryPath>& InternalPaths)
+		static bool AddChildren_Tree(TSharedPtr< FClassViewerNode >& InOutRootNode, const TSharedPtr< FClassViewerNode >& InOriginalRootNode, 
+			const TSharedPtr<FClassViewerFilter>& InClassFilter, const FClassViewerInitializationOptions& InInitOptions)
 		{
-			if (bInOnlyActors && *InOriginalRootNode->GetClassName().Get() != FString(TEXT("Actor")))
-			{
-				InOutRootNode->bPassesFilter = false;
-				return false;
-			}
+			InOutRootNode->bPassesFilter = InClassFilter->IsNodeAllowed(InInitOptions, InOutRootNode.ToSharedRef());
 
-			bool bChildrenPassesFilter(false);
-			bool bReturnPassesFilter(false);
-
-			bool bPassesBlueprintBaseFilter = !bInOnlyBlueprintBases || CheckIfBlueprintBase(InOriginalRootNode);
-			bool bIsUnloadedBlueprint = !InOriginalRootNode->Class.IsValid();
-			bool bPassesPlaceableFilter = false;
-
-			// Determine if we allow any developer folder classes, if so determine if this class is in one of the allowed developer folders.
-			bool bPassesDeveloperFilter = true;
-			static const FString DeveloperPathWithSlash = FPackageName::FilenameToLongPackageName(FPaths::GameDevelopersDir());
-			static const FString UserDeveloperPathWithSlash = FPackageName::FilenameToLongPackageName(FPaths::GameUserDeveloperDir());
-			FString GeneratedClassPathString = InOriginalRootNode->ClassPath.ToString();
-
-			if (InAllowedDeveloperType == EClassViewerDeveloperType::CVDT_None)
-			{
-				bPassesDeveloperFilter = !GeneratedClassPathString.StartsWith(DeveloperPathWithSlash);
-			}
-			else if (InAllowedDeveloperType == EClassViewerDeveloperType::CVDT_CurrentUser)
-			{
-				if (GeneratedClassPathString.StartsWith(DeveloperPathWithSlash))
-					bPassesDeveloperFilter = GeneratedClassPathString.StartsWith(UserDeveloperPathWithSlash);
-			}
-
-			// The INI files declare classes and folders that are considered internal only. Does this class match any of those patterns?
-			// INI path: /Script/ClassViewer.ClassViewerProjectSettings
-			bool bPassesInternalFilter = true;
-			if (!bInInternalClasses && InternalPaths.Num() > 0)
-			{
-				for (int i = 0; i < InternalPaths.Num(); i++)
-				{
-					if (GeneratedClassPathString.StartsWith(InternalPaths[i].Path))
-					{
-						bPassesInternalFilter = false;
-						break;
-					}
-				}
-			}
-			if (!bInInternalClasses && InternalClasses.Num() > 0 && bPassesInternalFilter && InOriginalRootNode->Class.IsValid())
-			{
-				for (int i = 0; i < InternalClasses.Num(); i++)
-				{
-					if (InOriginalRootNode->Class->IsChildOf(InternalClasses[i]))
-					{
-						bPassesInternalFilter = false;
-						break;
-					}
-				}
-			}
-
-			// When in picker mode, brushes are valid "placeable" actors
-			if (bInOnlyPlaceables && InInitOptions.Mode == EClassViewerMode::ClassPicker && IsBrush(InOriginalRootNode->Class.Get()) && IsPlaceable(InOriginalRootNode->Class.Get()))
-			{
-				bPassesPlaceableFilter = true;
-			}
-			else
-			{
-				bPassesPlaceableFilter = !bInOnlyPlaceables || InOriginalRootNode->IsClassPlaceable();
-			}
-
-			// There are few options for filtering an unloaded blueprint, if it matches with this filter, it passes.
-			if(bIsUnloadedBlueprint)
-			{
-				if(bInShowUnloadedBlueprints)
-				{
-					bReturnPassesFilter = InOutRootNode->bPassesFilter = bPassesPlaceableFilter && bPassesBlueprintBaseFilter && bPassesDeveloperFilter && bPassesInternalFilter && IsClassAllowed_UnloadedBlueprint(InInitOptions, InOriginalRootNode) && PassesFilter(*InOriginalRootNode->GetClassName().Get(), InTextFilter);
-				}
-			}
-			else
-			{
-				bReturnPassesFilter = InOutRootNode->bPassesFilter = bPassesPlaceableFilter && bPassesBlueprintBaseFilter && bPassesDeveloperFilter && bPassesInternalFilter && IsClassAllowed(InInitOptions, InOriginalRootNode->Class) && PassesFilter(*InOriginalRootNode->GetClassName().Get(), InTextFilter);
-			}
-
+			bool bReturnPassesFilter = InOutRootNode->bPassesFilter;
 
 			TArray< TSharedPtr< FClassViewerNode > >& ChildList = InOriginalRootNode->GetChildrenList();
 			for(int32 ChildIdx = 0; ChildIdx < ChildList.Num(); ChildIdx++)
 			{
 				TSharedPtr< FClassViewerNode > NewNode = MakeShareable( new FClassViewerNode( *ChildList[ChildIdx].Get() ) );
 
-				bReturnPassesFilter |= bChildrenPassesFilter = AddChildren_Tree(InInitOptions, NewNode, ChildList[ChildIdx], InTextFilter, false, /* bInOnlyActors - false so that anything below Actor is added */
-					bInOnlyPlaceables, bInOnlyBlueprintBases, bInShowUnloadedBlueprints, InAllowedDeveloperType, bInInternalClasses, InternalClasses, InternalPaths);
-				if(bChildrenPassesFilter)
+				bool bChildrenPassesFilter = AddChildren_Tree(NewNode, ChildList[ChildIdx], InClassFilter, InInitOptions);
+				bReturnPassesFilter |= bChildrenPassesFilter;
+
+				if (bChildrenPassesFilter)
 				{
 					InOutRootNode->AddChild(NewNode);
 				}
-
 			}
 
 			return bReturnPassesFilter;
 		}
 
 		/** Builds the class tree.
-		 *	@param InInitOptions						The class viewer's options, holds the AllowedClasses and DisallowedClasses.
 		 *	@param InOutRootNode						The node to root the tree to.
-		 *	@param InTextFilter							Compiled text filter to apply.
-		 *	@param bInOnlyPlaceables					Filter option to remove non-placeable classes.
-		 *	@param bInOnlyActors						Filter option to root the tree in the "Actor" class.
-		 *	@param bInOnlyBlueprintBases				Filter option to remove non-blueprint base classes.
-		 *	@param bInShowUnloadedBlueprints			Filter option to not remove unloaded blueprints due to class filter options.
-		 *  @param InAllowedDeveloperType               Filter option for dealing with developer folders.
-		 *  @param bInInternalClasses                   Filter option for showing internal classes.
-		 *  @param InternalClasses                      The classes that have been marked as Internal Only.
-		 *  @param InternalPaths                        The paths that have been marked Internal Only.
+		 *	@param InClassFilter						The class filter to use to filter nodes.
+		 *	@param InInitOptions						The class viewer's options, holds the AllowedClasses and DisallowedClasses.
+		 *
 		 *	@return A fully built tree.
 		 */
-		static void GetClassTree(const FClassViewerInitializationOptions& InInitOptions, TSharedPtr< FClassViewerNode >& InOutRootNode, 
-			const FTextFilterExpressionEvaluator& InTextFilter, bool bInOnlyPlaceables, bool bInOnlyActors, bool bInOnlyBlueprintBases, 
-			bool bInShowUnloadedBlueprints,	EClassViewerDeveloperType InAllowedDeveloperType = EClassViewerDeveloperType::CVDT_All, bool bInInternalClasses = true, 
-			const TArray<UClass*>& InternalClasses = TArray<UClass*>(), const TArray<FDirectoryPath>& InternalPaths = TArray<FDirectoryPath>())
+		static void GetClassTree(TSharedPtr< FClassViewerNode >& InOutRootNode, const TSharedPtr<FClassViewerFilter>& InClassFilter,
+			const FClassViewerInitializationOptions& InInitOptions)
 		{
-			
 			const TSharedPtr< FClassViewerNode > ObjectClassRoot = ClassHierarchy->GetObjectRootNode();
 
 			// Duplicate the node, it will have no children.
 			InOutRootNode = MakeShareable(new FClassViewerNode(*ObjectClassRoot));
 
-			if(bInOnlyActors)
+			if (InInitOptions.bIsActorsOnly)
 			{
-				for(int32 ClassIdx = 0; ClassIdx < ObjectClassRoot->GetChildrenList().Num(); ClassIdx++)
+				for (int32 ClassIdx = 0; ClassIdx < ObjectClassRoot->GetChildrenList().Num(); ClassIdx++)
 				{
 					TSharedPtr<FClassViewerNode> ChildNode = MakeShareable(new FClassViewerNode(*ObjectClassRoot->GetChildrenList()[ClassIdx].Get()));
-					if (AddChildren_Tree(InInitOptions, ChildNode, ObjectClassRoot->GetChildrenList()[ClassIdx], InTextFilter, true, bInOnlyPlaceables, bInOnlyBlueprintBases, bInShowUnloadedBlueprints, InAllowedDeveloperType, bInInternalClasses, InternalClasses, InternalPaths))
+					if (AddChildren_Tree(ChildNode, ObjectClassRoot->GetChildrenList()[ClassIdx], InClassFilter, InInitOptions))
+					{
 						InOutRootNode->AddChild(ChildNode);
+					}
 				}
 			}
 			else
 			{
-				AddChildren_Tree(InInitOptions, InOutRootNode, ObjectClassRoot, InTextFilter, false, bInOnlyPlaceables, bInOnlyBlueprintBases, bInShowUnloadedBlueprints, InAllowedDeveloperType, bInInternalClasses, InternalClasses, InternalPaths);
+				AddChildren_Tree(InOutRootNode, ObjectClassRoot, InClassFilter, InInitOptions);
 			}
 		}
 
 		/** Recursive function to build the list, filtering out nodes based on the InitOptions and filter search terms.
-		 *	@param InInitOptions						The class viewer's options, holds the AllowedClasses and DisallowedClasses.
 		 *	@param InOutRootNode						The node that this function will add the children of to the tree.
 		 *	@param InRootClassIndex						The index of the root node.
-		 *	@param InTextFilter							Compiled text filter to apply.
-		 *	@param bInOnlyActors						Filter option to remove non-actor classes.
-		 *	@param bInOnlyPlaceables					Filter option to remove non-placeable classes.
-		 *	@param bInOnlyBlueprintBases				Filter option to remove non-blueprint base classes.
-		 *	@param bInShowUnloadedBlueprints			Filter option to not remove unloaded blueprints due to class filter options.
-		 *  @param InAllowedDeveloperType               Filter option for dealing with developer folders.
-		 *  @param bInInternalClasses                   Filter option for showing internal classes.
-		 *  @param InternalClasses                      The classes that have been marked as Internal Only.
-		 *  @param InternalPaths                        The paths that have been marked Internal Only.
+		 *	@param InClassFilter						The class filter to use to filter nodes.
+		 *	@param InInitOptions						The class viewer's options, holds the AllowedClasses and DisallowedClasses.
 		 *
 		 *	@return Returns true if the child passed the filter.
 		 */
-		static void AddChildren_List(const FClassViewerInitializationOptions& InInitOptions, TArray< TSharedPtr< FClassViewerNode > >& InOutNodeList,
-			const TSharedPtr< FClassViewerNode >& InOriginalRootNode, const FTextFilterExpressionEvaluator& InTextFilter,
-			bool bInOnlyActors, bool bInOnlyPlaceables, bool bInOnlyBlueprintBases, bool bInShowUnloadedBlueprints,
-			EClassViewerDeveloperType InAllowedDeveloperType, bool bInInternalClasses,
-			const TArray<UClass*>& InternalClasses, const TArray<FDirectoryPath>& InternalPaths)
+		static void AddChildren_List(TArray< TSharedPtr< FClassViewerNode > >& InOutNodeList, const TSharedPtr< FClassViewerNode >& InOriginalRootNode, 
+			const TSharedPtr< FClassViewerFilter >& InClassFilter, const FClassViewerInitializationOptions& InInitOptions)
 		{
-			if (bInOnlyActors && *InOriginalRootNode->GetClassName().Get() != FString(TEXT("Actor")))
+			if (InClassFilter->IsNodeAllowed(InInitOptions, InOriginalRootNode.ToSharedRef()))
 			{
-				return;
-			}
+				TSharedPtr< FClassViewerNode > NewNode = MakeShareable(new FClassViewerNode(*InOriginalRootNode.Get()));
+				NewNode->bPassesFilter = true;
+				NewNode->PropertyHandle = InOriginalRootNode->PropertyHandle;
 
-			bool bPassesBlueprintBaseFilter = !bInOnlyBlueprintBases || CheckIfBlueprintBase(InOriginalRootNode);
-			bool bIsUnloadedBlueprint = !InOriginalRootNode->Class.IsValid();
-			bool bPassesPlaceableFilter = false;
-			const bool bPassesEditorClassTest = !InInitOptions.bEditorClassesOnly || InOriginalRootNode->IsEditorOnlyClass();
-
-			// Determine if we allow any developer folder classes, if so determine if this class is in one of the allowed developer folders.
-			bool bPassesDeveloperFilter = true;
-			static const FString DeveloperPathWithSlash = FPackageName::FilenameToLongPackageName(FPaths::GameDevelopersDir());
-			static const FString UserDeveloperPathWithSlash = FPackageName::FilenameToLongPackageName(FPaths::GameUserDeveloperDir());
-			FString GeneratedClassPathString = InOriginalRootNode->ClassPath.ToString();
-			if (InAllowedDeveloperType == EClassViewerDeveloperType::CVDT_None)
-			{
-				bPassesDeveloperFilter = GeneratedClassPathString.StartsWith(DeveloperPathWithSlash);
-			}
-			else if (InAllowedDeveloperType == EClassViewerDeveloperType::CVDT_CurrentUser)
-			{
-				if (GeneratedClassPathString.StartsWith(DeveloperPathWithSlash))
-					bPassesDeveloperFilter = GeneratedClassPathString.StartsWith(UserDeveloperPathWithSlash);
-			}
-
-			// The INI files declare classes and folders that are considered internal only. Does this class match any of those patterns?
-			// INI path: /Script/ClassViewer.ClassViewerProjectSettings
-			bool bPassesInternalFilter = true;
-			if (!bInInternalClasses && InternalPaths.Num() > 0)
-			{
-				for (int i = 0; i < InternalPaths.Num(); i++)
-				{
-					if (GeneratedClassPathString.StartsWith(InternalPaths[i].Path))
-					{
-						bPassesInternalFilter = false;
-						break;
-					}
-				}
-			}
-			if (!bInInternalClasses && InternalClasses.Num() > 0 && bPassesInternalFilter)
-			{
-				for (int i = 0; i < InternalClasses.Num(); i++)
-				{
-					if (InOriginalRootNode->Class->IsChildOf(InternalClasses[i]))
-					{
-						bPassesInternalFilter = false;
-						break;
-					}
-				}
-			}
-
-			// When in picker mode, brushes are valid "placeable" actors
-			if( bInOnlyPlaceables && InInitOptions.Mode == EClassViewerMode::ClassPicker && IsBrush(InOriginalRootNode->Class.Get()) && IsPlaceable(InOriginalRootNode->Class.Get()))
-			{
-				bPassesPlaceableFilter = true;
-			}
-			else
-			{
-				bPassesPlaceableFilter = !bInOnlyPlaceables || InOriginalRootNode->IsClassPlaceable();
-			}
-
-			TSharedPtr< FClassViewerNode > NewNode = MakeShareable( new FClassViewerNode( *InOriginalRootNode.Get() ) );
-			
-			// There are few options for filtering an unloaded blueprint, if it matches with this filter, it passes.
-			if(bIsUnloadedBlueprint)
-			{
-				if(bInShowUnloadedBlueprints)
-				{
-					NewNode->bPassesFilter = bPassesPlaceableFilter && bPassesBlueprintBaseFilter && bPassesDeveloperFilter && bPassesInternalFilter && bPassesEditorClassTest
-						&& IsClassAllowed_UnloadedBlueprint(InInitOptions, InOriginalRootNode) 
-						&& PassesFilter(*InOriginalRootNode->GetClassName().Get(), InTextFilter);
-				}
-			}
-			else
-			{
-				NewNode->bPassesFilter = bPassesPlaceableFilter && bPassesBlueprintBaseFilter && bPassesDeveloperFilter && bPassesInternalFilter && bPassesEditorClassTest
-					&&  IsClassAllowed(InInitOptions, InOriginalRootNode->Class) 
-					&& PassesFilter(*InOriginalRootNode->GetClassName().Get(), InTextFilter);
-			}
-
-			if(NewNode->bPassesFilter)
-			{
 				InOutNodeList.Add(NewNode);
 			}
 
-			NewNode->PropertyHandle = InInitOptions.PropertyHandle;
-
-			TArray< TSharedPtr< FClassViewerNode > >& ChildList = InOriginalRootNode->GetChildrenList();
-			for(int32 ChildIdx = 0; ChildIdx < ChildList.Num(); ChildIdx++)
+			for(const TSharedPtr<FClassViewerNode>& ChildNode : InOriginalRootNode->GetChildrenList())
 			{
-				AddChildren_List(InInitOptions, InOutNodeList, ChildList[ChildIdx], InTextFilter, false, /* bInOnlyActors - false so that anything below Actor is added */
-					bInOnlyPlaceables, bInOnlyBlueprintBases, bInShowUnloadedBlueprints, InAllowedDeveloperType, bInInternalClasses, InternalClasses, InternalPaths);
+				FClassViewerInitializationOptions TempOptions = InInitOptions;
+
+				// set bOnlyActors to false so that anything below Actor is added
+				TempOptions.bIsActorsOnly = false;
+				AddChildren_List(InOutNodeList, ChildNode, InClassFilter, InInitOptions);
 			}
 		}	
 
 		/** Builds the class list.
-		 *	@param InInitOptions						The class viewer's options, holds the AllowedClasses and DisallowedClasses.
 		 *	@param InOutNodeList						The list to add all the nodes to.
-		 *	@param InTextFilter							Compiled text filter to apply.
-		 *	@param bInOnlyPlaceables					Filter option to remove non-placeable classes.
-		 *	@param bInOnlyActors						Filter option to root the tree in the "Actor" class.
-		 *	@param bInOnlyBlueprintBases				Filter option to remove non-blueprint base classes.
-		 *	@param bInShowUnloadedBlueprints			Filter option to not remove unloaded blueprints due to class filter options.
-		 *  @param InAllowedDeveloperType               Filter option for dealing with developer folders.
-		 *  @param bInInternalClasses                   Filter option for showing internal classes.
-		 *  @param InternalClasses                      The classes that have been marked as Internal Only.
-		 *  @param InternalPaths                        The paths that have been marked Internal Only.
+		 *	@param InClassFilter						The class filter to use to filter nodes.
+		 *	@param InInitOptions						The class viewer's options, holds the AllowedClasses and DisallowedClasses.
 		 *
 		 *	@return A fully built list.
 		 */
-		static void GetClassList(const FClassViewerInitializationOptions& InInitOptions, TArray< TSharedPtr< FClassViewerNode > >& InOutNodeList, 
-			const FTextFilterExpressionEvaluator& InTextFilter, bool bInOnlyPlaceables, bool bInOnlyActors, bool bInOnlyBlueprintBases, bool bInShowUnloadedBlueprints,
-			EClassViewerDeveloperType InAllowedDeveloperType = EClassViewerDeveloperType::CVDT_All, bool bInInternalClasses = true,
-			const TArray<UClass*>& InternalClasses = TArray<UClass*>(), const TArray<FDirectoryPath>& InternalPaths = TArray<FDirectoryPath>())
+		static void GetClassList(TArray< TSharedPtr< FClassViewerNode > >& InOutNodeList, const TSharedPtr<FClassViewerFilter>& InClassFilter, 
+			const FClassViewerInitializationOptions& InInitOptions)
 		{
 			const TSharedPtr< FClassViewerNode > ObjectClassRoot = ClassHierarchy->GetObjectRootNode();
 
 			// If the option to see the object root class is set, add it to the list, proceed normally from there so the actor's only filter continues to work.
-			if(InInitOptions.bShowObjectRootClass)
+			if (InInitOptions.bShowObjectRootClass)
 			{
-				TSharedPtr< FClassViewerNode > NewNode = MakeShareable( new FClassViewerNode( *ObjectClassRoot.Get() ) );
-				NewNode->bPassesFilter = IsClassAllowed(InInitOptions, ObjectClassRoot->Class) && PassesFilter(*ObjectClassRoot->GetClassName().Get(), InTextFilter);
-				
-				if(NewNode->bPassesFilter)
+				if (InClassFilter->IsNodeAllowed(InInitOptions, ObjectClassRoot.ToSharedRef()))
 				{
+					TSharedPtr< FClassViewerNode > NewNode = MakeShareable(new FClassViewerNode(*ObjectClassRoot.Get()));
+					NewNode->bPassesFilter = true;
+					NewNode->PropertyHandle = InInitOptions.PropertyHandle;
+
 					InOutNodeList.Add(NewNode);
 				}
-
-				NewNode->PropertyHandle = InInitOptions.PropertyHandle;
 			}
 
-			TArray< TSharedPtr< FClassViewerNode > >& ChildList = ObjectClassRoot->GetChildrenList();
-			for(int32 ObjectChildIndex = 0; ObjectChildIndex < ChildList.Num(); ObjectChildIndex++)
+			for(const TSharedPtr<FClassViewerNode>& ChildNode : ObjectClassRoot->GetChildrenList())
 			{
-				AddChildren_List(InInitOptions, InOutNodeList, ChildList[ObjectChildIndex], InTextFilter, bInOnlyActors, bInOnlyPlaceables, bInOnlyBlueprintBases, bInShowUnloadedBlueprints, InAllowedDeveloperType, bInInternalClasses, InternalClasses, InternalPaths);
+				AddChildren_List(InOutNodeList, ChildNode, InClassFilter, InInitOptions);
 			}
 		}
 
@@ -1010,29 +457,6 @@ namespace ClassViewer
 				bInOutIsBlueprintBase = false;
 				bInOutHasBlueprint = false;
 			}
-		}
-
-		/** Checks if a node is a blueprint base or not.
-		 *	@param	InNode					The node to check if it is a blueprint base.
-		 *
-		 *	@return							true if the class is a blueprint.
-		 */
-		static bool CheckIfBlueprintBase( TSharedPtr< FClassViewerNode> InNode )
-		{
-			// If there is no class, it may be an unloaded blueprint.
-			if(UClass* Class = InNode->Class.Get())
-			{
-				return CanCreateBlueprintOfClass_IgnoreDeprecation(Class);
-			}
-			else if(InNode->bIsBPNormalType)
-			{
-				bool bAllowDerivedBlueprints = false;
-				GConfig->GetBool(TEXT("Kismet"), TEXT("AllowDerivedBlueprints"), /*out*/ bAllowDerivedBlueprints, GEngineIni);
-
-				return bAllowDerivedBlueprints;
-			}
-
-			return false;
 		}
 
 		/**
@@ -1616,32 +1040,19 @@ FClassHierarchy::~FClassHierarchy()
 	FModuleManager::Get().OnModulesChanged().RemoveAll(this);
 }
 
-static TSharedPtr< FClassViewerNode > CreateNodeForClass(UClass* Class, const TMultiMap<FName, FAssetData>& BlueprintPackageToAssetDataMap)
-{
-	// Create the new node so it can be passed to AddChildren, fill it in with if it is placeable, abstract, and/or a brush.
-	TSharedPtr< FClassViewerNode > NewNode = MakeShareable(new FClassViewerNode(Class->GetName(), Class->GetDisplayNameText().ToString()));
-	NewNode->Blueprint = ClassViewer::Helpers::GetBlueprint(Class);
-	NewNode->Class = Class;
-	NewNode->ClassPath = FName(*Class->GetPathName());
-	if (Class->GetSuperClass())
-	{
-		NewNode->ParentClassPath = FName(*Class->GetSuperClass()->GetPathName());
-	}
-
-	return NewNode;
-}
-
 void FClassHierarchy::OnHotReload( bool bWasTriggeredAutomatically )
 {
 	ClassViewer::Helpers::RequestPopulateClassHierarchy();
 }
 
-void FClassHierarchy::AddChildren_NoFilter( TSharedPtr< FClassViewerNode >& InOutRootNode, const TMultiMap<FName, FAssetData>& BlueprintPackageToAssetDataMap )
+void FClassHierarchy::AddChildren_NoFilter( TSharedPtr< FClassViewerNode >& InOutRootNode, TMap<FName, TSharedPtr< FClassViewerNode >>& InOutClassPathToNode )
 {
 	UClass* RootClass = UObject::StaticClass();
 
-	ObjectClassRoot = MakeShareable(new FClassViewerNode(RootClass->GetName(), RootClass->GetDisplayNameText().ToString()));
+	ObjectClassRoot = MakeShareable(new FClassViewerNode(RootClass));
 	ObjectClassRoot->Class = RootClass;
+
+	InOutClassPathToNode.Add(ObjectClassRoot->ClassPath, ObjectClassRoot);
 
 	TMap< UClass*, TSharedPtr< FClassViewerNode > > Nodes;
 
@@ -1674,13 +1085,15 @@ void FClassHierarchy::AddChildren_NoFilter( TSharedPtr< FClassViewerNode >& InOu
 				TSharedPtr<FClassViewerNode>& ParentEntry = Nodes.FindOrAdd(CurrentClass->GetSuperClass());
 				if ( !ParentEntry.IsValid() )
 				{
-					ParentEntry = CreateNodeForClass(CurrentClass->GetSuperClass(), BlueprintPackageToAssetDataMap);
+					ParentEntry = MakeShareable(new FClassViewerNode(CurrentClass->GetSuperClass()));
+                    InOutClassPathToNode.Add(ParentEntry->ClassPath, ParentEntry);
 				}
 
 				TSharedPtr<FClassViewerNode>& MyEntry = Nodes.FindOrAdd(CurrentClass);
 				if ( !MyEntry.IsValid() )
 				{
-					MyEntry = CreateNodeForClass(CurrentClass, BlueprintPackageToAssetDataMap);
+					MyEntry = MakeShareable(new FClassViewerNode(CurrentClass));
+                    InOutClassPathToNode.Add(MyEntry->ClassPath, MyEntry);
 				}
 
 				if ( !Visited.Contains(CurrentClass) )
@@ -1929,11 +1342,12 @@ void FClassHierarchy::LoadUnloadedTagData(TSharedPtr<FClassViewerNode>& InOutCla
 		InOutClassViewerNode->ParentClassPath = FName(*FPackageName::ExportTextPathToObjectPath(ParentClassPathString));
 	}
 
-	InOutClassViewerNode->bIsBPNormalType = InAssetData.GetTagValueRef<FString>(FBlueprintTags::BlueprintType) == TEXT("BPType_Normal");
-			
 	// It is an unloaded blueprint, so we need to create the structure that will hold the data.
 	TSharedPtr<FUnloadedBlueprintData> UnloadedBlueprintData = MakeShareable( new FUnloadedBlueprintData(InOutClassViewerNode) );
 	InOutClassViewerNode->UnloadedBlueprintData = UnloadedBlueprintData;
+
+	const bool bNormalBlueprintType = InAssetData.GetTagValueRef<FString>(FBlueprintTags::BlueprintType) == TEXT("BPType_Normal");
+	InOutClassViewerNode->UnloadedBlueprintData->SetNormalBlueprintType( bNormalBlueprintType );
 
 	// Get the class flags.
 	const uint32 ClassFlags = InAssetData.GetTagValueRef<uint32>(FBlueprintTags::ClassFlags);
@@ -1983,21 +1397,21 @@ void FClassHierarchy::PopulateClassHierarchy()
 	Filter.bRecursiveClasses = true;
 	AssetRegistryModule.Get().GetAssets(Filter, BlueprintList);
 
-	TMultiMap<FName,FAssetData> BlueprintPackageToAssetDataMap;
+	TMap<FName, TSharedPtr< FClassViewerNode >> ClassPathToNode;
 	for ( int32 AssetIdx = 0; AssetIdx < BlueprintList.Num(); ++AssetIdx )
 	{
 		TSharedPtr< FClassViewerNode > NewNode;
 		LoadUnloadedTagData(NewNode, BlueprintList[AssetIdx]);
 		RootLevelClasses.Add(NewNode);
 
+		check(!NewNode->GetChildrenList().Num());
+		ClassPathToNode.Add(NewNode->ClassPath, NewNode);
+
 		// Find the blueprint if it's loaded.
 		FindClass(NewNode);
-
-
-		BlueprintPackageToAssetDataMap.Add(BlueprintList[AssetIdx].PackageName, BlueprintList[AssetIdx]);
 	}
 
-	AddChildren_NoFilter(ObjectClassRoot, BlueprintPackageToAssetDataMap);
+	AddChildren_NoFilter(ObjectClassRoot, ClassPathToNode);
 
 	RootLevelClasses.Add(ObjectClassRoot);
 
@@ -2009,18 +1423,15 @@ void FClassHierarchy::PopulateClassHierarchy()
 			// Resolve the parent's class name locally and use it to find the parent's class.
 			FString ParentClassPath = RootLevelClasses[CurrentNodeIdx]->ParentClassPath.ToString();
 			const UClass* ParentClass = FindObject<UClass>(nullptr, *ParentClassPath);
+			TSharedPtr< FClassViewerNode > ParentNode;
 
-			for (int32 SearchNodeIdx = 0; SearchNodeIdx < RootLevelClasses.Num(); ++SearchNodeIdx)
+			if (TSharedPtr< FClassViewerNode >* ParentNodePtr = ClassPathToNode.Find(RootLevelClasses[CurrentNodeIdx]->ParentClassPath))
 			{
-				TSharedPtr< FClassViewerNode > ParentNode = FindParent(RootLevelClasses[SearchNodeIdx], RootLevelClasses[CurrentNodeIdx]->ParentClassPath, ParentClass);
-				if(ParentNode.IsValid())
-				{
-					// AddUniqueChild makes sure that when a node was generated one by EditorClassHierarchy and one from LoadUnloadedTagData - the proper one is selected
-					ParentNode->AddUniqueChild(RootLevelClasses[CurrentNodeIdx]);	
-					RootLevelClasses.RemoveAtSwap(CurrentNodeIdx);
-					--CurrentNodeIdx;
-					break;
-				}
+				// AddUniqueChild makes sure that when a node was generated one by EditorClassHierarchy and one from LoadUnloadedTagData - the proper one is selected
+				ParentNode = *ParentNodePtr;
+				ParentNode->AddUniqueChild(RootLevelClasses[CurrentNodeIdx]);	
+				RootLevelClasses.RemoveAtSwap(CurrentNodeIdx);
+				--CurrentNodeIdx;
 			}
 
 		}
@@ -2039,8 +1450,6 @@ void SClassViewer::Construct(const FArguments& InArgs, const FClassViewerInitial
 	bNeedsRefresh = true;
 	NumClasses = 0;
 	
-	bCanShowInternalClasses = true;
-	
 	// Listen for when view settings are changed
 	UClassViewerSettings::OnSettingChanged().AddSP(this, &SClassViewer::HandleSettingChanged);
 
@@ -2048,21 +1457,14 @@ void SClassViewer::Construct(const FArguments& InArgs, const FClassViewerInitial
 
 	OnClassPicked = InArgs._OnClassPickedDelegate;
 
-	TextFilterPtr = MakeShareable(new FTextFilterExpressionEvaluator(ETextFilterExpressionEvaluatorMode::BasicString));
-
 	bSaveExpansionStates = true;
 	bPendingSetExpansionStates = false;
+
+	ClassFilter = MakeShareable(new FClassViewerFilter(InitOptions));
 
 	bEnableClassDynamicLoading = InInitOptions.bEnableClassDynamicLoading;
 
 	EVisibility HeaderVisibility = (this->InitOptions.Mode == EClassViewerMode::ClassBrowsing)? EVisibility::Visible : EVisibility::Collapsed;
-
-	// Set these values to the user specified settings.
-	bIsActorsOnly = InitOptions.bIsActorsOnly | InitOptions.bIsPlaceableOnly;
-	bIsPlaceableOnly = InitOptions.bIsPlaceableOnly;
-	bIsBlueprintBaseOnly = InitOptions.bIsBlueprintBaseOnly;
-	bShowUnloadedBlueprints = InitOptions.bShowUnloadedBlueprints;
-	bool bHasTitle = InitOptions.ViewerTitleString.IsEmpty() == false;
 
 	// If set to default, decide what display mode to use.
 	if( InitOptions.DisplayMode == EClassViewerDisplayMode::DefaultView )
@@ -2167,6 +1569,8 @@ void SClassViewer::Construct(const FArguments& InArgs, const FClassViewerInitial
 		);
 	TSharedRef<STreeView<TSharedPtr< FClassViewerNode > > > ClassTreeView = ClassTree.ToSharedRef();
 	TSharedRef<SListView<TSharedPtr< FClassViewerNode > > > ClassListView = ClassList.ToSharedRef();
+	
+	bool bHasTitle = InitOptions.ViewerTitleString.IsEmpty() == false;
 
 	// Holds the bulk of the class viewer's sub-widgets, to be added to the widget after construction
 	TSharedPtr< SWidget > ClassViewerContent;
@@ -2616,7 +2020,6 @@ EClassViewerDeveloperType SClassViewer::GetCurrentDeveloperViewType() const
 	{
 		return EClassViewerDeveloperType::CVDT_All;
 	}
-
 	return GetDefault<UClassViewerSettings>()->DeveloperFolderType;
 }
 
@@ -2631,7 +2034,6 @@ void SClassViewer::GetInternalOnlyClasses(TArray<FSoftClassPath>& Classes)
 	{
 		return;
 	}
-
 	Classes = GetDefault<UClassViewerProjectSettings>()->InternalOnlyClasses;
 }
 
@@ -2643,7 +2045,6 @@ void SClassViewer::GetInternalOnlyPaths(TArray<FDirectoryPath>& Paths)
 	}
 	Paths = GetDefault<UClassViewerProjectSettings>()->InternalOnlyPaths;
 }
-
 
 FText SClassViewer::GetClassCountText() const
 {
@@ -2743,8 +2144,8 @@ void SClassViewer::FindInContentBrowser()
 void SClassViewer::OnFilterTextChanged( const FText& InFilterText )
 {
 	// Update the compiled filter and report any syntax error information back to the user
-	TextFilterPtr->SetFilterText(InFilterText);
-	SearchBox->SetError(TextFilterPtr->GetFilterErrorText());
+	ClassFilter->TextFilter->SetFilterText(InFilterText);
+	SearchBox->SetError(ClassFilter->TextFilter->GetFilterErrorText());
 
 	// Repopulate the list to show only what has not been filtered out.
 	Refresh();
@@ -2790,12 +2191,12 @@ bool SClassViewer::Menu_CanExecute() const
 
 void SClassViewer::MenuActorsOnly_Execute()
 {
-	bIsActorsOnly = !bIsActorsOnly;
+	InitOptions.bIsActorsOnly = !InitOptions.bIsActorsOnly;
 
 	// "Placeable Only" cannot be true when "Actors Only" is false.
-	if(!bIsActorsOnly)
+	if (!InitOptions.bIsActorsOnly)
 	{
-		bIsPlaceableOnly = false;
+		InitOptions.bIsPlaceableOnly = false;
 	}
 
 	Refresh();
@@ -2803,17 +2204,17 @@ void SClassViewer::MenuActorsOnly_Execute()
 
 bool SClassViewer::MenuActorsOnly_IsChecked() const
 {
-	return bIsActorsOnly;
+	return InitOptions.bIsActorsOnly;
 }
 
 void SClassViewer::MenuPlaceableOnly_Execute()
 {
-	bIsPlaceableOnly = !bIsPlaceableOnly;
+	InitOptions.bIsPlaceableOnly = !InitOptions.bIsPlaceableOnly;
 
 	// "Actors Only" must be true when "Placeable Only" is true.
-	if(bIsPlaceableOnly)
+	if (InitOptions.bIsPlaceableOnly)
 	{
-		bIsActorsOnly = true;
+		InitOptions.bIsActorsOnly = true;
 	}
 
 	Refresh();
@@ -2821,19 +2222,19 @@ void SClassViewer::MenuPlaceableOnly_Execute()
 
 bool SClassViewer::MenuPlaceableOnly_IsChecked() const
 {
-	return bIsPlaceableOnly;
+	return InitOptions.bIsPlaceableOnly;
 }
 
 void SClassViewer::MenuBlueprintBasesOnly_Execute()
 {
-	bIsBlueprintBaseOnly = !bIsBlueprintBaseOnly;
+	InitOptions.bIsBlueprintBaseOnly = !InitOptions.bIsBlueprintBaseOnly;
 
 	Refresh();
 }
 
 bool SClassViewer::MenuBlueprintBasesOnly_IsChecked() const
 {
-	return bIsBlueprintBaseOnly;
+	return InitOptions.bIsBlueprintBaseOnly;
 }
 
 TSharedRef<SWidget> SClassViewer::FillFilterEntries()
@@ -2975,15 +2376,11 @@ void SClassViewer::Populate()
 	// Empty the tree out so it can be redone.
 	RootTreeItems.Empty();
 
-	bool ShowingInternalClasses = IsShowingInternalClasses();
-
 	TArray<FSoftClassPath> InternalClassNames;
-	TArray<UClass*> InternalClasses;
-	TArray<FDirectoryPath> InternalPaths;
 	// If we aren't showing the internal classes, then we need to know what classes to consider Internal Only, so let's gather them up from the settings object.
-	if (!ShowingInternalClasses)
+	if (!IsShowingInternalClasses())
 	{
-		GetInternalOnlyPaths(InternalPaths);
+		GetInternalOnlyPaths(ClassFilter->InternalPaths);
 		GetInternalOnlyClasses(InternalClassNames);
 
 		// Take the package names for the internal only classes and convert them into their UClass
@@ -2994,10 +2391,12 @@ void SClassViewer::Populate()
 
 			if (ClassNode.IsValid())
 			{
-				InternalClasses.Add(ClassNode->Class.Get());
+				ClassFilter->InternalClasses.Add(ClassNode->Class.Get());
 			}
 		}
 	}
+
+	
 
 	// Based on if the list or tree is visible we create what will be displayed differently.
 	if(InitOptions.DisplayMode == EClassViewerDisplayMode::TreeView)
@@ -3006,11 +2405,10 @@ void SClassViewer::Populate()
 		TSharedPtr<FClassViewerNode> RootNode;
 
 		// Get the class tree, passing in certain filter options.
-		ClassViewer::Helpers::GetClassTree(InitOptions, RootNode, *TextFilterPtr, MenuPlaceableOnly_IsChecked(), MenuActorsOnly_IsChecked(), MenuBlueprintBasesOnly_IsChecked(),
-			bShowUnloadedBlueprints, GetCurrentDeveloperViewType(), ShowingInternalClasses, InternalClasses, InternalPaths);
+		ClassViewer::Helpers::GetClassTree(RootNode, ClassFilter, InitOptions);
 
 		// Check if we will restore expansion states, we will not if there is filtering happening.
-		const bool bRestoreExpansionState = TextFilterPtr->GetFilterType() == ETextFilterExpressionType::Empty;
+		const bool bRestoreExpansionState = ClassFilter->TextFilter->GetFilterType() == ETextFilterExpressionType::Empty;
 
 		if(InitOptions.bShowObjectRootClass)
 		{
@@ -3022,7 +2420,7 @@ void SClassViewer::Populate()
 			}
 
 			// Expand any items that pass the filter.
-			if(TextFilterPtr->GetFilterType() != ETextFilterExpressionType::Empty)
+			if(ClassFilter->TextFilter->GetFilterType() != ETextFilterExpressionType::Empty)
 			{
 				ExpandFilteredInNodes(RootNode);
 			}
@@ -3039,7 +2437,7 @@ void SClassViewer::Populate()
 				}
 
 				// Expand any items that pass the filter.
-				if(TextFilterPtr->GetFilterType() != ETextFilterExpressionType::Empty)
+				if(ClassFilter->TextFilter->GetFilterType() != ETextFilterExpressionType::Empty)
 				{
 					ExpandFilteredInNodes(RootNode->GetChildrenList()[ChildIndex]);
 				}
@@ -3064,8 +2462,7 @@ void SClassViewer::Populate()
 	else
 	{
 		// Get the class list, passing in certain filter options.
-		ClassViewer::Helpers::GetClassList(InitOptions, RootTreeItems, *TextFilterPtr, MenuPlaceableOnly_IsChecked(), MenuActorsOnly_IsChecked(), MenuBlueprintBasesOnly_IsChecked(), 
-			bShowUnloadedBlueprints, GetCurrentDeveloperViewType(), ShowingInternalClasses, InternalClasses, InternalPaths);
+		ClassViewer::Helpers::GetClassList(RootTreeItems, ClassFilter, InitOptions);
 
 		// Sort the list alphabetically.
 		struct FCompareFClassViewerNode
@@ -3180,7 +2577,7 @@ void SClassViewer::Tick( const FGeometry& AllottedGeometry, const double InCurre
 
 bool SClassViewer::IsClassAllowed(const UClass* InClass) const
 {
-	return ClassViewer::Helpers::IsClassAllowed(InitOptions, InClass);
+	return ClassFilter->IsClassAllowed(InitOptions, InClass, ClassFilter->FilterFunctions);
 }
 
 void SClassViewer::HandleSettingChanged(FName PropertyName)
@@ -3202,7 +2599,7 @@ void SClassViewer::ToggleShowInternalClasses()
 
 bool SClassViewer::IsToggleShowInternalClassesAllowed() const
 {
-	return bCanShowInternalClasses;
+	return InitOptions.bAllowViewOptions;
 }
 
 bool SClassViewer::IsShowingInternalClasses() const

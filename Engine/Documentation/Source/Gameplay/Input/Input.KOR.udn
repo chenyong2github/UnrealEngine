@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3810557
+INTSourceChangelist:6622979
 Availability: Public
 Title:입력
 Crumbs:%ROOT%
@@ -127,7 +127,7 @@ InputComponent 가 처리하는 입력에 대한 우선권 스택은 다음과 �
 				{
 					// 전방 알아내기
 					FRotator Rotation = Controller->GetControlRotation();
-					// 걷기나 낙하시 핏치 제한
+					// 걷기나 낙하시 피치 제한
 					if ( CharacterMovement->IsMovingOnGround() || CharacterMovement->IsFalling() )
 					{
 						Rotation.Pitch = 0.0f;

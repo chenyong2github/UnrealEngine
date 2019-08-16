@@ -108,6 +108,16 @@ void URichTextBlock::UpdateStyleData()
 	}
 }
 
+FText URichTextBlock::GetText() const
+{
+	if (MyRichTextBlock.IsValid())
+	{
+		return MyRichTextBlock->GetText();
+	}
+
+	return Text;
+}
+
 void URichTextBlock::SetText(const FText& InText)
 {
 	Text = InText;
@@ -292,7 +302,7 @@ void URichTextBlock::SetDefaultStrikeBrush(FSlateBrush& InStrikeBrush)
 
 void URichTextBlock::SetJustification(ETextJustify::Type InJustification)
 {
-	Justification = InJustification;
+	Super::SetJustification(InJustification);
 	if (MyRichTextBlock.IsValid())
 	{
 		MyRichTextBlock->SetJustification(InJustification);

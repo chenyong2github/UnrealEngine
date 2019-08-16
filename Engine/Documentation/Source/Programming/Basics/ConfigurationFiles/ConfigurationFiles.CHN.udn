@@ -1,40 +1,43 @@
-﻿Availability: Public
+﻿INTSourceChangelist:3692802
+Availability: Public
 Title: 配置文件 
 Crumbs: %ROOT%, Engine, Programming, Programming/Basics
-Description:包含以一些属性设置的文本文件，用于配置游戏或引擎行为。
-版本: 4.9
+Description:包含用于配置游戏进程或引擎行为的属性设置的文本文件。
+Version: 4.9
 
 
-[TOC(start:2 end:3)]
+[TOC (start:2 end:3)]
 
-配置文件可以用于设置加载时要初始化的属性的值。配置是由成对的键值来决定的，按部分排列。
-一个特定的键可以和一个或多个值相关联。
+配置文件可用于为加载项目时将初始化的属性设置值。配置由按分段排列的键-值对决定。 
+单个给定键可以与一个或多个值相关联。
 
-引擎配置文件用来作为对象和变量的默认值。用户输入配置可用于按键绑定。默认情况下，当您使用 **项目向导** 新建空白项目时， 
-将会创建DefaultEngine.ini和DefaultGame.ini 文件。如果需要，使用模板来创建的新项目也可以生成DefaultEditor.ini和 DefaultInput.ini 
-配置文件。
+引擎配置文件用于对象和变量的默认值。用户输入配置可用于键绑定。默认情况下，当您使用 **项目向导（Project Wizard）** 创建新的空白项目时， 
+将创建DefaultEngine.ini和DefaultGame.ini。如果需要，以模板开始的新项目还可以生成DefaultEditor.ini和DefaultInput.ini配置
+文件。  
 
-`SaveConfig()`函数可以在使用[](Programming\UnrealArchitecture\Reference\Classes\Specifiers\Config)类修饰符的类上进行调用。这可以保存使用Config属性修饰符 
-标记的任意属性到适当的配置文件中。一般来说，由SaveConfig()保存的变量位于按照格式 [(package).(classname)]
-命名的部分标题中。例如，DefaultEngine.ini 中的 `[/Script/Engine.Engine]` 部分指向存储在 Engine包内部的 Engine 类。
-硬编码的部分名称将会有一些例外。
+您可以在带[配置](Programming\UnrealArchitecture\Reference\Classes\Specifiers)类说明符的类上调用SaveConfig()函数。它会将标记 **配置（Config）** 属性说明符的 
+所有属性保存到适当的配置文件中。通常，由 **SaveConfig()** 保存的变量
+位于分段标题中，其格式为[(package).(classname)]。例如，DefaultEngine.ini中的[/Script/Engine.Engine]分段指向存储在引擎包中的引擎类。
+硬编码的分段名称有一些例外。
 
-之前仅通过编辑配置文件可用的一些设置现在可以在[](Engine\UI\ProjectSettings)编辑器的虚幻编辑器中使用。
+以前只能通过编辑配置文件才能使用的许多设置现在已可以在虚幻编辑器中的[](Engine\UI\ProjectSettings)编辑器中使用。
 
-## 定义可配置变量
+(#specifyingconfigurablevariables)
 
-为指出应该从配置文件中读取哪个变量，那么在包含这些变量的类在其`UCLASS`宏中应赋予`Config`标识符。
+## 指定可配置变量
+
+为了指定应从配置文件中读入的变量，包含这些变量的类必须首先在其UCLASS宏中提供配置说明符。
 
 	UCLASS(Config=Game)
 	class AExampleClass : public AActor
 
-[REGION:tip]
-	请注意必须为 `Config` 标识符提供类别（比如Game（游戏））。这确定了从哪个配置文件中读取类的变量及将其保存到哪个配置文件中。所有可能的分类都在FConfigCacheIni中进行定义。
-	如需获得所有配置文件分类的列表，请参阅[配置分类](#配置分类)。
+[REGION:note]
+	必须为配置说明符提供一个类别（即游戏）。这决定了从哪些配置文件中读取和保存该类的变量。FConfigCache.ini中定义了所有 
+	可能的类别。有关所有配置文件类别的列表，请参阅[配置类别](#configurationcategories)。
 [/REGION]
 
-使用`Config`标识符来修饰类表明此类可以从配置文件中读取变量，并指出了从哪个文件中读取配置信息。要想
-指定读取和保存到配置文件中的某个变量，也必须为`UPROPERTY()`宏提供`Config`标识符。
+用配置说明符装饰类只表明该类可以具有从配置文件读入的变量，并指定了从哪些文件中读取配置。为了
+将特定变量指定为读入并保存到配置文件，还必须将配置说明符提供给UPROPERTY()宏。
 
 	UCLASS(Config=Game)
 	class AExampleClass : public AActor
@@ -46,106 +49,126 @@ Description:包含以一些属性设置的文本文件，用于配置游戏或�
 
 	};
 
-对属性的`Config`标识符不提供任何分类。ExampleVariable属性现在可以从[配置文件结构](#文件层次结构)的任意Game配置文件中读取，
-只要信息由以下语法所指定： 
+没有类别将提供给属性的配置说明符。现在，您可以从任何游戏配置文件中的[配置文件层级](#filehierarchy)中读取ExampleVariable属性，
+前提是使用以下语法指定该信息：
 
 	[/Script/ModuleName.ExampleClass]
 	ExampleVariable=0.0f
 
+(#configfilesandinheritance)
+
 ### 配置文件和继承
 
-`Config` `UCLASS`和`UPROPERTY`标识符都将被子类继承。这表示子类可以读取或保存父类中指定为`Config`的所有变量，并且它们
-将会位于相同的配置文件分类中。变量都会位于具有子类名称的部分下。例如，继承 `ExampleClass` 的 `ChildExampleClass` 的配置文件信息
-看起来如下方的代码行，并且将被保存在同一个Game配置文件中。
+配置说明符、UCLASS说明符和UPROPERTY说明符可继承。这意味着，子类可以读入或保存父类中指定为配置的所有变量，
+并且所有这些变量将属同一配置文件类别。所有这些变量都将位于带有子类名称的分段标题下。例如，从上面的ExampleClass继承
+的ChildExampleClass的配置文件信息会如下所示，且会保存在相同的游戏配置文件中。
 
 	[/Script/ModuleName.ChildExampleClass]
 	ExampleVariable=0.0f
 
 
-### 基于每个实例的配置
+(#per-instanceconfigurations)
 
-虚幻引擎 4 可以把一个对象的配置文件保存到任何所需的配置文件中。如果 `PerObjectConfig` 标识符用于 `UCLASS` 宏， 
-那么这个类的配置信息将会基于每个实例进行存储，其中每个实例在 .ini 文件中都有一部分，该文件以这个对象的名字命名，格式如下 `[ObjectName ClassName]` 。
-这个关键字会传递给子类。?
+### 按每个实例配置
 
+虚幻引擎4能够将对象的配置保存到任何需要的配置文件中。如果在UCLASS宏中使用 **PerObjectConfig** 说明符， 
+则该类的配置信息将按每个实例存储，其中每个实例在.ini文件中都有一个以该对象命名的分段，命名格式为[ObjectName ClassName]。 
+该关键字将传播到子类。
+
+
+(#configurationfilestructure)
 
 ## 配置文件结构
 
-每个配置分类都有文件层次结构，它指定了特定引擎、项目和平台的配置。
+每个配置类别都有自己的文件层级，这些文件指定了特定于引擎、特定于项目和特定平台的配置。 
 
-### 配置分类
+(#configurationcategories)
 
-* Compat（兼容性）
-* DeviceProfiles（设备概述文件）
-* Editor（编辑器）
-* EditorGameAgnostic（编辑器游戏不可知论）
-* EditorKeyBindings（编辑器按键绑定）
-* EditorUserSettings（编辑器用户设置）
-* Engine(引擎)
-* Game(游戏)
-* Input（输入）
-* Lightmass
-* Scalability（可扩展性）
+### 配置类别
 
-### 文件层次结构
+* 兼容
+* 设备概述文件
+* 编辑器
+* 编辑器游戏未知
+* 编辑器键绑定
+* 编辑器用户设置
+* 引擎
+* 游戏
+* 输入
+* 全局光照
+* 可延展性
 
-配置文件读入时从Base.ini开始，文件结构中后面文件内的值覆盖之前的值。Engine文件夹中的文件将应用于
-所有项目，而针对特定项目的文件应该位于项目目录中的文件内。最后，所有特定项目和特定平台的差异都被保存到 [ProjectDirectory]/Saved/Config/[Platform]/[Category].ini文件中。
+(#filehierarchy)
 
-以下是配置文件的Engine类目的文件层次结构示例。
+### 文件层级
+
+系统从Base.ini开始读入配置文件层级，层级中后继文件中的值将覆盖先前的值。引擎文件夹中的所有文件将应用于
+所有项目，而特定于项目的设置应位于项目目录中的文件中。最后，系统将所有特定于项目和特定于平台的差异保存到[ProjectDirectory]/Saved/Config/[Platform]/[Category].ini
+
+下面的文件层级示例用于配置文件的引擎类别。
 
 1. Engine/Config/Base.ini
-	[REGION:tip]
-	Base.ini通常是空的。
+	[REGION:note]
+	Base.ini通常为空。
 	[/REGION]
 1. Engine/Config/BaseEngine.ini
 1. Engine/Config/[Platform]/[Platform]Engine.ini
 1. [ProjectDirectory]/Config/DefaultEngine.ini
 1. [ProjectDirectory]/Config/[Platform]/[Platform]Engine.ini
 1. [ProjectDirectory]/Saved/Config/[Platform]/Engine.ini
-	[REGION:tip]
-	Saved 目录中的配置文件仅仅将特定项目和特定平台的差异存储到配置文件堆栈中。
+	[REGION:note]
+	保存目录中的配置文件只存储配置文件堆栈中特定于项目和特定于平台的差异。
 	[/REGION]
 	
 
 
-## 应用配置文件
+(#workingwithconfigurationfiles)
 
+## 使用配置文件
+
+
+(#fileformat)
 
 ### 文件格式
 
 
-#### 部分和键-值对
+(#sectionsandkey-valuepairs)
 
-一般的配置文件由成块的 键-值 对组成，如下所示：
+#### 分段和键-值对
+
+典型的配置文件由键-值对分段组成，排列方式如下：
     
     [Section]
     Key=Value
 
-####  特殊字符
+(#specialcharacters)
 
-* *+* - 如果该属性还不存在则添加一行（从前一个 .ini 文件或者同一个 .ini 文件的前面的部分）。
-* *-* - 删除一行（但是它必须是精确匹配）。
-* *.* - 添加一个新属性。
-* *!* - 删除一个属性；但是不必是精确匹配，仅需要匹配属性的名称即可。
+#### 特殊字符
+
+* *+* - 如果该属性不存在，则（从先前的配置文件或同一配置文件中的更早版本）添加一行。
+* *-* - 删除一行（但该行必须为精确匹配）。
+* *.*添加一个新属性。
+* *!*- 删除一个属性；但您不必提供精确匹配，而只需提供属性的名称。
 
 [REGION:note]
-**注意** ： . *.* 和 *+* 类似的，只是 *.* 可以添加一个重复的行。这对绑定是有用的（正如在 DefaultInput.ini 中所看到的），比如，其中最底部的绑定生效，所以如果您添加了类似于以下的东西：
+. 类似于+，只是它可能会添加一个重复的行。它对于绑定（如DefaultInput.ini中所示）非常有用，例如当最底部的绑定生效时，因此如果您添加类似下面的内容：
     
     [/Script/Engine.PlayerInput]
     Bindings=(Name="Q",Command="Foo")
     .Bindings=(Name="Q",Command="Bar")
     .Bindings=(Name="Q",Command="Foo")
 
-它将可以正确地工作。但是如果使用 *+* 则不能添加最后一行，且您的绑定将是错误的。由于配置文件组合，所以将会发生上面的应用形式。
+它会适当地工作。使用 *+* 将无法添加最后一行，绑定也将不正确。由于配置文件的组合，可能会出现上述使用模式。
 [/REGION]
+
+(#comments)
 
 #### 注释
 
-大多数人似乎都会觉得配置文件中的分号表示注释，但是实际上不是 (`FConfigFile::ProcessInputFileContents` 并不会真正地处理它们，或者任何其它作为注释分界符的字符串）。这种行为是故意设计的。从技术上讲，任何字符都可以代表任何一种不同的键值对。通常，会在新的一行的行首放置一个分号。它的功能像是注释，但事实上它不是。
+大多数人似乎都会先入为主地认为分号在配置文件中表示注释，但它们并非如此（FConfigFile::ProcessInputFileContents实际上并不会将它们或任何其他字符串视为注释分隔符）。这一行为属于特意设计。从技术上讲，任何字符都可以代表不同的键-值对。通常，分号放在新的一行的开头。它的作用类似于注释，但实则不然。
      
-    ; This is a Comment
-	; So is this!
+    ; 这是一条注释
+	; 这也是！
 
 
 

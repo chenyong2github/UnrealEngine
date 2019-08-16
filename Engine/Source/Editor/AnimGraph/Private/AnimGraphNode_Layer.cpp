@@ -16,6 +16,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "UObject/CoreRedirects.h"
 #include "Kismet2/KismetEditorUtilities.h"
+#include "AnimationStateGraph.h"
 
 #define LOCTEXT_NAMESPACE "LayerNode"
 
@@ -150,9 +151,22 @@ void UAnimGraphNode_Layer::ValidateAnimNodeDuringCompilation(USkeleton* ForSkele
 			TArray<UEdGraph*> Graphs;
 			CurrentBlueprint->GetAllGraphs(Graphs);
 
+			auto ValidateOuterGraph = [this, OriginalThis, &MessageLog](const UEdGraph* InGraph)
+			{
+				static const FName DefaultAnimGraphName("AnimGraph");
+				if (InGraph->Nodes.Contains(OriginalThis))
+				{
+					if (!InGraph->IsA<UAnimationStateGraph>() && InGraph->GetFName() != DefaultAnimGraphName)
+					{
+						MessageLog.Error(*FText::Format(LOCTEXT("NestedLayer", "Layer node @@ is part of Animation Layer Graph '{0}', layers cannot be nested."), FText::FromName(InGraph->GetFName())).ToString(), this);
+					}
+				}
+			};
+			
 			for(const UEdGraph* Graph : Graphs)
 			{
 				CheckGraph(Graph);
+				ValidateOuterGraph(Graph);				
 			}
 		}
 	}
@@ -294,6 +308,7 @@ void UAnimGraphNode_Layer::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 		];
 	}
 
+	GenerateExposedPinsDetails(DetailBuilder);
 	UAnimGraphNode_CustomProperty::CustomizeDetails(DetailBuilder);
 
 	// Customize InstanceClass with unique visibility (identical to parent class apart from this)

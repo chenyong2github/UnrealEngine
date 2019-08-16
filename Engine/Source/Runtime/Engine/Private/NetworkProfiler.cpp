@@ -229,19 +229,29 @@ void FNetworkProfiler::SetCurrentConnection( UNetConnection* Connection )
 {
 	if ( bIsTrackingEnabled && Connection != nullptr )
 	{
-		const TSharedPtr<const FInternetAddr> ConnectionAddr = Connection->GetInternetAddr();
+		uint32 Index = INDEX_NONE;
+
+		const TSharedPtr<const FInternetAddr> ConnectionAddr = Connection->GetRemoteAddr();
 		if ( ConnectionAddr.IsValid() )
 		{
 			if ( LastAddress != ConnectionAddr )
 			{
-				uint32 Index = GetAddressTableIndex(ConnectionAddr->ToString(true));
-
-				uint8 Type = NPTYPE_ConnectionChanged;
-				(*FileWriter) << Type;
-				(*FileWriter).SerializeIntPacked(Index);
-
-				LastAddress = ConnectionAddr;
+				Index = GetAddressTableIndex(ConnectionAddr->ToString(true));
 			}
+		}
+		else
+		{
+			static const FString InvalidConnection = FString(TEXT("Invalid Connection"));
+			Index = GetAddressTableIndex(InvalidConnection);
+		}
+
+		if (Index != INDEX_NONE)
+		{
+			uint8 Type = NPTYPE_ConnectionChanged;
+			(*FileWriter) << Type;
+			(*FileWriter).SerializeIntPacked(Index);
+
+			LastAddress = ConnectionAddr;
 		}
 	}
 }

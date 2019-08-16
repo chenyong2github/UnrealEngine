@@ -38,7 +38,7 @@ struct FSkinWeightProfileInfo
 	FPerPlatformBool DefaultProfile;
 
 	/** When DefaultProfile is set any LOD below this LOD Index will override the Skin Weights of the Skeletal Mesh with the Skin Weights from this Profile */
-	UPROPERTY(EditAnywhere, Category = SkinWeights, meta=(EditCondition="DefaultProfile", ClampMin=0))
+	UPROPERTY(EditAnywhere, Category = SkinWeights, meta=(EditCondition="DefaultProfile", ClampMin=0, DisplayName = "Default Profile from LOD Index"))
 	FPerPlatformInt DefaultProfileFromLODIndex;
 	
 #if WITH_EDITORONLY_DATA
@@ -91,36 +91,43 @@ struct FRuntimeSkinWeightProfileData
 	void ApplyOverrides(FSkinWeightVertexBuffer* OverrideBuffer, const FSkinWeightVertexBuffer* BaseBuffer) const
 	{
 		const TSkinWeightInfo<bExtraBoneInfluences>* SkinWeightInfoPtr = BaseBuffer->GetSkinWeightPtr<bExtraBoneInfluences>(0);
-		TArray<TSkinWeightInfo<bExtraBoneInfluences>> OverrideArray;
-
-		const int32 ExpectedNumVerts = BaseBuffer->GetNumVertices();
-		OverrideArray.SetNumUninitialized(ExpectedNumVerts);
-		FMemory::Memcpy(OverrideArray.GetData(), SkinWeightInfoPtr, sizeof(TSkinWeightInfo<bExtraBoneInfluences>) * ExpectedNumVerts);
-
-		// Apply overrides
+		
+		if (SkinWeightInfoPtr)
 		{
-			for (auto VertexIndexOverridePair : VertexIndexOverrideIndex)
+			TArray<TSkinWeightInfo<bExtraBoneInfluences>> OverrideArray;
+			const int32 ExpectedNumVerts = BaseBuffer->GetNumVertices();
+			OverrideArray.SetNumUninitialized(ExpectedNumVerts);
+			FMemory::Memcpy(OverrideArray.GetData(), SkinWeightInfoPtr, sizeof(TSkinWeightInfo<bExtraBoneInfluences>) * ExpectedNumVerts);
+
+			// Apply overrides
 			{
-				const uint32 VertexIndex = VertexIndexOverridePair.Key;
-				TSkinWeightInfo<bExtraBoneInfluences>& Entry = OverrideArray[VertexIndex];
-
-				const uint32 OverrideIndex = VertexIndexOverridePair.Value;
-				const FSkinWeightOverrideInfo& OverrideInfo = OverridesInfo[OverrideIndex];
-
-				FMemory::Memzero(Entry.InfluenceBones);
-				FMemory::Memzero(Entry.InfluenceWeights);
-
-				for (int32 Index = 0; Index < OverrideInfo.NumInfluences; ++Index)
+				for (auto VertexIndexOverridePair : VertexIndexOverrideIndex)
 				{
-					const uint16 WeightData = Weights[OverrideInfo.InfluencesOffset + Index];
+					const uint32 VertexIndex = VertexIndexOverridePair.Key;
+					TSkinWeightInfo<bExtraBoneInfluences>& Entry = OverrideArray[VertexIndex];
 
-					Entry.InfluenceBones[Index] = (WeightData) >> 8;
-					Entry.InfluenceWeights[Index] = (WeightData & 0xFF);
+					const uint32 OverrideIndex = VertexIndexOverridePair.Value;
+					const FSkinWeightOverrideInfo& OverrideInfo = OverridesInfo[OverrideIndex];
+
+					FMemory::Memzero(Entry.InfluenceBones);
+					FMemory::Memzero(Entry.InfluenceWeights);
+
+					for (int32 Index = 0; Index < OverrideInfo.NumInfluences; ++Index)
+					{
+						const uint16 WeightData = Weights[OverrideInfo.InfluencesOffset + Index];
+
+						Entry.InfluenceBones[Index] = (WeightData) >> 8;
+						Entry.InfluenceWeights[Index] = (WeightData & 0xFF);
+					}
 				}
 			}
-		}
 
-		(*OverrideBuffer) = OverrideArray;
+			(*OverrideBuffer) = OverrideArray;
+		}
+		else
+		{
+			OverrideBuffer->CopyMetaData(*BaseBuffer);
+		}
 	}
 
 	/** Per skin weight offset into Weights array and number of weights stored */
@@ -162,7 +169,37 @@ struct ENGINE_API FSkinWeightProfilesData
 
 	friend FArchive& operator<<(FArchive& Ar, FSkinWeightProfilesData& OverrideData);
 
+	void SerializeMetaData(FArchive& Ar);
+
+	void ReleaseCPUResources();
+
+	void CreateRHIBuffers_RenderThread(TArray<TPair<FName, FVertexBufferRHIRef>>& OutBuffers);
+	void CreateRHIBuffers_Async(TArray<TPair<FName, FVertexBufferRHIRef>>& OutBuffers);
+
+	template <uint32 MaxNumUpdates>
+	void InitRHIForStreaming(const TArray<TPair<FName, FVertexBufferRHIRef>>& IntermediateBuffers, TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
+	{
+		for (int32 Idx = 0; Idx < IntermediateBuffers.Num(); ++Idx)
+		{
+			const FName& ProfileName = IntermediateBuffers[Idx].Key;
+			FRHIVertexBuffer* IntermediateBuffer = IntermediateBuffers[Idx].Value;
+			ProfileNameToBuffer.FindChecked(ProfileName)->InitRHIForStreaming(IntermediateBuffer, Batcher);
+		}
+	}
+	
+	template <uint32 MaxNumUpdates>
+	void ReleaseRHIForStreaming(TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
+	{
+		for (TMap<FName, FSkinWeightVertexBuffer*>::TIterator It(ProfileNameToBuffer); It; ++It)
+		{
+			It->Value->ReleaseRHIForStreaming(Batcher);
+		}
+	}
+
 protected:
+	template <bool bRenderThread>
+	void CreateRHIBuffers_Internal(TArray<TPair<FName, FVertexBufferRHIRef>>& OutBuffers);
+
 	FSkinWeightVertexBuffer* BaseBuffer;
 	FSkinWeightVertexBuffer* DefaultOverrideSkinWeightBuffer;
 

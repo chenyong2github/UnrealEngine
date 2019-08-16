@@ -278,7 +278,7 @@
 
       if ( hinting && size )
       {
-        CFF_Internal  internal = (CFF_Internal)size->root.internal;
+        CFF_Internal  internal = (CFF_Internal)size->root._internal;
 
 
         builder->hints_globals = (void *)internal->topfont;
@@ -440,7 +440,7 @@
 
       if ( builder->hints_funcs && size )
       {
-        CFF_Internal  internal = (CFF_Internal)size->root.internal;
+        CFF_Internal  internal = (CFF_Internal)size->root._internal;
 
 
         /* for CFFs without subfonts, this value has already been set */

@@ -182,7 +182,7 @@ void FLinuxWindow::Initialize( FLinuxApplication* const Application, const TShar
 		!Definition->IsModalWindow && !Definition->IsRegularWindow &&
 		!bShouldActivate && !Definition->SizeWillChangeOften)
 	{
-		WindowStyle |= SDL_WINDOW_POPUP_MENU;
+		WindowStyle |= SDL_WINDOW_BORDERLESS;
 		bIsConsoleWindow = true;
 		bIsPopupWindow = true;
 		UE_LOG(LogLinuxWindowType, Verbose, TEXT("*** New Window is a Console Window ***"));
@@ -529,6 +529,11 @@ void FLinuxWindow::ReshapeWindow( int32 NewX, int32 NewY, int32 NewWidth, int32 
 		}
 	}
 
+	// If we have set our self to 0,0 Width/Height it will not be allowed we will still show the window
+	// this is a work around to at least reduce the visibile impact of a window that is lingering
+	NewWidth  = FMath::Max(NewWidth, 1);
+	NewHeight = FMath::Max(NewHeight, 1);
+
 	// X11 will take until the next frame to send a SizeChanged event. This means the X11 window
 	// will most likely have resized already by the time we render but the slate renderer will
 	// not have been updated leading to an incorrect frame.
@@ -580,7 +585,8 @@ void FLinuxWindow::ReshapeWindow( int32 NewX, int32 NewY, int32 NewWidth, int32 
 	VirtualWidth  = NewWidth;
 	VirtualHeight = NewHeight;
 
-	if ( LinuxWindow )
+	// Avoid broadcasting we have set a zero size as it will attempt to resize the backbuffer which on some RHI is invalid per the spec (ie. Vulkan)
+	if (LinuxWindow )
 	{
 		OwningApplication->GetMessageHandler()->OnSizeChanged(
 			LinuxWindow.ToSharedRef(),
@@ -718,7 +724,7 @@ bool FLinuxWindow::IsMaximized() const
 /** @return true if the native window is minimized, false otherwise */
 bool FLinuxWindow::IsMinimized() const
 {
-	return SDL_GetWindowFlags(HWnd) & SDL_WINDOW_MINIMIZED;
+	return SDL_GetWindowFlags(HWnd) & SDL_WINDOW_MINIMIZED || SDL_GetWindowFlags(HWnd) & SDL_WINDOW_HIDDEN;
 }
 
 /** @return true if the native window is visible, false otherwise */

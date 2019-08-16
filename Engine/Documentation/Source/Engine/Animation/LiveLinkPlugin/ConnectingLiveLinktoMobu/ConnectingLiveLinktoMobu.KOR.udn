@@ -1,4 +1,4 @@
-INTSourceChangelist:4404731
+INTSourceChangelist:6604544
 Availability: Public
 Crumbs: 
 Title: 라이브 링크로 UE4 와 Motionbuilder 연결
@@ -35,9 +35,9 @@ Tags: Live Link, Motionbuilder
 
 1. **Animation** (애니메이션) 섹션 아래 **Live Link** 옆의 **Enabled** 박스를 클릭하고 확인 창이 뜨면 **예** 를 눌러 에디터를 재시작합니다.
 
-   ![](Step_02-3.png)
+    ![](Step_02-3.png)
 
-   라이브 링크 플러그인이 활성화되어 외부 DDC 툴에 연결할 수 있습니다. DDC 툴을 UE4 에 연결하기 위해서는, 그에 맞는 플러그인을 활성화해야 합니다. 여기서는 Motionbuilder 와 연결을 설정하지만, Maya 나 다른 툴에 (라이브 링크로 소스를 노출한 경우) 연결할 수도 있습니다. 
+    라이브 링크 플러그인이 활성화되어 외부 DDC 툴에 연결할 수 있습니다. DDC 툴을 UE4 에 연결하기 위해서는, 그에 맞는 플러그인을 활성화해야 합니다. 여기서는 Motionbuilder 와 연결을 설정하지만, Maya 나 다른 툴에 (라이브 링크로 소스를 노출한 경우) 연결할 수도 있습니다. 
 
 1. **콘텐츠 브라우저** 에서 **Content > Mannequin > Animations** 폴더의 **ThirdPersonWalk** 애니메이션을 엽니다.
 

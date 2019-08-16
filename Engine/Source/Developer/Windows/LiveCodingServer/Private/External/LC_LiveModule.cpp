@@ -304,7 +304,7 @@ namespace
 		// create a temporary file that acts as a so-called response file for the compiler, and contains
 		// the whole compiler command-line. this is done because the latter can get very long, longer
 		// than the limit of 32k characters.
-		const std::wstring responseFilePath = file::CreateTempFile();
+		const std::wstring responseFilePath = file::GenerateTempFilename();
 		file::CreateFileWithData(responseFilePath.c_str(), compilerOptions.c_str(), compilerOptions.size() * sizeof(char));
 
 		std::wstring compilerCommandLine;
@@ -320,8 +320,8 @@ namespace
 		compilerCommandLine += responseFilePath;
 		compilerCommandLine += L"\"";
 
-		const environment::Block* envBlock = compiler::GetEnvironmentFromCache(compilerPath.c_str());
-		const void* envBlockData = envBlock ? environment::GetBlockData(envBlock) : nullptr;
+		const process::Environment* environment = compiler::GetEnvironmentFromCache(compilerPath.c_str());
+		const void* environmentData = environment ? environment->data : nullptr;
 		std::wstring workingDirectory = string::ToWideString(compiland->workingDirectory);
 
 		// if the working directory does not exist, use the compiler's directory instead.
@@ -336,7 +336,7 @@ namespace
 
 		LC_LOG_USER("Compiling %s %s", isPartOfAmalgamation ? "split file" : "file", normalizedObjPath.c_str());
 
-		process::Context* processContext = process::Spawn(compilerPath.c_str(), workingDirectory.c_str(), compilerCommandLine.c_str(), envBlockData, process::SpawnFlags::REDIRECT_STDOUT);
+		process::Context* processContext = process::Spawn(compilerPath.c_str(), workingDirectory.c_str(), compilerCommandLine.c_str(), environmentData, process::SpawnFlags::REDIRECT_STDOUT | process::SpawnFlags::NO_WINDOW);
 		const unsigned int exitCode = process::Wait(processContext);
 		const wchar_t* compilerOutput = processContext->stdoutData.c_str();
 
@@ -397,6 +397,16 @@ namespace
 	}
 
 	// BEGIN EPIC MOD - Allow mapping from object files to their unity object file
+	static void AddCompilandId(types::StringMap<uint32_t>& objFileToCompilandId, const std::wstring& objFile, uint32_t compilandId)
+	{
+		std::wstring WideObjectFile = file::NormalizePath(objFile.c_str());
+		ImmutableString ObjectFile = string::ToUtf8String(WideObjectFile);
+		if (objFileToCompilandId.find(ObjectFile) == objFileToCompilandId.end())
+		{
+			objFileToCompilandId.insert(std::make_pair(ObjectFile, compilandId));
+		}
+	}
+
 	static bool ReadLiveCodingInfo(const wchar_t* manifestFile, types::StringMap<uint32_t>& objFileToCompilandId)
 	{
 		// Read the file to a string
@@ -441,12 +451,11 @@ namespace
 					return false;
 				}
 
-				std::wstring WideObjectFile = file::NormalizePath((BaseDir + L"\\" + *SourceFileValue->AsString()).c_str());
-				ImmutableString ObjectFile = string::ToUtf8String(WideObjectFile);
-				if (objFileToCompilandId.find(ObjectFile) == objFileToCompilandId.end())
-				{
-					objFileToCompilandId.insert(std::make_pair(ObjectFile, UnityCompilandId));
-				}
+				std::wstring objFile = BaseDir + L"\\" + *SourceFileValue->AsString();
+				AddCompilandId(objFileToCompilandId, objFile, UnityCompilandId);
+
+				std::wstring patchedObjFile = file::RemoveExtension(objFile) + L".lc.obj";
+				AddCompilandId(objFileToCompilandId, patchedObjFile, UnityCompilandId);
 			}
 		}
 
@@ -3031,7 +3040,7 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 	// create a temporary file that acts as a so-called response file for the linker, and contains
 	// the whole linker command-line. this is done because the latter can get very long, longer
 	// than the limit of 32k characters.
-	const std::wstring responseFilePath = file::CreateTempFile();
+	const std::wstring responseFilePath = file::GenerateTempFilename();
 	file::CreateFileWithData(responseFilePath.c_str(), linkerOptions.c_str(), linkerOptions.size() * sizeof(wchar_t));
 
 	std::wstring linkerCommandLine = file::GetFilename(linkerPath);
@@ -3039,12 +3048,12 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 	linkerCommandLine += responseFilePath;
 	linkerCommandLine += L"\"";
 
-	const environment::Block* linkerEnvBlock = compiler::GetEnvironmentFromCache(linkerPath.c_str());
-	const void* linkerEnvBlockData = linkerEnvBlock ? environment::GetBlockData(linkerEnvBlock) : nullptr;
+	const process::Environment* linkerEnvironment = compiler::GetEnvironmentFromCache(linkerPath.c_str());
+	const void* linkerEnvironmentData = linkerEnvironment ? linkerEnvironment->data : nullptr;
 
 	GLiveCodingServer->GetStatusChangeDelegate().ExecuteIfBound(L"Linking patch...");
 
-	process::Context* linkerProcessContext = process::Spawn(linkerPath.c_str(), linkerWorkingDirectory.c_str(), linkerCommandLine.c_str(), linkerEnvBlockData, process::SpawnFlags::REDIRECT_STDOUT);
+	process::Context* linkerProcessContext = process::Spawn(linkerPath.c_str(), linkerWorkingDirectory.c_str(), linkerCommandLine.c_str(), linkerEnvironmentData, process::SpawnFlags::REDIRECT_STDOUT | process::SpawnFlags::NO_WINDOW);
 	const unsigned int linkerExitCode = process::Wait(linkerProcessContext);
 
 	const double linkerTime = linkScope.ReadSeconds();

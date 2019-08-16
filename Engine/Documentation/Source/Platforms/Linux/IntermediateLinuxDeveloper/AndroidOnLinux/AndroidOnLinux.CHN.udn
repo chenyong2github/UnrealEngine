@@ -1,51 +1,534 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
-Title:Linux 系统 Android 快速入门
-Crumbs:%ROOT%
-Description:学习在 Linux 系统上创建、部署和打包 Android 游戏。
-Platform:Linux
+﻿INTSourceChangelist:6622979
+Availability: Public
+Title: Android on Linux快速入门
+Description: 了解如何从Linux创建游戏、部署游戏以及将游戏打包到Android。
+Type: quick start
 Version: 4.17
-type:quick start
-parent:Platforms/Linux
-order:5
-tags:Linux
-SkillLevel:Intermediate
-prereq:GettingStarted/RecommendedSpecifications
-prereq:Platforms/Linux/BeginnerLinuxDeveloper/SettingUpAnUnrealWorkflow
-topic-image:androidLinuxQS_topic.png
-Checkpoint:AndroidOnLinuxQS
-Contributor:yaakuro
+Parent: Platforms/Linux
+Tags: Linux
+skilllevel:Intermediate
+topic-image: androidLinuxQS_topic.png
+Order: 5
+
+[TOC (start:2 end:2)]
 
 [REGION:imagetable]
-![](DeployedAndroidGame_Linux.png)(w:900)  
-_阅读完此教程后，您将能够在 Linux 系统上使用虚幻引擎 4（UE4）创建、部署和打包 Android 平台的游戏。_
+![](DeployedAndroidGame_Linux.png)(w:900)
+*在本教程的最后，您将在虚幻引擎4（UE4）上从Linux创建游戏、部署游戏以及将游戏打包到您的Android设备上。*
 [/REGION]
 
-如您是在 Linux 上开发并发行 Android 平台游戏的开发者，本页面便是您的指路明灯。 
-
-(#Goal)
-## 目标
-
-此指南将指导您在 Linux 上对 Android 设备进行配置，满足使用 UE4 开发的要求。然后说明如何从 Linux 将移动游戏部署并打包到 Android。
-
-(#Objectives)
-## 目的
-
-在此教程的学习中您将了解以下内容： 
-
-* 如何在 Linux 系统中安装并设置 Android SDK，以便用 UE4 进行移动游戏开发。 
-* 如何启用 Android 的开发环境。 
-* 如何在 UE4 中创建 Android 移动游戏项目。 
-* 如何从 UE4 部署关卡到 Android 设备上。 
-* 如何打包移动游戏进行发行（发布）。 
-
-(#Steps)
-## 步骤
-
-[REGION:call_to_action]
-	[点击开始](Platforms/Linux/IntermediateLinuxDeveloper/AndroidOnLinux/1 "%Platforms/Linux/IntermediateLinuxDeveloper/AndroidOnLinux/1:title%")
-[/REGION]
+如果您是一个开发者，希望在Android设备上从Linux创建和发布游戏；这就是您要找的页面。本指南将向您介绍如何将Android设备配置为使用Linux上的UE4，并最终向您展示如何在Android上从Linux部署和打包移动游戏。
 
 [REGION:quote]
-感谢社区中热心网友的帮助，我们已成功为 UE4 增加 Linux 系统的 Android 开发支持。
+感谢我们人才济济的贡献者社区，我们成功地添加了Android对Linux UE4的支持。
 [/REGION]
+
+## 1 - 必要的设置
+
+虚幻引擎4使用一个特殊版本的Android软件开发工具包（SDK），版本为CodeWorks for Android。
+要设置使用虚幻引擎4开发Android项目时所需的SDK和本地开发工具包（NDK），CodeWorks for Android是最简单的方法。如果您安装了较旧版本（1R5版之前的版本）的Android SDK（或较旧版本的CodeWorks for Android），我们建议您卸载它们并安装[CodeWorks for Android](https://developer.nvidia.com/codeworks-android)，同时使用与虚幻引擎4一起发布的CodeWorks for Android安装程序。
+
+[REGION:note]
+我们已经将CodeWorks for Android安装程序与虚幻引擎4捆绑在一起，以确保您的Android SDK将与引擎兼容。值得注意的是，从虚幻引擎4.16版开始，引擎就包含CodeWorks for Android 1R6u1。
+[/REGION]
+
+为了向您展示如何着手使用Linux上的Android，我们将在使用虚幻引擎版本4.14的同时使用CodeWorks For Android 1R6u1。在安装CodeWorks for Android 1R6u1之前，应该关闭引擎。另外，请确保安装了Java开发工具包8（JDK 8），并将`JAVA_HOME`环境变量设置为Java开发工具包（JDK）的正确版本。要验证`JAVA_HOME`设置正确，将`echo $JAVA_HOME`输入到终端中。如果没有看到正确的JDK版本，[下载JDK 8](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html)，并将其安装到您的Linux计算机上，同时确保将`JAVA_HOME`环境变量设置为新安装的JDK。
+
+在继续操作之前，请注意目前不支持Linux上的Android Vulkan。
+
+1.  开始时，打开终端并导航到包含编译引擎的`[UE4Root]`文件夹（使用`cd`命令，更改shell工作目录）。 
+
+    ![](LinuxAndroid_Step0.png)(w:900)
+
+1.  在`[UE4Root]`文件夹内，通过在终端中输入以下字符串，导航到CodeWorks for Android 1R6u1二进制文件（**CodeWorksforAndroid-1R6u1-linux-x64.run**）：`cd Engine/Extras/AndroidWorks/Linux`。 
+
+    ![](LinuxAndroid_Step1.png)(w:900)
+
+1.  现在，在终端中输入`ls -l`，显示目录内容的一个长清单。 
+
+    ![](LinuxAndroid_Step2.png)(w:900)
+	
+	文件的权限设置告诉您，**CodeWorksforAndroid-1R6u1-linux-x64.run** 还未准备好执行。在运行CodeWorks for Android 1R6u1二进制文件之前，需要更改文件的访问权限，以允许“execute”权限。
+
+1.  若要更改`CodeWorksforAndroid-1R6u1-linux-x64.run`的文件权限设置，使其能够像普通可执行文件一样运行，请在终端中输入`chmod +x CodeWorksforAndroid-1R6u1-linux-x64.run`。 
+    
+    ![](LinuxAndroid_Step3.png)(w:900)
+
+    [REGION:tip]
+    如果您想了解更多关于`chmod`命令的信息，请在终端中输入`man chmod`，阅读包含`chmod`工作原理的手册页。
+    [/REGION]
+    
+1.  现在，在终端中输入`ls -l`。 
+
+    ![](LinuxAndroid_Step4.png)(w:900)
+
+    图中突出显示的文件权限设置表明，CodeWorks for Android 1R6u1二进制文件可以执行了。
+
+1.  要运行CodeWorks for Android二进制文件，在终端中输入`./CodeWorksforAndroid-1R6u1-linux-x64.run`。 
+
+    ![](LinuxAndroid_Step5.png)(w:900)
+
+    [REGION:warning]
+    在进行下一步之前，请确保您的计算机具有有效的互联网连接。
+    [/REGION]
+    
+1.  当CodeWorks for Android 1R6u1二进制文件解压缩 **NVIDIA CodeWorks for Android** 安装程序后，您将看到 **安装程序欢迎（Installer Welcome）** 窗口，提示您单击 **下一步（Next）** 或 **取消（Cancel）**。 
+
+    ![](LinuxAndroid_Step6.png)(w:900)
+
+1.  从 **安装程序欢迎（Installer Welcome）** 窗口中，单击 **下一步（Next）** 按钮开始安装流程。 
+
+    ![](LinuxAndroid_Step7.png)(w:900)
+
+1.  现在，从 **Android开发者的欢迎窗口（Android Developer's Welcome Window）** 中，单击 **下一步（Next）** 按钮以继续安装流程。 
+
+    ![](LinuxAndroid_Step8.png)(w:900)
+
+1.  指定CodeWorks for Android 1R6u1应安装和下载到的目录。 
+
+    ![](LinuxAndroid_Step9.png)(w:900)
+
+1.  单击 **下一步（Next）>** 按钮从NVIDIA下载CodeWorks for Android 1R6u1，最终在您的计算机上安装CodeWorks。 
+
+    ![](LinuxAndroid_Step10.png)(w:900)
+
+1.  现在，在从 **Android组件管理器（Android Component Manager）** 窗口单击 **下一步（Next）** 之前，验证您正在安装 **CodeWorks for Android 1R6u1**。
+ 
+
+    ![](LinuxAndroid_Step11.png)(w:900)
+
+1.  出现 **条款和条件（Terms and Conditions）** 窗口后，花些时间通读所有 **条款和条件（Terms and Conditions）**，然后选择 **全部接受（Accept All）** 复选框。 
+
+    ![](LinuxAndroid_Step12.png)(w:900)
+
+1.  现在，单击 **接受（Accept）** 按钮开始安装流程。 
+
+    ![](LinuxAndroid_Step13.png)(w:900)
+
+1.  一旦安装程序完成安装流程，单击 **下一步（Next）>** 按钮继续。 
+
+    ![](LinuxAndroid_Step14.png)(w:900) 
+
+1.  **安装完成（Installation Complete）** 窗口打开后，单击 **完成（Finish）** 按钮以完成安装。 
+
+    ![](LinuxAndroid_Step15.png)(w:900)
+
+1.  继续进行下一步之前，确保重启计算机。 
+
+    ![](LinuxAndroid_Note16.png)(w:900)
+
+    [REGION:tip]
+    如果不想使用Ubuntu的GUI，您可以在终端中输入`sudo reboot`以重启计算机。
+    [/REGION]
+    
+[REGION:lightbox]
+[![](Step1_EndResult.png)(w:900)](Step1_EndResult.png)
+[/REGION]
+[REGION:caption]
+单击显示全图
+[/REGION]
+
+## 2 - 设置您的Android设备
+
+现在您已经在Linux计算机上安装了Android SDK，基本上可以开始为Android设备开发移动游戏了。但是，在Android设备上运行虚幻引擎游戏之前，需要启用Android的开发环境。
+
+[REGION:note]
+在开始以下步骤之前，请确保您能够获取USB线。
+[/REGION]
+
+### 启用Android的开发者选项
+
+1.  将Android设备通过USB线连接到您的Linux计算机。
+
+1.  在Android设备上打开 **设置（Settings）** 应用程序。
+
+    [REGION:lightbox]
+        [![](LinuxAndroid_Step17.png)(w:180)](LinuxAndroid_Step17.png)
+    [/REGION]
+    
+    [REGION:caption]
+        单击显示全图
+    [/REGION]
+
+1.  点击 **开发者选项（Developer Options）** 打开“开发者选项（Developer Options）”菜单。
+
+    [REGION:lightbox]
+        [![](LinuxAndroid_Step18.png)(w:180)](LinuxAndroid_Step18.png)
+    [/REGION]
+
+    [REGION:caption]
+        单击显示全图
+    [/REGION]    
+
+    [REGION:note]
+    如果您没有看到该项目，则需要在您的设备上启用 **开发者选项（Developer Options）**。要启用 **开发者选项（Developer Options）**，打开 **设置（Settings）** 应用程序，滚动到底部并选择 **关于电话（About phone）**。选择 **关于电话（About phone）** 后，滚动到底部并点击 **内部版本号（Build number）** 七（7）次。有关如何在Android设备上启用开发者选项（Developer Options）的更多说明，请访问[Android的用户指南](https://developer.android.com/studio/debug/dev-options.html)。
+    [/REGION]
+    
+### 启用USB调试
+
+1.  从 **开发者选项（Developer Options）** 菜单中，启用 **USB调试（USB debugging）**。
+
+    [REGION:lightbox]
+        [![](LinuxAndroid_Step19.png)(w:180)](LinuxAndroid_Step19.png)
+    [/REGION]
+    
+    [REGION:caption]
+        单击显示全图
+    [/REGION]
+ 
+1.  应显示一个窗口，确认您的选择以启用USB调试。阅读提示后，继续并点击 **确定（OK）**。
+
+    [REGION:lightbox]
+        [![](LinuxAndroid_Step20.png)(w:180)](LinuxAndroid_Step20.png)
+    [/REGION]
+    
+    [REGION:caption]
+        单击显示全图
+    [/REGION]
+
+    USB调试现已启用。  
+    ![](LinuxAndroid_Step20Note.png)
+
+1.  现在，断开Android设备与USB线的连接，几秒钟后再把它插回去。
+如果您正在连接一个运行Android 4.2.2或更高版本的设备，将显示以下对话框，询问您是否接受一个RSA密钥，以允许通过您的Linux计算机进行调试。继续并选择 **始终允许从这台计算机（Always allow from this computer）** 旁的复选框，然后点击 **确定（OK）** 按钮。
+
+    [REGION:lightbox]
+        [![](LinuxAndroid_Step21.png)(w:180)](LinuxAndroid_Step21.png)
+    [/REGION]
+    
+    [REGION:caption]
+        单击显示全图
+    [/REGION]
+
+**分段结果**
+
+现在，您已经准备好验证您的设备可否在Linux计算机上进行调试。要验证您的设备是否正确设置，请打开终端并输入`adb devices`。
+
+![](LinuxAndroid_Step22.png)(w:900)
+
+您应该看到一个连接到Linux计算机上的设备列表，这意味着您有一个准备运行虚幻引擎游戏的Android设备。
+
+[REGION:note]
+    如果您在终端中输入`adb devices`后没有看到您的设备，您可能需要在Linux计算机上安装adb。请参阅[Android Debug Bridge用户指南](https://developer.android.com/studio/command-line/adb.html)了解有关adb以及如何在您的计算机上安装此程序的更多信息。如果您确定已经在您的计算机上安装和配置了adb，请尝试以下故障排除方法：
+
+    * 您可能需要断开您的Android设备与您的计算机的连接，并重新连接它们。
+    * 如果您没有选择 **始终允许从这台计算机（Always allow from this computer）** 旁边的复选框，您可能需要选择此复选框。
+    * 如果此设备被列为未授权，您可以让Android设备授权您的Linux计算机进行USB调试。
+    * 在某些情况下，如果一个正确配置的设备使用媒体传输协议（MTP）作为媒体设备连接，则可能无法识别此设备。
+    * 同样，如果一个正确配置的设备使用图片传输协议（PTP）作为摄像机设备连接，则可能无法识别此设备。
+[/REGION]
+
+## 3 - 创建项目
+
+现在，您已经安装并配置了Android SDK，还设置了Android的开发环境，Android Debug Bridge能够列出所有连接到您的Linux计算机的设备。您可以开始在UE4中创建一个新的移动项目。
+
+### 创建移动项目
+
+1.  打开**虚幻项目浏览器（Unreal Project Browser）**，并使用以下选项新建蓝图项目。
+
+    * 选择 **第三人称（Third Person）** 模板
+    * 将 **目标硬件（Target Hardware）** 设置为 **移动设备/平板电脑（Mobile / Tablet）**
+    * 将 **图像级别** 设置为 **可缩放的3D或2D（Scalable 3D or 2D）**
+    * 选择 **没有初学者内容（No Starter Content）**。
+    
+    [REGION:lightbox]
+        [![](LinuxAndroid_Step23.png)(w:720)](LinuxAndroid_Step23.png)
+    [/REGION]
+    
+    [REGION:caption]
+        单击显示全图
+    [/REGION]
+    
+1.  为该项目命名，并设置该项目的 **文件夹（Folder） ** 位置。在本教程中，我们将该项目命名为`LinuxAndroidProject`。
+
+    [REGION:lightbox]
+        [![](LinuxAndroid_Step24.png)(w:720)](LinuxAndroid_Step24.png)
+    [/REGION]
+    
+    [REGION:caption]
+        单击显示全图
+    [/REGION]
+
+1.  完成您的项目设置后，单击 **创建项目（Create Project）** 按钮。
+
+    [REGION:lightbox]
+        [![](LinuxAndroid_Step25.png)(w:720)](LinuxAndroid_Step25.png)
+    [/REGION]
+    
+    [REGION:caption]
+        单击显示全图
+    [/REGION]
+    
+**分段结果**
+
+[REGION:lightbox]
+    [![](LinuxAndroid_Step3EndResult.png)(w:720)](LinuxAndroid_Step3EndResult.png)
+[/REGION]
+
+[REGION:caption]
+    单击显示全图
+[/REGION]
+
+祝贺您！您刚刚创建了一个可供移动设备使用的新UE4项目。
+
+## 4 - 部署关卡
+
+部署关卡意味着，您将要从UE4将关卡[烘焙](Engine/Deployment/Cooking)和[启动](Engine/Deployment/Launching)到您的Android设备。因为要将移动应用程序部署到Android设备上，需要考虑很多细节，包括（尽管不限于）Linux计算机的编译环境、Android设备的指令集和设备的渲染功能。因此，在将 **ThirdPersonExampleMap** 关卡部署到Android设备之前，您将回顾一些最常见的部署前考虑事项。
+
+### Linux上部署前的考虑事项
+
+在部署应用程序之前，请参考下面的列表，该列表旨在帮助您在将游戏部署到设备时，避免可能出现的一些常见问题。
+
+* 虽然这似乎是一个显而易见的考虑，但请确保Android设备已正确连接到您的计算机。
+* 如果您还没有这样做，请验证Android Debug Bridge（adb）列出了您的连接设备。要了解更多关于adb的信息，请在终端中输入`adb --help`。您还可以参阅[Android Debug Bridge用户指南](https://developer.android.com/studio/command-line/adb.html)了解有关adb以及如何在您的计算机上安装此程序的更多信息。
+* 为了正确地构建游戏、烘焙游戏、打包游戏并将游戏部署到Android，您需要安装JDK 8，并将`JAVA_HOME`环境变量设置为JDK的正确版本。要验证是否正确设置了`JAVA_HOME`，请在终端中输入`echo $JAVA_HOME`。如果没有看到正确的JDK版本，[下载JDK 8](http://www.oracle.com/technetwork/java/javase/downloads/index.html)，并将其安装到您的Linux计算机上，同时确保将`JAVA_HOME`环境变量设置为新安装的JDK。您可以在[Android SDK项目设置](https://developer.android.com/studio/command-line/variables.html)中设置`JAVA_HOME`环境变量。
+* 确保您正在针对相应的ARM架构进行构建，因为如果不这样做，您的项目将无法正确部署。在验证将在您的设备上工作的指令集之后，您可以通过导航到 **编辑（Edit）> 项目设置...（Project Settings）> Android > 构建（Build）** 并选择 **支持arm7（Support arm7）** 或 **支持arm64（Support arm64）**，来从编辑器中选择相应的ARM架构支持。
+* 目前，我们不提供来自Linux上UE4的 **Vulkan** 渲染支持。
+* 不同的Android设备支持不同的纹理格式。如果您不知道Android设备支持哪些纹理格式，请尝试将您的目标纹理设置为Ericsson纹理压缩1（ETC 1）压缩方案，大多数Android设备都应该支持该方案。要了解有关支持多个纹理的更多信息，请查看Android的有关[为不同的GL纹理创建多个APK](https://developer.android.com/training/multiple-apks/texture.html)的文档。
+    
+#### 查看可用的纹理格式
+
+如果您有兴趣阅读有关当前支持纹理的更多信息，下表提供了Android设备上最常支持用纹理的快速摘要：
+
+[INCLUDE:Platforms/Mobile/Android/Reference#androidformats]
+
+### 部署关卡
+
+既然您已经阅读了将游戏部署到Android设备上的一些最重要的考虑事项，那么您可以开始部署过程了。
+
+1.  首先，确保 **ThirdPersonExampleMap** 已打开。
+
+    [REGION:lightbox]
+        [![](LinuxAndroid_Step26.png)(w:900)](LinuxAndroid_Step26.png)
+    [/REGION]
+    
+    [REGION:caption]
+        单击查看全图
+    [/REGION]
+ 
+1.  要打开 **设备（Devices）** 菜单，请单击位于 **主工具栏（Main Toolbar）** 中的 **启动（Launch）** 图标旁边的箭头。
+
+    [REGION:lightbox]
+        [![](LinuxAndroid_Step27.png)(w:900)](LinuxAndroid_Step27.png)
+    [/REGION]
+    
+    [REGION:caption]
+        单击查看全图
+    [/REGION]
+  
+1.  **设备（Devices）** 菜单打开后，选择您的Android设备。
+    [REGION:lightbox]
+        [![](LinuxAndroid_Step28.png)(w:900)](LinuxAndroid_Step28.png)
+    [/REGION]
+    
+    [REGION:caption]
+        单击查看全图
+    [/REGION]
+
+1.  此时，虚幻引擎会将关卡部署到您的Android设备上。
+
+    [OBJECT:EmbeddedVideo]
+        [PARAMLITERAL:width]
+        640
+        [/PARAMLITERAL]
+        [PARAMLITERAL:height]
+        360
+        [/PARAMLITERAL]
+        [PARAMLITERAL:videoid]
+        afagQeEvf4Q
+        [/PARAMLITERAL]
+    [/OBJECT]
+  
+    [REGION:note]
+    正如您在视频中看到的，UE4在编辑器的右下角更新应用程序部署过程的进度。
+    [/REGION]
+    
+1.  当UE4完成烘焙并启动您的项目时，关卡应该在您的设备上运行。您还将能够看到一个虚幻引擎图标，应该可以从您的Android应用程序托盘访问此图标。
+
+    ![](LinuxAndroid_Step29.png)
+
+### 确定支持的纹理格式
+
+如果您仍想知道您的Android设备支持哪些纹理格式，请尝试下面的步骤：
+
+1.  当在您的设备上运行游戏时，用四(4)根手指轻敲屏幕。
+
+    ![](LinuxAndroid_Step30.png)(w:900)
+
+    [REGION:caption]
+       应该会出现一个对话框，显示您的Android设备支持的纹理格式。
+    [/REGION]
+    
+**分段结果**
+
+祝贺您！您现在应该在您的Android设备上运行了第三人称示例贴图。
+
+## 5 - 打包游戏
+
+本教程学习到现在，您已经创建并将移动游戏项目部署到了Android设备上；然而，如果您想要发布您的游戏，则需要打包项目。下面的步骤向您展示了如何打包您的项目以便在Android平台上发布。在开始之前，需要注意的是，您将在 **开发（Development）** 模式下打包项目。为了测试目的，一开始在 **开发（Development）** 模式下打包游戏始终是一个很好的做法。一旦您对您的游戏感到满意，您就可以在 **发布（Shipping）**模式下打包项目，这将告诉引擎删除控制台命令、统计数据和分析工具。
+
+[REGION:note]
+要了解更多关于UE4中提供的不同构建配置之间的差异，请阅读我们的[构建配置参考](Programming/Development/BuildConfigurations)页面。
+[/REGION]
+
+### 打包项目
+
+1.  打开 **文件（File）** 菜单，向下滚动到 **打包项目（Package Project）**，并将鼠标光标悬停在 **Android** 上，然后选择 **Android (ETC1)**。  
+
+    [REGION:lightbox]
+        [![](LinuxAndroid_Step31.png)(w:720)](LinuxAndroid_Step31.png)
+    [/REGION]
+    
+    [REGION:caption]
+        单击显示全图
+    [/REGION]
+  
+1.  当出现 **打开目录（Open Directory）** 菜单后，使用 **新建文件夹（New Folder）** 按钮创建一个名为`Android_Builds`的新文件夹。  
+
+    [REGION:lightbox]
+        [![](LinuxAndroid_Step32.png)(w:720)](LinuxAndroid_Step32.png)
+    [/REGION]
+    
+    [REGION:caption]
+       单击显示全图
+    [/REGION]
+
+1.  现在，单击 **打开（Open）** 按钮开始打包过程。  
+
+    [REGION:lightbox]
+        [![](LinuxAndroid_Step33.png)(w:720)](LinuxAndroid_Step33.png)
+    [/REGION]
+    
+    [REGION:caption]
+        单击显示全图
+    [/REGION]
+
+1.  当UE4打包您的项目时，您应该会在右下角看到一个进度指示器。  
+
+    [REGION:lightbox]
+        [![](LinuxAndroid_Step34.png)(w:720)](LinuxAndroid_Step34.png)
+    [/REGION]
+    
+    [REGION:caption]
+        单击显示全图
+    [/REGION]
+
+1.  在打包过程结束时，您应该看到一条消息，告诉您打包过程已完成。  
+
+    [REGION:lightbox]
+        [![](LinuxAndroid_Step35.png)(w:720)](LinuxAndroid_Step35.png)
+    [/REGION]
+    
+    [REGION:caption]
+        单击显示全图
+    [/REGION]
+  
+1.  导航到 **Android_Builds** 文件夹，在此文件夹中，您应该会看到一个名为 **Android_ETC1** 的文件夹。  
+
+    ![](LinuxAndroid_Step36.png) 
+
+1.  打开 **Android_ETC1** 文件夹，您将在其中找到在打包过程中创建的文件。
+
+    ![](LinuxAndroid_Step37.png)  
+
+    您应该看到 **安装（Installation）** 和 **卸载（Uninstallation）** shell脚本（/*.sh），以及Android应用程序包(*.apk)，其中包含所需的所有文件，可将项目安装到支持ETC1压缩方案的任何Android设备。
+
+1.  现在，通过在此文件中单击右键并选择 **在终端中打开（Open in Terminal）**，从此文件夹的位置打开终端。 
+
+    ![](LinuxAndroid_Step38.png) 
+
+1.  在终端中输入`./Install_LinuxAndroidProject_Development-arm64.es2.sh`以将项目安装到您的Android设备。  
+
+    [REGION:lightbox]
+        [![](LinuxAndroid_Step39.png)(w:900)](LinuxAndroid_Step39.png)
+    [/REGION]
+    
+    [REGION:caption]
+        单击显示全图
+    [/REGION]
+
+    [REGION:note]
+    如果您在运行shell脚本时遇到问题，请尝试在终端中输入`adb devices`，以验证您的设备确实已连接到您的计算机。
+    [/REGION]
+    
+1.  在安装过程中，shell脚本应该将以下输出刷新到您的终端  
+
+    [REGION:lightbox]
+        [![](LinuxAndroid_Step40.png)(w:900)](LinuxAndroid_Step40.png)
+    [/REGION]
+    
+    [REGION:caption]
+       单击显示全图
+    [/REGION]
+
+    [REGION:note]
+    当shell脚本完成安装过程后，您应该看到一条 **安装成功（Installation successful）** 消息。
+    [/REGION]
+    
+**分段结果**
+
+现在安装脚本已经将游戏安装到您的Android设备上，该项目现在应该在您的设备的应用程序托盘中可见。
+
+[REGION:lightbox]
+    [![](LinuxAndroid_Step5EndResult.png)(w:180)](LinuxAndroid_Step5EndResult.png)
+[/REGION]
+
+[REGION:caption]
+    单击显示全图
+[/REGION]
+
+祝贺您！您已经了解了：
+
+✓ 如何安装和设置Android SDK以便使用Linux上的UE4开发移动游戏。  
+✓ 如何启用Android的开发环境。  
+✓ 如何在UE4中创建一个Android移动游戏。  
+✓ 如何将一个关卡从UE4部署到Android设备上。  
+✓ 如何打包移动游戏以便发布（发行）。
+
+下一部分就有关如何运用新获得的技能提出一些建议。
+
+## 6 - 看你的了！
+
+开发移动游戏尤其需要注意，特别是在设备兼容性、移动性能和空间限制方面。当您在设计移动游戏时，应用最佳实践将帮助您有效地完善您的移动游戏开发技能。在使用您刚刚学到的最佳实践设计了移动内容之后，学习如何使用另一种部署方法预览和部署您的移动游戏。最后，在这一页的末尾，我们添加了一些练习来帮助您练习新获得的移动开发技能。
+
+### 学习一些最佳实践
+
+现在您已经了解了如何为Android设备创建、打包和部署一个移动UE4项目模板；现在是考虑设备兼容性、移动性能和APK最佳实践的好时机，它们可能会影响您从Linux上的UE4创建移动游戏的能力。
+
+#### Android设备兼容性
+
+* [](Platforms/Mobile/Android/DeviceCompatibility) 
+* [](Platforms/DeviceProfiles)
+    
+#### 移动性能
+
+* [](Platforms/Mobile/Performance)
+
+#### 减小APK包大小
+
+由于目标硬件或软件平台的限制，有时您需要限制移动游戏的大小。如果您遇到需要减小移动游戏大小的情况，您可能需要减小您的 **Android应用程序包**（APK）的大小，它是Android操作系统用于打包移动应用程序以便发布的自定义文件格式。请查阅[减小APK包大小参考页面](Platforms/Mobile/Android/ReducingAPKSize)，在那里您将了解如何减小您的打包游戏大小的方式。
+
+### 设计移动内容
+
+如果您想利用您所学到的使用Linux上的UE4开发移动游戏的知识，您需要设计能够利用您设备可用渲染功能的游戏内容。请阅读以下参考资料：
+
+* [](Platforms/Mobile/Meshes) 
+* [](Platforms/Mobile/Lighting) 
+* [](Platforms/Mobile/Materials) 
+* [](Platforms/Mobile/PostProcessEffects) 
+* [](Platforms/Mobile/Textures)
+   
+### 预览您的移动游戏
+
+在将移动游戏部署到Android设备之前，您可能希望在编辑器中预览游戏。请阅读我们的[](Platforms/Mobile/Previewer)概述页面，了解如何在编辑器中预览您的移动游戏。
+
+### 通过无线网络部署
+
+现在，您已经学习了一些设计游戏内容的最佳实践，您已经使用编辑器预览了您的移动游戏，并且已经准备好通过无线网络将您的游戏部署到Android设备上。请阅读我们的[Gear VR调试参考页面](Platforms/VR/GearVR/Debugging)，了解更多关于通过无线网络将UE4项目部署到Android设备上的信息。
+
+### 自己做一些练习
+
+如果您想继续测试您的移动游戏开发技能，您可以自己做一些练习：
+
+* 使用第三人称模板之外的其他内容创建一个新的移动项目，然后尝试在Android设备上运行新创建的项目。
+* 尝试使用不同的Android纹理格式打包您的项目，并记录哪些格式将适用于您的特定设备。

@@ -1,86 +1,89 @@
-INTSourceChangelist:2638758
+﻿INTSourceChangelist:3108692
 Availability:Docs
-Title:渲染缩略图技术指南
+Title:缩略图渲染技术指南
 Crumbs: %ROOT%, Engine, Engine/UI, Programming
-Description:为程序员准备的在内容浏览器中为指定类型组件绘渲染缩略图的技术指南.
+Description:有关在内容浏览器中渲染资源类型缩略图的程序员指南。
 Version: 4.9
 
 [REGION:todo]
-	本页面的内容从虚幻引擎3的文档检查并转化而来，有些信息可能已经过期。
+	本页面是从虚幻引擎3的文档转换而来，目前正在审阅中。信息可能已过时。
 [/REGION]
 
 [TOC(start:2)]
 
+之前的渲染系统是相关对象的一部分。它是在Core中定义的，在Core中无法访问渲染缩略图所需的渲染接口。这给原型之类的对象带来了一个问题，它们无法提供缩略图视图。此外，该编辑器的唯一功能是包含在控制台上的，而在控制台上它只是消耗空间。该系统的另一个问题是，对于使用同一方法渲染缩略图的项目（即缩略图的图标），缺乏良好的重复使用。
 
-
-## 概述
-
-以前的渲染系统是有问题的对象的部分。它在对渲染缩略图需要的渲染界面没有访问权限的"核心"中进行定义。这就使诸如 Archetypes 的对象出现了问题，它没有办法提供一个缩略图视图。此外，该编辑器只是包含在控制台上的一个函数，它只是在其中消耗一定的空间。这个系统的另一个问题是，它没有很好地再利用已经使用相同的方法（即缩略图的图标）渲染了缩略图的物品。
-
-为了降低代码复制，使代码只存在于编辑器中，并使系统采用迟绑定，我们创建了 ThumbnailManager 并支持界面 ThumbnailRenderer 和 ThumbnailLabelRenderer。ThumbnailManager 会使用对象注册系统将对应的渲染组件与给定的资源类型匹配。它类似于 GenericBrowserTypes，预期是从 MyGameEditor.ini 文件而不是通过 native 类发现而来的所有相关信息。ThumbnailRenderers 会渲染在缩略图区域中关联的对象。ThumbnailLabelRenderers 会创建并渲染显示在缩略图下方的文本。这些都是单独的对象，以便可以最大限度地利用灵活性和重新使用。大多数对象会使用相同的标签渲染器，而隔开界面可以使唯一的缩略图渲染对象和共享标签渲染对象。它还允许在运行时有一些有趣的选项，例如使用内存算一个覆盖建议的标签渲染器。
+为了减少代码重复，使代码只存在于编辑器中，并使系统后期绑定，我们创建了缩略图管理器和支持接口：缩略图渲染器和缩略图标签渲染器。缩略图管理器使用对象注册系统来匹配给定资源类型的相关渲染组件。这与GenericBrowserType类似，例外的是所有相关信息都来自“MyGameEditor.ini”文件，而不是通过原生类发现。缩略图渲染器在缩略图区域中渲染与之关联的对象。缩略图标签渲染器构建并渲染缩略图下方的文本。它们是独立的对象，以便最大限度地提高灵活性和重复使用性。大多数对象使用同一个标签渲染器，分离出接口允许一个唯一的缩略图渲染对象和一个共享的标签渲染对象。它还允许在运行时使用一些有趣的选项，例如用一个内存计数选项覆盖推荐的标签渲染器。
 
 
 
-## 创建 ThumbnailRenderer
+(#creatingathumbnailrenderer)
 
-为了创建您自己的缩略图渲染器，您需要建立 ThumbnailRenderer 的子类并执行 3 个函数： GetThumbnailSize()、Draw() 和 SupportThumbnailRendering()。最后一个函数只有在根据对象检查您的资源类型需要才需要，例如，它只会为具有特定属性集的对象渲染缩略图。
-Archetype 缩略图渲染器就是一个这样的例子，其中它只会渲染对象 RF_ArchetypeObject 标志集有问题的缩略图。GetThumbnailSize() 供界面消费者使用，所以他们可以调整有问题的项目的定位。最后，Draw() 只是按照您的想法进行。
+## 创建缩略图渲染器
 
+要创建自己的缩略图渲染器，可以子类化缩略图渲染器并实现3个函数：GetThumbnailSize()、Draw()和SupportThumbnailRendering()。只有当每个对象检查都需要您的资源类型，才需要最后一个函数，也就是说，它只渲染设置有特定属性对象的缩略图。 
+原型缩略图渲染器就是这样的一个例子，它只有在相关对象设置了RF_ArchetypeObject标记时才渲染缩略图。GetThumbnailSize()由接口的用户使用，以便他们可以调整相关项目的位置。最后，Draw()执行您认为它会执行的工作。
+
+
+(#existingrenderers)
 
 ### 现有渲染器
 
-下面的 ThumbnailRenderers 可能符合您的需求，不需要您创建一个新的类型。或许它可以作为一些指定给您的任务的类的很好的基类。
+下面的缩略图渲染器可能适合您的需要，您无需创建一个新的类型。或者，它们可能是特定于您的任务类的良好基类。 
 
-IconThumbnailRenderer -- 会提供一个会将一个指定的贴图渲染为缩略图的"图标"的执行。
+图表缩略图渲染器 -- 提供一种实现情况，将指定纹理渲染为缩略图的“图标”。
 
-DefaultSizedThumbnailRenderer -- 会为没有固有尺寸（粒子、材质实例等等）的对象渲染通用数据 
+默认大小的缩略图渲染器 -- 为渲染没有固有大小（粒子、材质实例等）的对象提供共用数据。 
 
-TextureThumbnailRenderer -- 用作所有支持 UTexture 界面的对象的基类
+纹理缩略图渲染器 -- 用作支持UTexture接口的所有对象的基类。
 
+
+(#thumbnailhelpers.h)
 
 ### ThumbnailHelpers.h
 
-该头文件包含一些可以用于渲染静态网格物体、材质等等的帮助类。它们可以供您的 Draw() 执行使用或者作为创建您自己的帮助类的基础。
+该头文件包含一些渲染静态网格体、材质等的助手类
+。它们可以被Draw()方法的实现使用，也可以用作创建自己的助手类基础。
 
 
 
-## 创建 ThumbnailLabelRenderer
+(#creatingathumbnaillabelrenderer)
 
-创建一个自定义标签渲染器很简单。源自于 ThumbnailLabelRenderer 并会覆盖 BuildLabelList() 方法。添加到传递的数组中的每个字符串将会渲染为标签。基类会处理余下的工作。
+## 创建缩略图标签渲染器
 
+创建自定义标签渲染器也很简单。从缩略图标签渲染器派生并覆盖BuildLabelList()方法。添加到传入数组中的每个字符串都将作为标签进行渲染。基类处理其余的工作。
+
+
+(#existinglabelrenderers)
 
 ### 现有标签渲染器
 
-GenericThumbnailLabelRenderer -- 会添加对象的名称并调用它的 GetDesc() 函数来创建标签列表。大多数通常使用一个。
+泛型缩略图标签渲染器 -- 添加对象的名称并调用其GetDesc()函数来构建标签列表。最常用的一个。
 
-MemCountThumbnailLableRenderer -- 会计算对象使用的内存并在对象名称下方显示该信息。
+内存计数缩略图标签渲染器 -- 对对象使用的内存进行计数，并在对象名称下面显示该信息
 
 
 
-## 使用 ThumbnailManager 注册您的渲染器
+(#registeringyourrendererswiththethumbnailmanager)
 
-ThumbnailManager 会使用 UObject 配置系统注册缩略图渲染支持的类。按照名称注册所有类可以避免包依赖，并允许用户在 MyGameUnrealEd 包中创建他们自己，而不需要修改 Epic 代码。下面的命令会显示您要如何添加一个自定义渲染器。第二个条目会显示您如何使用现有的图标渲染器而不提供一个自定义渲染器。注意： 这里的断行只是为了可读性的考虑，因此当您定制它的时候不应该在您的 DefaultEditor.ini 中有这些断行。
+## 向缩略图管理器注册您的渲染器
+
+缩略图管理器使用UObject配置系统来注册支持缩略图渲染的类。所有类都按名称注册，以避免包依赖性，并允许授权用户在MyGameUnrealEd包中创建自己的类，而不必修改Epic代码。下面的片段显示了如何添加自定义渲染器。第二个条目显示了如何使用现有图标渲染器，而不是提供自定义图标渲染器。注意：这里的换行是为了可读性而存在的，当您自定义时，“DefaultEditor.ini”中不能存在它。
 
 
     
     [UnrealEd.ThumbnailManager]
     +RenderableThumbnailTypes=
        (ClassNeedingThumbnailName="MyGame.CustomResource",
-       RendererClassName="MyGameUnrealEd.CustomResourceThumbnailRenderer",
-       LabelRendererClassName="UnrealEd.GenericThumbnailLabelRenderer",
-       BorderColor=(R=255,G=192,B=128,A=255),
-       IconName="")
+       RendererClassName="MyGameUnrealEd.CustomResourceThumbnailRenderer")
     +RenderableThumbnailTypes=
        (ClassNeedingThumbnailName="MyGame.CustomResourceEx",
-       RendererClassName="UnrealEd.IconThumbnailRenderer",
-       LabelRendererClassName="UnrealEd.GenericThumbnailLabelRenderer",
-       BorderColor=(R=128,G=192,B=128,A=255),
-       IconName="MyGameEditorResource.MyGameCustomResourceEx_Icon")
+       RendererClassName="UnrealEd.IconThumbnailRenderer")
     
 
 
 
-ClassNeedingThumbnailName 是需要缩略图渲染器的类的名称。RendererClassName 会在渲染缩略图的时候指定要使用的对象。LabelRendererClassName 会指定要使用的标签渲染器。除非您指定的数据不在 GetDesc() 函数中，否则通用的一种应该足够了。BorderColor 是要为缩略图边界使用的颜色。以前在 GenericBrowserType 类中使用的颜色废弃。可以使用 IconName 指定使用 IconThumbnailRenderer 时的图标。如果没有使用该渲染器，它可以是空的。启动时，ThumbnailManager 会创建所有基于这些项的对象实例。它会缓存地图中的所有关联可以更快的查找。每当 GC 要阻止 UClass 指针被访问并使其失效时，该地图都会作废。
+ClassNeedingThumbnailName是需要缩略图渲染器的类的名称。RendererClassName指定在渲染缩略图时使用的对象。在启动时，缩略图管理器根据这些条目创建对象的所有实例。它缓存映射中的所有关联，以便更快地查找。每当发生GC以阻止访问UClass指针并使这些指针变得陈旧时，映射就会失效。
 
  
 

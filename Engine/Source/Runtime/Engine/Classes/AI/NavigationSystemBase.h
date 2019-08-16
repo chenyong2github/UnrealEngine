@@ -156,7 +156,6 @@ namespace FNavigationSystem
 
 	ENGINE_API bool WantsComponentChangeNotifies();
 
-	//ENGINE_API INavigationDataInterface* GetNavDataForProps(const FNavAgentProperties& AgentProperties);
 	ENGINE_API INavigationDataInterface* GetNavDataForActor(const AActor& Actor);
 	ENGINE_API TSubclassOf<AActor> GetDefaultNavDataClass();
 
@@ -249,6 +248,7 @@ protected:
 	static void SetDefaultWalkableArea(TSubclassOf<UNavAreaBase> InAreaClass);
 	static void SetDefaultObstacleArea(TSubclassOf<UNavAreaBase> InAreaClass);
 
+	static void ResetEventDelegates();
 	static FNavigationSystem::FActorBasedSignature& UpdateActorDataDelegate();
 	static FNavigationSystem::FActorComponentBasedSignature& UpdateComponentDataDelegate();
 	static FNavigationSystem::FSceneComponentBasedSignature& UpdateComponentDataAfterMoveDelegate();
@@ -284,85 +284,4 @@ class ENGINE_API IPathFollowingManagerInterface
 protected:
 	static FNavigationSystem::FControllerBasedSignature& StopMovementDelegate();
 	static FNavigationSystem::FBoolControllerBasedSignature& IsFollowingAPathDelegate();
-};
-
-
-UCLASS(Abstract, config = Engine, defaultconfig)
-class ENGINE_API UNavigationSystem : public UObject
-{
-	GENERATED_BODY()
-public:
-	UNavigationSystem(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
-	UE_DEPRECATED(4.20, "UpdateActorInNavOctree is deprecated. Use FNavigationSystem::RemoveActorData instead")
-	static void ClearNavOctreeAll(AActor* Actor);
-	UE_DEPRECATED(4.20, "UpdateActorInNavOctree is deprecated. Use FNavigationSystem::UpdateActorData instead")
-	static void UpdateActorInNavOctree(AActor& Actor);
-	UE_DEPRECATED(4.20, "UpdateComponentInNavOctree is deprecated. Use FNavigationSystem::UpdateComponentData instead")
-	static void UpdateComponentInNavOctree(UActorComponent& Comp);
-	UE_DEPRECATED(4.20, "UpdateActorAndComponentsInNavOctree is deprecated. Use FNavigationSystem::UpdateActorAndComponentData instead")
-	static void UpdateActorAndComponentsInNavOctree(AActor& Actor, bool bUpdateAttachedActors = true);
-	UE_DEPRECATED(4.20, "UpdateNavOctreeAfterMove is deprecated. Use FNavigationSystem::UpdateComponentDataAfterMove instead")
-	static void UpdateNavOctreeAfterMove(USceneComponent* Comp);
-	UE_DEPRECATED(4.20, "UpdateNavOctreeBounds is deprecated. Use FNavigationSystem::OnActorBoundsChanged instead")
-	static void UpdateNavOctreeBounds(AActor* Actor);
-	UE_DEPRECATED(4.20, "InitializeForWorld is deprecated. Use FNavigationSystem::CreateNavigationSystem instead")
-	static void InitializeForWorld(UWorld* World, FNavigationSystemRunMode Mode);
-	UE_DEPRECATED(4.20, "CreateNavigationSystem is deprecated. Use FNavigationSystem::CreateNavigationSystem instead")
-	static UNavigationSystem* CreateNavigationSystem(UWorld* WorldOwner);
-	UE_DEPRECATED(4.20, "OnComponentRegistered is deprecated. Use FNavigationSystem::OnComponentRegistered instead")
-	static void OnComponentRegistered(UActorComponent* Comp);
-	UE_DEPRECATED(4.20, "OnComponentUnregistered is deprecated. Use FNavigationSystem::OnComponentUnregistered instead")
-	static void OnComponentUnregistered(UActorComponent* Comp);
-	UE_DEPRECATED(4.20, "OnActorRegistered is deprecated. Use FNavigationSystem::OnActorRegistered instead")
-	static void OnActorRegistered(AActor* Actor);
-	UE_DEPRECATED(4.20, "OnActorUnregistered is deprecated. Use FNavigationSystem::OnActorUnregistered instead")
-	static void OnActorUnregistered(AActor* Actor);
-	UE_DEPRECATED(4.20, "GetCurrent is deprecated. Use FNavigationSystem::GetCurrent instead")
-	static UNavigationSystem* GetCurrent(UWorld* World);
-	UE_DEPRECATED(4.20, "GetCurrent is deprecated. Use FNavigationSystem::GetCurrent instead")
-	static UNavigationSystem* GetCurrent(UObject* WorldContextObject);
-	UE_DEPRECATED(4.20, "ShouldUpdateNavOctreeOnComponentChange is deprecated. Use FNavigationSystem::WantsComponentChangeNotifies instead")
-	static bool ShouldUpdateNavOctreeOnComponentChange();
-	UE_DEPRECATED(4.20, "GetDefaultWalkableArea is deprecated. Use FNavigationSystem::GetDefaultWalkableArea instead")
-	static TSubclassOf<UNavAreaBase> GetDefaultWalkableArea();
-	UE_DEPRECATED(4.20, "UNavigationSystem::GetNavDataForProps is deprecated. Use FNavigationSystem::GetDefaultObstacleArea instead")
-	static TSubclassOf<UNavAreaBase> GetDefaultObstacleArea();
-	UE_DEPRECATED(4.20, "UNavigationSystem::K2_GetRandomReachablePointInRadius is deprecated. Use UNavigationSystemV1::K2_GetRandomReachablePointInRadius instead")
-	static bool K2_GetRandomReachablePointInRadius(UObject* WorldContextObject, const FVector& Origin, FVector& RandomLocation, float Radius, UObject* NavData = NULL, TSubclassOf<UObject> FilterClass = NULL) { return false; }
-	UE_DEPRECATED(4.20, "UNavigationSystem::SimpleMoveToActor is deprecated. Use UAIBlueprintHelperLibrary::SimpleMoveToActor instead")
-	UFUNCTION(BlueprintCallable, Category = "AI|Navigation", meta = (DisplayName = "SimpleMoveToActor_DEPRECATED", ScriptNoExport, DeprecatedFunction, DeprecationMessage = "SimpleMoveToActor is deprecated. Use AIBlueprintHelperLibrary::SimpleMoveToActor instead"))
-	static void SimpleMoveToActor(AController* Controller, const AActor* Goal) {}
-	UE_DEPRECATED(4.20, "UNavigationSystem::SimpleMoveToLocation is deprecated. Use UAIBlueprintHelperLibrary::SimpleMoveToLocation instead")
-	UFUNCTION(BlueprintCallable, Category = "AI|Navigation", meta = (DisplayName = "SimpleMoveToLocation_DEPRECATED", ScriptNoExport, DeprecatedFunction, DeprecationMessage = "SimpleMoveToLocation is deprecated. Use AIBlueprintHelperLibrary::SimpleMoveToLocation instead"))
-	static void SimpleMoveToLocation(AController* Controller, const FVector& Goal) {}
-
-	UE_DEPRECATED(4.20, "UpdateNavOctreeElementBounds is deprecated. Use FNavigationSystem::OnComponentBoundsChanged instead")
-	bool UpdateNavOctreeElementBounds(UActorComponent* Comp, const FBox& NewBounds, const FBox& DirtyArea);
-
-	UE_DEPRECATED(4.20, "GetObjectsNavOctreeId is deprecated. You need to access NavigationSystem's modul NavigationSystem to access this functionality")
-	const class FOctreeElementId* GetObjectsNavOctreeId(const UObject* Object) const { return nullptr; }
-
-	UE_DEPRECATED(4.20, "HasPendingObjectNavOctreeId is deprecated. You need to access NavigationSystem's modul NavigationSystem class to access this functionality")
-	bool HasPendingObjectNavOctreeId(UObject* Object) const { return false; }
-
-	UE_DEPRECATED(4.20, "GetDefaultSupportedAgentConfig is deprecated. Use FNavigationSystem::GetDefaultSupportedAgent instead")
-	const FNavDataConfig& GetDefaultSupportedAgentConfig() const;
-	
-	UE_DEPRECATED(4.20, "GetNavDataForProps is deprecated. Use FNavigationSystem::GetNavDataForProps instead")
-	INavigationDataInterface* GetNavDataForProps(const FNavAgentProperties& AgentProperties);
-
-	UE_DEPRECATED(4.20, "GetSupportedAgents has been moved. Use UNavigationSystemV1::GetSupportedAgents instead")
-	const TArray<FNavDataConfig>& GetSupportedAgents() const { return FakeSupportedAgents; }
-
-	UE_DEPRECATED(4.20, "GetMainNavData has been moved. Use FNavigationSystem::GetCurrent<UNavigationSystemV1>()->GetDefaultNavDataInstance instead")
-	UObject* GetMainNavData(int) { return nullptr; }
-	UE_DEPRECATED(4.20, "GetMainNavData has been moved. Use FNavigationSystem::GetCurrent<UNavigationSystemV1>()->GetDefaultNavDataInstance instead")
-	UObject* GetMainNavData() const { return nullptr; }
-
-	UE_DEPRECATED(4.20, "ProjectPointToNavigation has been deprecated along with the whole UNavigationSystem class. Use UNavigationSystemV1 instead")
-	bool ProjectPointToNavigation(const FVector& Point, FNavLocation& OutLocation, const FVector& Extent = INVALID_NAVEXTENT, const UObject* NavData = NULL, void* QueryFilter = NULL) const { return false; }
-
-private:
-	const TArray<FNavDataConfig> FakeSupportedAgents;
 };

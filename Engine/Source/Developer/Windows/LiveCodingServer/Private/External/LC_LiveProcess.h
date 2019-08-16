@@ -5,7 +5,9 @@
 #include "CoreTypes.h"
 #include "LC_Process.h"
 #include "LC_Executable.h"
+#include "LC_MemoryBlock.h"
 #include "LC_Types.h"
+#include "VisualStudioDTE.h"
 
 
 class DuplexPipe;
@@ -14,22 +16,31 @@ class CodeCave;
 class LiveProcess
 {
 public:
-	LiveProcess(process::Handle processHandle, unsigned int processId, unsigned int commandThreadId, const void* jumpToSelf, const DuplexPipe* pipe);
-
+	LiveProcess(process::Handle processHandle, unsigned int processId, unsigned int commandThreadId, const void* jumpToSelf, const DuplexPipe* pipe,
+		const wchar_t* imagePath, const wchar_t* commandLine, const wchar_t* workingDirectory, const void* environment, size_t environmentSize);
 
 	void ReadHeartBeatDelta(const wchar_t* const processGroupName);
 
 	// returns whether this process made some progress, based on the heart beat received from the client
 	bool MadeProgress(void) const;
 
+	// handles any debugging mechanism that might currently debug our process before we compile changes
+	void HandleDebuggingPreCompile(void);
+
+	// handles any debugging mechanism that might currently debug our process after we compiled changes
+	void HandleDebuggingPostCompile(void);
 
 	void InstallCodeCave(void);
 	void UninstallCodeCave(void);
 
-
 	void AddLoadedImage(const executable::Header& imageHeader);
 	void RemoveLoadedImage(const executable::Header& imageHeader);
 	bool TriedToLoadImage(const executable::Header& imageHeader) const;
+
+
+	bool PrepareForRestart(void);
+	void Restart(void* restartJob);
+	bool WasSuccessfulRestart(void) const;
 
 
 	inline process::Handle GetProcessHandle(void) const
@@ -83,6 +94,11 @@ private:
 	const void* m_jumpToSelf;
 	const DuplexPipe* m_pipe;
 
+	std::wstring m_imagePath;
+	std::wstring m_commandLine;
+	std::wstring m_workingDirectory;
+	MemoryBlock m_environment;
+
 	// BEGIN EPIC MOD - Add build arguments
 	std::wstring m_buildArguments;
 	// END EPIC MOD
@@ -103,5 +119,32 @@ private:
 	types::unordered_set<executable::Header> m_imagesTriedToLoad;
 
 	uint64_t m_heartBeatDelta;
+
+#if WITH_VISUALSTUDIO_DTE
+	// for handling communication with the VS debugger
+	EnvDTE::DebuggerPtr m_vsDebugger;
+	types::vector<EnvDTE::ThreadPtr> m_vsDebuggerThreads;
+#endif
+
+	// fallback in case communication with the VS debugger is not possible
 	CodeCave* m_codeCave;
+
+	// restart
+	struct RestartState
+	{
+		enum Enum
+		{
+			DEFAULT,
+			FAILED_PREPARE,
+			SUCCESSFUL_PREPARE,
+			SUCCESSFUL
+		};
+	};
+
+	RestartState::Enum m_restartState;
+
+	LC_DISABLE_COPY(LiveProcess);
+	LC_DISABLE_MOVE(LiveProcess);
+	LC_DISABLE_ASSIGNMENT(LiveProcess);
+	LC_DISABLE_MOVE_ASSIGNMENT(LiveProcess);
 };

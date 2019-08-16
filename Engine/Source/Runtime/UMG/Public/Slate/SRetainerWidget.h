@@ -36,7 +36,7 @@ DECLARE_MULTICAST_DELEGATE( FOnRetainedModeChanged );
  * frequency of the main game render.  It also has the side benefit of allow materials
  * to be applied to the render target after drawing the widgets to apply a simple post process.
  */
-class UMG_API SRetainerWidget : public SCompoundWidget,  public ILayoutCache
+class UMG_API SRetainerWidget : public SCompoundWidget,  public FSlateInvalidationRoot
 {
 public:
 	static int32 Shared_MaxRetainerWorkPerFrame;
@@ -44,7 +44,7 @@ public:
 public:
 	SLATE_BEGIN_ARGS(SRetainerWidget)
 	{
-		_Visibility = EVisibility::Visible;
+		_Visibility = EVisibility::SelfHitTestInvisible;
 		_Phase = 0;
 		_PhaseCount = 1;
 		_RenderOnPhase = true;
@@ -79,32 +79,33 @@ public:
 
 	void SetTextureParameter(FName TextureParameter);
 
-	// ILayoutCache overrides
-	virtual void InvalidateWidget(SWidget* InvalidateWidget) override;
-	virtual FCachedWidgetNode* CreateCacheNode() const override;
-	// End ILayoutCache
-
-	// SWidget
+	/** SWidget interface */
 	virtual FChildren* GetChildren() override;
-	virtual bool ComputeVolatility() const override;
-	// SWidget
+	virtual FChildren* GetAllChildren() override;
 
-	virtual bool PaintRetainedContent(const FPaintArgs& Args, const FGeometry& AllottedGeometry);
+	/** FInvalidationRoot interface */
+	virtual bool PaintRetainedContent(const FSlateInvalidationContext& Context, const FGeometry& AllottedGeometry);
 
 	void SetWorld(UWorld* World);
 
 protected:
-	// BEGIN SLeafWidget interface
+	/** SCompoundWidget interface */
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
 	virtual FVector2D ComputeDesiredSize(float Scale) const override;
-	// END SLeafWidget interface
+	virtual bool ComputeVolatility() const override;
+	virtual bool Advanced_IsInvalidationRoot() const { return bEnableRetainedRendering; }
+	virtual bool CustomPrepass(float LayoutScaleMultiplier) override;
+
+	/** FSlateInvalidationRoot interface */
+	int32 PaintSlowPath(const FSlateInvalidationContext& Context);
 
 	void RefreshRenderingMode();
 	bool ShouldBeRenderingOffscreen() const;
 	bool IsAnythingVisibleToRender() const;
 	void OnRetainerModeChanged();
-	void OnGlobalInvalidate();
+	void OnGlobalInvalidate(bool bClearResourcesImmediately);
 private:
+	void OnGlobalInvalidationToggled(bool bGlobalInvalidationEnabled);
 #if !UE_BUILD_SHIPPING
 	static void OnRetainerModeCVarChanged( IConsoleVariable* CVar );
 	static FOnRetainedModeChanged OnRetainerModeChangedDelegate;
@@ -117,13 +118,16 @@ private:
 
 	void UpdateWidgetRenderer();
 
-	mutable TSharedPtr<SWidget> MyWidget;
+	TSharedPtr<SWidget> MyWidget;
+	TSharedRef<SVirtualWindow> VirtualWindow;
+
+	mutable FHittestGrid HittestGrid;
+
+	int32 Phase;
+	int32 PhaseCount;
 
 	bool bEnableRetainedRenderingDesire;
 	bool bEnableRetainedRendering;
-	
-	int32 Phase;
-	int32 PhaseCount;
 
 	bool RenderOnPhase;
 	bool RenderOnInvalidation;
@@ -133,7 +137,6 @@ private:
 	double LastDrawTime;
 	int64 LastTickedFrame;
 
-	TSharedPtr<SVirtualWindow> Window;
 	TWeakObjectPtr<UWorld> OuterWorld;
 
 	FRetainerWidgetRenderingResources* RenderingResources;
@@ -146,8 +149,4 @@ private:
 
 	static TArray<SRetainerWidget*, TInlineAllocator<3>> Shared_WaitingToRender;
 	static TFrameValue<int32> Shared_RetainerWorkThisFrame;
-
-	mutable FCachedWidgetNode* RootCacheNode;
-	mutable TArray< FCachedWidgetNode* > NodePool;
-	mutable int32 LastUsedCachedNodeIndex;
 };

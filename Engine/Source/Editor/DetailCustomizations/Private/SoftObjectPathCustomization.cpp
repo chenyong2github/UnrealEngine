@@ -93,6 +93,9 @@ void FSoftObjectPathCustomization::CustomizeHeader( TSharedRef<IPropertyHandle> 
 		.OnShouldFilterAsset( AssetFilter )
 		.AllowClear( bAllowClear )
 	];
+
+	// This avoids making duplicate reset boxes
+	StructPropertyHandle->MarkResetToDefaultCustomized();
 }
 
 void FSoftObjectPathCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> InStructPropertyHandle, IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)

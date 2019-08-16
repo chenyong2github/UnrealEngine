@@ -21,6 +21,7 @@ namespace UnrealGameSync
 
 	public class IssueBuildData
 	{
+		public long Id;
 		public string Stream;
 		public int Change;
 		public string JobName;
@@ -29,6 +30,13 @@ namespace UnrealGameSync
 		public string JobStepUrl;
 		public string ErrorUrl;
 		public IssueBuildOutcome Outcome;
+	}
+
+	public class IssueDiagnosticData
+	{
+		public long? BuildId;
+		public string Message;
+		public string Url;
 	}
 
 	public class IssueData
@@ -64,7 +72,8 @@ namespace UnrealGameSync
 		Normal = 1,
 		Owner = 2,
 		UnassignedTimer = 4,
-		UnresolvedTimer = 8,
+		UnacknowledgedTimer = 8,
+		UnresolvedTimer = 16,
 	}
 
 	class IssueMonitor : IDisposable
@@ -362,7 +371,7 @@ namespace UnrealGameSync
 				}
 
 				// Apply any pending updates to this issue list, and update it
-				lock(LockObject)
+				lock (LockObject)
 				{
 					foreach(IssueUpdateData PendingUpdate in PendingUpdates)
 					{

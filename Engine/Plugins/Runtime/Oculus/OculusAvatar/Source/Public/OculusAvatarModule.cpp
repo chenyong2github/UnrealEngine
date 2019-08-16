@@ -6,13 +6,13 @@
 
 void OculusAvatarModule::StartupModule()
 {
-	FOvrAvatarManager::Get().InitializeSDK();
+	UOvrAvatarManager::Get().InitializeSDK();
 }
  
 void OculusAvatarModule::ShutdownModule()
 {
-	FOvrAvatarManager::Get().ShutdownSDK();
-	FOvrAvatarManager::Destroy();
+	UOvrAvatarManager::Get().ShutdownSDK();
+	UOvrAvatarManager::Destroy();
 }
 
 IMPLEMENT_MODULE(OculusAvatarModule, OculusAvatar)

@@ -1,0 +1,60 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Title: Compositing Material Nodes Reference
+Description: Product documentation including reference and guides for Unreal Engine 4
+Type: reference
+Parent: Engine/Composure
+Tags: Early Access
+Tags:Reference
+Order: 4
+
+
+[TOC (start:2 end:4)]
+
+To make compositing easier, we've added a series of nodes to serve some of the most common compositing operations. Here, we briefly highlight each one, and explain its purpose.
+
+![](image1.png "image1.png")
+
+[REGION:note]
+The compositing material nodes expect a **float4** input, so make sure you’re passing in **RGBA** and not just **RGB**.
+[/REGION]
+
+## Over
+
+This node layers one image (A) over another (B), using the alpha from input A.
+
+![](image7.png "image7.png")
+
+[REGION:note]
+This node expects that the input color channels are pre-multiplied with the image’s alpha.
+[/REGION]
+
+## In
+
+This node returns the portion of A that is inside the shape of B.
+
+![](image2.png "image2.png")
+
+## Out
+
+This node returns the portion of A that is outside the shape of B.
+
+![](image3.png "image3.png")
+
+## PreMult
+
+This node multiplies the input's RGBA channel by its alpha.
+
+![](image6.png "image6.png")
+
+## UnPreMult
+
+This node divides the input's RGBA channel by its alpha.
+
+![](image5.png "image5.png")
+
+## KeyMix
+
+This node layers two images together using a specified mask.
+
+![](image4.png "image4.png")

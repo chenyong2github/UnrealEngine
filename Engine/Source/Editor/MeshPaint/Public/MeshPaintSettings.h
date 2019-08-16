@@ -41,6 +41,13 @@ public:
 
 	float GetBrushRadius() const { return BrushRadius; }
 	void SetBrushRadius(float InRadius);
+
+	float GetBrushStrength() const { return BrushStrength; }
+	void SetBrushStrength(float InStrength);
+
+	float GetBrushFalloff() const { return BrushFalloffAmount; }
+	void SetBrushFalloff(float InFalloff);
+
 protected:
 	/** Radius of the Brush used for Painting */
 	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayName = "Radius", UIMin = "0.01", UIMax = "2048.0", ClampMin = "0.01", ClampMax = "250000.0"))
@@ -64,7 +71,7 @@ public:
 	bool bEnableFlow;
 
 	/** Whether back-facing triangles should be ignored */
-	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayName = "Ignore back-facing"))
+	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayName = "Ignore Back-Facing"))
 	bool bOnlyFrontFacingTriangles;
 	
 	/** Color view mode used to display Vertex Colors */

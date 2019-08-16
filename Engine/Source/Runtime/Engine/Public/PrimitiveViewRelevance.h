@@ -22,6 +22,8 @@ struct FPrimitiveViewRelevance
 	uint32 bOpaqueRelevance : 1;
 	/** The primitive has one or more masked elements. */
 	uint32 bMaskedRelevance : 1;
+	/** The primitive has one or more translucent elements which output velocity. */
+	uint32 bOutputsTranslucentVelocityRelevance : 1;
 	/** The primitive has one or more distortion elements. */
 	uint32 bDistortionRelevance : 1;
 	/** The primitive has one or more elements that have SeparateTranslucency. */

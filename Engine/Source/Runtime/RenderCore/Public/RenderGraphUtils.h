@@ -55,7 +55,12 @@ FORCEINLINE_DEBUGGABLE void ClearUnusedGraphResources(
 }
 
 
-/** Register external texture with fallback if the resource is invalid. */
+/**
+ * Register external texture with fallback if the resource is invalid.
+ *
+ * CAUTION: use this function very wisely. It may actually remove shader parameter validation
+ * failure when a pass is actually trying to access a resource not yet or no longer available.
+ */
 RENDERCORE_API FRDGTextureRef RegisterExternalTextureWithFallback(
 	FRDGBuilder& GraphBuilder,
 	const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
@@ -111,6 +116,22 @@ struct RENDERCORE_API FComputeShaderUtils
 		RHICmdList.DispatchComputeShader(GroupCount.X, GroupCount.Y, GroupCount.Z);
 		UnsetShaderUAVs(RHICmdList, ComputeShader, ShaderRHI);
 	}
+	
+	/** Indirect dispatch a compute shader to rhi command list with its parameters. */
+	template<typename TShaderClass>
+	static FORCEINLINE_DEBUGGABLE void DispatchIndirect(
+		FRHICommandList& RHICmdList,
+		const TShaderClass* ComputeShader,
+		const typename TShaderClass::FParameters& Parameters,
+		FRHIVertexBuffer* IndirectArgsBuffer,
+		uint32 IndirectArgOffset)
+	{
+		FRHIComputeShader* ShaderRHI = ComputeShader->GetComputeShader();
+		RHICmdList.SetComputeShader(ShaderRHI);
+		SetShaderParameters(RHICmdList, ComputeShader, ShaderRHI, Parameters);
+		RHICmdList.DispatchIndirectComputeShader(IndirectArgsBuffer, IndirectArgOffset);
+		UnsetShaderUAVs(RHICmdList, ComputeShader, ShaderRHI);
+	}
 
 	/** Dispatch a compute shader to render graph builder with its parameters. */
 	template<typename TShaderClass>
@@ -126,7 +147,7 @@ struct RENDERCORE_API FComputeShaderUtils
 		GraphBuilder.AddPass(
 			Forward<FRDGEventName>(PassName),
 			Parameters,
-			ERenderGraphPassFlags::Compute,
+			ERDGPassFlags::Compute,
 			[Parameters, ComputeShader, GroupCount](FRHICommandList& RHICmdList)
 		{
 			FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *Parameters, GroupCount);
@@ -143,19 +164,21 @@ struct RENDERCORE_API FComputeShaderUtils
 		FRDGBufferRef IndirectArgsBuffer,
 		uint32 IndirectArgOffset)
 	{
+		checkf(IndirectArgsBuffer->Desc.Usage & BUF_DrawIndirect, TEXT("The buffer %s was not flagged for indirect draw parameters"), IndirectArgsBuffer->Name);
+
 		ClearUnusedGraphResources(ComputeShader, Parameters, { IndirectArgsBuffer });
 
 		GraphBuilder.AddPass(
 			Forward<FRDGEventName>(PassName),
 			Parameters,
-			ERenderGraphPassFlags::Compute,
+			ERDGPassFlags::Compute,
 			[Parameters, ComputeShader, IndirectArgsBuffer, IndirectArgOffset](FRHICommandList& RHICmdList)
-		{
-			FRHIComputeShader* ShaderRHI = ComputeShader->GetComputeShader();
-			RHICmdList.SetComputeShader(ShaderRHI);
-			SetShaderParameters(RHICmdList, ComputeShader, ShaderRHI, *Parameters);
-			RHICmdList.DispatchIndirectComputeShader( IndirectArgsBuffer->GetIndirectRHICallBuffer(), IndirectArgOffset );
-			UnsetShaderUAVs(RHICmdList, ComputeShader, ShaderRHI);
+		{			
+			// Marks the indirect draw parameter as used by the pass manually, given it can't be bound directly by any of the shader,
+			// meaning SetShaderParameters() won't be able to do it.
+			IndirectArgsBuffer->MarkResourceAsUsed();
+
+			FComputeShaderUtils::DispatchIndirect(RHICmdList, ComputeShader, *Parameters, IndirectArgsBuffer->GetIndirectRHICallBuffer(), IndirectArgOffset);
 		});
 	}
 };

@@ -18,7 +18,6 @@ order:17
 它不仅可以执行 Replicated 的所有操作，还将提供一个函数，该函数将在变量连接到更新时被调用并同时在服务器和客户端机器上执行。 
 [/EXCERPT:Overview]
 
-(#ImplementationGuides)
 ## 实现指南
 
 [DIR(output:"role" parent:"Gameplay/HowTo/Networking/ReplicateVariable" org:"hierarchy" end:"1")]

@@ -1,27 +1,34 @@
-﻿Availability:Public
-Title: 材质类目
+﻿INTSourceChangelist:3108692
+Availability:Public
+Title: 材质类别
 Crumbs: %ROOT%, Engine, Engine/UI, Engine/UI/LevelEditor, Engine/UI/LevelEditor/Details
-Description:用于查看及修改应用到Actor的所有组件上的材质的自定义控件。
+Description:用于查看和修改应用于Actor所有组件材质的自定义控件。
+Version: 4.9
 
-**Materials(材质)** 类目按元素分组显示了应用到选中Actor(s)的所有材质。 
-比如，一个具有3个元素的静态网格物体，当选中该静态网格物体时将会显示3个材质。
+ **材质（Materials）** 类别显示应用于所选Actor的所有材质，并按元素进行分组。 
+例如，一个包含3个元素的静态网格体将在选中时显示3个材质。
 
 ![](Details_MatList.png)
 
-| 操作| 描述|
+| 控件 | 说明 |
 | ------- | ----------- |
-| ![](Details_Mat_ObjRef.png)| 标准的[对象引用](Engine/UI/LevelEditor/Details/Properties/ObjectReference)属性控制，用于设置、查找及重设所分配的 _材质_ 回基础材质。 点击包含材质名称的下拉列表，然后点击情境菜单中的 **编辑** ，打开材质实例编辑器中的材质以供修改。 |
-| ![Material Thumbnail](button_Details_Mat_Image.png)| 材质的缩略图，可以 **双击** 它来在材质实例编辑器中打开材质实例以供修改。 |
-| ![Find Texture](button_textures.png) | 材质中使用的贴图列表。 从列表中选择一个贴图将在 **内容浏览器** 中查找这个贴图。 |
+| ![](Details_Mat_ObjRef.png)| 标准[**对象引用（Object reference）**](Engine/UI/LevelEditor/Details/Properties/ObjectReference)属性控件，用于设置、查找指定材质，并将指定材质重置为基础材质。单击包含材质名称的下拉列表，然后单击上下文菜单上的 **编辑（Edit）**，可在材质实例编辑器中打开材质进行修改。|
+| ![Material Thumbnail](button_Details_Mat_Image.png)| 材质的缩略图，可 **双击** 它来在材质实例编辑器中打开材质实例进行修改。|
+| ![Find Texture](button_textures.png) | 材质中使用的纹理的列表。从列表中选择一个纹理，可在 **内容浏览器（Content Browser）** 中找到该纹理。|
 
-为了节省空间，当选中了多个Actor，且它们的任何特定元素包含了不同的材质时，将会显示一个链接，用于切换显示那个元素的所有材质。
+为了节省空间，当选择的许多Actor包含任何元素的不同材质时， 
+将显示一个链接，用于切换该元素的所有材质的显示。
 
 ![](property_material_multiple.png)
 
+(#materialreplacement)
+
 ## 材质替换
 
-如果Actor或组件类型支持材质替换，那么您可以将新的材质拖拽到材质缩略图中或者拖拽到任何元素的链接中来替换那个元素上所使用的材质。 目前，具有StaticMeshComponents、SkeletalMeshComponents或DecalComponents的Actor都支持材质替换。 
+如果Actor或组件类型支持替换，则可以将新材质拖放到任何元素的材质缩略图或链接上， 
+以替换该元素上使用的材质。目前，具有 
+StaticMeshComponents、SkeletalMeshComponents或DecalComponents的Actor都支持材质替换。 
 
 ![](property_material_replace.png)
 
-完全支持取消和重复材质替换操作。
+也全面支持材质替换的撤销和恢复操作。

@@ -18,6 +18,7 @@
 #include "PostProcess/SceneRenderTargets.h"
 #include "SceneRendering.h"
 #include "VisualizeTexture.h"
+#include "ScreenPass.h"
 
 #include "IImageWrapper.h"
 #include "ImageWriteQueue.h"
@@ -33,6 +34,13 @@ static TAutoConsoleVariable<int32> CVarCompositionGraphOrder(
 	TEXT("Option 1 provides more control, which can be useful for preserving ESRAM, avoid GPU sync, cluster up compute shaders for performance and control AsyncCompute.\n")
 	TEXT(" 0: tree order starting with the root, first all inputs then dependencies (classic UE4, unconnected nodes are not getting executed)\n")
 	TEXT(" 1: RegisterPass() call order, unless the dependencies (input and additional) require a different order (might become new default as it provides more control, executes all registered nodes)"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarCompositionForceRenderTargetLoad(
+	TEXT("r.CompositionForceRenderTargetLoad"),
+	0,
+	TEXT("0: default engine behaviour\n")
+	TEXT("1: force ERenderTargetLoadAction::ELoad for all render targets"),
 	ECVF_RenderThreadSafe);
 
 #if !UE_BUILD_SHIPPING
@@ -161,6 +169,34 @@ void CompositionGraph_OnStartFrame()
 #endif
 }
 
+const TRefCountPtr<IPooledRenderTarget>& GetFallbackTarget(EFallbackColor FallbackColor)
+{
+	switch (FallbackColor)
+	{
+	case eFC_0000: return GSystemTextures.BlackDummy;
+	case eFC_0001: return GSystemTextures.BlackAlphaOneDummy;
+	case eFC_1111: return GSystemTextures.WhiteDummy;
+	default:
+		ensure(!"Unhandled enum in EFallbackColor");
+		static const TRefCountPtr<IPooledRenderTarget> NullTarget;
+		return NullTarget;
+	}
+}
+
+const FTextureRHIRef& GetFallbackTexture(EFallbackColor FallbackColor)
+{
+	const TRefCountPtr<IPooledRenderTarget>& Target = GetFallbackTarget(FallbackColor);
+	if (Target)
+	{
+		return Target->GetRenderTargetItem().ShaderResourceTexture;
+	}
+	else
+	{
+		static const FTextureRHIRef NullTexture;
+		return NullTexture;
+	}
+}
+
 FRenderingCompositePassContext::FRenderingCompositePassContext(FRHICommandListImmediate& InRHICmdList, const FViewInfo& InView)
 	: View(InView)
 	, SceneColorViewRect(InView.ViewRect)
@@ -197,14 +233,7 @@ void FRenderingCompositePassContext::Process(const TArray<FRenderingCompositePas
 	check(!bWasProcessed);
 
 	bWasProcessed = true;
-
-	// query if we have a custom HMD post process mesh to use
-	static const auto* const HiddenAreaMaskCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.HiddenAreaMask"));
-	bHasHmdMesh = (HiddenAreaMaskCVar != nullptr &&
-		HiddenAreaMaskCVar->GetValueOnRenderThread() == 1 &&
-		GEngine &&
-		GEngine->XRSystem.IsValid() && GEngine->XRSystem->GetHMDDevice() &&
-		GEngine->XRSystem->GetHMDDevice()->HasVisibleAreaMesh());
+	bHasHmdMesh = IsHMDHiddenAreaMaskActive();
 
 	if (TargetedRoots.Num() == 0)
 	{
@@ -264,6 +293,33 @@ void FRenderingCompositePassContext::Process(const TArray<FRenderingCompositePas
 	}
 }
 
+ERenderTargetLoadAction FRenderingCompositePassContext::GetLoadActionForRenderTarget(const FSceneRenderTargetItem& DestRenderTarget) const
+{
+	ERenderTargetLoadAction LoadAction = ERenderTargetLoadAction::ENoAction;
+
+	if (IsViewFamilyRenderTarget(DestRenderTarget))
+	{
+		const bool bForceLoad = !!CVarCompositionForceRenderTargetLoad.GetValueOnAnyThread();
+		if (bForceLoad)
+		{
+			LoadAction = ERenderTargetLoadAction::ELoad;
+		}
+		else
+		{
+			// If rendering the final view family's render target, must clear first view, and load subsequent views.
+			LoadAction = (&View != View.Family->Views[0]) ? ERenderTargetLoadAction::ELoad : ERenderTargetLoadAction::EClear;
+		}
+	}
+	else if (HasHmdMesh())
+	{
+		// Clears render target because going to have unrendered pixels inside view rect.
+		LoadAction = ERenderTargetLoadAction::EClear;
+	}
+
+	return LoadAction;
+}
+
+
 // --------------------------------------------------------------------------
 
 FRenderingCompositionGraph::FRenderingCompositionGraph()
@@ -321,33 +377,6 @@ void FRenderingCompositionGraph::RecursivelyGatherDependencies(FRenderingComposi
 		{
 			// recursively process all inputs of this Pass
 			RecursivelyGatherDependencies(OutputRefItPass);
-		}
-	}
-
-	// the pass is asked what the intermediate surface/texture format needs to be for all its outputs.
-	for(uint32 OutputId = 0; ; ++OutputId)
-	{
-		EPassOutputId PassOutputId = (EPassOutputId)(OutputId);
-		FRenderingCompositeOutput* Output = Pass->GetOutput(PassOutputId);
-
-		if(!Output)
-		{
-			break;
-		}
-
-		Output->RenderTargetDesc = Pass->ComputeOutputDesc(PassOutputId);
-
-		// Allow format overrides for high-precision work
-		static const auto CVarPostProcessingColorFormat = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.PostProcessingColorFormat"));
-
-		if (CVarPostProcessingColorFormat->GetValueOnRenderThread() == 1)
-		{
-			if (Output->RenderTargetDesc.Format == PF_FloatRGBA ||
-				Output->RenderTargetDesc.Format == PF_FloatRGB ||
-				Output->RenderTargetDesc.Format == PF_FloatR11G11B10)
-			{
-				Output->RenderTargetDesc.Format = PF_A32B32G32R32F;
-			}
 		}
 	}
 }
@@ -514,6 +543,44 @@ void FRenderingCompositionGraph::RecursivelyProcess(const FRenderingCompositeOut
 				RecursivelyProcess(*OutputRefIt, Context);
 			}
 		}
+	}
+	
+	// Requests the output render target descriptors.
+	for(uint32 OutputId = 0; ; ++OutputId)
+	{
+		EPassOutputId PassOutputId = (EPassOutputId)(OutputId);
+		FRenderingCompositeOutput* PassOutput = Pass->GetOutput(PassOutputId);
+
+		if(!PassOutput)
+		{
+			break;
+		}
+
+		PassOutput->RenderTargetDesc = Pass->ComputeOutputDesc(PassOutputId);
+
+		// Allow format overrides for high-precision work
+		static const auto CVarPostProcessingColorFormat = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.PostProcessingColorFormat"));
+
+		if (CVarPostProcessingColorFormat->GetValueOnRenderThread() == 1)
+		{
+			if (PassOutput->RenderTargetDesc.Format == PF_FloatRGBA ||
+				PassOutput->RenderTargetDesc.Format == PF_FloatRGB ||
+				PassOutput->RenderTargetDesc.Format == PF_FloatR11G11B10)
+			{
+				PassOutput->RenderTargetDesc.Format = PF_A32B32G32R32F;
+			}
+		}
+	}
+
+	// Execute the pass straight away to have any update on the output decsriptors ExtractRDGTextureForOutput() might do.
+	{
+		Context.Pass = Pass;
+		Context.SetViewportInvalid();
+
+		// then process the pass itself
+		check(!Context.RHICmdList.IsInsideRenderPass());
+		Pass->Process(Context);
+		check(!Context.RHICmdList.IsInsideRenderPass());
 	}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -687,14 +754,6 @@ void FRenderingCompositionGraph::RecursivelyProcess(const FRenderingCompositeOut
 	}
 #endif
 
-	Context.Pass = Pass;
-	Context.SetViewportInvalid();
-
-	// then process the pass itself
-	check(!Context.RHICmdList.IsInsideRenderPass());
-	Pass->Process(Context);
-	check(!Context.RHICmdList.IsInsideRenderPass());
-
 	// for VisualizeTexture and output buffer dumping
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	{
@@ -811,8 +870,7 @@ FRenderingCompositeOutput *FRenderingCompositeOutputRef::GetOutput() const
 
 void FPostProcessPassParameters::Bind(const FShaderParameterMap& ParameterMap)
 {
-	BilinearTextureSampler0.Bind(ParameterMap,TEXT("BilinearTextureSampler0"));
-	BilinearTextureSampler1.Bind(ParameterMap,TEXT("BilinearTextureSampler1"));
+	BilinearTextureSampler.Bind(ParameterMap,TEXT("BilinearTextureSampler"));
 	ViewportSize.Bind(ParameterMap,TEXT("ViewportSize"));
 	ViewportRect.Bind(ParameterMap,TEXT("ViewportRect"));
 	ScreenPosToPixel.Bind(ParameterMap, TEXT("ScreenPosToPixel"));
@@ -828,50 +886,50 @@ void FPostProcessPassParameters::Bind(const FShaderParameterMap& ParameterMap)
 }
 
 template <typename TRHICmdList>
-void FPostProcessPassParameters::SetPS(TRHICmdList& RHICmdList, const FPixelShaderRHIParamRef& ShaderRHI, const FRenderingCompositePassContext& Context, FSamplerStateRHIParamRef Filter, EFallbackColor FallbackColor, FSamplerStateRHIParamRef* FilterOverrideArray)
+void FPostProcessPassParameters::SetPS(TRHICmdList& RHICmdList, FRHIPixelShader* ShaderRHI, const FRenderingCompositePassContext& Context, FRHISamplerState* Filter, EFallbackColor FallbackColor, FRHISamplerState** FilterOverrideArray)
 {
 	Set(RHICmdList, ShaderRHI, Context, Filter, FallbackColor, FilterOverrideArray);
 }
 
-template void FPostProcessPassParameters::SetPS(FRHICommandList& RHICmdList, const FPixelShaderRHIParamRef& ShaderRHI, const FRenderingCompositePassContext& Context, FSamplerStateRHIParamRef Filter, EFallbackColor FallbackColor, FSamplerStateRHIParamRef* FilterOverrideArray);
-template void FPostProcessPassParameters::SetPS(FRHICommandListImmediate& RHICmdList, const FPixelShaderRHIParamRef& ShaderRHI, const FRenderingCompositePassContext& Context, FSamplerStateRHIParamRef Filter, EFallbackColor FallbackColor, FSamplerStateRHIParamRef* FilterOverrideArray);
+template void FPostProcessPassParameters::SetPS(FRHICommandList& RHICmdList, FRHIPixelShader* ShaderRHI, const FRenderingCompositePassContext& Context, FRHISamplerState* Filter, EFallbackColor FallbackColor, FRHISamplerState** FilterOverrideArray);
+template void FPostProcessPassParameters::SetPS(FRHICommandListImmediate& RHICmdList, FRHIPixelShader* ShaderRHI, const FRenderingCompositePassContext& Context, FRHISamplerState* Filter, EFallbackColor FallbackColor, FRHISamplerState** FilterOverrideArray);
 
 template< typename TRHICmdList >
-void FPostProcessPassParameters::SetCS(const FComputeShaderRHIParamRef& ShaderRHI, const FRenderingCompositePassContext& Context, TRHICmdList& RHICmdList, FSamplerStateRHIParamRef Filter, EFallbackColor FallbackColor, FSamplerStateRHIParamRef* FilterOverrideArray)
+void FPostProcessPassParameters::SetCS(FRHIComputeShader* ShaderRHI, const FRenderingCompositePassContext& Context, TRHICmdList& RHICmdList, FRHISamplerState* Filter, EFallbackColor FallbackColor, FRHISamplerState** FilterOverrideArray)
 {
 	Set(RHICmdList, ShaderRHI, Context, Filter, FallbackColor, FilterOverrideArray);
 }
 template void FPostProcessPassParameters::SetCS< FRHICommandListImmediate >(
-	const FComputeShaderRHIParamRef& ShaderRHI,
+	FRHIComputeShader* ShaderRHI,
 	const FRenderingCompositePassContext& Context,
 	FRHICommandListImmediate& RHICmdList,
-	FSamplerStateRHIParamRef Filter,
+	FRHISamplerState* Filter,
 	EFallbackColor FallbackColor,
-	FSamplerStateRHIParamRef* FilterOverrideArray
+	FRHISamplerState** FilterOverrideArray
 	);
 
 template void FPostProcessPassParameters::SetCS< FRHIAsyncComputeCommandListImmediate >(
-	const FComputeShaderRHIParamRef& ShaderRHI,
+	FRHIComputeShader* ShaderRHI,
 	const FRenderingCompositePassContext& Context,
 	FRHIAsyncComputeCommandListImmediate& RHICmdList,
-	FSamplerStateRHIParamRef Filter,
+	FRHISamplerState* Filter,
 	EFallbackColor FallbackColor,
-	FSamplerStateRHIParamRef* FilterOverrideArray
+	FRHISamplerState** FilterOverrideArray
 	);
 
-void FPostProcessPassParameters::SetVS(const FVertexShaderRHIParamRef& ShaderRHI, const FRenderingCompositePassContext& Context, FSamplerStateRHIParamRef Filter, EFallbackColor FallbackColor, FSamplerStateRHIParamRef* FilterOverrideArray)
+void FPostProcessPassParameters::SetVS(FRHIVertexShader* ShaderRHI, const FRenderingCompositePassContext& Context, FRHISamplerState* Filter, EFallbackColor FallbackColor, FRHISamplerState** FilterOverrideArray)
 {
 	Set(Context.RHICmdList, ShaderRHI, Context, Filter, FallbackColor, FilterOverrideArray);
 }
 
-template< typename TShaderRHIParamRef, typename TRHICmdList >
+template< typename TRHIShader, typename TRHICmdList >
 void FPostProcessPassParameters::Set(
 	TRHICmdList& RHICmdList,
-	const TShaderRHIParamRef& ShaderRHI,
+	TRHIShader* ShaderRHI,
 	const FRenderingCompositePassContext& Context,
-	FSamplerStateRHIParamRef Filter,
+	FRHISamplerState* Filter,
 	EFallbackColor FallbackColor,
-	FSamplerStateRHIParamRef* FilterOverrideArray)
+	FRHISamplerState** FilterOverrideArray)
 {
 	// assuming all outputs have the same size
 	FRenderingCompositeOutput* Output = Context.Pass->GetOutput(ePId_Output0);
@@ -884,20 +942,11 @@ void FPostProcessPassParameters::Set(
 	// but not both
 	check(!FilterOverrideArray || !Filter);
 
-	if(BilinearTextureSampler0.IsBound())
+	if(BilinearTextureSampler.IsBound())
 	{
 		RHICmdList.SetShaderSampler(
 			ShaderRHI, 
-			BilinearTextureSampler0.GetBaseIndex(), 
-			TStaticSamplerState<SF_Bilinear>::GetRHI()
-			);
-	}
-
-	if(BilinearTextureSampler1.IsBound())
-	{
-		RHICmdList.SetShaderSampler(
-			ShaderRHI, 
-			BilinearTextureSampler1.GetBaseIndex(), 
+			BilinearTextureSampler.GetBaseIndex(), 
 			TStaticSamplerState<SF_Bilinear>::GetRHI()
 			);
 	}
@@ -945,16 +994,7 @@ void FPostProcessPassParameters::Set(
 		SetShaderValue(RHICmdList, ShaderRHI, SceneColorBufferUVViewport, SceneColorBufferUVViewportValue);
 	}
 
-	IPooledRenderTarget* FallbackTexture = 0;
-	
-	switch(FallbackColor)
-	{
-		case eFC_0000: FallbackTexture = GSystemTextures.BlackDummy; break;
-		case eFC_0001: FallbackTexture = GSystemTextures.BlackAlphaOneDummy; break;
-		case eFC_1111: FallbackTexture = GSystemTextures.WhiteDummy; break;
-		default:
-			ensure(!"Unhandled enum in EFallbackColor");
-	}
+	const FTextureRHIRef& FallbackTexture = GetFallbackTexture(FallbackColor);
 
 	// ePId_Input0, ePId_Input1, ...
 	for(uint32 Id = 0; Id < (uint32)ePId_Input_MAX; ++Id)
@@ -978,7 +1018,7 @@ void FPostProcessPassParameters::Set(
 			InputPooledElement = Input->RequestInput();
 		}
 
-		FSamplerStateRHIParamRef LocalFilter = FilterOverrideArray ? FilterOverrideArray[Id] : Filter;
+		FRHISamplerState* LocalFilter = FilterOverrideArray ? FilterOverrideArray[Id] : Filter;
 
 		if(InputPooledElement)
 		{
@@ -1011,7 +1051,7 @@ void FPostProcessPassParameters::Set(
 		{
 			// if the input is not there but the shader request it we give it at least some data to avoid d3ddebug errors and shader permutations
 			// to make features optional we use default black for additive passes without shader permutations
-			SetTextureParameter(RHICmdList, ShaderRHI, PostprocessInputParameter[Id], PostprocessInputParameterSampler[Id], LocalFilter, FallbackTexture->GetRenderTargetItem().TargetableTexture);
+			SetTextureParameter(RHICmdList, ShaderRHI, PostprocessInputParameter[Id], PostprocessInputParameterSampler[Id], LocalFilter, FallbackTexture);
 
 			FVector4 Dummy(1, 1, 1, 1);
 			SetShaderValue(RHICmdList, ShaderRHI, PostprocessInputSizeParameter[Id], Dummy);
@@ -1022,27 +1062,27 @@ void FPostProcessPassParameters::Set(
 	// todo warning if Input[] or InputSize[] is bound but not available, maybe set a specific input texture (blinking?)
 }
 
-#define IMPLEMENT_POST_PROCESS_PARAM_SET( TShaderRHIParamRef, TRHICmdList ) \
-	template void FPostProcessPassParameters::Set< TShaderRHIParamRef >( \
+#define IMPLEMENT_POST_PROCESS_PARAM_SET( TRHIShader, TRHICmdList ) \
+	template void FPostProcessPassParameters::Set< TRHIShader >( \
 		TRHICmdList& RHICmdList,						\
-		const TShaderRHIParamRef& ShaderRHI,			\
+		TRHIShader* ShaderRHI,			\
 		const FRenderingCompositePassContext& Context,	\
-		FSamplerStateRHIParamRef Filter,				\
+		FRHISamplerState* Filter,				\
 		EFallbackColor FallbackColor,					\
-		FSamplerStateRHIParamRef* FilterOverrideArray	\
+		FRHISamplerState** FilterOverrideArray	\
 	);
 
-IMPLEMENT_POST_PROCESS_PARAM_SET( FVertexShaderRHIParamRef, FRHICommandListImmediate );
-IMPLEMENT_POST_PROCESS_PARAM_SET( FHullShaderRHIParamRef, FRHICommandListImmediate );
-IMPLEMENT_POST_PROCESS_PARAM_SET( FDomainShaderRHIParamRef, FRHICommandListImmediate );
-IMPLEMENT_POST_PROCESS_PARAM_SET( FGeometryShaderRHIParamRef, FRHICommandListImmediate );
-IMPLEMENT_POST_PROCESS_PARAM_SET( FPixelShaderRHIParamRef, FRHICommandListImmediate );
-IMPLEMENT_POST_PROCESS_PARAM_SET( FComputeShaderRHIParamRef, FRHICommandListImmediate );
-IMPLEMENT_POST_PROCESS_PARAM_SET( FComputeShaderRHIParamRef, FRHIAsyncComputeCommandListImmediate );
+IMPLEMENT_POST_PROCESS_PARAM_SET(FRHIVertexShader, FRHICommandListImmediate );
+IMPLEMENT_POST_PROCESS_PARAM_SET(FRHIHullShader, FRHICommandListImmediate );
+IMPLEMENT_POST_PROCESS_PARAM_SET(FRHIDomainShader, FRHICommandListImmediate );
+IMPLEMENT_POST_PROCESS_PARAM_SET(FRHIGeometryShader, FRHICommandListImmediate );
+IMPLEMENT_POST_PROCESS_PARAM_SET(FRHIPixelShader, FRHICommandListImmediate );
+IMPLEMENT_POST_PROCESS_PARAM_SET(FRHIComputeShader, FRHICommandListImmediate );
+IMPLEMENT_POST_PROCESS_PARAM_SET(FRHIComputeShader, FRHIAsyncComputeCommandListImmediate );
 
 FArchive& operator<<(FArchive& Ar, FPostProcessPassParameters& P)
 {
-	Ar << P.BilinearTextureSampler0 << P.BilinearTextureSampler1 << P.ViewportSize << P.ScreenPosToPixel << P.SceneColorBufferUVViewport << P.ViewportRect;
+	Ar << P.BilinearTextureSampler << P.ViewportSize << P.ScreenPosToPixel << P.SceneColorBufferUVViewport << P.ViewportRect;
 
 	for(uint32 i = 0; i < ePId_Input_MAX; ++i)
 	{
@@ -1148,4 +1188,64 @@ FString FRenderingCompositePass::ConstructDebugName()
 	}
 
 	return Name;
+}
+
+FRDGTextureRef FRenderingCompositePass::CreateRDGTextureForOptionalInput(
+	FRDGBuilder& GraphBuilder,
+	EPassInputId InputId,
+	const TCHAR* InputName)
+{
+	if (const FRenderingCompositeOutputRef* OutputRef = GetInput(InputId))
+	{
+		if (FRenderingCompositeOutput* Input = OutputRef->GetOutput())
+		{
+			return GraphBuilder.RegisterExternalTexture(Input->RequestInput(), InputName);
+		}
+	}
+	return nullptr;
+}
+
+FRDGTextureRef FRenderingCompositePass::CreateRDGTextureForInputWithFallback(
+	FRDGBuilder& GraphBuilder,
+	EPassInputId InputId,
+	const TCHAR* InputName,
+	EFallbackColor FallbackColor)
+{
+	if (FRDGTextureRef RDGTexture = CreateRDGTextureForOptionalInput(GraphBuilder, InputId, InputName))
+	{
+		return RDGTexture;
+	}
+	return GraphBuilder.RegisterExternalTexture(GetFallbackTarget(FallbackColor));
+}
+
+void FRenderingCompositePass::ExtractRDGTextureForOutput(FRDGBuilder& GraphBuilder, EPassOutputId OutputId, FRDGTextureRef Texture)
+{
+	if (FRenderingCompositeOutput* Output = GetOutput(OutputId))
+	{
+		Output->RenderTargetDesc = Texture->Desc;
+		GraphBuilder.QueueTextureExtraction(Texture, &Output->PooledRenderTarget);
+	}
+}
+
+FRDGTextureRef FRenderingCompositePass::FindOrCreateRDGTextureForOutput(
+	FRDGBuilder& GraphBuilder,
+	EPassOutputId OutputId,
+	const FRDGTextureDesc& TextureDesc,
+	const TCHAR* TextureName)
+{
+	if (FRenderingCompositeOutput* Output = GetOutput(OutputId))
+	{
+		const TRefCountPtr<IPooledRenderTarget>& ExistingTarget = Output->PooledRenderTarget;
+
+		if (ExistingTarget)
+		{
+			return GraphBuilder.RegisterExternalTexture(ExistingTarget, TextureName);
+		}
+		else
+		{
+			return GraphBuilder.CreateTexture(TextureDesc, TextureName);
+		}
+	}
+
+	return nullptr;
 }

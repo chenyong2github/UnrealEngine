@@ -1,0 +1,256 @@
+﻿INTSourceChangelist:5370932
+Availability: Public
+Crumbs: 
+Title:结合Revit使用Datasmith
+Description:使用Datasmith将场景从Autodesk Revit导入虚幻编辑器时的特殊注意事项。
+Type: 
+Version: 4.21
+Parent: Studio/Datasmith/SoftwareInteropGuides
+Order: 
+Tags: Datasmith
+Tags: overview
+Tags: interop
+Tags: Early Access
+Tags: Landing Page
+
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![Revit](datasmith-revit-compare-revit.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![UE4](datasmith-revit-compare-unreal.png) 
+ [/PARAM]
+[/OBJECT]
+
+如果计划使用Datasmith将场景从Autodesk Revit导入虚幻引擎，除[Datasmith总览](Studio/Datasmith/Overview)和[关于Datasmith导入进程](Studio/Datasmith/Overview/ImportProcess)中讲述的基础要点外，您还需要了解Datasmith会对场景进行哪些其他额外操作。
+
+[REGION:note]
+用于Revit的Datasmith Exporter插件仍在早期体验状态，我们仍在完善部分键数据在Revit和虚幻引擎之间转译的方式。插件已可供下载并用于您自己的场景，但需要注意的是现在的结果可能存在一些问题。尤其需要注意的是我们仍在对转译进行完善：
+
+*   场景层级
+*   枢轴点
+*   光源
+*   相机
+*   材质和纹理
+*   UV坐标和纹理大小调整
+*   测点和项目位置
+
+我们预计将在之后的数周中公布更新，请关注[Unreal Studio论坛](https://forums.unrealengine.com/unreal-engine/unreal-studio)。
+[/REGION]
+
+(#revitworkflow)
+
+## Revit工作流
+
+Datasmith针对Revit时使用导出插件工作流。这意味着使用Datasmith将Revit内容导入虚幻引擎时需要执行以下操作：
+
+1.  安装针对Revit的插件。请参阅[为Revit安装Datasmith Exporter插件](Studio/Datasmith/SoftwareInteropGuides/Revit/InstallingExporterPlugin)。
+2.  将Revit内容导入一个 *.udatasmith* 文件。参见[从Revit导出Datasmith内容](Studio/Datasmith/SoftwareInteropGuides/Revit/ExportingDatasmithContentfromRevit)。
+3.  使用Datasmith导入器将导出的 *.udatasmith* 文件载入虚幻编辑器。请参见[将Datasmith内容导入虚幻引擎4](Studio/Datasmith/HowTo/ImportingContent)。
+
+(#controllingwhatgetsexported)
+
+## 控制被导出的内容
+
+必须在Revit中选择一个活跃的3D视图才能使用Datasmith Exporter插件导出场景。该3D视图的可视性设置将定义来自Revit文件的哪些元素将包含在导出的 *.udatasmith* 文件中。可利用此行为在Revit中对导出至虚幻引擎的内容进行完全控制。
+
+可以使用Revit文件中已有的任何3D视图。然而如果希望完全控制导入虚幻引擎的对象，我们建议在Revit中设置一个新的3D视图，并设置此视图只显示实时展示中所需要的对象。
+
+Revit提供了诸多工具和技术来控制3D视图中对象的可视性。举例而言：
+
+*   可使用 **图形（Graphics） > 可视性/图形覆盖（Visibility/Graphics Overrides）** 来控制关卡中不同对象和对象类目的可视性。
+    [REGION:lightbox]
+    [![Revit Visibility/Graphics Overrides](revit-visibility-overrides.png "Revit Visibility/Graphics Overrides")](revit-visibility-overrides.png) *点击查看全图。*
+    [/REGION]
+*   可使用一个[分段框](http://help.autodesk.com/view/RVT/2019/ENU/?guid=GUID-C9EA51CB-3214-4BD8-AD55-3BEB1CCD15B6)来剪切导出的几何体。只有分段框中的对象将被导出到虚幻引擎。注意：当一个对象跨过分段框的边界时（如下图中的墙壁、地板和家具），其几何体将被截断。在虚幻引擎中，代表导出对象的静态网格体资源只包含处于分段框中的几何体。
+    [REGION:lightbox]
+    [![Section Box results in Revit and Unreal Engine](revit-unreal-sectionbox.png "Section Box results in Revit and Unreal Engine")](revit-unreal-sectionbox.png) *点击查看全图。*
+    [/REGION]
+*   将遵守Revit中的 **临时隐藏和隔离（Temporary Hide and Isolate）** 设置。
+*   只有当前3D视图中可见的几何体对象将被导出。非几何对象将被无视。
+
+[REGION:note]
+Datasmith Exporter遵守哪些对象显示、哪些对象隐藏的选择，但其不会考虑控制3D视图在Revit视口中绘制方式的其他设置。举例而言，其不会考虑3D视图的 **图像（Graphics） > 图像显示选项（Graphic Display Options）** 设置（真实与阴影模式显示、投射阴影等）或 **相机（Camera） > 渲染设置（Rendering Settings）**（草图与高质量设置、光照模式等）。
+[/REGION]
+
+欲知控制Revit 3D视图中可视性的更多信息，还可参阅Revit帮助部分中的[项目视图中的可见性和图形显示](http://help.autodesk.com/view/RVT/2019/ENU/?guid=GUID-A2FC119B-51D7-4C2E-84ED-CD51983EC532)。
+
+(#geometry)
+
+## 几何体
+
+总体而言，可在Revit场景中单独选择的每个元素都将作为单独的静态网格体资源转译到虚幻引擎中。部分元素由更小的部分组成时（如轨道），其可能会被进一步拆分为更小的静态网格体。
+
+在所有情况中，每个静态网格体资源的几何体被设为匹配导入文件时Revit对象的尺寸。参数设置和约束不会转入虚幻引擎。举例而言，在虚幻编辑器中上下移动一处地面时，不会拉伸或收缩墙壁高度来匹配Revit中的新位置。
+
+(#instancing)
+
+### 实例化
+
+如果两个对象属于相同族系，且如果其拥有完全相同的参数值，则两个对象都将在Datasmith场景中呈现为同一静态网格体资源的实例。
+
+(#tessellation)
+
+### 曲面细分
+
+Datasmith依靠Revit内置的曲面细分服务，使用尽可能高的细节级别从场景几何体创建三角形网格体。在大多数情况下，此方法生成的几何体足够在虚幻引擎中使用。然而，Revit生成的网格体有时可能过于密集，在曲面上尤为如此。举例而言：
+
+![Dense geometry for curved surfaces](revit-tessellation.png "Dense geometry for curved surfaces")
+
+导入时Datasmith当前不支持这些网格体的重拓扑或简化。然而，如果这些表面在项目中出现问题，则可以尝试用虚幻编辑器提供的工具（如[代理几何体工具](Engine/Proxy-Geometry-Tool)）来简化这些网格体。
+
+(#materialsandtextures)
+
+## 材质和纹理
+
+Datasmith将针对Revit场景中每种不同类型的表面在虚幻引擎项目中新建材质资源，并放置在Datasmith场景资源旁的 **Materials** 文件夹中。这些材质的目标是遵守设置表面在Revit中查看的方式，并公开一套完全复刻Revit中所使用属性的属性。
+
+[REGION:lightbox]
+[![](revit-material-definition.png)](revit-material-definition.png "Revit")
+[/REGION]
+
+Revit
+
+[REGION:lightbox]
+[![](unreal-material-definition.png)](unreal-material-definition.png "Unreal")
+[/REGION]
+
+Unreal
+
+Datasmith当前支持将漫反射贴图和颜色、透明度、剪切和凹凸设置从Revit转译到其生成的虚幻引擎材质中。
+
+在虚幻编辑器中修改材质的方法：
+
+1.  在 **内容浏览器** 中对其进行双击。或在使用需要修改材质的关卡中选择一个actor，然后在细节面板中双击材质。
+2.  如上图所示，材质编辑器将打开，可在细节面板顶部的 **参数分组** 部分中修改这些参数。也可修改虚幻渲染器公开的其他内置参数。
+3.  如需覆盖任意属性的默认值，首先勾选其命名左边的框，在材质中激活属性。然后设置希望属性使用的值。
+
+[REGION:tip]
+每个这些资源均为材质实例，其父项为内置到Datasmith插件中的 **RevitMaster** 材质。可打开这个父材质来查看每个在材质实例中公开的属性在材质图表中连接的方式。
+[/REGION]
+
+(#texturesanduvwrapping)
+
+### 纹理和UV包裹
+
+Datasmith将把Revit材质中使用的纹理导入到资源中，然后将其放置在Datasmith场景资源旁边的Textures文件夹中。
+
+使用纹理资源的每个材质都会提供对Revit纹理编辑器的相似控制，以便控制纹理贴图在使用材质的3D对象表面上的应用方式。
+
+![Texture mapping and UV settings](revit-uvs.png "Texture mapping and UV settings")
+
+  
+
+1.  Revit中的 **位置（Position） > 偏移（Offset）** 由每种贴图的 **UVOffsetX** 和 **UVOffsetY** 设置建模。
+2.  Revit中的 **位置（Position） > 旋转（Rotation）** 由每种贴图的 **UVWAngle** 设置建模。
+3.  Revit中的 **标度** 值基于真实世界维度，将转换为虚幻引擎材质中的一个标度乘数。增加这些缩放值的绝对值时，纹理在对象上将变小。
+
+[REGION:note]
+Datasmith并不转换过程化纹理、例如棋盘、噪点、平铺等。
+[/REGION]
+
+(#buildingthedatasmithscenehierarchy)
+
+## 构建Datasmith场景层级
+
+Datasmith Exporter插件在Datasmith场景中创建了一个父和子actor的层级，以便反映Revit中场景的整体组织。其目的是根据在用于Revit的概念来组织虚幻引擎关卡中的actor，以便于查找和操纵对象。 
+
+此场景层级根据以下规则构建：
+
+*   Revit中的每个 *关卡*——地面、Level 1、Level 2等均由Datasmith场景层级中的一个单独actor来反映。
+*   在每个关卡中，可成为Revit中其他场景元素 *宿主* 的任意对象将变为其所拥有对象的父项。 
+*   在代表Revit关卡和宿主的父actor中可找到代表每个几何对象的静态网格体actor。
+
+举例而言，名为Level 1的actor包含代表每面墙的一个actor。而每个这些actor又由另一个父actor所代表（其拥有墙壁所拥有的每个几何对象的一个子项，即为每扇门、窗或墙壁部分）。
+
+![Example scene hierarchy in the Unreal Editor](scene-hierarchy.png "Example scene hierarchy in the Unreal Editor")
+
+(#lights)
+
+## 光源
+
+Datasmith从Revit场景将光源导入虚幻引擎，维持为其强度设置的物理单位。
+
+(#cameras)
+
+## 相机
+
+从Revit导入一个3D视图时，Datasmith可在虚幻编辑器关卡中创建一个单一的 **CineCameraActor**。其将以相似的视野取代此相机在Revit 3D视图中的相机位置和朝向。如果在关卡视口或 **世界大纲视图** 中选择此CineCameraActor，其视口的预览应与导出 *.udatasmith* 文件时Revit 3D视图的裁剪区域高度匹配。
+
+[REGION:note]
+Datasmith不会处理Revit中可用的部分相机概念，包括正交投射模式和透视矫正（如倾斜、移位和裁剪区）。
+[/REGION]
+
+为实现最佳效果：
+
+1.  将3D视图的 **相机（Camera） > 投射模式（Projection Mode）** 设置设为 **透视**。
+2.  设置Revit中3D视图的裁剪区域，使其聚焦于希望相机在虚幻引擎中拥有的视图。
+3.  确保Revit中的相机目标点居中于裁剪区域中。将相机显示在其他平面和立面视图中即可进行验证。  
+    如透视发生移位，虚幻引擎中的结果则不会如预期般显示。
+
+举例而言，下方的3D视图拥有带居中剪切区的透视相机，其将顺利平移：
+
+[REGION:lightbox]
+[![](revit-camera-3d-crop-good.png)](revit-camera-3d-crop-good.png)
+[/REGION]
+
+[REGION:lightbox]
+[![](revit-camera-plan-good.png)](revit-camera-plan-good.png)
+[/REGION]
+
+然而，以下3D区域的裁剪区域为手动调整，将透视区域的一个边缘不均匀地向目标点移动。这样的平移不会顺畅。
+
+[REGION:lightbox]
+[![](revit-camera-3d-crop-shifted.png)](revit-camera-3d-crop-shifted.png)
+[/REGION]
+
+[REGION:lightbox]
+[![](revit-camera-plan-shifted.png)](revit-camera-plan-shifted.png)
+[/REGION]
+
+(#categories)
+
+## 类别
+
+包含场景中至少一个对象的每个Revit类目将作为单独的层转入虚幻编辑器中。
+
+![](revit_layers.png "revit_layers.png")
+
+可使用虚幻编辑器中的这些层来显示和隐藏类目，或查看和选择指定到它们的对象。
+
+注意：由Revit SDK提供给导入器的信息不会固定将每个场景对象链接到一个类目。未在Revit中指定类目的对象将不会指定到虚幻编辑器中的任意层。
+
+(#metadata)
+
+## 元数据
+
+Datasmith导出关于Revit对象的元数据，并将该元数据附加到代表虚幻引擎中每个Revit对象的Actor。
+
+将用于虚幻引擎中创建的运行时体验的多数元数据都将导入为Datasmith元数据。这包含在Revit中每个对象上的实例属性，以及为非空的类型属性。欲知导入属性的细节以及如何在编辑器资源准备脚本和运行时游戏性脚本中对其进行访问，请参见[使用Datasmith元数据](Studio/Datasmith/Overview/UsingDatasmithMetadata)。
+
+部分更多其他技术内部信息将附加到使用组件标签的每个actor。您可能会发现此信息适用于识别actor，使用蓝图或Python脚本来自动化虚幻编辑器中的数据准备时尤为如此。举例而言：
+
+*   **Revit.Instance.Depth. -** Revit场景层级中对象族系实例或族系符号的深度。
+*   **Revit.Instance.Id. -** Revit文档中对象族系实例或族系符号的ID。
+*   **Revit.Host.Id. -** 对象的族系实例被添加宿主后，此值将在Revit文档中给定族系实例宿主的ID。
+
+![Metadata saved in Component Tags](metadata-component-tags.png "Metadata saved in Component Tags")
+
+(#rpcobjects)
+
+## RPC对象
+
+全息模型内容（RPC）对象仅授权在Revit中使用。因此，Datasmith无法将这些内容直接原样搬入虚幻引擎并保持相同的几何与视觉特性。
+
+相反，其将针对Revit场景中的每个RPC对象在Datasmith场景中放置一个actor，使用3D空间中的相同位置和朝向。
+
+![RPC Actors in the World Outliner](rpc-objects-in-outliner.png "RPC Actors in the World Outliner")
+
+查找已指定 **Revit.RPC** 组件标签的actor即可在虚幻引擎关卡中找到这些RPC对象：
+
+![Component Tag for an RPC Actor](rpc-objects-component-tags.png "Component Tag for an RPC Actor")
+
+[REGION:note]
+此页面中的所有场景和模型均来自[Turbosquid](https://www.turbosquid.com/)的友情提供。
+[/REGION]

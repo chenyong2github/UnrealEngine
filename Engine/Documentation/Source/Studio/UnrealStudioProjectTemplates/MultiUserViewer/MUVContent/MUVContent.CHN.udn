@@ -1,0 +1,136 @@
+INTSourceChangelist:5287135
+Availability: Public
+Crumbs: 
+Title:将你自己的内容与多用户查看器模板配合使用
+Description:介绍如何将多用户查看器用于你自己的3D模型、虚幻引擎关卡和虚幻引擎项目。
+Type: 
+Version: 4.21
+Parent: Studio/UnrealStudioProjectTemplates/MultiUserViewer
+Order: 
+Tags: how to
+Tags: multi-user viewer
+
+
+多用户查看器模板随附了一些预设内容，便于你立即上手使用它，请参阅[入门](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MultiUserViewerIntro)，以获取分步说明。但是，在熟悉协作式审查体验之后，你可能希望在该体验中使用你自己的内容。
+
+本页面介绍如何执行一些最常见的相关任务：
+
+*   将你自己的3D模型导入到模板中，并对它们进行设置，以使它们与内置的寻路模式兼容。请参阅[使用你自己的3D模型](#usingyourown3dmodels)。
+*   将多用户模板更改为在不同的关卡中启动，而非包含默认预设内容的关卡。请参阅[更改起始关卡](#changingthestartinglevel)。
+*   如果你已经拥有虚幻引擎项目（经设置包含你希望使用的内容的项目），你可以将多用户查看器模板添加到该项目中，而非从头开始创建新项目。请参阅[将多用户查看器添加到其他的项目](#addingthemulti-userviewertoadifferentproject)。
+
+(#usingyourown3dmodels)
+## 使用你自己的3D模型
+
+多用户查看器模板随附了一些预设内容，便于你立即上手使用它，但是你可能希望换入你自己的模型，以便你可以在同一个协作式查看器中体验它们。
+
+有关此过程，需要注意的最重要的一点是，玩家仅能够在具有碰撞网格体和寻路网格体的表面上行走和传送到这些表面。你需要确保你希望人们能够探索的每个地板或表面都具有关联的碰撞体积和寻路网格体。
+
+(#steps)
+### 步骤
+
+在多用户查看器模板的默认关卡中使用你自己的内容涉及下列概念性步骤：
+
+1.  你需要从关卡中删除3D模型和阻挡体积等现有内容，并添加你自己的内容。  
+    模板内容的组织形式是位于主固定关卡中的子关卡：包含构成建筑物及其周围环境的静态网格体资源的 **几何体贴图（GeometryMap）**，及包含光源和天空球体的 **光照（Lighting）** 子关卡。  
+    ![位于主固定关卡中的子关卡](multiuserviewer-sublevels.png "Sublevels inside the main persistent Level")  
+    你可以保留相同的子关卡布局，以用于你自己的内容，或者，你可以删除这些现有子关卡，然后将你自己的内容放置到主固定关卡中。（如果要删除“光照（Lighting）”子关卡，首先需要将BP_SkySphere、定向光源和天空光照从子关卡移到固定关卡中。）
+2.  将内容完全设置成你希望人们在封装后的应用程序中所看到的呈现内容。
+3.  至少向关卡中添加一个 **玩家出生点（Player Start）** Actor，方法是将它从 **模式（Modes）** 面板的 **基本（Basic）** 选项卡拖到视口中。  
+    ![拖放“玩家出生点（Player Start）”](multiuserviewer-playerstart.png "Dragging and dropping a Player Start")  
+    当不同人员加入会话时，他们都从随机选择的 **玩家出生点（Player Start）** Actor所在的位置开始。关卡中至少应有一个“玩家出生点（Player Start）”（将它放置在对于新加入会话的人们来说合理的任意位置）。  
+    [REGION:tip]
+    一种比较好的做法是在同一个位置附近添加多个此类Actor，这样，当人们新加入会话时，他们与其他玩家的具体位置重叠的可能性就大大降低。
+    [/REGION]
+4.  确保每个你希望玩家能够在其上行走或玩家能够传送到的表面都相应设置有碰撞网格体。  
+    你也许能够在你用于进行几何体建模的3D设计应用程序中进行此设置，具体取决于你导入内容的方式。或者，你可以在静态网格体编辑器中打开静态网格体，然后使用 **碰撞（Collision）** 菜单中的工具进行此设置。  
+    ![静态网格体编辑器中的“碰撞（Collision）”选项](multiuserviewer-collision.png "Collision options in the Static Mesh Editor")  
+    如果你希望以自动化的方式设置碰撞，另请参阅[为静态网格体设置碰撞](Engine/Content/Types/StaticMeshes/HowTo/SettingCollision)或[在蓝图和Python中为静态网格体设置碰撞](Engine/Editor/ScriptingAndAutomation/HowTos/SettingUpCollisionProperties)。
+    [REGION:tip]
+    作为一个代替办法，你可以使用 **阻挡体积（Blocking Volume）** 向关卡中添加不可见的盒体形状碰撞体积。这是无需修改静态网格体就可使关卡中具有碰撞的简便方法。多用户查看器模板中的默认内容使用了一些此类阻挡体积（Blocking Volume）在墙壁上模拟碰撞。但是，由于这些体积未附加到静态网格体之上，如果你移动了关卡中的几何体，可能需要手动移动这些阻挡体积。
+    [/REGION]
+5.  确保每个你希望玩家能够传送到的表面都具有寻路网格体，方法是使用寻路网格体包围体（Nav Mesh Bounds Volume）包围它。你可以根据需要为关卡创建任意数量的此类体积。  
+    要创建寻路网格体：
+    1.如果关卡中尚不具有寻路网格体包围体（Nav Mesh Bounds Volume），请添加，方法是将它从 **模式（Modes）** 面板的 **体积（Volumes）** 选项卡拖到视口中。
+        [REGION:lightbox]
+        [![拖放“寻路网格体包围体（Nav Mesh Bounds Volume）”](multiuserviewer-navmeshbounds.png "Dragging and dropping a Nav Mesh Bounds Volume")](multiuserviewer-navmeshbounds.png) *单击查看大图。*
+        [/REGION]
+    2.在视口或 **世界大纲视图** 中选中寻路网格体包围体（Nav Mesh Bounds Volume），然后将其变换小工具移至要覆盖的区域的中心附近。
+    3.在 **细节（Details）** 面板中，使用 **笔刷设置（Brush Settings）** 更改体积的大小和形状。  
+        ![寻路网格体包围体（Nav Mesh Bounds Volume）笔刷设置](multiuserviewer-brushsettings.png "Nav Mesh Bounds Volume brush settings")
+    4.单击工具栏中的 **构建（Build）** 图标，为关卡重新构建预计算数据，或者，选择 **构建（Build） > 寻路（Navigation） > 构建路径（Build Paths）**，仅重新构建寻路数据。  
+        ![构建路径（Build Paths）](build-paths.png "Build Paths")
+    5.按 **P** 键可查看生成的寻路网格体并验证它覆盖期望的区域。它被渲染为绿色表面，该绿色表面悬停在略高于与该体积相交的碰撞网格体的位置。  
+        ![寻路网格体可视化](multiuserviewer-navmesh.png "Nav Mesh visualization")
+6.  如有必要，请构建光照。
+7.  按[入门](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MultiUserViewerIntro)页面中的说明重新封装并重新分发项目。
+
+(#endresult)
+### 最终结果
+
+如果你遵循了上述所有步骤，你应能够将多个用户连接到单个设计审查会话中，每个用户都能够看到你添加到关卡中的自定义内容。
+
+(#changingthestartinglevel)
+## 更改起始关卡
+
+多用户模板的主菜单设置为当用户完成主菜单时自动在 **MultiUserViewer_P** 关卡中启动。但是，你可能希望按原样保留默认关卡，并且创建新关卡以容纳你的内容。如果选择这样做，你需要更改主菜单中的逻辑，使得当用户加入会话时，它打开你自己的自定义关卡。
+
+(#steps)
+### 步骤
+
+要为多用户查看器设置起始关卡：
+
+1.  在 **内容浏览器** 中的 *MultiUserViewer/UMG/MainMenu* 文件夹中找到 **Widget_MainMenu** 资源。  
+    ![主菜单（Main Menu）小部件](multiuserviewer-mainmenuwidget.png "Main Menu widget")
+2.  双击该资源以打开它，然后单击 **图表（Graph）** 打开小部件蓝图视图。  
+    ![图表（Graph）](multiuserviewer-graphbutton.png "Graph")
+3.  找到标记为 **提交用户选择（Commit user selections）** 的组。在该组中，找到名称为 **开始主持会话（Begin hosting a session）** 的子组。  
+    [REGION:lightbox]
+    [![开始主持会话（Begin hosting a session）](multiuserviewer-client-beginhosting.png "Begin hosting a session")](multiuserviewer-client-beginhosting.png) *单击查看大图。*
+    [/REGION]
+4.  将 **打开关卡（OpenLevel）** 节点上的 **关卡名称（Level Name）** 输入更改为你希望查看者在他们连接到会话时在其中开始的关卡的名称。
+    [REGION:lightbox]
+    [![“打开关卡（OpenLevel）”节点](multiuserviewer-openlevel.png "OpenLevel node")](multiuserviewer-openlevel.png) *单击查看大图。*
+    [/REGION]
+5.  **编译（Compile）** 并 **保存（Save）** 小部件，然后重新封装项目。
+
+(#endresult)
+### 最终结果
+
+在你下一次启动项目并完成主菜单后，你将在上述步骤中设置的自定义关卡中开始。
+
+(#addingthemulti-userviewertoadifferentproject)
+## 将多用户查看器添加到其他的项目
+
+你可能已经拥有设置有你希望在设计审查时分享的内容的项目。如果有，你可以在多用户查看器模板中创建新项目，使用虚幻编辑器的迁移功能将你自己的内容迁移过来，然后在模板中设置内容，如[使用你自己的3D模型](#usingyourown3dmodels)部分下所述。但是，将多用户查看器模板中的内容导入到现有项目中可能是更为简单的方法。
+
+(#steps)
+### 步骤
+
+要将模板内容导入到现有项目中：
+
+1.  打开要使用多用户查看器功能按钮优化的项目和关卡。
+2.  在 **内容浏览器** 中，选择 **添加（Add New） > 添加功能或内容包（Add Feature or Content Pack）**。  
+    ![添加新的功能或内容包](multiuserviewer-addcontentpack.png "Add New Feature or Content Pack")
+3.  在 **向项目中添加内容（Add Content to the Project）** 窗口中，打开 **Unreal Studio功能（Unreal Studio Feature）** 选项卡。单击 **多用户查看器（Multi-User Viewer）** 缩略图，然后单击 **\+ 添加到项目（Add to Project）**。  
+    ![添加到项目（Add to Project）](multiuserviewer-add-content-window.png "Add to Project")
+4.  单击 **X** 关闭 **向项目中添加内容（Add Content to the Project）** 窗口。
+5.  在虚幻编辑器的主菜单中，选择 **编辑（Edit） > 项目设置...（Project Settings...）**。
+6.  在 **项目设置（Project Settings）** 面板中，打开 **项目（Project） > 地图和模式（Maps & Modes）** 类别。  
+    ![地图和模式（Maps & Modes）](multiuserviewer-projectsettings.png "Maps and Modes")  
+    进行下列更改：  
+    
+    *   **1 -** 将 **默认游戏模式（Default GameMode）** 设置为 **BP_MultiUserGameMode**。
+    *   **2 -** 将 **游戏默认地图（Game Default Map）** 设置为 **MultiUserViewer/MainMenu**。
+    *   **3 -** 将 **游戏实例类（Game Instance Class）** 设置为 **BP\_MultiUser\_GameInstance**。
+    
+    另外，请确保每个关卡的 **世界场景设置（World Settings）** 面板不会覆盖任何这些项目设置。  
+    ![世界场景设置（World Settings）](multiuserviewer-worldsettings-nooverride.png "World Settings")  
+    
+7.  请遵循上面的[使用你自己的3D模型](#usingyourown3dmodels)部分下的说明，确保你将内容设置为可与多用户查看器模板提供的寻路模式配合工作。
+8.  请遵循上面的[更改起始关卡](#changingthestartinglevel)部分下的说明设置你希望查看者在运行封装应用程序并完成欢迎菜单时在其中开始的关卡。
+
+(#endresult)
+### 最终结果
+
+当你启动封装项目时，你应能够立即看到多用户查看器提供的欢迎菜单。完成菜单后，你将在你为主菜单设置的默认关卡中开始。你将能够使用多用户查看器模板提供的[桌面功能按钮](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVControlling#desktopcontrols)和[VR功能按钮 ](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVControlling#vrcontrols)在关卡中移动。

@@ -1,7 +1,6 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6652343
 Availability:Public
 Title: UE4 시작하기
-Crumbs: %ROOT%
 Description:언리얼 엔진으로 게임 개발을 시작하려는 개발자를 위한 기본 정보입니다.
 Navigation:start
 version: 4.9
@@ -10,21 +9,21 @@ order:1
 tags:Getting Started
 type:landing
 topic-image:gettingstarted_topic.png
-topic-icon:%ROOT%/start_icon.png
+topic-icon:start_icon.png
 
 
 ## 시작하기
 
-%Engine/QuickStart:topiccompact%
-%Engine/Content/QuickStart:topiccompact%
-%Programming/QuickStart:topiccompact%
-%GettingStarted/Terminology:topiccompact%
-[OBJECT:TopicCompact]
+%Engine/QuickStart:topic%
+%Engine/Content/QuickStart:topic%
+%Programming/QuickStart:topic%
+%GettingStarted/Terminology:topic%
+[OBJECT:Topic]
 	[PARAM:image]
 		![](GettingStarted/FromUnity/image_0.png)
 	[/PARAM]
 	[PARAM:icon]
-		![](%ROOT%/start_icon.png)(convert:false)
+		![](start_icon.png)(convert:false)
 	[/PARAM]
 	[PARAM:title]
 		%GettingStarted/FromUnity:title%
@@ -36,7 +35,8 @@ topic-icon:%ROOT%/start_icon.png
 		[RELATIVE:GettingStarted/FromUnity]
 	[/PARAM]
 [/OBJECT]
-%GettingStarted/SubEditors:topiccompact%
+%GettingStarted/SubEditors:topic%
+
 [REGION:section]
 	[REGION:normaltitle]
 	부가 정보
@@ -61,7 +61,26 @@ topic-icon:%ROOT%/start_icon.png
 [REGION:normaltitle]
 관련 비디오
 [/REGION]
-[DIR(playlist_id:"PLZlv_N0_O1gasd4IcOe9Cx9wHoBB7rxFl" type:"playlist" output:"playlist")]
+[OBJECT:CourseLink]
+	[PARAMLITERAL:title]
+	UE4 Editor Basics
+	[/PARAMLITERAL]
+	[PARAMLITERAL:courseid]
+	editor_basics
+	[/PARAMLITERAL]
+	[PARAMLITERAL:imageid]
+	3095
+	[/PARAMLITERAL]
+	[PARAMLITERAL:description]
+	언리얼 에디터와 그 구성 요소 기본 사항을 안내해 드립니다.
+	[/PARAMLITERAL]
+	[PARAMLITERAL:video_count]
+	14
+	[/PARAMLITERAL]
+	[PARAMLITERAL:skill_level]
+	Getting Started
+	[/PARAMLITERAL]
+[/OBJECT]
 [/REGION]
 
 ## 에디터 뷰포트
@@ -85,12 +104,6 @@ topic-icon:%ROOT%/start_icon.png
 %Engine/Actors/Brushes:topic%
 %Engine/Actors/Transform:topic%
 
-[REGION:section]
-[REGION:normaltitle]
-관련 비디오
-[/REGION]
-[DIR(playlist_id:"PLZlv_N0_O1gak1_FoAJVrEGiLIploeF3F" type:"playlist" output:"playlist")]
-[/REGION]
 
 ## 콘텐츠 브라우저
 	
@@ -112,8 +125,37 @@ topic-icon:%ROOT%/start_icon.png
 그런 것은 _스포트 라이트_ 라고 합니다. 태양에서 오는 야외의 빛은, 태양이 정말 먼 거리에 있기 때문에, 한 지점이 아닌 한 방향에서 오는 것처럼 보입니다.
 이러한 라이팅 유형의 시뮬레이션으로, _디렉셔널 라이트_ 가 있습니다.
 
-%Engine/Rendering/LightingAndShadows/QuickStart:description%
-%Engine/Rendering/LightingAndShadows/Basics:description%
+%Engine/Rendering/LightingAndShadows/QuickStart:topic%
+%Engine/Rendering/LightingAndShadows/Basics:topic%
+
+[REGION:section]
+[REGION:normaltitle]
+관련 강의
+[/REGION]
+[OBJECT:CourseLink]
+	[PARAMLITERAL:courseid]
+	Lighting_EssentialConcepts
+	[/PARAMLITERAL]
+	[PARAMLITERAL:imageid]
+	3099
+	[/PARAMLITERAL]
+	[PARAMLITERAL:title]
+	라이팅 핵심 개념
+	[/PARAMLITERAL]
+	[PARAMLITERAL:description]
+	다양한 라이트 유형와 그 중요 프로퍼티, 사용법을 배워 봅니다.
+	[/PARAMLITERAL]
+	[PARAMLITERAL:video_count]
+	13
+	[/PARAMLITERAL]
+	[PARAMLITERAL:skill_level]
+	Getting Started
+	[/PARAMLITERAL]
+	[PARAMLITERAL:engine_version]
+	4.18
+	[/PARAMLITERAL]
+[/OBJECT]
+[/REGION]
 
 ## 머티리얼 & 셰이딩
 
@@ -123,9 +165,28 @@ topic-icon:%ROOT%/start_icon.png
 
 [REGION:section]
 [REGION:normaltitle]
-관련 비디오
+관련 강의
 [/REGION]
-[DIR(playlist_id:"PLZlv_N0_O1gbQjgY0nDwZNYe_N8IcYWS-" type:"playlist" output:"playlist")]
+[OBJECT:CourseLink]
+	[PARAMLITERAL:courseid]
+	materials-essentials
+	[/PARAMLITERAL]
+	[PARAMLITERAL:imageid]
+	3098
+	[/PARAMLITERAL]
+	[PARAMLITERAL:title]
+	머티리얼 핵심 개념
+	[/PARAMLITERAL]
+	[PARAMLITERAL:description]
+	제작 환경에서 머티리얼을 만들고 사용하는 방법을 포괄적으로 살펴봅십니다.
+	[/PARAMLITERAL]
+	[PARAMLITERAL:video_count]
+	17
+	[/PARAMLITERAL]
+	[PARAMLITERAL:skill_level]
+	Getting Started
+	[/PARAMLITERAL]
+[/OBJECT]
 [/REGION]
 
 ## 블루프린트 비주얼 스크립팅
@@ -134,12 +195,33 @@ topic-icon:%ROOT%/start_icon.png
 
 %Engine/Blueprints/GettingStarted:topic%
 
-[REGION:gallery]
+<!-- removing for now.
+[REGION:section]
 [REGION:normaltitle]
-관련 비디오
+관련 강의
 [/REGION]
-[DIR(playlist_id:"PLZlv_N0_O1gY35ezlSQn1sWOGfh4C7ewO" type:"playlist" output:"playlist")]
+[OBJECT:CourseLink]
+	[PARAMLITERAL:courseid]
+	blueprint-essential-concepts
+	[/PARAMLITERAL]
+	[PARAMLITERAL:imageid]
+	7144
+	[/PARAMLITERAL]
+	[PARAMLITERAL:title]
+	블루프린트 핵심 개념
+	[/PARAMLITERAL]
+	[PARAMLITERAL:description]
+	블루프린트란 무엇이고 사용하면 어떤 장점이 있는지 파헤쳐 봅니다.
+	[/PARAMLITERAL]
+	[PARAMLITERAL:video_count]
+	8
+	[/PARAMLITERAL]
+	[PARAMLITERAL:skill_level]
+	Getting Started
+	[/PARAMLITERAL]
+[/OBJECT]
 [/REGION]
+-->
 
 ## 프로그래밍
 
@@ -154,17 +236,12 @@ topic-icon:%ROOT%/start_icon.png
 %Programming/Basics:topic%
 %Gameplay/Framework/QuickReference:topic%
 	
-[REGION:gallery]
-[REGION:normaltitle]
-관련 비디오
-[/REGION]
-[DIR(playlist_id:"PLZlv_N0_O1gYup-gvJtMsgJqnEB_dGiM4" type:"playlist" output:"playlist")]
-[/REGION]
+
 
 ## 게임 플레이 테스트
 
 언리얼 엔진 내장 기능을 사용하여 레벨과 게임플레이를 테스트하고 버그를 잡습니다. 
-**에디터에서 플레이** (PIE) 모드로 에디터에서 바로 실시간 피드백을 구하고, 
+**에디터에서 플레이** (PIE) 모드로 에디터에서 바로 실시간 피드백을 받고, 
 **에디터에서 시뮬레이트** (SIE) 모드로는 실행중인 게임에서도 오브젝트를 확인하고 수정할 수 있습니다.
 이를 통해 플레이 도중에도 코드 변경, 리컴파일, 바로 적용이 가능합니다.
 

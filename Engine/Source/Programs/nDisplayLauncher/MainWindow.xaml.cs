@@ -26,7 +26,7 @@ namespace nDisplayLauncher
 
 		private void Window_Loaded(object sender, RoutedEventArgs e)
 		{
-			this.Title = "nDisplay Launcher";
+			this.Title = "nDisplay Launcher - UE4.23";
 		}
 
 		private void Exit(object sender, RoutedEventArgs e)

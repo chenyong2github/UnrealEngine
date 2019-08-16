@@ -76,48 +76,26 @@ void UK2Node::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FFrameworkObjectVersion::GUID);
 
 	if (Ar.IsSaving())
-	{	
-		for (UEdGraphPin* Pin : Pins)
+	{
+		if (Ar.IsObjectReferenceCollector() || Ar.Tell() < 0)
 		{
-			if (!Pin->bDefaultValueIsIgnored && !Pin->DefaultValue.IsEmpty() )
-			{
-				// If looking for references during save, expand any default values on the pins
-				// This is only reliable when saving in the editor, the cook case is handled below
-				if (Ar.IsObjectReferenceCollector() && Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Struct && Pin->PinType.PinSubCategoryObject.IsValid())
-				{
-					UScriptStruct* Struct = Cast<UScriptStruct>(Pin->PinType.PinSubCategoryObject.Get());
-
-					if (Struct)
-					{
-						TSharedPtr<FStructOnScope> StructData = MakeShareable(new FStructOnScope(Struct));
-
-						// Import the literal text to a dummy struct and then serialize that. Hard object references will not properly import, this is only useful for soft references!
-						FOutputDeviceNull NullOutput;
-						Struct->ImportText(*Pin->DefaultValue, StructData->GetStructMemory(), nullptr, PPF_SerializedAsImportText, &NullOutput, Pin->PinName.ToString());						
-						Struct->SerializeItem(Ar, StructData->GetStructMemory(), nullptr);
-					}
-				}
-
-				if (Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_SoftObject || Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_SoftClass)
-				{
-					FSoftObjectPath TempRef(Pin->DefaultValue);
-
-					// Serialize the asset reference, this will do the save fixup. It won't actually serialize the string if this is a real archive like linkersave
-					FSoftObjectPathSerializationScope DisableSerialize(NAME_None, NAME_None, ESoftObjectPathCollectType::AlwaysCollect, ESoftObjectPathSerializeType::SkipSerializeIfArchiveHasSize);
-					Ar << TempRef;
-
-					Pin->DefaultValue = TempRef.ToString();
-				}
-			}
+			// When this is a reference collector/modifier, serialize some pins as structs
+			FixupPinStringDataReferences(&Ar);
 		}
 	}
 
 	Super::Serialize(Ar);
 
-	if (Ar.IsLoading())
+	if (Ar.IsLoading() && ((Ar.GetPortFlags() & PPF_Duplicate) == 0))
 	{
 		// Fix up pin default values, must be done before post load
 		FixupPinDefaultValues();
+
+		if (GIsEditor)
+		{
+			// We need to serialize string data references on load in editor builds so the cooker knows about them
+			FixupPinStringDataReferences(nullptr);
+		}
 	}
 }
 
@@ -161,33 +139,97 @@ void UK2Node::FixupPinDefaultValues()
 	}
 
 	// Fix soft object ptr pins
-	if (GIsEditor || LinkerFrameworkVersion < FFrameworkObjectVersion::ChangeAssetPinsToString)
+	if (LinkerFrameworkVersion < FFrameworkObjectVersion::ChangeAssetPinsToString)
 	{
-		FSoftObjectPathSerializationScope SetPackage(GetOutermost()->GetFName(), NAME_None, ESoftObjectPathCollectType::AlwaysCollect, ESoftObjectPathSerializeType::SkipSerializeIfArchiveHasSize);
 		for (int32 i = 0; i < Pins.Num(); ++i)
 		{
 			UEdGraphPin* Pin = Pins[i];
 			if (Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_SoftObject || Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_SoftClass)
 			{
 				// Fix old assetptr pins
-				if (LinkerFrameworkVersion < FFrameworkObjectVersion::ChangeAssetPinsToString)
+				if (Pin->DefaultObject && Pin->DefaultValue.IsEmpty())
 				{
-					if (Pin->DefaultObject && Pin->DefaultValue.IsEmpty())
+					Pin->DefaultValue = Pin->DefaultObject->GetPathName();
+					Pin->DefaultObject = nullptr;
+				}
+			}
+		}
+	}
+}
+
+void UK2Node::FixupPinStringDataReferences(FArchive* SavingArchive)
+{
+	// This code expands some pin types into their real representation, optionally serializes them, and then writes them out as strings again
+	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
+	FLinkerLoad* LinkerLoad = GetLinker();
+
+	// Can't do any fixups without an archive of some sort
+	if (!SavingArchive && !LinkerLoad)
+	{
+		return;
+	}
+
+	for (UEdGraphPin* Pin : Pins)
+	{
+		if (!Pin->bDefaultValueIsIgnored && !Pin->DefaultValue.IsEmpty())
+		{
+			// We skip this for structs like FVector that have a custom format for default values
+			if (Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Struct && Pin->PinType.PinSubCategoryObject.IsValid() && !K2Schema->PinHasCustomDefaultFormat(*Pin))
+			{
+				UScriptStruct* Struct = Cast<UScriptStruct>(Pin->PinType.PinSubCategoryObject.Get());
+				if (Struct)
+				{
+					// While loading, our user struct may not have been linked yet
+					if (Struct->HasAnyFlags(RF_NeedLoad) && LinkerLoad)
 					{
-						Pin->DefaultValue = Pin->DefaultObject->GetPathName();
-						Pin->DefaultObject = nullptr;
+						LinkerLoad->Preload(Struct);
+					}
+					
+					FSoftObjectPathSerializationScope SetPackage(GetOutermost()->GetFName(), NAME_None, ESoftObjectPathCollectType::AlwaysCollect, ESoftObjectPathSerializeType::SkipSerializeIfArchiveHasSize);
+
+					TSharedPtr<FStructOnScope> StructData = MakeShareable(new FStructOnScope(Struct));
+					StructData->SetPackage(GetOutermost());
+
+					// Import the literal text to a dummy struct and then serialize that. Hard object references will not properly import, this is only useful for soft references!
+					FOutputDeviceNull NullOutput;
+					Struct->ImportText(*Pin->DefaultValue, StructData->GetStructMemory(), this, PPF_SerializedAsImportText, &NullOutput, Pin->PinName.ToString());
+
+					if (SavingArchive)
+					{
+						// If we're saving, use the archive to do any replacements
+						Struct->SerializeItem(*SavingArchive, StructData->GetStructMemory(), nullptr);
+					}
+					
+					// Convert back to the default value string as we might have changed
+					FString NewValue;
+					Struct->ExportText(NewValue, StructData->GetStructMemory(), StructData->GetStructMemory(), this, PPF_SerializedAsImportText, nullptr);
+
+					if (Pin->DefaultValue != NewValue)
+					{
+						Pin->DefaultValue = NewValue;
 					}
 				}
+			}
 
-				// In editor, fixup soft object ptrs on load on to handle redirects and finding refs for cooking
-				// We're not handling soft object ptrs inside FStructs because it's a rare edge case and would be a performance hit on load
-				if (GIsEditor && !Pin->DefaultValue.IsEmpty())
+			if (Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_SoftObject || Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_SoftClass)
+			{
+				FSoftObjectPathSerializationScope SetPackage(GetOutermost()->GetFName(), NAME_None, ESoftObjectPathCollectType::AlwaysCollect, ESoftObjectPathSerializeType::SkipSerializeIfArchiveHasSize);
+
+				FSoftObjectPath TempRef(Pin->DefaultValue);
+
+				if (SavingArchive)
 				{
-					FSoftObjectPath TempRef(Pin->DefaultValue);
-					TempRef.PostLoadPath(GetLinker());
-					TempRef.PreSavePath();
-					Pin->DefaultValue = TempRef.ToString();
+					// Serialize it directly, this won't do anything if it's a real archive like LinkerSave
+					*SavingArchive << TempRef;
 				}
+				else
+				{
+					// Transform it as strings
+					TempRef.PostLoadPath(LinkerLoad);
+					TempRef.PreSavePath();
+				}
+				
+				Pin->DefaultValue = TempRef.ToString();
 			}
 		}
 	}
@@ -266,10 +308,26 @@ void UK2Node::AutowireNewNode(UEdGraphPin* FromPin)
 			UEdGraphPin* Pin = Pins[i];
 			check(Pin);
 
-			// Never consider for auto-wiring a hidden pin being connected to a Wildcard. It is never what the user expects
-			if (Pin->bHidden && FromPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Wildcard)
+			if (Pin->bHidden)
 			{
-				continue;
+				// Never consider for auto-wiring a hidden pin being connected to a Wildcard. It is never what the user expects
+				if (FromPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Wildcard)
+				{
+					continue;
+				}
+
+				// Never connect wires to hidden WorldContextObject pins
+				if (UK2Node_CallFunction* CallFunctionNode = Cast<UK2Node_CallFunction>(this))
+				{				
+					if (UFunction* NodeTargetFunction = CallFunctionNode->GetTargetFunction())
+					{
+						const FString& WorldContextPinName = NodeTargetFunction->GetMetaData(FBlueprintMetadata::MD_WorldContext);
+						if (!WorldContextPinName.IsEmpty() && WorldContextPinName == Pin->PinName.ToString())
+						{
+							continue;
+						}
+					}
+				}
 			}
 
 			ECanCreateConnectionResponse ConnectResponse = K2Schema->CanCreateConnection(FromPin, Pin).Response;
@@ -1354,7 +1412,8 @@ void FOptionalPinManager::RebuildProperty(UProperty* TestProperty, FName Categor
 	Record->CategoryName = CategoryName;
 
 	bool bNegate = false;
-	Record->bHasOverridePin = PropertyCustomizationHelpers::GetEditConditionProperty(TestProperty, bNegate) != nullptr;
+	UProperty* OverrideProperty = PropertyCustomizationHelpers::GetEditConditionProperty(TestProperty, bNegate);
+	Record->bHasOverridePin = OverrideProperty != nullptr && OverrideProperty->HasAllPropertyFlags(CPF_BlueprintVisible) && !OverrideProperty->HasAllPropertyFlags(CPF_BlueprintReadOnly);
 	Record->bIsMarkedForAdvancedDisplay = TestProperty->HasAnyPropertyFlags(CPF_AdvancedDisplay);
 
 	// Get the defaults

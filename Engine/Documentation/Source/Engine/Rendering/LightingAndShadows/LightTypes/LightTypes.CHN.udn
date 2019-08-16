@@ -1,11 +1,12 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6180453
 Availability: Public
 Title: 光源类型
-Crumbs: %ROOT%, Engine, Engine/Rendering/LightingAndShadows
 Description: 虚幻引擎 4 中可用的光源类型。
 DescriptionLong: 虚幻引擎 4 中可用的光源类型: 点光源、聚光源、定向光源和天光。
-Version: 4.9
+Version: 4.20
 topic-image:LT_topic.png
+Tags:Lighting Basics
+Tags:Light Types
 
 
 虚幻引擎 4 中有四种光源类型：**定向光源 Directional** 、 **点光源 Point**、**聚光源 Spot** 以及 **天光 Sky**。
@@ -16,14 +17,8 @@ topic-image:LT_topic.png
 
 下面您将会看到每种类型的光源的快速链接。
 
-(#LightTypes)
 ## 光源类型
 
-[REGION:topics fourth]
-%Engine/Rendering/LightingAndShadows/LightTypes/Directional:topiccompact%
-%Engine/Rendering/LightingAndShadows/LightTypes/Point:topiccompact%
-%Engine/Rendering/LightingAndShadows/LightTypes/Spot:topiccompact%
-%Engine/Rendering/LightingAndShadows/LightTypes/SkyLight:topiccompact%
-[/REGION]
+[DIR(output:"topic" parent:"Engine/Rendering/LightingAndShadows/LightTypes" end:"1")]
 
 

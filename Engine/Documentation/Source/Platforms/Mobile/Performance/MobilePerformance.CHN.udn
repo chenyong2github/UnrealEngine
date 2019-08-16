@@ -25,7 +25,7 @@ Tags:mobile
 
 虚幻引擎4(UE4)支持移动设备上的各种照明功能。使用这些功能会降低性能，并且可能导致您的游戏在较慢的移动设备上表现不佳。虽然 
 可以混合和匹配UE4的大多数移动照明功能，但是将这些功能划分为以下几层是很有用的。在构建移动游戏时，您应该基于游戏所需要的
-图像质量以及您需要支持的设备类型来决定使用哪些功能。查看[iOS开发](Platforms/iOS/DeviceCompatibility)和[Android 开发](Platforms/Android/DeviceCompatibility)下的兼容性页面，
+图像质量以及您需要支持的设备类型来决定使用哪些功能。查看[iOS开发](Platforms/Mobile/iOS/DeviceCompatibility)和[Android 开发](Platforms/Mobile/Android/DeviceCompatibility)下的兼容性页面，
 以了解更多关于在Epic测试过的设备以及我们认为最适合该设备的层。
 
 (#ldr(lowdynamicrange))

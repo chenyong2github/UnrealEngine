@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6189817
 Availability:Public
 Title: 온라인 서브시스템 유형
 Crumbs:%ROOT%, Programming
@@ -58,10 +58,6 @@ Version: 4.9
 
 **FUniqueNetId** 에는 프로파일 서비스 온라인 ID 가 들어있으며, 개별 플레이어나 친구나 세션의 무언가를 나타낼 수 있습니다.
 
-[COMMENT:none]
-See: [](Programming/Online/Interfaces/Profile)
-[/COMMENT]
-
 
 ### FSharedContentHandle
 
@@ -69,7 +65,7 @@ See: [](Programming/Online/Interfaces/Profile)
 
 [COMMENT:none]
 See:
- * [](Programming/Online/Interfaces/SharedCloud)
+ * [](Programming/Online/SharedCloudInterface)
 [/COMMENT]
 
 
@@ -94,8 +90,8 @@ See:
 
 [COMMENT:none]
 See:
- * [](Programming/Online/Interfaces/SharedCloud)
- * [](Programming/Online/Interfaces/UserCloud)
+ * [](Programming/Online/SharedCloudInterface)
+ * [](Programming/Online/UserCloudInterface)
 [/COMMENT]
 
 
@@ -111,8 +107,8 @@ See:
 
 [COMMENT:none]
 See: 
- * [](Programming/Online/Interfaces/SharedCloud)
- * [](Programming/Online/Interfaces/UserCloud)
+ * [](Programming/Online/SharedCloudInterface)
+ * [](Programming/Online/UserCloudInterface)
 [/COMMENT]
 
 

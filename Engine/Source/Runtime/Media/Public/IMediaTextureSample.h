@@ -67,7 +67,10 @@ enum class EMediaTextureSampleFormat
 	FloatRGBA,
 
 	/** YUV v210 format which pack 6 pixel using 12 x 10bits components (128 bits block). */
-	YUVv210
+	YUVv210,
+
+	/** 4:4:4:4 AY'CbCr 16-bit little endian full range alpha, video range Y'CbCr. */
+	Y416,
 };
 
 namespace MediaTextureSampleFormat
@@ -246,6 +249,8 @@ public:
 		return DefaultMatrix;
 	}
 
+	virtual void Reset() { }
+	
 public:
 
 	/** Virtual destructor. */

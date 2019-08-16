@@ -1,122 +1,171 @@
-﻿INTSourceChangelist:3102822
+﻿INTSourceChangelist:3726250
 Availability:Public
-Title:倒回和快进播放
+Title: 使用蓝图控制播放
 Crumbs:%ROOT%, Engine
-Description:控制媒体资源播放的范例。
-parent:Engine/MediaFramework/HowTo
-order:3
-checkpoint: editorqs
-Version:4.13
-SkillLevel:Intermediate
-Related:Engine\MediaFramework
+Description:演示如何在蓝图中快进、倒回、暂停和恢复视频播放。 
+Type: how-to
+SkillLevel: Intermediate
+Version: 4.18
+Parent: Engine/MediaFramework/HowTo
+Order: 3
+Tags: Media Framework
+Tags: Video Playback
+Related: Engine\MediaFramework
 
-除播放视频外，媒体框架还可控制播放速率，倒回、暂停或快进视频。 
-在此指南中，玩家在关卡中进行游戏时可通过一个按键倒回、一个按键快进，一个按键播放视频。 
+除了在基于虚幻引擎4的项目中播放视频，您还可以让播放器通过一系列的[蓝图](Engine/Blueprints)节点来控制视频的播放。 
+
+在本教程中，我们提供了一种方法，通过创建快进、倒回、暂停、停止和恢复播放未播放完的视频的功能，让播放器控制视频的播放
+
+![](FinalHero.png)
 
 [REGION:note]
-在此指南中，我们使用的是启用了 **Starter Content** 的 **Blueprint Third Person Template** 项目。
-此外还需要在电脑上存储一些 [支持的视频文件](Engine\MediaFramework\TechReference)，以便添加到播放列表进行播放。可使用您的本地视频，或 **点击右键** 下载该 [视频样本](Infiltrator Demo.mp4)。 
+并非所有的播放器插件都支持快进和/或反向播放。请参阅[](Engine/MediaFramework/TechReference)页面了解更多信息。 
 [/REGION]
 
+(#steps)
 
 ## 步骤
 
-1.	在项目中创建一个名为 **Movies** 的文件夹，然后在浏览器中将视频添加到 **Movies** 文件夹。 
+[REGION:note]
+对于本教程，我们使用的是已启用 **初学者内容包（Starter Content）** 的 **蓝图第三人称模板（Blueprint Third Person Template）** 项目。
+您还需要一个视频进行播放，您可以使用自己的视频或右键单击并下载此[示例视频](Infiltrator Demo.mp4)。
+[/REGION]
+
+1.	在 **内容浏览器（Content Browser）** 中，展开 **源（Sources）** 面板并创建一个名为 **电影（Movies）** 的文件夹，然后右键单击它并选择 **在资源管理器中显示（Show in Explorer）**。 
 
 	![](ControllingPlayback_01.png)
 
-1.	创建一个 **文件媒体源（File Media Source）**（或其他源资源）并将资源指向视频。 
+1.	将示例视频（或您支持的视频）拖动到您计算机上项目的 **内容/电影（Content/Movies）** 文件夹中。
 
 	![](ControllingPlayback_02.png)
 
-1.	创建一个名为 **VideoPlayer** 的 **媒体播放器（Media Player）** 资源和相关的 **媒体声波（Media Sound Wave）** 和 **媒体纹理（Media Texture）** 资源。
+	[REGION:warning]
+	为了确保视频内容与项目一起打包和部署，内容必须位于项目的 **内容/电影（Content/Movies）** 文件夹中。 
+	[/REGION]
+
+1.	在您的项目中，创建一个 **媒体播放器（Media Player）** 和相关的 **媒体纹理（Media Texture）** 资源，分别称为 **MediaPlayer** 和 **MediaPlayer_Video**。 
+
+1.	创建一个名为 **视频（Video）** 的 **文件媒体源（File Media Source）** 资源，并在其中将 **文件路径（File Path）** 指向在 **步骤2（Step 2）** 中添加的视频。 
 
 	![](ControllingPlayback_03.png)
 
-1.	在 **Media Player** 资源中，取消勾选 **Play on Open** 选项。 
+1.	打开您的 **媒体播放器（Media Player）** 资源，并禁用 **打开即播放（Play on Open）** 选项。 
 
 	![](ControllingPlayback_04.png)
 
-1.	在 **Content Browser** 的 **StarterContent/Shapes** 中，将一个 **Shape_Plane** 拖入关卡。  
+	在本例中，我们将向播放器提供播放控制，而不是在打开媒体源后让其自动开始播放。 
 
-	![](ControllingPlayback_05.png)
+1.	在 **基本（Basic）** 下的 **模式（Modes）** 面板中的主编辑器内，将一个 **平面（Plane）** 拖动到关卡中并根据需要调整其大小。 
 
-1.	使用 **平移（W）**、**旋转（E）** 和 **缩放（R）** 工具将静态网格体调整到理想的大小和位置。 
+1.	将 **MediaPlayer_Video** 纹理拖动到该 **平面（Plane）** 上，然后在该平面的 **详细信息（Details）** 面板中，添加 **媒体声音组件（Media Sound Component）** 并将其设置为使用您的 **媒体播放器（Media Player）** 资源。 
 
-1.	按住 **Ctrl** 选中 **Sound Wave** 和 **Media Texture** 资源，将它们放置在关卡中的 **静态网格体** 上。此操作将自动创建一个 **材质** 并将其应用到静态网格体。 
+	[REGION:lightbox]
+	[![](ControllingPlayback_05.png)(w:600)](ControllingPlayback_05.png)
+	[/REGION]
+
+	[REGION:caption]单击显示全图。[/REGION]
+
+1.	从“主工具栏”中，单击 **蓝图（Blueprints）** 按钮，然后选择 **打开关卡蓝图（Open Level Blueprint）**。 
 
 	![](ControllingPlayback_06.png)
 
-1.	在工具栏上，点击 **Blueprints** 按钮和 **Open Level Blueprint**。 
+1.	在 **关卡蓝图（Level Blueprint）** 中，创建一个名为 **MediaPlayer**，类型为 **媒体播放器对象引用（Media Player Object Reference）** 的变量，并将其设置为指向您的 **媒体播放器（MediaPlayer）** 资源。 
+
+1.	按住 **Ctrl** 并将 **MediaPlayer** 变量拖动到图表中，并使用 **打开源（Open Source）** 和 **事件开始播放（Event Begin Play）** 以打开您的 **视频（Video）** 文件媒体源资源。 
 
 	![](ControllingPlayback_07.png)
 
-1.	添加 **Media Player Reference** 类型的一个 **变量**（名为 **MediaPlayer**），并将其设为 **VideoPlayer** 媒体播放器资源。指定 **默认值** 之前可能需要进行 **编译**。 
+1.	添加一个连接到 **触发器（Flip Flop）** 的 **向上（Up）** 键盘事件，并关闭您的 **Media Player** 变量，使用 **播放（Play）** 和 **暂停（Pause）**，如下所示。 
 
 	![](ControllingPlayback_08.png)
 
-1.	添加一个 **Event Begin Play** 节点和 **Media Player** 变量，然后使用 **Open Source** 打开 **MyVideo** 文件媒体源资源。
+	当播放器按下 **向上（Up）** 箭头键盘键时，媒体源将开始播放，而再按一次则会暂停视频。 
+
+	[REGION:note]
+	暂停对应于将播放速率（Play Rate）设置为0.0，但并非所有媒体源都支持暂停（例如网络摄像头和其他视频捕捉硬件源）。 
+	您可以使用 **可以暂停（Can Pause）** 蓝图节点来确定媒体源是否支持暂停。 
+	[/REGION]
+
+1.	添加 **向左（Left）** 和 **向右（Right）** 键盘事件，然后关闭您的 **Media Player** 变量，使左键在 **-2** 处，右键在 **2** 处。 
 
 	![](ControllingPlayback_09.png)
 
-1.	添加一个 **2** 键盘事件，将 **Pressed** 设为 **播放** **MediaPlayer** 资源。 
+	这将使播放器能够按下左箭头键盘键把视频播放速率（Play Rate）设置为-2（以两倍的速度反向播放视频，值为1.0是正常的正向播放）。 
+	当您按下右箭头键后，视频将以两倍正常播放速率快进。您可以添加额外的蓝图逻辑来确定播放器按下倒回或快进键的次数，并将播放速率（Play Rate）从2倍增加或减少到4倍、6倍或更高。
+
+	[REGION:note]
+	即使播放器插件支持1.0之外的播放速率，可以选择的实际播放速率也将取决于正在使用的媒体源。 
+	您可以使用 **获取快进速率（Get Forward Rates）** 或 **获取倒回速率（Get Reverse Rates）** 蓝图节点检查受支持的速率，或者使用 **支持速率（Support Rate）** 函数输入速率以确定是否支持该速率。 
+
+	![](SupportRates.jpg)
+
+	**稀疏化（Thinned）** 和 **非稀疏化（Unthinned）** 速率之间存在区别。“稀疏化”意味着使用此速率时某些帧将被略过，而“非稀疏化”意味着使用此速率时所有帧都将被解码。 
+
+	[/REGION]
+
+1.	添加一个连接到 **触发器（Flip Flop）** 的 **向下（Down）** 键盘事件，然后关闭 **媒体播放器（Media Player）** 引用，使用 **获取时间（Get Time）** 函数调用。 
 
 	![](ControllingPlayback_10.png)
 
-1.	添加 **1** 和 **3** 键盘事件（两者均使用 **MediaPlayer** 资源的 **Set Rate**）并调整每个节点的 **Rate** 数值。Rate 设为 **-1.0** 后视频将反向播放；Rate 设为 **2.0** 将 2 倍加速向前播放。 
+	**获取时间（Get Time）** 函数调用将返回当前播放时间，当我们想要重新打开视频和恢复视频播放时，将存储和使用该当前播放时间。 
+
+1.	右键单击 **获取时间（Get Time）** 节点的 **返回值（Return Value）**，并将其提升至名为 **停止时间（Stop Time）** 的变量，然后将所有节点连接到 **关闭（Close）** 函数调用，如图所示。 
 
 	![](ControllingPlayback_11.png)
 
-	[REGION:warning]
-	在当前版本中，向媒体播放器资源发出命令时声音同步可能出现问题。建议在命令之间插入短暂延迟，为播放器留出处理时间。我们已知此问题并正在研究修复方法，争取在之后的引擎更新中将其完美解决。 
-	[/REGION]
+	这样将在按下向下箭头键盘键时关闭媒体播放器，但存储媒体播放器被停止于某个变量时的当前时间。 
 
-1.	关闭 **关卡蓝图**，点击 **Play** 按钮在编辑器中开始游戏。 
+1.	关闭 **触发器（Flip Flop）** 的 **B** 引脚，使用 **开放源（Open Source）** 节点并将 **媒体源（Media Source）** 设置为您的 **视频（Video）** 媒体源。 
 
+	![](ControllingPlayback_12.png)
+
+	这样将重新打开您的视频，但会从头开始播放视频，我们将在接下来的几个步骤中解决这个问题。 
+
+1.	拖走 **媒体播放器（Media Player）** 引用，使用 **在打开的媒体上指定（Assign On Media Opened）** 事件调度器，并进行连接，如图所示。 
+
+	![](ControllingPlayback_13.png)
+
+	这样将创建一个[事件调度器](Engine/Blueprints/UserGuide/EventDispatcher/)，该调度器仅在媒体源完全打开时才会调用连接的事件。 
+	在向媒体播放器发出命令时，以这种方式操作是一种好办法，因为它可以确保在试图告诉媒体播放器做某事之前已经打开媒体源。 
+	如果我们在打开媒体播放器后直接向它发出命令，则不能保证该媒体源已经完全打开并能够接收命令，而这可能会导致命令失败。 
+
+1.	关闭您的 **媒体播放器（Media Player）** 引用，调用 **Seek** 函数，然后调用 **Play** 函数。 
+
+1.	将 **Stop Time** 变量连接到 **寻找（Seek）** 节点的 **时间（Time）** 引脚，并将 **寻找（Seek）** 和 **播放（Play）** 节点连接到 **OnMediaOpened** 事件，如图所示。 
+
+	![](ControllingPlayback_14.png)
+
+	现在，当播放器按向下箭头键时，当前时间将在关闭媒体播放器之前存储。 
+	再次按下时，**视频（Video）** 媒体源将打开，而且当其完全打开后，在播放视频之前，该视频会移动到指定的 **停止时间（Stop Time）**（恢复播放）。 
+
+1.	关闭 **关卡蓝图（Level Blueprint）** 并从主工具栏单击 **播放（Play）** 按钮以在编辑器中播放。 
+
+(#endresult)
 
 ## 最终结果
 
+您现在可以使用 **向上（Up）**、**向下（Down）**、**向左（Left）** 和 **向右（Right）** 方向键来控制视频的播放。 
+
 [OBJECT:EmbeddedVideo]
-[PARAMLITERAL:width]
-640
-[/PARAMLITERAL]
-[PARAMLITERAL:height]
-360
-[/PARAMLITERAL]
-[PARAMLITERAL:videoid]
-s6rTrV5-Mdo
-[/PARAMLITERAL]
+	[PARAMLITERAL:videoid]
+	jNDpBQFRVQw
+	[/PARAMLITERAL]
+	[PARAMLITERAL:width]
+	100
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	56.25
+	[/PARAMLITERAL]
+	[PARAMLITERAL:units]
+	%
+	[/PARAMLITERAL]
+	[PARAMLITERAL:type]
+	simple
+	[/PARAMLITERAL]
 [/OBJECT]
 
-在编辑器中进行游戏时，关卡加载后视频不会立即开始播放。玩家按下 **2** 键后视频将开始播放。 
-按下 **1** 键将倒回视频；按下 **3** 键将快进视频。 
+按下 **向上（Up）** 方向键将播放/暂停视频，按下 **向下（Down）** 方向键将关闭/重新打开视频，按下 **向左（Left）** 方向键将倒回视频，按下 **向右（Right）** 方向键将快进视频。 
 
-倒回和快进的速率由 **Set Rate** 节点上的 **Rate** 数值决定。调整数值加快倒回和快进时的播放速率。 
-
-此例是绑定到键盘按键，也可在以 UMG 构建的用户界面中执行相同功能（在此界面中玩家点击按钮可执行相同命令）。 
-
-## 其他注意事项
-
-部分高级播放功能的使用取决于媒体源，以及使用的播放器插件。 
-例如，并非所有媒体源都支持寻找和修改播放速率，并非所有播放器插件都支持这些功能。 
-
-部分媒体源和播放器的组合可进行速率修改，但只能在特定的速率范围内进行，否则播放将被削减（即出现跳帧）。 
-部分播放功能可通过蓝图进行查询，如 CanPause、GetForwardRates、GetReverseRates。 
-所有播放函数（Play、Rewind、Pause、SetRate 等）将提供一个布尔返回值，说明所需操作是否成功。
-
-Windows 的 WmfMedia 播放器插件当前也存在限制，无法进行播放函数的链式调用。举例而言，将命令链中的命令串在一起，如 Play -> SetRate -> Pause -> SetRate -> Play： 
-
-[REGION:lightbox]
-[![](ExampleChain.png)](ExampleChain.png)
-[/REGION]
-
-_点击查看全图。_
-
-媒体播放器的状态机可能出现故障，恢复的唯一方法是重新打开媒体源或播放列表。 
-
-如需进行链式调用，一个也许可行的解决方法是在每个调用之间插入 Delay 节点，为播放器留出足够时间来处理当前的命令。 
-
-![](ExampleChainDelays.png)
 
 
 

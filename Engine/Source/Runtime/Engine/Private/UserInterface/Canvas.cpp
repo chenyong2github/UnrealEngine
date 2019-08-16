@@ -639,11 +639,8 @@ FCanvas::~FCanvas()
 	}
 }
 
-void FCanvas::Flush_RenderThread(FRHICommandListImmediate& RHICmdList, bool bForce)
+void FCanvas::Flush_RenderThread(FRHICommandListImmediate& RHICmdList, bool bForce, bool bInsideRenderPass)
 {
-	// This renderpass is self contained.
-	check(RHICmdList.IsOutsideRenderPass());
-
 	SCOPE_CYCLE_COUNTER(STAT_Canvas_FlushTime);
 
 	if (!(AllowedModes&Allow_Flush) && !bForce)
@@ -661,9 +658,7 @@ void FCanvas::Flush_RenderThread(FRHICommandListImmediate& RHICmdList, bool bFor
 	}
 
 	// Update the font cache with new text before elements are drawn
-	{
-		FEngineFontServices::Get().UpdateCache();
-	}
+	FEngineFontServices::Get().UpdateCache();
 
 	// FCanvasSortElement compare class
 	struct FCompareFCanvasSortElement
@@ -677,22 +672,32 @@ void FCanvas::Flush_RenderThread(FRHICommandListImmediate& RHICmdList, bool bFor
 	SortedElements.Sort(FCompareFCanvasSortElement());
 
 	SCOPED_DRAW_EVENT(RHICmdList, CanvasFlush);
-	const FTexture2DRHIRef& RenderTargetTexture = RenderTarget->GetRenderTargetTexture();
 
-	check(IsValidRef(RenderTargetTexture));
-
-	FRHIRenderPassInfo RPInfo(RenderTargetTexture, ERenderTargetActions::Load_Store);
-	
-	// Set the RHI render target.
-	if (IsUsingInternalTexture())
+	if (!bInsideRenderPass)
 	{
-		RPInfo.ColorRenderTargets[0].Action = ERenderTargetActions::Clear_Store;
+		const FTexture2DRHIRef& RenderTargetTexture = RenderTarget->GetRenderTargetTexture();
+
+		check(IsValidRef(RenderTargetTexture));
+		check(RHICmdList.IsOutsideRenderPass());
+
+		FRHIRenderPassInfo RPInfo(RenderTargetTexture, ERenderTargetActions::Load_Store);
+
+		// Set the RHI render target.
+		if (IsUsingInternalTexture())
+		{
+			RPInfo.ColorRenderTargets[0].Action = ERenderTargetActions::Clear_Store;
+		}
+
+		RHICmdList.BeginRenderPass(RPInfo, TEXT("CanvasRenderThread"));
 	}
-	
-	RHICmdList.BeginRenderPass(RPInfo, TEXT("CanvasRenderThread"));
+	else
 	{
+		check(RHICmdList.IsInsideRenderPass());
+	}
+
+	{
+		// Disable depth test & writes
 		FMeshPassProcessorRenderState DrawRenderState;
-		// disable depth test & writes
 		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
 
 		if (ViewRect.Area() <= 0)
@@ -739,7 +744,11 @@ void FCanvas::Flush_RenderThread(FRHICommandListImmediate& RHICmdList, bool bFor
 			LastElementIndex = INDEX_NONE;
 		}
 	}
-	RHICmdList.EndRenderPass();	
+
+	if (!bInsideRenderPass)
+	{
+		RHICmdList.EndRenderPass();
+	}
 }
 
 void FCanvas::Flush_GameThread(bool bForce)
@@ -976,6 +985,7 @@ void FCanvas::Clear(const FLinearColor& ClearColor)
 				{
 					// do fast clear
 					FRHIRenderPassInfo RPInfo(CanvasRenderTarget->GetRenderTargetTexture(), ERenderTargetActions::Clear_Store);
+					TransitionRenderPassTargets(RHICmdList, RPInfo);
 					RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearCanvas"));
 					RHICmdList.EndRenderPass();					
 				}
@@ -1372,22 +1382,39 @@ void UCanvas::UpdateSafeZoneData()
 
 		SafeZonePadX = (CachedDisplayWidth - (CachedDisplayWidth * SafeRegionPercentage.X))/2.f;
 		SafeZonePadY = (CachedDisplayHeight - (CachedDisplayHeight * SafeRegionPercentage.Y))/2.f;
-		SafeZonePadX = SafeZonePadEX;
-		SafeZonePadY = SafeZonePadEY;
+		SafeZonePadEX = SafeZonePadX;
+		SafeZonePadEY = SafeZonePadY;
 	}
 	else if(FSlateApplication::IsInitialized())
 	{
 		FDisplayMetrics DisplayMetrics;
-
 		FSlateApplication::Get().GetCachedDisplayMetrics(DisplayMetrics);
+ 		CachedDisplayWidth = DisplayMetrics.PrimaryDisplayWidth;
+ 		CachedDisplayHeight = DisplayMetrics.PrimaryDisplayHeight;
 
-		SafeZonePadX = FMath::CeilToInt(DisplayMetrics.TitleSafePaddingSize.X);
-		SafeZonePadY = FMath::CeilToInt(DisplayMetrics.TitleSafePaddingSize.Y);
-		SafeZonePadEX = FMath::CeilToInt(DisplayMetrics.TitleSafePaddingSize.Z);
-		SafeZonePadEY = FMath::CeilToInt(DisplayMetrics.TitleSafePaddingSize.W);
+#if PLATFORM_DESKTOP
+		TSharedPtr<SWindow> Window = FSlateApplication::Get().GetActiveTopLevelWindow();
+		if (Window.IsValid())
+		{
+			FVector2D WindowSize = Window->GetClientSizeInScreen();
+			if (ISlateViewport* SlateViewport = Window->GetViewport().Get())
+			{
+				WindowSize = SlateViewport->GetSize();
+			}
 
-		CachedDisplayWidth = DisplayMetrics.PrimaryDisplayWidth;
-		CachedDisplayHeight = DisplayMetrics.PrimaryDisplayHeight;
+			CachedDisplayWidth = WindowSize.X;
+			CachedDisplayHeight = WindowSize.Y;
+		}
+#endif
+
+		const FVector2D EffectiveScreenSize = FVector2D(CachedDisplayWidth, CachedDisplayHeight);
+		FMargin SafeZone;
+		FSlateApplication::Get().GetSafeZoneSize(/*out*/ SafeZone, EffectiveScreenSize);
+
+		SafeZonePadX = FMath::CeilToInt(SafeZone.Left);
+		SafeZonePadY = FMath::CeilToInt(SafeZone.Top);
+		SafeZonePadEX = FMath::CeilToInt(SafeZone.Right);
+		SafeZonePadEY = FMath::CeilToInt(SafeZone.Bottom);
 	}
 
 }
@@ -1467,6 +1494,8 @@ ESimpleElementBlendMode FCanvas::BlendToSimpleElementBlend(EBlendMode BlendMode)
 			return SE_BLEND_Modulate;
 		case BLEND_AlphaComposite:
 			return SE_BLEND_AlphaComposite;
+		case BLEND_AlphaHoldout:
+			return SE_BLEND_AlphaHoldout;
 		case BLEND_Translucent:
 		default:
 			return SE_BLEND_Translucent;

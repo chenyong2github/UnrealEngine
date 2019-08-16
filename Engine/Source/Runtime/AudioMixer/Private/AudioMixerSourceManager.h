@@ -11,6 +11,7 @@
 #include "AudioMixerBus.h"
 #include "DSP/InterpolatedOnePole.h"
 #include "DSP/Filter.h"
+#include "DSP/InterpolatedOnePole.h"
 #include "DSP/EnvelopeFollower.h"
 #include "DSP/ParamInterpolator.h"
 #include "DSP/BufferVectorOperations.h"
@@ -103,10 +104,12 @@ namespace Audio
 		USpatializationPluginSourceSettingsBase* SpatializationPluginSettings;
 		UOcclusionPluginSourceSettingsBase* OcclusionPluginSettings;
 		UReverbPluginSourceSettingsBase* ReverbPluginSettings;
+		USoundModulationPluginSourceSettingsBase* ModulationPluginSettings;
 		FName AudioComponentUserID;
 		uint64 AudioComponentID;
 		uint8 bPlayEffectChainTails : 1;
 		uint8 bUseHRTFSpatialization : 1;
+		uint8 bIsExternalSend : 1;
 		uint8 bIsDebugMode : 1;
 		uint8 bOutputToBusOnly : 1;
 		uint8 bIsVorbis : 1;
@@ -127,9 +130,11 @@ namespace Audio
 			, SpatializationPluginSettings(nullptr)
 			, OcclusionPluginSettings(nullptr)
 			, ReverbPluginSettings(nullptr)
+			, ModulationPluginSettings(nullptr)
 			, AudioComponentID(0)
 			, bPlayEffectChainTails(false)
 			, bUseHRTFSpatialization(false)
+			, bIsExternalSend(false)
 			, bIsDebugMode(false)
 			, bOutputToBusOnly(false)
 			, bIsVorbis(false)
@@ -164,7 +169,7 @@ namespace Audio
 			CopySize = InNumInChannels * InNumOutChannels * sizeof(float);
 			FMemory::Memzero(ChannelStartGains, CopySize);
 			FMemory::Memzero(ChannelDestinationGains, CopySize);
-			bIsInit = true;
+			bIsInit = false;
 		}
 
 		FORCEINLINE void CopyDestinationToStart()
@@ -175,16 +180,17 @@ namespace Audio
 		FORCEINLINE void SetChannelMap(const float* RESTRICT InChannelGains)
 		{
 			FMemory::Memcpy(ChannelDestinationGains, InChannelGains, CopySize);
-			if (bIsInit)
+			if (!bIsInit)
 			{
 				FMemory::Memcpy(ChannelStartGains, InChannelGains, CopySize);
+				bIsInit = true;
 			}
 		}
 
 	private:
 		FSourceChannelMap()
 			: CopySize(0)
-			, bIsInit(true)
+			, bIsInit(false)
 		{
 		}
 	};
@@ -488,8 +494,10 @@ namespace Audio
 			uint8 bHasStarted:1;
 			uint8 bIsBusy:1;
 			uint8 bUseHRTFSpatializer:1;
+			uint8 bIsExternalSend:1;
 			uint8 bUseOcclusionPlugin:1;
 			uint8 bUseReverbPlugin:1;
+			uint8 bUseModulationPlugin:1;
 			uint8 bIsDone:1;
 			uint8 bIsLastBuffer:1;
 			uint8 bOutputToBusOnly:1;
@@ -562,6 +570,7 @@ namespace Audio
 
 		uint8 bInitialized : 1;
 		uint8 bUsingSpatializationPlugin : 1;
+		int32 MaxChannelsSupportedBySpatializationPlugin;
 
 		// Set to true when the audio source manager should pump the command queue
 		FThreadSafeBool bPumpQueue;

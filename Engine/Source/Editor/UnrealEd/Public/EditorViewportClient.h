@@ -300,7 +300,7 @@ public:
 	/** @return		True if viewport is in realtime mode, false otherwise. */
 	bool IsRealtime() const
 	{ 
-		return bIsRealtime || RealTimeFrameCount != 0;
+		return bIsRealtime || GFrameCounter < RealTimeUntilFrameNumber;
 	}
 
 	/**
@@ -309,9 +309,9 @@ public:
 	 * this can be used to ensure that not only the viewport renders a frame, but also that the world ticks
 	 * @param NumExtraFrames 		The number of extra real time frames to draw
 	 */
-	void RequestRealTimeFrames(uint32 NumRealTimeFrames = 1)
+	virtual void RequestRealTimeFrames(uint64 NumRealTimeFrames = 1)
 	{
-		RealTimeFrameCount = FMath::Max(NumRealTimeFrames, RealTimeFrameCount);
+		RealTimeUntilFrameNumber = FMath::Max(GFrameCounter + NumRealTimeFrames, RealTimeUntilFrameNumber);
 	}
 
 	/**
@@ -472,7 +472,7 @@ public:
 	FViewportCursorLocation GetCursorWorldLocationFromMousePos();
 
 	/** FViewportClient interface */
-	virtual void ProcessScreenShots(FViewport* Viewport) override;
+	virtual bool ProcessScreenShots(FViewport* Viewport) override;
 	virtual void RedrawRequested(FViewport* Viewport) override;
 	virtual void RequestInvalidateHitProxy(FViewport* Viewport) override;
 	virtual bool InputKey(FViewport* Viewport, int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed = 1.f, bool bGamepad=false) override;
@@ -495,6 +495,7 @@ public:
 
 	/** FGCObject interface */
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	virtual FString GetReferencerName() const override;
 
 	/**
 	 * Called when the user clicks in the viewport
@@ -564,6 +565,11 @@ public:
 	 */
 	virtual FMatrix GetWidgetCoordSystem() const;
 
+	/**
+	* @return The local coordinate system for the transform widget.
+	* For world coordiante system return the identity matrix
+	*/
+	virtual FMatrix GetLocalCoordinateSystem() const;
 	/**
 	 * Sets the coordinate system space to use
 	 */
@@ -949,7 +955,7 @@ public:
 	void MarkMouseMovedSinceClick();
 
 	/** Determines whether this viewport is currently allowed to use Absolute Movement */
-	bool IsUsingAbsoluteTranslation() const;
+	bool IsUsingAbsoluteTranslation(bool bAlsoCheckAbsoluteRotation = false) const;
 
 	bool IsForcedRealtimeAudio() const { return bForceAudioRealtime; }
 
@@ -1531,6 +1537,16 @@ protected:
 	uint32 CachedMouseX;
 	uint32 CachedMouseY;
 
+	/** Represents the last mouse position. It is constantly updated on tick so it can also be the current position. */
+	int32 CachedLastMouseX = 0;
+	int32 CachedLastMouseY = 0;
+
+	/** True is the use is controling the light via a*/
+	bool bUserIsControllingSunLight = false;
+	float UserIsControllingSunLightTimer = 0.0f;
+	FTransform UserControlledSunLightMatrix;
+
+
 	// -1, -1 if not set
 	FIntPoint CurrentMousePos;
 
@@ -1553,8 +1569,8 @@ protected:
 	/** If true, force this viewport to use real time audio regardless of other settings */
 	bool bForceAudioRealtime;
 
-	/** Counter to force real-time mode for a number of frames. Overrides bIsRealtime when non-zero. */
-	uint32 RealTimeFrameCount;
+	/** Overrides bIsRealtime until GFrameCounter is >= this number. Used to force viewports to draw a number of frames even if they are otherwise non-realtime viewports. */
+	uint64 RealTimeUntilFrameNumber;
 
 	/** if the viewport is currently realtime */
 	bool bIsRealtime;

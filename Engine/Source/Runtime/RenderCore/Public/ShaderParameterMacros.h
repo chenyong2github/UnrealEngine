@@ -128,7 +128,7 @@ public:
 private:
 
 	/** A private constructor used to coerce an arbitrary RHI uniform buffer reference to a structured reference. */
-	TUniformBufferRef(FUniformBufferRHIParamRef InRHIRef)
+	TUniformBufferRef(FRHIUniformBuffer* InRHIRef)
 	: FUniformBufferRHIRef(InRHIRef)
 	{}
 
@@ -149,26 +149,28 @@ struct alignas(SHADER_PARAMETER_STRUCT_ALIGNMENT) FRenderTargetBinding
 	 *
 	 * Notes: Load and store action are on purpose without default values, to force the user to not forget one of these.
 	 */
-	FRenderTargetBinding(const FRDGTexture* InTexture, ERenderTargetLoadAction InLoadAction, ERenderTargetStoreAction InStoreAction, uint8 InMipIndex = 0)
+	FRenderTargetBinding(FRDGTexture* InTexture, ERenderTargetLoadAction InLoadAction, ERenderTargetStoreAction InStoreAction, uint8 InMipIndex = 0)
 		: Texture(InTexture)
 		, LoadAction(InLoadAction)
 		, StoreAction(InStoreAction)
 		, MipIndex(InMipIndex)
-	{}
+	{
+		check(Validate());
+	}
 
-	inline const FRDGTexture* GetTexture() const
+	FORCEINLINE FRDGTexture* GetTexture() const
 	{
 		return Texture;
 	}
-	inline ERenderTargetLoadAction GetLoadAction() const
+	FORCEINLINE ERenderTargetLoadAction GetLoadAction() const
 	{
 		return LoadAction;
 	}
-	inline ERenderTargetStoreAction GetStoreAction() const
+	FORCEINLINE ERenderTargetStoreAction GetStoreAction() const
 	{
 		return StoreAction;
 	}
-	inline uint8 GetMipIndex() const
+	FORCEINLINE uint8 GetMipIndex() const
 	{
 		return MipIndex;
 	}
@@ -177,27 +179,94 @@ private:
 	/** All parameters required to bind a render target deferred. This are purposefully private to
 	 * force the user to call FRenderTargetBinding() constructor, forcing him to specify the load and store action.
 	 */
-	TAlignedShaderParameterPtr<const FRDGTexture*> Texture;
+	TAlignedShaderParameterPtr<FRDGTexture*> Texture;
 	ERenderTargetLoadAction		LoadAction		= ERenderTargetLoadAction::ENoAction;
 	ERenderTargetStoreAction	StoreAction		= ERenderTargetStoreAction::ENoAction;
 	uint8						MipIndex		= 0;
+
+	RENDERCORE_API bool Validate() const;
 };
 
 
 /** Render graph information about how to bind a depth-stencil render target. */
 struct alignas(SHADER_PARAMETER_STRUCT_ALIGNMENT) FDepthStencilBinding
 {
-	FDepthStencilBinding()
-		: Texture(nullptr)
-	{ }
+	FDepthStencilBinding() = default;
 	FDepthStencilBinding(const FDepthStencilBinding&) = default;
+	
+	/**
+	 * Creates a render target binding informations for a depth/stencil texture.
+	 *
+	 * Notes: Load and store action are on explicit without default values, to force the user to not forget one of these.
+	 */
+	FORCEINLINE FDepthStencilBinding(
+		FRDGTexture* InTexture,
+		ERenderTargetLoadAction InDepthLoadAction,
+		ERenderTargetStoreAction InDepthStoreAction,
+		ERenderTargetLoadAction InStencilLoadAction,
+		ERenderTargetStoreAction InStencilStoreAction,
+		FExclusiveDepthStencil InDepthStencilAccess)
+		: Texture(InTexture)
+		, DepthLoadAction(InDepthLoadAction)
+		, DepthStoreAction(InDepthStoreAction)
+		, StencilLoadAction(InStencilLoadAction)
+		, StencilStoreAction(InStencilStoreAction)
+		, DepthStencilAccess(InDepthStencilAccess)
+	{
+		check(Validate());
+	}
 
-	TAlignedShaderParameterPtr<const FRDGTexture*> Texture;
+	FORCEINLINE FDepthStencilBinding(
+		FRDGTexture* InTexture,
+		ERenderTargetLoadAction InDepthLoadAction,
+		ERenderTargetStoreAction InDepthStoreAction,
+		FExclusiveDepthStencil InDepthStencilAccess)
+		: Texture(InTexture)
+		, DepthLoadAction(InDepthLoadAction)
+		, DepthStoreAction(InDepthStoreAction)
+		, DepthStencilAccess(InDepthStencilAccess)
+	{
+		check(Validate());
+	}
+
+	FORCEINLINE FRDGTexture* GetTexture() const
+	{
+		return Texture;
+	}
+	FORCEINLINE ERenderTargetLoadAction GetDepthLoadAction() const
+	{
+		return DepthLoadAction;
+	}
+	FORCEINLINE ERenderTargetStoreAction GetDepthStoreAction() const
+	{
+		return DepthStoreAction;
+	}
+	FORCEINLINE ERenderTargetLoadAction GetStencilLoadAction() const
+	{
+		return StencilLoadAction;
+	}
+	FORCEINLINE ERenderTargetStoreAction GetStencilStoreAction() const
+	{
+		return StencilStoreAction;
+	}
+	FORCEINLINE FExclusiveDepthStencil GetDepthStencilAccess() const
+	{
+		return DepthStencilAccess;
+	}
+
+private:
+	/** 
+	 * All parameters required to bind a depth render target deferred. This are purposefully private to
+	 * force the user to call FDepthStencilBinding() constructors, forcing him to specify the mendatory parameter without forgetting one.
+	 */
+	TAlignedShaderParameterPtr<FRDGTexture*> Texture = nullptr;
 	ERenderTargetLoadAction		DepthLoadAction		= ERenderTargetLoadAction::ENoAction;
 	ERenderTargetStoreAction	DepthStoreAction	= ERenderTargetStoreAction::ENoAction;
 	ERenderTargetLoadAction		StencilLoadAction	= ERenderTargetLoadAction::ENoAction;
 	ERenderTargetStoreAction	StencilStoreAction	= ERenderTargetStoreAction::ENoAction;
 	FExclusiveDepthStencil		DepthStencilAccess	= FExclusiveDepthStencil::DepthNop_StencilNop;
+
+	RENDERCORE_API bool Validate() const;
 };
 
 
@@ -454,6 +523,21 @@ struct TShaderParameterTypeInfo<FIntVector4>
 };
 
 template<>
+struct TShaderParameterTypeInfo<FUintVector4>
+{
+	static constexpr EUniformBufferBaseType BaseType = UBMT_UINT32;
+	static constexpr int32 NumRows = 1;
+	static constexpr int32 NumColumns = 4;
+	static constexpr int32 NumElements = 0;
+	static constexpr int32 Alignment = 16;
+	static constexpr bool bIsStoredInConstantBuffer = true;
+
+	using TAlignedType = TAlignedTypedef<FUintVector4, Alignment>::Type;
+
+	static const FShaderParametersMetadata* GetStructMetadata() { return nullptr; }
+};
+
+template<>
 struct TShaderParameterTypeInfo<FIntRect>
 {
 	static constexpr EUniformBufferBaseType BaseType = UBMT_INT32;
@@ -557,6 +641,34 @@ struct TShaderParameterTypeInfo<TUniformBufferRef<UniformBufferStructType>>
 	static const FShaderParametersMetadata* GetStructMetadata() { return &UniformBufferStructType::StaticStructMetadata; }
 };
 
+template<typename StructType>
+struct TShaderParameterStructTypeInfo
+{
+	static constexpr int32 NumRows = 1;
+	static constexpr int32 NumColumns = 1;
+	static constexpr int32 NumElements = 0;
+	static constexpr int32 Alignment = SHADER_PARAMETER_STRUCT_ALIGNMENT;
+	static constexpr bool bIsStoredInConstantBuffer = true;
+
+	using TAlignedType = StructType;
+
+	static const FShaderParametersMetadata* GetStructMetadata() { return StructType::FTypeInfo::GetStructMetadata(); }
+};
+
+template<typename StructType, size_t InNumElements>
+struct TShaderParameterStructTypeInfo<StructType[InNumElements]>
+{
+	static constexpr int32 NumRows = 1;
+	static constexpr int32 NumColumns = 1;
+	static constexpr int32 NumElements = InNumElements;
+	static constexpr int32 Alignment = SHADER_PARAMETER_STRUCT_ALIGNMENT;
+	static constexpr bool bIsStoredInConstantBuffer = true;
+
+	using TAlignedType = TStaticArray<StructType, InNumElements>;
+
+	static const FShaderParametersMetadata* GetStructMetadata() { return StructType::FTypeInfo::GetStructMetadata(); }
+};
+
 
 #define INTERNAL_BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT \
 	static FShaderParametersMetadata StaticStructMetadata; \
@@ -616,7 +728,6 @@ struct TShaderParameterTypeInfo<TUniformBufferRef<UniformBufferStructType>>
 		struct zzNextMemberId##MemberName { enum { HasDeclaredResource = zzMemberId##MemberName::HasDeclaredResource || !TypeInfo::bIsStoredInConstantBuffer }; }; \
 		static TArray<FShaderParametersMetadata::FMember> zzGetMembersBefore(zzNextMemberId##MemberName) \
 		{ \
-			static_assert(!TypeInfo::bIsStoredInConstantBuffer || zzMemberId##MemberName::HasDeclaredResource == 0, "Shader resources must be declared after " #MemberName "."); \
 			static_assert(TypeInfo::bIsStoredInConstantBuffer || TIsArrayOrRefOfType<decltype(OptionalShaderType), TCHAR>::Value, "No shader type for " #MemberName "."); \
 			/* Route the member enumeration on to the function for the member following this. */ \
 			TArray<FShaderParametersMetadata::FMember> OutMembers = zzGetMembersBefore(zzMemberId##MemberName()); \
@@ -718,10 +829,10 @@ extern RENDERCORE_API FShaderParametersMetadata* FindUniformBufferStructByFName(
  *	SHADER_PARAMETER_TEXTURE_ARRAY(Texture2D, MyArrayOfTextures, [8])
  */
 #define SHADER_PARAMETER_TEXTURE(ShaderType,MemberName) \
-	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_TEXTURE, TShaderResourceParameterTypeInfo<FTextureRHIParamRef>, FTextureRHIParamRef,MemberName,, = nullptr,EShaderPrecisionModifier::Float,TEXT(#ShaderType),false)
+	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_TEXTURE, TShaderResourceParameterTypeInfo<FRHITexture*>, FRHITexture*,MemberName,, = nullptr,EShaderPrecisionModifier::Float,TEXT(#ShaderType),false)
 
 #define SHADER_PARAMETER_TEXTURE_ARRAY(ShaderType,MemberName, ArrayDecl) \
-	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_TEXTURE, TShaderResourceParameterTypeInfo<FTextureRHIParamRef ArrayDecl>, FTextureRHIParamRef,MemberName,ArrayDecl,,EShaderPrecisionModifier::Float,TEXT(#ShaderType),false)
+	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_TEXTURE, TShaderResourceParameterTypeInfo<FRHITexture* ArrayDecl>, FRHITexture*,MemberName,ArrayDecl,,EShaderPrecisionModifier::Float,TEXT(#ShaderType),false)
 
 /** Adds a shader resource view.
  *
@@ -730,10 +841,18 @@ extern RENDERCORE_API FShaderParametersMetadata* FindUniformBufferStructByFName(
  *	SHADER_PARAMETER_SRV_ARRAY(Texture2D, MyArrayOfSRVs, [8])
  */
 #define SHADER_PARAMETER_SRV(ShaderType,MemberName) \
-	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_SRV, TShaderResourceParameterTypeInfo<FShaderResourceViewRHIParamRef>, FShaderResourceViewRHIParamRef,MemberName,, = nullptr,EShaderPrecisionModifier::Float,TEXT(#ShaderType),false)
+	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_SRV, TShaderResourceParameterTypeInfo<FRHIShaderResourceView*>, FRHIShaderResourceView*,MemberName,, = nullptr,EShaderPrecisionModifier::Float,TEXT(#ShaderType),false)
 
 #define SHADER_PARAMETER_SRV_ARRAY(ShaderType,MemberName, ArrayDecl) \
-	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_SRV, TShaderResourceParameterTypeInfo<FShaderResourceViewRHIParamRef ArrayDecl>, FShaderResourceViewRHIParamRef,MemberName,ArrayDecl,,EShaderPrecisionModifier::Float,TEXT(#ShaderType),false)
+	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_SRV, TShaderResourceParameterTypeInfo<FRHIShaderResourceView* ArrayDecl>, FRHIShaderResourceView*,MemberName,ArrayDecl,,EShaderPrecisionModifier::Float,TEXT(#ShaderType),false)
+
+/** Adds an unordered access view.
+ *
+ * Example:
+ *	SHADER_PARAMETER_UAV(Texture2D, MyUAV)
+ */
+#define SHADER_PARAMETER_UAV(ShaderType,MemberName) \
+	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_UAV, TShaderResourceParameterTypeInfo<FRHIUnorderedAccessView*>, FRHIUnorderedAccessView*,MemberName,, = nullptr,EShaderPrecisionModifier::Float,TEXT(#ShaderType),false)
 
 /** Adds a sampler.
  *
@@ -742,10 +861,10 @@ extern RENDERCORE_API FShaderParametersMetadata* FindUniformBufferStructByFName(
  *	SHADER_PARAMETER_SAMPLER_ARRAY(SamplerState, MyArrayOfSamplers, [8])
  */
 #define SHADER_PARAMETER_SAMPLER(ShaderType,MemberName) \
-	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_SAMPLER, TShaderResourceParameterTypeInfo<FSamplerStateRHIParamRef>, FSamplerStateRHIParamRef,MemberName,, = nullptr,EShaderPrecisionModifier::Float,TEXT(#ShaderType),false)
+	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_SAMPLER, TShaderResourceParameterTypeInfo<FRHISamplerState*>, FRHISamplerState*,MemberName,, = nullptr,EShaderPrecisionModifier::Float,TEXT(#ShaderType),false)
 
 #define SHADER_PARAMETER_SAMPLER_ARRAY(ShaderType,MemberName, ArrayDecl) \
-	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_SAMPLER, TShaderResourceParameterTypeInfo<FSamplerStateRHIParamRef ArrayDecl>, FSamplerStateRHIParamRef,MemberName,ArrayDecl,,EShaderPrecisionModifier::Float,TEXT(#ShaderType),false)
+	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_SAMPLER, TShaderResourceParameterTypeInfo<FRHISamplerState* ArrayDecl>, FRHISamplerState*,MemberName,ArrayDecl,,EShaderPrecisionModifier::Float,TEXT(#ShaderType),false)
 
 /** Adds a render graph tracked texture.
  *
@@ -843,6 +962,30 @@ extern RENDERCORE_API FShaderParametersMetadata* FindUniformBufferStructByFName(
  */
 #define SHADER_PARAMETER_STRUCT(StructType,MemberName) \
 	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_NESTED_STRUCT, StructType::FTypeInfo, StructType, MemberName,,,EShaderPrecisionModifier::Float,TEXT(#StructType),true)
+
+/** Nests an array of shader parameter structure into another one, in C++ and shader code.
+ *
+ * Example:
+ *	BEGIN_SHADER_PARAMETER_STRUCT(FMyNestedStruct,)
+ *		SHADER_PARAMETER(float, MyScalar)
+ *		// ...
+ *	END_SHADER_PARAMETER_STRUCT()
+ *
+ *	BEGIN_SHADER_PARAMETER_STRUCT(FOtherStruct)
+ *		SHADER_PARAMETER_STRUCT_ARRAY(FMyNestedStruct, MyStructArray, [4])
+ *
+ * C++ use case:
+ *	FOtherStruct Parameters;
+ *	Parameters.MyStructArray[0].MyScalar = 1.0f;
+ *
+ * Shader code for a globally named shader parameter struct (UNSUPPORTED):
+ *	float MyScalar = MyGlobalShaderBindingName.MyStructArray_0.MyScalar;
+ *
+ * Shader code for a unnamed shader parameter struct:
+ *	float MyScalar = MyStructArray_0_MyScalar;
+ */
+#define SHADER_PARAMETER_STRUCT_ARRAY(StructType,MemberName, ArrayDecl) \
+	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_NESTED_STRUCT, TShaderParameterStructTypeInfo<StructType ArrayDecl>, StructType, MemberName,ArrayDecl,,EShaderPrecisionModifier::Float,TEXT(#StructType),true)
 
 /** Include a shader parameter structure into another one in shader code.
  *

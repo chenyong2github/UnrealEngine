@@ -421,7 +421,12 @@ public:
 					const int32 CurWidgetsMaxLayerId = CurWidget.Widget->Paint(Args.WithNewParent(this), CurWidget.Geometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, ShouldBeEnabled(bParentEnabled));
 					MaxLayerId = FMath::Max(MaxLayerId, CurWidgetsMaxLayerId);
 				}
+				else
+				{
+					//SlateGI - RemoveContent
+				}
 			}
+
 			return MaxLayerId;
 		}
 		// End of SPanel Interface

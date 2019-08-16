@@ -1,0 +1,12 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Title: Gauntlet Automation Framework
+Description: Framework to run sessions of projects in Unreal Engine that perform tests and validate results.
+Type: landing
+Parent: Programming/Automation
+Tags: Automation
+Order: 5
+
+[INCLUDE:Programming/Automation/Gauntlet/Overview#gauntlet_intro]
+
+[DIR(output:"topic" parent:"Programming/Automation/Gauntlet")]

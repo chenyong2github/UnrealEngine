@@ -1,0 +1,105 @@
+﻿INTSourceChangelist:6549201
+Title:1.安装先决条件
+Crumbs:%ROOT%, Platforms, Platforms/Mobile/iOS, Platforms/Mobile/iOS/QuickStart
+Description:为iOS设备获取并安装开发游戏所需的所有软件。
+Availability:Docs
+Version:4.18
+SkillLevel:Intermediate
+Checkpoint:iOSQS
+order:1
+
+[VAR:Steps]
+[OBJECT:Navigation]
+    [PARAM:previous]
+    [/PARAM]
+    [PARAM:current]
+    [/PARAM]
+    [PARAM:home]
+        [快速入门主页](Platforms/Mobile/iOS/QuickStart)
+    [/PARAM]
+    [PARAM:next]
+        [下一步](Platforms/Mobile/iOS/QuickStart/2 "%Platforms/Mobile/iOS/QuickStart/2:title%")
+    [/PARAM]
+[/OBJECT]
+[/VAR]
+
+
+
+%Steps%
+
+
+%Globals:OSSelect%
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    操作系统
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    windows
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+    %windows%
+    [/PARAM]
+[/OBJECT]
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    操作系统
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    mac
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    %macos%
+    [/PARAM]
+[/OBJECT]
+
+
+
+
+[VAR:windows]
+## 步骤
+[REGION:note]
+已安装了iTunes？[可略过本节。](Platforms/Mobile/iOS/QuickStart/2)
+[/REGION]
+
+使用Windows时，您必须先安装 **iTunes** 才能打包您的iOS项目并将其部署到您的设备。可使用以下链接从Apple安装iTunes： 
+
+* [**安装iTunes（Install iTunes）**](http://www.apple.com/itunes/)
+
+    [![](itunes.png)](http://www.apple.com/itunes/)
+
+完成安装后，运行 **iTunes**。
+
+## 最终结果
+完成后，您即已安装iTunes，并能够将UE4项目部署到您的iOS设备。
+
+[/VAR]
+
+[VAR:macos]
+## 步骤
+[REGION:note]
+是否已安装XCode？[可略过本节。](Platforms/Mobile/iOS/QuickStart/2)
+[/REGION]
+
+您必须已安装最新版 **XCode** 才能打包您的iOS项目并将其部署到Mac操作系统上的设备。可使用以下链接从Apple安装XCode： 
+
+* [**安装XCode（Install XCode）**](https://developer.apple.com/xcode/)
+
+    [![](DownloadXCode.png)](https://developer.apple.com/xcode/)
+
+完成安装后，运行 **Xcode**。
+
+## 最终结果
+完成后，您即已安装XCode，并能够将UE4项目部署到您的iOS设备。
+
+[/VAR]
+
+
+
+
+%Steps%

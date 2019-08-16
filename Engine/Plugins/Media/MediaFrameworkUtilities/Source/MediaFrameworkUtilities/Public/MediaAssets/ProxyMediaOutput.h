@@ -59,6 +59,16 @@ public:
 	 */
 	void SetDynamicMediaOutput(UMediaOutput* InProxy);
 
+
+#if WITH_EDITOR
+	/**
+	 * Set the media output proxy.
+	 *
+	 * @param InProxy The proxy to use.
+	 */
+	void SetMediaOutput(UMediaOutput* InProxy);
+#endif
+
 public:
 
 	//~ UMediaOutput interface

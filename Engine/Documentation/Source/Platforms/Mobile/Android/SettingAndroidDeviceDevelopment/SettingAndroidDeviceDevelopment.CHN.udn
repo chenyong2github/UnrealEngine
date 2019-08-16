@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4673046
+﻿INTSourceChangelist:4674424
 Availability: Public
 Crumbs: 
 Title: 设置Android设备进行开发
@@ -165,9 +165,9 @@ Tags: PreRec
 
 1.  用USB线将Android设备连接到安装有Linux系统的电脑。
 2.  在Android设备上打开“设置（Settings）”应用程序。  
-    [![](LinuxAndroid_Step17.png)](http://dnnrz1gqa.evoqondemand.com/en-us/Platforms/Android/GettingStarted/LinuxAndroid_Step17.png)
+    [![](LinuxAndroid_Step17.png)](http://dnnrz1gqa.evoqondemand.com/en-us/Platforms/Mobile/Android/GettingStarted/LinuxAndroid_Step17.png)
 3.  点击 **开发者选项（Developer Options）** 打开菜单。  
-    [![](LinuxAndroid_Step18.png)](http://dnnrz1gqa.evoqondemand.com/en-us/Platforms/Android/GettingStarted/LinuxAndroid_Step18.png)
+    [![](LinuxAndroid_Step18.png)](http://dnnrz1gqa.evoqondemand.com/en-us/Platforms/Mobile/Android/GettingStarted/LinuxAndroid_Step18.png)
     [REGION:note]
     如菜单未出现，则需要在设备上启用“开发者选项”。启用方法为打开“设置”应用程序，滚动到底部并选择“关于电话（About Phone）”。选择此项后，滚动到底部并点按“版本号”7次。如需了解在Android设备上启用开发者选项的方法，请参见Android的使用者指南。
     [/REGION]
@@ -177,13 +177,13 @@ Tags: PreRec
 ## 启用USB调试
 
 1.  在 **开发者选项（Developer Options）** 菜单中启用 **USB调试（USB debugging）**。  
-    [![](LinuxAndroid_Step19.png)](http://dnnrz1gqa.evoqondemand.com/en-us/Platforms/Android/GettingStarted/LinuxAndroid_Step19.png)
+    [![](LinuxAndroid_Step19.png)](http://dnnrz1gqa.evoqondemand.com/en-us/Platforms/Mobile/Android/GettingStarted/LinuxAndroid_Step19.png)
 2.  将出现一个窗口，确认启用USB调试。阅读提示后点按 **OK** 按钮。  
-    [![](LinuxAndroid_Step20.png)](http://dnnrz1gqa.evoqondemand.com/en-us/Platforms/Android/GettingStarted/LinuxAndroid_Step20.png)
+    [![](LinuxAndroid_Step20.png)](http://dnnrz1gqa.evoqondemand.com/en-us/Platforms/Mobile/Android/GettingStarted/LinuxAndroid_Step20.png)
 3.  现在USB调试便已启用。  
     ![](LinuxAndroid_Step20Note.png)
 4.  现在断开Android设备的USB连接，并在数秒之后将其重新连接。如果连接的是运行Android 4.2.2或以上版本的设备，将出现以下对话，询问使用者是否接受允许通过Linux电脑进行调试的RSA密钥。选择 **固定允许来自此电脑的连接** 的勾选框，然后点按 **OK** 按钮。  
-    [![](LinuxAndroid_Step21.png)](http://dnnrz1gqa.evoqondemand.com/en-us/Platforms/Android/GettingStarted/LinuxAndroid_Step21.png)
+    [![](LinuxAndroid_Step21.png)](http://dnnrz1gqa.evoqondemand.com/en-us/Platforms/Mobile/Android/GettingStarted/LinuxAndroid_Step21.png)
 
 (#endresult)
 

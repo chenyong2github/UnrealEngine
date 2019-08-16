@@ -7,7 +7,9 @@
 //	Include Files
 //-----------------------------------------------------------------------------
 #include "D3D12RHIPrivate.h"
+#if !PLATFORM_HOLOLENS
 #include <emmintrin.h>
+#endif
 
 // This value defines how many descriptors will be in the device local view heap which
 // This should be tweaked for each title as heaps require VRAM. The default value of 512k takes up ~16MB
@@ -167,6 +169,9 @@ void FD3D12StateCacheBase::ClearState()
 	FMemory::Memzero(PipelineState.Graphics.CurrentViewport, sizeof(PipelineState.Graphics.CurrentViewport));
 	PipelineState.Graphics.CurrentNumberOfViewports = 0;
 
+	FMemory::Memzero(PipelineState.Graphics.CurrentScissorRects, sizeof(PipelineState.Graphics.CurrentScissorRects));
+	PipelineState.Graphics.CurrentNumberOfScissorRects = 0;
+
 	PipelineState.Compute.ComputeBudget = EAsyncComputeBudget::EAll_4;
 	PipelineState.Graphics.CurrentPipelineStateObject = nullptr;
 	PipelineState.Compute.CurrentPipelineStateObject = nullptr;
@@ -174,9 +179,6 @@ void FD3D12StateCacheBase::ClearState()
 
 	FMemory::Memzero(PipelineState.Graphics.CurrentStreamOutTargets, sizeof(PipelineState.Graphics.CurrentStreamOutTargets));
 	FMemory::Memzero(PipelineState.Graphics.CurrentSOOffsets, sizeof(PipelineState.Graphics.CurrentSOOffsets));
-
-	const CD3DX12_RECT ScissorRect(0, 0, GetMax2DTextureDimension(), GetMax2DTextureDimension());
-	SetScissorRect(ScissorRect);
 
 	PipelineState.Graphics.VBCache.Clear();
 	PipelineState.Graphics.IBCache.Clear();
@@ -279,7 +281,6 @@ void FD3D12StateCacheBase::SetViewport(const D3D12_VIEWPORT& Viewport)
 		FMemory::Memcpy(&PipelineState.Graphics.CurrentViewport[0], &Viewport, sizeof(D3D12_VIEWPORT));
 		PipelineState.Graphics.CurrentNumberOfViewports = 1;
 		bNeedSetViewports = true;
-		UpdateViewportScissorRects();
 	}
 }
 
@@ -291,49 +292,44 @@ void FD3D12StateCacheBase::SetViewports(uint32 Count, const D3D12_VIEWPORT* cons
 		FMemory::Memcpy(&PipelineState.Graphics.CurrentViewport[0], Viewports, sizeof(D3D12_VIEWPORT) * Count);
 		PipelineState.Graphics.CurrentNumberOfViewports = Count;
 		bNeedSetViewports = true;
-		UpdateViewportScissorRects();
 	}
 }
 
-void FD3D12StateCacheBase::UpdateViewportScissorRects()
+static void ValidateScissorRect(const D3D12_VIEWPORT& Viewport, const D3D12_RECT& ScissorRect)
 {
-	for (uint32 i = 0; i < PipelineState.Graphics.CurrentNumberOfScissorRects; ++i)
-	{
-		const D3D12_VIEWPORT& Viewport = PipelineState.Graphics.CurrentViewport[FMath::Min(i, PipelineState.Graphics.CurrentNumberOfViewports)];
-		const D3D12_RECT& ScissorRect = PipelineState.Graphics.CurrentScissorRects[i];
-		D3D12_RECT& ViewportScissorRect = PipelineState.Graphics.CurrentViewportScissorRects[i];
-
-		ViewportScissorRect.top = FMath::Max(ScissorRect.top, (LONG)Viewport.TopLeftY);
-		ViewportScissorRect.left = FMath::Max(ScissorRect.left, (LONG)Viewport.TopLeftX);
-		ViewportScissorRect.bottom = FMath::Min(ScissorRect.bottom, (LONG)Viewport.TopLeftY + (LONG)Viewport.Height);
-		ViewportScissorRect.right = FMath::Min(ScissorRect.right, (LONG)Viewport.TopLeftX + (LONG)Viewport.Width);
-
-		const bool ViewportEmpty = Viewport.Width <= 0 || Viewport.Height <= 0;
-		const bool ScissorEmpty = ViewportScissorRect.right <= ViewportScissorRect.left || ViewportScissorRect.bottom <= ViewportScissorRect.top;
-		check(!ViewportEmpty || ScissorEmpty);
-	}
-
-	bNeedSetScissorRects = true;
+	ensure(ScissorRect.left   >= (LONG)Viewport.TopLeftX);
+	ensure(ScissorRect.top    >= (LONG)Viewport.TopLeftY);
+	ensure(ScissorRect.right  <= (LONG)Viewport.TopLeftX + (LONG)Viewport.Width);
+	ensure(ScissorRect.bottom <= (LONG)Viewport.TopLeftY + (LONG)Viewport.Height);
+	ensure(ScissorRect.left <= ScissorRect.right && ScissorRect.top <= ScissorRect.bottom);
 }
 
 void FD3D12StateCacheBase::SetScissorRect(const D3D12_RECT& ScissorRect)
 {
+	ValidateScissorRect(PipelineState.Graphics.CurrentViewport[0], ScissorRect);
+
 	if ((PipelineState.Graphics.CurrentNumberOfScissorRects != 1 || FMemory::Memcmp(&PipelineState.Graphics.CurrentScissorRects[0], &ScissorRect, sizeof(D3D12_RECT))) || GD3D12SkipStateCaching)
 	{
 		FMemory::Memcpy(&PipelineState.Graphics.CurrentScissorRects[0], &ScissorRect, sizeof(D3D12_RECT));
 		PipelineState.Graphics.CurrentNumberOfScissorRects = 1;
-		UpdateViewportScissorRects();
+		bNeedSetScissorRects = true;
 	}
 }
 
 void FD3D12StateCacheBase::SetScissorRects(uint32 Count, const D3D12_RECT* const ScissorRects)
 {
 	check(Count < ARRAY_COUNT(PipelineState.Graphics.CurrentScissorRects));
+
+	for (uint32 Rect = 0; Rect < Count; ++Rect)
+	{
+		ValidateScissorRect(PipelineState.Graphics.CurrentViewport[Rect], ScissorRects[Rect]);
+	}
+
 	if ((PipelineState.Graphics.CurrentNumberOfScissorRects != Count || FMemory::Memcmp(&PipelineState.Graphics.CurrentScissorRects[0], ScissorRects, sizeof(D3D12_RECT) * Count)) || GD3D12SkipStateCaching)
 	{
 		FMemory::Memcpy(&PipelineState.Graphics.CurrentScissorRects[0], ScissorRects, sizeof(D3D12_RECT) * Count);
 		PipelineState.Graphics.CurrentNumberOfScissorRects = Count;
-		UpdateViewportScissorRects();
+		bNeedSetScissorRects = true;
 	}
 }
 
@@ -429,7 +425,7 @@ void FD3D12StateCacheBase::ApplyState()
 		}
 		if (bNeedSetScissorRects)
 		{
-			CommandList->RSSetScissorRects(PipelineState.Graphics.CurrentNumberOfScissorRects, PipelineState.Graphics.CurrentViewportScissorRects);
+			CommandList->RSSetScissorRects(PipelineState.Graphics.CurrentNumberOfScissorRects, PipelineState.Graphics.CurrentScissorRects);
 			bNeedSetScissorRects = false;
 		}
 		if (bNeedSetPrimitiveTopology)

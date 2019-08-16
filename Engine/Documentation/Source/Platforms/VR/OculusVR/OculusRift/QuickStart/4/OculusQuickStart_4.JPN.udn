@@ -1,0 +1,39 @@
+﻿INTSourceChangelist:3718992
+Availability:Public
+Crumbs: %ROOT%
+Title:4.Oculus Rift ハードウェアのセットアップ
+Description:Oculus Rift HMD を接続およびアップデートする
+Type: quick start
+SkillLevel:Beginner
+Version:4.17
+Parent:Platforms/VR/OculusVR/OculusRift/QuickStart
+Order:4
+Checkpoint:RIFTQS
+
+[NAV]
+
+このセクションでは、Oculus Rift HMD および付属品のセットアップ方法を説明します。
+
+[region:warning]
+Oculus Rift を PC につなぐと、Rift ソフトウェアが Rift 用ファームウェアのアップデートを求めてくる場合があります。スキップせずに必ずアップデートしてください。UE4 で Rift が使えなくなることがあります。
+[/region]
+
+1. Rift ドライバーがインストールを完了すると、次の画面が表示されます。 
+    **[Next]** ボタンを押して Rift のセットアップ プロセスを開始し、あとは画面のガイダンスに従います。
+
+    ![](Rift_Setup_Screen_00.png)
+
+[region:note]
+Rift のセットアップ中に万が一困ってしまった場合は、左隅下の **[Get Help]** リンクをクリックしてヘルプをご利用ください。
+[/region]
+
+以下のセットアップの右隅下にあるヘルプリンクからもすぐに参照することができます。以下のリンクの順番は、セットアップで表示される順番です。
+
+* [**Rift Initial Setup Help**](https://support.oculus.com/674612489309093) 
+* [**Rift Care and Maintenance**](https://support.oculus.com/1659691017629165) 
+* [**Using the Headset**](https://support.oculus.com/674612489309093) 
+* [**Oculus Remote**](https://support.oculus.com/835449819935261) 
+* [**Setup Your Xbox Controller (wireless mode)**](https://support.oculus.com/1560296144292386) 
+* [**Touch Setup**](https://support.oculus.com/857827607684748?locale=en_US&ref=oculus-pc-app)
+
+[NAV]

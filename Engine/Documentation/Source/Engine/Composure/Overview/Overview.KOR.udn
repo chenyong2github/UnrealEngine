@@ -1,0 +1,289 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Title: Real-Time Compositing Tools
+Description: Product documentation including reference and guides for Unreal Engine 4
+Type: overview
+Version: 4.22
+Parent: Engine/Composure
+Tags: Early Access
+Tags:Getting Started
+Order: 0
+reference-image:image10.gif
+reference-image:image12.gif
+reference-image:image13.gif
+reference-image:image15.gif
+reference-image:image16.gif
+reference-image:image17.gif
+reference-image:image18.gif
+reference-image:image2.gif
+reference-image:image4.gif
+reference-image:image5.gif
+reference-image:image6.gif
+reference-image:image9.gif
+
+[TOC (start:2 end:3)]
+
+This section provides an overview of the real-time compositing tools and the overall process.
+
+## Composure Plugin
+
+To access to the compositing tools, you will need to enable the **Composure** plugin.
+
+[REGION:asyncgif]
+![](image13.gif "image13.gif")(convert:false)
+[/REGION]
+
+## Compositing Tree Panel
+
+Once the Composure plugin is enabled, you should have access the the **Composure Compositing** panel (found under the **Window **menu).
+
+[REGION:asyncgif]
+![](image17.gif "image17.gif")(convert:false)
+[/REGION]
+
+You use this panel to build a hierarchy of compositing **Elements**. Elements are objects responsible for rendering a piece of the composite scene. To add a top-level comp Element, right-click on the panel and select **Create New Comp** from the menu.  
+Elements can be nested under one another in a tree structure. The hierarchy determines which Elements are available for cross-Element use in higher level Elements.
+
+[REGION:note]
+Elements are just actors within the level. You can add them to the scene like you would any other actor. The panel just provides you with a way to nest the Elements, and exposes some controls for ease of use.
+[/REGION]
+[REGION:tip]
+For portability, make sure your Elements get added to their own sub-level. Since they are level actors, this lets you load your compositing tree in other maps.
+[/REGION]
+
+## Anatomy of the Compositing Tree Panel
+
+![](image1.png "image1.png")
+
+  
+| Item | Description |
+| --- | --- |
+| **A. Element Row** | Compositing Elements are actors that live within the scene. The compositing panel has a row representing each Element in the currently loaded map. |
+| **B. Element Name** | Each Element has a unique name. Element names are used to reference the specific Element in compositing material graphs. |
+| **C. Active Toggle** | [INCLUDE:#excerpt_0] |
+| **D. Alpha Slider** | The percentage box specifies the opaqueness of the Element. Clicking on the drop-down gives you a slider to increase or decrease the opaqueness. This is useful for aligning things that layer over each other in your composite view. |
+| **E. Freeze Frame Toggle** | Sometimes an Element may be animating (a video streaming in, or a CG object animating in the scene). This toggle button lets you pause the Element’s rendering and freeze-frame it for ease of use. |
+| **F. Media Output Toggle** | [INCLUDE:#excerpt_1] |
+| **G. Element Properties** | When selecting an Element, the **Details** panel will list properties for it. Compositing specific settings will be listed under the **Composure** category - settings like a listing of all the Element’s internal passes. |
+| **H. Element Preview Pane** | [INCLUDE:#excerpt_2] |
+
+<!--
+[EXCERPT:excerpt_0]
+
+Each Element can be disabled, or might be disabled by external means. This button lets you turn off the rendering of an individual Element.  
+An **open eye** icon means that the Element is active and rendering. A **closed eye** means that the Element is disabled.
+
+[/EXCERPT:excerpt_0]
+-->
+<!--
+[EXCERPT:excerpt_1]
+
+This toggles on/off streaming of the Element’s render result out via a capture card. When toggling this on for the first time, it will prompt you to pick (or create) a media output definition asset – you will need to provide the asset details of your target output (card, port, etc.).  
+This is just one of many Output types that can be added to an Element.
+
+[/EXCERPT:excerpt_1]
+-->
+<!--
+[EXCERPT:excerpt_2]
+
+When you select an Element, a preview pane is added to the level editor window. The preview pane displays the Element’s final render result. It will also show error messages when the Element is in a bad state (like “Empty”).
+
+[REGION:note]
+Elements are processed in linear color-space. By default, the preview is displayed with a linear to sRGB conversion and displays the images without tonemapping (consequently they can appear blown out). However, you have the option to change how Elements are previewed, such as adding your own tonemapping.
+[/REGION]
+[/EXCERPT:excerpt_2]
+-->
+
+## Compositing Element
+
+Elements are the individual building blocks used to construct a composite. Each Element represents a layer of a comp, or the comp itself. They are level actors individually responsible for rendering a piece of the composited scene.
+
+### Internal Passes
+
+Each Element has a set of internal Passes, which are sequential steps internal to the Element. Each Pass is a distinct step in rendering the Element. An Element without any passes does nothing. There are many different kinds of Passes. There are also certain Element archetypes that come with predefined passes, so you don’t have to construct one from scratch.
+
+### Anatomy of an Element
+
+![](image11.png "image11.png")
+
+  
+| Item | Description |
+| --- | --- |
+| **1\. Inputs** | Certain Elements need access to a resource outside of the compositing system (for example, a media texture for video input). Inputs provide a way to route those dependencies to the Element. Inputs are a special kind of Pass that can be referenced by other subsequent passes. Certain Element types come with predefined inputs. |
+| **2\. Target Camera Actor ** | [INCLUDE:#excerpt_3] |
+| **3\. Transform Passes** | Transforms are Passes that take an input of some kind and alter it or use it to generate something new. For example, color transforms take an image from one color space to another. The last transform in this list produces the Element’s final render result. |
+| **4\. Internal Pass** | [INCLUDE:#excerpt_4] |
+| **5\. Outputs ** | Outputs are another form of Pass. They don’t contribute to the Element’s render result, but instead are in charge of routing the result somewhere. For example, routing the result to a video capture card or to the Player Viewport. |
+| **6\. Render Resolution** | This defines the render resolution for your Element. It can be overridden per Element, or inherited from a parent. Certain internal Passes can also override, or scale this setting. |
+| **7\. Preview Transform** | Elements are processed in linear color space. By default, they are previewed without any kind of tonemapping, which can cause them to appear blown out. This optional transform on the Element enables you to adjust how the image is previewed in Editor. |
+| **8\. Auto Run** | This is a toggle to disable the entire Element, which prevents it from running/rendering. The toggle state is reflected by the eye in the compositing tree panel. |
+
+<!--
+[EXCERPT:excerpt_3]
+
+Some Element types, such as a CG capture, need a point of reference for their view. If left unset, the Element will search the scene for the first camera it can find. You can override this for individual Elements, or inherit it from the root Element.   
+
+[/EXCERPT:excerpt_3]
+-->
+<!--
+[EXCERPT:excerpt_4]
+
+There are many kinds of Passes, but they all share some properties:
+
+*   **4a. Pass Enable**  
+    Like Elements, individual Passes can be disabled. When disabled, the Element behaves as if the Pass wasn't there.
+
+*   **4b. Pass Name**  
+    Passes have names so that they can be referenced by subsequent Passes. A Pass must be uniquely named if you want to reference it in a render material.
+
+*   **4c. Pass Material Resource Reuse Flag**  
+    For each render Pass, a render target is allocated. By default, the assumption is that you only need that result through the next pass. After that, its render target  is released so it can be used by another Pass. If you need the Pass’s result to be accessible longer, uncheck this box.  
+    [REGION:note]
+    Rendering for Elements and Passes uses a shared render target pool. Each frame all targets are returned to the pool and redistributed. Unused targets in the pool get flushed.
+    [/REGION]
+    
+
+[/EXCERPT:excerpt_4]
+-->
+
+## Compositing Material
+
+There’s a more explanatory step-by-step guide on how to create a basic comp setup [here](Engine/Composure/QuickStart). In this section we’ll touch lightly on those details, but dig more into how you use/reference the results from one Element in another.
+
+### Nesting Elements
+
+[REGION:asyncgif]
+![](image12.gif "image12.gif")(convert:false)
+[/REGION]
+
+Elements can be nested under one another. While any kind of Element can go anywhere in the hierarchy, conventionally you’ll put the final comp at the top with its layer Elements listed underneath it. To add a new nested Element, right-click on the desired parent and select **Add Layer Element** from the menu. You’ll be prompted to pick the type of Element you want to add.
+
+#### What does it mean to have an Element nested under another?
+
+Nesting determines the render order of Elements. The parent Element at the top is rendered last, and everything underneath is rendered before the parent. Parent Elements can use the render results from their children in their own render Passes. This is how we composite all the individual Elements together.
+
+### Custom Material Pass
+
+There are many different Pass types, but the bread-and-butter of the compositing system is the **Custom Material Pass**.
+
+[REGION:asyncgif]
+![](image10.gif "image10.gif")(convert:false)
+[/REGION]
+
+The **Custom Material Pass** is a transform Pass that lets you add a user authored material to the pipeline. In that material you can reference sub-elements by name.
+
+[REGION:note]
+The **Custom Material Pass** isn't the only Pass that lets you reference Elements in its material, there are other Passes that support this as well.
+[/REGION]
+
+### Referencing Elements in Your Material
+
+In your material, you can create a standard texture parameter and have it auto-plumbed with a child Element’s render result. Just name the texture parameter the same as the sub-Element’s name in the compositing tree panel.
+
+[REGION:asyncgif]
+![](image18.gif "image18.gif")(convert:false)
+[/REGION]
+
+[REGION:tip]
+Since you only need to output a single color, we use Post Process materials for our compositing materials. You can enable **Output Alpha** for Post Process materials if that’s needed.
+[/REGION]
+
+Plug this material into your material Pass and you’re all set. It should just start working.
+
+[REGION:asyncgif]
+![](image6.gif "image6.gif")(convert:false)
+[/REGION]
+
+[REGION:tip]
+Are you not seeing the child Element come through? Make sure the names match exactly - typos can cause frustration here.
+[/REGION]
+
+If the sub-Element is disabled and not rendering, then the texture parameter will be filled in with a transparent black texture. If the named Element cannot be found, the texture will use the default texture from the material.
+
+#### Making your material more portable
+
+Referencing your Element by name in the material is easy, but it makes your material very specialized – it will only work with Elements having specific names. An alternative is to give your material texture param a generic name and set it to reference the sub-Element in the Pass’s details.
+
+[REGION:asyncgif]
+![](image5.gif "image5.gif")(convert:false)
+[/REGION]
+
+Once a material is set on the Pass, it will have a property section titled **Input Elements**. The **Input Elements** section lists all of the texture params in the material, and let’s you set them to reference a specific child Element.
+
+### Referencing Other Passes in Your Material
+
+Like Elements, your materials can reference other Passes that have already been run.
+
+[REGION:asyncgif]
+![](image2.gif "image2.gif")(convert:false)
+[/REGION]
+
+This is how you would do progressive transforms within a single Element. For example, with the media plate we do a chroma keying Pass, and then a despill Pass that uses the keyed result.
+
+[REGION:tip]
+If you need to reference a Pass older than the one that comes right before your current Pass, then that older Pass needs to have its **Intermediate** flag turned off.
+[/REGION]
+
+#### Special Parameter Name: PrePass
+
+**PrePass** is a special parameter name that can be interpreted as “reference whichever Pass was run right before this”.
+
+![](image20.png "image20.png")
+
+Using **PrePass** in your material makes it more portable, without requiring you to set the parameter mapping in the details.
+
+### Compositing Two Elements Together
+
+Along with the compositing system, we’ve added a set of material functions to make compositing Elements easier.
+
+The most basic is the **Over** node.
+
+[REGION:asyncgif]
+![](image16.gif "image16.gif")(convert:false)
+[/REGION]
+
+Practiced compositors will be familiar with this node’s function – it takes input A and overlays it over B, using A’s opacity to blend the two.
+
+[REGION:note]
+The Over node takes a float4 RGBA vector, and expects the RGB channels to be pre-multiplied with their alpha value.
+[/REGION]
+
+![](image19.png "image19.png")
+
+[REGION:note]
+The Over node uses input A’s alpha for Blending. By default, projects are not set up to pipe alpha data through the post process pipeline. So, for the CG layers to work, you have to enable this project setting:  
+
+![](image3.png "image3.png")
+[/REGION]
+
+### Exposing Material Parameters
+
+Scalar and color material parameters are automatically exposed to the Pass’s details panel. This makes adjusting, tweaking, and experimenting with your comp fast and easy.
+
+![](image8.png "image8.png")
+
+In the material pictured below, we’ve added a scalar **Blend** parameter which automatically exposes a control for it in the Element/Pass’s details.
+
+[REGION:asyncgif]
+![](image4.gif "image4.gif")(convert:false)
+[/REGION]
+
+## Outputting Your Composite
+
+ Output Passes enable you to output your composite to somewhere else for use. Each Element has a place for you to add Output Passes.
+
+[REGION:asyncgif]
+![](image15.gif "image15.gif")(convert:false)
+[/REGION]
+
+An Output is a Pass responsible for routing the Element’s final result to some external consumer. There are several different output Pass types – some of which have their own transform Pass for adjusting the color on output. The primary form of output is likely to be via a capture card using the Media Capture Pass. You can easily add a Media Capture Pass to your Element from the tree panel:
+
+![](image7.png "image7.png")
+
+### Exporting via Sequencer
+
+As an alternate workflow, [Sequencer](Engine/Sequencer/Overview), our in-engine cinematic editor, can be used in conjunction with the Composure compositing system to render out composites and AOVs. For more information, see [Real-Time Compositing with Sequencer](Engine/Composure/Sequencer).  
+
+[REGION:asyncgif]
+![](image9.gif "image9.gif")(convert:false)
+[/REGION]

@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4357683
+﻿INTSourceChangelist:4932321
 Availability: Public
 Crumbs: 
 Title: 动作RPG中的游戏性技能 
@@ -8,12 +8,14 @@ Version: 4.20
 Parent: Resources/SampleGames/ARPG
 Order: 1
 Tags: 
+topic-image:GameplayAbilitiesinActionRPG.png
 
 
 **动作RPG（ARPG）** 示例使用 **游戏性技能（Gameplay Abilities）** **插件** 来处理玩家和敌人攻击执行以及生命值和法力等统计数据的修改。这些文档旨在说明使用 [游戏性技能系统](https://docs.unrealengine.com/en-us/Gameplay/GameplayAbilitySystem)的原因，以及如何对它进行定制，来为ARPG添加游戏特定的功能。本页面中包含多个文档的链接，它们分别对组成技能系统的各个部分进行了详述。请按这些文档在页面中的显示顺序依次阅读它们，以便更好地理解所有这些系统是如何协同工作的。 
 
 另外，通用的[技能系统](Gameplay/GameplayAbilitySystem)文档较详细地介绍了本文档中谈及的部分功能。请先阅读它，了解用到的基本概念，然后再阅读本文档，获取在实践中使用它的示例。即使决定不在项目中使用ARPG中常见的技能系统，也可将部分概念和代码用作构建相似系统的参考示例。
 
+(#AbilitiesinActionRPG)
 ## 动作RPG中的技能
 
 尽管技能系统（Abilities System）具有很多功能，ARPG只使用以下功能：
@@ -43,6 +45,7 @@ Tags:
 -
 [/COMMENT]
 
+(#ActionRPGAbilitySystemBreakdown)
 ## 动作RPG技能系统分解
 
 在以下的每个文档中，都对如何在ARPG中使用技能系统（Abilities System）的特定组成部分进行了详细说明。请按顺序依次阅读它们，首先从 **ARPG中的属性与效果** 开始，然后阅读 **ARPG中的近战技能**、**ARPG中的技能**，最后阅读 **在ARPG中执行技能**。

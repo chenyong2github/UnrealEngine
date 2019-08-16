@@ -1,7 +1,8 @@
-﻿Availability:Public
-Title: 1. 初始关卡设置
+﻿INTSourceChangelist:3782314
+Availability:Public
+Title: 1.初始关卡设置
 Crumbs:
-Description: 如何设置草地工具使用的初始Actor。
+Description: 如何设置草地工具需要运行的初始Actor。
 Navigation:topic
 SkillLevel:Intermediate
 Version: 4.8
@@ -13,45 +14,48 @@ Version: 4.8
 	[PARAM:current]
 	[/PARAM]
 	[PARAM:home]
-		[How-To Home](Engine\OpenWorldTools\Grass\QuickStart "Engine\OpenWorldTools\Grass\QuickStart:Title%")
+		[快速入门主页](Engine\OpenWorldTools\Grass\QuickStart "Engine\OpenWorldTools\Grass\QuickStart:Title%")
 	[/PARAM]
 	[PARAM:next]
-	[Next Step](Engine\OpenWorldTools\Grass\QuickStart\2 "%Engine\OpenWorldTools\Grass\QuickStart\2:title%") 
+	[下一步](Engine\OpenWorldTools\Grass\QuickStart\2 "%Engine\OpenWorldTools\Grass\QuickStart\2:title%") 
 	[/PARAM]
 [/OBJECT]
 [/VAR]
 
 
 
-在以下部分，我们会创建新关卡和地貌，以供我们使用草地工具。
+在下一部分中，我们将创建一个新的关卡和地形，这样我们就可以使用草地工具了。
 
-1. 创建一个将 **Default Template** （默认模板）作为基础的新关卡。
+1. 创建一个使用 **默认模板（Default Template）** 作为基础的新关卡。
 
 	![](Engine\OpenWorldTools\ProceduralFoliage\QuickStart\1\T_New_Level.png)
 
-1. 通过点击 **Landscape Tool** （地貌工具）按钮来添加新地貌到关卡，然后点击 **Create** （创建）按钮来添加地貌Actor到关卡。
+1. 首先单击 **地形工具（Landscape Tool）** 图标，然后单击 **创建（Create）** 按钮，向该级别添加一个新的地形Actor。
 
 	![](Engine\OpenWorldTools\ProceduralFoliage\QuickStart\1\T_Create_Landscape.gif)(convert:false)
 
-1. 为了更好地显示草地工具，我们会添加一些噪点到地貌中，这样它不会完全平铺显示。 如需完成此操作，转到 **Landscape Tools** （地貌工具），转到 **Landscape Editor** （地貌编辑器）部分，然后点击 **Sculpt Tool** （雕刻工具） 图标来显示可用工具，然后点击工具列表中的 **Noise** （噪点）工具，并使用如下值来设置以下属性。
+1. 为了更好地展示草地工具，我们将向我们的地形增加一点噪点，这样它就不会完全平坦。
+	为此，前往 **地形工具（Landscape Tools）**，在 **地形编辑器（Landscape Editor）** 部分下，单击 **造型工具（Sculpt Tool）** 图标以展开可用工具，然后从工具列表中选择 **噪点（Noise）** 工具 
+	，并使用以下值设置以下属性。
 	
 	![](T_Sculpt_Tool_Settings.png)
 
-	|属性名称 | 值 | 为何设置 |
+	|属性名称 | 值 | 理由 |
 	|--------------|-------|---------|
-	|**画刷大小**    |65536.0| 这个值可以生成足够大的画刷，从而立即能在整个地貌中进行操作。|
-	|**工具强度** |0.01   | 因为我们只需非常细小的效果，所以我们把工具强度设置地非常低，并通过更多地描画来添加更多强度。|
-	|**噪点范围**   |256    | 这个值设置得大一点，可以在应用地貌时，让噪点看上去更加平滑和自然。|
+	|**画刷尺寸（Brush Size）**    |65536.0| 它向我们提供一个足够大的画刷，足以同时影响整个地形。
+	|**工具强度（Tool Strength）** |0.01   | 因为我们只想要一个非常微妙的效果，所以我们将工具强度（Tool Strength）设置得非常低，并通过更多绘制来增加更多的强度。|
+	|**噪点缩放（Noise Scale）**   |256    | 将噪点缩放（Noise Scale）设置得越大，当应用于地形时，噪点就会越发平稳、自然。|
 
-1. 在视口中放置地貌画刷，使之覆盖整个地貌，然后点击鼠标左键 **3** 到 **4** 次，从而添加一些非常细微的噪点到地貌中。 完成后，您应该能获得类似于下图的效果。
+1. 将地形画刷放置在视口中，使其覆盖整个地形，然后单击鼠标左键 **3** 到 **4** 次，为地形添加一些非常细微的噪点。 
+	完成后，您应该得到类似下图的内容。
 
 	![](T_Noise_On_Landscape.png)
 
 	[region:note]
-	以上对地貌的修改完全是出于美术方面的原因，用于更好地展示草地工具工作的原理。 如果您需要或者想要这种效果，您可以在完全平整的地貌上使用草地工具。
+	上面对地形的修改纯粹是出于艺术上的考虑，以更好地展示草地工具的工作原理。如果您需要或者想要的话，您可以在完全平坦的地形上使用草地工具。
 	[/region]
 
-1. 您可以通过点击 **Modes** （模式）面板的 **Place** （放置）按钮来退出地貌工具。
+1. 通过单击 **模式（Modes）** 面板中的 **放置（Place）** 图标，退出地形工具（Landscape Tools）。
 
 	![](T_Exit_LS_Tools.png)
 

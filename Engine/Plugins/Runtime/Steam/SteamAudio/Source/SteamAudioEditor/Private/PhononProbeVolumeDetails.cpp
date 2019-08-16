@@ -186,7 +186,7 @@ namespace SteamAudio
 		// Grab a copy of the volume ptr as it will be destroyed if user clicks off of volume in GUI
 		auto PhononProbeVolumeHandle = PhononProbeVolume.Get();
 
-		Async<void>(EAsyncExecution::Thread, [PhononProbeVolumeHandle]()
+		Async(EAsyncExecution::Thread, [PhononProbeVolumeHandle]()
 		{
 			// Load the scene
 			UWorld* World = GEditor->GetLevelViewportClients()[0]->GetWorld();

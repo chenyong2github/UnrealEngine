@@ -20,7 +20,8 @@
 #include "Misc/CommandLine.h"
 #include "Misc/App.h"
 #include "Unix/UnixPlatformCrashContext.h"
-
+#include "Misc/ConfigCacheIni.h"
+#include "GenericPlatform/GenericPlatformChunkInstall.h"
 
 #if PLATFORM_HAS_CPUID
 	#include <cpuid.h>
@@ -45,6 +46,8 @@
 #define __secure_getenv getenv
 
 extern bool GInitializedSDL;
+
+static int SysGetRandomSupported = -1;
 
 namespace PlatformMiscLimits
 {
@@ -228,6 +231,12 @@ void FUnixPlatformMisc::PlatformInit()
 	{
 		// print output immediately
 		setvbuf(stdout, NULL, _IONBF, 0);
+	}
+
+	if (FParse::Param(FCommandLine::Get(), TEXT("norandomguids")))
+	{
+		// If "-norandomguids" specified, don't use SYS_getrandom syscall
+		SysGetRandomSupported = 0;
 	}
 }
 
@@ -553,7 +562,7 @@ int32 FUnixPlatformMisc::NumberOfCoresIncludingHyperthreads()
 
 const TCHAR* FUnixPlatformMisc::GetNullRHIShaderFormat()
 {
-	return TEXT("GLSL_150");
+	return TEXT("SF_VULKAN_SM5");
 }
 
 bool FUnixPlatformMisc::HasCPUIDInstruction()
@@ -900,6 +909,85 @@ bool FUnixPlatformMisc::IsRunningOnBattery()
 	return bIsOnBattery;
 }
 
+#if PLATFORM_UNIX && defined(_GNU_SOURCE)
+
+#include <sys/syscall.h>
+
+// http://man7.org/linux/man-pages/man2/getrandom.2.html
+// getrandom() was introduced in version 3.17 of the Linux kernel
+//   and glibc version 2.25.
+
+// Check known platforms if SYS_getrandom isn't defined
+#if !defined(SYS_getrandom)
+	#if PLATFORM_CPU_X86_FAMILY && PLATFORM_64BITS
+		#define SYS_getrandom 318
+	#elif PLATFORM_CPU_X86_FAMILY && !PLATFORM_64BITS
+		#define SYS_getrandom 355
+	#elif PLATFORM_CPU_ARM_FAMILY && PLATFORM_64BITS
+		#define SYS_getrandom 278
+	#elif PLATFORM_CPU_ARM_FAMILY && !PLATFORM_64BITS
+		#define SYS_getrandom 384
+	#endif
+#endif // !defined(SYS_getrandom)
+
+#endif // PLATFORM_UNIX && _GNU_SOURCE
+
+namespace
+{
+#if defined(SYS_getrandom)
+
+#if !defined(GRND_NONBLOCK)
+	#define GRND_NONBLOCK 0x0001
+#endif
+	
+	int SysGetRandom(void *buf, size_t buflen)
+	{
+		if (SysGetRandomSupported < 0)
+		{
+			int Ret = syscall(SYS_getrandom, buf, buflen, GRND_NONBLOCK);
+	
+			// If -1 is returned with ENOSYS, kernel doesn't support getrandom
+			SysGetRandomSupported = ((Ret == -1) && (errno == ENOSYS)) ? 0 : 1;
+		}
+	
+		return SysGetRandomSupported ?
+			syscall(SYS_getrandom, buf, buflen, GRND_NONBLOCK) : -1;
+	}
+	
+#else
+
+	int SysGetRandom(void *buf, size_t buflen)
+	{
+		return -1;
+	}
+	
+#endif // !SYS_getrandom
+}
+
+// If we fail to create a Guid with urandom fallback to the generic platform.
+// This maybe need to be tweaked for Servers and hard fail here
+void FUnixPlatformMisc::CreateGuid(FGuid& Result)
+{
+	int BytesRead = SysGetRandom(&Result, sizeof(Result));
+
+	if (BytesRead == sizeof(Result))
+	{
+		// https://tools.ietf.org/html/rfc4122#section-4.4
+		// https://en.wikipedia.org/wiki/Universally_unique_identifier
+		//
+		// The 4 bits of digit M indicate the UUID version, and the 1–3
+		//   most significant bits of digit N indicate the UUID variant.
+		// xxxxxxxx-xxxx-Mxxx-Nxxx-xxxxxxxxxxxx
+		Result[1] = (Result[1] & 0xffff0fff) | 0x00004000; // version 4
+		Result[2] = (Result[2] & 0x3fffffff) | 0x80000000; // variant 1
+	}
+	else
+	{
+		// Fall back to generic CreateGuid
+		FGenericPlatformMisc::CreateGuid(Result);
+	}
+}
+
 #if STATS || ENABLE_STATNAMEDEVENTS
 void FUnixPlatformMisc::BeginNamedEventFrame()
 {
@@ -953,4 +1041,38 @@ void FUnixPlatformMisc::UngrabAllInput()
 FString FUnixPlatformMisc::GetLoginId()
 {
 	return FString::Printf(TEXT("%s-%08x"), *GetOperatingSystemId(), static_cast<uint32>(geteuid()));
+}
+
+IPlatformChunkInstall* FUnixPlatformMisc::GetPlatformChunkInstall()
+{
+	static IPlatformChunkInstall* ChunkInstall = nullptr;
+	static bool bIniChecked = false;
+	if (!ChunkInstall || !bIniChecked)
+	{
+		IPlatformChunkInstallModule* PlatformChunkInstallModule = nullptr;
+		if (!GEngineIni.IsEmpty())
+		{
+			FString InstallModule;
+			GConfig->GetString(TEXT("StreamingInstall"), TEXT("DefaultProviderName"), InstallModule, GEngineIni);
+			FModuleStatus Status;
+			if (FModuleManager::Get().QueryModule(*InstallModule, Status))
+			{
+				PlatformChunkInstallModule = FModuleManager::LoadModulePtr<IPlatformChunkInstallModule>(*InstallModule);
+				if (PlatformChunkInstallModule != nullptr)
+				{
+					// Attempt to grab the platform installer
+					ChunkInstall = PlatformChunkInstallModule->GetPlatformChunkInstall();
+				}
+			}
+			bIniChecked = true;
+		}
+
+		if (PlatformChunkInstallModule == nullptr)
+		{
+			// Placeholder instance
+			ChunkInstall = FGenericPlatformMisc::GetPlatformChunkInstall();
+		}
+	}
+
+	return ChunkInstall;
 }

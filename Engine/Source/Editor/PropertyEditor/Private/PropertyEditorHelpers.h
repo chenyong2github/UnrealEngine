@@ -116,8 +116,6 @@ private:
 
 namespace PropertyEditorHelpers
 {
-
-	static bool IsPropertyButtonEnabled(TWeakPtr<FPropertyNode> PropertyNode);
 	/**
 	 * Returns whether or not a property is a built in struct property like a vector or color
 	 *
@@ -148,12 +146,23 @@ namespace PropertyEditorHelpers
 	 * @param InPropertyNode	The property node containing the property to check
 	 */
 	bool IsStaticArray( const FPropertyNode& InPropertyNode );
+	
 	/**
 	 * Returns whether or not a property a static array
 	 *
 	 * @param InPropertyNode	The property node containing the property to check
 	 */
 	bool IsDynamicArray( const FPropertyNode& InPropertyNode );
+
+	/**
+	 * Returns true if this is an FSoftObjectPath and should be treated like a TSoftObjectPtr
+	 */
+	bool IsSoftObjectPath(const UProperty* Property);
+
+	/**
+	 * Returns true if this is an FSoftClassPath and should be treated like a TSoftClassPtr
+	 */
+	bool IsSoftClassPath(const UProperty* Property);
 
 	/**
 	 * Gets the array parent of a property if it is in a dynamic or static array

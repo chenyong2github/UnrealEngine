@@ -663,12 +663,11 @@ bool UModelComponent::GetPhysicsTriMeshData(struct FTriMeshCollisionData* Collis
 	{
 		FModelElement& Element = Elements[ElementIndex];
 		FRawIndexBuffer16or32* IndexBuffer = Element.IndexBuffer;
-		int32 IndexBufferSize = 0;
+		int32 NumIndices = IndexBuffer ? IndexBuffer->Indices.Num() : 0;
 
-		if (IndexBuffer == nullptr || IndexBuffer->Indices.Num() == 0)
+		if (NumIndices == 0)
 		{
-			UE_LOG(LogPhysics, Warning, TEXT("Found bad index buffer when cooking UModelComponent physics data! Component: %s, Buffer: %x, Buffer Size: %d, Element: %d"), *GetPathName(), IndexBuffer, IndexBufferSize, ElementIndex);
-			verify(IndexBufferSize >= 0);
+			UE_LOG(LogPhysics, Error, TEXT("Found bad index buffer when cooking UModelComponent physics data! Component: %s, Buffer: %x, Index Count: %d, Element: %d"), *GetPathName(), IndexBuffer, NumIndices, ElementIndex);
 			continue;
 		}
 
@@ -676,12 +675,17 @@ bool UModelComponent::GetPhysicsTriMeshData(struct FTriMeshCollisionData* Collis
 
 		if (NumVertices < (int32)Element.MaxVertexIndex)
 		{
-			UE_LOG(LogPhysics, Warning, TEXT("Found bad vertex buffer when cooking UModelComponent physics data! Component: %s, Element: %d. Verts Exected: %d, Actual: %d"), 
+			UE_LOG(LogPhysics, Error, TEXT("Found bad vertex buffer when cooking UModelComponent physics data! Component: %s, Element: %d. Expected Vertex Count: %d, Actual Vertex Count: %d"),
 				*GetPathName(), ElementIndex, Element.MaxVertexIndex, NumVertices);
 			continue;
 		}
 
-		IndexBufferSize = IndexBuffer->Indices.Num();
+		if (NumIndices < (int32)(Element.FirstIndex + Element.NumTriangles * 3 - 1))
+		{
+			UE_LOG(LogPhysics, Warning, TEXT("Found bad index buffer when cooking UModelComponent physics data! Not enough indices in buffer for Element triangles. Component: %s, Element: %d, Index Start: %d, Tri Count: %d, Index Count: %d"),
+				*GetPathName(), ElementIndex, Element.FirstIndex, Element.NumTriangles, NumIndices);
+			continue;
+		}
 
 		for (uint32 TriIdx = 0; TriIdx < Element.NumTriangles; TriIdx++)
 		{

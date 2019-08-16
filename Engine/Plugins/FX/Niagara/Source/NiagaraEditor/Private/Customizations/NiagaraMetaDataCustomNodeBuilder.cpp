@@ -86,7 +86,7 @@ void FNiagaraMetaDataCustomNodeBuilder::GenerateChildContent(IDetailChildrenBuil
 		{
 			const FNiagaraVariable& ParameterVariableA = MetaDataRowDataA.Get<0>();
 			const FNiagaraVariable& ParameterVariableB = MetaDataRowDataB.Get<0>();
-			return ParameterVariableA.GetName() < ParameterVariableB.GetName();
+			return FNameLexicalLess()(ParameterVariableA.GetName(), ParameterVariableB.GetName());
 		}
 	});
 

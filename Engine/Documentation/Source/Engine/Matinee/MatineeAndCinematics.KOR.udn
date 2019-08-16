@@ -1,35 +1,26 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6600614
 Availability: Public
-Title:마티네 & 시네마틱
-Crumbs: %ROOT%, Engine
-Description:동적인 게임플레이든 게임내 시네마틱 시퀀스든, 시간의 흐름에 따라 액터의 프로퍼티에 변화를 줄 수 있는 애니메이션 툴입니다.
+Title: 마티네 & 시네마틱
+Description: 동적인 게임플레이든 게임내 시네마틱 시퀀스든, 시간의 흐름에 따라 액터의 프로퍼티에 변화를 줄 수 있는 애니메이션 툴입니다.
 Version: 4.9
-parent:Engine
+Parent: Engine
+topic-image: matinee_topic.png
 order:15
-topic-image:matinee_topic.png
 
+[REGION:warning]
+마티네는 언리얼 엔진 구버전에 사용되던 시네마틱 툴입니다. 최신 버전을 사용하는 경우, [시퀀서 에디터](Engine/Sequencer) 를 사용해서 시네마틱과 월드 내 애니메이션을 제작할 것을 강력 추천합니다.
+[/REGION]
 
-[REGION:banner]
+[REGION:raw]
 ![matinee.jpg](matinee_landing_banner.png)
 [/REGION]
 
-[EXCERPt:Intro]
-[INCLUDE:Shared/Glossary/M/#Glossary_Matinee]
-[/EXCERPT:Intro]
+**Matinee** (마티네) 애니메이션 툴은 액터의 프로퍼티를 시간에 따라 서서히 변화시키거나, 동적인 게임플레이 또는 게임네 시네마틱 시퀀스를 만드는 데 사용됩니다. 이 시스템은 전문 애니메이션 트랙 방식으로 이루어지는데, 여기에 키프레임을 놓는 방식으로 레벨에 있는 액터의 특정 프로퍼티 값을 설정합니다. 마티네 에디터는 다른 영상 편집 프로그램에 사용되는 비선형 에디터 방식과 유사하므로, 영상 전문가도 친숙한 느낌으로 사용할 수 있습니다.
 
-## 필독서
+## 에센셜
 
-[REGION:buttonlist]
-* [Using the Matinee Tool](Engine/Matinee/UserGuide "%Engine/Matinee/UserGuide:description%")
-* [](Engine/Matinee/UserGuide/BlueprintComponents "%Engine/Matinee/UserGuide/BlueprintComponents:description%")
-* [](Engine/Matinee/UI "%Engine/Matinee/UI:description%")
-* [](Engine/Matinee/TrackReference "%Engine/Matinee/TrackReference:description%")
-* [](Engine/Matinee/HowTo/ "%Engine/Matinee/HowTo:description%")
-[/REGION]
-
-## 관련 링크
-
-[REGION:buttonlist]
-* [](Engine/UI/CurveEditor "%Engine/UI/CurveEditor:description%")	
-[/REGION]
-
+*   [](Engine/Matinee/UserGuide)
+*   [](Engine/Matinee/UserGuide/BlueprintComponents)
+*   [](Engine/Matinee/UI)
+*   [](Engine/Matinee/TrackReference)
+*   [](Engine/Matinee/HowTo)

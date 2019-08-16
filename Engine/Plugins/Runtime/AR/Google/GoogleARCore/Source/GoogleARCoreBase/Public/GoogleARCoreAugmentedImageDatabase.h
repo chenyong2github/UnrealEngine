@@ -44,7 +44,7 @@ struct FGoogleARCoreAugmentedImageDatabaseEntry
 
 	FGoogleARCoreAugmentedImageDatabaseEntry()
 		: ImageAsset(nullptr)
-	    , Width(0.0f) 
+	    , Width(0.0f)
 	{ }
 };
 

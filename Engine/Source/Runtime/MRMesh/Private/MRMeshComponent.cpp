@@ -16,14 +16,31 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "PhysicsEngine/BodyInstance.h"
 #include "PhysicsPublic.h"
-#include "Physics/IPhysXCooking.h"
+#include "IPhysXCooking.h"
 #include "PhysXCookHelper.h"
 #include "Misc/RuntimeErrors.h"
 #include "Engine/Engine.h"
 #include "UObject/UObjectThreadContext.h"
 #include "Stats/Stats.h"
+#include "UObject/ConstructorHelpers.h"
 
 DECLARE_CYCLE_STAT(TEXT("MrMesh SetCollisionProfileName"), STAT_MrMesh_SetCollisionProfileName, STATGROUP_Physics);
+
+#define DEBUG_BRICK_CULLING
+
+#ifdef DEBUG_BRICK_CULLING
+enum class ECullingDebugState
+{
+	Off,
+	On,
+	Paused,
+};
+
+static TAutoConsoleVariable<int32> CVarPauseMRMeshBrickCulling(
+	TEXT("r.MrMesh.BrickCullingDebugState"),
+	static_cast<int32>(ECullingDebugState::Off),
+	TEXT("MR Mesh brick culling debug state: 0=off, 1=on, 2=paused"));
+#endif //DEBUG_BRICK_CULLING
 
 class FMRMeshVertexResourceArray : public FResourceArrayInterface
 {
@@ -81,6 +98,19 @@ public:
 		FMemory::Memcpy(Buffer, Indices.GetData(), Indices.Num() * sizeof(int32));
 		RHIUnlockIndexBuffer(IndexBufferRHI);
 	}
+
+	void InitRHIWith(const TArray<uint16>& Indices)
+	{
+		NumIndices = Indices.Num();
+
+		FRHIResourceCreateInfo CreateInfo;
+		void* Buffer = nullptr;
+		IndexBufferRHI = RHICreateAndLockIndexBuffer(sizeof(uint16), Indices.Num() * sizeof(uint16), BUF_Static, CreateInfo, Buffer);
+
+		// Write the indices to the index buffer.
+		FMemory::Memcpy(Buffer, Indices.GetData(), Indices.Num() * sizeof(uint16));
+		RHIUnlockIndexBuffer(IndexBufferRHI);
+	}
 };
 
 
@@ -102,6 +132,8 @@ struct FMRMeshProxySection
 	FMRMeshIndexBuffer IndexBuffer;
 	/** Vertex factory for this section */
 	FLocalVertexFactory VertexFactory;
+	/** AABB for this section */
+	FBox Bounds;
 
 	FShaderResourceViewRHIRef PositionBufferSRV;
 	FShaderResourceViewRHIRef UVBufferSRV;
@@ -179,10 +211,21 @@ public:
 	}
 
 	FMRMeshProxy(const UMRMeshComponent* InComponent)
-	: FPrimitiveSceneProxy(InComponent, InComponent->GetFName())
-	, MaterialToUse((InComponent->Material!=nullptr) ? InComponent->Material : UMaterial::GetDefaultMaterial(MD_Surface) )
-	, FeatureLevel(GetScene().GetFeatureLevel())
+		: FPrimitiveSceneProxy(InComponent, InComponent->GetFName())
+		, MaterialToUse(InComponent->Material)
+		, FeatureLevel(GetScene().GetFeatureLevel())
+		, bEnableOcclusion(InComponent->GetEnableMeshOcclusion())
+		, bUseWireframe(InComponent->GetUseWireframe())
 	{
+		if (bUseWireframe)
+		{
+			MaterialToUse = InComponent->WireframeMaterial;
+		}
+		// If this is still null, use the default material
+		if (MaterialToUse == nullptr)
+		{
+			MaterialToUse = UMaterial::GetDefaultMaterial(MD_Surface);
+		}
 	}
 
 	virtual ~FMRMeshProxy()
@@ -261,6 +304,9 @@ public:
 		{
 			InitVertexFactory(&NewSection->VertexFactory, *NewSection);
 		}
+
+		// BOUNDS
+		NewSection->Bounds = Args.Bounds;
 	}
 
 	bool RenderThread_RemoveSection(IMRMesh::FBrickId BrickId)
@@ -302,12 +348,17 @@ private:
 	{
 		static const FBoxSphereBounds InfiniteBounds(FSphere(FVector::ZeroVector, HALF_WORLD_MAX));
 
+#ifdef DEBUG_BRICK_CULLING
+		TMap<IMRMesh::FBrickId, TTuple<FBox, bool>> NewVisDataByBrickId;
+		ECullingDebugState CullingDebugState =
+			static_cast<ECullingDebugState>(CVarPauseMRMeshBrickCulling.GetValueOnRenderThread());
+#endif //DEBUG_BRICK_CULLING
+
 		// Iterate over sections
 		for (const FMRMeshProxySection* Section : ProxySections)
 		{
 			if (Section != nullptr)
 			{
-				const bool bIsSelected = false;
 				FMaterialRenderProxy* MaterialProxy = MaterialToUse->GetRenderProxy();
 
 				// For each view..
@@ -316,31 +367,90 @@ private:
 					if (VisibilityMap & (1 << ViewIndex))
 					{
 						const FSceneView* View = Views[ViewIndex];
-						// Draw the mesh.
-						FMeshBatch& Mesh = Collector.AllocateMesh();
-						FMeshBatchElement& BatchElement = Mesh.Elements[0];
-						BatchElement.IndexBuffer = &Section->IndexBuffer;
-						Mesh.bWireframe = false;
-						Mesh.VertexFactory = &Section->VertexFactory;
-						Mesh.MaterialRenderProxy = MaterialProxy;
+						bool IsVisible = Section->Bounds.GetExtent().IsNearlyZero() || View->ViewFrustum.
+							IntersectBox(Section->Bounds.GetCenter(), Section->Bounds.GetExtent());
 
-						FDynamicPrimitiveUniformBuffer& DynamicPrimitiveUniformBuffer = Collector.AllocateOneFrameResource<FDynamicPrimitiveUniformBuffer>();
-						DynamicPrimitiveUniformBuffer.Set(GetLocalToWorld(), GetLocalToWorld(), InfiniteBounds, InfiniteBounds, true, false, UseEditorDepthTest(), false);
-						BatchElement.PrimitiveUniformBufferResource = &DynamicPrimitiveUniformBuffer.UniformBuffer;
+#ifdef DEBUG_BRICK_CULLING
+						switch (CullingDebugState)
+						{
+							case ECullingDebugState::Off:
+								break;
+							case ECullingDebugState::On:
+								NewVisDataByBrickId.Add(Section->BrickId, MakeTuple(Section->Bounds, IsVisible));
+								break;
+							case ECullingDebugState::Paused:
+								auto OldVisData = OldVisDataByBrickId.Find(Section->BrickId);
+								if (OldVisData)
+								{
+									NewVisDataByBrickId.Add(Section->BrickId, *OldVisData);
 
-						BatchElement.FirstIndex = 0;
-						BatchElement.NumPrimitives = Section->IndexBuffer.NumIndices / 3;
-						BatchElement.MinVertexIndex = 0;
-						BatchElement.MaxVertexIndex = Section->PositionBuffer.NumVerts - 1;
-						Mesh.ReverseCulling = IsLocalToWorldDeterminantNegative();
-						Mesh.Type = PT_TriangleList;
-						Mesh.DepthPriorityGroup = SDPG_World;
-						Mesh.bCanApplyViewModeOverrides = false;
-						Collector.AddMesh(ViewIndex, Mesh);
+									// Easier to see what's culled if mesh mimics culling pause state
+									IsVisible = OldVisData->Value;
+								}
+								else
+								{
+									IsVisible = false;
+								}
+								break;
+						}
+#endif //DEBUG_BRICK_CULLING
+
+						if (IsVisible)
+						{
+							// Draw the mesh.
+							FMeshBatch& Mesh = Collector.AllocateMesh();
+							FMeshBatchElement& BatchElement = Mesh.Elements[0];
+							BatchElement.IndexBuffer = &Section->IndexBuffer;
+							Mesh.bWireframe = bUseWireframe;
+							Mesh.bUseAsOccluder = bEnableOcclusion;
+
+// Waiting for Jules' changes
+//							Mesh.bUseForDepthPass = bEnableOcclusion;
+
+							Mesh.VertexFactory = &Section->VertexFactory;
+							Mesh.MaterialRenderProxy = MaterialProxy;
+
+							FDynamicPrimitiveUniformBuffer& DynamicPrimitiveUniformBuffer = Collector.AllocateOneFrameResource<FDynamicPrimitiveUniformBuffer>();
+							DynamicPrimitiveUniformBuffer.Set(GetLocalToWorld(), GetLocalToWorld(), InfiniteBounds, InfiniteBounds, true, false, DrawsVelocity(), false);
+							BatchElement.PrimitiveUniformBufferResource = &DynamicPrimitiveUniformBuffer.UniformBuffer;
+
+							BatchElement.FirstIndex = 0;
+							BatchElement.NumPrimitives = Section->IndexBuffer.NumIndices / 3;
+							BatchElement.MinVertexIndex = 0;
+							BatchElement.MaxVertexIndex = Section->PositionBuffer.NumVerts - 1;
+							Mesh.ReverseCulling = IsLocalToWorldDeterminantNegative();
+							Mesh.Type = PT_TriangleList;
+							Mesh.DepthPriorityGroup = SDPG_World;
+							Mesh.bCanApplyViewModeOverrides = false;
+							Collector.AddMesh(ViewIndex, Mesh);
+						}
 					}
 				}
 			}
 		}
+
+#ifdef DEBUG_BRICK_CULLING
+		OldVisDataByBrickId = NewVisDataByBrickId;
+
+		if (CullingDebugState != ECullingDebugState::Off)
+		{
+			const FColor ColorGray(0x7f, 0x7f, 0x7f, 0xff);
+
+			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+			{
+				if (VisibilityMap & (1 << ViewIndex))
+				{
+					for (const auto& BrickVisibility : OldVisDataByBrickId)
+					{
+						const auto& BrickBounds = BrickVisibility.Value.Key;
+						FColor BoundsColor(BrickVisibility.Value.Value ? FColor::Green : ColorGray);
+						FPrimitiveDrawInterface *PDI = Collector.GetPDI(ViewIndex);
+						DrawWireBox(PDI, BrickBounds, BoundsColor, GetDepthPriorityGroup(Views[ViewIndex]));
+					}
+				}
+			}
+		}
+#endif //DEBUG_BRICK_CULLING
 	}
 
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const
@@ -349,9 +459,15 @@ private:
 		Result.bDrawRelevance = IsShown(View);
 		Result.bShadowRelevance = IsShadowCast(View);
 		Result.bDynamicRelevance = true;
-		Result.bRenderInMainPass = ShouldRenderInMainPass();
+		// If there is a material set that is not the default material, then this wants to be rendered in the main pass
+		Result.bRenderInMainPass = (bUseWireframe || MaterialToUse != UMaterial::GetDefaultMaterial(MD_Surface)) && ShouldRenderInMainPass();
+
+// Waiting for Jules' changes
+//		Result.bRenderInDepthPass = bEnableOcclusion;
+
 		Result.bUsesLightingChannels = GetLightingChannelMask() != GetDefaultLightingChannelMask();
 		Result.bRenderCustomDepth = ShouldRenderCustomDepth();
+		Result.bSeparateTranslucencyRelevance = MaterialToUse->GetMaterial()->bEnableSeparateTranslucency;
 		//MaterialRelevance.SetPrimitiveViewRelevance(Result);
 		return Result;
 	}
@@ -369,12 +485,22 @@ private:
 	TArray<FMRMeshProxySection*> ProxySections;
 	UMaterialInterface* MaterialToUse;
 	ERHIFeatureLevel::Type FeatureLevel;
+	bool bEnableOcclusion;
+	bool bUseWireframe;
+
+#ifdef DEBUG_BRICK_CULLING
+	mutable TMap<IMRMesh::FBrickId, TTuple<FBox, bool>> OldVisDataByBrickId;
+#endif //DEBUG_BRICK_CULLING
 };
 
 
 UMRMeshComponent::UMRMeshComponent(const FObjectInitializer& ObjectInitializer)
-: Super(ObjectInitializer)
+	: Super(ObjectInitializer)
+	, bEnableOcclusion(false)
+	, bUseWireframeForNoMaterial(false)
 {
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> WireframeMaterialRef(TEXT("/Engine/EngineDebugMaterials/WireframeMaterial"));
+	WireframeMaterial = WireframeMaterialRef.Object;
 }
 
 void UMRMeshComponent::BeginPlay()
@@ -531,6 +657,10 @@ void UMRMeshComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterial
 	{
 		OutMaterials.Add(Material);
 	}
+	if (WireframeMaterial != nullptr)
+	{
+		OutMaterials.Add(WireframeMaterial);
+	}
 }
 
 FBoxSphereBounds UMRMeshComponent::CalcBounds(const FTransform& LocalToWorld) const
@@ -597,11 +727,12 @@ UBodySetup* UMRMeshComponent::GetBodySetup()
 
 void UMRMeshComponent::SendBrickData_Internal(IMRMesh::FSendBrickDataArgs Args)
 {
-#if WITH_PHYSX
 	check(IsInGameThread());
+	const bool bHasBrickData = Args.Indices.Num() > 0 && Args.PositionData.Num() > 0;
 
+#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
 	UE_LOG(LogMrMesh, Log, TEXT("SendBrickData_Internal() processing brick %llu with %i triangles"), Args.BrickId, Args.Indices.Num() / 3);
-
+	
 	if (!IsPendingKill() && !bNeverCreateCollisionMesh)
 	{
 		// Physics update
@@ -610,7 +741,7 @@ void UMRMeshComponent::SendBrickData_Internal(IMRMesh::FSendBrickDataArgs Args)
 		{
 			int32 BodyIndex = BodyIds.Find(Args.BrickId);
 
-			if (const bool bBrickHasData = Args.Indices.Num() > 0)
+			if (bHasBrickData)
 			{
 				bPhysicsStateCreated = true;
 
@@ -650,7 +781,7 @@ void UMRMeshComponent::SendBrickData_Internal(IMRMesh::FSendBrickDataArgs Args)
 				CookHelper.CookInfo = CookInfo;
 				CookHelper.CreatePhysicsMeshes_Concurrent();
 
-				MyBS->FinishCreatingPhysicsMeshes(CookHelper.OutNonMirroredConvexMeshes, CookHelper.OutMirroredConvexMeshes, CookHelper.OutTriangleMeshes);
+				MyBS->FinishCreatingPhysicsMeshes_PhysX(CookHelper.OutNonMirroredConvexMeshes, CookHelper.OutMirroredConvexMeshes, CookHelper.OutTriangleMeshes);
 
 				FBodyInstance* MyBI = BodyInstances[BodyIndex];
 				MyBI->TermBody();
@@ -669,7 +800,7 @@ void UMRMeshComponent::SendBrickData_Internal(IMRMesh::FSendBrickDataArgs Args)
 				}
 			}
 		}
-		if (bUpdateNavMeshOnMeshUpdate && bHasCustomNavigableGeometry)
+		if (bHasBrickData && bUpdateNavMeshOnMeshUpdate && bHasCustomNavigableGeometry)
 		{
 			UpdateNavigationData();
 		}
@@ -686,14 +817,14 @@ void UMRMeshComponent::SendBrickData_Internal(IMRMesh::FSendBrickDataArgs Args)
 			// Graphics update
 			UMRMeshComponent* This = this;
 			ENQUEUE_RENDER_COMMAND(FSendBrickDataLambda)(
-				[This, Args](FRHICommandListImmediate& RHICmdList)
+				[This, Args, bHasBrickData](FRHICommandListImmediate& RHICmdList)
 				{
 					FMRMeshProxy* MRMeshProxy = static_cast<FMRMeshProxy*>(This->SceneProxy);
 					if (MRMeshProxy)
 					{
 						MRMeshProxy->RenderThread_RemoveSection(Args.BrickId);
 
-						if (const bool bBrickHasData = Args.Indices.Num() > 0)
+						if (bHasBrickData)
 						{
 							MRMeshProxy->RenderThread_UploadNewSection(Args);
 						}
@@ -745,6 +876,11 @@ void UMRMeshComponent::ClearAllBrickData_Internal()
 			}
 		}
 	);
+
+	if (OnClear().IsBound())
+	{
+		OnClear().Broadcast();
+	}
 }
 
 void UMRMeshComponent::SetMaterial(int32 ElementIndex, class UMaterialInterface* InMaterial)
@@ -807,3 +943,49 @@ void UMRMeshComponent::Clear()
 	ClearAllBrickData();
 	UE_LOG(LogMrMesh, Log, TEXT("Clearing all brick data"));
 }
+
+struct FMeshArrayHolder :
+	public IMRMesh::FBrickDataReceipt
+{
+	TArray<FVector> Vertices;
+	TArray<MRMESH_INDEX_TYPE> Indices;
+	// Super wasteful of memory and perf, but the vertex factory requires these to be filled
+	// @todo Write a vertex factory that doesn't need all this overhead
+	TArray<FVector2D> BogusUVs;
+	TArray<FPackedNormal> BogusTangents;
+	TArray<FColor> BogusColors;
+
+	FMeshArrayHolder(TArray<FVector>& InVertices, TArray<MRMESH_INDEX_TYPE>& InIndices)
+		: Vertices(MoveTemp(InVertices))
+		, Indices(MoveTemp(InIndices))
+	{
+		int32 CurrentNumVertices = Vertices.Num();
+
+		BogusUVs.AddZeroed(CurrentNumVertices);
+		BogusColors.AddZeroed(CurrentNumVertices);
+		BogusTangents.AddZeroed(CurrentNumVertices * 2);
+	}
+};
+
+void UMRMeshComponent::UpdateMesh(const FVector& InLocation, const FQuat& InRotation, const FVector& Scale, TArray<FVector>& Vertices, TArray<MRMESH_INDEX_TYPE>& Indices)
+{
+	SetRelativeLocationAndRotation(InLocation, InRotation);
+	SetRelativeScale3D(Scale);
+
+	// Create our struct that will hold the data until the render thread is done with it
+	TSharedPtr<FMeshArrayHolder, ESPMode::ThreadSafe> MeshHolder(new FMeshArrayHolder(Vertices, Indices));
+	// NOTE: Vertices and Indices are empty due to MoveTemp()!!!
+
+	SendBrickData_Internal(IMRMesh::FSendBrickDataArgs
+		{
+			MeshHolder,
+			0,
+			MeshHolder->Vertices,
+			MeshHolder->BogusUVs,
+			MeshHolder->BogusTangents,
+			MeshHolder->BogusColors,
+			MeshHolder->Indices
+		}
+	);
+}
+

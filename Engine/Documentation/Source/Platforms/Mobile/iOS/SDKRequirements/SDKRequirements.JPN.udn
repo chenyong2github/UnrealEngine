@@ -1,0 +1,152 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Title: iOS and tvOS Development Requirements
+Description: Apple iOS development requirements including hardware, software, and SDK information.
+Type: reference
+Version: 4.22
+Parent: Platforms/Mobile/iOS
+Tags: Specifications
+Tags: mobile
+Tags: iOS
+Tags: StartingOut
+Tags: tvOS
+topic-image: iOS_QS_Editor_TopicImage.png
+Order: 16
+
+In this page you'll find hardware and software development kit (SDK) requirements needed to start developing for the [iOS and tvOS](Platforms/Mobile/iOS) platforms.   
+
+## Unreal Engine 4.22
+
+### iOS Development Requirements
+
+| Hardware Requirements ||
+| --- | --- |
+| **Recommended Desktop Hardware** | See [Hardware and Software Specifications](GettingStarted/RecommendedSpecifications). |
+| **Supported Device Hardware** | See [iOS Device Compatibility](Platforms/Mobile/iOS/DeviceCompatibility). |
+| [REGION:tablesection]Software Requirements[/REGION] ||
+| **Desktop Operating System** | macOS 10.14 Mojave or later |
+| **SDK Version** | iOS 12 or higher |
+| **iTunes Version** | [iTunes 11 or higher](http://www.apple.com/itunes/) |
+| **Xcode Version** | 10.1 |
+
+[REGION:note]
+The currently supported SDK version(s) can be found in `UEBuildIOS.cs`. You can find it in your `[UE4 Root Directory]/Engine/Source/Programs/UnrealBuildTool/Platforms/Mobile/iOS` folder.
+[/REGION]
+
+### tvOS Development Requirements
+
+| Hardware Requirements ||
+| --- | --- |
+| **Recommended Desktop Hardware** | See [Hardware and Software Specifications](GettingStarted/RecommendedSpecifications). |
+| **Supported Device Hardware** | Apple TV |
+| [REGION:tablesection]Software Requirements[/REGION] ||
+| **Desktop Operating System** | macOS 10.14 Mojave or later |
+| **SDK Version** | tvOS 12 or higher |
+| **iTunes Version** | [iTunes 11 or higher](http://www.apple.com/itunes/) |
+| **Xcode Version** | 10.1 |
+
+[REGION:note]
+The currently supported SDK version(s) can be found in `UEBuildTVOS.cs`. You can find it in your `[UE4 Root Directory]/Engine/Source/Programs/UnrealBuildTool/Platforms/TVOS` folder.
+[/REGION]
+
+## Unreal Engine 4.21
+
+### iOS Development Requirements
+
+| Hardware Requirements ||
+| --- | --- |
+| **Recommended Desktop Hardware** | See [Hardware and Software Specifications](GettingStarted/RecommendedSpecifications). |
+| **Supported Device Hardware** | See [iOS Device Compatibility](Platforms/Mobile/iOS/DeviceCompatibility). |
+| [REGION:tablesection]Software Requirements[/REGION] ||
+| **Desktop Operating System** | macOS 10.14 Mojave or later |
+| **SDK Version** | iOS 12 or higher |
+| **iTunes Version** | [iTunes 11 or higher](http://www.apple.com/itunes/) |
+| **Xcode Version** | 9.4 |
+
+[REGION:note]
+The currently supported SDK version(s) can be found in `UEBuildIOS.cs`. You can find it in your `[UE4 Root Directory]/Engine/Source/Programs/UnrealBuildTool/Platforms/Mobile/iOS` folder.
+[/REGION]
+
+### tvOS Development Requirements
+
+| Hardware Requirements ||
+| --- | --- |
+| **Recommended Desktop Hardware** | See [Hardware and Software Specifications](GettingStarted/RecommendedSpecifications). |
+| **Supported Device Hardware** | Apple TV |
+| [REGION:tablesection]Software Requirements[/REGION] ||
+| **Desktop Operating System** | macOS 10.14 Mojave or later |
+| **SDK Version** | tvOS 12 or higher |
+| **iTunes Version** | [iTunes 11 or higher](http://www.apple.com/itunes/) |
+| **Xcode Version** | 9.4 |
+
+[REGION:note]
+The currently supported SDK version(s) can be found in `UEBuildTVOS.cs`. You can find it in your `[UE4 Root Directory]/Engine/Source/Programs/UnrealBuildTool/Platforms/TVOS` folder.
+[/REGION]
+
+## Unreal Engine 4.20
+
+### iOS Development Requirements
+
+| Hardware Requirements ||
+| --- | --- |
+| **Recommended Desktop Hardware** | See [Hardware and Software Specifications](GettingStarted/RecommendedSpecifications). |
+| **Supported Device Hardware** | See [iOS Device Compatibility](Platforms/Mobile/iOS/DeviceCompatibility). |
+| [REGION:tablesection]Software Requirements[/REGION] ||
+| **Desktop Operating System** | macOS 10.13 High Sierra or later |
+| **SDK Version** | iOS 11 or higher |
+| **iTunes Version** | [iTunes 11 or higher](http://www.apple.com/itunes/) |
+| **Xcode Version** | 9.4 |
+
+[REGION:note]
+The currently supported SDK version(s) can be found in `UEBuildIOS.cs`. You can find it in your `[UE4 Root Directory]/Engine/Source/Programs/UnrealBuildTool/Platforms/Mobile/iOS` folder.
+[/REGION]
+
+### tvOS Development Requirements
+
+| Hardware Requirements ||
+| --- | --- |
+| **Recommended Desktop Hardware** | See [Hardware and Software Specifications](GettingStarted/RecommendedSpecifications). |
+| **Supported Device Hardware** | Apple TV |
+| [REGION:tablesection]Software Requirements[/REGION] ||
+| **Desktop Operating System** | macOS 10.13 High Sierra or later |
+| **SDK Version** | tvOS 11 or higher |
+| **iTunes Version** | [iTunes 11 or higher](http://www.apple.com/itunes/) |
+| **Xcode Version** | 9.4 |
+
+[REGION:note]
+The currently supported SDK version(s) can be found in `UEBuildTVOS.cs`. You can find it in your `[UE4 Root Directory]/Engine/Source/Programs/UnrealBuildTool/Platforms/TVOS` folder.
+[/REGION]
+
+## Unreal Engine 4.19
+
+### iOS Development Requirements
+
+| Hardware Requirements ||
+| --- | --- |
+| **Recommended Desktop Hardware** | See [Hardware and Software Specifications](GettingStarted/RecommendedSpecifications). |
+| **Supported Device Hardware** | See [iOS Device Compatibility](Platforms/Mobile/iOS/DeviceCompatibility). |
+| [REGION:tablesection]Software Requirements[/REGION] ||
+| **Desktop Operating System** | macOS 10.13 High Sierra or later |
+| **SDK Version** | iOS 11 or higher |
+| **iTunes Version** | [iTunes 11 or higher](http://www.apple.com/itunes/) |
+| **Xcode Version** | 9.4 |
+
+[REGION:note]
+The currently supported SDK version(s) can be found in `UEBuildIOS.cs`. You can find it in your `[UE4 Root Directory]/Engine/Source/Programs/UnrealBuildTool/Platforms/Mobile/iOS` folder.
+[/REGION]
+
+### tvOS Development Requirements
+
+| Hardware Requirements ||
+| --- | --- |
+| **Recommended Desktop Hardware** | See [Hardware and Software Specifications](GettingStarted/RecommendedSpecifications). |
+| **Supported Device Hardware** | Apple TV |
+| [REGION:tablesection]Software Requirements[/REGION] ||
+| **Desktop Operating System** | macOS 10.13 High Sierra or later |
+| **SDK Version** | tvOS 11 or higher |
+| **iTunes Version** | [iTunes 11 or higher](http://www.apple.com/itunes/) |
+| **Xcode Version** | 9.4 |
+
+[REGION:note]
+The currently supported SDK version(s) can be found in `UEBuildTVOS.cs`. You can find it in your `[UE4 Root Directory]/Engine/Source/Programs/UnrealBuildTool/Platforms/TVOS` folder.
+[/REGION]

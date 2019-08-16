@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3807090
-Availability: Public
+﻿INTSourceChangelist:6278885
+Availability: Docs
 Title:로보 리콜 모드 키트 설치
 Crumbs:%ROOT%
 Description:게임의 모드 제작에 사용되는 로보 리콜 모드 키트 다운로드 및 설치 안내입니다.
@@ -11,9 +11,9 @@ tags:Robo Recall
 topic-image:install_topic.png
 social-image:install.png
 
-1. [Epic ID 가입을 합니다.](GettingStarted/Installation#bookmark1)
+1. [Epic ID 가입을 합니다.](GettingStarted/Installation)
 
-1. [에픽 게임즈 런처를 다운로드하여 설치합니다.](GettingStarted/Installation#bookmark2)
+1. [에픽 게임즈 런처를 다운로드하여 설치합니다.](GettingStarted/Installation)
 
 1. **설치** 를 클릭하면 에픽 게임즈 런처에서 로보 리콜 모드 키트 다운로드가 시작됩니다.
 

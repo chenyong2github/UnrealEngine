@@ -8,8 +8,7 @@ parent:Engine/Sequencer
 order:5
 Version: 4.18
 tags:Sequencer
-
-![](Workflow_02.png)
+hero-image:Workflow_02.png
 
 
 In addition to the several built-in shortcuts and key bindings that you can use to speed up the rate at which you create your content in Sequencer, there are also features related to Sequencer that you can use to generate content for your cinematics such as the **Sequence Recorder**. 

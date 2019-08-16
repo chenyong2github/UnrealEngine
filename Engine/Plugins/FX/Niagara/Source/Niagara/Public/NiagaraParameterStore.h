@@ -52,6 +52,25 @@ struct FNiagaraParameterStoreBinding
 	/** Bindings of data interfaces. Src and Dest offsets.*/
 	TArray<FInterfaceBinding> InterfaceBindings;
 
+	struct FUObjectBinding
+	{
+		FUObjectBinding(int32 InSrcOffset, int32 InDestOffset)
+			: SrcOffset((uint16)InSrcOffset), DestOffset((uint16)InDestOffset)
+		{
+			//No way these offsets could ever be higher but check just in case.
+			check(InSrcOffset < (int32)0xFFFF);
+			check(InDestOffset < (int32)0xFFFF);
+		}
+		FORCEINLINE bool operator==(const FUObjectBinding& Other)const
+		{
+			return SrcOffset == Other.SrcOffset && DestOffset == Other.DestOffset;
+		}
+		uint16 SrcOffset;
+		uint16 DestOffset;
+	};
+	/** Bindings of UObject params. Src and Dest offsets.*/
+	TArray<FUObjectBinding> UObjectBindings;
+
 	FNiagaraParameterStoreBinding()
 	{
 	}
@@ -95,6 +114,10 @@ private:
 	UPROPERTY()
 	TArray<UNiagaraDataInterface*> DataInterfaces;
 
+	/** UObjects referenced by this store. Also indexed by ParameterOffsets.*/
+	UPROPERTY()
+	TArray<UObject*> UObjects;
+
 	/** Bindings between this parameter store and others we push data into when we tick. */
 	TMap<FNiagaraParameterStore*, FNiagaraParameterStoreBinding> Bindings;
 
@@ -105,6 +128,8 @@ private:
 	uint32 bParametersDirty : 1;
 	/** Marks our interfaces as dirty. They will be pushed to any bound stores on tick if true. */
 	uint32 bInterfacesDirty : 1;
+	/** Marks our UObjects as dirty. They will be pushed to any bound stores on tick if true. */
+	uint32 bUObjectsDirty : 1;
 
 	/** Uniquely identifies the current layout of this parameter store for detecting layout changes. */
 	uint32 LayoutVersion;
@@ -133,9 +158,11 @@ public:
 
 	FORCEINLINE uint32 GetParametersDirty() const { return bParametersDirty; }
 	FORCEINLINE uint32 GetInterfacesDirty() const { return bInterfacesDirty; }
+	FORCEINLINE uint32 GetUObjectsDirty() const { return bUObjectsDirty; }
 
 	FORCEINLINE void MarkParametersDirty() { bParametersDirty = true; }
 	FORCEINLINE void MarkInterfacesDirty() { bInterfacesDirty = true; }
+	FORCEINLINE void MarkUObjectsDirty() { bUObjectsDirty = true; }
 
 	FORCEINLINE uint32 GetLayoutVersion() const { return LayoutVersion; }
 
@@ -181,6 +208,7 @@ public:
 	FORCEINLINE void GetParameters(TArray<FNiagaraVariable>& OutParameters) const { return ParameterOffsets.GenerateKeyArray(OutParameters); }
 	FORCEINLINE int32 GetNumParameters() const { return ParameterOffsets.Num(); }
 
+	FORCEINLINE const TArray<UObject*>& GetUObjects()const { return UObjects; }
 	FORCEINLINE const TArray<UNiagaraDataInterface*>& GetDataInterfaces()const { return DataInterfaces; }
 	FORCEINLINE const TArray<uint8>& GetParameterDataArray()const { return ParameterData; }
 
@@ -268,6 +296,25 @@ public:
 		return ParameterOffsets.Find(Parameter);
 	}
 
+	/** Returns the UObject at the passed offset. */
+	FORCEINLINE UObject* GetUObject(int32 Offset)const
+	{
+		if (UObjects.IsValidIndex(Offset))
+		{
+			return UObjects[Offset];
+		}
+
+		return nullptr;
+	}
+
+	FORCEINLINE UObject* GetUObject(const FNiagaraVariable& Parameter)const
+	{
+		int32 Offset = IndexOf(Parameter);
+		UObject* Obj = GetUObject(Offset);
+		checkSlow(!Obj || Parameter.GetType().GetClass() == Obj->GetClass());
+		return Obj;
+	}
+
 	/** Copies the passed parameter from this parameter store into another. */
 	FORCEINLINE_DEBUGGABLE void CopyParameterData(FNiagaraParameterStore& DestStore, const FNiagaraVariable& Parameter) const
 	{
@@ -279,6 +326,10 @@ public:
 			{
 				DataInterfaces[SrcIndex]->CopyTo(DestStore.DataInterfaces[DestIndex]);
 				DestStore.OnInterfaceChange();
+			}
+			else if (Parameter.IsUObject())
+			{
+				DestStore.SetUObject(GetUObject(SrcIndex), DestIndex);
 			}
 			else
 			{
@@ -421,6 +472,22 @@ public:
 		}
 	}
 
+	FORCEINLINE_DEBUGGABLE void SetUObject(UObject* InObject, int32 Offset)
+	{
+		UObjects[Offset] = InObject;
+		OnUObjectChange();
+	}
+
+	FORCEINLINE_DEBUGGABLE void SetUObject(UObject* InObject, const FNiagaraVariable& Parameter)
+	{
+		int32 Offset = IndexOf(Parameter);
+		if (Offset != INDEX_NONE)
+		{
+			UObjects[Offset] = InObject;
+			OnUObjectChange();
+		}
+	}
+
 	FORCEINLINE void OnParameterChange() 
 	{ 
 		bParametersDirty = true;
@@ -432,6 +499,14 @@ public:
 	FORCEINLINE void OnInterfaceChange() 
 	{ 
 		bInterfacesDirty = true;
+#if WITH_EDITOR
+		OnChangedDelegate.Broadcast();
+#endif
+	}
+
+	FORCEINLINE void OnUObjectChange()
+	{
+		bUObjectsDirty = true;
 #if WITH_EDITOR
 		OnChangedDelegate.Broadcast();
 #endif
@@ -480,12 +555,14 @@ FORCEINLINE_DEBUGGABLE void FNiagaraParameterStoreBinding::Empty(FNiagaraParamet
 	DestStore = nullptr;
 	ParameterBindings.Reset();
 	InterfaceBindings.Reset();
+	UObjectBindings.Reset();
 }
 
 FORCEINLINE_DEBUGGABLE void FNiagaraParameterStoreBinding::BindParameters(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore)
 {
 	InterfaceBindings.Reset();
 	ParameterBindings.Reset();
+	UObjectBindings.Reset();
 	for (const TPair<FNiagaraVariable, int32>& ParamOffsetPair : DestStore->GetParameterOffsets())
 	{
 		const FNiagaraVariable& Parameter = ParamOffsetPair.Key;
@@ -497,6 +574,10 @@ FORCEINLINE_DEBUGGABLE void FNiagaraParameterStoreBinding::BindParameters(FNiaga
 			if (Parameter.IsDataInterface())
 			{
 				InterfaceBindings.Add(FInterfaceBinding(SrcOffset, DestOffset));
+			}
+			else if (Parameter.IsUObject())
+			{
+				UObjectBindings.Add(FUObjectBinding(SrcOffset, DestOffset));
 			}
 			else
 			{
@@ -532,6 +613,14 @@ FORCEINLINE_DEBUGGABLE bool FNiagaraParameterStoreBinding::VerifyBinding(const F
 		if (Parameter.IsDataInterface())
 		{
 			if (InterfaceBindings.Find(FInterfaceBinding(SrcOffset, DestOffset)) == INDEX_NONE)
+			{
+				MissingParameterNames.Add(Parameter.GetName());
+				bBindingValid = false;
+			}
+		}
+		else if (Parameter.IsUObject())
+		{
+			if (UObjectBindings.Find(FUObjectBinding(SrcOffset, DestOffset)) == INDEX_NONE)
 			{
 				MissingParameterNames.Add(Parameter.GetName());
 				bBindingValid = false;
@@ -577,6 +666,14 @@ FORCEINLINE_DEBUGGABLE void FNiagaraParameterStoreBinding::Tick(FNiagaraParamete
 		for (FInterfaceBinding& Binding : InterfaceBindings)
 		{
 			DestStore->SetDataInterface(SrcStore->GetDataInterface(Binding.SrcOffset), Binding.DestOffset);
+		}
+	}
+
+	if (SrcStore->GetUObjectsDirty() || bForce)
+	{
+		for (FUObjectBinding& Binding : UObjectBindings)
+		{
+			DestStore->SetUObject(SrcStore->GetUObject(Binding.SrcOffset), Binding.DestOffset);
 		}
 	}
 
@@ -643,6 +740,38 @@ FORCEINLINE_DEBUGGABLE void FNiagaraParameterStoreBinding::Dump(const FNiagaraPa
 			//Also ensure the param has been pushed correctly.
 			const UNiagaraDataInterface* SrcData = SrcStore->GetDataInterfaces()[Binding.SrcOffset];
 			const UNiagaraDataInterface* DestData = DestStore->GetDataInterfaces()[Binding.DestOffset];
+			if (!ensure(SrcData == DestData))
+			{
+				UE_LOG(LogNiagara, Log, TEXT("Data interface parameter in dest store is incorrect!\n"));
+			}
+		}
+		else
+		{
+			UE_LOG(LogNiagara, Log, TEXT("Failed to find matching data interface param in bound store!\n"));
+		}
+	}
+
+	for (const FUObjectBinding& Binding : UObjectBindings)
+	{
+		ensure(Binding.SrcOffset != -1);
+		ensure(Binding.DestOffset != -1);
+		FNiagaraVariable Param;
+		bool bFound = false;
+		for (const TPair<FNiagaraVariable, int32>& ParamOffsetPair : DestStore->GetParameterOffsets())
+		{
+			if (ParamOffsetPair.Value == Binding.DestOffset && ParamOffsetPair.Key.IsUObject())
+			{
+				bFound = true;
+				Param = ParamOffsetPair.Key;
+			}
+		}
+		if (ensure(bFound))
+		{
+			UE_LOG(LogNiagara, Log, TEXT("| UObject | %s %s: Src:%d - Dest:%d\n"), *Param.GetType().GetName(), *Param.GetName().ToString(), Binding.SrcOffset, Binding.DestOffset);
+
+			//Also ensure the param has been pushed correctly.
+			const UObject* SrcData = SrcStore->GetUObjects()[Binding.SrcOffset];
+			const UObject* DestData = DestStore->GetUObjects()[Binding.DestOffset];
 			if (!ensure(SrcData == DestData))
 			{
 				UE_LOG(LogNiagara, Log, TEXT("Data interface parameter in dest store is incorrect!\n"));
@@ -917,5 +1046,57 @@ struct FNiagaraParameterDirectBinding<FNiagaraBool>
 			}
 		}
 		return Ret;
+	}
+};
+
+template<>
+struct FNiagaraParameterDirectBinding<UObject*>
+{
+	int32 UObjectOffset;
+	FNiagaraParameterStore* BoundStore;
+	FNiagaraVariable BoundVariable;
+	uint32 LayoutVersion;
+
+	FNiagaraParameterDirectBinding()
+		: UObjectOffset(INDEX_NONE), BoundStore(nullptr)
+	{}
+
+	UObject* Init(FNiagaraParameterStore& InStore, const FNiagaraVariable& DestVariable)
+	{
+		if (DestVariable.IsValid())
+		{
+			BoundStore = &InStore;
+			BoundVariable = DestVariable;
+			LayoutVersion = BoundStore->GetLayoutVersion();
+
+			check(BoundVariable.GetType() == FNiagaraTypeDefinition::GetUObjectDef());
+			UObjectOffset = BoundStore->IndexOf(DestVariable);
+			UObject* Ret = BoundStore->GetUObject(UObjectOffset);
+			return Ret;
+		}
+		return nullptr;
+	}
+
+	FORCEINLINE void SetValue(UObject* InValue)
+	{
+		if (UObjectOffset != INDEX_NONE)
+		{
+			check(BoundVariable.GetType() == FNiagaraTypeDefinition::GetUObjectDef());
+			checkf(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
+
+			BoundStore->SetUObject(InValue, UObjectOffset);
+		}
+	}
+
+	FORCEINLINE UObject* GetValue()const
+	{
+		if (UObjectOffset != INDEX_NONE)
+		{
+			check(BoundVariable.GetType() == FNiagaraTypeDefinition::GetUObjectDef());
+			checkf(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
+
+			return BoundStore->GetUObject(UObjectOffset);
+		}
+		return nullptr;
 	}
 };

@@ -186,7 +186,7 @@ const FSlateBrush* SEditorViewportViewMenu::GetViewMenuLabelIcon() const
 				break;
 
 #if RHI_RAYTRACING
-			// #dxr_todo: use special icons for ray tracing view modes
+			// #dxr_todo: UE-72550 use special icons for ray tracing view modes
 			case VMI_RayTracingDebug:
 				Icon = LitIcon; 
 				break;

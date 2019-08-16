@@ -1,10 +1,9 @@
-﻿INTSourceChangelist:3810467
+INTSourceChangelist:6537038
 Availability:Public
 Title:언리얼 엔진 4.11 릴리즈 노트
 Crumbs:%ROOT%, Engine
 Description:
-order:11
-
+Order: 33
 이번 릴리즈에는 GitHub 의 언리얼 엔진 개발자 커뮤니티가 제출한 92 종의 개선사항을 포함, 수백종의 언리얼 엔진 4 업데이트가 포함되어 있습니다! 언리얼 엔진 4.11 에 기여해 주신 모든 분들께 감사드립니다:
 
 Anton Olkhovik (Sektor), Alessandro Osima (AlessandroOsima), Alexandru Pană (alexpana), Andreas Axelsson (judgeaxl), Andreas Schultes (andreasschultes), Artem (umerov1999), Artem V. Navrotskiy (bozaro), Ben Reeves (BGR360), bensch128, Black Phoenix (PhoenixBlack), Brandon Wamboldt (brandonwamboldt), Cameron Angus (kamrann), Christoph Becher (chbecher) ,Clay Chai (chaiyuntian), Dan Ogles (dogles), David Baack (davidbaack), Eli Tayrien (ETayrienHBO), Eren Pinaz (erenpinaz), G4m4, Hannah Gamiel (hgamiel), Hevedy (Hevedy), Hyeon-Cheol Cho (crocuis), Igor Karatayev (yatagarsu25), Jason (Abatron), Jefferson Pinheiro (Ixiguis), kallehamalainen, Kiqras, Konstantin Nosov (gildor2), Leon Rosengarten (lion03), Manny (Manny-MADE), Marat Radchenko (slonopotamus), Markus Breyer (pluranium), marynate, Matthias Huerbe (MatzeOGH), Maxim Pestun (maxpestun), Moritz Wundke (moritz-wundke), Mustafa TOP (MSTF), Nikos Tsatsalmas (ntk4), Pablo Zurita (pzurita), Pavel Dudrenov (dudrenov), Peter Oost (Sirrah), Piotr Bąk (Pierdek), projectgheist, Rama (EverNewJoy), Rene Rivera (grafikrobot), Rob Ray (robdeadtech), Robert Khalikov (nbjk667), sackyhack, sankasan, Sébastien Rombauts (SRombauts), Simon Taylor (simontaylor81), Skylonxe, Spencer Brown (JedTheKrampus), Tam Armstrong (tamarmstrong), Thomas Mayer (tommybear), Thomas McVay (ThomasMcVay), unktomi, Verdoso, ZehM4tt.
@@ -135,7 +134,7 @@ GPU 비용은 드리워진 그림자에 영향받은 픽셀 수와 캡슐 수에
 
 파라곤의 **Agora** (아고라) 맵으로, 트라이앵글 수는 (394만 에서) 256만으로, 드로 콜 수는 (7060 에서 5690) 으로 줄었습니다.
 
-HLOD 를 최대한 활용하기 위해서는, Simplygon SDK (별도 라이선스)가 필요합니다. Simplygon 은 폴리곤 수가 적은 프락시 메시를 생성하는 데 필요합니다. 없는 경우, 시스템에서는 굽기를 통해 다른 머티리얼을 사용하는 섹션만 하나의 드로 콜로 합칩니다.
+HLOD 를 최대한 활용하기 위해서는, Simplygon SDK (별도 라이선스)가 필요합니다. Simplygon 은 폴리곤 수가 적은 프록시 메시를 생성하는 데 필요합니다. 없는 경우, 시스템에서는 굽기를 통해 다른 머티리얼을 사용하는 섹션만 하나의 드로 콜로 합칩니다.
 
 또한 새로 생긴 **계층형 LOD 아웃라이너** 는 레벨의 HLOD 구성에 도움이 되는 세팅이 여러가지 있습니다.
 
@@ -535,19 +534,19 @@ C 의 VolumeScale = (0.9)0 = 1.0
 
 머티리얼 병합 프로세스는 이제 버텍스별 컬러, 버텍스 위치, 버텍스 노멀 등의 머티리얼 프로퍼티를 추가 지원합니다. 월드 스페이스 텍스처링, 표면 노멀에 따른 눈이나 이끼 블렌드 인, 버텍스 컬러로 머티리얼 레이어 마스크 적용과 같은 작업이 HLOD 에도 가능합니다.
 
-픽셀별 노멀이나 월드-탄젠트 트랜스폼같은 기능은 아직 지원되지 않습니다. 그러한 경우, 또는 HLOD 에 다양한 또는 단순화된 머티리얼을 사용하고자 하는 경우, **Material Proxy Replace** 노드를 사용하면 됩니다. **Lightmass Replace** 노드처럼 사용됩니다: "실시간" 입력이 실행시간에 사용되고, "머티리얼 프락시" 입력은 생성 프로세스 도중에만 사용됩니다.
+픽셀별 노멀이나 월드-탄젠트 트랜스폼같은 기능은 아직 지원되지 않습니다. 그러한 경우, 또는 HLOD 에 다양한 또는 단순화된 머티리얼을 사용하고자 하는 경우, **Material Proxy Replace** 노드를 사용하면 됩니다. **Lightmass Replace** 노드처럼 사용됩니다: "실시간" 입력이 실행시간에 사용되고, "머티리얼 프록시" 입력은 생성 프로세스 도중에만 사용됩니다.
 
 머티리얼 병합 프로세스에 대한 세팅은 이제 **월드 세팅** 패널뿐 아니라 **HLOD 아웃라이너** 패널에서도 찾을 수 있습니다.
 
-### 프락시 메시 생성
+### 프록시 메시 생성
 
-프락시 메시 생성 효율이 높아지고 Simplygon SDK 최신 버전이 통합되어, 메시 생성 프로세스에 대한 세팅은 이제 HLOD 아웃라이너 패널에서도 찾을 수 있습니다.
+프록시 메시 생성 효율이 높아지고 Simplygon SDK 최신 버전이 통합되어, 메시 생성 프로세스에 대한 세팅은 이제 HLOD 아웃라이너 패널에서도 찾을 수 있습니다.
 
 기타 개선사항:
 
 * 스플라인 메시가 이제 HLOD 시스템에 지원됩니다.
 
-* 프락시 메시/클러스터는 이제 보이는 (서브)레벨에 대해서면 표시, 생성, 빌드됩니다.
+* 프록시 메시/클러스터는 이제 보이는 (서브)레벨에 대해서면 표시, 생성, 빌드됩니다.
 
 * 이미시브 컬러가 이제 머티리얼 병합 프로세스에 지원됩니다.
 

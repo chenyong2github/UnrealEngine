@@ -1695,10 +1695,20 @@ void FKismetCompilerContext::PrecompileFunction(FKismetFunctionContext& Context,
 			Context.Function->SetMetaData(FBlueprintMetadata::MD_Tooltip, *FunctionMetaData.ToolTip.ToString());
 		}
 
-		// Set as blutility function
+		// Set as call in editor function
 		if (FunctionMetaData.bCallInEditor)
 		{
 			Context.Function->SetMetaData(FBlueprintMetadata::MD_CallInEditor, TEXT( "true" ));
+		}
+
+		// Set appropriate metadata if the function is deprecated
+		if (FunctionMetaData.bIsDeprecated)
+		{
+			Context.Function->SetMetaData(FBlueprintMetadata::MD_DeprecatedFunction, TEXT("true"));
+			if (!FunctionMetaData.DeprecationMessage.IsEmpty())
+			{
+				Context.Function->SetMetaData(FBlueprintMetadata::MD_DeprecationMessage, *FunctionMetaData.DeprecationMessage);
+			}
 		}
 
 		// Set the required function flags
@@ -2233,10 +2243,22 @@ void FKismetCompilerContext::SetCalculatedMetaDataAndFlags(UFunction* Function, 
 	{
 		Function->SetMetaData(FBlueprintMetadata::MD_Tooltip, *EntryNode->MetaData.ToolTip.ToString());
 	}
+
 	if (EntryNode->MetaData.bCallInEditor)
 	{
-		Function->SetMetaData(FBlueprintMetadata::MD_CallInEditor, TEXT( "true" ));
+		Function->SetMetaData(FBlueprintMetadata::MD_CallInEditor, TEXT("true"));
 	}
+
+	if (EntryNode->MetaData.bIsDeprecated)
+	{
+		Function->SetMetaData(FBlueprintMetadata::MD_DeprecatedFunction, TEXT("true"));
+		
+		if (!EntryNode->MetaData.DeprecationMessage.IsEmpty())
+		{
+			Function->SetMetaData(FBlueprintMetadata::MD_DeprecationMessage, *(EntryNode->MetaData.DeprecationMessage));
+		}
+	}
+	
 	if (UEdGraphPin* WorldContextPin = EntryNode->GetAutoWorldContextPin())
 	{
 		Function->SetMetaData(FBlueprintMetadata::MD_WorldContext, *WorldContextPin->PinName.ToString());
@@ -2629,11 +2651,6 @@ void FKismetCompilerContext::ExpandTimelineNodes(UEdGraph* SourceGraph)
 
 			// Set the timeline template as wired/not wired for component pruning later
 			const bool bWiredIn = bPlayPinConnected || bPlayFromStartPinConnected || bStopPinConnected || bReversePinConnected || bReverseFromEndPinConnected || bSetNewTimePinConnected;
-			const bool bWiredOut = bUpdatePinConnected || bFinishedPinConnected;
-			const bool bPlayWired = Timeline->bAutoPlay;
-			const bool bReferenced = TimelinePlayNodes.Find(TimelineNode->TimelineName) != INDEX_NONE;
-
-			Timeline->bValidatedAsWired = bWiredIn || bReferenced || (bPlayWired && bWiredOut);
 
 			// Only create nodes for play/stop if they are actually connected - otherwise we get a 'unused node being pruned' warning
 			if (bWiredIn)
@@ -2869,6 +2886,9 @@ void FKismetCompilerContext::CreateFunctionStubForEvent(UK2Node_Event* SrcEventN
 		StubContext.MarkAsNetFunction(SrcCustomEventNode->GetNetFlags());
 		// Synchronize the entry node call in editor value with the entry point
 		EntryNode->MetaData.bCallInEditor = SrcCustomEventNode->bCallInEditor;
+		// Synchronize the node deprecation state with the entry point
+		EntryNode->MetaData.bIsDeprecated = SrcCustomEventNode->bIsDeprecated;
+		EntryNode->MetaData.DeprecationMessage = SrcCustomEventNode->DeprecationMessage;
 	}
 	EntryNode->AllocateDefaultPins();
 
@@ -3128,9 +3148,11 @@ void FKismetCompilerContext::VerifyValidOverrideEvent(const UEdGraph* Graph)
 					(EventNode->EventReference.GetMemberParentClass(EventNode->GetBlueprintClassFromNode()) == FuncClass) &&
 					(EventNode->EventReference.GetMemberName() == FuncName))
 				{
-					if (EventNode->IsDeprecated())
+					if (EventNode->HasDeprecatedReference())
 					{
-						MessageLog.Warning(*EventNode->GetDeprecationMessage(), EventNode);
+						// The event cannot be placed because it has been deprecated. However, we already emit a
+						// warning in FGraphCompilerContext::ValidateNode(), so there's no need to repeat it here.
+						continue;
 					}
 					else if(!Function->HasAllFunctionFlags(FUNC_Const))	// ...allow legacy event nodes that override methods declared as 'const' to pass.
 					{
@@ -4208,6 +4230,9 @@ void FKismetCompilerContext::CompileFunctions(EInternalCompilerFlags InternalFla
 			}
 
 			PropagateValuesToCDO(NewCDO, OldCDO);
+
+			// Perform any fixup or caching based on the new CDO.
+			PostCDOCompiled();
 		}
 
 		// Note: The old->new CDO copy is deferred when regenerating, so we skip this step in that case.

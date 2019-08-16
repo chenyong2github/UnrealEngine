@@ -70,7 +70,7 @@ struct FScopedCreateImportCounter
 /**
  * Handles loading Unreal package files, including reading UObject data from disk.
  */
-class FArchiveAsync2;
+class FAsyncArchive;
 
 class FLinkerLoad 
 #if !WITH_EDITOR
@@ -127,11 +127,11 @@ public:
 	bool					bForceSimpleIndexToObject;
 	bool					bLockoutLegacyOperations;
 
-	/** True if Loader is FArchiveAsync2  */
-	bool					bLoaderIsFArchiveAsync2;
-	FORCEINLINE FArchiveAsync2* GetFArchiveAsync2Loader()
+	/** True if Loader is FAsyncArchive  */
+	bool					bIsAsyncLoader;
+	FORCEINLINE FAsyncArchive* GetAsyncLoader()
 	{
-		return bLoaderIsFArchiveAsync2 ? (FArchiveAsync2*)Loader : nullptr;
+		return bIsAsyncLoader ? (FAsyncArchive*)Loader : nullptr;
 	}
 
 private:
@@ -244,6 +244,11 @@ public:
 	 */
 	COREUOBJECT_API static bool RemoveKnownMissingPackage(FName PackageName);
 
+	/**
+	 * 
+	 */
+	COREUOBJECT_API static void OnNewFileAdded(const FString& Filename);
+
 	/** 
 	 * Checks if the linker has any objects in the export table that require loading.
 	 */
@@ -258,8 +263,6 @@ private:
 
 	// Variables used during async linker creation.
 
-	/** Current index into name map, used by async linker creation for spreading out serializing name entries.					*/
-	int32						NameMapIndex;
 	/** Current index into gatherable text data map, used by async linker creation for spreading out serializing text entries.	*/
 	int32						GatherableTextDataMapIndex;
 	/** Current index into import map, used by async linker creation for spreading out serializing importmap entries.			*/
@@ -806,32 +809,31 @@ private:
 		Value = ID;
 		return Ar;
 	}
-	void BadNameIndexError(NAME_INDEX NameIndex);
+	void BadNameIndexError(int32 NameIndex);
 	FORCEINLINE virtual FArchive& operator<<(FName& Name) override
 	{
-		Name = NAME_None;
 		FArchive& Ar = *this;
-		NAME_INDEX NameIndex;
+		int32 NameIndex;
 		Ar << NameIndex;
-		int32 Number;
+		int32 Number = 0;
 		Ar << Number;
 
-		if (!NameMap.IsValidIndex(NameIndex))
+		if (NameMap.IsValidIndex(NameIndex))
 		{
+			// if the name wasn't loaded (because it wasn't valid in this context)
+			FNameEntryId MappedName = NameMap[NameIndex];
+
+			// simply create the name from the NameMap's name and the serialized instance number
+			Name = FName::CreateFromDisplayId(MappedName, Number);
+		}
+		else
+		{
+			Name = FName();
 			BadNameIndexError(NameIndex);
 			ArIsError = true;
 			ArIsCriticalError = true;
 		}
-		else
-		{
-			// if the name wasn't loaded (because it wasn't valid in this context)
-			const FName& MappedName = NameMap[NameIndex];
-			if (!MappedName.IsNone())
-			{
-				// simply create the name from the NameMap's name and the serialized instance number
-				Name = FName(MappedName, Number);
-			}
-		}
+
 		return *this;
 	}
 

@@ -3,7 +3,7 @@
 	"Version": 1,
 	"VersionName": "1.0",
 	"FriendlyName": "Sequencer Scripting",
-	"Description": "Python and blutility scripting extensions for sequencer and movie scenes",
+	"Description": "Python and editor utility scripting extensions for sequencer and movie scenes",
 	"Category": "Scripting",
 	"CreatedBy": "Epic Games Inc.",
 	"CreatedByURL": "",

@@ -892,9 +892,9 @@ TSharedRef<SWidget> SColorPicker::MakeColorSlider( EColorPickerChannels Channel 
 				.SliderBarColor(FLinearColor::Transparent)
 				.Style(&FCoreStyle::Get().GetWidgetStyle<FSliderStyle>("ColorPicker.Slider"))
 				.Value(this, &SColorPicker::HandleColorSpinBoxValue, Channel)
-				.OnMouseCaptureBegin(this, &SColorPicker::HandleInteractiveChangeBegin)
-				.OnMouseCaptureEnd(this, &SColorPicker::HandleInteractiveChangeEnd)
-				.OnValueChanged(this, &SColorPicker::HandleColorSpinBoxValueChanged, Channel)
+				.OnMouseCaptureBegin(const_cast<SColorPicker*>(this), &SColorPicker::HandleInteractiveChangeBegin)
+				.OnMouseCaptureEnd(const_cast<SColorPicker*>(this), &SColorPicker::HandleInteractiveChangeEnd)
+				.OnValueChanged(const_cast<SColorPicker*>(this), &SColorPicker::HandleColorSpinBoxValueChanged, Channel)
 		];
 }
 
@@ -1019,9 +1019,9 @@ TSharedRef<SWidget> SColorPicker::MakeColorSpinBox( EColorPickerChannels Channel
 						.Delta(Channel == EColorPickerChannels::Hue ? 1.0f : 0.001f)
 						.Font(SmallLayoutFont)
 						.Value(this, &SColorPicker::HandleColorSpinBoxValue, Channel)
-						.OnBeginSliderMovement(this, &SColorPicker::HandleInteractiveChangeBegin)
-						.OnEndSliderMovement(this, &SColorPicker::HandleInteractiveChangeEnd)
-						.OnValueChanged(this, &SColorPicker::HandleColorSpinBoxValueChanged, Channel)
+						.OnBeginSliderMovement(const_cast<SColorPicker*>(this), &SColorPicker::HandleInteractiveChangeBegin)
+						.OnEndSliderMovement(const_cast<SColorPicker*>(this), &SColorPicker::HandleInteractiveChangeEnd)
+						.OnValueChanged(const_cast<SColorPicker*>(this), &SColorPicker::HandleColorSpinBoxValueChanged, Channel)
 				]
 
 			+ SVerticalBox::Slot()
@@ -1065,7 +1065,7 @@ TSharedRef<SWidget> SColorPicker::MakeColorPreviewBox() const
 								.IgnoreAlpha(true)
 								.ToolTipText(LOCTEXT("OldColorToolTip", "Old color without alpha (drag to theme bar to save)"))
 								.Color(OldColor) 
-								.OnMouseButtonDown(this, &SColorPicker::HandleOldColorBlockMouseButtonDown, false)
+								.OnMouseButtonDown(const_cast<SColorPicker*>(this), &SColorPicker::HandleOldColorBlockMouseButtonDown, false)
 								.UseSRGB(SharedThis(this), &SColorPicker::HandleColorPickerUseSRGB)
 								.Cursor(EMouseCursor::GrabHand)
 						]
@@ -1079,7 +1079,7 @@ TSharedRef<SWidget> SColorPicker::MakeColorPreviewBox() const
 								.ToolTipText(LOCTEXT("OldColorAlphaToolTip", "Old color with alpha (drag to theme bar to save)"))
 								.Color(OldColor) 
 								.Visibility(SharedThis(this), &SColorPicker::HandleAlphaColorBlockVisibility)
-								.OnMouseButtonDown(this, &SColorPicker::HandleOldColorBlockMouseButtonDown, true)
+								.OnMouseButtonDown(const_cast<SColorPicker*>(this), &SColorPicker::HandleOldColorBlockMouseButtonDown, true)
 								.UseSRGB(SharedThis(this), &SColorPicker::HandleColorPickerUseSRGB)
 								.Cursor(EMouseCursor::GrabHand)
 						]
@@ -1097,7 +1097,7 @@ TSharedRef<SWidget> SColorPicker::MakeColorPreviewBox() const
 								.IgnoreAlpha(true)
 								.ToolTipText(LOCTEXT("NewColorToolTip", "New color without alpha (drag to theme bar to save)"))
 								.Color(this, &SColorPicker::GetCurrentColor)
-								.OnMouseButtonDown(this, &SColorPicker::HandleNewColorBlockMouseButtonDown, false)
+								.OnMouseButtonDown(const_cast<SColorPicker*>(this), &SColorPicker::HandleNewColorBlockMouseButtonDown, false)
 								.UseSRGB(SharedThis(this), &SColorPicker::HandleColorPickerUseSRGB)
 								.Cursor(EMouseCursor::GrabHand)
 						]
@@ -1111,7 +1111,7 @@ TSharedRef<SWidget> SColorPicker::MakeColorPreviewBox() const
 								.ToolTipText(LOCTEXT("NewColorAlphaToolTip", "New color with alpha (drag to theme bar to save)"))
 								.Color(this, &SColorPicker::GetCurrentColor)
 								.Visibility(SharedThis(this), &SColorPicker::HandleAlphaColorBlockVisibility)
-								.OnMouseButtonDown(this, &SColorPicker::HandleNewColorBlockMouseButtonDown, true)
+								.OnMouseButtonDown(const_cast<SColorPicker*>(this), &SColorPicker::HandleNewColorBlockMouseButtonDown, true)
 								.UseSRGB(SharedThis(this), &SColorPicker::HandleColorPickerUseSRGB)
 								.Cursor(EMouseCursor::GrabHand)
 						]

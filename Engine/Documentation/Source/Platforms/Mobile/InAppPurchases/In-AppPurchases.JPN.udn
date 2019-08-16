@@ -16,8 +16,8 @@ topic-image:iap_topic.png
 プラットフォームごとのアプリ内課金設定方法については、プラットフォーム専用ページをご覧ください。
 
 [REGION:buttonlist]
-* [](Platforms/Android/InAppPurchases)
-* [](Platforms/iOS/InAppPurchases)
+* [](Platforms/Mobile/Android/InAppPurchases)
+* [](Platforms/Mobile/iOS/InAppPurchases)
 [/REGION]
 
 [EXCERPT:usage]

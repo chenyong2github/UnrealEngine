@@ -224,7 +224,7 @@ void SNiagaraSpreadsheetView::Construct(const FArguments& InArgs, TSharedRef<FNi
 	CaptureData.SetNum(UIMax);
 
 	SystemViewModel = InSystemViewModel;
-	SystemViewModel->OnSelectedEmitterHandlesChanged().AddRaw(this, &SNiagaraSpreadsheetView::SelectedEmitterHandlesChanged);
+	SystemViewModel->GetSelectionViewModel()->OnSelectionChanged().AddSP(this, &SNiagaraSpreadsheetView::SystemSelectionChanged);
 	SystemViewModel->OnPostSequencerTimeChanged().AddRaw(this, &SNiagaraSpreadsheetView::OnSequencerTimeChanged);
 
 	bInitialColumns = true;
@@ -285,19 +285,19 @@ void SNiagaraSpreadsheetView::Construct(const FArguments& InArgs, TSharedRef<FNi
 
 		CaptureData[i].OutputHorizontalScrollBar = SNew(SScrollBar)
 			.Orientation(Orient_Horizontal)
-			.Thickness(FVector2D(8.0f, 8.0f));
+			.Thickness(FVector2D(12.0f, 12.0f));
 
 		CaptureData[i].OutputVerticalScrollBar = SNew(SScrollBar)
 			.Orientation(Orient_Vertical)
-			.Thickness(FVector2D(8.0f, 8.0f));
+			.Thickness(FVector2D(12.0f, 12.0f));
 
 		CaptureData[i].InputHorizontalScrollBar = SNew(SScrollBar)
 			.Orientation(Orient_Horizontal)
-			.Thickness(FVector2D(8.0f, 8.0f));
+			.Thickness(FVector2D(12.0f, 12.0f));
 
 		CaptureData[i].InputVerticalScrollBar = SNew(SScrollBar)
 			.Orientation(Orient_Vertical)
-			.Thickness(FVector2D(8.0f, 8.0f));
+			.Thickness(FVector2D(12.0f, 12.0f));
 
 		SAssignNew(CaptureData[i].OutputsListView, STreeView< TSharedPtr<int32> >)
 			.IsEnabled(this, &SNiagaraSpreadsheetView::IsPausedAtRightTimeOnRightHandle)
@@ -618,7 +618,10 @@ SNiagaraSpreadsheetView::~SNiagaraSpreadsheetView()
 {
 	if (SystemViewModel.IsValid())
 	{
-		SystemViewModel->OnSelectedEmitterHandlesChanged().RemoveAll(this);
+		if (SystemViewModel->GetSelectionViewModel() != nullptr)
+		{
+			SystemViewModel->GetSelectionViewModel()->OnSelectionChanged().RemoveAll(this);
+		}
 		SystemViewModel->OnPostSequencerTimeChanged().RemoveAll(this);
 	}
 }
@@ -691,7 +694,7 @@ TSharedRef<SWidget> SNiagaraSpreadsheetView::OnGetTargetMenuContent() const
 				ComponentName,
 				ComponentTooltip,
 				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateRaw(this, &SNiagaraSpreadsheetView::SetTarget, *It)));
+				FUIAction(FExecuteAction::CreateRaw(const_cast<SNiagaraSpreadsheetView*>(this), &SNiagaraSpreadsheetView::SetTarget, *It)));
 		}
 	}
 
@@ -786,12 +789,12 @@ TSharedRef< ITableRow > SNiagaraSpreadsheetView::OnGenerateWidgetForList(TShared
 
 FText SNiagaraSpreadsheetView::LastCapturedInfoText() const
 {
-	TArray<TSharedRef<FNiagaraEmitterHandleViewModel>> SelectedEmitterHandles;
-	SystemViewModel->GetSelectedEmitterHandles(SelectedEmitterHandles);
-	if (SelectedEmitterHandles.Num() == 1 && SNiagaraSpreadsheetView::IsPausedAtRightTimeOnRightHandle() && CaptureData[(int32)TabState].DataSet.GetCurrentData())
+	TArray<FGuid> SelectedEmitterHandleIds = SystemViewModel->GetSelectionViewModel()->GetSelectedEmitterHandleIds();
+	if (SelectedEmitterHandleIds.Num() == 1 && SNiagaraSpreadsheetView::IsPausedAtRightTimeOnRightHandle() && CaptureData[(int32)TabState].DataSet.GetCurrentData())
 	{
+		TSharedPtr<FNiagaraEmitterHandleViewModel> SelectedEmitterHandle = SystemViewModel->GetEmitterHandleViewModelById(SelectedEmitterHandleIds[0]);
 		return FText::Format(LOCTEXT("LastCapturedInfoName", "Captured Emitter: \"{0}\"     # Particles: {1}    Script Type: {2}"),
-			SelectedEmitterHandles[0]->GetNameText(),
+			SelectedEmitterHandle->GetNameText(),
 			FText::AsNumber(CaptureData[(int32)TabState].DataSet.GetCurrentDataChecked().GetNumInstances()),
 			ScriptEnum->GetDisplayNameTextByValue((int64)CaptureData[(int32)TabState].TargetUsage));
 	}
@@ -894,7 +897,7 @@ bool SNiagaraSpreadsheetView::IsOutputAttributeEnabled(EUITab Tab, FName Item)
 	return CaptureData[(int32)Tab].FilteredOutputFields.Find(Item) != INDEX_NONE;
 }
 
-void SNiagaraSpreadsheetView::SelectedEmitterHandlesChanged()
+void SNiagaraSpreadsheetView::SystemSelectionChanged(UNiagaraSystemSelectionViewModel::ESelectionChangeSource SelectionChangeSource)
 {
 	// Need to reset the attributes list...
 	for (int32 i = 0; i < (int32)UIMax; i++)
@@ -1000,14 +1003,14 @@ void SNiagaraSpreadsheetView::HandleTimeChange()
 		{
 			for (int32 i = 0; i < (int32)UIMax; i++)
 			{
-				TArray<TSharedRef<FNiagaraEmitterHandleViewModel>> SelectedEmitterHandles;
-				SystemViewModel->GetSelectedEmitterHandles(SelectedEmitterHandles);
-				if (SelectedEmitterHandles.Num() == 1)
+				TArray<FGuid> SelectedEmitterHandleIds = SystemViewModel->GetSelectionViewModel()->GetSelectedEmitterHandleIds();
+				if (SelectedEmitterHandleIds.Num() == 1)
 				{
+					TSharedPtr<FNiagaraEmitterHandleViewModel> SelectedEmitterHandle = SystemViewModel->GetEmitterHandleViewModelById(SelectedEmitterHandleIds[0]);
 					FName EntryName = NAME_None;
 					if (i != UISystemUpdate)
 					{
-						EntryName = SelectedEmitterHandles[0]->GetEmitterHandle()->GetIdName();
+						EntryName = SelectedEmitterHandle->GetEmitterHandle()->GetIdName();
 					}
 					else //if (i == UISystemUpdate)
 					{
@@ -1024,7 +1027,7 @@ void SNiagaraSpreadsheetView::HandleTimeChange()
 						CaptureData[i].CaptureData = *FoundEntry;
 						CaptureData[i].CaptureData->Frame.CopyTo(CaptureData[i].DataSet);
 						CaptureData[i].InputParams = CaptureData[i].CaptureData->Parameters;
-						CaptureData[i].LastCaptureHandleId = SelectedEmitterHandles[0]->GetId();
+						CaptureData[i].LastCaptureHandleId = SelectedEmitterHandle->GetId();
 
 						ResetColumns((EUITab)i);
 						ResetEntries((EUITab)i);
@@ -1057,11 +1060,11 @@ TStatId SNiagaraSpreadsheetView::GetStatId() const
 
 bool SNiagaraSpreadsheetView::CanCapture() const
 {
-	TArray<TSharedRef<FNiagaraEmitterHandleViewModel>> SelectedEmitterHandles;
-	SystemViewModel->GetSelectedEmitterHandles(SelectedEmitterHandles);
-	if (SelectedEmitterHandles.Num() == 1)
+	TArray<FGuid> SelectedEmitterHandleIds = SystemViewModel->GetSelectionViewModel()->GetSelectedEmitterHandleIds();
+	if (SelectedEmitterHandleIds.Num() == 1)
 	{
-		FNiagaraEmitterHandle* Handle = SelectedEmitterHandles[0]->GetEmitterHandle();
+		TSharedPtr<FNiagaraEmitterHandleViewModel> SelectedEmitterHandle = SystemViewModel->GetEmitterHandleViewModelById(SelectedEmitterHandleIds[0]);
+		FNiagaraEmitterHandle* Handle = SelectedEmitterHandle->GetEmitterHandle();
 		if (Handle )
 		{
 			return true;
@@ -1073,13 +1076,13 @@ bool SNiagaraSpreadsheetView::CanCapture() const
 
 bool SNiagaraSpreadsheetView::IsPausedAtRightTimeOnRightHandle() const
 {
-	TArray<TSharedRef<FNiagaraEmitterHandleViewModel>> SelectedEmitterHandles;
-	SystemViewModel->GetSelectedEmitterHandles(SelectedEmitterHandles);
-	if (SelectedEmitterHandles.Num() == 1)
+	TArray<FGuid> SelectedEmitterHandleIds = SystemViewModel->GetSelectionViewModel()->GetSelectedEmitterHandleIds();
+	if (SelectedEmitterHandleIds.Num() == 1)
 	{
+		TSharedPtr<FNiagaraEmitterHandleViewModel> SelectedEmitterHandle = SystemViewModel->GetEmitterHandleViewModelById(SelectedEmitterHandleIds[0]);
 		return SystemViewModel->GetSequencer()->GetPlaybackStatus() == EMovieScenePlayerStatus::Stopped &&
 			CaptureData[(int32)TabState].CaptureData.IsValid() &&
-			CaptureData[(int32)TabState].LastCaptureHandleId == SelectedEmitterHandles[0]->GetId();
+			CaptureData[(int32)TabState].LastCaptureHandleId == SelectedEmitterHandle->GetId();
 	}
 	return false;
 }
@@ -1402,16 +1405,17 @@ FReply SNiagaraSpreadsheetView::OnCaptureRequestPressed()
 	float SimulationStep = SystemViewModel->GetPreviewComponent()->GetSeekDelta();
 	float TargetCaptureTime = LocalTime + SimulationStep;
 
-	TArray<TSharedRef<FNiagaraEmitterHandleViewModel>> SelectedEmitterHandles;
-	SystemViewModel->GetSelectedEmitterHandles(SelectedEmitterHandles);
-	ensure(SelectedEmitterHandles.Num() == 1);
+	TArray<FGuid> SelectedEmitterHandleIds = SystemViewModel->GetSelectionViewModel()->GetSelectedEmitterHandleIds();
+	ensure(SelectedEmitterHandleIds.Num() == 1);
 
-	if (TargetComponent.IsValid() && TargetComponent->GetSystemInstance())
+
+	if (TargetComponent.IsValid() && TargetComponent->GetSystemInstance() && SelectedEmitterHandleIds.Num() == 1)
 	{
 		TargetRequestId = FGuid::NewGuid();
 		TargetComponent->GetSystemInstance()->RequestCapture(TargetRequestId);
 
-		UNiagaraEmitter* Emitter = SelectedEmitterHandles[0]->GetEmitterHandle()->GetInstance();
+		TSharedPtr<FNiagaraEmitterHandleViewModel> SelectedEmitterHandle = SystemViewModel->GetEmitterHandleViewModelById(SelectedEmitterHandleIds[0]);
+		UNiagaraEmitter* Emitter = SelectedEmitterHandle->GetEmitterHandle()->GetInstance();
 		
 		for (int32 i = 0; i < CaptureData.Num(); i++)
 		{

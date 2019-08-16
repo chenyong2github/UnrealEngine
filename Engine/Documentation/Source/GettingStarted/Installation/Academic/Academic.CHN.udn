@@ -1,0 +1,199 @@
+﻿INTSourceChangelist:6604018
+Availability: Public
+Title: 学术安装 
+Description: 概述如何在学术环境中安装启动程序和虚幻引擎4。
+Type: overview
+Version: 4.20
+Parent: GettingStarted/Installation
+Tags: Installation
+Order: 1
+
+
+[TOC (start:2 end:3)]
+
+![](UE4AcademicInstallation_banner.png "UE4AcademicInstallation_banner.png")
+
+随着大学、学院和职业学校继续向学生和教师提供虚幻引擎4(UE4)，我们从这些用户那里得到的最常见问题之一是如何在学校计算机上分发UE4，而不暴露用于访问引擎的学术帐户。如果您正在学术环境中安装UE4，本文档将介绍该如何使用部署自动化来分发UE4的学术安装。
+
+## 安装UE4和内容
+
+通常情况下，学校在几台计算机上安装UE4，例如在计算机实验室或在教学室内。目前，我们没有为UE4提供静默（或一步式）安装程序，这意味着安装程序至少需要在学术环境中的计算机上手动运行一次。我们没有镜像安装计算机，也没有在教室里的其他计算机上手动运行安装程序，而是自动化了一部分部署过程。 
+
+在学术环境中，执行以下步骤来安装UE4：
+
+### 使用启动程序
+
+[REGION:note]
+如果您学校的网络使用了代理服务器，最好使用[GitHub上的UE4](https://www.unrealengine.com/en-US/ue4-on-github)版本，因为启动程序不会在服务器后面运行。但是，如果您更偏向于在代理服务器后面使用启动程序版本，请与您的IT部门联系，让他们打开端口7777或7778。但是，请记住，打开这些端口并不总是能使启动程序能够在代理服务器后面打开或更新。
+[/REGION]
+
+1.  使用以下链接下载最新安装程序：
+    *   [PC版本](https://launcher-service-prod06.ol.epicgames.com/launcher/api/installer/download/UnrealEngineInstaller.msi)
+    
+    *   [macOS版本](https://launcher-service-prod06.ol.epicgames.com/launcher/api/installer/download/UnrealEngine.dmg)
+
+1.  在想要生成映像的计算机上[运行安装程序](GettingStarted/Installation)。
+
+1.  在安装程序完成例行程序后，启动程序会自动运行，使您能够使用您的Epic Games账号密码登录。
+
+1.  如果没有自动下载UE4的最新版本，您可以选择下图中的按钮(1) **安装引擎（Install Engine）** 或选择侧边栏选项(2) **库（Library）** 来下载您希望您的学生使用的引擎版本。   
+    [REGION:lightbox]
+    [![](AcademicInstallLauncher_Step4.png)(w:720)](AcademicInstallLauncher_Step4.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    1.  例如，下载[虚幻引擎4.20.2](Support/Builds/ReleaseNotes/4_20) ，首先选择侧边栏选项 **库（Library）**。  
+        [REGION:lightbox]
+        [![](AcademicInstallLauncher_Step4a.png)(w:720)](AcademicInstallLauncher_Step4a.png)
+        [/REGION]
+        [REGION:caption]
+        单击显示全图。
+        [/REGION]
+          
+    1.  现在，选择 **引擎版本（Engine Versions）** (**+**)图标。  
+        ![](AcademicInstallLauncher_Step4b.png "AcademicInstallLauncher_Step4b.png")
+    
+    1.  打开下拉列表，选择要下载的引擎版本。为便于说明，请选择版本 **4.20.2**。  
+        ![](AcademicInstallLauncher_Step4c.png "AcademicInstallLauncher_Step4c.png")
+    
+    1.  最后，选择 **安装（Install）** 按钮，按照安装程序的提示将虚幻引擎4.20.2安装到您的计算机上。  
+        ![](AcademicInstallLauncher_Step4d.png "AcademicInstallLauncher_Step4d.png")
+
+1.  一些教师在课程中会使用我们的学习示例，让我们假设，例如，一位教授横版过关游戏进程的教师想要使用我们的平台游戏示例作为教学工具。要下载一个横版过关平台跳跃游戏，他们需要选择侧边栏选项(1) **学习（Learn）** 并向下滚动选择[平台跳跃游戏](Resources/SampleGames/PlatformerGame)(2)。  
+    [REGION:lightbox]
+    [![](AcademicInstallLauncher_Step5.png)(w:720)](AcademicInstallLauncher_Step5.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    1.  从平台跳跃游戏的内容详情（Content Detail）菜单中，选择 **创建项目（Create Project）** 开始设置项目。  
+        [REGION:lightbox]
+        [![](AcademicInstallLauncher_Step5a.png "AcademicInstallLauncher_Step5a.png")(w:720)](AcademicInstallLauncher_Step5a.png)
+        [/REGION]
+        [REGION:caption]
+        单击显示全图。
+        [/REGION]
+        [REGION:note]
+        在下载学习示例之前，请参阅 **内容详情（Content Detail）** 菜单的 **支持平台（Supported Platforms）** 和 **支持的引擎版本（Supported Engine Version）** 部分，我们在部署新版本时将更新这些部分。
+        [/REGION]
+        
+    1.  在选择 **创建（Create）** 按钮之前，设置项目的名称、安装文件夹和引擎版本（我们使用的是4.20版本）。  
+        ![](AcademicInstallLauncher_Step5b.png "AcademicInstallLauncher_Step5b.png")
+    
+    1.  当平台跳跃游戏安装完成后，您会在 **库（Library）> 保管库（Vault）** 菜单中看到它。  
+        [REGION:lightbox]
+        [![](AcademicInstallLauncher_Step5c.png)(w:720)](AcademicInstallLauncher_Step5c.png)
+        [/REGION]
+        [REGION:caption]
+        单击显示全图。
+        [/REGION]
+        
+
+1.  如果您在 **库（Library）> 我的项目（My Projects）** 菜单中看到任何自动创建的项目，请删除它们。  
+    [REGION:warning]
+    如果您不删除启动程序自动为您创建的项目，可能会给使用相同项目的共享计算机上的用户带来问题。
+    [/REGION]
+    
+
+1.  删除所有自动创建的项目后，可以将该计算机的设置镜像到班级的其他计算机上。或者，您可以保存该计算机映像，以便将其分发到您实验室的计算机上。
+
+### 从GitHub
+
+访问以下页面（以便）了解如何从GitHub下载、安装和更新UE4：  
+
+1.  [访问GitHub上的虚幻引擎4](https://www.unrealengine.com/en-US/ue4-on-github)
+
+1.  [下载虚幻引擎的源代码](GettingStarted/DownloadingUnrealEngine)
+
+1.  [从Epic更新到最新更改](GettingStarted/DownloadingUnrealEngine/UpdatingSourceCode)
+
+## 执行更新
+
+安装UE4后，就可以在学术环境中使用引擎和一些免费内容。但是，制定更新计划是很重要的，因为当发布了新版UE4或者发布了引擎内容时，您可以通过复制相关文件来更新镜像或将新的内容推送到安装计算机，您可以使用脚本自动执行这些操作。
+
+阅读下面几个部分，了解如何在学术环境中更新UE4和引擎内容：
+
+### 使用启动程序
+
+1.  从中央计算机打开启动程序并导航到 **库（Library）** 菜单。
+
+1.  选择 **引擎版本（Engine Versions）** (**+**)图标。
+
+1.  在启动程序下载最新版本的UE4之后，您可以更新镜像。
+
+[REGION:tip]
+如果不希望使用启动程序执行更新，请阅读下面的部分，了解如何使用UE4将更新复制到实验室计算机。
+[/REGION]
+
+### 复制UE4和内容
+
+1.  将以下目录从基础计算机复制到您想要更新的每台计算机：
+    *   C:\\Program Files (x86)\\Epic Games\\Launcher\\VaultCache
+    
+    *   C:\\Program Files (x86)\\Epic Games\\<Engine Version>  
+        [REGION:note]
+        如果您正在复制一个特定的版本，例如4.20版本，您可以复制C:\\Program Files (x86)\\Epic Games\\4.20，或者，您可以使用通配符(*****)来自动执行所有引擎版本的复制操作，类似于\\Program Files (x86)\\Epic Games\**4.***
+        [/REGION]
+        
+
+1.  在想要更新的每台机器上创建以下目录：\[本地驱动器号\]\\ProgramData\\Epic\\EpicGamesLauncher\\Data\\ manifest。
+
+1.  假设您最近下载了该引擎，将最近下载的清单从C:\\ProgramData\\Epic\\EpicGamesLauncher\\Data\\Manifests复制到计算机的本地清单目录（上一步）。  
+    [REGION:note]
+    例如，清单文件可能类似于~\\Manifests\**6CB2FA12345680D212345678B525AE86.manifest**。
+    [/REGION]
+    
+
+1.  要验证您是否复制了最近下载的清单，请在文本编辑器中打开清单文件并搜索“AppNameString”。
+
+执行这些步骤之后，启动程序将在用户运行启动程序时自动检测更新。对于新引擎版本和从市场下载的内容来说，是这种情况。 
+
+[REGION:tip]
+如果您想要禁用启动程序自动检测更新，请阅读以下部分。
+[/REGION]
+
+## 禁用自动更新
+
+默认情况下，启动程序在其启动例程期间自动检查更新。要防止启动程序更新占用课堂时间，请执行以下步骤：
+
+1.  右键单击 **EpicGamesLauncher - 快捷方式（Shortcut）**，打开启动程序的右键菜单。
+
+1.  选择 **属性（Properties）** 命令以打开文件的 **属性（Properties）** 菜单。
+
+1.  找到 **目标：（Target:）** 属性，并在目标行的结尾处添加-noselfupdate命令。
+
+[REGION:tip]
+在下课后，请不要忘记重新启用启动程序更新。
+[/REGION]
+
+## 针对学生的最佳实践
+
+有些场景可能会影响您的学生访问UE4（或下载内容）的能力。例如，您的学校可能会出于安全（或资源）原因定期清理计算机，这可能会影响学生在课堂上的进度。为了帮助这些学生，我们针对他们在学术环境中使用UE4时可能遇到的一些常见场景收集了以下最佳实践。
+
+### 在网络中断期间
+
+在网络中断期间，学生可以通过选择 **跳过登陆（Skip Sign In）** 选项来运行启动程序，该选项位于启动程序的网络连接对话框窗口中。
+
+[REGION:lightbox]
+[![](AcademicInstallLauncher_StudentBP_NetOut.png)(w:720)](AcademicInstallLauncher_StudentBP_NetOut.png)
+[/REGION]
+[REGION:caption]
+单击显示全图。
+[/REGION]
+
+在以 **离线（Offline）** 模式登录之后，学生可以访问UE4、他们的项目，以及之前下载的内容。
+
+### 为内存清理做准备
+
+如果您的学校有定期清理计算机（或驱动器）内存的政策，将学生的计算机返回到它们的基础映像，则学生必须将他们的工作保存在一个不会被清理（或清除）的目录中。 
+
+1.  例如，假设一名学生从库（Library）选项卡的保管库创建了一个新的策略游戏项目。  
+    ![](AcademicInstall_PreparingforMemWipes-1.png "AcademicInstall_PreparingforMemWipes-1.png")
+
+1.  在创建新项目时，学生应该指定一个文件夹（或网络目录，例如沙盒驱动器），当他们的计算机重新映像时，该文件夹不会被删除。  
+    ![](AcademicInstall_PreparingforMemWipes_1-1.png "AcademicInstall_PreparingforMemWipes_1-1.png")
+
+[REGION:note]
+只要学校的政策允许，学生通常会使用启动程序下载额外内容，但是，如果下载的内容没有保存在镜像驱动器中，则在重新映像期间很可能会清理这些内容。
+[/REGION]

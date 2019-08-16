@@ -120,15 +120,17 @@ void FNiagaraSceneProxy::ReleaseRenderers()
 {
 	if (EmitterRenderers.Num() > 0)
 	{
+		NiagaraEmitterInstanceBatcher* TheBatcher = Batcher && !Batcher->IsPendingKill() ? Batcher : nullptr;
+
 		//Renderers must be freed on the render thread.
 		ENQUEUE_RENDER_COMMAND(ReleaseRenderersCommand)(
-			[ToDeleteEmitterRenderers = MoveTemp(EmitterRenderers)](FRHICommandListImmediate& RHICmdList)
+			[ToDeleteEmitterRenderers = MoveTemp(EmitterRenderers), TheBatcher](FRHICommandListImmediate& RHICmdList)
 		{
 			for (FNiagaraRenderer* EmitterRenderer : ToDeleteEmitterRenderers)
 			{
 				if (EmitterRenderer)
 				{
-					EmitterRenderer->ReleaseRenderThreadResources();
+					EmitterRenderer->ReleaseRenderThreadResources(TheBatcher);
 					delete EmitterRenderer;
 				}
 			}
@@ -140,6 +142,8 @@ void FNiagaraSceneProxy::ReleaseRenderers()
 
 void FNiagaraSceneProxy::CreateRenderers(const UNiagaraComponent* Component)
 {
+	LLM_SCOPE(ELLMTag::Niagara);
+
 	check(Component);
 	check(Component->GetSystemInstance());
 
@@ -195,7 +199,7 @@ FNiagaraSceneProxy::~FNiagaraSceneProxy()
 	{
 		if (EmitterRenderer)
 		{
-			EmitterRenderer->ReleaseRenderThreadResources();
+			EmitterRenderer->ReleaseRenderThreadResources(Batcher);
 			delete EmitterRenderer;
 		}
 	}
@@ -208,7 +212,7 @@ void FNiagaraSceneProxy::ReleaseRenderThreadResources()
 	{
 		if (Renderer)
 		{
-			Renderer->ReleaseRenderThreadResources();
+			Renderer->ReleaseRenderThreadResources(Batcher);
 		}
 	}
 	return;
@@ -217,11 +221,12 @@ void FNiagaraSceneProxy::ReleaseRenderThreadResources()
 // FPrimitiveSceneProxy interface.
 void FNiagaraSceneProxy::CreateRenderThreadResources()
 {
+	LLM_SCOPE(ELLMTag::Niagara);
 	for (FNiagaraRenderer* Renderer : EmitterRenderers)
 	{
 		if (Renderer)
 		{
-			Renderer->CreateRenderThreadResources();
+			Renderer->CreateRenderThreadResources(Batcher);
 		}
 	}
 	return;
@@ -242,7 +247,7 @@ FPrimitiveViewRelevance FNiagaraSceneProxy::GetViewRelevance(const FSceneView* V
 {
 	FPrimitiveViewRelevance Relevance;
 
-	if (bRenderingEnabled == false || (View->GetFeatureLevel() != ERHIFeatureLevel::SM5 && View->GetFeatureLevel() != ERHIFeatureLevel::ES3_1))
+	if (bRenderingEnabled == false || !FNiagaraUtilities::SupportsNiagaraRendering(View->GetFeatureLevel()))
 	{
 		return Relevance;
 	}
@@ -297,7 +302,7 @@ void FNiagaraSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>&
 	for (int32 RendererIdx : RendererDrawOrder)
 	{
 		FNiagaraRenderer* Renderer = EmitterRenderers[RendererIdx];
-		if (Renderer)
+		if (Renderer && (Renderer->GetSimTarget() == ENiagaraSimTarget::CPUSim || ViewFamily.GetFeatureLevel() == ERHIFeatureLevel::SM5))
 		{
 			Renderer->GetDynamicMeshElements(Views, ViewFamily, VisibilityMap, Collector, this);
 		}
@@ -382,30 +387,76 @@ UNiagaraComponent::UNiagaraComponent(const FObjectInitializer& ObjectInitializer
 /********* UFXSystemComponent *********/
 void UNiagaraComponent::SetFloatParameter(FName ParameterName, float Param)
 {
-	SetNiagaraVariableFloat(ParameterName.ToString(), Param);
+	SetVariableFloat(ParameterName, Param);
 }
 
 void UNiagaraComponent::SetVectorParameter(FName ParameterName, FVector Param)
 {
-	SetNiagaraVariableVec3(ParameterName.ToString(), Param);
+	SetVariableVec3(ParameterName, Param);
 }
 
 void UNiagaraComponent::SetColorParameter(FName ParameterName, FLinearColor Param)
 {
-	SetNiagaraVariableLinearColor(ParameterName.ToString(), Param);
+	SetVariableLinearColor(ParameterName, Param);
 }
 
 void UNiagaraComponent::SetActorParameter(FName ParameterName, class AActor* Param)
 {
-	SetNiagaraVariableActor(ParameterName.ToString(), Param);
+	SetVariableActor(ParameterName, Param);
 }
+
+
+void UNiagaraComponent::SetEmitterEnable(FName EmitterName, bool bNewEnableState)
+{
+	if (!SystemInstance)
+	{
+		return;
+	}
+	if (SystemInstance.Get() && !SystemInstance->IsComplete())
+	{
+		SystemInstance->SetEmitterEnable(EmitterName, bNewEnableState);
+	}
+}
+
+void UNiagaraComponent::ReleaseToPool()
+{
+	if (PoolingMethod != ENCPoolMethod::ManualRelease)
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("Manually releasing a PSC to the pool that was not spawned with ENCPoolMethod::ManualRelease. Asset=%s Component=%s"),
+			Asset ? *Asset->GetPathName() : TEXT("NULL"), *GetPathName()
+		);
+		return;
+	}
+
+	if (!bIsActive)
+	{
+		//If we're already complete then release to the pool straight away.
+		UWorld* World = GetWorld();
+		check(World);
+		FNiagaraWorldManager::Get(World)->GetComponentPool()->ReclaimWorldParticleSystem(this);
+	}
+	else
+	{
+		//If we haven't completed, deactivate and defer release to pool.
+		PoolingMethod = ENCPoolMethod::ManualRelease_OnComplete;
+		Deactivate();
+	}
+}
+
+uint32 UNiagaraComponent::GetApproxMemoryUsage() const
+{
+	// TODO: implement memory usage for the component pool statistics
+	return 1;
+}
+
 /********* UFXSystemComponent *********/
 
 
 void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
+	LLM_SCOPE(ELLMTag::Niagara);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentTick);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Particles);
 
 	FScopeCycleCounter SystemStatCounter(Asset ? Asset->GetStatID(true, false) : TStatId());
 
@@ -546,6 +597,31 @@ bool UNiagaraComponent::IsPaused()const
 	return false;
 }
 
+UNiagaraDataInterface * UNiagaraComponent::GetDataInterface(const FString &Name)
+{
+
+	// @todo-threadsafety Think of a better way to do this!
+	if (!SystemInstance || SystemInstance->GetEmitters().Num() == 0 || !SystemInstance->GetEmitters()[0]->GetGPUContext())
+	{
+		return nullptr;
+	}
+	
+	FNiagaraComputeExecutionContext* GPUContext = SystemInstance->GetEmitters()[0]->GetGPUContext();
+	const TArray<FNiagaraScriptDataInterfaceCompileInfo> &DataInterfaceInfo = GPUContext->GPUScript->GetVMExecutableData().DataInterfaceInfo;
+	const TArray<UNiagaraDataInterface*>& DataInterfaces = GPUContext->CombinedParamStore.GetDataInterfaces();
+
+	int Index = 0;
+	for (UNiagaraDataInterface* Interface : DataInterfaces)
+	{
+		if (DataInterfaceInfo[Index].Name.GetPlainNameString() == Name)
+		{			
+			return Interface;
+		}	
+		++Index;
+	}
+	return nullptr;
+}
+
 bool UNiagaraComponent::IsWorldReadyToRun() const
 {
 	// The niagara system instance assumes that a batcher exists when it is created. We need to wait until this has happened before successfully activating this system.
@@ -579,6 +655,8 @@ bool UNiagaraComponent::IsWorldReadyToRun() const
 
 bool UNiagaraComponent::InitializeSystem()
 {
+	LLM_SCOPE(ELLMTag::Niagara);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
 	if (SystemInstance.IsValid() == false)
 	{
 		FNiagaraSystemInstance::AllocateSystemInstance(this, SystemInstance);
@@ -722,15 +800,28 @@ void UNiagaraComponent::Activate(bool bReset /* = false */)
 void UNiagaraComponent::Deactivate()
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentDeactivate);
-	Super::Deactivate();
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
 
 	//UE_LOG(LogNiagara, Log, TEXT("Deactivate: %u - %s"), this, *Asset->GetName());
 
-	bIsActive = false;
-
 	if (SystemInstance)
 	{
+		// Don't deactivate in solo mode as we are not ticked by the world but rather the component
+		// Deactivating will cause the system to never Complete
+		if (SystemInstance->IsSolo() == false)
+		{
+			Super::Deactivate();
+		}
+
 		SystemInstance->Deactivate();
+
+		// We are considered active until we are complete
+		bIsActive = !SystemInstance->IsComplete();
+	}
+	else
+	{
+		Super::Deactivate();
+		bIsActive = false;
 	}
 }
 
@@ -764,7 +855,16 @@ void UNiagaraComponent::OnSystemComplete()
 	OnSystemFinished.Broadcast(this);
 	//UE_LOG(LogNiagara, Log, TEXT("OnSystemFinished.Broadcast(this);: } %p - %s"), SystemInstance.Get(), *Asset->GetName());
 
-	if (bAutoDestroy)
+	if (PoolingMethod == ENCPoolMethod::AutoRelease)
+	{
+		FNiagaraWorldManager::Get(GetWorld())->GetComponentPool()->ReclaimWorldParticleSystem(this);
+	}
+	else if (PoolingMethod == ENCPoolMethod::ManualRelease_OnComplete)
+	{
+		PoolingMethod = ENCPoolMethod::ManualRelease;
+		FNiagaraWorldManager::Get(GetWorld())->GetComponentPool()->ReclaimWorldParticleSystem(this);
+	}
+	else if (bAutoDestroy)
 	{
 		//UE_LOG(LogNiagara, Log, TEXT("OnSystemComplete DestroyComponent();: { %p - %s"), SystemInstance.Get(), *Asset->GetName());
 		DestroyComponent();
@@ -904,6 +1004,8 @@ void UNiagaraComponent::CreateRenderState_Concurrent()
 
 void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 {
+	LLM_SCOPE(ELLMTag::Niagara);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentSendRenderData);
 	if (SystemInstance.IsValid() && SceneProxy)
 	{
@@ -1023,6 +1125,7 @@ FBoxSphereBounds UNiagaraComponent::CalcBounds(const FTransform& LocalToWorld) c
 
 FPrimitiveSceneProxy* UNiagaraComponent::CreateSceneProxy()
 {
+	LLM_SCOPE(ELLMTag::Niagara);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraCreateSceneProxy);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
 	
@@ -1061,11 +1164,22 @@ FNiagaraSystemInstance* UNiagaraComponent::GetSystemInstance() const
 	return SystemInstance.Get();
 }
 
+void UNiagaraComponent::SetVariableLinearColor(FName InVariableName, const FLinearColor& InValue)
+{
+	OverrideParameters.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetColorDef(), InVariableName), true);
+}
+
 void UNiagaraComponent::SetNiagaraVariableLinearColor(const FString& InVariableName, const FLinearColor& InValue)
 {
 	FName VarName = FName(*InVariableName);
 
 	OverrideParameters.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetColorDef(), VarName), true);
+}
+
+
+void UNiagaraComponent::SetVariableQuat(FName InVariableName, const FQuat& InValue)
+{
+	OverrideParameters.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetQuatDef(), InVariableName), true);
 }
 
 void UNiagaraComponent::SetNiagaraVariableQuat(const FString& InVariableName, const FQuat& InValue)
@@ -1075,11 +1189,21 @@ void UNiagaraComponent::SetNiagaraVariableQuat(const FString& InVariableName, co
 	OverrideParameters.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetQuatDef(), VarName), true);
 }
 
+void UNiagaraComponent::SetVariableVec4(FName InVariableName, const FVector4& InValue)
+{
+	OverrideParameters.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetVec4Def(), InVariableName), true);
+}
+
 void UNiagaraComponent::SetNiagaraVariableVec4(const FString& InVariableName, const FVector4& InValue)
 {
 	FName VarName = FName(*InVariableName);
 
 	OverrideParameters.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetVec4Def(), VarName), true);
+}
+
+void UNiagaraComponent::SetVariableVec3(FName InVariableName, FVector InValue)
+{
+	OverrideParameters.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), InVariableName), true);
 }
 
 void UNiagaraComponent::SetNiagaraVariableVec3(const FString& InVariableName, FVector InValue)
@@ -1089,11 +1213,21 @@ void UNiagaraComponent::SetNiagaraVariableVec3(const FString& InVariableName, FV
 	OverrideParameters.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), VarName), true);
 }
 
+void UNiagaraComponent::SetVariableVec2(FName InVariableName, FVector2D InValue)
+{
+	OverrideParameters.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(),InVariableName), true);
+}
+
 void UNiagaraComponent::SetNiagaraVariableVec2(const FString& InVariableName, FVector2D InValue)
 {
 	FName VarName = FName(*InVariableName);
 
 	OverrideParameters.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(),VarName), true);
+}
+
+void UNiagaraComponent::SetVariableFloat(FName InVariableName, float InValue)
+{
+	OverrideParameters.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), InVariableName), true);
 }
 
 void UNiagaraComponent::SetNiagaraVariableFloat(const FString& InVariableName, float InValue)
@@ -1103,6 +1237,11 @@ void UNiagaraComponent::SetNiagaraVariableFloat(const FString& InVariableName, f
 	OverrideParameters.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), VarName), true);
 }
 
+void UNiagaraComponent::SetVariableInt(FName InVariableName, int32 InValue)
+{
+	OverrideParameters.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), InVariableName), true);
+}
+
 void UNiagaraComponent::SetNiagaraVariableInt(const FString& InVariableName, int32 InValue)
 {
 	FName VarName = FName(*InVariableName);
@@ -1110,11 +1249,38 @@ void UNiagaraComponent::SetNiagaraVariableInt(const FString& InVariableName, int
 	OverrideParameters.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), VarName), true);
 }
 
+void UNiagaraComponent::SetVariableBool(FName InVariableName, bool InValue)
+{
+	OverrideParameters.SetParameterValue(InValue ? FNiagaraBool::True : FNiagaraBool::False, FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), InVariableName), true);
+}
+
 void UNiagaraComponent::SetNiagaraVariableBool(const FString& InVariableName, bool InValue)
 {
 	FName VarName = FName(*InVariableName);
 
 	OverrideParameters.SetParameterValue(InValue ? FNiagaraBool::True : FNiagaraBool::False, FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), VarName), true);
+}
+
+void UNiagaraComponent::SetNiagaraVariableActor(const FString& InVariableName, AActor* InValue)
+{
+	SetNiagaraVariableObject(InVariableName, InValue);
+}
+
+void UNiagaraComponent::SetVariableActor(FName InVariableName, AActor* InValue)
+{
+	SetVariableObject(InVariableName, InValue);
+}
+
+void UNiagaraComponent::SetNiagaraVariableObject(const FString& InVariableName, UObject* InValue)
+{
+	FName VarName = FName(*InVariableName);
+
+	OverrideParameters.SetUObject(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetUObjectDef(), VarName));
+}
+
+void UNiagaraComponent::SetVariableObject(FName InVariableName, UObject* InValue)
+{
+	OverrideParameters.SetUObject(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetUObjectDef(), InVariableName));
 }
 
 TArray<FVector> UNiagaraComponent::GetNiagaraParticlePositions_DebugOnly(const FString& InEmitterName)
@@ -1190,6 +1356,31 @@ void UNiagaraComponent::PostLoad()
 	}
 }
 
+void UNiagaraComponent::SetUserParametersToDefaultValues()
+{
+	OverrideParameters.Empty();
+	if (Asset == nullptr)
+	{
+		return;
+	}
+
+	TArray<FNiagaraVariable> SourceVars;
+	Asset->GetExposedParameters().GetParameters(SourceVars);
+	for (FNiagaraVariable& Param : SourceVars)
+	{
+		OverrideParameters.AddParameter(Param, true);
+	}
+
+	TArray<FNiagaraVariable> ExistingVars;
+	OverrideParameters.GetUserParameters(ExistingVars);
+	for (FNiagaraVariable ExistingVar : ExistingVars)
+	{
+		Asset->GetExposedParameters().CopyParameterData(OverrideParameters, ExistingVar);
+	}
+
+	OverrideParameters.Rebind();
+}
+
 #if WITH_EDITOR
 
 void UNiagaraComponent::PreEditChange(UProperty* PropertyAboutToChange)
@@ -1226,7 +1417,6 @@ void UNiagaraComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
-
 
 void UNiagaraComponent::SynchronizeWithSourceSystem()
 {
@@ -1405,7 +1595,7 @@ void UNiagaraComponent::SetParameterValueOverriddenLocally(const FNiagaraVariabl
 	
 	if (bRequiresSystemInstanceReset && SystemInstance)
 	{
-		SystemInstance->Reset(FNiagaraSystemInstance::EResetMode::ResetAll, true);
+		SystemInstance->Reset(FNiagaraSystemInstance::EResetMode::ResetAll);
 	}
 	
 }

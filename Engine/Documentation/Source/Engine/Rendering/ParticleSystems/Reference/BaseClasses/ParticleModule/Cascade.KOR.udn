@@ -1,8 +1,8 @@
-﻿INTSourceChangelist:3243860
+INTSourceChangelist:3243860
 Availability: Public
 Title:ParticleModule 클래스
 Crumbs: %ROOT%, Engine, Engine/Rendering/ParticleSystems, Engine/Rendering/ParticleSystems/Reference
-Description:모든 파티클 모듈이 상속받는 ParticleModule 클래스에 대한 프로퍼티 참고서입니다. 모든 모듈에는 이 클래스의 프로퍼티가 포함됩니다.
+Description:모든 파티클 모듈이 상속받는 ParticleModule 클래스에 대한 프로퍼티 레퍼런스입니다. 모든 모듈에는 이 클래스의 프로퍼티가 포함됩니다.
 Version: 4.9
 tags:Particles
 

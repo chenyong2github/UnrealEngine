@@ -25,37 +25,61 @@ class SScrollBar;
 enum class EConsumeMouseWheel : uint8;
 enum class ESlateVisibility : uint8;
 
-/** If the list panel is arranging items horizontally, this enum dictates how the items should be aligned (basically, where any extra space is placed) */
+/** If the list panel is arranging items as tiles, this enum dictates how the items should be aligned (basically, where any extra space is placed) */
 UENUM(BlueprintType)
 enum class EListItemAlignment : uint8
 {
-	/** Items are distributed evenly along the row (any extra space is added as padding between the items) */
+	/** Items are distributed evenly along the line (any extra space is added as padding between the items) */
 	EvenlyDistributed UMETA(DisplayName = "Evenly (Padding)"),
 
-	/** Items are distributed evenly along the row (any extra space is used to scale up the size of the item proportionally.) */
+	/** Items are distributed evenly along the line (any extra space is used to scale up the size of the item proportionally.) */
 	EvenlySize UMETA(DisplayName = "Evenly (Size)"),
 
-	/** Items are distributed evenly along the row, any extra space is used to scale up width of the items proportionally.) */
+	/** Items are distributed evenly along the line, any extra space is used to scale up width of the items proportionally.) */
 	EvenlyWide UMETA(DisplayName = "Evenly (Wide)"),
 
-	/** Items are left aligned on the row (any extra space is added to the right of the items) */
+	/** Items are left aligned on the line (any extra space is added to the right of the items) */
 	LeftAligned,
 
-	/** Items are right aligned on the row (any extra space is added to the left of the items) */
+	/** Items are right aligned on the line (any extra space is added to the left of the items) */
 	RightAligned,
 
-	/** Items are center aligned on the row (any extra space is halved and added to the left of the items) */
+	/** Items are center aligned on the line (any extra space is halved and added to the left of the items) */
 	CenterAligned,
 
-	/** Items are evenly horizontally stretched to distribute any extra space */
+	/** Items are evenly stretched to distribute any extra space on the line */
 	Fill,
 };
-
 
 DECLARE_DELEGATE_OneParam(
 	FOnTableViewScrolled,
 	double );	/** Scroll offset from the beginning of the list in items */
 
+/** Abstracts away the need to distinguish between X or Y when calculating table layout elements */
+struct SLATE_API FTableViewDimensions
+{
+	FTableViewDimensions(EOrientation InOrientation);
+	FTableViewDimensions(EOrientation InOrientation, float X, float Y);
+	FTableViewDimensions(EOrientation InOrientation, const FVector2D& Size);
+
+	FVector2D ToVector2D() const
+	{
+		return Orientation == Orient_Vertical ? FVector2D(LineAxis, ScrollAxis) : FVector2D(ScrollAxis, LineAxis);
+	}
+
+	FTableViewDimensions operator+(const FTableViewDimensions& Other) const
+	{
+		return FTableViewDimensions(Orientation, ToVector2D() + Other.ToVector2D());
+	}
+
+	EOrientation Orientation = Orient_Vertical;
+
+	/** The dimension along the scrolling axis of the table view (Y when oriented vertically, X when horizontal) */
+	float ScrollAxis = 0.f;
+	
+	/** The dimension orthogonal to the scroll axis, along which lines of items are created. Only really relevant for tile views. */
+	float LineAxis = 0.f;
+};
 
 /**
  * Contains ListView functionality that does not depend on the type of data being observed by the ListView.
@@ -67,7 +91,7 @@ class SLATE_API STableViewBase
 public:
 
 	/** Create the child widgets that comprise the list */
-	void ConstructChildren( const TAttribute<float>& InItemWidth, const TAttribute<float>& InItemHeight, const TAttribute<EListItemAlignment>& InItemAlignment, const TSharedPtr<SHeaderRow>& InColumnHeaders, const TSharedPtr<SScrollBar>& InScrollBar, const FOnTableViewScrolled& InOnTableViewScrolled );
+	void ConstructChildren( const TAttribute<float>& InItemWidth, const TAttribute<float>& InItemHeight, const TAttribute<EListItemAlignment>& InItemAlignment, const TSharedPtr<SHeaderRow>& InHeaderRow, const TSharedPtr<SScrollBar>& InScrollBar, EOrientation InScrollOrientation, const FOnTableViewScrolled& InOnTableViewScrolled );
 
 	/** Sets the item height */
 	void SetItemHeight(TAttribute<float> Height);
@@ -130,6 +154,15 @@ public:
 
 	void SetScrollbarVisibility(const EVisibility InVisibility);
 
+	/** Sets the fixed offset in items to always apply to the top/left (depending on orientation) of the list. */
+	void SetFixedLineScrollOffset(TOptional<double> InFixedLineScrollOffset);
+
+	/** Sets whether the list should lerp between scroll offsets or jump instantly between them. */
+	void SetIsScrollAnimationEnabled(bool bInEnableScrollAnimation);
+
+	/** Sets the multiplier applied when wheel scrolling. Higher numbers will cover more distance per click of the wheel. */
+	void SetWheelScrollMultiplier(float NewWheelScrollMultiplier);
+
 public:
 
 	// SWidget interface
@@ -164,6 +197,9 @@ public:
 protected:
 
 	STableViewBase( ETableViewMode::Type InTableViewMode );
+
+	/** Returns the "true" scroll offset where the list will ultimately settle (and may already be). */
+	double GetTargetScrollOffset() const;
 
 	/**
 	 * Scroll the list view by some number of screen units.
@@ -215,10 +251,10 @@ protected:
 	virtual float GetNumLiveWidgets() const;
 
 	/**
-	 * Get the number of items that can fit in the view horizontally before creating a new row.
+	 * Get the number of items that can fit in the view along the line axis (orthogonal to the scroll axis) before creating a new line.
 	 * Default is 1, but may be more in subclasses (like STileView)
 	 */
-	virtual int32 GetNumItemsWide() const;
+	virtual int32 GetNumItemsPerLine() const;
 
 	/*
 	 * Right click down
@@ -246,26 +282,24 @@ protected:
 	/** Information about the outcome of the WidgetRegeneratePass */
 	struct SLATE_API FReGenerateResults
 	{
-		FReGenerateResults( double InNewScrollOffset, double InHeightGenerated, double InItemsOnScreen, bool AtEndOfList )
-		: NewScrollOffset( InNewScrollOffset )
-		, HeightOfGeneratedItems( InHeightGenerated )
-		, ExactNumRowsOnScreen( InItemsOnScreen )
-		, bGeneratedPastLastItem( AtEndOfList )
-		{
-
-		}
+		FReGenerateResults(double InNewScrollOffset, double InLengthGenerated, double InItemsOnScreen, bool AtEndOfList)
+			: NewScrollOffset(InNewScrollOffset)
+			, LengthOfGeneratedItems(InLengthGenerated)
+			, ExactNumLinesOnScreen(InItemsOnScreen)
+			, bGeneratedPastLastItem(AtEndOfList)
+		{}
 
 		/** The scroll offset that we actually use might not be what the user asked for */
-		double NewScrollOffset;
+		double NewScrollOffset = 0.;
 
-		/** The total height of the widgets that we have generated to represent the visible subset of the items*/
-		double HeightOfGeneratedItems;
+		/** The total length along the scroll axis of the widgets that we have generated to represent the visible subset of the items*/
+		double LengthOfGeneratedItems = 0.;
 
-		/** How many rows are fitting on the screen, including fractions */
-		double ExactNumRowsOnScreen;
+		/** How many lines are fitting on the screen, including fractions */
+		double ExactNumLinesOnScreen = 0.;
 
 		/** True when we have generated  */
-		bool bGeneratedPastLastItem;
+		bool bGeneratedPastLastItem = false;
 	};
 	/**
 	 * Update generate Widgets for Items as needed and clean up any Widgets that are no longer needed.
@@ -308,8 +342,25 @@ protected:
 	/** Delegate to call when the table view is scrolled */
 	FOnTableViewScrolled OnTableViewScrolled;
 
-	/** Scroll offset from the beginning of the list in items */
-	double ScrollOffset;
+	/** 
+	 * The fixed offset in lines to always apply to the top/left (depending on orientation) of the list.
+	 * If provided, all non-inertial means of scrolling will settle with exactly this offset of the topmost entry.
+	 * Ex: A value of 0.25 would cause the topmost full entry to be offset down by a quarter length of the preceeding entry.
+	 */
+	TOptional<double> FixedLineScrollOffset;
+
+	/** True to lerp smoothly between offsets when the desired scroll offset changes. */
+	bool bEnableAnimatedScrolling = false;
+
+	/** The currently displayed scroll offset from the beginning of the list in items. */
+	double CurrentScrollOffset = 0.;
+
+	/** 
+	 * The raw desired scroll offset from the beginning of the list in items.
+	 * Does not incorporate the FixedLineScrollOffset. Use GetTargetScrollOffset() to know the final target offset to display.
+	 * Note: If scroll animation is disabled and there is no FixedLineScrollOffset, this is identical to both the CurrentScrollOffset and the target offset.
+	 */
+	double DesiredScrollOffset = 0.;
 
 	/** Did the user start an interaction in this list? */
 	bool bStartedTouchInteraction;
@@ -352,6 +403,9 @@ protected:
 
 	/** How much to scroll when using mouse wheel */
 	float WheelScrollMultiplier;
+
+	/** The layout and scroll orientation of the list */
+	EOrientation Orientation = Orient_Vertical;
 
 protected:
 

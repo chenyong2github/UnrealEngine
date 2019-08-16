@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:3782314
 Availability:Public
 Title:위젯 컴포넌트
 Crumbs:%ROOT%, Engine, Engine/Components
@@ -36,7 +36,7 @@ Widget Component, 위젯 컴포넌트로 게임 월드에서 [언리얼 모션 �
 벽에 상호작용형 키패드가 있는 모습입니다.
 [/REGION]
 
-## 위젯 컴포넌트 프로퍼티 참고서
+## 위젯 컴포넌트 프로퍼티 레퍼런스
 
 위젯 컴포넌트의 **디테일** 패널에서 변경할 수 있는 프로퍼티는 다음과 같습니다.
 

@@ -243,12 +243,14 @@ void SMergeTreeView::Construct(const FArguments InArgs
 		Children.Push( FBlueprintDifferenceTreeEntry::NoDifferencesEntry() );
 	}
 
-	TSharedPtr<FBlueprintDifferenceTreeEntry> Category = FBlueprintDifferenceTreeEntry::CreateComponentsCategoryEntryForMerge(
-		FOnDiffEntryFocused::CreateStatic(ForwardSelection, SelectionCallback)
-		, Children
-		, RemoteDifferingProperties.Entries.Num() != 0
-		, LocalDifferingProperties.Entries.Num() != 0
-		, bAnyConflict);
+	TSharedPtr<FBlueprintDifferenceTreeEntry> Category = FBlueprintDifferenceTreeEntry::CreateCategoryEntryForMerge(
+		NSLOCTEXT("FBlueprintDifferenceTreeEntry", "SCSLabel", "Components"),
+		NSLOCTEXT("FBlueprintDifferenceTreeEntry", "SCSTooltip", "The list of changes made in the Components panel"),
+		FOnDiffEntryFocused::CreateStatic(ForwardSelection, SelectionCallback),
+		Children,
+		RemoteDifferingProperties.Entries.Num() != 0,
+		LocalDifferingProperties.Entries.Num() != 0,
+		bAnyConflict);
 	OutTreeEntries.Push(Category);
 
 	ChildSlot[

@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:2369991
+﻿INTSourceChangelist:3108692
 Availability:Public
 Title:蓝图分析插件
 Crumbs: %ROOT%, Gameplay, Gameplay/Analytics
@@ -11,6 +11,7 @@ Description:提供一组蓝图节点，以允许您用来分析服务通讯
 ![](analytics_blueprint_plugin.png)
 
 
+(#StartSession)
 ## 开始会话
 
 该操作将为当前玩家开始新的分析会话。每个游戏会话应视作唯一会话，以便您的分析数据捕获用户玩游戏的频率和时长。如果上一个会话还在进行中，则大部分服务商将自动关闭上一个会话并开始新的会话。
@@ -69,6 +70,7 @@ Description:提供一组蓝图节点，以允许您用来分析服务通讯
 | **Return Value**	| 默认分析服务商是否可以创建新会话。 |
 
 
+(#EndSession)
 ## 停止会话
 
 该操作将停止记录指定会话的事件。某些服务商会将数据输出到收集器中。
@@ -112,6 +114,7 @@ Description:提供一组蓝图节点，以允许您用来分析服务通讯
 
 
 
+(#RecordEvent)
 ## 记录会话
  
 要记录不含相关属性的事件，请使用 **Record Event** 节点。这些类型的事件通常用于计算用户执行特定选项的次数。
@@ -172,9 +175,10 @@ Description:提供一组蓝图节点，以允许您用来分析服务通讯
 | **Event Name** |	正在递增的事件的名称。 |
 
 
+(#RecordEventWithAttribute)
 ## 记录含单一属性的会话
  
-该操作将按含单一属性的名称记录事件，以便您在唯一属性中比较该事件的频率。例如，下方的“Item.Equipped”事件将记录 
+该操作将按含单一属性的名称记录事件，以便您在唯一属性中比较该事件的频率。例如，下方的Item.Equipped事件将记录 
 玩家在游戏中装备武器的频率，并将显示游戏中最受玩家欢迎的道具。
 
 [REGION:graph]
@@ -183,7 +187,7 @@ Description:提供一组蓝图节点，以允许您用来分析服务通讯
             function
         [/PARAMLITERAL]
         [PARAMLITERAL:title]
-            Record Event
+             Record Event with Attribute
         [/PARAMLITERAL]
         [PARAM:inputs]
             [OBJECT:BlueprintPin]
@@ -263,6 +267,7 @@ Description:提供一组蓝图节点，以允许您用来分析服务通讯
 | **Attribute Value** | 	自定义该事件的唯一部分所用的值。|
 
 
+(#RecordEventWithAttributes)
 ## 记录含多个属性的会话
 
 要提供有关事件的更多详细信息，您可以使用 **Record Event with Attributes**。当您想将多个属性作为事件的上下文时，可以使用该操作。 
@@ -281,6 +286,7 @@ Description:提供一组蓝图节点，以允许您用来分析服务通讯
 |**Attributes**	|针对用户操作提供更多上下文的属性列表 |
 
 
+(#MakeAnalyticsEventAttr)
 ## 创建 AnalyticsEventAttr
 
 该操作轻松简便，取两个字符串，然后将其转换成分析 API 所需的结构。
@@ -295,6 +301,7 @@ Description:提供一组蓝图节点，以允许您用来分析服务通讯
 | **Attribute Name**	| 正在创建的属性的名称。 |
 | **Attribute Value**	| 正在创建的属性的值。 |
 
+(#FlushEvents)
 ## 输出事件
 
 某些服务商会在本地缓存收集的分析数据，直到达到阀值或会话结束。该调用将指示服务商提交其本地缓存的所有数据。
@@ -338,6 +345,7 @@ Description:提供一组蓝图节点，以允许您用来分析服务通讯
 [/REGION]
 
 
+(#RecordItemPurchase)
 ## 记录道具购买
  
 该操作将记录使用游戏货币购买的游戏道具。这不是指现金交易。但是，该操作可跟踪使用游戏货币购买的 
@@ -447,6 +455,7 @@ Description:提供一组蓝图节点，以允许您用来分析服务通讯
 | **Item Quantity**	| 玩家购买的道具数量。| 
 
 
+(#RecordCurrencyGiven)
 ## 记录所提供货币
 
 此操作记录游戏何时向玩家提供游戏货币。这可能是在完成任务、卖出道具、打开箱子等时候记录该数据十分重要， 
@@ -525,6 +534,7 @@ Description:提供一组蓝图节点，以允许您用来分析服务通讯
 |**Game Currency Amount**	|给予玩家的货币数量。|
 
 
+(#RecordCurrencyPurchase)
 ## 记录货币购买
 
 该操作记录使用现金支付的游戏货币购买，也称为应用内购买。某些服务商将自动捕获该信息，如 Apsalar。 

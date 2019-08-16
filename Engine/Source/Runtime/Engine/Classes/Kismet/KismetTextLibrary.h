@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -196,6 +196,10 @@ class ENGINE_API UKismetTextLibrary : public UBlueprintFunctionLibrary
 	/* Converts a passed in integer to text based on formatting options */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "ToText (integer)", AdvancedDisplay = "1", BlueprintAutocast), Category="Utilities|Text")
 	static FText Conv_IntToText(int32 Value, bool bAlwaysSign = false, bool bUseGrouping = true, int32 MinimumIntegralDigits = 1, int32 MaximumIntegralDigits = 324);
+
+	/* Converts a passed in integer to text based on formatting options */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "ToText (int64)", AdvancedDisplay = "1", BlueprintAutocast), Category = "Utilities|Text")
+	static FText Conv_Int64ToText(int64 Value, bool bAlwaysSign = false, bool bUseGrouping = true, int32 MinimumIntegralDigits = 1, int32 MaximumIntegralDigits = 324);
 
 	// Default values are duplicated from FNumberFormattingOptions and should be replicated in all functions and in the struct when changed!
 	/* Converts a passed in float to text based on formatting options */

@@ -25,6 +25,10 @@
 #include "ObjectPropertyNode.h"
 #include "PropertyHandleImpl.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Editor/UnrealEdEngine.h"
+#include "UnrealEdGlobals.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "Widgets/Notifications/SNotificationList.h"
 
 #define LOCTEXT_NAMESPACE "PropertyEditor"
 
@@ -666,7 +670,8 @@ TSharedRef<SWidget> SPropertyEditorAsset::OnGetMenuContent()
 																	 NewAssetFactories,
 																	 OnShouldFilterAsset,
 																	 FOnAssetSelected::CreateSP(this, &SPropertyEditorAsset::OnAssetSelected),
-																	 FSimpleDelegate::CreateSP(this, &SPropertyEditorAsset::CloseComboButton));
+																	 FSimpleDelegate::CreateSP(this, &SPropertyEditorAsset::CloseComboButton),
+																	 GetMostSpecificPropertyHandle());
 	}
 }
 
@@ -680,7 +685,33 @@ void SPropertyEditorAsset::OnMenuOpenChanged(bool bOpen)
 
 bool SPropertyEditorAsset::IsFilteredActor( const AActor* const Actor ) const
 {
-	return Actor->IsA( ObjectClass ) && !Actor->IsChildActor();
+	bool IsAllowed = Actor->IsA(ObjectClass) && !Actor->IsChildActor();
+
+	if (IsAllowed)
+	{
+		bool ClassFilterAllowed = false;
+		for (const UClass* Class : AllowedClassFilters)
+		{
+			if (Actor->GetClass()->IsChildOf(Class))
+			{
+				ClassFilterAllowed = true;
+				break;
+			}
+		}
+
+		for (const UClass* Class : DisallowedClassFilters)
+		{
+			if (Actor->GetClass()->IsChildOf(Class))
+			{
+				ClassFilterAllowed = false;
+				break;
+			}
+		}
+
+		IsAllowed = ClassFilterAllowed;
+	}
+
+	return IsAllowed;
 }
 
 void SPropertyEditorAsset::CloseComboButton()
@@ -806,16 +837,24 @@ void SPropertyEditorAsset::SetValue( const FAssetData& AssetData )
 {
 	AssetComboButton->SetIsOpen(false);
 
-	bool bAllowedToSetBasedOnFilter = CanSetBasedOnCustomClasses( AssetData );
-
-	if( bAllowedToSetBasedOnFilter )
+	if(CanSetBasedOnCustomClasses(AssetData))
 	{
-		if(PropertyEditor.IsValid())
+		FText AssetReferenceFilterFailureReason;
+		if (CanSetBasedOnAssetReferenceFilter(AssetData, &AssetReferenceFilterFailureReason))
 		{
-			PropertyEditor->GetPropertyHandle()->SetValue(AssetData);
-		}
+			if (PropertyEditor.IsValid())
+			{
+				PropertyEditor->GetPropertyHandle()->SetValue(AssetData);
+			}
 
-		OnSetObject.ExecuteIfBound(AssetData);
+			OnSetObject.ExecuteIfBound(AssetData);
+		}
+		else if (!AssetReferenceFilterFailureReason.IsEmpty())
+		{
+			FNotificationInfo Info(AssetReferenceFilterFailureReason);
+			Info.ExpireDuration = 4.f;
+			FSlateNotificationManager::Get().AddNotification(Info);
+		}
 	}
 }
 
@@ -1016,13 +1055,6 @@ void SPropertyEditorAsset::OnBrowse()
 	FObjectOrAssetData Value;
 	GetValue( Value );
 
-	// Try loading owning object
-	if (Value.Object == nullptr && Value.ObjectPath.IsValid())
-	{
-		FSoftObjectPath MapObjectPath = FSoftObjectPath(Value.ObjectPath.GetAssetPathName(), FString());
-		MapObjectPath.TryLoad();
-	}
-
 	if(PropertyEditor.IsValid() && Value.Object)
 	{
 		// This code only works on loaded objects
@@ -1061,7 +1093,11 @@ FText SPropertyEditorAsset::GetOnBrowseToolTip() const
 void SPropertyEditorAsset::OnUse()
 {
 	// Use the property editor path if it is valid and there is no custom filtering required
-	if(PropertyEditor.IsValid() && !OnShouldFilterAsset.IsBound() && AllowedClassFilters.Num() == 0 && DisallowedClassFilters.Num() == 0)
+	if(PropertyEditor.IsValid()
+		&& !OnShouldFilterAsset.IsBound()
+		&& AllowedClassFilters.Num() == 0
+		&& DisallowedClassFilters.Num() == 0
+		&& (GUnrealEd ? !GUnrealEd->MakeAssetReferenceFilter(FAssetReferenceFilterContext()).IsValid() : true))
 	{
 		PropertyEditor->GetPropertyHandle()->SetObjectValueFromSelection();
 	}
@@ -1119,10 +1155,14 @@ bool SPropertyEditorAsset::OnAssetDraggedOver( const UObject* InObject ) const
 	if (CanEdit() && InObject != nullptr && InObject->IsA(ObjectClass))
 	{
 		// Check against custom asset filter
+		FAssetData AssetData(InObject);
 		if (!OnShouldFilterAsset.IsBound()
-			|| !OnShouldFilterAsset.Execute(FAssetData(InObject)))
+			|| !OnShouldFilterAsset.Execute(AssetData))
 		{
-			return CanSetBasedOnCustomClasses( FAssetData(InObject) );
+			if (CanSetBasedOnCustomClasses(AssetData))
+			{
+				return CanSetBasedOnAssetReferenceFilter(AssetData);
+			}
 		}
 	}
 
@@ -1254,6 +1294,45 @@ bool SPropertyEditorAsset::CanSetBasedOnCustomClasses( const FAssetData& InAsset
 	}
 
 	return bAllowedToSetBasedOnFilter;
+}
+
+bool SPropertyEditorAsset::CanSetBasedOnAssetReferenceFilter( const FAssetData& InAssetData, FText* OutOptionalFailureReason) const
+{
+	if (GUnrealEd && InAssetData.IsValid())
+	{
+		TSharedPtr<IPropertyHandle> PropertyHandleToUse = GetMostSpecificPropertyHandle();
+		FAssetReferenceFilterContext AssetReferenceFilterContext;
+		if (PropertyHandleToUse.IsValid())
+		{
+			TArray<UObject*> ReferencingObjects;
+			PropertyHandleToUse->GetOuterObjects(ReferencingObjects);
+			for (UObject* ReferencingObject : ReferencingObjects)
+			{
+				AssetReferenceFilterContext.ReferencingAssets.Add(FAssetData(ReferencingObject));
+			}
+		}
+		TSharedPtr<IAssetReferenceFilter> AssetReferenceFilter = GUnrealEd->MakeAssetReferenceFilter(AssetReferenceFilterContext);
+		if (AssetReferenceFilter.IsValid() && !AssetReferenceFilter->PassesFilter(InAssetData, OutOptionalFailureReason))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+TSharedPtr<IPropertyHandle> SPropertyEditorAsset::GetMostSpecificPropertyHandle() const
+{
+	if (PropertyHandle.IsValid())
+	{
+		return PropertyHandle;
+	}
+	else if (PropertyEditor.IsValid())
+	{
+		return PropertyEditor->GetPropertyHandle();
+	}
+	
+	return TSharedPtr<IPropertyHandle>();
 }
 
 UClass* SPropertyEditorAsset::GetObjectPropertyClass(const UProperty* Property)

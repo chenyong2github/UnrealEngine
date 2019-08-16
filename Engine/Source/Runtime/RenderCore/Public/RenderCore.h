@@ -290,3 +290,46 @@ RENDERCORE_API int32 GetCVarForceLODShadow();
 RENDERCORE_API bool IsHDREnabled();
 
 RENDERCORE_API bool IsHDRAllowed();
+
+// struct containing all data the GPU needs to perform a lookup/feedback request
+struct RENDERCORE_API FVirtualTextureUniformData
+{
+	int SpaceID;
+	float PageTableSize;
+	float vPageSize;
+	float pPageBorder;
+	FVector2D pTextureSize; // The size of the cache texture
+	float MaxAnisotropic;
+	int MaxAssetLevel;
+	FVector4 Transform;
+	FVector2D vOneMinusOneOverTextureSize; // 1 - (1/TextureSize) this rather specific value is needed for clamp texturing.
+										   // We could store something more generically useful at the cost of a few shader ALU instructions?
+
+	FMatrix Pack() const
+	{
+		FMatrix Data(ForceInitToZero);
+
+		Data.M[0][0] = SpaceID;
+		Data.M[0][1] = PageTableSize;
+		Data.M[0][2] = vPageSize;
+		Data.M[0][3] = pPageBorder;
+
+		Data.M[1][0] = pTextureSize.X;
+		Data.M[1][1] = pTextureSize.Y;
+		Data.M[1][2] = FMath::Log2(MaxAnisotropic);
+		Data.M[1][3] = MaxAssetLevel;
+
+		Data.M[2][0] = Transform.X;
+		Data.M[2][1] = Transform.Y;
+		Data.M[2][2] = Transform.Z;
+		Data.M[2][3] = Transform.W;
+
+		Data.M[3][0] = vOneMinusOneOverTextureSize.X;
+		Data.M[3][1] = vOneMinusOneOverTextureSize.Y;
+
+		return Data;
+	}
+
+	static FMatrix Invalid;
+};
+static_assert(sizeof(FVirtualTextureUniformData) <= sizeof(FMatrix), "FVirtualTextureUniformData is unable to pack");

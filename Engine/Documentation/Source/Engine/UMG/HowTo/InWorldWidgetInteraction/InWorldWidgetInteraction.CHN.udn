@@ -1,120 +1,20 @@
-﻿INTSourceChangelist:3102822
-Availability:Public
-Title:创建 3D 控件交互
+﻿INTSourceChangelist:3343831
+Availability: Public
+Title:创建3D控件交互
 Crumbs: %ROOT%, Engine, Engine/UMG, Engine/UMG/HowTo
-Description:如何在游戏进程中创建、显示和移除屏幕上的 UI 元素。 
-Related:Engine\UMG\UserGuide\WidgetInteraction\
-Related:Engine/UMG
-Related:Engine/UMG/UserGuide
-Version:4.13
-SkillLevel:Intermediate
+Description:提供示例，说明如何创建，显示及在游戏进程中从屏幕移除UI元素。 
+Related: Engine\UMG\UserGuide\WidgetInteraction\
+Related: Engine/UMG
+Related: Engine/UMG/UserGuide
+Version: 4.15
+SkillLevel: Intermediate
+tags:UMG UI Designer
 
-传统 UI（如菜单、体力条、计分）存在于 2D 或 3D 世界场景上的 2D 空间中。但有时一些 UI 需要存在于 3D 空间中，以便玩家与其进行交互（小键盘、虚拟菜单、物品栏或其他交互式 UI 元素）。在 VR 项目中此类情况更为普遍。UMG 通过 [控件交互](Engine\UMG\UserGuide\WidgetInteraction) 组件支持这些类型的交互。 
+传统UI由位于2D或3D世界场景上的2D空间构成，例如菜单、生命值条或得分显示。 
+但是，有时你可能需要使一个UI（键盘、虚拟菜单、物品栏或其他交互性UI元素）存在于玩家可与之交互的3D环境中。 
+在VR项目中，此类UI更加普遍，UMG通过[控件交互](Engine\UMG\UserGuide\WidgetInteraction)组件支持这些类型的交互。 
 
-在此指南中，我们将创建一个包含按钮的控件。它可被放置在关卡中，由玩家进行点击。 
-
-
-## 步骤
-
-[REGION:note]
-在此指南中，我们使用的是启用了 **Starter Content** 的 **Blueprint First Person Template**。 
-[/REGION]
-
-1.	在 **Content/FirstPersonBP/Blueprints** 文件夹中，打开 **FirstPersonCharacter** 蓝图。 
-
-	![](WidgetInteraction_01.png)
-
-1.	点击 **Add Component** 按钮，搜索并添加 **Widget Interaction** 组件。 
-
-	![](WidgetInteraction_02.png)
-
-1.	**点击左键** 将 Widget Interaction 组件拖放到附加到 **FP_Gun** 的 **Sphere** 组件上。 
-
-	![](WidgetInteraction_03.png)
-
-	此操作可使控件交互组件朝向枪对准的方向。 
-
-1.	在控件交互组件的 **Details** 面板中，清零 **Location** 并勾选 **Show Debug** 选项。 
-
-	![](WidgetInteraction_04.png)
-
-1.	在 **事件图表** 中添加一个 **Right Mouse Button** 鼠标事件节点。
-
-1.	将控件交互组件拖入图表，然后连出引线并添加一个 **Press Pointer Key** 节点。 
-
-	![](WidgetInteraction_05.png)
-
-1.	连接到 **Right Mouse Button** 节点的 **Pressed** 引脚并将 **Key** 设为 **Left Mouse Button**。UMG 默认将点击事件注册为鼠标左键按下的结果，使用此节点可模拟鼠标右键按下的结果。 
-	可使用任意 Key Input 事件调用此函数（如按下扳机或按键模拟鼠标左键点击）。 
-
-	![](WidgetInteraction_06.png)
-
-1.	添加一个 **Release Pointer Key** 节点（设为 **Left Mouse Button**）并将其连接到 Right Mouse Button 节点的 **Released**引脚。 
-
-	![](WidgetInteraction_07.png)
-
-1.	在 **Content Browser** 中创建一个名为 **InteractiveWidget** 的 **控件蓝图**。 
-
-	![](WidgetInteraction_08.png)
-
-1.	在 **Visual Designer** 中移除 **Canvas Panel**，然后添加一个带 **Text** 控件的 **Button**。在此例中，我们只是添加一个可进行点击的按钮。按钮上的文本代表玩家点击该按钮的次数。可创建任意类型的交互式控件并使用控件交互组件（如滑条、组合框、复选框等可在世界空间中进行交互的内容）与其进行交互。
-
-	[REGION:lightbox]
-	[![](WidgetInteraction_09.png)](WidgetInteraction_09.png)
-	[/REGION]
-
-	[REGION:caption]
-	点击查看全图。 
-	[/REGION] 
-
-1.	在 **Style/Hovered** 下 **Button** 的 **Details** 面板中，将 **Tint** 改为另一个颜色。 
-
-	![](WidgetInteraction_10.png)
-
-1.	在 **Text** 的 **Details** 面板中，将 **Text** 内容改为 **0**、**Font Size** 增加到 **48**。 
-
-	![](WidgetInteraction_11.png)
-
-1.	在 **图表** 中创建一个名为 **Value** 的 **Text** 变量，然后选择 **Compile** 并将 **Value** 设为 **0**。此变量将在玩家点击绑定到 Text 控件的按钮时更新。 
-
-	![](WidgetInteraction_12.png)
-
-1.	在 **Text** 控件的 **Designer** 标签上，点击 **Text** 旁的 **Bind** 选项并选择 **Value** 属性。
-
-	![](WidgetInteraction_13.png)
-
-1.	在 **Events** 下 **Button** 控件的 **Details** 面板中，点击 **On Clicked** 旁边的 **+**。发生按键点击时，事件便会在 **FirstPersonCharacter** 蓝图中调用的内容上发生。 
-
-	![](WidgetInteraction_14.png)
-
-1.	在 **Graph** 标签上长按 **Ctrl** 拖入 **Value** 变量，然后在它后面使用 **To String**，之后是 **String To Int**。我们将把文本转换为字符串，然后从字符串转换为整数，以便在按键按下时增加数值。 
-	
-	![](WidgetInteraction_15.png)
-
-1.	在 **String To Int** 引脚后使用设为 **+ 1** 的 **Integer + Integer** 节点。 
-
-1.	按住 **Alt** 拖入 **Value** 变量进行设置，然后按下图所示将剩余的引脚和 **OnClicked** 事件连接起来。将 **Integer + Integer** 输出引脚和 **Value** 的文本输入引脚连接起来时将自动创建 **ToText(int)** 节点。 
-
-	![](WidgetInteraction_16.png)
-
-1.	在 **Content Browser** 中新建一个名为 **ExampleWidget**、基于 **Actor** 的 **蓝图**，然后为其添加一个 **Widget** 组件。这代表 **InteractiveWidget** 控件蓝图的 3D 版本。 
-
-	![](WidgetInteraction_18.png)
-
-1.	在 **User Interface** 下 **Widget** 组件的 **Details** 面板中，将 **Widget Class** 变更为 **InteractiveWidget**。 
-
-	![](WidgetInteraction_19.png)
-
-1.	在 **Content Browser** 中，将 **ExampleWidget** 蓝图拖入关卡，根据需要进行缩放、旋转和放置。 
-
-	![](WidgetInteraction_20.png)
-
-1.	点击 **Play** 在编辑器中进行游戏。 
-
-	
-## 最终结果
-
-在编辑器中进行游戏时，效果与以下视频相似。可使用 **鼠标左键** 用武器开火。指向按钮时将进入 **悬停** 状态（使其改变其风格）。在按钮上点击 **鼠标右键** 时，每次点击都会增加文本数值。 
+在此操作指南中，我们将创建一个控件，该控件包含一个可放置在关卡中且可供玩家单击的按钮，类似以下视频所示。 
 
 [OBJECT:EmbeddedVideo]
 [PARAMLITERAL:width]
@@ -128,6 +28,132 @@ bOZy7H9IMOI
 [/PARAMLITERAL]
 [/OBJECT]
 
-如以上步骤所述，我们使用鼠标右键注册点击事件，但也可使用游戏手柄按键来注册指针键按下/松开或运动控制器扳机键按下（如下所示）。在此我们将右运动控制器（带附加的控件交互组件）指向按钮并按下右扳机键注册一个按键点击。
+
+(#steps)
+## 步骤
+
+[REGION:note]
+在此操作指南中，我们使用 **蓝图第一人称（First Person）模板**，并启用了 **初学者内容包**。 
+[/REGION]
+
+1.	在 **Content/FirstPersonBP/Blueprints** 文件夹中，打开 **FirstPersonCharacter** 蓝图，然后添加一个类型为 **控件交互（Widget Interaction）** 的组件。 
+	
+	![](WidgetInteraction_02.png)
+
+1.	**使用鼠标左键单击** 该控件交互组件并将其拖放到与 **FP_Gun** 连接的 **球体（Sphere）** 组件上面。 
+
+	![](WidgetInteraction_03.png)
+
+	此操作可使该控件交互（Widget Interaction）组件朝向枪对准的方向。 
+
+1.	在该控件交互（Widget Interaction）组件的 **细节（Details）** 面板中，使 **位置（Location）** 归零并选中 **显示调试（Show Debug）** 选项。 
+
+	![](WidgetInteraction_04.png)
+
+1.	在 **事件图表** 中，添加一个 **鼠标右键（Right Mouse Button）** 鼠标事件，然后拖入该控件交互（Widget Interaction）组件并添加一个 **按下指示器键（Press Pointer Key）** 节点。 
+
+	![](WidgetInteraction_05.png)
+
+1.	连接到 **鼠标右键（Right Mouse Button）** 节点的 **按下（Pressed）** 引脚并将 **键（Key）** 设为 **鼠标左键（Left Mouse Button）**。 
+
+	![](WidgetInteraction_06.png)
+
+	默认情况下，UMG将单击事件注册为鼠标左键按下的结果，借助此节点，我们可以在鼠标右键被按下时对此进行模拟。 
+	你可以使用任何键输入事件来调用此函数，例如使用扳机按下或按钮按下来模拟鼠标左键单击。 
+
+1.	添加 **放开指示器键（Release Pointer Key）** 节点（设为 **鼠标左键（Left Mouse Button）**）并将它与“鼠标右键（Right Mouse Button）”节点的 **放开（Released）** 引脚相连接。 
+
+	![](WidgetInteraction_07.png)
+
+1.	在 **内容浏览器** 中，创建名为 **InteractiveWidget** 的 **控件蓝图**。 
+
+	![](WidgetInteraction_08.png)
+
+1.	在 **视觉效果设计器** 中，移除 **画布面板**，然后添加上面具有 **文本** 控件的 **按钮**。 
+
+	[REGION:lightbox]
+	[![](WidgetInteraction_09.png)](WidgetInteraction_09.png)
+	[/REGION]
+
+	[REGION:caption]
+	单击查看大图。 
+	[/REGION] 
+
+	在本示例中，我们只是添加了一个可被单击的按钮。按钮上的文本将指示按钮被玩家单击过的次数。你可以创建任何类型的交互性控件并使用控件交互组件与之进行交互（滑块、组合框、复选框等可在世界场景空间中与之交互的控件）。
+
+1.	在该 **按钮** 的 **细节（Details）** 面板中，将位于 **样式（Style）/悬停（Hovered）** 下的 **色调（Tint）** 更改为其他颜色。 
+
+	![](WidgetInteraction_10.png)
+
+1.	在 **文本** 的 **细节（Details）** 面板中，将 **文本** 内容更改为 **0** 并将 **字体大小** 增大至 **48**。 
+
+	![](WidgetInteraction_11.png)
+
+1.	在 **图表** 中，创建名为 **Value** 的 **文本** 变量，然后 **编译** 并将 **数值（Value）** 设为 **0**。 
+
+	![](WidgetInteraction_12.png)
+
+	此为玩家单击我们将绑定到文本控件的按钮时我们将更新的变量。 
+
+1.	在 **文本** 控件的 **设计器** 选项卡上，单击 **文本（Text）** 旁的 **绑定（Bind）** 选项并选择 **数值（Value）** 属性。
+
+	![](WidgetInteraction_13.png)
+
+1.	在 **按钮** 控件的 **细节（Details）** 面板中，在 **事件（Events）** 下，单击 **被单击时（On Clicked）** 旁的 **+** 号。 
+
+	![](WidgetInteraction_14.png)
+
+	只要该按钮被单击，此事件（从 **FirstPersonCharacter** 蓝图中调用）都将触发。 
+
+1.	在 **图表** 选项卡上，按住 **Ctrl** 键并将 **Value** 变量拖入，从它拖出引线并使用 **To String**，然后使用 **String To Int**。 
+	
+	![](WidgetInteraction_15.png)
+
+	我们先将文本转换为字符串，然后将字符串转换为整数，这样当该按钮被单击时我们可以增大数值。 
+
+1.	从 **String To Int** 引脚拖出引线并使用 **Integer + Integer** 节点（设为 **+ 1**）。 
+
+1.	按住 **Alt** 键并拖入 **Value** 变量以设置它，然后将剩余的引脚与 **OnClicked** 事件相连接，如下所示。 
+
+	![](WidgetInteraction_16.png)
+
+	当你将 **Integer + Integer** 的输出引脚与 **Value** 的文本输入引脚相连接，**ToText(int)** 节点将自动创建。 
+
+1.	在 **内容浏览器** 中，创建名为 **ExampleWidget** 的基于 **Actor** 的新 **蓝图**，然后向它添加一个 **控件（Widget）** 组件。 
+
+	![](WidgetInteraction_18.png)
+
+	它代表 **InteractiveWidget** 控件蓝图的3D版本。 
+
+1.	在该 **控件（Widget）** 组件的 **细节（Details）** 面板中的 **用户界面（User Interface）** 下，将 **控件类（Widget Class）** 更改为 **InteractiveWidget**。 
+
+	![](WidgetInteraction_19.png)
+
+1.	在 **内容浏览器** 中，将 **ExampleWidget** 蓝图拖入关卡中并按照需要进行缩放，旋转并调整它的位置。 
+
+	![](WidgetInteraction_20.png)
+
+1.	单击 **运行（Play）** 按钮在编辑器中运行。 
+
+	
+(#endresult)
+## 最终结果
+
+在编辑器中运行时，你看到的结果应与以下所述类似。你可以使用 **鼠标左键** 来使武器开火，并且，当指向按钮时，你将进入 **悬停** 状态（使它更改风格）。当你使用 **鼠标右键 ** 单击该按钮时，文本数值将在你每次按下它后增大。 
+
+[OBJECT:EmbeddedVideo]
+[PARAMLITERAL:width]
+640
+[/PARAMLITERAL]
+[PARAMLITERAL:height]
+360
+[/PARAMLITERAL]
+[PARAMLITERAL:videoid]
+bOZy7H9IMOI
+[/PARAMLITERAL]
+[/OBJECT]
+
+正如在步骤中已了解的，我们使用鼠标右键来注册单击事件，但是你可以使用游戏手柄按钮单击来注册指示器键按下/释放或（如下所示）运动控制器扳机按下。此处，我们将右运动控制器（连接有控件交互组件）指向按钮并且通过按下右触发器来注册按钮单击。
 
 ![](WidgetInteraction_21.png)
+

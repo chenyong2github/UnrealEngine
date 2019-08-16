@@ -54,7 +54,7 @@ public class Python : ModuleRules
 					}
 				);
 			}
-			else if (Target.Platform == UnrealTargetPlatform.Linux)
+			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 			{
 				if (Target.Architecture.StartsWith("x86_64"))
 				{
@@ -70,6 +70,7 @@ public class Python : ModuleRules
 								},
 								Path.Combine(PythonSourceTPSDir, PlatformDir, "lib"), "libpython2.7.a"),
 					});
+					PublicAdditionalLibraries.Add("util");	// part of libc
 				}
 			}
 

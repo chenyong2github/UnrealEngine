@@ -4,16 +4,36 @@
 
 #include "CoreMinimal.h"
 #include "Async/Future.h"
+#include "UObject/StructOnScope.h"
 #include "ConcertWorkspaceMessages.h"
-#include "ConcertActivityLedger.h"
+#include "ConcertSyncSessionTypes.h"
 
 class ISourceControlProvider;
 class IConcertClientSession;
 class IConcertClientDataStore;
-struct FConcertTransactionEventBase;
-struct FConcertPackageInfo;
 
 DECLARE_MULTICAST_DELEGATE(FOnWorkspaceSynchronized);
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnActivityAddedOrUpdated, const FConcertClientInfo&/*InClientInfo*/, const FConcertSyncActivity&/*InActivity*/, const FStructOnScope&/*InActivitySummary*/);
+
+struct FConcertClientSessionActivity
+{
+	FConcertClientSessionActivity() = default;
+
+	FConcertClientSessionActivity(const FConcertSyncActivity& InActivity, const FStructOnScope& InActivitySummary)
+		: Activity(InActivity)
+	{
+		ActivitySummary.InitializeFromChecked(InActivitySummary);
+	}
+
+	FConcertClientSessionActivity(FConcertSyncActivity&& InActivity, FStructOnScope&& InActivitySummary)
+		: Activity(MoveTemp(InActivity))
+	{
+		ActivitySummary.InitializeFromChecked(MoveTemp(InActivitySummary));
+	}
+
+	FConcertSyncActivity Activity;
+	TStructOnScope<FConcertSyncActivitySummary> ActivitySummary;
+};
 
 class IConcertClientWorkspace
 {
@@ -21,7 +41,7 @@ public:
 	/**
 	 * Get the associated session.
 	 */
-	virtual TSharedPtr<IConcertClientSession> GetSession() const = 0;
+	virtual IConcertClientSession& GetSession() const = 0;
 
 	/**
 	 * @return the client id this workspace uses to lock resources.
@@ -57,6 +77,12 @@ public:
 	virtual TFuture<FConcertResourceLockResponse> UnlockResources(TArray<FName> InResourceName) = 0;
 
 	/**
+	 * Tell if a workspace contains session changes.
+	 * @return True if the session contains any changes.
+	 */
+	virtual bool HasSessionChanges() const = 0;
+
+	/**
 	 * Gather assets changes that happened on the workspace in this session.
 	 * @return a list of asset files that were modified during the session.
 	 */
@@ -66,45 +92,52 @@ public:
 	virtual bool PersistSessionChanges(TArrayView<const FString> InFilesToPersist, ISourceControlProvider* SourceControlProvider, TArray<FText>* OutFailureReasonMap = nullptr) = 0;
 
 	/**
-	 * Get the number of activities in the workspace ledger.
+	 * Get Activities from the session.
+	 * @param FirstActivityIdToFetch The ID at which to start fetching activities.
+	 * @param MaxNumActivities The maximum number of activities to fetch.
+	 * @param OutEndpointClientInfoMap The client info for the activities fetched.
+	 * @param OutActivities the activities fetched.
 	 */
-	virtual uint64 GetActivityCount() const = 0;
+	virtual void GetActivities(const int64 FirstActivityIdToFetch, const int64 MaxNumActivities, TMap<FGuid, FConcertClientInfo>& OutEndpointClientInfoMap, TArray<FConcertClientSessionActivity>& OutActivities) const = 0;
 
 	/**
-	 * Get the last activities from the ledger.
-	 * @param Limit the maximum number of activities returned.
-	 * @param OutActivities the activities fetched from the ledger.
-	 * @return the index of the first fetched activity.
+	 * Get the ID of the last activity in the session.
 	 */
-	virtual uint64 GetLastActivities(uint32 Limit, TArray<FStructOnScope>& OutActivities) const = 0;
+	virtual int64 GetLastActivityId() const = 0;
 
 	/**
-	 * Get Activities from the ledger.
-	 * @param Offset the index at which to start fetching activities.
-	 * @param Limit the maximum number of activities returned.
-	 * @param OutActivities the activities fetched from the ledger.
+	 * @return the delegate called every time an activity is added to or updated in the session.
 	 */
-	virtual void GetActivities(uint64 Offset, uint32 Limit, TArray<FStructOnScope>& OutActivities) const = 0;
+	virtual FOnActivityAddedOrUpdated& OnActivityAddedOrUpdated() = 0;
 
 	/**
-	 * @return the delegate called every time a new activity is added to the workspace ledger.
+	 * Indicate if an asset package is supported for live transactions.
+	 *
+	 * @param InAssetPackage The package to check
+	 * @return true if we support live transactions for objects inside the package
 	 */
-	virtual FOnAddActivity& OnAddActivity() = 0;
+	virtual bool HasLiveTransactionSupport(class UPackage* InPackage) const = 0;
 
 	/**
-	 * @param[in] TransactionIndex index of the transaction to look for.
-	 * @param[out] OutTransaction The transaction corresponding to TransactionIndex if found.
+	 * Indicate if package dirty event should be ignored for a package
+	 * @param InPackage The package to check
+	 * @return true if dirty event should be ignored for said package.
+	 */
+	virtual bool ShouldIgnorePackageDirtyEvent(class UPackage* InPackage) const = 0;
+
+	/**
+	 * @param[in] TransactionEventId ID of the transaction to look for.
+	 * @param[out] OutTransactionEvent The transaction corresponding to TransactionEventId if found.
 	 * @return whether or not the transaction event was found.
 	 */
-	virtual bool FindTransactionEvent(uint64 TransactionIndex, FConcertTransactionFinalizedEvent& OutTransaction) const = 0;
+	virtual bool FindTransactionEvent(const int64 TransactionEventId, FConcertSyncTransactionEvent& OutTransactionEvent, const bool bMetaDataOnly) const = 0;
 
 	/**
-	 * @param[in] PackageName name of the package to look for.
-	 * @param[in] Revision the package revision number.
-	 * @param[out] OutPackage Information about the package.
+	 * @param[in] PackageEventId ID of the package to look for.
+	 * @param[out] OutPackageEvent Information about the package.
 	 * @return whether or not the package event was found.
 	 */
-	virtual bool FindPackageEvent(const FName& PackageName, const uint32 Revision, FConcertPackageInfo& OutPackage) const = 0;
+	virtual bool FindPackageEvent(const int64 PackageEventId, FConcertSyncPackageEvent& OutPackageEvent, const bool bMetaDataOnly) const = 0;
 
 	/**
 	 * @return the delegate called every time the workspace is synced.
@@ -124,5 +157,5 @@ public:
 	 * @param[out] OutOtherClientsWithModifInfo If not null, will contain the other client(s) who modified the packages, up to OtherClientsWithModifMaxFetchNum.
 	 * @param[in] OtherClientsWithModifMaxFetchNum The maximum number of client info to store in OutOtherClientsWithModifInfo if the latter is not null.
 	 */
-	virtual bool IsAssetModifiedByOtherClients(const FName& AssetName, int* OutOtherClientsWithModifNum = nullptr, TArray<FConcertClientInfo>* OutOtherClientsWithModifInfo = nullptr, int OtherClientsWithModifMaxFetchNum = 0) const = 0;
+	virtual bool IsAssetModifiedByOtherClients(const FName& AssetName, int32* OutOtherClientsWithModifNum = nullptr, TArray<FConcertClientInfo>* OutOtherClientsWithModifInfo = nullptr, int32 OtherClientsWithModifMaxFetchNum = 0) const = 0;
 };

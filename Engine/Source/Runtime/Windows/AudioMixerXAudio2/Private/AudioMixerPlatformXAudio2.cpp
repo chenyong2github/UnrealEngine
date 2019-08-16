@@ -9,6 +9,7 @@
 #include "AudioMixerPlatformXAudio2.h"
 #include "AudioMixer.h"
 #include "AudioMixerDevice.h"
+#include "AudioPluginUtilities.h"
 #include "HAL/PlatformAffinity.h"
 
 #ifndef WITH_XMA2
@@ -48,8 +49,8 @@
 
 namespace Audio
 {
-#if PLATFORM_WINDOWS
-	HMODULE FMixerPlatformXAudio2::XAudio2Dll = nullptr;
+#if PLATFORM_HOLOLENS
+	static Windows::Devices::Enumeration::DeviceInformationCollection^ AllAudioDevices = nullptr;
 #endif
 
 	void FXAudio2VoiceCallback::OnBufferEnd(void* BufferContext)
@@ -169,19 +170,16 @@ namespace Audio
 
 		}
 
-#if PLATFORM_WINDOWS
-		bIsComInitialized = FWindowsPlatformMisc::CoInitialize();
-#if PLATFORM_64BITS
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+		bIsComInitialized = FPlatformMisc::CoInitialize();
+#if PLATFORM_64BITS && !PLATFORM_HOLOLENS
 		// Work around the fact the x64 version of XAudio2_7.dll does not properly ref count
 		// by forcing it to be always loaded
 
 		// Load the xaudio2 library and keep a handle so we can free it on teardown
 		// Note: windows internally ref-counts the library per call to load library so 
 		// when we call FreeLibrary, it will only free it once the refcount is zero
-		if (XAudio2Dll == nullptr)
-		{
-			XAudio2Dll = LoadLibraryA("XAudio2_7.dll");
-		}
+		XAudio2Dll = (HMODULE)FPlatformProcess::GetDllHandle(TEXT("XAudio2_7.dll"));
 
 		// returning null means we failed to load XAudio2, which means everything will fail
 		if (XAudio2Dll == nullptr)
@@ -190,8 +188,8 @@ namespace Audio
 			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("Audio", "XAudio2Missing", "XAudio2.7 is not installed. Make sure you have XAudio 2.7 installed. XAudio 2.7 is available in the DirectX End-User Runtime (June 2010)."));
 			return false;
 		}
-#endif // #if PLATFORM_64BITS
-#endif // #if PLATFORM_WINDOWS
+#endif // #if PLATFORM_64BITS && !PLATFORM_HOLOLENS
+#endif // #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 
 		uint32 Flags = 0;
 
@@ -205,7 +203,21 @@ namespace Audio
 			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("Audio", "XAudio2Error", "Failed to initialize audio. This may be an issue with your installation of XAudio 2.7. XAudio2 is available in the DirectX End-User Runtime (June 2010)."));
 			return false;
 		}
-		
+
+#if PLATFORM_HOLOLENS
+		using namespace Windows::Foundation;
+		using namespace Windows::Devices::Enumeration;
+		IAsyncOperation<DeviceInformationCollection^>^ EnumerationOp = DeviceInformation::FindAllAsync(DeviceClass::AudioRender);
+		while (EnumerationOp->Status == AsyncStatus::Started)
+		{
+			// Spin
+		}
+
+		if (EnumerationOp->Status == AsyncStatus::Completed)
+		{
+			AllAudioDevices = EnumerationOp->GetResults();
+		}
+#endif
 
 #if WITH_XMA2
 		//Initialize our XMA2 decoder context
@@ -233,9 +245,9 @@ namespace Audio
 		FXMAAudioInfo::Shutdown();
 #endif
 
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 
-#if PLATFORM_64BITS
+#if PLATFORM_64BITS && !PLATFORM_HOLOLENS
 		if (XAudio2Dll != nullptr && GIsRequestingExit)
 		{
 			if (!FreeLibrary(XAudio2Dll))
@@ -249,7 +261,7 @@ namespace Audio
 
 		if (bIsComInitialized)
 		{
-			FWindowsPlatformMisc::CoUninitialize();
+			FPlatformMisc::CoUninitialize();
 		}
 #endif
 
@@ -273,7 +285,16 @@ namespace Audio
 			return false;
 		}
 
-#if PLATFORM_WINDOWS
+		// XAudio2 for HoloLens doesn't have GetDeviceCount, use Windows::Devices::Enumeration instead
+		// See https://blogs.msdn.microsoft.com/chuckw/2012/04/02/xaudio2-and-windows-8/
+#if PLATFORM_HOLOLENS
+		if (!AllAudioDevices)
+		{
+			return false;
+		}
+		OutNumOutputDevices = AllAudioDevices->Size;
+#elif PLATFORM_WINDOWS
+
 		check(XAudio2System);
 		XAUDIO2_RETURN_ON_FAIL(XAudio2System->GetDeviceCount(&OutNumOutputDevices));
 #else
@@ -290,7 +311,56 @@ namespace Audio
 			return false;
 		}
 
-#if PLATFORM_WINDOWS
+		// XAudio2 for HoloLens doesn't have GetDeviceDetails, use Windows::Devices::Enumeration instead
+		// See https://blogs.msdn.microsoft.com/chuckw/2012/04/02/xaudio2-and-windows-8/
+#if PLATFORM_HOLOLENS
+		if (!AllAudioDevices)
+		{
+			return false;
+		}
+
+		Windows::Devices::Enumeration::DeviceInformation^ WindowsDeviceInfo = AllAudioDevices->GetAt(InDeviceIndex);
+		OutInfo.Name = WindowsDeviceInfo->Name->Data();
+		OutInfo.bIsSystemDefault = WindowsDeviceInfo->IsDefault;
+
+		// No direct equivalent of OutputFormat.  If we have a voice already we can assemble what
+		// we need from methods on that.  But what to do if we don't?
+		WAVEFORMATEXTENSIBLE FakeWaveFormatExtensible;
+		XAUDIO2_VOICE_DETAILS VoiceDetails;
+		if (OutputAudioStreamMasteringVoice && InDeviceIndex == AudioStreamInfo.OutputDeviceIndex)
+		{
+			OutputAudioStreamMasteringVoice->GetVoiceDetails(&VoiceDetails);
+			OutputAudioStreamMasteringVoice->GetChannelMask(&FakeWaveFormatExtensible.dwChannelMask);
+		}
+		else if (!OutputAudioStreamMasteringVoice)
+		{
+			// If we don't yet have a mastering voice we can create a temporary one with asking for the default channels
+			// and sample rate, and then query that to discover the device's preferred format. 
+			IXAudio2MasteringVoice* TempMasteringVoice;
+			if (SUCCEEDED(XAudio2System->CreateMasteringVoice(&TempMasteringVoice, XAUDIO2_DEFAULT_CHANNELS, XAUDIO2_DEFAULT_SAMPLERATE, 0, AllAudioDevices->GetAt(InDeviceIndex)->Id->Data(), nullptr)))
+			{
+				TempMasteringVoice->GetVoiceDetails(&VoiceDetails);
+				TempMasteringVoice->GetChannelMask(&FakeWaveFormatExtensible.dwChannelMask);
+				TempMasteringVoice->DestroyVoice();
+			}
+			else
+			{
+				return false;
+			}
+		}
+		else
+		{
+			// Can't create multiple mastering voices, so currently we can't report
+			// device preferred format in this scenario.
+			return false;
+		}
+
+		WAVEFORMATEX& WaveFormatEx = *(WAVEFORMATEX*)&FakeWaveFormatExtensible;
+		WaveFormatEx.wFormatTag = WAVE_FORMAT_EXTENSIBLE;
+		WaveFormatEx.nSamplesPerSec = VoiceDetails.InputSampleRate;
+		WaveFormatEx.nChannels = VoiceDetails.InputChannels;
+
+#elif PLATFORM_WINDOWS
 
 		check(XAudio2System);
 
@@ -303,6 +373,8 @@ namespace Audio
 
 		// Get the wave format to parse there rest of the device details
 		const WAVEFORMATEX& WaveFormatEx = DeviceDetails.OutputFormat.Format;
+#endif
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 		OutInfo.SampleRate = WaveFormatEx.nSamplesPerSec;
 
 		OutInfo.NumChannels = FMath::Clamp((int32)WaveFormatEx.nChannels, 2, 8);
@@ -495,6 +567,10 @@ namespace Audio
 			Result = XAudio2System->CreateMasteringVoice(&OutputAudioStreamMasteringVoice, AudioStreamInfo.DeviceInfo.NumChannels, AudioStreamInfo.DeviceInfo.SampleRate, 0, AudioStreamInfo.OutputDeviceIndex, nullptr);
 #elif PLATFORM_XBOXONE
 			Result = XAudio2System->CreateMasteringVoice(&OutputAudioStreamMasteringVoice, AudioStreamInfo.DeviceInfo.NumChannels, AudioStreamInfo.DeviceInfo.SampleRate, 0, nullptr, nullptr);
+#elif PLATFORM_HOLOLENS
+		// XAudio2 for HoloLens has different parameters to CreateMasteringVoice
+		// See https://blogs.msdn.microsoft.com/chuckw/2012/04/02/xaudio2-and-windows-8/
+		Result = XAudio2System->CreateMasteringVoice(&OutputAudioStreamMasteringVoice, AudioStreamInfo.DeviceInfo.NumChannels, AudioStreamInfo.DeviceInfo.SampleRate, 0, AllAudioDevices->GetAt(AudioStreamInfo.OutputDeviceIndex)->Id->Data(), nullptr);
 #endif // #if PLATFORM_WINDOWS
 
 			XAUDIO2_CLEANUP_ON_FAIL(Result);
@@ -653,9 +729,11 @@ namespace Audio
 #if PLATFORM_WINDOWS
 
 		uint32 NumDevices = 0;
-
-		check(XAudio2System != nullptr);
-		XAUDIO2_RETURN_ON_FAIL(XAudio2System->GetDeviceCount(&NumDevices));
+		// XAudio2 for HoloLens doesn't have GetDeviceCount, use local wrapper instead
+		if (!GetNumOutputDevices(NumDevices))
+		{
+			return false;
+		}
 
 		// If we're running the null device, This function is called every second or so.
 		// Because of this, we early exit from this function if we're running the null device
@@ -724,12 +802,12 @@ namespace Audio
 			uint32 DeviceIndex = 0;
 			if (!InNewDeviceId.IsEmpty())
 			{
-
-				XAUDIO2_DEVICE_DETAILS DeviceDetails;
+				// XAudio2 for HoloLens doesn't have GetDeviceDetails, use local wrapper instead
+				FAudioPlatformDeviceInfo DeviceDetails;
 				for (uint32 i = 0; i < NumDevices; ++i)
 				{
-					XAudio2System->GetDeviceDetails(i, &DeviceDetails);
-					if (DeviceDetails.DeviceID == InNewDeviceId)
+					GetOutputDeviceInfo(i, DeviceDetails);
+					if (DeviceDetails.DeviceId == InNewDeviceId)
 					{
 						DeviceIndex = i;
 						break;
@@ -743,7 +821,13 @@ namespace Audio
 			GetOutputDeviceInfo(AudioStreamInfo.OutputDeviceIndex, AudioStreamInfo.DeviceInfo);
 
 			// Create a new master voice
+			// XAudio2 for HoloLens has different parameters to CreateMasteringVoice
+			// See https://blogs.msdn.microsoft.com/chuckw/2012/04/02/xaudio2-and-windows-8/
+#if PLATFORM_HOLOLENS
+			XAUDIO2_RETURN_ON_FAIL(XAudio2System->CreateMasteringVoice(&OutputAudioStreamMasteringVoice, AudioStreamInfo.DeviceInfo.NumChannels, AudioStreamInfo.DeviceInfo.SampleRate, 0, AllAudioDevices->GetAt(AudioStreamInfo.OutputDeviceIndex)->Id->Data(), nullptr));
+#else
 			XAUDIO2_RETURN_ON_FAIL(XAudio2System->CreateMasteringVoice(&OutputAudioStreamMasteringVoice, AudioStreamInfo.DeviceInfo.NumChannels, AudioStreamInfo.DeviceInfo.SampleRate, 0, AudioStreamInfo.OutputDeviceIndex, nullptr));
+#endif
 
 			// Setup the format of the output source voice
 			WAVEFORMATEX Format = { 0 };
@@ -902,6 +986,7 @@ namespace Audio
 
 	FAudioPlatformSettings FMixerPlatformXAudio2::GetPlatformSettings() const
 	{
+		const TCHAR* ConfigSection = AudioPluginUtilities::GetPlatformConfigSection(EAudioPlatform::Windows);
 		return FAudioPlatformSettings::GetPlatformSettings(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"));
 	}
 

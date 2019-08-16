@@ -1,16 +1,18 @@
-Availability: Public
-Crumbs: 
+﻿Availability: Public
 Title: Magic Leap Development
 Description: Product documentation including reference and guides over developing for Magic Leap with Unreal Engine 4
-Type: 
 Version: 4.20
 Parent: Platforms/AR
-Order: 3
+type:landing
+Tags: Platform
 Tags: AR
-topic-image:image12-crop700x225.jpg
 Tags: Early Access
 Tags: Landing Page
+topic-image: image12.png
+Order: 1
 
+
+[TOC]
 
 [REGION:note]
 We have provided early access to this content in draft form in order to get you up and running. Check back soon for updates!
@@ -18,9 +20,9 @@ We have provided early access to this content in draft form in order to get you 
 
 Unreal Engine technical preview of support for the Magic Leap One, Creator Edition is available now! The custom editor with the integration is available both on the Epic Games launcher and GitHub for you to grab today.
 
-![image12](image12-crop700x225.jpg "image12")
+![](image12.png)
 
-**Note:** As most early integrations go, our API for the SDK is expected to change before we move the tech into our fully supported release build of the engine (4.20.) Therefore, other 4.19 projects won’t be directly compatible with this custom version and projects built on this version that are upgraded to 4.20 will experience breakage. We encourage you to not use this build for production development of projects but rather to explore the possibilities of the new device.
+**Note:** As most early integrations go, our API for the SDK is expected to change before we move the tech into our fully supported release build of the engine (4.20.) Therefore, other 4.19 projects won’t be directly compatible with this custom version and projects built on this version that are upgraded to 4.20 will experience breakage. We encourage you to not use this build for production development of projects but rather to explore the possibilities of the new device.
 
 ## Setup
 
@@ -29,10 +31,14 @@ Unreal Engine technical preview of support for the Magic Leap One, Creator Editi
 First, we’ll need to install the **Lumin SDK**.
 
 1.  Download, install, and then run **Magic Leap Package Manager** from [https://creator.magicleap.com](https://creator.magicleap.com/).
-2.  Sign in to Magic Leap Package Manager with your registered email address and 6-digit code.
-3.  The default destination for Magic Leap packages is **C:\\Users\\you\\MagicLeap**. To change this, click Settings and then specify a different path in Download/Install Directory.
-4.  Select **Lumin SDK under Common Packages**,and then click Download & Install.
-5.  In the confirmation message at the bottom of Package Manager, click **Apply** changes.
+
+1.  Sign in to Magic Leap Package Manager with your registered email address and 6-digit code.
+
+1.  The default destination for Magic Leap packages is **C:\\Users\\you\\MagicLeap**. To change this, click Settings and then specify a different path in Download/Install Directory.
+
+1.  Select **Lumin SDK under Common Packages**,and then click Download & Install.
+
+1.  In the confirmation message at the bottom of Package Manager, click **Apply** changes.
 
 ### Unreal Editor for Magic Leap 0.16
 
@@ -52,7 +58,7 @@ First, you’ll need to add an entry called “MLSDK”, which contains the path
 
 ![](image3_Add.png "image3_Add.png")
 
-Second, you’ll want to add \%MLSDK%\tools\mldb to your PATH environment variable.
+Second, you’ll want to add “\%MLSDK\%\\tools\\mldb” to your PATH environment variable.
 
 ![](image1_Add.png "image1_Add.png")
 
@@ -64,7 +70,7 @@ As part of our early support for the Magic Leap headset, we’ve put together a 
 
 [Download the LuminSample project](http://epic.gm/psssample) for use with the custom editor to reference when reading through the following feature docs.
 
-Plug in the device and power it up. Note where it initially boots up, as the nose position will be what the device chooses as your world origin in Unreal Engine, with the X axis increasing as it moves away from the wearer. The *LuminSample* project assumes that the headset is started facing the user as all of the content is rotated 180 degrees. 
+Plug in the device and power it up. Note where it initially boots up, as the nose position will be what the device chooses as your world origin in Unreal Engine, with the X axis increasing as it moves away from the wearer. The *LuminSample* project assumes that the headset is started facing the user as all of the content is rotated 180 degrees. 
 
 Navigating the packaged *LuminSample* project requires the Controller. On the Main Menu, you’ll use the touchpad to highlight a specific example that you’d like to check out. Once highlighted, press down on the touchpad to load the level. You can hide and show the Main Menu at any time by holding down the trigger and pressing the shoulder button.
 
@@ -76,7 +82,7 @@ Each sublevel is fully independent and can be loaded individually if desired.
 
 *Examples can be found in the PlayerLocationAndGaze map*
 
-Getting the player’s head location is often used when building mixed reality experiences. We can access this by grabbing calling *GetWorldTransform* on the *CameraComponent* in our *LuminSamplePawn* \- not unlike any other HMD in UE4.
+Getting the player’s head location is often used when building mixed reality experiences. We can access this by grabbing calling *GetWorldTransform* on the *CameraComponent* in our *LuminSamplePawn* \- not unlike any other HMD in UE4.
 
 ![image35](image35.png "image35")
 
@@ -87,14 +93,27 @@ In *LuminSample*, the Bot from Robo Recall will look, aim and shoot at you as yo
 [REGION:lightbox]
 [![image7](image7.png "image7")](image7.png)
 [/REGION]
-Have a look at the *Lumin_Biped*, *Lumin_Drone* and *LuminSamplePawn* Blueprints to see how these behaviors are hooked up. In short, we're driving *Actor* rotation or *Anim Blueprints* based on the result of *FindLookRotation* of the *Actor* that needs to face the player and the player position.
+[REGION:caption]
+Click for full image.
+[/REGION]
+
+Have a look at the *Lumin_Biped*, *Lumin_Drone* and *LuminSamplePawn* Blueprints to see how these behaviors are hooked up. In short, we’re driving *Actor* rotation or *Anim Blueprints* based on the result of *FindLookRotation* of the *Actor* that needs to face the player and the player position.
+
 [REGION:lightbox]
 [![image38](image38.png "image38")](image38.png)
 [/REGION]
-If you're not using eye tracking, you can use the *CameraCompoent's* forward vector to get an estimate of the player's gaze and trace from that direction. Using this technique, the Drone will emote when you focus your gaze on it.
+[REGION:caption]
+Click for full image.
+[/REGION]
+
+If you’re not using eye tracking, you can use the *CameraComponent’s* forward vector to get an estimate of the player’s gaze and trace from that direction. Using this technique, the Drone will emote when you focus your gaze on it.
+
 [REGION:lightbox]
 [![image2](image2.png "image2")](image2.png)
-[/REGION][](image2.png)
+[/REGION]
+[REGION:caption]
+Click for full image.
+[/REGION]
 
 ### Displaying World Origin
 
@@ -113,12 +132,15 @@ In *LuminSample*, we’ve added a boolean variable, bShowWorldOrigin, to *LuminS
 [REGION:lightbox]
 [![image15](image15.png "image15")](image15.png)
 [/REGION]
+[REGION:caption]
+Click for full image.
+[/REGION]
 
 ### Gesture and Hand Tracking
 
 *Examples Found in LuminSamplePawn and GesturesAndTotem Map*
 
-The Magic Leap One supports numerous gestures and tracks the position of certain points on hands when they’re in view. By default, you have to enable the gestures that you want to look for.  You can set this at any time using the *SetConfiguration* node.  Selecting fewer gestures helps the device focus on recognizing only the gestures you care about more accurately. We’re doing this in *LuminSamplePawn*.
+The Magic Leap One supports numerous gestures and tracks the position of certain points on hands when they’re in view. By default, you have to enable the gestures that you want to look for.  You can set this at any time using the *SetConfiguration* node.  Selecting fewer gestures helps the device focus on recognizing only the gestures you care about more accurately. We’re doing this in *LuminSamplePawn*.
 
 ![image9](image9.png "image9")
 
@@ -137,16 +159,19 @@ Taking the above information, it’s possible to “touch” things in world spa
 [REGION:lightbox]
 [![image5](image5.png "image5")](image5.png)
 [/REGION]
+[REGION:caption]
+Click for full image.
+[/REGION]
 
-Looking for gestures comes at a performance cost, so keep that in mind as you plan out your content.
+Looking for gestures comes at a performance cost, so keep that in mind as you plan out your content.
 
-### Controller Input
+### Controller Input
 
-![image14](image14.jpg "image14")
+![image14](image14.png "image14")
 
 *Examples found in LuminSamplePawn and GesturesAndTotem map*
 
-For the most part, the Controller works the same way as other VR motion controllers. The Touchpad can be polled by checking *GetMotionController (R) Thumbstick X*, for left and right, and *GetMotionController (R) Thumbstick Y* for up and down. Also the touchpad has a Z axis value for pressure sensitivity. This scales from 0-1 based on how hard the user is pushing down on the touchpad.
+For the most part, the Controller works the same way as other VR motion controllers. The Touchpad can be polled by checking *GetMotionController (R) Thumbstick X*, for left and right, and *GetMotionController (R) Thumbstick Y* for up and down. Also the touchpad has a Z axis value for pressure sensitivity. This scales from 0-1 based on how hard the user is pushing down on the touchpad.
 
 ![image8](image8.png "image8")
 
@@ -181,10 +206,15 @@ When you want to start scanning the world to get mesh data, you’ll want to ass
 In the *MeshTrackerComponent* on *LuminMeshActor*, we’ve toggled a few settings to ensure we’re looking for the right things in the tracked space. You’ll see that we’ve edited the following in the Meshing->MagicLeap section in the details panel:
 
 *   Scan World to **true**
+
 *   Mesh Type to **Blocks**
+
 *   Meshing Poll Time to **0.5**
+
 *   Bounding Volume as **Box Collision**
+
 *   Ignore Bounding Volume to **true** (to scan the whole room)
+
 *   Planarize to **true**
 
 ![image20](image20.png "image20")
@@ -193,6 +223,9 @@ The mesh reacts to physics the same way as any other collider. In the *WorldMesh
 
 [REGION:lightbox]
 [![image24](image24.png "image24")](image24.png)
+[/REGION]
+[REGION:caption]
+Click for full image.
 [/REGION]
 
 ### Microphone Input
@@ -212,9 +245,15 @@ In the example, players can blow to change the direction of the wind, the Kite a
 [REGION:lightbox]
 [![image22](image22.png "image22")](image22.png)
 [/REGION]
+[REGION:caption]
+Click for full image.
+[/REGION]
 [REGION:lightbox]
-[![image29](image29.png "image29")](image29.png)
-[/REGION][]
+[](image22.png) [![image29](image29.png "image29")](image29.png)
+[/REGION]
+[REGION:caption]
+Click for full image.
+[/REGION]
 
 ### Spatialized Audio
 
@@ -222,7 +261,7 @@ In the example, players can blow to change the direction of the wind, the Kite a
 
 When developing for the ML1 you can spatialize audio using the same techniques you would when authoring for other platforms. In addition to this workflow, we are using an actor specifically built for creating spatialized random sounds. This actor can be found in the sample content here:
 
-.../LuminSampleContent/AudioExample/AudioBlueprints/AudioActor_SoundSpawn
+    .../LuminSampleContent/AudioExample/AudioBlueprints/AudioActor_SoundSpawn
 
 The intent of this actor is to allow Sound Designers to shape a common ambient audio playback behavior through easy to understand parameters. The *AudioActor_SoundSpawn* actor can be configured to generate random sounds within a defined radius, or set to play a single sound in very specific location. In the *AudioExamples* sample we are using this actor for 2 unique purposes. In the scene two actors are set to create random call and response bird chirps. A third actor is being attached to the kite to create looping rustling sounds.
 
@@ -298,14 +337,20 @@ Alternatively, you can use Magic Leap Remote to iterative in the simulator in th
 
 ![image16](image16.png "image16")
 
-## Terminal Commands
+## Terminal Commands
 
 Here are some other useful MLDK terminal commands that we’ve used regularly that may be helpful:
 
 *   *mldb devices* // shows list of recognized devices connected to your computer
+
 *   *mldb packages* // shows packages installed on the device
+
 *   *mldb uninstall* // uninstalls package from the device
+
 *   *mldb launch* // launches the package if it’s installed on device
+
 *   *mldb terminate* // kills the application if it’s running
+
 *   *mldb reboot* // reboots the devices attached
+
 *   *mldb shutdown* // shuts down the device

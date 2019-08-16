@@ -24,6 +24,7 @@ public:
 	/** UObject interface */
 	virtual void PreEditChange(FEditPropertyChain& PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual bool IsDestructionThreadSafe() const override { return false; }
 
 	/** FTickableEditorObject interface */
 	virtual void Tick(float DeltaTime) override;

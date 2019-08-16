@@ -1,5 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+#include "../Common.ush"
 #include "RayTracingCommon.ush"
 
 RaytracingAccelerationStructure  TLAS;
@@ -24,8 +25,7 @@ void TestMainRGS()
 	              | RAY_FLAG_FORCE_OPAQUE                    // don't run anyhit shader
 	              | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;        // don't run closesthit shader
 
-	FOcclusionPayload Payload;
-	Payload.Hit = true;
+	FMinimalPayload Payload = (FMinimalPayload)0;
 
 	TraceRay(
 		TLAS,   // AccelerationStructure
@@ -38,5 +38,5 @@ void TestMainRGS()
 		Payload // Payload
 	);
 
-	Output[RayIndex] = Payload.Hit ? ~0 : 0;
+	Output[RayIndex] = Payload.IsHit() ? ~0 : 0;
 }

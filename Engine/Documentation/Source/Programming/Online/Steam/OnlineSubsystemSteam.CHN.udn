@@ -1,244 +1,261 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
-Title: Steam在线子系统
-Crumbs:%ROOT%, Programming
-Description:Steam在线子系统的总览，其中包括如何对项目进行设置，以便针对Valve公司的Steam进行发布。
-Version: 4.17
-Type: Overview
-SkillLevel:Advanced
+﻿INTSourceChangelist:5589584
+Availability: Public
+Crumbs: 
+Title:Online Subsystem Steam
+Description:Online Subsystem Steam的概述，包括如何设置项目以在Valve的Steam平台上分发。
+Type: 
+Version: 4.20
 Parent: Programming/Online
-Order:
-Tags:Steam
+Order: 
+Tags: Steam
 Tags: Online Subsystem
-Contributors: Valve
 
-[TOC(start:2 end:2)]
 
-[EXCERPT:Intro] 
-利用 **Steam在线子系统API** 可将虚幻引擎4应用程序发布到Valve的Steam平台上。 
-**Steam** 模块的主要作用是帮助开发者将拥有一套功能的应用程序（如配对和排行榜）面向Steam用户进行发布。
-此外，Steam模块实现了多个被[在线子系统](Programming/Online)公开的接口，支持Steamworks软件开发套件（SDK）提供的多数内容。 
-[/EXCERPT:Intro]
+Contributors:Valve
 
-部分可用的Steam接口有： 
+**Online Subsystem Steam API** 使您可以将虚幻引擎4（UE4）应用程序发布到[Valve的Steam平台](https://partner.steamgames.com/)。
+**Steam** 模块的主要目的是帮助您通过一组功能（如媒介和通栏广告）将应用程序分发给Steam用户。
+此外，Steam模块实现多个由[Online Subsystem](Programming/Online)公开的接口，支持Steamworks Software Development Kit（SDK）提供的大多数功能。
 
-* 配对（大厅和游戏服务器API）
-* 排行榜
-* 成就
-* 声音
-* 用户云
-* 共享云
-* 外部 UI
+部分可用的Steam接口包括：
 
-参阅[Steam在线子系统API参考](https://docs.unrealengine.com/latest/INT/API/Plugins/OnlineSubsystemSteam/FOnlineSubsystemSteam/index.html)，了解当前可用Steam接口更完整的列表。
-
-(#meetingvalve'srequirements)
-
-## 满足Valve的要求
-
-可通过[Valve Steamworks](https://partner.steamgames.com/?goto=%2Fhome)对Steam子系统进行更多设置。 
-请联络[Valve](http://www.valvesoftware.com/contact/)并查阅其[Steamworks SDK文档](https://partner.steamgames.com/doc/home)，在通过UE4使用Steam之前确保应用程序已满足Valve的要求。
-
-(#downloadingsteamworks)
-
-## 下载Steamworks
-
-如果应用程序满足Valve的需求，请下载最新版本的[Steamworks SDK](https://partner.steamgames.com/)。SDK需要解压并复制到 `/YourUnrealEnginePath/Engine/Source/ThirdParty/Steamworks/Steam[当前版本]/sdk` 中。
+*   Matchmaking（Lobbies和GameServer API）
+*   Leaderboards
+*   Achievements
+*   Voice
+*   UserCloud
+*   SharedCloud
+*   External UI
 
 [REGION:note]
-如果要更新项目的Steamworks SDK，则必须更新项目Steamworks路径中的 `[当前版本]`：  
-`/YourUnrealEnginePath/Engine/Source/ThirdParty/Steamworks/`**Steam[当前版本]**`/sdk`  
-还需要更新项目目录中的 `Steamworks.build.cs`。
+请参考[Online Subsystem Steam API参考](https://docs.unrealengine.com/latest/INT/API/Plugins/OnlineSubsystemSteam/FOnlineSubsystemSteam/index.html)以了解当前可用的Steam接口的更完整列表。
+[/REGION]
+
+(#meetingvalve'srequirements)
+## 满足Valve的要求
+
+Steam Subsystem需要通过[Valve Steamworks](https://partner.steamgames.com/?goto=%2Fhome)进行额外设置。
+请联系[Valve](http://www.valvesoftware.com/contact/)并参考[Steamworks SDK文档](https://partner.steamgames.com/doc/home)以确保您的应用程序满足Valve的要求，然后再尝试将Steam与UE4一起使用。
+
+(#downloadingsteamworks)
+## 下载Steamworks
+
+如果您的应用程序满足Valve的要求，请继续并下载最新版[Steamworks SDK](https://partner.steamgames.com/)。
+SDK需要解压并复制到`/YourUnrealEnginePath/Engine/Source/ThirdParty/Steamworks/Steam[当前版本]/sdk`
+
+[REGION:note]
+如果要更新项目的Steamworks SDK，请确保更新项目Steamworks路径中的`[当前版本]`：  
+`/YourUnrealEnginePath/Engine/Source/ThirdParty/Steamworks/`**Steam\[当前版本\]**`/sdk`  
+您还需要更新`Steamworks.build.cs`，它位于项目目录中。  
 ![](SteamworksCSFile.png)  
-在此例中，`[当前版本]` 被格式化为 `v139`。
+在本示例中，`[当前版本]`格式为`v139`。
 [/REGION]
 
 (#compilingue4)
+### 编译UE4
 
-###编译UE4
+如果您[从源代码编译虚幻引擎4](Programming/Development/BuildingUnrealEngine)，应采取以下步骤：
 
-如要从源编译UE4，则应采用以下步骤：
+1.  打开“OnlineSubsystemSteamPrivatePCH.h”（位于“..\\..\\Plugins\\Online\\OnlineSubsystemSteam\\Source\\Private\\”中），在这里您会看到以下代码，这行代码定义Steamworks SDK的根目录位置：
 
-1.	打开 `OnlineSubsystemSteamPrivatePCH.h`（位于 `..\..\Plugins\Online\OnlineSubsystemSteam\Source\Private\`），其中有以下代码行，定义Steamworks SDK的根位置：
+    #define STEAM_SDK_ROOT_PATH TEXT("Binaries/ThirdParty/Steamworks")
 
-		#define STEAM_SDK_ROOT_PATH TEXT("Binaries/ThirdParty/Steamworks")
+2.  您需要将这一行修改为：
 
-1.	需要将此代码行改为：
-
-		#define STEAM_SDK_VER TEXT("Steam[Current Version]")
+    #define STEAM_SDK_VER TEXT("Steam[Current Version]")
 
 (#settingupthesteamworkssdk)
-
 ## 设置Steamworks SDK
 
-借助引擎预编译版本使用Steam时只要求将部分动态链接库（*.dll）从Valve的SDK复制到正确的文件夹中。 
-如果要针对源重新编译引擎，则也需要将SDK放入正确的路径。现在将相关的redistributable文件从SDK的 `/redistributable_bin/` 目录放入以下路径：  
-%Globals:osselect_linux%
-[OBJECT:ToggleButtonContent]
-	[PARAMLITERAL:category]
-	OS
-	[/PARAMLITERAL]
-	[PARAMLITERAL:id]
-	windows
-	[/PARAMLITERAL]
-	[PARAMLITERAL:active]
-	active_button_content
-	[/PARAMLITERAL]
-	[PARAM:content]
-		[REGION:note]
-			Steam客户端文件夹中可找到部分64位库（在编写此文档时，Valve尚未将所有库包含在SDK中）。
-		[/REGION]
-		`/YourUnrealEnginePath/Engine/Binaries/ThirdParty/Steamworks/Steam[当前版本]/Win64`
-		* steam_api64.dll
-		* steamclient64.dll
-		* tier0_s64.dll
-		* vstdlib_s64.dll
+对预编译版本引擎使用Steam应只需要将部分动态链接库（*.dll）从Valve SDK复制到相应的文件夹。如果您想要根据源代码重新编译引擎，还需要将SDK放在合适的位置。现在，将相关的可重新分发文件从SDK `istributable_bin/`目录复制到以下位置：
 
-		`/YourUnrealEnginePath/Engine/Binaries/ThirdParty/Steamworks/Steam[当前版本]/Win32`
-		* steam_api.dll
-		* steamclient.dll
-		* tier0_s.dll
-		* vstdlib_s.dll
-	[/PARAM]
-[/OBJECT]
 [OBJECT:ToggleButtonContent]
-	[PARAMLITERAL:category]
-	OS
-	[/PARAMLITERAL]
-	[PARAMLITERAL:id]
-	mac
-	[/PARAMLITERAL]
-	[PARAMLITERAL:active]
-	active_button_content
-	[/PARAMLITERAL]
-	[PARAM:content]
-		`/YourUnrealEnginePath/EngineOrGameFolder/Binaries/Mac/YourGame.app/Contents/MacOS`
-		* libsteam_api.dylib（来自 `/redistributable_bin/osx32` - [动态库](https://developer.apple.com/library/content/documentation/DeveloperTools/Conceptual/DynamicLibraries/000-Introduction/Introduction.html#//apple_ref/doc/uid/TP40001908-SW1) (*.dylib) 拥有32和64位支持）
-	[/PARAM]
-[/OBJECT]
-[OBJECT:ToggleButtonContent]
-	[PARAMLITERAL:category]
-	OS
-	[/PARAMLITERAL]
-	[PARAMLITERAL:id]
-	linux
-	[/PARAMLITERAL]
-	[PARAMLITERAL:active]
-	active_button_content
-	[/PARAMLITERAL]
-	[PARAM:content]
-		[REGION:note]
-			Linux用户必须关联以下文件并随可执行文件进行发布。
-		[/REGION]
-		* libsteam_api.so
-	[/PARAM]
-[/OBJECT]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    windows
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+        [REGION:note]
+            部分64位库位于Steam客户端目录中（在编写本文时，Valve没有将所有库包含在SDK中）。
+        [/REGION]
+        `/YourUnrealEnginePath/Engine/Binaries/ThirdParty/Steamworks/Steam[Current Version]/Win64`
+        * steam_api64.dll
+        * steamclient64.dll
+        * tier0_s64.dll
+        * vstdlib_s64.dll
 
+        `/YourUnrealEnginePath/Engine/Binaries/ThirdParty/Steamworks/Steam[Current Version]/Win32`
+        * steam_api.dll
+        * steamclient.dll
+        * tier0_s.dll
+        * vstdlib_s.dll
+    [/PARAM]
+[/OBJECT]
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    mac
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+        `/YourUnrealEnginePath/EngineOrGameFolder/Binaries/Mac/YourGame.app/Contents/MacOS`
+        * libsteam_api.dylib (from `/redistributable_bin/osx32` - the [dynamic library](https://developer.apple.com/library/content/documentation/DeveloperTools/Conceptual/DynamicLibraries/000-Introduction/Introduction.html#//apple_ref/doc/uid/TP40001908-SW1) (*.dylib) has both 32 and 64 bit support)
+    [/PARAM]
+[/OBJECT]
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    linux
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+        [REGION:note]
+            Linux用户必须随可执行文件一起链接并分发以下文件。
+        [/REGION]
+        * libsteam_api.so
+    [/PARAM]
+[/OBJECT]
+    
 (#steamappid)
+## Steam应用ID
 
-## Steam应用程序ID
+所有使用Steam Online Subsystem的游戏都必须有有效的应用程序ID，因为如果Steamworks API不知道您应用程序的Steam应用ID，就无法初始化。
+在初始化Steam之前，UE4将生成`steam_appid.txt`（在正常关闭引擎时，UE4会删除这个文件）。
+需要注意的是，`steam_appid.txt`必须位于应用程序可执行文件所在的目录，因为Steam将在当前工作目录寻找这个文本文件。
+此外，该文件不应包含在任何Steam映像中。
 
-使用Steam在线子系统的所有游戏都必须拥有一个有效的应用程序ID，因为如果Steamworks API不了解应用程序的Steam应用程序ID，其便不会初始化。 
-在初始化Steam之前，UE4将生成 `steam_appid.txt`（正常关闭时UE4将删除此文件）。 
-需要注意的是 `steam_appid.txt` 必须放置在应用程序可执行文件的同一个目录下，因为Steam将在当前的工作目录下查找文本文件。 
-此外，文件不应被包含在Steam图片中。 
-
-打开 `steam_appid.txt` 后将看到一个 **SteamDevAppId** 条目，这个域将向Steam提示应用程序的ID。
-因此无需使用Steam客户端即可运行游戏（但客户端必须在运行中）。 
+如果您打开`steam_appid.txt`，将会看到 **SteamDevAppId** 条目，这个字段向Steam暗示应用程序ID。
+这样就无需使用Steam客户端（尽管它必须运行）启动游戏。
 
 [REGION:tip]
-如果希望测试应用程序，可使用 `480` 的 **SteamDevAppId**，这是所有开发者之间共享的一个测试应用程序ID。
-虽然可用上述测试应用程序ID对大多数Steam接口进行测试，但应用程序仍然需要一个Steam应用程序ID才能进行发布。
+如果想要测试应用程序，可以使用 **SteamDevAppId** `480`，这是所有开发者共享的测试应用ID。
+虽然您可以使用之前提到的测试应用ID来测试大都数Steam接口，但应用程序需要有Steam应用ID才能发布。
 [/REGION]
 
 (#shippingbuilds)
+### 发布构建版
 
-###发布版本
-
-在发布版本中，引擎将进行检查，确保已登入的用户正常注册到游戏，如引擎测试返回false则关闭（这是一种保护游戏的方式）。此外，使用Steam DRM（参见Steamworks SDK）可以进一步防止游戏遭到篡改。
+在发布构建版时，引擎会检查以确保登录用户正确订阅了游戏，如果引擎测试返回false，则会关闭（这是帮助保护游戏的一种方式）。
+此外，使用Steam DRM（请参阅Steamworks SDK）应进一步保护游戏不被篡改。
 
 (#configuringyourapplication'ssettings)
-
-## 配置应用程序的设置
+## 配置应用程序设置
 
 [REGION:note]
-如使用 **虚幻项目浏览器** 新建项目，**在线子系统** 设置不应存在于 `DefaultEngine.ini` 中；但如果修改的是一个范例项目，**在线子系统** 设置则可能已存在。
+如果您使用 **虚幻项目浏览器** 创建新项目，那么`DefaultEngine.ini`中应该没有 **Online Subsystem** 设置；但如果您要修改我们的某个样本项目，则 **Online Subsystem** 设置可能已经存在。
 [/REGION]
 
-设置应用程序的Steamworks SDK后（并设置Steam应用程序ID），即可配置应用程序的设置来使用Steam在线子系统。 
+现在，您已经为应用程序设置了Steamworks SDK（同时设置Steam应用ID），便已准备好了配置应用程序设置以使用Online Subsystem Steam。
 
 (#steps)
+### 步骤
 
-###步骤
+1.  打开项目的`DefaultEngine.ini`文件，并添加以下设置：
+    
+    [/Script/Engine.GameEngine]
+    +NetDriverDefinitions=(DefName="GameNetDriver",DriverClassName="OnlineSubsystemSteam.SteamNetDriver",DriverClassNameFallback="OnlineSubsystemUtils.IpNetDriver")
+    
+    **NetDriverDefinitions** 描述了可供UE4使用的网络驱动器，并添加了以下属性：
+    *   **DefName** 是该网络驱动器定义的唯一名称。
+    *   **DriverClassName** 是主网络驱动器的类名称。
+    *   **DriverClassNameFallBack** 是退却网络驱动器的类名（如果主网络驱动器类初始化失败）。
 
-1.	首先打开应用程序的 `DefaultEngine.ini` 文件。
-
-1.	添加以下设置：
-
-	    [/Script/Engine.GameEngine]
-		+NetDriverDefinitions=(DefName="GameNetDriver",DriverClassName="OnlineSubsystemSteam.SteamNetDriver",DriverClassNameFallback="OnlineSubsystemUtils.IpNetDriver")
-
-	**NetDriverDefinitions** 将描述UE4可用的网络驱动，并定义以下属性：
-	* **DefName** 是此网络驱动定义的独特命名。
-	* **DriverClassName** 是主网络驱动的类命名。
-	* **DriverClassNameFallBack** 是主网络驱动类初始化失败后启用的后备网络驱动的类命名。
-
-1.	添加以下设置即可告知UE4使用Steam在线子系统：
-
-		[OnlineSubsystem]
-		DefaultPlatformService=Steam
-
-1.	告知UE4希望应用程序使用Steam在线子系统后，需要添加以下设置来配置 **OnlineSubsystemSteam** 模块：
-
-		[OnlineSubsystemSteam]
-		bEnabled=true
-		SteamDevAppId=480
-
-1.	最后需要将Steam类指定到应用程序连接的网络驱动： 
-
-		[/Script/OnlineSubsystemSteam.SteamNetDriver]
-		NetConnectionClassName="OnlineSubsystemSteam.SteamNetConnection"
+1.  为了告诉UE4使用Online Subsystem Steam，添加以下设置：
+    
+    [OnlineSubsystem]
+    DefaultPlatformService=Steam
+    
+1.  现在，您已经告诉UE4，您希望应用程序使用Steam Online Subsystem，接下来需要添加以下设置来配置 **OnlineSubsystemSteam** 模块：
+    
+    [OnlineSubsystemSteam]
+    bEnabled=true
+    SteamDevAppId=480
+    
+1.  最后，需要为应用程序连接在网络驱动器中指定Steam类：
+    
+    [/Script/OnlineSubsystemSteam.SteamNetDriver]
+    NetConnectionClassName="OnlineSubsystemSteam.SteamNetConnection"
 
 (#endresult)
+### 最终结果
 
-###最终结果
-
-按照此指南进行操作后，您应用程序的 `DefaultEngine.ini` 文件应与以下设置块类似。如果希望查看其它项目的设置方式和在线子系统的用法，请参阅我们的范例项目库。
+在本简短指南结束后，您的应用程序`DefaultEngine.ini`文件应类似于以下设置块。如果你想查看其他项目是如何设置的并使用Online Subsystem，请参考我们的样本项目库。
 
 (#finishedsettings)
-
 #### 完成的设置
-    
+
 **DefaultEngine.ini**
 
-	[/Script/Engine.GameEngine]
-	+NetDriverDefinitions=(DefName="GameNetDriver",DriverClassName="OnlineSubsystemSteam.SteamNetDriver",DriverClassNameFallback="OnlineSubsystemUtils.IpNetDriver")
-			
-	[OnlineSubsystem]
-	DefaultPlatformService=Steam
+    [/Script/Engine.GameEngine]
+    +NetDriverDefinitions=(DefName="GameNetDriver",DriverClassName="OnlineSubsystemSteam.SteamNetDriver",DriverClassNameFallback="OnlineSubsystemUtils.IpNetDriver")
 
-	[OnlineSubsystemSteam]
-	bEnabled=true
-	SteamDevAppId=480
+    [OnlineSubsystem]
+    DefaultPlatformService=Steam
 
-	[/Script/OnlineSubsystemSteam.SteamNetDriver]
-	NetConnectionClassName="OnlineSubsystemSteam.SteamNetConnection"
-    
+    [OnlineSubsystemSteam]
+    bEnabled=true
+    SteamDevAppId=480
+
+    [/Script/OnlineSubsystemSteam.SteamNetDriver]
+    NetConnectionClassName="OnlineSubsystemSteam.SteamNetConnection"
+
+(#steamonlineauthentication)
+## Steam在线验证
+
+Steam使用一种特殊的验证系统，用于控制对平台提供的部分独特服务器相关功能的访问，如广告服务器和玩家计数、检索禁令列表和做出反应（发行商和Valve反作弊禁令）和执行许可证检查。
+虚幻引擎4允许通过`FOnlineAuthSteam`类与这个功能连接。
+应用程序设置为使用Steam Online Subsystem后，就可以启用 **SteamAuth** 包处理程序组件来利用这些功能。
+
+(#enablingsteamauth)
+### 启用SteamAuth
+
+要启用SteamAuth，并将以下内容添加到“DefaultEngine.ini”或者针对每一个打算支持Steam在线验证的平台，添加到特定于平台的引擎.ini文件（如“WindowsEngine.ini”、“LinuxEngine.ini”或“MacEngine.ini”）：
+
+    [PacketHandlerComponents]
+    +Components=OnlineSubsystemSteam.SteamAuthComponentModuleInterface
+
+启用后，就可以使用Steam Online Subsystem接口（SteamOSS）功能`GetAuthInterface`来访问SteamAuth功能。
+
+[REGION:note]
+启用SteamAuth将会使应用程序对所有加入的玩家运行验证程序（针对Steam服务）。默认情况下，SteamAuth将没有通过这项检查的玩家踢出游戏，但这个行为可以被覆盖。
+[/REGION]
+
+(#steamauthdelegates)
+### SteamAuth委托
+
+SteamAuth系统中有两个开发者可能希望覆盖的委托：`OverrideFailureDelegate`和`OnAuthenticationResultDelegate`。
+
+当玩家尝试加入服务器而没有通过Steam验证时，或者玩家在会话期间失去了Steam验证，通过玩家的`FUniqueNetId`调用`OverrideFailureDelegate`。
+默认情况下，SteamAuth会将玩家踢出游戏。
+但是，如果该委托受到约束，则默认行为将被暂停，因此开发者必须在仍需要这个行为时手动将玩家踢出。
+
+`OnAuthenticationResultDelegate`处理来自Steam验证服务的响应，提供玩家的`FUniqueNetId`和一个指示验证尝试是否成功的布尔值。
+
 (#additionalnotes)
-
-## 额外讲解
+## 附加提示
 
 (#modulesetup)
-
 ### 模块设置
 
-必须将虚幻引擎Steam模块纳入为项目的一个部分（如需了解额外帮助，请参阅[](Programming/UnrealBuildSystem/TargetFiles)）。
-具体而言，将以下代码行添加到 `mygame.build.cs` 的构造函数中即可确保Steam模块随游戏而编译。 
+确保将虚幻引擎Steam模块作为项目的一部分包含进去（请参阅[UnrealBuildTool目标哦文件](Programming/UnrealBuildSystem/TargetFiles)以获取更多帮助）。
+具体而言，在`mygame.build.cs`的构造函数中添加以下行应足以确保随着游戏构建Steam模块。
 
     DynamicallyLoadedModuleNames.Add("OnlineSubsystemSteam");
 
 (#steamoverlayonmac)
+### Steam Overlay on Mac
 
-### Mac上的Steam覆层
-
-需要用Steam客户端启动游戏才能在Mac上使用Steam覆层。对此，首先要使用Steam游戏菜单中的“添加非Steam游戏到我的库中”选项，将游戏添加到库中。
+Steam Overlay on Mac要求通过Steam客户端启动游戏。为此，需要先使用Steam“游戏”菜单中的“将非Steam游戏添加到我的库”选项来将游戏添加到库。

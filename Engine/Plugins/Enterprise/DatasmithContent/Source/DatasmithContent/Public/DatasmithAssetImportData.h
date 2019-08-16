@@ -17,6 +17,9 @@ class DATASMITHCONTENT_API UDatasmithAssetImportData : public UAssetImportData
 public:
 	UPROPERTY(BlueprintReadWrite, Category = Asset, meta = (ShowOnlyInnerProperties))
 	FDatasmithAssetImportOptions AssetImportOptions;
+
+	UPROPERTY(EditAnywhere, Instanced, Category = Asset, meta = (ShowOnlyInnerProperties))
+	TArray<class UDatasmithAdditionalData*> AdditionalData;
 #endif		// WITH_EDITORONLY_DATA
 };
 
@@ -95,6 +98,21 @@ public:
 #endif //WITH_EDITOR
 	//~ End UObject interface
 
+#endif // WITH_EDITORONLY_DATA
+};
+
+/**
+ * Import data and options specific to Datasmith scenes imported through the translator system
+ */
+UCLASS()
+class DATASMITHCONTENT_API UDatasmithTranslatedSceneImportData : public UDatasmithSceneImportData
+{
+	GENERATED_BODY()
+
+#if WITH_EDITORONLY_DATA
+public:
+	UPROPERTY(EditAnywhere, Category = "Translation", meta = (ShowOnlyInnerProperties))
+	TSubclassOf<UObject> OriginFactory;
 #endif // WITH_EDITORONLY_DATA
 };
 
@@ -185,10 +203,31 @@ class DATASMITHCONTENT_API UDatasmithVREDSceneImportData : public UDatasmithScen
 	GENERATED_BODY()
 
 // TODO
-/*#if WITH_EDITORONLY_DATA
-public:
-	UPROPERTY(EditAnywhere, Category="VREDOptions", meta=(ShowOnlyInnerProperties))
-	class UDatasmithVREDImportOptions* VREDOptions;
-
-#endif // WITH_EDITORONLY_DATA*/
+//#if WITH_EDITORONLY_DATA
+//public:
+//	UPROPERTY(EditAnywhere, Category="VREDOptions", meta=(ShowOnlyInnerProperties))
+//	class UDatasmithVREDImportOptions* VREDOptions;
+//
+//#endif // WITH_EDITORONLY_DATA
 };
+
+UCLASS(EditInlineNew)
+class DATASMITHCONTENT_API UDatasmithIFCSceneImportData : public UDatasmithSceneImportData
+{
+	GENERATED_BODY()
+};
+
+UCLASS(EditInlineNew)
+class DATASMITHCONTENT_API UDatasmithStaticMeshIFCImportData : public UDatasmithStaticMeshImportData
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(VisibleAnywhere, Category = InternalProperty)
+	FString SourceGlobalId;
+};
+
+namespace Datasmith
+{
+	DATASMITHCONTENT_API UAssetImportData* GetAssetImportData(UObject* Asset);
+}

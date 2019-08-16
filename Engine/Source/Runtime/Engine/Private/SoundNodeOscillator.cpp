@@ -32,10 +32,10 @@ void USoundNodeOscillator::ParseNodes( FAudioDevice* AudioDevice, const UPTRINT 
 
 	if( *RequiresInitialization )
 	{
-		UsedAmplitude = AmplitudeMax + ( ( AmplitudeMin - AmplitudeMax ) * FMath::SRand() );
-		UsedFrequency = FrequencyMax + ( ( FrequencyMin - FrequencyMax ) * FMath::SRand() );
-		UsedOffset = OffsetMax + ( ( OffsetMin - OffsetMax ) * FMath::SRand() );
-		UsedCenter = CenterMax + ( ( CenterMin - CenterMax ) * FMath::SRand() );
+		UsedAmplitude = AmplitudeMax + ( ( AmplitudeMin - AmplitudeMax ) * RandomStream.FRand() );
+		UsedFrequency = FrequencyMax + ( ( FrequencyMin - FrequencyMax ) * RandomStream.FRand() );
+		UsedOffset = OffsetMax + ( ( OffsetMin - OffsetMax ) * RandomStream.FRand() );
+		UsedCenter = CenterMax + ( ( CenterMin - CenterMax ) * RandomStream.FRand() );
 
 		*RequiresInitialization = 0;
 	}

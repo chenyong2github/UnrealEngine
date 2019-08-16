@@ -61,6 +61,8 @@ namespace Audio
 
 	void FEnvelope::Start()
 	{
+		bCurrentCycleIsADOnly = SustainGain <= SMALL_NUMBER;
+
 		// Don't reset the envelope if we're in legato mode and we're not in release or off
 		if (bIsLegatoMode && CurrentState != EEnvelopeState::Off && CurrentState != EEnvelopeState::Release)
 		{
@@ -74,17 +76,101 @@ namespace Audio
 		CurrentState = EEnvelopeState::Attack;
 	}
 
+	// logic for one mono note interrupting another mono note (same voice)
+	void FEnvelope::StartLegato(const float InNewDepth)
+	{
+		// Envelope is not being used. Don't do the work (and don't divide by zero)
+		if (Depth <= SMALL_NUMBER && InNewDepth <= SMALL_NUMBER)
+		{
+			return;
+		}
+
+		bCurrentCycleIsADOnly = SustainGain <= SMALL_NUMBER;
+
+		switch (CurrentState)
+		{
+			case EEnvelopeState::Attack:
+			{
+				if (InNewDepth > Depth)
+				{
+					CurrentEnvelopeValue *= Depth / InNewDepth;
+					Depth = InNewDepth;
+
+					bChanged = true;
+				}
+			}
+			break;
+
+			case EEnvelopeState::Decay:
+			{
+				if (InNewDepth > Depth * CurrentEnvelopeValue)
+				{
+					CurrentState = EEnvelopeState::Attack;
+				}
+
+				CurrentEnvelopeValue *= Depth / InNewDepth;
+				Depth = InNewDepth;
+
+				bChanged = true;
+			}
+			break;
+
+			case EEnvelopeState::Sustain:
+			{
+				// new sustain gain is higher
+				if (InNewDepth > Depth * SustainGain)
+				{
+					CurrentEnvelopeValue *= Depth / InNewDepth;
+					Depth = InNewDepth;
+					CurrentState = EEnvelopeState::Attack;
+				}
+
+				bChanged = true;
+			}
+			break;
+
+			case EEnvelopeState::Release:
+			{
+				// "attack up to" a larger new depth or "decay down to" a lower new depth
+				CurrentState = EEnvelopeState::Attack;
+
+				if(InNewDepth < Depth * CurrentEnvelopeValue)
+				{
+					CurrentState = EEnvelopeState::Decay;
+				}
+
+				CurrentEnvelopeValue *= Depth / InNewDepth;
+				Depth = InNewDepth;
+
+				bChanged = true;
+			}
+			break;
+
+			default:
+			{
+				// previous behavior
+				Depth = InNewDepth;
+				Start();
+			}
+		}
+	}
+
 	void FEnvelope::Stop()
 	{
-		// If we're forcing off or if we're already off, then set state to off
 		if (CurrentEnvelopeValue == 0.0f)
 		{
+			// already finished (jump to off)
 			CurrentState = EEnvelopeState::Off;
 		}
-		else
+		else if (!bCurrentCycleIsADOnly)
 		{
-			// If we actually have an envelope value now, go to release
+			// normal envelope mode (jump to release)
 			CurrentState = EEnvelopeState::Release;
+		}
+		else if (CurrentState == EEnvelopeState::Attack)
+		{
+			// AD only envelope mode (jump to decay)
+			CurrentState = EEnvelopeState::Decay;
 		}
 	}
 
@@ -167,7 +253,7 @@ namespace Audio
 			AttackData.Offset = (1.0f + AttackData.TCO) * (1.0f - AttackData.Coefficient);
 
 			DecayData.Coefficient = FMath::Exp(-FMath::Loge((1.0f + DecayData.TCO) / DecayData.TCO) / DecayData.TimeSamples);
-			DecayData.Offset = (SustainGain - DecayData.TCO)*(1.0f - DecayData.Coefficient);
+			DecayData.Offset = (bCurrentCycleIsADOnly? 0.0f : SustainGain - DecayData.TCO)*(1.0f - DecayData.Coefficient);
 
 			ReleaseData.Coefficient = FMath::Exp(-FMath::Loge((1.0f + ReleaseData.TCO) / ReleaseData.TCO) / ReleaseData.TimeSamples);
 			ReleaseData.Offset = -ReleaseData.TCO*(1.0f - ReleaseData.Coefficient);
@@ -207,23 +293,40 @@ namespace Audio
 			{
 				// --- render value
 				CurrentEnvelopeValue = DecayData.Offset + CurrentEnvelopeValue * DecayData.Coefficient;
-				if (CurrentEnvelopeValue <= SustainGain || DecayTimeMsec <= 0.0f)
+				if ((CurrentEnvelopeValue <= SustainGain) || DecayTimeMsec <= 0.0f)
 				{
-					CurrentEnvelopeValue = SustainGain;
-					CurrentState = EEnvelopeState::Sustain;
-					break;
+					
+					if(!bCurrentCycleIsADOnly)
+					{
+						CurrentEnvelopeValue = SustainGain;
+						CurrentState = EEnvelopeState::Sustain;
+						break;
+					}
+					else if (CurrentEnvelopeValue <= SMALL_NUMBER)
+					{
+						CurrentState = EEnvelopeState::Off;
+					}
 				}
 			}
 			break;
 
 			case EEnvelopeState::Sustain:
-				// Don't do anything in sustain state
-				break;
+			{
+				// live-update sustain level (to hear changes made during sustain phase)
+				CurrentEnvelopeValue = SustainGain;
+
+				if (bCurrentCycleIsADOnly && SustainGain <= SMALL_NUMBER)
+				{
+					// Check if envelope was being used as AD only
+					CurrentState = EEnvelopeState::Off;
+				}
+			}
+			break;
 
 			case EEnvelopeState::Release:
 			{
 				CurrentEnvelopeValue = ReleaseData.Offset + CurrentEnvelopeValue * ReleaseData.Coefficient;
-				if (CurrentEnvelopeValue <= 0.0f || ReleaseTimeMsec <= 0.0f)
+				if (CurrentEnvelopeValue <= 0.0f || ReleaseTimeMsec <= 0.0f || SustainGain <= SMALL_NUMBER)
 				{
 					CurrentEnvelopeValue = 0.0f;
 					CurrentState = EEnvelopeState::Off;

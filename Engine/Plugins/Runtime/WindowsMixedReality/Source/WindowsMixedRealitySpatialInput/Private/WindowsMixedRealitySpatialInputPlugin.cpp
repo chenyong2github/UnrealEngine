@@ -2,6 +2,7 @@
 
 #include "WindowsMixedRealitySpatialInput.h"
 #include "IWindowsMixedRealitySpatialInputPlugin.h"
+#include "Framework/Application/SlateApplication.h"
 
 //---------------------------------------------------
 // Microsoft Windows MixedReality SpatialInput plugin
@@ -18,19 +19,38 @@ public:
 	virtual void StartupModule() override
 	{
 		IInputDeviceModule::StartupModule();
+		
+		WindowsMixedReality::FWindowsMixedRealitySpatialInput::RegisterKeys();
 	}
 
-	virtual TSharedPtr<class IInputDevice> CreateInputDevice(
-		const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler) override;
+	virtual TSharedPtr<class IInputDevice> CreateInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler) override
+	{
+		if (!InputDevice.IsValid())
+		{
+			TSharedPtr<IInputDevice> WindowsMixedRealitySpatialInput = MakeShared< WindowsMixedReality::FWindowsMixedRealitySpatialInput>(InMessageHandler);
+			InputDevice = WindowsMixedRealitySpatialInput;
+			return InputDevice;
+		}
+		else
+		{
+			InputDevice.Get()->SetMessageHandler(InMessageHandler);
+			return InputDevice;
+		}
+		return nullptr;
+	}
+
+	virtual TSharedPtr<IInputDevice> GetInputDevice() override
+	{
+		if (!InputDevice.IsValid())
+		{
+			InputDevice = CreateInputDevice(FSlateApplication::Get().GetPlatformApplication()->GetMessageHandler());
+		}
+		return InputDevice;
+	}
+
+private:
+	TSharedPtr<IInputDevice> InputDevice;
+
 };
-
-TSharedPtr<class IInputDevice> FWindowsMixedRealitySpatialInputPlugin::CreateInputDevice(
-	const TSharedRef<FGenericApplicationMessageHandler> & InMessageHandler)
-{
-	TSharedPtr< WindowsMixedReality::FWindowsMixedRealitySpatialInput > WindowsMixedRealitySpatialInput(
-		new WindowsMixedReality::FWindowsMixedRealitySpatialInput(InMessageHandler));
-
-	return WindowsMixedRealitySpatialInput;
-}
 
 IMPLEMENT_MODULE(FWindowsMixedRealitySpatialInputPlugin, WindowsMixedRealitySpatialInput)

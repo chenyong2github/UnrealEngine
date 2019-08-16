@@ -1,35 +1,334 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6503306
 Availability: Public
-Title:게임 조종 카메라
-Crumbs:%ROOT%, GettingStarted, Programming/Tutorials
-Description:다양한 시점을 선택하고 전환하는 법을 배워봅니다.
-version:4.9
-type:how-to
-type:landing
-skilllevel:Beginner
+Title: 게임 조종 카메라
+Description: 다양한 시점을 선택하고 전환하는 법을 배워봅니다.
+Type: how-to
+Version: 4.9
+Parent: Programming/Tutorials
+SkillLevel: Beginner
+Order: 0
+
+
+[TOC (start:2 end:2)]
 
 카메라를 활성화시키고, 서로 다른 카메라를 전환하는 법을 보여드리는 튜토리얼입니다.
 
 [OBJECT:EmbeddedVideo]
-	[PARAMLITERAL:width]
-	640
-	[/PARAMLITERAL]
-	[PARAMLITERAL:height]
-	360
-	[/PARAMLITERAL]
-	[PARAMLITERAL:videoid]
-	hwErvhNdc9c
-	[/PARAMLITERAL]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ hwErvhNdc9c
+ [/PARAMLITERAL]
 [/OBJECT]
 
-## 단계
+## 1 - 월드에 카메라 배치
 
-[REGION:buttonlist]
-* [](Programming\Tutorials\AutoCamera\1 "%Programming\Tutorials\AutoCamera\1:description%")
-* [](Programming\Tutorials\AutoCamera\2 "%Programming\Tutorials\AutoCamera\2:description%")
-* [](Programming\Tutorials\AutoCamera\3 "%Programming\Tutorials\AutoCamera\3:description%")
-* [](Programming\Tutorials\AutoCamera\4 "%Programming\Tutorials\AutoCamera\4:description%")
+[REGION:tip]
+**언리얼 엔진 4** 가 처음이신 경우, [%Programming\QuickStart:title% 튜토리얼](Programming\QuickStart) 먼저 읽어보실 것을 권합니다. 이 튜토리얼은 프로젝트 생성, C++ 코드 추가, 컴파일, **언리얼 에디터** 에서 **액터** 에 **컴포넌트** 추가 등이 익숙하신 분들을 대상으로 합니다.
 [/REGION]
 
+1.  먼저 시작용 콘텐츠를 포함한 기본 코드 프로젝트를 "HowTo_AutoCamera" 라는 이름으로 새로 만드는 것으로 시작합니다. 먼저 해 줘야 할 작업은, 월드에 카메라를 둘 만드는 것입니다. 카메라를 구성하는 방법은 여러가지 있는데, 여기서는 가장 자주 쓰이는 방법을 두 가지 살펴보겠습니다. 첫 번째 카메라는, **배치 브라우저** 의 **모드** 탭으로 가서 **배치** 를 선택하거나, Shift+1 을 누릅니다. **모든 클래스** 섹션에 보면 **카메라** 액터를 찾을 수 있습니다. 이것을 **레벨 에디터** 에 끌어놓고 씬이 잘 보이도록 위치를 조정합니다.  
+    
+    ![](PlaceCameraActor.png)  
+    
+    그 후 **카메라 액터** 가 선택되어 있는 한, 새 **카메라 액터** 의 시야가 **레벨 에디터** 창에 화면 속 화면 모습으로 보입니다.
+    
+    ![](CameraOnePlacement.png)
+
+1.  두 번째 카메라는, 조금 더 세밀한 제어가 가능한 심도있는 방법으로 가 보겠습니다. **배치 브라우저** 의 **모드** 탭에서 **기본** 을 클릭한 다음, **레벨 에디터** 창에 **큐브** 를 끌어 놓습니다.
+    
+    ![](PlaceCube.png)
+    
+    [REGION:note]
+    이 단계에는 거의 아무 액터나 써도 됩니다. 큐브 대신 퀵스타트 튜토리얼에서 만든 MyActor 클래스로 대체해도 재미있을 것입니다.
+    [/REGION]
+    
+1.  **큐브** 액터가 배치되면 그 **디테일** 패널에서 **+ 컴포넌트 추가** 버튼을 클릭하여 **Camera** 컴포넌트를 추가합니다. 그 다음 앞서 배치한 **카메라 액터** 와는 다른 화면을 보도록 **Camera** 컴포넌트의 위치와 회전을 설정합니다.
+    
+    ![](CameraTwoPlacement.png)
+
+1.  **카메라 액터** 세팅에 일치시키려면 **Camera** 컴포넌트의 **Constrain Aspect Ratio** (종횡비 제한) 옵션을 켜야 할 것입니다. 카메라 사이의 전환이 부드럽게 되도록 할 것이지만, 필수는 아닙니다.
+    
+    ![](CameraAspect.png)
+
+월드 구성이 완료되었으니, 카메라 뷰를 제어할 클래스를 만들 준비가 되었습니다.
+
+## 2 - C++ 에서 카메라 뷰 제어
+
+1.  카메라 뷰를 제어할 C++ 클래스 생성 준비가 되었습니다. 이 튜토리얼에서는 **액터** 를 확장할 텐데, CameraDirector 라 부르겠습니다.
+    
+    ![](NameActorClass.png)
+    
+1.  `CameraDirector.h` 에서 **ACameraDirector** 클래스 정의 아래 다음 코드를 추가합니다:
+    
+        UPROPERTY(EditAnywhere)
+        AActor* CameraOne;
+        
+        UPROPERTY(EditAnywhere)
+        AActor* CameraTwo;
+        
+        float TimeToNextCameraChange;
+    
+    [REGION:note]
+    **UPROPERTY** 매크로는 이 변수가 **언리얼 엔진** 에 보이도록 만듭니다. 이런 식으로 이 변수에 설정된 값은 게임을 실행하거나 앞으로의 작업 동안 레벨이나 프로젝트를 다시 로드한다 해도 리셋되지 않을 것입니다. **EditAnywhere** 키워드도 붙였는데, **언리얼 에디터** 에서 CameraOne 과 CameraTwo 를 설정할 수 있을 것입니다.
+    [/REGION]
+
+1.  `CameraDirector.cpp` 에서 파일 상단 다른 #include 줄 바로 아래에 다음 코드줄을 추가합니다:
+    
+        #include "Kismet/GameplayStatics.h"
+    
+    GameplayStatics 헤더 파일로 유용한 범용 함수에 접근할 수 있으며, 그 중 하나가 이 튜토리얼에 필요합니다. 이 작업이 완료되면, **ACameraDirector::Tick** 아래 다음 코드를 추가합니다:
+    
+        const float TimeBetweenCameraChanges = 2.0f;
+        const float SmoothBlendTime = 0.75f;
+        TimeToNextCameraChange -= DeltaTime;
+        if (TimeToNextCameraChange <= 0.0f)
+        {
+            TimeToNextCameraChange += TimeBetweenCameraChanges;
+        
+            // 로컬 플레이어의 컨트롤을 처리하는 액터를 찾습니다.
+            APlayerController* OurPlayerController = UGameplayStatics::GetPlayerController(this, 0);
+            if (OurPlayerController)
+            {
+                if ((OurPlayerController->GetViewTarget() != CameraOne) && (CameraOne != nullptr))
+                {
+                    // 1 번 카메라로 즉시 컷해 들어갑니다.
+                    OurPlayerController->SetViewTarget(CameraOne);
+                }
+                else if ((OurPlayerController->GetViewTarget() != CameraTwo) && (CameraTwo != nullptr))
+                {
+                    // 2 번 카메라로 부드럽게 전환합니다.
+                    OurPlayerController->SetViewTargetWithBlend(CameraTwo, SmoothBlendTime);
+                }
+            }
+        }
+    
+    이 코드는 3 초마다 기본 플레이어의 뷰를 두 카메라 사이에서 전환시켜 줍니다.
+
+1.  코드 컴파일 준비가 되었으니, **언리얼 에디터** 로 돌아와 **컴파일** 버튼을 누르면 됩니다.
 
 
+더이상의 코딩은 필요치 않습니다. 이제 이 CameraDirector 를 월드에 구성하면 됩니다.
+
+### 완성 코드
+
+**MyPawn.h**
+
+    // Copyright 1998-2017 Epic Games, Inc. All Rights Reserved.
+    
+    #pragma once
+    
+    #include "GameFramework/Actor.h"
+    #include "CameraDirector.generated.h"
+    
+    UCLASS()
+    class HOWTO_AUTOCAMERA_API ACameraDirector : public AActor
+    {
+        GENERATED_BODY()
+    
+    public: 
+        // Sets default values for this actor's properties
+        ACameraDirector();
+    
+    protected:
+        // Called when the game starts or when spawned
+        virtual void BeginPlay() override;
+    
+    public:
+        // Called every frame
+        virtual void Tick( float DeltaSeconds ) override;
+    
+        UPROPERTY(EditAnywhere)
+        AActor* CameraOne;
+    
+        UPROPERTY(EditAnywhere)
+        AActor* CameraTwo;
+    
+        float TimeToNextCameraChange;
+    };
+
+**MyPawn.cpp**
+
+    // Copyright 1998-2017 Epic Games, Inc. All Rights Reserved.
+    
+    #include "HowTo_AutoCamera.h"
+    #include "CameraDirector.h"
+    #include "Kismet/GameplayStatics.h"
+    
+    // Sets default values
+    ACameraDirector::ACameraDirector()
+    {
+        // Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+        PrimaryActorTick.bCanEverTick = true;
+    
+    }
+    
+    // Called when the game starts or when spawned
+    void ACameraDirector::BeginPlay()
+    {
+        Super::BeginPlay();
+    
+    }
+    
+    // Called every frame
+    void ACameraDirector::Tick( float DeltaTime )
+    {
+        Super::Tick( DeltaTime );
+    
+        const float TimeBetweenCameraChanges = 2.0f;
+        const float SmoothBlendTime = 0.75f;
+        TimeToNextCameraChange -= DeltaTime;
+        if (TimeToNextCameraChange <= 0.0f)
+        {
+            TimeToNextCameraChange += TimeBetweenCameraChanges;
+    
+            //Find the actor that handles control for the local player.
+            APlayerController* OurPlayerController = UGameplayStatics::GetPlayerController(this, 0);
+            if (OurPlayerController)
+            {
+                if ((OurPlayerController->GetViewTarget() != CameraOne) && (CameraOne != nullptr))
+                {
+                    //Cut instantly to camera one.
+                    OurPlayerController->SetViewTarget(CameraOne);
+                }
+                else if ((OurPlayerController->GetViewTarget() != CameraTwo) && (CameraTwo != nullptr))
+                {
+                    //Blend smoothly to camera two.
+                    OurPlayerController->SetViewTargetWithBlend(CameraTwo, SmoothBlendTime);
+                }
+            }
+        }
+    }
+
+## 3 - 월드에 카메라 디렉터 배치
+
+1.  코드 컴파일이 완료되면, **콘텐츠 브라우저** 에서 새로운 클래스를 끌어 **레벨 에디터** 에 놓으면 인스턴스가 생성됩니다.
+    
+    ![](CameraDirectorInContentBrowser.png)
+    
+1.  다음으로 CameraOne & CameraTwo 변수를 설정해 줘야 합니다. **월드 아웃라이너** 에서 CameraDirector 를 찾은 다음 **디테일 패널** 에서 편집합니다.
+    
+    ![](CameraDirectorDetails.png)
+    
+    **None** (없음)이란 드롭다운 박스를 클릭한 다음 변수를 앞서 만든 **Cube** 와 **CameraActor** 로 설정합니다.
+    
+    ![](CameraDirectorDetails2.png)
+    
+1.  **플레이** 를 누르면 카메라가 이 뷰에 달라붙습니다:
+    
+    ![](CameraOneView.png)
+    
+    그런 다음 이 뷰로 부드럽게 전환됩니다:
+    
+    ![](CameraTwoView.png)
+    
+    몇 초간 기다리다가 다시 달라 붙습니다.
+    
+이제 순전히 게임 로직을 기반으로 한 플레이어 카메라 이동 시스템이 생겼습니다. 이 코드는 플레이어가 카메라를 직접 제어하지 않는 게임, 또는 카메라 사이의 부드러운 전환이 유용한 게임에 맞게 변경해 사용할 수 있습니다.
+
+### 완성 코드
+
+**MyPawn.h**
+
+    // Copyright 1998-2017 Epic Games, Inc. All Rights Reserved.
+    
+    #pragma once
+    
+    #include "GameFramework/Actor.h"
+    #include "CameraDirector.generated.h"
+    
+    UCLASS()
+    class HOWTO_AUTOCAMERA_API ACameraDirector : public AActor
+    {
+        GENERATED_BODY()
+    
+    public: 
+        // Sets default values for this actor's properties
+        ACameraDirector();
+    
+    protected:
+        // Called when the game starts or when spawned
+        virtual void BeginPlay() override;
+    
+    public:
+        // Called every frame
+        virtual void Tick( float DeltaSeconds ) override;
+    
+        UPROPERTY(EditAnywhere)
+        AActor* CameraOne;
+    
+        UPROPERTY(EditAnywhere)
+        AActor* CameraTwo;
+    
+        float TimeToNextCameraChange;
+    };
+
+**MyPawn.cpp**
+
+    // Copyright 1998-2017 Epic Games, Inc. All Rights Reserved.
+    
+    #include "HowTo_AutoCamera.h"
+    #include "CameraDirector.h"
+    #include "Kismet/GameplayStatics.h"
+    
+    // Sets default values
+    ACameraDirector::ACameraDirector()
+    {
+        // Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+        PrimaryActorTick.bCanEverTick = true;
+    
+    }
+    
+    // Called when the game starts or when spawned
+    void ACameraDirector::BeginPlay()
+    {
+        Super::BeginPlay();
+    
+    }
+    
+    // Called every frame
+    void ACameraDirector::Tick( float DeltaTime )
+    {
+        Super::Tick( DeltaTime );
+    
+        const float TimeBetweenCameraChanges = 2.0f;
+        const float SmoothBlendTime = 0.75f;
+        TimeToNextCameraChange -= DeltaTime;
+        if (TimeToNextCameraChange <= 0.0f)
+        {
+            TimeToNextCameraChange += TimeBetweenCameraChanges;
+    
+            //Find the actor that handles control for the local player.
+            APlayerController* OurPlayerController = UGameplayStatics::GetPlayerController(this, 0);
+            if (OurPlayerController)
+            {
+                if (CameraTwo && (OurPlayerController->GetViewTarget() == CameraOne))
+                {
+                    //Blend smoothly to camera two.
+                    OurPlayerController->SetViewTargetWithBlend(CameraTwo, SmoothBlendTime);
+                }
+                else if (CameraOne)
+                {
+                    //Cut instantly to camera one.
+                    OurPlayerController->SetViewTarget(CameraOne);
+                }
+            }
+        }
+    }
+
+## 4 - 직접 해보기!
+
+지금까지 배운 것을 토대로, 다음과 같은 작업을 해 봅시다:
+
+* 움직이는 **액터** 에 **카메라** 를 붙여 크레인 샷이나 수레 샷을 찍습니다.
+* 하나의 [배열](Programming/UnrealArchitecture/TArrays) 변수를 사용하여 카메라를 저장하면, _CameraOne_ & _CameraTwo_ 를 사용했을 때와는 달리 카메라가 몇 개든 순서대로 변경하여 사용할 수 있습니다.
+* [액터](Programming/UnrealArchitecture/Actors) 포인터를 사용해서 카메라를 저장하는 대신, [구조체](Programming/UnrealArchitecture/Reference/Structs) 를 사용하면 포인터 뿐만 아니라 뷰 변경까지 남은 시간, 새로운 뷰로의 전환 시간을 저장할 수도 있습니다.
+
+이 튜토리얼에 다룬 부분에 대한 구체적인 내용은:
+
+* **카메라** 관련 상세 정보 및 그 조작법은, [](Gameplay/Framework/Camera) 문서 또는 [](Programming/Tutorials/PlayerCamera) 튜토리얼을 참고하세요.
+* 다른 튜토리얼은 [](Programming/Tutorials) 문서를 참고하세요.

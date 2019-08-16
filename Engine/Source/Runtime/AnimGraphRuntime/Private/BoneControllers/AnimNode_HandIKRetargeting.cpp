@@ -12,6 +12,7 @@ FAnimNode_HandIKRetargeting::FAnimNode_HandIKRetargeting()
 
 void FAnimNode_HandIKRetargeting::GatherDebugData(FNodeDebugData& DebugData)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(GatherDebugData)
 	FString DebugLine = DebugData.GetNodeName(this);
 
 	DebugLine += "(";
@@ -29,6 +30,7 @@ void FAnimNode_HandIKRetargeting::GatherDebugData(FNodeDebugData& DebugData)
 
 void FAnimNode_HandIKRetargeting::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(EvaluateSkeletalControl_AnyThread)
 	checkSlow(OutBoneTransforms.Num() == 0);
 
 	const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
@@ -116,6 +118,7 @@ bool FAnimNode_HandIKRetargeting::IsValidToEvaluate(const USkeleton* Skeleton, c
 
 void FAnimNode_HandIKRetargeting::InitializeBoneReferences(const FBoneContainer& RequiredBones)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(InitializeBoneReferences)
 	RightHandFK.Initialize(RequiredBones);
 	LeftHandFK.Initialize(RequiredBones);
 	RightHandIK.Initialize(RequiredBones);

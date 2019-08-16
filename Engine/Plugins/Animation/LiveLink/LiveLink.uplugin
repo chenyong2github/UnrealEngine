@@ -1,35 +1,55 @@
 {
-	"FileVersion" : 3,
-	"Version" : 1,
-	"VersionName" : "0.1",
-	"FriendlyName" : "Live Link",
-	"Description" : "Allows streaming of animation data into the editor",
-	"Category" : "Animation",
-	"CreatedBy" : "Epic Games, Inc.",
-	"CreatedByURL" : "http://epicgames.com",
-	"DocsURL" : "",
-	"MarketplaceURL" : "",
-	"SupportURL" : "",
-	"EnabledByDefault" : false,
-	"CanContainContent" : false,
-	"IsBetaVersion" : true,
-	"Installed" : false,
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "2.0",
+	"FriendlyName": "Live Link",
+	"Description": "Allows streaming of animated data into UE4",
+	"Category": "Animation",
+	"CreatedBy": "Epic Games, Inc.",
+	"CreatedByURL": "http://epicgames.com",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"EnabledByDefault": false,
+	"CanContainContent": false,
+	"IsBetaVersion": false,
+	"Installed": false,
 	"Plugins": [
 		{
-			"Name" : "Takes",
-			"Enabled" : true
+			"Name": "Takes",
+			"Enabled": true
 		}
 	],
-	"Modules" : [
+	"Modules": [
 		{
-			"Name" : "LiveLink",
-			"Type" : "Runtime",
-			"LoadingPhase" : "PreDefault"
+			"Name": "LiveLink",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
 		},
 		{
-			"Name" : "LiveLinkEditor",
-			"Type" : "Developer",
-			"LoadingPhase" : "PreDefault"
+			"Name": "LiveLinkComponents",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "LiveLinkEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "LiveLinkGraphNode",
+			"Type": "Developer",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "LiveLinkMovieScene",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "LiveLinkSequencer",
+			"Type": "Developer",
+			"LoadingPhase": "Default"
 		}
 	]
 }

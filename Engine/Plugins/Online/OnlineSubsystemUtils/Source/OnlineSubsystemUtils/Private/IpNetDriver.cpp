@@ -359,7 +359,7 @@ FSocket * UIpNetDriver::CreateSocket()
 		return NULL;
 	}
 
-	return SocketSubsystem->CreateSocket( NAME_DGram, TEXT( "Unreal" ) );
+	return SocketSubsystem->CreateSocket(NAME_DGram, TEXT("Unreal"), ( LocalAddr.IsValid() ? LocalAddr->GetProtocolType() : NAME_None) );
 }
 
 int UIpNetDriver::GetClientPort()
@@ -375,18 +375,32 @@ bool UIpNetDriver::InitBase( bool bInitAsClient, FNetworkNotify* InNotify, const
 	}
 
 	ISocketSubsystem* SocketSubsystem = GetSocketSubsystem();
-	if (SocketSubsystem == NULL)
+	if (SocketSubsystem == nullptr)
 	{
 		UE_LOG(LogNet, Warning, TEXT("Unable to find socket subsystem"));
 		return false;
 	}
 
 	// Derived types may have already allocated a socket
+	const TCHAR* MultiHomeBindAddr = URL.GetOption(TEXT("multihome="), nullptr);
+	if (MultiHomeBindAddr != nullptr)
+	{
+		LocalAddr = SocketSubsystem->GetAddressFromString(MultiHomeBindAddr);
+		if (!LocalAddr.IsValid())
+		{
+			UE_LOG(LogNet, Warning, TEXT("Failed to created valid address from multihome address: %s"), MultiHomeBindAddr);
+		}
+	}
+
+	if (!LocalAddr.IsValid())
+	{
+		LocalAddr = SocketSubsystem->GetLocalBindAddr(*GLog);
+	}
 
 	// Create the socket that we will use to communicate with
 	Socket = CreateSocket();
 
-	if( Socket == NULL )
+	if(Socket == nullptr)
 	{
 		Socket = 0;
 		Error = FString::Printf( TEXT("%s: socket failed (%i)"), SocketSubsystem->GetSocketAPIName(), (int32)SocketSubsystem->GetLastErrorCode() );
@@ -419,27 +433,6 @@ bool UIpNetDriver::InitBase( bool bInitAsClient, FNetworkNotify* InNotify, const
 	Socket->SetSendBufferSize(DesiredSendSize, ActualSendSize);
 	UE_LOG(LogInit, Log, TEXT("%s: Socket queue. Rx: %i (config %i) Tx: %i (config %i)"), SocketSubsystem->GetSocketAPIName(),
 		ActualRecvSize, DesiredRecvSize, ActualSendSize, DesiredSendSize);
-
-	// allow multihome as a url option
-	const TCHAR* MultiHomeBindAddr = URL.GetOption(TEXT("multihome="), nullptr);
-	if (MultiHomeBindAddr != nullptr)
-	{
-		LocalAddr = SocketSubsystem->CreateInternetAddr();
-
-		bool bIsValid = false;
-		LocalAddr->SetIp(MultiHomeBindAddr, bIsValid);
-
-		if (!bIsValid)
-		{
-			LocalAddr = nullptr;
-			UE_LOG(LogNet, Warning, TEXT("Failed to created valid address from multihome address: %s"), MultiHomeBindAddr);
-		}
-	}
-
-	if (!LocalAddr.IsValid())
-	{
-		LocalAddr = SocketSubsystem->GetLocalBindAddr(*GLog);
-	}
 
 	// Bind socket to our port.
 	LocalAddr->SetPort(bInitAsClient ? GetClientPort() : URL.Port);
@@ -695,7 +688,8 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 
 		if (Connection == nullptr)
 		{
-			UNetConnection** Result = MappedClientConnections.Find(FromAddr);
+			const TSharedRef<const FInternetAddr> ConstFromAddr = FromAddr;
+			UNetConnection** Result = MappedClientConnections.Find(ConstFromAddr);
 
 			if (Result != nullptr)
 			{
@@ -828,11 +822,11 @@ UNetConnection* UIpNetDriver::ProcessConnectionlessPacket(const TSharedRef<FInte
 	{
 		StatelessConnect = StatelessConnectComponent.Pin();
 
-		const ProcessedPacket UnProcessedPacket = ConnectionlessHandler->IncomingConnectionless(IncomingAddress, Data, CountBytesRef);
+		const ProcessedPacket UnProcessedPacket = ConnectionlessHandler->IncomingConnectionless(Address, Data, CountBytesRef);
 
 		if (!UnProcessedPacket.bError)
 		{
-			bPassedChallenge = StatelessConnect->HasPassedChallenge(IncomingAddress, bRestartedHandshake);
+			bPassedChallenge = StatelessConnect->HasPassedChallenge(Address, bRestartedHandshake);
 
 			if (bPassedChallenge)
 			{
@@ -977,17 +971,9 @@ UNetConnection* UIpNetDriver::ProcessConnectionlessPacket(const TSharedRef<FInte
 	return ReturnVal;
 }
 
-void UIpNetDriver::LowLevelSend(FString Address, void* Data, int32 CountBits, FOutPacketTraits& Traits)
+void UIpNetDriver::LowLevelSend(TSharedPtr<const FInternetAddr> Address, void* Data, int32 CountBits, FOutPacketTraits& Traits)
 {
-	bool bValidAddress = !Address.IsEmpty();
-	TSharedRef<FInternetAddr> RemoteAddr = GetSocketSubsystem()->CreateInternetAddr();
-
-	if (bValidAddress)
-	{
-		RemoteAddr->SetIp(*Address, bValidAddress);
-	}
-
-	if (bValidAddress)
+	if (Address.IsValid() && Address->IsValid())
 	{
 		const uint8* DataToSend = reinterpret_cast<uint8*>(Data);
 
@@ -1013,7 +999,7 @@ void UIpNetDriver::LowLevelSend(FString Address, void* Data, int32 CountBits, FO
 		if (CountBits > 0)
 		{
 			CLOCK_CYCLES(SendCycles);
-			Socket->SendTo(DataToSend, FMath::DivideAndRoundUp(CountBits, 8), BytesSent, *RemoteAddr);
+			Socket->SendTo(DataToSend, FMath::DivideAndRoundUp(CountBits, 8), BytesSent, *Address);
 			UNCLOCK_CYCLES(SendCycles);
 		}
 
@@ -1025,7 +1011,7 @@ void UIpNetDriver::LowLevelSend(FString Address, void* Data, int32 CountBits, FO
 	}
 	else
 	{
-		UE_LOG(LogNet, Warning, TEXT("UIpNetDriver::LowLevelSend: Invalid send address '%s'"), *Address);
+		UE_LOG(LogNet, Warning, TEXT("UIpNetDriver::LowLevelSend: Invalid send address '%s'"), *Address->ToString(true));
 	}
 }
 
@@ -1033,7 +1019,7 @@ void UIpNetDriver::LowLevelSend(FString Address, void* Data, int32 CountBits, FO
 
 FString UIpNetDriver::LowLevelGetNetworkNumber()
 {
-	return LocalAddr->ToString(true);
+	return LocalAddr.IsValid() ? LocalAddr->ToString(true) : FString(TEXT(""));
 }
 
 void UIpNetDriver::LowLevelDestroy()

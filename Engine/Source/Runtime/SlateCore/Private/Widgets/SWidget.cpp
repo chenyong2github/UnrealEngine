@@ -15,15 +15,23 @@
 #include "Application/ActiveTimerHandle.h"
 #include "Input/HittestGrid.h"
 #include "Debugging/SlateDebugging.h"
+#include "Widgets/SWindow.h"
+#include "Types/ReflectionMetadata.h"
 
-DECLARE_DWORD_COUNTER_STAT(TEXT("Widgets Created (Per Frame)"), STAT_SlateTotalWidgetsPerFrame, STATGROUP_Slate);
-DECLARE_DWORD_COUNTER_STAT(TEXT("SWidget::Paint (Count)"), STAT_SlateNumPaintedWidgets, STATGROUP_Slate);
-DECLARE_DWORD_COUNTER_STAT(TEXT("SWidget::Tick (Count)"), STAT_SlateNumTickedWidgets, STATGROUP_Slate);
-DECLARE_CYCLE_STAT(TEXT("TickWidgets"), STAT_SlateTickWidgets, STATGROUP_Slate);
+#if WITH_ACCESSIBILITY
+#include "Widgets/Accessibility/SlateCoreAccessibleWidgets.h"
+#include "Widgets/Accessibility/SlateAccessibleMessageHandler.h"
+#endif
 
-DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Total Widgets"), STAT_SlateTotalWidgets, STATGROUP_SlateMemory);
-DECLARE_MEMORY_STAT(TEXT("SWidget Total Allocated Size"), STAT_SlateSWidgetAllocSize, STATGROUP_SlateMemory);
-
+DEFINE_STAT(STAT_SlateVeryVerboseStatGroupTester);
+DEFINE_STAT(STAT_SlateTotalWidgetsPerFrame);
+DEFINE_STAT(STAT_SlateNumPaintedWidgets);
+DEFINE_STAT(STAT_SlateNumTickedWidgets);
+DEFINE_STAT(STAT_SlateExecuteActiveTimers);
+DEFINE_STAT(STAT_SlateTickWidgets);
+DEFINE_STAT(STAT_SlatePrepass);
+DEFINE_STAT(STAT_SlateTotalWidgets);
+DEFINE_STAT(STAT_SlateSWidgetAllocSize);
 
 
 #if SLATE_CULL_WIDGETS
@@ -33,13 +41,16 @@ static FAutoConsoleVariableRef CVarCullingSlackFillPercent(TEXT("Slate.CullingSl
 
 #endif
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if WITH_SLATE_DEBUGGING
 
 int32 GShowClipping = 0;
 static FAutoConsoleVariableRef CVarSlateShowClipRects(TEXT("Slate.ShowClipping"), GShowClipping, TEXT("Controls whether we should render a clipping zone outline.  Yellow = Axis Scissor Rect Clipping (cheap).  Red = Stencil Clipping (expensive)."), ECVF_Default);
 
 int32 GDebugCulling = 0;
 static FAutoConsoleVariableRef CVarSlateDebugCulling(TEXT("Slate.DebugCulling"), GDebugCulling, TEXT("Controls whether we should ignore clip rects, and just use culling."), ECVF_Default);
+
+int32 GSlateEnsureAllVisibleWidgetsPaint = 0;
+static FAutoConsoleVariableRef CVarSlateEnsureAllVisibleWidgetsPaint(TEXT("Slate.EnsureAllVisibleWidgetsPaint"), GSlateEnsureAllVisibleWidgetsPaint, TEXT("Ensures that if a child widget is visible before OnPaint, that it was painted this frame after OnPaint, if still marked as visible.  Only works if we're on the FastPaintPath."), ECVF_Default);
 
 #endif
 
@@ -85,13 +96,46 @@ struct FScopeCycleCounterSWidget
 
 #endif
 
-DEFINE_STAT(STAT_SlateVeryVerboseStatGroupTester);
 
 void SWidget::CreateStatID() const
 {
 #if STATS
 	StatID = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_SlateVeryVerbose>( ToString() );
 #endif
+}
+
+void SWidget::UpdateWidgetProxy(int32 NewLayerId, FSlateCachedElementListNode* CacheNode)
+{
+#if WITH_SLATE_DEBUGGING
+	check(!CacheNode || CacheNode->GetValue().Widget == this);
+#endif
+
+	if (PersistentState.CachedElementListNode != nullptr && PersistentState.CachedElementListNode != CacheNode)
+	{
+	//	ensure(false);
+		PersistentState.CachedElementListNode->GetValue().GetOwningData()->RemoveCache(PersistentState.CachedElementListNode);
+	}
+
+	PersistentState.CachedElementListNode = CacheNode;
+
+	if (FastPathProxyHandle.IsValid())
+	{
+		FWidgetProxy& MyProxy = FastPathProxyHandle.GetProxy();
+
+		MyProxy.Visibility = GetVisibility();
+
+		PersistentState.OutgoingLayerId = NewLayerId;
+
+		if ((IsVolatile() && !IsVolatileIndirectly()) || (Advanced_IsInvalidationRoot() && !Advanced_IsWindow()))
+		{
+			AddUpdateFlags(EWidgetUpdateFlags::NeedsVolatilePaint);
+		}
+		else
+		{
+			RemoveUpdateFlags(EWidgetUpdateFlags::NeedsVolatilePaint);
+		}
+		FastPathProxyHandle.MarkWidgetUpdatedThisFrame();
+	}
 }
 
 FName NAME_MouseButtonDown(TEXT("MouseButtonDown"));
@@ -108,14 +152,17 @@ SWidget::SWidget()
 	, bForceVolatile(false)
 	, bCachedVolatile(false)
 	, bInheritedVolatility(false)
+	, bInvisibleDueToParentOrSelfVisibility(false)
 	, bNeedsPrepass(true)
 	, bNeedsDesiredSize(true)
 	, bUpdatingDesiredSize(false)
+	, bHasCustomPrepass(false)
+	, bVolatilityAlwaysInvalidatesPrepass(false)
 	, Clipping(EWidgetClipping::Inherit)
 	, FlowDirectionPreference(EFlowDirectionPreference::Inherit)
+	// Note we are defaulting to tick for backwards compatibility
 	, UpdateFlags(EWidgetUpdateFlags::NeedsTick)
 	, DesiredSize()
-	, PrepassLayoutScaleMultiplier(1.0f)
 	, CullingBoundsExtension()
 	, EnabledState(true)
 	, Visibility(EVisibility::Visible)
@@ -124,7 +171,6 @@ SWidget::SWidget()
 	, RenderTransformPivot(FVector2D::ZeroVector)
 	, Cursor( TOptional<EMouseCursor::Type>() )
 	, ToolTip()
-	, LayoutCache(nullptr)	
 {
 	if (GIsRunning)
 	{
@@ -136,12 +182,31 @@ SWidget::SWidget()
 SWidget::~SWidget()
 {
 	// Unregister all ActiveTimers so they aren't left stranded in the Application's list.
-	if ( FSlateApplicationBase::IsInitialized() )
+	if (FSlateApplicationBase::IsInitialized())
 	{
-		for ( const auto& ActiveTimerHandle : ActiveTimers )
+		for (const auto& ActiveTimerHandle : ActiveTimers)
 		{
 			FSlateApplicationBase::Get().UnRegisterActiveTimer(ActiveTimerHandle);
 		}
+
+		if (FSlateInvalidationRoot* Root = FastPathProxyHandle.GetInvalidationRoot())
+		{
+			Root->OnWidgetDestroyed(this);
+		}
+
+		// Reset handle
+		FastPathProxyHandle = FWidgetProxyHandle();
+
+		// Note: this would still be valid if a widget was painted and then destroyed in the same frame.  
+		// In that case invalidation hasn't taken place for added widgets so the invalidation panel doesn't know about their cached element data to clean it up
+		if (PersistentState.CachedElementListNode)
+		{
+			PersistentState.CachedElementListNode->GetValue().GetOwningData()->RemoveCache(PersistentState.CachedElementListNode);
+		}
+
+#if WITH_ACCESSIBILITY
+		FSlateApplicationBase::Get().GetAccessibleMessageHandler()->OnWidgetRemoved(this);
+#endif
 	}
 
 	DEC_DWORD_STAT(STAT_SlateTotalWidgets);
@@ -161,6 +226,7 @@ void SWidget::Construct(
 	const bool InForceVolatile,
 	const EWidgetClipping InClipping,
 	const EFlowDirectionPreference InFlowPreference,
+	const TOptional<FAccessibleWidgetData>& InAccessibleData,
 	const TArray<TSharedRef<ISlateMetaData>>& InMetaData
 )
 {
@@ -191,11 +257,32 @@ void SWidget::Construct(
 	Clipping = InClipping;
 	FlowDirectionPreference = InFlowPreference;
 	MetaData = InMetaData;
+
+#if WITH_ACCESSIBILITY
+	if (InAccessibleData.IsSet())
+	{
+		SetCanChildrenBeAccessible(InAccessibleData->bCanChildrenBeAccessible);
+		// If custom text is provided, force behavior to custom. Otherwise, use the passed-in behavior and set their default text.
+		SetAccessibleBehavior(InAccessibleData->AccessibleText.IsSet() ? EAccessibleBehavior::Custom : InAccessibleData->AccessibleBehavior, InAccessibleData->AccessibleText, EAccessibleType::Main);
+		SetAccessibleBehavior(InAccessibleData->AccessibleSummaryText.IsSet() ? EAccessibleBehavior::Custom : InAccessibleData->AccessibleSummaryBehavior, InAccessibleData->AccessibleSummaryText, EAccessibleType::Summary);
+	}
+	if (AccessibleData.AccessibleBehavior != EAccessibleBehavior::Custom)
+	{
+		SetDefaultAccessibleText(EAccessibleType::Main);
+	}
+	if (AccessibleData.AccessibleSummaryBehavior != EAccessibleBehavior::Custom)
+	{
+		SetDefaultAccessibleText(EAccessibleType::Summary);
+	}
+#endif
 }
 
-void SWidget::SWidgetConstruct(const TAttribute<FText>& InToolTipText, const TSharedPtr<IToolTip>& InToolTip, const TAttribute< TOptional<EMouseCursor::Type> >& InCursor, const TAttribute<bool>& InEnabledState, const TAttribute<EVisibility>& InVisibility, const float InRenderOpacity, const TAttribute<TOptional<FSlateRenderTransform>>& InTransform, const TAttribute<FVector2D>& InTransformPivot, const FName& InTag, const bool InForceVolatile, const EWidgetClipping InClipping, const EFlowDirectionPreference InFlowPreference, const TArray<TSharedRef<ISlateMetaData>>& InMetaData)
+void SWidget::SWidgetConstruct(const TAttribute<FText>& InToolTipText, const TSharedPtr<IToolTip>& InToolTip, const TAttribute< TOptional<EMouseCursor::Type> >& InCursor, const TAttribute<bool>& InEnabledState,
+							   const TAttribute<EVisibility>& InVisibility, const float InRenderOpacity, const TAttribute<TOptional<FSlateRenderTransform>>& InTransform, const TAttribute<FVector2D>& InTransformPivot,
+							   const FName& InTag, const bool InForceVolatile, const EWidgetClipping InClipping, const EFlowDirectionPreference InFlowPreference, const TOptional<FAccessibleWidgetData>& InAccessibleData,
+							   const TArray<TSharedRef<ISlateMetaData>>& InMetaData)
 {
-	Construct(InToolTipText, InToolTip, InCursor, InEnabledState, InVisibility, InRenderOpacity, InTransform, InTransformPivot, InTag, InForceVolatile, InClipping, InFlowPreference, InMetaData);
+	Construct(InToolTipText, InToolTip, InCursor, InEnabledState, InVisibility, InRenderOpacity, InTransform, InTransformPivot, InTag, InForceVolatile, InClipping, InFlowPreference, InAccessibleData, InMetaData);
 }
 
 FReply SWidget::OnFocusReceived(const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent)
@@ -472,86 +559,43 @@ void SWidget::Tick( const FGeometry& AllottedGeometry, const double InCurrentTim
 
 void SWidget::SlatePrepass()
 {
-	if (!GSlateLayoutCaching)
-	{
-		SlatePrepass(FSlateApplicationBase::Get().GetApplicationScale());
-	}
+	SlatePrepass(FSlateApplicationBase::Get().GetApplicationScale());
 }
 
 void SWidget::SlatePrepass(float InLayoutScaleMultiplier)
 {
-#if WITH_VERY_VERBOSE_SLATE_STATS
-	SCOPED_NAMED_EVENT(SWidget_Prepass, FColor::Silver);
-#endif
+	SCOPE_CYCLE_COUNTER(STAT_SlatePrepass);
 
-	if(GSlateLayoutCaching)
+	if (!GSlateIsOnFastUpdatePath || bNeedsPrepass)
 	{
-		if (!bNeedsPrepass && PrepassLayoutScaleMultiplier == InLayoutScaleMultiplier)
-		{
-			return;
-		}
+		// If the scale changed, that can affect the desired size of some elements that take it into
+		// account, such as text, so when the prepass size changes, so must we invalidate desired size.
+		bNeedsDesiredSize = true;
 
-		PrepassLayoutScaleMultiplier = InLayoutScaleMultiplier;
-		bNeedsPrepass = false;
-	}
-
-	if ( bCanHaveChildren )
-	{
-		// Cache child desired sizes first. This widget's desired size is
-		// a function of its children's sizes.
-		FChildren* MyChildren = this->GetChildren();
-		const int32 NumChildren = MyChildren->Num();
-		for (int32 ChildIndex = 0; ChildIndex < MyChildren->Num(); ++ChildIndex)
-		{
-			const TSharedRef<SWidget>& Child = MyChildren->GetChildAt(ChildIndex);
-
-			if (GSlateLayoutCaching || Child->Visibility.Get() != EVisibility::Collapsed)
-			{
-				const float ChildLayoutScaleMultiplier = GetRelativeLayoutScale(MyChildren->GetSlotAt(ChildIndex), InLayoutScaleMultiplier);
-				// Recur: Descend down the widget tree.
-				Child->SlatePrepass(InLayoutScaleMultiplier * ChildLayoutScaleMultiplier);
-			}
-		}
-		ensure(NumChildren == MyChildren->Num());
-	}
-
-	if(!GSlateLayoutCaching)
-	{
-		// Cache this widget's desired size.
-		CacheDesiredSize(InLayoutScaleMultiplier);
+		Prepass_Internal(InLayoutScaleMultiplier);
 	}
 }
 
 void SWidget::InvalidatePrepass()
 {
-	SCOPED_NAMED_EVENT(SWidget_InvalidatePrepass, FColor::Orange);
+	SLATE_CROSS_THREAD_CHECK();
 
 	bNeedsPrepass = true;
-	LayoutChanged(EInvalidateWidget::LayoutAndVolatility);
+}
+
+void SWidget::InvalidateChildRemovedFromTree(SWidget& Child)
+{
+	if (Child.FastPathProxyHandle.IsValid())
+	{
+		SCOPED_NAMED_EVENT(SWidget_InvalidateChildRemovedFromTree, FColor::Red);
+		Child.UpdateFastPathVisibility(false, true);
+	}
 }
 
 FVector2D SWidget::GetDesiredSize() const
 {
-	if(GSlateLayoutCaching)
-	{
-		if (bNeedsDesiredSize && ensureMsgf(!bUpdatingDesiredSize, TEXT("The layout is cyclically dependent.  A child widget can not ask the desired size of a parent while the parent is asking the desired size of its children.")))
-		{
-			bUpdatingDesiredSize = true;
-
-			// Cache this widget's desired size.
-			const_cast<SWidget*>(this)->CacheDesiredSize(PrepassLayoutScaleMultiplier);
-
-			bUpdatingDesiredSize = false;
-		}
-
-		return DesiredSize.GetValue();
-	}
-	else
-	{
-		return DesiredSize.Get(FVector2D::ZeroVector);
-	}
+	return DesiredSize.Get(FVector2D::ZeroVector);
 }
-
 
 void SWidget::AssignParentWidget(TSharedPtr<SWidget> InParent)
 {
@@ -561,10 +605,18 @@ void SWidget::AssignParentWidget(TSharedPtr<SWidget> InParent)
 	ensureMsgf(InParent.IsValid(), TEXT("Are you trying to detatch the parent of a widget?  Use ConditionallyDetatchParentWidget()."));
 #endif
 
+	//@todo We should update inherited visibility and volatility here but currently we are relying on ChildOrder invalidation to do that for us
+
 	ParentWidgetPtr = InParent;
+#if WITH_ACCESSIBILITY
+	if (FSlateApplicationBase::IsInitialized())
+	{
+		FSlateApplicationBase::Get().GetAccessibleMessageHandler()->MarkDirty();
+	}
+#endif
 	if (InParent.IsValid())
 	{
-		InParent->Invalidate(EInvalidateWidget::Layout);
+		InParent->Invalidate(EInvalidateWidget::ChildOrder);
 	}
 }
 
@@ -578,39 +630,146 @@ bool SWidget::ConditionallyDetatchParentWidget(SWidget* InExpectedParent)
 	if (Parent.Get() == InExpectedParent)
 	{
 		ParentWidgetPtr.Reset();
+#if WITH_ACCESSIBILITY
+		if (FSlateApplicationBase::IsInitialized())
+		{
+			FSlateApplicationBase::Get().GetAccessibleMessageHandler()->MarkDirty();
+		}
+#endif
 
 		if (Parent.IsValid())
 		{
-			Parent->Invalidate(EInvalidateWidget::Layout);
+			Parent->Invalidate(EInvalidateWidget::ChildOrder);
 		}
 
+		InvalidateChildRemovedFromTree(*this);
 		return true;
 	}
 
 	return false;
 }
 
-
-void SWidget::LayoutChanged(EInvalidateWidget InvalidateReason)
+void SWidget::AssignIndicesToChildren(FSlateInvalidationRoot& Root, int32 ParentIndex, TArray<FWidgetProxy, TMemStackAllocator<>>& FastPathList, bool bParentVisible, bool bParentVolatile)
 {
-	if(EnumHasAnyFlags(InvalidateReason, EInvalidateWidget::Layout))
-	{
-		bNeedsDesiredSize = true;
+	FWidgetProxy MyProxy(this);
+	MyProxy.Index = FastPathList.Num();
+	MyProxy.ParentIndex = ParentIndex;
+	MyProxy.Visibility = GetVisibility();
 
-		TSharedPtr<SWidget> ParentWidget = ParentWidgetPtr.Pin();
-		if (ParentWidget.IsValid())
+	check(ParentIndex != MyProxy.Index);
+
+	// If this method is being called, child order changed.  Initial visibility and volatility needs to be propagated
+	// Update visibility
+	const bool bParentAndSelfVisible = bParentVisible && MyProxy.Visibility.IsVisible();
+	const bool bWasInvisible = bInvisibleDueToParentOrSelfVisibility;
+	bInvisibleDueToParentOrSelfVisibility = !bParentAndSelfVisible;
+	MyProxy.bInvisibleDueToParentOrSelfVisibility = bInvisibleDueToParentOrSelfVisibility;
+
+	// Update volatility
+	bInheritedVolatility = bParentVolatile;
+
+	FastPathProxyHandle = FWidgetProxyHandle(Root, MyProxy.Index);
+
+
+	if (bInvisibleDueToParentOrSelfVisibility&& PersistentState.CachedElementListNode != nullptr)
+	{
+#if WITH_SLATE_DEBUGGING
+		check(PersistentState.CachedElementListNode->GetValue().Widget == this);
+#endif
+		Root.GetCachedElements().ResetCache(PersistentState.CachedElementListNode);
+	}
+
+	FastPathList.Add(MyProxy);
+
+	// Don't recur into children if we are at a different invalidation root(nested invalidation panels) than where we started and not at the root of the tree. Those children should belong to that roots tree.
+	if (!Advanced_IsInvalidationRoot() || ParentIndex == INDEX_NONE)
+	{
+		FChildren* MyChildren = GetAllChildren();
+		const int32 NumChildren = MyChildren->Num();
+
+		int32 NumChildrenValidForFastPath = 0;
+		for (int32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
 		{
-			ParentWidget->ChildLayoutChanged(InvalidateReason);
+			// Because null widgets are a shared static widget they are not valid for the fast path and are treated as non-existent
+			const TSharedRef<SWidget>& Child = MyChildren->GetChildAt(ChildIndex);
+			if (Child != SNullWidget::NullWidget)
+			{
+				++NumChildrenValidForFastPath;
+				Child->AssignIndicesToChildren(Root, MyProxy.Index, FastPathList, bParentAndSelfVisible, bParentVolatile || IsVolatile());
+			}
 		}
+
+		{
+			FWidgetProxy& MyProxyRef = FastPathList[MyProxy.Index];
+			MyProxyRef.NumChildren = NumChildrenValidForFastPath;
+			int32 LastIndex = FastPathList.Num() - 1;
+			MyProxyRef.LeafMostChildIndex = LastIndex != MyProxy.Index ? LastIndex : INDEX_NONE;
+		}
+
 	}
 }
 
-void SWidget::ChildLayoutChanged(EInvalidateWidget InvalidateReason)
+void SWidget::UpdateFastPathVisibility(bool bParentVisible, bool bWidgetRemoved)
 {
-	if (!bNeedsDesiredSize || EnumHasAllFlags(InvalidateReason, EInvalidateWidget::Visibility) )
+	const EVisibility CurrentVisibility = GetVisibility();
+	const bool bParentAndSelfVisible = bParentVisible && CurrentVisibility.IsVisible();
+	const bool bWasInvisible = bInvisibleDueToParentOrSelfVisibility;
+	bInvisibleDueToParentOrSelfVisibility = !bParentAndSelfVisible;
+	const bool bVisibilityChanged = bWasInvisible != bInvisibleDueToParentOrSelfVisibility;
+
+	if (FastPathProxyHandle.IsValid())
 	{
-		LayoutChanged(InvalidateReason);
+		FastPathProxyHandle.GetInvalidationRoot()->GetHittestGrid()->RemoveWidget(SharedThis(this));
+		FWidgetProxy& Proxy = FastPathProxyHandle.GetProxy();
+		Proxy.Visibility = CurrentVisibility;
+		Proxy.bInvisibleDueToParentOrSelfVisibility = bInvisibleDueToParentOrSelfVisibility;
+
+		if (bWidgetRemoved)
+		{
+			FastPathProxyHandle.GetInvalidationRoot()->RemoveWidgetFromFastPath(Proxy);
+		}
 	}
+	else
+	{
+		ensure(FastPathProxyHandle.GetIndex() == INDEX_NONE);
+	}
+
+	if (PersistentState.CachedElementListNode)
+	{
+		PersistentState.CachedElementListNode->GetValue().GetOwningData()->RemoveCache(PersistentState.CachedElementListNode);
+	}
+
+	FChildren* MyChildren = GetAllChildren();
+	const int32 NumChildren = MyChildren->Num();
+	for (int32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
+	{
+		const TSharedRef<SWidget>& Child = MyChildren->GetChildAt(ChildIndex);
+		Child->UpdateFastPathVisibility(bParentAndSelfVisible, bWidgetRemoved);
+	}
+}
+
+void SWidget::UpdateFastPathVolatility(bool bParentVolatile)
+{
+	bInheritedVolatility = bParentVolatile;
+
+	if (IsVolatile() && !IsVolatileIndirectly())
+	{
+		AddUpdateFlags(EWidgetUpdateFlags::NeedsVolatilePaint);
+	}
+	else
+	{
+		RemoveUpdateFlags(EWidgetUpdateFlags::NeedsVolatilePaint);
+	}
+
+	FChildren* MyChildren = GetAllChildren();
+	const int32 NumChildren = MyChildren->Num();
+	for (int32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
+	{
+		const TSharedRef<SWidget>& Child = MyChildren->GetChildAt(ChildIndex);
+		Child->UpdateFastPathVolatility(bParentVolatile || IsVolatile());
+	}
+
+
 }
 
 void SWidget::CacheDesiredSize(float InLayoutScaleMultiplier)
@@ -618,30 +777,11 @@ void SWidget::CacheDesiredSize(float InLayoutScaleMultiplier)
 #if SLATE_VERBOSE_NAMED_EVENTS
 	SCOPED_NAMED_EVENT(SWidget_CacheDesiredSize, FColor::Red);
 #endif
+
 	// Cache this widget's desired size.
-	Advanced_SetDesiredSize(ComputeDesiredSize(InLayoutScaleMultiplier));
+	SetDesiredSize(ComputeDesiredSize(InLayoutScaleMultiplier));
 }
 
-void SWidget::CachePrepass(const TWeakPtr<ILayoutCache>& InLayoutCache)
-{
-	if ( bCanHaveChildren )
-	{
-		FChildren* MyChildren = this->GetChildren();
-		const int32 NumChildren = MyChildren->Num();
-		for ( int32 ChildIndex=0; ChildIndex < NumChildren; ++ChildIndex )
-		{
-			const TSharedRef<SWidget>& Child = MyChildren->GetChildAt(ChildIndex);
-			if ( Child->GetVisibility().IsVisible() == false )
-			{
-				Child->LayoutCache = InLayoutCache;
-			}
-			else
-			{
-				Child->CachePrepass(InLayoutCache);
-			}
-		}
-	}
-}
 
 bool SWidget::SupportsKeyboardFocus() const
 {
@@ -819,6 +959,21 @@ FSlateColor SWidget::GetForegroundColor() const
 	return NoColor;
 }
 
+const FGeometry& SWidget::GetCachedGeometry() const
+{
+	return GetTickSpaceGeometry();
+}
+
+const FGeometry& SWidget::GetTickSpaceGeometry() const
+{
+	return PersistentState.DesktopGeometry;
+}
+
+const FGeometry& SWidget::GetPaintSpaceGeometry() const
+{
+	return PersistentState.AllottedGeometry;
+}
+
 void SWidget::SetToolTipText(const TAttribute<FText>& ToolTipText)
 {
 	ToolTip = FSlateApplicationBase::Get().MakeToolTip(ToolTipText);
@@ -853,21 +1008,55 @@ bool SWidget::IsDirectlyHovered() const
 	return FSlateApplicationBase::Get().IsWidgetDirectlyHovered(SharedThis(this));
 }
 
-void SWidget::Invalidate(EInvalidateWidget InvalidateReason)
+void SWidget::SetVisibility(TAttribute<EVisibility> InVisibility)
+{
+	SetAttribute(Visibility, InVisibility, EInvalidateWidgetReason::Visibility);
+}
+
+void SWidget::Invalidate(EInvalidateWidgetReason InvalidateReason)
 {
 	SLATE_CROSS_THREAD_CHECK();
 
 	SCOPED_NAMED_EVENT_TEXT("SWidget::Invalidate", FColor::Orange);
-
 	const bool bWasVolatile = IsVolatileIndirectly() || IsVolatile();
-	const bool bVolatilityChanged = EnumHasAnyFlags(InvalidateReason, EInvalidateWidget::Volatility) ? Advanced_InvalidateVolatility() : false;
 
-	if (bWasVolatile == false || bVolatilityChanged)
+	// Backwards compatibility fix:  Its no longer valid to just invalidate volatility since we need to repaint to cache elements if a widget becoems non-volatile. So after volatility changes force repaint
+	if (InvalidateReason == EInvalidateWidget::Volatility)
 	{
-		Advanced_ForceInvalidateLayout();
+		InvalidateReason = EInvalidateWidget::PaintAndVolatility;
 	}
 
-	LayoutChanged(InvalidateReason);
+	const bool bVolatilityChanged = EnumHasAnyFlags(InvalidateReason, EInvalidateWidget::Volatility) ? Advanced_InvalidateVolatility() : false;
+
+	if (EnumHasAnyFlags(InvalidateReason, EInvalidateWidget::ChildOrder) || !PrepassLayoutScaleMultiplier.IsSet())
+	{
+		InvalidatePrepass();
+	}
+
+	if(FastPathProxyHandle.IsValid())
+	{
+		// Current thinking is that visibility and volatility should be updated right away, not during fast path invalidation processing next frame
+		if (EnumHasAnyFlags(InvalidateReason, EInvalidateWidget::Visibility))
+		{
+			SCOPED_NAMED_EVENT(SWidget_UpdateFastPathVisibility, FColor::Red);
+			TSharedPtr<SWidget> ParentWidget = GetParentWidget();
+
+			UpdateFastPathVisibility(ParentWidget.IsValid() ? !ParentWidget->bInvisibleDueToParentOrSelfVisibility : false, false);
+		}
+
+		if (bVolatilityChanged)
+		{
+			SCOPED_NAMED_EVENT(SWidget_UpdateFastPathVolatility, FColor::Red);
+
+			TSharedPtr<SWidget> ParentWidget = GetParentWidget();
+
+			UpdateFastPathVolatility(ParentWidget.IsValid() ? ParentWidget->IsVolatile() || ParentWidget->IsVolatileIndirectly() : false);
+
+			ensure(!IsVolatile() || IsVolatileIndirectly() || EnumHasAnyFlags(UpdateFlags, EWidgetUpdateFlags::NeedsVolatilePaint));
+		}
+
+		FastPathProxyHandle.MarkWidgetDirty(InvalidateReason);
+	}
 }
 
 void SWidget::SetCursor( const TAttribute< TOptional<EMouseCursor::Type> >& InCursor )
@@ -943,71 +1132,51 @@ FSlateRect SWidget::CalculateCullingAndClippingRules(const FGeometry& AllottedGe
 
 int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
-#if WITH_VERY_VERBOSE_SLATE_STATS
-	FScopeCycleCounterSWidget WidgetScope(this);
-#endif
+	// TODO, Maybe we should just make Paint non-const and keep OnPaint const.
+	TSharedRef<SWidget> MutableThis = ConstCastSharedRef<SWidget>(AsShared());
 
 	INC_DWORD_STAT(STAT_SlateNumPaintedWidgets);
 
-	// TODO, Maybe we should just make Paint non-const and keep OnPaint const.
-	SWidget* MutableThis = const_cast<SWidget*>(this);
+	const SWidget* PaintParent = Args.GetPaintParent();
+	//if (GSlateEnableGlobalInvalidation)
+	//{
+	//	bInheritedVolatility = PaintParent ? (PaintParent->IsVolatileIndirectly() || PaintParent->IsVolatile()) : false;
+	//}
 
-	if (GSlateLayoutCaching)
-	{
-		MutableThis->SlatePrepass(AllottedGeometry.Scale);
-	}
-
-	// Save the current layout cache we're associated with (if any)
-	LayoutCache = Args.GetLayoutCache();
-
-	// Record if we're part of a volatility pass, this is critical for ensuring we don't report a child
-	// of a volatile widget as non-volatile, causing the invalidation panel to do work that's not required.
-	//
-	// Note: We only do this if we're not also caching.  The retainer panel takes advantage of the fact that
-	// it can both send down it's caching & it's a volatile pass, implying everyone should render, everyone
-	// is getting cached.  So we don't want volatile widgets to wait to be drawn later, they won't get another
-	// chance.
-	bInheritedVolatility = Args.IsVolatilityPass() && !Args.IsCaching();
 
 	// If this widget clips to its bounds, then generate a new clipping rect representing the intersection of the bounding
 	// rectangle of the widget's geometry, and the current clipping rectangle.
 	bool bClipToBounds, bAlwaysClip, bIntersectClipBounds;
+
 	FSlateRect CullingBounds = CalculateCullingAndClippingRules(AllottedGeometry, MyCullingRect, bClipToBounds, bAlwaysClip, bIntersectClipBounds);
 
 	FWidgetStyle ContentWidgetStyle = FWidgetStyle(InWidgetStyle)
 		.BlendOpacity(RenderOpacity);
 
-	// If this paint pass is to cache off our geometry, but we're a volatile widget,
-	// record this widget as volatile in the draw elements so that we get our own tick/paint 
-	// pass later when the layout cache draws.
-	if (IsVolatile() && Args.IsCaching() && !Args.IsVolatilityPass())
-	{
-		const int32 VolatileLayerId = LayerId + 1;
-		OutDrawElements.QueueVolatilePainting(
-			FSlateWindowElementList::FVolatilePaint(SharedThis(this), Args, AllottedGeometry, CullingBounds, OutDrawElements.GetClippingState(), VolatileLayerId, ContentWidgetStyle, bParentEnabled));
-
-		return VolatileLayerId;
-	}
-
 	// Cache the geometry for tick to allow external users to get the last geometry that was used,
 	// or would have been used to tick the Widget.
-	CachedGeometry = AllottedGeometry;
-	CachedGeometry.AppendTransform(FSlateLayoutTransform(Args.GetWindowToDesktopTransform()));
+	FGeometry DesktopSpaceGeometry = AllottedGeometry;
+	DesktopSpaceGeometry.AppendTransform(FSlateLayoutTransform(Args.GetWindowToDesktopTransform()));
 
-	MutableThis->ExecuteActiveTimers(Args.GetCurrentTime(), Args.GetDeltaTime());
+	if (HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsActiveTimerUpdate))
+	{
+		SCOPE_CYCLE_COUNTER(STAT_SlateExecuteActiveTimers);
+		MutableThis->ExecuteActiveTimers(Args.GetCurrentTime(), Args.GetDeltaTime());
+	}
 
 	if (HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsTick))
 	{
 		INC_DWORD_STAT(STAT_SlateNumTickedWidgets);
 
 		SCOPE_CYCLE_COUNTER(STAT_SlateTickWidgets);
-		MutableThis->Tick(CachedGeometry, Args.GetCurrentTime(), Args.GetDeltaTime());
+		MutableThis->Tick(DesktopSpaceGeometry, Args.GetCurrentTime(), Args.GetDeltaTime());
 	}
 
-	// Record hit test geometry, but only if we're not caching.
-	const FPaintArgs UpdatedArgs = Args.RecordHittestGeometry(this, AllottedGeometry, LayerId);
+	// the rule our parent has set for us
+	const bool bInheritedHittestability = Args.GetInheritedHittestability();
+	const bool bOutgoingHittestability = bInheritedHittestability && GetVisibility().AreChildrenHitTestVisible();
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if WITH_SLATE_DEBUGGING
 	if (GDebugCulling)
 	{
 		// When we're debugging culling, don't actually clip, we'll just pretend to, so we can see the effects of
@@ -1016,19 +1185,59 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 	}
 #endif
 
-	if ( bClipToBounds )
+	SWidget* PaintParentPtr = const_cast<SWidget*>(Args.GetPaintParent());
+	ensure(PaintParentPtr != this);
+	if (PaintParentPtr)
 	{
+		PersistentState.PaintParent = PaintParentPtr->AsShared();
+	}
+	else
+	{
+		PaintParentPtr = nullptr;
+	}
+	
+	// @todo This should not do this copy if the clipping state is unset
+	PersistentState.InitialClipState = OutDrawElements.GetClippingState();
+	PersistentState.LayerId = LayerId;
+	PersistentState.bParentEnabled = bParentEnabled;
+	PersistentState.bInheritedHittestability = bInheritedHittestability;
+	PersistentState.AllottedGeometry = AllottedGeometry;
+	PersistentState.DesktopGeometry = DesktopSpaceGeometry;
+	PersistentState.WidgetStyle = InWidgetStyle;
+	PersistentState.CullingBounds = MyCullingRect;
+	PersistentState.IncomingFlowDirection = GSlateFlowDirection;
+
+	FPaintArgs UpdatedArgs = Args.WithNewParent(this);
+	UpdatedArgs.SetInheritedHittestability(bOutgoingHittestability);
+
+
+#if 0
+	// test ensure that we are not the last thing holding this widget together
+	ensure(!MutableThis.IsUnique());
+#endif
+
+
+	if (!FastPathProxyHandle.IsValid() && PersistentState.CachedElementListNode != nullptr)
+	{
+		ensure(!bInvisibleDueToParentOrSelfVisibility);
+	}
+
+	OutDrawElements.PushPaintingWidget(*this, LayerId, PersistentState.CachedElementListNode);
+
+	if (bOutgoingHittestability)
+	{
+		Args.GetHittestGrid().AddWidget(MutableThis, 0, LayerId, FastPathProxyHandle.GetIndex());
+	}
+
+	if (bClipToBounds)
+	{
+		// This sets up the clip state for any children NOT myself
 		FSlateClippingZone ClippingZone(AllottedGeometry);
 		ClippingZone.SetShouldIntersectParent(bIntersectClipBounds);
 		ClippingZone.SetAlwaysClip(bAlwaysClip);
 		OutDrawElements.PushClip(ClippingZone);
-
-		// The hit test grid records things in desktop space, so we use the tick geometry instead of the paint geometry.
-		FSlateClippingZone DesktopClippingZone(CachedGeometry);
-		DesktopClippingZone.SetShouldIntersectParent(bIntersectClipBounds);
-		DesktopClippingZone.SetAlwaysClip(bAlwaysClip);
-		Args.GetGrid().PushClip(DesktopClippingZone);
 	}
+
 
 #if WITH_SLATE_DEBUGGING
 	FSlateDebugging::BeginWidgetPaint.Broadcast(this, UpdatedArgs, AllottedGeometry, CullingBounds, OutDrawElements, LayerId);
@@ -1038,15 +1247,58 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 	// FOR RB mode, this should first set GSlateFlowDirection to the incoming state that was cached for the widget, then paint
 	// will override it here to reflow is needed.
 	TGuardValue<EFlowDirection> FlowGuard(GSlateFlowDirection, ComputeFlowDirection());
-	
-	// Paint the geometry of this widget.
-	int32 NewLayerID = OnPaint(UpdatedArgs, AllottedGeometry, CullingBounds, OutDrawElements, LayerId, ContentWidgetStyle, bParentEnabled);
 
 #if WITH_SLATE_DEBUGGING
-	FSlateDebugging::EndWidgetPaint.Broadcast(this, OutDrawElements, NewLayerID);
+	TArray<TWeakPtr<const SWidget>> DebugChildWidgetsToPaint;
+
+	if (GSlateIsOnFastUpdatePath && GSlateEnsureAllVisibleWidgetsPaint)
+	{
+		// Don't check things that are invalidation roots, or volatile, or volatile indirectly, a completely different set
+		// of rules apply to those widgets.
+		if (!IsVolatile() && !IsVolatileIndirectly() && !Advanced_IsInvalidationRoot())
+		{
+			const FChildren* MyChildren = MutableThis->GetChildren();
+			const int32 NumChildren = MyChildren->Num();
+			for (int32 ChildIndex = 0; ChildIndex < MyChildren->Num(); ++ChildIndex)
+			{
+				TSharedRef<const SWidget> Child = MyChildren->GetChildAt(ChildIndex);
+				if (Child->GetVisibility().IsVisible())
+				{
+					DebugChildWidgetsToPaint.Add(Child);
+				}
+			}
+		}
+	}
+#endif
+	
+	// Paint the geometry of this widget.
+	int32 NewLayerId = OnPaint(UpdatedArgs, AllottedGeometry, CullingBounds, OutDrawElements, LayerId, ContentWidgetStyle, bParentEnabled);
+
+	// Just repainted
+	MutableThis->RemoveUpdateFlags(EWidgetUpdateFlags::NeedsRepaint);
+
+	// Detect children that should have been painted, but were skipped during the paint process.
+	// this will result in geometry being left on screen and not cleared, because it's visible, yet wasn't painted.
+#if WITH_SLATE_DEBUGGING
+	if (GSlateIsOnFastUpdatePath && GSlateEnsureAllVisibleWidgetsPaint)
+	{
+		for (TWeakPtr<const SWidget>& DebugChildThatShouldHaveBeenPaintedPtr : DebugChildWidgetsToPaint)
+		{
+			if (TSharedPtr<const SWidget> DebugChild = DebugChildThatShouldHaveBeenPaintedPtr.Pin())
+			{
+				if (DebugChild->GetVisibility().IsVisible())
+				{
+					ensureMsgf(DebugChild->Debug_GetLastPaintFrame() == GFrameNumber, TEXT("The Widget '%s' was visible, but never painted.  This means it was skipped during painting, without alerting the fast path."), *FReflectionMetaData::GetWidgetPath(DebugChild.Get()));
+				}
+			}
+		}
+	}
 #endif
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	// Draw the clipping zone if we've got clipping enabled
+#if WITH_SLATE_DEBUGGING
+	FSlateDebugging::EndWidgetPaint.Broadcast(this, OutDrawElements, NewLayerId);
+
 	if (GShowClipping && bClipToBounds)
 	{
 		FSlateClippingZone ClippingZone(AllottedGeometry);
@@ -1061,7 +1313,7 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 		const bool bAntiAlias = true;
 		FSlateDrawElement::MakeLines(
 			OutDrawElements,
-			NewLayerID,
+			NewLayerId,
 			FPaintGeometry(),
 			Points,
 			ESlateDrawEffect::None,
@@ -1069,17 +1321,17 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 			bAntiAlias,
 			2.0f);
 	}
-#endif
+#endif // WITH_SLATE_DEBUGGING
 
-	if ( bClipToBounds )
+	if (bClipToBounds)
 	{
 		OutDrawElements.PopClip();
-		Args.GetGrid().PopClip();
 	}
+
 
 #if PLATFORM_UI_NEEDS_FOCUS_OUTLINES
 	// Check if we need to show the keyboard focus ring, this is only necessary if the widget could be focused.
-	if ( bCanSupportFocus && SupportsKeyboardFocus() )
+	if (bCanSupportFocus && SupportsKeyboardFocus())
 	{
 		bool bShowUserFocus = FSlateApplicationBase::Get().ShowUserFocus(SharedThis(this));
 		if (bShowUserFocus)
@@ -1090,7 +1342,7 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 			{
 				FSlateDrawElement::MakeBox(
 					OutDrawElements,
-					NewLayerID,
+					NewLayerId,
 					AllottedGeometry.ToPaintGeometry(),
 					BrushResource,
 					ESlateDrawEffect::None,
@@ -1101,12 +1353,16 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 	}
 #endif
 
-	if ( OutDrawElements.ShouldResolveDeferred() )
+	FSlateCachedElementListNode* NewCacheNode = OutDrawElements.PopPaintingWidget();
+	if (OutDrawElements.ShouldResolveDeferred())
 	{
-		NewLayerID = OutDrawElements.PaintDeferred(NewLayerID, MyCullingRect);
+		NewLayerId = OutDrawElements.PaintDeferred(NewLayerId, MyCullingRect);
 	}
 
-	return NewLayerID;
+	MutableThis->UpdateWidgetProxy(NewLayerId, NewCacheNode);
+
+	return NewLayerId;
+
 }
 
 float SWidget::GetRelativeLayoutScale(const FSlotBase& Child, float LayoutScaleMultiplier) const
@@ -1120,6 +1376,43 @@ void SWidget::ArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildr
 	SCOPED_NAMED_EVENT(SWidget_ArrangeChildren, FColor::Black);
 #endif
 	OnArrangeChildren(AllottedGeometry, ArrangedChildren);
+}
+
+void SWidget::Prepass_Internal(float InLayoutScaleMultiplier)
+{
+	PrepassLayoutScaleMultiplier = InLayoutScaleMultiplier;
+
+	bool bShouldPrepassChildren = true;
+	if (bHasCustomPrepass)
+	{
+		bShouldPrepassChildren = CustomPrepass(InLayoutScaleMultiplier);
+	}
+
+	if (bCanHaveChildren && bShouldPrepassChildren)
+	{
+		// Cache child desired sizes first. This widget's desired size is
+		// a function of its children's sizes.
+		FChildren* MyChildren = this->GetChildren();
+		const int32 NumChildren = MyChildren->Num();
+		for (int32 ChildIndex = 0; ChildIndex < MyChildren->Num(); ++ChildIndex)
+		{
+			const TSharedRef<SWidget>& Child = MyChildren->GetChildAt(ChildIndex);
+
+			if (Child->Visibility.Get() != EVisibility::Collapsed)
+			{
+				const float ChildLayoutScaleMultiplier = GetRelativeLayoutScale(MyChildren->GetSlotAt(ChildIndex), InLayoutScaleMultiplier);
+				// Recur: Descend down the widget tree.
+				Child->Prepass_Internal(InLayoutScaleMultiplier * ChildLayoutScaleMultiplier);
+			}
+		}
+		ensure(NumChildren == MyChildren->Num());
+	}
+
+	{
+		// Cache this widget's desired size.
+		CacheDesiredSize(PrepassLayoutScaleMultiplier.Get(1.0f));
+		bNeedsPrepass = false;
+	}
 }
 
 TSharedRef<FActiveTimerHandle> SWidget::RegisterActiveTimer(float TickPeriod, FWidgetActiveTimerDelegate TickFunction)
@@ -1232,10 +1525,154 @@ void SWidget::SetOnMouseLeave(FSimpleNoReplyPointerEventHandler EventHandler)
 	MouseLeaveHandler = EventHandler;
 }
 
+#if WITH_ACCESSIBILITY
+TSharedRef<FSlateAccessibleWidget> SWidget::CreateAccessibleWidget()
+{
+	return MakeShareable<FSlateAccessibleWidget>(new FSlateAccessibleWidget(AsShared()));
+}
+
+void SWidget::SetAccessibleBehavior(EAccessibleBehavior InBehavior, const TAttribute<FText>& InText, EAccessibleType AccessibleType)
+{
+	EAccessibleBehavior& Behavior = (AccessibleType == EAccessibleType::Main) ? AccessibleData.AccessibleBehavior : AccessibleData.AccessibleSummaryBehavior;
+	if (Behavior != InBehavior)
+	{
+		// If switching off of custom, revert back to default text
+		if (Behavior == EAccessibleBehavior::Custom)
+		{
+			SetDefaultAccessibleText(AccessibleType);
+		}
+		else if (InBehavior == EAccessibleBehavior::Custom)
+		{
+			TAttribute<FText>& Text = (AccessibleType == EAccessibleType::Main) ? AccessibleData.AccessibleText : AccessibleData.AccessibleSummaryText;
+			Text = InText;
+		}
+		const bool bWasAccessible = Behavior != EAccessibleBehavior::NotAccessible;
+		Behavior = InBehavior;
+		if (AccessibleType == EAccessibleType::Main && bWasAccessible != (Behavior != EAccessibleBehavior::NotAccessible))
+		{
+			FSlateApplicationBase::Get().GetAccessibleMessageHandler()->MarkDirty();
+		}
+	}
+}
+
+void SWidget::SetCanChildrenBeAccessible(bool InCanChildrenBeAccessible)
+{
+	if (AccessibleData.bCanChildrenBeAccessible != InCanChildrenBeAccessible)
+	{
+		AccessibleData.bCanChildrenBeAccessible = InCanChildrenBeAccessible;
+		FSlateApplicationBase::Get().GetAccessibleMessageHandler()->MarkDirty();
+	}
+}
+
+void SWidget::SetDefaultAccessibleText(EAccessibleType AccessibleType)
+{
+	TAttribute<FText>& Text = (AccessibleType == EAccessibleType::Main) ? AccessibleData.AccessibleText : AccessibleData.AccessibleSummaryText;
+	Text = TAttribute<FText>();
+}
+
+FText SWidget::GetAccessibleText(EAccessibleType AccessibleType) const
+{
+	const EAccessibleBehavior Behavior = (AccessibleType == EAccessibleType::Main) ? AccessibleData.AccessibleBehavior : AccessibleData.AccessibleSummaryBehavior;
+	const EAccessibleBehavior OtherBehavior = (AccessibleType == EAccessibleType::Main) ? AccessibleData.AccessibleSummaryBehavior : AccessibleData.AccessibleBehavior;
+	const TAttribute<FText>& Text = (AccessibleType == EAccessibleType::Main) ? AccessibleData.AccessibleText : AccessibleData.AccessibleSummaryText;
+	const TAttribute<FText>& OtherText = (AccessibleType == EAccessibleType::Main) ? AccessibleData.AccessibleSummaryText : AccessibleData.AccessibleText;
+
+	switch (Behavior)
+	{
+	case EAccessibleBehavior::Custom:
+		return Text.Get(FText::GetEmpty());
+	case EAccessibleBehavior::Summary:
+		return GetAccessibleSummary();
+	case EAccessibleBehavior::ToolTip:
+		if (ToolTip.IsValid() && !ToolTip->IsEmpty())
+		{
+			return ToolTip->GetContentWidget()->GetAccessibleText(EAccessibleType::Main);
+		}
+		break;
+	case EAccessibleBehavior::Auto:
+		// Auto first checks if custom text was set. This should never happen with user-defined values as custom should be
+		// used instead in that case - however, this will be used for widgets with special default text such as TextBlocks.
+		// If no text is found, then it will attempt to use the other variable's text, so that a developer can do things like
+		// leave Summary on Auto, set Main to Custom, and have Summary automatically use Main's value without having to re-type it.
+		if (Text.IsSet())
+		{
+			return Text.Get(FText::GetEmpty());
+		}
+		switch (OtherBehavior)
+		{
+		case EAccessibleBehavior::Custom:
+		case EAccessibleBehavior::ToolTip:
+			return GetAccessibleText(AccessibleType == EAccessibleType::Main ? EAccessibleType::Summary : EAccessibleType::Main);
+		case EAccessibleBehavior::NotAccessible:
+		case EAccessibleBehavior::Summary:
+			return GetAccessibleSummary();
+		}
+		break;
+	}
+	return FText::GetEmpty();
+}
+
+FText SWidget::GetAccessibleSummary() const
+{
+	FTextBuilder Builder;
+	FChildren* Children = const_cast<SWidget*>(this)->GetChildren();
+	if (Children)
+	{
+		for (int32 i = 0; i < Children->Num(); ++i)
+		{
+			FText Text = Children->GetChildAt(i)->GetAccessibleText(EAccessibleType::Summary);
+			if (!Text.IsEmpty())
+			{
+				Builder.AppendLine(Text);
+			}
+		}
+	}
+	return Builder.ToText();
+}
+
+bool SWidget::IsAccessible() const
+{
+	if (AccessibleData.AccessibleBehavior == EAccessibleBehavior::NotAccessible)
+	{
+		return false;
+	}
+
+	TSharedPtr<SWidget> Parent = GetParentWidget();
+	while (Parent.IsValid())
+	{
+		if (!Parent->CanChildrenBeAccessible())
+		{
+			return false;
+		}
+		Parent = Parent->GetParentWidget();
+	}
+	return true;
+}
+
+EAccessibleBehavior SWidget::GetAccessibleBehavior(EAccessibleType AccessibleType) const
+{
+	return AccessibleType == EAccessibleType::Main ? AccessibleData.AccessibleBehavior : AccessibleData.AccessibleSummaryBehavior;
+}
+
+bool SWidget::CanChildrenBeAccessible() const
+{
+	return AccessibleData.bCanChildrenBeAccessible;
+}
+
+#endif
+
 #if SLATE_CULL_WIDGETS
 
 bool SWidget::IsChildWidgetCulled(const FSlateRect& MyCullingRect, const FArrangedWidget& ArrangedChild) const
 {
+	// If we've enabled global invalidation it's safe to run the culling logic and just 'stop' drawing
+	// a widget, that widget has to be given an opportunity to paint, as wlel as all its children, the
+	// only correct way is to remove the widget from the tree, or to change the visibility of it.
+	if (GSlateIsOnFastUpdatePath)
+	{
+		return false;
+	}
+
 	// We add some slack fill to the culling rect to deal with the common occurrence
 	// of widgets being larger than their root level widget is.  Happens when nested child widgets
 	// inflate their rendering bounds to render beyond their parent (the child of this panel doing the culling), 

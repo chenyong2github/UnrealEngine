@@ -19,6 +19,7 @@ namespace nDisplayLauncher.Cluster.Config.Conversion.Converters
 			Window,
 			Screen,
 			Viewport,
+			Projection,
 			Camera,
 			SceneNode,
 			Input,
@@ -27,6 +28,36 @@ namespace nDisplayLauncher.Cluster.Config.Conversion.Converters
 			Debug,
 			General,
 			Custom
+		}
+
+		public string GetTokenShortName(ETokenType type)
+		{
+			switch (type)
+			{
+				case ETokenType.Other: return        string.Empty;
+				case ETokenType.Info: return         "info";
+				case ETokenType.ClusterNode: return  "cluster_node";
+				case ETokenType.Window: return       "window";
+				case ETokenType.Screen: return       "screen";
+				case ETokenType.Viewport: return     "viewport";
+				case ETokenType.Projection: return   "projection";
+				case ETokenType.Camera: return       "camera";
+				case ETokenType.SceneNode: return    "scene_node";
+				case ETokenType.Input: return        "input";
+				case ETokenType.Stereo: return       "stereo";
+				case ETokenType.Network: return      "network";
+				case ETokenType.Debug: return        "debug";
+				case ETokenType.General: return      "general";
+				case ETokenType.Custom: return       "custom";
+			}
+
+			return string.Empty;
+		}
+
+		public string GetTokenFullName(ETokenType type)
+		{
+			string name = GetTokenShortName(type);
+			return string.Format("[{0}]", name);
 		}
 
 		protected List<KeyValuePair<ETokenType, string>> ConfigLines = new List<KeyValuePair<ETokenType, string>>();
@@ -72,6 +103,10 @@ namespace nDisplayLauncher.Cluster.Config.Conversion.Converters
 			else if (Line.StartsWith("[viewport]"))
 			{
 				return ETokenType.Viewport;
+			}
+			else if (Line.StartsWith("[projection]"))
+			{
+				return ETokenType.Projection;
 			}
 			else if (Line.StartsWith("[camera]"))
 			{

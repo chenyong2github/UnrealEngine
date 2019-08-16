@@ -108,7 +108,7 @@ struct CORE_API FWindowsPlatformAtomics
 				int64 OldValue = *Value;
 				if (_InterlockedCompareExchange64(Value, OldValue + Amount, OldValue) == OldValue)
 				{
-					return OldValue + Amount;
+					return OldValue;
 				}
 			}
 		#endif
@@ -146,20 +146,16 @@ struct CORE_API FWindowsPlatformAtomics
 		#endif
 	}
 
-	static FORCEINLINE void* InterlockedExchangePtr( void** Dest, void* Exchange )
+	static FORCEINLINE void* InterlockedExchangePtr( void*volatile* Dest, void* Exchange )
 	{
 		#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST) 
-			if (IsAligned(Dest) == false)
+			if (IsAligned(Dest, alignof(void*)) == false)
 			{
-				HandleAtomicsFailure(TEXT("InterlockedExchangePointer requires Dest pointer to be aligned to %d bytes"), sizeof(void*));
+				HandleAtomicsFailure(TEXT("InterlockedExchangePointer requires Dest pointer to be aligned to %d bytes"), (int)alignof(void*));
 			}
 		#endif
 
-		#if PLATFORM_64BITS
-			return (void*)::_InterlockedExchange64((int64*)(Dest), (int64)(Exchange));
-		#else
-			return (void*)::_InterlockedExchange((long*)(Dest), (long)(Exchange));
-		#endif
+		return ::_InterlockedExchangePointer(Dest, Exchange);
 	}
 
 	static FORCEINLINE int8 InterlockedCompareExchange( volatile int8* Dest, int8 Exchange, int8 Comparand )
@@ -180,13 +176,109 @@ struct CORE_API FWindowsPlatformAtomics
 	static FORCEINLINE int64 InterlockedCompareExchange( volatile int64* Dest, int64 Exchange, int64 Comparand )
 	{
 		#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-			if (IsAligned(Dest) == false)
+			if (IsAligned(Dest, alignof(int64)) == false)
 			{
-				HandleAtomicsFailure(TEXT("InterlockedCompareExchangePointer requires Dest pointer to be aligned to %d bytes"), sizeof(void*));
+				HandleAtomicsFailure(TEXT("InterlockedCompareExchange int64 requires Dest pointer to be aligned to %d bytes"), (int)alignof(int64));
 			}
 		#endif
 
 		return (int64)::_InterlockedCompareExchange64(Dest, Exchange, Comparand);
+	}
+
+	static FORCEINLINE int8 InterlockedAnd(volatile int8* Value, const int8 AndValue)
+	{
+		return (int8)::_InterlockedAnd8((volatile char*)Value, (char)AndValue);
+	}
+
+	static FORCEINLINE int16 InterlockedAnd(volatile int16* Value, const int16 AndValue)
+	{
+		return (int16)::_InterlockedAnd16((volatile short*)Value, (short)AndValue);
+	}
+
+	static FORCEINLINE int32 InterlockedAnd(volatile int32* Value, const int32 AndValue)
+	{
+		return (int32)::_InterlockedAnd((volatile long*)Value, (long)AndValue);
+	}
+
+	static FORCEINLINE int64 InterlockedAnd(volatile int64* Value, const int64 AndValue)
+	{
+		#if PLATFORM_64BITS
+			return (int64)::_InterlockedAnd64((volatile long long*)Value, (long long)AndValue);
+		#else
+			// No explicit instruction for 64-bit atomic and on 32-bit processors; has to be implemented in terms of CMPXCHG8B
+			for (;;)
+			{
+				const int64 OldValue = *Value;
+				if (_InterlockedCompareExchange64(Value, OldValue & AndValue, OldValue) == OldValue)
+				{
+					return OldValue;
+				}
+			}
+		#endif
+	}
+
+	static FORCEINLINE int8 InterlockedOr(volatile int8* Value, const int8 OrValue)
+	{
+		return (int8)::_InterlockedOr8((volatile char*)Value, (char)OrValue);
+	}
+
+	static FORCEINLINE int16 InterlockedOr(volatile int16* Value, const int16 OrValue)
+	{
+		return (int16)::_InterlockedOr16((volatile short*)Value, (short)OrValue);
+	}
+
+	static FORCEINLINE int32 InterlockedOr(volatile int32* Value, const int32 OrValue)
+	{
+		return (int32)::_InterlockedOr((volatile long*)Value, (long)OrValue);
+	}
+
+	static FORCEINLINE int64 InterlockedOr(volatile int64* Value, const int64 OrValue)
+	{
+		#if PLATFORM_64BITS
+			return (int64)::_InterlockedOr64((volatile long long*)Value, (long long)OrValue);
+		#else
+			// No explicit instruction for 64-bit atomic or on 32-bit processors; has to be implemented in terms of CMPXCHG8B
+			for (;;)
+			{
+				const int64 OldValue = *Value;
+				if (_InterlockedCompareExchange64(Value, OldValue | OrValue, OldValue) == OldValue)
+				{
+					return OldValue;
+				}
+			}
+		#endif
+	}
+
+	static FORCEINLINE int8 InterlockedXor(volatile int8* Value, const int8 XorValue)
+	{
+		return (int8)::_InterlockedXor8((volatile char*)Value, (char)XorValue);
+	}
+
+	static FORCEINLINE int16 InterlockedXor(volatile int16* Value, const int16 XorValue)
+	{
+		return (int16)::_InterlockedXor16((volatile short*)Value, (short)XorValue);
+	}
+
+	static FORCEINLINE int32 InterlockedXor(volatile int32* Value, const int32 XorValue)
+	{
+		return (int32)::_InterlockedXor((volatile long*)Value, (int32)XorValue);
+	}
+
+	static FORCEINLINE int64 InterlockedXor(volatile int64* Value, const int64 XorValue)
+	{
+		#if PLATFORM_64BITS
+			return (int64)::_InterlockedXor64((volatile long long*)Value, (long long)XorValue);
+		#else
+			// No explicit instruction for 64-bit atomic xor on 32-bit processors; has to be implemented in terms of CMPXCHG8B
+			for (;;)
+			{
+				const int64 OldValue = *Value;
+				if (_InterlockedCompareExchange64(Value, OldValue ^ XorValue, OldValue) == OldValue)
+				{
+					return OldValue;
+				}
+			}
+		#endif
 	}
 
 	static FORCEINLINE int8 AtomicRead(volatile const int8* Src)
@@ -299,11 +391,11 @@ struct CORE_API FWindowsPlatformAtomics
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		if (IsAligned(Dest,16) == false)
 		{
-			HandleAtomicsFailure(TEXT("InterlockedCompareExchangePointer requires Dest pointer to be aligned to 16 bytes") );
+			HandleAtomicsFailure(TEXT("InterlockedCompareExchange128 requires Dest pointer to be aligned to 16 bytes") );
 		}
 		if (IsAligned(Comparand,16) == false)
 		{
-			HandleAtomicsFailure(TEXT("InterlockedCompareExchangePointer requires Comparand pointer to be aligned to 16 bytes") );
+			HandleAtomicsFailure(TEXT("InterlockedCompareExchange128 requires Comparand pointer to be aligned to 16 bytes") );
 		}
 #endif
 
@@ -323,20 +415,16 @@ struct CORE_API FWindowsPlatformAtomics
 
 #endif // PLATFORM_HAS_128BIT_ATOMICS
 
-	static FORCEINLINE void* InterlockedCompareExchangePointer( void** Dest, void* Exchange, void* Comparand )
+	static FORCEINLINE void* InterlockedCompareExchangePointer( void*volatile* Dest, void* Exchange, void* Comparand )
 	{
 		#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-			if (IsAligned(Dest) == false)
+			if (IsAligned(Dest, alignof(void*)) == false)
 			{
-				HandleAtomicsFailure(TEXT("InterlockedCompareExchangePointer requires Dest pointer to be aligned to %d bytes"), sizeof(void*));
+				HandleAtomicsFailure(TEXT("InterlockedCompareExchangePointer requires Dest pointer to be aligned to %d bytes"), (int)alignof(void*));
 			}
 		#endif
 
-		#if PLATFORM_64BITS
-			return (void*)::_InterlockedCompareExchange64((int64*)Dest, (int64)Exchange, (int64)Comparand);
-		#else
-			return (void*)::_InterlockedCompareExchange((long*)Dest, (long)Exchange, (long)Comparand);
-		#endif
+		return ::_InterlockedCompareExchangePointer(Dest, Exchange, Comparand);
 	}
 
 	/**

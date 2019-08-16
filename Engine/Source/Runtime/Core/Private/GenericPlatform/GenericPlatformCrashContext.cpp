@@ -11,6 +11,7 @@
 #include "Misc/Optional.h"
 #include "Internationalization/Internationalization.h"
 #include "Misc/Guid.h"
+#include "Misc/SecureHash.h"
 #include "Containers/Ticker.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/CoreDelegates.h"
@@ -354,6 +355,7 @@ void FGenericCrashContext::SerializeContentToBuffer() const
 
 	// Add new portable callstack element with crash stack
 	AddPortableCallStack();
+	AddPortableCallStackHash();
 
 	AddCrashProperty( TEXT( "SourceContext" ), TEXT( "" ) );
 	AddCrashProperty( TEXT( "UserDescription" ), TEXT( "" ) );
@@ -512,6 +514,44 @@ void FGenericCrashContext::AddPlatformSpecificProperties() const
 {
 	// Nothing really to do here. Can be overridden by the platform code.
 	// @see FWindowsPlatformCrashContext::AddPlatformSpecificProperties
+}
+
+void FGenericCrashContext::AddPortableCallStackHash() const
+{
+	if (CallStack.Num() == 0)
+	{
+		AddCrashProperty(TEXT("PCallStackHash"), TEXT(""));
+		return;
+	}
+
+	// This may allocate if its the first time calling into this function
+	const TCHAR* ExeName = FPlatformProcess::ExecutableName();
+
+	// We dont want this to be thrown into an FString as it will alloc memory
+	const TCHAR* UE4EditorName = TEXT("UE4Editor");
+
+	FSHA1 Sha;
+	FSHAHash Hash;
+
+	for (TArray<FCrashStackFrame>::TConstIterator It(CallStack); It; ++It)
+	{
+		// If we are our own module or our module contains UE4Editor we assume we own these. We cannot depend on offsets of system libs
+		// as they may have different versions
+		if (It->ModuleName == ExeName || It->ModuleName.Contains(UE4EditorName))
+		{
+			Sha.Update(reinterpret_cast<const uint8*>(&It->Offset), sizeof(It->Offset));
+		}
+	}
+
+	Sha.Final();
+	Sha.GetHash(Hash.Hash);
+
+	FString EscapedPortableHash;
+
+	// Allocations here on both the ToString and AppendEscapedXMLString it self adds to the out FString
+	AppendEscapedXMLString(EscapedPortableHash, *Hash.ToString());
+
+	AddCrashProperty(TEXT("PCallStackHash"), *EscapedPortableHash);
 }
 
 void FGenericCrashContext::AddPortableCallStack() const

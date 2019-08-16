@@ -37,6 +37,23 @@ namespace UnrealBuildTool
 	};
 
 	/// <summary>
+	/// The state of a downloaded platform
+	/// </summary>
+	[Flags]
+	public enum InstalledPlatformState
+	{
+		/// <summary>
+		/// Query whether the platform is supported
+		/// </summary>
+		Supported,
+
+		/// <summary>
+		/// Query whether the platform has been downloaded
+		/// </summary>
+		Downloaded,
+	}
+
+	/// <summary>
 	/// Contains methods to allow querying the available installed platforms
 	/// </summary>
 	public class InstalledPlatformInfo
@@ -166,7 +183,7 @@ namespace UnrealBuildTool
 
 			string PlatformTypeName;
 			TargetType PlatformType = TargetType.Game;
-			if (ParseSubValue(PlatformConfiguration, "PlatformTypeName=", out PlatformTypeName))
+			if (ParseSubValue(PlatformConfiguration, "PlatformType=", out PlatformTypeName))
 			{
 				if (!Enum.TryParse(PlatformTypeName, out PlatformType))
 				{
@@ -303,6 +320,53 @@ namespace UnrealBuildTool
 						|| CurConfig.ProjectType == ProjectType);
 				}
 			);
+		}
+
+		/// <summary>
+		/// Determines whether the given target type is supported
+		/// </summary>
+		/// <param name="TargetType">The target type being built</param>
+		/// <param name="Platform">The platform being built</param>
+		/// <param name="Configuration">The configuration being built</param>
+		/// <param name="ProjectType">The project type required</param>
+		/// <param name="State">State of the given platform support</param>
+		/// <returns>True if the target can be built</returns>
+		public static bool IsValid(TargetType? TargetType, UnrealTargetPlatform? Platform, UnrealTargetConfiguration? Configuration, EProjectType ProjectType, InstalledPlatformState State)
+		{
+			if(!UnrealBuildTool.IsEngineInstalled() || InstalledPlatformConfigurations == null)
+			{
+				return true;
+			}
+
+			foreach(InstalledPlatformConfiguration Config in InstalledPlatformConfigurations)
+			{
+				// Check whether this configuration matches all the criteria
+				if(TargetType.HasValue && Config.PlatformType != TargetType.Value)
+				{
+					continue;
+				}
+				if(Platform.HasValue && Config.Platform != Platform.Value)
+				{
+					continue;
+				}
+				if(Configuration.HasValue && Config.Configuration != Configuration.Value)
+				{
+					continue;
+				}
+				if(ProjectType != EProjectType.Any && Config.ProjectType != EProjectType.Any && Config.ProjectType != ProjectType)
+				{
+					continue;
+				}
+				if(State == InstalledPlatformState.Downloaded && !String.IsNullOrEmpty(Config.RequiredFile) && !File.Exists(Config.RequiredFile))
+				{
+					continue;
+				}
+
+				// Success!
+				return true;
+			}
+
+			return false;
 		}
 
 		private static bool ContainsValidConfiguration(Predicate<InstalledPlatformConfiguration> ConfigFilter)

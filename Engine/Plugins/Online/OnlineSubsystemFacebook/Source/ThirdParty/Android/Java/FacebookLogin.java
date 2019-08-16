@@ -77,7 +77,7 @@ public class FacebookLogin
 	{
         this.activity = activity;
 
-		FBLog = new Logger("UE4-FB");
+		FBLog = new Logger("UE4", "FB");
 		ActivityLog = InLog;
     } 
 

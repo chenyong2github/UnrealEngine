@@ -38,6 +38,12 @@ namespace UnrealBuildTool
 			}
 		}
 
+		bool HostSupportsVSAndroid()
+		{
+			// Only supported on Windows (VS Mac is a thing..)
+			return BuildHostPlatform.Current.Platform.IsInGroup(UnrealPlatformGroup.Microsoft);
+		}
+
 		bool IsVSAndroidSupportInstalled()
 		{
 			if (VSSupportChecked)
@@ -45,6 +51,12 @@ namespace UnrealBuildTool
 				return VSDebuggingEnabled;
 			}
 			VSSupportChecked = true;
+
+
+			if (!HostSupportsVSAndroid())
+			{
+				return false;
+			}
 
 			//check to make sure Cross Platform Tools are installed for MS
 
@@ -86,6 +98,12 @@ namespace UnrealBuildTool
 			}
 
 			CheckedForNsight = true;
+
+			if (!HostSupportsVSAndroid())
+			{
+				NsightInstalled = false;
+				return false;
+			}
 
 			// NOTE: there is now a registry key that we can use instead at:
 			//			HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\NVIDIA Corporation\Nsight Tegra\Version

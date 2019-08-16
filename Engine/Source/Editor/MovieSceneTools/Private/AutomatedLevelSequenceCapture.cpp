@@ -20,6 +20,8 @@
 #include "MovieSceneTimeHelpers.h"
 #include "MovieSceneToolHelpers.h"
 #include "Protocols/AudioCaptureProtocol.h"
+#include "Evaluation/IMovieSceneMotionVectorSimulation.h"
+#include "Rendering/MotionVectorSimulation.h"
 
 const FName UAutomatedLevelSequenceCapture::AutomatedLevelSequenceCaptureUIName = FName(TEXT("AutomatedLevelSequenceCaptureUIInstance"));
 
@@ -130,12 +132,18 @@ UAutomatedLevelSequenceCapture::UAutomatedLevelSequenceCapture(const FObjectInit
 #if WITH_EDITORONLY_DATA
 void UAutomatedLevelSequenceCapture::AddFormatMappings(TMap<FString, FStringFormatArg>& OutFormatMappings, const FFrameMetrics& FrameMetrics) const
 {
+	OutFormatMappings.Add(TEXT("sequence"), CachedState.MasterName);
+
 	OutFormatMappings.Add(TEXT("shot"), CachedState.CurrentShotName);
 	OutFormatMappings.Add(TEXT("shot_frame"), FString::Printf(TEXT("%0*d"), Settings.ZeroPadFrameNumbers, CachedState.CurrentShotLocalTime.Time.FrameNumber.Value));
 
-	if (CachedState.CameraComponent && CachedState.CameraComponent->GetOwner())
+	if (CachedState.CameraComponent.IsValid())
 	{
-		OutFormatMappings.Add(TEXT("camera"), CachedState.CameraComponent->GetOwner()->GetName());
+		AActor* OuterActor = Cast<AActor>(CachedState.CameraComponent.Get()->GetOuter());
+		if (OuterActor)
+		{
+			OutFormatMappings.Add(TEXT("camera"), OuterActor->GetActorLabel());
+		}
 	}
 }
 
@@ -198,11 +206,30 @@ void UAutomatedLevelSequenceCapture::Initialize(TSharedPtr<FSceneViewport> InVie
 		{
 			DelayEveryFrame = DelayEveryFrameOverride;
 		}
+
+		bool bWriteEditDecisionListOverride;
+		if (FParse::Bool(FCommandLine::Get(), TEXT("-WriteEditDecisionList="), bWriteEditDecisionListOverride))
+		{
+			bWriteEditDecisionList = bWriteEditDecisionListOverride;
+		}
+
+		bool bWriteFinalCutProXMLOverride;
+		if (FParse::Bool(FCommandLine::Get(), TEXT("-WriteFinalCutProXML="), bWriteFinalCutProXMLOverride))
+		{
+			bWriteFinalCutProXML = bWriteFinalCutProXMLOverride;
+		}
 	}
 
 	if (Settings.bUsePathTracer)
 	{
-		DelayEveryFrame = float(Settings.FrameRate.AsSeconds(Settings.PathTracerSamplePerPixel));
+		float PathTracerSamplePerPixel = float(Settings.FrameRate.AsSeconds(Settings.PathTracerSamplePerPixel));
+
+		if (DelayEveryFrame != PathTracerSamplePerPixel)
+		{
+			UE_LOG(LogMovieSceneCapture, Log, TEXT("Delay every frame overridden by path tracer sample per pixel: %f"), PathTracerSamplePerPixel);
+
+			DelayEveryFrame = PathTracerSamplePerPixel;
+		}
 	}
 
 	ALevelSequenceActor* Actor = LevelSequenceActor.Get();
@@ -217,7 +244,7 @@ void UAutomatedLevelSequenceCapture::Initialize(TSharedPtr<FSceneViewport> InVie
 			{
 				for( auto It = TActorIterator<ALevelSequenceActor>( InViewport->GetClient()->GetWorld() ); It; ++It )
 				{
-					if( It->LevelSequence == Asset )
+					if( It->LevelSequence == LevelSequenceAsset )
 					{
 						// Found it!
 						Actor = *It;
@@ -336,7 +363,7 @@ void UAutomatedLevelSequenceCapture::Initialize(TSharedPtr<FSceneViewport> InVie
 	}
 
 	CaptureState = ELevelSequenceCaptureState::Setup;
-	CaptureStrategy = MakeShareable(new FFixedTimeStepCaptureStrategy(Settings.FrameRate));
+	CaptureStrategy = MakeShareable(new FFixedTimeStepCaptureStrategy(Settings.GetFrameRate()));
 	CaptureStrategy->OnInitialize();
 }
 
@@ -368,7 +395,7 @@ bool UAutomatedLevelSequenceCapture::InitializeShots()
 	CachedPlaybackRange = MovieScene->GetPlaybackRange();
 
 	// Compute handle frames in tick resolution space since that is what the section ranges are defined in
-	FFrameNumber HandleFramesResolutionSpace = ConvertFrameTime(Settings.HandleFrames, Settings.FrameRate, MovieScene->GetTickResolution()).FloorToFrame();
+	FFrameNumber HandleFramesResolutionSpace = ConvertFrameTime(Settings.HandleFrames, Settings.GetFrameRate(), MovieScene->GetTickResolution()).FloorToFrame();
 
 	CinematicShotTrack->SortSections();
 
@@ -483,7 +510,7 @@ bool UAutomatedLevelSequenceCapture::SetupShot(FFrameNumber& StartTime, FFrameNu
 			// We intersect with the CachedPlaybackRange instead of copying the playback range from the shot to handle the case where
 			// the playback range intersected the middle of the shot before we started manipulating ranges. We manually expand the master
 			// Movie Sequence's playback range by the number of handle frames to allow handle frames to work as expected on first/last shot.
-			FFrameNumber HandleFramesResolutionSpace = ConvertFrameTime(Settings.HandleFrames, Settings.FrameRate, MovieScene->GetTickResolution()).FloorToFrame();
+			FFrameNumber HandleFramesResolutionSpace = ConvertFrameTime(Settings.HandleFrames, Settings.GetFrameRate(), MovieScene->GetTickResolution()).FloorToFrame();
 			TRange<FFrameNumber> ExtendedCachedPlaybackRange = MovieScene::ExpandRange(CachedPlaybackRange, HandleFramesResolutionSpace);
 
 			TRange<FFrameNumber> TotalRange = TRange<FFrameNumber>::Intersection(ShotSection->GetRange(), ExtendedCachedPlaybackRange);
@@ -513,8 +540,8 @@ void UAutomatedLevelSequenceCapture::SetupFrameRange()
 				FFrameRate           SourceFrameRate = MovieScene->GetTickResolution();
 				TRange<FFrameNumber> SequenceRange   = MovieScene->GetPlaybackRange();
 
-				FFrameNumber PlaybackStartFrame = ConvertFrameTime(MovieScene::DiscreteInclusiveLower(SequenceRange), SourceFrameRate, Settings.FrameRate).CeilToFrame();
-				FFrameNumber PlaybackEndFrame   = ConvertFrameTime(MovieScene::DiscreteExclusiveUpper(SequenceRange), SourceFrameRate, Settings.FrameRate).CeilToFrame();
+				FFrameNumber PlaybackStartFrame = ConvertFrameTime(MovieScene::DiscreteInclusiveLower(SequenceRange), SourceFrameRate, Settings.GetFrameRate()).CeilToFrame();
+				FFrameNumber PlaybackEndFrame   = ConvertFrameTime(MovieScene::DiscreteExclusiveUpper(SequenceRange), SourceFrameRate, Settings.GetFrameRate()).CeilToFrame();
 
 				if( bUseCustomStartFrame )
 				{
@@ -541,8 +568,13 @@ void UAutomatedLevelSequenceCapture::SetupFrameRange()
 				 	PlaybackStartFrame -= RemainingWarmUpFrames;
 				}
 
+				if (Actor->SequencePlayer->MotionVectorSimulation.IsValid())
+				{
+					Actor->SequencePlayer->MotionVectorSimulation->PreserveSimulatedMotion(true);
+				}
+
 				// Override the movie scene's playback range
-				Actor->SequencePlayer->SetFrameRate(Settings.FrameRate);
+				Actor->SequencePlayer->SetFrameRate(Settings.GetFrameRate());
 				Actor->SequencePlayer->SetFrameRange(PlaybackStartFrame.Value, (PlaybackEndFrame - PlaybackStartFrame).Value);
 				Actor->SequencePlayer->JumpToFrame(PlaybackStartFrame.Value);
 
@@ -631,7 +663,7 @@ void UAutomatedLevelSequenceCapture::OnTick(float DeltaSeconds)
 	}
 	else if( CaptureState == ELevelSequenceCaptureState::ReadyToWarmUp )
 	{
-		Actor->SequencePlayer->SetSnapshotSettings(FLevelSequenceSnapshotSettings(Settings.ZeroPadFrameNumbers, Settings.FrameRate));
+		Actor->SequencePlayer->SetSnapshotSettings(FLevelSequenceSnapshotSettings(Settings.ZeroPadFrameNumbers, Settings.GetFrameRate()));
 		Actor->SequencePlayer->Play();
 		// Start warming up
 		CaptureState = ELevelSequenceCaptureState::WarmingUp;
@@ -665,8 +697,8 @@ void UAutomatedLevelSequenceCapture::OnTick(float DeltaSeconds)
 		{
 			UMovieScene* MovieScene = GetMovieScene(LevelSequenceActor);
 
-			FFrameNumber StartTimePlayRateSpace = ConvertFrameTime(StartTime, MovieScene->GetTickResolution(), Settings.FrameRate).CeilToFrame();
-			FFrameNumber EndTimePlayRateSpace   = ConvertFrameTime(EndTime,   MovieScene->GetTickResolution(), Settings.FrameRate).CeilToFrame();
+			FFrameNumber StartTimePlayRateSpace = ConvertFrameTime(StartTime, MovieScene->GetTickResolution(), Settings.GetFrameRate()).CeilToFrame();
+			FFrameNumber EndTimePlayRateSpace   = ConvertFrameTime(EndTime,   MovieScene->GetTickResolution(), Settings.GetFrameRate()).CeilToFrame();
 
 			Actor->SequencePlayer->SetFrameRange(StartTimePlayRateSpace.Value, (EndTimePlayRateSpace - StartTimePlayRateSpace).Value);
 			Actor->SequencePlayer->JumpToFrame(StartTimePlayRateSpace.Value);
@@ -772,11 +804,22 @@ void UAutomatedLevelSequenceCapture::SequenceUpdated(const UMovieSceneSequencePl
 				
 				CaptureState = ELevelSequenceCaptureState::Paused;
 
+				if (Actor->SequencePlayer->MotionVectorSimulation.IsValid())
+				{
+					Actor->SequencePlayer->MotionVectorSimulation->PreserveSimulatedMotion(true);
+				}
+
 				Actor->GetWorld()->GetTimerManager().SetTimer(DelayTimer, FTimerDelegate::CreateUObject(this, &UAutomatedLevelSequenceCapture::PauseFinished), DelayBeforeShotWarmUp + DelayEveryFrame, false);
 				Actor->SequencePlayer->Pause();
 			}
 			else if (CaptureState == ELevelSequenceCaptureState::FinishedWarmUp)
 			{
+				// If we were preserving simulated motion, now's the time to stop that since we've captured the frame that was being simulated
+				if (Actor->SequencePlayer->MotionVectorSimulation.IsValid())
+				{
+					Actor->SequencePlayer->MotionVectorSimulation->PreserveSimulatedMotion(false);
+				}
+
 				// These are called each frame to allow the state machine inside the protocol to transition back to capturing
 				// after paused if needed. This is needed for things like the avi writer who spin up an avi writer per shot (if needed)
 				// so that we can capture the movies into individual avi files per shot due to the format text.
@@ -798,7 +841,12 @@ void UAutomatedLevelSequenceCapture::SequenceUpdated(const UMovieSceneSequencePl
 				bool bOnLastFrame = (CurrentTime.FrameNumber >= Actor->SequencePlayer->GetStartTime().Time.FrameNumber + Actor->SequencePlayer->GetFrameDuration() - 1);
 				bool bLastShot = NumShots == 0 ? true : ShotIndex == NumShots - 1;
 				
-				CaptureThisFrame( (CurrentTime - PreviousTime) / Settings.FrameRate);
+				// Prevent the same frame from being rendered twice
+				if (CurrentTime.FrameNumber.Value != CachedMetrics.PreviousFrame)
+				{
+					CaptureThisFrame((CurrentTime - PreviousTime) / Settings.GetFrameRate());
+					CachedMetrics.PreviousFrame = CurrentTime.FrameNumber.Value;
+				}
 
 				// Our callback can be called multiple times for a given frame due to how Level Sequences evaluate.
 				// For example, frame 161 is evaluated and an image is written. This isn't considered the end of the sequence
@@ -981,7 +1029,7 @@ void UAutomatedLevelSequenceCapture::ExportEDL()
 	int32 HandleFrames = Settings.HandleFrames;
 	FString MovieExtension = Settings.MovieExtension;
 
-	MovieSceneTranslatorEDL::ExportEDL(MovieScene, Settings.FrameRate, SaveFilename, HandleFrames, MovieExtension);
+	MovieSceneTranslatorEDL::ExportEDL(MovieScene, Settings.GetFrameRate(), SaveFilename, HandleFrames, MovieExtension);
 }
 
 double UAutomatedLevelSequenceCapture::GetEstimatedCaptureDurationSeconds() const
@@ -1021,7 +1069,7 @@ void UAutomatedLevelSequenceCapture::ExportFCPXML()
 	FString SaveFilename = Settings.OutputDirectory.Path / MovieScene->GetOuter()->GetName() + TEXT(".xml");
 	FString FilenameFormat = Settings.OutputFormat;
 	int32 HandleFrames = Settings.HandleFrames;
-	FFrameRate FrameRate = Settings.FrameRate;
+	FFrameRate FrameRate = Settings.GetFrameRate();
 	uint32 ResX = Settings.Resolution.ResX;
 	uint32 ResY = Settings.Resolution.ResY;
 	FString MovieExtension = Settings.MovieExtension;

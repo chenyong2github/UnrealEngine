@@ -1,40 +1,368 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6537364
 Availability: Public
 Title:프로그래밍 퀵스타트
-Crumbs:%ROOT%, Programming
 Description:첫 코드 프로젝트를 만들고, C++ 클래스를 새로 추가해 봅니다.
-prereq:GettingStarted/Installation
-prereq:Engine/Basics/Projects/Browser
-SkillLevel: Beginner
-Version: 4.9
-type:quick start
-tags:Getting Started
-tags:Programming
-topic-image:newclass_topic.png
+Type: quick start
+Parent: Programming
+Tags: Getting Started
+Tags: Programming
+topic-image: newclass_topic.png
+
+
+[TOC (start:2 end:2)]
 
 [OBJECT:EmbeddedVideo]
-	[PARAMLITERAL:width]
-	640
-	[/PARAMLITERAL]
-	[PARAMLITERAL:height]
-	360
-	[/PARAMLITERAL]
-	[PARAMLITERAL:videoid]
-	dS1f71pS-5I
-	[/PARAMLITERAL]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ dS1f71pS-5I
+ [/PARAMLITERAL]
 [/OBJECT]
 
 이 가이드의 주목적은 언리얼 엔진 4 의 개발 환경에 대한 안내입니다. 이 가이드가 끝날 무렵이면 UE4 에서 C++ 프로젝트 구성 및 개발, 거기에 새 C++ 클래스 추가, 프로젝트 컴파일, 레벨에 새 클래스 인스턴스 추가 방법을 익힐 수 있을 것입니다. 이 안내서의 끝무렵에는 직접 프로그래밍한 **Actor** 가 레벨의 테이블 위에 떠다니는 것을 볼 수 있을 것입니다.
 
-## 단계
+## 1 - 필수 프로젝트 구성
 
-[REGION:buttonlist]
-* [](Programming\QuickStart\1 "%Programming\QuickStart\1:description%")
-* [](Programming\QuickStart\2 "%Programming\QuickStart\2:description%")
-* [](Programming\QuickStart\3 "%Programming\QuickStart\3:description%")
-* [](Programming\QuickStart\4 "%Programming\QuickStart\4:description%")
-* [](Programming\QuickStart\5 "%Programming\QuickStart\5:description%")
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    windows
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    
+
+이 튜토리얼 시작 전 데스크톱용 **Visual Studio 2015** (가급적 Community 또는 Professional 에디션) 설치가 되어있어야 합니다. 구성 방법 안내는 [](Programming/Development/VisualStudioSetup) 문서를 참고하세요.
+
+    [/PARAM]
+[/OBJECT]
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    mac
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+    
+
+이 튜토리얼 시작 전 **Xcode 9** 설치가 되어있어야 합니다.
+
+    [/PARAM]
+[/OBJECT]
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    windows
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_0]
+    [/PARAM]
+[/OBJECT]
+<!--
+[EXCERPT:excerpt_0]
+
+1.  런처에서 **언리얼 엔진** 을 엽니다. [](Engine/Basics/Projects/Browser) 가 나타납니다.
+
+1.  **새 프로젝트** 탭을 클릭한 다음 **C++** 탭을 선택합니다. 거기서 **기본 코드** 를 선택하여 깨끗한 시작점을 확보하고, "시작용 콘텐츠 포함" 설정되었는지 확인합니다. 프로젝트 이름을 지어줘야 하는데, 여기서는 "QuickStart" 라 하겠습니다. 이제 **프로젝트 생성** 을 클릭하여 시작하면 됩니다.  
+    [![](CreateProject.png)](CreateProject.png)
+
+이제 **언리얼 에디터** 가 새 프로젝트를 열 것입니다. **Visual Studio** 역시 프로젝트가 만든 솔루션 파일을 열어 로드할 것입니다.
+
+[/EXCERPT:excerpt_0]
+-->
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    mac
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_1]
+    [/PARAM]
+[/OBJECT]
+<!--
+[EXCERPT:excerpt_1]
+
+1.  런처에서 **언리얼 엔진** 을 엽니다. [](Engine/Basics/Projects/Browser) 가 나타납니다.
+
+1.  **새 프로젝트** 탭을 클릭한 다음 **C++** 탭을 선택합니다. 거기서 **기본 코드** 를 선택하여 깨끗한 시작점을 확보하고, "시작용 콘텐츠 포함" 설정되었는지 확인합니다. 프로젝트 이름을 지어줘야 하는데, 여기서는 "QuickStart" 라 하겠습니다. 이제 **프로젝트 생성** 을 클릭하여 시작하면 됩니다.  
+    [![](CreateProject.png)](CreateProject.png)
+
+    **언리얼 에디터** 가 새 프로젝트를 엽니다. **Xcode** 도 열리면서 프로젝트가 생성한 솔루션 파일을 로드합니다.
+
+[/EXCERPT:excerpt_1]
+-->
+
+## 2 - C++ 클래스 생성
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    mac
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_2]
+    [/PARAM]
+[/OBJECT]
+<!--
+[EXCERPT:excerpt_2]
+1.  **언리얼 에디터** 에서 **파일** 드롭다운 메뉴에 위치한 **새 C++ 클래스...** 명령으로 C++ /클래스를 새로 만들 수 있습니다.
+      
+    ![](AddCPPClass.png)
+
+1. **부모 클래스 선택** 메뉴가 열립니다. `Actor` 가 **언리얼 엔진** 레벨에서 존재할 수 있는 가장 기본 클래스이므로, **액터** 를 베이스로 사용하겠습니다.
+      
+    ![](ChooseParentClass.png)
+
+1. **액터 이름 짓기** 메뉴가 열립니다. 이 예제에서는 이름을 "FloatingActor" 로 한 다음 **클래스 생성** 을 클릭합니다.
+      
+    ![](NameActorClass.png)
+
+1.  런처에서 **언리얼 엔진** 을 엽니다. [프로젝트 브라우저](Engine/Basics/Projects/Browser) 가 나타납니다.
+
+1.  **새 프로젝트** 탭을 클릭하고 **C++** 탭을 선택합니다. 거기서 **Basic Code** (기본 코드)를 선택해서 깨끗한 시작점으로 사용하고 **시작용 콘텐츠 포함** 설정합니다. 프로젝트 이름은 "QuickStart" 로 합니다. 이제 **프로젝트 생성** 을 눌러 시작합니다. [![](CreateProject.png)](CreateProject.png)
+
+**언리얼 에디터** 에 새 프로젝트가 열립니다. **Xcode** 에도 프로젝트가 생성한 솔루션 파일이 같이 열립니다.
+
+[/EXCERPT:excerpt_2]
+-->
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    windows
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_3]
+    [/PARAM]
+[/OBJECT]
+<!--
+[EXCERPT:excerpt_3]
+1.  **언리얼 에디터** 에서 **File** (파일) 드롭다운 메뉴의 **New C++ Class...** (새 C++ 클래스...) 명령으로 새 클래스를 만들 수 있습니다.
+    
+	![](AddCPPClass.png)
+
+1.  **Choose Parent Class** (부모 클래스 선택) 메뉴가 열립니다. **언리얼 엔진** 수준에서 가장 바탕이 되는 클래스는 **Actor** 이므로, `Actor` 클래스를 베이스로 사용하겠습니다.  
+    
+	![](ChooseParentClass.png)
+
+1.  **Name Your New Actor** (새 액터 이름 짓기) 메뉴가 열립니다. 이 예제에서는 "FloatingActor" 라 한 다음 **Create Class** (클래스 생성)을 클릭합니다.  
+    
+	![](NameActorClass.png)
+
+C++ 클래스를 작성했으니, **Visual Studio** 로 전환하여 프로그래밍을 하면 됩니다. `FloatingActor.cpp` 가 자동으로 열리고, **언리얼 엔진** 은 새 클래스가 포함된 코드를 자동으로 컴파일하고 리로드합니다.
+
+[/EXCERPT:excerpt_3]
+-->
+## 3 - C++ 코드 작성 및 컴파일
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    windows
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_4]
+    [/PARAM]
+[/OBJECT]
+<!--
+[EXCERPT:excerpt_4]
+
+    **Visual Studio** 에서 **Solution Explorer** 패널을 사용하여 새로 만든 C++ 파일을 찾아보겠습니다. 우리 예제에서는 이름이 `FloatingActor.cpp`, `FloatingActor.h` 식으로 되어있으며, QuickStart 프로젝트 안에 있을 것입니다.
+
+[![](SolutionExplorer_Files.png)](SolutionExplorer_Files.png)
+[/EXCERPT:excerpt_4]
+-->
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    mac
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_5]
+    [/PARAM]
+[/OBJECT]
+<!--
+[EXCERPT:excerpt_5]
+**Xcode** 에서 새로 만든 C++ 파일을 찾아보겠습니다. 우리 예제에서는 이름이 FloatingActor.cpp, FloatingActor.h 식으로 되어있으며, QuickStart 프로젝트 안에 있을 것입니다.
+  
+[![](SolutionExplorer_Files_Mac.png)](SolutionExplorer_Files_Mac.png)
+[/EXCERPT:excerpt_5]
+-->
+
+[REGION:note]
+이제 코드를 작성하려는 시점입니다. 이 페이지 하단에서 종료 시점 상태의 사용된 모든 코드를 찾아보실 수 있습니다.
 [/REGION]
 
+1.  `FloatingActor.h` 에서 닫힌 괄호와 파일 끝의 세미콜론 바로 앞에 다음 코드를 추가하겠습니다:
 
+        float RunningTime;
 
+1.  `FloatingActor.cpp` 로 전환하여, **AFloatingActor::Tick** 끝의 닫힌 괄호 직전에 다음 코드를 추가합니다:
+
+        FVector NewLocation = GetActorLocation();
+        float DeltaHeight = (FMath::Sin(RunningTime + DeltaTime) - FMath::Sin(RunningTime));
+        NewLocation.Z += DeltaHeight * 20.0f;       //Scale our height by a factor of 20
+        RunningTime += DeltaTime;
+        SetActorLocation(NewLocation);
+    
+    [REGION:note]
+    방금 작성한 코드는 **FloatingActor** 가 위아래로 부드럽게 나타났다 사라지도록 만드는데, 시간에 따른 운동 기록을 추적하기 위해 만든 _RunningTime_ 변수를 사용한 것입니다.
+    [/REGION]    
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    windows
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_6]
+    [/PARAM]
+[/OBJECT]
+<!--
+[EXCERPT:excerpt_6]
+
+코딩이 완료되었으니, **Solution Browser** 의 프로젝트에 우클릭 후 **Build** 명령을 선택하거나, **언리얼 에디터** 의 **컴파일** 버튼을 누르면 컴파일 가능합니다. 컴파일이 성공하면 **언리얼 에디터** 가 자동으로 변경사항을 로드합니다.
+
+[![](CompileFromVS.png)](CompileFromVS.png)
+[REGION:caption]
+Visual Studio 에서 컴파일하는 모습.
+[/REGION]
+
+[![](CompileFromEditor.png)](CompileFromEditor.png)
+[REGION:caption]
+언리얼 에디터에서 컴파일하는 모습.
+[/REGION]
+[/EXCERPT:excerpt_6]
+-->
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    mac
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_7]
+    [/PARAM]
+[/OBJECT]
+<!--
+[EXCERPT:excerpt_7]
+
+코딩이 완료되었으니 XCode 의 Debug Configuration 을 사용하여 컴파일해 주면 됩니다. **Product > Build** 옵션입니다. XCode 의 Development Configuration 을 사용해서도 컴파일 가능합니다. **Product > Build For > Profiling** 옵션입니다. 또는 **언리얼 에디터** 의 **컴파일** 버튼을 눌러도 됩니다. 컴파일이 성공하면, **언리얼 에디터** 에 자동으로 변경사항이 로드됩니다.
+
+[![](CompileFromXCode.png)](CompileFromXCode.png)
+[REGION:caption]
+Xcode 내 빌드 명령 위치입니다.
+[/REGION]
+
+[![](ProjectBuild_mac.png)](ProjectBuild_mac.png)
+[REGION:caption]
+XCode 에서 현재 선택된 구성으로 컴파일하는 모습입니다.
+[/REGION]
+
+[![](ProjectBuildProfile_mac.png)](ProjectBuildProfile_mac.png)
+[REGION:caption]
+XCode 의 Development 구성으로 컴파일하는 모습입니다.
+[/REGION]
+
+[![](CompileFromEditor.png)](CompileFromEditor.png)
+[REGION:caption]
+**언리얼 에디터** 에서 컴파일하는 모습입니다.
+[/REGION]
+
+[REGION:note]
+바이너리 에디터를 실행할 때, **Uncooked** 환경설정으로 프로젝트를 리빌드한 경우 -game 플래그를, **Debug** 환경설정으로 프로젝트를 리빌드한 경우 -debug 플래그를 붙여주는 것이 중요합니다. XCode 에서 프로젝트를 빌드할 때, 프로젝트만 빌드되며, 에디터 자체는 별도로 하지 않는 한 빌드되지 않습니다.
+[/REGION]
+[/EXCERPT:excerpt_7]
+-->
+
+이제 코드를 기반으로 **언리얼 에디터** 에 오브젝트를 만들 준비가 되었습니다! 참고로, 이 글에 사용된 모든 코드는 아래 포함되어 있습니다.
+
+## 4 - 코드 테스트
+
+1.  **언리얼 에디터** 에서 **콘텐츠 브라우저** 를 찾은 다음 "C++ Classes" 라는 폴더를 펼칩니다. 그 폴더 안에 보면 "QuickStart" 폴더가 있으며, 그 안에 **FloatingActor** 라는 액터 클래스가 있습니다.
+    
+    [![](ClassInContentBrowser.png)](ClassInContentBrowser.png)
+    
+1.  **FloatingActor** 클래스를 **레벨 에디터** 창에 바로 끌어 놓으면 월드에 **FloatingActor** 인스턴스가 생성됩니다. **레벨 에디터** 와 **월드 아웃라이너** 에 선택되어 있는데, "FloatingActor1" 라고 되어 있습니다. **디테일 패널** 에는 그 **컴포넌트** 와 기타 프로퍼티가 보입니다.
+    
+    [![](WorldOutliner.png)](WorldOutliner.png)
+    
+1.  **FloatingActor** 를 게임에서 보이게 해 줘야겠습니다. 선택된 상태에서 **디테일 패널** 의 **컴포넌트 추가** 를 클릭한 다음, **Cone** 을 선택하여 단순한 시각적 표상을 설정해 줍니다.
+    
+    [![](AddStaticMesh.png)](AddStaticMesh.png)
+    
+1.  커스터마이징된 **액터** 가 준비되었으니, 눈에 띄는 곳으로 이동시켜 봅시다. 마우스 왼쪽 버튼으로 선택한 다음 끌어 월드에서 이동시키거나, 수동으로 이동시킬 수도 있습니다. 수동으로 이동시키려면, **레벨 에디터** 나 **월드 아웃라이너** 에서 선택한 다음 **디테일 패널** 을 사용하여 "FloatingActor1 (Instance)" 를 선택합니다. 그러면 이제 FloatingActor1 의 **트랜스폼** 중 **위치** 칸을 직접 수정할 수 있습니다. X 를 -200, Z 를 200 으로 설정합시다. 그러면 "FloatingActor1" 가 씬의 탁자 바로 위에 놓이게 됩니다.
+    
+    [![](SetActorLocation.png)](SetActorLocation.png)
+    
+1.  **플레이** 버튼을 누르면 원뿔이 위아래로 떠다니는 것이 보입니다!
+    
+    [![](MovingCone.png)](MovingCone.png)
+    
+
+## 5 - 직접 해보기!
+
+지금까지 배운 것을 토대로, 다음 작업을 해 보세요:
+
+* **FloatingActor** 에 [파티클 시스템 컴포넌트](Engine/Rendering/ParticleSystems) 를 추가합니다. 프로젝트에 이미 미리 제작된 **파티클 시스템** 이 포함되어 있습니다.
+
+* **언리얼 엔진** 의 [UProperty](Programming/UnrealArchitecture/Reference/Properties) 매크로를 사용하여 **FloatingActor** 이동 속도에 하드코딩된 값을 쓰기보다는 변수를 노출시켜 사용합니다. 이에 대한 도움말로 [](Programming/Tutorials/VariablesTimersEvents) 튜토리얼을 참고해 보시기 바랍니다.
+
+* X 및/또는 Y 축에 주기적인 모션을 추가한 다음, 0.6 에서 1.4 사이의 _DeltaTime_ 값을 곱하여 **FloatingActor** 가 자유롭게 떠다니는 것처럼 보이도록 만듭니다. 파워업에 좋아보일 수 있습니다!
+
+이 튜토리얼에서 다룬 내용에 대해서:
+
+* **액터** 관련 상세 정보: [Actor](https://api.unrealengine.com/INT/API/Runtime/Engine/GameFramework/AActor/index.html)
+
+* 추가적인 튜토리얼: [](Programming/Tutorials)

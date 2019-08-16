@@ -2,35 +2,13 @@
 
 #include "UnrealUSDWrapper.h"
 
+#include "USDMemory.h"
+
 #include "Modules/ModuleManager.h"
 
-#if PLATFORM_WINDOWS
-	#include "Windows/WindowsHWrapper.h"
-
-	// Workaround union in pxr/usd/pcp/mapFunction.h
-	#pragma warning(disable : 4582)
-	#pragma warning(disable : 4583)
-
-	// pxr/usd/sdf/fileFormat.h BOOST_PP_SEQ_DETAIL_IS_NOT_EMPTY during static analysis
-	#pragma warning(disable : 4003)
-	#pragma warning(disable : 6319)
-
-#endif
-
-THIRD_PARTY_INCLUDES_START
-
-// Boost function is named 'check' in boost\python\detail\convertible.hpp
-#pragma push_macro("check")
-#undef check
-
-// Boost needs _DEBUG defined when /RTCs build flag is enabled (Run Time Checks)
-#if PLATFORM_WINDOWS && UE_BUILD_DEBUG
-	#ifndef _DEBUG
-		#define _DEBUG
-	#endif
-#endif
-
 #if USE_USD_SDK
+
+#include "USDIncludesStart.h"
 
 #include "pxr/usd/usd/usdFileFormat.h"
 #include "pxr/usd/usd/common.h"
@@ -58,8 +36,8 @@ THIRD_PARTY_INCLUDES_START
 #include "pxr/usd/usd/debugCodes.h"
 #include "pxr/usd/kind/registry.h"
 
-THIRD_PARTY_INCLUDES_END
-#pragma pop_macro("check")
+#include "USDIncludesEnd.h"
+
 
 using std::vector;
 using std::string;
@@ -74,7 +52,7 @@ using namespace pxr;
 
 
 #if USDWRAPPER_USE_XFORMACHE
-static UsdGeomXformCache XFormCache;
+static TUsdStore< UsdGeomXformCache > XFormCache;
 #endif // USDWRAPPER_USE_XFORMACHE
 
 namespace UnrealIdentifiers
@@ -102,12 +80,11 @@ namespace UnrealIdentifiers
 void Log(const char* Format, ...)
 {
 	const int32 TempStrSize = 4096;
-	TCHAR TempStr[TempStrSize];
+	ANSICHAR TempStr[TempStrSize];
 
-	const TCHAR* FormatMsg = ANSI_TO_TCHAR(Format);
-	GET_VARARGS(TempStr, TempStrSize, TempStrSize - 1, FormatMsg, FormatMsg);
-	va_end(Format);
-	UE_LOG(LogTemp, Log, TEXT("%s"), TempStr);
+	GET_VARARGS_ANSI(TempStr, TempStrSize, TempStrSize - 1, Format, Format);
+
+	UE_LOG(LogTemp, Log, TEXT("%hs"), TempStr);
 }
 
 
@@ -209,20 +186,6 @@ private:
 	}
 };
 
-struct FPrimAndData
-{
-	UsdPrim Prim;
-	class FUsdPrim* PrimData;
-
-	FPrimAndData(const UsdPrim& InPrim)
-		: Prim(InPrim)
-		, PrimData(nullptr)
-	{}
-
-	~FPrimAndData();
-};
-
-
 class FAttribInternalData
 {
 public:
@@ -246,33 +209,22 @@ public:
 	UsdAttribute Attribute;
 };
 
-
-FUsdAttribute::FUsdAttribute(std::shared_ptr<FAttribInternalData> InInternalData)
-	: InternalData(InInternalData)
+std::string FUsdAttribute::GetUnrealPropertyPath( const pxr::UsdAttribute& Attribute )
 {
-}
+	std::string UnrealPropertyPath;
 
-FUsdAttribute::~FUsdAttribute()
-{
-}
+	VtValue CustomData = Attribute.GetCustomDataByKey(UnrealIdentifiers::PropertyPath);
 
-const char* FUsdAttribute::GetAttributeName() const
-{
-	return InternalData->AttributeName.c_str();
-}
+	if (CustomData.IsHolding<std::string>())
+	{
+		UnrealPropertyPath = CustomData.Get<std::string>();
+	}
 
-const char* FUsdAttribute::GetTypeName() const
-{
-	return InternalData->TypeName.c_str();
-}
-
-const char* FUsdAttribute::GetUnrealPropertyPath() const
-{
-	return InternalData->UnrealPropertyPath.c_str();
+	return UnrealPropertyPath;
 }
 
 template<typename T>
-bool GetValue(T& OutVal, UsdAttribute Attrib, int ArrayIndex, double Time)
+bool GetValue(T& OutVal, const pxr::UsdAttribute& Attrib, int ArrayIndex, double Time)
 {
 	bool bResult = false;
 
@@ -300,99 +252,98 @@ bool IsHolding(const VtValue& Value)
 	return Value.IsHolding<T>() || Value.IsHolding<VtArray<T>>();
 }
 
-bool FUsdAttribute::AsInt(int64_t& OutVal, int ArrayIndex, double Time) const
+bool FUsdAttribute::AsInt(int64_t& OutVal, const pxr::UsdAttribute& Attribute, int ArrayIndex, double Time)
 {
 	// We test multiple types of ints here. int64 is always returned as it can hold all other types
 	// Unreal expects this
 	VtValue Value;
-	bool bResult = InternalData->Attribute.Get(&Value, Time);
+	bool bResult = Attribute.Get(&Value, Time);
 	if (IsHolding<int8_t>(Value))
 	{
 		uint8_t Val = 0;
-		bResult = GetValue(Val, InternalData->Attribute, ArrayIndex, Time);
+		bResult = GetValue(Val, Attribute, ArrayIndex, Time);
 		OutVal = Val;
 	}
 	else if (IsHolding<int32_t>(Value))
 	{
 		int32_t Val = 0;
-		bResult = GetValue(Val, InternalData->Attribute, ArrayIndex, Time);
+		bResult = GetValue(Val, Attribute, ArrayIndex, Time);
 		OutVal = Val;
 	}
 	else if (IsHolding<int64_t>(Value))
 	{
 		int64_t Val = 0;
-		bResult = GetValue(Val, InternalData->Attribute, ArrayIndex, Time);
+		bResult = GetValue(Val, Attribute, ArrayIndex, Time);
 		OutVal = Val;
 	}
 
 	return bResult;
 }
 
-bool FUsdAttribute::AsUnsignedInt(uint64_t& OutVal, int ArrayIndex, double Time) const
+bool FUsdAttribute::AsUnsignedInt(uint64_t& OutVal, const pxr::UsdAttribute& Attribute, int ArrayIndex, double Time)
 {
 	// We test multiple types of ints here. uint64 is always returned as it can hold all other types
 	// Unreal expects this
 	VtValue Value;
-	bool bResult = InternalData->Attribute.Get(&Value, Time);
+	bool bResult = Attribute.Get(&Value, Time);
 	if (IsHolding<uint8_t>(Value))
 	{
 		uint8_t Val;
-		bResult = GetValue(Val, InternalData->Attribute, ArrayIndex, Time);
+		bResult = GetValue(Val, Attribute, ArrayIndex, Time);
 		OutVal = Val;
 	}
 	else if (IsHolding<uint32_t>(Value))
 	{
 		uint32_t Val;
-		bResult = GetValue(Val, InternalData->Attribute, ArrayIndex, Time);
+		bResult = GetValue(Val, Attribute, ArrayIndex, Time);
 		OutVal = Val;
 	}
 	else if (IsHolding<uint64_t>(Value))
 	{
 		uint64_t Val;
-		bResult = GetValue(Val, InternalData->Attribute, ArrayIndex, Time);
+		bResult = GetValue(Val, Attribute, ArrayIndex, Time);
 		OutVal = Val;
 	}
 
 	return bResult;
 }
 
-bool FUsdAttribute::AsDouble(double& OutVal, int ArrayIndex, double Time) const
+bool FUsdAttribute::AsDouble(double& OutVal, const pxr::UsdAttribute& Attribute, int ArrayIndex, double Time)
 {
 	bool bResult = false;
 
-
-	bResult = GetValue<double>(OutVal, InternalData->Attribute, ArrayIndex, Time);
+	bResult = GetValue<double>(OutVal, Attribute, ArrayIndex, Time);
 
 	if (!bResult)
 	{
 		float Val = 0.0f;
-		bResult = GetValue<float>(Val, InternalData->Attribute, ArrayIndex, Time);
+		bResult = GetValue<float>(Val, Attribute, ArrayIndex, Time);
 		OutVal = Val;
 	}
 
 	return bResult;
 }
 
-bool FUsdAttribute::AsString(const char*& OutVal, int ArrayIndex, double Time) const
+bool FUsdAttribute::AsString(const char*& OutVal, const pxr::UsdAttribute& Attribute, int ArrayIndex, double Time)
 {
 	// this method is very hacky to return temp strings
 	// designed to have the string copied immediately
 	bool bResult = false;
 
 	VtValue Value;
-	InternalData->Attribute.Get(&Value);
+	Attribute.Get(&Value);
 	// mem leak
 	static std::string Temp;
 	if (IsHolding<std::string>(Value))
 	{
-		bResult = GetValue(Temp, InternalData->Attribute, ArrayIndex, Time);
+		bResult = GetValue(Temp, Attribute, ArrayIndex, Time);
 
 		OutVal = Temp.c_str();
 	}
 	else if (IsHolding<TfToken>(Value))
 	{
 		TfToken Token;
-		bResult = GetValue(Token, InternalData->Attribute, ArrayIndex, Time);
+		bResult = GetValue(Token, Attribute, ArrayIndex, Time);
 
 		Temp = Token.GetString();
 
@@ -402,15 +353,15 @@ bool FUsdAttribute::AsString(const char*& OutVal, int ArrayIndex, double Time) c
 	return bResult;
 }
 
-bool FUsdAttribute::AsBool(bool& OutVal, int ArrayIndex, double Time) const
+bool FUsdAttribute::AsBool(bool& OutVal, const pxr::UsdAttribute& Attribute, int ArrayIndex, double Time)
 {
-	return GetValue(OutVal, InternalData->Attribute, ArrayIndex, Time);
+	return GetValue(OutVal, Attribute, ArrayIndex, Time);
 }
 
-bool FUsdAttribute::AsVector2(FUsdVector2Data& OutVal, int ArrayIndex, double Time) const
+bool FUsdAttribute::AsVector2(FUsdVector2Data& OutVal, const pxr::UsdAttribute& Attribute, int ArrayIndex, double Time)
 {
 	GfVec2f Value;
-	const bool bResult = GetValue(Value, InternalData->Attribute, ArrayIndex, Time);
+	const bool bResult = GetValue(Value, Attribute, ArrayIndex, Time);
 
 	OutVal.X = Value[0];
 	OutVal.Y = Value[1];
@@ -418,10 +369,10 @@ bool FUsdAttribute::AsVector2(FUsdVector2Data& OutVal, int ArrayIndex, double Ti
 	return bResult;
 }
 
-bool FUsdAttribute::AsVector3(FUsdVectorData& OutVal, int ArrayIndex, double Time) const
+bool FUsdAttribute::AsVector3(FUsdVectorData& OutVal, const pxr::UsdAttribute& Attribute, int ArrayIndex, double Time)
 {
 	GfVec3f Value;
-	const bool bResult = GetValue(Value, InternalData->Attribute, ArrayIndex, Time);
+	const bool bResult = GetValue(Value, Attribute, ArrayIndex, Time);
 
 	OutVal.X = Value[0];
 	OutVal.Y = Value[1];
@@ -430,10 +381,10 @@ bool FUsdAttribute::AsVector3(FUsdVectorData& OutVal, int ArrayIndex, double Tim
 	return bResult;
 }
 
-bool FUsdAttribute::AsVector4(FUsdVector4Data& OutVal, int ArrayIndex, double Time) const
+bool FUsdAttribute::AsVector4(FUsdVector4Data& OutVal, const pxr::UsdAttribute& Attribute, int ArrayIndex, double Time)
 {
 	GfVec4f Value;
-	const bool bResult = GetValue(Value, InternalData->Attribute, ArrayIndex, Time);
+	const bool bResult = GetValue(Value, Attribute, ArrayIndex, Time);
 
 	OutVal.X = Value[0];
 	OutVal.Y = Value[1];
@@ -443,10 +394,10 @@ bool FUsdAttribute::AsVector4(FUsdVector4Data& OutVal, int ArrayIndex, double Ti
 	return bResult;
 }
 
-bool FUsdAttribute::AsColor(FUsdVector4Data& OutVal, int ArrayIndex, double Time) const
+bool FUsdAttribute::AsColor(FUsdVector4Data& OutVal, const pxr::UsdAttribute& Attribute, int ArrayIndex, double Time)
 {
 	GfVec4f Value;
-	bool bResult = GetValue(Value, InternalData->Attribute, ArrayIndex, Time);
+	bool bResult = GetValue(Value, Attribute, ArrayIndex, Time);
 
 	if (bResult)
 	{
@@ -459,7 +410,7 @@ bool FUsdAttribute::AsColor(FUsdVector4Data& OutVal, int ArrayIndex, double Time
 	{
 		// Try color 3 with a = 1;
 		GfVec3f Value3;
-		bResult = GetValue<GfVec3f>(Value3, InternalData->Attribute, ArrayIndex, Time);
+		bResult = GetValue<GfVec3f>(Value3, Attribute, ArrayIndex, Time);
 		OutVal.X = Value3[0];
 		OutVal.Y = Value3[1];
 		OutVal.Z = Value3[2];
@@ -469,621 +420,216 @@ bool FUsdAttribute::AsColor(FUsdVector4Data& OutVal, int ArrayIndex, double Time
 	return bResult;
 }
 
-bool FUsdAttribute::IsUnsigned() const
+bool FUsdAttribute::IsUnsigned(const pxr::UsdAttribute& Attribute)
 {
 	VtValue Value;
-	InternalData->Attribute.Get(&Value);
+	Attribute.Get(&Value);
 
 	return IsHolding<uint8_t>(Value)
 		|| IsHolding<uint32_t>(Value)
 		|| IsHolding<uint64_t>(Value);
 }
 
-int FUsdAttribute::GetArraySize() const
+int FUsdAttribute::GetArraySize( const pxr::UsdAttribute& Attribute )
 {
 	VtValue Value;
-	InternalData->Attribute.Get(&Value);
+	Attribute.Get(&Value);
 
 	return Value.IsArrayValued() ? (int)Value.GetArraySize() : -1;
+
+}
+bool IUsdPrim::IsProxyOrGuide( const UsdPrim& Prim )
+{
+	UsdGeomImageable Geom(Prim);
+	if (Geom)
+	{
+		UsdAttribute PurposeAttr = Geom.GetPurposeAttr();
+
+		TfToken Purpose;
+		PurposeAttr.Get(&Purpose);
+
+		return Purpose == UnrealIdentifiers::ProxyPurpose || Purpose == UnrealIdentifiers::GuidePurpose;
+	}
+
+	return false;
 }
 
-
-class FUsdPrim : public IUsdPrim
+bool IUsdPrim::HasGeometryData(const UsdPrim& Prim)
 {
-public:
-	FUsdPrim(const UsdPrim& InPrim)
-		: Prim(InPrim)
-		, GeomData(nullptr)
+	return UsdGeomMesh(Prim) ? true : false;
+}
+
+bool IUsdPrim::HasGeometryDataOrLODVariants(const UsdPrim& Prim)
+{
+	return HasGeometryData(Prim) || GetNumLODs(Prim) > 0;
+}
+
+int IUsdPrim::GetNumLODs(const UsdPrim& Prim)
+{
+	FScopedUsdAllocs UsdAllocs;
+
+	// 0 indicates no variant or no lods in variant. 
+	int NumLODs = 0;
+	if (Prim.HasVariantSets())
 	{
-		PrimName = Prim.GetName().GetString();
-		PrimPath = Prim.GetPath().GetString();
-
-		UsdModelAPI Model(Prim);
-		if (Model)
+		UsdVariantSet LODVariantSet = Prim.GetVariantSet(UnrealIdentifiers::LOD);
+		if(LODVariantSet.IsValid())
 		{
-			TfToken KindType;
-			Model.GetKind(&KindType);
+			vector<string> VariantNames = LODVariantSet.GetVariantNames();
+			NumLODs = VariantNames.size();
+		}
+	}
 
-			Kind = KindType.GetString();
-		}
-		else
-		{
-			// Prim is not a model, read kind directly from metadata
-			static TfToken KindMetaDataToken("kind");
-			TfToken KindType;
-			if (Prim.GetMetadata(KindMetaDataToken, &KindType))
-			{
-				Kind = KindType.GetString();
-			}
-		}
+	return NumLODs;
+}
 
-		UsdAttribute UnrealAssetPathAttr = Prim.GetAttribute(UnrealIdentifiers::AssetPath);
-		if (UnrealAssetPathAttr.HasValue())
-		{
-			UnrealAssetPathAttr.Get(&UnrealAssetPath);
-		}
-
-		UsdAttribute UnrealActorClassAttr = Prim.GetAttribute(UnrealIdentifiers::ActorClass);
-		if (UnrealActorClassAttr.HasValue())
-		{
-			UnrealActorClassAttr.Get(&UnrealActorClass);
-		}
+bool IUsdPrim::IsKindChildOf(const UsdPrim& Prim, const std::string& InBaseKind)
+{
+	TfToken BaseKind(InBaseKind);
 	
-		VtValue CustomData = Prim.GetCustomDataByKey(UnrealIdentifiers::PropertyPath);
-		if (CustomData.IsHolding<std::string>())
-		{
-			UnrealPropertyPath = CustomData.Get<std::string>();
+	KindRegistry& Registry = KindRegistry::GetInstance();
 
-		}
+	TfToken PrimKind( GetKind(Prim) );
 
-		for (const UsdPrim& Child : Prim.GetChildren())
-		{
-			Children.push_back(FPrimAndData(Child));
-		}
-	}
+	return Registry.IsA(PrimKind, BaseKind);
 
-	~FUsdPrim()
+}
+
+TfToken IUsdPrim::GetKind(const pxr::UsdPrim& Prim)
+{
+	TfToken KindType;
+
+	UsdModelAPI Model(Prim);
+	if (Model)
 	{
-		if (GeomData)
-		{
-			delete GeomData;
-		}
-
-		Children.clear();
+		Model.GetKind(&KindType);
 	}
-
-	virtual const char* GetPrimName() const override
+	else
 	{
-		return PrimName.c_str();
-	}
-
-	virtual const char* GetPrimPath() const override
-	{
-		return PrimPath.c_str();
-	}
-
-	virtual const char* GetUnrealPropertyPath() const override
-	{
-		return UnrealPropertyPath.c_str();
-	}
-
-	virtual const char* GetKind() const override
-	{
-		return Kind.c_str();
-	}
-
-	virtual bool IsKindChildOf(const std::string& InBaseKind) const override
-	{
-		TfToken BaseKind(InBaseKind);
-	
-		KindRegistry& Registry = KindRegistry::GetInstance();
-
-		TfToken PrimKind(Kind);
-
-		return Registry.IsA(PrimKind, BaseKind);
-	}
-
-
-	virtual bool IsGroup() const override
-	{
-		return Prim.IsGroup();
-	}
-
-	virtual bool IsModel() const override
-	{
-		return Prim.IsModel();
-	}
-
-	virtual bool IsProxyOrGuide() const override
-	{
-		UsdGeomImageable Geom(Prim);
-		if (Geom)
-		{
-			UsdAttribute PurposeAttr = Geom.GetPurposeAttr();
-
-			TfToken Purpose;
-			PurposeAttr.Get(&Purpose);
-
-			return Purpose == UnrealIdentifiers::ProxyPurpose || Purpose == UnrealIdentifiers::GuidePurpose;
-		}
-
-		return false;
-	}
-
-	virtual bool IsUnrealProperty() const override
-	{
-		return Prim.HasCustomDataKey(UnrealIdentifiers::PropertyPath);
-	}
-
-	virtual bool HasTransform() const override
-	{
-		return UsdGeomXformable(Prim) ? true : false;
-	}
-
-	static GfMatrix4d GetLocalToWorldTransform(const UsdPrim& Prim, double Time, const SdfPath& AbsoluteRootPath)
-	{
-		SdfPath PrimPath = Prim.GetPath();
-		if (!Prim || PrimPath == AbsoluteRootPath)
-		{
-			return GfMatrix4d(1);
-		}
-
-		GfMatrix4d AccumulatedTransform(1.);
-		bool bResetsXFormStack = false;
-		UsdGeomXformable XFormable(Prim);
-		// silently ignoring errors
-		XFormable.GetLocalTransformation(&AccumulatedTransform, &bResetsXFormStack, Time);
-
-		if (!bResetsXFormStack)
-		{
-			AccumulatedTransform = AccumulatedTransform * GetLocalToWorldTransform(Prim.GetParent(), Time, AbsoluteRootPath);
-		}
-
-		return AccumulatedTransform;
+		// Prim is not a model, read kind directly from metadata
+		static TfToken KindMetaDataToken("kind");
+		Prim.GetMetadata(KindMetaDataToken, &KindType);
 	}
 	
-	virtual FUsdMatrixData GetLocalToWorldTransform(double Time) const override
+	return KindType;
+}
+
+pxr::GfMatrix4d IUsdPrim::GetLocalTransform(const pxr::UsdPrim& Prim)
+{
+	pxr::GfMatrix4d USDMatrix(1);
+
+	pxr::UsdGeomXformable XForm(Prim);
+	if(XForm)
 	{
-#if USDWRAPPER_USE_XFORMACHE
-		XFormCache.SetTime(Time);
-		GfMatrix4d LocalToWorld = XFormCache.GetLocalToWorldTransform(Prim);
-#else
-		UsdGeomXformable XFormable(Prim);
-		SdfPath WorldPath = SdfPath::AbsoluteRootPath();
-		GfMatrix4d LocalToWorld;
-		if (!Prim.GetPath().HasPrefix(WorldPath))
+		// Set transform
+		bool bResetXFormStack = false;
+		XForm.GetLocalTransformation(&USDMatrix, &bResetXFormStack);
+	}
+
+	return USDMatrix;
+}
+
+pxr::GfMatrix4d IUsdPrim::GetLocalToWorldTransform(const pxr::UsdPrim& Prim )
+{
+	return GetLocalToWorldTransform( Prim, pxr::UsdTimeCode::Default().GetValue() );
+}
+
+pxr::GfMatrix4d IUsdPrim::GetLocalToWorldTransform(const pxr::UsdPrim& Prim, double Time)
+{
+	pxr::SdfPath AbsoluteRootPath = pxr::SdfPath::AbsoluteRootPath();
+	return GetLocalToWorldTransform(Prim, Time, AbsoluteRootPath);
+
+}
+
+pxr::GfMatrix4d IUsdPrim::GetLocalToWorldTransform(const pxr::UsdPrim& Prim, double Time, const pxr::SdfPath& AbsoluteRootPath)
+{
+	pxr::SdfPath PrimPath = Prim.GetPath();
+	if (!Prim || PrimPath == AbsoluteRootPath)
+	{
+		return pxr::GfMatrix4d(1);
+	}
+
+	pxr::GfMatrix4d AccumulatedTransform(1.);
+	bool bResetsXFormStack = false;
+	pxr::UsdGeomXformable XFormable(Prim);
+	// silently ignoring errors
+	XFormable.GetLocalTransformation(&AccumulatedTransform, &bResetsXFormStack, Time);
+
+	if (!bResetsXFormStack)
+	{
+		AccumulatedTransform = AccumulatedTransform * GetLocalToWorldTransform(Prim.GetParent(), Time, AbsoluteRootPath);
+	}
+
+	return AccumulatedTransform;
+}
+
+std::string IUsdPrim::GetUnrealPropertyPath(const pxr::UsdPrim& Prim)
+{
+	VtValue CustomData = Prim.GetCustomDataByKey(UnrealIdentifiers::PropertyPath);
+	if (CustomData.IsHolding<std::string>())
+	{
+		return CustomData.Get<std::string>();
+	}
+
+	return {};
+}
+
+TUsdStore< std::vector<UsdAttribute> > PrivateGetAttributes(const pxr::UsdPrim& Prim, const TfToken& ByMetadata)
+{
+	FScopedUsdAllocs UsdAllocs;
+
+	std::vector<UsdAttribute> Attributes = Prim.GetAttributes();
+
+	std::vector<UsdAttribute> OutAttributes;
+	OutAttributes.reserve(Attributes.size());
+
+	for (UsdAttribute& Attr : Attributes)
+	{
+		if (ByMetadata.IsEmpty() || Attr.HasCustomDataKey(ByMetadata))
 		{
-			LocalToWorld = GfMatrix4d(1);
-		}
-		else
-		{
-			LocalToWorld = GetLocalToWorldTransform(Prim, Time, WorldPath);
-		}
-#endif
-
-		FUsdMatrixData Ret;
-		memcpy(Ret.Data, LocalToWorld.GetArray(), sizeof(double) * 16);
-
-		return Ret;
-
-	}
-
-	virtual FUsdMatrixData GetLocalToAncestorTransform(IUsdPrim* Ancestor, double Time) const override
-	{
-		if (Ancestor)
-		{
-			FUsdPrim* InternalAncestorPrim = (FUsdPrim*)Ancestor;
-
-			GfMatrix4d LocalToAncestor;
-			LocalToAncestor = GetLocalToWorldTransform(Prim, Time, InternalAncestorPrim->GetUSDPrim().GetPath());
-
-			FUsdMatrixData Ret;
-			memcpy(Ret.Data, LocalToAncestor.GetArray(), sizeof(double) * 16);
-
-			return Ret;
-		}
-		else
-		{
-			return GetLocalToWorldTransform(Time);
+			OutAttributes.push_back(Attr);
 		}
 	}
 
-	virtual FUsdMatrixData GetLocalToParentTransform(double Time) const override
+	return OutAttributes;
+}
+
+TUsdStore< std::vector<UsdAttribute> > IUsdPrim::GetUnrealPropertyAttributes(const pxr::UsdPrim& Prim)
+{
+	return PrivateGetAttributes(Prim, UnrealIdentifiers::PropertyPath);
+}
+
+std::string IUsdPrim::GetUnrealAssetPath(const pxr::UsdPrim& Prim)
+{
+	std::string UnrealAssetPath;
+
+	UsdAttribute UnrealAssetPathAttr = Prim.GetAttribute(UnrealIdentifiers::AssetPath);
+	if (UnrealAssetPathAttr.HasValue())
 	{
-		bool bResetsXFormStack = false;
-#if USDWRAPPER_USE_XFORMACHE
-		XFormCache.SetTime(Time);
-		GfMatrix4d LocalToParent = XFormCache.GetLocalTransformation(Prim, &bResetsXFormStack);
-#else
-		UsdGeomXformable XFormable(Prim);
-		GfMatrix4d LocalToParent;
-		// silently ignoring errors
-		XFormable.GetLocalTransformation(&LocalToParent, &bResetsXFormStack, Time);
-#endif
-		FUsdMatrixData Ret;
-		memcpy(Ret.Data, LocalToParent.GetArray(), sizeof(double) * 16);
-		
-		return Ret;
+		UnrealAssetPathAttr.Get(&UnrealAssetPath);
 	}
 
-	virtual int GetNumChildren() const override
+	return UnrealAssetPath;
+}
+
+std::string IUsdPrim::GetUnrealActorClass(const pxr::UsdPrim& Prim)
+{
+	std::string UnrealActorClass;
+
+	UsdAttribute UnrealActorClassAttr = Prim.GetAttribute(UnrealIdentifiers::ActorClass);
+	if (UnrealActorClassAttr.HasValue())
 	{
-		return (int)Children.size();
+		UnrealActorClassAttr.Get(&UnrealActorClass);
 	}
 
-	virtual IUsdPrim* GetChild(int ChildIndex) override
+	return UnrealActorClass;
+}
+
+namespace Internal
+{
+	TArray< FString > FillMaterialInfo(const SdfPath& Path, UsdStageWeakPtr Stage)
 	{
-		FPrimAndData& PrimAndData = Children[ChildIndex];
-		if (!PrimAndData.PrimData)
-		{
-			PrimAndData.PrimData = new FUsdPrim(PrimAndData.Prim);
-		}
-
-		return PrimAndData.PrimData;
-	}
-
-	virtual const char* GetUnrealAssetPath() const override
-	{
-		return UnrealAssetPath.length() > 0 ? UnrealAssetPath.c_str() : nullptr;
-	}
-
-	virtual const char* GetUnrealActorClass() const override
-	{
-		return UnrealActorClass.length() > 0 ? UnrealActorClass.c_str() : nullptr;
-	}
-
-	virtual bool HasGeometryData() const override
-	{
-		return UsdGeomMesh(Prim) ? true : false;
-	}
-
-	virtual bool HasGeometryDataOrLODVariants() const override
-	{
-		return HasGeometryData() || GetNumLODs() > 0;
-	}
-
-	virtual const FUsdGeomData* GetGeometryData(double Time) override
-	{
-		if (Time == UsdTimeCode::Default())
-		{
-			// work around issues where usd exporters set a time code for non-animated data but the requested time is the default time code
-			UsdStageWeakPtr Stage = Prim.GetStage();
-			Time = Stage->GetStartTimeCode();
-		}
-
-		bool bValid = false;
-		UsdGeomMesh Mesh(Prim);
-		if (Mesh)
-		{
-			if (GeomData)
-			{
-				delete GeomData;
-			}
-
-			GeomData = new FUsdGeomData;
-
-			// Faces and points
-			{
-				UsdAttribute FaceCounts = Mesh.GetFaceVertexCountsAttr();
-				if (FaceCounts)
-				{
-					GeomData->FaceVertexCounts.clear();
-
-					VtArray<int> FaceCountArray;
-					FaceCounts.Get(&FaceCountArray, Time);
-					GeomData->FaceVertexCounts.assign(FaceCountArray.begin(), FaceCountArray.end());
-				}
-
-				UsdAttribute FaceIndices = Mesh.GetFaceVertexIndicesAttr();
-				if (FaceIndices)
-				{
-					GeomData->FaceIndices.clear();
-
-					VtArray<int> FaceIndicesArray;
-					FaceIndices.Get(&FaceIndicesArray, Time);
-					GeomData->FaceIndices.assign(FaceIndicesArray.begin(), FaceIndicesArray.end());
-				}
-
-				UsdAttribute Points = Mesh.GetPointsAttr();
-				if (Points)
-				{
-					GeomData->Points.clear();
-
-					VtArray<GfVec3f> PointsArray;
-					Points.Get(&PointsArray, Time);
-
-					GeomData->Points.resize(PointsArray.size());
-					memcpy(&GeomData->Points[0], &PointsArray[0], PointsArray.size() * sizeof(GfVec3f));
-				}
-
-				UsdAttribute Normals = Mesh.GetNormalsAttr();
-				if (Normals)
-				{
-					GeomData->Normals.clear();
-
-					VtArray<GfVec3f> NormalsArray;
-					Normals.Get(&NormalsArray, Time);
-
-					GeomData->Normals.resize(NormalsArray.size());
-					memcpy(&GeomData->Normals[0], &NormalsArray[0], NormalsArray.size() * sizeof(GfVec3f));
-				} 
-
-				UsdGeomPrimvar DisplayColorPrimVar = Mesh.GetDisplayColorPrimvar();
-				if (DisplayColorPrimVar)
-				{
-					GeomData->VertexColors.clear();
-
-					TfToken Interpolation = DisplayColorPrimVar.GetInterpolation();
-
-					if (Interpolation == UsdGeomTokens->faceVarying || Interpolation == UsdGeomTokens->uniform)
-					{
-						GeomData->VertexColorInterpMethod = Interpolation == UsdGeomTokens->faceVarying ? EUsdInterpolationMethod::FaceVarying : EUsdInterpolationMethod::Uniform;
-						VtArray<GfVec3f> DisplayColorArray;
-						DisplayColorPrimVar.ComputeFlattened(&DisplayColorArray, Time);
-		
-						GeomData->VertexColors.resize(DisplayColorArray.size());
-						memcpy(&GeomData->VertexColors[0], &DisplayColorArray[0], DisplayColorArray.size() * sizeof(GfVec3f));
-					}
-					else if (Interpolation == UsdGeomTokens->vertex)
-					{
-						GeomData->VertexColorInterpMethod = EUsdInterpolationMethod::Vertex;
-						VtIntArray VertexColorIndices;
-						VtArray<GfVec3f> DisplayColorArray;
-						DisplayColorPrimVar.GetIndices(&VertexColorIndices, Time);
-						DisplayColorPrimVar.Get(&DisplayColorArray, Time);
-
-						if (VertexColorIndices.size() == GeomData->Points.size())
-						{
-							GeomData->VertexColors.resize(VertexColorIndices.size());
-							for (int PointIdx = 0; PointIdx < GeomData->Points.size(); ++PointIdx)
-							{
-								GfVec3f Color = DisplayColorArray[VertexColorIndices[PointIdx]];
-								GeomData->VertexColors[PointIdx] = FUsdVectorData(Color[0], Color[1], Color[2]);
-							}
-						}
-						else
-						{
-							// Assume mapping is identical
-							GeomData->VertexColors.resize(DisplayColorArray.size());
-							memcpy(&GeomData->VertexColors[0], &DisplayColorArray[0], DisplayColorArray.size() * sizeof(GfVec3f));
-						}
-					}
-					else if (Interpolation == UsdGeomTokens->constant)
-					{
-						VtArray<GfVec3f> DisplayColorArray;
-						DisplayColorPrimVar.Get(&DisplayColorArray, Time);
-
-						if(DisplayColorArray.size() > 0)
-						{
-							GfVec3f Color = DisplayColorArray[0];
-							GeomData->VertexColors.push_back(FUsdVectorData(Color[0], Color[1], Color[2]));
-						}
-					}
-				}
-
-				GeomData->Orientation = EUsdGeomOrientation::RightHanded;
-				UsdAttribute Orientation = Mesh.GetOrientationAttr();
-				if(Orientation)
-				{ 
-					static TfToken RightHanded("rightHanded");
-					static TfToken LeftHanded("leftHanded");
-
-					TfToken OrientationValue;
-					Orientation.Get(&OrientationValue, Time);
-
-					GeomData->Orientation = OrientationValue == LeftHanded ? EUsdGeomOrientation::LeftHanded : EUsdGeomOrientation::RightHanded;
-				}
-
-			}
-
-			// UVs
-			{
-				static TfToken UVSetName("primvars:st");
-
-				UsdGeomPrimvar STPrimvar = Mesh.GetPrimvar(UVSetName);
-
-				int UVIndex = GeomData->NumUVs;
-				if(STPrimvar)
-				{
-					// We are creating one UV set
-					++GeomData->NumUVs;
-
-					GeomData->UVs[UVIndex].Coords.clear();
-
-					if (STPrimvar.GetInterpolation() == UsdGeomTokens->faceVarying)
-					{
-						GeomData->UVs[UVIndex].UVInterpMethod = EUsdInterpolationMethod::FaceVarying;
-						VtVec2fArray UVs;
-						STPrimvar.ComputeFlattened(&UVs, Time);
-						if (UVs.size() == GeomData->FaceIndices.size())
-						{
-							GeomData->UVs[UVIndex].Coords.resize(UVs.size());
-							memcpy(&GeomData->UVs[UVIndex].Coords[0], &UVs[0], UVs.size() * sizeof(GfVec2f));
-						}
-					}
-					else if (STPrimvar.GetInterpolation() == UsdGeomTokens->vertex)
-					{
-						GeomData->UVs[UVIndex].UVInterpMethod = EUsdInterpolationMethod::Vertex;
-						VtIntArray UVIndices;
-						VtVec2fArray UVs;
-						STPrimvar.GetIndices(&UVIndices, Time);
-						STPrimvar.Get(&UVs, Time);
-
-						if (UVIndices.size() == GeomData->Points.size())
-						{
-							GeomData->UVs[UVIndex].Coords.resize(UVIndices.size());
-							for (int PointIdx = 0; PointIdx < GeomData->Points.size(); ++PointIdx)
-							{
-								GfVec2f UV = UVs[UVIndices[PointIdx]];
-								GeomData->UVs[UVIndex].Coords[PointIdx] = FUsdVector2Data(UV[0], UV[1]);
-
-							}
-						}
-					}
-				}
-			}
-
-			GetGeometryMaterials(Time, *GeomData);
-
-			// SubD
-			{
-				GeomData->SubdivisionScheme = EUsdSubdivisionScheme::CatmullClark;
-				UsdAttribute SubDivScheme = Mesh.GetSubdivisionSchemeAttr();
-				if (SubDivScheme)
-				{
-					static const TfToken CatmullClark("catmullClark");
-					static const TfToken Loop("loop");
-					static const TfToken Bilinear("bilinear");
-					static const TfToken None("none");
-					TfToken SchemeName;
-					SubDivScheme.Get(&SchemeName, Time);
-
-					if (SchemeName == CatmullClark)
-					{
-						GeomData->SubdivisionScheme = EUsdSubdivisionScheme::CatmullClark;
-					}
-					else if (SchemeName == Loop)
-					{
-						GeomData->SubdivisionScheme = EUsdSubdivisionScheme::Loop;
-					}
-					else if (SchemeName == Bilinear)
-					{
-						GeomData->SubdivisionScheme = EUsdSubdivisionScheme::Bilinear;
-					}
-					else if (SchemeName == None)
-					{
-						GeomData->SubdivisionScheme = EUsdSubdivisionScheme::None;
-					}
-
-				}
-				UsdAttribute CreaseIndices = Mesh.GetCreaseIndicesAttr();
-				if (CreaseIndices)
-				{
-					GeomData->CreaseIndices.clear();
-
-					VtIntArray CreaseIndicesArray;
-					CreaseIndices.Get(&CreaseIndicesArray, Time);
-					GeomData->CreaseIndices.assign(CreaseIndicesArray.begin(), CreaseIndicesArray.end());
-				}
-
-				UsdAttribute CreaseLengths = Mesh.GetCreaseLengthsAttr();
-				if (CreaseLengths)
-				{
-					GeomData->CreaseLengths.clear();
-
-					VtIntArray CreaseLengthsArray;
-					CreaseLengths.Get(&CreaseLengthsArray);
-					GeomData->CreaseLengths.assign(CreaseLengthsArray.begin(), CreaseLengthsArray.end());
-				}
-
-				UsdAttribute CreaseSharpnesses = Mesh.GetCreaseSharpnessesAttr();
-				if (CreaseSharpnesses)
-				{
-					GeomData->CreaseSharpnesses.clear();
-
-					VtFloatArray CreaseSharpnessesArray;
-					CreaseSharpnesses.Get(&CreaseSharpnessesArray);
-					GeomData->CreaseSharpnesses.assign(CreaseSharpnessesArray.begin(), CreaseSharpnessesArray.end());
-				}
-
-				UsdAttribute CornerCreaseIndices = Mesh.GetCornerIndicesAttr();
-				if (CornerCreaseIndices)
-				{
-					GeomData->CornerCreaseIndices.clear();
-
-					VtIntArray CornerCreaseIndicesArray;
-					CornerCreaseIndices.Get(&CornerCreaseIndicesArray);
-					GeomData->CornerCreaseIndices.assign(CornerCreaseIndicesArray.begin(), CornerCreaseIndicesArray.end());
-				}
-				
-				UsdAttribute CornerSharpnesses = Mesh.GetCornerSharpnessesAttr();
-				if (CornerSharpnesses)
-				{
-					GeomData->CornerSharpnesses.clear();
-
-					VtFloatArray CornerSharpnessesArray;
-					CornerSharpnesses.Get(&CornerSharpnessesArray);
-					GeomData->CornerSharpnesses.assign(CornerSharpnessesArray.begin(), CornerSharpnessesArray.end());
-				}
-
-			}
-
-		}
-
-		return GeomData;
-	}
-
-	virtual int GetNumLODs() const override
-	{
-		// 0 indicates no variant or no lods in variant. 
-		int NumLODs = 0;
-		if (Prim.HasVariantSets())
-		{
-			UsdVariantSet LODVariantSet = Prim.GetVariantSet(UnrealIdentifiers::LOD);
-			if(LODVariantSet.IsValid())
-			{
-				vector<string> VariantNames = LODVariantSet.GetVariantNames();
-				NumLODs = VariantNames.size();
-			}
-		}
-
-		return NumLODs;
-	}
-
-	virtual bool SetActiveLODIndex(int LODIndex) override
-	{
-		if (Prim.HasVariantSets())
-		{
-			UsdVariantSet LODVariantSet = Prim.GetVariantSet(UnrealIdentifiers::LOD);
-			if (LODVariantSet.IsValid())
-			{
-				vector<string> VariantNames = LODVariantSet.GetVariantNames();
-
-				bool bResult = false;
-				if(LODIndex < VariantNames.size())
-				{
-					bResult = LODVariantSet.SetVariantSelection(VariantNames[LODIndex]);
-
-					if (bResult)
-					{
-						// Children cannot be trusted as they are deleted by usd, clear them out and rebuild
-
-						Children.clear();
-
-						for (const UsdPrim& Child : Prim.GetChildren())
-						{
-							Children.push_back(FPrimAndData(Child));
-						}
-					}
-				}
-			}
-		}
-		
-		return false;
-	}
-
-	virtual const std::vector<FUsdAttribute>& GetAttributes() const override
-	{
-		AllAttributes.clear();
-		PrivateGetAttributes(AllAttributes, TfToken());
-
-		return AllAttributes;
-	}
-
-	virtual const std::vector<FUsdAttribute>& GetUnrealPropertyAttributes() const override
-	{
-		UnrealPropAttributes.clear();
-		PrivateGetAttributes(UnrealPropAttributes, UnrealIdentifiers::PropertyPath);
-
-		return UnrealPropAttributes;
-	}
-
-	UsdPrim GetUSDPrim() { return Prim; }
-
-private:
-	void FillMaterialInfo(const SdfPath& Path, FUsdGeomData& GeomDataRef)
-	{
-		UsdStageWeakPtr Stage = Prim.GetStage();
+		TArray< FString > MaterialNames;
 
 		// load each material at the material path; 
 		UsdPrim MaterialPrim = Stage->Load(Path);
@@ -1091,50 +637,26 @@ private:
 		if(MaterialPrim)
 		{
 			// Default to using the prim path name as the path for this material in Unreal
-			std::string MaterialName = MaterialPrim.GetName().GetString();
+			FString MaterialName = ANSI_TO_TCHAR( MaterialPrim.GetName().GetString().c_str() ) ;
+
+			std::string UsdMaterialName;
 
 			// See if the material has an "unrealAssetPath" attribute.  This should be the full name of the material
 			static const TfToken AssetPathToken = TfToken(UnrealIdentifiers::AssetPath);
 			UsdAttribute UnrealAssetPathAttr = MaterialPrim.GetAttribute(AssetPathToken);
 			if (UnrealAssetPathAttr && UnrealAssetPathAttr.HasValue())
 			{
-				UnrealAssetPathAttr.Get(&MaterialName);
+				UnrealAssetPathAttr.Get(&UsdMaterialName);
+
+
 			}
 
-			GeomDataRef.MaterialNames.push_back(MaterialName);
+			MaterialNames.Add( MoveTemp( MaterialName ) );
 		}
+
+		return MaterialNames;
 	}
-	void PrivateGetAttributes(std::vector<FUsdAttribute>& OutAttributes, const TfToken& ByMetadata) const
-	{
-		std::vector<UsdAttribute> Attributes = Prim.GetAttributes();
-		OutAttributes.reserve(Attributes.size());
-
-		for (UsdAttribute& Attr : Attributes)
-		{
-			if (ByMetadata.IsEmpty() || Attr.HasCustomDataKey(ByMetadata))
-			{
-				OutAttributes.push_back(
-					FUsdAttribute(std::shared_ptr<FAttribInternalData>(new FAttribInternalData(Attr)))
-				);
-			}
-		}
-	}
-
-	void GetGeometryMaterials(double Time, FUsdGeomData& GeomDataRef);
-
-private:
-	UsdPrim Prim;
-	vector<FPrimAndData> Children;
-	mutable std::vector<FUsdAttribute> AllAttributes;
-	mutable std::vector<FUsdAttribute> UnrealPropAttributes;
-	string PrimName;
-	string PrimPath;
-	string UnrealAssetPath;
-	string UnrealActorClass;
-	string UnrealPropertyPath;
-	string Kind;
-	FUsdGeomData* GeomData;
-};
+}
 
 std::string DiscoverInformationAboutUsdMaterial(const UsdShadeMaterial& ShadeMaterial, const UsdGeomGprim& boundPrim)
 {
@@ -1142,10 +664,16 @@ std::string DiscoverInformationAboutUsdMaterial(const UsdShadeMaterial& ShadeMat
 	return ShadingEngineName;
 }
 
-void FUsdPrim::GetGeometryMaterials(double Time, FUsdGeomData& GeomDataRef)
+TTuple< TArray< FString >, TArray< int32 > > IUsdPrim::GetGeometryMaterials(double Time, const UsdPrim& Prim)
 {
 	// Material mappings
 	// @todo time not supported yet
+
+	FScopedUsdAllocs UsdAllocs;
+
+	TArray< FString > MaterialNames;
+	TArray< int32 > FaceMaterialIndices;
+	VtArray<int> FaceVertexCounts;
 
 	UsdShadeMaterialBindingAPI BindingAPI(Prim);
 	UsdShadeMaterial ShadeMaterial = BindingAPI.ComputeBoundMaterial();
@@ -1154,9 +682,11 @@ void FUsdPrim::GetGeometryMaterials(double Time, FUsdGeomData& GeomDataRef)
 	{
 		SdfPath Path = ShadeMaterialPrim.GetPath();
 		std::string ShadingEngineName = DiscoverInformationAboutUsdMaterial(ShadeMaterial, UsdGeomGprim());
-		GeomDataRef.MaterialNames.resize(1);
-		GeomDataRef.MaterialNames[0] = ShadingEngineName;
-		return;
+
+		MaterialNames.Emplace( ANSI_TO_TCHAR( ShadingEngineName.c_str() ) );
+		FaceMaterialIndices.Emplace( 0 );
+
+		return MakeTuple( MaterialNames, FaceMaterialIndices );
 	}
 
 	// If the gprim does not have a material faceSet which represents per-face 
@@ -1168,17 +698,25 @@ void FUsdPrim::GetGeometryMaterials(double Time, FUsdGeomData& GeomDataRef)
 
 	if (FaceSubsets.empty() && !bHasOldStyleFaceSets && FaceSets.size() == 0)
 	{
-		return;
+		return {};
 	}
 
-	if (!FaceSubsets.empty())
+	UsdGeomMesh Mesh(Prim);
+
+	if (!FaceSubsets.empty() && Mesh)
 	{
-		int FaceCount = GeomDataRef.FaceVertexCounts.size();
+		UsdAttribute FaceCounts = Mesh.GetFaceVertexCountsAttr();
+		if (FaceCounts)
+		{
+			FaceCounts.Get(&FaceVertexCounts, Time);
+		}
+
+		int FaceCount = FaceVertexCounts.size();
 		if (FaceCount == 0)
 		{
 			//MGlobal::displayError(TfStringPrintf("Unable to get face count "
 			//	"for gprim at path <%s>.", primSchema.GetPath().GetText()).c_str());
-			return;
+			return {};
 		}
 
 		std::string ReasonWhyNotPartition;
@@ -1189,10 +727,8 @@ void FUsdPrim::GetGeometryMaterials(double Time, FUsdGeomData& GeomDataRef)
 			VtIntArray unassignedIndices = UsdGeomSubset::GetUnassignedIndices(FaceSubsets, FaceCount);
 		}
 
-		GeomDataRef.MaterialNames.resize(FaceSubsets.size());
-
-		GeomDataRef.FaceMaterialIndices.resize(GeomDataRef.FaceVertexCounts.size());
-		memset(&GeomDataRef.FaceMaterialIndices[0], 0, sizeof(int)*GeomDataRef.FaceMaterialIndices.size());
+		MaterialNames.AddDefaulted(FaceSubsets.size());
+		FaceMaterialIndices.AddZeroed(FaceVertexCounts.size());
 
 		int MaterialIndex = 0;
 		for (const auto &Subset : FaceSubsets)
@@ -1212,14 +748,14 @@ void FUsdPrim::GetGeometryMaterials(double Time, FUsdGeomData& GeomDataRef)
 			}
 
 			std::string ShadingEngineName = DiscoverInformationAboutUsdMaterial(BoundMaterial, UsdGeomGprim());
-			GeomDataRef.MaterialNames[MaterialIndex] = ShadingEngineName;
+			MaterialNames[MaterialIndex] = ANSI_TO_TCHAR( ShadingEngineName.c_str() ) ;
 
 			for (int i = 0; i < Indices.size(); ++i)
 			{
 				int PolygonIndex = Indices[i];
-				if (PolygonIndex >= 0 && PolygonIndex < GeomDataRef.FaceMaterialIndices.size())
+				if (PolygonIndex >= 0 && PolygonIndex < FaceMaterialIndices.Num())
 				{
-					GeomDataRef.FaceMaterialIndices[PolygonIndex] = MaterialIndex;
+					FaceMaterialIndices[PolygonIndex] = MaterialIndex;
 				}
 			}
 
@@ -1230,8 +766,7 @@ void FUsdPrim::GetGeometryMaterials(double Time, FUsdGeomData& GeomDataRef)
 	// Import per-face-set shader bindings.
 	if (bHasOldStyleFaceSets)
 	{
-		UsdGeomFaceSetAPI MaterialFaceSet =
-			UsdShadeMaterial::GetMaterialFaceSet(Prim);
+		UsdGeomFaceSetAPI MaterialFaceSet = UsdShadeMaterial::GetMaterialFaceSet(Prim);
 
 		SdfPathVector BindingTargets;
 		// TODO: ...
@@ -1240,15 +775,14 @@ void FUsdPrim::GetGeometryMaterials(double Time, FUsdGeomData& GeomDataRef)
 	// TODO: ...
 
 /////////////////////////////////////////////
-	if (GeomDataRef.FaceMaterialIndices.size() != 0)
+	if (FaceMaterialIndices.Num() != 0)
 	{
-		return;
+		return MakeTuple( MaterialNames, FaceMaterialIndices );
 	}
 
-	GeomDataRef.FaceMaterialIndices.resize(GeomDataRef.FaceVertexCounts.size());
-	memset(&GeomDataRef.FaceMaterialIndices[0], 0, sizeof(int)*GeomDataRef.FaceMaterialIndices.size());
+	FaceMaterialIndices.AddZeroed(FaceVertexCounts.size());
 
-	// Figure out a zero based mateiral index for each face.  The mapping is FaceMaterialIndices[FaceIndex] = MaterialIndex;
+	// Figure out a zero based material index for each face.  The mapping is FaceMaterialIndices[FaceIndex] = MaterialIndex;
 	// This is done by walking the face sets and for each face set getting the number number of unique groups of faces in the set
 	// Each one of these groups represents a material index for that face set.  If there are multiple face sets the material index is offset by the face set index
 	// Once the groups of faces are determined, walk the Indices for the total number of faces in each group.  Each element in the face Indices array represents a single global face index
@@ -1256,7 +790,7 @@ void FUsdPrim::GetGeometryMaterials(double Time, FUsdGeomData& GeomDataRef)
 
 	// @todo USD/Unreal.  This is probably wrong for multiple face sets.  They don't make a ton of sense for unreal as there can only be one "set" of materials at once and there is no construct in the engine for material sets
 
-	//GeomDataRef.MaterialNames.resize(FaceSets)
+	//MaterialNames.Resize(FaceSets)
 	if (FaceSets.size() > 0)
 	{
 		for (int FaceSetIdx = 0; FaceSetIdx < FaceSets.size(); ++FaceSetIdx)
@@ -1270,7 +804,7 @@ void FUsdPrim::GetGeometryMaterials(double Time, FUsdGeomData& GeomDataRef)
 			UsdStageWeakPtr Stage = Prim.GetStage();
 			for (const SdfPath& Path : BindingTargets)
 			{
-				FillMaterialInfo(Path, GeomDataRef);
+				MaterialNames.Append( Internal::FillMaterialInfo(Path, Stage) );
 			}
 			// Faces must be mutually exclusive
 			if (FaceSet.GetIsPartition())
@@ -1298,7 +832,7 @@ void FUsdPrim::GetGeometryMaterials(double Time, FUsdGeomData& GeomDataRef)
 					for (int FaceNum = 0; FaceNum < FaceCount; ++FaceNum)
 					{
 						int Face = FaceIndices[FaceNum + Offset];
-						GeomDataRef.FaceMaterialIndices[Face] = MaterialIdx;
+						FaceMaterialIndices[Face] = MaterialIdx;
 					}
 					Offset += FaceCount;
 				}
@@ -1316,144 +850,97 @@ void FUsdPrim::GetGeometryMaterials(double Time, FUsdGeomData& GeomDataRef)
 			// Note there should only be one target without a face set but fill them out so we can warn later
 			for (const SdfPath& Path : Targets)
 			{
-				FillMaterialInfo(Path, GeomDataRef);
+				MaterialNames.Append( Internal::FillMaterialInfo(Path, Prim.GetStage()) );
 			}
 		}
 	}
+
+	return MakeTuple( MaterialNames, FaceMaterialIndices );
 }
 
-class FUsdStage : public IUsdStage
+bool IUsdPrim::IsUnrealProperty(const pxr::UsdPrim& Prim)
 {
-public:
-	FUsdStage(UsdStageRefPtr& InStage)
-		: Stage(InStage)
-		, RootPrim(nullptr)
-	{
-	}
+	return Prim.HasCustomDataKey(UnrealIdentifiers::PropertyPath);
+}
 
-	~FUsdStage()
+bool IUsdPrim::HasTransform(const pxr::UsdPrim& Prim)
+{
+	return UsdGeomXformable(Prim) ? true : false;
+}
+
+bool IUsdPrim::SetActiveLODIndex(const pxr::UsdPrim& Prim, int LODIndex)
+{
+	FScopedUsdAllocs UsdAllocs;
+
+	if (Prim.HasVariantSets())
 	{
-		if (RootPrim)
+		UsdVariantSet LODVariantSet = Prim.GetVariantSet(UnrealIdentifiers::LOD);
+		if (LODVariantSet.IsValid())
 		{
-			delete RootPrim;
-		}
-	}
+			vector<string> VariantNames = LODVariantSet.GetVariantNames();
 
-	EUsdUpAxis GetUpAxis() const override
-	{
-		// note USD does not support X up
-		return UsdGeomGetStageUpAxis(Stage) == UsdGeomTokens->y ? EUsdUpAxis::YAxis : EUsdUpAxis::ZAxis;
-	}
-
-	IUsdPrim* GetRootPrim() override
-	{
-		if (Stage && !RootPrim)
-		{
-			RootPrim = new FUsdPrim(Stage->GetPseudoRoot());
-
-			
-		}
-
-		return RootPrim;
-	}
-
-	void ResetGetPrimAtPathLookup() override
-	{
-		LookupByPath.clear();
-	}
-
-	void BuildLookupByPath(IUsdPrim* Prim)
-	{
-		LookupByPath[Prim->GetPrimPath()] = Prim;
-		int NumChildren = Prim->GetNumChildren();
-		for (int i = 0; i < NumChildren; ++i)
-		{
-			BuildLookupByPath(Prim->GetChild(i));
-		}
-	}
-
-	IUsdPrim* GetPrimAtPath(const std::string& InPath) override
-	{
-		IUsdPrim* Prim = GetRootPrim();
-		if (Stage && Prim)
-		{
-			if (LookupByPath.size() == 0)
+			bool bResult = false;
+			if(LODIndex < VariantNames.size())
 			{
-				BuildLookupByPath(Prim);
-			}
-
-			auto found = LookupByPath.find(InPath);
-			if (found != LookupByPath.end())
-			{
-				return found->second;
+				bResult = LODVariantSet.SetVariantSelection(VariantNames[LODIndex]);
 			}
 		}
-
-		return nullptr;
 	}
+		
+	return false;
+}
 
-	virtual bool HasAuthoredTimeCodeRange() const override
+EUsdGeomOrientation IUsdPrim::GetGeometryOrientation(const pxr::UsdGeomMesh& Mesh)
+{
+	return GetGeometryOrientation( Mesh, pxr::UsdTimeCode::Default().GetValue() );
+}
+
+EUsdGeomOrientation IUsdPrim::GetGeometryOrientation(const pxr::UsdGeomMesh& Mesh, double Time)
+{
+	EUsdGeomOrientation GeomOrientation = EUsdGeomOrientation::RightHanded;
+
+	if (Mesh)
 	{
-		return Stage->HasAuthoredTimeCodeRange();
+		UsdAttribute Orientation = Mesh.GetOrientationAttr();
+		if(Orientation)
+		{ 
+			static TfToken RightHanded("rightHanded");
+			static TfToken LeftHanded("leftHanded");
+
+			TfToken OrientationValue;
+			Orientation.Get(&OrientationValue, Time);
+
+			GeomOrientation = OrientationValue == LeftHanded ? EUsdGeomOrientation::LeftHanded : EUsdGeomOrientation::RightHanded;
+		}
 	}
 
-	virtual double GetStartTimeCode() const override
-	{
-		return Stage->GetStartTimeCode();
-	}
-
-	virtual double GetEndTimeCode() const override
-	{
-		return Stage->GetEndTimeCode();
-	}
-
-	virtual double GetFramesPerSecond() const override
-	{
-		return Stage->GetFramesPerSecond();
-	}
-
-	virtual double GetTimeCodesPerSecond() const override
-	{
-		return Stage->GetTimeCodesPerSecond();
-	}
-
-private:
-	UsdStageRefPtr Stage;
-	FUsdPrim* RootPrim;
-	std::map<std::string, IUsdPrim*> LookupByPath;
-};
+	return GeomOrientation;
+}
 
 bool UnrealUSDWrapper::bInitialized = false;
-FUsdStage* UnrealUSDWrapper::CurrentStage = nullptr;
 std::string UnrealUSDWrapper::Errors;
 
-FPrimAndData::~FPrimAndData()
-{
-	if (PrimData)
-	{
-		delete PrimData;
-	}
-}
 
 void UnrealUSDWrapper::Initialize(const std::vector<std::string>& InPluginDirectories)
 {
+	{
+		FScopedUsdAllocs UsdAllocs;
+		PlugRegistry::GetInstance().RegisterPlugins(InPluginDirectories);
+	}
+
 	bInitialized = true;
-	PlugRegistry::GetInstance().RegisterPlugins(InPluginDirectories);
 }
 
-IUsdStage* UnrealUSDWrapper::ImportUSDFile(const char* Path, const char* Filename)
+TUsdStore< pxr::UsdStageRefPtr > UnrealUSDWrapper::ImportUSDFile(const char* Path, const char* Filename)
 {
 	Errors.clear();
 
 	if (!bInitialized)
 	{
-		return nullptr;
+		return {};
 	}
 
 	bool bImportedSuccessfully = false;
-
-	// Clean up any old data
-	CleanUp();
 
 	TfErrorMark ErrorMark;
 
@@ -1462,11 +949,6 @@ IUsdStage* UnrealUSDWrapper::ImportUSDFile(const char* Path, const char* Filenam
 	bool bIsSupported = UsdStage::IsSupportedFile(PathAndFilename);
 
 	UsdStageRefPtr Stage = UsdStage::Open(PathAndFilename);
-
-	if (Stage)
-	{
-		CurrentStage = new FUsdStage(Stage);
-	}
 
 	if (!ErrorMark.IsClean())
 	{
@@ -1480,20 +962,7 @@ IUsdStage* UnrealUSDWrapper::ImportUSDFile(const char* Path, const char* Filenam
 		}
 	}
 
-	return CurrentStage;
-}
-
-void UnrealUSDWrapper::CleanUp()
-{
-	if (CurrentStage)
-	{
-#if USDWRAPPER_USE_XFORMACHE
-		XFormCache.Clear();
-#endif // USDWRAPPER_USE_XFORMACHE
-
-		delete CurrentStage;
-		CurrentStage = nullptr;
-	}
+	return Stage;
 }
 
 double UnrealUSDWrapper::GetDefaultTimeCode()
@@ -1508,20 +977,25 @@ const char* UnrealUSDWrapper::GetErrors()
 
 #endif // USE_USD_SDK
 
-// The following code will crash if we override global new and delete:
-//     std::vector<UsdAttribute> Attributes = Prim.GetAttributes();
-// The delete override in this .dll will be called on memory belonging to 'std::vector<UsdAttribute>' that was allocated by a different dll without calling the new override in this dll
-//
-// USD SDK does not currently allow setting up custom allocators, so we cannot override global new/delete
-//
-#if !FORCE_ANSI_ALLOCATOR
-	#pragma push_macro("REPLACEMENT_OPERATOR_NEW_AND_DELETE")
-	#undef REPLACEMENT_OPERATOR_NEW_AND_DELETE
-	#define REPLACEMENT_OPERATOR_NEW_AND_DELETE
-#endif
+class FUnrealUSDWrapperModule : public IUnrealUSDWrapperModule
+{
+public:
+	virtual void StartupModule() override
+	{
+		FUsdMemoryManager::Initialize();
+	}
 
-IMPLEMENT_MODULE(FDefaultModuleImpl, UnrealUSDWrapper);
+	virtual void ShutdownModule() override
+	{
+		FUsdMemoryManager::Shutdown();
+	}
 
-#if !FORCE_ANSI_ALLOCATOR
-	#pragma pop_macro("REPLACEMENT_OPERATOR_NEW_AND_DELETE")
+	virtual void Initialize(const std::vector<std::string>& InPluginDirectories) override
+	{
+#if USE_USD_SDK
+		UnrealUSDWrapper::Initialize( InPluginDirectories );
 #endif
+	}
+};
+
+IMPLEMENT_MODULE_USD(FUnrealUSDWrapperModule, UnrealUSDWrapper);

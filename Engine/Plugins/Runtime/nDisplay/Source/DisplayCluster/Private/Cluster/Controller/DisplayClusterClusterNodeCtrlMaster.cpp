@@ -8,9 +8,9 @@
 #include "Network/Service/ClusterEvents/DisplayClusterClusterEventsService.h"
 
 #include "Misc/App.h"
-#include "Misc/DisplayClusterLog.h"
 
 #include "DisplayClusterGlobals.h"
+#include "DisplayClusterLog.h"
 
 
 FDisplayClusterClusterNodeCtrlMaster::FDisplayClusterClusterNodeCtrlMaster(const FString& ctrlName, const FString& nodeName) :

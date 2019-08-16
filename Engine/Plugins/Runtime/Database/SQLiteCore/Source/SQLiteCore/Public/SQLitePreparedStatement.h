@@ -4,9 +4,16 @@
 
 #include "CoreTypes.h"
 #include "SQLiteTypes.h"
+#include "Misc/Guid.h"
+#include "Misc/DateTime.h"
 #include "Misc/EnumClassFlags.h"
+#include "UObject/NameTypes.h"
 #include "Containers/ArrayView.h"
 #include "Containers/UnrealString.h"
+#include "Internationalization/Text.h"
+#include "Templates/EnableIf.h"
+#include "Templates/IsEnumClass.h"
+#include "Delegates/IntegerSequence.h"
 
 class FSQLiteDatabase;
 
@@ -39,6 +46,21 @@ enum class ESQLitePreparedStatementStepResult : uint8
 
 	/** The step was successful, but we've reached the end of the rows and enumeration should be aborted. */
 	Done,
+};
+
+/**
+ * Result codes used while executing rows in an SQLite prepared statement.
+ */
+enum class ESQLitePreparedStatementExecuteRowResult : uint8
+{
+	/** Continue execution to the next row (if available). */
+	Continue,
+
+	/** Stop execution, but do not report an error. */
+	Stop,
+
+	/** Stop execution, and report an error. */
+	Error,
 };
 
 /**
@@ -123,6 +145,18 @@ public:
 	bool SetBindingValueByIndex(const int32 InBindingIndex, const int64 InValue);
 	bool SetBindingValueByName(const TCHAR* InBindingName, const uint64 InValue);
 	bool SetBindingValueByIndex(const int32 InBindingIndex, const uint64 InValue);
+	bool SetBindingValueByName(const TCHAR* InBindingName, const FDateTime InValue);
+	bool SetBindingValueByIndex(const int32 InBindingIndex, const FDateTime InValue);
+	template <typename EnumType, typename = typename TEnableIf<TIsEnumClass<EnumType>::Value>::Type>
+	bool SetBindingValueByName(const TCHAR* InBindingName, const EnumType InValue)
+	{
+		return SetBindingValueByIndex(GetBindingIndexByName(InBindingName), InValue);
+	}
+	template <typename EnumType, typename = typename TEnableIf<TIsEnumClass<EnumType>::Value>::Type>
+	bool SetBindingValueByIndex(const int32 InBindingIndex, const EnumType InValue)
+	{
+		return SetBindingValueByIndex(InBindingIndex, (__underlying_type(EnumType))InValue);
+	}
 
 	/**
 	 * Set the given float binding from its name or index.
@@ -139,6 +173,10 @@ public:
 	bool SetBindingValueByIndex(const int32 InBindingIndex, const TCHAR* InValue);
 	bool SetBindingValueByName(const TCHAR* InBindingName, const FString& InValue);
 	bool SetBindingValueByIndex(const int32 InBindingIndex, const FString& InValue);
+	bool SetBindingValueByName(const TCHAR* InBindingName, const FName InValue);
+	bool SetBindingValueByIndex(const int32 InBindingIndex, const FName InValue);
+	bool SetBindingValueByName(const TCHAR* InBindingName, const FText& InValue);
+	bool SetBindingValueByIndex(const int32 InBindingIndex, const FText& InValue);
 
 	/**
 	 * Set the given blob binding from its name or index.
@@ -148,12 +186,28 @@ public:
 	bool SetBindingValueByIndex(const int32 InBindingIndex, TArrayView<const uint8> InBlobData, const bool bCopy = true);
 	bool SetBindingValueByName(const TCHAR* InBindingName, const void* InBlobData, const int32 InBlobDataSizeBytes, const bool bCopy = true);
 	bool SetBindingValueByIndex(const int32 InBindingIndex, const void* InBlobData, const int32 InBlobDataSizeBytes, const bool bCopy = true);
+	bool SetBindingValueByName(const TCHAR* InBindingName, const FGuid& InValue);
+	bool SetBindingValueByIndex(const int32 InBindingIndex, const FGuid& InValue);
 
 	/**
 	 * Set the given null binding from its name or index.
 	 */
 	bool SetBindingValueByName(const TCHAR* InBindingName);
 	bool SetBindingValueByIndex(const int32 InBindingIndex);
+
+	/**
+	 * Execute a statement that requires no result state.
+	 * @note The statement must not be active, and any required bindings must have been set before calling this function (this function will not modify bindings).
+	 * @return true if the execution was a success.
+	 */
+	bool Execute();
+
+	/**
+	 * Execute a statement and enumerate the result state.
+	 * @note The statement must not be active, and any required bindings must have been set before calling this function (this function will not modify bindings).
+	 * @return The number of rows enumerated (which may be less than the number of rows returned if ESQLitePreparedStatementExecuteRowResult::Stop is returned during enumeration), or INDEX_NONE if an error occurred (including returning ESQLitePreparedStatementExecuteRowResult::Error during enumeration).
+	 */
+	int64 Execute(TFunctionRef<ESQLitePreparedStatementExecuteRowResult(const FSQLitePreparedStatement&)> InCallback);
 
 	/**
 	 * Step the SQLite prepared statement to try and move on to the next result from the statement.
@@ -187,6 +241,18 @@ public:
 	bool GetColumnValueByIndex(const int32 InColumnIndex, int64& OutValue) const;
 	bool GetColumnValueByName(const TCHAR* InColumnName, uint64& OutValue) const;
 	bool GetColumnValueByIndex(const int32 InColumnIndex, uint64& OutValue) const;
+	bool GetColumnValueByName(const TCHAR* InColumnName, FDateTime& OutValue) const;
+	bool GetColumnValueByIndex(const int32 InColumnIndex, FDateTime& OutValue) const;
+	template <typename EnumType, typename = typename TEnableIf<TIsEnumClass<EnumType>::Value>::Type>
+	bool GetColumnValueByName(const TCHAR* InColumnName, EnumType& InValue) const
+	{
+		return GetColumnValueByIndex(GetColumnIndexByName(InColumnName), InValue);
+	}
+	template <typename EnumType, typename = typename TEnableIf<TIsEnumClass<EnumType>::Value>::Type>
+	bool GetColumnValueByIndex(const int32 InColumnIndex, EnumType& InValue) const
+	{
+		return GetColumnValueByIndex(InColumnIndex, (__underlying_type(EnumType)&)InValue);
+	}
 
 	/**
 	 * Get the float value of a column from its name or index.
@@ -201,12 +267,18 @@ public:
 	 */
 	bool GetColumnValueByName(const TCHAR* InColumnName, FString& OutValue) const;
 	bool GetColumnValueByIndex(const int32 InColumnIndex, FString& OutValue) const;
+	bool GetColumnValueByName(const TCHAR* InColumnName, FName& OutValue) const;
+	bool GetColumnValueByIndex(const int32 InColumnIndex, FName& OutValue) const;
+	bool GetColumnValueByName(const TCHAR* InColumnName, FText& OutValue) const;
+	bool GetColumnValueByIndex(const int32 InColumnIndex, FText& OutValue) const;
 
 	/**
 	 * Get the blob value of a column from its name or index.
 	 */
 	bool GetColumnValueByName(const TCHAR* InColumnName, TArray<uint8>& OutValue) const;
 	bool GetColumnValueByIndex(const int32 InColumnIndex, TArray<uint8>& OutValue) const;
+	bool GetColumnValueByName(const TCHAR* InColumnName, FGuid& OutValue) const;
+	bool GetColumnValueByIndex(const int32 InColumnIndex, FGuid& OutValue) const;
 
 	/**
 	 * Get the type of a column from its name or index.
@@ -265,3 +337,202 @@ private:
 	/** Cached array of column names (generated on-demand when needed by the API) */
 	mutable TArray<FString> CachedColumnNames;
 };
+
+/** Macro wrapper for the columns and bindings mixin template types, so that they can be used as an argument to other macros */
+#define SQLITE_PREPARED_STATEMENT_COLUMNS(...)	SQLitePreparedStatementImpl::TColumns<__VA_ARGS__>
+#define SQLITE_PREPARED_STATEMENT_BINDINGS(...)	SQLitePreparedStatementImpl::TBindings<__VA_ARGS__>
+
+/** Macro wrapper that takes the columns and bindings as a variable args list, so that it can deal with the expanded version of the macros above containing commas which it treats as extra arguments to the macro */
+#define SQLITE_PREPARED_STATEMENT_EXPANDED_IMPL(TYPE, STATEMENT, ...)		\
+	struct _##TYPE##_StatementStr_Provider { static const TCHAR* GetStatement() { return TEXT(STATEMENT); } };		\
+	typedef SQLitePreparedStatementImpl::TPreparedStatement<_##TYPE##_StatementStr_Provider, ##__VA_ARGS__> TYPE
+
+/** Macro to define a type-safe prepared statement type that may have optional columns and bindings */
+#define SQLITE_PREPARED_STATEMENT(TYPE, STATEMENT, COLUMNS, BINDINGS)		\
+	SQLITE_PREPARED_STATEMENT_EXPANDED_IMPL(TYPE, STATEMENT, COLUMNS, BINDINGS)
+
+/** Macro to define a type-safe prepared statement type with only columns */
+#define SQLITE_PREPARED_STATEMENT_COLUMNS_ONLY(TYPE, STATEMENT, COLUMNS)	\
+	SQLITE_PREPARED_STATEMENT_EXPANDED_IMPL(TYPE, STATEMENT, COLUMNS, SQLITE_PREPARED_STATEMENT_BINDINGS())
+
+/** Macro to define a type-safe prepared statement type with only bindings */
+#define SQLITE_PREPARED_STATEMENT_BINDINGS_ONLY(TYPE, STATEMENT, BINDINGS)	\
+	SQLITE_PREPARED_STATEMENT_EXPANDED_IMPL(TYPE, STATEMENT, SQLITE_PREPARED_STATEMENT_COLUMNS(), BINDINGS)
+
+/** Macro to define a type-safe prepared statement type with neither columns or bindings */
+#define SQLITE_PREPARED_STATEMENT_SIMPLE(TYPE, STATEMENT)					\
+	SQLITE_PREPARED_STATEMENT_EXPANDED_IMPL(TYPE, STATEMENT, SQLITE_PREPARED_STATEMENT_COLUMNS(), SQLITE_PREPARED_STATEMENT_BINDINGS())
+
+namespace SQLitePreparedStatementImpl
+{
+
+/**
+ * Type-safe packing of multiple column types.
+ * For use with SQLITE_PREPARED_STATEMENT_COLUMNS.
+ */
+template <typename... Columns>
+struct TColumns;
+
+/**
+ * Type-safe packing of multiple binding types.
+ * For use with SQLITE_PREPARED_STATEMENT_BINDINGS.
+ */
+template <typename... Bindings>
+struct TBindings;
+
+/**
+ * Generic version of TPreparedStatement, specialized below.
+ */
+template <typename StatementProvider, typename Columns, typename Bindings>
+class TPreparedStatement;
+
+/**
+ * Creates a type-safe SQLite prepared statement.
+ * For use with SQLITE_PREPARED_STATEMENT.
+ */
+template <typename StatementProvider, typename... Columns, typename... Bindings>
+class TPreparedStatement<StatementProvider, TColumns<Columns...>, TBindings<Bindings...>> : public FSQLitePreparedStatement
+{
+public:
+	TPreparedStatement() = default;
+	TPreparedStatement(FSQLiteDatabase& InDatabase, const ESQLitePreparedStatementFlags InFlags)
+		: FSQLitePreparedStatement(InDatabase, StatementProvider::GetStatement(), InFlags)
+	{
+	}
+
+	/**
+	 * Create a new SQLite prepared statement.
+	 */
+	bool Create(FSQLiteDatabase& InDatabase, const ESQLitePreparedStatementFlags InFlags = ESQLitePreparedStatementFlags::None)
+	{
+		return FSQLitePreparedStatement::Create(InDatabase, StatementProvider::GetStatement(), InFlags);
+	}
+
+	/**
+	 * Execute a statement that requires no result state.
+	 * @note The statement must not be active, and any required bindings must have been set before calling this function (this function will not modify bindings).
+	 * @return true if the execution was a success.
+	 */
+	bool Execute()
+	{
+		return FSQLitePreparedStatement::Execute();
+	}
+
+	/**
+	 * Set the value of all bindings, and execute a statement that requires no result state.
+	 * @note The statement must not be active.
+	 * @return true if the execution was a success.
+	 */
+	bool BindAndExecute(const Bindings&... BindingArgs)
+	{
+		bool bResult = false;
+		if (SetBindingValues(BindingArgs...))
+		{
+			bResult = Execute();
+			ClearBindings();
+		}
+		return bResult;
+	}
+
+	/**
+	 * Execute a statement and enumerate the result state.
+	 * @note The statement must not be active, and any required bindings must have been set before calling this function (this function will not modify bindings).
+	 * @return The number of rows enumerated (which may be less than the number of rows returned if ESQLitePreparedStatementExecuteRowResult::Stop is returned during enumeration), or INDEX_NONE if an error occurred (including returning ESQLitePreparedStatementExecuteRowResult::Error during enumeration).
+	 */
+	int64 Execute(TFunctionRef<ESQLitePreparedStatementExecuteRowResult(const TPreparedStatement&)> InCallback)
+	{
+		return FSQLitePreparedStatement::Execute([this, &InCallback](const FSQLitePreparedStatement& InStatement)
+		{
+			check(this == &InStatement);
+			return InCallback(*this);
+		});
+	}
+
+	/**
+	 * Set the value of all bindings, and execute a statement and enumerate the result state.
+	 * @note The statement must not be active.
+	 * @return The number of rows enumerated (which may be less than the number of rows returned if ESQLitePreparedStatementExecuteRowResult::Stop is returned during enumeration), or INDEX_NONE if an error occurred (including returning ESQLitePreparedStatementExecuteRowResult::Error during enumeration).
+	 */
+	int64 BindAndExecute(const Bindings&... BindingArgs, TFunctionRef<ESQLitePreparedStatementExecuteRowResult(const TPreparedStatement&)> InCallback)
+	{
+		int64 Result = INDEX_NONE;
+		if (SetBindingValues(BindingArgs...))
+		{
+			Result = Execute(InCallback);
+			ClearBindings();
+		}
+		return Result;
+	}
+
+	/**
+	 * Execute a statement that returns a single result.
+	 * @note The statement must not be active, and any required bindings must have been set before calling this function (this function will not modify bindings).
+	 * @return true if the execution was a success and a single result was returned.
+	 */
+	bool ExecuteSingle(Columns&... ColumnArgs)
+	{
+		return Execute([&](const TPreparedStatement& InStatement)
+		{
+			return InStatement.GetColumnValues(ColumnArgs...) ? ESQLitePreparedStatementExecuteRowResult::Continue : ESQLitePreparedStatementExecuteRowResult::Error;
+		}) == 1;
+	}
+
+	/**
+	 * Set the value of all bindings, and execute a statement that returns a single result.
+	 * @note The statement must not be active.
+	 * @return true if the execution was a success and a single result was returned.
+	 */
+	bool BindAndExecuteSingle(const Bindings&... BindingArgs, Columns&... ColumnArgs)
+	{
+		bool bResult = false;
+		if (SetBindingValues(BindingArgs...))
+		{
+			bResult = ExecuteSingle(ColumnArgs...);
+			ClearBindings();
+		}
+		return bResult;
+	}
+
+	/**
+	 * Set the value of all bindings.
+	 */
+	bool SetBindingValues(const Bindings&... BindingArgs)
+	{
+		return SetBindingValuesImpl(TMakeIntegerSequence<int32, sizeof...(Bindings)>(), BindingArgs...);
+	}
+
+	/**
+	 * Get the values of all columns.
+	 */
+	bool GetColumnValues(Columns&... ColumnArgs) const
+	{
+		return GetColumnValuesImpl(TMakeIntegerSequence<int32, sizeof...(Columns)>(), ColumnArgs...);
+	}
+
+private:
+	/**
+	 * Set the value of all bindings.
+	 */
+	template <int32... BindingIndices>
+	bool SetBindingValuesImpl(TIntegerSequence<int32, BindingIndices...> IntSeq, const Bindings&... BindingArgs)
+	{
+		bool bResult = true;
+		bool DummyUnpackArray[] = { bResult &= SetBindingValueByIndex(BindingIndices + 1, BindingArgs)..., false }; // Dummy false entry to deal with zero-size case
+		(void)DummyUnpackArray; // Force use the dummy variable
+		return bResult;
+	}
+
+	/**
+	 * Get the values of all columns.
+	 */
+	template <int32... ColumnIndices>
+	bool GetColumnValuesImpl(TIntegerSequence<int32, ColumnIndices...> IntSeq, Columns&... ColumnArgs) const
+	{
+		bool bResult = true;
+		bool DummyUnpackArray[] = { bResult &= GetColumnValueByIndex(ColumnIndices, ColumnArgs)..., false }; // Dummy false entry to deal with zero-size case
+		(void)DummyUnpackArray; // Force use the dummy variable
+		return bResult;
+	}
+};
+
+} // namespace SQLitePreparedStatementImpl

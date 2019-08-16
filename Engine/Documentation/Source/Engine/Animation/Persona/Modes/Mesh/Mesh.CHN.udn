@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4326187
+﻿INTSourceChangelist:6409500
 Availability: Public
 Crumbs: %ROOT%, Engine, Engine/Animation, Engine/Animation/Persona, Engine/Animation/Persona/Modes
 Title:骨架网格体编辑器
@@ -12,10 +12,7 @@ tags:Skeletal Mesh
 tags:FBX Importing
 tags:Tools
 topic-image:skelMeshEditor_topic.png
-
-[REGION:banner]
-![](SkeletalMeshEditorBanner.png)
-[/REGION]
+hero-image:SkeletalMeshEditorBanner.png
 
 
 [EXCERPT:Overview]
@@ -33,27 +30,22 @@ topic-image:skelMeshEditor_topic.png
 
 
 
-(#1.toolbar)
 ## 1.工具栏
 
 骨架网格体编辑器（Skeletal Mesh Editor）内的[工具栏](Engine/Animation/Persona/Toolbar)为您提供可将任何更改保存到您的动画或在内容浏览器中找到该更改的选项。 
 它允许您在预览的当前姿势中创建一个静态网格体（Static Mesh）。 
 工具栏最右侧是 **编辑器工具栏（Editor Toolbar）**，允许您在虚幻引擎4中的不同动画工具中切换。 
 
-(#2.assetdetails)
-
 ## 2.资源详细信息
 
 [资源详细信息](Engine\Animation\Persona\MeshDetails)面板显示有关骨架网格体（Skeletal Mesh）的特定属性，例如应用于表面的材质，以及皮肤和LOD选项。 
 您还可指定和调整APEX布料，或定义和关联骨架网格体（Skeletal Mesh）的 **物理资源（Physics Asset）**，用于创建布娃娃类型的动作。 
 
-(#3.viewport)
 ## 3.视口
 
 [视口](Engine/Animation/Persona/Viewport)窗口允许您在资源详细信息（Asset Details）面板中预览您对网格体（Mesh）所做的更改，或预览任何变换目标（Morph Target）设置。 
 从视口（Viewport）中还可分配一个预览动画以供骨架网格体使用，更改照明模式，显示或隐藏骨架的骨骼，调整动画播放速度，甚至将骨架网格体（Skeletal Mesh）设置为在转盘上自动旋转，使您可以从任何角度查看它。 
 
-(#4.morphtargetpreview)
 ## 4.变换目标预览
 
 变换目标预览（Morph Target Preview）选项卡允许您预览当前骨架网格体（Skeletal Mesh）可用的任何[变换目标](Engine/Animation/Persona/MorphTargetPreviewer)（或混合形状（Blend Shape）。 

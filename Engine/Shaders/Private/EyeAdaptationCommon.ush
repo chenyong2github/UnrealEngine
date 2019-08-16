@@ -4,8 +4,7 @@
 	EyeAdaptationCommon.usf: PostProcessing shared functions and structures.
 =============================================================================*/
 
-#ifndef __EYE_ADAPTATION_COMMON__
-#define __EYE_ADAPTATION_COMMON__
+#pragma once
 
 
 // Single pixel RT used for EyeAdaptation, use function EyeAdaptationLookup() to access.
@@ -17,6 +16,10 @@ float EyeAdaptationLookup()
 {
 	return EyeAdaptation.Load(int3(0, 0, 0)).x;
 }
+#else
+float EyeAdaptationLookup()
+{
+	return 1;
+}
 #endif
 
-#endif // __EYE_ADAPTATION_COMMON__

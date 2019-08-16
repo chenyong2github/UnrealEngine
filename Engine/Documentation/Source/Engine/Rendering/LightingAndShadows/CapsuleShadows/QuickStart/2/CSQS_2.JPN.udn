@@ -7,7 +7,7 @@ SkillLevel:Intermediate
 Version:4.15
 checkpoint: capsuleshadowsqs
 parent:Engine/Rendering/LightingAndShadows/CapsuleShadows/QuickStart
-Prereq:Engine/Physics/PhAT/HowTo/
+Prereq:Engine/Physics/PhysicsAssetEditor/HowTo/
 type:quick start
 order:2
 tags:Lighting
@@ -35,7 +35,7 @@ tags:Lighting
 	最高の結果を出すには、Sphyl ボディのみを使用します。Sphere ボディも使えますが、スケルタルメッシュのキャラクターの使用に関して Sphyl ほどの柔軟性はありません。
 	[/REGION]
 
-1. 次に、[Physics Asset ツール](Engine/Physics/PhAT) (PhAT) が開いて、スケルタルメッシュ `SK_Mannequin` 用の物理アセットが表示されます。 
+1. 次に、[Physics Asset ツール](Engine/Physics/PhysicsAssetEditor) (PhAT) が開いて、スケルタルメッシュ `SK_Mannequin` 用の物理アセットが表示されます。 
 
 	![](PA_Character.png)(w:500)
 

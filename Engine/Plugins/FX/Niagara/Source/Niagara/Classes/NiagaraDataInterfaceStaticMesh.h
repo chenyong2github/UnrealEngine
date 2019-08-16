@@ -54,16 +54,16 @@ public:
 
 	virtual FString GetFriendlyName() const override { return TEXT("FStaticMeshGpuSpawnBuffer"); }
 
-	FShaderResourceViewRHIParamRef GetBufferSectionSRV() const { return BufferSectionSRV; }
+	FRHIShaderResourceView* GetBufferSectionSRV() const { return BufferSectionSRV; }
 	uint32 GetValidSectionCount() const { return ValidSections.Num(); };
 
-	FShaderResourceViewRHIParamRef GetBufferPositionSRV() const { return MeshVertexBufferSrv; }
-	FShaderResourceViewRHIParamRef GetBufferTangentSRV() const { return MeshTangentBufferSrv; }
-	FShaderResourceViewRHIParamRef GetBufferTexCoordSRV() const { return MeshTexCoordBufferSrv; }
-	FShaderResourceViewRHIParamRef GetBufferIndexSRV() const { return MeshIndexBufferSrv; }
-	FShaderResourceViewRHIParamRef GetBufferColorSRV() const { return MeshColorBufferSRV; }
+	FRHIShaderResourceView* GetBufferPositionSRV() const { return MeshVertexBufferSrv; }
+	FRHIShaderResourceView* GetBufferTangentSRV() const { return MeshTangentBufferSrv; }
+	FRHIShaderResourceView* GetBufferTexCoordSRV() const { return MeshTexCoordBufferSrv; }
+	FRHIShaderResourceView* GetBufferIndexSRV() const { return MeshIndexBufferSrv; }
+	FRHIShaderResourceView* GetBufferColorSRV() const { return MeshColorBufferSRV; }
 
-	FShaderResourceViewRHIParamRef GetBufferUniformTriangleSamplingSRV() const { return BufferUniformTriangleSamplingSRV; }
+	FRHIShaderResourceView* GetBufferUniformTriangleSamplingSRV() const { return BufferUniformTriangleSamplingSRV; }
 
 	uint32 GetNumTexCoord() const { return NumTexCoord; }
 

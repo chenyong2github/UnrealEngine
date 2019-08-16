@@ -42,7 +42,6 @@
     </Reference>
     <Reference Include="OneSky">
       <HintPath>..\..\..\..\Binaries\DotNET\OneSky.dll</HintPath>
-      <SpecificVersion>False</SpecificVersion>
       <Private>False</Private>
     </Reference>
     <Reference Include="System" />
@@ -122,6 +121,9 @@
     <Compile Include="UE4BuildUtils.cs" />
     <Compile Include="UpdateLocalVersion.Automation.cs" />
     <Compile Include="ZipUtils.Automation.cs" />
+    <Compile Include="SyncProject.Automation.cs" />
+    <Compile Include="BuildTarget.Automation.cs" />
+    <Compile Include="OpenEditor.Automation.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\DotNETCommon\DotNETUtilities\DotNETUtilities.csproj">

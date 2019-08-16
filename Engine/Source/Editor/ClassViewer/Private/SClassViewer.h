@@ -21,8 +21,7 @@ class FMenuBuilder;
 class FTextFilterExpressionEvaluator;
 class UBlueprint;
 class SComboButton;
-class FClassViewerNode;
-class FTextFilterExpressionEvaluator;
+class FClassViewerFilter;
 
 //////////////////////////////////////////////////////////////////////////
 // SClassViewer
@@ -226,11 +225,11 @@ private:
 	/** Init options, cached */
 	FClassViewerInitializationOptions InitOptions;
 
+	/** Filter to use to determine what classes are valid. */
+	TSharedPtr<FClassViewerFilter> ClassFilter;
+
 	/** The items to be displayed in the tree. */
 	TArray< TSharedPtr< FClassViewerNode > > RootTreeItems;
-
-	/** Compiled filter search terms. */
-	TSharedPtr<FTextFilterExpressionEvaluator> TextFilterPtr;
 
 	/** Holds the Slate Tree widget which holds the classes for the Class Viewer. */
 	TSharedPtr<STreeView<TSharedPtr< FClassViewerNode > >> ClassTree;
@@ -240,18 +239,6 @@ private:
 
 	/** The Class Search Box, used for filtering the classes visible. */
 	TSharedPtr<SSearchBox> SearchBox;
-
-	/** true to filter for Actors only. */
-	bool bIsActorsOnly;
-
-	/** true to filter for Placeable classes only. */
-	bool bIsPlaceableOnly;
-
-	/** true to filter for Blueprint Base classes only. */
-	bool bIsBlueprintBaseOnly;
-
-	/** true to filter for unloaded Blueprint classes. */
-	bool bShowUnloadedBlueprints;
 
 	/** true to allow class dynamic loading. */
 	bool bEnableClassDynamicLoading;
@@ -282,9 +269,6 @@ private:
 
 	/** True if we need to set the tree expansion states according to our local copy next tick */
 	bool bPendingSetExpansionStates;
-
-	/** Indicates if the 'Show Internal Classes' option should be enabled or disabled */
-	bool bCanShowInternalClasses;
 
 	/** The button that displays view options */
 	TSharedPtr<SComboButton> ViewOptionsComboButton;

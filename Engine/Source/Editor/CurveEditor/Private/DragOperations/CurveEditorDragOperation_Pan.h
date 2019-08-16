@@ -22,6 +22,7 @@ private:
 
 	double InitialInputMin, InitialInputMax;
 	double InitialOutputMin, InitialOutputMax;
+	FCurveEditorAxisSnap::FSnapState SnappingState;
 };
 
 class FCurveEditorDragOperation_PanInput : public ICurveEditorDragOperation
@@ -36,4 +37,5 @@ private:
 
 	FCurveEditor* CurveEditor;
 	double InitialInputMin, InitialInputMax;
+	FCurveEditorAxisSnap::FSnapState SnappingState;
 };

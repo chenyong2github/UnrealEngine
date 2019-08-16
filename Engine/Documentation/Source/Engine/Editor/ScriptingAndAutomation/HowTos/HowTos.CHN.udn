@@ -1,11 +1,11 @@
-﻿INTSourceChangelist:4284256
+﻿INTSourceChangelist:6536708
 Availability: Public
 Crumbs: 
 Title: 编辑器脚本使用指南
 Description: 提供一系列实例页面以展示如何使用蓝图和Python在虚幻编辑器中编写脚本并自动执行内容生成任务。
 Version: 4.20
 Parent: Engine/Editor/ScriptingAndAutomation
-Order: 0
+Order: 2
 Tags: scripting
 Tags: editor
 

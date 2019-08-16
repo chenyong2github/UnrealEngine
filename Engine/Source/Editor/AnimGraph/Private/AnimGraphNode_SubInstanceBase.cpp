@@ -227,12 +227,7 @@ void UAnimGraphNode_SubInstanceBase::CustomizeDetails(IDetailLayoutBuilder& Deta
 {
 	Super::CustomizeDetails(DetailBuilder);
 
-	// We dont allow multi-select here
-	if(DetailBuilder.GetSelectedObjects().Num() > 1)
-	{
-		DetailBuilder.HideCategory(TEXT("Settings"));
-		return;
-	}
+	GenerateExposedPinsDetails(DetailBuilder);
 
 	IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory(FName(TEXT("Settings")));
 
@@ -256,6 +251,106 @@ void UAnimGraphNode_SubInstanceBase::CustomizeDetails(IDetailLayoutBuilder& Deta
 			.OnShouldFilterAsset(FOnShouldFilterAsset::CreateUObject(this, &UAnimGraphNode_SubInstanceBase::OnShouldFilterInstanceBlueprint))
 			.OnObjectChanged(FOnSetObject::CreateUObject(this, &UAnimGraphNode_SubInstanceBase::OnSetInstanceBlueprint, &DetailBuilder))
 		];
+	}
+}
+
+void UAnimGraphNode_SubInstanceBase::GenerateExposedPinsDetails(IDetailLayoutBuilder &DetailBuilder)
+{
+	// We dont allow multi-select here
+	if(DetailBuilder.GetSelectedObjects().Num() > 1)
+	{
+		DetailBuilder.HideCategory(TEXT("Settings"));
+		return;
+	}
+
+	// We dont allow multi-select here
+	if(DetailBuilder.GetSelectedObjects().Num() > 1)
+	{
+		DetailBuilder.HideCategory(TEXT("Settings"));
+		return;
+	}
+
+	TArray<UProperty*> ExposableProperties;
+	GetExposableProperties(ExposableProperties);
+
+	if(ExposableProperties.Num() > 0)
+	{
+		IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory(FName(TEXT("Exposable Properties")));
+
+		FDetailWidgetRow& HeaderWidgetRow = CategoryBuilder.AddCustomRow(LOCTEXT("ExposeAll", "Expose All"));
+		
+		HeaderWidgetRow.NameContent()
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("PropertyName", "Name"))
+			.Font(IDetailLayoutBuilder::GetDetailFontBold())
+		];
+
+		HeaderWidgetRow.ValueContent()
+		[
+			SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("ExposeAllPropertyValue", "Expose All"))
+				.Font(IDetailLayoutBuilder::GetDetailFontBold())
+			]
+			+SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SCheckBox)
+				.IsChecked_UObject(this, &UAnimGraphNode_CustomProperty::AreAllPropertiesExposed)
+				.OnCheckStateChanged_UObject(this, &UAnimGraphNode_CustomProperty::OnPropertyExposeAllCheckboxChanged)
+			]
+		];
+
+		for(UProperty* Property : ExposableProperties)
+		{
+			FDetailWidgetRow& PropertyWidgetRow = CategoryBuilder.AddCustomRow(FText::FromString(Property->GetName()));
+
+			FName PropertyName = Property->GetFName();
+			FText PropertyTypeText = GetPropertyTypeText(Property);
+
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("PropertyName"), FText::FromName(PropertyName));
+			Args.Add(TEXT("PropertyType"), PropertyTypeText);
+
+			FText TooltipText = FText::Format(LOCTEXT("PropertyTooltipText", "{PropertyName}\nType: {PropertyType}"), Args);
+
+			PropertyWidgetRow.NameContent()
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(Property->GetName()))
+				.ToolTipText(TooltipText)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+			];
+
+			PropertyWidgetRow.ValueContent()
+			[
+				SNew(SHorizontalBox)
+				+SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("ExposePropertyValue", "Expose:"))
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+				]
+				+SHorizontalBox::Slot()
+				.FillWidth(1.0f)
+				.HAlign(HAlign_Right)
+				.VAlign(VAlign_Center)
+				[
+					SNew(SCheckBox)
+					.IsChecked_UObject(this, &UAnimGraphNode_CustomProperty::IsPropertyExposed, PropertyName)
+					.OnCheckStateChanged_UObject(this, &UAnimGraphNode_CustomProperty::OnPropertyExposeCheckboxChanged, PropertyName)
+				]
+			];
+		}
 	}
 }
 

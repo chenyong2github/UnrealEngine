@@ -1,9 +1,11 @@
-﻿INTSourceChangelist:3967023
-Availability: Public
+﻿INTSourceChangelist:6061750
+Availability: docs
 Title:3. 월드에 카메라 디렉터 배치
 Crumbs:%ROOT%, Programming, Programming/Tutorials, Programming/Tutorials/AutoCamera
 Description:월드에 카메라 디렉터를 배치하고 카메라를 할당합니다.
 version:4.9
+
+## No longer needed as page has been combined.
 
 [VAR:Steps]
 [OBJECT:Navigation]

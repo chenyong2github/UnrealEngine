@@ -1,0 +1,32 @@
+﻿INTSourceChangelist:6604630
+Availability:Docs
+Title:场景查询系统节点参考
+Description:场景查询系统节点参考页面。 
+Type: reference
+Version:4.21
+Parent:Engine/ArtificialIntelligence/EQS
+Tags:Experimental
+Tags:AI
+Tags:EQS
+Tags:Environment Query System
+Tags:EQS Essentials
+topic-image:EQS_NodeReference_Image.png
+social-image:EQS_NodeReference_Image.png
+topic-icon:EQS_NodeReference_Image.png
+Order:3
+
+
+
+**场景查询** 实际上由许多不同的部分组成。您必须从 [行为树](Engine/ArtificialIntelligence/BehaviorTrees) 调用场景查询，然后实际的场景查询将使用它的 **生成器**，引用它的 **情境**，并使用它的 **测试**，为行为树提供权重最高的结果。
+
+| 节点类型 | 描述 |
+| --- | --- |
+| **生成器（Generator）** | 生成位置或Actor，其被称为 **项目（Item）**、实际上将被测试和加权。|
+| **情境（Contexts）** | 为各种测试和生成器提供引用的框架。|
+| **测试（Tests）** | 确定环境查询如何决定来自生成器的哪个项目是最佳选择。|
+
+欲知各类节点的更多信息，请参阅以下链接。 
+
+%Engine\ArtificialIntelligence\EQS\EQSNodeReference\EQSNodeReferenceGenerators:topic%
+%Engine\ArtificialIntelligence\EQS\EQSNodeReference\EQSNodeReferenceTests:topic%
+%Engine\ArtificialIntelligence\EQS\EQSNodeReference\EQSNodeReferenceContexts:topic%

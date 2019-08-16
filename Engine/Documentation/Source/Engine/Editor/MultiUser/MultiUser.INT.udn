@@ -1,0 +1,29 @@
+Availability: Public
+Title: Multi-User Editing
+Description: Get multiple users on different computers into a shared Unreal Editor session, collaborating live to build content together.
+Type: landing
+Version: 4.22
+Parent: Engine/Editor
+Tags: Early Access
+Tags: Landing Page
+Tags: Multi-User Editing
+Order: 12
+hero-image:multiuserediting-banner.png
+
+With Multi-User Editing, you can connect multiple instances of Unreal Editor together to work collaboratively in a shared editing session, building a single virtual world together with your teammates and colleagues in real time.
+
+[REGION:tip]
+Multi-User Editing has been designed and tested in large-scale virtual film & TV production teams, where potentially dozens of operators work together on set during a live shoot. These operators work in Unreal Engine to design, build, and light the virtual world, emulating the way crews build physical sets. This helps the director, cast, and crew visualize the results of blending live action and CG content together while they rehearse and film live action shots, instead of having to wait for post-production.  
+To see Multi-User Editing in action, watch the [realtime virtual production demo from SIGGRAPH 2018](https://www.unrealengine.com/en-US/blog/multi-user-collaboration-and-unreal-engine-real-time-production).  
+[![Reflections](reflections.png "Reflections")](https://www.unrealengine.com/en-US/blog/multi-user-collaboration-and-unreal-engine-real-time-production)
+[/REGION]
+
+Although Multi-User Editing was developed in the context of virtual film and TV production, the same kind of live collaboration is potentially useful for any scenario where you have multiple users that need to work on the same content. Any Unreal Engine development project may be able to use Multi-User Editing to reduce iteration times, get instant feedback on changes, and boost the team's creativity.
+
+## Getting Started
+
+[DIR(output:"topic" parent:"Engine/Editor/MultiUser" tags:"Getting Started")]
+
+## Reference
+
+[DIR(output:"topic" parent:"Engine/Editor/MultiUser" tags:"Reference")]

@@ -10,6 +10,17 @@
 #include "DOFGatherAccumulator.ush"
 
 
+//------------------------------------------------------- PARAMETERS
+
+float4 ViewportSize;
+
+float4 GatherInputSize;
+Texture2D GatherInput_SceneColor;
+Texture2D GatherInput_SeparateCoc;
+
+Texture2D BokehLUT;
+
+
 //------------------------------------------------------- GATHERING KERNEL
 
 // LARGEST_RINGS_FIRST controles the order the rings must be proceded.
@@ -188,16 +199,16 @@ FGatherSample FetchGatherSample(in FPrivateKernelSharedScope KernelScope, float2
 
 	if (KernelScope.bBilinearSampleInput)
 	{
-		RawSample0 = PostprocessInput0.SampleLevel(
+		RawSample0 = GatherInput_SceneColor.SampleLevel(
 			GlobalBilinearClampedSampler, SampleUV, KernelScope.GatherInputMipLevel);
-		RawSample1 = PostprocessInput1.SampleLevel(
+		RawSample1 = GatherInput_SeparateCoc.SampleLevel(
 			GlobalBilinearClampedSampler, SampleUV, KernelScope.GatherInputMipLevel);
 	}
 	else
 	{
-		RawSample0 = PostprocessInput0.SampleLevel(
+		RawSample0 = GatherInput_SceneColor.SampleLevel(
 			GlobalPointClampedSampler, SampleUV, KernelScope.GatherInputMipLevel);
-		RawSample1 = PostprocessInput1.SampleLevel(
+		RawSample1 = GatherInput_SeparateCoc.SampleLevel(
 			GlobalPointClampedSampler, SampleUV, KernelScope.GatherInputMipLevel);
 	}
 
@@ -281,7 +292,7 @@ void UpdateRuntimeKernelScope(
 		KernelRandomRange = 0;
 	}
 
-	KernelScope.KernelCenterUV = GatherParameters.InputBufferCenterUV + (RandomCircle * KernelRandomRange) * PostprocessInput0Size.zw;
+	KernelScope.KernelCenterUV = GatherParameters.InputBufferCenterUV + (RandomCircle * KernelRandomRange) * GatherInputSize.zw;
 
 	KernelScope.SampleCountToSamplePosition = GatherParameters.KernelRadius * UnitSampleRadius;
 
@@ -466,12 +477,12 @@ void GatherRingSamples(
 					0.5 + (0.5 - CONFIG_POINT_MIRROR_BOKEH * SquarePos) / float(BOKEH_LUT_SIZE),
 				};
 				
-				SamplePosOffset[0] = KernelScope.SampleCountToSamplePosition * PostprocessInput4.SampleLevel(GlobalBilinearWrappedSampler, LookUpUV[0], 0).xy;
+				SamplePosOffset[0] = KernelScope.SampleCountToSamplePosition * BokehLUT.SampleLevel(GlobalBilinearWrappedSampler, LookUpUV[0], 0).xy;
 
 				#if DIM_BOKEH_SIMULATION == BOKEH_SIMULATION_SIMMETRIC && 0
 					SamplePosOffset[1] = -SamplePosOffset[0];
 				#else
-					SamplePosOffset[1] = KernelScope.SampleCountToSamplePosition * PostprocessInput4.SampleLevel(
+					SamplePosOffset[1] = KernelScope.SampleCountToSamplePosition * BokehLUT.SampleLevel(
 						GlobalBilinearWrappedSampler, LookUpUV[1], 0).xy;
 				#endif
 				
@@ -559,7 +570,7 @@ void GatherRingSamples(
 						#error Unknown bokeh simulation.
 					#endif
 
-					float4 LookupSample = PostprocessInput4.SampleLevel(GlobalBilinearWrappedSampler, LookUpUV, 0);
+					float4 LookupSample = BokehLUT.SampleLevel(GlobalBilinearWrappedSampler, LookUpUV, 0);
 					float CocRadiusToBokehEdgeDistance = LookupSample.x;
 
 					Sample[k].CocRadius *= CocRadiusToBokehEdgeDistance;
@@ -638,7 +649,7 @@ uint GatherSamplesAndResolve(
 
 	// Set up initial compile time stuf in the scope of the kernel.
 	{
-		KernelScope.GatherInputInvSize = PostprocessInput0Size.zw;
+		KernelScope.GatherInputInvSize = GatherInputSize.zw;
 		KernelScope.bKenrelHasEnoughSamples = DIM_LAYER_PROCESSING == LAYER_PROCESSING_SLIGHT_OUT_OF_FOCUS;
 		KernelScope.bBilinearSampleInput = (
 			static_condition(GatherParameters.bFastGathering) &&
@@ -775,7 +786,7 @@ uint GatherSamplesAndResolve(
 			}
 		}
 
-		UNROLL
+		UNROLL_N(5)
 		for (; RingId >= 0; RingId--)
 		{
 			GatherRing(

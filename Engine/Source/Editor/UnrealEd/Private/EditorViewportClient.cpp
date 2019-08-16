@@ -16,6 +16,7 @@
 #include "Settings/LevelEditorMiscSettings.h"
 #include "Components/DirectionalLightComponent.h"
 #include "Components/BillboardComponent.h"
+#include "Audio/AudioDebug.h"
 #include "Debug/DebugDrawService.h"
 #include "EngineUtils.h"
 #include "Editor.h"
@@ -52,6 +53,7 @@
 #include "Editor/EditorPerformanceSettings.h"
 #include "ImageWriteQueue.h"
 #include "DebugViewModeHelpers.h"
+#include "RayTracingDebugVisualizationMenuCommands.h"
 #include "Misc/ScopedSlowTask.h"
 #include "UnrealEngine.h"
 
@@ -206,7 +208,7 @@ bool FViewportCameraTransform::UpdateTransition()
 			ViewLocation = FMath::Lerp( StartLocation, DesiredLocation, LerpWeight );
 		}
 
-		
+
 		bIsAnimating = true;
 	}
 
@@ -216,8 +218,8 @@ bool FViewportCameraTransform::UpdateTransition()
 FMatrix FViewportCameraTransform::ComputeOrbitMatrix() const
 {
 	FTransform Transform =
-	FTransform( -LookAt ) * 
-	FTransform( FRotator(0,ViewRotation.Yaw,0) ) * 
+	FTransform( -LookAt ) *
+	FTransform( FRotator(0,ViewRotation.Yaw,0) ) *
 	FTransform( FRotator(0, 0, ViewRotation.Pitch) ) *
 	FTransform( FVector(0,(ViewLocation - LookAt).Size(), 0) );
 
@@ -311,6 +313,7 @@ FEditorViewportClient::FEditorViewportClient(FEditorModeTools* InModeTools, FPre
 	, LastEngineShowFlags(ESFIM_Game)
 	, ExposureSettings()
 	, CurrentBufferVisualizationMode(NAME_None)
+	, CurrentRayTracingDebugVisualizationMode(NAME_None)
 	, FramesSinceLastDraw(0)
 	, ViewIndex(INDEX_NONE)
 	, ViewFOV(EditorViewportDefs::DefaultPerspectiveFOVAngle)
@@ -351,7 +354,7 @@ FEditorViewportClient::FEditorViewportClient(FEditorModeTools* InModeTools, FPre
 	, CurrentGestureRotDelta(FRotator::ZeroRotator)
 	, GestureMoveForwardBackwardImpulse(0.0f)
 	, bForceAudioRealtime(false)
-	, RealTimeFrameCount(0)
+	, RealTimeUntilFrameNumber(0)
 	, bIsRealtime(false)
 	, bStoredRealtime(false)
 	, bStoredShowStats(false)
@@ -519,7 +522,7 @@ void FEditorViewportClient::RestoreRealtime(const bool bAllowDisable)
 	{
 		bIsRealtime |= bStoredRealtime;
 		bShowStats |= bStoredShowStats;
-	}	
+	}
 
 	if (bIsRealtime)
 	{
@@ -640,7 +643,7 @@ void FEditorViewportClient::ToggleOrbitCamera( bool bEnableOrbitCamera )
 				ViewTransform.SetRotation(OrbitMatrix.Rotator());
 			}
 		}
-		
+
 		ViewTransform.SetLocation(OrbitMatrix.GetOrigin());
 	}
 }
@@ -665,7 +668,7 @@ void FEditorViewportClient::FocusViewportOnBox( const FBox& BoundingBox, bool bI
 
 		if(!IsOrtho())
 		{
-		   /** 
+		   /**
 			* We need to make sure we are fitting the sphere into the viewport completely, so if the height of the viewport is less
 			* than the width of the viewport, we scale the radius by the aspect ratio in order to compensate for the fact that we have
 			* less visible vertically than horizontally.
@@ -675,7 +678,7 @@ void FEditorViewportClient::FocusViewportOnBox( const FBox& BoundingBox, bool bI
 				Radius *= AspectToUse;
 			}
 
-			/** 
+			/**
 			 * Now that we have a adjusted radius, we are taking half of the viewport's FOV,
 			 * converting it to radians, and then figuring out the camera's distance from the center
 			 * of the bounding sphere using some simple trig.  Once we have the distance, we back up
@@ -698,7 +701,7 @@ void FEditorViewportClient::FocusViewportOnBox( const FBox& BoundingBox, bool bI
 
 			if( !(Viewport->KeyState(EKeys::LeftControl) || Viewport->KeyState(EKeys::RightControl)) )
 			{
-				/** 			
+				/**
 				* We also need to zoom out till the entire volume is in view.  The following block of code first finds the minimum dimension
 				* size of the viewport.  It then calculates backwards from what the view size should be (The radius of the bounding volume),
 				* to find the new OrthoZoom value for the viewport. The 15.0f is a fudge factor.
@@ -720,7 +723,7 @@ void FEditorViewportClient::FocusViewportOnBox( const FBox& BoundingBox, bool bI
 
 //////////////////////////////////////////////////////////////////////////
 //
-// Configures the specified FSceneView object with the view and projection matrices for this viewport. 
+// Configures the specified FSceneView object with the view and projection matrices for this viewport.
 
 FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, const EStereoscopicPass StereoPass)
 {
@@ -822,7 +825,7 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 			    GEngine->StereoRenderingDevice->AdjustViewRect( StereoPass, X, Y, SizeX, SizeY );
 		        const FIntRect StereoViewRect = FIntRect( X, Y, X + SizeX, Y + SizeY );
 		        ViewInitOptions.SetViewRectangle( StereoViewRect );
-			
+
 				GEngine->StereoRenderingDevice->CalculateStereoViewOffset( StereoPass, ViewRotation, ViewInitOptions.WorldToMetersScale, ViewInitOptions.ViewOrigin );
 			}
 
@@ -835,7 +838,7 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 				FPlane(1, 0, 0, 0),
 				FPlane(0, 1, 0, 0),
 				FPlane(0, 0, 0, 1));
-    
+
 		    if( bStereoRendering )
 		    {
 			    // @todo vreditor: bConstrainAspectRatio is ignored in this path, as it is in the game client as well currently
@@ -848,7 +851,7 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 			    const float MaxZ = MinZ;
 			    // Avoid zero ViewFOV's which cause divide by zero's in projection matrix
 			    const float MatrixFOV = FMath::Max(0.001f, ViewFOV) * (float)PI / 360.0f;
-    
+
 			    if (bConstrainAspectRatio)
 			    {
 				    if ((bool)ERHIZBuffer::IsInverted)
@@ -878,7 +881,7 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 			    {
 				    float XAxisMultiplier;
 				    float YAxisMultiplier;
-    
+
 				    if (((ViewportSize.X > ViewportSize.Y) && (AspectRatioAxisConstraint == AspectRatio_MajorAxisFOV)) || (AspectRatioAxisConstraint == AspectRatio_MaintainXFOV))
 				    {
 					    //if the viewport is wider than it is tall
@@ -891,7 +894,7 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 					    XAxisMultiplier = ViewportSize.Y / (float)ViewportSize.X;
 					    YAxisMultiplier = 1.0f;
 				    }
-    
+
 				    if ((bool)ERHIZBuffer::IsInverted)
 				    {
 					    ViewInitOptions.ProjectionMatrix = FReversedZPerspectiveMatrix(
@@ -1010,7 +1013,7 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 	if (bStereoRendering)
 	{
 		if (StereoViewStates.Num() <= ViewStateIndex)
-		{ 
+		{
 			StereoViewStates.SetNum(ViewStateIndex + 1);
 		}
 
@@ -1023,7 +1026,7 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 	ViewInitOptions.ViewFamily = ViewFamily;
 	ViewInitOptions.SceneViewStateInterface = ( (StereoPass < eSSP_RIGHT_EYE) ? ViewState.GetReference() : StereoViewStates[ViewStateIndex].GetReference() );
 	ViewInitOptions.StereoPass = StereoPass;
-	
+
 	ViewInitOptions.ViewElementDrawer = this;
 
 	ViewInitOptions.BackgroundColor = GetBackgroundColor();
@@ -1057,6 +1060,8 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 
 	if (bUseControllingActorViewInfo)
 	{
+		// Pass on the previous view transform of the controlling actor to the view
+		View->PreviousViewTransform = ControllingActorViewInfo.PreviousViewTransform;
 		View->OverridePostProcessSettings(ControllingActorViewInfo.PostProcessSettings, ControllingActorViewInfo.PostProcessBlendWeight);
 
 		for (int32 ExtraPPBlendIdx = 0; ExtraPPBlendIdx < ControllingActorExtraPostProcessBlends.Num(); ++ExtraPPBlendIdx)
@@ -1081,7 +1086,7 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 	return View;
 }
 
-/** Determines if the new MoveCanvas movement should be used 
+/** Determines if the new MoveCanvas movement should be used
  * @return - true if we should use the new drag canvas movement.  Returns false for combined object-camera movement and marquee selection
  */
 bool FLevelEditorViewportClient::ShouldUseMoveCanvasMovement()
@@ -1105,7 +1110,7 @@ bool FLevelEditorViewportClient::ShouldUseMoveCanvasMovement()
 		}
 
 		//OBJECT MOVEMENT CODE
-		if ( ( AltDown == false && ShiftDown == false && ( LeftMouseButtonDown ^ RightMouseButtonDown ) ) && 
+		if ( ( AltDown == false && ShiftDown == false && ( LeftMouseButtonDown ^ RightMouseButtonDown ) ) &&
 			( ( GetWidgetMode() == FWidget::WM_Translate && Widget->GetCurrentAxis() != EAxisList::None ) ||
 			( GetWidgetMode() == FWidget::WM_TranslateRotateZ && Widget->GetCurrentAxis() != EAxisList::ZRotation &&  Widget->GetCurrentAxis() != EAxisList::None ) ||
 			( GetWidgetMode() == FWidget::WM_2D && Widget->GetCurrentAxis() != EAxisList::Rotate2D &&  Widget->GetCurrentAxis() != EAxisList::None ) ) )
@@ -1173,7 +1178,7 @@ void FEditorViewportClient::Tick(float DeltaTime)
 		UpdateCameraMovement( DeltaTime );
 
 		UpdateMouseDelta();
-		
+
 		UpdateGestureDelta();
 
 		EndCameraMovement();
@@ -1198,8 +1203,8 @@ void FEditorViewportClient::Tick(float DeltaTime)
 
 	if ( bIsTracking )
 	{
-		// If a mouse button or modifier is pressed we want to assume the user is still in a mode 
-		// they haven't left to perform a non-action in the frame to keep the last used operation 
+		// If a mouse button or modifier is pressed we want to assume the user is still in a mode
+		// they haven't left to perform a non-action in the frame to keep the last used operation
 		// from being reset.
 		const bool LeftMouseButtonDown = Viewport->KeyState(EKeys::LeftMouseButton) ? true : false;
 		const bool MiddleMouseButtonDown = Viewport->KeyState(EKeys::MiddleMouseButton) ? true : false;
@@ -1417,7 +1422,7 @@ EMouseCursor::Type FEditorViewportClient::GetCursor(FViewport* InViewport,int32 
 	}
 
 	bool bMoveCanvasMovement = ShouldUseMoveCanvasMovement();
-	
+
 	if (RequiredCursorVisibiltyAndAppearance.bOverrideAppearance &&
 		RequiredCursorVisibiltyAndAppearance.bHardwareCursorVisible)
 	{
@@ -1437,14 +1442,14 @@ EMouseCursor::Type FEditorViewportClient::GetCursor(FViewport* InViewport,int32 
 		//We're grabbing the canvas so the icon should look "grippy"
 		MouseCursor = EMouseCursor::GrabHandClosed;
 	}
-	else if (bMoveCanvasMovement && 
+	else if (bMoveCanvasMovement &&
 		bHasMouseMovedSinceClick &&
 		(GetWidgetMode() == FWidget::WM_Translate || GetWidgetMode() == FWidget::WM_TranslateRotateZ || GetWidgetMode() == FWidget::WM_2D))
 	{
 		MouseCursor = EMouseCursor::CardinalCross;
 	}
 	//wyisyg mode
-	else if (IsUsingAbsoluteTranslation() && bHasMouseMovedSinceClick)
+	else if (IsUsingAbsoluteTranslation(true) && bHasMouseMovedSinceClick)
 	{
 		MouseCursor = EMouseCursor::CardinalCross;
 	}
@@ -1474,11 +1479,11 @@ EMouseCursor::Type FEditorViewportClient::GetCursor(FViewport* InViewport,int32 
 				{
 					SetCurrentWidgetAxis( EAxisList::None );
 					Invalidate( false, false );
-				}			
+				}
 			}
 		}
 	}
-	
+
 	// Allow the viewport interaction to override any previously set mouse cursor
 	UViewportWorldInteraction* WorldInteraction = Cast<UViewportWorldInteraction>(GEditor->GetEditorWorldExtensionsManager()->GetEditorWorldExtensions(GetWorld())->FindExtension(UViewportWorldInteraction::StaticClass()));
 	if (WorldInteraction != nullptr)
@@ -1542,7 +1547,7 @@ void FEditorViewportClient::SetViewportType( ELevelViewportType InViewportType )
 }
 
 void FEditorViewportClient::RotateViewportType()
-{	
+{
 	ViewportType = ViewOptions[ViewOptionIndex];
 
 	// Changing the type may also change the active view mode; re-apply that now
@@ -1583,7 +1588,7 @@ void FEditorViewportClient::UpdateCameraMovement( float DeltaTime )
 		ToggleOrbitCamera(bEnable);
 
 		const bool bIsUsingTrackpad = FSlateApplication::Get().IsUsingTrackpad();
-		
+
 		// Certain keys are only available while the flight camera input mode is active
 		const bool bUsingFlightInput = IsFlightCameraInputModeActive() || bIsUsingTrackpad;
 
@@ -1612,12 +1617,12 @@ void FEditorViewportClient::UpdateCameraMovement( float DeltaTime )
 		CameraUserImpulseData->RotateRollImpulse = 0.0f;
 
 		GestureMoveForwardBackwardImpulse = 0.0f;
-		
+
 		bool bForwardKeyState = false;
 		bool bBackwardKeyState = false;
 		bool bRightKeyState = false;
 		bool bLeftKeyState = false;
-		
+
 		bool bUpKeyState = false;
 		bool bDownKeyState = false;
 		bool bZoomOutKeyState = false;
@@ -1630,7 +1635,7 @@ void FEditorViewportClient::UpdateCameraMovement( float DeltaTime )
 			bBackwardKeyState |= Viewport->KeyState(FViewportNavigationCommands::Get().Backward->GetActiveChord(ChordIndex)->Key);
 			bRightKeyState |= Viewport->KeyState(FViewportNavigationCommands::Get().Right->GetActiveChord(ChordIndex)->Key);
 			bLeftKeyState |= Viewport->KeyState(FViewportNavigationCommands::Get().Left->GetActiveChord(ChordIndex)->Key);
-			
+
 			bUpKeyState |= Viewport->KeyState(FViewportNavigationCommands::Get().Up->GetActiveChord(ChordIndex)->Key);
 			bDownKeyState |= Viewport->KeyState(FViewportNavigationCommands::Get().Down->GetActiveChord(ChordIndex)->Key);
 			bZoomOutKeyState |= Viewport->KeyState(FViewportNavigationCommands::Get().FovZoomOut->GetActiveChord(ChordIndex)->Key);
@@ -1638,7 +1643,7 @@ void FEditorViewportClient::UpdateCameraMovement( float DeltaTime )
 		}
 
 		// Forward/back
-		if( ( bRemapWASDKeys && bForwardKeyState ) || 
+		if( ( bRemapWASDKeys && bForwardKeyState ) ||
 			( bRemapArrowKeys && Viewport->KeyState( EKeys::Up ) ) ||
 			( bUnmodifiedPress && bUseNumpadCameraControl && Viewport->KeyState(EKeys::NumPadEight) ) )
 		{
@@ -1753,7 +1758,7 @@ void FEditorViewportClient::UpdateCameraMovement( float DeltaTime )
 
 #if UE_BUILD_DEBUG
 		// Editor movement is very difficult in debug without this, due to hitching
-		// It is better to freeze movement during a hitch than to fly off past where you wanted to go 
+		// It is better to freeze movement during a hitch than to fly off past where you wanted to go
 		// (considering there will be further hitching trying to get back to where you were)
 		EditorMovementDeltaUpperBound = .15f;
 #endif
@@ -1888,7 +1893,7 @@ bool FEditorViewportClient::CalculateEditorConstrainedViewRect(FSlateRect& OutSa
 	OutSafeFrameRect = FSlateRect(0, 0, SizeX, SizeY);
 	float FixedAspectRatio;
 	bool bSafeFrameActive = GetActiveSafeFrame(FixedAspectRatio);
-	
+
 	if (bSafeFrameActive)
 	{
 		// Get the size of the viewport
@@ -1951,7 +1956,7 @@ void FEditorViewportClient::DrawSafeFrames(FViewport& InViewport, FSceneView& Vi
 					LineItem.Draw(&Canvas, FVector2D(SafeRect.Left, 0), FVector2D(SafeRect.Left, SizeY));
 					LineItem.Draw(&Canvas, FVector2D(SafeRect.Right, 0), FVector2D(SafeRect.Right, SizeY));
 				}
-				
+
 				if (SafeRect.GetSize().Y < SizeY)
 				{
 					DrawSafeFrameQuad(Canvas, FVector2D(SafeRect.Left, 0), FVector2D(SafeRect.Right, SafeRect.Top));
@@ -1970,7 +1975,7 @@ void FEditorViewportClient::DrawSafeFrameQuad( FCanvas &Canvas, FVector2D V1, FV
 	FCanvasUVTri UVTriItem;
 	UVTriItem.V0_Pos = FVector2D(V1.X, V1.Y);
 	UVTriItem.V1_Pos = FVector2D(V2.X, V1.Y);
-	UVTriItem.V2_Pos = FVector2D(V1.X, V2.Y);		
+	UVTriItem.V2_Pos = FVector2D(V1.X, V2.Y);
 	FCanvasTriangleItem TriItem( UVTriItem, GWhiteTexture );
 	UVTriItem.V0_Pos = FVector2D(V2.X, V1.Y);
 	UVTriItem.V1_Pos = FVector2D(V2.X, V2.Y);
@@ -2088,7 +2093,7 @@ void FEditorViewportClient::UpdateMouseDelta()
 			const bool bIsUsingTrackpad = FSlateApplication::Get().IsUsingTrackpad();
 			const bool bIsNonOrbitMiddleMouse = MiddleMouseButtonDown && !IsAltPressed();
 
-			// If a tool is overriding current widget mode behavior, it may need to 
+			// If a tool is overriding current widget mode behavior, it may need to
 			// temporarily set a different widget mode while converting mouse movement.
 			ModeTools->PreConvertMouseMovement(this);
 
@@ -2101,37 +2106,37 @@ void FEditorViewportClient::UpdateMouseDelta()
 			{
 				bWidgetAxisControlledByDrag = false;
 				Widget->SetCurrentAxis( EAxisList::None );
-				MouseDeltaTracker->ConvertMovementDeltaToDragRot(this, DragDelta, Drag, Rot, Scale);
+				MouseDeltaTracker->ConvertMovementDeltaToDragRot(DragStartView, this, DragDelta, Drag, Rot, Scale);
 				Widget->SetCurrentAxis( CurrentAxis );
 				CurrentAxis = EAxisList::None;
 			}
 			else
 			{
-				//if Absolute Translation, and not just moving the camera around
-				if (IsUsingAbsoluteTranslation())
+				if (DragStartView == nullptr)
 				{
-					if (DragStartView == nullptr)
-					{
-						// Compute a view.
-						DragStartViewFamily = new FSceneViewFamily(FSceneViewFamily::ConstructionValues(
-							Viewport,
-							GetScene(),
-							EngineShowFlags)
-							.SetRealtimeUpdate(IsRealtime()));
-						DragStartView = CalcSceneView(DragStartViewFamily);
-					}
+					// Compute a view.
+					DragStartViewFamily = new FSceneViewFamily(FSceneViewFamily::ConstructionValues(
+						Viewport,
+						GetScene(),
+						EngineShowFlags)
+						.SetRealtimeUpdate(IsRealtime()));
+					DragStartView = CalcSceneView(DragStartViewFamily);
+				}
+				//if Absolute Translation, and not just moving the camera around
+				if (IsUsingAbsoluteTranslation(false))
+				{ 
 					MouseDeltaTracker->AbsoluteTranslationConvertMouseToDragRot(DragStartView, this, Drag, Rot, Scale);
-				} 
+				}
 				else
 				{
-					MouseDeltaTracker->ConvertMovementDeltaToDragRot(this, DragDelta, Drag, Rot, Scale);
+					MouseDeltaTracker->ConvertMovementDeltaToDragRot(DragStartView, this, DragDelta, Drag, Rot, Scale);
 				}
 			}
 
 			ModeTools->PostConvertMouseMovement(this);
 
 			const bool bInputHandledByGizmos = InputWidgetDelta( Viewport, CurrentAxis, Drag, Rot, Scale );
-					
+
 			if( !Rot.IsZero() )
 			{
 				Widget->UpdateDeltaRotation();
@@ -2212,7 +2217,7 @@ static bool IsOrbitPanMode( FViewport* Viewport )
 }
 
 static bool IsOrbitZoomMode( FViewport* Viewport )
-{	
+{
 	bool	LeftMouseButton = Viewport->KeyState(EKeys::LeftMouseButton),
 		MiddleMouseButton = Viewport->KeyState(EKeys::MiddleMouseButton),
 		RightMouseButton = Viewport->KeyState(EKeys::RightMouseButton);
@@ -2295,6 +2300,11 @@ void FEditorViewportClient::InputAxisForOrbit(FViewport* InViewport, const FVect
 		SetViewLocation(RotatedViewLocation);
 
 		FEditorViewportStats::Using(IsPerspective() ? FEditorViewportStats::CAT_PERSPECTIVE_MOUSE_ORBIT_ROTATION : FEditorViewportStats::CAT_ORTHOGRAPHIC_MOUSE_ORBIT_ROTATION);
+
+		if (IsPerspective())
+		{
+			PerspectiveCameraMoved();
+		}
 	}
 	else
 	{
@@ -2397,14 +2407,17 @@ void FEditorViewportClient::MarkMouseMovedSinceClick()
 }
 
 /** Determines whether this viewport is currently allowed to use Absolute Movement */
-bool FEditorViewportClient::IsUsingAbsoluteTranslation() const
+bool FEditorViewportClient::IsUsingAbsoluteTranslation(bool bAlsoCheckAbsoluteRotation) const
 {
 	bool bIsHotKeyAxisLocked = Viewport->KeyState(EKeys::LeftControl) || Viewport->KeyState(EKeys::RightControl);
 	bool bCameraLockedToWidget = !(Widget && Widget->GetCurrentAxis() & EAxisList::Screen) && (Viewport->KeyState(EKeys::LeftShift) || Viewport->KeyState(EKeys::RightShift));
 	// Screen-space movement must always use absolute translation
-	bool bScreenSpaceTransformation = Widget && (Widget->GetCurrentAxis() == EAxisList::Screen);
+	bool bScreenSpaceTransformation = Widget && (Widget->GetCurrentAxis() == EAxisList::Screen) && GetWidgetMode() != FWidget::WM_Rotate;
 	bool bAbsoluteMovementEnabled = GetDefault<ULevelEditorViewportSettings>()->bUseAbsoluteTranslation || bScreenSpaceTransformation;
-	bool bCurrentWidgetSupportsAbsoluteMovement = FWidget::AllowsAbsoluteTranslationMovement( GetWidgetMode() ) || bScreenSpaceTransformation;
+	bool bCurrentWidgetSupportsAbsoluteMovement = FWidget::AllowsAbsoluteTranslationMovement( GetWidgetMode()) || bScreenSpaceTransformation;
+	EAxisList::Type AxisType = Widget ? Widget->GetCurrentAxis() : EAxisList::None;
+
+	bool bCurrentWidgetSupportsAbsoluteRotation = bAlsoCheckAbsoluteRotation ? FWidget::AllowsAbsoluteRotationMovement(GetWidgetMode(), AxisType) : false;
 	bool bWidgetActivelyTrackingAbsoluteMovement = Widget && (Widget->GetCurrentAxis() != EAxisList::None);
 
 	const bool LeftMouseButtonDown = Viewport->KeyState(EKeys::LeftMouseButton);
@@ -2413,7 +2426,7 @@ bool FEditorViewportClient::IsUsingAbsoluteTranslation() const
 
 	const bool bAnyMouseButtonsDown = (LeftMouseButtonDown || MiddleMouseButtonDown || RightMouseButtonDown);
 
-	return (!bCameraLockedToWidget && !bIsHotKeyAxisLocked && bAbsoluteMovementEnabled && bCurrentWidgetSupportsAbsoluteMovement && bWidgetActivelyTrackingAbsoluteMovement && !IsOrtho() && bAnyMouseButtonsDown);
+	return (!bCameraLockedToWidget && !bIsHotKeyAxisLocked && bAbsoluteMovementEnabled && (bCurrentWidgetSupportsAbsoluteMovement || bCurrentWidgetSupportsAbsoluteRotation) && bWidgetActivelyTrackingAbsoluteMovement && !IsOrtho() && bAnyMouseButtonsDown);
 }
 
 void FEditorViewportClient::SetMatineeRecordingWindow (IMatineeBase* InInterpEd)
@@ -2485,7 +2498,7 @@ void FEditorViewportClient::ChangeBufferVisualizationMode( FName InName )
 
 bool FEditorViewportClient::IsBufferVisualizationModeSelected( FName InName ) const
 {
-	return IsViewModeEnabled( VMI_VisualizeBuffer ) && CurrentBufferVisualizationMode == InName;	
+	return IsViewModeEnabled( VMI_VisualizeBuffer ) && CurrentBufferVisualizationMode == InName;
 }
 
 void FEditorViewportClient::ChangeRayTracingDebugVisualizationMode(FName InName)
@@ -2647,10 +2660,10 @@ bool FEditorViewportClient::InputKey(FViewport* InViewport, int32 ControllerId, 
 
 	if( bWasCursorVisible != RequiredCursorVisibiltyAndAppearance.bHardwareCursorVisible || bWasSoftwareCursorVisible != RequiredCursorVisibiltyAndAppearance.bSoftwareCursorVisible )
 	{
-		bHandled = true;	
+		bHandled = true;
 	}
 
-	
+
 	// Compute a view.
 	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
 		InViewport,
@@ -2667,15 +2680,15 @@ bool FEditorViewportClient::InputKey(FViewport* InViewport, int32 ControllerId, 
 
 
 	// Start tracking if any mouse button is down and it was a tracking event (MouseButton/Ctrl/Shift/Alt):
-	if ( InputState.IsAnyMouseButtonDown() 
+	if ( InputState.IsAnyMouseButtonDown()
 		&& (Event == IE_Pressed || Event == IE_Released)
-		&& (InputState.IsMouseButtonEvent() || InputState.IsCtrlButtonEvent() || InputState.IsAltButtonEvent() || InputState.IsShiftButtonEvent() ) )		
+		&& (InputState.IsMouseButtonEvent() || InputState.IsCtrlButtonEvent() || InputState.IsAltButtonEvent() || InputState.IsShiftButtonEvent() ) )
 	{
 		StartTrackingDueToInput( InputState, *View );
 		return true;
 	}
 
-	
+
 	// If we are tracking and no mouse button is down and this input event released the mouse button stop tracking and process any clicks if necessary
 	if ( bIsTracking && !InputState.IsAnyMouseButtonDown() && InputState.IsMouseButtonEvent() )
 	{
@@ -2731,7 +2744,7 @@ bool FEditorViewportClient::InputKey(FViewport* InViewport, int32 ControllerId, 
 		MouseDeltaTracker->SetExternalMovement();
 		bHandled |= true;
 	}
-	
+
 	//apply the visibility and set the cursor positions
 	ApplyRequiredCursorVisibility( true );
 	return bHandled;
@@ -2791,7 +2804,7 @@ void FEditorViewportClient::StopTracking()
  		HHitProxy* HitProxy = Viewport->GetHitProxy(CachedMouseX,CachedMouseY);
   		CheckHoveredHitProxy(HitProxy);
 
-		bIsTracking = false;	
+		bIsTracking = false;
 	}
 
 	bHasMouseMovedSinceClick = false;
@@ -2815,7 +2828,7 @@ void FEditorViewportClient::StartTrackingDueToInput( const struct FInputEventSta
 	FViewport* InputStateViewport = InputState.GetViewport();
 	FKey Key = InputState.GetKey();
 
-	bool bIsRedundantModifierEvent = 
+	bool bIsRedundantModifierEvent =
 		( InputState.IsAltButtonEvent() && ( ( Event != IE_Released ) == IsAltPressed() ) ) ||
 		( InputState.IsCtrlButtonEvent() && ( ( Event != IE_Released ) == IsCtrlPressed() ) ) ||
 		( InputState.IsShiftButtonEvent() && ( ( Event != IE_Released ) == IsShiftPressed() ) );
@@ -2855,7 +2868,7 @@ void FEditorViewportClient::StartTrackingDueToInput( const struct FInputEventSta
 		}
 
 		// Start new tracking. Potentially reset the widget so that StartTracking can pick a new axis.
-		if ( Widget && ( !bDraggingByHandle || InputState.IsCtrlButtonPressed() ) ) 
+		if ( Widget && ( !bDraggingByHandle || InputState.IsCtrlButtonPressed() ) )
 		{
 			bWidgetAxisControlledByDrag = false;
 			Widget->SetCurrentAxis( EAxisList::None );
@@ -2879,10 +2892,10 @@ void FEditorViewportClient::StartTrackingDueToInput( const struct FInputEventSta
 		//only reset the initial point when the mouse is actually clicked
 		if (InputState.IsAnyMouseButtonDown() && Widget)
 		{
-			Widget->ResetInitialTranslationOffset();				
+			Widget->ResetInitialTranslationOffset();
 		}
 
-		//Don't update the cursor visibility if we don't have focus or mouse capture 
+		//Don't update the cursor visibility if we don't have focus or mouse capture
 		if( InputStateViewport->HasFocus() ||  InputStateViewport->HasMouseCapture())
 		{
 			//Need to call this one more time as the axis variable for the widget has just been updated
@@ -2905,12 +2918,12 @@ void FEditorViewportClient::ProcessClickInViewport( const FInputEventState& Inpu
 
 		const int32	HitX = InputStateViewport->GetMouseX();
 		const int32	HitY = InputStateViewport->GetMouseY();
-		
+
 		// Calc the raw delta from the mouse to detect if there was any movement
 		FVector RawMouseDelta = MouseDeltaTracker->GetRawDelta();
 
-		// Note: We are using raw mouse movement to double check distance moved in low performance situations.  In low performance situations its possible 
-		// that we would get a mouse down and a mouse up before the next tick where GEditor->MouseMovment has not been updated.  
+		// Note: We are using raw mouse movement to double check distance moved in low performance situations.  In low performance situations its possible
+		// that we would get a mouse down and a mouse up before the next tick where GEditor->MouseMovment has not been updated.
 		// In that situation, legitimate drags are incorrectly considered clicks
 		bool bNoMouseMovment = RawMouseDelta.SizeSquared() < MOUSE_CLICK_DRAG_DELTA && GEditor->MouseMovement.SizeSquared() < MOUSE_CLICK_DRAG_DELTA;
 
@@ -2980,7 +2993,7 @@ void FEditorViewportClient::ProcessDoubleClickInViewport( const struct FInputEve
 }
 
 
-/** Determines if the new MoveCanvas movement should be used 
+/** Determines if the new MoveCanvas movement should be used
  * @return - true if we should use the new drag canvas movement.  Returns false for combined object-camera movement and marquee selection
  */
 bool FEditorViewportClient::ShouldUseMoveCanvasMovement() const
@@ -3004,7 +3017,7 @@ bool FEditorViewportClient::ShouldUseMoveCanvasMovement() const
 		}
 
 		//OBJECT MOVEMENT CODE
-		if ( ( AltDown == false && ShiftDown == false && ( LeftMouseButtonDown ^ RightMouseButtonDown ) ) && 
+		if ( ( AltDown == false && ShiftDown == false && ( LeftMouseButtonDown ^ RightMouseButtonDown ) ) &&
 			( ( GetWidgetMode() == FWidget::WM_Translate && Widget->GetCurrentAxis() != EAxisList::None ) ||
 			( GetWidgetMode() == FWidget::WM_TranslateRotateZ && Widget->GetCurrentAxis() != EAxisList::ZRotation &&  Widget->GetCurrentAxis() != EAxisList::None ) ||
 			( GetWidgetMode() == FWidget::WM_2D && Widget->GetCurrentAxis() != EAxisList::Rotate2D &&  Widget->GetCurrentAxis() != EAxisList::None ) ) )
@@ -3076,7 +3089,7 @@ void FEditorViewportClient::DrawAxes(FViewport* InViewport, FCanvas* Canvas, con
 		LineItem.Draw( Canvas, AxisOrigin, AxisEnd );
 		TextItem.Text = LOCTEXT("YAxis","Y");
 		TextItem.Draw( Canvas, FVector2D(AxisEnd.X + 2, AxisEnd.Y - 0.5*YL) );
-		
+
 	}
 
 	if( ( InAxis & EAxisList::Z ) == EAxisList::Z )
@@ -3152,7 +3165,7 @@ void FEditorViewportClient::DrawScaleUnits(FViewport* InViewport, FCanvas* Canva
 	const float SegmentWidthUnits = UnitsPerPixel > 0 ? FMath::Pow(10.f, FMath::RoundToFloat(FMath::LogX(10.f, UnitsPerPixel * ApproxTargetMarkerWidthPx))) : 0.f;
 
 	const FString DisplayText = UnrealUnitsToSiUnits(SegmentWidthUnits);
-	
+
 	UFont* Font = GEngine->GetTinyFont();
 	int32 TextWidth, TextHeight;
 	StringSize(Font, TextWidth, TextHeight, *DisplayText);
@@ -3263,7 +3276,7 @@ void FEditorViewportClient::OnOrthoZoom( const struct FInputEventState& InputSta
 
 	const bool bInvalidateViews = true;
 
-	// Update linked ortho viewport movement based on updated zoom and view location, 
+	// Update linked ortho viewport movement based on updated zoom and view location,
 	UpdateLinkedOrthoViewports( bInvalidateViews );
 
 	const bool bInvalidateHitProxies = true;
@@ -3370,6 +3383,11 @@ void FEditorViewportClient::AddReferencedObjects( FReferenceCollector& Collector
 	}
 }
 
+FString FEditorViewportClient::GetReferencerName() const
+{
+	return TEXT("FEditorViewportClient");
+}
+
 void FEditorViewportClient::ProcessClick(class FSceneView& View, class HHitProxy* HitProxy, FKey Key, EInputEvent Event, uint32 HitX, uint32 HitY)
 {
 	const FViewportClick Click(&View, this, Key, Event, HitX, HitY);
@@ -3386,7 +3404,7 @@ bool FEditorViewportClient::InputWidgetDelta(FViewport* InViewport, EAxisList::T
 			ModeTools->SnappedLocation += Drag;
 		}
 
-		// Update visuals of the rotate widget 
+		// Update visuals of the rotate widget
 		ApplyDeltaToRotateWidget(Rot);
 		return true;
 	}
@@ -3434,6 +3452,11 @@ FMatrix FEditorViewportClient::GetWidgetCoordSystem() const
 	return ModeTools->GetCustomInputCoordinateSystem();
 }
 
+FMatrix FEditorViewportClient::GetLocalCoordinateSystem() const
+{
+	return ModeTools->GetLocalCoordinateSystem();
+}
+
 void FEditorViewportClient::SetWidgetCoordSystemSpace(ECoordSystem NewCoordSystem)
 {
 	ModeTools->SetCoordSystem(NewCoordSystem);
@@ -3472,7 +3495,7 @@ FSceneInterface* FEditorViewportClient::GetScene() const
 	{
 		return World->Scene;
 	}
-	
+
 	return NULL;
 }
 
@@ -3583,11 +3606,6 @@ void FEditorViewportClient::SetupViewForRendering(FSceneViewFamily& ViewFamily, 
 
 void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 {
-	if (RealTimeFrameCount > 0)
-	{
-		--RealTimeFrameCount;
-	}
-
 	FViewport* ViewportBackup = Viewport;
 	Viewport = InViewport ? InViewport : Viewport;
 
@@ -3661,9 +3679,11 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 
 	EViewModeIndex CurrentViewMode = GetViewMode();
 	ViewFamily.ViewMode = CurrentViewMode;
-	bool bCanDisableTonemapper = (CurrentViewMode == VMI_VisualizeBuffer && CurrentBufferVisualizationMode != NAME_None) 
-								|| (CurrentViewMode == VMI_RayTracingDebug && CurrentRayTracingDebugVisualizationMode != NAME_None);
 
+	const bool bVisualizeBufferEnabled = CurrentViewMode == VMI_VisualizeBuffer && CurrentBufferVisualizationMode != NAME_None;
+	const bool bRayTracingDebugEnabled = CurrentViewMode == VMI_RayTracingDebug && CurrentRayTracingDebugVisualizationMode != NAME_None;
+	const bool bCanDisableTonemapper = bVisualizeBufferEnabled || (bRayTracingDebugEnabled && !FRayTracingDebugVisualizationMenuCommands::DebugModeShouldBeTonemapped(CurrentRayTracingDebugVisualizationMode));
+	
 	EngineShowFlagOverride(ESFIM_Editor, ViewFamily.ViewMode, ViewFamily.EngineShowFlags, bCanDisableTonemapper);
 	EngineShowFlagOrthographicOverride(IsPerspective(), ViewFamily.EngineShowFlags);
 
@@ -3747,13 +3767,13 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 		World->ForegroundLineBatcher->Flush();
 	}
 
-	
+
 	// Draw the widget.
 	if (Widget && bShowWidget)
 	{
 		Widget->DrawHUD( Canvas );
 	}
-    
+
 	// Axes indicators
 	if (bDrawAxes && !ViewFamily.EngineShowFlags.Game && !GLevelEditorModeTools().IsViewportUIHidden())
 	{
@@ -3825,15 +3845,15 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 				break;
 			}
 		}
-	}    
-   
+	}
+
 	// NOTE: DebugCanvasObject will be created by UDebugDrawService::Draw() if it doesn't already exist.
 	UDebugDrawService::Draw(ViewFamily.EngineShowFlags, Viewport, View, DebugCanvas);
 	UCanvas* DebugCanvasObject = FindObjectChecked<UCanvas>(GetTransientPackage(),TEXT("DebugCanvasObject"));
 	DebugCanvasObject->Canvas = DebugCanvas;
 	DebugCanvasObject->Init( Viewport->GetSizeXY().X, Viewport->GetSizeXY().Y, View , DebugCanvas);
-    
-    
+
+
 	// Stats display
 	if( IsRealtime() && ShouldShowStats() && DebugCanvas)
 	{
@@ -3944,11 +3964,11 @@ FLinearColor FEditorViewportClient::GetBackgroundColor() const
 }
 
 void FEditorViewportClient::SetCameraSetup(
-	const FVector& LocationForOrbiting, 
-	const FRotator& InOrbitRotation, 
-	const FVector& InOrbitZoom, 
-	const FVector& InOrbitLookAt, 
-	const FVector& InViewLocation, 
+	const FVector& LocationForOrbiting,
+	const FRotator& InOrbitRotation,
+	const FVector& InOrbitZoom,
+	const FVector& InOrbitLookAt,
+	const FVector& InViewLocation,
 	const FRotator &InViewRotation )
 {
 	if( bUsingOrbitCamera )
@@ -3963,7 +3983,7 @@ void FEditorViewportClient::SetCameraSetup(
 		SetViewRotation( InViewRotation );
 	}
 
-	
+
 	// Save settings for toggling between orbit and unlocked camera
 	DefaultOrbitLocation = InViewLocation;
 	DefaultOrbitRotation = InOrbitRotation;
@@ -4008,7 +4028,7 @@ FVector FEditorViewportClient::TranslateDelta( FKey InKey, float InDelta, bool I
 			//only invert x,y if we're moving the camera
 			if( ShouldUseMoveCanvasMovement() )
 			{
-				if(Widget->GetCurrentAxis() == EAxisList::None) 
+				if(Widget->GetCurrentAxis() == EAxisList::None)
 				{
 					X = -X;
 					Y = -Y;
@@ -4115,7 +4135,7 @@ bool FEditorViewportClient::InputAxis(FViewport* InViewport, int32 ControllerId,
 		LightDir.Pitch += -DragY * EditorViewportClient::LightRotSpeed;
 
 		PreviewScene->SetLightDirection( LightDir );
-		
+
 		// Remember that we adjusted it for the visualization
 		MovingPreviewLightTimer = PreviewLightConstants::MovingPreviewLightTimerDuration;
 		MovingPreviewLightSavedScreenPos = FVector2D(LastMouseX, LastMouseY);
@@ -4241,7 +4261,7 @@ bool FEditorViewportClient::InputGesture(FViewport* InViewport, EGestureEvent Ge
 				if( LeftMouseButtonDown )
 				{
 					// Pan left/right/up/down
-					
+
 					CurrentGestureDragDelta.X += AdjustedGestureDelta.X * -FMath::Sin( ViewRotation.Yaw * PI / 180.f );
 					CurrentGestureDragDelta.Y += AdjustedGestureDelta.X *  FMath::Cos( ViewRotation.Yaw * PI / 180.f );
 					CurrentGestureDragDelta.Z += -AdjustedGestureDelta.Y;
@@ -4249,7 +4269,7 @@ bool FEditorViewportClient::InputGesture(FViewport* InViewport, EGestureEvent Ge
 				else
 				{
 					// Change viewing angle
-					
+
 					CurrentGestureRotDelta.Yaw += AdjustGestureCameraRotation( AdjustedGestureDelta.X, 20.0f, 35.0f ) * -0.35f;
 					CurrentGestureRotDelta.Pitch += AdjustGestureCameraRotation( AdjustedGestureDelta.Y, 20.0f, 35.0f ) * 0.35f;
 				}
@@ -4279,9 +4299,9 @@ void FEditorViewportClient::UpdateGestureDelta()
 	if( CurrentGestureDragDelta != FVector::ZeroVector || CurrentGestureRotDelta != FRotator::ZeroRotator )
 	{
 		MoveViewportCamera( CurrentGestureDragDelta, CurrentGestureRotDelta, false );
-		
+
 		Invalidate( true, true );
-		
+
 		CurrentGestureDragDelta = FVector::ZeroVector;
 		CurrentGestureRotDelta = FRotator::ZeroRotator;
 	}
@@ -4456,7 +4476,7 @@ void FEditorViewportClient::ConvertMovementToOrbitDragRot(const FVector& InDelta
 bool FEditorViewportClient::ShouldPanOrDollyCamera() const
 {
 	const bool bIsCtrlDown = IsCtrlPressed();
-	
+
 	const bool bLeftMouseButtonDown = Viewport->KeyState( EKeys::LeftMouseButton );
 	const bool bRightMouseButtonDown = Viewport->KeyState( EKeys::RightMouseButton );
 	const bool bIsMarqueeSelect = IsOrtho() && bLeftMouseButtonDown;
@@ -4510,7 +4530,7 @@ bool FEditorViewportClient::IsFlightCameraInputModeActive() const
 			const bool bMiddleMouseButtonDown = Viewport->KeyState( EKeys::MiddleMouseButton );
 			const bool bRightMouseButtonDown = Viewport->KeyState( EKeys::RightMouseButton );
 			const bool bIsUsingTrackpad = FSlateApplication::Get().IsUsingTrackpad();
-			
+
 			const bool bIsNonOrbitMiddleMouse = bMiddleMouseButtonDown && !IsAltPressed();
 
 			const bool bIsMouseLooking =
@@ -4562,7 +4582,7 @@ void FEditorViewportClient::GetViewportDimensions( FIntPoint& OutOrigin, FIntPoi
 void FEditorViewportClient::UpdateAndApplyCursorVisibility()
 {
 	UpdateRequiredCursorVisibility();
-	ApplyRequiredCursorVisibility();	
+	ApplyRequiredCursorVisibility();
 }
 
 void FEditorViewportClient::UpdateRequiredCursorVisibility()
@@ -4599,7 +4619,7 @@ void FEditorViewportClient::UpdateRequiredCursorVisibility()
 	if (IsOrtho() && bMouseButtonDown && !MouseDeltaTracker->UsingDragTool())
 	{
 		//Translating an object, but NOT moving the camera AND the object (shift)
-		if ( ( AltDown == false && ShiftDown == false && ( LeftMouseButtonDown ^ RightMouseButtonDown ) ) && 
+		if ( ( AltDown == false && ShiftDown == false && ( LeftMouseButtonDown ^ RightMouseButtonDown ) ) &&
 			( ( GetWidgetMode() == FWidget::WM_Translate && Widget->GetCurrentAxis() != EAxisList::None ) ||
 			(  GetWidgetMode() == FWidget::WM_TranslateRotateZ && Widget->GetCurrentAxis() != EAxisList::ZRotation &&  Widget->GetCurrentAxis() != EAxisList::None ) ||
 			( GetWidgetMode() == FWidget::WM_2D && Widget->GetCurrentAxis() != EAxisList::Rotate2D &&  Widget->GetCurrentAxis() != EAxisList::None ) ) )
@@ -4627,8 +4647,8 @@ void FEditorViewportClient::UpdateRequiredCursorVisibility()
 		}
 	}
 
-	//if Absolute Translation and not just moving the camera around
-	if (IsUsingAbsoluteTranslation() && !MouseDeltaTracker->UsingDragTool() )
+	//if Absolute Translation or arc rotate and not just moving the camera around
+	if (IsUsingAbsoluteTranslation(true) && !MouseDeltaTracker->UsingDragTool())
 	{
 		//If we are dragging something we should hide the hardware cursor and show the s/w one
 		SetRequiredCursor(false, true);
@@ -4676,8 +4696,8 @@ void FEditorViewportClient::ApplyRequiredCursorVisibility( bool bUpdateSoftwareC
 	{
 		//if we made the software cursor visible set its position
 		if( bOldSoftwareCursorVisibility != Viewport->IsSoftwareCursorVisible() )
-		{			
-			Viewport->SetSoftwareCursorPosition( FVector2D(Viewport->GetMouseX() , Viewport->GetMouseY() ) );			
+		{
+			Viewport->SetSoftwareCursorPosition( FVector2D(Viewport->GetMouseX() , Viewport->GetMouseY() ) );
 		}
 	}
 }
@@ -4726,7 +4746,7 @@ float FEditorViewportClient::GetFarClipPlaneOverride() const
 {
 	return FarPlane;
 }
-	
+
 void FEditorViewportClient::OverrideFarClipPlane(const float InFarPlane)
 {
 	FarPlane = InFarPlane;
@@ -4740,7 +4760,7 @@ float FEditorViewportClient::GetSceneDepthAtLocation(int32 X, int32 Y)
 
 FVector FEditorViewportClient::GetHitProxyObjectLocation(int32 X, int32 Y)
 {
-	// #todo: for now we are just getting the actor and using its location for 
+	// #todo: for now we are just getting the actor and using its location for
 	// depth. in the future we will just sample the depth buffer
 	HHitProxy* const HitProxy = Viewport->GetHitProxy(X, Y);
 	if (HitProxy && HitProxy->IsA(HActor::StaticGetType()))
@@ -4923,7 +4943,7 @@ void FEditorViewportClient::MoveViewportPerspectiveCamera( const FVector& InDrag
 		// normalize to -180 to 180
 		ViewRotation.Pitch = FRotator::NormalizeAxis(ViewRotation.Pitch);
 		// Make sure its withing  +/- 90 degrees.
-		ViewRotation.Pitch = FMath::Clamp( ViewRotation.Pitch, -90.f, 90.f );		
+		ViewRotation.Pitch = FMath::Clamp( ViewRotation.Pitch, -90.f, 90.f );
 	}
 	else
 	{
@@ -4940,7 +4960,7 @@ void FEditorViewportClient::MoveViewportPerspectiveCamera( const FVector& InDrag
 		const FQuat ResultQuat = ViewQuat * PitchQuat;
 
 		//get our correctly rotated ViewRotation
-		ViewRotation = ResultQuat.Rotator();	
+		ViewRotation = ResultQuat.Rotator();
 	}
 
 	const float DistanceToCurrentLookAt = FVector::Dist( GetViewLocation(), GetLookAtLocation() );
@@ -5100,13 +5120,11 @@ void FEditorViewportClient::SetViewMode(EViewModeIndex InViewModeIndex)
 
 	if (IsPerspective())
 	{
-		if (InViewModeIndex == VMI_PrimitiveDistanceAccuracy || InViewModeIndex == VMI_MeshUVDensityAccuracy || InViewModeIndex == VMI_MaterialTextureScaleAccuracy)
+		if (InViewModeIndex == VMI_MaterialTextureScaleAccuracy)
 		{
-			FEditorBuildUtils::EditorBuildTextureStreaming(GetWorld(), InViewModeIndex);
+			FEditorBuildUtils::UpdateTextureStreamingMaterialBindings(GetWorld());
 		}
-		// Uncomment this to generate inital viewmode data.
-		// FEditorBuildUtils::CompileViewModeShaders(GetWorld(), InViewModeIndex);
-			 
+
 		PerspViewModeIndex = InViewModeIndex;
 		ApplyViewMode(PerspViewModeIndex, true, EngineShowFlags);
 		bForcingUnlitForNewMap = false;
@@ -5186,7 +5204,7 @@ void FEditorViewportClient::Invalidate(bool bInvalidateChildViews, bool bInvalid
 		if ( bInvalidateChildViews &&
 			ViewState.GetReference()->IsViewParent() )
 		{
-			GEditor->InvalidateChildViewports( ViewState.GetReference(), bInvalidateHitProxies );	
+			GEditor->InvalidateChildViewports( ViewState.GetReference(), bInvalidateHitProxies );
 		}
 	}
 }
@@ -5208,6 +5226,9 @@ void FEditorViewportClient::MouseMove(FViewport* InViewport,int32 x, int32 y)
 
 	// Let the current editor mode know about the mouse movement.
 	ModeTools->MouseMove(this, Viewport, x, y);
+
+	CachedLastMouseX = x;
+	CachedLastMouseY = y;
 }
 
 void FEditorViewportClient::MouseLeave(FViewport* InViewport)
@@ -5416,8 +5437,10 @@ void FEditorViewportClient::TakeHighResScreenShot()
 	}
 }
 
-void FEditorViewportClient::ProcessScreenShots(FViewport* InViewport)
+bool FEditorViewportClient::ProcessScreenShots(FViewport* InViewport)
 {
+	bool bIsScreenshotSaved = false;
+
 	if (GIsDumpingMovie || FScreenshotRequest::IsScreenshotRequested() || GIsHighResScreenshot)
 	{
 		// Default capture region is the entire viewport
@@ -5428,7 +5451,7 @@ void FEditorViewportClient::ProcessScreenShots(FViewport* InViewport)
 
 		if (!ensure(HighResScreenshotConfig.ImageWriteQueue))
 		{
-			return;
+			return false;
 		}
 
 		// If capture region isn't valid, we need to determine which rectangle to capture from.
@@ -5460,8 +5483,8 @@ void FEditorViewportClient::ProcessScreenShots(FViewport* InViewport)
 		{
 			// Determine the size of the captured viewport data.
 			FIntPoint BitmapSize = CaptureRect.Area() > 0 ? CaptureRect.Size() : InViewport->GetSizeXY();
-			
-			// Determine which region of the captured data we want to save out. If the highres screenshot capture region 
+
+			// Determine which region of the captured data we want to save out. If the highres screenshot capture region
 			// is not valid, we want to save out everything in the viewrect that we just grabbed.
 			FIntRect SourceRect = FIntRect(0, 0, 0, 0);
 			if (GIsHighResScreenshot && bCaptureAreaValid)
@@ -5515,10 +5538,10 @@ void FEditorViewportClient::ProcessScreenShots(FViewport* InViewport)
 			TFuture<bool> CompletionFuture = HighResScreenshotConfig.ImageWriteQueue->Enqueue(MoveTemp(ImageTask));
 			if (CompletionFuture.IsValid())
 			{
-				CompletionFuture.Wait();
+				bIsScreenshotSaved = CompletionFuture.Get();
 			}
 		}
-		
+
 		// Done with the request
 		FScreenshotRequest::Reset();
 		FScreenshotRequest::OnScreenshotRequestProcessed().Broadcast();
@@ -5528,6 +5551,8 @@ void FEditorViewportClient::ProcessScreenShots(FViewport* InViewport)
 
 		InViewport->InvalidateHitProxy();
 	}
+
+	return bIsScreenshotSaved;
 }
 
 void FEditorViewportClient::DrawBoundingBox(FBox &Box, FCanvas* InCanvas, const FSceneView* InView, const FViewport* InViewport, const FLinearColor& InColor, const bool bInDrawBracket, const FString &InLabelText)
@@ -5537,7 +5562,7 @@ void FEditorViewportClient::DrawBoundingBox(FBox &Box, FCanvas* InCanvas, const 
 
 	// Project center of bounding box onto screen.
 	const FVector4 ProjBoxCenter = InView->WorldToScreen(BoxCenter);
-		
+
 	// Do nothing if behind camera
 	if( ProjBoxCenter.W > 0.f )
 	{
@@ -5770,15 +5795,15 @@ void FEditorViewportClient::SetEnabledStats(const TArray<FString>& InEnabledStat
 {
 	EnabledStats = InEnabledStats;
 
-#if !UE_BUILD_SHIPPING
-	if (UWorld* MyWorld = GetWorld())
+#if ENABLE_AUDIO_DEBUG
+	if (GEngine)
 	{
-		if (FAudioDevice* AudioDevice = MyWorld->GetAudioDevice())
+		if (FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager())
 		{
-			AudioDevice->ResolveDesiredStats(this);
+			FAudioDebugger::ResolveDesiredStats(this);
 		}
 	}
-#endif
+#endif // ENABLE_AUDIO_DEBUG
 }
 
 bool FEditorViewportClient::IsStatEnabled(const FString& InName) const
@@ -5939,4 +5964,4 @@ void FViewportNavigationCommands::RegisterCommands()
 	UI_COMMAND(FovZoomOut, "FOV Zoom Out", "Widens the camera FOV", EUserInterfaceActionType::Button, FInputChord(EKeys::Z));
 }
 
-#undef LOCTEXT_NAMESPACE 
+#undef LOCTEXT_NAMESPACE

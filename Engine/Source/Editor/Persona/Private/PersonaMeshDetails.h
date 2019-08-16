@@ -22,6 +22,8 @@ class IDetailLayoutBuilder;
 class IPersonaToolkit;
 class SUniformGridPanel;
 struct FSectionLocalizer;
+class IDetailCategoryBuilder;
+class IDetailGroup;
 
 /**
  * Struct to uniquely identify clothing applied to a material section
@@ -557,4 +559,16 @@ private:
 
 	/** LOD Info editing is enabled? LODIndex == -1, then it just verifies if the asset exists */
 	bool IsLODInfoEditingEnabled(int32 LODIndex) const;
+
+	// Property handle used to determine if the VertexColorImportOverride property should be enabled.
+	TSharedPtr<IPropertyHandle> VertexColorImportOptionHandle;
+
+	// Property handle used during UI construction
+	TSharedPtr<IPropertyHandle> VertexColorImportOverrideHandle;
+
+	// Delegate implementation of FOnInstancedPropertyIteration used during DataImport UI construction
+	void OnInstancedFbxSkeletalMeshImportDataPropertyIteration(IDetailCategoryBuilder& BaseCategory, IDetailGroup* PropertyGroup, TSharedRef<IPropertyHandle>& Property) const;
+
+	// Delegate used at runtime to determine the state of the VertexOverrideColor property
+	bool GetVertexOverrideColorEnabledState() const;
 };

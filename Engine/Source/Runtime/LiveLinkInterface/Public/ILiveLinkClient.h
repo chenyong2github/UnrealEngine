@@ -2,91 +2,261 @@
 
 #pragma once
 
+#include "Delegates/Delegate.h"
 #include "LiveLinkRefSkeleton.h"
 #include "Features/IModularFeature.h"
+#include "LiveLinkRole.h"
 #include "LiveLinkTypes.h"
+#include "LiveLinkPresetTypes.h"
 #include "Misc/Guid.h"
+#include "Templates/SubclassOf.h"
+
 
 class ILiveLinkSource;
+class ULiveLinkRole;
+struct FLiveLinkSubjectFrameData;
 struct FTimecode;
 
-class LIVELINKINTERFACE_API ILiveLinkClient : public IModularFeature
+DECLARE_EVENT_OneParam(ILiveLinkClient, FOnLiveLinkSourceChangedDelegate, FGuid /*SourceGuid*/);
+DECLARE_EVENT_OneParam(ILiveLinkClient, FOnLiveLinkSubjectChangedDelegate, FLiveLinkSubjectKey /*SubjectKey*/);
+DECLARE_EVENT_ThreeParams(ILiveLinkClient, FOnLiveLinkSubjectStaticDataReceived, FLiveLinkSubjectKey /*InSubjectKey*/, TSubclassOf<ULiveLinkRole> /*SubjectRole*/, const FLiveLinkStaticDataStruct& /*InStaticData*/)
+DECLARE_EVENT_ThreeParams(ILiveLinkClient, FOnLiveLinkSubjectFrameDataReceived, FLiveLinkSubjectKey /*InSubjectKey*/, TSubclassOf<ULiveLinkRole> /*SubjectRole*/, const FLiveLinkFrameDataStruct& /*InFrameData*/)
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+class ILiveLinkClient_Base_DEPRECATED : public IModularFeature
 {
 public:
+	UE_DEPRECATED(4.23, "ILiveLinkClient::PushSubjectSkeleton is deprecated. Please use ILiveLinkClient::PushSubjectStaticData with the proper LiveLinkRole's static data structure instead!")
+	virtual void PushSubjectSkeleton(FGuid SourceGuid, FName SubjectName, const FLiveLinkRefSkeleton& RefSkeleton) {}
+
+	UE_DEPRECATED(4.23, "ILiveLinkClient::PushSubjectData is deprecated. Please use ILiveLinkClient::PushSubjectFrameData with the proper LiveLinkRole's frame data structure instead!")
+	virtual void PushSubjectData(FGuid SourceGuid, FName SubjectName, const FLiveLinkFrameData& FrameData) {}
+
+	UE_DEPRECATED(4.23, "ILiveLinkClient::ClearSubject is deprecated. Please use ILiveLinkClient::RemoveSubject instead!")
+	virtual void ClearSubject(FName SubjectName) {}
+
+	UE_DEPRECATED(4.23, "ILiveLinkClient::GetSubjectNames is deprecated. Please use ILiveLinkClient::GetSubjects instead!")
+	virtual void GetSubjectNames(TArray<FName>& SubjectNames) {}
+
+	UE_DEPRECATED(4.23, "ILiveLinkClient::GetActiveSubjects is deprecated. Please use ILiveLinkClient::GetSubjects instead!")
+	virtual TArray<FLiveLinkSubjectKey> GetActiveSubjects() { return TArray<FLiveLinkSubjectKey>(); }
+
+	UE_DEPRECATED(4.23, "ILiveLinkClient::GetSubjectData is deprecated. Please use ILiveLinkClient::EvaluateFrame with the desired LiveLinkRole instead!")
+	virtual const FLiveLinkSubjectFrame* GetSubjectData(FName SubjectName) { return nullptr; }
+
+	UE_DEPRECATED(4.23, "ILiveLinkClient::GetSubjectDataAtWorldTime is deprecated. Please use ILiveLinkClient::EvaluateFrameAtWorldTime with the desired LiveLinkRole instead!")
+	virtual const FLiveLinkSubjectFrame* GetSubjectDataAtWorldTime(FName SubjectName, double WorldTime) { return nullptr; }
+
+	UE_DEPRECATED(4.23, "ILiveLinkClient::GetSubjectDataAtSceneTime is deprecated. Please use ILiveLinkClient::EvaluateFrameAtSceneTime with the desired LiveLinkRole instead!")
+	virtual const FLiveLinkSubjectFrame* GetSubjectDataAtSceneTime(FName SubjectName, const FTimecode& SceneTime) { return nullptr; }
+
+	UE_DEPRECATED(4.23, "ILiveLinkClient::GetSubjectRawFrames is deprecated. It is no longer supported.")
+	virtual const TArray<FLiveLinkFrame>* GetSubjectRawFrames(FName SubjectName) { return nullptr; }
+
+	UE_DEPRECATED(4.23, "ILiveLinkClient::ClearSubjectsFrames is deprecated. Please use ILiveLinkClient::ClearSubjectsFrames_AnyThread with the desired LiveLinkRole instead!")
+	virtual void ClearSubjectsFrames(FName SubjectName) {}
+
+	UE_DEPRECATED(4.23, "ILiveLinkClient::ClearAllSubjectsFrames is deprecated. Please use ILiveLinkClient::ClearAllSubjectsFrames_AnyThread with the desired LiveLinkRole instead!")
+	virtual void ClearAllSubjectsFrames() {}
+
+	UE_DEPRECATED(4.23, "ILiveLinkClient::GetSaveFrames is deprecated. Please register using RegisterForSubjectFrames to start receiving subject frames instead!")
+	virtual bool GetSaveFrames() const { return false; }
+
+	UE_DEPRECATED(4.23, "ILiveLinkClient::SetSaveFrames is deprecated. Please register using RegisterForSubjectFrames to start receiving subject frames instead!")
+	virtual bool SetSaveFrames(bool InSave) { return false; }
+
+	UE_DEPRECATED(4.23, "ILiveLinkClient::StartRecordingLiveLink is deprecated. Please register using RegisterForSubjectFrames to start receiving subject frames instead!")
+	virtual FGuid StartRecordingLiveLink(const TArray<FName>& SubjectNames) { return FGuid(); }
+
+	UE_DEPRECATED(4.23, "ILiveLinkClient::StartRecordingLiveLink is deprecated. Please register using RegisterForSubjectFrames to start receiving subject frames instead!")
+	virtual FGuid StartRecordingLiveLink(const FName& SubjectName) { return FGuid(); }
+
+	UE_DEPRECATED(4.23, "ILiveLinkClient::StopRecordingLiveLinkData is deprecated. Please unregister using UnregisterSubjectFramesHandle to stop receiving subject frames instead!")
+	virtual void StopRecordingLiveLinkData(const FGuid &InGuid, const TArray<FName>& SubjectNames) {}
+
+	UE_DEPRECATED(4.23, "ILiveLinkClient::StopRecordingLiveLinkData is deprecated. Please unregister using UnregisterSubjectFramesHandle to stop receiving subject frames instead!")
+	virtual void StopRecordingLiveLinkData(const FGuid &InGuid, const FName& SubjectName) {}
+
+	UE_DEPRECATED(4.23, "ILiveLinkClient::GetAndFreeLastRecordedFrames is deprecated. Please register using RegisterForSubjectFrames to receive subject frames instead!")
+	virtual void GetAndFreeLastRecordedFrames(const FGuid& InHandlerGuid, FName SubjectName, TArray<FLiveLinkFrame> &OutFrames) {}
+
+	UE_DEPRECATED(4.23, "ILiveLinkClient::AddSourceToSubjectWhiteList is deprecated. Please register using SetSubjectEnabled to enabled a subject instead!")
+	virtual void AddSourceToSubjectWhiteList(FName SubjectName, FGuid SourceGuid) {}
+
+	UE_DEPRECATED(4.23, "ILiveLinkClient::RemoveSourceFromSubjectWhiteList is deprecated. Please register using SetSubjectEnabled to disable a subject instead!")
+	virtual void RemoveSourceFromSubjectWhiteList(FName SubjectName, FGuid SourceGuid) {}
+	
+	UE_DEPRECATED(4.23, "ILiveLinkClient::ClearSourceWhiteLists is deprecated. Please register using SetSubjectEnabled to disable a subject instead!")
+	virtual void ClearSourceWhiteLists() {}
+
+	UE_DEPRECATED(4.23, "ILiveLinkClient::RegisterSubjectsChangedHandle is deprecated. Please register using OnLiveLinkSubjectAdded and OnLiveLinkSubjectRemoved instead!")
+	virtual FDelegateHandle RegisterSubjectsChangedHandle(const FSimpleMulticastDelegate::FDelegate& SubjectsChanged) { return FDelegateHandle(); }
+
+	UE_DEPRECATED(4.23, "ILiveLinkClient::UnregisterSubjectsChangedHandle is deprecated. Please unregister using OnLiveLinkSubjectAdded and OnLiveLinkSubjectRemoved instead!")
+	virtual void UnregisterSubjectsChangedHandle(FDelegateHandle Handle) {}
+};
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+/**
+ * Interface for streaming and consuming data from external sources into UE4.
+ * A LiveLinkSource, may stream multiple LiveLinkSubject.
+ * Pushing and evaluating data can be executed on any thread. The other functions must be executed on the Game Thread.
+ * Subject may shared name between sources, but only 1 of those subjects may be enabled.
+ */
+class LIVELINKINTERFACE_API ILiveLinkClient : public ILiveLinkClient_Base_DEPRECATED
+{
+public:
+	static const int32 LIVELINK_VERSION = 2;
+
 	virtual ~ILiveLinkClient() {}
 
 	static FName ModularFeatureName;
 
-	// Add a new live link source to the client
-	virtual void AddSource(TSharedPtr<ILiveLinkSource> InSource) = 0;
+	/** Add a new live link source to the client */
+	virtual FGuid AddSource(TSharedPtr<ILiveLinkSource> Source) = 0;
 
-	// Remove the specified source from the live link client
-	virtual void RemoveSource(TSharedPtr<ILiveLinkSource> InSource) = 0;
+	/** Create from the factory a new live link source and add it to the client. The settings will be duplicated. */
+	virtual bool CreateSource(const FLiveLinkSourcePreset& SourcePreset) = 0;
 
-	virtual void PushSubjectSkeleton(FGuid SourceGuid, FName SubjectName, const FLiveLinkRefSkeleton& RefSkeleton) = 0;
-	virtual void PushSubjectData(FGuid SourceGuid, FName SubjectName, const FLiveLinkFrameData& FrameData) = 0;
-	virtual void ClearSubject(FName SubjectName) = 0;
+	/** Remove the specified source from the live link client */
+	virtual void RemoveSource(TSharedPtr<ILiveLinkSource> Source) = 0;
 
-	// Populates an array with in-use subject names
-	virtual void GetSubjectNames(TArray<FName>& SubjectNames) = 0;
+	/** Is the source been added */
+	virtual bool HasSourceBeenAdded(TSharedPtr<ILiveLinkSource> Source) const = 0;
 
-	//Get Whether or not we are saving each frame or not or not
-	virtual bool GetSaveFrames() const = 0;
+	/** Get a list of all the sources */
+	virtual TArray<FGuid> GetSources() const = 0;
 
-	//Set Whether or not we are saving each frame
-	//Returns whether or not we were previously saving.
-	//If we were saving frames and now don't we remove the previously saved frames
-	virtual bool SetSaveFrames(bool InSave) = 0;
+	/** Get the source preset from the live link client. The settings will be duplicated into DuplicatedObjectOuter. */
+	virtual FLiveLinkSourcePreset GetSourcePreset(FGuid SourceGuid, UObject* DuplicatedObjectOuter) const = 0;
 
-	//Clear the stored frames associated with this subject
-	virtual void ClearSubjectsFrames(FName SubjectName) = 0;
+	/** Get the type of a source */
+	virtual FText GetSourceType(FGuid SourceGuid) const = 0;
 
-	//Clear All Subjects Frames
-	virtual void ClearAllSubjectsFrames() = 0;
+	/** Push static data for a specific subject for a certain role. This will clear all buffered frames */
+	virtual void PushSubjectStaticData_AnyThread(const FLiveLinkSubjectKey& SubjectKey, TSubclassOf<ULiveLinkRole> Role, FLiveLinkStaticDataStruct&& StaticData) = 0;
 
-	virtual const FLiveLinkSubjectFrame* GetSubjectData(FName SubjectName) = 0;
-	virtual const FLiveLinkSubjectFrame* GetSubjectDataAtWorldTime(FName SubjectName, double WorldTime) = 0;
-	virtual const FLiveLinkSubjectFrame* GetSubjectDataAtSceneTime(FName SubjectName, const FTimecode& SceneTime) = 0;
+	/** Push frame data for a specific subject for a certain role */
+	virtual void PushSubjectFrameData_AnyThread(const FLiveLinkSubjectKey& SubjectKey, FLiveLinkFrameDataStruct&& FrameData) = 0;
 
-	//Whether or not the subject's data is time syncrhonized or not
-	virtual bool IsSubjectTimeSynchronized(FName SubjectName)  = 0;
+	/** Create and add a new live link subject to the client */
+	virtual bool CreateSubject(const FLiveLinkSubjectPreset& SubjectPreset) = 0;
 
-	//Efficiently get data 
-	virtual const TArray<FLiveLinkFrame>* GetSubjectRawFrames(FName SubjectName) = 0;
+	/** Clear the subject from the specific source */
+	virtual void RemoveSubject_AnyThread(const FLiveLinkSubjectKey& SubjectName) = 0;
 
-	//Get the settings structure for a particular source
-	virtual	class ULiveLinkSourceSettings* GetSourceSettingsForEntry(FGuid InEntryGuid) = 0;
+	/** Clear the stored frames associated with the enabled subject */
+	virtual void ClearSubjectsFrames_AnyThread(FLiveLinkSubjectName SubjectName) = 0;
 
-	//Functions to start recording live link data into a saved buffer that can that can queried dynamically for uses 
-	//such as recording in the sequencer or for serialization.
-	//Note that it's the responsibility of the client to handle any changes to the Subjects structure.
-	//Note that it's the responsibility of the client to make sure that StopRecordingLiveLinkData is called on all subjects that it
-	//started recording for or recording will continue unabated eventually causing the system to run of memory.
+	/** Clear the stored frames associated with the subject */
+	virtual void ClearSubjectsFrames_AnyThread(const FLiveLinkSubjectKey& SubjectKey) = 0;
 
-	//Start Recording the Live Link data for these Subjects.
-	//Returns a GUID  that is used as an unique identifier to get the data or stop the recording.
-	virtual FGuid StartRecordingLiveLink(const TArray<FName>& SubjectNames) = 0;
-	virtual FGuid StartRecordingLiveLink(const FName& SubjectName) = 0;
-	//Stop recording the live link data. This will free all memory. Must be called with correct Guid/SubjectNames used 
-	//when starting recording.
-	virtual void StopRecordingLiveLinkData(const FGuid &InGuid, const TArray<FName>& SubjectNames) = 0;
-	virtual void StopRecordingLiveLinkData(const FGuid &InGuid, const FName& SubjectName) = 0;
-	//Returns the copy of the recorded frames from the initial start or the last call to this.
-	//Note that it also clears the frames so that the next time this function is called you get the next set of frames from 
-	//the last time you called this method. If no new frames have come in OutFrames will be empty.
-	virtual void GetAndFreeLastRecordedFrames(const FGuid& InHandlerGuid, FName SubjectName, TArray<FLiveLinkFrame> &OutFrames) = 0;
+	/** Clear all subjects frames */
+	virtual void ClearAllSubjectsFrames_AnyThread() = 0;
 
-	//Specify that only this subject should accept frames from the specified source and any other source that has
-	//been added to the whitelist. If no sources have been added then all sources can publish data on that subject,
-	//but may cause interference issues between competing sources.
-	virtual void AddSourceToSubjectWhiteList(FName SubjectName, FGuid SourceGuid) = 0;
-	//Remove source from whitelist. If no sources are left in whitelest then all sources are active and publish.
-	virtual void RemoveSourceFromSubjectWhiteList(FName SubjectName, FGuid SourceGuid) = 0;
-	//Clear whitelist, and all sources are now active.
-	virtual void ClearSourceWhiteLists() = 0;
-	//Register for when subjects change
-	virtual FDelegateHandle RegisterSubjectsChangedHandle(const FSimpleMulticastDelegate::FDelegate& SubjectsChanged) = 0;
-	virtual void UnregisterSubjectsChangedHandle(FDelegateHandle Handle) = 0;
+	/** Get the subject preset from the live link client. The settings will be duplicated into DuplicatedObjectOuter. */
+	virtual FLiveLinkSubjectPreset GetSubjectPreset(const FLiveLinkSubjectKey& SubjectKey, UObject* DuplicatedObjectOuter) const = 0;
 
+	/** Get a list of all subjects */
+	virtual TArray<FLiveLinkSubjectKey> GetSubjects(bool bIncludeDisabledSubject, bool bIncludeVirtualSubject) const = 0;
+
+	/** Whether or not a subject from a specific source is valid and has valid snapshot data */
+	virtual bool IsSubjectValid(const FLiveLinkSubjectKey& SubjectKey) const = 0;
+
+	/** Whether or not the client has a subject with this name that is valid and has valid snapshot data */
+	virtual bool IsSubjectValid(FLiveLinkSubjectName SubjectName) const = 0;
+
+	/**
+	 * Whether or not a subject from the specific source is the enabled subject.
+	 * Only 1 subject with the same name can be enabled.
+	 * At the start of the frame, a snapshot of the enabled subjects will be made.
+	 * That snapshot dictate which subject will be used for the duration of that frame.
+	 */
+	virtual bool IsSubjectEnabled(const FLiveLinkSubjectKey& SubjectKey, bool bUseSnaphot) const = 0;
+
+	/**
+	 * Whether or not the client has a subject with this name enabled
+	 * Only 1 subject with the same name can be enabled.
+	 * At the start of the frame, a snapshot of the enabled subjects will be made.
+	 * That snapshot dictate which subject will be used for the duration of that frame.
+	 */
+	virtual bool IsSubjectEnabled(FLiveLinkSubjectName SubjectName) const = 0;
+
+	/**
+	 * Set the subject's from a specific source to enabled, disabling the other in the process.
+	 * Only 1 subject with the same name can be enabled.
+	 * At the start of the frame, a snapshot of the enabled subjects will be made.
+	 * That snapshot dictate which subject will be used for the duration of that frame.
+	 * SetSubjectEnabled will take effect on the next frame.
+	 */
+	virtual void SetSubjectEnabled(const FLiveLinkSubjectKey& SubjectKey, bool bEnabled) = 0;
+	
+	/** Whether or not the subject's data, from a specific source, is time synchronized or not */
+	virtual bool IsSubjectTimeSynchronized(const FLiveLinkSubjectKey& SubjectKey) const = 0;
+
+	/** Whether or not the subject's data is time synchronized or not */
+	virtual bool IsSubjectTimeSynchronized(FLiveLinkSubjectName SubjectName) const = 0;
+
+	/** Get the role of a subject from a specific source */
+	virtual TSubclassOf<ULiveLinkRole> GetSubjectRole(const FLiveLinkSubjectKey& SubjectKey) const = 0;
+
+	/** Get the role of the subject with this name */
+	virtual TSubclassOf<ULiveLinkRole> GetSubjectRole(FLiveLinkSubjectName SubjectName) const = 0;
+
+	/** Get a list of name of subjects supporting a certain role */
+	virtual TArray<FLiveLinkSubjectKey> GetSubjectsSupportingRole(TSubclassOf<ULiveLinkRole> SupportedRole, bool bIncludeDisabledSubject, bool bIncludeVirtualSubject) const = 0;
+
+	/** Whether a subject support a particular role, either directly or through a translator */
+	virtual bool DoesSubjectSupportsRole(const FLiveLinkSubjectKey& SubjectKey, TSubclassOf<ULiveLinkRole> SupportedRole) const = 0;
+
+	/**
+	 * Return the evaluated subject snapshot for a specific role.
+	 * The subject may go through a translator to get the desired role's frame data.
+	 * @return True if the snapshot is valid.
+	 * @note This will always return the same value for a specific frame.
+	 * @see ULiveLinkSourceSettings
+	 */
+	virtual bool EvaluateFrame_AnyThread(FLiveLinkSubjectName SubjectName, TSubclassOf<ULiveLinkRole> Role, FLiveLinkSubjectFrameData& OutFrame) = 0;
+
+	/**
+	 * Evaluates a subject for a specific role.
+	 * The subject may go through a translator to get the desired role's frame data.
+	 * If it's a virtual subject EvaluateFrame_AnyThread will be used instead.
+	 * @return True if a frame data was calculated.
+	 * @note This value is not cached.
+	 * @see ULiveLinkSourceSettings
+	 */
+	virtual bool EvaluateFrameAtWorldTime_AnyThread(FLiveLinkSubjectName SubjectName, double WorldTime, TSubclassOf<ULiveLinkRole> DesiredRole, FLiveLinkSubjectFrameData& OutFrame) = 0;
+
+	/**
+	 * Evaluates a subject for a specific role at a Timecode.
+	 * The subject may go through a translator to get the desired role's frame data.
+	 * If it's a virtual subject EvaluateFrame_AnyThread will be used instead.
+	 * @return True if a frame data was calculated.
+	 * @note This value is not cached.
+	 * @see ULiveLinkSourceSettings
+	 */
+	virtual bool EvaluateFrameAtSceneTime_AnyThread(FLiveLinkSubjectName SubjectName, const FTimecode& SceneTime, TSubclassOf<ULiveLinkRole> DesiredRole, FLiveLinkSubjectFrameData& OutFrame) = 0;
+
+	/** Notify when the list of sources has changed. */
+	virtual FSimpleMulticastDelegate& OnLiveLinkSourcesChanged() = 0;
+
+	/** Notify when the list of subject has changed. */
+	virtual FSimpleMulticastDelegate& OnLiveLinkSubjectsChanged() = 0;
+
+	/** Notify when a new source has been added */
+	virtual FOnLiveLinkSourceChangedDelegate& OnLiveLinkSourceAdded() = 0;
+
+	/** Notify when a source has been removed */
+	virtual FOnLiveLinkSourceChangedDelegate& OnLiveLinkSourceRemoved() = 0;
+
+	/** Notify when a new subject has been added */
+	virtual FOnLiveLinkSubjectChangedDelegate& OnLiveLinkSubjectAdded() = 0;
+
+	/** Notify when a subject has been removed */
+	virtual FOnLiveLinkSubjectChangedDelegate& OnLiveLinkSubjectRemoved() = 0;
+
+	/** Register for when a frame has been received for a subject */
+	virtual bool RegisterForSubjectFrames(FLiveLinkSubjectName SubjectName, const FOnLiveLinkSubjectStaticDataReceived::FDelegate& OnStaticDataReceived, const FOnLiveLinkSubjectFrameDataReceived::FDelegate& OnFrameDataReceived, FDelegateHandle& OutStaticDataReceivedHandle, FDelegateHandle& OutFrameDataReceivedHandle, TSubclassOf<ULiveLinkRole>& OutSubjectRole, FLiveLinkStaticDataStruct* OutStaticData = nullptr) = 0;
+	virtual void UnregisterSubjectFramesHandle(FLiveLinkSubjectName SubjectName, FDelegateHandle StaticDataReceivedHandle, FDelegateHandle FrameDataReceivedHandle) = 0;
 };
-

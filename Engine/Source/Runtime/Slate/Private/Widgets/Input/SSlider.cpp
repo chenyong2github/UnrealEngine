@@ -2,6 +2,17 @@
 
 #include "Widgets/Input/SSlider.h"
 #include "Rendering/DrawElements.h"
+#include "Framework/Application/SlateApplication.h"
+#if WITH_ACCESSIBILITY
+#include "Widgets/Accessibility/SlateAccessibleWidgets.h"
+#endif
+
+SSlider::SSlider()
+{
+#if WITH_ACCESSIBILITY
+	AccessibleData = FAccessibleWidgetData(EAccessibleBehavior::Summary, EAccessibleBehavior::Auto, false);
+#endif
+}
 
 void SSlider::Construct( const SSlider::FArguments& InDeclaration )
 {
@@ -16,6 +27,8 @@ void SSlider::Construct( const SSlider::FArguments& InDeclaration )
 	Orientation = InDeclaration._Orientation;
 	StepSize = InDeclaration._StepSize;
 	ValueAttribute = InDeclaration._Value;
+	MinValue = InDeclaration._MinValue;
+	MaxValue = InDeclaration._MaxValue;
 	SliderBarColor = InDeclaration._SliderBarColor;
 	SliderHandleColor = InDeclaration._SliderHandleColor;
 	bIsFocusable = InDeclaration._IsFocusable;
@@ -46,7 +59,7 @@ int32 SSlider::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometr
 	const float Indentation = IndentHandle.Get() ? HandleSize.X : 0.0f;
 
 	// We clamp to make sure that the slider cannot go out of the slider Length.
-	const float SliderPercent = FMath::Clamp(ValueAttribute.Get(), 0.0f, 1.0f); 
+	const float SliderPercent = FMath::Clamp(GetNormalizedValue(), 0.0f, 1.0f); 
 	const float SliderLength = AllottedWidth - (Indentation + HandleSize.X);
 	const float SliderHandleOffset = SliderPercent * SliderLength;
 	const float SliderY = 0.5f * AllottedHeight;
@@ -145,6 +158,52 @@ void SSlider::ResetControllerState()
 	}
 }
 
+FNavigationReply SSlider::OnNavigation(const FGeometry& MyGeometry, const FNavigationEvent& InNavigationEvent)
+{
+	FNavigationReply Reply = FNavigationReply::Escape();
+		if (bControllerInputCaptured || !bRequiresControllerLock)
+		{
+			float NewValue = ValueAttribute.Get();
+			if (Orientation == EOrientation::Orient_Horizontal)
+			{
+			if (InNavigationEvent.GetNavigationType() == EUINavigation::Left)
+				{
+					NewValue -= StepSize.Get();
+				Reply = FNavigationReply::Stop();
+				}
+			else if (InNavigationEvent.GetNavigationType() == EUINavigation::Right)
+				{
+					NewValue += StepSize.Get();
+				Reply = FNavigationReply::Stop();
+				}
+			}
+			else
+			{
+			if (InNavigationEvent.GetNavigationType() == EUINavigation::Down)
+				{
+					NewValue -= StepSize.Get();
+				Reply = FNavigationReply::Stop();
+				}
+			if (InNavigationEvent.GetNavigationType() == EUINavigation::Up)
+				{
+					NewValue += StepSize.Get();
+				Reply = FNavigationReply::Stop();
+				}
+			}
+		if (ValueAttribute.Get() != NewValue)
+		{
+			CommitValue(FMath::Clamp(NewValue, MinValue, MaxValue));
+		}
+	}
+
+	if (Reply.GetBoundaryRule() != EUINavigationRule::Escape)
+			{
+		Reply = SLeafWidget::OnNavigation(MyGeometry, InNavigationEvent);
+	}
+
+	return Reply;
+}
+
 FReply SSlider::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
 	FReply Reply = FReply::Unhandled();
@@ -155,8 +214,7 @@ FReply SSlider::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEve
 		// The controller's bottom face button must be pressed once to begin manipulating the slider's value.
 		// Navigation away from the widget is prevented until the button has been pressed again or focus is lost.
 		// The value can be manipulated by using the game pad's directional arrows ( relative to slider orientation ).
-		if ((KeyPressed == EKeys::Enter || KeyPressed == EKeys::SpaceBar || KeyPressed == EKeys::Virtual_Accept)
-			&& bRequiresControllerLock)
+		if (FSlateApplication::Get().GetNavigationActionForKey(KeyPressed) == EUINavigationAction::Accept && bRequiresControllerLock)
 		{
 			if (bControllerInputCaptured == false)
 			{
@@ -169,43 +227,6 @@ FReply SSlider::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEve
 			{
 				ResetControllerState();
 				Reply = FReply::Handled();
-			}
-		}
-
-		if (bControllerInputCaptured || !bRequiresControllerLock)
-		{
-			float NewValue = ValueAttribute.Get();
-			if (Orientation == EOrientation::Orient_Horizontal)
-			{
-				if (KeyPressed == EKeys::Left || KeyPressed == EKeys::Gamepad_DPad_Left || KeyPressed == EKeys::Gamepad_LeftStick_Left)
-				{
-					NewValue -= StepSize.Get();
-					Reply = FReply::Handled();
-				}
-				else if (KeyPressed == EKeys::Right || KeyPressed == EKeys::Gamepad_DPad_Right || KeyPressed == EKeys::Gamepad_LeftStick_Right)
-				{
-					NewValue += StepSize.Get();
-					Reply = FReply::Handled();
-				}
-			}
-			else
-			{
-				if (KeyPressed == EKeys::Down || KeyPressed == EKeys::Gamepad_DPad_Down || KeyPressed == EKeys::Gamepad_LeftStick_Down)
-				{
-					NewValue -= StepSize.Get();
-					Reply = FReply::Handled();
-				}
-				else if (KeyPressed == EKeys::Up || KeyPressed == EKeys::Gamepad_DPad_Up || KeyPressed == EKeys::Gamepad_LeftStick_Up)
-				{
-					NewValue += StepSize.Get();
-					Reply = FReply::Handled();
-				}
-			}
-
-			CommitValue(FMath::Clamp(NewValue, 0.0f, 1.0f));
-			if (!Reply.IsEventHandled())
-			{
-				Reply = SLeafWidget::OnKeyDown(MyGeometry, InKeyEvent);
 			}
 		}
 		else
@@ -340,6 +361,8 @@ FReply SSlider::OnTouchEnded(const FGeometry& MyGeometry, const FPointerEvent& I
 
 void SSlider::CommitValue(float NewValue)
 {
+	const float OldValue = GetValue();
+
 	if (!ValueAttribute.IsBound())
 	{
 		ValueAttribute.Set(NewValue);
@@ -370,17 +393,17 @@ float SSlider::PositionToValue( const FGeometry& MyGeometry, const FVector2D& Ab
 		RelativeValue = (Denominator != 0.f) ? ((MyGeometry.Size.Y - LocalPosition.Y) - HalfIndentation) / Denominator : 0.f;
 	}
 
-	RelativeValue = FMath::Clamp(RelativeValue, 0.0f, 1.0f);
+	RelativeValue = FMath::Clamp(RelativeValue, 0.0f, 1.0f) * (MaxValue - MinValue) + MinValue;
 	if (bMouseUsesStep)
 	{
 		float direction = ValueAttribute.Get() - RelativeValue;
 		if (direction > StepSize.Get() / 2.0f)
 		{
-			return FMath::Clamp(ValueAttribute.Get() - StepSize.Get(), 0.0f, 1.0f);
+			return FMath::Clamp(ValueAttribute.Get() - StepSize.Get(), MinValue, MaxValue);
 		}
 		else if (direction < StepSize.Get() / -2.0f)
 		{
-			return FMath::Clamp(ValueAttribute.Get() + StepSize.Get(), 0.0f, 1.0f);
+			return FMath::Clamp(ValueAttribute.Get() + StepSize.Get(), MinValue, MaxValue);
 		}
 		else
 		{
@@ -425,9 +448,31 @@ float SSlider::GetValue() const
 	return ValueAttribute.Get();
 }
 
+float SSlider::GetNormalizedValue() const
+{
+	if (MaxValue == MinValue)
+	{
+		return 1.0f;
+	}
+	else
+	{
+		return (ValueAttribute.Get() - MinValue) / (MaxValue - MinValue);
+	}
+}
+
 void SSlider::SetValue(const TAttribute<float>& InValueAttribute)
 {
 	ValueAttribute = InValueAttribute;
+}
+
+void SSlider::SetMinAndMaxValues(float InMinValue, float InMaxValue)
+{
+	MinValue = InMinValue;
+	MaxValue = InMaxValue;
+	if (MinValue > MaxValue)
+	{
+		MaxValue = MinValue;
+	}
 }
 
 void SSlider::SetIndentHandle(const TAttribute<bool>& InIndentHandle)
@@ -473,3 +518,9 @@ void SSlider::SetRequiresControllerLock(bool RequiresControllerLock) {
 	bRequiresControllerLock = RequiresControllerLock;
 }
 
+#if WITH_ACCESSIBILITY
+TSharedRef<FSlateAccessibleWidget> SSlider::CreateAccessibleWidget()
+{
+	return MakeShareable<FSlateAccessibleWidget>(new FSlateAccessibleSlider(SharedThis(this)));
+}
+#endif

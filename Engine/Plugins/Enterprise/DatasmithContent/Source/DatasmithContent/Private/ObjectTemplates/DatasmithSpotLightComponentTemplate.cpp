@@ -9,23 +9,23 @@ UDatasmithSpotLightComponentTemplate::UDatasmithSpotLightComponentTemplate()
 	Load( USpotLightComponent::StaticClass()->GetDefaultObject() );
 }
 
-void UDatasmithSpotLightComponentTemplate::Apply( UObject* Destination, bool bForce )
+UObject* UDatasmithSpotLightComponentTemplate::UpdateObject( UObject* Destination, bool bForce )
 {
-#if WITH_EDITORONLY_DATA
 	USpotLightComponent* SpotLightComponent = Cast< USpotLightComponent >( Destination );
 
 	if ( !SpotLightComponent )
 	{
-		return;
+		return nullptr;
 	}
 
+#if WITH_EDITORONLY_DATA
 	UDatasmithSpotLightComponentTemplate* PreviousTemplate = !bForce ? FDatasmithObjectTemplateUtils::GetObjectTemplate< UDatasmithSpotLightComponentTemplate >( Destination ) : nullptr;
 
 	DATASMITHOBJECTTEMPLATE_CONDITIONALSET( InnerConeAngle, SpotLightComponent, PreviousTemplate );
 	DATASMITHOBJECTTEMPLATE_CONDITIONALSET( OuterConeAngle, SpotLightComponent, PreviousTemplate );
-
-	FDatasmithObjectTemplateUtils::SetObjectTemplate( Destination, this );
 #endif // #if WITH_EDITORONLY_DATA
+
+	return Destination;
 }
 
 void UDatasmithSpotLightComponentTemplate::Load( const UObject* Source )

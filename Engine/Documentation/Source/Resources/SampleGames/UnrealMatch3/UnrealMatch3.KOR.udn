@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6666748
 Availability: Public
 Title:언리얼 매치 3 게임
 Crumbs:%ROOT%, Resources
@@ -9,27 +9,23 @@ related:Engine/Paper2D
 related:Engine/UMG
 related:Engine/Blueprints/TechnicalGuide
 topic-image:unrealmatch3_topic.png
-
-![](match3_banner.png)(convert:false)
-
+hero-image:match3_banner.png
 
 **Unreal Match 3** 샘플 게임은 언리얼 엔진 4 (UE4) 의 다재다능함과 유연성을 선보이기 위해 제작된 것입니다.
 Unreal Match 3 에서는 중저사양 스마트 폰을 대상으로 하는 모바일 게임 제작법과 아울러 
 UE4 프로젝트에 업적이나 앱 내부 구매와 같은 소셜 및 금전 거래 관련 기능 구현법을 살펴볼 수 있습니다.
 
-[REGION:center]
 [OBJECT:EmbeddedVideo]
-[PARAMLITERAL:width]
-640
-[/PARAMLITERAL]
-[PARAMLITERAL:height]
-390
-[/PARAMLITERAL]
-[PARAMLITERAL:videoid]
-5qXTxzAq5tU
-[/PARAMLITERAL]
+	[PARAMLITERAL:width]
+	640
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	390
+	[/PARAMLITERAL]
+	[PARAMLITERAL:videoid]
+	5qXTxzAq5tU
+	[/PARAMLITERAL]
 [/OBJECT]
-[/REGION]
 
 Unreal Match 3 프로젝트가 UE4 툴세트 중 여러가지 다양한 툴을 활용하기는 하지만, 이 프로젝트가 다루는 몇 가지 주요 토픽은 이렇습니다.
 

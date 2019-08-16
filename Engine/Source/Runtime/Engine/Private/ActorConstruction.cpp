@@ -29,6 +29,7 @@
 #include "Engine/SimpleConstructionScript.h"
 #include "Components/ChildActorComponent.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "Algo/Transform.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -271,6 +272,26 @@ void AActor::RerunConstructionScripts()
 		// Save info about attached actors
 		TArray<FAttachedActorInfo> AttachedActorInfos;
 
+		// Before we build the component instance data cache we need to make sure that instance components 
+		// are correctly in their AttachParent's AttachChildren array which may not be the case if they
+		// have not yet been registered
+		for (UActorComponent* Component : InstanceComponents)
+		{
+			if (Component && !Component->IsRegistered())
+			{
+				if (USceneComponent* SceneComp = Cast<USceneComponent>(Component))
+				{
+					if (USceneComponent* AttachParent = SceneComp->GetAttachParent())
+					{
+						if (AttachParent->IsCreatedByConstructionScript())
+						{
+							SceneComp->AttachToComponent(AttachParent, FAttachmentTransformRules::KeepRelativeTransform, SceneComp->GetAttachSocketName());
+						}
+					}
+				}
+			}
+		}
+
 #if WITH_EDITOR
 		if (!CurrentTransactionAnnotation.IsValid())
 		{
@@ -420,6 +441,19 @@ void AActor::RerunConstructionScripts()
 			// In this case we need to "tunnel out" to find the parent component which has been created by the construction script.
 			if (UActorComponent* CSAddedComponent = GetComponentAddedByConstructionScript(Component))
 			{
+				// If we have any instanced components attached to us and we're going to be destroyed we need to explicitly detach them so they don't choose a new
+				// parent component and the attachment data we stored in the component instance data cache won't get applied
+				if (USceneComponent* SceneComp = Cast<USceneComponent>(Component))
+				{
+					TInlineComponentArray<USceneComponent*> InstancedChildren;
+					Algo::TransformIf(SceneComp->GetAttachChildren(), InstancedChildren, [](USceneComponent* SC) { return SC && SC->CreationMethod == EComponentCreationMethod::Instance; }, [](USceneComponent* SC) { return SC; });
+					for (USceneComponent* InstancedChild : InstancedChildren)
+					{
+						InstancedChild->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
+					}
+				}
+
+
 				// Determine if this component is an inner of a component added by the construction script
 				const bool bIsInnerComponent = (CSAddedComponent != Component);
 

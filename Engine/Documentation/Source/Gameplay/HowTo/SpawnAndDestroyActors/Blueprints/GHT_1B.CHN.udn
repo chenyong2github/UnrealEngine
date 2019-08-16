@@ -1,216 +1,187 @@
-﻿INTSourceChangelist:2705356
+﻿INTSourceChangelist:3514120
 Availability: Public
-Title:在蓝图中生成/摧毁 Actor
 Crumbs: %ROOT%, Gameplay, Gameplay/HowTo/SpawnAndDestroyActors
-Description:关于如何在虚幻引擎 4 中通过蓝图生成/摧毁 Actor 的操作指南
-Version: 4.9
-SkillLevel:Intermediate
+Title:通过蓝图生成和销毁Actor
+Description:在本指南中，我们将通过蓝图进行设计，以在按下按钮时生成对象，再次按下按钮时销毁对象。 
+Type: how-to
+SkillLevel: Beginner
+Version: 4.16	
+Parent: Gameplay/HowTo/SpawnAndDestroyActors
+Order: 1
+Tags:Blueprints
+Tags:Basics
+Tags:Getting Started
+Related: Engine/Blueprints
 
-[TOC (start:2)]
+无论要制作哪种类型的游戏，通常都会有一些情况，您希望在运行时出现一些最初没有放入关卡的事物。 
+在场景中“生成”对象的概念可以使用[蓝图视觉脚本](Engine/Blueprints)实现，游戏期间“销毁”或撤销已经生成的（或者没有生成的）对象也是如此。 
 
- 在本页中，您将了解如何在蓝图中生成 Actor 并定义其生成位置。您还将了解如何摧毁已生成的 Actor。 
+ 在本指南中，我们将使用[变量](Engine/Blueprints/UserGuide/Variables)引用，通过按下按钮来生成[Actor](Engine/Actors)，将它连接到角色，然后再次按下按钮时将它销毁。 
 
-## 生成一个 Actor
+![](HeroImage.png)
 
-您将通过下面的步骤了解如何在关卡中一键生成 Actor。
+(#steps)
+## 步骤
 
-1.  打开任意项目，进入编辑器后，单击 **Blueprints** 按钮并 **Open Level Blueprint**.  
+[REGION:note]
+在本操作指南使用 **蓝图第三人称模板（Blueprint Third Person Template）**，其中启用了 **初学者内容包（Starter Content）**。 
+[/REGION]
 
-	[REGION:raw]
-	![](GHT1_1.png)
-	[/REGION]
+1.	在项目中，从主工具栏，单击 **蓝图（Blueprints）** 按钮，然后选择 **打开关卡蓝图（Open Level Blueprint）**。 
 
-1.  **Blueprint Editor** 窗口即会打开（如下所示）. 
-	
+	![](SpawnDestroy_01.png)
+
+	[](Engine/Blueprints/UserGuide/Types/LevelBlueprint)是一种特殊蓝图类型，特定于每个关卡，可以充当关卡范围的全局图表。 
+
+1.	在图表中单击右键，搜索并添加 **从类生成Actor（Spawn Actor from Class）** 节点。 
+
+	![](SpawnDestroy_02.png)
+
+	这样我们就能指定想要生成的类（或对象类型）来定义想要生成的事物。 
+
+1.	在 **SpawnActor** 节点的 **类（Class）** 部分中，选择 **Blueprint_Effect_Fire** 类。 
+
+	![](SpawnDestroy_03.png)
+
+	这是作为 **初学者内容包** 的一部分创建的蓝图类，在创建项目时已经启用。 
+
+1.	在图表中单击右键，搜索并添加 **F** 键盘事件。 
+
+	![](SpawnDestroy_04.png)
+
+	这个键将成为我们用于生成和销毁火焰效果的按键。 
+
+1.	在图表中再次单击右键，搜索并添加 **翻转（Flip Flop）** 节点。 
+
+	![](SpawnDestroy_05.png)
+
+	该节点等同于开关，首次进入时将执行 **A** 引脚，第二次进入该节点时将执行 **B** 引脚。 
+	执行B引脚后，下一次进入时将再次执行A引脚，在A和B引脚之间来回“翻转”。 
+
+1.	单击左键并从 **F** 节点的 **按下（Pressed）** 引脚拖出一根引线，连接到 **翻转（Flip Flop）** 和 **生成Actor（Spawn Actor）** 节点。 
+
+	![](SpawnDestroy_06.png)
+
+	这样使我们能够执行（在按下F时）对生成Actor（Spawn Actor）节点的调用，以生成蓝图火焰效果。 
+
+1.	在图表中再次单击右键，搜索并添加 **销毁Actor（Destroy Actor）** 节点。 
+
+	![](SpawnDestroy_07.png)
+
+	通过该节点，我们可以销毁任何指定的Actor。 
+
+1.	将 **翻转（Flip Flop）** 节点的 **B** 引脚连接到 **销毁Actor（Destroy Actor）** 节点。 
+
+	![](SpawnDestroy_08.png)
+
+	第二次按下 **F** 时，将调用 **翻转（Flip Flop）** 的 **B** 引脚，并将执行 **销毁Actor（Destroy Actor）** 节点。 
+	销毁Actor（Destroy Actor）有一个 **目标（Target）** 输入引脚，指示要销毁的节点。 
+	默认情况下，它设置为 **自己（Self）**，在本例中是一个空指针，表示不清楚要销毁什么，因为关卡蓝图不能被销毁。 
+	如果该销毁Actor（Destroy Actor）节点位于角色蓝图内部，我们指示它自己为目标，则将销毁我们的角色。 
+
+	在本例中，我们需要告诉销毁Actor（Destroy Actor）应当销毁什么（蓝图火焰效果）。 
+	为此，我们需要创建对生成的蓝图火焰效果的引用。 
+
+1.	右键单击 **生成Actor（Spawn Actor）** 节点的 **返回值（Return Value）**，并选择 **提升为变量（Promote to Variable）**。 
+
+	![](SpawnDestroy_09.png)
+
+	在本例中，**返回值（Return Value）** 是“我们生成的事物”，也是我们将存储对其引用的对象，以便稍后可以将其销毁。 
+
+1.	在变量的 **细节（Details）** 面板中，为其指定一个名称，如 **CurrentFlames**。 
+
+	![](SpawnDestroy_10.png)
+
+1.	在 **我的蓝图（MyBlueprint）** 面板的 **变量（Variables）** 下面，按住 **Ctrl** 然后将 **CurrentFlames** 变量拖放到图表中，将它连接到 **销毁Actor（Destroy Actor）** 的 **目标（Target）**。 
+
+	![](SpawnDestroy_11.png)
+
+	我们现在指示销毁Actor（Destroy Actor）以对我们创建的蓝图火焰效果的变量引用为目标。 
+
+1.	在图表中再次单击右键，搜索并添加 **获取玩家角色（Get Player Character）** 节点。 
+
+	![](SpawnDestroy_12.png)
+
+	这使我们能够找到指定的玩家角色，以便我们能够访问和获取关于该角色的信息。 
+
+1.	从 **获取玩家角色（Get Player Character）** 的 **返回值（Return Value）**，搜索并添加 **获取Actor变换（Get Actor Transform）** 节点。 
+
+	![](SpawnDestroy_13.png)
+
+	这样我们就能得知玩家角色的 **位置**、**旋转** 和 **缩放**，我们将使用这个信息来定义蓝图火焰效果的生成位置。 
+
+1.	将 **获取Actor变换（Get Actor Transform）** 的 **返回值（Return Value）** 连接到 **生成Actor（Spawn Actor）** 节点上的 **生成变换（Spawn Transform）**。 
+
 	[REGION:lightbox]
-	[![](Engine\Blueprints\UserGuide\Types\LevelBlueprint\level_blueprint_editor.png)](Engine\Blueprints\UserGuide\Types\LevelBlueprint\level_blueprint_editor.png)
+	[![](SpawnDestroy_14.png)](SpawnDestroy_14.png)
 	[/REGION]
 
-	_单击图像可查看全图_
+	_单击查看大图。_
 
-	为了生成一个, 我们需要使用Spawn Actor from Class 节点. 在本示例中，我们要使用层级蓝图, （Level Blueprint）, 但您也可以在多数蓝图中使用Spawn Actor from Class 节点，它位于下面所示的调色板（Palette）窗口中。
+	目前，我们的图表几乎完成了，我们指定了按下 **F** 键时将在玩家位置生成蓝图火焰，并将它存储为变量。 
+	再次按下 **F** 键时，将销毁所创建的变量（终止火焰效果）。最后一步是将火焰效果与玩家相连。 
+	目前，生成火焰效果时，将在玩家位置处生成，但如果玩家四处移动，火焰将保持在所生成的位置不动。 
 
-1.  **Right-click** 图表上的任意位置，然后在弹出菜单中搜索并添加 **Spawn Actor from Class** 节点. 
+1.	单击左键并从 **设置（Set）** 节点的引用引脚拖出引线，搜索并添加 **连接到Actor（AttachToActor）** 节点。 
 
-	![](GHT1_5.png)
+	![](SpawnDestroy_15.png)
 
-1.  The **Spawn Actor from Class** 节点将被添加到图表 (简称**SpawnActor** ). 
+	通过该节点，我们可以将火焰效果连接到另一个Actor，在本例中，我们想要将它连接到玩家角色。 
 
-	![](GHT1_4.png)
+1.	使用 **获取玩家角色（Get Player Character）** 节点并按以下所示进行连接，将 **位置规则（Location Rule）** 和 **旋转规则（Rotation Rule）** 设置为 **吸附到目标（Snap to Target）**。 
 
-	Spawn Actor from Class 节点带有一个 Actor 类（通过类输入指定并尝试在世界中生成一个属于该类的实例。生成变换（Spawn Transform）输入用于定义 Actor 在世界中的生成位置（及其初始方向）。如果这个位置被碰撞体阻挡，Actor 将无法生成，除非将“即使碰撞也生成”（Spawn Even if Colliding）输入设置为 True。
-
-	Spawn Actor 节点上的每个针都如以下介绍.
-
-	![](GHT1_6.png)
-
-	| 数字 | 说明 |
-	| ------- | ------------ |
-	| **Execution Input (1)** | T这是一个执行输入，用于触发节点来生成 Actor。 |
-	| **Class (2)** | T这是您在世界中生成的实例所属的 Actor 类（必需）。 |
-	| **Spawn Transform (3)** | 这种变换用于对世界中的 Actor 进行定位和定向。 |
-	| **Spawn Even If Colliding (4)** | 决定了在有物体阻挡生成地点时是否生成 Actor。 |
-	| **Execution Output (5)** | 这是一个执行输出，可以触发在“生成 Actor”之后出现的脚本。 |
-	| **Return Value (6)** | 可以输出世界中生成的新 Actor 实例。|
-
-1.  单击 **Class** 下拉菜单，然后从希望生成的 Actor 列表中选择一个 Actor。 
-
-	![](GHT1_7.png)
-
-1.  选择了要生成的 Actor 之后，节点将进行更新，然后会添加一个新的针。
-
-	![](GHT1_8.png)
-
-	“发起者”（Instigator）为可选项，以 Pawn 的形式负责让生成的 Actor 产生伤害效果。
-
-1.   **Left-click** 并将 **Spawn Transform** 针拖出到左侧，然后在弹出菜单中搜索并添加 **Get Actor Transform**。 
-
-	![](GHT1_9.png)
-
-	**Get Actor Transform** 节点会告诉 **Spawn Actor** 在哪里生成我们想要生成的新 Actor。
-
-1.   **Left-click** 并拖出 **Get Actor Transform** 针，然后在弹出菜单中搜索并添加 **Get Player Character**。 
-
-	![](GHT1_10.png)
-
-	意思就是获取玩家角色，然后获取其变换值并分配到 **Spawn Transform**。 
-
-1.   **Right-click** 图表上的任意位置，然后在弹出菜单中搜索并添加 **F** 按键事件。
-
-	![](GHT1_11.png)	
-
-1.  将 **Pressed** 针连接至 **SpawnActor** 节点的 **Execute Input** 针。 
-
-	![](GHT1_12.png)
-
-	这样做是为了在按下 **F** 时执行 **SpawnActor**，并按照玩家角色的变换值来生成 Actor。
-
-1.  单击 **Compile** 按钮，然后关闭 **Blueprint**。 
-
-	进行编译前： 
-	
-	![](GHT1_13.png)
-
-	成功编译后： 
-
-	![](GHT1_14.png)
-
-	如果您看不到绿色勾选标记，请确定所有节点都已连接，而且在 **SpawnActor** 节点上指定了 **Actor Class**。
-
-1.  在主窗口中，单击 **Play** 按钮在编辑器中运行程序。 
-
-	[REGION:raw]
-	![](GHT1_15.png)
-	[/REGION]
-
-	如果按下 **F**，您所选的 Actor 应在玩家人物所在的世界地点生成。
-
-T该示例展示了一键生成 Actor 的过程，您也可以使用任意数量的事件来执行 SpawnActor 节点。
-
-请参阅 [](Engine/Blueprints/UserGuide) 了解关于 **Blueprints** 用法的更多信息。 
-
-## 设置一个生成点
-
-如果您要在指定位置生成一个 Actor，可以手动设置变换或引用其他 Actor 的变换。
-
-下面的示例将向您展示如何手动设置变换以及引用 Actor 的变换来作为生成地点。
-
-1.  打开任意项目，进入编辑器后，单击 **Blueprints** 按钮并 **Open Level Blueprint**。
-
-	[REGION:raw]
-	![](GHT1_1.png)
-	[/REGION]
-
-1.	在图表窗口中，**Right-click** 并搜索和添加 **Spawn Actor from Class** 节点。
-
-	![](GHT1_5.png)
-
-1.	在 **SpawnActor** 节点上，单击 **Class** 下拉菜单并选择一个要生成的 Actor。
-
-	![](GHT1_7.png)
-
-1.	最小化 **Level Blueprint** 窗口。 
-
-1.  在主编辑器窗口的 **Modes** 中，搜索 **Target** 并将一个 **Target Point** 拖入到您的层级。
-
-	[REGION:raw]
-	![](GHT1_16.png)
-	[/REGION]
-
-1.  返回到 **Level Blueprint** 窗口，然后在图表中 **Right-click** 并选择 **Add Reference to TargetPoint**。
-
-	![](GHT1_17.png)
-
-1.   **Left-click** 拖出新添加节点的外针，然后搜索并添加 **Get Actor Transform**。
-
-	![](GHT1_18.png)
-
-1.  将 **Get Actor Transform** 节点的 **Return Value** 连接至针中的 **Spawn Transform**。 
-
-1.	在图表中 **Right-click**，然后搜索并添加 **F** 按键事件，之后释放 **Pressed** 并将其连接至 **SpawnActor**。 
-
-	![](GHT1_19.png)
-
-	我们用了一个按下按键（Key Press）事件来执行 **SpawnActor** 节点，但您也可以使用任何方法。
-
-1.	**Compile** 并关闭 **Blueprint**，然后在编辑器中运行，您应该会看到您的 Actor在目标点生成。
-
-	除了靠引用 Actor 指定生成点之外，您还可以手动输入 SpawnActor 的生成变换值，具体步骤如下： 
-
-1.	拖出 **SpawnActor** 节点的 **Spawn Transform** 针，然后选择 **Make Transform**。
-
-	![](GHT1_21.png)
-
-1.	这将创建出一个 **Make Transform** 节点，您可以为其手动输入 **Location**、**Rotation** 和 **Scale**。
-
-	![](GHT1_22.png)
-
-##  摧毁一个已生成的 Actor
-
-在您生成一个 Actor 之后，假设您想摧毁它（例如，玩家杀死了这个 Actor，或者将这个 Actor作为捡拾物品捡起）。 
-
-以下步骤可用于在层级蓝图中摧毁一个已生成的 Actor。 
-1.  打开任意项目，进入编辑器后，单击 **Blueprints** 按钮并 **Open Level Blueprint**。 
-
-	[REGION:raw]
-	![](GHT1_1.png)
-	[/REGION]
-
-1.	在图表窗口中，**Right-click** 并搜索和添加 **Spawn Actor from Class** 节点。 
-
-	![](GHT1_5.png)
-
-1.	在 **SpawnActor** 节点上，单击 **Class** 下拉菜单并选择一个要生成的 Actor。
-
-	![](GHT1_7.png)
-
-1.      **Left-click** 并拖出 **Spawn Transform** 针，然后添加一个 **Get Actor Transform** 节点。 
-
-1.	**Left-click** 并拖出 **Get Actor Transform** 节点，然后添加一个 **Get Player Character** 节点。
-
-1.	在图表空白处 **Right-click**，然后搜索 **F** 按键事件节点并将其连接至 **SpawnActor** 节点。
-
-	![](GHT1_12.png)
-
-1.	**Left-click** 并拖出 **SpawnActor** 的 **Execute Out** 针，然后添加一个 **Delay** 节点。 
-
-1. 在 **Delay** 节点上，将持续时间设置为 **3**（这是我们摧毁 Actor 之前等待的秒数）。
-
-1. **Left-click** 并拖出 **SpawnActor** 的 **Return Value**，然后添加一个 **Destroy Actor** 节点，随后按以下方式连接。
-	
 	[REGION:lightbox]
-	[![](GHT1_20.png)(w:740)](GHT1_20.png)
+	[![](SpawnDestroy_16.png)](SpawnDestroy_16.png)
 	[/REGION]
 
-	_单击图像可查看全图_
+	_单击查看大图。_
 
-1.      **Compile** 后关闭 **Blueprint**，然后在编辑器中运行，您应该会看到 Actor 在玩家位置生成，然后又在3秒后消失。 
+	这里我们所做的是，将火焰效果的引用变量连接到玩家角色，让它的位置和旋转与玩家相匹配。 
 
-如同靠执行 SpawnActor 节点来生成 Actor 一样，您可以根据自己的需要通过几种不同类型的触发事件来摧毁 Actor。 
+1.	单击 **编译（Compile）** 按钮编译蓝图。 
 
-请参阅 [](Engine/Blueprints/UserGuide) 了解关于蓝图用法的更多信息。 
+	![](SpawnDestroy_17.png)
 
+1.	返回到主关卡编辑器窗口，从 **主工具栏** 单击 **运行（Play）** 按钮以在编辑器内运行。 
 
+	![](SpawnDestroy_18.png)
+	
 
+(#endresult)
+## 最终结果
+
+在编辑器中运行时，按下 **F** 将生成火焰效果，并且效果与玩家角色相连。 
+火焰与角色相连时按下 **F** 键，将使效果消失，再次按下 **F** 键会重新生成效果。 
+
+[OBJECT:EmbeddedVideo]
+	[PARAMLITERAL:videoid]
+	uEzFpMt6mxo
+	[/PARAMLITERAL]
+	[PARAMLITERAL:width]
+	100
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	56.25
+	[/PARAMLITERAL]
+	[PARAMLITERAL:units]
+	%
+	[/PARAMLITERAL]
+	[PARAMLITERAL:type]
+	simple
+	[/PARAMLITERAL]
+[/OBJECT]
+
+另一种实现方法是 **激活** 和 **停用** 蓝图火焰效果中包含的粒子效果。 
+
+[REGION:lightbox]
+[![](AlternativeMethod.png)](AlternativeMethod.png)
+[/REGION]
+
+_单击查看大图。_
+
+在上述示例中，我们使用 **事件开始播放（Event BeginPlay）** 节点在游戏开始时生成蓝图火焰，并将它连接到玩家角色。 
+我们还停用了粒子效果，在游戏开始时让关联声音淡出。 
+当按下 **F** 键时，由于蓝图火焰效果已经生成（只是没有激活），我们会激活效果并淡入音频。 
+再次按下 **F** 键时，没有销毁效果，而是停用效果并淡出关联声音。 
 
 

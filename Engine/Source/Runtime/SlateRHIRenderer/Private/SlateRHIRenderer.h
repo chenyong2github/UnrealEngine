@@ -101,6 +101,7 @@ struct FViewportInfo : public FRenderResource
 	/** FRenderResource interface */
 	virtual void InitRHI() override;
 	virtual void ReleaseRHI() override;
+	virtual void ReleaseResource() override;
 
 	FViewportInfo()
 		:	ColorSpaceLUTOutputDevice(0),
@@ -186,11 +187,11 @@ public:
 	virtual ISlateAtlasProvider* GetTextureAtlasProvider() override;
 	virtual FCriticalSection* GetResourceCriticalSection() override;
 	virtual void ReleaseAccessedResources(bool bImmediatelyFlush) override;
-	virtual TSharedRef<FSlateRenderDataHandle, ESPMode::ThreadSafe> CacheElementRenderData(const ILayoutCache* Cacher, FSlateWindowElementList& ElementList) override;
-	virtual void ReleaseCachingResourcesFor(const ILayoutCache* Cacher) override;
 	virtual int32 RegisterCurrentScene(FSceneInterface* Scene) override;
 	virtual int32 GetCurrentSceneIndex() const override;
 	virtual void ClearScenes() override;
+	virtual void DestroyCachedFastPathRenderingData(struct FSlateCachedFastPathRenderingData* InRenderingData) override;
+	virtual void DestroyCachedFastPathElementData(FSlateCachedElementData* InCachedElementData) override;
 	virtual void BeginFrame() const override;
 	virtual void EndFrame() const override;
 	virtual void AddWidgetRendererUpdate(const struct FRenderThreadUpdateContext& Context, bool bDeferredRenderTargetUpdate) override;
@@ -264,7 +265,7 @@ private:
 	uint8 FreeBufferIndex;
 
 	/** Element batcher which renders draw elements */
-	TSharedPtr<FSlateElementBatcher> ElementBatcher;
+	TUniquePtr<FSlateElementBatcher> ElementBatcher;
 
 	/** Texture manager for accessing textures on the game thread */
 	TSharedPtr<FSlateRHIResourceManager> ResourceManager;

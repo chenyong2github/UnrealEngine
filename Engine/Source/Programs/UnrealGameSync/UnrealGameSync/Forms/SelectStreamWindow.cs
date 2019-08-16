@@ -321,12 +321,12 @@ namespace UnrealGameSync
 			return bExpand || (SelectedStream == Stream.Record.Identifier);
 		}
 
-		public static bool ShowModal(IWin32Window Owner, string ServerAndPort, string UserName, string StreamName, TextWriter Log, out string NewStreamName)
+		public static bool ShowModal(IWin32Window Owner, PerforceConnection Perforce, string StreamName, TextWriter Log, out string NewStreamName)
 		{
 			EnumerateStreamsTask Task = new EnumerateStreamsTask();
 
 			string ErrorMessage;
-			ModalTaskResult Result = PerforceModalTask.Execute(Owner, null, ServerAndPort, UserName, Task, "Finding streams", "Finding streams, please wait...", Log, out ErrorMessage);
+			ModalTaskResult Result = PerforceModalTask.Execute(Owner, Perforce, Task, "Finding streams", "Finding streams, please wait...", Log, out ErrorMessage);
 			if(Result != ModalTaskResult.Succeeded)
 			{
 				if(!String.IsNullOrEmpty(ErrorMessage))

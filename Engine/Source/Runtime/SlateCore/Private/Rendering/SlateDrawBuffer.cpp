@@ -3,6 +3,8 @@
 #include "Rendering/SlateDrawBuffer.h"
 #include "Rendering/DrawElements.h"
 #include "Application/SlateApplicationBase.h"
+#include "Widgets/SWindow.h"
+#include "Input/HittestGrid.h"
 
 
 /* FSlateDrawBuffer interface
@@ -23,13 +25,14 @@ FSlateWindowElementList& FSlateDrawBuffer::AddWindowElementList(TSharedRef<SWind
 			WindowElementLists.Add(ExistingElementList);
 			WindowElementListsPool.RemoveAtSwap(WindowIndex);
 
-			ExistingElementList->ResetElementBuffers();
+			ExistingElementList->ResetElementList();
 
 			return *ExistingElementList;
 		}
 	}
 
 	TSharedRef<FSlateWindowElementList> WindowElements = MakeShared<FSlateWindowElementList>(ForWindow);
+	WindowElements->ResetElementList();
 	WindowElementLists.Add(WindowElements);
 
 	return *WindowElements;
@@ -57,6 +60,18 @@ bool FSlateDrawBuffer::Lock()
 void FSlateDrawBuffer::Unlock()
 {
 	FPlatformAtomics::InterlockedExchange(&Locked, 0);
+}
+
+void FSlateDrawBuffer::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	// Locked buffers are the only ones that are currently referencing objects.  If unlocked, the element list is not in-use and contains to-be-cleared data
+	if(Locked != 0)
+	{
+		for (TSharedRef<FSlateWindowElementList>& ElementList : WindowElementLists)
+		{
+			ElementList->AddReferencedObjects(Collector);
+		}
+	}
 }
 
 void FSlateDrawBuffer::ClearBuffer()

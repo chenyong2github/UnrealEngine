@@ -4,6 +4,7 @@ Crumbs: %ROOT%, Engine, Engine/Actors, Engine/Actors/FogEffects
 Description:Atmospheric Fog Actors provide a realistic sense of atmosphere, air density, and light scattering through atmospheric media.
 version: 4.9
 topic-image:atmofog_topic.png
+tags: overview, fog effects, atmospheric fog
 
 [REGION:banner]
 ![Atmospheric Fog](atmofog_banner.png)
@@ -35,6 +36,7 @@ This may be done via drag-and-drop:
 
 The Atmospheric Fog Actor contains the following properties:
 
+[REGION:simpletable]
 |**Property** | **Description** |
 | --- | --- |
 |[REGION:tablesection]Atmosphere[/REGION] ||
@@ -54,6 +56,7 @@ The Atmospheric Fog Actor contains the following properties:
 | **Precompute Params** | The properties included in this group require re-computation of pre-computed texture data. They include:[INCLUDE:#PrecomputeParams]  |
 | **Visible** | Shows or hides the fog effect. |
 | **Hidden in Game** | If checked, the effect will not be visible in-game. |
+[/REGION]
 
 ## Example Settings with Images
 [EXCERPT:examples]
@@ -66,7 +69,7 @@ The Atmospheric Fog Actor contains the following properties:
 [/REGION]
 [/EXCERPT:examples]
 [COMMENT:none]
--Includes
+---Includes---
 [EXCERPT:PrecomputeParams]
 [REGION:simpletable]
 	|**Property** | **Description** |
@@ -76,5 +79,5 @@ The Atmospheric Fog Actor contains the following properties:
 	| **Inscatter Altitude Sample** | Number of different altitudes at which to sample inscatter color (Size of 3d texture dimension; 1-32). |
 [/REGION]
 [/EXCERPT:PrecomputeParams]
-End Includes---
+---End of Includes---
 [/COMMENT]

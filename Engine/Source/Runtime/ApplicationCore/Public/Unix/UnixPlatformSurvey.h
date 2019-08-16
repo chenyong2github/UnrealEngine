@@ -10,12 +10,12 @@
 #include "GenericPlatform/GenericPlatformSurvey.h"
 
 /**
-* Android implementation of FGenericPlatformSurvey
+* Unix implementation of FGenericPlatformSurvey
 **/
 struct FUnixPlatformSurvey : public FGenericPlatformSurvey
 {
 	/** Start, or check on, the hardware survey */
-	static bool GetSurveyResults(FHardwareSurveyResults& OutResults, bool bWait = false);
+	APPLICATIONCORE_API static bool GetSurveyResults(FHardwareSurveyResults& OutResults, bool bWait = false);
 
 private:
 

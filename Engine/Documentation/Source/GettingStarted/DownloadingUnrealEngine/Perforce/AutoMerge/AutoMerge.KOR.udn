@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3108692
-Availability: Licensee
+﻿INTSourceChangelist:6277736
+Availability: Docs
 Title:퍼포스 자동 병합 툴
 Crumbs:%ROOT%, GettingStarted, GettingStarted/DownloadingUnrealEngine, GettingStarted/DownloadingUnrealEngine/Perforce
 Description:퍼포스를 사용한 통합 프로세스를 자동화시켜 주는 스크립트입니다.

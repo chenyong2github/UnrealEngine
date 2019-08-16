@@ -14,6 +14,7 @@
 #include "Async/Future.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "Misc/EnumClassFlags.h"
+#include "ProfilingDebugging/MiscTrace.h"
 
 // Whether to allow the CSV profiler in shipping builds.
 // Enable in a .Target.cs file if required.
@@ -44,9 +45,15 @@
 #define CSV_STAT_FNAME(StatName)								(_GCsvStat_##StatName.Name)
 
 // Inline stats (no up front definition)
-#define CSV_SCOPED_TIMING_STAT(Category,StatName)				FScopedCsvStat _ScopedCsvStat_ ## StatName (#StatName, CSV_CATEGORY_INDEX(Category));
-#define CSV_SCOPED_TIMING_STAT_GLOBAL(StatName)					FScopedCsvStat _ScopedCsvStat_ ## StatName (#StatName, CSV_CATEGORY_INDEX_GLOBAL);
-#define CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StatName)				FScopedCsvStatExclusive _ScopedCsvStatExclusive_ ## StatName (#StatName);
+#define CSV_SCOPED_TIMING_STAT(Category,StatName) \
+	FScopedCsvStat _ScopedCsvStat_ ## StatName (#StatName, CSV_CATEGORY_INDEX(Category)); \
+	TRACE_CPUPROFILER_EVENT_SCOPE_GROUP(StatName, CpuProfilerGroup_CsvProfiler)
+#define CSV_SCOPED_TIMING_STAT_GLOBAL(StatName) \
+	FScopedCsvStat _ScopedCsvStat_ ## StatName (#StatName, CSV_CATEGORY_INDEX_GLOBAL); \
+	TRACE_CPUPROFILER_EVENT_SCOPE_GROUP(StatName, CpuProfilerGroup_CsvProfiler)
+#define CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StatName) \
+	FScopedCsvStatExclusive _ScopedCsvStatExclusive_ ## StatName (#StatName); \
+	TRACE_CPUPROFILER_EVENT_SCOPE_GROUP(StatName, CpuProfilerGroup_CsvProfiler)
 #define CSV_SCOPED_TIMING_STAT_EXCLUSIVE_CONDITIONAL(StatName,Condition) FScopedCsvStatExclusiveConditional _ScopedCsvStatExclusive_ ## StatName (#StatName,Condition);
 
 #define CSV_SCOPED_WAIT_CONDITIONAL(Condition)					FScopedCsvWaitConditional _ScopedCsvWait(Condition);
@@ -70,8 +77,13 @@
 #define CSV_DECLARE_CATEGORY_MODULE_EXTERN(Module_API,CategoryName)			extern Module_API FCsvCategory _GCsvCategory_##CategoryName
 
 // Events
-#define CSV_EVENT(Category, Format, ...) 						FCsvProfiler::RecordEventf( CSV_CATEGORY_INDEX(Category), Format, ##__VA_ARGS__ )
-#define CSV_EVENT_GLOBAL(Format, ...) 							FCsvProfiler::RecordEventf( CSV_CATEGORY_INDEX_GLOBAL, Format, ##__VA_ARGS__ )
+#define CSV_EVENT(Category, Format, ...) \
+	FCsvProfiler::RecordEventf( CSV_CATEGORY_INDEX(Category), Format, ##__VA_ARGS__ ); \
+	TRACE_BOOKMARK(Format, ##__VA_ARGS__)
+
+#define CSV_EVENT_GLOBAL(Format, ...) \
+	FCsvProfiler::RecordEventf( CSV_CATEGORY_INDEX_GLOBAL, Format, ##__VA_ARGS__ ); \
+	TRACE_BOOKMARK(Format, ##__VA_ARGS__)
 
 // Metadata
 #define CSV_METADATA(Key,Value)									FCsvProfiler::SetMetadata( Key, Value )

@@ -1,76 +1,94 @@
-﻿INTSourceChangelist:3013123
-Availability:Public
+﻿INTSourceChangelist:6110610
+Availability:Docs
 Title:3 - 您的第一个镜头 - 角色动画
 Crumbs:%ROOT%
-Description:在此步骤中，我们将使用项目浏览器来创建新项目。 
+Description:在这一步中，我们将使用项目浏览器创建一个新项目。 
 SkillLevel:Beginner
-Version:4.12
-Related:Engine\Sequencer
-Related:Engine\Sequencer\Overview
+Version:4.18
 checkpoint: sequencerqs
 parent:Engine/Sequencer/QuickStart
-type:sequential
+type:multi-step
 order:3
+tags:Sequencer
  
 [NAV]
 
-在上一步，我们添加了一个摄像机，并提供了摄像机的运动路径。在这一步，我们将把所用的角色蓝图替换为带有 **骨骼网格** Actor 的模板，我们可以对该 Actor 应用动画，从而完成我们的第一个镜头。
+在上一步中，我们添加了一个相机，为我们的相机提供了拍摄路径，并调整了相机的一些设置。 
+在这一步中，我们将模板项目中使用的 **角色蓝图（Character Blueprint）** 替换为可以应用动画的 **骨架网格体（Skeletal Mesh）** Actor，完成我们的第一个镜头。
+
+(#steps)
 
 ## 步骤
 
-1. 在 **内容浏览器** 中，导航至 **Content/Mannequin/Character/Mesh** 文件夹并单击 **SK_Mannequin**。 
+1. 在 **内容浏览器（Content Browser）** 中，导航至 **Content/Mannequin/Character/Mesh** 文件夹并单击 **SK_Mannequin**。 
 	
 	![](SequencerQS_3_1.png)
 
-1. 在左侧视口中，**右键单击** 关卡中的角色，然后选择 **将所选 Actor 替换为（Replace Selected Actors with）**。此操作会将用于游戏的默认 **角色蓝图** 替换为一个 **骨骼网格 Actor**。
+1. 在左视口中，右键单击关卡中的角色，选择 **将选中的Actor替换为（Replace Selected Actors with）**，然后选择 **SK_Mannequin**。
 
 	![](SequencerQS_3_2.png) 
 
-1. 	在左侧视口中，按 **End** 键将骨骼网格放到地面上。按 **E** 并旋转它，如下图所示。 
+	 这样将把用于游戏进程的默认 **角色蓝图（Character Blueprint）** 替换为 **骨架网格体（Skeletal Mesh）** Actor。 
+
+1.	在左视口中，使用 **变换工具（Transform Tools）** 将 **骨架网格体（Skeletal Mesh）** 下移至地面并将其向前旋转。 
 
 	![](SequencerQS_3_3.png)
 
-1. 	在仍然选中骨骼网格的情况下，在 **Sequencer** 中单击 **添加（Add）**将它添加到关卡序列。 
+	您可以单击视口顶部的图标以在位置（Location）和旋转（Rotation）选项之间切换，也可以禁用 **对齐网格（Grid Snapping）** 以获得更精确的移动。 
+
+1.	在 **骨架网格体（Skeletal Mesh）** 仍被选中的情况下，在 **序列器（Sequencer）** 中单击 **轨迹（Track）** 按钮，然后选择 **Actor到序列器（Actor To Sequencer）** 和 **添加ThirdPersonCharacter（Add ThirdPersonCharacter）**。
 
 	![](SequencerQS_3_4.png)
 
-1. 	在过场动画视口中，单击 **到开头（To Front）** 按钮跳转到序列开头。 
+	这将把关卡中的 **骨架网格体（Skeletal Mesh）** 的一个参考添加到序列器，以便我们可以在序列器中控制它。 
 
-	![](SequencerQS_3_5a.png)
-
-1. 	对于 **ThirdPersonCharacter** 轨道，单击 **添加动画（+ Animation）**按钮。搜索 **ThirdPersonIdle** 动画，并将其添加到轨道。关卡中的骨骼网格将摆出闲散的姿势。
+1.	对于 **ThirdPersonCharacter** 轨迹，单击 **+动画（+ Animation）** 按钮搜索并添加 **ThirdPersonIdle** 动画。 
 
 	![](SequencerQS_3_5.png) 
 
-1. 	**左键单击** 并拖动 **ThirdPersonIdle** 动画的结尾，使其循环播放，填满整整 150 帧。 
+	关卡中的 **骨架网格体（Skeletal Mesh）** 将假设一个闲置姿势和轨迹将被添加到序列器（Sequencer）。 
+
+1.	单击并将 **ThirdPersonIdle** 动画的末尾向右拖动，使其循环并填充整个 **150** 帧。 
 
 	![](SequencerQS_3_6.png)
 
-1. 	在 **镜头切换** 轨道上，单击 **解锁/锁定摄像机（Unlock/Lock Camera）**按钮。如果将摄像机锁定在镜头切换轨道上，只会影响过场动画视口。
+1.	在 **相机切换（Camera Cuts）** 轨迹上，单击 **解锁/锁定相机（Unlock/Lock Camera）** 按钮。 
 
 	![](SequencerQS_3_6b.png) 
 
-1. 	在“过场动画预览”（Cinematic Preview）窗口中单击 **预览播放（Preview Play）**按钮。 
+	将相机锁定在一个相机切换（Camera Cuts）轨迹上只会影响 **过场动画视口（Cinematic Viewports）**。
+
+	![](SequencerQS_3_6c.png)(w:640)
+
+1.	跳转到序列的开头，然后单击过场动画视口（Cinematic Viewports）中的 **预览播放（Preview Play）** 按钮以播放序列。 
 
 
+
+(#endresult)
 
 ## 最终结果
 
-我们已经添加了过场动画的焦点，并且应用和循环了供角色使用的动画。 
+我们过场动画的焦点已经添加，而且我们已经应用和循环一个动画以供角色使用。 
 
 [OBJECT:EmbeddedVideo]
-[PARAMLITERAL:width]
-640
-[/PARAMLITERAL]
-[PARAMLITERAL:height]
-360
-[/PARAMLITERAL]
-[PARAMLITERAL:videoid]
-vx-HlYIbpOI
-[/PARAMLITERAL]
+	[PARAMLITERAL:videoid]
+	wH9GRvsoBEo
+	[/PARAMLITERAL]
+	[PARAMLITERAL:width]
+	100
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	56.25
+	[/PARAMLITERAL]
+	[PARAMLITERAL:units]
+	%
+	[/PARAMLITERAL]
+	[PARAMLITERAL:type]
+	simple
+	[/PARAMLITERAL]
 [/OBJECT]
 
 
-在下一步，我们将处理场景的另一个镜头，然后将两个镜头都添加到 Master 轨道。 
+在下一步中，我们将为场景制作另一个镜头，然后我们将把两个镜头添加到 **主（Master）** 轨迹。 
 
 [NAV]

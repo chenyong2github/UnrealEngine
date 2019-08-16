@@ -203,12 +203,7 @@ public:
 	 * It is called at the beginning of UGameViewportClient::Draw() method.
 	 * We might remove this one as UpdatePostProcessSettings should be able to capture all needed cases
 	 */
-	virtual void UpdateScreenSettings(const class FViewport* InViewport) {}
-
-	/**
-	 * Allows to override the PostProcessSettings in the last moment e.g. allows up sampled 3D rendering
-	 */
-	virtual void UpdatePostProcessSettings(FPostProcessSettings*) {}
+	virtual void UpdateScreenSettings(const class FViewport* InViewport) {}	
 
 	/** 
 	 * Additional optional distortion rendering parameters

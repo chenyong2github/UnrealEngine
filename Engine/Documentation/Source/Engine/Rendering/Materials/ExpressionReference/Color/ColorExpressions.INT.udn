@@ -1,13 +1,24 @@
-Availability:Public
-Title:Color Expressions
-Crumbs: %ROOT%, Engine, Engine/Rendering/Materials, Engine/Rendering/Materials/ExpressionReference
-Description:Expressions that perform actions on color inputs.
+Availability: Public
+Title: Color Expressions
+Description: Expressions that perform actions on color inputs.
 Version: 4.9
-tags:Materials
+Parent: Engine/Rendering/Materials/ExpressionReference
+Tags: Materials
 
-[EXCERPT:TOC]
-[TOC(start:2)]
-[/EXCERPT:TOC]
+## Desaturation
 
+The **Desaturation** expression desaturates its input, or converts the colors of its input into shades of gray, based a certain percentage.
 
-[INCLUDE:Engine/Rendering/Materials/ExpressionReference/Utility#Desaturation]
+  
+| Item | Description |
+| --- | --- |
+| [REGION:tablesection]Properties[/REGION] ||
+| **Luminance Factors** | Specifies the amount that each channel contributes to the desaturated color. This is what controls that green is brighter than red which is brighter than blue when desaturated. |
+| [REGION:tablesection]Inputs[/REGION] ||
+| **Fraction** | Specifies the amount of desaturation to apply to the input. Percent can range from 0.0(full original color, no desaturation) to 1.0 (fully desaturated). |
+
+![](DesaturationExample.png)
+
+[REGION:note]
+**Programmers:** Define desaturated color `D`, input color `I` and luminance factor `L`.  The output will be `O = (1 - Percent)*( D.dot( I )) + Percent * I`
+[/REGION]

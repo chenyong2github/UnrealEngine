@@ -24,8 +24,6 @@
 	#include "UObject/ObjectRedirector.h"
 #endif
 
-DEFINE_LOG_CATEGORY_STATIC(LogLevelSequence, Log, All);
-
 static TAutoConsoleVariable<int32> CVarDefaultEvaluationType(
 	TEXT("LevelSequence.DefaultEvaluationType"),
 	0,

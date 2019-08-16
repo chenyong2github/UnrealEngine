@@ -1,81 +1,126 @@
-Availability: Licensee
-Crumbs: %ROOT%
+Availability: Public
 Title: Hierarchical LOD Outliner Reference
 Description: A reference page for the interface elements and properties found in the Hierarchical LOD Outliner.
-Type: Reference
-Version: 4.17
-Parent:Engine/HLOD
-Order:2
-Tags:Static Mesh
-Tags:Level of Detail
-Tags:HLOD
-topic-image:Engine/HLOD/defaultHLOD_topic.png
+Type: reference
+Version: 4.22
+Parent: Engine/HLOD
+Tags: Static Mesh
+Tags: HLOD
+Tags: Level of Detail
+topic-image: HLODOutliner_Breakdown.png
+social-image: HLODOutliner_Breakdown.png
+topic-icon: HLODOutliner_Breakdown.png
+Order: 1
 
 
-This page details the available right-click context menus and Hierarchical LOD (Level of Detail) Setup menus available in the **Hierarchical LOD Outliner** (HLOD). Below you will find information about accessing these menus and what options
-they contain.
+[TOC (start:2 end:3)]
 
-[REGION:raw]
-![image alt text](Engine/HLOD/Overview/image_1.png)
+There are several options that are available within the **Hierarchical LOD (Level of Detail) Outliner** that you can use to define how your HLOD meshes are set up. Once [enabling the HLOD system](Engine/HLOD/HowTo/Enabling), you can access the HLOD Outliner from the window menu option under **Level Editor**. 
+[REGION:lightbox]
+[![](HLODOutliner_WindowOption.png)(w:900)](HLODOutliner_WindowOption.png)
+[/REGION]
+[REGION:caption]
+Click image for full view.
 [/REGION]
 
-To access the HLOD property window, perform the following actions: 
+This page breaks down the available properties within the **HLOD Outliner**, refer to each section for more information.
 
-* From the file menu, select **Window** > **Hierarchical LOD Outliner**.
+![](HLODOutliner_Breakdown.png "HLODOutliner_Breakdown.png")
+
+1.  **HLOD Actions** \- these options enable you to generate your HLOD Proxy Meshes for each of the clusters in your Level, re-generate clusters and build Proxy Meshes for each of the generated clusters in the Level, save all external HLOD data, or switch between LOD viewing options. 
+
+1.  **HLOD Scene Actors** \- this contains each of the clusters (or Proxy Meshes) that have been generated along with information about each Actor. You can also **Generate** or **Delete Clusters** from this panel as well as perform contextual actions by right-clicking on a Scene Actor. 
+
+1.  **LODSystem** \- this enables you to define how many **HLOD Levels** you want to include along with the **Cluster** and **Mesh Generation Settings** per HLOD Level. You can also override the Material used for Proxy Materials or override the **HLODSetup Asset**. 
 
 ## Property and Interface Reference
 
 ![HLOD Outliner Fully Expanded](image_2.png)
 
-### HLOD Actions
+## HLOD Actions
 
-![](InterfaceElements.png)
+Across the top of the **HLOD Outliner**, you will find the available options: 
 
-Below are the descriptions for the three buttons and slider that exist in the **Hierarchical LOD Outliner**.
+![](HLODOutliner_Actions.png "HLODOutliner_Actions.png")
 
-[REGION:raw]
-| --- | :--- |
-| **Generate Clusters** | This will generate spherical clusters of **Static Mesh Actors** in the scene that can be grouped. The way this is handled is by using the settings for each LOD settings specified under the LODSystem section of the HLOD Outliner. |
-| **Delete Clusters** | This will delete all HLODs that have been previously setup in this level. This includes all generated proxy meshes as well as the clusters that have been setup. This will not wipe the previously set values or properties for the HLOD Levels. |
-| **Generate Proxy Meshes** | [INCLUDE:#gpm] |
-| **Forced Viewing Level** | This will allow you to force a specific LOD level to be visible in the editor. This is helpful for debugging any LOD issues you may have. |
+|||
+| --- | --- |  
+| **Generate Proxy Meshes** | [INCLUDE:#excerpt_0] |
+| **Build (Rebuild) All** | [INCLUDE:#excerpt_1] |
+| **Save All** | This option enables you to save all external HLOD data, this includes Meshes, Materials, and Textures. |
+| **LOD View** | This option enables you to choose the LOD level to view inside the Editor or to assign a **Forced Viewing Level** inside the Editor. This is helpful for debugging any LOD issues you may have. |
+
+<!--
+[EXCERPT:excerpt_0]
+
+This option becomes available after you have **Generated Clusters** that you wish to Generate Proxy Meshes from. When you generate Proxy Meshes, this will use the clustered LODs and merge these **Actors** together into a single asset. You can define how Proxy Meshes are clustered with the **Cluster Generation Settings** and ultimately how your Proxy Meshes are generated using the **Mesh Generation Settings**. This option also only affects the generated meshes, not the entire Level. 
+
+[REGION:note]
+Be aware that this process can take a very long time depending on your scene complexity and settings you've chosen for your HLOD levels.
 [/REGION]
+[/EXCERPT:excerpt_0]
+-->
+<!--
+[EXCERPT:excerpt_1]
 
-### Hierarchical LOD Outliner Context Menus
+This option can be used to build both the clusters and Proxy Meshes from those clusters in one step. Typically, you will want to generate clusters and ensure that you are content with the desired results before generating the Proxy Meshes (this option will automatically build the Proxy Meshes). Once you have generated clusters, the option **Rebuild All** is available which will re-generate clusters and build Proxy Meshes from those clusters.
 
-When you right-click in the Hierarchical LOD Outliner, you will notice a few context menus. Use the table below to find information about accessing these menus and what the options they contain do.
+[REGION:note]
+Unlike **Generate Proxy Meshes**, this option will dirty the Level and may take a significant amount of time depending on your scene complexity and settings.
+[/REGION]
+[/EXCERPT:excerpt_1]
+-->
 
-#### LOD Actor Context Menu
+## HLOD Scene Actors
 
-Right-click any LOD Actor listed under the **Scene Actor Name** column to bring up this menu where you'll be able to manipulate this specific LODActor.
+The **HLOD Scene Actors **panel enables you to **Generate Clusters** (but not the Proxy Meshes) for Meshes in the Level or **Delete Clusters** (which will delete all clusters in the Level). This panel also displays all the LODActors for a given LOD Level along with information about the Actor such as their original triangle count, the reduced number of triangles in an LOD mesh, the percentage of triangle reduction retained by an LOD mesh, and what Level the LOD Mesh resides in. 
 
-![](ContextMenu1.png)(w:400)
+![](HLODOutliner_SceneActorWindow.png "HLODOutliner_SceneActorWindow.png")
+
+Additional actions can be accessed by right-clicking on an LOD Actor or Static Mesh Actor in the panel:
+
+### LOD Actor Context Menu
+
+Right-click any LOD Actor listed under the **Scene Actor Name** column to bring up the menu below and available options. 
+
+![](HLODOutliner_LODActorMenu.png "HLODOutliner_LODActorMenu.png")
 
 [REGION:raw]
 | Option | Description |
-| --- | :--- |
+| --- | --- |
 | **Select LOD Actor** | Selects the LOD Actor in the viewport (same effect as left-clicking the cluster). |
 | **Select Contained Actors** | Selects all the Actors contained in the LOD Cluster. |
-| **ForceView** | Toggles the view of the HLOD Actor in the viewport. |
-| **Rebuild Proxy Mesh** | Forces the right-clicked cluster to rebuild its proxy mesh. |
+| **ForceView** | [INCLUDE:#excerpt_2] |
+| **Rebuild Proxy Mesh** | Forces the right-clicked cluster to rebuild its Proxy Mesh. |
 | **Create Containing Hierarchical Volume** | Creates a Hierarchical Volume around the Actors contained in the Cluster that can then be modified to encompass greater or fewer Actors. |
 | **Delete Cluster** | Deletes the right-clicked Cluster. |
+
+<!--
+[EXCERPT:excerpt_2]
+
+Toggles the LOD view of the HLOD Actor in the viewport.   
+
+[REGION:note]
+This option is available for LODActors that have been built into Proxy Meshes.
+[/REGION]
+[/EXCERPT:excerpt_2]
+-->
 [/REGION]
 
-#### Actor Context Menu
+### Actor Context Menu
 
-Use the arrow next to any LODActor to expand the scene Actors that are included with the generated HLOD cluster. Right-click any Actor in this expanded list to remove or exclude it from the cluster generation.
+Expanding an LODActor exposes the scene Actors included in the generated HLOD cluster. Right-click a Scene Actor for the following options:   
 
-![](ContextMenu2.png)(w:400)
+![](HLODOutliner_SMContext.png "HLODOutliner_SMContext.png")
 
 [REGION:raw]
 | Option | Description |
-| --- | :--- |
-| **Remove From Cluster** | Removes the right-clicked Actor from the Cluster. |
-| **Exclude From Cluster Generation** | Excludes the right-clicked Actor from Cluster generation. If you wish to re-add the excluded Actor click and drag it from the World Outliner into the Cluster in the Hierarchical LOD Outliner. |
+| --- | --- |
+| **Remove From Cluster** | Removes the right-clicked Actor from the cluster. |
+| **Exclude From Cluster Generation** | Excludes the right-clicked Actor from cluster generation. If you wish to re-add the excluded Actor click and drag it from the **World Outliner** into the cluster in the **Hierarchical LOD Outliner**. |
 [/REGION]
 
-### Properties
+## Properties
 
 Below, broken out by major section, are the properties that can be found in a **Hierarchical LODSetup** in the **LODSystem** panel located in the lower portion of the **Hierarchical LOD Outliner** interface.
 
@@ -83,112 +128,110 @@ Below, broken out by major section, are the properties that can be found in a **
 
 The **Cluster Generation** settings enable you to control how HLOD clusters will be generated to include Actors from your levels by setting the desired bounds of your clusters, how full the cluster should be, and the minimum number of Actors that must be used to generate a cluster.
 
-![](cluster.png)
+![](HLODOutliner_ClusterSettings.png "HLODOutliner_ClusterSettings.png")
 
 [REGION:raw]
 | Property | Description |
-| --- | :--- |
-| **Desired Bound Radius** | This is not guaranteed but used to calculate filling factor for auto clustering. |
-| **Desired Filling Percentage** | This is not guaranteed but used to calculate filling factor for auto clustering. |
+| --- | --- |
+| **Allow Specific Exclusion** | This works in combination with a property on mesh components, you can add an HLOD level index for which this mesh should not be included. This allows you to only include small props for HLOD level 0, and ignore them for subsequent HLODs (as you wouldn’t be able to see them from certain distances etc.)  |
+| **Desired Bound Radius** | The radius in which to cluster meshes together. This is not guaranteed but used to calculate filling factor for auto clustering. |
+| **Desired Filling Percentage** | This is used when generating clusters, it determines how much of the cluster’s bounds (sphere) is supposed to be occupied by the bounds of any actors it contains. Essentially the % of the cluster volume that has to be used by contained actors. |
 | **Min Number of Actors to Build** | Min number of Actors to build LODActor. |
+| **Only Generate Clusters for Volumes** | If enabled, will only generate clusters for meshes within HLOD Volumes. |
 [/REGION]
 
 ### Mesh Generation Settings
 
-The **Mesh Generation** settings enable you to control specific properties that will be used when HLOD cluster Actors are merged, like generating lightmaps, combining Materials, transition size, and more.  
+The **Mesh Generation** settings enable you to control specific properties that will be used when HLOD cluster Actors are merged, like generating lightmaps, combining Materials, transition size, and more.
 
-![](meshSettings.png)
+![](HLODOutliner_MeshGeneration.png "HLODOutliner_MeshGeneration.png")
 
 [REGION:raw]
 | Property | Description |
-| --- | :--- |
-| **Transition Screen Size** | This is the size on screen (as a radius) that the mesh should reach before swapping to the HLOD Actor. When the parent LOD displays, it won't display any of the children. |
-| [REGION:tablesection] Merge Settings [/REGION] ||
+| --- | --- |
+| **Transition Screen Size** | This will calculate the distance to show the cluster at according to its size. It calculates the distance at which the cluster would occupy the user defined screen size, according to a fixed Field of View (FOV) / 16:9 ratio. If you would want to force all clusters to switch at a predefined distance you can do so with the **Override draw distance**. |
+| **Override Draw Distance** | Forces all clusters to switch at the predefined distance specified.  |
+| **Simplify Mesh** | [INCLUDE:#excerpt_3] |
+| [REGION:tablesection]Merge Settings[/REGION] ||
 | **Generate Light Map UV** | When enabled, this will generate a lightmap UV for the merged mesh and assign the Lightmap Coordinate Index to 1. |
 | **Target Light Map Resolution** | The lightmap resolution you'd like to use for the HLOD Actor. |
-| **Pivot Point at Zero** | When the merged mesh should have a pivot located a the World Origin (coordinate 0,0,0), or if the pivot should be located at the first Actor listed when generating the HLOD cluster.|
-| **Merge Physics Data** |  When enabled, the collision primitives will be merged for the combined Actors. |
-| **Merge Materials** | When enabled, the source Materials will be merged into a single flat material. |
-| **Material Settings** | The settings here enable you to control how your Materials are packed and combined when the HLOD Actor is generated. [INCLUDE:#materialsettings] |
-| **Bake Vertex Data to Mesh** | When enabled, any vertex colors that have been painted on the selected meshes will be incorporated into the generated HLOD Actor and Material that is created. |
+| **Computed Light Map Resolution** | Whether or not the lightmap resolution should be computed by summing the light map resolutions for the input Mesh Components. |
+| **Pivot Point at Zero** | When the merged mesh should have a pivot located a the World Origin (coordinate 0,0,0), or if the pivot should be located at the first Actor listed when generating the HLOD cluster. |
+| **Merge Physics Data** | When enabled, the collision primitives will be merged for the combined Actors. |
+| **Merge Materials** | With this enabled the system will bake down the materials assigned to all contained meshes and combine them into a single material. This allows for reducing the draw call complexity of the merged mesh, this is only used when you merge the meshes rather than generating a proxy mesh. In case you are simplifying a mesh we will always bake the materials, and apply it to the proxy mesh. |
+| **Material Settings** | [INCLUDE:#excerpt_4] |
+| **Gutter Size** | The gutter (in texels) to add to each sub-chart for our baked-out Material for the top mip level. |
+| **Bake Vertex Data to Mesh** | When enabled, vertex data (such as vertex colors) will be baked into the resulting Proxy Mesh. |
+| **Output UVs** | When enabled, any vertex colors that have been painted on the selected meshes will be incorporated into the generated HLOD Actor and Material that is created. |
+| **LODSelection Type** | Enables you to define how the LOD level is determined. |
+| **Specific LOD** | A given LOD level to export from the source meshes. |
 | **Use Vertex Data for Baking Material** | When enabled, vertex data will be used when baking out Materials. |
 | **Use Texture Binning** | This will calculate the varying output texture sizes according to their importance when packing the final atlas texture. |
+| **Reuse Mesh Lightmap UVs** | Whether to attempt to re-use the source mesh's lightmap UVs when baking the Material or always generate a new set. |
+| **Merge Equivalent Materials** | [INCLUDE:#excerpt_7] |
 | **Use Landscape Culling** | When enabled, landscape geometry can be used to cull away (or remove) any triangle sections of the mesh that are not visible. |
-[/REGION]
+| **Allow Distance Field** | [INCLUDE:#excerpt_8] |
 
-[COMMENT:none]
+<!--
+[EXCERPT:excerpt_3]
 
-[EXCERPT:GPM]
-When you generate the proxy meshes this will use the clustered LODs to merge these **Actors** together into a single asset. Depending on what settings you changed for the HLOD levels your static meshes will generate based on this. This can affect your materials, lightmaps, and various other properties as well. 
+If enabled, the resulting mesh will be simplified. If disabled, it will just merge Actors but will not simplify using the lower LOD if it exists. For example, if you build LOD 1, it will use LOD 1 of the mesh to merge Actors if it exists. If you merge Materials, it will reduce drawcalls.
 
-[REGION:note]
-Be aware that this process can take a very long time depending on your scene complexity and settings you've chosen for your HLOD levels.
-[/REGION]
-[/EXCERPT]
+[/EXCERPT:excerpt_3]
+-->
+<!--
+[EXCERPT:excerpt_4]
 
-[EXCERPT:TST]
+The settings here enable you to control how your Materials are packed and combined when the HLOD Actor is generated.
 
-Texture Sizing Type Description
-
-[REGION:raw]
-| Type | Description |
-| --- | :--- |	
-| **Use TextureSize for all material properties** | Will use the value entered into Texture Size for sizing. |
-| **Use automatically biased texture sizes based on TextureSize** | This creates a biased set of {normal:diffuse:otherproperties} textures using the ratio of {1:0.5:0.25} so if the texture size is set to 512 it will output a 512 normal map, 256 diffuse map and 128 map for roughness specular etc (diffuse is clamped to 32x32 and roughness specular etc to 16x16) |
-| **Use per property manually overridden texture sizes** | Enables the per texture overrides, and uses those values instead of Texture Size. |
-| **Use Simplygon’s automatic texture sizing** | Uses Simplygon's algorithm for texture sizing based on its decimation settings. This should only be used if you are already using Simplygon. |
-[/REGION]
-[/EXCERPT]
-
-[EXCERPT:blendmode]
-| Selection | Description|
-| --- | --- |
-| **Opaque** | This blend mode defines a surface through which light neither passes nor penetrates. |
-| **Masked** | This blend mode defines the visibility in a binary (on/off) fashion by marking whether areas of the Material should be visible or not. |
-| **Translucent** | This blend mode defines the visibility of a Material by using an Opacity value. |
-| **Additive** | This blend mode takes the pixels of the Material and adds them to the pixels of the background. |
-| **Modulate** | This blend mode multiplies the value of the Material against the pixels of the background. |
-| **Alpha Composite (Premultiplied Alpha)** |  This blend mode is used with textures that already have a pre-multiplied alpha. |
-[/EXCERPT:blendmode]
-
-
-
-[/COMMENT]
-
-
-[COMMENT:none]
---
-[INCLUDE:#materialsettings]
-
-[EXCERPT:materialsettings]
 [REGION:raw]
 | Property | Description |
-| --- | :--- |
+| --- | --- |
 | **Texture Size** | Size of the generated BaseColor texture map. |
-| **Texture Sizing Type** | [INCLUDE:#tst] |
+| **Texture Sizing Type** | Whether to use the specified **Texture Size** parameters for all Material properties, use automatically biased texture sizes based on **Texture Size**, or to use per property manually overridden Texture Sizes. |
 | **Normal Map** | Whether to generate a Normal map. |
 | **Metallic Map** | Whether to generate a Metallic map. |
-| **Metallic Constant** | Allows to you set a roughness constant value in place of a texture map. |
+| **Metallic Constant** | Enables to you set a metallic constant value in place of a texture map. |
 | **Roughness Map** | Whether to generate a Roughness map. |
-| **Roughness Constant** | Allows to you set a roughness constant value in place of a texture map. |
+| **Roughness Constant** | Enables to you set a roughness constant value in place of a texture map. |
 | **Specular Map** | Whether to generate a Specular map. |
-| **Specular Constant** | Allows to you set a roughness constant value in place of a texture map. |
-| **Emissive Map** | Whether to generate a Emissive map. |
-| **Opacity Map** | If checked, an Opacity map will be baked out for the resulting merged Actor. This nullifies the Opacity Constant property.  Must also use the **Blend Mode** for **Translucent** to show correctly in the generated instances. |
-| **Opacity Constant** | Only enabled if Opacity Map is unchecked, this sets a constant value for the Opacity property of the resulting merged Actor's Material. |
-| **Opacity Mask Map** | If checked, an Opacity Mask map will be baked out for the resulting merged Actor. This nullifies the Opacity Mask Constant property. Must also use the **Blend Mode** for **Masked** to show correctly in the generated instances. |
-| **Opacity Mask Constant** | Only enabled if Opacity Mask Map is unchecked, this sets a constant value for the Opacity Mask property of the resulting merged Actor's Material. |
-| **Diffuse Texture Size** | Override for the Diffuse Texture Size. Enabled when **Texture Sizing Type** is set to **Use per property manually overriden texture sizes**. |
-| **Normal Texture Size** | Override for the Normal Texture Size. Enabled when **Texture Sizing Type** is set to **Use per property manually overriden texture sizes**. |
-| **Metallic Texture Size** | Override for the Metallic Texture Size. Enabled when **Texture Sizing Type** is set to **Use per property manually overriden texture sizes**. |
-| **Roughness Texture Size** | Override for the Roughness Texture Size. Enabled when **Texture Sizing Type** is set to **Use per property manually overriden texture sizes**. |
-| **Specular Texture Size** | Override for the Specular Texture Size. Enabled when **Texture Sizing Type** is set to **Use per property manually overriden texture sizes**. |
-| **Emissive Texture Size** | Override for the Emissive Texture Size. Enabled when **Texture Sizing Type** is set to **Use per property manually overriden texture sizes**. |
-| **Opacity Texture Size** | Override for the Opacity Texture Size. Enabled when **Texture Sizing Type** is set to **Use per property manually overriden texture sizes**. |
-| **Opacity Mask Texture Size** | Override for the Opacity Mask Texture Size. Enabled when **Texture Sizing Type** is set to **Use per property manually overriden texture sizes**. |
-| **Blend Mode** | This determines how the material's color is blended with background colors. [INCLUDE:#blendmode] |
+| **Specular Constant** | Enables to you set a specular constant value in place of a texture map. |
+| **Emissive Map** | Whether to generate an Emissive map. |
+| **Opacity Map** | If enabled, an Opacity map will be baked out for the resulting merged Actor. This nullifies the Opacity Constant property.
+[REGION:note]
+Must also use the **Blend Mode** of **Translucent** to show correctly in the generated instances.
 [/REGION]
-[/EXCERPT:materialsettings]
+ |
+| **Opacity Constant** | Only enabled if Opacity Map is disabled, this sets a constant value for the Opacity property of the resulting merged Actor's Material. |
+| **Opacity Mask Map** | If enabled, an Opacity Mask map will be baked out for the resulting merged Actor. This nullifies the Opacity Mask Constant property.
+[REGION:note]
+Must also use the **Blend Mode** of **Masked** to show correctly in the generated instances.
+[/REGION]
+ |
+| **Opacity Mask Constant** | Only enabled if Opacity Mask Map is disabled, this sets a constant value for the Opacity Mask property of the resulting merged Actor's Material. |
+| **Ambient Occlusion Map** | Whether to generate an Ambient Occlusion map. |
+| **Ambient Occlusion Constant** | Enables you to set an ambient occlusion constant value in place of a texture map. |
+| **Blend Mode** | Enables you to define the [Blend Mode](Engine/Rendering/Materials/MaterialProperties/BlendModes) for Proxy Materials. |
+[/REGION]
+[/EXCERPT:excerpt_4]
+-->
+<!--
+[EXCERPT:excerpt_7]
+Whenever you either generate a merged mesh or a proxy mesh we need to determine which materials to bake down. Whenever this value is set, we will also merge any material instances. Say you have dynamic material instances that get generated for any of your placed props. They will essentially be the same material under the hood, but might had instance specific properties. This means when you merge them it will only use one instance for all of the meshes, this means that the final look of the HLOD mesh might be different than the original.
 
--
-[/COMMENT]
+[REGION:note]
+This can cause artifacts in the merged mesh if world position/actor position is used to determine output color.
+[/REGION]
+[/EXCERPT:excerpt_7]
+-->
+<!--
+[EXCERPT:excerpt_8]
+
+Whether to allow distance field to be computed for this mesh. 
+
+[REGION:tip]
+Disable this to save memory if the merged mesh will only be rendered in the distance.
+[/REGION]
+[/EXCERPT:excerpt_8]
+-->
+[/REGION]

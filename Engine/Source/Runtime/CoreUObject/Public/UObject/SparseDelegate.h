@@ -70,6 +70,7 @@ private:
 	{
 		virtual ~FObjectListener();
 		virtual void NotifyUObjectDeleted(const UObjectBase* Object, int32 Index) override;
+		virtual void OnUObjectArrayShutdown();
 		void EnableListener();
 		void DisableListener();
 	};

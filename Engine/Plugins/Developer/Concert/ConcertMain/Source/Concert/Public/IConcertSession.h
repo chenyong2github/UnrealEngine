@@ -19,12 +19,59 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnConcertServerSessionTick, IConcertServer
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnConcertClientSessionConnectionChanged, IConcertClientSession&, EConcertConnectionStatus);
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnConcertClientSessionClientChanged, IConcertClientSession&, EConcertClientStatus, const FConcertSessionClientInfo&);
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnConcertServerSessionClientChanged, IConcertServerSession&, EConcertClientStatus, const FConcertSessionClientInfo&);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnConcertSessionRenamed, const FString&, const FString&);
+
+/** Contains the FConcertClientInfo fields that can be updated. */
+struct FConcertClientInfoUpdate
+{
+	TOptional<FString> DisplayName;
+	TOptional<FLinearColor> AvatarColor;
+	TOptional<FString> DesktopAvatarActorClass;
+	TOptional<FString> VRAvatarActorClass;
+
+	/** Applies the valid optional fields to the specified client info, and return true if the client info was modified, false otherwise. */
+	bool ApplyTo(FConcertClientInfo& InOutInfo) const
+	{
+		bool bUpdated = false;
+		if (DisplayName.IsSet() && DisplayName.GetValue() != InOutInfo.DisplayName)
+		{
+			InOutInfo.DisplayName = DisplayName.GetValue();
+			bUpdated = true;
+		}
+
+		if (AvatarColor.IsSet() && AvatarColor.GetValue() != InOutInfo.AvatarColor)
+		{
+			InOutInfo.AvatarColor = AvatarColor.GetValue();
+			bUpdated = true;
+		}
+
+		if (DesktopAvatarActorClass.IsSet() && DesktopAvatarActorClass.GetValue() != InOutInfo.DesktopAvatarActorClass)
+		{
+			InOutInfo.DesktopAvatarActorClass = DesktopAvatarActorClass.GetValue();
+			bUpdated = true;
+		}
+
+		if (VRAvatarActorClass.IsSet() && VRAvatarActorClass.GetValue() != InOutInfo.VRAvatarActorClass)
+		{
+			InOutInfo.VRAvatarActorClass = VRAvatarActorClass.GetValue();
+			bUpdated = true;
+		}
+
+		return bUpdated;
+	}
+};
 
 /** Interface for Concert sessions */
 class IConcertSession
 {
 public:
 	virtual ~IConcertSession() {}
+
+	virtual void Startup() = 0;
+
+	virtual void Shutdown() = 0;
+
+	virtual const FGuid& GetId() const = 0;
 
 	virtual const FString& GetName() const = 0;
 
@@ -42,10 +89,6 @@ public:
 	/** Find the the client for the specified endpoint ID */
 	virtual bool FindSessionClient(const FGuid& EndpointId, FConcertSessionClientInfo& OutSessionClientInfo) const = 0;
 
-	virtual void Startup() = 0;
-
-	virtual void Shutdown() = 0;
-
 	/**
 	 * Get the scratchpad associated with this concert session.
 	 */
@@ -60,27 +103,45 @@ public:
 	 * Register a custom event handler for this session
 	 */
 	template<typename EventType>
-	void RegisterCustomEventHandler(typename TConcertFunctionSessionCustomEventHandler<EventType>::FFuncType Func)
+	FDelegateHandle RegisterCustomEventHandler(typename TConcertFunctionSessionCustomEventHandler<EventType>::FFuncType Func)
 	{
-		InternalRegisterCustomEventHandler(EventType::StaticStruct()->GetFName(), MakeShared<TConcertFunctionSessionCustomEventHandler<EventType>>(MoveTemp(Func)));
+		return InternalRegisterCustomEventHandler(EventType::StaticStruct()->GetFName(), MakeShared<TConcertFunctionSessionCustomEventHandler<EventType>>(FDelegateHandle(FDelegateHandle::GenerateNewHandle), MoveTemp(Func)));
 	}
 
 	/**
 	 * Register a custom event handler for this session
 	 */
 	template<typename EventType, typename HandlerType>
-	void RegisterCustomEventHandler(HandlerType* Handler, typename TConcertRawSessionCustomEventHandler<EventType, HandlerType>::FFuncType Func)
+	FDelegateHandle RegisterCustomEventHandler(HandlerType* Handler, typename TConcertRawSessionCustomEventHandler<EventType, HandlerType>::FFuncType Func)
 	{
-		InternalRegisterCustomEventHandler(EventType::StaticStruct()->GetFName(), MakeShared<TConcertRawSessionCustomEventHandler<EventType, HandlerType>>(Handler, Func));
+		return InternalRegisterCustomEventHandler(EventType::StaticStruct()->GetFName(), MakeShared<TConcertRawSessionCustomEventHandler<EventType, HandlerType>>(FDelegateHandle(FDelegateHandle::GenerateNewHandle), Handler, Func));
 	}
 
 	/**
 	 * Unregister a custom event handler for this session
 	 */
 	template<typename EventType>
-	void UnregisterCustomEventHandler()
+	void UnregisterCustomEventHandler(const FDelegateHandle EventHandle)
 	{
-		InternalUnregisterCustomEventHandler(EventType::StaticStruct()->GetFName());
+		InternalUnregisterCustomEventHandler(EventType::StaticStruct()->GetFName(), EventHandle);
+	}
+
+	/**
+	 * Unregister a custom event handler for this session
+	 */
+	template<typename EventType, typename HandlerType>
+	void UnregisterCustomEventHandler(HandlerType* EventHandler)
+	{
+		InternalUnregisterCustomEventHandler(EventType::StaticStruct()->GetFName(), EventHandler);
+	}
+
+	/**
+	 * Clear a custom event handler for this session
+	 */
+	template<typename EventType>
+	void ClearCustomEventHandler()
+	{
+		InternalClearCustomEventHandler(EventType::StaticStruct()->GetFName());
 	}
 
 	/**
@@ -143,12 +204,18 @@ protected:
 	/**
 	 * Register a custom event handler for this session
 	 */
-	virtual void InternalRegisterCustomEventHandler(const FName& EventMessageType, const TSharedRef<IConcertSessionCustomEventHandler>& Handler) = 0;
+	virtual FDelegateHandle InternalRegisterCustomEventHandler(const FName& EventMessageType, const TSharedRef<IConcertSessionCustomEventHandler>& Handler) = 0;
 
 	/**
 	 * Unregister a custom event handler for this session
 	 */
-	virtual void InternalUnregisterCustomEventHandler(const FName& EventMessageType) = 0;
+	virtual void InternalUnregisterCustomEventHandler(const FName& EventMessageType, const FDelegateHandle EventHandle) = 0;
+	virtual void InternalUnregisterCustomEventHandler(const FName& EventMessageType, const void* EventHandler) = 0;
+
+	/**
+	 * Clear a custom event handler for this session
+	 */
+	virtual void InternalClearCustomEventHandler(const FName& EventMessageType) = 0;
 
 	/**
 	 * Send a custom event event to the given endpoints
@@ -177,6 +244,9 @@ class IConcertServerSession : public IConcertSession
 public:
 	virtual ~IConcertServerSession() {}
 
+	/** Rename the session. */
+	virtual void SetName(const FString& NewName) = 0;
+
 	/** Callback when a server session gets ticked */
 	virtual FOnConcertServerSessionTick& OnTick() = 0;
 
@@ -202,6 +272,9 @@ public:
 	/** Get the local user's ClientInfo */
 	virtual const FConcertClientInfo& GetLocalClientInfo() const = 0;
 
+	/** Update the local user's ClientInfo */
+	virtual void UpdateLocalClientInfo(const FConcertClientInfoUpdate& UpdatedFields) = 0;
+
 	/** Start the connection handshake with the server session */
 	virtual void Connect() = 0;
 
@@ -225,4 +298,7 @@ public:
 
 	/** Callback when a session client state changes */
 	virtual FOnConcertClientSessionClientChanged& OnSessionClientChanged() = 0;
+
+	/** Callback when the session name changes. */
+	virtual FOnConcertSessionRenamed& OnSessionRenamed() = 0;
 };

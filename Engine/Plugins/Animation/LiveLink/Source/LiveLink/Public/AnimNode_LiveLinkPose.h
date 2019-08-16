@@ -2,24 +2,37 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Animation/AnimNodeBase.h"
+
+#include "CoreMinimal.h"
 #include "LiveLinkRetargetAsset.h"
+#include "LiveLinkTypes.h"
+
+#include "AnimNode_LiveLinkPose.generated.h"
+
 
 class ILiveLinkClient;
 
-#include "AnimNode_LiveLinkPose.generated.h"
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 USTRUCT(BlueprintInternalUseOnly)
 struct LIVELINK_API FAnimNode_LiveLinkPose : public FAnimNode_Base
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
+public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Input)
 	FPoseLink InputPose;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SourceData, meta = (PinShownByDefault))
-	FName SubjectName;
+	FLiveLinkSubjectName LiveLinkSubjectName;
+
+#if WITH_EDITORONLY_DATA
+	UE_DEPRECATED(4.23, "FName SubjectName is deprecated. Use the SubjectName of type FLiveLinkSubjectName instead.")
+	UPROPERTY()
+	FName SubjectName_DEPRECATED;
+#endif
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, NoClear, Category = Retarget, meta = (NeverAsPin))
 	TSubclassOf<ULiveLinkRetargetAsset> RetargetAsset;
@@ -27,18 +40,21 @@ struct LIVELINK_API FAnimNode_LiveLinkPose : public FAnimNode_Base
 	UPROPERTY(transient)
 	ULiveLinkRetargetAsset* CurrentRetargetAsset;
 
+public:
 	FAnimNode_LiveLinkPose();
 
-	// FAnimNode_Base interface
+	//~ FAnimNode_Base interface
 	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
 	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext & Context) override;
 	virtual void Update_AnyThread(const FAnimationUpdateContext & Context) override;
 	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
 	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
-	// End of FAnimNode_Base interface
+	//~ End of FAnimNode_Base interface
 
 	void OnLiveLinkClientRegistered(const FName& Type, class IModularFeature* ModularFeature);
 	void OnLiveLinkClientUnregistered(const FName& Type, class IModularFeature* ModularFeature);
+
+	bool Serialize(FArchive& Ar);
 
 private:
 
@@ -46,4 +62,15 @@ private:
 
 	// Delta time from update so that it can be passed to retargeter
 	float CachedDeltaTime;
+};
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+
+template<> struct TStructOpsTypeTraits<FAnimNode_LiveLinkPose> : public TStructOpsTypeTraitsBase2<FAnimNode_LiveLinkPose>
+{
+	enum 
+	{ 
+		WithSerializer = true
+	};
 };

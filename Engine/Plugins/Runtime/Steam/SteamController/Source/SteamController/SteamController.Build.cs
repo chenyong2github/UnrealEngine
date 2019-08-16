@@ -7,7 +7,7 @@ public class SteamController : ModuleRules
 {
     public SteamController(ReadOnlyTargetRules Target) : base(Target)
     {
-        string SteamVersion = "Steamv139";
+        string SteamVersion = "Steamv142";
         bool bSteamSDKFound = Directory.Exists(Target.UEThirdPartySourceDirectory + "Steamworks/" + SteamVersion) == true;
 
         PublicDefinitions.Add("STEAMSDK_FOUND=" + (bSteamSDKFound ? "1" : "0"));
@@ -18,6 +18,7 @@ public class SteamController : ModuleRules
         {
 			"Core",
 			"CoreUObject",
+			"ApplicationCore",
 			"Engine",
 		});
 

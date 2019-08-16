@@ -14,14 +14,13 @@ enum class EDataTableExportFlags : uint8
 	/** No specific options. */
 	None = 0,
 
-	/** Export properties using their display name, rather than their internal name. */
-	UsePrettyPropertyNames = 1<<0,
-
-	/** Export User Defined Enums using their display name, rather than their internal name. */
-	UsePrettyEnumNames = 1<<1,
-
 	/** Export nested structs as JSON objects (JSON exporter only), rather than as exported text. */
-	UseJsonObjectsForStructs = 1<<2,
+	UseJsonObjectsForStructs = 1 << 0,
+
+	// DEPRECATED. Native properties/enums are always exported using their internal name, user struct/enums are always exported using the friendly names set in the editor
+
+	UsePrettyPropertyNames UE_DEPRECATED(4.23, "UsePrettyPropertyNames is deprecated, we now always use the unlocalized but readable authored names") = 1 << 6,
+	UsePrettyEnumNames UE_DEPRECATED(4.23, "UsePrettyEnumNames is deprecated, we now always use the unlocalized but readable authored names") = 1 << 7,
 };
 ENUM_CLASS_FLAGS(EDataTableExportFlags);
 
@@ -81,7 +80,7 @@ namespace DataTableUtils
 	/**
 	 * Util to get the friendly display unlocalized name of a given property for export to files.
 	 */
-	ENGINE_API FString GetPropertyExportName(const UProperty* Prop, const EDataTableExportFlags InDTExportFlags);
+	ENGINE_API FString GetPropertyExportName(const UProperty* Prop, const EDataTableExportFlags InDTExportFlags = EDataTableExportFlags::None);
 
 	/**
 	 * Util to get the all variants for export names for backwards compatibility.
@@ -89,9 +88,9 @@ namespace DataTableUtils
 	ENGINE_API TArray<FString> GetPropertyImportNames(const UProperty* Prop);
 
 	/**
-	 * Util to get the friendly display name of a given property.
+	 * Util to get the localized display name of a given property.
 	 */
-	ENGINE_API FString GetPropertyDisplayName(const UProperty* Prop, const FString& DefaultName);
+	ENGINE_API FText GetPropertyDisplayName(const UProperty* Prop, const FString& DefaultName);
 
 	/**
 	 * Output each row for a specific column/property in the table (doesn't include the title)

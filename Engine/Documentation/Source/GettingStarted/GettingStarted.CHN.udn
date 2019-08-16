@@ -1,7 +1,6 @@
-INTSourceChangelist:3782314
+﻿INTSourceChangelist:6652343
 Availability:Public
 Title: 虚幻引擎4入门
-Crumbs: %ROOT%
 Description:针对刚开始用引擎创建游戏的开发者进行讲解。
 Navigation:start
 version: 4.9
@@ -10,23 +9,21 @@ order:1
 tags:Getting Started
 type:landing
 topic-image:gettingstarted_topic.png
-topic-icon:%ROOT%/start_icon.png
+topic-icon:start_icon.png
 
-
-(#startingout)
 
 ## 开始
 
-%Engine/QuickStart:topiccompact%
-%Engine/Content/QuickStart:topiccompact%
-%Programming/QuickStart:topiccompact%
-%GettingStarted/Terminology:topiccompact%
-[OBJECT:TopicCompact]
+%Engine/QuickStart:topic%
+%Engine/Content/QuickStart:topic%
+%Programming/QuickStart:topic%
+%GettingStarted/Terminology:topic%
+[OBJECT:Topic]
 	[PARAM:image]
 		![](GettingStarted/FromUnity/image_0.png)
 	[/PARAM]
 	[PARAM:icon]
-		![](%ROOT%/start_icon.png)(convert:false)
+		![](start_icon.png)(convert:false)
 	[/PARAM]
 	[PARAM:title]
 		%GettingStarted/FromUnity:title%
@@ -38,7 +35,8 @@ topic-icon:%ROOT%/start_icon.png
 		[RELATIVE:GettingStarted/FromUnity]
 	[/PARAM]
 [/OBJECT]
-%GettingStarted/SubEditors:topiccompact%
+%GettingStarted/SubEditors:topic%
+
 [REGION:section]
 	[REGION:normaltitle]
 	其他信息
@@ -48,8 +46,6 @@ topic-icon:%ROOT%/start_icon.png
 	* [](GettingStarted/DownloadingUnrealEngine "%GettingStarted/DownloadingUnrealEngine:description%")
 	* [版本说明](Support/Builds "%Support/Builds:description%")
 [/REGION]
-
-(#editorbasics)
 
 ## 编辑器基础
 
@@ -63,12 +59,29 @@ topic-icon:%ROOT%/start_icon.png
 
 [REGION:section]
 [REGION:normaltitle]
-相关视频
+相关课程
 [/REGION]
-[DIR(playlist_id:"PLZlv_N0_O1gasd4IcOe9Cx9wHoBB7rxFl" type:"playlist" output:"playlist")]
+[OBJECT:CourseLink]
+	[PARAMLITERAL:title]
+	UE4编辑器基础
+	[/PARAMLITERAL]
+	[PARAMLITERAL:courseid]
+	editor_basics
+	[/PARAMLITERAL]
+	[PARAMLITERAL:imageid]
+	3095
+	[/PARAMLITERAL]
+	[PARAMLITERAL:description]
+	了解虚幻编辑器的基础功能及组件。
+	[/PARAMLITERAL]
+	[PARAMLITERAL:video_count]
+	14
+	[/PARAMLITERAL]
+	[PARAMLITERAL:skill_level]
+	Getting Started
+	[/PARAMLITERAL]
+[/OBJECT]
 [/REGION]
-
-(#editorviewports)
 
 ## 编辑器视口
 	
@@ -77,15 +90,11 @@ topic-icon:%ROOT%/start_icon.png
 %Engine/UI/LevelEditor/Viewports/Basics:topic%
 %Engine/UI/LevelEditor/Viewports/ViewportControls:topic%
 
-(#editormodes)
-
 ## 编辑器模式
 	
 [INCLUDE:Shared/Glossary/M#glossary_modes_panel]
 
 %Engine/UI/LevelEditor/Modes:topic%
-
-(#actors&geometry)
 
 ## Actor和几何体
 	
@@ -95,14 +104,6 @@ topic-icon:%ROOT%/start_icon.png
 %Engine/Actors/Brushes:topic%
 %Engine/Actors/Transform:topic%
 
-[REGION:section]
-[REGION:normaltitle]
-相关视频
-[/REGION]
-[DIR(playlist_id:"PLZlv_N0_O1gak1_FoAJVrEGiLIploeF3F" type:"playlist" output:"playlist")]
-[/REGION]
-
-(#Contentbrowser)
 
 ## 内容浏览器
 	
@@ -111,8 +112,6 @@ topic-icon:%ROOT%/start_icon.png
 %Engine/Content/QuickStart:topic%
 %Engine/Basics/AssetsAndPackages:topic%
 %Engine/Content/Browser:topic%
-
-(#lighting)
 
 ## 光照
 
@@ -123,10 +122,37 @@ topic-icon:%ROOT%/start_icon.png
 		
 不同光源以不同方式发射光线。举例而言，标准电灯泡会向所有方向发射光线。在虚幻引擎中，这被称之为 _点光源_。在其他情况下将把灯泡的背面设为不透明，对发射的光线形成物理限制（例如泛光灯）。这便是 _聚光源_。来自太阳的室外光线，其所在位置较远，因此看似是来自一个方向，而非一个具体的点。利用 _定向光源_ 可模拟此类光线。 
 
-%Engine/Rendering/LightingAndShadows/QuickStart:description%
-%Engine/Rendering/LightingAndShadows/Basics:description%
+%Engine/Rendering/LightingAndShadows/QuickStart:topic%
+%Engine/Rendering/LightingAndShadows/Basics:topic%
 
-(#materials&shading)
+[REGION:section]
+[REGION:normaltitle]
+相关课程
+[/REGION]
+[OBJECT:CourseLink]
+	[PARAMLITERAL:courseid]
+	Lighting_EssentialConcepts
+	[/PARAMLITERAL]
+	[PARAMLITERAL:imageid]
+	3099
+	[/PARAMLITERAL]
+	[PARAMLITERAL:title]
+	光照基础概念
+	[/PARAMLITERAL]
+	[PARAMLITERAL:description]
+	了解不同类型的光源，它们最重要的属性以及使用方法。
+	[/PARAMLITERAL]
+	[PARAMLITERAL:video_count]
+	13
+	[/PARAMLITERAL]
+	[PARAMLITERAL:skill_level]
+	Getting Started
+	[/PARAMLITERAL]
+	[PARAMLITERAL:engine_version]
+	4.18
+	[/PARAMLITERAL]
+[/OBJECT]
+[/REGION]
 
 ## 材质和着色
 
@@ -136,12 +162,29 @@ topic-icon:%ROOT%/start_icon.png
 
 [REGION:section]
 [REGION:normaltitle]
-相关视频
+相关课程
 [/REGION]
-[DIR(playlist_id:"PLZlv_N0_O1gbQjgY0nDwZNYe_N8IcYWS-" type:"playlist" output:"playlist")]
+[OBJECT:CourseLink]
+	[PARAMLITERAL:courseid]
+	materials-essentials
+	[/PARAMLITERAL]
+	[PARAMLITERAL:imageid]
+	3098
+	[/PARAMLITERAL]
+	[PARAMLITERAL:title]
+	材质基础概念
+	[/PARAMLITERAL]
+	[PARAMLITERAL:description]
+	概述如何在生产环境下创建和使用材质。
+	[/PARAMLITERAL]
+	[PARAMLITERAL:video_count]
+	17
+	[/PARAMLITERAL]
+	[PARAMLITERAL:skill_level]
+	Getting Started
+	[/PARAMLITERAL]
+[/OBJECT]
 [/REGION]
-
-(#blueprintsvisualscripting)
 
 ## 蓝图可视化脚本编写
 
@@ -149,14 +192,33 @@ topic-icon:%ROOT%/start_icon.png
 
 %Engine/Blueprints/GettingStarted:topic%
 
-[REGION:gallery]
+<!-- removing for now.
+[REGION:section]
 [REGION:normaltitle]
-相关视频
+相关课程
 [/REGION]
-[DIR(playlist_id:"PLZlv_N0_O1gY35ezlSQn1sWOGfh4C7ewO" type:"playlist" output:"playlist")]
+[OBJECT:CourseLink]
+	[PARAMLITERAL:courseid]
+	blueprint-essential-concepts
+	[/PARAMLITERAL]
+	[PARAMLITERAL:imageid]
+	7144
+	[/PARAMLITERAL]
+	[PARAMLITERAL:title]
+	蓝图基础概念
+	[/PARAMLITERAL]
+	[PARAMLITERAL:description]
+	了解蓝图是什么以及你能用它来做什么。
+	[/PARAMLITERAL]
+	[PARAMLITERAL:video_count]
+	8
+	[/PARAMLITERAL]
+	[PARAMLITERAL:skill_level]
+	Getting Started
+	[/PARAMLITERAL]
+[/OBJECT]
 [/REGION]
-
-(#programming)
+-->
 
 ## 编程
 
@@ -168,14 +230,7 @@ topic-icon:%ROOT%/start_icon.png
 %Programming/Basics:topic%
 %Gameplay/Framework/QuickReference:topic%
 	
-[REGION:gallery]
-[REGION:normaltitle]
-相关视频
-[/REGION]
-[DIR(playlist_id:"PLZlv_N0_O1gYup-gvJtMsgJqnEB_dGiM4" type:"playlist" output:"playlist")]
-[/REGION]
 
-(#playtestyourgame)
 
 ## 对游戏进行测试
 

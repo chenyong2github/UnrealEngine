@@ -669,7 +669,7 @@ void FSteamVRHMD::UpdatePoses()
 	else
 	{
 		check(IsInGameThread());
-		VRSystem->GetDeviceToAbsoluteTrackingPose(VRCompositor->GetTrackingSpace(), 0.0f, Poses, ARRAYSIZE(Poses));
+		vr::EVRCompositorError PoseError = VRCompositor->GetLastPoses(Poses, ARRAYSIZE(Poses), NULL, 0);
 	}
 
 	TrackingFrame.bHaveVisionTracking = false;
@@ -783,7 +783,7 @@ void FSteamVRHMD::SetTrackingOrigin(EHMDTrackingOrigin::Type NewOrigin)
 	}
 }
 
-EHMDTrackingOrigin::Type FSteamVRHMD::GetTrackingOrigin()
+EHMDTrackingOrigin::Type FSteamVRHMD::GetTrackingOrigin() const
 {
 	if(VRCompositor)
 	{
@@ -1343,9 +1343,18 @@ bool FSteamVRHMD::EnableStereo(bool bStereo)
 		{
 			if( bStereo )
 			{
-				int32 PosX, PosY;
 				uint32 Width, Height;
-				GetWindowBounds( &PosX, &PosY, &Width, &Height );
+				if (VRSystem)
+				{
+					VRSystem->GetRecommendedRenderTargetSize(&Width, &Height);
+					//Width is one eye so double it for window bounds
+					Width += Width;
+				}
+				else
+				{
+					Width = WindowMirrorBoundsWidth;
+					Height = WindowMirrorBoundsHeight;
+				}
 				SceneVP->SetViewportSize(Width, Height);
 				bStereoEnabled = bStereoDesired;
 			}
@@ -1615,10 +1624,6 @@ bool FSteamVRHMD::Startup()
 		uint32 RecommendedWidth, RecommendedHeight;
 		VRSystem->GetRecommendedRenderTargetSize(&RecommendedWidth, &RecommendedHeight);
 		RecommendedWidth *= 2;
-
-		int32 ScreenX, ScreenY;
-		uint32 ScreenWidth, ScreenHeight;
-		GetWindowBounds(&ScreenX, &ScreenY, &ScreenWidth, &ScreenHeight);
 
 		IdealRenderTargetSize = FIntPoint(RecommendedWidth, RecommendedHeight);
 

@@ -74,10 +74,25 @@ ENUM_CLASS_FLAGS(EPropertyLocalizationGathererResultFlags);
 class COREUOBJECT_API FPropertyLocalizationDataGatherer
 {
 public:
+	struct FGatherableFieldsForType
+	{
+		TArray<const UProperty*> Properties;
+		TArray<const UFunction*> Functions;
+
+		bool HasFields() const
+		{
+			return Properties.Num() > 0 || Functions.Num() > 0;
+		}
+	};
+
 	typedef TFunction<void(const UObject* const, FPropertyLocalizationDataGatherer&, const EPropertyLocalizationGathererTextFlags)> FLocalizationDataGatheringCallback;
 	typedef TMap<const UClass*, FLocalizationDataGatheringCallback> FLocalizationDataGatheringCallbackMap;
 
 	FPropertyLocalizationDataGatherer(TArray<FGatherableTextData>& InOutGatherableTextDataArray, const UPackage* const InPackage, EPropertyLocalizationGathererResultFlags& OutResultFlags);
+
+	// Non-copyable
+	FPropertyLocalizationDataGatherer(const FPropertyLocalizationDataGatherer&) = delete;
+	FPropertyLocalizationDataGatherer& operator=(const FPropertyLocalizationDataGatherer&) = delete;
 
 	void GatherLocalizationDataFromObjectWithCallbacks(const UObject* Object, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
 	void GatherLocalizationDataFromObject(const UObject* Object, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
@@ -94,6 +109,8 @@ public:
 	bool ShouldProcessObject(const UObject* Object, const EPropertyLocalizationGathererTextFlags GatherTextFlags) const;
 	void MarkObjectProcessed(const UObject* Object, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
 
+	const FGatherableFieldsForType& GetGatherableFieldsForType(const UStruct* InType);
+
 	static bool ExtractTextIdentity(const FText& Text, FString& OutNamespace, FString& OutKey, const bool bCleanNamespace);
 
 	static FLocalizationDataGatheringCallbackMap& GetTypeSpecificLocalizationDataGatheringCallbacks();
@@ -109,6 +126,9 @@ public:
 	}
 
 private:
+	const FGatherableFieldsForType& CacheGatherableFieldsForType(const UStruct* InType);
+	bool CanGatherFromInnerProperty(const UProperty* InInnerProperty);
+
 	struct FObjectAndGatherFlags
 	{
 		FObjectAndGatherFlags(const UObject* InObject, const EPropertyLocalizationGathererTextFlags InGatherTextFlags)
@@ -145,6 +165,7 @@ private:
 	const UPackage* Package;
 	FString PackageNamespace;
 	EPropertyLocalizationGathererResultFlags& ResultFlags;
+	TMap<const UStruct*, TUniquePtr<FGatherableFieldsForType>> GatherableFieldsForTypes;
 	TSet<const UObject*> AllObjectsInPackage;
 	TSet<FObjectAndGatherFlags> ProcessedObjects;
 	TSet<FObjectAndGatherFlags> BytecodePendingGather;

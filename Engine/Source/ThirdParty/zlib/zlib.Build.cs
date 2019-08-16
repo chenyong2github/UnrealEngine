@@ -19,18 +19,22 @@ public class zlib : ModuleRules
 		// TODO: recompile for consoles and mobile platforms
 		string OldzlibPath = Target.UEThirdPartySourceDirectory + "zlib/" + OldZlibVersion;
 
-		string ConfigPath = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT) ? "Debug" :"Release";
-
-		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
-		{
-			string Platform = Target.Platform.ToString();
-			string VSVersion = "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-
-			PublicIncludePaths.Add(Path.Combine(zlibPath, "include", Platform, VSVersion));
-			PublicLibraryPaths.Add(Path.Combine(zlibPath, "lib", Platform, VSVersion, ConfigPath));
-
-			PublicAdditionalLibraries.Add("zlibstatic.lib");
-		}
+        if ((Target.Platform == UnrealTargetPlatform.Win64) ||
+            (Target.Platform == UnrealTargetPlatform.Win32) ||
+            (Target.Platform == UnrealTargetPlatform.HoloLens))
+        {
+            string PlatformSubpath = Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.x86 ? "Win32" : "Win64";
+            PublicIncludePaths.Add(System.String.Format("{0}/include/Win32/VS{1}", zlibPath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName()));
+            if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
+            {
+                PublicLibraryPaths.Add(System.String.Format("{0}/lib/{1}/VS{2}/{3}/", zlibPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.WindowsPlatform.GetArchitectureSubpath()));
+            }
+            else
+            {
+                PublicLibraryPaths.Add(System.String.Format("{0}/lib/{1}/VS{2}/{3}/", zlibPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.Configuration == UnrealTargetConfiguration.Debug ? "Debug" : "Release"));
+            }
+            PublicAdditionalLibraries.Add("zlibstatic.lib");
+        }
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
 			string platform = "/Mac/";
@@ -38,7 +42,7 @@ public class zlib : ModuleRules
 			// OSX needs full path
 			PublicAdditionalLibraries.Add(zlibPath + "/lib" + platform + "libz.a");
 		}
-		else if (Target.Platform == UnrealTargetPlatform.IOS||
+		else if (Target.Platform == UnrealTargetPlatform.IOS ||
 				 Target.Platform == UnrealTargetPlatform.TVOS)
 		{
 			PublicIncludePaths.Add(OldzlibPath + "/Inc");

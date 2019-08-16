@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:2752314
+﻿INTSourceChangelist:3108692
 Availability:Public
 Title: Actor 复制流程详述
 Crumbs:%ROOT%, Gameplay, Gameplay/Networking, Gameplay/Networking/Actors
@@ -49,6 +49,7 @@ Version: 4.9
 				* 如果保持相关的时间超过 1 秒，则调用 `AActor::IsNetRelevantFor` 以确定是否应当在下一时钟单位更新
 		* 对于通过了以上这几点的 actor，将调用 `UChannel::ReplicateActor` 将其复制到连接
 
+(#ReplicatinganActortoaConnection)
 ## 将 Actor 复制到连接
 
 `UChannel::ReplicateActor` 将负责把 actor 及其所有组件复制到连接中。其大致流程如下：

@@ -6,11 +6,10 @@
 #include "IConcertSessionHandler.h"
 #include "ConcertClientPresenceActor.h"
 #include "ConcertWorkspaceMessages.h"
-#include "ConcertSyncArchives.h"
 #include "ConcertSyncSettings.h"
-#include "IConcertClient.h"
 #include "IConcertModule.h"
-#include "IConcertUICoreModule.h"
+#include "IConcertClient.h"
+#include "IConcertSyncClient.h"
 #include "Engine/Blueprint.h"
 #include "Engine/Engine.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -18,9 +17,10 @@
 #include "ConcertLogGlobal.h"
 #include "ConcertClientDesktopPresenceActor.h"
 #include "ConcertClientVRPresenceActor.h"
-#include "ConcertTransactionLedger.h"
 #include "Scratchpad/ConcertScratchpad.h"
 #include "GameFramework/PlayerController.h"
+#include "Engine/GameEngine.h"
+#include "HAL/IConsoleManager.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -46,7 +46,7 @@ namespace ConcertClientPresenceManagerUtil
 	const double LocationUpdateFrequencySeconds = 0.0667;
 }
 
-#if	WITH_EDITOR
+#if WITH_EDITOR
 
 namespace ConcertClientPresenceManagerUtil
 {
@@ -58,15 +58,33 @@ bool ShowPresenceInPIE(const bool InIsPIE)
 
 }
 
-static TAutoConsoleVariable<int32> CVarEnablePresence(TEXT("concert.EnablePresence"), 1, TEXT("Enable Concert Presence"));
+static TAutoConsoleVariable<int32> CVarDisplayPresence(TEXT("Concert.DisplayPresence"), 1, TEXT("Enable display of Concert Presence from remote users."));
+static TAutoConsoleVariable<int32> CVarEmitPresence(TEXT("Concert.EmitPresence"), 1, TEXT("Enable display update of Concert Presence to remote users."));
 
 const TCHAR* FConcertClientPresenceManager::AssetContainerPath = TEXT("/ConcertSyncClient/ConcertAssets");
 
+FConcertClientPresenceStateEntry::FConcertClientPresenceStateEntry(TSharedRef<FConcertClientPresenceEventBase> InPresenceEvent)
+	: PresenceEvent(MoveTemp(InPresenceEvent))
+	, bSyncPending(true)
+{
+}
+
+FConcertClientPresenceState::FConcertClientPresenceState()
+	: bIsConnected(true)
+	, EditorPlayMode(EEditorPlayMode::None)
+	, bVisible(true)
+	, VRDevice(NAME_None)
+{
+}
+
+FConcertClientPresencePersistentState::FConcertClientPresencePersistentState()
+	: bVisible(true)
+	, bPropagateToAll(false)
+{
+}
+
 FConcertClientPresenceManager::FConcertClientPresenceManager(TSharedRef<IConcertClientSession> InSession)
-	: OnSessionClientChangedHandle()
-	, OnVREditingModeEnterHandle()
-	, OnVREditingModeExitHandle()
-	, Session(InSession)
+	: Session(InSession)
 	, CurrentAvatarMode(nullptr)
 	, AssetContainer(nullptr)
 	, bIsPresenceEnabled(true)
@@ -79,17 +97,9 @@ FConcertClientPresenceManager::FConcertClientPresenceManager(TSharedRef<IConcert
 	AssetContainer = LoadObject<UConcertAssetContainer>(nullptr, FConcertClientPresenceManager::AssetContainerPath);
 	checkf(AssetContainer, TEXT("Failed to load UConcertAssetContainer (%s). See log for reason."), FConcertClientPresenceManager::AssetContainerPath);
 
-	// @todo - Need to handle the situation where the avatar class might change during a session.
-	// This makes the assumption that avatar class will not change during a session 
-	// but will cause issues if it does because remote clients will create a 
-	// new presence actor but this manager will send updates for the old actor type.
-	FSoftClassPath DesktopAvatarActorClassPath = IConcertModule::Get().GetClientInstance()->GetClientInfo().DesktopAvatarActorClass;
-	DesktopAvatarActorClass = LoadObject<UClass>(nullptr, *DesktopAvatarActorClassPath.ToString());
-
-	FSoftClassPath VRAvatarActorClassPath = IConcertModule::Get().GetClientInstance()->GetClientInfo().VRAvatarActorClass;
-	VRAvatarActorClass = LoadObject<UClass>(nullptr, *VRAvatarActorClassPath.ToString());
-
-	CurrentAvatarActorClass = DesktopAvatarActorClass;
+	// Load the avatar classes specified by the session client info.
+	UpdateLocalUserAvatarClasses();
+	CurrentAvatarActorClass = !VRDeviceType.IsNone() ? VRAvatarActorClass : DesktopAvatarActorClass;
 
 	PreviousEndFrameTime = FPlatformTime::Seconds();
 	SecondsSinceLastLocationUpdate = ConcertClientPresenceManagerUtil::LocationUpdateFrequencySeconds;
@@ -103,12 +113,39 @@ FConcertClientPresenceManager::~FConcertClientPresenceManager()
 	ClearAllPresenceState();
 }
 
+bool FConcertClientPresenceManager::UpdateLocalUserAvatarClasses()
+{
+	bool bUpdated = false;
+
+	FSoftClassPath DesktopAvatarActorClassPath = Session->GetLocalClientInfo().DesktopAvatarActorClass;
+	if (DesktopAvatarActorClass == nullptr || DesktopAvatarActorClassPath != DesktopAvatarActorClass->GetPathName() )
+	{
+		DesktopAvatarActorClass = LoadObject<UClass>(nullptr, *DesktopAvatarActorClassPath.ToString());
+		bUpdated = true;
+	}
+
+	FSoftClassPath VRAvatarActorClassPath = Session->GetLocalClientInfo().VRAvatarActorClass;
+	if (VRAvatarActorClass == nullptr || VRAvatarActorClassPath != VRAvatarActorClass->GetPathName())
+	{
+		VRAvatarActorClass = LoadObject<UClass>(nullptr, *VRAvatarActorClassPath.ToString());
+		bUpdated = true;
+	}
+
+	return bUpdated;
+}
+
 void FConcertClientPresenceManager::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	Collector.AddReferencedObject(AssetContainer);
 	Collector.AddReferencedObject(CurrentAvatarActorClass);
 	Collector.AddReferencedObject(DesktopAvatarActorClass);
 	Collector.AddReferencedObject(VRAvatarActorClass);
+
+	// Ensure that Avatar classes used to represent remote clients are referenced.
+	for (TPair<FString, UClass*>& Pair : OthersAvatarClasses)
+	{
+		Collector.AddReferencedObject(Pair.Value);
+	}
 }
 
 const UConcertAssetContainer& FConcertClientPresenceManager::GetAssetContainer() const
@@ -118,13 +155,18 @@ const UConcertAssetContainer& FConcertClientPresenceManager::GetAssetContainer()
 
 bool FConcertClientPresenceManager::IsPresenceVisible(const FConcertClientPresenceState& InPresenceState) const
 {
-	return InPresenceState.bVisible && ConcertClientPresenceManagerUtil::ShowPresenceInPIE(InPresenceState.bInPIE);
+	return InPresenceState.bVisible && IsPIEPresenceEnabled(InPresenceState);
 }
 
 bool FConcertClientPresenceManager::IsPresenceVisible(const FGuid& InEndpointId) const
 {
 	const FConcertClientPresenceState* PresenceState = PresenceStateMap.Find(InEndpointId);
 	return PresenceState && IsPresenceVisible(*PresenceState);
+}
+
+bool FConcertClientPresenceManager::IsPIEPresenceEnabled(const FConcertClientPresenceState& InPresenceState) const
+{
+	return ConcertClientPresenceManagerUtil::ShowPresenceInPIE(InPresenceState.EditorPlayMode == EEditorPlayMode::PIE);
 }
 
 template<class PresenceActorClass, typename PresenceUpdateEventType>
@@ -151,10 +193,9 @@ void FConcertClientPresenceManager::HandleConcertClientPresenceUpdateEvent(const
 		return;
 	}
 
-	FConcertClientPresenceState& PresenceState = EnsurePresenceState(InSessionContext.SourceEndpointId);
-
 	TSharedRef<PresenceUpdateEventType> EventRef = MakeShared<PresenceUpdateEventType>(InEvent);
-	FConcertClientPresenceStateEntry StateEntry(EventRef);
+	FConcertClientPresenceStateEntry StateEntry(MoveTemp(EventRef));
+	FConcertClientPresenceState& PresenceState = EnsurePresenceState(InSessionContext.SourceEndpointId);
 	PresenceState.EventStateMap.Emplace(PresenceUpdateEventType::StaticStruct(), MoveTemp(StateEntry));
 }
 
@@ -168,64 +209,50 @@ void FConcertClientPresenceManager::Register()
 	Session->RegisterCustomEventHandler<FConcertPlaySessionEvent>(this, &FConcertClientPresenceManager::HandleConcertPlaySessionEvent);
 
 	// Add handler for session client changing
-	OnSessionClientChangedHandle = Session->OnSessionClientChanged().AddRaw(this, &FConcertClientPresenceManager::OnSessionClientChanged);
+	Session->OnSessionClientChanged().AddRaw(this, &FConcertClientPresenceManager::OnSessionClientChanged);
 
 	// Add handler for VR mode
-	OnVREditingModeEnterHandle = IVREditorModule::Get().OnVREditingModeEnter().AddRaw(this, &FConcertClientPresenceManager::OnVREditingModeEnter);
-	OnVREditingModeExitHandle = IVREditorModule::Get().OnVREditingModeExit().AddRaw(this, &FConcertClientPresenceManager::OnVREditingModeExit);	
+	IVREditorModule::Get().OnVREditingModeEnter().AddRaw(this, &FConcertClientPresenceManager::OnVREditingModeEnter);
+	IVREditorModule::Get().OnVREditingModeExit().AddRaw(this, &FConcertClientPresenceManager::OnVREditingModeExit);	
 
 	// Register OnEndFrame events
-	OnEndFrameHandle = FCoreDelegates::OnEndFrame.AddRaw(this, &FConcertClientPresenceManager::OnEndFrame);
-
-	ClientButtonExtensionHandle = IConcertUICoreModule::Get().GetConcertBrowserClientButtonExtension().AddRaw(this, &FConcertClientPresenceManager::FConcertClientPresenceManager::BuildPresenceClientUI);
+	FCoreDelegates::OnEndFrame.AddRaw(this, &FConcertClientPresenceManager::OnEndFrame);
 }
 
 void FConcertClientPresenceManager::Unregister()
 {
-	Session->OnSessionClientChanged().Remove(OnSessionClientChangedHandle);
+	Session->OnSessionClientChanged().RemoveAll(this);
 
-	Session->UnregisterCustomEventHandler<FConcertClientPresenceVisibilityUpdateEvent>();
-	Session->UnregisterCustomEventHandler<FConcertClientPresenceInVREvent>();
-	Session->UnregisterCustomEventHandler<FConcertClientPresenceDataUpdateEvent>();
-	Session->UnregisterCustomEventHandler<FConcertClientDesktopPresenceUpdateEvent>();
-	Session->UnregisterCustomEventHandler<FConcertClientVRPresenceUpdateEvent>();
-	Session->UnregisterCustomEventHandler<FConcertPlaySessionEvent>();
+	IVREditorModule::Get().OnVREditingModeEnter().RemoveAll(this);
+	IVREditorModule::Get().OnVREditingModeExit().RemoveAll(this);
 
-	if (ClientButtonExtensionHandle.IsValid())
-	{
-		IConcertUICoreModule::Get().GetConcertBrowserClientButtonExtension().Remove(ClientButtonExtensionHandle);
-		ClientButtonExtensionHandle.Reset();
-	}
+	FCoreDelegates::OnEndFrame.RemoveAll(this);
 
-	if (OnVREditingModeEnterHandle.IsValid())
-	{
-		IVREditorModule::Get().OnVREditingModeEnter().Remove(OnVREditingModeEnterHandle);
-		OnVREditingModeEnterHandle.Reset();
-	}
-
-	if (OnVREditingModeExitHandle.IsValid())
-	{
-		IVREditorModule::Get().OnVREditingModeExit().Remove(OnVREditingModeExitHandle);
-		OnVREditingModeExitHandle.Reset();
-	}
-
-	if (OnEndFrameHandle.IsValid())
-	{
-		FCoreDelegates::OnEndFrame.Remove(OnEndFrameHandle);
-		OnEndFrameHandle.Reset();
-	}
+	Session->UnregisterCustomEventHandler<FConcertClientPresenceVisibilityUpdateEvent>(this);
+	Session->UnregisterCustomEventHandler<FConcertClientPresenceInVREvent>(this);
+	Session->UnregisterCustomEventHandler<FConcertClientPresenceDataUpdateEvent>(this);
+	Session->UnregisterCustomEventHandler<FConcertClientDesktopPresenceUpdateEvent>(this);
+	Session->UnregisterCustomEventHandler<FConcertClientVRPresenceUpdateEvent>(this);
+	Session->UnregisterCustomEventHandler<FConcertPlaySessionEvent>(this);
 }
 
-UWorld* FConcertClientPresenceManager::GetWorld() const
+UWorld* FConcertClientPresenceManager::GetWorld(bool bIgnorePIE) const
 {
-	check(GEditor);
-
-	if (FWorldContext* WorldContext = GEditor->GetPIEWorldContext())
+	// Get the current world.
+	if (GIsEditor)
 	{
-		return WorldContext->World();
+		FWorldContext* PIEWorldContext = GEditor->GetPIEWorldContext();
+		if (!bIgnorePIE && PIEWorldContext)
+		{
+			return PIEWorldContext->World();
+		}
+		return GEditor->GetEditorWorldContext().World();
 	}
-
-	return GEditor->GetEditorWorldContext().World();
+	else if (UGameEngine* GameEngine = Cast<UGameEngine>(GEngine))
+	{
+		return GameEngine->GetGameWorld();
+	}
+	return nullptr;
 }
 
 FLevelEditorViewportClient* FConcertClientPresenceManager::GetPerspectiveViewport() const
@@ -242,8 +269,15 @@ void FConcertClientPresenceManager::OnEndFrame()
 	double DeltaTime = CurrentTime - PreviousEndFrameTime;
 	SecondsSinceLastLocationUpdate += DeltaTime;
 
-	if (SecondsSinceLastLocationUpdate >= ConcertClientPresenceManagerUtil::LocationUpdateFrequencySeconds)
+	// Game client do not generate a presence mode and state.
+	if (SecondsSinceLastLocationUpdate >= ConcertClientPresenceManagerUtil::LocationUpdateFrequencySeconds && !IsInGame() && CVarEmitPresence.GetValueOnAnyThread() > 0)
 	{
+		// Reload the avatar classes if the local client changed any of them.
+		if (UpdateLocalUserAvatarClasses())
+		{
+			CurrentAvatarMode.Reset(); // Ensure to recreate the avatar mode because CurrentAvatarActorClass may have change.
+		}
+
 		if (!CurrentAvatarMode)
 		{
 			CurrentAvatarMode = FConcertClientBasePresenceMode::CreatePresenceMode(CurrentAvatarActorClass, this);
@@ -295,17 +329,23 @@ void FConcertClientPresenceManager::SynchronizePresenceState()
 		FName EventWorldPathName;
 		const TSharedPtr<FConcertClientPresenceDataUpdateEvent> PresenceUpdateEvent = GetCachedPresenceState(PresenceState);
 		EventWorldPathName = PresenceUpdateEvent.IsValid() ? PresenceUpdateEvent->WorldPath : TEXT("");
-
-		const bool bIsValidViewport = GetPerspectiveViewport() != nullptr;
+		// NOTE: since presence state doesn't report PIE world path, bInCurrentWorld will never be true when in PIE, this will need to change if we want presence to display in PIE
 		const bool bInCurrentWorld = !ActiveWorldPathName.IsNone() && ActiveWorldPathName == EventWorldPathName;
 		
-		const bool bShowPresence = bIsPresenceEnabled && bIsValidViewport && bInCurrentWorld && PresenceState.bIsConnected && IsPresenceVisible(PresenceState) && (CVarEnablePresence.GetValueOnAnyThread() > 0);
+		const bool bShowPresence = bIsPresenceEnabled && bInCurrentWorld && PresenceState.bIsConnected && IsPresenceVisible(PresenceState) && (CVarDisplayPresence.GetValueOnAnyThread() > 0);
 		if (bShowPresence)
 		{
 			FConcertSessionClientInfo ClientSessionInfo;
 			Session->FindSessionClient(RemoteEndpointId, ClientSessionInfo);
+
 			if (!PresenceState.PresenceActor.IsValid())
 			{
+				PresenceState.PresenceActor = CreatePresenceActor(ClientSessionInfo.ClientInfo, PresenceState.VRDevice);
+			}
+			else if ((PresenceState.VRDevice.IsNone()  && PresenceState.PresenceActor->GetClass()->GetPathName() != ClientSessionInfo.ClientInfo.DesktopAvatarActorClass) // Not in VR and Desktop Avatar changed?
+			        || (!PresenceState.VRDevice.IsNone() && PresenceState.PresenceActor->GetClass()->GetPathName() != ClientSessionInfo.ClientInfo.VRAvatarActorClass))    // In VR and VR Avatar changed?					
+			{
+				ClearPresenceActor(RemoteEndpointId);
 				PresenceState.PresenceActor = CreatePresenceActor(ClientSessionInfo.ClientInfo, PresenceState.VRDevice);
 			}
 
@@ -324,6 +364,18 @@ void FConcertClientPresenceManager::SynchronizePresenceState()
 						PresenceActor->HandleEvent(Event);
 						EventItem.bSyncPending = false;
 					}
+				}
+
+				if (ClientSessionInfo.ClientInfo.DisplayName != PresenceState.DisplayName)
+				{
+					PresenceState.DisplayName = ClientSessionInfo.ClientInfo.DisplayName;
+					PresenceActor->SetPresenceName(PresenceState.DisplayName);
+				}
+
+				if (ClientSessionInfo.ClientInfo.AvatarColor != PresenceState.AvatarColor)
+				{
+					PresenceState.AvatarColor = ClientSessionInfo.ClientInfo.AvatarColor;
+					PresenceActor->SetPresenceColor(PresenceState.AvatarColor);
 				}
 			}
 		}
@@ -389,15 +441,25 @@ AConcertClientPresenceActor* FConcertClientPresenceManager::SpawnPresenceActor(c
 		return nullptr;
 	}
 
-	// @todo this is potentially slow and hitchy as clients connect.  It might be better to preload all the presence actor types
-	UClass* PresenceActorClass = nullptr;	
+	// @todo this is potentially slow and hitchy as clients connect. It might be better to preload all the presence actor types
+	UClass* PresenceActorClass = nullptr;
 	if (!VRDevice.IsNone())
 	{
-		PresenceActorClass = LoadObject<UClass>(nullptr, *InClientInfo.VRAvatarActorClass);
+		UClass*& AvatarClass = OthersAvatarClasses.FindOrAdd(InClientInfo.VRAvatarActorClass, nullptr);
+		if (!AvatarClass)
+		{
+			AvatarClass = LoadObject<UClass>(nullptr, *InClientInfo.VRAvatarActorClass);
+		}
+		PresenceActorClass = AvatarClass;
 	}
 	else
 	{
-		PresenceActorClass = LoadObject<UClass>(nullptr, *InClientInfo.DesktopAvatarActorClass);
+		UClass*& AvatarClass = OthersAvatarClasses.FindOrAdd(InClientInfo.DesktopAvatarActorClass, nullptr);
+		if (!AvatarClass)
+		{
+			AvatarClass = LoadObject<UClass>(nullptr, *InClientInfo.DesktopAvatarActorClass);
+		}
+		PresenceActorClass = AvatarClass;
 	}
 
 	if (!PresenceActorClass)
@@ -486,13 +548,20 @@ void FConcertClientPresenceManager::HandleConcertClientPresenceVisibilityUpdateE
 
 void FConcertClientPresenceManager::HandleConcertPlaySessionEvent(const FConcertSessionContext& InSessionContext, const FConcertPlaySessionEvent& InEvent)
 {
-	bool bPIE =  (!InEvent.bIsSimulating && 
-					(InEvent.EventType == EConcertPlaySessionEventType::BeginPlay ||
-					 InEvent.EventType == EConcertPlaySessionEventType::SwitchPlay));
+	bool bPlaying = (InEvent.EventType == EConcertPlaySessionEventType::BeginPlay || InEvent.EventType == EConcertPlaySessionEventType::SwitchPlay);
 
 	// This event is sent by the server so the InSession.SourceEndpointId 
 	// will be the server's guid not the client's.
-	SetPresenceInPIE(InEvent.PlayEndpointId, bPIE);
+	FConcertClientPresenceState& PresenceState = EnsurePresenceState(InEvent.PlayEndpointId);
+
+	if (bPlaying)
+	{
+		PresenceState.EditorPlayMode = InEvent.bIsSimulating ? EEditorPlayMode::SIE : EEditorPlayMode::PIE;
+	}
+	else
+	{
+		PresenceState.EditorPlayMode = EEditorPlayMode::None;
+	}
 }
 
 void FConcertClientPresenceManager::OnSessionClientChanged(IConcertClientSession& InSession, EConcertClientStatus InClientStatus, const FConcertSessionClientInfo& InClientInfo)
@@ -575,12 +644,6 @@ void FConcertClientPresenceManager::UpdatePresenceAvatar(const FGuid& InEndpoint
 	}
 }
 
-void FConcertClientPresenceManager::SetPresenceInPIE(const FGuid& InEndpointId, bool bPIE)
-{
-	FConcertClientPresenceState& PresenceState = EnsurePresenceState(InEndpointId);
-	PresenceState.bInPIE = bPIE;
-}
-
 void FConcertClientPresenceManager::SetPresenceVisibility(const FGuid& InEndpointId, bool bVisibility, bool bPropagateToAll)
 {
 	FConcertClientPresenceState& PresenceState = EnsurePresenceState(InEndpointId);
@@ -596,10 +659,19 @@ void FConcertClientPresenceManager::SetPresenceVisibility(const FGuid& InEndpoin
 	}
 }
 
+bool FConcertClientPresenceManager::IsInGame() const
+{
+	return !GIsEditor;
+}
+
 bool FConcertClientPresenceManager::IsInPIE() const
 {
-	check(GEditor);
-	return GEditor->PlayWorld && !GEditor->bIsSimulatingInEditor;
+	return GEditor && GEditor->PlayWorld && !GEditor->bIsSimulatingInEditor;
+}
+
+bool FConcertClientPresenceManager::IsInSIE() const
+{
+	return GEditor && GEditor->PlayWorld && GEditor->bIsSimulatingInEditor;
 }
 
 void FConcertClientPresenceManager::SetPresenceEnabled(const bool bIsEnabled)
@@ -629,7 +701,7 @@ void FConcertClientPresenceManager::SetPresenceVisibility(const FString& InDispl
 
 	// We also need to propagate a fake visibility change if the display name matches our local 
 	// presence data, as that isn't handled by the loop above since we have no local presence
-	if (bPropagateToAll && IConcertModule::Get().GetClientInstance()->GetClientInfo().DisplayName == InDisplayName)
+	if (bPropagateToAll && Session->GetLocalClientInfo().DisplayName == InDisplayName)
 	{
 		FConcertClientPresenceVisibilityUpdateEvent VisibilityUpdateEvent;
 		VisibilityUpdateEvent.ModifiedEndpointId = Session->GetSessionClientEndpointId();
@@ -639,9 +711,22 @@ void FConcertClientPresenceManager::SetPresenceVisibility(const FString& InDispl
 	}
 }
 
+FTransform FConcertClientPresenceManager::GetPresenceTransform(const FGuid& EndpointId) const
+{
+	if (CurrentAvatarMode && EndpointId == Session->GetSessionClientEndpointId())
+	{
+		return CurrentAvatarMode->GetHeadTransform();
+	}
+	if (const TSharedPtr<FConcertClientPresenceDataUpdateEvent> OtherClientState = GetCachedPresenceState(EndpointId))
+	{
+		return FTransform(OtherClientState->Orientation, OtherClientState->Position);
+	}
+	return FTransform::Identity;
+}
+
 void FConcertClientPresenceManager::TogglePresenceVisibility(const FGuid& InEndpointId, bool bPropagateToAll)
 {
-	if (const FConcertClientPresenceState *PresenceState = PresenceStateMap.Find(InEndpointId))
+	if (const FConcertClientPresenceState* PresenceState = PresenceStateMap.Find(InEndpointId))
 	{
 		SetPresenceVisibility(InEndpointId, !PresenceState->bVisible, bPropagateToAll);
 	}
@@ -665,7 +750,7 @@ FConcertClientPresenceState& FConcertClientPresenceManager::EnsurePresenceState(
 	return *PresenceState;
 }
 
-void FConcertClientPresenceManager::BuildPresenceClientUI(const FConcertSessionClientInfo& InClientInfo, TArray<FConcertUIButtonDefinition>& OutButtonDefs)
+void FConcertClientPresenceManager::GetPresenceClientActions(const FConcertSessionClientInfo& InClientInfo, TArray<FConcertActionDefinition>& OutActionDefs)
 {
 	// Only add buttons for the clients in our session
 	if (InClientInfo.ClientEndpointId != Session->GetSessionClientEndpointId())
@@ -677,17 +762,19 @@ void FConcertClientPresenceManager::BuildPresenceClientUI(const FConcertSessionC
 		}
 	}
 
-	FConcertUIButtonDefinition& JumpToPresenceDef = OutButtonDefs.AddDefaulted_GetRef();
+	FConcertActionDefinition& JumpToPresenceDef = OutActionDefs.AddDefaulted_GetRef();
 	JumpToPresenceDef.IsEnabled = MakeAttributeSP(this, &FConcertClientPresenceManager::IsJumpToPresenceEnabled, InClientInfo.ClientEndpointId);
 	JumpToPresenceDef.Text = FEditorFontGlyphs::Map_Marker;
 	JumpToPresenceDef.ToolTipText = LOCTEXT("JumpToPresenceToolTip", "Jump to the presence location of this client");
-	JumpToPresenceDef.OnClicked.BindSP(this, &FConcertClientPresenceManager::OnJumpToPresenceClicked, InClientInfo.ClientEndpointId);
+	JumpToPresenceDef.OnExecute.BindSP(this, &FConcertClientPresenceManager::OnJumpToPresence, InClientInfo.ClientEndpointId, FTransform::Identity);
+	JumpToPresenceDef.IconStyle = TEXT("Concert.JumpToLocation");
 
-	FConcertUIButtonDefinition& ShowHidePresenceDef = OutButtonDefs.AddDefaulted_GetRef();
+	FConcertActionDefinition& ShowHidePresenceDef = OutActionDefs.AddDefaulted_GetRef();
 	ShowHidePresenceDef.IsEnabled = MakeAttributeSP(this, &FConcertClientPresenceManager::IsShowHidePresenceEnabled, InClientInfo.ClientEndpointId);
 	ShowHidePresenceDef.Text = MakeAttributeSP(this, &FConcertClientPresenceManager::GetShowHidePresenceText, InClientInfo.ClientEndpointId);
 	ShowHidePresenceDef.ToolTipText = MakeAttributeSP(this, &FConcertClientPresenceManager::GetShowHidePresenceToolTip, InClientInfo.ClientEndpointId);
-	ShowHidePresenceDef.OnClicked.BindSP(this, &FConcertClientPresenceManager::OnShowHidePresenceClicked, InClientInfo.ClientEndpointId);
+	ShowHidePresenceDef.OnExecute.BindSP(this, &FConcertClientPresenceManager::OnShowHidePresence, InClientInfo.ClientEndpointId);
+	ShowHidePresenceDef.IconStyle = MakeAttributeSP(this, &FConcertClientPresenceManager::GetShowHidePresenceIconStyle, InClientInfo.ClientEndpointId);
 }
 
 bool FConcertClientPresenceManager::IsJumpToPresenceEnabled(FGuid InEndpointId) const
@@ -705,13 +792,18 @@ bool FConcertClientPresenceManager::IsJumpToPresenceEnabled(FGuid InEndpointId) 
 	}
 
 	// Can only jump to clients that exist, have cached state and both clients are in the same level.
-	const TSharedPtr<FConcertClientPresenceDataUpdateEvent> CachedPresenceState = GetCachedPresenceState(InEndpointId);
-	if (CachedPresenceState.IsValid())
+	if (const FConcertClientPresenceState* PresenceState = PresenceStateMap.Find(InEndpointId))
 	{
-		// The client should be in the same world to enable teleporting.
-		return GetWorld()->GetPathName() == CachedPresenceState->WorldPath.ToString();
+		const TSharedPtr<FConcertClientPresenceDataUpdateEvent> CachedPresenceState = GetCachedPresenceState(*PresenceState);
+		if (CachedPresenceState.IsValid())
+		{
+			// The clients should be in the same world to enable teleporting. Note that both paths below are the from
+			// the editor world context. (The presence manager don't use PIE/SIE context world path).
+			return *GetWorld(/*bIgnorePIE=*/true)->GetPathName() == CachedPresenceState->WorldPath;
+		}
 	}
-	return false;
+
+	return false; // We don't know "InEndPointId".
 }
 
 double FConcertClientPresenceManager::GetLocationUpdateFrequency()
@@ -719,17 +811,20 @@ double FConcertClientPresenceManager::GetLocationUpdateFrequency()
 	return ConcertClientPresenceManagerUtil::LocationUpdateFrequencySeconds;
 }
 
-void FConcertClientPresenceManager::InitiateJumpToPresence(FGuid InEndpointId)
+void FConcertClientPresenceManager::InitiateJumpToPresence(const FGuid& InEndpointId, const FTransform& InTransformOffset)
 {
-	OnJumpToPresenceClicked(InEndpointId);
+	OnJumpToPresence(InEndpointId, InTransformOffset);
 }
 
-FReply FConcertClientPresenceManager::OnJumpToPresenceClicked(FGuid InEndpointId)
+void FConcertClientPresenceManager::OnJumpToPresence(FGuid InEndpointId, FTransform InTransformOffset)
 {
 	const TSharedPtr<FConcertClientPresenceDataUpdateEvent> OtherClientState = GetCachedPresenceState(InEndpointId);
 	if (OtherClientState.IsValid())
 	{
-		FRotator OtherClientRotation(OtherClientState->Orientation.Rotator());
+		FQuat JumpRotation = InTransformOffset.GetRotation() * OtherClientState->Orientation;
+		FRotator OtherClientRotation(JumpRotation.Rotator());
+
+		FVector JumpPosition = OtherClientState->Position + InTransformOffset.GetLocation();
 
 		// Disregard pitch and roll when teleporting to a VR presence.
 		if (!VRDeviceType.IsNone())
@@ -745,7 +840,7 @@ FReply FConcertClientPresenceManager::OnJumpToPresenceClicked(FGuid InEndpointId
 			// In 'play in editor', we need to change the 'player' location/orientation.
 			if (APlayerController* PC = GEditor->PlayWorld->GetFirstPlayerController())
 			{
-				PC->ClientSetLocation(OtherClientState->Position, OtherClientRotation);
+				PC->ClientSetLocation(JumpPosition, OtherClientRotation);
 			}
 		}
 		else
@@ -753,12 +848,10 @@ FReply FConcertClientPresenceManager::OnJumpToPresenceClicked(FGuid InEndpointId
 			FLevelEditorViewportClient* PerspectiveViewport = GetPerspectiveViewport();
 			check(PerspectiveViewport);
 
-			PerspectiveViewport->SetViewLocation(OtherClientState->Position);
+			PerspectiveViewport->SetViewLocation(JumpPosition);
 			PerspectiveViewport->SetViewRotation(OtherClientRotation);
 		}
 	}
-
-	return FReply::Handled();
 }
 
 bool FConcertClientPresenceManager::IsShowHidePresenceEnabled(FGuid InEndpointId) const
@@ -770,7 +863,7 @@ bool FConcertClientPresenceManager::IsShowHidePresenceEnabled(FGuid InEndpointId
 	}
 
 	const FConcertClientPresenceState* PresenceState = PresenceStateMap.Find(InEndpointId);
-	return PresenceState && ConcertClientPresenceManagerUtil::ShowPresenceInPIE(PresenceState->bInPIE);
+	return PresenceState && IsPIEPresenceEnabled(*PresenceState);
 }
 
 FText FConcertClientPresenceManager::GetShowHidePresenceText(FGuid InEndpointId) const
@@ -780,6 +873,13 @@ FText FConcertClientPresenceManager::GetShowHidePresenceText(FGuid InEndpointId)
 		: FEditorFontGlyphs::Eye_Slash;
 }
 
+FName FConcertClientPresenceManager::GetShowHidePresenceIconStyle(FGuid InEndpointId) const
+{
+	return IsPresenceVisible(InEndpointId)
+		? TEXT("Concert.ShowPresence")  // Eye open icon.
+		: TEXT("Concert.HidePresence"); // Eye closed icon.
+}
+
 FText FConcertClientPresenceManager::GetShowHidePresenceToolTip(FGuid InEndpointId) const
 {
 	return IsPresenceVisible(InEndpointId)
@@ -787,30 +887,52 @@ FText FConcertClientPresenceManager::GetShowHidePresenceToolTip(FGuid InEndpoint
 		: LOCTEXT("ShowPresenceToolTip", "Show the presence for this client\nHold Ctrl to propagate this visibility change to all connected clients.");
 }
 
-FReply FConcertClientPresenceManager::OnShowHidePresenceClicked(FGuid InEndpointId)
+void FConcertClientPresenceManager::OnShowHidePresence(FGuid InEndpointId)
 {
 	const bool bPropagateToAll = FSlateApplication::Get().GetModifierKeys().IsControlDown();
 	TogglePresenceVisibility(InEndpointId, bPropagateToAll);
-
-	return FReply::Handled();
 }
 
-FString FConcertClientPresenceManager::GetClientWorldPath(FGuid InEndpointId) const
+FString FConcertClientPresenceManager::GetPresenceWorldPath(const FGuid& InEndpointId, EEditorPlayMode& OutEditorPlayMode) const
 {
+	FString WorldPath;
+	OutEditorPlayMode = EEditorPlayMode::None;
+
 	// Is it the local client endpoint?
 	if (InEndpointId == Session->GetSessionClientEndpointId())
 	{
-		return GetWorld()->GetPathName();
-	}
+		if (IsInPIE())
+		{
+			OutEditorPlayMode = EEditorPlayMode::PIE;
+		}
+		else if (IsInSIE())
+		{
+			OutEditorPlayMode = EEditorPlayMode::SIE;
+		}
 
-	// Is it the endpoint of another remote client?
-	const TSharedPtr<FConcertClientPresenceDataUpdateEvent> CachedPresenceState = GetCachedPresenceState(InEndpointId);
-	if (CachedPresenceState.IsValid())
+		// Always return the Non-PIE/SIE world path. When the editor is in PIE or SIE, it prefixes the world name with something like 'UEDPIE_10_'
+		// and this leak into the world path. For presence management purpose, we want don't want to display the PIE/SIE context world path to
+		// the user and we want to be able to jump to the other presence when two users are visualizing the same level (comparing their world path)
+		// whatever the play mode is (PIE/SIE/None).
+		if (UWorld* CurrentWorld = GetWorld(/*bIgnorePIE=*/true))
+		{
+			WorldPath = CurrentWorld->GetPathName();
+		}
+	}
+	else
 	{
-		return CachedPresenceState->WorldPath.ToString();
+		// Is it the endpoint a known remote client?
+		if (const FConcertClientPresenceState* PresenceState = PresenceStateMap.Find(InEndpointId))
+		{
+			const TSharedPtr<FConcertClientPresenceDataUpdateEvent> CachedPresenceState = GetCachedPresenceState(*PresenceState);
+			if (CachedPresenceState.IsValid())
+			{
+				OutEditorPlayMode = PresenceState->EditorPlayMode;
+				WorldPath = CachedPresenceState->WorldPath.ToString(); // The cached world path is the non-PIE world path (i.e. the level editor context world path).
+			}
+		}
 	}
-
-	return FString();
+	return WorldPath;
 }
 
 #else

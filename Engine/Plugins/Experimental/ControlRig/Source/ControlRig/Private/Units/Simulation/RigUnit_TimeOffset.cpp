@@ -5,6 +5,7 @@
 
 void FRigUnit_TimeOffsetFloat::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Value;
 
 	if(BufferSize <= 0)
@@ -112,6 +113,7 @@ void FRigUnit_TimeOffsetFloat::Execute(const FRigUnitContext& Context)
 
 void FRigUnit_TimeOffsetVector::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Value;
 
 	if(BufferSize <= 0)
@@ -219,6 +221,7 @@ void FRigUnit_TimeOffsetVector::Execute(const FRigUnitContext& Context)
 
 void FRigUnit_TimeOffsetTransform::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Value;
 
 	if(BufferSize <= 0)

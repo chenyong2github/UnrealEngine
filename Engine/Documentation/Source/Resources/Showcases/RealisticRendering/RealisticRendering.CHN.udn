@@ -1,7 +1,8 @@
-﻿Availability: Public
+﻿INTSourceChangelist:3782314
+Availability: Public
 Title:真实渲染 
 Crumbs:%ROOT%, Resources
-Description:UE4中包含的真实渲染的概述。
+Description:虚幻引擎4自带功能真实渲染的概览。
 Related: Engine/Rendering/LightingAndShadows/Lightmass
 Related: Engine/Rendering\LightingAndShadows
 Related: Engine/Rendering/LightingAndShadows/LightMobility/StationaryLights
@@ -10,49 +11,8 @@ Related: Engine/Actors/FogEffects\AtmosphericFog
 Related: Engine/Rendering/Materials
 Related: Engine/Rendering/Materials/PhysicallyBased
 Related: Engine/Rendering/Materials/LayeredMaterials
-
-
-[VAR:Topic]
-[OBJECT:Topic]
-	[PARAM:image]
-		![%Resources/Showcases/RealisticRendering:title%](RealisticRendering_Topic.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/rendering_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		%Resources/Showcases/RealisticRendering:title%
-	[/PARAM]
-	[PARAM:description]
-		%Resources/Showcases/RealisticRendering:description%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Resources/Showcases/RealisticRendering]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
-
-
-[VAR:TopicCompact]
-[OBJECT:TopicCompact]
-	[PARAM:image]
-		![%Resources/Showcases/RealisticRendering:title%](RealisticRendering_Topic.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/rendering_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		%Resources/Showcases/RealisticRendering:title%
-	[/PARAM]
-	[PARAM:description]
-		%Resources/Showcases/RealisticRendering:description%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Resources/Showcases/RealisticRendering]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
-
+Version: 4.9
+topic-image:RealisticRendering_Topic.png
 
 [REGION:fullwidth]
 ![](RealisticRenderingHeader.png)
@@ -61,37 +21,41 @@ Related: Engine/Rendering/Materials/LayeredMaterials
 [TOC(start:2 end:2)]
 
 
-本实例展示了虚幻引擎4的真实渲染的可能性。我们的目标是创建一个小场景，它拥有建筑渲染般的外观和感觉，看起来像是由CG渲染引擎如VRay和Mental Ray所制作出来的那样。 不过，本例中的主要约束是所有的资源都必须可用于游戏，这意味着不允许使用高多边形模型。 此场景中的任意物品都必须这样创建：创建这些这些物品的方式必须可用于实际的可玩的游戏中。 
+此例显示了虚幻引擎4中真实渲染所能达到的效果。希望达到的目的是创建一个拥有建筑渲染风格的小型场景，其效果类似于其他CG渲染引擎（如VRay和Metal Ray）所生成的内容。然而此情况下的主要规定是所有资源都必须能用于游戏，则意味着无法使用高模。场景中的一切内容都应被搭建，以便使用者利用这些方法来实际制作游戏。 
 
-本场景使用了以下引擎特性：
+场景利用以下引擎功能：
 
 * 基于物理的材质
-* 通过Lightmass创建的预计算反射光照
-* 使用IES参数的固定光源（光度光源）
+* 通过Lightmass进行的预计算反射光照
+* 使用IES描述文件的静止光源（物理光度光源）
 * 后期处理
 * 反射
 
 
 
 [REGION:note]
-很重要的一点是注意环境贴图缩放，因为它会影响在Lightmass和后期处理中的设置。 本场景和虚幻单位间的比例是1：1，单位是厘米。
+需要注意的是环境的缩放，因为这将影响Lightmass和后期处理的设置。设计此场景时虚幻单位和厘米之间的比例设为1:1。
 [/REGION]
 
 
+(#availablemaps)
+
 ## 可用地图
 
-本实例中包含了三张地图。 
+此范例包含3个地图。 
 
-| 图像 | 名称 | 描述 |
+| 图像 | 命名 | 描述 |
 | --- | --- | --- |
-| ![](RealisticRenderingHeader.png)(w:280) | **Room.umap** | 这是标准的在白天的房间设置，日光穿过窗户照射进房间。 同时在每个图片帧上还放置了光照。 当您在此地图游戏时，自动相机会漫游场景，从而展示关卡。 它是本实例的默认地图。 |
-| ![](RoomNight.png)(w:280) | **RoomNight.umap** | 这张地图和房间的地图是同一个场景。 不过在本例中，光照主要来自室内的灯具，不存在日光的照射。 当您在此地图游戏时，自动相机会漫游场景，从而展示关卡。  |
-| ![](RoomNightNoLights.png)(w:280) | **RoomNightNoLights.umap** | 在本设置中，内部的光照被关闭。 一盏灯在角落处闪动，自窗口处有一些环境光照。 当您在此地图游戏时，您会得到一个手电筒，并且可以漫游关卡。 |
+| ![](RealisticRenderingHeader.png)(w:280) | **Room.umap** | 这是一个标准的白昼房间，阳光中窗户中洒落。每个相框上也放置有灯。播放地图时将会自动开始相机漫游展示关卡。这是此例的默认地图。 |
+| ![](RoomNight.png)(w:280) | **RoomNight.umap** | 这是和上方房间相同的地图。然而此情况中的光照主要来源于室内的固定灯具，因为没有阳光照射。播放地图时将会自动开始相机漫游展示关卡。 |
+| ![](RoomNightNoLights.png)(w:280) | **RoomNightNoLights.umap** | 在此设置后，室内光源已被关闭。角落里有一盏闪烁的台灯，窗外透进一些环境光。播放地图时将出现一个手电，在关卡中漫游。 |
 
+
+(#lighting)
 
 ## 光照
 
-对每张地图来说，对总体外观产生特别重要影响的要素是光照，它提供了场景的大部分真实感。 在此处我们对此实例包含的所有三个关卡详细描述各自的主要的光照概念。
+这些地图整体效果中最重要的元素便是光照，这也是真实感的来源。以下将详解此范例中包含的全部三个关卡的主要光照概念。
 
 
 [REGION:topics third]
@@ -130,62 +94,70 @@ Related: Engine/Rendering/Materials/LayeredMaterials
 [/OBJECT]
 [/REGION]
 
-## 材质 
+(#materials)
 
-虚幻引擎4使用 _physically-based Material system_ （基于物理的材质系统）。 这表示一些晦涩的材质属性，例如"Diffuse" （漫反射）和"Specular Power"（高光次幂），已经被本质上更为物理化的描述所替代，例如"Base Color" （底色）和 "Roughness"（粗糙度）。 许多这些属性的值都基于0到1，并且不需要过多的浮点数值。 这类似于包中用到的材质系统，例如Pixar RenderMan（皮克斯渲染器 ）。 以下是定义基础材质的物理性的四个主要属性。 以不同的方式组合这几个属性就可以让您创建出真实世界物理表面的几乎任何可能的类型。
+## 材质
 
-| **属性名称** | **示例** | **描述** |
+虚幻引擎4利用了一个 _基于物理的材质系统_。这意味着部分较为模糊的材质属性（如“漫反射”和“高光强度”）已被物理描述性更强的属性所替代，例如“底色”和“粗糙度”。诸多属性均在0-1之间，不需要过大的浮点数字。这与包中使用的材质系统相似（如Pixar RenderMan）。以下是定义基础材质物理特性的四个主要属性。把它们以各种方式组合起来理论上便能虚拟创建真实世界中拥有的所有物理表面。
+
+| **属性名称** | **范例** | **描述** |
 | --- | --- | --- |
-| **Base Color** （底色）| [INCLUDE:#BaseColor] | 正如名称所表示的那样，它表示对象的底色。 它类似于之前的材质系统的 _Diffuse_ （漫反射）。 它可以是贴图和颜色。 |
-| **Metallic** （金属感）| [INCLUDE:#Metallic] | 它控制对象表面的”金属感”程度。 换种说法，它控制周围的环境反射对 对象底色的影响程度。 |
-| **Specular** （高光）| [INCLUDE:#Specular] | 它控制高光反射在对象上的可见程度。 以物理描述术语来说，它类似于在横跨表面的顶部位置添加光滑面或光泽层，使得表面能获取环境反射而不会覆盖底色，在设置了较高的金属感的值后，您将看到这种效果。 |
-| **Roughness** （粗糙度）| [INCLUDE:#Roughness] | 粗糙度控制高光反射的漫反射。 它会在整个表面应用"microfaceting"（微小表面）特效。 我们可以考虑一下在镜面镀铬反射和拉丝铝反射之间的区别。 |
+| **底色（Base Color）** | [INCLUDE:#BaseColor] | 此属性是物体的底色。与之前材质系统中的 _漫反射（Diffuse）_ 相似。其可以是一个纹理，也可以是一个颜色。 |
+| **金属感（Metallic）** | [INCLUDE:#Metallic] | 此属性控制物体表面的“金属感”。换言之，此属性控制周边环境反射对物体自身底色的覆盖量。 |
+| **高光度（Specular）** | [INCLUDE:#Specular] | 此属性控制高光反射在物体上可见的量。在物理描述中，这就类似于在表面上添加了一层光泽，使表面获取环境反射而不覆盖底色，把金属感属性值调高便会出现类似效果。 |
+| **粗糙度（Roughness）** | [INCLUDE:#Roughness] | 粗糙度控制高光反射的漫反射。它将在表面上应用“微刻画”效果。可以参考镜面铬和拉丝铝之间的反射差异。 |
 
-如需获得虚幻引擎4的基于物理的材质系统的更多技术性的和进一步的信息，请查阅 [](Engine/Rendering/Materials\PhysicallyBased)。
+欲知基于物理的UE4材质系统的更多技术和深度内容，请参见[](Engine/Rendering/Materials\PhysicallyBased)。
 
+
+(#coffeetablematerial)
 
 ### 咖啡桌材质
 
-从创建概念的角度来看，演示中使用的大部分材质都相对简单。 我们将聚焦于咖啡桌的材质，因为应用于此材质的基础原理在场景中的多个对象上被重复使用。
+演示中使用的多数材质均十分简单，尚在概念阶段。我们将着重讲述咖啡桌的材质，因为驱动此材质的基础概念已在场景中的多个物体上重复使用。
 
 ![](CoffeeTable.png)
 
-咖啡桌材质使用两种好用的技术。 一个是使用R,G,B通道的蒙板贴图以确定在对象上放置 _金属_, _塑料_ 和 _木头_ 的位置。 
+咖啡桌材质利用了两个实用技术。第一个是遮罩纹理，其使用R、G和B通道来确定 _金属_、_塑料_和_木头_放置在物体上何处。 
 
 [REGION:fullwidth]
 ![](CoffeeTableMaskTex.png)
 [/REGION]
 
-1. **红色通道** - 木头
-1. **绿色通道** - 金属
-1. **蓝色通道** - 塑料
-1. **RGB** -四种通道混合后的结果
+1. **红色通道**——木头
+1. **绿色通道**——金属
+1. **蓝色通道**——塑料
+1. **RGB**——所有四个通道的组合结果
 
 
 
-您可以在此处看到材质编辑器内的材质(_M_CoffeeTable_Mat_Inst_)的布局。
+可在材质编辑器中看到材质的布局（_M_CoffeeTable_Mat_Inst_）。
 
-**点击下图以查看完整尺寸图片（图很大）**
+**点击查看全图（极大）。**
 
 [REGION:lightbox]
 [![](CoffeeTableMatSmall.png)](CoffeeTableMatLayout.png)
 [/REGION]
 
-材质进行了高度的参数化，这表示它被设计为可实例化并可调整。 实际上，这就是在此材质中使用的第二种重要技术： 我们已经设置了材质的基础设置，但还没有把它们调整到最终的外观。 取而代之的是，我们对材质进行了实例化，然后使用实例化参数对其进行调整。 这比起做出调整然后反反复复应用它们要快得多，它在材质创建中确实可以节省很多时间。
+此材质已高度参数化，意味着其将被实例化和调整。事实上这是此材质中使用的第二个重要技术：我们已设置材质的基础设置，但尚未将其调为最终效果。相反，材质被实例化，然后使用实例参数来调整。这比进行调整并重复应用的速度快许多，在材质实时创建中应该会大有帮助。
 
 ![](CoffeeTableMat_Properties.png)
 
 
+(#reflections)
+
 ## 反射
 
-本演示使用了一系列反射，以展示特定对象。 反射在虚幻引擎4中以不同方式进行处理。 
+此demo利用了大量反射来展示特定物体。虚幻引擎4中处理反射的方式有很多种。 
 
-* **Screen Space Reflections** （屏幕空间反射）- 屏幕空间反射是虚幻引擎4中的引擎特性，并且默认可见。 它们主要在近边缘的角处可见。 它们配合Reflection Environment（反射环境）和Reflection Captures（反射捕获）一起使用，从而创建出完整的场景反射效果。
+* **屏幕空间反射**——屏幕空间反射是UE4中的引擎功能，默认可见。这些效果主要在靠近边缘的角上可见。其结合反射环境（Reflection Environment）和反射采集（Reflection Captures）来搭建场景反射的整体感觉。
 
-* **Reflection Environment and Reflection Captures** （反射环境和反射捕获）- 虚幻引擎4使用反射捕获来创建真实反射。 我们通过策略性地在关卡中放置Actors来创建它们，这些Actors创建环境的球体或立方体形状的捕获，它们会反过来被投射到其半径内的任意反射对象上。 本图中，您可以看到放置的反射捕获Actors，它们使得多个对象可以获得准确的反射。
+* **反射环境和反射采集**——虚幻引擎4利用反射采集来创建真实的反射。其创建方式是有策略地在关卡中放置一些actor，创建场景球形或立方体形的采集，然后再将采集投射到半径中的反射物上。在此图中可以看到放置的反射采集actor为数个物体提供了精确的反射。
 
 	![](ReflectionCaptures.png)(w:600)
 
+
+(#carpetobject)
 
 ## 地毯对象
 
@@ -193,11 +165,13 @@ Related: Engine/Rendering/Materials/LayeredMaterials
 ![](CarpetObject.png)
 [/REGION]
 
-本实例中我们要特别提到放置在房间中心位置的地面上的地毯对象。 这个资源被设计来模拟厚厚的纤维地毯的外观和感觉。 在本部分中，我们将大致谈一下此资源是如何被创建的。
+此范例中特别值得一提的是放置在房间中央地板上的地毯。此资源用于模拟厚纤维地毯的外观。这部分将讲解此资源的创建方式。
 
-### 建模
+(#model)
 
-对此地毯对象的建模是创建这种效果的中心内容。 此模型包含四种平面形状，它们互相堆叠，在外侧有圆形的剪切边。 这些堆叠的形状给人一种体积感，而材质给人一种纤维的感觉。 下方的图表展示的是模型的剖面图，进行了略微的分解以显示每一层。
+### 模型
+
+地毯的模型是创建效果的主要方面之一。模型由4个相互重叠的平面形状组成，外部拥有圆形的裁边。这些堆叠的形状沿材质形成了体积形式的虚拟效果，带来了纤维感。下方的图表显示了模型的横截面，稍微分离便于显示每层。
 
 [REGION:fullwidth]
 ![](CarpetModelDiagram.png)
@@ -208,13 +182,15 @@ Related: Engine/Rendering/Materials/LayeredMaterials
 [/REGION]
 
 
-### 地毯材质        
+(#material)
 
-地毯的材质使用了叠加的Bump Offset（凸凹偏移），并被添加到四个独立层中。 这四层，乘以每层四个堆叠的几何体，总共对特效添加了16个“分层”。 Bump Offset（凸凹偏移）实际上以逆向运行，使得纤维有种退向表面的感觉。 此材质进行了高度参数化并可随意自定义。
+### 材质
+
+地毯的材质利用了相乘的凹凸贴图偏移并添加了4个单独的阶段。这4个阶段乘以4个几何体堆叠块，总共得出16个效果“层”。凹凸贴图偏移实际在负方向上运行，为纤维赋予一种陷入地面的感觉。此材质可高度参数化和自定义化。
 
 ![](CarpetMaterial.png)
 
-地毯使用的材质包括：
+地毯所用材质包括：
 
 * _M_Carpet_Mat_
 * _M_Carpet_Mat_Inst_
@@ -237,10 +213,10 @@ Inclusions-----
 	jpg
 	[/PARAMLITERAL]
 	[PARAMLITERAL:id]
-	底色
+	basecolor
 	[/PARAMLITERAL]
 	[PARAMLITERAL:caption]
-	拖曳以预览
+	拖动以预览
 	[/PARAMLITERAL]
 	[PARAM:image_list]
 	![](basecolor_1.png)
@@ -280,10 +256,10 @@ Inclusions-----
 	jpg
 	[/PARAMLITERAL]
 	[PARAMLITERAL:id]
-	高光
+	高光度
 	[/PARAMLITERAL]
 	[PARAMLITERAL:caption]
-	拖曳以预览
+	拖动以预览
 	[/PARAMLITERAL]
 	[PARAM:image_list]
 	![](specular_1.png)
@@ -310,10 +286,10 @@ Inclusions-----
 	jpg
 	[/PARAMLITERAL]
 	[PARAMLITERAL:id]
-	金属色
+	金属感
 	[/PARAMLITERAL]
 	[PARAMLITERAL:caption]
-	拖曳以预览
+	拖动以预览
 	[/PARAMLITERAL]
 	[PARAM:image_list]
 	![](metallic_1.png)
@@ -343,7 +319,7 @@ Inclusions-----
 	粗糙度
 	[/PARAMLITERAL]
 	[PARAMLITERAL:caption]
-	拖曳以预览
+	拖动以预览
 	[/PARAMLITERAL]
 	[PARAM:image_list]
 	![](roughness_1.png)
@@ -362,30 +338,34 @@ Inclusions-----
 [/EXCERPT:Roughness]
 
 [EXCERPT:IESProfiles]
-## IES参数
+(#iesprofiles)
 
-在房间中的图片帧上是一些人工的光源。 这些是使用 **IES Profiles** （IES参数）的固定点光源，它们提供了光照的条带和形状。 IES参数随着其物理灯具或灯泡而定义光照的形状。 以下是与3D动画包中所使用的 _光度_ 光源相同的参数，并且参数本身可以从灯具制造商的网站中下载，例如[飞利浦](http://www.colorkinetics.com/support/ies/) 和 [GE](http://genet.gelighting.com/LightProducts/Dispatcher?REQUEST=IESCATEGORYPAGE)。
+## IES描述文件
+
+房间中相框上是几个虚假的光源。它们是使用 **IES描述文件** 的静止聚光源。此描述文件将提供光源的结合和形状。IES描述文件定义光源形状为物理装置或灯泡。它们与3D动画包中 _物理光度_ 光源所使用的描述文件相同，可以从灯具制造商（如[Phillips](http://www.colorkinetics.com/support/ies/)和[GE](http://genet.gelighting.com/LightProducts/Dispatcher?REQUEST=IESCATEGORYPAGE)）的官方网站上下载这些描述文件。
 
 [REGION:fullwidth]
 [REGION:imagetable]
-| IES参数 ||
+| IES描述文件 ||
 | --- | --- |
 |![](IESProfile.png)(h:290) | ![](IESResult.png)(h:290) |
-| **内容浏览器中的IES参数** | **IES参数运算结果** |
+| **内容浏览器中的IES描述文件** | **IES描述文件结果** |
 [/REGION]
 [/REGION]
 [/EXCERPT:IESProfiles]
 
 [EXCERPT:InverseSquared]
-## 平方反比衰减
+(#inversesquaredfalloff)
 
-这些光照同时使用 **Inverse Squared Falloff** （平方反比衰减），这是在 _Light Advanced_  （高级光照）分类下的光照的 **Details** （细节）面板中的设置。 
+## 反转平方衰减
+
+这些灯光也使用 **反转平方衰减**。在 **细节** 面板中 _灯光高级_ 类目下可找到此设置。 
 
 ![](InverseSquaredFalloff.png)
 
-这是对光照在远离光源时衰减速度的真实计算。 顺便说一下，衰减速度非常快，因此要求很高的光照半径。 我们要牢记，因为 **当前限制了一次只能有不超过4个阴影的固定光源重叠** ，因此当我们增大光照半径以补偿平方反比衰减时，很容易造成多个重叠的光源。
+这是光线离开光源后衰减速度的真实计算。衰减率偶尔会非常快，需要将光源半径设大。需要注意的是 **当前存在限制：一次无法让4个以上阴影投射静止光源发生重叠。** 提高光源半径来补偿反转平方衰减时，很容易使数个光源产生重叠。
 
-如需获得更多信息，请参考[固定光源](Engine/Rendering/LightingAndShadows/LightMobility/StationaryLights) 文件。
+欲知详情，请参见[静止光源](Engine/Rendering/LightingAndShadows/LightMobility/StationaryLights)文档。
 
 [/EXCERPT:InverseSquared]
 

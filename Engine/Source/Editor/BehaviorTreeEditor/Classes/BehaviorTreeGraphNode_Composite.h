@@ -8,7 +8,7 @@
 #include "BehaviorTreeGraphNode_Composite.generated.h"
 
 UCLASS()
-class UBehaviorTreeGraphNode_Composite : public UBehaviorTreeGraphNode
+class BEHAVIORTREEEDITOR_API UBehaviorTreeGraphNode_Composite : public UBehaviorTreeGraphNode
 {
 	GENERATED_UCLASS_BODY()
 	

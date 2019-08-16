@@ -4,6 +4,7 @@ Crumbs: %ROOT%, Gameplay, GettingStarted
 Description:There are several different types of Editors contained within Unreal Engine 4, this page highlights each of them. 
 version: 4.9
 topic-image:editortypes_topic.png
+Order: 6
 
 
 This page is intended to give you an overview of each of the different types of Editors that you will be working with inside Unreal Engine 4. Whether you are inside the **Level Editor** building your game's level, working with the **Blueprint Editor** to script behaviors for the Actors in your level, creating particle effects with the **Cascade Editor** or setting up animations for characters inside the **Persona Editor**; a good understanding of what each Editor can do and how to navigate it can improve your workflow and help prevent any stumbling blocks during development. 
@@ -405,7 +406,7 @@ For more information, see: [](Engine/Matinee/UserGuide)
 [EXCERPT:soundcueeditor]
 **Sound Cue Editor**
 
-The behavior of audio playback in Unreal Engine 4 is defined within Sound Cues which can be editing using the Sound Cue Editor. Inside the Sound Cue Editor, you can combine and mix several sound assets to produce a single mixed "output" saved as a Sound Cue. 
+The behavior of audio playback in Unreal Engine 4 is defined within Sound Cues which can be edited using the Sound Cue Editor. Inside the Sound Cue Editor, you can combine and mix several sound assets to produce a single mixed "output" saved as a Sound Cue. 
 
 
 For more information, see: [](Engine/Audio/SoundCues/Editor)
@@ -537,7 +538,7 @@ The Physics Asset Tool (or PhAT for short) is used for creating Physics Assets f
 
 
 
-For more information, see: [](Engine/Physics/PhAT)
+For more information, see: [](Engine/Physics/PhysicsAssetEditor)
 [/EXCERPT:phateditor]
 
 ---

@@ -596,11 +596,11 @@ struct op_base
 	{
 		check(component);
 
-		if (component->last_read <= op_idx)
+		if (component->last_read <= op_idx || component->last_read == INDEX_NONE)
 		{
-			//This component is not used so we can avoid using a temporary for it in some cases.
+			//It's possible that some components can have invalid indices here. We let the calling operations deal with this as they see fit.
 			check(component->offset == INDEX_NONE);
-			return true;
+			return false;
 		}
 
 		if (ir_variable* var = component->owner->ir->as_variable())
@@ -1092,7 +1092,7 @@ struct op_external_func : public op_base
 	
 	virtual FString to_string() 
 	{ 
-		FString Str = FString::Printf(TEXT("%S[func%d]("), sig->function_name(), function_index);
+		FString Str = FString::Printf(TEXT("%s[func%d]("), ANSI_TO_TCHAR(sig->function_name()), function_index);
 		int32 param_idx = 0;
 		FString ComponentStr;
 		for (int32 i = 0; i < inputs.Num(); ++i, ++param_idx)
@@ -1119,9 +1119,16 @@ struct op_external_func : public op_base
 
 			ComponentStr.Empty(64);
 			check(output->is_scalar());
-			ComponentStr = LexToString(output->offset);
 
-			Str += FString::Printf(TEXT("%s[%s]"), get_location_string(output->owner->location), *ComponentStr);
+			if (output->offset == INDEX_NONE)
+			{
+				Str += TEXT("Unused");
+			}
+			else
+			{
+				ComponentStr = LexToString(output->offset);
+				Str += FString::Printf(TEXT("%s[%s]"), get_location_string(output->owner->location), *ComponentStr);
+			}
 		}
 
 		return Str += TEXT(");\n");
@@ -1133,7 +1140,7 @@ struct op_external_func : public op_base
 		bool func_is_used = false;
 		for (variable_info_node* output : outputs)
 		{
-			if (output->last_read > op_idx || output->last_read != INDEX_NONE)
+			if (output->last_read > op_idx && output->last_read != INDEX_NONE)
 			{
 				func_is_used = true;
 				break;
@@ -1179,7 +1186,8 @@ struct op_external_func : public op_base
 		finalize_temp_register_ctx* ctx = (finalize_temp_register_ctx*)user_ptr;
 		check(node->is_scalar());
 
-		ctx->success &= finalize_component_temporary_allocation(ctx->parse_state, node, ctx->num_temp_registers, ctx->registers, ctx->op_idx);
+		//Some outputs for an external function can have invalid locations. If the thing has *any* valid outputs then it's considered a success.
+		ctx->success |= finalize_component_temporary_allocation(ctx->parse_state, node, ctx->num_temp_registers, ctx->registers, ctx->op_idx);
 	}
 
 	virtual bool finalize(_mesa_glsl_parse_state* parse_state, FVectorVMCompilationOutput&CompilationOutput, const unsigned num_temp_registers, unsigned *registers, unsigned op_idx)
@@ -1214,7 +1222,7 @@ struct op_external_func : public op_base
 		}
 		if (!ctx.success)
 		{
-			_mesa_glsl_error(parse_state, "Failed to allocate temporary registers for external funciton.");
+			_mesa_glsl_error(parse_state, "Failed to allocate temporary registers for external function.");
 		}
 		return ctx.success;
 	}
@@ -1230,10 +1238,12 @@ struct op_external_func : public op_base
 		{
 			validate_component_offset(parse_state, input, op_idx);
 		}
-		for (variable_info_node* output : outputs)
-		{
-			validate_component_offset(parse_state, output, op_idx);
-		}
+
+		//Output offsets are allowed to be INDEX_NONE if they are unused.
+// 		for (variable_info_node* output : outputs)
+// 		{
+// 			validate_component_offset(parse_state, output, op_idx);
+// 		}
 	}
 };
 
@@ -1676,7 +1686,7 @@ class ir_gen_vvm_visitor : public ir_hierarchical_visitor
 			}
 		}
 
-		FString ExprString = FString::Printf(TEXT("%S %s"), expression->type->name, ir_expression::operator_string(expression->operation));
+		FString ExprString = FString::Printf(TEXT("%s %s"), ANSI_TO_TCHAR(expression->type->name), ir_expression::operator_string(expression->operation));
 		ExprString += TEXT("(");
 		for (unsigned i = 0; i < expression->get_num_operands(); ++i)
 		{

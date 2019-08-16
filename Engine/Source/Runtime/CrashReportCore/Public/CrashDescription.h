@@ -265,6 +265,13 @@ struct FPrimaryCrashProperties
 	 */
 	FCrashProperty GameSessionID;
 
+	/*
+	 * A hash representing a unique id for a portable callstack. These will be specific to the CL version of the application
+	 * @PCallStackHash	varchar(160)
+	 *
+	 */
+	FString PCallStackHash;
+
 	/**
 	 * Specifies the number of stack frames in the callstack to ignore when symbolicating from a minidump.
 	 */
@@ -376,6 +383,11 @@ struct FPrimaryCrashProperties
 	 */
 	FString CrashType;
 
+	/**
+	 *	The cpu brand of the device, e.g. Intel, iPhone6, etc.
+	 */
+	FCrashProperty CPUBrand;
+
 protected:
 	/** Default constructor. */
 	FPrimaryCrashProperties();
@@ -441,13 +453,16 @@ protected:
 	template <typename Type>
 	void GetCrashProperty( Type& out_ReadValue, const FString& MainCategory, const FString& SecondCategory ) const
 	{
-		const FXmlNode* MainNode = XmlFile->GetRootNode()->FindChildNode( MainCategory );
-		if (MainNode)
+		if (XmlFile->IsValid())
 		{
-			const FXmlNode* CategoryNode = MainNode->FindChildNode( SecondCategory );
-			if (CategoryNode)
+			const FXmlNode* MainNode = XmlFile->GetRootNode()->FindChildNode( MainCategory );
+			if (MainNode)
 			{
-				LexFromString( out_ReadValue, *FGenericCrashContext::UnescapeXMLString( CategoryNode->GetContent() ) );
+				const FXmlNode* CategoryNode = MainNode->FindChildNode( SecondCategory );
+				if (CategoryNode)
+				{
+					LexFromString( out_ReadValue, *FGenericCrashContext::UnescapeXMLString( CategoryNode->GetContent() ) );
+				}
 			}
 		}
 	}
@@ -462,19 +477,22 @@ protected:
 	/** Sets a crash property to a new value. */
 	void SetCrashProperty( const FString& MainCategory, const FString& SecondCategory, const FString& NewValue )
 	{
-		FXmlNode* MainNode = XmlFile->GetRootNode()->FindChildNode( MainCategory );
-		if (MainNode)
+		if (XmlFile->IsValid())
 		{
-			FXmlNode* CategoryNode = MainNode->FindChildNode( SecondCategory );
-			FString EscapedValue;
-			FGenericCrashContext::AppendEscapedXMLString(EscapedValue, *NewValue);
-			if (CategoryNode)
+			FXmlNode* MainNode = XmlFile->GetRootNode()->FindChildNode( MainCategory );
+			if (MainNode)
 			{
-				CategoryNode->SetContent( EscapedValue );
-			}
-			else
-			{
-				MainNode->AppendChildNode( SecondCategory, EscapedValue );
+				FXmlNode* CategoryNode = MainNode->FindChildNode( SecondCategory );
+				FString EscapedValue;
+				FGenericCrashContext::AppendEscapedXMLString(EscapedValue, *NewValue);
+				if (CategoryNode)
+				{
+					CategoryNode->SetContent( EscapedValue );
+				}
+				else
+				{
+					MainNode->AppendChildNode( SecondCategory, EscapedValue );
+				}
 			}
 		}
 	}

@@ -26,6 +26,13 @@ namespace SceneOutliner
 		DECLARE_MULTICAST_DELEGATE_OneParam(FOnSubComponentSelectionChanged, TArray<FSubComponentTreeItem*>&);
 		FOnSubComponentSelectionChanged OnSubComponentSelectionChanged;
 
+		/** Broadcasts whenever a Component Selection Changes */
+		DECLARE_MULTICAST_DELEGATE_OneParam(FOnComponentSelectionChanged, class UActorComponent*);
+		FOnComponentSelectionChanged OnComponentSelectionChanged;
+
+		/** Broadcasts whenever a Component has been modified */
+		FSimpleMulticastDelegate OnComponentsUpdated;
+
 	};
 
 } // namespace SceneOutliner

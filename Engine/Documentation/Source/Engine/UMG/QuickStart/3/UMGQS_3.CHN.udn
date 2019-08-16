@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
+﻿INTSourceChangelist:6061116
+Availability: docs
 Title:3.创建主菜单
 Crumbs:%ROOT%, Engine, Engine/UMG, Engine/UMG/QuickStart
 Description:在这一步中，我们将为主菜单创建视觉布局。
@@ -7,6 +7,7 @@ version:4.9
 version: 4.13
 tags:UMG UI Designer
 
+## 此页面已不再需要。
 
 [VAR:Steps]
 [OBJECT:Navigation]

@@ -18,13 +18,32 @@
 #include "Widgets/Views/STableRow.h"
 #include "CurveEditor.h"
 #include "SequencerNodeSortingMethods.h"
+#include "SequencerTrackFilters.h"
+
+FSequencerNodeTree::~FSequencerNodeTree()
+{
+	if (TrackFilters.IsValid())
+	{
+		TrackFilters->OnChanged().RemoveAll(this);
+	}
+	if (TrackFilterLevelFilter.IsValid())
+	{
+		TrackFilterLevelFilter->OnChanged().RemoveAll(this);
+	}
+}
 
 
 FSequencerNodeTree::FSequencerNodeTree(FSequencer& InSequencer)
 	: RootNode(MakeShared<FSequencerRootNode>(*this))
 	, SerialNumber(0)
 	, Sequencer(InSequencer)
-{}
+	, bFilterUpdateRequested(false)
+{
+	TrackFilters = MakeShared<FSequencerTrackFilterCollection>();
+	TrackFilters->OnChanged().AddRaw(this, &FSequencerNodeTree::RequestFilterUpdate);
+	TrackFilterLevelFilter = MakeShared< FSequencerTrackFilter_LevelFilter>();
+	TrackFilterLevelFilter->OnChanged().AddRaw(this, &FSequencerNodeTree::RequestFilterUpdate);
+}
 
 TSharedPtr<FSequencerObjectBindingNode> FSequencerNodeTree::FindObjectBindingNode(const FGuid& BindingID) const
 {
@@ -60,32 +79,21 @@ void FSequencerNodeTree::RefreshNodes(UMovieScene* MovieScene)
 		}
 	}
 
-	// Folders may also create hierarchy items for tracks and object bindings
-	{
-		for (UMovieSceneFolder* Folder : MovieScene->GetRootFolders())
-		{
-			if (ensureAlwaysMsgf(Folder, TEXT("MovieScene data contains a null folder. This should never happen.")))
-			{
-				TSharedRef<FSequencerFolderNode> RootFolderNode = CreateOrUpdateFolder(Folder, AllBindings, ChildToParentBinding, MovieScene);
-				RootFolderNode->SetParent(RootNode);
-			}
-		}
-	}
+	TMap<FSequencerDisplayNode*, TSharedPtr<FSequencerDisplayNode>> ChildToParentMap;
 
 	// Object Bindings
 	{
 		for (const FMovieSceneBinding& Binding : MovieScene->GetBindings())
 		{
-			TSharedPtr<FSequencerObjectBindingNode> ObjectBindingNode = CreateOrUpdateObjectBinding(Binding.GetObjectGuid(), AllBindings, ChildToParentBinding, MovieScene);
-			if (!ObjectBindingNode.IsValid())
+			TSharedPtr<FSequencerObjectBindingNode> ObjectBindingNode = FindOrCreateObjectBinding(Binding.GetObjectGuid(), AllBindings, ChildToParentBinding, &ChildToParentMap);
+			if (!ObjectBindingNode)
 			{
 				continue;
 			}
 
-			// Ensure it has a parent
-			if (!ObjectBindingNode->IsParentStillRelevant(SerialNumber))
+			if (!ChildToParentMap.Contains(ObjectBindingNode.Get()))
 			{
-				ObjectBindingNode->SetParent(RootNode);
+				ChildToParentMap.Add(ObjectBindingNode.Get(), RootNode);
 			}
 
 			// Create nodes for the object binding's tracks
@@ -96,7 +104,7 @@ void FSequencerNodeTree::RefreshNodes(UMovieScene* MovieScene)
 					TSharedPtr<FSequencerTrackNode> TrackNode = CreateOrUpdateTrack(Track, ETrackType::Object);
 					if (TrackNode.IsValid())
 					{
-						TrackNode->SetParent(ObjectBindingNode);
+						ChildToParentMap.Add(TrackNode.Get(), ObjectBindingNode);
 					}
 				}
 			}
@@ -109,9 +117,9 @@ void FSequencerNodeTree::RefreshNodes(UMovieScene* MovieScene)
 		if (CameraCutTrack)
 		{
 			TSharedPtr<FSequencerTrackNode> TrackNode = CreateOrUpdateTrack(CameraCutTrack, ETrackType::Master);
-			if (TrackNode.IsValid() && !TrackNode->IsParentStillRelevant(SerialNumber))
+			if (TrackNode.IsValid())
 			{
-				TrackNode->SetParent(RootNode);
+				ChildToParentMap.Add(TrackNode.Get(), RootNode);
 			}
 		}
 
@@ -121,12 +129,29 @@ void FSequencerNodeTree::RefreshNodes(UMovieScene* MovieScene)
 			if (ensureAlwaysMsgf(Track, TEXT("MovieScene data contains a null master track. This should never happen.")))
 			{
 				TSharedPtr<FSequencerTrackNode> TrackNode = CreateOrUpdateTrack(Track, ETrackType::Master);
-				if (TrackNode.IsValid() && !TrackNode->IsParentStillRelevant(SerialNumber))
+				if (TrackNode.IsValid())
 				{
-					TrackNode->SetParent(RootNode);
+					ChildToParentMap.Add(TrackNode.Get(), RootNode);
 				}
 			}
 		}
+	}
+
+	// Folders may also create hierarchy items for tracks and object bindings
+	{
+		for (UMovieSceneFolder* Folder : MovieScene->GetRootFolders())
+		{
+			if (ensureAlwaysMsgf(Folder, TEXT("MovieScene data contains a null folder. This should never happen.")))
+			{
+				TSharedRef<FSequencerFolderNode> RootFolderNode = CreateOrUpdateFolder(Folder, AllBindings, ChildToParentBinding, &ChildToParentMap);
+				RootFolderNode->SetParent(RootNode);
+			}
+		}
+	}
+
+	for (TTuple<FSequencerDisplayNode*, TSharedPtr<FSequencerDisplayNode>> Pair : ChildToParentMap)
+	{
+		Pair.Key->SetParent(Pair.Value);
 	}
 
 	// Remove anything that is no longer relevant (ie serial number is out of date)
@@ -145,6 +170,11 @@ void FSequencerNodeTree::RefreshNodes(UMovieScene* MovieScene)
 			It->Value->SetParent(nullptr);
 			It.RemoveCurrent();
 		}
+		else
+		{
+			// Update after the above SetParent() because track sections need to have valid parent object bindings set up
+			It->Value->UpdateInnerHierarchy();
+		}
 	}
 	for (auto It = ObjectBindingToNode.CreateIterator(); It; ++It)
 	{
@@ -154,6 +184,11 @@ void FSequencerNodeTree::RefreshNodes(UMovieScene* MovieScene)
 			It.RemoveCurrent();
 		}
 	}
+
+	// Re-filter the tree after updating 
+	// @todo sequencer: Newly added sections may need to be visible even when there is a filter
+	bFilterUpdateRequested = true;
+	UpdateFilters();
 }
 
 TSharedPtr<FSequencerTrackNode> FSequencerNodeTree::CreateOrUpdateTrack(UMovieSceneTrack* Track, ETrackType TrackType)
@@ -181,11 +216,10 @@ TSharedPtr<FSequencerTrackNode> FSequencerNodeTree::CreateOrUpdateTrack(UMovieSc
 
 	// Assign the serial number for this node to indicate that it is still relevant
 	TrackNode->TreeSerialNumber = SerialNumber;
-	TrackNode->UpdateInnerHierarchy();
 	return TrackNode;
 }
 
-TSharedRef<FSequencerFolderNode> FSequencerNodeTree::CreateOrUpdateFolder(UMovieSceneFolder* Folder, const TSortedMap<FGuid, const FMovieSceneBinding*>& AllBindings, const TSortedMap<FGuid, FGuid>& ChildToParentBinding, const UMovieScene* InMovieScene)
+TSharedRef<FSequencerFolderNode> FSequencerNodeTree::CreateOrUpdateFolder(UMovieSceneFolder* Folder, const TSortedMap<FGuid, const FMovieSceneBinding*>& AllBindings, const TSortedMap<FGuid, FGuid>& ChildToParentBinding, TMap<FSequencerDisplayNode*, TSharedPtr<FSequencerDisplayNode>>* OutChildToParentMap)
 {
 	check(Folder);
 
@@ -204,10 +238,10 @@ TSharedRef<FSequencerFolderNode> FSequencerNodeTree::CreateOrUpdateFolder(UMovie
 	// Create the hierarchy for any child bindings
 	for (const FGuid& ID : Folder->GetChildObjectBindings())
 	{
-		TSharedPtr<FSequencerObjectBindingNode> Binding = CreateOrUpdateObjectBinding(ID, AllBindings, ChildToParentBinding, InMovieScene);
+		TSharedPtr<FSequencerObjectBindingNode> Binding = FindOrCreateObjectBinding(ID, AllBindings, ChildToParentBinding, OutChildToParentMap);
 		if (Binding.IsValid())
 		{
-			Binding->SetParent(FolderNode);
+			OutChildToParentMap->Add(Binding.Get(), FolderNode);
 		}
 	}
 
@@ -219,7 +253,7 @@ TSharedRef<FSequencerFolderNode> FSequencerNodeTree::CreateOrUpdateFolder(UMovie
 			TSharedPtr<FSequencerTrackNode> TrackNode = CreateOrUpdateTrack(Track, ETrackType::Master);
 			if (TrackNode.IsValid())
 			{
-				TrackNode->SetParent(FolderNode);
+				OutChildToParentMap->Add(TrackNode.Get(), FolderNode);
 			}
 		}
 	}
@@ -229,15 +263,20 @@ TSharedRef<FSequencerFolderNode> FSequencerNodeTree::CreateOrUpdateFolder(UMovie
 	{
 		if (ensureAlwaysMsgf(ChildFolder, TEXT("MovieScene folder '%s' data contains a null child folder. This should never happen."), *Folder->GetName()))
 		{
-			TSharedRef<FSequencerFolderNode> ChildFolderNode = CreateOrUpdateFolder(ChildFolder, AllBindings, ChildToParentBinding, InMovieScene);
-			ChildFolderNode->SetParent(FolderNode);
+			TSharedRef<FSequencerFolderNode> ChildFolderNode = CreateOrUpdateFolder(ChildFolder, AllBindings, ChildToParentBinding, OutChildToParentMap);
+			OutChildToParentMap->Add(&ChildFolderNode.Get(), FolderNode);
 		}
 	}
 
 	return FolderNode.ToSharedRef();
 }
 
-TSharedPtr<FSequencerObjectBindingNode> FSequencerNodeTree::CreateOrUpdateObjectBinding(const FGuid& BindingID, const TSortedMap<FGuid, const FMovieSceneBinding*>& AllBindings, const TSortedMap<FGuid, FGuid>& ChildToParentBinding, const UMovieScene* InMovieScene)
+bool FSequencerNodeTree::HasActiveFilter() const
+{
+	return (!FilterString.IsEmpty() || TrackFilters->Num() > 0 || TrackFilterLevelFilter->IsActive() || Sequencer.GetSequencerSettings()->GetShowSelectedNodesOnly());
+}
+
+TSharedPtr<FSequencerObjectBindingNode> FSequencerNodeTree::FindOrCreateObjectBinding(const FGuid& BindingID, const TSortedMap<FGuid, const FMovieSceneBinding*>& AllBindings, const TSortedMap<FGuid, FGuid>& ChildToParentBinding, TMap<FSequencerDisplayNode*, TSharedPtr<FSequencerDisplayNode>>* OutChildToParentMap)
 {
 	if (!ensureAlwaysMsgf(AllBindings.Contains(BindingID), TEXT("Attempting to add a binding that does not exist.")))
 	{
@@ -254,16 +293,15 @@ TSharedPtr<FSequencerObjectBindingNode> FSequencerNodeTree::CreateOrUpdateObject
 		ObjectBindingToNode.Add(BindingID, ObjectBindingNode);
 	}
 
-	// Assign the serial number for this node to indicate that it is still relevant
 	ObjectBindingNode->TreeSerialNumber = SerialNumber;
 
 	// Create its parent and make the association
 	if (const FGuid* ParentGuid = ChildToParentBinding.Find(BindingID))
 	{
-		TSharedPtr<FSequencerObjectBindingNode> ParentBinding = CreateOrUpdateObjectBinding(*ParentGuid, AllBindings, ChildToParentBinding, InMovieScene);
+		TSharedPtr<FSequencerObjectBindingNode> ParentBinding = FindOrCreateObjectBinding(*ParentGuid, AllBindings, ChildToParentBinding, OutChildToParentMap);
 		if (ParentBinding.IsValid())
 		{
-			ObjectBindingNode->SetParent(ParentBinding);
+			OutChildToParentMap->Add(ObjectBindingNode.Get(), ParentBinding);
 		}
 	}
 
@@ -369,7 +407,6 @@ void FSequencerNodeTree::MoveDisplayNodeToRoot(TSharedRef<FSequencerDisplayNode>
 			{
 				checkf(ParentSeqNode->GetType() == ESequencerNode::Folder, TEXT("Can not remove from unsupported parent node."));
 				TSharedPtr<FSequencerFolderNode> ParentFolder = StaticCastSharedPtr<FSequencerFolderNode>(ParentSeqNode);
-				ParentFolder->GetFolder().Modify();
 				ParentFolder->GetFolder().RemoveChildFolder(&FolderNode->GetFolder());
 			}
 			else
@@ -389,7 +426,6 @@ void FSequencerNodeTree::MoveDisplayNodeToRoot(TSharedRef<FSequencerDisplayNode>
 			{
 				checkf(ParentSeqNode->GetType() == ESequencerNode::Folder, TEXT("Can not remove from unsupported parent node."));
 				TSharedPtr<FSequencerFolderNode> ParentFolder = StaticCastSharedPtr<FSequencerFolderNode>(ParentSeqNode);
-				ParentFolder->GetFolder().Modify();
 				ParentFolder->GetFolder().RemoveChildMasterTrack(DraggedTrackNode->GetTrack());
 			}
 			break;
@@ -403,7 +439,6 @@ void FSequencerNodeTree::MoveDisplayNodeToRoot(TSharedRef<FSequencerDisplayNode>
 			{
 				checkf(ParentSeqNode->GetType() == ESequencerNode::Folder, TEXT("Can not remove from unsupported parent node."));
 				TSharedPtr<FSequencerFolderNode> ParentFolder = StaticCastSharedPtr<FSequencerFolderNode>(ParentSeqNode);
-				ParentFolder->GetFolder().Modify();
 				ParentFolder->GetFolder().RemoveChildObjectBinding(DraggedObjectBindingNode->GetObjectBinding());
 			}
 			break;
@@ -444,6 +479,43 @@ void FSequencerNodeTree::SortAllNodesAndDescendants()
 	// @todo: Is this necessary any more?
 	GetSequencer().RefreshTree();
 }
+
+void FSequencerNodeTree::AddFilter(TSharedRef<FSequencerTrackFilter> TrackFilter)
+{
+	TrackFilters->Add(TrackFilter);
+}
+
+int32 FSequencerNodeTree::RemoveFilter(TSharedRef<FSequencerTrackFilter> TrackFilter)
+{
+	return TrackFilters->Remove(TrackFilter);
+}
+
+void FSequencerNodeTree::RemoveAllFilters()
+{
+	TrackFilters->RemoveAll();
+	TrackFilterLevelFilter->ResetFilter();
+}
+
+bool FSequencerNodeTree::IsTrackFilterActive(TSharedRef<FSequencerTrackFilter> TrackFilter) const
+{
+	return TrackFilters->Contains(TrackFilter);
+}
+
+void FSequencerNodeTree::AddLevelFilter(const FString& LevelName)
+{
+	TrackFilterLevelFilter->UnhideLevel(LevelName);
+}
+
+void FSequencerNodeTree::RemoveLevelFilter(const FString& LevelName)
+{
+	TrackFilterLevelFilter->HideLevel(LevelName);
+}
+
+bool FSequencerNodeTree::IsTrackLevelFilterActive(const FString& LevelName) const
+{
+	return !TrackFilterLevelFilter->IsLevelHidden(LevelName);
+}
+
 
 void FSequencerNodeTree::SaveExpansionState(const FSequencerDisplayNode& Node, bool bExpanded)
 {	
@@ -493,9 +565,16 @@ bool FSequencerNodeTree::GetDefaultExpansionState( const FSequencerDisplayNode& 
 }
 
 
-bool FSequencerNodeTree::IsNodeFiltered( const TSharedRef<const FSequencerDisplayNode> Node ) const
+bool FSequencerNodeTree::IsNodeFiltered(const TSharedRef<const FSequencerDisplayNode> Node) const
 {
-	return FilteredNodes.Contains( Node );
+	for (auto It = FilteredNodes.CreateConstIterator(); It; ++It)
+	{
+		if ((*It) == Node)
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 void FSequencerNodeTree::SetHoveredNode(const TSharedPtr<FSequencerDisplayNode>& InHoveredNode)
@@ -535,7 +614,7 @@ TOptional<FSectionHandle> FSequencerNodeTree::GetSectionHandle(const UMovieScene
 	return TOptional<FSectionHandle>();
 }
 
-static void AddChildNodes(const TSharedRef<FSequencerDisplayNode>& StartNode, TSet<TSharedRef<const FSequencerDisplayNode>>& OutFilteredNodes)
+static void AddChildNodes(const TSharedRef<FSequencerDisplayNode>& StartNode, TSet<TSharedRef<FSequencerDisplayNode>>& OutFilteredNodes)
 {
 	OutFilteredNodes.Add(StartNode);
 
@@ -548,24 +627,39 @@ static void AddChildNodes(const TSharedRef<FSequencerDisplayNode>& StartNode, TS
 /*
  * Add node as filtered and include any parent folders
  */
-static void AddFilteredNode(const TSharedRef<FSequencerDisplayNode>& StartNode, TSet<TSharedRef<const FSequencerDisplayNode>>& OutFilteredNodes)
+static void AddFilteredNode(const TSharedRef<FSequencerDisplayNode>& StartNode, TSet<TSharedRef<FSequencerDisplayNode>>& OutFilteredNodes)
 {
+	if (!StartNode->IsExpanded())
+	{
+		StartNode->SetExpansionState(true);
+	}
+
 	AddChildNodes(StartNode, OutFilteredNodes);
 
 	// Gather parent folders up the chain
 	TSharedPtr<FSequencerDisplayNode> ParentNode = StartNode->GetParent();
-	while (ParentNode.IsValid() && ParentNode.Get()->GetType() == ESequencerNode::Folder)
+	while (ParentNode.IsValid())
 	{
+		if (!ParentNode.Get()->IsExpanded())
+		{
+			ParentNode.Get()->SetExpansionState(true);
+		}
+
 		OutFilteredNodes.Add(ParentNode.ToSharedRef());
 		ParentNode = ParentNode->GetParent();
 	}
 }
 
-static void AddParentNodes(const TSharedRef<FSequencerDisplayNode>& StartNode, TSet<TSharedRef<const FSequencerDisplayNode>>& OutFilteredNodes)
+static void AddParentNodes(const TSharedRef<FSequencerDisplayNode>& StartNode, TSet<TSharedRef<FSequencerDisplayNode>>& OutFilteredNodes)
 {
 	TSharedPtr<FSequencerDisplayNode> ParentNode = StartNode->GetParent();
 	if (ParentNode.IsValid())
 	{
+		if (!ParentNode.Get()->IsExpanded())
+		{
+			ParentNode.Get()->SetExpansionState(true);
+		}
+
 		OutFilteredNodes.Add(ParentNode.ToSharedRef());
 		AddParentNodes(ParentNode.ToSharedRef(), OutFilteredNodes);
 	}
@@ -575,105 +669,167 @@ static void AddParentNodes(const TSharedRef<FSequencerDisplayNode>& StartNode, T
  * Recursively filters nodes
  *
  * @param StartNode			The node to start from
- * @param FilterStrings		The filter strings which need to be matched
+ * @param Filters			The filter collection to test against
  * @param OutFilteredNodes	The list of all filtered nodes
- * @return Whether the text filter was passed
  */
-static bool FilterNodesRecursive( FSequencer& Sequencer, const TSharedRef<FSequencerDisplayNode>& StartNode, const TArray<FString>& FilterStrings, TSet<TSharedRef<const FSequencerDisplayNode>>& OutFilteredNodes )
-{
-	// check labels - only one of the labels needs to match
-	bool bMatchedLabel = false;
-	bool bObjectHasLabels = false;
-	for (const FString& String : FilterStrings)
-	{
-		if (String.StartsWith(TEXT("label:")) && String.Len() > 6)
-		{
-			if (StartNode->GetType() == ESequencerNode::Object)
-			{
-				bObjectHasLabels = true;
-				auto ObjectBindingNode = StaticCastSharedRef<FSequencerObjectBindingNode>(StartNode);
-				auto Labels = Sequencer.GetLabelManager().GetObjectLabels(ObjectBindingNode->GetObjectBinding());
 
-				if (Labels != nullptr && Labels->Strings.Contains(String.RightChop(6)))
+static void FilterNodesRecursive( FSequencer& Sequencer, const TSharedRef<FSequencerDisplayNode>& StartNode, TSharedPtr<FSequencerTrackFilterCollection> Filters, const TArray<FString>& FilterStrings, TSharedPtr<FSequencerTrackFilter_LevelFilter> LevelTrackFilter, TSet<TSharedRef<FSequencerDisplayNode>>& OutFilteredNodes )
+{
+	for (TSharedRef<FSequencerDisplayNode> Node : StartNode->GetChildNodes())
+	{
+		FilterNodesRecursive(Sequencer, Node, Filters, FilterStrings, LevelTrackFilter, OutFilteredNodes);
+	}
+
+	bool bPasssedAnyFilters = false;
+
+	if (StartNode->GetType() == ESequencerNode::Track)
+	{
+		UMovieSceneTrack* Track = static_cast<const FSequencerTrackNode&>(StartNode.Get()).GetTrack();
+		if (Filters->Num() == 0 || Filters->PassesAnyFilters(Track))
+		{
+			bPasssedAnyFilters = true;
+
+			// Track nodes do not belong to a level, but might be a child of an objectbinding node that does
+			if (LevelTrackFilter->IsActive())
+			{
+				TSharedPtr<const FSequencerDisplayNode> ParentNode = StartNode->GetParent();
+				while (ParentNode.IsValid())
 				{
-					bMatchedLabel = true;
-					break;
+					if (ParentNode->GetType() == ESequencerNode::Object)
+					{
+						// The track belongs to an objectbinding node, start by assuming it doesn't match the level filter
+						bPasssedAnyFilters = false;
+
+						const FSequencerObjectBindingNode* ObjectNode = static_cast<const FSequencerObjectBindingNode*>(ParentNode.Get());
+						for (TWeakObjectPtr<>& Object : Sequencer.FindObjectsInCurrentSequence(ObjectNode->GetObjectBinding()))
+						{
+							if (LevelTrackFilter->PassesFilter(Object.Get()))
+							{
+								// If at least one of the objects on the objectbinding node pass the level filter, show the track
+								bPasssedAnyFilters = true;
+								break;
+							}
+						}
+
+						break;
+					}
+					ParentNode = ParentNode->GetParent();
 				}
 			}
-			else if (!StartNode->GetParent().IsValid())
+
+			if (bPasssedAnyFilters && Sequencer.GetSequencerSettings()->GetShowSelectedNodesOnly())
 			{
-				return false;
+				TSharedPtr<const FSequencerDisplayNode> ParentNode = StartNode->GetParent();
+				while (ParentNode.IsValid())
+				{
+					if (ParentNode->GetType() == ESequencerNode::Object)
+					{
+						const FSequencerObjectBindingNode* ObjectNode = static_cast<const FSequencerObjectBindingNode*>(ParentNode.Get());
+						const FMovieSceneBinding* Binding = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->FindBinding(ObjectNode->GetObjectBinding());
+						if (!(Binding && Sequencer.IsBindingVisible(*Binding)))
+						{
+							bPasssedAnyFilters = false;
+						}
+
+						break;
+					}
+					ParentNode = ParentNode->GetParent();
+				}
+			}
+		}
+	}
+	else if (StartNode->GetType() == ESequencerNode::Object)
+	{
+		const FSequencerObjectBindingNode ObjectNode = static_cast<const FSequencerObjectBindingNode&>(StartNode.Get());
+		for (TWeakObjectPtr<>& Object : Sequencer.FindObjectsInCurrentSequence(ObjectNode.GetObjectBinding()))
+		{
+			if ((Filters->Num() == 0 || Filters->PassesAnyFilters(Object.Get()))
+				&& LevelTrackFilter->PassesFilter(Object.Get()))
+			{
+				bPasssedAnyFilters = true;
+				break;
+			}
+		}
+
+		if (bPasssedAnyFilters && Sequencer.GetSequencerSettings()->GetShowSelectedNodesOnly())
+		{
+			UMovieScene* MovieScene = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene();
+			const FMovieSceneBinding* Binding = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->FindBinding(ObjectNode.GetObjectBinding());
+			if (Binding && !Sequencer.IsBindingVisible(*Binding))
+			{
+				bPasssedAnyFilters = false;
 			}
 		}
 	}
 
-	if (bObjectHasLabels && !bMatchedLabel)
+	if (bPasssedAnyFilters)
 	{
-		return false;
-	}
-
-	// assume the filter is acceptable
-	bool bPassedTextFilter = true;
-
-	// check each string in the filter strings list against 
-	for (const FString& String : FilterStrings)
-	{
-		if (!String.StartsWith(TEXT("label:")) && !StartNode->GetDisplayName().ToString().Contains(String)) 
+		// If we have a filter string, make sure we match
+		if (FilterStrings.Num() > 0)
 		{
-			bPassedTextFilter = false;
-			break;
+			// check labels - only one of the labels needs to match
+			bool bMatchedLabel = false;
+			bool bObjectHasLabels = false;
+			for (const FString& String : FilterStrings)
+			{
+				if (String.StartsWith(TEXT("label:")) && String.Len() > 6)
+				{
+					if (StartNode->GetType() == ESequencerNode::Object)
+					{
+						bObjectHasLabels = true;
+						auto ObjectBindingNode = StaticCastSharedRef<FSequencerObjectBindingNode>(StartNode);
+						auto Labels = Sequencer.GetLabelManager().GetObjectLabels(ObjectBindingNode->GetObjectBinding());
+
+						if (Labels != nullptr && Labels->Strings.Contains(String.RightChop(6)))
+						{
+							bMatchedLabel = true;
+							break;
+						}
+					}
+					else if (!StartNode->GetParent().IsValid())
+					{
+						return;
+					}
+				}
+			}
+
+			if (bObjectHasLabels && !bMatchedLabel)
+			{
+				return;
+			}
+
+			// check each string in the filter strings list against 
+			for (const FString& String : FilterStrings)
+			{
+				if (!String.StartsWith(TEXT("label:")) && !StartNode->GetDisplayName().ToString().Contains(String))
+				{
+					return;
+				}
+			}
 		}
-	}
-
-	// whether or the start node is in the filter
-	bool bInFilter = false;
-
-	if (bPassedTextFilter)
-	{
-		// This node is now filtered
 		AddFilteredNode(StartNode, OutFilteredNodes);
-
-		bInFilter = true;
 	}
-
-	// check each child node to determine if it is filtered
-	if (StartNode->GetType() != ESequencerNode::Folder)
-	{
-		const TArray<TSharedRef<FSequencerDisplayNode>>& ChildNodes = StartNode->GetChildNodes();
-
-		for (const auto& Node : ChildNodes)
-		{
-			// Mark the parent as filtered if any child node was filtered
-			bPassedTextFilter |= FilterNodesRecursive(Sequencer, Node, FilterStrings, OutFilteredNodes);
-
-			if (bPassedTextFilter && !bInFilter)
-			{
-				AddParentNodes(Node, OutFilteredNodes);
-
-				bInFilter = true;
-			}
-		}
-	}
-
-	return bPassedTextFilter;
 }
 
-
-void FSequencerNodeTree::FilterNodes(const FString& InFilter)
+void FSequencerNodeTree::UpdateFilters()
 {
+	if (!bFilterUpdateRequested)
+	{
+		return;
+	}
+
 	FilteredNodes.Empty();
 
-	if (InFilter.IsEmpty())
-	{
-		// No filter
-		FilterString.Empty();
-	}
-	else
+
+	UObject* PlaybackContext = Sequencer.GetPlaybackContext();
+	UWorld* World = PlaybackContext ? PlaybackContext->GetWorld() : nullptr;
+	TrackFilterLevelFilter->UpdateWorld(World);
+
+	if (TrackFilters->Num() > 0 || !FilterString.IsEmpty() || TrackFilterLevelFilter->IsActive() || Sequencer.GetSequencerSettings()->GetShowSelectedNodesOnly())
 	{
 		// Build a list of strings that must be matched
 		TArray<FString> FilterStrings;
 
-		FilterString = InFilter;
 		// Remove whitespace from the front and back of the string
 		FilterString.TrimStartAndEndInline();
 		FilterString.ParseIntoArray(FilterStrings, TEXT(" "), true /*bCullEmpty*/);
@@ -681,8 +837,19 @@ void FSequencerNodeTree::FilterNodes(const FString& InFilter)
 		for (auto It = GetRootNodes().CreateConstIterator(); It; ++It)
 		{
 			// Recursively filter all nodes, matching them against the list of filter strings.  All filter strings must be matched
-			FilterNodesRecursive(Sequencer, *It, FilterStrings, FilteredNodes);
+			FilterNodesRecursive(Sequencer, *It, TrackFilters, FilterStrings, TrackFilterLevelFilter, FilteredNodes);
 		}
+	}
+
+	bFilterUpdateRequested = false;
+}
+
+void FSequencerNodeTree::FilterNodes(const FString& InFilter)
+{
+	if (InFilter != FilterString)
+	{
+		FilterString = InFilter;
+		bFilterUpdateRequested = true;
 	}
 }
 
@@ -703,6 +870,10 @@ TArray< TSharedRef<FSequencerDisplayNode> > FSequencerNodeTree::GetAllNodes() co
 void FSequencerNodeTree::UpdateCurveEditorTree()
 {
 	FCurveEditor* CurveEditor = Sequencer.GetCurveEditor().Get();
+
+	// Guard against multiple broadcasts here and defer them until the end of this function
+	FScopedCurveEditorTreeEventGuard ScopedEventGuard = CurveEditor->GetTree()->ScopedEventGuard();
+
 	auto Traverse_AddToCurveEditor = [this, CurveEditor](FSequencerDisplayNode& InNode)
 	{
 		if (InNode.GetType() == ESequencerNode::Track)
@@ -754,7 +925,10 @@ FCurveEditorTreeItemID FSequencerNodeTree::AddToCurveEditor(TSharedRef<FSequence
 {
 	if (FCurveEditorTreeItemID* Existing = CurveEditorTreeItemIDs.Find(DisplayNode))
 	{
-		return *Existing;
+		if (CurveEditor->GetTree()->FindItem(*Existing) != nullptr)
+		{
+			return *Existing;
+		}
 	}
 
 	TSharedPtr<FSequencerDisplayNode> Parent = DisplayNode->GetParent();
@@ -766,4 +940,14 @@ FCurveEditorTreeItemID FSequencerNodeTree::AddToCurveEditor(TSharedRef<FSequence
 
 	CurveEditorTreeItemIDs.Add(DisplayNode, NewItem->GetID());
 	return NewItem->GetID();
+}
+
+FCurveEditorTreeItemID FSequencerNodeTree::FindCurveEditorTreeItem(TSharedRef<FSequencerDisplayNode> DisplayNode) const
+{
+	const FCurveEditorTreeItemID* FoundID = CurveEditorTreeItemIDs.Find(DisplayNode);
+	if (FoundID && Sequencer.GetCurveEditor()->GetTree()->FindItem(*FoundID) != nullptr)
+	{
+		return *FoundID;
+	}
+	return FCurveEditorTreeItemID::Invalid();
 }

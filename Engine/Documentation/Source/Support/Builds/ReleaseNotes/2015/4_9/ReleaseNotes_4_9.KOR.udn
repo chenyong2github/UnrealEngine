@@ -1,10 +1,9 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:6537038
 Availability:Public
 Title:언리얼 엔진 4.9 릴리즈 노트
 Crumbs:%ROOT%, Engine
 Description:
-order:9
-
+Order: 35
 이번 릴리즈에는 수백에 달하는 언리얼 엔진 4 업데이트가 포함, 여기에는 GitHub 의 언리얼 엔진 개발자 커뮤니티의 제출내용 129 개도 포함됩니다! 언리얼 엔진 4.9 에 기여해 주신 모든 분들께 감사드립니다:
 
 Andrew Zhilin (zoon), Artem V. Navrotskiy (bozaro), Artyom Sovetnikov, Ben Rog-Wilhelm(zorbathut), Ben Wiklund (bwiklund), Black Phoenix (PheonixBlack), Błażej Szczygieł (zaps166), Brad Grantham (bradgrantham), Brent Scriver (FineRedMist), Cengiz Terzibas (yaakuro), chipgw, Christian Radich (yoyohobo665), Christopher P. Yarger (cpyarger), Clay Chai (chaiyuntian), Cliff Jolly (ExpiredPopsicle), Dave Newson (dave-newson), Derek van Vliet (derekvanvliet), Dorgon Chang (dorgonman), ewirch, Felix Laurie von Massenbach (erbridge), Gabriel Hare (GabrielHare), gatools, Hakki Ozturk (ozturkhakki), HueyPark, JaredTherriault, Jason Spangler (Stormwind99), Javier Osset (Xaklse), Jeff Rous (JeffRous), JohnAlcatraz, Kitatus Studios (KitatusStudios), Konstantin Nosov (gildor2), korypostma, Lee Berger (MrCrowbar), Maarten Scholl (maartenscholl), Marat Radchenko (slonopotamus), marynate, Matthias Huerbe (MatzeOGH), Maxim (maxpestun), Michael Allar (Allar), Michael3DX, MiniTurtle, Moritz Wundke (moritz-wundke), Nako Sung (nakosung), Nari Demura (demuyan), Nastenko Michael (deM-on), Nathan Stocks (CleanCut), Niels Huylebroeck (red15), Pablo Zurita (pzurita), Patrick Flanagan (valtrain), Pedja Ljubomirovic (3dluvr), Philipp Smorygo (fsmorygo), Pierdek, Piotr Bąk (Pierdek), Quadtree, Rajko Stojadinovik (rajkosto), Rama (EverNewJoy), Rem (rveilleux), rlefebvre, Robert Khalikov (nbjk667), Russ Treadwell (trdwll), Salamanderrake, Sebastian Witkowski (witkowski-seb), Sébastien Rombauts (Srombauts), Simon Taylor (simontaylor81), Stephen Whittle (stephenwhittle), szyszq, TK-Master, Tobias Mollstam (mollstam), Tomasz Sterna (smokku), user37337, Victor Xie (FTPiano), Vladimir Ivanov (ArCorvus), Will Stahl (merlin91), yamashi, Zhi Kang Shao (zkshao)
@@ -269,7 +268,7 @@ UE4 사용자 Roel Bartstra 가 이미 이를 활용한 재밌는 사례를 찾�
 
 	![image alt text](image_29.png)
 
-* 콘텐츠 브라우저 텍스트 검색으로 할 수 있는 것이면 무엇이든 동적 컬렉션으로 저장하여, (정적이든 동적이든) 다른 컬렉션 레퍼런싱도 가능합니다.
+* 콘텐츠 브라우저 텍스트 검색으로 할 수 있는 것이면 무엇이든 동적 컬렉션으로 저장하여, (정적이든 동적이든) 다른 컬렉션 참조도 가능합니다.
 
 * 콘텐츠 브라우저 텍스트 필터 오른쪽의 "Save" (저장) 버튼을 사용하여 동적 컬렉션을 생성할 수 있습니다.
 
@@ -439,9 +438,9 @@ Math 표현식 노드가 일반 노드보다 높은 퍼포먼스를 내도록 �
 
 #### 애니메이션 애셋 오버라이드 처리 개선
 
-트랜지션 룰의 Time Remaining 같은 노드는 이제 자손 애니메이션 블루프린트에서 애니메이션을 덮어쓴 데 따른 애니메이션 길이 변화에 정상 반응합니다. 즉 트랜지션 룰에 레퍼런싱된 애니메이션이 더이상 모든 자손 애니메이션 블루프린트에서 동일한 길이일 필요가 없다는 뜻입니다.
+트랜지션 룰의 Time Remaining 같은 노드는 이제 자손 애니메이션 블루프린트에서 애니메이션을 덮어쓴 데 따른 애니메이션 길이 변화에 정상 반응합니다. 즉 트랜지션 룰에 참조된 애니메이션이 더이상 모든 자손 애니메이션 블루프린트에서 동일한 길이일 필요가 없다는 뜻입니다.
 
-#### 연관성이 가장 높은 애니메이션 플레이어 레퍼런싱
+#### 연관성이 가장 높은 애니메이션 플레이어 참조
 
 스테이트 머신 관리를 보다 용이하게 하기 위해, 앞으로 변화될 애니메이션을 특정해 지정하기 보다는, 항상 원본 상태에서 가중치가 가장 높은 애니메이션을 선택하는 새로운 Getter 클래스를 사용할 수 있게 되었습니다. 사용할 수 있는 노드는 다음과 같습니다:
 
@@ -453,7 +452,7 @@ Math 표현식 노드가 일반 노드보다 높은 퍼포먼스를 내도록 �
 
 ![image alt text](image_50.png)
 
-트랜지션 룰에서와 마찬가지로 애셋 플레이어를 레퍼런싱하는 Getter 메서드를 구할 수도 있습니다.
+트랜지션 룰에서와 마찬가지로 애셋 플레이어를 참조하는 Getter 메서드를 구할 수도 있습니다.
 
 ### 애니메이션 커브 이밸류에이션 변화
 
@@ -479,7 +478,7 @@ Math 표현식 노드가 일반 노드보다 높은 퍼포먼스를 내도록 �
 
 * 이를 통해 결국 본 트랜스폼에서 커브를 구동시키거나 그 반대 작업을 할 수 있는 노드를 만들 수 있습니다.
 
-* 그러나, 아직 평가되지 않은 (틱은 하되 평가는 안된) 커브가 필요한 경우, 최신 데이터를 구할 수 없을 것입니다. 커브 데이터는 전에 노티파이로 취급되던 것과 반대로 이제는 본 트랜스폼으로 취급됩니다.
+* 그러나, 아직 평가되지 않은 (틱은 하지만 평가는 안된) 커브가 필요한 경우, 최신 데이터를 구할 수 없을 것입니다. 커브 데이터는 전에 노티파이로 취급되던 것과 반대로 이제는 본 트랜스폼으로 취급됩니다.
 
 ### 애니메이션 애셋 메타데이터 지원
 
@@ -631,7 +630,7 @@ Movement Component 포함 액터의 경우, 업데이트된 컴포넌트는 주�
 
 	![image alt text](image_67.png)
 
-* 튜토리얼 (비법, 퀵스타트 등) 링크에는 그 튜토리얼의 스킬 레벨과 엔진 버전이 표시됩니다:
+* 튜토리얼 (하우투, 퀵스타트 등) 링크에는 그 튜토리얼의 스킬 레벨과 엔진 버전이 표시됩니다:
 
 	![image alt text](image_68.png)
 
@@ -639,7 +638,7 @@ Movement Component 포함 액터의 경우, 업데이트된 컴포넌트는 주�
 
 * Gear VR 글로벌 메뉴
 
-* [APK 패키지 크기 줄이기](Platforms/Android/ReducingAPKSize)
+* [APK 패키지 크기 줄이기](Platforms/Mobile/Android/ReducingAPKSize)
 
 * [모바일 콘텐츠 스케일 인수](Platforms/Mobile/Performance)
 
@@ -655,7 +654,7 @@ Movement Component 포함 액터의 경우, 업데이트된 컴포넌트는 주�
 
 * [비헤이비어 트리 퀵 스타트](Engine/AI/BehaviorTrees/QuickStart)
 
-* [비헤이비어 트리 노드 참고서](Engine/AI/BehaviorTrees/NodeReference)
+* [비헤이비어 트리 노드 레퍼런스](Engine/AI/BehaviorTrees/NodeReference)
 
 * [인바이런먼트 쿼리 시스템 퀵 스타트](Engine/AI/EnvironmentQuerySystem/QuickStart)
 

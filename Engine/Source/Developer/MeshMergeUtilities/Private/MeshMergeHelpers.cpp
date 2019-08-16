@@ -170,11 +170,21 @@ void FMeshMergeHelpers::ExpandInstances(const UInstancedStaticMeshComponent* InI
 {
 	FMeshDescription CombinedRawMesh;
 
+	bool bFirstMesh = true;
 	for(const FInstancedStaticMeshInstanceData& InstanceData : InInstancedStaticMeshComponent->PerInstanceSMData)
 	{
 		FMeshDescription InstanceRawMesh = InOutRawMesh;
 		FMeshMergeHelpers::TransformRawMeshVertexData(FTransform(InstanceData.Transform), InstanceRawMesh);
-		FMeshMergeHelpers::AppendRawMesh(CombinedRawMesh, InstanceRawMesh);
+
+		if(bFirstMesh)
+		{
+			CombinedRawMesh = InstanceRawMesh;
+			bFirstMesh = false;
+		}
+		else
+		{
+			FMeshMergeHelpers::AppendRawMesh(CombinedRawMesh, InstanceRawMesh);
+		}
 	}
 
 	InOutRawMesh = CombinedRawMesh;
@@ -183,7 +193,7 @@ void FMeshMergeHelpers::ExpandInstances(const UInstancedStaticMeshComponent* InI
 void FMeshMergeHelpers::RetrieveMesh(const UStaticMeshComponent* StaticMeshComponent, int32 LODIndex, FMeshDescription& RawMesh, bool bPropagateVertexColours)
 {
 	const UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
-	const FStaticMeshSourceModel& StaticMeshModel = StaticMesh->SourceModels[LODIndex];
+	const FStaticMeshSourceModel& StaticMeshModel = StaticMesh->GetSourceModel(LODIndex);
 
 	const bool bIsSplineMeshComponent = StaticMeshComponent->IsA<USplineMeshComponent>();
 
@@ -200,7 +210,7 @@ void FMeshMergeHelpers::RetrieveMesh(const UStaticMeshComponent* StaticMeshCompo
 	}
 
 	// Use build settings from base mesh for LOD entries that was generated inside Editor.
-	const FMeshBuildSettings& BuildSettings = bImportedMesh ? StaticMeshModel.BuildSettings : StaticMesh->SourceModels[0].BuildSettings;
+	const FMeshBuildSettings& BuildSettings = bImportedMesh ? StaticMeshModel.BuildSettings : StaticMesh->GetSourceModel(0).BuildSettings;
 
 	// Transform raw mesh to world space
 	FTransform ComponentToWorldTransform = StaticMeshComponent->GetComponentTransform();
@@ -357,7 +367,7 @@ void FMeshMergeHelpers::RetrieveMesh(USkeletalMeshComponent* SkeletalMeshCompone
 
 void FMeshMergeHelpers::RetrieveMesh(const UStaticMesh* StaticMesh, int32 LODIndex, FMeshDescription& RawMesh)
 {
-	const FStaticMeshSourceModel& StaticMeshModel = StaticMesh->SourceModels[LODIndex];
+	const FStaticMeshSourceModel& StaticMeshModel = StaticMesh->GetSourceModel(LODIndex);
 
 	// Imported meshes will have a valid mesh description
 	const bool bImportedMesh = StaticMesh->IsMeshDescriptionValid(LODIndex);
@@ -384,7 +394,7 @@ void FMeshMergeHelpers::RetrieveMesh(const UStaticMesh* StaticMesh, int32 LODInd
 	}
 
 	// Use build settings from base mesh for LOD entries that was generated inside Editor.
-	const FMeshBuildSettings& BuildSettings = bImportedMesh ? StaticMeshModel.BuildSettings : StaticMesh->SourceModels[0].BuildSettings;
+	const FMeshBuildSettings& BuildSettings = bImportedMesh ? StaticMeshModel.BuildSettings : StaticMesh->GetSourceModel(0).BuildSettings;
 
 	// Figure out if we should recompute normals and tangents. By default generated LODs should not recompute normals	
 	uint32 TangentOptions = FMeshDescriptionOperations::ETangentOptions::BlendOverlappingNormals;
@@ -977,6 +987,9 @@ void FMeshMergeHelpers::ExtractPhysicsGeometry(UBodySetup* InBodySetup, const FT
 	{
 		Elem.SetConvexMesh(nullptr);
 		Elem.SetMirroredConvexMesh(nullptr);
+#if WITH_CHAOS
+		Elem.ResetChaosConvexMesh();
+#endif
 	}
 
 	// Transform geometry to world space
@@ -1037,7 +1050,7 @@ bool FMeshMergeHelpers::PropagatePaintedColorsToRawMesh(const UStaticMeshCompone
 {
 	UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
 
-	if (StaticMesh->SourceModels.IsValidIndex(LODIndex) &&
+	if (StaticMesh->IsSourceModelValid(LODIndex) &&
 		StaticMeshComponent->LODData.IsValidIndex(LODIndex) &&
 		StaticMeshComponent->LODData[LODIndex].OverrideVertexColors != nullptr)
 	{
@@ -1176,7 +1189,7 @@ void FMeshMergeHelpers::AppendRawMesh(FMeshDescription& InTarget, const FMeshDes
 	InTarget.ReserveNewVertices(InSource.Vertices().Num());
 	InTarget.ReserveNewVertexInstances(InSource.VertexInstances().Num());
 	InTarget.ReserveNewEdges(InSource.Edges().Num());
-	InTarget.ReserveNewPolygons(InSource.Vertices().Num());
+	InTarget.ReserveNewPolygons(InSource.Polygons().Num());
 
 	//Append PolygonGroup
 	for (const FPolygonGroupID& SourcePolygonGroupID : InSource.PolygonGroups().GetElementIDs())
@@ -1189,12 +1202,14 @@ void FMeshMergeHelpers::AppendRawMesh(FMeshDescription& InTarget, const FMeshDes
 			bool bUnique = true;
 			do 
 			{
+				bUnique = true;
 				for (const FPolygonGroupID PolygonGroupID : InTarget.PolygonGroups().GetElementIDs())
 				{
 					if (TargetPolygonGroupImportedMaterialSlotNames[PolygonGroupID] == CurrentTestName)
 					{
 						CurrentTestName = FName(*(BaseName.ToString() + FString::FromInt(UniqueID++)));
 						bUnique = false;
+						break;
 					}
 				}
 			} while (!bUnique);

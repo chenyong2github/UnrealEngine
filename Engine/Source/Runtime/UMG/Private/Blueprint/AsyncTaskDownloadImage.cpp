@@ -20,7 +20,7 @@ static void WriteRawToTexture_RenderThread(FTexture2DDynamicResource* TextureRes
 {
 	check(IsInRenderingThread());
 
-	FTexture2DRHIParamRef TextureRHI = TextureResource->GetTexture2DRHI();
+	FRHITexture2D* TextureRHI = TextureResource->GetTexture2DRHI();
 
 	int32 Width = TextureRHI->GetSizeX();
 	int32 Height = TextureRHI->GetSizeY();

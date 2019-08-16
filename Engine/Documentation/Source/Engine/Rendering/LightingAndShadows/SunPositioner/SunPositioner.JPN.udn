@@ -1,0 +1,121 @@
+﻿INTSourceChangelist:4976865
+Availability: Public
+Crumbs: 
+Title: 地理的に正確な太陽の位置決定
+Description: 地上におけるレベルの位置、日付、時刻を指定して太陽の位置を制御します。
+Type: 
+Version: 4.21
+Parent: Engine/Rendering/LightingAndShadows
+Order: 
+Tags: Lighting
+Tags: Early Access
+Tags: sun positioning
+
+
+![](sunpos-banner.png "sunpos-banner.png")
+
+場合によっては、空の太陽の位置は見た目だけの問題ではなく、デザイン上の重要な要素となります。
+
+とりわけ大規模なアーキテクチャの建設プロジェクトや、日光と影のリアルなパターンを描く真に迫るレンダリングを生成する必要がある場合には常に重要です。
+
+このような場合、実際の地球上の太陽の位置を決定するのと同じ数式にしたがい、Unreal Engine のレベルの正確な場所に太陽を設置する必要があります。これらの複雑な方程式は、見る側の地理的な位置、日付、時刻など多くの設定が組み込まれます。
+
+Unreal Engine では **Sun Position Calculator** プラグインでこれらの数式を解きます。緯度、経度、基本方位、日付、および時刻を定義してください。すると、Sun Position Calculator が Unreal Engine のデフォルトの天球と連携して天球に太陽面を置き、レベルでメインの Directional Light (指向性ライト) の方向を正しい方向に向けます。
+
+## 入門編
+
+[REGION:note]
+**前提条件** このサン ポジショナーは、Unreal Editor に作成したほとんどの新規レベルで既にセットアップされている デフォルトの **BP_SkySphere** と連携して実行されます。レベルに **BP_SkySphere** インスタンスが存在することを確認してください。
+[/REGION]
+
+開始する
+
+1. メインメニューから **[Edit > Plugins]** を選択します。
+2. **Misc** カテゴリにある **[Sun Position Calculator]** プラグインの **Enabled** チェックボックスにチェックを入れます
+    ![Sun Position Calculator を有効にする](sunpos-enble.png "[Sun Position Calculator] を有効にする")
+3. **[Restart Now (すぐに再起動)]** をクリックして変更を適用して Unreal Editor を再度開きます。
+    ![Restart Now (すぐに再起動)](sunpos-3-restart.png "[Restart Now （すぐに再起動）]")
+4. **コンテンツ ブラウザ** で、ソースパネルを開きます。
+    ![ソース](sunpos-4-sources.png "ソース")
+5. **コンテンツ ブラウザ** 右下の **表示オプション** メニューを開いて **エンジンのコンテンツを表示** と **プラグイン コンテンツの表示** を両方とも有効にします。
+    ![エンジンとプラグインのコンテンツの表示](sunpos-5-viewoptions.png "エンジンとプラグインのコンテンツの表示")
+6. **「SunPosition コンテンツ」** フォルダの **BP_SunPosition** アセットをビューポートにドラッグします。
+    ![BP_SunPosition アセットをドラッグアンドドロップする](sunpos-6-dragdrop.png "BP_SunPosition アセットをドラッグアンドドロップする")コンパスの基本方位のようなギズモで表されます (Unreal Editor でプロジェクトを実行していないときはこのギズモのみ表示されます)
+7. ビューポートのギズモまたは、 **ワールド アウトライナ** の **BP_SunPosition** アクタを選択します。
+    ![BP_SunPosition を選択します](sunpos-7-select.png "BP_SunPosition を選択します")
+8. **[詳細]** パネルで、太陽の配置を決定するシーンのプロパティを設定します。
+    ![位置、日付、時刻を設定します](sunpos-8-details.png "位置、日付、時刻を設定します")  
+    
+    | 設定 | 説明 |
+    | --- | --- |
+    | **Latitude (緯度)** | 赤道の南の座標に負の値、赤道の北の座標に正の値を使用します。|
+    | **Longitude (緯度)** | 子午線の西の座標に負の値、子午線の東の座標に正の値を使用します。|
+    | **Time Zone (タイムゾーン)** | サイトと協定世界時 (UCT) またはグリニッジ標準時 (GMT) とシーンとの時差を時間数で設定します。|
+    | **North Offset (北方向のオフセット)** | [INCLUDE:#excerpt_9] |
+    | **Date (日付)** と **Time (時刻)** | シミュレーションしたい年月日と時刻を設定します。|
+    
+
+[COMMENT:none]
+[EXCERPT:excerpt_9]
+レベルのオブジェクトとコンパスの基本方位間の関係性を制御します。この制御の変更すると、レベルの **BP_SunPosition** ギズモの視覚的位置も回転します。レベルのオブジェクトに対して、ギズモの示している基本方位が正しい方向を指すように値を調節してください。
+[REGION:note]
+レベルのビューポートの回転ツールを使用してギズモ自体を回転させないでください。North Offset の設定は、基本方位を制御する目的のみに使用してください。
+[/REGION]
+[/EXCERPT:excerpt_9]
+[/COMMENT]
+
+    
+
+これらのプロパティの値を変更すると、Unreal Editor で太陽が空を移動して影が変化します。
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ MqLpNQaKLN0
+ [/PARAMLITERAL]
+[/OBJECT]
+
+## 実行時の設定変更
+
+**BP_SunPosition** アクタの設定を実行時に変更することができます。これにより、UI ウィジェットやその他ゲームプレイ イベントに応じて太陽の位置と光の角度を変化させることができます。
+
+1. 実行時の太陽光の角度を変化させるためには、レベルの Directional Light を [ムーバブル] にします。**[ワールド アウトライナ]** またはレベルのビューポートで Directional Light を選択して、 **[詳細]** パネルの **[可動性]** の設定を **[ムーバブル]** に設定します。
+    ![ライトの可動性](sunpos-runtime-1-movable.png "ライトの可動性")
+2. 実行時にブループリント スクリプトで値を変更するには、レベルに存在する **BP_SunPosition** アクタへのオブジェクト参照が必要です。以下のように **Get All Actors of Class** ノードを使用するとこの参照を動的に取得することができます。
+    ![BP_SunPosition アクタへの参照を取得](sunpos-runtime-2-getvariable.png "BP_SunPosition アクタへの参照を取得")  
+    [REGION:note]
+    **Get All Actors of Class** は負荷が高いので、値を取得したりセットする必要がある度に実行するのではなく、一度実行したときに (たとえばレベルがロードされたときやウィジェットが構築されたときに) その結果を変数に保存しておくのがベストです。
+    [/REGION]
+3. オブジェクト参照を取得したら、その出力ポートから右にドラッグして **[Variables (変数)]** カテゴリを展開し、Unreal Editor の **[詳細]** パネルで提供されている値の取得やセットが可能な **Get** および **Set** ノードのリストを探します。
+    ![BP_SunPosition アクタのAPI を Get および Set する](sunpos-runtime-3-getsetapi.png "BP_SunPosition アクタのAPI を Get および Set する")
+4. これら新規の値を必要に応じてセットします。完了したら、 **BP_SunPosition** 変数の出力ポートからドラッグして **Update Sun** ノードを呼び出します。
+    ![Update Sun 関数](sunpos-runtime-4-updatesun.png "Update Sun 関数")
+
+たとえば、次のような Widget ブループリントからのスニペットは、6:00am ～ 10:00pmまでの任意の時間の値に変更する UI のスライダーを設置します。
+
+[REGION:lightbox]
+[![実行時の太陽の位置の変更例](sunpos-runtime-example.png "実行時の太陽の位置の変更例")](sunpos-runtime-example.png)
+[/REGION]
+
+[REGION:caption]
+クリックして最大化。
+[/REGION]
+
+実行中のスライダーは次のようになります。
+
+[OBJECT:EmbeddedVideo]
+	[PARAMLITERAL:width]
+	640
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	360
+	[/PARAMLITERAL]
+	[PARAMLITERAL:videoid]
+	0e9c4pcwZO8
+	[/PARAMLITERAL]
+[/OBJECT]

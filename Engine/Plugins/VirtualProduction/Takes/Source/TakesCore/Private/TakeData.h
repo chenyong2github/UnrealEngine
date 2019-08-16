@@ -52,6 +52,8 @@ public:
 
 		CurrentTakeNumber = TakeMetaData->GetTakeNumber();
 
+		TakeNumbers.Sort();
+
 		return true;
 	}
 

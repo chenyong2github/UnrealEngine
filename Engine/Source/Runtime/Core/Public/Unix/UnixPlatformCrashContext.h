@@ -5,6 +5,23 @@
 #include "CoreTypes.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 
+/** Passed in through sigqueue for gathering of a callstack from a signal */
+struct ThreadStackUserData
+{
+	// If we want a backtrace or a callstack
+	// Backtrace is just a list of program counters and callstack is a symbolicated backtrace
+	bool bCaptureCallStack;
+	union 
+	{
+		ANSICHAR* CallStack;
+		uint64* BackTrace;
+	};
+
+	int32 BackTraceCount;
+	SIZE_T CallStackSize;
+	TAtomic<bool> bDone;
+};
+
 struct CORE_API FUnixCrashContext : public FGenericCrashContext
 {
 	/** Signal number */

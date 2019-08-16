@@ -31,6 +31,7 @@ public:
 	 *
 	 * @param InMessage The message payload.
 	 * @param InTypeInfo The message's type information.
+	 * @param InAnnotation The message header to attach to the message.
 	 * @param InAttachment The binary data to attach to the message.
 	 * @param InSender The sender's address.
 	 * @param InRecipients The message recipients.
@@ -43,6 +44,7 @@ public:
 	FMessageContext(
 		void* InMessage,
 		UScriptStruct* InTypeInfo,
+		const TMap<FName, FString>& InAnnotations,
 		const TSharedPtr<IMessageAttachment, ESPMode::ThreadSafe>& InAttachment,
 		const FMessageAddress& InSender,
 		const TArray<FMessageAddress>& InRecipients,
@@ -52,7 +54,8 @@ public:
 		const FDateTime& InExpiration,
 		ENamedThreads::Type InSenderThread
 	)
-		: Attachment(InAttachment)
+		: Annotations(InAnnotations)
+		, Attachment(InAttachment)
 		, Expiration(InExpiration)
 		, Message(InMessage)
 		, Recipients(InRecipients)
@@ -111,6 +114,7 @@ public:
 	virtual EMessageScope GetScope() const override;
 	virtual EMessageFlags GetFlags() const override;
 	virtual const FMessageAddress& GetSender() const override;
+	virtual const FMessageAddress& GetForwarder() const override;
 	virtual ENamedThreads::Type GetSenderThread() const override;
 	virtual const FDateTime& GetTimeForwarded() const override;
 	virtual const FDateTime& GetTimeSent() const override;

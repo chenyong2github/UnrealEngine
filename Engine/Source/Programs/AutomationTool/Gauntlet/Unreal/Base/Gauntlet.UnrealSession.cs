@@ -70,6 +70,10 @@ namespace Gauntlet
 		public List<UnrealFileToCopy> FilesToCopy;
 
 		/// <summary>
+		/// 
+		/// </summary>
+		public List<EIntendedBaseCopyDirectory> AdditionalArtifactDirectories;
+		/// <summary>
 		/// Role device configuration 
 		/// </summary>
 		public ConfigureDeviceHandler ConfigureDevice;
@@ -141,10 +145,17 @@ namespace Gauntlet
 
 			//@todo: for bulk/packaged builds, we should mark the platform as capable of these as we're catching global and not test specific flags
 			// where we may be running parallel tests on multiple platforms
-			if (Globals.Params.ParseParam("bulk") && (InPlatform == UnrealTargetPlatform.Android || InPlatform == UnrealTargetPlatform.IOS))
-            {
-                RequiredBuildFlags |= BuildFlags.Bulk;
-            }
+			if (InPlatform == UnrealTargetPlatform.Android || InPlatform == UnrealTargetPlatform.IOS)
+			{
+				if (Globals.Params.ParseParam("notbulk"))
+				{
+					RequiredBuildFlags |= BuildFlags.NotBulk;
+				}
+				else if (Globals.Params.ParseParam("bulk"))
+				{
+					RequiredBuildFlags |= BuildFlags.Bulk;
+				}
+			}
 
 			if (Globals.Params.ParseParam("packaged") && (InPlatform == UnrealTargetPlatform.Switch || InPlatform == UnrealTargetPlatform.XboxOne))
 			{
@@ -1073,9 +1084,22 @@ namespace Gauntlet
 				{
 					Log.Info("Skipping archival of assets for dev build");
 				}
-			}			
+			}
 
-
+			foreach (EIntendedBaseCopyDirectory ArtifactDir in InRunningRole.Role.AdditionalArtifactDirectories)
+			{
+				if (InRunningRole.AppInstance.Device.GetPlatformDirectoryMappings().ContainsKey(ArtifactDir))
+				{
+					string SourcePath = InRunningRole.AppInstance.Device.GetPlatformDirectoryMappings()[ArtifactDir];
+					var DirToCopy = new DirectoryInfo(SourcePath);
+					if (DirToCopy.Exists)
+					{
+						// Grab the final dir name to copy everything into so everything's not just going into root artifact dir.
+						string IntendedCopyLocation = Path.Combine(InDestArtifactPath, DirToCopy.Name);
+						Utils.SystemHelpers.CopyDirectory(SourcePath, IntendedCopyLocation);
+					}
+				}
+			}
 			// TODO REMOVEME- this should go elsewhere, likely a util that can be called or inserted by relevant test nodes.
 			if (IsServer == false)
 			{

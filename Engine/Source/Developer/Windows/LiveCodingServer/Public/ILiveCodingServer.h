@@ -29,6 +29,8 @@ public:
 	virtual void Start(const wchar_t* ProcessGroupName) = 0;
 	virtual void Stop() = 0;
 
+	virtual void RestartTargets() = 0;
+
 	virtual void SetLinkerPath(const wchar_t* LinkerPath, const TMap<FString, FString>& LinkerEnvironment) = 0;
 
 	DECLARE_DELEGATE(FBringToFrontDelegate);
@@ -44,7 +46,7 @@ public:
 	virtual FLogOutputDelegate& GetLogOutputDelegate() = 0;
 
 	typedef TMap<FString, TArray<FString>> FModuleToObjectFiles;
-	DECLARE_DELEGATE_RetVal_TwoParams(bool, FCompileDelegate, const TArray<FString>&, FModuleToObjectFiles&)
+	DECLARE_DELEGATE_RetVal_FourParams(bool, FCompileDelegate, const TArray<FString>&, const TArray<FString>&, TArray<FString>&, FModuleToObjectFiles&)
 	virtual FCompileDelegate& GetCompileDelegate() = 0;
 
 	DECLARE_DELEGATE(FCompileStartedDelegate);

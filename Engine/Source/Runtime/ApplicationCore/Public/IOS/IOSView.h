@@ -14,6 +14,10 @@
 #import <QuartzCore/CAMetalLayer.h>
 #endif
 
+#if WITH_ACCESSIBILITY
+#include "GenericPlatform/GenericAccessibleInterfaces.h"
+#endif
+
 struct FKeyboardConfig
 {
 	UIKeyboardType KeyboardType;
@@ -82,9 +86,17 @@ APPLICATIONCORE_API
 	
 	volatile int32 KeyboardShowCount;
 
-
+#if WITH_ACCESSIBILITY
+@private
+	// Single-element array used for the accessibilityElements property. It holds the IAccessibleWindow for the app.
+	NSMutableArray* _accessibilityElements;
+#endif
 }
 
+#if WITH_ACCESSIBILITY
+/** Repopulate _accessibilityElements when the accessible window's ID has changed. */
+-(void)SetAccessibilityWindow:(AccessibleWidgetId)WindowId;
+#endif
 
 //// SHARED FUNCTIONALITY
 @property (nonatomic) GLuint SwapCount;

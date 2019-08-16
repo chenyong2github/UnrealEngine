@@ -139,7 +139,7 @@ TSharedRef<SWidget> FBehaviorDecoratorDetails::OnGetAbortModeContent() const
 
 	for (int32 i = 0; i < ModeValues.Num(); i++)
 	{
-		FUIAction ItemAction( FExecuteAction::CreateSP( this, &FBehaviorDecoratorDetails::OnAbortModeChange, ModeValues[i].Int ) );
+		FUIAction ItemAction( FExecuteAction::CreateSP( const_cast<FBehaviorDecoratorDetails*>(this), &FBehaviorDecoratorDetails::OnAbortModeChange, ModeValues[i].Int ) );
 		MenuBuilder.AddMenuEntry(FText::FromString( ModeValues[i].Str ), TAttribute<FText>(), FSlateIcon(), ItemAction);
 	}
 

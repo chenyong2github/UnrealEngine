@@ -31,13 +31,15 @@ public class Launch : ModuleRules
 				"Slate",
 				"SlateCore",
 				"Sockets",
+				"TraceLog",
 				"Overlay",
 				"UtilityShaders",
-				"PreLoadScreen"
+				"PreLoadScreen",
+				"InstallBundleManager"
 			});
 
 		// Set a macro allowing us to switch between debuggame/development configuration
-		if(Target.Configuration == UnrealTargetConfiguration.DebugGame)
+		if (Target.Configuration == UnrealTargetConfiguration.DebugGame)
 		{
 			PrivateDefinitions.Add("UE_BUILD_DEVELOPMENT_WITH_DEBUGGAME=1");
 		}
@@ -80,6 +82,12 @@ public class Launch : ModuleRules
 					"WindowsPlatformFeatures",
 					"GameplayMediaEncoder",
 				});
+			}
+			else if (Target.Platform == UnrealTargetPlatform.HoloLens)
+			{
+				DynamicallyLoadedModuleNames.Add("D3D11RHI");
+				DynamicallyLoadedModuleNames.Add("XAudio2");
+				DynamicallyLoadedModuleNames.Add("AudioMixerXAudio2");
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Mac)
 			{

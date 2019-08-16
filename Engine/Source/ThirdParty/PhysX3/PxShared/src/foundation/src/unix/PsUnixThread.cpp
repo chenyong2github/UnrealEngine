@@ -453,9 +453,21 @@ void* TlsGet(uint32_t index)
 	return reinterpret_cast<void*>(pthread_getspecific(pthread_key_t(index)));
 }
 
+size_t TlsGetValue(uint32_t index)
+{
+	return reinterpret_cast<size_t>(pthread_getspecific(pthread_key_t(index)));
+}
+
 uint32_t TlsSet(uint32_t index, void* value)
 {
 	int status = pthread_setspecific(pthread_key_t(index), value);
+	PX_ASSERT(!status);
+	return !status;
+}
+
+uint32_t TlsSetValue(uint32_t index, size_t value)
+{
+	int status = pthread_setspecific(pthread_key_t(index), reinterpret_cast<void*>(value));
 	PX_ASSERT(!status);
 	return !status;
 }

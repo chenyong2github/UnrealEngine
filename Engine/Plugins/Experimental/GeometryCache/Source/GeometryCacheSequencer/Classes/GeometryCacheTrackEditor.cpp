@@ -278,11 +278,11 @@ TSharedRef<ISequencerSection> FGeometryCacheTrackEditor::MakeSectionInterface(UM
 	return MakeShareable(new FGeometryCacheSection(SectionObject, GetSequencer()));
 }
 
-void FGeometryCacheTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const FGuid& ObjectBinding, const UClass* ObjectClass)
+void FGeometryCacheTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass)
 {
 	if (ObjectClass->IsChildOf(UGeometryCacheComponent::StaticClass()) || ObjectClass->IsChildOf(AActor::StaticClass()))
 	{
-		UGeometryCacheComponent* GeomMeshComp = AcquireGeometryCacheFromObjectGuid(ObjectBinding, GetSequencer());
+		UGeometryCacheComponent* GeomMeshComp = AcquireGeometryCacheFromObjectGuid(ObjectBindings[0], GetSequencer());
 
 		if (GeomMeshComp)
 		{
@@ -293,24 +293,34 @@ void FGeometryCacheTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBu
 				NSLOCTEXT("Sequencer", "AddGeometryCacheTooltip", "Adds a Geometry Cache track."),
 				FSlateIcon(),
 				FUIAction(
-					FExecuteAction::CreateSP(this, &FGeometryCacheTrackEditor::BuildGeometryCacheTrack, ObjectBinding, GeomMeshComp, Track)
+					FExecuteAction::CreateSP(this, &FGeometryCacheTrackEditor::BuildGeometryCacheTrack, ObjectBindings, Track)
 				)
 			);
 		}
 	}
 }
 
-void FGeometryCacheTrackEditor::BuildGeometryCacheTrack(FGuid ObjectBinding, UGeometryCacheComponent *GeomCacheComp, UMovieSceneTrack* Track)
+void FGeometryCacheTrackEditor::BuildGeometryCacheTrack(TArray<FGuid> ObjectBindings, UMovieSceneTrack* Track)
 {
 	TSharedPtr<ISequencer> SequencerPtr = GetSequencer();
 
-	if (SequencerPtr.IsValid() && ObjectBinding.IsValid())
+	if (SequencerPtr.IsValid())
 	{
-		UObject* Object = SequencerPtr->FindSpawnedObjectOrTemplate(ObjectBinding);
-		if (Object)
+		const FScopedTransaction Transaction(LOCTEXT("AddGeometryCache_Transaction", "Add Geometry Cache"));
+
+		for (FGuid ObjectBinding : ObjectBindings)
 		{
-			const FScopedTransaction Transaction(LOCTEXT("AddGeometryCache_Transaction", "Add Geometry Cache"));
-			AnimatablePropertyChanged(FOnKeyProperty::CreateRaw(this, &FGeometryCacheTrackEditor::AddKeyInternal, Object, GeomCacheComp, Track));
+			if (ObjectBinding.IsValid())
+			{
+				UObject* Object = SequencerPtr->FindSpawnedObjectOrTemplate(ObjectBinding);
+
+				UGeometryCacheComponent* GeomMeshComp = AcquireGeometryCacheFromObjectGuid(ObjectBinding, GetSequencer());
+
+				if (Object && GeomMeshComp)
+				{
+					AnimatablePropertyChanged(FOnKeyProperty::CreateRaw(this, &FGeometryCacheTrackEditor::AddKeyInternal, Object, GeomMeshComp, Track));
+				}
+			}
 		}
 	}
 }
@@ -359,8 +369,11 @@ TSharedPtr<SWidget> FGeometryCacheTrackEditor::BuildOutlinerEditWidget(const FGu
 		{
 			FMenuBuilder MenuBuilder(true, nullptr);
 
-			BuildGeometryCacheTrack(ObjectBinding, GeomMeshComp, Track);
+			TArray<FGuid> ObjectBindings;
+			ObjectBindings.Add(ObjectBinding);
 
+			BuildGeometryCacheTrack(ObjectBindings, Track);
+			
 			return MenuBuilder.MakeWidget();
 		};
 

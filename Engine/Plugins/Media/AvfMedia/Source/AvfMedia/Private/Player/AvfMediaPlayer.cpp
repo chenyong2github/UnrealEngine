@@ -142,7 +142,7 @@
 	[loadingRequest retain];
 	
 	// Allow this function to return quickly so the resource loader knows the data is probabky coming and doesn't error
-	Async<void>(EAsyncExecution::ThreadPool, [self, loadingRequest]()
+	Async(EAsyncExecution::ThreadPool, [self, loadingRequest]()
 	{
 		FScopeLock ScopeLock(&CriticalSection);
 		
@@ -321,6 +321,9 @@ FAvfMediaPlayer::~FAvfMediaPlayer()
 {
 	Close();
 
+	delete Tracks;
+	Tracks = nullptr;
+	
 	delete Samples;
 	Samples = nullptr;
 }

@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4223439
+﻿INTSourceChangelist:6061192
 Availability:Public
 Title:Sequencer时间重构技术说明
 Crumbs:%ROOT%, Engine
@@ -15,6 +15,7 @@ tags:Sequencer
 在UE4 4.20发行版中，我们对Sequencer中时间的表示方法进行了大幅修改。这样做是为了更好地支持电影性流程和情境，对于电影性流程和情境来说，帧准确性极为重要。该页概述了重要概念转变并详细介绍了为实现升级所做的突破性C++代码更改。
 [/REGION]
 
+(#Whathaschanged?)
 ## 发生了哪些转变？
 
 自从问世以来，**Sequencer** 就一直使用 **浮点数** 将时间表示为 **秒数**。这大大增加了支持稳定帧准确性的难度，并且会导致关键帧定位误差、渲染时出现错误、摄像机剪辑帧不稳定、求值模糊等问题。从引擎4.20发行版开始，已转变为使用整数更新来表示时间，这即使解决不了所有问题，也能解决很多问题。
@@ -43,20 +44,29 @@ tags:Sequencer
 
 给定序列的时序信息现在都位于Sequencer工具栏的 **显示速率** 下拉菜单中，工具提示会说明当前序列的更新分辨率：
 
-![image alt text](image_0.png)(w:624 h:314 convert:false)
+[REGION:lightbox]
+[![image alt text](image_0.png)(w:624 h:314 convert:false)](image_0.png)
+[/REGION]
+[REGION:caption]
+点击查看全图。
+[/REGION]
 
 该菜单允许您更改序列的显示帧率、时间显示模式和求值类型。与当前序列的更新分辨率兼容的常见显示速率会显示在顶部。可以使用不与更新分辨率兼容的帧率来进行显示，但是我们建议您不要这样做。
 
+[REGION:warning]
 创建后可以更改序列的更新分辨率，但是需要注意的是，将序列转换为非其当前分辨率倍数的更新分辨率可能将导致片段边界和键被四舍五入到 **高级选项** 菜单中的新分辨率。
+[/REGION]
 
 ![image alt text](image_1.png)(w:624 h:416 convert:false)
 
+(#C++UpgradeNotes)
 ## C++ 升级说明
 
 为支持新的时间格式，需要修改很多内部Sequencer和MovieScene类及数据结构。鉴于修改的规模和范围，无法为部分API提供简单的弃用路径。 
 
 该部分将详细说明主要更改并提供从4.19迁移到4.20的示例代码。
 
+(#ChangesandAdditions)
 ### 更改和添加
 
 * **TimeManagement **模块：提供常见的与时间相关的数据结构和操作及处理工具：
@@ -115,6 +125,7 @@ tags:Sequencer
 
 只要提供TMovieSceneChannelData<> GetData()方法，之前使用TCurveInterface的自定义曲线数据类型都可轻松迁移到新的FMovieSceneXYZChannel模型。
 
+(#MovieSceneChannels)
 ### 过场动画场景信道
 
 由于对曲线（现在称为信道）数据作出了必要的突破性更改，我们也借机统一了几个编辑器代码路径并减少了支持关键帧的片段的重复。添加了可为编辑器和运行时代码提供与关键帧进行交互并操纵关键帧的通用语言的新类型FMovieSceneChannelProxy。 
@@ -151,10 +162,12 @@ Sequencer针对给定信道要求的所有与UI交互和操纵相关的重载的
 
 为信道类型指定扩展的编辑器数据等编译时特性，并指定信道是否支持默认值。许多sequencer UI实用程序都使用MovieSceneChannelTraits.h中指定的函数重载与每个具体的信道类型交互。如果默认模板化重载与信道类型不兼容，就应该为特定信道重载所需的函数。
 
+(#OtherUtilities)
 ### 其他实用程序
 
 已添加了多个辅助实用程序以简化处理过场动画场景范围的过程。现在我们使用了离散时间轴，方便了关于片段边界的合理化。在内部范围表示为TRange<FFrameNumber>，它支持包含性、排他性和开放边界。要简化处理离散时间轴的范围的过程，可以使用MovieScene::DiscreteInclusiveLower、DiscreteExclusiveUpper和DiscreteSize，以一致的方式处理不同的边界条件。
 
+(#MigrationGuide)
 ### 迁移指南
 
 鉴于这些更改的性质，如果你在C++中编写了自己的轨迹、片段或曲线，将需要进行要求迁移的C++更改。请参阅我们为协助您进行升级而准备的轨迹、片段和信道类型[示例迁移](https://bitbucket.org/BrakePad/custom-sequencer-example/commits/all)项目。

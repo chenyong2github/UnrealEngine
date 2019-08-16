@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:NoPublish
 Title:UK2Node_AddComponent
 Crumbs:
@@ -348,7 +348,7 @@ DecalComponent (데칼 컴포넌트)는 메시의 표면 위에 렌더링되는 
 
 [EXCERPT:SpringArmComponent]
 
-SpringArmComponent (스프링 팔 컴포넌트)는 부모와 자손에 일정한 간격을 유지하려 하되, 콜리전이 있으면 자손을 움츠리게 만들고 콜리전이 없으면 다시 스프링처럼 튀어나오게 만듭니다. 예를 들어 플레이어를 따라다니는 카메라가 월드에 충돌하지 않도록 하는 '카메라 붐' 같은 것으로 사용할 수 있습니다.
+SpringArmComponent (스프링 팔 컴포넌트)는 부모와 자손에 일정한 간격을 유지하려 하지만, 콜리전이 있으면 자손을 움츠리게 만들고 콜리전이 없으면 다시 스프링처럼 튀어나오게 만듭니다. 예를 들어 플레이어를 따라다니는 카메라가 월드에 충돌하지 않도록 하는 '카메라 붐' 같은 것으로 사용할 수 있습니다.
 
 실행되면, 이 노드는 지정된 'Target' 액터에 대해 SpringArmComponent 를 새로 만듭니다.  
 

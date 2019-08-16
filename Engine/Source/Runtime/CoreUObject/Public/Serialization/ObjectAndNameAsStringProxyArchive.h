@@ -18,7 +18,7 @@ class UObject;
  * 
  * @param InInnerArchive The actual FArchive object to serialize normal data types (FStrings, INTs, etc)
  */
-struct FObjectAndNameAsStringProxyArchive : public FNameAsStringProxyArchive
+struct COREUOBJECT_VTABLE FObjectAndNameAsStringProxyArchive : public FNameAsStringProxyArchive
 {
 	/**
 	 * Creates and initializes a new instance.

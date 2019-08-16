@@ -139,13 +139,13 @@ FReply FDatasmithSceneDetails::OnSelectFile()
 	FString AllExtensions;
 
 	// Map a file extension to an importer
-	TMap< FString, TSharedPtr< IDataPrepImporterInterface > > ImportHandlerMap;
+	TMap< FString, TSharedPtr< IDataprepImporterInterface > > ImportHandlerMap;
 
 	for ( const FImporterDescription& ImporterDescription : ImporterDescriptions )
 	{
 		if ( ImporterDescription.Handler.IsBound() )
 		{
-			TSharedPtr<IDataPrepImporterInterface> Importer = ImporterDescription.Handler.Execute();
+			TSharedPtr<IDataprepImporterInterface> Importer = ImporterDescription.Handler.Execute();
 			if ( Importer.IsValid() )
 			{
 				for ( const FString& Format : ImporterDescription.Formats )
@@ -207,7 +207,7 @@ FReply FDatasmithSceneDetails::OnSelectFile()
 
 		FString Extension = FPaths::GetExtension( OpenedFile );
 
-		if ( TSharedPtr< IDataPrepImporterInterface > ImportHandlerPtr = ImportHandlerMap.FindRef( Extension ) )
+		if ( TSharedPtr< IDataprepImporterInterface > ImportHandlerPtr = ImportHandlerMap.FindRef( Extension ) )
 		{
 			// Raw because we don't want to keep alive the details builder when calling the force refresh details
 			IDetailLayoutBuilder* DetailLayoutBuilder = DetailBuilderWeakPtr.Pin().Get();

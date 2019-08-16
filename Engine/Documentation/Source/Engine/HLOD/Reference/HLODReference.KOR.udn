@@ -1,195 +1,238 @@
-﻿INTSourceChangelist:3801260
-Availability: Licensee
-Crumbs: %ROOT%
-Title: 계층형 LOD 아웃라이너 참고서
-Description: 계층형 LOD 아웃라이너에서 찾을 수 있는 인터페이스 요소와 프로퍼티 참고서입니다.
-Type: Reference
-Version: 4.17
-Parent:Engine/HLOD
-Order:2
-Tags:Static Mesh
-Tags:Level of Detail
-Tags:HLOD
-topic-image:Engine/HLOD/defaultHLOD_topic.png
+INTSourceChangelist:6494148
+Availability: Public
+Title: 계층형 LOD 아웃라이너 레퍼런스
+Description: Hierarchical LOD Outliner, 계층형 LOD 아웃라이너의 인터페이스 요소와 프로퍼티에 대한 레퍼런스 페이지입니다.
+Type: reference
+Version: 4.22
+Parent: Engine/HLOD
+Tags: Static Mesh
+Tags: HLOD
+Tags: Level of Detail
+topic-image: HLODOutliner_Breakdown.png
+social-image: HLODOutliner_Breakdown.png
+topic-icon: HLODOutliner_Breakdown.png
+Order: 1
 
 
-여기서는 **계층형 LOD 아웃라이너** (HLOD)의 우클릭 컨텍스트 메뉴와 계층형 LOD(Level of Detail) 셋업 메뉴에 대해 설명합니다. 이 메뉴를 여는 방법과 어떤 옵션이 들어있는지에 대한 정보를 찾아보실 수 
-있습니다.
+[TOC (start:2 end:3)]
 
-[REGION:raw]
-![image alt text](Engine/HLOD/Overview/image_1.png)
+**Hierarchical LOD (Level of Detail) Outliner** (HLOD 아웃라이너)  안에는 HLOD 메시 구성 방법을 정의할 수 있는 여러가지 옵션이 있습니다. [HLOD 시스템 활성화](Engine/HLOD/HowTo/Enabling) 이후 **레벨 에디터** 아래 창 메뉴에서 HLOD 아웃라이너를 열 수 있습니다. 
+[REGION:lightbox]
+[![](HLODOutliner_WindowOption.png)(w:900)](HLODOutliner_WindowOption.png)
+[/REGION]
+[REGION:caption]
+이미지를 클릭하면 원본을 확인합니다.
 [/REGION]
 
-HLOD 프로퍼티 창을 여는 방법은 다음과 같습니다:
+여기서는 **HLOD 아웃라이너** 안에서 사용할 수 있는 프로퍼티를 분석해 보며, 보다 자세한 정보는 각 섹션을 참고하세요.
 
-* 파일 메뉴에서, **창** > **계층형 LOD 아웃라이너** 를 선택합니다.
+![](HLODOutliner_Breakdown.png "HLODOutliner_Breakdown.png")
 
-## 프로퍼티 및 인터페이스 참고서
+1.  **HLOD Actions** HLOD 액션 - 여기서는 레벨의 각 클러스터에 대한 HLOD 프록시 메시 생성, 클러스터 재생성, 레벨에 생성된 클러스터 각각에 대한 프록시 메시를 빌드하고, 모든 외부 HLOD 데이터 저장 또는 LOD 뷰 옵션 사이를 전환할 수 있습니다. 
+
+1.  **HLOD Scene Actors** HLOD 씬 액터 - 여기에는 생성된 각 클러스터 (또는 프록시 메시)와 각 액터에 대한 정보가 포함됩니다. 이 패널에서 **클러스터 생성** 또는 **삭제** 는 물론 씬 액터에 우클릭해서 맥락에 따른 동작을 수행할 수도 있습니다. 
+
+1.  **LODSystem** LOD 시스템 - HLOD 레벨 당 **클러스터** 및 **메시 생성 세팅** 과 함께 포함시키려는 **HLOD 레벨** 개수를 정의할 수 있습니다. 프록시 머티리얼에 사용되는 머티리얼을 오버라이드하거나 **HLODSetup Asset** (HLOD 셋업 애셋)을 오버라이드할 수도 있습니다. 
+
+## 프로퍼티 및 인터페이스 레퍼런스
 
 ![HLOD Outliner Fully Expanded](image_2.png)
 
-### HLOD 액션
+## HLOD 액션
 
-![](InterfaceElements.png)
+**HLOD 아웃라이너** 상단에는 여러가지 옵션이 있습니다. 
 
-**계층형 LOD 아웃라이너** 에 있는 버튼 셋과 슬라이더에 대한 설명입니다.
+![](HLODOutliner_Actions.png "HLODOutliner_Actions.png")
 
-[REGION:raw]
-| --- | :--- |
-| **Generate Clusters** | 클러스터 생성 - 씬에서 그룹으로 묶을 수 있는 **스태틱 메시 액터** 의 구체 클러스터를 생성합니다. 그 처리 방식은 HLOD 아웃라이너의 LOD System 섹션 아래 지정된 각각의 LOD 세팅으로 조절할 수 있습니다. |
-| **Delete Clusters** | 클러스터 삭제 - 기존 이 레벨에 구성해 둔 HLOD 를 전부 삭제합니다. 생성된 프락시 메시는 물론 클러스터도 전부 포함됩니다. HLOD 레벨에서 기존에 설정된 값 또는 프로퍼티를 지우지는 않습니다. |
-| **Generate Proxy Meshes** | [INCLUDE:#gpm] |
-| **Forced Viewing Level** | 강제 표시 레벨 - 에디터에 특정 LOD 가 강제로 표시되도록 합니다. LOD 문제를 디버깅할 때 좋습니다. |
+|||
+| --- | --- |  
+| **Generate Proxy Meshes** | [INCLUDE:#excerpt_0] |
+| **Build (Rebuild) All** | [INCLUDE:#excerpt_1] |
+| **Save All** | 모두 저장 - 모든 외부 HLOD 데이터를 저장할 수 있으며, 메시, 머티리얼, 텍스처가 포함됩니다. |
+| **LOD View** | LOD 뷰 - 에디터 안에서 확인하거나 에디터 안에서 **Forced Viewing Level** (강제로 볼 레벨)을 선택할 수 있는 옵션입니다. LOD 문제를 디버깅하는 데 좋습니다. |
+
+<!--
+[EXCERPT:excerpt_0]
+
+프록시 메시 생성 - 이 옵션은 프록시 메시를 생성하려는 **Generated Clusters** (생성 클러스터)가 생긴 후 활성화됩니다. 프록시 메시를 생성할 때, 이는 클러스터 LOD 를 사용해서 그 **액터** 를 하나의 애셋으로 병합합니다. 프록시 메시 클러스터 생성 방법 정의는 **Cluster Generation Settings** (클러스터 생성 세팅)과 궁극적으로 **Mesh Generation Settings** (메시 생성 세팅)으로 프록시 메시 생성 방법을 정의할 수 있습니다. 이 옵션 역시 전체 레벨이 아닌 생성되는 메시에만 영향을 줍니다. 
+
+[REGION:note]
+이 프로세스는 씬의 복잡도와 HLOD 레벨에 선택한 세팅에 따라 시간이 매우 오래 걸릴 수 있음에 유의하세요.
 [/REGION]
+[/EXCERPT:excerpt_0]
+-->
+<!--
+[EXCERPT:excerpt_1]
 
-### 계층형 LOD 아웃라이너 컨텍스트 메뉴
+모두 빌드 (리빌드) - 이 옵션을 사용하면 클러스터 생성과 그 클러스터에서 프록시 메시 생성 둘 다 한 번에 처리할 수 있습니다. 일반적으로 클러스터를 생성하고 원하는 결과에 만족해야 프록시 메시를 생성하는 것이 좋습니다 (이 옵션은 프록시 메시를 자동으로 빌드합니다). 클러스터를 생성했으면, **Rebuild All** (모두 리빌드) 옵션을 사용할 수 있으며, 클러스터를 재생성하고 그 클러스터에서 프록시 메시를 빌드합니다.
 
-계층형 LOD 아웃라이너에 우클릭하면, 몇 가지 컨텍스트 메뉴가 보입니다. 아래 표에서 메뉴를 열고 그 안에서 볼 수 있는 옵션 관련 정보를 찾을 수 있습니다.
+[REGION:note]
+**Generate Proxy Meshes** (프록시 메시 생성)과 달리 이 옵션은 레벨을 더티 마킹하며 씬 복잡도와 세팅에 따라 시간이 매우 오래 걸릴 수 있습니다.
+[/REGION]
+[/EXCERPT:excerpt_1]
+-->
 
-#### LOD 액터 컨텍스트 메뉴
+## HLOD 씬 액터
 
-**Scene Actor Name** (씬 액터 이름) 열 아래 LOD 액터 중 아무거나 **우클릭** 하면 열리는 메뉴에서 해당 LOD 액터 조작을 할 수 있습니다.
+**HLOD Scene Actor** (HLOD 씬 액터) 패널에서는 레벨의 메시에 대해 (프록시 메시가 아닌) **클러스터 생성** 또는 (레벨의 모든 클러스터를 삭제하는) **클러스터 삭제** 가 가능합니다. 이 패널에는 주어진 LOD 레벨에 대한 모든 LOD 액터와 원래 트라이앵글 수, LOD 메시의 감소된 트라이앵글 수, LOD 메시에 유지되는 트라이앵글 감소 백분율, LOD 메시에 있는 레벨 등 액터 관련 정보가 모두 표시됩니다. 
 
-![](ContextMenu1.png)(w:400)
+![](HLODOutliner_SceneActorWindow.png "HLODOutliner_SceneActorWindow.png")
+
+패널에서 LOD 액터 또는 스태틱 메시 액터에 우클릭하면 추가 작업을 액세스할 수 있습니다.
+
+### LOD 액터 컨텍스트 메뉴
+
+**Scene Actor Name** (씬 액터 이름) 열 아래 나열된 LOD 액터를 우클릭하면 아래 메뉴와 옵션이 뜹니다. 
+
+![](HLODOutliner_LODActorMenu.png "HLODOutliner_LODActorMenu.png")
 
 [REGION:raw]
 | 옵션 | 설명 |
-| --- | :--- |
-| **Select LOD Actor** | LOD 액터 선택 - 뷰포트에서 LOD 액터를 선택합니다 (클러스터 좌클릭과 같습니다). |
-| **Select Contained Actors** | 포함된 액터 선택 - **LOD 클러스터** 에 포함된 모든 **액터** 를 선택합니다. |
-| **ForceView** | 강제 뷰 - 뷰포트의 **HLOD 액터** 뷰 토글입니다. |
-| **Rebuild Proxy Mesh** | 프락시 메시 리빌드 - 우클릭한 클러스터가 그 프락시 메시를 다시 빌드하도록 합니다. |
-| **Create Containing Hierarchical Volume** | 포함된 계층형 볼륨 생성 - **클러스터** 에 포함된 **액터** 주변을 두르는 **Hierarchical Volume** (계층형 볼륨)을 만듭니다. 이 볼륨을 변경하여 포함되는 액터 수를 조절할 수 있습니다. |
+| --- | --- |
+| **Select LOD Actor** | LOD 액터 선택 - 뷰포트의 LOD 액터를 선택합니다 (클러스터 좌클릭과 똑같습니다). |
+| **Select Contained Actors** | 포함된 액터 선택 - LOD 클러스터에 포함된 모든 액터를 선택합니다. |
+| **ForceView** | [INCLUDE:#excerpt_2] |
+| **Rebuild Proxy Mesh** | 프록시 메시 리빌드 - 우클릭한 클러스터의 프록시 메시를 강제 리빌드합니다. |
+| **Create Containing Hierarchical Volume** | 포함하는 계층형 볼륨 생성 - 클러스터에 포함된 액터 주변에 계층형 볼륨을 생성한 다음 수정해서 더 많고 적은 액터를 아우르도록 할 수 있습니다. |
 | **Delete Cluster** | 클러스터 삭제 - 우클릭한 클러스터를 삭제합니다. |
+
+<!--
+[EXCERPT:excerpt_2]
+
+강제 뷰 - 뷰포트의 HLOD 액터의 LOD 뷰를 토글합니다.   
+
+[REGION:note]
+이 옵션은 프록시 메시에 빌드된 LOD 액터에 사용할 수 있습니다.
+[/REGION]
+[/EXCERPT:excerpt_2]
+-->
 [/REGION]
 
-#### 액터 컨텍스트 메뉴
+### 액터 컨텍스트 메뉴
 
-LOD 액터 옆 화살표로 생성된 HLOD 클러스터에 포함된 씬 액터를 확장합니다. 이 확장 목록의 액터를 **우클릭** 하면 제거 또는 클러스터 생성에서 제외시킬 수 있습니다.
+LOD 액터를 펼치면 생성된 HLOD 클러스터에 포함된 씬 액터가 노출됩니다. 씬 액터에 우클릭하면 다음과 같은 옵션이 나옵니다.   
 
-![](ContextMenu2.png)(w:400)
+![](HLODOutliner_SMContext.png "HLODOutliner_SMContext.png")
 
 [REGION:raw]
 | 옵션 | 설명 |
-| --- | :--- |
-| **Remove From Cluster** | 클러스터에서 제거 - 우클릭한 **액터** 를 **클러스터** 에서 제거합니다. |
-| **Exclude From Cluster Generation** | 클러스터 생성에서 제외 - 우클릭한 **액터** 를 **클러스터** 생성에서 제외시킵니다. 제외된 **액터** 를 다시 추가하려면, **월드 아웃라이너** 에서 끌어 **계층형 LOD 아웃라이너** 의 **클러스터** 에 놓으면 됩니다. |
+| --- | --- |
+| **Remove From Cluster** | 클러스터에서 제거 - 클러스터에서 우클릭한 액터를 제거합니다. |
+| **Exclude From Cluster Generation** | 클러스터 생성에서 제외 - 클러스터 생성에서 우클릭한 액터를 제외합니다. 제외한 액터를 다시 추가하려면 **월드 아웃라이너** 에서 **계층형 LOD 아웃라이너** 로 다시 드래그하면 됩니다. |
 [/REGION]
 
-### 프로퍼티
+## 프로퍼티
 
-**계층형 LOD 아웃라이너** 인터페이스 하단에 위치한 **LOD 시스템** 패널의 **Hierarchical LODSetup** 에서 찾을 수 있는 프로퍼티를 크게 나눠보면 다음과 같습니다.
+아래는 **계층형 HLOD 아웃라이너** 인터페이스 하단에 위치한 **LOD 시스템** 패널의 **Hierarchical LODSetup** (계층형 LOD 셋업)에서 찾을 수 있는 프로퍼티를 주요 섹션별로 나눈 것입니다.
 
 ### 클러스터 생성 세팅
 
-**Cluster Generation** (클러스터 생성) 세팅에서는 HLOD 클러스터 생성 방식을 제어할 수 있는데, 여기에는 클러스터에 원하는 바운드를 설정하여 레벨의 액터를 포함시키는 방법, 클러스터 포화도, 클러스터 생성에 사용되는 최소 액터 수를 설정할 수 있습니다.
+**Cluster Generation** (클러스터 생성) 세팅에서는 원하는 클러스터 바운드를 설정하여 레벨에서 클러스터 생성에 포함시킬 액터를 결정하는 방법, 클러스터의 포화도, 클러스터 생성에 필요한 액터 최소 개수를 제어할 수 있습니다.
 
-![](cluster.png)
+![](HLODOutliner_ClusterSettings.png "HLODOutliner_ClusterSettings.png")
 
 [REGION:raw]
 | 프로퍼티 | 설명 |
-| --- | :--- |
-| **Desired Bound Radius** | 원하는 바운드 반경 - 보장되는 것은 아니지만, 자동 클러스터를 채우는 비율을 계산하는 데 사용됩니다. |
-| **Desired Filling Percentage** | 원하는 채우기 비율 - 보장되는 것은 아니지만, 자동 클러스터를 채우는 비율을 계산하는 데 사용됩니다. |
-| **Min Number of Actors to Build** | 빌드할 액터 최소 개수 - LOD 액터를 빌드할 **액터** 최소 개수입니다. |
+| --- | --- |
+| **Allow Specific Exclusion** | 특정 제외 허용 - 메시 컴포넌트의 프로퍼티와 함께 사용되며, 이 메시에 대해 포함시키지 않을 HLOD 레벨 인덱스를 추가할 수 있습니다. HLOD 레벨 0 에 대한 작은 소품만 포함하고, 이후의 HLOD 에 대해서는 (일정 거리 이상에서는 보이지 않거나 할테니) 무시할 수 있습니다.  |
+| **Desired Bound Radius** | 원하는 바운드 반경 - 메시 클러스터를 반들 반경입니다. 보장되지는 않지만 자동 클러스터링에서 채우기 비율을 계산하는 데 사용됩니다. |
+| **Desired Filling Percentage** | 원하는 채우기 백분율 - 클러스터를 생성할 때, 클러스터의 바운드(구체) 얼마만큼을 거기 포함된 액터 바운드가 차지하도록 할지 결정합니다. 본질적으로 포함된 액터가 사용해야 하는 클러스터 볼륨의 % 입니다. |
+| **Min Number of Actors to Build** | 빌드할 액터 최소 개수 - LOD 액터를 빌드하는 데 필요한 액터 최소 개수입니다. |
+| **Only Generate Clusters for Volumes** | 볼륨에 대한 클러스터만 생성 - 활성화하면 HLOD 볼륨 내 메시에 대한 클러스터만 생성합니다. |
 [/REGION]
 
 ### 메시 생성 세팅
 
-**Mesh Generation** (메시 생성) 세팅에서는 HLOD 클러스터 액터 병합 시 사용되는 프로퍼티 제어할 수 있는데, 라이트맵 생성, 머티리얼 합치기, 트랜지션 크기 등입니다.
+**Mesh Generation** (메시 생성) 세팅에서는 HLOD 클러스터 액터 병합 시 사용되는 프로퍼티를 제어할 수 있으며, 예를 들면 라이트맵 생성, 머티리얼 합침, 전환 크기 등입니다.
 
-![](meshSettings.png)
+![](HLODOutliner_MeshGeneration.png "HLODOutliner_MeshGeneration.png")
 
 [REGION:raw]
 | 프로퍼티 | 설명 |
-| --- | :--- |
-| **Transition Screen Size** | 트랜지션 화면 크기 - 메시의 화면상 크기가 (반경으로) 이정도가 되면 HLOD 액터로 교체합니다. 부모 LOD 를 표시할 때, 자손은 표시하지 않습니다. |
-| [REGION:tablesection] 병합 세팅 [/REGION] ||
-| **Generate Light Map UV** | 라이트 맵 UV 생성 - 켜면 병합된 메시에 대한 라이트맵 UV 를 생성하여 Lightmap Coordinate Index 를 1 로 할당합니다. |
-| **Target Light Map Resolution** | 타깃 라이트 맵 해상도 - HLOD 액터에 사용하고자 하는 라이트맵 해상도입니다. |
-| **Pivot Point at Zero** | 영점에 피벗 포인트 - 병합 메시가 World Origin (좌표 0,0,0) 에 피벗을 위치시킬지, 아니면 피벗을 HLOD 클러스터 생성 시 나열되는 첫 액터에 위치시킬지 입니다. |
-| **Merge Physics Data** | 피직스 데이터 병합 - 켜면, 합친 메시에 대해 콜리전 프리미티브를 병합합니다. |
-| **Merge Materials** | 머티리얼 병합 - 켜면, 소스 머티리얼을 단일 플랫 머티리얼에 병합시킵니다. |
-| **Material Settings** | 머티리얼 세팅 - 여기 세팅으로 HLOD 액터 생성 시 머티리얼 패킹 및 합침 방식을 제어할 수 있습니다. [INCLUDE:#materialsettings] |
-| **Bake Vertex Data to Mesh** | 버텍스 데이터를 메시에 굽기 - 켜면, 선택된 메시에 칠해진 버텍스 컬러가 있는 경우 생성되는 HLOD 액터 및 머티리얼에 반영됩니다. |
-| **Use Vertex Data for Baking Material** | 머티리얼을 굽는 데 버텍스 데이터 사용 - 켜면, 머티리얼을 구워낼 때 버텍스 데이터를 사용합니다. |
-| **Use Texture Binning** | 텍스처 비닝 사용 - 최종 아틀라스 텍스처를 패킹할 때 중요도에 따라 텍스처 출력 크기를 각기 다르게 계산합니다. |
-| **Use Landscape Culling** | 랜드스케이프 컬링 사용 - 켜면, 랜드스케이프 지오메트리를 사용하여 보이지 않는 메시 트라이앵글 섹션을 컬링( 또는 제거)해 냅니다. |
-[/REGION]
-
-[COMMENT:none]
-
-[EXCERPT:GPM]
-프락시 메시를 생성할 때, 클러스터로 묶인 LOD 를 사용하여 이 **액터** 를 하나의 애셋으로 병합시킵니다. HLOD 레벨에 어떤 세팅을 변경했는지에 따라, 스태틱 메시는 이를 기준으로 생성됩니다. 머티리얼, 라이트맵, 기타 여러가지 프로퍼티에도 영향을 끼칠 수 있습니다.
-
-[REGION:note]
-참고로 이 프로세스는 씬 복잡도와 HLOD 레벨 설정에 따라 **시간이 매우 오래** 걸릴 수 있다는 점 주의하시기 바랍니다.
-[/REGION]
-[/EXCERPT]
-
-[EXCERPT:TST]
-
-텍스처 크기 유형 설명
-
-[REGION:raw]
-| 유형 | 설명 |
-| --- | :--- |	
-| **Use TextureSize for all material properties** | 모든 머티리얼 프로퍼티에 TextureSize 사용 - 크기를 잡는 데 **Texture Size** 에 입력된 값을 사용합니다. |
-| **Use automatically biased texture sizes based on TextureSize** | TextureSize 에 따라 바이어스가 자동 적용된 텍스처 크기 사용 - **{노멀:디퓨즈:기타}** 텍스처에 바이어스가 적용된 세트를 **{1:0.5:0.25}** 비율로 자동 생성합니다. 즉 TextureSize 가 512 로 설정되어 있다면, 노멀맵 512, 디퓨즈맵 256, 러프니스나 스페큘러 등에는 128 을 사용합니다 (디퓨즈는 32x32 로, 러프니스 스페큘러 등은 16x16 으로 클램핑이 적용됩니다). |
-| **Use per property manually overridden texture sizes** | 프로퍼티별 수동 덮어쓴 텍스처 크기값 사용 - 텍스처 별로 **Texture Size** 대신 대체값을 사용할 수 있도록 합니다. |
-| **Use Simplygon's automatic texture sizing** | 심플리곤의 자동 텍스처 사이징 사용 - 심플리곤의 압축(decimation) 세팅에 따른 텍스처 크기 설정 알고리즘을 사용합니다. 이미 심플리곤을 사용중일 때만 사용해야 합니다. |
-[/REGION]
-[/EXCERPT]
-
-[EXCERPT:blendmode]
-| 선택 | 설명 |
 | --- | --- |
-| **Opaque** | 불투명 - 빛이 통과하지도 투과하지도 못하는 표면을 정의하는 블렌드 모드입니다. |
-| **Masked** | 마스크 - 머티리얼이 보이고 안보이는 영역을 마스크를 통한 이진 (켜고 끄는) 방식으로 표시여부를 정의하는 블렌드 모드입니다. |
-| **Translucent** | 반투명 - 오파시티(불투명도) 값으로 머티리얼의 표시여부를 정의하는 블렌드 모드입니다. |
-| **Additive** | 더하기식 - 머티리얼의 픽셀 값을 받아 배경의 픽셀에 더하는 블렌드 모드입니다. |
-| **Modulate** | 모듈레이트 - 머티리얼의 값에 배경의 픽셀을 곱하는 블렌드 모드입니다. |
-| **Alpha Composite (Premultiplied Alpha)** | 알파 합성 (알파 미리 곱하기) - 미리 곱셈을 적용한 알파가 이미 있는 텍스처와 함께 사용되는 블렌드 모드입니다. |
-[/EXCERPT:blendmode]
+| **Transition Screen Size** | 전환 화면 크기 - 클러스터 크기에 따라 클러스터를 표시할 거리를 계산합니다. 고정 시야(FOV) / 16:9 종횡비에 따라 클러스터가 사용자 정의 화면 크기를 차지할 거리를 계산합니다. 미리 정의된 거리에서 모든 클러스터를 강제 전환하려면 **Override draw distance** (그리기 거리 오버라이드)를 사용하세요. |
+| **Override Draw Distance** | 그리기 거리 오버라이드 - 모든 클러스터가 미리 정의된 거리에서 강제 전환됩니다.  |
+| **Simplify Mesh** | [INCLUDE:#excerpt_3] |
+| [REGION:tablesection]Merge Settings[/REGION] | **병합 세팅** |
+| **Generate Light Map UV** | 라이트맵 UV 생성 - 활성화하면 병합된 메시에 대한 라이트맵 UV 를 생성하고 Lightmap Coordinate Index (라이트맵 좌표 인덱스)를 1 로 할당합니다. |
+| **Target Light Map Resolution** | 목표 라이트맵 해상도 - HLOD 액터에 사용하려는 라이트맵 해상도입니다. |
+| **Computed Light Map Resolution** | 계산된 라이트맵 해상도 - 입력 메시 컴포넌트에 대한 라이트맵 해상도를 합산하여 라이트맵 해상도를 계산할지 여부입니다. |
+| **Pivot Point at Zero** | 0에 피벗 포인트 - 병합된 메시의 피벗 포인트를 월드 원점 (좌표 0,0,0)에 둘지, 아니면 HLOD 클러스터 생성 시 나열되는 첫 번째 액터 위치에 둘지 입니다. |
+| **Merge Physics Data** | 피직스 데이터 병합 - 활성화하면 콜리전 프리미티브를 합친 액터에 대해 병합합니다. |
+| **Merge Materials** | 머티리얼 병합 - 활성화하면 시스템은 모든 포함 메시에 할당된 머티리얼을 구워서 하나의 머티리얼로 합칩니다. 병합된 메시의 드로 콜 복잡도를 낮출 수 있으며, 프록시 메시를 생성하기 보다는 메시를 병합할 때만 사용됩니다. 메시를 단순화하는 경우 항상 머티리얼을 구워서 프록시 메시에 적용합니다. |
+| **Material Settings** | [INCLUDE:#excerpt_4] |
+| **Gutter Size** | 최상위 밉 레벨을 구운 머티리얼에 대한 각 서브 차트에 추가할 (텍셀 단위) 여백입니다. |
+| **Bake Vertex Data to Mesh** | 버텍스 데이터를 메시에 굽기 - 활성화하면 (버텍스 컬러와 같은) 버텍스 데이터를 결과 프록시 메시에 구워 넣습니다. |
+| **Output UVs** | 출력 UV - 활성화하면 선택된 메시에 페인트한 버텍스 컬러는 생성되는 HLOD 액터 및 머티리얼에 통합됩니다. |
+| **LODSelection Type** | LOD 선택 유형 - LOD 레벨 결정 방식을 정의할 수 있습니다. |
+| **Specific LOD** | 특정 LOD - 소스 메시에서 익스포트할 LOD 레벨입니다. |
+| **Use Vertex Data for Baking Material** | 머티리얼 굽기에 버텍스 데이터 사용 - 활성화하면 머티리얼을 구울 때 버텍스 데이터를 사용합니다. |
+| **Use Texture Binning** | 텍스처 비닝 사용 - 최종 아틀라스 텍스처 패킹 시 텍스처의 중요도에 따른 가변 출력 텍스처 크기를 계산합니다. |
+| **Reuse Mesh Lightmap UVs** | 메시 라이트맵 UV 재사용 - 머티리얼을 구울 때 소스 메시의 라이트맵 UV 를 재사용 시도할지 항상 새로운 세트를 생성할지 여부입니다. |
+| **Merge Equivalent Materials** | [INCLUDE:#excerpt_7] |
+| **Use Landscape Culling** | 랜드스케이프 컬링 사용 - 활성화하면 랜드스케이프 지오메트리를 사용해서 보이지 않는 메시의 트라이앵글 섹션을 컬링( 또는 제거)할 수 있습니다. |
+| **Allow Distance Field** | [INCLUDE:#excerpt_8] |
 
+<!--
+[EXCERPT:excerpt_3]
 
+메시 단순화 - 활성화하면 결과 메시를 단순화합니다. 비활성화하면 그냥 액터만 병합하고 그보다 낮은 LOD 가 존재해도 단순화하지 않습니다. 예를 들어 LOD 1 을 빌드하는 경우, 메시의 LOD 1 이 존재하면 병합할 때 사용합니다. 머티리얼을 병합하면 드로 콜이 줄어 듭니다.
 
-[/COMMENT]
+[/EXCERPT:excerpt_3]
+-->
+<!--
+[EXCERPT:excerpt_4]
 
+이 세팅은 HLOD 액터를 생성할 때 머티리얼 패킹과 합치는 방식을 제어할 수 있습니다.
 
-[COMMENT:none]
---
-[INCLUDE:#materialsettings]
-
-[EXCERPT:materialsettings]
 [REGION:raw]
 | 프로퍼티 | 설명 |
-| --- | :--- |
-| **Texture Size** | 텍스처 크기 - 생성된 베이스 컬러 텍스처 맵의 크기입니다. |
-| **Texture Sizing Type** | [INCLUDE:#tst] |
+| --- | --- |
+| **Texture Size** | 텍스처 크기 - 생성되는 베이스 컬러 텍스처 맵 크기입니다. |
+| **Texture Sizing Type** | 텍스처 사이징 유형 - 지정한 **Texture Size** 파라미터를 모든 머티리얼 프로퍼티에 사용할지, 그에 따라 바이어스를 자동 적용한 텍스처 크기를 사용할지, 아니면 프로퍼티 별 수동 오버라이드한 Texture Size 를 사용할지 여부입니다. |
 | **Normal Map** | 노멀 맵 - 노멀 맵 생성 여부입니다. |
 | **Metallic Map** | 메탈릭 맵 - 메탈릭 맵 생성 여부입니다. |
-| **Metallic Constant** | 메탈릭 상수 - 텍스처 맵 대신 러프니스 상수 값을 설정할 수 있습니다. |
+| **Metallic Constant** | 메탈릭 상수 - 텍스처 맵 대신 사용할 메탈릭 상수 값을 설정할 수 있습니다. |
 | **Roughness Map** | 러프니스 맵 - 러프니스 맵 생성 여부입니다. |
-| **Roughness Constant** | 러프니스 상수 - 텍스처 맵 대신 러프니스 상수 값을 설정할 수 있습니다. |
+| **Roughness Constant** | 러프니스 상수 - 텍스처 맵 대신 사용할 러프니스 상수 값을 설정할 수 있습니다. |
 | **Specular Map** | 스페큘러 맵 - 스페큘러 맵 생성 여부입니다. |
-| **Specular Constant** | 스페큘러 상수 - 텍스처 맵 대신 러프니스 상수 값을 설정할 수 있습니다. |
+| **Specular Constant** | 스페큘러 상수 - 텍스처 맵 대신 사용할 스페큘러 상수 값을 설정할 수 있습니다. |
 | **Emissive Map** | 이미시브 맵 - 이미시브 맵 생성 여부입니다. |
-| **Opacity Map** | 오파시티 맵 - 체크하면, 결과 병합 액터에 대해 오파시티 맵을 구워냅니다. Opacity Constant 프로퍼티를 null 로 만듭니다. **Blend Mode** 역시 **Translucent** 로 해야 생성된 인스턴스에서 제대로 표시됩니다. |
-| **Opacity Constant** | 오파시티 상수 - 오파시티 맵이 체크되지 않은 경우에만 켜지며, 결과 병합 액터의 머티리얼에서 오파시티 프로퍼티에 상수값을 설정합니다. |
-| **Opacity Mask Map** | 오파시티 마스크 맵 - 체크하면, 결과 병합 액터에 대해 오파시티 마스크 맵을 구워냅니다. Opacity Mask Constant 프로퍼티를 null 로 만듭니다. **Blend Mode** 역시 **Masked** 로 해야 생성된 인스턴스에서 제대로 표시됩니다. |
-| **Opacity Mask Constant** | 오파시티 마스크 상수 - Opacity Mask Map 이 체크되지 않은 경우에만 켜지며, 결과 병합된 액터의 머티리얼에 Opacity Mask 프로퍼티에 대한 상수값을 설정합니다. |
-| **Diffuse Texture Size** | 디퓨즈 텍스처 크기 - 티퓨즈 텍스처 크기 대체값입니다. **Texture Sizing Type** (텍스처 크기 유형)이 **Use per property manually overriden texture sizes** (크기를 수동 덮어쓴 프로퍼티마다 사용)으로 설정 된 경우 활성화됩니다. |
-| **Normal Texture Size** | 노멀 텍스처 크기 - 노멀 텍스처 크기 대체값입니다. **Texture Sizing Type** (텍스처 크기 유형)이 **Use per property manually overriden texture sizes** (크기를 수동 덮어쓴 프로퍼티마다 사용)으로 설정된 경우 활성화됩니다. |
-| **Metallic Texture Size** | 메탈릭 텍스처 크기 - 메탈릭 텍스처 크기 대체값입니다. **Texture Sizing Type** (텍스처 크기 유형)이 **Use per property manually overriden texture sizes** (크기를 수동 덮어쓴 프로퍼티마다 사용)으로 설정된 경우 활성화됩니다. |
-| **Roughness Texture Size** | 러프니스 텍스처 크기 - 러프니스 텍스처 크기 대체값입니다. **Texture Sizing Type** (텍스처 크기 유형)이 **Use per property manually overriden texture sizes** (크기를 수동 덮어쓴 프로퍼티마다 사용)으로 설정된 경우 활성화됩니다. |
-| **Specular Texture Size** | 스페큘러 텍스처 크기 - 스페큘러 텍스처 크기 대체값입니다. **Texture Sizing Type** (텍스처 크기 유형)이 **Use per property manually overriden texture sizes** (크기를 수동 덮어쓴 프로퍼티마다 사용)으로 설정된 경우 활성화됩니다. |
-| **Emissive Texture Size** | 이미시브 텍스처 크기 - 이미시브 텍스처 크기 대체값입니다. **Texture Sizing Type** (텍스처 크기 유형)이 **Use per property manually overriden texture sizes** (크기를 수동 덮어쓴 프로퍼티마다 사용)으로 설정된 경우 활성화됩니다. |
-| **Opacity Texture Size** | 오파시티 텍스처 크기 - 오파시티 텍스처 크기를 덮어씁니다. **Texture Sizing Type** (텍스처 크기 설정 유형)이 **Use per property manually overriden texture sizes** (프로퍼티별로 수동 오버라이드 텍스처 크기 사용)으로 설정되면 켜집니다. |
-| **Opacity Mask Texture Size** | 오파시티 마스크 텍스처 크기 - 오파시티 마스크 텍스처 크기를 덮어씁니다. **Texture Sizing Type** (텍스처 크기 설정 유형)이 **Use per property manually overriden texture sizes** (프로퍼티별로 수동 오버라이드 텍스처 크기 사용)으로 설정되면 켜집니다. |
-| **Blend Mode** | 블렌드 모드 - 머티리얼 색과 배경색의 블렌딩 방식을 결정합니다. [INCLUDE:#blendmode] |
+| **Opacity Map** | 오파시티 맵 - 활성화하면 결과 병합 액터에 대해 오파시티 맵을 굽습니다. Opacity Constant 프로퍼티는 null 이 됩니다.
+[REGION:note]
+반드시 **Blend Mode** 를 **Translucent** 로 해야 생성되는 인스턴스가 제대로 표시됩니다.
 [/REGION]
-[/EXCERPT:materialsettings]
+|
+| **Opacity Constant** | 오파시티 상수 - Opacity Map 이 비활성화된 경우에만 활성화되며, 결과 병합 액터 머티리얼의 오파시티 프로퍼티에 대한 상수 값을 설정합니다. |
+| **Opacity Mask Map** | 오파시티 마스크 맵 - 활성화하면 결과 병합 액터에 대해 오파시티 마스크 맵을 굽습니다. Opacity Mask Constant 프로퍼티는 null 이 됩니다.
+[REGION:note]
+반드시 **Blend Mode** 를 **Masked** 로 해야 생성되는 인스턴스가 제대로 표시됩니다.
+[/REGION]
+|
+| **Opacity Mask Constant** | 오파시티 마스크 상수 - Opacity Mask Map 이 비활성화된 경우에만 활성화되며, 결과 병합 액터 머티리얼의 Opacity Mask 프로퍼티에 대한 상수 값을 설정합니다. |
+| **Ambient Occlusion Map** | 앰비언트 오클루전 맵 생성 여부입니다. |
+| **Ambient Occlusion Constant** | 앰비언트 오클루전 상수 - 텍스처 맵 대신 사용할 앰비언트 오클루전 상수 값을 설정할 수 있습니다. |
+| **Blend Mode** | 블렌드 모드 - 프록시 머티리얼에 대한 [블렌드 모드](Engine/Rendering/Materials/MaterialProperties/BlendModes) 를 정의할 수 있습니다. |
+[/REGION]
+[/EXCERPT:excerpt_4]
+-->
+<!--
+[EXCERPT:excerpt_7]
+해당 머리티얼 병합 - 병합 메시 또는 프록시 메시를 생성할 때마다 구울 머티리얼을 결정해야 합니다. 이 값을 설정할 때마다, 머티리얼 인스턴스도 병합합니다. 배치한 소품에 대해 다이내믹 머티리얼 인스턴스가 생성된다 가정해 봅시다. 본질적으로 내부에서는 같은 머티리얼이지만, 인스턴스별 프로퍼티가 있을 것입니다. 즉 이들을 병합하면 모든 메시에 대해 인스턴스를 하나만 사용하므로, HLOD 메시 최종 모습은 원본과 달라질 수 있다는 뜻입니다.
 
--
-[/COMMENT]
+[REGION:note]
+월드 포지션/액터 포지션을 사용해서 출력 컬러를 결정하는 경우 병합 메시에 부작용이 생길 수 있습니다.
+[/REGION]
+[/EXCERPT:excerpt_7]
+-->
+<!--
+[EXCERPT:excerpt_8]
+
+디스턴스 필드 허용 - 이 메시에 디스턴스 필드 계산 허용 여부입니다. 
+
+[REGION:tip]
+병합 메시가 원거리에서만 렌더링되는 경우 이 옵션을 비활성화하면 메모리를 절약할 수 있습니다.
+[/REGION]
+[/EXCERPT:excerpt_8]
+-->
+[/REGION]

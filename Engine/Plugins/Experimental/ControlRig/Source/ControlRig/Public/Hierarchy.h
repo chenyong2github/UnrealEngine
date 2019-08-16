@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Stats/StatsHierarchical.h"
 #include "Hierarchy.generated.h"
 
 class UControlRig;
@@ -41,6 +42,7 @@ struct CONTROLRIG_API FRigHierarchy
 {
 	GENERATED_BODY()
 
+private:
 	UPROPERTY(EditAnywhere, Category = FRigHierarchy)
 	TArray<FRigBone> Bones;
 
@@ -48,8 +50,17 @@ struct CONTROLRIG_API FRigHierarchy
 	UPROPERTY()
 	TMap<FName, int32> NameToIndexMapping;
 
+public:
+
+	const TArray<FRigBone>& GetBones() const 
+	{ 
+		return Bones; 
+	}
+
 	void AddBone(const FName& NewBoneName, const FName& Parent, const FTransform& InitTransform)
 	{
+		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 		int32 ParentIndex = GetIndex(Parent);
 		bool bHasParent = (ParentIndex != INDEX_NONE);
 
@@ -76,6 +87,8 @@ struct CONTROLRIG_API FRigHierarchy
 
 	void Reparent(const FName& InBone, const FName& NewParent)
 	{
+		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 		int32 Index = GetIndex(InBone);
 		// can't parent to itself
 		if (Index != INDEX_NONE && InBone != NewParent)
@@ -96,6 +109,8 @@ struct CONTROLRIG_API FRigHierarchy
 
 	void DeleteBone(const FName& BoneToDelete, bool bIncludeChildren)
 	{
+		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 		TArray<int32> Children;
 		if (GetChildren(BoneToDelete, Children, true) > 0)
 		{
@@ -122,6 +137,8 @@ struct CONTROLRIG_API FRigHierarchy
 
 	FName GetParentName(const FName& InBone) const
 	{
+		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 		int32 Index = GetIndex(InBone);
 		if (Index != INDEX_NONE)
 		{
@@ -133,6 +150,8 @@ struct CONTROLRIG_API FRigHierarchy
 
 	int32 GetParentIndex(const int32 BoneIndex) const
 	{
+		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 		if (BoneIndex != INDEX_NONE)
 		{
 			return Bones[BoneIndex].ParentIndex;
@@ -143,11 +162,15 @@ struct CONTROLRIG_API FRigHierarchy
 	// list of names of children - this is not cheap, and is supposed to be used only for one time set up
 	int32 GetChildren(const FName& InBone, TArray<int32>& OutChildren, bool bRecursively) const
 	{
+		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 		return GetChildren(GetIndex(InBone), OutChildren, bRecursively);
 	}
 
 	int32 GetChildren(const int32 InBoneIndex, TArray<int32>& OutChildren, bool bRecursively) const
 	{
+		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 		OutChildren.Reset();
 
 		if (InBoneIndex != INDEX_NONE)
@@ -160,6 +183,8 @@ struct CONTROLRIG_API FRigHierarchy
 
 	FName GetName(int32 Index) const
 	{
+		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 		if (Bones.IsValidIndex(Index))
 		{
 			return Bones[Index].Name;
@@ -170,6 +195,8 @@ struct CONTROLRIG_API FRigHierarchy
 
 	int32 GetIndex(const FName& Bone) const
 	{
+		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 		// ensure if it does not match
 		//ensureAlways(Bones.Num() == NameToIndexMapping.Num());
 
@@ -189,6 +216,8 @@ struct CONTROLRIG_API FRigHierarchy
 	// we don't want to build mapping data every time
 	int32 GetIndexSlow(const FName& Bone) const
 	{
+		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 		for (int32 BoneId = 0; BoneId < Bones.Num(); ++BoneId)
 		{
 			if (Bones[BoneId].Name == Bone)
@@ -207,6 +236,8 @@ struct CONTROLRIG_API FRigHierarchy
 
 	void SetGlobalTransform(int32 Index, const FTransform& InTransform, bool bPropagateTransform = true)
 	{
+		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 		if (Bones.IsValidIndex(Index))
 		{
 			FRigBone& Bone = Bones[Index];
@@ -223,11 +254,15 @@ struct CONTROLRIG_API FRigHierarchy
 
 	FTransform GetGlobalTransform(const FName& Bone) const
 	{
+		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 		return GetGlobalTransform(GetIndex(Bone));
 	}
 
 	FTransform GetGlobalTransform(int32 Index) const
 	{
+		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 		if (Bones.IsValidIndex(Index))
 		{
 			return Bones[Index].GlobalTransform;
@@ -238,11 +273,15 @@ struct CONTROLRIG_API FRigHierarchy
 
 	void SetLocalTransform(const FName& Bone, const FTransform& InTransform, bool bPropagateTransform = true)
 	{
+		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 		SetLocalTransform(GetIndex(Bone), InTransform, bPropagateTransform);
 	}
 
 	void SetLocalTransform(int32 Index, const FTransform& InTransform, bool bPropagateTransform = true)
 	{
+		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 		if (Bones.IsValidIndex(Index))
 		{
 			FRigBone& Bone = Bones[Index];
@@ -263,6 +302,8 @@ struct CONTROLRIG_API FRigHierarchy
 
 	FTransform GetLocalTransform(int32 Index) const
 	{
+		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 		if (Bones.IsValidIndex(Index))
 		{
 			return Bones[Index].LocalTransform;
@@ -273,11 +314,15 @@ struct CONTROLRIG_API FRigHierarchy
 
 	void SetInitialTransform(const FName& Bone, const FTransform& InTransform)
 	{
+		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 		SetInitialTransform(GetIndex(Bone), InTransform);
 	}
 
 	void SetInitialTransform(int32 Index, const FTransform& InTransform)
 	{
+		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 		if (Bones.IsValidIndex(Index))
 		{
 			FRigBone& Bone = Bones[Index];
@@ -289,11 +334,15 @@ struct CONTROLRIG_API FRigHierarchy
 
 	FTransform GetInitialTransform(const FName& Bone) const
 	{
+		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 		return GetInitialTransform(GetIndex(Bone));
 	}
 
 	FTransform GetInitialTransform(int32 Index) const
 	{
+		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 		if (Bones.IsValidIndex(Index))
 		{
 			return Bones[Index].InitialTransform;
@@ -304,6 +353,8 @@ struct CONTROLRIG_API FRigHierarchy
 	// @todo: move to private
 	void RecalculateLocalTransform(FRigBone& InOutBone)
 	{
+		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 		bool bHasParent = InOutBone.ParentIndex != INDEX_NONE;
 		InOutBone.LocalTransform = (bHasParent) ? InOutBone.GlobalTransform.GetRelativeTransform(Bones[InOutBone.ParentIndex].GlobalTransform) : InOutBone.GlobalTransform;
 	}
@@ -311,12 +362,16 @@ struct CONTROLRIG_API FRigHierarchy
 	// @todo: move to private
 	void RecalculateGlobalTransform(FRigBone& InOutBone)
 	{
+		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 		bool bHasParent = InOutBone.ParentIndex != INDEX_NONE;
 		InOutBone.GlobalTransform = (bHasParent) ? InOutBone.LocalTransform * Bones[InOutBone.ParentIndex].GlobalTransform : InOutBone.LocalTransform;
 	}
 
 	void Rename(const FName& OldName, const FName& NewName)
 	{
+		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 		if (OldName != NewName)
 		{
 			const int32 Found = GetIndex(OldName);
@@ -383,6 +438,8 @@ private:
 	}
 
 	void PropagateTransform(int32 BoneIndex);
+
+	friend FRigHierarchyRef;
 };
 
 USTRUCT()

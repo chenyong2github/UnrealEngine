@@ -16,7 +16,7 @@ struct FPropertyChangedEvent;
 struct FSoundParseParameters;
 struct FWaveInstance;
 
-/** 
+/**
  * Sound node that contains a reference to the raw wave file to be played
  */
 UCLASS(hidecategories=Object, editinlinenew, MinimalAPI, meta=( DisplayName="Wave Player" ))
@@ -34,7 +34,7 @@ private:
 	void OnSoundWaveLoaded(const FName& PackageName, UPackage * Package, EAsyncLoadingResult::Type Result, bool bAddToRoot);
 
 	uint32 bAsyncLoading:1;
-public:	
+public:
 
 	UPROPERTY(EditAnywhere, Category=WavePlayer)
 	uint32 bLooping:1;
@@ -52,7 +52,7 @@ public:
 	//~ Begin USoundNode Interface
 	virtual int32 GetMaxChildNodes() const override;
 	virtual float GetDuration() override;
-	virtual bool IsVirtualizeWhenSilent() const override;
+	virtual bool IsPlayWhenSilent() const override;
 	virtual int32 GetNumSounds(const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound) const { return 1; }
 	virtual void ParseNodes(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound, const FSoundParseParameters& ParseParams, TArray<FWaveInstance*>& WaveInstances) override;
 #if WITH_EDITOR

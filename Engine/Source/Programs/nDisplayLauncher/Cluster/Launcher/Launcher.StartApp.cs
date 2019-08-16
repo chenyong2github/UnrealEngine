@@ -21,9 +21,15 @@ namespace nDisplayLauncher.Cluster
 				return;
 			}
 
-			if (!File.Exists(SelectedApplication))
+			string Application = SelectedApplication;
+			int FirstSpacePos = Application.IndexOf(' ');
+			if (FirstSpacePos > 0)
 			{
-				AppLogger.Log("No application found: " + SelectedApplication);
+				Application = SelectedApplication.Substring(0, FirstSpacePos);
+			}
+			if (!File.Exists(Application))
+			{
+				AppLogger.Log("Application not found: " + Application);
 				return;
 			}
 
@@ -48,9 +54,32 @@ namespace nDisplayLauncher.Cluster
 		private string GenerateStartCommand(EntityClusterNode Node, Configuration Config)
 		{
 			string commandCmd = string.Empty;
+			string Application = SelectedApplication;
+			string ExtraAppParams = string.Empty;
 
 			// Executable
-			commandCmd = string.Format("{0} \"{1}\"", CommandStartApp, SelectedApplication);
+			int FirstSpacePos = SelectedApplication.IndexOf(' ');
+			if (FirstSpacePos > 0)
+			{
+				Application = SelectedApplication.Substring(0, FirstSpacePos);
+				ExtraAppParams = SelectedApplication.Substring(FirstSpacePos +1);
+			}
+			commandCmd = string.Format("{0} \"{1}\"", CommandStartApp, Application);
+
+			if (!string.IsNullOrWhiteSpace(ExtraAppParams))
+			{
+				string FirstArg = ExtraAppParams;
+				string RemArgs = String.Empty;
+				FirstSpacePos = ExtraAppParams.IndexOf(' ');
+				if (FirstSpacePos > 0)
+				{
+					FirstArg = ExtraAppParams.Substring(0, FirstSpacePos);
+					RemArgs = ExtraAppParams.Substring(FirstSpacePos +1);
+				}
+
+				commandCmd = string.Format("{0} \"{1}\" {2}", commandCmd, FirstArg, RemArgs);
+			}
+
 			// Custom common arguments
 			if (!string.IsNullOrWhiteSpace(CustomCommonParams))
 			{

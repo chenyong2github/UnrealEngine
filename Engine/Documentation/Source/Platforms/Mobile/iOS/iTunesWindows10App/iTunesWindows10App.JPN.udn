@@ -1,0 +1,44 @@
+﻿INTSourceChangelist:6549201
+Availability: Public
+Crumbs: 
+Title: iTunes Windows 10 アプリ
+Description: IPP を Windows 10 iTunes と連携させる方法について説明します。
+Type: 
+Version: 4.21
+Parent: Platforms/Mobile/iOS
+Order: 
+Tags: mobile
+Tags: iOS
+Tags: iTunes
+
+
+Windows 10 ではユーザーアクセス制御 (UAC) が処理されるため、Windows 10 ストアから iTunes App をダウンロードした場合、iPhone Packing Tool (IPP) を使用して iOS プロジェクトを iOS デバイスにデプロイすることはできません。 デフォルトでは、Windows ユーザーアカウントに、「WindowsApps」 フォルダに対する読み取りと書き込み権限はありません。 この操作ガイドでは、IPP ツールを使用するために「WindowsApps」フォルダにアクセス許可を設定する方法を学習します。
+
+## ステップ
+
+以下の手順で、IPP がディレクトリの内容にアクセスできるように、 **「WindowsApps」** フォルダのアクセス許可を変更します。
+
+[REGION:note]
+Apple の Web サイトから iTunes をダウンロードした場合は、次の操作は **不要** です。
+[/REGION]
+
+1.  まず、**[フォルダ オプション]** で **[隠しファイル、フォルダ、および隠しドライブを表示する]** が有効になっていることを確認します。   
+    ![](iTunesWindows10App_FolderOptions.png "iTunesWindows10App_FolderOptions.png")
+2.  次に、 **「C:\\Program Files」** に移動し、 **「WindowsApps」** フォルダを見つけます。  
+    ![](iTunesWindows10App_CDriveWindowsApps.png "iTunesWindows10App_CDriveWindowsApps.png")
+3.  「WindowsApps」フォルダを右クリックして、コンテキスト メニューから **[プロパティ]** を選択します。  
+    ![](iTunesWindows10App_Properties.png "iTunesWindows10App_Properties.png")
+4.  [プロパティ] ウィンドウで **[セキュリティ]** タブをクリックしてから、 **[詳細設定]** ボタンをクリックします。
+    ![](iTunesWindows10App_SecuritySettings.png "iTunesWindows10App_SecuritySettings.png")
+5.  **[WindowsApps の詳細セキュリティ設定]** ダイアログで、**[TrustedInstaller]** が選択されていることを確認し、上部の **[所有者]** の横にある **[変更]** オプションをクリックします。
+    ![](iTunesWindows10App_ChangeSecuritySettings.png "iTunesWindows10App_ChangeSecuritySettings.png")
+6.  **[ユーザーまたはグループの選択]** ダイアログが開きます。 ここで **管理者のユーザー名** を入力し、 **[名前の確認]** をクリックするとオブジェクト名が自動的に入力されます。 完了したら、**[OK]** ボタンをクリックして続行します。  
+    ![](iTunesWindows10App_ChangeName.png "iTunesWindows10App_ChangeName.png")
+7.  フォルダの所有者が指定された管理者アカウントに変更されたので、次に、**[子オブジェクトすべてのアクセス許可エントリを、ここに表示されているエントリで子オブジェクトに適用するもので置換する]** チェックボックスがオンになっていることを確認し、 **[適用]** ボタンをクリックします。  
+    ![](iTunesWindows10App_ApplyChanges.png "iTunesWindows10App_ApplyChanges.png")
+
+## 最終結果
+
+**[OK]** ボタンをクリックしたら、アクセス許可が更新されるまで数分待つ必要があります。 アクセス許可が更新されると、Windows 10 ストアからダウンロードした iTunes のバージョンで IPP ツールを使用できるようになります。
+
+[](#)[](#)

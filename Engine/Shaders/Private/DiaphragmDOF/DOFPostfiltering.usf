@@ -13,11 +13,22 @@
 #define THREADGROUP_SIZEY		(THREADGROUP_SIZEX)
 #define THREADGROUP_TOTALSIZE	(THREADGROUP_SIZEX * THREADGROUP_SIZEY)
 
+uint4 ViewportRect;
 float2 MaxInputBufferUV;
 float MinGatherRadius;
 
-RWTexture2D<float4>	Output0;
-RWTexture2D<float4>	Output1;
+
+float4 ConvolutionInputSize;
+Texture2D ConvolutionInput_SceneColor;
+Texture2D ConvolutionInput_SeparateAlpha;
+
+Texture2D TileClassification_Foreground;
+Texture2D TileClassification_Background;
+
+
+RWTexture2D<float4>	ConvolutionOutput_SceneColor;
+RWTexture2D<float4>	ConvolutionOutput_SeparateAlpha;
+
 
 static const int2 kOffsets3x3[9] = {
 	int2(-1, -1),
@@ -150,7 +161,7 @@ void PostfilterMainCS(
 	uint2 DispatchThreadId : SV_DispatchThreadID,
 	uint2 GroupId : SV_GroupID)
 {
-	float2 InputBufferUV = (DispatchThreadId + 0.5) * PostprocessInput0Size.zw;
+	float2 InputBufferUV = (DispatchThreadId + 0.5) * ConvolutionInputSize.zw;
 	
 	BRANCH
 	if (any(DispatchThreadId >= ViewportRect.zw))
@@ -163,7 +174,11 @@ void PostfilterMainCS(
 	#if DIM_TILE_PERMUTATION
 	{
 		const uint2 TilePos = GroupId;
-		const FCocTileSample CocTileInfos = LoadCocTile(COC_TILE_LAYOUT_FGD_SEP_BGD, PostprocessInput2, PostprocessInput3, TilePos);
+		const FCocTileSample CocTileInfos = LoadCocTile(
+			COC_TILE_LAYOUT_FGD_SEP_BGD,
+			TileClassification_Foreground,
+			TileClassification_Background,
+			TilePos);
 
 		FGatheringTileSuggestion TileSuggestion = InferGatherTileSuggestion(CocTileInfos,
 			/* LayerProcessing = */ DIM_LAYER_PROCESSING,
@@ -179,43 +194,33 @@ void PostfilterMainCS(
 		uint2 OutputPixelPosition = DispatchThreadId;
 		float4 Foreground = float4(0, 0, 0, 0);
 		float4 Background = float4(0, 0, 0, 0);
+		float SeparateAlpha = 0;
 
 		#if DIM_LAYER_PROCESSING == LAYER_PROCESSING_FOREGROUND_ONLY
-			Output0[OutputPixelPosition] = Foreground;
+			ConvolutionOutput_SceneColor[OutputPixelPosition] = Foreground;
 
 		#elif DIM_LAYER_PROCESSING == LAYER_PROCESSING_BACKGROUND_ONLY
-			Output0[OutputPixelPosition] = Background;
+			ConvolutionOutput_SceneColor[OutputPixelPosition] = Background;
 
 		#else
-			Output0[OutputPixelPosition] = Foreground;
-			Output1[OutputPixelPosition] = Background;
+			#error Unknown layer processing.
+		#endif
+		
+		#if CONFIG_DOF_ALPHA
+			ConvolutionOutput_SeparateAlpha[OutputPixelPosition] = SeparateAlpha;
 		#endif
 	}
 	else
 	{
-		#if DIM_LAYER_PROCESSING == LAYER_PROCESSING_BACKGROUND_ONLY
-			float4 Foreground = 0;
-			float4 Background = PostfilterInput(PostprocessInput0, PostprocessInput0Size.zw, InputBufferUV);
-		#else
-			float4 Foreground = PostfilterInput(PostprocessInput0, PostprocessInput0Size.zw, InputBufferUV);
-			float4 Background = PostfilterInput(PostprocessInput1, PostprocessInput0Size.zw, InputBufferUV);
-		#endif
-
 		#if 1 // Lower VGPR footprint.
-			uint2 OutputPixelPosition = InputBufferUV * PostprocessInput0Size.xy;
+			uint2 OutputPixelPosition = InputBufferUV * ConvolutionInputSize.xy;
 		#else
 			uint2 OutputPixelPosition = DispatchThreadId;
 		#endif
-
-		#if DIM_LAYER_PROCESSING == LAYER_PROCESSING_FOREGROUND_ONLY
-			Output0[OutputPixelPosition] = Foreground;
-
-		#elif DIM_LAYER_PROCESSING == LAYER_PROCESSING_BACKGROUND_ONLY
-			Output0[OutputPixelPosition] = Background;
-
-		#else
-			Output0[OutputPixelPosition] = Foreground;
-			Output1[OutputPixelPosition] = Background;
+			
+		ConvolutionOutput_SceneColor[OutputPixelPosition] = PostfilterInput(ConvolutionInput_SceneColor, ConvolutionInputSize.zw, InputBufferUV);
+		#if CONFIG_DOF_ALPHA
+			ConvolutionOutput_SeparateAlpha[OutputPixelPosition] = PostfilterInput(ConvolutionInput_SeparateAlpha, ConvolutionInputSize.zw, InputBufferUV);
 		#endif
 	}
 }

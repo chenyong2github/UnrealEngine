@@ -4,6 +4,7 @@
 
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
 #include "Field/FieldSystem.h"
+#include "Field/FieldSystemAsset.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 

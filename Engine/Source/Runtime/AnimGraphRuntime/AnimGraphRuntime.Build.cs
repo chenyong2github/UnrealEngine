@@ -15,9 +15,20 @@ public class AnimGraphRuntime : ModuleRules
 				"CoreUObject", 
 				"Engine",
                 "AnimationCore",
-                "PhysX",
-                "APEX"
 			}
 		);
-	}
+
+        SetupModulePhysicsSupport(Target);
+
+        if (Target.bCompileChaos || Target.bUseChaos)
+        {
+            PublicDependencyModuleNames.AddRange(
+                new string[] {
+					"ChaosSolvers",
+					"GeometryCollectionEngine",
+					"GeometryCollectionSimulationCore"
+                }
+            );
+        }
+    }
 }

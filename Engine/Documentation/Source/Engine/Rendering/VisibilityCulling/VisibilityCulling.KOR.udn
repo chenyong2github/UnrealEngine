@@ -1,582 +1,320 @@
-INTSourceChangelist:3782314
-Availability: Docs
-Title: 비저빌리티 컬링
-Crumbs: %ROOT%, Engine, 
-Description: 게임에서의 비저빌리티 컬링 작동법입니다.
-Version: 4.13
-
-[TOC(start:2 end:2)]
-
-## 비저빌리티 컬링이란?
-
-Visibility Culling (비저빌리티 컬링)은 씬의 모든 액터를 한 데 모아 하나의 컬링 메서드를 사용하여 액터의 가시성을 테스트하는 프로세스를 사용합니다. 액터의 가시성 상태를 검사하는 
-프로세스는 테스트를 위해 GPU 에 보내는 쿼리 수를 줄여 컬링 효율을 높입니다. 
-
-비저빌리티 컬링 작동방식을 이해하기 위해서는 먼저 액터의 가시성 상태를 테스트할 때 바운딩 박스와 스피어(sphere, 구체)를 사용하는 방식, 뷰 프러스텀이 하는 일, 마지막으로 무엇이 액터를 
-오클루더(가리는 것) 또는 오클루디(가려지는 것)로 만드는지 이해해야 합니다. 
-
-### 액터 바운드
-
-각 액터마다 고유의 bound(경계, 바운드)가 있습니다. 이 바운드가 모여 메시의 지오메트리를 두르는 바운딩 박스 및 스피어를 이룹니다. 바운드는 스태틱 메시 에디터, 페르소나를 통해, 또는 
-씬의 디테일 패널을 통해 인스턴스별로 편집할 수 있습니다. 비저빌리티 및 오클루전 컬링 프로세스의 경우 바운드를 사용하여 액터가 카메라의 시야 내 보이는지 여부를 테스트합니다.
+INTSourceChangelist:6549201
+Availability: Public
+Crumbs: 
+Title: 비저빌리티 및 오클루전 컬링
+Description: 언리얼 엔진 4 레퍼런스 및 안내서입니다.
+Type: 
+Version: 4.21
+Parent: Engine/Rendering
+Order: 
+Tags: Performance and Profiling
 
 
-![](BoundsEditorView1.png)(w:350)
-[REGION:caption]
-액터의 바운딩 박스 및 스피어
-[/REGION]
+언리얼 엔진 4 (UE4) 는 비저빌리티(가시성) 및 오클루전 컬링을 위한 메서드를 제공합니다. 이 컬링 메서드는 게임 퍼포먼스 최적화에 좋습니다. 각 메서드 작동 방식은 레벨의 액터에 대해 화면에 그릴지 말지를 설정하는 식으로 그릴 액터 수를 줄입니다. 이 메서드 중 일부는 (예: [뷰 프러스텀](Engine/Rendering/VisibilityCulling#뷰프러스텀) 및 [하드웨어 오클루전 쿼리](Engine/Rendering/VisibilityCulling#하드웨어오클루전쿼리)) 동시에 같이 사용할 수도, 특정 디바이스 및 플랫폼에 더욱 적합할 수도 있습니다 (예: 가상 현실에는 [라운드 로빈 오클루전](Engine/Rendering/VisibilityCulling#VR용라운드로빈오클루전)).
 
-##### 바운드 스케일 설정
-
-다음 옵션을 사용하여 스태틱 및 스켈레탈 메시 바운드를 설정할 수 있습니다.
-
-[REGION:imagetable]
-| ![](BoundScaleSetting.png)(w:400) | ![](BoundsScaleSettingSMEditor.png)(w:400) |
-| --- | --- |
-| 씬 인스턴스별 디테일 패널 | 스태틱 및 스켈레탈 메시 에디터의 디테일 패널 | 
-[/REGION]
+## 컬링 작동 방식
 
 [REGION:note]
-**Bounds Scale** (바운드 스케일)에 대한 인스턴스별 세팅은 액터의 바운드에 고르게 스케일을 적용하는 배수를 사용하는 반면, 스태틱 메시 에디터와 페르소나에서는 특정 XYZ 좌표 값을 설정할 수 있습니다.
+별도의 구성 없이 언리얼 엔진에 기본 제공되는 기능을 확인하기 위해, 구체적으로 뷰 프러스텀 컬링과 하드웨어 오클루전 쿼리를 살펴보겠습니다.
 [/REGION]
 
-액터의 바운드를 확인하려면, 먼저 뷰포트로 이동하여 **표시** > **고급** > **바운드** 를 선택하거나, 콘솔 명령 `Show Bounds` 를 사용해야 합니다. 그런 다음 씬의 액터를 선택하면 
-바운드 시각화가 보입니다.
+비저빌리티 및 오 클루전 컬링 메서드에 대한 일반적인 개념은 일정 시간에 보이는 오브젝트 수를 줄여 퍼포먼스를 향상시키는 것입니다.
+
+예를 들어 카메라 위치에서 보이는 것으로만 시작해 보면, 보이는 오브젝트가 몇 개 없습니다 (왼쪽). 하지만 씬을 이루는 오브젝트 중 다수가 이 위치에서 보이지 않기 때문에 반드시 그렇다고는 볼 수 없습니다 (오른쪽). 
+
+[REGION:lightbox]
+![SceneView.png](SceneView.png)
+[/REGION]
+
+씬 뷰
+
+[REGION:lightbox]
+![TopdownSceneView.png](TopdownSceneView.png)
+[/REGION]
+
+씬의 탑 뷰
+
+카메라의 시야(뷰 프러스텀) 바깥 오브젝트는 보이지 않으며, 컬링 가능합니다 (빨강 윤곽선 오브젝트).
 
 [OBJECT:ComparisonSlider]
- [PARAM:before]
- ![Bounds Scale: 1.0](Bounds2.png)(w:500)
- [/PARAM]
- [PARAM:after]
- ![Bounds Scale: 1.25](Bounds3.png)(w:500)
- [/PARAM]
+[PARAM:before]
+![씬 뷰](SceneViewBase.png) 
+[/PARAM]
+[PARAM:after]
+![씬 뷰에서 | 뷰 프러스텀 컬링 오브젝트를 제거](SceneView_ViewFrustumCulled.png) 
+[/PARAM]
 [/OBJECT]
-[REGION:caption]
-_선택된 액터의 디테일 패널에서 바운드 스케일을 설정합니다._
-[/REGION]
 
-[REGION:tip]
-액터의 바운드를 늘릴 때 정수 단위로 늘리지 않아도 됩니다. 원하는 결과를 얻을 때까지 십진수 값을 점차 늘려도 됩니다. 
-예를 들어 바운드 스케일을 늘릴 때 2.0 이 아닌 1.15 여도 됩니다. 
-[/REGION]
+카메라 뷰 프러스텀 바깥의 컬링된 오브젝트는 더이상 렌더링되지 않으며, 이 뷰 안에는 다른 오브젝트에 가려져 가시성 검사를 해야 할 오브젝트가 얼마 안남았습니다. 즉 이 패스 도중, GPU 에 쿼리를 전송하여 이 오브젝트의 가시성 상태 각각을 테스트합니다. 다른 오브젝트에 가려져 컬링되는 오브젝트는 뷰에서 컬링됩니다 (파랑 윤곽선 오브젝트).
 
+[OBJECT:ComparisonSlider]
+[PARAM:before]
+![씬 뷰 | 뷰 프러스텀의 오브젝트만](SceneViewWithOnlyOccludedObjects.png) 
+[/PARAM]
+[PARAM:after]
+![뷰 프러스텀 컬링 안에서 | 가려진 오브젝트](SceneView_OccludedObjectsRemoved.png) 
+[/PARAM]
+[/OBJECT]
 
+뷰 프러스텀 바깥에 있거나 가려진 오브젝트는 전부 이제 뷰에서 컬링합니다. 이제 최종 씬 뷰가 카메라 위치에서 씬에 보이는 것으로 알고있는 오브젝트와 일치합니다. 
 
-### 카메라의 뷰 프러스텀이란?
-
-카메라의 view frustum(뷰 프러스텀)이란  뷰포트에서 피라미드 모양으로 나타나는 3D 공간 내 시야 영역을 말합니다. 
-
-[REGION:imagetable]
-| [INCLUDE:#cameraview1] |
-| ---------------------- |
-| 카메라 필드 오브 뷰(FOV) 값을 90 도로 (기본값) 설정했습니다. |
-[REGION:caption]
-_이미지를 클릭하면 원본을 확인합니다._
-[/REGION]
-[/REGION]
-
-이 피라미드 모양은 카메라의 관점에서 보는 **Field of View** (시야)를 나타냅니다. 이 관점은 이 뷰 안에 있는 씬의 다양한 액터를 보여줍니다.
-아래 그림에는 위 씬을 이루는 모든 요소가 들어있습니다. 여기에는 뷰 프러스텀 내 보이지 않는 액터가 들어있을 수 있습니다. 예를 들면 씬을 밝히는 스포트 라이트나 뷰 프러스텀 안에 보이지 
-않는 다른 액터 등입니다.  
-
-[REGION:imagetable]
-| [INCLUDE:#sceneview1]| 
-| --- |
-| 카메라 특성으로 보는 씬 뷰 |
-[/REGION]
-[REGION:caption]
-_이미지를 클릭하면 원본을 확인합니다._
-[/REGION]
-
-| 번호 | 설명 |
-| ------ | ----------- |
-| **1**  | **Field of View (FOV):** 필드 오브 뷰 - 각도 단위로 측정한 뷰 앵글의 너비입니다. |
-| **2**  | **Near Clip Plane:** 근거리 클립 면 - 카메라에서 최소 이 지점부터 렌더링합니다. |
-| **3**  | **Camera View Frustum:** 카메라 뷰 프러스텀 - 근거리/원거리 클립 면 사이 영역입니다. 이 뷰 안에 있는 것은 렌더링 대상으로 고려합니다. |
-| **4**  | **Far Clip Plane:** 원거리 클립 면 - 카메라에서 최대 이 지점까지 렌더링합니다. 뷰를 클립하(잘라내)도록 설정한 거리 대신 씬 깊이로 제어합니다. |
-
-[COMMENT:none]
--
-[EXCERPT:CameraView1]
-[REGION:lightbox]
-[![](CameraView.png)(w:600)](CameraView.png)
-[/REGION]
-[/EXCERPT:CameraView1]
-
-[EXCERPT:SceneView1]
-[REGION:lightbox]
-[![](FrustumView.png)(w:600)](FrustumView.png)
-[/REGION]
-[/EXCERPT:SceneView1]
--
-[/COMMENT]
-
-뷰 프러스텀은 **Field of View** (FOV)로 제어합니다. 값이 크면 시야각이 넓어지고 낮으면 좁아집니다.
+![](Vis_FinalSceneView.png "Vis_FinalSceneView.png")
 
 [REGION:note]
-카메라의 뷰 프러스텀 시각화는 기본 활성화되지 않습니다. 뷰포트에서 **표시** > **고급** > **카메라 프러스텀** 으로 활성화해야 합니다.
+언리얼 엔진 4 는 여러가지 컬링 메서드를 제공하며, 각각 저마다의 장단점이 있으며 플랫폼마다 사용할 수 있는 것이 다릅니다.  
+
+추가 정보는 아래 [컬링 메서드](Engine/Rendering/VisibilityCulling#컬링메서드) 섹션을 참고하세요.
 [/REGION]
 
-[OBJECT:EmbeddedVideo]
- [PARAMLITERAL:width]
- 640
- [/PARAMLITERAL]
- [PARAMLITERAL:height]
- 360
- [/PARAMLITERAL]
- [PARAMLITERAL:videoid]
- RqTqc0dLKPM
- [/PARAMLITERAL]
-[/OBJECT]
+### 액터의 바운드로 가시성 테스트
 
-[카메라 사용 및 설정](Gameplay/HowTo/UsingCameras) 관련 자세한 내용은 문서를 참고하세요.
+레벨의 배치된 각 액터에는 박스와 구체를 사용한 바운드 세트가 있으며, 이는 엔진 여러 곳에 사용됩니다. 그 중 하나는 구체적으로 보이는지 여부를 테스트하는 것입니다. 액터의 바운드는 두 부분으로 이루어지는데, 구체와 박스입니다. 바운딩 구체는 간단한 거리 테스트로 빠른 콜리전 감지에 사용되며, 대개 포함된 오브젝트보다 크기가 큽니다. 반면 바운딩 박스는 오브젝트 모양에 더 가깝고 더 정확한 결과를 냅니다. 
 
+레벨 뷰포트에서 액터의 바운드 시각화는 **표시 > 고급 > 바운드** 를 선택하면 됩니다. 또는 스켈레탈 메시 에디터에서 **캐릭터 > 바운드**, 스태틱 메시 에디터에서 메인 툴바의 **바운드** 를 선택하면 됩니다.
 
-### 오클루전이란?
+![](ActorBounds.png "ActorBounds.png")
 
-Occlusion(오클루전)은 액터가 다른 액터를 가리거나 가려지는 것을 말합니다. 액터는 occluder(가리는 것, 오클루더), occludee(가려지는 것, 오클루디), 또는 둘 다 될 수 있습니다. 
-
-* 오클루더는 다른 액터를 가려 뷰 프러스텀에 보이지 않도록 만들 수 있는 액터입니다.
-* 오클루디는 다른 액터에 가려져 뷰 프러스텀에 보이지 않는 액터입니다. 이 액터가 충분히 크면 다른 작은 액터를 뷰 프러스텀에서 가리는 오클루더가 될 수 있습니다.
-
-아래 예제에서, 카메라는 씬의 뷰를 나타냅니다. 벽 뒤에 놓인 두 액터는 벽에 가려져 카메라 뷰에 보이지 않습니다. 
-석상과 통 둘 다 벽에 가려져 있으므로 오클루디입니다. 또한 석상과 통 둘 다 그 뒤에 무언가를 가린다면 오클루더가 될 수 있습니다. 
-모든 오클루더는 다른 액터에 가려진다면 오클루디가 될 수 있습니다.
-
-[REGION:imagetable]
-| [INCLUDE:#OccluderVsOccludee1] | [INCLUDE:#OccluderVsOccludeeCV] |
-| --- | --- | 
-| 오클루더 = 벽, 오클루디 = 석상과 통 | 카메라 시야로 보면 벽이 석상과 통을 가리고 있습니다. |
-[/REGION]
 [REGION:caption]
-_이미지를 클릭하면 원본을 확인합니다._
+액터에 (구체와 박스) 바운드를 표시한 모습입니다.
 [/REGION]
 
-[COMMENT:none]
--
-[EXCERPT:OccluderVsOccludee1]
-[REGION:lightbox]
-[![](OccluderVsOccludee.png)(w:450)](OccluderVsOccludee.png)
+스태틱 메시와 스켈레탈 메시 각각은 임포트할 때나 뷰포트에서 회전 또는 스케일 조절할 때 지오메트리 크기에 따라 스케일이 자동 설정되는 자체 바운등 박스와 구체가 있습니다.
+
+액터의 바운드를 편집하는 방법은 다음과 같습니다.
+
+*   레벨이나 블루프린트에 선택하고 **디테일** 패널에서 **Bounds Scale** (바운드 스케일)을 설정합니다. **Bounds Scale** 은 액터의 바운드에 균등 스케일 조절하여, 원래 스케일 값의 배수 역할을 합니다.  
+    [REGION:lightbox]
+    [![](PerActorBoundsSettingsDetailsPanel.png "PerActorBoundsSettingsDetailsPanel.png")](PerActorBoundsSettingsDetailsPanel.png)
+    [/REGION]
+    [REGION:caption]
+    이미지를 클릭하면 원본을 확인합니다.
+    [/REGION]
+*   스태틱 메시 또는 스켈레탈 메시 에디터를 열어 **디테일** 패널의 **Positive Bounds Extension** (양수 바운드 확장) 및 **Negative Bounds Extensions** (음수 바운드 확장)에 비균등 스케일을 적용합니다.
+   ![](ActorEditorBoundsExtension.png "ActorEditorBoundsExtension.png")  
+    
+
+[REGION:warning]
+액터의 바운드를 늘리면 액터의 컬링 시점이 늦춰져 퍼포먼스와 섀도 퀄리티에 영향을 줄 있습니다.
 [/REGION]
-[/EXCERPT:OccluderVsOccludee1]
 
-[EXCERPT:OccluderVsOccludeeCV]
-[REGION:lightbox]
-[![](OccluderVsOccludeeCameraView.png)(w:450)](OccluderVsOccludeeCameraView.png)
-[/REGION]
-[/EXCERPT:OccluderVsOccludeeCV]
--
-[/COMMENT]
+## 컬링 메서드
 
-### 비저빌리티 컬링
+레벨의 각 액터 가시성 상태 추적에 사용되는 컬링 메서드입니다. 씬의 데이터는 프로젝트에 활용되고 있는 메서드에 따라 테스트와 컬링이 이루어집니다.
 
-현재 씬의 액터 가시성 상태를 결정하는 데 사용되는 컬링 유형은 다음과 같습니다.
+다음 컬링 메서드는 비용에 따라 이 순서대로 적용됩니다.
 
-| 컬링 유형 | 설명 |
-| ---------------- | ----------- |
-| **Distance** | 디스턴스 - 액터에 설정된 거리를 사용하여 가시성 상태를 결정합니다. |
-| **View Frustum** | 뷰 프러스텀 - 카메라 뷰 프러스텀 안에 바운드가 보이지 않는 액터를 제거합니다. 이 가시 영역 밖의 것은 렌더링하지 않습니다.  |
-| **Occlusion** | 오클루전 - 카메라의 뷰 프러스텀 내 다른 액터에 가려져 보이지 않는 액터를 제거합니다. 씬의 뎁스 버퍼 내 액터가 보이는지 테스트하는 식으로 이루어집니다. 보이면 렌더링하고, 보이지 않으면 오클루전 테스트를 하여 렌더링 생략할지 고려합니다. |
-
-
-[버퍼 시각화](Engine/UI/LevelEditor/Viewports/ViewModes) 관련 자세한 정보는 문서를 참고하세요.
-
-## 비저빌리티 컬링 메서드
-
-데이터를 씬에서 컬링한 이후, 구현한 컬링 메서드로 테스트하여 액터의 가시성 상태를 테스트합니다. 비저빌리티 컬링 메서드는 같이 작동하며, 모바일의 경우 다이내믹 오클루전이 
-불가능한 경우 솔루션을 제공합니다.
-
-여기 있는 컬링 메서드는 적용 순서이며, 렌더링 스레드 비용이 가장 낮은 순입니다.
-
-* 디스턴스 컬링 (인스턴스별 및 컬 디스턴스 볼륨)
-* 뷰 프러스텀 컬링
-* 프리컴퓨티드 오클루전 컬링
-* 다이내믹 오클루전 컬링 (하드웨어 오클루전 퀴리)
-
-
-#### 디스턴스 컬링 (인스턴스별)
-
-씬의 각 액터는 그리기 거리를 별도로 설정하여 보이는 것으로 렌더링하기 위한 최소 최대 거리를 지정할 수 있습니다.
-
-![](DistanceCullSettings.png)
-
-| **프로퍼티** | **설명** |
-| ------------ | --------------- |
-| **Min Draw Distance** | 최소 그리기 거리 - 최소 이 거리 이상의 프리미티브를 렌더링합니다. 프리미티브의 바운딩 스피어 중심에서부터 카메라 위치까지 월드 스페이스 유닛 단위로 측정합니다. |
-| **Desired Max Draw Distance** | 원하는 최대 그리기 거리 - 레벨 디자이너에게 노출할 최대 그리기 거리입니다. 실제 최대 그리기 거리는 (0 은 무시하고) 이 값과 이 오브젝트에 영향을 주는 볼륨의 값 중 작은 쪽입니다. |
-| **Current Max Draw Distance** | 현재 최대 그리기 거리 - 편집가능한 프로퍼티가 아닙니다. 이 칸은 프리미티브가 들어있는 컬 디스턴스 볼륨에 설정된 컬 디스턴스 값을 표시합니다. 0 인 경우 컬 디스턴스 볼륨이 없으므로 값은 0 이 됩니다. |
-
-아래 예제에서 **Min Draw Distance** 및 **Desired Max Draw Distance** 를 큐브에 설정했습니다. 이 값이 카메라 뷰에서 액터를 렌더링할 수 있는 
-최소 최대 거리를 결정합니다.
-
-* **Min Draw Distance:** 500
-* **Desired Max Draw Distance:** 1000
+*   [디스턴스](Engine/Rendering/VisibilityCulling#디스턴스)
+*   [뷰 프러스텀](Engine/Rendering/VisibilityCulling#뷰프러스텀)
+*   [프리컴퓨티드 비저빌리티](Engine/Rendering/VisibilityCulling#프리컴퓨티드비저빌리티)
+*   [다이내믹 오클루전](Engine/Rendering/VisibilityCulling#다이내믹오클루전)
 
 [REGION:note]
-참고로 여기 **Desired Max Draw Distance** 는 컬 디스턴스 볼륨에 높은 값이 설정된 경우 덮어씁니다. 자세한 정보는 컬 디스턴스 볼륨 문서를 참고하세요.
+언리얼 엔진은 모든 프로젝트에 기본적으로 뷰 프러스텀 컬링과 하드웨어 오클루전 쿼리 (다이내믹 오클루전)을 사용합니다. 프로젝트에 액터 수가 많으면 GPU 퍼포먼스 비용이 생길 수 있는데, 씬 뷰에 보이는 액터 수가 많을 경우 특히 그렇습니다.
 [/REGION]
 
-[OBJECT:EmbeddedVideo]
- [PARAMLITERAL:width]
- 640
- [/PARAMLITERAL]
- [PARAMLITERAL:height]
- 360
- [/PARAMLITERAL]
- [PARAMLITERAL:videoid]
- LiiJ13LulIU
- [/PARAMLITERAL]
-[/OBJECT]
+### 디스턴스
 
+디스턴스 컬링 메서드는, 액터 별 세팅과 [컬 디스턴스 볼륨](Engine/Rendering/VisibilityCulling#컬디스턴스볼륨) 처럼, 액터와 카메라의 거리에 따라 액터를 렌더링하거나 하지 않습니다. 
 
-[COMMENT:none]
--
-[REGION:imagetable]
-| [INCLUDE:#Units1500] | [INCLUDE:#Units1000] | [INCLUDE:#Units500] |
-| --- | --- | --- |
-| Desired Max Draw Distance 이상 | Min / Max Draw Distance 범위 내 | Min Draw Distance 미만 | 
-[/REGION]
+#### 액터별 인스턴스
 
-위 비디오에 벌어지는 일에 대한 이해를 돕기 위해, 여기 내려보기 이미지에 **카메라** 액터에서 **큐브** 액터 중심까지 거리를 기록해 두었습니다. 
-그 바로 위에는 카메라 뷰입니다.
+레벨의 각 액터에는 **디테일** 패널에서 설정할 수 있는 자체 그리기 거리 세팅이 있습니다. 거기서 이 액터를 그릴 카메라와의 최소 최대 거리를 (언리얼 유닛 단위로) 설정할 수 있습니다.
 
--
-[/COMMENT]
+![](PerActorDistanceCullingSettings.png "PerActorDistanceCullingSettings.png")
 
-**Desired Max Draw Distance** 는 1000 으로, **Min Draw Distance** 는 500 으로 설정되었기에 카메라가 액터의 바운딩 박스 중심에서 이 거리 내로 움직일 때만 액터가 보입니다. 
-카메라가 이 공간 밖으로 움직이면 액터는 더이상 렌더링되지 않습니다. 
+액터의 그리기 거리 세팅은 다음과 같이 설정합니다.
 
-[COMMENT:none]
-
-[EXCERPT:Units1500]
-[REGION:lightbox]
-[![](1500units.png)(w:300)](1500Units.png)
-[/REGION]
-[/EXCERPT:Units1500]
-
-[EXCERPT:Units1000]
-[REGION:lightbox]
-[![](1000units.png)(w:300)](1000Units.png)
-[/REGION]
-[/EXCERPT:Units1000]
-
-[EXCERPT:Units500]
-[REGION:lightbox]
-[![](500units.png)(w:300)](500Units.png)
-[/REGION]
-[/EXCERPT:Units500]
-
-[/COMMENT]
-
+*   **Minimum Draw Distance** (최소 그리기 거리)는 액터와 카메라가 이 거리부터 보입니다. 액터가 이보다 가까이 있으면 더이상 렌더링하지 않습니다.
+*   **Maximum Draw Distance** (최대 그리기 거리)는 액터와 카메라가 이 거리까지 보입니다. 액터가 이보다 멀리 있으면 더이상 렌더링하지 않습니다.
+*   그리고 **Current Maximum Draw Distance** (현재 최대 그리기 거리)를 볼 수 있습니다 (편집은 안됩니다). [컬 디스턴스 볼륨](Engine/Rendering/VisibilityCulling#컬디스턴스볼륨) 이 존재하면, 거기 설정된 컬 디스턴스를 표시합니다.
 
 #### 컬 디스턴스 볼륨
 
-Cull Distance Volume (컬 디스턴스 볼륨)은 배열에 크기와 거리 세트를 지정하여 일정 거리에서의 바운드 크기에 따라 액터를 자동으로 제거할 수 있습니다. 
-이 볼륨은 디테일한 장식이 있는 커다란 야외 씬에 좋습니다. 
-
-컬 디스턴스 볼륨 설정 관련 자세한 내용은 문서를 참고하세요.
-
-
-#### 뷰 프러스텀 컬링
-
-카메라의 뷰 프러스텀은 씬에서 컬링한 데이터가 카메라의 뷰 영역 안에 있는지 테스트할 때 사용합니다. 이 프로세스는 액터의 바운딩 박스와 스피어를 사용하여 뷰 안에 보이는지 검사합니다. 
-보이지 않으면, 액터는 렌더링하지 않습니다.
-
-다음 예제는 뷰 프러스텀이 뷰 영역 내 액터의 가시성을 판단하는 방식에 대한 데모입니다.
-
-* 노랑은 뷰 프러스텀의 FOV 및 다른 액터에 가려지지 않은 영역을 나타냅니다.
-* 빨강은 (벽이나 큰 오브젝트 등) 다른 액터로 인해 가려진 뷰 프러스텀 부분을 나타냅니다.
-
-[REGION:imagetable]
-| [INCLUDE:#Camera1] | [INCLUDE:#Camera2] | [INCLUDE:#Camera3] | [INCLUDE:#Camera4] |
-| ------------------ | ------------------ | ------------------ | ------------------ |
-|          1         |          2         |          3         |          4         | 
-[/REGION]
-
-| **번호** | **설명** |
-| ---------- | --------------- |
-| **1** | 이 관점에서는 커다란 벽이 오클루더 역할을 하여 통로를 제외한 모든 것을 가리고 있습니다. 그래서 큐브만 보입니다. 즉 구체와 원뿔은 벽의 오클루디라 렌더링하지 않습니다. |
-| **2** | 카메라가 앞으로 이동하면서 뷰 프러스텀에 노출되는 씬 부분이 많아집니다. 이제 벽이 더이상 구체와 원뿔을 완전히 가리지 못해 벽 구석 주변에 일부분 보입니다. 즉 아주 일부만 볼 수 있기는 해도 이제 완전히 렌더링된다는 뜻입니다. |
-| **3** | 카메라가 왼쪽으로 회전하면서 구체와 큐브가 뷰 프러스텀에 잡혔습니다. 원뿔과 벽은 뷰 밖에 있어 더이상 렌더링하지 않습니다. |
-| **4** | 카메라가 오른쪽으로 뒤돌아서 원뿔과 큐브가 뷰 안에 있으며, 벽과 구체는 뷰 밖에 있어 더이상 렌더링하지 않습니다. |
+**Cull Distance Volume** (컬 디스턴스 볼륨)은 거리와 크기 배열을 사용하여 볼륨 내 액터의 렌더링 여부를 설정합니다. 이 컬링 메서드가 좋은 경우는 대규모 야외 레벨에서 건물이나 구조물에 세밀한 실내 장식이 많은데, 원거리에서 중요성이 떨어지는 너무 작은 오브젝트를 컬링하고 싶은 경우입니다. 
 
 [REGION:note]
-비저빌리티 컬링 작동방식을 일반화시킨 예제로, 여기 다루지는 않았지만, 무언가의 렌더링 방식을 결정할 때는 여기 다루지 않은 주의사항과 이유가 몇 가지 있습니다. 비저빌리티 컬링에 사용할 수 
-있는 추가 팁과 전략에 대해서는 이 글의 [컬링 전략 모범 사례](#컬링전략모범사례) 부분을 참고하세요.
+자세한 정보는 [컬 디스턴스 볼륨](Engine/Rendering/VisibilityCulling/CullDistanceVolume) 문서를 참고하세요.
 [/REGION]
 
-[COMMENT:none]
+### 뷰 프러스텀
 
-[EXCERPT:Camera1]
-[REGION:lightbox]
-[![](Camera1.png)(w:215)](Camera1.png)
-[/REGION]
-[/EXCERPT:Camera1]
+**View Frustum** (뷰 프러스텀) 컬링은 카메라 시야(FOV)의 가시 화면 영역을 사용하여 이 공간 안에 없는 오브젝트를 컬링하는 것입니다. 뷰 프러스텀은 근거리/원거리 클립 면 사이 피라미드 모양으로, 이 공간 안에 표시할 오브젝트의 최소 최대 거리를 정의합니다. 다른 모든 오브젝트는 제거하여 처리 시간을 절약합니다.
 
-[EXCERPT:Camera2]
-[REGION:lightbox]
-[![](Camera2.png)(w:215)](Camera2.png)
-[/REGION]
-[/EXCERPT:Camera2]
+![](ViewFrustumDiagram.png "ViewFrustumDiagram.png")
 
-[EXCERPT:Camera3]
-[REGION:lightbox]
-[![](Camera3.png)(w:215)](Camera3.png)
-[/REGION]
-[/EXCERPT:Camera3]
+1.  **Near Clipping Plane** (근거리 클립 면)은 오브젝트가 표시되는 카메라와의 최소 거리입니다.
+2.  **Camera Frustum** (카메라 프러스텀)은 근거리/원거리 클립 면 사이 가시 영역을 나타내는 피라미드 모양입니다.
+3.  **Far Clipping Plane** (원거리 클립 면)은 오브젝트가 표시되는 카메라와의 최대 거리입니다.
 
-[EXCERPT:Camera4]
-[REGION:lightbox]
-[![](Camera4.png)(w:215)](Camera4.png)
-[/REGION]
-[/EXCERPT:Camera4]
+레벨 뷰포트에서 편집하는 도중 뷰 프러스텀 시각화는 **표시 > 고급** 에서 **카메라 프러스텀** 옵션을 켜면 됩니다.
 
-[/COMMENT]
+![](ViewFrustumSceneCameraFrustum.png "ViewFrustumSceneCameraFrustum.png")
 
-
-#### 프리컴퓨티드 비저빌리티 볼륨
-
-[COMMENT:none]
--![](PrecomputedVisibilityVolume.png)(w:500)-
-[/COMMENT]
-
-Precomputed Visibility Volume (프리컴퓨티드 비저빌리티 볼륨)은 스태틱 라이팅 빌드 이후 표면에 배치된 비저빌리티 셀을 사용합니다. 이 비저빌리티 셀은 카메라 뷰를 사용하여 액터의 가시성 상태를 변경합니다.
-이 컬링 메서드는 가시성 상태를 확인하는 데 하드웨어 오클루전 쿼리를 사용할 수 없는 모바일 디바이스에서 비저빌리티 컬링을 하는 데 좋습니다. 
-
-프리컴퓨티드 비저빌리티 볼륨 사용 및 설정 관련 자세한 내용은 문서를 참고하세요.
-
-#### 다이내믹 오클루전
-
-다이나믹 오클루전 쿼리는 컬링 메서드 체인 마지막에 이루어지며, 카메라 뷰 프러스텀 내에 있는 것으로 결정된 액터만 살펴봅니다. 
-그런 다음 뷰 프러스텀 안에 있는 액터의 바운드를 씬 뎁스 버퍼와 비교하여 가시성을 테스트합니다. 그 비교는 액터 바운드를 GPU 로 보내고 한 프레임 후 다시 읽어오는 방식입니다. 
-액터의 바운드가 씬 뎁스 안에 보이지 않으면 렌더링하지 않습니다. 이런 식으로 다른 액터에 가려진 액터의 가시성 상태를 렌더링하지 않도록 변경할 수 있습니다. 
-이 메서드는 원거리 클립 면의 거리에 대한 값을 특정하기 보다는 대략의 거리에 의존하므로 먼 뷰 거리에 사용할 수 있습니다.
-
-#### 계층형 Z 버퍼
-
-[REGION:warning]
-Hierarchical Z-Buffer (계층형 Z 버퍼) 오클루전 구현은 아직 실험단계입니다. 컬링하지 말아야 할 메시를 컬링하는 등, 아직 처리하지 못한 알려진 이슈가 몇 가지 있습니다. 
-[/REGION]
-
-Hierarchical Z-Buffer (계층형 Z 버퍼) 오클루전이란 여러 해상도로 씬의 깊이를 표현하여 액터의 가시성을 결정한다는 개념입니다. 
-그 방식은 테스트 대상 액터의 씬 깊이를 알아내기 위한 텍셀이 있는 씬 깊이에 대해 렌더 타겟 밉맵 버전을 만듭니다. 
-액터 바운드의 깊이 값과 캡처된 렌더 타겟의 깊이 값을 비교하는 식으로 액터에 오클루전 테스트를 합니다. 
-낮은 해상도의 밉 레벨을 사용하면 액터 바운드를 보다 보수적으로 검사하게 되므로, 밉 레벨에서 샘플링할 때 텍스처 페치 수가 적어집니다. 
-
-[REGION:note]
-씬을 실제 씬 해상도보다 낮은 해상도로 렌더링하면 원래는 보여야 할 액터를 잘못 컬링해 낼 위험이 있습니다.  
-[/REGION]
-
-계층형 Z 버퍼 오클루전 컬링을 활성화하는 콘솔 명령은 다음과 같습니다. 
-
-	r.HZBOcclusion
-
-* 0 은 계층형 Z 버퍼 오클루전을 비활성화합니다.
-* 1 은 계층형 Z 버퍼 오클루전을 활성화합니다.
-* 2 는 계층형 Z 버퍼 시스템을 강제 적용하여, 다른 렌더링 플랫폼 설정을 무시합니다.
-
-
-## 컬링 전략 모범 사례
-
-게임의 비저빌리티 컬링 디자인 및 작업을 할 때 따르면 좋을 모범 사례는 다음과 같습니다.
-
-### 액터 GPU 쿼리로 인한 랙/갑툭튀 현상
-
-비저빌리티 컬링에 뷰 프러스텀 및 하드웨어 오클루전 쿼리를 사용할 때 한 프레임 후 GPU 에서 읽어 오기 때문에 발생하는 일반적인 이슈입니다. 플레이어 카메라를 매우 빨리 회전하거나, 
-플레이어가 라이팅이 어두운 코너를 도는 데 그 뒤의 라이팅이 대조적인 경우 흔히 발생합니다. 
-
-* 다른 지오메트리를 사용하면 이 부작용을 숨기는 데 도움이 됩니다. 동굴 등 바깥이 밝은 어두운 지역에는 커다란 오클루더 메시로 외부를 막아 pop in (갑자기 툭 튀어나오는, 갑툭튀) 현상을 막고 빛도 차단하여 명확히 드러나지 않도록 합니다.
-* 문제의 원인이 되는 액터의 바운드 스케일을 높입니다. 
-* 지오메트리를 만들 때 작은 조각을 너무 많이 조립하지 않습니다. 벽, 바닥, 천장이 특히 그렇습니다.
-
-### 큰 뷰 디스턴스
-
-뷰 디스턴스가 크면 렌더링해야 하는 액터 수로 인해 퍼포먼스에 영향을 줄 수 있습니다. 커다란 오클루더로 뷰 디스턴스가 커지지 않도록 하면 액터를 쓸 데 없이 렌더링하지 않을 수 있습니다.
-검사할 액터 수를 줄여 GPU 로 보낼 쿼리 수를 줄일 수 있습니다. 차례로 검사 및 렌더링할 액터 수가 줄어 퍼포먼스가 향상됩니다.
-
-* 가급적 큰 오클루더를 사용합니다. 
-* 컬 디스턴스 볼륨을 사용하여 뷰에 가려졌어도 원거리에서 잘 보이지 않는 작은 액터를 제거합니다.
-* 가리지 못하는 반투명 액터의 오버드로 수를 제한합니다.
-
-### 애셋 구성
-
-게임의 지오메트리를 생성할 때, 디자인 목적 및 재사용을 위해 지오메트리를 모듈식 조각으로 분해하는 것이 좋습니다. 
-하지만 디자인 프로세스에서 모듈화가 너무 심하게 하면 너무 작은 조각으로 큰 지오메트리를 만들 수가 있습니다. 그래서 각 액터는 가시성 상태 검사를 해야 합니다. 
-합리적인 게임 디자인과 최고의 퍼포먼스를 내는 최적화 사이 균형을 찾는 것이 가장 좋습니다. 가시성 검사에 필요한 쿼리 수를 줄이는 것이 최적화의 핵심이며 갑툭튀 현상을 줄일 수 있습니다. 
-
-* 레벨을 만들 때 구조적 표면에는 작은 조각으로 분해해서 조립하기 보다는 큰 지오메트리를 사용하세요. 하나의 액터가 아닌 작은 액터를 다수 테스트하면 GPU 에 영향이 큽니다.
-* 메시 구조를 고려하면 액터 갑툭튀 현상이 줄어듭니다.
-
-
-### 오클루전 vs 디스턴스 컬링 비용 고려
-
-오클루전 및 비저빌리티 컬링 메서드는 디스턴스 컬링보다 비용이 훨씬 많이 드는데, GPU 쿼리가 필요하기 때문입니다. 즉 원거리 부분은 어차피 씬의 일정 부분에 가려진다 하더라도 
-컬 디스턴스 볼륨을 설정하는 것이 좋습니다.
-
-* 컬 디스턴스 볼륨을 잘 활용하면 오클루전 컬링 비용을 줄일 수 있습니다.
-* 디스턴스 또는 오클루전 컬링에 의존하기 보다는 가급적 레벨 스트림 아웃이 좋습니다.
-* `Stat Initviews` 명령으로 퍼포먼스 균형을 유지하세요.
-
-레벨 스트리밍 관련 정보는 [](Engine/LevelStreaming) 문서를 참고하세요.
-
-## 프로젝트 세팅
-
-**프로젝트 세팅** 은 메인 메뉴의 **편집** > **프로젝트 세팅** 으로 열 수 있습니다. 창이 열리고 **Rendering** (렌더링) 카테고리를 선택하면 **Culling** (컬링) 섹션 아래 사용할 수 있는 
-세팅이 보입니다.
-
-
-![](ProjectSettingsCulling.png)
-
-| 세팅 | 설명 |
-| --- | --- |
-| **Occlusion Culling** | 오클루전 컬링 - 가려진 메시를 컬링하여 렌더링에서 제외할 수 있습니다. 이 옵션을 비활성화하면 프로젝트의 모든 오클루전 컬링이 비활성화되어 퍼포먼스 영향이 있을 수 있습니다. |
-| **Min Screen Radius for EarlyZPass** | EarlyZPass 최소 화면 반경 - EarlyZPass 에서 이 화면 반경의 오브젝트를 컬링합니다. 값이 크면 퍼포먼스가 향상될 수 있지만 너무 커서 큰 오클루더가 렌더링되지 않는 경우 오히려 퍼포먼스가 저하될 수 있습니다. |
-| **Warn about no precomputed visibility** | 프리컴퓨티드 비저빌리티 없음 경고 - 현재 카메라 위치에 사용할 수 있는 가시성 미리계산 데이터가 없으면 경고를 표시합니다. 프리컴퓨티드 비저빌리티 기능에 의존하는 게임을 만들 때 좋을 수 있습니다. |
-
-[REGION:tip]
-모바일 게임을 개발하는 경우 **Warn about no precomputed visibility** 옵션을 켜면 레벨 디자이너에게 좋은 알리미 역할을 해줍니다. 현재 모바일은 다이내믹 오클루전 컬링을 사용하지 
-않기 때문입니다.
-[/REGION]
-
-
-[COMMENT:none]
--
-## Console Commands
-
-| Console Variable | Description |
-| --- | --- |
-| **r.OneFrameThreadLag** | Controls when occlusion queries are rendered. Rendering before the base pass may give worse occlusion (because not all occluders generally render in the earlyzpass). However, it may reduce CPU waiting for query result stalls on some platforms and increase overall performance. 0: After BasePass. 1: After EarlyZPass, but before BasePass. |
-| **r.AllowOcclusionQueries** | If zero, occlusion queries will not be used to cull primitives. |
-| **r.DownsampledOcclusionQueries** | Whether to issue occlusion queries to a downsampled depth buffer. |
-| **r.NumBufferedOcclusionQueries** | Number of frames to buffer occlusion queries (including the current render thread frame). More frames reduce the chance of stalling the CPU waiting for the results, but increases out of date query artifacts. |
-
-[/COMMENT]
-
-## 퍼포먼스 관련 통계
-
-게임의 실시간 렌더링에서, 씬의 비저빌리티 및 오클루전 컬링 관련 통계를 계속 검사하여 최적화를 관리하는 것이 중요합니다.
-
-씬의 비저빌리티 및 오클루전 컬링 관련 통계를 확인하는 콘솔 명령은 다음과 같습니다. 
-
-Stat Initviews
-
-[REGION:warning]
-비저빌리티 및 오클루전 컬링 테스트를 할 때는 몇 가지 주의해야 할 것이 있습니다.
-
-* 오클루전 컬링은 **와이어프레임** 뷰 모드에서 비활성화됩니다.
-* 보다 정확한 결과를 위해서는 PIE 또는 독립형 게임에서 **Stat Initviews** 명령을 사용하세요. 왜냐면 에디터용 지오메트리, 라이트, 카메라를 나타내는 액터 등이 비저빌리티 및 오클루전 컬링 계산에 포함되기 때문입니다.
-[/REGION]
-
-
-[REGION:lightbox]
-![](StatInitViews.png)
-[/REGION]
 [REGION:caption]
-위의 씬 통계는 에픽게임즈가 만든 [Infinity Blade Grasslands](https://www.unrealengine.com/marketplace/infinity-blade-plain-lands) 에서 찍은 것입니다. 마켓플레이스에서 받을 수 있습니다.
+카메라 프러스텀 시각화가 활성화된 모습입니다.
+[/REGION]
+[REGION:note]
+자세한 정보는 [컬링 작동 방식](Engine/Rendering/VisibilityCulling#컬링작동방식) 섹션을 참고하세요.
 [/REGION]
 
-**Stat Initiviews** 창은 `Cycle Counters` (사이클 카운터) 및 `Counters` (카운터), 두 섹션으로 나뉩니다. 사이클 카운터 통계는 밀리초 단위 사이클 수가 중심이고, 카운터 통계는 단순히 
-처리한 프리미티브 누적 수입니다.
+### 프리컴퓨티드 비저빌리티
 
-[REGION:tip]
-`Visible Static Mesh Elements` (보이는 스태틱 메시 엘리먼트)는 렌더링 스레드 시간에 가장 크게 기여하는 것으로, 주의깊게 감시하고 최적화해야 합니다.
+**Precomputed Visibility Volume** (프리컴퓨티드 비저빌리티 볼륨)은 그림자를 드리우는 표면 위에 배치된 셀에서 무버블이 아닌 액터의 가시성 상태를 저장합니다. 이 컬링 메서드는 가시성 데이터를 오프라인 (라이팅 빌드 도중) 생성하며 중소규모 레벨에 가장 적합합니다. 프리컴퓨티드 비저빌리티는 저사양 하드웨어와 모바일 디바이스에 이상적입니다. 이 하드웨어 및 디바이스에서 퍼포먼스 비용을 고려할 때, 더 비싼 렌더링 스레드 비용을 퍼포먼스 측면에서 더 유연한 런타임 메모리 비용과 맞바꾸면 최대의 효과를 얻을 수 있습니다.
+
+[REGION:note]
+추가 정보는 [프리컴퓨티드 비저빌리티 볼륨](Engine/Rendering/VisibilityCulling/PrecomputedVisibilityVolume) 문서를 참고하세요.
 [/REGION]
 
-| Stat Initviews |  |
+### 다이내믹 오클루전
+
+UE4 의 다이내믹 오클루전 시스템는 몇 가지 컬링 메서드 중에서 선택할 수 있습니다. 이 메서드 각각은 다른 액터에 가려진 카메라의 뷰 프러스텀 (또는 시야) 내 레벨의 액터 가시성 상태를 추적합니다. GPU 또는 CPU 에 쿼리를 보내 각 액터의 가시성 상태를 검사합니다.  휴리스틱을 통해 필요한 가시성 검사 횟수를 줄이면, 전반적인 컬링 효율과 퍼포먼스가 향상됩니다.
+
+언리얼 엔진은 오클루전 쿼리를 보낼 때 씬 뎁스 버퍼를 사용합니다. 최대 그리기 거리(나 원거리 클립 면) 보다는 대략적인 거리에 의존하므로 더욱 먼 거리에 사용할 수 있습니다. 뎁스 버퍼를 사용하면 무버블인 액터도 아닌 액터도 다른 액터를 가리거나 가려지도록 할 수 있으며, 그 머티리얼이 오파크 또는 마스크드 블렌드 모드인 것도 포함합니다.
+
+#### 하드웨어 오클루전 쿼리
+
+활용되는 일차 다이내믹 오클루전 메서드는 **Hardware Occlusion Queries** (하드웨어 오클루전 쿼리)로, 매 프레임 GPU 에 가시성 검사를 액터 별 쿼리로 보냅니다. 액터의 가시성은 한 프레임 뒤에 읽어 오므로, 카메라가 매우 빨리 움직이는 경우 "튀는" 현상이 생길 수 있습니다. 하드웨어 오클루전 쿼리 비용은 GPU 에서 수행되는 쿼리 수에 비례합니다. 디스턴스 및 프리컴퓨티드 비저빌리티를 사용하면 GPU 에 매 프레임 수행되는 쿼리 수를 줄일 수 있습니다. 
+
+하드웨어 오클루전 쿼리는 기본 활성화되며, [iOS](Platforms/Mobile/iOS) 에서는 **ES 3.1** 이상, [Android](Platforms/Mobile/Android) 에서는 **Vulkan** 을 지원하는 고사양 모바일 디바이스 포함 지원하는 모든 플랫폼에서 작동합니다. 하드웨어 오클루전 쿼리를 지원하지 않는 디바이스는 **프로젝트 세팅** 에서 **렌더링 > Culling** 아래 **Occlusion Culling** 체크를 해제하거나 디바이스 환경설정 파일에 다음 콘솔 변수를 설정하면 됩니다.
+
+      r.AllowOcclusionQueries=0
+
+[REGION:note]
+다이내믹 오클루전의 비용 관련 추가 정보는 아래 [퍼포먼스 통계](Engine/Rendering/VisibilityCulling#퍼포먼스통계) 부분을 참고하세요.
+[/REGION]
+
+##### 하이어라키컬 Z 버퍼 오클루전
+
+**Hierarchical Z-Buffer** (하이어라키컬 Z 버퍼, HZB) 오클루전은 하드웨어 오클루전 쿼리처럼 작동하지만, 오브젝트 컬링 방식이 보수적이라 컬링되는 오브젝트 수가 적다는 차이가 있습니다. 씬 뎁스 렌더 타깃의 밉맵 버전을 사용하여 액터의 바운드 검사를 합니다. 낮은 MIP 에서 샘플링할 때는 필요한 텍스처 페치 수가 적기도 합니다. 
+
+HZB 오클루전을 기본 활성화하는 명령은 다음과 같습니다.
+
+      r.HZBOcclusion=1
+
+#### 모바일용 소프트웨어 오클루전 쿼리
+
+**Software Occlusion Queries** (소프트웨어 오클루전 쿼리)는 액터에 지정된 레벨 오브 디테일(LOD)을 사용하여 그 뒤의 액터를 가리는 오클루전 메서드입니다. 이 컬링 메서드는 CPU 에서 씬을 래스터라이즈하여 액터를 컬링하는데, 하드웨어 오클루전 쿼리가 GPU 에서 가시성 검사를 하는 것과 대조됩니다. 오프트웨어 오클루전은 보수적으로 설계되어 있어 모든 모바일 디바이스에서 활성화하여 사용할 수 있습니다.
+[REGION:note]
+추가 정보는 [모바일용 소프트웨어 오클루전 쿼리](Engine/Rendering/VisibilityCulling/SoftwareOcclusionQueries) 문서를 참고하세요.
+[/REGION]
+
+#### VR 용 라운드 로빈 오클루전
+
+**Round Robin Occlusion** (라운드 로빈 오클루전)은 다이내믹 오클루전 쿼리 메서드 중 하나로, 양쪽 프레임 둘 다가 아닌 한 쪽 눈에 한 프레임씩 번갈아 렌더링하여 스테레오 렌더링 퍼포먼스를 향상시킵니다. 오클루전 데이터에 프레임 지연시간이 추가되므로 주변 장치의 렌더링이 잘못될 수 있다는 단점이 있지만, 그만큼 라운드 로빈 오클루전이 전체 프레임의 쿼리 시간을 절약한다는 장점이 있습니다. 이렇게 절약되는 부분은 드로 콜이나 가시성 제약을 받는 씬에 큰 도움이 될 수 있습니다.
+
+.ini 환경설정 파일이나 런타임에 라운드 로빈 오클루전을 활성화하는 명령은 다음과 같습니다.
+
+     vr.RoundRobinOcclusion=1
+
+## 퍼포먼스 통계
+
+게임 규모에 상관 없이 개발 패스 중 가장 중요한 부분 중 하나라면 퍼포먼스 최적화입니다. 거기에 씬의 오브젝트 컬링은 아주 좋은 방법입니다. 통계 창에서는 비저빌리티 및 오클루전 컬링의 퍼포먼스가 반영된 다양한 통계를 살펴볼 수 있습니다.
+
+  
+예를 들어 프리컴퓨티드 비저빌리티의 경우, 컬링된 오브젝트 데이터를 로드하느라 런타임에 사용되는 메모리 양을 눈여겨 봐야 할 것입니다. 하드웨어 오클루전 쿼리의 경우, 멈춤 현상이나 느려짐 현상같은 퍼포먼스 문제가 발생하는 시점의 프레임 동안 GPU 에 전송되는 프리미티브 수를 검사하는 것이 좋습니다.   
+
+통계 창을 부르는 콘솔 명령은 **stat initviews** 입니다.
+
+![](StatInitViews.png "StatInitViews.png")
+
+[REGION:caption]
+위의 씬 통계는 [에픽게임즈 마켓플레이스](http://www.unrealengine.com/Marketplace) 에서 무료로 받을 수 있는 에픽게임즈 제작 [Infinity Blade Grasslands](https://www.unrealengine.com/marketplace/infinity-blade-plain-lands) 에서 따온 것입니다.
+[/REGION]
+이 통계는 **Cycle Counters** (사이클 카운터)와 **Counters** (카운터) 두 섹션으로 나뉩니다. Cycle Counter 통계는 프리미티브 처리에 걸린 렌더링 사이클 수의 밀리초 (ms) 비용에 초점을 맞춥니다. 여기서 **View Visibility**, **Occlusion Cull**, **View Relevance**, **Frustum Cull** 에 초점을 맞춥니다. Counter 통계는 현재 뷰의 모든 프리미티브를 처리하는 데 걸린 시간을 더합니다.
+
+비저빌리티 테스팅 및 오클루전 컬링에 유의해야 하는 사항은 다음과 같습니다.
+
+*   오클루전 컬링은 **와이어프레임** 뷰 모드에서 비활성화됩니다.
+*   뷰포트에서 작업할 때 **G** 단축키로 게임모드 뷰로 전환하면 컬 디스턴스 볼륨이나 프리컴퓨티드 비저빌리티 볼륨같은 일부 컬링 메서드를 확인할 수 있습니다.
+*   가장 정확한 결과를 위해서는, **에디터에서 플레이** (PIE) 또는 **독립형 게임** 에서 Stat InitViews 통계를 사용하세요. 라이트, 카메라 등을 나타내는 액터의 지오메트리가 비저빌리티 및 오클루전 컬링 결과 계산에 포함됩니다.
+*   **Visible Static Mesh Elements** (보이는 스태틱 메시 엘리먼트 수)는 렌더링 스레드에 가장 큰 영향을 미치는 요소이므로 주의깊게 관찰하고 최적화해야 합니다.
+
+| 통계 이름 | 설명 |
 | --- | --- |
-| **Cycle Counters** | [INCLUDE:#cyclecounter] |
-| **Counters** | [INCLUDE:#counters] |
-
-
-[COMMENT:none]
-
-[EXCERPT:CycleCounter]
-| 통계 | 설명 |
-| --- | --- |
+|[REGION:tablesection] **Cycle Counters** 사이클 카운터 [/REGION] ||
 | **View Visibility** | 뷰 비저빌리티 - 액터 비저빌리티 쿼리를 처리하는 데 걸린 프레임 시간입니다. |
 | **Occlusion Cull** | 오클루전 컬 - 뷰 프러스텀 안에 있는 액터 중 다른 액터에 가려진 액터에 대해 씬 쿼리를 하는 데 걸린 프레임 시간입니다. |
 | **Frustum Cull** | 프러스텀 컬 - 액터의 바운드가 뷰 프러스텀 안에 있는지 쿼리하는 데 걸린 프레임 시간입니다. |
 | **Decompress Occlusion** | 오클루전 압축해제 - 프리컴퓨티드 비저빌리티를 로드하는 데 걸린 프레임 시간입니다. |
-[/EXCERPT:CycleCounter]
-
-[EXCERPT:Counters]
-| 통계 | 설명 |
-| --- | --- |
-| **Processed Primitives** | 처리한 프리미티브 - 씬에서 처리 중인 액터의 총 수입니다.  |
+| [REGION:tablesection] **Counters** 카운터 [/REGION] ||
+| **Processed Primitives** | 처리한 프리미티브 - 씬에서 처리 중인 액터의 총 수입니다. |
 | **Frustum Culled Primitives** | 프러스텀 컬링한 프리미티브 - 뷰 프러스텀의 FOV 안에 있지 않을 때 컬링한 프리미티브 수입니다. |
 | **Occluded Primitives** | 가려진 프리미티브 - 뷰 프러스텀의 FOV 안에서 다른 액터에 가려진 액터의 수입니다. |
 | **Occlusion Queries** | 오클루전 쿼리 - 뷰 프러스텀 내 보이는 액터의 수에 따라 GPU 에 전송한 씬 오클루전 쿼리 수입니다. |
 | **Visible Dynamic Primitives** | 보이는 다이내믹 프리미티브 - 씬의 다이내믹 프리미티브 중 모빌리티가 무버블로 설정된 것의 개수로, 파티클 시스템 및 폴리지 인스턴스 등입니다. |
-| **Visible Static Mesh Elements** | 보이는 스태틱 메시 엘리먼트 - 보이는 메시 중 씬에서 모빌리티가 스태틱 설정된 개수입니다. |
-[/EXCERPT:Counters]
+| **Visible Static Mesh Elements** | 보이는 스태틱 메시 엘리먼트 수 - 보이는 메시 중 씬에서 모빌리티가 스태틱 설정된 개수입니다. |
 
-[/COMMENT]
 
-## 팁 & 트릭
+## 컬링 디버깅
 
-비저빌리티 또는 오클루전 컬링 관련 문제가 의심될 때 씬의 문제를 테스트하고 해결하는 데 도움이 될 수 있는 팁 & 트릭은 다음과 같습니다. 
+비저빌리티 및 오클루전 컬링에 사용할 수 있는 디버깅 옵션은 다음과 같습니다. 
 
-##### 가려진 프리미티브 시각화
+### 가려진 액터 시각화
 
-씬에 있는 액터 중 카메라 뷰에서 가려진 액터의 바운딩 박스를 그리는 시각화 모드를 활성화합니다. 빨강은 프리컴퓨티드 비저빌리티 볼륨을 사용했을 때 정적으로 가려졌음을, 
-초록은 동적으로 가려졌음을 나타냅니다. 
+에디터에서 작업할 때 액터가 가려졌는지 확인할 수 있는 시각화 명령입니다.
 
-이 시각화를 활성화하는 콘솔 명령은 다음과 같습니다. 
+     r.VisualizeOccludedPrimitives 1
 
-	r.VisualizeOccludedPrimitives 1
-
+활성화하면, 가려진 액터 주위에 녹색 바운딩 박스가 그려집니다. 
 
 [REGION:note]
-이 콘솔 명령은 에디터에서만 작동하며, PIE 또는 독립형 게임에서는 작동하지 않습니다.
+레벨에 액터가 많은 경우, 레벨과 그 안에 들어있는 액터의 일정 부분을 숨기지 않으면 유용한 디버깅 방법이 되지 못할 수 있습니다.
 [/REGION]
 
-아래 예제는 벽에 막혀 가려진 액터의 시각화를 벽을 제거한 액터의 배치와 비교한 것입니다. 
+[OBJECT:ComparisonSlider]
+[PARAM:before]
+![가려진 액터 시각화](VisOccludedActors1.png) 
+[/PARAM]
+[PARAM:after]
+![지오메트리를 숨기고 | 가려진 액터 표시](VisOccludedActors2.png) 
+[/PARAM]
+[/OBJECT]
+
+이 예제에서는, 벽과 문 뒤의 액터만 완전히 가려졌습니다. 오른쪽 벽 구멍을 통해 보이는 액터는 완전히 가려지지 않았습니다.
+
+### 씬의 렌더링 프리즈
+
+에디터에서 작업하는 도중 레벨의 액터 렌더링 상태를 "프리즈"(freeze), 얼리고서 레벨 뷰포트 안에서 자유로이 움직이며 오클루전 결과를 조사할 수 있습니다.
+
+다음 예제와 같이 원하는 뷰에서 `FreezeRendering` 명령을 입력합니다.
+
+![](FreezeRendering.png "FreezeRendering.png")
+
+입력한 뒤, 씬을 자유롭게 이동하며 오클루전 결과를 확인할 수 있습니다. 벽 뒤로 이동해 보면, 완전히 가려진 오브젝트는 렌더링되지 않고, 완전히 가려지지 않은 오브젝트는 그대로 있습니다.
 
 [OBJECT:ComparisonSlider]
- [PARAM:before]
- ![Visualize Occluded Primitives 활성화 (초록 박스)](VisOccludedPrimitives1.png)(w:500)
- [/PARAM]
- [PARAM:after]
- ![벽에 가려진 액터](VisOccludedPrimitives2.png)(w:500)
- [/PARAM]
+[PARAM:before]
+![보통 씬 뷰](FreezeRenderingState2.png) 
+[/PARAM]
+[PARAM:after]
+![렌더링을 얼린 | 원본 카메라 뷰](FreezeRenderingState1.png) 
+[/PARAM]
 [/OBJECT]
 
+다른 액터 유형의 렌더링 상태를 프리즈하는 명령은 다음과 같습니다.
 
-##### 렌더링 고정
+| 콘솔 명령 | 설명 |
+| --- | --- |
+| **FreezeRendering** | 카메라 시야에 따라 레벨에 가려지고 보이는 액터의 현재 렌더링 상태를 일시정지 / 해제합니다. |
+| **Foliage.Freeze** | 카메라 시야에 따라 레벨에 페인트된 폴리지 클러스터의 가려지고 보이는 현재 렌더링 상태를 일시정지합니다. |
+| **Foliage.Unfreeze** | 레벨에 칠해진 폴리지 클러스터의 가려지고 보이는 렌더링 상태의 일시정지를 해제합니다. |
+| **FX.FreezeParticleSimulation** | 레벨의 CPU 스프라이트 파티클 시뮬레이션을 일시정지 / 해제합니다. |
+| **FX.FreezeGPUSimulation** | 레벨의 GPU 스프라이트 파티클 시뮬레이션을 일시정지 / 해제합니다. |
 
-현재 카메라 시점에서의 씬 렌더링을 고정한 상태에서 월드를 자유롭게 이동하는 기능의 토글입니다.
 
-이 모드를 토글하는 콘솔 명령은 다음과 같습니다.
+### 게임 뷰 모드 사용
 
-	FREEZERENDERING
+[게임 뷰](Engine/UI/LevelEditor/Viewports/Basics) 모드를 사용하면 에디터에서 작업 도중 게임이 어때 보일지 파악할 수 있습니다. 이 뷰 모드를 사용하면 에디터에서 플레이(PIE) 모드나 독립형 게임 모드에서 보이는 대로 게임을 시각화해 보여주지만, 계속해서 월드를 돌아다니며 오브젝트를 편집할 수 있습니다. 
 
+게임 뷰 활성화는 키보드의 **G** 단축키 또는 에디터에서 작업할 때 뷰포트 드롭다운 메뉴에서 **게임 뷰** 를 선택하면 됩니다.
 
-[OBJECT:EmbeddedVideo]
- [PARAMLITERAL:width]
- 640
- [/PARAMLITERAL]
- [PARAMLITERAL:height]
- 360
- [/PARAMLITERAL]
- [PARAMLITERAL:videoid]
- El127q0lv5s
- [/PARAMLITERAL]
+[OBJECT:ComparisonSlider]
+[PARAM:before]
+![에디터 뷰](GameView1.png) 
+[/PARAM]
+[PARAM:after]
+![게임 뷰](GameView2.png) 
+[/PARAM]
 [/OBJECT]
 
-
-##### 게임 뷰 모드
-
-키보드 단축키 **G** 또는 메인 **뷰포트 옵션** 드롭다운에서 **게임 뷰** 를 선택하면 에디터에서 작업하면서 게임에서 실제 보이는 화면을 전환할 수 있습니다. 
-PIE 또는 게임 실행을 하지 않고도 게임이 어때 보이는지 확인할 때 좋습니다. 게임 중이거나 게임 뷰가 아니면 작동하지 않는 컬 디스턴스 볼륨 및 프리컴퓨티드 비저빌리티 볼륨을 확인할 때 
-좋습니다.
-
-[게임 뷰](Engine\UI\LevelEditor\Viewports\Basics) 모드 관련 자세한 정보는 문서를 참고하세요.
-
-
-
-
-
-
-
-
-
+**게임 뷰** 를 활성화하면, (게임에 있는 것처럼) 라이트나 파티클 시스템과 같은 액터의 아이콘이 숨겨집니다. 컬 디스턴스 볼륨 또는 프리컴퓨티드 비저빌리티 볼륨을 사용하(고 셀에 있)는 경우, 컬링 적극성에 따라 그 볼륨의 컬링 결과를 즉시 확인할 수 있습니다.

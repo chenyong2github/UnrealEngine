@@ -14,6 +14,7 @@
 #include "LC_RunMode.h"
 #include "LC_Types.h"
 #include "LC_LiveModule.h"
+#include "VisualStudioDTE.h"
 
 
 class MainFrame;
@@ -26,6 +27,8 @@ class ServerCommandThread
 public:
 	ServerCommandThread(MainFrame* mainFrame, const wchar_t* const processGroupName, RunMode::Enum runMode);
 	~ServerCommandThread(void);
+
+	void RestartTargets(void);
 
 	std::wstring GetProcessImagePath(void) const;
 
@@ -69,6 +72,7 @@ private:
 			}
 
 		DECLARE_ACTION(TriggerRecompile);
+		DECLARE_ACTION(LogMessage);
 		DECLARE_ACTION(BuildPatch);
 		DECLARE_ACTION(HandleException);
 		DECLARE_ACTION(ReadyForCompilation);
@@ -134,7 +138,19 @@ private:
 	bool m_active = true;
 	// END EPIC MOD
 
+	// BEGIN EPIC MOD - Lazy loading modules
+	bool EnableRequiredModules(const TArray<FString>& RequiredModules);
+	// END EPIC MOD
+
 	// for triggering recompiles using the API
 	bool m_manualRecompileTriggered;
 	types::unordered_map<std::wstring, types::vector<LiveModule::ModifiedObjFile>> m_liveModuleToModifiedOrNewObjFiles;
+
+	// restart mechanism
+	CriticalSection m_restartCS;
+	void* m_restartJob;
+	unsigned int m_restartedProcessCount;
+#if WITH_VISUALSTUDIO_DTE
+	types::unordered_map<unsigned int, EnvDTE::DebuggerPtr> m_restartedProcessIdToDebugger;
+#endif
 };

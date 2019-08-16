@@ -1,130 +1,132 @@
-﻿Availability: Public
+﻿INTSourceChangelist:4677192
+Availability: Public
 Crumbs: 
-Title: Gathering PSO Data
-Description: Taking a look at how to gather the PSO data from a compiled UE4 project.
+Title: PSO データの収集
+Description: PSO データをコンパイルされた UE4 プロジェクトから収集する方法について説明します。
 Type: 
 Version: 4.21
 Parent: Engine/Rendering/PSOCaching
-Order:
+Order: 
 Topic-image:GatheringPSOData_Topic_Image.png
 Tags: 
 
 
-Part of the data that is used for **Pipeline State Object** (PSO) caching has to be generated while the project is running on one of its target devices. In the following How-To, we will take a look at how you can use [Device Profiles](Platforms/DeviceProfiles) and the [Project Launcher](Engine/Deployment/ProjectLauncher) to create and deploy a version of your Unreal Engine 4 (UE4) project that will enable PSO data to be generated and captured.
+いずれかの対象デバイスでプロジェクトの実行中に、 **Pipeline State Object** (PSO) のキャッシングで使用されるデータの一部を生成する必要があります。 この操作ガイドでは、 [デバイス プロファイル](Platforms/DeviceProfiles) と [プロジェクト ランチャー](Engine/Deployment/ProjectLauncher) を使用して、PSO データの生成およびキャプチャが可能なバージョンの Unreal Engine 4 (UE4) プロジェクトを作成してデプロイする方法について説明します。
 
-## Steps
+## 手順
 
-1.  From the **Main Toolbar**, click the white arrow icon next to **Launch**, then select **Project Launcher**.  
+1.  **メイン ツールバー** から **[起動オプション]** の横の白い矢印アイコンをクリックして **[プロジェクトランチャー]** を選択します。  
     [REGION:lightbox]
     [![](Open_UE4_Project_Launcher.png)(w:400px)](Open_UE4_Project_Launcher.png)
     [/REGION]
     [REGION:caption]
-    Click for full image.
+    クリックして最大化。
     [/REGION]
-2.  In the Project Launcher, locate the **Custom Launch Profiles** section and press the **plus sign icon** to add a new **Custom Launch Profile**.   
+2.  [プロジェクトランチャー] の **[カスタム起動プロファイル]** セクションで **プラス 記号のアイコン** をクリックして、新規 **カスタム起動プロファイル** を追加します。   
     [REGION:lightbox]
     [![](Create_New_Custom_Launch_Profile.png)(w:800px)](Create_New_Custom_Launch_Profile.png)
     [/REGION]
     [REGION:caption]
-    Click for full image.
+    クリックして最大化。
     [/REGION]
     [REGION:note]
-    You can rename the profile by double-clicking on the existing profile name and inputting the name you want in the box.
+    既存のプロファイル名をダブルクリックしてボックスに使用したい名前を入力することでプロファイル名をリネームできます。
     [/REGION]
-3.  In the **Project** section, click on the **Project** dropdown and select the project that you want this profile to be associated with. Since we are using **ActionRPG** to demonstrate this workflow, the **Project** was set to **ActionRPG**.
+3.  **[プロジェクト]** セクションで、 **[プロジェクト]** のドロップダウンメニューをクリックしてこのプロファイルに関連付けたいプロジェクトを選択します。 このワークフローのデモでは **[ActionRPG]** を使用しているので **[プロジェクト]** に **[ActionRPG]** をセットします。
     [REGION:lightbox]
     [![](Project_Launcher_Used_Project.png)(w:800px)](Project_Launcher_Used_Project.png)
     [/REGION]
     [REGION:caption]
-    Click for full image.
+    クリックして最大化。
     [/REGION]
-4.  Under the Cook section, set the **How would you like to cook the content** option, to **By the Book**.  
+4.  [クック] セクションの、 **[How would you like to cook the content (コンテンツのクック方法を指定してください)]** オプションに **[By the Book]** をセットします。  
     [REGION:lightbox]
     [![](Project_Launcher_Cook_Type.png)(w:800px)](Project_Launcher_Cook_Type.png)
     [/REGION]
     [REGION:caption]
-    Click for full image.
+    クリックして最大化。
     [/REGION]
     [REGION:note]
-    For more information on what the various cooking options do, check out the [Build Operations: Cook, Package, Deploy, and Run](Engine/Deployment/BuildOperations) documentation pages.
+    各種クック オプションの動作の詳細については、ドキュメント ページ  [](Engine/Deployment/BuildOperations) を参照してください。
     [/REGION]
-5.  In the **Cooked Platforms** section, you can select which platform and texture formats this profile should use. Since we are using **ActionRPG** to demonstrate this workflow, make sure that **Android** and **Android_ETC1** are checked.
+5.  **[クックしたプラットフォーム]** セクションで、このプロファイルが使用するプラットフォームをテクスチャを選択します。 このワークフローのデモでは、 **[ActionRPG]** を使用しているので、 **[Android]** と **[Android_ETC1]** が選択されていることを確認します。
     [REGION:lightbox]
     [![](Project_Launcher_Cooked_Platforms.png)(w:800px)](Project_Launcher_Cooked_Platforms.png)
     [/REGION]
     [REGION:caption]
-    Click for full image.
+    クリックして最大化。
     [/REGION]
-6.  In the **Cooked Maps** section, make sure that **Show All** is selected and then select all of the maps you want this profile to be associated with. Since we are using **ActionRPG** to demonstrate this workflow, make sure that all available maps have a checkmark next to them.
+6.  **[クックしたマップ]** セクションで、 **[すべて表示]** を選択し、このプロファイルと関連付けたいマップをすべて選択します。 このワークフローのデモでは、 **[ActionRPG]** を使用しているので、利用可能なすべてのマップの横にチェック マークが付いていることを確認します。
     [REGION:lightbox]
     [![](Project_Launcher_Cooked_Maps.png)(w:800px)](Project_Launcher_Cooked_Maps.png)
     [/REGION]
     [REGION:caption]
-    Click for full image.
+    クリックして最大化。
     [/REGION]
-7.  Under the **Launch** section, set the **Initial Map** to a level that is used when your project loads. Since we are using **ActionRPG** to demonstrate this workflow, the Initial Map was set to **ActionRPG_Main** which is the Level that has the starting UI screen in it.
+7.  **[起動]** セクションで、 **[初期マップ]** に、プロジェクトがロードされる時点で使用されるレベルをセットします。 このワークフローのデモでは **[ActionRPG]** を使用しているので [初期マップ] に開始 UI 画面が存在するレベルである **[ActionRPG_Main]** がセットされます。
     [REGION:lightbox]
     [![](Project_Launcher_Go_Back.png)(w:800px)](Project_Launcher_Go_Back.png)
     [/REGION]
     [REGION:caption]
-    Click for full image.
+    クリックして最大化。
     [/REGION]
-8.  Then, under **Additional Command Line Parameters**, input **-logPSO** to make sure that PSO logging is enabled when the project is run.
+8.  次に、 **[追加コマンドラインパラメータ]** に、 **「-logPSO」** と入力して、プロジェクト実行時の PSO のログ取得が有効になっていることを確認してください。
     [REGION:note]
-    If your project keeps crashing when trying to collect the PSO data, add **-NoVerifyGC** to the command line to disable garbage collection.
+    PSO データの収集の試行中にプロジェクトがクラッシュし続ける場合は、コマンドラインに **「-NoVerifyGC」** を追加して、ガーベージ コレクションを無効にします。
     [/REGION]
     [REGION:lightbox]
     [![](Project_Launcher_AdditionalCommandLineParams.png)(w:800px)](Project_Launcher_AdditionalCommandLineParams.png)
     [/REGION]
     [REGION:caption]
-    Click for full image.
+    クリックして最大化。
     [/REGION]
-9.  Press the **Back** button on the top right of the Project Launcher to go back to the **Custom Launch Profiles** menu.  
+9.  プロジェクトランチャー右上の **[戻る]** ボタンをクリックして **[カスタム起動プロファイル]** メニューに戻ります。  
     [REGION:lightbox]
     [![](Project_Launcher_Go_Back.png)(w:800px)](Project_Launcher_Go_Back.png)
     [/REGION]
     [REGION:caption]
-    Click for full image.
+    クリックして最大化。
     [/REGION]
-10.  From the **Custom Launch Profiles** section, press the **Launch this Profile** button to start the cooking and deployment process.  
+10. **[カスタム起動プロファイル]** セクションで、 **このプロファイルを起動する** ボタンをクリックしてクック処理とデプロイ処理を開始します。  
     [REGION:lightbox]
     [![](Project_Launcher_Start_Cook_And_Deploy.png)(w:800px)](Project_Launcher_Start_Cook_And_Deploy.png)
     [/REGION]
     [REGION:caption]
-    Click for full image.
+    クリックして最大化。
     [/REGION]
     [REGION:note]
-    Before pressing the **Launch this Profile** button make sure that you have your target device setup and connected to your development PC as this process will not only build and cook your project, it will also deploy and start it.
+    **このプロファイルを起動する** ボタンをクリックする前に、対象デバイスのセットアップが完了しており、開発 PC に接続されていることを確認してください。この処理はプロジェクトをビルド、クックするだけではなく、デプロイと起動も行うためです。
     [/REGION]
-11.  Once the cooking and deployment process is started, the following window will be displayed that will show the progress of the build and any error should they occur.  
+11. クックとデプロイ処理が開始すると、次のウィンドウにビルドの進捗と発生したエラーを表示します。  
     [REGION:lightbox]
     [![](Project_Launcher_Completed.png)(w:800px)](Project_Launcher_Completed.png)
     [/REGION]
     [REGION:caption]
-    Click for full image.
+    クリックして最大化。
     [/REGION]
     [REGION:note]
-    You will know the process was successful when the **Output Log** says **BUILD SUCCESSFUL**.
+    処理が成功すると、 **「Output Log」** に **BUILD SUCCESSFUL** と表示されます。
     [/REGION]
-12.  Once the build has completed and been deployed to your target device, you will then need to play through all of your project's available Levels. The goal here is to try to load every single piece of content that is used in the game so that the Shaders that the Materials used are captured.  
+12. ビルドが完了して、対象デバイスにデプロイされたら、プロジェクトで利用可能な全レベルを実行してください。 ここでの目標は、マテリアルが使用するシェーダーがキャプチャされるように、ゲームで使用されるすべてコンテンツをロードすることです。  
     [REGION:note]
-    You will want to repeat this process a few times to make sure that all of the used content is actually loaded.
+確実に使用されているすべてのコンテンツが実際にロードされるようこの処理を数回繰り返した方が良いでしょう。
     [/REGION]
-13.  After you have played through your project a few times, you can retrieve the **rec.upipelinecache** file. You can find this file by going to the following location on your target device: **UE4Game\\NameOfProject\\NameOfProject\\Saved\\CollectedPSOs**
+13. プロジェクトを数回実行すると、 **rec.upipelinecache** ファイルが取得可能になります。 このファイルは、対象デバイスの以下の場所にあります。  
+    **UE4Game\\NameOfProject\\NameOfProject\\Saved\\CollectedPSOs**
     [REGION:lightbox]
     [![](PSO_FIle_On_Device.png)(w:800px)](PSO_FIle_On_Device.png)
     [/REGION]
     [REGION:caption]
-    Click for full image.
+    クリックして最大化。
     [/REGION]  
     [REGION:note]
-    If you do not see a **Saved** or **CollectedPSOs** folder, you will need to create both folders manually on your target device and then re-run through the content in your project so that the correct files are generated.
+    **Saved** と **CollectedPSOs** フォルダが対象デバイスで見つからない場合は、2 フォルダとも手動で作成してから、プロジェクトのコンテンツを再実行してファイルが正しく生成されるようにしてください。
     [/REGION]
 
-## End Results
+## まとめ
 
-With the needed PSO data now generated, next we will need to combine all of the various rec.upipelinecache files that were generated into a single PSO cache that can then be used when your UE4 project is built.
+必要な PSO データを生成したら、次に、UE4 プロジェクトのビルド時に使用される単一の PSO キャッシュに生成された全種類の「rec.upipelinecache」ファイルを結合する必要があります。
 
 [REGION:note]
-For more information about how to do this , check out the [Building the PSO Cache How-To](Engine/Rendering/PSOCaching/BuildingPSOCache).
+使用方法の詳細については、[](Engine/Rendering/PSOCaching/BuildingPSOCache) を参照してください。
 [/REGION]

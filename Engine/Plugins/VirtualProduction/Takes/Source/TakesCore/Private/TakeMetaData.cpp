@@ -131,19 +131,29 @@ FString UTakeMetaData::GetLevelPath() const
 	return !LevelOrigin.IsNull() ? LevelOrigin.ToString() : FString();
 }
 
-void UTakeMetaData::SetSlate(FString InSlate)
+void UTakeMetaData::SetSlate(FString InSlate, bool bEmitChanged)
 {
 	if (!bIsLocked)
 	{
 		Slate = MoveTemp(InSlate);
+
+		if (bEmitChanged)
+		{
+			UTakesCoreBlueprintLibrary::OnTakeRecorderSlateChanged(Slate);
+		}
 	}
 }
 
-void UTakeMetaData::SetTakeNumber(int32 InTakeNumber)
+void UTakeMetaData::SetTakeNumber(int32 InTakeNumber, bool bEmitChanged)
 {
 	if (!bIsLocked)
 	{
 		TakeNumber = FMath::Max(1, InTakeNumber);
+
+		if (bEmitChanged)
+		{
+			UTakesCoreBlueprintLibrary::OnTakeRecorderTakeNumberChanged(TakeNumber);
+		}
 	}
 }
 
@@ -231,3 +241,4 @@ void UTakeMetaData::ExtendAssetRegistryTagMetaData(TMap<FName, FAssetRegistryTag
 		.SetTooltip(    NSLOCTEXT("TakeMetaData", "LevelPath_Tip",   "Map used for this take"))
 	);
 }
+

@@ -32,7 +32,7 @@ class FAudioFormatOgg : public IAudioFormat
 	enum
 	{
 		/** Version for OGG format, this becomes part of the DDC key. */
-		UE_AUDIO_OGG_VER = 2,
+		UE_AUDIO_OGG_VER = 3,
 	};
 
 public:
@@ -435,7 +435,14 @@ public:
 		return CompressedDataStore.Num();
 	}
 
-	virtual bool SplitDataForStreaming(const TArray<uint8>& SrcBuffer, TArray<TArray<uint8>>& OutBuffers, const int32 MaxChunkSize) const override
+	virtual int32 GetMinimumSizeForInitialChunk(FName Format, const TArray<uint8>& SrcBuffer) const override
+	{
+		// The header packet is typically 753 bytes, but depending on various metadata fields this can vary.
+		// To be safe this is set to 6 kB.
+		return 6 * 1024;
+	}
+
+	virtual bool SplitDataForStreaming(const TArray<uint8>& SrcBuffer, TArray<TArray<uint8>>& OutBuffers, const int32 InitialChunkMaxSize, const int32 MaxChunkSize) const override
 	{
 		// Just chunk purely on MONO_PCM_BUFFER_SIZE
 		uint8 const*	SrcData = SrcBuffer.GetData();
@@ -449,20 +456,29 @@ public:
 			return false;
 		}
 
-		// Use a base chunk size of MONO_PCM_BUFFER_SIZE * 2 because Android uses MONO_PCM_BUFFER_SIZE to submit buffers to the os, the streaming system has more scheduling flexability when the chunk size is
-		//	larger the the buffer size submitted to the OS
-#if PLATFORM_ANDROID
-		uint32	ChunkSize = MONO_PCM_BUFFER_SIZE * 2 * QualityInfo.NumChannels;
-#else
-		uint32 ChunkSize = MaxChunkSize;
-#endif
+
+		// Set up initial chunk:
+		uint32 ChunkSize = InitialChunkMaxSize;
+		uint32	CurChunkDataSize = FMath::Min<uint32>(SrcSize, ChunkSize);
+
+		AddNewChunk(OutBuffers, CurChunkDataSize);
+		AddChunkData(OutBuffers, SrcData, CurChunkDataSize);
+
+		check(SrcSize >= CurChunkDataSize);
+		SrcSize -= CurChunkDataSize;
+		SrcData += CurChunkDataSize;
+
+		ChunkSize = MaxChunkSize;
+
+		// Set up the rest of the chunks:
 		while(SrcSize > 0)
 		{
-			int32	CurChunkDataSize = FMath::Min<uint32>(SrcSize, ChunkSize);
-				
+			CurChunkDataSize = FMath::Min<uint32>(SrcSize, ChunkSize);
+
 			AddNewChunk(OutBuffers, CurChunkDataSize);
 			AddChunkData(OutBuffers, SrcData, CurChunkDataSize);
-				
+
+			check(SrcSize >= CurChunkDataSize);
 			SrcSize -= CurChunkDataSize;
 			SrcData += CurChunkDataSize;
 		}

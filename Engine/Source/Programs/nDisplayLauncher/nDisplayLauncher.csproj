@@ -130,6 +130,7 @@
     <Compile Include="Cluster\Config\Conversion\ConverterFactory.cs" />
     <Compile Include="Cluster\Config\Conversion\Converters\ConfigConverterBase.cs" />
     <Compile Include="Cluster\Config\Conversion\Converters\ConfigConverter_22.cs" />
+    <Compile Include="Cluster\Config\Conversion\Converters\ConfigConverter_23.cs" />
     <Compile Include="Cluster\Config\Conversion\Converters\IConfigConverter.cs" />
     <Compile Include="Cluster\Config\Entity\EntityInfo.cs" />
     <Compile Include="Cluster\Events\ClusterEvent.cs" />

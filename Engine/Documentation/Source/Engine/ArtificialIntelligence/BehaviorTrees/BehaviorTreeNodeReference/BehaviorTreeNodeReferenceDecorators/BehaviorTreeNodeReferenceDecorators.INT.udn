@@ -1,0 +1,508 @@
+Availability: Docs
+Title: Behavior Tree Node Reference: Decorators
+Description: Reference for the Behavior Tree Decorator nodes.
+Type: reference
+Version: 4.21
+Parent: Engine/ArtificialIntelligence/BehaviorTrees/BehaviorTreeNodeReference
+Tags: AI
+Tags: Behavior Tree Node Reference
+topic-image: BehaviorTreeNodes_Decorator_Topic.png
+social-image: BehaviorTreeNodes_Decorator_Topic.png
+topic-icon: BehaviorTreeNodes_Decorator_Topic.png
+Order: 1
+
+
+[TOC (start:2 end:2)]
+
+**Decorator**, also known as conditionals in other Behavior Tree systems, are attached to either a [Composite](Engine/ArtificialIntelligence/BehaviorTrees/BehaviorTreeNodeReference/BehaviorTreeNodeReferenceComposites) or a [Task](Engine/ArtificialIntelligence/BehaviorTrees/BehaviorTreeNodeReference/BehaviorTreeNodeReferenceTasks) node and define whether or not a branch in the tree, or even a single node, can be executed.
+
+## Blackboard
+
+![](Decorators_01.png "Decorators_01.png")
+
+The **Blackboard** node will check to see if a value is set on the given **Blackboard Key**.
+
+  
+| Property | Description |
+| --- | --- |
+| **Notify Observer** | [INCLUDE:#excerpt_0] |
+| **Observer Aborts** | [INCLUDE:#excerpt_1] |
+| **Key Query** | [INCLUDE:#excerpt_2] |
+| **Blackboard Key** | [INCLUDE:#excerpt_3] |
+| **Node Name** | The name the node should display in the Behavior Tree graph. |
+
+<!--
+[EXCERPT:excerpt_0]
+
+|||
+| --- | --- |  
+| **On Result Change** | Reevaluate only when the condition has changed. |
+| **On Value Change** | Reevaluate only when the observed Blackboard Key changes. |
+
+[/EXCERPT:excerpt_0]
+-->
+<!--
+[EXCERPT:excerpt_1]
+
+|||
+| --- | --- |  
+| **None** | Do not abort anything. |
+| **Self** | Abort self and any sub-trees running under this node. |
+| **Lower Priority** | Abort any nodes to the right of this node. |
+| **Both** | Abort self, any sub-trees running under this node, and any nodes to the right of this node. |
+
+[/EXCERPT:excerpt_1]
+-->
+<!--
+[EXCERPT:excerpt_2]
+
+|||
+| --- | --- |  
+| **Is Set** | Is the value set? |
+| **Is Not Set** | Is the value not set? |
+
+[/EXCERPT:excerpt_2]
+-->
+<!--
+[EXCERPT:excerpt_3]
+
+The Blackboard Key the Decorator will work on.   
+
+[/EXCERPT:excerpt_3]
+-->
+
+## Check Gameplay Tag Condition
+
+![](Decorators_02.png "Decorators_02.png")
+
+  
+| Property | Description |
+| --- | --- |
+| **Actor to Check** | The Blackboard Key that contains the reference to the Actor to check. |
+| **Tags to Match** | Should the Decorator match **Any** or **All** of the Tags listed in the property **Gameplay Tags**. |
+| **Gameplay Tags** | Loads the **Gameplay Tag** editor to select the tags that should be used in this Decorator. |
+| **Inverse Condition** | If the result of this Decorator be inversed where false becomes true and true becomes false. |
+| **Node Name** | The name the node should display in the Behavior Tree graph. |
+
+## Compare BBEntries
+
+![](Decorators_03-1.png "Decorators_03-1.png")
+
+The **Compare BBEntries** (Blackboard Entries) node will compare the values of two **Blackboard Keys** and will block or allow the execution of a node based on if the result is equal to or not equal to.
+
+  
+| Property | Description |
+| --- | --- |
+| **Observer Aborts** | [INCLUDE:#excerpt_4] |
+| **Operator** | [INCLUDE:#excerpt_6] |
+| **Blackboard Key A** | The first Key to use in this comparison. |
+| **Blackboard Key B** | The second Key to use in this comparison. |
+| **Node Name** | The name the node should display in the Behavior Tree graph. |
+
+<!--
+[EXCERPT:excerpt_4]
+
+|||
+| --- | --- |  
+| **None** | Do not abort anything. |
+| **Self** | Abort self and any sub-trees running under this node. |
+| **Lower Priority** | Abort any nodes to the right of this node. |
+| **Both** | Abort self, any sub-trees running under this node, and any nodes to the right of this node. |
+
+[/EXCERPT:excerpt_4]
+-->
+<!--
+[EXCERPT:excerpt_6]
+
+|||
+| --- | --- |  
+| **Is Equal To** | Are the two Keys equal to each other? |
+| **Is Not Equal To** | Are the two Keys different to each other? |
+
+[/EXCERPT:excerpt_6]
+-->
+
+## Composite
+
+![](Decorators_04.png "Decorators_04.png")
+
+The **Composite Decorator** node enables you to set up more advanced logic than the built-in nodes but not as complex as a full Blueprint. Once you have added a Composite Decorator to a node, double-click the Composite Decorator to bring up the Composite's Graph. By right-clicking in the graph area you can add Decorator nodes as standalone nodes, then wire them together through **AND** nodes, **OR** nodes, and **NOT** nodes, to create more advanced logic:  
+
+[REGION:lightbox]
+[![](Decorators_04b.png)(w:900)](Decorators_04b.png)
+[/REGION]
+[REGION:caption]
+Click image for full view.
+[/REGION]
+
+  
+| Property | Description |
+| --- | --- |
+| **Composite Name** | The name the node should display in the Behavior Tree graph. |
+| **Show Operations** | This will cause the operations to be listed on the node in plain text. |
+
+[REGION:note]
+Using a Composite Decorator in this manner will impact memory and performance. It is possible to create a Decorator in C++ that will do same custom behavior but in a more efficient way.
+[/REGION]
+
+## Conditional Loop
+
+As long as the **Key Query** condition is met, this Decorator will have the node it's attached to loop.  
+
+![](Decorators_05.png "Decorators_05.png")
+
+  
+| Property | Description |
+| --- | --- |
+| **Key Query** | [INCLUDE:#excerpt_7] |
+| **Blackboard Key** | [INCLUDE:#excerpt_8] |
+| **Node Name** | The name the node should display in the Behavior Tree graph. |
+
+<!--
+[EXCERPT:excerpt_7]
+
+|||
+| --- | --- |  
+| **Is Set** | Is the value set? |
+| **Is Not Set** | Is the value not set? |
+
+[/EXCERPT:excerpt_7]
+-->
+<!--
+[EXCERPT:excerpt_8]
+
+The Blackboard Key the Decorator will work on.   
+
+[/EXCERPT:excerpt_8]
+-->
+
+## Cone Check
+
+![](Decorators_06-1.png "Decorators_06-1.png")
+
+The **Cone Check** Decorator takes in three Vector Keys: the first for the location to start the cone, the second to define the direction the cone points, and the third for the location to check if it is inside the cone. You define the angle of the cone by using the **Cone Half Angle** property.
+
+  
+| Property | Description |
+| --- | --- |
+| **Observer Aborts** | [INCLUDE:#excerpt_9] |
+| **Cone Half Angle** | The half angle of the cone. For example, for a 90 degree cone, this value should be set to 45 degrees. |
+| **Cone Origin** | The location where the cone should start (the tip of the cone). |
+| **Cone Direction** | The direction in which the mouth of the cone should point. |
+| **Observed** | The location or Actor that is being checked to see if it is in the cone. |
+| **Inverse Condition** | [INCLUDE:#excerpt_11] |
+| **Node Name** | The name the node should display in the Behavior Tree graph. |
+
+<!--
+[EXCERPT:excerpt_9]
+
+|||
+| --- | --- |  
+| **None** | Do not abort anything. |
+| **Self** | Abort self and any sub-trees running under this node. |
+| **Lower Priority** | Abort any nodes to the right of this node. |
+| **Both** | Abort self, any sub-trees running under this node, and any nodes to the right of this node. |
+
+[/EXCERPT:excerpt_9]
+-->
+<!--
+[EXCERPT:excerpt_11]
+
+If the result of this Decorator be inversed where false becomes true and true becomes false.  
+
+[/EXCERPT:excerpt_11]
+-->
+
+## Cooldown
+
+![](Decorators_07.png "Decorators_07.png")
+
+The **Cooldown** node will lock the execution of a node or branch until the cooldown time expires.
+
+  
+| Property | Description |
+| --- | --- |
+| **Observer Aborts** | [INCLUDE:#excerpt_12] |
+| **Cool Down time** | The time, in seconds, the Cooldown Decorator should lock execution of this node. |
+| **Node Name** | The name the node should display in the Behavior Tree graph. |
+
+<!--
+[EXCERPT:excerpt_12]
+
+|||
+| --- | --- |  
+| **None** | Do not abort anything. |
+| **Self** | Abort self and any sub-trees running under this node. |
+| **Lower Priority** | Abort any nodes to the right of this node. |
+| **Both** | Abort self, any sub-trees running under this node, and any nodes to the right of this node. |
+
+[/EXCERPT:excerpt_12]
+-->
+
+## Custom Decorators
+
+![](CustomDecorator.png "CustomDecorator.png")
+
+You can create new **Decorators **with your own custom Blueprint logic and (or) parameters by clicking the **New Decorator **button.   
+
+![](NewDecoratorCreate.png "NewDecoratorCreate.png")
+
+The following parameters will also be included with your custom logic. 
+
+  
+| Property | Description |
+| --- | --- |
+| **Observer Aborts** | [INCLUDE:#excerpt_14] |
+| **Show Property Details** | Show detailed information about properties on the node. |
+| **Node Name** | The name the node should display in the Behavior Tree graph. |
+| **Inverse Condition** | [INCLUDE:#excerpt_16] |
+
+<!--
+[EXCERPT:excerpt_14]
+
+|||
+| --- | --- |  
+| **None** | Do not abort anything. |
+| **Self** | Abort self and any sub-trees running under this node. |
+| **Lower Priority** | Abort any nodes to the right of this node. |
+| **Both** | Abort self, any sub-trees running under this node, and any nodes to the right of this node. |
+
+[/EXCERPT:excerpt_14]
+-->
+<!--
+[EXCERPT:excerpt_16]
+
+If the result of this Decorator be inversed where false becomes true and true becomes false.  
+
+[/EXCERPT:excerpt_16]
+-->
+
+## Does Path Exist
+
+![](Decorators_08.png "Decorators_08.png")
+
+The **Does Path Exist** node checks to see if a path can be made from the two vectors: Blackboard Key A and Blackboard Key B.
+
+  
+| Property | Description |
+| --- | --- |
+| **Observer Aborts** | [INCLUDE:#excerpt_17] |
+| **Blackboard Key A** | The first location in the path. |
+| **Blackboard Key B** | The second location in the path. |
+| **Path Query Type** | [INCLUDE:#excerpt_19] |
+| **Inverse Condition** | [INCLUDE:#excerpt_20] |
+| **Filter Class** | Which navigation data should be used? If set to **None** the default navigation data will be used. |
+| **Node Name** | The name the node should display in the Behavior Tree graph. |
+
+<!--
+[EXCERPT:excerpt_17]
+
+|||
+| --- | --- |  
+| **None** | Do not abort anything. |
+| **Self** | Abort self and any sub-trees running under this node. |
+| **Lower Priority** | Abort any nodes to the right of this node. |
+| **Both** | Abort self, any sub-trees running under this node, and any nodes to the right of this node. |
+
+[/EXCERPT:excerpt_17]
+-->
+<!--
+[EXCERPT:excerpt_19]
+
+|||
+| --- | --- |  
+| **NavMesh Raycast 2D** | Really Fast |
+| **Hierarchical Query** | Fast |
+| **Regular Path Finding** | Slow |
+
+[/EXCERPT:excerpt_19]
+-->
+<!--
+[EXCERPT:excerpt_20]
+
+If the result of this Decorator be inversed where false becomes true and true becomes false.  
+
+[/EXCERPT:excerpt_20]
+-->
+
+## Force Success
+
+![](Decorators_09.png "Decorators_09.png")
+
+The **Force Success** Decorator changes the node result to a success. 
+
+  
+| Property | Description |
+| --- | --- |
+| **Node Name** | The name the node should display in the Behavior Tree graph. |
+
+## Is At Location
+
+![](Decorators_10.png "Decorators_10.png")
+
+The **Is At Location **Decorator node checks if the AI controlled Pawn is at the given location. 
+
+  
+| Property | Description |
+| --- | --- |
+| **Acceptable Radius** | The distance threshold to accept as being at location. |
+| **Parametrized Acceptable Radius** | A parameter based Acceptable Radius (such as **Random Number**). |
+| **Geometric Distance Type** | With **Path Finding Based Test **disabled, this enables you to set the distance type to 3D, 2D, or Z values. |
+| **Use Nav Agent Goal Location** | [INCLUDE:#excerpt_21] |
+| **Path Finding Based Test** | If enabled, the result will be consistent with tests done while following paths. If disabled, use **Geometric Distance **as configured with **Distance Type**. |
+| **Inverse Condition** | [INCLUDE:#excerpt_22] |
+| **Blackboard Key** | The Blackboard Key value to test against. |
+| **Node Name** | The user defined name of the node. |
+
+<!--
+[EXCERPT:excerpt_21]
+
+If moving to an Actor and this Actor is a Nav Agent, then we will move to their Nav Agent Goal Location.   
+
+[/EXCERPT:excerpt_21]
+-->
+<!--
+[EXCERPT:excerpt_22]
+
+If the result of this Decorator be inversed where false becomes true and true becomes false.  
+
+[/EXCERPT:excerpt_22]
+-->
+
+## Is BBEntry Of Class
+
+![](Decorators_11.png "Decorators_11.png")
+
+The **Is BBEntry Of Class **Decorator node is used to determine if the designated Blackboard Key is of a specified Class. 
+
+  
+| Property | Description |
+| --- | --- |
+| **Observer Aborts** | [INCLUDE:#excerpt_23] |
+| **Test Class** | The Class type that is tested against Class of the Object of the Blackboard Key property. |
+| **Blackboard Key** | The Blackboard Key that is tested. |
+| **Node Name** | The name the node should display in the Behavior Tree graph. |
+
+<!--
+[EXCERPT:excerpt_23]
+
+|||
+| --- | --- |  
+| **None** | Do not abort anything. |
+| **Self** | Abort self and any sub-trees running under this node. |
+| **Lower Priority** | Abort any nodes to the right of this node. |
+| **Both** | Abort self, any sub-trees running under this node, and any nodes to the right of this node. |
+
+[/EXCERPT:excerpt_23]
+-->
+
+## Keep in Cone
+
+![](Decorators_12.png "Decorators_12.png")
+
+The **Keep in Cone **Decorator node that bases its condition on whether the observed position is still inside a cone. The cone's direction is calculated when the node first becomes relevant.
+
+  
+| Property | Description |
+| --- | --- |
+| **Observer Aborts** | [INCLUDE:#excerpt_25] |
+| **Cone Half Angle** | The half angle of the cone. For example, for a 90 degree cone, this value should be set to 45 degrees. |
+| **Cone Origin** | The location where the cone should start (the tip of the cone) |
+| **Observed** | The location or Actor to keep in the cone. |
+| **Node Name** | The name the node should display in the Behavior Tree graph. |
+
+<!--
+[EXCERPT:excerpt_25]
+
+|||
+| --- | --- |  
+| **None** | Do not abort anything. |
+| **Self** | Abort self and any sub-trees running under this node. |
+| **Lower Priority** | Abort any nodes to the right of this node. |
+| **Both** | Abort self, any sub-trees running under this node, and any nodes to the right of this node. |
+
+[/EXCERPT:excerpt_25]
+-->
+
+## Loop
+
+![](Decorators_13.png "Decorators_13.png")
+
+The **Loop **Decorator loops the node or branch a number of times, or infinitely.
+
+  
+| Property | Description |
+| --- | --- |
+| **Num Loops** | The number of loops to run. |
+| **Infinite Loop** | Should this loop run indefinitely? |
+| **Infinite Loop Timeout Time** | Timeout value if **Infinite Loop **is enabled (a negative value will loop forever). |
+| **Node Name** | The name the node should display in the Behavior Tree graph. |
+
+## Set Tag Cooldown
+
+![](Decorators_14.png "Decorators_14.png")
+
+The **Set Tag Cooldown **node enables you to set a cooldown duration for a Gameplay Tag.   
+
+  
+| Property | Description |
+| --- | --- |
+| **Cooldown Tag** | The GameplayTag that will be used for the Cooldown. |
+| **Cooldown Duration** | How long the Cooldown is in seconds. |
+| **Add to Existing Duration** | If there is an existing Cooldown on the given GameplayTag, should we add more? |
+| **Node Name** | The name the node should display in the Behavior Tree graph. |
+
+## Tag Cooldown
+
+![](Decorators_15.png "Decorators_15.png")
+
+A Decorator node that bases its condition on whether a cooldown timer from a Gameplay Tag has expired. 
+
+  
+| Property | Description |
+| --- | --- |
+| **Observer Aborts** | [INCLUDE:#excerpt_27] |
+| **Cooldown Tag** | The GameplayTag that will be used for the Cooldown. |
+| **Cooldown Duration** | How long the Cooldown is in seconds. |
+| **Add to Existing Duration** | If there is an existing Cooldown on the given GameplayTag, should we add more? |
+| **Adds/Sets Cooldown on Deactivation** | Whether or not we are adding/setting to the CooldownTag's value when the decorator deactivates. |
+| **Node Name** | The name the node should display in the Behavior Tree graph. |
+
+<!--
+[EXCERPT:excerpt_27]
+
+|||
+| --- | --- |  
+| **None** | Do not abort anything. |
+| **Self** | Abort self and any sub-trees running under this node. |
+| **Lower Priority** | Abort any nodes to the right of this node. |
+| **Both** | Abort self, any sub-trees running under this node, and any nodes to the right of this node. |
+
+[/EXCERPT:excerpt_27]
+-->
+
+## Time Limit
+
+![](Decorators_16.png "Decorators_16.png")
+
+The **Time Limit** Decorator will give a branch or node a set amount of time to finish before stopping it and failing out. The timer is reset every time the node gains focus.
+
+  
+| Property | Description |
+| --- | --- |
+| **Observer Aborts** | [INCLUDE:#excerpt_29] |
+| **Time Limit** | The time limit before the node fails out, in seconds. |
+| **Node Name** | The name the node should display in the Behavior Tree graph. |
+
+<!--
+[EXCERPT:excerpt_29]
+
+|||
+| --- | --- |  
+| **None** | Do not abort anything. |
+| **Self** | Abort self and any sub-trees running under this node. |
+| **Lower Priority** | Abort any nodes to the right of this node. |
+| **Both** | Abort self, any sub-trees running under this node, and any nodes to the right of this node. |
+
+[/EXCERPT:excerpt_29]
+-->

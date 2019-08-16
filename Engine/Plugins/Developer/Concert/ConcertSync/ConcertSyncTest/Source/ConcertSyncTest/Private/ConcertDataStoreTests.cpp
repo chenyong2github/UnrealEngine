@@ -3,6 +3,8 @@
 #include "ConcertDataStoreTests.h"
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
+#include "Misc/Paths.h"
+#include "HAL/FileManager.h"
 #include "IConcertClientDataStore.h"
 #include "ConcertDataStore.h"
 #include "ConcertClientLocalDataStore.h"
@@ -22,7 +24,7 @@ namespace ConcertDataStoreTestUtils
 // as this is not required for general purpose. For the test, we pass a mocked session in which the data store server hook itself to send/
 // receive events/requests/responses. This enable testing the client/server data store integration by just mocking the transport layer
 // between them
-extern TSharedPtr<void> MakeConcerteServerDataStoreForTest(TSharedPtr<IConcertServerSession> Session, bool bIsContentReplicationEnabled);
+extern TSharedPtr<void> MakeConcerteServerDataStoreForTest(TSharedRef<IConcertServerSession> Session, bool bIsContentReplicationEnabled);
 
 // Those functions are implemented in ConcertSyncClient -> ConcertClientDataStore.cpp and prevent exposing ConcertClientDataStore.h publicly
 // as this is not required for general purpose. This function returns an instance than can be passed back to the 2 others external functions.
@@ -40,6 +42,11 @@ FConcertDataStoreValueConstPtr GetClientCachedValue(const IConcertClientDataStor
 uint32 GetClientCacheSize(const IConcertClientDataStore& ClientStore)
 {
 	return GetConcertClientDataStoreCacheSize(ClientStore);
+}
+
+FString GetTestSessionRootPath()
+{
+	return FPaths::ProjectIntermediateDir() / TEXT("ConcertDataStoreTest");
 }
 
 // Utility functions used to detect when a non-mocked function is called, so that we can mock it properly when required.
@@ -64,24 +71,31 @@ bool operator!=(const FText& lhs, const FText& rhs)
 class FConcertServerSessionBaseMock : public IConcertServerSession
 {
 public:
-	FConcertServerSessionBaseMock() : Name("FConcertServerSessionBaseMock") { }
+	FConcertServerSessionBaseMock() 
+		: Id(FGuid::NewGuid())
+		, Name("FConcertServerSessionBaseMock")
+	{ }
 
 	// IConcertSession Begin.
-	virtual const FString& GetName() const override                                                                                  { return NotMocked<const FString&>(Name); }
-	virtual const FConcertSessionInfo& GetSessionInfo() const override                                                               { return NotMocked<const FConcertSessionInfo&>(SessionInfo); }
-	virtual FString GetSessionWorkingDirectory() const override                                                                      { return NotMocked<FString>(); }
-	virtual TArray<FGuid> GetSessionClientEndpointIds() const override                                                               { return NotMocked<TArray<FGuid>>(); }
-	virtual TArray<FConcertSessionClientInfo> GetSessionClients() const override                                                     { return NotMocked<TArray<FConcertSessionClientInfo>>(); }
-	virtual bool FindSessionClient(const FGuid&, FConcertSessionClientInfo&) const override                                          { return NotMocked<bool>(); }
-	virtual void Startup() override                                                                                                  { return NotMocked<void>(); }
-	virtual void Shutdown() override                                                                                                 { return NotMocked<void>(); };
-	virtual FConcertScratchpadRef GetScratchpad() const override                                                                     { return NotMocked<FConcertScratchpadRef>(); }
-	virtual FConcertScratchpadPtr GetClientScratchpad(const FGuid&) const override                                                   { return NotMocked<FConcertScratchpadRef>(); }
-	virtual void InternalRegisterCustomEventHandler(const FName&, const TSharedRef<IConcertSessionCustomEventHandler>&) override     { return NotMocked<void>(); }
-	virtual void InternalUnregisterCustomEventHandler(const FName&) override                                                         { return NotMocked<void>(); }
-	virtual void InternalSendCustomEvent(const UScriptStruct*, const void*, const TArray<FGuid>&, EConcertMessageFlags) override     { return NotMocked<void>(); }
-	virtual void InternalRegisterCustomRequestHandler(const FName&, const TSharedRef<IConcertSessionCustomRequestHandler>&) override { return NotMocked<void>(); }
-	virtual void InternalUnregisterCustomRequestHandler(const FName&) override                                                       { return NotMocked<void>(); }
+	virtual const FGuid& GetId() const override																								{ return Id; }
+	virtual const FString& GetName() const override																							{ return NotMocked<const FString&>(Name); }
+	virtual void SetName(const FString&) override																							{ return NotMocked<void>(); }
+	virtual const FConcertSessionInfo& GetSessionInfo() const override																		{ return NotMocked<const FConcertSessionInfo&>(SessionInfo); }
+	virtual FString GetSessionWorkingDirectory() const override																				{ return GetTestSessionRootPath() / Id.ToString(); }
+	virtual TArray<FGuid> GetSessionClientEndpointIds() const override																		{ return NotMocked<TArray<FGuid>>(); }
+	virtual TArray<FConcertSessionClientInfo> GetSessionClients() const override															{ return NotMocked<TArray<FConcertSessionClientInfo>>(); }
+	virtual bool FindSessionClient(const FGuid&, FConcertSessionClientInfo&) const override													{ return NotMocked<bool>(); }
+	virtual void Startup() override																											{ return NotMocked<void>(); }
+	virtual void Shutdown() override																										{ return NotMocked<void>(); };
+	virtual FConcertScratchpadRef GetScratchpad() const override																			{ return NotMocked<FConcertScratchpadRef>(); }
+	virtual FConcertScratchpadPtr GetClientScratchpad(const FGuid&) const override															{ return NotMocked<FConcertScratchpadRef>(); }
+	virtual FDelegateHandle InternalRegisterCustomEventHandler(const FName&, const TSharedRef<IConcertSessionCustomEventHandler>&) override { return NotMocked<FDelegateHandle>(); }
+	virtual void InternalUnregisterCustomEventHandler(const FName& EventMessageType, const FDelegateHandle EventHandle) override			{ return NotMocked<void>(); }
+	virtual void InternalUnregisterCustomEventHandler(const FName& EventMessageType, const void* EventHandler) override						{ return NotMocked<void>(); }
+	virtual void InternalClearCustomEventHandler(const FName& EventMessageType) override													{ return NotMocked<void>(); }
+	virtual void InternalSendCustomEvent(const UScriptStruct*, const void*, const TArray<FGuid>&, EConcertMessageFlags) override			{ return NotMocked<void>(); }
+	virtual void InternalRegisterCustomRequestHandler(const FName&, const TSharedRef<IConcertSessionCustomRequestHandler>&) override		{ return NotMocked<void>(); }
+	virtual void InternalUnregisterCustomRequestHandler(const FName&) override																{ return NotMocked<void>(); }
 	virtual void InternalSendCustomRequest(const UScriptStruct*, const void*, const FGuid&, const TSharedRef<IConcertSessionCustomResponseHandler>&) override { NotMocked<void>(); }
 	// IConcertSession End.
 
@@ -91,6 +105,8 @@ public:
 	// IConcertServerSession End
 
 protected:
+	FGuid Id;
+
 	// Those below are unused mocked data member, but required to get the code compiling.
 	FString Name;
 	FConcertSessionInfo SessionInfo;
@@ -102,24 +118,30 @@ protected:
 class FConcertClientSessionBaseMock : public IConcertClientSession
 {
 public:
-	FConcertClientSessionBaseMock() : Name("FConcertClientSessionBaseMock") { }
+	FConcertClientSessionBaseMock() 
+		: Id(FGuid::NewGuid()) 
+		, Name("FConcertClientSessionBaseMock") 
+	{ }
 
 	// IConcertSession Begin.
-	virtual const FString& GetName() const override                                                                                  { return NotMocked<const FString&>(Name); }
-	virtual const FConcertSessionInfo& GetSessionInfo() const override                                                               { return NotMocked<const FConcertSessionInfo&>(SessionInfo); }
-	virtual FString GetSessionWorkingDirectory() const override                                                                      { return NotMocked<FString>(); }
-	virtual TArray<FGuid> GetSessionClientEndpointIds() const override                                                               { return NotMocked<TArray<FGuid>>(); }
-	virtual TArray<FConcertSessionClientInfo> GetSessionClients() const override                                                     { return NotMocked<TArray<FConcertSessionClientInfo>>(); }
-	virtual bool FindSessionClient(const FGuid&, FConcertSessionClientInfo&) const override                                          { return NotMocked<bool>(); }
-	virtual void Startup() override                                                                                                  { return NotMocked<void>(); }
-	virtual void Shutdown() override                                                                                                 { return NotMocked<void>(); };
-	virtual FConcertScratchpadRef GetScratchpad() const override                                                                     { return NotMocked<FConcertScratchpadRef>(); }
-	virtual FConcertScratchpadPtr GetClientScratchpad(const FGuid&) const override                                                   { return NotMocked<FConcertScratchpadRef>(); }
-	virtual void InternalRegisterCustomEventHandler(const FName&, const TSharedRef<IConcertSessionCustomEventHandler>&) override     { return NotMocked<void>(); }
-	virtual void InternalUnregisterCustomEventHandler(const FName&) override                                                         { return NotMocked<void>(); }
-	virtual void InternalSendCustomEvent(const UScriptStruct*, const void*, const TArray<FGuid>&, EConcertMessageFlags) override     { return NotMocked<void>(); }
-	virtual void InternalRegisterCustomRequestHandler(const FName&, const TSharedRef<IConcertSessionCustomRequestHandler>&) override { return NotMocked<void>(); }
-	virtual void InternalUnregisterCustomRequestHandler(const FName&) override                                                       { return NotMocked<void>(); }
+	virtual const FGuid& GetId() const override																								{ return Id; }
+	virtual const FString& GetName() const override																							{ return NotMocked<const FString&>(Name); }
+	virtual const FConcertSessionInfo& GetSessionInfo() const override																		{ return NotMocked<const FConcertSessionInfo&>(SessionInfo); }
+	virtual FString GetSessionWorkingDirectory() const override																				{ return GetTestSessionRootPath() / Id.ToString(); }
+	virtual TArray<FGuid> GetSessionClientEndpointIds() const override																		{ return NotMocked<TArray<FGuid>>(); }
+	virtual TArray<FConcertSessionClientInfo> GetSessionClients() const override															{ return NotMocked<TArray<FConcertSessionClientInfo>>(); }
+	virtual bool FindSessionClient(const FGuid&, FConcertSessionClientInfo&) const override													{ return NotMocked<bool>(); }
+	virtual void Startup() override																											{ return NotMocked<void>(); }
+	virtual void Shutdown() override																										{ return NotMocked<void>(); };
+	virtual FConcertScratchpadRef GetScratchpad() const override																			{ return NotMocked<FConcertScratchpadRef>(); }
+	virtual FConcertScratchpadPtr GetClientScratchpad(const FGuid&) const override															{ return NotMocked<FConcertScratchpadRef>(); }
+	virtual FDelegateHandle InternalRegisterCustomEventHandler(const FName&, const TSharedRef<IConcertSessionCustomEventHandler>&) override { return NotMocked<FDelegateHandle>(); }
+	virtual void InternalUnregisterCustomEventHandler(const FName& EventMessageType, const FDelegateHandle EventHandle) override			{ return NotMocked<void>(); }
+	virtual void InternalUnregisterCustomEventHandler(const FName& EventMessageType, const void* EventHandler) override						{ return NotMocked<void>(); }
+	virtual void InternalClearCustomEventHandler(const FName& EventMessageType) override													{ return NotMocked<void>(); }
+	virtual void InternalSendCustomEvent(const UScriptStruct*, const void*, const TArray<FGuid>&, EConcertMessageFlags) override			{ return NotMocked<void>(); }
+	virtual void InternalRegisterCustomRequestHandler(const FName&, const TSharedRef<IConcertSessionCustomRequestHandler>&) override		{ return NotMocked<void>(); }
+	virtual void InternalUnregisterCustomRequestHandler(const FName&) override																{ return NotMocked<void>(); }
 	virtual void InternalSendCustomRequest(const UScriptStruct*, const void*, const FGuid&, const TSharedRef<IConcertSessionCustomResponseHandler>&) override { NotMocked<void>(); }
 	// IConcertSession End.
 
@@ -128,6 +150,7 @@ public:
 	virtual FGuid GetSessionClientEndpointId() const override                        { return NotMocked<FGuid>(); }
 	virtual FGuid GetSessionServerEndpointId() const override                        { return NotMocked<FGuid>(); }
 	virtual const FConcertClientInfo& GetLocalClientInfo() const override            { return NotMocked<const FConcertClientInfo&>(ClientInfo); }
+	virtual void UpdateLocalClientInfo(const FConcertClientInfoUpdate&) override     { return NotMocked<void>(); }
 	virtual void Connect() override                                                  { return NotMocked<void>(); }
 	virtual void Disconnect() override                                               { return NotMocked<void>(); }
 	virtual void Resume() override                                                   { return NotMocked<void>(); }
@@ -136,17 +159,21 @@ public:
 	virtual FOnConcertClientSessionTick& OnTick() override                           { return NotMocked<FOnConcertClientSessionTick&>(Tick); }
 	virtual FOnConcertClientSessionConnectionChanged& OnConnectionChanged() override { return NotMocked<FOnConcertClientSessionConnectionChanged&>(ConnectionChanged); }
 	virtual FOnConcertClientSessionClientChanged& OnSessionClientChanged() override  { return NotMocked<FOnConcertClientSessionClientChanged&>(ClientChanged); }
+	virtual FOnConcertSessionRenamed& OnSessionRenamed() override                    { return NotMocked<FOnConcertSessionRenamed&>(SessionRenamed); }
 	// IConcertClientSession End
 
 	virtual void HandleCustomEvent(const UScriptStruct* EventType, const void* EventData) = 0;
 
 protected:
+	FGuid Id;
+
 	// Those below are unused mocked data member, but required to get the code compiling.
 	FString Name;
 	FConcertSessionInfo SessionInfo;
 	FOnConcertClientSessionTick Tick;
 	FOnConcertClientSessionConnectionChanged ConnectionChanged;
 	FOnConcertClientSessionClientChanged ClientChanged;
+	FOnConcertSessionRenamed SessionRenamed;
 	FConcertClientInfo ClientInfo;
 };
 
@@ -247,12 +274,41 @@ public:
 	{
 	}
 
-	virtual void InternalRegisterCustomEventHandler(const FName& EventMessageType, const TSharedRef<IConcertSessionCustomEventHandler>& Handler) override
+	virtual FDelegateHandle InternalRegisterCustomEventHandler(const FName& EventMessageType, const TSharedRef<IConcertSessionCustomEventHandler>& Handler) override
 	{
-		CustomEventHandlers.Add(EventMessageType, Handler);
+		CustomEventHandlers.FindOrAdd(EventMessageType).Add(Handler);
+		return Handler->GetHandle();
 	}
 
-	virtual void InternalUnregisterCustomEventHandler(const FName& EventMessageType) override
+	virtual void InternalUnregisterCustomEventHandler(const FName& EventMessageType, const FDelegateHandle EventHandle) override
+	{
+		TArray<TSharedPtr<IConcertSessionCustomEventHandler>>* HandlerArrayPtr = CustomEventHandlers.Find(EventMessageType);
+		if (HandlerArrayPtr)
+		{
+			for (auto It = HandlerArrayPtr->CreateIterator(); It; ++It)
+			{
+				if ((*It)->GetHandle() == EventHandle)
+				{
+					It.RemoveCurrent();
+					break;
+				}
+			}
+		}
+	}
+
+	virtual void InternalUnregisterCustomEventHandler(const FName& EventMessageType, const void* EventHandler) override
+	{
+		TArray<TSharedPtr<IConcertSessionCustomEventHandler>>* HandlerArrayPtr = CustomEventHandlers.Find(EventMessageType);
+		if (HandlerArrayPtr)
+		{
+			HandlerArrayPtr->RemoveAllSwap([EventHandler](const TSharedPtr<IConcertSessionCustomEventHandler>& InHandler) -> bool
+			{
+				return InHandler->HasSameObject(EventHandler);
+			});
+		}
+	}
+
+	virtual void InternalClearCustomEventHandler(const FName& EventMessageType) override
 	{
 		CustomEventHandlers.Remove(EventMessageType);
 	}
@@ -265,10 +321,14 @@ public:
 
 	virtual void HandleCustomEvent(const UScriptStruct* EventType, const void* EventData) override
 	{
-		if ( TSharedPtr<IConcertSessionCustomEventHandler>* Handler = CustomEventHandlers.Find(EventType->GetFName()))
+		TArray<TSharedPtr<IConcertSessionCustomEventHandler>>* HandlerArrayPtr = CustomEventHandlers.Find(EventType->GetFName());
+		if (HandlerArrayPtr)
 		{
 			FConcertSessionContext DummyContext;
-			(*Handler)->HandleEvent(DummyContext, EventData);
+			for (const TSharedPtr<IConcertSessionCustomEventHandler>& Handler : *HandlerArrayPtr)
+			{
+				Handler->HandleEvent(DummyContext, EventData);
+			}
 		}
 	}
 
@@ -285,7 +345,7 @@ public:
 private:
 	FConcertServerSessionMock& ServerMock;
 	FGuid EndpointId;
-	TMap<FName, TSharedPtr<IConcertSessionCustomEventHandler>> CustomEventHandlers;
+	TMap<FName, TArray<TSharedPtr<IConcertSessionCustomEventHandler>>> CustomEventHandlers;
 };
 
 /** Base class to perform Concert data store client/server tests. */
@@ -296,7 +356,7 @@ public:
 	{
 		FClientInfo(const FGuid& ClientEndPointId, FConcertServerSessionMock& Server)
 			: ClientSessionMock(MakeShared<FConcertClientSessionMock>(ClientEndPointId, Server))
-			, ClientDataStore(MakeConcertClientDataStoreForTest(StaticCastSharedRef<IConcertClientSession>(ClientSessionMock)))
+			, ClientDataStore(MakeConcertClientDataStoreForTest(ClientSessionMock))
 		{
 		}
 
@@ -325,7 +385,7 @@ public:
 		Clients.Empty();
 		ServerDataStore.Reset();
 		ServerSessionMock = MakeShared<FConcertServerSessionMock>();
-		ServerDataStore = MakeConcerteServerDataStoreForTest(StaticCastSharedPtr<IConcertServerSession>(ServerSessionMock), bEnableContentReplication);
+		ServerDataStore = MakeConcerteServerDataStoreForTest(ServerSessionMock.ToSharedRef(), bEnableContentReplication);
 	}
 
 	/** Ensures a functor with this signature is not called. */
@@ -521,6 +581,8 @@ bool FConcertDataStoreValueVersioning::RunTest(const FString& Parameters)
 		TestTrueExpr(Result2.Code == EConcertDataStoreResultCode::Fetched && Result2.Value->Version == 42);
 	}
 
+	IFileManager::Get().DeleteDirectory(*ConcertDataStoreTestUtils::GetTestSessionRootPath(), false, true);
+
 	return true;
 }
 
@@ -547,6 +609,8 @@ bool FConcertDataStoreClientServerCommonOperations::RunTest(const FString& Param
 	TestCommonOperations(Client, FName(TEXT("Key_FText")), FText(LOCTEXT("FooKey", "FooText")), FText(LOCTEXT("BarKey", "BarText")), FText(LOCTEXT("HelloKey", "HelloText")));
 	TestCommonOperations(Client, FName(TEXT("Key_Custom")), FConcertDataStore_CustomTypeTest{1, 2, 0.5f, {1}}, FConcertDataStore_CustomTypeTest{127, 8, 2.5f, {1}}, FConcertDataStore_CustomTypeTest{0, 0, 0.0f, {1}});
 
+	IFileManager::Get().DeleteDirectory(*ConcertDataStoreTestUtils::GetTestSessionRootPath(), false, true);
+
 	return true;
 }
 
@@ -562,6 +626,9 @@ bool FConcertDataStoreClientServerKeyNotFound::RunTest(const FString& Parameters
 	EnsureNotFound(Client.FetchAs<int64>(Key).Get());
 	EnsureNotFound(Client.CompareExchange(Key, 10ull, 1ull).Get());
 	EnsureNotFound(Client.CompareExchange(Key, 10.0, 1.0).Get());
+
+	IFileManager::Get().DeleteDirectory(*ConcertDataStoreTestUtils::GetTestSessionRootPath(), false, true);
+
 	return true;
 }
 
@@ -578,6 +645,9 @@ bool FConcertDataStoreClientServerTypeMismatch::RunTest(const FString& Parameter
 	TestTypeMismatch(Client1, Client2, FName(TEXT("TypeMismatch_i64_float")), 10ll, 0.5f);
 	TestTypeMismatch(Client1, Client2, FName(TEXT("TypeMismatch_i64_u64")),   10ll, 1ull);
 	TestTypeMismatch(Client1, Client2, FName(TEXT("TypeMismatch_i64_bool")),  10ll, true);
+
+	IFileManager::Get().DeleteDirectory(*ConcertDataStoreTestUtils::GetTestSessionRootPath(), false, true);
+
 	return true;
 }
 
@@ -604,6 +674,8 @@ bool FConcertDataStoreClientServerCompareExchangeOptimization::RunTest(const FSt
 
 	// Ensure the previous exchanged value was correctly stored.
 	EnsureValueFetched(Client.FetchAs<FConcertDataStore_CustomTypeTest>(KeyName).Get(), ExchangeValue);
+
+	IFileManager::Get().DeleteDirectory(*ConcertDataStoreTestUtils::GetTestSessionRootPath(), false, true);
 
 	return true;
 }
@@ -706,6 +778,8 @@ bool FConcertDataStoreClientServerClientCache::RunTest(const FString& Parameters
 	TestTrueExpr(ConcertDataStoreTestUtils::GetClientCachedValue<int32>(Client1, Key)->Version == Version); // Version 4.
 	TestTrueExpr(ConcertDataStoreTestUtils::GetClientCachedValue<int32>(Client1, Key)->DeserializeUnchecked<int32>() == Value);
 
+	IFileManager::Get().DeleteDirectory(*ConcertDataStoreTestUtils::GetTestSessionRootPath(), false, true);
+
 	return true;
 }
 
@@ -756,6 +830,8 @@ bool FConcertDataStoreClientServerChangeNotification::RunTest(const FString& Par
 	TestTrueExpr(ConcertDataStoreTestUtils::GetClientCachedValue<T>(Client3, Key2)->DeserializeUnchecked<T>() == Value);
 	TestTrueExpr(ConcertDataStoreTestUtils::GetClientCachedValue<T>(Client3, Key3)->DeserializeUnchecked<T>() == Value);
 	TestTrueExpr(ConcertDataStoreTestUtils::GetClientCachedValue<T>(Client3, Key4)->DeserializeUnchecked<T>() == Value);
+
+	IFileManager::Get().DeleteDirectory(*ConcertDataStoreTestUtils::GetTestSessionRootPath(), false, true);
 
 	return true;
 }
@@ -874,6 +950,8 @@ bool FConcertDataStoreClientServerChangeNotificationHandler::RunTest(const FStri
 	EnsureValueExchanged(Client2.CompareExchange(DoubleKey, DoubleValue, DoubleValue + 2).Get(), DoubleValue + 2);
 	TestTrueExpr(DoubleKeyNotificationCount == 1);
 
+	IFileManager::Get().DeleteDirectory(*ConcertDataStoreTestUtils::GetTestSessionRootPath(), false, true);
+
 	return true;
 }
 
@@ -928,6 +1006,8 @@ bool FConcertDataStoreClientServerBlockingApi::RunTest(const FString& Parameters
 	ScenerioFunc(Client1);
 	ScenerioFunc(Client2);
 
+	IFileManager::Get().DeleteDirectory(*ConcertDataStoreTestUtils::GetTestSessionRootPath(), false, true);
+
 	return true;
 }
 
@@ -981,6 +1061,8 @@ bool FConcertDataStoreClientServerContinuationApi::RunTest(const FString& Parame
 			}
 		});
 	}
+
+	IFileManager::Get().DeleteDirectory(*ConcertDataStoreTestUtils::GetTestSessionRootPath(), false, true);
 
 	// The test runs synchronously. So we expect this to be true here.
 	TestTrueExpr(bNewIdGenerated);
@@ -1106,6 +1188,8 @@ bool FConcertDataStoreClientPrivateStore::RunTest(const FString& Parameters)
 		TestTrueExpr(Result2.GetValue() == MyValue + 10);
 		TestTrueExpr(Result3.GetValue() == MyValue + 20);
 	}
+
+	IFileManager::Get().DeleteDirectory(*ConcertDataStoreTestUtils::GetTestSessionRootPath(), false, true);
 
 	return true;
 };

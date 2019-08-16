@@ -71,8 +71,8 @@ public:
 	virtual const TArray<FMessageAddress>& GetRecipients() const override { return Recipients; }
 	virtual EMessageScope GetScope() const override { return Scope; }
 	virtual EMessageFlags GetFlags() const override { return Flags; }
-
 	virtual const FMessageAddress& GetSender() const override { return Sender; }
+	virtual const FMessageAddress& GetForwarder() const override { return Sender; }
 	virtual ENamedThreads::Type GetSenderThread() const override { return SenderThread; }
 	virtual const FDateTime& GetTimeForwarded() const override { return TimeSent; }
 	virtual const FDateTime& GetTimeSent() const override { return TimeSent; }

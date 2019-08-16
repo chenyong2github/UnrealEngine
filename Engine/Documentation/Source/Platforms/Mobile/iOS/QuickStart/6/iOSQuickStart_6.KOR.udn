@@ -1,0 +1,80 @@
+INTSourceChangelist:6549201
+Title:6. iOS Provisioning - Provisioning 생성 및 임포트
+Crumbs:%ROOT%, Platforms, Platforms/Mobile/iOS, Platforms/Mobile/iOS/QuickStart
+Description:provisioning 프로파일 생성 및 언리얼 엔진에 임포트합니다.
+Availability:Docs
+Version: 4.18
+SkillLevel:Intermediate
+Checkpoint:iOSQS
+order:6
+
+[VAR:Steps]
+[OBJECT:Navigation]
+    [PARAM:previous]
+        [이전 단계](Platforms/Mobile/iOS/QuickStart/5 "%Platforms/Mobile/iOS/QuickStart/5:title%")
+    [/PARAM]
+    [PARAM:current]
+    [/PARAM]
+    [PARAM:home]
+        [퀵 스타트 홈](Platforms/Mobile/iOS/QuickStart)
+    [/PARAM]
+    [PARAM:next]
+        [다음 단계](Platforms/Mobile/iOS/QuickStart/7 "%Platforms/Mobile/iOS/QuickStart/7:title%")
+    [/PARAM]
+[/OBJECT]
+[/VAR]
+
+%Steps%
+
+%Globals:OSSelect%
+
+## 단계
+
+iOS 디바이스에 앱을 설치하기 위해서는 provisioning profile 이 있어야 합니다. 얘들은 
+[애플 iOS 개발자 사이트](https://developer.apple.com/devcenter/ios/index.action) 에서 생성 및 다운로드합니다. provisioning profile 에는 
+signing certificate, 디바이스, App ID 가 포함됩니다. 얘들은 개발 단계에서 게임을 빌드하고 설치하는 데 사용되는 개발 provisioning profile 이기도 하고, 
+App Store 에 게임을 제출하는 데 사용되는 배포 provisioning profile 이기도 합니다.
+
+
+1. 애플 iOS 개발자 사이트의 [iOS Provisioning Profiles](https://developer.apple.com/account/ios/profile/profileList.action) 페이지로 이동합니다.
+
+1. **추가** (더하기 부호) 버튼을 추가하여 프로파일을 새로 추가합니다.
+
+1. Development 아래 iOS App Development 를 선택한 다음 **Continue** 를 클릭합니다.
+
+    ![](provision_development.png)
+
+1. 전에 생성한 App ID 를 선택한 다음 **Continue** 를 클릭합니다.
+
+    ![](provision_app_id.png)
+
+1. 전에 생성한 certificate 를 선택한 다음 **Continue** 를 클릭합니다.
+
+    ![](provision_certificate.png)
+
+	[region:note]
+	새 Certificate 를 생성한 경우, 기존 mobileprovision 에 추가했는지 확인하세요.
+	[/region]
+
+1. 프로파일에 연동시킬 디바이스를 전부 선택합니다. 여기 선택된 디바이스에서만 게임을 실행시킬 수 있을 것입니다.
+
+    ![](provision_device.png)
+
+1. 프로파일 이름을 입력한 다음 **Generate** 를 클릭합니다.
+
+    ![](provision_name.png)
+
+1. 컴퓨터에 프로파일 (`.mobileprovision` 파일)을 다운로드합니다.
+
+    ![](provision_download.png)
+
+
+
+## 최종 결과
+
+이제 필수 파일을 생성 및 다운로드했으니, 다음에는 임포트 및 UE4 가 생성한 Provision 을 사용하도록 구성하는 방법을 살펴보겠습니다.
+
+
+
+
+%Steps%

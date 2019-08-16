@@ -96,7 +96,7 @@ public:
 		/** Called before the suggestion list is shown. */
 		SLATE_EVENT(FOnShowingSuggestions, OnShowingSuggestions)
 
-		/** Called whenever the text is changed interactively by the user. */
+		/** Called whenever the text is changed programmatically or interactively by the user. */
 		SLATE_EVENT(FOnTextChanged, OnTextChanged)
 
 		/** Called when the text has been committed. */

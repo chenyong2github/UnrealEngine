@@ -5,9 +5,6 @@
 
 #if PLATFORM_HAS_BSD_SOCKETS || PLATFORM_HAS_BSD_IPV6_SOCKETS
 
-// Hardcoded address that the messagebus uses. This is a hack.
-#define IPV4_MESSAGEBUS_ADDRESS_HACK ((230 << 24) | (0 << 16) | (0 << 8) | (1 << 0))
-
 #if PLATFORM_HAS_BSD_IPV6_SOCKETS
 void MapIPv4ToIPv6(const uint32& InAddress, in6_addr& OutStructure)
 {
@@ -145,33 +142,33 @@ void FInternetAddrBSD::SetIp(const TCHAR* InAddr, bool& bIsValid)
 	FString AddressString(InAddr);
 	FString Port;
 
-	const bool bHasOpenBracket = AddressString.Contains("[");
-	const int32 CloseBracketIndex = AddressString.Find("]");
-	const bool bHasCloseBracket = CloseBracketIndex != INDEX_NONE;
-	bool bIsIPv6 = bHasOpenBracket && bHasCloseBracket;
-
+	// Find some colons to try to determine the input given to us.
+	const int32 FirstColonIndex = AddressString.Find(":", ESearchCase::IgnoreCase, ESearchDir::FromStart);
 	const int32 LastColonIndex = AddressString.Find(":", ESearchCase::IgnoreCase, ESearchDir::FromEnd);
 
-	// IPv4 address will only have a port when a colon is present.
-	// IPv6 address will only have a port when surrounded by brackets.
-	const bool bHasPort = (INDEX_NONE != LastColonIndex) && (!bIsIPv6 || (bHasCloseBracket && LastColonIndex > CloseBracketIndex));
-
-	if (bHasPort)
+	// Either this is an IPv6 address as we will have a "]:" when ports are involved
+	// or this is an IPv4 address as there's one colon and it exists in the string
+	if (AddressString.Contains("]:") || (FirstColonIndex == LastColonIndex && LastColonIndex != INDEX_NONE))
 	{
 		Port = AddressString.RightChop(LastColonIndex + 1);
 		AddressString = AddressString.Left(LastColonIndex);
 	}
 
+	// Strip these for backwards compatibility.
 	AddressString.RemoveFromStart("[");
 	AddressString.RemoveFromEnd("]");
 	
-	const auto InAddrAnsi = StringCast<ANSICHAR>(*AddressString);
 	if (SocketSubsystem != nullptr)
 	{
-		bIsValid = (SocketSubsystem->CreateAddressFromIP(InAddrAnsi.Get(), *this) == SE_NO_ERROR);
-		if (bHasPort && bIsValid)
+		TSharedPtr<FInternetAddr> NewAddr = SocketSubsystem->GetAddressFromString(AddressString);
+		if (NewAddr.IsValid())
 		{
-			SetPort(FCString::Atoi(*Port));
+			bIsValid = true;
+			SetRawIp(NewAddr->GetRawIp());
+			if (!Port.IsEmpty())
+			{
+				SetPort(FCString::Atoi(*Port));
+			}
 		}
 	}
 	else
@@ -183,13 +180,13 @@ void FInternetAddrBSD::SetIp(const TCHAR* InAddr, bool& bIsValid)
 void FInternetAddrBSD::SetIp(uint32 InAddr)
 {
 #if PLATFORM_HAS_BSD_IPV6_SOCKETS
-	if (SocketSubsystem && SocketSubsystem->GetDefaultSocketProtocolFamily() == ESocketProtocolFamily::IPv6)
+	if (SocketSubsystem && SocketSubsystem->GetDefaultSocketProtocolFamily() == FNetworkProtocolTypes::IPv6)
 	{
 		if (InAddr == 0)
 		{
 			SetAnyIPv6Address();
 		}
-		else if (InAddr == INADDR_BROADCAST || InAddr == IPV4_MESSAGEBUS_ADDRESS_HACK)
+		else if (InAddr == INADDR_BROADCAST)
 		{
 			SetIPv6BroadcastAddress();
 		}
@@ -272,7 +269,7 @@ void FInternetAddrBSD::SetRawIp(const TArray<uint8>& RawAddr)
 
 void FInternetAddrBSD::GetIp(uint32& OutAddr) const
 {
-	if (GetProtocolFamily() != ESocketProtocolFamily::IPv4)
+	if (GetProtocolType() == FNetworkProtocolTypes::IPv6)
 	{
 		OutAddr = 0;
 
@@ -296,7 +293,7 @@ void FInternetAddrBSD::GetIp(uint32& OutAddr) const
 void FInternetAddrBSD::SetPort(int32 InPort)
 {
 #if PLATFORM_HAS_BSD_IPV6_SOCKETS
-	if (GetProtocolFamily() == ESocketProtocolFamily::IPv6)
+	if (GetProtocolType() == FNetworkProtocolTypes::IPv6)
 	{
 		((sockaddr_in6*)&Addr)->sin6_port = htons(InPort);
 		return;
@@ -309,7 +306,7 @@ void FInternetAddrBSD::SetPort(int32 InPort)
 int32 FInternetAddrBSD::GetPort() const
 {
 #if PLATFORM_HAS_BSD_IPV6_SOCKETS
-	if (GetProtocolFamily() == ESocketProtocolFamily::IPv6)
+	if (GetProtocolType() == FNetworkProtocolTypes::IPv6)
 	{
 		return ntohs(((sockaddr_in6*)&Addr)->sin6_port);
 	}
@@ -322,7 +319,14 @@ void FInternetAddrBSD::SetAnyAddress()
 {
 	if (SocketSubsystem != nullptr)
 	{
-		SetAnyAddress(SocketSubsystem->GetDefaultSocketProtocolFamily());
+		if (SocketSubsystem->GetDefaultSocketProtocolFamily() == FNetworkProtocolTypes::IPv6)
+		{
+			SetAnyIPv6Address();
+		}
+		else
+		{
+			SetAnyIPv4Address();
+		}
 	}
 	else
 	{
@@ -349,7 +353,14 @@ void FInternetAddrBSD::SetBroadcastAddress()
 {
 	if (SocketSubsystem)
 	{
-		SetBroadcastAddress(SocketSubsystem->GetDefaultSocketProtocolFamily());
+		if (SocketSubsystem->GetDefaultSocketProtocolFamily() == FNetworkProtocolTypes::IPv6)
+		{
+			SetIPv6BroadcastAddress();
+		}
+		else
+		{
+			SetIPv4BroadcastAddress();
+		}
 	}
 	else
 	{
@@ -384,7 +395,14 @@ void FInternetAddrBSD::SetLoopbackAddress()
 {
 	if (SocketSubsystem)
 	{
-		SetLoopbackAddress(SocketSubsystem->GetDefaultSocketProtocolFamily());
+		if (SocketSubsystem->GetDefaultSocketProtocolFamily() == FNetworkProtocolTypes::IPv6)
+		{
+			SetIPv6LoopbackAddress();
+		}
+		else
+		{
+			SetIPv4LoopbackAddress();
+		}
 	}
 	else
 	{
@@ -414,7 +432,7 @@ FString FInternetAddrBSD::ToString(bool bAppendPort) const
 	char IPStr[NI_MAXHOST];
 	if (getnameinfo((const sockaddr*)&Addr, GetStorageSize(), IPStr, NI_MAXHOST, nullptr, 0, NI_NUMERICHOST) == 0)
 	{
-		if (GetProtocolFamily() == ESocketProtocolFamily::IPv6)
+		if (GetProtocolType() == FNetworkProtocolTypes::IPv6)
 		{
 			FString IPv6Str(ANSI_TO_TCHAR(IPStr));
 			// Remove the scope interface if it exists.
@@ -424,7 +442,9 @@ FString FInternetAddrBSD::ToString(bool bAppendPort) const
 				IPv6Str = IPv6Str.Left(InterfaceMarkerIndex);
 			}
 
-			ReturnVal = FString::Printf(TEXT("[%s]"), *IPv6Str);
+			// Using dynamic formatting strings are deprecated.
+			ReturnVal = bAppendPort ? FString::Printf(TEXT("[%s]"), *IPv6Str) 
+				: FString::Printf(TEXT("%s"), *IPv6Str);
 		}
 		else
 		{
@@ -445,10 +465,10 @@ FString FInternetAddrBSD::ToString(bool bAppendPort) const
 bool FInternetAddrBSD::operator==(const FInternetAddr& Other) const
 {
 	const FInternetAddrBSD& OtherBSD = static_cast<const FInternetAddrBSD&>(Other);
-	ESocketProtocolFamily CurrentFamily = GetProtocolFamily();
+	FName CurrentFamily = GetProtocolType();
 
 	// Check if the addr families match
-	if (OtherBSD.GetProtocolFamily() != CurrentFamily)
+	if (OtherBSD.GetProtocolType() != CurrentFamily)
 	{
 		return false;
 	}
@@ -460,15 +480,15 @@ bool FInternetAddrBSD::operator==(const FInternetAddr& Other) const
 	}
 
 #if PLATFORM_HAS_BSD_IPV6_SOCKETS
-	if (CurrentFamily == ESocketProtocolFamily::IPv6)
-		{
+	if (CurrentFamily == FNetworkProtocolTypes::IPv6)
+	{
 		const sockaddr_in6* OtherBSDAddr = (sockaddr_in6*)&(OtherBSD.Addr);
 		const sockaddr_in6* ThisBSDAddr = ((sockaddr_in6*)&Addr);
 		return memcmp(&(ThisBSDAddr->sin6_addr), &(OtherBSDAddr->sin6_addr), sizeof(in6_addr)) == 0;
 	}
 #endif
 
-	if (CurrentFamily == ESocketProtocolFamily::IPv4)
+	if (CurrentFamily == FNetworkProtocolTypes::IPv4)
 	{
 		const sockaddr_in* OtherBSDAddr = (sockaddr_in*)&(OtherBSD.Addr);
 		const sockaddr_in* ThisBSDAddr = ((sockaddr_in*)&Addr);
@@ -480,15 +500,15 @@ bool FInternetAddrBSD::operator==(const FInternetAddr& Other) const
 
 bool FInternetAddrBSD::IsValid() const
 {
-	ESocketProtocolFamily CurrentFamily = GetProtocolFamily();
+	FName CurrentFamily = GetProtocolType();
 
-	if (CurrentFamily == ESocketProtocolFamily::IPv4)
+	if (CurrentFamily == FNetworkProtocolTypes::IPv4)
 	{
 		return ((sockaddr_in*)&Addr)->sin_addr.s_addr != 0;
 	}
 
 #if PLATFORM_HAS_BSD_IPV6_SOCKETS
-	if (CurrentFamily == ESocketProtocolFamily::IPv6)
+	if (CurrentFamily == FNetworkProtocolTypes::IPv6)
 	{
 		in6_addr EmptyAddr;
 		FMemory::Memzero(EmptyAddr);
@@ -508,24 +528,24 @@ TSharedRef<FInternetAddr> FInternetAddrBSD::Clone() const
 	return NewAddress;
 }
 
-ESocketProtocolFamily FInternetAddrBSD::GetProtocolFamily() const
+FName FInternetAddrBSD::GetProtocolType() const
 {
 	switch (Addr.ss_family)
 	{
 		case AF_INET:
-			return ESocketProtocolFamily::IPv4;
+			return FNetworkProtocolTypes::IPv4;
 		break;
 		case AF_INET6:
-			return ESocketProtocolFamily::IPv6;
+			return FNetworkProtocolTypes::IPv6;
 		break;
 		default:
-			return ESocketProtocolFamily::None;
+			return NAME_None;
 	}
 }
 
 SOCKLEN FInternetAddrBSD::GetStorageSize() const
 {
-	if (GetProtocolFamily() == ESocketProtocolFamily::IPv4)
+	if (GetProtocolType() == FNetworkProtocolTypes::IPv4)
 	{
 		return sizeof(sockaddr_in);
 	}
@@ -540,15 +560,13 @@ SOCKLEN FInternetAddrBSD::GetStorageSize() const
 
 uint32 FInternetAddrBSD::GetTypeHash() const
 {
-	ESocketProtocolFamily CurrentFamily = GetProtocolFamily();
+	FName CurrentFamily = GetProtocolType();
 
-	if (CurrentFamily == ESocketProtocolFamily::IPv4)
+	if (CurrentFamily == FNetworkProtocolTypes::IPv4)
 	{
-		uint32 NumericAddress;
-		GetIp(NumericAddress);
-		return NumericAddress + (GetPort() * 23);
+		return ntohl(((sockaddr_in*)&Addr)->sin_addr.s_addr) + (GetPort() * 23);
 	}
-	else if (CurrentFamily == ESocketProtocolFamily::IPv6)
+	else if (CurrentFamily == FNetworkProtocolTypes::IPv6)
 	{
 		return ::GetTypeHash(*ToString(true));
 	}

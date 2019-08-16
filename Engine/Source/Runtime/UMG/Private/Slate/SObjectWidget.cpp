@@ -130,16 +130,6 @@ int32 SObjectWidget::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGe
 	return MaxLayer;
 }
 
-bool SObjectWidget::ComputeVolatility() const
-{
-	if ( CanRouteEvent() )
-	{
-		return SCompoundWidget::ComputeVolatility() || WidgetObject->IsPlayingAnimation();
-	}
-
-	return SCompoundWidget::ComputeVolatility();
-}
-
 FVector2D SObjectWidget::ComputeDesiredSize(float LayoutScaleMultiplier) const
 {
 	const FVector2D BaseDesiredSize = SCompoundWidget::ComputeDesiredSize(LayoutScaleMultiplier);
@@ -513,13 +503,13 @@ FReply SObjectWidget::OnTouchForceChanged(const FGeometry& MyGeometry, const FPo
 
 FNavigationReply SObjectWidget::OnNavigation(const FGeometry& MyGeometry, const FNavigationEvent& InNavigationEvent)
 {
-	if (WidgetObject->NativeSupportsCustomNavigation())
+	if (WidgetObject && WidgetObject->NativeSupportsCustomNavigation())
 	{
 		return WidgetObject->NativeOnNavigation(MyGeometry, InNavigationEvent);
 	}
 	FNavigationReply Reply = SCompoundWidget::OnNavigation(MyGeometry, InNavigationEvent);
 
-	if ( CanRouteEvent() )
+	if (WidgetObject && CanRouteEvent() )
 	{
 		return WidgetObject->NativeOnNavigation(MyGeometry, InNavigationEvent, Reply);
 	}

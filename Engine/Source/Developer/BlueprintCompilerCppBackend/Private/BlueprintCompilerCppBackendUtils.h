@@ -13,7 +13,7 @@ class USCS_Node;
 class UUserDefinedEnum;
 class UUserDefinedStruct;
 struct FDefaultSubobjectData;
-struct FNonativeComponentData;
+struct FNonNativeComponentData;
 enum class ENativizedTermUsage : uint8;
 struct FEmitterLocalContext;
 
@@ -267,7 +267,7 @@ struct FEmitHelper
 
 	static FString HandleMetaData(const UField* Field, bool AddCategory = true, const TArray<FString>* AdditinalMetaData = nullptr);
 
-	static TArray<FString> ProperyFlagsToTags(uint64 Flags, bool bIsClassProperty);
+	static TArray<FString> PropertyFlagsToTags(uint64 Flags, bool bIsClassProperty);
 
 	static TArray<FString> FunctionFlagsToTags(uint64 Flags);
 
@@ -333,8 +333,6 @@ struct FEmitHelper
 	static const TCHAR* EmptyDefaultConstructor(UScriptStruct* Struct);
 };
 
-struct FNonativeComponentData;
-
 struct FEmitDefaultValueHelper
 {
 	static void GenerateUserStructConstructor(const UUserDefinedStruct* Struct, FEmitterLocalContext& EmitterContext);
@@ -350,12 +348,25 @@ struct FEmitDefaultValueHelper
 		Dot,
 	};
 
+	/** Allows callers to control the behavior of emitting code to initialize properties. */
+	enum class EPropertyGenerationControlFlags
+	{
+		/** Normal operation (default). */
+		None = 0,
+		/** Allow transient properties to be emitted. By default, transient properties are skipped. */
+		AllowTransient = 1 << 0,
+		/** Allow protected properties to be treated as an accessible property. By default, protected properties will use the inaccessible property path, which emits some extra code. */
+		AllowProtected = 1 << 1,
+		/** Emit code to construct the value before assigning it. By default, it's assumed that the value has already been constructed. */
+		IncludeFirstConstructionLine = 1 << 2
+	};
+
 	// OuterPath ends context/outer name (or empty, if the scope is "this")
-	static void OuterGenerate(FEmitterLocalContext& Context, const UProperty* Property, const FString& OuterPath, const uint8* DataContainer, const uint8* OptionalDefaultDataContainer, EPropertyAccessOperator AccessOperator, bool bAllowProtected = false);
+	static void OuterGenerate(FEmitterLocalContext& Context, const UProperty* Property, const FString& OuterPath, const uint8* DataContainer, const uint8* OptionalDefaultDataContainer, EPropertyAccessOperator AccessOperator, EPropertyGenerationControlFlags ControlFlags = EPropertyGenerationControlFlags::None);
 
 
 	// PathToMember ends with variable name
-	static void InnerGenerate(FEmitterLocalContext& Context, const UProperty* Property, const FString& PathToMember, const uint8* ValuePtr, const uint8* DefaultValuePtr, bool bWithoutFirstConstructionLine = false);
+	static void InnerGenerate(FEmitterLocalContext& Context, const UProperty* Property, const FString& PathToMember, const uint8* ValuePtr, const uint8* DefaultValuePtr, EPropertyGenerationControlFlags ControlFlags = EPropertyGenerationControlFlags::None);
 
 	// Creates the subobject (of class) returns it's native local name, 
 	// returns empty string if cannot handle
@@ -377,9 +388,11 @@ private:
 	static FString HandleSpecialTypes(FEmitterLocalContext& Context, const UProperty* Property, const uint8* ValuePtr);
 
 	static FString HandleNonNativeComponent(FEmitterLocalContext& Context, const USCS_Node* Node, TSet<const UProperty*>& OutHandledProperties
-		, TArray<FString>& NativeCreatedComponentProperties, const USCS_Node* ParentNode, TArray<FNonativeComponentData>& ComponentsToInit
+		, TArray<FString>& NativeCreatedComponentProperties, const USCS_Node* ParentNode, TArray<FNonNativeComponentData>& ComponentsToInit
 		, bool bBlockRecursion);
 };
+
+ENUM_CLASS_FLAGS(FEmitDefaultValueHelper::EPropertyGenerationControlFlags);
 
 struct FBackendHelperUMG
 {

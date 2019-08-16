@@ -40,18 +40,32 @@ typedef unsigned __int32 uint32_t;
 
 namespace avx
 {
-__m128 sMaskYZW;
-__m256 sOne, sEpsilon, sMinusOneXYZOneW, sMaskXY;
+	// @MIXEDREALITY_CHANGE
+	// https://stackoverflow.com/questions/38919663/intel-arm-intrinsics-equivalence
+#if defined (_M_ARM) || defined (_M_ARM64)
+	float32x4_t sMaskYZW;
+	float32x4x2_t sOne, sEpsilon, sMinusOneXYZOneW, sMaskXY;
+#else
+	__m128 sMaskYZW;
+	__m256 sOne, sEpsilon, sMinusOneXYZOneW, sMaskXY;
+#endif
+	// @MIXEDREALITY_CHANGE : END
 
 void initialize()
 {
+#if defined (_M_ARM) || defined (_M_ARM64)
+	
+#else
 	sMaskYZW = _mm_castsi128_ps(_mm_setr_epi32(0, ~0, ~0, ~0));
 	sOne = _mm256_set1_ps(1.0f);
 	sEpsilon = _mm256_set1_ps(1.192092896e-07f);
 	sMinusOneXYZOneW = _mm256_setr_ps(-1.0f, -1.0f, -1.0f, 1.0f, -1.0f, -1.0f, -1.0f, 1.0f);
 	sMaskXY = _mm256_castsi256_ps(_mm256_setr_epi32(~0, ~0, 0, 0, ~0, ~0, 0, 0));
+#endif
 }
 
+#if defined (_M_ARM) || defined (_M_ARM64)
+#else
 template <uint32_t>
 __m256 fmadd_ps(__m256 a, __m256 b, __m256 c)
 {
@@ -215,7 +229,7 @@ void solveConstraints(float* __restrict posIt, const float* __restrict rIt, cons
 
 	_mm256_zeroupper();
 }
-
+#endif
 #ifdef _M_IX86
 
 // clang-format:disable
@@ -915,6 +929,9 @@ forEnd:
 
 #else // _M_IX86
 
+#if defined (_M_ARM) || defined (_M_ARM64)
+
+#else
 template void solveConstraints<false, 1>(float* __restrict, const float* __restrict, const float* __restrict,
                                          const uint16_t* __restrict, const __m128&);
 
@@ -926,7 +943,7 @@ template void solveConstraints<false, 2>(float* __restrict, const float* __restr
 
 template void solveConstraints<true, 2>(float* __restrict, const float* __restrict, const float* __restrict,
                                         const uint16_t* __restrict, const __m128&);
-
+#endif
 #endif // _M_IX86
 
 } // namespace avx

@@ -69,7 +69,7 @@ Version:4.9
 
 [COMMENT:none]
 カスタム コリジョン チャネル の詳細は、
- * [](Programming/Online/Interfaces/SharedCloud)
+ * [](Programming/Online/SharedCloudInterface)
 [/COMMENT]
 
 
@@ -78,7 +78,7 @@ Version:4.9
 
 **FSessionInfo** は、セッションのプラットーフォーム固有の情報を格納します。* 大抵の場合、セッションID、ホストアドレス、もしくは作成されたセッションの特定や、接続を試みる別の手段です。
 
-カスタム コリジョン チャネル の詳細は、[](Programming/Online/Interfaces/Session)
+カスタム コリジョン チャネル の詳細は、[](Programming/Online/SessionInterface)
 
 
 ### FEmsFile
@@ -94,8 +94,8 @@ Version:4.9
 
 [COMMENT:none]
 カスタム コリジョン チャネル の詳細は、
- * [](Programming/Online/Interfaces/SharedCloud)
- * [](Programming/Online/Interfaces/UserCloud)
+ * [](Programming/Online/SharedCloudInterface)
+ * [](Programming/Online/UserCloudInterface)
 [/COMMENT]
 
 
@@ -111,8 +111,8 @@ Version:4.9
 
 [COMMENT:none]
 カスタム コリジョン チャネル の詳細は、 
- * [](Programming/Online/Interfaces/SharedCloud)
- * [](Programming/Online/Interfaces/UserCloud)
+ * [](Programming/Online/SharedCloudInterface)
+ * [](Programming/Online/UserCloudInterface)
 [/COMMENT]
 
 

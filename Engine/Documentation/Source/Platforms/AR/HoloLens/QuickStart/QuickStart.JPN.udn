@@ -1,0 +1,79 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Title: HoloLens Streaming Quick Start
+Description: Instructions for configuring and running HoloLens Streaming.
+Version: 4.22
+Type:quick start
+Parent: Platforms/AR/HoloLens
+topic-image: HolographicRemotingPlayer_ScreenShot.jpg
+Order: 0
+
+
+
+[TOC (start:2 end:2)]
+
+![](HolographicRemotingPlayer_ScreenShot.jpg "HolographicRemotingPlayer_ScreenShot.jpg")
+
+With Holographic Remoting, you can experience your app on the HoloLens, while it runs in the Unreal Editor on your PC. Eye tracking, gesture, voice, current device pose, and spatial mapping input is sent from your HoloLens to your PC. Then, rendered frames are sent (or **streamed**) back to your HoloLens.
+
+## 1 - Essential Setup
+
+Before setting up Unreal Engine and HoloLens for streaming, it's important that the HoloLens is initially setup, the user is familiar with HoloLens operations, and some basic configurations are set. Below are some brief instructions to help complete this essential setup.
+
+### Steps
+
+1.  Make sure that your HoloLens in charged. 
+
+1.  If this is the first time launching the HoloLens, turn it on and go through the Hololense New User eXperience (NUX) . 
+
+1.  Log in with your account (or create a new account).
+
+1.  Open the **Settings** -\> menu -\> **Updates For Developers**
+    1.  Enable Developer Mode
+    
+    1.  Enable Device Portal
+
+For more information on HoloLens setup and configuration, see [Microsoft's HoloLens documentation](https://docs.microsoft.com/en-us/hololens/) [](https://docs.microsoft.com/en-us/hololens/).
+
+[REGION:warning]
+To use Unreal Engine's HoloLens streaming support, you must be running **Windows 10 October 2018 Update (Version 1809)** or later. You can use the Windows command `winver` to check your version of Windows.  
+If you are are not on the correct version of Windows, you can enable the **Windows Mixed Reality Plugin** \- however, the plugin will not be functional.
+[/REGION]
+
+## 2 - Configure HoloLens Steaming
+
+### Steps
+
+1.  On your HoloLens, go to the Microsoft Store, then download and install the **Holographic Remoting Player** app.  
+    ![](MSStore_HolographicRemotingPlayer2.PNG "MSStore_HolographicRemotingPlayer2.PNG")
+
+1.  On your HoloLens, start the Holographic Remoting Player app.  
+    ![](HolographicRemotingMenu.png "HolographicRemotingMenu.png")
+
+1.  Run **Remote Connection** (note the IP address that appears for use in a later step).  
+    ![](holographicremotingplayer.png "holographicremotingplayer.png")
+
+1.   In your Unreal project, make sure that the **Windows Mixed Reality Plugin** is enabled. If the **Windows Mixed Reality Plugin** is not enabled, enable it and restart the editor when prompted.  
+    ![](WMRPlugin_Enabled.PNG "WMRPlugin_Enabled.PNG")  
+
+1.   Go to **Project Settings** -\> **Platform** -\> **Windows Mixed Reality** -\> **Holographic Remoting.**  
+    ![](ProjectSettings_NotConfigured.png "ProjectSettings_NotConfigured.png")
+
+1.  For **IP of HoloLens to remote to**, enter the IP address of your HoloLens (noted earlier).  
+    ![](ProjectSettings_IP_NotConfigured.png "ProjectSettings_IP_NotConfigured.png")  
+    ![](ProjectSettings_IP_Configured.png "ProjectSettings_IP_Configured.png")
+    [REGION:note]
+    In order for the HoloLens to connect to your PC, the HoloLens must be connected to the same network as your PC.  
+    If you are having trouble connecting to the HoloLens, the instructions for configuring the [Device Portal for HoloLens](https://docs.microsoft.com/en-us/windows/uwp/debug-test-perf/device-portal-hololens) may provide some additional guidance/insight.
+    [/REGION]
+
+1.  Click **Connect**.   
+    ![](ProjectSettings_IP_Connect.png "ProjectSettings_IP_Connect.png")
+
+1.  The Hololens should now be connected to the PC, and be ready for streaming. You should see the screen go blank in the HoloLens, then the screen will show a window in the middle of your vision - this window is a mirror of the Unreal Engine Viewport window running on your PC.
+    
+    ![](HolographicRemotingPlayer_ScreenShot.jpg "HolographicRemotingPlayer_ScreenShot.jpg")
+
+## 3 - Next Steps
+
+Now that HoloLens Streaming is configured and working, try loading up an Unreal Project to preview development efforts.

@@ -106,7 +106,7 @@ Engine/Physics/PhysicsBodies#physics
 
 物理ボディの回転にエフェクトなどのドラッグを追加します。より正確には、物理ボディの回転への反発度を定義します。ドローブリッジを考えてみると一番簡単だと思います。開いた状態に向けて下降を遅くするドローブリッジを支えるチェーンのように Angular Damping は機能します。
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties
+Engine/Physics/PhysicsAssetEditor/Properties
 [/VAR]
 [/EXCERPT:AngularDamping]
 
@@ -116,7 +116,7 @@ Engine/Physics/PhAT/Properties
 
 物理ボディにエフェクトなどのドラッグを追加します。より正確には、移動に対する物理ボディの反発度を定義します。物理ボディが落下する際、ボディの下降速度を落として、水または泥の中を落ちていくように見せることができます。
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties
+Engine/Physics/PhysicsAssetEditor/Properties
 [/VAR]
 [/EXCERPT:LinearDamping]
 

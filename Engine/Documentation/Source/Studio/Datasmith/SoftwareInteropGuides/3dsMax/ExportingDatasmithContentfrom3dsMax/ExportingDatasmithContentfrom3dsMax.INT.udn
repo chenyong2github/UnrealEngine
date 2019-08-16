@@ -1,0 +1,83 @@
+Availability: Public
+Crumbs: 
+Title: Exporting Datasmith Content from 3ds Max
+Description: Describes how to export a 3ds Max scene to a Datasmith file that you can import into Unreal Engine.
+Type: 
+skilllevel:Beginner
+Version: 4.22
+Parent: Studio/Datasmith/SoftwareInteropGuides/3dsMax
+Order: 1
+Tags: Enterprise
+Tags: 3DS Max
+Tags: how to
+Tags: Datasmith
+
+
+Once you've installed the Datasmith Exporter plugin for 3ds Max, you'll have a new *.UDATASMITH* file type available to you when you export a scene from 3ds Max.
+
+Follow the steps below in 3ds Max to export your scene using this new file type.
+
+1.  From the 3ds Max **File** menu, or the **MAX** menu at the far left of the main menu bar, choose **Export**.  
+    
+	![Select File to Export](3DS_Export_1.png "Select File to Export")
+2.  Set the following:  
+    
+	![Set folder, type and file name](3DS_Export_2.png "Set folder, type and file name")
+    
+	1.  **Save in:** Choose a location for the new Datasmith file.
+    2.  **File Name:** Give your file a name.
+    3.  **Save as type:** Select **Unreal Datasmith (*.UDATASMITH)**
+3.  Click **Save**.
+4.  In the **Datasmith Export Options** window, you can filter the information that you want to be included in your exported file and carried over into the Unreal Engine.  
+    
+	![Datasmith export options for 3ds Max](max-datasmith-export-options-422.png "Datasmith export options for 3ds Max")
+
+    [INCLUDE:#optionstable]
+
+5.  Click **OK**.
+
+<!--
+[EXCERPT:optionstable]
+[REGION:simpletable]
+| Setting | Description |
+| --- | --- |
+| **Include** | [INCLUDE:#excerpt_1] |
+| **Animated Transforms** | [INCLUDE:#excerpt_2] |
+[/REGION]
+[/EXCERPT:optionstable]
+-->
+<!--
+[EXCERPT:excerpt_2]
+Determines how the exporter handles objects with animated 3D transforms.
+    
+*   **Current Frame Only -** The exported file will include only the objects in the scene as they appear in the current frame, without any animation data.
+*   **Active Time Segment -** The exported file will include animation data for any objects whose 3D transforms are animated within the time segment that is currently active in the 3ds Max timeline. The importer converts this animation data into a Level Sequence, which you can use to play back the animations inside the Unreal Engine.
+    
+[REGION:note]
+Regardless of the value you choose for this setting, the Datasmith exporter always bases its exported data on the state of the scene objects in the current frame in 3ds Max. If you have animated mesh deformations or other sub-object animations, the Assets and Actors you'll see in the Unreal Engine after import will reflect the state of those objects at the frame that you have selected when you export the scene.
+[/REGION]
+[/EXCERPT:excerpt_2]
+-->
+<!--
+[EXCERPT:excerpt_1]
+Determines which objects in the scene are included in the exported file.
+    
+*   **Visible objects -** The exported file will contain all of the objects in your scene that are currently visible in 3ds Max.
+*   **Selection -** The exported file will contain only the visible objects that you currently have selected.
+    
+[/EXCERPT:excerpt_1]
+-->
+    
+
+After the export is completed, the exporter shows a report of any issues it found with your content — typically, these are notifications of things that the exporter couldn't translate perfectly, or that may not show up in the Unreal Engine in exactly the way they do in 3ds Max.
+
+![3ds Max conversion notes and warnings](3DS_Export_4a.png "3ds Max conversion notes and warnings")
+
+### End Result
+
+You should now be ready to try importing your new *.udatasmith* file into the Unreal Editor. See [Importing Datasmith Content into Unreal Engine 4](Studio/Datasmith/HowTo/ImportingContent).
+
+[REGION:note]
+Along with your new *.udatasmith* file, you'll see a folder that has the same name but with the suffix *_Assets*. If you move your *.udatasmith* file to a new location, make sure that you also move this folder to the same location.
+[/REGION]
+

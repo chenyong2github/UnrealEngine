@@ -1781,7 +1781,7 @@ public:
 		}
 
 		// Use the locally specified project path is resolving through the root isn't working
-		ProjectSpecified = GetProjectPath().IsEmpty();
+		ProjectSpecified = !FullProjectPath.IsEmpty();
 		
 		// I don't use FApp::GetBuildConfiguration() because i don't want the act of running in debug the first time to cause 
 		// profiles the user creates to be in debug. This will keep consistency.
@@ -1857,43 +1857,8 @@ public:
 		PackagingMode = ELauncherProfilePackagingModes::DoNotPackage;
 
 		// default UAT settings
-		EditorExe = FPlatformProcess::ExecutableName(false);
-		if (EditorExe.Contains(TEXT("Editor")))
-		{
-#if PLATFORM_WINDOWS
-			// turn UE4editor into UE4editor-cmd
-			if (EditorExe.EndsWith(".exe", ESearchCase::IgnoreCase) && !FPaths::GetBaseFilename(EditorExe).EndsWith("-cmd", ESearchCase::IgnoreCase))
-			{
-				FString NewExeName = EditorExe.Left(EditorExe.Len() - 4) + "-Cmd.exe";
-				if (FPaths::FileExists(NewExeName))
-				{
-					EditorExe = NewExeName;
-				}
-				else
-				{
-					EditorExe.Empty();
-				}
-			}
-#elif PLATFORM_MAC
-			// turn UE4editor into UE4editor-cmd
-			if (!FPaths::GetBaseFilename(EditorExe).EndsWith("-cmd", ESearchCase::IgnoreCase))
-			{
-				FString NewExeName = EditorExe + "-Cmd";
-				if (FPaths::FileExists(NewExeName))
-				{
-					EditorExe = NewExeName;
-				}
-				else
-				{
-					EditorExe.Empty();
-				}
-			}
-#endif
-		}
-		else
-		{
-			EditorExe.Empty();
-		}
+		ILauncherServicesModule& LauncherServicesModule = FModuleManager::GetModuleChecked<ILauncherServicesModule>(TEXT("LauncherServices"));
+		EditorExe = LauncherServicesModule.GetExecutableForCommandlets();
 
 		bNotForLicensees = false;
 

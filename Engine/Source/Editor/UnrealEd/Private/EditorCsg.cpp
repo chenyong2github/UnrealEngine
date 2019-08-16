@@ -98,7 +98,7 @@ public:
 	 *
 	 * @return true if iterator points to a suitable actor, false if it has reached the end
 	 */
-	operator bool()
+	explicit operator bool() const
 	{
 		return !ReachedEnd;
 	}

@@ -118,10 +118,12 @@ void ResumeRenderAssetStreaming()
 FRenderAssetUpdate::FRenderAssetUpdate(UStreamableRenderAsset* InAsset, int32 InRequestedMips)
 	: PendingFirstMip(INDEX_NONE)
 	, RequestedMips(INDEX_NONE)
+	, ScheduledGTTasks(0)
 	, ScheduledRenderTasks(0)
 	, ScheduledAsyncTasks(0)
 	, StreamableAsset(InAsset)
 	, bIsCancelled(false)
+	, bDeferExecution(false)
 	, TaskState(TS_Init)
 {
 	check(InAsset);
@@ -210,6 +212,56 @@ void FRenderAssetUpdate::Tick(EThreadType InCurrentThread)
 			}
 			CS.Unlock();
 		}
+	}
+}
+
+class FRenderAssetUpdateTickGTTask
+{
+public:
+	FORCEINLINE FRenderAssetUpdateTickGTTask(FRenderAssetUpdate* InUpdate)
+		: PendingUpdate(InUpdate)
+	{}
+
+	static FORCEINLINE TStatId GetStatId()
+	{
+		RETURN_QUICK_DECLARE_CYCLE_STAT(FRenderAssetUpdateTickGTTask, STATGROUP_TaskGraphTasks);
+	}
+
+	static FORCEINLINE ENamedThreads::Type GetDesiredThread()
+	{
+		return ENamedThreads::GameThread;
+	}
+
+	static FORCEINLINE ESubsequentsMode::Type GetSubsequentsMode()
+	{
+		return ESubsequentsMode::FireAndForget;
+	}
+
+	void DoTask(ENamedThreads::Type CurThread, const FGraphEventRef& MyCompletionGraphEvent)
+	{
+		check(PendingUpdate);
+		PendingUpdate->Tick(FRenderAssetUpdate::TT_GameThread);
+		--PendingUpdate->ScheduledGTTasks;
+	}
+
+private:
+	TRefCountPtr<FRenderAssetUpdate> PendingUpdate;
+};
+
+void FRenderAssetUpdate::ScheduleGTTask()
+{
+	check(TaskState == TS_Locked);
+
+	if (IsInGameThread())
+	{
+		Tick(TT_GameThread);
+	}
+	else
+	{
+		// Notify that a tick is scheduled on the game thread
+		++ScheduledGTTasks;
+
+		TGraphTask<FRenderAssetUpdateTickGTTask>::CreateTask().ConstructAndDispatchWhenReady(this);
 	}
 }
 

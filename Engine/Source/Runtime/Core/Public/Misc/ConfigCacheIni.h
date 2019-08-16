@@ -853,22 +853,10 @@ private:
 	EConfigCacheType Type;
 };
 
-/**
- * Helper function to read the contents of an ini file and a specified group of cvar parameters, where sections in the ini file are marked [InName@InGroupNumber]
- * @param InSectionBaseName - The base name of the section to apply cvars from (i.e. the bit before the @)
- * @param InGroupNumber - The group number required
- * @param InIniFilename - The ini filename
- * @param SetBy anything in ECVF_LastSetMask e.g. ECVF_SetByScalability
- */
+UE_DEPRECATED(4.24, "This functionality to generate Scalability@Level section string has been moved to Scalability.cpp. Explictly construct section you need manually.")
 CORE_API void ApplyCVarSettingsGroupFromIni(const TCHAR* InSectionBaseName, int32 InGroupNumber, const TCHAR* InIniFilename, uint32 SetBy);
 
-/**
-* Helper function to read the contents of an ini file and a specified group of cvar parameters, where sections in the ini file are marked [InName@TagName]
-* @param InSectionBaseName - The base name of the section to apply cvars from (i.e. the bit before the @)
-* @param InSectionTag - The group name required. e.g. 'Cine'
-* @param InIniFilename - The ini filename
-* @param SetBy anything in ECVF_LastSetMask e.g. ECVF_SetByScalability
-*/
+UE_DEPRECATED(4.24, "This functionality to generate Scalability@Level section string has been moved to Scalability.cpp. Explictly construct section you need manually.")
 CORE_API void ApplyCVarSettingsGroupFromIni(const TCHAR* InSectionBaseName, const TCHAR* InSectionTag, const TCHAR* InIniFilename, uint32 SetBy);
 
 /**
@@ -879,7 +867,13 @@ CORE_API void ApplyCVarSettingsGroupFromIni(const TCHAR* InSectionBaseName, cons
  */
 CORE_API void ApplyCVarSettingsFromIni(const TCHAR* InSectionBaseName, const TCHAR* InIniFilename, uint32 SetBy, bool bAllowCheating = false);
 
-
+/**
+ * Helper function to operate a user defined function for each CVar key/value pair in the specified section in an ini file
+ * @param InSectionName - The name of the section to apply cvars from
+ * @param InIniFilename - The ini filename
+ * @param InEvaluationFunction - The evaluation function to be called for each key/value pair
+ */
+CORE_API void ForEachCVarInSectionFromIni(const TCHAR* InSectionName, const TCHAR* InIniFilename, TFunction<void(IConsoleVariable* CVar, const FString& KeyString, const FString& ValueString)> InEvaluationFunction);
 
 /**
  * CVAR Ini history records all calls to ApplyCVarSettingsFromIni and can re run them 

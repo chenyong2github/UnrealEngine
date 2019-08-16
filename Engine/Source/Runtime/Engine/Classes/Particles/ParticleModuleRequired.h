@@ -37,24 +37,48 @@ enum class EParticleUVFlipMode : uint8
 };
 
 /** Flips the sign of a particle's base size based on it's UV flip mode. */
-FORCEINLINE void AdjustParticleBaseSizeForUVFlipping(FVector& OutSize, EParticleUVFlipMode FlipMode)
+FORCEINLINE void AdjustParticleBaseSizeForUVFlipping(FVector& OutSize, EParticleUVFlipMode FlipMode, FRandomStream& InRandomStream)
 {
-	static const int32 HalfRandMax = RAND_MAX / 2;
+	static const float HalfRandMax = 0.5f;
+
 	switch (FlipMode)
 	{
-	case EParticleUVFlipMode::FlipUV:						OutSize = -OutSize;			return;
-	case EParticleUVFlipMode::FlipUOnly:					OutSize.X = -OutSize.X;		return;
-	case EParticleUVFlipMode::FlipVOnly:					OutSize.Y = -OutSize.Y;		return;
-	case EParticleUVFlipMode::RandomFlipUV:					OutSize = FMath::Rand() > HalfRandMax ? -OutSize : OutSize;			return;
-	case EParticleUVFlipMode::RandomFlipUOnly:				OutSize.X = FMath::Rand() > HalfRandMax ? -OutSize.X : OutSize.X;	return;
-	case EParticleUVFlipMode::RandomFlipVOnly:				OutSize.Y = FMath::Rand() > HalfRandMax ? -OutSize.Y : OutSize.Y;	return;
-	case EParticleUVFlipMode::RandomFlipUVIndependent:
-	{
-		OutSize.X = FMath::Rand() > HalfRandMax ? -OutSize.X : OutSize.X;		
-		OutSize.Y = FMath::Rand() > HalfRandMax ? -OutSize.Y : OutSize.Y;
-		return;
+		case EParticleUVFlipMode::None:
+			return;
+
+		case EParticleUVFlipMode::FlipUV:
+			OutSize = -OutSize;
+			return;
+		
+		case EParticleUVFlipMode::FlipUOnly:
+			OutSize.X = -OutSize.X;
+			return;
+		
+		case EParticleUVFlipMode::FlipVOnly:
+			OutSize.Y = -OutSize.Y;
+			return;
+		
+		case EParticleUVFlipMode::RandomFlipUV:
+			OutSize = InRandomStream.FRand() > HalfRandMax ? -OutSize : OutSize;
+			return;
+
+		case EParticleUVFlipMode::RandomFlipUOnly:
+			OutSize.X = InRandomStream.FRand() > HalfRandMax ? -OutSize.X : OutSize.X;
+			return;
+
+		case EParticleUVFlipMode::RandomFlipVOnly:
+			OutSize.Y = InRandomStream.FRand() > HalfRandMax ? -OutSize.Y : OutSize.Y;
+			return;
+
+		case EParticleUVFlipMode::RandomFlipUVIndependent:
+			OutSize.X = InRandomStream.FRand() > HalfRandMax ? -OutSize.X : OutSize.X;
+			OutSize.Y = InRandomStream.FRand() > HalfRandMax ? -OutSize.Y : OutSize.Y;
+			return;
+
+		default:
+			checkNoEntry();
+			break;
 	}
-	};
 }
 
 UENUM()
@@ -88,7 +112,7 @@ struct FParticleRequiredModule
 	uint32 NumBoundingTriangles;
 	float AlphaThreshold;
 	TArray<FVector2D> FrameData;
-	FShaderResourceViewRHIParamRef BoundingGeometryBufferSRV;
+	FRHIShaderResourceView* BoundingGeometryBufferSRV;
 };
 
 
@@ -424,7 +448,7 @@ class UParticleModuleRequired : public UParticleModule
 		return CutoutTexture != nullptr;
 	}
 
-	inline FShaderResourceViewRHIParamRef GetBoundingGeometrySRV() const
+	inline FRHIShaderResourceView* GetBoundingGeometrySRV() const
 	{
 		return BoundingGeometryBuffer->ShaderResourceView;
 	}

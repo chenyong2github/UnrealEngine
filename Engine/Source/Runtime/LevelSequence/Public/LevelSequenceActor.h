@@ -97,7 +97,7 @@ public:
 	uint8 bAutoPlay_DEPRECATED : 1;
 
 	/** Enable specification of dynamic instance data to be supplied to the sequence during playback */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="General")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="General")
 	uint8 bOverrideInstanceData : 1;
 
 	/** If true, playback of this level sequence on the server will be synchronized across other clients */
@@ -156,6 +156,14 @@ public:
 	 */
 	UFUNCTION(BlueprintGetter)
 	ULevelSequencePlayer* GetSequencePlayer() const;
+
+	/* Hide burnin */
+	UFUNCTION(BlueprintCallable, Category = "Game|Cinematic")
+	void HideBurnin();
+
+	/* Show burnin */
+	UFUNCTION(BlueprintCallable, Category = "Game|Cinematic")
+	void ShowBurnin();
 
 	/** Refresh this actor's burn in */
 	void RefreshBurnIn();
@@ -244,6 +252,7 @@ protected:
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void PostInitializeComponents() override;
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	//~ End AActor interface
 
 public:
@@ -272,6 +281,9 @@ private:
 	/** Burn-in widget */
 	UPROPERTY()
 	ULevelSequenceBurnIn* BurnInInstance;
+
+	UPROPERTY()
+	bool bShowBurnin;
 };
 
 

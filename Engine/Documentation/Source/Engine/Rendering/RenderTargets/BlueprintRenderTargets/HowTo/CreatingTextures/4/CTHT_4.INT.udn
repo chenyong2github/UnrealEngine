@@ -1,4 +1,4 @@
-availability:Public
+availability:docs
 title:4. Texture Creation & End Result
 description:Taking a look at how to create and save a Texture.
 crumbs:%ROOT%, Engine, Engine\Rendering\RenderTargets
@@ -10,6 +10,8 @@ Navigation:multi-step
 tags: Render Targets
 Order:4
 checkpoint:CTUB
+
+## Marking as Docs as the page has been combined. 
 
 [NAV]
 

@@ -1,6 +1,6 @@
-﻿INTSourceChangelist:2744667
+﻿INTSourceChangelist:3108692
 Availability:Public
-Title: 模块 API 的定义
+Title: 模块 API 的说明符
 Crumbs:%ROOT%, Programming
 Description: 向其他模块公开类及函数。
 version: 4.9

@@ -1,8 +1,8 @@
 ﻿INTSourceChangelist:3809606
 Availability:Public
 crumbs:
-Title:使用模型贴花（Mesh Decal）
-Description:此指南说明模型贴花（Mesh Decal）材质的设置和使用。
+Title:使用网格体贴花
+Description:此指南说明网格体贴花材质的设置和使用。
 Type: how-to
 Version:4.15
 PParent: Engine/Rendering/Materials/HowTo
@@ -83,5 +83,5 @@ tags:Materials
 
 ![](MeshDecal.png)(w:400)
 
-完成设置并了解如何自建结合模型贴花使用的材质后，即可放手在建模应用程序中创建资源，自建能充分利用灯光、结合应用的模型贴花使用的材质。 
+完成设置并了解如何自建结合网格体贴花使用的材质后，即可放手在建模应用程序中创建资源，自建能充分利用灯光、结合应用的网格体贴花使用的材质。 
 

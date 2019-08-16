@@ -168,7 +168,7 @@ public:
 	// ----------------------------------
 	// Timer API
 
-	FTimerManager();
+	explicit FTimerManager(UGameInstance* GameInstance = nullptr);
 	virtual ~FTimerManager();
 
 	/**
@@ -183,9 +183,9 @@ public:
 	 * @param InOutHandle			If the passed-in handle refers to an existing timer, it will be cleared before the new timer is added. A new handle to the new timer is returned in either case.
 	 * @param InObj					Object to call the timer function on.
 	 * @param InTimerMethod			Method to call when timer fires.
-	 * @param InRate				The amount of time between set and firing.  If <= 0.f, clears existing timers.
+	 * @param InRate				The amount of time (in seconds) between set and firing.  If <= 0.f, clears existing timers.
 	 * @param InbLoop				true to keep firing at Rate intervals, false to fire only once.
-	 * @param InFirstDelay			The time for the first iteration of a looping timer. If < 0.f inRate will be used.
+	 * @param InFirstDelay			The time (in seconds) for the first iteration of a looping timer. If < 0.f InRate will be used.
 	 */
 	template< class UserClass >
 	FORCEINLINE void SetTimer(FTimerHandle& InOutHandle, UserClass* InObj, typename FTimerDelegate::TUObjectMethodDelegate< UserClass >::FMethodPtr InTimerMethod, float InRate, bool InbLoop = false, float InFirstDelay = -1.f)
@@ -391,7 +391,7 @@ public:
 	/** Debug command to output info on all timers currently set to the log. */
 	void ListTimers() const;
 
-	/** Used by the UGameInstance constructor to set this manager's owning game instance. */
+private:
 	void SetGameInstance(UGameInstance* InGameInstance);
 
 // This should be private, but needs to be public for testing.
@@ -411,7 +411,7 @@ protected:
 private:
 	void InternalSetTimer( FTimerHandle& InOutHandle, FTimerUnifiedDelegate&& InDelegate, float InRate, bool InbLoop, float InFirstDelay );
 	FTimerHandle InternalSetTimerForNextTick( FTimerUnifiedDelegate&& InDelegate );
-	void InternalClearTimer( FTimerHandle const& InDelegate );
+	void InternalClearTimer( FTimerHandle InDelegate );
 	void InternalClearAllTimers( void const* Object );
 	float InternalGetTimerRate( FTimerData const* const TimerData ) const;
 	float InternalGetTimerElapsed( FTimerData const* const TimerData ) const;
@@ -428,6 +428,7 @@ private:
 	FTimerHandle AddTimer(FTimerData&& TimerData);
 	/** Removes a timer from the Timers list at the given index, also cleaning up the TimerIndicesByObject map */
 	void RemoveTimer(FTimerHandle Handle);
+	bool WillRemoveTimerAssert(FTimerHandle Handle) const;
 
 	/** The array of timers - all other arrays will index into this */
 	TSparseArray<FTimerData> Timers;

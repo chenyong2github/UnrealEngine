@@ -1,0 +1,71 @@
+INTSourceChangelist:6674950
+Availability: Public
+Crumbs: 
+Title: 노멀 계산 메서드
+Description: 단순화된 지오메트리에 쓸 Normal Calculation Method 를 조정합니다.
+Type: how-to
+SkillLevel:Intermediate
+Version: 4.20
+Parent: Engine/ProxyGeoTool
+Order: 
+Tags: 
+
+
+프록시 지오메트리 툴에서는 주어진 스태틱 메시의 버텍스 노멀을 계산할 때 사용할 메서드를 지정할 수 있습니다. 여기서는 버텍스 노멀 계산 메서드를 변경하는 방법과 그것이 생성되는 스태틱 메시에 미치는 효과를 살펴 봅니다.
+
+## 단계
+
+여기서는 스태틱 메시에 쓰이는 노멀을 계산할 때 사용되는 메서드를 조정하는 방법을 살펴 봅니다.
+
+1.  먼저 지오메트리를 새로 생성하려는 스태틱 메시 또는 그 그룹을 찾아 뷰포트에서 선택합니다.  
+    ![](NormalCalculationMethod_02.png "NormalCalculationMethod_02.png")
+2.  **창 > 개발자 툴 > 액터 병합** 을 선택하여 **액터 병합** 툴을 엽니다.  
+    ![](GapFilling_02.png "GapFilling_02.png")
+3.  액터 병합 툴에서 **2 번째 아이콘** 을 클릭하여 프록시 지오메트리 툴에 액세스한 뒤 **프록시 세팅** 을 펼칩니다.  
+    ![](NormalCalculationMethod_03.png "NormalCalculationMethod_03.png")  
+    
+4.  **Screen Size** (화면 크기) 값을 **50** 으로 설정하고 **Normal Calculation Method** (노멀 계산 메서드)가 **Angle Weighted** (가중치 적용 각도)인지 확인합니다.  
+    ![](NormalCalculationMethod_04.png "NormalCalculationMethod_04.png")  
+    [REGION:note]
+    Screen Size 값을 50 으로 설정하면 프록시 지오메트리 툴은 선택된 스태틱 메시에 사용되는 트라이앵글 양을 그만큼 줄입니다.
+    [/REGION]
+    
+5.  **액터 병합** 버튼을 클릭하고 **콘텐츠 브라우저** 에서 새로 생성할 스태틱 메시의 이름과 위치를 입력합니다. 그런 다음 **저장** 버튼을 눌러 병합 프로세스를 시작합니다. 
+    [REGION:lightbox]
+    [![](GapFilling_06.png)](GapFilling_06.png)
+    [/REGION]
+    
+6.  완료 후 스태틱 메시를 더블클릭하면 **스태틱 메시 에디터** 에서 그 결과를 확인할 수 있습니다.  
+    
+
+[REGION:lightbox]
+![](NormalCalculationMethod_05.png "NormalCalculationMethod_05.png")
+[/REGION]
+
+## 최종 결과
+
+최상의 결과를 얻으려면 각 오브젝트마다 다른 노멀 계산 메서드가 필요할 수 있으므로 시간과 반복처리가 조금 필요합니다. 이 결과는 사용 중인 오브젝트의 유형에 따라 매우 미묘할 수도 있습니다. 다음은 Normal Calculation Method (노멀 계산 메서드)를 Angle Weighted (각도 가중치), Area Weighted (영역 가중치), Equal Weighted (동일 가중치)로 설정했을 때 이 예제에 사용된 스태틱 메시가 어떻게 보이는지를 나타내는 이미지 비교입니다.
+
+[EXCERPT:NormalCalculationMethodSlider]
+[OBJECT:SliderSequence]
+    [PARAMLITERAL:max]
+    3
+    [/PARAMLITERAL]
+    [PARAMLITERAL:ext]
+    jpg
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    NormalCalculationMethod
+    [/PARAMLITERAL]
+    [PARAM:caption]
+    세 가지 Normal Calculation Method 결과를 보여주는 이미지 슬라이더입니다. 처음은 Angle Weighted, 이어서 Area Weighted, 마지막으로 Equal Weighted 입니다.
+    [/PARAM]
+    [PARAM:image_list]
+    ![](AngleWeighted.png)
+![](AreaWeighted.png)
+![](EqualWeighted.png)
+    [/PARAM]
+[/OBJECT]
+[/EXCERPT:NormalCalculationMethodSlider]
+
+[](#)[](#)

@@ -36,6 +36,38 @@ public class UEOgg : ModuleRules
 
 			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Ogg/Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/libogg.dll");
 		}
+		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
+        {
+            string LibFileName = "libogg";
+            string PlatformSubpath = Target.Platform.ToString();
+            if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64 || Target.WindowsPlatform.Architecture == WindowsArchitecture.x64)
+            {
+                LibFileName += "_64";
+            }
+
+            if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
+            {
+                PublicLibraryPaths.Add(System.String.Format("{0}lib/{1}/VS{2}/{3}/", OggPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.WindowsPlatform.GetArchitectureSubpath()));
+                RuntimeDependencies.Add(
+					System.String.Format("$(EngineDir)/Binaries/ThirdParty/Ogg/{0}/VS{1}/{2}/{3}.dll",
+                        Target.Platform,
+						Target.WindowsPlatform.GetVisualStudioCompilerVersionName(),
+                        Target.WindowsPlatform.GetArchitectureSubpath(),
+                        LibFileName));
+            }
+            else
+            {
+                PublicLibraryPaths.Add(System.String.Format("{0}lib/{1}/VS{2}/", OggPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName()));
+                RuntimeDependencies.Add(
+                    System.String.Format("$(EngineDir)/Binaries/ThirdParty/Ogg/{0}/VS{1}/{2}.dll",
+                        Target.Platform,
+                        Target.WindowsPlatform.GetVisualStudioCompilerVersionName(),
+                        LibFileName));
+            }
+
+            PublicAdditionalLibraries.Add(LibFileName + ".lib");
+			PublicDelayLoadDLLs.Add(LibFileName + ".dll");
+		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
 			string DylibPath = Target.UEThirdPartyBinariesDirectory + "Ogg/Mac/libogg.dylib";
@@ -104,11 +136,11 @@ public class UEOgg : ModuleRules
         }
 		else if (Target.Platform == UnrealTargetPlatform.PS4)
         {
-            PublicAdditionalLibraries.Add(OggLibPath + "ORBIS_Release" + "/libogg-1.2.2_PS4_Static.a");
+            PublicAdditionalLibraries.Add(OggLibPath + "PS4/ORBIS_Release" + "/libogg-1.2.2_PS4_Static.a");
         }
         else if (Target.Platform == UnrealTargetPlatform.Switch)
         {
-            PublicAdditionalLibraries.Add(OggLibPath + "NX64" + "/Ogg_Switch_Static.a");
+            PublicAdditionalLibraries.Add(OggLibPath + "Switch/NX64" + "/Ogg_Switch_Static.a");
         }
     }
 }

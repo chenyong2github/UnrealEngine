@@ -224,7 +224,7 @@ namespace Tools.DotNETCommon
             IntPtr hTargetProcess,
             out SafeWaitHandle targetHandle,
             int dwDesiredAccess,
-            bool bInheritHandle,
+            [MarshalAs(UnmanagedType.Bool)] bool bInheritHandle,
             int dwOptions
         );
 
@@ -366,7 +366,7 @@ namespace Tools.DotNETCommon
 								}
 								if(DuplicateHandle(GetCurrentProcess(), StdOutWrite, GetCurrentProcess(), out StdErrWrite, 0, true, DUPLICATE_SAME_ACCESS) == 0)
 								{
-									throw new Win32Exception();
+									throw new Win32Exception(String.Format("Unable to duplicate stdout handle ({0})", StdOutWrite));
 								}
 
 								// Create the new process as suspended, so we can modify it before it starts executing (and potentially preempting us)
@@ -452,6 +452,11 @@ namespace Tools.DotNETCommon
 							CloseHandle(ProcessInfo.hThread);
 						}
 					}
+				}
+				catch (Exception Ex)
+				{
+					ExceptionUtils.AddContext(Ex, "while launching {0} {1}", FileName, CommandLine);
+					throw;
 				}
 				finally
 				{

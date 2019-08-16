@@ -3,8 +3,8 @@
 #include "Input/Devices/VRPN/Analog/DisplayClusterVrpnAnalogInputDevice.h"
 
 #include "Misc/DisplayClusterHelpers.h"
-#include "Misc/DisplayClusterLog.h"
 
+#include "DisplayClusterLog.h"
 #include "DisplayClusterStrings.h"
 
 
@@ -33,7 +33,7 @@ void FDisplayClusterVrpnAnalogInputDevice::Update()
 bool FDisplayClusterVrpnAnalogInputDevice::Initialize()
 {
 	FString addr;
-	if (!DisplayClusterHelpers::str::ExtractParam(ConfigData.Params, FString(DisplayClusterStrings::cfg::data::input::Address), addr))
+	if (!DisplayClusterHelpers::str::ExtractValue(ConfigData.Params, FString(DisplayClusterStrings::cfg::data::input::Address), addr))
 	{
 		UE_LOG(LogDisplayClusterInputVRPN, Error, TEXT("%s - device address not found"), *ToString());
 		return false;

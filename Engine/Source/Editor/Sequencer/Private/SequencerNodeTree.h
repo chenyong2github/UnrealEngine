@@ -22,6 +22,9 @@ class UMovieSceneTrack;
 class UMovieScene;
 struct FMovieSceneBinding;
 struct FCurveEditorTreeItemID;
+class FSequencerTrackFilter;
+class FSequencerTrackFilterCollection;
+class FSequencerTrackFilter_LevelFilter;
 
 /**
  * Represents a tree of sequencer display nodes, used to populate the Sequencer UI with MovieScene data
@@ -34,6 +37,8 @@ public:
 public:
 
 	FSequencerNodeTree(FSequencer& InSequencer);
+	
+	~FSequencerNodeTree();
 
 	/**
 	 * Updates the tree with sections from a MovieScene
@@ -51,7 +56,7 @@ public:
 	const TArray< TSharedRef<FSequencerDisplayNode> >& GetRootNodes() const;
 
 	/** @return Whether or not there is an active filter */
-	bool HasActiveFilter() const { return !FilterString.IsEmpty(); }
+	bool HasActiveFilter() const;
 
 	/**
 	 * Returns whether or not a node is filtered
@@ -59,7 +64,17 @@ public:
 	 * @param Node	The node to check if it is filtered
 	 */
 	bool IsNodeFiltered( const TSharedRef<const FSequencerDisplayNode> Node ) const;
-	
+
+	/**
+	 * Schedules an update of all filters
+	 */
+	void RequestFilterUpdate() { bFilterUpdateRequested = true; }
+
+	/**
+	 * @return Whether there is a filter update scheduled
+	 */
+	bool NeedsFilterUpdate() const { return bFilterUpdateRequested; }
+
 	/**
 	 * Filters the nodes based on the passed in filter terms
 	 *
@@ -124,12 +139,29 @@ public:
 	/** Sorts all nodes and their descendants by category then alphabetically.*/
 	void SortAllNodesAndDescendants();
 
+	/**
+	 * Attempt to find a curve editor tree item ID for the specified display node
+	 *
+	 * @param DisplayNode The node to find a curve editor tree item for
+	 * @return The ID of the tree item for this display node in the curve editor, or FCurveEditorTreeItemID::Invalid() if one was not found.
+	 */
+	FCurveEditorTreeItemID FindCurveEditorTreeItem(TSharedRef<FSequencerDisplayNode> DisplayNode) const;
+
 public:
 
 	/**
 	 * Finds the section handle relating to the specified section object, or Null if one was not found (perhaps, if it's filtered away)
 	 */
 	TOptional<FSectionHandle> GetSectionHandle(const UMovieSceneSection* Section) const;
+
+	void AddFilter(TSharedRef<FSequencerTrackFilter> TrackFilter);
+	int32 RemoveFilter(TSharedRef<FSequencerTrackFilter> TrackFilter);
+	void RemoveAllFilters();
+	bool IsTrackFilterActive(TSharedRef<FSequencerTrackFilter> TrackFilter) const;
+
+	void AddLevelFilter(const FString& LevelName);
+	void RemoveLevelFilter(const FString& LevelName);
+	bool IsTrackLevelFilterActive(const FString& LevelName) const;
 
 private:
 
@@ -138,9 +170,37 @@ private:
 
 	enum class ETrackType { Master, Object };
 
+	/**
+	 * Create or update a track node for the specified track object, updating its serial number.
+	 *
+	 * @param Track                   Pointer to the track to create or update a node for
+	 * @param TrackType               Whether this track is a master track or contained within an object
+	 * @return A shared pointer to a track node with its serial number updated. Will return nullptr for tracks that are forcibly hidden through FSequencer::IsTrackVisible.
+	 */
 	TSharedPtr<FSequencerTrackNode> CreateOrUpdateTrack(UMovieSceneTrack* Track, ETrackType TrackType);
-	TSharedRef<FSequencerFolderNode> CreateOrUpdateFolder(UMovieSceneFolder* Folder, const TSortedMap<FGuid, const FMovieSceneBinding*>& AllBindings, const TSortedMap<FGuid, FGuid>& ChildToParentBinding, const UMovieScene* InMovieScene);
-	TSharedPtr<FSequencerObjectBindingNode> CreateOrUpdateObjectBinding(const FGuid& BindingID, const TSortedMap<FGuid, const FMovieSceneBinding*>& AllBindings, const TSortedMap<FGuid, FGuid>& ChildToParentBinding, const UMovieScene* InMovieScene);
+
+	/**
+	 * Create or update a folder node for the specified folder and all its decendent child folders and object bindings, updating their serial numbers in the process
+	 *
+	 * @param Folder                  Pointer to the movie scene folder to create a node for
+	 * @param AllBindings             A map from guid to binding pointer for all the bindings in the sequence
+	 * @param ChildToParentBinding    Child to parent GUID map used for creating parent items
+	 * @param OutChildToParentMap     Pointer to a map that should be populated with child->parent relationships to be set up after creation of all nodes
+	 * @return A shared reference to a folder node. The resulting node's serial number will always be up-to-date, as will all its child folders, and any immediate child object bindings.
+	 */
+	TSharedRef<FSequencerFolderNode> CreateOrUpdateFolder(UMovieSceneFolder* Folder, const TSortedMap<FGuid, const FMovieSceneBinding*>& AllBindings, const TSortedMap<FGuid, FGuid>& ChildToParentBinding, TMap<FSequencerDisplayNode*, TSharedPtr<FSequencerDisplayNode>>* OutChildToParentMap);
+
+	/**
+	 * Find an existing object binding node (or create a new one) for the specified binding ID without updating its tree serial number, creating any parent object binding nodes in the process.
+	 * @note: Will only update FSequencerDisplayNode::TreeSerialNumber for object bindings that have a known and valid parent object binding.
+	 *
+	 * @param BindingID               The Guid of the object binding within UMovieScene::GetBindings
+	 * @param AllBindings             A map from guid to binding pointer for all the bindings in the sequence
+	 * @param ChildToParentBinding    Child to parent GUID map used for creating parent items
+	 * @param OutChildToParentMap     Pointer to a map that should be populated with child->parent relationships to be set up after creation of all nodes
+	 * @return A shared pointer to an object binding node or nullptr if the supplied BindingID was not valid for this sequence. The resulting node's serial number will be up-to-date if it is a child of another binding, or it was previously added to a folder.
+	 */
+	TSharedPtr<FSequencerObjectBindingNode> FindOrCreateObjectBinding(const FGuid& BindingID, const TSortedMap<FGuid, const FMovieSceneBinding*>& AllBindings, const TSortedMap<FGuid, FGuid>& ChildToParentBinding, TMap<FSequencerDisplayNode*, TSharedPtr<FSequencerDisplayNode>>* OutChildToParentMap);
 
 	/**
 	 * Creates section handles for all the sections contained in the specified track
@@ -148,6 +208,13 @@ private:
 	void UpdateSectionHandles(TSharedRef<FSequencerTrackNode> TrackNode);
 
 private:
+
+	/**
+	 * Update the list of filters nodes based on current filter settings, if an update is scheduled
+	 * This is called by Update();
+	 */
+	void UpdateFilters();
+
 	/**
 	 * Finds or adds a type editor for the track
 	 *
@@ -191,7 +258,7 @@ private:
 	/** Tools for building movie scene section layouts.  One tool for each track */
 	TMap< UMovieSceneTrack*, TSharedPtr<ISequencerTrackEditor> > EditorMap;
 	/** Set of all filtered nodes */
-	TSet< TSharedRef<const FSequencerDisplayNode> > FilteredNodes;
+	TSet< TSharedRef<FSequencerDisplayNode> > FilteredNodes;
 	/** Cardinal hovered node */
 	TSharedPtr<FSequencerDisplayNode> HoveredNode;
 	/** Active filter string if any */
@@ -202,4 +269,12 @@ private:
 	TMap<TWeakPtr<FSequencerDisplayNode>, FCurveEditorTreeItemID> CurveEditorTreeItemIDs;
 	/** A multicast delegate which is called whenever the node tree has been updated. */
 	FOnUpdated OnUpdatedDelegate;
+
+	/** Active track filters */
+	TSharedPtr<FSequencerTrackFilterCollection> TrackFilters;
+	
+	/** Level based track filtering */
+	TSharedPtr<FSequencerTrackFilter_LevelFilter> TrackFilterLevelFilter;
+
+	bool bFilterUpdateRequested;
 };

@@ -73,7 +73,7 @@ struct TMovieSceneScriptingChannel
 			return Key;
 		}
 
-		UE_LOG(LogMovieScene, Error, TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to add key."));
+		FFrame::KismetExecutionMessage(TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to add key."), ELogVerbosity::Error);
 		return nullptr;
 	}
 
@@ -91,7 +91,7 @@ struct TMovieSceneScriptingChannel
 			return;
 		}
 
-		UE_LOG(LogMovieScene, Error, TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to remove key."));
+		FFrame::KismetExecutionMessage(TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to remove key."), ELogVerbosity::Error);
 	}
 
 	TArray<UMovieSceneScriptingKey*> GetKeysInChannel(TMovieSceneChannelHandle<ChannelType> ChannelHandle, TWeakObjectPtr<UMovieSceneSequence> Sequence) const
@@ -115,7 +115,7 @@ struct TMovieSceneScriptingChannel
 		}
 		else
 		{
-			UE_LOG(LogMovieScene, Error, TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to get keys."));
+			FFrame::KismetExecutionMessage(TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to get keys."), ELogVerbosity::Error);
 		}
 
 		return OutScriptingKeys;
@@ -143,12 +143,12 @@ struct TMovieSceneScriptingChannel
 			}
 			else
 			{
-				UE_LOG(LogMovieScene, Error, TEXT("Unbounded range passed to evaluate keys."));
+				FFrame::KismetExecutionMessage(TEXT("Unbounded range passed to evaluate keys."), ELogVerbosity::Error);
 			}
 		}
 		else
 		{
-			UE_LOG(LogMovieScene, Error, TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to evaluate keys."));
+			FFrame::KismetExecutionMessage(TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to evaluate keys."), ELogVerbosity::Error);
 		}
 
 		return OutValues;
@@ -164,7 +164,7 @@ struct TMovieSceneScriptingChannel
 		}
 		else
 		{
-			UE_LOG(LogMovieScene, Error, TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to get effective range."));
+			FFrame::KismetExecutionMessage(TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to get effective range."), ELogVerbosity::Error);
 		}
 
 		return ScriptingRange;
@@ -179,7 +179,7 @@ struct TMovieSceneScriptingChannel
 			SetChannelDefault(Channel, InDefaultValue);
 			return;
 		}
-		UE_LOG(LogMovieScene, Error, TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to set default value."));
+		FFrame::KismetExecutionMessage(TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to set default value."), ELogVerbosity::Error);
 	}
 
 	void RemoveDefaultFromChannel(TMovieSceneChannelHandle<ChannelType> ChannelHandle)
@@ -191,7 +191,7 @@ struct TMovieSceneScriptingChannel
 			RemoveChannelDefault(Channel);
 			return;
 		}
-		UE_LOG(LogMovieScene, Error, TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to remove default value."));
+		FFrame::KismetExecutionMessage(TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to remove default value."), ELogVerbosity::Error);
 	}
 
 	TOptional<ScriptingKeyValueType> GetDefaultFromChannel(TMovieSceneChannelHandle<ChannelType> ChannelHandle) const
@@ -210,7 +210,7 @@ struct TMovieSceneScriptingChannel
 			return TOptional<ScriptingKeyValueType>();
 		}
 
-		UE_LOG(LogMovieScene, Error, TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to get default value."));
+		FFrame::KismetExecutionMessage(TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to get default value."), ELogVerbosity::Error);
 		return TOptional<ScriptingKeyValueType>();
 	}
 };
@@ -226,7 +226,7 @@ struct TMovieSceneScriptingKey
 	{
 		if (!Sequence.IsValid())
 		{
-			UE_LOG(LogMovieScene, Error, TEXT("GetTime called with an invalid owning sequence."));
+			FFrame::KismetExecutionMessage(TEXT("GetTime called with an invalid owning sequence."), ELogVerbosity::Error);
 			return FFrameNumber(0);
 		}
 
@@ -247,7 +247,7 @@ struct TMovieSceneScriptingKey
 			return FFrameTime(KeyTime, 0.f);
 		}
 
-		UE_LOG(LogMovieScene, Error, TEXT("Invalid ChannelHandle for MovieSceneScriptingKey, failed to retrieve Time."));
+		FFrame::KismetExecutionMessage(TEXT("Invalid ChannelHandle for MovieSceneScriptingKey, failed to retrieve Time."), ELogVerbosity::Error);
 		return FFrameTime();
 	}
 
@@ -255,7 +255,7 @@ struct TMovieSceneScriptingKey
 	{
 		if (!Sequence.IsValid())
 		{
-			UE_LOG(LogMovieScene, Error, TEXT("SetTime called with an invalid owning sequence."));
+			FFrame::KismetExecutionMessage(TEXT("SetTime called with an invalid owning sequence."), ELogVerbosity::Error);
 			return;
 		}
 
@@ -265,7 +265,7 @@ struct TMovieSceneScriptingKey
 		// TickResolution doesn't support a sub-frame as you can't get finer detailed than that.
 		if (TimeUnit == ESequenceTimeUnit::TickResolution && SubFrame > 0.f)
 		{
-			UE_LOG(LogMovieScene, Warning, TEXT("SetTime called with a SubFrame specified for a Tick Resolution type time! SubFrames are only allowed for Display Rate types, ignoring..."));
+			FFrame::KismetExecutionMessage(TEXT("SetTime called with a SubFrame specified for a Tick Resolution type time! SubFrames are only allowed for Display Rate types, ignoring..."), ELogVerbosity::Error);
 			SubFrame = 0.f;
 		}
 
@@ -284,7 +284,7 @@ struct TMovieSceneScriptingKey
 			return;
 		}
 
-		UE_LOG(LogMovieScene, Error, TEXT("Invalid ChannelHandle for MovieSceneScriptingKey, failed to set Time."));
+		FFrame::KismetExecutionMessage(TEXT("Invalid ChannelHandle for MovieSceneScriptingKey, failed to set Time."), ELogVerbosity::Error);
 	}
 	
 	ChannelDataType GetValueFromChannel(FKeyHandle KeyHandle) const
@@ -297,14 +297,14 @@ struct TMovieSceneScriptingKey
 			using namespace MovieScene;
 			if (!GetKeyValue(Channel, KeyHandle, Value))
 			{
-				UE_LOG(LogMovieScene, Error, TEXT("Invalid KeyIndex for MovieSceneScriptingKey, failed to get value. Did you forget to create the key through the channel?"));
+				FFrame::KismetExecutionMessage(TEXT("Invalid KeyIndex for MovieSceneScriptingKey, failed to get value. Did you forget to create the key through the channel?"), ELogVerbosity::Error);
 				return Value;
 			}
 
 			return Value;
 		}
 
-		UE_LOG(LogMovieScene, Error, TEXT("Invalid ChannelHandle for MovieSceneScriptingKey, failed to get value. Did you forget to create the key through the channel?"));
+		FFrame::KismetExecutionMessage(TEXT("Invalid ChannelHandle for MovieSceneScriptingKey, failed to get value. Did you forget to create the key through the channel?"), ELogVerbosity::Error);
 		return Value;
 	}
 
@@ -314,14 +314,16 @@ struct TMovieSceneScriptingKey
 		if (Channel)
 		{
 			using namespace MovieScene;
-			if(!AssignValue(Channel, KeyHandle, InNewValue))
+			if (!AssignValue(Channel, KeyHandle, InNewValue))
 			{
-				UE_LOG(LogMovieScene, Error, TEXT("Invalid KeyIndex for MovieSceneScriptingKey, failed to set value. Did you forget to create the key through the channel?"));
+				FFrame::KismetExecutionMessage(TEXT("Invalid KeyIndex for MovieSceneScriptingKey, failed to set value. Did you forget to create the key through the channel?"), ELogVerbosity::Error);
 				return;
 			}
 		}
-
-		UE_LOG(LogMovieScene, Error, TEXT("Invalid ChannelHandle for MovieSceneScriptingKey, failed to set value. Did you forget to create the key through the channel?"));
+		else
+		{
+			FFrame::KismetExecutionMessage(TEXT("Invalid ChannelHandle for MovieSceneScriptingKey, failed to set value. Did you forget to create the key through the channel?"), ELogVerbosity::Error);
+		}
 	}
 
 public:

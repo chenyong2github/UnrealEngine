@@ -18,6 +18,7 @@ namespace UnrealGameSync
 	{
 		SynchronizationContext MainThreadSynchronizationContext;
 
+		PerforceConnection DefaultConnection;
 		UpdateMonitor UpdateMonitor;
 		string ApiUrl;
 		string DataFolder;
@@ -46,8 +47,9 @@ namespace UnrealGameSync
 		ModalTaskWindow DetectStartupProjectSettingsWindow;
 		MainWindow MainWindowInstance;
 
-		public ProgramApplicationContext(UpdateMonitor UpdateMonitor, string ApiUrl, string DataFolder, EventWaitHandle ActivateEvent, bool bRestoreState, string UpdateSpawn, string ProjectFileName, bool bUnstable)
+		public ProgramApplicationContext(PerforceConnection DefaultConnection, UpdateMonitor UpdateMonitor, string ApiUrl, string DataFolder, EventWaitHandle ActivateEvent, bool bRestoreState, string UpdateSpawn, string ProjectFileName, bool bUnstable, TimestampLogWriter Log)
 		{
+			this.DefaultConnection = DefaultConnection;
 			this.UpdateMonitor = UpdateMonitor;
 			this.ApiUrl = ApiUrl;
 			this.DataFolder = DataFolder;
@@ -55,6 +57,7 @@ namespace UnrealGameSync
 			this.bRestoreState = bRestoreState;
 			this.UpdateSpawn = UpdateSpawn;
 			this.bUnstable = bUnstable;
+			this.Log = Log;
 
 			// Create the directories
 			Directory.CreateDirectory(DataFolder);
@@ -70,11 +73,6 @@ namespace UnrealGameSync
 			// Capture the main thread's synchronization context for callbacks
 			MainThreadSynchronizationContext = WindowsFormsSynchronizationContext.Current;
 
-			// Create the log file
-			Log = new TimestampLogWriter(new BoundedLogWriter(Path.Combine(DataFolder, "UnrealGameSync.log")));
-			Log.WriteLine("Application version: {0}", Assembly.GetExecutingAssembly().GetName().Version);
-			Log.WriteLine("Started at {0}", DateTime.Now.ToString());
-
 			// Read the user's settings
 			Settings = new UserSettings(Path.Combine(DataFolder, "UnrealGameSync.ini"));
 			if(!String.IsNullOrEmpty(ProjectFileName))
@@ -84,6 +82,27 @@ namespace UnrealGameSync
 				{
 					Settings.OpenProjects.Add(new UserSelectedProjectSettings(null, null, UserSelectedProjectType.Local, null, FullProjectFileName));
 				}
+			}
+
+			// Update the settings to the latest version
+			if(Settings.Version < UserSettingsVersion.Latest)
+			{
+				// Clear out the server settings for anything using the default server
+				if(Settings.Version < UserSettingsVersion.DefaultServerSettings)
+				{
+					for(int Idx = 0; Idx < Settings.OpenProjects.Count; Idx++)
+					{
+						Settings.OpenProjects[Idx] = UpgradeSelectedProjectSettings(Settings.OpenProjects[Idx]);
+					}
+					for (int Idx = 0; Idx < Settings.RecentProjects.Count; Idx++)
+					{
+						Settings.RecentProjects[Idx] = UpgradeSelectedProjectSettings(Settings.RecentProjects[Idx]);
+					}
+				}
+
+				// Save the new settings
+				Settings.Version = UserSettingsVersion.Latest;
+				Settings.Save();
 			}
 
 			// Register the update listener
@@ -162,7 +181,7 @@ namespace UnrealGameSync
 			}
 
 			// Detect settings for the project we want to open
-			DetectStartupProjectSettingsTask = new DetectMultipleProjectSettingsTask(Tasks);
+			DetectStartupProjectSettingsTask = new DetectMultipleProjectSettingsTask(DefaultConnection, Tasks);
 
 			DetectStartupProjectSettingsWindow = new ModalTaskWindow(DetectStartupProjectSettingsTask, "Opening Projects", "Opening projects, please wait...", FormStartPosition.CenterScreen);
 			if(bRestoreState)
@@ -178,6 +197,18 @@ namespace UnrealGameSync
 				DetectStartupProjectSettingsWindow.Activate();
 			}
 			DetectStartupProjectSettingsWindow.Complete += OnDetectStartupProjectsComplete;
+		}
+
+		private UserSelectedProjectSettings UpgradeSelectedProjectSettings(UserSelectedProjectSettings Project)
+		{
+			if (Project.ServerAndPort == null || String.Compare(Project.ServerAndPort, DefaultConnection.ServerAndPort, StringComparison.OrdinalIgnoreCase) == 0)
+			{
+				if (Project.UserName == null || String.Compare(Project.UserName, DefaultConnection.UserName, StringComparison.OrdinalIgnoreCase) == 0)
+				{
+					Project = new UserSelectedProjectSettings(null, null, Project.Type, Project.ClientPath, Project.LocalPath);
+				}
+			}
+			return Project;
 		}
 
 		private void OnDetectStartupProjectsComplete()
@@ -203,7 +234,7 @@ namespace UnrealGameSync
 			DetectProjectSettingsResult[] StartupProjects = DetectStartupProjectSettingsTask.Results.Where(x => x != null).ToArray();
 
 			// Create the main window
-			MainWindowInstance = new MainWindow(UpdateMonitor, ApiUrl, DataFolder, CacheFolder, bRestoreState, UpdateSpawn ?? Assembly.GetExecutingAssembly().Location, bUnstable, StartupProjects, Log, Settings);
+			MainWindowInstance = new MainWindow(UpdateMonitor, ApiUrl, DataFolder, CacheFolder, bRestoreState, UpdateSpawn ?? Assembly.GetExecutingAssembly().Location, bUnstable, StartupProjects, DefaultConnection, Log, Settings);
 			if(bVisible)
 			{
 				MainWindowInstance.Show();

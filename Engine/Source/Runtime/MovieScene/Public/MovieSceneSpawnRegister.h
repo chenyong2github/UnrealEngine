@@ -38,7 +38,7 @@ public:
 	 * @param TemplateID	Unique ID of the template to look within
 	 * @return The spawned object if found; nullptr otherwise.
 	 */
-	MOVIESCENE_API UObject* FindSpawnedObject(const FGuid& BindingId, FMovieSceneSequenceIDRef TemplateID) const;
+	MOVIESCENE_API TWeakObjectPtr<> FindSpawnedObject(const FGuid& BindingId, FMovieSceneSequenceIDRef TemplateID) const;
 
 	/**
 	 * Spawn an object for the specified GUID, from the specified sequence instance.

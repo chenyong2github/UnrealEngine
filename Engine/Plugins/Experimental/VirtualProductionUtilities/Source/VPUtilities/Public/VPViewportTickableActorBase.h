@@ -22,7 +22,13 @@ public:
 	UFUNCTION(BlueprintNativeEvent, CallInEditor, BlueprintCallable, Category = "Tick")
 	void EditorTick(float DeltaSeconds);
 
+	UFUNCTION(BlueprintNativeEvent, CallInEditor, BlueprintCallable, Category = "Utilities")
+	void EditorDestroyed();
+
+
 	/** If true, actor is ticked even if TickType==LEVELTICK_ViewportsOnly */
 	virtual bool ShouldTickIfViewportsOnly() const override;
 	virtual void Tick(float DeltaSeconds) override;
+	virtual void Destroyed() override;
+
 };

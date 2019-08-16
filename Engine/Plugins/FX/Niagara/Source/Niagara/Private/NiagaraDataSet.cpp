@@ -8,6 +8,8 @@
 #include "ShaderParameterUtils.h"
 #include "NiagaraStats.h"
 #include "NiagaraRenderer.h"
+#include "NiagaraGPUInstanceCountManager.h"
+#include "NiagaraEmitterInstanceBatcher.h"
 
 DECLARE_CYCLE_STAT(TEXT("InitRenderData"), STAT_InitRenderData, STATGROUP_Niagara);
 
@@ -180,13 +182,18 @@ FNiagaraDataBuffer& FNiagaraDataSet::BeginSimulate()
 	return GetDestinationDataChecked();
 }
 
-void FNiagaraDataSet::EndSimulate()
+void FNiagaraDataSet::EndSimulate(bool SetCurrentData)
 {
 	//CheckCorrectThread();
 	//Destination is now complete so make it the current simulation state.
 	DestinationData->Unlock();
 	check(!DestinationData->IsInUse());
-	CurrentData = DestinationData;
+
+	if (SetCurrentData)
+	{
+		CurrentData = DestinationData;
+	}
+
 	DestinationData = nullptr;
 }
 
@@ -346,6 +353,14 @@ void FNiagaraDataSet::Dump(int32 StartIndex, int32 NumInstances, const FString& 
 	}
 }
 
+void FNiagaraDataSet::ReleaseGPUInstanceCounts(FNiagaraGPUInstanceCountManager& GPUInstanceCountManager)
+{
+	for (FNiagaraDataBuffer* Buffer : Data)
+	{
+		Buffer->ReleaseGPUInstanceCount(GPUInstanceCountManager);
+	}
+}
+
 void FNiagaraDataSet::BuildLayout()
 {
 	VariableLayouts.Empty();
@@ -432,13 +447,13 @@ void FNiagaraDataSet::CopyTo(FNiagaraDataSet& Other, int32 StartIdx, int32 NumIn
 	Other.EndSimulate();
 }
 
-void FNiagaraDataSet::CopyFromGPUReadback(float* GPUReadBackFloat, int* GPUReadBackInt, int32 StartIdx /* = 0 */, int32 NumInstances /* = INDEX_NONE */)
+void FNiagaraDataSet::CopyFromGPUReadback(float* GPUReadBackFloat, int* GPUReadBackInt, int32 StartIdx /* = 0 */, int32 NumInstances /* = INDEX_NONE */, uint32 FloatStride, uint32 IntStride)
 {
 	check(IsInRenderingThread());
 	check(bFinalized);//We should be finalized with proper layout information already.
 
 	FNiagaraDataBuffer& DestBuffer = BeginSimulate();
-	DestBuffer.GPUCopyFrom(GPUReadBackFloat, GPUReadBackInt, StartIdx, NumInstances);
+	DestBuffer.GPUCopyFrom(GPUReadBackFloat, GPUReadBackInt, StartIdx, NumInstances, FloatStride, IntStride);
 	EndSimulate();
 }
  
@@ -446,6 +461,7 @@ void FNiagaraDataSet::CopyFromGPUReadback(float* GPUReadBackFloat, int* GPUReadB
 
 FNiagaraDataBuffer::FNiagaraDataBuffer(FNiagaraDataSet* InOwner)
 	: Owner(InOwner)
+	, GPUInstanceCountBufferOffset(INDEX_NONE)
 	, NumChunksAllocatedForGPU(0)
 	, NumInstances(0)
 	, NumInstancesAllocated(0)
@@ -457,7 +473,11 @@ FNiagaraDataBuffer::FNiagaraDataBuffer(FNiagaraDataSet* InOwner)
 FNiagaraDataBuffer::~FNiagaraDataBuffer()
 {
 	check(!IsInUse());
-	DEC_MEMORY_STAT_BY(STAT_NiagaraParticleMemory, FloatData.Max() + Int32Data.Max());
+	// If this is data for a GPU emitter, we have to release the GPU instance counts for reuse.
+	// The only exception is if the batcher was pending kill and we couldn't enqueue a rendering command, 
+	// in which case this would have been released on the game thread and not from the batcher DataSetsToDestroy_RT.
+	check(!IsInRenderingThread() || GPUInstanceCountBufferOffset == INDEX_NONE);
+	DEC_MEMORY_STAT_BY(STAT_NiagaraParticleMemory, FloatData.GetAllocatedSize() + Int32Data.GetAllocatedSize());
 }
 
 void FNiagaraDataBuffer::CheckUsage(bool bReadOnly)const
@@ -466,7 +486,7 @@ void FNiagaraDataBuffer::CheckUsage(bool bReadOnly)const
 	if (Owner->SimTarget == ENiagaraSimTarget::CPUSim)
 	{
 		//We can read on the RT but any modifications must be GT (or GT Task).
-		check(bReadOnly || !IsInRenderingThread());
+		check(IsInGameThread() || (bReadOnly || !IsInRenderingThread()));
 	}
 	else
 	{
@@ -535,7 +555,7 @@ void FNiagaraDataBuffer::Allocate(uint32 InNumInstances, bool bMaintainExisting)
 	NumInstancesAllocated = InNumInstances;
 	NumInstances = 0;
 
-	DEC_MEMORY_STAT_BY(STAT_NiagaraParticleMemory, FloatData.Max() + Int32Data.Max());
+	DEC_MEMORY_STAT_BY(STAT_NiagaraParticleMemory, FloatData.GetAllocatedSize() + Int32Data.GetAllocatedSize());
 
 	const uint32 OldFloatStride = FloatStride;
 	TArray<uint8> OldFloatData;
@@ -555,7 +575,7 @@ void FNiagaraDataBuffer::Allocate(uint32 InNumInstances, bool bMaintainExisting)
 	Int32Stride = GetSafeComponentBufferSize(NumInstancesAllocated * sizeof(int32));
 	Int32Data.SetNum(Int32Stride * Owner->GetNumInt32Components(), false);
 
-	INC_MEMORY_STAT_BY(STAT_NiagaraParticleMemory, FloatData.Max() + Int32Data.Max());
+	INC_MEMORY_STAT_BY(STAT_NiagaraParticleMemory, FloatData.GetAllocatedSize() + Int32Data.GetAllocatedSize());
 
 	//In some cases we want the existing data in the buffer to be maintained which due to the data layout requires some fix up.
 	if (bMaintainExisting)
@@ -587,18 +607,16 @@ void FNiagaraDataBuffer::Allocate(uint32 InNumInstances, bool bMaintainExisting)
 	}
 }
 
-void FNiagaraDataBuffer::AllocateGPU(uint32 InNumInstances, FRHICommandList &RHICmdList)
+void FNiagaraDataBuffer::AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceCountManager& GPUInstanceCountManager, FRHICommandList &RHICmdList)
 {
 	CheckUsage(false);
 
 	check(Owner->SimTarget == ENiagaraSimTarget::GPUComputeSim);
 
-	//Allocate the indices buffer if needed
-	if (GPUIndices.Buffer == nullptr)
-	{
-		// Use BUF_KeepCPUAccessible here since some platforms will lock it for readonly (depending on the implementation of RHIEnqueueStagedRead) after GPU simulation.
-		GPUIndices.Initialize(sizeof(int32), 64 /*Context->NumDataSets*/, EPixelFormat::PF_R32_UINT, BUF_DrawIndirect | BUF_Static | BUF_KeepCPUAccessible);	// always allocate for up to 64 data sets
-	}
+	// Release previous entry if any.
+	GPUInstanceCountManager.FreeEntry(GPUInstanceCountBufferOffset);
+	// Get a new entry currently set to 0, since simulation will increment it to the actual instance count.
+	GPUInstanceCountBufferOffset = GPUInstanceCountManager.AcquireEntry();
 
 	// ALLOC_CHUNKSIZE must be greater than zero and divisible by the thread group size
 	const uint32 ALLOC_CHUNKSIZE = 4096;
@@ -744,7 +762,7 @@ void FNiagaraDataBuffer::CopyTo(FNiagaraDataBuffer& DestBuffer, int32 InStartIdx
 	}
 }
 
-void FNiagaraDataBuffer::GPUCopyFrom(float* GPUReadBackFloat, int* GPUReadBackInt, int32 InStartIdx, int32 InNumInstances)
+void FNiagaraDataBuffer::GPUCopyFrom(float* GPUReadBackFloat, int* GPUReadBackInt, int32 InStartIdx, int32 InNumInstances, uint32 InSrcFloatStride, uint32 InSrcIntStride)
 {
 	//CheckUsage(false); //Have to disable this as in this specific case we write to a "CPUSim" from the RT.
 
@@ -760,8 +778,10 @@ void FNiagaraDataBuffer::GPUCopyFrom(float* GPUReadBackFloat, int* GPUReadBackIn
 	{
 		for (uint32 CompIdx = 0; CompIdx < Owner->TotalFloatComponents; ++CompIdx)
 		{
-			const float* SrcStart = GetInstancePtrFloat(GPUReadBackFloat, CompIdx, InStartIdx);
-			const float* SrcEnd = GetInstancePtrFloat(GPUReadBackFloat, CompIdx, InStartIdx + InNumInstances);
+			// We have to reimplement the logic from GetInstancePtrFloat here because the incoming stride may be different than this 
+			// data buffer's stride.
+			const float* SrcStart = (const float*)((uint8*)GPUReadBackFloat + InSrcFloatStride * CompIdx) + InStartIdx; 
+			const float* SrcEnd = (const float*)((uint8*)GPUReadBackFloat + InSrcFloatStride * CompIdx) + InStartIdx + InNumInstances;
 			float* Dst = GetInstancePtrFloat(CompIdx, 0);
 			size_t Count = SrcEnd - SrcStart;
 			FMemory::Memcpy(Dst, SrcStart, Count * sizeof(float));
@@ -779,8 +799,10 @@ void FNiagaraDataBuffer::GPUCopyFrom(float* GPUReadBackFloat, int* GPUReadBackIn
 	{
 		for (uint32 CompIdx = 0; CompIdx < Owner->TotalInt32Components; ++CompIdx)
 		{
-			const int32* SrcStart = GetInstancePtrInt32(GPUReadBackInt, CompIdx, InStartIdx);
-			const int32* SrcEnd = GetInstancePtrInt32(GPUReadBackInt, CompIdx, InStartIdx + InNumInstances);
+			// We have to reimplement the logic from GetInstancePtrInt here because the incoming stride may be different than this 
+			// data buffer's stride.
+			const int32* SrcStart = (const int32*)((uint8*)GPUReadBackInt + InSrcIntStride * CompIdx) + InStartIdx;
+			const int32* SrcEnd = (const int32*)((uint8*)GPUReadBackInt + InSrcIntStride * CompIdx) + InStartIdx + InNumInstances;
 			int32* Dst = GetInstancePtrInt32(CompIdx, 0);
 			size_t Count = SrcEnd - SrcStart;
 			FMemory::Memcpy(Dst, SrcStart, Count * sizeof(int32));
@@ -994,6 +1016,12 @@ void FNiagaraDataBuffer::UnsetShaderParams(FNiagaraShader *Shader, FRHICommandLi
 	}
 }
 
+void FNiagaraDataBuffer::ReleaseGPUInstanceCount(FNiagaraGPUInstanceCountManager& GPUInstanceCountManager)
+{
+	GPUInstanceCountManager.FreeEntry(GPUInstanceCountBufferOffset);
+}
+
+
 FScopedNiagaraDataSetGPUReadback::~FScopedNiagaraDataSetGPUReadback()
 {
 	if (DataBuffer != nullptr)
@@ -1003,11 +1031,12 @@ FScopedNiagaraDataSetGPUReadback::~FScopedNiagaraDataSetGPUReadback()
 	}
 }
 
-void FScopedNiagaraDataSetGPUReadback::ReadbackData(FNiagaraDataSet* InDataSet)
+void FScopedNiagaraDataSetGPUReadback::ReadbackData(NiagaraEmitterInstanceBatcher* InBatcher, FNiagaraDataSet* InDataSet)
 {
 	check(DataSet == nullptr);
 	check(InDataSet != nullptr);
 
+	Batcher = InBatcher && !InBatcher->IsPendingKill() ? Batcher : nullptr;
 	DataSet = InDataSet;
 	DataBuffer = DataSet->GetCurrentData();
 
@@ -1015,20 +1044,23 @@ void FScopedNiagaraDataSetGPUReadback::ReadbackData(FNiagaraDataSet* InDataSet)
 	check((DataBuffer->FloatData.Num() == 0) && (DataBuffer->Int32Data.Num() == 0));
 
 	// Readback data
-	TArray<uint32> DrawIndirectData;
 	ENQUEUE_RENDER_COMMAND(ReadbackGPUBuffers)
 	(
 		[&](FRHICommandListImmediate& RHICmdList)
 		{
 			// Read DrawIndirect Params
+			const uint32 BufferOffset = DataBuffer->GetGPUInstanceCountBufferOffset();
+			if (Batcher && BufferOffset != INDEX_NONE)
 			{
-				const FRWBuffer& DataSetIndices = DataBuffer->GetGPUIndices();
-				const int32 BytesToCopy = DataSetIndices.NumBytes / sizeof(uint32);
-				DrawIndirectData.AddUninitialized(BytesToCopy);
+				FRHIVertexBuffer* InstanceCountBuffer = Batcher->GetGPUInstanceCounterManager().GetInstanceCountBuffer().Buffer;
 
-				void* Data = RHICmdList.LockVertexBuffer(DataSetIndices.Buffer, 0, BytesToCopy, RLM_ReadOnly);
-				FMemory::Memcpy(DrawIndirectData.GetData(), Data, BytesToCopy);
-				RHICmdList.UnlockVertexBuffer(DataSetIndices.Buffer);
+				void* Data = RHICmdList.LockVertexBuffer(InstanceCountBuffer, 0, (BufferOffset + 1) * sizeof(int32), RLM_ReadOnly);
+				NumInstances = reinterpret_cast<int32*>(Data)[BufferOffset];
+				RHICmdList.UnlockVertexBuffer(InstanceCountBuffer);
+			}
+			else
+			{
+				NumInstances = DataBuffer->GetNumInstances();
 			}
 
 			// Read float data
@@ -1055,6 +1087,4 @@ void FScopedNiagaraDataSetGPUReadback::ReadbackData(FNiagaraDataSet* InDataSet)
 		}
 	);
 	FlushRenderingCommands();
-
-	NumInstances = DrawIndirectData[1];
 }

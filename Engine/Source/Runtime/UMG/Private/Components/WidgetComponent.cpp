@@ -329,7 +329,14 @@ public:
 		//FSpriteTextureOverrideRenderProxy* TextureOverrideMaterialProxy = new FSpriteTextureOverrideRenderProxy(ParentMaterialProxy,
 
 		const FMatrix& ViewportLocalToWorld = GetLocalToWorld();
-	
+
+		FMatrix PreviousLocalToWorld;
+
+		if (!GetScene().GetPreviousLocalToWorld(GetPrimitiveSceneInfo(), PreviousLocalToWorld))
+		{
+			PreviousLocalToWorld = GetLocalToWorld();
+		}
+
 		if( RenderTarget )
 		{
 			FTextureResource* TextureResource = RenderTarget->Resource;
@@ -358,7 +365,11 @@ public:
 							MeshBuilder.AddTriangle(VertexIndices[0], VertexIndices[1], VertexIndices[2]);
 							MeshBuilder.AddTriangle(VertexIndices[0], VertexIndices[2], VertexIndices[3]);
 
-							MeshBuilder.GetMesh(ViewportLocalToWorld, ParentMaterialProxy, SDPG_World, false, true, ViewIndex, Collector);
+							FDynamicMeshBuilderSettings Settings;
+							Settings.bDisableBackfaceCulling = false;
+							Settings.bReceivesDecals = true;
+							Settings.bUseSelectionOutline = true;
+							MeshBuilder.GetMesh(ViewportLocalToWorld, PreviousLocalToWorld, ParentMaterialProxy, SDPG_World, Settings, nullptr, ViewIndex, Collector, FHitProxyId());
 						}
 					}
 				}
@@ -435,7 +446,12 @@ public:
 								LastTangentY = TangentY;
 								LastTangentZ = TangentZ;
 							}
-							MeshBuilder.GetMesh(ViewportLocalToWorld, ParentMaterialProxy, SDPG_World, false, true, ViewIndex, Collector);
+
+							FDynamicMeshBuilderSettings Settings;
+							Settings.bDisableBackfaceCulling = false;
+							Settings.bReceivesDecals = true;
+							Settings.bUseSelectionOutline = true;
+							MeshBuilder.GetMesh(ViewportLocalToWorld, PreviousLocalToWorld, ParentMaterialProxy, SDPG_World, Settings, nullptr, ViewIndex, Collector, FHitProxyId());
 						}
 					}
 				}
@@ -487,14 +503,14 @@ public:
 						Collector.RegisterOneFrameMaterialProxy(SolidMaterialInstance);
 
 						FTransform GeomTransform(GetLocalToWorld());
-						InBodySetup->AggGeom.GetAggGeom(GeomTransform, GetWireframeColor().ToFColor(true), SolidMaterialInstance, false, true, UseEditorDepthTest(), ViewIndex, Collector);
+						InBodySetup->AggGeom.GetAggGeom(GeomTransform, GetWireframeColor().ToFColor(true), SolidMaterialInstance, false, true, DrawsVelocity(), ViewIndex, Collector);
 					}
 					// wireframe
 					else
 					{
 						FColor CollisionColor = FColor(157, 149, 223, 255);
 						FTransform GeomTransform(GetLocalToWorld());
-						InBodySetup->AggGeom.GetAggGeom(GeomTransform, GetSelectionColor(CollisionColor, bProxyIsSelected, IsHovered()).ToFColor(true), nullptr, false, false, UseEditorDepthTest(), ViewIndex, Collector);
+						InBodySetup->AggGeom.GetAggGeom(GeomTransform, GetSelectionColor(CollisionColor, bProxyIsSelected, IsHovered()).ToFColor(true), nullptr, false, false, DrawsVelocity(), ViewIndex, Collector);
 					}
 				}
 			}
@@ -571,6 +587,7 @@ UWidgetComponent::UWidgetComponent( const FObjectInitializer& PCIP )
 	, LastWidgetRenderTime(0)
 	, bReceiveHardwareInput(false)
 	, bWindowFocusable(true)
+	, WindowVisibility(EWindowVisibility::SelfHitTestInvisible)
 	, bApplyGammaCorrection(false)
 	, BackgroundColor( FLinearColor::Transparent )
 	, TintColorAndOpacity( FLinearColor::White )
@@ -582,6 +599,7 @@ UWidgetComponent::UWidgetComponent( const FObjectInitializer& PCIP )
 	, LayerZOrder(-100)
 	, GeometryMode(EWidgetGeometryMode::Plane)
 	, CylinderArcAngle( 180.0f )
+    , bRenderCleared(false)
 {
 	PrimaryComponentTick.bCanEverTick = true;
 	bTickInEditor = true;
@@ -619,11 +637,23 @@ UWidgetComponent::UWidgetComponent( const FObjectInitializer& PCIP )
 	bAddedToScreen = false;
 }
 
+void UWidgetComponent::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
+
+	if (Ar.CustomVer(FEditorObjectVersion::GUID) < FEditorObjectVersion::ChangedWidgetComponentWindowVisibilityDefault)
+	{
+		// Reset the default value for visibility
+		WindowVisibility = EWindowVisibility::Visible;
+	}
+}
+
 void UWidgetComponent::BeginPlay()
 {
-	Super::BeginPlay();
-
 	InitWidget();
+	Super::BeginPlay();
 }
 
 void UWidgetComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -837,6 +867,38 @@ void UWidgetComponent::OnRegister()
 #endif // !UE_SERVER
 }
 
+void UWidgetComponent::SetWindowFocusable(bool bInWindowFocusable)
+{
+	bWindowFocusable = bInWindowFocusable;
+ 	if (SlateWindow.IsValid())
+ 	{
+ 		SlateWindow->SetIsFocusable(bWindowFocusable);
+ 	}
+};
+
+EVisibility UWidgetComponent::ConvertWindowVisibilityToVisibility(EWindowVisibility visibility)
+{
+	switch (visibility)
+	{
+	case EWindowVisibility::Visible:
+		return EVisibility::Visible;
+	case EWindowVisibility::SelfHitTestInvisible:
+		return EVisibility::SelfHitTestInvisible;
+	default:
+		checkNoEntry();
+		return EVisibility::SelfHitTestInvisible;
+	}	
+}
+
+void UWidgetComponent::SetWindowVisibility(EWindowVisibility InVisibility)
+{
+	WindowVisibility = InVisibility;
+ 	if (SlateWindow.IsValid())
+ 	{		
+ 		SlateWindow->SetVisibility(ConvertWindowVisibilityToVisibility(WindowVisibility));
+ 	}
+}
+
 bool UWidgetComponent::CanReceiveHardwareInput() const
 {
 	return bReceiveHardwareInput && GeometryMode == EWidgetGeometryMode::Plane;
@@ -988,9 +1050,10 @@ void UWidgetComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, 
 	{
 		UpdateWidget();
 
-		if ( Widget == nullptr && !SlateWidget.IsValid() )
+		if (Widget == nullptr && !SlateWidget.IsValid() && bRenderCleared)
 		{
-			return;
+			// We will enter here if the WidgetClass is empty and we already renderered an empty widget. No need to continue.
+			return;	
 		}
 
 	    if ( Space != EWidgetSpace::Screen )
@@ -1002,6 +1065,12 @@ void UWidgetComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, 
 				// a different rate than the rest of the world.
 				const float DeltaTimeFromLastDraw = LastWidgetRenderTime == 0 ? 0 : (GetCurrentTime() - LastWidgetRenderTime);
 				DrawWidgetToRenderTarget(DeltaTimeFromLastDraw);
+
+				// We draw an empty widget.
+				if (Widget == nullptr && !SlateWidget.IsValid())
+				{
+					bRenderCleared = true;
+				}
 		    }
 	    }
 	    else
@@ -1013,7 +1082,7 @@ void UWidgetComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, 
 				ULocalPlayer* TargetPlayer = GetOwnerPlayer();
 				APlayerController* PlayerController = TargetPlayer ? TargetPlayer->PlayerController : nullptr;
 
-				if ( TargetPlayer && PlayerController && IsVisible() )
+				if ( TargetPlayer && PlayerController && IsVisible() && !(GetOwner()->bHidden))
 				{
 					if ( !bAddedToScreen )
 					{
@@ -1151,12 +1220,12 @@ float UWidgetComponent::ComputeComponentWidth() const
 	{
 		default:
 		case EWidgetGeometryMode::Plane:
-			return DrawSize.X;
+			return CurrentDrawSize.X;
 		break;
 
 		case EWidgetGeometryMode::Cylinder:
 			const float ArcAngleRadians = FMath::DegreesToRadians(GetCylinderArcAngle());
-			const float Radius = GetDrawSize().X / ArcAngleRadians;
+			const float Radius = CurrentDrawSize.X / ArcAngleRadians;
 			// Chord length is 2*R*Sin(Theta/2)
 			return 2.0f * Radius * FMath::Sin(0.5f*ArcAngleRadians);
 		break;
@@ -1243,6 +1312,7 @@ bool UWidgetComponent::CanEditChange(const UProperty* InProperty) const
 		if ( PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UWidgetComponent, GeometryMode) ||
 			 PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UWidgetComponent, TimingPolicy) ||
 			 PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UWidgetComponent, bWindowFocusable) ||
+			 PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UWidgetComponent, WindowVisibility) ||
 			 PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UWidgetComponent, bManuallyRedraw) ||
 			 PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UWidgetComponent, RedrawTime) ||
 			 PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UWidgetComponent, BackgroundColor) ||
@@ -1287,6 +1357,8 @@ void UWidgetComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 		static FName BlendModeName( TEXT( "BlendMode" ) );
 		static FName GeometryModeName( TEXT("GeometryMode") );
 		static FName CylinderArcAngleName( TEXT("CylinderArcAngle") );
+		static FName bWindowFocusableName(TEXT("bWindowFocusable"));
+		static FName WindowVisibilityName(TEXT("WindowVisibility"));
 
 		auto PropertyName = Property->GetFName();
 
@@ -1315,6 +1387,15 @@ void UWidgetComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 		{
 			MarkRenderStateDirty();
 		}
+		else if (PropertyName == bWindowFocusableName)
+		{
+			SetWindowFocusable(bWindowFocusable);
+		}
+		else if (PropertyName == WindowVisibilityName)
+		{
+			SetWindowVisibility(WindowVisibility);
+		}
+
 	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -1432,6 +1513,7 @@ void UWidgetComponent::UpdateWidget()
 
 				SlateWindow = SNew(SVirtualWindow).Size(CurrentDrawSize);
 				SlateWindow->SetIsFocusable(bWindowFocusable);
+				SlateWindow->SetVisibility(ConvertWindowVisibilityToVisibility(WindowVisibility));
 				RegisterWindow();
 
 				bNeededNewWindow = true;
@@ -1463,6 +1545,7 @@ void UWidgetComponent::UpdateWidget()
 				if (CurrentSlateWidget != SNullWidget::NullWidget)
 				{
 					CurrentSlateWidget = SNullWidget::NullWidget;
+					bRenderCleared = false;
 					bWidgetChanged = true;
 				}
 				SlateWindow->SetContent( SNullWidget::NullWidget );
@@ -1565,18 +1648,15 @@ void UWidgetComponent::UpdateBodySetup( bool bDrawSizeChanged )
 
 		FKBoxElem* BoxElem = BodySetup->AggGeom.BoxElems.GetData();
 
-		FVector Origin = FVector(.5f,
-			-( CurrentDrawSize.X * 0.5f ) + ( CurrentDrawSize.X * Pivot.X ),
-			-( CurrentDrawSize.Y * 0.5f ) + ( CurrentDrawSize.Y * Pivot.Y ));
-			const float Width = ComputeComponentWidth();
-			const float Height = CurrentDrawSize.Y;
-			Origin = FVector(.5f,
-				-( Width * 0.5f ) + ( Width * Pivot.X ),
-				-( Height * 0.5f ) + ( Height * Pivot.Y ));
+		const float Width = ComputeComponentWidth();
+		const float Height = CurrentDrawSize.Y;
+		const FVector Origin = FVector(.5f,
+			-( Width * 0.5f ) + ( Width * Pivot.X ),
+			-( Height * 0.5f ) + ( Height * Pivot.Y ));
 			
 		BoxElem->X = 0.01f;
-		BoxElem->Y = CurrentDrawSize.X;
-		BoxElem->Z = CurrentDrawSize.Y;
+		BoxElem->Y = Width;
+		BoxElem->Z = Height;
 
 		BoxElem->SetTransform(FTransform::Identity);
 		BoxElem->Center = Origin;
@@ -1764,7 +1844,7 @@ TArray<FWidgetAndPointer> UWidgetComponent::GetHitWidgetPath(FVector2D WidgetSpa
 	TArray<FWidgetAndPointer> ArrangedWidgets;
 	if ( SlateWindow.IsValid() )
 	{
-		ArrangedWidgets = SlateWindow->GetHittestGrid()->GetBubblePath( LocalHitLocation, CursorRadius, bIgnoreEnabledStatus );
+		ArrangedWidgets = SlateWindow->GetHittestGrid().GetBubblePath( LocalHitLocation, CursorRadius, bIgnoreEnabledStatus );
 
 		for( FWidgetAndPointer& ArrangedWidget : ArrangedWidgets )
 		{

@@ -181,7 +181,7 @@ Unreal Automation Tool (UAT) 는 다음과 같은 지원 블루프린트 애셋�
 		클릭하면 원본 이미지를 확인합니다.
 	[/REGION]
 
-1.	계속해서 서브메뉴 하단의 확장 화살표를 클릭하면 공백 배열이 나타납니다.
+1.	계속해서 서브메뉴 하단의 확장 화살표를 클릭하면 빈 배열이 나타납니다.
 
 	[REGION:lightbox]
 		[![](BPNativization_ExclusiveStep_5.png)(w:900)](BPNativization_ExclusiveStep_5.png)

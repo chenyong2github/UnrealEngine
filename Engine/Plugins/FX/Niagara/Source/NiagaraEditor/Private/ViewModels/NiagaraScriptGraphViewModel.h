@@ -22,8 +22,8 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FOnGraphChanged);
 
 public:
-	/** Create a new view model with the supplied script. */
-	FNiagaraScriptGraphViewModel(UNiagaraScriptSource* InScriptSource, FText InDisplayName);
+	/** Create a new view model with the supplied  display name. */
+	FNiagaraScriptGraphViewModel(FText InDisplayName);
 
 	~FNiagaraScriptGraphViewModel();
 

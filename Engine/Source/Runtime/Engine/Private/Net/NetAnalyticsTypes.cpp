@@ -3,6 +3,34 @@
 #include "Net/NetAnalyticsTypes.h"
 #include "Algo/BinarySearch.h"
 #include "Serialization/Archive.h"
+#include "HAL/IConsoleManager.h"
+
+namespace NetAnalyticsCVars
+{
+	static int32 NumberOfConsecutiveDroppedPacketsToConsiderBurst = 3;
+	static FAutoConsoleVariableRef CVarNumberOfDroppedPacketsToConsiderBurst(
+		TEXT("NetAnalytics.NumberOfConsecutiveDroppedPacketsToConsiderBurst"),
+		NumberOfConsecutiveDroppedPacketsToConsiderBurst,
+		TEXT("The number of packets lost in a row (in or out) for us to consider the frame as having bursts of packet loss.")
+		TEXT("Not affected by NetAnalytics.MinimumNumberOfPacketsForBurstTracking.")
+	);
+
+	static int32 MinimumNumberOfPacketsForBurstTracking = 5;
+	static FAutoConsoleVariableRef CVarMinimumNumberOfPacketsForBurstTracking(
+		TEXT("NetAnalytics.MinimumNumberOfPacketsForBurstTracking"),
+		MinimumNumberOfPacketsForBurstTracking,
+		TEXT("The minimum number of packets that must have been notified (in our out) in order to consider a frame for packet loss by percentage.")
+		TEXT("See NetAnalytics.PercentOfDroppedPacketsToConsiderBurst")
+	);
+
+	static float PercentOfDroppedPacketsToConsiderBurst = 0.2f;
+	static FAutoConsoleVariableRef CVarPercentOfDroppedPacketsToConsiderBurst(
+		TEXT("NetAnalytics.PercentOfDroppedPacketsToConsiderBurst"),
+		PercentOfDroppedPacketsToConsiderBurst,
+		TEXT("The percentage of packets lost in a frame (in or out) for us to consider the frame as having bursts of packet loss.\n")
+		TEXT("See NetAnalytics.MinimumNumberOfPacketsForBurstTracking.")
+	);
+}
 
 FDelinquencyAnalytics::FDelinquencyAnalytics(const uint32 InNumberOfTopOffendersToTrack) :
 	TotalTime(0.f),
@@ -11,11 +39,11 @@ FDelinquencyAnalytics::FDelinquencyAnalytics(const uint32 InNumberOfTopOffenders
 	TopOffenders.Reserve(NumberOfTopOffendersToTrack);
 }
 
-FDelinquencyAnalytics::FDelinquencyAnalytics(FDelinquencyAnalytics&& Other) :
-	TopOffenders(MoveTemp(Other.TopOffenders)),
-	AllDelinquents(MoveTemp(Other.AllDelinquents)),
-	TotalTime(Other.TotalTime),
-	NumberOfTopOffendersToTrack(Other.NumberOfTopOffendersToTrack)
+FDelinquencyAnalytics::FDelinquencyAnalytics(FDelinquencyAnalytics&& Other)
+	: TopOffenders(MoveTemp(Other.TopOffenders))
+	, AllDelinquents(MoveTemp(Other.AllDelinquents))
+	, TotalTime(Other.TotalTime)
+	, NumberOfTopOffendersToTrack(Other.NumberOfTopOffendersToTrack)
 {
 	TopOffenders.Reserve(NumberOfTopOffendersToTrack);
 }
@@ -176,4 +204,95 @@ void FNetConnectionSaturationAnalytics::Reset()
 
 	CurrentRunOfSaturatedFrames = 0;
 	CurrentRunOfSaturatedReplications = 0;
+}
+
+void FNetConnectionPacketAnalytics::Reset()
+{
+	bSawPacketLossBurstThisFrame = false;
+	NumberOfAcksThisFrame = 0;
+	NumberOfNaksThisFrame = 0;
+	NumberOfMissingPacketsThisFrame = 0;
+	NumberOfPacketsThisFrame = 0;
+	CurrentRunOfDroppedOutPackets = 0;
+	LongestRunOfDroppedOutPackets = 0;
+	LongestRunOfDroppedInPackets = 0;
+	NumberOfFramesWithBurstsOfPacketLoss = 0;
+	NumberOfFramesWithNoPackets = 0;
+	NumberOfTrackedFrames = 0;
+}
+
+void FNetConnectionPacketAnalytics::TrackAck(int32 PacketId)
+{
+	++NumberOfAcksThisFrame;
+
+	// We will only know about NAKs when we receive ACKs, so we only need to update this here.
+	if (UNLIKELY(CurrentRunOfDroppedOutPackets > 0))
+	{
+		if (NetAnalyticsCVars::NumberOfConsecutiveDroppedPacketsToConsiderBurst > 0)
+		{
+			bSawPacketLossBurstThisFrame |= CurrentRunOfDroppedOutPackets >= static_cast<uint32>(NetAnalyticsCVars::NumberOfConsecutiveDroppedPacketsToConsiderBurst);
+		}
+
+		LongestRunOfDroppedOutPackets = FMath::Max<>(CurrentRunOfDroppedOutPackets, LongestRunOfDroppedOutPackets);
+		CurrentRunOfDroppedOutPackets = 0;
+	}
+}
+
+void FNetConnectionPacketAnalytics::TrackNak(int32 PacketId)
+{
+	++NumberOfNaksThisFrame;
+	++CurrentRunOfDroppedOutPackets;
+}
+
+void FNetConnectionPacketAnalytics::TrackInPacket(uint32 InPacketId, uint32 NumberOfMissingPackets)
+{
+	++NumberOfPacketsThisFrame;
+
+	// We will only know about missing packets when we receive a packet, so we only need to update this here.
+	if (UNLIKELY(NumberOfMissingPackets))
+	{
+		if (NetAnalyticsCVars::NumberOfConsecutiveDroppedPacketsToConsiderBurst > 0)
+		{
+			bSawPacketLossBurstThisFrame |= NumberOfMissingPackets >= static_cast<uint32>(NetAnalyticsCVars::NumberOfConsecutiveDroppedPacketsToConsiderBurst);
+		}
+
+		NumberOfMissingPackets += NumberOfMissingPacketsThisFrame;
+		LongestRunOfDroppedInPackets = FMath::Max<>(NumberOfMissingPackets, LongestRunOfDroppedInPackets);
+	}
+}
+
+void FNetConnectionPacketAnalytics::Tick()
+{
+	++NumberOfTrackedFrames;
+
+	const int32 NumberOfInPackets = NumberOfPacketsThisFrame + NumberOfMissingPacketsThisFrame;
+	const int32 NumberOfOutPackets = NumberOfAcksThisFrame + NumberOfNaksThisFrame;
+
+	if (NumberOfInPackets == 0 && NumberOfOutPackets == 0)
+	{
+		++NumberOfFramesWithNoPackets;
+		return;
+	}
+
+	if (!bSawPacketLossBurstThisFrame &&
+		NetAnalyticsCVars::MinimumNumberOfPacketsForBurstTracking > 0 &&
+		NetAnalyticsCVars::PercentOfDroppedPacketsToConsiderBurst > 0.f)
+	{
+		const float PercentInPacketsLost = (NumberOfInPackets > 0) ? static_cast<float>(NumberOfMissingPacketsThisFrame) / static_cast<float>(NumberOfInPackets) : 0.f;
+		const float PercentOutPacketsLost = (NumberOfOutPackets > 0) ? static_cast<float>(NumberOfNaksThisFrame) / static_cast<float>(NumberOfOutPackets) : 0.f;
+
+		bSawPacketLossBurstThisFrame = (PercentInPacketsLost >= NetAnalyticsCVars::PercentOfDroppedPacketsToConsiderBurst) ||
+			(PercentOutPacketsLost >= NetAnalyticsCVars::PercentOfDroppedPacketsToConsiderBurst);
+	}
+
+	if (bSawPacketLossBurstThisFrame)
+	{
+		++NumberOfFramesWithBurstsOfPacketLoss;
+	}
+
+	bSawPacketLossBurstThisFrame = false;
+	NumberOfAcksThisFrame = 0;
+	NumberOfNaksThisFrame = 0;
+	NumberOfMissingPacketsThisFrame = 0;
+	NumberOfPacketsThisFrame = 0;
 }

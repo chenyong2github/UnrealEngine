@@ -16,6 +16,7 @@
 #include "Sound/SoundGroups.h"
 #include "AudioMixerTypes.h"
 #include "AudioCompressionSettings.h"
+#include "PerPlatformProperties.h"
 #include "SoundWave.generated.h"
 
 class ITargetPlatform;
@@ -108,13 +109,15 @@ struct FStreamedAudioPlatformData
 	~FStreamedAudioPlatformData();
 
 	/**
-	 * Try to load audio chunk from the derived data cache.
+	 * Try to load audio chunk from the derived data cache or build it if it isn't there.
 	 * @param ChunkIndex	The Chunk index to load.
 	 * @param OutChunkData	Address of pointer that will store chunk data - should
 	 *						either be NULL or have enough space for the chunk
-	 * @returns true if requested chunk has been loaded.
+	 * @returns if > 0, the size of the chunk in bytes. If 0, the chunk failed to load.
 	 */
-	bool TryLoadChunk(int32 ChunkIndex, uint8** OutChunkData, bool bMakeSureChunkIsLoaded = false);
+	int32 GetChunkFromDDC(int32 ChunkIndex, uint8** OutChunkData, bool bMakeSureChunkIsLoaded = false);
+
+	
 
 	/** Serialization. */
 	void Serialize(FArchive& Ar, class USoundWave* Owner);
@@ -127,6 +130,18 @@ struct FStreamedAudioPlatformData
 	bool AreDerivedChunksAvailable() const;
 #endif
 
+private:
+
+	/**
+	 * Takes the results of a DDC operation and deserializes it into an FStreamedAudioChunk struct.
+	 * @param SerializedData Serialized data resulting from DDC.GetAsynchronousResults or DDC.GetSynchronous.
+	 * @param ChunkToDeserializeInto is the chunk to fill with the deserialized data.
+	 * @param ChunkIndex is the index of the chunk in this instance of FStreamedAudioPlatformData.
+	 * @param bCachedChunk is true if the chunk was successfully cached, false otherwise.
+	 * @param OutChunkData is a pointer to a pointer to populate with the chunk itself, or if pointing to nullptr, returns an allocated buffer.
+	 * @returns the size of the chunk loaded in bytes, or zero if the chunk didn't load.
+	 */
+	int32 DeserializeChunkFromDDC(TArray<uint8> SerializedData, FStreamedAudioChunk &ChunkToDeserializeInto, int32 ChunkIndex, uint8** &OutChunkData);
 };
 
 USTRUCT(BlueprintType)
@@ -134,7 +149,7 @@ struct FSoundWaveSpectralData
 {
 	GENERATED_USTRUCT_BODY()
 
-	// The frequency hz of the spectrum value
+	// The frequency (in Hz) of the spectrum value
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpectralData")
 	float FrequencyHz;
 
@@ -272,34 +287,42 @@ class ENGINE_API USoundWave : public USoundBase
 	GENERATED_UCLASS_BODY()
 
 	/** Platform agnostic compression quality. 1..100 with 1 being best compression and 100 being best quality. */
-	UPROPERTY(EditAnywhere, Category=Compression, meta=(ClampMin = "1", ClampMax = "100"), AssetRegistrySearchable)
+	UPROPERTY(EditAnywhere, Category="Format|Quality", meta=(DisplayName = "Compression", ClampMin = "1", ClampMax = "100"), AssetRegistrySearchable)
 	int32 CompressionQuality;
 
 	/** Priority of this sound when streaming (lower priority streams may not always play) */
-	UPROPERTY(EditAnywhere, Category=Streaming, meta=(ClampMin=0))
+	UPROPERTY(EditAnywhere, Category="Playback|Streaming", meta=(ClampMin=0))
 	int32 StreamingPriority;
 
 	/** Quality of sample rate conversion for platforms that opt into resampling during cook. */
-	UPROPERTY(EditAnywhere, Category = Quality)
+	UPROPERTY(EditAnywhere, Category = "Format|Quality", meta=(DisplayName="Sample Rate"))
 	ESoundwaveSampleRateSettings SampleRateQuality;
 
 	/** Type of buffer this wave uses. Set once on load */
-	TEnumAsByte<enum EDecompressionType> DecompressionType;
+	TEnumAsByte<EDecompressionType> DecompressionType;
 
-	UPROPERTY(EditAnywhere, Category=Sound)
+	UPROPERTY(EditAnywhere, Category=Sound, meta=(DisplayName="Group"))
 	TEnumAsByte<ESoundGroup> SoundGroup;
 
 	/** If set, when played directly (not through a sound cue) the wave will be played looping. */
-	UPROPERTY(EditAnywhere, Category=SoundWave, AssetRegistrySearchable)
+	UPROPERTY(EditAnywhere, Category=Sound, AssetRegistrySearchable)
 	uint8 bLooping:1;
 
 	/** Whether this sound can be streamed to avoid increased memory usage */
-	UPROPERTY(EditAnywhere, Category=Streaming)
+	UPROPERTY(EditAnywhere, Category="Playback|Streaming", meta = (DisplayName = "Force Streaming"))
 	uint8 bStreaming:1;
 
 	/** Whether this sound supports seeking. This requires recooking with a codec which supports seekability and streaming. */
-	UPROPERTY(EditAnywhere, Category = Streaming, meta = (DisplayName = "Seekable", EditCondition = "bStreaming"))
+	UPROPERTY(EditAnywhere, Category = "Playback|Streaming", meta = (DisplayName = "Seekable", EditCondition = "bStreaming"))
 	uint8 bSeekableStreaming:1;
+
+	/** If Load On Demand or Auto-Streaming is enabled, use this to force the entire compressed audio file to be loaded when this USoundWave is loaded. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Loading", meta = (DisplayName = "Ensure Sound is Always Loaded (Inlined)"))
+	uint8 bForceInline : 1;
+
+	/** If Load On Demand or Auto-Streaming is enabled, This will immediately kick off a load for this sound once postload is complete. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Loading", meta = (DisplayName = "Load Compressed Audio When This Sound Wave Is Loaded"))
+	uint8 bLoadCompressedAudioWhenSoundWaveIsLoaded : 1;
 
 	/** Set to true for programmatically-generated, streamed audio. */
 	uint8 bProcedural:1;
@@ -328,16 +351,38 @@ class ENGINE_API USoundWave : public USoundBase
 	UPROPERTY(EditAnywhere, Category=Subtitles )
 	uint8 bSingleLine:1;
 
-	/** Allows sound to continue playing when silent. This prevents issues with sounds restarting when coming back in range, etc. */
-	UPROPERTY(EditAnywhere, Category=Sound, meta = (DisplayName = "Play When Silent"))
-	uint8 bVirtualizeWhenSilent:1;
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	uint8 bVirtualizeWhenSilent_DEPRECATED:1;
+#endif // WITH_EDITORONLY_DATA
 
 	/** Whether or not this source is ambisonics file format. */
-	UPROPERTY(EditAnywhere, Category = Sound)
+	UPROPERTY(EditAnywhere, Category = Format)
 	uint8 bIsAmbisonics : 1;
 
 	/** Whether this SoundWave was decompressed from OGG. */
 	uint8 bDecompressedFromOgg : 1;
+
+private:
+
+#if !WITH_EDITOR
+	// This is set to false on initialization, then set to true on non-editor platforms when we cache appropriate sample rate.
+	uint8 bCachedSampleRateFromPlatformSettings:1;
+
+	// This is set when SetSampleRate is called to invalidate our cached sample rate while not re-parsing project settings.
+	uint8 bSampleRateManuallyReset:1;
+#endif
+
+	enum class ESoundWaveResourceState : uint8
+	{
+		NeedsFree,
+		Freeing,
+		Freed
+	};
+
+	volatile ESoundWaveResourceState ResourceState;
+
+public:
 
 #if WITH_EDITORONLY_DATA
 	/** Specify a sound to use for the baked analysis. Will default to this USoundWave if not sete. */
@@ -404,28 +449,15 @@ class ENGINE_API USoundWave : public USoundBase
 	bool GetInterpolatedCookedFFTDataForTime(float InTime, uint32& InOutLastIndex, TArray<FSoundWaveSpectralData>& OutData, bool bLoop);
 	bool GetInterpolatedCookedEnvelopeDataForTime(float InTime, uint32& InOutLastIndex, float& OutAmplitude, bool bLoop);
 
+	/** Use this to override how much audio data is loaded when this USoundWave is loaded. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Loading")
+	int32 InitialChunkSize;
+
 private:
 
 	/** Helper functions to search analysis data. Takes starting index to start query. Returns which data index the result was found at. Returns INDEX_NONE if not found. */
 	uint32 GetInterpolatedCookedFFTDataForTimeInternal(float InTime, uint32 StartingIndex, TArray<FSoundWaveSpectralData>& OutData, bool bLoop);
 	uint32 GetInterpolatedCookedEnvelopeDataForTimeInternal(float InTime, uint32 StartingIndex, float& OutAmplitude, bool bLoop);
-
-#if !WITH_EDITOR
-	// This is set to false on initialization, then set to true on non-editor platforms when we cache appropriate sample rate.
-	uint8 bCachedSampleRateFromPlatformSettings : 1;
-
-	// This is set when SetSampleRate is called to invalidate our cached sample rate while not re-parsing project settings.
-	uint8 bSampleRateManuallyReset : 1;
-#endif
-
-	enum class ESoundWaveResourceState : uint8
-	{
-		NeedsFree,
-		Freeing,
-		Freed
-	};
-
-	volatile ESoundWaveResourceState ResourceState;
 
 	/** What state the precache decompressor is in. */
 	FThreadSafeCounter PrecacheState;
@@ -478,6 +510,16 @@ protected:
 	int32 SampleRate;
 
 public:
+
+	/** Resource index to cross reference with buffers */
+	int32 ResourceID;
+
+	/** Size of resource copied from the bulk data */
+	int32 ResourceSize;
+
+	/** Cache the total used memory recorded for this SoundWave to keep INC/DEC consistent */
+	int32 TrackedMemoryUsage;
+
 	/**
 	 * Subtitle cues.  If empty, use SpokenText as the subtitle.  Will often be empty,
 	 * as the contents of the subtitle is commonly identical to what is spoken.
@@ -531,15 +573,18 @@ public:
 	/** The number of frames which have been precached for this sound wave. */
 	int32 NumPrecacheFrames;
 
-	/** Pointer to 16 bit PCM data - used to decompress data to and preview sounds */
-	uint8* RawPCMData;
-
 	/** Size of RawPCMData, or what RawPCMData would be if the sound was fully decompressed */
 	int32 RawPCMDataSize;
+
+	/** Pointer to 16 bit PCM data - used to decompress data to and preview sounds */
+	uint8* RawPCMData;
 
 	/** Memory containing the data copied from the compressed bulk data */
 	FOwnedBulkDataPtr* OwnedBulkDataPtr;
 	const uint8* ResourceData;
+
+	/** Zeroth Chunk of audio for sources that use Load On Demand. */
+	TArray<uint8> ZerothChunkData;
 
 	/** Uncompressed wav data 16 bit in mono or stereo - stereo not allowed for multichannel data */
 	FByteBulkData RawData;
@@ -557,15 +602,6 @@ public:
 
 #endif
 
-	/** Resource index to cross reference with buffers */
-	int32 ResourceID;
-
-	/** Size of resource copied from the bulk data */
-	int32 ResourceSize;
-
-	/** Cache the total used memory recorded for this SoundWave to keep INC/DEC consistent */
-	int32 TrackedMemoryUsage;
-
 	/** The streaming derived data for this sound on this platform. */
 	FStreamedAudioPlatformData* RunningPlatformData;
 
@@ -578,6 +614,16 @@ public:
 	virtual bool IsReadyForFinishDestroy() override;
 	virtual void FinishDestroy() override;
 	virtual void PostLoad() override;
+
+	// When stream caching is enabled, this is called after we've successfully compressed and split the streamed audio for this file.
+	void EnsureZerothChunkIsLoaded();
+
+	// Returns the amount of chunks this soundwave contains if it's streaming,
+	// or zero if it is not a streaming source.
+	uint32 GetNumChunks() const;
+
+	uint32 GetSizeOfChunk(uint32 ChunkIndex);
+
 	virtual void BeginDestroy() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -593,7 +639,7 @@ public:
 	virtual void Parse( class FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound, const FSoundParseParameters& ParseParams, TArray<FWaveInstance*>& WaveInstances ) override;
 	virtual float GetDuration() override;
 	virtual float GetSubtitlePriority() const override;
-	virtual bool IsAllowedVirtual() const override;
+	virtual bool SupportsSubtitles() const override;
 	virtual bool GetSoundWavesWithCookedAnalysisData(TArray<USoundWave*>& OutSoundWaves) override;
 	virtual bool HasCookedFFTData() const override;
 	virtual bool HasCookedAmplitudeEnvelopeData() const override;
@@ -676,7 +722,7 @@ public:
 	/**
 	 * Handle any special requirements when the sound starts (e.g. subtitles)
 	 */
-	FWaveInstance* HandleStart( FActiveSound& ActiveSound, const UPTRINT WaveInstanceHash ) const;
+	FWaveInstance& HandleStart(FActiveSound& ActiveSound, const UPTRINT WaveInstanceHash) const;
 
 	/**
 	 * This is only used for DTYPE_Procedural audio. It's recommended to use USynthComponent base class
@@ -715,6 +761,7 @@ public:
 #endif
 
 private:
+
 	FName GetPlatformSpecificFormat(FName Format, const FPlatformAudioCookOverrides* CompressionOverrides);
 
 #if WITH_EDITOR
@@ -773,6 +820,15 @@ public:
 
 	/** Checks whether sound has seekable streaming enabled. */
 	bool IsSeekableStreaming() const;
+	/**
+	 * Checks whether we should use the load on demand cache.
+	 */
+	bool ShouldUseStreamCaching() const;
+
+	/**
+	 * This returns the initial chunk of compressed data for streaming data sources.
+	 */
+	TArrayView<const uint8> GetZerothChunk();
 
 	/**
 	 * Attempts to update the cached platform data after any changes that might affect it

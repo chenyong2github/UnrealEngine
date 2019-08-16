@@ -10,9 +10,15 @@
 #include "EngineDefines.h"
 #include "Engine/World.h"
 #include "Physics/PhysicsInterfaceCore.h"
-#include "Physics/IPhysXCookingModule.h"
-#include "Physics/IPhysXCooking.h"
+#include "IPhysXCookingModule.h"
+#include "IPhysXCooking.h"
 #include "Modules/ModuleManager.h"
+#include "PhysicsInitialization.h"
+#include "PhysicsEngine/PhysicsSettings.h"
+
+#if INCLUDE_CHAOS
+#include "ChaosSolversModule.h"
+#endif
 
 #if WITH_PHYSX
 	#include "PhysicsEngine/PhysXSupport.h"
@@ -35,26 +41,63 @@ FPhysicsDelegates::FOnPhysSceneInit FPhysicsDelegates::OnPhysSceneInit;
 FPhysicsDelegates::FOnPhysSceneTerm FPhysicsDelegates::OnPhysSceneTerm;
 FPhysicsDelegates::FOnPhysDispatchNotifications FPhysicsDelegates::OnPhysDispatchNotifications;
 
-// CVars
-TAutoConsoleVariable<float> CVarToleranceScaleLength(
-	TEXT("p.ToleranceScale_Length"),
-	100.f,
-	TEXT("The approximate size of objects in the simulation. Default: 100"),
-	ECVF_ReadOnly);
+#if INCLUDE_CHAOS
+/**
+ *  Chaos is external to engine but utilizes IChaosSettingsProvider to take settings
+ *  From external callers, this implementation allows Chaos to request settings from
+ *  the engine
+ */
+class FEngineChaosSettingsProvider : public IChaosSettingsProvider
+{
+public:
 
-TAutoConsoleVariable<float> CVarToleranceScaleSpeed(
-	TEXT("p.ToleranceScale_Speed"),
-	1000.f,
-	TEXT("The typical magnitude of velocities of objects in simulation. Default: 1000"),
-	ECVF_ReadOnly);
+	FEngineChaosSettingsProvider()
+		: Settings(nullptr)
+	{
 
-static TAutoConsoleVariable<int32> CVarUseUnifiedHeightfield(
-	TEXT("p.bUseUnifiedHeightfield"),
-	1,
-	TEXT("Whether to use the PhysX unified heightfield. This feature of PhysX makes landscape collision consistent with triangle meshes but the thickness parameter is not supported for unified heightfields. 1 enables and 0 disables. Default: 1"),
-	ECVF_ReadOnly);
+	}
 
+	virtual Chaos::EThreadingMode GetDefaultThreadingMode() const override
+	{
+		return GetChaosSettings().DefaultThreadingModel;
+	}
 
+	virtual EChaosSolverTickMode GetDedicatedThreadTickMode() const override
+	{
+		return GetChaosSettings().DedicatedThreadTickMode;
+	}
+
+	virtual EChaosBufferMode GetDedicatedThreadBufferMode() const override
+	{
+		return GetChaosSettings().DedicatedThreadBufferMode;
+	}
+
+private:
+
+	const UPhysicsSettings* GetSettings() const
+	{
+		if(!Settings)
+		{
+			Settings = UPhysicsSettings::Get();
+		}
+
+		check(Settings);
+
+		return Settings;
+	}
+
+	const FChaosPhysicsSettings& GetChaosSettings() const
+	{
+		return GetSettings()->ChaosSettings;
+	}
+
+	const mutable UPhysicsSettings* Settings;
+
+};
+
+static FEngineChaosSettingsProvider GEngineChaosSettingsProvider;
+
+#endif
 
 //////////////////////////////////////////////////////////////////////////
 // UWORLD
@@ -167,6 +210,7 @@ void FEndPhysicsTickFunction::ExecuteTick(float DeltaTime, enum ELevelTick TickT
 	{
 		return;
 	}
+
 	FGraphEventRef PhysicsComplete = PhysScene->GetCompletionEvent();
 	if (PhysicsComplete.GetReference() && !PhysicsComplete->IsComplete())
 	{
@@ -211,158 +255,42 @@ FName FEndPhysicsTickFunction::DiagnosticContext(bool bDetailed)
 	return FName(TEXT("EndPhysicsTick"));
 }
 
-void PvdConnect(FString Host, bool bVisualization);
-
 //////// GAME-LEVEL RIGID BODY PHYSICS STUFF ///////
-bool InitGamePhys()
+void PostEngineInitialize()
 {
 #if INCLUDE_CHAOS
-	// If we're running with Chaos enabled, load its module
-	FModuleManager::Get().LoadModule("Chaos");
-	FModuleManager::Get().LoadModule("ChaosSolvers");
-#endif
+	FChaosSolversModule* ChaosModule = FChaosSolversModule::GetModule();
 
-#if WITH_PHYSX
-	// Do nothing if SDK already exists
-	if(GPhysXFoundation != NULL)
+	if(ChaosModule)
 	{
-		return true;
+		// If the solver module is available, pass along our settings provider
+		// #BG - Collect all chaos modules settings into one provider?
+		ChaosModule->SetSettingsProvider(&GEngineChaosSettingsProvider);
+		ChaosModule->OnSettingsChanged();
 	}
+#endif
+}
 
-	// Make sure 
-	if(!PhysDLLHelper::LoadPhysXModules(/*bLoadCookingModule=*/ false))
+bool InitGamePhys()
+{
+	if (!InitGamePhysCore())
 	{
-		// This is fatal. We were not able to successfully load the physics modules
 		return false;
 	}
 
-	// Create Foundation
-	GPhysXAllocator = new FPhysXAllocator();
-	FPhysXErrorCallback* ErrorCallback = new FPhysXErrorCallback();
+	// We need to defer initializing the module as it will attempt to read from the settings provider. If the settings
+	// provider is backed by a UObject in any way access to it will fail because we're too early in the init process.
+	FDelegateHandle PostInitHandle;
+	PostInitHandle = FCoreDelegates::OnPostEngineInit.AddLambda([&PostInitHandle]
+	{
+		PostEngineInitialize();
+		FCoreDelegates::OnPostEngineInit.Remove(PostInitHandle);
+	});
 
-	GPhysXFoundation = PxCreateFoundation(PX_FOUNDATION_VERSION, *GPhysXAllocator, *ErrorCallback);
-	check(GPhysXFoundation);
-
-#if PHYSX_MEMORY_STATS
-	// Want names of PhysX allocations
-	GPhysXFoundation->setReportAllocationNames(true);
-#endif
-
-	// Create profile manager
-	GPhysXVisualDebugger = PxCreatePvd(*GPhysXFoundation);
-	check(GPhysXVisualDebugger);
-
-	// Create Physics
-	PxTolerancesScale PScale;
-	PScale.length = CVarToleranceScaleLength.GetValueOnGameThread();
-	PScale.speed = CVarToleranceScaleSpeed.GetValueOnGameThread();
-
-	GPhysXSDK = PxCreatePhysics(PX_PHYSICS_VERSION, *GPhysXFoundation, PScale, false, GPhysXVisualDebugger);
-	check(GPhysXSDK);
-
-	FPhysxSharedData::Initialize();
-
+#if WITH_PHYSX
+	
 	GPhysCommandHandler = new FPhysCommandHandler();
-
 	GPreGarbageCollectDelegateHandle = FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddRaw(GPhysCommandHandler, &FPhysCommandHandler::Flush);
-
-	// Init Extensions
-	PxInitExtensions(*GPhysXSDK, GPhysXVisualDebugger);
-
-	if (CVarUseUnifiedHeightfield.GetValueOnGameThread())
-	{
-		//Turn on PhysX 3.3 unified height field collision detection. 
-		//This approach shares the collision detection code between meshes and height fields such that height fields behave identically to the equivalent terrain created as a mesh. 
-		//This approach facilitates mixing the use of height fields and meshes in the application with no tangible difference in collision behavior between the two approaches except that 
-		//heightfield thickness is not supported for unified heightfields.
-		PxRegisterUnifiedHeightFields(*GPhysXSDK);
-	}
-	else
-	{
-		PxRegisterHeightFields(*GPhysXSDK);
-	}
-
-	if( FParse::Param( FCommandLine::Get(), TEXT( "PVD" ) ) )
-	{
-		PvdConnect(TEXT("localhost"), true);
-	}
-
-	// Create Cooking
-	PxCooking* PhysXCooking = nullptr;
-	if (IPhysXCookingModule* Module = GetPhysXCookingModule())
-	{
-		PhysXCooking = Module->GetPhysXCooking()->GetCooking();
-	}
-
-#if WITH_APEX
-	check(PhysXCooking);	//APEX requires cooking
-
-	// Build the descriptor for the APEX SDK
-	apex::ApexSDKDesc ApexDesc;
-	ApexDesc.foundation				= GPhysXFoundation;	// Pointer to the PxFoundation
-	ApexDesc.physXSDK				= GPhysXSDK;	// Pointer to the PhysXSDK
-	ApexDesc.cooking				= PhysXCooking;	// Pointer to the cooking library
-	ApexDesc.renderResourceManager	= &GApexNullRenderResourceManager;	// We will not be using the APEX rendering API, so just use a dummy render resource manager
-	ApexDesc.resourceCallback		= &GApexResourceCallback;	// The resource callback is how APEX asks the application to find assets when it needs them
-
-#if PLATFORM_MAC
-	FString DylibFolder = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/PhysX3/");
-	ANSICHAR* DLLLoadPath = (ANSICHAR*)FMemory::Malloc(DylibFolder.Len() + 1);
-	FCStringAnsi::Strcpy(DLLLoadPath, DylibFolder.Len() + 1, TCHAR_TO_UTF8(*DylibFolder));
-	ApexDesc.dllLoadPath = DLLLoadPath;
-#endif
-
-	// Create the APEX SDK
-	apex::ApexCreateError ErrorCode;
-	GApexSDK = apex::CreateApexSDK(ApexDesc, &ErrorCode);
-	check(ErrorCode == APEX_CE_NO_ERROR);
-	check(GApexSDK);
-
-#if PLATFORM_MAC
-	FMemory::Free(DLLLoadPath);
-#endif
-
-#if UE_BUILD_SHIPPING
-	GApexSDK->setEnableApexStats(false);
-#endif
-
-#if APEX_STATICALLY_LINKED
-
-#if WITH_APEX_CLOTHING
-	instantiateModuleClothing();
-#endif
-
-#if WITH_APEX_LEGACY
-	instantiateModuleLegacy();
-#endif
-#endif
-
-	// 1 legacy module for all in APEX 1.3
-	// Load the only 1 legacy module
-#if WITH_APEX_LEGACY
-	GApexModuleLegacy = GApexSDK->createModule("Legacy");
-	check(GApexModuleLegacy);
-#endif // WITH_APEX_LEGACY
-
-#if WITH_APEX_CLOTHING
-	// Load APEX Clothing module
-	GApexModuleClothing = static_cast<apex::ModuleClothing*>(GApexSDK->createModule("Clothing"));
-	check(GApexModuleClothing);
-	// Set Clothing module parameters
-	NvParameterized::Interface* ModuleParams = GApexModuleClothing->getDefaultModuleDesc();
-
-	// Can be tuned for switching between more memory and more spikes.
-	NvParameterized::setParamU32(*ModuleParams, "maxUnusedPhysXResources", 5);
-
-	// If true, let fetch results tasks run longer than the fetchResults call. 
-	// Setting to true could not ensure same finish timing with Physx simulation phase
-	NvParameterized::setParamBool(*ModuleParams, "asyncFetchResults", false);
-
-	// ModuleParams contains the default module descriptor, which may be modified here before calling the module init function
-	GApexModuleClothing->init(*ModuleParams);
-#endif	//WITH_APEX_CLOTHING
-
-#endif // #if WITH_APEX
 
 	// One-time register delegate with Trim() to run our deferred cleanup upon request
 	static FDelegateHandle Clear = FCoreDelegates::GetMemoryTrimDelegate().AddLambda([]()
@@ -378,11 +306,11 @@ bool InitGamePhys()
 void TermGamePhys()
 {
 #if WITH_PHYSX
-	FPhysxSharedData::Terminate();
 
 	// Do nothing if they were never initialized
 	if(GPhysXFoundation == NULL)
 	{
+		FPhysxSharedData::Terminate();	//early out before TermGamePhysCore so kill this - not sure if this is a real case we even care about
 		return;
 	}
 
@@ -393,62 +321,9 @@ void TermGamePhys()
 		delete GPhysCommandHandler;
 		GPhysCommandHandler = NULL;
 	}
+#endif
 
-#if WITH_APEX
-#if WITH_APEX_LEGACY
-	if(GApexModuleLegacy != NULL)
-	{
-		GApexModuleLegacy->release();
-		GApexModuleLegacy = NULL;
-	}
-#endif // WITH_APEX_LEGACY
-	if(GApexSDK != NULL)
-	{
-		GApexSDK->release(); 
-		GApexSDK = NULL;
-	}
-#endif	// #if WITH_APEX
-
-	//Remove all scenes still registered
-	if (GPhysXSDK != NULL)
-	{
-		if (int32 NumScenes = GPhysXSDK->getNbScenes())
-		{
-			TArray<PxScene*> PScenes;
-			PScenes.AddUninitialized(NumScenes);
-			GPhysXSDK->getScenes(PScenes.GetData(), sizeof(PxScene*)* NumScenes);
-
-			for (PxScene* PScene : PScenes)
-			{
-				if (PScene)
-				{
-					PScene->release();
-				}
-			}
-		}
-	}
-
-	if(IPhysXCookingModule* PhysXCookingModule = GetPhysXCookingModule( /*bforceLoad=*/false))
-	{
-		PhysXCookingModule->Terminate();
-	}
-
-	if (GPhysXSDK != NULL)
-	{
-		PxCloseExtensions();
-	}
-
-	if(GPhysXSDK != NULL)
-	{
-		GPhysXSDK->release();
-		GPhysXSDK = NULL;
-	}
-
-	// @todo delete FPhysXAllocator
-	// @todo delete FPhysXOutputStream
-
-	PhysDLLHelper::UnloadPhysXModules();
-#endif // WITH_PHYSX
+	TermGamePhysCore();
 }
 
 /** 

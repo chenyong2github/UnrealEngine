@@ -5,6 +5,9 @@
 #include "Layout/WidgetPath.h"
 #include "Application/ActiveTimerHandle.h"
 #include "Misc/ScopeLock.h"
+#if WITH_ACCESSIBILITY
+#include "Widgets/Accessibility/SlateAccessibleMessageHandler.h"
+#endif
 
 
 /* Static initialization
@@ -25,6 +28,9 @@ FWidgetPath FHitTesting::LocateWidgetInWindow(FVector2D ScreenspaceMouseCoordina
 FSlateApplicationBase::FSlateApplicationBase()
 : Renderer()
 , HitTesting(this)
+#if WITH_ACCESSIBILITY
+, AccessibleMessageHandler(new FSlateAccessibleMessageHandler())
+#endif
 , bIsSlateAsleep(false)
 {
 
@@ -146,7 +152,18 @@ bool FSlateApplicationBase::IsSlateAsleep()
 	return bIsSlateAsleep;
 }
 
-void FSlateApplicationBase::InvalidateAllWidgets() const
+void FSlateApplicationBase::ToggleGlobalInvalidation(bool bIsGlobalInvalidationEnabled)
 {
-	OnGlobalInvalidateEvent.Broadcast();
+	if ((!!GSlateEnableGlobalInvalidation) != bIsGlobalInvalidationEnabled)
+	{
+		GSlateEnableGlobalInvalidation = bIsGlobalInvalidationEnabled ? 1 : 0;
+		OnGlobalInvalidationToggledEvent.Broadcast(bIsGlobalInvalidationEnabled);
+	}
+}
+
+void FSlateApplicationBase::InvalidateAllWidgets(bool bClearResourcesImmediately) const
+{
+	SCOPED_NAMED_EVENT(Slate_GlobalInvalidate, FColor::Red);
+	UE_LOG(LogSlate, Log, TEXT("InvalidateAllWidgets triggered.  All widgets were invalidated"));
+	OnInvalidateAllWidgetsEvent.Broadcast(bClearResourcesImmediately);
 }

@@ -24,6 +24,9 @@
 #include "Framework/Application/SWindowTitleBar.h"
 #include "Input/HittestGrid.h"
 #include "HAL/PlatformApplicationMisc.h"
+#if WITH_ACCESSIBILITY
+#include "Widgets/Accessibility/SlateAccessibleMessageHandler.h"
+#endif
 
 #include "Framework/Application/IWidgetReflector.h"
 #include "Framework/Commands/GenericCommands.h"
@@ -42,7 +45,7 @@
 	#define SLATE_HAS_WIDGET_REFLECTOR !(UE_BUILD_TEST || UE_BUILD_SHIPPING) && PLATFORM_DESKTOP
 #endif
 
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 #include "Windows/WindowsHWrapper.h"
 #endif
 #include "Debugging/SlateDebugging.h"
@@ -390,7 +393,6 @@ FSlateVirtualUser::~FSlateVirtualUser()
 DECLARE_CYCLE_STAT( TEXT("Message Tick Time"), STAT_SlateMessageTick, STATGROUP_Slate );
 DECLARE_CYCLE_STAT( TEXT("Update Tooltip Time"), STAT_SlateUpdateTooltip, STATGROUP_Slate );
 DECLARE_CYCLE_STAT( TEXT("Total Slate Tick Time"), STAT_SlateTickTime, STATGROUP_Slate );
-DECLARE_CYCLE_STAT( TEXT("SlatePrepass"), STAT_SlatePrepass, STATGROUP_Slate );
 DECLARE_CYCLE_STAT( TEXT("Draw Window And Children Time"), STAT_SlateDrawWindowTime, STATGROUP_Slate );
 DECLARE_CYCLE_STAT( TEXT("TickRegisteredWidgets"), STAT_SlateTickRegisteredWidgets, STATGROUP_Slate );
 DECLARE_CYCLE_STAT( TEXT("PreTickEvent"), STAT_SlatePreTickEvent, STATGROUP_Slate );
@@ -437,7 +439,7 @@ TAutoConsoleVariable<int32> TargetFrameRateForResponsiveness(
 /** Whether Slate should go to sleep when there are no active timers and the user is idle */
 TAutoConsoleVariable<int32> AllowSlateToSleep(
 	TEXT("Slate.AllowSlateToSleep"),
-	true,
+	GIsEditor, // Default to on for editor and standalone programs, off for games
 	TEXT("Whether Slate should go to sleep when there are no active timers and the user is idle"));
 
 /** The amount of time that must pass without any user action before Slate is put to sleep (provided that there are no active timers). */
@@ -459,6 +461,30 @@ FAutoConsoleVariableRef CVarAllowCursorQueries(
 	GEnableCursorQueries,
 	TEXT("")
 );
+
+int32 bRequireFocusForGamepadInput = 0;
+FAutoConsoleVariableRef CVarRequireFocusForGamepadInput(
+	TEXT("Slate.RequireFocusForGamepadInput"),
+	bRequireFocusForGamepadInput,
+	TEXT("")
+);
+
+#if !UE_BUILD_SHIPPING
+
+static void HandleGlobalInvalidateCVarTriggered(const TArray<FString>& Args)
+{
+	FSlateApplication::Get().InvalidateAllWidgets(false);
+}
+
+static FAutoConsoleCommand GlobalInvalidateCommand(
+	TEXT("Slate.TriggerInvalidate"),
+	TEXT("Triggers a global invalidate of all widgets"),
+	FConsoleCommandWithArgsDelegate::CreateStatic(&HandleGlobalInvalidateCVarTriggered)
+);
+#endif
+
+
+
 
 //////////////////////////////////////////////////////////////////////////
 bool FSlateApplication::MouseCaptorHelper::HasCapture() const
@@ -882,9 +908,15 @@ void FPopupSupport::SendNotifications( const FWidgetPath& WidgetsUnderCursor )
 void FSlateApplication::SetPlatformApplication(const TSharedRef<class GenericApplication>& InPlatformApplication)
 {
 	PlatformApplication->SetMessageHandler(MakeShareable(new FGenericApplicationMessageHandler()));
+#if WITH_ACCESSIBILITY
+	PlatformApplication->SetAccessibleMessageHandler(MakeShareable(new FGenericAccessibleMessageHandler()));
+#endif
 
 	PlatformApplication = InPlatformApplication;
 	PlatformApplication->SetMessageHandler(CurrentApplication.ToSharedRef());
+#if WITH_ACCESSIBILITY
+	PlatformApplication->SetAccessibleMessageHandler(CurrentApplication->GetAccessibleMessageHandler());
+#endif
 }
 
 void FSlateApplication::OverridePlatformApplication(TSharedPtr<class GenericApplication> InPlatformApplication)
@@ -910,6 +942,9 @@ TSharedRef<FSlateApplication> FSlateApplication::Create(const TSharedRef<class G
 
 	PlatformApplication = InPlatformApplication;
 	PlatformApplication->SetMessageHandler( CurrentApplication.ToSharedRef() );
+#if WITH_ACCESSIBILITY
+	PlatformApplication->SetAccessibleMessageHandler(CurrentApplication->GetAccessibleMessageHandler());
+#endif
 
 	// The grid needs to know the size and coordinate system of the desktop.
 	// Some monitor setups have a primary monitor on the right and below the
@@ -1009,6 +1044,9 @@ FSlateApplication::FSlateApplication()
 	, AppIcon( FCoreStyle::Get().GetBrush("DefaultAppIcon") )
 	, VirtualDesktopRect( 0,0,0,0 )
 	, NavigationConfig(MakeShared<FNavigationConfig>())
+#if WITH_EDITOR
+	, EditorNavigationConfig(MakeShared<FNavigationConfig>())
+#endif
 	, SimulateGestures(false, (int32)EGestureEvent::Count)
 	, ProcessingInput(0)
 	, InputManager(MakeShared<FSlateDefaultInputMapping>())
@@ -1042,6 +1080,9 @@ FSlateApplication::FSlateApplication()
 	RegisterUser(MakeShareable(new FSlateUser(0, false)));
 
 	NavigationConfig->OnRegister();
+#if WITH_EDITOR
+	EditorNavigationConfig->OnRegister();
+#endif
 
 	SimulateGestures[(int32)EGestureEvent::LongPress] = true;
 
@@ -1049,6 +1090,15 @@ FSlateApplication::FSlateApplication()
 	FCoreDelegates::OnSafeFrameChangedEvent.AddRaw(this, &FSlateApplication::SwapSafeZoneTypes);
 	OnDebugSafeZoneChanged.AddRaw(this, &FSlateApplication::UpdateCustomSafeZone);
 #endif
+
+	IConsoleVariable* CVarGlobalInvalidation = IConsoleManager::Get().FindConsoleVariable(TEXT("Slate.EnableGlobalInvalidation"));
+	if (CVarGlobalInvalidation)
+	{
+		CVarGlobalInvalidation->SetOnChangedCallback(FConsoleVariableDelegate::CreateLambda([this](IConsoleVariable* Variable)
+		{
+			OnGlobalInvalidationToggledEvent.Broadcast(GSlateEnableGlobalInvalidation != 0 ? true : false);
+		}));
+	}
 }
 
 FSlateApplication::~FSlateApplication()
@@ -1065,6 +1115,13 @@ FSlateApplication::~FSlateApplication()
 #if WITH_EDITOR
 	OnDebugSafeZoneChanged.RemoveAll(this);
 #endif
+
+	IConsoleVariable* CVarGlobalInvalidation = IConsoleManager::Get().FindConsoleVariable(TEXT("Slate.EnableGlobalInvalidation"));
+	if (CVarGlobalInvalidation)
+	{
+		CVarGlobalInvalidation->SetOnChangedCallback(FConsoleVariableDelegate());
+	}
+
 }
 
 void FSlateApplication::SetupPhysicalSensitivities()
@@ -1282,23 +1339,18 @@ void FSlateApplication::DrawWindowAndChildren( const TSharedRef<SWindow>& Window
 		FSlateWindowElementList& WindowElementList = DrawWindowArgs.OutDrawBuffer.AddWindowElementList(WindowToDraw);
 
 		// Drawing is done in window space, so null out the positions and keep the size.
-		FGeometry WindowGeometry = WindowToDraw->GetWindowGeometryInWindow();
 		int32 MaxLayerId = 0;
 		{
-			WindowToDraw->GetHittestGrid()->ClearGridForNewFrame(VirtualDesktopRect);
-
 			{
 				SCOPED_NAMED_EVENT_TEXT("Slate::DrawWindow", FColor::Magenta);
 
 #if WITH_SLATE_DEBUGGING
 				FSlateDebugging::BeginWindow.Broadcast(WindowElementList);
 #endif
-				
 				MaxLayerId = WindowToDraw->PaintWindow(
-					FPaintArgs(WindowToDraw.Get(), *WindowToDraw->GetHittestGrid(), WindowToDraw->GetPositionInScreen(), GetCurrentTime(), GetDeltaTime()),
-					WindowGeometry, WindowToDraw->GetClippingRectangleInWindow(),
+					GetCurrentTime(),
+					GetDeltaTime(),
 					WindowElementList,
-					0,
 					FWidgetStyle(),
 					WindowToDraw->IsEnabled());
 
@@ -1325,7 +1377,7 @@ void FSlateApplication::DrawWindowAndChildren( const TSharedRef<SWindow>& Window
 						const FGeometry DragDropContentGeometry = FGeometry::MakeRoot(DecoratorWidget->GetDesiredSize(), FSlateLayoutTransform(DragDropContentInWindowSpace));
 
 						DecoratorWidget->Paint(
-							FPaintArgs(WindowToDraw.Get(), *WindowToDraw->GetHittestGrid(), WindowToDraw->GetPositionInScreen(), GetCurrentTime(), GetDeltaTime()),
+							FPaintArgs(&WindowToDraw.Get(), WindowToDraw->GetHittestGrid(), WindowToDraw->GetPositionInScreen(), GetCurrentTime(), GetDeltaTime()),
 							DragDropContentGeometry, WindowToDraw->GetClippingRectangleInWindow(),
 							WindowElementList,
 							++MaxLayerId,
@@ -1340,7 +1392,7 @@ void FSlateApplication::DrawWindowAndChildren( const TSharedRef<SWindow>& Window
 			if (CursorWindow.IsValid() && WindowToDraw == CursorWindow)
 			{
 				TSharedPtr<SWidget> CursorWidget = CursorWidgetPtr.Pin();
-				
+
 				if (CursorWidget.IsValid())
 				{
 					const float WindowRootScale = GetApplicationScale() * CursorWindow->GetNativeWindow()->GetDPIScaleFactor();
@@ -1354,7 +1406,7 @@ void FSlateApplication::DrawWindowAndChildren( const TSharedRef<SWindow>& Window
 					const FGeometry CursorGeometry = FGeometry::MakeRoot(CursorWidget->GetDesiredSize(), FSlateLayoutTransform(CursorPosInWindowSpace));
 
 					CursorWidget->Paint(
-						FPaintArgs(WindowToDraw.Get(), *WindowToDraw->GetHittestGrid(), WindowToDraw->GetPositionInScreen(), GetCurrentTime(), GetDeltaTime()),
+						FPaintArgs(&WindowToDraw.Get(), WindowToDraw->GetHittestGrid(), WindowToDraw->GetPositionInScreen(), GetCurrentTime(), GetDeltaTime()),
 						CursorGeometry, WindowToDraw->GetClippingRectangleInWindow(),
 						WindowElementList,
 						++MaxLayerId,
@@ -1419,7 +1471,7 @@ static bool DoAnyWindowDescendantsNeedPrepass(TSharedRef<SWindow> WindowToPrepas
 
 static void PrepassWindowAndChildren( TSharedRef<SWindow> WindowToPrepass )
 {
-	if (UNLIKELY(!FApp::CanEverRender()))
+	if (IsRunningDedicatedServer())
 	{
 		return;
 	}
@@ -1431,7 +1483,6 @@ static void PrepassWindowAndChildren( TSharedRef<SWindow> WindowToPrepass )
 		FScopedSwitchWorldHack SwitchWorld(WindowToPrepass);
 		
 		{
-			SCOPE_CYCLE_COUNTER(STAT_SlatePrepass);
 			WindowToPrepass->SlatePrepass(FSlateApplication::Get().GetApplicationScale() * WindowToPrepass->GetNativeWindow()->GetDPIScaleFactor());
 		}
 
@@ -1449,6 +1500,8 @@ static void PrepassWindowAndChildren( TSharedRef<SWindow> WindowToPrepass )
 
 void FSlateApplication::DrawPrepass( TSharedPtr<SWindow> DrawOnlyThisWindow )
 {
+	SCOPED_NAMED_EVENT_TEXT("Slate::Prepass", FColor::Magenta);
+
 	TSharedPtr<SWindow> ActiveModalWindow = GetActiveModalWindow();
 
 	if (ActiveModalWindow.IsValid())
@@ -1510,6 +1563,8 @@ void FSlateApplication::PrivateDrawWindows( TSharedPtr<SWindow> DrawOnlyThisWind
 	// with the loading thread.
 	FScopeLock ScopeLock(Renderer->GetResourceCriticalSection());
 
+	FMemMark Mark(FMemStack::Get());
+
 	FWidgetPath WidgetsToVisualizeUnderCursor;
 	
 #if SLATE_HAS_WIDGET_REFLECTOR
@@ -1522,11 +1577,8 @@ void FSlateApplication::PrivateDrawWindows( TSharedPtr<SWindow> DrawOnlyThisWind
 	}
 #endif
 
-	{
-		// Prepass the window
-		SCOPED_NAMED_EVENT_TEXT("Slate::Prepass", FColor::Magenta);
-		DrawPrepass( DrawOnlyThisWindow );
-	}
+	// Prepass the window
+	DrawPrepass( DrawOnlyThisWindow );
 
 	FDrawWindowArgs DrawWindowArgs( Renderer->GetDrawBuffer(), WidgetsToVisualizeUnderCursor);
 
@@ -1562,9 +1614,8 @@ void FSlateApplication::PrivateDrawWindows( TSharedPtr<SWindow> DrawOnlyThisWind
 		else
 		{
 			// Draw all windows
-			for( TArray< TSharedRef<SWindow> >::TConstIterator CurrentWindowIt( SlateWindows ); CurrentWindowIt; ++CurrentWindowIt )
+			for(TSharedRef<SWindow>& CurrentWindow : SlateWindows )
 			{
-				TSharedRef<SWindow> CurrentWindow = *CurrentWindowIt;
 				// Only draw visible windows or in off-screen rendering mode
 				if (bRenderOffScreen || CurrentWindow->IsVisible() )
 				{
@@ -1589,7 +1640,7 @@ void FSlateApplication::PrivateDrawWindows( TSharedPtr<SWindow> DrawOnlyThisWind
 
 void FSlateApplication::PollGameDeviceState()
 {
-	if( ActiveModalWindows.Num() == 0 && !GIntraFrameDebuggingGameThread )
+	if( ActiveModalWindows.Num() == 0 && !GIntraFrameDebuggingGameThread && (!bRequireFocusForGamepadInput || IsActive()))
 	{
 		// Don't poll when a modal window open or intra frame debugging is happening
 		PlatformApplication->PollGameDeviceState( GetDeltaTime() );
@@ -1725,6 +1776,8 @@ void FSlateApplication::TickApplication(ESlateTickType TickType, float DeltaTime
 
 	if (TickType == ESlateTickType::All)
 	{
+		FPlatformMisc::BeginNamedEvent(FColor::Purple, TEXT("Slate Pre-Paint Processing"));
+
 		{
 			SCOPE_CYCLE_COUNTER(STAT_SlatePreTickEvent);
 			PreTickEvent.Broadcast(DeltaTime);
@@ -1820,20 +1873,7 @@ void FSlateApplication::TickApplication(ESlateTickType TickType, float DeltaTime
 			User->GestureDetector.GenerateGestures(*this, SimulateGestures);
 		});
 
-		// Check if any element lists used for caching need to be released
-		{
-			for (int32 CacheIndex = 0; CacheIndex < ReleasedCachedElementLists.Num(); CacheIndex++)
-			{
-				if (ReleasedCachedElementLists[CacheIndex]->IsInUse() == false)
-				{
-					ensure(ReleasedCachedElementLists[CacheIndex].IsUnique());
-					ReleasedCachedElementLists[CacheIndex].Reset();
-					ReleasedCachedElementLists.RemoveAtSwap(CacheIndex, 1, false);
-					CacheIndex--;
-				}
-			}
-		}
-
+		FPlatformMisc::EndNamedEvent();
 		// skip tick/draw if we are idle and there are no active timers registered that we need to drive slate for.
 		// This effectively means the slate application is totally idle and we don't need to update the UI.
 		// This relies on Widgets properly registering for Active timer when they need something to happen even
@@ -1851,6 +1891,10 @@ void FSlateApplication::TickApplication(ESlateTickType TickType, float DeltaTime
 
 			// Draw all windows
 			DrawWindows();
+
+#if WITH_ACCESSIBILITY
+			AccessibleMessageHandler->Tick();
+#endif
 		}
 
 		PostTickEvent.Broadcast(DeltaTime);
@@ -1947,7 +1991,7 @@ FWidgetPath FSlateApplication::LocateWidgetInWindow(FVector2D ScreenspaceMouseCo
 	const bool bAcceptsInput = Window->IsVisible() && (Window->AcceptsInput() || IsWindowHousingInteractiveTooltip(Window));
 	if (bAcceptsInput && Window->IsScreenspaceMouseWithin(ScreenspaceMouseCoordinate))
 	{
-		TArray<FWidgetAndPointer> WidgetsAndCursors = Window->GetHittestGrid()->GetBubblePath(ScreenspaceMouseCoordinate, GetCursorRadius(), bIgnoreEnabledStatus);
+		TArray<FWidgetAndPointer> WidgetsAndCursors = Window->GetHittestGrid().GetBubblePath(ScreenspaceMouseCoordinate, GetCursorRadius(), bIgnoreEnabledStatus);
 		return FWidgetPath(MoveTemp(WidgetsAndCursors));
 	}
 	else
@@ -2076,14 +2120,59 @@ bool FSlateApplication::CanDisplayWindows() const
 	return Renderer.IsValid() && Renderer->AreShadersInitialized();
 }
 
+#if WITH_EDITOR
+static bool IsFocusInViewport(const TSet<TWeakPtr<SViewport>> Viewports, const FWeakWidgetPath& FocusPath)
+{
+	if (Viewports.Num() > 0)
+	{
+		for (const TWeakPtr<SWidget> FocusWidget : FocusPath.Widgets)
+		{
+			for (const TWeakPtr<SViewport> Viewport : Viewports)
+			{
+				if (FocusWidget == Viewport)
+				{
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+#endif
+
 EUINavigation FSlateApplication::GetNavigationDirectionFromKey(const FKeyEvent& InKeyEvent) const
 {
+#if WITH_EDITOR
+	// Check if the focused widget is an editor widget or a PIE widget so we know which config to use.
+	if (const FSlateUser* User = GetUser(GetUserIndexForKeyboard()))
+	{
+		if (!IsFocusInViewport(AllGameViewports, User->GetWeakFocusPath()))
+		{
+			return EditorNavigationConfig->GetNavigationDirectionFromKey(InKeyEvent);
+		}
+	}
+#endif
 	return NavigationConfig->GetNavigationDirectionFromKey(InKeyEvent);
 }
 
 EUINavigation FSlateApplication::GetNavigationDirectionFromAnalog(const FAnalogInputEvent& InAnalogEvent)
 {
+#if WITH_EDITOR
+	// Check if the focused widget is an editor widget or a PIE widget so we know which config to use.
+	if (const FSlateUser* User = GetUser(GetUserIndexForKeyboard()))
+	{
+		if (!IsFocusInViewport(AllGameViewports, User->GetWeakFocusPath()))
+		{
+			return EditorNavigationConfig->GetNavigationDirectionFromAnalog(InAnalogEvent);
+		}
+	}
+#endif
 	return NavigationConfig->GetNavigationDirectionFromAnalog(InAnalogEvent);
+}
+
+EUINavigationAction FSlateApplication::GetNavigationActionForKey(const FKey& InKey) const
+{
+	return NavigationConfig->GetNavigationActionForKey(InKey);
 }
 
 void FSlateApplication::AddModalWindow( TSharedRef<SWindow> InSlateWindow, const TSharedPtr<const SWidget> InParentWidget, bool bSlowTaskWindow )
@@ -2468,6 +2557,10 @@ void FSlateApplication::InvalidateAllViewports()
 void FSlateApplication::RegisterGameViewport( TSharedRef<SViewport> InViewport )
 {
 	RegisterViewport(InViewport);
+
+#if WITH_EDITOR
+	AllGameViewports.Add(InViewport);
+#endif
 	
 	if (GameViewportWidget != InViewport)
 	{
@@ -2498,6 +2591,10 @@ void FSlateApplication::UnregisterGameViewport()
 	bIsFakingTouched = false;
 	bIsGameFakingTouch = false;
 
+#if WITH_EDITOR
+	AllGameViewports.Empty();
+#endif
+
 	if (GameViewportWidget.IsValid())
 	{
 		GameViewportWidget.Pin()->SetActive(false);
@@ -2517,6 +2614,8 @@ void FSlateApplication::UnregisterVirtualWindow(TSharedRef<SWindow> InWindow)
 
 void FSlateApplication::FlushRenderState()
 {
+	InvalidateAllWidgets(true);
+
 	if ( Renderer.IsValid() )
 	{
 		// Release any temporary material or texture resources we may have cached and are reporting to prevent
@@ -2950,6 +3049,9 @@ bool FSlateApplication::SetUserFocus(FSlateUser* User, const FWidgetPath& InFocu
 
 		// Let previously-focused widget know that it's losing focus
 		OldFocusedWidget->OnFocusLost(FocusEvent);
+#if WITH_ACCESSIBILITY
+		GetAccessibleMessageHandler()->OnWidgetEventRaised(OldFocusedWidget.ToSharedRef(), EAccessibleEvent::FocusChange, true, false);
+#endif
 	}
 
 #if SLATE_HAS_WIDGET_REFLECTOR
@@ -2981,6 +3083,12 @@ bool FSlateApplication::SetUserFocus(FSlateUser* User, const FWidgetPath& InFocu
 		{
 			ProcessReply(InFocusPath, Reply, nullptr, nullptr, User->GetUserIndex());
 		}
+
+		NavigationConfig->OnNavigationChangedFocus(OldFocusedWidget, NewFocusedWidget, FocusEvent);
+
+#if WITH_ACCESSIBILITY
+		GetAccessibleMessageHandler()->OnWidgetEventRaised(NewFocusedWidget.ToSharedRef(), EAccessibleEvent::FocusChange, false, true);
+#endif
 	}
 
 	return true;
@@ -3030,9 +3138,12 @@ void FSlateApplication::CloseAllWindowsImmediately()
 		ToolTipWindow.Reset();
 	}
 
-	for (int32 WindowIndex = 0; WindowIndex < SlateWindows.Num(); ++WindowIndex)
+	// Destroy all top level windows.  
+	// ::RequestDestroyWindow will remove the window from the TArray SlateWindows so we
+	// should iterate over it backwards to make sure that the WindowIndex is still correct.
+	for (int32 WindowIndex = SlateWindows.Num() -1; WindowIndex >= 0; --WindowIndex)
 	{
-		// Destroy all top level windows.  This will also request that all children of each window be destroyed
+		// This will also request that all children of each window be destroyed
 		RequestDestroyWindow(SlateWindows[WindowIndex]);
 	}
 
@@ -3425,16 +3536,19 @@ void FSlateApplication::ProcessReply( const FWidgetPath& CurrentEventPath, const
 			}
 			else
 			{
+				TSharedRef<SWindow> NavigationWindow = NavigationSource.GetDeepestWindow();
+
 				FNavigationEvent NavigationEvent(PlatformApplication->GetModifierKeys(), UserIndex, TheReply.GetNavigationType(), TheReply.GetNavigationGenesis());
 
 				FNavigationReply NavigationReply = FNavigationReply::Escape();
+
 				for (int32 WidgetIndex = NavigationSource.Widgets.Num() - 1; WidgetIndex >= 0; --WidgetIndex)
 				{
 					FArrangedWidget& SomeWidgetGettingEvent = NavigationSource.Widgets[WidgetIndex];
 					if (SomeWidgetGettingEvent.Widget->IsEnabled())
 					{
 						NavigationReply = SomeWidgetGettingEvent.Widget->OnNavigation(SomeWidgetGettingEvent.Geometry, NavigationEvent).SetHandler(SomeWidgetGettingEvent.Widget);
-						if (NavigationReply.GetBoundaryRule() != EUINavigationRule::Escape || WidgetIndex == 0)
+						if (NavigationReply.GetBoundaryRule() != EUINavigationRule::Escape || SomeWidgetGettingEvent.Widget == NavigationWindow || WidgetIndex == 0)
 						{
 							AttemptNavigation(NavigationSource, NavigationEvent, NavigationReply, SomeWidgetGettingEvent);
 							break;
@@ -4271,6 +4385,11 @@ void FSlateApplication::UnregisterInputPreProcessor(TSharedPtr<IInputProcessor> 
 	InputPreProcessors.Remove(InputProcessor);
 }
 
+int32 FSlateApplication::FindInputPreProcessor(TSharedPtr<class IInputProcessor> InputProcessor) const
+{
+	return InputPreProcessors.Find(InputProcessor);
+}
+
 void FSlateApplication::SetCursorRadius(float NewRadius)
 {
 	CursorRadius = FMath::Max<float>(0.0f, NewRadius);
@@ -4559,7 +4678,7 @@ bool FSlateApplication::TakeScreenshot(const TSharedRef<SWidget>& Widget, const 
 	FWidgetPath WidgetPath;
 	FSlateApplication::Get().GeneratePathToWidgetChecked(Widget, WidgetPath);
 
-	FArrangedWidget ArrangedWidget = WidgetPath.FindArrangedWidget(Widget).Get(FArrangedWidget::NullWidget);
+	FArrangedWidget ArrangedWidget = WidgetPath.FindArrangedWidget(Widget).Get(FArrangedWidget::GetNullWidget());
 	FVector2D Position = ArrangedWidget.Geometry.AbsolutePosition;
 	FVector2D Size = ArrangedWidget.Geometry.GetDrawSize();
 	FVector2D WindowPosition = WidgetWindow->GetPositionInScreen();
@@ -4578,94 +4697,6 @@ bool FSlateApplication::TakeScreenshot(const TSharedRef<SWidget>& Widget, const 
 	OutSize.Y = ScreenshotRect.Size().Y;
 
 	return (OutSize.X != 0 && OutSize.Y != 0);
-}
-
-TSharedPtr< FSlateWindowElementList > FSlateApplication::GetCachableElementList(const TSharedPtr<SWindow>& CurrentWindow, const ILayoutCache* LayoutCache)
-{
-	TSharedPtr<FCacheElementPools> Pools = CachedElementLists.FindRef(LayoutCache);
-	if ( !Pools.IsValid() )
-	{
-		Pools = MakeShareable( new FCacheElementPools() );
-		CachedElementLists.Add(LayoutCache, Pools);
-	}
-
-	TSharedPtr< FSlateWindowElementList > NextElementList = Pools->GetNextCachableElementList(CurrentWindow);
-
-	// Cached buffers don't always report their references, just while the buffer is in use, and by the owning SInvalidation panel.
-	NextElementList->SetShouldReportReferencesToGC(false);
-
-	return NextElementList;
-}
-
-TSharedPtr< FSlateWindowElementList > FSlateApplication::FCacheElementPools::GetNextCachableElementList(const TSharedPtr<SWindow>& CurrentWindow)
-{
-	TSharedPtr< FSlateWindowElementList > NextElementList;
-
-	// Move any inactive element lists in the active pool to the inactive pool.
-	for ( int32 i = ActiveCachedElementListPool.Num() - 1; i >= 0; i-- )
-	{
-		if ( ActiveCachedElementListPool[i]->IsCachedRenderDataInUse() == false )
-		{
-			InactiveCachedElementListPool.Add(ActiveCachedElementListPool[i]);
-			ActiveCachedElementListPool.RemoveAtSwap(i, 1, false);
-		}
-	}
-
-	// Remove inactive lists that don't belong to this window.
-	for ( int32 i = InactiveCachedElementListPool.Num() - 1; i >= 0; i-- )
-	{
-		if (InactiveCachedElementListPool[i]->GetPaintWindow() != CurrentWindow.Get())
-		{
-			InactiveCachedElementListPool.RemoveAtSwap(i, 1, false);
-		}
-	}
-
-	// Create a new element list if none are available, or use an existing one.
-	if ( InactiveCachedElementListPool.Num() == 0 )
-	{
-		NextElementList = MakeShareable(new FSlateWindowElementList(CurrentWindow));
-	}
-	else
-	{
-		NextElementList = InactiveCachedElementListPool[0];
-		NextElementList->ResetElementBuffers();
-
-		InactiveCachedElementListPool.RemoveAtSwap(0, 1, false);
-	}
-
-	ActiveCachedElementListPool.Add(NextElementList);
-
-	return NextElementList;
-}
-
-bool FSlateApplication::FCacheElementPools::IsInUse() const
-{
-	bool bInUse = false;
-	for ( TSharedPtr< FSlateWindowElementList > ElementList : InactiveCachedElementListPool )
-	{
-		bInUse |= ElementList->IsCachedRenderDataInUse();
-	}
-
-	for ( TSharedPtr< FSlateWindowElementList > ElementList : ActiveCachedElementListPool )
-	{
-		bInUse |= ElementList->IsCachedRenderDataInUse();
-	}
-
-	return bInUse;
-}
-
-void FSlateApplication::ReleaseResourcesForLayoutCache(const ILayoutCache* LayoutCache)
-{
-	TSharedPtr<FCacheElementPools> Pools = CachedElementLists.FindRef(LayoutCache);
-	if ( Pools.IsValid() )
-	{
-		ReleasedCachedElementLists.Add(Pools);
-	}
-
-	CachedElementLists.Remove(LayoutCache);
-
-	// Release the rendering related resources.
-	Renderer->ReleaseCachingResourcesFor(LayoutCache);
 }
 
 TSharedRef<FSlateVirtualUser> FSlateApplication::FindOrCreateVirtualUser(int32 VirtualUserIndex)
@@ -4764,6 +4795,9 @@ void FSlateApplication::UnregisterUser(int32 UserIndex)
 		Users[UserIndex].Reset();
 
 		NavigationConfig->OnUserRemoved(UserIndex);
+#if WITH_EDITOR
+		EditorNavigationConfig->OnUserRemoved(UserIndex);
+#endif
 	}
 }
 
@@ -4949,7 +4983,7 @@ bool FSlateApplication::IsExternalUIOpened()
 }
 
 
-TSharedRef<SWidget> FSlateApplication::MakeImage( const TAttribute<const FSlateBrush*>& Image, const TAttribute<FSlateColor>& Color, const TAttribute<EVisibility>& Visibility ) const
+TSharedRef<SImage> FSlateApplication::MakeImage( const TAttribute<const FSlateBrush*>& Image, const TAttribute<FSlateColor>& Color, const TAttribute<EVisibility>& Visibility ) const
 {
 	return SNew(SImage)
 		.ColorAndOpacity(Color)
@@ -5343,8 +5377,8 @@ bool FSlateApplication::OnMouseDown(const TSharedPtr< FGenericWindow >& Platform
 
 bool FSlateApplication::OnMouseDown( const TSharedPtr< FGenericWindow >& PlatformWindow, const EMouseButtons::Type Button, const FVector2D CursorPos )
 {
-	// convert to touch event if we are faking it	
-	if (bIsFakingTouch || bIsGameFakingTouch)
+	// convert a left mouse button click to touch event if we are faking it
+	if ((bIsFakingTouch || bIsGameFakingTouch) && Button == EMouseButtons::Left)
 	{
 		bIsFakingTouched = true;
 		return OnTouchStarted( PlatformWindow, PlatformApplication->Cursor->GetPosition(), 1.0f, 0, 0 );
@@ -6166,8 +6200,8 @@ bool FSlateApplication::OnMouseUp( const EMouseButtons::Type Button )
 
 bool FSlateApplication::OnMouseUp( const EMouseButtons::Type Button, const FVector2D CursorPos )
 {
-	// convert to touch event if we are faking it	
-	if (bIsFakingTouch || bIsGameFakingTouch)
+	// convert left mouse click to touch event if we are faking it	
+	if ((bIsFakingTouch || bIsGameFakingTouch) && Button == EMouseButtons::Left)
 	{
 		bIsFakingTouched = false;
 		return OnTouchEnded(PlatformApplication->Cursor->GetPosition(), 0, 0);
@@ -6333,7 +6367,8 @@ FReply FSlateApplication::RouteMouseWheelOrGestureEvent(const FWidgetPath& Widge
 
 bool FSlateApplication::OnMouseMove()
 {
-	if (bIsFakingTouched || bIsGameFakingTouch)
+	// If the left button is pressed we fake 
+	if ((bIsFakingTouched || bIsGameFakingTouch) && GetPressedMouseButtons().Contains(EKeys::LeftMouseButton))
 	{
 		// convert to touch event if we are faking it
 		if (bIsFakingTouched)
@@ -6375,7 +6410,8 @@ bool FSlateApplication::OnMouseMove()
 
 bool FSlateApplication::OnRawMouseMove( const int32 X, const int32 Y )
 {
-	if (bIsFakingTouched || bIsGameFakingTouch)
+    // We fake a move only if the left mous button is down
+	if ((bIsFakingTouch || bIsGameFakingTouch) && GetPressedMouseButtons().Contains(EKeys::LeftMouseButton))
 	{
 		// convert to touch event if we are faking it
 		if (bIsFakingTouched)
@@ -6484,19 +6520,40 @@ bool FSlateApplication::AttemptNavigation(const FWidgetPath& NavigationSource, c
 	TSharedPtr<SWidget> DestinationWidget = TSharedPtr<SWidget>();
 	bool bAlwaysHandleNavigationAttempt = false;
 
+#if WITH_SLATE_DEBUGGING
+	ESlateDebuggingNavigationMethod NavigationMethod = ESlateDebuggingNavigationMethod::Unknown;
+#endif
+
 	EUINavigation NavigationType = NavigationEvent.GetNavigationType();
 	if ( NavigationReply.GetBoundaryRule() == EUINavigationRule::Explicit )
 	{
 		DestinationWidget = NavigationReply.GetFocusRecipient();
 		bAlwaysHandleNavigationAttempt = true;
+
+#if WITH_SLATE_DEBUGGING
+		NavigationMethod = ESlateDebuggingNavigationMethod::Explicit;
+#endif
 	}
 	else if ( NavigationReply.GetBoundaryRule() == EUINavigationRule::Custom )
 	{
 		const FNavigationDelegate& FocusDelegate = NavigationReply.GetFocusDelegate();
 		if ( FocusDelegate.IsBound() )
 		{
+			// Switch worlds for widgets in the current path 
+			FScopedSwitchWorldHack SwitchWorld(NavigationSource);
+
 			DestinationWidget = FocusDelegate.Execute(NavigationType);
 			bAlwaysHandleNavigationAttempt = true;
+
+#if WITH_SLATE_DEBUGGING
+			NavigationMethod = ESlateDebuggingNavigationMethod::CustomDelegateBound;
+#endif
+		}
+		else
+		{
+#if WITH_SLATE_DEBUGGING
+			NavigationMethod = ESlateDebuggingNavigationMethod::CustomDelegateUnbound;
+#endif
 		}
 	}
 	else
@@ -6511,6 +6568,10 @@ bool FSlateApplication::AttemptNavigation(const FWidgetPath& NavigationSource, c
 			// Resolve the Widget Path
 			FArrangedWidget& NewFocusedArrangedWidget = NewFocusedWidgetPath.Widgets.Last();
 			DestinationWidget = NewFocusedArrangedWidget.Widget;
+
+#if WITH_SLATE_DEBUGGING
+			NavigationMethod = ESlateDebuggingNavigationMethod::NextOrPrevious;
+#endif
 		}
 		else
 		{
@@ -6520,12 +6581,16 @@ bool FSlateApplication::AttemptNavigation(const FWidgetPath& NavigationSource, c
 			// Switch worlds for widgets in the current path 
 			FScopedSwitchWorldHack SwitchWorld(NavigationSource);
 
-			DestinationWidget = NavigationSource.GetWindow()->GetHittestGrid()->FindNextFocusableWidget(FocusedArrangedWidget, NavigationType, NavigationReply, BoundaryWidget);
+			DestinationWidget = NavigationSource.GetDeepestWindow()->GetHittestGrid().FindNextFocusableWidget(FocusedArrangedWidget, NavigationType, NavigationReply, BoundaryWidget);
+
+#if WITH_SLATE_DEBUGGING
+			NavigationMethod = ESlateDebuggingNavigationMethod::HitTestGrid;
+#endif
 		}
 	}
 
 #if WITH_SLATE_DEBUGGING
-	FSlateDebugging::BroadcastAttemptNavigation(NavigationEvent, NavigationReply, NavigationSource, DestinationWidget);
+	FSlateDebugging::BroadcastAttemptNavigation(NavigationEvent, NavigationReply, NavigationSource, DestinationWidget, NavigationMethod);
 #endif
 
 	return ExecuteNavigation(NavigationSource, DestinationWidget, NavigationEvent.GetUserIndex(), bAlwaysHandleNavigationAttempt);
@@ -6566,6 +6631,10 @@ bool FSlateApplication::ExecuteNavigation(const FWidgetPath& NavigationSource, T
 			bHandled = true;
 		}
 	}
+
+#if WITH_SLATE_DEBUGGING
+	FSlateDebugging::BroadcastExecuteNavigation();
+#endif
 
 	return bHandled;
 }
@@ -6882,7 +6951,7 @@ bool FSlateApplication::OnSizeChanged( const TSharedRef< FGenericWindow >& Platf
 void FSlateApplication::OnOSPaint( const TSharedRef< FGenericWindow >& PlatformWindow )
 {
 	// This is only called in a modal move loop and in cooked build, the back buffer already
-	// has UI composited so don't do anything to prevent drawing UI over existing UI (FORT-153543)
+	// has UI composited so don't do anything to prevent drawing UI over existing UI
 	if (GIsEditor)
 	{
 		TSharedPtr< SWindow > Window = FSlateWindowHelper::FindWindowByPlatformWindow(SlateWindows, PlatformWindow);
@@ -7541,130 +7610,59 @@ void FSlateApplication::NavigateFromWidgetUnderCursor(const uint32 InUserIndex, 
 
 void FSlateApplication::InputPreProcessorsHelper::Tick(const float DeltaTime, FSlateApplication& SlateApp, TSharedRef<ICursor> Cursor)
 {
-	for (TSharedPtr<IInputProcessor> InputPreProcessor : InputPreProcessorList)
+	TGuardValue<bool> IteratingGuard(bIsIteratingPreProcessors, true);
+
+	for (int32 ProcessorIndex = 0; ProcessorIndex < InputPreProcessorList.Num(); ProcessorIndex++)
 	{
+		TSharedPtr<IInputProcessor> InputPreProcessor = InputPreProcessorList[ProcessorIndex];
 		InputPreProcessor->Tick(DeltaTime, SlateApp, Cursor);
 	}
 }
 
 bool FSlateApplication::InputPreProcessorsHelper::HandleKeyDownEvent(FSlateApplication& SlateApp, const FKeyEvent& InKeyEvent)
 {
-	for (TSharedPtr<IInputProcessor> InputPreProcessor : InputPreProcessorList)
-	{
-		if (InputPreProcessor->HandleKeyDownEvent(SlateApp, InKeyEvent))
-		{
-			return true;
-		}
-	}
-
-	return false;
+	return PreProcessInput([&SlateApp, &InKeyEvent](TSharedPtr<IInputProcessor> Processor) { return Processor->HandleKeyDownEvent(SlateApp, InKeyEvent); });
 }
 
 bool FSlateApplication::InputPreProcessorsHelper::HandleKeyUpEvent(FSlateApplication& SlateApp, const FKeyEvent& InKeyEvent)
 {
-	for (TSharedPtr<IInputProcessor> InputPreProcessor : InputPreProcessorList)
-	{
-		if (InputPreProcessor.IsValid())
-		{
-			if (InputPreProcessor->HandleKeyUpEvent(SlateApp, InKeyEvent))
-			{
-				return true;
-			}
-		}
-	}
-
-	return false;
+	return PreProcessInput([&SlateApp, &InKeyEvent](TSharedPtr<IInputProcessor> Processor) { return Processor->HandleKeyUpEvent(SlateApp, InKeyEvent); });
 }
 
 bool FSlateApplication::InputPreProcessorsHelper::HandleAnalogInputEvent(FSlateApplication& SlateApp, const FAnalogInputEvent& InAnalogInputEvent)
 {
-	for (TSharedPtr<IInputProcessor> InputPreProcessor : InputPreProcessorList)
-	{
-		if (InputPreProcessor->HandleAnalogInputEvent(SlateApp, InAnalogInputEvent))
-		{
-			return true;
-		}
-	}
-
-	return false;
+	return PreProcessInput([&SlateApp, &InAnalogInputEvent](TSharedPtr<IInputProcessor> Processor) { return Processor->HandleAnalogInputEvent(SlateApp, InAnalogInputEvent); });
 }
 
 bool FSlateApplication::InputPreProcessorsHelper::HandleMouseMoveEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent)
 {
-	for (TSharedPtr<IInputProcessor> InputPreProcessor : InputPreProcessorList)
-	{
-		if (InputPreProcessor->HandleMouseMoveEvent(SlateApp, MouseEvent))
-		{
-			return true;
-		}
-	}
-
-	return false;
+	return PreProcessInput([&SlateApp, &MouseEvent](TSharedPtr<IInputProcessor> Processor) { return Processor->HandleMouseMoveEvent(SlateApp, MouseEvent); });
 }
 
 bool FSlateApplication::InputPreProcessorsHelper::HandleMouseButtonDownEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent)
 {
-	for (TSharedPtr<IInputProcessor> InputPreProcessor : InputPreProcessorList)
-	{
-		if (InputPreProcessor->HandleMouseButtonDownEvent(SlateApp, MouseEvent))
-		{
-			return true;
-		}
-	}
-
-	return false;
+	return PreProcessInput([&SlateApp, &MouseEvent](TSharedPtr<IInputProcessor> Processor) { return Processor->HandleMouseButtonDownEvent(SlateApp, MouseEvent); });
 }
 
 bool FSlateApplication::InputPreProcessorsHelper::HandleMouseButtonUpEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent)
 {
-	for (TSharedPtr<IInputProcessor> InputPreProcessor : InputPreProcessorList)
-	{
-		if (InputPreProcessor->HandleMouseButtonUpEvent(SlateApp, MouseEvent))
-		{
-			return true;
-		}
-	}
+	return PreProcessInput([&SlateApp, &MouseEvent](TSharedPtr<IInputProcessor> Processor) { return Processor->HandleMouseButtonUpEvent(SlateApp, MouseEvent); });
 
-	return false;
 }
 
 bool FSlateApplication::InputPreProcessorsHelper::HandleMouseButtonDoubleClickEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent)
 {
-	for (TSharedPtr<IInputProcessor> InputPreProcessor : InputPreProcessorList)
-	{
-		if (InputPreProcessor->HandleMouseButtonDoubleClickEvent(SlateApp, MouseEvent))
-		{
-			return true;
-		}
-	}
-
-	return false;
+	return PreProcessInput([&SlateApp, &MouseEvent](TSharedPtr<IInputProcessor> Processor) { return Processor->HandleMouseButtonDoubleClickEvent(SlateApp, MouseEvent); });
 }
 
 bool FSlateApplication::InputPreProcessorsHelper::HandleMouseWheelOrGestureEvent(FSlateApplication& SlateApp, const FPointerEvent& WheelEvent, const FPointerEvent* GestureEvent)
 {
-	for (TSharedPtr<IInputProcessor> InputPreProcessor : InputPreProcessorList)
-	{
-		if (InputPreProcessor->HandleMouseWheelOrGestureEvent(SlateApp, WheelEvent, GestureEvent))
-		{
-			return true;
-		}
-	}
-
-	return false;
+	return PreProcessInput([&SlateApp, &WheelEvent, &GestureEvent](TSharedPtr<IInputProcessor> Processor) { return Processor->HandleMouseWheelOrGestureEvent(SlateApp, WheelEvent, GestureEvent); });
 }
 
 bool FSlateApplication::InputPreProcessorsHelper::HandleMotionDetectedEvent(FSlateApplication& SlateApp, const FMotionEvent& MotionEvent)
 {
-	for (TSharedPtr<IInputProcessor> InputPreProcessor : InputPreProcessorList)
-	{
-		if (InputPreProcessor->HandleMotionDetectedEvent(SlateApp, MotionEvent))
-		{
-			return true;
-		}
-	}
-
-	return false;
+	return PreProcessInput([&SlateApp, &MotionEvent](TSharedPtr<IInputProcessor> Processor) { return Processor->HandleMotionDetectedEvent(SlateApp, MotionEvent); });
 }
 
 bool FSlateApplication::InputPreProcessorsHelper::Add(TSharedPtr<IInputProcessor> InputProcessor, const int32 Index /*= INDEX_NONE*/)
@@ -7681,16 +7679,60 @@ bool FSlateApplication::InputPreProcessorsHelper::Add(TSharedPtr<IInputProcessor
 		bResult = true;
 	}
 
+	if (bResult)
+	{
+		ProcessorsPendingRemoval.Remove(InputProcessor);
+	}
+
 	return bResult;
 }
 
 void FSlateApplication::InputPreProcessorsHelper::Remove(TSharedPtr<IInputProcessor> InputProcessor)
 {
-	InputPreProcessorList.Remove(InputProcessor);
+	if (bIsIteratingPreProcessors)
+	{
+		ProcessorsPendingRemoval.Add(InputProcessor);
+	}
+	else
+	{
+		InputPreProcessorList.Remove(InputProcessor);
+	}
 }
 
 void FSlateApplication::InputPreProcessorsHelper::RemoveAll()
 {
-	InputPreProcessorList.Reset();
+	if (bIsIteratingPreProcessors)
+	{
+		ProcessorsPendingRemoval.Append(InputPreProcessorList);
+	}
+	else
+	{
+		InputPreProcessorList.Reset();
+	}
 }
 
+
+int32 FSlateApplication::InputPreProcessorsHelper::Find(TSharedPtr<IInputProcessor> InputProcessor) const
+{
+	return InputPreProcessorList.Find(InputProcessor);
+}
+
+bool FSlateApplication::InputPreProcessorsHelper::PreProcessInput(TFunctionRef<bool(TSharedPtr<IInputProcessor>)> ToRun)
+{
+	TGuardValue<bool> IteratingGuard(bIsIteratingPreProcessors, true);
+
+	bool bShouldExit = false;
+	for (TSharedPtr<IInputProcessor> InputPreProcessor : InputPreProcessorList)
+	{
+		if (ToRun(InputPreProcessor))
+		{
+			bShouldExit = true;
+			break;
+		}
+	}
+
+	InputPreProcessorList.RemoveAll([this](const TSharedPtr<IInputProcessor> Processor) { return ProcessorsPendingRemoval.Contains(Processor); });
+	ProcessorsPendingRemoval.Reset();
+
+	return bShouldExit;
+}

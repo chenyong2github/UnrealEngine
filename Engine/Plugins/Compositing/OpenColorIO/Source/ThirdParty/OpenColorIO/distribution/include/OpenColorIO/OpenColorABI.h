@@ -59,7 +59,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <memory>
 #define OCIO_SHARED_PTR std::shared_ptr
 #define OCIO_DYNAMIC_POINTER_CAST std::dynamic_pointer_cast
-#elif __GNUC__ >= 4
+#elif defined(__GNUC__) && __GNUC__ >= 4
 #include <tr1/memory>
 #define OCIO_SHARED_PTR std::tr1::shared_ptr
 #define OCIO_DYNAMIC_POINTER_CAST std::tr1::dynamic_pointer_cast

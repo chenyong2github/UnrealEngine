@@ -19,7 +19,6 @@ class FSlateAtlasedTextureResource;
 class FSlateDynamicTextureResource;
 class FSlateMaterialResource;
 class FSlateUTextureResource;
-class ILayoutCache;
 class ISlateStyle;
 class UTexture;
 class FSceneInterface;
@@ -121,7 +120,7 @@ struct FCachedRenderBuffers
 /**
  * Stores a mapping of texture names to their RHI texture resource               
  */
-class FSlateRHIResourceManager : public ISlateAtlasProvider, public ISlateRenderDataManager, public FSlateShaderResourceManager, public FTickableGameObject
+class FSlateRHIResourceManager : public ISlateAtlasProvider, public FSlateShaderResourceManager, public FTickableGameObject
 {
 public:
 	FSlateRHIResourceManager();
@@ -132,9 +131,6 @@ public:
 	virtual FIntPoint GetAtlasPageSize() const override;
 	virtual FSlateShaderResource* GetAtlasPageResource(const int32 InIndex) const override;
 	virtual bool IsAtlasPageResourceAlphaOnly() const override;
-
-	/** ISlateRenderDataManager interface */
-	virtual void BeginReleasingRenderData(const FSlateRenderDataHandle* RenderHandle) override;
 
 	/** FTickableGameObject interface */
 	virtual ETickableTickType GetTickableTickType() const override { return ETickableTickType::Always; }
@@ -203,23 +199,6 @@ public:
 	virtual bool LoadTexture( const FName& TextureName, const FString& ResourcePath, uint32& Width, uint32& Height, TArray<uint8>& DecodedImage );
 	virtual bool LoadTexture( const FSlateBrush& InBrush, uint32& Width, uint32& Height, TArray<uint8>& DecodedImage );
 
-	/**
-	 * 
-	 */
-	FCachedRenderBuffers* FindCachedBuffersForHandle(const FSlateRenderDataHandle* RenderHandle) const
-	{
-		return CachedBuffers.FindRef(RenderHandle);
-	}
-
-	/**
-	 * Creates a vertex and index buffer for a given render handle that it can use to store cached widget geometry to.
-	 */
-	FCachedRenderBuffers* FindOrCreateCachedBuffersForHandle(const TSharedRef<FSlateRenderDataHandle, ESPMode::ThreadSafe>& RenderHandle);
-
-	/**
-	 * Releases all cached buffers allocated by a given layout cacher.  This would happen when an invalidation panel is destroyed.
-	 */
-	void ReleaseCachingResourcesFor(FRHICommandListImmediate& RHICmdList, const ILayoutCache* Cacher);
 
 	/**
 	 * Releases rendering resources
@@ -245,16 +224,6 @@ private:
 
 	void TryToCleanupExpiredResources(bool bForceCleanup);
 
-	void ReleaseCachedBuffer(FRHICommandListImmediate& RHICmdList, FCachedRenderBuffers* PooledBuffer);
-
-	/**
-	* Releases the cached render data for a given render handle.  The layout cacher that owned the handle must also be
-	* provided, as render handle is likely no longer a valid object.
-	*/
-	void ReleaseCachedRenderData(FRHICommandListImmediate& RHICmdList, const FSlateRenderDataHandle* RenderHandle, const ILayoutCache* LayoutCacher);
-
-private:
-
 	/**
 	 * Deletes resources created by the manager
 	 */
@@ -264,11 +233,6 @@ private:
 	 * Deletes re-creatable brush resources - a soft reset.
 	 */
 	void DeleteUObjectBrushResources();
-
-	/**
-	 * Deletes cached buffers
-	 */
-	void DeleteCachedBuffers();
 
 	/**
 	 * Debugging command to try forcing a refresh of UObject brushes.
@@ -342,18 +306,6 @@ private:
 	FIntPoint MaxAltasedTextureSize;
 	/** Needed for displaying an error texture when we end up with bad resources. */
 	UTexture* BadResourceTexture;
-
-	typedef TMap< FSlateRenderDataHandle*, FCachedRenderBuffers* > TCachedBufferMap;
-	TCachedBufferMap CachedBuffers;
-
-	typedef TMap< const ILayoutCache*, TArray< FCachedRenderBuffers* > > TCachedBufferPoolMap;
-	TCachedBufferPoolMap CachedBufferPool;
-
-	/**
-	 * Holds onto a list of pooled buffers that are no longer being used but still need 
-	 * to be deleted after the RHI thread is done with them.
-	 */
-	TArray<FCachedRenderBuffers*> PooledBuffersPendingRelease;
 
 	/**  */
 	TArray<FSceneInterface*> ActiveScenes;

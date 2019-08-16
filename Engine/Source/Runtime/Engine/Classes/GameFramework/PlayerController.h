@@ -162,19 +162,47 @@ struct ENGINE_API FUpdateLevelStreamingLevelStatus
 	uint32 bNewShouldBlockOnLoad : 1;
 };
 
-/** This structure is used to pass arguments to ServerUpdateMultipleLevelsVisibility() server RPC function */
+/** This structure is used to pass arguments to ServerUpdateLevelVisibilty() and ServerUpdateMultipleLevelsVisibility() server RPC functions */
 USTRUCT()
 struct ENGINE_API FUpdateLevelVisibilityLevelInfo
 {
 	GENERATED_BODY();
 
-	/** The name of the package for the level whose status changed */
+	FUpdateLevelVisibilityLevelInfo()
+		: PackageName(NAME_None)
+		, FileName(NAME_None)
+		, bIsVisible(false)
+	{
+	}
+
+	/**
+	 * @param Level			Level to pull PackageName and FileName from.
+	 * @param bInIsVisible	Default value for bIsVisible.
+	 */
+	FUpdateLevelVisibilityLevelInfo(const class ULevel* const Level, const bool bInIsVisible);
+
+	/** The name of the package for the level whose status changed. */
 	UPROPERTY()
 	FName PackageName;
 
-	/** The new visibility state for this level */
+	/** The name / path of the asset file for the level whose status changed. */
+	UPROPERTY()
+	FName FileName;
+
+	/** The new visibility state for this level. */
 	UPROPERTY()
 	uint32 bIsVisible : 1;
+
+	bool NetSerialize(FArchive& Ar, UPackageMap* PackageMap, bool& bOutSuccess);
+};
+
+template<>
+struct TStructOpsTypeTraits<FUpdateLevelVisibilityLevelInfo> : public TStructOpsTypeTraitsBase2<FUpdateLevelVisibilityLevelInfo>
+{
+	enum
+	{
+		WithNetSerializer = true
+	};
 };
 
 /** Data structure used to setup an input mode that allows the UI to respond to user input, and if the UI doesn't handle it player input / player controller gets a chance. */
@@ -533,6 +561,14 @@ public:
 	/** Causes the client to travel to the given URL */
 	UFUNCTION(exec)
 	virtual void LocalTravel(const FString& URL);
+
+	/** RPC used by ServerExec. Not intended to be called directly */
+	UFUNCTION(Reliable, Server, WithValidation)
+	void ServerExecRPC(const FString& Msg);
+
+	/** Executes command on server (non shipping builds only) */
+	UFUNCTION(exec)
+	void ServerExec(const FString& Msg);
 
 	/** Return the client to the main menu gracefully */
 	UE_DEPRECATED(4.19, "As an FString, the ReturnReason parameter is not easily localized. Please use ClientReturnToMainMenuWithTextReason instead.")
@@ -1087,6 +1123,11 @@ private:
 	UFUNCTION(BlueprintCallable, meta=(Latent, LatentInfo="LatentInfo", ExpandEnumAsExecs="Action", Duration="-1", bAffectsLeftLarge="true", bAffectsLeftSmall="true", bAffectsRightLarge="true", bAffectsRightSmall="true", AdvancedDisplay="bAffectsLeftLarge,bAffectsLeftSmall,bAffectsRightLarge,bAffectsRightSmall"), Category="Game|Feedback")
 	void PlayDynamicForceFeedback(float Intensity, float Duration, bool bAffectsLeftLarge, bool bAffectsLeftSmall, bool bAffectsRightLarge, bool bAffectsRightSmall, TEnumAsByte<EDynamicForceFeedbackAction::Type> Action, FLatentActionInfo LatentInfo);
 
+	//~ This method is purely for debugging purposes.
+	//~ It will trigger a ServerUpdateLevelVisibilityCall with the provided package name.
+	UFUNCTION(Exec)
+	void TestServerLevelVisibilityChange(const FName PackageName, const FName FileName);
+
 public:
 	/** 
 	 * Allows playing of a dynamic force feedback event from native code
@@ -1277,13 +1318,25 @@ public:
 	void ServerUpdateCamera(FVector_NetQuantize CamLoc, int32 CamPitchAndYaw);
 
 	/** 
-	 * Called when the client adds/removes a streamed level
-	 * the server will only replicate references to Actors in visible levels so that it's impossible to send references to
-	 * Actors the client has not initialized
-	 * @param PackageName the name of the package for the level whose status changed
+	 * Called when the client adds/removes a streamed level.
+	 * The server will only replicate references to Actors in visible levels so that it's impossible to send references to
+	 * Actors the client has not initialized.
+	 *
+	 * @param LevelVisibility	Visibility state for the level whose state changed.
 	 */
 	UFUNCTION(reliable, server, WithValidation, SealedEvent)
-	void ServerUpdateLevelVisibility(FName PackageName, bool bIsVisible);
+	void ServerUpdateLevelVisibility(const FUpdateLevelVisibilityLevelInfo& LevelVisibility);
+
+	UE_DEPRECATED(4.24, "Use ServerUpdateLevelVisibility that accepts a LevelVisibility struct.")
+	void ServerUpdateLevelVisibility(FName PackageName, bool bIsVisible)
+	{
+		FUpdateLevelVisibilityLevelInfo LevelVisibility;
+		LevelVisibility.PackageName = PackageName;
+		LevelVisibility.FileName = PackageName;
+		LevelVisibility.bIsVisible = bIsVisible;
+
+		ServerUpdateLevelVisibility(LevelVisibility);
+	}
 
 	/** 
 	 * Called when the client adds/removes a streamed level.  This version of the function allows you to pass the state of 

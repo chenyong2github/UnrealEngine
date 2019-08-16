@@ -1,0 +1,112 @@
+﻿INTSourceChangelist:5294487
+Availability: Public
+Crumbs: 
+Title: CCDIK
+Description: 描述如何访问并使用CCDIK骨架控制节点来设置并控制IK链。
+Type: 
+Version: 4.21
+Parent: Engine/Animation/NodeReference/SkeletalControls
+Order: 
+Tags: Animation
+Tags: Experimental
+Tags: Landing Page
+Tags: CCDIK
+Tags: Skeletal Control
+Tags: IK
+
+
+**CCDIK**（循环坐标下降逆动态学）骨架控制节点是一个轻量级的IK解算器（与[FABRIK](Engine/Animation/NodeReference/Fabrik)相似），通常用于驱动骨骼链。然而与FABRIK不同，CCDIK提供了定义角约束的功能，需要在解算中限制任意骨骼的旋转时较为实用。 
+
+CCDIK节点可用于驱动如下所示的过程化动画： 
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ mI9CGwtozOk
+ [/PARAMLITERAL]
+[/OBJECT]
+
+上方视频中使用了CCDIK节点属性的 **解算器** 部分并将角色的 **根骨骼（Root Bone）** 设为左肩。然后将 **末端骨骼（Tip Bone）** 设为角色食指上的最后一个数字。调整 **执行器位置（Effector Location）** 时，IK解算器将接管，链中的每块骨骼将基于定义的 **每个关节的旋转限制（Rotation Limit Per Joints）** 值来跟随。这些角限制可防止骨骼出现奇怪旋转，要实现需要的效果可能需要对值进行一些调整（以每根骨骼为基础）。  
+
+(#inputandoutputpins)
+
+## 输入和输出引脚
+
+以下列出了 **CCDIK** 节点的可用 **输入** 和 **输出** 引脚：
+
+![](CCDIK_Node.png "CCDIK_Node.png")
+
+| 引脚类型 | 描述 |
+| --- | --- |
+|[REGION:tablesection]输入引脚[/REGION] ||
+| **执行器位置（Effector Location）** | 指定末端骨骼的目标位置（如 **执行器位置空间** 设为 **骨骼**）。这将是来自目标骨骼的偏移，用作目标位置。 |
+| **组件姿势（Component Pose）** | 要进行变换的输入姿势。 |
+| **Alpha** | 一个范围为[0.0, 1.0]的浮点值，用作alpha值来确定由骨骼控制应用的变形的权重。如值为0.0，则将为输入姿势赋予完整权重；而值为1.0时，则会为控制计算的变形赋予完整权重。 |
+| [REGION:tablesection]输出引脚[/REGION] ||
+| **组件姿势（Component Pose）** | 应用变换后的最终姿势。 |
+
+
+(#nodeproperties)
+
+## 节点属性
+
+以下是使用CCDIK节点（可从 **细节** 面板中选用）时可用的属性：   
+
+![](CCDIK_Details.png "CCDIK_Details.png")
+
+| 选项 | 描述 |
+| --- | --- |
+| [REGION:tablesection]执行器位置[/REGION] ||
+| **（作为引脚）执行器位置（Effector Location）** | 是否将此属性显示为节点上的一个引脚。 |
+| **执行器位置空间（Effector Location Space）** | 设置骨骼位置的坐标空间（场景空间、组件空间、父骨骼空间，或骨骼空间）。 | 
+| **执行器目标（Effector Target）** | 如 **执行器变换空间（Effector Transform Space）** 是一块骨骼，这便是要使用的目标骨骼。 |
+| [REGION:tablesection]解算器[/REGION] ||
+| **末端骨骼（Tip Bone）** | 指定为链中末端骨骼（或最终骨骼）的骨骼。 |
+| **根骨骼（Root Bone）** | 指定为链中根骨骼（或初始骨骼）的骨骼。 |
+| **精确度（Precision）** | 从 **执行器位置（Effector Location）** 到最终末端位置差量的容差。 |
+| **最大迭代数（Max Iterations）** | 所允许的最大迭代数（用于控制性能）。 |
+| **从尾部开始（Start from Tail）** | 是否将轴绘制到调试关节旋转。 |
+| **启用旋转限制（Enable Rotation Limit）** | 从 **执行器位置（Effector Location）** 到最终末端位置差量的容差。 |
+| **每个关节的旋转限制（Rotation Limit Per Joints）** | 每根骨骼的对称旋转限制。索引0与 **根骨骼** 匹配，最后一个索引与 **末端骨骼** 匹配。 |
+| [REGION:tablesection]性能[/REGION] ||
+| **LOD阈值（LOD Threshold）** | 此节点允许运行的最大LOD。 |
+| [REGION:tablesection]Alpha[/REGION] ||
+| **Alpha输入类型（Alpha Input Type）** | 定义Alpha输入类型（浮点值、布尔值或动画曲线值）。 |
+| **（作为引脚）** | 启用此项将 **Alpha** 属性作为引脚显示在节点上。禁用即可停止将其显示为引脚。 |
+
+
+(#example:buttonpress)
+
+## 范例：按钮按压
+
+下方视频中使用了CCDIK节点和一些[蓝图](Engine/Blueprints)，让角色按下墙上的按钮。 
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ -Fd-BZKQMsA
+ [/PARAMLITERAL]
+[/OBJECT]
+
+下方动画蓝图的动画图表中使用了CCDIK节点，执行器位置从关卡中按键的位置进行驱动。如玩家在按钮的范围中并按下相应的键，则会混合到使用CCDIK节点的姿势，使角色到达执行器位置（按下按钮）。 
+
+[REGION:lightbox]
+[![](CCDIK_AnimGraph.png)(w:900)](CCDIK_AnimGraph.png)
+[/REGION]
+[REGION:caption]
+点击图片查看全图。
+[/REGION]
+
+在下图中，我们将clavicle_l（左肩）指定为 **根骨骼**、index\_03\_l（左手食指上最后一个数字）指定为骨骼链的 **末端骨骼**。我们还定义使用 **每个关节的旋转限制（Rotation Limit Per Joints）** 部分来约束应用到每根骨骼的旋转量。   
+
+![](CCDIK_Example_Details.png "CCDIK_Example_Details.png")

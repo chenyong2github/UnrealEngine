@@ -61,8 +61,10 @@ typedef FWindowsPlatformTypes FPlatformTypes;
 #define PLATFORM_SUPPORTS_EARLY_MOVIE_PLAYBACK				(!WITH_EDITOR) // movies will start before engine is initalized
 #define PLATFORM_RHITHREAD_DEFAULT_BYPASS					0
 #define PLATFORM_USE_GENERIC_STRING_IMPLEMENTATION			0
+#define PLATFORM_SUPPORTS_VIRTUAL_TEXTURE_STREAMING			1
 
 #define PLATFORM_SUPPORTS_STACK_SYMBOLS						1
+#define PLATFORM_COMPILER_HAS_DECLTYPE_AUTO					1
 
 #define PLATFORM_GLOBAL_LOG_CATEGORY						LogWindows
 
@@ -74,15 +76,6 @@ typedef FWindowsPlatformTypes FPlatformTypes;
 // for example, which can appear as if the did not fire, leaving a programmer
 // unknowingly debugging an undefined process.
 #define PLATFORM_BREAK() (__nop(), __debugbreak())
-
-#if defined(__INTEL_COMPILER) || _MSC_VER > 1900
-	#define PLATFORM_COMPILER_HAS_DECLTYPE_AUTO 1
-#else
-	// Static analysis causes internal compiler errors with auto-deduced return types,
-	// but some older VC versions still have return type deduction failures inside the delegate code
-	// when they are enabled.  So we currently only enable them for static analysis builds.
-	#define PLATFORM_COMPILER_HAS_DECLTYPE_AUTO USING_CODE_ANALYSIS
-#endif
 
 // Intrinsics for 128-bit atomics on Windows platform requires Windows 8 or higher (WINVER>=0x0602)
 // http://msdn.microsoft.com/en-us/library/windows/desktop/hh972640.aspx

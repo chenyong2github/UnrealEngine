@@ -19,6 +19,9 @@ class ISequencerTrackEditor;
 class ISequencerEditorObjectBinding;
 class IToolkitHost;
 class UMovieSceneSequence;
+struct FSequencerInitParams;
+
+enum class ECurveEditorTreeFilterType : uint32;
 
 /** Forward declaration for the default templated channel interface. Include SequencerChannelInterface.h for full definition. */
 template<typename> struct TSequencerChannelInterface;
@@ -52,6 +55,9 @@ DECLARE_DELEGATE_TwoParams(FOnBuildCustomContextMenuForGuid, FMenuBuilder&, FGui
 
 /** A delegate that gets executed then a sequencer is created */
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnSequencerCreated, TSharedRef<ISequencer>);
+
+/** A delegate that gets executed a sequencer is initialize and allow modification the initialization params. */
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnPreSequencerInit, TSharedRef<ISequencer>, TSharedRef<ISequencerObjectChangeListener>, const FSequencerInitParams&);
 
 /**
  * Sequencer view parameters.
@@ -170,6 +176,21 @@ public:
 	 */
 	virtual void UnregisterOnSequencerCreated(FDelegateHandle InHandle) = 0;
 
+	/**
+	 * Registers a delegate that will be called just before a sequencer is initialized
+	 *
+	 * @param InOnPreSequencerInit	Delegate to register.
+	 * @return A handle to the newly-added delegate.
+	 */
+	virtual FDelegateHandle RegisterOnPreSequencerInit(FOnPreSequencerInit::FDelegate InOnPreSequencerInit) = 0;
+
+	/**
+	 * Unregisters a previously registered delegate called just before a sequencer is initialized
+	 *
+	 * @param InHandle	Handle to the delegate to unregister
+	 */
+	virtual void UnregisterOnPreSequencerInit(FDelegateHandle InHandle) = 0;
+
 	/** 
 	 * Registers a delegate that will create editor UI for an object binding in sequencer.
 	 *
@@ -238,6 +259,12 @@ public:
 	 */
 	ISequencerChannelInterface* FindChannelEditorInterface(FName ChannelTypeName) const;
 
+
+	/**
+	 * Retrieve the unique identifer for the sequencer selection curve editor filter (of type FSequencerSelectionCurveFilter)
+	 */
+	static ECurveEditorTreeFilterType GetSequencerSelectionFilterType();
+
 public:
 
 	/**
@@ -300,20 +327,6 @@ public:
 	{
 		auto PropertyTypes = PropertyTrackEditorType::GetAnimatedPropertyTypes();
 		return RegisterTrackEditor(FOnCreateTrackEditor::CreateStatic(PropertyTrackEditorType::CreateTrackEditor), PropertyTypes);
-	}
-
-public:
-
-	UE_DEPRECATED(4.16, "Please use RegisterTrackEditor")
-	FDelegateHandle RegisterTrackEditor_Handle(FOnCreateTrackEditor InOnCreateTrackEditor)
-	{
-		return RegisterTrackEditor(InOnCreateTrackEditor, TArrayView<FAnimatedPropertyKey>());
-	}
-	
-	UE_DEPRECATED(4.16, "Please use UnRegisterTrackEditor")
-	void UnRegisterTrackEditor_Handle(FDelegateHandle InHandle)
-	{
-		UnRegisterTrackEditor(InHandle);
 	}
 
 private:

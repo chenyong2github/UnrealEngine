@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6429227
 Availability:Public
 Title: 포스트 프로세스 이펙트
 Crumbs: %ROOT%, Engine
@@ -10,10 +10,7 @@ order:5
 type:landing
 tags:Rendering
 Topic-image:ppe_topic.png
-
-[REGION:banner]
-![Post Process Effects](ppe_landing_banner1.png)
-[/REGION]
+hero-image:ppe_landing_banner1.png
 
 [EXCERPT:Intro]
 언리얼 엔진은 아티스트나 디자이너가 씬의 전체적인 모양새와 느낌을 조정할 수 있도록 여러가지 포스트 프로세스를 제공하고 있습니다. 요소와 이펙트의 예제에는 블룸 (밝은 오브젝트의 HDR 뽀샤시 효과), 앰비언트 오클루전 (구석의 실감나는 음영), 톤 매핑 등이 있습니다.

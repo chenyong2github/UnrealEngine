@@ -41,12 +41,14 @@ public:
 		TangentsAndDistances.Bind(ParameterMap, TEXT("TangentsAndDistances"));
 		MultiRibbonIndices.Bind(ParameterMap, TEXT("MultiRibbonIndices"));
 		PackedPerRibbonDataByIndex.Bind(ParameterMap, TEXT("PackedPerRibbonDataByIndex"));
+		FacingMode.Bind(ParameterMap, TEXT("FacingMode"));
 
 		ensure(NiagaraParticleDataFloat.IsBound());
 		ensure(FloatDataOffset.IsBound());
 		ensure(FloatDataStride.IsBound());
 		ensure(SortedIndices.IsBound());
 		ensure(SortedIndicesOffset.IsBound());
+		ensure(FacingMode.IsBound());
 	}
 
 	virtual void Serialize(FArchive& Ar) override
@@ -59,13 +61,14 @@ public:
 		Ar << TangentsAndDistances;
 		Ar << MultiRibbonIndices;
 		Ar << PackedPerRibbonDataByIndex;
+		Ar << FacingMode;
 	}
 
 	virtual void GetElementShaderBindings(
 		const FSceneInterface* Scene,
 		const FSceneView* View,
 		const FMeshMaterialShader* Shader,
-		bool bShaderRequiresPositionOnlyStream,
+		const EVertexInputStreamType InputStreamType,
 		ERHIFeatureLevel::Type FeatureLevel,
 		const FVertexFactory* VertexFactory,
 		const FMeshBatchElement& BatchElement,
@@ -83,6 +86,7 @@ public:
 		ShaderBindings.Add(MultiRibbonIndices, RibbonVF->GetMultiRibbonIndicesSRV());
 		ShaderBindings.Add(PackedPerRibbonDataByIndex, RibbonVF->GetPackedPerRibbonDataByIndexSRV());
 		ShaderBindings.Add(SortedIndicesOffset, RibbonVF->GetSortedIndicesOffset());
+		ShaderBindings.Add(FacingMode, RibbonVF->GetFacingMode());
 	}
 
 private:
@@ -95,6 +99,7 @@ private:
 	FShaderResourceParameter MultiRibbonIndices;
 	FShaderResourceParameter PackedPerRibbonDataByIndex;
 	FShaderParameter SortedIndicesOffset;
+	FShaderParameter FacingMode;
 };
 
 
@@ -117,7 +122,7 @@ public:
 		const FSceneInterface* Scene,
 		const FSceneView* View,
 		const FMeshMaterialShader* Shader,
-		bool bShaderRequiresPositionOnlyStream,
+		const EVertexInputStreamType InputStreamType,
 		ERHIFeatureLevel::Type FeatureLevel,
 		const FVertexFactory* VertexFactory,
 		const FMeshBatchElement& BatchElement,
@@ -171,7 +176,7 @@ static TGlobalResource<FNiagaraRibbonVertexDeclaration> GNiagaraRibbonVertexDecl
 
 bool FNiagaraRibbonVertexFactory::ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType)
 {
-	return (IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) || IsFeatureLevelSupported(Platform, ERHIFeatureLevel::ES3_1)) && (Material->IsUsedWithNiagaraRibbons() || Material->IsSpecialEngineMaterial());
+	return (FNiagaraUtilities::SupportsNiagaraRendering(Platform)) && (Material->IsUsedWithNiagaraRibbons() || Material->IsSpecialEngineMaterial());
 }
 
 /**

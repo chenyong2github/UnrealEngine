@@ -8,6 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
+#include "AudioCompressionSettings.h"
 #include "WindowsTargetSettings.generated.h"
 
 UENUM()
@@ -31,7 +32,6 @@ enum class EDefaultGraphicsRHI : uint8
 	DefaultGraphicsRHI_DX11 = 1 UMETA(DisplayName = "DirectX 11"),
 	DefaultGraphicsRHI_DX12 = 2 UMETA(DisplayName = "DirectX 12"),
 	DefaultGraphicsRHI_Vulkan = 3 UMETA(DisplayName = "Vulkan"),
-	DefaultGraphicsRHI_OpenGL = 4 UMETA(DisplayName = "OpenGL"),
 };
 
 
@@ -108,4 +108,46 @@ public:
 	/** Which of the currently enabled occlusion plugins to use on Windows. */
 	UPROPERTY(config, EditAnywhere, Category = "Audio")
 	FString OcclusionPlugin;
+
+	/** Audio Cook Settings */
+
+	/** Various overrides for how this platform should handle compression and decompression */
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Audio")
+	FPlatformRuntimeAudioCompressionOverrides CompressionOverrides;
+
+	/** When this is enabled, Actual compressed data will be separated from the USoundWave, and loaded into a cache. */
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Audio|CookOverrides", meta = (DisplayName = "Use Stream Caching (Experimental)"))
+	bool bUseAudioStreamCaching;
+
+	/** This determines the max amount of memory that should be used for the cache at any given time. If set low (<= 8 MB), it lowers the size of individual chunks of audio during cook. */
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Audio|CookOverrides|Stream Caching", meta = (DisplayName = "Max Cache Size (KB)"))
+	int32 CacheSizeKB;
+
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Audio|CookOverrides")
+	bool bResampleForDevice;
+
+	/** Mapping of which sample rates are used for each sample rate quality for a specific platform. */
+
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Audio|CookOverrides|ResamplingQuality", meta = (DisplayName = "Max"))
+	float MaxSampleRate;
+
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Audio|CookOverrides|ResamplingQuality", meta = (DisplayName = "High"))
+	float HighSampleRate;
+
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Audio|CookOverrides|ResamplingQuality", meta = (DisplayName = "Medium"))
+	float MedSampleRate;
+
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Audio|CookOverrides|ResamplingQuality", meta = (DisplayName = "Low"))
+	float LowSampleRate;
+
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Audio|CookOverrides|ResamplingQuality", meta = (DisplayName = "Min"))
+	float MinSampleRate;
+
+	/** Scales all compression qualities when cooking to this platform. For example, 0.5 will halve all compression qualities, and 1.0 will leave them unchanged. */
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Audio|CookOverrides")
+	float CompressionQualityModifier;
+
+	/** When set to anything beyond 0, this will ensure any SoundWaves longer than this value, in seconds, to stream directly off of the disk. */
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Audio|CookOverrides", meta = (DisplayName = "Stream All Soundwaves Longer Than: "))
+	float AutoStreamingThreshold;
 };

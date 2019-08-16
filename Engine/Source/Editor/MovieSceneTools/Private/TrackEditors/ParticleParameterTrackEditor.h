@@ -64,18 +64,18 @@ private:
 
 		bool operator<( FParameterNameAndAction const& Other ) const
 		{
-			return ParameterName < Other.ParameterName;
+			return ParameterName.LexicalLess(Other.ParameterName);
 		}
 	};
 
-	void BuildObjectBindingTrackMenu( FMenuBuilder& MenuBuilder, const FGuid& ObjectBinding, const UClass* ObjectClass );
+	void BuildObjectBindingTrackMenu( FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass );
 
 	/** Provides the contents of the add parameter menu. */
 	TSharedRef<SWidget> OnGetAddParameterMenuContent( FGuid ObjectBinding, UMovieSceneParticleParameterTrack* ParticleParameterTrack );
 
 	bool CanAddParticleParameterTrack (FGuid ObjectBinding );
 
-	void AddParticleParameterTrack( FGuid ObjectBinding );
+	void AddParticleParameterTrack( TArray<FGuid> ObjectBindings );
 
 	/** Adds a scalar parameter and initial key to a material track.
 	 * @param ObjectBinding The object binding which owns the material track.

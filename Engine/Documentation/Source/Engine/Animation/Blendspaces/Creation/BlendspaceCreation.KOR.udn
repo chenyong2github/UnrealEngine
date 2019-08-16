@@ -52,7 +52,7 @@ Related: Engine/Animation/AnimBlueprints/AnimGraph
 		
 ## 최종 결과
 
-블렌드 스페이스를 생성한 후 열어보면 공백으로 보일 것입니다 (아래).
+블렌드 스페이스를 생성한 후 열어보면 비어 있을 것입니다 (아래).
 
 ![](BlendSpaceAsset.png)
 

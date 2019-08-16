@@ -2,8 +2,6 @@
 #pragma once
 #include "UObject/ObjectMacros.h"
 
-class FFieldSystem;
-
 /**
 *
 */
@@ -34,6 +32,50 @@ enum EFieldOperationType
 	Field_Operation_Max                 UMETA(Hidden)
 };
 
+/**
+*
+*/
+UENUM(BlueprintType)
+enum EFieldCullingOperationType
+{
+	Field_Culling_Inside  UMETA(DisplayName = "Inside"),
+	Field_Culling_Outside UMETA(DisplayName = "Outside"),
+	//~~~
+	//256th entry
+	Field_Culling_Operation_Max                 UMETA(Hidden)
+};
+
+
+/**
+*
+*/
+UENUM(BlueprintType)
+enum EFieldResolutionType
+{
+	Field_Resolution_Minimal  UMETA(DisplayName = "Minimal"),
+	Field_Resolution_DisabledParents  UMETA(DisplayName = "Minimal Plus Disabled Parents"),
+	Field_Resolution_Maximum  UMETA(DisplayName = "Maximum"),
+	//~~~
+	//256th entry
+	Field_Resolution_Max      UMETA(Hidden)
+};
+
+
+/**
+*
+*/
+UENUM(BlueprintType)
+enum EFieldFalloffType
+{
+	Field_FallOff_None			UMETA(DisplayName = "None"),
+	Field_Falloff_Linear		UMETA(DisplayName = "Linear"),
+	Field_Falloff_Inverse		UMETA(DisplayName = "Inverse"),
+	Field_Falloff_Squared		UMETA(DisplayName = "Squared"),
+	Field_Falloff_Logarithmic	UMETA(DisplayName = "Logarithmic"),
+	//~~~
+	//256th entry
+	Field_Falloff_Max           UMETA(Hidden)
+};
 
 /**
 *
@@ -41,13 +83,67 @@ enum EFieldOperationType
 UENUM(BlueprintType)
 enum EFieldPhysicsType
 {
-	Field_StayDynamic		UMETA(DisplayName = "StayDynamic"),
-	Field_LinearForce		UMETA(DisplayName = "LinearForce"),
+	Field_DynamicState				UMETA(DisplayName = "DynamicState"),
+	Field_LinearForce				UMETA(DisplayName = "LinearForce"),
+	Field_ExternalClusterStrain		UMETA(DisplayName = "ExternalClusterStrain"),
+	Field_Kill   					UMETA(DisplayName = "Kill"),
+	Field_LinearVelocity			UMETA(DisplayName = "LinearVelocity"),
+	Field_AngularVelociy			UMETA(DisplayName = "AngularVelocity"),
+	Field_AngularTorque				UMETA(DisplayName = "AngularTorque"),
+	Field_InternalClusterStrain		UMETA(DisplayName = "InternalClusterStrain"),
+	Field_DisableThreshold			UMETA(DisplayName = "DisableThreshold"),
+	Field_SleepingThreshold			UMETA(DisplayName = "SleepingThreshold"),
+	Field_PositionStatic			UMETA(DisplayName = "PositionStatic"),
+	Field_PositionAnimated			UMETA(DisplayName = "PositionAnimated"),
+	Field_PositionTarget			UMETA(DisplayName = "PositionTarget"),
+	Field_DynamicConstraint			UMETA(DisplayName = "DynamicConstraint"),
+	Field_CollisionGroup			UMETA(DisplayName = "CollisionGroup"),
+	Field_ActivateDisabled			UMETA(DisplayName = "ActivateDisabled"),
 	//~~~
 	//256th entry
-	Field_PhysicsType_Max                 UMETA(Hidden)
+	Field_PhysicsType_Max           UMETA(Hidden)
 };
 
+inline 
+FName FIELDSYSTEMCORE_API GetFieldPhysicsName(EFieldPhysicsType Type)
+{
+	switch (Type)
+	{
+	case Field_DynamicState:
+		return "DynamicState";
+	case Field_LinearForce:
+		return "LinearForce";
+	case Field_ExternalClusterStrain:
+		return "ExternalClusterStrain";
+	case Field_Kill:
+		return "Kill";
+	case Field_LinearVelocity:
+		return "LinearVelocity";
+	case Field_AngularVelociy:
+		return "AngularVelocity";
+	case Field_AngularTorque:
+		return "AngularTorque";
+	case Field_InternalClusterStrain:
+		return "InternalClusterStrain";
+	case Field_DisableThreshold:
+		return "DisableThreshold";
+	case Field_SleepingThreshold:
+		return "SleepingThreshold";
+	case Field_PositionStatic:
+		return "PositionStatic";
+	case Field_PositionAnimated:
+		return "PositionAnimated";
+	case Field_PositionTarget:
+		return "PositionTarget";
+	case Field_DynamicConstraint:
+		return "DynamicConstraint";
+	case Field_CollisionGroup:
+		return "CollisionGroup";
+	case Field_ActivateDisabled:
+		return "ActivateDisabled";
+	}
+	return "None";
+}
 
 /**
 *
@@ -66,111 +162,5 @@ enum EFieldPhysicsDefaultFields
 };
 
 
-/**
-* FFieldContext
-*/
-struct FFieldContext
-{
-	FFieldContext() = delete;
-	FFieldContext(int32 TerminalIn, const TArrayView<int32>& SampleIndicesIn,
-		const TArrayView<FVector>& SamplesIn, const FFieldSystem* FieldSystemIn,
-		const FVector* PositionIn = nullptr, const FVector* DirectionIn = nullptr,
-		const float* RadiusIn = nullptr, const float* MagnitudeIn = nullptr)
-		: Terminal(TerminalIn)
-		, SampleIndices(SampleIndicesIn)
-		, Samples(SamplesIn)
-		, FieldSystem(FieldSystemIn)
-		, Position(PositionIn)
-		, Direction(DirectionIn)
-		, Radius(RadiusIn)
-		, Magnitude(MagnitudeIn) {}
-	FFieldContext(int32 TerminalIn, const FFieldContext & ContextIn)
-		: Terminal(TerminalIn)
-		, SampleIndices(ContextIn.SampleIndices)
-		, Samples(ContextIn.Samples)
-		, FieldSystem(ContextIn.FieldSystem)
-		, Position(ContextIn.Position)
-		, Direction(ContextIn.Direction)
-		, Radius(ContextIn.Radius)
-		, Magnitude(ContextIn.Magnitude) {}
-	FFieldContext(int32 TerminalIn, const TArrayView<int32>& SampleIndicesIn, const FFieldContext & ContextIn)
-		: Terminal(TerminalIn)
-		, SampleIndices(SampleIndicesIn)
-		, Samples(ContextIn.Samples)
-		, FieldSystem(ContextIn.FieldSystem)
-		, Position(ContextIn.Position)
-		, Direction(ContextIn.Direction)
-		, Radius(ContextIn.Radius)
-		, Magnitude(ContextIn.Magnitude) {}
 
 
-	const int32 Terminal;
-	const TArrayView<int32>& SampleIndices;
-	const TArrayView<FVector>& Samples;
-	const FFieldSystem* FieldSystem;
-	// Node overrides
-	const FVector* Position;
-	const FVector* Direction;
-	const float* Radius;
-	const float* Magnitude;
-};
-
-
-/**
-* FieldCommand
-*/
-class FFieldSystemCommand
-{
-public:
-	FFieldSystemCommand()
-		: Name("none")
-		, Type(EFieldPhysicsType::Field_PhysicsType_Max)
-		, Position(FVector(0))
-		, Direction(FVector(0))
-		, Radius(0.f)
-		, Magnitude(0.f)
-		, MaxClusterLevel(1000) 
-	{}
-
-	FFieldSystemCommand(const FName NameIn,
-		const EFieldPhysicsType TypeIn = EFieldPhysicsType::Field_PhysicsType_Max,
-		const FVector PositionIn = FVector(0), const FVector DirectionIn = FVector(0),
-		const float RadiusIn = 0.f, const float MagnitudeIn = 0.f, const float MaxClusterLevelIn = 1000)
-		: Name(NameIn)
-		, Type(TypeIn)
-		, Position(PositionIn)
-		, Direction(DirectionIn)
-		, Radius(RadiusIn)
-		, Magnitude(MagnitudeIn) 
-		, MaxClusterLevel(MaxClusterLevelIn)
-	{}
-
-	FFieldSystemCommand(const FFieldSystemCommand & CommandIn)
-		: Name(CommandIn.Name)
-		, Type(CommandIn.Type)
-		, Position(CommandIn.Position)
-		, Direction(CommandIn.Direction)
-		, Radius(CommandIn.Radius)
-		, Magnitude(CommandIn.Magnitude) 
-		, MaxClusterLevel(CommandIn.MaxClusterLevel)
-	{}
-
-	FFieldSystemCommand &operator =(const FFieldSystemCommand & Other) {
-		this->Name = Other.Name;
-		this->Type = Other.Type;
-		this->Position = Other.Position;
-		this->Direction = Other.Direction;
-		this->Radius = Other.Radius;
-		this->Magnitude = Other.Magnitude;
-		this->MaxClusterLevel = Other.MaxClusterLevel;
-		return *this;
-	}
-
-	 FName  Name;
-	 EFieldPhysicsType Type;
-	 FVector Position;
-	 FVector Direction;
-	 float Radius;
-	 float Magnitude;
-	 int MaxClusterLevel;
-};

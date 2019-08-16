@@ -41,7 +41,7 @@ namespace UE4HasInserterOperator_Private
  * Traits class which tests if a type has an operator<< overload between two types.
  */
 template <typename Dest, typename T>
-struct THasInserterOperator
+struct UE_DEPRECATED(4.23, "THasInserterOperator has been deprecated, please use TModels<CInsertable<Dest>, T> instead.") THasInserterOperator
 {
 	enum { Value = UE4HasInserterOperator_Private::THasInserterOperator<Dest, T>::Value };
 };

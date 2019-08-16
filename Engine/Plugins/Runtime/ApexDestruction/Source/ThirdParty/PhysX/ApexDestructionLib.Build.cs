@@ -100,7 +100,7 @@ public class ApexDestructionLib : ModuleRules
                 "APEX_Destructible{0}",
             });
         string LibraryFormatString = null;
-        
+
 
         // Libraries and DLLs for windows platform
         if (Target.Platform == UnrealTargetPlatform.Win64)
@@ -145,6 +145,29 @@ public class ApexDestructionLib : ModuleRules
                 RuntimeDependencies.Add(FileName, StagedFileType.NonUFS);
                 RuntimeDependencies.Add(Path.ChangeExtension(FileName, ".pdb"), StagedFileType.DebugNonUFS);
             }
+        }
+        else if (Target.Platform == UnrealTargetPlatform.HoloLens)
+        {
+            string Arch = Target.WindowsPlatform.GetArchitectureSubpath();
+            APEXLibDir += "/HoloLens/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
+            PublicLibraryPaths.Add(APEXLibDir);
+
+            PublicAdditionalLibraries.Add(String.Format("APEXFramework{0}_{1}.lib", LibrarySuffix, Arch));
+            PublicDelayLoadDLLs.Add(String.Format("APEXFramework{0}_{1}.dll", LibrarySuffix, Arch));
+
+            string[] RuntimeDependenciesT =
+            {
+                "APEX_Destructible{0}_{1}.dll",
+            };
+
+            string ApexBinariesDir = String.Format("$(EngineDir)/Binaries/ThirdParty/PhysX3/HoloLens/VS{0}/", Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
+            foreach (string RuntimeDependency in RuntimeDependenciesT)
+            {
+                string FileName = ApexBinariesDir + String.Format(RuntimeDependency, LibrarySuffix, Arch);
+                RuntimeDependencies.Add(FileName, StagedFileType.NonUFS);
+                RuntimeDependencies.Add(Path.ChangeExtension(FileName, ".pdb"), StagedFileType.DebugNonUFS);
+            }
+
         }
         else if (Target.Platform == UnrealTargetPlatform.Mac)
         {

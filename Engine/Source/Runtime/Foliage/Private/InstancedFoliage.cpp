@@ -66,49 +66,6 @@ static TAutoConsoleVariable<int32> CVarFoliageDiscardDataOnLoad(
 	TEXT("1: Discard scalable foliage data on load (disables all scalable foliage types); 0: Keep scalable foliage data (requires reloading level)"),
 	ECVF_Scalability);
 
-// Custom serialization version for all packages containing Instance Foliage
-struct FFoliageCustomVersion
-{
-	enum Type
-	{
-		// Before any version changes were made in the plugin
-		BeforeCustomVersionWasAdded = 0,
-		// Converted to use HierarchicalInstancedStaticMeshComponent
-		FoliageUsingHierarchicalISMC = 1,
-		// Changed Component to not RF_Transactional
-		HierarchicalISMCNonTransactional = 2,
-		// Added FoliageTypeUpdateGuid
-		AddedFoliageTypeUpdateGuid = 3,
-		// Use a GUID to determine whic procedural actor spawned us
-		ProceduralGuid = 4,
-		// Support for cross-level bases 
-		CrossLevelBase = 5,
-		// FoliageType for details customization
-		FoliageTypeCustomization = 6,
-		// FoliageType for details customization continued
-		FoliageTypeCustomizationScaling = 7,
-		// FoliageType procedural scale and shade settings updated
-		FoliageTypeProceduralScaleAndShade = 8,
-		// Added FoliageHISMC and blueprint support
-		FoliageHISMCBlueprints = 9,
-		// Added Mobility setting to UFoliageType
-		AddedMobility = 10,
-		// Make sure that foliage has FoliageHISMC class
-		FoliageUsingFoliageISMC = 11,
-		// Foliage Actor Support
-		FoliageActorSupport = 12,
-		// -----<new versions can be added above this line>-------------------------------------------------
-		VersionPlusOne,
-		LatestVersion = VersionPlusOne - 1
-	};
-
-	// The GUID for this custom version number
-	const static FGuid GUID;
-
-private:
-	FFoliageCustomVersion() {}
-};
-
 const FGuid FFoliageCustomVersion::GUID(0x430C4D19, 0x71544970, 0x87699B69, 0xDF90B0E5);
 // Register the custom version with core
 FCustomVersionRegistration GRegisterFoliageCustomVersion(FFoliageCustomVersion::GUID, FFoliageCustomVersion::LatestVersion, TEXT("FoliageVer"));
@@ -389,8 +346,11 @@ FArchive& operator<<(FArchive& Ar, FFoliageInfo& Info)
 	{
 		Info.CreateImplementation(Info.Type);
 	}
-		
-	Info.Implementation->Serialize(Ar);
+	
+	if (Info.Implementation)
+	{
+		Info.Implementation->Serialize(Ar);
+	}
 
 #if WITH_EDITORONLY_DATA
 	if (!Ar.ArIsFilterEditorOnly && !(Ar.GetPortFlags() & PPF_DuplicateForPIE))
@@ -467,6 +427,8 @@ UFoliageType::UFoliageType(const FObjectInitializer& ObjectInitializer)
 	bAffectDistanceFieldLighting = false;
 	bCastShadowAsTwoSided = false;
 	bReceivesDecals = false;
+
+	TranslucencySortPriority = 0;
 
 	bOverrideLightMapRes = false;
 	OverriddenLightMapRes = 8;
@@ -613,6 +575,16 @@ void UFoliageType::Serialize(FArchive& Ar)
 		}
 	}
 #endif// WITH_EDITORONLY_DATA
+}
+
+void UFoliageType::PostLoad()
+{
+	Super::PostLoad();
+
+	if (!IsTemplate())
+	{
+		BodyInstance.FixupData(this);
+	}
 }
 
 bool UFoliageType::IsNotAssetOrBlueprint() const
@@ -1349,6 +1321,26 @@ void FFoliageStaticMesh::UpdateComponentSettings(const UFoliageType_InstancedSta
 			Component->bCastStaticShadow = FoliageType->bCastStaticShadow;
 			bNeedsMarkRenderStateDirty = true;
 			bNeedsInvalidateLightingCache = true;
+		}
+		if (Component->RuntimeVirtualTextures != FoliageType->RuntimeVirtualTextures)
+		{
+			Component->RuntimeVirtualTextures = FoliageType->RuntimeVirtualTextures;
+			bNeedsMarkRenderStateDirty = true;
+		}
+		if (Component->VirtualTextureRenderPassType != FoliageType->VirtualTextureRenderPassType)
+		{
+			Component->VirtualTextureRenderPassType = FoliageType->VirtualTextureRenderPassType;
+			bNeedsMarkRenderStateDirty = true;
+		}
+		if (Component->VirtualTextureCullMips != FoliageType->VirtualTextureCullMips)
+		{
+			Component->VirtualTextureCullMips = FoliageType->VirtualTextureCullMips;
+			bNeedsMarkRenderStateDirty = true;
+		}
+		if (Component->TranslucencySortPriority != FoliageType->TranslucencySortPriority)
+		{
+			Component->TranslucencySortPriority = FoliageType->TranslucencySortPriority;
+			bNeedsMarkRenderStateDirty = true;
 		}
 		if (Component->bAffectDynamicIndirectLighting != FoliageType->bAffectDynamicIndirectLighting)
 		{
@@ -2548,6 +2540,8 @@ void AInstancedFoliageActor::MoveInstancesToNewComponent(UPrimitiveComponent* In
 
 	for (auto& Pair : FoliageInfos)
 	{
+		InstancesToMove.Reset();
+
 		FFoliageInfo& Info = *Pair.Value;
 		
 		InstancesToMove = Info.GetInstancesOverlappingBox(InBoxWithInstancesToMove);
@@ -2558,8 +2552,11 @@ void AInstancedFoliageActor::MoveInstancesToNewComponent(UPrimitiveComponent* In
 		// Add the foliage to the new level
 		for (int32 InstanceIndex : InstancesToMove)
 		{
-			FFoliageInstance NewInstance = Info.Instances[InstanceIndex];
-			TargetMeshInfo->AddInstance(TargetIFA, TargetFoliageType, NewInstance, InNewComponent);
+			if (Info.Instances.IsValidIndex(InstanceIndex))
+			{
+				FFoliageInstance NewInstance = Info.Instances[InstanceIndex];
+				TargetMeshInfo->AddInstance(TargetIFA, TargetFoliageType, NewInstance, InNewComponent);
+			}
 		}
 
 		TargetMeshInfo->Refresh(TargetIFA, true, true);
@@ -3350,6 +3347,11 @@ void AInstancedFoliageActor::PostInitProperties()
 		GEngine->OnLevelActorDeleted().Remove(OnLevelActorDeletedDelegateHandle);
 		OnLevelActorDeletedDelegateHandle = GEngine->OnLevelActorDeleted().AddUObject(this, &AInstancedFoliageActor::OnLevelActorDeleted);
 
+		if (GetLevel())
+		{
+			OnApplyLevelTransformDelegateHandle = GetLevel()->OnApplyLevelTransform.AddUObject(this, &AInstancedFoliageActor::OnApplyLevelTransform);
+		}
+
 		FWorldDelegates::PostApplyLevelOffset.Remove(OnPostApplyLevelOffsetDelegateHandle);
 		OnPostApplyLevelOffsetDelegateHandle = FWorldDelegates::PostApplyLevelOffset.AddUObject(this, &AInstancedFoliageActor::OnPostApplyLevelOffset);
 	}
@@ -3363,6 +3365,12 @@ void AInstancedFoliageActor::BeginDestroy()
 	{
 		GEngine->OnActorMoved().Remove(OnLevelActorMovedDelegateHandle);
 		GEngine->OnLevelActorDeleted().Remove(OnLevelActorDeletedDelegateHandle);
+		
+		if (GetLevel())
+		{
+			GetLevel()->OnApplyLevelTransform.Remove(OnApplyLevelTransformDelegateHandle);
+		}
+
 		FWorldDelegates::PostApplyLevelOffset.Remove(OnPostApplyLevelOffsetDelegateHandle);
 	}
 }
@@ -3373,24 +3381,27 @@ void AInstancedFoliageActor::PostLoad()
 	Super::PostLoad();
 
 	ULevel* OwningLevel = GetLevel();
-	if (!OwningLevel->InstancedFoliageActor.IsValid())
+	if (OwningLevel)
 	{
-		OwningLevel->InstancedFoliageActor = this;
-	}
-	else
-	{
-		FFormatNamedArguments Arguments;
-		Arguments.Add(TEXT("Level"), FText::FromString(*OwningLevel->GetOutermost()->GetName()));
-		FMessageLog("MapCheck").Warning()
-			->AddToken(FUObjectToken::Create(this))
-			->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_DuplicateInstancedFoliageActor", "Level {Level} has an unexpected duplicate Instanced Foliage Actor."), Arguments)))
+		if (!OwningLevel->InstancedFoliageActor.IsValid())
+		{
+			OwningLevel->InstancedFoliageActor = this;
+		}
+		else
+		{
+			FFormatNamedArguments Arguments;
+			Arguments.Add(TEXT("Level"), FText::FromString(*OwningLevel->GetOutermost()->GetName()));
+			FMessageLog("MapCheck").Warning()
+				->AddToken(FUObjectToken::Create(this))
+				->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_DuplicateInstancedFoliageActor", "Level {Level} has an unexpected duplicate Instanced Foliage Actor."), Arguments)))
 #if WITH_EDITOR
-			->AddToken(FActionToken::Create(LOCTEXT("MapCheck_FixDuplicateInstancedFoliageActor", "Fix"),
-				LOCTEXT("MapCheck_FixDuplicateInstancedFoliageActor_Desc", "Click to consolidate foliage into the main foliage actor."),
-				FOnActionTokenExecuted::CreateUObject(OwningLevel->InstancedFoliageActor.Get(), &AInstancedFoliageActor::RepairDuplicateIFA, this), true))
+				->AddToken(FActionToken::Create(LOCTEXT("MapCheck_FixDuplicateInstancedFoliageActor", "Fix"),
+					LOCTEXT("MapCheck_FixDuplicateInstancedFoliageActor_Desc", "Click to consolidate foliage into the main foliage actor."),
+					FOnActionTokenExecuted::CreateUObject(OwningLevel->InstancedFoliageActor.Get(), &AInstancedFoliageActor::RepairDuplicateIFA, this), true))
 #endif// WITH_EDITOR
-			;
-		FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
+				;
+			FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
+		}
 	}
 
 #if WITH_EDITOR
@@ -3506,6 +3517,19 @@ void AInstancedFoliageActor::PostLoad()
 				}
 			}
 
+			if (GetLinkerCustomVersion(FFoliageCustomVersion::GUID) < FFoliageCustomVersion::FoliageActorSupportNoWeakPtr)
+			{
+				if (Info.Type == EFoliageImplType::Actor)
+				{
+					FFoliageActor* FoliageActor = StaticCast<FFoliageActor*>(Info.Implementation.Get());
+					for (const TWeakObjectPtr<AActor>& ActorPtr : FoliageActor->ActorInstances_Deprecated)
+					{
+						FoliageActor->ActorInstances.Add(ActorPtr.Get());
+					}
+					FoliageActor->ActorInstances_Deprecated.Empty();
+				}
+			}
+
 			// Update foliage component settings if the foliage settings object was changed while the level was not loaded.
 			if (Info.FoliageTypeUpdateGuid != FoliageType->UpdateGuid)
 			{
@@ -3521,7 +3545,8 @@ void AInstancedFoliageActor::PostLoad()
 					else if (Info.Type == EFoliageImplType::Actor)
 					{
 						FFoliageActor* FoliageActor = StaticCast<FFoliageActor*>(Info.Implementation.Get());
-						FoliageActor->Reapply(this, FoliageType, Info.Instances);
+						const bool bPostLoad = true;
+						FoliageActor->Reapply(this, FoliageType, Info.Instances, bPostLoad);
 					}
 				}
 				Info.FoliageTypeUpdateGuid = FoliageType->UpdateGuid;
@@ -3603,22 +3628,25 @@ void AInstancedFoliageActor::PostLoad()
 	{
 		for (auto& Pair : FoliageInfos)
 		{
-			if (Pair.Value->Type == EFoliageImplType::StaticMesh)
+			if (!Pair.Key || Pair.Key->bEnableDensityScaling)
 			{
-				FFoliageStaticMesh* FoliageStaticMesh = StaticCast<FFoliageStaticMesh*>(Pair.Value->Implementation.Get());
-				
-				if (FoliageStaticMesh->Component != nullptr && (!Pair.Key || Pair.Key->bEnableDensityScaling))
+				if (Pair.Value->Type == EFoliageImplType::StaticMesh)
 				{
-					FoliageStaticMesh->Component->ConditionalPostLoad();
-					FoliageStaticMesh->Component->DestroyComponent();
-				}
-			}	
-			else if (Pair.Value->Type == EFoliageImplType::Actor)
-			{
-				FFoliageActor* FoliageActor = StaticCast<FFoliageActor*>(Pair.Value->Implementation.Get());
-				FoliageActor->DestroyActors(true);
-			}
+					FFoliageStaticMesh* FoliageStaticMesh = StaticCast<FFoliageStaticMesh*>(Pair.Value->Implementation.Get());
 
+					if (FoliageStaticMesh->Component != nullptr)
+					{
+						FoliageStaticMesh->Component->ConditionalPostLoad();
+						FoliageStaticMesh->Component->DestroyComponent();
+					}
+				}
+				else if (Pair.Value->Type == EFoliageImplType::Actor)
+				{
+					FFoliageActor* FoliageActor = StaticCast<FFoliageActor*>(Pair.Value->Implementation.Get());
+					FoliageActor->DestroyActors(true);
+				}
+			}
+				
 			Pair.Value = FFoliageInfo();
 		}
 	}
@@ -3712,6 +3740,18 @@ void AInstancedFoliageActor::OnLevelActorDeleted(AActor* InActor)
 			{
 				DeleteInstancesForComponent(Component);
 			}
+		}
+	}
+}
+
+void AInstancedFoliageActor::OnApplyLevelTransform(const FTransform& InTransform)
+{
+	for (auto& Pair : FoliageInfos)
+	{
+		FFoliageInfo& Info = *Pair.Value;
+		if (Info.Implementation)
+		{
+			Info.Implementation->PostApplyLevelTransform(InTransform, Info.Instances);
 		}
 	}
 }
@@ -3901,6 +3941,12 @@ bool AInstancedFoliageActor::FoliageTrace(const UWorld* InWorld, FHitResult& Out
 						break;
 					}
 				}				
+			}
+
+			// The foliage we are snapping on doesn't have a valid base
+			if (!OutHit.Component.IsValid())
+			{
+				continue; 
 			}
 		}
 

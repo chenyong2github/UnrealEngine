@@ -10,14 +10,32 @@
 
 #define LOCTEXT_NAMESPACE "UMG"
 
+static FButtonStyle* DefaultInputKeySelectorButtonStyle = nullptr;
+static FTextBlockStyle* DefaultInputKeySelectorTextStyle = nullptr;
+
 UInputKeySelector::UInputKeySelector( const FObjectInitializer& ObjectInitializer )
 	: Super(ObjectInitializer)
 {
-	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-	static const FButtonStyle StaticButtonStyle = FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("Button");
-	static const FTextBlockStyle StaticNormalTextStyle = FCoreStyle::Get().GetWidgetStyle< FTextBlockStyle >("NormalText");
-	WidgetStyle = StaticButtonStyle;
-	TextStyle = StaticNormalTextStyle;
+	if (DefaultInputKeySelectorButtonStyle == nullptr)
+	{
+		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
+		DefaultInputKeySelectorButtonStyle = new FButtonStyle(FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("Button"));
+
+		// Unlink UMG default colors from the editor settings colors.
+		DefaultInputKeySelectorButtonStyle->UnlinkColors();
+	}
+
+	if (DefaultInputKeySelectorTextStyle == nullptr)
+	{
+		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
+		DefaultInputKeySelectorTextStyle = new FTextBlockStyle(FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"));
+
+		// Unlink UMG default colors from the editor settings colors.
+		DefaultInputKeySelectorTextStyle->UnlinkColors();
+	}
+
+	WidgetStyle = *DefaultInputKeySelectorButtonStyle;
+	TextStyle = *DefaultInputKeySelectorTextStyle;
 
 	KeySelectionText = NSLOCTEXT("InputKeySelector", "DefaultKeySelectionText", "...");
 	NoKeySpecifiedText = NSLOCTEXT("InputKeySelector", "DefaultEmptyText", "Empty");

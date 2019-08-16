@@ -86,7 +86,7 @@ FD3D12CommandContextBase::FD3D12CommandContextBase(class FD3D12Adapter* InParent
 FD3D12CommandContext::FD3D12CommandContext(FD3D12Device* InParent, FD3D12SubAllocatedOnlineHeap::SubAllocationDesc& SubHeapDesc, bool InIsDefaultContext, bool InIsAsyncComputeContext) :
 	FD3D12CommandContextBase(InParent->GetParentAdapter(), InParent->GetGPUMask(), InIsDefaultContext, InIsAsyncComputeContext),
 	FD3D12DeviceChild(InParent),
-	ConstantsAllocator(InParent, InParent->GetGPUMask(), GetConstantAllocatorSize(InIsAsyncComputeContext, InIsDefaultContext) ),
+	ConstantsAllocator(InParent, InParent->GetGPUMask(), GetConstantAllocatorSize(InIsAsyncComputeContext, InIsDefaultContext)),
 	CommandListHandle(),
 	CommandAllocator(nullptr),
 	CommandAllocatorManager(InParent, InIsAsyncComputeContext ? D3D12_COMMAND_LIST_TYPE_COMPUTE : D3D12_COMMAND_LIST_TYPE_DIRECT),
@@ -97,6 +97,7 @@ FD3D12CommandContext::FD3D12CommandContext(FD3D12Device* InParent, FD3D12SubAllo
 	NumSimultaneousRenderTargets(0),
 	NumUAVs(0),
 	CurrentDSVAccessType(FExclusiveDepthStencil::DepthWrite_StencilWrite),
+	bOuterOcclusionQuerySubmitted(false),
 	bDiscardSharedConstants(false),
 	bUsingTessellation(false),
 	SkipFastClearEliminateState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),
@@ -414,6 +415,20 @@ void FD3D12CommandContextBase::RHIEndFrame()
 	{
 		FD3D12Device* Device = ParentAdapter->GetDevice(GPUIndex);
 
+		FD3D12CommandContext& DefaultContext = Device->GetDefaultCommandContext();
+		DefaultContext.CommandListHandle.FlushResourceBarriers();
+
+		DefaultContext.ReleaseCommandAllocator();
+		DefaultContext.ClearState();
+		DefaultContext.FlushCommands();
+
+		if (GEnableAsyncCompute)
+		{
+			FD3D12CommandContext& DefaultAsyncComputeContext = Device->GetDefaultAsyncComputeContext();
+			DefaultAsyncComputeContext.ReleaseCommandAllocator();
+			DefaultAsyncComputeContext.ClearState();
+		}
+
 		const uint32 NumContexts = Device->GetNumContexts();
 		for (uint32 i = 0; i < NumContexts; ++i)
 		{
@@ -451,6 +466,16 @@ void FD3D12CommandContextBase::RHIEndFrame()
 	}
 
 		UpdateMemoryStats();
+
+	    // Stop Timing at the very last moment
+    
+	    ParentAdapter->GetGPUProfiler().EndFrame(ParentAdapter->GetOwningRHI());
+    
+    
+	    // Advance frame fence
+    
+	    FD3D12ManualFence& FrameFence = ParentAdapter->GetFrameFence();
+	    FrameFence.Signal(ED3D12CommandQueueType::Default, FrameFence.IncrementCurrentFence());
 	}
 
 void FD3D12CommandContextBase::UpdateMemoryStats()
@@ -688,86 +713,7 @@ FD3D12CommandContextRedirector::FD3D12CommandContextRedirector(class FD3D12Adapt
 	FMemory::Memzero(PhysicalContexts, sizeof(PhysicalContexts[0]) * MAX_NUM_GPUS);
 }
 
-void FD3D12CommandContextRedirector::RHIBeginDrawPrimitiveUP(uint32 NumPrimitives, uint32 NumVertices, uint32 VertexDataStride, void*& OutVertexData)
-{
-	check(!PendingUP);
-
-	PendingUP.NumPrimitives = NumPrimitives;
-	PendingUP.NumVertices = NumVertices;
-	PendingUP.VertexDataStride = VertexDataStride;
-	OutVertexData = PendingUP.VertexData = FMemory::Malloc(NumVertices * VertexDataStride, 16);
-}
-	
-void FD3D12CommandContextRedirector::RHIEndDrawPrimitiveUP()
-{
-	if (PendingUP.VertexData)
-	{
-		for (uint32 GPUIndex : GPUMask)
-		{
-			FD3D12CommandContext* GPUContext = PhysicalContexts[GPUIndex];
-			check(GPUContext);
-
-			void* GPUVertexData = nullptr;
-			GPUContext->RHIBeginDrawPrimitiveUP(PendingUP.NumPrimitives, PendingUP.NumVertices, PendingUP.VertexDataStride, GPUVertexData);
-			if (GPUVertexData)
-			{
-				FMemory::Memcpy(GPUVertexData, PendingUP.VertexData, PendingUP.NumVertices * PendingUP.VertexDataStride);
-			}
-			GPUContext->RHIEndDrawPrimitiveUP();
-		}
-
-		FMemory::Free(PendingUP.VertexData);
-	}
-
-	PendingUP.Reset();
-}
-	
-void FD3D12CommandContextRedirector::RHIBeginDrawIndexedPrimitiveUP(uint32 NumPrimitives, uint32 NumVertices, uint32 VertexDataStride, void*& OutVertexData, uint32 MinVertexIndex, uint32 NumIndices, uint32 IndexDataStride, void*& OutIndexData)
-{
-	check(!PendingUP);
-
-	PendingUP.NumPrimitives = NumPrimitives;
-	PendingUP.NumVertices = NumVertices;
-	PendingUP.VertexDataStride = VertexDataStride;
-	OutVertexData = PendingUP.VertexData = FMemory::Malloc(NumVertices * VertexDataStride);
-
-	PendingUP.MinVertexIndex = MinVertexIndex;
-	PendingUP.NumIndices = NumIndices;
-	PendingUP.IndexDataStride = IndexDataStride;
-	OutIndexData = PendingUP.IndexData = FMemory::Malloc(NumIndices * IndexDataStride);
-}
-	
-void FD3D12CommandContextRedirector::RHIEndDrawIndexedPrimitiveUP()
-{
-	if (PendingUP.VertexData && PendingUP.IndexData)
-	{
-		for (uint32 GPUIndex : GPUMask)
-		{
-			FD3D12CommandContext* GPUContext = PhysicalContexts[GPUIndex];
-			check(GPUContext);
-
-			void* GPUVertexData = nullptr;
-			void* GPUIndexData = nullptr;
-			GPUContext->RHIBeginDrawIndexedPrimitiveUP(PendingUP.NumPrimitives, PendingUP.NumVertices, PendingUP.VertexDataStride, GPUVertexData, PendingUP.MinVertexIndex, PendingUP.NumIndices, PendingUP.IndexDataStride, GPUIndexData);
-			if (GPUVertexData)
-			{
-				FMemory::Memcpy(GPUVertexData, PendingUP.VertexData, PendingUP.NumVertices * PendingUP.VertexDataStride);
-			}
-			if (GPUIndexData)
-			{
-				FMemory::Memcpy(GPUIndexData, PendingUP.IndexData, PendingUP.NumIndices * PendingUP.IndexDataStride);
-			}
-			GPUContext->RHIEndDrawIndexedPrimitiveUP();
-		}
-
-		FMemory::Free(PendingUP.VertexData);
-		FMemory::Free(PendingUP.IndexData);
-	}
-
-	PendingUP.Reset();
-}
-
-void FD3D12CommandContextRedirector::RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FUnorderedAccessViewRHIParamRef* InUAVs, int32 NumUAVs, FComputeFenceRHIParamRef WriteComputeFenceRHI)
+void FD3D12CommandContextRedirector::RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView** InUAVs, int32 NumUAVs, FRHIComputeFence* WriteComputeFenceRHI)
 {
 	ContextRedirect(RHITransitionResources(TransitionType, TransitionPipeline, InUAVs, NumUAVs, nullptr));
 

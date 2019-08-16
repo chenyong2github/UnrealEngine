@@ -46,7 +46,12 @@
 #include "Physics/PhysicsInterfaceUtils.h"
 
 #if WITH_EDITOR && WITH_PHYSX
-	#include "Physics/IPhysXCooking.h"
+	#include "IPhysXCooking.h"
+#endif
+
+#if WITH_CHAOS
+#include "PhysXToChaosUtil.h"
+#include "Chaos/ParticleHandle.h"
 #endif
 
 using namespace PhysicsInterfaceTypes;
@@ -197,15 +202,18 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 			// Make transform for this landscape component PxActor
 			FTransform LandscapeComponentTransform = GetComponentToWorld();
 			FMatrix LandscapeComponentMatrix = LandscapeComponentTransform.ToMatrixWithScale();
+			FTransform LandscapeShapeTM = FTransform::Identity;
+
+			// Get the scale to give to PhysX
+			FVector LandscapeScale = LandscapeComponentMatrix.ExtractScaling();
+
 			bool bIsMirrored = LandscapeComponentMatrix.Determinant() < 0.f;
 			if (!bIsMirrored)
 			{
 				// Unreal and PhysX have opposite handedness, so we need to translate the origin and rearrange the data
-				LandscapeComponentMatrix = FTranslationMatrix(FVector(CollisionSizeQuads*CollisionScale, 0, 0)) * LandscapeComponentMatrix;
+				LandscapeShapeTM.SetTranslation(FVector(-CollisionSizeQuads*CollisionScale*LandscapeScale.X, 0, 0));
 			}
 
-			// Get the scale to give to PhysX
-			FVector LandscapeScale = LandscapeComponentMatrix.ExtractScaling();
 
 			// Reorder the axes
 			FVector TerrainX = LandscapeComponentMatrix.GetScaledAxis(EAxis::X);
@@ -230,6 +238,7 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 				// Create the sync scene actor
 				PxRigidStatic* HeightFieldActorSync = GPhysXSDK->createRigidStatic(PhysXLandscapeComponentTransform);
 				PxShape* HeightFieldShapeSync = GPhysXSDK->createShape(LandscapeComponentGeom, HeightfieldRef->UsedPhysicalMaterialArray.GetData(), HeightfieldRef->UsedPhysicalMaterialArray.Num(), true);
+				HeightFieldShapeSync->setLocalPose(U2PTransform(LandscapeShapeTM));
 				check(HeightFieldShapeSync);
 
 				// Setup filtering
@@ -247,6 +256,31 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 
 				HeightFieldActorSync->attachShape(*HeightFieldShapeSync);
 
+#if WITH_CHAOS
+				FActorCreationParams Params;
+				Params.InitialTM = LandscapeShapeTM;
+				Params.bQueryOnly = true;
+				Params.Scene = GetWorld()->GetPhysicsScene();
+				FPhysicsActorHandle PhysHandle;
+				FPhysicsInterface::CreateActor(Params, PhysHandle);
+
+				TUniquePtr<Chaos::TImplicitObjectTransformed<float, 3>> ChaosHeightField = PxShapeToChaosGeom(HeightFieldShapeSync);
+				TUniquePtr<Chaos::TPerShapeData<float, 3>> NewShape = MakeUnique<Chaos::TPerShapeData<float, 3>>();
+
+				NewShape->Geometry = ChaosHeightField.Get();
+				NewShape->QueryData = QueryFilterData;
+				NewShape->SimData = SimFilterData;
+
+				Chaos::TShapesArray<float, 3> ShapeArray;
+				ShapeArray.Emplace(MoveTemp(NewShape));
+				PhysHandle->SetGeometry(MoveTemp(ChaosHeightField));
+				PhysHandle->SetShapesArray(MoveTemp(ShapeArray));
+
+				FTransform ActorTM(LandscapeComponentMatrix);
+				PhysHandle->SetX(ActorTM.GetTranslation());
+				PhysHandle->SetR(ActorTM.GetRotation());
+#endif
+
 				// attachShape holds its own ref(), so release this here.
 				HeightFieldShapeSync->release();
 
@@ -255,6 +289,7 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 					PxHeightFieldGeometry LandscapeComponentGeomSimple(HeightfieldRef->RBHeightfieldSimple, PxMeshGeometryFlags(), LandscapeScale.Z * LANDSCAPE_ZSCALE, LandscapeScale.Y * SimpleCollisionScale, LandscapeScale.X * SimpleCollisionScale);
 					check(LandscapeComponentGeomSimple.isValid());
 					PxShape* HeightFieldShapeSimpleSync = GPhysXSDK->createShape(LandscapeComponentGeomSimple, HeightfieldRef->UsedPhysicalMaterialArray.GetData(), HeightfieldRef->UsedPhysicalMaterialArray.Num(), true);
+					HeightFieldShapeSimpleSync->setLocalPose(U2PTransform(LandscapeShapeTM));
 					check(HeightFieldShapeSimpleSync);
 
 					// Setup filtering
@@ -281,12 +316,13 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 					PxHeightFieldGeometry LandscapeComponentGeomEd(HeightfieldRef->RBHeightfieldEd, PxMeshGeometryFlags(), LandscapeScale.Z * LANDSCAPE_ZSCALE, LandscapeScale.Y * CollisionScale, LandscapeScale.X * CollisionScale);
 					if (LandscapeComponentGeomEd.isValid())
 					{
-#if WITH_CHAOS || WITH_IMMEDIATE_PHYSX || PHYSICS_INTERFACE_LLIMMEDIATE
+#if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
                         ensure(false);
 #else
 						FPhysicsMaterialHandle_PhysX MaterialHandle = GEngine->DefaultPhysMaterial->GetPhysicsMaterial();
 						PxMaterial* PDefaultMat = MaterialHandle.Material;
 						PxShape* HeightFieldEdShapeSync = GPhysXSDK->createShape(LandscapeComponentGeomEd, &PDefaultMat, 1, true);
+						HeightFieldEdShapeSync->setLocalPose(U2PTransform(LandscapeShapeTM));
 						check(HeightFieldEdShapeSync);
 
 						FCollisionResponseContainer CollisionResponse;
@@ -311,14 +347,16 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 				FPhysScene* PhysScene = GetWorld()->GetPhysicsScene();
 
 				// Set body instance data
-				BodyInstance.PhysxUserData = FPhysxUserData(&BodyInstance);
+				BodyInstance.PhysicsUserData = FPhysicsUserData(&BodyInstance);
 				BodyInstance.OwnerComponent = this;
 
-#if WITH_CHAOS || WITH_IMMEDIATE_PHYSX || PHYSICS_INTERFACE_LLIMMEDIATE
-                ensure(false);
+#if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
+				TArray<FPhysicsActorHandle> Actors;
+				Actors.Add(PhysHandle);
+				PhysScene->AddActorsToScene_AssumesLocked(Actors);
 #else
 				BodyInstance.ActorHandle.SyncActor = HeightFieldActorSync;
-				HeightFieldActorSync->userData = &BodyInstance.PhysxUserData;
+				HeightFieldActorSync->userData = &BodyInstance.PhysicsUserData;
 
 				// Add to scenes
 				PxScene* SyncScene = PhysScene->GetPxScene();
@@ -401,7 +439,7 @@ void ULandscapeHeightfieldCollisionComponent::CreateCollisionObject()
 
 				for (UPhysicalMaterial* PhysicalMaterial : CookedPhysicalMaterials)
 				{
-#if WITH_CHAOS || WITH_IMMEDIATE_PHYSX || PHYSICS_INTERFACE_LLIMMEDIATE
+#if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
                     ensure(false);
 #else
 					const FPhysicsMaterialHandle_PhysX& MaterialHandle = PhysicalMaterial->GetPhysicsMaterial();
@@ -903,7 +941,7 @@ void ULandscapeMeshCollisionComponent::CreateCollisionObject()
 
 				for (UPhysicalMaterial* PhysicalMaterial : CookedPhysicalMaterials)
 				{
-#if WITH_CHAOS || WITH_IMMEDIATE_PHYSX || PHYSICS_INTERFACE_LLIMMEDIATE
+#if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
                     ensure(false);
 #else
 					MeshRef->UsedPhysicalMaterialArray.Add(PhysicalMaterial->GetPhysicsMaterial().Material);
@@ -1006,7 +1044,7 @@ void ULandscapeMeshCollisionComponent::OnCreatePhysicsState()
 					PTriMeshGeomEd.scale.scale.z = LandscapeScale.Z;
 					if (PTriMeshGeomEd.isValid())
 					{
-#if WITH_CHAOS || WITH_IMMEDIATE_PHYSX || PHYSICS_INTERFACE_LLIMMEDIATE
+#if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
                         ensure(false);
 #else
 						PxMaterial* PDefaultMat = GEngine->DefaultPhysMaterial->GetPhysicsMaterial().Material;
@@ -1031,14 +1069,14 @@ void ULandscapeMeshCollisionComponent::OnCreatePhysicsState()
 #endif// WITH_EDITOR
 
 				// Set body instance data
-				BodyInstance.PhysxUserData = FPhysxUserData(&BodyInstance);
+				BodyInstance.PhysicsUserData = FPhysicsUserData(&BodyInstance);
 				BodyInstance.OwnerComponent = this;
 
-#if WITH_CHAOS || WITH_IMMEDIATE_PHYSX || PHYSICS_INTERFACE_LLIMMEDIATE
+#if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
                 ensure(false);
 #else
 				BodyInstance.ActorHandle.SyncActor = MeshActorSync;
-				MeshActorSync->userData = &BodyInstance.PhysxUserData;
+				MeshActorSync->userData = &BodyInstance.PhysicsUserData;
 
 				// Add to scenes
 				PxScene* SyncScene = PhysScene->GetPxScene();
@@ -1111,7 +1149,7 @@ void ULandscapeHeightfieldCollisionComponent::UpdateHeightfieldRegion(int32 Comp
 			return;
 		}
 
-#if WITH_CHAOS || WITH_IMMEDIATE_PHYSX || PHYSICS_INTERFACE_LLIMMEDIATE
+#if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
         ensure(false);
 #else
 		if (BodyInstance.ActorHandle.SyncActor == NULL)

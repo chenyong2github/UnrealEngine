@@ -1,6 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-
 #pragma once
 
 #include "CoreTypes.h"
@@ -203,12 +202,12 @@ private:
 	FSHAHash Hash;
 };
 
-class FRHIVertexShader : public FRHIShader {};
-class FRHIHullShader : public FRHIShader {};
-class FRHIDomainShader : public FRHIShader {};
-class FRHIPixelShader : public FRHIShader {};
-class FRHIGeometryShader : public FRHIShader {};
-class FRHIRayTracingShader : public FRHIShader {};
+class RHI_VTABLE FRHIVertexShader : public FRHIShader {};
+class RHI_VTABLE FRHIHullShader : public FRHIShader {};
+class RHI_VTABLE FRHIDomainShader : public FRHIShader {};
+class RHI_VTABLE FRHIPixelShader : public FRHIShader {};
+class RHI_VTABLE FRHIGeometryShader : public FRHIShader {};
+class RHI_VTABLE FRHIRayTracingShader : public FRHIShader {};
 
 class RHI_API FRHIComputeShader : public FRHIShader
 {
@@ -737,7 +736,7 @@ public:
 		return FIntPoint(SizeX, SizeY);
 	}
 
-	virtual FIntVector GetSizeXYZ() const final override
+	virtual FIntVector GetSizeXYZ() const override
 	{
 		return FIntVector(SizeX, SizeY, 1);
 	}
@@ -748,39 +747,31 @@ private:
 	uint32 SizeY;
 };
 
-class RHI_API FRHITexture2DArray : public FRHITexture
+class RHI_API FRHITexture2DArray : public FRHITexture2D
 {
 public:
 	
 	/** Initialization constructor. */
-	FRHITexture2DArray(uint32 InSizeX,uint32 InSizeY,uint32 InSizeZ,uint32 InNumMips,EPixelFormat InFormat,uint32 InFlags, const FClearValueBinding& InClearValue)
-	: FRHITexture(InNumMips,1,InFormat,InFlags,NULL, InClearValue)
-	, SizeX(InSizeX)
-	, SizeY(InSizeY)
+	FRHITexture2DArray(uint32 InSizeX,uint32 InSizeY,uint32 InSizeZ,uint32 InNumMips,uint32 NumSamples, EPixelFormat InFormat,uint32 InFlags, const FClearValueBinding& InClearValue)
+	: FRHITexture2D(InSizeX, InSizeY, InNumMips,NumSamples,InFormat,InFlags, InClearValue)
 	, SizeZ(InSizeZ)
 	{}
 	
 	// Dynamic cast methods.
 	virtual FRHITexture2DArray* GetTexture2DArray() { return this; }
-	
-	/** @return The width of the textures in the array. */
-	uint32 GetSizeX() const { return SizeX; }
-	
-	/** @return The height of the texture in the array. */
-	uint32 GetSizeY() const { return SizeY; }
+
+	virtual FRHITexture2D* GetTexture2D() { return NULL; }
 
 	/** @return The number of textures in the array. */
 	uint32 GetSizeZ() const { return SizeZ; }
 
 	virtual FIntVector GetSizeXYZ() const final override
 	{
-		return FIntVector(SizeX, SizeY, SizeZ);
+		return FIntVector(GetSizeX(), GetSizeY(), SizeZ);
 	}
 
 private:
 
-	uint32 SizeX;
-	uint32 SizeY;
 	uint32 SizeZ;
 };
 
@@ -913,6 +904,8 @@ public:
 	 */
 	virtual bool Poll() const = 0;
 
+	const FName& GetFName() const { return FenceName; }
+
 protected:
 	FName FenceName;
 };
@@ -935,6 +928,69 @@ private:
 };
 
 class FRHIRenderQuery : public FRHIResource {};
+
+class FRHIRenderQueryPool;
+class RHI_API FRHIPooledRenderQuery
+{
+	TRefCountPtr<FRHIRenderQuery> Query;
+	FRHIRenderQueryPool* QueryPool = nullptr;
+
+public:
+	FRHIPooledRenderQuery() = default;
+	FRHIPooledRenderQuery(FRHIRenderQueryPool* InQueryPool, TRefCountPtr<FRHIRenderQuery>&& InQuery);
+	~FRHIPooledRenderQuery();
+
+	FRHIPooledRenderQuery(const FRHIPooledRenderQuery&) = delete;
+	FRHIPooledRenderQuery& operator=(const FRHIPooledRenderQuery&) = delete;
+	FRHIPooledRenderQuery(FRHIPooledRenderQuery&&) = default;
+	FRHIPooledRenderQuery& operator=(FRHIPooledRenderQuery&&) = default;
+
+	bool IsValid() const
+	{
+		return Query.IsValid();
+	}
+
+	FRHIRenderQuery* GetQuery() const
+	{
+		return Query;
+	}
+
+	void ReleaseQuery();
+};
+
+class RHI_API FRHIRenderQueryPool : public FRHIResource
+{
+public:
+	virtual ~FRHIRenderQueryPool() {};
+	virtual FRHIPooledRenderQuery AllocateQuery() = 0;
+
+private:
+	friend class FRHIPooledRenderQuery;
+	virtual void ReleaseQuery(TRefCountPtr<FRHIRenderQuery>&& Query) = 0;
+};
+
+inline FRHIPooledRenderQuery::FRHIPooledRenderQuery(FRHIRenderQueryPool* InQueryPool, TRefCountPtr<FRHIRenderQuery>&& InQuery) 
+	: Query(MoveTemp(InQuery))
+	, QueryPool(InQueryPool)
+{
+	check(IsInRenderingThread());
+}
+
+inline void FRHIPooledRenderQuery::ReleaseQuery()
+{
+	if (QueryPool && Query.IsValid())
+	{
+		QueryPool->ReleaseQuery(MoveTemp(Query));
+		QueryPool = nullptr;
+	}
+	check(!Query.IsValid());
+}
+
+inline FRHIPooledRenderQuery::~FRHIPooledRenderQuery()
+{
+	check(IsInRenderingThread());
+	ReleaseQuery();
+}
 
 class FRHIComputeFence : public FRHIResource
 {
@@ -1034,96 +1090,129 @@ class FRHIUnorderedAccessView : public FRHIResource {};
 class FRHIShaderResourceView : public FRHIResource {};
 
 
+UE_DEPRECATED(4.23, "FSamplerStateRHIParamRef typedef is deprecated; please use FRHISamplerState* directly instead.")
 typedef FRHISamplerState*              FSamplerStateRHIParamRef;
 typedef TRefCountPtr<FRHISamplerState> FSamplerStateRHIRef;
 
+UE_DEPRECATED(4.23, "FRasterizerStateRHIParamRef typedef is deprecated; please use FRHIRasterizerState* directly instead.")
 typedef FRHIRasterizerState*              FRasterizerStateRHIParamRef;
 typedef TRefCountPtr<FRHIRasterizerState> FRasterizerStateRHIRef;
 
+UE_DEPRECATED(4.23, "FDepthStencilStateRHIParamRef typedef is deprecated; please use FRHIDepthStencilState* directly instead.")
 typedef FRHIDepthStencilState*              FDepthStencilStateRHIParamRef;
 typedef TRefCountPtr<FRHIDepthStencilState> FDepthStencilStateRHIRef;
 
+UE_DEPRECATED(4.23, "FBlendStateRHIParamRef typedef is deprecated; please use FRHIBlendState* directly instead.")
 typedef FRHIBlendState*              FBlendStateRHIParamRef;
 typedef TRefCountPtr<FRHIBlendState> FBlendStateRHIRef;
 
+UE_DEPRECATED(4.23, "FVertexDeclarationRHIParamRef typedef is deprecated; please use FRHIVertexDeclaration* directly instead.")
 typedef FRHIVertexDeclaration*              FVertexDeclarationRHIParamRef;
 typedef TRefCountPtr<FRHIVertexDeclaration> FVertexDeclarationRHIRef;
 
+UE_DEPRECATED(4.23, "FVertexShaderRHIParamRef typedef is deprecated; please use FRHIVertexShader* directly instead.")
 typedef FRHIVertexShader*              FVertexShaderRHIParamRef;
 typedef TRefCountPtr<FRHIVertexShader> FVertexShaderRHIRef;
 
+UE_DEPRECATED(4.23, "FHullShaderRHIParamRef typedef is deprecated; please use FRHIHullShader* directly instead.")
 typedef FRHIHullShader*              FHullShaderRHIParamRef;
 typedef TRefCountPtr<FRHIHullShader> FHullShaderRHIRef;
 
+UE_DEPRECATED(4.23, "FDomainShaderRHIParamRef typedef is deprecated; please use FRHIDomainShader* directly instead.")
 typedef FRHIDomainShader*              FDomainShaderRHIParamRef;
 typedef TRefCountPtr<FRHIDomainShader> FDomainShaderRHIRef;
 
+UE_DEPRECATED(4.23, "FPixelShaderRHIParamRef typedef is deprecated; please use FRHIPixelShader* directly instead.")
 typedef FRHIPixelShader*              FPixelShaderRHIParamRef;
 typedef TRefCountPtr<FRHIPixelShader> FPixelShaderRHIRef;
 
+UE_DEPRECATED(4.23, "FGeometryShaderRHIParamRef typedef is deprecated; please use FRHIGeometryShader* directly instead.")
 typedef FRHIGeometryShader*              FGeometryShaderRHIParamRef;
 typedef TRefCountPtr<FRHIGeometryShader> FGeometryShaderRHIRef;
 
+UE_DEPRECATED(4.23, "FComputeShaderRHIParamRef typedef is deprecated; please use FRHIComputeShader* directly instead.")
 typedef FRHIComputeShader*              FComputeShaderRHIParamRef;
 typedef TRefCountPtr<FRHIComputeShader> FComputeShaderRHIRef;
 
+UE_DEPRECATED(4.23, "FRayTracingShaderRHIParamRef typedef is deprecated; please use FRHIRayTracingShader* directly instead.")
 typedef FRHIRayTracingShader*                       FRayTracingShaderRHIParamRef;
 typedef TRefCountPtr<FRHIRayTracingShader>          FRayTracingShaderRHIRef;
 
+UE_DEPRECATED(4.23, "FComputeFenceRHIParamRef typedef is deprecated; please use FRHIComputeFence* directly instead.")
 typedef FRHIComputeFence*				FComputeFenceRHIParamRef;
 typedef TRefCountPtr<FRHIComputeFence>	FComputeFenceRHIRef;
 
+UE_DEPRECATED(4.23, "FBoundShaderStateRHIParamRef typedef is deprecated; please use FRHIBoundShaderState* directly instead.")
 typedef FRHIBoundShaderState*              FBoundShaderStateRHIParamRef;
 typedef TRefCountPtr<FRHIBoundShaderState> FBoundShaderStateRHIRef;
 
+UE_DEPRECATED(4.23, "FUniformBufferRHIParamRef typedef is deprecated; please use FRHIUniformBuffer* directly instead.")
 typedef FRHIUniformBuffer*              FUniformBufferRHIParamRef;
 typedef TRefCountPtr<FRHIUniformBuffer> FUniformBufferRHIRef;
 
+UE_DEPRECATED(4.23, "FIndexBufferRHIParamRef typedef is deprecated; please use FRHIIndexBuffer* directly instead.")
 typedef FRHIIndexBuffer*              FIndexBufferRHIParamRef;
 typedef TRefCountPtr<FRHIIndexBuffer> FIndexBufferRHIRef;
 
+UE_DEPRECATED(4.23, "FVertexBufferRHIParamRef typedef is deprecated; please use FRHIVertexBuffer* directly instead.")
 typedef FRHIVertexBuffer*              FVertexBufferRHIParamRef;
 typedef TRefCountPtr<FRHIVertexBuffer> FVertexBufferRHIRef;
 
+UE_DEPRECATED(4.23, "FStructuredBufferRHIParamRef typedef is deprecated; please use FRHIStructuredBuffer* directly instead.")
 typedef FRHIStructuredBuffer*              FStructuredBufferRHIParamRef;
 typedef TRefCountPtr<FRHIStructuredBuffer> FStructuredBufferRHIRef;
 
+UE_DEPRECATED(4.23, "FTextureRHIParamRef typedef is deprecated; please use FRHITexture* directly instead.")
 typedef FRHITexture*              FTextureRHIParamRef;
 typedef TRefCountPtr<FRHITexture> FTextureRHIRef;
 
+UE_DEPRECATED(4.23, "FTexture2DRHIParamRef typedef is deprecated; please use FRHITexture2D* directly instead.")
 typedef FRHITexture2D*              FTexture2DRHIParamRef;
 typedef TRefCountPtr<FRHITexture2D> FTexture2DRHIRef;
 
+UE_DEPRECATED(4.23, "FTexture2DArrayRHIParamRef typedef is deprecated; please use FRHITexture2DArray* directly instead.")
 typedef FRHITexture2DArray*              FTexture2DArrayRHIParamRef;
 typedef TRefCountPtr<FRHITexture2DArray> FTexture2DArrayRHIRef;
 
+UE_DEPRECATED(4.23, "FTexture3DRHIParamRef typedef is deprecated; please use FRHITexture3D* directly instead.")
 typedef FRHITexture3D*              FTexture3DRHIParamRef;
 typedef TRefCountPtr<FRHITexture3D> FTexture3DRHIRef;
 
+UE_DEPRECATED(4.23, "FTextureCubeRHIParamRef typedef is deprecated; please use FRHITextureCube* directly instead.")
 typedef FRHITextureCube*              FTextureCubeRHIParamRef;
 typedef TRefCountPtr<FRHITextureCube> FTextureCubeRHIRef;
 
+UE_DEPRECATED(4.23, "FTextureReferenceRHIParamRef typedef is deprecated; please use FRHITextureReference* directly instead.")
 typedef FRHITextureReference*              FTextureReferenceRHIParamRef;
 typedef TRefCountPtr<FRHITextureReference> FTextureReferenceRHIRef;
 
+UE_DEPRECATED(4.23, "FRenderQueryRHIParamRef typedef is deprecated; please use FRHIRenderQuery* directly instead.")
 typedef FRHIRenderQuery*              FRenderQueryRHIParamRef;
 typedef TRefCountPtr<FRHIRenderQuery> FRenderQueryRHIRef;
 
+typedef TRefCountPtr<FRHIRenderQueryPool> FRenderQueryPoolRHIRef;
+
+UE_DEPRECATED(4.23, "FGPUFenceRHIParamRef typedef is deprecated; please use FRHIGPUFence* directly instead.")
 typedef FRHIGPUFence*				FGPUFenceRHIParamRef;
 typedef TRefCountPtr<FRHIGPUFence>	FGPUFenceRHIRef;
 
+UE_DEPRECATED(4.23, "FViewportRHIParamRef typedef is deprecated; please use FRHIViewport* directly instead.")
 typedef FRHIViewport*              FViewportRHIParamRef;
 typedef TRefCountPtr<FRHIViewport> FViewportRHIRef;
 
+UE_DEPRECATED(4.23, "FUnorderedAccessViewRHIParamRef typedef is deprecated; please use FRHIUnorderedAccessView* directly instead.")
 typedef FRHIUnorderedAccessView*              FUnorderedAccessViewRHIParamRef;
 typedef TRefCountPtr<FRHIUnorderedAccessView> FUnorderedAccessViewRHIRef;
 
+UE_DEPRECATED(4.23, "FShaderResourceViewRHIParamRef typedef is deprecated; please use FRHIShaderResourceView* directly instead.")
 typedef FRHIShaderResourceView*              FShaderResourceViewRHIParamRef;
 typedef TRefCountPtr<FRHIShaderResourceView> FShaderResourceViewRHIRef;
 
+UE_DEPRECATED(4.23, "FGraphicsPipelineStateRHIParamRef typedef is deprecated; please use FRHIGraphicsPipelineState* directly instead.")
 typedef FRHIGraphicsPipelineState*              FGraphicsPipelineStateRHIParamRef;
 typedef TRefCountPtr<FRHIGraphicsPipelineState> FGraphicsPipelineStateRHIRef;
 
+UE_DEPRECATED(4.23, "FRayTracingPipelineStateRHIParamRef typedef is deprecated; please use FRHIRayTracingPipelineState* directly instead.")
 typedef FRHIRayTracingPipelineState*              FRayTracingPipelineStateRHIParamRef;
 typedef TRefCountPtr<FRHIRayTracingPipelineState> FRayTracingPipelineStateRHIRef;
 
@@ -1135,6 +1224,7 @@ typedef TRefCountPtr<FRHIRayTracingPipelineState> FRayTracingPipelineStateRHIRef
 /** Bottom level ray tracing acceleration structure (contains triangles). */
 class FRHIRayTracingGeometry : public FRHIResource {};
 
+UE_DEPRECATED(4.23, "FRayTracingGeometryRHIParamRef typedef is deprecated; please use FRHIRayTracingGeometry* directly instead.")
 typedef FRHIRayTracingGeometry*                  FRayTracingGeometryRHIParamRef;
 typedef TRefCountPtr<FRHIRayTracingGeometry>     FRayTracingGeometryRHIRef;
 
@@ -1142,11 +1232,12 @@ typedef TRefCountPtr<FRHIRayTracingGeometry>     FRayTracingGeometryRHIRef;
 class FRHIRayTracingScene : public FRHIResource
 {
 public:
-	FShaderResourceViewRHIParamRef GetShaderResourceView() { return ShaderResourceView; }
+	FRHIShaderResourceView* GetShaderResourceView() { return ShaderResourceView; }
 protected:
 	FShaderResourceViewRHIRef ShaderResourceView;
 };
 
+UE_DEPRECATED(4.23, "FRayTracingSceneRHIParamRef typedef is deprecated; please use FRHIRayTracingScene* directly instead.")
 typedef FRHIRayTracingScene*                     FRayTracingSceneRHIParamRef;
 typedef TRefCountPtr<FRHIRayTracingScene>        FRayTracingSceneRHIRef;
 
@@ -1184,13 +1275,14 @@ public:
 	uint32 Offset;
 };
 
+UE_DEPRECATED(4.23, "FStagingBufferRHIParamRef typedef is deprecated; please use FRHIStagingBuffer* directly instead.")
 typedef FRHIStagingBuffer*				FStagingBufferRHIParamRef;
 typedef TRefCountPtr<FRHIStagingBuffer>	FStagingBufferRHIRef;
 
 class FRHIRenderTargetView
 {
 public:
-	FTextureRHIParamRef Texture;
+	FRHITexture* Texture;
 	uint32 MipIndex;
 
 	/** Array slice or texture cube face.  Only valid if texture resource was created with TexCreate_TargetArraySlicesIndependently! */
@@ -1216,7 +1308,7 @@ public:
 	{}
 
 	//common case
-	explicit FRHIRenderTargetView(FTextureRHIParamRef InTexture, ERenderTargetLoadAction InLoadAction) :
+	explicit FRHIRenderTargetView(FRHITexture* InTexture, ERenderTargetLoadAction InLoadAction) :
 		Texture(InTexture),
 		MipIndex(0),
 		ArraySliceIndex(-1),
@@ -1225,7 +1317,7 @@ public:
 	{}
 
 	//common case
-	explicit FRHIRenderTargetView(FTextureRHIParamRef InTexture, ERenderTargetLoadAction InLoadAction, uint32 InMipIndex, uint32 InArraySliceIndex) :
+	explicit FRHIRenderTargetView(FRHITexture* InTexture, ERenderTargetLoadAction InLoadAction, uint32 InMipIndex, uint32 InArraySliceIndex) :
 		Texture(InTexture),
 		MipIndex(InMipIndex),
 		ArraySliceIndex(InArraySliceIndex),
@@ -1233,7 +1325,7 @@ public:
 		StoreAction(ERenderTargetStoreAction::EStore)
 	{}
 	
-	explicit FRHIRenderTargetView(FTextureRHIParamRef InTexture, uint32 InMipIndex, uint32 InArraySliceIndex, ERenderTargetLoadAction InLoadAction, ERenderTargetStoreAction InStoreAction) :
+	explicit FRHIRenderTargetView(FRHITexture* InTexture, uint32 InMipIndex, uint32 InArraySliceIndex, ERenderTargetLoadAction InLoadAction, ERenderTargetStoreAction InStoreAction) :
 		Texture(InTexture),
 		MipIndex(InMipIndex),
 		ArraySliceIndex(InArraySliceIndex),
@@ -1411,7 +1503,7 @@ private:
 class FRHIDepthRenderTargetView
 {
 public:
-	FTextureRHIParamRef Texture;
+	FRHITexture* Texture;
 
 	ERenderTargetLoadAction		DepthLoadAction;
 	ERenderTargetStoreAction	DepthStoreAction;
@@ -1439,7 +1531,7 @@ public:
 	}
 
 	//common case
-	explicit FRHIDepthRenderTargetView(FTextureRHIParamRef InTexture, ERenderTargetLoadAction InLoadAction, ERenderTargetStoreAction InStoreAction) :
+	explicit FRHIDepthRenderTargetView(FRHITexture* InTexture, ERenderTargetLoadAction InLoadAction, ERenderTargetStoreAction InStoreAction) :
 		Texture(InTexture),
 		DepthLoadAction(InLoadAction),
 		DepthStoreAction(InStoreAction),
@@ -1450,7 +1542,7 @@ public:
 		Validate();
 	}
 
-	explicit FRHIDepthRenderTargetView(FTextureRHIParamRef InTexture, ERenderTargetLoadAction InLoadAction, ERenderTargetStoreAction InStoreAction, FExclusiveDepthStencil InDepthStencilAccess) :
+	explicit FRHIDepthRenderTargetView(FRHITexture* InTexture, ERenderTargetLoadAction InLoadAction, ERenderTargetStoreAction InStoreAction, FExclusiveDepthStencil InDepthStencilAccess) :
 		Texture(InTexture),
 		DepthLoadAction(InLoadAction),
 		DepthStoreAction(InStoreAction),
@@ -1461,7 +1553,7 @@ public:
 		Validate();
 	}
 
-	explicit FRHIDepthRenderTargetView(FTextureRHIParamRef InTexture, ERenderTargetLoadAction InDepthLoadAction, ERenderTargetStoreAction InDepthStoreAction, ERenderTargetLoadAction InStencilLoadAction, ERenderTargetStoreAction InStencilStoreAction) :
+	explicit FRHIDepthRenderTargetView(FRHITexture* InTexture, ERenderTargetLoadAction InDepthLoadAction, ERenderTargetStoreAction InDepthStoreAction, ERenderTargetLoadAction InStencilLoadAction, ERenderTargetStoreAction InStencilStoreAction) :
 		Texture(InTexture),
 		DepthLoadAction(InDepthLoadAction),
 		DepthStoreAction(InDepthStoreAction),
@@ -1472,7 +1564,7 @@ public:
 		Validate();
 	}
 
-	explicit FRHIDepthRenderTargetView(FTextureRHIParamRef InTexture, ERenderTargetLoadAction InDepthLoadAction, ERenderTargetStoreAction InDepthStoreAction, ERenderTargetLoadAction InStencilLoadAction, ERenderTargetStoreAction InStencilStoreAction, FExclusiveDepthStencil InDepthStencilAccess) :
+	explicit FRHIDepthRenderTargetView(FRHITexture* InTexture, ERenderTargetLoadAction InDepthLoadAction, ERenderTargetStoreAction InDepthStoreAction, ERenderTargetLoadAction InStencilLoadAction, ERenderTargetStoreAction InStencilStoreAction, FExclusiveDepthStencil InDepthStencilAccess) :
 		Texture(InTexture),
 		DepthLoadAction(InDepthLoadAction),
 		DepthStoreAction(InDepthStoreAction),
@@ -1510,6 +1602,10 @@ public:
 	int32 NumColorRenderTargets;
 	bool bClearColor;
 
+	// Color Render Targets Info
+	FRHIRenderTargetView ColorResolveRenderTarget[MaxSimultaneousRenderTargets];	
+	bool bHasResolveAttachments;
+
 	// Depth/Stencil Render Target Info
 	FRHIDepthRenderTargetView DepthStencilRenderTarget;	
 	bool bClearDepth;
@@ -1521,7 +1617,8 @@ public:
 
 	FRHISetRenderTargetsInfo() :
 		NumColorRenderTargets(0),
-		bClearColor(false),		
+		bClearColor(false),
+		bHasResolveAttachments(false),
 		bClearDepth(false),
 		bClearStencil(false),
 		NumUAVs(0)
@@ -1530,6 +1627,7 @@ public:
 	FRHISetRenderTargetsInfo(int32 InNumColorRenderTargets, const FRHIRenderTargetView* InColorRenderTargets, const FRHIDepthRenderTargetView& InDepthStencilRenderTarget) :
 		NumColorRenderTargets(InNumColorRenderTargets),
 		bClearColor(InNumColorRenderTargets > 0 && InColorRenderTargets[0].LoadAction == ERenderTargetLoadAction::EClear),
+		bHasResolveAttachments(false),
 		DepthStencilRenderTarget(InDepthStencilRenderTarget),		
 		bClearDepth(InDepthStencilRenderTarget.Texture && InDepthStencilRenderTarget.DepthLoadAction == ERenderTargetLoadAction::EClear),
 		bClearStencil(InDepthStencilRenderTarget.Texture && InDepthStencilRenderTarget.StencilLoadAction == ERenderTargetLoadAction::EClear),
@@ -1562,7 +1660,7 @@ public:
 		struct FHashableStruct
 		{
 			// Depth goes in the last slot
-			FRHITexture* Texture[MaxSimultaneousRenderTargets + 1];
+			FRHITexture* Texture[MaxSimultaneousRenderTargets*2 + 1];
 			uint32 MipIndex[MaxSimultaneousRenderTargets];
 			uint32 ArraySliceIndex[MaxSimultaneousRenderTargets];
 			ERenderTargetLoadAction LoadAction[MaxSimultaneousRenderTargets];
@@ -1577,6 +1675,7 @@ public:
 			bool bClearDepth;
 			bool bClearStencil;
 			bool bClearColor;
+			bool bHasResolveAttachments;
 			FRHIUnorderedAccessView* UnorderedAccessView[MaxSimultaneousUAVs];
 
 			void Set(const FRHISetRenderTargetsInfo& RTInfo)
@@ -1585,6 +1684,7 @@ public:
 				for (int32 Index = 0; Index < RTInfo.NumColorRenderTargets; ++Index)
 				{
 					Texture[Index] = RTInfo.ColorRenderTarget[Index].Texture;
+					Texture[MaxSimultaneousRenderTargets+Index] = RTInfo.ColorResolveRenderTarget[Index].Texture;
 					MipIndex[Index] = RTInfo.ColorRenderTarget[Index].MipIndex;
 					ArraySliceIndex[Index] = RTInfo.ColorRenderTarget[Index].ArraySliceIndex;
 					LoadAction[Index] = RTInfo.ColorRenderTarget[Index].LoadAction;
@@ -1601,6 +1701,7 @@ public:
 				bClearDepth = RTInfo.bClearDepth;
 				bClearStencil = RTInfo.bClearStencil;
 				bClearColor = RTInfo.bClearColor;
+				bHasResolveAttachments = RTInfo.bHasResolveAttachments;
 
 				for (int32 Index = 0; Index < MaxSimultaneousUAVs; ++Index)
 				{
@@ -1648,23 +1749,24 @@ public:
 };
 
 
+UE_DEPRECATED(4.23, "FCustomPresentRHIParamRef typedef is deprecated; please use FRHICustomPresent* directly instead.")
 typedef FRHICustomPresent*              FCustomPresentRHIParamRef;
 typedef TRefCountPtr<FRHICustomPresent> FCustomPresentRHIRef;
 
 // Template magic to convert an FRHI*Shader to its enum
 template<typename TRHIShader> struct TRHIShaderToEnum {};
-template<> struct TRHIShaderToEnum<FRHIVertexShader>	{ enum { ShaderFrequency = SF_Vertex }; };
-template<> struct TRHIShaderToEnum<FRHIHullShader>		{ enum { ShaderFrequency = SF_Hull }; };
-template<> struct TRHIShaderToEnum<FRHIDomainShader>	{ enum { ShaderFrequency = SF_Domain }; };
-template<> struct TRHIShaderToEnum<FRHIPixelShader>		{ enum { ShaderFrequency = SF_Pixel }; };
-template<> struct TRHIShaderToEnum<FRHIGeometryShader>	{ enum { ShaderFrequency = SF_Geometry }; };
-template<> struct TRHIShaderToEnum<FRHIComputeShader>	{ enum { ShaderFrequency = SF_Compute }; };
-template<> struct TRHIShaderToEnum<FVertexShaderRHIParamRef>	{ enum { ShaderFrequency = SF_Vertex }; };
-template<> struct TRHIShaderToEnum<FHullShaderRHIParamRef>		{ enum { ShaderFrequency = SF_Hull }; };
-template<> struct TRHIShaderToEnum<FDomainShaderRHIParamRef>	{ enum { ShaderFrequency = SF_Domain }; };
-template<> struct TRHIShaderToEnum<FPixelShaderRHIParamRef>		{ enum { ShaderFrequency = SF_Pixel }; };
-template<> struct TRHIShaderToEnum<FGeometryShaderRHIParamRef>	{ enum { ShaderFrequency = SF_Geometry }; };
-template<> struct TRHIShaderToEnum<FComputeShaderRHIParamRef>	{ enum { ShaderFrequency = SF_Compute }; };
+template<> struct TRHIShaderToEnum<FRHIVertexShader>		{ enum { ShaderFrequency = SF_Vertex }; };
+template<> struct TRHIShaderToEnum<FRHIHullShader>			{ enum { ShaderFrequency = SF_Hull }; };
+template<> struct TRHIShaderToEnum<FRHIDomainShader>		{ enum { ShaderFrequency = SF_Domain }; };
+template<> struct TRHIShaderToEnum<FRHIPixelShader>			{ enum { ShaderFrequency = SF_Pixel }; };
+template<> struct TRHIShaderToEnum<FRHIGeometryShader>		{ enum { ShaderFrequency = SF_Geometry }; };
+template<> struct TRHIShaderToEnum<FRHIComputeShader>		{ enum { ShaderFrequency = SF_Compute }; };
+template<> struct TRHIShaderToEnum<FRHIVertexShader*>		{ enum { ShaderFrequency = SF_Vertex }; };
+template<> struct TRHIShaderToEnum<FRHIHullShader*>			{ enum { ShaderFrequency = SF_Hull }; };
+template<> struct TRHIShaderToEnum<FRHIDomainShader*>		{ enum { ShaderFrequency = SF_Domain }; };
+template<> struct TRHIShaderToEnum<FRHIPixelShader*>		{ enum { ShaderFrequency = SF_Pixel }; };
+template<> struct TRHIShaderToEnum<FRHIGeometryShader*>		{ enum { ShaderFrequency = SF_Geometry }; };
+template<> struct TRHIShaderToEnum<FRHIComputeShader*>		{ enum { ShaderFrequency = SF_Compute }; };
 template<> struct TRHIShaderToEnum<FVertexShaderRHIRef>		{ enum { ShaderFrequency = SF_Vertex }; };
 template<> struct TRHIShaderToEnum<FHullShaderRHIRef>		{ enum { ShaderFrequency = SF_Hull }; };
 template<> struct TRHIShaderToEnum<FDomainShaderRHIRef>		{ enum { ShaderFrequency = SF_Domain }; };
@@ -1678,15 +1780,15 @@ struct FBoundShaderStateInput
 
 	inline FBoundShaderStateInput
 	(
-		FVertexDeclarationRHIParamRef InVertexDeclarationRHI
-		, FVertexShaderRHIParamRef InVertexShaderRHI
+		FRHIVertexDeclaration* InVertexDeclarationRHI
+		, FRHIVertexShader* InVertexShaderRHI
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-		, FHullShaderRHIParamRef InHullShaderRHI
-		, FDomainShaderRHIParamRef InDomainShaderRHI
+		, FRHIHullShader* InHullShaderRHI
+		, FRHIDomainShader* InDomainShaderRHI
 #endif
-		, FPixelShaderRHIParamRef InPixelShaderRHI
+		, FRHIPixelShader* InPixelShaderRHI
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-		, FGeometryShaderRHIParamRef InGeometryShaderRHI
+		, FRHIGeometryShader* InGeometryShaderRHI
 #endif
 	)
 		: VertexDeclarationRHI(InVertexDeclarationRHI)
@@ -1702,17 +1804,17 @@ struct FBoundShaderStateInput
 	{
 	}
 
-	FVertexDeclarationRHIParamRef VertexDeclarationRHI = nullptr;
-	FVertexShaderRHIParamRef VertexShaderRHI = nullptr;
-	FHullShaderRHIParamRef HullShaderRHI = nullptr;
-	FDomainShaderRHIParamRef DomainShaderRHI = nullptr;
-	FPixelShaderRHIParamRef PixelShaderRHI = nullptr;
-	FGeometryShaderRHIParamRef GeometryShaderRHI = nullptr;
+	FRHIVertexDeclaration* VertexDeclarationRHI = nullptr;
+	FRHIVertexShader* VertexShaderRHI = nullptr;
+	FRHIHullShader* HullShaderRHI = nullptr;
+	FRHIDomainShader* DomainShaderRHI = nullptr;
+	FRHIPixelShader* PixelShaderRHI = nullptr;
+	FRHIGeometryShader* GeometryShaderRHI = nullptr;
 };
 
 struct FImmutableSamplerState
 {
-	using TImmutableSamplers = TStaticArray<FSamplerStateRHIParamRef, MaxImmutableSamplers>;
+	using TImmutableSamplers = TStaticArray<FRHISamplerState*, MaxImmutableSamplers>;
 
 	FImmutableSamplerState()
 		: ImmutableSamplers(nullptr)
@@ -1762,12 +1864,12 @@ public:
 	}
 
 	FGraphicsMinimalPipelineStateInitializer(
-		FBoundShaderStateInput				InBoundShaderState,
-		FBlendStateRHIParamRef				InBlendState,
-		FRasterizerStateRHIParamRef			InRasterizerState,
-		FDepthStencilStateRHIParamRef		InDepthStencilState,
-		FImmutableSamplerState				InImmutableSamplerState,
-		EPrimitiveType						InPrimitiveType
+		FBoundShaderStateInput		InBoundShaderState,
+		FRHIBlendState*				InBlendState,
+		FRHIRasterizerState*		InRasterizerState,
+		FRHIDepthStencilState*		InDepthStencilState,
+		FImmutableSamplerState		InImmutableSamplerState,
+		EPrimitiveType				InPrimitiveType
 		)
 		: BoundShaderState(InBoundShaderState)
 		, BlendState(InBlendState)
@@ -1806,6 +1908,7 @@ public:
 			DepthStencilState != rhs.DepthStencilState ||
 			ImmutableSamplerState != rhs.ImmutableSamplerState ||
 			bDepthBounds != rhs.bDepthBounds ||
+			bMultiView != rhs.bMultiView ||
 			PrimitiveType != rhs.PrimitiveType) 
 		{
 			return false;
@@ -1856,6 +1959,7 @@ public:
 		COMPARE_FIELD(RasterizerState)
 		COMPARE_FIELD(DepthStencilState)
 		COMPARE_FIELD(bDepthBounds)
+		COMPARE_FIELD(bMultiView)
 		COMPARE_FIELD(PrimitiveType)
 		COMPARE_FIELD_END;
 
@@ -1880,6 +1984,7 @@ public:
 		COMPARE_FIELD(RasterizerState)
 		COMPARE_FIELD(DepthStencilState)
 		COMPARE_FIELD(bDepthBounds)
+		COMPARE_FIELD(bMultiView)
 		COMPARE_FIELD(PrimitiveType)
 		COMPARE_FIELD_END;
 
@@ -1892,19 +1997,20 @@ public:
 
 	// TODO: [PSO API] - As we migrate reuse existing API objects, but eventually we can move to the direct initializers. 
 	// When we do that work, move this to RHI.h as its more appropriate there, but here for now since dependent typdefs are here.
-	FBoundShaderStateInput			BoundShaderState;
-	FBlendStateRHIParamRef			BlendState;
-	FRasterizerStateRHIParamRef		RasterizerState;
-	FDepthStencilStateRHIParamRef	DepthStencilState;
-	FImmutableSamplerState			ImmutableSamplerState;
+	FBoundShaderStateInput	BoundShaderState;
+	FRHIBlendState*			BlendState;
+	FRHIRasterizerState*	RasterizerState;
+	FRHIDepthStencilState*	DepthStencilState;
+	FImmutableSamplerState	ImmutableSamplerState;
 
 	// Note: FGraphicsMinimalPipelineStateInitializer is 8-byte aligned and can't have any implicit padding,
 	// as it is sometimes hashed and compared as raw bytes. Explicit padding is therefore required between
 	// all data members and at the end of the structure.
 	bool							bDepthBounds = false;
-	uint8							Padding[3] = {};
+	bool							bMultiView = false;
+	uint8							Padding[2] = {};
 
-	EPrimitiveType					PrimitiveType;
+	EPrimitiveType			PrimitiveType;
 };
 
 // Hints for some RHIs that support subpasses
@@ -1962,26 +2068,26 @@ public:
 	}
 
 	FGraphicsPipelineStateInitializer(
-		FBoundShaderStateInput				InBoundShaderState,
-		FBlendStateRHIParamRef				InBlendState,
-		FRasterizerStateRHIParamRef			InRasterizerState,
-		FDepthStencilStateRHIParamRef		InDepthStencilState,
-		FImmutableSamplerState				InImmutableSamplerState,
-		EPrimitiveType						InPrimitiveType,
-		uint32								InRenderTargetsEnabled,
-		const TRenderTargetFormats&			InRenderTargetFormats,
-		const TRenderTargetFlags&			InRenderTargetFlags,
-		EPixelFormat						InDepthStencilTargetFormat,
-		uint32								InDepthStencilTargetFlag,
-		ERenderTargetLoadAction				InDepthTargetLoadAction,
-		ERenderTargetStoreAction			InDepthTargetStoreAction,
-		ERenderTargetLoadAction				InStencilTargetLoadAction,
-		ERenderTargetStoreAction			InStencilTargetStoreAction,
-		FExclusiveDepthStencil				InDepthStencilAccess,
-		uint32								InNumSamples,
-		ESubpassHint						InSubpassHint,
-		uint8								InSubpassIndex,
-		uint16								InFlags
+		FBoundShaderStateInput		InBoundShaderState,
+		FRHIBlendState*				InBlendState,
+		FRHIRasterizerState*		InRasterizerState,
+		FRHIDepthStencilState*		InDepthStencilState,
+		FImmutableSamplerState		InImmutableSamplerState,
+		EPrimitiveType				InPrimitiveType,
+		uint32						InRenderTargetsEnabled,
+		const TRenderTargetFormats&	InRenderTargetFormats,
+		const TRenderTargetFlags&	InRenderTargetFlags,
+		EPixelFormat				InDepthStencilTargetFormat,
+		uint32						InDepthStencilTargetFlag,
+		ERenderTargetLoadAction		InDepthTargetLoadAction,
+		ERenderTargetStoreAction	InDepthTargetStoreAction,
+		ERenderTargetLoadAction		InStencilTargetLoadAction,
+		ERenderTargetStoreAction	InStencilTargetStoreAction,
+		FExclusiveDepthStencil		InDepthStencilAccess,
+		uint32						InNumSamples,
+		ESubpassHint				InSubpassHint,
+		uint8						InSubpassIndex,
+		uint16						InFlags
 		)
 		: FGraphicsMinimalPipelineStateInitializer(InBoundShaderState, InBlendState, InRasterizerState, InDepthStencilState, InImmutableSamplerState, InPrimitiveType)
 		, RenderTargetsEnabled(InRenderTargetsEnabled)
@@ -2105,67 +2211,92 @@ public:
 			&& bAllowHitGroupIndexing == rhs.bAllowHitGroupIndexing
 			&& RayGenHash == rhs.RayGenHash
 			&& MissHash == rhs.MissHash
-			&& HitGroupHash == rhs.HitGroupHash;
+			&& HitGroupHash == rhs.HitGroupHash
+			&& CallableHash == rhs.CallableHash;
 	}
 
-	uint32 MaxPayloadSizeInBytes = 32; // sizeof FDefaultPayload declared in RayTracingCommon.ush
+	friend uint32 GetTypeHash(const FRayTracingPipelineStateInitializer& Initializer)
+	{
+		return GetTypeHash(Initializer.MaxPayloadSizeInBytes) ^
+			GetTypeHash(Initializer.bAllowHitGroupIndexing) ^
+			GetTypeHash(Initializer.GetRayGenHash()) ^
+			GetTypeHash(Initializer.GetRayMissHash()) ^
+			GetTypeHash(Initializer.GetHitGroupHash()) ^
+			GetTypeHash(Initializer.GetCallableHash());
+	}
+
+	uint32 MaxPayloadSizeInBytes = 24; // sizeof FDefaultPayload declared in RayTracingCommon.ush
 
 	bool bAllowHitGroupIndexing = true;
 
-	const TArrayView<const FRayTracingShaderRHIParamRef>& GetRayGenTable()   const { return RayGenTable; }
-	const TArrayView<const FRayTracingShaderRHIParamRef>& GetMissTable()     const { return MissTable; }
-	const TArrayView<const FRayTracingShaderRHIParamRef>& GetHitGroupTable() const { return HitGroupTable; }
+	const TArrayView<FRHIRayTracingShader*>& GetRayGenTable()   const { return RayGenTable; }
+	const TArrayView<FRHIRayTracingShader*>& GetMissTable()     const { return MissTable; }
+	const TArrayView<FRHIRayTracingShader*>& GetHitGroupTable() const { return HitGroupTable; }
+	const TArrayView<FRHIRayTracingShader*>& GetCallableTable() const { return CallableTable; }
 
 	// Shaders used as entry point to ray tracing work. At least one RayGen shader must be provided.
-	void SetRayGenShaderTable(const TArrayView<const FRayTracingShaderRHIParamRef>& InRayGenShaders)
+	void SetRayGenShaderTable(const TArrayView<FRHIRayTracingShader*>& InRayGenShaders, uint64 Hash = 0)
 	{
 		RayGenTable = InRayGenShaders;
-		RayGenHash = ComputeShaderTableHash(InRayGenShaders);
+		RayGenHash = Hash ? Hash : ComputeShaderTableHash(InRayGenShaders);
 	}
 
 	// Shaders that will be invoked if a ray misses all geometry.
-	// If this table is empty, then a built-in default miss shader will be used that sets HitT member of FDefaultPayload to -1.
+	// If this table is empty, then a built-in default miss shader will be used that sets HitT member of FMinimalPayload to -1.
 	// Desired miss shader can be selected by providing MissShaderIndex to TraceRay() function.
-	void SetMissShaderTable(const TArrayView<const FRayTracingShaderRHIParamRef>& InMissShaders)
+	void SetMissShaderTable(const TArrayView<FRHIRayTracingShader*>& InMissShaders, uint64 Hash = 0)
 	{
 		MissTable = InMissShaders;
-		MissHash = ComputeShaderTableHash(InMissShaders);
+		MissHash = Hash ? Hash : ComputeShaderTableHash(InMissShaders);
 	}
 
 	// Shaders that will be invoked when ray intersects geometry.
 	// If this table is empty, then a built-in default shader will be used for all geometry, using FDefaultPayload.
-	void SetHitGroupTable(const TArrayView<const FRayTracingShaderRHIParamRef>& InHitGroups)
+	void SetHitGroupTable(const TArrayView<FRHIRayTracingShader*>& InHitGroups, uint64 Hash = 0)
 	{
 		HitGroupTable = InHitGroups;
-		HitGroupHash = ComputeShaderTableHash(HitGroupTable);
+		HitGroupHash = Hash ? Hash : ComputeShaderTableHash(HitGroupTable);
 	}
 
-	uint32 GetHitGroupHash() const { return HitGroupHash; }
-	uint32 GetRayGenHash()   const { return RayGenHash; }
-	uint32 GetRayMissHash()  const { return MissHash; }
+	// Shaders that can be explicitly invoked from RayGen shaders by their Shader Binding Table (SBT) index.
+	// SetRayTracingCallableShader() command must be used to fill SBT slots before a shader can be called.
+	void SetCallableTable(const TArrayView<FRHIRayTracingShader*>& InCallableShaders, uint64 Hash = 0)
+	{
+		CallableTable = InCallableShaders;
+		CallableHash = Hash ? Hash : ComputeShaderTableHash(CallableTable);
+	}
+
+	uint64 GetHitGroupHash() const { return HitGroupHash; }
+	uint64 GetRayGenHash()   const { return RayGenHash; }
+	uint64 GetRayMissHash()  const { return MissHash; }
+	uint64 GetCallableHash() const { return CallableHash; }
 
 private:
 
-	uint32 ComputeShaderTableHash(const TArrayView<const FRayTracingShaderRHIParamRef>& ShaderTable, uint32 InitialHash = 2085640061)
+	uint64 ComputeShaderTableHash(const TArrayView<FRHIRayTracingShader*>& ShaderTable, uint64 InitialHash = 5699878132332235837ull)
 	{
-		uint32 CombinedHash = InitialHash;
-		for (FRayTracingShaderRHIParamRef ShaderRHI : ShaderTable)
+		uint64 CombinedHash = InitialHash;
+		for (FRHIRayTracingShader* ShaderRHI : ShaderTable)
 		{
-			// #dxr_todo: some sort of session-unique ID should be used instead of pointers to ensure that unique hash is
-			// produced if the same memory happens to be re-used for a different shader (i.e. delete followed by new).
-			CombinedHash = PointerHash(ShaderRHI, CombinedHash);
+			uint64 ShaderHash; // 64 bits from the shader SHA1
+			FMemory::Memcpy(&ShaderHash, ShaderRHI->GetHash().Hash, sizeof(ShaderHash));
+
+			// 64 bit hash combination as per boost::hash_combine_impl
+			CombinedHash ^= ShaderHash + 0x9e3779b9 + (CombinedHash << 6) + (CombinedHash >> 2);
 		}
 
 		return CombinedHash;
 	}
 
-	TArrayView<const FRayTracingShaderRHIParamRef> RayGenTable;
-	TArrayView<const FRayTracingShaderRHIParamRef> MissTable;
-	TArrayView<const FRayTracingShaderRHIParamRef> HitGroupTable;
+	TArrayView<FRHIRayTracingShader*> RayGenTable;
+	TArrayView<FRHIRayTracingShader*> MissTable;
+	TArrayView<FRHIRayTracingShader*> HitGroupTable;
+	TArrayView<FRHIRayTracingShader*> CallableTable;
 
-	uint32 RayGenHash = 0;
-	uint32 MissHash = 0;
-	uint32 HitGroupHash = 0;
+	uint64 RayGenHash = 0;
+	uint64 MissHash = 0;
+	uint64 HitGroupHash = 0;
+	uint64 CallableHash = 0;
 };
 #endif // RHI_RAYTRACING
 
@@ -2268,6 +2399,7 @@ protected:
 	uint32 LibraryId;
 };
 
+UE_DEPRECATED(4.23, "FRHIShaderLibraryParamRef typedef is deprecated; please use FRHIShaderLibrary* directly instead.")
 typedef FRHIShaderLibrary*				FRHIShaderLibraryParamRef;
 typedef TRefCountPtr<FRHIShaderLibrary>	FRHIShaderLibraryRef;
 
@@ -2282,6 +2414,8 @@ public:
 protected:
 	EShaderPlatform Platform;
 };
+
+UE_DEPRECATED(4.23, "FRHIPipelineBinaryLibraryParamRef typedef is deprecated; please use FRHIPipelineBinaryLibrary* directly instead.")
 typedef FRHIPipelineBinaryLibrary*				FRHIPipelineBinaryLibraryParamRef;
 typedef TRefCountPtr<FRHIPipelineBinaryLibrary>	FRHIPipelineBinaryLibraryRef;
 
@@ -2390,6 +2524,9 @@ struct FRHIRenderPassInfo
 
 	// Some RHIs need to know if this render pass is going to be reading and writing to the same texture in the case of generating mip maps for partial resource transitions
 	bool bGeneratingMips = false;
+
+	// If this render pass should be multiview
+	bool bMultiviewPass = false;
 
 	// Hint for some RHI's that renderpass will have specific sub-passes 
 	ESubpassHint SubpassHint = ESubpassHint::None;
@@ -2578,7 +2715,7 @@ struct FRHIRenderPassInfo
 		FMemory::Memzero(&ColorRenderTargets[1], sizeof(FColorEntry) * (MaxSimultaneousRenderTargets - 1));
 	}
 
-	explicit FRHIRenderPassInfo(int32 InNumUAVs, FUnorderedAccessViewRHIParamRef* InUAVs)
+	explicit FRHIRenderPassInfo(int32 InNumUAVs, FRHIUnorderedAccessView** InUAVs)
 	{
 		if (InNumUAVs > MaxSimultaneousUAVs)
 		{

@@ -80,9 +80,9 @@ namespace nDisplayLauncher.Cluster.Config.Conversion.Converters
 					const string TokResY = "ResY";
 
 					// Extract old values
-					string ClusterNodeId = Parser.GetStringValue(TokId, ConfigLines[i].Value);
-					string OldViewportId = Parser.GetStringValue(TokViewport, ConfigLines[i].Value);
-					string ScreenId      = Parser.GetStringValue(TokScreen, ConfigLines[i].Value);
+					string ClusterNodeId = Parser.GetStringValue(ConfigLines[i].Value, TokId);
+					string OldViewportId = Parser.GetStringValue(ConfigLines[i].Value, TokViewport);
+					string ScreenId      = Parser.GetStringValue(ConfigLines[i].Value, TokScreen);
 					string WindowId      = "wnd_" + ClusterNodeId;
 
 					// Previously window location/size was specified in [cluster_node], now it's moved to the [window]
@@ -99,22 +99,22 @@ namespace nDisplayLauncher.Cluster.Config.Conversion.Converters
 						ConfigLines[i].Value.Contains(TokResY))
 					{
 						IsFullscreen = false;
-						WinX = Parser.GetIntValue(TokWinX, ConfigLines[i].Value);
-						WinY = Parser.GetIntValue(TokWinY, ConfigLines[i].Value);
-						ResX = Parser.GetIntValue(TokResX, ConfigLines[i].Value);
-						ResY = Parser.GetIntValue(TokResY, ConfigLines[i].Value);
+						WinX = Parser.GetIntValue(ConfigLines[i].Value, TokWinX);
+						WinY = Parser.GetIntValue(ConfigLines[i].Value, TokWinY);
+						ResX = Parser.GetIntValue(ConfigLines[i].Value, TokResX);
+						ResY = Parser.GetIntValue(ConfigLines[i].Value, TokResY);
 					}
 
 					// Clean the [cluster_node] line from old stuff
 					string NewClusterNodeLine = ConfigLines[i].Value;
-					NewClusterNodeLine = Parser.RemoveArgument(TokViewport, NewClusterNodeLine);
-					NewClusterNodeLine = Parser.RemoveArgument(TokScreen, NewClusterNodeLine);
-					NewClusterNodeLine = Parser.RemoveArgument(TokIsWindowed, NewClusterNodeLine);
-					NewClusterNodeLine = Parser.RemoveArgument(TokIsFullscreen, NewClusterNodeLine);
-					NewClusterNodeLine = Parser.RemoveArgument(TokWinX, NewClusterNodeLine);
-					NewClusterNodeLine = Parser.RemoveArgument(TokWinY, NewClusterNodeLine);
-					NewClusterNodeLine = Parser.RemoveArgument(TokResX, NewClusterNodeLine);
-					NewClusterNodeLine = Parser.RemoveArgument(TokResY, NewClusterNodeLine);
+					NewClusterNodeLine = Parser.RemoveArgument(NewClusterNodeLine, TokViewport);
+					NewClusterNodeLine = Parser.RemoveArgument(NewClusterNodeLine, TokScreen);
+					NewClusterNodeLine = Parser.RemoveArgument(NewClusterNodeLine, TokIsWindowed);
+					NewClusterNodeLine = Parser.RemoveArgument(NewClusterNodeLine, TokIsFullscreen);
+					NewClusterNodeLine = Parser.RemoveArgument(NewClusterNodeLine, TokWinX);
+					NewClusterNodeLine = Parser.RemoveArgument(NewClusterNodeLine, TokWinY);
+					NewClusterNodeLine = Parser.RemoveArgument(NewClusterNodeLine, TokResX);
+					NewClusterNodeLine = Parser.RemoveArgument(NewClusterNodeLine, TokResY);
 					NewClusterNodeLine += string.Format(" window={0}", WindowId);
 					ConfigLines[i] = new KeyValuePair<ETokenType, string>(ETokenType.ClusterNode, NewClusterNodeLine);
 
@@ -138,7 +138,7 @@ namespace nDisplayLauncher.Cluster.Config.Conversion.Converters
 					{
 						if (ConfigLines[j].Key == ETokenType.Viewport)
 						{
-							if (OldViewportId == Parser.GetStringValue(TokId, ConfigLines[j].Value))
+							if (OldViewportId == Parser.GetStringValue(ConfigLines[j].Value, TokId))
 							{
 								string NewViewportLine = ConfigLines[j].Value + " screen=" + ScreenId;
 								NewViewportLine = NewViewportLine.Replace(TokId + "=" + OldViewportId, TokId + "=" + NewViewportId);

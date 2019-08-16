@@ -3,94 +3,146 @@
 #if WITH_PHYSX
 
 #include "PhysXPublic.h"
+#endif
 #include "Physics/PhysicsInterfaceDeclares.h"
 #include "Physics/PhysicsInterfaceCore.h"
-#include "Physics/SQAccelerator.h"
-#include "PhysicsEngine/CollisionQueryFilterCallback.h"
-#include "PhysicsEngine/PxQueryFilterCallback.h"
+#include "PhysicsInterfaceDeclaresCore.h"
 
+#include "PhysicsEngine/CollisionQueryFilterCallback.h"
+#include "PhysicsCore.h"
 #if PHYSICS_INTERFACE_PHYSX
 #include "PhysXInterfaceWrapper.h"
-#include "SceneQueryPhysXImp.h"
-#elif PHYSICS_INTERFACE_LLIMMEDIATE
-#include "Physics/Experimental//LLImmediateInterfaceWrapper.h"
-#include "Experimental/SceneQueryLLImmediateImp.h"
 #endif
 
+#include "PhysTestSerializer.h"
 
-PxQueryFlags StaticDynamicQueryFlags(const FCollisionQueryParams& Params)
-{
-	switch (Params.MobilityType)
-	{
-	case EQueryMobilityType::Any: return  PxQueryFlag::eSTATIC | PxQueryFlag::eDYNAMIC;
-	case EQueryMobilityType::Static: return  PxQueryFlag::eSTATIC;
-	case EQueryMobilityType::Dynamic: return  PxQueryFlag::eDYNAMIC;
-	default: check(0);
-	}
-
-	check(0);
-	return PxQueryFlag::eSTATIC | PxQueryFlag::eDYNAMIC;
-}
+#if INCLUDE_CHAOS
+#include "SQAccelerator.h"
+#include "SQVerifier.h"
+#include "PBDRigidsSolver.h"
+#include "Chaos/PBDRigidsEvolutionGBF.h"
+#endif
 
 int32 ForceStandardSQ = 0;
 FAutoConsoleVariableRef CVarForceStandardSQ(TEXT("p.ForceStandardSQ"), ForceStandardSQ, TEXT("If enabled, we force the standard scene query even if custom SQ structure is enabled"));
 
-void LowLevelRaycast(FPhysScene& Scene, const FVector& Start, const FVector& Dir, float DeltaMag, FPhysicsHitCallback<FHitRaycast>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const FCollisionQueryParams& Params, FPxQueryFilterCallback* QueryCallback)
+
+#if !UE_BUILD_SHIPPING
+int32 SerializeSQs = 0;
+int32 SerializeBadSQs = 0;
+int32 ReplaySQs = 0;
+
+FAutoConsoleVariableRef CVarSerializeSQs(TEXT("p.SerializeSQs"), SerializeSQs, TEXT("If enabled, we create a sq capture per sq. This can be very expensive as the entire scene is saved out"));
+FAutoConsoleVariableRef CVarReplaySweeps(TEXT("p.ReplaySQs"), ReplaySQs, TEXT("If enabled, we rerun the sq against chaos"));
+FAutoConsoleVariableRef CVarSerializeBadSweeps(TEXT("p.SerializeBadSQs"), SerializeBadSQs, TEXT("If enabled, we create a sq capture whenever chaos and physx diverge"));
+
+void FinalizeCapture(FPhysTestSerializer& Serializer)
 {
-#if WITH_CUSTOM_SQ_STRUCTURE
-	if (ForceStandardSQ == 0)
+	if (SerializeSQs)
 	{
-		ISQAccelerator* SQAccelerator = Scene.GetSQAccelerator();
-		SQAccelerator->Raycast(Start, Dir, HitBuffer, OutputFlags, QueryFlags, Filter, *QueryCallback);
-		FinalizeQuery(HitBuffer);
+		Serializer.Serialize(TEXT("SQCapture"));
 	}
-	else
-#endif
+#if INCLUDE_CHAOS && WITH_PHYSX
+	if (ReplaySQs)
 	{
-#if PHYSICS_INTERFACE_PHYSX
-		PxQueryFilterData QueryFilterData(U2PFilterData(Filter), U2PQueryFlags(QueryFlags) | StaticDynamicQueryFlags(Params));	//todo: is this needed for custom sq?
+		const bool bReplaySuccess = SQComparisonHelper(Serializer);
+		if (!bReplaySuccess)'ve just'
+		{
+			UE_LOG(LogPhysicsCore, Warning, TEXT("Chaos SQ does not match physx"));
+			if (SerializeBadSQs && !SerializeSQs)
+			{
+				Serializer.Serialize(TEXT("BadSQCapture"));
+			}
+		}
+	}
+#endif
+}
+#else
+constexpr int32 SerializeSQs = 0;
+constexpr int32 ReplaySQs = 0;
+// No-op in shipping
+void FinalizeCapture(FPhysTestSerializer& Serializer) {}
+#endif
+
+void LowLevelRaycast(FPhysScene& Scene, const FVector& Start, const FVector& Dir, float DeltaMag, FPhysicsHitCallback<FHitRaycast>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback)
+{
+#if !defined(PHYSICS_INTERFACE_PHYSX) || !PHYSICS_INTERFACE_PHYSX
+	Chaos::FPhysicsSolver* Solver = Scene.GetSolver();
+	Chaos::FPhysicsSolver::FPBDRigidsEvolution* Evolution = Solver->GetEvolution();
+	FChaosSQAccelerator SQAccelerator(*Evolution);
+	//ISQAccelerator* SQAccelerator = Scene.GetSQAccelerator();
+	SQAccelerator.Raycast(Start, Dir, DeltaMag, HitBuffer, OutputFlags, QueryFilterData, *QueryCallback);
+#else
+	if (SerializeSQs | ReplaySQs)
+	{
+		FPhysTestSerializer Serializer;
+		Serializer.SetPhysicsData(*Scene.GetPxScene());
+		FSQCapture& SweepCapture = Serializer.CaptureSQ();
+		SweepCapture.StartCapturePhysXRaycast(*Scene.GetPxScene(), Start, Dir, DeltaMag, OutputFlags, QueryFilterData, Filter, *QueryCallback);
 		Scene.GetPxScene()->raycast(U2PVector(Start), U2PVector(Dir), DeltaMag, HitBuffer, U2PHitFlags(OutputFlags), QueryFilterData, QueryCallback);
-#endif
-	}
-}
+		SweepCapture.EndCapturePhysXRaycast(HitBuffer);
 
-void LowLevelSweep(FPhysScene& Scene, const FPhysicsGeometry& QueryGeom, const FTransform& StartTM, const FVector& Dir, float DeltaMag, FPhysicsHitCallback<FHitSweep>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const FCollisionQueryParams& Params, FPxQueryFilterCallback* QueryCallback)
-{
-#if WITH_CUSTOM_SQ_STRUCTURE
-	if (ForceStandardSQ == 0)
-	{
-		ISQAccelerator* SQAccelerator = Scene.GetSQAccelerator();
-		SQAccelerator->Sweep(QueryGeom, StartTM, Dir, HitBuffer, OutputFlags, QueryFlags, Filter, *QueryCallback);
-		FinalizeQuery(HitBuffer);
+		FinalizeCapture(Serializer);
 	}
 	else
-#endif
 	{
-#if PHYSICS_INTERFACE_PHYSX
-		PxQueryFilterData QueryFilterData(U2PFilterData(Filter), U2PQueryFlags(QueryFlags) | StaticDynamicQueryFlags(Params));
+		Scene.GetPxScene()->raycast(U2PVector(Start), U2PVector(Dir), DeltaMag, HitBuffer, U2PHitFlags(OutputFlags), QueryFilterData, QueryCallback);
+	}
+#endif
+}
+
+void LowLevelSweep(FPhysScene& Scene, const FPhysicsGeometry& QueryGeom, const FTransform& StartTM, const FVector& Dir, float DeltaMag, FPhysicsHitCallback<FHitSweep>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback)
+{
+#if !defined(PHYSICS_INTERFACE_PHYSX) || !PHYSICS_INTERFACE_PHYSX
+	Chaos::FPhysicsSolver* Solver = Scene.GetSolver();
+	Chaos::FPhysicsSolver::FPBDRigidsEvolution* Evolution = Solver->GetEvolution();
+	FChaosSQAccelerator SQAccelerator(*Evolution);
+	//ISQAccelerator* SQAccelerator = Scene.GetSQAccelerator();
+	SQAccelerator.Sweep(QueryGeom, StartTM, Dir, DeltaMag, HitBuffer, OutputFlags, QueryFilterData, *QueryCallback);
+#else
+	if (SerializeSQs | ReplaySQs)
+	{
+		FPhysTestSerializer Serializer;
+		Serializer.SetPhysicsData(*Scene.GetPxScene());
+		FSQCapture& SweepCapture = Serializer.CaptureSQ();
+		SweepCapture.StartCapturePhysXSweep(*Scene.GetPxScene(), QueryGeom, StartTM, Dir, DeltaMag, OutputFlags, QueryFilterData, Filter, *QueryCallback);
 		Scene.GetPxScene()->sweep(QueryGeom, U2PTransform(StartTM), U2PVector(Dir), DeltaMag, HitBuffer, U2PHitFlags(OutputFlags), QueryFilterData, QueryCallback);
-#endif
-	}
-}
+		SweepCapture.EndCapturePhysXSweep(HitBuffer);
 
-void LowLevelOverlap(FPhysScene& Scene, const PxGeometry& QueryGeom, const FTransform& GeomPose, FPhysicsHitCallback<FHitOverlap>& HitBuffer, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const FCollisionQueryParams& Params, FPxQueryFilterCallback* QueryCallback)
-{
-#if WITH_CUSTOM_SQ_STRUCTURE
-	if (ForceStandardSQ == 0)
-	{
-		ISQAccelerator* SQAccelerator = Scene.GetSQAccelerator();
-		SQAccelerator->Overlap(QueryGeom, GeomPose, HitBuffer, QueryFlags, Filter, *QueryCallback);
-		FinalizeQuery(HitBuffer);
+		FinalizeCapture(Serializer);
 	}
 	else
-#endif
 	{
-#if PHYSICS_INTERFACE_PHYSX
-		PxQueryFilterData QueryFilterData(U2PFilterData(Filter), StaticDynamicQueryFlags(Params) | U2PQueryFlags(QueryFlags));
-		Scene.GetPxScene()->overlap(QueryGeom, U2PTransform(GeomPose), HitBuffer, QueryFilterData, QueryCallback);
-#endif
+		Scene.GetPxScene()->sweep(QueryGeom, U2PTransform(StartTM), U2PVector(Dir), DeltaMag, HitBuffer, U2PHitFlags(OutputFlags), QueryFilterData, QueryCallback);
 	}
+#endif
 }
 
+void LowLevelOverlap(FPhysScene& Scene, const FPhysicsGeometry& QueryGeom, const FTransform& GeomPose, FPhysicsHitCallback<FHitOverlap>& HitBuffer, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback)
+{
+#if !defined(PHYSICS_INTERFACE_PHYSX) || !PHYSICS_INTERFACE_PHYSX
+	Chaos::FPhysicsSolver* Solver = Scene.GetSolver();
+	Chaos::FPhysicsSolver::FPBDRigidsEvolution* Evolution = Solver->GetEvolution();
+	FChaosSQAccelerator SQAccelerator(*Evolution);
+	//ISQAccelerator* SQAccelerator = Scene.GetSQAccelerator();
+	SQAccelerator.Overlap(QueryGeom, GeomPose, HitBuffer, QueryFilterData, *QueryCallback);
+#else
+	if (SerializeSQs | ReplaySQs)
+	{
+		FPhysTestSerializer Serializer;
+		Serializer.SetPhysicsData(*Scene.GetPxScene());
+		FSQCapture& SweepCapture = Serializer.CaptureSQ();
+		SweepCapture.StartCapturePhysXOverlap(*Scene.GetPxScene(), QueryGeom, GeomPose, QueryFilterData, Filter, *QueryCallback);
+		Scene.GetPxScene()->overlap(QueryGeom, U2PTransform(GeomPose), HitBuffer, QueryFilterData, QueryCallback);
+		SweepCapture.EndCapturePhysXOverlap(HitBuffer);
 
-#endif // WITH_PHYSX 
+		FinalizeCapture(Serializer);
+	}
+	else
+	{
+		Scene.GetPxScene()->overlap(QueryGeom, U2PTransform(GeomPose), HitBuffer, QueryFilterData, QueryCallback);
+	}		
+#endif
+}
+
+//#endif // WITH_PHYSX 

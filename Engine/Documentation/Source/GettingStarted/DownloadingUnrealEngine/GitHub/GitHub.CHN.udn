@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3810467
+﻿INTSourceChangelist:6426757
 Availability:NoPublish
 Title:从GitHUb分叉和复制
 Crumbs:%ROOT%, GettingStarted, GettingStarted/DownloadingUnrealEngine
@@ -11,8 +11,6 @@ Version: 4.16
 SkillLevel: Advanced
 
 从GitHub分叉并复制源代码是虚幻引擎入门的好方法。
-
-%Globals:osselect_linux%
 
 [OBJECT:ToggleButtonContent]
 	[PARAMLITERAL:category]
@@ -170,7 +168,6 @@ SkillLevel: Advanced
 参见[分叉元库](https://help.github.com/articles/fork-a-repo)，了解在GitHub上分叉元库的 
 完整说明。
 
-(#downloadsourcearchive)
 ## 下载源代码档案
 
 使用者可直接从元库页面或[版本](https://github.com/EpicGames/UnrealEngine/releases)页面下载当前版本源代码的档案。这是获取源代码的简单方法，但同时也意味着您只将GitHub用作了一种下载源代码的方法，而失去了将源代码留在GitHub上的美妙功能，例如在源代码元库修改时收到通知、将代码提交回给Epic等社区相关的方面。
@@ -184,7 +181,6 @@ SkillLevel: Advanced
 
 将下载的档案解压到电脑上您选择的路径中。
 
-(#nextsteps)
 ## 剩余步骤
 
 现在即可[编译引擎](Programming/Development/BuildingUnrealEngine)。
@@ -192,7 +188,6 @@ SkillLevel: Advanced
 [/COMMENT]
 [COMMENT:none]
  从虚幻引擎4.8版本起，此章节便被废弃。
-(#installingdependencies)
 ## 安装依赖性
 
 除源代码外，还需要安装依赖性才能编译和运行引擎。它们多数为二进制文件、内容资源和第三方库。 
@@ -203,7 +198,6 @@ SkillLevel: Advanced
 在4.5.1及之前的版本中，`Setup.bat` 并不存在，必须单独下载依赖性。它们在[releases](https://github.com/EpicGames/UnrealEngine/releases)页面中的“Required_1of2”和“Required_2of2”部分。它们必须被解压到虚幻引擎文件夹中。
 [/REGION]
 
-(#nextsteps)
 ## 剩余步骤
 
 安装依赖性后即可[编译引擎](Programming/Development/BuildingUnrealEngine)。

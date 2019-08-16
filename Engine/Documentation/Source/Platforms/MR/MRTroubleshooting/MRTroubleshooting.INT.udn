@@ -1,11 +1,11 @@
-Availability: Public
+﻿Availability: Public
 Crumbs: %ROOT%, Platforms, Platforms/MR
 Title: Troubleshooting Mixed Reality Capture
-Description: Product documentation including reference and guides for Unreal Engine 4
+Description: Troubleshooting tips when working with Mixed Reality Capture.
 Version: 4.20
 Parent: Platforms/MR
 Order: 5
-Tags: Reference
+Tags: troubleshooting
 Tags: MR
 Tags: landingpage
 Tags: Early Access
@@ -28,7 +28,7 @@ If you see this kind of behavior, you can change the render target resize rule t
 
 ## Capture Not Displaying on Spectator Screen
 
-The MRC framework uses the [Virtual Reality Spectator Screen](Platforms/VR/VRSpectatorScreen) to display the composited scene. This means the Mixed Reality capture will only be displayed when running in Virtual Reality. If your project also uses the spectator screen, then you need to conditionally guard where you use them. There are MRC methods to help with this:
+The MRC framework uses the [Virtual Reality Spectator Screen](Platforms/VR/DevelopVR/VRSpectatorScreen) to display the composited scene. This means the Mixed Reality capture will only be displayed when running in Virtual Reality. If your project also uses the spectator screen, then you need to conditionally guard where you use them. There are MRC methods to help with this:
 
 **Get Mixed Reality Capture Texture**  
 Returns the Capture Texture, or a nullptr if there isn't one.

@@ -10,7 +10,7 @@ USoundEffectPreset::USoundEffectPreset(const FObjectInitializer& ObjectInitializ
 	: Super(ObjectInitializer)
 	, bInitialized(false)
 {
-	
+
 }
 
 USoundEffectPreset::~USoundEffectPreset()
@@ -52,6 +52,18 @@ void USoundEffectPreset::AddEffectInstance(FSoundEffectBase* InSource)
 	Instances.AddUnique(InSource);
 }
 
+void USoundEffectPreset::AddReferencedEffects(FReferenceCollector& Collector)
+{
+	for (FSoundEffectBase* Effect : Instances)
+	{
+		if (Effect)
+		{
+			const USoundEffectPreset* EffectPreset = Effect->GetPreset();
+			Collector.AddReferencedObject(EffectPreset);
+		}
+	}
+}
+
 void USoundEffectPreset::RemoveEffectInstance(FSoundEffectBase* InSource)
 {
 	if (Instances.Contains(InSource))
@@ -67,9 +79,7 @@ void USoundEffectPreset::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 	Init();
 	Update();
 }
-#endif
 
-#if WITH_EDITORONLY_DATA
 void USoundEffectSourcePresetChain::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	if (GEngine)
@@ -78,5 +88,15 @@ void USoundEffectSourcePresetChain::PostEditChangeProperty(FPropertyChangedEvent
 		AudioDeviceManager->UpdateSourceEffectChain(GetUniqueID(), Chain, bPlayEffectChainTails);
 	}
 }
-#endif
+#endif // WITH_EDITORONLY_DATA
 
+void USoundEffectSourcePresetChain::AddReferencedEffects(FReferenceCollector& Collector)
+{
+	for (FSourceEffectChainEntry& SourceEffect : Chain)
+	{
+		if (SourceEffect.Preset)
+		{
+			SourceEffect.Preset->AddReferencedEffects(Collector);
+		}
+	}
+}

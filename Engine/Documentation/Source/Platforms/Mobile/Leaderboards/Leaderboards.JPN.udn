@@ -28,8 +28,8 @@ topic-image:topic.png
 各プラットフォームに対するリーダーボードの設定の詳細については、プラットフォーム専用ページをご覧ください。
 
 [REGION:buttonlist]
-* [](Platforms/Android/Leaderboards)
-* [](Platforms/iOS/Leaderboards)
+* [](Platforms/Mobile/Android/Leaderboards)
+* [](Platforms/Mobile/iOS/Leaderboards)
 [/REGION]
 
 [EXCERPT:Usage]

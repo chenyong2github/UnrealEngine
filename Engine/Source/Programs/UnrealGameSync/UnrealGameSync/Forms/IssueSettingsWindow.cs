@@ -33,7 +33,18 @@ namespace UnrealGameSync
 				NotifyUnassignedTextBox.Text = Settings.NotifyUnassignedMinutes.ToString();
 			}
 
-			if(Settings.NotifyUnresolvedMinutes < 0)
+			if (Settings.NotifyUnacknowledgedMinutes < 0)
+			{
+				NotifyUnacknowledgedCheckBox.Checked = false;
+				NotifyUnacknowledgedTextBox.Text = "5";
+			}
+			else
+			{
+				NotifyUnacknowledgedCheckBox.Checked = true;
+				NotifyUnacknowledgedTextBox.Text = Settings.NotifyUnacknowledgedMinutes.ToString();
+			}
+
+			if (Settings.NotifyUnresolvedMinutes < 0)
 			{
 				NotifyUnresolvedCheckBox.Checked = false;
 				NotifyUnresolvedTextBox.Text = "20";
@@ -50,6 +61,7 @@ namespace UnrealGameSync
 		private void UpdateEnabledTextBoxes()
 		{
 			NotifyUnassignedTextBox.Enabled = NotifyUnassignedCheckBox.Checked;
+			NotifyUnacknowledgedTextBox.Enabled = NotifyUnacknowledgedCheckBox.Checked;
 			NotifyUnresolvedTextBox.Enabled = NotifyUnresolvedCheckBox.Checked;
 		}
 
@@ -77,6 +89,18 @@ namespace UnrealGameSync
 				NewNotifyUnresolvedMinutes = NewNotifyUnresolvedMinutesValue;
 			}
 
+			int NewNotifyUnacknowledgedMinutes = -1;
+			if (NotifyUnacknowledgedCheckBox.Checked)
+			{
+				ushort NewNotifyUnacknowledgedMinutesValue;
+				if (!ushort.TryParse(NotifyUnacknowledgedTextBox.Text, out NewNotifyUnacknowledgedMinutesValue))
+				{
+					MessageBox.Show("Invalid time");
+					return;
+				}
+				NewNotifyUnacknowledgedMinutes = NewNotifyUnacknowledgedMinutesValue;
+			}
+
 			int NewNotifyUnassignedMinutes = -1;
 			if(NotifyUnassignedCheckBox.Checked)
 			{
@@ -90,6 +114,7 @@ namespace UnrealGameSync
 			}
 
 			Settings.NotifyUnresolvedMinutes = NewNotifyUnresolvedMinutes;
+			Settings.NotifyUnacknowledgedMinutes = NewNotifyUnacknowledgedMinutes;
 			Settings.NotifyUnassignedMinutes = NewNotifyUnassignedMinutes;
 			Settings.Save();
 

@@ -70,6 +70,12 @@ class ENGINE_API UCameraComponent : public USceneComponent
 	virtual FText GetFilmbackText() const;
 #endif
 
+#if WITH_EDITORONLY_DATA
+	/** If the camera mesh is visible in game. Only relevant when running editor builds. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera)
+	uint8 bCameraMeshHiddenInGame : 1;
+#endif
+
 	/** True if the camera's orientation and position should be locked to the HMD */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CameraOptions)
 	uint8 bLockToHmd : 1;
@@ -136,7 +142,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	virtual void SetCameraMesh(UStaticMesh* Mesh);
-#endif
+#endif 
 
 protected:
 
@@ -144,17 +150,24 @@ protected:
 	// The frustum component used to show visually where the camera field of view is
 	class UDrawFrustumComponent* DrawFrustum;
 
-	UPROPERTY(transient)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Camera)
 	class UStaticMesh* CameraMesh;
 
 	// The camera mesh to show visually where the camera is placed
 	class UStaticMeshComponent* ProxyMeshComponent;
-	
+
 	virtual void ResetProxyMeshTransform();
 
 	/** Ensure the proxy mesh is in the correct place */
 	void UpdateProxyMeshTransform();
-#endif
+
+#endif	// WITH_EDITORONLY_DATA
+
+	/**
+	* Internal function for updating the camera mesh visibility in PIE
+	*/
+	UFUNCTION(BlueprintSetter)
+	void OnCameraMeshHiddenChanged();
 
 	/** An optional extra transform to adjust the final view without moving the component, in the camera's local space */
 	FTransform AdditiveOffset;
@@ -198,7 +211,7 @@ public:
 public:
 
 	/** Post process settings to use for this camera. Don't forget to check the properties you want to override */
-	UPROPERTY(Interp, BlueprintReadWrite, Category = PostProcess)
+	UPROPERTY(Interp, BlueprintReadWrite, Category = PostProcess, meta=(ShowOnlyInnerProperties))
 	struct FPostProcessSettings PostProcessSettings;
 
 #if WITH_EDITORONLY_DATA
@@ -212,5 +225,5 @@ public:
 	/** DEPRECATED: use bUsePawnControlRotation instead */
 	UPROPERTY()
 	uint32 bUseControllerViewRotation_DEPRECATED:1;
-#endif
+#endif	// WITH_EDITORONLY_DATA
 };

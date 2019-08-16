@@ -16,6 +16,11 @@
 #include "IMeshBuilderModule.h"
 #include "PackageTools.h"
 
+#if USE_USD_SDK
+#include "USDIncludesStart.h"
+#include "pxr/usd/usdGeom/mesh.h"
+#include "USDIncludesEnd.h"
+
 #define LOCTEXT_NAMESPACE "USDImportPlugin"
 
 struct FMeshDescriptionWrapper
@@ -90,57 +95,62 @@ private:
 	int32 MaterialIndexOffset;
 
 public:
-	void ProcessStaticUSDGeometry(IUsdPrim* GeomPrim, int32 LODIndex);
+	void ProcessStaticUSDGeometry(const pxr::UsdPrim& GeomPrim, int32 LODIndex);
 	void ProcessMaterials(int32 LODIndex);
 
 private:
-	void AddVertexPositions(FMeshDescriptionWrapper& DestMeshWrapper, const FUsdGeomData& GeomData);
-	bool AddPolygons(FMeshDescriptionWrapper& DestMeshWrapper, const FUsdGeomData& GeomData);
+	void AddVertexPositions( FMeshDescriptionWrapper& DestMeshWrapper, const pxr::UsdGeomMesh& Mesh );
+	bool AddPolygons( FMeshDescriptionWrapper& DestMeshWrapper, const pxr::UsdGeomMesh& Mesh, const TArray< FString >& MaterialNames, const TArray< int32 >& FaceMaterialIndices );
 };
 
-void FUSDStaticMeshImportState::ProcessStaticUSDGeometry(IUsdPrim* GeomPrim, int32 LODIndex)
+void FUSDStaticMeshImportState::ProcessStaticUSDGeometry(const pxr::UsdPrim& GeomPrim, int32 LODIndex)
 {
-	const FUsdGeomData* GeomDataPtr = GeomPrim->GetGeometryData();
-	const FUsdGeomData& GeomData = *GeomDataPtr;
+	pxr::UsdGeomMesh Mesh( GeomPrim );
+	if ( !Mesh )
+	{
+		return;
+	}
 
 	FMeshDescriptionWrapper DestMeshWrapper(MeshDescription);
-
 	VertexOffset = MeshDescription->Vertices().Num();
 	VertexInstanceOffset = MeshDescription->VertexInstances().Num();
 	PolygonOffset = MeshDescription->Polygons().Num();
 	MaterialIndexOffset = Materials.Num();
-	Materials.AddDefaulted(GeomData.MaterialNames.size());
 
-	AddVertexPositions(DestMeshWrapper, GeomData);
-	AddPolygons(DestMeshWrapper, GeomData);
+	TTuple< TArray< FString >, TArray< int32 > > GeometryMaterials = IUsdPrim::GetGeometryMaterials( pxr::UsdTimeCode::Default().GetValue(), GeomPrim );
+
+	Materials.AddDefaulted( GeometryMaterials.Key.Num() );
+
+	AddVertexPositions( DestMeshWrapper, Mesh );
+	AddPolygons( DestMeshWrapper, Mesh, GeometryMaterials.Key, GeometryMaterials.Value );
 }
 
-void FUSDStaticMeshImportState::AddVertexPositions(FMeshDescriptionWrapper& DestMeshWrapper, const FUsdGeomData& GeomData)
+void FUSDStaticMeshImportState::AddVertexPositions( FMeshDescriptionWrapper& DestMeshWrapper, const pxr::UsdGeomMesh& Mesh )
 {
-	for (int32 LocalPointIndex = 0; LocalPointIndex < GeomData.Points.size(); ++LocalPointIndex)
-	{
-		const FUsdVectorData& Point = GeomData.Points[LocalPointIndex];
-		FVector Pos = FVector(-Point.X, Point.Y, Point.Z);
-		Pos = FinalTransform.TransformPosition(Pos);
+	using namespace pxr;
 
-		FVertexID AddedVertexId = MeshDescription->CreateVertex();
-		DestMeshWrapper.Vertex.Positions[AddedVertexId] = Pos;
+	pxr::UsdAttribute Points = Mesh.GetPointsAttr();
+	if ( Points )
+	{
+		pxr::VtArray< pxr::GfVec3f > PointsArray;
+		Points.Get( &PointsArray, UsdTimeCode::Default().GetValue() );
+
+		for ( int32 LocalPointIndex = 0; LocalPointIndex < PointsArray.size(); ++LocalPointIndex )
+		{
+			const GfVec3f& Point = PointsArray[ LocalPointIndex ];
+
+			FVector Pos = USDToUnreal::ConvertVector( *ImportContext.Stage, Point );
+			Pos = FinalTransform.TransformPosition(Pos);
+
+			FVertexID AddedVertexId = MeshDescription->CreateVertex();
+			DestMeshWrapper.Vertex.Positions[AddedVertexId] = Pos;
+		}
 	}
 }
 
-bool FUSDStaticMeshImportState::AddPolygons(FMeshDescriptionWrapper& DestMeshWrapper, const FUsdGeomData& GeomData)
+bool FUSDStaticMeshImportState::AddPolygons( FMeshDescriptionWrapper& DestMeshWrapper, const pxr::UsdGeomMesh& Mesh, const TArray< FString >& MaterialNames, const TArray< int32 >& FaceMaterialIndices )
 {
-	// When importing multiple mesh pieces to the same static mesh.  Ensure each mesh piece has the same number of Uv's
-	{
-		int32 ExistingUVCount = DestMeshWrapper.Vertex.UVs.GetNumIndices();
-		int32 NumUVs = FMath::Max(GeomData.NumUVs, ExistingUVCount);
-		NumUVs = FMath::Min<int32>(MAX_MESH_TEXTURE_COORDS, NumUVs);
-		// At least one UV set must exist.  
-		NumUVs = FMath::Max<int32>(1, NumUVs);
-
-		//Make sure all Vertex instance have the correct number of UVs
-		DestMeshWrapper.Vertex.UVs.SetNumIndices(NumUVs);
-	}
+	using namespace pxr;
 
 	TMap<int32, FPolygonGroupID> PolygonGroupMapping;
 	TArray<FVertexInstanceID> CornerInstanceIDs;
@@ -148,14 +158,93 @@ bool FUSDStaticMeshImportState::AddPolygons(FMeshDescriptionWrapper& DestMeshWra
 	int32 CurrentVertexInstanceIndex = 0;
 
 	bool bFlipThisGeometry = bFlip;
-	if (GeomData.Orientation == EUsdGeomOrientation::LeftHanded)
+
+	if ( IUsdPrim::GetGeometryOrientation( Mesh ) == EUsdGeomOrientation::LeftHanded )
 	{
 		bFlipThisGeometry = !bFlip;
 	}
 
-	for (int32 PolygonIndex = 0; PolygonIndex < GeomData.FaceVertexCounts.size(); ++PolygonIndex)
+	// Face counts
+	UsdAttribute FaceCountsAttribute = Mesh.GetFaceVertexCountsAttr();
+	VtArray< int > FaceCounts;
+
+	if ( FaceCountsAttribute )
 	{
-		int32 PolygonVertexCount = GeomData.FaceVertexCounts[PolygonIndex];
+		FaceCountsAttribute.Get( &FaceCounts, UsdTimeCode::Default().GetValue() );
+	}
+
+	// Face indices
+	UsdAttribute FaceIndicesAttribute = Mesh.GetFaceVertexIndicesAttr();
+	VtArray< int > FaceIndices;
+
+	if ( FaceIndicesAttribute )
+	{
+		FaceIndicesAttribute.Get( &FaceIndices, UsdTimeCode::Default().GetValue() );
+	}
+
+	// Normals
+	UsdAttribute NormalsAttribute = Mesh.GetNormalsAttr();
+	VtArray< GfVec3f > Normals;
+
+	if ( NormalsAttribute )
+	{
+		NormalsAttribute.Get( &Normals, UsdTimeCode::Default().GetValue() );
+	}
+
+	// UVs
+	struct FUVSet
+	{
+		TOptional< VtIntArray > UVIndices; // UVs might be indexed or they might be flat (one per vertex)
+		VtVec2fArray UVs;
+	};
+
+	EUsdInterpolationMethod UVInterpolationMethod = EUsdInterpolationMethod::FaceVarying;
+	TArray< FUVSet > UVSets;
+	{
+		static TfToken UVSetName("primvars:st");
+
+		UsdGeomPrimvar STPrimvar = Mesh.GetPrimvar(UVSetName);
+
+		if(STPrimvar)
+		{
+			FUVSet UVSet;
+
+			if (STPrimvar.GetInterpolation() == UsdGeomTokens->vertex)
+			{
+				UVInterpolationMethod = EUsdInterpolationMethod::Vertex;
+
+				UVSet.UVIndices.Emplace();
+
+				if ( STPrimvar.GetIndices(&UVSet.UVIndices.GetValue()) && STPrimvar.Get(&UVSet.UVs) )
+				{
+					UVSets.Add( MoveTemp( UVSet ) );
+				}
+			}
+			else
+			{
+				if ( STPrimvar.ComputeFlattened(&UVSet.UVs) )
+				{
+					UVSets.Add( MoveTemp( UVSet ) );
+				}
+			}
+		}
+	}
+
+	// When importing multiple mesh pieces to the same static mesh.  Ensure each mesh piece has the same number of Uv's
+	{
+		int32 ExistingUVCount = DestMeshWrapper.Vertex.UVs.GetNumIndices();
+		int32 NumUVs = FMath::Max(UVSets.Num(), ExistingUVCount);
+		NumUVs = FMath::Min<int32>(MAX_MESH_TEXTURE_COORDS_MD, NumUVs);
+		// At least one UV set must exist.  
+		NumUVs = FMath::Max<int32>(1, NumUVs);
+
+		//Make sure all Vertex instance have the correct number of UVs
+		DestMeshWrapper.Vertex.UVs.SetNumIndices(NumUVs);
+	}
+
+	for ( int32 PolygonIndex = 0; PolygonIndex < FaceCounts.size(); ++PolygonIndex )
+	{
+		int32 PolygonVertexCount = FaceCounts[PolygonIndex];
 		CornerInstanceIDs.Reset();
 		CornerInstanceIDs.AddUninitialized(PolygonVertexCount);
 		CornerVerticesIDs.Reset();
@@ -166,47 +255,58 @@ bool FUSDStaticMeshImportState::AddPolygons(FMeshDescriptionWrapper& DestMeshWra
 			int32 VertexInstanceIndex = VertexInstanceOffset + CurrentVertexInstanceIndex;
 			const FVertexInstanceID VertexInstanceID(VertexInstanceIndex);
 			CornerInstanceIDs[CornerIndex] = VertexInstanceID;
-			const int32 ControlPointIndex = GeomData.FaceIndices[CurrentVertexInstanceIndex];
+			const int32 ControlPointIndex = FaceIndices[CurrentVertexInstanceIndex];
 			const FVertexID VertexID(VertexOffset + ControlPointIndex);
 			const FVector VertexPosition = DestMeshWrapper.Vertex.Positions[VertexID];
 			CornerVerticesIDs[CornerIndex] = VertexID;
 
 			FVertexInstanceID AddedVertexInstanceId = MeshDescription->CreateVertexInstance(VertexID);
 
-			if (GeomData.Normals.size() > 0)
+			if ( Normals.size() > 0 )
 			{
-				const int32 NormalIndex = GeomData.Normals.size() != GeomData.FaceIndices.size() ? GeomData.FaceIndices[CurrentVertexInstanceIndex] : CurrentVertexInstanceIndex;
-				check(NormalIndex < GeomData.Normals.size());
-				const FUsdVectorData& Normal = GeomData.Normals[NormalIndex];
-				//FVector TransformedNormal = ConversionMatrixIT.TransformVector(PrimToWorldIT.TransformVector(FVector(Normal.X, Normal.Y, Normal.Z)));
-				FVector TransformedNormal = FinalTransformIT.TransformVector(FVector(-Normal.X, Normal.Y, Normal.Z));
+				const int32 NormalIndex = Normals.size() != FaceIndices.size() ? FaceIndices[CurrentVertexInstanceIndex] : CurrentVertexInstanceIndex;
+				check(NormalIndex < Normals.size());
+				const GfVec3f& Normal = Normals[NormalIndex];
+				FVector TransformedNormal = FinalTransformIT.TransformVector( USDToUnreal::ConvertVector( *ImportContext.Stage, Normal ) );
 
 				DestMeshWrapper.Vertex.Normals[AddedVertexInstanceId] = TransformedNormal.GetSafeNormal();
 			}
 
-			for (int32 UVLayerIndex = 0; UVLayerIndex < GeomData.NumUVs; ++UVLayerIndex)
+			int32 UVLayerIndex = 0;
+			for ( const FUVSet& UVSet : UVSets )
 			{
-				EUsdInterpolationMethod UVInterpMethod = GeomData.UVs[UVLayerIndex].UVInterpMethod;
+				GfVec2f UV;
 
-				// Get the index into the point array for this wedge
-				const int32 PointIndex = UVInterpMethod != EUsdInterpolationMethod::FaceVarying ? GeomData.FaceIndices[CurrentVertexInstanceIndex] : CurrentVertexInstanceIndex;
+				if ( UVInterpolationMethod == EUsdInterpolationMethod::Vertex && UVSet.UVIndices.IsSet() )
+				{
+					int32 NumFaces = FaceCounts.size();
+					int32 NumFaceIndices = FaceIndices.size();
+					int32 NumUVs = UVSet.UVs.size();
+					int32 NumIndices = UVSet.UVIndices->size();
 
-				// In this mode there is a single vertex per vertex so 
-				// the point index should match up
-				check(PointIndex < GeomData.UVs[UVLayerIndex].Coords.size());
-				const FUsdVector2Data& UV = GeomData.UVs[UVLayerIndex].Coords[PointIndex];
+					if ( ensure( UVSet.UVIndices.GetValue().size() > VertexID.GetValue() ) )
+					{
+						UV = UVSet.UVs[ UVSet.UVIndices.GetValue()[ VertexID.GetValue() ] ];
+					}
+				}
+				else if ( UVSet.UVs.size() > CurrentVertexInstanceIndex )
+				{
+					UV = UVSet.UVs[ CurrentVertexInstanceIndex ];
+				}
 
 				// Flip V for Unreal uv's which match directx
-				FVector2D FinalUVVector(UV.X, 1.f - UV.Y);
+				FVector2D FinalUVVector(UV[0], 1.f - UV[1]);
 				DestMeshWrapper.Vertex.UVs.Set(AddedVertexInstanceId, UVLayerIndex, FinalUVVector);
+
+				++UVLayerIndex;
 			}
 		}
 
 		int32 MaterialIndex = 0;
-		if (PolygonIndex >= 0 && PolygonIndex < GeomData.FaceMaterialIndices.size())
+		if (PolygonIndex >= 0 && PolygonIndex < FaceMaterialIndices.Num())
 		{
-			MaterialIndex = GeomData.FaceMaterialIndices[PolygonIndex];
-			if (MaterialIndex < 0 || MaterialIndex > GeomData.MaterialNames.size())
+			MaterialIndex = FaceMaterialIndices[PolygonIndex];
+			if (MaterialIndex < 0 || MaterialIndex > MaterialNames.Num())
 			{
 				MaterialIndex = 0;
 			}
@@ -216,9 +316,9 @@ bool FUSDStaticMeshImportState::AddPolygons(FMeshDescriptionWrapper& DestMeshWra
 		if (!PolygonGroupMapping.Contains(RealMaterialIndex))
 		{
 			FName ImportedMaterialSlotName;
-			if (MaterialIndex >= 0 && MaterialIndex < GeomData.MaterialNames.size())
+			if (MaterialIndex >= 0 && MaterialIndex < MaterialNames.Num())
 			{
-				FString MaterialName = USDToUnreal::ConvertString(GeomData.MaterialNames[MaterialIndex]);
+				FString MaterialName = MaterialNames[MaterialIndex];
 				ImportedMaterialSlotName = FName(*MaterialName);
 				Materials[RealMaterialIndex].Name = MaterialName;
 			}
@@ -254,6 +354,47 @@ bool FUSDStaticMeshImportState::AddPolygons(FMeshDescriptionWrapper& DestMeshWra
 		}
 	}
 
+	// Vertex color
+	UsdGeomPrimvar ColorPrimvar = Mesh.GetDisplayColorPrimvar();
+	if (ColorPrimvar)
+	{
+		pxr::VtArray<pxr::GfVec3f> USDColors;
+		ColorPrimvar.ComputeFlattened(&USDColors);
+
+		TVertexInstanceAttributesRef<FVector4> Colors = MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color);
+
+		int32 NumColors = USDColors.size();
+
+		auto ConvertToLinear = []( const pxr::GfVec3f& UsdColor ) -> FLinearColor
+		{
+			return FLinearColor( FLinearColor( USDToUnreal::ConvertColor( UsdColor ) ).ToFColor( false ) );
+		};
+
+		pxr::TfToken USDInterpType = ColorPrimvar.GetInterpolation();
+		if(USDInterpType == pxr::UsdGeomTokens->faceVarying && NumColors >= Colors.GetNumElements())
+		{
+			for(int Index = 0; Index < Colors.GetNumElements(); ++Index)
+			{
+				Colors[FVertexInstanceID(Index)] = ConvertToLinear(USDColors[Index]);
+			}
+		}
+		else if(USDInterpType == pxr::UsdGeomTokens->vertex && NumColors >= MeshDescription->Vertices().Num())
+		{
+			for(auto VertexInstID : MeshDescription->VertexInstances().GetElementIDs())
+			{
+				FVertexID VertexID = MeshDescription->GetVertexInstance(VertexInstID).VertexID;
+				Colors[VertexInstID] = ConvertToLinear(USDColors[VertexID.GetValue()]);
+			}
+		}
+		else if (USDInterpType == pxr::UsdGeomTokens->constant && NumColors == 1)
+		{
+			for(int Index = 0; Index < Colors.GetNumElements(); ++Index)
+			{
+				Colors[FVertexInstanceID(Index)] = ConvertToLinear(USDColors[0]);
+			}
+		}
+	}
+	
 	return true;
 }
 
@@ -304,15 +445,13 @@ void FUSDStaticMeshImportState::ProcessMaterials(int32 LODIndex)
 				{
 					Materials[MaterialIndex].UnrealMaterial = Material;
 				}
-				else
-				{
-					Material = UMaterial::GetDefaultMaterial(MD_Surface);
-				}
 			}
 		}
+
 		if (Material == nullptr)
 		{
-			Material = UMaterial::GetDefaultMaterial(MD_Surface);
+			FSoftObjectPath VertexColorMaterialPath( TEXT("Material'/Engine/EngineDebugMaterials/VertexColorMaterial.VertexColorMaterial'") );
+			Material = Cast< UMaterialInterface >( VertexColorMaterialPath.TryLoad() );
 		}
 
 		FStaticMaterial StaticMaterial(Material, MaterialSlotName, ImportedMaterialSlotName);
@@ -334,12 +473,12 @@ void FUSDStaticMeshImportState::ProcessMaterials(int32 LODIndex)
 
 UStaticMesh* FUSDStaticMeshImporter::ImportStaticMesh(FUsdImportContext& ImportContext, const FUsdAssetPrimToImport& PrimToImport)
 {
-	IUsdPrim* Prim = PrimToImport.Prim;
+	const pxr::UsdPrim& Prim = *PrimToImport.Prim;
 
-	const FTransform& ConversionTransform = ImportContext.ConversionTransform;
-	const FMatrix PrimToWorld = ImportContext.bApplyWorldTransformToGeometry ? USDToUnreal::ConvertMatrix(Prim->GetLocalToWorldTransform()) : FMatrix::Identity;
-	FTransform FinalTransform = FTransform(PrimToWorld) * ConversionTransform;
-	if (ImportContext.ImportOptions->Scale != 1.0)
+	FTransform PrimToWorld = ImportContext.bApplyWorldTransformToGeometry ? USDToUnreal::ConvertMatrix(ImportContext.Stage.Get(), IUsdPrim::GetLocalTransform( Prim )) : FTransform::Identity;
+
+	FTransform FinalTransform = PrimToWorld;
+	if (ImportContext.ImportOptions->Scale != 1.0f)
 	{
 		FVector Scale3D = FinalTransform.GetScale3D() * ImportContext.ImportOptions->Scale;
 		FinalTransform.SetScale3D(Scale3D);
@@ -385,26 +524,26 @@ UStaticMesh* FUSDStaticMeshImporter::ImportStaticMesh(FUsdImportContext& ImportC
 
 	for (int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex)
 	{
-		if (NewMesh->SourceModels.Num() < LODIndex + 1)
+		if (NewMesh->GetNumSourceModels() < LODIndex + 1)
 		{
 			// Add one LOD 
 			NewMesh->AddSourceModel();
 
-			if (NewMesh->SourceModels.Num() < LODIndex + 1)
+			if (NewMesh->GetNumSourceModels() < LODIndex + 1)
 			{
-				LODIndex = NewMesh->SourceModels.Num() - 1;
+				LODIndex = NewMesh->GetNumSourceModels() - 1;
 			}
 		}
 
-		TArray<IUsdPrim*> PrimsWithGeometry;
-		for (IUsdPrim* MeshPrim : PrimToImport.MeshPrims)
+		TArray< TUsdStore< pxr::UsdPrim > > PrimsWithGeometry;
+		for (const TUsdStore< pxr::UsdPrim >& MeshPrim : PrimToImport.MeshPrims)
 		{
-			if (MeshPrim->GetNumLODs() > LODIndex)
+			if (IUsdPrim::GetNumLODs( *MeshPrim ) > LODIndex)
 			{
 				// If the mesh has LOD children at this index then use that as the geom prim
-				MeshPrim->SetActiveLODIndex(LODIndex);
+				IUsdPrim::SetActiveLODIndex( *MeshPrim, LODIndex );
 
-				ImportContext.PrimResolver->FindMeshChildren(ImportContext, MeshPrim, false, PrimsWithGeometry);
+				ImportContext.PrimResolver->FindMeshChildren(ImportContext, *MeshPrim, false, PrimsWithGeometry);
 			}
 			else if (LODIndex == 0)
 			{
@@ -420,20 +559,24 @@ UStaticMesh* FUSDStaticMeshImporter::ImportStaticMesh(FUsdImportContext& ImportC
 
 		bool bRecomputeNormals = false;
 
-		for (IUsdPrim* GeomPrim : PrimsWithGeometry)
+		for (const TUsdStore< pxr::UsdPrim >& GeomPrim : PrimsWithGeometry)
 		{
 			// If we dont have a geom prim this might not be an error so dont message it.  The geom prim may not contribute to the LOD for whatever reason
-			if (GeomPrim)
+			if (GeomPrim.Get())
 			{
-				const FUsdGeomData* GeomDataPtr = GeomPrim->GetGeometryData();
-				if (GeomDataPtr)
+				pxr::UsdGeomMesh USDMesh( *GeomPrim );
+
+				if (USDMesh)
 				{
-					if (GeomDataPtr->Normals.size() == 0 && GeomDataPtr->Points.size() > 0)
+					if ( pxr::UsdAttribute NormalAttri = USDMesh.GetNormalsAttr() )
 					{
-						bRecomputeNormals = true;
+						if ( !NormalAttri.HasValue() )
+						{
+							bRecomputeNormals = true;
+						}
 					}
 
-					State.ProcessStaticUSDGeometry(GeomPrim, LODIndex);
+					State.ProcessStaticUSDGeometry(*GeomPrim, LODIndex);
 				}
 				else
 				{
@@ -454,7 +597,7 @@ UStaticMesh* FUSDStaticMeshImporter::ImportStaticMesh(FUsdImportContext& ImportC
 			break;
 		}
 
-		if (!NewMesh->SourceModels.IsValidIndex(LODIndex))
+		if (!NewMesh->IsSourceModelValid(LODIndex))
 		{
 			// Add one LOD 
 			NewMesh->AddSourceModel();
@@ -464,7 +607,7 @@ UStaticMesh* FUSDStaticMeshImporter::ImportStaticMesh(FUsdImportContext& ImportC
 
 		NewMesh->CommitMeshDescription(LODIndex);
 
-		FStaticMeshSourceModel& SrcModel = NewMesh->SourceModels[LODIndex];
+		FStaticMeshSourceModel& SrcModel = NewMesh->GetSourceModel(LODIndex);
 		SrcModel.BuildSettings.bGenerateLightmapUVs = false;
 		SrcModel.BuildSettings.bRecomputeNormals = bRecomputeNormals;
 		SrcModel.BuildSettings.bRecomputeTangents = true;
@@ -488,3 +631,5 @@ UStaticMesh* FUSDStaticMeshImporter::ImportStaticMesh(FUsdImportContext& ImportC
 }
 
 #undef LOCTEXT_NAMESPACE
+
+#endif // #if USE_USD_SDK

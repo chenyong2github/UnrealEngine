@@ -47,9 +47,11 @@ PixelShaderOutputCommon.usf: To allow PS input/output passed int functions throu
 
 // ---------------------------------------------------------------------------------
 
-#if LIGHTMAP_VT_ENABLED && (HQ_TEXTURE_LIGHTMAP || LQ_TEXTURE_LIGHTMAP)
-EARLYDEPTHSTENCIL
-#endif
+#if LIGHTMAP_VT_ENABLED || NUM_VIRTUALTEXTURE_SAMPLES
+	// If virtual texture is enabled need to make sure we're using early depth test, in order for UAV feedback buffer writes to respect depth test
+	// Also need to wait until after pixel shader to write depth, since we may be using discard, or modifying depth
+	DEPTHSTENCIL_EARLYTEST_LATEWRITE
+#endif // LIGHTMAP_VT_ENABLED || NUM_VIRTUALTEXTURE_SAMPLES
 void MainPS
 	(
 #if PIXELSHADEROUTPUT_INTERPOLANTS || PIXELSHADEROUTPUT_BASEPASS

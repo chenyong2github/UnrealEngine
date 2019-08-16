@@ -21,7 +21,7 @@ namespace CrossCompiler
 	struct FSymbolScope;
 	//struct FInfo;
 
-	EParseResult ComputeExpr(FHlslScanner& Scanner, int32 MinPrec, /*FInfo& Info,*/ FSymbolScope* SymbolScope, bool bAllowAssignment, FLinearAllocator* Allocator, AST::FExpression** OutExpression, AST::FExpression** OutTernaryExpression);
+	EParseResult ComputeExpr(FHlslScanner& Scanner, int32 MinPrec, /*FInfo& Info,*/ FSymbolScope* SymbolScope, int32 ExpressionFlags, FLinearAllocator* Allocator, AST::FExpression** OutExpression, AST::FExpression** OutTernaryExpression);
 	EParseResult ParseExpressionList(EHlslToken EndListToken, FHlslScanner& Scanner, FSymbolScope* SymbolScope, EHlslToken NewStartListToken, FLinearAllocator* Allocator, AST::FExpression* OutExpression);
 
 	struct FSymbolScope
@@ -170,6 +170,12 @@ namespace CrossCompiler
 		ETF_SAMPLER_TEXTURE_BUFFER	= 1 << 2,
 		ETF_USER_TYPES				= 1 << 3,
 		ETF_ERROR_IF_NOT_USER_TYPE	= 1 << 4,
+	};
+
+	enum EExpressionFlags
+	{
+		EEF_ALLOW_ASSIGNMENT	= 1 << 0,
+		EEF_ALLOW_SEQUENCE		= 1 << 1,
 	};
 
 	EParseResult ParseGeneralType(const FHlslToken* Token, int32 TypeFlags, FLinearAllocator* Allocator, AST::FTypeSpecifier** OutSpecifier)
@@ -327,6 +333,7 @@ namespace CrossCompiler
 		case EHlslToken::RWTexture2DArray:
 		case EHlslToken::RWTexture3D:
 		case EHlslToken::StructuredBuffer:
+		case EHlslToken::RaytracingAccelerationStructure:
 			if (TypeFlags & ETF_SAMPLER_TEXTURE_BUFFER)
 			{
 				bMatched = true;
@@ -405,7 +412,7 @@ namespace CrossCompiler
 			auto* Token1 = Scanner.PeekToken(1);
 			auto* Token2 = Scanner.PeekToken(2);
 			FString TypeString;
-			if (Token && Token->Token == EHlslToken::Identifier && Token1 && Token1->Token == EHlslToken::ColonColon && Token2 && Token2->Token == EHlslToken::Identifier)
+			if (Token && Token->Token == EHlslToken::Identifier && Token1 && Token1->Token == EHlslToken::ColonColon && Token2 && Token2->Token == EHlslToken::Identifier && SymbolScope)
 			{
 				auto* Namespace = SymbolScope->GetGlobalScope();
 				do
@@ -600,7 +607,7 @@ namespace CrossCompiler
 		return ParseResultError();
 	}
 
-	EParseResult MatchSuffixOperator(FHlslScanner& Scanner, /*FInfo& Info,*/ FSymbolScope* SymbolScope, bool bAllowAssignment, FLinearAllocator* Allocator, AST::FExpression** InOutExpression, AST::FExpression** OutTernaryExpression)
+	EParseResult MatchSuffixOperator(FHlslScanner& Scanner, /*FInfo& Info,*/ FSymbolScope* SymbolScope, int32 ExpressionFlags, FLinearAllocator* Allocator, AST::FExpression** InOutExpression, AST::FExpression** OutTernaryExpression)
 	{
 		bool bFoundAny = false;
 		bool bTryAgain = true;
@@ -616,7 +623,7 @@ namespace CrossCompiler
 			{
 				Scanner.Advance();
 				AST::FExpression* ArrayIndex = nullptr;
-				auto Result = ComputeExpr(Scanner, 1, /*Info,*/ SymbolScope, bAllowAssignment, Allocator, &ArrayIndex, nullptr);
+				auto Result = ComputeExpr(Scanner, 1, /*Info,*/ SymbolScope, ExpressionFlags, Allocator, &ArrayIndex, nullptr);
 				if (Result != EParseResult::Matched)
 				{
 					Scanner.SourceError(TEXT("Expected expression!"));
@@ -687,7 +694,7 @@ namespace CrossCompiler
 			{
 				Scanner.Advance();
 				AST::FExpression* Left = nullptr;
-				if (ComputeExpr(Scanner, 0, /*Info,*/ SymbolScope, true, Allocator, &Left, nullptr) != EParseResult::Matched)
+				if (ComputeExpr(Scanner, 0, /*Info,*/ SymbolScope, (ExpressionFlags | EEF_ALLOW_ASSIGNMENT), Allocator, &Left, nullptr) != EParseResult::Matched)
 				{
 					Scanner.SourceError(TEXT("Expected expression!"));
 					return ParseResultError();
@@ -698,7 +705,7 @@ namespace CrossCompiler
 					return ParseResultError();
 				}
 				AST::FExpression* Right = nullptr;
-				if (ComputeExpr(Scanner, 0, /*Info,*/ SymbolScope, true, Allocator, &Right, nullptr) != EParseResult::Matched)
+				if (ComputeExpr(Scanner, 0, /*Info,*/ SymbolScope, (ExpressionFlags | EEF_ALLOW_ASSIGNMENT), Allocator, &Right, nullptr) != EParseResult::Matched)
 				{
 					Scanner.SourceError(TEXT("Expected expression!"));
 					return ParseResultError();
@@ -720,7 +727,7 @@ namespace CrossCompiler
 		return bFoundAny ? EParseResult::Matched : EParseResult::NotMatched;
 	}
 
-	EParseResult ComputeAtom(FHlslScanner& Scanner, /*FInfo& Info,*/ FSymbolScope* SymbolScope, bool bAllowAssignment, FLinearAllocator* Allocator, AST::FExpression** OutExpression, AST::FExpression** OutTernaryExpression)
+	EParseResult ComputeAtom(FHlslScanner& Scanner, /*FInfo& Info,*/ FSymbolScope* SymbolScope, int32 ExpressionFlags, FLinearAllocator* Allocator, AST::FExpression** OutExpression, AST::FExpression** OutTernaryExpression)
 	{
 		AST::FExpression* InnerUnaryExpression = nullptr;
 		auto UnaryResult = MatchUnaryOperator(Scanner, /*Info,*/ SymbolScope, Allocator, OutExpression, &InnerUnaryExpression);
@@ -748,7 +755,7 @@ namespace CrossCompiler
 		case EHlslToken::FloatConstant:
 			Scanner.Advance();
 			AtomExpression = new(Allocator) AST::FUnaryExpression(Allocator, AST::EOperators::FloatConstant, nullptr, Token->SourceInfo);
-			AtomExpression->FloatConstant = Token->Float;
+			AtomExpression->Identifier = Allocator->Strdup(Token->String);
 			break;
 
 		case EHlslToken::Identifier:
@@ -789,7 +796,7 @@ namespace CrossCompiler
 			const auto* Peek1 = Scanner.PeekToken(0);
 			const auto* Peek2 = Scanner.PeekToken(1);
 			// Parenthesis expression
-			if (ComputeExpr(Scanner, 1, /*Info,*/ SymbolScope, bAllowAssignment, Allocator, &AtomExpression, nullptr) != EParseResult::Matched)
+			if (ComputeExpr(Scanner, 1, /*Info,*/ SymbolScope, (ExpressionFlags | EEF_ALLOW_SEQUENCE), Allocator, &AtomExpression, nullptr) != EParseResult::Matched)
 			{
 				Scanner.SourceError(TEXT("Expected expression!"));
 				return ParseResultError();
@@ -854,7 +861,7 @@ namespace CrossCompiler
 		}
 
 		check(AtomExpression);
-		auto SuffixResult = MatchSuffixOperator(Scanner, /*Info,*/ SymbolScope, bAllowAssignment, Allocator, &AtomExpression, OutTernaryExpression);
+		auto SuffixResult = MatchSuffixOperator(Scanner, /*Info,*/ SymbolScope, ExpressionFlags, Allocator, &AtomExpression, OutTernaryExpression);
 		//auto* Token = Scanner.GetCurrentToken();
 		if (/*!Token || */SuffixResult == EParseResult::Error)
 		{
@@ -882,6 +889,9 @@ namespace CrossCompiler
 		{
 			switch (Token->Token)
 			{
+			case EHlslToken::Comma:
+				return 1;
+
 			case EHlslToken::Equal:
 			case EHlslToken::PlusEqual:
 			case EHlslToken::MinusEqual:
@@ -893,49 +903,49 @@ namespace CrossCompiler
 			case EHlslToken::AndEqual:
 			case EHlslToken::OrEqual:
 			case EHlslToken::XorEqual:
-				return 1;
+				return 2;
 
 			case EHlslToken::Question:
 				check(0);
-				return 2;
-
-			case EHlslToken::OrOr:
 				return 3;
 
-			case EHlslToken::AndAnd:
+			case EHlslToken::OrOr:
 				return 4;
 
-			case EHlslToken::Or:
+			case EHlslToken::AndAnd:
 				return 5;
 
-			case EHlslToken::Xor:
+			case EHlslToken::Or:
 				return 6;
 
-			case EHlslToken::And:
+			case EHlslToken::Xor:
 				return 7;
+
+			case EHlslToken::And:
+				return 8;
 
 			case EHlslToken::EqualEqual:
 			case EHlslToken::NotEqual:
-				return 8;
+				return 9;
 
 			case EHlslToken::Lower:
 			case EHlslToken::Greater:
 			case EHlslToken::LowerEqual:
 			case EHlslToken::GreaterEqual:
-				return 9;
+				return 10;
 
 			case EHlslToken::LowerLower:
 			case EHlslToken::GreaterGreater:
-				return 10;
+				return 11;
 
 			case EHlslToken::Plus:
 			case EHlslToken::Minus:
-				return 11;
+				return 12;
 
 			case EHlslToken::Times:
 			case EHlslToken::Div:
 			case EHlslToken::Mod:
-				return 12;
+				return 13;
 
 			default:
 				break;
@@ -982,6 +992,15 @@ namespace CrossCompiler
 		return false;
 	}
 
+	bool IsSequenceOperator(const FHlslToken* Token)
+	{
+		if (Token)
+		{
+			return (Token->Token == EHlslToken::Comma);
+		}
+		return false;
+	}
+
 	bool IsRightAssociative(const FHlslToken* Token)
 	{
 		return IsTernaryOperator(Token);
@@ -989,8 +1008,11 @@ namespace CrossCompiler
 
 	// Ternary is handled by popping out so it can right associate
 	//#todo-rco: Fix the case for right-associative assignment operators
-	EParseResult ComputeExpr(FHlslScanner& Scanner, int32 MinPrec, /*FInfo& Info,*/ FSymbolScope* SymbolScope, bool bAllowAssignment, FLinearAllocator* Allocator, AST::FExpression** OutExpression, AST::FExpression** OutTernaryExpression)
+	EParseResult ComputeExpr(FHlslScanner& Scanner, int32 MinPrec, /*FInfo& Info,*/ FSymbolScope* SymbolScope, int32 ExpressionFlags, FLinearAllocator* Allocator, AST::FExpression** OutExpression, AST::FExpression** OutTernaryExpression)
 	{
+		const bool bAllowAssignment = ((ExpressionFlags & EEF_ALLOW_ASSIGNMENT) == EEF_ALLOW_ASSIGNMENT);
+		const bool bAllowSequence = ((ExpressionFlags & EEF_ALLOW_SEQUENCE) == EEF_ALLOW_SEQUENCE);
+
 		auto OriginalToken = Scanner.GetCurrentTokenIndex();
 		//FInfoIndentScope Scope(Info);
 		/*
@@ -1012,7 +1034,7 @@ namespace CrossCompiler
 		*/
 		//Info.PrintWithTabs(FString::Printf(TEXT("Compute Expr %d\n"), MinPrec));
 		AST::FExpression* TernaryExpression = nullptr;
-		auto Result = ComputeAtom(Scanner, /*Info,*/ SymbolScope, bAllowAssignment, Allocator, OutExpression, &TernaryExpression);
+		auto Result = ComputeAtom(Scanner, /*Info,*/ SymbolScope, ExpressionFlags, Allocator, OutExpression, &TernaryExpression);
 		if (Result != EParseResult::Matched)
 		{
 			return Result;
@@ -1022,7 +1044,7 @@ namespace CrossCompiler
 		{
 			auto* Token = Scanner.GetCurrentToken();
 			int32 Precedence = GetPrecedence(Token);
-			if (!Token || !IsBinaryOperator(Token) || Precedence < MinPrec || (!bAllowAssignment && IsAssignmentOperator(Token)) || (OutTernaryExpression && *OutTernaryExpression))
+			if (!Token || !IsBinaryOperator(Token) || Precedence < MinPrec || (!bAllowAssignment && IsAssignmentOperator(Token)) || (!bAllowSequence && IsSequenceOperator(Token)) || (OutTernaryExpression && *OutTernaryExpression))
 			{
 				break;
 			}
@@ -1031,7 +1053,7 @@ namespace CrossCompiler
 			auto NextMinPrec = IsRightAssociative(Token) ? Precedence : Precedence + 1;
 			AST::FExpression* RHSExpression = nullptr;
 			AST::FExpression* RHSTernaryExpression = nullptr;
-			Result = ComputeExpr(Scanner, NextMinPrec, /*Info,*/ SymbolScope, bAllowAssignment, Allocator, &RHSExpression, &RHSTernaryExpression);
+			Result = ComputeExpr(Scanner, NextMinPrec, /*Info,*/ SymbolScope, ExpressionFlags, Allocator, &RHSExpression, &RHSTernaryExpression);
 			if (Result == EParseResult::Error)
 			{
 				return ParseResultError();
@@ -1080,10 +1102,10 @@ namespace CrossCompiler
 		return EParseResult::Matched;
 	}
 
-	EParseResult ParseExpression(FHlslScanner& Scanner, FSymbolScope* SymbolScope, bool bAllowAssignment, FLinearAllocator* Allocator, AST::FExpression** OutExpression)
+	EParseResult ParseExpression(FHlslScanner& Scanner, FSymbolScope* SymbolScope, int32 ExpressionFlags, FLinearAllocator* Allocator, AST::FExpression** OutExpression)
 	{
 		/*FInfo Info(!true);*/
-		return ComputeExpr(Scanner, 0, /*Info,*/ SymbolScope, bAllowAssignment, Allocator, OutExpression, nullptr);
+		return ComputeExpr(Scanner, 0, /*Info,*/ SymbolScope, ExpressionFlags, Allocator, OutExpression, nullptr);
 	}
 
 	EParseResult ParseExpressionList(EHlslToken EndListToken, FHlslScanner& Scanner, FSymbolScope* SymbolScope, EHlslToken NewStartListToken, FLinearAllocator* Allocator, AST::FExpression* OutExpression)
@@ -1112,7 +1134,7 @@ namespace CrossCompiler
 			else
 			{
 				AST::FExpression* Expression = nullptr;
-				auto Result = ParseExpression(Scanner, SymbolScope, true, Allocator, &Expression);
+				auto Result = ParseExpression(Scanner, SymbolScope, EEF_ALLOW_ASSIGNMENT, Allocator, &Expression);
 				if (Result == EParseResult::Error)
 				{
 					Scanner.SourceError(TEXT("Invalid expression list\n"));

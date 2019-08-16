@@ -74,6 +74,8 @@ bool read_from_stream_stb(data_stream_serializer& serializer, image_u8& img) {
   return true;
 }
 
+//UE4_BEGIN
+#if 0
 bool read_from_stream_jpgd(data_stream_serializer& serializer, image_u8& img) {
   uint8_vec buf;
   if (!serializer.read_entire_file(buf))
@@ -100,6 +102,8 @@ bool read_from_stream_jpgd(data_stream_serializer& serializer, image_u8& img) {
 
   return true;
 }
+#endif
+//UE4_END
 
 bool read_from_stream(image_u8& dest, data_stream_serializer& serializer, uint read_flags) {
   if (read_flags > cReadFlagsAllFlags) {
@@ -115,12 +119,17 @@ bool read_from_stream(image_u8& dest, data_stream_serializer& serializer, uint r
   dynamic_string ext(serializer.get_name());
   file_utils::get_extension(ext);
 
+  //UE4_BEGIN
+  // Don't need jpeg support here, jpgd is already linked into UE4, so avoid including another copy
+#if 0
   if ((ext == "jpg") || (ext == "jpeg")) {
     // Use my jpeg decoder by default because it supports progressive jpeg's.
     if ((read_flags & cReadFlagForceSTB) == 0) {
       return image_utils::read_from_stream_jpgd(serializer, dest);
     }
   }
+#endif
+  //UE4_END
 
   return image_utils::read_from_stream_stb(serializer, dest);
 }
@@ -229,6 +238,8 @@ bool write_to_file(const char* pFilename, const image_u8& img, uint write_flags,
       return false;
     success = file_utils::write_buf_to_file(pFilename, pPNG_image_data, png_image_size);
     mz_free(pPNG_image_data);
+	//UE4_BEGIN
+#if 0
   } else if (is_jpeg) {
     jpge::params params;
     if (write_flags & cWriteFlagJPEGQualityLevelMask)
@@ -244,6 +255,8 @@ bool write_to_file(const char* pFilename, const image_u8& img, uint write_flags,
       params.m_subsampling = jpge::H2V2;
 
     success = jpge::compress_image_to_jpeg_file(pFilename, img.get_width(), img.get_height(), num_src_chans, (const jpge::uint8*)pSrc_img, params);
+#endif
+	//UE4_END
   } else {
     success = ((ext == "bmp" ? stbi_write_bmp : stbi_write_tga)(pFilename, img.get_width(), img.get_height(), num_src_chans, pSrc_img) == CRNLIB_TRUE);
   }

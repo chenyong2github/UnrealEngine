@@ -151,7 +151,7 @@ namespace GLTF
 				}
 				else
 				{
-					Messages.Emplace(EMessageSeverity::Error, TEXT("Could not load file."));
+					Messages.Emplace(EMessageSeverity::Error, FString::Printf(TEXT("Could not load file: '%s'"), *FullPath));
 				}
 			}
 		}
@@ -456,11 +456,7 @@ namespace GLTF
 				Image.Format = ImageFormatFromFilename(Image.URI);
 
 				Image.FilePath = Path / Image.URI;
-				if (!FPaths::FileExists(Image.FilePath))
-				{
-					Messages.Emplace(EMessageSeverity::Error, TEXT("Cannot find image: ") + Image.FilePath);
-				}
-				else if (bInLoadImageData)
+				if (bInLoadImageData)
 				{
 					FArchive* Reader = IFileManager::Get().CreateFileReader(*Image.FilePath);
 					if (Reader)

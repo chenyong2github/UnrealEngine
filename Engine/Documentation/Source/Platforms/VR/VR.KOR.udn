@@ -1,30 +1,32 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
+﻿INTSourceChangelist:6451156
+Availability: Public
 Title:가상 현실 개발
-Crumbs:%ROOT%, Platforms
 Description:가상 현실 플랫폼용 개발에 관련된 정보입니다.
-Navigation:platform
+Type: landing
 Version: 4.17
-Type:landing
-tags:VR
-tags:Platform
-parent:Platforms
-order:2
-topic-icon:%ROOT%/platform_icon.png
-topic-image:VirtualRealityDevelopment_topic.png
+Parent: Platforms
+Tags: Platform
+Tags: VR
+topic-image: VirtualRealityDevelopment_topic.png
+topic-icon: %ROOT%/platform_icon.png
 
-## 데스크톱 플랫폼
+## 일반 언리얼 엔진 VR 개발
 
-[DIR(end:"1" output:"topic" type:"landing" tags:"platform" tags:"Desktop VR" parent:"Platforms/VR")]
+%Platforms/VR/DevelopVR:topic%
 
-## 모바일 플랫폼
+## 플랫폼
 
-[DIR(end:"1" output:"topic" type:"landing" tags:"platform" tags:"Mobile VR" parent:"Platforms/VR")]
+%Platforms/VR/GoogleVR:topic%
 
-## 일반 VR 개발
+%Platforms/VR/OculusVR:topic%
 
-[DIR(end:"1" output:"topic" parent:"Platforms/VR" type:"overview,reference,how-to")]
+%Platforms/VR/GearVR:topic%
 
-## 교육 자료
+%Platforms/VR/SteamVR:topic%
 
-[DIR(output:"video" type:"video" tags:"Virtual Reality")]
+%Platforms/VR/WMR:topic%
+
+
+
+
+

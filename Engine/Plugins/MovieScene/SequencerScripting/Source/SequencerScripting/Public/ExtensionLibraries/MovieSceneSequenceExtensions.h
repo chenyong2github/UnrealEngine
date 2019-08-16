@@ -367,7 +367,7 @@ public:
 	 * @param Sequence	The sequence to retrieve folders from
 	 * @return The folders contained within the given sequence
 	 */
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category="Editor Scripting|Sequencer Tools|Folders", meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category="Editor Scripting | Sequencer Tools | Folders", meta=(ScriptMethod))
 	static TArray<UMovieSceneFolder*> GetRootFoldersInSequence(UMovieSceneSequence* Sequence);
 
 	/**
@@ -377,7 +377,7 @@ public:
 	 * @param NewFolderName		The name to give the added folder
 	 * @return The newly created folder
 	 */
-	UFUNCTION(BlueprintCallable, Category="Editor Scripting|Sequencer Tools|Folders", meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category="Editor Scripting | Sequencer Tools | Folders", meta=(ScriptMethod))
 	static UMovieSceneFolder* AddRootFolderToSequence(UMovieSceneSequence* Sequence, FString NewFolderName);
 
 public:
@@ -405,9 +405,10 @@ public:
 	 * A unique label will be generated if the marked frame label is empty
 	 *
 	 * @InMarkedFrame The given user marked frame to add
+	 * @return The index to the newly added marked frame
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequence", meta = (ScriptMethod))
-	static void AddMarkedFrame(UMovieSceneSequence* Sequence, const FMovieSceneMarkedFrame& InMarkedFrame);
+	static int32 AddMarkedFrame(UMovieSceneSequence* Sequence, const FMovieSceneMarkedFrame& InMarkedFrame);
 
 	/*
 	 * Remove the user marked frame by index.

@@ -6,6 +6,7 @@
 #include "Misc/Paths.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
+#include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SScaleBox.h"
 #include "Widgets/Text/STextBlock.h"
 
@@ -41,25 +42,30 @@ void SMediaPlayerEditorViewport::Construct(const FArguments& InArgs, UMediaPlaye
 
 		+ SOverlay::Slot()
 			[
-				// movie viewport
-				SNew(SScaleBox)
-					.Stretch_Lambda([]() -> EStretch::Type {
-						auto Settings = GetDefault<UMediaPlayerEditorSettings>();
-						if (Settings->ViewportScale == EMediaPlayerEditorScale::Fill)
-						{
-							return EStretch::Fill;
-						}
-						if (Settings->ViewportScale == EMediaPlayerEditorScale::Fit)
-						{
-							return EStretch::ScaleToFit;
-						}
-						return EStretch::None;
-					})
-					[
-						// movie texture
-						SNew(SMediaPlayerEditorOutput, InMediaPlayer)
+				SNew(SBorder)
+				.BorderImage(FCoreStyle::Get().GetBrush("ColorPicker.AlphaBackground"))
+				.Padding(0.0f)
+				[
+					// movie viewport
+					SNew(SScaleBox)
+						.Stretch_Lambda([]() -> EStretch::Type {
+							auto Settings = GetDefault<UMediaPlayerEditorSettings>();
+							if (Settings->ViewportScale == EMediaPlayerEditorScale::Fill)
+							{
+								return EStretch::Fill;
+							}
+							if (Settings->ViewportScale == EMediaPlayerEditorScale::Fit)
+							{
+								return EStretch::ScaleToFit;
+							}
+							return EStretch::None;
+						})
+						[
+							// movie texture
+							SNew(SMediaPlayerEditorOutput, InMediaPlayer)
+						]
 					]
-			]
+				]
 
 		+ SOverlay::Slot()
 			[

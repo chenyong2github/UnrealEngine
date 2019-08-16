@@ -766,9 +766,13 @@ static void BlueprintActionDatabaseImpl::AddBlueprintGraphActions(UBlueprint con
 		ActionListOut.Add(MakeMacroNodeSpawner(MacroGraph));
 	}
 
-	// local variables and parameters
-	for (UEdGraph* FunctionGraph : Blueprint->FunctionGraphs)
+	auto CreateEntriesForGraphLambda = [Blueprint, &ActionListOut](UEdGraph* FunctionGraph)
 	{
+		if (!FunctionGraph)
+		{
+			return;
+		}
+
 		TArray<UK2Node_FunctionEntry*> GraphEntryNodes;
 		FunctionGraph->GetNodesOfClass<UK2Node_FunctionEntry>(GraphEntryNodes);
 
@@ -804,6 +808,23 @@ static void BlueprintActionDatabaseImpl::AddBlueprintGraphActions(UBlueprint con
 				ActionListOut.Add(SetVarSpawner);
 			}
 		}
+	};
+
+	auto CreateEntriesLambda = [&](const TArray<UEdGraph*>& Graphs)
+	{
+		for (UEdGraph* const Graph : Graphs)
+		{
+			CreateEntriesForGraphLambda(Graph);
+		}
+	};
+
+	// local variables and parameters for functions
+	CreateEntriesLambda(Blueprint->FunctionGraphs);
+
+	// local variables and parameters for interfaces
+	for (const FBPInterfaceDescription& Interface : Blueprint->ImplementedInterfaces)
+	{
+		CreateEntriesLambda(Interface.Graphs);
 	}
 }
 
@@ -836,13 +857,15 @@ static void BlueprintActionDatabaseImpl::GetNodeSpecificActions(TSubclassOf<UEdG
 		check(NodeCDO != nullptr);
 		NodeCDO->GetMenuActions(Registrar);
 	}
+
+
 	// unfortunately, UEdGraphNode_Comment is not a UK2Node and therefore cannot
 	// leverage UK2Node's GetMenuActions() function, so here we HACK it in
 	//
 	// @TODO: DO NOT follow this example! Do as I say, not as I do! If we need
 	//        to support other nodes in a similar way, then we should come up
 	//        with a better (more generalized) solution.
-	else if (NodeClass == UEdGraphNode_Comment::StaticClass())
+	if (NodeClass == UEdGraphNode_Comment::StaticClass())
 	{
 		Registrar.AddBlueprintAction(MakeCommentNodeSpawner());
 	}
@@ -1033,7 +1056,6 @@ static bool BlueprintActionDatabaseImpl::IsObjectValidForDatabase(UObject const*
  ******************************************************************************/
 
 static FBlueprintActionDatabase* DatabaseInst = nullptr;
-
 //------------------------------------------------------------------------------
 FBlueprintActionDatabase& FBlueprintActionDatabase::Get()
 {
@@ -1101,6 +1123,11 @@ void FBlueprintActionDatabase::AddReferencedObjects(FReferenceCollector& Collect
 		auto OrphanedUnloadedActions = UnloadedActions.Difference(AllActions.Intersect(UnloadedActions));
 		ensureMsgf(OrphanedUnloadedActions.Num() == 0, TEXT("Found %d unloaded actions that were not also present in the Action Registry. This should be 0."), UnloadedActions.Num());
 	}
+}
+
+FString FBlueprintActionDatabase::GetReferencerName() const
+{
+	return TEXT("FBlueprintActionDatabase");
 }
 
 int32 GBlueprintDatabasePrimingMaxPerFrame = 16;

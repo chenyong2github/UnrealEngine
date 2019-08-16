@@ -1,0 +1,456 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	NiagaraStrandsPhysics.ush
+=============================================================================*/
+
+#if GPU_SIMULATION
+
+/* -----------------------------------------------------------------
+ * Shared memory for datas that will be accessed within the constraints
+ * -----------------------------------------------------------------
+ */
+
+groupshared float3 SharedLocalPosition[THREADGROUP_SIZE];
+groupshared float4 SharedLocalQuaternion[THREADGROUP_SIZE];
+
+groupshared float SharedInverseMass[THREADGROUP_SIZE];
+groupshared float SharedInverseInertia[THREADGROUP_SIZE];
+
+groupshared float3 SharedLocalVelocity[THREADGROUP_SIZE];
+groupshared float3 SharedLocalOmega[THREADGROUP_SIZE];
+
+/* -----------------------------------------------------------------
+ * Get the strand parent position
+ * -----------------------------------------------------------------
+ */
+
+void GetParentPosition(const bool IsMobile, out float3 ParentPosition)
+{	
+	ParentPosition = SharedLocalPosition[IsMobile ? GGroupThreadId.x-1 : GGroupThreadId.x];
+}
+
+/* -----------------------------------------------------------------
+ * Fill the shared datas from the particles
+ * -----------------------------------------------------------------
+ */
+
+void ExtractPositionSharedDatas(const bool IsMobile, const float3 InParticlePosition, const float3 InParticleVelocity, const float InParticleMass)
+{	
+	SharedLocalPosition[GGroupThreadId.x] = InParticlePosition;
+	SharedLocalVelocity[GGroupThreadId.x] = InParticleVelocity;
+	SharedInverseMass[GGroupThreadId.x] = (InParticleMass != 0.0 && IsMobile) ? 1.0/InParticleMass : 0.0;
+
+	GroupMemoryBarrier(); 
+}
+
+void ExtractOrientationSharedDatas(const bool IsMobile, const float4 InParticleQuaternion, const float3 InParticleOmega, const float InParticleInertia)
+{
+	SharedLocalQuaternion[GGroupThreadId.x] = InParticleQuaternion;
+	SharedLocalOmega[GGroupThreadId.x] = InParticleOmega;
+	SharedInverseInertia[GGroupThreadId.x] = (InParticleInertia != 0.0 && IsMobile) ? 1.0/InParticleInertia : 0.0;
+
+	GroupMemoryBarrier(); 
+}
+
+/* -----------------------------------------------------------------
+ * Report the shared datas onto the particles
+ * -----------------------------------------------------------------
+ */
+
+void ReportPositionSharedDatas(const float InDeltaTime, inout float3 OutParticleVelocity, inout float3 OutParticlePosition)
+{
+	const float3 CurrentPosition = SharedLocalPosition[GGroupThreadId.x];
+	OutParticleVelocity += (CurrentPosition-OutParticlePosition) / InDeltaTime;
+	OutParticlePosition = CurrentPosition;
+}
+
+void ReportOrientationSharedDatas(const float InDeltaTime, inout float3 OutParticleOmega, inout float4 OutParticleQuaternion)
+{
+	const float4 CurrentQuaternion = SharedLocalQuaternion[GGroupThreadId.x];
+	const float4 DeltaQuat = float4(
+			-OutParticleQuaternion.xyz * CurrentQuaternion.w + CurrentQuaternion.xyz * OutParticleQuaternion.w + cross(CurrentQuaternion.xyz, -OutParticleQuaternion.xyz),
+			CurrentQuaternion.w * OutParticleQuaternion.w - dot(CurrentQuaternion.xyz, -OutParticleQuaternion.xyz));
+
+	OutParticleQuaternion = CurrentQuaternion;
+	OutParticleOmega += DeltaQuat.xyz * 2.0 / InDeltaTime;
+}
+
+/* -----------------------------------------------------------------
+ * Advect the particles shared datas with forces
+ * -----------------------------------------------------------------
+ */
+
+void AdvectPositionSharedDatas(const bool IsMobile, const float3 InParticleAcceleration, const float InDeltaTime, inout float3 OutParticleVelocity,  inout float3 OutParticlePosition)
+{	
+	const float3 ParticleAcceleration = IsMobile ? InParticleAcceleration : float3(0,0,0);
+	OutParticleVelocity += ParticleAcceleration * InDeltaTime;
+	OutParticlePosition += OutParticleVelocity * InDeltaTime;
+}
+
+void AdvectOrientationSharedDatas(const float3 InParticleOmega, const float InDeltaTime, inout float4 OutParticleQuaternion)
+{
+	OutParticleQuaternion = OutParticleQuaternion + 0.5 * InDeltaTime * float4(
+        InParticleOmega.xyz * OutParticleQuaternion.w + cross(InParticleOmega.xyz, OutParticleQuaternion.xyz),
+        - dot(InParticleOmega.xyz, OutParticleQuaternion.xyz) );
+
+	OutParticleQuaternion = normalize( OutParticleQuaternion );
+}
+
+/* -----------------------------------------------------------------
+ * Hooke spring material
+ * -----------------------------------------------------------------
+ */
+
+void StoreHookeSpringConfig(const bool IsMobile, const float InMaterialCompliance, out float OutRestLength)
+{
+	if (!IsMobile){
+		const float3 EdgeDirection = SharedLocalPosition[GGroupThreadId.x] - SharedLocalPosition[GGroupThreadId.x-1];
+		OutRestLength = length(EdgeDirection);
+	}
+	else
+	{
+		OutRestLength = 0.0;
+	}
+}
+
+void ComputeHookeSpringWeight(const float InMaterialCompliance, out float OutMaterialWeight)
+{
+	const float SchurDiagonal = ( SharedInverseMass[GGroupThreadId.x] + SharedInverseMass[GGroupThreadId.x-1] + InMaterialCompliance );
+	OutMaterialWeight = ( SchurDiagonal != 0.0 ) ? 1.0 / SchurDiagonal : 0.0;
+}
+
+void EvalHookeSpringCompliance(const float InDeltaTime, const float InYoungModulus, const float InRodThickness, const float InRestLength, out float OutMaterialCompliance)
+{
+	// Compliance = 1.0 / (k * dt * dt)
+	// with k = Y * A / L 
+	// A is the cross section area (Pi * R * R), L is the rest length and Y is the young modulus
+	OutMaterialCompliance = InRestLength*4.0/(InYoungModulus*PI*InRodThickness*InRodThickness*InDeltaTime*InDeltaTime);
+}
+
+void ResetHookeSpringMultiplier(out float OutMaterialMultiplier)
+{
+	OutMaterialMultiplier = 0;
+}
+
+void UpdateHookeSpringMultiplier(const float InMaterialCompliance, const float InMaterialWeight, const float InRestLength, inout float OutMaterialMultiplier)
+{
+	float3 EdgeDirection = SharedLocalPosition[GGroupThreadId.x] - SharedLocalPosition[GGroupThreadId.x-1];
+	const float EdgeLength = length(EdgeDirection);
+	EdgeDirection /= EdgeLength;
+
+	// XPBD lagrange multiplier update : dL = -(C+compliance*L) / (dC * invM * dCt + alpha)
+	const float DeltaLambda = -((EdgeLength-InRestLength) + OutMaterialMultiplier * InMaterialCompliance) * InMaterialWeight;
+
+	// L += dL
+	OutMaterialMultiplier += DeltaLambda;
+
+	// XPBD position update : dX = dL * dCt * invM
+	const float3 PositionDelta = EdgeDirection * DeltaLambda;
+
+	// dX += dX
+	SharedLocalPosition[GGroupThreadId.x] += PositionDelta * SharedInverseMass[GGroupThreadId.x];
+	SharedLocalPosition[GGroupThreadId.x-1] -= PositionDelta * SharedInverseMass[GGroupThreadId.x-1];
+}
+
+void SolveHookeSpringMaterial(const float InMaterialCompliance, const float InMaterialWeight, const float InRestLength, const bool InIsRed, inout float OutMaterialMultiplier)
+{
+	// Process all the red rods
+	if (InIsRed)
+	{	
+		UpdateHookeSpringMultiplier(InMaterialCompliance,InMaterialWeight,InRestLength,OutMaterialMultiplier);
+	}
+	// Process all the black rods
+	GroupMemoryBarrier(); 
+	if (!InIsRed)
+	{
+		UpdateHookeSpringMultiplier(InMaterialCompliance,InMaterialWeight,InRestLength,OutMaterialMultiplier);
+	}
+	GroupMemoryBarrier(); 
+} 
+
+/* -----------------------------------------------------------------
+ * Stretch/shear rod material
+ * -----------------------------------------------------------------
+ */
+
+ void ComputeStretchShearWeight(const float InMaterialCompliance, const float InRestLength, out float OutMaterialWeight)
+{
+	const float SchurDiagonal = ( SharedInverseMass[GGroupThreadId.x] + SharedInverseMass[GGroupThreadId.x-1] ) / (InRestLength*InRestLength) + 
+					SharedInverseInertia[GGroupThreadId.x-1]*4.0 + InMaterialCompliance;
+	OutMaterialWeight = ( SchurDiagonal != 0.0 ) ? 1.0 / SchurDiagonal : 0.0;
+}
+
+void EvalStretchShearCompliance(const float InDeltaTime, const float InYoungModulus, const float InRodThickness, const float InRestLength, out float OutMaterialCompliance)
+{
+	// Compliance = 1.0 / (k * dt * dt)
+	// with k = L * L * (Y * A / L) (the L*L term before is coming from the fact that our constraint is dL/L and not dL)
+	// A is the cross section area (Pi * R * R), L is the rest length and Y is the young modulus
+	OutMaterialCompliance = 4.0/(InYoungModulus*PI*InRodThickness*InRestLength*InRodThickness*InDeltaTime*InDeltaTime);
+}
+
+void ResetStretchShearMultiplier(out float3 OutMaterialMultiplier)
+{
+	OutMaterialMultiplier = float3(0,0,0);
+}
+
+void UpdateStretchShearMultiplier(const float InMaterialCompliance, const float InMaterialWeight, const float InRestLength,  inout float3 OutMaterialMultiplier)
+{
+	float3 EdgeDirection;
+	float4 q0 = SharedLocalQuaternion[GGroupThreadId.x-1];
+	EdgeDirection[0] = 2.0 * (q0.x * q0.z + q0.w * q0.y);
+	EdgeDirection[1] = 2.0 * (q0.y * q0.z - q0.w * q0.x);
+	EdgeDirection[2] = q0.w * q0.w - q0.x * q0.x - q0.y * q0.y + q0.z * q0.z;
+
+	// XPBD lagrange multiplier update : dL = -(C+compliance*L) / (dC * invM * dCt + alpha)
+	const float3 DeltaLambda = -((SharedLocalPosition[GGroupThreadId.x] - SharedLocalPosition[GGroupThreadId.x-1]) / InRestLength - EdgeDirection + 
+					OutMaterialMultiplier * InMaterialCompliance) * InMaterialWeight;
+
+	// L += dL
+	OutMaterialMultiplier += DeltaLambda;
+
+	// XPBD position update : dX = dL * dCt * invM
+	const float3 PositionDelta  = DeltaLambda/InRestLength;
+
+	// dX += dX
+	SharedLocalPosition[GGroupThreadId.x] += PositionDelta * SharedInverseMass[GGroupThreadId.x];
+	SharedLocalPosition[GGroupThreadId.x-1] -= PositionDelta * SharedInverseMass[GGroupThreadId.x-1];
+
+	const float4 qebar = float4(-q0.y, q0.x, -q0.w, q0.z);	
+	const float4 QuaternionDelta = -2.0 * float4( DeltaLambda.xyz * qebar.w + cross(DeltaLambda.xyz, qebar.xyz),
+					- dot(DeltaLambda.xyz, qebar.xyz) );
+
+	q0 += QuaternionDelta * SharedInverseInertia[GGroupThreadId.x-1];
+	SharedLocalQuaternion[GGroupThreadId.x-1] = normalize(q0);
+}
+
+void SolveStretchShearMaterial(const float InMaterialCompliance, const float InMaterialWeight, const float InRestLength, const bool InIsRed, inout float3 OutMaterialMultiplier)
+{
+	// Process all the red rods
+	if (InIsRed)
+	{	
+		UpdateStretchShearMultiplier(InMaterialCompliance,InMaterialWeight,InRestLength,OutMaterialMultiplier);
+	}
+	// Process all the black rods
+	GroupMemoryBarrier(); 
+	if (!InIsRed)
+	{
+		UpdateStretchShearMultiplier(InMaterialCompliance,InMaterialWeight,InRestLength,OutMaterialMultiplier);
+	}
+	GroupMemoryBarrier(); 
+} 
+
+/* -----------------------------------------------------------------
+ * Bbend/twist rod material
+ * -----------------------------------------------------------------
+ */
+
+ void ComputeBendTwistWeight(const float InMaterialCompliance, const float InRestLength, out float OutMaterialWeight)
+{
+	const float SchurDiagonal = ( SharedInverseInertia[GGroupThreadId.x] + SharedInverseInertia[GGroupThreadId.x-1] ) * 4.0 / (InRestLength*InRestLength) + InMaterialCompliance;
+	OutMaterialWeight = ( SchurDiagonal != 0.0 ) ? 1.0 / SchurDiagonal : 0.0;
+}
+
+void EvalBendTwistCompliance(const float InDeltaTime, const float InYoungModulus, const float InRodThickness, const float InRestLength, out float OutMaterialCompliance)
+{
+	// Compliance = 1.0 / (k * dt * dt)
+	// with k = (Y * I * L) 
+	// A is the polar moment of inertia (Pi * R * R * R * R / 4), L is the rest length and Y is the young modulus
+	OutMaterialCompliance = 64.0/(InYoungModulus*PI*InRestLength*InRodThickness*InRodThickness*InRodThickness*InRodThickness*InDeltaTime*InDeltaTime);
+}
+
+void ResetBendTwistMultiplier(out float3 OutMaterialMultiplier)
+{
+	OutMaterialMultiplier = float3(0,0,0);
+}
+
+void UpdateBendTwistMultiplier(const float InMaterialCompliance, const float InMaterialWeight, const float InRestLength, const float4 InRestDarboux, inout float3 OutMaterialMultiplier)
+{
+	float4 q0 = SharedLocalQuaternion[GGroupThreadId.x-1];
+	float4 q1 = SharedLocalQuaternion[GGroupThreadId.x];
+	const float4 CurrentDarboux = float4(
+			q1.xyz * q0.w - q0.xyz * q1.w + cross(-q0.xyz, q1.xyz),
+			q0.w * q1.w - dot(-q0.xyz, q1.xyz));
+	const float InverseRestLength = 2.0 / InRestLength;
+
+	const float4 OmegaPlus = (CurrentDarboux + InRestDarboux) * InverseRestLength;
+	const float4 OmegaMinus = (CurrentDarboux - InRestDarboux) * InverseRestLength;
+
+	float4 DeltaOmega = (dot(OmegaPlus.xyz,OmegaPlus.xyz) > dot(OmegaMinus.xyz,OmegaMinus.xyz) ) ? OmegaMinus : OmegaPlus;
+	DeltaOmega.xyz += OutMaterialMultiplier * InMaterialCompliance;  
+	DeltaOmega.w = 0;
+	DeltaOmega *= InMaterialWeight;
+
+	OutMaterialMultiplier -= DeltaOmega.xyz;
+
+	SharedLocalQuaternion[GGroupThreadId.x-1] += SharedInverseInertia[GGroupThreadId.x-1] *  float4(
+			DeltaOmega.xyz * q1.w + cross(q1.xyz, DeltaOmega.xyz), - dot(q1.xyz, DeltaOmega.xyz)) * InverseRestLength;
+	SharedLocalQuaternion[GGroupThreadId.x] -= SharedInverseInertia[GGroupThreadId.x] *  float4(
+			DeltaOmega.xyz * q0.w + cross(q0.xyz, DeltaOmega.xyz), - dot(q0.xyz, DeltaOmega.xyz)) * InverseRestLength;
+
+	SharedLocalQuaternion[GGroupThreadId.x-1] = normalize(SharedLocalQuaternion[GGroupThreadId.x-1]);
+	SharedLocalQuaternion[GGroupThreadId.x] = normalize(SharedLocalQuaternion[GGroupThreadId.x]);
+}
+
+void SolveBendTwistMaterial(const float InMaterialCompliance, const float InMaterialWeight, const float InRestLength, const float4 InRestDarboux, const bool InIsRed, inout float3 OutMaterialMultiplier)
+{
+	// Process all the red rods
+	if (InIsRed)
+	{	
+		UpdateBendTwistMultiplier(InMaterialCompliance,InMaterialWeight,InRestLength,InRestDarboux,OutMaterialMultiplier);
+	}
+	// Process all the black rods
+	GroupMemoryBarrier(); 
+	if (!InIsRed)
+	{
+		UpdateBendTwistMultiplier(InMaterialCompliance,InMaterialWeight,InRestLength,InRestDarboux,OutMaterialMultiplier);
+	}
+	GroupMemoryBarrier(); 
+} 
+
+/* -----------------------------------------------------------------
+ * Follow the leader constraint
+ * -----------------------------------------------------------------
+ */
+
+ void SolveFollowTheLeaderConstraint(const int InBlockSize, const float InRestLength, const float InDampening, const float InDeltaTime, const float InBending)
+{
+	const bool IsMobile = (GGroupThreadId.x % InBlockSize) != 0;
+	if (!IsMobile)
+	{
+		const float BendingLimit = 2*InBending*InRestLength;
+		for (int i = GGroupThreadId.x+1, end = GGroupThreadId.x+InBlockSize; i < end; ++i)
+		{
+			if (i > GGroupThreadId.x+1)
+			{
+				float3 EdgeDirection = SharedLocalPosition[i] - SharedLocalPosition[i-2];
+				const float EdgeLength = length(EdgeDirection);
+				EdgeDirection /= EdgeLength;
+				if (EdgeLength<=BendingLimit)
+				{
+					// Comutes dL
+					const float DeltaLambda = -(EdgeLength-BendingLimit);
+					const float3 DeltaPosition = EdgeDirection * DeltaLambda;
+
+					// dX += dX
+					SharedLocalPosition[i] += DeltaPosition;
+
+					const float3 DeltaVelocity = DeltaPosition / InDeltaTime;
+
+					// dV += dV
+					SharedLocalVelocity[i] += SharedInverseMass[i] * DeltaVelocity / ( SharedInverseMass[i] + InDampening * SharedInverseMass[i-2]);
+					SharedLocalVelocity[i-2] -= InDampening * SharedInverseMass[i-2] * DeltaVelocity / ( SharedInverseMass[i] + InDampening * SharedInverseMass[i-2]);
+				}
+				GroupMemoryBarrier(); 
+			}
+
+
+			float3 EdgeDirection = SharedLocalPosition[i] - SharedLocalPosition[i-1];
+			const float EdgeLength = length(EdgeDirection);
+			EdgeDirection /= EdgeLength;
+
+			// Comutes dL
+			const float DeltaLambda = -(EdgeLength-InRestLength);
+			const float3 DeltaPosition = EdgeDirection * DeltaLambda;
+
+			// dX += dX
+			SharedLocalPosition[i] += DeltaPosition;
+
+			//SharedLocalPosition[i] += SharedInverseMass[i] * DeltaPosition / ( SharedInverseMass[i] + InDampening * SharedInverseMass[i-1]);
+			//SharedLocalPosition[i-1] -= InDampening * SharedInverseMass[i-1] * DeltaPosition / ( SharedInverseMass[i] + InDampening * SharedInverseMass[i-1]);
+
+			const float3 DeltaVelocity = DeltaPosition / InDeltaTime;
+
+			// dV += dV
+			SharedLocalVelocity[i] += SharedInverseMass[i] * DeltaVelocity / ( SharedInverseMass[i] + InDampening * SharedInverseMass[i-1]);
+			SharedLocalVelocity[i-1] -= InDampening * SharedInverseMass[i-1] * DeltaVelocity / ( SharedInverseMass[i] + InDampening * SharedInverseMass[i-1]);
+
+			GroupMemoryBarrier(); 
+		}
+	}
+}
+
+/* -----------------------------------------------------------------
+ * Static volume collisions against sphere, box...
+ * -----------------------------------------------------------------
+ */
+
+ float3 ProcessCollisionData( const float3 InDeltaPosition, const float3 InDeltaVelocity, const float3 InCollisionNormal, const float InThicknessSum,
+							const float InStaticFriction, const float InKineticFriction )
+ {
+	const float DeltaVNormal = dot(InDeltaVelocity,InCollisionNormal);
+	const float DeltaPNormal = dot(InDeltaPosition,InCollisionNormal)-InThicknessSum;
+	const float NormDeltaPN = abs(DeltaPNormal);
+
+	if (DeltaPNormal < 0.0)
+	{
+		const float3 CollisionTangent = InDeltaVelocity - DeltaVNormal * InCollisionNormal;
+		const float TangentLength = length(CollisionTangent);
+
+		float3 CollisionTangentA = (TangentLength > 0.0) ? CollisionTangent/TangentLength : (abs(InCollisionNormal.x-1.0f) > 0.0) ? float3(1,0,0) : 
+																					        (abs(InCollisionNormal.y-1.0f) > 0.0) ? float3(0,1,0) :
+																						     float3(0,0,1);
+		float3 CollisionTangentB = cross(InCollisionNormal,CollisionTangentA);
+		CollisionTangentA = cross(CollisionTangentB,InCollisionNormal);
+
+		const float TangentLengthA = length(CollisionTangentA);
+		const float TangentLengthB = length(CollisionTangentB);
+
+		CollisionTangentA = (TangentLengthA > 0.0) ? CollisionTangentA/TangentLengthA : float3(0,0,0);
+		CollisionTangentB = (TangentLengthB > 0.0) ? CollisionTangentB/TangentLengthB : float3(0,0,0);
+
+		const float DeltaVTangentA = dot( InDeltaVelocity, CollisionTangentA);
+		const float DeltaVTangentB = dot( InDeltaVelocity, CollisionTangentB);
+
+		const float NormDeltaVTA = abs(DeltaVTangentA);
+		const float NormDeltaVTB = abs(DeltaVTangentB);
+
+		const float AlphaTangentA = ( NormDeltaVTA < InStaticFriction * NormDeltaPN ) ? 1.0 : (InKineticFriction > 0.0) ? min(InKineticFriction*NormDeltaPN/NormDeltaVTA, 1.0) : 0.0;
+		const float AlphaTangentB = ( NormDeltaVTB < InStaticFriction * NormDeltaPN ) ? 1.0 : (InKineticFriction > 0.0) ? min(InKineticFriction*NormDeltaPN/NormDeltaVTB, 1.0) : 0.0;
+
+		return DeltaPNormal * InCollisionNormal + AlphaTangentA * CollisionTangentA * DeltaVTangentA + AlphaTangentB * CollisionTangentB * DeltaVTangentB;
+	}
+	return float3(0,0,0);
+ }
+
+/* -----------------------------------------------------------------
+ * Static volume collisions against sphere, box...
+ * -----------------------------------------------------------------
+ */
+
+
+void DetectSphereVolumeCollision(const float3 InParticlePosition, const float3 InSphereCenter, const float InSphereRadius, 
+								 out float3 OutCollisionPosition, out float3 OutCollisionVelocity, inout float3 OutCollisionNormal)   
+{
+	OutCollisionNormal = InParticlePosition - InSphereCenter;
+	const float ParticleDistance = length(OutCollisionNormal);
+	const float CollisionDepth = ParticleDistance-InSphereRadius;
+	
+	OutCollisionNormal = (ParticleDistance != 0.0) ? OutCollisionNormal/ParticleDistance : float3(0,0,0);
+	OutCollisionPosition = InParticlePosition - OutCollisionNormal * CollisionDepth;
+
+	// Compute the sdf velocity based on the transform deriv
+	OutCollisionVelocity = float3(0,0,0);
+}  
+
+/* -----------------------------------------------------------------
+ * Static collision constraint
+ * -----------------------------------------------------------------
+ */
+
+void SolveStaticCollisionConstraint(const float InParticleRadius, const bool InIsMobile, inout float3 OutParticlePosition, inout float3 OutParticleVelocity, const float3 InCollisionPosition, const float3 InCollisionVelocity, const float3 InCollisionNormal, 
+				const float InStaticFriction, const float InKineticFriction, const float InDeltaTime )
+{
+	if(InIsMobile)
+	{
+		const float3 DeltaPosition = OutParticlePosition - InCollisionPosition;
+		const float3 DeltaVelocity = (OutParticleVelocity - InCollisionVelocity) * InDeltaTime;
+		const float ThicknessSum = InParticleRadius;
+
+		const float3 PositionDisplacement = ProcessCollisionData(DeltaPosition,DeltaVelocity,InCollisionNormal,ThicknessSum,InStaticFriction,InKineticFriction);
+		OutParticlePosition -= PositionDisplacement;
+		OutParticleVelocity -= PositionDisplacement / InDeltaTime;
+	}
+}
+
+#endif //GPU_SIMULATION

@@ -3,50 +3,105 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "IConcertSession.h"
+#include "ConcertSession.h"
 #include "ConcertMessages.h"
 
 class IConcertLocalEndpoint;
 struct FConcertServerSettings;
 
-/** Implementation for Concert Server sessions */
-class FConcertServerSession : public IConcertServerSession
+/** Implementation of a Concert Server session */
+class FConcertServerSession : public IConcertServerSession, private FConcertSessionCommonImpl
 {
 public:
-	FConcertServerSession(const FConcertSessionInfo& InSessionInfo, const FConcertServerSettings& InSettings, TSharedPtr<IConcertLocalEndpoint> Endpoint, const FString& InWorkingDirectory);
-
+	FConcertServerSession(const FConcertSessionInfo& InSessionInfo, const FConcertServerSettings& InSettings, TSharedPtr<IConcertLocalEndpoint> InServerSessionEndpoint, const FString& InSessionDirectory);
 	virtual ~FConcertServerSession();
-
-	virtual const FString& GetName() const override
-	{
-		return SessionInfo.SessionName;
-	}
-
-	virtual const FConcertSessionInfo& GetSessionInfo() const override
-	{
-		return SessionInfo;
-	}
-
-	virtual TArray<FGuid> GetSessionClientEndpointIds() const override;
-	virtual TArray<FConcertSessionClientInfo> GetSessionClients() const override;
-	virtual bool FindSessionClient(const FGuid& EndpointId, FConcertSessionClientInfo& OutSessionClientInfo) const override;
 
 	virtual void Startup() override;
 	virtual void Shutdown() override;
 
-	virtual FConcertScratchpadRef GetScratchpad() const override;
-	virtual FConcertScratchpadPtr GetClientScratchpad(const FGuid& ClientEndpointId) const override;
+	virtual const FGuid& GetId() const override
+	{
+		return CommonGetId();
+	}
+
+	virtual const FString& GetName() const override
+	{
+		return CommonGetName();
+	}
+
+	virtual void SetName(const FString& NewName) override
+	{
+		CommonSetName(NewName);
+		SendSessionNameChanged();
+	}
+
+	virtual const FConcertSessionInfo& GetSessionInfo() const override
+	{
+		return CommonGetSessionInfo();
+	}
+
+	virtual TArray<FGuid> GetSessionClientEndpointIds() const override
+	{
+		return CommonGetSessionClientEndpointIds();
+	}
+
+	virtual TArray<FConcertSessionClientInfo> GetSessionClients() const override
+	{
+		return CommonGetSessionClients();
+	}
+
+	virtual bool FindSessionClient(const FGuid& EndpointId, FConcertSessionClientInfo& OutSessionClientInfo) const override
+	{
+		return CommonFindSessionClient(EndpointId, OutSessionClientInfo);
+	}
+
+	virtual FConcertScratchpadRef GetScratchpad() const override
+	{
+		return CommonGetScratchpad();
+	}
+
+	virtual FConcertScratchpadPtr GetClientScratchpad(const FGuid& ClientEndpointId) const override
+	{
+		return CommonGetClientScratchpad(ClientEndpointId);
+	}
 
 	virtual FOnConcertServerSessionTick& OnTick() override;
 	virtual FOnConcertServerSessionClientChanged& OnSessionClientChanged() override;
 	virtual FString GetSessionWorkingDirectory() const override;
 
 protected:
-	virtual void InternalRegisterCustomEventHandler(const FName& EventMessageType, const TSharedRef<IConcertSessionCustomEventHandler>& Handler) override;
-	virtual void InternalUnregisterCustomEventHandler(const FName& EventMessageType) override;
+	virtual FDelegateHandle InternalRegisterCustomEventHandler(const FName& EventMessageType, const TSharedRef<IConcertSessionCustomEventHandler>& Handler) override
+	{
+		return CommonRegisterCustomEventHandler(EventMessageType, Handler);
+	}
+
+	virtual void InternalUnregisterCustomEventHandler(const FName& EventMessageType, const FDelegateHandle EventHandle) override
+	{
+		CommonUnregisterCustomEventHandler(EventMessageType, EventHandle);
+	}
+
+	virtual void InternalUnregisterCustomEventHandler(const FName& EventMessageType, const void* EventHandler) override
+	{
+		CommonUnregisterCustomEventHandler(EventMessageType, EventHandler);
+	}
+
+	virtual void InternalClearCustomEventHandler(const FName& EventMessageType) override
+	{
+		CommonClearCustomEventHandler(EventMessageType);
+	}
+
 	virtual void InternalSendCustomEvent(const UScriptStruct* EventType, const void* EventData, const TArray<FGuid>& DestinationEndpointIds, EConcertMessageFlags Flags) override;
-	virtual void InternalRegisterCustomRequestHandler(const FName& RequestMessageType, const TSharedRef<IConcertSessionCustomRequestHandler>& Handler) override;
-	virtual void InternalUnregisterCustomRequestHandler(const FName& RequestMessageType) override;
+	
+	virtual void InternalRegisterCustomRequestHandler(const FName& RequestMessageType, const TSharedRef<IConcertSessionCustomRequestHandler>& Handler) override
+	{
+		CommonRegisterCustomRequestHandler(RequestMessageType, Handler);
+	}
+
+	virtual void InternalUnregisterCustomRequestHandler(const FName& RequestMessageType) override
+	{
+		CommonUnregisterCustomRequestHandler(RequestMessageType);
+	}
+
 	virtual void InternalSendCustomRequest(const UScriptStruct* RequestType, const void* RequestData, const FGuid& DestinationEndpointId, const TSharedRef<IConcertSessionCustomResponseHandler>& Handler) override;
 
 private:
@@ -58,6 +113,9 @@ private:
 
 	/**  */
 	void HandleLeaveSessionEvent(const FConcertMessageContext& Context);
+
+	/**  */
+	void HandleUpdateClientInfoEvent(const FConcertMessageContext& Context);
 	
 	/** */
 	void HandleCustomEvent(const FConcertMessageContext& Context);
@@ -68,14 +126,11 @@ private:
 	/**  */
 	void SendClientListUpdatedEvent();
 
+	/** */
+	void SendSessionNameChanged();
+
 	/**  */
 	void TickConnections(float DeltaSeconds);
-
-	/** */
-	void CheckConnectionsTimeout();
-
-	/** Session */
-	FConcertSessionInfo SessionInfo;
 
 	/** This session endpoint where message are sent and received from. */
 	IConcertLocalEndpointPtr ServerSessionEndpoint;
@@ -88,26 +143,6 @@ private:
 
 	/** Callback for when a session client state changes */
 	FOnConcertServerSessionClientChanged OnSessionClientChangedDelegate;
-
-	/** Delegate Handle for remote connection changed callback on the endpoint */
-	FDelegateHandle RemoteConnectionChangedHandle;
-
-	/** This client scratchpad */
-	FConcertScratchpadPtr Scratchpad;
-
-	/** Map of current session clients */
-	struct FSessionClient
-	{
-		FConcertSessionClientInfo ClientInfo;
-		FConcertScratchpadPtr Scratchpad;
-	};
-	TMap<FGuid, FSessionClient> SessionClients;
-
-	/** Map of session custom event handlers */
-	TMap<FName, TSharedPtr<IConcertSessionCustomEventHandler>> CustomEventHandlers;
-
-	/** Map of session custom request handlers */
-	TMap<FName, TSharedPtr<IConcertSessionCustomRequestHandler>> CustomRequestHandlers;
 
 	/** The timespan at which session updates are processed. */
 	const FTimespan SessionTickFrequency;

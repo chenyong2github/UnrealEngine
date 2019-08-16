@@ -194,6 +194,9 @@ private:	// SELECTION
 	/** Handler for 'Deselect All' command  */
 	FReply OnDeselectAllInstances();
 
+	/** Handler for 'Move to Current Level' command*/
+	FReply OnMoveSelectedInstancesToCurrentLevel();
+
 	/** Tooltip text for 'Instance Count" column */
 	FText GetTotalInstanceCountTooltipText() const;
 

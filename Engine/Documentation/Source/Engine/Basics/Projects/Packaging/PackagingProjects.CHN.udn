@@ -1,121 +1,304 @@
-﻿INTSourceChangelist:2085745
+﻿INTSourceChangelist:6136013
 Availability:Public
 Title:打包项目
-Crumbs: %ROOT%, Engine, Engine/Basics/Projects
-Description: 打包虚幻引擎项目以进行发布。
+Crumbs:
+Description:打包虚幻游戏项目进行发布。
+type:overview
+skilllevel:Intermediate
+version: 4.16
+parent:Engine/Basics/Projects
 
 [TOC(start:2)]
 
 
-## 概述
 
 [EXCERPT:Intro]
-在将虚幻引擎项目发布给用户之前，必须正确地打包项目。打包处理确保所有的代码及内容都是最新的，并且具有可以在目标平台上运行的正确格式。
+必须先对虚幻项目进行正确打包，之后才能将其发布给用户。打包确保所有代码和内容都为最新且使用正确格式，以便在预期的目标平台上运行。 
 [/EXCERPT:Intro]
 
-在执行打包过程中，要执行许多步骤。如果一个项目有自定义的源码，那么将先编译该源码。然后，需要把所有需内容转换成为目标平台可以使用的格式(所谓的内容烘焙)。之后，这些编译好的代码及烘焙好的内容将会被打包到一个可发布的文件集合中，比如一个针对Windows的安装包。
+一些步骤将在打包过程中执行。当项目含有自定义源代码时，该代码将首先进行编译。然后，全部所需的内容将转换或“烘焙”为目标平台可使用的格式。在此之后，编译的代码和烘焙的内容将打包成可发布文件集，例如用于Windows的安装文件。
+
+在主 **文件（File）** 菜单中，有一个名为 **打包项目（Package Project）** 的选项，该选项包含一个子菜单。此子菜单显示您可以为其准备包的所有平台。打包是为了测试整个游戏而非单个地图，或准备好游戏以进行提交或发布。
+
+[REGION:note]对于在Android上打包，将有多种选择可供使用。请参阅Android纹理格式（Android Texture Formats）页面了解更多信息。[/REGION]
+
+在打包前，您还可以设置一些 **高级（Advanced）** 选项。 
 
 
-在 **File** 主菜单下，有一个 **Package Project（打包项目）** 选项，它有一个子菜单。该子菜单显示了您可以为其准备项目包文件的所有平台。打包的目的是为了测试您的 
-整个游戏而不是一张单独的地图；或者是为了准备游戏以进行提交或发布。
+## 游戏默认图（Game Default Map）
 
-对于Android平台来说，有多个选项。请参照 Android Texture Formats(安卓贴图格式)页面获得更多信息。
+在打包游戏之前，您首先需要设置一个 **游戏默认图（Game Default Map）**，它将在打包游戏启动时加载。如果您没有设置图，并且使用的是空白项目，那么您在打包游戏启动时将只能看到黑屏。如果您使用了其中一个模板图，例如第一人称（First Person）模板或第三人称（Third Person）模板，启动图将随即加载。
 
-在打包之前，您还可以设置一些 **Advanced（高级）** 选项。
+若要设置游戏默认图（Game Default Map），请在编辑器的主菜单中单击 **编辑（Edit）> 项目设置（Project Settings）> 地图和 模式（Maps & Modes）**：
 
-一旦您选择了平台，如果游戏中包含代码则先编译您的游戏，烘焙所有游戏数据，然后打包内容。如果您的项目包含Starter Content（初学者内容），或者如果您制作了很多 测试/临时 内容及地图，那么将是个很慢的过程。
-
-
+![](Project_Settings_MapsNModes.png)
 
 
 ## 创建包
 
-要想针对一个特定平台打包一个项目，那么请在编辑器的主菜单中点击 **File（文件） > Package Project（打包项目） > [PlatformName]** ：
+若要为特定平台打包项目，请在编辑器的主菜单中单击 **文件（File）> 打包项目（Package Project）> [项目名称（PlatformName）]**：
 
+[OBJECT:ToggleButtonContent]
+[PARAMLITERAL:category]
+操作系统
+[/PARAMLITERAL]
+[PARAMLITERAL:id]
+windows
+[/PARAMLITERAL]
+[PARAMLITERAL:active]
+[/PARAMLITERAL]
+[PARAM:content]
 ![](packaging_menu.png)
+[/PARAM]
+[/OBJECT]
 
-您将会看到一个供您选择目标目录的对话框。如果打包成功，那么这个目录稍后将包含打包后的项目。
+[OBJECT:ToggleButtonContent]
+[PARAMLITERAL:category]
+操作系统
+[/PARAMLITERAL]
+[PARAMLITERAL:id]
+mac
+[/PARAMLITERAL]
+[PARAMLITERAL:active]
+[/PARAMLITERAL]
+[PARAM:content]
+![](packaging_menu_Mac.png)
+[/PARAM]
+[/OBJECT]
 
-确认目标目录后，将启动针对选中平台打包项目的实际过程。由于打包过程是非常耗时的，所以这个过程是在后台执行的，您可以继续使用编辑器。在编辑器右下角将显示一个状态指示器来显示打包进度：
+您将看到一个选择目标目录的对话框。如果成功完成打包，则此目录将包含打包项目。
 
+确认目标目录将启动为所选平台打包项目的实际过程。因为打包非常耗时，所以此过程在后台执行，您可以继续使用编辑器。编辑器右下角将显示一个状态指示器，以指示进度。
+
+
+[OBJECT:ToggleButtonContent]
+[PARAMLITERAL:category]
+操作系统
+[/PARAMLITERAL]
+[PARAMLITERAL:id]
+windows
+[/PARAMLITERAL]
+[PARAMLITERAL:active]
+[/PARAMLITERAL]
+[PARAM:content]
 ![](progress.png)
+[/PARAM]
+[/OBJECT]
 
-状态指示器提供了一种取消当前激活的打包过程的方法，只需点击 Cancel（取消）按钮即可。通过点击Show Log(显示日志)链接，可以显示扩展的输出日志信息。如果打包过程没有成功完成，输出日志对于查找问题根源是有用的。
+[OBJECT:ToggleButtonContent]
+[PARAMLITERAL:category]
+操作系统
+[/PARAMLITERAL]
+[PARAMLITERAL:id]
+mac
+[/PARAMLITERAL]
+[PARAMLITERAL:active]
+[/PARAMLITERAL]
+[PARAM:content]
+![](progress_MAC.png)
+[/PARAM]
+[/OBJECT]
 
+状态指示器提供了一种通过单击 **取消（Cancel ）** 按钮来取消正在进行的打包过程的方法。您也可以通过单击 **显示日志（Show Log）** 链接来显示扩展的输出日志信息。如果打包过程未成功完成，输出日志有助于找出问题所在。
+
+[OBJECT:ToggleButtonContent]
+[PARAMLITERAL:category]
+操作系统
+[/PARAMLITERAL]
+[PARAMLITERAL:id]
+windows
+[/PARAMLITERAL]
+[PARAMLITERAL:active]
+[/PARAMLITERAL]
+[PARAM:content]
 ![](log.png)
+[/PARAM]
+[/OBJECT]
 
-对于经验不太多的用户，最重要的日志信息（比如错误和警告）会记录到正常的Message Log（消息日志）窗口中。
+[OBJECT:ToggleButtonContent]
+[PARAMLITERAL:category]
+操作系统
+[/PARAMLITERAL]
+[PARAMLITERAL:id]
+mac
+[/PARAMLITERAL]
+[PARAMLITERAL:active]
+[/PARAMLITERAL]
+[PARAM:content]
+![](log_MAC.png)
+[/PARAM]
+[/OBJECT]
+
+对于经验较少的用户，错误和警告等最重要的日志消息会记录到常规的 **消息日志（Message Log）** 窗口中：
 
 ![](message_log.png)
+[OBJECT:ToggleButtonContent]
+[PARAMLITERAL:category]
+操作系统
+[/PARAMLITERAL]
+[PARAMLITERAL:id]
+windows
+[/PARAMLITERAL]
+[PARAMLITERAL:active]
+[/PARAMLITERAL]
+[PARAM:content]
+![](message_log.png)
+[/PARAM]
+[/OBJECT]
+
+[OBJECT:ToggleButtonContent]
+[PARAMLITERAL:category]
+操作系统
+[/PARAMLITERAL]
+[PARAMLITERAL:id]
+mac
+[/PARAMLITERAL]
+[PARAMLITERAL:active]
+[/PARAMLITERAL]
+[PARAM:content]
+![](message_log_Mac.png)
+[/PARAM]
+[/OBJECT]
+
+[REGION:note]
+如果这些窗口不可见，您可以通过 **窗口（Window）** > **开发者工具（Developer Tool）** > **输出日志（Output Log）** / **消息日志（Message Log）** 选项访问它们。
+[/REGION]
  
-## 运行打包的游戏
+## 运行打包游戏
 
-当您打包时，您选择了一个输出目录。如果打包过程成功完成，那么您打包的游戏将会在针对特定平台的子目录中。比如，如果您选择了TappyChicken/Final目录，那么iOS版本应该在 
-`TappyChicken/Final/IOS` 目录中，Android版本将会在 `TappyChicken/Final/Android` 目录中。当您进入到那个子目录，您将会看到打包好的游戏，其格式适合于那个平台。
-对于Android平台来说，您将看到 .apk 、 .obb, 和 .bat 文件（运行 .bat 文件来在您的设备上安装该游戏）。对于IOS平台来说，您将看到一个.ipa文件。这可以通过iTunes 或 Xcode 进行安装。
-根据目标平台的不同，所创建的文件的数量和类型也有所不同。以下图片显示了一个Windows项目的示例输出：
+打包时，系统会提示您为打包过程的输出选择一个目录。您的打包游戏将被放置在基于其平台的子目录中。例如，如果您选择了一个名为“C:/PackagedOutput/”的子目录，Windows版本将被放置在“C:/PackagedOutput/WindowsNoEditor/”中。在此子目录中，您将发现适合于该平台的格式的打包游戏。例如，Windows游戏将具有“.exe”文件，Android游戏将具有“.apk”和“.obb”文件以及“.bat”安装文件，iOS游戏将具有“.ipa”文件。创建的文件的数量和类型将根据目标平台的不同而有所不同。下图显示了Windows项目的示例输出，它位于“WindowsNoEditor”子目录中：
 
+[OBJECT:ToggleButtonContent]
+[PARAMLITERAL:category]
+操作系统
+[/PARAMLITERAL]
+[PARAMLITERAL:id]
+windows
+[/PARAMLITERAL]
+[PARAMLITERAL:active]
+[/PARAMLITERAL]
+[PARAM:content]
 ![](results.png)
+[/PARAM]
+[/OBJECT]
 
-[EXCERPT:RunCooked]
-**要想运行您打包好的游戏:**
-
-1. 使用以下表格找到您的打包游戏的可执行文件：
-
-	| 配置 | EXE 名称                             | EXE 位置                                                    |
-	| ------------- | ------------------------------------ | --------------------------------------------------------------- |
-	| Development（开发）   | [ProjectName].exe                    | [PackageDirectory]\WindowsNoEditor\\[ProjectName]\Binaries\Win64 |
-	| Shipping（发行）      | [ProjectName]-Win32-Shipping.exe.exe | [PackageDirectory]\WindowsNoEditor\\[ProjectName]\Binaries\Win32 |
-
-1. **双击** 该可执行文件来运行游戏。
-[/EXCERPT:RunCooked]
-
+[OBJECT:ToggleButtonContent]
+[PARAMLITERAL:category]
+操作系统
+[/PARAMLITERAL]
+[PARAMLITERAL:id]
+mac
+[/PARAMLITERAL]
+[PARAMLITERAL:active]
+[/PARAMLITERAL]
+[PARAM:content]
+![](results_MAC.png)
+[/PARAM]
+[/OBJECT]
 
 ## 发布
 
-要想将一款IOS或Android游戏提交到App Store或Google Play Store上，您需要以Distribution(发布)模式创建您的包。要想完成这个操作，请跳转到 **Packaging（打包）** 菜单中的 **Packaging Settings（打包设置）** 选项处， 
-并选中 Distribution（发布）复选框。它将会正确地签署最终的包文件。
+若要将iOS或Android游戏提交到App Store或Google Play Store，您需要在发布（Distribution）模式中创建包。为此，转到 **打包（Packaging）** 菜单中的 **打包设置（Packaging Settings）** 选项，并选中 **发布（Distribution）** 复选框。
 
-在IOS平台上，您将需要在Apple的开发者网站上创建一个发布证书(Certificate)和MobileProvision。像安装您的Development（开发）证书那样安装该证书，并在旁边 
-以`Distro_` 为前缀命名您的发布概述文件（以便您具有 `Distro_MyProject.mobileprovision`  和 `MyProject.mobileprovision` ）。
+在iOS上，您需要在Apple的开发人员网站上创建发布证书（Distribution Certificate）和移动设备配置（MobileProvision）。以安装开发证书（Development certificate）的方式安装发布证书（Distribution Certificate），并以“Distro_”为前缀命名发布配置，紧接着命名另一个配置（因此您将同时拥有Distro_MyProject.mobileprovision和MyProject.mobileprovision）。
 
-在Android平台上，您需要创建一个密钥来签署.apk文件，并使用 `SigningConfig.xml` 文件向您的编译工具提供一些信息。该文件位于安装的Engine目录 
-(`Engine/Build/Android/Java`)内。如果您编辑该文件，它将应用给您的所有项目。但是，您可以把该文件复制到项目的 `Build/Android` 目录(没有Java 目录)，这样
- 它将仅用于那个项目。关于如何生成密钥及填写该文件的信息可以在该文件内部找到。
+在Android上，您需要创建一个键来签署“.apk”文件，并使用名为“SigningConfig.xml”的文件向编译工具提供一些信息。该文件存在于安装引擎目录（“Engine/Build/Android/Java/”）中。如果您编辑了该文件，它将适用于所有项目。然而，您可以将该文件复制到项目的“Build/Android/”目录（无“Java/”子目录），这样它将只用于该项目。有关如何生成键和填写文件的说明可在该文件本身内部找到。
 
 
 ## 高级设置
 
-在主菜单中点击 **File（文件） > Package Project（打包项目） > Packaging Settings（打包设置）...** ，将为您提供许多针对打包功能的高级配置选项。
+在主菜单中单击 **文件（File）> 打包项目（Package Project）> 打包设置...（Packaging Settings...）** 或 **编辑（Edit）> 项目设置（Project Settings）> 打包（Packaging）** 将为打包功能提供一些高级配置选项。
 
 ![](settings.png)
 
- 目前，这些选项包括：
+ 目前，它们包括：
 
-| 选项 | 描述|
+| 选项 | 说明 |
 | ------ | ----------- |
-| Build Configuration（编译配置） | 编译基于代码的项目所使用的编译配置。如果进行调试，请选择Debug（调试）；如果大部分时候都是进行开发，需要少量的调试支持，但是具有较好的性能，请选择Development(开发)；如果需要最终的发布版本，请选择Shipping(发行)。|
-| Staging Directory（暂存目录） | 将包含您的打包版本的目录。当您在目标目录选项中选择了一个不同的目录时，该项将会进行自动更新。|
-| Full Rebuild（完全重新编译） | 是否重新编译所有的代码。如果禁用该项，那么则仅编译已经修改的代码。这将会加快打包过程。对于发行版本，您应该总是进行完全的重新编译，以确保不会丢失任何内容，保证内容是最新的。该选项默认是启用的。|
-| Use Pak File（使用包文件） | 是将您的项目资源打包成单独的资源还是打包成一个包。如果启用该项，那么所有资源将会被放到一个单独的.pak文件中，而不是复制出所有的独立文件。如果您的项目有大量资源文件，那么使用一个包文件可能会使得发布过程变得更加简单，因为您不需要传送如此多的文件。该选项默认时启用的。|
+| **编译配置（Build Configuration）** | 用于编译基于代码的项目的编译配置。若要调试代码项目，请选择调试游戏（DebugGame）。请注意，仅蓝图（Blueprint-only）项目将没有此选项。对于大多数具有最低限度调试支持但性能更佳的其他开发，请选择开发（Development）。对于不含调试信息且不含调试导向性功能（例如绘制调试形状或打印屏幕上的调试消息）的最终发布版本，请选择发布（Shipping）。|
+| **Staging Directory（暂存目录）** | 包含打包编译的目录。当您在目标目录选择中选择另一个目录时，它将自动更新。|
+| **完整重编译（Full Rebuild）** | 是否应编译所有代码。如果禁用，则只编译修改过的代码。这可以加快打包过程。对于发布版本，您应该始终执行完整重编译，以确保没有任何内容丢失或过时。此选项默认为启用。|
+| **使用Pak文件（Use Pak File）** | 是否将项目的资源打包为单个文件或单个包。如果启用，所有资源将被放入单个.pak文件，而非复制所有单个文件（默认为启用）。如果您的项目使用大量资源文件，则使用Pak文件可以使发布变得更简单，因为它减少了需要传输的文件数量。此选项默认为禁用。|
+| **生成文件块（Generate Chunks）** | 是否生成可用于流送安装的.pak文件块。|
+| **编译HTTP文件块安装数据（Build Http Chunk Install Data）** | 是否为HTTP块安装文件生成数据。此配置允许在运行时安装将在Web服务器上托管的该数据。|
+| **Http数据块安装数据目录（Http Chunk Install Data Directory）** | 它表示数据在编译后的目标安装目录。|
+| **Http数据块安装数据版本（Http Chunk Install Data Version）** | 它表示HTTP数据块安装数据的版本名称。|
+| **Include Prerequisites Installer（包含先决条件安装文件）** | 它指定打包游戏是否包含先决条件的安装文件，例如可重新发布的操作系统组件。|
 [PUBLISH:Licensee]
-| Directories to Always Cook（总是烘焙的目录） | 包含总是应该烘焙的文件的一系列目录。默认情况下，打包功能自动检测并烘焙您的游戏引用的所有内容。某些需要的内容可能没有直接引用，比如自定义Slate UI的贴图。这样的内容所在的目录应该列在这里，以便把它包含到包内。|
+| **Directories to Always Cook（始终应烘焙的目录）** | 目录列表，其中包含始终应进行修改的文件。默认情况下，打包功能会自动检测和烘焙游戏引用的所有内容。一些必需的内容可能不会直接进行引用，例如自定义Slate UI的纹理。这些内容所在的目录应该在此处列出，以便也将这些内容包含在包中。|
 [/PUBLISH:Licensee]
-
-[PUBLISH:Licensee]
-## 支持的平台
-
-在书写本文时，仅支持Windows平台。我们正在添加针对其他平台的支持，比如iOS、PS4及Android。尽管这些平台可能已经列在了Package Project(打包项目)菜单中，但是它们目前是灰掉状态，不能进行选择。
-
-现在，还不支持创建针对Windows的安装包。打包后的文件目前仅是简单地复制到临时目录中。
-[/PUBLISH:Licensee]
-
 
 
 ## 内容烘焙
 
-作为开发人员，当迭代处理新的游戏内容或已修改的游戏内容时，您可能不想总是经历把所有内容打包到临时目录中，然后从那里运行内容资源的冗长过程。因此，你可以通过点击 **File（文件） > Cook Content（烘焙内容） > [PlatformName]**  ，您可以仅针对特定平台烘焙内容，不必打包它。
+作为一名开发人员，在迭代新的或修改过的游戏内容时，您可能并不总是希望经历将所有内容都打包到Staging Directory并从此处运行的漫长过程。因此，只需单击 **文件（File）> 烘焙内容（Cook Content）> [平台名称（PlatformName）]**，即可为特定目标平台烘焙内容，而无需打包。
 
-请注意，这个功能将更新您项目的本地开发者工作区中的内容，并且它不会把任何资源复制到临时目录中。您可以从您的本地开发者工作区中直接运行您的游戏来进行快速迭代开发。
+请注意，此功能将更新项目的本地开发人员工作区中的内容，并且不会将任何资源复制到暂存目录。您可以直接从本地开发人员工作区运行游戏，以实现快速迭代。
 
-(#optimizingloadtimes)
+
+## 优化加载时间
+
+较短的加载时间对于开放世界场景游戏而言至关重要，而且对于任何类型的游戏来说也非常重要。虚幻引擎提供了几种方法来优化项目在打包过程中的加载时间。以下是缩短游戏加载时间的一些推荐做法。有关如何打包项目的信息，请参阅[](Engine/Deployment)部分。
+
+### 使用事件驱动加载器（Event Driven Loader，EDL）和异步加载线程（Asynchronous Loading Thread，ALT）
+
+* **异步加载线程（Asynchronous Loading Thread）** (ALT)默认为关闭，但可以在项目设置（Project Settings）菜单下的引擎（Engine）- 流送（Streaming）部分下打开。对于修改过的引擎，可能需要进行一些调整，但一般来说，ALT应该会将加载速度提高一倍，包括具有“前线”加载时间的游戏和持续流送数据的游戏。ALT的工作方式是在两个独立的线程上同时运行序列化和后加载代码，因此，它增加了一项要求，即游戏代码中的“UObject”类构造函数、“PostInitProperties”函数和“Serialize”函数必须具有线程安全性。激活ALT后，ALT会将加载速度提高一倍。有关使用异步加载方法的详细信息（在C++中），请参阅[](Programming\Assets\AsyncLoading)页面。
+
+* **事件驱动加载器（Event-Driven Loader）** 默认为激活，但可以在项目设置（Project Settings）菜单下的引擎（Engine）- 流送（Streaming）部分下停用。对于大多数项目，EDL会将加载时间减半。EDL是稳定的，可以向后移植到旧版本的虚幻引擎，也可以针对修改过或自定义的引擎版本进行调整。
+
+![](EngineStreamingSettings.png)
+
+### 压缩.pak文件
+
+* 若要在项目中使用.pak文件压缩，请打开项目设置（Project Settings）并找到打包（Packaging）部分。在此部分，打开打包（Packaging）标题的高级部分，并选中出现的标有“创建压缩烘焙包（Create compressed cooked packages）”的复选框。
+
+* 大多数平台不提供自动压缩，压缩.pak文件将缩短加载时间，但需要考虑一些特殊情况：
+
+| 平台 | 建议 |
+| -- | -- |
+| **Sony PlayStation 4** | 压缩.pak文件将是多余的，因为压缩会自动应用到每个PlayStation 4标题，这会导致更长的加载时间，而没有减小文件大小。因此，对于PlayStation 4各版本，建议不要压缩.pak文件。|
+| **Nintendo Switch** | 在Switch上，压缩.pak文件有时会由于解压缩数据所需的处理器时间而使加载速度变得更慢，但有时会通过压缩文件加快加载速度。对于Switch标题，建议是测试每个标题的加载时间，然后根据具体情况再做决定。|
+| **Microsoft XBoxOne** | 在XBoxOne平台上，压缩对于实现尽可能快的加载时间至关重要。|
+| **Steam** | Steam在用户下载文件时压缩文件，所以初始下载时间不会受到游戏正在压缩的.pak文件的影响。然而，Steam的差分补丁系统在未压缩文件时会运行得更好。压缩的.pak文件可以节省在客户系统上的空间，但是在打补丁时需要更长的时间来下载。|
+
+![Project Settings - Compress Pak option](Project_Settings_PakCompression.png)
+[REGION:caption]选中此框以在.pak文件中启用压缩。[/REGION]
+
+### 整理pak文件
+
+井然有序的.pak文件对于缩短加载时间至关重要。为了帮助最好地整理.pak文件，UE4提供了一组工具来发现各个数据资源的需要顺序并编译出能够更快加载的包。从概念上讲，此过程类似于基于配置文件的优化。按照以下方法来整理我们的.pak文件：
+
+1. 使用“-fileopenlog”命令行选项编译并运行打包游戏，这将促使引擎记录其打开文件的顺序。
+1. 练习游戏的所有主要方面。加载每个关卡、每个可操作角色、每个武器、每个载具等等。加载所有内容后，退出游戏。
+
+1. [OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    操作系统
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    windows
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    在部署的文件中，将有一个名为“GameOpenOrder.log”的文件，其中包含优化.pak文件顺序所需的信息。例如，在Windows各版本上，您将在“WindowsNoEditor/(YourGame)/Build/WindowsNoEditor/FileOpenOrder/”中找到该文件。将该文件复制到开发目录“/Build/WindowsNoEditor/FileOpenOrder/”路径。
+    [/PARAM]
+    [/OBJECT]
+
+    [OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    操作系统
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    mac
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    在部署的文件中，将有一个名为“GameOpenOrder.log”的文件，其中包含优化.pak文件顺序所需的信息。例如，在Mac版本上，您将在“MacNoEditor/(YourGame)/Build/WindowsNoEditor/FileOpenOrder/”中找到该文件。将该文件复制到开发目录“/Build/MacNoEditor/FileOpenOrder/”路径。
+    [/PARAM]
+    [/OBJECT]
+
+1. 当日志文件就绪后，重编译.pak文件。该.pak文件以及将来生成的所有.pak文件将使用此日志文件中指定的文件顺序。
+
+在生产环境中，此日志文件应该签入源控制中并应定期进行更新，包含新的“-fileopenlog”运行的结果，其中包括游戏准备发布时的最后一次运行。

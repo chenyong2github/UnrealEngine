@@ -39,6 +39,21 @@ extern UNREALED_API class UEditorEngine* GEditor;
  */
 UNREALED_API const FString GetEditorResourcesDir();
 
+/**
+ * Helper struct for the FOnAssetsCanDelete delegate
+ */
+struct FCanDeleteAssetResult
+{
+public:
+	FCanDeleteAssetResult() : bResult(true) {}
+	FCanDeleteAssetResult(const FCanDeleteAssetResult&) = delete;
+	FCanDeleteAssetResult(FCanDeleteAssetResult&&) = delete;
+
+	void Set(const bool InValue) { bResult &= InValue; }
+	bool Get() const { return bResult; }
+private:
+	bool bResult;
+};
 
 /** 
  * FEditorDelegates
@@ -84,6 +99,8 @@ struct UNREALED_API FEditorDelegates
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnMapOpened, const FString& /* Filename */, bool /*bAsTemplate*/);
 	/** Delegate used for entering or exiting an editor mode */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnEditorModeTransitioned, FEdMode* /*Mode*/);
+	/** delegate type to determine if a user requests can delete certain assets. */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnAssetsCanDelete, const TArray<UObject*>& /*InObjectToDelete*/, FCanDeleteAssetResult& /*OutCanDelete*/);
 	/** delegate type for when a user requests to delete certain assets... DOES NOT mean the asset(s) will be deleted (the user could cancel) */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnAssetsPreDelete, const TArray<UObject*>&);
 	/** delegate type for when one or more assets have been deleted */
@@ -222,6 +239,8 @@ struct UNREALED_API FEditorDelegates
 	static FOnDollyPerspectiveCamera OnDollyPerspectiveCamera;
 	/** Called on editor shutdown after packages have been successfully saved */
 	static FSimpleMulticastDelegate OnShutdownPostPackagesSaved;
+	/** Called when the user requests assets to be deleted to determine if the operation is available.  */
+	static FOnAssetsCanDelete OnAssetsCanDelete;
 	/** Called when the user requests certain assets be deleted (DOES NOT imply that the asset will be deleted... the user could cancel) */
 	static FOnAssetsPreDelete OnAssetsPreDelete;
 	/** Called when one or more assets have been deleted */
@@ -653,6 +672,9 @@ namespace EditorUtilities
 
 			/** Filters out Blueprint Read-only properties */
 			FilterBlueprintReadOnly = 1 << 5,
+
+			/** Filters out properties that are marked instance only. */
+			SkipInstanceOnlyProperties = 1 << 6,
 		};
 	}
 

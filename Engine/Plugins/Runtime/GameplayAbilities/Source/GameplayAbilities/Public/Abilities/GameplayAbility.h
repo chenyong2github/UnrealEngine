@@ -81,7 +81,7 @@ struct FAbilityTriggerData
 	{}
 
 	/** The tag to respond to */
-	UPROPERTY(EditAnywhere, Category=TriggerData)
+	UPROPERTY(EditAnywhere, Category=TriggerData, meta=(Categories="TriggerTagCategory"))
 	FGameplayTag TriggerTag;
 
 	/** The type of trigger to respond to */
@@ -460,7 +460,7 @@ public:
 	// --------------------------------------
 
 	/** This ability has these tags */
-	UPROPERTY(EditDefaultsOnly, Category = Tags)
+	UPROPERTY(EditDefaultsOnly, Category = Tags, meta=(Categories="AbilityTagCategory"))
 	FGameplayTagContainer AbilityTags;
 
 	/** If true, this ability will always replicate input press/release events to the server. */
@@ -689,43 +689,43 @@ protected:
 	// ----------------------------------------------------------------------------------------------------------------
 
 	/** Abilities matching query are cancelled when this ability is executed */
-	UPROPERTY(EditDefaultsOnly, Category = TagQueries)
+	UPROPERTY(EditDefaultsOnly, Category = TagQueries, meta=(Categories="AbilityTagCategory"))
 	FGameplayTagQuery CancelAbilitiesMatchingTagQuery;
 
 	/** Abilities with these tags are cancelled when this ability is executed */
-	UPROPERTY(EditDefaultsOnly, Category = Tags)
+	UPROPERTY(EditDefaultsOnly, Category = Tags, meta=(Categories="AbilityTagCategory"))
 	FGameplayTagContainer CancelAbilitiesWithTag;
 
 	/** Abilities with these tags are blocked while this ability is active */
-	UPROPERTY(EditDefaultsOnly, Category = Tags)
+	UPROPERTY(EditDefaultsOnly, Category = Tags, meta=(Categories="AbilityTagCategory"))
 	FGameplayTagContainer BlockAbilitiesWithTag;
 
 	/** Tags to apply to activating owner while this ability is active */
-	UPROPERTY(EditDefaultsOnly, Category = Tags)
+	UPROPERTY(EditDefaultsOnly, Category = Tags, meta=(Categories="OwnedTagsCategory"))
 	FGameplayTagContainer ActivationOwnedTags;
 
 	/** This ability can only be activated if the activating actor/component has all of these tags */
-	UPROPERTY(EditDefaultsOnly, Category = Tags)
+	UPROPERTY(EditDefaultsOnly, Category = Tags, meta=(Categories="OwnedTagsCategory"))
 	FGameplayTagContainer ActivationRequiredTags;
 
 	/** This ability is blocked if the activating actor/component has any of these tags */
-	UPROPERTY(EditDefaultsOnly, Category = Tags)
+	UPROPERTY(EditDefaultsOnly, Category = Tags, meta=(Categories="OwnedTagsCategory"))
 	FGameplayTagContainer ActivationBlockedTags;
 
 	/** This ability can only be activated if the source actor/component has all of these tags */
-	UPROPERTY(EditDefaultsOnly, Category = Tags)
+	UPROPERTY(EditDefaultsOnly, Category = Tags, meta=(Categories="SourceTagsCategory"))
 	FGameplayTagContainer SourceRequiredTags;
 
 	/** This ability is blocked if the source actor/component has any of these tags */
-	UPROPERTY(EditDefaultsOnly, Category = Tags)
+	UPROPERTY(EditDefaultsOnly, Category = Tags, meta=(Categories="SourceTagsCategory"))
 	FGameplayTagContainer SourceBlockedTags;
 
 	/** This ability can only be activated if the target actor/component has all of these tags */
-	UPROPERTY(EditDefaultsOnly, Category = Tags)
+	UPROPERTY(EditDefaultsOnly, Category = Tags, meta=(Categories="TargetTagsCategory"))
 	FGameplayTagContainer TargetRequiredTags;
 
 	/** This ability is blocked if the target actor/component has any of these tags */
-	UPROPERTY(EditDefaultsOnly, Category = Tags)
+	UPROPERTY(EditDefaultsOnly, Category = Tags, meta=(Categories="TargetTagsCategory"))
 	FGameplayTagContainer TargetBlockedTags;
 
 	// ----------------------------------------------------------------------------------------------------------------

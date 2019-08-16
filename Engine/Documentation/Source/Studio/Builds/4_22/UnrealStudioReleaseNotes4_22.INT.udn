@@ -1,0 +1,254 @@
+Availability: Public
+Crumbs: 
+Title: Unreal Studio 4.22 Release Notes
+Description: Describes what's new in the 4.22 release of Unreal Studio.
+Type: 
+Version: 4.22
+Parent: Studio/Builds
+Order: 0
+Tags: Unreal Studio
+Tags: Release Notes
+
+
+This release brings several major new features that are available exclusively to Unreal Studio subscribers, including workflow improvements that come directly from your feedback and suggestions. This page introduces what's new in this release.
+
+##Datasmith Improvements for 3ds Max
+
+This release continues to add new capabilities and improvements for using Datasmith with 3ds Max.
+
+###Datasmith Imports Animations into Level Sequences
+
+When your 3ds Max scene contains objects with animated translation, rotation, or scaling values in 3D space, you can now bring those object animations into the Unreal Engine along with the objects that make up the scene.
+
+Datasmith saves the object animations from each scene into a new Level Sequence, which it creates in your Content Browser next to the scene’s other Assets. You can use this Level Sequence to control the playback of your animation in the Unreal Editor and when you run your Project.
+
+[OBJECT:EmbeddedVideo]
+    [PARAMLITERAL:videoid]
+    8T37S4FUpv8
+    [/PARAMLITERAL]
+    [PARAMLITERAL:width]
+    78
+    [/PARAMLITERAL]
+    [PARAMLITERAL:height]
+    56.25
+    [/PARAMLITERAL]
+    [PARAMLITERAL:units]
+    %
+    [/PARAMLITERAL]
+    [PARAMLITERAL:type]
+    simple
+    [/PARAMLITERAL]
+[/OBJECT]
+
+For details, see [Animation](Studio/Datasmith/Overview/ImportProcess#animations). 
+
+For more about working with Level Sequences, see the [documentation for the Sequencer tool](Engine/Sequencer).
+
+###Per-Object Export Settings
+
+You can use the new Datasmith Attributes Modifier in 3ds Max to customize the way Datasmith exports and imports each individual object in your scene. 
+
+![](PerObjectExportSettings_01.png)(w:400 convert:false)
+
+For each object, you can set:
+
+*    The index of a UV channel that contains a lightmap UV you created for the object. Datasmith automatically sets the Static Mesh Asset that it creates in the Unreal Engine to get its lightmap UVs from this channel, instead of creating new lightmap UVs from scratch when you import your scene.
+*    Another object in the scene to act as the collision mesh in the Unreal Engine physics simulation.
+*    Whether you want the object’s geometry to be brought into the Unreal Engine as a Static Mesh Asset, or whether you only want the object’s bounding box to be transferred to the Unreal Engine.
+
+For details, see [Per-Object Conversion Settings](Studio/Datasmith/SoftwareInteropGuides/3dsMax/ObjectSettings).
+
+###Global Exposure and Physical Camera Settings
+
+In previous releases, Datasmith correctly brought over physical light intensities to Unreal Engine. However, because the exposure values used to render the surrounding environment were not in the correct scale, the results could appear overexposed. For example:
+
+[OBJECT:ComparisonSlider]
+    [PARAM:before]
+    ![Exposure in 3ds Max](Exposure_01.png)(convert:false)
+    [/PARAM]
+    [PARAM:after]
+    ![After import with Datasmith 4.21](datasmith-ue4-exposure-421.png)(convert:false)
+    [/PARAM]
+[/OBJECT]
+
+In this release, Datasmith brings over to Unreal Engine more information about the physical camera attributes and global exposure settings that you have set up in 3ds Max. The intent is to make the overall rendering environment in Unreal more consistent with the source scene, so that the intensities of your physical lights produce the same visual effects as they do in your 3ds Max renders.
+
+*    If your 3ds Max scene contains a Physical Camera, exposure and white balance settings for that camera are now carried over to the **CineCameraActor** that represents that Physical Camera in the Unreal Level.
+    
+    The result is that when you view your Level through this camera, you’ll see light intensities that closely match the rendered result from 3ds Max.
+    [OBJECT:ComparisonSlider]
+        [PARAM:before]
+        ![3ds Max perspective camera](Exposure_01.png)(convert:false)
+        [/PARAM]
+        [PARAM:after]
+        ![Post Process Volume exposure in Unreal Engine](Exposure_02.png)(convert:false)
+        [/PARAM]
+    [/OBJECT]
+*    In addition, if your **Exposure Control** setting in 3ds Max uses either the **Physical Camera Exposure Control** or **VRay Exposure Control**, Datasmith now creates a Post Process Volume in the Datasmith Scene that applies those global exposure settings to the whole Level.
+    
+    The result is that when you view your Level using the default perspective camera in the Unreal Editor Viewport, you’ll once again see light intensities that closely match the rendered result from 3ds Max. 
+    [OBJECT:ComparisonSlider]
+        [PARAM:before]
+        ![Global exposure in 3ds Max perspective camera](GlobalExposure_01.png)(convert:false)
+        [/PARAM]
+        [PARAM:after]
+        ![Post Process Volume exposure in Unreal Engine](GlobalExposure_02.png)(convert:false)
+        [/PARAM]
+    [/OBJECT]
+    This happens even if the global white balance and exposure settings don’t match the physical camera settings, as in the image above, just like when you render a Perspective viewport in 3ds Max instead of rendering from a Physical Camera.
+
+See also [Exposure](Studio/Datasmith/SoftwareInteropGuides/3dsMax#exposure).
+
+[REGION:note]
+If your scene contains a Physical Camera in 3ds Max, you’ll have global Exposure Control settings active by default. That means that you’ll now get the Post Process Volume the next time you import your scene into Unreal Engine, which will probably change your visual results. If your scene is set up with exposure values that are consistent with the intensity of the lights in the scene, your scene lighting in Unreal Engine should match your source scene much more closely than with previous versions.
+[/REGION]
+
+###Area Light Improvements
+
+When you import a scene from 3ds Max that contains a type of light that emits light from a 2D or 3D surface, Datasmith uses an instance of the built-in **DatasmithAreaLightMesh** Blueprint to represent that light in your Unreal Engine Level. This release makes a few improvements to this Blueprint:
+
+*    When the light source is a rectangular area, the **DatasmithAreaLightMesh** now uses a [Rect Light](Engine/Rendering/LightingAndShadows/LightTypes/RectLights) to emit its light into the Level. These Rect Lights represent the intensity and distribution of the light sources more consistently with the original results in 3ds Max.
+*    The **DatasmithAreaLightMesh** Blueprint now creates its Light Actor Component dynamically. This means that you don’t have to select a sub-component in order to edit the properties that control the light, such as intensity and color. You can now edit these properties when you select the **DatasmithAreaLightMesh** Actor in the Level. You can also bulk-edit the settings for multiple **DatasmithAreaLightMesh** Actors at the same time.
+
+![](DatasmithAreaLightMesh_01.png)(w:800 convert:false)
+
+See [Area, Plane, and Volume Lights](Studio/Datasmith/SoftwareInteropGuides/3dsMax#area,plane,andvolumelights).
+
+###Vertex Colors
+
+Datasmith now imports vertex colors from 3ds Max objects, and makes those vertex colors available on the Static Mesh Assets it creates in the Unreal Engine.
+
+When you design new Material graphs in the Unreal Editor, you can use the **Constants > VertexColor** node to retrieve these vertex colors and use them to achieve special visual effects.
+[REGION:imagetable]
+| [REGION:lightbox][![ImageName](VertexColors_01.png)(w:582 convert:false)](VertexColors_01.png)[/REGION] | [REGION:lightbox][![ImageName](VertexColors_02.png)(w:582 convert:false)](VertexColors_02.png)[/REGION] |
+| --- | --- |
+| **Vertex colors displayed in 3ds Max** | **Vertex Colors displayed in Unreal Engine** |
+[/REGION]
+
+See [Vertex Colors](Studio/Datasmith/SoftwareInteropGuides/3dsMax#vertexcolors).
+
+###Improved Forest Pack Support
+
+If you use the Forest Pack or RailClone plugins for 3ds Max, Datasmith now uses Hierarchical Instanced Static Mesh Components to manage the instances of the geometry that you scatter or distribute procedurally in your 3ds Max scene. This should provide a dramatic improvement in the data translation performance and the usability of your content in Unreal Engine. 
+
+[OBJECT:ComparisonSlider]
+    [PARAM:before]
+    ![Forest Pack in 3ds Max](ForestPackComp_01.png)(convert:false)
+    [/PARAM]
+    [PARAM:after]
+    ![Unreal Engine](ForestPackComp_02.png)(convert:false)
+    [/PARAM]
+[/OBJECT]
+
+See [Forest Pack and RailClone Objects](Studio/Datasmith/SoftwareInteropGuides/3dsMax#forestpackandrailcloneobjects).
+
+##New Tessellation Method for Rhino Files
+
+Datasmith now uses the same tessellation method for Rhino scenes as it does for other types of CAD data
+
+In previous releases, Datasmith depended on the results of a tessellation process carried out internally within Rhino at the time the scene is rendered, which could produce unexpected results in the Unreal Engine — especially for scenes that never were rendered within Rhino.
+
+You can now use the tessellation settings offered by the Datasmith CAD importer to customize the fidelity of the generated Static Mesh geometry in the Unreal Engine to the original Rhino surfaces. In addition, you can customize the tessellation settings used for different Static Mesh Assets by reimporting those individual Static Mesh Assets from the **Content Browser** and setting different import options. 
+
+See [Using Datasmith with CAD Formats](Studio/Datasmith/SoftwareInteropGuides/CAD).
+
+##Control over Mesh Stitching for CAD imports
+
+When you use the Datasmith CAD importer, you can now control how the tessellation process handles parametric surfaces that appear to be connected, but that are actually modeled as separate objects. You can:
+
+*    Heal, or re-connect, multiple surfaces that belong to the same body or object in the source scene. When Datasmith detects that the surfaces are connected, it merges them into the same mesh element in the Static Mesh Asset it creates.
+*    Sew separate bodies together by testing for connectivity between their surfaces. This option may reduce the number of Static Mesh Assets that Datasmith creates in your Project, but takes longer to process.
+*    Skip stitching. Datasmith imports each body as a separate Static Mesh Asset, and it imports each separate surface within those bodies as a separate mesh element in the Static Mesh Asset.
+
+![](ControlMeshStitching_01.png)(w:600 convert:false)
+
+##Datasmith Scene Reimport Preserves Changes to Material Instances
+
+When you make changes to the settings of any Material Instances that Datasmith has created for your imported scenes, Datasmith now tracks those changes as overrides.
+
+This means that:
+
+*    You can selectively roll back your changes by right-clicking a Material Instance in the **Content Browser** and selecting **Datasmith > Reset Overrides** from the contextual menu.
+
+    ![](ReimportMaterial_01.png)(w:800 convert:false)
+*    When you reimport a Datasmith Scene Asset, you won’t lose any of the changes you’ve made to the settings of the Material Instances used in that scene.
+
+##Datasmith glTF Import (Early Access)
+
+You can now use Datasmith to import files that use the glTF 2.0 file format.
+
+The Unreal Editor also offers experimental support for importing the glTF format directly into the **Content Browser** using the built-in importer. However, by using the Datasmith glTF importer, you can take advantage of the same workflow benefits Datasmith offers for other file formats, such as handling full scenes instead of individual objects, maintaining scene hierarchy and relative transforms, nondestructive reimport process, and so on.
+
+To use the Datasmith glTF importer, select the new **GLTF** option from the drop-down list next to the **Datasmith** button in the Unreal Editor Toolbar.
+
+![](glTF_01.png)(w:600)
+
+For details on the settings offered by the glTF importer, see [GLTF Import Options](Studio/Datasmith/ImportOptions#gltfimportoptions).
+
+##Static Mesh Editing Improvements
+
+The Mesh Editing tools in the Static Mesh Editor window now offer better control over backward-facing triangles.
+
+*    When you enter **Edit Mode**, the viewport now outlines all backward-facing triangles in the model. For example:
+    
+    ![](SM_Editing_01.png)(w:800 convert:false)
+*    By default, you can only select triangles that are facing the camera. If you want to be able to select backward-facing triangles as well, activate the optional **Backfaces** toggle button in the Toolbar.
+    
+    ![](SM_Editing_02.png)(w:800 convert:false)
+*    When you press **F** to focus on the triangles you currently have selected, the Static Mesh Editor viewport now scales the movement speed of the camera relative to the size of the selected area. This should make it easier to navigate the viewport while working with small parts and isolated triangles.
+    [REGION:tip]
+     This behavior is controlled by the Use distance-scaled camera speed setting in the Level Editor - Viewports section of the Editor Preferences window.
+    [/REGION]
+
+See also [Modifying Static Mesh Geometry](Studio/Datasmith/HowTo/ModifyStaticMeshGeometry).
+
+##3ds Max Export and CAD Import Performance
+
+We’ve made some performance improvements to the Datasmith Exporter for 3ds Max and the Datasmith CAD importer, particularly for scenes with very large numbers of objects. Although we don’t have any benchmarks to share, we hope that you’ll notice that your 3ds Max exports and CAD imports take significantly less time to complete in 4.22 than you may have seen in previous versions.
+
+##Datasmith for Revit Improvements (Early Access)
+
+We’ve made some major improvements to the Datasmith import process for Revit, including:
+
+*    Support for importing linked files
+*    Type metadata from Revit is now included in Datasmith Metadata
+*    Improved tessellation
+*    Improved handling of Materials
+
+##Variant Manager Improvements
+
+This release adds some usability improvements to the Variant Manager that was introduced in 4.21. Now you can:
+
+*    Switch variants by double-clicking in the Variant Manager interface.
+*    Select multiple Actors, using the **Control** and **Shift** keys, and modify all of their captured properties at the same time.
+*    Drag and drop Actors from the Level into a Variant or Variant Set, or drag them from a different Variant.
+*    Drag and drop Actors and Variants to reorder them or move them to another Variant Set, and drag and drop Variant Sets to re-order them.
+
+You can also now fire a Blueprint event when a Variant is switched on. Assign the new **Function caller** property to the selected properties for any Actor in a Variant. Then, set the value of that property to the name of an existing function you want to call on that Actor, or create a new Blueprint function from scratch.
+
+##VRED and Deltagen Variants
+
+When you import scenes from VRED or Deltagen, Datasmith now sets up the Variant Manager to manage any variant sets and variants in those source scenes. It no longer creates a Data Table to hold information about the variants and custom Blueprints in your Level. This new approach should be more consistent and easier to use.
+
+##MDL/AxF Improvements
+
+This release makes significant improvements to the import process for MDL and AxF files, including support for displacement, and the ability to reimport non-baked Textures from disk using their original paths. You’ll notice several improvements to the way your Materials, Material Functions, and Textures are generated and laid out in your Project, and small but helpful usability fixes like showing descriptions for material functions and properties in tooltips.  
+
+##Features of Interest in the Core Engine
+In addition to the features specific to Unreal Studio subscribers that are outlined on this page, this release of Unreal Engine also contains many features available to all users that may be of particular interest to you:
+*    Real-Time Ray Tracing and Path Tracing (Early Access)
+*    Real-Time Compositing with Composure
+*    OpenColorIO (OCIO) Color Profiles (Experimental)
+*    Hardware-Accelerated Video Decoding (Experimental)
+*    Multi-User Editing (Early Access)
+*    Orbit Around Selection and Scaled Camera Zoom and Pan
+
+For details on all new features in the Engine, see the Unreal Engine 4.22 Release Notes. 
+
+##Upgrade Notes and Deprecations
+
+This release removes support for the following types of CAD files:
+
+*    **CADDS (.gbf)**
+*    **I-DEAS (.unv)**
+*    **ROBCAD (.rf)**

@@ -36,6 +36,7 @@
 #include "GPUScene.h"
 #include "TranslucentRendering.h"
 #include "Async/ParallelFor.h"
+#include "RectLightSceneProxy.h"
 
 /*------------------------------------------------------------------------------
 	Globals
@@ -225,6 +226,20 @@ static FAutoConsoleVariableRef CVarLightMaxDrawDistanceScale(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+#if !UE_BUILD_SHIPPING
+
+static TAutoConsoleVariable<float> CVarFreezeTemporalSequences(
+	TEXT("r.Test.FreezeTemporalSequences"), 0,
+	TEXT("Freezes all temporal sequences."),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<float> CVarFreezeTemporalHistories(
+	TEXT("r.Test.FreezeTemporalHistories"), 0,
+	TEXT("Freezes all temporal histories as well as the temporal sequence."),
+	ECVF_RenderThreadSafe);
+
+#endif
+
 DECLARE_CYCLE_STAT(TEXT("Occlusion Readback"), STAT_CLMM_OcclusionReadback, STATGROUP_CommandListMarkers);
 DECLARE_CYCLE_STAT(TEXT("After Occlusion Readback"), STAT_CLMM_AfterOcclusionReadback, STATGROUP_CommandListMarkers);
 
@@ -336,7 +351,7 @@ bool FViewInfo::IsDistanceCulled( float DistanceSquared, float MinDrawDistance, 
 		{
 			FPrimitiveFadingState& FadingState = ((FSceneViewState*)State)->PrimitiveFadingStates.FindOrAdd(PrimitiveSceneInfo->PrimitiveComponentId);
 			UpdatePrimitiveFadingState(FadingState, *this, !bDistanceCulled);
-			FUniformBufferRHIParamRef UniformBuffer = FadingState.UniformBuffer;
+			FRHIUniformBuffer* UniformBuffer = FadingState.UniformBuffer;
 			bStillFading = (UniformBuffer != NULL);
 			PrimitiveFadeUniformBuffers[PrimitiveIndex] = UniformBuffer;
 			PrimitiveFadeUniformBufferMap[PrimitiveIndex] = UniformBuffer != nullptr;
@@ -578,7 +593,7 @@ static void UpdatePrimitiveFading(const FScene* Scene, FViewInfo& View)
 				bool bVisible = View.PrimitiveVisibilityMap.AccessCorrespondingBit(BitIt);
 				FPrimitiveFadingState& FadingState = ViewState->PrimitiveFadingStates.FindOrAdd(Scene->PrimitiveComponentIds[BitIt.GetIndex()]);
 				UpdatePrimitiveFadingState(FadingState, View, bVisible);
-				FUniformBufferRHIParamRef UniformBuffer = FadingState.UniformBuffer;
+				FRHIUniformBuffer* UniformBuffer = FadingState.UniformBuffer;
 				if (UniformBuffer && !bVisible)
 				{
 					// If the primitive is fading out make sure it remains visible.
@@ -743,7 +758,7 @@ static void FetchVisibilityForPrimitives_Range(FVisForPrimParams& Params, FGloba
 	bool bClearQueries = !View.Family->EngineShowFlags.HitProxies;
 	const float CurrentRealTime = View.Family->CurrentRealTime;
 	uint32 OcclusionFrameCounter = ViewState->OcclusionFrameCounter;
-	FRenderQueryPool& OcclusionQueryPool = ViewState->OcclusionQueryPool;
+	FRHIRenderQueryPool* OcclusionQueryPool = ViewState->OcclusionQueryPool;
 	FHZBOcclusionTester& HZBOcclusionTests = ViewState->HZBOcclusionTests;
 
 	int32 ReadBackLagTolerance = NumBufferedFrames;
@@ -906,7 +921,7 @@ static void FetchVisibilityForPrimitives_Range(FVisForPrimParams& Params, FGloba
 						// Read the occlusion query results.
 						uint64 NumSamples = 0;
 						bool bGrouped = false;
-						FRenderQueryRHIParamRef PastQuery = PrimitiveOcclusionHistory->GetQueryForReading(OcclusionFrameCounter, NumBufferedFrames, ReadBackLagTolerance, bGrouped);
+						FRHIRenderQuery* PastQuery = PrimitiveOcclusionHistory->GetQueryForReading(OcclusionFrameCounter, NumBufferedFrames, ReadBackLagTolerance, bGrouped);
 						if (PastQuery)
 						{
 							//int32 RefCount = PastQuery.GetReference()->GetRefCount();
@@ -984,7 +999,7 @@ static void FetchVisibilityForPrimitives_Range(FVisForPrimParams& Params, FGloba
 				{					
 					if (bSingleThreaded)
 					{						
-						PrimitiveOcclusionHistory->ReleaseQuery(OcclusionQueryPool, OcclusionFrameCounter, NumBufferedFrames);
+						PrimitiveOcclusionHistory->ReleaseQuery(OcclusionFrameCounter, NumBufferedFrames);
 					}
 					else
 					{
@@ -1347,7 +1362,7 @@ static int32 FetchVisibilityForPrimitives(const FScene* Scene, FViewInfo& View, 
 			StartIndex += NumToProcess;
 		}
 
-		FRenderQueryPool& OcclusionQueryPool = ViewState->OcclusionQueryPool;
+		FRHIRenderQueryPool* OcclusionQueryPool = ViewState->OcclusionQueryPool;
 		FHZBOcclusionTester& HZBOcclusionTests = ViewState->HZBOcclusionTests;		
 
 		int32 NumOccludedPrims = 0;
@@ -1397,7 +1412,7 @@ static int32 FetchVisibilityForPrimitives(const FScene* Scene, FViewInfo& View, 
 				for (auto ReleaseQueryIter = OutQueriesToRelease[i].CreateIterator(); ReleaseQueryIter; ++ReleaseQueryIter)
 				{
 					FPrimitiveOcclusionHistory* History = *ReleaseQueryIter;
-					History->ReleaseQuery(OcclusionQueryPool, OcclusionFrameCounter, NumBufferedFrames);
+					History->ReleaseQuery(OcclusionFrameCounter, NumBufferedFrames);
 				}
 				
 				//New query batching
@@ -1416,12 +1431,10 @@ static int32 FetchVisibilityForPrimitives(const FScene* Scene, FViewInfo& View, 
 
 			//now add new primitive histories to the view. may resize the view's array.
 			for (int32 i = 0; i < NumTasks; ++i)
-			{								
-				const TArray<FPrimitiveOcclusionHistory>& NewHistoryArray = OutputOcclusionHistory[i];				
-				for (int32 HistoryIndex = 0; HistoryIndex < NewHistoryArray.Num(); ++HistoryIndex)
+			{											
+				for (int32 HistoryIndex = 0; HistoryIndex < OutputOcclusionHistory[i].Num(); ++HistoryIndex)
 				{
-					const FPrimitiveOcclusionHistory& CopySourceHistory = NewHistoryArray[HistoryIndex];
-					ViewPrimitiveOcclusionHistory.Add(CopySourceHistory);
+					ViewPrimitiveOcclusionHistory.Add(MoveTemp(OutputOcclusionHistory[i][HistoryIndex]));
 				}
 
 				//accumulate occluded prims across tasks
@@ -1779,6 +1792,7 @@ struct FDrawCommandRelevancePacket
 
 				NewVisibleMeshDrawCommand.Setup(
 					MeshDrawCommand,
+					PrimitiveIndex,
 					PrimitiveIndex,
 					CachedMeshDrawCommand.StateBucketId,
 					CachedMeshDrawCommand.MeshFillMode,
@@ -2923,7 +2937,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 	// Notify the FX system that the scene is about to perform visibility checks.
 	if (Scene->FXSystem && !Views[0].bIsPlanarReflection)
 	{
-		Scene->FXSystem->PreInitViews();
+		Scene->FXSystem->PreInitViews(RHICmdList);
 	}
 
 	// Draw lines to lights affecting this mesh if its selected.
@@ -2961,6 +2975,14 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 			}
 		}
 	}
+	
+#if UE_BUILD_SHIPPING
+	const bool bFreezeTemporalHistories = false;
+	const bool bFreezeTemporalSequences = false;
+#else
+	bool bFreezeTemporalHistories = CVarFreezeTemporalHistories.GetValueOnRenderThread() != 0;
+	bool bFreezeTemporalSequences = bFreezeTemporalHistories || CVarFreezeTemporalSequences.GetValueOnRenderThread() != 0;
+#endif
 
 	// Setup motion blur parameters (also check for camera movement thresholds)
 	for(int32 ViewIndex = 0;ViewIndex < Views.Num();ViewIndex++)
@@ -2979,7 +3001,9 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 		// HighResScreenshot should get best results so we don't do the occlusion optimization based on the former frame
 		extern bool GIsHighResScreenshot;
 		const bool bIsHitTesting = ViewFamily.EngineShowFlags.HitProxies;
-		if (GIsHighResScreenshot || !DoOcclusionQueries(FeatureLevel) || bIsHitTesting)
+		// Don't test occlusion queries in collision viewmode as they can be bigger then the rendering bounds.
+		const bool bCollisionView = ViewFamily.EngineShowFlags.CollisionVisibility || ViewFamily.EngineShowFlags.CollisionPawn;
+		if (GIsHighResScreenshot || !DoOcclusionQueries(FeatureLevel) || bIsHitTesting || bCollisionView)
 		{
 			View.bDisableQuerySubmissions = true;
 			View.bIgnoreExistingQueries = true;
@@ -3003,151 +3027,168 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 		if (ViewState)
 		{
 			check(View.bViewStateIsReadOnly);
-			View.bViewStateIsReadOnly = ViewFamily.bWorldIsPaused || ViewFamily.EngineShowFlags.HitProxies;
+			View.bViewStateIsReadOnly = ViewFamily.bWorldIsPaused || ViewFamily.EngineShowFlags.HitProxies || bFreezeTemporalHistories;
 
 			ViewState->SetupDistanceFieldTemporalOffset(ViewFamily);
-		}
 
-		if( View.AntiAliasingMethod == AAM_TemporalAA && ViewState )
-		{
-			// Subpixel jitter for temporal AA
-			int32 TemporalAASamples = CVarTemporalAASamples.GetValueOnRenderThread();
-		
-			if( TemporalAASamples > 1 && View.bAllowTemporalJitter )
+			if (!View.bViewStateIsReadOnly && !bFreezeTemporalSequences)
 			{
-				float SampleX, SampleY;
+				ViewState->FrameIndex++;
+			}
+		}
+		
+		// Subpixel jitter for temporal AA
+		int32 CVarTemporalAASamplesValue = CVarTemporalAASamples.GetValueOnRenderThread();
 
+		bool bTemporalUpsampling = View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale;
+		
+		// Apply a sub pixel offset to the view.
+		if (View.AntiAliasingMethod == AAM_TemporalAA && ViewState && (CVarTemporalAASamplesValue > 0 || bTemporalUpsampling) && View.bAllowTemporalJitter)
+		{
+			float EffectivePrimaryResolutionFraction = float(View.ViewRect.Width()) / float(View.GetSecondaryViewRectSize().X);
+
+			// Compute number of TAA samples.
+			int32 TemporalAASamples = CVarTemporalAASamplesValue;
+			{
 				if (Scene->GetFeatureLevel() < ERHIFeatureLevel::SM4)
 				{
 					// Only support 2 samples for mobile temporal AA.
 					TemporalAASamples = 2;
 				}
-
-				if( TemporalAASamples == 2 )
-				{
-					#if 0
-						// 2xMSAA
-						// Pattern docs: http://msdn.microsoft.com/en-us/library/windows/desktop/ff476218(v=vs.85).aspx
-						//   N.
-						//   .S
-						float SamplesX[] = { -4.0f/16.0f, 4.0/16.0f };
-						float SamplesY[] = { -4.0f/16.0f, 4.0/16.0f };
-					#else
-						// This pattern is only used for mobile.
-						// Shift to reduce blur.
-						float SamplesX[] = { -8.0f/16.0f, 0.0/16.0f };
-						float SamplesY[] = { /* - */ 0.0f/16.0f, 8.0/16.0f };
-					#endif
-					ViewState->OnFrameRenderingSetup(ARRAY_COUNT(SamplesX), ViewFamily);
-					uint32 Index = ViewState->GetCurrentTemporalAASampleIndex();
-					SampleX = SamplesX[ Index ];
-					SampleY = SamplesY[ Index ];
-				}
-				else if( TemporalAASamples == 3 )
-				{
-					// 3xMSAA
-					//   A..
-					//   ..B
-					//   .C.
-					// Rolling circle pattern (A,B,C).
-					float SamplesX[] = { -2.0f/3.0f,  2.0/3.0f,  0.0/3.0f };
-					float SamplesY[] = { -2.0f/3.0f,  0.0/3.0f,  2.0/3.0f };
-					ViewState->OnFrameRenderingSetup(ARRAY_COUNT(SamplesX), ViewFamily);
-					uint32 Index = ViewState->GetCurrentTemporalAASampleIndex();
-					SampleX = SamplesX[ Index ];
-					SampleY = SamplesY[ Index ];
-				}
-				else if( TemporalAASamples == 4 )
-				{
-					// 4xMSAA
-					// Pattern docs: http://msdn.microsoft.com/en-us/library/windows/desktop/ff476218(v=vs.85).aspx
-					//   .N..
-					//   ...E
-					//   W...
-					//   ..S.
-					// Rolling circle pattern (N,E,S,W).
-					float SamplesX[] = { -2.0f/16.0f,  6.0/16.0f, 2.0/16.0f, -6.0/16.0f };
-					float SamplesY[] = { -6.0f/16.0f, -2.0/16.0f, 6.0/16.0f,  2.0/16.0f };
-					ViewState->OnFrameRenderingSetup(ARRAY_COUNT(SamplesX), ViewFamily);
-					uint32 Index = ViewState->GetCurrentTemporalAASampleIndex();
-					SampleX = SamplesX[ Index ];
-					SampleY = SamplesY[ Index ];
-				}
-				else if( TemporalAASamples == 5 )
-				{
-					// Compressed 4 sample pattern on same vertical and horizontal line (less temporal flicker).
-					// Compressed 1/2 works better than correct 2/3 (reduced temporal flicker).
-					//   . N .
-					//   W . E
-					//   . S .
-					// Rolling circle pattern (N,E,S,W).
-					float SamplesX[] = {  0.0f/2.0f,  1.0/2.0f,  0.0/2.0f, -1.0/2.0f };
-					float SamplesY[] = { -1.0f/2.0f,  0.0/2.0f,  1.0/2.0f,  0.0/2.0f };
-					ViewState->OnFrameRenderingSetup(ARRAY_COUNT(SamplesX), ViewFamily);
-					uint32 Index = ViewState->GetCurrentTemporalAASampleIndex();
-					SampleX = SamplesX[ Index ];
-					SampleY = SamplesY[ Index ];
-				}
-				else if (View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale)
+				else if (bTemporalUpsampling)
 				{
 					// When doing TAA upsample with screen percentage < 100%, we need extra temporal samples to have a
 					// constant temporal sample density for final output pixels to avoid output pixel aligned converging issues.
-					float EffectivePrimaryResolutionFraction = float(View.ViewRect.Width()) / float(View.GetSecondaryViewRectSize().X);
-					int32 EffectiveTemporalAASamples = float(TemporalAASamples) * FMath::Max(1.f, 1.f / (EffectivePrimaryResolutionFraction * EffectivePrimaryResolutionFraction));
-
-					ViewState->OnFrameRenderingSetup(EffectiveTemporalAASamples, ViewFamily);
-					uint32 TemporalSampleIndex = ViewState->GetCurrentTemporalAASampleIndex();
-
-					// Uniformly distribute temporal jittering in [-.5; .5], because there is no longer any alignement of input and output pixels.
-					SampleX = Halton(TemporalSampleIndex + 1, 2) - 0.5f;
-					SampleY = Halton(TemporalSampleIndex + 1, 3) - 0.5f;
-
-					View.MaterialTextureMipBias = -(FMath::Max(-FMath::Log2(EffectivePrimaryResolutionFraction), 0.0f) ) + CVarMinAutomaticViewMipBiasOffset.GetValueOnRenderThread();
-					View.MaterialTextureMipBias = FMath::Max(View.MaterialTextureMipBias, CVarMinAutomaticViewMipBias.GetValueOnRenderThread());
+					TemporalAASamples = float(TemporalAASamples) * FMath::Max(1.f, 1.f / (EffectivePrimaryResolutionFraction * EffectivePrimaryResolutionFraction));
 				}
-				else
+				else if (CVarTemporalAASamplesValue == 5)
 				{
-					ViewState->OnFrameRenderingSetup(TemporalAASamples, ViewFamily);
-					uint32 Index = ViewState->GetCurrentTemporalAASampleIndex();
-
-					float u1 = Halton( Index + 1, 2 );
-					float u2 = Halton( Index + 1, 3 );
-
-					// Generates samples in normal distribution
-					// exp( x^2 / Sigma^2 )
-					
-					static auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.TemporalAAFilterSize"));
-					float FilterSize = CVar->GetFloat();
-
-					// Scale distribution to set non-unit variance
-					// Variance = Sigma^2
-					float Sigma = 0.47f * FilterSize;
-
-					// Window to [-0.5, 0.5] output
-					// Without windowing we could generate samples far away on the infinite tails.
-					float OutWindow = 0.5f;
-					float InWindow = FMath::Exp( -0.5 * FMath::Square( OutWindow / Sigma ) );
-					
-					// Box-Muller transform
-					float Theta = 2.0f * PI * u2;
-					float r = Sigma * FMath::Sqrt( -2.0f * FMath::Loge( (1.0f - u1) * InWindow + u1 ) );
-					
-					SampleX = r * FMath::Cos( Theta );
-					SampleY = r * FMath::Sin( Theta );
+					TemporalAASamples = 4;
 				}
 
-				View.TemporalJitterPixels.X = SampleX;
-				View.TemporalJitterPixels.Y = SampleY;
-
-				View.ViewMatrices.HackAddTemporalAAProjectionJitter(FVector2D(SampleX * 2.0f / View.ViewRect.Width(), SampleY * -2.0f / View.ViewRect.Height()));
+				TemporalAASamples = FMath::Clamp(TemporalAASamples, 1, 255);
 			}
-		}
-		else if(ViewState && !View.bViewStateIsReadOnly)
-		{
-			// no TemporalAA
-			ViewState->OnFrameRenderingSetup(1, ViewFamily);
 
-			ViewState->PrevFrameViewInfo.TemporalAAHistory.SafeRelease();
+			// Compute the new sample index in the temporal sequence.
+			int32 TemporalSampleIndex = ViewState->TemporalAASampleIndex + 1;
+			if(TemporalSampleIndex >= TemporalAASamples || View.bCameraCut)
+			{
+				TemporalSampleIndex = 0;
+			}
+
+			// Updates view state.
+			if (!View.bViewStateIsReadOnly && !bFreezeTemporalSequences)
+			{
+				ViewState->TemporalAASampleIndex = TemporalSampleIndex;
+			}
+
+			// Choose sub pixel sample coordinate in the temporal sequence.
+			float SampleX, SampleY;
+			if (Scene->GetFeatureLevel() < ERHIFeatureLevel::SM4)
+			{
+				float SamplesX[] = { -8.0f/16.0f, 0.0/16.0f };
+				float SamplesY[] = { /* - */ 0.0f/16.0f, 8.0/16.0f };
+				check(TemporalAASamples == ARRAY_COUNT(SamplesX));
+				SampleX = SamplesX[ TemporalSampleIndex ];
+				SampleY = SamplesY[ TemporalSampleIndex ];
+			}
+			else if (View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale)
+			{
+				// Uniformly distribute temporal jittering in [-.5; .5], because there is no longer any alignement of input and output pixels.
+				SampleX = Halton(TemporalSampleIndex + 1, 2) - 0.5f;
+				SampleY = Halton(TemporalSampleIndex + 1, 3) - 0.5f;
+
+				View.MaterialTextureMipBias = -(FMath::Max(-FMath::Log2(EffectivePrimaryResolutionFraction), 0.0f) ) + CVarMinAutomaticViewMipBiasOffset.GetValueOnRenderThread();
+				View.MaterialTextureMipBias = FMath::Max(View.MaterialTextureMipBias, CVarMinAutomaticViewMipBias.GetValueOnRenderThread());
+			}
+			else if( CVarTemporalAASamplesValue == 2 )
+			{
+				// 2xMSAA
+				// Pattern docs: http://msdn.microsoft.com/en-us/library/windows/desktop/ff476218(v=vs.85).aspx
+				//   N.
+				//   .S
+				float SamplesX[] = { -4.0f/16.0f, 4.0/16.0f };
+				float SamplesY[] = { -4.0f/16.0f, 4.0/16.0f };
+				check(TemporalAASamples == ARRAY_COUNT(SamplesX));
+				SampleX = SamplesX[ TemporalSampleIndex ];
+				SampleY = SamplesY[ TemporalSampleIndex ];
+			}
+			else if( CVarTemporalAASamplesValue == 3 )
+			{
+				// 3xMSAA
+				//   A..
+				//   ..B
+				//   .C.
+				// Rolling circle pattern (A,B,C).
+				float SamplesX[] = { -2.0f/3.0f,  2.0/3.0f,  0.0/3.0f };
+				float SamplesY[] = { -2.0f/3.0f,  0.0/3.0f,  2.0/3.0f };
+				check(TemporalAASamples == ARRAY_COUNT(SamplesX));
+				SampleX = SamplesX[ TemporalSampleIndex ];
+				SampleY = SamplesY[ TemporalSampleIndex ];
+			}
+			else if( CVarTemporalAASamplesValue == 4 )
+			{
+				// 4xMSAA
+				// Pattern docs: http://msdn.microsoft.com/en-us/library/windows/desktop/ff476218(v=vs.85).aspx
+				//   .N..
+				//   ...E
+				//   W...
+				//   ..S.
+				// Rolling circle pattern (N,E,S,W).
+				float SamplesX[] = { -2.0f/16.0f,  6.0/16.0f, 2.0/16.0f, -6.0/16.0f };
+				float SamplesY[] = { -6.0f/16.0f, -2.0/16.0f, 6.0/16.0f,  2.0/16.0f };
+				check(TemporalAASamples == ARRAY_COUNT(SamplesX));
+				SampleX = SamplesX[ TemporalSampleIndex ];
+				SampleY = SamplesY[ TemporalSampleIndex ];
+			}
+			else if( CVarTemporalAASamplesValue == 5 )
+			{
+				// Compressed 4 sample pattern on same vertical and horizontal line (less temporal flicker).
+				// Compressed 1/2 works better than correct 2/3 (reduced temporal flicker).
+				//   . N .
+				//   W . E
+				//   . S .
+				// Rolling circle pattern (N,E,S,W).
+				float SamplesX[] = {  0.0f/2.0f,  1.0/2.0f,  0.0/2.0f, -1.0/2.0f };
+				float SamplesY[] = { -1.0f/2.0f,  0.0/2.0f,  1.0/2.0f,  0.0/2.0f };
+				check(TemporalAASamples == ARRAY_COUNT(SamplesX));
+				SampleX = SamplesX[ TemporalSampleIndex ];
+				SampleY = SamplesY[ TemporalSampleIndex ];
+			}
+			else
+			{
+				float u1 = Halton( TemporalSampleIndex + 1, 2 );
+				float u2 = Halton( TemporalSampleIndex + 1, 3 );
+
+				// Generates samples in normal distribution
+				// exp( x^2 / Sigma^2 )
+					
+				static auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.TemporalAAFilterSize"));
+				float FilterSize = CVar->GetFloat();
+
+				// Scale distribution to set non-unit variance
+				// Variance = Sigma^2
+				float Sigma = 0.47f * FilterSize;
+
+				// Window to [-0.5, 0.5] output
+				// Without windowing we could generate samples far away on the infinite tails.
+				float OutWindow = 0.5f;
+				float InWindow = FMath::Exp( -0.5 * FMath::Square( OutWindow / Sigma ) );
+					
+				// Box-Muller transform
+				float Theta = 2.0f * PI * u2;
+				float r = Sigma * FMath::Sqrt( -2.0f * FMath::Loge( (1.0f - u1) * InWindow + u1 ) );
+					
+				SampleX = r * FMath::Cos( Theta );
+				SampleY = r * FMath::Sin( Theta );
+			}
+
+			View.TemporalJitterSequenceLength = TemporalAASamples;
+			View.TemporalJitterIndex = TemporalSampleIndex;
+			View.TemporalJitterPixels.X = SampleX;
+			View.TemporalJitterPixels.Y = SampleY;
+
+			View.ViewMatrices.HackAddTemporalAAProjectionJitter(FVector2D(SampleX * 2.0f / View.ViewRect.Width(), SampleY * -2.0f / View.ViewRect.Height()));
 		}
 
 		// Setup a new FPreviousViewInfo from current frame infos.
@@ -3221,6 +3262,13 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 			if (!View.bViewStateIsReadOnly)
 			{
 				ViewState->PrevFrameViewInfo = NewPrevViewInfo;
+			}
+
+			// If the view has a previous view transform, then overwrite the previous view info for the _current_ frame.
+			if (View.PreviousViewTransform.IsSet())
+			{
+				// Note that we must ensure this transform ends up in ViewState->PrevFrameViewInfo else it will be used to calculate the next frame's motion vectors as well
+				View.PrevViewInfo.ViewMatrices.UpdateViewMatrix(View.PreviousViewTransform->GetTranslation(), View.PreviousViewTransform->GetRotation().Rotator());
 			}
 
 			// detect conditions where we should reset occlusion queries
@@ -3311,7 +3359,7 @@ void FSceneViewState::UpdateMotionBlurTimeScale(const FViewInfo& View)
 	if (MotionBlurTargetFPS <= 0)
 	{
 		// Keep motion vector lengths stable for paused sequencer frames.
-		if (bSequencerIsPaused)
+		if (GetSequencerState() == ESS_Paused)
 		{
 			// Reset the moving average to the current delta time.
 			MotionBlurTargetDeltaTime = DeltaWorldTime;
@@ -3326,7 +3374,7 @@ void FSceneViewState::UpdateMotionBlurTimeScale(const FViewInfo& View)
 	{
 		// Keep motion vector lengths stable for paused sequencer frames. Assumes a 60 FPS tick.
 		// Tuned for content compatibility with existing content when target is the default 30 FPS.
-		if (bSequencerIsPaused)
+		if (GetSequencerState() == ESS_Paused)
 		{
 			DeltaWorldTime = 1.0f / 60.0f;
 		}
@@ -3458,11 +3506,8 @@ void UpdateReflectionSceneData(FScene* Scene)
 			for (int32 PrimitiveIndex = 0; PrimitiveIndex < Scene->Primitives.Num(); PrimitiveIndex++)
 			{
 				FPrimitiveSceneInfo* Primitive = Scene->Primitives[PrimitiveIndex];
-				Primitive->CachedReflectionCaptureProxy = nullptr;
-				Primitive->CachedPlanarReflectionProxy = nullptr;
-				FMemory::Memzero(Primitive->CachedReflectionCaptureProxies);
-				Primitive->bNeedsCachedReflectionCaptureUpdate = true;
-				
+				Primitive->RemoveCachedReflectionCaptures();
+
 				if (bNeedsStaticMeshUpdate)
 				{
 					Primitive->CacheReflectionCaptures();
@@ -3547,7 +3592,6 @@ void FSceneRenderer::ComputeViewVisibility(FRHICommandListImmediate& RHICmdList,
 		View.PrimitivesLODMask.Init(FLODMask(), Scene->Primitives.Num());
 
 		View.PrimitivesCustomData.Init(nullptr, Scene->Primitives.Num());
-		View.PrimitivesWithCustomData.Reserve(Scene->Primitives.Num());
 
 		// We must reserve to prevent realloc otherwise it will cause memory leak if we Execute In Parallel
 		const bool WillExecuteInParallel = FApp::ShouldUseThreadingForPerformance() && CVarParallelInitViews.GetValueOnRenderThread() > 0;
@@ -3993,7 +4037,8 @@ void FSceneRenderer::PostVisibilityFrameSetup(FILCUpdatePrimTaskData& OutILCTask
 					Origin = ToLight + View.ViewMatrices.GetViewOrigin();
 				
 					FLinearColor Color( LightParameters.Color.X, LightParameters.Color.Y, LightParameters.Color.Z, LightParameters.FalloffExponent );
-					if( !Proxy->IsRectLight() )
+					const bool bIsRectLight = Proxy->IsRectLight();
+					if( !bIsRectLight )
 					{
 						const float SphereArea = (4.0f * PI) * FMath::Square( LightParameters.SourceRadius );
 						const float CylinderArea = (2.0f * PI) * LightParameters.SourceRadius * LightParameters.SourceLength;
@@ -4022,17 +4067,28 @@ void FSceneRenderer::PostVisibilityFrameSetup(FILCUpdatePrimTaskData& OutILCTask
 					Color.A *= LightParameters.SpecularScale;
 
 					// Rect is one sided
-					if( Proxy->IsRectLight() && (L | LightParameters.Direction) < 0.0f )
+					if( bIsRectLight && (L | LightParameters.Direction) < 0.0f )
 						continue;
-				
-					FMaterialRenderProxy* const ColoredMeshInstance = new(FMemStack::Get()) FColoredMaterialRenderProxy( GEngine->DebugMeshMaterial->GetRenderProxy(), Color );
+
+					UTexture* SurfaceTexture = nullptr;
+					if (bIsRectLight)
+					{
+						const FRectLightSceneProxy* RectLightProxy = (const FRectLightSceneProxy*)Proxy;
+						SurfaceTexture = RectLightProxy->SourceTexture;
+					}
+					
+					FMaterialRenderProxy* ColoredMeshInstance = nullptr;
+					if (SurfaceTexture)
+						ColoredMeshInstance = new(FMemStack::Get()) FColoredTexturedMaterialRenderProxy(GEngine->EmissiveMeshMaterial->GetRenderProxy(), Color, NAME_Color, SurfaceTexture, NAME_LinearColor);
+					else
+						ColoredMeshInstance = new(FMemStack::Get()) FColoredMaterialRenderProxy(GEngine->EmissiveMeshMaterial->GetRenderProxy(), Color, NAME_Color);
 
 					FMatrix LightToWorld = Proxy->GetLightToWorld();
 					LightToWorld.RemoveScaling();
 
 					FViewElementPDI LightPDI( &View, NULL, &View.DynamicPrimitiveShaderData );
 
-					if( Proxy->IsRectLight() )
+					if( bIsRectLight )
 					{
 						DrawBox( &LightPDI, LightToWorld, FVector( 0.0f, LightParameters.SourceRadius, LightParameters.SourceLength ), ColoredMeshInstance, SDPG_World );
 					}

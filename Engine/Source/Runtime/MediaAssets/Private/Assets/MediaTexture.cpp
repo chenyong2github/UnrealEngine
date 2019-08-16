@@ -63,6 +63,7 @@ UMediaTexture::UMediaTexture(const FObjectInitializer& ObjectInitializer)
 	, DefaultGuid(FGuid::NewGuid())
 	, Dimensions(FIntPoint::ZeroValue)
 	, Size(0)
+	, CachedNextSampleTime(FTimespan::MinValue())
 {
 	NeverStream = true;
 }
@@ -106,6 +107,11 @@ void UMediaTexture::SetMediaPlayer(UMediaPlayer* NewMediaPlayer)
 	UpdateQueue();
 }
 
+
+void UMediaTexture::CacheNextAvailableSampleTime(FTimespan InNextSampleTime)
+{
+	CachedNextSampleTime = InNextSampleTime;
+}
 
 #if WITH_EDITOR
 
@@ -368,16 +374,7 @@ void UMediaTexture::UpdateQueue()
 
 FTimespan UMediaTexture::GetNextSampleTime() const
 {
-	FTimespan SampleTime;
-
-	TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> Sample;
-	const bool bHasSucceed = SampleQueue->Peek(Sample);
-	if (bHasSucceed)
-	{
-		SampleTime = Sample->GetTime();
-	}
-
-	return SampleTime;
+	return CachedNextSampleTime;
 }
 
 int32 UMediaTexture::GetAvailableSampleCount() const

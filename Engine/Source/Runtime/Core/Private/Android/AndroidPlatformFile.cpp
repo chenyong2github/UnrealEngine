@@ -92,6 +92,10 @@ FString GFontPathBase;
 bool GOBBinAPK;
 FString GAPKFilename;
 
+// Directory for log file on Android
+bool GOverrideAndroidLogDir = false;
+static FString AndroidLogDir;
+
 #define FILEBASE_DIRECTORY "/UE4Game/"
 
 extern jobject AndroidJNI_GetJavaAssetManager();
@@ -932,6 +936,11 @@ public:
 	using IAndroidPlatformFile::IterateDirectory;
 	using IAndroidPlatformFile::IterateDirectoryStat;
 
+	static const FString* GetOverrideLogDirectory()
+	{
+		return GOverrideAndroidLogDir ? &AndroidLogDir : nullptr;
+	}
+
 	// On initialization we search for OBBs that we need to
 	// open to find resources.
 	virtual bool Initialize(IPlatformFile* Inner, const TCHAR* CmdLine) override
@@ -1003,6 +1012,19 @@ public:
 		FString FileBaseDir = GFilePathBase + FString(FILEBASE_DIRECTORY);
 		mkdir(TCHAR_TO_UTF8(*FileBaseDir), 0766);
 		mkdir(TCHAR_TO_UTF8(*(FileBaseDir + GAndroidProjectName)), 0766);
+
+		// make sure the log directory exists if override applied
+		if (GOverrideAndroidLogDir)
+		{
+			FString LogBaseDir = GExternalFilePath + FString(FILEBASE_DIRECTORY);
+			mkdir(TCHAR_TO_UTF8(*LogBaseDir), 0766);
+			mkdir(TCHAR_TO_UTF8(*(LogBaseDir + GAndroidProjectName)), 0766);
+			mkdir(TCHAR_TO_UTF8(*(LogBaseDir + GAndroidProjectName + TEXT("/") + GAndroidProjectName)), 0766);
+			mkdir(TCHAR_TO_UTF8(*(LogBaseDir + GAndroidProjectName + TEXT("/") + GAndroidProjectName + TEXT("/Saved"))), 0766);
+			mkdir(TCHAR_TO_UTF8(*(LogBaseDir + GAndroidProjectName + TEXT("/") + GAndroidProjectName + TEXT("/Saved/Logs"))), 0766);
+
+			AndroidLogDir = LogBaseDir + GAndroidProjectName + TEXT("/") + GAndroidProjectName + TEXT("/Saved/Logs/");
+		}
 
 		return true;
 	}
@@ -2016,5 +2038,10 @@ IPlatformFile& IPlatformFile::GetPlatformPhysical()
 IAndroidPlatformFile & IAndroidPlatformFile::GetPlatformPhysical()
 {
 	return FAndroidPlatformFile::GetPlatformPhysical();
+}
+
+const FString* IAndroidPlatformFile::GetOverrideLogDirectory()
+{
+	return FAndroidPlatformFile::GetOverrideLogDirectory();
 }
 #endif

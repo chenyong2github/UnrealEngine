@@ -35,11 +35,14 @@ public:
 		, _Style(&FCoreStyle::Get().GetWidgetStyle<FSliderStyle>("Slider"))
 		, _StepSize(0.01f)
 		, _Value(1.f)
+		, _MinValue(0.0f)
+		, _MaxValue(1.0f)
 		, _IsFocusable(true)
 		, _OnMouseCaptureBegin()
 		, _OnMouseCaptureEnd()
 		, _OnValueChanged()
-		{ }
+		{
+		}
 
 		/** Whether the slidable area should be indented to fit the handle. */
 		SLATE_ATTRIBUTE( bool, IndentHandle )
@@ -71,6 +74,11 @@ public:
 		/** A value that drives where the slider handle appears. Value is normalized between 0 and 1. */
 		SLATE_ATTRIBUTE( float, Value )
 
+		/** The minimum value that can be specified by using the slider. */
+		SLATE_ARGUMENT(float, MinValue)
+		/** The maximum value that can be specified by using the slider. */
+		SLATE_ARGUMENT(float, MaxValue)
+
 		/** Sometimes a slider should only be mouse-clickable and never keyboard focusable. */
 		SLATE_ARGUMENT(bool, IsFocusable)
 
@@ -91,6 +99,8 @@ public:
 
 	SLATE_END_ARGS()
 
+	SSlider();
+
 	/**
 	 * Construct the widget.
 	 * 
@@ -98,37 +108,49 @@ public:
 	 */
 	void Construct( const SSlider::FArguments& InDeclaration );
 
-	/** See the Value attribute */
+	/** Get the MinValue attribute */
+	float GetMinValue() const { return MinValue; }
+
+	/** Get the MaxValue attribute */
+	float GetMaxValue() const { return MaxValue; }
+
+	/** Get the Value attribute */
 	float GetValue() const;
 
-	/** See the Value attribute */
+	/** Get the Value attribute scaled from 0 to 1 */
+	float GetNormalizedValue() const;
+
+	/** Set the Value attribute */
 	void SetValue(const TAttribute<float>& InValueAttribute);
+
+	/** Set the MinValue and MaxValue attributes. If the new MinValue is more than the new MaxValue, MaxValue will be changed to equal MinValue. */
+	void SetMinAndMaxValues(float InMinValue, float InMaxValue);
 	
-	/** See the IndentHandle attribute */
+	/** Set the IndentHandle attribute */
 	void SetIndentHandle(const TAttribute<bool>& InIndentHandle);
 	
-	/** See the Locked attribute */
+	/** Set the Locked attribute */
 	void SetLocked(const TAttribute<bool>& InLocked);
 
-	/** See the Orientation attribute */
+	/** Set the Orientation attribute */
 	void SetOrientation(EOrientation InOrientation);
 	
-	/** See the SliderBarColor attribute */
+	/** Set the SliderBarColor attribute */
 	void SetSliderBarColor(FSlateColor InSliderBarColor);
 	
-	/** See the SliderHandleColor attribute */
+	/** Set the SliderHandleColor attribute */
 	void SetSliderHandleColor(FSlateColor InSliderHandleColor);
 
 	/** Get the StepSize attribute */
 	float GetStepSize() const;
 
-	/** See the StepSize attribute */
+	/** Set the StepSize attribute */
 	void SetStepSize(const TAttribute<float>& InStepSize);
 
-	/** See the MouseUsesStep attribute */
+	/** Set the MouseUsesStep attribute */
 	void SetMouseUsesStep(bool MouseUsesStep);
 
-	/** See the RequiresControllerLock attribute */
+	/** Set the RequiresControllerLock attribute */
 	void SetRequiresControllerLock(bool RequiresControllerLock);
 
 public:
@@ -146,9 +168,13 @@ public:
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual FReply OnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual void OnFocusLost(const FFocusEvent& InFocusEvent) override;
+	virtual FNavigationReply OnNavigation(const FGeometry& MyGeometry, const FNavigationEvent& InNavigationEvent) override;
 
 	virtual bool SupportsKeyboardFocus() const override;
 	virtual bool IsInteractable() const override;
+#if WITH_ACCESSIBILITY
+	virtual TSharedRef<FSlateAccessibleWidget> CreateAccessibleWidget() override;
+#endif
 
 	/** @return Is the handle locked or not? Defaults to false */
 	bool IsLocked() const;
@@ -202,6 +228,9 @@ protected:
 
 	/** Holds the amount to adjust the value by when using a controller or keyboard */
 	TAttribute<float> StepSize;
+
+	float MinValue;
+	float MaxValue;
 
 	// Holds a flag indicating whether a controller/keyboard is manipulating the slider's value. 
 	// When true, navigation away from the widget is prevented until a new value has been accepted or canceled. 

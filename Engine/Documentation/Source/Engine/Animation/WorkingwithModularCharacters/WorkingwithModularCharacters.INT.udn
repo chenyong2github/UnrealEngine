@@ -1,12 +1,14 @@
 Availability: Public
-Crumbs: 
 Title: Working with Modular Characters
 Description: Describes the different methods you can use to create modular characters comprised of multiple Skeletal Meshes. 
-Type: 
+Type: overview
 Version: 4.20 
 Parent: Engine/Animation
 Order: 2
-Tags: undefined
+Tags: Animation
+tags: Skeletal Mesh
+tags: Animation Features
+tags: Master Pose Component
 
 
 ![](ModularBanner.png)
@@ -17,7 +19,7 @@ When creating systems that enable players to customize their characters and swap
 
 The **Master Pose Component** is a Blueprint callable function that enables you to set a **Skinned Mesh Component Object** (or Skinned Mesh Component Objects) as children to another Skinned Mesh Component Object considered to be the master. For example, you can define the Torso as the Master Pose Component, assign an animation to the Torso, then add Feet, Legs, Hands and a Head as children which will follow the animation assigned to the Torso. 
 
-Behind the scenes, the children do not use any Bone Transform Buffer and won't run any animations even if you set them on the child, it only uses the Torso's Bone Transform Buffer when rendered which makes it a very lightweight attachment system. The only Component that has to run animation is the Torso, and all attached Components will use the Torso's Bone Transform (below is an example setup where we have assigned an animation to the Torso). 
+Behind the scenes, the children do not use any Bone Transform Buffer and won't run any animations even if you set them on the child, it only uses the Torso's Bone Transform Buffer when rendered which makes it a very lightweight attachment system. The only Component that has to run animation is the Torso, and all attached Components will use the Torso's Bone Transform. Below is an example setup where we have assigned an animation to the Torso. We use the Construction Script inside a Blueprint to set the Torso Skeletal Mesh as the Master Bone Component and the other aspects of our modular character as children. 
 
 ![](SetMasterPoseComponentImage.png)
 
@@ -31,7 +33,7 @@ Each aspect of our character is a Skeletal Mesh that we can change out with an
 
 ![](HiddenComponents.png)
 
-*Above, we have toggled the display of the Torso and the Feet (we could change these out with different Skeletal Meshes that follow the same Skeletal hierarchy). *
+*Above, we have toggled the display of the Torso and the Feet (we could change these out with different Skeletal Meshes that follow the same Skeletal hierarchy).*
 
   
 One issue to consider however, is that when using **Master Pose Component**, although it does reduce the game thread cost, it does not reduce the render cost. You will still render the same number of Components separately, keeping in mind that additional sections per Component will incur more draw calls. 
@@ -42,7 +44,7 @@ There is also the limitation that any children of the Master Bone has to be a su
 
 ## Copy Pose From Mesh
 
-**Copy Pose From Mesh** is an **AnimGraph** node you can use on the **Animation Blueprint** of the child that enables you to copy the animation pose from any **Skeletal Mesh Component**.   
+**Copy Pose From Mesh** is an **AnimGraph** node you can use on the **Animation Blueprint** of the child that enables you to copy the animation pose from any **Skeletal Mesh Component**. Copy Pose From Mesh will only copy matching bones, and everything else will use the reference pose. However, you can play the animation on top of the copied transforms as illustrated below.  
   
 [REGION:lightbox]
 [![CopyPoseFromMesh.png](CopyPoseFromMesh.png)(w:900)](CopyPoseFromMesh.png)
@@ -52,7 +54,7 @@ There is also the limitation that any children of the Master Bone has to be a su
 Click image for full view.
 [/REGION]
   
-*Copy Pose From Mesh will only copy matching bones, and everything else will use the reference pose. However, you can play the animation on top of the copied transforms as illustrated above.*
+
 
 When using [Copy Pose From Mesh](Engine/Animation/AnimHowTo/CopyPose), you will want to make sure that the Skeletal Mesh Component you copy from had already ticked, otherwise you will copy the last frame's animation (for example, if you are copying from the Body and the Head is the Child). To ensure the Body has ticked, you can attach the Head to the Body, which will ensure the parent ticks first before the child. 
 
@@ -351,8 +353,7 @@ Click image for full view.
 You can use your new Blueprint Function **Merge Meshes** to return a Skeletal Mesh object reference while passing in the Mesh Merge Parameters. The **Skeletal Mesh Component** that is added to the Blueprint can then be used as the target for setting a new Skeletal Mesh to use, which you can point to the return value of the Merge Meshes function call. In the above example, we are also assigning an Idleanimation for the Skeletal Mesh to play once all of the individual meshes have been merged.   
 
 After you add the Mesh Merge Blueprint to the Level, inside the **Details** panel, you can define the **Mesh Merge Parameters** including the **Meshes to Use** and **Skeleton** asset to use.   
-  
-
+ 
 ![](AssignedDetails-1.png)
 
 At runtime, the Mesh Merge function will execute and assemble the Skeletal Mesh based on the defined meshes.

@@ -8,15 +8,16 @@
 
 struct FConcertSessionContext;
 class IConcertServerSession;
+class FConcertSyncServerLiveSession;
 
 class FConcertServerSequencerManager
 {
 public:
-	FConcertServerSequencerManager(TSharedRef<IConcertServerSession> InSession);
+	explicit FConcertServerSequencerManager(const TSharedRef<FConcertSyncServerLiveSession>& InLiveSession);
 	~FConcertServerSequencerManager();
 
 	/** Bind this manager to the server session. */
-	void BindSession(const TSharedRef<IConcertServerSession>& InSession);
+	void BindSession(const TSharedRef<FConcertSyncServerLiveSession>& InLiveSession);
 
 	/** Unbind the manager from its currently bound session. */
 	void UnbindSession();
@@ -46,9 +47,6 @@ private:
 	/** Map of all currently opened Sequencer in a session, locally opened or not. */
 	TMap<FName, FConcertOpenSequencerState> SequencerStates;
 
-	/** Server Session tracked by this manager. */
-	TSharedPtr<IConcertServerSession> Session;
-
-	/** Delegate handle for the session clients changed callback. */
-	FDelegateHandle SessionClientChangedHandle;
+	/** Live session tracked by this manager. */
+	TSharedPtr<FConcertSyncServerLiveSession> LiveSession;
 };

@@ -18,6 +18,8 @@ from . import ports
 from . import shared
 from tools.shared import check_call
 
+import platform
+
 stdout = None
 stderr = None
 
@@ -29,7 +31,13 @@ def call_process(cmd):
 
 
 def run_commands(commands):
-  cores = min(len(commands), shared.Building.get_num_cores())
+# EPIC EDIT start -- nick.shin 2019-06-20 -- UE-76599
+  if platform.system() == "Windows":
+    # reduce the incident of: "[Error 5] Access is denied" on Windows
+    cores = 1
+  else:
+    cores = min(len(commands), shared.Building.get_num_cores())
+# EPIC EDIT end -- nick.shin 2019-06-20 -- UE-76599
   if cores <= 1:
     for command in commands:
       call_process(command)

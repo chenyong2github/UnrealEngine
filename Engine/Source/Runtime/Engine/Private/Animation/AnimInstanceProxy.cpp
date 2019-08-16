@@ -23,6 +23,7 @@
 #define DO_ANIMSTAT_PROCESSING(StatName) DEFINE_STAT(STAT_ ## StatName ## _WorkerThread)
 #include "Animation/AnimMTStats.h"
 #include "Animation/AnimNode_Root.h"
+#include "Animation/AnimNode_Layer.h"
 #undef DO_ANIMSTAT_PROCESSING
 
 #define LOCTEXT_NAMESPACE "AnimInstance"
@@ -39,9 +40,15 @@ void FAnimInstanceProxy::UpdateAnimationNode(float DeltaSeconds)
 
 void FAnimInstanceProxy::UpdateAnimationNode_WithRoot(float DeltaSeconds, FAnimNode_Base* InRootNode, FName InLayerName)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	if(InRootNode != nullptr)
 	{
-		UpdateCounter.Increment();
+		if (FrameCounterForNodeUpdate != GFrameCounter)
+		{
+			FrameCounterForNodeUpdate = GFrameCounter;
+			UpdateCounter.Increment();
+		}
+		
 		InRootNode->Update_AnyThread(FAnimationUpdateContext(this, DeltaSeconds));
 
 		// We've updated the graph, now update the fractured saved pose sections
@@ -55,6 +62,7 @@ void FAnimInstanceProxy::UpdateAnimationNode_WithRoot(float DeltaSeconds, FAnimN
 
 void FAnimInstanceProxy::AddReferencedObjects(UAnimInstance* InAnimInstance, FReferenceCollector& Collector)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	for (int32 Index = 0; Index < ARRAY_COUNT(UngroupedActivePlayerArrays); ++Index)
 	{
 		TArray<FAnimTickRecord>& UngroupedPlayers = UngroupedActivePlayerArrays[Index];
@@ -67,6 +75,8 @@ void FAnimInstanceProxy::AddReferencedObjects(UAnimInstance* InAnimInstance, FRe
 
 void FAnimInstanceProxy::Initialize(UAnimInstance* InAnimInstance)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	// copy anim instance object if it has not already been set up
 	AnimInstanceObject = InAnimInstance;
 
@@ -173,6 +183,8 @@ void FAnimInstanceProxy::Initialize(UAnimInstance* InAnimInstance)
 
 void FAnimInstanceProxy::InitializeRootNode()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	LODDisabledGameThreadPreUpdateNodes.Reset();
 	GameThreadPreUpdateNodes.Reset();
 	DynamicResetNodes.Reset();
@@ -249,6 +261,8 @@ void FAnimInstanceProxy::InitializeRootNode()
 
 void FAnimInstanceProxy::InitializeRootNode_WithRoot(FAnimNode_Base* InRootNode)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (InRootNode != nullptr)
 	{
 		InitializationCounter.Increment();
@@ -290,6 +304,8 @@ void FAnimInstanceProxy::LogMessage(FName InLogType, EMessageSeverity::Type InSe
 
 void FAnimInstanceProxy::Uninitialize(UAnimInstance* InAnimInstance)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	MontageEvaluationData.Reset();
 	DefaultSubInstanceInputNode = nullptr;
 	ResetAnimationCurves();
@@ -298,6 +314,8 @@ void FAnimInstanceProxy::Uninitialize(UAnimInstance* InAnimInstance)
 
 void FAnimInstanceProxy::PreUpdate(UAnimInstance* InAnimInstance, float DeltaSeconds)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	USkeletalMeshComponent* SkelMeshComp = InAnimInstance->GetSkelMeshComponent();
 	UWorld* World = SkelMeshComp ? SkelMeshComp->GetWorld() : nullptr;
 
@@ -356,15 +374,14 @@ void FAnimInstanceProxy::PreUpdate(UAnimInstance* InAnimInstance, float DeltaSec
 	FMemory::Memset(MachineWeights.GetData(), 0, MachineWeights.Num() * sizeof(float));
 
 #if WITH_EDITORONLY_DATA
-	bIsBeingDebugged = false;
-	if (UAnimBlueprint* AnimBlueprint = GetAnimBlueprint())
+	UAnimBlueprint* AnimBP = GetAnimBlueprint();
+	bIsBeingDebugged = AnimBP ? AnimBP->IsObjectBeingDebugged(InAnimInstance) : false;
+	if (bIsBeingDebugged)
 	{
-		bIsBeingDebugged = (AnimBlueprint->GetObjectBeingDebugged() == InAnimInstance);
-		if(bIsBeingDebugged)
+		FAnimBlueprintDebugData* DebugData = AnimBP->GetDebugData();
+		if (DebugData)
 		{
-			UAnimBlueprintGeneratedClass* AnimBlueprintGeneratedClass = Cast<UAnimBlueprintGeneratedClass>(InAnimInstance->GetClass());
-			FAnimBlueprintDebugData& DebugData = AnimBlueprintGeneratedClass->GetAnimBlueprintDebugData();
-			PoseWatchEntriesForThisFrame = DebugData.AnimNodePoseWatch;
+			PoseWatchEntriesForThisFrame = DebugData->AnimNodePoseWatch;
 		}
 	}
 #endif
@@ -382,6 +399,8 @@ void FAnimInstanceProxy::PreUpdate(UAnimInstance* InAnimInstance, float DeltaSec
 
 void FAnimInstanceProxy::OnPreUpdateLODChanged(const int32 PreviousLODIndex, const int32 NewLODIndex)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	// Decrease detail, see which nodes need to be disabled.
 	if (NewLODIndex > PreviousLODIndex)
 	{
@@ -422,6 +441,8 @@ void FAnimInstanceProxy::OnPreUpdateLODChanged(const int32 PreviousLODIndex, con
 
 void FAnimInstanceProxy::SavePoseSnapshot(USkeletalMeshComponent* InSkeletalMeshComponent, FName SnapshotName)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	FPoseSnapshot* PoseSnapshot = PoseSnapshots.FindByPredicate([SnapshotName](const FPoseSnapshot& PoseData) { return PoseData.SnapshotName == SnapshotName; });
 	if (PoseSnapshot == nullptr)
 	{
@@ -434,13 +455,13 @@ void FAnimInstanceProxy::SavePoseSnapshot(USkeletalMeshComponent* InSkeletalMesh
 
 void FAnimInstanceProxy::PostUpdate(UAnimInstance* InAnimInstance) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 #if WITH_EDITORONLY_DATA
-	if(bIsBeingDebugged)
+	if (FAnimBlueprintDebugData* DebugData = GetAnimBlueprintDebugData())
 	{
-		UAnimBlueprintGeneratedClass* AnimBlueprintGeneratedClass = Cast<UAnimBlueprintGeneratedClass>(InAnimInstance->GetClass());
-		FAnimBlueprintDebugData& DebugData = AnimBlueprintGeneratedClass->GetAnimBlueprintDebugData();
-		DebugData.RecordNodeVisitArray(UpdatedNodesThisFrame);
-		DebugData.AnimNodePoseWatch = PoseWatchEntriesForThisFrame;
+		DebugData->RecordNodeVisitArray(UpdatedNodesThisFrame);
+		DebugData->AnimNodePoseWatch = PoseWatchEntriesForThisFrame;
 	}
 #endif
 
@@ -477,6 +498,8 @@ void FAnimInstanceProxy::PostUpdate(UAnimInstance* InAnimInstance) const
 
 void FAnimInstanceProxy::PostEvaluate(UAnimInstance* InAnimInstance)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	ClearObjects();
 
 #if ENABLE_ANIM_LOGGING
@@ -493,6 +516,8 @@ void FAnimInstanceProxy::PostEvaluate(UAnimInstance* InAnimInstance)
 
 void FAnimInstanceProxy::InitializeObjects(UAnimInstance* InAnimInstance)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	SkeletalMeshComponent = InAnimInstance->GetSkelMeshComponent();
 	if (SkeletalMeshComponent->SkeletalMesh != nullptr)
 	{
@@ -612,6 +637,8 @@ void FAnimInstanceProxy::TickAssetPlayerInstances()
 
 void FAnimInstanceProxy::TickAssetPlayerInstances(float DeltaSeconds)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	SCOPE_CYCLE_COUNTER(STAT_TickAssetPlayerInstances);
 
 	// Handle all players inside sync groups
@@ -1070,6 +1097,8 @@ FAnimNode_Base* FAnimInstanceProxy::GetNodeFromIndexUntyped(int32 NodeIdx, UScri
 
 void FAnimInstanceProxy::RecalcRequiredBones(USkeletalMeshComponent* Component, UObject* Asset)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	RequiredBones.InitializeTo(Component->RequiredBones, FCurveEvaluationOption(Component->GetAllowedAnimCurveEvaluate(), &Component->GetDisallowedAnimCurvesEvaluation(), Component->PredictedLODLevel), *Asset);
 
 	// If there is a ref pose override, we want to replace ref pose in RequiredBones
@@ -1116,12 +1145,16 @@ void FAnimInstanceProxy::RecalcRequiredBones(USkeletalMeshComponent* Component, 
 
 void FAnimInstanceProxy::RecalcRequiredCurves(const FCurveEvaluationOption& CurveEvalOption)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	RequiredBones.CacheRequiredAnimCurveUids(CurveEvalOption);
 	bBoneCachesInvalidated = true;
 }
 
 void FAnimInstanceProxy::UpdateAnimation()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 #if WITH_EDITORONLY_DATA
 	UpdatedNodesThisFrame.Reset();
 #endif
@@ -1131,6 +1164,8 @@ void FAnimInstanceProxy::UpdateAnimation()
 
 void FAnimInstanceProxy::UpdateAnimation_WithRoot(FAnimNode_Base* InRootNode, FName InLayerName)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	ANIM_MT_SCOPE_CYCLE_COUNTER(ProxyUpdateAnimation, !IsInGameThread());
 	FScopeCycleCounterUObject AnimScope(GetAnimInstanceObject());
 
@@ -1179,6 +1214,8 @@ void FAnimInstanceProxy::UpdateAnimation_WithRoot(FAnimNode_Base* InRootNode, FN
 
 void FAnimInstanceProxy::PreEvaluateAnimation(UAnimInstance* InAnimInstance)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	InitializeObjects(InAnimInstance);
 #if ENABLE_ANIM_LOGGING
 	LoggedMessagesMap.FindOrAdd(NAME_Evaluate).Reset();
@@ -1192,6 +1229,8 @@ void FAnimInstanceProxy::EvaluateAnimation(FPoseContext& Output)
 
 void FAnimInstanceProxy::EvaluateAnimation_WithRoot(FPoseContext& Output, FAnimNode_Base* InRootNode)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	ANIM_MT_SCOPE_CYCLE_COUNTER(EvaluateAnimInstance, !IsInGameThread());
 
 	if(InRootNode == RootNode)
@@ -1213,6 +1252,8 @@ void FAnimInstanceProxy::EvaluateAnimation_WithRoot(FPoseContext& Output, FAnimN
 
 void FAnimInstanceProxy::CacheBones()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	// If bone caches have been invalidated, have AnimNodes refresh those.
 	if (bBoneCachesInvalidated && RootNode)
 	{
@@ -1974,6 +2015,8 @@ bool FAnimInstanceProxy::HasNativeStateExitBinding(const FName& MachineName, con
 
 void FAnimInstanceProxy::BindNativeDelegates()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	// if we have no root node, we are usually in error so early out
 	if(RootNode == nullptr)
 	{
@@ -2263,6 +2306,7 @@ void FAnimInstanceProxy::RecordStateWeight(const int32 InMachineClassIndex, cons
 
 void FAnimInstanceProxy::ResetDynamics(ETeleportType InTeleportType)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	for(FAnimNode_Base* Node : DynamicResetNodes)
 	{
 		Node->ResetDynamics(InTeleportType);
@@ -2272,6 +2316,29 @@ void FAnimInstanceProxy::ResetDynamics(ETeleportType InTeleportType)
 void FAnimInstanceProxy::ResetDynamics()
 {
 	ResetDynamics(ETeleportType::ResetPhysics);
+}
+
+TArray<FAnimNode_AssetPlayerBase*> FAnimInstanceProxy::GetInstanceAssetPlayers(const FName& GraphName)
+{
+	TArray<FAnimNode_AssetPlayerBase*> Nodes;
+
+	// Retrieve all asset player nodes from the (named) Animation Layer Graph	
+	if (AnimClassInterface)
+	{
+		const TMap<FName, FGraphAssetPlayerInformation>& GrapInformationMap = AnimClassInterface->GetGraphAssetPlayerInformation();
+		if (const FGraphAssetPlayerInformation* Information = GrapInformationMap.Find(GraphName))
+		{
+			for (const int32& NodeIndex : Information->PlayerNodeIndices)
+			{
+				if (FAnimNode_AssetPlayerBase* Node = GetNodeFromIndex<FAnimNode_AssetPlayerBase>(NodeIndex))
+				{
+					Nodes.Add(Node);
+				}
+			}
+		}
+	}
+
+	return Nodes;
 }
 
 #if WITH_EDITOR
@@ -2315,6 +2382,7 @@ const FPoseSnapshot* FAnimInstanceProxy::GetPoseSnapshot(FName SnapshotName) con
 
 void FAnimInstanceProxy::ResetAnimationCurves()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	for (uint8 Index = 0; Index < (uint8)EAnimCurveType::MaxAnimCurveType; ++Index)
 	{
 		AnimationCurves[Index].Reset();
@@ -2323,6 +2391,7 @@ void FAnimInstanceProxy::ResetAnimationCurves()
 
 void FAnimInstanceProxy::UpdateCurvesToEvaluationContext(const FAnimationEvaluationContext& InContext)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	SCOPE_CYCLE_COUNTER(STAT_UpdateCurvesToEvaluationContext);
 
 	// Track material params we set last time round so we can clear them if they aren't set again.
@@ -2373,6 +2442,7 @@ void FAnimInstanceProxy::UpdateCurvesToEvaluationContext(const FAnimationEvaluat
 
 void FAnimInstanceProxy::UpdateCurvesPostEvaluation(USkeletalMeshComponent* SkelMeshComp)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	SCOPE_CYCLE_COUNTER(STAT_UpdateCurvesPostEvaluation);
 
 	// Add curves to reset parameters that we have previously set but didn't tick this frame.
@@ -2407,6 +2477,8 @@ bool FAnimInstanceProxy::HasActiveCurves() const
 
 void FAnimInstanceProxy::AddCurveValue(const FSmartNameMapping& Mapping, const FName& CurveName, float Value)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	// save curve value, it will overwrite if same exists, 
 	//CurveValues.Add(CurveName, Value);
 	float* CurveValPtr = AnimationCurves[(uint8)EAnimCurveType::AttributeCurve].Find(CurveName);
@@ -2452,6 +2524,19 @@ void FAnimInstanceProxy::AddCurveValue(const FSmartNameMapping& Mapping, const F
 			}
 		}
 	}
+}
+
+FAnimBlueprintDebugData* FAnimInstanceProxy::GetAnimBlueprintDebugData() const
+{
+#if WITH_EDITORONLY_DATA
+	if (bIsBeingDebugged)
+	{
+		UAnimBlueprint* AnimBP = GetAnimBlueprint();
+		return AnimBP ? AnimBP->GetDebugData() : nullptr;
+	}
+#endif
+
+	return nullptr;
 }
 
 #undef LOCTEXT_NAMESPACE

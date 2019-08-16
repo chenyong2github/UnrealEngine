@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4649792
+﻿INTSourceChangelist:6411601
 Crumbs:%ROOT%
 Title: 비히클 질량 중심
 Description: 비히클 관련 Center of Mass, 질량 중심의 작동방식 개요입니다.
@@ -6,7 +6,7 @@ Availability:public
 Type: Reference
 Version: 4.15
 Parent: Engine/Physics/Vehicles/
-Order: 
+Order: 1
 Tags: Vehicles
 
 
@@ -15,7 +15,7 @@ Tags: Vehicles
 비히클의 무게 배분(weight distribution)은 핸들링, 가속, 견인과 같은 다양한 특성에 영향을 끼치므로 조작에 있어 중요한 부분입니다. 사용 용도에 따라 각기 다른 비히클 유형마다 각기 다른 무게 배분이 필요합니다. 게임 개발 목적상 이러한 특성은 어떤 스타일의 게임을 만드는가를 정의하기도 합니다. 아케이드 스타일의 레이싱 게임인지, 시뮬레이션인지, 아니면 그 둘의 하이브리드가 될 수도 있습니다. **Center of Mass** (질량 중심)을 바꾸면 비히클의 무게 배분을 변경할 수 있습니다.
 
 게임에서 질량 중심의 주 용도는 비히클 용이지만, 일정치 않은 모양을 캡슐화시킨 큰 피직스 바디에도 사용할 수 있습니다.
-[피직스 애셋](Engine/Physics/PhAT) 에서 종종 큰 피직스 바디 하나를 사용하여 비히클( 또는 큰 오브젝트)의 질량 대부분을 정의하게 됩니다.
+[피직스 애셋](Engine/Physics/PhysicsAssetEditor) 에서 종종 큰 피직스 바디 하나를 사용하여 비히클( 또는 큰 오브젝트)의 질량 대부분을 정의하게 됩니다.
 질량 중심은 이 피직스 바디의 중앙에 생성되므로, 비히클 핸들링이 이상해질 수가 있기에 비히클의 질량이 실제 있는 곳에 오도록 
 질량 중심을 조절하면 됩니다.
 

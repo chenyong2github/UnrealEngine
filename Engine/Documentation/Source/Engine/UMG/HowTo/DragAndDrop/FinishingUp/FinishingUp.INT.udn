@@ -1,4 +1,4 @@
-Availability: Public
+Availability: docs
 Title:5. Finishing Up
 Crumbs: %ROOT%, Engine, Engine/UMG, Engine/UMG/HowTo
 Description:We finish by configuring our drag widget, adding our Health Bar to our Main HUD for display and testing everything out.
@@ -13,6 +13,7 @@ tags:UMG UI Designer
 tags:UI
 type:how-to
 
+## Set to docs as the page has been combined into a single page. 
 
 [VAR:Steps]
 [OBJECT:Navigation]

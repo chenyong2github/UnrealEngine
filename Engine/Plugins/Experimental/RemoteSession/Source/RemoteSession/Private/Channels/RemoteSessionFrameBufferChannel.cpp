@@ -34,6 +34,17 @@ static FAutoConsoleVariableRef CVarQualityOverride(
 	TEXT("Sets quality (1-100)"),
 	ECVF_Default);
 
+static int32 FrameGrabberResX = 0;
+static FAutoConsoleVariableRef CVarResXOverride(
+	TEXT("remote.framegrabber.resx"), FrameGrabberResX,
+	TEXT("Sets the desired X resolution"),
+	ECVF_Default);
+
+static int32 FrameGrabberResY = 0;
+static FAutoConsoleVariableRef CVarResYOverride(
+	TEXT("remote.framegrabber.resy"), FrameGrabberResY,
+	TEXT("Sets the desired Y resolution"),
+	ECVF_Default);
 
 FRemoteSessionFrameBufferChannel::FRemoteSessionFrameBufferChannel(ERemoteSessionChannelMode InRole, TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection)
 	: IRemoteSessionChannel(InRole, InConnection)
@@ -141,7 +152,19 @@ void FRemoteSessionFrameBufferChannel::SetCaptureViewport(TSharedRef<FSceneViewp
 void FRemoteSessionFrameBufferChannel::CreateFrameGrabber(TSharedRef<FSceneViewport> Viewport)
 {
 	ReleaseFrameGrabber();
-	FrameGrabber = MakeShareable(new FFrameGrabber(Viewport, Viewport->GetSize()));
+
+	// For times when we want a specific resolution
+	FIntPoint FrameGrabberSize = SceneViewport->GetSize();
+	if (FrameGrabberResX > 0)
+	{
+		FrameGrabberSize.X = FrameGrabberResX;
+	}
+	if (FrameGrabberResY > 0)
+	{
+		FrameGrabberSize.Y = FrameGrabberResY;
+	}
+
+	FrameGrabber = MakeShareable(new FFrameGrabber(Viewport, FrameGrabberSize));
 	FrameGrabber->StartCapturingFrames();
 }
 
@@ -251,7 +274,7 @@ void FRemoteSessionFrameBufferChannel::Tick(const float InDeltaTime)
 				delete InRegions; 
 			};
 
-			DecodedTextures[NextImage]->UpdateTextureRegions(0, 1, Region, 4 * QueuedImage->Width, 8, TextureData->GetData(), DataCleanupFunc);
+			DecodedTextures[NextImage]->UpdateTextureRegions(0, 1, Region, 4 * QueuedImage->Width, sizeof(FColor), TextureData->GetData(), DataCleanupFunc);
 
 			UE_LOG(LogRemoteSession, Verbose, TEXT("GT: Uploaded image %d"),
 				QueuedImage->ImageIndex);

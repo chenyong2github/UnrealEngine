@@ -44,6 +44,7 @@
 #include "Framework/Application/SlateApplication.h"
 
 
+#define LOCTEXT_NAMESPACE "LODUtilities"
 
 DEFINE_LOG_CATEGORY_STATIC(LogLODUtilities, Log, All);
 
@@ -168,7 +169,7 @@ void FLODUtilities::RemoveLOD(FSkeletalMeshUpdateContext& UpdateContext, int32 D
 			USkinnedMeshComponent* SkinnedComponent = Cast<USkinnedMeshComponent>(*Iter);
 			if(SkinnedComponent)
 			{
-				SkinnedComponent->ForcedLodModel = 0;
+				SkinnedComponent->SetForcedLOD(0);
 			}
 		}
 
@@ -1802,7 +1803,7 @@ bool FLODUtilities::ImportAlternateSkinWeight(USkeletalMesh* SkeletalMesh, FStri
 	check(SkeletalMesh->GetLODInfo(TargetLODIndex));
 	FSkeletalMeshLODInfo* LODInfo = SkeletalMesh->GetLODInfo(TargetLODIndex);
 	
-	if (LODInfo && LODInfo->bHasBeenSimplified)
+	if (LODInfo && LODInfo->bHasBeenSimplified && LODInfo->ReductionSettings.BaseLOD != TargetLODIndex)
 	{
 		//We cannot remove alternate skin weights profile for a generated LOD
 		UE_LOG(LogLODUtilities, Error, TEXT("Cannot import Skin Weight Profile for a generated LOD."));
@@ -2035,10 +2036,14 @@ bool FLODUtilities::ReimportAlternateSkinWeight(USkeletalMesh* SkeletalMesh, int
 			}
 			else
 			{
-				const FString PickedFileName = FLODUtilities::PickSkinWeightFBXPath(TargetLODIndex);
-				if (!PickedFileName.IsEmpty() && FPaths::FileExists(PickedFileName))
+				FText WarningMessage = FText::Format(LOCTEXT("Warning_SkinWeightsFileMissing", "Previous file {0} containing Skin Weight data for LOD {1} could not be found, do you want to specify a new path?"), FText::FromString(PathName), TargetLODIndex);
+				if (EAppReturnType::Yes == FMessageDialog::Open(EAppMsgType::YesNo, WarningMessage))
 				{
-					bResult |= FLODUtilities::ImportAlternateSkinWeight(SkeletalMesh, PickedFileName, TargetLODIndex, ProfileInfo.Name, false);
+					const FString PickedFileName = FLODUtilities::PickSkinWeightFBXPath(TargetLODIndex);
+					if (!PickedFileName.IsEmpty() && FPaths::FileExists(PickedFileName))
+					{
+						bResult |= FLODUtilities::ImportAlternateSkinWeight(SkeletalMesh, PickedFileName, TargetLODIndex, ProfileInfo.Name, false);
+					}
 				}
 			}
 		}
@@ -2191,3 +2196,5 @@ FString FLODUtilities::PickSkinWeightFBXPath(int32 LODIndex)
 
 	return PickedFileName;
 }
+
+#undef LOCTEXT_NAMESPACE // "LODUtilities"

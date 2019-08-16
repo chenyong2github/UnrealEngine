@@ -24,7 +24,8 @@ namespace MetadataTool
 		{ 
 			new CompilePatternMatcher(),
 			new UndefinedSymbolPatternMatcher(),
-			new CopyrightNoticeMatcher()
+			new CopyrightNoticeMatcher(),
+			new ContentPatternMatcher()
 		};
 
 		static readonly Dictionary<string, PatternMatcher> CategoryToMatcher = Matchers.ToDictionary(x => x.Category, x => x);
@@ -61,6 +62,8 @@ namespace MetadataTool
 			FileReference StateFile = Arguments.GetFileReference("-StateFile=");
 			string ServerUrl = Arguments.GetStringOrDefault("-Server=", null);
 			bool bKeepHistory = Arguments.HasOption("-KeepHistory");
+			bool bReadOnly = Arguments.HasOption("-ReadOnly");
+			DirectoryReference SaveUnmatchedDir = Arguments.GetDirectoryReferenceOrDefault("-SaveUnmatched=", null);
 			Arguments.CheckAllArgumentsUsed();
 
 			// Build a mapping from category to matching
@@ -84,6 +87,15 @@ namespace MetadataTool
 			{
 				Log.TraceInformation("Creating new persistent data");
 				State = new BuildHealthState();
+			}
+
+			// Fixup any issues loaded from disk
+			foreach(BuildHealthIssue Issue in State.Issues)
+			{
+				if(Issue.References == null)
+				{
+					Issue.References = new SortedSet<string>();
+				}
 			}
 
 			// Create the Perforce connection
@@ -112,10 +124,28 @@ namespace MetadataTool
 					List<InputJobStep> InputJobSteps = InputJob.Steps.OrderBy(x => x.Name).ToList();
 					foreach (InputJobStep InputJobStep in InputJobSteps)
 					{
-						AddStep(Perforce, State, InputJob, InputJobStep);
+						if (InputJobStep.Diagnostics != null && InputJobStep.Diagnostics.Count > 0)
+						{
+							AddStep(Perforce, State, InputJob, InputJobStep);
+						}
 					}
+					
+					// Remove any steps which are empty
+					InputJob.Steps.RemoveAll(x => x.Diagnostics == null || x.Diagnostics.Count == 0);
 				}
+				InputJobs.RemoveAll(x => x.Steps.Count == 0);
 				Log.TraceInformation("Added jobs in {0}s", Timer.Elapsed.TotalSeconds);
+
+				// If there are any unmatched issues, save out the current state and remaining input
+				if(SaveUnmatchedDir != null && InputJobs.Count > 0)
+				{
+					DirectoryReference.CreateDirectory(SaveUnmatchedDir);
+					if(FileReference.Exists(StateFile))
+					{
+						FileReference.Copy(StateFile, FileReference.Combine(SaveUnmatchedDir, "State.json"), true);
+					}
+					SerializeJson(FileReference.Combine(SaveUnmatchedDir, "Input.json"), InputData);
+				}
 
 				// Try to find the next successful build for each stream, so we can close it as part of updating the server
 				for (int Idx = 0; Idx < State.Issues.Count; Idx++)
@@ -190,6 +220,12 @@ namespace MetadataTool
 				}
 			}
 
+			// If we're in read-only mode, don't write anything out
+			if(bReadOnly)
+			{
+				return;
+			}
+
 			// Save the persistent data
 			Log.TraceInformation("Writing persistent data to {0}", StateFile);
 			DirectoryReference.CreateDirectory(StateFile.Directory);
@@ -207,18 +243,7 @@ namespace MetadataTool
 						continue;
 					}
 
-					StringBuilder DetailsBuilder = new StringBuilder();
-					foreach (BuildHealthDiagnostic Diagnostic in Issue.Diagnostics)
-					{
-						DetailsBuilder.AppendFormat("##{0}##\n{1}\n", Diagnostic.JobStepName, Diagnostic.Message);
-					}
-					if(DetailsBuilder.Length > CommandTypes.MaxIssueDetailsLength)
-					{
-						DetailsBuilder.Remove(CommandTypes.MaxIssueDetailsLength, DetailsBuilder.Length - CommandTypes.MaxIssueDetailsLength);
-					}
-
 					string Summary = Matcher.GetSummary(Issue);
-					string Details = DetailsBuilder.ToString().TrimEnd();
 					if (Issue.Id == -1)
 					{
 						Log.TraceInformation("Adding issue: {0}", Issue);
@@ -229,16 +254,15 @@ namespace MetadataTool
 						}
 
 						CommandTypes.AddIssue IssueBody = new CommandTypes.AddIssue();
-						IssueBody.Project = "Fortnite";
+						IssueBody.Project = Issue.Project;
 						IssueBody.Summary = Summary;
-						IssueBody.Details = Details;
 
 						if(Issue.PendingWatchers.Count == 1)
 						{
 							IssueBody.Owner = Issue.PendingWatchers.First();
 						}
 
-						using(HttpWebResponse Response = SendHttpRequest(String.Format("{0}/api/issues/{1}", ServerUrl, Issue.Id), "POST", IssueBody))
+						using(HttpWebResponse Response = SendHttpRequest(String.Format("{0}/api/issues", ServerUrl), "POST", IssueBody))
 						{
 							int ResponseCode = (int)Response.StatusCode;
 							if (!(ResponseCode >= 200 && ResponseCode <= 299))
@@ -249,19 +273,14 @@ namespace MetadataTool
 						}
 
 						Issue.PostedSummary = Summary;
-						Issue.PostedDetails = Details;
 						WriteState(StateFile, State);
 					}
-					else if(Issue.PostedSummary == null 
-							|| Issue.PostedDetails == null
-							|| !String.Equals(Issue.PostedSummary, Summary, StringComparison.Ordinal)
-							|| !String.Equals(Issue.PostedDetails, Details, StringComparison.Ordinal))
+					else if(Issue.PostedSummary == null || !String.Equals(Issue.PostedSummary, Summary, StringComparison.Ordinal))
 					{
 						Log.TraceInformation("Updating issue {0}", Issue.Id);
 
 						CommandTypes.UpdateIssue IssueBody = new CommandTypes.UpdateIssue();
 						IssueBody.Summary = Summary;
-						IssueBody.Details = Details;
 
 						using (HttpWebResponse Response = SendHttpRequest(String.Format("{0}/api/issues/{1}", ServerUrl, Issue.Id), "PUT", IssueBody))
 						{
@@ -273,21 +292,12 @@ namespace MetadataTool
 						}
 
 						Issue.PostedSummary = Summary;
-						Issue.PostedDetails = Details;
 						WriteState(StateFile, State);
 					}
 				}
 
-				// Update the summary for any issues that are still open
-				foreach (BuildHealthIssue Issue in State.Issues)
-				{
-					if (Issue.Id == -1)
-					{
-						Log.TraceInformation("Adding issue: {0}", Issue);
-					}
-				}
-
 				// Add any new builds associated with issues
+				Dictionary<string, long> JobStepUrlToId = new Dictionary<string, long>(StringComparer.Ordinal);
 				foreach (BuildHealthIssue Issue in State.Issues)
 				{
 					foreach(KeyValuePair<string, Dictionary<string, BuildHealthJobHistory>> StreamPair in Issue.Streams)
@@ -317,12 +327,64 @@ namespace MetadataTool
 										{
 											throw new Exception("Unable to add build");
 										}
+										Build.Id = ParseHttpResponse<CommandTypes.AddBuildResponse>(Response).Id;
 									}
 
 									Build.bPostedToServer = true;
 									WriteState(StateFile, State);
 								}
+								if(Build.Id != -1)
+								{
+									JobStepUrlToId[Build.JobStepUrl] = Build.Id;
+								}
 							}
+						}
+					}
+				}
+
+				// Add any new diagnostics
+				foreach(BuildHealthIssue Issue in State.Issues)
+				{
+					foreach(BuildHealthDiagnostic Diagnostic in Issue.Diagnostics)
+					{
+						if(!Diagnostic.bPostedToServer)
+						{
+							string Summary = Diagnostic.Message;
+
+							const int MaxLength = 40;
+							if(Summary.Length > MaxLength)
+							{
+								Summary = Summary.Substring(0, MaxLength).TrimEnd();
+							}
+
+							Log.TraceInformation("Adding diagnostic '{0}' to issue {1}", Summary, Issue.Id);
+
+							CommandTypes.AddDiagnostic AddDiagnostic = new CommandTypes.AddDiagnostic();
+
+							long BuildId;
+							if(Diagnostic.JobStepUrl != null && JobStepUrlToId.TryGetValue(Diagnostic.JobStepUrl, out BuildId))
+							{
+								AddDiagnostic.BuildId = BuildId;
+							}
+							else
+							{
+								Console.WriteLine("ERROR");
+							}
+
+							AddDiagnostic.Message = Diagnostic.Message;
+							AddDiagnostic.Url = Diagnostic.ErrorUrl;
+
+							using (HttpWebResponse Response = SendHttpRequest(String.Format("{0}/api/issues/{1}/diagnostics", ServerUrl, Issue.Id), "POST", AddDiagnostic))
+							{
+								int ResponseCode = (int)Response.StatusCode;
+								if (!(ResponseCode >= 200 && ResponseCode <= 299))
+								{
+									throw new Exception("Unable to add build");
+								}
+							}
+
+							Diagnostic.bPostedToServer = true;
+							WriteState(StateFile, State);
 						}
 					}
 				}
@@ -471,27 +533,52 @@ namespace MetadataTool
 		/// <param name="InputJobStep">The job step to add</param>
 		void AddStep(PerforceConnection Perforce, BuildHealthState State, InputJob InputJob, InputJobStep InputJobStep)
 		{
-			// Create all the fingerprints for failures in this step
+			// Create a lazily evaluated list of changes that are responsible for any errors
+			Lazy<IReadOnlyList<ChangeInfo>> LazyChanges = new Lazy<IReadOnlyList<ChangeInfo>>(() => FindChanges(Perforce, State, InputJob));
+
+			// Create issues for any diagnostics in this step
 			List<BuildHealthIssue> InputIssues = new List<BuildHealthIssue>();
-			if(InputJobStep.Diagnostics != null)
+			foreach(PatternMatcher Matcher in Matchers)
 			{
-				List<InputDiagnostic> Diagnostics = new List<InputDiagnostic>(InputJobStep.Diagnostics); 
-				foreach(PatternMatcher PatternMatcher in Matchers)
-				{
-					PatternMatcher.Match(InputJob, InputJobStep, Diagnostics, InputIssues);
-				}
+				Matcher.Match(InputJob, InputJobStep, InputJobStep.Diagnostics, InputIssues);
 			}
 
-			// Add all the fingerprints to issues
+			// Merge the issues together
+			List<BuildHealthIssue> NewIssues = new List<BuildHealthIssue>();
 			foreach(BuildHealthIssue InputIssue in InputIssues)
 			{
-				BuildHealthIssue Issue = FindOrAddIssueForFingerprint(Perforce, State, InputJob, InputJobStep, InputIssue);
-				AddFailureToIssue(Issue, InputJob, InputJobStep, InputIssue.Diagnostics[0].ErrorUrl, State);
+				BuildHealthIssue OutputIssue = MergeIntoExistingIssue(Perforce, State, InputJob, InputJobStep, InputIssue, LazyChanges);
+				if(OutputIssue == null)
+				{
+					NewIssues.Add(InputIssue);
+					State.Issues.Add(InputIssue);
+					OutputIssue = InputIssue;
+				}
+				AddFailureToIssue(OutputIssue, InputJob, InputJobStep, InputIssue.Diagnostics[0].ErrorUrl, State);
+			}
+
+			// Update the watchers for any new issues
+			foreach(BuildHealthIssue NewIssue in NewIssues)
+			{
+				IReadOnlyList<ChangeInfo> Changes = LazyChanges.Value;
+				if (Changes != null)
+				{
+					// Find the pattern matcher for this issue
+					PatternMatcher Matcher = CategoryToMatcher[NewIssue.Category];
+
+					// Update the causers
+					List<ChangeInfo> Causers = Matcher.FindCausers(Perforce, NewIssue, Changes);
+					foreach (ChangeInfo Causer in Causers)
+					{
+						NewIssue.SourceChanges.UnionWith(Causer.SourceChanges);
+						NewIssue.PendingWatchers.Add(Causer.Record.User);
+					}
+				}
 			}
 		}
 
 		/// <summary>
-		/// Finds or adds an issue for a particular fingerprint
+		/// Finds or adds an issue for a particular issue
 		/// </summary>
 		/// <param name="Perforce">Perforce connection used to find possible causers</param>
 		/// <param name="State">The current set of tracked issues</param>
@@ -499,7 +586,7 @@ namespace MetadataTool
 		/// <param name="PreviousChange">The last changelist that was built before this one</param>
 		/// <param name="InputJob">Job containing the step to add</param>
 		/// <param name="InputJobStep">The job step to add</param>
-		BuildHealthIssue FindOrAddIssueForFingerprint(PerforceConnection Perforce, BuildHealthState State, InputJob InputJob, InputJobStep InputJobStep, BuildHealthIssue InputIssue)
+		BuildHealthIssue MergeIntoExistingIssue(PerforceConnection Perforce, BuildHealthState State, InputJob InputJob, InputJobStep InputJobStep, BuildHealthIssue InputIssue, Lazy<IReadOnlyList<ChangeInfo>> LazyChanges)
 		{
 			// Find the pattern matcher for this fingerprint
 			PatternMatcher Matcher = CategoryToMatcher[InputIssue.Category];
@@ -542,64 +629,44 @@ namespace MetadataTool
 				return Issue;
 			}
 
-			// List of changes since the last successful build in this stream
-			IReadOnlyList<ChangeInfo> Changes = null;
-
-			// Find the previous changelist that was built in this stream
-			List<BuildHealthJobStep> StreamBuilds;
-			if(State.Streams.TryGetValue(InputJob.Stream, out StreamBuilds))
+			// Check if this issue can be merged with an issue built in another stream
+			IReadOnlyList<ChangeInfo> Changes = LazyChanges.Value;
+			if(Changes != null && Changes.Count > 0)
 			{
-				// Find the last change submitted to this stream before it started failing
-				int LastChange = -1;
-				for (int Idx = 0; Idx < StreamBuilds.Count && StreamBuilds[Idx].Change < InputJob.Change; Idx++)
+				SortedSet<int> SourceChanges = new SortedSet<int>(Changes.SelectMany(x => x.SourceChanges));
+				foreach (BuildHealthIssue Issue in State.Issues)
 				{
-					LastChange = StreamBuilds[Idx].Change;
-				}
-
-				// Allow adding to any open issue that contains changes merged from other branches
-				if (LastChange != -1)
-				{
-					// Query for all the changes since then
-					Changes = FindChanges(Perforce, InputJob.Stream, LastChange, InputJob.Change);
-					if (Changes.Count > 0)
+					// Check if this issue does not already contain this stream, but contains one of the causing changes
+					if (Issue.Streams.ContainsKey(InputJob.Stream))
 					{
-						SortedSet<int> SourceChanges = new SortedSet<int>(Changes.SelectMany(x => x.SourceChanges));
-						foreach (BuildHealthIssue Issue in State.Issues)
-						{
-							// Check if this issue does not already contain this stream, but contains one of the causing changes
-							if (Issue.Streams.ContainsKey(InputJob.Stream))
-							{
-								continue;
-							}
-							if(!SourceChanges.Any(x => Issue.SourceChanges.Contains(x)))
-							{
-								continue;
-							}
-							if (!Matcher.CanMerge(InputIssue, Issue))
-							{
-								continue;
-							}
-
-							// Merge the issue
-							Matcher.Merge(InputIssue, Issue);
-							return Issue;
-						}
+						continue;
 					}
+					if(!SourceChanges.Any(x => Issue.SourceChanges.Contains(x)))
+					{
+						continue;
+					}
+					if (!Matcher.CanMerge(InputIssue, Issue))
+					{
+						continue;
+					}
+
+					// Merge the issue
+					Matcher.Merge(InputIssue, Issue);
+					return Issue;
 				}
 			}
 
-			// Create new issues for everything else in this stream
-			if (Changes != null)
+			// Check if it can be merged into an issue that's been created for this job. We only do this after exhausting all other options.
+			foreach (BuildHealthIssue Issue in State.Issues)
 			{
-				List<ChangeInfo> Causers = Matcher.FindCausers(Perforce, InputIssue, Changes);
-				foreach(ChangeInfo Causer in Causers)
+				if(Issue.InitialJobUrl == InputIssue.InitialJobUrl && Matcher.CanMergeInitialJob(InputIssue, Issue))
 				{
-					InputIssue.SourceChanges.UnionWith(Causer.SourceChanges);
-					InputIssue.PendingWatchers.Add(Causer.Record.User);
+					Matcher.Merge(InputIssue, Issue);
+					return Issue;
 				}
 			}
-			State.Issues.Add(InputIssue);
-			return InputIssue;
+
+			return null;
 		}
 
 		/// <summary>
@@ -642,6 +709,39 @@ namespace MetadataTool
 
 			// Add the new build
 			History.AddFailedBuild(CreateBuildForJobStep(InputJob, InputJobStep, InputErrorUrl));
+		}
+
+		/// <summary>
+		/// Find all changes PLUS all robomerge source changes
+		/// </summary>
+		/// <param name="Perforce">The Perforce connection to use</param>
+		/// <param name="State">State of </param>
+		/// <param name="InputJob">The job that failed</param>
+		/// <returns>Set of changelist numbers</returns>
+		IReadOnlyList<ChangeInfo> FindChanges(PerforceConnection Perforce, BuildHealthState State, InputJob InputJob)
+		{
+			// List of changes since the last successful build in this stream
+			IReadOnlyList<ChangeInfo> Changes = null;
+
+			// Find the previous changelist that was built in this stream
+			List<BuildHealthJobStep> StreamBuilds;
+			if (State.Streams.TryGetValue(InputJob.Stream, out StreamBuilds))
+			{
+				// Find the last change submitted to this stream before it started failing
+				int LastChange = -1;
+				for (int Idx = 0; Idx < StreamBuilds.Count && StreamBuilds[Idx].Change < InputJob.Change; Idx++)
+				{
+					LastChange = StreamBuilds[Idx].Change;
+				}
+
+				// Allow adding to any open issue that contains changes merged from other branches
+				if (LastChange != -1)
+				{
+					// Query for all the changes since then
+					Changes = FindChanges(Perforce, InputJob.Stream, LastChange, InputJob.Change);
+				}
+			}
+			return Changes;
 		}
 
 		/// <summary>

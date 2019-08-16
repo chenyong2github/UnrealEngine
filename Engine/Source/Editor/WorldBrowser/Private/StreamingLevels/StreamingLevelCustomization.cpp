@@ -67,6 +67,7 @@ void FStreamingLevelCustomization::CustomizeDetails(IDetailLayoutBuilder& Detail
 			.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 			.bColorAxisLabels(true)
 			.AllowResponsiveLayout(true)
+			.AllowSpin(false)
 			.X(this, &FStreamingLevelCustomization::OnGetLevelPosition, 0)
 			.Y(this, &FStreamingLevelCustomization::OnGetLevelPosition, 1)
 			.Z(this, &FStreamingLevelCustomization::OnGetLevelPosition, 2)
@@ -281,14 +282,14 @@ FUIAction FStreamingLevelCustomization::CreateCopyAction(ELevelTransformField::T
 	return
 		FUIAction
 		(
-			FExecuteAction::CreateSP(this, &FStreamingLevelCustomization::OnCopy, TransformField)
+			FExecuteAction::CreateSP(const_cast<FStreamingLevelCustomization*>(this), &FStreamingLevelCustomization::OnCopy, TransformField)
 		);
 }
 
 FUIAction FStreamingLevelCustomization::CreatePasteAction(ELevelTransformField::Type TransformField) const
 {
 	return
-		FUIAction(FExecuteAction::CreateSP(this, &FStreamingLevelCustomization::OnPaste, TransformField));
+		FUIAction(FExecuteAction::CreateSP(const_cast<FStreamingLevelCustomization*>(this), &FStreamingLevelCustomization::OnPaste, TransformField));
 }
 
 void FStreamingLevelCustomization::OnSetLevelPosition( float NewValue, ETextCommit::Type CommitInfo, int32 Axis )

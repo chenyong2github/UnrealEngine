@@ -1,4 +1,4 @@
-INTSourceChangelist:4703316
+INTSourceChangelist:6417095
 Availability: Public
 Crumbs: 
 Title: 파티클 라이트 생성
@@ -10,12 +10,7 @@ Parent: Engine/Niagara/HowTo
 Order: 4
 Tags: Niagara
 Tags: Early Access
-
-전제조건 주제
-
-이 문서는 다음 주제에 대한 지식을 요합니다. 진행하기 전 확인하세요.
-
-*   [나이아가라 플러그인 활성화](Engine/Niagara/HowTo/EnableNiagara "나이아가라 플러그인을 활성화하는 법을 설명합니다.")
+prereq: Engine/Niagara/HowTo/EnableNiagara
 
 파티클에 주변 월드를 밝힐 수 있는 능력을 주면 프로젝트의 비주얼 이펙트에 현실감을 한 층 높일 수 있습니다. 이번 하우투에서는 파티클과 라이트를 동시에 스폰하도록 나이아가라 이미터를 설정하는 방법을 살펴보겠습니다.
 
@@ -30,7 +25,6 @@ Tags: Early Access
 3.  새로 만든 나이아가라 이미터 이름은 **FX_Light** 로 설정한 뒤 더블클릭하여 엽니다.  
     ![](PL_01.png)
 4.  나이아가라 에디터가 열렸으면 **Selected Emitter** (선택된 이미터) 패널에서 **Render** (렌더) 섹션을 찾습니다.  
-    
 5.  **렌더** 섹션 옆 **더하기 부호** (**+**) 아이콘을 클릭하여 표시되는 목록에서 **Niagara Light Renderer Properties** (나이아가라 라이트 렌더러 프로퍼티) 옵션을 선택합니다.  
     ![](CreateParticleLight_Steps_Step4-AddLightRenderer.png)
 6.  렌더 모듈 하단에 새로 생긴 **NiagaraLightRendererProperties** 섹션을 찾습니다. 다음 프로퍼티를 다음 값으로 설정합니다.  

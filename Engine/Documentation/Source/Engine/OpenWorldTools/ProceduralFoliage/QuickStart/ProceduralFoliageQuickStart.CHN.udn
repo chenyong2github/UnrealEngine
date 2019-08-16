@@ -1,78 +1,324 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
-Title:程序化植物工具快速入门
-Crumbs:
-Description:设置并使用程序化植物工具的方法。
-Navigation:topic
-SkillLevel:Intermediate
-Version:4.8
+﻿INTSourceChangelist:6533300
+Availability: Public
+Title: 程序化植物工具快速入门
+Description: 如何设置并使用程序化植物工具
+Version: 4.8
+Parent: Engine/OpenWorldTools
+topic-image: T_PF_QS_Final_Product.png
+Order: 2
+reference-image:T_Create_Landscape.gif
+reference-image:T_Add_PFS_To_Level.gif
+reference-image:T_Assign_PFT_To_PFS.gif
+reference-image:T_Set_Tree_Mesh.gif
+reference-image:T_Add_New_FT_Type.gif
+reference-image:T_Adding_PFV_To_Level.gif
 
 
-在此快速入门教程中可以学习如何使用虚幻引擎 4（UE4）4.8 版本中的 **程序化植物工具（Procedural Foliage Tool）**。 
-在此快速入门教程的过程中，您可学习到如何在 UE4 中单独使用程序化植物工具创建、设置、并生成整个森林。 
-您还可以了解关键的属性和设置，以便形成符合项目需求的虚拟森林。 
+[TOC (start:2 end:2)]
+
+随着虚幻引擎4（UE4）的4.8版本发布，我们同时推出了 **程序化植物工具**，在本篇快速入门教程中，我们将向您展示该工具的工作方式。通过本教程，您将学会如何在UE4引擎中仅使用程序化植物工具来创建、设置并大量生成组成整个森林的树木。您还可以了解主要的属性和设置，以帮助您生成满足项目需求的虚拟森林。
 
 ![](T_PF_QS_Final_Product.png)
 
-此外您还将了解到程序化植物工具所有必备 Actors 和属性，以便正常使用、达成所需效果。
-完成快速入门中的教学后，您创建的关卡效果和上图相似。 
+此外您还将了解到程序化植物工具正常使用并实现所需效果，应必备的所有Actor和属性。完成本教程后，您创建的关卡效果和上图类似。
 
 
-(#Prerequisites)
-## 先决条件
-在项目中使用程序化植物工具前，必须先执行下列操作将其启用。
+### 先决条件
 
-1. 点击 **主工具栏** 上的 **Edit** 选项，之后点击 **Editor Preferences**。
-1. 在 Editor Preferences 中，**右键单击** **Experimental** 部分。
-1. 点击 **Procedural Foliage** 旁的勾选框，将 Procedural Foliage 选项启用。
+在项目中使用程序化植物工具之前，您必须首先按照以下步骤启用工具：
 
-	[OBJECT:EmbeddedVideo]
-	[PARAMLITERAL:width]
-	640
-	[/PARAMLITERAL]
-	[PARAMLITERAL:height]
-	360
-	[/PARAMLITERAL]
-	[PARAMLITERAL:videoid]
-	DzR6UNAIYbs
-	[/PARAMLITERAL]
-	[/OBJECT]
+1. 从 **主工具栏** 中单击 **编辑（Edit）** 选项，然后单击 **编辑器首选项（Editor Preferences）**。
+1. **右键单击 ** 编辑器首选项中的 **Experimental** 部分。
+1. 通过单击 **程序化植物** 字样旁的勾选框，启用程序化植物选项。
+    
+    [OBJECT:EmbeddedVideo]
+    [PARAMLITERAL:width]
+    640
+    [/PARAMLITERAL]
+    [PARAMLITERAL:height]
+    360
+    [/PARAMLITERAL]
+    [PARAMLITERAL:videoid]
+    DzR6UNAIYbs
+    [/PARAMLITERAL]
+    [/OBJECT]
 
-须从 **虚幻引擎 4 市场** 下载 **Open World Demo Collection** 内容包，因为此合集中的部分内容将用于以下的快速入门。
-继续以下步骤，下载 Open World Demo Collection并添加到正在使用的项目。
+您还需要从 **虚拟引擎Marketplace** 下载 **开放世界场景演示集（Open World Demo Collection）** 内容包，因为接下来的教程会使用其中的部分内容。开放世界场景演示集下载完成后，您可以通过以下步骤将其添加至项目，以便您在接下来跟随教程操作：
 
-1. 在 Epic Games 启动程序的 Marketplace 中找到并下载 **Open World Demo Collection**。
-	
-	![](Engine\OpenWorldTools\T_OWT_OWDC.png)
+1. 在Marketplace中的Epic游戏启动器中，找到 **开放世界场景演示集** 并下载。
 
-1. 前往启动程序的 **Library** 部分，然后在 **Vault** 部分下找到 Open World Demo Collection。 
-	
-	![](Engine\OpenWorldTools\T_OWT_Add_Content_00.png)
+    ![](T_OWT_OWDC.png)
+    
+1. 前往启动器的 **Library** 部分，并在 **Vault** 部分找到开放世界场景演示集。
 
-1. 点击 **Add to Project** 按钮。
-	
-	![](Engine\OpenWorldTools\T_OWT_Add_To_Project.png)
+    ![](T_OWT_Add_Content_00.png)
+    
+1. 单击 **添加至项目（Add to Project）** 按钮。
 
-1. 可添加此合集的项目列表将显示。在列表中选择您正在使用的项目，然后按下 **Add to Project** 按钮。
+    ![](T_OWT_Add_To_Project.png)
+    
+1. 您会看到可添加该演示集的项目列表，选中您用于跟随本教程操作的项目，单击 **添加至项目** 按钮。
 
-	![](Engine\OpenWorldTools\T_OWT_ATP.png)
+    ![](T_OWT_ATP.png)
+    
+##1 - 创建植物类型的Actor
 
-(#Steps)
-## 步骤
-
-[REGION:buttonlist]
-* [](Engine\OpenWorldTools\ProceduralFoliage\QuickStart\1)
-* [](Engine\OpenWorldTools\ProceduralFoliage\QuickStart\2)
-* [](Engine\OpenWorldTools\ProceduralFoliage\QuickStart\3)
-* [](Engine\OpenWorldTools\ProceduralFoliage\QuickStart\4)
-* [](Engine\OpenWorldTools\ProceduralFoliage\QuickStart\5)
-* [](Engine\OpenWorldTools\ProceduralFoliage\QuickStart\6)
-[/REGION]
+在该步骤中，我们会新建关卡、地形及程序化植物工具所需的所有Actor。
 
 
+1. 使用 **默认模板** 作为基础创建新关卡。  
+
+	![](T_New_Level.png)
+
+1. 单击 **地形工具（Landscape Tool）** 图标，然后单击 **创建（Create）** 按钮，将新地形Actor添加至关卡。  
+
+    [REGION:asyncgif]
+    ![](T_Create_Landscape.gif)
+    [/REGION]
+
+    [REGION:note]
+    如果您对地形的运行模式尚不熟悉，或想要了解更多相关信息，请查阅 [Landscape Outdoor Terrain](Engine/Landscape) 获取更多信息。
+    [/REGION]
+    
+1. 单击 **模式面板（Modes Panel）** 中的 **放置（Place）** 图标，退出地形工具。  
+
+    ![](T_Exit_Landscape_Mode.png)
+    
+    [REGION:note]
+    使用地形Actor，能为您快速提供大量场地，以便您大量生成森林。
+    [/REGION]
+    
+1. 在 **内容浏览器** 中 **单击右键**，展开 **其他（Miscellaneous）** 部分，随后单击 **程序化植物生成器**，创建新的程序化植物生成器。  
+
+    ![](T_Create_PFS.png)
+
+1. 为程序化植物生成器命名，如本例中的为 **PFS_Example** 或其他类似名称。  
+
+    ![](T_Name_PFS.png)
+
+1. 将程序化植物生成器从 **内容浏览器** 拖入关卡，将其置于关卡中心或使其X、Y和Z轴坐标分别为 **0,0,200**。  
+
+    [REGION:asyncgif]
+    ![](T_Add_PFS_To_Level.gif)
+    [/REGION]
+
+1. 将程序化植物生成器的X、Y和Z轴方向展开至 **100,100,10**，从而为后续大量生成森林提供足够大的面积。
+
+1. 现在有了生成器，我们需要为其指定一些要生成的植物类型。为此，在 **内容浏览器** 中 **单击右键**，展开 **其他（Miscellaneous）** 部分，随后单击 **植物类型（Foliage Type）**。将该植物类型命名为 **Tree_00** 或其他类似名称。  
+
+    ![](T_Create_FT.png)
+
+1. 至此，您应该已获得与下图类似的结果。如果尚未完成，请保存您的工作和关卡，按 **全部保存（Save All）** 按钮可保存所用内容，按 **保存（Save）** 按钮可保存关卡。提示输入关卡名称时，使用名称 **PFT_00**。 
+
+	![](T_Save_All.png)
+
+##2 - 为生成器设置生成内容
+
+接下来这部分，我们将说明如何设置 **植物类型Actor**，从而使用程序化植物生成器。我们将继续在上一步创建的 **PFT_00** 关卡中进行操作。
+
+1. 在内容浏览器中 **双击**，打开 **程序化植物生成器**。  
+
+    ![](T_PFS_Opened.png)
+
+1. 单击位于 **植物类型（Foliage Types）** 菜单选项右侧的 **加号** 图标，向 **植物类型** 数组添加新条目。  
+
+    ![](T_PFS_Add_FT.png)
+
+1. 在内容浏览器中选中 **Tree_00** 植物类型，并在程序化植物生成器的 **植物类型（Foliage Types）** 部分中，按下 **箭头** 图标，将选中的植物类型加载至程序化植物生成器。 
+
+    [REGION:asyncgif]
+    ![](T_Assign_PFT_To_PFS.gif)
+    [/REGION]
+
+1. 打开 **Tree_00** 植物类型，只需在内容浏览器中 **双击** 该植物类型即可。  
+
+    ![](T_PFT_Window.png)
+
+1. 在 **Tree_00** 植物类型顶端，找到 **网格体（Mesh）** 部分，然后单击内容为 **无（None）** 的下拉菜单。  
+
+    ![](T_PFT_Mesh_Section.png)
+
+1. 在搜索菜单中输入 **HillTree_02** 作为搜索词并单击加载，从 **开放世界场景演示集** 找到 **HillTree_02** 静态网格体。  
+
+    [REGION:asyncgif]
+    ![](T_Set_Tree_Mesh.gif)
+    [/REGION]
+
+1. 回到视口，选择置于关卡中的 **程序化植物生成器**，展开 **细节（Details）** 面板下的 **程序化植物（Procedural Foliage）** 部分。 
+
+    ![](T_PFV_Select_In_Level.png)
+
+1. 单击 **程序化植物（Procedural Foliage）** 部分下的 **再次模拟（Resimulate）** 按钮，现在您应该可以看到程序化植物生成器密集生成了树木（如下图所示）。 
+
+    ![](T_Final_Results.png)
 
 
+##3 - 调整植物类型属性
 
+通过调整 **植物类型** 的各种属性，您可以从关卡中植物被放置的方式到植物生成器中植物的生长和散布方式，对其进行整体控制。接下来这部分，我们将学习 **植物类型** 中哪些属性可以调用，以及如果通过控制这些属性获得理想的效果。我们将继续在上一步使用的 **PFT_00** 关卡中进行操作。
 
+1. 打开 **Tree_00** 植物类型。
 
+1. 展开 **放置（Placement）** 部分，确保 **对齐法线（Align to Normal）** 和 **随机偏航角（Random Yaw）** 同时启用。  
 
+    ![](T_Placement_Options.png)
+
+    [REGION:note]
+    在“放置（Placement）”部分，您可以调整关卡中植物类型用到的静态网格体被放置在对象上的方式。
+    [/REGION]
+    
+1. 在植物类型的 **程序化（Procedural）** 部分下展开 **碰撞（Collision）** 部分，并将 **着色半径（Shade Radius）** 设置为 **50**。  
+
+    ![](T_Shade_Radius.png)
+
+    [REGION:note]
+    当两种植物类型竞争同一片生成位置或相对空间时，会由“碰撞（Collision）”部分决定哪种植物类型被保留。当一种虚拟种子的碰撞半径，与另一种植物类型的种子现存的碰撞半径或着色半径重叠时，将会根据植物类型的优先级，确定哪种植物的种子会被取代或移除。
+    [/REGION]
+    
+1. 选择被置于关卡中的 **程序化植物生成器**，在 **程序化植物（Procedural Foliage）** 部分下，点击 **重新模拟** 按钮。  
+
+    ![](T_Press_ReSimulate.png)
+
+1. 回到 Tree_00 植物类型，叠起 **碰撞** 部分，展开 **集群（Clustering）** 部分，将 **阶数（Num Steps）** 设为 **0**，这样我们生成的树木会拥有同样的尺寸和年龄，然后按下 **重新模拟（Resimulate）** 按钮。模拟完成后，您应该获得与下图类似的效果。 
+
+    ![](T_Num_Steps_0.png)
+
+    [REGION:note]
+    “集群（Clustering）”部分有多个属性（如密度、年龄及邻近度），帮助确定特定静态网格体在程序化植物生成器中应该被如何放置、分组和散布。
+    [/REGION]
+    
+1. 虽然现在树木间有了一些空隙，但总体密度仍然有些偏高。要解决此问题，请将 **初始种子密度（Initial Seed Density）** 设置为 **0.25**，然后单击 **重新模拟（Resimulate）** 按钮。 
+
+    ![](T_Num_ISD_0.125.png)
+
+1. 如图所见，将 **初始种子密度（Initial Seed Density）** 设置为 **0.25** 能极大降低森林密度，因为树木的生长和散布时间只有一年。为了解决该问题，将 **阶数（Num Steps）** 重新设为 **3**，此时树木会在3年期内生长并传播，然后单击 **重新模拟（Resimulate）** 按钮。 
+
+    ![](T_Num_Steps_3.png)
+
+1. 展开 **生长（Growth）** 部分，按照下列设置调整以下参数。
+
+    *  **最大年龄（Max Age）**：**20.0**
+    *  **最大程序范围（Procedural Scale Max）**：**10.0**
+
+    ![](T_Set_Growth.png)
+
+    [REGION:note]
+    “生长（Growth）”部分允许您对显示的植物类型的静态网格体随时间生长和长大的方式进行调整。
+    [/REGION]
+    
+1. 最后，在 **剔除距离（Cull Distance）** 选项下的 **实例设置（Instance Settings）** 中，将 **最大（Max）** 值设为 **20,000**，然后单击 **重新模拟（Resimulate）** 按钮。模拟完成后，您应该获得与下图类似的效果。 
+
+    ![](T_Cull_Distance.png)
+
+    [REGION:note]
+    “实例设置（Instance Settings）”允许您对该植物类型使用的静态网格体在关卡中显示方式进行调整。在“实例设置（Instance Settings）”内，您可以对剔除距离（Cull Distance）、阴影（Shadowing）和碰撞（Collision）等属性进行设置或调整。
+    [/REGION]
+    
+
+##4 - 使用多种植物类型
+
+在我们的虚拟森林中加入另一品种的树木，可以极大地提高真实感及总体观感和感受。幸运的是，**程序化植物生成器** 允许您生成多种 **植物类型**，因此，您可以用一个 **程序化植物生成器** 生成包含多个品种树木的森林。接下来这部分，我们将学习如何设置程序化植物生成器，从而生成多种植物类型。我们将继续在上一步使用的 **PFT_00** 关卡中进行操作。
+
+1. 在 **内容浏览器** 内选中 **Tree_00** 植物类型，按住键盘上的 **Ctrl + W** 进行复制，并将其命名为 **Tree_01**。  
+
+    ![](T_Dup_FT.png)
+
+1. 打开新创建的 **Tree_01** 植物类型，在 **网格体（Mesh）** 部分下，将网格体改为 **ScotsPineTall_01** 静态网格体。  
+
+    ![](T_New_Mesh.png)
+
+1. 从 **内容浏览器** 打开 **程序化植物生成器**，展开 **植物类型（Foliage Types）** 部分。  
+
+    ![](T_Expand_FT.png)
+
+1. 单击 **加号** 图标，添加选项输入另一种植物类型。  
+
+    ![](T_Add_New_FT.png)
+
+1. 从 **内容浏览器** 选中 **Tree_01** 植物类型，在程序化植物生成器中的 **植物类型（Foliage Types）** 下，点击白色 **箭头** 图标，将 **Tree_01** 植物类型添加至空的 **植物类型Object（Foliage Type Object）**。 
+
+    [REGION:asyncgif]
+    ![](T_Add_New_FT_Type.gif)
+    [/REGION]
+
+1. 选择被置于关卡中的 **程序化植物生成器**，然后单击 **重新模拟（Resimulate）** 按钮。完成后，您应该会看到以下图像。 
+
+    ![](T_2_FT_In_Level.png)
+
+1. 为了增加森林外观的趣味性，打开 **Tree_01** 植物类型，按照下列值调整以下参数。之所以选择下方所列出的数值和选项，是因为它们会结合已经使用的植物类型，生成的森林具有有趣的集群和生长互动性。您可以随意尝试使用这些数值和设置，直到获得您满意的效果为止。
+
+    *  **阶数（Num Steps）：**4
+    *  **初始种子密度（Initial Seed Density）：**0.125
+    *  **平均散布距离（Average Spread Distance）：**100
+    *  **能在阴影中生长（Can Grow in Shade）：**启用
+    *  **在阴影中生成（Spawns in Shade）：**启用
+    *  **最大年龄（Max Age）：**15
+    *  **重叠优先级（Overlap Priority）：**1
+    *  **程序范围（Procedural Scale）：**最大值 5.0
+
+1. 当设置调整完成后，单击程序化植物生成器上的 **重新模拟（Resimulate）** 按钮，您得到的模拟效果应该与下图类似。
+
+    [REGION:lightbox]
+    [![](T_FT01_Adjust_Settings.png)(w:640)](T_FT01_Adjust_Settings.png)
+    [/REGION]
+
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+
+##5 - 设置程序化植物阻挡体积
+
+ **程序化植物阻挡体积** 是一个体积Actor，可将其置于关卡中并根据需要设置范围大小，让程序化植物生成器避免在程序化植物阻挡体积之内生成任何植物Actor。在接下来的内容中，我们将学习如何将 **程序化植物阻挡体积** 添加至关卡中，并用其避免植物网格体的生成。我们将继续在上一步使用的 **PFT_00** 关卡中进行操作。
+
+1. 首先，在 **模式（Modes）** 面板，将 **Proc** 作为搜索词进行搜索，找到 **程序化植物阻挡体积（Procedural Foliage Blocking Volume）**。  
+
+    ![](T_Find_ProcF_Blocking_Volume.png)
+
+1. 选择程序化植物阻挡体积，并将其从“模式”面板拖入关卡。  
+
+    [REGION:asyncgif]
+    ![](T_Adding_PFV_To_Level.gif)
+    [/REGION]
+
+1. 为了避免植物网格体在程序化植物生成器的后部生成，用以下位置和缩放值移动并缩放程序化植物阻挡体积。
+
+    *  **X轴位置：**5430.0 cm
+    *  **Y轴位置：**-3900.0 cm
+    *  **Z轴位置：**200.0 cm
+    *  **缩放X轴：**41.75
+    *  **缩放Y轴：**65.5
+    *  **缩放X轴：**41.75
+    
+    ![](T_PFBV_Postion.png)
+
+1. 选择关卡中的 **程序化植物生成器**，单击 **细节（Details）** 中的 **重新模拟（Resimulate）** 按钮。重新模拟完成后，您树林的后面部分应该都消失了，这就是插入了程序化植物阻挡体积的地方。 
+
+    ![](T_PFV_Before_After.png)
+
+    在下图中，我们可以看到前后效果的对比。   
+      
+    | 图像编号 | 结果 |
+    | --- | --- |
+    | 1: | 程序化植物阻挡体积添加前 |
+    | 2: | 程序化植物阻挡体积添加后 |
+    
+
+##6 - 看你的了！
+
+现在您已经了解了程序化植物工具提供的功能，试着结合刚刚学到的相关知识，使用下列工具制作出类似于下图的关卡。
+
+![](T_On_Your_Own.jpg)
+
+*  使用[草地工具](Engine/OpenWorldTools/Grass/QuickStart)让地形看起来铺满了花、草和灌木。
+
+*  使用[地形造型](Engine/Landscape/Editing/SculptMode)工具在地形中加入丘陵、山脉和湖泊等，描绘出该地形的观感效果。
+
+*  通过创建[地形材质](Engine/Landscape/Materials)，利用其中能在地形上绘制的多种纹理，赋予地表更多视觉多样性和细节。
+
+*  调整[定向光源](Engine/Rendering/LightingAndShadows/LightTypes/Directional)，让关卡的光线更类似于清晨和黄昏的阳光。
+
+*  用完全动态的光源解决方案设置关卡光照，充分利用动态阴影及[光线追踪距离场柔和阴影](Engine/Rendering/LightingAndShadows/RayTracedDistanceFieldShadowing)。
+
+*  尝试使用[植物系统](Engine/Foliage)，对程序化植物工具放置的植物网格体的位置、旋转和缩放进行移除或调整，以获得所需的外观。
+
+*  结合使用[摄像机](Gameplay/HowTo/UsingCameras)和[Matinee](Engine/Matinee)渲染出关卡的视频，将您的作品与世界分享。

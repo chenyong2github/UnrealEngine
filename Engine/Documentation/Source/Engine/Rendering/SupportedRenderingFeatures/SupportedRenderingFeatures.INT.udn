@@ -16,7 +16,7 @@ On the following page you will find a detailed list of all the various renderin
 ### Color Grading
 
 | **Feature Name** | **SM5: DirectX 11, macOS Metal, Vulkan Desktop** | **SM4: DirectX 10, OpenGL 3.3+** | **OpenGLES 3.1, iOS Metal, Vulkan Mobile** | **OpenGLES 2.0 w HDR Enabled** | **OpenGLES 2.0 w HDR Disabled** | **VR Forward Rendering** |
-| --- | --- | --- | --- | --- | --- | --- |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: |
 | White Balance - Temp | Yes | Yes | No | No | No | Yes |
 | White Balance - Tint | Yes | Yes | No | No | No | Yes |
 | Global - Saturation | Yes | Yes | No | No | No | Yes |
@@ -49,7 +49,7 @@ On the following page you will find a detailed list of all the various renderin
 ### Film
 
 | **Feature Name** | **SM5: DirectX 11, macOS Metal, Vulkan Desktop** | **SM4: DirectX 10, OpenGL 3.3+** | **OpenGLES 3.1, iOS Metal, Vulkan Mobile** | **OpenGLES 2.0 w HDR Enabled** | **OpenGLES 2.0 w HDR Disabled** | **VR Forward Rendering** |
-| --- | --- | --- | --- | --- | --- | --- |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: |
 | Slope | Yes | Yes | No | No | No | Yes |
 | Toe | Yes | Yes | No | No | No | Yes |
 | Shoulder | Yes | Yes | No | No | No | Yes |
@@ -59,7 +59,7 @@ On the following page you will find a detailed list of all the various renderin
 ### Mobile Tonemapper
 
 | **Feature Name** | **SM5: DirectX 11, macOS Metal, Vulkan Desktop** | **SM4: DirectX 10, OpenGL 3.3+** | **OpenGLES 3.1, iOS Metal, Vulkan Mobile** | **OpenGLES 2.0 w HDR Enabled** | **OpenGLES 2.0 w HDR Disabled** | **VR Forward Rendering** |
-| --- | --- | --- | --- | --- | --- | --- |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: |
 | Tint | No | No | Yes | Yes | No | No |
 | Saturation | No | No | Yes | Yes | No | No |
 | Contrast | No | No | Yes | Yes | No | No |
@@ -76,7 +76,7 @@ On the following page you will find a detailed list of all the various renderin
 ### Lens
 
 | **Feature Name** | **SM5: DirectX 11, macOS Metal, Vulkan Desktop** | **SM4: DirectX 10, OpenGL 3.3+** | **OpenGLES 3.1, iOS Metal, Vulkan Mobile** | **OpenGLES 2.0 w HDR Enabled** | **OpenGLES 2.0 w HDR Disabled** | **VR Forward Rendering** |
-| --- | --- | --- | --- | --- | --- | --- |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: |
 | Chromatic Aberration - Intensity | Yes | Yes | Yes | Yes | No | Yes |
 | Chromatic Aberration - Start Offset | Yes | Yes | No | No | No | Yes |
 | Bloom - Method Standard | Yes | Yes | Yes | Yes | No | Yes |
@@ -158,7 +158,7 @@ On the following page you will find a detailed list of all the various renderin
 ### Rendering Features
 
 | **Feature Name** | **SM5: DirectX 11, macOS Metal, Vulkan Desktop** | **SM4: DirectX 10, OpenGL 3.3+** | **OpenGLES 3.1, iOS Metal, Vulkan Mobile** | **OpenGLES 2.0 w HDR Enabled** | **OpenGLES 2.0 w HDR Disabled** | **VR Forward Rendering** |
-| --- | --- | --- | --- | --- | --- | --- |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: |
 | Post Process Materials - Array | Yes | Yes | Yes | Yes | No | Yes |
 | Ambient Cubemap - Tint | Yes | Yes | No | No | No | No |
 | Ambient Cubemap - Intensity | Yes | Yes | No | No | No | No |
@@ -204,7 +204,7 @@ On the following page you will find a detailed list of all the various renderin
 ### Reflections
 
 | **Feature Name** | **SM5: DirectX 11, macOS Metal, Vulkan Desktop** | **SM4: DirectX 10, OpenGL 3.3+** | **OpenGLES 3.1, iOS Metal, Vulkan Mobile** | **OpenGLES 2.0 w HDR Enabled** | **OpenGLES 2.0 w HDR Disabled** | **VR Forward Rendering** |
-| --- | --- | --- | --- | --- | --- | --- |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: |
 | Reflection Capture - Box | Yes | Yes | Yes | Yes | Yes | Yes |
 | Reflection Capture - Sphere | Yes | Yes | Yes | Yes | Yes | Yes |
 | Scene Capture Cubemap | Yes | Yes | No | No | No | Yes |
@@ -221,7 +221,7 @@ On the following page you will find a detailed list of all the various renderin
 ### Lights
 
 | **Feature Name** | **SM5: DirectX 11, macOS Metal, Vulkan Desktop** | **SM4: DirectX 10, OpenGL 3.3+** | **OpenGLES 3.1, iOS Metal, Vulkan Mobile** | **OpenGLES 2.0 w HDR Enabled** | **OpenGLES 2.0 w HDR Disabled** | **VR Forward Rendering** |
-| --- | --- | --- | --- | --- | --- | --- |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: |
 | Static Point Light | Yes | Yes | Yes | Yes | Yes | Yes |
 | Static Spot Light | Yes | Yes | Yes | Yes | Yes | Yes |
 | Static Directional Light | Yes | Yes | Yes | Yes | Yes | Yes |
@@ -246,7 +246,7 @@ On the following page you will find a detailed list of all the various renderin
 ### General Rendering
 
 | **Feature Name** | **SM5: DirectX 11, macOS Metal, Vulkan Desktop** | **SM4: DirectX 10, OpenGL 3.3+** | **OpenGLES 3.1, iOS Metal, Vulkan Mobile** | **OpenGLES 2.0 w HDR Enabled** | **OpenGLES 2.0 w HDR Disabled** | **VR Forward Rendering** |
-| --- | --- | --- | --- | --- | --- | --- |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: |
 | Dynamic Lighting | Yes | Yes | Yes | Yes | Yes | Yes |
 | Lightmass/Baked Lighting | Yes | Yes | Yes | Yes | Yes | Yes |
 | Image Based Lighting | Yes | Yes | Yes | Yes | Yes | Yes |
@@ -262,7 +262,7 @@ On the following page you will find a detailed list of all the various renderin
 ### Material Inputs
 
 | **Feature Name** | **SM5: DirectX 11, macOS Metal, Vulkan Desktop** | **SM4: DirectX 10, OpenGL 3.3+** | **OpenGLES 3.1, iOS Metal, Vulkan Mobile** | **OpenGLES 2.0 w HDR Enabled** | **OpenGLES 2.0 w HDR Disabled** | **VR Forward Rendering** |
-| --- | --- | --- | --- | --- | --- | --- |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: |
 | Base Color | Yes | Yes | Yes | Yes | Yes | Yes |
 | Metallic | Yes | Yes | Yes | Yes | Yes | Yes |
 | Specular | Yes | Yes | Yes | Yes | Yes | Yes |
@@ -291,7 +291,7 @@ On the following page you will find a detailed list of all the various renderin
 ### Material Domain
 
 | **Feature Name** | **SM5: DirectX 11, macOS Metal, Vulkan Desktop** | **SM4: DirectX 10, OpenGL 3.3+** | **OpenGLES 3.1, iOS Metal, Vulkan Mobile** | **OpenGLES 2.0 w HDR Enabled** | **OpenGLES 2.0 w HDR Disabled** | **VR Forward Rendering** |
-| --- | --- | --- | --- | --- | --- | --- |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: |
 | Surface | Yes | Yes | Yes | Yes | Yes | Yes |
 | Deferred Decal | Yes | Yes | Yes | Yes | No | Yes |
 | Light Function | Yes | Yes | No | No | No | Yes |
@@ -302,7 +302,7 @@ On the following page you will find a detailed list of all the various renderin
 ### Blend Mode
 
 | **Feature Name** | **SM5: DirectX 11, macOS Metal, Vulkan Desktop** | **SM4: DirectX 10, OpenGL 3.3+** | **OpenGLES 3.1, iOS Metal, Vulkan Mobile** | **OpenGLES 2.0 w HDR Enabled** | **OpenGLES 2.0 w HDR Disabled** | **VR Forward Rendering** |
-| --- | --- | --- | --- | --- | --- | --- |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: |
 | Opaque | Yes | Yes | Yes | Yes | Yes | Yes |
 | Masked | Yes | Yes | Yes | Yes | Yes | Yes |
 | Translucent | Yes | Yes | Yes | Yes | Yes | Yes |
@@ -313,7 +313,7 @@ On the following page you will find a detailed list of all the various renderin
 ### Shading Model
 
 | **Feature Name** | **SM5: DirectX 11, macOS Metal, Vulkan Desktop** | **SM4: DirectX 10, OpenGL 3.3+** | **OpenGLES 3.1, iOS Metal, Vulkan Mobile** | **OpenGLES 2.0 w HDR Enabled** | **OpenGLES 2.0 w HDR Disabled** | **VR Forward Rendering** |
-| --- | --- | --- | --- | --- | --- | --- |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: |
 | Unlit | Yes | Yes | Yes | Yes | Yes | Yes |
 | Default Lit | Yes | Yes | Yes | Yes | Yes | Yes |
 | Subsurface | Yes | Yes | No | No | No | Yes |
@@ -330,7 +330,7 @@ On the following page you will find a detailed list of all the various renderin
 ### Compression Settings
 
 | **Feature Name** | **SM5: DirectX 11, macOS Metal, Vulkan Desktop** | **SM4: DirectX 10, OpenGL 3.3+** | **OpenGLES 3.1, iOS Metal, Vulkan Mobile** | **OpenGLES 2.0 w HDR Enabled** | **OpenGLES 2.0 w HDR Disabled** | **VR Forward Rendering** |
-| --- | --- | --- | --- | --- | --- | --- |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: |
 | Default (DXT 1/5, BC 1/3 on DX11) | Yes | Yes | Yes | Yes | Yes | Yes |
 | Normalmap (DXT 5, BC5 on DX11) | Yes | Yes | Yes | Yes | Yes | Yes |
 | Masks (no SRGB) | Yes | Yes | Yes | Yes | Yes | Yes |
@@ -350,7 +350,7 @@ On the following page you will find a detailed list of all the various renderin
 ### Decal
 
 | **Feature Name** | **SM5: DirectX 11, macOS Metal, Vulkan Desktop** | **SM4: DirectX 10, OpenGL 3.3+** | **OpenGLES 3.1, iOS Metal, Vulkan Mobile** | **OpenGLES 2.0 w HDR Enabled** | **OpenGLES 2.0 w HDR Disabled** | **VR Forward Rendering** |
-| --- | --- | --- | --- | --- | --- | --- |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: |
 | Translucent | Yes | Yes | Yes | Yes | No | No |
 | Stain | Yes | Yes | Yes | Yes | No | No |
 | Normal | Yes | Yes | No | No | No | Yes |
@@ -371,7 +371,7 @@ On the following page you will find a detailed list of all the various renderin
 ### Shadows
 
 | **Feature Name** | **SM5: DirectX 11, macOS Metal, Vulkan Desktop** | **SM4: DirectX 10, OpenGL 3.3+** | **OpenGLES 3.1, iOS Metal, Vulkan Mobile** | **OpenGLES 2.0 w HDR Enabled** | **OpenGLES 2.0 w HDR Disabled** | **VR Forward Rendering** |
-| --- | --- | --- | --- | --- | --- | --- |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: |
 | Static Shadow Map | Yes | Yes | Yes | Yes | Yes | Yes |
 | Dynamic Shadows | Yes | Yes | Yes | Yes | Yes | Yes |
 | Modulated Shadows | No | Yes | Yes | Yes | No | Yes |
@@ -386,7 +386,7 @@ On the following page you will find a detailed list of all the various renderin
 ### Fog
 
 | **Feature Name** | **SM5: DirectX 11, macOS Metal, Vulkan Desktop** | **SM4: DirectX 10, OpenGL 3.3+** | **OpenGLES 3.1, iOS Metal, Vulkan Mobile** | **OpenGLES 2.0 w HDR Enabled** | **OpenGLES 2.0 w HDR Disabled** | **VR Forward Rendering** |
-| --- | --- | --- | --- | --- | --- | --- |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: |
 | Exponential Height Fog | Yes | Yes | Yes | Yes | Yes | Yes |
 | Atmospheric Fog | Yes | Yes | Yes | Yes | No | No |
 | Volumetric Fog | Yes | No | No | No | No | No |
@@ -396,7 +396,7 @@ On the following page you will find a detailed list of all the various renderin
 ### Particles
 
 | **Feature Name** | **SM5: DirectX 11, macOS Metal, Vulkan Desktop** | **SM4: DirectX 10, OpenGL 3.3+** | **OpenGLES 3.1, iOS Metal, Vulkan Mobile** | **OpenGLES 2.0 w HDR Enabled** | **OpenGLES 2.0 w HDR Disabled** | **VR Forward Rendering** |
-| --- | --- | --- | --- | --- | --- | --- |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: |
 | CPU Particles | Yes | Yes | Yes | Yes | Yes | Yes |
 | CPU Particle Collision | Yes | Yes | Yes | Yes | No | Yes |
 | Mesh Particles | Yes | Yes | Yes | Yes | Yes | Yes |
@@ -413,7 +413,7 @@ On the following page you will find a detailed list of all the various renderin
 ### Level Of Detail
 
 | **Feature Name** | **SM5: DirectX 11, macOS Metal, Vulkan Desktop** | **SM4: DirectX 10, OpenGL 3.3+** | **OpenGLES 3.1, iOS Metal, Vulkan Mobile** | **OpenGLES 2.0 w HDR Enabled** | **OpenGLES 2.0 w HDR Disabled** | **VR Forward Rendering** |
-| --- | --- | --- | --- | --- | --- | --- |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: |
 | Dither Fading for LODs | Yes | Yes | Yes | No | No | No |
 
 ## Visibility Culling
@@ -421,7 +421,7 @@ On the following page you will find a detailed list of all the various renderin
 ### Visibility Culling
 
 | **Feature Name** | **SM5: DirectX 11, macOS Metal, Vulkan Desktop** | **SM4: DirectX 10, OpenGL 3.3+** | **OpenGLES 3.1, iOS Metal, Vulkan Mobile** | **OpenGLES 2.0 w HDR Enabled** | **OpenGLES 2.0 w HDR Disabled** | **VR Forward Rendering** |
-| --- | --- | --- | --- | --- | --- | --- |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: |
 | Cull Distance Volume | Yes | Yes | Yes | Yes | Yes | Yes |
 | Precomputed Visibility Volume | Yes | Yes | Yes | Yes | Yes | Yes |
 | GPU (Hardware) Occlusion Queries | Yes | Yes | Yes | No | No | Yes |

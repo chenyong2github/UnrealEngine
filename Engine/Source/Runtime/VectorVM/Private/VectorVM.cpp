@@ -926,6 +926,7 @@ namespace VectorVMNoise
 	
 	static FORCEINLINE float Grad(int32 hash, float x, float y, float z)
 	{
+		 hash &= 15;
 		 float u = (hash < 8) ? x : y;
 		 float v = (hash < 4) ? y : ((hash == 12 || hash == 14) ? x : z);
 		 return ((hash & 1) == 0 ? u : -u) + ((hash & 2) == 0 ? v : -v);
@@ -1136,8 +1137,7 @@ struct FScalarKernelUpdateID
 			else
 			{
 				//Update the actual index for this ID. No thread safety is needed as this ID slot can only ever be written by this instance and so a single thread.
-				int32 RealIdx = InstanceOffset + Index;	
-				IDTable[InstanceId] = RealIdx;
+				IDTable[InstanceId] = Index;
 
 				//Update thread local max ID seen. We push this to the real value at the end of execution.
 				DataSetTempData.MaxID = FMath::Max(DataSetTempData.MaxID, InstanceId);

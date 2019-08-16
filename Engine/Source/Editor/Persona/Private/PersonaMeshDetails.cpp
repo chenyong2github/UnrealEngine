@@ -32,6 +32,7 @@
 #include "EditorDirectories.h"
 #include "UnrealEdGlobals.h"
 #include "IDetailsView.h"
+#include "MaterialList.h"
 #include "PropertyCustomizationHelpers.h"
 #include "DesktopPlatformModule.h"
 #include "Interfaces/IMainFrameModule.h"
@@ -76,6 +77,8 @@
 #include "IEditableSkeleton.h"
 #include "IMeshReductionManagerModule.h"
 #include "SkinWeightProfileHelpers.h"
+#include "Factories/FbxSkeletalMeshImportData.h"
+#include "PropertyCustomizationHelpers.h"
 
 #define LOCTEXT_NAMESPACE "PersonaMeshDetails"
 
@@ -805,7 +808,7 @@ void FPersonaMeshDetails::AddLODLevelCategories(IDetailLayoutBuilder& DetailLayo
 		int32 CurrentLodIndex = 0;
 		if (GetPersonaToolkit()->GetPreviewMeshComponent() != nullptr)
 		{
-			CurrentLodIndex = GetPersonaToolkit()->GetPreviewMeshComponent()->ForcedLodModel;
+			CurrentLodIndex = GetPersonaToolkit()->GetPreviewMeshComponent()->GetForcedLOD();
 		}
 
 		FString LODControllerCategoryName = FString(TEXT("LODCustomMode"));
@@ -1108,7 +1111,7 @@ FText FPersonaMeshDetails::GetLODCustomModeNameContent(int32 LODIndex) const
 	int32 CurrentLodIndex = 0;
 	if (GetPersonaToolkit()->GetPreviewMeshComponent() != nullptr)
 	{
-		CurrentLodIndex = GetPersonaToolkit()->GetPreviewMeshComponent()->ForcedLodModel;
+		CurrentLodIndex = GetPersonaToolkit()->GetPreviewMeshComponent()->GetForcedLOD();
 	}
 	int32 RealCurrentLODIndex = (CurrentLodIndex == 0 ? 0 : CurrentLodIndex - 1);
 	if (LODIndex == INDEX_NONE)
@@ -1123,7 +1126,7 @@ ECheckBoxState FPersonaMeshDetails::IsLODCustomModeCheck(int32 LODIndex) const
 	int32 CurrentLodIndex = 0;
 	if (GetPersonaToolkit()->GetPreviewMeshComponent() != nullptr)
 	{
-		CurrentLodIndex = GetPersonaToolkit()->GetPreviewMeshComponent()->ForcedLodModel;
+		CurrentLodIndex = GetPersonaToolkit()->GetPreviewMeshComponent()->GetForcedLOD();
 	}
 	if (LODIndex == INDEX_NONE)
 	{
@@ -1137,7 +1140,7 @@ void FPersonaMeshDetails::SetLODCustomModeCheck(ECheckBoxState NewState, int32 L
 	int32 CurrentLodIndex = 0;
 	if (GetPersonaToolkit()->GetPreviewMeshComponent() != nullptr)
 	{
-		CurrentLodIndex = GetPersonaToolkit()->GetPreviewMeshComponent()->ForcedLodModel;
+		CurrentLodIndex = GetPersonaToolkit()->GetPreviewMeshComponent()->GetForcedLOD();
 	}
 	if (LODIndex == INDEX_NONE)
 	{
@@ -1244,8 +1247,8 @@ void FPersonaMeshDetails::CustomizeSkinWeightProfiles(IDetailLayoutBuilder& Deta
 				.Image(FEditorStyle::GetBrush("PropertyWindow.Button_AddToArray"))
 			]
 			.OnGetMenuContent(this, &FPersonaMeshDetails::CreateSkinWeightProfileMenuContent)
-			.ToolTipText(LOCTEXT("ImportSkinWeightButtonToolTip", "Import a new Skin Weight Profile, or copy Skin Weights from another Skeletal Mesh"))
-		]		
+			.ToolTipText(LOCTEXT("ImportSkinWeightButtonToolTip", "Import a new Skin Weight Profile"))
+		]
 	];	
 }
 
@@ -1267,21 +1270,7 @@ TSharedRef<SWidget> FPersonaMeshDetails::CreateSkinWeightProfileMenuContent()
 			MeshDetailLayout->ForceRefreshDetails();
 		}
 	})));
-
-	// Menu entry for copying skin weights from another Skeletal Mesh
-	AddProfileMenuBuilder.AddMenuEntry(LOCTEXT("CopyOverrideLabel", "Copy Skin Weights"), LOCTEXT("CopyOverrideToolTip", "Copy Skin Weights from another Skeletal Mesh"),
-		FSlateIcon(), FUIAction(FExecuteAction::CreateLambda([this, WeakSkeletalMeshPtr = SkeletalMeshPtr]()
-	{
-		if (USkeletalMesh* SkeletalMesh = WeakSkeletalMeshPtr.Get())
-		{
-			FScopedTransaction ScopedTransaction(LOCTEXT("CopySkinWeightProfile", "Create Skin Weight Profile with Skin Weights from another Skeletal Mesh"));
-			SkeletalMesh->Modify();
-
-			FSkinWeightProfileHelpers::CopySkinWeightProfile(SkeletalMesh);
-			MeshDetailLayout->ForceRefreshDetails();
-		}
-	})));
-
+	
 	// Add extra (sub)-menus for previously added Skin Weight Profiles
 	if (USkeletalMesh* Mesh = SkeletalMeshPtr.Get())
 	{
@@ -1457,6 +1446,21 @@ void FPersonaMeshDetails::CustomizeLODSettingsCategories(IDetailLayoutBuilder& D
 	IDetailPropertyRow& DisableBelowMinLodStrippingRow = LODSettingsCategory.AddProperty(DisableBelowMinLodStrippingPropertyHandle);
 	DisableBelowMinLodStrippingRow.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FPersonaMeshDetails::IsLODInfoEditingEnabled, -1)));
 	DetailLayout.HideProperty(DisableBelowMinLodStrippingPropertyHandle);
+
+	TSharedPtr<IPropertyHandle> bSupportLODStreamingPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(USkeletalMesh, bSupportLODStreaming), USkeletalMesh::StaticClass());
+	IDetailPropertyRow& bSupportLODStreamingRow = LODSettingsCategory.AddProperty(bSupportLODStreamingPropertyHandle);
+	bSupportLODStreamingRow.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FPersonaMeshDetails::IsLODInfoEditingEnabled, -1)));
+	DetailLayout.HideProperty(bSupportLODStreamingPropertyHandle);
+
+	TSharedPtr<IPropertyHandle> MaxNumStreamedLODsPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(USkeletalMesh, MaxNumStreamedLODs), USkeletalMesh::StaticClass());
+	IDetailPropertyRow& MaxNumStreamedLODsRow = LODSettingsCategory.AddProperty(MaxNumStreamedLODsPropertyHandle);
+	MaxNumStreamedLODsRow.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FPersonaMeshDetails::IsLODInfoEditingEnabled, -1)));
+	DetailLayout.HideProperty(MaxNumStreamedLODsPropertyHandle);
+
+	TSharedPtr<IPropertyHandle> MaxNumOptionalLODsPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(USkeletalMesh, MaxNumOptionalLODs), USkeletalMesh::StaticClass());
+	IDetailPropertyRow& MaxNumOptionalLODsRow = LODSettingsCategory.AddProperty(MaxNumOptionalLODsPropertyHandle);
+	MaxNumOptionalLODsRow.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FPersonaMeshDetails::IsLODInfoEditingEnabled, -1)));
+	DetailLayout.HideProperty(MaxNumOptionalLODsPropertyHandle);
 }
 
 // save LOD settings
@@ -1984,20 +1988,66 @@ void FPersonaMeshDetails::CustomizeDetails( IDetailLayoutBuilder& DetailLayout )
 			.OnObjectChanged(FOnSetObject::CreateSP(this, &FPersonaMeshDetails::OnSetPostProcessBlueprint, PostProcessHandle))
 	];
 
-	// Hide the ability to change the import settings object
 	IDetailCategoryBuilder& ImportSettingsCategory = DetailLayout.EditCategory("ImportSettings");
 	TSharedRef<IPropertyHandle> AssetImportProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(USkeletalMesh, AssetImportData), USkeletalMesh::StaticClass());
-	IDetailPropertyRow& Row = ImportSettingsCategory.AddProperty(AssetImportProperty);
-	Row.CustomWidget(true)
-		.NameContent()
-		[
-			AssetImportProperty->CreatePropertyNameWidget()
-		];
+	if (!SkeletalMeshPtr.IsValid() || !SkeletalMeshPtr->AssetImportData->IsA<UFbxSkeletalMeshImportData>())
+	{
+		// Hide the ability to change the import settings object
+		IDetailPropertyRow& Row = ImportSettingsCategory.AddProperty(AssetImportProperty);
+		Row.CustomWidget(true)
+			.NameContent()
+			[
+				AssetImportProperty->CreatePropertyNameWidget()
+			];
+	}
+	else
+	{
+		// If the AssetImportData is an instance of UFbxSkeletalMeshImportData we create a custom UI.
+		// Since DetailCustomization UI is not supported on instanced properties and because IDetailLayoutBuilder does not work well inside instanced objects scopes,
+		// we need to manually recreate the whole FbxSkeletalMeshImportData UI in order to customize it.
+		AssetImportProperty->MarkHiddenByCustomization();
+		VertexColorImportOptionHandle = AssetImportProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(UFbxSkeletalMeshImportData, VertexColorImportOption));
+		VertexColorImportOverrideHandle = AssetImportProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(UFbxSkeletalMeshImportData, VertexOverrideColor));
+		TMap<FName, IDetailGroup*> ExistingGroup;
+		PropertyCustomizationHelpers::MakeInstancedPropertyCustomUI(ExistingGroup, ImportSettingsCategory, AssetImportProperty, FOnInstancedPropertyIteration::CreateSP(this, &FPersonaMeshDetails::OnInstancedFbxSkeletalMeshImportDataPropertyIteration));
+	}
 
 
 	CustomizeSkinWeightProfiles(DetailLayout);
 
 	HideUnnecessaryProperties(DetailLayout);
+}
+
+void FPersonaMeshDetails::OnInstancedFbxSkeletalMeshImportDataPropertyIteration(IDetailCategoryBuilder& BaseCategory, IDetailGroup* PropertyGroup, TSharedRef<IPropertyHandle>& Property) const
+{
+	IDetailPropertyRow* Row = nullptr;
+	
+	if (PropertyGroup)
+	{
+		Row = &PropertyGroup->AddPropertyRow(Property);
+	}
+	else
+	{
+		Row = &BaseCategory.AddProperty(Property);
+	}
+
+	if (Row)
+	{
+		//Vertex Override Color property should be disabled if we are not in override mode.
+		if (Property->IsValidHandle() && Property->GetProperty() == VertexColorImportOverrideHandle->GetProperty())
+		{
+			Row->IsEnabled(TAttribute<bool>(this, &FPersonaMeshDetails::GetVertexOverrideColorEnabledState));
+		}
+	}
+}
+
+bool FPersonaMeshDetails::GetVertexOverrideColorEnabledState() const
+{
+	uint8 VertexColorImportOption;
+	check(VertexColorImportOptionHandle.IsValid());
+	ensure(VertexColorImportOptionHandle->GetValue(VertexColorImportOption) == FPropertyAccess::Success);
+
+	return (VertexColorImportOption == EVertexColorImportOption::Override);
 }
 
 void FPersonaMeshDetails::HideUnnecessaryProperties(IDetailLayoutBuilder& DetailLayout)
@@ -2084,11 +2134,47 @@ FReply FPersonaMeshDetails::OnReimportLodClicked(EReimportButtonType InReimportT
 		}
 
 		FString SourceFilenameBackup("");
+		
+		//If we alter the reduction setting and the user cancel the import we must set them back
+		bool bRestoreReductionOnfail = false;
+		FSkeletalMeshOptimizationSettings ReductionSettingsBackup;
+		FSkeletalMeshLODInfo* LODInfo = SkelMesh->GetLODInfo(InLODIndex);
 		if(InReimportType == EReimportButtonType::ReimportWithNewFile)
 		{
 			// Back up current source filename and empty it so the importer asks for a new one.
-			SourceFilenameBackup = SkelMesh->GetLODInfo(InLODIndex)->SourceImportFilename;
-			SkelMesh->GetLODInfo(InLODIndex)->SourceImportFilename.Empty();
+			SourceFilenameBackup = LODInfo->SourceImportFilename;
+			LODInfo->SourceImportFilename.Empty();
+			
+			//Avoid changing the settings if the skeletal mesh is using a LODSettings asset valid for this LOD
+			bool bUseLODSettingAsset = SkelMesh->LODSettings != nullptr && SkelMesh->LODSettings->GetNumberOfSettings() > InLODIndex;
+			//Make the reduction settings change according to the context
+			if (!bUseLODSettingAsset && SkelMesh->IsReductionActive(InLODIndex) && LODInfo->bHasBeenSimplified && SkelMesh->GetImportedModel()->LODModels[InLODIndex].RawSkeletalMeshBulkData.IsEmpty())
+			{
+				FSkeletalMeshOptimizationSettings& ReductionSettings = LODInfo->ReductionSettings;
+				//Backup the reduction settings
+				ReductionSettingsBackup = ReductionSettings;
+				//In case we have a vert/tri percent we just put the percent to 100% and avoid reduction
+				//If we have a maximum criterion we change the BaseLOD to reduce the imported fbx instead of other LOD
+				switch (ReductionSettings.TerminationCriterion)
+				{
+					case SkeletalMeshTerminationCriterion::SMTC_NumOfTriangles:
+						ReductionSettings.NumOfTrianglesPercentage = 1.0f;
+						break;
+					case SkeletalMeshTerminationCriterion::SMTC_NumOfVerts:
+						ReductionSettings.NumOfVertPercentage = 1.0f;
+						break;
+					case SkeletalMeshTerminationCriterion::SMTC_TriangleOrVert:
+						ReductionSettings.NumOfTrianglesPercentage = 1.0f;
+						ReductionSettings.NumOfVertPercentage = 1.0f;
+						break;
+					case SkeletalMeshTerminationCriterion::SMTC_AbsNumOfTriangles:
+					case SkeletalMeshTerminationCriterion::SMTC_AbsNumOfVerts:
+					case SkeletalMeshTerminationCriterion::SMTC_AbsTriangleOrVert:
+						ReductionSettings.BaseLOD = InLODIndex;
+						break;
+				}
+				bRestoreReductionOnfail = true;
+			}
 		}
 
 		bool bImportSucceeded = FbxMeshUtils::ImportMeshLODDialog(SkelMesh, InLODIndex);
@@ -2096,7 +2182,16 @@ FReply FPersonaMeshDetails::OnReimportLodClicked(EReimportButtonType InReimportT
 		if(InReimportType == EReimportButtonType::ReimportWithNewFile && !bImportSucceeded)
 		{
 			// Copy old source file back, as this one failed
-			SkelMesh->GetLODInfo(InLODIndex)->SourceImportFilename = SourceFilenameBackup;
+			LODInfo->SourceImportFilename = SourceFilenameBackup;
+			if (bRestoreReductionOnfail)
+			{
+				LODInfo->ReductionSettings = ReductionSettingsBackup;
+			}
+		}
+		else if(InReimportType == EReimportButtonType::ReimportWithNewFile)
+		{
+			//Refresh the layout so the BaseLOD min max get recompute
+			MeshDetailLayout->ForceRefreshDetails();
 		}
 
 		return FReply::Handled();
@@ -2633,7 +2728,7 @@ TSharedRef<SWidget> FPersonaMeshDetails::OnGenerateCustomNameWidgetsForSection(i
 
 TSharedRef<SWidget> FPersonaMeshDetails::OnGenerateCustomSectionWidgetsForSection(int32 LODIndex, int32 SectionIndex)
 {
-	extern ENGINE_API bool IsGPUSkinCacheAvailable();
+	extern ENGINE_API bool IsGPUSkinCacheAvailable(EShaderPlatform Platform);
 
 	TSharedRef<SVerticalBox> SectionWidget = SNew(SVerticalBox);
 
@@ -2703,7 +2798,7 @@ TSharedRef<SWidget> FPersonaMeshDetails::OnGenerateCustomSectionWidgetsForSectio
 		.Padding(2, 0, 2, 0)
 		[
 			SNew(SCheckBox)
-			.IsEnabled(IsGPUSkinCacheAvailable())
+			.IsEnabled(IsGPUSkinCacheAvailable(GMaxRHIShaderPlatform))
 			.IsChecked(this, &FPersonaMeshDetails::IsSectionRecomputeTangentEnabled, LODIndex, SectionIndex)
 			.OnCheckStateChanged(this, &FPersonaMeshDetails::OnSectionRecomputeTangentChanged, LODIndex, SectionIndex)
 			[
@@ -2882,7 +2977,7 @@ void FPersonaMeshDetails::SetCurrentLOD(int32 NewLodIndex)
 	{
 		return;
 	}
-	int32 CurrentDisplayLOD = GetPersonaToolkit()->GetPreviewMeshComponent()->ForcedLodModel;
+	int32 CurrentDisplayLOD = GetPersonaToolkit()->GetPreviewMeshComponent()->GetForcedLOD();
 	int32 RealCurrentDisplayLOD = CurrentDisplayLOD == 0 ? 0 : CurrentDisplayLOD - 1;
 	int32 RealNewLOD = NewLodIndex == 0 ? 0 : NewLodIndex - 1;
 	if (CurrentDisplayLOD == NewLodIndex || !LodCategories.IsValidIndex(RealCurrentDisplayLOD) || !LodCategories.IsValidIndex(RealNewLOD))
@@ -2908,9 +3003,9 @@ void FPersonaMeshDetails::UpdateLODCategoryVisibility() const
 	bool bAutoLod = false;
 	if (GetPersonaToolkit()->GetPreviewMeshComponent() != nullptr)
 	{
-		bAutoLod = GetPersonaToolkit()->GetPreviewMeshComponent()->ForcedLodModel == 0;
+		bAutoLod = GetPersonaToolkit()->GetPreviewMeshComponent()->GetForcedLOD() == 0;
 	}
-	int32 CurrentDisplayLOD = bAutoLod ? 0 : GetPersonaToolkit()->GetPreviewMeshComponent()->ForcedLodModel - 1;
+	int32 CurrentDisplayLOD = bAutoLod ? 0 : GetPersonaToolkit()->GetPreviewMeshComponent()->GetForcedLOD() - 1;
 	if (LodCategories.IsValidIndex(CurrentDisplayLOD) && GetPersonaToolkit()->GetMesh())
 	{
 		int32 SkeletalMeshLodNumber = GetPersonaToolkit()->GetMesh()->GetLODNum();
@@ -2930,15 +3025,15 @@ FText FPersonaMeshDetails::GetCurrentLodName() const
 	bool bAutoLod = false;
 	if (GetPersonaToolkit()->GetPreviewMeshComponent() != nullptr)
 	{
-		bAutoLod = GetPersonaToolkit()->GetPreviewMeshComponent()->ForcedLodModel == 0;
+		bAutoLod = GetPersonaToolkit()->GetPreviewMeshComponent()->GetForcedLOD() == 0;
 	}
-	int32 CurrentDisplayLOD = bAutoLod ? 0 : GetPersonaToolkit()->GetPreviewMeshComponent()->ForcedLodModel - 1;
+	int32 CurrentDisplayLOD = bAutoLod ? 0 : GetPersonaToolkit()->GetPreviewMeshComponent()->GetForcedLOD() - 1;
 	return FText::FromString(bAutoLod ? FString(TEXT("Auto (LOD0)")) : (FString(TEXT("LOD")) + FString::FromInt(CurrentDisplayLOD)));
 }
 
 FText FPersonaMeshDetails::GetCurrentLodTooltip() const
 {
-	if (GetPersonaToolkit()->GetPreviewMeshComponent() != nullptr && GetPersonaToolkit()->GetPreviewMeshComponent()->ForcedLodModel == 0)
+	if (GetPersonaToolkit()->GetPreviewMeshComponent() != nullptr && GetPersonaToolkit()->GetPreviewMeshComponent()->GetForcedLOD() == 0)
 	{
 		return LOCTEXT("PersonaLODPickerCurrentLODTooltip", "With Auto LOD selected, LOD0's properties are visible for editing");
 	}
@@ -2989,7 +3084,7 @@ TSharedRef<SWidget> FPersonaMeshDetails::OnGenerateLodMenuForLodPicker()
 	bool bAutoLod = false;
 	if (GetPersonaToolkit()->GetPreviewMeshComponent() != nullptr)
 	{
-		bAutoLod = GetPersonaToolkit()->GetPreviewMeshComponent()->ForcedLodModel == 0;
+		bAutoLod = GetPersonaToolkit()->GetPreviewMeshComponent()->GetForcedLOD() == 0;
 	}
 	const int32 SkelMeshLODCount = SkelMesh->GetLODNum();
 	if(SkelMeshLODCount < 2)

@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3372845
+﻿INTSourceChangelist:6341512
 Availability:NoPublish
 Title:FBodyInstance RTTs
 Crumbs:
@@ -106,7 +106,7 @@ Engine/Physics/PhysicsBodies#physics
 
 피직스 바디의 회전에 항력같은 효과를 추가해 줍니다만, 좀 더 정확하게는 피직스 바디가 회전에 저항하는 정도를 나타냅니다. 가장 쉽게 도개교같은 것을 떠올려 보자면, 각형 제동(Angular Damping)은 도개교를 지탱하는 체인같은 역할을 하여, 열린 상태로의 전환을 적당히 둔화시켜 줍니다.
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties
+Engine/Physics/PhysicsAssetEditor/Properties
 [/VAR]
 [/EXCERPT:AngularDamping]
 
@@ -116,7 +116,7 @@ Engine/Physics/PhAT/Properties
 
 피직스 바디에 항력같은 효과를 추가해 줍니다만, 좀 더 정확하게는 피직스 바디가 이동에 저항하는 정도를 나타냅니다. 낙하하는 피직스 바디의 경우 적당히 느리게 만들어 주어, 물이나 진흙속에서 낙하하는 듯한 느낌을 줄 수 있습니다.
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties
+Engine/Physics/PhysicsAssetEditor/Properties
 [/VAR]
 [/EXCERPT:LinearDamping]
 

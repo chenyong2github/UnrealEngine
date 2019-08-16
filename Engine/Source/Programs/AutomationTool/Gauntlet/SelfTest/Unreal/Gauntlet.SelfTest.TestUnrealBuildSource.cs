@@ -30,7 +30,7 @@ namespace Gauntlet.SelfTest
 		public override void TickTest()
 		{
 			// create the build source
-			UnrealBuildSource BuildSource = new UnrealBuildSource(GameName, UsesSharedBuildType, Environment.CurrentDirectory, BuildPath, new string[] { "" });
+			UnrealBuildSource BuildSource = new UnrealBuildSource(this.ProjectName, ProjectFile, this.UnrealPath, UsesSharedBuildType, BuildPath, new string[] { "" });
 
 			// check editor and statged info is valid
 			CheckResult(BuildSource.EditorValid, "Editor build was invalid");

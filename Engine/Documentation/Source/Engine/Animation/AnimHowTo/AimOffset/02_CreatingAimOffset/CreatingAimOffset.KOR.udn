@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3782314
-Availability: Public
+﻿INTSourceChangelist:6277736
+Availability: Docs
 Title:2 - 에임 오프셋 생성
 Crumbs: %ROOT%, Engine, Engine\Animation, Engine\Animation\AnimHowTo
 Description:이번 단계에서는 에임 포즈 각각을 가지고 각 포즈 블렌딩을 하는 에임 오프셋을 만들어 봅니다.

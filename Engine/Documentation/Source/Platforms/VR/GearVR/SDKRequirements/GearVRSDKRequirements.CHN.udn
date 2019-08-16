@@ -1,0 +1,140 @@
+﻿INTSourceChangelist:6424537
+Availability: Public
+Title: 三星Gear VR开发要求
+Description: Gear VR开发要求，包括硬件、软件和SDK信息。 
+Type: reference
+Version: 4.22
+Parent: Platforms/VR/GearVR
+Tags: VR
+Tags: mobile
+Tags: Gear VR
+Tags: StartingOut
+Tags: Development
+Order: 10
+
+
+[TOC (start:2 end:2)]
+
+在本页中，您将了解开始为[三星Gear VR](Platforms/VR/GearVR)平台开发所需的硬件和软件开发工具包(SDK)要求。   
+
+  
+
+## 虚幻引擎4.22
+
+| 硬件要求 ||
+| --- | --- |
+| **推荐桌面硬件** | [INCLUDE:#excerpt_0] |
+| **支持的设备硬件** | 请参阅[Oculus的系统和硬件要求](https://developer.oculus.com/documentation/mobilesdk/latest/concepts/mobile-reqs/#mobile-reqs) |
+| **支持的VR头戴设备** | 请参阅[Oculus的系统和硬件要求](https://developer.oculus.com/documentation/mobilesdk/latest/concepts/mobile-reqs/#mobile-reqs) |
+
+| 软件要求 ||
+| --- | --- |
+| **桌面操作系统** | [INCLUDE:#excerpt_1] |
+| **SDK版本** | Oculus Runtime 1.28 |
+
+<!--
+[EXCERPT:excerpt_0]
+请参阅[Oculus的系统和硬件要求](https://developer.oculus.com/documentation/mobilesdk/latest/concepts/mobile-reqs/#mobile-reqs)  
+[](GettingStarted/RecommendedSpecifications)
+[/EXCERPT:excerpt_0]
+-->
+<!--
+[EXCERPT:excerpt_1]
+Windows 7或更高版本  
+MacOS 10.10或更高版本（仅x86）
+[/EXCERPT:excerpt_1]
+-->
+
+[REGION:note]
+当前支持的SDK版本可在“UEBuildTODO.cs”中找到。您可以在“[UE4根目录]/Engine/Source/Programs/UnrealBuildTool/Platforms/TODO”文件夹中找到它。
+[/REGION]
+
+## 虚幻引擎4.21
+
+| 硬件要求 ||
+| --- | --- |
+| **推荐桌面硬件** | [INCLUDE:#excerpt_2] |
+| **支持的设备硬件** | 请参阅[Oculus的系统和硬件要求](https://developer.oculus.com/documentation/mobilesdk/latest/concepts/mobile-reqs/#mobile-reqs) |
+| **支持的VR头戴设备** | 请参阅[Oculus的系统和硬件要求](https://developer.oculus.com/documentation/mobilesdk/latest/concepts/mobile-reqs/#mobile-reqs) |
+
+| 软件要求 ||
+| --- | --- |
+| **桌面操作系统** | [INCLUDE:#excerpt_3] |
+| **SDK版本** | Oculus Runtime 1.28 |
+
+<!--
+[EXCERPT:excerpt_2]
+请参阅[Oculus的系统和硬件要求](https://developer.oculus.com/documentation/mobilesdk/latest/concepts/mobile-reqs/#mobile-reqs)  
+[](GettingStarted/RecommendedSpecifications)
+[/EXCERPT:excerpt_2]
+-->
+<!--
+[EXCERPT:excerpt_3]
+Windows 7或更高版本。  
+MacOS 10.10或更高版本（仅x86）
+[/EXCERPT:excerpt_3]
+-->
+
+[REGION:note]
+当前支持的SDK版本可在“UEBuildTODO.cs”中找到。您可以在“[UE4根目录]/Engine/Source/Programs/UnrealBuildTool/Platforms/TODO”文件夹中找到它。
+[/REGION]
+
+## 虚幻引擎4.20
+
+| 硬件要求 ||
+| --- | --- |
+| **推荐桌面硬件** | [INCLUDE:#excerpt_4] |
+| **支持的设备硬件** | 请参阅[Oculus的系统和硬件要求](https://developer.oculus.com/documentation/mobilesdk/latest/concepts/mobile-reqs/#mobile-reqs) |
+| **支持的VR头戴设备** | 请参阅[Oculus的系统和硬件要求](https://developer.oculus.com/documentation/mobilesdk/latest/concepts/mobile-reqs/#mobile-reqs) |
+
+| 软件要求 ||
+| --- | --- |
+| **桌面操作系统** | [INCLUDE:#excerpt_5] |
+| **SDK版本** | Oculus Runtime 1.25 |
+
+<!--
+[EXCERPT:excerpt_4]
+请参阅[Oculus的系统和硬件要求](https://developer.oculus.com/documentation/mobilesdk/latest/concepts/mobile-reqs/#mobile-reqs)  
+[](GettingStarted/RecommendedSpecifications)
+[/EXCERPT:excerpt_4]
+-->
+<!--
+[EXCERPT:excerpt_5]
+Windows 7或更高版本。  
+MacOS 10.10或更高版本（仅x86）
+[/EXCERPT:excerpt_5]
+-->
+
+[REGION:note]
+当前支持的SDK版本可在“UEBuildTODO.cs”中找到。您可以在“[UE4根目录]/Engine/Source/Programs/UnrealBuildTool/Platforms/TODO”文件夹中找到它。
+[/REGION]
+
+## 虚幻引擎4.19
+
+| 硬件要求 ||
+| --- | --- |
+| **推荐桌面硬件** | [INCLUDE:#excerpt_6] |
+| **支持的设备硬件** | 请参阅[Oculus的系统和硬件要求](https://developer.oculus.com/documentation/mobilesdk/latest/concepts/mobile-reqs/#mobile-reqs) |
+| **支持的VR头戴设备** | 请参阅[Oculus的系统和硬件要求](https://developer.oculus.com/documentation/mobilesdk/latest/concepts/mobile-reqs/#mobile-reqs) |
+
+| 软件要求 ||
+| --- | --- |
+| **桌面操作系统** | [INCLUDE:#excerpt_7] |
+| **SDK版本** | Oculus Runtime 1.17 |
+
+<!--
+[EXCERPT:excerpt_6]
+请参阅[Oculus的系统和硬件要求](https://developer.oculus.com/documentation/mobilesdk/latest/concepts/mobile-reqs/#mobile-reqs)  
+[](GettingStarted/RecommendedSpecifications)
+[/EXCERPT:excerpt_6]
+-->
+<!--
+[EXCERPT:excerpt_7]
+Windows 7或更高版本。  
+MacOS 10.10或更高版本（仅x86）
+[/EXCERPT:excerpt_7]
+-->
+
+[REGION:note]
+当前支持的SDK版本可在“UEBuildTODO.cs”中找到。您可以在“[UE4根目录]/Engine/Source/Programs/UnrealBuildTool/Platforms/TODO”文件夹中找到它。
+[/REGION]

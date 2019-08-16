@@ -31,7 +31,8 @@ public class VulkanRHI : ModuleRules
 				"RenderCore", 
 				"UtilityShaders",
 				"HeadMountedDisplay",
-                "PreLoadScreen"
+                "PreLoadScreen",
+				"BuildSettings"
             }
         );
 
@@ -44,6 +45,7 @@ public class VulkanRHI : ModuleRules
 		{
 			if (Target.Platform == UnrealTargetPlatform.Linux)
 			{
+				PrivateDependencyModuleNames.Add("ApplicationCore");
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "SDL2");
 
 				string VulkanSDKPath = Environment.GetEnvironmentVariable("VULKAN_SDK");

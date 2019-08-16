@@ -313,27 +313,15 @@ struct ENGINE_API FStreamableManager : public FGCObject
 	/** Checks for any redirectors that were previously loaded, and returns the redirected target if found. This will not handle redirects that it doesn't yet know about */
 	FSoftObjectPath ResolveRedirects(const FSoftObjectPath& Target) const;
 
-	UE_DEPRECATED(4.16, "Call LoadSynchronous with bManageActiveHandle=true instead if you want the manager to keep the handle alive")
-	UObject* SynchronousLoad(FSoftObjectPath const& Target);
+	/** Returns the debug name for this manager */
+	const FString& GetManagerName() const;
 
-	template< typename T >
-	UE_DEPRECATED(4.16, "Call LoadSynchronous with bManageActiveHandle=true instead if you want the manager to keep the handle alive")
-	T* SynchronousLoadType(FSoftObjectPath const& Target)
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return Cast< T >(SynchronousLoad(Target));
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
-	UE_DEPRECATED(4.16, "Call RequestAsyncLoad with bManageActiveHandle=true instead if you want the manager to keep the handle alive")
-	void SimpleAsyncLoad(const FSoftObjectPath& Target, TAsyncLoadPriority Priority = DefaultAsyncLoadPriority);
-
-	UE_DEPRECATED(4.16, "AddStructReferencedObjects is no longer necessary, as it is a GCObject now")
-	void AddStructReferencedObjects(class FReferenceCollector& Collector) const {}
+	/** Modifies the debug name of this manager, used for debugging GC references */
+	void SetManagerName(FString InName);
 
 	/** Add referenced objects to stop them from GCing */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-	virtual FString GetReferencerName() const override { return TEXT("FStreamableManager"); }
+	virtual FString GetReferencerName() const override { return ManagerName; }
 	virtual bool GetReferencerPropertyName(UObject* Object, FString& OutPropertyName) const override;
 
 	FStreamableManager();
@@ -384,6 +372,9 @@ private:
 
 	/** If True, temporarily force synchronous loading */
 	bool bForceSynchronousLoads;
+
+	/** Debug name of this manager */
+	FString ManagerName;
 };
 
 

@@ -15,6 +15,8 @@
 #include "Features/IModularFeatures.h"
 
 #include "WindowsSpatialInputDefinitions.h"
+#include "MixedRealityInterop.h"
+#include "WindowsMixedRealityAvailability.h"
 
 namespace WindowsMixedReality
 {
@@ -51,15 +53,60 @@ namespace WindowsMixedReality
 		virtual FName GetMotionControllerDeviceTypeName() const override;
 		virtual bool GetControllerOrientationAndPosition(const int32 ControllerIndex, const EControllerHand DeviceHand, FRotator & OutOrientation, FVector & OutPosition, float WorldToMetersScale) const override;
 		virtual ETrackingStatus GetControllerTrackingStatus(const int32 ControllerIndex, const EControllerHand DeviceHand) const override;
+		virtual bool GetHandJointPosition(const FName MotionSource, const int32 jointIndex, FVector& OutPosition) const override;
+
+		bool CaptureGestures(uint32 capturingSet);
+		static void RegisterKeys() noexcept;
 
 	private:
-		void RegisterKeys() noexcept;
 		void InitializeSpatialInput() noexcept;
 		void UninitializeSpatialInput() noexcept;
 
 #if WITH_WINDOWS_MIXED_REALITY
 		void SendButtonEvents(uint32 source);
 		void SendAxisEvents(uint32 source);
+#endif
+
+#if WITH_WINDOWS_MIXED_REALITY
+#if SUPPORTS_WINDOWS_MIXED_REALITY_GESTURES
+		TUniquePtr<GestureRecognizerInterop> gestureRecognizer;
+		uint32 CapturingSet = 0;
+#endif
+		bool UpdateGestureCallbacks(FString& errorMsg);
+		void TapCallback(GestureStage stage, SourceKind kind, const GestureRecognizerInterop::Tap& desc);
+		void HoldCallback(GestureStage stage, SourceKind kind, const GestureRecognizerInterop::Hold& desc);
+		void ManipulationCallback(GestureStage stage, SourceKind kind, const GestureRecognizerInterop::Manipulation& desc);
+		void NavigationCallback(GestureStage stage, SourceKind kind, const GestureRecognizerInterop::Navigation& desc);
+		void EnqueueControllerButtonEvent(uint32 controllerId, FKey button, HMDInputPressState pressState) noexcept;
+		void EnqueueControllerAxisEvent(uint32 controllerId, FKey axis, double axisPosition) noexcept;
+		void SendQueuedButtonAndAxisEvents();
+		struct FEnqueuedControllerEvent
+		{
+			FEnqueuedControllerEvent(uint32 controllerId, FKey button, HMDInputPressState pressState)
+				: bIsAxis(false)
+				, ControllerId(controllerId)
+				, Key(button)
+				, PressState(pressState)
+			{
+			};
+			FEnqueuedControllerEvent(uint32 controllerId, FKey axis, double axisPosition)
+				: bIsAxis(true)
+				, ControllerId(controllerId)
+				, Key(axis)
+				, AxisPosition(axisPosition)
+			{
+			};
+
+			bool bIsAxis;
+			uint32 ControllerId;
+			FKey Key;
+			HMDInputPressState PressState;
+			double AxisPosition;
+		};
+		TArray<FEnqueuedControllerEvent> EnqueuedControllerEventBuffers[2];
+		FCriticalSection EnqueuedContollerEventBufferWriteIndexMutex;
+		uint32 EnqueuedContollerEventBufferWriteIndex = 0;
+
 #endif
 
 		bool isLeftTouchpadTouched = false;

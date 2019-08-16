@@ -5,6 +5,7 @@
 
 void FRigUnit_Timeline::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
 	{
 		Time = AccumulatedValue = 0.f;

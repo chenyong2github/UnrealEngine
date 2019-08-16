@@ -645,6 +645,45 @@ namespace AutomationTool
 				CommandUtils.DeleteDirectoryContents(RulesFolder);
 			}
 		}
+
+		/// <summary>
+		/// Takes a game name (e.g "ShooterGame") and tries to find the path to the project file
+		/// </summary>
+		/// <param name="GameName"></param>
+		/// <returns></returns>
+		public static FileReference FindProjectFileFromName(string GameName)
+		{
+			string ProjectFile = GameName;
+
+			// Look for GameName.uproject
+			if (string.IsNullOrEmpty(Path.GetExtension(ProjectFile)))
+			{
+				// if project was specified but had no extension then just add it.
+				ProjectFile = Path.ChangeExtension(GameName, ".uproject");
+			}
+
+			// easy!
+			if (File.Exists(ProjectFile))
+			{
+				return new FileReference(ProjectFile);
+			}
+
+			// check for sibling to engine
+			string SiblingPath = Path.Combine(Environment.CurrentDirectory, GameName, ProjectFile);
+
+			if (File.Exists(SiblingPath))
+			{
+				return new FileReference(SiblingPath);
+			}
+
+			// check projectfiles paths.
+			IEnumerable<FileReference> Projects = NativeProjects.EnumerateProjectFiles();
+
+			FileReference ProjectPath = Projects.Where(R => string.Equals(R.GetFileName(), ProjectFile, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+						
+			// either valid or we're out of ideas...
+			return ProjectPath;
+		}
 	}
 
     public class BranchInfo

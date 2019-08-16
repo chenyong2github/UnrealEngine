@@ -106,7 +106,8 @@ const TCHAR* EHostType::ToString( const EHostType::Type Value )
 
 		case ClientOnly:
 			return TEXT("ClientOnly");
-
+		case ClientOnlyNoCommandlet:
+			return TEXT("ClientOnlyNoCommandlet");
 		default:
 			ensureMsgf( false, TEXT( "Unrecognized EModuleType value: %i" ), Value );
 			return NULL;
@@ -566,11 +567,15 @@ bool FModuleDescriptor::IsLoadedInCurrentConfiguration() const
 	case EHostType::ServerOnly:
 		return !FPlatformProperties::IsClientOnly();
 
+	case EHostType::ClientOnlyNoCommandlet:
+#if (WITH_ENGINE || WITH_PLUGIN_SUPPORT)  && !IS_PROGRAM
+		return (!IsRunningDedicatedServer()) && (!IsRunningCommandlet());
+#endif
+		// the fall in the case of not having defines listed above is intentional
 	case EHostType::ClientOnly:
 		return !IsRunningDedicatedServer();
-
+	
 	}
-
 	return false;
 }
 

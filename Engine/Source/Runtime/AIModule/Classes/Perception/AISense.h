@@ -23,8 +23,9 @@ class AIMODULE_API UAISense : public UObject
 	static const float SuspendNextUpdate;
 
 protected:
-	/** age past which stimulus of this sense are "forgotten"*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI Perception", config)
+	UE_DEPRECATED(4.23, "This property will be removed in future versions. Use AISenseConfig::MaxAge instead.")
+	/** age past which stimulus of this sense are "forgotten". (DEPRECATED: This property will be removed in future versions. Use AISenseConfig::MaxAge instead.)*/
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI Perception", config)
 	float DefaultExpirationAge;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AI Perception", config)
@@ -115,7 +116,13 @@ public:
 	FORCEINLINE void OnListenerUpdate(const FPerceptionListener& NewListener) { OnListenerUpdateDelegate.ExecuteIfBound(NewListener); }
 	FORCEINLINE void OnListenerRemoved(const FPerceptionListener& NewListener) { OnListenerRemovedDelegate.ExecuteIfBound(NewListener); }
 
-	FORCEINLINE float GetDefaultExpirationAge() const { return DefaultExpirationAge; }
+	UE_DEPRECATED(4.23, "This method will be removed in future versions. Perception relies on AISenseConfig::MaxAge so the value returned is no longer used by the perception system.")
+	FORCEINLINE float GetDefaultExpirationAge() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return DefaultExpirationAge; 
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	bool WantsNewPawnNotification() const { return bWantsNewPawnNotification; }
 	bool ShouldAutoRegisterAllPawnsAsSources() const { return bAutoRegisterAllPawnsAsSources; }

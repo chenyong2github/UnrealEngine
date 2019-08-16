@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6187230
 Availability:Public
 Title:블루프린트에 스플라인 컴포넌트 추가하기
 Crumbs: %ROOT%, Engine
@@ -6,7 +6,7 @@ Description:블루프린트에 스플라인과 스플라인 메시 컴포넌트�
 Navigation:topic
 parent:Engine/BlueprintSplines/HowTo
 order:1
-social-image:Splines_social.png
+social-image:Engine/BlueprintSplines/Splines_Social.png
 version:4.13
 skilllevel:Beginner
 related:Engine/BlueprintSplines/HowTo/EditSplineComponentInEditor

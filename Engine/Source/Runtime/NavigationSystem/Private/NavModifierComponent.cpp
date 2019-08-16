@@ -16,9 +16,21 @@ UNavModifierComponent::UNavModifierComponent(const FObjectInitializer& ObjectIni
 
 void UNavModifierComponent::CalcAndCacheBounds() const
 {
-	const AActor* MyOwner = GetOwner();
+	AActor* MyOwner = GetOwner();
 	if (MyOwner)
 	{
+		CachedTransform = MyOwner->GetActorTransform();
+		
+		if (TransformUpdateHandle.IsValid() == false && MyOwner->GetRootComponent())
+		{
+			// binding to get notifies when the root component moves. We need
+			// this only when the rootcomp is nav-irrelevant (since the default 
+			// mechanisms won't kick in) but we're binding without checking it since
+			// this property can change without re-running CalcAndCacheBounds.
+			// We're filtering for nav relevancy in OnTransformUpdated.
+			TransformUpdateHandle = MyOwner->GetRootComponent()->TransformUpdated.AddUObject(const_cast<UNavModifierComponent*>(this), &UNavModifierComponent::OnTransformUpdated);
+		}
+
 		Bounds = FBox(ForceInit);
 		ComponentBounds.Reset();
 		for (UActorComponent* Component : MyOwner->GetComponents())
@@ -114,6 +126,19 @@ void UNavModifierComponent::SetAreaClass(TSubclassOf<UNavArea> NewAreaClass)
 	if (AreaClass != NewAreaClass)
 	{
 		AreaClass = NewAreaClass;
+		RefreshNavigationModifiers();
+	}
+}
+
+void UNavModifierComponent::OnTransformUpdated(USceneComponent* RootComponent, EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport)
+{
+	// force bounds recaching next time GetNavigationBounds gets called.
+	bBoundsInitialized = false;
+
+	// otherwise the update will be handled by the default path
+	if (RootComponent && RootComponent->CanEverAffectNavigation() == false)
+	{
+		// since the parent is not nav-relevant we need to manually tell nav sys to update
 		RefreshNavigationModifiers();
 	}
 }

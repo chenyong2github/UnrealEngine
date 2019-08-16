@@ -132,7 +132,7 @@ public:
 	public:
 		FRenderAssetLinkConstIterator(const FRenderAssetInstanceView& InState, const UStreamableRenderAsset* InAsset);
 
-		FORCEINLINE operator bool() const { return CurrElementIndex != INDEX_NONE; }
+		FORCEINLINE explicit operator bool() const { return CurrElementIndex != INDEX_NONE; }
 		FORCEINLINE void operator++() { CurrElementIndex = State.Elements[CurrElementIndex].NextRenderAssetLink; }
 
 		void OutputToLog(float MaxNormalizedSize, float MaxNormalizedSize_VisibleOnly, const TCHAR* Prefix) const;
@@ -144,8 +144,6 @@ public:
 		FBoxSphereBounds GetBounds() const;
 
 		int32 GetCurElementIdx_ForDebuggingOnly() const { return CurrElementIndex; }
-
-	protected:
 
 		FORCEINLINE const UPrimitiveComponent* GetComponent() const { return State.Elements[CurrElementIndex].Component; }
 
@@ -170,7 +168,7 @@ public:
 	public:
 		FRenderAssetIterator(const FRenderAssetInstanceView& InState) : MapIt(InState.RenderAssetMap) {}
 
-		operator bool() const { return (bool)MapIt; }
+		explicit operator bool() const { return (bool)MapIt; }
 		void operator++() { ++MapIt; }
 
 		const UStreamableRenderAsset* operator*() const { return MapIt.Key(); }

@@ -1,0 +1,35 @@
+﻿INTSourceChangelist:6259944
+Availability: Public
+Crumbs: 
+Title: 专业视频I/O
+Description: 包含有关在虚幻引擎中增加和移除专业高质量视频的信息。
+Type: landing
+Version: 4.20
+Parent: Engine
+Order: 
+
+
+![](pro-video-banner.png "pro-video-banner.png")
+
+增强现实体验将传统2D视频与实时3D环境相结合，电影和广播媒体对这种体验的需求正日益旺盛。本节页面说明您可以如何使虚幻引擎充当视频制作管道的无缝部分工作：
+
+*   在虚幻引擎中实时播放专业级别的视频和音频，动态合成到虚拟3D场景中。
+*   将各种效果直接应用于虚幻引擎中的导入视频，如色度抠像、镜头不失真、色彩校正等。
+*  将虚幻引擎与您输入视频的时间码和帧率同步，以消除计时问题。
+*   将视频源从虚幻编辑器或从运行的游戏项目返回到Studio的视频管道。
+
+## 新手入门
+
+[DIR(output:"topic" parent:"Engine/ProVideoIO" tags:"Getting Started" end:"1")]
+
+## 指南
+
+[DIR(output:"topic" parent:"Engine/ProVideoIO" tags:"Guide" end:"1")]
+
+## 参考
+
+[DIR(output:"topic" parent:"Engine/ProVideoIO" tags:"Reference" end:"1")]
+
+## 样本项目
+
+%Resources/Showcases/VirtualStudio:topic%

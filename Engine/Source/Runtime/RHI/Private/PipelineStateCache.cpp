@@ -46,17 +46,6 @@ static inline uint32 GetTypeHash(const FGraphicsPipelineStateInitializer& Initia
 		^ Initializer.RenderTargetsEnabled ^ GetTypeHash(Initializer.RasterizerState) ^ GetTypeHash(Initializer.DepthStencilState);
 }
 
-#if RHI_RAYTRACING
-static inline uint32 GetTypeHash(const FRayTracingPipelineStateInitializer& Initializer)
-{
-	return GetTypeHash(Initializer.MaxPayloadSizeInBytes) ^
-		GetTypeHash(Initializer.bAllowHitGroupIndexing) ^
-		GetTypeHash(Initializer.GetRayGenHash()) ^
-		GetTypeHash(Initializer.GetRayMissHash()) ^
-		GetTypeHash(Initializer.GetHitGroupHash());
-}
-#endif
-
 static TAutoConsoleVariable<int32> GCVarAsyncPipelineCompile(
 	TEXT("r.AsyncPipelineCompile"),
 	1,
@@ -71,6 +60,15 @@ static TAutoConsoleVariable<int32> CVarPSOEvictionTime(
 	TEXT("Time between checks to remove stale objects from the cache. 0 = no eviction (which may eventually OOM...)"),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
+
+#if RHI_RAYTRACING
+static TAutoConsoleVariable<int32> CVarRTPSOCacheSize(
+	TEXT("r.RayTracing.PSOCacheSize"),
+	50,
+	TEXT("Number of ray tracing pipelines to keep in the cache (default = 50). Set to 0 to disable eviction.\n"),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe
+);
+#endif // RHI_RAYTRACING
 
 extern void DumpPipelineCacheStats();
 
@@ -271,11 +269,34 @@ public:
 		return false;
 	}
 
+	inline void AddHit()
+	{
+		if (LastFrameHit != GFrameCounter)
+		{
+			LastFrameHit = GFrameCounter;
+			HitsAcrossFrames++;
+		}
+
+		FPipelineState::AddHit();
+	}
+
 	FRayTracingPipelineStateRHIRef RHIPipeline;
+
+	uint64 HitsAcrossFrames = 0;
+	uint64 LastFrameHit = 0;
+
 #if PIPELINESTATECACHE_VERIFYTHREADSAFE
 	FThreadSafeCounter InUseCount;
 #endif
 };
+
+//extern RHI_API FRHIRayTracingPipelineState* GetRHIRayTracingPipelineState(FRayTracingPipelineState* PipelineState);
+RHI_API FRHIRayTracingPipelineState* GetRHIRayTracingPipelineState(FRayTracingPipelineState* PipelineState)
+{
+	ensure(PipelineState->RHIPipeline);
+	PipelineState->CompletionEvent = nullptr;
+	return PipelineState->RHIPipeline;
+}
 
 #endif // RHI_RAYTRACING
 
@@ -594,9 +615,7 @@ FAutoConsoleTaskPriority CPrio_FCompilePipelineStateTask(
 // This cache uses a single internal lock and therefore is not designed for highly concurrent operations.
 class FRayTracingPipelineCache
 {
-	// #dxr_todo: This needs to support fully asynchronous, non-blocking pipeline creation with explicit completion query mechanism.
-	// #dxr_todo: Could move this to a separate cpp file.
-	// #dxr_todo: Should support eviction of stale pipelines.
+	// #dxr_todo: UE-72566 Should support eviction of stale pipelines.
 	// #dxr_todo: we will likely also need an explicit ray tracing pipeline sub-object cache to hold closest hit shaders
 
 public:
@@ -614,6 +633,8 @@ public:
 		if (FoundState)
 		{
 			OutCachedState = *FoundState;
+			OutCachedState->AddHit();
+
 			return true;
 		}
 		else
@@ -626,6 +647,7 @@ public:
 	{
 		FScopeLock ScopeLock(&CriticalSection);
 		Cache.Add(Initializer, State);
+		State->AddHit();
 	}
 
 	void Shutdown()
@@ -637,10 +659,74 @@ public:
 		}
 	}
 
+	void Trim(int32 TargetNumEntries)
+	{
+		FScopeLock ScopeLock(&CriticalSection);
+		
+		if (Cache.Num() < TargetNumEntries)
+		{
+			return;
+		}
+
+		struct FEntry
+		{
+			FRayTracingPipelineStateInitializer Key;
+			uint64 LastFrameHit;
+			uint64 HitsAcrossFrames;
+			FRayTracingPipelineState* Pipeline;
+		};
+		TArray<FEntry, TMemStackAllocator<>> Entries;
+		Entries.Reserve(Cache.Num());
+
+		const uint64 CurrentFrame = GFrameCounter;
+		const uint32 NumLatencyFrames = 10;
+
+		// Find all pipelines that were not used in the last 10 frames
+
+		for (const auto& It : Cache)
+		{
+			if (It.Value->LastFrameHit + NumLatencyFrames <= CurrentFrame)
+			{
+				FEntry Entry;
+				Entry.Key = It.Key;
+				Entry.HitsAcrossFrames = It.Value->HitsAcrossFrames;
+				Entry.LastFrameHit = It.Value->LastFrameHit;
+				Entry.Pipeline = It.Value;
+				Entries.Add(Entry);
+			}
+		}
+
+		Entries.Sort([](const FEntry& A, const FEntry& B)
+		{
+			if (A.LastFrameHit == B.LastFrameHit)
+			{
+				return B.HitsAcrossFrames < A.HitsAcrossFrames;
+			}
+			else
+			{
+				return B.LastFrameHit < A.LastFrameHit;
+			}
+		});
+
+		// Remove least useful pipelines
+
+		while (Cache.Num() > TargetNumEntries && Entries.Num())
+		{
+			delete Entries.Last().Pipeline;
+			Cache.Remove(Entries.Last().Key);
+			Entries.Pop(false);
+		}
+
+		LastTrimFrame = CurrentFrame;
+	}
+
+	uint64 GetLastTrimFrame() const { return LastTrimFrame; }
+
 private:
 
 	mutable FCriticalSection CriticalSection;
 	TMap<FRayTracingPipelineStateInitializer, FRayTracingPipelineState*> Cache;
+	uint64 LastTrimFrame = 0;
 };
 
 FRayTracingPipelineCache GRayTracingPipelineCache;
@@ -909,11 +995,101 @@ FComputePipelineState* PipelineStateCache::GetAndOrCreateComputePipelineState(FR
 }
 
 #if RHI_RAYTRACING
-FRHIRayTracingPipelineState* PipelineStateCache::GetAndOrCreateRayTracingPipelineState(const FRayTracingPipelineStateInitializer& Initializer)
+
+class FCompileRayTracingPipelineStateTask
+{
+public:
+
+	UE_NONCOPYABLE(FCompileRayTracingPipelineStateTask)
+
+	FPipelineState* Pipeline;
+
+	FRayTracingPipelineStateInitializer Initializer;
+
+	FCompileRayTracingPipelineStateTask(FPipelineState* InPipeline, const FRayTracingPipelineStateInitializer& InInitializer)
+		: Pipeline(InPipeline)
+		, Initializer(InInitializer)
+	{
+		// Copy all referenced shaders and AddRef them while the task is alive
+
+		RayGenTable   = CopyShaderTable(InInitializer.GetRayGenTable());
+		MissTable     = CopyShaderTable(InInitializer.GetMissTable());
+		HitGroupTable = CopyShaderTable(InInitializer.GetHitGroupTable());
+		CallableTable = CopyShaderTable(InInitializer.GetCallableTable());
+
+		// Point initializer to shader tables owned by this task
+
+		Initializer.SetRayGenShaderTable(RayGenTable, InInitializer.GetRayGenHash());
+		Initializer.SetMissShaderTable(MissTable, InInitializer.GetRayMissHash());
+		Initializer.SetHitGroupTable(HitGroupTable, InInitializer.GetHitGroupHash());
+		Initializer.SetCallableTable(CallableTable, InInitializer.GetCallableHash());
+	}
+
+	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
+
+	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+	{
+		FRayTracingPipelineState* RayTracingPipeline = static_cast<FRayTracingPipelineState*>(Pipeline);
+		RayTracingPipeline->RHIPipeline = RHICreateRayTracingPipelineState(Initializer);
+
+		// References to shaders no longer need to be held by this task
+
+		ReleaseShaders(CallableTable);
+		ReleaseShaders(HitGroupTable);
+		ReleaseShaders(MissTable);
+		ReleaseShaders(RayGenTable);
+
+		Initializer = FRayTracingPipelineStateInitializer();
+	}
+
+	FORCEINLINE TStatId GetStatId() const
+	{
+		RETURN_QUICK_DECLARE_CYCLE_STAT(FCompileRayTracingPipelineStateTask, STATGROUP_TaskGraphTasks);
+	}
+
+	ENamedThreads::Type GetDesiredThread()
+	{
+		return CPrio_FCompilePipelineStateTask.Get();
+	}
+
+private:
+
+	void AddRefShaders(TArray<FRHIRayTracingShader*>& ShaderTable)
+	{
+		for (FRHIRayTracingShader* Ptr : ShaderTable)
+		{
+			Ptr->AddRef();
+		}
+	}
+
+	void ReleaseShaders(TArray<FRHIRayTracingShader*>& ShaderTable)
+	{
+		for (FRHIRayTracingShader* Ptr : ShaderTable)
+		{
+			Ptr->Release();
+		}
+	}
+
+	TArray<FRHIRayTracingShader*> CopyShaderTable(const TArrayView<FRHIRayTracingShader*>& Source)
+	{
+		TArray<FRHIRayTracingShader*> Result(Source.GetData(), Source.Num());
+		AddRefShaders(Result);
+		return Result;
+	}
+
+	TArray<FRHIRayTracingShader*> RayGenTable;
+	TArray<FRHIRayTracingShader*> MissTable;
+	TArray<FRHIRayTracingShader*> HitGroupTable;
+	TArray<FRHIRayTracingShader*> CallableTable;
+};
+
+FRayTracingPipelineState* PipelineStateCache::GetAndOrCreateRayTracingPipelineState(FRHICommandList& RHICmdList, const FRayTracingPipelineStateInitializer& Initializer)
 {
 	LLM_SCOPE(ELLMTag::PSO);
 
 	check(IsInRenderingThread() || IsInParallelRenderingThread());
+
+	const bool DoAsyncCompile = IsAsyncCompilationAllowed(RHICmdList);
 
 	FRayTracingPipelineState* OutCachedState = nullptr;
 
@@ -921,24 +1097,34 @@ FRHIRayTracingPipelineState* PipelineStateCache::GetAndOrCreateRayTracingPipelin
 
 	if (bWasFound == false)
 	{
-		// #dxr_todo: RT PSO disk caching
-		// #dxr_todo: asynchronous PSO creation
+		// #dxr_todo UE-68235: RT PSO disk caching
+
+		// Remove old pipelines once per frame
+		const int32 TargetCacheSize = CVarRTPSOCacheSize.GetValueOnAnyThread();
+		if (TargetCacheSize > 0 && GRayTracingPipelineCache.GetLastTrimFrame() != GFrameCounter)
+		{
+			GRayTracingPipelineCache.Trim(TargetCacheSize);
+		}
 
 		OutCachedState = new FRayTracingPipelineState();
 
-		OutCachedState->RHIPipeline = RHICreateRayTracingPipelineState(Initializer);
+		if (DoAsyncCompile)
+		{
+			OutCachedState->CompletionEvent = TGraphTask<FCompileRayTracingPipelineStateTask>::CreateTask().ConstructAndDispatchWhenReady(
+				OutCachedState,
+				Initializer);
+
+			RHICmdList.AddDispatchPrerequisite(OutCachedState->CompletionEvent);
+		}
+		else
+		{
+			OutCachedState->RHIPipeline = RHICreateRayTracingPipelineState(Initializer);
+		}
 
 		GRayTracingPipelineCache.Add(Initializer, OutCachedState);
 	}
-	else
-	{
-#if PSO_TRACK_CACHE_STATS
-		OutCachedState->AddHit();
-#endif
-	}
 
-	// return the state pointer
-	return OutCachedState->RHIPipeline;
+	return OutCachedState;
 }
 #endif // RHI_RAYTRACING
 

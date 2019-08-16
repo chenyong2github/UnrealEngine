@@ -44,6 +44,8 @@ DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("FindObjectFast"),STAT_FindObjectFast,STA
 extern COREUOBJECT_API bool					GIsSavingPackage;
 /** This allows loading unversioned cooked content in the editor */
 extern COREUOBJECT_API bool					GAllowUnversionedContentInEditor;
+/** This allows loading cooked content in the editor */
+extern COREUOBJECT_API int32				GAllowCookedDataInEditorBuilds;
 
 /** Enum used in StaticDuplicateObject() and related functions to describe why something is being duplicated */
 namespace EDuplicateMode
@@ -424,6 +426,11 @@ COREUOBJECT_API float GetAsyncLoadPercentage( const FName& PackageName );
 */
 COREUOBJECT_API bool IsGarbageCollecting();
 
+/**
+* Whether we are running on the Garbage Collector Thread
+*/
+COREUOBJECT_API bool IsInGarbageCollectorThread();
+
 /** 
  * Deletes all unreferenced objects, keeping objects that have any of the passed in KeepFlags set. Will wait for other threads to unlock GC.
  *
@@ -463,6 +470,13 @@ COREUOBJECT_API bool IsIncrementalUnhashPending();
  * @return	true if incremental purge needs to be kicked off or is currently in progress, false othwerise.
  */
 COREUOBJECT_API bool IsIncrementalPurgePending();
+
+/**
+ * Gathers unreachable objects for IncrementalPurgeGarbage.
+ *
+ * @param bForceSingleThreaded true to force the process to just one thread
+ */
+COREUOBJECT_API void GatherUnreachableObjects(bool bForceSingleThreaded);
 
 /**
  * Incrementally purge garbage by deleting all unreferenced objects after routing Destroy.
@@ -685,7 +699,7 @@ public:
 		return !!Object && Object != (UObject*)InvalidPtrValue;
 	}
 	/** Convenience operator. Does the same thing as IsValid(). */
-	FORCEINLINE operator bool() const
+	FORCEINLINE explicit operator bool() const
 	{
 		return IsValid();
 	}
@@ -814,7 +828,7 @@ public:
 	TReturnType* CreateDefaultSubobject(UObject* Outer, FName SubobjectName, bool bTransient = false) const
 	{
 		UClass* ReturnType = TReturnType::StaticClass();
-		return static_cast<TReturnType*>(CreateDefaultSubobject(Outer, SubobjectName, ReturnType, ReturnType, /*bIsRequired =*/ true, /*bIsAbstract =*/ false, bTransient));
+		return static_cast<TReturnType*>(CreateDefaultSubobject(Outer, SubobjectName, ReturnType, ReturnType, /*bIsRequired =*/ true, bTransient));
 	}
 
 	/**
@@ -829,7 +843,7 @@ public:
 	TReturnType* CreateOptionalDefaultSubobject(UObject* Outer, FName SubobjectName, bool bTransient = false) const
 	{
 		UClass* ReturnType = TReturnType::StaticClass();
-		return static_cast<TReturnType*>(CreateDefaultSubobject(Outer, SubobjectName, ReturnType, ReturnType, /*bIsRequired =*/ false, /*bIsAbstract =*/ false, bTransient));
+		return static_cast<TReturnType*>(CreateDefaultSubobject(Outer, SubobjectName, ReturnType, ReturnType, /*bIsRequired =*/ false, bTransient));
 	}
 
 	/**
@@ -840,11 +854,19 @@ public:
 	 * @param	SubobjectName				name of the new component
 	 * @param bTransient		true if the component is being assigned to a transient property
 	 */
+
+	/**
+	 * Create a subobject that has the Abstract class flag, child classes are expected to override this by calling SetDefaultSubobjectClass with the same name and a non-abstract class.
+	 * @param	TReturnType					Class of return type, all overrides must be of this type
+	 * @param	SubobjectName				Name of the new component
+	 * @param	bTransient					True if the component is being assigned to a transient property. This does not make the component itself transient, but does stop it from inheriting parent defaults
+	 */
 	template<class TReturnType>
+	UE_DEPRECATED(4.23, "CreateAbstract did not work as intended and has been deprecated in favor of CreateDefaultObject")
 	TReturnType* CreateAbstractDefaultSubobject(UObject* Outer, FName SubobjectName, bool bTransient = false) const
 	{
 		UClass* ReturnType = TReturnType::StaticClass();
-		return static_cast<TReturnType*>(CreateDefaultSubobject(Outer, SubobjectName, ReturnType, ReturnType, /*bIsRequired =*/ true, /*bIsAbstract =*/ true, bTransient));
+		return static_cast<TReturnType*>(CreateDefaultSubobject(Outer, SubobjectName, ReturnType, ReturnType, /*bIsRequired =*/ true, bTransient));
 	}
 
 	/** 
@@ -858,7 +880,7 @@ public:
 	template<class TReturnType, class TClassToConstructByDefault> 
 	TReturnType* CreateDefaultSubobject(UObject* Outer, FName SubobjectName, bool bTransient = false) const 
 	{ 
-		return static_cast<TReturnType*>(CreateDefaultSubobject(Outer, SubobjectName, TReturnType::StaticClass(), TClassToConstructByDefault::StaticClass(), /*bIsRequired =*/ true, /*bIsAbstract =*/ false, bTransient));
+		return static_cast<TReturnType*>(CreateDefaultSubobject(Outer, SubobjectName, TReturnType::StaticClass(), TClassToConstructByDefault::StaticClass(), /*bIsRequired =*/ true, bTransient));
 	}
 
 	/**
@@ -891,32 +913,38 @@ public:
 	 * @param	TClassToConstructByDefault	if the derived class has not overridden, create a component of this type (default is TReturnType)
 	 * @param	Outer						outer to construct the subobject in
 	 * @param	SubobjectName				name of the new component
-	 * @param bIsRequired			true if the component is required and will always be created even if DoNotCreateDefaultSubobject was sepcified.
+	 * @param bIsRequired			true if the component is required and will always be created even if DoNotCreateDefaultSubobject was specified.
 	 * @param bIsTransient		true if the component is being assigned to a transient property
 	 */
-	UObject* CreateDefaultSubobject(UObject* Outer, FName SubobjectFName, UClass* ReturnType, UClass* ClassToCreateByDefault, bool bIsRequired, bool bAbstract, bool bIsTransient) const;
+	UObject* CreateDefaultSubobject(UObject* Outer, FName SubobjectFName, UClass* ReturnType, UClass* ClassToCreateByDefault, bool bIsRequired, bool bIsTransient) const;
+
+	UE_DEPRECATED(4.23, "CreateDefaultSubobject no longer takes bAbstract as a parameter.")
+	UObject* CreateDefaultSubobject(UObject* Outer, FName SubobjectFName, UClass* ReturnType, UClass* ClassToCreateByDefault, bool bIsRequired, bool bAbstract, bool bIsTransient) const
+	{
+		return CreateDefaultSubobject(Outer, SubobjectFName, ReturnType, ClassToCreateByDefault, bIsRequired, bIsTransient);
+	}
+
 
 	/**
-	 * Sets the class of a subobject for a base class
+	 * Sets the class to use for a subobject defined in a base class, the class must be a subclass of the class used by the base class.
+	 * @param	SubobjectName	name of the new component or subobject
+	 * @param	Class			The class to use for the specified subobject or component.
+	 */
+	FObjectInitializer const& SetDefaultSubobjectClass(FName SubobjectName, UClass* Class) const
+	{
+		AssertIfSubobjectSetupIsNotAllowed(SubobjectName);
+		ComponentOverrides.Add(SubobjectName, Class, *this);
+		return *this;
+	}
+
+	/**
+	 * Sets the class to use for a subobject defined in a base class, the class must be a subclass of the class used by the base class.
 	 * @param	SubobjectName	name of the new component or subobject
 	 */
 	template<class T>
 	FObjectInitializer const& SetDefaultSubobjectClass(FName SubobjectName) const
 	{
-		AssertIfSubobjectSetupIsNotAllowed(*SubobjectName.GetPlainNameString());
-		ComponentOverrides.Add(SubobjectName, T::StaticClass(), *this);
-		return *this;
-	}
-	/**
-	 * Sets the class of a subobject for a base class
-	 * @param	SubobjectName	name of the new component or subobject
-	 */
-	template<class T>
-	FORCEINLINE FObjectInitializer const& SetDefaultSubobjectClass(TCHAR const*SubobjectName) const
-	{
-		AssertIfSubobjectSetupIsNotAllowed(SubobjectName);
-		ComponentOverrides.Add(SubobjectName, T::StaticClass(), *this);
-		return *this;
+		return SetDefaultSubobjectClass(SubobjectName, T::StaticClass());
 	}
 
 	/**
@@ -925,26 +953,10 @@ public:
 	 */
 	FObjectInitializer const& DoNotCreateDefaultSubobject(FName SubobjectName) const
 	{
-		AssertIfSubobjectSetupIsNotAllowed(*SubobjectName.GetPlainNameString());
-		ComponentOverrides.Add(SubobjectName, nullptr, *this);
-		return *this;
-	}
-
-	/**
-	 * Indicates that a base class should not create a component
-	 * @param	ComponentName	name of the new component or subobject to not create
-	 */
-	FORCEINLINE FObjectInitializer const& DoNotCreateDefaultSubobject(TCHAR const*SubobjectName) const
-	{
 		AssertIfSubobjectSetupIsNotAllowed(SubobjectName);
 		ComponentOverrides.Add(SubobjectName, nullptr, *this);
 		return *this;
 	}
-
-	/** 
-	 * Internal use only, checks if the override is legal and if not deal with error messages
-	**/
-	bool IslegalOverride(FName InComponentName, class UClass *DerivedComponentClass, class UClass *BaseComponentClass) const;
 
 	/**
 	 * Asserts with the specified message if code is executed inside UObject constructor
@@ -1011,44 +1023,20 @@ private:
 
 private:
 
-	/**  Littel helper struct to manage overrides from dervied classes **/
+	/**  Little helper struct to manage overrides from derived classes **/
 	struct FOverrides
 	{
 		/**  Add an override, make sure it is legal **/
-		void Add(FName InComponentName, UClass *InComponentClass, FObjectInitializer const& ObjectInitializer)
-		{
-			int32 Index = Find(InComponentName);
-			if (Index == INDEX_NONE)
-			{
-				new (Overrides) FOverride(InComponentName, InComponentClass);
-			}
-			else if (InComponentClass && Overrides[Index].ComponentClass)
-			{
-				ObjectInitializer.IslegalOverride(InComponentName, Overrides[Index].ComponentClass, InComponentClass); // if a base class is asking for an override, the existing override (which we are going to use) had better be derived
-			}
-		}
+		void Add(FName InComponentName, UClass* InComponentClass, FObjectInitializer const& ObjectInitializer);
+
 		/**  Retrieve an override, or TClassToConstructByDefault::StaticClass or nullptr if this was removed by a derived class **/
-		UClass* Get(FName InComponentName, UClass* ReturnType, UClass* ClassToConstructByDefault, FObjectInitializer const& ObjectInitializer)
-		{
-			int32 Index = Find(InComponentName);
-			UClass *BaseComponentClass = ClassToConstructByDefault;
-			if (Index == INDEX_NONE)
-			{
-				return BaseComponentClass; // no override so just do what the base class wanted
-			}
-			else if (Overrides[Index].ComponentClass)
-			{
-				if (ObjectInitializer.IslegalOverride(InComponentName, Overrides[Index].ComponentClass, ReturnType)) // if THE base class is asking for a T, the existing override (which we are going to use) had better be derived
-				{
-					return Overrides[Index].ComponentClass; // the override is of an acceptable class, so use it
-				}
-				// else return nullptr; this is a unacceptable override
-			}
-			return nullptr;  // the override is of nullptr, which means "don't create this component"
-		}
-private:
+		UClass* Get(FName InComponentName, UClass* ReturnType, UClass* ClassToConstructByDefault, FObjectInitializer const& ObjectInitializer) const;
+
+	private:
+		static bool IsLegalOverride(const UClass* DerivedComponentClass, const UClass* BaseComponentClass);
+
 		/**  Search for an override **/
-		int32 Find(FName InComponentName)
+		int32 Find(FName InComponentName) const
 		{
 			for (int32 Index = 0 ; Index < Overrides.Num(); Index++)
 			{
@@ -1063,7 +1051,7 @@ private:
 		struct FOverride
 		{
 			FName	ComponentName;
-			UClass *ComponentClass;
+			UClass* ComponentClass;
 			FOverride(FName InComponentName, UClass *InComponentClass)
 				: ComponentName(InComponentName)
 				, ComponentClass(InComponentClass)
@@ -1073,7 +1061,7 @@ private:
 		/**  The override array **/
 		TArray<FOverride, TInlineAllocator<8> > Overrides;
 	};
-	/**  Littel helper struct to manage overrides from dervied classes **/
+	/**  Little helper struct to manage overrides from derived classes **/
 	struct FSubobjectsToInit
 	{
 		/**  Add a subobject **/
@@ -1101,7 +1089,7 @@ private:
 	};
 
 	/** Asserts if SetDefaultSubobjectClass or DoNotCreateOptionalDefaultSuobject are called inside of the constructor body */
-	void AssertIfSubobjectSetupIsNotAllowed(const TCHAR* SubobjectName) const;
+	void AssertIfSubobjectSetupIsNotAllowed(const FName SubobjectName) const;
 
 	/**  object to initialize, from static allocate object, after construction **/
 	UObject* Obj;
@@ -2647,7 +2635,7 @@ namespace UE4CodeGen_Private
 	#define IF_WITH_EDITORONLY_DATA(x, y) y
 #endif
 
-/** Enum used by UDataValidationManager to see if an asset has been validated for correctness */
+/** Enum used by DataValidation plugin to see if an asset has been validated for correctness */
 enum class EDataValidationResult : uint8
 {
 	/** Asset has failed validation */
@@ -2657,3 +2645,13 @@ enum class EDataValidationResult : uint8
 	/** Asset has not yet been validated */
 	NotValidated
 };
+
+/**
+ * Combines two different data validation results and returns the combined result.
+ *
+ * @param	Result1			One of the data validation results to be combined
+ * @param	Result2			One of the data validation results to be combined
+ *
+ * @return	Returns the combined data validation result
+ */
+COREUOBJECT_API EDataValidationResult CombineDataValidationResults(EDataValidationResult Result1, EDataValidationResult Result2);

@@ -1,10 +1,10 @@
-INTSourceChangelist:4300533
+INTSourceChangelist:6537038
 Availability:Public
 Title: 언리얼 엔진 4.19 릴리즈 노트
 Description: 언리얼 엔진 4.19 릴리즈 노트입니다.
 Crumbs:%ROOT%, Engine
 Parent:Support/Builds
-Order:19
+Order: 25
 reference-image:image_7.gif
 reference-image:image_30.gif
 reference-image:image_43.gif
@@ -298,9 +298,9 @@ DefaultCompletionMode=RestoreState
 
 ![image alt text](image_15.png)(w:441 convert:false)
 
-### 신규 : 프락시 LOD 시스템 (실험단계 기능)
+### 신규 : 프록시 LOD 시스템 (실험단계 기능)
 
-새로운 프락시 LOD 시스템은 다수의 메시에 쓰이는 구운 머티리얼을 가진 로우 폴리 LOD 를 생성하는 실험단계 플러그인입니다. 새로운 시스템은 HLOD에서 사용되며 Simplygon 을 대체합니다.
+새로운 프록시 LOD 시스템은 다수의 메시에 쓰이는 구운 머티리얼을 가진 로우 폴리 LOD 를 생성하는 실험단계 플러그인입니다. 새로운 시스템은 HLOD에서 사용되며 Simplygon 을 대체합니다.
 
 [REGION:note]
 **주** : 현재 Windows 만 지원됩니다.
@@ -311,7 +311,7 @@ DefaultCompletionMode=RestoreState
 ![image alt text](image_16.png)(w:490 convert:false) ![image alt text](image_17.png)(w:490 convert:false)
 
 
-*원본 지오메트리: 지오메트리 11 개, 트라이앵글 38,360 개, 버텍스 27,194 개 | 프락시 LOD 시스템 적용 지오메트리: 지오메트리 1 개, 트라이앵글 8,095 개, 버텍스 5,663 개* 
+*원본 지오메트리: 지오메트리 11 개, 트라이앵글 38,360 개, 버텍스 27,194 개 | 프록시 LOD 시스템 적용 지오메트리: 지오메트리 1 개, 트라이앵글 8,095 개, 버텍스 5,663 개* 
 
 
 
@@ -861,7 +861,7 @@ Xcode 를 사용할 때 자동 코드 사이닝(ACS) 기능이 UE 4.19 에 도�
 
 ### 신규 : Android 4.19 개선 사항
 
-* 프락시 네트워크를 지원합니다.
+* 프록시 네트워크를 지원합니다.
 
 * 기기에서 지원되지 않는 텍스처 형식을 사용하는 모바일 프로젝트에서 실행 중 지원되는 텍스처 형식을 알려주는 새로운 팝업 상자가 추가되었습니다.
 

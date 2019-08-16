@@ -1,0 +1,99 @@
+INTSourceChangelist:6549201
+Availability: Public
+Title: iOS 퀵 스타트
+Description: iOS 디바이스에서 게임을 구성하고 실행하는 방법 안내입니다.
+Type: quick start
+Version: 4.18
+Parent: Platforms/Mobile/iOS
+Tags: mobile
+Tags: iOS
+Tags: StartingOut
+Tags: QuickStart
+topic-image: iOS_QS_Editor_TopicImage.png
+Order: 4
+
+
+[TOC (start:2 end:2)]
+
+![](iOS_QS_Hero_Image.png "iOS_QS_Hero_Image.png")
+
+이 퀵 스타트 가이드는 언리얼 엔진 4 (UE4)를 사용하여 iOS 개발을 위한 컴퓨터 구성의 기본 사항을 안내합니다. 언리얼 에디터의 실행 및 패키징 기능으로 iOS 디바이스에 템플릿 게임을 넣는 방법도 배워 봅니다.
+
+이 퀵 스타트를 마치면 UE4 안에서 다음 작업을 하는 방법을 이해하게 됩니다.  
+
+*   iOS 모바일 개발을 목표로 하는 UE4 프로젝트를 새로 만듭니다.
+
+*   iOS 모바일 개발용 UE4 프로젝트를 구성합니다.
+
+*   하나의 UE4 레벨을 테스트 용으로 iOS 디바이스에 디플로이합니다.
+
+[REGION:warning]
+이 가이드에서 설명하는 PC 전용 워크플로는 순수한 블루프린트 전용 프로젝트가 필요합니다. 프로젝트에 코드를 사용하려면, Mac 이 있어야 코드를 컴파일할 수 있습니다. PC 에서 iOS 용 코드 기반 프로젝트를 개발하는 법은 [](Platforms/Mobile/iOS/Windows) 문서를 참고하세요.
+[/REGION]
+
+## 1 - 프로젝트 구성
+
+여기서는 UE4 프로젝트를 빌드하고 iOS 디바이스에 디플로이할 수 있도록 모바일 프로비전을 임포트하는 법을 다룹니다.
+
+1.  iOS 디바이스가 이미 연결되지 않은 경우 USB 케이블을 통해 컴퓨터에 연결되었는지 확인합니다.
+
+1.  언리얼 에디터에서 **iOSQuickStart** 프로젝트를 엽니다.  
+    ![](open_project.png)
+
+1.  **편집** > **프로젝트 세팅** 에서 프로젝트 세팅을 엽니다.  
+    ![](Provision_01.png)
+
+1.  **플랫폼** > **iOS** 의 **Mobile Provision** 섹션에서 **Import Provision** 버튼을 눌러 프로비전을 임포트한 뒤 **Import Certificate** 에도 똑같이 해줍니다.  
+    ![](Provision_02.png)
+
+1.  구성과 임포트가 제대로 되면 **Status** 에 **Valid** 라는 단어가 보일 것입니다.  
+    ![](Provision_03.png)
+    
+    모바일 프로비전 관련 문제가 있는 경우 문제해결 정보는 공식 [Apple Help](https://help.apple.com/xcode/mac/current/#/devd1432da9a) 페이지를 참고하세요.
+    
+
+## 2 - 디플로이
+
+iOS 기반 디바이스에서 현재 레벨을 테스트하는 방법은 다음과 같습니다.
+
+1.  툴바에서 **실행** 옆 화살표를 클릭하여 **실행 옵션** 메뉴를 열고 **iOS** 디바이스를 선택합니다.
+    
+    ![](launch_ios.png)
+    
+1.  그러면 현재 맵을 사용해서 iOS 쿠킹 프로세스가 시작됩니다. 프로젝트 쿠킹 도중 아래 이미지처럼 UE4 에디터 우하단 구석에 상태창이 표시됩니다.  
+      
+    ![](project_cooking.png)![](project_packaging.png)![](project_deploying.png)
+
+1.  프로젝트 쿠킹이 완료되고 디바이스에 설치되면, 아래와 같은 메시지가 표시됩니다.   
+    ![](project_success.png)
+
+1.  완료되면 iOS 디바이스에서 앱을 찾아 엽니다. 열리면 iOS 디바이스에 다음 이미지와 비슷한 것이 보입니다.  
+    ![](game_device.png)
+
+## 3 - 직접 해보기
+
+UE4 프로젝트 패키지를 만들고 iOS 디바이스에서 테스트할 준비를 마쳤으니, 이 퀵 스타트 가이드에서 배운 내용으로 다음과 같은 작업을 시도해 보세요.  
+
+*   기본 템플릿 중 하나를 사용해서 새 프로젝트를 만들고 iOS 디바이스에서 실행되도록 해보세요.
+
+다음은 UE4 를 지원하는 iOS 디바이스부터 모바일 디바이스를 목표로 한 콘텐츠를 제작할 때 고려해야 할 사항까지 모든 것에 도움이 될 수 있는 섹션 링크입니다. 많은 정보가 들어 있으니 미리 살펴볼 것을 추천합니다.
+
+*   [](Platforms/Mobile/iOS/DeviceCompatibility)
+
+*   [](Platforms/DeviceProfiles)
+
+*   [](Platforms/Mobile/Performance)
+
+모바일 디바이스용 게임 콘텐츠 및 레벨 디자인 관련 자세한 정보는 다음 링크를 참고하세요.  
+
+*   [](Platforms/Mobile/Meshes)
+
+*   [](Platforms/Mobile/Materials)
+
+*   [](Platforms/Mobile/Textures)
+
+*   [](Platforms/Mobile/Lighting)
+
+모바일 프리뷰어를 사용하면 디바이스에 디플로이하지 않고도 모바일 게임 미리보기 방식을 변경할 수 있습니다.  
+
+*   [](Platforms/Mobile/Previewer)

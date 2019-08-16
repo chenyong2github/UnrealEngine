@@ -6,7 +6,7 @@ Description:包含在蓝图样条网格体组件的编辑器中可用的所有�
 Navigation:topic
 parent:Engine/BlueprintSplines
 order:1
-social-image:Splines_social.png
+social-image:Engine/BlueprintSplines/Splines_Social.png
 version:4.13
 type:reference
 tags:Splines
@@ -14,8 +14,6 @@ topic-image:Engine/BlueprintSplines/Splines_topic.png
 
 
 本页面包含了一个在 **蓝图样条网格体组件（Blueprint Spline Mesh Components）** 中可用属性的参考列表。如果在 **蓝图编辑器（Blueprint Editor）** 中选择了 **蓝图样条网格体组件（Blueprint Spline Mesh Component）**，是 **根组件（Root Component）**，或者在 **关卡编辑器（Level Editor）** 中选择了该组件，则显示的属性将略有不同。
-
-(#properties)
 
 ## 属性
 
@@ -26,8 +24,6 @@ topic-image:Engine/BlueprintSplines/Splines_topic.png
 
 
 [EXCERPT:PropStaticMeshCat]
-(#staticmesh)
-
 ### 静态网格体
 
 ![](StaticMeshCatRef.png)
@@ -38,8 +34,6 @@ topic-image:Engine/BlueprintSplines/Splines_topic.png
 | **静态网格体（Static Mesh）** | 指定要为该组件渲染的 **静态网格体（Static Mesh）**。|
 
 [/REGION]
-
-(#materials)
 
 ### 材质
 
@@ -55,8 +49,6 @@ topic-image:Engine/BlueprintSplines/Splines_topic.png
 
 
 [EXCERPT:PropSplineMeshCat]
-(#splinemesh)
-
 ### 样条网格体
 
 ![](SplineMeshCat.png)
@@ -71,8 +63,6 @@ topic-image:Engine/BlueprintSplines/Splines_topic.png
 | **样条向上方向（Spline Up Dir）** | %doxygen:USplineMeshComponent::SplineUpDir% |
 | **前向轴（Forward Axis）** | %doxygen:USplineMeshComponent::ForwardAxis% |
 [/REGION]
-
-(#advanced)
 
 #### 高级
 
@@ -96,8 +86,6 @@ topic-image:Engine/BlueprintSplines/Splines_topic.png
 
 
 [EXCERPT:PropSplineCat]
-(#spline)
-
 ### 样条
 
 ![](BPSM_SplineCatRef.png)
@@ -109,21 +97,15 @@ topic-image:Engine/BlueprintSplines/Splines_topic.png
 [/REGION]
 [/EXCERPT]
 
-(#physics)
-
 ### 物理
 
 [INCLUDE:Engine/Physics/PhysicsBodies/Reference#PropPhysicsCat]
-
-(#collision)
 
 ### 碰撞
 
 [INCLUDE:Engine/Physics/PhysicsBodies/Reference#PropColCat]
 
 [EXCERPT:PropLightingCat]
-(#lighting)
-
 ### 照明
 
 ![](LightingCatRef.png)
@@ -133,8 +115,6 @@ topic-image:Engine/BlueprintSplines/Splines_topic.png
 | --- | :--- |
 | **投射阴影（Cast Shadow）** | %doxygen:UPrimitiveComponent::CastShadow% |
 [/REGION]
-
-(#advanced)
 
 #### 高级
 
@@ -165,8 +145,6 @@ topic-image:Engine/BlueprintSplines/Splines_topic.png
 
 
 [EXCERPT:PropRenderingCat]
-(#rendering)
-
 ### 渲染
 
 ![](RenderingCatRef.png)
@@ -177,8 +155,6 @@ topic-image:Engine/BlueprintSplines/Splines_topic.png
 | **可见（Visible）** | %doxygen:USceneComponent::bVisible% |
 | **隐藏在游戏中（Hidden in Game）** |  %doxygen:USceneComponent::bHiddenInGame%|
 [/REGION]
-
-(#advanced)
 
 #### 高级
 
@@ -244,8 +220,6 @@ topic-image:Engine/BlueprintSplines/Splines_topic.png
 [INCLUDE:Engine/BlueprintSplines/Reference/ComponentProperties#PropEventsCat]
 
 [EXCERPT:PropMobileCat]
-(#mobile)
-
 ### 移动
 
 ![](MobileCatRef.png)

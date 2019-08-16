@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3452211
+﻿INTSourceChangelist:6428568
 Availability: NoPublish
 Title: Windows 안내
 Crumbs: %ROOT%
@@ -8,7 +8,7 @@ parent:GettingStarted
 Order:
 
 [REGION:note]
-계속하기에 앞서 Windows용 Visual Studio 2015 이상 버전이 설치되어 있는지 확인해 주시기 바랍니다.
+계속하기에 앞서 Windows용 Visual Studio 2017 이상 버전이 설치되어 있는지 확인해 주시기 바랍니다.
 [/REGION]
 
 1.	[GitHub for Windows](https://windows.github.com/) 설치 후 [repository 를 fork 및 clone](https://guides.github.com/activities/forking/) 합니다. 
@@ -17,9 +17,9 @@ Order:
 
 	Git 를 사용하지 않으려면, 오른쪽의 'Download ZIP' 버튼으로 소스를 구할 수 있습니다. 내장 Windows zip 유틸리티는 인터넷에서 다운로드한 zip 파일의 내용은 실행하기에 안전하지 않은 것으로 마킹하므로, zip 파일을 우클릭하고 '속성...' 에서 '차단 해제(Unblock)' 한 뒤 압축을 해제해 주세요. 써드 파티 zip 유틸리티는 보통 이런 작업이 필요치 않습니다.
 
-1. 	**Visual Studio 2015** 를 설치합니다. 
+1. 	**Visual Studio 2017** 를 설치합니다. 
    
-	소규모 팀과 인디 개발자들에겐 무료인 [Visual Studio Community 2015](http://www.visualstudio.com/products/visual-studio-community-vs) 포함 모든 Visual Studio 2015 데스크톱 에디션에서 UE4 를 빌드할 수 있습니다.
+	소규모 팀과 인디 개발자들에겐 무료인 [Visual Studio Community 2017](http://www.visualstudio.com/products/visual-studio-community-vs) 포함 모든 Visual Studio 2017 데스크톱 에디션에서 UE4 를 빌드할 수 있습니다.
 	설치 옵션 중 기본으로 꺼진 옵션인 C++ 지원이 포함되어 있는지 확인합니다.
   
 1.	탐색기에서 소스 폴더를 열고 **Setup.bat** 를 실행합니다. 

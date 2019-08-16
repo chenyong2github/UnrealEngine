@@ -1,4 +1,4 @@
-INTSourceChangelist:4476116
+INTSourceChangelist:6536708
 Availability: Public
 Crumbs: 
 Title: Python 을 사용한 에디터 스크립팅
@@ -6,7 +6,7 @@ Description: 언리얼 에디터에서 Python 을 사용하여 콘텐츠 제작 
 Type: 
 Version: 4.20
 Parent: Engine/Editor/ScriptingAndAutomation
-Order: 4
+Order: 1
 Tags: Unreal Studio
 Tags: Datasmith
 Tags: overview

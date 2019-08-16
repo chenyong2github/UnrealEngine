@@ -129,6 +129,8 @@ private:
 
 	double GetTime() const;
 
+	float GetPlayTimeMinDesiredWidth() const;
+
 private:
 	
 	/** Widget where the scene viewport is drawn in */

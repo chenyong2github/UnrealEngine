@@ -3,11 +3,12 @@
 #include "OculusAudioSourceSettings.h"
 
 UOculusAudioSourceSettings::UOculusAudioSourceSettings() :
-     EarlyReflectionsEnabled(true)
-    , AttenuationEnabled(true)
-    , AttenuationRangeMinimum(0.25f)
-    , AttenuationRangeMaximum(250.0f)
-    , VolumetricRadius(0.0f)
+	 EarlyReflectionsEnabled(true)
+	, AttenuationEnabled(true)
+	, AttenuationRangeMinimum(0.25f)
+	, AttenuationRangeMaximum(250.0f)
+	, VolumetricRadius(0.0f)
+	, ReverbSendLevel(0.0f)
 {
 
 }
@@ -15,17 +16,17 @@ UOculusAudioSourceSettings::UOculusAudioSourceSettings() :
 #if WITH_EDITOR
 bool UOculusAudioSourceSettings::CanEditChange(const UProperty* InProperty) const
 {
-    const bool ParentVal = Super::CanEditChange(InProperty);
+	const bool ParentVal = Super::CanEditChange(InProperty);
 
-    if ((InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UOculusAudioSourceSettings, AttenuationRangeMinimum)))
-    {
-        return ParentVal && AttenuationEnabled;
-    }
-    if ((InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UOculusAudioSourceSettings, AttenuationRangeMaximum)))
-    {
-        return ParentVal && AttenuationEnabled;
-    }
+	if ((InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UOculusAudioSourceSettings, AttenuationRangeMinimum)))
+	{
+		return ParentVal && AttenuationEnabled;
+	}
+	if ((InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UOculusAudioSourceSettings, AttenuationRangeMaximum)))
+	{
+		return ParentVal && AttenuationEnabled;
+	}
 
-    return ParentVal;
+	return ParentVal;
 }
 #endif

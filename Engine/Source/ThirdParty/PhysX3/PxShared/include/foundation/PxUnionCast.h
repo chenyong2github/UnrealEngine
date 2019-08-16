@@ -51,7 +51,12 @@ PX_FORCE_INLINE A PxUnionCast(B b)
 		}
 		B _b;
 		A _a;
+// needed for clang 7
+#if PX_CLANG // EPIC CHANGE (Remove PX_LINUX to support other platforms that also use clang).
+	} volatile u(b);
+#else
 	} u(b);
+#endif
 	return u._a;
 }
 

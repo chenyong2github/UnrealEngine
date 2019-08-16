@@ -28,6 +28,8 @@
 #include "HAL/FileManagerGeneric.h"
 #include "HAL/ExceptionHandling.h"
 #include "Stats/StatsMallocProfilerProxy.h"
+#include "Trace/Trace.h"
+#include "ProfilingDebugging/MiscTrace.h"
 #if WITH_ENGINE
 #include "HAL/PlatformSplash.h"
 #endif
@@ -150,6 +152,7 @@
 
 	#include "MoviePlayer.h"
     #include "PreLoadScreenManager.h"
+	#include "InstallBundleManagerInterface.h"
 
 	#include "ShaderCodeLibrary.h"
 	#include "ShaderPipelineCache.h"
@@ -221,6 +224,10 @@ class FFeedbackContext;
 
 #ifndef WITH_CONFIG_PATCHING
 #define WITH_CONFIG_PATCHING 0
+#endif
+
+#if PLATFORM_IOS || PLATFORM_TVOS
+#include "IOS/IOSAppDelegate.h"
 #endif
 
 
@@ -429,7 +436,7 @@ static TUniquePtr<FOutputDeviceTestExit> GScopedTestExit;
 static void RHIExitAndStopRHIThread()
 {
 #if HAS_GPU_STATS
-	FRealtimeGPUProfiler::Get()->Release();
+	FRealtimeGPUProfiler::SafeRelease();
 #endif
 
 	// Stop the RHI Thread (using GRHIThread_InternalUseOnly is unreliable since RT may be stopped)
@@ -884,6 +891,12 @@ void LaunchUpdateMostRecentProjectFile()
 	}
 }
 
+#if WITH_ENGINE
+void OnStartupContentMounted(FInstallBundleResultInfo Result, bool bDumpEarlyConfigReads, bool bDumpEarlyPakFileReads, bool bReloadConfig, bool bForceQuitAfterEarlyReads);
+#endif
+void DumpEarlyReads(bool bDumpEarlyConfigReads, bool bDumpEarlyPakFileReads, bool bForceQuitAfterEarlyReads);
+void HandleConfigReload(bool bReloadConfig);
+
 #if !UE_BUILD_SHIPPING
 class FFileInPakFileHistoryHelper
 {
@@ -1155,6 +1168,11 @@ DECLARE_CYCLE_STAT( TEXT( "FEngineLoop::PreInit.AfterStats" ), STAT_FEngineLoop_
 
 int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 {
+	TRACE_REGISTER_GAME_THREAD(FPlatformTLS::GetCurrentThreadId());
+#if CPUPROFILERTRACE_ENABLED
+	FCpuProfilerTrace::Init(FParse::Param(CmdLine, TEXT("cpuprofilertrace")));
+#endif
+
 	SCOPED_BOOT_TIMING("FEngineLoop::PreInit");
 
 #if PLATFORM_WINDOWS
@@ -1204,6 +1222,27 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 	{
 		// Fail, shipping builds will crash if setting command line fails
 		return -1;
+	}
+
+	{
+		FString TraceHost;
+		if (FParse::Value(CmdLine, TEXT("-tracehost="), TraceHost))
+		{
+			Trace::Connect(*TraceHost);
+		}
+
+#if PLATFORM_WINDOWS && !UE_BUILD_SHIPPING
+		else
+		{
+			// If we can detect a named event then we can try and auto-connect to UnrealInsights.
+			HANDLE KnownEvent = ::OpenEvent(EVENT_ALL_ACCESS, false, TEXT("Local\\UnrealInsightsRecorder"));
+			if (KnownEvent != nullptr)
+			{
+				Trace::Connect(TEXT("127.0.0.1"));
+				::CloseHandle(KnownEvent);
+			}
+		}
+#endif // PLATFORM_WINDOWS
 	}
 
 #if WITH_ENGINE
@@ -1667,7 +1706,8 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 
 	// Some programs might not use the taskgraph or thread pool
 	bool bCreateTaskGraphAndThreadPools = true;
-#if IS_PROGRAM
+	// If STATS is defined (via FORCE_USE_STATS or other), we have to call FTaskGraphInterface::Startup()
+#if IS_PROGRAM && !STATS
 	bCreateTaskGraphAndThreadPools = !FParse::Param(FCommandLine::Get(), TEXT("ReduceThreadUsage"));
 #endif
 	if (bCreateTaskGraphAndThreadPools)
@@ -1696,6 +1736,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 
 	const bool bDumpEarlyConfigReads = FParse::Param(FCommandLine::Get(), TEXT("DumpEarlyConfigReads"));
 	const bool bDumpEarlyPakFileReads = FParse::Param(FCommandLine::Get(), TEXT("DumpEarlyPakFileReads"));
+	const bool bForceQuitAfterEarlyReads = FParse::Param(FCommandLine::Get(), TEXT("ForceQuitAfterEarlyReads"));
 
 	// Overly verbose to avoid a dumb static analysis warning
 #if WITH_CONFIG_PATCHING
@@ -1704,18 +1745,19 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 	constexpr bool bWithConfigPatching = false;
 #endif
 
-	if (bWithConfigPatching)
+	if (bDumpEarlyConfigReads)
+	{
+		RecordConfigReadsFromIni();
+	}
+
+	if (bDumpEarlyPakFileReads)
+	{
+		RecordFileReadsFromPaks();
+	}
+
+	if(bWithConfigPatching)
 	{
 		UE_LOG(LogInit, Verbose, TEXT("Begin recording CVar changes for config patching."));
-
-		if (bDumpEarlyConfigReads)
-		{
-			RecordConfigReadsFromIni();
-		}
-		if (bDumpEarlyPakFileReads)
-		{
-			RecordFileReadsFromPaks();
-		}
 
 		RecordApplyCVarSettingsFromIni();
 	}
@@ -1763,6 +1805,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 
 
 		{
+			TRACE_THREAD_GROUP_SCOPE("ThreadPool");
 			GThreadPool = FQueuedThreadPool::Allocate();
 			int32 NumThreadsInThreadPool = FPlatformMisc::NumberOfWorkerThreadsToSpawn();
 
@@ -1774,6 +1817,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 			verify(GThreadPool->Create(NumThreadsInThreadPool, StackSize * 1024, TPri_SlightlyBelowNormal));
 		}
 		{
+			TRACE_THREAD_GROUP_SCOPE("BackgroundThreadPool");
 			GBackgroundPriorityThreadPool = FQueuedThreadPool::Allocate();
 			int32 NumThreadsInThreadPool = 2;
 			if (FPlatformProperties::IsServerOnly())
@@ -1785,12 +1829,15 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 		}
 
 #if WITH_EDITOR
-		// when we are in the editor we like to do things like build lighting and such
-		// this thread pool can be used for those purposes
-		GLargeThreadPool = FQueuedThreadPool::Allocate();
-		int32 NumThreadsInLargeThreadPool = FMath::Max(FPlatformMisc::NumberOfCoresIncludingHyperthreads() - 2, 2);
+		{
+			TRACE_THREAD_GROUP_SCOPE("LargeThreadPool");
+			// when we are in the editor we like to do things like build lighting and such
+			// this thread pool can be used for those purposes
+			GLargeThreadPool = FQueuedThreadPool::Allocate();
+			int32 NumThreadsInLargeThreadPool = FMath::Max(FPlatformMisc::NumberOfCoresIncludingHyperthreads() - 2, 2);
 
-		verify(GLargeThreadPool->Create(NumThreadsInLargeThreadPool, 128 * 1024));
+			verify(GLargeThreadPool->Create(NumThreadsInLargeThreadPool, 128 * 1024));
+		}
 #endif
 	}
 
@@ -1840,6 +1887,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 	if (FPlatformProcess::SupportsMultithreading())
 	{
 		{
+			TRACE_THREAD_GROUP_SCOPE("IOThreadPool");
 			SCOPED_BOOT_TIMING("GIOThreadPool->Create");
 			GIOThreadPool = FQueuedThreadPool::Allocate();
 			int32 NumThreadsInThreadPool = FPlatformMisc::NumberOfIOWorkerThreadsToSpawn();
@@ -2342,16 +2390,14 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 					return 1;
 				}
 			}
-
-			if (bWithConfigPatching)
+			
+			IInstallBundleManager* BundleManager = IInstallBundleManager::GetPlatformInstallBundleManager();
+			if (BundleManager != nullptr && !BundleManager->IsNullInterface())
 			{
-				IPlatformInstallBundleManager* BundleManager = FPlatformMisc::GetPlatformInstallBundleManager();
-				if (BundleManager != nullptr && !BundleManager->IsNullInterface())
-				{
-					IPlatformInstallBundleManager::InstallBundleCompleteDelegate.AddRaw(this, &FEngineLoop::OnStartupContentMounted, bDumpEarlyConfigReads, bDumpEarlyPakFileReads);
-				}
-				// If not using the bundle manager, config will be reloaded after ESP, see below
+				IInstallBundleManager::InstallBundleCompleteDelegate.AddStatic(
+					&OnStartupContentMounted, bDumpEarlyConfigReads, bDumpEarlyPakFileReads, bWithConfigPatching, bForceQuitAfterEarlyReads);
 			}
+			// If not using the bundle manager, config will be reloaded after ESP, see below
 
 			if (GetMoviePlayer()->HasEarlyStartupMovie())
 			{
@@ -2435,7 +2481,12 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 					if (FPreLoadScreenManager::Get()->HasRegisteredPreLoadScreenType(EPreLoadScreenTypes::EarlyStartupScreen))
 					{
 						// disable the splash before playing the early startup screen
-						FPlatformMisc::PlatformHandleSplashScreen(false);
+						FPreLoadScreenManager::IsResponsibleForRenderingDelegate.AddLambda(
+							[](bool bIsPreloadScreenManResponsibleForRendering) 
+							{
+								FPlatformMisc::PlatformHandleSplashScreen(!bIsPreloadScreenManResponsibleForRendering);
+							}
+						);
 	                    FPreLoadScreenManager::Get()->PlayFirstPreLoadScreen(EPreLoadScreenTypes::EarlyStartupScreen);
 	                }
 					else
@@ -2460,11 +2511,11 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 
 		//Now that our EarlyStartupScreen is finished, lets take the necessary steps to mount paks, apply .ini cvars, and open the shader libraries if we installed content we expect to handle
 		//If using a bundle manager, assume its handling all this stuff and that we don't have to do it.
-		IPlatformInstallBundleManager* BundleManager = FPlatformMisc::GetPlatformInstallBundleManager();
+		IInstallBundleManager* BundleManager = IInstallBundleManager::GetPlatformInstallBundleManager();
 		if (BundleManager == nullptr || BundleManager->IsNullInterface())
 		{
 			// Mount Paks that were installed during EarlyStartupScreen
-			if (FCoreDelegates::OnMountAllPakFiles.IsBound() )
+			if (FCoreDelegates::OnMountAllPakFiles.IsBound() && FPaths::HasProjectPersistentDownloadDir() )
 			{
 				SCOPED_BOOT_TIMING("MountPaksAfterEarlyStartupScreen");
 
@@ -2476,12 +2527,13 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 				FCoreDelegates::OnMountAllPakFiles.Execute(PakFolders);
 			}
 
+			DumpEarlyReads(bDumpEarlyConfigReads, bDumpEarlyPakFileReads, bForceQuitAfterEarlyReads);
+
 			//Reapply CVars after our EarlyLoadScreen
 			if(bWithConfigPatching)
 			{
 				SCOPED_BOOT_TIMING("ReapplyCVarsFromIniAfterEarlyStartupScreen");
-
-				HandleConfigReload(bDumpEarlyConfigReads, bDumpEarlyPakFileReads);
+				HandleConfigReload(bWithConfigPatching);
 			}
 
 			//Handle opening shader library after our EarlyLoadScreen
@@ -3182,8 +3234,9 @@ bool FEngineLoop::LoadStartupCoreModules()
 
 	SlowTask.EnterProgressFrame(10);
 #if WITH_EDITOR
-		FModuleManager::Get().LoadModuleChecked("UnrealEd");
-		FModuleManager::LoadModuleChecked<IEditorStyleModule>("EditorStyle");
+	FModuleManager::Get().LoadModuleChecked("UnrealEd");
+	FModuleManager::LoadModuleChecked<IEditorStyleModule>("EditorStyle");
+	FModuleManager::Get().LoadModuleChecked("LandscapeEditorUtilities");
 #endif //WITH_EDITOR
 
 	// Load UI modules
@@ -3268,7 +3321,6 @@ bool FEngineLoop::LoadStartupCoreModules()
 		FModuleManager::Get().LoadModule(TEXT("Blutility"));
 	}
 
-	//FModuleManager::Get().LoadModule(TEXT("VirtualTexturingEditor"));
 #endif //(WITH_EDITOR && !(UE_BUILD_SHIPPING || UE_BUILD_TEST))
 
 #if WITH_ENGINE
@@ -3574,11 +3626,12 @@ int32 FEngineLoop::Init()
 void FEngineLoop::Exit()
 {
 	STAT_ADD_CUSTOMMESSAGE_NAME( STAT_NamedMarker, TEXT( "EngineLoop.Exit" ) );
+	TRACE_BOOKMARK(TEXT("EngineLoop.Exit"));
 
 	GIsRunning	= 0;
 	GLogConsole	= nullptr;
 
-	IPlatformInstallBundleManager::InstallBundleCompleteDelegate.RemoveAll(this);
+	IInstallBundleManager::InstallBundleCompleteDelegate.RemoveAll(this);
 
 	// shutdown visual logger and flush all data
 #if ENABLE_VISUAL_LOG
@@ -3655,15 +3708,6 @@ void FEngineLoop::Exit()
 	// Stop the rendering thread.
 	StopRenderingThread();
 
-	// Disable the PSO cache
-	FShaderPipelineCache::Shutdown();
-
-	// Close shader code map, if any
-	FShaderCodeLibrary::Shutdown();
-
-	// Tear down the RHI.
-	RHIExitAndStopRHIThread();
-
 #if !PLATFORM_ANDROID || PLATFORM_LUMIN // UnloadModules doesn't work on Android
 #if WITH_ENGINE
 	// Save the hot reload state
@@ -3679,6 +3723,15 @@ void FEngineLoop::Exit()
 	// order they were loaded in, so that systems can unregister and perform general clean up.
 	FModuleManager::Get().UnloadModulesAtShutdown();
 #endif // !ANDROID
+
+	// Disable the PSO cache
+	FShaderPipelineCache::Shutdown();
+
+	// Close shader code map, if any
+	FShaderCodeLibrary::Shutdown();
+
+	// Tear down the RHI.
+	RHIExitAndStopRHIThread();
 
 	DestroyMoviePlayer();
 
@@ -3735,17 +3788,20 @@ void FEngineLoop::ProcessLocalPlayerSlateOperations() const
 	}
 }
 
-void FEngineLoop::OnStartupContentMounted(FInstallBundleResultInfo Result, bool bDumpEarlyConfigReads, bool bDumpEarlyPakFileReads)
+#if WITH_ENGINE
+void OnStartupContentMounted(FInstallBundleResultInfo Result, bool bDumpEarlyConfigReads, bool bDumpEarlyPakFileReads, bool bReloadConfig, bool bForceQuitAfterEarlyReads)
 {
 	if (Result.bIsStartup && Result.Result == EInstallBundleResult::OK)
 	{
-		HandleConfigReload(bDumpEarlyConfigReads, bDumpEarlyPakFileReads);
+		DumpEarlyReads(bDumpEarlyConfigReads, bDumpEarlyPakFileReads, bForceQuitAfterEarlyReads);
+		HandleConfigReload(bReloadConfig);
 
-		IPlatformInstallBundleManager::InstallBundleCompleteDelegate.RemoveAll(this);
+		IInstallBundleManager::InstallBundleCompleteDelegate.RemoveAll(&GEngineLoop);
 	}
 }
+#endif
 
-void FEngineLoop::HandleConfigReload(bool bDumpEarlyConfigReads, bool bDumpEarlyPakFileReads)
+void DumpEarlyReads(bool bDumpEarlyConfigReads, bool bDumpEarlyPakFileReads, bool bForceQuitAfterEarlyReads)
 {
 	if (bDumpEarlyConfigReads)
 	{
@@ -3759,8 +3815,19 @@ void FEngineLoop::HandleConfigReload(bool bDumpEarlyConfigReads, bool bDumpEarly
 		DeleteRecordedFileReadsFromPaks();
 	}
 
-	ReapplyRecordedCVarSettingsFromIni();
-	DeleteRecordedCVarSettingsFromIni();
+	if (bForceQuitAfterEarlyReads)
+	{
+		GEngine->DeferredCommands.Emplace(TEXT("Quit force"));
+	}
+}
+
+void HandleConfigReload(bool bReloadConfig)
+{
+	if (bReloadConfig)
+	{
+		ReapplyRecordedCVarSettingsFromIni();
+		DeleteRecordedCVarSettingsFromIni();
+	}
 }
 
 bool FEngineLoop::ShouldUseIdleMode() const
@@ -3924,6 +3991,7 @@ uint64 FScopedSampleMallocChurn::DumpFrame = 0;
 
 static inline void BeginFrameRenderThread(FRHICommandListImmediate& RHICmdList, uint64 CurrentFrameCounter)
 {
+	TRACE_BEGIN_FRAME(TraceFrameType_Rendering);
 	GRHICommandList.LatchBypass();
 	GFrameNumberRenderThread++;
 
@@ -3965,6 +4033,7 @@ static inline void EndFrameRenderThread(FRHICommandListImmediate& RHICmdList)
 	FPlatformMisc::EndNamedEvent();
 #endif
 #endif // !UE_BUILD_SHIPPING 
+	TRACE_END_FRAME(TraceFrameType_Rendering);
 }
 
 #if BUILD_EMBEDDED_APP
@@ -4023,6 +4092,8 @@ void FEngineLoop::Tick()
 	}
 
 	{
+		TRACE_BEGIN_FRAME(TraceFrameType_Game);
+
 		SCOPE_CYCLE_COUNTER(STAT_FrameTime);
 
 		#if WITH_PROFILEGPU && !UE_BUILD_SHIPPING
@@ -4452,6 +4523,7 @@ void FEngineLoop::Tick()
 #if UE_GC_TRACK_OBJ_AVAILABLE
 		SET_DWORD_STAT(STAT_Hash_NumObjects, GUObjectArray.GetObjectArrayNumMinusAvailable());
 #endif
+		TRACE_END_FRAME(TraceFrameType_Game);
 	}
 
 #if BUILD_EMBEDDED_APP
@@ -4841,6 +4913,12 @@ bool FEngineLoop::AppInit( )
 	// Put the command line and config info into the suppression system (before plugins start loading)
 	FLogSuppressionInterface::Get().ProcessConfigAndCommandLine();
 
+#if PLATFORM_IOS || PLATFORM_TVOS
+	// Now that the config system is ready, init the audio system.
+	[[IOSAppDelegate GetDelegate] InitializeAudioSession];
+#endif
+
+	
 	// NOTE: This is the earliest place to init the online subsystems (via plugins)
 	// Code needs GConfigFile to be valid
 	// Must be after FThreadStats::StartThread();
@@ -5029,6 +5107,8 @@ void FEngineLoop::AppPreExit( )
 		GShaderCompilingManager = nullptr;
 	}
 #endif
+
+	Trace::Flush();
 }
 
 

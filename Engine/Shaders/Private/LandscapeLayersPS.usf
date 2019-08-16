@@ -19,6 +19,13 @@ float ExtractHeight(float2 InPackedHeight)
 	return float(((int)round(InPackedHeight.r * 255.0) << 8) | (int)round(InPackedHeight.g * 255.0));
 }
 
+float ExtractAlpha(float2 InPackedAlpha)
+{
+	int AlphaWithFlags = ((int)round(InPackedAlpha.r * 255.0) << 8) | (int)round(InPackedAlpha.g * 255.0);
+	int Alpha = AlphaWithFlags & 0xFFFC; // Last 2 bits are used to store lower/raise flags
+	return float(Alpha) / 65532.0; // 0xFFFC in float
+}
+
 float2 PackHeight(float InExtractedHeight)
 {
 	InExtractedHeight = clamp(InExtractedHeight, 0.0f, 65535.0f);
@@ -71,7 +78,7 @@ void PSHeightmapMain(float2 InTextureCoordinates : TEXCOORD0, out float4 OutColo
 		if (LayerBlendMode == 1 && LayerVisibility == 1)
 		{
 			// Alpha Blend Mode
-			float HeightAlphaBlend = SourceColor.b;
+			float HeightAlphaBlend = ExtractAlpha(SourceColor.ba);
 			float NewHeight = Height + (HeightAlphaBlend * BaseHeight);
 			uint RaiseLower = floor(SourceColor.a * 255.f + 0.5f);
 			bool bLowerTerrain = (RaiseLower & 1);
@@ -339,6 +346,15 @@ void PSHeightmapMainMips(float2 InTextureCoordinates : TEXCOORD0, out float4 Out
 }
 
 float4 WeightmapLayerWeightBlend; // each xyzw == 1 texture channel
+
+void PSWeightmapConvertFormat(float2 InTextureCoordinates : TEXCOORD0, out float4 OutColor : SV_Target0)
+{
+	uint SourceColor = asuint(ReadTexture1.SampleLevel(ReadTexture1Sampler, InTextureCoordinates, 0).r);
+	OutColor.b = float((SourceColor >> 24) & 0x000000FF) / 255.0;
+	OutColor.g = float((SourceColor >> 16) & 0x000000FF) / 255.0;
+	OutColor.r = float((SourceColor >> 8)  & 0x000000FF) / 255.0;
+	OutColor.a = float(SourceColor & 0x000000FF) / 255.0;
+}
 
 void PSWeightmapMain(float2 InTextureCoordinates : TEXCOORD0, out float4 OutColor : SV_Target0)
 {

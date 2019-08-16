@@ -99,112 +99,6 @@ void UAnimGraphNode_CustomProperty::ReallocatePinsDuringReconstruction(TArray<UE
 	}
 }
 
-void UAnimGraphNode_CustomProperty::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
-{
-	Super::CustomizeDetails(DetailBuilder);
-
-	// We dont allow multi-select here
-	if(DetailBuilder.GetSelectedObjects().Num() > 1)
-	{
-		DetailBuilder.HideCategory(TEXT("Settings"));
-		return;
-	}
-
-	TArray<UProperty*> ExposableProperties;
-	GetExposableProperties(ExposableProperties);
-
-	if(ExposableProperties.Num() > 0)
-	{
-		IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory(FName(TEXT("Exposable Properties")));
-
-		FDetailWidgetRow& HeaderWidgetRow = CategoryBuilder.AddCustomRow(LOCTEXT("ExposeAll", "Expose All"));
-		
-		HeaderWidgetRow.NameContent()
-		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("PropertyName", "Name"))
-			.Font(IDetailLayoutBuilder::GetDetailFontBold())
-		];
-
-		HeaderWidgetRow.ValueContent()
-		[
-			SNew(SHorizontalBox)
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("ExposeAllPropertyValue", "Expose All"))
-				.Font(IDetailLayoutBuilder::GetDetailFontBold())
-			]
-			+SHorizontalBox::Slot()
-			.FillWidth(1.0f)
-			.HAlign(HAlign_Right)
-			.VAlign(VAlign_Center)
-			[
-				SNew(SCheckBox)
-				.IsChecked_UObject(this, &UAnimGraphNode_CustomProperty::AreAllPropertiesExposed)
-				.OnCheckStateChanged_UObject(this, &UAnimGraphNode_CustomProperty::OnPropertyExposeAllCheckboxChanged)
-			]
-		];
-
-		for(UProperty* Property : ExposableProperties)
-		{
-			FDetailWidgetRow& PropertyWidgetRow = CategoryBuilder.AddCustomRow(FText::FromString(Property->GetName()));
-
-			FName PropertyName = Property->GetFName();
-			FText PropertyTypeText = GetPropertyTypeText(Property);
-
-			FFormatNamedArguments Args;
-			Args.Add(TEXT("PropertyName"), FText::FromName(PropertyName));
-			Args.Add(TEXT("PropertyType"), PropertyTypeText);
-
-			FText TooltipText = FText::Format(LOCTEXT("PropertyTooltipText", "{PropertyName}\nType: {PropertyType}"), Args);
-
-			PropertyWidgetRow.NameContent()
-			[
-				SNew(STextBlock)
-				.Text(FText::FromString(Property->GetName()))
-				.ToolTipText(TooltipText)
-				.Font(IDetailLayoutBuilder::GetDetailFont())
-			];
-
-			PropertyWidgetRow.ValueContent()
-			[
-				SNew(SHorizontalBox)
-				+SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
-				.AutoWidth()
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("ExposePropertyValue", "Expose:"))
-					.Font(IDetailLayoutBuilder::GetDetailFont())
-				]
-				+SHorizontalBox::Slot()
-				.FillWidth(1.0f)
-				.HAlign(HAlign_Right)
-				.VAlign(VAlign_Center)
-				[
-					SNew(SCheckBox)
-					.IsChecked_UObject(this, &UAnimGraphNode_CustomProperty::IsPropertyExposed, PropertyName)
-					.OnCheckStateChanged_UObject(this, &UAnimGraphNode_CustomProperty::OnPropertyExposeCheckboxChanged, PropertyName)
-				]
-			];
-		}
-	}
-
-	IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory(FName(TEXT("Settings")));
-
-	// Customize InstanceClass
-	{
-		TSharedRef<IPropertyHandle> ClassHandle = DetailBuilder.GetProperty(TEXT("Node.InstanceClass"), GetClass());
-		if(ClassHandle->IsValidHandle())
-		{
-			ClassHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateUObject(this, &UAnimGraphNode_CustomProperty::OnStructuralPropertyChanged, &DetailBuilder));
-		}
-	}
-}
-
 void UAnimGraphNode_CustomProperty::GetInstancePinProperty(const UClass* InOwnerInstanceClass, UEdGraphPin* InInputPin, UProperty*& OutProperty)
 {
 	// The actual name of the instance property
@@ -346,6 +240,22 @@ bool UAnimGraphNode_CustomProperty::HasExternalDependencies(TArray<class UStruct
 
 	bool bSuperResult = Super::HasExternalDependencies(OptionalOutput);
 	return InstanceClassToUse || bSuperResult;
+}
+
+void UAnimGraphNode_CustomProperty::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+{
+	Super::CustomizeDetails(DetailBuilder);
+
+	IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory(FName(TEXT("Settings")));
+
+	// Customize InstanceClass
+	{
+		TSharedRef<IPropertyHandle> ClassHandle = DetailBuilder.GetProperty(TEXT("Node.InstanceClass"), GetClass());
+		if (ClassHandle->IsValidHandle())
+		{
+			ClassHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateUObject(this, &UAnimGraphNode_CustomProperty::OnStructuralPropertyChanged, &DetailBuilder));
+		}
+	}
 }
 
 void UAnimGraphNode_CustomProperty::GetExposableProperties( TArray<UProperty*>& OutExposableProperties) const

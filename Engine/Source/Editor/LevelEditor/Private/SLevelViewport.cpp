@@ -187,7 +187,21 @@ void SLevelViewport::Construct(const FArguments& InArgs)
 
 	ConstructLevelEditorViewportClient( InArgs );
 
-	SEditorViewport::Construct( SEditorViewport::FArguments() );
+	SEditorViewport::Construct(SEditorViewport::FArguments()
+		.ViewportSize(MakeAttributeSP(this, &SLevelViewport::GetSViewportSize))
+		);
+	TSharedRef<SWidget> EditorViewportWidget = ChildSlot.GetChildAt(0);
+	ChildSlot
+	[
+		SNew(SScaleBox)
+		.Stretch(this, &SLevelViewport::OnGetScaleBoxStretch)
+		.HAlign(EHorizontalAlignment::HAlign_Center)
+		.VAlign(EVerticalAlignment::VAlign_Center)
+		.StretchDirection(EStretchDirection::Both)
+		[
+			EditorViewportWidget
+		]
+	];
 
 	ActiveViewport = SceneViewport;
 
@@ -295,12 +309,12 @@ void SLevelViewport::ConstructViewportOverlayContent()
 		.AutoHeight()
 		.Padding(2.0f, 1.0f, 2.0f, 1.0f)
 		[
-			SNew(SHorizontalBox)
+			SNew(SVerticalBox)
 			.Visibility(this, &SLevelViewport::GetSelectedActorsCurrentLevelTextVisibility)
 			// Current level label
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(2.0f, 1.0f, 2.0f, 1.0f)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(6.0f, 1.0f, 2.0f, 1.0f)
 			[
 				SNew(STextBlock)
 				.Text(this, &SLevelViewport::GetSelectedActorsCurrentLevelText, true)
@@ -308,9 +322,9 @@ void SLevelViewport::ConstructViewportOverlayContent()
 				.ShadowOffset(FVector2D(1, 1))
 			]
 			// Current level
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(4.0f, 1.0f, 2.0f, 1.0f)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(6.0f, 1.0f, 2.0f, 1.0f)
 			[
 				SNew(STextBlock)
 				.Text(this, &SLevelViewport::GetSelectedActorsCurrentLevelText, false)
@@ -333,7 +347,7 @@ void SLevelViewport::ConstructViewportOverlayContent()
 				.VAlign(VAlign_Center)
 				.ButtonStyle(FEditorStyle::Get(), "EditorViewportToolBar.MenuButton")
 				.OnClicked(this, &SLevelViewport::OnMenuClicked)
-				.Visibility(this, &SLevelViewport::GetCurrentLevelTextVisibility)
+				.Visibility(this, &SLevelViewport::GetCurrentLevelButtonVisibility)
 				[
 					SNew(SHorizontalBox)
 					.Visibility(this, &SLevelViewport::GetCurrentLevelTextVisibility)
@@ -497,6 +511,7 @@ void SLevelViewport::ConstructLevelEditorViewportClient( const FArguments& InArg
 	LevelViewportClient->EngineShowFlags = EditorShowFlags;
 	LevelViewportClient->LastEngineShowFlags = GameShowFlags;
 	LevelViewportClient->CurrentBufferVisualizationMode = ViewportInstanceSettings.BufferVisualizationMode;
+	LevelViewportClient->CurrentRayTracingDebugVisualizationMode = ViewportInstanceSettings.RayTracingDebugVisualizationMode;
 	LevelViewportClient->ExposureSettings = ViewportInstanceSettings.ExposureSettings;
 	if(InArgs._ViewportType == LVT_Perspective)
 	{
@@ -558,6 +573,27 @@ void SLevelViewport::TransitionFromPIE(bool bIsSimulating)
 			ActorPreview.LevelViewportClient->SetIsSimulateInEditorViewport(false);
 		}
 	}
+}
+
+EStretch::Type SLevelViewport::OnGetScaleBoxStretch() const
+{
+	FSceneViewport* GameSceneViewport = GetGameSceneViewport();
+	if (GameSceneViewport && GameSceneViewport->HasFixedSize())
+	{
+		return EStretch::ScaleToFit;
+	}
+	return EStretch::Fill;
+}
+
+FVector2D SLevelViewport::GetSViewportSize() const
+{
+	FSceneViewport* GameSceneViewport = GetGameSceneViewport();
+	if (GameSceneViewport && GameSceneViewport->HasFixedSize())
+	{
+		return GameSceneViewport->GetSize();
+	}
+
+	return SViewport::FArguments::GetDefaultViewportSize();
 }
 
 FReply SLevelViewport::OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent )
@@ -1297,6 +1333,12 @@ void SLevelViewport::BindOptionCommands( FUICommandList& OutCommandList )
 		{
 			DisplayName = FName(*DisplayName.ToString().LeftChop(2));
 		}
+
+		UClass* CameraClass = FindObject<UClass>(ANY_PACKAGE, *Name.ToString());
+		if (!CameraClass || CameraClass->HasAllClassFlags(CLASS_Abstract))
+		{
+			continue;
+		}
 		
 		// Look for existing UI Command info so one isn't created for every viewport
 		TSharedPtr<FUICommandInfo> * FoundCamera = FLevelViewportCommands::Get().CreateCameras.FindByPredicate([Name](TSharedPtr<FUICommandInfo> Camera) { return Camera->GetCommandName() == Name; });
@@ -1305,7 +1347,7 @@ void SLevelViewport::BindOptionCommands( FUICommandList& OutCommandList )
 		{
 			OutCommandList.MapAction(
 				*FoundCamera,
-				FExecuteAction::CreateSP(this, &SLevelViewport::OnCreateCameraActor, FindObject<UClass>(ANY_PACKAGE, *Name.ToString()))
+				FExecuteAction::CreateSP(this, &SLevelViewport::OnCreateCameraActor, CameraClass)
 			);
 		}
 		else
@@ -1315,7 +1357,7 @@ void SLevelViewport::BindOptionCommands( FUICommandList& OutCommandList )
 			
 			OutCommandList.MapAction(
 				NewCamera,
-				FExecuteAction::CreateSP(this, &SLevelViewport::OnCreateCameraActor, FindObject<UClass>(ANY_PACKAGE, *Name.ToString()))
+				FExecuteAction::CreateSP(this, &SLevelViewport::OnCreateCameraActor, CameraClass)
 			);
 			
 			FLevelViewportCommands::Get().CreateCameras.Add(NewCamera);
@@ -2148,6 +2190,7 @@ void SLevelViewport::SaveConfig(const FString& ConfigName) const
 		ViewportInstanceSettings.EditorShowFlagsString = EditorShowFlagsToSave.ToString();
 		ViewportInstanceSettings.GameShowFlagsString = GameShowFlagsToSave.ToString();
 		ViewportInstanceSettings.BufferVisualizationMode = LevelViewportClient->CurrentBufferVisualizationMode;
+		ViewportInstanceSettings.RayTracingDebugVisualizationMode = LevelViewportClient->CurrentRayTracingDebugVisualizationMode;
 		ViewportInstanceSettings.ExposureSettings = LevelViewportClient->ExposureSettings;
 		ViewportInstanceSettings.FOVAngle = LevelViewportClient->FOVAngle;
 		if (!FPlatformMisc::IsRemoteSession())
@@ -3566,7 +3609,20 @@ EVisibility SLevelViewport::GetCurrentLevelTextVisibility() const
 	{
 		ContentVisibility = EVisibility::SelfHitTestInvisible;
 	}
-	return (&GetLevelViewportClient() == GCurrentLevelEditingViewportClient) && !IsPlayInEditorViewportActive() ? ContentVisibility : EVisibility::Collapsed;
+	return (&GetLevelViewportClient() == GCurrentLevelEditingViewportClient) 
+		&& !IsPlayInEditorViewportActive() 
+		&& GetWorld() && GetWorld()->GetCurrentLevel()->OwningWorld->GetLevels().Num() > 1
+		?  ContentVisibility : EVisibility::Collapsed;
+}
+
+EVisibility SLevelViewport::GetCurrentLevelButtonVisibility() const
+{
+	EVisibility TextVisibility = GetCurrentLevelTextVisibility();
+	if (TextVisibility == EVisibility::SelfHitTestInvisible)
+	{
+		TextVisibility = EVisibility::Visible;
+	}
+	return TextVisibility;
 }
 
 EVisibility SLevelViewport::GetSelectedActorsCurrentLevelTextVisibility() const
@@ -3576,7 +3632,11 @@ EVisibility SLevelViewport::GetSelectedActorsCurrentLevelTextVisibility() const
 	{
 		ContentVisibility = EVisibility::SelfHitTestInvisible;
 	}
-	return (&GetLevelViewportClient() == GCurrentLevelEditingViewportClient) && (GEditor->GetSelectedActorCount() > 0) && !IsPlayInEditorViewportActive() ? ContentVisibility : EVisibility::Collapsed;
+	return (&GetLevelViewportClient() == GCurrentLevelEditingViewportClient) 
+		&& (GEditor->GetSelectedActorCount() > 0) 
+		&& !IsPlayInEditorViewportActive() 
+		&& GetWorld() && GetWorld()->GetCurrentLevel()->OwningWorld->GetLevels().Num() > 1
+		? ContentVisibility : EVisibility::Collapsed;
 }
 
 FText SLevelViewport::GetSelectedActorsCurrentLevelText(bool bDrawOnlyLabel) const

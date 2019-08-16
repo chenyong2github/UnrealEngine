@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4649792
+﻿INTSourceChangelist:6411601
 Crumbs:%ROOT%
 Title: 载具质量重心
 Description: 概述载具的质量重心运作机制。
@@ -6,7 +6,7 @@ Availability:public
 Type: Reference
 Version: 4.15
 Parent: Engine/Physics/Vehicles/
-Order: 
+Order: 1
 Tags: Vehicles
 
 
@@ -14,7 +14,7 @@ Tags: Vehicles
 
 载具的重量分布对载具操控十分重要，因为它能影响载具的各种特性，例如操纵、加速和牵引。不同的载具类型根据用途的不同重量分布也不相同。在游戏开发中，这些特性还可以定义游戏的风格：街机风格的竞速游戏、模拟游戏，或者两者结合的游戏。通过改变 **质量重心（Center of Mass）**，你可以改变载具的重量分布。
 
-在游戏中，质量重心主要用于载具，但也可用于封装不规则形状的大型物理形体。在[物理资源](Engine/Physics/PhAT)中，通常会使用一个大型物理形体来定义载具（或大型物体）的大部分质量。该物理形体的中心将生成质量重心，这可能会使载具的操纵显得很奇怪，因此你可以调整质量重心以找到载具质量的合适位置。 
+在游戏中，质量重心主要用于载具，但也可用于封装不规则形状的大型物理形体。在[物理资源](Engine/Physics/PhysicsAssetEditor)中，通常会使用一个大型物理形体来定义载具（或大型物体）的大部分质量。该物理形体的中心将生成质量重心，这可能会使载具的操纵显得很奇怪，因此你可以调整质量重心以找到载具质量的合适位置。 
 
 [![](CenterofMass.png)(w:400)](CenterofMass.png)
 

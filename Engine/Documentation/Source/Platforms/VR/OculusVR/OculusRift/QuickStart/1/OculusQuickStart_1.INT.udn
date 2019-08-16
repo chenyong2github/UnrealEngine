@@ -1,0 +1,23 @@
+Availability: Docs
+Crumbs: %ROOT%
+Title: 1. Download Oculus Runtime
+Description: Where to download  the Oculus Rift runtime
+Type:quick start
+SkillLevel:Beginner
+Version:4.17
+Parent:Platforms/VR/OculusVR/OculusRift/QuickStart
+Order: 1
+Checkpoint:RIFTQS
+Tags:Oculus Rift
+Tags:VR
+
+[NAV]
+
+In this section we will go over where to download the latest Oculus runtimes that are compatible with Unreal Engine 4.
+
+1. Visit the [Oculus Setup page](https://www.oculus.com/en-us/setup/) and download the Oculus runtimes by clicking on the **Start  Download** button in the center of the page.
+
+	![](OR_Download_Runtimes_00.png)
+
+
+[NAV]

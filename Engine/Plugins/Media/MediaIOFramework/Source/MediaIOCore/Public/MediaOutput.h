@@ -20,6 +20,7 @@ enum class EMediaCaptureConversionOperation : int8
 	RGB10_TO_YUVv210_10BIT,
 	INVERT_ALPHA,
 	SET_ALPHA_ONE,
+	CUSTOM, //~ If Custom used, OnCustomCapture_RenderingThread, GetCustomOutputSize and GetCustomOutputPixelFormat on the MediaCapture need to be implemented
 };
 
 enum class EMediaCaptureSourceType : int8
@@ -46,7 +47,7 @@ public:
 	 * A bigger number is most likely to increase latency.
 	 * @note Some Capture are not are executed on the GPU. If it's the case then no buffer will be needed and no buffer will be created.
 	 */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category="Output", meta=(ClampMin=1, ClampMax=4))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category="Output", meta=(ClampMin=1, ClampMax=8))
 	int32 NumberOfTextureBuffers;
 
 	/** Creates the specific implementation of the MediaCapture for the MediaOutput. */

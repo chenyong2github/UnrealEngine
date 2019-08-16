@@ -1,0 +1,165 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#define IS_SSGI_SHADER 1
+
+#include "SSRTRayCast.ush"
+#include "../DeferredShadingCommon.ush"
+#include "../Random.ush"
+#include "../BRDF.ush"
+#include "../MonteCarlo.ush"
+#include "../SceneTextureParameters.ush"
+
+
+#define TILE_PIXEL_SIZE 8
+
+
+Texture2D		HZBTexture;
+SamplerState	HZBSampler;
+
+Texture2D		VelocityTexture;
+SamplerState	VelocitySampler;
+
+Texture2D		ColorTexture;
+SamplerState	ColorSampler;
+
+float4 HZBUvFactorAndInvFactor;
+
+float4 PrevScreenPositionScaleBias;
+float  PrevSceneColorPreExposureCorrection;
+
+
+RWTexture2D<float4>	IndirectDiffuseOutput;
+RWTexture2D<float>	AmbientOcclusionOutput;
+
+
+[numthreads(TILE_PIXEL_SIZE, TILE_PIXEL_SIZE, 1)]
+void MainCS(
+	uint2 DispatchThreadId : SV_DispatchThreadID,
+	uint2 GroupId : SV_GroupID,
+	uint2 GroupThreadId : SV_GroupThreadID,
+	uint GroupThreadIndex : SV_GroupIndex)
+{
+	uint2 PixelPos = DispatchThreadId + View.ViewRectMin.xy;
+	float2 BufferUV = (PixelPos + 0.5) * View.BufferSizeAndInvSize.zw;
+    float2 ScreenPos = ViewportUVToScreenPos((DispatchThreadId + 0.5) * View.ViewSizeAndInvSize.zw);
+
+	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
+
+	// No SSS because diffuse luminance is in alpha channel and we don't have dual source blending.
+	BRANCH if( GBuffer.ShadingModelID == 0 || GBuffer.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE )
+	{
+		IndirectDiffuseOutput[PixelPos] = 0.0;
+		AmbientOcclusionOutput[PixelPos] = 0.0;
+	}
+
+	const float3 N = GBuffer.WorldNormal;
+	const float SceneDepth = GBuffer.Depth;
+	const float3 PositionTranslatedWorld = mul( float4( ScreenPos * SceneDepth, SceneDepth, 1 ), View.ScreenToTranslatedWorld ).xyz;
+
+#if QUALITY == 1
+	uint NumSteps = 8;
+	uint NumRays = 4;
+#elif QUALITY == 2
+	uint NumSteps = 8;
+	uint NumRays = 8;
+#elif QUALITY == 3
+	uint NumSteps = 8;
+	uint NumRays = 12;
+#else // QUALITY == 4
+	uint NumSteps = 12;
+	uint NumRays = 16;
+#endif
+
+	float2 Noise;
+	Noise.x = InterleavedGradientNoise(PixelPos + 0.5, View.StateFrameIndexMod8);
+	Noise.y = InterleavedGradientNoise(PixelPos + 0.5, View.StateFrameIndexMod8 * 117);
+		
+	//uint2 Random = 0x10000 * Noise;
+	uint2 Random = Rand3DPCG16( int3( PixelPos, View.StateFrameIndexMod8 ) ).xy;
+			
+	// TODO: lot of VGPR, worth recomputing every ray instead?
+	float3x3 TangentBasis = GetTangentBasis( N );
+	
+	float3 DiffuseColor = 0;
+	float AmbientOcclusion = 0;
+
+	// Shoot multiple rays
+	LOOP
+	for (uint i = 0; i < NumRays; i++)
+	{
+		// TOOD: VGPR, might be worth recomputing instead?
+		// SvPosition: is SvPosition really needed? Can recompute from PositionTranslatedWorld?
+		float StepOffset = Noise.x;
+		StepOffset -= 0.9;
+			
+		float2 E = Hammersley16( i, NumRays, Random );
+
+#if 0
+		float3 L = CosineSampleHemisphere( E ).xyz;
+		L = mul( L, TangentBasis );
+#else
+		float3 L;
+		L.xy = UniformSampleDiskConcentric( E );
+		L.z = sqrt( 1 - dot( L.xy, L.xy ) );
+		L = mul( L, TangentBasis );
+#endif
+				
+		float3 HitUVz;
+		float Level = 0;
+
+		bool bHit = RayCast(
+			HZBTexture, HZBSampler,
+			PositionTranslatedWorld, L, 1, SceneDepth, 
+			NumSteps, StepOffset,
+			HZBUvFactorAndInvFactor,
+			HitUVz,
+			Level
+		);
+
+#if 0	// Backface check
+		if( bHit )
+		{
+			float3 SampleNormal = GetGBufferDataFromSceneTextures(HitUVz.xy).WorldNormal;
+			bHit = dot( SampleNormal, L ) < 0;
+		}
+#endif
+
+		// if there was a hit
+		BRANCH if( bHit )
+		{
+			float2 SampleUV;
+			float Vignette;
+			ReprojectHit(PrevScreenPositionScaleBias, VelocityTexture, VelocitySampler, HitUVz, SampleUV, Vignette);
+
+#if 0
+			float4 SampleColor = SampleHCBLevel( ColorTexture, ColorSampler, SampleUV, Level, HZBUvFactorAndInvFactor );
+#else
+			float4 SampleColor = SampleScreenColor( ColorTexture, ColorSampler, SampleUV );
+#endif
+
+			// Backface modulation of hit surface
+			float3 SampleNormal = GetGBufferDataFromSceneTextures(HitUVz.xy).WorldNormal;
+			SampleColor.rgba *= saturate( 1 - dot( SampleNormal, L ) );
+
+			SampleColor.rgb *= rcp( 1 + Luminance(SampleColor.rgb) );
+
+			DiffuseColor += SampleColor.rgb;
+			AmbientOcclusion += SampleColor.a;
+		}
+	}
+
+	DiffuseColor *= rcp(float(NumRays));
+	AmbientOcclusion *= rcp(float(NumRays));
+
+	DiffuseColor *= rcp( 1 - Luminance(DiffuseColor) );
+	DiffuseColor *= View.IndirectLightingColorScale;
+
+	AmbientOcclusion = 1 - AmbientOcclusion;
+
+	#if USE_PREEXPOSURE
+		DiffuseColor *= PrevSceneColorPreExposureCorrection;
+	#endif
+	
+	IndirectDiffuseOutput[PixelPos] = float4(DiffuseColor, 0.0);
+	AmbientOcclusionOutput[PixelPos] = AmbientOcclusion;
+} // MainCS()

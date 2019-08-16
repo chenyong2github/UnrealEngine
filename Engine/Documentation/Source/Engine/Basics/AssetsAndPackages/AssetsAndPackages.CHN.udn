@@ -1,4 +1,4 @@
-INTSourceChangelist:3782314
+﻿INTSourceChangelist:3782314
 Availability:Public
 Crumbs: %ROOT%
 Title:资源和包
@@ -30,12 +30,10 @@ Related: Engine/Basics/AssetsAndPackages/AssetManagement/CookingAndChunking
 
 有关使用 **内容浏览器** 移动、重命名、添加以及删除资源的更多信息，请参阅[](Engine/Content/Browser\UserGuide\BrowserAssetCreation)。
 
-(#assetnaming)
 ## 资源命名
 
 用户可在导入或创建资源时对资源进行命名。资源路径将依据用户创建或导入资源时指定的文件夹自动设置，它与资源在磁盘上的位置直接关联。例如，路径Content/Characters/MyCharacter将保存至/UE4/MyProject/Content/Characters/MyCharacter.MyCharacter.uasset。
 
-(#renamingandmovingassets)
 ### 重命名和移动资源
 
 可在编辑器中对资源进行重命名，方法是在 **内容浏览器** 中选中它，然后左键单击其名称或按F2键。可通过在 **内容浏览器** 中选中并拖动资源的方式将它们移动或复制到不同的文件夹。通过这种方式重命名或移动资源之后，引用你重命名或移动的资源的其他资源将进行相应更新，而且在原始资源所在位置将会留下不可见的 **重定向器**。可通过在 **内容浏览器** 中右键单击并选择“整理文件夹中的重定向器（Fix Up Redirectors in Folder）”选项来清除重定向器。此操作将先使引用重定向器的所有资源指向位于新位置的资源，然后删除重定向器。请注意，需要重新保存资源。另外，可通过两种方式在 **内容浏览器** 中删除资源，一种是使用右键单击资源之后显示的情境菜单，还有一种是选中资源并按Delete键。如果资源被其他资源引用，将会显示询问应使用哪个现有资源（如有）替代删除的资源的菜单。
@@ -52,12 +50,10 @@ Related: Engine/Basics/AssetsAndPackages/AssetManagement/CookingAndChunking
 
 对资源的引用包含路径，例如：Blueprint'/MyProject/Content/Characters/MyCharacter.MyCharacter'。
 
-(#assetmanagement)
 ## 资源管理
 
 资源通常由虚幻引擎自动加载或卸载。但是，在某些情况下，直接控制该过程可以显著提升性能，例如，可以减少甚至消除冗余加载时间，消除游戏进程中的卡顿。有关管理资源加载和卸载的详细信息，请参阅[](Engine/Basics/AssetsAndPackages/AssetManagement)页面。部署项目时，资源将被“转化”（依据资源类型和目标平台转换为最终二进制格式）并可分到多个.pak文件中，以用于分发。有关这些过程的信息，请参阅 [](Engine/Basics/AssetsAndPackages/AssetManagement/CookingAndChunking)。
 
-(#minimizingsourcecontrolcontention)
 ## 减少源控制冲突
 
 当工作流包含多个包文件，且每个包文件都包含多个资源时，可能会发生源控制冲突问题。然而，如果工作流支持并鼓励创建多个单独的资源文件，那么就可分别检出每个资源。这可以减少工作流中的源控制冲突和瓶颈。
@@ -68,14 +64,12 @@ Related: Engine/Basics/AssetsAndPackages/AssetManagement/CookingAndChunking
 
 资源创建或资源导入需在 **内容浏览器** 中进行。有关创建资源的信息，请参阅[](Engine/Content/AssetCreation)。有关使用 **内容浏览器** 的信息，请参阅[](Engine/Content/Browser)。
 
-(#copyingassetstootherprojects)
 ### 将资源复制到其他项目
 
 你可以使用 **内容浏览器** 中的“迁移工具”来创建资源的副本（以及依赖性资源），以在其他项目中使用。
 
 有关迁移工具的更多信息，请参阅[](Engine/Content/Browser\UserGuide\Migrate)。
 
-(#assetpacks)
 ### 资源包
 
 如果你已通过启动程序下载了资源包，可以将整个包的内容添加到项目中，无需打开它或迁移特定资源。

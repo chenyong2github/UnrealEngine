@@ -1,0 +1,116 @@
+Availability: Docs
+Title: Environment Query System User Guide
+Description: Placeholder page for the Environment Query System User Guide. 
+Type: overview
+Version: 4.21
+Parent: Engine/ArtificialIntelligence/EQS
+Tags: Experimental
+Tags: AI
+Tags: EQS
+Tags: Environment Query System
+Tags: EQS Essentials
+topic-image: EQS_UserGuide_Image.png
+social-image: EQS_UserGuide_Image.png
+topic-icon: EQS_UserGuide_Image.png
+Order: 2
+
+
+[TOC (start:2 end:2)]
+
+This page covers the typical workflows for enabling, creating and editing Environmental Query System (EQS) assets. 
+
+## Enabling EQS
+
+Before you can start working with EQS, you will need to enable it from the **Editor Preferences** menu.
+
+*   Under **Editor Preferences > Experimental > AI **section, enable the **Environmental Query System** option.  
+    
+	![](EQSUG_EnableEQS.png "EQSUG_EnableEQS.png")
+
+## Creating an EQS Query
+
+To create an EQS Asset: 
+
+1.  Click the **Add New **button in the **Content Browser**, then under **Artificial Intelligence**, select **Environment Query**.   
+    
+	![](EQSUG_CreateEQSAsset.png "EQSUG_CreateEQSAsset.png")  
+    
+
+1.  Enter in a name for your new EQS asset.   
+    
+	![](EQSUG_EnterEQSName.png "EQSUG_EnterEQSName.png")  
+    
+[REGION:note]
+In addition to Environment Query, you can create custom [Generator](Engine/ArtificialIntelligence/EQS/EQSNodeReference/EQSNodeReferenceGenerators#customgenerators) and [Context](Engine/ArtificialIntelligence/EQS/EQSNodeReference/EQSNodeReferenceContexts#envquerycontext_blueprintbase) Blueprint assets in the Content Browser.
+[/REGION]
+
+## Editing an EQS Query
+
+Inside the EQS asset, you can use a [Generator](Engine/ArtificialIntelligence/EQS/EQSNodeReference/EQSNodeReferenceGenerators) to produce the locations or Actors that will be tested and weighted, provide a [Context](Engine/ArtificialIntelligence/EQS/EQSNodeReference/EQSNodeReferenceContexts) or frame of reference, and [Tests](Engine/ArtificialIntelligence/EQS/EQSNodeReference/EQSNodeReferenceTests) to determine which item from the Generator is the best option. The following section will illustrate how to create each of these within the EQS asset.
+
+To add a Generator:
+
+*   Right-click in the EQS Graph and select your desired Generator type.  
+    
+	![](EQSUG_AddGenerator.png "EQSUG_AddGenerator.png")  
+    
+	After adding a Generator, drag off the Root node and connect it to your Generator.   
+    
+	![](EQSUG_ConnectGenerator.png "EQSUG_ConnectGenerator.png")  
+
+    [REGION:note]
+    While you can have more than one Generator connected to the Root, only the left most Generator is used in the Query.
+    [/REGION]
+    
+
+To add a Test:
+
+*   Right-click on a Generator and select a Test to add.   
+    
+	![](EQSUG_AddTest.png "EQSUG_AddTest.png")  
+    
+	After adding a Test, if will appear attached to the Generator. Select the Test to adjust properties in the **Details **panel.   
+    
+	![](EQSUG_AddTestDetails.png "EQSUG_AddTestDetails.png")
+
+To define a Context:
+
+*   In the **Details **panel for a Test, change the **EnvQueryContext** to your desired Context.   
+    
+	![](EQSUG_Context.png "EQSUG_Context.png")  
+    
+	[REGION:note]
+    The property name may vary based on the type of Test. Please see [Tests](Engine/ArtificialIntelligence/EQS/EQSNodeReference/EQSNodeReferenceTests) for more information.
+    [/REGION]
+    
+
+## Previewing an EQS Query
+
+You can preview the results of an EQS Query inside the Editor, where weighted/filtered results will be represented by debug spheres. 
+
+![](EQSUG_Preview.png "EQSUG_Preview.png")
+
+In the image above, we debug an EQS Query that returns a location which provides line of sight to the Player Character in the Level. 
+
+[REGION:note]
+Please see [AI Debugging](Engine/ArtificialIntelligence/AIDebugging) or [EQS Testing Pawn](Engine/ArtificialIntelligence/EQS/EQSTestingPawn) for more information.
+[/REGION]
+
+## Using EQS with Behavior Trees
+
+After creating EQS Query, you can run the query inside a [Behavior Tree](Engine/ArtificialIntelligence/BehaviorTrees) as part of a **Task.**
+
+1.  Inside a Behavior Tree, right-click and add the **Run EQS Query** Task node.  
+    
+	![](EQSUG_RunEQS.png "EQSUG_RunEQS.png")
+
+1.  For **Run EQS** **Query**, assign the **Query Template** (desired EQS asset) to execute and the **Blackboard Key** it should return.  
+    
+	![](EQSUG_EditEQSBT.png "EQSUG_EditEQSBT.png")  
+    
+	The Blackboard Key that is returned will be the highest weight result (Object or Vector). In the example above, we have an EQS Query that is used to locate the Player and provide that location back to a Blackboard Key called  **MoveToLocation. **  
+    
+	[REGION:tip]
+    You can optionally add parameters to pass to the EQS asset through the **Query Config** option.
+    [/REGION]
+    

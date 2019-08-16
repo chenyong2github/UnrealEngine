@@ -14,7 +14,7 @@ template<typename DataType> struct TBlendableTokenStack;
 template<typename DataType> struct TMovieSceneBlendingActuator;
 
 /** Pre animated token producer that reverts the object's initial value from the actuator when its state is restored */
-struct FMovieSceneRemoveInitialValueTokenProducer : IMovieScenePreAnimatedTokenProducer
+struct MOVIESCENE_VTABLE FMovieSceneRemoveInitialValueTokenProducer : IMovieScenePreAnimatedTokenProducer
 {
 	/** Construction from the object whose initial value to remove, and the actuator to remove it from */
 	MOVIESCENE_API FMovieSceneRemoveInitialValueTokenProducer(TWeakPtr<IMovieSceneBlendingActuator> InWeakActuator);
@@ -27,7 +27,7 @@ private:
 };
 
 /** Pre animated token producer that reverts a global initial value from the actuator when its state is restored */
-struct FMovieSceneRemoveInitialGlobalValueTokenProducer : IMovieScenePreAnimatedGlobalTokenProducer
+struct MOVIESCENE_VTABLE FMovieSceneRemoveInitialGlobalValueTokenProducer : IMovieScenePreAnimatedGlobalTokenProducer
 {
 	/** Construction from the object whose initial value to remove, and the actuator to remove it from */
 	MOVIESCENE_API FMovieSceneRemoveInitialGlobalValueTokenProducer(TWeakPtr<IMovieSceneBlendingActuator> InWeakActuator);

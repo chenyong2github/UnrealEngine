@@ -286,7 +286,7 @@ void UK2Node_DoOnceMultiInput::GetContextMenuActions(const FGraphNodeContextMenu
 					LOCTEXT("RemovePinTooltip", "Remove this input pin"),
 					FSlateIcon(),
 					FUIAction(
-						FExecuteAction::CreateUObject(this, &UK2Node_DoOnceMultiInput::RemoveInputPin, const_cast<UEdGraphPin*>(Context.Pin))
+						FExecuteAction::CreateUObject(const_cast<UK2Node_DoOnceMultiInput*>(this), &UK2Node_DoOnceMultiInput::RemoveInputPin, const_cast<UEdGraphPin*>(Context.Pin))
 					)
 				);
 				Context.MenuBuilder->EndSection();
@@ -300,7 +300,7 @@ void UK2Node_DoOnceMultiInput::GetContextMenuActions(const FGraphNodeContextMenu
 				LOCTEXT("AddPinTooltip", "Add another input pin"),
 				FSlateIcon(),
 				FUIAction(
-					FExecuteAction::CreateUObject(this, &UK2Node_DoOnceMultiInput::AddInputPin)
+					FExecuteAction::CreateUObject(const_cast<UK2Node_DoOnceMultiInput*>(this), &UK2Node_DoOnceMultiInput::AddInputPin)
 				)
 			);
 			Context.MenuBuilder->EndSection();

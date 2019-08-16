@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4649792
+﻿INTSourceChangelist:6431424
 Availability:Public
 Title:PhysX.约束用户指南
 Crumbs: %ROOT%, Engine, Engine/Physics
@@ -22,7 +22,6 @@ Version:  4.9
 （球窝式、铰链式、棱柱式），区别只存在于它们的设置中。可任选一种连接点开始，自行进行调整试验。
 [/EXCERPT:PhysXConstraints_001]
 
-(#PhysicsConstraintActor)
 ## 物理约束 Actor
 
 1. 在 **Place** 模式中 **Modes** 面板下 **All Classes** 部分中可找到物理约束 Actor。
@@ -76,7 +75,6 @@ Version:  4.9
 
 
 
-(#SkeletalMeshConsiderations)
 ### 骨架网格体注意事项
 
 如对骨架网格体施加约束，需要为相应属性设置一个 **约束骨骼（Constraint Bone）** 名。在此例中骨骼即为骨架网格体物理资源中的 
@@ -87,7 +85,6 @@ Version:  4.9
 [![](PhysCon_SkelCon.png)(w:920)](PhysCon_SkelCon.png)
 [/REGION]
 
-(#ComponentsinActors)
 ### Actor 中的组件
 
 如需对 Actor 中的一个特定组件进行约束，先在相关属性中为组件命名。如 Actor 的 root 为可被约束的类型， 
@@ -118,13 +115,11 @@ _就功能而言，这两个 Actors 和物理约束的效果相同；然而在�
 [/EXCERPT:methods]
 
 
-(#PhysicsConstraintsinBlueprints)
 ## 蓝图中的物理约束
 
-(#PhysicsConstraintsinthePhysicsAssetTool)
 ## Physics Asset 工具中的物理约束
 
-如需了解在 **Physics Asset 工具**（**PhAT**）中使用 **物理约束** 的内容，请查阅： [**%Engine/Physics\PhAT:title%**](Engine/Physics\PhAT)
+如需了解在 **Physics Asset 工具**（**PhAT**）中使用 **物理约束** 的内容，请查阅：[](Engine/Physics/PhysicsAssetEditor)
 
 
 [/COMMENT]

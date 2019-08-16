@@ -714,13 +714,9 @@ void UAbilitySystemComponent::NotifyAbilityEnded(FGameplayAbilitySpecHandle Hand
 	}
 
 	// check to make sure we do not cause a roll over to uint8 by decrementing when it is 0
-	if (ensure(Spec->ActiveCount > 0))
+	if (ensureMsgf(Spec->ActiveCount > 0, TEXT("NotifyAbilityEnded called when the Spec->ActiveCount <= 0 for ability %s"), *Ability->GetName()))
 	{
 		Spec->ActiveCount--;
-	}
-	else
-	{
-		ABILITY_LOG(Warning, TEXT("NotifyAbilityEnded called when the Spec->ActiveCount <= 0"));
 	}
 
 	// Broadcast that the ability ended
@@ -2650,12 +2646,20 @@ void UAbilitySystemComponent::CurrentMontageStop(float OverrideBlendOutTime)
 	{
 		const float BlendOutTime = (OverrideBlendOutTime >= 0.0f ? OverrideBlendOutTime : MontageToStop->BlendOut.GetBlendTime());
 
-		AnimInstance->Montage_Stop(MontageToStop->BlendOut.GetBlendTime(), MontageToStop);
+		AnimInstance->Montage_Stop(BlendOutTime, MontageToStop);
 
 		if (IsOwnerActorAuthoritative())
 		{
 			AnimMontage_UpdateReplicatedData();
 		}
+	}
+}
+
+void UAbilitySystemComponent::StopMontageIfCurrent(const UAnimMontage& Montage, float OverrideBlendOutTime)
+{
+	if (&Montage == LocalAnimMontageInfo.AnimMontage)
+	{
+		CurrentMontageStop(OverrideBlendOutTime);
 	}
 }
 

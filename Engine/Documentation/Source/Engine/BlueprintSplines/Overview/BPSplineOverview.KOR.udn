@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6187230
 Availability:Public
 Title:블루프린트 스플라인 컴포넌트 개요
 Crumbs: %ROOT%, Engine
@@ -6,7 +6,7 @@ Description:블루프린트 스플라인 컴포넌트와 블루프린트 스플�
 Navigation:topic
 parent:Engine/BlueprintSplines
 order:1
-social-image:Splines_social.png
+social-image:Engine/BlueprintSplines/Splines_Social.png
 related:Engine/BlueprintSplines/
 related:Engine/BlueprintSplines/HowTo
 related:Engine/BlueprintSplines/Reference/ComponentProperties

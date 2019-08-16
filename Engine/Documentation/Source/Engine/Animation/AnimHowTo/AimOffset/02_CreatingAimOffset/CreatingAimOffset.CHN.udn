@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
+﻿INTSourceChangelist:6277736
+Availability: Docs
 Title:2 - 创建瞄准偏移（Aim Offset）
 Crumbs: %ROOT%, Engine, Engine\Animation, Engine\Animation\AnimHowTo
 Description:在这步中，我们将获取每个动画动作并创建在每个动作之间进行混合的瞄准偏移。 

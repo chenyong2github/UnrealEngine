@@ -85,6 +85,7 @@ FComponentTransformDetails::FComponentTransformDetails( const TArray< TWeakObjec
 	, NotifyHook( DetailBuilder.GetPropertyUtilities()->GetNotifyHook() )
 	, bPreserveScaleRatio( false )
 	, bEditingRotationInUI( false )
+	, bIsSliderTransaction( false )
 	, HiddenFieldMask( 0 )
 {
 	GConfig->GetBool(TEXT("SelectionDetails"), TEXT("PreserveScaleRatio"), bPreserveScaleRatio, GEditorPerProjectIni);
@@ -285,15 +286,15 @@ FUIAction FComponentTransformDetails::CreateCopyAction( ETransformField::Type Tr
 	return
 		FUIAction
 		(
-			FExecuteAction::CreateSP(this, &FComponentTransformDetails::OnCopy, TransformField ),
-			FCanExecuteAction::CreateSP(this, &FComponentTransformDetails::OnCanCopy, TransformField )
+			FExecuteAction::CreateSP(const_cast<FComponentTransformDetails*>(this), &FComponentTransformDetails::OnCopy, TransformField ),
+			FCanExecuteAction::CreateSP(const_cast<FComponentTransformDetails*>(this), &FComponentTransformDetails::OnCanCopy, TransformField )
 		);
 }
 
 FUIAction FComponentTransformDetails::CreatePasteAction( ETransformField::Type TransformField ) const
 {
 	return 
-		 FUIAction( FExecuteAction::CreateSP(this, &FComponentTransformDetails::OnPaste, TransformField ) );
+		 FUIAction( FExecuteAction::CreateSP(const_cast<FComponentTransformDetails*>(this), &FComponentTransformDetails::OnPaste, TransformField ) );
 }
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
@@ -341,12 +342,18 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 				.bColorAxisLabels( true )
 				.AllowResponsiveLayout( true )
 				.IsEnabled( this, &FComponentTransformDetails::GetIsEnabled )
+				.OnXChanged( this, &FComponentTransformDetails::OnSetTransformAxis, ETextCommit::Default, ETransformField::Location, EAxisList::X, false )
+				.OnYChanged( this, &FComponentTransformDetails::OnSetTransformAxis, ETextCommit::Default, ETransformField::Location, EAxisList::Y, false )
+				.OnZChanged( this, &FComponentTransformDetails::OnSetTransformAxis, ETextCommit::Default, ETransformField::Location, EAxisList::Z, false )
 				.OnXCommitted( this, &FComponentTransformDetails::OnSetTransformAxis, ETransformField::Location, EAxisList::X, true )
 				.OnYCommitted( this, &FComponentTransformDetails::OnSetTransformAxis, ETransformField::Location, EAxisList::Y, true )
 				.OnZCommitted( this, &FComponentTransformDetails::OnSetTransformAxis, ETransformField::Location, EAxisList::Z, true )
 				.Font( FontInfo )
 				.TypeInterface( TypeInterface )
-				.AllowSpin(false)
+				.AllowSpin( SelectedObjects.Num() == 1 )
+				.SpinDelta( 1 )
+				.OnBeginSliderMovement( this, &FComponentTransformDetails::OnBeginLocationSlider )
+				.OnEndSliderMovement( this, &FComponentTransformDetails::OnEndLocationSlider )
 			]
 			+SHorizontalBox::Slot()
 			.AutoWidth()
@@ -409,7 +416,7 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 				.AllowResponsiveLayout( true )
 				.bColorAxisLabels( true )
 				.IsEnabled( this, &FComponentTransformDetails::GetIsEnabled )
-				.OnBeginSliderMovement( this, &FComponentTransformDetails::OnBeginRotatonSlider )
+				.OnBeginSliderMovement( this, &FComponentTransformDetails::OnBeginRotationSlider )
 				.OnEndSliderMovement( this, &FComponentTransformDetails::OnEndRotationSlider )
 				.OnRollChanged( this, &FComponentTransformDetails::OnSetTransformAxis, ETextCommit::Default, ETransformField::Rotation, EAxisList::X, false )
 				.OnPitchChanged( this, &FComponentTransformDetails::OnSetTransformAxis, ETextCommit::Default, ETransformField::Rotation, EAxisList::Y, false )
@@ -417,7 +424,7 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 				.OnRollCommitted( this, &FComponentTransformDetails::OnSetTransformAxis, ETransformField::Rotation, EAxisList::X, true )
 				.OnPitchCommitted( this, &FComponentTransformDetails::OnSetTransformAxis, ETransformField::Rotation, EAxisList::Y, true )
 				.OnYawCommitted( this, &FComponentTransformDetails::OnSetTransformAxis, ETransformField::Rotation, EAxisList::Z, true )
-				.TypeInterface(TypeInterface)
+				.TypeInterface( TypeInterface )
 				.Font( FontInfo )
 			]
 			+SHorizontalBox::Slot()
@@ -474,6 +481,9 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 				.bColorAxisLabels( true )
 				.AllowResponsiveLayout( true )
 				.IsEnabled( this, &FComponentTransformDetails::GetIsEnabled )
+				.OnXChanged( this, &FComponentTransformDetails::OnSetTransformAxis, ETextCommit::Default, ETransformField::Scale, EAxisList::X, false )
+				.OnYChanged( this, &FComponentTransformDetails::OnSetTransformAxis, ETextCommit::Default, ETransformField::Scale, EAxisList::Y, false )
+				.OnZChanged( this, &FComponentTransformDetails::OnSetTransformAxis, ETextCommit::Default, ETransformField::Scale, EAxisList::Z, false )
 				.OnXCommitted( this, &FComponentTransformDetails::OnSetTransformAxis, ETransformField::Scale, EAxisList::X, true )
 				.OnYCommitted( this, &FComponentTransformDetails::OnSetTransformAxis, ETransformField::Scale, EAxisList::Y, true )
 				.OnZCommitted( this, &FComponentTransformDetails::OnSetTransformAxis, ETransformField::Scale, EAxisList::Z, true )
@@ -481,7 +491,10 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 				.ContextMenuExtenderY( this, &FComponentTransformDetails::ExtendYScaleContextMenu )
 				.ContextMenuExtenderZ( this, &FComponentTransformDetails::ExtendZScaleContextMenu )
 				.Font( FontInfo )
-				.AllowSpin(false)
+				.AllowSpin( SelectedObjects.Num() == 1 )
+				.SpinDelta( 0.0025f )
+				.OnBeginSliderMovement( this, &FComponentTransformDetails::OnBeginScaleSlider )
+				.OnEndSliderMovement( this, &FComponentTransformDetails::OnEndScaleSlider )
 			]
 			+SHorizontalBox::Slot()
 			.AutoWidth()
@@ -856,14 +869,14 @@ void FComponentTransformDetails::OnYScaleMirrored()
 {
 	FSlateApplication::Get().ClearKeyboardFocus(EFocusCause::Mouse);
 	FScopedTransaction Transaction(LOCTEXT("MirrorActorScaleY", "Mirror actor scale Y"));
-	OnSetTransform(ETransformField::Scale, EAxisList::X, FVector(1.0f), true, true);
+	OnSetTransform(ETransformField::Scale, EAxisList::Y, FVector(1.0f), true, true);
 }
 
 void FComponentTransformDetails::OnZScaleMirrored()
 {
 	FSlateApplication::Get().ClearKeyboardFocus(EFocusCause::Mouse);
 	FScopedTransaction Transaction(LOCTEXT("MirrorActorScaleZ", "Mirror actor scale Z"));
-	OnSetTransform(ETransformField::Scale, EAxisList::X, FVector(1.0f), true, true);
+	OnSetTransform(ETransformField::Scale, EAxisList::Z, FVector(1.0f), true, true);
 }
 
 void FComponentTransformDetails::CacheTransform()
@@ -1060,19 +1073,19 @@ void FComponentTransformDetails::OnSetTransform(ETransformField::Type TransformF
 				// Set the incoming value
 				if (bMirror)
 				{
-					NewComponentValue = -OldComponentValue;
+					NewComponentValue = GetAxisFilteredVector(Axis, -OldComponentValue, OldComponentValue);
 				}
 				else
 				{
 					NewComponentValue = GetAxisFilteredVector(Axis, NewValue, OldComponentValue);
 				}
 
-				// If we're committing during a rotation edit then we need to force it
-				if (OldComponentValue != NewComponentValue || (bCommitted && bEditingRotationInUI))
+				// If we're committing during a slider transaction then we need to force it, in order that PostEditChangeChainProperty be called.
+				// Note: this will even happen if the slider hasn't changed the value.
+				if (OldComponentValue != NewComponentValue || (bCommitted && bIsSliderTransaction))
 				{
 					if (!bBeganTransaction && bCommitted)
 					{
-						// Begin a transaction the first time an actors rotation is about to change.
 						// NOTE: One transaction per change, not per actor
 						GEditor->BeginTransaction(TransactionText);
 						bBeganTransaction = true;
@@ -1300,40 +1313,37 @@ void FComponentTransformDetails::OnSetTransformAxis(float NewValue, ETextCommit:
 	OnSetTransform(TransformField, Axis, NewVector, false, bCommitted);
 }
 
-void FComponentTransformDetails::OnBeginRotatonSlider()
+void FComponentTransformDetails::BeginSliderTransaction(FText ActorTransaction, FText ComponentTransaction) const
 {
-	bEditingRotationInUI = true;
-
 	bool bBeganTransaction = false;
-	for( int32 ObjectIndex = 0; ObjectIndex < SelectedObjects.Num(); ++ObjectIndex )
+	for (TWeakObjectPtr<UObject> ObjectPtr : SelectedObjects)
 	{
-		TWeakObjectPtr<UObject> ObjectPtr = SelectedObjects[ObjectIndex];
-		if( ObjectPtr.IsValid() )
+		if (ObjectPtr.IsValid())
 		{
 			UObject* Object = ObjectPtr.Get();
 
-			// Start a new transation when a rotator slider begins to change
-			// We'll end it when the slider is release
+			// Start a new transaction when a slider begins to change
+			// We'll end it when the slider is released
 			// NOTE: One transaction per change, not per actor
-			if(!bBeganTransaction)
+			if (!bBeganTransaction)
 			{
-				if(Object->IsA<AActor>())
+				if (Object->IsA<AActor>())
 				{
-					GEditor->BeginTransaction( LOCTEXT( "OnSetRotation", "Set Rotation" ) );
+					GEditor->BeginTransaction(ActorTransaction);
 				}
 				else
 				{
-					GEditor->BeginTransaction( LOCTEXT( "OnSetRotation_ComponentDirect", "Modify Component(s)") );
+					GEditor->BeginTransaction(ComponentTransaction);
 				}
 
 				bBeganTransaction = true;
 			}
 
-			USceneComponent* SceneComponent = GetSceneComponentFromDetailsObject( Object );
-			if( SceneComponent )
+			USceneComponent* SceneComponent = GetSceneComponentFromDetailsObject(Object);
+			if (SceneComponent)
 			{
-				FScopedSwitchWorldForObject WorldSwitcher( Object );
-				
+				FScopedSwitchWorldForObject WorldSwitcher(Object);
+
 				if (SceneComponent->HasAnyFlags(RF_DefaultSubObject))
 				{
 					// Default subobjects must be included in any undo/redo operations
@@ -1342,24 +1352,77 @@ void FComponentTransformDetails::OnBeginRotatonSlider()
 
 				// Call modify but not PreEdit, we don't do the proper "Edit" until it's committed
 				SceneComponent->Modify();
+			}
+		}
+	}
+
+	// Just in case we couldn't start a new transaction for some reason
+	if (!bBeganTransaction)
+	{
+		GEditor->BeginTransaction(ActorTransaction);
+	}
+}
+
+void FComponentTransformDetails::OnBeginRotationSlider()
+{
+	FText ActorTransaction = LOCTEXT("OnSetRotation", "Set Rotation");
+	FText ComponentTransaction = LOCTEXT("OnSetRotation_ComponentDirect", "Modify Component(s)");
+	BeginSliderTransaction(ActorTransaction, ComponentTransaction);
+
+	bEditingRotationInUI = true;
+	bIsSliderTransaction = true;
+
+	for (TWeakObjectPtr<UObject> ObjectPtr : SelectedObjects)
+	{
+		if (ObjectPtr.IsValid())
+		{
+			UObject* Object = ObjectPtr.Get();
+
+			USceneComponent* SceneComponent = GetSceneComponentFromDetailsObject(Object);
+			if (SceneComponent)
+			{
+				FScopedSwitchWorldForObject WorldSwitcher(Object);
 
 				// Add/update cached rotation value prior to slider interaction
 				ObjectToRelativeRotationMap.FindOrAdd(SceneComponent) = SceneComponent->RelativeRotation;
 			}
 		}
 	}
-
-	// Just in case we couldn't start a new transaction for some reason
-	if(!bBeganTransaction)
-	{
-		GEditor->BeginTransaction( LOCTEXT( "OnSetRotation", "Set Rotation" ) );
-	}	
 }
 
 void FComponentTransformDetails::OnEndRotationSlider(float NewValue)
 {
 	// Commit gets called right before this, only need to end the transaction
 	bEditingRotationInUI = false;
+	bIsSliderTransaction = false;
+	GEditor->EndTransaction();
+}
+
+void FComponentTransformDetails::OnBeginLocationSlider()
+{
+	bIsSliderTransaction = true;
+	FText ActorTransaction = LOCTEXT("OnSetLocation", "Set Location");
+	FText ComponentTransaction = LOCTEXT("OnSetLocation_ComponentDirect", "Modify Component Location");
+	BeginSliderTransaction(ActorTransaction, ComponentTransaction);
+}
+
+void FComponentTransformDetails::OnEndLocationSlider(float NewValue)
+{
+	bIsSliderTransaction = false;
+	GEditor->EndTransaction();
+}
+
+void FComponentTransformDetails::OnBeginScaleSlider()
+{
+	bIsSliderTransaction = true;
+	FText ActorTransaction = LOCTEXT("OnSetScale", "Set Scale");
+	FText ComponentTransaction = LOCTEXT("OnSetScale_ComponentDirect", "Modify Component Scale");
+	BeginSliderTransaction(ActorTransaction, ComponentTransaction);
+}
+
+void FComponentTransformDetails::OnEndScaleSlider(float NewValue)
+{
+	bIsSliderTransaction = false;
 	GEditor->EndTransaction();
 }
 

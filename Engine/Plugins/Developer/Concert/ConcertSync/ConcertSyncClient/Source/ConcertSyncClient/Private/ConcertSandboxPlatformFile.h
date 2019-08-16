@@ -150,19 +150,54 @@ public:
 	virtual FString ConvertToAbsolutePathForExternalAppForRead(const TCHAR* Filename) override;
 	virtual FString ConvertToAbsolutePathForExternalAppForWrite(const TCHAR* Filename) override;
 
-	/** Persist the file list from the sandbox state onto the real files */
+	/** 
+	 *	Persist the file list from the sandbox state onto the real files.
+	 *	Will mark files for which the operation was succesful as persisted.
+	 *
+	 *	@param InFiles					The files to persist from the sandbox
+	 *	@param SourceControlProvider	Optional pointer to the source control provider to stage/checkout/add the persisted files
+	 *	@param OutFailureReasons		Optional pointer to an array of text containing failure reasons if the operation fails.
+	 *	@return true if the operation was successful
+	 */
 	bool PersistSandbox(TArrayView<const FString> InFiles, ISourceControlProvider* SourceControlProvider = nullptr, TArray<FText>* OutFailureReasons = nullptr);
 
 	/** 
 	 *	Discard the sandbox state
 	 *	This will trigger directory watcher notifications for files that are restored.
 	 *	This will also gather packages that need to be hot reloaded or purge from memory
-	 *	@param OutPackagePendingHotReload Array to be filled with package name that need to be hot reloaded
-	 *	@param OutPackagesPendingPurge Array to be filled with package name that need to be purged
+	 *	@param OutPackagePendingHotReload	Array to be filled with package name that need to be hot reloaded
+	 *	@param OutPackagesPendingPurge		Array to be filled with package name that need to be purged
 	 */
 	void DiscardSandbox(TArray<FName>& OutPackagesPendingHotReload, TArray<FName>& OutPackagesPendingPurge);
 
-	/** Gather all files changes that are currently in the sandbox. */
+	/**
+	 *	Add a list of files as persisted from the sandbox.
+	 *	Persisted files will will ignored when returning changed files 
+	 *	from the sandbox if the modified date match.
+	 *
+	 *	@param InFiles		List of files to add to the persisted list.
+	 */
+	void AddFilesAsPersisted(TArrayView<const FString> InFiles);
+
+	/**
+	 *	Remove a list of files as persisted from the sandbox.
+	 *	@see AddFilesAsPersisted, PersistSandbox
+	 *
+	 *	@param InFiles		Array of files to remove
+	 */
+	void RemoveFilesAsPersisted(TArrayView<const FString> InFiles);
+
+	/**
+	 *	Return the list of files currently in the persisted list.
+	 *	@see AddFilesAsPersisted, PersistSandbox
+	 */
+	const TMap<FString, FDateTime>& GetPersistedFiles() const;
+
+	/** 
+	 *	Gather all files changes that are currently in the sandbox
+	 *	while ignoring files marked as persisted.
+	 *	@return Array of filepaths in not particular order.
+	 */
 	TArray<FString> GatherSandboxChangedFilenames() const;
 
 private:
@@ -233,6 +268,9 @@ private:
 
 	/** Is this sandbox currently enabled? */
 	TAtomic<bool> bSandboxEnabled;
+
+	/** Map of (files -> modified date) to ignore when returning sandbox changed files if the modified date match. */
+	TMap<FString, FDateTime> PersistedFiles;
 
 	/** Array of sandbox mount points */
 	TArray<FSandboxMountPoint> SandboxMountPoints;

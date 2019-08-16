@@ -8,9 +8,9 @@
 
 TAudioSpatializationPtr FOculusSpatializationPluginFactory::CreateNewSpatializationPlugin(FAudioDevice* OwningDevice)
 {
-    FOculusAudioPlugin* Plugin = &FModuleManager::GetModuleChecked<FOculusAudioPlugin>("OculusAudio");
-    check(Plugin != nullptr);
-    Plugin->RegisterAudioDevice(OwningDevice);
+	FOculusAudioPlugin* Plugin = &FModuleManager::GetModuleChecked<FOculusAudioPlugin>("OculusAudio");
+	check(Plugin != nullptr);
+	Plugin->RegisterAudioDevice(OwningDevice);
 
 #if PLATFORM_WINDOWS
 	if (OwningDevice->IsAudioMixerEnabled())
@@ -34,9 +34,9 @@ TAmbisonicsMixerPtr FOculusSpatializationPluginFactory::CreateNewAmbisonicsMixer
 
 TAudioReverbPtr FOculusReverbPluginFactory::CreateNewReverbPlugin(FAudioDevice* OwningDevice)
 {
-    FOculusAudioPlugin* Plugin = &FModuleManager::GetModuleChecked<FOculusAudioPlugin>("OculusAudio");
-    check(Plugin != nullptr);
-    Plugin->RegisterAudioDevice(OwningDevice);
+	FOculusAudioPlugin* Plugin = &FModuleManager::GetModuleChecked<FOculusAudioPlugin>("OculusAudio");
+	check(Plugin != nullptr);
+	Plugin->RegisterAudioDevice(OwningDevice);
 
-    return TAudioReverbPtr(new OculusAudioReverb());
+	return TAudioReverbPtr(new OculusAudioReverb());
 }

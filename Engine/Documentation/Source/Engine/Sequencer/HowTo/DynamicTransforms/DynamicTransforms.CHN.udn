@@ -1,0 +1,59 @@
+INTSourceChangelist:6017040
+Availability: Public
+Title:使用动态变形创建关卡序列
+Description:描述如何在创建关卡序列时使用拥有在运行时会发生变化的动态场景变形的Actor。 
+Parent: Engine/Sequencer/HowTo
+Tags: Sequencer
+Tags: how-to
+Order: 29
+
+
+在创建过场动画序列时，您可能想要对场景中的Actor应用变形数据，但需要将整个场景移到关卡中的新位置。现在可以覆盖关卡序列上的实例数据，并分配新的 **变形原点Actor（Transform Origin Actor）** 以用作序列的新原点。这使您能够对序列中的Actor添加关键帧，并让变形相对于指定的变形原点Actor。 
+
+在该示例中，我们向序列添加了一个角色，并为其指定了一个路径。然后覆盖实例数据，并分配变形原点Actor，这样可以将整个场景移到关卡中的新位置，同时保持定义路径不变。 
+
+![](DynamicTransformBanner-2.png "DynamicTransformBanner-2.png")
+
+(#steps)
+## 步骤
+
+[REGION:note]
+在本指南中，我们现在使用新的 **蓝图第三人称** 项目。
+[/REGION]
+
+1.  在 **Content/Mannequin/Character/Mesh** 文件夹中，将 **SK_Mannequin** 拖到关卡中。
+![](DynamicTransform_01-3.png "DynamicTransform_01-3.png")
+1.  从主工具栏中，单击 **过场动画（Cinematics）** 按钮和 **添加关卡序列（Add Level Sequence）**，然后为其指定任意名称和保存位置。      
+![](DynamicTransform_02-2.png "DynamicTransform_02-2.png")
+1.  将 **SK_Mannequin** 添加到关卡序列，然后添加 **ThirdPersonWalk** 动画并循环到 **150** 标记。   
+![](DynamicTransform_03-1.png "DynamicTransform_03-1.png")
+1.  选择关卡中的 **SK_Mannequin**，然后在 **细节（Details）** 面板中，将 **位置（Location）** 值设置为 **0,0,0。**  
+![](DynamicTransform_04-3.png "DynamicTransform_04-3.png")
+<p></p>为了获得最佳结果，需要让Actor的变形先归零，然后再在Sequencer中为其添加关键帧。如果为变形数据添加关键帧，而它并不是零，则在关卡中移动变形原点Actor时会应用偏移值。 
+1.  在关卡序列中，在起点位置向 **SK_Mannequin** 的 **变形（Transform）** 轨道添加关键帧，然后向前移动角色，在 **150** 处添加关键帧来生成路径。   
+![](DynamicTransform_05-1.png "DynamicTransform_05-1.png")
+1.  在 **模式（Modes）** 面板中，将 **空Actor（Empty Actor）** 拖到关卡。   
+![](DynamicTransform_06-1.png "DynamicTransform_06-1.png")
+<p></p>该Actor将用作场景的原点，关卡序列的变形将基于这个原点。 
+1. 在关卡中选择关卡序列，然后在 **细节（Details）** 面板中，启用 **自动播放（Auto Play）**、**无限循环（Loop Indefinitely）** 和 **覆盖实例数据（Override Instance Data）**。 
+1. 选择步骤6中的 **Actor** 作为 **变形原点Actor（Transform Origin Actor）**。  
+![](DynamicTransform_07.png "DynamicTransform_07.png")
+1. 在关卡中 **模拟（Simulate）** 或 **运行（Play）**。
+
+
+(#end result)
+## 最终结果
+
+在关卡中模拟或运行时，关卡序列将自动开始。您还可以在关卡中四处移动指定为变形原点Actor的Actor，以移动关卡序列的原点。 
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ Vy6cvfjECN8
+ [/PARAMLITERAL]
+[/OBJECT]

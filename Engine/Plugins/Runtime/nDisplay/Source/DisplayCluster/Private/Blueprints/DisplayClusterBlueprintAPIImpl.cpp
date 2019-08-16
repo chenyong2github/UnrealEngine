@@ -4,14 +4,18 @@
 
 #include "IDisplayCluster.h"
 
+#include "DisplayClusterLog.h"
 #include "Cluster/DisplayClusterClusterEvent.h"
 #include "Cluster/IDisplayClusterClusterManager.h"
 #include "Config/IDisplayClusterConfigManager.h"
 #include "Game/IDisplayClusterGameManager.h"
 #include "Input/IDisplayClusterInputManager.h"
-#include "Misc/DisplayClusterLog.h"
 #include "Render/IDisplayClusterRenderManager.h"
 
+#include "Config/DisplayClusterConfigTypes.h"
+#include "Misc/DisplayClusterHelpers.h"
+
+#include "DisplayClusterGlobals.h"
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -136,7 +140,27 @@ void UDisplayClusterBlueprintAPIImpl::EmitClusterEvent(const FDisplayClusterClus
 //////////////////////////////////////////////////////////////////////////////////////////////
 // Config API
 //////////////////////////////////////////////////////////////////////////////////////////////
+void UDisplayClusterBlueprintAPIImpl::GetLocalViewports(bool IsRTT, TArray<FString>& ViewportIDs, TArray<FString>& ViewportTypes, TArray<FIntPoint>& ViewportLocations, TArray<FIntPoint>& ViewportSizes)
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
 
+	TArray<FDisplayClusterConfigViewport> SelectedViewports = DisplayClusterHelpers::config::GetLocalViewports().FilterByPredicate([IsRTT](const FDisplayClusterConfigViewport& Item)
+	{
+		return Item.IsRTT == IsRTT;
+	});
+
+	for (const FDisplayClusterConfigViewport& Item : SelectedViewports)
+	{
+		FDisplayClusterConfigProjection CfgProjection;
+		if (IDisplayCluster::Get().GetConfigMgr()->GetProjection(Item.ProjectionId, CfgProjection))
+		{
+			ViewportIDs.Add(Item.Id);
+			ViewportTypes.Add(CfgProjection.Type);
+			ViewportLocations.Add(Item.Loc);
+			ViewportSizes.Add(Item.Size);
+		}
+	}	
+}
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -157,19 +181,6 @@ ADisplayClusterPawn* UDisplayClusterBlueprintAPIImpl::GetRoot()
 }
 
 // Screens
-TArray<UDisplayClusterScreenComponent*> UDisplayClusterBlueprintAPIImpl::GetActiveScreens()
-{
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
-
-	const IDisplayClusterGameManager* const GameManager = IDisplayCluster::Get().GetGameMgr();
-	if (GameManager)
-	{
-		return GameManager->GetActiveScreens();
-	}
-
-	return TArray<UDisplayClusterScreenComponent*>();
-}
-
 UDisplayClusterScreenComponent* UDisplayClusterBlueprintAPIImpl::GetScreenById(const FString& id)
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
@@ -210,6 +221,79 @@ int32 UDisplayClusterBlueprintAPIImpl::GetScreensAmount()
 }
 
 // Cameras
+TArray<UDisplayClusterCameraComponent*> UDisplayClusterBlueprintAPIImpl::GetAllCameras()
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
+
+	IDisplayClusterGameManager* const Manager = IDisplayCluster::Get().GetGameMgr();
+	if (Manager)
+	{
+		return Manager->GetAllCameras();
+	}
+
+	return TArray<UDisplayClusterCameraComponent*>();
+}
+
+UDisplayClusterCameraComponent* UDisplayClusterBlueprintAPIImpl::GetCameraById(const FString& id)
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
+
+	IDisplayClusterGameManager* const Manager = IDisplayCluster::Get().GetGameMgr();
+	if (Manager)
+	{
+		return Manager->GetCameraById(id);
+	}
+
+	return nullptr;
+}
+
+int32 UDisplayClusterBlueprintAPIImpl::GetCamerasAmount()
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
+
+	IDisplayClusterGameManager* const Manager = IDisplayCluster::Get().GetGameMgr();
+	if (Manager)
+	{
+		return Manager->GetCamerasAmount();
+	}
+
+	return 0;
+}
+
+UDisplayClusterCameraComponent* UDisplayClusterBlueprintAPIImpl::GetDefaultCamera()
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
+
+	IDisplayClusterGameManager* const Manager = IDisplayCluster::Get().GetGameMgr();
+	if (Manager)
+	{
+		return Manager->GetDefaultCamera();
+	}
+
+	return nullptr;
+}
+
+void UDisplayClusterBlueprintAPIImpl::SetDefaultCameraByIndex(int32 Index)
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
+
+	IDisplayClusterGameManager* const Manager = IDisplayCluster::Get().GetGameMgr();
+	if (Manager)
+	{
+		return Manager->SetDefaultCamera(Index);
+	}
+}
+
+void UDisplayClusterBlueprintAPIImpl::SetDefaultCameraById(const FString& id)
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
+
+	IDisplayClusterGameManager* const Manager = IDisplayCluster::Get().GetGameMgr();
+	if (Manager)
+	{
+		return Manager->SetDefaultCamera(id);
+	}
+}
 
 
 // Nodes
@@ -489,92 +573,206 @@ void UDisplayClusterBlueprintAPIImpl::GetTrackerQuat(const FString& DeviceId, ui
 //////////////////////////////////////////////////////////////////////////////////////////////
 // Render API
 //////////////////////////////////////////////////////////////////////////////////////////////
-void  UDisplayClusterBlueprintAPIImpl::SetInterpupillaryDistance(float dist)
+void UDisplayClusterBlueprintAPIImpl::SetViewportCamera(const FString& InCameraId, const FString& InViewportId)
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
 
 	IDisplayClusterRenderManager* const Manager = IDisplayCluster::Get().GetRenderMgr();
 	if (Manager)
 	{
-		return Manager->SetInterpupillaryDistance(dist);
+		Manager->SetViewportCamera(InCameraId, InViewportId);
 	}
 
 	return;
 }
 
-float UDisplayClusterBlueprintAPIImpl::GetInterpupillaryDistance()
+void UDisplayClusterBlueprintAPIImpl::SetStartPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& StartPostProcessingSettings)
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
 
 	IDisplayClusterRenderManager* const Manager = IDisplayCluster::Get().GetRenderMgr();
 	if (Manager)
 	{
-		return Manager->GetInterpupillaryDistance();
+		Manager->SetStartPostProcessingSettings(ViewportID, StartPostProcessingSettings);
+	}
+}
+
+void UDisplayClusterBlueprintAPIImpl::SetOverridePostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& OverridePostProcessingSettings, float BlendWeight)
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
+
+	IDisplayClusterRenderManager* const Manager = IDisplayCluster::Get().GetRenderMgr();
+	if (Manager)
+	{
+		Manager->SetOverridePostProcessingSettings(ViewportID, OverridePostProcessingSettings, BlendWeight);
+	}
+}
+
+void UDisplayClusterBlueprintAPIImpl::SetFinalPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& FinalPostProcessingSettings)
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
+
+	IDisplayClusterRenderManager* const Manager = IDisplayCluster::Get().GetRenderMgr();
+	if (Manager)
+	{
+		Manager->SetFinalPostProcessingSettings(ViewportID, FinalPostProcessingSettings);
+	}
+}
+
+bool UDisplayClusterBlueprintAPIImpl::GetViewportRect(const FString& ViewportID, FIntPoint& ViewportLoc, FIntPoint& ViewportSize)
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
+
+	IDisplayClusterRenderManager* const Manager = IDisplayCluster::Get().GetRenderMgr();
+	if (Manager)
+	{
+		FIntRect ViewportRect;
+		if (Manager->GetViewportRect(ViewportID, ViewportRect))
+		{
+			ViewportLoc  = ViewportRect.Min;
+			ViewportSize = ViewportRect.Size();
+			return true;
+		}
+	}
+
+	return false;
+}
+
+
+float UDisplayClusterBlueprintAPIImpl::GetInterpupillaryDistance(const FString& CameraId)
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
+
+	IDisplayClusterRenderManager* const Manager = IDisplayCluster::Get().GetRenderMgr();
+	if (Manager)
+	{
+		return Manager->GetInterpupillaryDistance(CameraId);
 	}
 
 	return 0.f;
 }
 
-void UDisplayClusterBlueprintAPIImpl::SetEyesSwap(bool swap)
+void  UDisplayClusterBlueprintAPIImpl::SetInterpupillaryDistance(const FString& CameraId, float EyeDistance)
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
 
 	IDisplayClusterRenderManager* const Manager = IDisplayCluster::Get().GetRenderMgr();
 	if (Manager)
 	{
-		return Manager->SetEyesSwap(swap);
+		return Manager->SetInterpupillaryDistance(CameraId, EyeDistance);
 	}
 
 	return;
 }
 
-bool UDisplayClusterBlueprintAPIImpl::GetEyesSwap()
+bool UDisplayClusterBlueprintAPIImpl::GetEyesSwap(const FString& CameraId)
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
 
 	IDisplayClusterRenderManager* const Manager = IDisplayCluster::Get().GetRenderMgr();
 	if (Manager)
 	{
-		return Manager->GetEyesSwap();
+		return Manager->GetEyesSwap(CameraId);
 	}
 
 	return false;
 }
 
-bool UDisplayClusterBlueprintAPIImpl::ToggleEyesSwap()
+void UDisplayClusterBlueprintAPIImpl::SetEyesSwap(const FString& CameraId, bool EyeSwapped)
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
 
 	IDisplayClusterRenderManager* const Manager = IDisplayCluster::Get().GetRenderMgr();
 	if (Manager)
 	{
-		return Manager->ToggleEyesSwap();
-	}
-
-	return false;
-}
-
-void UDisplayClusterBlueprintAPIImpl::GetCullingDistance(float& NearClipPlane, float& FarClipPlane)
-{
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
-
-	IDisplayClusterRenderManager* const Manager = IDisplayCluster::Get().GetRenderMgr();
-	if (Manager)
-	{
-		return Manager->GetCullingDistance(NearClipPlane, FarClipPlane);
+		return Manager->SetEyesSwap(CameraId, EyeSwapped);
 	}
 
 	return;
 }
 
-void UDisplayClusterBlueprintAPIImpl::SetCullingDistance(float NearClipPlane, float FarClipPlane)
+bool UDisplayClusterBlueprintAPIImpl::ToggleEyesSwap(const FString& CameraId)
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
 
 	IDisplayClusterRenderManager* const Manager = IDisplayCluster::Get().GetRenderMgr();
 	if (Manager)
 	{
-		return Manager->SetCullingDistance(NearClipPlane, FarClipPlane);
+		return Manager->ToggleEyesSwap(CameraId);
+	}
+
+	return false;
+}
+
+float UDisplayClusterBlueprintAPIImpl::GetNearCullingDistance(const FString& CameraId) const
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
+
+	IDisplayClusterRenderManager* const Manager = IDisplayCluster::Get().GetRenderMgr();
+	if (Manager)
+	{
+		return Manager->GetNearCullingDistance(CameraId);
+	}
+
+	return 0.f;
+}
+
+void UDisplayClusterBlueprintAPIImpl::SetNearCullingDistance(const FString& CameraId, float NearDistance)
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
+
+	IDisplayClusterRenderManager* const Manager = IDisplayCluster::Get().GetRenderMgr();
+	if (Manager)
+	{
+		Manager->SetNearCullingDistance(CameraId, NearDistance);
+	}
+}
+
+float UDisplayClusterBlueprintAPIImpl::GetFarCullingDistance(const FString& CameraId) const
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
+
+	IDisplayClusterRenderManager* const Manager = IDisplayCluster::Get().GetRenderMgr();
+	if (Manager)
+	{
+		return Manager->GetFarCullingDistance(CameraId);
+	}
+
+	return 0.f;
+}
+
+void UDisplayClusterBlueprintAPIImpl::SetFarCullingDistance(const FString& CameraId, float FarDistance)
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
+
+	IDisplayClusterRenderManager* const Manager = IDisplayCluster::Get().GetRenderMgr();
+	if (Manager)
+	{
+		Manager->SetFarCullingDistance(CameraId, FarDistance);
+	}
+}
+
+void UDisplayClusterBlueprintAPIImpl::GetCullingDistance(const FString& CameraId, float& NearDistance, float& FarDistance)
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
+
+	IDisplayClusterRenderManager* const Manager = IDisplayCluster::Get().GetRenderMgr();
+	if (Manager)
+	{
+		return Manager->GetCullingDistance(CameraId, NearDistance, FarDistance);
+	}
+
+	return;
+}
+
+void UDisplayClusterBlueprintAPIImpl::SetCullingDistance(const FString& CameraId, float NearDistance, float FarDistance)
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
+
+	IDisplayClusterRenderManager* const Manager = IDisplayCluster::Get().GetRenderMgr();
+	if (Manager)
+	{
+		return Manager->SetCullingDistance(CameraId, NearDistance, FarDistance);
 	}
 
 	return;

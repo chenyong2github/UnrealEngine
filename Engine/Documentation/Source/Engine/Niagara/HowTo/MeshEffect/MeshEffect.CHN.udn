@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4703316
+﻿INTSourceChangelist:6417095
 Availability: Public
 Crumbs: 
 Title: 在Niagara中创建网格体粒子效果
@@ -10,12 +10,7 @@ Parent: Engine/Niagara/HowTo
 Order: 3
 Tags: Niagara
 Tags: Early Access
-
-先决条件主题
-
-本页假定您已对以下主题有一定的了解。请先阅读这些主题，然后继续进行操作。
-
-*   [启用Niagara插件](Engine/Niagara/HowTo/EnableNiagara "描述如何启用Niagara插件。")
+prereq: Engine/Niagara/HowTo/EnableNiagara
     
 生成静态网格体而非[面向摄像机的sprite](Engine/Niagara/HowTo/SpriteEffect)可以增加您所创建的效果的真实感。在接下来的教程中，我们将展示如何设置一个Niagara发射器来产生静态网格体而不是sprite。
 
@@ -24,8 +19,6 @@ Tags: Early Access
 [REGION:note]
  **先决条件步骤（Prerequisite Step）：**本教程使用 **形状_球体（Shape_Sphere）** 静态网格体，可以在 **初学者内容包（No Starter Content）** 中找到。如果您还没有这样做，请确保这个静态网格体或初学者内容包已经添加到您的项目中。
 [/REGION]
-
-(#steps)
 
 ## 步骤
 
@@ -80,8 +73,6 @@ Tags: Early Access
     ![](CreateMeshBasedEffect_Steps_Step17_EmittertoSystem.png)(w:400)
 20. 单击 **编译（Compile）** 和 **保存（Save）** 按钮以编译并保存您的作业，然后关闭网格体Niagara系统。在 **内容浏览器（Content Browser）** 中，将 **网格体（Mesh）** Niagara系统拖动到关卡视口中。  
     ![](CreateMeshParticle_Steps_Step18_AddToLevel.png)
-
-(#endresult)
 
 ## 最终结果
 

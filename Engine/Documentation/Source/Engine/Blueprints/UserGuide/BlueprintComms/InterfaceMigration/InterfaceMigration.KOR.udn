@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3244370
+INTSourceChangelist:3244370
 Availability:Public
 Title:블루프린트 인터페이스 이주
 Crumbs: %ROOT%, Engine, Engine/Blueprints, Engine/Blueprints/UserGuide, Engine/Blueprints/UserGuide/BlueprintComms
@@ -16,7 +16,7 @@ tags:Blueprints
 
 **블루프린트 인터페이스에서 이주시키려면**:
 
-1. 블루프린트 인터페이스를 레퍼런싱하는 블루프린트를 엽니다.
+1. 블루프린트 인터페이스를 참조하는 블루프린트를 엽니다.
 
 1. 블루프린트 에디터에서 툴바의 **블루프린트 프롭** 버튼을 누르면 **디테일** 패널에 그 블루프린트의 프로퍼티가 표시됩니다.
 

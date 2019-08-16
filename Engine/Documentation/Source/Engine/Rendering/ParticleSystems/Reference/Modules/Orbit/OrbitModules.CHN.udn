@@ -1,9 +1,10 @@
-﻿INTSourceChangelist:2750697
+﻿INTSourceChangelist:3782314
 Availability:Public
 Title:Orbit 模块
 Crumbs: %ROOT%, Engine, Engine/Rendering/ParticleSystems, Engine/Rendering/ParticleSystems/Reference
 Description:Orbit 模块可实现粒子 sprites 从实际粒子中心偏移/向外旋转的渲染。
 Version:4.9
+tags:Particles
 
 
 Orbit 模块可实现粒子 sprites 从实际粒子中心偏移/向外旋转的渲染。

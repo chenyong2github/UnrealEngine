@@ -244,6 +244,11 @@ void SMeshWidget::AddReferencedObjects(FReferenceCollector& Collector)
 }
 
 
+FString SMeshWidget::GetReferencerName() const
+{
+	return TEXT("SMeshWidget");
+}
+
 void SMeshWidget::PushUpdate(uint32 VectorArtId, const SMeshWidget& Widget, const FVector2D& Position, float Scale, uint32 BaseAddress)
 {
 	PushUpdate(VectorArtId, Widget, Position, Scale, static_cast<float>(BaseAddress));

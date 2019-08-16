@@ -1,0 +1,189 @@
+﻿INTSourceChangelist:3891955
+Availability:Public
+Title:物理コンストレイント プロファイルの適用方法
+Crumbs: %ROOT%, Engine
+Description:ブループリントによる物理コンストレイント プロファイルのスケルタルメッシュ コンポーネントへの適用方法の説明です。
+parent:Engine/Physics/PhysicsAssetEditor/HowTo
+order:1
+Version:4.13
+skilllevel:Intermediate
+prereq:Engine/Blueprints/QuickStart
+prereq:Engine/Physics/PhysicsAssetEditor/HowTo/CreateConstraintProfile
+related:Engine/Physics/PhysicsAssetEditor/HowTo/ApplyPhysicalAnimationProfile
+topic-image:Engine/Physics/physics_topic.png
+
+
+**ポーン** の **Skeletal Mesh Component** の **物理コンストレイント プロファイル** を有効にするためのシンプルなグラフの作成ステップを説明します。 
+
+## ステップ
+1. ブループリントを **Skeletal Mesh Component** で開く、あるいは作成します。
+	* ブループリントに **Skeletal Mesh Component** がない場合は、 **[Components] パネル** を使って追加します。
+
+	![](addSkelMeshComp.png)
+
+1. **Skeletal Mesh Component** の [Collision] 設定を調整します。
+	* **Skeletal Mesh Component** の**[Collision Enabled]** を選択してポーンとはインタラクトしないように、[Collision Preset] を変更します。もし **Pawn** カプセル (他のジオメトリ) が存在する場合は、コリジョン設定に互換性があることを確認してください。例えば、**ポーン** のカプセルを使って、**ポーン** のコリジョンが無視されることを確認します。
+
+		![](Engine\Physics\PhysicsAssetEditor\HowTo\ApplyPhysicalAnimationProfile\collisionSettings.png)
+
+		[REGION:note]
+		**[Object Type]** が **[Pawn]** に設定され、コリジョン チャネルでは **ポーン** が無視されるようになったことが分かります。こうすることで、**スケルタルメッシュ** がコリジョン カプセルから 
+		出ようとする問題が修正されます。ただし、**スケルタルメッシュ** を別の **ポーン** と衝突させたい場合、自分の **スケルタルメッシュ** の **Object Type** を調整して、 
+		その **[Object Type]** との **カプセル** の衝突方法を変更します。**カスタム コリジョン チャネル** の詳細は、**[](Engine/Physics/Collision/HowTo/AddCustomCollisionType)** を参照してください。
+		[/REGION]
+
+1. **Physical Animation Component** を **[Components] パネル** を使ってブループリントに追加します。
+
+	![](addPhysAnimComp.png)
+
+1. 変数を追加し **「Bone Name」** と名前を付けます。
+
+	[REGION:raw]
+	![](variableName.png)
+	[/REGION]
+
+1. コンパイルして **Bone Name** 変数に値を設定できるようにします。
+
+	![](compile.png)
+
+1. **Bone Name** のデフォルト値をターゲットにする **Bone** に変更します。ここでは [spine_01] です。
+
+	![](boneName.png)
+
+1. **イベントグラフ** に切り替えます。
+1. **Event BeginPlay** イベントノードを検索、または作成します。
+
+	![](eventBP.png)
+
+1. **Skeletal Mesh Component** に参照を追加します。
+
+	![](addSKMPref.png)
+
+1. **Skeletal Mesh Component** の青いピンを引き出して _Set Constraint_ を検索します。
+
+	![](createSetAll.png)
+
+1. **Set Constraint Profile for All** ノードを追加します。
+	* **Target** は **Skeletal Mesh Component** です。
+	* **Profile Name** は、**物理アセットツール (PhAT)** で作成した (する) **コンストレイント プロファイル** の名前です。
+	* (オプションの) **Default if Not Found** は、プロファイルにボーンが存在しない場合、現在の設定を維持します。
+
+	![](constraintProfNodeSettings.png)
+
+1. Set All Bodies Below Simulate Physics Node を **Apply Physcial Animation Profile Below** ノードに接続します。
+	* **Target** は **Skeletal Mesh Component** です。
+	* **In Bone Name** は **Bone Name** 変数を入力として受け取ります。
+	* **New Simulate** は **True** に設定します。
+	* ターゲット ボーンとして「spine_01」を使用しているので、ここでもまた **Include Self** にチェックマークを入れます。
+1. 最終的なグラフ:
+
+	[OBJECT:Snippet]
+		[PARAMLITERAL:id]
+			ApplyPhysicalAnimProfBP
+		[/PARAMLITERAL]
+		[PARAMLITERAL:type]
+			blueprint
+		[/PARAMLITERAL]
+		[PARAM:image]
+			![](fullGraph.png)
+		[/PARAM]
+		[PARAM:snippet]
+				Begin Object Class=K2Node_Event Name="K2Node_Event_8"
+				   EventReference=(MemberParent=Class'/Script/Engine.Actor',MemberName="ReceiveBeginPlay")
+				   bOverrideFunction=True
+				   NodePosX=32
+				   NodePosY=-16
+				   NodeGuid=48E7E2C9458A1028A689B3A249855163
+				   CustomProperties Pin (PinId=D1792C7A4CBF979351A63AB775A61034,PinName="OutputDelegate",Direction="EGPD_Output",PinType.PinCategory="delegate",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(MemberParent=Class'/Script/Engine.Actor',MemberName="ReceiveBeginPlay"),PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,)
+				   CustomProperties Pin (PinId=3880C4144B19D9B0F602638392FAD6FA,PinName="then",Direction="EGPD_Output",PinType.PinCategory="exec",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,LinkedTo=(K2Node_CallFunction_132 7ED8710C4A46FF83B175828EFBF77DAE,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,)
+				End Object
+				Begin Object Class=K2Node_VariableGet Name="K2Node_VariableGet_155"
+				   VariableReference=(MemberName="SkeletalMeshComponent",bSelfContext=True)
+				   NodePosX=32
+				   NodePosY=112
+				   NodeGuid=42ADF0644E0964ECBC298DB6863ADA89
+				   CustomProperties Pin (PinId=788C7F5B4B4B5A7362C8AEA404935EEB,PinName="SkeletalMeshComponent",Direction="EGPD_Output",PinType.PinCategory="object",PinType.PinSubCategoryObject=Class'/Script/Engine.SkeletalMeshComponent',PinType.PinSubCategoryMemberReference=(),PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,LinkedTo=(K2Node_CallFunction_132 E1392084422728C657D6C3A54A4116F2,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,)
+				   CustomProperties Pin (PinId=D7B4F9F54069CB07496DEE843FDBBA6B,PinName="self",PinFriendlyName=NSLOCTEXT("K2Node", "Target", "Target"),PinType.PinCategory="object",PinType.PinSubCategoryObject=BlueprintGeneratedClass'/Game/PhysAnimPawn.PhysAnimPawn_C',PinType.PinSubCategoryMemberReference=(),PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,PersistentGuid=00000000000000000000000000000000,bHidden=True,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,)
+				End Object
+				Begin Object Class=K2Node_CallFunction Name="K2Node_CallFunction_132"
+				   FunctionReference=(MemberParent=Class'/Script/Engine.SkeletalMeshComponent',MemberName="SetConstraintProfileForAll")
+				   NodePosX=320
+				   NodeGuid=19366CE04ECF7D2D1B3F3FAB826015E3
+				   CustomProperties Pin (PinId=7ED8710C4A46FF83B175828EFBF77DAE,PinName="execute",PinToolTip="\nExec",PinType.PinCategory="exec",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,LinkedTo=(K2Node_Event_8 3880C4144B19D9B0F602638392FAD6FA,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,)
+				   CustomProperties Pin (PinId=94ECC7884A2DC860DBB45E8573B644E7,PinName="then",PinToolTip="\nExec",Direction="EGPD_Output",PinType.PinCategory="exec",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,LinkedTo=(K2Node_CallFunction_8 399238E643A83FB3CFC85CB926B5CF9F,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,)
+				   CustomProperties Pin (PinId=E1392084422728C657D6C3A54A4116F2,PinName="self",PinFriendlyName=NSLOCTEXT("K2Node", "Target", "Target"),PinToolTip="Target\nSkeletal Mesh Component Reference",PinType.PinCategory="object",PinType.PinSubCategoryObject=Class'/Script/Engine.SkeletalMeshComponent',PinType.PinSubCategoryMemberReference=(),PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,LinkedTo=(K2Node_VariableGet_155 788C7F5B4B4B5A7362C8AEA404935EEB,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,)
+				   CustomProperties Pin (PinId=28663C674854E90FE78C718CD73FB3DF,PinName="ProfileName",PinToolTip="Profile Name\nName",PinType.PinCategory="name",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,DefaultValue="DocsConstraintProfile",AutogeneratedDefaultValue="None",PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,)
+				   CustomProperties Pin (PinId=D960208D49BE62D6FDE20698BB7D27CC,PinName="bDefaultIfNotFound",PinToolTip="Default if Not Found\nBoolean",PinType.PinCategory="bool",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,DefaultValue="true",AutogeneratedDefaultValue="false",PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,)
+				End Object
+				Begin Object Class=K2Node_VariableGet Name="K2Node_VariableGet_1"
+				   VariableReference=(MemberName="SkeletalMeshComponent",bSelfContext=True)
+				   NodePosX=624
+				   NodePosY=80
+				   NodeGuid=211663904BCAEE00C6164CBF0871A8B9
+				   CustomProperties Pin (PinId=1EEABDD6494CBF38903C6691F5F5B45C,PinName="SkeletalMeshComponent",Direction="EGPD_Output",PinType.PinCategory="object",PinType.PinSubCategoryObject=Class'/Script/Engine.SkeletalMeshComponent',PinType.PinSubCategoryMemberReference=(),PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,LinkedTo=(K2Node_CallFunction_8 4DD6FE2846E695E0F3F569B06CED0A46,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,)
+				   CustomProperties Pin (PinId=D68B011B4E4D641D541E8CA766972993,PinName="self",PinFriendlyName=NSLOCTEXT("K2Node", "Target", "Target"),PinType.PinCategory="object",PinType.PinSubCategoryObject=BlueprintGeneratedClass'/Game/PhysAnimPawn.PhysAnimPawn_C',PinType.PinSubCategoryMemberReference=(),PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,PersistentGuid=00000000000000000000000000000000,bHidden=True,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,)
+				End Object
+				Begin Object Class=K2Node_CallFunction Name="K2Node_CallFunction_8"
+				   FunctionReference=(MemberParent=Class'/Script/Engine.SkeletalMeshComponent',MemberName="SetAllBodiesBelowSimulatePhysics")
+				   NodePosX=848
+				   NodeGuid=3116B9174BA9B4F48CE4CAA1E47000EC
+				   CustomProperties Pin (PinId=399238E643A83FB3CFC85CB926B5CF9F,PinName="execute",PinToolTip="\nExec",PinType.PinCategory="exec",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,LinkedTo=(K2Node_CallFunction_132 94ECC7884A2DC860DBB45E8573B644E7,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,)
+				   CustomProperties Pin (PinId=C132D8014BC6A4DE84C437AF07CF838E,PinName="then",PinToolTip="\nExec",Direction="EGPD_Output",PinType.PinCategory="exec",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,)
+				   CustomProperties Pin (PinId=4DD6FE2846E695E0F3F569B06CED0A46,PinName="self",PinFriendlyName=NSLOCTEXT("K2Node", "Target", "Target"),PinToolTip="Target\nSkeletal Mesh Component Reference",PinType.PinCategory="object",PinType.PinSubCategoryObject=Class'/Script/Engine.SkeletalMeshComponent',PinType.PinSubCategoryMemberReference=(),PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,LinkedTo=(K2Node_VariableGet_1 1EEABDD6494CBF38903C6691F5F5B45C,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,)
+				   CustomProperties Pin (PinId=7D29E35244DEB831C54B1CAEF4A5FE5C,PinName="InBoneName",PinToolTip="In Bone Name\nName (by ref)",PinType.PinCategory="name",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.bIsArray=False,PinType.bIsReference=True,PinType.bIsConst=True,PinType.bIsWeakPointer=False,DefaultValue="None",AutogeneratedDefaultValue="None",LinkedTo=(K2Node_VariableGet_181 4DF93E5141ACE87768E5D8A7543C7B07,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=True,bAdvancedView=False,)
+				   CustomProperties Pin (PinId=AE4340174DD534FEA5B812AE6DAEA1EB,PinName="bNewSimulate",PinToolTip="New Simulate\nBoolean",PinType.PinCategory="bool",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,DefaultValue="true",AutogeneratedDefaultValue="false",PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,)
+				   CustomProperties Pin (PinId=80EC7602465D797C7F0D4D93D6BA9BD5,PinName="bIncludeSelf",PinToolTip="Include Self\nBoolean",PinType.PinCategory="bool",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,DefaultValue="true",AutogeneratedDefaultValue="true",PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,)
+				End Object
+				Begin Object Class=K2Node_VariableGet Name="K2Node_VariableGet_181"
+				   VariableReference=(MemberName="BoneName",MemberGuid=A5E270C141CEE32A0269309215CEBAC4,bSelfContext=True)
+				   NodePosX=640
+				   NodePosY=128
+				   NodeGuid=B116D28D4BF4E6625FF02F92D2EA8DFD
+				   CustomProperties Pin (PinId=4DF93E5141ACE87768E5D8A7543C7B07,PinName="BoneName",Direction="EGPD_Output",PinType.PinCategory="name",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,AutogeneratedDefaultValue="None",LinkedTo=(K2Node_CallFunction_8 7D29E35244DEB831C54B1CAEF4A5FE5C,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,)
+				   CustomProperties Pin (PinId=F259489241A7853EE35268954C561767,PinName="self",PinFriendlyName=NSLOCTEXT("K2Node", "Target", "Target"),PinType.PinCategory="object",PinType.PinSubCategoryObject=BlueprintGeneratedClass'/Game/PhysAnimPawn.PhysAnimPawn_C',PinType.PinSubCategoryMemberReference=(),PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,PersistentGuid=00000000000000000000000000000000,bHidden=True,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,)
+				End Object
+		[/PARAM]
+	[/OBJECT]
+
+	**グラフには表示されない情報**
+
+	[REGION:raw]
+	| 変数 | 値 | 説明 |
+	| --- | :--- | :--- |
+	| **Bone Name**  | `spine_01` | スケルタルメッシュのシミュレーション部分を定義するために **Set All Bodies Below Simulate Physics** で使用します。 |
+	[/REGION]
+
+	| コンポーネント || 説明 |
+	| --- | :---: | :--- |
+	| **Skeletal Mesh Component** || **Constraint Profile** を適用させる **Skeletal Mesh Component** です。**Character** の派生である場合、名前は `Mesh` になります。  |
+
+## 結果
+
+ゲームをプレイすると、**コンストレイント プロファイル** に引き継がれます。設定に応じて、キャラクターがばらばらになったり、組み込まれているモーターが腕を振り回したりします。
+
+![](result.png)
+
+このエフェクトを出すには、上腕のコンストレイントの **[Linear Limits]** を**[Free]** に設定します。
+
+![](achievedBy.png)
+
+
+## 追加の資料
+
+[OBJECT:EmbeddedVideo]
+	[PARAMLITERAL:videoid]
+	N1tDjbFXeOo
+	[/PARAMLITERAL]
+	[PARAMLITERAL:width]
+	100
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	56.25
+	[/PARAMLITERAL]
+	[PARAMLITERAL:units]
+	%
+	[/PARAMLITERAL]
+	[PARAMLITERAL:type]
+	simple
+	[/PARAMLITERAL]
+[/OBJECT]

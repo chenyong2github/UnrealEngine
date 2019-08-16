@@ -29,7 +29,7 @@
 
 bool FGoogleARCoreSessionConfigCookSupport::SaveTextureToPNG(UTexture2D *Tex, const FString &Filename)
 {
-	TArray<uint8> MipData;
+	TArray64<uint8> MipData;
 	bool Ret = true;
 
 	if (Tex->Source.GetMipData(MipData, 0))

@@ -172,7 +172,7 @@ private:
 	void OnPreviewNeedsRecreation();
 
 	void PopulateWidgetGeometryCache(FArrangedWidget& Root);
-	void PopulateWidgetGeometryCache_Loop(FArrangedWidget& Parent, int32 ParentHitTestIndex);
+	void PopulateWidgetGeometryCache_Loop(FArrangedWidget& Parent);
 
 	/** @return Formatted text for the given resolution params */
 	FText GetResolutionText(int32 Width, int32 Height, const FString& AspectRatio) const;
@@ -212,6 +212,9 @@ private:
 	EVisibility GetDesignerOutlineVisibility() const;
 	FSlateColor GetDesignerOutlineColor() const;
 	FText GetDesignerOutlineText() const;
+
+	FText GetCursorPositionText() const;
+	EVisibility GetCursorPositionTextVisibility() const;
 
 	// Handles drawing selection and other effects a SPaintSurface widget injected into the hierarchy.
 	int32 HandleEffectsPainting(const FOnPaintHandlerParams& PaintArgs);
@@ -318,6 +321,7 @@ private:
 	TSharedPtr<SWidget> PreviewHitTestRoot;
 	TSharedPtr<SBox> PreviewAreaConstraint;
 	TSharedPtr<SDPIScaler> PreviewSurface;
+	TSharedPtr<SBox> PreviewSizeConstraint;
 
 	TSharedPtr<SCanvas> DesignerControls;
 	TSharedPtr<SCanvas> DesignerWidgetCanvas;

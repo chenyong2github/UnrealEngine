@@ -10,13 +10,14 @@
 #include "GeometryCollection/GeometryCollectionActor.h"
 #include "EditableMeshFactory.h"
 #include "EditorSupportDelegates.h"
+#include "SceneOutlinerDelegates.h"
 #include "MeshFractureSettings.h"
 #include "AssetRegistryModule.h"
-#include "GeometryCollection/GeometryCollectionFactory.h"
+// #include "GeometryCollection/GeometryCollectionFactory.h"
 #include "GeometryCollection/GeometryCollectionConversion.h"
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
-#include "GeometryCollection/GeometryCollectionFactory.h"
+// #include "GeometryCollection/GeometryCollectionFactory.h"
 #include "AssetToolsModule.h"
 #include "FractureToolDelegates.h"
 
@@ -94,8 +95,11 @@ namespace CommandCommon
 
 } // namespace CommandCommon
 
-
-AGeometryCollectionActor* FGeometryCollectionCommandCommon::CreateNewGeometryActor(const FString& Name, const FTransform& Transform, UEditableMesh* SourceMesh)
+// Note that this isn't really creating an actor representing the source mesh, but is only copying over the materials and transform.  This
+// is used in conjunction with other methods for filling the resulting Actor's GeometryCollection (ie: Clustering operations, fracturing, etc)
+// #todo(dmp): at some point we should consider refactoring or renaming this.
+/*
+AGeometryCollectionActor* FGeometryCollectionCommandCommon::CreateNewGeometryActor(const FString& Name, const FTransform& Transform, UEditableMesh* SourceMesh, bool AddMaterials)
 {
 	// create an asset package first
 	FString NewPackageName = FPackageName::FilenameToLongPackageName(FPaths::ProjectContentDir() + Name);
@@ -122,30 +126,28 @@ AGeometryCollectionActor* FGeometryCollectionCommandCommon::CreateNewGeometryAct
 	NewActor->SetActorLabel(Name);
 	NewActor->SetActorTransform(Transform);
 
-	// copy the original material(s) across
-	TPolygonGroupAttributesConstRef<FName> MaterialSlotNames = SourceMesh->GetMeshDescription()->PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute::PolygonGroup::MaterialAssetName);
+	// Next steps actually fill material slots
 
-	int CurrSlot = 0;
-	if (MaterialSlotNames.GetNumElements() > 0)
+	if (AddMaterials)
 	{
-		for (const FPolygonGroupID PolygonGroupID : SourceMesh->GetMeshDescription()->PolygonGroups().GetElementIDs())
-		{
-			FString MaterialName = MaterialSlotNames[PolygonGroupID].ToString();
-			UMaterialInterface* OriginalMaterial = LoadObject<UMaterialInterface>(nullptr, *MaterialName);
+		// copy the original material(s) across
+		TPolygonGroupAttributesConstRef<FName> MaterialSlotNames = SourceMesh->GetMeshDescription()->PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute::PolygonGroup::MaterialAssetName);
 
-			if (OriginalMaterial)
-			{			
-				// sync materials on the UObject
-				GeometryCollection->Materials.Add(OriginalMaterial);
+		int CurrSlot = 0;
+		if (MaterialSlotNames.GetNumElements() > 0)
+		{
+			for (const FPolygonGroupID PolygonGroupID : SourceMesh->GetMeshDescription()->PolygonGroups().GetElementIDs())
+			{
+				FString MaterialName = MaterialSlotNames[PolygonGroupID].ToString();
+				UMaterialInterface* OriginalMaterial = LoadObject<UMaterialInterface>(nullptr, *MaterialName);
+
+				if (OriginalMaterial)
+				{
+					// sync materials on the UObject
+					GeometryCollection->Materials.Add(OriginalMaterial);
+				}
 			}
 		}
-
-		// add slot for internal and selection materials
-		// #todo(dmp): support arbitrary internal materials and a good interface
-		GeometryCollection->AppendStandardMaterials();		
-
-		// set materials on the component
-		NewActor->GetGeometryCollectionComponent()->InitializeMaterials(GeometryCollection->Materials, GeometryCollection->GetInteriorMaterialIndex(), GeometryCollection->GetBoneSelectedMaterialIndex());
 	}
 
 	// Mark relevant stuff dirty
@@ -154,7 +156,7 @@ AGeometryCollectionActor* FGeometryCollectionCommandCommon::CreateNewGeometryAct
 	Package->SetDirtyFlag(true);
 
 	return NewActor;
-}
+}*/
 
 void FGeometryCollectionCommandCommon::RemoveActor(AActor* Actor)
 {
@@ -168,7 +170,7 @@ void FGeometryCollectionCommandCommon::LogHierarchy(const UGeometryCollection* G
 {
 	if (GeometryCollectionObject)
 	{
-		TSharedPtr<FGeometryCollection> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
+		TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
 		if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
 		{
 
@@ -178,19 +180,15 @@ void FGeometryCollectionCommandCommon::LogHierarchy(const UGeometryCollection* G
 				GeometryCollection->NumElements(FGeometryCollection::GeometryGroup),
 				GeometryCollection->NumElements(FGeometryCollection::TransformGroup));
 
-			const TSharedRef<TManagedArray<FVector> > ExplodedVectorsArray = GeometryCollection->GetAttribute<FVector>("ExplodedVector", FGeometryCollection::TransformGroup);
-			const TSharedRef<TManagedArray<FTransform> > ExplodedTransformsArray = GeometryCollection->GetAttribute<FTransform>("ExplodedTransform", FGeometryCollection::TransformGroup);
-			const TSharedRef<TManagedArray<FGeometryCollectionBoneNode> > HierarchyArray = GeometryCollection->GetAttribute<FGeometryCollectionBoneNode>("BoneHierarchy", FGeometryCollection::TransformGroup);
-			const TSharedRef<TManagedArray<FTransform> > TransformsArray = GeometryCollection->GetAttribute<FTransform>("Transform", FGeometryCollection::TransformGroup);
-			const TSharedRef<TManagedArray<FString> > BoneNamesArray = GeometryCollection->GetAttribute<FString>("BoneName", FGeometryCollection::TransformGroup);
+			const TManagedArray<FVector>& ExplodedVectors = GeometryCollection->GetAttribute<FVector>("ExplodedVector", FGeometryCollection::TransformGroup);
+			const TManagedArray<FTransform>& Transforms = GeometryCollection->Transform;
+			const TManagedArray<FTransform>& ExplodedTransforms = GeometryCollection->GetAttribute<FTransform>("ExplodedTransform", FGeometryCollection::TransformGroup);
+			const TManagedArray<FString>& BoneNames = GeometryCollection->BoneName;
+			const TManagedArray<int32>& Level = GeometryCollection->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
+			const TManagedArray<int32>& Parent = GeometryCollection->Parent;
+			const TManagedArray<TSet<int32>>& Children = GeometryCollection->Children;
 
-			const TManagedArray<FGeometryCollectionBoneNode>& Hierarchy = *HierarchyArray;
-			const TManagedArray<FVector>& ExplodedVectors = *ExplodedVectorsArray;
-			const TManagedArray<FTransform>& Transforms = *TransformsArray;
-			const TManagedArray<FTransform>& ExplodedTransforms = *ExplodedTransformsArray;
-			const TManagedArray<FString>& BoneNames = *BoneNamesArray;
-
-			for (int BoneIndex = 0; BoneIndex < Hierarchy.Num(); BoneIndex++)
+			for (int BoneIndex = 0; BoneIndex < Parent.Num(); BoneIndex++)
 			{
 				const FTransform& Transform = Transforms[BoneIndex];
 				const FVector& LocalLocation = ExplodedTransforms[BoneIndex].GetLocation();
@@ -201,14 +199,12 @@ void FGeometryCollectionCommandCommon::LogHierarchy(const UGeometryCollection* G
 
 				const FVector& Vector = ExplodedVectors[BoneIndex];
 				UE_LOG(LogGeometryCommandCommon, Log, TEXT("BoneID %d, Name %s, Level %d, IsGeometry %d, ParentBoneID %d, Offset (%3.2f, %3.2f, %3.2f), Vector (%3.2f, %3.2f, %3.2f)"),
-					BoneIndex, BoneNames[BoneIndex].GetCharArray().GetData(), Hierarchy[BoneIndex].Level, Hierarchy[BoneIndex].IsGeometry(), Hierarchy[BoneIndex].Parent, LocalLocation.X, LocalLocation.Y, LocalLocation.Z, Vector.X, Vector.Y, Vector.Z);
+					BoneIndex, BoneNames[BoneIndex].GetCharArray().GetData(), Level[BoneIndex], GeometryCollection->IsGeometry(BoneIndex), Parent[BoneIndex], LocalLocation.X, LocalLocation.Y, LocalLocation.Z, Vector.X, Vector.Y, Vector.Z);
 
-				for (const int32 & ChildIndex : Hierarchy[BoneIndex].Children)
+				for (const int32 & ChildIndex : Children[BoneIndex])
 				{
 					UE_LOG(LogGeometryCommandCommon, Log, TEXT("..ChildBoneID %d"), ChildIndex);
 				}
-
-				check((Hierarchy[BoneIndex].Children.Num() > 0) == Hierarchy[BoneIndex].IsTransform());
 
 			}
 		}
@@ -220,7 +216,7 @@ void FGeometryCollectionCommandCommon::UpdateExplodedView(class IMeshEditorModeE
 	// Update the exploded view in the UI based on the current exploded view slider position
 	FFractureToolDelegates::Get().OnUpdateExplodedView.Broadcast(static_cast<uint8>(ResetType), static_cast<uint8>(MeshEditorMode.GetFractureSettings()->CommonSettings->ViewMode));
 
-	FFractureToolDelegates::Get().OnComponentsUpdated.Broadcast();
+	SceneOutliner::FSceneOutlinerDelegates::Get().OnComponentsUpdated.Broadcast();
 }
 
 UGeometryCollectionComponent* FGeometryCollectionCommandCommon::GetGeometryCollectionComponent(UEditableMesh* SourceMesh)
@@ -289,6 +285,24 @@ UEditableMesh* FGeometryCollectionCommandCommon::GetEditableMeshForActor(AActor*
 	return nullptr;
 }
 
+UEditableMesh* FGeometryCollectionCommandCommon::GetEditableMeshForComponent(UActorComponent* ActorComponent, TArray<UEditableMesh *>& SelectedMeshes)
+{
+	check(ActorComponent);
+	UPrimitiveComponent* Component = CastChecked<UPrimitiveComponent>(ActorComponent);
+	FEditableMeshSubMeshAddress SubMeshAddress = UEditableMeshFactory::MakeSubmeshAddress(Component, 0);
+
+	for (UEditableMesh* EditableMesh : SelectedMeshes)
+	{
+		if (EditableMesh->GetSubMeshAddress() == SubMeshAddress)
+		{
+			return EditableMesh;
+		}
+	}
+
+	return nullptr;
+}
+
+/*
 UPackage* FGeometryCollectionCommandCommon::CreateGeometryCollectionPackage(UGeometryCollection*& GeometryCollection)
 {
 	UPackage* Package = CreatePackage(NULL, TEXT("/Game/GeometryCollectionAsset"));
@@ -297,10 +311,11 @@ UPackage* FGeometryCollectionCommandCommon::CreateGeometryCollectionPackage(UGeo
 			FName("GeometryCollectionAsset"), RF_Standalone | RF_Public, NULL, GWarn));		
 	return Package;
 }
+*/
 
 void FGeometryCollectionCommandCommon::AddSingleRootNodeIfRequired(UGeometryCollection* GeometryCollectionObject)
 {
-	TSharedPtr<FGeometryCollection> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
+	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
 	if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
 	{
 		if (FGeometryCollectionClusteringUtility::ContainsMultipleRootBones(GeometryCollection))
@@ -312,13 +327,26 @@ void FGeometryCollectionCommandCommon::AddSingleRootNodeIfRequired(UGeometryColl
 
 void FGeometryCollectionCommandCommon::AddAdditionalAttributesIfRequired(UGeometryCollection* GeometryCollectionObject)
 {
-	TSharedPtr<FGeometryCollection> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
+	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
 	if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
 	{
 		if (!GeometryCollection->HasAttribute("ExplodedVector", FGeometryCollection::TransformGroup))
 		{
 			GeometryCollection->AddAttribute<FVector>("ExplodedVector", FGeometryCollection::TransformGroup);
 			GeometryCollection->AddAttribute<FTransform>("ExplodedTransform", FGeometryCollection::TransformGroup);
+
+			TManagedArray<FTransform>& ExplodedTransforms = GeometryCollection->GetAttribute<FTransform>("ExplodedTransform", FGeometryCollection::TransformGroup);
+			TManagedArray<FVector>& ExplodedVectors = GeometryCollection->GetAttribute<FVector>("ExplodedVector", FGeometryCollection::TransformGroup);
+
+			for (int Idx = 0; Idx < GeometryCollection->NumElements(FGeometryCollection::TransformGroup); Idx++)
+			{
+				ExplodedVectors[Idx] = GeometryCollection->Transform[Idx].GetLocation();
+				ExplodedTransforms[Idx] = GeometryCollection->Transform[Idx];
+			}
+		}
+		if (!GeometryCollection->HasAttribute("Level", FGeometryCollection::TransformGroup))
+		{
+			FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(GeometryCollection, -1);
 		}
 	}
 }
@@ -327,7 +355,7 @@ int FGeometryCollectionCommandCommon::GetRootBone(const UGeometryCollection* Geo
 {
 	// Note - it is possible for their to be 2 roots briefly since FGeometryCollectionConversion::AppendStaticMesh puts new
 	// geometry at the root, but this is very quickly fixed up in those situations, see AppendMeshesToGeometryCollection
-	TSharedPtr<FGeometryCollection> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
+	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
 	if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
 	{
 		TArray<int32> RootBones;
@@ -338,50 +366,71 @@ int FGeometryCollectionCommandCommon::GetRootBone(const UGeometryCollection* Geo
 	return -1;
 }
 
-void FGeometryCollectionCommandCommon::AppendMeshesToGeometryCollection(TArray<UEditableMesh*>& SelectedMeshes, UEditableMesh* SourceMesh, FTransform &SourceActorTransform, UGeometryCollection* GeometryCollectionObject, bool DeleteSourceMesh, TArray<int32>& OutNewNodeElements)
+void FGeometryCollectionCommandCommon::AppendMeshesToGeometryCollection(TArray<AActor*>& SelectedActors, TArray<UEditableMesh*>& SelectedMeshes, UEditableMesh* SourceMesh, FTransform &SourceActorTransform, UGeometryCollection* GeometryCollectionObject, bool DeleteSourceMesh, TArray<int32>& OutNewNodeElements)
 {
 	if (GeometryCollectionObject)
 	{
-		TSharedPtr<FGeometryCollection> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
+		TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
 		if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
 		{
 
 			AddAdditionalAttributesIfRequired(GeometryCollectionObject);
 
-			for (UEditableMesh* EditableMesh : SelectedMeshes)
+			for (AActor* SelectedActor : SelectedActors)
 			{
+				UEditableMesh* EditableMesh = GetEditableMeshForActor(SelectedActor, SelectedMeshes);
+
 				// don't want to add duplicate of itself
 				if (EditableMesh == SourceMesh)
 					continue;
-				UStaticMesh* StaticMesh = GetStaticMesh(EditableMesh);
-				AActor* MeshActor = GetEditableMeshActor(EditableMesh);
-				FTransform MeshTransform = MeshActor->GetTransform();
 
-				MeshTransform.SetLocation(MeshTransform.GetLocation() - SourceActorTransform.GetLocation());
-				//this should be Parent relative transform
-				FGeometryCollectionConversion::AppendStaticMesh(StaticMesh, MeshTransform, GeometryCollectionObject, false);
+				FTransform MeshTransform = FTransform::Identity;
 
-				// fix up the additional information required by fracture UI slider
-				TSharedRef<TManagedArray<FVector> > ExplodedVectorsArray = GeometryCollection->GetAttribute<FVector>("ExplodedVector", FGeometryCollection::TransformGroup);
-				TSharedRef<TManagedArray<FTransform> > ExplodedTransformsArray = GeometryCollection->GetAttribute<FTransform>("ExplodedTransform", FGeometryCollection::TransformGroup);
-				TManagedArray<FTransform>& ExplodedTransforms = *ExplodedTransformsArray;
-				TManagedArray<FVector>& ExplodedVectors = *ExplodedVectorsArray;
+				TManagedArray<FTransform>& ExplodedTransforms = GeometryCollection->GetAttribute<FTransform>("ExplodedTransform", FGeometryCollection::TransformGroup);
+				TManagedArray<FVector>& ExplodedVectors = GeometryCollection->GetAttribute<FVector>("ExplodedVector", FGeometryCollection::TransformGroup);
 
-				int LastElement = GeometryCollection->NumElements(FGeometryCollection::TransformGroup) - 1;
-				ExplodedVectors[LastElement] = MeshTransform.GetLocation();
-				ExplodedTransforms[LastElement] = MeshTransform;
-				TManagedArray<FString>& BoneName = *GeometryCollection->BoneName;
-				BoneName[LastElement] = "Root";
+				TArray<UActorComponent*> PrimitiveComponents = SelectedActor->GetComponentsByClass(UPrimitiveComponent::StaticClass());
+				for (UActorComponent* PrimitiveComponent : PrimitiveComponents)
+				{
+					bool ValidComponent = false;
 
-				OutNewNodeElements.Add(LastElement);
+					if (UStaticMeshComponent* StaticMeshComp = Cast<UStaticMeshComponent>(PrimitiveComponent))
+					{
+						MeshTransform = StaticMeshComp->GetComponentTransform();
+						MeshTransform = MeshTransform.GetRelativeTransform(SourceActorTransform);
+
+						FGeometryCollectionConversion::AppendStaticMesh(StaticMeshComp->GetStaticMesh(), StaticMeshComp, MeshTransform, GeometryCollectionObject, false);
+						ValidComponent = true;
+					}
+					else if (UGeometryCollectionComponent* GeometryCollectionComponent = Cast<UGeometryCollectionComponent>(PrimitiveComponent))
+					{
+						MeshTransform = GeometryCollectionComponent->GetComponentTransform();
+						MeshTransform = MeshTransform.GetRelativeTransform(SourceActorTransform);
+
+						const UGeometryCollection* OtherGeometryCollection = GeometryCollectionComponent->GetRestCollection();
+						GeometryCollectionObject->AppendGeometry(*OtherGeometryCollection, false);
+						ValidComponent = true;
+					}
+					if (ValidComponent)
+					{
+						// fix up the additional information required by fracture UI slider
+						int LastElement = GeometryCollection->NumElements(FGeometryCollection::TransformGroup) - 1;
+						(GeometryCollection->Transform)[LastElement] = MeshTransform;
+						ExplodedVectors[LastElement] = MeshTransform.GetLocation();
+						ExplodedTransforms[LastElement] = MeshTransform;
+						TManagedArray<FString>& BoneName = GeometryCollection->BoneName;
+						BoneName[LastElement] = "Root";
+
+						OutNewNodeElements.Add(LastElement);
+					}
+				}
 
 				if (DeleteSourceMesh)
 				{
-					RemoveActor(MeshActor);
+					RemoveActor(SelectedActor);
 				}
 			}
 
-			GeometryCollection->ReindexMaterials();
 		}
 	}
 }
@@ -390,9 +439,22 @@ void FGeometryCollectionCommandCommon::MergeSelections(const UGeometryCollection
 {
 	if (SourceComponent)
 	{
-		for (int32 NewElement : SourceComponent->GetSelectedBones())
+		if (SourceComponent->GetSelectedBones().Num() == 0)
 		{
-			MergedSelectionOut.AddUnique(NewElement);
+			// just select all bones in this case
+			const UGeometryCollection* GeometryCollection = SourceComponent->GetRestCollection();
+			int32 NumTransforms = GeometryCollection->GetGeometryCollection()->NumElements(FGeometryCollection::TransformGroup);
+			for (int32 Idx = 0; Idx < NumTransforms; Idx++)
+			{
+				MergedSelectionOut.Add(Idx);
+			}
+		}
+		else
+		{
+			for (int32 NewElement : SourceComponent->GetSelectedBones())
+			{
+				MergedSelectionOut.AddUnique(NewElement);
+			}
 		}
 	}
 
@@ -406,17 +468,17 @@ void FGeometryCollectionCommandCommon::GetCenterOfBone(UGeometryCollection* Geom
 {
 	if (GeometryCollectionObject)
 	{
-		TSharedPtr<FGeometryCollection> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
+		TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
 		if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
 		{
 			TArray<FTransform> Transforms;
-			GeometryCollectionAlgo::GlobalMatrices(GeometryCollection, Transforms);
+			GeometryCollectionAlgo::GlobalMatrices(GeometryCollection->Transform, GeometryCollection->Parent, Transforms);
 			check(GeometryCollection);
-			const TManagedArray<FGeometryCollectionBoneNode>& Hierarchy = *GeometryCollection->BoneHierarchy;
+			const TManagedArray<TSet<int32>>& ChildrenArray = GeometryCollection->Children;
 
 			FVector SumCOM(0, 0, 0);
 			int Count = 0;
-			CombineCenterOfGeometryRecursive(Transforms, Hierarchy, Element, SumCOM, Count);
+			CombineCenterOfGeometryRecursive(GeometryCollection, Transforms, ChildrenArray, Element, SumCOM, Count);
 
 			if (Count > 0)
 			{
@@ -428,17 +490,17 @@ void FGeometryCollectionCommandCommon::GetCenterOfBone(UGeometryCollection* Geom
 	}
 }
 
-void FGeometryCollectionCommandCommon::CombineCenterOfGeometryRecursive(TArray<FTransform>& Transforms, const TManagedArray<FGeometryCollectionBoneNode>& Hierarchy, int Element, FVector& SumCOMOut, int& CountOut)
+void FGeometryCollectionCommandCommon::CombineCenterOfGeometryRecursive(const FGeometryCollection* GeometryCollection, TArray<FTransform>& Transforms, const TManagedArray<TSet<int32>>& ChildrenArray, int Element, FVector& SumCOMOut, int& CountOut)
 {
-	if (Hierarchy[Element].IsGeometry())
+	if (GeometryCollection->IsGeometry(Element))
 	{
 		SumCOMOut += Transforms[Element].GetLocation();
 		CountOut++;
 	}
 
-	for (int ChildElement : Hierarchy[Element].Children)
+	for (int ChildElement : ChildrenArray[Element])
 	{
-		CombineCenterOfGeometryRecursive(Transforms, Hierarchy, ChildElement, SumCOMOut, CountOut);
+		CombineCenterOfGeometryRecursive(GeometryCollection, Transforms, ChildrenArray, ChildElement, SumCOMOut, CountOut);
 	}
 }
 

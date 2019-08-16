@@ -30,9 +30,9 @@
 		{
 			System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(ConnectWindow));
 			this.UserNameLabel = new System.Windows.Forms.Label();
-			this.UserNameTextBox = new System.Windows.Forms.TextBox();
+			this.UserNameTextBox = new TextBoxWithCueBanner();
 			this.UseDefaultConnectionSettings = new System.Windows.Forms.CheckBox();
-			this.ServerAndPortTextBox = new System.Windows.Forms.TextBox();
+			this.ServerAndPortTextBox = new TextBoxWithCueBanner();
 			this.ServerAndPortLabel = new System.Windows.Forms.Label();
 			this.OkBtn = new System.Windows.Forms.Button();
 			this.CancelBtn = new System.Windows.Forms.Button();
@@ -192,8 +192,8 @@
 
 		#endregion
 		private System.Windows.Forms.Label UserNameLabel;
-		private System.Windows.Forms.TextBox UserNameTextBox;
-		private System.Windows.Forms.TextBox ServerAndPortTextBox;
+		private TextBoxWithCueBanner UserNameTextBox;
+		private TextBoxWithCueBanner ServerAndPortTextBox;
 		private System.Windows.Forms.Label ServerAndPortLabel;
 		private System.Windows.Forms.Button OkBtn;
 		private System.Windows.Forms.Button CancelBtn;

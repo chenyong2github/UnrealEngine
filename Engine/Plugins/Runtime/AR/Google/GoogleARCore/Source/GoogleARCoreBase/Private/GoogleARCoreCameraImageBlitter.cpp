@@ -63,7 +63,12 @@ void FGoogleARCoreDeviceCameraBlitter::LateInit(FIntPoint ImageSize)
 			CameraCopy->AddToRoot();
 			FTextureResource *resource = CameraCopy->CreateResource();
 			CameraCopy->Filter = TextureFilter::TF_Nearest;
-			CameraCopy->SRGB = false;
+			// The camera texture is in SRGB space, so we need to set this flag to true.
+			// Note that in GLES3.1, textures have the SRGB flag set to true will have be converted to 
+			// linear space automatically when sampling the texture. And Unreal always apply a gamma correction
+			// on the final color our the output materials. Without the SRGB flag, the camera texture won't be rendered
+			// correctly.
+			CameraCopy->SRGB = 1;
 			CameraCopy->UpdateResource();
 			CameraCopies.Add(CameraCopy);
 
@@ -127,6 +132,10 @@ void FGoogleARCoreDeviceCameraBlitter::LateInit(FIntPoint ImageSize)
 			"layout(location = 0) out vec4 outColor;\n"
 			"void main() {\n"
 			"	outColor.xyz = texture(cameraTexture, uvs).rgb;\n"
+			// Since in GLES 3.1, if the framebuffer texture is declared as SRGB type, opengl will perform
+			// gamma correction automatically on the framebuffer. We don't want this effect since the texture
+			// we sample is already in SRGB space. So we need to convert the texture color to linear space here.
+			"	outColor.xyz = outColor.xyz * outColor.xyz;\n" 
 			"	outColor.w = 1.0;\n"
 			"}\n";
 		GLuint Fs = glCreateShader(GL_FRAGMENT_SHADER);

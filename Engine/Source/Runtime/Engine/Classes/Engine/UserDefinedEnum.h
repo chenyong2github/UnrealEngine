@@ -62,6 +62,7 @@ public:
 
 	/** Overridden to read DisplayNameMap*/
 	virtual FText GetDisplayNameTextByIndex(int32 InIndex) const override;
+	virtual FString GetAuthoredNameStringByIndex(int32 InIndex) const override;
 
 	virtual bool SetEnums(TArray<TPair<FName, int64>>& InNames, ECppForm InCppForm, bool bAddMaxKeyIfMissing = true) override;
 

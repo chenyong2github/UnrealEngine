@@ -4,6 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Math/RandomStream.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "UObject/Class.h"
@@ -16,18 +17,18 @@ struct FPropertyChangedEvent;
 struct FWaveInstance;
 
 /*-----------------------------------------------------------------------------
-	USoundNode helper macros. 
+	USoundNode helper macros.
 -----------------------------------------------------------------------------*/
 
 struct FActiveSound;
 
 #define DECLARE_SOUNDNODE_ELEMENT(Type,Name)													\
 	Type& Name = *((Type*)(Payload));															\
-	Payload += sizeof(Type);														
+	Payload += sizeof(Type);
 
 #define DECLARE_SOUNDNODE_ELEMENT_PTR(Type,Name)												\
 	Type* Name = (Type*)(Payload);																\
-	Payload += sizeof(Type);														
+	Payload += sizeof(Type);
 
 #define	RETRIEVE_SOUNDNODE_PAYLOAD( Size )														\
 		uint8*	Payload					= NULL;													\
@@ -69,6 +70,9 @@ class ENGINE_API USoundNode : public UObject
 	class UEdGraphNode* GetGraphNode() const;
 #endif
 
+	/** Stream of random numbers to be used by this instance of USoundNode */
+	FRandomStream RandomStream;
+
 public:
 	//~ Begin UObject Interface
 #if WITH_EDITOR
@@ -82,32 +86,32 @@ public:
 	//~ End UObject Interface
 
 	//
-	//~ Begin USoundNode Interface. 
+	//~ Begin USoundNode Interface.
 	//
 
 	/**
 	 * Notifies the sound node that a wave instance in its subtree has finished.
 	 *
-	 * @param WaveInstance	WaveInstance that was finished 
+	 * @param WaveInstance	WaveInstance that was finished
 	 */
 	virtual bool NotifyWaveInstanceFinished( struct FWaveInstance* WaveInstance )
 	{
 		return( false );
 	}
 
-	/** 
+	/**
 	 * Returns the maximum distance this sound can be heard from.
 	 */
 	virtual float GetMaxDistance() const;
 
 	/** Returns if this node has been set to be allowed virtual. Only the sound node wave player implements this. */
-	virtual bool IsAllowedVirtual() const
+	virtual bool SupportsSubtitles() const
 	{
 		return false;
 	}
 
-	/** 
-	 * Returns the maximum duration this sound node will play for. 
+	/**
+	 * Returns the maximum duration this sound node will play for.
 	 *
 	 * @return	float of number of seconds this sound will play for. INDEFINITELY_LOOPING_DURATION means its looping.
 	 */
@@ -119,27 +123,27 @@ public:
 	/** Returns whether the sound has a sequencer node. */
 	virtual bool HasConcatenatorNode() const;
 
-	/** Returns true if the sound node is virtualize when silent. */
-	virtual bool IsVirtualizeWhenSilent() const;
+	/** Returns true if the sound node is set to play when silent. */
+	virtual bool IsPlayWhenSilent() const;
 
 	virtual void ParseNodes( FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound, const struct FSoundParseParameters& ParseParams, TArray<FWaveInstance*>& WaveInstances );
 
 	/**
 	 * Returns an array of all (not just active) nodes.
 	 */
-	virtual void GetAllNodes( TArray<USoundNode*>& SoundNodes ); 
+	virtual void GetAllNodes( TArray<USoundNode*>& SoundNodes );
 
 	/**
 	 * Returns the maximum number of child nodes this node can possibly have
 	 */
 	virtual int32 GetMaxChildNodes() const
-	{ 
-		return 1 ; 
+	{
+		return 1 ;
 	}
 
 	/** Returns the minimum number of child nodes this node must have */
 	virtual int32 GetMinChildNodes() const
-	{ 
+	{
 		return 0;
 	}
 
@@ -147,8 +151,8 @@ public:
 	virtual int32 GetNumSounds(const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound) const;
 
 
-	/** 
-	 * Editor interface. 
+	/**
+	 * Editor interface.
 	 */
 
 	/**
@@ -180,7 +184,7 @@ public:
 	virtual void OnEndPIE(const bool bIsSimulating) {};
 #endif //WITH_EDITOR
 
-	/** 
+	/**
 	 * Used to create a unique string to identify unique nodes
 	 */
 	static UPTRINT GetNodeWaveInstanceHash(const UPTRINT ParentWaveInstanceHash, const USoundNode* ChildNode, const uint32 ChildIndex);

@@ -78,7 +78,7 @@ public:
 	bool RequiresDistanceFieldData() const;
 
 	/** Requests the the simulation be reset on the next tick. */
-	void Reset(EResetMode Mode, bool bBindParams = false);
+	void Reset(EResetMode Mode);
 
 	void ComponentTick(float DeltaSeconds);
 	void PreSimulateTick(float DeltaSeconds);
@@ -86,6 +86,8 @@ public:
 	void FinalizeTick(float DeltaSeconds);
 	/** Handles completion of the system and returns true if the system is complete. */
 	bool HandleCompletion();
+
+	void SetEmitterEnable(FName EmitterName, bool bNewEnableState);
 
 	/** Perform per-tick updates on data interfaces that need it. This can cause systems to complete so cannot be parallelized. */
 	void TickDataInterfaces(float DeltaSeconds, bool bPostSimulate);
@@ -159,6 +161,7 @@ public:
 	FORCEINLINE void SetPendingSpawn(bool bInValue) { bPendingSpawn = bInValue; }
 
 	FORCEINLINE float GetAge()const { return Age; }
+	FORCEINLINE int32 GetTickCount() const { return TickCount; }
 	
 	FORCEINLINE TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe> GetSystemSimulation()const
 	{
@@ -210,8 +213,8 @@ public:
 
 	static bool AllocateSystemInstance(class UNiagaraComponent* InComponent, TUniquePtr< FNiagaraSystemInstance >& OutSystemInstanceAllocation);
 	static bool DeallocateSystemInstance(TUniquePtr< FNiagaraSystemInstance >& SystemInstanceAllocation);
-	/*void SetHasGPUEmitters(bool bInHasGPUEmitters) { bHasGPUEmitters = bInHasGPUEmitters; }
-	bool HasGPUEmitters() { return bHasGPUEmitters;  }*/
+	/*void SetHasGPUEmitters(bool bInHasGPUEmitters) { bHasGPUEmitters = bInHasGPUEmitters; }*/
+	bool HasGPUEmitters() { return bHasGPUEmitters;  }
 
 	int32 GetDetailLevel()const;
 private:

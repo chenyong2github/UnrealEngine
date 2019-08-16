@@ -122,6 +122,7 @@ FEditorDelegates::FOnMapOpened							FEditorDelegates::OnMapOpened;
 FEditorDelegates::FOnEditorCameraMoved					FEditorDelegates::OnEditorCameraMoved;
 FEditorDelegates::FOnDollyPerspectiveCamera				FEditorDelegates::OnDollyPerspectiveCamera;
 FSimpleMulticastDelegate								FEditorDelegates::OnShutdownPostPackagesSaved;
+FEditorDelegates::FOnAssetsCanDelete					FEditorDelegates::OnAssetsCanDelete;
 FEditorDelegates::FOnAssetsPreDelete					FEditorDelegates::OnAssetsPreDelete;
 FEditorDelegates::FOnAssetsDeleted						FEditorDelegates::OnAssetsDeleted;
 FEditorDelegates::FOnAssetDragStarted					FEditorDelegates::OnAssetDragStarted;
@@ -202,6 +203,8 @@ void FReimportManager::UpdateReimportPaths( UObject* Obj, const TArray<FString>&
 {
 	if (Obj)
 	{
+		SortHandlersIfNeeded();
+
 		TArray<FString> UnusedExistingFilenames;
 		auto* Handler = Handlers.FindByPredicate([&](FReimportHandler* InHandler){ return InHandler->CanReimport(Obj, UnusedExistingFilenames); });
 		if (Handler)
@@ -216,6 +219,8 @@ void FReimportManager::UpdateReimportPath(UObject* Obj, const FString& Filename,
 {
 	if (Obj)
 	{
+		SortHandlersIfNeeded();
+
 		TArray<FString> UnusedExistingFilenames;
 		auto* Handler = Handlers.FindByPredicate([&](FReimportHandler* InHandler) { return InHandler->CanReimport(Obj, UnusedExistingFilenames); });
 		if (Handler)
@@ -244,13 +249,8 @@ bool FReimportManager::Reimport( UObject* Obj, bool bAskForNewFileIfMissing, boo
 	bool bSuccess = false;
 	if ( Obj )
 	{
-		if (bHandlersNeedSorting)
-		{
-			// Use > operator because we want higher priorities earlier in the list
-			Handlers.Sort([](const FReimportHandler& A, const FReimportHandler& B) { return A.GetPriority() > B.GetPriority(); });
-			bHandlersNeedSorting = false;
-		}
-		
+		SortHandlersIfNeeded();
+
 		bool bValidSourceFilename = false;
 		TArray<FString> SourceFilenames;
 
@@ -582,6 +582,16 @@ void FReimportManager::AddReferencedObjects( FReferenceCollector& Collector )
 		{
 			Collector.AddReferencedObject(Obj);
 		}
+	}
+}
+
+void FReimportManager::SortHandlersIfNeeded()
+{
+	if (bHandlersNeedSorting)
+	{
+		// Use > operator because we want higher priorities earlier in the list
+		Handlers.Sort([](const FReimportHandler& A, const FReimportHandler& B) { return A.GetPriority() > B.GetPriority(); });
+		bHandlersNeedSorting = false;
 	}
 }
 
@@ -1256,7 +1266,8 @@ namespace EditorUtilities
 
 			if( !bIsTransient && !bIsIdentical && !bIsComponentContainer && !bIsComponentProp && !bIsBlueprintReadonly)
 			{
-				const bool bIsSafeToCopy = !( Options.Flags & ECopyOptions::OnlyCopyEditOrInterpProperties ) || ( Property->HasAnyPropertyFlags( CPF_Edit | CPF_Interp ) );
+				const bool bIsSafeToCopy = (!( Options.Flags & ECopyOptions::OnlyCopyEditOrInterpProperties ) || ( Property->HasAnyPropertyFlags( CPF_Edit | CPF_Interp ) ))
+				                        && (!( Options.Flags & ECopyOptions::SkipInstanceOnlyProperties) || ( !Property->HasAllPropertyFlags(CPF_DisableEditOnTemplate) ) );
 				if( bIsSafeToCopy )
 				{
 					if (!Options.CanCopyProperty(*Property, *SourceActor))
@@ -1381,7 +1392,8 @@ namespace EditorUtilities
 					if( !bIsTransient && !bIsIdentical && !bIsComponent && !SourceUCSModifiedProperties.Contains(Property)
 						&& ( !bIsTransform || SourceComponent != SourceActor->GetRootComponent() || ( !SourceActor->HasAnyFlags( RF_ClassDefaultObject | RF_ArchetypeObject ) && !TargetActor->HasAnyFlags( RF_ClassDefaultObject | RF_ArchetypeObject ) ) ) )
 					{
-						const bool bIsSafeToCopy = !( Options.Flags & ECopyOptions::OnlyCopyEditOrInterpProperties ) || ( Property->HasAnyPropertyFlags( CPF_Edit | CPF_Interp ) );
+						const bool bIsSafeToCopy = (!(Options.Flags & ECopyOptions::OnlyCopyEditOrInterpProperties) || (Property->HasAnyPropertyFlags(CPF_Edit | CPF_Interp)))
+						                        && (!(Options.Flags & ECopyOptions::SkipInstanceOnlyProperties) || (!Property->HasAllPropertyFlags(CPF_DisableEditOnTemplate)));
 						if( bIsSafeToCopy )
 						{
 							if (!Options.CanCopyProperty(*Property, *SourceActor))

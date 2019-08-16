@@ -377,6 +377,13 @@ protected:
 		return KeyPropertyResult;
 	}
 
+	FORCEINLINE FKeyPropertyResult AddKeysToObjects(
+		std::initializer_list<UObject*> ObjectsToKey, FFrameNumber KeyTime, FGeneratedTrackKeys& GeneratedKeys,
+		ESequencerKeyMode KeyMode, TSubclassOf<UMovieSceneTrack> TrackClass, FName PropertyName,
+		TFunction<void(TrackType*)> OnInitializeNewTrack)
+	{
+		return AddKeysToObjects(MakeArrayView(ObjectsToKey), KeyTime, GeneratedKeys, KeyMode, TrackClass, PropertyName, MoveTemp(OnInitializeNewTrack));
+	}
 
 private:
 
@@ -440,6 +447,9 @@ private:
 			KeyMode == ESequencerKeyMode::ManualKeyForced ||
 			AllowEditsMode == EAllowEditsMode::AllowSequencerEditsOnly;
 
+		bool bCreateSection = bCreateTrack || 
+			(KeyMode == ESequencerKeyMode::AutoKey && (AutoChangeMode != EAutoChangeMode::None));
+
 		// Try to find an existing Track, and if one doesn't exist check the key params and create one if requested.
 		FFindOrCreateTrackResult TrackResult = FindOrCreateTrackForObject( ObjectHandle, TrackClass, PropertyName, bCreateTrack );
 		TrackType* Track = CastChecked<TrackType>( TrackResult.Track, ECastCheckedType::NullAllowed );
@@ -460,7 +470,7 @@ private:
 		if ( Track )
 		{
 			float Weight = 1.0f;
-			UMovieSceneSection* SectionToKey = Track->FindOrExtendSection(KeyTime, Weight);
+			UMovieSceneSection* SectionToKey = bCreateSection ? Track->FindOrExtendSection(KeyTime, Weight) : Track->FindSection(KeyTime);
 
 			// If there's no overlapping section to key, create one only if a track was newly created. Otherwise, skip keying altogether
 			// so that the user is forced to create a section to key on.
@@ -555,7 +565,8 @@ private:
 	{
 		FOptionalMovieSceneBlendType BlendType = Section->GetBlendType();
 		// Sections are only eligible for autokey if they are not blendable (or absolute, relative), and overlap the current time
-		return ( !BlendType.IsValid() || BlendType.Get() == EMovieSceneBlendType::Absolute || BlendType.Get() == EMovieSceneBlendType::Additive) && Section->GetRange().Contains(Time);
+		return ( !BlendType.IsValid() || BlendType.Get() == EMovieSceneBlendType::Absolute || BlendType.Get() == EMovieSceneBlendType::Additive ||
+			BlendType.Get() == EMovieSceneBlendType::Relative) && Section->GetRange().Contains(Time);
 	}
 };
 

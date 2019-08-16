@@ -6,6 +6,8 @@
 #include "Layout/Geometry.h"
 #include "Misc/FrameRate.h"
 
+class FSequencerSectionPainter;
+
 /**
  * Utility for converting time units to slate pixel units and vice versa
  */
@@ -94,3 +96,13 @@ private:
 	/** The number of pixels in the view range */
 	float PixelsPerSecond;
 };
+
+
+/**
+ * Draw the current frame number next to the scrub handle
+ *
+ * @param InPainter Structure that affords common painting operations
+ * @param CurrentTime Current time of the scrub handle
+ * @param FrameNumber Frame number to draw
+ */
+void DrawFrameNumberHint(FSequencerSectionPainter& InPainter, FFrameTime CurrentTime, int32 FrameNumber);

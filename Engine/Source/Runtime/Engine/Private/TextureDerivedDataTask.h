@@ -26,7 +26,7 @@ enum
 
 #if WITH_EDITOR
 
-void GetTextureDerivedDataKeySuffix(const UTexture& Texture, const FTextureBuildSettings& BuildSettings, FString& OutKeySuffix);
+void GetTextureDerivedDataKeySuffix(const UTexture& Texture, const FTextureBuildSettings* BuildSettingsPerLayer, FString& OutKeySuffix);
 uint32 PutDerivedDataInCache(FTexturePlatformData* DerivedData, const FString& DerivedDataKeySuffix);
 
 namespace ETextureCacheFlags
@@ -41,7 +41,63 @@ namespace ETextureCacheFlags
 		ForDDCBuild		= 0x20,
 		RemoveSourceMipDataAfterCache = 0x40,
 		AllowAsyncLoading = 0x80,
+		ForVirtualTextureStreamingBuild = 0x100
 	};
+};
+
+// Everything required to get the texture source data.
+struct FTextureSourceLayerData
+{
+	ERawImageFormat::Type ImageFormat;
+	EGammaSpace GammaSpace;
+};
+
+struct FTextureSourceBlockData
+{
+	TArray<TArray<FImage>> MipsPerLayer;
+	int32 BlockX = 0;
+	int32 BlockY = 0;
+	int32 SizeInBlocksX = 1; // Normally each blocks covers a 1x1 block area
+	int32 SizeInBlocksY = 1;
+	int32 SizeX = 0;
+	int32 SizeY = 0;
+	int32 NumMips = 0;
+	int32 NumSlices = 0;
+	int32 MipBias = 0;
+};
+
+struct FTextureSourceData
+{
+	FTextureSourceData()
+		: SizeInBlocksX(0)
+		, SizeInBlocksY(0)
+		, BlockSizeX(0)
+		, BlockSizeY(0)
+		, bValid(false)
+	{}
+
+	void Init(UTexture& InTexture, const FTextureBuildSettings* InBuildSettingsPerLayer, bool bAllowAsyncLoading);
+	bool IsValid() const { return bValid; }
+
+	void GetSourceMips(FTextureSource& Source, IImageWrapperModule* InImageWrapper);
+	void GetAsyncSourceMips(IImageWrapperModule* InImageWrapper);
+
+	void ReleaseMemory()
+	{
+		// Unload BulkData loaded with LoadBulkDataWithFileReader
+		AsyncSource.RemoveBulkData();
+		Blocks.Empty();
+	}
+
+	FName TextureName;
+	FTextureSource AsyncSource;
+	TArray<FTextureSourceLayerData> Layers;
+	TArray<FTextureSourceBlockData> Blocks;
+	int32 SizeInBlocksX;
+	int32 SizeInBlocksY;
+	int32 BlockSizeX;
+	int32 BlockSizeY;
+	bool bValid;
 };
 
 /**
@@ -49,36 +105,6 @@ namespace ETextureCacheFlags
  */
 class FTextureCacheDerivedDataWorker : public FNonAbandonableTask
 {
-	// Everything required to get the texture source data.
-	struct FTextureSourceData
-	{
-		FTextureSourceData() : NumMips(0), NumSlices(0), ImageFormat(ERawImageFormat::BGRA8), GammaSpace(EGammaSpace::sRGB), bValid(false) {}
-
-		void Init(UTexture& InTexture, const FTextureBuildSettings& InBuildSettings, bool bAllowAsyncLoading);
-		bool IsValid() const { return bValid; }
-
-		void GetSourceMips(FTextureSource& Source, IImageWrapperModule* InImageWrapper);
-		void GetAsyncSourceMips(IImageWrapperModule* InImageWrapper);
-
-		void ReleaseMemory()
-		{
-			// Unload BulkData loaded with LoadBulkDataWithFileReader
-			AsyncSource.RemoveBulkData();
-			Mips.Empty();
-		}
-
-		FName TextureName;
-		FTextureSource AsyncSource;
-		TArray<FImage> Mips;
-		int32 NumMips;
-		int32 NumSlices;
-		ERawImageFormat::Type ImageFormat;
-		EGammaSpace GammaSpace;
-		bool bValid;
-	};
-
-
-
 	/** Texture compressor module, must be loaded in the game thread. see FModuleManager::WarnIfItWasntSafeToLoadHere() */
 	ITextureCompressorModule* Compressor;
 	/** Image wrapper module, must be loaded in the game thread. see FModuleManager::WarnIfItWasntSafeToLoadHere() */
@@ -88,7 +114,7 @@ class FTextureCacheDerivedDataWorker : public FNonAbandonableTask
 	/** The texture for which derived data is being cached. */
 	UTexture& Texture;
 	/** Compression settings. */
-	FTextureBuildSettings BuildSettings;
+	TArray<FTextureBuildSettings> BuildSettingsPerLayer;
 	/** Derived data key suffix. */
 	FString KeySuffix;
 	/** Source mip images. */
@@ -115,7 +141,7 @@ public:
 		ITextureCompressorModule* InCompressor,
 		FTexturePlatformData* InDerivedData,
 		UTexture* InTexture,
-		const FTextureBuildSettings& InSettings,
+		const FTextureBuildSettings* InSettingsPerLayer,
 		uint32 InCacheFlags);
 
 	/** Does the work to cache derived data. Safe to call from any thread. */
@@ -149,14 +175,14 @@ struct FTextureAsyncCacheDerivedDataTask : public FAsyncTask<FTextureCacheDerive
 		ITextureCompressorModule* InCompressor,
 		FTexturePlatformData* InDerivedData,
 		UTexture* InTexture,
-		const FTextureBuildSettings& InSettings,
+		const FTextureBuildSettings* InSettingsPerLayer,
 		uint32 InCacheFlags
 		)
 		: FAsyncTask<FTextureCacheDerivedDataWorker>(
 			InCompressor,
 			InDerivedData,
 			InTexture,
-			InSettings,
+			InSettingsPerLayer,
 			InCacheFlags
 			)
 	{

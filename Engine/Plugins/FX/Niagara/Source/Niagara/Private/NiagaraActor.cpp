@@ -77,5 +77,14 @@ bool ANiagaraActor::GetReferencedContentObjects(TArray<UObject*>& Objects) const
 
 	return true;
 }
+
+void ANiagaraActor::ResetInLevel()
+{
+	if (NiagaraComponent)
+	{
+		NiagaraComponent->Activate(true);
+		NiagaraComponent->ReregisterComponent();
+	}
+}
 #endif // WITH_EDITOR
 

@@ -14,41 +14,42 @@ class PRELOADSCREEN_API FPreLoadScreenBase :
     /**** IPreLoadScreen implementation ****/
 public:
     //We don't use these in the FPreLoadScreenBase, but they are useful for game-specific implementations
-    virtual void Tick(float DeltaTime) {}
-    virtual void RenderTick(float DeltaTime) {};
-    virtual void OnStop() {}
+    virtual void Tick(float DeltaTime) override {}
+	virtual bool ShouldRender() const override { return true; }
+    virtual void RenderTick(float DeltaTime) override {};
+    virtual void OnStop() override {}
 
     //Store off TargetWindow
-    virtual void OnPlay(TWeakPtr<SWindow> TargetWindow) { OwningWindow = TargetWindow; }
+    virtual void OnPlay(TWeakPtr<SWindow> TargetWindow) override { OwningWindow = TargetWindow; }
 
     //By default have a small added tick delay so we don't super spin out while waiting on other threads to load data / etc.
-    virtual float GetAddedTickDelay() { return 0.02f; }
+    virtual float GetAddedTickDelay() override { return 0.02f; }
 
-    virtual void Init();
+	virtual bool Init() override { return true; }
     
     virtual TSharedPtr<SWidget> GetWidget() override { return nullptr; }
     virtual const TSharedPtr<const SWidget> GetWidget() const override { return nullptr; }
 
     //IMPORTANT: This changes a LOT of functionality and implementation details. EarlyStartupScreens happen before the engine is fully initialized and block engine initialization before they finish.
     //           this means they have to forgo even the most basic of engine features like UObject support, as they are displayed before those systems are initialized.
-    virtual EPreLoadScreenTypes GetPreLoadScreenType() const { return EPreLoadScreenTypes::EngineLoadingScreen; }
+    virtual EPreLoadScreenTypes GetPreLoadScreenType() const override { return EPreLoadScreenTypes::EngineLoadingScreen; }
 
     virtual void SetEngineLoadingFinished(bool IsEngineLoadingFinished) override { bIsEngineLoadingFinished = IsEngineLoadingFinished; }
 
 	// PreLoadScreens not using this functionality should return NAME_None
 	virtual FName GetPreLoadScreenTag() const override { return NAME_None; }
 
-    virtual void CleanUp();
+    virtual void CleanUp() override;
 
     //Default behavior is just to see if we have an active widget. Should really overload with our own behavior to see if we are done displaying
-    virtual bool IsDone() const;
+    virtual bool IsDone() const override;
 
 public:
     FPreLoadScreenBase()
         : bIsEngineLoadingFinished(false)
     {}
 
-    virtual ~FPreLoadScreenBase() {};
+    virtual ~FPreLoadScreenBase() override {};
 
     //Handles constructing a FPreLoadSettingsContainerBase with the 
     virtual void InitSettingsFromConfig(const FString& ConfigFileName);

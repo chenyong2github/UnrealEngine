@@ -1,0 +1,292 @@
+INTSourceChangelist:5762778
+Availability: Public
+Crumbs:
+Title:Unreal Studio 4.22版本说明
+Description:讲述Unreal Studio 4.22版本中的新内容。
+Type: 
+Version: 4.22
+Parent: Studio/Builds
+Order: 22
+Tags: Unreal Studio
+Tags: Release Notes
+
+这个新版本中加入了几个重要新功能，专供Unreal Studio订阅者使用。工作流改良更是直接取自用户的反馈和建议。此页面将介绍此版本中的新内容。
+
+(#datasmithimprovementsfor3dsmax)
+
+##3ds Max的Datasmith改良
+
+此版本继续添加了3ds Max Datasmith使用的新功能和改良。
+
+(#datasmithimportsanimationsintolevelsequences)
+
+###Datasmith将动画导入关卡序列
+
+3ds Max场景包含3D空间中带动画的平移、旋转或缩放值时，现在可将这些对象动画随组成场景的对象放入虚幻引擎。
+
+Datasmith将来自每个场景对象动画保存到一个新关卡序列中，其将创建在内容浏览器中场景的其他资源旁。可使用此关卡序列来控制虚幻编辑器中和运行项目时的动画播放。
+
+[OBJECT:EmbeddedVideo]
+    [PARAMLITERAL:videoid]
+    8T37S4FUpv8
+    [/PARAMLITERAL]
+    [PARAMLITERAL:width]
+    78
+    [/PARAMLITERAL]
+    [PARAMLITERAL:height]
+    56.25
+    [/PARAMLITERAL]
+    [PARAMLITERAL:units]
+    %
+    [/PARAMLITERAL]
+    [PARAMLITERAL:type]
+    simple
+    [/PARAMLITERAL]
+[/OBJECT]
+
+欲知详情，请参见[动画](Studio/Datasmith/Overview/ImportProcess#animations)。 
+
+欲知使用关卡序列的更多详情，请参见[Sequencer工具文档](Engine/Sequencer)。
+
+(#per-objectexportsettings)
+
+###逐对象导出设置
+
+您现在可以使用3ds Max中全新的Datasmith属性修改器来自定义场景中每个个体对象的Datasmith导入和导出方式。 
+
+![](PerObjectExportSettings_01.png)(w:400 convert:false)
+
+可对每个对象进行以下设置：
+
+*    UV通道的索引，包含为对象创建的光照贴图UV。Datasmith将自动设置其在虚幻引擎中创建的静态网格体资源，以从此通道获取其光照贴图UV，而非在导入场景时从零开始新建光照贴图UV。
+*    场景中的另一个对象用作虚幻引擎物理模拟中的碰撞网格体。
+*    是希望将对象的几何体作为一个静态网格体资源放入虚幻引擎中，还是只将对象的边界框转入虚幻引擎。
+
+欲知详情，请参见[逐对象转换设置](Studio/Datasmith/SoftwareInteropGuides/3dsMax/ObjectSettings)。
+
+(#globalexposureandphysicalcamerasettings)
+
+###全局曝光和物理相机设置
+
+在之前的版本中，Datasmith能正确地将物理光源强度转入虚幻引擎。然而，用于渲染周边场景的曝光值并不在正确范围中，因此结果可能会过度曝光。举例而言：
+
+[OBJECT:ComparisonSlider]
+    [PARAM:before]
+    ![Exposure in 3ds Max](Exposure_01.png)(convert:false)
+    [/PARAM]
+    [PARAM:after]
+    ![After import with Datasmith 4.21](datasmith-ue4-exposure-421.png)(convert:false)
+    [/PARAM]
+[/OBJECT]
+
+在此版本中，Datasmith为虚幻引擎带来了有关3ds Max中设置的物理相机属性和全局曝光设置的更多信息。目的是让虚幻引擎中的整体渲染环境与源场景更加统一，让物理光源的强度产生与3ds Max渲染中相同的视觉效果。
+
+*    如果3ds Max场景包含一个物理相机，则此相机的曝光和白平衡设置将延续到代表虚幻关卡中物理相机的 **CineCameraActor**。
+    
+    最终结果是：通过此相机查看关卡时，看到的光线强度将与3ds Max的光线强度高度匹配。
+    [OBJECT:ComparisonSlider]
+        [PARAM:before]
+        ![3ds Max perspective camera](Exposure_01.png)(convert:false)
+        [/PARAM]
+        [PARAM:after]
+        ![Post Process Volume exposure in Unreal Engine](Exposure_02.png)(convert:false)
+        [/PARAM]
+    [/OBJECT]
+*    此外，如果3ds Max中的 **曝光控制（Exposure Control）** 设置使用 **物理相机曝光控制（Physical Camera Exposure Control）** 或 **VRay曝光控制（VRay Exposure Control）**，Datasmith现将在Datasmith场景中创建一个后期处理体积，将这些全局曝光设置应用到整个关卡。
+    
+    最终结果是：使用虚幻编辑器视口中的默认透视相机查看关卡时，将再次看到光线强度与3ds Max的渲染结果高度匹配。 
+    [OBJECT:ComparisonSlider]
+        [PARAM:before]
+        ![Global exposure in 3ds Max perspective camera](GlobalExposure_01.png)(convert:false)
+        [/PARAM]
+        [PARAM:after]
+        ![Post Process Volume exposure in Unreal Engine](GlobalExposure_02.png)(convert:false)
+        [/PARAM]
+    [/OBJECT]
+    即使全局白平衡和曝光设置与物理相机设置不匹配，也会发生此情况。如上图所示，类似于在3ds Max中渲染一个透视视口，而非从物理相机进行渲染。
+
+同时请参阅[曝光](Studio/Datasmith/SoftwareInteropGuides/3dsMax#exposure)。
+
+[REGION:note]
+如场景包含3ds Max中的一个物理相机，则全局曝光控制设置将默认启用。这意味着下次将场景导入虚幻引擎时将获得后期处理体积，这将可能改变视觉结果。如果用于设置场景的曝光值与场景中的光线强度一致，那么虚幻引擎中的场景光照与源场景的匹配度将远高于之前的版本。
+[/REGION]
+
+(#arealightimprovements)
+
+###区域光照改良
+
+从3ds Max导入包含一类灯光（从一个2D或3D表面发射光线）的场景时，Datasmith使用内置 **DatasmithAreaLightMesh** 蓝图的一个实例来代表虚幻引擎关卡中的灯光。此版本对该蓝图进行了数项改良：
+
+*    当光源为一个矩形区域时，**DatasmithAreaLightMesh** 现使用一个[矩形光源](Engine/Rendering/LightingAndShadows/LightTypes/RectLights)将其光线发射到关卡中。这些矩形光源代表光源的强度和分布，与3ds Max中的原始结果更为一致。
+*    **DatasmithAreaLightMesh** 蓝图现将动态创建其光照actor组件。这意味着编辑控制光源的属性（如强度和颜色）时无需选择一个子组件。在关卡中选择 **DatasmithAreaLightMesh** actor时可对这些属性进行编辑。也可同时对多个 **DatasmithAreaLightMesh** actor的设置进行批量编辑。
+
+![](DatasmithAreaLightMesh_01.png)(w:800 convert:false)
+
+参见[区域、平面和体积光源](Studio/Datasmith/SoftwareInteropGuides/3dsMax#area,plane,andvolumelights)。
+
+(#vertexcolors)
+
+###顶点颜色
+
+Datasmith现从3ds Max对象导入顶点颜色，并将这些顶点颜色设为在虚幻引擎中创建的静态网格体资源上可用。
+
+在虚幻编辑器中设计新材质图表时，可使用 **Constants > VertexColor** 节点来获取这些顶点颜色，并用其来获取特殊的视觉效果。
+[REGION:imagetable]
+| [REGION:lightbox][![ImageName](VertexColors_01.png)(w:582 convert:false)](VertexColors_01.png)[/REGION] | [REGION:lightbox][![ImageName](VertexColors_02.png)(w:582 convert:false)](VertexColors_02.png)[/REGION] |
+| --- | --- |
+| **3ds Max中显示的顶点颜色** | **虚幻引擎中显示的顶点颜色** |
+[/REGION]
+
+参见[顶点颜色](Studio/Datasmith/SoftwareInteropGuides/3dsMax#vertexcolors)。
+
+(#improvedforestpacksupport)
+
+###改良的森林包支持
+
+如将森林包或RailClone插件用于3ds Max，Datasmith现将使用层级实例化静态网格体组件来管理3ds Max场景中散布或过程化分布的几何体实例。这应该能为数据转译性能和虚幻引擎中的内容使用带来巨大提升。 
+
+[OBJECT:ComparisonSlider]
+    [PARAM:before]
+    ![Forest Pack in 3ds Max](ForestPackComp_01.png)(convert:false)
+    [/PARAM]
+    [PARAM:after]
+    ![Unreal Engine](ForestPackComp_02.png)(convert:false)
+    [/PARAM]
+[/OBJECT]
+
+请参阅[森林包与RailClone对象](Studio/Datasmith/SoftwareInteropGuides/3dsMax#forestpackandrailcloneobjects)。
+
+(#newtessellationmethodforrhinofiles)
+
+##Rhino文件的全新曲面细分方法
+
+Datasmith使用针对其他CAD数据类型的相同曲面细分方法来处理Rhino场景。
+
+在之前的版本中，Datasmith依赖于场景渲染时Rhino中内部执行曲面细分进程的结果，这可能在虚幻引擎中产生意外结果，处理从未在Rhino中渲染过的场景时尤为如此。
+
+现可使用Datasmith CAD导入器提供的曲面细分设置来将虚幻引擎中生成的静态网格体几何体的保真度自定义为原始的Rhino表面。此外，从 **内容浏览器** 重新导入这些个体静态网格体资源并设置不同导入选项即可自定义用于不同静态网格体资源的曲面细分设置。 
+
+请参阅[以CAD格式使用Datasmith](Studio/Datasmith/SoftwareInteropGuides/CAD)。
+
+(#controlovermeshstitchingforcadimports)
+
+##控制CAD导入的网格体连接
+
+使用Datasmith CAD导入器时，可控制曲面细分进程对看似相连的参数表面的处理方式，但实际上其建模时将成为单独的对象。可进行以下操作：
+
+*    修复或重新连接属于源场景中的相同形体或对象的多个表面。Datasmith检测到表面已连接时，其将会把它们合并到其创建的静态网格体资源中的相同网格体元素。
+*    测试其表面之间的连接性，将单独的形体缝合在一起。此选项或许能减少Datasmith在项目中创建的静态网格体资源数量，但花费的时间更长。
+*    跳过连接。Datasmith将每个形体导入为单独的静态网格体资源，其将把这些形体中的每个单独表面导入为静态网格体资源中一个单独的网格体元素。
+
+![](ControlMeshStitching_01.png)(w:600 convert:false)
+
+(#datasmithscenereimportpreserveschangestomaterialinstances)
+
+##Datasmith场景重导入保留对材质实例的修改
+
+对Datasmith为导入场景创建的任意材质实例的设置进行修改时，Datasmith现在将把这些修改作为覆盖来追踪。
+
+这意味着：
+
+*    在 **内容浏览器** 中右键点击一个材质实例，从上下文菜单中选择 **Datasmith > 重设覆盖（Reset Overrides）** 即可选择性地回滚修改。
+
+    ![](ReimportMaterial_01.png)(w:800 convert:false)
+*    重新导入一个Datasmith场景资源时，对场景中所用材质实例设置的修改不会丢失。
+
+(#datasmithgltfimport_EarlyAccess_)
+
+##Datasmith glTF导入（早期体验）
+
+现可使用Datasmith来导入使用glTF 2.0文件格式的文件。
+
+虚幻编辑器还提供了实验性支持，可使用内置导入器将glTF格式直接导入 **内容浏览器**。然而，使用Datasmith glTF导入器即可利用Datasmith为其他文件格式所提供的相同工作流益处，例如处理完整场景而非个体对象、维持场景层级和相对变换、非破坏性重导入进程，等等。
+
+要使用Datasmith glTF导入器的方法是：从虚幻编辑器工具栏中 **Datasmith** 按钮旁的下拉列表中选择全新的 **GLTF** 选项。
+
+![](glTF_01.png)(w:600)
+
+欲知glTF导入器提供设置的详情，请参阅[GLTF导入选项](Studio/Datasmith/ImportOptions#gltfimportoptions)。
+
+(##staticmesheditingimprovements)
+
+##静态网格体编辑改良
+
+静态网格体编辑器窗口中的网格体编辑工具现能对朝后的三角形提供更好的控制。
+
+*    进入 **编辑模式** 后，视口将勾勒出模型中所有朝后的三角形。举例而言：
+	
+    ![](SM_Editing_01.png)(w:800 convert:false)
+*    默认只能选择朝向相机的三角形。如果想选择朝后的三角形，在工具栏中启动任选的 **背面（Backfaces）** 勾选按钮即可。
+	
+    ![](SM_Editing_02.png)(w:800 convert:false)
+*    按下 **F** 键聚焦当前选中的三角形时，静态网格体编辑器视口将调整相机相对于选择区域大小的运动速度。在处理较小的部件和单独的三角形时，这能让视口导航更为容易。
+	[REGION:tip]
+	 此行为由“编辑器偏好（Editor Preferences）”窗口的“关卡编辑器” - “视口”部分中的“使用距离缩放相机速度（Use distance-scaled camera speed）”设置来控制。
+	[/REGION]
+
+同时请参阅[修改静态网格体几何体](Studio/Datasmith/HowTo/ModifyStaticMeshGeometry)。
+
+(#3dsmaxexportandcadimportperformance)
+
+##3ds Max导入和CAD导入性能
+
+3ds Max的Datasmith导入器和Datasmith CAD导入器的性能已得到一定提升，处理拥有大量物体的场景时尤为明显。虽然我们没有可以分享的基准，但您会注意到，较之于之前的版本，4.22版本中的3ds Max导出和CAD导入的完成时间已大大缩短。
+
+(#datasmithforrevitimprovements(earlyaccess))
+
+##针对Revit的Datasmith改良（早期体验）
+
+我们对Revit的Datasmith导入流程进行了一些重大改良，其中包括：
+
+*    支持导入链接文件
+*    来自Revit的类型源数据现包含在Datasmith元数据中
+*    改良曲面细分
+*    改良材质处理
+
+(#variantmanagerimprovements)
+
+##变体管理器改良
+
+此版本为4.21版本中加入的变体管理器管理器增加了一些用法改良。用户现在可以：
+
+*    在变体管理器界面中双击切换变体。
+*    选择多个actor，使用 **Ctrl** 和 **Shift** 键，然后同时修改所有采集的属性。
+*    从关卡中将actor拖放到一个变体或变体集中，从另一个变量进行拖动。
+*    拖放actor和变量进行重新排序，或移动到另一个变体集；并拖放变体集进行重新排序。
+
+切换变体时现在可以发射一个蓝图事件。将新的 **函数调用器（Function caller）** 属性指定到变体中任意actor的选中属性。然后将该属性的值设为希望在该actor上调用的现有函数的命名，或从零新建一个蓝图函数。
+
+(#vredanddeltagenvariants)
+
+##VRED和Deltagen变体
+
+从VRED或Deltagen导入场景时，Datasmith现在将设置变体管理器来管理这些源场景中的所有变体集和变体。其不再创建数据表来保存关卡中变体和自定义蓝图的信息。这个新方法应更为稳定和易用。
+
+(##mdl/axfimprovements)
+
+##MDL/AxF改良
+
+此版本对MDL和AxF文件的导入进程进行了重大改良，包括对置换的支持，以及使用原始路径从硬盘重新导入非烘焙纹理的功能。材质、材质函数和纹理在项目中生成和分布的方式已获得数项改良，此外还有小型易用性修复（例如在工具提示中显示材质函数和属性的描述）。  
+
+(#featuresofinterestinthecoreengine)
+
+##核心引擎中的有趣功能
+除此页面中列出的Unreal Studio订阅用户专属的功能外，虚幻引擎的新版本也包含了诸多对所有用户开放的功能。特列于此处，以飨读者。
+*    全新功能：实时光线追踪和路径追踪（早期体验）
+*    用Composure进行实时合成
+*    OpenColorIO（OCIO）颜色描述文件（实验性）
+*    硬件加速视频解码（实验性）
+*    多用户编辑（早期体验）
+*    围绕选项和相机聚焦旋转和平移
+
+欲知引擎中所有新功能的详情，请参见虚幻引擎4.22版本说明。 
+
+(#upgradenotesanddeprecations)
+
+##更新说明和已废弃内容
+
+此版本已移除对以下CAD文件类型的支持：
+
+*    **CADDS (.gbf)**
+*    **I-DEAS (.unv)**
+*    **ROBCAD (.rf)**

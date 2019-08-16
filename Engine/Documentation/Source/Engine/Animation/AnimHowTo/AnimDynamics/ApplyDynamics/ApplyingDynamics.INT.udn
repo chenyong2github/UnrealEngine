@@ -1,4 +1,4 @@
-Availability: Public
+Availability: Docs
 Title:2 - Applying AnimDynamics
 Crumbs: %ROOT%, Engine, Engine/Animation, Engine/Animation/AnimHowTo, Engine/Animation/AnimHowTo/AnimDynamics
 Description:In this step we apply AnimDynamics to the harness and furnace the character is carrying so it reacts to movement.

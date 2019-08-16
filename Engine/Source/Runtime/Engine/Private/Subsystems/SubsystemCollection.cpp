@@ -173,6 +173,11 @@ void FSubsystemCollectionBase::AddReferencedObjects(FReferenceCollector& Collect
 	Collector.AddReferencedObjects(SubsystemMap);
 }
 
+FString FSubsystemCollectionBase::GetReferencerName() const
+{
+	return TEXT("FSubsystemCollectionBase");
+}
+
 bool FSubsystemCollectionBase::AddAndInitializeSubsystem(UClass* SubsystemClass)
 {
 	if (!SubsystemMap.Contains(SubsystemClass))
@@ -287,6 +292,7 @@ void FSubsystemModuleWatcher::DeinitializeModuleWatcher()
 	if (ModulesChangedHandle.IsValid())
 	{
 		FModuleManager::Get().OnModulesChanged().Remove(ModulesChangedHandle);
+		ModulesChangedHandle.Reset();
 	}
 }
 

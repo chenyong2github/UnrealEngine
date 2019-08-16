@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "Containers/IndirectArray.h"
-#include "PackedNormal.h"
 #include "GPUSkinPublicDefs.h"
 #include "Components.h"
 #include "BoneIndices.h"
@@ -26,7 +25,7 @@ struct FSkeletalMeshVertIndexAndZ
 struct FSoftSkinBuildVertex
 {
 	FVector			Position;
-	FPackedNormal	TangentX,	// Tangent, U-direction
+	FVector			TangentX,	// Tangent, U-direction
 					TangentY,	// Binormal, V-direction
 					TangentZ;	// Normal
 	FVector2D		UVs[MAX_TEXCOORDS]; // UVs

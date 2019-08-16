@@ -107,7 +107,7 @@ public class AndroidPlatform : Platform
 
 	private static string GetFinalSymbolizedSODirectory(string ApkName, DeploymentContext SC, string Architecture, string GPUArchitecture)
 	{
-		string PackageVersion = GetPackageInfo(ApkName, true);
+		string PackageVersion = GetPackageInfo(ApkName, SC, true);
 		if (PackageVersion == null || PackageVersion.Length == 0)
 		{
 			throw new AutomationException(ExitCode.Error_FailureGettingPackageInfo, "Failed to get package version from " + ApkName);
@@ -116,16 +116,16 @@ public class AndroidPlatform : Platform
 		return SC.ShortProjectName + "_Symbols_v" + PackageVersion + "/" + SC.ShortProjectName + Architecture + GPUArchitecture;
 	}
 
-	private static string GetFinalObbName(string ApkName, bool bUseAppType = true)
+	private static string GetFinalObbName(string ApkName, DeploymentContext SC, bool bUseAppType = true)
 	{
 		// calculate the name for the .obb file
-		string PackageName = GetPackageInfo(ApkName, false);
+		string PackageName = GetPackageInfo(ApkName, SC, false);
 		if (PackageName == null)
 		{
 			throw new AutomationException(ExitCode.Error_FailureGettingPackageInfo, "Failed to get package name from " + ApkName);
 		}
 
-		string PackageVersion = GetPackageInfo(ApkName, true);
+		string PackageVersion = GetPackageInfo(ApkName, SC, true);
 		if (PackageVersion == null || PackageVersion.Length == 0)
 		{
 			throw new AutomationException(ExitCode.Error_FailureGettingPackageInfo, "Failed to get package version from " + ApkName);
@@ -151,16 +151,16 @@ public class AndroidPlatform : Platform
 		return ObbName;
 	}
 
-	private static string GetFinalPatchName(string ApkName, bool bUseAppType = true)
+	private static string GetFinalPatchName(string ApkName, DeploymentContext SC, bool bUseAppType = true)
 	{
 		// calculate the name for the .obb file
-		string PackageName = GetPackageInfo(ApkName, false);
+		string PackageName = GetPackageInfo(ApkName, SC, false);
 		if (PackageName == null)
 		{
 			throw new AutomationException(ExitCode.Error_FailureGettingPackageInfo, "Failed to get package name from " + ApkName);
 		}
 
-		string PackageVersion = GetPackageInfo(ApkName, true);
+		string PackageVersion = GetPackageInfo(ApkName, SC, true);
 		if (PackageVersion == null || PackageVersion.Length == 0)
 		{
 			throw new AutomationException(ExitCode.Error_FailureGettingPackageInfo, "Failed to get package version from " + ApkName);
@@ -200,17 +200,17 @@ public class AndroidPlatform : Platform
 		return PakParams;
 	}
 
-	private static string GetDeviceObbName(string ApkName)
+	private static string GetDeviceObbName(string ApkName, DeploymentContext SC)
 	{
-        string ObbName = GetFinalObbName(ApkName, false);
-        string PackageName = GetPackageInfo(ApkName, false);
+        string ObbName = GetFinalObbName(ApkName, SC, false);
+        string PackageName = GetPackageInfo(ApkName, SC, false);
         return TargetAndroidLocation + PackageName + "/" + Path.GetFileName(ObbName);
 	}
 
-	private static string GetDevicePatchName(string ApkName)
+	private static string GetDevicePatchName(string ApkName, DeploymentContext SC)
 	{
-		string PatchName = GetFinalPatchName(ApkName, false);
-		string PackageName = GetPackageInfo(ApkName, false);
+		string PatchName = GetFinalPatchName(ApkName, SC, false);
+		string PackageName = GetPackageInfo(ApkName, SC, false);
 		return TargetAndroidLocation + PackageName + "/" + Path.GetFileName(PatchName);
 	}
 
@@ -433,8 +433,8 @@ public class AndroidPlatform : Platform
 				FilesToObb = new List<FileReference>();
 
 				// Collect the filesize and place into Obb or Patch list
-				Int64 MainObbSize = 22;		// EOCD without comment
-				Int64 PatchObbSize = 22;	// EOCD without comment
+				Int64 MainObbSize = 22 + 4096;		// EOCD without comment + padding
+				Int64 PatchObbSize = 22 + 4096;		// EOCD without comment + padding
 				foreach (FileReference FileRef in FilesForObb)
 				{
 					FileInfo LocalFileInfo = new FileInfo(FileRef.FullName);
@@ -499,7 +499,7 @@ public class AndroidPlatform : Platform
 		Ini.GetInt32("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "MinSDKVersion", out MinSDKVersion);
 		int TargetSDKVersion = MinSDKVersion;
 		Ini.GetInt32("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "TargetSDKVersion", out TargetSDKVersion);
-		LogInformation("Target SDK Version" + TargetSDKVersion);
+		LogInformation("Target SDK Version " + TargetSDKVersion);
 
 		foreach (string Architecture in Architectures)
 		{
@@ -554,14 +554,14 @@ public class AndroidPlatform : Platform
 				string PatchName = "";
 				if (!bPackageDataInsideApk)
 			    {
-				    DeviceObbName = GetDeviceObbName(ApkName);
-				    ObbName = GetFinalObbName(ApkName);
+				    DeviceObbName = GetDeviceObbName(ApkName, SC);
+				    ObbName = GetFinalObbName(ApkName, SC);
 					CopyFile(LocalObbName, ObbName);
 
 					if (File.Exists(LocalPatchName))
 					{
-						DevicePatchName = GetDevicePatchName(ApkName);
-						PatchName = GetFinalPatchName(ApkName);
+						DevicePatchName = GetDevicePatchName(ApkName, SC);
+						PatchName = GetFinalPatchName(ApkName, SC);
 						CopyFile(LocalPatchName, PatchName);
 					}
 				}
@@ -577,7 +577,7 @@ public class AndroidPlatform : Platform
 				{
 					bool bIsPC = (Target == UnrealTargetPlatform.Win64);
 					// Write install batch file(s).
-					string PackageName = GetPackageInfo(ApkName, false);
+					string PackageName = GetPackageInfo(ApkName, SC, false);
 					string BatchName = GetFinalBatchName(ApkName, SC, bMakeSeparateApks ? Architecture : "", bMakeSeparateApks ? GPUArchitecture : "", false, EBatchType.Install, Target);
 					// make a batch file that can be used to install the .apk and .obb files
 					string[] BatchLines = GenerateInstallBatchFile(bPackageDataInsideApk, PackageName, ApkName, Params, ObbName, DeviceObbName, false, PatchName, DevicePatchName, false, bIsPC, Params.Distribution, TargetSDKVersion > 22);
@@ -845,7 +845,7 @@ public class AndroidPlatform : Platform
 						"setlocal",
 						"set NDK_ROOT=%ANDROID_NDK_ROOT%",
 						"if \"%ANDROID_NDK_ROOT%\"==\"\" set NDK_ROOT=\""+Environment.GetEnvironmentVariable("ANDROID_NDK_ROOT")+"\"",
-						"set NDKSTACK=%NDK_ROOT%\ndk-stack.cmd",
+						"set NDKSTACK=%NDK_ROOT%\\ndk-stack.cmd",
 						"",
 						"%NDKSTACK% -sym "+GetFinalSymbolizedSODirectory(ApkName, SC, Architecture, GPUArchitecture)+" -dump \"%1\" > "+ Params.ShortProjectName+"_SymbolizedCallStackOutput.txt",
 						"",
@@ -875,14 +875,14 @@ public class AndroidPlatform : Platform
 		bool bMakeSeparateApks = UnrealBuildTool.AndroidExports.ShouldMakeSeparateApks();
 		bool bPackageDataInsideApk = UnrealBuildTool.AndroidExports.CreateDeploymentHandler(Params.RawProjectPath, Params.ForcePackageData).GetPackageDataInsideApk();
 
-		bool bAddedOBB = false;
+		List<string> AddedObbFiles = new List<string>();
 		foreach (string Architecture in Architectures)
 		{
 			foreach (string GPUArchitecture in GPUArchitectures)
 			{
 				string ApkName = GetFinalApkName(Params, SC.StageExecutables[0], true, bMakeSeparateApks ? Architecture : "", bMakeSeparateApks ? GPUArchitecture : "");
-				string ObbName = GetFinalObbName(ApkName);
-				string PatchName = GetFinalPatchName(ApkName);
+				string ObbName = GetFinalObbName(ApkName, SC);
+				string PatchName = GetFinalPatchName(ApkName, SC);
 				bool bBuildWithHiddenSymbolVisibility = BuildWithHiddenSymbolVisibility(SC);
 				bool bSaveSymbols = GetSaveSymbols(SC);
 				//string NoOBBBatchName = GetFinalBatchName(ApkName, Params, bMakeSeparateApks ? Architecture : "", bMakeSeparateApks ? GPUArchitecture : "", true, false);
@@ -911,14 +911,18 @@ public class AndroidPlatform : Platform
 				}
 
 				SC.ArchiveFiles(Path.GetDirectoryName(ApkName), Path.GetFileName(ApkName));
-				if (!bPackageDataInsideApk && !bAddedOBB)
+				if (!bPackageDataInsideApk)
 				{
-					bAddedOBB = true;
-					SC.ArchiveFiles(Path.GetDirectoryName(ObbName), Path.GetFileName(ObbName));
-
-					if (FileExists(PatchName))
+					// only add if not already in archive list
+					if (!AddedObbFiles.Contains(ObbName))
 					{
-						SC.ArchiveFiles(Path.GetDirectoryName(PatchName), Path.GetFileName(PatchName));
+						AddedObbFiles.Add(ObbName);
+
+						SC.ArchiveFiles(Path.GetDirectoryName(ObbName), Path.GetFileName(ObbName));
+						if (FileExists(PatchName))
+						{
+							SC.ArchiveFiles(Path.GetDirectoryName(PatchName), Path.GetFileName(PatchName));
+						}
 					}
 				}
 
@@ -1206,14 +1210,14 @@ public class AndroidPlatform : Platform
             }
 
             // now we can use the apk to get more info
-            string PackageName = GetPackageInfo(ApkName, false);
+            string PackageName = GetPackageInfo(ApkName, SC, false);
 
             // Setup the OBB name and add the storage path (queried from the device) to it
             string DeviceStorageQueryCommand = GetStorageQueryCommand();
             IProcessResult Result = RunAdbCommand(Params, DeviceName, DeviceStorageQueryCommand, null, ERunOptions.AppMustExist);
             String StorageLocation = Result.Output.Trim(); // "/mnt/sdcard";
-            string DeviceObbName = StorageLocation + "/" + GetDeviceObbName(ApkName);
-			string DevicePatchName = StorageLocation + "/" + GetDevicePatchName(ApkName);
+            string DeviceObbName = StorageLocation + "/" + GetDeviceObbName(ApkName, SC);
+			string DevicePatchName = StorageLocation + "/" + GetDevicePatchName(ApkName, SC);
 			string RemoteDir = StorageLocation + "/UE4Game/" + Params.ShortProjectName;
 
             // determine if APK out of date
@@ -1594,7 +1598,7 @@ public class AndroidPlatform : Platform
 			else if (SC.Archive)
             {
                 // deploy the obb if there is one
-                string ObbPath = Path.Combine(SC.StageDirectory.FullName, GetFinalObbName(ApkName));
+                string ObbPath = Path.Combine(SC.StageDirectory.FullName, GetFinalObbName(ApkName, SC));
                 if (File.Exists(ObbPath))
                 {
                     // cache some strings
@@ -1605,7 +1609,7 @@ public class AndroidPlatform : Platform
                 }
 
 				// deploy the patch if there is one
-				string PatchPath = Path.Combine(SC.StageDirectory.FullName, GetFinalPatchName(ApkName));
+				string PatchPath = Path.Combine(SC.StageDirectory.FullName, GetFinalPatchName(ApkName, SC));
 				if (File.Exists(PatchPath))
 				{
 					// cache some strings
@@ -1689,17 +1693,24 @@ public class AndroidPlatform : Platform
 			LogInformation("GetPackageInfo ReturnValue: {0}", ReturnValue);
 		}
 
+		return ReturnValue;
+	}
+
+	public static string GetPackageInfo(string ApkName, DeploymentContext SC, bool bRetrieveVersionCode)
+	{
+		string ReturnValue = GetPackageInfo(ApkName, bRetrieveVersionCode);
+
 		if (ReturnValue == null || ReturnValue.Length == 0)
 		{
 			/** If APK does not exist or we cant find package info in apk use the packageInfo file */
-			ReturnValue = GetPackageInfoFromInfoFile(ApkName, bRetrieveVersionCode);
+			ReturnValue = GetPackageInfoFromInfoFile(ApkName, SC, bRetrieveVersionCode);
 		}
 
 		return ReturnValue;
 	}
 
 	/** Lookup package info in packageInfo.txt file in same directory as the APK would have been */
-	private static string GetPackageInfoFromInfoFile(string ApkName, bool bRetrieveVersionCode)
+	private static string GetPackageInfoFromInfoFile(string ApkName, DeploymentContext SC, bool bRetrieveVersionCode)
 	{
 		string ReturnValue = null;
 		String PackageInfoPath = Path.Combine(Path.GetDirectoryName(ApkName), "packageInfo.txt");
@@ -1716,6 +1727,30 @@ public class AndroidPlatform : Platform
 			// parse extra info that the aapt-based method got
 			MetaAppTypeLine = Lines[3];
 		}
+
+		if (bRetrieveVersionCode)
+		{
+			int StoreVersion = 1;
+			int.TryParse(ReturnValue, out StoreVersion);
+
+			int StoreVersionOffset = 0;
+			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(SC.RawProjectPath), SC.StageTargetPlatform.PlatformType);
+			if (ApkName.Contains("-armv7-"))
+			{
+				Ini.GetInt32("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "StoreVersionOffsetArmV7", out StoreVersionOffset);
+			}
+			else if (ApkName.Contains("-arm64-"))
+			{
+				Ini.GetInt32("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "StoreVersionOffsetArm64", out StoreVersionOffset);
+			}
+			else if (ApkName.Contains("-x64-"))
+			{
+				Ini.GetInt32("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "StoreVersionOffsetX8664", out StoreVersionOffset);
+			}
+			StoreVersion += StoreVersionOffset;
+			ReturnValue = StoreVersion.ToString("0");
+		}
+
 		LogInformation("packageInfo.txt file exists: {0}", fileExists);
 		LogInformation("packageInfo return MetaAppTypeLine: {0}", MetaAppTypeLine);
 		LogInformation("packageInfo return value: {0}", ReturnValue);

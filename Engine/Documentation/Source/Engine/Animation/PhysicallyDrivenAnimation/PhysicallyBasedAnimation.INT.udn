@@ -1,6 +1,5 @@
 Availability:Public
 Title: Physics-Based Animation
-Crumbs: %ROOT%, Engine, Engine/Animation
 Description:You can blend the results of physics-based animations to ragdoll your characters.
 Related: Engine/Content/FBX/Animations
 Related: Engine/Content/Types/SkeletalMeshes
@@ -8,6 +7,8 @@ Related: Engine/Animation/StateMachines
 Related: Gameplay/AI
 Related: Engine/Content/Tools/MayaRiggingTool
 version: 4.9
+tags:Animation
+tags:Animation Features
 topic-image:PhysicsBasedAnimation_topic.png
 
 [REGION:fullwidth]
@@ -19,7 +20,7 @@ This document covers how to apply physics-driven animation to your characters an
 
 An example of this concept in action can be seen in the [Content Examples](Resources\ContentExamples\Animation) project, within the map named PhysicalAnimation.umap. In this map, we have a series of Skeletal Meshes to which animation has been applied. In each one, we can also interact in some way and see physics animation take over the existing motion.
 
-Be aware that the use of physics on a Skeletal Mesh in any form requires that the mesh have a Physics Asset set up and applied to it. Please see the associated documentation for the [Physics Asset Tool (PhAT)](Engine/Physics\PhAT).
+Be aware that the use of physics on a Skeletal Mesh in any form requires that the mesh have a Physics Asset set up and applied to it. Please see the associated documentation for the [Physics Asset Tool (PhAT)](Engine/Physics\PhysicsAssetEditor).
 
 [REGION:note]
 Skeletal Meshes are used in this example for overall simplicity. The same techniques can be applied to a Character or Pawn, simply by utilizing the **Set All Bodies Simulate Physics** and **Set All Bodies Below Physics Blend Weight** nodes within the Animation Blueprint's Event Graph, rather than on a simple Blueprint Actor's Event Graph, as we do in this example.

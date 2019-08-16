@@ -150,7 +150,7 @@ void UPendingNetGame::LoadMapCompleted(UEngine* Engine, FWorldContext& Context, 
 	else
 	{
 		// Show connecting message, cause precaching to occur.
-		Engine->TransitionType = TT_Connecting;
+		Engine->TransitionType = ETransitionType::Connecting;
 
 		Engine->RedrawViewports(false);
 
@@ -470,13 +470,20 @@ void UPendingNetGame::Tick( float DeltaTime )
 	 *   ****may NULL itself via CancelPending if a disconnect/error occurs****
 	 */
 	NetDriver->TickDispatch(DeltaTime);
+
+	if (NetDriver)
+	{
+		NetDriver->PostTickDispatch();
+	}
+
 	if (NetDriver)
 	{
 		NetDriver->TickFlush(DeltaTime);
-		if (NetDriver)
-		{
-			NetDriver->PostTickFlush();
-		}
+	}
+
+	if (NetDriver)
+	{
+		NetDriver->PostTickFlush();
 	}
 }
 

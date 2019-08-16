@@ -15,7 +15,9 @@ enum read_flags_t {
 };
 
 bool read_from_stream_stb(data_stream_serializer& serializer, image_u8& img);
-bool read_from_stream_jpgd(data_stream_serializer& serializer, image_u8& img);
+//UE4_BEGIN
+//bool read_from_stream_jpgd(data_stream_serializer& serializer, image_u8& img);
+//UE4_END
 bool read_from_stream(image_u8& dest, data_stream_serializer& serializer, uint read_flags = 0);
 bool read_from_file(image_u8& dest, const char* pFilename, uint read_flags = 0);
 

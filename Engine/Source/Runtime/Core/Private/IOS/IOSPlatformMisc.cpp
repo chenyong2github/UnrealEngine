@@ -686,7 +686,7 @@ FIOSPlatformMisc::EIOSDevice FIOSPlatformMisc::GetIOSDeviceType()
 
 int FIOSPlatformMisc::GetDefaultStackSize()
 {
-	return 128 * 1024;
+	return 512 * 1024;
 }
 
 void FIOSPlatformMisc::SetMemoryWarningHandler(void (* InHandler)(const FGenericMemoryWarningContext& Context))
@@ -694,8 +694,14 @@ void FIOSPlatformMisc::SetMemoryWarningHandler(void (* InHandler)(const FGeneric
 	GMemoryWarningHandler = InHandler;
 }
 
+bool FIOSPlatformMisc::HasMemoryWarningHandler()
+{
+	return GMemoryWarningHandler != nullptr;
+}
+
 void FIOSPlatformMisc::HandleLowMemoryWarning()
 {
+	UE_LOG(LogInit, Log, TEXT("Low Memory Warning Triggered"));
 	UE_LOG(LogInit, Log, TEXT("Free Memory at Startup: %d MB"), GStartupFreeMemoryMB);
 	UE_LOG(LogInit, Log, TEXT("Free Memory Now       : %d MB"), GetFreeMemoryMB());
 
@@ -1088,6 +1094,13 @@ FString FIOSPlatformMisc::LoadTextFileFromPlatformPackage(const FString& Relativ
 	}
 
 	return FString(UTF8_TO_TCHAR(FileContents.GetData()));
+}
+
+bool FIOSPlatformMisc::FileExitsInPlatformPackage(const FString& RelativePath)
+{
+	FString FilePath = FString([[NSBundle mainBundle] bundlePath]) / RelativePath;
+
+	return 0 == access(TCHAR_TO_UTF8(*FilePath), F_OK);
 }
 
 void FIOSPlatformMisc::EnableVoiceChat(bool bEnable)
@@ -1696,7 +1709,13 @@ void FIOSPlatformMisc::SetCrashHandler(void (* CrashHandler)(const FGenericCrash
 
 bool FIOSPlatformMisc::HasSeparateChannelForDebugOutput()
 {
-    return FPlatformMisc::IsDebuggerPresent();
+#if UE_BUILD_SHIPPING
+    return false;
+#else
+    // We should not just check if we are being debugged because you can use the Xcode log even for
+    // apps launched outside the debugger.
+    return true;
+#endif
 }
 
 void FIOSPlatformMisc::GPUAssert()
@@ -1979,6 +1998,24 @@ void ReportEnsure( const TCHAR* ErrorMessage, int NumStackFramesToIgnore )
     
     bReentranceGuard = false;
     EnsureLock.Unlock();
+}
+
+FString FIOSCrashContext::CreateCrashFolder() const
+{
+	// create a crash-specific directory
+	char CrashInfoFolder[PATH_MAX] = {};
+	FCStringAnsi::Strncpy(CrashInfoFolder, GIOSAppInfo.CrashReportPath, PATH_MAX);
+	FCStringAnsi::Strcat(CrashInfoFolder, PATH_MAX, "/CrashReport-UE4-");
+	FCStringAnsi::Strcat(CrashInfoFolder, PATH_MAX, GIOSAppInfo.AppNameUTF8);
+	FCStringAnsi::Strcat(CrashInfoFolder, PATH_MAX, "-pid-");
+	FCStringAnsi::Strcat(CrashInfoFolder, PATH_MAX, ItoANSI(getpid(), 10));
+	FCStringAnsi::Strcat(CrashInfoFolder, PATH_MAX, "-");
+	FCStringAnsi::Strcat(CrashInfoFolder, PATH_MAX, ItoANSI(GIOSAppInfo.RunUUID.A, 16));
+	FCStringAnsi::Strcat(CrashInfoFolder, PATH_MAX, ItoANSI(GIOSAppInfo.RunUUID.B, 16));
+	FCStringAnsi::Strcat(CrashInfoFolder, PATH_MAX, ItoANSI(GIOSAppInfo.RunUUID.C, 16));
+	FCStringAnsi::Strcat(CrashInfoFolder, PATH_MAX, ItoANSI(GIOSAppInfo.RunUUID.D, 16));
+	
+	return FString(ANSI_TO_TCHAR(CrashInfoFolder));
 }
 
 

@@ -1,29 +1,47 @@
-﻿INTSourceChangelist:1996588
-Title: 函数修饰符
-Crumbs:%ROOT%, Programming/UnrealArchitecture/Reference,  Programming/UnrealArchitecture/Reference, Programming/UnrealArchitecture/Reference/Functions
-Description: 在声明游戏属性时使用的关键字，以指定引擎和编辑器的不同方面的属性表现。
+INTSourceChangelist:3767127
 Availability:Public
+Title:函数说明符
+Crumbs:%ROOT%
+Description:关键词，用于在声明UFunction时指定函数相对于引擎和编辑器的各个方面的行为方式。
+Version: 4.18
+parent:Programming/UnrealArchitecture/Reference/Functions
+order:0
+type:reference
+topic-image:components_topic.png
+tags:UFUNCTION
+tags:Specifiers
 
 [EXCERPT:main]
 
-在声明函数时，声明上可添加修饰符以控制引擎和编辑器的不同方面的属性表现。
+声明函数时，可以为声明添加 **函数说明符**，以控制函数相对于引擎和编辑器的各个方面的行为方式。
 
-* [](Programming/UnrealArchitecture/Reference/Functions/Specifiers/BlueprintAuthorityOnly)
-* [](Programming/UnrealArchitecture/Reference/Functions/Specifiers/BlueprintCallable)
-* [](Programming/UnrealArchitecture/Reference/Functions/Specifiers/BlueprintCosmetic)
-* [](Programming/UnrealArchitecture/Reference/Functions/Specifiers/BlueprintImplementableEvent)
-* [](Programming/UnrealArchitecture/Reference/Functions/Specifiers/BlueprintNativeEvent)
-* [](Programming/UnrealArchitecture/Reference/Functions/Specifiers/BlueprintPure)
-* [](Programming/UnrealArchitecture/Reference/Functions/Specifiers/Category)
-* [](Programming/UnrealArchitecture/Reference/Functions/Specifiers/Client)
-* [](Programming/UnrealArchitecture/Reference/Functions/Specifiers/CustomThunk)
-* [](Programming/UnrealArchitecture/Reference/Functions/Specifiers/Exec)
-* [](Programming/UnrealArchitecture/Reference/Functions/Specifiers/NetMulticast)
-* [](Programming/UnrealArchitecture/Reference/Functions/Specifiers/Reliable)
-* [](Programming/UnrealArchitecture/Reference/Functions/Specifiers/Server)
-* [](Programming/UnrealArchitecture/Reference/Functions/Specifiers/Unreliable)
+| 函数说明符 | 效果 |
+| --- | --- |
+| `BlueprintAuthorityOnly` | 如果在具有网络权限的机器上运行（服务器、专用服务器或单人游戏），此函数将仅从蓝图代码执行。|
+| `BlueprintCallable` | 此函数可在 **蓝图** 或 **关卡蓝图** 图表中执行。|
+| `BlueprintCosmetic` | 此函数为修饰性的，无法在专用服务器上运行。|
+| `BlueprintGetter` | 此函数将被用作蓝图公开属性的访问器。此说明符隐含`BlueprintPure`和`BlueprintCallable`。|
+| `BlueprintImplementableEvent` | 此函数可在 **蓝图** 或 **关卡蓝图** 图表中实现。|
+| `BlueprintInternalUseOnly` | 指示不应向最终用户公开此函数。|
+| `BlueprintNativeEvent` | 此函数旨在被 **蓝图** 覆盖掉，但是也具有默认原生实现。用于声明名称与主函数相同的附加函数，但是末尾添加了`_Implementation`，是写入代码的位置。如果未找到任何蓝图覆盖，该自动生成的代码将调用“_Implementation”方法。|
+| `BlueprintPure` | 此函数不对拥有它的对象产生任何影响，可在 **蓝图** 或 **关卡蓝图** 图表中执行。|
+| `BlueprintSetter` | 此函数将被用作蓝图公开属性的赋值函数。此说明符暗含 `BlueprintCallable`。|
+| `CallInEditor` | 可通过 **“细节（Details）”面板** 中的按钮在编辑器中的选定实例上调用此函数。|
+| `Category = "TopCategory|SubCategory|Etc"` | 在蓝图编辑工具中显示时指定函数的类别。使用`|`运算符定义嵌套类别。|
+| `Client` | 此函数仅在拥有在其上调用此函数的对象的客户端上执行。用于声明名称与主函数相同的附加函数，但是末尾添加了`_Implementation`。必要时，此自动生成的代码将调用“_Implementation”方法。|
+| `CustomThunk` | **UnrealHeaderTool** 代码生成器将不为此函数生成thunk，用户需要提供一个thunk。|
+| `Exec` | 此函数可从游戏内控制台执行。仅在特定类中声明时，Exec命令才有效。|
+| `NetMulticast` | 此函数将在服务器上本地执行，也将复制到所有客户端上，无论该Actor的 `NetOwner` 为何。|
+| `Reliable` | 此函数将通过网络复制，并且一定会到达，即使出现带宽或网络错误。仅在与`Client`或`Server`配合使用时才有效。|
+| `SealedEvent` | 无法在子类中覆盖此函数。`SealedEvent`关键词只能用于事件。对于非事件函数，请将它们声明为`static`或`final`，以密封它们。|
+| `ServiceRequest` | 此函数为RPC（远程过程调用）服务请求。|
+| `ServiceResponse` | 此函数为RPC服务响应。|
+| `Server` | 此函数仅在服务器上执行。用于声明名称与主函数相同的附加函数，但是末尾添加了`_Implementation`，是写入代码的位置。必要时，此自动生成的代码将调用“_Implementation”方法。|
+| `Unreliable` | 此函数将通过网络复制，但是可能会因带宽限制或网络错误而失败。仅在与`Client`或`Server`配合使用时才有效。|
+| `WithValidation` | 用于声明名称与主函数相同的附加函数，但是末尾需要添加`_Validation`。此函数使用相同的参数，但是会返回`bool`，以指示是否应继续调用主函数。|
 
-## 元数据修饰符
+(#metadataspecifiers)
+## 元数据说明符
 [INCLUDE:Programming/UnrealArchitecture/Reference/Metadata#MetadataUsage]
 [INCLUDE:Programming/UnrealArchitecture/Reference/Metadata#FunctionMetadata]
 

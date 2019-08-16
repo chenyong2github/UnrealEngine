@@ -310,6 +310,14 @@ public:
 	/** Gets the full context for the transaction */
 	virtual FTransactionContext GetContext() const = 0;
 
+	/**
+	 * Report if a transaction should be put in the undo buffer.
+	 * A transaction will be transient if it contains PIE objects or result in a no-op.
+	 * If this returns true the transaction won't be put in the transaction buffer.
+	 * @returns true if the transaction is transient.
+	 */
+	virtual bool IsTransient() const = 0;
+
 	/** @returns if this transaction tracks PIE objects */
 	virtual bool ContainsPieObjects() const = 0;
 

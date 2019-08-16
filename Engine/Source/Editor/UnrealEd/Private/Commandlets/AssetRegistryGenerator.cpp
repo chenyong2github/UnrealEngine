@@ -222,6 +222,50 @@ public:
 	}
 };
 
+static void ParseChunkLayerAssignment(TArray<FString> ChunkLayerAssignmentArray, TMap<int32, int32>& OutChunkLayerAssignment)
+{
+	OutChunkLayerAssignment.Empty();
+
+	const TCHAR* PropertyChunkId = TEXT("ChunkId=");
+	const TCHAR* PropertyLayerId = TEXT("Layer=");
+	for (FString& Entry : ChunkLayerAssignmentArray)
+	{
+		// Remove parentheses
+		Entry.TrimStartAndEndInline();
+		Entry.ReplaceInline(TEXT("("), TEXT(""));
+		Entry.ReplaceInline(TEXT(")"), TEXT(""));
+
+		int32 ChunkId = -1;
+		int32 LayerId = -1;
+		FParse::Value(*Entry, PropertyChunkId, ChunkId);
+		FParse::Value(*Entry, PropertyLayerId, LayerId);
+
+		if (ChunkId >= 0 && LayerId >= 0 && !OutChunkLayerAssignment.Contains(ChunkId))
+		{
+			OutChunkLayerAssignment.Add(ChunkId, LayerId);
+		}
+	}
+}
+
+static void AssignLayerChunkDelegate(const FAssignLayerChunkMap* ChunkManifest, const FString& Platform, const int32 ChunkIndex, int32& OutChunkLayer)
+{
+	OutChunkLayer = 0;
+
+	FConfigFile PlatformIniFile;
+	FConfigCacheIni::LoadLocalIniFile(PlatformIniFile, TEXT("Game"), true, *Platform);
+	TArray<FString> ChunkLayerAssignmentArray;
+	PlatformIniFile.GetArray(TEXT("/Script/UnrealEd.ProjectPackagingSettings"), TEXT("ChunkLayerAssignment"), ChunkLayerAssignmentArray);
+
+	TMap<int32, int32> ChunkLayerAssignment;
+	ParseChunkLayerAssignment(ChunkLayerAssignmentArray, ChunkLayerAssignment);
+
+	int32* LayerId = ChunkLayerAssignment.Find(ChunkIndex);
+	if (LayerId)
+	{
+		OutChunkLayer = *LayerId;
+	}
+}
+
 bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlavorChunkSize, FSandboxPlatformFile* InSandboxFile)
 {
 	const FString Platform = TargetPlatform->PlatformName();
@@ -316,6 +360,13 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 	// generate per-chunk pak list files
 	for (int32 PakchunkIndex = 0; PakchunkIndex < FinalChunkManifests.Num(); ++PakchunkIndex)
 	{
+		// Serialize chunk layers whether chunk is empty or not
+		int32 TargetLayer = 0;
+		FGameDelegates::Get().GetAssignLayerChunkDelegate().ExecuteIfBound(FinalChunkManifests[PakchunkIndex], Platform, PakchunkIndex, TargetLayer);
+
+		FString LayerString = FString::Printf(TEXT("%d\r\n"), TargetLayer);
+		ChunkLayerFile->Serialize(TCHAR_TO_ANSI(*LayerString), LayerString.Len());
+
 		// Is this chunk empty?
 		if (!FinalChunkManifests[PakchunkIndex] || FinalChunkManifests[PakchunkIndex]->Num() == 0)
 		{
@@ -407,15 +458,7 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 			// add this pakfilelist to our master list of pakfilelists
 			FString PakChunkListLine = FString::Printf(TEXT("%s%s\r\n"), *PakChunkFilename, *PakChunkOptions);
 			PakChunkListFile->Serialize(TCHAR_TO_ANSI(*PakChunkListLine), PakChunkListLine.Len());
-
-			int32 TargetLayer = 0;
-			FGameDelegates::Get().GetAssignLayerChunkDelegate().ExecuteIfBound(FinalChunkManifests[PakchunkIndex], Platform, PakchunkIndex, TargetLayer);
-
-			FString LayerString = FString::Printf(TEXT("%d\r\n"), TargetLayer);
-
-			ChunkLayerFile->Serialize(TCHAR_TO_ANSI(*LayerString), LayerString.Len());
 		}
-
 	}
 
 	ChunkLayerFile->Close();
@@ -532,7 +575,7 @@ void FAssetRegistryGenerator::InjectEncryptionData(FAssetRegistryState& TargetSt
 
 						if (AssetData->ChunkIDs.Num() > 1)
 						{
-							UE_LOG(LogAssetRegistryGenerator, Error, TEXT("Encrypted primary asset '%s' exists in two chunks. Only secondary assets should be shared between chunks."));
+							UE_LOG(LogAssetRegistryGenerator, Error, TEXT("Encrypted root asset '%s' exists in two chunks. Only secondary assets should be shared between chunks."), *AssetData->ObjectPath.ToString());
 						}
 						else if (AssetData->ChunkIDs.Num() == 1)
 						{
@@ -682,6 +725,8 @@ void FAssetRegistryGenerator::Initialize(const TArray<FName> &InStartupPackages)
 	AssetRegistry.InitializeSerializationOptions(SaveOptions, TargetPlatform->IniPlatformName());
 
 	AssetRegistry.InitializeTemporaryAssetRegistryState(State, SaveOptions);
+
+	FGameDelegates::Get().GetAssignLayerChunkDelegate() = FAssignLayerChunkDelegate::CreateStatic(AssignLayerChunkDelegate);
 }
 
 void FAssetRegistryGenerator::ComputePackageDifferences(TSet<FName>& ModifiedPackages, TSet<FName>& NewPackages, TSet<FName>& RemovedPackages, TSet<FName>& IdenticalCookedPackages, TSet<FName>& IdenticalUncookedPackages, bool bRecurseModifications, bool bRecurseScriptModifications)
@@ -1283,7 +1328,7 @@ bool FAssetRegistryGenerator::GenerateAssetChunkInformationCSV(const FString& Ou
 	// Sort list so it's consistent over time
 	AssetDataList.Sort([](const FAssetData& A, const FAssetData& B)
 	{
-		return A.ObjectPath < B.ObjectPath;
+		return A.ObjectPath.LexicalLess(B.ObjectPath);
 	});
 
 	// Create file for all chunks

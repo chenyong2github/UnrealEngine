@@ -459,7 +459,8 @@ TSharedPtr<FPropertyNode> FDetailLayoutBuilderImpl::GetPropertyNodeInternal( con
 	TArray<FString> PathList;
 	PropertyPath.ToString().ParseIntoArray( PathList, TEXT("."), true );
 
-	if( PathList.Num() == 1 )
+	int32 ArrayFoundIndex = 0;
+	if( PathList.Num() == 1 && !PathList[0].FindChar(TEXT('['), ArrayFoundIndex))
 	{
 		PropertyName = FName( *PathList[0] );
 	}

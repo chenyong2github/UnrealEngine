@@ -1,0 +1,79 @@
+﻿INTSourceChangelist:6093161
+Availability: Public
+Title: HoloLens流送快速入门
+Description: HoloLens流送的设置和运行说明
+Version: 4.22
+Type:quick start
+Parent: Platforms/AR/HoloLens
+topic-image: HolographicRemotingPlayer_ScreenShot.jpg
+Order: 0
+
+
+
+[TOC (start:2 end:2)]
+
+![](HolographicRemotingPlayer_ScreenShot.jpg "HolographicRemotingPlayer_ScreenShot.jpg")
+
+当应用程序在您电脑端的虚幻编辑器中运行时，您可以通过Holographic Remoting访问，在HoloLens上体验您的应用程序。HoloLens会将您的眼球追踪、手势、声音、当前设备姿态及空间映射数据传输到您的电脑端。随后，渲染后的画面会被发送（或 **被流送**）返回您的HoloLens。
+
+## 1 - 基本设置
+
+在建立虚幻引擎和HoloLens进行流送之前，用户须对HoloLens进行初步设置，熟悉HoloLens的操作，并对一些基础配置进行设置，这些都很重要。以下是一些简略说明，以帮助用户完成基础设置。
+
+### 步骤
+
+1. 确保您的HoloLens电量充足。 
+
+1. 如果这是您首次使用该HoloLens，请将其打开，并完成HoloLens新用户体验（NUX）。 
+
+1. 登陆您的账户（或创建新账户）。
+
+1. 打开 **设置（Settings）** -\> 菜单 -\> **开发人员更新（Updates For Developers）**
+    1.启用开发人员模式
+    
+    1.启用设备门户
+
+更多关于HoloLens的设置及配置信息，请点击查看[Microsoft HoloLens技术文档](https://docs.microsoft.com/en-us/hololens/) [](https://docs.microsoft.com/en-us/hololens/)。
+
+[REGION:警告]
+为了使用虚幻引擎的HoloLens流送服务，您运行的操作系统必须是 **2018年10月更新的Windows 10（1809版本）** 或更新版本。您可以运行Windows指令 `winver` 检查您的Windows版本。  
+如果您的Windows版本不正确，您可以启用 **Windows混合现实插件**，但该插件将无法正常运行。
+[/REGION]
+
+## 2 - 设置HoloLens流送
+
+### 步骤
+
+1.  在您的HoloLens上访问Microsoft商店，下载并安装 **Holographic Remoting播放器** 应用程序。  
+    ![](MSStore_HolographicRemotingPlayer2.PNG "MSStore_HolographicRemotingPlayer2.PNG")
+
+1.  在您的HoloLens上，启动Holographic Remoting播放器应用程序。  
+    ![](HolographicRemotingMenu.png "HolographicRemotingMenu.png")
+
+1.  运行 **远程连接**（注意，随后的步骤会用到此处出现的IP地址）  
+    ![](holographicremotingplayer.png "holographicremotingplayer.png")
+
+1.  在您的虚幻项目中，确认 **Windows混合现实插件** 已启用。如果提示 **Windows混合现实插件** 未启用，将其启用后重启编辑器。  
+    ![](WMRPlugin_Enabled.PNG "WMRPlugin_Enabled.PNG")  
+
+1.  打开 **项目设置（Project Settings）** -\> **平台（Platform）** -\> **Windows混合现实（Windows Mixed Reality）** -\> **Holographic Remoting**。  
+    ![](ProjectSettings_NotConfigured.png "ProjectSettings_NotConfigured.png")
+
+1. 在 **远程访问的HoloLensIP地址（IP of HoloLens to remote to）** 中，输入您HoloLens的IP地址（之前步骤已提及）。  
+    ![](ProjectSettings_IP_NotConfigured.png "ProjectSettings_IP_NotConfigured.png")  
+    ![](ProjectSettings_IP_Configured.png "ProjectSettings_IP_Configured.png")
+    [REGION:note]
+    为了让HoloLens连接至您的电脑，HoloLens必须和您的电脑连接至同一网络。  
+    如果您的HoloLens无法连接，[HoloLens设备门户](https://docs.microsoft.com/en-us/windows/uwp/debug-test-perf/device-portal-hololens)配置说明也许能为您提供指导/解决方案。
+    [/REGION]
+
+1. 单击 **连接（Connect）**。   
+    ![](ProjectSettings_IP_Connect.png "ProjectSettings_IP_Connect.png")
+
+1. 现在HoloLens应该已连接至电脑，可以开始流送。您在HoloLens中应该看到屏幕变成空白，然后您视野中间的屏幕会显示一个窗口，该窗口是在您电脑端运行的虚幻引擎视口的镜像。
+    
+    ![](HolographicRemotingPlayer_ScreenShot.jpg "HolographicRemotingPlayer_ScreenShot.jpg")
+
+## 3 - 下一步
+
+现在HoloLens已配置成功并正常运行，您可以试着上传一个虚幻项目来预览工作。

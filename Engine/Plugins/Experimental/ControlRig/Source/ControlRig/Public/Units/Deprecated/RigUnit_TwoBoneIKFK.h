@@ -19,8 +19,7 @@ struct CONTROLRIG_API FRigUnit_TwoBoneIKFK : public FRigUnitMutable
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	FRigUnit_TwoBoneIKFK()
-		: bUsePoleTarget(true)
-		, PoleTarget(ForceInitToZero)
+		: PoleTarget(ForceInitToZero)
 		, Spin(0.f)
 		, IKBlend(1.f)
 		, PreviousFKIKBlend(1.f)
@@ -36,10 +35,6 @@ struct CONTROLRIG_API FRigUnit_TwoBoneIKFK : public FRigUnitMutable
 
 	UPROPERTY(EditAnywhere, Category = "TwoBoneIKFK", meta = (Input))
 	FName EndJoint;
-
-	// # Whether or not to use the pole target matrix.If false, use a minimum energy solution
-	UPROPERTY(EditAnywhere, Category = "TwoBoneIKFK", meta = (Input))
-	bool bUsePoleTarget;
 
 	// # Transform to use as the pole target(specifies the plane of solution)
 	UPROPERTY(EditAnywhere, Category = "TwoBoneIKFK", meta = (Input))

@@ -95,6 +95,10 @@ private:
 	/** Are Remote keys mapped to gamepad or not. */
 	static bool bRemoteKeysMappedToGamepad;
 
+	/** Repeat key delays, loaded from config */
+	static float InitialButtonRepeatDelay;
+	static float ButtonRepeatDelay;
+
 	ovrpHapticsDesc OvrpHapticsDesc;
 };
 

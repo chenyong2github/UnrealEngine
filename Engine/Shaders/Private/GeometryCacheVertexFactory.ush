@@ -95,12 +95,30 @@ struct FPositionOnlyVertexFactoryInput
 	float4	Position	: ATTRIBUTE0;
 };
 
+struct FPositionAndNormalOnlyVertexFactoryInput
+{
+	float4	Position	: ATTRIBUTE0;
+	float4	Normal		: ATTRIBUTE1;
+};
+
 /** for depth-only pass */
 float4 VertexFactoryGetWorldPosition(FPositionOnlyVertexFactoryInput Input)
 {
 	float4 Position = Input.Position;
-	
-	return TransformLocalToTranslatedWorld(Position);
+	return TransformLocalToTranslatedWorld(Position.xyz);
+}
+
+/** for shadow pass (used for slope bias) */
+float4 VertexFactoryGetWorldPosition(FPositionAndNormalOnlyVertexFactoryInput Input)
+{
+	float4 Position = Input.Position;
+	return TransformLocalToTranslatedWorld(Position.xyz);
+}
+
+float3 VertexFactoryGetWorldNormal(FPositionAndNormalOnlyVertexFactoryInput Input)
+{
+	float4 Normal = Input.Normal;
+	return RotateLocalToWorld(Normal.xyz);
 }
 
 struct FVertexFactoryInterpolantsVSToPS
@@ -247,11 +265,21 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 
 	// Fill TangentToLocal
 	Intermediates.TangentToLocal = CalcTangentToLocal(Input);
+	
+	float3 TangentToWorld0;
+	float4 TangentToWorld2;
+	CalcTangentToWorld(Input, Intermediates, TangentToWorld0, TangentToWorld2);
+	Intermediates.TangentToWorld = AssembleTangentToWorld(TangentToWorld0, TangentToWorld2);
 
 	// Swizzle vertex color.
 	Intermediates.Color = Input.Color FCOLOR_COMPONENT_SWIZZLE;
 
 	return Intermediates;
+}
+
+float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	return Intermediates.TangentToWorld[2];
 }
 
 /**

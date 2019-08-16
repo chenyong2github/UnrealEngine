@@ -182,7 +182,7 @@ void IAssetManagerEditorModule::GeneratePrimaryAssetTypeComboBoxStrings(TArray< 
 	TArray<FPrimaryAssetTypeInfo> TypeInfos;
 
 	AssetManager.GetPrimaryAssetTypeInfoList(TypeInfos);
-	TypeInfos.Sort([](const FPrimaryAssetTypeInfo& LHS, const FPrimaryAssetTypeInfo& RHS) { return LHS.PrimaryAssetType < RHS.PrimaryAssetType; });
+	TypeInfos.Sort([](const FPrimaryAssetTypeInfo& LHS, const FPrimaryAssetTypeInfo& RHS) { return LHS.PrimaryAssetType.LexicalLess(RHS.PrimaryAssetType); });
 
 	// Can the field be cleared
 	if (bAllowClear)
@@ -1557,12 +1557,15 @@ void FAssetManagerEditorModule::RefreshRegistryData()
 	UAssetManager::Get().UpdateManagementDatabase(true);
 
 	// Rescan registry sources, try to restore the current one
-	FString OldSourceName = CurrentRegistrySource->SourceName;
+	const FString OldSourceName = CurrentRegistrySource ? CurrentRegistrySource->SourceName : FString();
 
 	CurrentRegistrySource = nullptr;
 	InitializeRegistrySources(false);
 
-	SetCurrentRegistrySource(OldSourceName);
+	if (!OldSourceName.IsEmpty())
+	{
+		SetCurrentRegistrySource(OldSourceName);
+	}
 }
 
 bool FAssetManagerEditorModule::IsPackageInCurrentRegistrySource(FName PackageName)
@@ -1983,7 +1986,7 @@ void FAssetManagerEditorModule::LogAssetsWithMultipleLabels()
 		}
 	}
 
-	PackageToLabelMap.KeySort(TLess<FName>());
+	PackageToLabelMap.KeySort(FNameLexicalLess());
 
 	UE_LOG(LogAssetManagerEditor, Log, TEXT("\nAssets with multiple labels follow"));
 
@@ -2036,7 +2039,7 @@ void FAssetManagerEditorModule::DumpAssetDependencies(const TArray<FString>& Arg
 
 	Manager.GetPrimaryAssetTypeInfoList(TypeInfos);
 
-	TypeInfos.Sort([](const FPrimaryAssetTypeInfo& LHS, const FPrimaryAssetTypeInfo& RHS) { return LHS.PrimaryAssetType < RHS.PrimaryAssetType; });
+	TypeInfos.Sort([](const FPrimaryAssetTypeInfo& LHS, const FPrimaryAssetTypeInfo& RHS) { return LHS.PrimaryAssetType.LexicalLess(RHS.PrimaryAssetType); });
 
 	UE_LOG(LogAssetManagerEditor, Log, TEXT("=========== Asset Manager Dependencies ==========="));
 
@@ -2083,7 +2086,7 @@ void FAssetManagerEditorModule::DumpAssetDependencies(const TArray<FString>& Arg
 		{
 			UE_LOG(LogAssetManagerEditor, Log, TEXT("  Type %s:"), *TypeInfo.PrimaryAssetType.ToString());
 
-			DependencyInfos.Sort([](const FDependencyInfo& LHS, const FDependencyInfo& RHS) { return LHS.AssetName < RHS.AssetName; });
+			DependencyInfos.Sort([](const FDependencyInfo& LHS, const FDependencyInfo& RHS) { return LHS.AssetName.LexicalLess(RHS.AssetName); });
 
 			for (FDependencyInfo& DependencyInfo : DependencyInfos)
 			{
@@ -2149,7 +2152,7 @@ bool FAssetManagerEditorModule::WriteCollection(FName CollectionName, ECollectio
 	else
 	{
 		UE_LOG(LogAssetManagerEditor, Warning, TEXT("Failed to create collection %s. %s"), *CollectionName.ToString(), *CollectionManager.GetLastError().ToString());
-		ResultsMessage = FText::Format(LOCTEXT("CreateCollectionFailed", "Failed to create collection {0}. {0}"), FText::FromName(CollectionName), CollectionManager.GetLastError());
+		ResultsMessage = FText::Format(LOCTEXT("CreateCollectionFailed", "Failed to create collection {0}. {1}"), FText::FromName(CollectionName), CollectionManager.GetLastError());
 	}
 
 	if (bShowFeedback)

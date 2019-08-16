@@ -21,13 +21,17 @@ public:
 		FSocketSubsystemBSD* SocketSubsystem = static_cast<FSocketSubsystemBSD*>(ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM));
 		if (SocketSubsystem)
 		{
-			// Do a query to get the scope id of the address.
-			if (SocketSubsystem->CreateAddressFromIP("ff02::01", *this) != SE_NO_ERROR)
+			TSharedPtr<FInternetAddrBSD> MultiCastAddr = StaticCastSharedPtr<FInternetAddrBSD>(SocketSubsystem->GetAddressFromString(TEXT("ff02::01")));
+			if (!MultiCastAddr.IsValid())
 			{
 				UE_LOG(LogSockets, Warning, TEXT("Could not resolve the broadcast address for iOS, this address will just be blank"));
 			}
 			else
 			{
+				// Set the address from the query
+				SetRawIp(MultiCastAddr->GetRawIp());
+
+				// Do a query to get the scope id of the address.
 				bool bUnusedBool;
 				TSharedRef<FInternetAddrBSDIOS> ScopeAddr = 
 					StaticCastSharedRef<FInternetAddrBSDIOS>(SocketSubsystem->GetLocalHostAddr(*GLog, bUnusedBool));

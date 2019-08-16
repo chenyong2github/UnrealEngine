@@ -4,7 +4,7 @@
 #include "ContentStreaming.h"
 #include "Misc/App.h"
 #include "UObject/Package.h"
-#include "Serialization/ArchiveTraceRoute.h"
+#include "UObject/ReferenceChainSearch.h"
 #include "Misc/PackageName.h"
 #include "UObject/LinkerLoad.h"
 #include "EngineGlobals.h"
@@ -83,15 +83,25 @@ FStreamLevelAction::FStreamLevelAction(bool bIsLoading, const FName& InLevelName
 	, LevelName(InLevelName)
 	, LatentInfo(InLatentInfo)
 {
-	Level = FindAndCacheLevelStreamingObject( LevelName, World );
-	ActivateLevel( Level );
+	ULevelStreaming* LocalLevel = FindAndCacheLevelStreamingObject( LevelName, World );
+	Level = LocalLevel;
+	ActivateLevel( LocalLevel );
 }
 
 void FStreamLevelAction::UpdateOperation(FLatentResponse& Response)
 {
-	ULevelStreaming* LevelStreamingObject = Level; // to avoid confusion.
-	bool bIsOperationFinished = UpdateLevel( LevelStreamingObject );
-	Response.FinishAndTriggerIf(bIsOperationFinished, LatentInfo.ExecutionFunction, LatentInfo.Linkage, LatentInfo.CallbackTarget);
+	ULevelStreaming* LevelStreamingObject = Level.Get(); // to avoid confusion.
+	const bool bIsLevelValid = LevelStreamingObject != nullptr;
+	UE_LOG(LogLevelStreaming, Display, TEXT("FStreamLevelAction::UpdateOperation() LevelName %s, bIsLevelValid %d"), *LevelName.ToString(), (int32)bIsLevelValid);
+	if (bIsLevelValid)
+	{
+		bool bIsOperationFinished = UpdateLevel(LevelStreamingObject);
+		Response.FinishAndTriggerIf(bIsOperationFinished, LatentInfo.ExecutionFunction, LatentInfo.Linkage, LatentInfo.CallbackTarget);
+	}
+	else
+	{
+		Response.DoneIf(true);
+	}
 }
 
 #if WITH_EDITOR
@@ -743,7 +753,7 @@ void ULevelStreaming::SetLoadedLevel(ULevel* Level)
 	check(PendingUnloadLevel == nullptr);
 	PendingUnloadLevel = LoadedLevel;
 	LoadedLevel = Level;
-	CachedLoadedLevelPackageName = (LoadedLevel ? LoadedLevel->GetOutermost()->GetFName() : NAME_None);
+	bHasCachedLoadedLevelPackageName = false;
 
 	// Cancel unloading for this level, in case it was queued for it
 	FLevelStreamingGCHelper::CancelUnloadRequest(LoadedLevel);
@@ -800,7 +810,9 @@ bool ULevelStreaming::IsDesiredLevelLoaded() const
 	{
 		const bool bIsGameWorld = GetWorld()->IsGameWorld();
 		const FName DesiredPackageName = bIsGameWorld ? GetLODPackageName() : GetWorldAssetPackageFName();
-		return (CachedLoadedLevelPackageName == DesiredPackageName);
+		const FName LoadedLevelPackageName = GetLoadedLevelPackageName();
+
+		return (LoadedLevelPackageName == DesiredPackageName);
 	}
 
 	return false;
@@ -826,9 +838,10 @@ bool ULevelStreaming::RequestLevel(UWorld* PersistentWorld, bool bAllowLevelLoad
 	// Package name we want to load
 	const bool bIsGameWorld = PersistentWorld->IsGameWorld();
 	const FName DesiredPackageName = bIsGameWorld ? GetLODPackageName() : GetWorldAssetPackageFName();
+	const FName LoadedLevelPackageName = GetLoadedLevelPackageName();
 
 	// Check if currently loaded level is what we want right now
-	if (LoadedLevel && CachedLoadedLevelPackageName == DesiredPackageName)
+	if (LoadedLevel && LoadedLevelPackageName == DesiredPackageName)
 	{
 		return true;
 	}
@@ -957,16 +970,14 @@ bool ULevelStreaming::RequestLevel(UWorld* PersistentWorld, bool bAllowLevelLoad
 			}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-			if (World->PersistentLevel == NULL)
+			if (World->PersistentLevel == nullptr)
 			{
-				UE_LOG(LogLevelStreaming, Log, TEXT("World exists but PersistentLevel doesn't for %s, most likely caused by reference to world of unloaded level and GC setting reference to NULL while keeping world object"), *World->GetOutermost()->GetName());
-				// print out some debug information...
-				StaticExec(World, *FString::Printf(TEXT("OBJ REFS CLASS=WORLD NAME=%s shortest"), *World->GetPathName()));
-				TMap<UObject*,UProperty*> Route = FArchiveTraceRoute::FindShortestRootPath( World, true, GARBAGE_COLLECTION_KEEPFLAGS );
-				FString ErrorString = FArchiveTraceRoute::PrintRootPath( Route, World );
-				UE_LOG(LogLevelStreaming, Log, TEXT("%s"), *ErrorString);
-				// before asserting
-				checkf(World->PersistentLevel,TEXT("Most likely caused by reference to world of unloaded level and GC setting reference to NULL while keeping world object"));
+				UE_LOG(LogLevelStreaming, Error, TEXT("World exists but PersistentLevel doesn't for %s, most likely caused by reference to world of unloaded level and GC setting reference to null while keeping world object"), *World->GetOutermost()->GetName());
+				UE_LOG(LogLevelStreaming, Error, TEXT("Most likely caused by reference to world of unloaded level and GC setting reference to null while keeping world object. Referenced by:"));
+
+				FReferenceChainSearch RefChainSearch(World, EReferenceChainSearchMode::Shortest | EReferenceChainSearchMode::PrintResults);
+				UE_LOG(LogLoad, Fatal, TEXT("World exists but PersistentLevel doesn't for %s! Referenced by:") LINE_TERMINATOR TEXT("%s"), *World->GetPathName(), *RefChainSearch.GetRootPath());
+
 				return false;
 			}
 #endif
@@ -1008,6 +1019,7 @@ bool ULevelStreaming::RequestLevel(UWorld* PersistentWorld, bool bAllowLevelLoad
 
 			// Kick off async load request.
 			STAT_ADD_CUSTOMMESSAGE_NAME( STAT_NamedMarker, *(FString( TEXT( "RequestLevel - " ) + DesiredPackageName.ToString() )) );
+			TRACE_BOOKMARK(TEXT("RequestLevel - %s"), *DesiredPackageName.ToString());
 			LoadPackageAsync(DesiredPackageName.ToString(), nullptr, *PackageNameToLoadFrom, FLoadPackageAsyncDelegate::CreateUObject(this, &ULevelStreaming::AsyncLevelLoadComplete), PackageFlags, PIEInstanceID);
 
 			// streamingServer: server loads everything?
@@ -1217,6 +1229,7 @@ void ULevelStreaming::AsyncLevelLoadComplete(const FName& InPackageName, UPackag
 	ULevel::StreamedLevelsOwningWorld.Remove(InPackageName);
 
 	STAT_ADD_CUSTOMMESSAGE_NAME( STAT_NamedMarker, *(FString( TEXT( "RequestLevelComplete - " ) + InPackageName.ToString() )) );
+	TRACE_BOOKMARK(TEXT("RequestLevelComplete - %s"), *InPackageName.ToString());
 }
 
 bool ULevelStreaming::IsLevelVisible() const
@@ -1363,6 +1376,7 @@ void ULevelStreaming::SetWorldAsset(const TSoftObjectPtr<UWorld>& NewWorldAsset)
 	{
 		WorldAsset = NewWorldAsset;
 		bHasCachedWorldAssetPackageFName = false;
+		bHasCachedLoadedLevelPackageName = false;
 
 		if (CurrentState == ECurrentState::FailedToLoad)
 		{
@@ -1389,6 +1403,17 @@ FName ULevelStreaming::GetWorldAssetPackageFName() const
 		bHasCachedWorldAssetPackageFName = true;
 	}
 	return CachedWorldAssetPackageFName;
+}
+
+FName ULevelStreaming::GetLoadedLevelPackageName() const
+{
+	if( !bHasCachedLoadedLevelPackageName )
+	{
+		CachedLoadedLevelPackageName = (LoadedLevel ? LoadedLevel->GetOutermost()->GetFName() : NAME_None);
+		bHasCachedLoadedLevelPackageName = true;
+	}
+
+	return CachedLoadedLevelPackageName;
 }
 
 void ULevelStreaming::SetWorldAssetByPackageName(FName InPackageName)
@@ -1533,8 +1558,7 @@ void ULevelStreaming::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		{
 			GetWorld()->UpdateLevelStreaming();
 		}
-
-		if (PropertyName == GET_MEMBER_NAME_CHECKED(ULevelStreaming, EditorStreamingVolumes))
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(ULevelStreaming, EditorStreamingVolumes))
 		{
 			RemoveStreamingVolumeDuplicates();
 
@@ -1557,6 +1581,24 @@ void ULevelStreaming::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		else if (PropertyName == GET_MEMBER_NAME_CHECKED(ULevelStreaming, WorldAsset))
 		{
 			bHasCachedWorldAssetPackageFName = false;
+			bHasCachedLoadedLevelPackageName = false;
+		}
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(ULevelStreaming, bIsStatic))
+		{
+			if (LoadedLevel)
+			{
+				const ELevelCollectionType NewCollectionType = bIsStatic ? ELevelCollectionType::StaticLevels : ELevelCollectionType::DynamicSourceLevels;
+				FLevelCollection* PreviousCollection = LoadedLevel->GetCachedLevelCollection();
+
+				if (PreviousCollection && PreviousCollection->GetType() != NewCollectionType)
+				{
+					PreviousCollection->RemoveLevel(LoadedLevel);
+
+					UWorld* World = GetWorld();
+					FLevelCollection& LC = World->FindOrAddCollectionByType(NewCollectionType);
+					LC.AddLevel(LoadedLevel);
+				}
+			}
 		}
 	}
 
@@ -1700,9 +1742,18 @@ ULevelStreamingDynamic* ULevelStreamingDynamic::LoadLevelInstanceBySoftObjectPtr
 
 ULevelStreamingDynamic* ULevelStreamingDynamic::LoadLevelInstance_Internal(UWorld* World, const FString& LongPackageName, const FVector Location, const FRotator Rotation, bool& bOutSuccess)
 {
-    // Create Unique Name for sub-level package
-	const FString ShortPackageName = FPackageName::GetShortName(LongPackageName);
 	const FString PackagePath = FPackageName::GetLongPackagePath(LongPackageName);
+	FString ShortPackageName = FPackageName::GetShortName(LongPackageName);
+
+	if (ShortPackageName.StartsWith(World->StreamingLevelsPrefix))
+	{
+		ShortPackageName = ShortPackageName.RightChop(World->StreamingLevelsPrefix.Len());
+	}
+
+	// Remove PIE prefix if it's there before we actually load the level
+	FString OnDiskPackageName = PackagePath + TEXT("/") + ShortPackageName;
+
+	// Create Unique Name for sub-level package
 	FString UniqueLevelPackageName = PackagePath + TEXT("/") + World->StreamingLevelsPrefix + ShortPackageName;
 	UniqueLevelPackageName += TEXT("_LevelInstance_") + FString::FromInt(++UniqueLevelInstanceId);
     
@@ -1718,7 +1769,7 @@ ULevelStreamingDynamic* ULevelStreamingDynamic::LoadLevelInstance_Internal(UWorl
 	// Transform
     StreamingLevel->LevelTransform = FTransform(Rotation, Location);
 	// Map to Load
-    StreamingLevel->PackageNameToLoad = FName(*LongPackageName);
+    StreamingLevel->PackageNameToLoad = FName(*OnDiskPackageName);
           
     // Add the new level to world.
     World->AddStreamingLevel(StreamingLevel);

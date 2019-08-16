@@ -245,10 +245,10 @@ FText::FText( TSharedRef<ITextData, ESPMode::ThreadSafe> InTextData )
 }
 
 FText::FText( FString&& InSourceString )
-	: TextData(new TGeneratedTextData<FTextHistory_Base>(FString(InSourceString)))
+	: TextData(new TGeneratedTextData<FTextHistory_Base>(CopyTemp(InSourceString))) // Copy the source string as the live display string
 	, Flags(0)
 {
-	TextData->SetTextHistory(FTextHistory_Base(MoveTemp(InSourceString)));
+	TextData->SetTextHistory(FTextHistory_Base(MoveTemp(InSourceString))); // Move the source string as the historic source string
 }
 
 FText::FText( FName InTableId, FString InKey, const EStringTableLoadingPolicy InLoadingPolicy )
@@ -321,119 +321,91 @@ FText FText::ToUpper() const
 
 FText FText::TrimPreceding( const FText& InText )
 {
-	FString TrimmedString = InText.ToString();
-	{
-		int32 StartPos = 0;
-		while ( StartPos < TrimmedString.Len() )
-		{
-			if( !FText::IsWhitespace( TrimmedString[StartPos] ) )
-			{
-				break;
-			}
+	const FString& CurrentString = InText.ToString();
 
-			++StartPos;
+	int32 StartPos = 0;
+	while (StartPos < CurrentString.Len())
+	{
+		if (!FText::IsWhitespace(CurrentString[StartPos]))
+		{
+			break;
 		}
 
-		TrimmedString = TrimmedString.Right( TrimmedString.Len() - StartPos );
+		++StartPos;
 	}
 
-	FText NewText = FText( MoveTemp( TrimmedString ) );
-
-	if (!GIsEditor)
+	if (StartPos == 0)
 	{
-		if( (NewText.Flags & ETextFlag::CultureInvariant) != 0 )
-		{
-			NewText.Flags |= ETextFlag::Transient;
-		}
-		else
-		{
-			NewText.Flags |= ETextFlag::CultureInvariant;
-		}
+		// Nothing to trim!
+		return InText;
 	}
 
-	return NewText;
+	// Trim the string, preserving culture invariance if set
+	FString TrimmedString = CurrentString.Right(CurrentString.Len() - StartPos);
+	return InText.IsCultureInvariant() ? FText::AsCultureInvariant(MoveTemp(TrimmedString)) : FText::FromString(MoveTemp(TrimmedString));
 }
 
 FText FText::TrimTrailing( const FText& InText )
 {
-	FString TrimmedString = InText.ToString();
-	{
-		int32 EndPos = TrimmedString.Len() - 1;
-		while( EndPos >= 0 )
-		{
-			if( !FText::IsWhitespace( TrimmedString[EndPos] ) )
-			{
-				break;
-			}
+	const FString& CurrentString = InText.ToString();
 
-			EndPos--;
+	int32 EndPos = CurrentString.Len() - 1;
+	while (EndPos >= 0)
+	{
+		if (!FText::IsWhitespace(CurrentString[EndPos]))
+		{
+			break;
 		}
 
-		TrimmedString = TrimmedString.Left( EndPos + 1 );
+		--EndPos;
 	}
 
-	FText NewText = FText( MoveTemp ( TrimmedString ) );
-
-	if (!GIsEditor)
+	if (EndPos == CurrentString.Len() - 1)
 	{
-		if( (NewText.Flags & ETextFlag::CultureInvariant) != 0 )
-		{
-			NewText.Flags |= ETextFlag::Transient;
-		}
-		else
-		{
-			NewText.Flags |= ETextFlag::CultureInvariant;
-		}
+		// Nothing to trim!
+		return InText;
 	}
 
-	return NewText;
+	// Trim the string, preserving culture invariance if set
+	FString TrimmedString = CurrentString.Left(EndPos + 1);
+	return InText.IsCultureInvariant() ? FText::AsCultureInvariant(MoveTemp(TrimmedString)) : FText::FromString(MoveTemp(TrimmedString));
 }
 
 FText FText::TrimPrecedingAndTrailing( const FText& InText )
 {
-	FString TrimmedString = InText.ToString();
+	const FString& CurrentString = InText.ToString();
+
+	int32 StartPos = 0;
+	while (StartPos < CurrentString.Len())
 	{
-		int32 StartPos = 0;
-		while ( StartPos < TrimmedString.Len() )
+		if (!FText::IsWhitespace(CurrentString[StartPos]))
 		{
-			if( !FText::IsWhitespace( TrimmedString[StartPos] ) )
-			{
-				break;
-			}
-
-			++StartPos;
+			break;
 		}
 
-		int32 EndPos = TrimmedString.Len();
-		while( EndPos > StartPos )
-		{
-			if( !FText::IsWhitespace( TrimmedString[EndPos - 1] ) )
-			{
-				break;
-			}
-
-			--EndPos;
-		}
-
-		const int32 Len = EndPos - StartPos;
-		TrimmedString = TrimmedString.Mid( StartPos, Len );
+		++StartPos;
 	}
 
-	FText NewText = FText( MoveTemp( TrimmedString ) );
-
-	if (!GIsEditor)
+	int32 EndPos = CurrentString.Len() - 1;
+	while (EndPos > StartPos)
 	{
-		if( (NewText.Flags & ETextFlag::CultureInvariant) != 0 )
+		if (!FText::IsWhitespace(CurrentString[EndPos]))
 		{
-			NewText.Flags |= ETextFlag::Transient;
+			break;
 		}
-		else
-		{
-			NewText.Flags |= ETextFlag::CultureInvariant;
-		}
+
+		--EndPos;
 	}
 
-	return NewText;
+	if (StartPos == 0 && EndPos == CurrentString.Len() - 1)
+	{
+		// Nothing to trim!
+		return InText;
+	}
+
+	// Trim the string, preserving culture invariance if set
+	FString TrimmedString = CurrentString.Mid(StartPos, EndPos - StartPos + 1);
+	return InText.IsCultureInvariant() ? FText::AsCultureInvariant(MoveTemp(TrimmedString)) : FText::FromString(MoveTemp(TrimmedString));
 }
 
 void FText::GetFormatPatternParameters(const FTextFormat& Fmt, TArray<FString>& ParameterNames)
@@ -824,6 +796,8 @@ void FText::SerializeText(FStructuredArchive::FSlot Slot, FText& Value)
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
 	FStructuredArchive::FRecord Record = Slot.EnterRecord();
 
+	UnderlyingArchive.UsingCustomVersion(FEditorObjectVersion::GUID);
+
 	//When duplicating, the CDO is used as the template, then values for the instance are assigned.
 	//If we don't duplicate the string, the CDO and the instance are both pointing at the same thing.
 	//This would result in all subsequently duplicated objects stamping over formerly duplicated ones.
@@ -900,12 +874,20 @@ void FText::SerializeText(FStructuredArchive::FSlot Slot, FText& Value)
 		if (UnderlyingArchive.IsSaving())
 		{
 			// Skip the history for empty texts
-			bSerializeHistory = !Value.IsEmpty();
+			bSerializeHistory = !Value.IsEmpty() && !Value.IsCultureInvariant();
 
 			if (!bSerializeHistory)
 			{
 				int8 HistoryType = (int8)ETextHistoryType::None;
 				Record << NAMED_FIELD(HistoryType);
+
+				bool bHasCultureInvariantString = !Value.IsEmpty() && Value.IsCultureInvariant();
+				Record << NAMED_FIELD(bHasCultureInvariantString);
+				if (bHasCultureInvariantString)
+				{
+					FString CultureInvariantString = Value.GetSourceString();
+					Record << NAMED_FIELD(CultureInvariantString);
+				}
 			}
 		}
 		else if (UnderlyingArchive.IsLoading())
@@ -986,6 +968,18 @@ void FText::SerializeText(FStructuredArchive::FSlot Slot, FText& Value)
 				{
 					bSerializeHistory = false;
 					Value.TextData = FText::GetEmpty().TextData;
+
+					if (UnderlyingArchive.CustomVer(FEditorObjectVersion::GUID) >= FEditorObjectVersion::CultureInvariantTextSerializationKeyStability)
+					{
+						bool bHasCultureInvariantString = false;
+						Record << NAMED_FIELD(bHasCultureInvariantString);
+						if (bHasCultureInvariantString)
+						{
+							FString CultureInvariantString;
+							Record << NAMED_FIELD(CultureInvariantString);
+							Value.TextData = FText(MoveTemp(CultureInvariantString)).TextData;
+						}
+					}
 				}
 			}
 		}
@@ -1038,7 +1032,7 @@ FText FText::FromName( const FName& Val)
 
 FText FText::FromString( const FString& String )
 {
-	FText NewText = String.IsEmpty() ? FText::GetEmpty() : FText( FString(String) );
+	FText NewText = String.IsEmpty() ? FText::GetEmpty() : FText(CopyTemp(String));
 
 	if (!GIsEditor)
 	{
@@ -1051,7 +1045,7 @@ FText FText::FromString( const FString& String )
 
 FText FText::FromString( FString&& String )
 {
-	FText NewText = String.IsEmpty() ? FText::GetEmpty() : FText( MoveTemp(String) );
+	FText NewText = String.IsEmpty() ? FText::GetEmpty() : FText(MoveTemp(String));
 
 	if (!GIsEditor)
 	{
@@ -1064,7 +1058,7 @@ FText FText::FromString( FString&& String )
 
 FText FText::AsCultureInvariant( const FString& String )
 {
-	FText NewText = String.IsEmpty() ? FText::GetEmpty() : FText( FString(String) );
+	FText NewText = String.IsEmpty() ? FText::GetEmpty() : FText(CopyTemp(String));
 	NewText.Flags |= ETextFlag::CultureInvariant;
 
 	return NewText;
@@ -1072,7 +1066,7 @@ FText FText::AsCultureInvariant( const FString& String )
 
 FText FText::AsCultureInvariant( FString&& String )
 {
-	FText NewText = String.IsEmpty() ? FText() : FText( MoveTemp(String) );
+	FText NewText = String.IsEmpty() ? FText::GetEmpty() : FText(MoveTemp(String));
 	NewText.Flags |= ETextFlag::CultureInvariant;
 
 	return NewText;
@@ -1080,7 +1074,7 @@ FText FText::AsCultureInvariant( FString&& String )
 
 FText FText::AsCultureInvariant( FText Text )
 {
-	FText NewText = FText( MoveTemp(Text) );
+	FText NewText = FText(MoveTemp(Text));
 	NewText.Flags |= ETextFlag::CultureInvariant;
 
 	return NewText;
@@ -1464,8 +1458,8 @@ FTextSnapshot::FTextSnapshot()
 
 FTextSnapshot::FTextSnapshot(const FText& InText)
 	: TextDataPtr(InText.TextData)
-	, GlobalHistoryRevision(InText.TextData->GetGlobalHistoryRevision())
-	, LocalHistoryRevision(InText.TextData->GetLocalHistoryRevision())
+	, GlobalHistoryRevision(GetGlobalHistoryRevisionForText(InText))
+	, LocalHistoryRevision(GetLocalHistoryRevisionForText(InText))
 	, Flags(InText.Flags)
 {
 }
@@ -1477,8 +1471,8 @@ bool FTextSnapshot::IdenticalTo(const FText& InText) const
 	InText.Rebuild();
 
 	return TextDataPtr == InText.TextData 
-		&& GlobalHistoryRevision == InText.TextData->GetGlobalHistoryRevision()
-		&& LocalHistoryRevision == InText.TextData->GetLocalHistoryRevision()
+		&& GlobalHistoryRevision == GetGlobalHistoryRevisionForText(InText)
+		&& LocalHistoryRevision == GetLocalHistoryRevisionForText(InText)
 		&& Flags == InText.Flags;
 }
 
@@ -1490,9 +1484,19 @@ bool FTextSnapshot::IsDisplayStringEqualTo(const FText& InText) const
 
 	// We have to assume that the display string has changed if the history of the text has changed
 	// (due to a culture change), as we no longer have the old display string to compare against
-	return GlobalHistoryRevision == InText.TextData->GetGlobalHistoryRevision()
-		&& LocalHistoryRevision == InText.TextData->GetLocalHistoryRevision()
+	return GlobalHistoryRevision == GetGlobalHistoryRevisionForText(InText)
+		&& LocalHistoryRevision == GetLocalHistoryRevisionForText(InText)
 		&& TextDataPtr.IsValid() && TextDataPtr->GetDisplayString().Equals(InText.ToString(), ESearchCase::CaseSensitive);
+}
+
+uint16 FTextSnapshot::GetGlobalHistoryRevisionForText(const FText& InText)
+{
+	return (InText.IsEmpty() || InText.IsCultureInvariant()) ? 0 : InText.TextData->GetGlobalHistoryRevision();
+}
+
+uint16 FTextSnapshot::GetLocalHistoryRevisionForText(const FText& InText)
+{
+	return (InText.IsEmpty() || InText.IsCultureInvariant()) ? 0 : InText.TextData->GetLocalHistoryRevision();
 }
 
 FScopedTextIdentityPreserver::FScopedTextIdentityPreserver(FText& InTextToPersist)

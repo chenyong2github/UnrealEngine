@@ -34,6 +34,7 @@ class UAnimNotifyState;
 class FParticleDynamicData;
 class FParticleSystemSceneProxy;
 class UAnimNotifyState;
+class UFXSystemAsset;
 struct FDynamicEmitterDataBase;
 struct FDynamicEmitterReplayDataBase;
 struct FParticleAnimTrailEmitterInstance;
@@ -354,6 +355,45 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Effects|Components|ParticleSystem")
 	virtual void SetActorParameter(FName ParameterName, class AActor* Param) {}
+
+	/** 
+	 * Get the referenced FXSystem asset.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Effects|Components|ParticleSystem")
+	virtual UFXSystemAsset* GetFXSystemAsset() const { return nullptr; };
+
+	/**
+	 *	Enables/Disables a sub-emitter
+	 *
+	 *	@param	EmitterName			The name of the sub-emitter to set it on
+	 *	@param	bNewEnableState		The value to set it to
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Effects|Components|ParticleSystem")
+	virtual void SetEmitterEnable(FName EmitterName, bool bNewEnableState) {};
+
+
+	/**
+	 * Set AutoAttachParent, AutoAttachSocketName, AutoAttachLocationRule, AutoAttachRotationRule, AutoAttachScaleRule to the specified parameters. Does not change bAutoManageAttachment; that must be set separately.
+	 * @param  Parent			Component to attach to.
+	 * @param  SocketName		Socket on Parent to attach to.
+	 * @param  LocationRule		Option for how we handle our location when we attach to Parent.
+	 * @param  RotationRule		Option for how we handle our rotation when we attach to Parent.
+	 * @param  ScaleRule		Option for how we handle our scale when we attach to Parent.
+	 * @see bAutoManageAttachment, AutoAttachParent, AutoAttachSocketName, AutoAttachLocationRule, AutoAttachRotationRule, AutoAttachScaleRule
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Effects|Components|ParticleSystem")
+	virtual void SetAutoAttachmentParameters(USceneComponent* Parent, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule) {}
+
+	/**
+	 * Deactivates this system and releases it to the pool on completion.
+	 * Usage of this PSC reference after this call is unsafe.
+	 * You should clear out your references to it.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Effects|Components|ParticleSystem")
+	virtual void ReleaseToPool() {}
+
+	/** Returns an approximate memory usage value for this component. */
+	virtual uint32 GetApproxMemoryUsage() const { return 0; }
 };
 
 
@@ -482,7 +522,7 @@ private:
 	volatile bool bAsyncWorkOutstanding;
 	
 	/** Restore relative transform from auto attachment and optionally detach from parent (regardless of whether it was an auto attachment). */
-	void CancelAutoAttachment(bool bDetachFromParent);
+	void CancelAutoAttachment(bool bDetachFromParent, const UWorld* MyWorld);
 
 	/** Handle into the FParticleSystemWorldManager. INDEX_NONE if this component does not have managed ticks. */
 	int32 ManagerHandle : 30;
@@ -720,8 +760,7 @@ public:
 	 * @param  ScaleRule		Option for how we handle our scale when we attach to Parent.
 	 * @see bAutoManageAttachment, AutoAttachParent, AutoAttachSocketName, AutoAttachLocationRule, AutoAttachRotationRule, AutoAttachScaleRule
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Effects|Components|ParticleSystem")
-	void SetAutoAttachmentParameters(USceneComponent* Parent, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule);
+	void SetAutoAttachmentParameters(USceneComponent* Parent, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule) override;
 
 private:
 
@@ -996,8 +1035,7 @@ public:
 	 *	@param	EmitterName			The name of the sub-emitter to set it on
 	 *	@param	bNewEnableState		The value to set it to
 	 */
-	UFUNCTION(BlueprintCallable, Category="Effects|Components|ParticleSystem")
-	virtual void SetEmitterEnable(FName EmitterName, bool bNewEnableState);
+	void SetEmitterEnable(FName EmitterName, bool bNewEnableState) override;
 
 	/** Change a named float parameter */
 	void SetFloatParameter(FName ParameterName, float Param) override;
@@ -1019,6 +1057,11 @@ public:
 	 *	Updates the parameter if it already exists, or creates a new entry if not. 
 	 */
 	void SetActorParameter(FName ParameterName, class AActor* Param) override;
+
+	/**
+	 * Get the referenced FXSystem asset.
+	*/
+	virtual UFXSystemAsset* GetFXSystemAsset() const { return Template; };
 
 	/** 
 	 *	Set a named material instance parameter on this ParticleSystemComponent. 
@@ -1136,6 +1179,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Effects|Particles|Trails")
 	void EndTrails();
 
+	void ReleaseToPool() override;
+
 	/**
 	* Sets the defining data for all trails in this component.
 	*
@@ -1147,14 +1192,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Effects|Particles|Trails")
 	void SetTrailSourceData(FName InFirstSocketName, FName InSecondSocketName, ETrailWidthMode InWidthMode, float InWidth);
 
-	/** 
-	 * Deactivates this system and releases it to the pool on completion.
-	 * Usage of this PSC reference after this call is unsafe. 
-	 * You should clear out your references to it.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Effects|Components|ParticleSystem")
-	void ReleaseToPool();
-
 public:
 	/** Command fence used to shut down properly */
 	class FRenderCommandFence* ReleaseResourcesFence;
@@ -1163,6 +1200,9 @@ public:
 
 	/** Static delegate called for all systems on an activation change. */
 	static FOnSystemPreActivationChange OnSystemPreActivationChange;
+
+	/** Stream of random values to use with this component */
+	FRandomStream RandomStream;
 
 private:
 	/** In some cases the async work for this PSC can be created externally by the manager. */
@@ -1202,6 +1242,7 @@ public:
 	virtual void OnChildAttached(USceneComponent* ChildComponent)override;
 	virtual void OnChildDetached(USceneComponent* ChildComponent)override;
 
+	virtual void OnEndOfFrameUpdateDuringTick() override;
 protected:
 	virtual void CreateRenderState_Concurrent() override;
 	virtual void SendRenderTransform_Concurrent() override;
@@ -1218,6 +1259,18 @@ public:
 		ENSURE_AND_STALL,
 		SILENT, // this would only be appropriate for editor only or other unusual things that we never see in game
 	};
+	/** If there is async work outstanding, force it to be completed now **/
+	FORCEINLINE void ForceAsyncWorkCompletion(EForceAsyncWorkCompletion Behavior, bool bDefinitelyGameThread, bool InSkipUpdateDynamicDataDuringTick)
+	{
+		if (AsyncWork.GetReference())
+		{
+			const bool bSavedSkipUpdate = bSkipUpdateDynamicDataDuringTick;
+			bSkipUpdateDynamicDataDuringTick |= InSkipUpdateDynamicDataDuringTick;
+			WaitForAsyncAndFinalize(Behavior, bDefinitelyGameThread);
+			bSkipUpdateDynamicDataDuringTick = bSavedSkipUpdate;
+		}
+	}
+
 	/** If there is async work outstanding, force it to be completed now **/
 	FORCEINLINE void ForceAsyncWorkCompletion(EForceAsyncWorkCompletion Behavior, bool bDefinitelyGameThread = true) const
 	{
@@ -1324,7 +1377,7 @@ public:
 	virtual FName GetNameForMaterial(UMaterialInterface* InMaterial) const;
 
 	/** Returns an approximate memory usage value for this component. */
-	uint32 GetApproxMemoryUsage()const;
+	uint32 GetApproxMemoryUsage() const override;
 
 protected:
 
@@ -1540,11 +1593,4 @@ FORCEINLINE_DEBUGGABLE void UParticleSystemComponent::SetAutoAttachParams(UScene
 	USceneComponent::ConvertAttachLocation(LocationType, AutoAttachLocationRule, AutoAttachRotationRule, AutoAttachScaleRule);
 }
 
-FORCEINLINE_DEBUGGABLE void UParticleSystemComponent::SetAutoAttachmentParameters(USceneComponent* Parent, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule)
-{
-	AutoAttachParent = Parent;
-	AutoAttachSocketName = SocketName;
-	AutoAttachLocationRule = LocationRule;
-	AutoAttachRotationRule = RotationRule;
-	AutoAttachScaleRule = ScaleRule;
-}
+

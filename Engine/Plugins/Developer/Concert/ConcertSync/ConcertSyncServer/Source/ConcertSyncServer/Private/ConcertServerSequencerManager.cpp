@@ -2,11 +2,11 @@
 
 #include "ConcertServerSequencerManager.h"
 #include "IConcertSession.h"
+#include "ConcertSyncServerLiveSession.h"
 
-
-FConcertServerSequencerManager::FConcertServerSequencerManager(TSharedRef<IConcertServerSession> InSession)
+FConcertServerSequencerManager::FConcertServerSequencerManager(const TSharedRef<FConcertSyncServerLiveSession>& InLiveSession)
 {
-	BindSession(InSession);
+	BindSession(InLiveSession);
 }
 
 FConcertServerSequencerManager::~FConcertServerSequencerManager()
@@ -14,26 +14,28 @@ FConcertServerSequencerManager::~FConcertServerSequencerManager()
 	UnbindSession();
 }
 
-void FConcertServerSequencerManager::BindSession(const TSharedRef<IConcertServerSession>& InSession)
+void FConcertServerSequencerManager::BindSession(const TSharedRef<FConcertSyncServerLiveSession>& InLiveSession)
 {
-	UnbindSession();
-	Session = InSession;
+	check(InLiveSession->IsValidSession());
 
-	SessionClientChangedHandle = Session->OnSessionClientChanged().AddRaw(this, &FConcertServerSequencerManager::HandleSessionClientChanged);
-	Session->RegisterCustomEventHandler<FConcertSequencerCloseEvent>(this, &FConcertServerSequencerManager::HandleSequencerCloseEvent);
-	Session->RegisterCustomEventHandler<FConcertSequencerStateEvent>(this, &FConcertServerSequencerManager::HandleSequencerStateEvent);
-	Session->RegisterCustomEventHandler<FConcertSequencerOpenEvent>(this, &FConcertServerSequencerManager::HandleSequencerOpenEvent);
+	UnbindSession();
+	LiveSession = InLiveSession;
+
+	LiveSession->GetSession().OnSessionClientChanged().AddRaw(this, &FConcertServerSequencerManager::HandleSessionClientChanged);
+	LiveSession->GetSession().RegisterCustomEventHandler<FConcertSequencerCloseEvent>(this, &FConcertServerSequencerManager::HandleSequencerCloseEvent);
+	LiveSession->GetSession().RegisterCustomEventHandler<FConcertSequencerStateEvent>(this, &FConcertServerSequencerManager::HandleSequencerStateEvent);
+	LiveSession->GetSession().RegisterCustomEventHandler<FConcertSequencerOpenEvent>(this, &FConcertServerSequencerManager::HandleSequencerOpenEvent);
 }
 
 void FConcertServerSequencerManager::UnbindSession()
 {
-	if (Session.IsValid())
+	if (LiveSession)
 	{
-		Session->OnSessionClientChanged().Remove(SessionClientChangedHandle);
-		Session->UnregisterCustomEventHandler<FConcertSequencerOpenEvent>();
-		Session->UnregisterCustomEventHandler<FConcertSequencerCloseEvent>();
-		Session->UnregisterCustomEventHandler<FConcertSequencerStateEvent>();
-		Session.Reset();
+		LiveSession->GetSession().OnSessionClientChanged().RemoveAll(this);
+		LiveSession->GetSession().UnregisterCustomEventHandler<FConcertSequencerOpenEvent>(this);
+		LiveSession->GetSession().UnregisterCustomEventHandler<FConcertSequencerCloseEvent>(this);
+		LiveSession->GetSession().UnregisterCustomEventHandler<FConcertSequencerStateEvent>(this);
+		LiveSession.Reset();
 	}
 }
 
@@ -45,9 +47,9 @@ void FConcertServerSequencerManager::HandleSequencerStateEvent(const FConcertSes
 	SequencerState.State = InEvent.State;
 
 	// Forward the message to the other clients
-	TArray<FGuid> ClientIds = Session->GetSessionClientEndpointIds();
+	TArray<FGuid> ClientIds = LiveSession->GetSession().GetSessionClientEndpointIds();
 	ClientIds.Remove(InEventContext.SourceEndpointId);
-	Session->SendCustomEvent(InEvent, ClientIds, EConcertMessageFlags::ReliableOrdered);
+	LiveSession->GetSession().SendCustomEvent(InEvent, ClientIds, EConcertMessageFlags::ReliableOrdered | EConcertMessageFlags::UniqueId);
 }
 
 void FConcertServerSequencerManager::HandleSequencerOpenEvent(const FConcertSessionContext& InEventContext, const FConcertSequencerOpenEvent& InEvent)
@@ -58,9 +60,9 @@ void FConcertServerSequencerManager::HandleSequencerOpenEvent(const FConcertSess
 	SequencerState.State.SequenceObjectPath = InEvent.SequenceObjectPath;
 
 	// Forward the message to the other clients
-	TArray<FGuid> ClientIds = Session->GetSessionClientEndpointIds();
+	TArray<FGuid> ClientIds = LiveSession->GetSession().GetSessionClientEndpointIds();
 	ClientIds.Remove(InEventContext.SourceEndpointId);
-	Session->SendCustomEvent(InEvent, ClientIds, EConcertMessageFlags::ReliableOrdered);
+	LiveSession->GetSession().SendCustomEvent(InEvent, ClientIds, EConcertMessageFlags::ReliableOrdered | EConcertMessageFlags::UniqueId);
 }
 
 void FConcertServerSequencerManager::HandleSequencerCloseEvent(const FConcertSessionContext& InEventContext, const FConcertSequencerCloseEvent& InEvent)
@@ -75,20 +77,20 @@ void FConcertServerSequencerManager::HandleSequencerCloseEvent(const FConcertSes
 			FConcertSequencerCloseEvent CloseEvent;
 			CloseEvent.bMasterClose = false;
 			CloseEvent.SequenceObjectPath = InEvent.SequenceObjectPath;
-			Session->SendCustomEvent(CloseEvent, Session->GetSessionClientEndpointIds(), EConcertMessageFlags::ReliableOrdered);
+			LiveSession->GetSession().SendCustomEvent(CloseEvent, LiveSession->GetSession().GetSessionClientEndpointIds(), EConcertMessageFlags::ReliableOrdered | EConcertMessageFlags::UniqueId);
 			SequencerStates.Remove(*InEvent.SequenceObjectPath);
 		}
 		// if a sequence was close while it was the master, forward it to client
 		else if (InEvent.bMasterClose)
 		{
-			Session->SendCustomEvent(InEvent, Session->GetSessionClientEndpointIds(), EConcertMessageFlags::ReliableOrdered);
+			LiveSession->GetSession().SendCustomEvent(InEvent, LiveSession->GetSession().GetSessionClientEndpointIds(), EConcertMessageFlags::ReliableOrdered | EConcertMessageFlags::UniqueId);
 		}
 	}
 }
 
 void FConcertServerSequencerManager::HandleSessionClientChanged(IConcertServerSession& InSession, EConcertClientStatus InClientStatus, const FConcertSessionClientInfo& InClientInfo)
 {
-	check(&InSession == Session.Get());
+	check(&InSession == &LiveSession->GetSession());
 	// Remove the client from all open sequences
 	if (InClientStatus == EConcertClientStatus::Disconnected)
 	{
@@ -100,7 +102,7 @@ void FConcertServerSequencerManager::HandleSessionClientChanged(IConcertServerSe
 				// Forward the close event to clients
 				FConcertSequencerCloseEvent CloseEvent;
 				CloseEvent.SequenceObjectPath = It->Key.ToString();
-				Session->SendCustomEvent(CloseEvent, Session->GetSessionClientEndpointIds(), EConcertMessageFlags::ReliableOrdered);
+				LiveSession->GetSession().SendCustomEvent(CloseEvent, LiveSession->GetSession().GetSessionClientEndpointIds(), EConcertMessageFlags::ReliableOrdered|EConcertMessageFlags::UniqueId);
 
 				It.RemoveCurrent();
 			}
@@ -114,6 +116,6 @@ void FConcertServerSequencerManager::HandleSessionClientChanged(IConcertServerSe
 		{
 			SyncEvent.SequencerStates.Add(Pair.Value.State);
 		}
-		Session->SendCustomEvent(SyncEvent, InClientInfo.ClientEndpointId, EConcertMessageFlags::ReliableOrdered);
+		LiveSession->GetSession().SendCustomEvent(SyncEvent, InClientInfo.ClientEndpointId, EConcertMessageFlags::ReliableOrdered);
 	}
 }

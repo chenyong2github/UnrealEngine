@@ -6,6 +6,7 @@
 
 #include "/Engine/Private/SceneTexturesCommon.ush"
 #include "/Engine/Private/Random.ush"
+#include "/Engine/Private/SobolRandom.ush"
 #include "/Engine/Private/MonteCarlo.ush"
 #include "/Engine/Generated/UniformBuffers/Material.ush"
 #include "/Engine/Private/DepthOfFieldCommon.ush"
@@ -21,6 +22,13 @@
 #define NUM_MATERIAL_TEXCOORDS %s
 #define NUM_CUSTOM_VERTEX_INTERPOLATORS %s
 #define NUM_TEX_COORD_INTERPOLATORS %s
+
+// Vertex interpolators offsets definition
+%s
+
+#if NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED
+	#include "/Engine/Private/VirtualTextureCommon.ush"
+#endif
 
 #ifdef MIN_MATERIAL_TEXCOORDS 
 	#include "/Engine/Private/MinMaterialTexCoords.ush"
@@ -267,6 +275,10 @@ struct FMaterialPixelParameters
 	// Which happens when FMaterialPixelParameters and FMaterialVertexParameters have the same number of floats with the HLSL compiler ver 9.29.952.3111
 	// Function overload resolution appears to identify types based on how many floats / ints / etc they contain
 	uint Dummy;
+#endif
+
+#if NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED
+	FVirtualTextureFeedbackParams VirtualTextureFeedback;
 #endif
 };
 
@@ -1017,13 +1029,15 @@ MaterialFloat4 ProcessMaterialColorTextureLookup(MaterialFloat4 TextureValue)
 
 MaterialFloat4 ProcessMaterialExternalTextureLookup(MaterialFloat4 TextureValue)
 {
-#if (FEATURE_LEVEL == FEATURE_LEVEL_ES2) || COMPILER_GLSL_ES3_1
+#if FEATURE_LEVEL == FEATURE_LEVEL_ES2
 	// As per https://www.khronos.org/registry/OpenGL/extensions/OES/OES_EGL_image_external.txt
 	// sampling an external texture does not change the color space, so we always need to
 	// perform manual approximate sRGB conversion
 	float3 LinRGB = TextureValue.rgb;
 	LinRGB *= LinRGB; 
 	return MaterialFloat4(LinRGB, TextureValue.a);
+#elif COMPILER_GLSL_ES3_1
+	return MaterialFloat4(pow(TextureValue.rgb, 2.2f), TextureValue.a);
 #else
 	return ProcessMaterialColorTextureLookup(TextureValue);
 #endif
@@ -1501,19 +1515,19 @@ float4 SceneTextureLookup(float2 UV, int SceneTextureIndex, bool bFiltered)
 		case 13: return ScreenSpaceData.GBuffer.CustomDepth;
 #if POST_PROCESS_MATERIAL
 		// PPI_PostprocessInput0
-		case 14: return Texture2DSample(PostprocessInput0, bFiltered ? BilinearTextureSampler0 : PostprocessInput0Sampler, UV);
+		case 14: return Texture2DSample(PostprocessInput0, bFiltered ? BilinearTextureSampler : PostprocessInput0Sampler, UV);
 		// PPI_PostprocessInput1
-		case 15: return Texture2DSample(PostprocessInput1, bFiltered ? BilinearTextureSampler0 : PostprocessInput1Sampler, UV);
+		case 15: return Texture2DSample(PostprocessInput1, bFiltered ? BilinearTextureSampler : PostprocessInput1Sampler, UV);
 		// PPI_PostprocessInput2
-		case 16: return Texture2DSample(PostprocessInput2, bFiltered ? BilinearTextureSampler0 : PostprocessInput2Sampler, UV);
+		case 16: return Texture2DSample(PostprocessInput2, bFiltered ? BilinearTextureSampler : PostprocessInput2Sampler, UV);
 		// PPI_PostprocessInput3
-		case 17: return Texture2DSample(PostprocessInput3, bFiltered ? BilinearTextureSampler0 : PostprocessInput3Sampler, UV);
+		case 17: return Texture2DSample(PostprocessInput3, bFiltered ? BilinearTextureSampler : PostprocessInput3Sampler, UV);
 		// PPI_PostprocessInput4
-		case 18: return Texture2DSample(PostprocessInput4, bFiltered ? BilinearTextureSampler0 : PostprocessInput4Sampler, UV);
+		case 18: return Texture2DSample(PostprocessInput4, bFiltered ? BilinearTextureSampler : PostprocessInput4Sampler, UV);
 		// PPI_PostprocessInput5
-		case 19: return Texture2DSample(PostprocessInput5, bFiltered ? BilinearTextureSampler0 : PostprocessInput5Sampler, UV);
+		case 19: return Texture2DSample(PostprocessInput5, bFiltered ? BilinearTextureSampler : PostprocessInput5Sampler, UV);
 		// PPI_PostprocessInput6
-		case 20: return Texture2DSample(PostprocessInput6, bFiltered ? BilinearTextureSampler0 : PostprocessInput6Sampler, UV);
+		case 20: return Texture2DSample(PostprocessInput6, bFiltered ? BilinearTextureSampler : PostprocessInput6Sampler, UV);
 #endif // __POST_PROCESS_COMMON__
 		// PPI_DecalMask
 		case 21: return 0;  // material compiler will return an error
@@ -2009,8 +2023,8 @@ void GetMaterialClippingVelocity(FMaterialPixelParameters Parameters, FPixelMate
 		clip(GetMaterialMaskInputRaw(PixelMaterialInputs) - 1.0f / 255.0f);
 	#elif MATERIALBLENDING_MASKED
 		clip(GetMaterialMask(PixelMaterialInputs)); 
-	#elif MATERIALBLENDING_TRANSLUCENT
-		clip(GetMaterialOpacity(PixelMaterialInputs) - 1.0f / 255.0f);
+	#elif MATERIALBLENDING_TRANSLUCENT || MATERIALBLENDING_ADDITIVE || MATERIALBLENDING_MODULATE
+		clip(GetMaterialOpacity(PixelMaterialInputs) - 1.0 / 255.0 - GetMaterialOpacityMaskClipValue());
 	#endif
 }
 
@@ -2124,8 +2138,12 @@ void CalcMaterialParametersEx(
 	// Originally this was normalize(normalize(TranslatedWorldPosition.xyz)) but tegra4 appears to optimize that out.
 	Parameters.CameraVector = normalize(-0.01 * Parameters.WorldPosition_CamRelative.xyz);
 #else
-	// TranslatedWorldPosition is the world position translated to the camera position, which is just -CameraVector
-	Parameters.CameraVector = normalize(-Parameters.WorldPosition_CamRelative.xyz);
+	#if !RAYHITGROUPSHADER
+		// TranslatedWorldPosition is the world position translated to the camera position, which is just -CameraVector
+		Parameters.CameraVector = normalize(-Parameters.WorldPosition_CamRelative.xyz);
+	#else
+		Parameters.CameraVector = -WorldRayDirection();
+	#endif
 #endif
 
 	Parameters.LightVector = 0;
@@ -2141,6 +2159,10 @@ void CalcMaterialParametersEx(
 	#if !MATERIAL_TWOSIDED_SEPARATE_PASS
 		Parameters.TwoSidedSign *= GetFloatFacingSign(bIsFrontFace);
 	#endif
+#endif
+
+#if NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED
+	InitializeVirtualTextureFeedback(Parameters.VirtualTextureFeedback, (uint2)SvPosition.xy, View.FrameNumber);
 #endif
 
 	// Now that we have all the pixel-related parameters setup, calculate the Material Input/Attributes and Normal
@@ -2226,15 +2248,28 @@ half3x3 AssembleTangentToWorld( half3 TangentToWorld0, half4 TangentToWorld2 )
 
 float ApplyPixelDepthOffsetToMaterialParameters(inout FMaterialPixelParameters MaterialParameters, FPixelMaterialInputs PixelMaterialInputs, out float OutDepth)
 {
-	// Can only push into the scene for conservative depth writes
-	float PixelDepthOffset = max(GetMaterialPixelDepthOffset(PixelMaterialInputs), 0);
+	float PixelDepthOffset = GetMaterialPixelDepthOffset(PixelMaterialInputs);
+
+	// SvPosition.z contains device depth value normally written to depth buffer
+	// ScreenPosition.z is 'SvPosition.z * SvPosition.w'
+	// So here we compute a new device depth value with the given pixel depth offset, but clamp the value against the regular SvPosition.z
+	// This clamp is important, even if PixelDepthOffset is 0.0f, the computed DeviceDepth may end up 'slightly' larger than SvPosition.z due to floating point whatever
+	// Since we are outputing depth with SV_DepthLessEqual, this ends up as undefined behavior
+	// In particular, this can cause problems on PS4....PS4 enables RE_Z when using depth output along with virtual texture UAV feedback buffer writes
+	// RE_Z causes the HW to perform depth test twice, once before executing pixel shader, and once after
+	// The PreZ pass will write depth buffer using depth offset, then the base pass will test against this value using both modified and unmodifed depth
+	// If the unmodified depth is ever slightly less than the modified depth, the initial depth test will fail, which results in z-fighting/flickering type artifacts
+	float DeviceDepth = min(MaterialParameters.ScreenPosition.z / (MaterialParameters.ScreenPosition.w + PixelDepthOffset), MaterialParameters.SvPosition.z);
+
+	// Once we've computed our (clamped) device depth, recompute PixelDepthOffset again to take the potential clamp into account
+	PixelDepthOffset = (MaterialParameters.ScreenPosition.z - DeviceDepth * MaterialParameters.ScreenPosition.w) / DeviceDepth;
 
 	// Update positions used for shading
 	MaterialParameters.ScreenPosition.w += PixelDepthOffset;
 	MaterialParameters.SvPosition.w = MaterialParameters.ScreenPosition.w;
 	MaterialParameters.AbsoluteWorldPosition += MaterialParameters.CameraVector * PixelDepthOffset;
 
-	OutDepth = MaterialParameters.ScreenPosition.z / MaterialParameters.ScreenPosition.w;
+	OutDepth = DeviceDepth;
 
 	return PixelDepthOffset;
 }

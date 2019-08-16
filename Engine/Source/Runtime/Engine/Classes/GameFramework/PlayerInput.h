@@ -181,7 +181,7 @@ struct FInputActionKeyMapping
 	bool operator<(const FInputActionKeyMapping& Other) const
 	{
 		bool bResult = false;
-		if (ActionName < Other.ActionName)
+		if (ActionName.LexicalLess(Other.ActionName))
 		{
 			bResult = true;
 		}
@@ -234,7 +234,7 @@ struct FInputAxisKeyMapping
 	bool operator<(const FInputAxisKeyMapping& Other) const
 	{
 		bool bResult = false;
-		if (AxisName < Other.AxisName)
+		if (AxisName.LexicalLess(Other.AxisName))
 		{
 			bResult = true;
 		}
@@ -259,6 +259,70 @@ struct FInputAxisKeyMapping
 		, Key(InKey)
 	{}
 };
+
+
+/** 
+ * Defines a mapping between an action and speech recognition 
+ *
+ * @see https://docs.unrealengine.com/latest/INT/Gameplay/Input/index.html
+ */
+USTRUCT( BlueprintType )
+struct ENGINE_API FInputActionSpeechMapping
+{
+	GENERATED_USTRUCT_BODY()
+
+	static FName GetKeyCategory()
+	{
+		return FName(TEXT("Speech"));
+	}
+	FName GetActionName() const
+	{
+		return ActionName;
+	}
+	FName GetSpeechKeyword() const
+	{
+		return SpeechKeyword;
+	}
+	FName GetKeyName() const
+	{
+		return FName(*FString::Printf(TEXT("%s_%s"), *GetKeyCategory().ToString(), *SpeechKeyword.ToString()));
+	}
+private:
+	/** Friendly name of action, e.g "jump" */
+	UPROPERTY(EditAnywhere, Category="Input")
+	FName ActionName;
+
+	/** Key to bind it to. */
+	UPROPERTY(EditAnywhere, Category="Input")
+	FName SpeechKeyword;
+public:
+
+	bool operator==(const FInputActionSpeechMapping& Other) const
+	{
+		return (   ActionName == Other.ActionName
+				&& SpeechKeyword == Other.SpeechKeyword);
+	}
+
+	bool operator<(const FInputActionSpeechMapping& Other) const
+	{
+		bool bResult = false;
+		if (ActionName.LexicalLess(Other.ActionName))
+		{
+			bResult = true;
+		}
+		else if (ActionName == Other.ActionName)
+		{
+			bResult = (SpeechKeyword.LexicalLess(Other.SpeechKeyword));
+		}
+		return bResult;
+	}
+
+	FInputActionSpeechMapping(const FName InActionName = NAME_None, const FName InSpeechKeyword = NAME_None)
+		: ActionName(InActionName)
+		, SpeechKeyword(InSpeechKeyword)
+	{}
+};
+
 
 /**
  * Object within PlayerController that processes player input.
@@ -558,7 +622,7 @@ public:
 	static const TArray<FInputActionKeyMapping>& GetEngineDefinedActionMappings() { return EngineDefinedActionMappings; }
 	static const TArray<FInputAxisKeyMapping>& GetEngineDefinedAxisMappings() { return EngineDefinedAxisMappings; }
 
-private:
+protected:
 
 	/**
 	* Given raw keystate value of a vector axis, returns the "massaged" value. Override for any custom behavior,
@@ -571,6 +635,8 @@ private:
 	* such as input changes dependent on a particular game state.
 	*/
 	virtual float MassageAxisInput(FKey Key, float RawValue);
+
+private:
 
 	/** Process non-axes keystates */
 	void ProcessNonAxesKeys(FKey Inkey, FKeyState* KeyState);

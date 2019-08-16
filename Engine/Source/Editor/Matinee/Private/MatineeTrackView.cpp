@@ -12,6 +12,102 @@
 
 #include "Slate/SceneViewport.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Widgets/Text/SRichTextBlock.h"
+#include "Widgets/Input/SButton.h"
+#include "EngineAnalytics.h"
+#include "Interfaces/IAnalyticsProvider.h"
+#include "IDocumentation.h"
+#include "Framework/Text/SlateHyperlinkRun.h"
+
+static void OnDocLinkClicked(const FSlateHyperlinkRun::FMetadata& Metadata)
+{
+	const FString* Url = Metadata.Find(TEXT("href"));
+	if (Url)
+	{
+		if (FEngineAnalytics::IsAvailable())
+		{
+			TArray<FAnalyticsEventAttribute> EventAttributes;
+			EventAttributes.Add(FAnalyticsEventAttribute(TEXT("DocLink"), *Url));
+
+			FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Matinee.DeprecationWarning.DocLinkClicked"), EventAttributes);
+		}
+
+		IDocumentation::Get()->Open(*Url, FDocumentationSourceInfo(TEXT("editor")));
+	}
+}
+
+class SMatineeDeprecationMessage : public SCompoundWidget
+{
+public:
+
+	SLATE_BEGIN_ARGS(SMatineeDeprecationMessage)
+	{}
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs)
+	{
+		ChildSlot
+		[
+			SNew(SBorder)
+			.BorderBackgroundColor(FLinearColor(0.4f, 0.f, 0.f, 1.f))
+			.BorderImage(FEditorStyle::GetBrush(TEXT("WhiteBrush")))
+			.Visibility(this, &SMatineeDeprecationMessage::GetWarningMessageVisibility)
+			[
+				SNew(SHorizontalBox)
+				+SHorizontalBox::Slot()
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Center)
+				.Padding(4, 0, 0, 0)
+				[
+					SNew(SRichTextBlock)
+					.Text(NSLOCTEXT("Matinee", "MatineeLastVersionSupported", "As of 4.23, Matinee is no longer supported by UE4 and will be removed from the engine in the near future. Once removed, you will <NormalText.Important>no longer be able to run a Matinee or open Matinee Editor</>.\n"
+									"Please use the <a id=\"udn\" href=\"/Engine/Sequencer/HowTo/MatineeConversionTool\" style=\"Hyperlink\">Matinee to Sequencer Conversion Tool</> to convert any files to Sequencer as soon as possible."))
+					.AutoWrapText(true)
+					.DecoratorStyleSet(&FEditorStyle::Get())
+					+ SRichTextBlock::HyperlinkDecorator(TEXT("udn"), FSlateHyperlinkRun::FOnClick::CreateStatic(&OnDocLinkClicked))
+
+				]
+				+SHorizontalBox::Slot()
+				.HAlign(HAlign_Right)
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[
+					SNew(SButton)
+					.Text(NSLOCTEXT("Matinee", "DismissMatineeSupportWarning", "Dismiss"))
+					.OnClicked(this, &SMatineeDeprecationMessage::DismissWarningForever)
+				]
+			]
+		];
+	}
+
+	FReply DismissWarningForever() 
+	{
+		if (GConfig)
+		{
+			GConfig->SetBool(TEXT("Matinee"), TEXT("HasDismissedDeprecationWarning"), true, GEditorIni);
+
+			if (FEngineAnalytics::IsAvailable())
+			{
+				FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Matinee.DeprecationWarning.Dimissed"));
+			}
+		}
+
+		return FReply::Handled();
+	}
+
+	EVisibility GetWarningMessageVisibility() const
+	{
+		if (GConfig)
+		{
+			bool bDismissed = false;
+			GConfig->GetBool(TEXT("Matinee"), TEXT("HasDismissedDeprecationWarning"), bDismissed, GEditorIni);
+
+			return bDismissed ? EVisibility::Collapsed : EVisibility::Visible;
+		}
+
+		return EVisibility::Collapsed;
+	}
+};
 
 
 /*-----------------------------------------------------------------------------
@@ -22,21 +118,30 @@ void SMatineeViewport::Construct(const FArguments& InArgs, TWeakPtr<FMatinee> In
 {
 	this->ChildSlot
 	[
-		SNew(SHorizontalBox)
-		+SHorizontalBox::Slot()
-		.FillWidth(1)
+		SNew(SVerticalBox)
+		+SVerticalBox::Slot()
 		[
-			SAssignNew(ViewportWidget, SViewport)
-			.EnableGammaCorrection(false)
-			.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
-			.ShowEffectWhenDisabled(false)
+			SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			.FillWidth(1)
+			[
+				SAssignNew(ViewportWidget, SViewport)
+				.EnableGammaCorrection(false)
+				.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
+				.ShowEffectWhenDisabled(false)
+			]
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SAssignNew(ScrollBar_Vert, SScrollBar)
+				.AlwaysShowScrollbar(true)
+				.OnUserScrolled(this, &SMatineeViewport::OnScroll)
+			]
 		]
-		+SHorizontalBox::Slot()
-		.AutoWidth()
+		+SVerticalBox::Slot()
+		.AutoHeight()
 		[
-			SAssignNew(ScrollBar_Vert, SScrollBar)
-			.AlwaysShowScrollbar(true)
-			.OnUserScrolled(this, &SMatineeViewport::OnScroll)
+			SNew(SMatineeDeprecationMessage)
 		]
 	];
 

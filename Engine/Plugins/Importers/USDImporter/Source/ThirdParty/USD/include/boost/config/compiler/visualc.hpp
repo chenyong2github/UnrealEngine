@@ -291,8 +291,14 @@
 // last known and checked version is 19.00.23026 (VC++ 2015 RTM):
 #if (_MSC_VER > 1900)
 #  if defined(BOOST_ASSERT_CONFIG)
-#     error "Unknown compiler version - please run the configure tests and report the results"
-#  else
-#     pragma message("Unknown compiler version - please run the configure tests and report the results")
+#     error "Boost.Config is older than your current compiler version."
+#  elif !defined(BOOST_CONFIG_SUPPRESS_OUTDATED_MESSAGE)
+      // Disabled this warning, as newer versions of boost already disable the message
+      //
+      // Newer versions of boost have comment says:
+      //
+      // Disabled as of March 2018 - the pace of VS releases is hard to keep up with
+      // and in any case, we have relatively few defect macros defined now.
+      // BOOST_PRAGMA_MESSAGE("Info: Boost.Config is older than your compiler version - probably nothing bad will happen - but you may wish to look for an updated Boost version. Define BOOST_CONFIG_SUPPRESS_OUTDATED_MESSAGE to suppress this message.")
 #  endif
 #endif

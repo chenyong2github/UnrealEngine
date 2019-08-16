@@ -1,0 +1,88 @@
+﻿INTSourceChangelist:6604630
+Availability:Docs
+Title:行为树节点参考：服务节点
+Description:行为树服务（Service）节点的参考。
+Type: reference
+Version:4.21
+Parent:Engine/ArtificialIntelligence/BehaviorTrees/BehaviorTreeNodeReference
+Tags:AI
+Tags:Behavior Tree Node Reference
+topic-image:BehaviorTreeNodes_Service_Topic.png
+social-image:BehaviorTreeNodes_Service_Topic.png
+topic-icon:BehaviorTreeNodes_Service_Topic.png
+Order:2
+
+
+[TOC (start:2 end:2)]
+
+**服务（Service）** 节点通常连接至[合成（Composite）](Engine/ArtificialIntelligence/BehaviorTrees/BehaviorTreeNodeReference/BehaviorTreeNodeReferenceComposites)节点或[任务（Task）](Engine/ArtificialIntelligence/BehaviorTrees/BehaviorTreeNodeReference/BehaviorTreeNodeReferenceTasks)节点，只要其分支被执行，它们就会以定义的频率执行。这些节点常用于检查和更新黑板。它们取代了其他行为树系统中的传统平行（Parallel）节点。
+
+## 默认聚焦
+
+![](Default_Focus.png "Default_Focus.png")
+
+**默认聚焦(Default Focus）** 通过设置控制器的聚焦来创建访问[蓝图](Engine/Blueprints)和代码中Actor的快捷方式。将AI控制器的聚焦设置到Actor上后，您便能直接从AI控制器对其进行访问，而不需要访问黑板键。
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| **黑板键（Blackboard Key）** | 此属性接受Actor键（基类设置为Actor的对象键），以便AI控制器使用 `GetFocusActor` 对其进行快速引用。|
+| **节点名称（Node Name）** | 节点在行为树图表中显示的名称。|
+
+## 运行EQS
+
+![](RunEQS_Image.png "RunEQS_Image.png")
+
+**运行EQS（Run EQS）** 服务节点可用于以指定的时间间隔定期执行[场景查询系统（EQS）](Engine/ArtificialIntelligence/EQS)模板，并可对指定的黑板键进行更新。
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| **查询模板（Query Template）** | 要运行的EQS资源。|
+| **查询配置（Query Config）** | 要包含在查询中的附加参数的可选数组。|
+| **EQS查询黑板键（EQSQuery Blackboard Key）** | 选择使用保存EQS查询模板的黑板键，而不使用特定的EQS查询模板。|
+| **运行模式（Run Mode）** | [INCLUDE:#excerpt_0] |
+| **黑板键（Blackboard Key）** | 服务节点写入结果的黑板键，可以是一个FVector或Actor。|
+| **时间间隔（Interval）** | 定义服务节点后续tick之间的时间间隔。|
+| **随机偏差（Random Deviation）** | 将一个随机范围数值添加至服务节点的 **时间间隔（Interval）** 值。|
+| **搜索开始时调用Tick（Call Tick on Search Start）** | 当任务搜索进入此节点时，调用Tick事件（也会调用 **搜索开始（Search Start）**）。|
+| **每次激活时重启计时器（Restart Timer on Each Activation)** | 设置此项后，当节点激活时，下一个Tick的时间将始终被重置为服务节点的 **时间间隔（Interval）** 值。|
+| **节点名称（Node Name）** | 节点在行为树图表中显示的名称。|
+
+<!--
+[EXCERPT:excerpt_0]
+
+|||
+| --- | --- |
+| **选出最佳项目（Single Best Item）** | 选择得分最高的第一个项目。|
+| **从前5%中随机选择项目（Single Random Item from Best 5%）** |从得分在总分`95%`至`100%`的项目中随机选择。 |
+| **从前25%中随机选择项目（Single Random Item from Best 5%）** |从得分在总分`75%`至`100%`的项目中随机选择。 |
+| **所有匹配（All Matching）** | 获取所有符合条件的项目。|
+
+[/EXCERPT:excerpt_0]
+-->
+
+## 自定义服务节点
+
+![](NewCustomService_01.png "NewCustomService_01.png")
+
+您可以通过单击包含蓝图逻辑和（或）参数的工具栏中的 **新建服务（New Service）** 按钮来创建 **服务节点**。
+
+![](NewCustomService.png "NewCustomService.png")
+
+[REGION:note]
+蓝图服务节点的性能不如C++服务节点。如果您有优化的顾虑，可能需要使用原生服务节点。
+[/REGION]
+
+创建服务节点时，下列属性同样可用。
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| **显示属性细节（Show Property Details）** | 启用后显示属性的细节信息。|
+| **显示事件细节（Show Property Details）** | 启用后显示应用事件的细节信息。|
+| **节点名称（Node Name）** | 节点在行为树图表中显示的名称。|
+| **时间间隔（Interval）** | 定义服务节点后续tick之间的时间间隔。|
+| **随机偏差（Random Deviation）** | 将一个随机范围数值添加至服务节点的 **时间间隔（Interval）** 值。|
+| **搜索开始时调用Tick（Call Tick on Search Start）** | 当任务搜索进入此节点时，调用Tick事件（也会调用 **搜索开始（Search Start）**）。|
+| **每次激活时重启计时器（Restart Timer on Each Activation)** | 设置此项后，当节点激活时，下一个Tick的时间将始终被重置为服务节点的 时间间隔（Interval） 值。|

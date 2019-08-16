@@ -23,5 +23,12 @@ public:
 	 */
 	virtual TSharedRef<IStaticMeshEditor> CreateStaticMeshEditor( const EToolkitMode::Type Mode, const TSharedPtr< IToolkitHost >& InitToolkitHost, UStaticMesh* StaticMesh ) = 0;
 
+	/** Delegate to be called when a Material Editor is created, for toolbar, tab, and menu extension **/
+	DECLARE_EVENT_OneParam(IStaticMeshEditorModule, FStaticMeshEditorOpenedEvent, TWeakPtr<IStaticMeshEditor>);
+	virtual FStaticMeshEditorOpenedEvent& OnStaticMeshEditorOpened() { return StaticMeshEditorOpenedEvent; };
+
 	virtual TSharedPtr<FExtensibilityManager> GetSecondaryToolBarExtensibilityManager() = 0;
+
+private:
+	FStaticMeshEditorOpenedEvent StaticMeshEditorOpenedEvent;
 };

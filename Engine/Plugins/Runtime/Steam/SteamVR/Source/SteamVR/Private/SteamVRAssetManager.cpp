@@ -30,7 +30,6 @@ namespace SteamVRDevice_Impl
 {
 	static FSteamVRHMD* GetSteamHMD();
 	static int32 GetDeviceStringProperty(int32 DeviceIndex, int32 PropertyId, FString& StringPropertyOut);
-	static vr::IVRRenderModels* GetSteamVRModelManager();
 }
 
 static FSteamVRHMD* SteamVRDevice_Impl::GetSteamHMD()
@@ -79,41 +78,164 @@ static int32 SteamVRDevice_Impl::GetDeviceStringProperty(int32 DeviceIndex, int3
 	return ErrorResult;
 }
 
-static vr::IVRRenderModels* SteamVRDevice_Impl::GetSteamVRModelManager()
+
+/* TSteamVRResourceLoader
+ *****************************************************************************/
+template<typename ResType, typename IDType>
+class TSteamVRResourceLoader
 {
-	vr::IVRRenderModels* VRModelManager = nullptr;
+public:
+	TSteamVRResourceLoader() {}
+
+	bool LoadResource_Async(const IDType& ResID, TSharedPtr<ResType>& ResourceOut)
+	{
 #if STEAMVR_SUPPORTED_PLATFORMS
-	VRModelManager = vr::VRRenderModels();
+		vr::IVRRenderModels* VRModelManager = GetSteamVRModelManager();
+		if (VRModelManager)
+		{
+			ResType* RawResourcePtr;
+			vr::EVRRenderModelError err = LoadResource_Internal(VRModelManager, ResID, &RawResourcePtr);
+			if (err == vr::VRRenderModelError_None)
+			{
+				ResourceOut = WrapResource(RawResourcePtr);
+				return true;
+			}
+			else
+			{
+				return err == vr::VRRenderModelError_Loading;
+			}
+		}
 #endif
-	return VRModelManager;
+		return false;
+	}
+
+private:
+	static vr::IVRRenderModels* GetSteamVRModelManager()
+	{
+		vr::IVRRenderModels* VRModelManager = nullptr;
+#if STEAMVR_SUPPORTED_PLATFORMS
+		VRModelManager = vr::VRRenderModels();
+#endif
+		return VRModelManager;
+	}
+
+	// When loading the same resource id multiple times, SteamVR will keep returning the same pointer until it is freed. 
+	// We wrap it in a TSharedPtr and save a weak reference to it so we can deallocate it when we no longer have 
+	// references to it.	
+	TSharedPtr<ResType> WrapResource(ResType* RawResourcePtr)
+	{
+		if (!RawResourcePtr)
+		{
+			return TSharedPtr<ResType>();
+		}
+		else
+		{
+			// First check if we already have created a shared pointer for this resource
+			TWeakPtr<ResType>* Existing = ActiveResources.Find(RawResourcePtr);
+			if (Existing)
+			{
+				// The custom deleter will remove the value from the map before the weak pointer becomes invalid,
+				// and it should point to the same object as the naked pointer passed in.
+				check(Existing->IsValid() && Existing->HasSameObject(RawResourcePtr));
+				UE_LOG(LogSteamVR, Log, TEXT("TSteamVRResourceLoader::WrapResource: Returning existing resource %p"), RawResourcePtr);
+				return Existing->Pin();
+			}
+			else
+			{
+				UE_LOG(LogSteamVR, Log, TEXT("TSteamVRResourceLoader::WrapResource: Creating new TSharedPtr for resource %p"), RawResourcePtr);
+				// Construct a new shared pointer with a custom deleter.
+				TSharedPtr<ResType> NewPtr = MakeShareable(RawResourcePtr, [this](ResType* Instance)
+				{
+					FreeResource(Instance);
+				});
+				// Save a weak reference so we only construct a single shared pointer for each unique resource.
+				ActiveResources.Emplace(RawResourcePtr, NewPtr);
+				return NewPtr;
+			}
+		}
+	}
+
+	void FreeResource(ResType* RawResourcePtr)
+	{
+		vr::IVRRenderModels* VRModelManager = GetSteamVRModelManager();
+		if (VRModelManager)
+		{
+			FreeResource_Internal(VRModelManager, RawResourcePtr);
+		}
+		else
+		{
+			UE_LOG(LogSteamVR, Warning, TEXT("FSteamVRModelLoader::FreeResource: Could not get SteamVR model manager when freeing render model instance %p."), RawResourcePtr);
+		}
+		ActiveResources.Remove(RawResourcePtr);
+	}
+
+#if STEAMVR_SUPPORTED_PLATFORMS
+	static vr::EVRRenderModelError LoadResource_Internal(vr::IVRRenderModels* VRModelManager, const IDType& ResID, ResType** ResourceOut);
+#endif
+	static void FreeResource_Internal(vr::IVRRenderModels* VRModelManager, ResType* RawResourcePtr);
+
+
+	TMap<ResType*, TWeakPtr<ResType>> ActiveResources;
+};
+typedef TSteamVRResourceLoader<vr::RenderModel_t, FString> FSteamVRModelLoader;
+typedef TSteamVRResourceLoader<vr::RenderModel_TextureMap_t, int32> FSteamVRTextureLoader;
+
+/// @cond DOXYGEN_WARNINGS
+#if STEAMVR_SUPPORTED_PLATFORMS
+template<>
+vr::EVRRenderModelError FSteamVRModelLoader::LoadResource_Internal(vr::IVRRenderModels* VRModelManager, const FString& ResourceId, vr::RenderModel_t** RawResourceOut)
+{
+	return VRModelManager->LoadRenderModel_Async(TCHAR_TO_UTF8(*ResourceId), RawResourceOut);
+}
+#endif
+/// @endcond
+
+template<>
+void FSteamVRModelLoader::FreeResource_Internal(vr::IVRRenderModels* VRModelManager, vr::RenderModel_t* RawResourcePtr)
+{
+#if STEAMVR_SUPPORTED_PLATFORMS
+	check(VRModelManager);
+	UE_LOG(LogSteamVR, Log, TEXT("FSteamVRModelLoader::FreeResource_Internal: Freeing render model instance %p"), RawResourcePtr);
+	VRModelManager->FreeRenderModel(RawResourcePtr);
+#endif
 }
 
-/* TSteamVRResource 
- *****************************************************************************/
-
-template<typename ResType>
-struct TSharedSteamVRResource
+/// @cond DOXYGEN_WARNINGS
+#if STEAMVR_SUPPORTED_PLATFORMS
+template<>
+vr::EVRRenderModelError FSteamVRTextureLoader::LoadResource_Internal(vr::IVRRenderModels* VRModelManager, const int32& ResourceId, vr::RenderModel_TextureMap_t** RawResourceOut)
 {
-	TSharedSteamVRResource() : RefCount(0), RawResource(nullptr) {}
-	int32    RefCount;
-	ResType* RawResource;
-};
+	return VRModelManager->LoadTexture_Async(ResourceId, RawResourceOut);
+}
+#endif
+/// @endcond
+
+template<>
+void FSteamVRTextureLoader::FreeResource_Internal(vr::IVRRenderModels* VRModelManager, vr::RenderModel_TextureMap_t* RawResourcePtr)
+{
+#if STEAMVR_SUPPORTED_PLATFORMS
+	check(VRModelManager);
+	UE_LOG(LogSteamVR, Log, TEXT("FSteamVRTextureLoader::FreeResource_Internal: Freeing texture resource %p"), RawResourcePtr);
+	VRModelManager->FreeTexture(RawResourcePtr);
+#endif
+}
+
+/* TSteamVRResource
+ *****************************************************************************/
 
 template< typename ResType, typename IDType >
 struct TSteamVRResource
 {
 private:
-	typedef TSharedSteamVRResource<ResType>  FSharedSteamVRResource;
-	typedef TMap<IDType, FSharedSteamVRResource> TSharedResourceMap;
-	static  TSharedResourceMap SharedResources;
+	typedef TSteamVRResourceLoader<ResType, IDType> FResourceLoader;
+	static  FResourceLoader ResourceLoader;
 
 public:
 	TSteamVRResource(const IDType& ResID, bool bKickOffLoad = true)
 		: ResourceId(ResID)
-		, RawResource(nullptr)
+		, RawResource()
 		, bLoadFailed(false)
 	{
-		SharedResources.FindOrAdd(ResourceId).RefCount += 1;
 		if (bKickOffLoad)
 		{
 			TickAsyncLoad();
@@ -122,144 +244,51 @@ public:
 
 	bool IsPending()
 	{
-		return (RawResource == nullptr) && !bLoadFailed;
+		return !RawResource.IsValid() && !bLoadFailed;
 	}
 
 	bool IsValid()
 	{
-		return (RawResource != nullptr);
+		return RawResource.IsValid();
 	}
 
-	ResType* TickAsyncLoad()
+	TSharedPtr<ResType> TickAsyncLoad()
 	{
 		if (IsPending())
 		{
-			FSharedSteamVRResource& SharedResource = SharedResources.FindOrAdd(ResourceId);
-			if (SharedResource.RawResource != nullptr)
+			bLoadFailed = !ResourceLoader.LoadResource_Async(ResourceId, RawResource);
+			if (bLoadFailed)
 			{
-				RawResource = SharedResource.RawResource;
-			}
-#if STEAMVR_SUPPORTED_PLATFORMS
-			else if (vr::IVRRenderModels* VRModelManager = SteamVRDevice_Impl::GetSteamVRModelManager())
-			{
-				vr::EVRRenderModelError LoadResult = (vr::EVRRenderModelError)TickAsyncLoad_Internal(VRModelManager, &RawResource);
-
-				const bool bLoadComplete = (LoadResult != vr::VRRenderModelError_Loading);
-				if (bLoadComplete)
-				{
-					bLoadFailed = !RawResource || (LoadResult != vr::VRRenderModelError_None);
-					if (!bLoadFailed)
-					{
-						SharedResource.RawResource = RawResource;
-					}
-					else
-					{
-						RawResource = nullptr;
-					}
-				}
-			}
-#endif
-			else
-			{
-				bLoadFailed = true;
+				RawResource.Reset();
 			}
 		}
 		return RawResource;
 	}
 
-	operator ResType*()   { return RawResource; }
-	ResType* operator->() { return RawResource; }
+	operator const ResType*() const { return RawResource.Get(); }
+	const ResType* operator->() const { return RawResource.Get(); }
 
 	IDType GetId() const  { return ResourceId;  }
 
 protected:
-	int32 TickAsyncLoad_Internal(vr::IVRRenderModels* VRModelManager, ResType** ResourceOut);
-
-	void Reset()
-	{
-		if (FSharedSteamVRResource* SharedResource = SharedResources.Find(ResourceId))
-		{
-			int32 NewRefCount = --SharedResource->RefCount;
-			if (NewRefCount <= 0)
-			{
-				if ( vr::IVRRenderModels* VRModelManager = SteamVRDevice_Impl::GetSteamVRModelManager() )
-				{
-					if (!RawResource)
-					{
-						RawResource = SharedResource->RawResource;
-					}
-					FreeResource(VRModelManager);
-				}
-				SharedResources.Remove(ResourceId);
-			}
-		}
-		RawResource = nullptr;
-	}
-
-	void FreeResource(vr::IVRRenderModels* VRModelManager);
-
-protected:
-	IDType   ResourceId;
-	ResType* RawResource;
-	bool     bLoadFailed;
+	IDType				ResourceId;
+	TSharedPtr<ResType> RawResource;
+	bool				bLoadFailed;
 };
 
 template<typename ResType, typename IDType>
-TMap< IDType, TSharedSteamVRResource<ResType> > TSteamVRResource<ResType, IDType>::SharedResources;
-
-typedef TSteamVRResource<vr::RenderModel_t, FString> TSteamVRModel;
-typedef TSteamVRResource<vr::RenderModel_TextureMap_t, int32> TSteamVRTexture;
-
-/// @cond DOXYGEN_WARNINGS
-template<>
-int32 TSteamVRModel::TickAsyncLoad_Internal(vr::IVRRenderModels* VRModelManager, vr::RenderModel_t** ResourceOut)
-{
-#if STEAMVR_SUPPORTED_PLATFORMS
-	return (int32)VRModelManager->LoadRenderModel_Async(TCHAR_TO_UTF8(*ResourceId), ResourceOut);
-#else
-	return INDEX_NONE;
-#endif
-}
-/// @endcond
-
-template<>
-void TSteamVRModel::FreeResource(vr::IVRRenderModels* VRModelManager)
-{
-#if STEAMVR_SUPPORTED_PLATFORMS
-	VRModelManager->FreeRenderModel(RawResource);
-#endif
-}
-
-/// @cond DOXYGEN_WARNINGS
-template<>
-int32 TSteamVRTexture::TickAsyncLoad_Internal(vr::IVRRenderModels* VRModelManager, vr::RenderModel_TextureMap_t** ResourceOut)
-{
-#if STEAMVR_SUPPORTED_PLATFORMS
-	return (int32)VRModelManager->LoadTexture_Async(ResourceId, ResourceOut);
-#else
-	return INDEX_NONE;
-#endif
-}
-/// @endcond
-
-template<>
-void TSteamVRTexture::FreeResource(vr::IVRRenderModels* VRModelManager)
-{
-#if STEAMVR_SUPPORTED_PLATFORMS
-	VRModelManager->FreeTexture(RawResource);
-#endif
-}
+TSteamVRResourceLoader<ResType, IDType> TSteamVRResource<ResType, IDType>::ResourceLoader;
 
 /* FSteamVRModel 
  *****************************************************************************/
 
+typedef TSteamVRResource<vr::RenderModel_t, FString> TSteamVRModel;
 struct FSteamVRModel : public TSteamVRModel
 {
 public:
 	FSteamVRModel(const FString& ResID, bool bKickOffLoad = true)
 		: TSteamVRModel(ResID, bKickOffLoad)
 	{}
-
 public:
 	bool GetRawMeshData(float UEMeterScale, FSteamVRMeshData& MeshDataOut);
 };
@@ -276,9 +305,9 @@ struct FSteamVRMeshData
 
 bool FSteamVRModel::GetRawMeshData(float UEMeterScale, FSteamVRMeshData& MeshDataOut)
 {
-	bool bIsValidData = (RawResource != nullptr);
+	bool bIsValidData = RawResource.IsValid();
 #if STEAMVR_SUPPORTED_PLATFORMS
-	if (RawResource)
+	if (bIsValidData)
 	{
 		// Logging to try to get info about a crash where the RawMeshData seems to be bad.
 		UE_LOG(LogSteamVR, Log, TEXT("FSteamVRModel::GetRawMeshData ResourceId %s rVertexData 0x%lx unVertexCount %i rIndexData 0x%lx unTriangleCount %i diffuseTextureId %i"), *ResourceId, RawResource->rVertexData, RawResource->unVertexCount, RawResource->rIndexData, RawResource->unTriangleCount, RawResource->diffuseTextureId);
@@ -323,6 +352,7 @@ bool FSteamVRModel::GetRawMeshData(float UEMeterScale, FSteamVRMeshData& MeshDat
 /* FSteamVRTexture 
  *****************************************************************************/
 
+typedef TSteamVRResource<vr::RenderModel_TextureMap_t, int32> TSteamVRTexture;
 struct FSteamVRTexture : public TSteamVRTexture
 {
 public:
@@ -333,24 +363,29 @@ public:
 	int32 GetResourceID() const { return ResourceId; }
 
 public:
-	UTexture2D* ConstructUETexture(UObject* ObjOuter, const FName ObjName, EObjectFlags ObjFlags = RF_NoFlags)
+	UTexture2D* ConstructUETexture(const FName ObjName)
 	{
 		UTexture2D* NewTexture = nullptr;
 
 #if STEAMVR_SUPPORTED_PLATFORMS
-		if (RawResource != nullptr)
+		if (RawResource.IsValid())
 		{
-#if WITH_EDITORONLY_DATA // @TODO: UTexture::Source is only available in editor builds, we need to find some other way to construct textures - try using CreateTransient() (see: TexturePaintHelpers::CreateTempUncompressedTexture)
-			NewTexture = NewObject<UTexture2D>(ObjOuter, ObjName, ObjFlags);
-			NewTexture->Source.Init(RawResource->unWidth, RawResource->unHeight, /*NewNumSlices =*/1, /*NewNumMips =*/1, TSF_BGRA8, RawResource->rubTextureMapData);
-
-			NewTexture->MipGenSettings = TMGS_NoMipmaps;
-			// disable compression
-			NewTexture->CompressionNone = true;
-			NewTexture->DeferCompression = false;
-
-			NewTexture->PostEditChange();
-#endif 
+			// Create the texture. Using UTexture2D::CreateTransient which is supported outside of editor builds.
+			NewTexture = UTexture2D::CreateTransient(RawResource->unWidth, RawResource->unHeight, EPixelFormat::PF_R8G8B8A8, ObjName);
+			if (NewTexture != nullptr)
+			{
+				FTexture2DMipMap& Mip = NewTexture->PlatformData->Mips[0];
+				void* Data = Mip.BulkData.Lock(LOCK_READ_WRITE);
+				FMemory::Memcpy(Data, (void*)RawResource->rubTextureMapData, Mip.BulkData.GetBulkDataSize());
+				Mip.BulkData.Unlock();
+				NewTexture->PlatformData->NumSlices = 1;
+#if WITH_EDITORONLY_DATA
+				NewTexture->CompressionNone = true;
+				NewTexture->DeferCompression = false;
+				NewTexture->MipGenSettings = TMGS_NoMipmaps;
+#endif				
+				NewTexture->UpdateResource();
+			}
 		}
 #endif
 
@@ -400,7 +435,7 @@ public:
 
 protected:
 	/** */
-	bool EnqueueTextureLoad(int32 SubMeshIndex, vr::RenderModel_t* RenderModel);
+	bool EnqueueTextureLoad(int32 SubMeshIndex, TSharedPtr<vr::RenderModel_t> RenderModel);
 	/** */
 	void OnLoadComplete(int32 SubMeshIndex);
 
@@ -433,7 +468,7 @@ int32 FSteamVRAsyncMeshLoader::EnqueMeshLoad(const FString& ModelName)
 	if (!ModelName.IsEmpty())
 	{
 		++PendingLoadCount;
-		MeshIndex = EnqueuedMeshes.Add( FSteamVRModel(ModelName) );
+		MeshIndex = EnqueuedMeshes.Emplace( ModelName );
 	}
 	return MeshIndex;
 }
@@ -453,29 +488,31 @@ void FSteamVRAsyncMeshLoader::Tick(float /*DeltaTime*/)
 	for (int32 SubMeshIndex = 0; SubMeshIndex < EnqueuedMeshes.Num(); ++SubMeshIndex)
 	{
 		FSteamVRModel& ModelResource = EnqueuedMeshes[SubMeshIndex];
-
-		vr::RenderModel_t* RenderModel = ModelResource.TickAsyncLoad();
-		if (!ModelResource.IsPending())
+		if (ModelResource.IsPending())
 		{
-			--PendingLoadCount;
+			auto RenderModel = ModelResource.TickAsyncLoad();
+			if (!ModelResource.IsPending())
+			{
+				--PendingLoadCount;
 
-			if (!RenderModel)
-			{
-				// valid index + missing RenderModel => signifies failure
-				OnLoadComplete(SubMeshIndex);
-			}
+				if (!RenderModel)
+				{
+					// valid index + missing RenderModel => signifies failure
+					OnLoadComplete(SubMeshIndex);
+				}
 #if STEAMVR_SUPPORTED_PLATFORMS
-			// if we've already loaded and converted the texture
-			else if (ConstructedTextures.Contains(RenderModel->diffuseTextureId))
-			{
-				OnLoadComplete(SubMeshIndex);
-			}
+				// if we've already loaded and converted the texture
+				else if (ConstructedTextures.Contains(RenderModel->diffuseTextureId))
+				{
+					OnLoadComplete(SubMeshIndex);
+				}
 #endif // STEAMVR_SUPPORTED_PLATFORMS
-			else if (!EnqueueTextureLoad(SubMeshIndex, RenderModel))
-			{
-				// if we fail to load the texture, we'll have to do without it
-				OnLoadComplete(SubMeshIndex);
-			}			
+				else if (!EnqueueTextureLoad(SubMeshIndex, RenderModel))
+				{
+					// if we fail to load the texture, we'll have to do without it
+					OnLoadComplete(SubMeshIndex);
+				}
+			}
 		}
 	}
 
@@ -491,13 +528,12 @@ void FSteamVRAsyncMeshLoader::Tick(float /*DeltaTime*/)
 
 				if (bLoadSuccess)
 				{
-					UObject* TextureOuter = GetTransientPackage();
 					FName    TextureName  = *FString::Printf(TEXT("T_SteamVR_%d"), TextureResource.GetResourceID());
 
-					UTexture2D* UETexture = FindObjectFast<UTexture2D>(TextureOuter, TextureName, /*ExactClass =*/true);
+					UTexture2D* UETexture = FindObjectFast<UTexture2D>(GetTransientPackage(), TextureName, /*ExactClass =*/true);
 					if (UETexture == nullptr)
 					{
-						UETexture = TextureResource.ConstructUETexture(TextureOuter, TextureName);
+						UETexture = TextureResource.ConstructUETexture(TextureName);
 					}
 					ConstructedTextures.Add(TextureResource.GetResourceID(), UETexture);
 				}
@@ -535,7 +571,7 @@ void FSteamVRAsyncMeshLoader::AddReferencedObjects(FReferenceCollector& Collecto
 	Collector.AddReferencedObjects(ConstructedTextures);
 }
 
-bool FSteamVRAsyncMeshLoader::EnqueueTextureLoad(int32 SubMeshIndex, vr::RenderModel_t* RenderModel)
+bool FSteamVRAsyncMeshLoader::EnqueueTextureLoad(int32 SubMeshIndex, TSharedPtr<vr::RenderModel_t> RenderModel)
 {
 	bool bLoadEnqueued = false;
 #if STEAMVR_SUPPORTED_PLATFORMS
@@ -545,7 +581,7 @@ bool FSteamVRAsyncMeshLoader::EnqueueTextureLoad(int32 SubMeshIndex, vr::RenderM
 		bLoadEnqueued = true;
 
 		// load will be kicked off later on in Tick() loop (no need to do it twice in the same tick)
-		int32 TextureIndex = EnqueuedTextures.Add( FSteamVRTexture(RenderModel->diffuseTextureId, /*bKickOffLoad =*/false) );
+		int32 TextureIndex = EnqueuedTextures.Emplace( RenderModel->diffuseTextureId, /*bKickOffLoad =*/false );
 		PendingTextureLoads.Add(TextureIndex, SubMeshIndex);
 	}
 #endif
@@ -572,7 +608,7 @@ void FSteamVRAsyncMeshLoader::OnLoadComplete(int32 SubMeshIndex)
 				"\t %s \n" 
 				"\t Vert count: %d \n" 
 				"\t Tri  count: %d \n" 
-			"Treating as a load failure (no model will be spawned)!"), (vr::RenderModel_t*)LoadedModel, *LoadedModel.GetId(), LoadedModel->unVertexCount, LoadedModel->unTriangleCount);
+			"Treating as a load failure (no model will be spawned)!"), (const vr::RenderModel_t*)LoadedModel, *LoadedModel.GetId(), LoadedModel->unVertexCount, LoadedModel->unTriangleCount);
 
 			if (!bHasMalformData)
 			{

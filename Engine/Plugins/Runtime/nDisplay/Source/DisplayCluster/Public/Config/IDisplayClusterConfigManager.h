@@ -11,7 +11,7 @@
 class IDisplayClusterConfigManager
 {
 public:
-	virtual ~IDisplayClusterConfigManager()
+	virtual ~IDisplayClusterConfigManager() = 0
 	{ }
 
 	virtual int32 GetClusterNodesAmount() const = 0;
@@ -40,6 +40,11 @@ public:
 	virtual bool GetViewport(int32 idx, FDisplayClusterConfigViewport& viewport) const = 0;
 	virtual bool GetViewport(const FString& id, FDisplayClusterConfigViewport& viewport) const = 0;
 
+	virtual int32 GetPostprocessAmount() const = 0;
+	virtual TArray<FDisplayClusterConfigPostprocess> GetPostprocess() const = 0;
+	virtual bool GetPostprocess(int32 idx, FDisplayClusterConfigPostprocess& postprocess) const = 0;
+	virtual bool GetPostprocess(const FString& id, FDisplayClusterConfigPostprocess& postprocess) const = 0;
+
 	virtual int32 GetSceneNodesAmount() const = 0;
 	virtual TArray<FDisplayClusterConfigSceneNode> GetSceneNodes() const = 0;
 	virtual bool GetSceneNode(int32 idx, FDisplayClusterConfigSceneNode& snode) const = 0;
@@ -53,10 +58,15 @@ public:
 	virtual TArray<FDisplayClusterConfigInputSetup> GetInputSetupRecords() const = 0;
 	virtual bool GetInputSetupRecord(const FString& id, FDisplayClusterConfigInputSetup& input) const = 0;
 
+	virtual TArray<FDisplayClusterConfigProjection> GetProjections() const = 0;
+	virtual bool GetProjection(const FString& id, FDisplayClusterConfigProjection& projection) const = 0;
+
 	virtual FDisplayClusterConfigGeneral GetConfigGeneral() const = 0;
 	virtual FDisplayClusterConfigStereo  GetConfigStereo()  const = 0;
 	virtual FDisplayClusterConfigRender  GetConfigRender()  const = 0;
 	virtual FDisplayClusterConfigNetwork GetConfigNetwork() const = 0;
 	virtual FDisplayClusterConfigDebug   GetConfigDebug()   const = 0;
 	virtual FDisplayClusterConfigCustom  GetConfigCustom()  const = 0;
+
+	virtual FString GetFullPathToFile(const FString& FileName) const = 0;
 };

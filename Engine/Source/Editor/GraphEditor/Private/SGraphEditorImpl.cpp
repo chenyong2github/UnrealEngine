@@ -287,6 +287,7 @@ void SGraphEditorImpl::Construct( const FArguments& InArgs )
 
 	OnFocused = InArgs._GraphEvents.OnFocused;
 	OnCreateActionMenu = InArgs._GraphEvents.OnCreateActionMenu;
+	OnCreateNodeOrPinMenu = InArgs._GraphEvents.OnCreateNodeOrPinMenu;
 	
 	struct Local
 	{
@@ -531,9 +532,16 @@ FActionMenuContent SGraphEditorImpl::GraphEd_OnGetContextMenuFor(const FGraphCon
 			// Show the menu for the pin or node under the cursor
 			const bool bShouldCloseAfterAction = true;
 			FMenuBuilder MenuBuilder( bShouldCloseAfterAction, this->Commands, MenuExtender );
-			Schema->GetContextMenuActions(EdGraphObj, SpawnInfo.GraphNode, SpawnInfo.GraphPin, &MenuBuilder, !IsEditable.Get());
 
-			Result = FActionMenuContent(MenuBuilder.MakeWidget());
+			if (OnCreateNodeOrPinMenu.IsBound())
+			{
+				Result = OnCreateNodeOrPinMenu.Execute(EdGraphObj, SpawnInfo.GraphNode, SpawnInfo.GraphPin, &MenuBuilder, !IsEditable.Get());
+			}
+			else
+			{
+				Schema->GetContextMenuActions(EdGraphObj, SpawnInfo.GraphNode, SpawnInfo.GraphPin, &MenuBuilder, !IsEditable.Get());
+				Result = FActionMenuContent(MenuBuilder.MakeWidget());
+			}
 		}
 		else if (IsEditable.Get())
 		{
@@ -727,7 +735,7 @@ void SGraphEditorImpl::UnlockFromGraphEditor( TWeakPtr<SGraphEditor> Other )
 {
 	check(Other.IsValid());
 	int idx = LockedGraphs.Find(Other);
-	if( ensureMsgf(idx != INDEX_NONE, TEXT("Attempted to unlock graphs that were not locked together: %s %s"), *GetReadableLocation(), *(Other.Pin()->GetReadableLocation()) ) )
+	if (idx != INDEX_NONE)
 	{
 		LockedGraphs.RemoveAtSwap(idx);
 	}

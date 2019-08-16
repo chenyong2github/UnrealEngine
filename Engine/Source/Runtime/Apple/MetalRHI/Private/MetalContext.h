@@ -51,7 +51,7 @@ public:
 	/**
 	 * Set the color, depth and stencil render targets, and then make the new command buffer/encoder
 	 */
-	void SetRenderTargetsInfo(const FRHISetRenderTargetsInfo& RenderTargetsInfo, bool const bRestart = false);
+	void SetRenderPassInfo(const FRHIRenderPassInfo& RenderTargetsInfo, bool const bRestart = false);
 	
 	/**
 	 * Allocate from a dynamic ring buffer - by default align to the allowed alignment for offset field when setting buffers
@@ -121,11 +121,11 @@ public:
 	TRefCountPtr<FMetalFence> const& GetParallelPassEndFence(void) const;
 	
 	void InitFrame(bool const bImmediateContext, uint32 Index, uint32 Num);
-	void FinishFrame();
+	void FinishFrame(bool const bImmediateContext);
 
 	// Track Write->Read transitions for TBDR Fragment->Verex fencing
-	void TransitionResources(FUnorderedAccessViewRHIParamRef* InUAVs, int32 NumUAVs);
-	void TransitionResources(FTextureRHIParamRef* InTextures, int32 NumTextures);
+	void TransitionResources(FRHIUnorderedAccessView** InUAVs, int32 NumUAVs);
+	void TransitionResources(FRHITexture** InTextures, int32 NumTextures);
 	
 protected:
 	/** The underlying Metal device */
@@ -188,7 +188,7 @@ public:
 	void ReleaseTexture(FMetalTexture& Texture);
 	void ReleaseFence(FMetalFence* Fence);
 	void RegisterUB(FMetalUniformBuffer* UB);
-	void UpdateIABs(FTextureReferenceRHIParamRef ModifiedRef);
+	void UpdateIABs(FRHITextureReference* ModifiedRef);
 	void UnregisterUB(FMetalUniformBuffer* UB);
 	
 	void BeginFrame();
@@ -215,7 +215,7 @@ public:
 	uint32 GetNumActiveContexts(void) const;
 
 	void BeginParallelRenderCommandEncoding(uint32 Num);
-	void SetParallelRenderPassDescriptor(FRHISetRenderTargetsInfo const& TargetInfo);
+	void SetParallelRenderPassDescriptor(FRHIRenderPassInfo const& TargetInfo);
 	mtlpp::RenderCommandEncoder GetParallelRenderCommandEncoder(uint32 Index, mtlpp::ParallelRenderCommandEncoder& ParallelEncoder, mtlpp::CommandBuffer& CommandBuffer);
 	void EndParallelRenderCommandEncoding(void);
 	

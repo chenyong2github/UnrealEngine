@@ -100,10 +100,18 @@ Architecture defines, see http://sourceforge.net/p/predef/wiki/Architectures/
 #define PX_X64 1
 #elif defined(__i386__) || defined(_M_IX86) || defined (__EMSCRIPTEN__)
 #define PX_X86 1
-#elif defined(__arm64__) || defined(__aarch64__)
+#elif defined(__arm64__) || defined(__aarch64__) || defined(_M_ARM64)
 #define PX_A64 1
 #elif defined(__arm__) || defined(_M_ARM)
 #define PX_ARM 1
+//// @MIXEDREALITY_CHANGE : BEGIN : TODO
+//#ifdef PX_WIN32
+//#undef PX_WIN32
+//#endif
+//#ifdef PX_WIN64
+//#undef PX_WIN32
+//#endif
+//// @MIXEDREALITY_CHANGE : END
 #elif defined(__ppc__) || defined(_M_PPC) || defined(__CELLOS_LV2__)
 #define PX_PPC 1
 #else
@@ -117,13 +125,26 @@ SIMD defines
 #if defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64) || (defined (__EMSCRIPTEN__) && defined(__SSE2__))
 #define PX_SSE2 1
 #endif
-#if defined(_M_ARM) || defined(__ARM_NEON__) || defined(__ARM_NEON)
+#if defined(_M_ARM) || defined(__ARM_NEON__) || defined(__ARM_NEON) || defined (_M_ARM64)
 #define PX_NEON 1
 #endif
 #if defined(_M_PPC) || defined(__CELLOS_LV2__)
 #define PX_VMX 1
 #endif
 #endif
+
+// @ATG_CHANGE : BEGIN HoloLens support
+#ifdef WINAPI_FAMILY
+#ifdef WINAPI_FAMILY_APP
+#ifdef PX_ARM_FAMILY
+#if WINAPI_FAMILY == WINAPI_FAMILY_APP && PX_ARM_FAMILY
+#define PX_HOLOLENS 1
+#endif
+#endif  //PX_ARM_FAMILY
+#endif  //WINAPI_FAMILY_APP
+#endif  //WINAPI_FAMILY
+
+// @ATG_CHANGE : END
 
 /**
 define anything not defined on this platform to 0
@@ -188,6 +209,11 @@ define anything not defined on this platform to 0
 #ifndef PX_VMX
 #define PX_VMX 0
 #endif
+// @ATG_CHANGE : BEGIN HoloLens support
+#ifndef PX_HOLOLENS
+#define PX_HOLOLENS 0
+#endif
+// @ATG_CHANGE : END
 
 /*
 define anything not defined through the command line to 0
@@ -289,7 +315,7 @@ no definition       - this will allow DLLs and libraries to use the exported API
 
 */
 
-#if PX_WINDOWS_FAMILY && !PX_ARM_FAMILY
+#if PX_WINDOWS_FAMILY 
 #ifndef PX_FOUNDATION_DLL
 #define PX_FOUNDATION_API PX_DLL_IMPORT
 #elif PX_FOUNDATION_DLL

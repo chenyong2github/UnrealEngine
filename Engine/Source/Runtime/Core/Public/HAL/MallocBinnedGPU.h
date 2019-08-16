@@ -6,6 +6,7 @@
 
 #if PLATFORM_64BITS && PLATFORM_HAS_FPlatformVirtualMemoryBlock
 #include "Misc/AssertionMacros.h"
+#include "Misc/ScopeLock.h"
 #include "HAL/MemoryBase.h"
 #include "HAL/UnrealMemory.h"
 #include "Math/NumericLimits.h"
@@ -444,9 +445,10 @@ class CORE_API FMallocBinnedGPU final : public FMalloc
 		{
 			return true;
 		}
-		if (ArenaParams.bAttemptToAlignSmallBocks & (InOutSize <= ArenaParams.MaxPoolSize) & (Alignment <= ArenaParams.MaximumAlignmentForSmallBlock)) // one branch, not three
+		SIZE_T AlignedSize = Align(InOutSize, Alignment);
+		if (ArenaParams.bAttemptToAlignSmallBocks & (AlignedSize <= ArenaParams.MaxPoolSize) & (Alignment <= ArenaParams.MaximumAlignmentForSmallBlock)) // one branch, not three
 		{
-			uint32 PoolIndex = BoundSizeToPoolIndex(Align(InOutSize, Alignment));
+			uint32 PoolIndex = BoundSizeToPoolIndex(AlignedSize);
 			while (true)
 			{
 				uint32 BlockSize = PoolIndexToBlockSize(PoolIndex);

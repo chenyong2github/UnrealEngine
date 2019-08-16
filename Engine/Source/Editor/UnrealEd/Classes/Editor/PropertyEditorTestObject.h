@@ -19,7 +19,7 @@ class UStaticMeshComponent;
 class UTexture;
 
 UENUM()
-enum PropertEditorTestEnum
+enum PropertyEditorTestEnum
 {	
 	/** This comment should appear above enum 1 */
 	PropertyEditorTest_Enum1 UMETA(Hidden),
@@ -124,13 +124,11 @@ class UPropertyEditorTestObject : public UObject
 {
     GENERATED_UCLASS_BODY()
 
-
-
 	UPROPERTY(EditAnywhere, Category = BasicProperties)
 	int8 Int8Property;
 
 	UPROPERTY(EditAnywhere, Category = BasicProperties)
-	int16 Int16roperty;
+	int16 Int16Property;
 
 	UPROPERTY(EditAnywhere, Category = BasicProperties)
 	int32 Int32Property;
@@ -196,7 +194,10 @@ class UPropertyEditorTestObject : public UObject
 	FColor ColorProperty;
 
 	UPROPERTY(EditAnywhere, Category=BasicProperties)
-	TEnumAsByte<enum PropertEditorTestEnum> EnumProperty;
+	TEnumAsByte<enum PropertyEditorTestEnum> EnumByteProperty;
+
+	UPROPERTY(EditAnywhere, Category=BasicProperties)
+	EditColor EnumProperty;
 
 	UPROPERTY(EditAnywhere, Category = BasicProperties)
 	FMatrix MatrixProperty;
@@ -252,7 +253,7 @@ class UPropertyEditorTestObject : public UObject
 	TArray<FColor> ColorPropertyArray;
 
 	UPROPERTY(EditAnywhere, Category=ArraysOfProperties)
-	TArray<TEnumAsByte<enum PropertEditorTestEnum> > EnumPropertyArray;
+	TArray<TEnumAsByte<enum PropertyEditorTestEnum> > EnumPropertyArray;
 
 	UPROPERTY(EditAnywhere, Category=ArraysOfProperties)
 	TArray<FPropertyEditorTestBasicStruct> StructPropertyArray;
@@ -266,7 +267,7 @@ class UPropertyEditorTestObject : public UObject
 	UPROPERTY(EditAnywhere, Category=ArraysOfProperties)
 	int32 StaticArrayOfIntsWithEnumLabels[ArrayIndex_MAX];
 
-	/** This is a float property tooltip that is overridden */
+	// This is a float property tooltip that is overridden
 	UPROPERTY(EditAnywhere, Category=AdvancedProperties, meta=(ClampMin = "0.0", ClampMax = "100.0", UIMin = "0.0", UIMax = "50.0", ToolTip = "This is a custom tooltip that should be shown"))
 	float FloatPropertyWithClampedRange;
 
@@ -385,7 +386,7 @@ class UPropertyEditorTestObject : public UObject
 	TMap<UObject*, FLinearColor> ObjectToColorMap;
 
 	UPROPERTY(EditAnywhere, Category=TMapTests)
-	TMap<int32, TEnumAsByte<PropertEditorTestEnum> > IntToEnumMap;
+	TMap<int32, TEnumAsByte<PropertyEditorTestEnum> > IntToEnumMap;
 
 	UPROPERTY(EditAnywhere, Category=TMapTests)
 	TMap<FName, FName> NameToNameMap;
@@ -419,4 +420,67 @@ class UPropertyEditorTestObject : public UObject
 	// filter for AllowedClasses correctly.
 	UPROPERTY(EditAnywhere, Category=ObjectPropertyAllowedClasses, meta=(AllowedClasses="Texture,BlendableInterface"))
 	UObject* TextureOrBlendableInterface;
+
+	UPROPERTY(EditAnywhere, Category = "Subcategory")
+	bool bSubcategory;
+
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Subcategory")
+	bool bSubcategoryAdvanced;
+
+	UPROPERTY(EditAnywhere, Category = "Subcategory|Foo")
+	bool bSubcategoryFooSimple;
+
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Subcategory|Foo")
+	bool bSubcategoryFooAdvanced;
+
+	UPROPERTY(EditAnywhere, Category = "Subcategory|Bar")
+	bool bSubcategoryBarSimple;
+
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Subcategory|Bar")
+	bool bSubcategoryBarAdvanced;
+
+	UPROPERTY(EditAnywhere, Category = "Subcategory")
+	bool bSubcategoryLast;
+
+	UPROPERTY(EditAnywhere, Category = EditCondition)
+	bool bEnablesNext;
+
+	UPROPERTY(EditAnywhere, Category = EditCondition, meta = (EditCondition = "bEnablesNext == true"))
+	bool bEnabledByPrevious;
+
+	UPROPERTY(EditAnywhere, Category = EditCondition)
+	EditColor EnumEditCondition;
+
+	UPROPERTY(EditAnywhere, Category = EditCondition, meta = (EditCondition = "EnumEditCondition == EditColor::Blue"))
+	bool bEnabledWhenBlue;
+
+	UPROPERTY(EditAnywhere, Category = EditCondition, meta = (EditCondition = "EnumEditCondition == EditColor::Pink"))
+	bool bEnabledWhenPink;
+
+	UPROPERTY(EditAnywhere, Category = EditCondition)
+	TEnumAsByte<PropertyEditorTestEnum> EnumAsByteEditCondition;
+
+	UPROPERTY(EditAnywhere, Category = EditCondition, meta = (EditCondition = "EnumAsByteEditCondition == PropertyEditorTestEnum::PropertyEditorTest_Enum2"))
+	bool bEnabledWhenEnumIs2;
+
+	UPROPERTY(EditAnywhere, Category = EditCondition, meta = (EditCondition = "EnumAsByteEditCondition == PropertyEditorTestEnum::PropertyEditorTest_Enum4"))
+	bool bEnabledWhenEnumIs4;
+
+	UPROPERTY(EditAnywhere, Category = EditCondition)
+	int32 IntegerEditCondition;
+
+	UPROPERTY(EditAnywhere, Category = EditCondition, meta = (EditCondition = "IntegerEditCondition >= 5"))
+	bool bEnabledWhenIntGreaterOrEqual5;
+
+	UPROPERTY(EditAnywhere, Category = EditCondition, meta = (EditCondition = "IntegerEditCondition <= 10"))
+	bool bEnabledWhenIntLessOrEqual10;
+
+	UPROPERTY(EditAnywhere, Category = EditCondition)
+	float FloatEditCondition;
+
+	UPROPERTY(EditAnywhere, Category = EditCondition, meta = (EditCondition = "FloatEditCondition > 5"))
+	bool bEnabledWhenFloatGreaterThan5;
+
+	UPROPERTY(EditAnywhere, Category = EditCondition, meta = (EditCondition = "FloatEditCondition < 10"))
+	bool bEnabledWhenFloatLessThan10;
 };

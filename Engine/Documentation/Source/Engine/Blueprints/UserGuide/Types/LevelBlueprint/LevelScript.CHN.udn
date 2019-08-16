@@ -1,11 +1,11 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6059404
 Availability:Public
 Title:关卡蓝图
 Crumbs: %ROOT%, Engine/Blueprints, Engine/Blueprints/UserGuide/Types
 Description:用于为地图中特定于关卡的事件编写脚本的蓝图。
 Related: Engine/Blueprints/UserGuide/Types
 Related: Engine/Blueprints
-version: 4.9
+version: 4.22
 Parent:Engine/Blueprints
 type:overview
 tags:Blueprints
@@ -23,21 +23,19 @@ topic-image:Engine/Blueprints/UserGuide/Types/level_blueprint_test_image.png
 熟悉虚幻引擎3的人应该非常熟悉这个概念， 
 因为它与Kismet在虚幻引擎3中的工作原理非常相似。 
 
-关卡蓝图还提供了关卡流送和[Matinee](Engine/Matinee)的控制机制， 
+关卡蓝图还提供了关卡流送和[Sequencer](Engine\Sequencer)的控制机制， 
 以及将事件绑定到关卡内的Actor的控制机制。 
 [/EXCERPT:Intro]
 
+[REGION:note]
 有关关卡蓝图UI的更多信息，请参阅[](Engine/Blueprints/Editor/UIBreakdowns/LevelBPUI)。
+[/REGION]
 
-
-(#defaultlevelblueprint)
 
 ## 默认关卡蓝图
 
 每个游戏都可以在DefaultGame.ini配置文件中指定默认的关卡蓝图类。所有新地图的关卡蓝图 
 都将使用此类创建，以允许特定于游戏添加件和功能。
-
-(#openingalevelblueprint)
 
 ## 打开关卡蓝图
 
@@ -53,8 +51,6 @@ topic-image:Engine/Blueprints/UserGuide/Types/level_blueprint_test_image.png
 
  **蓝图编辑器（Blueprint Editor）** 仅使用[图表编辑器](Engine/Blueprints/Editor/UIComponents/GraphEditor)、**我的蓝图（My Blueprints）** 面板和 **细节（Details）** 面板。**类默认（Class Defaults）** 面板使用菜单栏上的 **类默认（Class Defaults）** ![](Engine/Blueprints/UserGuide/Variables/classDefaults_button.png)按钮。
 
-(#referencingactors)
-
 ## 引用Actor
 
 通常，您需要将对Actor的引用连接到关卡蓝图中节点上的 **目标（Target）** 引脚。若要获取包含Actor引用的节点，请执行以下操作：
@@ -68,7 +64,7 @@ topic-image:Engine/Blueprints/UserGuide/Types/level_blueprint_test_image.png
 	![Level Blueprint Button](toolbar_level_editor.png)
 
 1. **右键单击** 您要在其中添加节点的图表。
-1. 在显示的快捷菜单中选择 **将引用添加到[SelectedActor]（Add Reference to [SelectedActor]）**。
+1. 在显示的快捷菜单中选择 **将引用创建到[SelectedActor]（Create a reference to [SelectedActor]）**。
 
 	![](add_reference_to.png)
 	
@@ -76,7 +72,12 @@ topic-image:Engine/Blueprints/UserGuide/Types/level_blueprint_test_image.png
 
 1. 从 **世界场景大纲视图（World Outliner）** 选项卡中将一个Actor拖放至关卡蓝图中的某个图表。
 
-	![](add_reference_drag_drop.png)
+	[REGION:lightbox]
+	[![](add_reference_drag_drop.png)(w:900)](add_reference_drag_drop.png)
+	[/REGION]
+	[REGION:caption]
+	单击图片查看全图。 
+	[/REGION]
 
 显示的Actor引用节点可以连接到任何兼容的 **目标（Target）** 引脚。
 
@@ -86,17 +87,11 @@ topic-image:Engine/Blueprints/UserGuide/Types/level_blueprint_test_image.png
 
 ![](target_pin_noref.png)
 
-(#addingevents)
-
 ## 添加事件
 
 有两种方法可以将特定Actor的[](Engine/Blueprints/UserGuide/Events)添加到关卡蓝图中。 
 
-1. 在 **关卡视口（Level Viewport）** 或 **世界场景大纲视图（World Outliner）** 中选择Actor。
-
-	![](selected_actor.png)
-
-1. 在 **细节（Details）** 选项卡中，**蓝图（Blueprint）** 标题下方有一个 **关卡蓝图事件（Level Blueprint Events）** 下拉菜单。展开该菜单，然后从列表中选择所需的事件。 
+1. 右键点击关卡中的一个Actor，然后在 **关卡蓝图（Level Blueprint）** 下的快捷菜单中选择您想要添加的事件。 
 
 	![](add_event_details_tab.png)
 
@@ -106,15 +101,11 @@ topic-image:Engine/Blueprints/UserGuide/Types/level_blueprint_test_image.png
 
 	![Level Blueprint Button](toolbar_level_editor.png)
 
-1. **右键单击** 您要在其中添加节点的图表。
+1. 右键单击您要在其中添加节点的图表。
 
-1. 在显示的快捷菜单中，展开 **为[ActorName]添加事件（Add Event for [ActorName]）**。  
+1. 在显示的快捷菜单中，展开 **为[ActorName]添加事件（Add Event for [ActorName]）** 并选择您想要的事件类型。  
 
 	![](add_event_for_actor.png)
-
-1. 从 **为[ActorName]添加事件（Add Event for [ActorName]）下的事件列表中选择所需事件。
-
-	![](expanded_add_event_for_actor.png)
 
 
 

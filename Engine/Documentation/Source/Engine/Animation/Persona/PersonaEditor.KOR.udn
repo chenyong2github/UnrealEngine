@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3809606
+INTSourceChangelist:6192063
 Availability:Public
 Title:애니메이션 에디터
 Crumbs: %ROOT%, Engine, Engine/Animation
@@ -7,6 +7,7 @@ version: 4.14
 parent:Engine/Animation
 topic-image:Engine/Animation/animation_topic.png
 reference-image:UpdatedPersonaWindowAnim.gif
+reference-image:UpdatedPersonaWindowAnim_Mac.gif
 Related: Engine/Content/FBX/Animations
 Related: Engine/Content/Types/SkeletalMeshes
 Related: Engine/Animation/PhysicallyDrivenAnimation
@@ -117,7 +118,7 @@ mac
 또한 **콘텐츠 브라우저** 에서 위 애셋 중 하나에 **우클릭** 한 뒤 컨텍스트 메뉴에서 **편집** 을 선택하는 것으로도 애셋에 연결된 에디터를 열 수 있습니다!
 [/REGION]
 
-## 애니메이션 에디터 참고서
+## 애니메이션 에디터 레퍼런스
 
 각 에디터의 인터페이스와 사용법 관련 상세 정보는 각 에디터 페이지를 참고하세요:
 

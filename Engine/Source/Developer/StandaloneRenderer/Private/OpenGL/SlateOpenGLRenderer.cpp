@@ -84,11 +84,10 @@ bool FSlateOpenGLRenderer::Initialize()
 	SharedContext.Initialize( NULL, NULL );
 
 	TextureManager = MakeShareable( new FSlateOpenGLTextureManager );
-	FSlateDataPayload::ResourceManager = TextureManager.Get();
 
 	RenderingPolicy = MakeShareable( new FSlateOpenGLRenderingPolicy( SlateFontServices.ToSharedRef(), TextureManager.ToSharedRef() ) );
 
-	ElementBatcher = MakeShareable( new FSlateElementBatcher( RenderingPolicy.ToSharedRef() ) );
+	ElementBatcher = MakeUnique<FSlateElementBatcher>(RenderingPolicy.ToSharedRef());
 
 #if !PLATFORM_USES_ES2
 	// Load OpenGL extensions if needed.  Need a current rendering context to do this
@@ -110,6 +109,8 @@ bool FSlateOpenGLRenderer::Initialize()
  */
 void FSlateOpenGLRenderer::DrawWindows( FSlateDrawBuffer& InWindowDrawBuffer )
 {
+	FMemMark MemMark(FMemStack::Get());
+
 	const TSharedRef<FSlateFontCache> FontCache = SlateFontServices->GetFontCache();
 
 	// Draw each window.  For performance.  All elements are batched before anything is rendered
@@ -138,7 +139,7 @@ void FSlateOpenGLRenderer::DrawWindows( FSlateDrawBuffer& InWindowDrawBuffer )
 			Viewport->MakeCurrent();
 
 			// Batch elements.  Note that we must set the current viewport before doing this so we have a valid rendering context when calling OpenGL functions
-			ElementBatcher->AddElements( ElementList );
+			ElementBatcher->AddElements(ElementList);
 
 			// Update the font cache with new text before elements are batched
 			FontCache->UpdateCache();
@@ -150,9 +151,7 @@ void FSlateOpenGLRenderer::DrawWindows( FSlateDrawBuffer& InWindowDrawBuffer )
 			
 			FSlateBatchData& BatchData = ElementList.GetBatchData();
 
-			BatchData.CreateRenderBatches(ElementList.GetRootDrawLayer().GetElementBatchMap());
-
-			RenderingPolicy->UpdateVertexAndIndexBuffers( BatchData );
+			RenderingPolicy->BuildRenderingBuffers( BatchData );
 
 			check(Viewport);
 
@@ -163,7 +162,7 @@ void FSlateOpenGLRenderer::DrawWindows( FSlateDrawBuffer& InWindowDrawBuffer )
 
 			Viewport->SwapBuffers();
 
-			// Reset all batch data for this window
+			// All elements have been drawn.  Reset all cached data
 			ElementBatcher->ResetBatches();
 		}
 	}

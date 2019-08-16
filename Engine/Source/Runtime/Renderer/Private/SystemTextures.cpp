@@ -140,6 +140,19 @@ void FSystemTextures::InitializeCommonTextures(FRHICommandListImmediate& RHICmdL
 		RHICmdList.EndRenderPass();
 		RHICmdList.CopyToResolveTarget(DepthDummy->GetRenderTargetItem().TargetableTexture, DepthDummy->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
 	}
+	
+	if (!GSupportsShaderFramebufferFetch && GPixelFormats[PF_FloatRGBA].Supported)
+	{
+		// PF_FloatRGBA to encode exactly the 0.5.
+		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(1, 1), PF_FloatRGBA, FClearValueBinding(FLinearColor(0.5f, 0.5f, 0.5f, 0.5f)), TexCreate_HideInVisualizeTexture, TexCreate_RenderTargetable | TexCreate_NoFastClear, false));
+		Desc.AutoWritable = false;
+		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, MidGreyDummy, TEXT("MidGreyDummy"), true, ERenderTargetTransience::NonTransient);
+
+		FRHIRenderPassInfo RPInfo(MidGreyDummy->GetRenderTargetItem().TargetableTexture, ERenderTargetActions::Clear_Store);
+		RHICmdList.BeginRenderPass(RPInfo, TEXT("MidGreyDummy"));
+		RHICmdList.EndRenderPass();
+		RHICmdList.CopyToResolveTarget(MidGreyDummy->GetRenderTargetItem().TargetableTexture, MidGreyDummy->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
+	}
 }
 
 void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImmediate& RHICmdList, const ERHIFeatureLevel::Type InFeatureLevel)
@@ -183,14 +196,14 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 				// 16x16 block starting at 16,0 = Sobol X,Y from 2nd 4 bits of cell X,Y
 				for (int x = 0; x < 16; ++x, ++Dest)
 				{
-					Result  = (x & 0x010) ? 0x4414 : 0;
-					Result ^= (x & 0x020) ? 0x8828 : 0;
-					Result ^= (x & 0x040) ? 0xe69e : 0;
-					Result ^= (x & 0x080) ? 0xae76 : 0;
-					Result ^= (y & 0x010) ? 0xa28a : 0;
-					Result ^= (y & 0x020) ? 0x265e : 0;
-					Result ^= (y & 0x040) ? 0xe69e : 0;
-					Result ^= (y & 0x080) ? 0xae76 : 0;
+					Result  = (x & 0x001) ? 0x4414 : 0;
+					Result ^= (x & 0x002) ? 0x8828 : 0;
+					Result ^= (x & 0x004) ? 0xe69e : 0;
+					Result ^= (x & 0x008) ? 0xae76 : 0;
+					Result ^= (y & 0x001) ? 0xa28a : 0;
+					Result ^= (y & 0x002) ? 0x265e : 0;
+					Result ^= (y & 0x004) ? 0xe69e : 0;
+					Result ^= (y & 0x008) ? 0xae76 : 0;
 					*Dest = Result;
 				}
 			}
@@ -576,6 +589,7 @@ void FSystemTextures::ReleaseDynamicRHI()
 	GreenDummy.SafeRelease();
 	DefaultNormal8Bit.SafeRelease();
 	VolumetricBlackDummy.SafeRelease();
+	MidGreyDummy.SafeRelease();
 
 	GRenderTargetPool.FreeUnusedResources();
 

@@ -244,7 +244,7 @@ namespace CrossCompiler
 			FloatConstant,
 			BoolConstant,
 
-			//Sequence,
+			Sequence,
 
 			TypeCast,
 		};
@@ -343,6 +343,9 @@ namespace CrossCompiler
 			case EHlslToken::Mod:
 				return AST::EOperators::Mod;
 
+			case EHlslToken::Comma:
+				return AST::EOperators::Sequence;
+
 			default:
 				check(0);
 				break;
@@ -371,7 +374,6 @@ namespace CrossCompiler
 			union
 			{
 				uint32 UintConstant;
-				float FloatConstant;
 				bool BoolConstant;
 				struct FTypeSpecifier* TypeSpecifier;
 			};
@@ -414,10 +416,10 @@ namespace CrossCompiler
 					return UintConstant;
 
 				case EOperators::FloatConstant:
-					return (uint32)FloatConstant;
+					return static_cast<uint32>(FCString::Atof(Identifier));
 
 				case EOperators::BoolConstant:
-					return (uint32)BoolConstant;
+					return static_cast<uint32>(BoolConstant);
 
 				default:
 					break;
@@ -460,6 +462,16 @@ namespace CrossCompiler
 			virtual FCompoundStatement* AsCompoundStatement() override { return this; }
 		};
 
+		struct FRegisterSpecifier : public FNode
+		{
+			FRegisterSpecifier(FLinearAllocator* InAllocator, const FSourceInfo& InInfo);
+			~FRegisterSpecifier();
+
+			virtual void Write(FASTWriter& Writer) const override;
+
+			TLinearArray<FExpression*> Arguments;
+		};
+
 		struct FDeclaration : public FNode
 		{
 			FDeclaration(FLinearAllocator* InAllocator, const FSourceInfo& InInfo);
@@ -476,6 +488,8 @@ namespace CrossCompiler
 			//bool bIsUnsizedArray;
 
 			TLinearArray<FExpression*> ArraySize;
+
+			FRegisterSpecifier* Register;
 
 			FExpression* Initializer;
 		};

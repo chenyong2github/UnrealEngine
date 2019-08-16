@@ -238,6 +238,9 @@ class ENGINE_API USkinnedMeshComponent : public UMeshComponent
 	/* this update renderer with new revision number twice so to clear bone velocity for motion blur or temporal AA */
 	void ClearMotionVector();
 	
+	/* Forcibly update the renderer with a new revision number to assign the current bone velocity for motion blur or temporal AA */
+	void ForceMotionVector();
+
 private:
 	/** Temporary array of of component-space bone matrices, update each frame and used for rendering the mesh. */
 	TArray<FTransform> ComponentSpaceTransformsArray[2];
@@ -308,7 +311,7 @@ protected:
 	/**
 	*	Mapping for socket overrides, key is the Source socket name and the value is the override socket name
 	*/
-	TSortedMap<FName, FName> SocketOverrideLookup;
+	TSortedMap<FName, FName, FDefaultAllocator, FNameFastLess> SocketOverrideLookup;
 
 public:
 #if WITH_EDITORONLY_DATA
@@ -372,6 +375,7 @@ public:
 	//
 	
 	/** If 0, auto-select LOD level. if >0, force to (ForcedLodModel-1). */
+	UE_DEPRECATED(4.24, "Direct access to ForcedLodModel is deprecated. Please use its getter and setter instead.")
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=LOD)
 	int32 ForcedLodModel;
 
@@ -520,6 +524,7 @@ public:
 	uint8 bCastCapsuleIndirectShadow:1;
 
 	/** Whether or not to CPU skin this component, requires render data refresh after changing */
+	UE_DEPRECATED(4.24, "Direct access to bCPUSkinning is deprecated. Please use its getter and setter instead.")
 	UPROPERTY(transient)
 	uint8 bCPUSkinning : 1;
 
@@ -642,12 +647,16 @@ public:
 	void SetMinLOD(int32 InNewMinLOD);
 
 	/**
-	 * Set MinLodModel of the mesh component
+	 * Set ForcedLodModel of the mesh component
 	 *
 	 * @param	InNewForcedLOD	Set new ForcedLODModel that forces to set the incoming LOD. Range from [1, Max Number of LOD]. This will affect in the next tick update. 
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|SkinnedMesh")
 	void SetForcedLOD(int32 InNewForcedLOD);
+
+	/** Get ForcedLodModel of the mesh component. Note that the actual forced LOD level is the return value minus one and zero means no forced LOD */
+	UFUNCTION(BlueprintCallable, Category="Components|SkinnedMesh")
+	int32 GetForcedLOD() const;
 
 #if WITH_EDITOR
 	/**
@@ -784,7 +793,7 @@ public:
 	virtual bool DoesSocketExist(FName InSocketName) const override;
 	virtual bool HasAnySockets() const override;
 	virtual void QuerySupportedSockets(TArray<FComponentSocketDescription>& OutSockets) const override;
-	virtual bool UpdateOverlapsImpl(TArray<FOverlapInfo> const* PendingOverlaps=NULL, bool bDoNotifies=true, const TArray<FOverlapInfo>* OverlapsAtEndLocation=NULL) override;
+	virtual bool UpdateOverlapsImpl(const TOverlapArrayView* PendingOverlaps=NULL, bool bDoNotifies=true, const TOverlapArrayView* OverlapsAtEndLocation=NULL) override;
 	//~ End USceneComponent Interface
 
 	//~ Begin UPrimitiveComponent Interface
@@ -838,6 +847,21 @@ public:
 	 * @return true if should CPU skin. false otherwise
 	 */
 	virtual bool ShouldCPUSkin();
+
+	/**
+	 * Getter for bCPUSkinning member variable
+	 * May return a different value from ShouldCPUSkin()
+	 */
+	bool GetCPUSkinningEnabled() const;
+
+	/**
+	 * Set whether this component uses CPU skinning
+	 * Notes:
+	 * - If enabled, skeletal mesh referenced by this component will be removed from streaming manager
+	 * - Streaming cannot be (re)enabled as long as any component uses CPU skinning
+	 * - This function is expensive
+	 */
+	void SetCPUSkinningEnabled(bool bEnable, bool bRecreateRenderStateImmediately = false);
 
 	/** 
 	 * Function to operate on mesh object after its created, 
@@ -1448,6 +1472,7 @@ public:
 #endif
 
 	friend class FRenderStateRecreator;
+	friend class FSkeletalMeshStreamOut;
 };
 
 class FRenderStateRecreator

@@ -1299,7 +1299,7 @@ void FViewport::HighResScreenshot()
 
 	ViewportClient->GetEngineShowFlags()->SetHighResScreenshotMask(MaskShowFlagBackup);
 	ViewportClient->GetEngineShowFlags()->MotionBlur = MotionBlurShowFlagBackup;
-	ViewportClient->ProcessScreenShots(DummyViewport);
+	bool bIsScreenshotSaved = ViewportClient->ProcessScreenShots(DummyViewport);
 
 	SceneColorFormatVar->Set(OldSceneColorFormat, ECVF_SetByCode);
 	PostColorFormatVar->Set(OldPostColorFormat, ECVF_SetByCode);
@@ -1324,7 +1324,7 @@ void FViewport::HighResScreenshot()
 	bTakeHighResScreenShot = false;
 
 	// Notification of a successful screenshot
-	if ((GIsEditor || !IsFullscreen()) && !GIsAutomationTesting )
+	if ((GIsEditor || !IsFullscreen()) && !GIsAutomationTesting && bIsScreenshotSaved)
 	{
 		auto Message = NSLOCTEXT("UnrealClient", "HighResScreenshotSavedAs", "High resolution screenshot saved as");
 		FNotificationInfo Info(Message);
@@ -1395,29 +1395,6 @@ FRHIGPUMask FViewport::GetGPUMask(FRHICommandListImmediate& RHICmdList) const
 	return FRHIGPUMask::FromIndex(RHICmdList.GetViewportNextPresentGPUIndex(GetViewportRHI()));
 }
 
-void InsertVolume(IInterface_PostProcessVolume* Volume, TArray< IInterface_PostProcessVolume* >& VolumeArray)
-{
-	const int32 NumVolumes = VolumeArray.Num();
-	float TargetPriority = Volume->GetProperties().Priority;
-	int32 InsertIndex = 0;
-	// TODO: replace with binary search.
-	for (; InsertIndex < NumVolumes ; InsertIndex++)
-	{
-		IInterface_PostProcessVolume* CurrentVolume = VolumeArray[InsertIndex];
-		float CurrentPriority = CurrentVolume->GetProperties().Priority;
-
-		if (TargetPriority < CurrentPriority)
-		{
-			break;
-		}
-		if (CurrentVolume == Volume)
-		{
-			return;
-		}
-	}
-	VolumeArray.Insert(Volume, InsertIndex);
-}
-
 void APostProcessVolume::PostUnregisterAllComponents()
 {
 	// Route clear to super first.
@@ -1425,6 +1402,7 @@ void APostProcessVolume::PostUnregisterAllComponents()
 	// World will be NULL during exit purge.
 	if (GetWorld())
 	{
+		GetWorld()->RemovePostProcessVolume(this);
 		GetWorld()->PostProcessVolumes.RemoveSingle(this);
 	}
 }
@@ -1433,19 +1411,19 @@ void APostProcessVolume::PostRegisterAllComponents()
 {
 	// Route update to super first.
 	Super::PostRegisterAllComponents();
-	InsertVolume(this, GetWorld()->PostProcessVolumes);
+	GetWorld()->InsertPostProcessVolume(this);
 }
 
 void UPostProcessComponent::OnRegister()
 {
 	Super::OnRegister();
-	InsertVolume(this, GetWorld()->PostProcessVolumes);
+	GetWorld()->InsertPostProcessVolume(this);
 }
 
 void UPostProcessComponent::OnUnregister()
 {
 	Super::OnUnregister();
-	GetWorld()->PostProcessVolumes.RemoveSingle(this);
+	GetWorld()->RemovePostProcessVolume(this);
 }
 
 void UPostProcessComponent::Serialize(FArchive& Ar)
@@ -2077,6 +2055,11 @@ void FViewport::FHitProxyMap::AddReferencedObjects( FReferenceCollector& Collect
 			CurProxy->AddReferencedObjects( Collector );
 		}
 	}
+}
+
+FString FViewport::FHitProxyMap::GetReferencerName() const
+{
+	return TEXT("FViewport::FHitProxyMap");
 }
 
 /**

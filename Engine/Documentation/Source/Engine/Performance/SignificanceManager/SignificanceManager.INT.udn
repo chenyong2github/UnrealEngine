@@ -4,7 +4,7 @@ Title: The Significance Manager
 Description: Adjust performance in project-specific ways with the Significance Manager.
 Type: 
 Version: 4.20
-Parent: Performance
+Parent: Engine/Performance
 Order: 1
 Tags: Performance
 Tags: Significance Manager

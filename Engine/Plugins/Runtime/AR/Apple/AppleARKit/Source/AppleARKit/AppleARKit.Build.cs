@@ -36,7 +36,8 @@ public class AppleARKit : ModuleRules
                 "RenderCore",
                 "HeadMountedDisplay",
                 "AugmentedReality",
-                "AppleImageUtils"
+                "AppleImageUtils",
+                "MRMesh"
 				// ... add private dependencies that you statically link with here ...
 			}
 			);

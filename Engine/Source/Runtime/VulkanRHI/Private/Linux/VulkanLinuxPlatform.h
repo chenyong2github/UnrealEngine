@@ -56,7 +56,7 @@ public:
 			{
 				static auto* CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Vulkan.UseRealUBs"));
 				return (CVar && CVar->GetValueOnAnyThread() == 0);
-			});
+			}());
 			return bAlwaysUseRealUBs ? false : bCodeHeaderUseRealUBs;
 		}
 		else

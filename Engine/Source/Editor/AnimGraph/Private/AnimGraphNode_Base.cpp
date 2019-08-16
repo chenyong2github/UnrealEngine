@@ -410,6 +410,27 @@ void UAnimGraphNode_Base::PinDefaultValueChanged(UEdGraphPin* Pin)
 	}
 }
 
+FString UAnimGraphNode_Base::GetPinMetaData(FName InPinName, FName InKey)
+{
+	FString MetaData = Super::GetPinMetaData(InPinName, InKey);
+	if(MetaData.IsEmpty())
+	{
+		// Check properties of our anim node
+		if(UStructProperty* NodeStructProperty = GetFNodeProperty())
+		{
+			for (TFieldIterator<UProperty> It(NodeStructProperty->Struct); It; ++It)
+			{
+				const UProperty* Property = *It;
+				if (Property && Property->GetFName() == InPinName)
+				{
+					return Property->GetMetaData(InKey);
+				}
+			}
+		}
+	}
+	return MetaData;
+}
+
 bool UAnimGraphNode_Base::IsPinExposedAndLinked(const FString& InPinName, const EEdGraphPinDirection InDirection) const
 {
 	UEdGraphPin* Pin = FindPin(InPinName, InDirection);

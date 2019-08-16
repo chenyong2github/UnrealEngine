@@ -17,6 +17,7 @@ float FRigUnit_Random_Helper(int32& Seed)
 
 void FRigUnit_RandomFloat::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
 	{
 		LastSeed = Seed;
@@ -39,6 +40,7 @@ void FRigUnit_RandomFloat::Execute(const FRigUnitContext& Context)
 
 void FRigUnit_RandomVector::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
 	{
 		LastSeed = Seed;

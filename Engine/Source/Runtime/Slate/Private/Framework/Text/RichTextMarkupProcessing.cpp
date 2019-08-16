@@ -265,6 +265,12 @@ TSharedRef< FDefaultRichTextMarkupWriter > FDefaultRichTextMarkupWriter::Create(
 	return MakeShareable( new FDefaultRichTextMarkupWriter() );
 }
 
+TSharedRef< FDefaultRichTextMarkupWriter > FDefaultRichTextMarkupWriter::GetStaticInstance()
+{
+	static TSharedRef< FDefaultRichTextMarkupWriter > Writer = MakeShareable(new FDefaultRichTextMarkupWriter());
+	return Writer;
+}
+
 void FDefaultRichTextMarkupWriter::Write(const TArray<FRichTextLine>& InLines, FString& Output)
 {
 	for (int32 LineIndex = 0; LineIndex < InLines.Num(); ++LineIndex)

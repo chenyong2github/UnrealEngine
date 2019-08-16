@@ -1,222 +1,208 @@
-Availability:Public
-Title:UnrealVS Extension
-Crumbs: %ROOT%, GettingStarted, Programming, Programming/Development/VisualStudioSetup
-Description:Guide to installing, setting up, and using the UnrealVS extension for Visual Studio.
-Version: 4.16
-Parent:Programming/Development/VisualStudioSetup
-Order:
-Type:overview
+Availability: Public
+Title: UnrealVS Extension
+Description: Guide for installing, setting up, and using the UnrealVS extension for Visual Studio.
+Type: overview
+Version: 4.22
+Parent: Programming/Development/VisualStudioSetup
 
-[EXCERPT:Overview]
-The UnrealVS extension for Visual Studio provides easy access to common actions when developing with Unreal Engine 4.
-
-![](unrealvs_toolbar_cmd.png)
+The UnrealVS extension for Visual Studio provides easy access to common actions when developing with Unreal Engine 4. This document will explain how to install the extension, as well as how to use it with your project.
 
 Features include:
 
-* Setting the Startup Project.
-* Bindable command for building the Startup Project.
-* Setting the command line arguments.
-* Batch building projects.
-* Quick Build project menu.
+*   Setting the Startup Project
+
+*   Bindable command for building the Startup Project
+
+*   Setting the command line arguments
+
+*   Batch building projects
+
+*   Quick Build project menu
 
 [REGION:note]
-The UnrealVS extension does not work with the Visual Studio Express editions. It is only compatible with Visual Studio Community and Professional editions.
+The UnrealVS extension does not work with Visual Studio Express. It is only compatible with Visual Studio Community and Professional editions.
 [/REGION]
-[/EXCERPT:Overview]
-
 
 ## Installation and Setup
 
 **To install the UnrealVS extension:**
 
-1. Find the extension for your version of Visual Studio located at:
+1.  Find the extension for your version of Visual Studio located at:
 
-		[UE4RootLocation]/Engine/Extras/UnrealVS/<VS-Version>/UnrealVS.vsix
+    `[UE4RootLocation]/Engine/Extras/UnrealVS/<VS-Version>/UnrealVS.vsix`  
 
-1. Run the `UnrealVS.vsix` file by **Double-clicking** it to begin the installation.
+1.  Run the `UnrealVS.vsix` file by double-clicking it to begin the installation.
 
-1. UnrealVS extensions target specific Visual Studio versions.  Check that the installer is targeting your version and that the box is ticked then click the **Install** button to proceed.
+1.  UnrealVS extensions target specific Visual Studio versions. Check that the installer is targeting your version and that the box is ticked then click the **Install** button to proceed.  
 
-	![](install_dialog.png)
-1. Click the **Close** button once the installation is complete.
+    ![](UnrealVSExtension-InstallSetup-03.png)
 
-	![Install Complete](install_complete_dialog.png)
+1.  Click the **Close** button once the installation is complete.  
 
-1. Run Visual Studio and in **Tools->Extensions and Updates...** you should see the extension.
+    ![Install Complete](UnrealVSExtension-InstallSetup-04.png)
 
-	![Extension Manager](extension_manager.png)
+1.  Run Visual Studio and in **Tools > Extensions and Updates...** you should see the extension.  
 
-	[REGION:note]
-	If Visual Studio is already running, you will need to restart before the extension will be loaded and displayed.
-	[/REGION]
-	[REGION:tip]
-	The extension is also shown in the Installed Products list in the **Help->About Microsoft Visual Studio** dialog.
-	[/REGION]
+    ![Extension Manager](UnrealVSExtension-InstallSetup-05.png)
 
-1. Go to **View->Toolbars** or **Right-click** the Visual Studio toolbar area and select **UnrealVS** to display the extension's toolbar.
+    [REGION:note]
+    If Visual Studio is already running, you will need to restart before the extension will be loaded and displayed. The extension is also shown in the Installed Products list in the **Help > About Microsoft Visual Studio** dialog.
+    [/REGION]
 
-	![UnrealVS Toolbar](unrealvs_toolbar_cmd.png)
+1.  Go to **View > Toolbars** or **Right-click** the Visual Studio toolbar area and select **UnrealVS** to display the extension's toolbar.  
 
-1. By default, the toolbar appears as above but its contents can be customized via the **Tools->Customize...** by choosing the **UnrealVS** toolbar in the **Commands** tab.
+    ![UnrealVS Toolbar](unrealvs_toolbar_cmd.png)
 
-	![UnrealVS Customize Toolbar](toolbar_customize.png)
-	
-1. In the **Customize**	dialog, choose **Add Command...** and select **UnrealVS** from the **Categories** list to see a list of UnrealVS commands that can be added to the toolbar.
+1.  By default, the toolbar appears as above but its contents can be customized via the **Tools > Customize...** by choosing the **UnrealVS** toolbar in the **Commands** tab.  
 
-	![UnrealVS Customize Commands](toolbar_customize_commands.png)
+    ![UnrealVS Customize Toolbar](UnrealVSExtension-InstallSetup-07.png)
 
+1.  In the **Customize** dialog, choose **Add Command...** and select **UnrealVS** from the **Categories** list to see a list of UnrealVS commands that can be added to the toolbar. When you've finished adding commands, click **OK**.  
 
-## Set the Startup Project
+    ![UnrealVS Customize Commands](UnrealVSExtension-InstallSetup-08.png)
 
-The **Startup Project** dropdown is a means of quickly setting or switching between startup projects. 
-It automatically lists all available projects that build executables in the solution.
-Selecting a project from the list sets that as the current startup project.
+## Setting the Startup Project
+
+The **Startup Project** dropdown is a means of quickly setting or switching between startup projects. It automatically lists all available projects that build executables in the solution. Selecting a project from the list sets that as the current startup project.
 
 ![](startup_project_menu.png)
 
-You can change which projects are listed in the UnrealVS options. To show only Game projects, go to **Tools->Options...** and select **UnrealVS**. 
+You can change which projects are listed in the UnrealVS options. To show only Game projects, go to **Tools > Options...** and select **UnrealVS**. Click the dropdown next to **Hide Non-Game Startup Projects** and select  **True**. Then click **OK**.
 
-![](options_screen.png)
+![Set Startup Project](UnrealVSExtension-SetStartupProject.png)
 
-### Build Startup Project
+## Building the Startup Project
 
-The extension also contains a command for building the current startup project which can be bound to a 
-hotkey or other means of running custom commands.
+The extension also contains a command for building the current startup project which can be bound to a hotkey or other means of running custom commands.
 
-####To bind the command to a hotkey:
+### Binding the Command to a Hotkey
 
-1. Go to **Tools->Options...** and select **Keyboard** under the **Environment** tree.
+1.  Go to **Tools > Options...** and select **Keyboard** under the **Environment** tree. Under **Apply the following additional keyboard mapping scheme** click the dropdown and select **Visual C++ 6**.
 
-1. Select the **UnrealVS.BuildStartupProject** command in the commands list. 
+1.  Select the **UnrealVS.BuildStartupProject** command in the commands list.
 
-	[REGION:tip]
-		Type "UnrealVS" in the search box to filter the list.
-	[/REGION]
+	![Filtered Command List](UnrealVSExtension-Build-BindCommand-02.png)
 
-	![Filtered Command List](build_startup_search.png)
+    [REGION:tip]
+    Type "Unreal" in the search box to filter the list.
+    [/REGION]
 
-1. With the command selected, click in the **Press Shortcut Keys** box and then press the combination of keys you want to use to perform the command. (e.g. **Ctrl + Alt + Shift + B** is shown in the example below)
+1.  With the command selected, click in the **Press Shortcut Keys** box and then press the combination of keys you want to use to perform the command (for example, **Ctrl + Alt + Shift + B** is shown in the example below). 
 
-	![Shortcut Keys](build_startup_keys.png)
+    ![Shortcut Keys](UnrealVSExtension-Build-BindCommand-03.png)
 
-	[REGION:note]
-		You should choose a combination of keys not already assigned to another command. 
-		The **Shortcut currently used by** box will alert you to the fact that the chosen 
-		combination is already in use.
-	[/REGION]
+    [REGION:note]
+    You should choose a combination of keys not already assigned to another command. The **Shortcut currently used by** box will alert you to the fact that the chosen combination is already in use.
+    [/REGION]
 
-1. Press the **Assign** button to bind the keys to the command. The keys are 
-	displayed in the **Shortcuts for selected command** box.
+1.  Press the **Assign** button to bind the keys to the command. The key combination is displayed under **Shortcuts for selected command**. 
 
-	![Assigned Keys](build_startup_assigned.png)
+    ![Assigned Keys](UnrealVSExtension-Build-BindCommand-04.png)
 
-1. Press the **OK** button to save the changes. Now, when you use the shortcut, the project set as the startup project will automatically build.
+1.  Press the **OK** button to save the changes. Now, when you use the shortcut, the project set as the startup project will automatically build.
 
+### Iterating on a Single Source File
+
+If you're used to iterating on updates to a single source (.cpp) file using [Ctrl+F7](https://docs.microsoft.com/en-us/visualstudio/ide/default-keyboard-shortcuts-for-frequently-used-commands-in-visual-studio) in Visual Studio, you can bind **Ctrl+F7** to the **UnrealVS.CompileSingleFile** command, which builds your active project with the current solution configuration, platform, and the `-singlefile=<Path to currently open file>` argument.
 
 ## Command Line Arguments
 
-The **Command-Line** control is used to set the **Command Arguments** for the current project when running a 
-debugging session. This is a shortcut to setting them through the project **Properties**. In fact, changes 
-made here will be reflected automatically in the **Properties**, and vice versa.
+The **Command-Line** control is used to set the **Command Arguments** for the current project when running a debugging session. This is a shortcut, rather than setting them through the project **Properties**. In fact, changes made here will be reflected automatically in the **Properties**.
 
-Enter the arguments in the text box or choose from a list of recent arguments using the dropdown list. These will be passed to the executable when a debugging 
-session is started.
+Enter the arguments in the text box, or choose from a list of recent arguments using the dropdown list. These arguments will be passed to the executable when a debugging session is started.
 
 ![Command Arguments](unrealvs_toolbar_args.png)
 
 [REGION:note]
-	Project configs for game projects that build Unreal Editor add the project name to the command line automatically to tell the editor executable which project you are using.
-	For example, if you build QAGame using the build config 'Debug Editor', the command line will have QAGame.uproject added to the command arguments without needing to type it in the box.
-	To launch the editor for QAGame, you can leave the **Command-Line** control empty and the editor will still know which project you are running.
+Project configurations for game projects that build Unreal Editor add the project name to the command line automatically, to tell the editor executable which project you are using. For example, if you build QAGame using the build config 'Debug Editor', the command line will have QAGame.uproject added to the command arguments without the need to type it in the box. To launch the editor for QAGame, you can leave the **Command-Line** control empty and the editor will still know which project you are running.
 [/REGION]
 
 See [Command-Line Arguments](Programming/Basics/CommandLineArguments) for a listing of all available arguments.
 
 ## Refresh Projects
 
-Project files can be generated inside of Visual Studio using the [](Programming/UnrealBuildSystem/ProjectFileGenerator). 
-This makes it much quicker to sync and update all the project files, since you do not have to navigate to the `.bat` 
-file and run it manually.
+Project files can be generated inside of Visual Studio using the [Automatic Project File Generation](Programming/BuildTools/UnrealBuildTool/ProjectFilesForIDEs). This makes it much quicker to sync and update all the project files, since you do not have to navigate to the `.bat` file and run it manually.
 
 **To refresh project files:**
 
-1. Press the Refresh Projects Refresh button on the **UnrealVS** toolbar.
+1.  Press the **Refresh Projects** button on the **UnrealVS** toolbar.  
 
-![Refresh Projects](button_refresh.png)
+    ![](button_refresh_crop.png)
 
-1. The project generation process will be displayed in the **Output** window as it occurs.
+1.  The project generation process will be displayed in the **Output** window as it occurs. 
 
-	![Project Generator Output](refresh_output.png)
+    ![Project Generator Output](refresh_output.png)
 
-1. Reload any projects that require it as you are prompted.
+1.  Reload any projects that require it, as you are prompted.
 
 ## Batch Builder
 
-**UnrealVS Batch Builder** provides a way to create and run custom sets of build jobs. It is more versatile than the **Build->Batch Build...** option in Visual Studio.
+**UnrealVS Batch Builder** provides a way to create and run custom sets of build jobs. It is more versatile than the **Build > Batch Build...** option in Visual Studio.
 
 **To open the Batch Builder window:**
 
-1. Press the Batch Builder button on the **UnrealVS** toolbar or use a keyboard shortcut that you have assigned to the command UnrealVS.BatchBuilder 
-(see **Build Startup Project** above for instructions on setting up keyboard shortcuts with **UnrealVS** commands).
+1.  Press the Batch Builder button on the **UnrealVS** toolbar or use a keyboard shortcut that you have assigned to the command UnrealVS.BatchBuilder (see **Build Startup Project** above for instructions on setting up keyboard shortcuts with **UnrealVS** commands). 
 
-![Batch Builder](button_batchbuilder.png)
+    ![Batch Builder](button_batchbuilder_crop.png)
 
-1. The **UnrealVS Batch Builder** window appears.
+1.  The **UnrealVS Batch Builder** window appears.  
 
-	![Batch Builder Window](batchbuilder_window.png)
-	
-	* Create a **Build Job** by setting the Project, Config, Platform, and the job type.
-	* Add/remove jobs with the arrow buttons.
-	* Move selected jobs up/down the list with the arrow buttons.
-	* The controls edit the current **Job Set** displayed in the combo.
-	* To create a new Job Set enter a new name into the combo.
-	* You can select existing Job Sets using the dropdown list.
-	* The **Delete** button deletes the selected Job Set from the list.
-	* Start/Stop the batch build task on the current Job Set with the **Start** button.
-	* Job Sets are stored for next time in the .suo file for the loaded solution.
+    ![Batch Builder Window](batchbuilder_window.png)
 
-1. When you click **Start**, the **Output** tab appears showing the progress of the batch build.
+    *   Create a **Build Job** by selecting from the **Project**, **Config**, **Platform**, and then clicking the radio button for the job type.
+    
+    *   Add/remove jobs with the **>** and **<** buttons.
+    
+    *   In the **Build Jobs** list, move selected jobs up or down the list with the arrow buttons on the right.
+    
+    *   Select the **Job Set** you want to edit in the dropdown under the **Build Jobs** list.
+    
+    *   To create a new **Job Set,** type a new name into the field.
+    
+    *   The **Delete** button deletes the selected **Job Set** from the list.
+    
+    *   **Start or Stop** the batch build task on the current Job Set with the **Start** button.
+    
+    *   Job Sets are stored for next time in the .suo file for the loaded solution.
 
-	![Batch Builder Window running](batchbuilder_window2.png)
-	
-	* The **Build Jobs** in the running set are shown in the output list.
-		* ![Queued Build Job](buildjob_lightgrey.png) - queued job
-		* ![Succeeded Build Job](buildjob_green.png) - complete, succeeded
-		* ![Failed Build Job](buildjob_red.png) - failed
-		* ![Cancelled Build Job](buildjob_orange.png) - cancelled
-		* The current executing build job is shown in bold
-	* Busy animation and stop button are shown when a batch build is running.
-	
-1. You can view the output from individual **Build Jobs** by **Double-clicking** an item in the **Output tab** or **Right-clicking** and selecting **Show Output** from the context menu.
+1.  When you click **Start**, the **Output** tab displays, showing the progress of the batch build. 
 
-	![BatchBuild Output Pane](batchbuilder_outputpane.png)
+    ![Batch Builder Window running](batchbuilder_window2.png) 
+    
+    The **Build Jobs** in the running set are shown in the output list. The current executing build job is shown in bold.
+    
+    *   ![Queued Build Job](buildjob_lightgrey.png) = Queued job
+    
+    *   ![Succeeded Build Job](buildjob_green.png) = Job complete, succeeded
+    
+    *   ![Failed Build Job](buildjob_red.png) = Failed job
+    
+    *   ![Cancelled Build Job](buildjob_orange.png) = Cancelled job
+    
+    A busy animation, and the **Stop** button, are shown when a batch build is running.
 
-	[REGION:note]
-		Showing **Batch Builder** output for individual items is shown in the Visual Studio **Output** window in a pane named UnrealVS - BatchBuild.
-		This is not to be confused with the Build pane that shows the output of the current/last build job.
-	[/REGION]	
-	
+1.  You can view the output from individual **Build Jobs** by double-clicking an item in the **Output tab**, or by right-clicking and selecting **Show Output** from the context menu.  
+
+    ![BatchBuild Output Pane](batchbuilder_outputpane.png)
+
+    [REGION:note]
+    **Batch Builder** output for individual items is shown in the Visual Studio **Output** window, in a pane named **UnrealVS - BatchBuild**. This is not to be confused with the Build pane that shows the output of the current/last build job.
+    [/REGION]
+
 ## Quick Build Menu
 
-The **Quick Build** menu provides an easy way to build a project with any config and platform combination without having to change the main solution build config.
+The **Quick Build** menu provides an easy way to build a project using any config and platform combination, without having to change the main solution build config.
 
 ![Quick Build Menu](menu_quickbuild.png)
 
-1. **Right-click** a Project node in the **Solution Explorer**.
+1.  Right-click a Project node in the **Solution Explorer**.
 
-1. The **UnrealVS Quick Build** menu contains sub-menus for the available platforms and build configs in the Unreal Engine solution.
+1.  The **UnrealVS Quick Build** menu contains sub-menus for the available platforms, and build configs, in the Unreal Engine solution.
 
-1. Select an item to build the selected project, platform, and config. This is much quicker than changing the Solution Configuration and Solution Platform in the IDE, starting a build, then switching
-the config and platform back again.
+1.  Select an item to build the selected project, platform, and config. This method is much quicker than changing the Solution Configuration and Solution Platform in the IDE, starting a build, then switching the config and platform back again.
 
-[REGION:note]
-	Quicker than changing the solution config and platform in the IDE!
-[/REGION]	
-	
 ## Working with the UnrealVS Source Code
 
-UnrealVS source code is located in the [UE4RootLocation]/Engine/Source/Programs/UnrealVS/ folder.  
+UnrealVS source code is located in the [UE4RootLocation]/Engine/Source/Programs/UnrealVS/ folder.
 
-In order to load the UnrealVS project files with Visual Studio, you will need to have the Visual Studio SDK installed for the appropriate version of Visual Studio that UnrealVS is to be compiled with.  For example, when supporting up to Visual Studio 2015, you will need to install the [Visual Studio 2015 SDK](https://msdn.microsoft.com/en-us/library/bb166441.aspx), then load UnrealVS project files into Visual Studio 2015.
-
+In order to load the UnrealVS project files with Visual Studio, you will need to have the Visual Studio SDK installed for the appropriate version of Visual Studio that UnrealVS is to be compiled with. For example, when supporting up to Visual Studio 2015, you will need to install the [Visual Studio 2015 SDK](https://msdn.microsoft.com/en-us/library/bb166441.aspx), then load UnrealVS project files into Visual Studio 2015.

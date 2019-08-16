@@ -1,363 +1,584 @@
-﻿INTSourceChangelist:2929391
+﻿INTSourceChangelist:3409695
 Availability:Public
 Title:数学表达式
-Crumbs:%ROOT%, Engine, Engine/Rendering/Materials, Engine/Rendering/Materials/ExpressionReference
+Crumbs: %ROOT%, Engine, Engine/Rendering/Materials, Engine/Rendering/Materials/ExpressionReference
 Description:对一个或多个输入执行数学运算的表达式。
-Version:4.9
+Version: 4.9
+tags:Materials
 
 [EXCERPT:TOC]
 [TOC(start:2)]
 [/EXCERPT:TOC]
 
-(#Abs)
+(#abs)
+
 ## Abs（绝对值）
 
-**Abs（绝对值）**是数学术语“绝对值（absolute value）”的缩写。Abs（绝对值）表达式输出其接收到的输入的绝对值（无符号值）。基本上，这意味着它通过删除减号将负数转换为正数，而正数和零将保持不变。
+ **Abs** 是数学术语“绝对值（absolute value）”的缩写。Abs表达式输出它接收到的输入的绝对值或无符号值。本质上，这意味着它通过去掉负号把负数变成正数，而正数和零保持不变。
 
-**示例：**-0.7 的 Abs（绝对值）为 0.7；-1.0 的 Abs（绝对值）为 1.0；1.0 的 Abs（绝对值）也是 1.0
+ **示例：**-0.7的绝对值为0.7；-1.0的绝对值为1.0；1.0的绝对值也是1.0
 
-**用法示例：**Abs（绝对值）一般与 [DotProduct（标量积）](#DotProduct) 配合使用。DotProduct（标量积）的结果是 -1..0..1，对 DotProduct（标量积）的结果执行 Abs（绝对值）的结果将是 1..0..1。
+ **使用示例：**Abs通常与[DotProduct](#DotProduct)一起使用。DotProduct从-1..0..1开始，而取DotProduct的绝对值将从1..0..1开始。
 
 ![AbsExample.png](AbsExample.png)
 
-(#Add)
+
+(#add)
+
 ## Add（加）
 
-**Add（加）**表达式接收两个输入，将其相加，然后输出结果。这个加法运算按通道执行，这意味着输入的 R 通道、G 通道和 B 通道等等将分别相加。两个输入必须具有相同数目的通道，除非其中之一是单个常量值。常量可以添加到具有任意数目输入的矢量。
+ **Add** 表达式接受两个输入，将它们相加并输出结果。这种加法运算按通道执行，这意味着输入的R通道相加，G通道相加，B通道相加，以此类推。两个输入必须具有相同数量的通道，但其中一个是单一的常量值时例外。常量可以添加到具有任意数量输入的矢量中。
 
 | 项目 | 说明 |
 | -------- | ----------- |
 | [REGION:tablesection]属性[/REGION] ||
-| **常量 A（Const A）** | 接收被加数的值。仅当未使用 A 输入时才使用。|
-| **常量 B（Const B）** | 接收加数的值。仅当未使用 B 输入时才使用。|
+| **常量A（Const A）** | 接受要添加到的值。仅在未使用A输入时使用。|
+| **常量B（Const B）** | 接受要添加的值。仅在未使用B输入时使用。|
 | [REGION:tablesection]输入[/REGION] ||
-| **A** | 接收被加数的值。|
-| **B** | 接收加数的值。|
+| **A** | 接受要添加到的值。|
+| **B** | 接受要添加的值。|
 
 
-**示例：**对 0.2 和 0.4 执行 Add（加）的结果是 0.6；对 (0.2,-0.4,0.6) 和 (0.1,0.5,1.0) 执行 Add（加）的结果是 (0.3,0.1,1.6)；对 (0.2,-0.4,0.6) 和 1.0 执行 Add（加）的结果是 (1.2,0.6,1.6)
+ **示例：**0.2与0.4相加得0.6；(0.2,-0.4,0.6)与(0.1,0.5,1.0)相加得(0.3,0.1,1.6)；(0.2,-0.4,0.6)与1.0相加得(1.2,0.6,1.6)
 
-**用法示例：**Add（加）通常用来使颜色变亮/变暗，或者使 UV 纹理坐标偏移。
+ **使用示例：**Add常用于使颜色变亮/变暗或偏移UV纹理坐标。
 
 ![AddExample.png](AddExample.png)
 
 
 [INCLUDE:Engine/Rendering/Materials/ExpressionReference/VectorOps#AppendVector]
 
-(#Ceil)
+
+(#arcsine)
+
+## ArcSine（反正弦） 
+
+[REGION:lightbox]
+[![](MEN_ArcSine.png)(w:469)](MEN_ArcSine.png)
+[/REGION]
+
+[REGION:caption]
+单击显示全图。
+[/REGION]
+
+ **Arcsine** 表达式输出反正弦函数。这是一种成本高昂的运算，且不会被指令数所反映。
+
+(#arcsinefast)
+
+## ArcSineFast（近似反正弦）
+
+[REGION:lightbox]
+[![](MEN_ArcSineFast.png)(w:469)](MEN_ArcSineFast.png)
+[/REGION]
+
+[REGION:caption]
+单击显示全图。
+[/REGION]
+
+**ArcsineFast** 表达式输出近似反正弦函数。输入必须介于-1与1之间。
+
+(#arccosine)
+
+## ArcCosine（反余弦）
+
+[REGION:lightbox]
+[![](MEN_ArcCosine.png)(w:469)](MEN_ArcCosine.png)
+[/REGION]
+
+[REGION:caption]
+单击显示全图。
+[/REGION]
+
+ **Arccosine** 表达式输出反余弦函数。这是一种成本高昂的运算，且不会被指令数所反映。
+
+(#arccosinefast)
+
+## ArcCosineFast（近似反余弦）
+
+[REGION:lightbox]
+[![](MEN_ArcCosineFast.png)(w:469)](MEN_ArcCosineFast.png)
+[/REGION]
+
+[REGION:caption]
+单击显示全图。
+[/REGION]
+
+
+ **ArccosineFast** 表达式输出近似反余弦函数。输入必须介于-1与1之间。	
+
+(#arctangent)
+
+## ArcTangent（反正切）
+
+[REGION:lightbox]
+[![](MEN_ArcTangent.png)(w:469)](MEN_ArcTangent.png)
+[/REGION]
+
+[REGION:caption]
+单击显示全图。
+[/REGION]
+
+ **Arctangent** 表达式输出反正切函数。这是一种成本高昂的运算，且不会被指令数所反映。
+
+(#arctragnetfast)
+
+## ArcTragnetFast（近似反正切）
+
+[REGION:lightbox]
+[![](MEN_ArcTangentFast.png)(w:469)](MEN_ArcTangentFast.png)
+[/REGION]
+
+[REGION:caption]
+单击显示全图。
+[/REGION]
+
+ **ArctangentFast** 表达式输出近似反正切函数。
+
+(#arctangent2)
+
+## ArcTangent2（反正切2）
+
+[REGION:lightbox]
+[![](MEN_ArcTangent2.png)(w:469)](MEN_ArcTangent2.png)
+[/REGION]
+
+[REGION:caption]
+单击显示全图。
+[/REGION]
+
+
+ **Arctangent2** 表达式使用x/y的反正切，其中输入符号用于确定象限。这是一种成本高昂的运算，且不会被指令数所反映。
+
+(#arcrtangent2fast)
+
+## ArcrTangent2Fast（近似反正切2）
+
+[REGION:lightbox]
+[![](MEN_ArcTangent2Fast.png)(w:469)](MEN_ArcTangent2Fast.png)
+[/REGION]
+
+[REGION:caption]
+单击显示全图。
+[/REGION]
+
+ **Arctangent2Fast** 表达式是X/Y的近似反正切，其中输入符号用于确定象限。
+
+(#ceil)
+
 ## Ceil（加一取整）
 
-**Ceil（加一取整）**表达式接收值，使其 **向上** 舍入到下一个整数，并输出结果。另请参阅 [Floor（减一取整）](#Floor) 和 [Frac（小数）](#Frac)。
+ **Ceil** 表达式接受值，将它们向 **上** 舍入到下一个整数，并输出结果。另请参见[Floor](#Floor)和[Frac](#Frac)。
 
-**示例：**对 0.2 执行 Ceil（加一取整）的结果是 1.0；对 (0.2,1.6) 执行 Ceil（加一取整）的结果是 (1.0,2.0)。
+ **示例：**0.2向上舍入到1.0；(0.2,1.6)向上舍入到(1.0,2.0)。
 
 ![CeilExample.png](CeilExample.png)(w:900)
 
-(#Clamp)
+
+(#clamp)
+
 ## Clamp（限制）
 
-**Clamp（限制）**表达式接收值，并将它们约束到由最小值和最大值定义的指定范围。最小值 0.0 和最大值 0.5 意味着结果值决不会小于 0.0，并且决不会大于 0.5。
+ **Clamp** 表达式接受一个或多个值，并将它们约束到由最小值和最大值定义的指定范围内。如果最小值为0.0，最大值为0.5，则意味着结果值永远不会小于0.0，且永远不会大于0.5。
 
 | 项目 | 说明 |
 | -------- | ----------- |
 | [REGION:tablesection]属性[/REGION] ||
-| **限制模式（Clamp Mode）** | 选择要使用的限制类型。CMODE_Clamp 将对范围的两端进行限制。CMODE_ClampMin 和 CMODE_ClampMax 将仅对范围的相应端进行限制。
-| **默认最小值（Min Default）** | 接收限制时用作最小值的值。仅当未使用“最小值”（Min）输入时才使用。|
-| **默认最大值（Max Default）** | 接收限制时用作最大值的值。仅当未使用“最大值”（Max）输入时才使用。|
+| **限制模式（Clamp Mode）** | 选择要使用的限制类型。CMODE_Clamp将限制范围的两端。CMODE_ClampMin和CMODE_ClampMax将仅限制范围与其相应的一端。
+| **默认最小值（Min Default）** | 接受限制时要用作最小值的值。仅在未使用最小值（Min）输入时使用。|
+| **默认最大值（Max Default）** | 接受限制时要用作最大值的值。仅在未使用最大值（Min）输入时使用。|
 | [REGION:tablesection]输入[/REGION] ||
-| **最小值（Min）** | 接收限制时用作最小值的值。|
-| **最大值（Max）** | 接收限制时用作最大值的值。|
+| **最小值（Min）** | 接受限制时要用作最小值的值。|
+| **最大值（Max）** | 接受限制时要用作最大值的值。|
 
 
-**示例：**在最小值为 0.0 且最大值为 1.0 的情况下对 0.3 进行限制将产生 0.3；在最小值为 0.0 且最大值为 1.0 的情况下对 1.3 进行限制将产生 1.0；
+ **示例：**在最小值为0.0且最大值为1.0的情况下对0.3（(0.0)到(1.0)）的输入范围进行限制将得到结果0.3；在最小值为0.0且最大值为1.0的情况下对1.3进行限制将得到结果1.0。
 
 ![ClampExample.png](ClampExample.png)(w:900)
 
 
 [INCLUDE:Engine/Rendering/Materials/ExpressionReference/VectorOps#ComponentMask]
 
-(#Cosine)
+
+(#cosine)
+
 ## Cosine（余弦）
 
-**Cosine（余弦）**表达式反复输出 [0, 1] 范围内的余弦波值。最常见的情况是，通过将 [Time（时间）](Engine/Rendering/Materials/ExpressionReference/Constant#Time) 表达式连接至它的输入，输出连续的振荡波形。输出值将在 -1 与 1 之间来回循环。下图显示波的视觉表示：
+ **Cosine** 表达式在[0, 1]的输入范围和[-1, 1]的输出范围上反复输出余弦波的值。此表达式最常用于通过将一个[时间](Engine/Rendering/Materials/ExpressionReference/Constant#Time)表达式与其输入连接来输出连续的振荡波形，但它也可以用于在世界场景空间或屏幕空间或任何其他需要连续、平滑循环的应用中创建波纹。波形的可视化表示如下图所示，缩放到[0, 1]输出范围：
 
 ![CosineWave.png](CosineWave.png)
 
 | 项目 | 说明 |
 | -------- | ----------- |
 | [REGION:tablesection]属性[/REGION] ||
-| **周期（Period）** | 指定产生的波的周期。换而言之，这是发生一次振荡的长度。|
+| **周期（Period）** | 指定合成波的周期。换句话说，这就是发生一次振荡所需的时间。|
 
 
-**用法示例：**在任何需要振荡效果的场合，此表达式都非常有用。通过将时间输入（速度）或输出（振幅）倍增，可以轻松地动态控制振荡的速度和振幅。
+ **使用示例：**在任何需要振荡效应的时候，此表达式都非常有用。振荡的速度和振幅很容易通过乘以时间输入（速度）或输出（振幅）来动态地控制。
 
 ![CosineExample.png](CosineExample.png)
 
-在以上示例中，颜色将以余弦频率振荡。
+在上例中，颜色会以余弦频率振荡。
 
 
 [EXCERPT:CrossProduct]
-(#CrossProduct)
-## CrossProduct（矢量积）
+(#crossproduct)
 
-**CrossProduct（矢量积）**表达式计算两个三通道矢量值输入的矢量积，并输出所产生的三通道矢量值。给定空间中的两个矢量，矢量积是与两个输入都垂直的矢量。
+## CrossProduct（交叉乘积）
+
+ **CrossProduct** 表达式计算两个三通道矢量值输入的交叉乘积，并输出产生的三通道矢量值。假定空间中有两个矢量，则交叉乘积是一个同时垂直于两个输入的矢量。
 
 | 项目 | 说明 |
 | -------- | ----------- |
 | [REGION:tablesection]输入[/REGION] ||
-| **A** | 接收三通道矢量值。|
-| **B** | 接收三通道矢量值。|
+| **A** | 接受一个三通道矢量值。|
+| **B** | 接受一个三通道矢量值。|
 
 
-**用法示例：**CrossProduct（矢量积）通常用来计算与另外两个方向都垂直的方向。
+ **使用示例：**CrossProduct常用于计算垂直于另外两个方向的方向。
 
 ![CrossProductExample.png](CrossProductExample.png)
 
 [/EXCERPT:CrossProduct]
 
-(#Divide)
+
+(#divide)
+
 ## Divide（除）
 
-**Divide（除）**表达式接收两个输入，并输出第一个输入除以第二个输入的结果。除法按通道进行，即，第一个输入的 R 通道将除以第二个输入的 R 通道，第一个输入的 G 通道将除以第二个输入的 G 通道，依此类推。除非除数是单个浮点值，否则两个输入必须具有相同数目的值。_切勿以零作除数。_
+ **Divide** 表达式接受两个输入，并输出第一个输入除以第二个输入的结果。每个通道都要执行除法，这意味着第一个输入的R通道除以第二个输入的R通道，第一个输入的G通道除以第二个输入的G通道，以此类推。两个输入必须有相同数量的值，但除数是单个浮点值时例外。在任何通道中除以零将导致该通道包含本地硬件的“无穷大”实现，这通常是一个非常大的正值。
 
 | 项目 | 说明 |
 | -------- | ----------- |
 | [REGION:tablesection]属性[/REGION] ||
-| **常量 A（Const A）** | 接收被除数的值。仅当未使用 A 输入时才使用。|
-| **常量 B（Const B）** | 接收除数的值。仅当未使用 B 输入时才使用。|
+| **常量A（Const A）** | 接受要被除的值，即被除数。仅在未使用A输出时使用。|
+| **常量B（Const B）** | 接受要除以的值，即除数。仅在未使用B输出时使用。|
 | [REGION:tablesection]输入[/REGION] ||
-| **A** | 接收被除数的值。|
-| **B** | 接收除数的值。|
+| **A** | 接受要被除的值，即被除数。|
+| **B** | 接受要除以的值，即除数。|
 
 
-**示例：**当 A=(1.0,0.5,-0.4) 且 B=(2.0,2.0,4.0) 时，Divide（除）的输出为 (0.5,0.25,-0.1)
+ **示例：**A=(1.0)且B=(5.0)，相除得(0.2)，显示为深灰色。
 
 ![DivideExample.png](DivideExample.png)
 
 
 [EXCERPT:DotProduct]
-(#DotProduct)
-## DotProduct（标量积）
+(#dotproduct)
 
-**DotProduct（标量积）**表达式计算标量积，即一个矢量投射到另一个矢量上的长度。许多技术使用此计算来计算衰减。DotProduct（标量积）要求两个矢量输入具有相同数目的通道。
+## DotProduct（点积）
+
+ **DotProduct** 表达式计算点积，点积可以描述为一个矢量投影到另一个矢量上的长度，也可以描述为两个矢量之间的余弦乘以它们的幅值。许多技术使用这种算法来计算衰减。DotProduct要求两个矢量输入具有相同数量的通道。
 
 | 项目 | 说明 |
 | -------- | ----------- |
 | [REGION:tablesection]输入[/REGION] ||
-| **A** | 接收一个值，或接收任意长度的矢量。|
-| **B** | 接收一个值，或接收任意长度的矢量。|
+| **A** | 接受一个值或任意长度的矢量。|
+| **B** | 接受一个值或具有与 **A** 相同长度的矢量。|
 
 
 ![DotProductExample.png](DotProductExample.png)(w:900)
 
 [/EXCERPT:DotProduct]
 
-(#Floor)
+(#floor)
+
 ## Floor（减一取整）
 
-**Floor**（减一取整）表达式接收值，使其 **向下** 舍入到上一个整数，并输出结果。另请参阅 [Ceil（加一取整）](#Ceil) 和 [Frac（小数）](#Frac)。
+ **Floor** 表达式接受值，将它们向 **下** 舍入到上一个整数，并输出结果。另请参见[Ceil](#Ceil)和[Frac](#Frac)。
 
-**示例：**对 0.2 执行 Floor（减一取整）的结果是 0.0；对 (0.2,1.6) 执行 Floor（减一取整）的结果是 (0.0,1.0)。
+ **示例：**0.2向下舍入到0.0；(0.2,1.6)向下舍入到(0.0, 1.0)。
 
 ![FloorExample.png](FloorExample.png)(w:900)
 
-(#FMod)
+
+(#fmod)
+
 ## FMod（浮点余数）
 
-**FMod（浮点余数）**表达式返回对两个输入执行除法运算的浮点余数。
+ **FMod** 表达式返回两个输入的除法运算的浮点余数。被除数（输入“A”）可以是任何值，但负被除数将导致负结果。除数（第二个输入）不应为零，因为这意味着要除以零，但是除数是负数还是正数并不会影响结果。它的常见的用例是制作一种材质，使其亮度上升到最大值，然后在下一帧中立即下降到最小值，然后再次开始向最大值攀升。
 
 ![FModExample.png](FModExample.png)
 
-在此示例中，FMod（浮点余数）每秒返回一个重复值，该值的范围限制在 0 到 1。达到 1 之后，该值将恢复为 0，并无穷反复。
+在本例中，FMod采用0到1的UV级数，并将其转换为绿色通道中X轴上每0.2个UV单元一次的重复循环。
 
-(#Frac)
+(#frac)
+
 ## Frac（小数）
 
-**Frac（小数）**表达式接收值，并输出这些值的小数部分。另请参阅 [Ceil（加一取整）](#Ceil) 和 [Floor（减一取整）](#Floor)。
+ **Frac** 表达式接受值并输出这些值的小数部分。换句话说，对于输入值“X”，结果是“X - X的整数部分”。输出值将从0到1不等，包括下限值，但不包括上限值。另请参见[Ceil](#Ceil)和[Floor](#Floor)。
 
-**示例：**对 0.2 执行 Frac（小数）的结果是 0.2；对 (0.0,1.6) 执行 Frac（小数）的结果是 (0.0,0.6)。
+ **示例：**(0.2)的小数部分是(0.2)。(-0.2)的小数部分是(0.8)。(0.0,1.6,1.0)的小数部分是(0.0,0.6,0.0)。
 
 ![FracExample.png](FracExample.png)(w:900)
 
-在此示例中，Frac（小数）节点将时间转换为重复的 0 - 1 级数序列，从而通过线性插值使颜色从绿色渐变为红色，然后恢复为绿色，并无穷反复。
+在本例中，Frac节点将时间转换为一系列重复的0 - 1级数序列，导致颜色（通过Lerp）从绿色变为红色，然后返回绿色，无限重复。
 
 [EXCERPT:If]
-(#If)
+(#if)
+
 ## If（如果）
 
-**If（如果）**表达式对两个输入进行比较，然后根据比较结果传递另外三个输入值中的一个。所比较的两个输入必须都是单个浮点值。
+ **If** 表达式比较两个输入，然后根据比较的结果传递其他三个输入值中的一个。两个比较的输入都必须是单一浮点值。
 
 | 项目 | 说明 |
 | -------- | ----------- |
 | [REGION:tablesection]输入[/REGION] ||
-| **A** | 接收单个浮点值。|
-| **B** | 接收单个浮点值。|
-| **A > B** | 接收 A 的值大于 B 的值时要输出的值。|
-| **A = B** | 接收 A 的值等于 B 的值时要输出的值。|
-| **A &lt; B** | 接收 A 的值小于 B 的值时要输出的值。|
+| **A** | 接受单个浮点值。|
+| **B** | 接受单个浮点值。|
+| **A > B** | 接受如果A的值大于B的值时要输出的值。 |
+| **A = B** | 接受如果A的值等于B的值时要输出的值。 |
+| **A &lt; B** | 接受如果A的值小于B的值时要输出的值。 |
 
 
 ![IfExample.png](IfExample.png)(w:900)
 
-在此示例中，If（如果）表达式接收高度贴图，并根据高度是低于还是高于值 0.2 来输出红色或绿色。
+在本例中，If表达式接受一个高度图，并根据高度是低于还是高于0.2的值来输出红色或绿色。
 
 [/EXCERPT:If]
 
 
 [INCLUDE:Engine/Rendering/Materials/ExpressionReference/Utility#LinearInterpolate]
 
-(#Max)
+
+(#max)
+
 ## Max（最大值）
 
-**Max（最大值）**表达式接收两个输入，然后输出其中的较大者。 
+ **Max** 表达式接受两个输入，并输出其中较高的一个。
 
-此节点类似于 Photoshop 的“变亮”。 
+这个节点类似于Photoshop的“变亮”功能。 
 
 ![](MaxExample.png)(w:720)
 
-在以上示例中，A 为 "0"，B 为 "1"；因此，产生的底色为 "1"（白色）。 
+在上例中，A为“0”，B为“1”；因此，“1”（白色）是最终的底色。 
 
 | 项目 | 说明 |
 | -------- | ----------- |
 | [REGION:tablesection]属性[/REGION] ||
-| **常量 A（Const A）** | 接收第一个值。仅当未使用 A 输入时才使用。|
-| **常量 B（Const B）** | 接收第二个值。仅当未使用 B 输入时才使用。|
+| **常量A（Const A）** | 接受第一个值。仅在未使用A输入时使用。|
+| **常量B（Const B）** | 接受第二个值。仅在未使用B输入时使用。|
 | [REGION:tablesection]输入[/REGION] ||
-| **A** | 接收要比较的第一个值。|
-| **B** | 接收要比较的第二个值。|
+| **A** | 接受要比较的第一个值。|
+| **B** | 接受要比较的第二个值。|
 
-(#Min)
+
+(#min)
+
 ## Min（最小值）
 
-**Min（最小值）**表达式接收两个输入，然后输出其中的较小者。 
+ **Min** 表达式接受两个输入，输出两个输入中较小的一个。
 
-此节点类似于 Photoshop 的“变暗”。 
+这个节点类似于Photoshop的“变暗”功能。 
 
 ![](MinExample.png)(w:720)
 
-在以上示例中，A 为 "0"，B 为 "1"；因此，产生的底色为 "0"（黑色）。
+在上例中，A为“0”，B为“1”；因此，“0”（黑色）是最终的底色。
 
 | 项目 | 说明 |
 | -------- | ----------- |
 | [REGION:tablesection]属性[/REGION] ||
-| **常量 A（Const A）** | 接收第一个值。仅当未使用 A 输入时才使用。|
-| **常量 B（Const B）** | 接收第二个值。仅当未使用 B 输入时才使用。|
+| **常量A（Const A）** | 接受第一个值。仅在未使用A输入时使用。|
+| **常量B（Const B）** | 接受第二个值。仅在未使用B输入时使用。|
 | [REGION:tablesection]输入[/REGION] ||
-| **A** | 接收要比较的第一个值。|
-| **B** | 接收要比较的第二个值。|
+| **A** | 接受要比较的第一个值。|
+| **B** | 接受要比较的第二个值。|
 
 
+(#multiply)
 
-(#Multiply)
 ## Multiply（乘）
 
-**Multiply（乘）**表达式接收两个输入，将其相乘，然后输出结果。类似于 Photoshop 的多层混合。乘法按通道进行，即，第一个输入的 R 通道将乘以第二个输入的 R 通道，第一个输入的 G 通道将乘以第二个输入的 G 通道，依此类推。除非其中一个值是单个浮点值，否则两个输入必须具有相同数目的值。
+ **Multiply** 表达式接受两个输入，将它们相乘，然后输出结果。它类似于Photoshop的多层混合。乘法运算按通道进行，这意味着第一个输入的R通道乘以第二个输入的R通道；第一个输入的G通道乘以第二个输入的G通道，以此类推。两个输入必须有相同数量的值，但其中一个值是单个浮点值时例外。
 
 | 项目 | 说明 |
 | -------- | ----------- |
 | [REGION:tablesection]属性[/REGION] ||
-| **常量 A（Const A）** | 接收第一个要相乘的值。仅当未使用 A 输入时才使用。|
-| **常量 B（Const B）** | 接收第二个要相乘的值。仅当未使用 B 输入时才使用。|
+| **常量A（Const A）** | 接受要相乘的第一个值。仅在未使用A输入时使用。|
+| **常量B（Const B）** | 接受要相乘的第二个值。仅在未使用B输入时使用。|
 | [REGION:tablesection]输入[/REGION] ||
-| **A** | 接收第一个要相乘的值。|
-| **B** | 接收第二个要相乘的值。|
+| **A** | 接受要相乘的第一个值。|
+| **B** | 接受要相乘的第二个值。|
 
 
-请注意，UE4 中的材质不限于 [0,1]。如果颜色/值大于 1，那么 Multiply（乘）实际上会使颜色变亮。
+请注意，UE4中的材质不限于[0,1]。如果颜色/值大于1，Multiply会使颜色变亮。
 
-**示例：**对 0.4 和 0.5 执行 Multiply（乘）的结果是 0.2；对 (0.2,-0.4,0.6) 和 (0.0,2.0,1.0) 执行 Multiply（乘）的结果是 (0.0,-0.8,0.6)；对 (0.2,-0.4,0.6) 和 0.5 执行 Multiply（乘）的结果是 (0.1,-0.2,0.3)。
+ **示例：**0.4与0.5相乘得0.2；(0.2,-0.4,0.6)与(0.0,2.0,1.0)相乘得(0.0,-0.8,0.6)；(0.2,-0.4,0.6)与0.5相乘得(0.1,-0.2,0.3)。
 
-**用法示例：**Multiply（乘）通常用来使颜色/纹理变亮或变暗。
+ **使用示例：**Multiply常用于使颜色/纹理变亮或变暗。
 
 ![MultiplyExample.png](MultiplyExample.png)(w:900)
 
 
 [EXCERPT:Normalize]
-(#Normalize)
-## Normalize（规范化）
+(#normalize)
 
-**Normalize（规范化）**表达式计算并输出其输入的规范化值。这表示该输入的每个分量都会除以矢量的 L-2 范数（长度）。
+## Normalize（归一化）
 
-![NormalizeExample.png](NormalizeExample.png)(w:900)
+ **Normalize** 表达式计算并输出其输入的归一化值。归一化矢量（也称“单位矢量”）的整体长度为1.0。这意味着输入的每个分量都除以矢量的总大小（长度）。
+
+ **示例：**通过Normalize传递(0,2,0)或(0,0.2,0)都将输出(0,1,0)。通过Normalize传递(0,1,-1)将输出(0, 0.707, -0.707)。全零矢量是唯一的例外，它不会改变。
+
+[OBJECT:ComparisonSlider]
+	[PARAM:before]
+	![Normalized Input Vector](NormalizeExample.png)(w:900)
+	[/PARAM]
+	[PARAM:after]
+	![Non-Normalized Input Vector](NormalizeExample2.png)(w:900)
+	[/PARAM]
+[/OBJECT]
 
 [REGION:note]
-不必对连接到“法线”（Normal）材质输出的表达式进行规范化。
+没有必要对插入到法线材质输出中的表达式进行归一化。
 [/REGION]
 
 [/EXCERPT:Normalize]
-(#OneMinus)
+
+(#oneminus)
+
 ## OneMinus（一减）
 
-**OneMinus（一减）**表达式接收一个输入值，并输出“一减去该值”。此运算按通道执行。
+ **OneMinus** 表达式接受输入值“X”并输出“1 - X”。此操作逐通道执行。
 
-**示例：**对 0.4 执行 OneMinus（一减）的结果是 0.6；对 (0.2,0.5,1.0) 执行 OneMinus（一减）的结果是 (0.8,0.5,0.0)；对 (0.0,-0.4,1.6) 执行 OneMinus（一减）的结果是 (1.0,1.4,-0.6)。
+ **示例：**0.4的OneMinus值为0.6；(0.2,0.5,1.0)的OneMinus值为(0.8,0.5,0.0)；(0.0,-0.4,1.6)的OneMinus值为(1.0,1.4,-0.6)。
 
-**用法示例：**当输入颜色在 [0,1] 范围内时，OneMinus（一减）的作用就是通常所谓的“反色”-- 即，OneMinus（一减）将返回互补色，这种颜色与输入相加将产生白色。
+ **使用示例：**当输入的颜色在[0,1]范围内时，OneMinus的效果与我们通常所说的“反色”是一样的，也就是说，OneMinus返回的是添加到输入时会产生白色的互补色。
 
 ![OneMinusExample.png](OneMinusExample.png)
 
-(#Power)
+
+(#power)
+
 ## Power（幂）
 
-**Power（幂）**表达式接收两个输入，计算“底数”（Base）的“指数”（Exp）次幂，并输出结果；换而言之，“底数”（Base）自乘“指数”（Exp）次。
+ **Power** 表达式接受两个输入，计算“底数”的“指数”次幂，输出结果；也就是说，“底数”乘以自身“指数”次。
 
 | 项目 | 说明 |
 | -------- | ----------- |
 | [REGION:tablesection]属性[/REGION] ||
-| **常量指数（Const Exponent）** | 接收指数值。仅当未使用“指数”（Exp）输入时才使用。|
+| **常量指数（Const Exponent）** | 接受指数值。仅在未使用指数输入时使用。|
 | [REGION:tablesection]输入[/REGION] ||
-| **底数（Base）** | 接收底数值。|
-| **指数（Exp）** | 接收指数值。|
+| **基数（Base）** | 接受底数值。|
+| **Exp** | 接受指数值。|
 
 
-**示例：**底数为 0.5，指数为 2.0 时，Power（幂）的结果为 0.25。
+ **示例：**当底数为0.5且指数为2.0时，幂为0.25。
 
-**用法示例：**如果传递到 Power（幂）的颜色在 [0,1] 范围内，那么 Power（幂）可以用作对比度调整，即，仅保留较亮的值。
+ **使用示例：**如果您传递给Power的颜色在[0,1]范围内，Power可以作为一种对比度调整，其中非常亮的值会略微降低，但是较暗的值会急剧下降。
 
 ![PowerExample.png](PowerExample.png)
 
-(#Sine)
+
+(#round)
+
+## Round（舍入）
+
+如果某个值的小数部分大于或等于0.5，则 **Round** 表达式会将该值向上舍入到下一个整数，否则向下舍入。
+
+[OBJECT:ComparisonSlider]
+	[PARAM:before]
+	![Before Round](RoundExample_00.png)(w:1100)
+	[/PARAM]
+	[PARAM:after]
+	![After Round](RoundExample_01.png)
+	[/PARAM]
+[/OBJECT]
+
+ **示例：** 
+* 值1.1将向下舍入为1。
+* 值1.4将向下舍入为1。
+* 值1.5将向上舍入为2。
+* 值1.85将向上舍入为2。
+
+(#saturate)
+## Saturate（饱和）
+
+**Saturate** 节点将值限定在0与1之间。在大多数现代图形硬件上，Saturate的指令成本几乎为零。
+
+![](SaturateExample_00.png)
+
+**使用示例：**当您需要将输出或输入值限定在0与1之间时，应使用此节点。
+
+(#sine)
+
 ## Sine（正弦）
 
-**Sine（正弦）**表达式反复输出 [0, 1] 范围内的正弦波值。最常见的情况是，通过将 [Time（时间）](Engine/Rendering/Materials/ExpressionReference/Constant#Time) 表达式连接至它的输入，输出连续的振荡波形。输出值将在 -1 与 1 之间来回循环。此表达式与 [Cosine（余弦）](#Cosine) 表达式输出之间的差别是，输出波形偏移半个周期。下图显示波的视觉表示：
+**Sine** 表达式在[0, 1]的输入范围和[-1, 1]的输出范围上反复输出正弦波的值。它与[Cosine](#Cosine)表达式的输出之间的区别是输出波形被四分之一的周期所抵消，这意味着“Cos(X)”等于“Sin(X + 0.25)”。此表达式最常用于通过将一个[时间](Engine/Rendering/Materials/ExpressionReference/Constant#Time)表达式与其输入连接来输出连续的振荡波形，但它也可以用于在世界场景空间或屏幕空间或任何其他需要连续、平滑循环的应用中创建波纹。波形的可视化表示如下图所示，缩放到[0, 1]输出范围：
 
 ![SineWave.png](SineWave.png)
 
 | 项目 | 说明 |
 | -------- | ----------- |
 | [REGION:tablesection]属性[/REGION] ||
-| **周期（Period）** | 指定产生的波的周期。换而言之，这是发生一次振荡的长度。|
+| **周期（Period）** | 指定合成波的周期。换句话说，这就是发生一次振荡所需的时间。|
 
 
-**用法示例：**在任何需要振荡效果的场合，此表达式都非常有用。通过将时间输入（速度）或输出（振幅）倍增，可以轻松地动态控制振荡的速度和振幅。
+**使用示例：**在任何需要振荡效应的时候，此表达式都非常有用。振荡的速度和振幅很容易通过乘以时间输入（速度）或输出（振幅）来动态地控制。
 
 ![SineExample.png](SineExample.png)
 
-(#SquareRoot)
+
+(#squareroot)
+
 ## SquareRoot（平方根）
 
-**SquareRoot（平方根）**表达式输出输入值的平方根。SquareRoot（平方根）只能对单个浮点输入值执行运算。
+**SquareRoot** 表达式输出输入值的平方根。如果应用于矢量，则每个分量将分别处理。
 
 ![SqrtExample.png](SqrtExample.png)(w:900)
 
-(#Subtract)
+
+(#subtract)
+
 ## Subtract（减）
 
-**Subtract（减）**节点接收两个输入，从第一个输入中减去第二个输入，然后输出它们的差。减法按通道进行，即，第一个输入的 R 通道将减去第二个输入的 R 通道，第一个输入的 G 通道将减去第二个输入的 G 通道，依此类推。除非第二个输入是单个常量值，否则两个输入必须具有相同数目的通道。常量可以从具有任意数目输入的矢量中减去。
+ **Subtract** 节点接受两个输入，将第一个输入减去第二个输入，然后输出差值。减法运算按通道执行，这意味着从第一个输入的R通道减去第二个输入的R通道；从第一个输入的G通道减去第二个输入的G通道，以此类推。两个输入必须有相同数量的通道，但第二个输入为是单个常量值时例外。常量可以从具有任意数量输入的矢量中减去。
 
 | 项目 | 说明 |
 | -------- | ----------- |
 | [REGION:tablesection]属性[/REGION] ||
-| **常量 A（Const A）** | 接收被减数的值。仅当未使用 A 输入时才使用。|
-| **常量 B（Const B）** | 接收减数的值。仅当未使用 B 输入时才使用。|
+| **常量A（Const A）** | 接受被减数的值。仅在未使用A输入时使用。|
+| **常量B（Const B）** | 接受减数的值。仅在未使用B输入时使用。|
 | [REGION:tablesection]输入[/REGION] ||
-| **A** | 接收被减数的值。|
-| **B** | 接收减数的值。|
+| **A** | 接受被减数的值。|
+| **B** | 接受减数的值。|
 
 
-**示例：**对 0.5 和 0.2 执行 Subtract（减）的结果是 0.3；对 (0.2,-0.4,0.6) 和 (0.1,0.1,1.0) 执行 Subtract（减）的结果是 (0.1,-0.5,-0.4)；对 (0.2,0.4,1.0) 和 0.2 执行 Subtract（减）的结果是 (0.0,0.2,0.8)。
+ **示例：**0.5与0.2相减得0.3；(0.2,-0.4,0.6)与(0.1,0.1,1.0)相减得(0.1,-0.5,-0.4)；(0.2,0.4,1.0)与0.2相减得(0.0,0.2,0.8)。
 
-**用法示例：**Subtract（减）可用来使颜色变暗以及使 UV 偏移。
+ **使用示例：**Subtract可以用来加深颜色和偏移UV。
 
 ![SubtractExample.png](SubtractExample.png)(w:900)
 
+(#tangent)
+## Tangent（正切）
+
+[REGION:lightbox]
+[![](MEN_Tangent.png)(w:469)](MEN_Tangent.png)
+[/REGION]
+
+[REGION:caption]
+单击显示全图。
+[/REGION]
+
+ **Tangent** 节点输出指定值的正切值。 
+
+(#truncate)
+
+## Truncate（截断）
+
+[OBJECT:ComparisonSlider]
+	[PARAM:before]
+	![Before Truncate](TruncateExample_00.png)(w:1100)
+	[/PARAM]
+	[PARAM:after]
+	![After Truncate](TruncateExample_01.png)
+	[/PARAM]
+[/OBJECT]
+
+
+ **Truncate** 节点通过丢弃小数部分而保留整数部分来截断值。
+
+**示例：** 
+* 值1.1将被截断为1。
+* 值1.4将被截断为1。
+* 值2.5将被截断为2。
+* 值3.1将被截断为3。

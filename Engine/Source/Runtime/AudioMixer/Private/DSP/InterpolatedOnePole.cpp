@@ -26,17 +26,22 @@ namespace Audio
 	void FInterpolatedLPF::StartFrequencyInterpolation(const float InTargetFrequency, const int32 InterpLength)
 	{
 		CurrInterpLength = InterpLength;
-		CurrInterpCounter = 0;
+
+		if(isFirstFrequencyChange)
+		{
+			CurrInterpLength = 0;
+			isFirstFrequencyChange = false;
+		}
 
 		if (!FMath::IsNearlyEqual(InTargetFrequency, CutoffFrequency))
 		{
 			CutoffFrequency = InTargetFrequency;
 			float NormalizedFreq = FMath::Clamp(2.0f * InTargetFrequency / SampleRate, 0.0f, 1.0f);
 			B1Target = FMath::Exp(-PI * NormalizedFreq);
-			B1Delta = (B1Target - B1Curr) / static_cast<float>(InterpLength);
+			B1Delta = (B1Target - B1Curr) / static_cast<float>(CurrInterpLength);
 		}
 
-		if (InterpLength <= 1)
+		if (CurrInterpLength <= 1)
 		{
 			StopFrequencyInterpolation();
 		}
@@ -45,7 +50,6 @@ namespace Audio
 	void FInterpolatedLPF::ProcessAudioFrame(float* RESTRICT InputFrame, float* RESTRICT OutputFrame)
 	{
 		B1Curr += B1Delta; // step forward coefficient
-		++CurrInterpCounter;
 
 		/*
 			[absorbing A0 coefficient]
@@ -77,8 +81,8 @@ namespace Audio
 			const int32 ChannelIndex = SampleIndex % NumChannels;
 
 			// step forward coefficient
-			B1Curr += B1Delta;
-			++CurrInterpCounter;
+			// Multiply delta by !ChannelIndex so the coefficient only accumulates at the beginning of each frame (on channel 0)
+			B1Curr += B1Delta * !ChannelIndex;
 
 			const float InputSample = InputBuffer[SampleIndex];
 			float Yn = InputSample + B1Curr * (Z1Data[ChannelIndex] - InputSample); // LPF
@@ -94,9 +98,9 @@ namespace Audio
 		B1Delta = 0.0f;
 		B1Target = B1Curr;
 		CurrInterpLength = 0;
-		CurrInterpCounter = 0;
 		ClearMemory();
 		Z1Data = Z1.GetData();
+		isFirstFrequencyChange = true;
 	}
 
 	void FInterpolatedLPF::ClearMemory()
@@ -127,7 +131,12 @@ namespace Audio
 	void FInterpolatedHPF::StartFrequencyInterpolation(const float InTargetFrequency, const int32 InterpLength)
 	{
 		CurrInterpLength = InterpLength;
-		CurrInterpCounter = 0;
+
+		if (isFirstFrequencyChange)
+		{
+			CurrInterpLength = 0;
+			isFirstFrequencyChange = false;
+		}
 
 		if (!FMath::IsNearlyEqual(InTargetFrequency, CutoffFrequency))
 		{
@@ -136,10 +145,10 @@ namespace Audio
 			const float G = GetGCoefficient();
 			A0Target = G / (1.0f + G);
 
-			A0Delta = (A0Target - A0Curr) / static_cast<float>(InterpLength);
+			A0Delta = (A0Target - A0Curr) / static_cast<float>(CurrInterpLength);
 		}
 
-		if (InterpLength <= 1)
+		if (CurrInterpLength <= 1)
 		{
 			StopFrequencyInterpolation();
 		}
@@ -148,7 +157,6 @@ namespace Audio
 	void FInterpolatedHPF::ProcessAudioFrame(float* RESTRICT InputFrame, float* RESTRICT OutputFrame)
 	{
 		A0Curr += A0Delta; // step forward coefficient
-		++CurrInterpCounter;
 
 		for (int32 i = 0; i < NumChannels; ++i)
 		{
@@ -169,8 +177,8 @@ namespace Audio
 			const int32 ChannelIndex = SampleIndex % NumChannels;
 
 			// step forward coefficient
-			A0Curr += A0Delta;
-			++CurrInterpCounter;
+			// Multiply delta by !ChannelIndex so the coefficient only accumulates at the beginning of each frame (on channel 0)
+			A0Curr += A0Delta * !ChannelIndex;
 
 			const float InputSample = InputBuffer[SampleIndex];
 			const float Vn = (InputSample - Z1Data[ChannelIndex]) * A0Curr;
@@ -187,9 +195,9 @@ namespace Audio
 		A0Curr = 0.0f;
 		A0Delta = 0.0f;
 		CurrInterpLength = 0;
-		CurrInterpCounter = 0;
 		ClearMemory();
 		Z1Data = Z1.GetData();
+		isFirstFrequencyChange = true;
 	}
 
 	void FInterpolatedHPF::ClearMemory()

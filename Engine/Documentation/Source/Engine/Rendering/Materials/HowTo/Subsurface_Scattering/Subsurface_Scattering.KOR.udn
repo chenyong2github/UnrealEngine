@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3242329
+INTSourceChangelist:3242329
 Availability:Public
 Title: 머티리얼에서 서브서피스 스캐터링 사용법
 Crumbs: %ROOT%, Engine, Engine/Rendering/Materials
@@ -16,7 +16,7 @@ tags:Materials
 
 서브서피스 스캐터링은 빛이 반투명 표면을 통과할 때 벌어지는 현상을 나타내는 용어입니다.
  언리얼 엔진 4 (UE4) 는 피부나 왁스처럼 이러한 반응이 필요한 머티리얼에 전용으로 사용되는 [Subsurface](Engine/Rendering/Materials/LightingModels/SubSurface) (서브서피스)라는 [셰이딩 모델](Engine/Rendering/Materials/MaterialProperties/LightingModels) 이 제공됩니다.
- 이 비법 안내에서는 머티리얼에서 서브서피스 스캐터링을 사용하는 법에 대해 알아야 할 모든 것을 안내해 드리겠습니다.
+ 이 하우투 안내에서는 머티리얼에서 서브서피스 스캐터링을 사용하는 법에 대해 알아야 할 모든 것을 안내해 드리겠습니다.
 
 ## 서브서피스 셰이딩 모델 켜기
 머티리얼에 서브서피스 셰이딩 모델을 사용할 수 있도록 하는 방법은 다음과 같습니다.

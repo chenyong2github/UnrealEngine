@@ -365,9 +365,8 @@ void FAmdAmfVideoEncoder::ResolveBackBuffer(const FTexture2DRHIRef& BackBuffer, 
 	}
 	else // Texture format mismatch, use a shader to do the copy.
 	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		SetRenderTarget(RHICmdList, ResolvedBackBuffer, FTextureRHIRef());
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		FRHIRenderPassInfo RPInfo(ResolvedBackBuffer, ERenderTargetActions::Load_Store);
+		RHICmdList.BeginRenderPass(RPInfo, TEXT("AmdAmfVideoEncoder"));
 		RHICmdList.SetViewport(0, 0, 0.0f, ResolvedBackBuffer->GetSizeX(), ResolvedBackBuffer->GetSizeY(), 1.0f);
 
 		FGraphicsPipelineStateInitializer GraphicsPSOInit;
@@ -388,9 +387,13 @@ void FAmdAmfVideoEncoder::ResolveBackBuffer(const FTexture2DRHIRef& BackBuffer, 
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
 		if (ResolvedBackBuffer->GetSizeX() != BackBuffer->GetSizeX() || ResolvedBackBuffer->GetSizeY() != BackBuffer->GetSizeY())
+		{
 			PixelShader->SetParameters(RHICmdList, TStaticSamplerState<SF_Bilinear>::GetRHI(), BackBuffer);
+		}
 		else
+		{
 			PixelShader->SetParameters(RHICmdList, TStaticSamplerState<SF_Point>::GetRHI(), BackBuffer);
+		}
 
 		RendererModule->DrawRectangle(
 			RHICmdList,
@@ -404,7 +407,7 @@ void FAmdAmfVideoEncoder::ResolveBackBuffer(const FTexture2DRHIRef& BackBuffer, 
 			*VertexShader,
 			EDRF_Default);
 
-		UnbindRenderTargets(RHICmdList);
+		RHICmdList.EndRenderPass();
 	}
 }
 

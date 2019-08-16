@@ -11,6 +11,7 @@
 #include "LC_CommandMap.h"
 #include "LC_FileAttributeCache.h"
 #include "LiveCodingServer.h"
+#include "Containers/UnrealString.h"
 #include "LC_Shortcut.h"
 #include "LC_Key.h"
 #include "LC_ChangeNotification.h"
@@ -24,6 +25,8 @@
 #include "LC_Allocators.h"
 #include "LC_DuplexPipeClient.h"
 #include "LC_MemoryStream.h"
+#include "LC_NamedSharedMemory.h"
+#include "LC_VisualStudioAutomation.h"
 #include <mmsystem.h>
 
 // unreachable code
@@ -38,22 +41,6 @@ namespace
 {
 	static telemetry::Accumulator g_loadedModuleSize("Module size");
 
-	struct InitializeCOM
-	{
-		InitializeCOM(void)
-		{
-			const HRESULT success = ::CoInitialize(NULL);
-			if (success != S_OK)
-			{
-				LC_LOG_DEV("Could not initialize COM. Error: %d", success);
-			}
-		}
-
-		~InitializeCOM(void)
-		{
-			::CoUninitialize();
-		}
-	};
 
 
 	static void AddVirtualDrive(void)
@@ -110,7 +97,17 @@ ServerCommandThread::ServerCommandThread(MainFrame* mainFrame, const wchar_t* co
 	, m_commandThreads()
 	, m_manualRecompileTriggered(false)
 	, m_liveModuleToModifiedOrNewObjFiles()
+	, m_restartCS()
+	, m_restartJob(nullptr)
+	, m_restartedProcessCount(0u)
+#if WITH_VISUALSTUDIO_DTE
+	, m_restartedProcessIdToDebugger()
+#endif
 {
+#if WITH_VISUALSTUDIO_DTE
+	visualStudio::Startup();
+#endif
+
 	m_serverThread = thread::Create("Live coding server", 64u * 1024u, &ServerCommandThread::ServerThread, this);
 	m_compileThread = thread::Create("Live coding compilation", 64u * 1024u, &ServerCommandThread::CompileThread, this);
 
@@ -124,11 +121,101 @@ ServerCommandThread::ServerCommandThread(MainFrame* mainFrame, const wchar_t* co
 
 ServerCommandThread::~ServerCommandThread(void)
 {
-	// note that we deliberately do *nothing* here.
+	// note that we deliberately do almost *nothing* here.
 	// this is only called when Live++ is being torn down anyway, so we leave cleanup to the OS.
 	// otherwise we could run into races when trying to terminate the thread that might currently be doing
 	// some intensive work.
 	delete m_directoryCache;
+
+#if WITH_VISUALSTUDIO_DTE
+	visualStudio::Shutdown();
+#endif
+}
+
+
+void ServerCommandThread::RestartTargets(void)
+{
+	// protect against concurrent compilation
+	m_restartCS.Enter();
+
+	// EPIC REMOVED: g_theApp.GetMainFrame()->SetBusy(true);
+	// EPIC REMOVED: g_theApp.GetMainFrame()->ChangeStatusBarText(L"Restarting target applications...");
+
+	LC_LOG_USER("---------- Restarting target applications ----------");
+
+	// prevent current Live++ instance from shutting down by associating it with a new job object to keep it alive
+	if (!m_restartJob)
+	{
+		m_restartJob = ::CreateJobObjectW(NULL, primitiveNames::JobGroup(m_processGroupName).c_str());
+		::AssignProcessToJobObject(m_restartJob, ::GetCurrentProcess());
+	}
+
+	// protect against m_liveProcesses being accessed when processes restart and register themselves with this Live++ instance
+	CriticalSection::ScopedLock lock(&m_actionCS);
+
+	// remove processes that were successfully restarted last time
+	for (auto processIt = m_liveProcesses.begin(); processIt != m_liveProcesses.end(); /* nothing */)
+	{
+		LiveProcess* liveProcess = *processIt;
+		if (liveProcess->WasSuccessfulRestart())
+		{
+			process::Handle processHandle = liveProcess->GetProcessHandle();
+			process::Close(processHandle);
+
+			// tell live modules to remove this process
+			const size_t moduleCount = m_liveModules.size();
+			for (size_t j = 0u; j < moduleCount; ++j)
+			{
+				LiveModule* liveModule = m_liveModules[j];
+				liveModule->UnregisterProcess(liveProcess);
+			}
+
+			delete liveProcess;
+
+			processIt = m_liveProcesses.erase(processIt);
+		}
+		else
+		{
+			++processIt;
+		}
+	}
+
+	// try preparing all processes for a restart
+	const size_t count = m_liveProcesses.size();
+	for (size_t i = 0u; i < count; ++i)
+	{
+		LiveProcess* liveProcess = m_liveProcesses[i];
+		const bool success = liveProcess->PrepareForRestart();
+		if (success)
+		{
+			++m_restartedProcessCount;
+
+#if WITH_VISUALSTUDIO_DTE
+			// check if a VS debugger is currently attached to the process about to restart
+			const unsigned int processId = liveProcess->GetProcessId();
+			EnvDTE::DebuggerPtr debugger = visualStudio::FindDebuggerAttachedToProcess(processId);
+			if (debugger)
+			{
+				m_restartedProcessIdToDebugger.emplace(processId, debugger);
+			}
+#endif
+		}
+	}
+
+	// restart all successfully prepared processes
+	for (size_t i = 0u; i < count; ++i)
+	{
+		LiveProcess* liveProcess = m_liveProcesses[i];
+		liveProcess->Restart(m_restartJob);
+	}
+
+	// BEGIN EPIC MOD - Prevent orphaned console instances if processes fail to restart. Job object will be duplicated into child process.
+	if (m_restartJob != nullptr)
+	{
+		CloseHandle(m_restartJob);
+		m_restartJob = nullptr;
+	}
+	// END EPIC MOD
 }
 
 
@@ -432,7 +519,9 @@ void ServerCommandThread::PrewarmCompilerEnvironmentCache(void)
 
 unsigned int ServerCommandThread::ServerThread(void)
 {
-	InitializeCOM initCOM;
+	// keep named shared memory alive so that restarted processes don't try spawning new Live++ instances
+	NamedSharedMemory sharedMemory(primitiveNames::StartupNamedSharedMemory(m_processGroupName).c_str());
+	sharedMemory.Write(::GetCurrentProcessId());
 
 	// inter process event for telling client that server is ready
 	Event serverReadyEvent(primitiveNames::ServerReadyEvent(m_processGroupName).c_str(), Event::Type::AUTO_RESET);
@@ -557,6 +646,48 @@ struct ClientProxyThread
 		m_pipe->SendCommandAndWaitForAck(commands::FinishedLazyLoadingModules(), nullptr, 0);
 	}
 };
+
+bool ServerCommandThread::EnableRequiredModules(const TArray<FString>& RequiredModules)
+{
+	bool bEnabledModule = false;
+	for (LiveProcess* liveProcess : m_liveProcesses)
+	{
+		types::vector<std::wstring> LoadModuleFileNames;
+		for (const FString& RequiredModule : RequiredModules)
+		{
+			std::wstring ModuleFileName = file::NormalizePath(*RequiredModule);
+			if (liveProcess->IsPendingLazyLoadedModule(ModuleFileName))
+			{
+				LoadModuleFileNames.push_back(ModuleFileName);
+			}
+		}
+		if (LoadModuleFileNames.size() > 0)
+		{
+			const std::wstring PipeName = primitiveNames::Pipe(m_processGroupName + L"_ClientProxy");
+
+			DuplexPipeServer ServerPipe;
+			ServerPipe.Create(PipeName.c_str());
+
+			DuplexPipeClient ClientPipe;
+			ClientPipe.Connect(PipeName.c_str());
+
+			ClientProxyThread ClientThread(liveProcess, &ClientPipe, LoadModuleFileNames);
+
+			CommandMap commandMap;
+			commandMap.RegisterAction<actions::EnableModules>();
+			commandMap.RegisterAction<actions::FinishedLazyLoadingModules>();
+			commandMap.HandleCommands(&ServerPipe, this);
+
+			for (const std::wstring& loadModuleFileName : LoadModuleFileNames)
+			{
+				liveProcess->SetLazyLoadedModuleAsLoaded(loadModuleFileName);
+			}
+
+			bEnabledModule = true;
+		}
+	}
+	return bEnabledModule;
+}
 // END EPIC MOD
 
 void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress)
@@ -586,46 +717,29 @@ void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress)
 
 		GLiveCodingServer->GetStatusChangeDelegate().ExecuteIfBound(L"Compiling changes for live coding...");
 
+		// Keep retrying the compile until we've added all the required modules
 		TMap<FString, TArray<FString>> ModuleToObjectFiles;
-		if (!CompileDelegate.Execute(Targets, ModuleToObjectFiles))
+		for (;;)
 		{
-			GLiveCodingServer->GetCompileFinishedDelegate().ExecuteIfBound(ELiveCodingResult::Error, L"Compilation error.");
-			return;
-		}
-
-		// Enable any lazy-loaded modules that we need
-		for (LiveProcess* liveProcess : m_liveProcesses)
-		{
-			types::vector<std::wstring> LoadModuleFileNames;
-			for(const TPair<FString, TArray<FString>>& Pair : ModuleToObjectFiles)
+			// Build a list of modules which are enabled for live coding
+			TArray<FString> ValidModules;
+			for (LiveModule* liveModule : m_liveModules)
 			{
-				std::wstring ModuleFileName = file::NormalizePath(*Pair.Key);
-				if (liveProcess->IsPendingLazyLoadedModule(ModuleFileName))
-				{
-					LoadModuleFileNames.push_back(ModuleFileName);
-				}
+				ValidModules.Add(liveModule->GetModuleName().c_str());
 			}
-			if (LoadModuleFileNames.size() > 0)
+
+			// Execute the compile
+			TArray<FString> RequiredModules;
+			if (CompileDelegate.Execute(Targets, ValidModules, RequiredModules, ModuleToObjectFiles))
 			{
-				const std::wstring PipeName = primitiveNames::Pipe(m_processGroupName + L"_ClientProxy");
+				break;
+			}
 
-				DuplexPipeServer ServerPipe;
-				ServerPipe.Create(PipeName.c_str());
-
-				DuplexPipeClient ClientPipe;
-				ClientPipe.Connect(PipeName.c_str());
-
-				ClientProxyThread ClientThread(liveProcess, &ClientPipe, LoadModuleFileNames);
-
-				CommandMap commandMap;
-				commandMap.RegisterAction<actions::EnableModules>();
-				commandMap.RegisterAction<actions::FinishedLazyLoadingModules>();
-				commandMap.HandleCommands(&ServerPipe, this);
-
-				for (const std::wstring& loadModuleFileName : LoadModuleFileNames)
-				{
-					liveProcess->SetLazyLoadedModuleAsLoaded(loadModuleFileName);
-				}
+			// Enable any lazy-loaded modules that we need
+			if (!EnableRequiredModules(RequiredModules))
+			{
+				GLiveCodingServer->GetCompileFinishedDelegate().ExecuteIfBound(ELiveCodingResult::Error, L"Compilation error.");
+				return;
 			}
 		}
 
@@ -844,6 +958,9 @@ unsigned int ServerCommandThread::CompileThread(void)
 
 	for (;;)
 	{
+		// protect against concurrent restarts
+		m_restartCS.Enter();
+
 		const int shortcutValue = appSettings::g_compileShortcut->GetValue();
 		keyShortcut.AssignCode(shortcut::GetVirtualKeyCode(shortcutValue));
 
@@ -941,14 +1058,14 @@ unsigned int ServerCommandThread::CompileThread(void)
 
 			if (!didAllProcessesMakeProgress)
 			{
-				// install a code cave for all processes.
-				// this ensures that if a process is currently being held in the debugger, the process will
-				// not make progress in terms of new instructions being executed after continuing it in the debugger.
+				// not all processes made progress.
+				// this usually means that at least one of them is currently being debugged.
+				// let each process handle this.
 				const size_t processCount = m_liveProcesses.size();
 				for (size_t i = 0u; i < processCount; ++i)
 				{
 					LiveProcess* liveProcess = m_liveProcesses[i];
-					liveProcess->InstallCodeCave();
+					liveProcess->HandleDebuggingPreCompile();
 				}
 
 				// don't allow the exception handler dialog to be shown when continuing in the debugger with F5
@@ -958,15 +1075,6 @@ unsigned int ServerCommandThread::CompileThread(void)
 			// wait until all command threads/clients are ready to go. we might not be getting commands
 			// from a client because it is being held in the debugger.
 			{
-				if (didAllProcessesMakeProgress)
-				{
-					LC_SUCCESS_USER("Waiting for client(s)");
-				}
-				else
-				{
-					LC_SUCCESS_USER("Waiting for client(s), hit 'Continue' (F5) if being held in the debugger");
-				}
-
 				CriticalSection::ScopedLock lock(&m_connectionCS);
 
 				const size_t count = m_commandThreads.size();
@@ -1013,12 +1121,11 @@ unsigned int ServerCommandThread::CompileThread(void)
 
 			if (!didAllProcessesMakeProgress)
 			{
-				// remove all code caves
 				const size_t processCount = m_liveProcesses.size();
 				for (size_t i = 0u; i < processCount; ++i)
 				{
 					LiveProcess* liveProcess = m_liveProcesses[i];
-					liveProcess->UninstallCodeCave();
+					liveProcess->HandleDebuggingPostCompile();
 				}
 
 				// remove the lock on the exception handler dialog
@@ -1036,11 +1143,10 @@ unsigned int ServerCommandThread::CompileThread(void)
 			m_manualRecompileTriggered = false;
 			m_liveModuleToModifiedOrNewObjFiles.clear();
 		}
-		else
-		{
-			// nothing to do for now, go to sleep a bit
-			thread::Sleep(10u);
-		}
+
+		m_restartCS.Leave();
+
+		thread::Sleep(10u);
 	}
 
 	return 0u;
@@ -1052,6 +1158,7 @@ unsigned int ServerCommandThread::CommandThread(DuplexPipeServer* pipe, Event* r
 	// handle incoming commands
 	CommandMap commandMap;
 	commandMap.RegisterAction<actions::TriggerRecompile>();
+	commandMap.RegisterAction<actions::LogMessage>();
 	commandMap.RegisterAction<actions::BuildPatch>();
 	commandMap.RegisterAction<actions::ReadyForCompilation>();
 	commandMap.RegisterAction<actions::DisconnectClient>();
@@ -1173,6 +1280,16 @@ bool ServerCommandThread::actions::TriggerRecompile::Execute(const CommandType*,
 	pipe->SendAck();
 
 	commandThread->m_manualRecompileTriggered = true;
+
+	return true;
+}
+
+
+bool ServerCommandThread::actions::LogMessage::Execute(const CommandType*, const DuplexPipe* pipe, void*, const void* payload, size_t)
+{
+	LC_LOG_USER("%S", static_cast<const wchar_t*>(payload));
+
+	pipe->SendAck();
 
 	return true;
 }
@@ -1368,23 +1485,45 @@ bool ServerCommandThread::actions::EnableLazyLoadedModule::Execute(const Command
 	// protect against accepting this command while compilation is already in progress
 	CriticalSection::ScopedLock lock(&commandThread->m_actionCS);
 
+	// Check if this module is already enabled - it may have been lazy-loaded, then fully loaded, by a restarted process. If so, translate this into a call to EnableModules.
+	const std::wstring modulePath = file::NormalizePath(command->fileName);
+	for (LiveModule* module : commandThread->m_liveModules)
+	{
+		if(module->GetModuleName() == modulePath)
+		{
+			EnableModules::CommandType EnableCmd = { };
+			EnableCmd.moduleCount = 1;
+			EnableCmd.processId = command->processId;
+			EnableCmd.token = command->token;
+
+			commands::ModuleData Module;
+			Module.base = command->moduleBase;
+			wcscpy_s(Module.path, command->fileName);
+
+			return EnableModules::Execute(&EnableCmd, pipe, context, &Module, sizeof(Module));
+		}
+	}
+
+	// Acknowledge the command
+	pipe->SendAck();
+
+	// Register the module for lazy loading
 	for (LiveProcess* process : commandThread->m_liveProcesses)
 	{
 		if (process->GetProcessId() == command->processId)
 		{
-			const std::wstring modulePath = file::NormalizePath(command->fileName);
 			process->AddLazyLoadedModule(modulePath, command->moduleBase);
 			LC_LOG_DEV("Registered module %S for lazy-loading", modulePath.c_str());
 		}
 	}
 
-	pipe->SendAck();
-
+	// Tell the client we're done
+	pipe->SendCommandAndWaitForAck(commands::EnableModulesFinished { command->token }, nullptr, 0u);
 	return true;
 }
 // END EPIC MOD
 
-bool ServerCommandThread::actions::RegisterProcess::Execute(const CommandType* command, const DuplexPipe* pipe, void* context, const void*, size_t)
+bool ServerCommandThread::actions::RegisterProcess::Execute(const CommandType* command, const DuplexPipe* pipe, void* context, const void* payload, size_t)
 {
 	pipe->SendAck();
 
@@ -1426,13 +1565,72 @@ bool ServerCommandThread::actions::RegisterProcess::Execute(const CommandType* c
 
 		if (registeredSuccessfully)
 		{
-			LiveProcess* liveProcess = new LiveProcess(processHandle, command->processId, command->threadId, command->jumpToSelf, pipe);
+			const wchar_t* imagePath = pointer::Offset<const wchar_t*>(payload, 0u);
+			const wchar_t* commandLine = pointer::Offset<const wchar_t*>(imagePath, command->imagePathSize);
+			const wchar_t* workingDirectory = pointer::Offset<const wchar_t*>(commandLine, command->commandLineSize);
+			const void* environment = pointer::Offset<const wchar_t*>(workingDirectory, command->workingDirectorySize);
+
+			LiveProcess* liveProcess = new LiveProcess(processHandle, command->processId, command->threadId, command->jumpToSelf, pipe, imagePath, commandLine, workingDirectory, environment, command->environmentSize);
 			commandThread->m_liveProcesses.push_back(liveProcess);
 			// BEGIN EPIC MOD - No built-in UI
 			// commandThread->m_mainFrame->UpdateWindowTitle();
 			// END EPIC MOD
 
-			LC_SUCCESS_USER("Registered process %S (PID: %d)", processPath.c_str(), command->processId);
+			if (command->restartedProcessId == 0u)
+			{
+				// this is a new process
+				LC_SUCCESS_USER("Registered process %S (PID: %d)", processPath.c_str(), command->processId);
+			}
+			else
+			{
+				// this process was restarted
+				LC_SUCCESS_USER("Registered restarted process %S (PID: %d, previous PID: %d)", processPath.c_str(), command->processId, command->restartedProcessId);
+
+#if WITH_VISUALSTUDIO_DTE
+				// reattach the debugger in case the previous process had a debugger attached
+				{
+					auto it = commandThread->m_restartedProcessIdToDebugger.find(command->restartedProcessId);
+					if (it != commandThread->m_restartedProcessIdToDebugger.end())
+					{
+						LC_LOG_USER("Reattaching debugger to PID %d", command->processId);
+
+						const EnvDTE::DebuggerPtr& debugger = it->second;
+						const bool success = visualStudio::AttachToProcess(debugger, command->processId);
+						if (!success)
+						{
+							LC_ERROR_USER("Failed to reattach debugger to PID %d", command->processId);
+						}
+
+						commandThread->m_restartedProcessIdToDebugger.erase(it);
+					}
+				}
+#endif
+
+				--commandThread->m_restartedProcessCount;
+				if (commandThread->m_restartedProcessCount == 0u)
+				{
+					// finished restarting, remove the job that kept this instance alive
+					if (commandThread->m_restartJob)
+					{
+						::CloseHandle(commandThread->m_restartJob);
+						commandThread->m_restartJob = nullptr;
+
+						commandThread->m_restartCS.Leave();
+
+						LC_LOG_USER("---------- Restarting finished ----------");
+
+						// EPIC REMOVED: g_theApp.GetMainFrame()->ResetStatusBarText();
+						// EPIC REMOVED: g_theApp.GetMainFrame()->SetBusy(false);
+					}
+					// BEGIN EPIC MOD - Prevent orphaned console instances if processes fail to restart. Job object will be duplicated into child process.
+					else
+					{
+						commandThread->m_restartCS.Leave();
+						LC_LOG_USER("---------- Restarting finished ----------");
+					}
+					// END EPIC MOD
+				}
+			}
 		}
 
 		// tell client we are finished
@@ -1516,24 +1714,29 @@ bool ServerCommandThread::actions::EnableModules::Execute(const CommandType* com
 		g_dependencyAllocator.PrintStats();
 	}
 
-	if (loadModuleTaskCount > 0u)
+	// BEGIN EPIC MOD - Suppress output when lazy loading modules
+	if (commandThread->m_compileThread == nullptr || thread::GetId() != thread::GetId(commandThread->m_compileThread))
 	{
-		LC_SUCCESS_USER("Loaded %zu module(s) (%.3fs, %zu translation units)", loadModuleTaskCount, moduleLoadingScope.ReadSeconds(), loadedTranslationUnits);
-	}
-
-	// EPIC REMOVED commandThread->PrewarmCompilerEnvironmentCache();
-
-	// tell user we are ready, but only once to not clutter the log
-	{
-		static bool showedOnce = false;
-		if (!showedOnce)
+		if (loadModuleTaskCount > 0u)
 		{
-			showedOnce = true;
-			const int shortcut = appSettings::g_compileShortcut->GetValue();
-			const std::wstring& shortcutText = shortcut::ConvertShortcutToText(shortcut);
-			LC_SUCCESS_USER("Live coding ready - Save changes and press %S to re-compile code", shortcutText.c_str());
+			LC_SUCCESS_USER("Loaded %zu module(s) (%.3fs, %zu translation units)", loadModuleTaskCount, moduleLoadingScope.ReadSeconds(), loadedTranslationUnits);
+		}
+
+		// EPIC REMOVED commandThread->PrewarmCompilerEnvironmentCache();
+
+		// tell user we are ready, but only once to not clutter the log
+		{
+			static bool showedOnce = false;
+			if (!showedOnce)
+			{
+				showedOnce = true;
+				const int shortcut = appSettings::g_compileShortcut->GetValue();
+				const std::wstring& shortcutText = shortcut::ConvertShortcutToText(shortcut);
+				LC_SUCCESS_USER("Live coding ready - Save changes and press %S to re-compile code", shortcutText.c_str());
+			}
 		}
 	}
+	// END EPIC MOD
 
 	// remove virtual drives once we're finished
 	RemoveVirtualDrive();

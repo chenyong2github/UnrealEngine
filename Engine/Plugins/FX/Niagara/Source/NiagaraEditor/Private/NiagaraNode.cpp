@@ -6,6 +6,7 @@
 #include "NiagaraHlslTranslator.h"
 #include "GraphEditAction.h"
 #include "SNiagaraGraphNode.h"
+#include "Misc/SecureHash.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNode"
 
@@ -354,11 +355,11 @@ bool UNiagaraNode::CanAddToGraph(UNiagaraGraph* TargetGraph, FString& OutErrorMs
 	return true;
 }
 
-void UNiagaraNode::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive) const
+void UNiagaraNode::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive /*= true*/, bool bFilterForCompilation /*= true*/) const
 {
 	if (bRecursive)
 	{
-		OutHistory.VisitInputPins(this);
+		OutHistory.VisitInputPins(this, bFilterForCompilation);
 	}
 }
 
@@ -545,7 +546,7 @@ ENiagaraNumericOutputTypeSelectionMode UNiagaraNode::GetNumericOutputTypeSelecti
 }
 
 
-UEdGraphPin* UNiagaraNode::TraceOutputPin(UEdGraphPin* LocallyOwnedOutputPin)
+UEdGraphPin* UNiagaraNode::TraceOutputPin(UEdGraphPin* LocallyOwnedOutputPin, bool bFilterForCompilation)
 {
 	if (LocallyOwnedOutputPin == nullptr)
 	{
@@ -600,6 +601,11 @@ void UNiagaraNode::RouteParameterMapAroundMe(FNiagaraParameterMapHistoryBuilder&
 UNiagaraNode::FOnNodeVisualsChanged& UNiagaraNode::OnVisualsChanged()
 {
 	return VisualsChangedDelegate;
+}
+
+void UNiagaraNode::UpdateCompileHashForNode(FSHA1& HashState) const
+{
+	HashState.Update((const uint8*)&ChangeId, sizeof(FGuid));
 }
 
 

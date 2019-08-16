@@ -176,16 +176,16 @@ bool FDatasmithMeshSectionInfoMapTemplate::Equals( const FDatasmithMeshSectionIn
 	return bEquals;
 }
 
-void UDatasmithStaticMeshTemplate::Apply( UObject* Destination, bool bForce )
+UObject* UDatasmithStaticMeshTemplate::UpdateObject( UObject* Destination, bool bForce )
 {
-#if WITH_EDITORONLY_DATA
 	UStaticMesh* StaticMesh = Cast< UStaticMesh >( Destination );
 
 	if ( !StaticMesh )
 	{
-		return;
+		return nullptr;
 	}
 
+#if WITH_EDITORONLY_DATA
 	UDatasmithStaticMeshTemplate* PreviousStaticMeshTemplate = !bForce ? FDatasmithObjectTemplateUtils::GetObjectTemplate< UDatasmithStaticMeshTemplate >( StaticMesh ) : nullptr;
 
 	DATASMITHOBJECTTEMPLATE_CONDITIONALSET( LightMapCoordinateIndex, StaticMesh, PreviousStaticMeshTemplate );
@@ -197,20 +197,20 @@ void UDatasmithStaticMeshTemplate::Apply( UObject* Destination, bool bForce )
 	if ( PreviousStaticMeshTemplate )
 	{
 		// If the number of sections is different, their order might be different (eg. from mesh editing) so the SectionInfoMap must be reset
-		bResetSectionInfoMap = PreviousStaticMeshTemplate->SectionInfoMap.Map.Num() != StaticMesh->SectionInfoMap.Map.Num();
+		bResetSectionInfoMap = PreviousStaticMeshTemplate->SectionInfoMap.Map.Num() != StaticMesh->GetSectionInfoMap().Map.Num();
 	}
 
-	SectionInfoMap.Apply(&StaticMesh->SectionInfoMap, !bResetSectionInfoMap && PreviousStaticMeshTemplate ? &PreviousStaticMeshTemplate->SectionInfoMap : nullptr);
+	SectionInfoMap.Apply(&StaticMesh->GetSectionInfoMap(), !bResetSectionInfoMap && PreviousStaticMeshTemplate ? &PreviousStaticMeshTemplate->SectionInfoMap : nullptr);
 
 	// Build settings
 	for ( int32 SourceModelIndex = 0; SourceModelIndex < BuildSettings.Num(); ++SourceModelIndex )
 	{
-		if ( !StaticMesh->SourceModels.IsValidIndex( SourceModelIndex ) )
+		if ( !StaticMesh->IsSourceModelValid( SourceModelIndex ) )
 		{
 			continue;
 		}
 
-		FStaticMeshSourceModel& SourceModel = StaticMesh->SourceModels[ SourceModelIndex ];
+		FStaticMeshSourceModel& SourceModel = StaticMesh->GetSourceModel( SourceModelIndex );
 		
 		FDatasmithMeshBuildSettingsTemplate* PreviousBuildSettingsTemplate = nullptr;
 		
@@ -279,9 +279,9 @@ void UDatasmithStaticMeshTemplate::Apply( UObject* Destination, bool bForce )
 
 				// Note that the StaticMesh.SectionInfoMap MaterialIndex will overwrite the StaticMeshLODResources.Sections MaterialIndex through FStaticMeshRenderData::ResolveSectionInfo()
 				// This ensures there won't be any mismatch when that happens
-				FMeshSectionInfo SectionInfo = StaticMesh->SectionInfoMap.Get( LODIndex, SectionIndex );
+				FMeshSectionInfo SectionInfo = StaticMesh->GetSectionInfoMap().Get( LODIndex, SectionIndex );
 				SectionInfo.MaterialIndex = SectionIndex;
-				StaticMesh->SectionInfoMap.Set( LODIndex, SectionIndex, SectionInfo );
+				StaticMesh->GetSectionInfoMap().Set( LODIndex, SectionIndex, SectionInfo );
 
 				++SectionIndex;
 			}
@@ -293,9 +293,9 @@ void UDatasmithStaticMeshTemplate::Apply( UObject* Destination, bool bForce )
 			}
 		}
 	}
-
-	FDatasmithObjectTemplateUtils::SetObjectTemplate( Destination, this );
 #endif // #if WITH_EDITORONLY_DATA
+
+	return Destination;
 }
 
 void UDatasmithStaticMeshTemplate::Load( const UObject* Source )
@@ -312,12 +312,12 @@ void UDatasmithStaticMeshTemplate::Load( const UObject* Source )
 	LightMapResolution = SourceStaticMesh->LightMapResolution;
 
 	// Section info map
-	SectionInfoMap.Load( SourceStaticMesh->SectionInfoMap );
+	SectionInfoMap.Load( SourceStaticMesh->GetSectionInfoMap() );
 
 	// Build settings
-	BuildSettings.Empty( SourceStaticMesh->SourceModels.Num() );
+	BuildSettings.Empty( SourceStaticMesh->GetNumSourceModels() );
 
-	for ( const FStaticMeshSourceModel& SourceModel : SourceStaticMesh->SourceModels )
+	for ( const FStaticMeshSourceModel& SourceModel : SourceStaticMesh->GetSourceModels() )
 	{
 		FDatasmithMeshBuildSettingsTemplate BuildSettingsTemplate;
 		BuildSettingsTemplate.Load( SourceModel.BuildSettings );

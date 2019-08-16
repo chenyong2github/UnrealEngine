@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
+#include "Debugging/SlateDebugging.h"
 
 #define SLATE_CHECK_UOBJECT_RENDER_RESOURCES !UE_BUILD_SHIPPING
 
@@ -48,12 +49,19 @@ DECLARE_STATS_GROUP(TEXT("Slate"), STATGROUP_Slate, STATCAT_Advanced);
 DECLARE_STATS_GROUP_VERBOSE(TEXT("SlateVerbose"), STATGROUP_SlateVerbose, STATCAT_Advanced);
 DECLARE_STATS_GROUP_MAYBE_COMPILED_OUT(TEXT("SlateVeryVerbose"), STATGROUP_SlateVeryVerbose, STATCAT_Advanced, WITH_VERY_VERBOSE_SLATE_STATS);
 
-/** Whether or not dynamic prepass and layout caching is enabled */
-extern SLATECORE_API int32 GSlateLayoutCaching;
-
 /** Whether or not we've enabled fast widget pathing which validates paths to widgets without arranging children. */
 extern SLATECORE_API int32 GSlateFastWidgetPath;
 
+extern SLATECORE_API int32 GSlateEnableGlobalInvalidation;
+
+extern SLATECORE_API bool GSlateIsOnFastUpdatePath;
+
+extern SLATECORE_API bool GSlateIsInInvalidationSlowPath;
+
+#if WITH_SLATE_DEBUGGING
+extern SLATECORE_API int32 GSlateInvalidationDebugging;
+extern SLATECORE_API int32 GSlateHitTestGridDebugging;
+#endif
 /* Forward declarations
 *****************************************************************************/
 class FActiveTimerHandle;

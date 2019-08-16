@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:2707888
+﻿INTSourceChangelist:3108692
 Availability:Public
 Title:Flipbook 编辑器参考
 Crumbs: %ROOT%, Engine, Engine/Paper2D, Engine/Paper2D/Flipbooks
@@ -16,6 +16,7 @@ SkillLevel:Beginner
 
 利用 **Flipbook 编辑器** 可对个体 Flipbook 资源进行设置和编辑。在此处还可编辑 sprite 的播放顺序、调整或微调每个 sprite 显示的时间长度、或通过 **每秒帧率** 选项确定 Flipbook 动画的整体播放速度。 
 
+(#OpeningtheFlipbookEditor)
 ## 打开 Flipbook 编辑器
 
 创建 Flipbook 后，可通过以下方式在 Flipbook 编辑器中打开并编辑： 
@@ -32,6 +33,7 @@ SkillLevel:Beginner
 关卡中已存在一个 Flipbook Actor 并选定 Actor 后，可按下 **Ctrl+E** 组合键将其在 Flipbook 编辑器中打开。 
 [/REGION]
 
+(#FlipbookEditorInterface)
 ## Flipbook 编辑器界面
 
 如下便是 Flipbook 编辑器界面以及其组成部分详解。 
@@ -44,6 +46,7 @@ SkillLevel:Beginner
 1.	**整理条 / 播放控制**
 1.	**细节**
 
+(#ToolBar)
 ### 工具栏
 
 所有 **工具栏** 选项的说明均列于下表中： 
@@ -56,12 +59,14 @@ SkillLevel:Beginner
 |![](Toolbar5.png)(w:60)| 如已指派，切换静止网格物体的简单碰撞网格物体显示（**Alt 键 + C 键**)。 |
 |![](Toolbar6.png)(w:60)| 在 **视口** 中显示 sprite 的枢轴位置。 |
 
+(#Viewport)
 ### 视口
 
 ![](FlipbookViewport.png)
 
 在 **视口** 中可以查看动态 Flipbook，以便确定动画播放无误。 
 
+(#Timeline)
 ### 时间轴
 
 **时间轴** 在 Flipbook 动画中显示所有帧。 
@@ -94,12 +99,14 @@ Sprite 或 Flipbook 资源还可被点击拖放到时间轴中，将其作为附
 
 ![](Timeline6.png)
 
+(#ScrubBar/PlaybackControls)
 ### 整理条 / 播放控制
 
 ![](ScrubBar1.png)
 
 利用 **整理条/播放控制** 可进行整体整理或使用播放控制进行动画的播放、倒退或单步调试。 
 
+(#Details)
 ### 细节
 
 在 Flipbook 编辑器中的 **细节** 面板中，可通过 **每秒帧率** 确定动画的播放速度、指派 **关键帧** 及其顺序、并通过 **帧长** 设置指派每个关键帧使用的 Sprite 及其时长。还有一个选项可以指派 **默认材质**，用于 Flipbook 播放器实例（此处提供默认材质，也可以自选的材质替代）。 
@@ -107,6 +114,7 @@ Sprite 或 Flipbook 资源还可被点击拖放到时间轴中，将其作为附
 ![](DetailsPanel.png)
 
 
+(#CollisionSource)
 #### 碰撞源
 
 ![](CollisionSource.png)
@@ -127,6 +135,7 @@ Sprite 或 Flipbook 资源还可被点击拖放到时间轴中，将其作为附
 
 
 
+(#EditingFlipbooks)
 ## 编辑 Flipbooks
 
 如使用空白 Flipbook，可通过几种不同方式将 sprite 添加至 Flipbook。 
@@ -153,14 +162,17 @@ Sprite 或 Flipbook 资源还可被点击拖放到时间轴中，将其作为附
 可将 sprite 资源直接点击拖放至下拉框上完成应用，或在 **内容浏览器** 中选择一个 sprite 资源，然后点击 ![](AssignButton.png) 按钮应用当前选定的 sprite。
 [/REGION]
 
+(#FramesPerSecond)
 ### 每秒帧率
 
 播放速度由 **每秒帧率** 控制，增加帧率可加快动画速度，反之将降低速度。 
 
+(#FrameRun)
 ### 帧长
 
 **帧长** 决定关键帧在序列中的播放时长。增加帧长将延长帧的显示时间。 
 
+(#DefaultMaterial)
 ### 默认材质
 
 **默认材质** 决定用于 Flipbook 播放器的材质（自动指定默认材质）。 

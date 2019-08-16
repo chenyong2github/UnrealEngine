@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6093308
 Availability:Public
 Title:游戏的打包（Packaging）和烘焙（Cooking）
 Crumbs:%ROOT%, Engine
@@ -8,14 +8,22 @@ parent:Engine
 order:18
 topic-image:Engine/Basics/Projects/Packaging/packaging_topic.png
 
-(#Packaging&Cooking)
-## 打包 & 烘焙
+## 新手入门
 
-[REGION:buttonlist]
-* [](Engine/Basics/Projects/Packaging "%Engine/Basics/Projects/Packaging:description%")
-* [](Engine/Deployment/Launching "%Engine/Deployment/Launching:description%")
-* [](Engine/Deployment/Cooking "%Engine/Deployment/Cooking:description%")
-* [](Engine/Deployment/Releasing "/Engine/Deployment/Releasing:description%")
-* [](Engine/Deployment/Patching "Engine/Deployment/Patching:description%")
-* [](Engine/Deployment/UnrealFrontend "%Engine/Deployment/UnrealFrontend:description%")
-[/REGION]
+%Engine/Basics/Projects/Packaging:topic%
+%Engine/Deployment/BuildOperations:topic%
+%Engine/Deployment/Launching:topic%
+%Engine/Deployment/Patching:topic%
+
+## 操作指南
+
+%Engine/Deployment/Releasing:topic%
+%Engine/Deployment/HowToCreatePatch:topic%
+
+## 参考文档
+
+%Engine/Deployment/Cooking:topic%
+%Engine/Deployment/ProjectLauncher:topic%
+%Engine/Deployment/UnrealFrontend:topic%
+%Platforms/DeviceProfiles:topic%
+

@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:2632221
+﻿INTSourceChangelist:3108692
 Availability:Public
 Title:Paper 2D 图块集/图块地图
 Crumbs: %ROOT%, Engine, Engine/Paper2D
@@ -19,10 +19,12 @@ Related:Engine/Content/Types/Textures
 通过 **Paper 2D** 中的 **图块集** 和 **图块地图** 可快速完成框架布局，或 2D 关卡的“整体布局”。结合图块地图（含明确高宽的图块的 2D 网格）创建并使用图块集（从纹理拉取的图块合集）后，即可选择诸多图块“绘制”到图块地图上，然后利用图块地图进行关卡布局。也可在多个层上进行图块绘制，并指定特定层中地图的每个单元格上出现的图块。 
 
 
+(#CreatingTileSets)
 ## 创建图块集
 
 和其他资源相似，可在 **内容浏览器** 中创建图块集。它们既可作为空白资源从头创建，也可从其他现有资源中生成。 
 
+(#BlankTileSet)
 ### 空白图块集
 
 **新建空白图块集资源的步骤：**
@@ -44,6 +46,7 @@ Related:Engine/Content/Types/Textures
 	![](TileSetData.png)
 
 	
+(#TileSetfromTexture)
 ### 从纹理创建图块集
 
 **从现有纹理创建图块集：**
@@ -65,6 +68,7 @@ Related:Engine/Content/Types/Textures
 	![](CreatedTitleSet.png)(w:640)
 
 	
+(#TileSetEditor)
 ## 图块集编辑器
 
 新建一个图块集资源后，**双击** 将其在 **图块集编辑器** 中打开。 
@@ -73,6 +77,7 @@ Related:Engine/Content/Types/Textures
 
 在上图的 **视口** 窗口（1）中可找到指定用于图块集的图块表单。**图块编辑器（Tile Editor）** 窗口（2）显示当前选中的图块。可在 **Details** 面板中进行诸多设置，对图块集或组成图块集的单个 Sprite 产生影响（查看下方的 _配置图块集_）。 
 
+(#ConfiguringYourTileSet)
 ### 配置图块集
 
 对图块集进行配置很有必要，以便精确选择表单中的每个图块。 
@@ -113,6 +118,7 @@ _点击查看全图。_
 | **Drawing Offset** | 此集中图块的绘制偏移（像素）。|
 | **Background Color** | 图块集查看器中显示的背景颜色。|
 
+(#PerTileSettings/ApplyingTileCollision)
 ### 单个图块设置/应用图块碰撞
 
 在 **Details** 面板中还可进行单个图块设置（如应用碰撞到特定的图块）。 
@@ -140,10 +146,12 @@ _点击查看全图。_
 这将基于指定的几何体类型和使用的外形设置图块的碰撞。为使碰撞在游戏中实际生效，创建 **图块地图** 时需要设置 **Sprite 碰撞域**（查阅以下图块地图的创建/使用信息）。 
 
 
+(#CreatingTileMaps)
 ## 创建图块地图
 
 图块地图在 **内容浏览器** 中进行创建，在 **图块地图编辑器（Tile Map Editor）** 中进行编辑。 
 
+(#NewTileMap)
 ### 新建图块地图
 
 **新建图块地图资源的步骤：**
@@ -161,6 +169,7 @@ _点击查看全图。_
 	![](TileMapEditorWindow.png)(w:640)
 
 
+(#TileMapEditor)
 ## 图块地图编辑器
 
 打开一个新的图块地图资源后，在图块地图编辑器中开始工作之前需要指定一个 **Active Tile Set** 进行使用。 
@@ -189,6 +198,7 @@ _点击查看全图。_
 
 在 **Details** 面板中（3），可对图块地图的层数进行配置，并对诸多设置进行调整（如图块地图自身的高/宽、组成地图的图块高/宽、虚幻单位和像素之间的转换系数、使用的碰撞类型，等等）。 
 
+(#EnablingCollisionforyourTileMap)
 ### 启用图块地图的碰撞
 
 如图块集部分所述，指定哪些图块使用碰撞后，还需要设置图块地图使用的碰撞类型。可在 **Details** 面板下的 **Collision** 部分进行设置。 
@@ -207,6 +217,7 @@ _点击查看全图。_
 
 上图中，角色行走的上层地面图块应用了碰撞，而下层地面图块和水波图块未应用碰撞。 
 
+(#ExampleTileMapWorkflow)
 ## 图块地图工作流范例
 
 以下是创建图块地图的典型工作流范例。 

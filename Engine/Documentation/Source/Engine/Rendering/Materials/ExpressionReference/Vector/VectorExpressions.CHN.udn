@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4300247
+﻿INTSourceChangelist:6190237
 Availability: Public
 Crumbs: %ROOT%
 Title:矢量表达式
@@ -12,7 +12,7 @@ reference-image:PS_LocalPositionMaterial.gif
 reference-image:PS_DefaultMaterial.gif
 Order:
 Tags:Materials
-topic-image:VectorExpression_Topic.png
+topic-image:exp_ref_topic.png
 
 
 
@@ -27,8 +27,6 @@ topic-image:VectorExpression_Topic.png
 
 
 [EXCERPT:ActorPositionWS]
-(#actorpositionws)
-
 ## ActorPositionWS
 
  **ActorPositionWS** 输出矢量3(RGB)数据，该数据表示对象在世界场景空间中的位置以及其上的材质。 
@@ -41,7 +39,6 @@ topic-image:VectorExpression_Topic.png
 
 
 [EXCERPT:CameraPositionWS]
-(#camerapositionws)
 ## CameraPositionWS
 
 
@@ -52,8 +49,6 @@ topic-image:VectorExpression_Topic.png
 ![CameraPositionWSExample.png](CameraPositionWSExample.png)(w:450) ![](CameraPositionWSNetwork.png)(h:333)
 [/EXCERPT:CameraPositionWS]
 
-
-(#cameravectorws)
 
 ## CameraVectorWS
 
@@ -75,16 +70,12 @@ topic-image:VectorExpression_Topic.png
 [INCLUDE:Engine/Rendering/Materials/ExpressionReference/Constant#Constant4Vector]
 
 
-(#lightvector)
-
 ## LightVector
 [REGION:warning]
 该表达式在虚幻引擎4中已被弃用，因为照明计算现已被推迟。
 [/REGION:warning]
 
-(#objectbounds)
-
-## 对象边界（Object Bounds）
+## Object Bounds
 
  **对象边界（Object Bounds）** 表达式输出对象在每个轴中的大小。如果用颜色表示，X轴、Y轴、Z轴分别对应于R、G、B。 
 
@@ -93,8 +84,6 @@ topic-image:VectorExpression_Topic.png
 在上面的示例中，您可以看到对象的颜色对应于对象的最长轴。
 
 [EXCERPT:ObjectOrientation]
-(#objectorientation)
-
 ## ObjectOrientation
 
 
@@ -105,7 +94,6 @@ topic-image:VectorExpression_Topic.png
 
 
 [EXCERPT:ObjectPositionWS]
-(#objectPositionws)
 ## ObjectPositionWS
 
 
@@ -121,8 +109,6 @@ topic-image:VectorExpression_Topic.png
 
 
 [EXCERPT:PixelNormalWS]
-(#pixelnormalws)
-
 ## PixelNormalWS
 
  **PixelNormalWS** 表达式根据当前法线输出矢量数据，该数据表示像素所面对的方向。
@@ -136,9 +122,7 @@ topic-image:VectorExpression_Topic.png
 
 
 
-(#pre-skinnedlocalnormal)
-
-## 预蒙皮局部法线（Pre-Skinned Local Normal） 
+## Pre-Skinned Local Normal 
 
  **预蒙皮局部法线（Pre-Skinned Local Normal）** 矢量表达式输出一个三信道矢量值，该值表示骨架网格体和静态网格体的局部表面法线。这让您能够实现局部对齐的三平面
 材质以及在材质中实现网格体对齐效果。 
@@ -174,9 +158,7 @@ _单击图片以查看更大尺寸。_
 -
 [/COMMENT]
 
-(#pre-skinnedlocalposition)
-
-## 预蒙皮局部位置（Pre-Skinned Local Position）
+## Pre-Skinned Local Position
 
  **预蒙皮局部位置（Pre-Skinned Local Position）** 矢量表达式输出一个三信道矢量值，该值允许访问骨架网格体的默认姿势位置以便在每个顶点
 输出中使用。这使您能够在动画角色上获得局部化效果。该矢量表达式也可用于静态网格体，它将返回
@@ -214,8 +196,6 @@ _单击图片以查看更大尺寸。_
 [/COMMENT]
 
 
-(#reflectionvectorws)
-
 ## ReflectionVectorWS
 
  **ReflectionVectorWS** 表达式在本质上类似于[CameraVectorWS](#CameraVectorWS)，但它输出一个三信道矢量值，该值表示通过表面法线反射的摄像机方向。
@@ -227,8 +207,6 @@ _单击图片以查看更大尺寸。_
 [/REGION]
 
 [EXCERPT:VertexNormalWS]
-(#vertexnormalws)
-
 ## VertexNormalWS
 
 
@@ -243,9 +221,7 @@ _单击图片以查看更大尺寸。_
 [/EXCERPT:VertexNormalWS]
 
 
-(#vectornoise)
-
-## 矢量噪点（Vector Noise） 
+## Vector Noise 
 
 [EXCERPT:VectorNoiseTest]
 ![](Vector_Noise_Example.png)

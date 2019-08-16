@@ -1,55 +1,50 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-namespace UnrealBuildTool.Rules
+using UnrealBuildTool;
+using System.IO;
+
+public class DisplayClusterInput : ModuleRules
 {
-	public class DisplayClusterInput : ModuleRules
+	public DisplayClusterInput(ReadOnlyTargetRules Target) : base(Target)
 	{
-		public DisplayClusterInput(ReadOnlyTargetRules Target) : base(Target)
-		{
-			PrivateIncludePathModuleNames.AddRange(
-				new string[]
-				{
-					"InputDevice",          // For IInputDevice.h
-					"HeadMountedDisplay",   // For IMotionController.h
-					"DisplayCluster"        // For IDisplayCluster
-				}
-			);
+		PrivateIncludePathModuleNames.AddRange(
+			new string[]
+			{
+				"InputDevice",
+				"HeadMountedDisplay",
+				"DisplayCluster"
+			}
+		);
 
-			PublicDependencyModuleNames.AddRange(
-				new string[]
-				{
-					"Core",
-					"CoreUObject",
-					"DisplayCluster",
-					"Engine",
-					"InputCore",
-					"InputDevice"
-				});
+		PublicDependencyModuleNames.AddRange(
+			new string[]
+			{
+				"Core",
+				"CoreUObject",
+				"Engine",
+				"InputCore",
+				"InputDevice"
+			});
 
-			PrivateDependencyModuleNames.AddRange(
-				new string[]
-				{
-					"ApplicationCore",
-					"Core",
-					"CoreUObject",
-					"DisplayCluster",
-					"Engine",
-					"InputCore",
-					"InputDevice",
-					"HeadMountedDisplay"
-				}
-			);
+		PrivateDependencyModuleNames.AddRange(
+			new string[]
+			{
+				"ApplicationCore",
+				"Core",
+				"CoreUObject",
+				"DisplayCluster",
+				"Engine",
+				"InputCore",
+				"InputDevice",
+				"HeadMountedDisplay"
+			}
+		);
 
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					// Relative to Engine\Plugins\Runtime\nDisplay\Source\
-					"DisplayCluster/Private",
-					"DisplayClusterInput/Private/Controller",
-					"DisplayClusterInput/Private/State",
-					"../../../../Source/Runtime/Renderer/Private",
-					"../../../../Source/Runtime/Engine/Classes/Components",
-				}
-			);
-		}
+		PrivateIncludePaths.AddRange(
+			new string[] {
+				"DisplayClusterInput/Private",
+				"DisplayCluster/Private",
+			}
+		);
 	}
 }

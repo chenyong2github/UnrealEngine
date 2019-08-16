@@ -25,7 +25,7 @@ enum class ENiagaraMeshFacingMode : uint8
 	CameraPlane
 };
 
-UCLASS(editinlinenew)
+UCLASS(editinlinenew, meta = (DisplayName = "Mesh Renderer"))
 class UNiagaraMeshRendererProperties : public UNiagaraRendererProperties
 {
 public:
@@ -55,7 +55,7 @@ public:
 	virtual const TArray<FNiagaraVariable>& GetOptionalAttributes() override;
 #endif // WITH_EDITORONLY_DATA
 
-	virtual uint32 GetNumIndicesPerInstance() final override;
+	virtual uint32 GetNumIndicesPerInstance() const final override;
 
 	/** The static mesh to be instanced when rendering mesh particles. If OverrideMaterial is not specified, the mesh's material is used. Note that the material must have the Niagara Mesh Particles flag checked.*/
 	UPROPERTY(EditAnywhere, Category = "Mesh Rendering")

@@ -9,12 +9,10 @@
 #include "PhysXPublic.h"
 #include "CollisionQueryParams.h"
 #include "CollisionQueryFilterCallback.h"
-#include "PxQueryFilterCallback.h"
+#include "WorldCollision.h"
 
 #if PHYSICS_INTERFACE_PHYSX
 #include "PhysXInterfaceWrapper.h"
-#elif PHYSICS_INTERFACE_LLIMMEDIATE
-#include "Physics/Experimental/LLImmediateInterfaceWrapper.h"
 #endif
 
 #if DETECT_SQ_HITCHES
@@ -30,8 +28,6 @@ struct FSQHitchRepeaterCVars
 	static FAutoConsoleVariableRef CVarSQHitchDetectionThreshold;
 };
 #endif 
-
-#if WITH_PHYSX
 
 /** Various info we want to capture for hitch detection reporting */
 struct FHitchDetectionInfo
@@ -89,7 +85,7 @@ struct FScopedSQHitchRepeater
 	BufferType& UserBuffer;	//The buffer the user would normally use when no repeating happens
 	BufferType* OriginalBuffer;	//The buffer as it was before the query, this is needed to maintain the same buffer properties for each loop
 	BufferType* RepeatBuffer;			//Dummy buffer for loops
-	FPhysicsQueryFilterCallback& QueryCallback;
+	FCollisionQueryFilterCallback& QueryCallback;
 	FHitchDetectionInfo HitchDetectionInfo;
 
 	bool RepeatOnHitch()
@@ -124,7 +120,7 @@ struct FScopedSQHitchRepeater
 		}
 	}
 
-	FScopedSQHitchRepeater(BufferType& OutBuffer, FPhysicsQueryFilterCallback& QueryCallback, const FHitchDetectionInfo& InHitchDetectionInfo)
+	FScopedSQHitchRepeater(BufferType& OutBuffer, FCollisionQueryFilterCallback& QueryCallback, const FHitchDetectionInfo& InHitchDetectionInfo)
 		: HitchDuration(0.0)
 		, HitchTimer(HitchDuration)
 		, LoopCounter(0)
@@ -166,7 +162,7 @@ struct FScopedSQHitchRepeater
 	}
 
 #else
-	FScopedSQHitchRepeater(BufferType& OutBuffer, FPhysicsQueryFilterCallback& PQueryCallback, const FHitchDetectionInfo& InHitchDetectionInfo)
+	FScopedSQHitchRepeater(BufferType& OutBuffer, FCollisionQueryFilterCallback& PQueryCallback, const FHitchDetectionInfo& InHitchDetectionInfo)
 		: UserBuffer(OutBuffer)
 	{
 	}
@@ -177,5 +173,3 @@ struct FScopedSQHitchRepeater
 	bool RepeatOnHitch() const { return false; }
 #endif
 };
-
-#endif // WITH_PHYSX

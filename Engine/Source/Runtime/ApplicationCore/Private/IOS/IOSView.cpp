@@ -3,6 +3,7 @@
 #include "IOS/IOSView.h"
 #include "IOS/IOSAppDelegate.h"
 #include "IOS/IOSApplication.h"
+#include "IOSWindow.h"
 #include "Misc/ConfigCacheIni.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/CommandLine.h"
@@ -15,6 +16,11 @@
 #import <UIKit/UIGeometry.h>
 
 #include "IOS/IOSCommandLineHelper.h"
+
+#if WITH_ACCESSIBILITY
+#include "IOS/Accessibility/IOSAccessibilityCache.h"
+#include "IOS/Accessibility/IOSAccessibilityElement.h"
+#endif
 
 #if HAS_METAL
 id<MTLDevice> GMetalDevice = nil;
@@ -286,6 +292,9 @@ id<MTLDevice> GMetalDevice = nil;
 -(void)dealloc
 {
 	[markedTextStyle release];
+#if WITH_ACCESSIBILITY
+	[_accessibilityElements release];
+#endif
 	[super dealloc];
 }
 
@@ -537,6 +546,37 @@ id<MTLDevice> GMetalDevice = nil;
 	// increment our swap counter
 	SwapCount++;
 }
+
+#if WITH_ACCESSIBILITY
+
+-(void)SetAccessibilityWindow:(AccessibleWidgetId)WindowId
+{
+	if (_accessibilityElements == nil)
+	{
+		_accessibilityElements = [[NSMutableArray alloc] init];
+	}
+	else
+	{
+		[_accessibilityElements removeAllObjects];
+	}
+
+	if (WindowId != IAccessibleWidget::InvalidAccessibleWidgetId)
+	{
+		[_accessibilityElements addObject : [[FIOSAccessibilityCache AccessibilityElementCache] GetAccessibilityElement:WindowId]];
+	}
+}
+
+-(NSArray*)accessibilityElements
+{
+	return _accessibilityElements;
+}
+
+-(BOOL)isAccessibilityElement
+{
+	return NO;
+}
+
+#endif
 
 /**
  * Returns the unique ID for the given touch

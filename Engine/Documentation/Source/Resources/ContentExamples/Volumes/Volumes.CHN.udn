@@ -1,72 +1,46 @@
-﻿Availability: Public
+INTSourceChangelist:3782314
+Availability: Public
 Title:体积内容示例
 Crumbs: %ROOT%, Resources, Resources/ContentExamples
-Description:在体积内容示例中提供的实例概述。
+Description:概述体积内容示例中提供的范例。
+Related: Engine/Actors/Volumes
+Related: Engine/Rendering/PostProcessEffects
+Related: Engine/Rendering/LightingAndShadows/LightPropagationVolumes
+Related: Engine/AI/BehaviorTrees/QuickStart/2
+Related: Engine/Actors/Triggers
+Version: 4.9
+topic-image:Volumes_Compact.png
 
 [REGION:banner]
 ![](Volumes_Header.png)(convert:false)
 [/REGION]
 
-[VAR:Topic]
-[OBJECT:Topic]
-	[PARAM:image]
-		![%Resources/ContentExamples/Volumes:title%](Volumes_Compact.png)
-	[/PARAM]
-	[PARAM:title]
-		%Resources/ContentExamples/Volumes:title%
-	[/PARAM]
-	[PARAM:description]
-		%Resources/ContentExamples/Volumes:description%
-	[/PARAM]
-	[PARAM:path]
-	[RELATIVE:Resources/ContentExamples/Volumes]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
 
-[VAR:TopicCompact]
-[OBJECT:TopicCompact]
-	[PARAM:image]
-		![%Resources/ContentExamples/Volumes:title%](Volumes_Compact.png)
-	[/PARAM]
-	[PARAM:title]
-		%Resources/ContentExamples/Volumes:title%
-	[/PARAM]
-	[PARAM:path]
-	[RELATIVE:Resources/ContentExamples/Volumes]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
-
-[TOC(start:2 end:2)]
+**体积** 内容示例图演示了如何使用不同类型的体积来得到不同的Gameplay效果，设定边界，提高性能和（或）减少光照构建时间。 
+在下面的示例1.1中你可以看到，要放置体积，可以从“体积（Volumes）”选项卡选择任何体积，然后拖放到关卡中。根据使用的体积类型，可以使用不同的设置进行编辑。 
 
 
-## 概述
-
-**体积** 内容示例贴图展示了您如何使用不同类型的 **体积** 来制作不同的游戏特效，设置边界，改善性能并（或）降低光照编译时间。
-如下方的示例1.1，您可以通过选择 **体积选项卡** 的任意 **体积** 来放置 **体积** ，并拖放到您的关卡中。基于使用的 **体积** 类型，可对编辑使用不同的设置。
+在Gameplay方面，最常用的体积是以无形的碰撞将玩家限制在游戏空间中的阻挡体积，添加重力增减或模拟水下运动等Gameplay效果的物理体积，或用于对进入其中的Actor造成一次性或累积伤害的伤害引发体积。
 
 
-出于游戏目的，最常用的 **体积** 是 **阻挡体积** （为保持玩家位于具有可见碰撞的游戏空间内）， **物理** 体积用于添加类似于减少/增加重力或模拟水下的游戏特效，或者使用 **施加伤害的体积** 来造成爆炸或对进入体积内的 **Actor** 造成伤害。
-
-
-## 体积贴图
+(#volumesmap)
+## 体积图
 
 ![](Volumes_Map.png)(w:640)
 
-下方列出的为 **Volumes** （体积）贴图中提供的示例：
+下面列出了 **体积** 图中提供的示例：
 
-| 示例 |  展示的内容 |
+| 示例 | 展示的内容 |
 | ------- | ------------ |
-| **1.1 放置** | 描述如何在您的关卡中放置 **体积** 以及如何在 **几何体编辑** 模式中进行编辑。|
-| **1.2 阻挡体积** | 展示如何通过放置 **阻挡体积** 在您的关卡中来创建不可见碰撞。|
-| **1.3 剔除距离体积** | 如何根据对象的大小来对 **剔除距离** 制作组规则（让对象基于与玩家间的距离而隐藏）。|
-| **1.4 Lightmass重要体积** | 对位于体积内的 **动态** 对象生成间接光照示例并加速光照重新编译的时间（例如，一般用于包围可游玩区域）。|
-| **1.5 Lightmass角色间接细节体积** | 类似于1.4，但这样生成的位于整个体积内的间接光照示例并不仅仅位于玩家的高度（例如，用于电梯井，来确保当其移动时间接光照是正确的）。|
-| **1.6 预计算的可见性体积** | 性能的最优化，它存储了处于世界中的 **Actors** 的可见性（请注意：仅应放置在玩家可接触的区域内）。|
-| **1.7 预计算的可见性覆盖体积** | 如果您不想用自动生成的可见性，此选项让您可以手动覆盖 **预计算的可见性体积** 的可见性。|
-| **1.8 物理体积** | 覆盖输入体积值的 **Actor** 的物理设置（例如，可用来模拟重力损失或用来模拟水下）。|
-| **1.9 施加伤害的体积** | 输入 **施加伤害的体积** 记录并接受伤害事件的 **Actors** （例如，可用于应用来自火焰的伤害）。|
+| **1.1 放置** | 描述如何在关卡中放置体积，以及如何在几何体编辑模式下编辑它。|
+| **1.2 阻挡体积** | 演示如何通过在关卡中放置阻挡体积来创建无形的碰撞。|
+| **1.3 剔除距离体积** | 如何根据物体的大小设定关于剔除距离的规则（例如根据物体到玩家的距离将其隐藏）。|
+| **1.4 Lightmass重要体积** | 为体积内部的动态Object创建位于玩家高度的间接光源样本，并缩短光源重新构建时间（例如通常用于包围可游玩区域）。|
+| **1.5 Lightmass角色间接细节体积** | 与1.4相似，但此示例在整个体积内部生成间接光源样本，而不是仅在玩家高度生成（例如用在电梯井中，确保电梯移动时的间接光照正确）。|
+| **1.6 预计算可视性体积** | 一种性能优化，针对Actor在世界场景中的位置存储其可视性（注意：应该仅放置在玩家可以进入的区域）。|
+| **1.7 预计算可视性覆盖体积** | 如果你对自动生成的可视性不满意，可以用它手动覆盖预计算可视性体积的可视性。|
+| **1.8 物理体积** | 覆盖进入体积的Actor的物理设置（例如可用于模拟失重，或用于模拟水下效果）。|
+| **1.9 伤害引发体积** | 进入伤害引发体积的Actor会记录和接收伤害事件（例如可用于应用来自火焰的伤害）。|
 
 
 

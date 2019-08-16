@@ -23,6 +23,8 @@ public:
 
 	TOptional<FAssetData> GetSelectedEmitterAsset();
 
+	bool GetUseInheritance() const;
+
 private:
 	void GetSelectedEmitterTemplateAssets(TArray<FAssetData>& OutSelectedAssets);
 
@@ -32,6 +34,8 @@ private:
 
 	void OnEmitterAssetsActivated(const TArray<FAssetData>& ActivatedAssets, EAssetTypeActivationMethod::Type ActivationMethod);
 
+	void InheritanceOptionConfirmed();
+
 private:
 	TSharedPtr<SNiagaraTemplateAssetPicker> TemplateAssetPicker;
 
@@ -40,4 +44,6 @@ private:
 	FAssetData ActivatedTemplateAsset;
 
 	FAssetData ActivatedProjectAsset;
+
+	bool bUseInheritance;
 };

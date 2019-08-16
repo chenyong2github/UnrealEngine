@@ -1,16 +1,18 @@
-INTSourceChangelist:4385367
+INTSourceChangelist:6439153
 Availability: Public
-Crumbs: 
 Title: 다른 스켈레탈 메시에서 포즈 복사
 Description: Copy Pose From Mesh 애니메이션 블루프린트 노드를 사용하여 스켈레탈 메시의 포즈를 다른 스켈레탈 메시로 복사하는 법입니다. 
 Type:how-to
+skilllevel:Advanced
 Version: 4.20
 Parent: Engine/Animation/AnimHowTo
 Order: 2
-Tags: Animation, Animation Blueprint, Copy Pose
+Tags: Animation
+tags:Animation Blueprint
+tags: Copy Pose
 
 
-애니메이션 캐릭터로 작업할 때, 완전 다른 캐릭터에 똑같은 애니메이션 데이터를 적용하고 싶을 때가 있습니다. **Copy Pose From Mesh** (메시에서 포즈 복사) 애니메이션 블루프린트 노드 및 약간의 블루프린트 비주얼 스크립트를 사용하면, 레퍼런싱한 스켈레탈 메시 컴포넌트에 사용 중인 포즈를 다른 스켈레탈 메시의 애니메이션 블루프린트에 복사할 수 있습니다.
+애니메이션 캐릭터로 작업할 때, 완전 다른 캐릭터에 똑같은 애니메이션 데이터를 적용하고 싶을 때가 있습니다. **Copy Pose From Mesh** (메시에서 포즈 복사) 애니메이션 블루프린트 노드 및 약간의 블루프린트 비주얼 스크립트를 사용하면, 참조한 스켈레탈 메시 컴포넌트에 사용 중인 포즈를 다른 스켈레탈 메시의 애니메이션 블루프린트에 복사할 수 있습니다.
 
 여기서는 Copy Pose From Mesh 노드를 사용하여 플레이어의 애니메이션을 다른 스켈레탈 메시로 복사하는 법을 살펴봅니다.
 

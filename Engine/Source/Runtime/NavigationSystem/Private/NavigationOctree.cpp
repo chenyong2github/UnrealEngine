@@ -4,6 +4,7 @@
 #include "AI/Navigation/NavRelevantInterface.h"
 #include "NavigationSystem.h"
 
+
 //----------------------------------------------------------------------//
 // FNavigationOctree
 //----------------------------------------------------------------------//
@@ -20,6 +21,8 @@ FNavigationOctree::~FNavigationOctree()
 {
 	DEC_DWORD_STAT_BY( STAT_NavigationMemory, sizeof(*this) );
 	DEC_MEMORY_STAT_BY(STAT_Navigation_CollisionTreeMemory, NodesMemory);
+	
+	ObjectToOctreeId.Empty();
 }
 
 void FNavigationOctree::SetDataGatheringMode(ENavDataGatheringModeConfig Mode)
@@ -133,6 +136,14 @@ void FNavigationOctree::AddNode(UObject* ElementOb, INavRelevantInterface* NavEl
 	NodesMemory += ElementMemory;
 	INC_MEMORY_STAT_BY(STAT_Navigation_CollisionTreeMemory, ElementMemory);
 
+	if (ElementOb != nullptr)
+	{
+		ensure(ObjectToOctreeId.Find(HashObject(*ElementOb)) == nullptr);
+
+		// Reserve entry in our map before octree calls us back with the assigned Id. This is required since we ensure that all set id already exists
+		ObjectToOctreeId.Add(HashObject(*ElementOb), FOctreeElementId());
+	}	
+
 	AddElement(Element);
 }
 
@@ -195,37 +206,31 @@ const FNavigationRelevantData* FNavigationOctree::GetDataForID(const FOctreeElem
 	return &*OctreeElement.Data;
 }
 
+void FNavigationOctree::SetElementIdImpl(const UObject& Object, FOctreeElementId Id)
+{
+	ensure(IsValidElementId(Id));
+
+	FOctreeElementId* ExistingElementId = ObjectToOctreeId.Find(HashObject(Object));
+	// We expect ObjectToOctreeId to already contain an entry for Object since it should have already 
+	// been added in FNavigationOctree::AddNode
+	if (ensure(ExistingElementId))
+	{
+		*ExistingElementId = Id;
+	}
+}
+
 //----------------------------------------------------------------------//
 // FNavigationOctreeSemantics
 //----------------------------------------------------------------------//
 #if NAVSYS_DEBUG
 FORCENOINLINE
 #endif // NAVSYS_DEBUG
-void FNavigationOctreeSemantics::SetElementId(const FNavigationOctreeElement& Element, FOctreeElementId Id)
+void FNavigationOctreeSemantics::SetElementId(FNavigationOctreeSemantics::FOctree& OctreeOwner, const FNavigationOctreeElement& Element, FOctreeElementId Id)
 {
-	UWorld* World = NULL;
-	UObject* ElementOwner = Element.GetOwner();
-	if (ElementOwner == nullptr)
+	const bool bEvenIfPendingKill = true;
+	UObject* ElementOwner = Element.GetOwner(bEvenIfPendingKill);
+	if (ensure(ElementOwner != nullptr))
 	{
-		return;
-	}
-
-	if (AActor* Actor = Cast<AActor>(ElementOwner))
-	{
-		World = Actor->GetWorld();
-	}
-	else if (UActorComponent* AC = Cast<UActorComponent>(ElementOwner))
-	{
-		World = AC->GetWorld();
-	}
-	else if (ULevel* Level = Cast<ULevel>(ElementOwner))
-	{
-		World = Level->OwningWorld;
-	}
-
-	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
-	if (NavSys)
-	{
-		NavSys->SetObjectsNavOctreeId(*ElementOwner, Id);
+		((FNavigationOctree&)OctreeOwner).SetElementIdImpl(*ElementOwner, Id);
 	}
 }

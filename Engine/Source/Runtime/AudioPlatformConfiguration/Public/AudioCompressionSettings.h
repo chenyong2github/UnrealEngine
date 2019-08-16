@@ -15,6 +15,26 @@ enum class ESoundwaveSampleRateSettings : uint8
 	MatchDevice
 };
 
+/************************************************************************/
+/* FAudioStreamCachingSettings                                           */
+/* Properties used to determine chunk sizes for the two caches used     */
+/* when the experimental Stream Caching feature is used.                */
+/************************************************************************/
+struct FAudioStreamCachingSettings
+{
+	static constexpr int32 DefaultCacheSize = 32 * 1024;
+
+	// Target memory usage, in kilobytes.
+	// In the future settings for the cache can be more complex, but for now
+	// we set the max chunk size to 256 kilobytes, then set the number of elements in our cache as
+	// CacheSizeKB / 256.
+	int32 CacheSizeKB;
+
+	FAudioStreamCachingSettings()
+		: CacheSizeKB(DefaultCacheSize)
+	{
+	}
+};
 
 /************************************************************************/
 /* FPlatformAudioCookOverrides                                          */
@@ -23,6 +43,11 @@ enum class ESoundwaveSampleRateSettings : uint8
 /************************************************************************/
 struct FPlatformAudioCookOverrides
 {
+	// Increment this to force a recook on all Stream Caching assets.
+	// For testing, it's useful to set this to either a negative number or
+	// absurdly large number, to ensure you do not pollute the DDC.
+	static const int32 StreamCachingVersion = 5019;
+
 	bool bResampleForDevice;
 
 	// Mapping of which sample rates are used for each sample rate quality for a specific platform.
@@ -32,12 +57,20 @@ struct FPlatformAudioCookOverrides
 	float CompressionQualityModifier;
 
 	// When set to any platform > 0.0, this will automatically set any USoundWave beyond this value to be streamed from disk.
+	// If StreamCaching is set to true, this will be used 
 	float AutoStreamingThreshold;
+
+	// Whether to use the experimental Load on Demand feature, which uses as little memory at runtime as possible.
+	bool bUseStreamCaching;
+
+	// If Load On Demand is enabled, these settings are used to determine chunks and cache sizes.
+	FAudioStreamCachingSettings StreamCachingSettings;
 
 	FPlatformAudioCookOverrides()
 		: bResampleForDevice(false)
 		, CompressionQualityModifier(1.0f)
 		, AutoStreamingThreshold(0.0f)
+		, bUseStreamCaching(false)
 	{
 		PlatformSampleRates.Add(ESoundwaveSampleRateSettings::Max, 48000);
 		PlatformSampleRates.Add(ESoundwaveSampleRateSettings::High, 32000);
@@ -46,7 +79,7 @@ struct FPlatformAudioCookOverrides
 		PlatformSampleRates.Add(ESoundwaveSampleRateSettings::Min, 8000);
 	}
 
-	// This is used to invalidate compressed audio for a specific platform
+	// This is used to invalidate compressed audio for a specific platform.
 	static void GetHashSuffix(const FPlatformAudioCookOverrides* InOverrides, FString& OutSuffix)
 	{
 		if (InOverrides == nullptr)
@@ -59,6 +92,18 @@ struct FPlatformAudioCookOverrides
 
 		int32 AutoStreamingThresholdHash = FMath::FloorToInt(InOverrides->AutoStreamingThreshold * 100.0f);
 		OutSuffix.AppendInt(AutoStreamingThresholdHash);
+
+		if (InOverrides->bUseStreamCaching)
+		{
+			OutSuffix.Append(TEXT("_StreamCache_Ver"));
+			OutSuffix.AppendInt(StreamCachingVersion);
+			OutSuffix.AppendChar('_');
+
+			// cache info:
+			OutSuffix.Append(TEXT("MEM_"));
+			OutSuffix.AppendInt(InOverrides->StreamCachingSettings.CacheSizeKB);
+		}
+		
 
 		int32 ResampleBoolHash = (int32)InOverrides->bResampleForDevice;
 		OutSuffix.AppendInt(ResampleBoolHash);

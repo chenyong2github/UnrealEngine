@@ -17,4 +17,5 @@ public:
 private:
 	FReply OnConnectButtonClicked();
 	FReply OnDisconnectButtonClicked();
+	bool AreButtonsEnabled() const;
 };

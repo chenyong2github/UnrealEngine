@@ -1,0 +1,345 @@
+﻿INTSourceChangelist:6173642
+Availability: Docs
+Crumbs: 
+Title:BuildGraph脚本任务
+Description:学习BuildGraph如何帮助您创建自定义任务。
+Type: 
+Version: 4.13
+Parent: Programming/BuildTools/AutomationTool/BuildGraph/ScriptAnatomy/Tasks
+Order: 
+Tags: Programming
+Tags: BuildGraph
+
+
+### AgeStore
+
+这是从一组文件分离符号的任务。该任务是根据Microsoft调试工具SDK随附的AGESTORE实用程序命名的，但实际上它是一个单独的实现。主要区别在于，它使用最后修改时间来确定要删除哪些文件，而不是上次访问时间。
+
+| 属性	 | 类型 | 用法 | 描述 |
+| --- | --- | --- | --- |
+| **Platform** | UnrealTargetPlatform | 必需 | 让符号老化所针对的目标平台。|
+| **StoreDir** | String | 必需 | 符号服务器目录。|
+| **Days** | Int32 | 必需 |	符号值得保留的天数。|
+| **BuildDir** | String | 可选 | 构建目录的根目录，用于检查是否存在现有的构建版本指定目录。|
+| **Filter** | String |	可选 | 在删除服务号之前，目录文件名中要匹配的子字符串。如果有多个构建共享同一个符号服务器，这允许“age store”任务避免从其他构建中删除符号。filter值的具体用法由平台工具链定义的符号服务器结构确定。|
+| **If** | Condition | 可选 | 是否执行该任务。如果该值评估为false，则被忽略。|
+
+
+### Command
+
+调用AutomationTool子进程以运行指定命令。
+
+| 属性	 | 类型 | 用法 | 描述 |
+| --- | --- | --- | --- |
+| **Name** | String | 必需 | 要执行的命令名称。|
+| **Arguments** | String | 可选 | 要传递给命令的参数。|
+| **MergeTelemetryWithPrefix** | String | 可选 | 如果非空，则指示来自命令的遥测合并到具有给定前缀的这个UAT实例的遥测。可能是空（非空）字符串。|
+| **If** | Condition | 可选 | 是否执行该任务。如果该值评估为false，则被忽略。|
+
+### Commandlet
+
+产生编辑器以运行commandlet。
+
+| 属性	 | 类型 | 用法 | 描述 |
+| --- | --- | --- | --- |
+| **Name** | String | 必需 | 要执行的commandlet名称。|
+| **Project** |	File Spec |	可选 | 要通过编辑器运行的项目。|
+| **Arguments** | String | 可选 | 要传递到commandlet的参数。|
+| **EditorExe** | FileReference | 可选 | 要使用的编辑器可执行文件。默认为当前平台的开发UE4Editor可执行文件。|
+| **If** | Condition | 可选 | 是否执行该任务。如果该值评估为false，则被忽略。|
+
+
+### Compile
+
+使用UnrealBuildTool编译目标。
+
+| 属性	 | 类型 | 用法 | 描述 |
+| --- | --- | --- | --- |
+| **Target** | String |	必需 | 要编译的目标。|
+| **Configuration** | UnrealTargetConfiguration | 必需 | 要编译的配置。|
+| **Platform** | UnrealTargetPlatform |	必需 | 编译所针对的平台。|
+| **Arguments** | String |	可选 | UnrealBuildTool的其他参数。|
+| **AllowXGE** | Boolean |	可选 | 是否允许对编译使用XGE。|
+| **AllowParallelExecutor** | Boolean |	可选 |	是否允许对该编译使用并行执行器。|
+| **Clean** | Nullable`1 |	可选 | 是否允许清理该目标。如果不指定，则在命令行上传递-Clean参数时清理目标。|
+| **Tag** |	Tag List |	可选 |	为构建该任务的产品而应用的标记。|
+| **If** | Condition |	可选 |	是否执行该任务。如果该值评估为false，则被忽略。|
+
+### Cook
+
+烘焙特定平台的所选贴图
+
+| 属性	 | 类型 | 用法 | 描述 |
+| --- | --- | --- | --- |
+| **Project** |	String | 必需 |	要烘焙的项目文件。|
+| **Platform** | String | 必需 | 目标烘焙平台（如WindowsNoEditor）。|
+| **Maps** | String | 可选 | 要烘焙的贴图列表，以“+”字符分隔。|
+| **Versioned** | Boolean |	可选 |	要传递到烘焙器的其他参数。|
+| **Arguments** | String | 可选 | 要传递到烘焙器的其他参数。|
+| **Tag** |	Tag List | 可选 | 为构建该任务的产品而应用的标记。|
+| **If** | Condition |	可选 |	是否执行该任务。如果该值评估为false，则被忽略。|
+
+### Copy
+
+将文件从一个目录复制到另一个目录。
+
+| 属性	 | 类型 | 用法 | 描述 |
+| --- | --- | --- | --- |
+| **Files** | File Spec | 可选 | 要应用于输入文件列表的过滤器。可选参数。|
+| **From** | File Spec | 必需 |	复制源模式（如Engine/*.txt）。|
+| **To** | File Spec |	必需 |	复制目标目录。|
+| **Overwrite** | Boolean |	可选 |	是否覆盖现有文件。|
+| **Tag** |	Tag List | 可选 | 为构建该任务的产品而应用的标记。|
+| **If** | Condition |	可选 |	是否执行该任务。如果该值评估为false，则被忽略。|
+
+### CsCompile
+
+编译C#项目文件及其依赖项。
+
+| 属性	 | 类型 | 用法 | 描述 |
+| --- | --- | --- | --- |
+| **Project** |	String | 必需 |	要编译的C#项目文件。使用分号可以指定多个项目文件。|
+| **Configuration** | String | 可选 | 要编译的配置。|
+| **Platform** | String | 可选 | 要编译的平台。|
+| **Target** | String |	必需 | 要构建的目标。|
+| **Arguments** | String | 可选 | 要传递到编译器的其他参数。|
+| **EnumerateOnly** | Boolean |	可选 |	仅列举构建产品；不会真的编译项目。|
+| **Tag** |	Tag List | 可选 | 为构建该任务的产品而应用的标记。|
+| **TagReferences** | Tag List | 可选 |	要应用于项目已有的任何非私有引用（如没有复制到输出目录外部引用）的标记。|
+| **If** | Condition |	可选 |	是否执行该任务。如果该值评估为false，则被忽略。|
+
+
+### Delete
+
+删除一组文件。
+
+| 属性	 | 类型 | 用法 | 描述 |
+| --- | --- | --- | --- |
+| **Files** | File Spec | 必需 | 以分号分隔的指定文件列表（如*.cpp;Engine/.../*.bat）或目标集名称。|
+| **DeleteEmptyDirectories** | Boolean | 可选 |	删除文件后是否删除空目录。默认为true。|
+| **If** | Condition |	可选 |	是否执行该任务。如果该值评估为false，则被忽略。|
+
+### Log
+
+将消息（和其他可选诊断信息）打印到输出日志。
+
+| 属性	 | 类型 | 用法 | 描述 |
+| --- | --- | --- | --- |
+| **Message** |	String | 可选 |	要输出的消息。|
+| **Files** | File Spec | 可选 | 如果指定，会在指定消息后打印指定文件列表。|
+| **IncludeContents** |	Boolean | 可选 | 如果指定，会打印指定文件的内容。|
+| **If** | Condition |	可选 |	是否执行该任务。如果该值评估为false，则被忽略。|
+
+### Move
+
+将文件从一个目录移动到另一个目录。
+
+| 属性	 | 类型 | 用法 | 描述 |
+| --- | --- | --- | --- |
+| **Files** | File Spec | 可选 | 要应用于输入文件列表的过滤器。可选。|
+| **From** | File Spec | 必需 |	复制源模式（如Engine/*.txt）。|
+| **To** | File Spec |	必需 |	复制目标目录。|
+| **Tag** |	Tag List | 可选 | 为构建该任务的产品而应用的标记。|
+| **If** | Condition |	可选 |	是否执行该任务。如果该值评估为false，则被忽略。|
+
+### MsBuild
+
+执行MsBuild。
+
+| 属性	 | 类型 | 用法 | 描述 |
+| --- | --- | --- | --- |
+| **Project** |	String | 必需 |	要编译的C#项目文件。使用分号可以指定多个项目文件。|
+| **Configuration** | String |	可选 |	要编译的配置。|
+| **Platform** | String | 可选 | 要编译的平台。|
+| **Arguments** | String | 可选 | 要传递到编译器的其他选项。|
+| **Verbosity** | String | 可选 | MSBuild输出详情。|
+| **If** | Condition |	可选 |	是否执行该任务。如果该值评估为false，则被忽略。|
+
+### PakFile
+
+根据一组给定文件创建PAK文件。
+
+| 属性	 | 类型 | 用法 | 描述 |
+| --- | --- | --- | --- |
+| **Files** | File Spec | 必需 | 要添加到pak文件的文件、通配符和标记集列表，以“;”字符分隔。|
+| **Output** | FileReference | 必需 | 要输出的PAK文件。|
+| **ResponseFile** | FileReference | 可选 |	响应文件的路径，其中包含要添加到pak文件的一列文件，而不是单独指定。|
+| **RebaseDir** | HashSet`1 | 可选 | 重新作为文件相对基础目录的目录。如果指定，列出目录下面的最短路径将用于每个文件。|
+| **Order** | FileReference | 可选 | 指定文件顺序的脚本。|
+| **Sign** | FileReference | 可选 |	该pak文件的加密密钥。|
+| **Compress** | Boolean | 可选 | 是否压缩文件。|
+| **Arguments** | String | 可选 | 要传递到 UnrealPak 的其他参数。|
+| **Tag** |	Tag List | 可选 | 为构建该任务的产品而应用的标记。|
+| **If** | Condition |	可选 |	是否执行该任务。如果该值评估为false，则被忽略。|
+
+### Rename
+
+重命名一个文件或一组文件。
+
+| 属性	 | 类型 | 用法 | 描述 |
+| --- | --- | --- | --- |
+| **Files** | File Spec | 必需 | 要重命名的文件。|
+| **From** | String | 可选 | 当前文件名或要匹配的模式（如，*.txt）。不应包含任何路径分隔符。|
+| **To** | String |	必需 |	文件的新名称。不应包含任何路径分隔符。|
+| **Tag** |	Tag List |	可选 |	要对重命名后的文件应用的标记。|
+| **If** | Condition |	可选 |	是否执行该任务。如果该值评估为false，则被忽略。|
+
+### SanitizeReceipt
+
+该任务通过从`*.target`文件进行读取来标记构建产品和/或运行时依赖项。
+
+| 属性	 | 类型 | 用法 | 描述 |
+| --- | --- | --- | --- |
+| **Files** | File Spec | 必需 | 要读取的接受文件（*.target）集，包含通配符和标记名称，以分号分隔。|
+| **EngineDir** | DirectoryReference | 可选 | 引擎文件夹的路径，用于在接收文件中扩展$(EngineDir)属性。默认为当前工作空间的引擎目录。|
+| **If** | Condition |	可选 |	是否执行该任务。如果该值评估为false，则被忽略。|
+
+### SetVersion
+
+使用给定版本信息更新本地版本文件（`Engine/Source/Runtime/Launch/Resources/Version.h`、`Engine/Build/Build.version`和`Engine/Source/Programs/DotNETCommon/Metadata.cs`）。
+
+| 属性	 | 类型 | 用法 | 描述 |
+| --- | --- | --- | --- |
+| **Change** | Int32 |	必需 |	要在版本文件中设置的更改列表。|
+| **CompatibleChange** | Int32 | 可选 |	要在版本文件中设置的引擎兼容更改列表。|
+| **Branch** | String |	必需 |	分支字符串。|
+| **Build** | String |	可选 |	构建版本字符串。|
+| **Licensee** | Boolean |	可选 |	是否将IS_LICENSEE_VERSION标志设置为true。|
+| **Promoted** | Boolean |	可选 |	是否将ENGINE_IS_PROMOTED_BUILD标志设置为true。|
+| **SkipWrite** | Boolean |	可选 |	如果设置，不会真的写入文件，而是返回将要更新的版本文件。用于本地构建。|
+| **Tag** |	Tag List | 可选 | 为构建该任务的产品而应用的标记。|
+| **If** | Condition |	可选 |	是否执行该任务。如果该值评估为false，则被忽略。|
+
+### Sign
+
+用已安装证书对一组可执行文件签名。
+
+| 属性	 | 类型 | 用法 | 描述 |
+| --- | --- | --- | --- |
+| **Files** | File Spec | 必需 | 以分号分隔的指定文件列表（如*.cpp;Engine/.../*.bat）或目标集名称。|
+| **Tag** |	Tag List | 可选 | 为构建该任务的产品而应用的标记。|
+| **If** | Condition |	可选 |	是否执行该任务。如果该值评估为false，则被忽略。|
+
+### Spawn
+
+产生外部可执行文件并等待编译。
+
+| 属性	 | 类型 | 用法 | 描述 |
+| --- | --- | --- | --- |
+| **Exe** |	String | 必需 |	要产生的可执行文件。|
+| **Arguments** | String |	可选 |	新创建的进程的参数。|
+| **ErrorLevel** |	Int32 |	可选 |	被视为错误的最小出口代码。|
+| **If** | Condition |	可选 |	是否执行该任务。如果该值评估为false，则被忽略。|
+
+### Stage
+
+将构建接收中列出的文件暂存到输出目录。
+
+| 属性	 | 类型 | 用法 | 描述 |
+| --- | --- | --- | --- |
+| **Project** |	FileReference |	可选 |	该目标所属的项目。|
+| **Target** | String |	必需 | 要暂存的目标的名称。|
+| **Platform** | UnrealTargetPlatform |	必需 |	要暂存的平台。|
+| **Configuration** | UnrealTargetConfiguration | 必需 | 要暂存的配置。|
+| **Architecture** | String | 可选 | 要暂存的架构。|
+| **ToDir** | DirectoryReference |	必需 |	接收文件应该暂存到的目录。|
+| **Overwrite** | Boolean |	可选 |	是否覆盖现有文件。|
+| **Tag** |	Tag List | 可选 | 为构建该任务的产品而应用的标记。|
+| **If** | Condition |	可选 |	是否执行该任务。如果该值评估为false，则被忽略。|
+
+### Strip
+
+从一组文件分离调试信息。
+
+| 属性	 | 类型 | 用法 | 描述 |
+| --- | --- | --- | --- |
+| **Platform** | UnrealTargetPlatform |	必需 |	用于分离二进制的平台工具链。|
+| **BaseDir** |	DirectoryReference | 可选 |	从中查找文件的目录。|
+| **Files** | File Spec | 必需 | 以分号分隔的指定文件列表（如Engine/.../*.pdb）或目标集名称。|
+| **OutputDir** | DirectoryReference | 可选 | 分隔文件的输出目录。默认为输入路径（覆盖输入文件）。|
+| **Tag** |	Tag List | 可选 | 为构建该任务的产品而应用的标记。|
+| **If** | Condition |	可选 |	是否执行该任务。如果该值评估为false，则被忽略。|
+
+### Submit
+
+创建一个新的更改列表，并向Perforce流提交一组文件。
+
+| 属性	 | 类型 | 用法 | 描述 |
+| --- | --- | --- | --- |
+| **Description** |	String | 必需 |	已提交更改列表的描述。|
+| **Files** | File Spec | 必需 | 要提交的文件。|
+| **FileType** | String | 可选 | 已提交文件的Perforce文件类型（如binary+FS32）。|
+| **Workspace** | String | 可选 | 工作空间名称。如果指定，则使用给定流和根目录来创建新的工作空间以用于提交文件。如果不指定，则将使用当前工作空间。|
+| **Stream** |	String | 可选 |	工作空间的流；默认为当前流。除非同时指定了Workspace属性，否则忽略。|
+| **RootDir** |	DirectoryReference | 可选 |	流的根目录。如果不指定，默认为当前根目录。|
+| **RevertUnchanged** |	Boolean | 可选 | 是否先还原未更改的文件，然后再尝试提交。|
+| **Force** | Boolean |	可选 |	强制进行提交，即使需要解析也是如此（始终接受当前版本）。|
+| **If** | Condition |	可选 |	是否执行该任务。如果该值评估为false，则被忽略。|
+
+### SymStore
+
+这是从一组文件分离符号的任务
+
+| 属性	 | 类型 | 用法 | 描述 |
+| --- | --- | --- | --- |
+| **Platform** | UnrealTargetPlatform |	必需 |	用于处理符号文件的平台工具链。|
+| **Files** | String |	必需 |	输出文件的列表。将从该列表中抽取PDB。|
+| **StoreDir** | String | 必需 | 压缩符号的输出目录。|
+| **Product** |	String | 必需 |	符号存储记录的产品名称。|
+| **BuildVersion** | String | 可选 | 与这些符号关联的构建版本。用于通过将该版本与构建共享中的目录名称匹配以在AgeStore实现清理。|
+| **If** | Condition |	可选 |	是否执行该任务。如果该值评估为false，则被忽略。|
+
+### Tag
+
+对一组给定文件应用标记。通过列举标记和通过“Files”参数指定的文件找到文件列表。从该列表，任何没有被“Files”参数匹配的文件都将被移除，后跟“Except”参数匹配的任何文件。
+
+| 属性	 | 类型 | 用法 | 描述 |
+| --- | --- | --- | --- |
+| **BaseDir** |	DirectoryReference | 可选 |	设置基本目录以用于解析相对路径和模式。如果设置，则任何绝对模式（例如/Engine/Build/...）将相对于该路径。如果不设置，则视为真正的绝对路径。|
+| **Files** | File Spec | 可选 | 要从中工作的文件集，包括通配符和标记名称，以分号分隔。如果设置了BaseDir，则解析为相对于BaseDir，否则相对于分支根目录。|
+| **FileLists** | File Spec | 可选 | 要从中添加额外文件的文本文件集。每个文件列表都应在每一行有一个文件。|
+| **Filter** |	File Spec |	可选 |	用于过滤文件列表的模式，包括标记名称或通配符。许多包含适用于基本目录（如果设置）的模式。如果不指定，默认为所有文件。|
+| **Except** | File Spec |	可选 |	要从匹配列表中排除的模式集。许多包含适用于基本目录的模式的标记名称。|
+| **With** | Tag List |	必需 |	要应用的标记名称。|
+| **If** | Condition |	可选 |	是否执行该任务。如果该值评估为false，则被忽略。|
+
+
+### TagReceipt
+
+该任务通过从`*.target`文件进行读取来标记构建产品和/或运行时依赖项。
+
+| 属性	 | 类型 | 用法 | 描述 |
+| --- | --- | --- | --- |
+| **Files** | File Spec | 必需 | 要读取的接受文件（*.target）集，包含通配符和标记名称，以分号分隔。|
+| **EngineDir** | DirectoryReference | 可选 | 引擎文件夹的路径，用于在接收文件中扩展$(EngineDir)属性。默认为当前工作空间的引擎目录。|
+| **ProjectDir** | DirectoryReference | 可选 | 项目文件夹的路径，用于在接收文件中扩展$(ProjectDir)属性。默认为当前工作空间的引擎目录。已弃用。|
+| **BuildProducts** | Boolean |	可选 |	是否标记接收中列出的构建产品。|
+| **BuildProductType** | String | 可选 | 要标记的构建产品类型（请参阅TargetReceipt.cs - UnrealBuildTool.BuildProductType以了解有效值）。|
+| **RuntimeDependencies** |	Boolean | 可选 | 是否标记接收中列出的运行时依赖项。|
+| **StagedFileType** |	String | 可选 |	要标记的运行时依赖项类型（请参阅TargetReceipt.cs - UnrealBuildTool.StagedFileType以了解有效值）。|
+| **With** | Tag List |	必需 |	要应用的标记名称。|
+| **If** | Condition |	可选 |	是否执行该任务。如果该值评估为false，则被忽略。|
+
+### Unzip
+
+从zip归档解压文件。
+
+| 属性	 | 类型 | 用法 | 描述 |
+| --- | --- | --- | --- |
+| **ZipFile** |	File Spec |	必需 |	要解压的zip文件的路径。|
+| **ToDir** | DirectoryReference |	必需 |	解压文件的输出目录。|
+| **Tag** |	Tag List |	可选 |	要应用于解压文件的标记。|
+| **If** | Condition |	可选 |	是否执行该任务。如果该值评估为false，则被忽略。|
+
+### Zip
+
+将文件压缩为zip归档。
+
+| 属性	 | 类型 | 用法 | 描述 |
+| --- | --- | --- | --- |
+| **FromDir** |	DirectoryReference | 必需 |	从中读取压缩文件的目录。|
+| **Files** | File Spec | 可选 | 以分号分隔的指定文件列表（如*.cpp;Engine/.../*.bat）或目标集名称。从FromDir获取的相对路径。|
+| **ZipFile** |	FileReference |	必需 |	要创建的zip文件。|
+| **Tag** |	Tag List |	可选 |	要应用于已创建zip文件的标记。|
+| **If** | Condition |	可选 |	是否执行该任务。如果该值评估为false，则被忽略。|
+

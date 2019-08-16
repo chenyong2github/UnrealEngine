@@ -36,7 +36,7 @@ DEFINE_STAT(STAT_PixelBufferMemory);
 
 static FAutoConsoleVariable CVarUseVulkanRealUBs(
 	TEXT("r.Vulkan.UseRealUBs"),
-	0,
+	1,
 	TEXT("0: Emulate uniform buffers on Vulkan SM4/SM5 (debugging ONLY)\n")
 	TEXT("1: Use real uniform buffers [default]"),
 	ECVF_ReadOnly
@@ -48,6 +48,18 @@ static TAutoConsoleVariable<int32> CVarDisableEngineAndAppRegistration(
 	TEXT("If true, disables engine and app registration, to disable GPU driver optimizations during debugging and development\n")
 	TEXT("Changes will only take effect in new game/editor instances - can't be changed at runtime.\n"),
 	ECVF_Default);
+
+static TAutoConsoleVariable<int32> CVarGraphicsAdapter(
+	TEXT("r.GraphicsAdapter"),
+	-1,
+	TEXT("User request to pick a specific graphics adapter (e.g. when using a integrated graphics card with a discrete one)\n")
+	TEXT("For Windows D3D, unless a specific adapter is chosen we reject Microsoft adapters because we don't want the software emulation.\n")
+	TEXT("This takes precedence over -prefer{AMD|NVidia|Intel} when the value is >= 0.\n")
+	TEXT(" -2: Take the first one that fulfills the criteria\n")
+	TEXT(" -1: Favour non integrated because there are usually faster (default)\n")
+	TEXT("  0: Adapter #0\n")
+	TEXT("  1: Adapter #1, ..."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
 
 const FString FResourceTransitionUtility::ResourceTransitionAccessStrings[(int32)EResourceTransitionAccess::EMaxAccess + 1] =
@@ -483,6 +495,7 @@ bool GRHISupportsLazyShaderCodeLoading = false;
 TRHIGlobal<int32> GMaxShadowDepthBufferSizeX(2048);
 TRHIGlobal<int32> GMaxShadowDepthBufferSizeY(2048);
 TRHIGlobal<int32> GMaxTextureDimensions(2048);
+TRHIGlobal<int32> GMaxVolumeTextureDimensions(2048);
 TRHIGlobal<int32> GMaxCubeTextureDimensions(2048);
 int32 GMaxTextureArrayLayers = 256;
 int32 GMaxTextureSamplers = 16;
@@ -672,34 +685,61 @@ static FName NAME_PLATFORM_IOS(TEXT("IOS"));
 static FName NAME_PLATFORM_MAC(TEXT("Mac"));
 static FName NAME_PLATFORM_SWITCH(TEXT("Switch"));
 static FName NAME_PLATFORM_TVOS(TEXT("TVOS"));
+static FName NAME_PLATFORM_HTML5(TEXT("HTML5"));
+static FName NAME_PLATFORM_LUMIN(TEXT("Lumin"));
+
 
 // @todo platplug: This is still here, only being used now by UMaterialShaderQualitySettings::GetOrCreatePlatformSettings
 // since I have moved the other uses to FindTargetPlatformWithSupport
 // But I'd like to delete it anyway!
 FName ShaderPlatformToPlatformName(EShaderPlatform Platform)
 {
-	switch(Platform)
+	switch (Platform)
 	{
+	case SP_PCD3D_SM5:
+	case SP_OPENGL_SM4:
+	case SP_OPENGL_PCES2:
 	case SP_PCD3D_SM4:
-	case SP_PCD3D_SM5: return NAME_PLATFORM_WINDOWS;
-	case SP_PS4: return NAME_PLATFORM_PS4;
-	case SP_XBOXONE_D3D12: return NAME_PLATFORM_XBOXONE;
+	case SP_OPENGL_SM5:
+	case SP_PCD3D_ES2:
+	case SP_PCD3D_ES3_1:
+	case SP_OPENGL_PCES3_1:
+	case SP_VULKAN_PCES3_1:
+	case SP_VULKAN_SM4:
+	case SP_VULKAN_SM5:
+		return NAME_PLATFORM_WINDOWS;
+	case SP_PS4:
+		return NAME_PLATFORM_PS4;
+	case SP_XBOXONE_D3D12:
+		return NAME_PLATFORM_XBOXONE;
+	case SP_OPENGL_ES2_ANDROID:
+	case SP_OPENGL_ES31_EXT:
+	case SP_VULKAN_ES3_1_ANDROID:
 	case SP_OPENGL_ES3_1_ANDROID:
-	case SP_VULKAN_ES3_1_ANDROID: return NAME_PLATFORM_ANDROID;
+		return NAME_PLATFORM_ANDROID;
+	case SP_OPENGL_ES2_WEBGL:
+		return NAME_PLATFORM_HTML5;
+	case SP_OPENGL_ES2_IOS:
 	case SP_METAL:
 	case SP_METAL_MRT:
-        return NAME_PLATFORM_IOS;
-	case SP_METAL_TVOS:
-	case SP_METAL_MRT_TVOS: return NAME_PLATFORM_TVOS;
+		return NAME_PLATFORM_IOS;
 	case SP_METAL_SM5:
 	case SP_METAL_SM5_NOTESS:
 	case SP_METAL_MACES3_1:
 	case SP_METAL_MACES2:
-	case SP_METAL_MRT_MAC: return NAME_PLATFORM_MAC;
+	case SP_METAL_MRT_MAC:
+		return NAME_PLATFORM_MAC;
 	case SP_SWITCH:
-	case SP_SWITCH_FORWARD: return NAME_PLATFORM_SWITCH;
-
-	default: return FName();
+	case SP_SWITCH_FORWARD:
+		return NAME_PLATFORM_SWITCH;
+	case SP_VULKAN_SM5_LUMIN:
+	case SP_VULKAN_ES3_1_LUMIN:
+		return NAME_PLATFORM_LUMIN;
+	case SP_METAL_TVOS:
+	case SP_METAL_MRT_TVOS:
+		return NAME_PLATFORM_TVOS;
+	default:
+		return NAME_None;
 	}
 }
 
@@ -791,7 +831,7 @@ RHI_API bool RHISupportsTessellation(const EShaderPlatform Platform)
 {
 	if (IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5))
 	{
-		return (Platform == SP_PCD3D_SM5) || (Platform == SP_XBOXONE_D3D12) || (Platform == SP_OPENGL_SM5) || (Platform == SP_OPENGL_ES31_EXT) || (Platform == SP_METAL_SM5) /*|| (IsVulkanSM5Platform(Platform))*/;
+		return (Platform == SP_PCD3D_SM5) || (Platform == SP_XBOXONE_D3D12) || (Platform == SP_OPENGL_SM5) || (Platform == SP_OPENGL_ES31_EXT) || (Platform == SP_METAL_SM5) || (IsVulkanSM5Platform(Platform));
 	}
 	return false;
 }
@@ -862,6 +902,14 @@ void FRHIRenderPassInfo::ConvertToRenderTargetsInfo(FRHISetRenderTargetsInfo& Ou
 		++OutRTInfo.NumColorRenderTargets;
 
 		OutRTInfo.bClearColor |= (LoadAction == ERenderTargetLoadAction::EClear);
+
+		ensure(!OutRTInfo.bHasResolveAttachments || ColorRenderTargets[Index].ResolveTarget);
+		if (ColorRenderTargets[Index].ResolveTarget)
+		{
+			OutRTInfo.bHasResolveAttachments = true;
+			OutRTInfo.ColorResolveRenderTarget[Index] = OutRTInfo.ColorRenderTarget[Index];
+			OutRTInfo.ColorResolveRenderTarget[Index].Texture = ColorRenderTargets[Index].ResolveTarget;
+		}
 	}
 
 	ERenderTargetActions DepthActions = GetDepthActions(DepthStencilRenderTarget.Action);

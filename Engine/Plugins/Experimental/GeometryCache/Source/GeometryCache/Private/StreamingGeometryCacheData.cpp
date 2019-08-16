@@ -329,42 +329,45 @@ void FStreamingGeometryCacheData::ProcessCompletedChunks()
 	//Note: This function should only be called from code which owns the CriticalSection
 	check(IsInGameThread() || IsInRenderingThread());
 
-	FCompletedChunk CompletedCunk;
-	while (CompletedChunks.Dequeue(CompletedCunk))
+	FCompletedChunk CompletedChunk;
+	while (CompletedChunks.Dequeue(CompletedChunk))
 	{
-		FResidentChunk* Chunk = Chunks.Find(CompletedCunk.LoadedChunkIndex);
+		FResidentChunk* Chunk = Chunks.Find(CompletedChunk.LoadedChunkIndex);
 		if (!Chunk)
 		{
 			UE_LOG(LogGeoCaStreaming, Error, TEXT("Got a stray async read request"));
 			return;
 		}
 
-		check(CompletedCunk.ReadRequest == Chunk->IORequest);
+		// Chunks can be queued up multiple times when scrubbing, either the request has already been fulfilled (nullptr) or it could be waiting for a different IO request
+		if (CompletedChunk.ReadRequest == Chunk->IORequest || Chunk->IORequest != nullptr)
+		{
+			// Check to see if we successfully managed to load anything
+			uint8* Mem = CompletedChunk.ReadRequest->GetReadResults();
+			if (Mem)
+			{
+				Chunk->Memory = Mem;
+				ChunksAvailable.Add(CompletedChunk.LoadedChunkIndex);
+				ChunksRequested.Remove(CompletedChunk.LoadedChunkIndex);
+				DEC_DWORD_STAT(STAT_OutstandingRequests);
+				INC_MEMORY_STAT_BY(STAT_ChunkDataResident, Chunk->DataSize);
+				INC_MEMORY_STAT_BY(STAT_ChunkDataStreamed, Chunk->DataSize);
+				IGeometryCacheStreamingManager::Get().IoBandwidth.Add(Chunk->DataSize);
+			}
+			else
+			{
+				UE_LOG(LogGeoCaStreaming, Error, TEXT("Async loading request failed!"));
+				ChunksRequested.Remove(CompletedChunk.LoadedChunkIndex);
+				// Fix me do we want to recover from this? Granite simply reschedules requests
+				// as it may have failed for transient reasons (buffer contention, ...)
+			}
 
-		// Check to see if we successfully managed to load anything
-		uint8* Mem = CompletedCunk.ReadRequest->GetReadResults();
-		if (Mem)
-		{
-			Chunk->Memory = Mem;
-			ChunksAvailable.Add(CompletedCunk.LoadedChunkIndex);
-			ChunksRequested.Remove(CompletedCunk.LoadedChunkIndex);
-			DEC_DWORD_STAT(STAT_OutstandingRequests);
-			INC_MEMORY_STAT_BY(STAT_ChunkDataResident, Chunk->DataSize);
-			INC_MEMORY_STAT_BY(STAT_ChunkDataStreamed, Chunk->DataSize);
-			IGeometryCacheStreamingManager::Get().IoBandwidth.Add(Chunk->DataSize);
-		}
-		else
-		{
-			UE_LOG(LogGeoCaStreaming, Error, TEXT("Async loading request failed!"));
-			ChunksRequested.Remove(CompletedCunk.LoadedChunkIndex);
-			// Fix me do we want to recover from this? Granite simply reschedules requests
-			// as it may have failed for transient reasons (buffer contention, ...)
+			Chunk->IORequest = nullptr;
 		}
 
 		// Clean up the now fully processed IO request
-		check(Chunk->IORequest->PollCompletion());
-		delete Chunk->IORequest;
-		Chunk->IORequest = nullptr;
+		check(CompletedChunk.ReadRequest->PollCompletion());
+		delete CompletedChunk.ReadRequest;
 	}
 }
 
@@ -403,7 +406,6 @@ const uint8* FStreamingGeometryCacheData::MapChunk(uint32 ChunkIndex, uint32* Ou
 			*OutChunkSize = ResidentChunk->DataSize;
 		}
 		ResidentChunk->Refcount++;
-		check(ResidentChunk->Refcount == 1);
 		return (uint8*)ResidentChunk->Memory;
 	}
 }
@@ -419,7 +421,6 @@ void FStreamingGeometryCacheData::UnmapChunk(uint32 ChunkIndex)
 		checkf(ResidentChunk->Refcount > 0, TEXT("Map/Unmap out of balance. Make sure you unmap once fore every map."));
 		checkf(ChunksAvailable.Contains(ChunkIndex) || ChunksEvicted.Contains(ChunkIndex), TEXT("Tried to unmap a chunk in an invalid state."));
 		ResidentChunk->Refcount--;
-		check(ResidentChunk->Refcount == 0);
 	}
 	else
 	{

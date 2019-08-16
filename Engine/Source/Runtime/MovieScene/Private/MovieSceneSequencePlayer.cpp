@@ -39,10 +39,12 @@ UMovieSceneSequencePlayer::UMovieSceneSequencePlayer(const FObjectInitializer& I
 	, Status(EMovieScenePlayerStatus::Stopped)
 	, bReversePlayback(false)
 	, bIsEvaluating(false)
+	, bPendingOnStartedPlaying(false)
 	, Sequence(nullptr)
 	, StartTime(0)
 	, DurationFrames(0)
 	, CurrentNumLoops(0)
+	, LastTickGameTimeSeconds(-1.f)
 {
 	PlayPosition.Reset(FFrameTime(0));
 
@@ -160,17 +162,20 @@ void UMovieSceneSequencePlayer::PlayInternal()
 			PreAnimatedState.EnableGlobalCapture();
 		}
 
+		bPendingOnStartedPlaying = true;
 		Status = EMovieScenePlayerStatus::Playing;
 		TimeController->StartPlaying(GetCurrentTime());
-
-		OnStartedPlaying();
-
+		
 		UMovieSceneSequence* MovieSceneSequence = RootTemplateInstance.GetSequence(MovieSceneSequenceID::Root);
 		UMovieScene*         MovieScene         = MovieSceneSequence ? MovieSceneSequence->GetMovieScene() : nullptr;
 
 		if (PlayPosition.GetEvaluationType() == EMovieSceneEvaluationType::FrameLocked)
 		{
-			OldMaxTickRate = GEngine->GetMaxFPS();
+			if (!OldMaxTickRate.IsSet())
+			{
+				OldMaxTickRate = GEngine->GetMaxFPS();
+			}
+
 			GEngine->SetMaxFPS(1.f / PlayPosition.GetInputRate().AsInterval());
 		}
 
@@ -209,7 +214,7 @@ void UMovieSceneSequencePlayer::Pause()
 	{
 		if (bIsEvaluating)
 		{
-			LatentActions.Emplace(FLatentAction::Pause);
+			LatentActions.Emplace(FLatentAction::EType::Pause);
 			return;
 		}
 
@@ -278,7 +283,7 @@ void UMovieSceneSequencePlayer::StopInternal(FFrameTime TimeToResetTo)
 	{
 		if (bIsEvaluating)
 		{
-			LatentActions.Emplace(FLatentAction::Stop, TimeToResetTo);
+			LatentActions.Emplace(FLatentAction::EType::Stop, TimeToResetTo);
 			return;
 		}
 
@@ -292,6 +297,7 @@ void UMovieSceneSequencePlayer::StopInternal(FFrameTime TimeToResetTo)
 		}
 
 		CurrentNumLoops = 0;
+		LastTickGameTimeSeconds = -1;
 
 		// Reset loop count on stop so that it doesn't persist to the next call to play
 		PlaybackSettings.LoopCount.Value = 0;
@@ -306,6 +312,7 @@ void UMovieSceneSequencePlayer::StopInternal(FFrameTime TimeToResetTo)
 		if (OldMaxTickRate.IsSet())
 		{
 			GEngine->SetMaxFPS(OldMaxTickRate.GetValue());
+			OldMaxTickRate.Reset();
 		}
 
 		if (HasAuthority())
@@ -666,9 +673,23 @@ void UMovieSceneSequencePlayer::Update(const float DeltaSeconds)
 		// Delta seconds has already been multiplied by MatineeTimeDilation at this point, so don't pass that through to Tick
 		float PlayRate = bReversePlayback ? -PlaybackSettings.PlayRate : PlaybackSettings.PlayRate;
 
-		TimeController->Tick(DeltaSeconds, PlayRate);
-
 		UWorld* World = GetPlaybackWorld();
+		float CurrentWorldTime = 0.f;
+		if (World)
+		{
+			CurrentWorldTime = World->GetTimeSeconds();
+		}
+
+		float DeltaTimeForFunction = DeltaSeconds;
+
+		if (LastTickGameTimeSeconds >= 0.f)
+		{
+			DeltaTimeForFunction = CurrentWorldTime - LastTickGameTimeSeconds;
+		}
+		LastTickGameTimeSeconds = CurrentWorldTime;
+
+		TimeController->Tick(DeltaTimeForFunction, PlayRate);
+
 		if (World)
 		{
 			PlayRate *= World->GetWorldSettings()->MatineeTimeDilation;
@@ -723,10 +744,19 @@ void UMovieSceneSequencePlayer::UpdateTimeCursorPosition_Internal(FFrameTime New
 		return;
 	}
 	
+	if (bPendingOnStartedPlaying)
+	{
+		OnStartedPlaying();
+		bPendingOnStartedPlaying = false;
+	}
+
 	if (Method == EUpdatePositionMethod::Play && ShouldStopOrLoop(NewPosition))
 	{
 		// The actual start time taking into account reverse playback
-		FFrameNumber StartTimeWithReversed = bReversePlayback ? StartTime + Duration : StartTime;
+		FFrameNumber StartTimeWithReversed = bReversePlayback ? GetLastValidTime().FrameNumber : StartTime;
+
+		// The actual end time taking into account reverse playback
+		FFrameTime EndTimeWithReversed = bReversePlayback ? StartTime : GetLastValidTime().FrameNumber;
 
 		FFrameTime PositionRelativeToStart = NewPosition.FrameNumber - StartTimeWithReversed;
 
@@ -737,6 +767,16 @@ void UMovieSceneSequencePlayer::UpdateTimeCursorPosition_Internal(FFrameTime New
 		if (bLoopIndefinitely || CurrentNumLoops + NumTimesLooped <= PlaybackSettings.LoopCount.Value)
 		{
 			CurrentNumLoops += NumTimesLooped;
+
+			// Finish evaluating any frames left in the current loop in case they have events attached
+			FFrameTime CurrentPosition = PlayPosition.GetCurrentPosition();
+			if ((bReversePlayback && CurrentPosition > EndTimeWithReversed) ||
+				(!bReversePlayback && CurrentPosition < EndTimeWithReversed))
+			{
+				FMovieSceneEvaluationRange Range = PlayPosition.PlayTo(EndTimeWithReversed);
+				UpdateMovieSceneInstance(Range, StatusOverride);
+			}
+
 
 			const FFrameTime Overplay       = FFrameTime(PositionRelativeToStart.FrameNumber.Value % Duration, PositionRelativeToStart.GetSubFrame());
 			FFrameTime NewFrameOffset;
@@ -851,11 +891,11 @@ void UMovieSceneSequencePlayer::ApplyLatentActions()
 	{
 		switch (LatentAction.Type)
 		{
-		case FLatentAction::Stop:          StopInternal(LatentAction.Position); continue;
-		case FLatentAction::Pause:         Pause();                             continue;
+		case FLatentAction::EType::Stop:   StopInternal(LatentAction.Position); continue;
+		case FLatentAction::EType::Pause:  Pause();                             continue;
 		}
 
-		check(LatentAction.Type == FLatentAction::Update);
+		check(LatentAction.Type == FLatentAction::EType::Update);
 		switch (LatentAction.UpdateMethod)
 		{
 		case EUpdatePositionMethod::Play:  PlayToFrame( LatentAction.Position); continue;

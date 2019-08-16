@@ -25,10 +25,13 @@
 #include "SSequencerSectionAreaView.h"
 #include "CommonMovieSceneTools.h"
 #include "Framework/Commands/GenericCommands.h"
+#include "CurveEditor.h"
 #include "Tree/SCurveEditorTreePin.h"
+#include "Tree/CurveEditorTreeFilter.h"
 #include "ScopedTransaction.h"
 #include "SequencerKeyTimeCache.h"
 #include "SequencerNodeSortingMethods.h"
+#include "SequencerSelectionCurveFilter.h"
 #include "SequencerKeyCollection.h"
 
 #define LOCTEXT_NAMESPACE "SequencerDisplayNode"
@@ -95,6 +98,46 @@ namespace SequencerNodeConstants
 		// New nodes get added to the correctly sorted position by default
 		return SortChildrenWithBias(A, B, SequencerNodeConstants::DefaultSortBias);
 	}
+
+	static bool NodeMatchesTextFilterTerm(TSharedPtr<const FSequencerDisplayNode> Node, const FCurveEditorTreeTextFilterTerm& Term)
+	{
+		bool bMatched = false;
+
+		for (const FCurveEditorTreeTextFilterToken& Token : Term.ChildToParentTokens)
+		{
+			if (!Node)
+			{
+				// No match - ran out of parents
+				return false;
+			}
+			else if (!Token.Match(*Node->GetDisplayName().ToString()))
+			{
+				return false;
+			}
+
+			bMatched = true;
+			Node = Node->GetParent();
+		}
+
+		return bMatched;
+	}
+
+	FText GetCurveEditorHighlightText(TWeakPtr<FCurveEditor> InCurveEditor)
+	{
+		TSharedPtr<FCurveEditor> PinnedCurveEditor = InCurveEditor.Pin();
+		if (!PinnedCurveEditor)
+		{
+			return FText::GetEmpty();
+		}
+
+		const FCurveEditorTreeFilter* Filter = PinnedCurveEditor->GetTree()->FindFilterByType(ECurveEditorTreeFilterType::Text);
+		if (Filter)
+		{
+			return static_cast<const FCurveEditorTreeTextFilter*>(Filter)->InputText;
+		}
+
+		return FText::GetEmpty();
+	}
 }
 
 struct FNameAndSignature
@@ -118,12 +161,12 @@ struct FNameAndSignature
 	}
 };
 
-class SSequencerObjectTrack
+class SSequencerCombinedKeysTrack
 	: public SLeafWidget
 {
 public:
 
-	SLATE_BEGIN_ARGS(SSequencerObjectTrack) {}
+	SLATE_BEGIN_ARGS(SSequencerCombinedKeysTrack) {}
 		/** The view range of the section area */
 		SLATE_ATTRIBUTE( TRange<double>, ViewRange )
 		/** The tick resolution of the current sequence*/
@@ -140,8 +183,6 @@ public:
 		
 		ViewRange = InArgs._ViewRange;
 		TickResolution = InArgs._TickResolution;
-
-		check(RootNode->GetType() == ESequencerNode::Object);
 	}
 
 protected:
@@ -177,7 +218,7 @@ private:
 };
 
 
-void SSequencerObjectTrack::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
+void SSequencerCombinedKeysTrack::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
 {
 	SWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
 
@@ -196,7 +237,7 @@ void SSequencerObjectTrack::Tick( const FGeometry& AllottedGeometry, const doubl
 	}
 }
 
-int32 SSequencerObjectTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
+int32 SSequencerCombinedKeysTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
 	if (RootNode->GetSequencer().GetSequencerSettings()->GetShowCombinedKeyframes())
 	{
@@ -224,14 +265,14 @@ int32 SSequencerObjectTrack::OnPaint(const FPaintArgs& Args, const FGeometry& Al
 }
 
 
-FVector2D SSequencerObjectTrack::ComputeDesiredSize( float ) const
+FVector2D SSequencerCombinedKeysTrack::ComputeDesiredSize( float ) const
 {
 	// Note: X Size is not used
 	return FVector2D( 100.0f, RootNode->GetNodeHeight() );
 }
 
 
-void SSequencerObjectTrack::GenerateCachedKeyPositions(const FGeometry& AllottedGeometry)
+void SSequencerCombinedKeysTrack::GenerateCachedKeyPositions(const FGeometry& AllottedGeometry)
 {
 	static float DuplicateThresholdPx = 3.f;
 
@@ -242,12 +283,28 @@ void SSequencerObjectTrack::GenerateCachedKeyPositions(const FGeometry& Allotted
 	// Unnamed key areas are uncacheable, so we track those separately
 	TArray<FSequencerCachedKeys> UncachableKeyTimes;
 
+	TArray<double> SectionBoundTimes;
+
 	// First off, accumulate (and cache) KeyDrawPositions as times, we convert to positions in the later loop
 	for (auto& CachePair : KeyCollectionSignature.GetKeyAreas())
 	{
 		TSharedRef<IKeyArea> KeyArea = CachePair.Key;
 
 		UMovieSceneSection* Section = KeyArea->GetOwningSection();
+
+		if (Section)
+		{
+			if (Section->HasStartFrame())
+			{
+				SectionBoundTimes.Add(Section->GetInclusiveStartFrame() / CachedTickResolution);
+			}
+
+			if (Section->HasEndFrame())
+			{
+				SectionBoundTimes.Add(Section->GetExclusiveEndFrame() / CachedTickResolution);
+			}
+		}
+
 		FNameAndSignature CacheKey{ CachePair.Value, KeyArea->GetName() };
 
 		// If we cached this last frame, use those key times again
@@ -303,6 +360,7 @@ void SSequencerObjectTrack::GenerateCachedKeyPositions(const FGeometry& Allotted
 		Uncached.GetKeysInRange(CachedViewRange, &Times, nullptr, nullptr);
 		AllIterators.Add(Times);
 	}
+	AllIterators.Add(TArrayView<const double>(SectionBoundTimes));
 
 	FTimeToPixel TimeToPixelConverter(AllottedGeometry, CachedViewRange, CachedTickResolution);
 
@@ -362,7 +420,7 @@ void FSequencerDisplayNode::SetParentDirectly(TSharedPtr<FSequencerDisplayNode> 
 	ParentNode = InParent;
 }
 
-void FSequencerDisplayNode::SetParent(TSharedPtr<FSequencerDisplayNode> InParent)
+void FSequencerDisplayNode::SetParent(TSharedPtr<FSequencerDisplayNode> InParent, int32 DesiredChildIndex)
 {
 	TSharedPtr<FSequencerDisplayNode> CurrentParent = ParentNode.Pin();
 	if (CurrentParent != InParent)
@@ -377,12 +435,36 @@ void FSequencerDisplayNode::SetParent(TSharedPtr<FSequencerDisplayNode> InParent
 		if (InParent)
 		{
 			// Add to new parent
-			InParent->ChildNodes.Add(ThisNode);
+			if (DesiredChildIndex != INDEX_NONE && ensureMsgf(DesiredChildIndex <= InParent->ChildNodes.Num(), TEXT("Invalid insert index specified")))
+			{
+				InParent->ChildNodes.Insert(ThisNode, DesiredChildIndex);
+			}
+			else
+			{
+				InParent->ChildNodes.Add(ThisNode);
+			}
+
 			bExpanded = ParentTree.GetSavedExpansionState( *this );
 		}
 	}
 
 	ParentNode = InParent;
+}
+
+void FSequencerDisplayNode::MoveChild(int32 InChildIndex, int32 InDesiredNewIndex)
+{
+	check(ChildNodes.IsValidIndex(InChildIndex) && InDesiredNewIndex >= 0 && InDesiredNewIndex <= ChildNodes.Num());
+
+	TSharedRef<FSequencerDisplayNode> Child = ChildNodes[InChildIndex];
+	ChildNodes.RemoveAt(InChildIndex, 1, false);
+
+	if (InDesiredNewIndex > InChildIndex)
+	{
+		// Decrement the desired index to account for the removal
+		--InDesiredNewIndex;
+	}
+
+	ChildNodes.Insert(Child, InDesiredNewIndex);
 }
 
 FSequencer& FSequencerDisplayNode::GetSequencer() const
@@ -679,16 +761,21 @@ TSharedRef<SWidget> FSequencerDisplayNode::GenerateWidgetForSectionArea(const TA
 			.ViewRange(ViewRange);
 	}
 	
-	if (GetType() == ESequencerNode::Object)
-	{
-		return SNew(SSequencerObjectTrack, SharedThis(this))
-			.ViewRange(ViewRange)
-			.IsEnabled(!GetSequencer().IsReadOnly())
-			.TickResolution(this, &FSequencerDisplayNode::GetTickResolution);
-	}
-
-	// currently only section areas display widgets
-	return SNullWidget::NullWidget;
+	return SNew(SSequencerCombinedKeysTrack, SharedThis(this))
+		.ViewRange(ViewRange)
+		.IsEnabled(!GetSequencer().IsReadOnly())
+		.Visibility_Lambda([this]()
+		{
+			if (GetType() == ESequencerNode::Track)
+			{
+				if (static_cast<FSequencerTrackNode&>(*this).GetSubTrackMode() == FSequencerTrackNode::ESubTrackMode::ParentTrack && IsExpanded())
+				{
+					return EVisibility::Hidden;
+				}
+			}
+			return EVisibility::Visible;
+		})
+		.TickResolution(this, &FSequencerDisplayNode::GetTickResolution);
 }
 
 FFrameRate FSequencerDisplayNode::GetTickResolution() const
@@ -740,6 +827,21 @@ TSharedPtr<SWidget> FSequencerDisplayNode::OnSummonContextMenu()
 	// @todo sequencer replace with UI Commands instead of faking it
 	const bool bShouldCloseWindowAfterMenuSelection = true;
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, GetSequencer().GetCommandBindings());
+
+	// let track editors & object bindings populate the menu
+	if (CanAddObjectBindingsMenu())
+	{
+		MenuBuilder.BeginSection("ObjectBindings");
+		GetSequencer().BuildAddObjectBindingsMenu(MenuBuilder);
+		MenuBuilder.EndSection();
+	}
+
+	if (CanAddTracksMenu())
+	{
+		MenuBuilder.BeginSection("AddTracks");
+		GetSequencer().BuildAddTrackMenu(MenuBuilder);
+		MenuBuilder.EndSection();
+	}
 
 	BuildContextMenu(MenuBuilder);
 
@@ -884,6 +986,7 @@ void FSequencerDisplayNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 	MenuBuilder.EndSection();
 
 	TArray<UMovieSceneTrack*> AllTracks;
+	TArray<TSharedRef<FSequencerDisplayNode> > DragableNodes;
 	for (TSharedRef<FSequencerDisplayNode> Node : GetSequencer().GetSelection().GetSelectedOutlinerNodes())
 	{
 		if (Node->GetType() == ESequencerNode::Track)
@@ -894,8 +997,26 @@ void FSequencerDisplayNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 				AllTracks.Add(Track);
 			}
 		}
+
+		if (Node->CanDrag())
+		{
+			DragableNodes.Add(Node);
+		}
 	}
-	
+
+	MenuBuilder.BeginSection("Organize", LOCTEXT("OrganizeContextMenuSectionName", "Organize"));
+	{
+		if (DragableNodes.Num())
+		{
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("MoveTracksToNewFolder", "Move to New Folder"),
+				LOCTEXT("MoveTracksToNewFolderTooltip", "Move the selected tracks to a new folder."),
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetTreeFolderOpen"),
+				FUIAction(FExecuteAction::CreateSP(&GetSequencer(), &FSequencer::MoveSelectedNodesToNewFolder)));
+		}
+	}
+	MenuBuilder.EndSection();
+
 	if (AllTracks.Num())
 	{
 		MenuBuilder.BeginSection("GeneralTrackOptions", NSLOCTEXT("Sequencer", "TrackNodeGeneralOptions", "Track Options"));
@@ -998,7 +1119,7 @@ bool FSequencerDisplayNode::HandleContextMenuRenameNodeCanExecute() const
 }
 
 
-TSharedPtr<SWidget> FSequencerDisplayNode::GenerateCurveEditorTreeWidget(const FName& InColumnName, TWeakPtr<FCurveEditor> InCurveEditor, FCurveEditorTreeItemID InTreeItemID)
+TSharedPtr<SWidget> FSequencerDisplayNode::GenerateCurveEditorTreeWidget(const FName& InColumnName, TWeakPtr<FCurveEditor> InCurveEditor, FCurveEditorTreeItemID InTreeItemID, const TSharedRef<ITableRow>& TableRow)
 {
 	if (InColumnName == ColumnNames.Label)
 	{
@@ -1036,15 +1157,17 @@ TSharedPtr<SWidget> FSequencerDisplayNode::GenerateCurveEditorTreeWidget(const F
 
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
+			.Padding(FMargin(0.f, 4.f, 0.f, 4.f))
 			[
 				SNew(STextBlock)
 				.Text(this, &FSequencerDisplayNode::GetDisplayName)
+				.HighlightText_Static(SequencerNodeConstants::GetCurveEditorHighlightText, InCurveEditor)
 				.ToolTipText(this, &FSequencerDisplayNode::GetDisplayNameToolTipText)
 			];
 	}
 	else if (InColumnName == ColumnNames.PinHeader)
 	{
-		return SNew(SCurveEditorTreePin, InCurveEditor, InTreeItemID);
+		return SNew(SCurveEditorTreePin, InCurveEditor, InTreeItemID, TableRow);
 	}
 
 	return nullptr;
@@ -1054,5 +1177,29 @@ void FSequencerDisplayNode::CreateCurveModels(TArray<TUniquePtr<FCurveModel>>& O
 {
 }
 
+bool FSequencerDisplayNode::PassesFilter(const FCurveEditorTreeFilter* InFilter) const
+{
+	if (InFilter->GetType() == ECurveEditorTreeFilterType::Text)
+	{
+		const FCurveEditorTreeTextFilter* Filter = static_cast<const FCurveEditorTreeTextFilter*>(InFilter);
+
+		TSharedRef<const FSequencerDisplayNode> This = AsShared();
+		for (const FCurveEditorTreeTextFilterTerm& Term : Filter->GetTerms())
+		{
+			if (SequencerNodeConstants::NodeMatchesTextFilterTerm(This, Term))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+	else if (InFilter->GetType() == ISequencerModule::GetSequencerSelectionFilterType())
+	{
+		const FSequencerSelectionCurveFilter* Filter = static_cast<const FSequencerSelectionCurveFilter*>(InFilter);
+		return Filter->Match(AsShared());
+	}
+	return false;
+}
 
 #undef LOCTEXT_NAMESPACE

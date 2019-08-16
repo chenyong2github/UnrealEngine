@@ -617,8 +617,16 @@ const FSlateBrush* FAssetEditorToolkit::GetDefaultTabIcon() const
 	{
 		if (Object)
 		{
+			UClass* IconClass = Object->GetClass();
+
+			if (IconClass->IsChildOf<UBlueprint>())
+			{
+				UBlueprint* Blueprint = Cast<UBlueprint>(Object);
+				IconClass = Blueprint->GeneratedClass;
+			}
+
 			// Find the first object that has a valid brush
-			const FSlateBrush* ThisAssetBrush = FSlateIconFinder::FindIconBrushForClass(Object->GetClass());
+			const FSlateBrush* ThisAssetBrush = FSlateIconFinder::FindIconBrushForClass(IconClass);
 			if (ThisAssetBrush != nullptr)
 			{
 				IconBrush = ThisAssetBrush;
@@ -1125,6 +1133,10 @@ void FAssetEditorToolkit::FGCEditingObjects::AddReferencedObjects(FReferenceColl
 	OwnerToolkit.EditingObjects.RemoveAllSwap([](UObject* Obj) { return Obj == nullptr; } );
 }
 
+FString FAssetEditorToolkit::FGCEditingObjects::GetReferencerName() const
+{
+	return TEXT("FAssetEditorToolkit::FGCEditorObjects");
+}
 
 TSharedPtr<FExtender> FExtensibilityManager::GetAllExtenders()
 {

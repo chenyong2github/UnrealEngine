@@ -161,7 +161,7 @@ void UK2Node_MakeMap::GetContextMenuActions(const FGraphNodeContextMenuBuilder& 
 					LOCTEXT("RemovePinTooltip", "Remove this pin and its corresponding key/value pin"),
 					FSlateIcon(),
 					FUIAction(
-						FExecuteAction::CreateUObject(this, &UK2Node_MakeMap::RemoveInputPin, const_cast<UEdGraphPin*>(Context.Pin))
+						FExecuteAction::CreateUObject(const_cast<UK2Node_MakeMap*>(this), &UK2Node_MakeMap::RemoveInputPin, const_cast<UEdGraphPin*>(Context.Pin))
 					)
 				);
 			}
@@ -173,7 +173,7 @@ void UK2Node_MakeMap::GetContextMenuActions(const FGraphNodeContextMenuBuilder& 
 				LOCTEXT("AddPinTooltip", "Add another pair of key/value pins"),
 				FSlateIcon(),
 				FUIAction(
-					FExecuteAction::CreateUObject(this, &UK2Node_MakeMap::InteractiveAddInputPin)
+					FExecuteAction::CreateUObject(const_cast<UK2Node_MakeMap*>(this), &UK2Node_MakeMap::InteractiveAddInputPin)
 				)
 			);
 		}
@@ -183,7 +183,7 @@ void UK2Node_MakeMap::GetContextMenuActions(const FGraphNodeContextMenuBuilder& 
 			LOCTEXT("ResetToWildcardTooltip", "Reset the node to have wildcard input/outputs. Requires no pins are connected."),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateUObject(this, &UK2Node_MakeMap::ClearPinTypeToWildcard),
+				FExecuteAction::CreateUObject(const_cast<UK2Node_MakeMap*>(this), &UK2Node_MakeMap::ClearPinTypeToWildcard),
 				FCanExecuteAction::CreateUObject(this, &UK2Node_MakeMap::CanResetToWildcard)
 			)
 		);

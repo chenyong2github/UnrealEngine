@@ -70,6 +70,8 @@ public:
 		static auto* CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Vulkan.UseRealUBs"));
 		return (CVar && CVar->GetValueOnAnyThread() == 0) ? false : bCodeHeaderUseRealUBs;
 	}
+
+	static bool RequiresRenderPassResolveAttachments() { return GMaxRHIFeatureLevel <= ERHIFeatureLevel::ES3_1; }
 };
 
 typedef FVulkanWindowsPlatform FVulkanPlatform;

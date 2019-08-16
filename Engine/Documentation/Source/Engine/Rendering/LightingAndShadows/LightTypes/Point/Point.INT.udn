@@ -1,8 +1,9 @@
 Availability: Public
 Title:Point Lights
-Crumbs: %ROOT%, Engine, Engine/Rendering/LightingAndShadows, Engine/Rendering/LightingAndShadows/LightTypes
 Description:The basics of Point Lights.
+Parent: Engine/Rendering/LightingAndShadows/LightTypes
 Version: 4.14
+Order: 1
 topic-image:PointLight_Topic.png
 
 [REGION:fullwidth raw]
@@ -46,7 +47,7 @@ The properties of a **Point Light** are broken up into 4 categories: Light, Ligh
 
 ### Light
 Property | Description |
-| -------- | ----------- |
+| --- | --- |
 | **Intensity** | Total energy that the light emits. |
 | **Light Color** | The color that the light emits. |
 | **Attenuation Radius** | Bounds the light's visible influence.|
@@ -57,7 +58,7 @@ Property | Description |
 | **Indirect Lighting Intensity** | Scales the indirect lighting contribution from the light. |
 | **Use Inverse Squared Falloff** | Whether to use physically based inverse squared distance falloff, where AttenuationRadius is only clamping the light's contribution. |
 | **Light Falloff Exponent** | Controls the radial falloff of light when UseInverseSquaredFalloff is disabled. |
-| **Min Roughness** | Min roughness effective for this light, used for softening specular highlights. |
+| **Specular Scale** | Multiplier on Specular Highlights. Use only with great care! Any value besides 1 is not physical! Can be used to artistically remove highlights mimicking polarizing filters or photos touch up. |
 | **Shadow Bias** | Controls how accurate the shadows from this light are. |
 | **Shadow Filter Sharpen** | How much to sharpen shadow filtering for this light. |
 | **Contact Shadow Length** | The length of screen space to ray trace for sharp contact shadows. A value of zero disables this option. |
@@ -69,20 +70,20 @@ Property | Description |
 
 ### Light Profiles
 Property | Description |
-| -------- | ----------- |
+| --- | --- |
 | **IES Texture** | The IES "Texture" used for the light profile. IES files are ASCII though Unreal represents them as textures, they are not image files. |
 | **Use IES Brightness** | If _false_, it will use the Brightness of the light to determine how much light to produce. If _true_, it will use the IES files brightness in Lumens (usually much larger than default values on lights in Unreal). |
 | **IES Brightness Scale** | Scale for IES brightness contribution, as they can seriously blow out a scene. |
 
 ### Lightmass
 Property | Description |
-| -------- | ----------- |
+| --- | --- |
 | **Indirect Lighting Saturation** | A value of 0 will completely desaturate this light in Lightmass, 1 will be unchanged. |
 | **Shadow Exponent** | Controls the falloff of shadow penumbras. |
 
 ### Light Function
 Property | Description |
-| -------- | ----------- |
+| --- | --- |
 | **Light Function Material** | The light function material to be applied to this light. |
 | **Light Function Scale** | Scales the light function projection. |
 | **Light Function Fade Distance** | The distance at which the light function should be completely faded to the value in Disabled Brightness. |

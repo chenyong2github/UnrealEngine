@@ -43,7 +43,7 @@ void* FEmbeddedDelegates::GetNamedObject(const FString& Name)
 #if BUILD_EMBEDDED_APP
 
 static FEvent* GSleepEvent = nullptr;
-static TAtomic<bool> GTickAnotherFrame;
+static TAtomic<int32> GTickWithoutSleepCount(0);
 static FCriticalSection GEmbeddedLock;
 //static TArray<TFunction<void()>> GEmbeddedQueues[5];
 static TQueue<TFunction<void()>> GEmbeddedQueues[5];
@@ -71,7 +71,7 @@ void FEmbeddedCommunication::Init()
 #if BUILD_EMBEDDED_APP
  	FScopeLock Lock(&GEmbeddedLock);
  	GSleepEvent = FPlatformProcess::GetSynchEventFromPool(false);
-	GTickAnotherFrame = false;
+	GTickWithoutSleepCount = 0;
 
 	FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateStatic(&FEmbeddedCommunication::TickGameThread));
 #endif
@@ -164,6 +164,8 @@ void FEmbeddedCommunication::KeepAwake(FName Requester, bool bNeedsRendering)
 	{
 		(*WakeCount)++;
 	}
+	
+	WakeGameThread();
 	
 #endif
 }
@@ -288,8 +290,10 @@ void FEmbeddedCommunication::RunOnGameThread(int Priority, TFunction<void()> Lam
 void FEmbeddedCommunication::WakeGameThread()
 {
 #if BUILD_EMBEDDED_APP
-	// If the game thread is already running, this will make it loop again.
-	GTickAnotherFrame = true;
+	// Allow 2 ticks without a sleep
+	// Our sleep happens in the core ticker's tick, and that order gets reversed every tick,
+	// so the caller isn't guaranteed to get a tick before our next sleep
+	GTickWithoutSleepCount = 2;
 	// wake up the game thread!
 	if (GSleepEvent)
 	{
@@ -301,37 +305,59 @@ void FEmbeddedCommunication::WakeGameThread()
 bool FEmbeddedCommunication::TickGameThread(float DeltaTime)
 {
 #if BUILD_EMBEDDED_APP
-
-	TFunction<void()> LambdaToCall;
-	bool bFoundFunction = false;
+	bool bEnableTickMultipleFunctors = false;
+	GConfig->GetBool(TEXT("EmbeddedCommunication"), TEXT("bEnableTickMultipleFunctors"), bEnableTickMultipleFunctors, GEngineIni);
+	double TickMaxTimeSeconds = 0.1;
+	if (bEnableTickMultipleFunctors)
 	{
-		FScopeLock Lock(&GEmbeddedLock);
+		GConfig->GetDouble(TEXT("EmbeddedCommunication"), TEXT("TickMaxTimeSeconds"), TickMaxTimeSeconds, GEngineIni);
+	}
 
-		for (int Queue = 0; Queue < ARRAY_COUNT(GEmbeddedQueues); Queue++)
+	double TimeSliceEnd = FPlatformTime::Seconds() + TickMaxTimeSeconds;
+	bool bLambdaWasCalled = false;
+	do
+	{
+		TFunction<void()> LambdaToCall;
 		{
-			if (GEmbeddedQueues[Queue].Dequeue(LambdaToCall))
+			FScopeLock Lock(&GEmbeddedLock);
+
+			for (int Queue = 0; Queue < ARRAY_COUNT(GEmbeddedQueues); Queue++)
 			{
-				break;
+				if (GEmbeddedQueues[Queue].Dequeue(LambdaToCall))
+				{
+					break;
+				}
 			}
 		}
-	}
 
-	// call the function if we found one
-	if (LambdaToCall)
-	{
-		LambdaToCall();
+		if (LambdaToCall)
+		{
+			LambdaToCall();
+			bLambdaWasCalled = true;
+		}
+		else
+		{
+			break;
+		}
 	}
+	while (bEnableTickMultipleFunctors
+		&& FPlatformTime::Seconds() < TimeSliceEnd);
+
 	// sleep if nothing is going on
-	else if (GRenderingWakeMap.Num() == 0
+	if (!bLambdaWasCalled
+		&& GRenderingWakeMap.Num() == 0
 		&& GTickWakeMap.Num() == 0
-		&& !GTickAnotherFrame) // Don't sleep if we have been asked to tick another frame
+		&& GTickWithoutSleepCount <= 0)
  	{
- 		// wake up every 5 seconds even if nothing to do
+		// wake up every 5 seconds even if nothing to do
 		UE_LOG(LogInit, VeryVerbose, TEXT("FEmbeddedCommunication Sleeping GameThread..."));
- 		bool bWasTriggered = GSleepEvent->Wait(5000);
+		bool bWasTriggered = GSleepEvent->Wait(5000);
 		UE_LOG(LogInit, VeryVerbose, TEXT("FEmbeddedCommunication Woke up. Reason=[%s]"), bWasTriggered ? TEXT("Triggered") : TEXT("TimedOut"));
  	}
-	GTickAnotherFrame = false;
+	if (GTickWithoutSleepCount > 0)
+	{
+		--GTickWithoutSleepCount;
+	}
 #endif
 
 	return true;

@@ -128,6 +128,7 @@ private:
 	float TransientMasterVolume;
 	int32 BackedUpStreamingPoolSize;
 	int32 BackedUpUseFixedPoolSize;
+	int32 BackedUpTextureStreaming;
 	TArray<uint8> BackedUpPlaySettings;
 
 	bool CachedPathTracingMode = false;

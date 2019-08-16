@@ -6,8 +6,10 @@
 #include "Widgets/SCompoundWidget.h"
 
 #include "CurveEditorTypes.h"
+#include "CurveEditorTreeTraits.h"
 
 class FCurveEditor;
+class ITableRow;
 
 class CURVEEDITOR_API SCurveEditorTreePin : public SCompoundWidget
 {
@@ -15,7 +17,7 @@ public:
 	SLATE_BEGIN_ARGS(SCurveEditorTreePin){}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, TWeakPtr<FCurveEditor> InCurveEditor, FCurveEditorTreeItemID InTreeItemID);
+	void Construct(const FArguments& InArgs, TWeakPtr<FCurveEditor> InCurveEditor, FCurveEditorTreeItemID InTreeItemID, const TSharedRef<ITableRow>& InTableRow);
 
 private:
 
@@ -32,6 +34,7 @@ private:
 
 private:
 
+	TWeakPtr<ITableRow> WeakTableRow;
 	TWeakPtr<FCurveEditor> WeakCurveEditor;
 	FCurveEditorTreeItemID TreeItemID;
 };

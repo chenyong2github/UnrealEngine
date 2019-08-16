@@ -120,7 +120,6 @@ FArchive::~FArchive()
 }
 
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void FArchive::Reset()
 {
 #if DEVIRTUALIZE_FLinkerLoad_Serialize
@@ -226,7 +225,6 @@ void FArchive::CopyTrivialFArchiveStatusMembers(const FArchive& ArchiveToCopy)
 	SetBaseLocalizationNamespace(ArchiveToCopy.GetBaseLocalizationNamespace());
 #endif // USE_STABLE_LOCALIZATION_KEYS
 }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 /**
  * Returns the name of the Archive.  Useful for getting the name of the package a struct or object
@@ -604,13 +602,6 @@ public:
 	}
 };
 #endif		// WITH_MULTI_THREADED_COMPRESSION
-
-
-
-void FArchive::SerializeCompressed( void* V, int64 Length, ECompressionFlags Flags, bool bTreatBufferAsFileReader, bool bUsePlatformBitWindow )
-{
-	SerializeCompressed(V, Length, FCompression::GetCompressionFormatFromDeprecatedFlags(Flags), ECompressionFlags(Flags & COMPRESS_OptionsFlagsMask), bTreatBufferAsFileReader);
-}
 
 void FArchive::SerializeCompressed(void* V, int64 Length, FName CompressionFormat, ECompressionFlags Flags, bool bTreatBufferAsFileReader)
 {
@@ -1099,7 +1090,6 @@ void FArchive::LogfImpl(const TCHAR* Fmt, ...)
 	FMemory::SystemFree( Buffer );
 }
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void FArchive::SetUE4Ver(int32 InVer)
 {
 	ArUE4Ver = InVer;
@@ -1159,4 +1149,3 @@ void FArchive::SetIsPersistent(bool bInIsPersistent)
 {
 	ArIsPersistent = bInIsPersistent;
 }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS

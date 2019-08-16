@@ -28,7 +28,8 @@ DECLARE_DELEGATE_TwoParams( FOnScrubPositionChanged, FFrameTime, bool )
 DECLARE_DELEGATE_TwoParams( FOnViewRangeChanged, TRange<double>, EViewRangeInterpolation )
 DECLARE_DELEGATE_OneParam( FOnTimeRangeChanged, TRange<double> )
 DECLARE_DELEGATE_OneParam( FOnFrameRangeChanged, TRange<FFrameNumber> )
-DECLARE_DELEGATE_TwoParams( FOnMarkedFrameChanged, FFrameNumber, bool )
+DECLARE_DELEGATE_TwoParams(FOnSetMarkedFrame, int32, FFrameNumber)
+DECLARE_DELEGATE_TwoParams(FOnMarkedFrameChanged, FFrameNumber, bool)
 DECLARE_DELEGATE_RetVal_TwoParams( FFrameNumber, FOnGetNearestKey, FFrameTime, bool )
 
 /** Structure used to wrap up a range, and an optional animation target */
@@ -135,13 +136,22 @@ struct FTimeSliderArgs
 	/** Called right after the selection range has finished being dragged */
 	FSimpleDelegate OnSelectionRangeEndDrag;
 
+	/** Called right before a mark starts to be dragged */
+	FSimpleDelegate OnMarkBeginDrag;
+
+	/** Called right after a mark has finished being dragged */
+	FSimpleDelegate OnMarkEndDrag;
+
 	/** Attribute for the current sequence's vertical frames */
 	TAttribute<TSet<FFrameNumber>> VerticalFrames;
 
 	/** Attribute for the current sequence's marked frames */
 	TAttribute<TArray<FMovieSceneMarkedFrame>> MarkedFrames;
 
-	/** Called when the marked frames need to be updated */
+	/** Called when the marked frame needs to be set */
+	FOnSetMarkedFrame OnSetMarkedFrame;
+
+	/** Called when a marked frame is added/removed */
 	FOnMarkedFrameChanged OnMarkedFrameChanged;
 
 	/** Called when all marked frames should be cleared */

@@ -12,6 +12,7 @@
 #include "Async/Future.h"
 #include "Async/Async.h"
 #include "Templates/Casts.h"
+#include "MovieSceneCaptureModule.h"
 #include "MovieSceneCaptureSettings.h"
 #include "ImageWriteQueue.h"
 
@@ -39,7 +40,7 @@ void UImageSequenceProtocol::OnLoadConfigImpl(FMovieSceneCaptureSettings& InSett
 		OutputFormat.Append(TEXT(".{frame}"));
 		InSettings.OutputFormat = OutputFormat;
 
-		UE_LOG(LogTemp, Warning, TEXT("Automatically appended .{frame} to the format string as specified format string did not provide a way to differentiate between frames via {frame} or {shot_frame}!"));
+		UE_LOG(LogMovieSceneCapture, Display, TEXT("Automatically appended .{frame} to the format string as specified format string did not provide a way to differentiate between frames via {frame} or {shot_frame}!"));
 	}
 
 	Super::OnLoadConfigImpl(InSettings);

@@ -7,6 +7,7 @@
 #include "Misc/CoreDelegates.h"
 #include "LiveCodingLog.h"
 #include "External/LC_EntryPoint.h"
+#include "External/LC_API.h"
 #include "Misc/App.h"
 #include "Misc/Paths.h"
 #include "Misc/ConfigCacheIni.h"
@@ -100,7 +101,6 @@ void FLiveCodingModule::StartupModule()
 		);
 	}
 
-	extern void Startup(Windows::HINSTANCE hInstance);
 	Startup(hInstance);
 
 	if (Settings->bEnabled && !FApp::IsUnattended())
@@ -127,7 +127,6 @@ void FLiveCodingModule::StartupModule()
 
 void FLiveCodingModule::ShutdownModule()
 {
-	extern void Shutdown();
 	Shutdown();
 
 	FCoreDelegates::OnEndFrame.Remove(EndFrameDelegateHandle);
@@ -218,6 +217,7 @@ void FLiveCodingModule::Compile()
 		EnableForSession(true);
 		if(bStarted)
 		{
+			UpdateModules(); // Need to do this immediately rather than waiting until next tick
 			LppTriggerRecompile();
 			GIsCompileActive = true;
 		}
@@ -231,6 +231,11 @@ bool FLiveCodingModule::IsCompiling() const
 
 void FLiveCodingModule::Tick()
 {
+	if (LppWantsRestart())
+	{
+		LppRestart(lpp::LPP_RESTART_BEHAVIOR_REQUEST_EXIT, 0);
+	}
+
 	if (Settings->bEnabled != bEnabledLastTick && Settings->Startup != ELiveCodingStartupMode::Manual)
 	{
 		EnableForSession(Settings->bEnabled);
@@ -291,6 +296,25 @@ bool FLiveCodingModule::StartLiveCoding()
 		}
 		LppSetBuildArguments(*Arguments);
 
+		// Create a mutex that allows UBT to detect that we shouldn't hot-reload into this executable. The handle to it will be released automatically when the process exits.
+		FString ExecutablePath = FPaths::ConvertRelativePathToFull(FPlatformProcess::ExecutablePath());
+
+		FString MutexName = TEXT("Global\\LiveCoding_");
+		for (int Idx = 0; Idx < ExecutablePath.Len(); Idx++)
+		{
+			TCHAR Character = ExecutablePath[Idx];
+			if (Character == '/' || Character == '\\' || Character == ':')
+			{
+				MutexName += '+';
+			}
+			else
+			{
+				MutexName += Character;
+			}
+		}
+
+		ensure(CreateMutex(NULL, Windows::FALSE, *MutexName));
+
 		// Configure all the current modules. For non-commandlets, schedule it to be done in the first Tick() so we can batch everything together.
 		if (IsRunningCommandlet())
 		{
@@ -338,7 +362,7 @@ void FLiveCodingModule::UpdateModules()
 					}
 					else
 					{
-						LppEnableLazyLoadedModule(*FullFilePath);
+						LppWaitForToken(LppEnableLazyLoadedModule(*FullFilePath));
 					}
 					ConfiguredModules.Add(ModuleName);
 				}
@@ -352,7 +376,7 @@ void FLiveCodingModule::UpdateModules()
 			{
 				EnableModuleFileNames.Add(*EnableModule);
 			}
-			LppEnableModules(EnableModuleFileNames.GetData(), EnableModuleFileNames.Num());
+			LppWaitForToken(LppEnableModules(EnableModuleFileNames.GetData(), EnableModuleFileNames.Num()));
 		}
 #endif
 	}

@@ -9,20 +9,47 @@ public class MixedRealityInteropLibrary : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		string ThirdPartyPath = Path.GetFullPath(Path.Combine(ModuleDirectory, "../ThirdParty"));
-
-		if (Target.Platform == UnrealTargetPlatform.Win32)
+		if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			PublicLibraryPaths.Add(Path.Combine(ThirdPartyPath, "Lib", "x86"));
-		}
-		else if (Target.Platform == UnrealTargetPlatform.Win64)
-		{
-			PublicLibraryPaths.Add(Path.Combine(ThirdPartyPath, "Lib", "x64"));
-		}
+			string LibName = "MixedRealityInterop";
+			if (Target.Configuration == UnrealTargetConfiguration.Debug)
+			{
+				LibName += "Debug";
+			}
+			string DLLName = LibName + ".dll";
+			LibName += ".lib";
 
-		PublicAdditionalLibraries.Add("MixedRealityInterop.lib");
-		// Delay-load the DLL, so we can load it from the right place first
-		PublicDelayLoadDLLs.Add("MixedRealityInterop.dll");
-        RuntimeDependencies.Add(PluginDirectory + "/Binaries/ThirdParty/MixedRealityInteropLibrary/" + Target.Platform.ToString() + "/MixedRealityInterop.dll");
-    }
+			string InteropLibPath = EngineDirectory + "/Source/ThirdParty/WindowsMixedRealityInterop/Lib/x64/";
+			PublicLibraryPaths.Add(InteropLibPath);
+
+			PublicAdditionalLibraries.Add(LibName);
+			// Delay-load the DLL, so we can load it from the right place first
+			PublicDelayLoadDLLs.Add(DLLName);
+			RuntimeDependencies.Add(EngineDirectory + "/Binaries/ThirdParty/MixedRealityInteropLibrary/" + Target.Platform.ToString() + "/" + DLLName);
+			
+			// Hologram remoting dlls
+			if (Target.Platform == UnrealTargetPlatform.Win64)
+			{
+				string[] Dlls = { "Microsoft.Holographic.AppRemoting.dll", "PerceptionDevice.dll" };
+
+				foreach(var Dll in Dlls)
+				{
+					PublicDelayLoadDLLs.Add(Dll);
+					RuntimeDependencies.Add(EngineDirectory + "/Binaries/ThirdParty/Windows/x64/" + Dll);
+				}
+
+                string[] HL1Dlls = { "HolographicStreamerDesktop.dll", "Microsoft.Perception.Simulation.dll", "PerceptionSimulationManager.dll" };
+
+                foreach (var Dll in HL1Dlls)
+                {
+                    PublicDelayLoadDLLs.Add(Dll);
+                    RuntimeDependencies.Add(EngineDirectory + "/Binaries/Win64/" + Dll);
+                }
+            }
+		}
+		else if(Target.Platform == UnrealTargetPlatform.HoloLens)
+		{
+			PublicAdditionalLibraries.Add("MixedRealityInteropHoloLens.lib");
+		}
+	}
 }

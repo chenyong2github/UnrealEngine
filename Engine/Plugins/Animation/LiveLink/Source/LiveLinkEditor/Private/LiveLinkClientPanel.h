@@ -3,29 +3,30 @@
 #pragma once
 
 #include "Widgets/SCompoundWidget.h"
+
+#include "LiveLinkTypes.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Views/STreeView.h"
 #include "EditorUndoClient.h"
 
+class ITableRow;
+class FLiveLinkClient;
 struct FLiveLinkSourceUIEntry;
 struct FLiveLinkSubjectUIEntry;
-class FLiveLinkClient;
-class ULiveLinkSourceFactory;
-class ITableRow;
-class STableViewBase;
 class FMenuBuilder;
 class FUICommandList;
+class SLiveLinkDataView;
+class ULiveLinkSourceFactory;
+class SLiveLinkSourceListView;
+class STableViewBase;
 
 typedef TSharedPtr<FLiveLinkSourceUIEntry> FLiveLinkSourceUIEntryPtr;
 typedef TSharedPtr<FLiveLinkSubjectUIEntry> FLiveLinkSubjectUIEntryPtr;
 
 class SLiveLinkClientPanel : public SCompoundWidget, public FGCObject, public FEditorUndoClient
 {
-	SLATE_BEGIN_ARGS(SLiveLinkClientPanel)
-	{
-	}
-
+	SLATE_BEGIN_ARGS(SLiveLinkClientPanel){}
 	SLATE_END_ARGS()
 
 	~SLiveLinkClientPanel();
@@ -47,8 +48,6 @@ private:
 
 	void RefreshSourceData(bool bRefreshUI);
 
-	TSharedRef< SWidget > GenerateSourceMenu();
-
 	void RetrieveFactorySourcePanel(FMenuBuilder& MenuBuilder, ULiveLinkSourceFactory* FactoryCDO);
 
 	FReply OnCloseSourceSelectionPanel(ULiveLinkSourceFactory* FactoryCDO, bool bMakeSource);
@@ -61,11 +60,14 @@ private:
 	// Handles adding a virtual subject after the user has picked a name
 	void HandleAddVirtualSubject(const FText& NewSubjectName, ETextCommit::Type CommitInfo);
 
-	void HandleRemoveSource();
+	// Callback when property changes on source settings
+	void OnPropertyChanged(const FPropertyChangedEvent& InEvent);
 
+	void HandleRemoveSource();
 	bool CanRemoveSource();
 
 	void HandleRemoveAllSources();
+	bool HasSource() const;
 
 	// Registered with the client and called when client's sources change
 	void OnSourcesChangedHandler();
@@ -80,49 +82,56 @@ private:
 	FReply DisableEditorPerformanceThrottling();
 
 private:
-	const TArray<FLiveLinkSourceUIEntryPtr>& GetCurrentSources() const;
+	int32 GetDetailWidgetIndex() const;
 
 	TSharedRef<ITableRow> MakeSourceListViewWidget(FLiveLinkSourceUIEntryPtr Entry, const TSharedRef<STableViewBase>& OwnerTable) const;
-	
-	void OnSourceListSelectionChanged(FLiveLinkSourceUIEntryPtr Entry, ESelectInfo::Type SelectionType) const;
-	
-	void OnPropertyChanged(const FPropertyChangedEvent& InEvent);
+	TSharedPtr<SWidget> OnSourceConstructContextMenu();
 
 	// Helper functions for building the subject tree UI
 	TSharedRef<ITableRow> MakeTreeRowWidget(FLiveLinkSubjectUIEntryPtr InInfo, const TSharedRef<STableViewBase>& OwnerTable);
 	void GetChildrenForInfo(FLiveLinkSubjectUIEntryPtr InInfo, TArray< FLiveLinkSubjectUIEntryPtr >& OutChildren);
 	void RebuildSubjectList();
 
-	// Handler for the subject tree selection changing	
-	void OnSelectionChanged(FLiveLinkSubjectUIEntryPtr BoneInfo, ESelectInfo::Type SelectInfo);
+	// Handler for the source listselection changing
+	void OnSourceListSelectionChanged(FLiveLinkSourceUIEntryPtr Entry, ESelectInfo::Type SelectionType) const;
 
-	//Source list widget
-	TSharedPtr<SListView<FLiveLinkSourceUIEntryPtr>> ListView;
+	// Handler for the subject tree selection changing
+	void OnSubjectTreeSelectionChanged(FLiveLinkSubjectUIEntryPtr BoneInfo, ESelectInfo::Type SelectInfo);
 
-	//Source list items
+	// Source list widget
+	TSharedPtr<SLiveLinkSourceListView> SourceListView;
+
+	// Source list items
 	TArray<FLiveLinkSourceUIEntryPtr> SourceData;
 
-	//Subject tree widget
+	// Subject tree widget
 	TSharedPtr<STreeView<FLiveLinkSubjectUIEntryPtr>> SubjectsTreeView;
 
-	//Subject tree items
+	// Subject tree items
 	TArray<FLiveLinkSubjectUIEntryPtr> SubjectData;
 
 	TSharedPtr<FUICommandList> CommandList;
 
 	FLiveLinkClient* Client;
 
-	TMap<ULiveLinkSourceFactory*, TSharedPtr<SWidget>> SourcePanels;
-
 	// Reference to connection settings struct details panel
 	TSharedPtr<class IDetailsView> SettingsDetailsView;
 
-	// Handle to delegate registered with client so we can update when a source disappears
+	// Reference to the data value struct details panel
+	TSharedPtr<class SLiveLinkDataView> DataDetailsView;
+
+	// Handle to delegate when client sources list has changed */
 	FDelegateHandle OnSourcesChangedHandle;
 
-	// Handle to delegate registered with client so we can update when subject state changes
+	// Handle to delegate when a client subjects list has changed */
 	FDelegateHandle OnSubjectsChangedHandle;
 
-	//Map to cover 
+	// Map to cover 
 	TMap<UClass*, UObject*> DetailsPanelEditorObjects;
+
+	// Details index
+	int32 DetailWidgetIndex;
+
+	// Guard from reentrant selection
+	mutable bool bSelectionChangedGuard;
 };

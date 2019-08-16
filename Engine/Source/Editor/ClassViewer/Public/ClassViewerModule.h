@@ -3,10 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AssetData.h"
 #include "Modules/ModuleInterface.h"
 
 class IClassViewerFilter;
 class IPropertyHandle;
+class FClassViewerFilterFuncs;
 
 /** Delegate used with the Class Viewer in 'class picking' mode.  You'll bind a delegate when the
     class viewer widget is created, which will be fired off when a class is selected in the list */
@@ -101,6 +103,9 @@ public:
 	/** The property this class viewer be working on. */
 	TSharedPtr<class IPropertyHandle> PropertyHandle;
 
+	/** The passed in property handle will be used to gather referencing assets. If additional referencing assets should be reported, supply them here. */
+	TArray<FAssetData> AdditionalReferencingAssets;
+
 	/** true (the default) shows the view options at the bottom of the class picker */
 	bool bAllowViewOptions;
 
@@ -163,4 +168,10 @@ public:
 	virtual TSharedRef<class SWidget> CreateClassViewer(const FClassViewerInitializationOptions& InitOptions,
 		const FOnClassPicked& OnClassPickedDelegate );
 
+	/** 
+	 * Create a new class filter from the given initialization options.
+	 */
+	virtual TSharedRef<IClassViewerFilter> CreateClassFilter(const FClassViewerInitializationOptions& InitOptions);
+
+	virtual TSharedRef<FClassViewerFilterFuncs> CreateFilterFuncs();
 };

@@ -110,6 +110,11 @@ bool FHitResult::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSu
 	{
 		PenetrationDepth = 0.0f;
 	}
+
+	if (Ar.IsLoading() && bOutSuccess)
+	{
+		Distance = (ImpactPoint - TraceStart).Size();
+	}
 	
 	if (!bInvalidItem)
 	{
@@ -1028,7 +1033,7 @@ namespace CollisionResponseConsoleCommands
 		// Display Data
 		if (Results.Num() > 0)
 		{
-			Results.Sort([](const FName& A, const FName& B) { return A < B; });
+			Results.Sort(FNameLexicalLess());
 			for (FName& ResultName : Results)
 			{
 				UE_LOG(LogCollisionCommands, Log, TEXT("%s"), *ResultName.ToString());

@@ -10,6 +10,7 @@
 #include "Widgets/Views/STreeView.h"
 #include "Widgets/Input/SComboBox.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
+#include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "TickableEditorObject.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "NiagaraDataSet.h"
@@ -132,7 +133,7 @@ protected:
 	bool CanCapture() const;
 	bool IsPausedAtRightTimeOnRightHandle() const;
 
-	void SelectedEmitterHandlesChanged();
+	void SystemSelectionChanged(UNiagaraSystemSelectionViewModel::ESelectionChangeSource SelectionChangeSource);
 
 	void ResetColumns(EUITab Tab);
 	void ResetEntries(EUITab Tab);

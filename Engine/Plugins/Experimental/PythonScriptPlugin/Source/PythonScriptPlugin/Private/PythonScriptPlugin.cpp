@@ -37,6 +37,12 @@
 #include "Misc/MessageDialog.h"
 #endif	// WITH_EDITOR
 
+#if PLATFORM_WINDOWS
+	#include <stdio.h>
+	#include <fcntl.h>
+	#include <io.h>
+#endif	// PLATFORM_WINDOWS
+
 #define LOCTEXT_NAMESPACE "PythonScriptPlugin"
 
 #if WITH_PYTHON
@@ -333,7 +339,7 @@ private:
 	{
 		MenuBuilder.BeginSection("Python", LOCTEXT("Python", "Python"));
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("OpenPython", "Execute Python Script"),
+			LOCTEXT("OpenPython", "Execute Python Script..."),
 			LOCTEXT("OpenPythonTooltip", "Open a Python Script file and Execute it."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FPythonCommandMenuImpl::Menu_ExecutePython))
@@ -544,12 +550,54 @@ void FPythonScriptPlugin::InitializePython()
 
 	// Initialize the Python interpreter
 	{
+		UE_LOG(LogPython, Log, TEXT("Using Python %d.%d.%d"), PY_MAJOR_VERSION, PY_MINOR_VERSION, PY_MICRO_VERSION);
+
+		// Python 3 changes the console mode from O_TEXT to O_BINARY which affects other UE4 uses of the console
+		// So change the console mode back to its current setting after Py_Initialize has been called
+#if PLATFORM_WINDOWS && PY_MAJOR_VERSION >= 3
+		// We call _setmode here to cache the current state
+		CA_SUPPRESS(6031)
+		fflush(stdin);
+		const int StdInMode  = _setmode(_fileno(stdin), _O_TEXT);
+		CA_SUPPRESS(6031)
+		fflush(stdout);
+		const int StdOutMode = _setmode(_fileno(stdout), _O_TEXT);
+		CA_SUPPRESS(6031)
+		fflush(stderr);
+		const int StdErrMode = _setmode(_fileno(stderr), _O_TEXT);
+#endif	// PLATFORM_WINDOWS && PY_MAJOR_VERSION >= 3
+
 #if PY_MAJOR_VERSION >= 3 && PY_MINOR_VERSION >= 4
 		Py_SetStandardStreamEncoding("utf-8", nullptr);
 #endif	// PY_MAJOR_VERSION >= 3 && PY_MINOR_VERSION >= 4
 		Py_SetProgramName(PyProgramName.GetData());
 		Py_SetPythonHome(PyHomePath.GetData());
-		Py_Initialize();
+		Py_InitializeEx(0); // 0 so Python doesn't override any UE4 signal handling
+
+#if PLATFORM_WINDOWS && PY_MAJOR_VERSION >= 3
+		// We call _setmode here to restore the previous state
+		if (StdInMode != -1)
+		{
+			CA_SUPPRESS(6031)
+			fflush(stdin);
+			CA_SUPPRESS(6031)
+			_setmode(_fileno(stdin), StdInMode);
+		}
+		if (StdOutMode != -1)
+		{
+			CA_SUPPRESS(6031)
+			fflush(stdout);
+			CA_SUPPRESS(6031)
+			_setmode(_fileno(stdout), StdOutMode);
+		}
+		if (StdErrMode != -1)
+		{
+			CA_SUPPRESS(6031)
+			fflush(stderr);
+			CA_SUPPRESS(6031)
+			_setmode(_fileno(stderr), StdErrMode);
+		}
+#endif	// PLATFORM_WINDOWS && PY_MAJOR_VERSION >= 3
 
 		PySys_SetArgvEx(1, NullPyArgPtrs, 0);
 

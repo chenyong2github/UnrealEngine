@@ -1,10 +1,12 @@
-Availability:Public
+Availability:Docs
 Title: 1. Creating Foliage Type Actors
 Crumbs:
 Description: Creating and adding all the required Actors.
 Navigation:topic
 SkillLevel:Intermediate
 Version: 4.8
+
+## Set to Docs as the pages have been combined into one. 
 
 [VAR:Steps]
 [OBJECT:Navigation]

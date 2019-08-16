@@ -196,7 +196,7 @@ void SAndroidWebBrowserWidget::Tick(const FGeometry& AllottedGeometry, const dou
 	float UIScale;
 	FPlatformRect ScreenRect = FAndroidWindow::GetScreenRect();
 	int32_t ScreenWidth, ScreenHeight;
-	FAndroidWindow::CalculateSurfaceSize(FAndroidWindow::GetHardwareWindow(), ScreenWidth, ScreenHeight);
+	FAndroidWindow::CalculateSurfaceSize(ScreenWidth, ScreenHeight);
 	if (ScreenWidth > ScreenHeight)
 	{
 		UIScale = (float)ScreenHeight / (ScreenRect.Bottom - ScreenRect.Top);

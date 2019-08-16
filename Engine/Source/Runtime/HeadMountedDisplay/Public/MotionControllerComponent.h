@@ -123,6 +123,9 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "Motion Controller Update")
 	float GetParameterValue(FName InName, bool& bValueFound);
 
+	UFUNCTION(BlueprintCallable, Category = "Motion Controller Update")
+	FVector GetHandJointPosition(int jointIndex, bool& bValueFound);
+
 private:
 
 	/** Whether or not this component had a valid tracked controller associated with it this frame*/
@@ -150,7 +153,6 @@ private:
 		virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override;
 		virtual void PreRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) override {}
 		virtual void PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) override;
-		virtual void PostRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) override;
 		virtual int32 GetPriority() const override { return -10; }
 		virtual bool IsActiveThisFrame(class FViewport* InViewport) const;
 

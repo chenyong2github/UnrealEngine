@@ -78,7 +78,6 @@ topic-image:timeline_topic.png
 [/OBJECT]
 [/REGION]
 
-(#InputsandOutputs)
 ## 输入和输出
 
 ![k2_timeline_node.png](k2_timeline_node.png)
@@ -105,7 +104,6 @@ topic-image:timeline_topic.png
 [/REGION]
 
 
-(#TimelineExamples)
 ## 时间轴示例
 
 [REGION:topics fourth]

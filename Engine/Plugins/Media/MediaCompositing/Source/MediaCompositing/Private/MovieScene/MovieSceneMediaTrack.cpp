@@ -96,6 +96,11 @@ void UMovieSceneMediaTrack::RemoveSection(UMovieSceneSection& Section)
 	MediaSections.Remove(&Section);
 }
 
+void UMovieSceneMediaTrack::RemoveSectionAt(int32 SectionIndex)
+{
+	MediaSections.RemoveAt(SectionIndex);
+}
+
 
 FMovieSceneEvalTemplatePtr UMovieSceneMediaTrack::CreateTemplateForSection(const UMovieSceneSection& InSection) const
 {

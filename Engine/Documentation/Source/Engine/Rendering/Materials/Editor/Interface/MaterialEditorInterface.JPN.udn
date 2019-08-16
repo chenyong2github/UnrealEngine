@@ -1,267 +1,332 @@
-﻿INTSourceChangelist:3481084
-Availability:Public
-Title:マテリアル エディタ UI
-Crumbs: %ROOT%, Engine, Engine/Rendering/Materials, Engine/Rendering/Materials/Editor
-Description:マテリアル エディタ UI のユーザーガイド
-Version:4.9
-tags:Materials
+﻿INTSourceChangelist:6425568
+Availability: Public
+Crumbs: 
+Title: マテリアル エディタの UI
+Description: マテリアルエディタ UI のユーザーガイド
+Type: 
+Version: 4.9
+Parent: Engine/Rendering/Materials/Editor
+Order: 
+Tags: Materials
+topic-image: placeholder_topic.png
+topic-icon: %ROOT%/ue4_icon.png
 
 
-[TOC(start:2)]
+マテリアル エディタ UI は、メニューバー、ツールバー、そしてデフォルト設定では 4 つのオープンパネルで構成されています。
 
+![](MaterialEditor_Windows.png "MaterialEditor_Windows.png")
 
+| **番号** | **説明** |
+| --- | --- |
+| 1 | メニュー バー |
+| 2 | ツールバー |
+| 3 | Viewport (ビューポート) パネル |
+| 4 | Details (詳細) パネル |
+| 5 | Graph (グラフ) パネル |
+| 6 | Palette (パレット) パネル |
 
-マテリアルエディタ UI は、メニューバー、ツールバー、そしてデフォルト設定では 4 つのオープンパネルで構成されています。
-
-[OBJECT:ToggleButtonContent]
-[PARAMLITERAL:category]
-OS
-[/PARAMLITERAL]
-[PARAMLITERAL:id]
-windows
-[/PARAMLITERAL]
-[PARAMLITERAL:active]
-[/PARAMLITERAL]
-[PARAM:content]
-![](MaterialEditor_Windows.png)
-[/PARAM]
-[/OBJECT]
-
-[OBJECT:ToggleButtonContent]
-[PARAMLITERAL:category]
-OS
-[/PARAMLITERAL]
-[PARAMLITERAL:id]
-mac
-[/PARAMLITERAL]
-[PARAMLITERAL:active]
-[/PARAMLITERAL]
-[PARAM:content]
-![](MaterialEditor_Mac.png)
-[/PARAM]
-[/OBJECT]
-
-1. [メニューバー](#メニューバー) - 現在のマテリアルのメニューオプションをリスト表示します。
-1. [ツールバー](#ツールバー) - マテリアルの作業に使用するツールを収容しています。
-1. [ビューポートパネル](#ビューポートパネル) - メッシュのマテリアルをプレビューするパネルです。
-1. [詳細パネル](#詳細パネル) - マテリアルのプロパティ、または選択したマテリアルか関数ノードをリスト表示します。
-1. [グラフパネル](#グラフパネル) - マテリアルのシェーダー命令を作成するマテリアル式と関数ノードを表示します。
-1. [パレットパネル](#パレットパネル) - 利用可能なマテリアル式と関数ノード全てをリスト表示します。
-[REGION:note]
-HLSL コードパネルもありますが、デフォルトでは非表示になっています。このパネルを表示するには、**[Window]** メニューで **[HLSL Code]** をクリックします。詳細は、[HLSLコードパネル](#HLSLコードパネル) を参照してください。
+[REGION:tip]
+タブの右上隅にある小さな「X」をクリックすることで、どのパネルも閉じることができます。 また、以下の手順でパネルを非表示にすることもできます。タブ上で右クリックして、表示されるコンテキスト メニューで **[Hide Tab]** をクリックします。 閉じたパネルを再度表示するには、**[Window]** メニューでそのパネル名をクリックします。
+[/REGION]
+[REGION:tip]
+**「F1」**キーを押すと、Unreal Engine 4 (UE4) のマテリアル ドキュメントが表示されます。
 [/REGION]
 
-[INCLUDE:Shared/Editors/Common/EditorMenuItems#UITabTips]
+## メニュー バー
 
-## メニューバー
+### File (ファイル)
 
-### ファイル
+[REGION:lightbox]
+[![](Material_Editor_1.png)(w:400px)](Material_Editor_1.png)
+[/REGION]
 
-%Shared/Editors/Common/EditorMenuItems:MenuFileSave%
-%Shared/Editors/Common/EditorMenuItems:MenuFileSaveOptions%
+*   **[Save (保存)]** \- 現在作業中のアセットを保存します。
+*   **[Save As (名前を付けて保存)]** \- このアセットを別の名前で保存します。
+*   **[Open Asset (アセットを開く)]** \- アセットをすばやく見つけて適切なエディタを開くことができるグローバル アセットピッカーを開きます。
+*   **[Save All (すべて保存)]** \- プロジェクトにある未保存のレベルとアセットをすべて保存します。
+*   **[Choose Files to Save (保存するファイルを選択)]** \- プロジェクトに保存するレベルとアセットを選択できるダイアログ ボックスが表示されます。
+*   **[Submit To Source Control (ソースコントロールに接続)]** \- 現在のアセットをソースコントロールにチェックインします。
 
-### 編集
+### Edit (編集)
 
-%Shared/Editors/Common/EditorMenuItems:MenuEditUndo%
-%Shared/Editors/Common/EditorMenuItems:MenuEditSettings%
+*   **[Undo (アンドゥ)]** \- 最新の操作を元に戻します。
+*   **[Redo (リドゥ)]** \- アンドゥが最後に実行した操作があれば、その最後に実行したアンドゥをやり直します。
+*   **[Undo History (アンドゥ履歴)]** \- アンドゥの履歴を表示します。
+*   **[Editor Preferences (エディタの環境設定)]** \- オプションがリスト表示され、任意のものを選択すると、該当する **[Editor Preferences (エディタの環境設定)]** ウィンドウが開き、Unreal Editor の環境設定を変更できます。
+*   **[Project Settings (プロジェクト設定)]** \- オプションがリスト表示され、任意のものを選択すると、該当する **[Project Settings (プロジェクト設定)]** ウィンドウが開き、Unreal Engine プロジェクトの様々な設定を変更できます。
+*   **[Plugins]** \- プラグインのブラウザ タブを開きます。
 
-### Assets（アセット）
+### Asset (アセット)
 
-%Shared/Editors/Common/EditorMenuItems:MenuAssetContentBrowser%
+*   **[Find in Content Browser (コンテンツブラウザで検索)]** \- **コンテンツ ブラウザ** で現在のアセットを検索して選択します。
+*   **[Reference Viewer]** \- 選択したアセットの参照を表示する参照ビューアを起動します
+*   **[Size Map]** \- アセットのおよそのサイズと、そのアセットが参照するすべてのオブジェクトを表示する、インタラクティブなマップを表示します。
+*   **[Audit Assets]** \- Asset Audio の UI を開き、選択したアセットに関する情報を表示します。
 
-### ウィンドウ
+### Window (ウィンドウ)
 
-%Shared/Editors/Common/EditorMenuItems:MenuWindowToolbar%
-%Shared/Editors/Common/EditorMenuItems:MenuWindowViewport%
-* **[グラフ]** - **[Graph (グラフ)]** パネルの表示を切り替えます。
-%Shared/Editors/Common/EditorMenuItems:MenuWindowDetails%
-* **[パレット]** - **[Palette (パレット)]** パネルの表示を切り替えます。
-* **[Stats]** - [Stats] パネルの表示を切り替えます。
-* **[HLSL コード]** - **[HLSL コード]** パネルの表示を切り替えます (デフォルトでは閉じています)。
-%Shared/Editors/Common/EditorMenuItems:MenuWindow%
+*   **[Toolbar (ツールバー)]** \- **ツールバー** の表示を切り替えます。
+*   **[Viewport (ビューポート)]** \- **[Viewport]** パネルの表示を切り替えます。
+*   **[Graph (グラフ)]** \- **[Graph]** パネルの表示を切り替えます
+*   **[Details (詳細)]** \- **[Details]** パネルの表示を切り替えます。
+*   **[Palette (パレット)]** \- **[Palette]** パネルの表示を切り替えます。
+*   **[Find Results (検索結果)]**\- マテリアル グラフの項目を検索できます。
+*   **[Stats]** \- **[Stats]** パネル表示を切り替えます。
+*   **[Preview Scene Settings]** \- **マテリアル プレビュー** ビューポート オプションを調整します。
+*   **[Parameter Defaults] **\- **マテリアル** グローバル パラメータの表示を切り替えます。  
+*   **[Platform Stats]** \- プラットフォームごとの **マテリアル** コストの表示を切り替えます。
+*   **[Stats] ** \- **マテリアル コスト** を切り替えます。
+*   **[Shader Code] ** \- 選択したプラットフォームの **マテリアル HLSL** コードの表示を切り替えます。
+    *   **[HLSL Code]** \- **HLSL** コードの表示を切り替えます。  
+        *   **[Desktop]** \- さまざまなデスクトップ レンダリングの **HLSL** コードの表示を切り替えます。
+            *   **[DirectX SM5]** \-  **Windows SM5** の **HLSL** コードの表示を切り替えます。
+            *   **[DirectX SM4]** \- **Windows SM4** の **HLSL** コードの表示を切り替えます。
+            *   **[Vulkan SM5]** \- **Vulkan SM5** の **HLSL** コードの表示を切り替えます。
+            *   **[Vulkan SM4]** \- Vulkan SM4 の **HLSL** コードの表示を切り替えます。  
+            *   **[OpenGL SM5]** - **OpenGL SM5** の **HLSL** コードの表示を切り替えます。
+            *   **[OpenGL SM4]** - **OpenGL SM4** の **HLSL** コードの表示を切り替えます。
+        *   **[Android]**- さまざまな **Android** レンダリングの **HLSL** コードの表示を切り替えます。
+            *   **[Android GLES 3.1]** - **Android** **GLES** **3.1** の **HLSL** コードの表示を切り替えます。
+            *   **[Android GLES 2.0]** - **Android GLES** **2.0** の **HLSL** コードの表示を切り替えます。  
+            *   **[Android Vulkan]** - **Android Vulkan** の **HLSL** コードの表示を切り替えます。
+        *   **[iOS]**- さまざまな **iOS** レンダリングの **HLSL** コードの表示を切り替えます。
+            *   **[Metal SM5]** - **Metal** **SM5** の **HLSL** コードの表示を切り替えます。
+*   **[Content Browser (コンテンツブラウザ)]** \- **コンテンツ ブラウザ** を別のウィンドウで表示します。
+*   **[Developer Tools (デベロッパーツール)]** \- 選択した **デベロッパー ツール** を別のウィンドウで表示します。
+    *   **[Blueprint Debugger (ブループリント デバッガ)]** \- **ブループリント デバッガ** を別のウィンドウで表示します。
+    *   **[Collision Analyzer (コリジョンアナライザー)]** \- **コリジョン アナライザー** を別のウィンドウで表示します。
+    *   **[Debug Tools (デバッグツール)]** \- **デバッグ ツール** を別のウィンドウで表示します。
+    *   **[Profiler Data Visualizer]** \- 別のウィンドウで **[Profiler Data Visualizer]** タブを開きます。
+    *   **[Message Log (メッセージ ログ)]** \- **メッセージ ログ** を別のウィンドウで表示します。
+    *   **[Output Log (アウトプットログ)]** \- **アウトプットログ** を別のウィンドウで表示します。
+    *   **[Visual Logger (ビジュアルロガー)]** \- **ビジュアル ロガー** ツールを別のウィンドウで表示します。
+    *   **[Class Viewer (クラスビューアー)]** \- **クラス ビューアー** を別のウィンドウで表示します。
+    *   **[Device Manager (デバイスマネージャー)]** \- **デバイス マネージャー** を別のウィンドウで表示します。
+    *   **[Device Profiles (デバイスプロファイル)]** \- **デバイス プロファイル** を別のウィンドウで表示します。
+    *   **[Merge Actors (アクタをマージ)] ** \- **アクタをマージ** ツールを別ウィンドウで開きます。
+    *   **[Session Frontend (セッションフロントエンド)]** \- **UnrealFrontend** を別のウィンドウで表示します。
+    *   **[Widget Reflector (ウィジェットリフレクタ)]** \- **ウィジェット リフレクタ** を別のウィンドウで表示します。
+*   **[Find in Blueprints (ブループリントを検索)]** \- 関数、イベント、変数を参照するオブジェクトを全ブループリントから検索します。
+*   **[GameplayCue Editor]** \- **[Gameplay Cue** Editor] タブを別ウィンドウで開きます。
+*   **[Project Launcher (プロジェクトランチャー)]** \- **プロジェクトランチャー** は、プロジェクトのパッケージ化、デプロイ、起動のための高度なワークフローを提供します。
+*   **[Localization Dashboard (ローカライゼーションダッシュボード)]** \- このプロジェクトの **ローカライゼーションダッシュボード** を開きます。
+*   **[Reset Layout (レイアウトをリセット)]** \- レイアウトをデフォルトの配置にリセットします。 変更を保存し、設定のバックアップを作成後にエディタを再起動する必要があります。
+*   **[Save Layout (レイアウトを保存)]** \- パネルの現在のレイアウトを新しいデフォルト レイアウトとして保存します。
+*   **[Enable Fullscreen (画面を最大化)]** \- アプリケーション画面を最大化モードへ変更し、モニタ全体に表示されるようになります。
 
-### ヘルプ
+### Help
 
-%Shared/Editors/Common/EditorMenuItems:MenuHelp%
-
+*   **[Browse Material Editor Documentation (マテリアルエディタ ドキュメントをブラウズ)]** \- ブラウザ ウィンドウを開き、このツールに関するドキュメントに移動します。
+*   **[Support (サポート)]** \- Unreal Developers Network (UDN) のフォーラム ページへのブラウザ ウィンドウを開きます。Unreal Engine についての質問を投稿することができます。
+*   **[Forums (フォーラム)]** \- アナウンスを確認したり、他の開発者との議論には、Unreal Engine フォーラムにアクセスしてください。
+*   **[Answer HUB]** \- 質問をしたり、既存の回答を検索したり、他の UE4 デベロッパーと知識を共有したりするには、AnswerHub にアクセスしてしてください。
+*   **[Wiki (ウィキ)] **\- コミュニティが作成したリソースを表示したり、独自のものを作成したりするには、Unreal Engine Wiki ページにアクセスしてください。
+*   **[Visit UnrealEngine.com (UnrealEngine.comにアクセス)]** \- Unreal Technology の詳細情報をチェックできる UnrealEngine.com のサイトを開きます。
+*   **[Credits (クレジット)]** \- アプリケーションのクレジットを表示します。
+*   **[About Unreal Editor (アンリアルエディタについて)]** \- アプリケーションのクレジット、著作権情報、およびビルド情報を表示します。
 
 ## ツールバー
 
-![Material Editor Toolbar](MaterialEditor_Toolbar.png)
-
+[REGION:lightbox]
+[![](Material_Editor_2.png)(w:800px)](Material_Editor_2.png)
+[/REGION]
 以下の表に、ツールバーのオプションとその説明を示します。
 
-| **アイコン** | **説明** | 
+[REGION:simpletable]
+| **アイコン** | **説明** |
 | --- | --- |
-| [Include:Shared/Editors/Common/EditorToolbarItems/#ToolbarSaveIcon] | [Include:Shared/Editors/Common/EditorToolbarItems/#ToolbarSaveDescription] |
-| [Include:Shared/Editors/Common/EditorToolbarItems/#ToolbarCBIcon] | [Include:Shared/Editors/Common/EditorToolbarItems/#ToolbarCBDescription] |
-| ![toolbar_apply.png](toolbar_apply.png)| ツールバー上の [Apply] ボタンでマテリアルエディタで行った変更を、オリジナルのマテリアルとワールドでこのマテリアルを使用している箇所へ適用します。 |
-|![toolbar_search.png](Material_Toolbar_Button_Search.png) | 現在のマテリアルの表現式とコメントを検索します。 |
-| ![toolbar_home.png](toolbar_home.png)| ベースのマテリアル ノードを **[Graph (グラフ)]** パネルの中央に置きます。 |
-| ![toolbar_clean.png](toolbar_clean.png)| マテリアルと接続していないマテリアルノードを全て削除します。|
-| ![toolbar_show.png](toolbar_show.png)| 何にも接続していないマテリアルノードを表示または非表示にします。|
-| ![toolbar_live_nodes.png](Engine/Rendering/Materials/Editor/toolbar_live_nodes.png)| 有効になると、それぞれのマテリアルノードのマテリアルをリアルタイムで更新します。マテリアルエディタのパフォーマンスを高速にするためにこのオプションを無効にします。[Live Preview、Live Nodes、Live Update](Engine/Rendering/Materials/Editor/#LivePreview、LiveNodes、LiveUpdate) セクションも参照してください。|
-| ![toolbar_live_update.png](Engine/Rendering/Materials/Editor/toolbar_live_update.png)|有効になると、ノードが追加、削除、接続、非接続、またはプロパティ値に変更があるたびに全ての副次式のシェーダーがコンパイルされます。マテリアルエディタのパフォーマンスを高速にするためにこのオプションを無効にします。[Live Preview、Live Nodes、Live Update](Engine/Rendering/Materials/Editor/#LivePreview、LiveNodes、LiveUpdate) セクションも参照してください。|
-| ![toolbar_stats.png](Engine/Rendering/Materials/Editor/toolbar_stats.png)| **[Graph (グラフ)]** パネルにマテリアル統計値を表示または非表示にします。 |
-| ![toobar_release_stats](Material_Toolbar_Button_Release_Stats.png)| 統計情報の報告に使用するリリースまたは開発シェーダーを切り替えます。 |
-| ![toolbar_built_in_stats](Material_Toolbar_Button_Built_In_Stats.png)| 空のマテリアルの統計情報の表示を切り替えます。グラフでコスト変更の特定に役立ちます。|
-| ![toolbar_mobile_stats](Material_Toolbar_Button_Mobile_Stats.png)| モバイルのマテリアル統計情報とコンパイルエラーを切り替えます。 |
+| ![](Common_Toolbar_Save.png) | 現在のアセットを保存します。 |
+| ![](UE4_Browse_Icon_01.png "UE4_Browse_Icon_01.png") | コンテンツ ブラウザで現在のアセットを選択します。 |
+| ![](toolbar_apply.png) | マテリアルエディタで行った変更を、オリジナルのマテリアルとワールドでこのマテリアルを使用している箇所へ適用します。 |
+| ![toolbar_search.png](Material_Toolbar_Button_Search.png) | 現行マテリアルの表現式とコメントを検索します。 |
+| ![](toolbar_home.png) | ベースのマテリアル ノードを **[Graph (グラフ)]** パネルの中央に置きます。 |
+| ![](toolbar_clean.png) | マテリアルと接続していないマテリアルノードを全て削除します。 |
+| ![](toolbar_show.png) | 何にも接続していないマテリアルノードを表示または非表示にします。 |
+| ![](MaterailEditor_LivePreview.png "MaterailEditor_LivePreview.png") | 有効にすると、プレビューマテリアルのリアルタイム更新が行われます。マテリアルエディタのパフォーマンスを向上するには無効にしてください。詳細は [「Live ノードとライブ アップデート」](Engine/Rendering/Materials/Editor/#LiveNodesAndLiveUpdate) セクションをご覧ください。 |
+| ![](MaterailEditor_LiveNodes.png "MaterailEditor_LiveNodes.png") | グラフ キャンバスのリアルタイム アップデートを有効化 / 無効化します。 |
+| ![](toolbar_live_update.png) | 有効になると、ノードが追加、削除、接続、非接続、またはプロパティ値に変更があるたびに全ての副次式のシェーダーがコンパイルされます。 マテリアル エディタのパフォーマンスを高速にするためにこのオプションを無効にします。 [「Live ノードとライブアップデート」](Engine/Rendering/Materials/Editor/#LiveNodesAndLiveUpdate)のセクションを参照してください。 |
+| ![](toolbar_stats.png) | **[Graph (グラフ)]** パネルにマテリアル統計値を表示または非表示にします。 |
+| ![](MaterialEditor_PlatformStats.png "MaterialEditor_PlatformStats.png") | 複数のプラットフォームのマテリアル統計情報とコンパイルエラーを切り替えます。  |
+[/REGION]
 
-## ビューポート パネル
+## Viewport (ビューポート) パネル
 
-![Material Editor Preview Panel](MaterialEditor_Preview.png)
+![](Material_Editor_3.png "Material_Editor_3.png")
 
-**[ビューポート]** パネルは、編集中のマテリアルおよびメッシュに適用したマテリアルを表示します。 
+  
+**[Viewport (ビューポート)]** パネルには、現在編集中のマテリアルが表示されます。
 
-以下の表のオプションを利用して **[ビューポート]** パネルをナビゲートします。
+以下の表のオプションを利用して **[Viewport (ビューポート)]** パネル内で操作できます。
 
+[REGION:simpletable]
 | **アクション** | **説明** |
-| ----- | ----- |
-| マウスの左ボタン＋ドラッグ |  メッシュを回転  |
-| マウスホイール＋ドラッグ |  パン  |
-| マウスの右ボタン＋ドラッグ |  ズーム  |
-| **L** キーを押下＋マウスの左ボタン＋ドラッグ |  ライト方向を回転  |
+| --- | --- |
+| マウス左ボタンのドラッグ | メッシュの回転 |
+| マウスホイールのドラッグ | パン |
+| マウス右ボタンでドラッグ | ズーム |
+| **「L」**キーを押しながらマウスの左ボタンをドラッグ | 光の方向の回転 |
+[/REGION]
 
-
-ビューポート メッシュは、関連するツールバー制御を利用して変更できます (形状ボタンの **[Select Preview Mesh (プレビュー メッシュを選択)]** コンボと **[Use Selected StaticMesh (選択中のスタティックメッシュを使用)]** ボタン)。次にマテリアルエディタでマテリアルを開いた時に同一メッシュ上でプレビューができるように、 
-ビューポートメッシュはマテリアルと一緒に保存されます。
+ビューポート メッシュは、関連するツールバー制御を利用して変更できます (形状ボタンの **[Select Preview Mesh]** コンボと **[Use Selected StaticMesh]** ボタン)。 ビューポート メッシュはマテリアルと保存されるので、次回そのマテリアルがマテリアル エディタで開かれると、同じメッシュ上でプレビューされます。
 
 以下の表は、**[Preview (プレビュー)]** パネルの上部に表示される各アイコンの詳細です。
 
-| **アイコン** | **説明** | 
+[REGION:simpletable]
+| **アイコン** | **説明** |
 | --- | --- |
-| ![toolbar_cylinder.png](toolbar_cylinder.png)![toolbar_sphere.png](toolbar_sphere.png)![toolbar_plane.png](toolbar_plane.png)![toolbar_cube.png](toolbar_cube.png)| **[プレビュー]** パネルのそれぞれのプリミティブ形状の現在のマテリアルの結果を表示します。 |
-| ![toolbar_mesh.png](toolbar_mesh.png)| **コンテンツ ブラウザ** で選択したスタティックメッシュのプレビューメッシュを作成します。|
-| ![toolbar_grid.png](toolbar_grid.png)| **[Preview (プレビュー)]** パネルの背景のグリッド線をトグルします。 |
-| ![toolbar_realtime_preview.png](toolbar_realtime_preview.png)| 有効になると、プレビューメッシュのマテリアルをリアルタイムで更新します。マテリアルエディタのパフォーマンスを高速にするために、このオプションを無効にします。 |
+| ![](toolbar_cylinder.png)![](toolbar_sphere.png)![](toolbar_plane.png)![](toolbar_cube.png) | **[Preview (プレビュー)]** パネルにあるそれぞれのプリミティブ形状の、現在のマテリアルの結果を表示します。 |
+| ![](toolbar_mesh.png) | **コンテンツ ブラウザ** で選択したスタティック メッシュのプレビューメッシュを作成します。 |
+| ![](MaterailEditor_ViewportOptions.png "MaterailEditor_ViewportOptions.png") | マテリアルの **ビューポート オプション** を切り替えます |
+| ![](MaterailEditor_ViewportType.png "MaterailEditor_ViewportType.png") | 使用されている **ビューポート** の種類を変更します。 |
+| ![](MaterailEditor_ViewportLightingType.png "MaterailEditor_ViewportLightingType.png") | **ビューポート** が使用しているライティングの種類を変更します。 |
+| ![](MaterailEditor_ViewportShow.png "MaterailEditor_ViewportShow.png") | マテリアル ビューポートへの追加オプションを有効にします。 |
+[/REGION]
 
-## 詳細パネル
+## Details (詳細) パネル
 
-![Material Editor Details Panel](MaterialEditor_Details.png)
+![](Material_Editor_4.png "Material_Editor_4.png")
 
-このパネルは、現在選択されているマテリアル式と関数ノード全てのプロパティ ウィンドウを収容しています。ノードが何も選択されていない場合、 
-編集中のプロパティが表示されます。
+  
+このパネルには、現在選択されているマテリアル式と関数ノード全てのプロパティウィンドウが含まれます。 ノードが選択されていない場合は、編集中のマテリアルのプロパティが表示されます。
 
-すべてのマテリアル プロパティの説明は、[](Engine/Rendering/Materials/MaterialProperties) 
- を参照してください。
+すべてのマテリアル プロパティの説明については、[「マテリアル プロパティ」](Engine/Rendering/Materials/MaterialProperties) を参照してください。
 
-## グラフ パネル
+## Graph (グラフ) パネル
 
-![](MaterialGraph1.jpg)
+![](Material_Editor_5.png "Material_Editor_5.png")
 
-このパネルは、例に挙げているマテリアルに属する全てのマテリアル表現式のグラフを収容します。それぞれのマテリアルは、デフォルトで 1 つのベース Material ノードを収容しています。ノードに対する一連の入力値は、 
-それぞれがマテリアルの異なる側面と関連性があり、別のマテリアルノードと接続することができます。
+  
+このパネルは、例に挙げているマテリアルに属する全てのマテリアル表現式のグラフを収容します。 それぞれのマテリアルには、デフォルトで 1 つのベース マテリアル ノードが含まれます。 このノードには一連の入力があります。それぞれの入力は、マテリアルのさまざまな特質と関連付けがされており、他のマテリアル ノードと接続することができます。
 
-![Material Editor Material Node](MaterialEditor_MaterialNode.png)
+![](MaterialEditor_MaterialNode.png "MaterialEditor_MaterialNode.png")
 
-ベースとなるマテリアル ノードの各種入力に関する詳細は、[](Engine/Rendering/Materials\MaterialInputs) を 
-参照してください。
+ベース マテリアル ノードのさまざまな入力の説明については、[「マテリアル入力」](Engine/Rendering/Materials/MaterialInputs)を参照してください。  
 
-## パレット パネル
+## Palette (パレット) パネル
 
-**[Palette (パレット)]** パネルは、「ドラッグ＋ドロップ操作」でマテリアルを配置できるマテリアルノードのリストを収容しています。新規のマテリアルノードを配置するには、 
-ノードを **[Graph (グラフ)]** パネルへドラッグします。
+![](Material_Editor_6.png "Material_Editor_6.png")
+
+  
+**[Palette (パレット)]** パネルには「ドラッグ アンド ドロップ」でマテリアルを配置できるマテリアルノードのリストがあります。 新しいマテリアルノードを配置するには、ノードを **[Graph (グラフ)]** パネルへドラッグします。
 
 [REGION:tip]
-**[Palette (パレット)]** パネルの **[Category (カテゴリ)]** ドロップダウンリストから **[Expressions]** または **[Functions]** を選択して、マテリアルノードをフィルタリングすることができます。
+**[Palette (パレット)]** パネルの **[Category (カテゴリ:)]** ドロップダウンリストから **[Expressions]** または **[Functions]** を選択して、マテリアル ノードをフィルタリングすることができます。
 [/REGION]
 
-マテリアル関数に関する詳細は、 [マテリアル関数](Engine/Rendering/Materials/Functions)を参照してください。
+マテリアル関数の詳細については、[「マテリアル関数」](Engine/Rendering/Materials/Functions)を参照してください。
 
+### Stats (統計) パネル
 
-## 統計情報
+![](StatsPanel.png "StatsPanel.png")
 
-![](StatsPanel.jpg)
+このパネルには、マテリアルで使用されているシェーダ命令数と[コンパイラ エラー](Engine/Rendering/Materials/Editor/#CompilerErrors)が表示されます。 シェーダー命令の数が少なければ少ないほど、マテリアルの処理コストが低下します。 ベース マテリアル ノードに接続されていないマテリアル表現式ノードは、マテリアルの命令数に寄与せず、処理コストが増えることはありません。
 
-マテリアルで使用されているシェーダー インストラクション数だけでなく、[コンパイル エラー](Engine/Rendering/Materials/Editor/#コンパイルエラー) もこのパネルに表示されます。シェーダー インストラクション数が少ないほど、マテリアルの処理コストが低下します。ベースとなる 
-マテリアルノードに接続していないマテリアル式ノードは、 
-マテリアルのインストラクション数 (コスト) にはカウントされません。
+### HLSL コード パネル
 
+![](MaterialEditor_HLSLPanel.png "MaterialEditor_HLSLPanel.png")
 
-## HLSLコード パネル
-
-![](MaterialEditor_HLSLPanel.png)
-
-このパネルは、現在のマテリアルで生成された **High Level Shader Language (HLSL)** を表示します。このパネルはエディタではないため HLSL コードの変更はできませんので 
-ご注意ください。どちらかといえば単なるビューアーに過ぎず、 
-ユーザーのマテリアルネットワークで定義したコードの表示を有効にします。
+このパネルには、現在のマテリアルで生成された **High Level Shader Language** (HLSL) が表示されます。 これはエディタではないことに注意してください。つまり、HLSL コードを変更することはできません。 これは単にマテリアル ネットワークによって定義されたコードを視覚化するためのビューアです。
 
 [REGION:note]
-[Code View (コード ビュー)] パネルはデフォルトで表示されません。このパネルを表示するには、**[Window]** メニューで **[HLSL Code]** をクリックします。
+デフォルトでは、**[Code View]** パネルは表示されません。 **[Code View]** パネルを表示するには、**[Window (ウィンドウ)]** メニューの **[HLSL Code (HLSL コード)]** をクリックします。
 [/REGION]
 
+### Platform Stats
+
+[Platform Stats] アイコンをクリックすると、マテリアルのコストを様々なプラットフォームで見ることができます。 
+
+![](PlatformStats.png "PlatformStats.png")
+
+UE4 がサポートする各レンダリング API の統計を表示するには、 **[Settings]** オプションをクリックしてから、統計を見たいレンダリングを選択します。 
+
+![](PlatformStats_More.png "PlatformStats_More.png")
+
+**Android** の統計情報を見るには、まず次の手順で **Mali Offline Compiler** をインストールする必要があります。
+
+1.  [Mali Offline Compiler](https://developer.arm.com/products/software-development-tools/graphics-development-tools/mali-offline-compiler/downloads) をダウンロードしてインストールします。
+2.  Mali Offline Compiler がインストールされたら、UE4 を開き、 **メインメニュー** から **[Edit (編集)]> [Editor Preferences (エディタの環境設定)]> [Content Editors (コンテンツエディタ)]> [Material Editor]** の順に選択します。  
+    ![](PlatformStats_CEMaterialEditor.png "PlatformStats_CEMaterialEditor.png")
+3.  **Mali Offline Compiler**  オプションの右側にある **[...]** をクリックし、Mali Offline Compiler と一緒にインストールされた**「malisc.exe」** ファイルを探します。  
+    ![](PlatformStats_LoadOfflineCompiler.png "PlatformStats_LoadOfflineCompiler.png")
+4.  前のステップが完了したら、UE4 がサポートするさまざまな Android レンダリングの統計を見ることができます。  
+    ![](PlatformStats_SeeingStatsr.png "PlatformStats_SeeingStatsr.png")  
+      
+    
+
+[REGION:note]
+オフライン コンパイラなしでは Android プラットフォームの統計を見ることはできません。
+[/REGION]
 
 ## グラフ制御
 
-マテリアルエディタの制御です。アンリアルエディタの別のツール制御とほとんどの場合一致します。例えば、 
-マテリアル式グラフをその他とリンクしたオブジェクト エディタのようにナビゲートしたり、マテリアル プレビュー メッシュをその他のメッシュ ツールのように 
-位置づけたりすることができます。
+マテリアル エディタの制御は、Unreal Editor にある別のツールの制御方法とほとんどの場合同じです。 例えば、マテリアル式グラフは他のリンクされたオブジェクト エディタと同様に操作でき、マテリアル プレビュー メッシュは他のメッシュ ツールと同じ方向にすることができます。
 
+### マウス操作
 
-### マウスの操作
-
-| **制御** | **アクション** |
+[REGION:simpletable]
+| **コントロール** | **アクション** |
 | --- | --- |
-| **背景で左マウスボタンまたは右マウスボタンでドラッグ**  | マテリアル式グラフをパンします |
-| **マウスホイールをスクロール**  | ズームインまたはズームアウトします。  |
-| **左マウスボタン + 右マウスボタンでドラッグ** | ビューポートカメラをズームインまたはズームアウトします。 |
-| **オブジェクトの上でマウスの左ボタンをクリック**  | 表現式またはコメントを選択します |
-| **Ctrl + オブジェクトの上でマウスの左ボタンをクリック**  | 表現式またはコメントの選択をトグルします |
-| **Ctrl + マウスの左ボタンでドラッグ** | 現在の選択を移動します。 |
-| **Ctrl + Alt + マウスの左ボタンでドラッグ** | ボックスを選択します。 |
-| **Ctrl + Alt + Shift + マウスの左ボタンでドラッグ** | ボックスを選択します (現在の選択に追加します)。  |
-| **コネクターをマウスの左ボタンでドラッグ** | 接続を作成します (コネクタを解放)  |
-| **接続からマウスの左ボタンをドラッグ** | 接続を移動します (同一タイプのコネクタを解放)  |
-| **Shift + コネクタの上でマウスの左ボタンをクリック**  | コネクタに印をつけます。印をつけたコネクタにアクションをもう一度実行すると、2 つのコネクタ間に接続が作成されます。距離が離れているノード間の接続を最も速く作成する方法です。 |
-| **背景でマウスの右ボタンをクリック**  | **[New Expression]** メニューを開きます  |
-| **オブジェクトで右マウスボタンをクリック**  | **[Object (オブジェクト)]** メニューを開きます  |
-| **コネクタでマウスの右ボタンをクリック**  | **[Object (オブジェクト)]** メニューを開きます  |
-| **Alt + コネクタでマウスの左ボタンをクリック**  | コネクタのすべての接続を切断します  |
-
+| **背景でマウスの右もしくは左ボタンのドラッグ** | マテリアル式グラフのパン |
+| **マウスホイールの回転** | ズームインとズームアウト |
+| **マウスの右もしくは左ボタンのドラッグ** | ズームインとズームアウト |
+| **オブジェクトを左クリック** | 式/コメントの選択 |
+| **「Ctrl」キーを押しながらオブジェクトを左クリック** | 式/コメントの選択の切り替え |
+| **「Ctrl」キーを押しながらマウス左ボタンのドラッグ** | 現在の選択/コメントの移動 |
+| **「Ctrl」、「Alt」キーを押しながら左マウスボタンのドラッグ** | ボックスの選択 |
+| **「Ctrl」、「Alt」、「Shift」キーを押しながら左マウスボタンのドラッグ** | ボックスの選択 (現在の選択に追加) |
+| **左マウスボタンをコネクタにドラッグ** | 接続の作成 (コネクタでリリース) |
+| **接続から左マウスボタンをドラッグ** | 接続の移動 (同タイプのコネクタで解除) |
+| **「Shift」キーを押しながらコネクタの左マウスボタンをダブルクリック** | コネクタのマーク。 印をつけたコネクタにアクションをもう一度実行すると、2 つのコネクタ間に接続が作成されます。 これは、最も速く距離が離れているノード間の接続を作成できる方法です。 |
+| **背景で右クリック** | **新しい式** メニューの表示 |
+| **オブジェクト上で右クリック** | **オブジェクト** メニューの表示 |
+| **コネクタ上で右クリック** | **オブジェクト** メニューの表示 |
+| **コネクタ上で「Alt」キーを押しながら左クリック** | コネクタへのすべての接続を切断 |
+[/REGION]
 
 ### キーボードの操作
 
-| **制御** | **アクション** |
+[REGION:simpletable]
+| **コントロール** | **アクション** |
 | --- | --- |
-| **Ctrl + B**  | コンテンツブラウザで検索します。 |
-| **Ctrl + C** | 選択対象をコピーします。 |
-| **Ctrl + S** | すべてを保存します。 |
-| **Ctrl + V** | 貼り付けします。  |
-| **Ctrl + W** | 選択対象を複製します。 |
-| **Ctrl + Y** | やり直し  |
-| **Ctrl + Z**  | 元に戻す  |
-| **Delete**  | 選択対象を削除します。  |
-| **Spacebar**  | マテリアル表現式のプレビューをすべて強制的に更新します |
-| **Enter**   | (クリックして「適用」と同じです) |
+| **「Ctrl」キー を押しながら「B」キー** | Find in Content Browser (コンテンツブラウザで検索) |
+| **「Ctrl」キーを押しながら「C」キー** | 選択した式をコピーする |
+| **「Ctrl」キーを押しながら「S」キー** | Save All (すべて保存) |
+| **「Ctrl」キーを押しながら「V」キー** | 貼り付け |
+| **「Ctrl」キーを押しながら「W」キー** | 選択したオブジェクトを複製する |
+| **「Ctrl」キーを押しながら「Y」キー** | Redo (やり直す) |
+| **「Ctrl」キーを押しながら「Z」キー** | Undo (元に戻す) |
+| **「Delete」キー** | 選択したオブジェクトを削除する |
+| **スペースキー** | すべてのマテリアル式のプレビューを強制的に更新 |
+| **「Enter」キー** | ([Apply (適用)] をクリックするのと同じ) |
+[/REGION]
 
+### ホットキー
 
-###ホットキー（ショートカットキー）
+一般に使用するマテリアル表現式のタイプの配置にホットキーを使用します。 ホットキーを押しながら **左クリック** してノードをドロップインします。 ホットキーは以下のように割り当てられています。
 
-一般に使用するマテリアル表現式のタイプの配置にホットキーを使用します。ホットキーを押したまま、 
-ノードをドロップするために **左クリック** します。ホットキーは以下のように割り当てられています。
-
-| **ホットキー** | **コマンド** |
+[REGION:simpletable]
+| **ホットキー** | **式** |
 | --- | --- |
-| **A** | Add (追加) |
-| **B** | BumpOffset |
-| **C** | Comment  (コメント)|
-| **D** | Divide (分割) |
-| **E** | Power (累乗) |
-| **F** | MaterialFunctionCall |
-| **I** | If |
-| **L** | LinearInterpolate (線形補間) |
-| **M** | Multiply (乗算) |
-| **N** | Normalize (ノーマライズ) |
-| **O** | OneMinus (マイナス 1) |
-| **P** | Panner (パナー) |
-| **R** | ReflectionVector (反射ベクトル) |
-| **S** | ScalarParameter (スカラー パラメータ) |
-| **T** | TextureSample (テクスチャ サンプル) |
-| **U** | TexCoord (テクスチャ座標) |
-| **V** | VectorParameter (ベクトル パラメータ) |
+| **「A」キー** | Add |
+| **「B」キー** | BumpOffset |
+| **「C」キー** | Comment |
+| **「D」キー** | Divide |
+| **「E」キー** | Power |
+| **「F」キー** | MaterialFunctionCall |
+| **「I」キー** | If |
+| **「L」キー** | LinearInterpolate |
+| **「M」キー** | Multiply |
+| **「N」キー** | Normalize |
+| **「O」キー** | OneMinus |
+| **「P」キー** | Panner |
+| **「R」キー** | ReflectionVector |
+| **「S」キー** | ScalarParameter |
+| **「T」キー** | TextureSample |
+| **「U」キー** | TexCoord |
+| **「V」キー** | VectorParameter |
 | **1** | Constant |
 | **2** | Constant2Vector |
 | **3** | Constant3Vector |
 | **4** | Constant4Vector |
-| **Shift + C**  | ComponentMask |
-
+| **「Shift」キーを押しながら「C」キー** | ComponentMask |
+[/REGION]

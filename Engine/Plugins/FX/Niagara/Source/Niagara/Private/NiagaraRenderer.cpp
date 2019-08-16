@@ -8,6 +8,7 @@
 #include "NiagaraVertexFactory.h"
 #include "Engine/Engine.h"
 #include "DynamicBufferAllocator.h"
+#include "NiagaraEmitterInstanceBatcher.h"
 
 DECLARE_CYCLE_STAT(TEXT("Sort Particles"), STAT_NiagaraSortParticles, STATGROUP_Niagara);
 
@@ -185,6 +186,8 @@ FNiagaraRenderer::FNiagaraRenderer(ERHIFeatureLevel::Type FeatureLevel, const UN
 	, CPUTimeMS(0.0f)
 	, bLocalSpace(Emitter->GetCachedEmitter()->bLocalSpace)
 	, bHasLights(false)
+	, SimTarget(Emitter->GetCachedEmitter()->SimTarget)
+	, NumIndicesPerInstance(InProps ? InProps->GetNumIndicesPerInstance() : 0)
 {
 #if STATS
 	EmitterStatID = Emitter->GetCachedEmitter()->GetStatID(false, false);
@@ -207,8 +210,24 @@ void FNiagaraRenderer::Initialize(ERHIFeatureLevel::Type FeatureLevel, const UNi
 
 FNiagaraRenderer::~FNiagaraRenderer()
 {
-	ReleaseRenderThreadResources();
+	ReleaseRenderThreadResources(nullptr);
 	SetDynamicData_RenderThread(nullptr);
+}
+
+void FNiagaraRenderer::CreateRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher) 
+{
+	if (Batcher && SimTarget == ENiagaraSimTarget::GPUComputeSim)
+	{
+		Batcher->GetGPUInstanceCounterManager().IncrementMaxDrawIndirectCount();
+	}
+}
+
+void FNiagaraRenderer::ReleaseRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher)
+{
+	if (Batcher && SimTarget == ENiagaraSimTarget::GPUComputeSim)
+	{
+		Batcher->GetGPUInstanceCounterManager().DecrementMaxDrawIndirectCount();
+	}
 }
 
 FPrimitiveViewRelevance FNiagaraRenderer::GetViewRelevance(const FSceneView* View, const FNiagaraSceneProxy *SceneProxy)const

@@ -32,6 +32,7 @@ namespace UnrealBuildTool.Rules
 				new string[] {
 					"ImgMedia/Private",
 					"ImgMedia/Private/Assets",
+					"ImgMedia/Private/GlobalCache",
 					"ImgMedia/Private/Loader",
 					"ImgMedia/Private/Player",
 					"ImgMedia/Private/Readers",

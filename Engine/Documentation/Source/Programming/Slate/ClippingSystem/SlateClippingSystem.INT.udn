@@ -15,7 +15,7 @@ Tags:UMG UI Designer
 [TOC(start:2 end:3)]
 
 [REGION:warning]
-With the release of Unreal Engine 4.17, the new Slate Clipping System will break backward compatibility for versions 4.16 and earlier that update. See the [Conversion Guide](#conversionguidefrom4stop16andearlierto4stop17andlater) section of this 
+With the release of Unreal Engine 4.17, the new Slate Clipping System will break backward compatibility for versions 4.16 and earlier that update. See the [Conversion Guide](#conversionguidefrom416andearlierto417andlater) section of this 
 page to update your project. 
 [/REGION]
 
@@ -103,7 +103,7 @@ clipped with a projection would need to perform clipping in projected space.
 --
 [/COMMENT]
 
-
+(#ConversionGuidefrom416andearlierto417andlater)
 ## Conversion Guide from 4.16 and Earlier to 4.17 and Later
 
 The changes to the Slate clipping system in 4.17 will break compatibility with previous versions, so you'll want to use the sections below to update your project to avoid any conversion issues and to 

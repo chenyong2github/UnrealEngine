@@ -13,6 +13,10 @@
 #include "HAL/IConsoleManager.h"
 #include "IOS/IOSAsyncTask.h"
 #include "Stats/Stats.h"
+#if WITH_ACCESSIBILITY
+#include "IOS/Accessibility/IOSAccessibilityCache.h"
+#include "IOS/Accessibility/IOSAccessibilityElement.h"
+#endif
 
 FIOSApplication* FIOSApplication::CreateIOSApplication()
 {
@@ -48,6 +52,15 @@ void FIOSApplication::SetMessageHandler( const TSharedRef< FGenericApplicationMe
 		(*DeviceIt)->SetMessageHandler(InMessageHandler);
 	}
 }
+
+#if WITH_ACCESSIBILITY
+void FIOSApplication::SetAccessibleMessageHandler(const TSharedRef<FGenericAccessibleMessageHandler>& InAccessibleMessageHandler)
+{
+	GenericApplication::SetAccessibleMessageHandler(InAccessibleMessageHandler);
+	InAccessibleMessageHandler->SetAccessibleEventDelegate(FGenericAccessibleMessageHandler::FAccessibleEvent::CreateRaw(this, &FIOSApplication::OnAccessibleEventRaised));
+	InAccessibleMessageHandler->SetActive(UIAccessibilityIsVoiceOverRunning());
+}
+#endif
 
 void FIOSApplication::AddExternalInputDevice(TSharedPtr<IInputDevice> InputDevice)
 {
@@ -224,3 +237,45 @@ bool FIOSApplication::IsGamepadAttached() const
 
 	return false;
 }
+
+TSharedRef<FIOSWindow> FIOSApplication::FindWindowByAppDelegateView()
+{
+	for (const TSharedRef<FIOSWindow>& Window : Windows)
+	{
+		if ([IOSAppDelegate GetDelegate].Window == static_cast<UIWindow*>(Window->GetOSWindowHandle()))
+		{
+			return Window;
+		}
+	}
+    check(false);
+    return Windows[0];
+}
+
+#if WITH_ACCESSIBILITY
+void FIOSApplication::OnAccessibleEventRaised(TSharedRef<IAccessibleWidget> Widget, EAccessibleEvent Event, FVariant OldValue, FVariant NewValue)
+{
+	// This should only be triggered by the accessible message handler which initiates from the Slate thread.
+	check(IsInGameThread());
+
+	const AccessibleWidgetId Id = Widget->GetId();
+	switch (Event)
+	{
+	case EAccessibleEvent::ParentChanged:
+	{
+		dispatch_async(dispatch_get_main_queue(), ^{
+			[[[FIOSAccessibilityCache AccessibilityElementCache] GetAccessibilityElement:Id] SetParent:NewValue.GetValue<AccessibleWidgetId>()];
+		});
+		// LayoutChanged is to indicate things like "a widget became visible or hidden" while
+		// ScreenChanged is for large-scale UI changes. It can potentially take an NSString to read
+		// to the user when this happens, if we choose to support that.
+		UIAccessibilityPostNotification(UIAccessibilityLayoutChangedNotification, nil);
+		break;
+	}
+	case EAccessibleEvent::WidgetRemoved:
+		dispatch_async(dispatch_get_main_queue(), ^{
+			[[FIOSAccessibilityCache AccessibilityElementCache] RemoveAccessibilityElement:Id];
+		});
+		break;
+	}
+}
+#endif

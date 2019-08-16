@@ -13,6 +13,8 @@
 
 FName FControlRigBlueprintUtils::GetNewUnitMemberName(UBlueprint* InBlueprint, const UStruct* InStructTemplate)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	FString VariableBaseName = InStructTemplate->GetName();
 	VariableBaseName.RemoveFromStart(TEXT("RigUnit_"));
 	return FBlueprintEditorUtils::FindUniqueKismetName(InBlueprint, VariableBaseName);
@@ -20,6 +22,8 @@ FName FControlRigBlueprintUtils::GetNewUnitMemberName(UBlueprint* InBlueprint, c
 
 FName FControlRigBlueprintUtils::AddUnitMember(UBlueprint* InBlueprint, const UStruct* InStructTemplate, const FName& InName)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	FName VarName = InName == NAME_None ? FControlRigBlueprintUtils::GetNewUnitMemberName(InBlueprint, InStructTemplate) : InName;
 
 	UScriptStruct* ScriptStruct = FindObjectChecked<UScriptStruct>(ANY_PACKAGE, *InStructTemplate->GetName());
@@ -39,11 +43,15 @@ FName FControlRigBlueprintUtils::AddUnitMember(UBlueprint* InBlueprint, const US
 
 FName FControlRigBlueprintUtils::GetNewPropertyMemberName(UBlueprint* InBlueprint, const FString& InVariableDesc)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	return FBlueprintEditorUtils::FindUniqueKismetName(InBlueprint, InVariableDesc);
 }
 
 FName FControlRigBlueprintUtils::AddPropertyMember(UBlueprint* InBlueprint, const FEdGraphPinType& InPinType, const FString& InVariableDesc)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if(FBlueprintEditorUtils::AddMemberVariable(InBlueprint, *InVariableDesc, InPinType))
 	{
 		return InBlueprint->NewVariables.Last().VarName;
@@ -53,6 +61,8 @@ FName FControlRigBlueprintUtils::AddPropertyMember(UBlueprint* InBlueprint, cons
 
 FName FControlRigBlueprintUtils::ValidateName(UBlueprint* InBlueprint, const FString& InName)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	FString Name = InName;
 	if (Name.StartsWith(TEXT("RigUnit_")))
 	{
@@ -107,6 +117,8 @@ FName FControlRigBlueprintUtils::ValidateName(UBlueprint* InBlueprint, const FSt
 
 UControlRigGraphNode* FControlRigBlueprintUtils::InstantiateGraphNodeForProperty(UEdGraph* InGraph, const FName& InPropertyName, const FVector2D& InLocation, const FEdGraphPinType& InPinType)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	check(InGraph);
 
 	InGraph->Modify();
@@ -125,13 +137,14 @@ UControlRigGraphNode* FControlRigBlueprintUtils::InstantiateGraphNodeForProperty
 	NewNode->NodePosY = InLocation.Y;
 
 	NewNode->SetFlags(RF_Transactional);
-	NewNode->UpdateNodeColorFromMetadata();
 
 	return NewNode;
 }
 
 UControlRigGraphNode* FControlRigBlueprintUtils::InstantiateGraphNodeForStructPath(UEdGraph* InGraph, const FName& InPropertyName, const FVector2D& InLocation, const FString& InStructPath)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	check(InGraph);
 
 	InGraph->Modify();
@@ -150,13 +163,14 @@ UControlRigGraphNode* FControlRigBlueprintUtils::InstantiateGraphNodeForStructPa
 	NewNode->NodePosY = InLocation.Y;
 
 	NewNode->SetFlags(RF_Transactional);
-	NewNode->UpdateNodeColorFromMetadata();
 
 	return NewNode;
 }
 
 bool FControlRigBlueprintUtils::CanInstantiateGraphNodeForProperty(UEdGraph* InGraph, const FName& InPropertyName)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	for(UEdGraphNode* Node : InGraph->Nodes)
 	{
 		if(UControlRigGraphNode* ControlRigGraphNode = Cast<UControlRigGraphNode>(Node))
@@ -173,6 +187,8 @@ bool FControlRigBlueprintUtils::CanInstantiateGraphNodeForProperty(UEdGraph* InG
 
 void FControlRigBlueprintUtils::ForAllRigUnits(TFunction<void(UStruct*)> InFunction)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	// Run over all unit types
 	for(TObjectIterator<UStruct> StructIt; StructIt; ++StructIt)
 	{
@@ -185,6 +201,8 @@ void FControlRigBlueprintUtils::ForAllRigUnits(TFunction<void(UStruct*)> InFunct
 
 void FControlRigBlueprintUtils::HandleReconstructAllNodes(UBlueprint* InBlueprint)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if(InBlueprint->IsA<UControlRigBlueprint>())
 	{
 		// TArray<UControlRigGraphNode*> AllNodes;
@@ -199,6 +217,8 @@ void FControlRigBlueprintUtils::HandleReconstructAllNodes(UBlueprint* InBlueprin
 
 void FControlRigBlueprintUtils::HandleRefreshAllNodes(UBlueprint* InBlueprint)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if(InBlueprint->IsA<UControlRigBlueprint>())
 	{
 		TArray<UControlRigGraphNode*> AllNodes;
@@ -213,6 +233,8 @@ void FControlRigBlueprintUtils::HandleRefreshAllNodes(UBlueprint* InBlueprint)
 
 void FControlRigBlueprintUtils::HandleRenameVariableReferencesEvent(UBlueprint* InBlueprint, UClass* InVariableClass, const FName& InOldVarName, const FName& InNewVarName)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if(UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(InBlueprint))
 	{
 		if (RigBlueprint->ModelController)
@@ -224,6 +246,8 @@ void FControlRigBlueprintUtils::HandleRenameVariableReferencesEvent(UBlueprint* 
 
 void FControlRigBlueprintUtils::RemoveMemberVariableIfNotUsed(UBlueprint* Blueprint, const FName VarName, UControlRigGraphNode* ToBeDeleted)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (Blueprint->IsA<UControlRigBlueprint>())
 	{
 		bool bDeleteVariable = true;

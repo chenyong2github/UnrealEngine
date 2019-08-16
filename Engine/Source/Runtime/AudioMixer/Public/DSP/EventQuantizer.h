@@ -121,7 +121,7 @@ namespace Audio
 			// The current frame count of this quantization type
 			uint32 FrameCount;
 
-			// The frame duration of this quantization type (how many frames for the event to re-ocurr)
+			// The frame duration of this quantization type (how many frames for the event to reoccur)
 			uint32 EventFrameDuration;
 
 			// Array of events queued for this state

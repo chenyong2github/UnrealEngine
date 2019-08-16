@@ -55,6 +55,12 @@ public:
 	/** Notified when users are removed from the system, good chance to clean up any user specific state. */
 	virtual void OnUserRemoved(int32 UserIndex);
 
+	/** Notified when navigation has caused a widget change to occur */
+	virtual void OnNavigationChangedFocus(TSharedPtr<SWidget> OldWidget, TSharedPtr<SWidget> NewWidget, FFocusEvent FocusEvent) {}
+
+	/** Returns the navigation action corresponding to this key, or Invalid if not found */
+	virtual EUINavigationAction GetNavigationActionForKey(const FKey& InKey) const;
+
 public:
 	/** Should the Tab key perform next and previous style navigation. */
 	bool bTabNavigation;

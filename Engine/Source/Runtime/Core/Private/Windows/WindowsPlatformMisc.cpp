@@ -1676,6 +1676,22 @@ int32 FWindowsPlatformMisc::NumberOfCoresIncludingHyperthreads()
 	return CoreCount;
 }
 
+const TCHAR* FWindowsPlatformMisc::GetPlatformFeaturesModuleName()
+{
+	bool bModuleExists = FModuleManager::Get().ModuleExists(TEXT("WindowsPlatformFeatures"));
+	// If running a dedicated server then we use the default PlatformFeatures
+	if (bModuleExists && !IsRunningDedicatedServer())
+	{
+		UE_LOG(LogWindows, Log, TEXT("WindowsPlatformFeatures enabled"));
+		return TEXT("WindowsPlatformFeatures");
+	}
+	else
+	{
+		UE_LOG(LogWindows, Log, TEXT("WindowsPlatformFeatures disabled or dedicated server build"));
+		return nullptr;
+	}
+}
+
 int32 FWindowsPlatformMisc::NumberOfWorkerThreadsToSpawn()
 {
 	static int32 MaxServerWorkerThreads = 4;
@@ -1697,22 +1713,6 @@ int32 FWindowsPlatformMisc::NumberOfWorkerThreadsToSpawn()
 	int32 MaxWorkerThreadsWanted = IsRunningDedicatedServer() ? MaxServerWorkerThreads : MaxWorkerThreads;
 	// need to spawn at least one worker thread (see FTaskGraphImplementation)
 	return FMath::Max(FMath::Min(NumberOfThreads, MaxWorkerThreadsWanted), 2);
-}
-
-const TCHAR* FWindowsPlatformMisc::GetPlatformFeaturesModuleName()
-{
-	bool bModuleExists = FModuleManager::Get().ModuleExists(TEXT("WindowsPlatformFeatures"));
-	// If running a dedicated server then we use the default PlatformFeatures
-	if (bModuleExists && !IsRunningDedicatedServer())
-	{
-		UE_LOG(LogWindows, Log, TEXT("WindowsPlatformFeatures enabled"));
-		return TEXT("WindowsPlatformFeatures");
-	}
-	else
-	{
-		UE_LOG(LogWindows, Log, TEXT("WindowsPlatformFeatures disabled or dedicated server build"));
-		return nullptr;
-	}
 }
 
 bool FWindowsPlatformMisc::OsExecute(const TCHAR* CommandType, const TCHAR* Command, const TCHAR* CommandLine)

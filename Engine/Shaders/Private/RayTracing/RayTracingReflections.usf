@@ -15,11 +15,6 @@
 
 #include "../Common.ush"
 
-float2 SobolIndexToUniformUnitSquare(uint2 SobolRand)
-{
-	return float2(SobolRand) * rcp(65536.0) + rcp(65536.0 * 2.0);
-}
-
 #define SUPPORT_CONTACT_SHADOWS		0
 #define USE_SOURCE_TEXTURE			1
 #define USE_SOURCE_TEXTURE_ARRAY	1
@@ -35,26 +30,57 @@ float2 SobolIndexToUniformUnitSquare(uint2 SobolRand)
 #include "../DeferredLightingCommon.ush"
 #include "../ReflectionEnvironmentShared.ush"
 #include "../Montecarlo.ush"
-#include "../PathTracing/Utilities/PathTracingRandomSequence.ush" // #dxr-todo: move to a common folder
+#include "../PathTracing/Utilities/PathTracingRandomSequence.ush" 
 #include "../HeightFogCommon.ush"
-#include "RayTracingCommon.ush"
+#include "../LightShaderParameters.ush"
+#include "../ScreenSpaceDenoise/SSDPublic.ush"
+#include "../SobolRandom.ush"
+#include "../SceneTextureParameters.ush"
 #include "RayTracingHitGroupCommon.ush"
 #include "RayTracingDirectionalLight.ush"
 #include "RayTracingRectLight.ush"
 #include "RayTracingSphereLight.ush"
 #include "RayTracingSpotLight.ush"
 #include "RayTracingPointLight.ush"
+#include "RayTracingCommon.ush"
+#include "RayTracingLightingCommon.ush" 
+
+
+// Setup the reflection composite to sample the sky and reflection captures.
+#define REFLECTION_COMPOSITE_HAS_BOX_CAPTURES 1
+#define REFLECTION_COMPOSITE_HAS_SPHERE_CAPTURES 1
+#define REFLECTION_COMPOSITE_USE_BLENDED_REFLECTION_CAPTURES 1
+#define REFLECTION_COMPOSITE_SUPPORT_SKYLIGHT_BLEND 1
+// Enable skly light sampling as last fallback after reflection captures
+#ifdef ENABLE_SKY_LIGHT
+#undef ENABLE_SKY_LIGHT
+#endif
+#define ENABLE_SKY_LIGHT 1
+// Disable static lighting as this is not needed in this case.
+#ifdef ALLOW_STATIC_LIGHTING
+#undef ALLOW_STATIC_LIGHTING
+#endif
+#define ALLOW_STATIC_LIGHTING 0
+// Also specify that we are going to go over a range of reflection captures without culling available.
+// All reflection captures available are always available here even if completely outside the view.
+#define REFLECTION_COMPOSITE_NO_CULLING_DATA
+#include "../ReflectionEnvironmentComposite.ush"
+
 
 uint SamplesPerPixel;
 uint MaxBounces;
 uint HeightFog;
-uint ShouldDoDirectLighting;
+uint UseReflectionCaptures;
 uint ReflectedShadowsType;
+uint ShouldDoDirectLighting;
 uint ShouldDoEmissiveAndIndirectLighting;
 uint UpscaleFactor;
 uint SortTileSize;
 uint2 RayTracingResolution;
 uint2 TileAlignedResolution;
+uint TestPathRoughness;
+float MinClearCoatLevel;
+uint MaxUnderCoatBounces;
 
 float ReflectionMinRayDistance;
 float ReflectionMaxRayDistance;
@@ -62,8 +88,6 @@ float ReflectionMaxRoughness;
 float ReflectionMaxNormalBias;
 
 RaytracingAccelerationStructure TLAS;
-
-#include "RayTracingLightingCommon.ush" // #dxr_todo: helper functions must take TLAS explicitly rather than rely on a global declared above
 
 RWTexture2D<float4> ColorOutput;
 RWTexture2D<float> RayHitDistanceOutput;
@@ -73,16 +97,6 @@ RWTexture2D<float> RayImaginaryDepthOutput;
 // Material buffer and tile size are used for sorted materials.
 RWStructuredBuffer<FDeferredMaterialPayload> MaterialBuffer;
 
-uint2 GetPixelCoord(uint2 DispatchThreadId)
-{
-	uint UpscaleFactorPow2 = UpscaleFactor * UpscaleFactor;
-
-	// TODO: find a way to not interfer with TAA's jittering.
-	uint SubPixelId = View.StateFrameIndex & (UpscaleFactorPow2 - 1);
-
-	return DispatchThreadId * UpscaleFactor + uint2(SubPixelId & (UpscaleFactor - 1), SubPixelId / UpscaleFactor);
-}
-
 // Generate a random direction to sample according to world normal and roughness.
 float3 GenerateReflectionDirection(inout RandomSequence RandSequence, uint2 DispatchThreadId, uint BounceIndex, uint SamplePerPixel, float3 IncidentDirection, float3 WorldNormal, float Roughness)
 {
@@ -91,16 +105,16 @@ float3 GenerateReflectionDirection(inout RandomSequence RandSequence, uint2 Disp
 	float3 outDirection;
 	do
 	{
-		float2 RandSample = RandomSequence_GenerateSample2D(RandSequence, DummyVariable);
+		float2 E = RandomSequence_GenerateSample2D(RandSequence, DummyVariable);
 
 		// Sobol can only be used on the first sample of the first bounce
 		if (BounceIndex == 0 && SamplePerPixel == 1 && RetryCount == 0)
 		{
-			uint2 SobolFrame = ComputePixelUniqueSobolRandSample(DispatchThreadId);
-			RandSample = SobolIndexToUniformUnitSquare(SobolFrame);
+			E = Rand1SPPDenoiserInput(DispatchThreadId);
+			E.x *= 1 - GGX_IMPORTANT_SAMPLE_BIAS;
 		}
 
-		outDirection = GenerateReflectedRayDirection(IncidentDirection, WorldNormal, Roughness, RandSample);
+		outDirection = GenerateReflectedRayDirection(IncidentDirection, WorldNormal, Roughness, E);
 	} while (dot(WorldNormal, outDirection) < 0.0 && ++RetryCount < 16);
 
 	return outDirection;
@@ -140,22 +154,24 @@ void RayTracingReflectionsRGS()
 	uint2 DispatchThreadId = DispatchRaysIndex().xy;
 #endif
 
-	uint2 PixelCoord = GetPixelCoord(DispatchThreadId); // GBuffer pixel coordinates (full resolution)
+	DispatchThreadId += View.ViewRectMin;
+
+	uint2 PixelCoord = GetPixelCoord(DispatchThreadId, UpscaleFactor); // GBuffer pixel coordinates (full resolution)
 
 	uint LinearIndex = PixelCoord.y * View.BufferSizeAndInvSize.x + PixelCoord.x; // TODO: PixelCoord or DispatchThreadId
 	
 	RandomSequence RandSequence;
-	RandomSequence_Initialize(RandSequence, LinearIndex, View.FrameNumber);
+	RandomSequence_Initialize(RandSequence, LinearIndex, View.StateFrameIndex);
 
 	float2 InvBufferSize = View.BufferSizeAndInvSize.zw;
 	float2 UV = (float2(PixelCoord) + 0.5) * InvBufferSize;
-	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(UV);
-	float Depth = ScreenSpaceData.GBuffer.Depth;
+	FGBufferData GBufferData = GetGBufferDataFromSceneTextures(UV);
+	float Depth = GBufferData.Depth;
 
-	uint LocalSamplesPerPixel = SamplesPerPixel;
+	uint LocalSamplesPerPixel = SamplesPerPixel; 
 
 	// Mask out depth values that are infinitely far away
-	float DeviceZ = SceneTexturesStruct.SceneDepthTexture.Load(int3(PixelCoord, 0)).r;
+	float DeviceZ = SceneDepthBuffer.Load(int3(PixelCoord, 0)).r;
 	bool IsFiniteDepth = DeviceZ > 0.0;
 	if (!IsFiniteDepth)
 	{
@@ -170,42 +186,46 @@ void RayTracingReflectionsRGS()
 
 	float4 ReflectedColor = 0.0;
 	float ReflectedWeight = 0.0;
-	float HitDistance = -2.0;
+	float HitDistance = DENOISER_INVALID_HIT_DISTANCE;
 
-	float RoughnessFade = GetRoughnessFade(ScreenSpaceData.GBuffer.Roughness, ReflectionMaxRoughness);
-	float ClearCoatRoughnessFade = ScreenSpaceData.GBuffer.ShadingModelID == SHADINGMODELID_CLEAR_COAT ? GetRoughnessFade(ScreenSpaceData.GBuffer.CustomData.y, ReflectionMaxRoughness) : 0.0f;
+	float RoughnessFade = GetRoughnessFade(GBufferData.Roughness, ReflectionMaxRoughness);
+	float ClearCoatRoughnessFade = GBufferData.ShadingModelID == SHADINGMODELID_CLEAR_COAT ? GetRoughnessFade(GBufferData.CustomData.y, ReflectionMaxRoughness) : 0.0f;
 
 	// Sky is only sampled when infinite reflection rays are used.
 	const bool bAllowSkySampling = ReflectionMaxRayDistance < 0;
 
 	// Shorten the rays on rougher surfaces between user-provided min and max ray lengths.
 	// When a shortened ray misses the geometry, we fall back to local reflection capture sampling (similar to SSR).
-	const float LocalMaxRayDistance = bAllowSkySampling ? 1e27f : lerp(ReflectionMaxRayDistance, ReflectionMinRayDistance, ScreenSpaceData.GBuffer.Roughness);
+	const float LocalMaxRayDistance = bAllowSkySampling ? 1e27f : lerp(ReflectionMaxRayDistance, ReflectionMinRayDistance, GBufferData.Roughness);
 
 	// Cutoff
 	// * Roughness value
 	// * Hair material is not for RT reflection at the moment. Their indirect contributuion is based on diffuse SH evaluation in ReflectionEnvironemenPixelShader.usf
-    const bool bIsValidPixel = (RoughnessFade > 0 || ClearCoatRoughnessFade > 0) && ScreenSpaceData.GBuffer.ShadingModelID != SHADINGMODELID_HAIR;
+    const bool bIsValidPixel = (RoughnessFade > 0 || ClearCoatRoughnessFade > 0) && GBufferData.ShadingModelID != SHADINGMODELID_HAIR;
 	   
 	if (bIsValidPixel)
 	{
 		for (uint SampleIndex = 0; SampleIndex < LocalSamplesPerPixel; ++SampleIndex)
 		{
 			bool bIsValidSample = false;
-			
+			bool bNeedsCapture = true;
+
 			float3 PathRadiance = 0;
 			float3 PathThroughput = float3(1.0f, 1.0f, 1.0f);
 			
 			// Initialize path states according to GBuffer
-			float3 CameraOrigin = ReconstructWorldPositionFromDepth(UV, 0.0f);
-			float3 WorldPosition = ReconstructWorldPositionFromDepth(UV, Depth);
-			float3 CameraDirection = normalize(WorldPosition - CameraOrigin);
+			float3 WorldPosition;
+			float3 CameraDirection;
+			ReconstructWorldPositionAndCameraDirectionFromDeviceZ(PixelCoord, DeviceZ, WorldPosition, CameraDirection);
 			float3 IncidentDirection = CameraDirection;
 
-			uint ShadingModelID = ScreenSpaceData.GBuffer.ShadingModelID;
-			float3 TopLayerWorldNormal = ScreenSpaceData.GBuffer.WorldNormal;
-			float  TopLayerRoughness = ScreenSpaceData.GBuffer.Roughness;
-			float3 TopLayerSpecularColor = ScreenSpaceData.GBuffer.SpecularColor;
+			uint ShadingModelID = GBufferData.ShadingModelID;
+			float3 TopLayerWorldNormal = GBufferData.WorldNormal;
+			float  TopLayerRoughness = GBufferData.Roughness;
+			float3 TopLayerSpecularColor = GBufferData.SpecularColor;
+
+			// Track Roughness to terminate bounces early
+			float AccumRoughness = TopLayerRoughness;
 
 			float  ClearCoat = 1.0f;
 			float  BottomLayerRoughness = TopLayerRoughness;
@@ -214,12 +234,12 @@ void RayTracingReflectionsRGS()
 			if (ShadingModelID == SHADINGMODELID_CLEAR_COAT)
 			{
 				#if CLEAR_COAT_BOTTOM_NORMAL
-				const float2 oct1 = ((float2(ScreenSpaceData.GBuffer.CustomData.a, ScreenSpaceData.GBuffer.CustomData.z) * 2) - (256.0/255.0)) + UnitVectorToOctahedron(TopLayerWorldNormal);
+				const float2 oct1 = ((float2(GBufferData.CustomData.a, GBufferData.CustomData.z) * 2) - (256.0/255.0)) + UnitVectorToOctahedron(TopLayerWorldNormal);
 				BottomLayerWorldNormal = OctahedronToUnitVector(oct1);
 				#endif
 
-				ClearCoat = ScreenSpaceData.GBuffer.CustomData.x;			// Clear coat weight
-				TopLayerRoughness = ScreenSpaceData.GBuffer.CustomData.y;	// Clear coat roughness
+				ClearCoat = GBufferData.CustomData.x;			// Clear coat weight
+				TopLayerRoughness = GBufferData.CustomData.y;	// Clear coat roughness
 				TopLayerSpecularColor = ClearCoatSpecularColor;				// Hard coded top layer specular color
 			}
 
@@ -229,35 +249,54 @@ void RayTracingReflectionsRGS()
 			RayCone = PropagateRayCone(RayCone, SurfaceCurvature, Depth);
 
 			//
-			// Reflections are trace by always following the top layer reflection vector. This is recursive and up to MaxBounces recursion.
+			// Reflections are traced by always following the top layer reflection vector. This is recursive and up to MaxBounces recursion.
 			// In the case of coated material, we also trace a reflection ray for the bottom layer which can have different normal and roughness. This is not recursive.
 			// We fix normal pointing away towards the geometry by assuming coated layer has smooth normal (assuming it is the mesh smooth normal).
-			// Fog is applied as a function of the top layer path, for both top and botto; refelctions combined (as an optimisation approximation).
+			// Fog is applied as a function of the top layer path, for both top and bottom; reflections combined (as an optimization approximation).
 			//
-			for (uint BounceIndex = 0; BounceIndex < MaxBounces; ++BounceIndex)
+			uint BounceIndex = 0;
+			RayDesc TopLayerRay;
+			bool bSkyWasHit = false;
+			for (; BounceIndex < MaxBounces; ++BounceIndex)
 			{
+				// Composite pass applies BRDF, except
+				bool bApplyBRDF = BounceIndex != 0;
+
+				BRANCH
+				if (ShadingModelID == SHADINGMODELID_CLEAR_COAT && ClearCoat < MinClearCoatLevel)
+				{
+					// top layer isn't really contributing, just trace bottom
+					TopLayerRoughness = BottomLayerRoughness;
+					TopLayerSpecularColor = BottomLayerSpecularColor;
+					TopLayerWorldNormal = BottomLayerWorldNormal;
+
+					// override to default material
+					ShadingModelID = SHADINGMODELID_DEFAULT_LIT;
+
+					// Foce BRDF application, as ClearCoat materials are assumed fully resolved
+					bApplyBRDF = true;
+				}
+
 				// Prepare a ray to trace the top layer reflection
-				RayDesc TopLayerRay;
 				TopLayerRay.Origin = WorldPosition;
 				TopLayerRay.TMin = 0.0;
 				TopLayerRay.TMax = LocalMaxRayDistance;
 
 				TopLayerRay.Direction = GenerateReflectionDirection(RandSequence, DispatchThreadId, BounceIndex, LocalSamplesPerPixel, IncidentDirection, TopLayerWorldNormal, TopLayerRoughness);
-				ApplyPositionBias(TopLayerRay, TopLayerWorldNormal, ReflectionMaxNormalBias);
+				ApplyCameraRelativeDepthBias(TopLayerRay, PixelCoord, DeviceZ, TopLayerWorldNormal, ReflectionMaxNormalBias);
 				if (BounceIndex == 0)
 				{
 					// This fixes black reflexions due to R pointing into the surface.
 					// It assumes that the clear coat relies on a smooth normal following the mesh surface.
-					FixSampleDirectionIfNeeded(ScreenSpaceData.GBuffer.WorldNormal, TopLayerRay.Direction);
+					FixSampleDirectionIfNeeded(GBufferData.WorldNormal, TopLayerRay.Direction);
 				}
-
-				//#dxr-todo: apply heuristics to do different shading computations depending on BounceIndex
 
 				if (BounceIndex == 0 && SampleIndex == 0)
 				{
 					if (DIM_DEFERRED_MATERIAL_MODE == DEFERRED_MATERIAL_MODE_GATHER)
 					{
-						uint RayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+						uint RayFlags = 0;
+						DeferredMaterialPayload.SortKey = RAY_TRACING_DEFERRED_MATERIAL_KEY_RAY_MISS;
 						TraceRay(
 							TLAS,								// AccelerationStructure
 							RayFlags,
@@ -286,23 +325,21 @@ void RayTracingReflectionsRGS()
 							TopLayerRay.TMax = 0;
 						}
 					}
-				}
-
+				}		
 
 
 				// Trace the top layer reflection
 				float3 TopLayerRadiance = float3(0, 0, 0);
 				FMaterialClosestHitPayload Payload;
 				const uint RayFlags = 0;					
-				Payload = TraceRayAndAccumulateResults(TopLayerRay, RandSequence, RayFlags, ReflectionMaxNormalBias, RAY_TRACING_MASK_OPAQUE, RayCone, TopLayerRadiance);
-				bool isTopLayerRayValid = Payload.HitT >= 0 || (bAllowSkySampling && ReflectionStruct.SkyLightParameters.y > 0);
+				Payload = TraceRayAndAccumulateResults(TopLayerRay, TLAS, RandSequence, RayFlags, ReflectionMaxNormalBias, RAY_TRACING_MASK_OPAQUE, ReflectedShadowsType, ShouldDoDirectLighting, ShouldDoEmissiveAndIndirectLighting, RayCone, TopLayerRadiance);
+				bool isTopLayerRayValid = Payload.IsHit() || (bAllowSkySampling && ReflectionStruct.SkyLightParameters.y > 0);
 
 
 				// Compute some flags and values
 				bool bApplyHeightFog = false;
-				bool bSkyWasHit = false;
 				float3 OriginToCollider = 0.0f;
-				if (Payload.HitT >= 0)
+				if (Payload.IsHit())
 				{
 					bIsValidSample = true;
 					if (BounceIndex == 0)
@@ -337,7 +374,7 @@ void RayTracingReflectionsRGS()
 					if (BounceIndex == 0)
 					{
 						// Tell to the denoiser this sample reached outer bounds of the scene without any intersection.
-						HitDistance = -1;
+						HitDistance = DENOISER_MISS_HIT_DISTANCE;
 					}
 					TopLayerRadiance = 0;
 				}
@@ -355,62 +392,98 @@ void RayTracingReflectionsRGS()
 					BottomLayerRay.TMax = LocalMaxRayDistance;
 					BottomLayerRay.Direction = GenerateReflectionDirection(RandSequence, DispatchThreadId, BounceIndex, LocalSamplesPerPixel, IncidentDirection, BottomLayerWorldNormal, BottomLayerRoughness);
 					ApplyPositionBias(BottomLayerRay, BottomLayerWorldNormal, ReflectionMaxNormalBias);
-					if (BounceIndex == 0 && dot(ScreenSpaceData.GBuffer.WorldNormal, BottomLayerRay.Direction) < 0.0)
+					if (BounceIndex == 0 && dot(GBufferData.WorldNormal, BottomLayerRay.Direction) < 0.0)
 					{
-						FixSampleDirectionIfNeeded(ScreenSpaceData.GBuffer.WorldNormal, BottomLayerRay.Direction);
+						FixSampleDirectionIfNeeded(GBufferData.WorldNormal, BottomLayerRay.Direction);
 					}
 
+					bool TraceBottomRay = (BounceIndex < MaxUnderCoatBounces) && (GetRoughnessFade(BottomLayerRoughness, ReflectionMaxRoughness) > 0.0);
+
+					if (TraceBottomRay)
+					{
+						FRayCone BottomLayerRayCone = (FRayCone)0;
+						FMaterialClosestHitPayload BottomLayerPayload = TraceRayAndAccumulateBottomLayerResults(BottomLayerRay, TLAS, RandSequence, RayFlags, ReflectionMaxNormalBias, RAY_TRACING_MASK_OPAQUE, ReflectedShadowsType, ShouldDoDirectLighting, ShouldDoEmissiveAndIndirectLighting, RayCone, BottomLayerRadiance);
+
+						// Distance and sky: similar processing to main ray.
+						float BottomLayerHitDistance = -1;
+						bool IsBottomSampleValid = false;
+						if (BottomLayerPayload.IsHit())
+						{
+							IsBottomSampleValid = true;
+							BottomLayerHitDistance = BottomLayerPayload.HitT;
+						}
+						else if (bAllowSkySampling && ReflectionStruct.SkyLightParameters.y > 0)
+						{
+							IsBottomSampleValid = true;
+							float SkyAverageBrightness = 1.0f;
+							float3 SkyLighting = GetSkyLightReflection(BottomLayerRay.Direction, BottomLayerRoughness, SkyAverageBrightness);
+							BottomLayerRadiance += SkyLighting;
+							BottomLayerHitDistance = 1.0e20;
+						}
 					
-					FRayCone BottomLayerRayCone = (FRayCone)0;
-					FMaterialClosestHitPayload BottomLayerPayload = TraceRayAndAccumulateBottomLayerResults(BottomLayerRay, RandSequence, RayFlags, ReflectionMaxNormalBias, RAY_TRACING_MASK_OPAQUE, RayCone, BottomLayerRadiance);
+						if (BounceIndex == 0)
+						{
+							HitDistance = IsBottomSampleValid ? min(bIsValidSample ? HitDistance : 1.0e27f, BottomLayerHitDistance) : HitDistance;
+						}
+					}
+					else
+					{
+						// Ignoring any form of AO
+						float IndirectSpecularOcclusion = 1.0f;
+						float3 ExtraIndirectSpecular = 0;
+						float IndirectIrradiance = 0;
 
-					// Distance and sky: similar processing to main ray.
-					float BottomLayerHitDistance = -1;
-					bool IsBottomSampleValid = false;
-					if (BottomLayerPayload.HitT >= 0)
-					{
-						IsBottomSampleValid = true;
-						BottomLayerHitDistance = BottomLayerPayload.HitT;
-					}
-					else if (bAllowSkySampling && ReflectionStruct.SkyLightParameters.y > 0)
-					{
-						IsBottomSampleValid = true;
-						float SkyAverageBrightness = 1.0f;
-						float3 SkyLighting = GetSkyLightReflection(BottomLayerRay.Direction, BottomLayerRoughness, SkyAverageBrightness);
-						BottomLayerRadiance += SkyLighting;
-						BottomLayerHitDistance = 1.0e20;
-					}
-					
-					if (BounceIndex == 0)
-					{
-						HitDistance = IsBottomSampleValid ? min(bIsValidSample ? HitDistance : 1.0e27f, BottomLayerHitDistance) : HitDistance;
-					}
+						// Not possible to use the screen culled grid. So going over every capture.
+						// dxr_todo This would need a spatial data structure.
+						uint NumCulledReflectionCaptures = ForwardLightData.NumReflectionCaptures;
+						uint ReflectionCapturesStartIndex = 0;
 
+						// Compute a perfect mirror reflection direction to use for prefiltered cubemap lookup.
+						// Note that CompositeReflectionCapturesAndSkylight() uses BottomLayerRoughness to compute the cubemap mip level.
+						float3 R = reflect(IncidentDirection, BottomLayerWorldNormal);
+
+						const float NoV = saturate(dot(-BottomLayerRay.Direction, BottomLayerWorldNormal));
+						const float AO = 1.0f;
+						const float RoughnessSq = BottomLayerRoughness * BottomLayerRoughness;
+						const float SpecularOcclusion = GetSpecularOcclusion(NoV, RoughnessSq, AO);
+
+						BottomLayerRadiance = SpecularOcclusion *
+							CompositeReflectionCapturesAndSkylight(
+								1.0,	// coverage of 1
+								WorldPosition,
+								R,
+								BottomLayerRoughness,
+								IndirectIrradiance,
+								IndirectSpecularOcclusion,
+								ExtraIndirectSpecular,
+								NumCulledReflectionCaptures,
+								ReflectionCapturesStartIndex,
+								0);
+					}
 
 					// Apply correct weights to the bottom and top layers (See ReflectionEnvironmentPixelShader)
 					{
 						float NoVBottom = saturate(dot(-IncidentDirection, BottomLayerWorldNormal));
 
 						float TopLayerFSChlick = EnvBRDF(TopLayerSpecularColor, TopLayerRoughness, NoV).x;
-						float BottomLayerFSChlick = EnvBRDF(BottomLayerSpecularColor, BottomLayerRoughness, NoVBottom).x;
 
-						float TopLayerRefractionTransmittance = (1 - TopLayerFSChlick);
+						float TopLayerRefractionTransmittance = (1 - TopLayerFSChlick * ClearCoat);
 
-						float2 AB = PreIntegratedGF.SampleLevel(PreIntegratedGFSampler, float2(NoV, TopLayerRoughness), 0).rg;
-						float3 TopLayerSpecularLobIntegral = TopLayerSpecularColor * AB.x + AB.y * saturate(50.0 * TopLayerSpecularColor.g) * (1 - ClearCoat);
+						float2 AB = PreIntegratedGF.SampleLevel(PreIntegratedGFSampler, float2(NoVBottom, BottomLayerRoughness), 0).rg;
+						float3 BottomLayerFSChlick = BottomLayerSpecularColor * AB.x + AB.y * saturate(50.0 * BottomLayerSpecularColor.g) * (1 - ClearCoat);
 
 						// dxr-todo: double check the math when we can compare with path tracer.
 						// Matches what is found in ReflectionEnvironmentPixelShader.usf.
 						//PathSegmentRadiance.rgb = ClearCoat * (TopLayerRadiance * TopLayerSpecularLobIntegral * TopLayerRefractionTransmittance + TopLayerRadiance * TopLayerFSChlick);
-						TopLayerReflectionEventThroughput = ClearCoat * (TopLayerSpecularLobIntegral * TopLayerRefractionTransmittance + TopLayerFSChlick);
-						float BottomToTopRefractionThroughput = 1.0; // This is already evaluated in TraceRayAndAccumulateBottomLayerResults
+						TopLayerReflectionEventThroughput = ClearCoat * TopLayerFSChlick;
+						float BottomToTopRefractionThroughput = TopLayerRefractionTransmittance;
 						BottomLayerRadiance = BottomLayerRadiance * BottomLayerFSChlick * BottomToTopRefractionThroughput; // Bottom layer refelciton accounts for its throughput.
 					}
 				}
 				else
 				{
 					// If it is not clear coat, and we are on the first bounce, the G F terms will be applied by ReflectionEnvironmentPixelShader
-					if (BounceIndex > 0)
+					if (bApplyBRDF)
 						TopLayerReflectionEventThroughput *= EnvBRDF(TopLayerSpecularColor, TopLayerRoughness, NoV);
 				}
 
@@ -460,10 +533,60 @@ void RayTracingReflectionsRGS()
 				}
 
 				if (all(PathThroughput < 0.001) || bSkyWasHit || HitDistance<0.0f) break;
+
+				if (TestPathRoughness)
+				{
+					//Accumulate roughness for this bounce
+					AccumRoughness = 1.0f - (1.0f - AccumRoughness)*(1.0f - TopLayerRoughness);
+
+					float RoughnessFade = GetRoughnessFade(AccumRoughness, ReflectionMaxRoughness);
+
+					if (RoughnessFade <= 0.0f)
+					{
+						bNeedsCapture = true;
+						break;
+					}
+				}
 			}
 			
 			if (bIsValidSample)
 			{
+				bNeedsCapture |= BounceIndex == MaxBounces && !(bSkyWasHit || HitDistance < 0.0f);
+				if (UseReflectionCaptures && bNeedsCapture)
+				{
+					// We have reached the end of the bounce count on a surface. 
+					// So accumulate reflection from captures for the top layer for a better visual result.
+
+					// Ignoring any form of AO
+					float IndirectSpecularOcclusion = 1.0f;
+					float3 ExtraIndirectSpecular = 0;
+					float IndirectIrradiance = 0; 
+
+					// Not possible to use the screen culled grid. So going over every capture.
+					// dxr_todo This would need a spatial data structure.
+					uint NumCulledReflectionCaptures = ForwardLightData.NumReflectionCaptures;
+					uint ReflectionCapturesStartIndex = 0;
+
+					float3 R = reflect(TopLayerRay.Direction, TopLayerWorldNormal);
+					const float NoV = saturate(dot(-TopLayerRay.Direction, TopLayerWorldNormal));
+					const float AO = 1.0f;
+					const float RoughnessSq = TopLayerRoughness * TopLayerRoughness;
+					const float SpecularOcclusion = GetSpecularOcclusion(NoV, RoughnessSq, AO);
+
+					PathRadiance.rgb += EnvBRDF(TopLayerSpecularColor, TopLayerRoughness, NoV) * SpecularOcclusion * PathThroughput *
+						CompositeReflectionCapturesAndSkylight(
+							1.0,	// coverage of 1
+							WorldPosition,
+							R,
+							TopLayerRoughness,
+							IndirectIrradiance,
+							IndirectSpecularOcclusion,
+							ExtraIndirectSpecular,
+							NumCulledReflectionCaptures,
+							ReflectionCapturesStartIndex,
+							0);
+				}
+
 				ReflectedColor += float4(PathRadiance, 1.0f);
 				ReflectedWeight += 1.0;
 			}
@@ -521,8 +644,9 @@ void RayTracingReflectionsRGS()
 		// Imaginary depth computation for Nvidia's denoiser.
 		// TODO: shader permutation?
 		{
-			float3 OriginalWorldPos = ReconstructWorldPositionFromDepth(UV, Depth);
-			float3 CameraToPixel = normalize(OriginalWorldPos - View.WorldCameraOrigin.xyz);
+			float3 OriginalWorldPos;
+			float3 CameraToPixel;
+			ReconstructWorldPositionAndCameraDirectionFromDeviceZ(PixelCoord, DeviceZ, OriginalWorldPos, CameraToPixel);
 
 			float4 ImaginaryWorldPos = float4(OriginalWorldPos + CameraToPixel * HitDistance, 1.0f);
 			float4 ImaginaryClipPos = mul(ImaginaryWorldPos, View.WorldToClip);
@@ -530,31 +654,5 @@ void RayTracingReflectionsRGS()
 			RayImaginaryDepthOutput[DispatchThreadId] = ImaginarySVDepth;
 		}
 	}
-}
-
-
-[shader("miss")]
-void RayTracingReflectionsMainMS(inout FPackedMaterialClosestHitPayload PackedPayload)
-{
-	PackedPayload.HitT = -1;
-}
-
-
-[shader("closesthit")]
-void RayTracingReflectionsMainCHS(inout FPackedMaterialClosestHitPayload PackedPayload, in FDefaultAttributes Attributes)
-{
-	FMaterialClosestHitPayload Payload = (FMaterialClosestHitPayload)0;
-
-	Payload.HitT = RayTCurrent();
-	Payload.BaseColor = float3(0.2, 0.3, 0.4);
-
-	FTriangleBaseAttributes Triangle = LoadTriangleBaseAttributes(PrimitiveIndex());
-	float3 Edge0 = Triangle.LocalPositions[2] - Triangle.LocalPositions[0];
-	float3 Edge1 = Triangle.LocalPositions[1] - Triangle.LocalPositions[0];
-	float3x3 WorldToLocal = (float3x3)WorldToObject();
-	float3x3 LocalToWorldNormal = transpose(WorldToLocal);
-	Payload.WorldNormal = normalize(mul(LocalToWorldNormal, cross(Edge0, Edge1)));
-
-	PackedPayload = PackRayTracingPayload(Payload, PackedPayload.RayCone);
 }
 

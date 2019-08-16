@@ -24,6 +24,8 @@
 #include "Recast/RecastAlloc.h"
 #include "Recast/RecastAssert.h"
 
+DEFINE_LOG_CATEGORY(LogRecast);
+
 float rcSqrt(float x)
 {
 	return sqrtf(x);
@@ -434,21 +436,22 @@ bool rcBuildCompactHeightfield(rcContext* ctx, const int walkableHeight, const i
 	chf.cells = (rcCompactCell*)rcAlloc(sizeof(rcCompactCell)*w*h, RC_ALLOC_PERM);
 	if (!chf.cells)
 	{
-		ctx->log(RC_LOG_ERROR, "rcBuildCompactHeightfield: Out of memory 'chf.cells' (%d)", w*h);
+		UE_LOG(LogRecast, VeryVerbose, TEXT("rcBuildCompactHeightfield: Out of memory 'chf.cells' (%d)"), w*h);
 		return false;
 	}
 	memset(chf.cells, 0, sizeof(rcCompactCell)*w*h);
 	chf.spans = (rcCompactSpan*)rcAlloc(sizeof(rcCompactSpan)*spanCount, RC_ALLOC_PERM);
 	if (!chf.spans)
 	{
-		ctx->log(RC_LOG_ERROR, "rcBuildCompactHeightfield: Out of memory 'chf.spans' (%d)", spanCount);
+		//converted to UE_log to avoid false positives with Chaos
+		UE_LOG(LogRecast, VeryVerbose, TEXT("rcBuildCompactHeightfield: Out of memory 'chf.spans' (%d)"), spanCount);
 		return false;
 	}
 	memset(chf.spans, 0, sizeof(rcCompactSpan)*spanCount);
 	chf.areas = (unsigned char*)rcAlloc(sizeof(unsigned char)*spanCount, RC_ALLOC_PERM);
 	if (!chf.areas)
 	{
-		ctx->log(RC_LOG_ERROR, "rcBuildCompactHeightfield: Out of memory 'chf.areas' (%d)", spanCount);
+		UE_LOG(LogRecast, VeryVerbose, TEXT("rcBuildCompactHeightfield: Out of memory 'chf.areas' (%d)"), spanCount);
 		return false;
 	}
 	memset(chf.areas, RC_NULL_AREA, sizeof(unsigned char)*spanCount);

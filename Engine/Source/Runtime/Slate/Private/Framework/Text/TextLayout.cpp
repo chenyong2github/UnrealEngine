@@ -1664,7 +1664,8 @@ bool FTextLayout::InsertAt(const FTextLocation& Location, const FString& Text)
 				{
 					// Insert the new text run to the left of the non-text run
 					TSharedRef<IRun> NewTextRun = CreateDefaultTextRun( LineModel.Text, FTextRange( RunRange.BeginIndex, RunRange.BeginIndex + Text.Len() ) );
-					RunModel.SetTextRange( FTextRange( RunRange.BeginIndex + 1, RunRange.EndIndex + Text.Len() ) );
+					// Move the Non-Text Run to right to free space for the new run.
+					RunModel.SetTextRange( FTextRange( RunRange.BeginIndex + Text.Len(), RunRange.EndIndex + Text.Len() ) );
 					LineModel.Runs.Insert( NewTextRun, RunIndex++ );
 				}
 				else
@@ -2780,7 +2781,7 @@ FVector2D FTextLayout::FRunModel::Measure(int32 BeginIndex, int32 EndIndex, floa
 	FVector2D Size = Run->Measure(BeginIndex, EndIndex, InScale, InTextContext);
 
 	MeasuredRanges.Add( FTextRange( BeginIndex, EndIndex ) );
-	MeasuredRangeSizes.Add(FVector4(Size, FVector2D::ZeroVector));
+	MeasuredRangeSizes.Add(Size);
 
 	return Size;
 }

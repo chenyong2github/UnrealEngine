@@ -344,6 +344,9 @@ OVRP_PUBLIC_FUNCTION(ovrRequest) ovr_CloudStorage_ResolveKeepRemote(const char *
 /// \param counter Optional. Counter used for user data or auto-deconfliction.
 /// \param extraData Optional. String data that isn't used by the platform.
 ///
+/// <b>Error codes</b>
+/// - \b 100: The stored version has a later timestamp than the data provided. This cloud storage bucket's conflict resolution policy is configured to use the latest timestamp, which is configurable in the developer dashboard.
+///
 /// A message with type ::ovrMessage_CloudStorage_Save will be generated in response.
 ///
 /// First call ::ovr_Message_IsError() to check if an error occurred.

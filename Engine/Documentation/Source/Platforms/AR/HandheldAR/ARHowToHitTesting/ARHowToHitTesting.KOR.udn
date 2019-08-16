@@ -1,6 +1,5 @@
-INTSourceChangelist:4400471
+INTSourceChangelist:6507366
 Availability: Public
-Crumbs: 
 Title: AR 히트 테스트 안내서
 Description: 증강 현실에서 트래킹 지오메트리의 히트 테스트 방법을 안내합니다.
 Type: 
@@ -11,14 +10,11 @@ Tags: mobile
 Tags: iOS
 Tags: Android
 Tags: AR
+prereq:Platforms/AR/HandheldAR/ARKitPrerequisites
+prereq:Platforms/AR/HandheldAR/ARCorePrerequisites
+prereq:Platforms/AR/HandheldAR/ARQuickStart
 
-
-전제 조건  
-이 글은 다음 주제에 대해 알고 있는 분들을 대상으로 합니다. 계속하기 전 확인해 주세요.
-
-*   [](Platforms/AR/HandheldAR/ARKitPrerequisites)
-*   [](Platforms/AR/HandheldAR/ARCorePrerequisites)
-*   [](Platforms/AR/HandheldAR/ARQuickStart)
+[TOC (start:2 end:3)]
 
 ![](AR_HitTesting.png)
 [REGION:note]

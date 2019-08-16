@@ -1,0 +1,29 @@
+﻿INTSourceChangelist:0
+Availability: Docs <!--[R] Enter Docs (default), Public, or Licensee-->
+Title: New Overview Page <!--[R] Enter New Title-->
+Description: Temporary Description <!--[R] Enter New Description-->
+Type: overview
+SkillLevel: <!--[R] Enter beginner, intermediate or advanced-->
+Version: <!--[R] Enter Engine Version-->
+Parent: <!--[R] Enter Parent Page-->
+Order: <!--[O] Enter Page Order-->
+Tags: <!--[O][+] Enter Document Tag-->
+<!--topic-image: [O] Enter Topic Image File Name (tip, make sure it is in the 'Images' folder)-->
+
+
+[R] ADD Overview Text
+[REGION:note]
+The Overview text should describe the system, feature, or process at a high level.
+[/REGION]
+
+
+[O] ADD Overview Image
+[REGION:note]
+If you have a flowchart, diagram, or conceptual image supporting the overview text, add it here.
+[/REGION]
+
+
+[R] ADD Content
+[REGION:note]
+Your content should help the user learn about the system, feature, or concept by providing detailed explanations and images.
+[/REGION]

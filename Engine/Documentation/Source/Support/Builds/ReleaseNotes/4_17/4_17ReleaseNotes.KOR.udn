@@ -1,11 +1,10 @@
-﻿INTSourceChangelist:3717050
+INTSourceChangelist:6537038
 Availability:Public
 Title: 언리얼 엔진 4.17 릴리즈 노트
 Description: 언리얼 엔진 4.17 릴리즈 노트입니다.
 Crumbs:%ROOT%, Engine
 Parent:Support/Builds
-Order:17
-
+Order: 27
 ## 새 소식
 
 ![image alt text](image_31.png)(convert:false)
@@ -400,7 +399,7 @@ PhysX 콜리전 데이터 쿠킹을 이제 워커 스레드에서 할 수 있습
 
 * 클로딩 페인트 툴 프레임워크 리팩터링 작업을 통해 에디터 확장성을 높였습니다.
 
-* 클로딩 피직스 애셋이 한 번 추출하는 대신 레퍼런싱을 하도록 변경, 생성 이후 수정해도 클로딩 시뮬레이션에 수정 내용이 제대로 반영되도록 했습니다.
+* 클로딩 피직스 애셋이 한 번 추출하는 대신 참조을 하도록 변경, 생성 이후 수정해도 클로딩 시뮬레이션에 수정 내용이 제대로 반영되도록 했습니다.
 
 * 클로딩 '마스크' 지원 
 

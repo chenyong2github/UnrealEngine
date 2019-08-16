@@ -7,7 +7,6 @@
 #include "EditorUtilityBlueprintFactory.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "BlueprintEditorModule.h"
-#include "EditorUtilityDialog.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 #include "EditorUtilityWidgetBlueprint.h"
@@ -18,6 +17,8 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "Framework/Docking/TabManager.h"
 #include "IBlutilityModule.h"
+#include "EditorUtilitySubsystem.h"
+#include "SBlueprintDiff.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
@@ -26,7 +27,7 @@
 
 FText FAssetTypeActions_EditorUtilityWidgetBlueprint::GetName() const
 {
-	return LOCTEXT("AssetTypeActions_EditorUtilityWidget", "Editor Widget");
+	return LOCTEXT("AssetTypeActions_EditorUtilityWidget", "Editor Utility Widget");
 }
 
 FColor FAssetTypeActions_EditorUtilityWidgetBlueprint::GetTypeColor() const
@@ -50,7 +51,7 @@ void FAssetTypeActions_EditorUtilityWidgetBlueprint::GetActions(const TArray<UOb
 
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("EditorUtilityWidget_Edit", "Run Editor Utility Widget"),
-		LOCTEXT("EditorUtilityWidget_EditTooltip", "Runs the single action or opens the tab built by this Editor Utility Widget Blueprint."),
+		LOCTEXT("EditorUtilityWidget_EditTooltip", "Opens the tab built by this Editor Utility Widget Blueprint."),
 		FSlateIcon(),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FAssetTypeActions_EditorUtilityWidgetBlueprint::ExecuteRun, Blueprints),
@@ -88,6 +89,26 @@ uint32 FAssetTypeActions_EditorUtilityWidgetBlueprint::GetCategories()
 	return BlutilityModule->GetAssetCategory();
 }
 
+void FAssetTypeActions_EditorUtilityWidgetBlueprint::PerformAssetDiff(UObject* Asset1, UObject* Asset2, const struct FRevisionInfo& OldRevision, const struct FRevisionInfo& NewRevision) const
+{
+	UBlueprint* OldBlueprint = CastChecked<UBlueprint>(Asset1);
+	UBlueprint* NewBlueprint = CastChecked<UBlueprint>(Asset2);
+
+	// sometimes we're comparing different revisions of one single asset (other 
+	// times we're comparing two completely separate assets altogether)
+	bool bIsSingleAsset = (NewBlueprint->GetName() == OldBlueprint->GetName());
+
+	FText WindowTitle = LOCTEXT("NamelessEditorUtilityWidgetBlueprintDiff", "Editor Utility Widget Blueprint Diff");
+	// if we're diffing one asset against itself 
+	if (bIsSingleAsset)
+	{
+		// identify the assumed single asset in the window's title
+		WindowTitle = FText::Format(LOCTEXT("EditorUtilityWidgetBlueprintDiff", "{0} - Editor Utility Widget Blueprint Diff"), FText::FromString(NewBlueprint->GetName()));
+	}
+
+	SBlueprintDiff::CreateDiffWindow(WindowTitle, OldBlueprint, NewBlueprint, OldRevision, NewRevision);
+}
+
 void FAssetTypeActions_EditorUtilityWidgetBlueprint::ExecuteRun(FWeakBlueprintPointerArray InObjects)
 {
 	for (auto ObjIt = InObjects.CreateConstIterator(); ObjIt; ++ObjIt)
@@ -96,31 +117,11 @@ void FAssetTypeActions_EditorUtilityWidgetBlueprint::ExecuteRun(FWeakBlueprintPo
 		{
 			if (Blueprint->GeneratedClass->IsChildOf(UEditorUtilityWidget::StaticClass()))
 			{
-				const UEditorUtilityWidget* CDO = Blueprint->GeneratedClass->GetDefaultObject<UEditorUtilityWidget>();
-				if (CDO->ShouldAutoRunDefaultAction())
+				UEditorUtilityWidgetBlueprint* EditorWidget = Cast<UEditorUtilityWidgetBlueprint>(Blueprint);
+				if (EditorWidget)
 				{
-					// This is an instant-run blueprint, just execute it
-					UEditorUtilityWidget* Instance = NewObject<UEditorUtilityWidget>(GetTransientPackage(), Blueprint->GeneratedClass);
-					Instance->ExecuteDefaultAction();
-				}
-				else
-				{
-					FName RegistrationName = FName(*(Blueprint->GetPathName() + LOCTEXT("ActiveTabSuffix", "_ActiveTab").ToString()));
-					FText DisplayName = FText::FromString(Blueprint->GetName());
-					FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
-					TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
-					if (!LevelEditorTabManager->CanSpawnTab(RegistrationName))
-					{
-						IBlutilityModule* BlutilityModule = FModuleManager::GetModulePtr<IBlutilityModule>("Blutility");
-						UEditorUtilityWidgetBlueprint* WidgetBlueprint = Cast<UEditorUtilityWidgetBlueprint>(Blueprint);
-						WidgetBlueprint->SetRegistrationName(RegistrationName);
-						LevelEditorTabManager->RegisterTabSpawner(RegistrationName, FOnSpawnTab::CreateUObject(WidgetBlueprint, &UEditorUtilityWidgetBlueprint::SpawnEditorUITab))
-							.SetDisplayName(DisplayName)
-							.SetGroup(BlutilityModule->GetMenuGroup().ToSharedRef());
-						BlutilityModule->AddLoadedScriptUI(WidgetBlueprint);
-					}
-					TSharedRef<SDockTab> NewDockTab = LevelEditorTabManager->InvokeTab(RegistrationName);
-
+					UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
+					EditorUtilitySubsystem->SpawnAndRegisterTab(EditorWidget);
 				}
 			}
 		}

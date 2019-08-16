@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3782314
-Availability: Public
+﻿INTSourceChangelist:6093519
+Availability: docs
 Title:1. 프로젝트 셋업
 Crumbs: %ROOT%, Engine, Engine/UMG, Engine/UMG/HowTo
 Description:필수 애셋과 DragAndDropOperation 클래스를 만듭니다.
@@ -14,6 +14,7 @@ tags:UMG UI Designer
 tags:UI
 type:how-to
 
+## Set to docs as the page has been combined into a single page. 
 
 [VAR:Steps]
 [OBJECT:Navigation]

@@ -171,6 +171,53 @@ struct APPLEARKIT_API FAppleARKitConversion
 
 	static ARWorldAlignment ToARWorldAlignment( const EARWorldAlignment& InWorldAlignment );
 
+	/**
+	 * Coverts plane orientation
+	 */
+	static FORCEINLINE EARPlaneOrientation ToEARPlaneOrientation(ARPlaneAnchorAlignment Alignment)
+	{
+		EARPlaneOrientation RetVal = EARPlaneOrientation::Horizontal;
+		if (Alignment == ARPlaneAnchorAlignmentVertical)
+		{
+			RetVal = EARPlaneOrientation::Vertical;
+		}
+		return RetVal;
+	}
+
+#if SUPPORTS_ARKIT_2_0
+	static FORCEINLINE EARObjectClassification ToEARObjectClassification(ARPlaneClassification Classification)
+	{
+		switch(Classification)
+		{
+			case ARPlaneClassificationWall:
+			{
+				return EARObjectClassification::Wall;
+			}
+
+			case ARPlaneClassificationFloor:
+			{
+				return EARObjectClassification::Floor;
+			}
+
+			case ARPlaneClassificationCeiling:
+			{
+				return EARObjectClassification::Ceiling;
+			}
+
+			case ARPlaneClassificationTable:
+			{
+				return EARObjectClassification::Table;
+			}
+
+			case ARPlaneClassificationSeat:
+			{
+				return EARObjectClassification::Seat;
+			}
+		}
+		return EARObjectClassification::Unknown;
+	}
+#endif
+
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wpartial-availability"
 
@@ -240,12 +287,13 @@ struct FAppleARKitAnchorData
 	{
 	}
 
-	FAppleARKitAnchorData(FGuid InAnchorGuid, FTransform InTransform, FVector InCenter, FVector InExtent)
+	FAppleARKitAnchorData(FGuid InAnchorGuid, FTransform InTransform, FVector InCenter, FVector InExtent, EARPlaneOrientation InOrientation)
 		: Transform( InTransform )
 		, AnchorType( EAppleAnchorType::PlaneAnchor )
 		, AnchorGUID( InAnchorGuid )
 		, Center(InCenter)
 		, Extent(InExtent)
+		, Orientation(InOrientation)
 	{
 	}
 
@@ -315,6 +363,11 @@ struct FAppleARKitAnchorData
 		Timecode = Other.Timecode;
 		FrameRate = Other.FrameRate;
 
+		Vertices = Other.Vertices;
+		Indices = Other.Indices;
+		Orientation = Other.Orientation;
+		ObjectClassification = Other.ObjectClassification;
+
 		bIsTracked = Other.bIsTracked;
 	}
 
@@ -323,6 +376,8 @@ struct FAppleARKitAnchorData
 		BoundaryVerts.Empty();
 		BlendShapes.Empty();
 		FaceVerts.Empty();
+		Vertices.Empty();
+		Indices.Empty();
 		ProbeTexture = nullptr;
 	}
 
@@ -331,7 +386,13 @@ struct FAppleARKitAnchorData
 	FGuid AnchorGUID;
 	FVector Center;
 	FVector Extent;
+	EARPlaneOrientation Orientation;
+	EARObjectClassification ObjectClassification;
+	/** Set by the session config to detemine whether to generate geometry or not */
+	static bool bGenerateGeometry;
 	TArray<FVector> BoundaryVerts;
+	TArray<FVector> Vertices;
+	TArray<uint16> Indices;
 
 	FARBlendShapeMap BlendShapes;
 	TArray<FVector> FaceVerts;

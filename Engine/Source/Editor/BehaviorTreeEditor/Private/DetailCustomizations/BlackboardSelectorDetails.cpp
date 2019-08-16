@@ -15,6 +15,7 @@
 #include "BehaviorTree/Blackboard/BlackboardKeyType.h"
 #include "BehaviorTree/BlackboardData.h"
 #include "IPropertyUtilities.h"
+#include "Editor/EditorPerProjectUserSettings.h"
 
 #define LOCTEXT_NAMESPACE "BlackboardSelectorDetails"
 
@@ -148,6 +149,11 @@ void FBlackboardSelectorDetails::CacheBlackboardData()
 			break;
 		}
 	}
+
+	if (GetDefault<UEditorPerProjectUserSettings>()->bDisplayBlackboardKeysInAlphabeticalOrder)
+	{
+		KeyValues.Sort([](const FName& a, const FName& b) { return a.LexicalLess(b); });
+	}	
 }
 
 void FBlackboardSelectorDetails::InitKeyFromProperty()
@@ -182,7 +188,7 @@ TSharedRef<SWidget> FBlackboardSelectorDetails::OnGetKeyContent() const
 
 	for (int32 Idx = 0; Idx < KeyValues.Num(); Idx++)
 	{
-		FUIAction ItemAction( FExecuteAction::CreateSP( this, &FBlackboardSelectorDetails::OnKeyComboChange, Idx) );
+		FUIAction ItemAction( FExecuteAction::CreateSP( const_cast<FBlackboardSelectorDetails*>(this), &FBlackboardSelectorDetails::OnKeyComboChange, Idx) );
 		MenuBuilder.AddMenuEntry( FText::FromName( KeyValues[Idx] ), TAttribute<FText>(), FSlateIcon(), ItemAction);
 	}
 

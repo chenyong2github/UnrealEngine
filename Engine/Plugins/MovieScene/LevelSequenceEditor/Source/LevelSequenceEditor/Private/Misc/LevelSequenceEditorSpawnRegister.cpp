@@ -72,8 +72,8 @@ UObject* FLevelSequenceEditorSpawnRegister::SpawnObject(FMovieSceneSpawnable& Sp
 	
 	if (AActor* NewActor = Cast<AActor>(NewObject))
 	{
-		// Add an entry to the modified objects map to keep track of when this object has been modified
-		ModifiedObjects.Add(NewActor, FTrackedObjectState(TemplateID, Spawnable.GetGuid()));
+		// Add an entry to the tracked objects map to keep track of this object (so that it can be saved when modified)
+		TrackedObjects.Add(NewActor, FTrackedObjectState(TemplateID, Spawnable.GetGuid()));
 
 		// Select the actor if we think it should be selected
 		if (SelectedSpawnedObjects.Contains(FMovieSceneSpawnRegisterKey(TemplateID, Spawnable.GetGuid())))
@@ -93,12 +93,12 @@ void FLevelSequenceEditorSpawnRegister::PreDestroyObject(UObject& Object, const 
 	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
 
 	UMovieSceneSequence*  Sequence      = Sequencer.IsValid() ? Sequencer->GetEvaluationTemplate().GetSequence(TemplateID) : nullptr;
-	FMovieSceneSpawnable* Spawnable     = Sequence ? Sequence->GetMovieScene()->FindSpawnable(BindingId) : nullptr;
-	UObject*              SpawnedObject = FindSpawnedObject(BindingId, TemplateID);
+	FMovieSceneSpawnable* Spawnable     = Sequence && Sequence->GetMovieScene() ? Sequence->GetMovieScene()->FindSpawnable(BindingId) : nullptr;
+	UObject*              SpawnedObject = FindSpawnedObject(BindingId, TemplateID).Get();
 
 	if (SpawnedObject && Spawnable)
 	{
-		const FTrackedObjectState* TrackedState = ModifiedObjects.Find(&Object);
+		const FTrackedObjectState* TrackedState = TrackedObjects.Find(&Object);
 		if (TrackedState && TrackedState->bHasBeenModified)
 		{
 			// SaveDefaultSpawnableState will reset bHasBeenModified to false
@@ -117,7 +117,7 @@ void FLevelSequenceEditorSpawnRegister::PreDestroyObject(UObject& Object, const 
 	}
 
 	FObjectKey ThisObject(&Object);
-	ModifiedObjects.Remove(ThisObject);
+	TrackedObjects.Remove(ThisObject);
 
 	FLevelSequenceSpawnRegister::PreDestroyObject(Object, BindingId, TemplateID);
 }
@@ -126,7 +126,7 @@ void FLevelSequenceEditorSpawnRegister::SaveDefaultSpawnableState(FMovieSceneSpa
 {
 	UMovieSceneSequence* Sequence = Player.GetEvaluationTemplate().GetSequence(TemplateID);
 
-	UObject* Object = FindSpawnedObject(Spawnable.GetGuid(), TemplateID);
+	UObject* Object = FindSpawnedObject(Spawnable.GetGuid(), TemplateID).Get();
 	if (Object && Sequence)
 	{
 		SaveDefaultSpawnableStateImpl(Spawnable, Sequence, Object, Player);
@@ -158,7 +158,7 @@ void FLevelSequenceEditorSpawnRegister::SaveDefaultSpawnableState(const FGuid& B
 
 	if (Spawnable)
 	{
-		UObject* Object = FindSpawnedObject(Spawnable->GetGuid(), TemplateID);
+		UObject* Object = FindSpawnedObject(Spawnable->GetGuid(), TemplateID).Get();
 		if (Object)
 		{
 			SaveDefaultSpawnableStateImpl(*Spawnable, Sequence, Object, *Sequencer);
@@ -189,7 +189,7 @@ void FLevelSequenceEditorSpawnRegister::SaveDefaultSpawnableStateImpl(FMovieScen
 	// Copy the template
 	Spawnable.CopyObjectTemplate(*SpawnedObject, *Sequence);
 
-	if (FTrackedObjectState* TrackedState = ModifiedObjects.Find(SpawnedObject))
+	if (FTrackedObjectState* TrackedState = TrackedObjects.Find(SpawnedObject))
 	{
 		TrackedState->bHasBeenModified = false;
 	}
@@ -243,10 +243,10 @@ void FLevelSequenceEditorSpawnRegister::OnObjectsReplaced(const TMap<UObject*, U
 
 void FLevelSequenceEditorSpawnRegister::OnObjectModified(UObject* ModifiedObject)
 {
-	FTrackedObjectState* TrackedState = ModifiedObjects.Find(ModifiedObject);
+	FTrackedObjectState* TrackedState = TrackedObjects.Find(ModifiedObject);
 	while (!TrackedState && ModifiedObject)
 	{
-		TrackedState = ModifiedObjects.Find(ModifiedObject);
+		TrackedState = TrackedObjects.Find(ModifiedObject);
 		ModifiedObject = ModifiedObject->GetOuter();
 	}
 
@@ -278,9 +278,7 @@ void FLevelSequenceEditorSpawnRegister::OnPreObjectSaved(UObject* Object)
 
 		if (Sequencer.IsValid())
 		{
-			TArray<FObjectKey> ObjectsThatHaveBeenSaved;
-
-			for (const TTuple<FObjectKey, FTrackedObjectState>& Pair : ModifiedObjects)
+			for (const TTuple<FObjectKey, FTrackedObjectState>& Pair : TrackedObjects)
 			{
 				UObject* SpawnedObject = Pair.Key.ResolveObjectPtr();
 				UMovieSceneSequence*  ThisSequence = Sequencer->GetEvaluationTemplate().GetSequence(Pair.Value.TemplateID);
@@ -289,14 +287,7 @@ void FLevelSequenceEditorSpawnRegister::OnPreObjectSaved(UObject* Object)
 				if (SpawnedObject && Spawnable && ThisSequence == SequenceBeingSaved)
 				{
 					SaveDefaultSpawnableStateImpl(*Spawnable, ThisSequence, SpawnedObject, *Sequencer);
-
-					ObjectsThatHaveBeenSaved.Add(Pair.Key);
 				}
-			}
-
-			for (FObjectKey ObjectKey : ObjectsThatHaveBeenSaved)
-			{
-				ModifiedObjects.Remove(ObjectKey);
 			}
 		}
 	}

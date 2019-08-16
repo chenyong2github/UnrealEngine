@@ -13,7 +13,7 @@
 #include "Containers/Queue.h"
 #include "Physics/PhysicsFiltering.h"
 #include "PhysXPublic.h"
-#include "HAL/LowLevelMemTracker.h"
+#include "PhysXSupportCore.h"
 
 class UBodySetup;
 class UPhysicalMaterial;
@@ -23,41 +23,10 @@ class FPhysScene_PhysX;
 
 #if WITH_PHYSX
 
-// Whether to track PhysX memory allocations
-#ifndef PHYSX_MEMORY_VALIDATION
-#define PHYSX_MEMORY_VALIDATION		0
-#endif
-
-// Whether to track PhysX memory allocations
-#ifndef PHYSX_MEMORY_STATS
-#define PHYSX_MEMORY_STATS		0 || PHYSX_MEMORY_VALIDATION
-#endif
-
 // binary serialization requires 128 byte alignment
 #ifndef PHYSX_SERIALIZATION_ALIGNMENT
 #define PHYSX_SERIALIZATION_ALIGNMENT 128
 #endif
-
-#define PHYSX_MEMORY_STAT_ONLY (0)
-
-
-//////// GEOM CONVERSION
-// we need this helper struct since PhysX needs geoms to be on the stack
-struct UCollision2PGeom
-{
-	UCollision2PGeom(const FCollisionShape& CollisionShape);
-	const PxGeometry * GetGeometry() { return (PxGeometry*)Storage; }
-private:
-	
-	union StorageUnion
-	{
-		char box[sizeof(PxBoxGeometry)];
-		char sphere[sizeof(PxSphereGeometry)];
-		char capsule[sizeof(PxCapsuleGeometry)];
-	};	//we need this because we can't use real union since these structs have non trivial constructors
-
-	char Storage[sizeof(StorageUnion)];
-};
 
 /** Thresholds for aggregates  */
 const uint32 AggregateMaxSize	   = 128;
@@ -76,17 +45,6 @@ bool IsRigidBodyKinematic_AssumesLocked(const PxRigidBody* PRigidBody);
 bool IsRigidBodyKinematicAndInSimulationScene_AssumesLocked(const PxRigidBody* PRigidBody);
 
 /////// GLOBAL POINTERS
-
-/** Pointer to PhysX Foundation singleton */
-extern ENGINE_API PxFoundation*			GPhysXFoundation;
-/** Pointer to PhysX debugger */
-extern PxPvd*					GPhysXVisualDebugger;
-
-extern int32 GPhysXHackCurrentLoopCounter;
-
-extern ENGINE_API TAutoConsoleVariable<float> CVarToleranceScaleLength;
-
-extern ENGINE_API TAutoConsoleVariable<float> CVarToleranceScaleSpeed;
 	
 /** Total number of PhysX convex meshes around currently. */
 extern int32					GNumPhysXConvexMeshes;
@@ -108,39 +66,6 @@ extern TArray<PxMaterial*>		GPhysXPendingKillMaterial;
 
 extern const physx::PxQuat U2PSphylBasis;
 extern const FQuat U2PSphylBasis_UE;
-
-/** Utility class to keep track of shared physics data */
-class FPhysxSharedData
-{
-public:
-	static FPhysxSharedData& Get(){ return *Singleton; }
-	static void Initialize();
-	static void Terminate();
-
-	void Add(PxBase* Obj, const FString& OwnerName);
-	void Remove(PxBase* Obj);
-
-	const PxCollection* GetCollection()	{ return SharedObjects; }
-
-	void DumpSharedMemoryUsage(FOutputDevice* Ar);
-private:
-	/** Collection of shared physx objects */
-	PxCollection* SharedObjects;
-	TMap<PxBase*, FString> OwnerNames;
-	
-	static FPhysxSharedData* Singleton;
-
-	FPhysxSharedData()
-	{
-		SharedObjects = PxCreateCollection();
-	}
-
-	~FPhysxSharedData()
-	{
-		SharedObjects->release();
-	}
-
-};
 
 ENGINE_API PxCollection* MakePhysXCollection(const TArray<UPhysicalMaterial*>& PhysicalMaterials, const TArray<UBodySetup*>& BodySetups, uint64 BaseId);
 
@@ -202,215 +127,12 @@ private:
 	PxTriangleMesh* ReadTriMesh( FBufferReader& Ar, uint8* InBulkDataPtr, int32 InBulkDataSize );
 };
 
-/** PhysX memory allocator wrapper */
-class FPhysXAllocator : public PxAllocatorCallback
-{
-#if PHYSX_MEMORY_STATS
-	TMap<FName, size_t> AllocationsByType;
-
-	struct FPhysXAllocationHeader
-	{
-		FPhysXAllocationHeader(	FName InAllocationTypeName, size_t InAllocationSize )
-		:	AllocationTypeName(InAllocationTypeName)
-		,	AllocationSize(InAllocationSize)
-		{
-			static_assert((sizeof(FPhysXAllocationHeader) % 16) == 0, "FPhysXAllocationHeader size must multiple of bytes.");
-			MagicPadding();
-		}
-
-		void MagicPadding()
-		{
-			for (uint8 ByteCount = 0; ByteCount < sizeof(Padding); ++ByteCount)
-			{
-				Padding[ByteCount] = 'A' + ByteCount % 4;
-			}
-		}
-
-		bool operator==(const FPhysXAllocationHeader& OtherHeader) const
-		{
-			bool bHeaderSame = AllocationTypeName == OtherHeader.AllocationTypeName && AllocationSize == OtherHeader.AllocationSize;
-			for (uint8 ByteCount = 0; ByteCount < sizeof(Padding); ++ByteCount)
-			{
-				bHeaderSame &= Padding[ByteCount] == OtherHeader.Padding[ByteCount];
-			}
-
-			return bHeaderSame;
-		}
-
-		FName AllocationTypeName;
-		size_t	AllocationSize;
-		static const int PaddingSize = 8;
-		uint8 Padding[PaddingSize];	//physx needs 16 byte alignment. Additionally we fill padding with a pattern to see if there's any memory stomps
-		uint8 Padding2[(sizeof(FName) + sizeof(size_t) + PaddingSize) % 16];
-
-		void Validate() const
-		{
-			bool bValid = true;
-			for (uint8 ByteCount = 0; ByteCount < sizeof(Padding); ++ByteCount)
-			{
-				bValid &= Padding[ByteCount] == 'A' + ByteCount % 4;
-			}
-
-			check(bValid);
-
-			FPhysXAllocationHeader* AllocationFooter = (FPhysXAllocationHeader*) (((uint8*)this) + sizeof(FPhysXAllocationHeader)+AllocationSize);
-			check(*AllocationFooter == *this);
-		}
-	};
-	
-#endif
-
-public:
-
-#if PHYSX_MEMORY_VALIDATION
-
-	/** Iterates over all allocations and checks that they the headers and footers are valid */
-	void ValidateHeaders()
-	{
-		check(IsInGameThread());
-		FPhysXAllocationHeader* TmpHeader = nullptr;
-		while(NewHeaders.Dequeue(TmpHeader))
-		{
-			AllocatedHeaders.Add(TmpHeader);
-		}
-
-		while (OldHeaders.Dequeue(TmpHeader))
-		{
-			AllocatedHeaders.Remove(TmpHeader);
-		}
-
-		FScopeLock Lock(&ValidationCS);	//this is needed in case another thread is freeing the header
-		for (FPhysXAllocationHeader* Header : AllocatedHeaders)
-		{
-			Header->Validate();
-		}
-	}
-#endif
-
-	FPhysXAllocator()
-	{}
-
-	virtual ~FPhysXAllocator() 
-	{}
-
-	virtual void* allocate(size_t size, const char* typeName, const char* filename, int line) override
-	{
-		LLM_SCOPE(ELLMTag::PhysX);
-#if PHYSX_MEMORY_STATS
-		INC_DWORD_STAT_BY(STAT_MemoryPhysXTotalAllocationSize, size);
-
-
-		FString AllocationString = FString::Printf(TEXT("%s %s:%d"), ANSI_TO_TCHAR(typeName), ANSI_TO_TCHAR(filename), line);
-		FName AllocationName(*AllocationString);
-
-		// Assign header
-		FPhysXAllocationHeader* AllocationHeader = (FPhysXAllocationHeader*)FMemory::Malloc(size + sizeof(FPhysXAllocationHeader) * 2, 16);
-		AllocationHeader->AllocationTypeName = AllocationName;
-		AllocationHeader->AllocationSize = size;
-		AllocationHeader->MagicPadding();
-		FPhysXAllocationHeader* AllocationFooter = (FPhysXAllocationHeader*) (((uint8*)AllocationHeader) + size + sizeof(FPhysXAllocationHeader));
-		AllocationFooter->AllocationTypeName = AllocationName;
-		AllocationFooter->AllocationSize = size;
-		AllocationFooter->MagicPadding();
-
-		size_t* TotalByType = AllocationsByType.Find(AllocationName);	//TODO: this is not thread safe!
-		if( TotalByType )
-		{
-			*TotalByType += size;
-		}
-		else
-		{
-			AllocationsByType.Add(AllocationName, size);
-		}
-
-#if PHYSX_MEMORY_VALIDATION
-		NewHeaders.Enqueue(AllocationHeader);
-#endif
-
-		return (uint8*)AllocationHeader + sizeof(FPhysXAllocationHeader);
-#else
-		void* ptr = FMemory::Malloc(size, 16);
-		#if PHYSX_MEMORY_STAT_ONLY
-			INC_DWORD_STAT_BY(STAT_MemoryPhysXTotalAllocationSize, FMemory::GetAllocSize(ptr));
-		#endif
-		return ptr;
-#endif
-	}
-	 
-	virtual void deallocate(void* ptr) override
-	{
-#if PHYSX_MEMORY_STATS
-		if( ptr )
-		{
-			FPhysXAllocationHeader* AllocationHeader = (FPhysXAllocationHeader*)((uint8*)ptr - sizeof(FPhysXAllocationHeader));
-#if PHYSX_MEMORY_VALIDATION
-			AllocationHeader->Validate();
-			OldHeaders.Enqueue(AllocationHeader);
-			FScopeLock Lock(&ValidationCS);	//this is needed in case we are in the middle of validating the headers
-#endif
-
-			DEC_DWORD_STAT_BY(STAT_MemoryPhysXTotalAllocationSize, AllocationHeader->AllocationSize);
-			size_t* TotalByType = AllocationsByType.Find(AllocationHeader->AllocationTypeName);
-			*TotalByType -= AllocationHeader->AllocationSize;
-			FMemory::Free(AllocationHeader);
-		}
-#else
-		#if PHYSX_MEMORY_STAT_ONLY
-			DEC_DWORD_STAT_BY(STAT_MemoryPhysXTotalAllocationSize, FMemory::GetAllocSize(ptr));
-		#endif
-		FMemory::Free(ptr);
-#endif
-	}
-
-#if PHYSX_MEMORY_STATS
-	void DumpAllocations(FOutputDevice* Ar)
-	{
-		struct FSortBySize
-		{
-			FORCEINLINE bool operator()( const size_t& A, const size_t& B ) const 
-			{ 
-				// Sort descending
-				return B < A;
-			}
-		};
-				
-		size_t TotalSize = 0;
-		AllocationsByType.ValueSort(FSortBySize());
-		for( auto It=AllocationsByType.CreateConstIterator(); It; ++It )
-		{
-			TotalSize += It.Value();
-			Ar->Logf(TEXT("%-10d %s"), It.Value(), *It.Key().ToString());
-		}
-
-		Ar->Logf(TEXT("Total:%-10d"), TotalSize);
-	}
-#endif
-
-#if PHYSX_MEMORY_VALIDATION
-private:
-	FCriticalSection ValidationCS;
-	TSet<FPhysXAllocationHeader*> AllocatedHeaders;
-
-	//Since this needs to be thread safe we can't add to the allocated headers set until we're on the game thread
-	TQueue<FPhysXAllocationHeader*, EQueueMode::Mpsc> NewHeaders;
-	TQueue<FPhysXAllocationHeader*, EQueueMode::Mpsc> OldHeaders;
-
-#endif
-};
-
-/** PhysX output stream wrapper */
-class FPhysXErrorCallback : public PxErrorCallback
-{
-public:
-	virtual void reportError(PxErrorCode::Enum e, const char* message, const char* file, int line) override;
-};
-
 /** 'Shader' used to filter simulation collisions. Could be called on any thread. */
 PxFilterFlags PhysXSimFilterShader(	PxFilterObjectAttributes attributes0, PxFilterData filterData0, 
 									PxFilterObjectAttributes attributes1, PxFilterData filterData1,
 									PxPairFlags& pairFlags, const void* constantBlock, PxU32 constantBlockSize );
 
-#if !WITH_CHAOS && !PHYSICS_INTERFACE_LLIMMEDIATE
+#if !WITH_CHAOS
 /** Event callback used to notify engine about various collision events */
 class ENGINE_API FPhysXSimEventCallback : public PxSimulationEventCallback
 {
@@ -447,128 +169,5 @@ public:
 	virtual void onObjectOutOfBounds(PxAggregate& InAggregate) override;
 
 };
-
-#if WITH_APEX
-/**
-	"Null" render resource manager callback for APEX
-	This just gives a trivial implementation of the interface, since we are not using the APEX rendering API
-*/
-class FApexNullRenderResourceManager : public nvidia::apex::UserRenderResourceManager
-{
-public:
-	// NxUserRenderResourceManager interface.
-
-	virtual nvidia::apex::UserRenderVertexBuffer*	createVertexBuffer(const nvidia::apex::UserRenderVertexBufferDesc&) override
-	{
-		return NULL;
-	}
-	virtual nvidia::apex::UserRenderIndexBuffer*	createIndexBuffer(const nvidia::apex::UserRenderIndexBufferDesc&) override
-	{
-		return NULL;
-	}
-	virtual nvidia::apex::UserRenderBoneBuffer*		createBoneBuffer(const nvidia::apex::UserRenderBoneBufferDesc&) override
-	{
-		return NULL;
-	}
-	virtual nvidia::apex::UserRenderInstanceBuffer*	createInstanceBuffer(const nvidia::apex::UserRenderInstanceBufferDesc&) override
-	{
-		return NULL;
-	}
-	virtual nvidia::apex::UserRenderSpriteBuffer*   createSpriteBuffer(const nvidia::apex::UserRenderSpriteBufferDesc&) override
-	{
-		return NULL;
-	}
-	
-	virtual nvidia::apex::UserRenderSurfaceBuffer*  createSurfaceBuffer(const nvidia::apex::UserRenderSurfaceBufferDesc& desc)   override
-	{
-		return NULL;
-	}
-	
-	virtual nvidia::apex::UserRenderResource*		createResource(const nvidia::apex::UserRenderResourceDesc&) override
-	{
-		return NULL;
-	}
-	virtual void						releaseVertexBuffer(nvidia::apex::UserRenderVertexBuffer&) override {}
-	virtual void						releaseIndexBuffer(nvidia::apex::UserRenderIndexBuffer&) override {}
-	virtual void						releaseBoneBuffer(nvidia::apex::UserRenderBoneBuffer&) override {}
-	virtual void						releaseInstanceBuffer(nvidia::apex::UserRenderInstanceBuffer&) override {}
-	virtual void						releaseSpriteBuffer(nvidia::apex::UserRenderSpriteBuffer&) override {}
-	virtual void                        releaseSurfaceBuffer(nvidia::apex::UserRenderSurfaceBuffer& buffer) override{}
-	virtual void						releaseResource(nvidia::apex::UserRenderResource&) override {}
-
-	virtual physx::PxU32				getMaxBonesForMaterial(void*) override
-	{
-		return 0;
-	}
-	virtual bool						getSpriteLayoutData(physx::PxU32 , physx::PxU32 , nvidia::apex::UserRenderSpriteBufferDesc* ) override
-	{
-		return false;
-	}
-	virtual bool						getInstanceLayoutData(physx::PxU32 , physx::PxU32 , nvidia::apex::UserRenderInstanceBufferDesc* ) override
-	{
-		return false;
-	}
-
-};
-extern FApexNullRenderResourceManager GApexNullRenderResourceManager;
-
-/**
-	APEX resource callback
-	The resource callback is how APEX asks the application to find assets when it needs them
-*/
-class FApexResourceCallback : public nvidia::apex::ResourceCallback
-{
-public:
-	// NxResourceCallback interface.
-
-	virtual void* requestResource(const char* NameSpace, const char* Name) override
-	{
-		// Here a pointer is looked up by name and returned
-		(void)NameSpace;
-		(void)Name;
-
-		return NULL;
-	}
-
-	virtual void  releaseResource(const char* NameSpace, const char* Name, void* Resource) override
-	{
-		// Here we release a named resource
-		(void)NameSpace;
-		(void)Name;
-		(void)Resource;
-	}
-};
-extern FApexResourceCallback GApexResourceCallback;
-
-
-#endif // #if WITH_APEX
-
-/** Utility wrapper for a PhysX output stream that only counts the memory. */
-class FPhysXCountMemoryStream : public PxOutputStream
-{
-public:
-	/** Memory used by the serialized object(s) */
-	uint32 UsedMemory;
-
-	FPhysXCountMemoryStream()
-		: UsedMemory(0)
-	{}
-
-	virtual PxU32 write(const void* Src, PxU32 Count) override
-	{
-		UsedMemory += Count;
-		return Count;
-	}
-};
-
-/** 
- * Returns the in-memory size of the specified object by serializing it.
- *
- * @param	Obj					Object to determine the memory footprint for
- * @param	SharedCollection	Shared collection of data to ignore
- * @returns						Size of the object in bytes determined by serialization
- **/
-ENGINE_API SIZE_T GetPhysxObjectSize(PxBase* Obj, const PxCollection* SharedCollection);
-
 
 #endif // WITH_PHYSX

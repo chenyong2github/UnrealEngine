@@ -21,111 +21,114 @@ class FSlateWindowElementList;
  */
 class SLATE_API SBox : public SPanel
 {
+public:
+	class FBoxSlot : public TSupportsOneChildMixin<FBoxSlot>, public TSupportsContentAlignmentMixin<FBoxSlot>, public TSupportsContentPaddingMixin<FBoxSlot>
+	{
 	public:
-		class FBoxSlot : public TSupportsOneChildMixin<FBoxSlot>, public TSupportsContentAlignmentMixin<FBoxSlot>, public TSupportsContentPaddingMixin<FBoxSlot>
+		FBoxSlot(SWidget* InOwner)
+			: TSupportsOneChildMixin<FBoxSlot>(InOwner)
+			, TSupportsContentAlignmentMixin<FBoxSlot>(HAlign_Fill, VAlign_Fill)
 		{
-			public:
-				FBoxSlot(SWidget* InOwner)
-				: TSupportsOneChildMixin<FBoxSlot>(InOwner)
-				, TSupportsContentAlignmentMixin<FBoxSlot>(HAlign_Fill, VAlign_Fill)
-				{
-				}
-		};
+		}
+	};
 
-		SLATE_BEGIN_ARGS(SBox)
-			: _HAlign( HAlign_Fill )
-			, _VAlign( VAlign_Fill )
-			, _Padding( 0.0f )
-			, _Content()
-			, _WidthOverride(FOptionalSize())
-			, _HeightOverride(FOptionalSize())
-			, _MinDesiredWidth(FOptionalSize())
-			, _MinDesiredHeight(FOptionalSize())
-			, _MaxDesiredWidth(FOptionalSize())
-			, _MaxDesiredHeight(FOptionalSize())
-			{
-				_Visibility = EVisibility::SelfHitTestInvisible;
-			}
+	SLATE_BEGIN_ARGS(SBox)
+		: _HAlign(HAlign_Fill)
+		, _VAlign(VAlign_Fill)
+		, _Padding(0.0f)
+		, _Content()
+		, _WidthOverride(FOptionalSize())
+		, _HeightOverride(FOptionalSize())
+		, _MinDesiredWidth(FOptionalSize())
+		, _MinDesiredHeight(FOptionalSize())
+		, _MaxDesiredWidth(FOptionalSize())
+		, _MaxDesiredHeight(FOptionalSize())
+	{
+		_Visibility = EVisibility::SelfHitTestInvisible;
+	}
 
-			/** Horizontal alignment of content in the area allotted to the SBox by its parent */
-			SLATE_ARGUMENT( EHorizontalAlignment, HAlign )
+	/** Horizontal alignment of content in the area allotted to the SBox by its parent */
+	SLATE_ARGUMENT(EHorizontalAlignment, HAlign)
 
-			/** Vertical alignment of content in the area allotted to the SBox by its parent */
-			SLATE_ARGUMENT( EVerticalAlignment, VAlign )
+	/** Vertical alignment of content in the area allotted to the SBox by its parent */
+	SLATE_ARGUMENT(EVerticalAlignment, VAlign)
 
-			/** Padding between the SBox and the content that it presents. Padding affects desired size. */
-			SLATE_ATTRIBUTE( FMargin, Padding )
+	/** Padding between the SBox and the content that it presents. Padding affects desired size. */
+	SLATE_ATTRIBUTE(FMargin, Padding)
 
-			/** The widget content presented by the SBox */
-			SLATE_DEFAULT_SLOT( FArguments, Content )
+	/** The widget content presented by the SBox */
+	SLATE_DEFAULT_SLOT(FArguments, Content)
 
-			/** When specified, ignore the content's desired size and report the WidthOverride as the Box's desired width. */
-			SLATE_ATTRIBUTE( FOptionalSize, WidthOverride )
+	/** When specified, ignore the content's desired size and report the WidthOverride as the Box's desired width. */
+	SLATE_ATTRIBUTE(FOptionalSize, WidthOverride)
 
-			/** When specified, ignore the content's desired size and report the HeightOverride as the Box's desired height. */
-			SLATE_ATTRIBUTE( FOptionalSize, HeightOverride)
+	/** When specified, ignore the content's desired size and report the HeightOverride as the Box's desired height. */
+	SLATE_ATTRIBUTE(FOptionalSize, HeightOverride)
 
-			/** When specified, will report the MinDesiredWidth if larger than the content's desired width. */
-			SLATE_ATTRIBUTE(FOptionalSize, MinDesiredWidth)
+	/** When specified, will report the MinDesiredWidth if larger than the content's desired width. */
+	SLATE_ATTRIBUTE(FOptionalSize, MinDesiredWidth)
 
-			/** When specified, will report the MinDesiredHeight if larger than the content's desired height. */
-			SLATE_ATTRIBUTE(FOptionalSize, MinDesiredHeight)
+	/** When specified, will report the MinDesiredHeight if larger than the content's desired height. */
+	SLATE_ATTRIBUTE(FOptionalSize, MinDesiredHeight)
 
-			/** When specified, will report the MaxDesiredWidth if smaller than the content's desired width. */
-			SLATE_ATTRIBUTE(FOptionalSize, MaxDesiredWidth)
+	/** When specified, will report the MaxDesiredWidth if smaller than the content's desired width. */
+	SLATE_ATTRIBUTE(FOptionalSize, MaxDesiredWidth)
 
-			/** When specified, will report the MaxDesiredHeight if smaller than the content's desired height. */
-			SLATE_ATTRIBUTE(FOptionalSize, MaxDesiredHeight)
+	/** When specified, will report the MaxDesiredHeight if smaller than the content's desired height. */
+	SLATE_ATTRIBUTE(FOptionalSize, MaxDesiredHeight)
 
-			SLATE_ATTRIBUTE(FOptionalSize, MaxAspectRatio)
+	SLATE_ATTRIBUTE(FOptionalSize, MinAspectRatio)
 
-		SLATE_END_ARGS()
+	SLATE_ATTRIBUTE(FOptionalSize, MaxAspectRatio)
 
-		SBox();
+	SLATE_END_ARGS()
 
-		void Construct( const FArguments& InArgs );
+	SBox();
 
-		virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
-		virtual FChildren* GetChildren() override;
-		virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
+	void Construct(const FArguments& InArgs);
 
-		/**
-		 * See the Content slot.
-		 */
-		void SetContent(const TSharedRef< SWidget >& InContent);
+	virtual void OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const override;
+	virtual FChildren* GetChildren() override;
+	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
 
-		/** See HAlign argument */
-		void SetHAlign(EHorizontalAlignment HAlign);
+	/**
+		* See the Content slot.
+		*/
+	void SetContent(const TSharedRef< SWidget >& InContent);
 
-		/** See VAlign argument */
-		void SetVAlign(EVerticalAlignment VAlign);
+	/** See HAlign argument */
+	void SetHAlign(EHorizontalAlignment HAlign);
 
-		/** See Padding attribute */
-		void SetPadding(const TAttribute<FMargin>& InPadding);
+	/** See VAlign argument */
+	void SetVAlign(EVerticalAlignment VAlign);
 
-		/** See WidthOverride attribute */
-		void SetWidthOverride(TAttribute<FOptionalSize> InWidthOverride);
+	/** See Padding attribute */
+	void SetPadding(const TAttribute<FMargin>& InPadding);
 
-		/** See HeightOverride attribute */
-		void SetHeightOverride(TAttribute<FOptionalSize> InHeightOverride);
+	/** See WidthOverride attribute */
+	void SetWidthOverride(TAttribute<FOptionalSize> InWidthOverride);
 
-		/** See MinDesiredWidth attribute */
-		void SetMinDesiredWidth(TAttribute<FOptionalSize> InMinDesiredWidth);
+	/** See HeightOverride attribute */
+	void SetHeightOverride(TAttribute<FOptionalSize> InHeightOverride);
 
-		/** See MinDesiredHeight attribute */
-		void SetMinDesiredHeight(TAttribute<FOptionalSize> InMinDesiredHeight);
+	/** See MinDesiredWidth attribute */
+	void SetMinDesiredWidth(TAttribute<FOptionalSize> InMinDesiredWidth);
 
-		/** See MaxDesiredWidth attribute */
-		void SetMaxDesiredWidth(TAttribute<FOptionalSize> InMaxDesiredWidth);
+	/** See MinDesiredHeight attribute */
+	void SetMinDesiredHeight(TAttribute<FOptionalSize> InMinDesiredHeight);
 
-		/** See MaxDesiredHeight attribute */
-		void SetMaxDesiredHeight(TAttribute<FOptionalSize> InMaxDesiredHeight);
+	/** See MaxDesiredWidth attribute */
+	void SetMaxDesiredWidth(TAttribute<FOptionalSize> InMaxDesiredWidth);
 
-		void SetMaxAspectRatio(TAttribute<FOptionalSize> InMaxAspectRatio);
+	/** See MaxDesiredHeight attribute */
+	void SetMaxDesiredHeight(TAttribute<FOptionalSize> InMaxDesiredHeight);
+
+	void SetMinAspectRatio(TAttribute<FOptionalSize> InMinAspectRatio);
+
+	void SetMaxAspectRatio(TAttribute<FOptionalSize> InMaxAspectRatio);
 
 protected:
 	// Begin SWidget overrides.
-	virtual void ChildLayoutChanged(EInvalidateWidget InvalidateReason) override;
 	virtual FVector2D ComputeDesiredSize(float) const override;
 	float ComputeDesiredWidth() const;
 	float ComputeDesiredHeight() const;
@@ -133,28 +136,28 @@ protected:
 
 protected:
 
-		FBoxSlot ChildSlot;
+	FBoxSlot ChildSlot;
 
 private:
-		/** When specified, ignore the content's desired size and report the.WidthOverride as the Box's desired width. */
-		TAttribute<FOptionalSize> WidthOverride;
+	/** When specified, ignore the content's desired size and report the.WidthOverride as the Box's desired width. */
+	TAttribute<FOptionalSize> WidthOverride;
 
-		/** When specified, ignore the content's desired size and report the.HeightOverride as the Box's desired height. */
-		TAttribute<FOptionalSize> HeightOverride;
-		
-		/** When specified, will report the MinDesiredWidth if larger than the content's desired width. */
-		TAttribute<FOptionalSize> MinDesiredWidth;
+	/** When specified, ignore the content's desired size and report the.HeightOverride as the Box's desired height. */
+	TAttribute<FOptionalSize> HeightOverride;
 
-		/** When specified, will report the MinDesiredHeight if larger than the content's desired height. */
-		TAttribute<FOptionalSize> MinDesiredHeight;
+	/** When specified, will report the MinDesiredWidth if larger than the content's desired width. */
+	TAttribute<FOptionalSize> MinDesiredWidth;
 
-		/** When specified, will report the MaxDesiredWidth if smaller than the content's desired width. */
-		TAttribute<FOptionalSize> MaxDesiredWidth;
+	/** When specified, will report the MinDesiredHeight if larger than the content's desired height. */
+	TAttribute<FOptionalSize> MinDesiredHeight;
 
-		/** When specified, will report the MaxDesiredHeight if smaller than the content's desired height. */
-		TAttribute<FOptionalSize> MaxDesiredHeight;
+	/** When specified, will report the MaxDesiredWidth if smaller than the content's desired width. */
+	TAttribute<FOptionalSize> MaxDesiredWidth;
 
-		TAttribute<FOptionalSize> MaxAspectRatio;
+	/** When specified, will report the MaxDesiredHeight if smaller than the content's desired height. */
+	TAttribute<FOptionalSize> MaxDesiredHeight;
+
+	TAttribute<FOptionalSize> MinAspectRatio;
+
+	TAttribute<FOptionalSize> MaxAspectRatio;
 };
-
-

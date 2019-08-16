@@ -245,6 +245,11 @@ namespace UnrealBuildTool
 		public bool bUseFastPDBLinking;
 
 		/// <summary>
+		/// Whether to ignore dangling (i.e. unresolved external) symbols in modules
+		/// </summary>
+		public bool bIgnoreUnresolvedSymbols;
+
+		/// <summary>
 		/// Whether to log detailed timing information
 		/// </summary>
 		public bool bPrintTimingInfo;
@@ -347,6 +352,7 @@ namespace UnrealBuildTool
             bAllowASLR = Other.bAllowASLR;
 			bUsePDBFiles = Other.bUsePDBFiles;
 			bUseFastPDBLinking = Other.bUseFastPDBLinking;
+			bIgnoreUnresolvedSymbols = Other.bIgnoreUnresolvedSymbols;
 			bPrintTimingInfo = Other.bPrintTimingInfo;
 			BundleVersion = Other.BundleVersion;
 			InstallName = Other.InstallName;

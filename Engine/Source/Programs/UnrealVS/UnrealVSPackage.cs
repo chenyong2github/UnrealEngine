@@ -3,13 +3,11 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.ComponentModel.Design;
 using System.Threading;
-using Microsoft.Win32;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell.Interop;
 using Microsoft.VisualStudio.OLE.Interop;
@@ -21,7 +19,7 @@ using Thread = System.Threading.Thread;
 namespace UnrealVS
 {
 	// This attribute tells the PkgDef creation utility (CreatePkgDef.exe) that this class is a VS package.
-	[PackageRegistration( UseManagedResourcesOnly = true )]
+	[PackageRegistration( UseManagedResourcesOnly = true, AllowsBackgroundLoading = true )]
 
 	// This attribute is used to register the informations needed to show the this package in the Help/About dialog of Visual Studio.
 	[InstalledProductRegistration("#110", "#112", VersionString, IconResourceID = 400)]
@@ -31,7 +29,8 @@ namespace UnrealVS
 	[ProvideMenuResource( "Menus.ctmenu", 1 )]
 
 	// Force the package to load whenever a solution exists
-	[ProvideAutoLoad(UIContextGuids80.SolutionExists)]
+	//[ProvideAutoLoad(VSConstants.UICONTEXT.SolutionExistsAndFullyLoaded_string, PackageAutoLoadFlags.BackgroundLoad)]
+	[ProvideAutoLoad(UIContextGuids80.SolutionExists, PackageAutoLoadFlags.BackgroundLoad)]
 
 	// Register the settings implementing class as providing support to UnrealVSPackage.
 	//[ProvideProfile(typeof (ProfileManager), "UnrealVS", "UnrealVSPackage", 110, 113, false)]
@@ -50,7 +49,7 @@ namespace UnrealVS
 	/// with Visual Studio shell and serves as the entry point into our extension
 	/// </summary>
 	public sealed class UnrealVSPackage :
-		Package,		// We inherit from Package which allows us to become a "plugin" within the Visual Studio shell
+		AsyncPackage,			// We inherit from AsyncPackage which allows us to become a "plugin" within the Visual Studio shell
 		IVsSolutionEvents,		// This interface allows us to register to be notified of events such as opening a project
 		IVsUpdateSolutionEvents,// Allows us to register to be notified of events such as active config changes
 		IVsSelectionEvents,		// Allows us to be notified when the startup project has changed to a different project
@@ -59,7 +58,7 @@ namespace UnrealVS
 	{
 		/** Constants */
 
-		private const string VersionString = "v1.53";
+		private const string VersionString = "v1.56";
 		private const string UnrealSolutionFileNamePrefix = "UE4";
 		private const string ExtensionName = "UnrealVS";
 		private const string CommandLineOptionKey = ExtensionName + "CommandLineMRU";
@@ -182,37 +181,39 @@ namespace UnrealVS
 		/// <summary>
 		/// Initializes the package right after it's been "sited" into the fully-initialized Visual Studio IDE.
 		/// </summary>
-		protected override void Initialize()
+		protected override async System.Threading.Tasks.Task InitializeAsync(CancellationToken cancellationToken, IProgress<ServiceProgressData> progress)
 		{
 			Logging.WriteLine("Initializing UnrealVS extension...");
 
+			await JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
+
 			// Grab the MenuCommandService
-			MenuCommandService = GetService( typeof( IMenuCommandService ) ) as OleMenuCommandService;
+			MenuCommandService = await GetServiceAsync( typeof( IMenuCommandService ) ) as OleMenuCommandService;
 			
 			// Get access to Visual Studio's DTE object.  This object has various hooks into the Visual Studio
 			// shell that are useful for writing extensions.
-			DTE = (DTE)GetGlobalService( typeof( DTE ) );
+			DTE = await GetServiceAsync(typeof(DTE)) as DTE;
 			Logging.WriteLine("DTE version " + DTE.Version);
 
 			// Get selection manager and register to receive events
 			SelectionManager =
-				ServiceProvider.GlobalProvider.GetService(typeof (SVsShellMonitorSelection)) as IVsMonitorSelection;
-			SelectionManager.AdviseSelectionEvents( this, out SelectionEventsHandle );
+				await GetServiceAsync(typeof(SVsShellMonitorSelection)) as IVsMonitorSelection;
+			SelectionManager.AdviseSelectionEvents(this, out SelectionEventsHandle);
 
 			// Get solution and register to receive events
-			SolutionManager = ServiceProvider.GlobalProvider.GetService( typeof( SVsSolution ) ) as IVsSolution2;
+			SolutionManager = await GetServiceAsync(typeof(SVsSolution)) as IVsSolution2;
 			UpdateUnrealLoadedStatus();
-			SolutionManager.AdviseSolutionEvents( this, out SolutionEventsHandle );
+			SolutionManager.AdviseSolutionEvents(this, out SolutionEventsHandle);
 
 			// Grab the solution build manager.  We need this in order to change certain things about the Visual
 			// Studio environment, like what the active startup project is
 			// Get solution build manager
 			SolutionBuildManager =
-				ServiceProvider.GlobalProvider.GetService(typeof (SVsSolutionBuildManager)) as IVsSolutionBuildManager2;
+				await GetServiceAsync(typeof(SVsSolutionBuildManager)) as IVsSolutionBuildManager2;
 			SolutionBuildManager.AdviseUpdateSolutionEvents(this, out UpdateSolutionEventsHandle);
 
 			// Create our command-line editor
-			CommandLineEditor = new CommandLineEditor();
+			CommandLineEditor.Initialize();
 
 			// Create our startup project selector
 			StartupProjectSelector = new StartupProjectSelector();
@@ -227,7 +228,7 @@ namespace UnrealVS
 			GenerateProjectFiles = new GenerateProjectFiles();
 
 			// Create Batch Builder tools
-			BatchBuilder = new BatchBuilder();
+			BatchBuilder.Initialize();
 
 			// Create the project menu quick builder
 			QuickBuilder = new QuickBuild();
@@ -486,6 +487,7 @@ namespace UnrealVS
 		/// <param name="stream">The stream to load the option data from.</param>
 		protected override void OnLoadOptions(string key, Stream stream)
 		{
+			Logging.WriteLine("Loading Options for key: " + key);
 			try
 			{
 				if (0 == string.Compare(key, CommandLineOptionKey))
@@ -847,7 +849,7 @@ namespace UnrealVS
 		UInt32 ProjectHierarchyEventsHandle;
 
 		/// Our command-line editing component
-		private CommandLineEditor CommandLineEditor;
+		private CommandLineEditor CommandLineEditor = new CommandLineEditor();
 
 		/// BuildStartupProject feature
 		private BuildStartupProject BuildStartupProject;
@@ -859,7 +861,7 @@ namespace UnrealVS
 		private GenerateProjectFiles GenerateProjectFiles;
 
 		/// Batch Builder button/command handler
-		private BatchBuilder BatchBuilder;
+		private BatchBuilder BatchBuilder = new BatchBuilder();
 
 		/// Ticker thread
 		private Thread Ticker;

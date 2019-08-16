@@ -514,7 +514,7 @@ void FD3D12DescriptorCache::SetSamplers(const FD3D12RootSignature* RootSignature
 		D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor = CurrentSamplerHeap->GetCPUSlotHandle(FirstSlotIndex);
 		BindDescriptor = CurrentSamplerHeap->GetGPUSlotHandle(FirstSlotIndex);
 
-		checkSlow(SlotsNeeded < MAX_SAMPLERS);
+		checkSlow(SlotsNeeded <= MAX_SAMPLERS);
 
 		// Fill heap slots
 		CD3DX12_CPU_DESCRIPTOR_HANDLE SrcDescriptors[MAX_SAMPLERS];

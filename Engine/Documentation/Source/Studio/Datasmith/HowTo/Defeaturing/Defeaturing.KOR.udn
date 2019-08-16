@@ -1,0 +1,295 @@
+INTSourceChangelist:6572517
+Availability: Public
+Crumbs: 
+Title: 디피처로 스태틱 메시 단순화
+Description: Defeature, 스태틱 메시 지오메트리에서 작은 구멍이나 돌출부를 제거하여 렌더링 퍼포먼스를 향상시키는 방법을 설명합니다.
+Type: how-to
+skilllevel:Intermediate
+Version: 4.21
+Parent: Studio/Datasmith/HowTo
+Order: 7
+Tags: how to
+Tags: Datasmith
+Tags: intermediate
+hero-image:defeaturing-banner.png
+
+
+Defeature (디피처)란 돌출부나 구멍을 제거하여 메시를 단순화하는 방법입니다. 메시의 버텍스 및 트라이앵글 수를 줄여 렌더링 퍼포먼스를 향상시킬 수 있습니다.
+
+![](defeaturing-banner.png)
+
+디피처는 컴퓨터 응용 디자인(CAD) 애플리케이션의 지오메트리에 특히 좋습니다. 물리적인 제조용으로 부품 및 어셈블리를 설계하고 모델링할 때, 보통 제조하는 현실의 사물에는 필수인 작은 부분이 실시간 렌더링에는 필요치 않을 수 있습니다.
+
+예를 들어, 연료 펌프 어셈블리의 이 부품은 트라이앵글이 20,000 개입니다. 일부 구멍을 제거하면 그 수가 거의 절반으로 줄어듭니다. 이 경우 어셈블리의 다른 부품이 수정된 영역을 커버하므로, 그 맥락에서 보면 렌더링 결과에 눈에 띄는 변화가 없습니다.
+
+[REGION:imagetable]
+|||
+|---|---|
+| [INCLUDE:#fuelpump-before] | [INCLUDE:#fuelpump-after] |
+| 이전: 20,617 트라이앵글 | 이후: 11,553 트라이앵글 |
+[/REGION]
+
+<!--
+[EXCERPT:fuelpump-before]
+[REGION:lightbox]
+[![](defeaturing-fuel-pump-before.png)(w:450)](defeaturing-fuel-pump-before.png "Before: 20,617 triangles")
+[/REGION]
+[/EXCERPT:fuelpump-before]
+
+[EXCERPT:fuelpump-after]
+[REGION:lightbox]
+[![](defeaturing-fuel-pump-after.png)(w:450)](defeaturing-fuel-pump-after.png "After: 11,553 triangles")
+[/REGION]
+[/EXCERPT:fuelpump-after]
+-->
+
+추가로 **레벨 오브 디테일 (LOD)** 을 만들어 화면 공간을 덜 차지할 때 메시를 한층 더 단순화시킬 계획이라면, 디피처를 적용한 메시에서 LOD 를 만들면 단순화된 메시를 눈에 덜띄게 만들 수 있습니다. 예를 들어, 크랭크 축 어셈블리의 이 작은 부품에서, 디테일이 낮은 LOD 레벨에서 보면 작은 구멍의 지그 재그가 매우 심해 보입니다. 디피처링을 통해 작은 구멍을 제거한 뒤 LOD 를 만들면, 작은 크기로 봤을 때 메시가 훨씬 깔끔해 보입니다.
+
+[REGION:imagetable]
+||||
+|---|---|---|
+| [INCLUDE:#lod0] | [INCLUDE:#lod2] | [INCLUDE:#lod2defeatured] |
+| 원본 메시 | LOD 2 | 디피처 이후 LOD |
+[/REGION]
+
+<!--
+[EXCERPT:lod0]
+[REGION:lightbox]
+[![](defeaturing-crankshaft-lod-0.png)(w:300)](defeaturing-crankshaft-lod-0.png "Original mesh")
+[/REGION]
+[/EXCERPT:lod0]
+
+[EXCERPT:lod2]
+[REGION:lightbox]
+[![](defeaturing-crankshaft-lod-2.png)(w:300)](defeaturing-crankshaft-lod-2.png "LOD 2")
+[/REGION]
+[/EXCERPT:lod2]
+
+[EXCERPT:lod2defeatured]
+[REGION:lightbox]
+[![](defeaturing-crankshaft-lod-2-processed.png)(w:300)](defeaturing-crankshaft-lod-2-processed.png "Defeatured, then LODed")
+[/REGION]
+[/EXCERPT:lod2defeatured]
+-->
+
+언리얼 에디터는 데이터스미스 또는 FBX 에서 임포트한 스태틱 메시 애셋에 디피처를 적용하는 기능을 제공합니다.  
+
+[REGION:note]
+이 글에 설명한 디피처 툴은 현재 언리얼 스튜디오 프로젝트에서만 사용할 수 있습니다. 언리얼 스튜디오 프로젝트 생성 또는 기존 프로젝트 변환 관련 자세한 내용은 [](Studio/Datasmith/HowTo/SettingUpUnrealProject) 문서를 참고하세요.
+[/REGION]
+
+## 제거가능 피처
+
+디피처 툴이 제거할 수 있는 피처 유형, 제거하려는 피처 크기를 제어하는 데 사용할 수 있는 측정 단위의 설명은 다음과 같습니다.
+
+### 관통 구멍
+
+Through holes (관통 구멍)은 오브젝트의 한 쪽과 반대 쪽을 완전히 관통하는 표면의 구멍입니다.
+
+제거할 관통 구멍의 크기 제한은 최대 직경으로 지정할 수 있습니다.
+
+[REGION:imagetable]
+|||
+|---|---|
+| [INCLUDE:#throughholesbefore] | [INCLUDE:#throughholesafter] |
+| 관통 구멍 제거 전 | 관통 구멍 제거 후 |
+[/REGION]
+
+<!--
+[EXCERPT:throughholesbefore]
+[REGION:lightbox]
+[![](defeaturing-through-holes-before.png)(w:450)](defeaturing-through-holes-before.png "Before removing through holes")
+[/REGION]
+[/EXCERPT:throughholesbefore]
+
+[EXCERPT:throughholesafter]
+[REGION:lightbox]
+[![](defeaturing-through-holes-after.png)(w:450)](defeaturing-through-holes-after.png "After removing through holes")
+[/REGION]
+[/EXCERPT:throughholesafter]
+-->
+
+### 막힌 구멍
+
+Blind holes (막힌 구멍)은 오브젝트를 완전히 관통하지 않는 표면의 구멍입니다. 표면의 일정 깊이 위치에 밑면이 있습니다.
+
+제거할 막힌 구멍 크기 제한은 구멍의 최대 직경과 표면 아래 구멍의 최대 깊으로 지정할 수 있습니다. 그 *두* 치수 모두 지정한 것보다 작은 구멍만 제거됩니다.
+
+[REGION:imagetable]
+|||
+|---|---|
+| [INCLUDE:#blindholesbefore] | [INCLUDE:#blindholesafter] |
+| 막힌 구멍 제거 전 | 막힌 구멍 제거 후 |
+[/REGION]
+
+<!--
+[EXCERPT:blindholesbefore]
+[REGION:lightbox]
+[![](defeaturing-blind-holes-before.png)(w:450)](defeaturing-blind-holes-before.png "Before removing blind holes")
+[/REGION]
+[/EXCERPT:blindholesbefore]
+
+[EXCERPT:blindholesafter]
+[REGION:lightbox]
+[![](defeaturing-blind-holes-after.png)(w:450)](defeaturing-blind-holes-after.png "After removing blind holes")
+[/REGION]
+[/EXCERPT:blindholesafter]
+-->
+
+### 돌출
+
+Protrusions (돌출)은 주변 표면 위로 솟아 오른 돌기입니다.
+
+제거할 돌출 크기 제한은 돌출의 최대 직경과 표면 위로 솟아 오른 최대 높이로 지정합니다. 그 *두* 치수 모두 지정한 것보다 작은 것만 제거됩니다.
+
+[REGION:imagetable]
+|||
+|---|---|
+| [INCLUDE:#protrusionsbefore] | [INCLUDE:#protrusionsafter] |
+| 돌출 제거 전 | 돌출 제거 후 |
+[/REGION]
+
+<!--
+[EXCERPT:protrusionsbefore]
+[REGION:lightbox]
+[![](defeaturing-protrusion-before.png)(w:450)](defeaturing-protrusion-before.png "Before removing protrusions")
+[/REGION]
+[/EXCERPT:protrusionsbefore]
+
+[EXCERPT:protrusionsafter]
+[REGION:lightbox]
+[![](defeaturing-protrusion-after.png)(w:450)](defeaturing-protrusion-after.png "After removing protrusions")
+[/REGION]
+[/EXCERPT:protrusionsafter]
+-->
+
+## 스태틱 메시 에디터의 디피처
+
+1.  스태틱 메시 에디터에서 수정하고자 하는 스태틱 메시를 엽니다.  
+    **콘텐츠 브라우저** 에서 애셋을 더블클릭하거나, 우클릭한 후 **편집** 을 선택하면 됩니다. 
+2.  **메시 편집** 툴바를 엽니다.  
+    ![Open the Mesh Editing Toolbar](defeaturing-open-editing-toolbar.png "Open the Mesh Editing Toolbar")
+3.  **Defeaturing** (디피처) 아이콘을 클릭합니다.   
+    ![Defeaturing](defeaturing-in-toolbar.png "Defeaturing")
+4.  제거할 피처를 구성할 수 있는 세팅 대화창이 표시됩니다.  
+    ![Defeaturing settings](defeaturing_settings.png "Defeaturing settings")  
+    스태틱 메시에서 제거하려는 피처 각 유형에 대해 해당하는 옵션과 해당 피처 유형의 최대 치수를 설정합니다. 
+    [REGION:note]
+    선택한 각 피처 유형의 최대 치수를 기본값에서 늘립니다.
+    [/REGION]
+5.  **Proceed** (진행)을 클릭하면 디피처 작업이 시작되고 스태틱 메시가 수정됩니다.  
+    ![Proceed](defeaturing_settings_proceed.png "Proceed")  
+    
+
+## 에디터 스크립트의 디피처
+
+블루프린트와 Python 으로 관통 구멍, 막힌 구멍, 돌출을 제거할 수 있습니다.
+
+[REGION:note]
+**선행 조건:** Editor Scripting Utilities (에디터 스크립팅 유틸리티) 플러그인을 미리 설치한 상태여야 합니다. 자세한 내용은 [](Engine/Editor/ScriptingAndAutomation) 문서를 참고하세요.
+[/REGION]
+
+%Globals:BlueprintOrPythonSelectVar%
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    BlueprintOrCPPSelect
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    blueprintimplementation
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#defeaturebp]
+    [/PARAM]
+[/OBJECT]
+
+<!--
+[EXCERPT:defeaturebp]
+
+블루프린트의 **Mesh Processing > Defeature Mesh** 노드로 스태틱 메시 애셋에 디피처 툴을 실행할 수 있습니다.
+
+![Defeature Mesh node](defeature_mesh_bp.png "Defeature Mesh node")
+
+[REGION:note]
+이 노드를 사용하려면, **PlacedEditorUtilityBase** 와 같은 에디터 전용 클래스에서 파생한 블루프린트 클래스여야 합니다. 자세한 내용은 [](Engine/Editor/ScriptingAndAutomation/Blueprints) 문서를 참고하세요.
+[/REGION]
+
+이 노드에 다음 입력을 제공해야 합니다.
+
+*   수정하려는 스태틱 메시 애셋에 대한 참조. 이 애셋은 일반적으로 **Editor Scripting > Asset > Load Asset**  노드를 호출해서 먼저 로드해야 합니다.
+*   스태틱 메시에 수정하려는 LOD 의 인덱스. 특정 LOD 에 디피처를 적용하려는 것이 아니면 0 입니다.
+*   스태틱 메시에서 제거할 피처 유형을 제어하는 **MeshDefeaturingParameterObject** 및 제거할 피처 최대 크기.  
+    이 오브젝트를 구성하려면:
+    1.  블루프린트의 **내 블루프린트** 패널에서 **+ 변수** 버튼을 클릭하여 새 변수를 추가합니다.  
+        ![Add variable](defeaturing-add-variable.png "Add variable")
+    2.  변수 유형을 **Mesh Defeaturing Parameter Object** 의 레퍼런스로 설정합니다.  
+        ![Mesh Defeaturing Parameter Object](defeaturing-add-parameter-object.png "Mesh Defeaturing Parameter Object")
+    3.  변수를 블루프린트 그래프로 **Control** 드래그하여 그 변수 값을 가져오는 새 노드를 만듭니다.  
+        ![Drag and drop](defeaturing-drag-variable.png "Drag and drop")
+    4.  새 변수 노드의 출력 포트를 오른쪽으로 드래그하고, **변수** 목록에서 수정하려는 세팅에 대한 **Set** 노드를 선택합니다.  
+        ![Defeaturing parameter API](defeaturing-parameter-api.png "Defeaturing parameter API")
+
+예를 들어 다음 스크립트는 스태틱 메시 애셋에서 너비가 5 cm 미만인 모든 관통 구멍을 제거합니다.
+
+[REGION:lightbox]
+[![Defeaturing example](defeature_example_bp.png "Defeaturing example")](defeature_example_bp.png)  
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
+
+[/EXCERPT:defeaturebp]
+-->
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    BlueprintOrCPPSelect
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    pythonimplementation
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#defeaturepy]
+    [/PARAM]
+[/OBJECT]
+
+<!--
+[EXCERPT:defeaturepy]
+
+스태틱 메시 애셋에 디피처 툴을 실행하는 함수는 다음과 같습니다: `unreal.EditorMeshProcessing.defeature_mesh()`.
+
+이 함수에 전달할 내용은 다음과 같습니다.
+
+*   수정하려는 스태틱 메시 애셋. 이 애셋은 보통 다음 함수를 호출해서 먼저 로드해야 합니다: `unreal.EditorAssetLibrary.load_asset()`.
+*   스태틱 메시에 수정하려는 LOD 인덱스. 특정 LOD 에 디피처를 적용하려는 것이 아니면 0 입니다.
+*   생성한 `unreal.MeshDefeaturingParameterObject`. 스태틱 메시에서 제거할 피처 유형을 제어하는 구성 파라미터와 제거할 피처 최대 크기로 이 오브젝트를 구성합니다.
+
+예를 들어, 다음 스크립트는 스태틱 메시의 모든 관통 구멍, 막힌 구멍, 돌출 중 `unreal.MeshDefeaturingParameterObject` 에 설정된 치수 미만인 것을 전부 제거합니다.
+
+    import unreal
+    asset_name = "/Game/Unreal_Sportbike/Geometries/0x25f0e0b7Unreal_Sportbike_geom_3180.Accumulator_case"
+    def set_mesh_as_lod(mesh_name):
+        # 애셋 로드
+        mesh_asset = unreal.EditorAssetLibrary.load_asset(mesh_name)
+        # 파라미터 오브젝트 생성
+        options = unreal.MeshDefeaturingParameterObject()
+        # 그 프로퍼티 구성
+        options.fill_blind_holes = True
+        options.filled_hole_max_diameter = 10
+        options.filled_hole_max_depth = 5
+        options.fill_through_holes = True
+        options.through_hole_max_diameter = 10
+        options.remove_protrusions = True
+        options.protrusion_max_diameter = 10
+        options.protrusion_max_height = 5
+        # 디피처 실행
+        unreal.MeshProcessingLibrary.defeature_mesh(mesh_asset, 0, options)
+        # 애셋 저장
+        unreal.EditorAssetLibrary.save_loaded_asset(mesh_asset)
+    defeature_mesh(asset_name)
+
+[/EXCERPT:defeaturepy]
+-->

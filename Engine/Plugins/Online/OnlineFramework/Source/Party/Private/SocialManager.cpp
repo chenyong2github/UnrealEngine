@@ -496,6 +496,10 @@ FJoinPartyResult USocialManager::ValidateJoinTarget(const USocialUser& UserToJoi
 				return FPartyJoinDenialReason(EPartyJoinDenialReason::TargetUserMissingPresence);
 			}
 		}
+		else if (!UserToJoin.IsPlayingThisGame())
+		{
+			return FPartyJoinDenialReason(EPartyJoinDenialReason::TargetUserPlayingDifferentGame);
+		}
 		else
 		{
 			// We've got no info on this party for the given user, so it's gotta be private (or doesn't even exist)
@@ -664,7 +668,7 @@ void USocialManager::JoinPartyInternal(FJoinPartyAttempt& JoinAttempt)
 {
 	IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
 	FUniqueNetIdRepl LocalUserId = GetFirstLocalUserId(ESocialSubsystem::Primary);
-	check(LocalUserId.IsValid());
+	ensureMsgf(LocalUserId.IsValid(), TEXT("USocialManager::JoinPartyInternal: Invalid LocalUserId!"));
 
 	JoinAttempt.ActionTimeTracker.BeginStep(FJoinPartyAttempt::Step_JoinParty);
 

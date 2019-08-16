@@ -431,7 +431,7 @@ static bool EndSavingIfCancelled( FLinkerSave* Linker, const FString& TempFilena
 	if ( GWarn->ReceivedUserCancel() )
 	{
 		// free the file handle and delete the temporary file
-		Linker->Detach();
+		Linker->CloseAndDestroySaver();
 		IFileManager::Get().Delete( *TempFilename );
 		return true;
 	}
@@ -722,10 +722,12 @@ public:
 	 */
 	void MarkNameAsReferenced(const FName& Name)
 	{
-		// We need to store the FName without the number, as the number is stored separately by FLinkerSave 
-		// and we don't want duplicate entries in the name table just because of the number
-		const FName NameNoNumber(Name, 0);
-		ReferencedNames.Add(NameNoNumber);
+		ReferencedNames.Add(Name.GetDisplayIndex());
+	}
+
+	void MarkNameAsReferenced(FNameEntryId Name)
+	{
+		ReferencedNames.Add(Name);
 	}
 
 #if WITH_EDITOR
@@ -762,14 +764,14 @@ public:
 	void UpdateLinkerWithMarkedNames(FLinkerSave* Linker)
 	{
 		Linker->NameMap.Reserve(Linker->NameMap.Num() + ReferencedNames.Num());
-		for (const FName& Name : ReferencedNames)
+		for (FNameEntryId Name : ReferencedNames)
 		{
 			Linker->NameMap.Add(Name);
 		}
 	}
 
 private:
-	TSet<FName, FLinkerNamePairKeyFuncs> ReferencedNames;
+	TSet<FNameEntryId> ReferencedNames;
 };
 
 bool IsEditorOnlyObject(const UObject* InObject, bool bCheckRecursive, bool bCheckMarks)
@@ -1509,12 +1511,19 @@ struct FObjectNameSortHelper
 {
 private:
 	/** the linker that we're sorting names for */
-	friend struct TDereferenceWrapper<FName, FObjectNameSortHelper>;
+	friend struct TDereferenceWrapper<FNameEntryId, FObjectNameSortHelper>;
 
 	/** Comparison function used by Sort */
 	FORCEINLINE bool operator()( const FName& A, const FName& B ) const
 	{
 		return A.Compare(B) < 0;
+	}
+
+	/** Comparison function used by Sort */
+	FORCEINLINE bool operator()(FNameEntryId A, FNameEntryId B) const
+	{
+		// Could be implemented without constructing FName but would new FNameEntry comparison API
+		return A != B && operator()(FName::CreateFromDisplayId(A, 0), FName::CreateFromDisplayId(B, 0));
 	}
 
 public:
@@ -1534,10 +1543,10 @@ public:
 		if ( LinkerToConformTo != nullptr )
 		{
 			SortStartPosition = LinkerToConformTo->NameMap.Num();
-			TArray<FName> ConformedNameMap = LinkerToConformTo->NameMap;
+			TArray<FNameEntryId> ConformedNameMap = LinkerToConformTo->NameMap;
 			for ( int32 NameIndex = 0; NameIndex < Linker->NameMap.Num(); NameIndex++ )
 			{
-				FName& CurrentName = Linker->NameMap[NameIndex];
+				FNameEntryId CurrentName = Linker->NameMap[NameIndex];
 				if ( !ConformedNameMap.Contains(CurrentName) )
 				{
 					ConformedNameMap.Add(CurrentName);
@@ -1547,7 +1556,7 @@ public:
 			Linker->NameMap = ConformedNameMap;
 			for ( int32 NameIndex = 0; NameIndex < Linker->NameMap.Num(); NameIndex++ )
 			{
-				FName& CurrentName = Linker->NameMap[NameIndex];
+				FNameEntryId CurrentName = Linker->NameMap[NameIndex];
 				SavePackageState.MarkNameAsReferenced(CurrentName);
 			}
 		}
@@ -2021,7 +2030,7 @@ class FExportReferenceSorter : public FArchiveUObject
 		static bool bInitializedStaticCoreClasses = false;
 		static TArray<UClass*> StaticCoreClasses;
 		static TArray<UObject*> StaticCoreReferencedObjects;
-		static TArray<UObject*> StaticProcessedObjects;
+		static FOrderedObjectSet StaticProcessedObjects;
 		static TSet<UObject*> StaticSerializedObjects;
 		
 		
@@ -2283,7 +2292,6 @@ public:
 	 * Constructor
 	 */
 	FExportReferenceSorter()
-		: FArchiveUObject(), CurrentInsertIndex(INDEX_NONE), CoreReferencesOffset(INDEX_NONE), bIgnoreFieldReferences(false), CurrentClass(nullptr)
 	{
 		ArIsObjectReferenceCollector = true;
 		this->SetIsPersistent(true);
@@ -2620,12 +2628,12 @@ private:
 	/**
 	 * The index into the ReferencedObjects array to insert new objects
 	 */
-	int32 CurrentInsertIndex;
+	int32 CurrentInsertIndex = INDEX_NONE;
 
 	/**
 	 * The index into the ReferencedObjects array for the first object not referenced by one of the core classes
 	 */
-	int32 CoreReferencesOffset;
+	int32 CoreReferencesOffset = INDEX_NONE;
 
 	/**
 	 * The classes which are pre-added to the array of ReferencedObjects.  Used for resolving a number of circular dependecy issues between
@@ -2636,22 +2644,20 @@ private:
 	/**
 	 * The list of objects that have been evaluated by this archive so far.
 	 */
-	/*struct FOrderedObjectSet
+	struct FOrderedObjectSet
 	{
-		TMap<UObject*, int32> ObjectsSet;
-		// TArray<UObject*> ObjectsList;
+		TMap<UObject*, int32> ObjectsMap;
 
 		int32 Add(UObject* Object)
 		{
-			// int32 Index = ObjectsList.Add(Object);
-			int32 Index = ObjectsSet.Num(); // never use the list anyway so no point in even having it
-			ObjectsSet.Add(Object, Index);
+			const int32 Index = ObjectsMap.Num();
+			ObjectsMap.Add(Object, Index);
 			return Index;
 		}
 
 		inline int32 Find(UObject* Object) const
 		{
-			const int32 *Index = ObjectsSet.Find(Object);
+			const int32 *Index = ObjectsMap.Find(Object);
 			if (Index)
 			{
 				return *Index;
@@ -2660,11 +2666,10 @@ private:
 		}
 		inline int32 Num() const
 		{
-			return ObjectsSet.Num();
+			return ObjectsMap.Num();
 		}
-	};*/
-	TArray<UObject*> ProcessedObjects;
-	
+	};
+	FOrderedObjectSet ProcessedObjects;
 
 	/**
 	 * The list of objects that have been serialized; used to prevent calling Serialize on an object more than once.
@@ -2679,7 +2684,7 @@ private:
 	/**
 	 * Controls whether to process UField objects encountered during serialization of an object.
 	 */
-	bool bIgnoreFieldReferences;
+	bool bIgnoreFieldReferences = false;
 
 	/**
 	 * The UClass currently being processed.  This is used to prevent serialization of a UStruct's Children member causing other fields of the same class to be processed too early due
@@ -2688,10 +2693,10 @@ private:
 	 * the "second" function would be created first, which would end up force-loading the struct.  This would cause an unacceptible seek because the struct appears later in the export list, thus
 	 * hasn't been created yet.
 	 */
-	UClass* CurrentClass;
+	UClass* CurrentClass = nullptr;
 
 	/** Package to constrain checks to */
-	UPackage* PackageToSort;
+	UPackage* PackageToSort = nullptr;
 };
 
 /**
@@ -3139,31 +3144,21 @@ EObjectMark UPackage::GetExcludedObjectMarksForTargetPlatform( const class ITarg
 bool ExportObjectSorter(const UObject& Lhs, const UObject& Rhs)
 {
 	// Check names first.
-	if (Lhs.GetFName() < Rhs.GetFName())
+	if (Lhs.GetFName() != Rhs.GetFName())
 	{
-		return true;
-	}
-
-	if (Lhs.GetFName() > Rhs.GetFName())
-	{
-		return false;
+		return Lhs.GetFName().LexicalLess(Rhs.GetFName());
 	}
 
 	// Names equal, compare class names.
-	if (Lhs.GetClass()->GetFName() < Rhs.GetClass()->GetFName())
+	if (Lhs.GetClass()->GetFName() != Rhs.GetClass()->GetFName())
 	{
-		return true;
-	}
-
-	if (Lhs.GetClass()->GetFName() > Rhs.GetClass()->GetFName())
-	{
-		return false;
+		return Lhs.GetClass()->GetFName().LexicalLess(Rhs.GetClass()->GetFName());
 	}
 
 	// Compare by outers if they exist.
 	if (Lhs.GetOuter() && Rhs.GetOuter())
 	{
-		return Lhs.GetOuter()->GetFName() < Rhs.GetOuter()->GetFName();
+		return Lhs.GetOuter()->GetFName().LexicalLess(Rhs.GetOuter()->GetFName());
 	}
 
 	if (Lhs.GetOuter())
@@ -3664,11 +3659,14 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 		// point to the new version of the path
 		Filename = *NewPath;
 
-		// We need to fulfill all pending streaming and async loading requests to then allow us to lock the global IO manager. 
-		// The latter implies flushing all file handles which is a pre-requisite of saving a package. The code basically needs 
-		// to be sure that we are not reading from a file that is about to be overwritten and that there is no way we might 
-		// start reading from the file till we are done overwriting it.
-		FlushAsyncLoading();
+		if (!bSavingConcurrent)
+		{
+			// We need to fulfill all pending streaming and async loading requests to then allow us to lock the global IO manager. 
+			// The latter implies flushing all file handles which is a pre-requisite of saving a package. The code basically needs 
+			// to be sure that we are not reading from a file that is about to be overwritten and that there is no way we might 
+			// start reading from the file till we are done overwriting it.
+			FlushAsyncLoading();
+		}
 
 		(*GFlushStreamingFunc)();
 
@@ -3850,7 +3848,14 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 						: bSavingConcurrent(InSavingConcurrent)
 					{
 						// We need the same lock as GC so that no StaticFindObject can happen in parallel to saveing a package
-						FGCCSyncObject::Get().GCLock();
+						if (IsInGameThread())
+						{
+							FGCCSyncObject::Get().GCLock();
+						}
+						else
+						{
+							FGCCSyncObject::Get().LockAsync();
+						}
 
 						// Do not change GIsSavingPackage while saving concurrently. It should have been set before and after all packages are saved
 						if (!bSavingConcurrent)
@@ -3864,7 +3869,14 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 						{
 							GIsSavingPackage = false;
 						}
-						FGCCSyncObject::Get().GCUnlock();
+						if (IsInGameThread())
+						{
+							FGCCSyncObject::Get().GCUnlock();
+						}
+						else
+						{
+							FGCCSyncObject::Get().UnlockAsync();
+						}
 					}
 
 					bool bSavingConcurrent;
@@ -3976,7 +3988,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					Linker = TUniquePtr<FLinkerSave>(new FLinkerSave(InOuter, *TempFilename, bForceByteSwapping, bSaveUnversioned));
 				}
 
-#if WITH_EDITOR
+#if WITH_TEXT_ARCHIVE_SUPPORT
 				if (bTextFormat)
 				{
 					TextFormatArchive = IFileManager::Get().CreateFileWriter(*TextFormatTempFilename);
@@ -4427,7 +4439,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					}
 
 					// Free the file handle and delete the temporary file
-					Linker->Detach();
+					Linker->CloseAndDestroySaver();
 					IFileManager::Get().Delete( *TempFilename );
 					if (!(SaveFlags & SAVE_NoError))
 					{
@@ -4479,7 +4491,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					}
 
 					// free the file handle and delete the temporary file
-					Linker->Detach();
+					Linker->CloseAndDestroySaver();
 					IFileManager::Get().Delete(*TempFilename);
 					if (!(SaveFlags & SAVE_NoError))
 					{
@@ -4539,17 +4551,17 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				if ( GOutputCookingWarnings )
 				{
 					// check the name list for uniqueobjectnamefor cooking
-					static FName NAME_UniqueObjectNameForCooking(TEXT("UniqueObjectNameForCooking"));
+					static FNameEntryId NAME_UniqueObjectNameForCooking = FName("UniqueObjectNameForCooking").GetComparisonIndex();
 
-					for (const auto& NameInUse : Linker->NameMap)
+					for (FNameEntryId NameInUse : Linker->NameMap)
 					{
-						if (NameInUse.GetComparisonIndex() == NAME_UniqueObjectNameForCooking.GetComparisonIndex())
+						if (FName::GetComparisonIdFromDisplayId(NameInUse) == NAME_UniqueObjectNameForCooking)
 						{
 							//UObject *Object = FindObject<UObject>( ANY_PACKAGE, *NameInUse.ToString());
 
 							// error
 							// check(Object);
-							UE_LOG(LogSavePackage, Warning, TEXT("Saving object into cooked package %s which was created at cook time, Object Name %s"), Filename, *NameInUse.ToString());
+							UE_LOG(LogSavePackage, Warning, TEXT("Saving object into cooked package %s which was created at cook time"), Filename);
 						}
 					}
 				}
@@ -4572,6 +4584,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				SlowTask.EnterProgressFrame();
 
 				// Save names.
+				if (!bTextFormat)
 				{
 					FStructuredArchive::FStream NameStream = StructuredArchiveRoot.EnterStream(FIELD_NAME_TEXT("Names"));
 #if WITH_EDITOR
@@ -4581,7 +4594,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					Linker->Summary.NameCount = Linker->NameMap.Num();
 					for (int32 i = 0; i < Linker->NameMap.Num(); i++)
 					{
-						Linker->NameMap[i].GetDisplayNameEntry()->Write(NameStream.EnterElement());
+						FName::GetEntry(Linker->NameMap[i])->Write(NameStream.EnterElement());
 						Linker->NameIndices.Add(Linker->NameMap[i], i);
 					}
 				}
@@ -5461,6 +5474,9 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					Linker->StartScriptSHAGeneration();
 				}
 
+#if WITH_EDITOR
+				TArray<FLargeMemoryWriter, TInlineAllocator<4>> AdditionalFilesFromExports;
+#endif
 				{
 					COOK_STAT(FScopedDurationTimer SaveTimer(SavePackageStats::SerializeExportsTimeSec));
 #if WITH_EDITOR
@@ -5529,9 +5545,14 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 								}
 
 #if WITH_EDITOR
-								if (Linker->IsCooking())
+								if (bIsCooking)
 								{
-									Export.Object->CookAdditionalFiles(Filename, Linker->CookingTarget());
+									Export.Object->CookAdditionalFiles(Filename, TargetPlatform,
+										[&AdditionalFilesFromExports](const TCHAR* Filename, void* Data, int64 Size)
+									{
+										FLargeMemoryWriter& Writer = AdditionalFilesFromExports.Emplace_GetRef(0, true, Filename);
+										Writer.Serialize(Data, Size);
+									});
 								}
 #endif
 							}
@@ -5776,6 +5797,30 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				}
 
 				Linker->BulkDataToAppend.Empty();
+
+#if WITH_EDITOR
+				if (bIsCooking && AdditionalFilesFromExports.Num() > 0)
+				{
+					const bool bWriteFileToDisk = !bDiffing;
+					for (FLargeMemoryWriter& Writer : AdditionalFilesFromExports)
+					{
+						const int64 Size = Writer.TotalSize();
+						TotalPackageSizeUncompressed += Size;
+						if (bComputeHash)
+						{
+							CookedPackageHash.Update(Writer.GetData(), Size);
+						}
+						if (bWriteFileToDisk)
+						{
+							FLargeMemoryPtr DataPtr(Writer.GetData());
+							Writer.ReleaseOwnership();
+							AsyncWriteFile(MoveTemp(DataPtr), Size, *Writer.GetArchiveName(), FDateTime::MinValue(), false);
+						}
+					}
+					AdditionalFilesFromExports.Empty();
+				}
+#endif
+
 			
 				// write the package post tag
 				if (!bTextFormat)
@@ -5950,14 +5995,22 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				}
 				SlowTask.EnterProgressFrame();
 
-				// Detach archive used for saving, closing file handle.
+				// Destroy archives used for saving, closing file handle.
 				if (!bSaveAsync)
 				{
-					Linker->Detach();
+					const bool bFileWriterSuccess = Linker->CloseAndDestroySaver();
 
 					delete StructuredArchive;
 					delete Formatter;
 					delete TextFormatArchive;
+
+					if (!bFileWriterSuccess)
+					{
+						IFileManager::Get().Delete(*TempFilename);
+						UE_LOG(LogSavePackage, Error, TEXT("Error writing temp file '%s' for '%s'"),
+							*TempFilename, Filename);
+						return ESavePackageResult::Error;
+					}
 				}
 				UNCLOCK_CYCLES(Time);
 				UE_CLOG(!bDiffing, LogSavePackage, Verbose,  TEXT("Save=%.2fms"), FPlatformTime::ToMilliseconds(Time) );
@@ -6042,7 +6095,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 								AsyncWriteFile(MoveTemp(DataPtr), DataSize, *NewPathToSave, FinalTimeStamp);
 							}
 						}
-						Linker->Detach();
+						Linker->CloseAndDestroySaver();
 
 						delete StructuredArchive;
 						delete Formatter;

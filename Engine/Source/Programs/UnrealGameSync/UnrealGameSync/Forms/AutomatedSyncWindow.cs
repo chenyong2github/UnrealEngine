@@ -109,17 +109,19 @@ namespace UnrealGameSync
 			public string WorkspaceName;
 			public bool bRequiresStreamSwitch;
 		}
-		
+
 		string StreamName;
 		TextWriter Log;
 
-		string ServerAndPort;
-		string UserName;
+		string ServerAndPortOverride;
+		string UserNameOverride;
+        PerforceConnection DefaultConnection;
 		WorkspaceInfo SelectedWorkspaceInfo;
 
-		private AutomatedSyncWindow(string StreamName, string ProjectPath, string WorkspaceName, TextWriter Log)
+		private AutomatedSyncWindow(string StreamName, string ProjectPath, string WorkspaceName, PerforceConnection DefaultConnection, TextWriter Log)
 		{
 			this.StreamName = StreamName;
+			this.DefaultConnection = DefaultConnection;
 			this.Log = Log;
 
 			InitializeComponent();
@@ -141,14 +143,19 @@ namespace UnrealGameSync
 			UpdateOkButton();
 		}
 
-		public static bool ShowModal(IWin32Window Owner, string StreamName, string ProjectPath, out WorkspaceInfo WorkspaceInfo, TextWriter Log)
+		private PerforceConnection Perforce
+		{
+			get { return Utility.OverridePerforceSettings(DefaultConnection, ServerAndPortOverride, UserNameOverride); }
+		}
+
+		public static bool ShowModal(IWin32Window Owner, PerforceConnection DefaultConnection, string StreamName, string ProjectPath, out WorkspaceInfo WorkspaceInfo, TextWriter Log)
 		{
 			FindDefaultWorkspaceTask FindWorkspace = new FindDefaultWorkspaceTask(StreamName);
 
 			string ErrorMessage;
-			PerforceModalTask.Execute(Owner, null, null, null, FindWorkspace, "Finding workspace", "Finding default workspace, please wait...", Log, out ErrorMessage);
+			PerforceModalTask.Execute(Owner, DefaultConnection, FindWorkspace, "Finding workspace", "Finding default workspace, please wait...", Log, out ErrorMessage);
 
-			AutomatedSyncWindow Window = new AutomatedSyncWindow(StreamName, ProjectPath, FindWorkspace.WorkspaceName, Log);
+			AutomatedSyncWindow Window = new AutomatedSyncWindow(StreamName, ProjectPath, FindWorkspace.WorkspaceName, DefaultConnection, Log);
 			if(Window.ShowDialog() == DialogResult.OK)
 			{
 				WorkspaceInfo = Window.SelectedWorkspaceInfo;
@@ -163,26 +170,22 @@ namespace UnrealGameSync
 
 		private void ChangeLink_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
 		{
-			string NewServerAndPort;
-			string NewUserName;
-			if(ConnectWindow.ShowModal(this, ServerAndPort, UserName, Log, out NewServerAndPort, out NewUserName))
+			if(ConnectWindow.ShowModal(this, DefaultConnection, ref ServerAndPortOverride, ref UserNameOverride, Log))
 			{
-				ServerAndPort = NewServerAndPort;
-				UserName = NewUserName;
 				UpdateServerLabel();
 			}
 		}
 
 		private void UpdateServerLabel()
 		{
-			ServerLabel.Text = OpenProjectWindow.GetServerLabelText(ServerAndPort, UserName);
+			ServerLabel.Text = OpenProjectWindow.GetServerLabelText(DefaultConnection, ServerAndPortOverride, UserNameOverride);
 			ChangeLink.Location = new Point(ServerLabel.Right + 5, ChangeLink.Location.Y);
 		}
 
 		private void WorkspaceNameNewBtn_Click(object sender, EventArgs e)
 		{
 			string WorkspaceName;
-			if(NewWorkspaceWindow.ShowModal(this, ServerAndPort, UserName, StreamName, WorkspaceNameTextBox.Text, Log, out WorkspaceName))
+			if(NewWorkspaceWindow.ShowModal(this, Perforce, StreamName, WorkspaceNameTextBox.Text, Log, out WorkspaceName))
 			{
 				WorkspaceNameTextBox.Text = WorkspaceName;
 				UpdateOkButton();
@@ -192,7 +195,7 @@ namespace UnrealGameSync
 		private void WorkspaceNameBrowseBtn_Click(object sender, EventArgs e)
 		{
 			string WorkspaceName = WorkspaceNameTextBox.Text;
-			if(SelectWorkspaceWindow.ShowModal(this, ServerAndPort, UserName, WorkspaceName, Log, out WorkspaceName))
+			if(SelectWorkspaceWindow.ShowModal(this, Perforce, WorkspaceName, Log, out WorkspaceName))
 			{
 				WorkspaceNameTextBox.Text = WorkspaceName;
 				UpdateOkButton();
@@ -209,7 +212,7 @@ namespace UnrealGameSync
 			ValidateWorkspaceTask ValidateWorkspace = new ValidateWorkspaceTask(WorkspaceNameTextBox.Text, StreamName);
 
 			string ErrorMessage;
-			ModalTaskResult Result = PerforceModalTask.Execute(Owner, null, ServerAndPort, UserName, ValidateWorkspace, "Checking workspace", "Checking workspace, please wait...", Log, out ErrorMessage);
+			ModalTaskResult Result = PerforceModalTask.Execute(Owner, Perforce, ValidateWorkspace, "Checking workspace", "Checking workspace, please wait...", Log, out ErrorMessage);
 			if(Result == ModalTaskResult.Failed)
 			{
 				MessageBox.Show(ErrorMessage);

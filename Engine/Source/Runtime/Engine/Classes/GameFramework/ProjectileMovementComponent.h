@@ -98,7 +98,8 @@ class ENGINE_API UProjectileMovementComponent : public UMovementComponent
 
 	/**
 	 * If true and there is an interpolated component set, location (and optionally rotation) interpolation is enabled which allows the interpolated object to smooth uneven updates
-	 * of the UpdatedComponent's location (usually to smooth network updates). 
+	 * of the UpdatedComponent's location (usually to smooth network updates). This requires using SetInterpolatedComponent() to indicate the visual component that lags behind the collision,
+	 * and using MoveInterpolationTarget() when the new target location/rotation is received (usually on a net update).
 	 * @see SetInterpolatedComponent(), MoveInterpolationTarget()
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=ProjectileInterpolation)

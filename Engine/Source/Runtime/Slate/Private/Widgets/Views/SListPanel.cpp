@@ -6,35 +6,28 @@
 
 FNoChildren SListPanel::NoChildren = FNoChildren();
 
+// Used to subtract a tiny amount from the available dimension to avoid floating point precision problems when arranging children
+static const float FloatingPointPrecisionOffset = 0.001f;
+
 SListPanel::SListPanel()
 	: Children(this)
 {
 }
 
-/**
- * Construct the widget
- *
- * @param InArgs   A declaration from which to construct the widget
- */
 void SListPanel::Construct( const FArguments& InArgs )
 {
-	PreferredRowNum = 0;
-	SmoothScrollOffsetInItems = 0;
-	OverscrollAmount = 0;
 	ItemWidth = InArgs._ItemWidth;
 	ItemHeight = InArgs._ItemHeight;
 	NumDesiredItems = InArgs._NumDesiredItems;
 	ItemAlignment = InArgs._ItemAlignment;
-	bIsRefreshPending = false;
+	Orientation = InArgs._ListOrientation;
 }
 
-/** Make a new ListPanel::Slot  */
 SListPanel::FSlot& SListPanel::Slot()
 {
 	return *(new FSlot());
 }
 	
-/** Add a slot to the ListPanel */
 SListPanel::FSlot& SListPanel::AddSlot(int32 InsertAtIndex)
 {
 	FSlot& NewSlot = SListPanel::Slot();
@@ -49,80 +42,80 @@ SListPanel::FSlot& SListPanel::AddSlot(int32 InsertAtIndex)
 	
 	return NewSlot;
 }
-	
-/**
- * Arrange the children top-to-bottom with not additional layout info.
- */
+
 void SListPanel::OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const
 {
-	if ( ShouldArrangeHorizontally() )
+	if (Children.Num() > 0)
 	{
-		const EListItemAlignment ListItemAlignment = ItemAlignment.Get();
+		const FTableViewDimensions AllottedDimensions(Orientation, AllottedGeometry.GetLocalSize());
+		FTableViewDimensions DimensionsSoFar(Orientation);
 
-		// This is a tile view list, arrange items horizontally until there is no more room then create a new row.
-		const float AllottedWidth = AllottedGeometry.GetLocalSize().X;
-		const float ItemPadding = GetItemPadding(AllottedGeometry, ListItemAlignment);
-		const float HalfItemPadding = ItemPadding * 0.5;
-
-		const FVector2D LocalItemSize = GetItemSize(AllottedGeometry, ListItemAlignment);
-
-		float WidthSoFar = 0;
-		float HeightSoFar = -FMath::FloorToInt(SmoothScrollOffsetInItems * LocalItemSize.Y) - OverscrollAmount;
-
-		bool bIsNewLine = true;
-		for( int32 ItemIndex = 0; ItemIndex < Children.Num(); ++ItemIndex )
+		if (ShouldArrangeAsTiles())
 		{
-			if ( bIsNewLine )
+			// This is a tile view list - arrange items side by side along the line axis until there is no more room, then create a new line along the scroll axis.
+			const EListItemAlignment ListItemAlignment = ItemAlignment.Get();
+			const float ItemPadding = GetItemPadding(AllottedGeometry, ListItemAlignment);
+			const float HalfItemPadding = ItemPadding * 0.5;
+
+			const FTableViewDimensions LocalItemSize = GetItemSize(AllottedGeometry, ListItemAlignment);
+			DimensionsSoFar.ScrollAxis = -FMath::FloorToInt(FirstLineScrollOffset * LocalItemSize.ScrollAxis) - OverscrollAmount;
+
+			bool bIsNewLine = true;
+			for (int32 ItemIndex = 0; ItemIndex < Children.Num(); ++ItemIndex)
 			{
-				if ( ListItemAlignment == EListItemAlignment::RightAligned || ListItemAlignment == EListItemAlignment::CenterAligned )
+				if (bIsNewLine)
 				{
-					const float LinePadding = GetLinePadding(AllottedGeometry, ItemIndex);
-					const bool IsVisible = Children[ItemIndex].GetWidget()->GetVisibility().IsVisible();
-					if ( ListItemAlignment == EListItemAlignment::RightAligned )
+					if (ListItemAlignment == EListItemAlignment::RightAligned || ListItemAlignment == EListItemAlignment::CenterAligned)
 					{
-						WidthSoFar += IsVisible ? LinePadding : 0;
+						const float LinePadding = GetLinePadding(AllottedGeometry, ItemIndex);
+						const bool IsVisible = Children[ItemIndex].GetWidget()->GetVisibility().IsVisible();
+						if (ListItemAlignment == EListItemAlignment::RightAligned)
+						{
+							DimensionsSoFar.LineAxis += IsVisible ? LinePadding : 0;
+						}
+						else
+						{
+							const float HalfLinePadding = LinePadding * 0.5;
+							DimensionsSoFar.LineAxis += IsVisible ? HalfLinePadding : 0;
+						}
 					}
-					else
-					{
-						const float HalfLinePadding = LinePadding * 0.5;
-						WidthSoFar += IsVisible ? HalfLinePadding : 0;
-					}
+
+					bIsNewLine = false;
 				}
 
-				bIsNewLine = false;
-			}
+				FTableViewDimensions ChildOffset = DimensionsSoFar;
+				ChildOffset.LineAxis += HalfItemPadding;
+				ArrangedChildren.AddWidget(AllottedGeometry.MakeChild(Children[ItemIndex].GetWidget(), ChildOffset.ToVector2D(), LocalItemSize.ToVector2D()));
 
-			ArrangedChildren.AddWidget(
-				AllottedGeometry.MakeChild(Children[ItemIndex].GetWidget(), FVector2D(WidthSoFar + HalfItemPadding, HeightSoFar), LocalItemSize)
-				);
-		
-			WidthSoFar += LocalItemSize.X + ItemPadding;
-
-			if ( WidthSoFar + LocalItemSize.X + ItemPadding > AllottedWidth )
-			{
-				WidthSoFar = 0;
-				HeightSoFar += LocalItemSize.Y;
-				bIsNewLine = true;
+				DimensionsSoFar.LineAxis += LocalItemSize.LineAxis + ItemPadding;
+				if (DimensionsSoFar.LineAxis + LocalItemSize.LineAxis + ItemPadding > AllottedDimensions.LineAxis)
+				{
+					DimensionsSoFar.LineAxis = 0;
+					DimensionsSoFar.ScrollAxis += LocalItemSize.ScrollAxis;
+					bIsNewLine = true;
+				}
 			}
 		}
-	}
-	else
-	{
-		if (Children.Num() > 0)
+		else
 		{
-			// This is a normal list, arrange items vertically
-			float HeightSoFar = -FMath::FloorToInt(SmoothScrollOffsetInItems * Children[0].GetWidget()->GetDesiredSize().Y) - OverscrollAmount;
-			for( int32 ItemIndex = 0; ItemIndex < Children.Num(); ++ItemIndex )
+			// This is a normal list, arrange items in a line along the scroll axis
+			const FTableViewDimensions FirstChildDimensions(Orientation, Children[0].GetWidget()->GetDesiredSize());
+			DimensionsSoFar.ScrollAxis = -FMath::FloorToInt(FirstLineScrollOffset * FirstChildDimensions.ScrollAxis) - OverscrollAmount;
+			
+			for (int32 ItemIndex = 0; ItemIndex < Children.Num(); ++ItemIndex)
 			{
-				const FVector2D ItemDesiredSize = Children[ItemIndex].GetWidget()->GetDesiredSize();
-				const bool IsVisible = Children[ItemIndex].GetWidget()->GetVisibility().IsVisible();
-				const float LocalItemHeight = IsVisible ? ItemDesiredSize.Y : 0.f;
+				const FTableViewDimensions WidgetDesiredDimensions(Orientation, Children[ItemIndex].GetWidget()->GetDesiredSize());
+				const bool bIsVisible = Children[ItemIndex].GetWidget()->GetVisibility().IsVisible();
+				
+				FTableViewDimensions FinalWidgetDimensions(Orientation);
+				FinalWidgetDimensions.ScrollAxis = bIsVisible ? WidgetDesiredDimensions.ScrollAxis : 0.f;
+				FinalWidgetDimensions.LineAxis = AllottedDimensions.LineAxis;
 
 				ArrangedChildren.AddWidget(
-					AllottedGeometry.MakeChild( Children[ItemIndex].GetWidget(), FVector2D(0, HeightSoFar), FVector2D(AllottedGeometry.GetLocalSize().X, LocalItemHeight) )
-					);
+					AllottedGeometry.MakeChild(Children[ItemIndex].GetWidget(), DimensionsSoFar.ToVector2D(), FinalWidgetDimensions.ToVector2D())
+				);
 
-				HeightSoFar += LocalItemHeight;
+				DimensionsSoFar.ScrollAxis += FinalWidgetDimensions.ScrollAxis;
 			}
 		}
 	}
@@ -130,62 +123,67 @@ void SListPanel::OnArrangeChildren( const FGeometry& AllottedGeometry, FArranged
 	
 void SListPanel::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
 {
-	if (ShouldArrangeHorizontally())
+	if (ShouldArrangeAsTiles())
 	{
+		const FTableViewDimensions AllottedDimensions(Orientation, AllottedGeometry.GetLocalSize());
+
 		const EListItemAlignment ListItemAlignment = ItemAlignment.Get();
-		const float AllottedWidth = AllottedGeometry.GetLocalSize().X;
 		const float ItemPadding = GetItemPadding(AllottedGeometry, ListItemAlignment);
-		const FVector2D LocalItemSize = GetItemSize(AllottedGeometry, ListItemAlignment);
-		const float TotalItemWidth = LocalItemSize.X + ItemPadding;
+		FTableViewDimensions ItemDimensions = GetItemSize(AllottedGeometry, ListItemAlignment);
+		ItemDimensions.LineAxis += ItemPadding;
+
 		const int32 NumChildren = NumDesiredItems.Get();
 
-		if ( TotalItemWidth > 0.0f && NumChildren > 0)
+		if (ItemDimensions.LineAxis > 0.0f && NumChildren > 0)
 		{
-			int32 NumColumns = FMath::Clamp(FMath::CeilToInt(AllottedWidth / TotalItemWidth) - 1, 1, NumChildren);
-			PreferredRowNum = FMath::CeilToInt(NumChildren / (float)NumColumns);
+			const int32 NumItemsPerLine = FMath::Clamp(FMath::CeilToInt(AllottedDimensions.LineAxis / ItemDimensions.LineAxis) - 1, 1, NumChildren);
+			PreferredNumLines = FMath::CeilToInt(NumChildren / (float)NumItemsPerLine);
 		}
 		else
 		{
-			PreferredRowNum = 1;
+			PreferredNumLines = 1;
 		}
 	}
 	else
 	{
-		PreferredRowNum = NumDesiredItems.Get();
+		PreferredNumLines = NumDesiredItems.Get();
 	}
 }
-	
-/**
- * Simply the sum of all the children (vertically), and the largest width (horizontally).
- */
+
 FVector2D SListPanel::ComputeDesiredSize( float ) const
 {
-	float MaxWidth = 0;
-	float TotalHeight = 0;
-	for( int32 ItemIndex = 0; ItemIndex < Children.Num(); ++ItemIndex )
+	FTableViewDimensions DesiredListPanelDimensions(Orientation);
+
+	if (ShouldArrangeAsTiles())
 	{
-		// Notice that we do not respect child Visibility.
-		// It is simply not useful for ListPanels.
-		FVector2D ChildDesiredSize = Children[ItemIndex].GetWidget()->GetDesiredSize();
-		MaxWidth = FMath::Max( ChildDesiredSize.X, MaxWidth );
-		TotalHeight += ChildDesiredSize.Y;
+		FTableViewDimensions ItemDimensions = GetDesiredItemDimensions();
+
+		DesiredListPanelDimensions.LineAxis = ItemDimensions.LineAxis;
+		DesiredListPanelDimensions.ScrollAxis = ItemDimensions.ScrollAxis;
+	}
+	else if (Children.Num() > 0)
+	{
+		// Simply the sum of all the children along the scroll axis and the largest width along the line axis.
+		for (int32 ItemIndex = 0; ItemIndex < Children.Num(); ++ItemIndex)
+		{
+			// Notice that we do not respect child Visibility - it's not useful for ListPanels.
+			FTableViewDimensions ChildDimensions(Orientation, Children[ItemIndex].GetWidget()->GetDesiredSize());
+			DesiredListPanelDimensions.ScrollAxis += ChildDimensions.ScrollAxis;
+			DesiredListPanelDimensions.LineAxis = FMath::Max(DesiredListPanelDimensions.LineAxis, ChildDimensions.LineAxis);
+		}
+
+		DesiredListPanelDimensions.ScrollAxis /= Children.Num();
 	}
 
-	if (ShouldArrangeHorizontally())
-	{
-		return FVector2D( MaxWidth, ItemHeight.Get() * PreferredRowNum );
-	}
-	else
-	{
-		return (Children.Num() > 0)
-			? FVector2D( MaxWidth, TotalHeight/Children.Num()*PreferredRowNum )
-			: FVector2D::ZeroVector;
-	}
+	DesiredListPanelDimensions.ScrollAxis *= PreferredNumLines;
+	return DesiredListPanelDimensions.ToVector2D();
 }
 
-/**
- * @return A slot-agnostic representation of this panel's children
- */
+FChildren* SListPanel::GetAllChildren()
+{
+	return &Children;
+}
+
 FChildren* SListPanel::GetChildren()
 {
 	if (bIsRefreshPending)
@@ -202,10 +200,9 @@ FChildren* SListPanel::GetChildren()
 	
 }
 
-/** Set the offset of the view area from the top of the list. */
-void SListPanel::SmoothScrollOffset(float InOffsetInItems)
+void SListPanel::SetFirstLineScrollOffset(float InFirstLineScrollOffset)
 {
-	SmoothScrollOffsetInItems = InOffsetInItems;
+	FirstLineScrollOffset = InFirstLineScrollOffset;
 }
 
 void SListPanel::SetOverscrollAmount( float InOverscrollAmount )
@@ -213,20 +210,14 @@ void SListPanel::SetOverscrollAmount( float InOverscrollAmount )
 	OverscrollAmount = InOverscrollAmount;
 }
 
-/** Remove all the children from this panel */
 void SListPanel::ClearItems()
 {
 	Children.Empty();
 }
 
-float SListPanel::GetDesiredItemWidth() const
+FTableViewDimensions SListPanel::GetDesiredItemDimensions() const
 {
-	return ItemWidth.Get();
-}
-
-float SListPanel::GetDesiredItemHeight() const
-{
-	return ItemHeight.Get();
+	return FTableViewDimensions(Orientation, ItemWidth.Get(), ItemHeight.Get());
 }
 
 float SListPanel::GetItemPadding(const FGeometry& AllottedGeometry) const
@@ -236,78 +227,54 @@ float SListPanel::GetItemPadding(const FGeometry& AllottedGeometry) const
 
 float SListPanel::GetItemPadding(const FGeometry& AllottedGeometry, const EListItemAlignment ListItemAlignment) const
 {
-	// Subtract a tiny amount from the available width to avoid floating point precision problems when arranging children
-	static const float FloatingPointPrecisionOffset = 0.001f;
-
-	const float DesiredWidth = GetDesiredItemWidth();
-
-	// Only add padding between items if we have more total items that we can fit on a single row.  Otherwise,
-	// the padding around items would continue to change proportionately with the (ample) free horizontal space
-	float Padding = 0.0f;
-	switch ( ListItemAlignment )
+	if (ListItemAlignment == EListItemAlignment::EvenlyDistributed)
 	{
-		case EListItemAlignment::EvenlyDistributed:
+		FTableViewDimensions AllottedDimensions(Orientation, AllottedGeometry.GetLocalSize());
+		FTableViewDimensions DesiredDimensions = GetDesiredItemDimensions();
+
+		// Only add padding between items if we have more total items that we can fit on a single line.  Otherwise,
+		// the padding around items would continue to change proportionately with the (ample) free space along the line axis
+		const int32 NumItemsPerLine = DesiredDimensions.LineAxis > 0.f ? FMath::FloorToInt(AllottedDimensions.LineAxis / DesiredDimensions.LineAxis) : 0;
+		if (NumItemsPerLine > 0 && Children.Num() > NumItemsPerLine)
 		{
-			const int32 NumItemsWide = DesiredWidth > 0 ? FMath::FloorToInt(AllottedGeometry.Size.X / DesiredWidth) : 0;
-			if ( NumItemsWide > 0 && Children.Num() > NumItemsWide )
-			{
-				Padding = ( AllottedGeometry.Size.X - FloatingPointPrecisionOffset - NumItemsWide * DesiredWidth ) / NumItemsWide;
-			}
-			break;
+			return (AllottedDimensions.LineAxis - FloatingPointPrecisionOffset - (NumItemsPerLine * DesiredDimensions.LineAxis)) / NumItemsPerLine;
 		}
 	}
 
-	return Padding;
+	return 0.f;
 }
 
-FVector2D SListPanel::GetItemSize(const FGeometry& AllottedGeometry) const
+FTableViewDimensions SListPanel::GetItemSize(const FGeometry& AllottedGeometry) const
 {
 	return GetItemSize(AllottedGeometry, ItemAlignment.Get());
 }
 
-FVector2D SListPanel::GetItemSize(const FGeometry& AllottedGeometry, const EListItemAlignment ListItemAlignment) const
+FTableViewDimensions SListPanel::GetItemSize(const FGeometry& AllottedGeometry, const EListItemAlignment ListItemAlignment) const
 {
-	// Subtract a tiny amount from the available width to avoid floating point precision problems when arranging children
-	static const float FloatingPointPrecisionOffset = 0.001f;
+	const FTableViewDimensions AllottedDimensions(Orientation, AllottedGeometry.GetLocalSize());
+	const FTableViewDimensions ItemDimensions = GetDesiredItemDimensions();
 
-	const float DesiredWidth = GetDesiredItemWidth();
-	const float DesiredHeight = GetDesiredItemHeight();
+	// Only add padding between items if we have more total items that we can fit on a single line.  Otherwise,
+	// the padding around items would continue to change proportionately with the (ample) free space in our minor axis
+	const int32 NumItemsPerLine = ItemDimensions.LineAxis > 0 ? FMath::FloorToInt(AllottedDimensions.LineAxis / ItemDimensions.LineAxis) : 0;
 
-	float ExtraWidth = 0.0f;
-	float ExtraHeight = 0.0f;
-	switch ( ListItemAlignment )
+	FTableViewDimensions ExtraDimensions(Orientation);
+	if (NumItemsPerLine > 0)
 	{
-		case EListItemAlignment::Fill:
+		if (ListItemAlignment == EListItemAlignment::Fill || 
+			ListItemAlignment == EListItemAlignment::EvenlyWide || 
+			ListItemAlignment == EListItemAlignment::EvenlySize)
 		{
-			const int32 NumItemsWide = DesiredWidth > 0 ? FMath::Min(Children.Num(), FMath::FloorToInt(AllottedGeometry.Size.X / DesiredWidth)) : 0;
-			if ( NumItemsWide > 0 )
+			ExtraDimensions.LineAxis = (AllottedDimensions.LineAxis - FloatingPointPrecisionOffset - NumItemsPerLine * ItemDimensions.LineAxis) / NumItemsPerLine;
+			
+			if (ListItemAlignment == EListItemAlignment::EvenlySize)
 			{
-				ExtraWidth = ( AllottedGeometry.Size.X - FloatingPointPrecisionOffset - NumItemsWide * DesiredWidth ) / NumItemsWide;
+				ExtraDimensions.ScrollAxis = ItemDimensions.ScrollAxis * (ExtraDimensions.LineAxis / (ItemDimensions.LineAxis + ExtraDimensions.LineAxis));
 			}
-			break;
-		}
-		case EListItemAlignment::EvenlySize:
-		{
-			const int32 NumItemsWide = DesiredWidth > 0 ? FMath::FloorToInt(AllottedGeometry.Size.X / DesiredWidth) : 0;
-			if ( NumItemsWide > 0 )
-			{
-				ExtraWidth = ( AllottedGeometry.Size.X - FloatingPointPrecisionOffset - NumItemsWide * DesiredWidth ) / NumItemsWide;
-				ExtraHeight = DesiredHeight * ( ExtraWidth / ( DesiredWidth + ExtraWidth ) );
-			}
-			break;
-		}
-		case EListItemAlignment::EvenlyWide:
-		{
-			const int32 NumItemsWide = DesiredWidth > 0 ? FMath::FloorToInt(AllottedGeometry.Size.X / DesiredWidth) : 0;
-			if ( NumItemsWide > 0 )
-			{
-				ExtraWidth = ( AllottedGeometry.Size.X - FloatingPointPrecisionOffset - NumItemsWide * DesiredWidth ) / NumItemsWide;
-			}
-			break;
 		}
 	}
-
-	return FVector2D(DesiredWidth + ExtraWidth, DesiredHeight + ExtraHeight);
+	
+	return ItemDimensions + ExtraDimensions;
 }
 
 float SListPanel::GetLinePadding(const FGeometry& AllottedGeometry, const int32 LineStartIndex) const
@@ -318,14 +285,13 @@ float SListPanel::GetLinePadding(const FGeometry& AllottedGeometry, const int32 
 		return 0.0f;
 	}
 
-	const FVector2D LocalItemSize = GetItemSize(AllottedGeometry);
-	const int32 NumItemsWide = LocalItemSize.X > 0 ? FMath::FloorToInt(AllottedGeometry.Size.X / LocalItemSize.X) : 0;
-	const int32 NumItemsOnLine = FMath::Min(NumItemsLeft, NumItemsWide);
+	const FTableViewDimensions AllottedDimensions(Orientation, AllottedGeometry.GetLocalSize());
+	const FTableViewDimensions ItemSize = GetItemSize(AllottedGeometry);
 
-	// Subtract a tiny amount from the available width to avoid floating point precision problems when arranging children
-	static const float FloatingPointPrecisionOffset = 0.001f;
+	const int32 MaxNumItemsOnLine = ItemSize.LineAxis > 0 ? FMath::FloorToInt(AllottedDimensions.LineAxis / ItemSize.LineAxis) : 0;
+	const int32 NumItemsOnLine = FMath::Min(NumItemsLeft, MaxNumItemsOnLine);
 
-	return (AllottedGeometry.Size.X - FloatingPointPrecisionOffset - NumItemsOnLine * LocalItemSize.X);
+	return AllottedDimensions.LineAxis - FloatingPointPrecisionOffset - (NumItemsOnLine * ItemSize.LineAxis);
 }
 
 void SListPanel::SetRefreshPending( bool IsPendingRefresh )
@@ -338,9 +304,10 @@ bool SListPanel::IsRefreshPending() const
 	return bIsRefreshPending;
 }
 
-bool SListPanel::ShouldArrangeHorizontally() const
+bool SListPanel::ShouldArrangeAsTiles() const
 {
-	return GetDesiredItemWidth() > 0;
+	FTableViewDimensions DesiredItemDimensions = GetDesiredItemDimensions();
+	return DesiredItemDimensions.LineAxis > 0 && DesiredItemDimensions.ScrollAxis > 0;
 }
 
 void SListPanel::SetItemHeight(TAttribute<float> Height)

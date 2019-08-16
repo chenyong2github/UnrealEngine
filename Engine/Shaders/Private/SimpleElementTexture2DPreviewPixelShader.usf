@@ -8,22 +8,40 @@
 #include "ColorUtils.ush"
 #include "GammaCorrectionCommon.ush"
 
+#ifndef SAMPLE_VIRTUAL_TEXTURE
+#define SAMPLE_VIRTUAL_TEXTURE 0
+#endif
+
+#if SAMPLE_VIRTUAL_TEXTURE
+	#define NUM_VIRTUALTEXTURE_SAMPLES 1
+	#include "VirtualTextureCommon.ush"
+#endif
+
 #define WRITE_TO_GBUFFER (FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && !FORWARD_SHADING)
 
 Texture2D InTexture;
 SamplerState InTextureSampler;
+
+#if SAMPLE_VIRTUAL_TEXTURE
+Texture2D<uint4> InPageTableTexture0;
+Texture2D<uint4> InPageTableTexture1;
+uint4 VTPackedPageTableUniform[2];
+uint4 VTPackedUniform;
+#endif // SAMPLE_VIRTUAL_TEXTURE
 
 half4 TextureComponentReplicate;
 half4 TextureComponentReplicateAlpha;
 
 float4x4 ColorWeights;
 
-//x=Gamma, y=MipLevel, z=bIsNormalMap, w=Unused
+//x=Gamma, y=MipLevel, z=bIsNormalMap, w=VT Layer
 float4 PackedParams;
 
 void Main(
 	in float2 TextureCoordinate : TEXCOORD0,
 	in float4 Color : TEXCOORD1,
+	in float4 HitProxyId : TEXCOORD2,
+	in float4 InPosition : SV_POSITION,
 	out float4 OutColor : SV_Target0
 #if WRITE_TO_GBUFFER
 	,out float4 OutWorldNormal : SV_Target1 
@@ -33,17 +51,43 @@ void Main(
 	float Gamma = PackedParams.x;
 	float MipLevel = PackedParams.y;
 	float bIsNormalMap = PackedParams.z;
+	uint LayerIndex = (uint)PackedParams.w;
 
 	float4 FinalColor;
 	float4 Sample;
 
 	if( MipLevel >= 0.0f )
 	{
+#if SAMPLE_VIRTUAL_TEXTURE
+		VTPageTableResult PageTableResult = TextureLoadVirtualPageTableLevel(InPageTableTexture0, InPageTableTexture1, TextureCoordinate, MipLevel, VTPageTableUniform_Unpack(VTPackedPageTableUniform[0], VTPackedPageTableUniform[1]), VTADDRESSMODE_CLAMP, VTADDRESSMODE_CLAMP);
+		Sample = TextureVirtualSampleLevel( InTexture, InTextureSampler, PageTableResult, LayerIndex, VTUniform_Unpack(VTPackedUniform));
+
+
+		/*(Sample = TextureVirtualSampleLevel(	InTexture, InTextureSampler, InPageTableTexture,
+											VTPageTableUniform_Unpack(VTPackedPageTableUniform[0], VTPackedPageTableUniform[1]),
+											VTUniform_Unpack(VTPackedUniform),
+											InPosition.xy, request, 0,
+											TextureCoordinate, VTADDRESSMODE_CLAMP, VTADDRESSMODE_CLAMP,
+											MipLevel);*/
+#else
 		Sample = Texture2DSampleLevel(InTexture, InTextureSampler,TextureCoordinate,MipLevel);
+#endif
 	}
 	else
 	{
+#if SAMPLE_VIRTUAL_TEXTURE
+
+		VTPageTableResult PageTableResult = TextureLoadVirtualPageTableLevel(InPageTableTexture0, InPageTableTexture1, TextureCoordinate, 0.0f, VTPageTableUniform_Unpack(VTPackedPageTableUniform[0], VTPackedPageTableUniform[1]), VTADDRESSMODE_CLAMP, VTADDRESSMODE_CLAMP);
+		Sample = TextureVirtualSample( InTexture, InTextureSampler, PageTableResult, LayerIndex, VTUniform_Unpack(VTPackedUniform));
+
+		/*Sample = TextureVirtualSample(	InTexture, InTextureSampler, InPageTableTexture,
+										VTPageTableUniform_Unpack(VTPackedPageTableUniform[0], VTPackedPageTableUniform[1]),
+										VTUniform_Unpack(VTPackedUniform),
+										InPosition.xy, request, 0,
+										TextureCoordinate, VTADDRESSMODE_CLAMP, VTADDRESSMODE_CLAMP);*/
+#else
 		Sample = Texture2DSample(InTexture, InTextureSampler,TextureCoordinate);
+#endif
 	}
 
 	ReplicateChannel(Sample,TextureComponentReplicate,TextureComponentReplicateAlpha);

@@ -15,8 +15,16 @@
 #define WITH_DIAPHRAGM_DOF (PLATFORM_WINDOWS || PLATFORM_XBOXONE || PLATFORM_PS4 || PLATFORM_MAC || PLATFORM_LINUX || PLATFORM_IOS || PLATFORM_SWITCH)
 
 
+class FViewInfo;
+class FSceneTextureParameters;
+struct FTemporalAAHistory;
+
+
 namespace DiaphragmDOF
 {
+	
+float ComputeFocalLengthFromFov(const FSceneView& View);
+FVector4 CircleDofHalfCoc(const FViewInfo& View);
 
 /** Physically based circle of confusion computation model. */
 struct FPhysicalCocModel
@@ -128,7 +136,12 @@ inline bool IsSupported(EShaderPlatform ShaderPlatform)
 }
 
 
-/** Wire all DOF's passes according to view settings and cvars to convolve the scene color (Context.FinalOutput). */
-RENDERER_API bool WireSceneColorPasses(FPostprocessContext& Context, const FRenderingCompositeOutputRef& VelocityInput, const FRenderingCompositeOutputRef& SeparateTranslucency);
+/** Wire all DOF's passes according to view settings and cvars to convolve the scene color. */
+RENDERER_API FRDGTextureRef AddPasses(
+	FRDGBuilder& GraphBuilder,
+	const FSceneTextureParameters& SceneTextures,
+	const FViewInfo& View,
+	FRDGTextureRef InputSceneColor,
+	FRDGTextureRef SeparateTranslucency);
 
-}
+} // namespace DiaphragmDOF

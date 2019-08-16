@@ -1,7 +1,6 @@
-INTSourceChangelist:3782314
+INTSourceChangelist:6411904
 Availability:Public
 Title: 애니메이션 블루프린트
-Crumbs: %ROOT%, Engine, Engine/Animation
 Description:Animation Blueprint, 애니메이션 블루프린트란 복잡한 애니메이션 동작을 만들고 제어하는 데 사용되는 비주얼 스크립트입니다.
 Related: Engine/Blueprints/Overview
 Related: Engine/Content/FBX/Animations
@@ -16,7 +15,7 @@ tags:Animation
 tags:Animation Blueprint
 tags:Blueprints
 tags:State Machine
-tags:Assets
+tags:Animation Assets
 topic-image:Engine/Animation/Overview/AnimationBlueprintTopic.png
 
 [COMMENT:none]

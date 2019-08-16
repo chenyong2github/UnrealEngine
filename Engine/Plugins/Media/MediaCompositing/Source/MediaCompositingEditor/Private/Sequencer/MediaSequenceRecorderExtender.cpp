@@ -87,7 +87,7 @@ public:
 				.ContentPadding(0)
 				.OnClicked(this, &SSequenceRecorderMediaPlayerListRow::ToggleRecordingFrame)
 				.ButtonStyle(FEditorStyle::Get(), "NoBorder")
-				.ToolTipText(LOCTEXT("VideoFramesButtonToolTip", "Toggle Recording Video Frames"))
+				.ToolTipText(LOCTEXT("VideoFramesButtonToolTip", "Toggle Recording Video Frames\nSelect Media Player to show Media Player Recording Options"))
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
 				.Content()

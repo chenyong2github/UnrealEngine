@@ -1,11 +1,13 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
+﻿INTSourceChangelist:6078243
+Availability:Docs
 Title:5.应用程序化植物阻挡体积域
 Crumbs:
 Description:在该步骤中我们将设置一个阻挡体积域，对植物生成的区域进行限制。
 Navigation:topic
 SkillLevel:Intermediate
 Version:4.8
+
+## 页面已被合并，标记为Docs。 
 
 [VAR:Steps]
 [OBJECT:Navigation]

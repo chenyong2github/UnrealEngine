@@ -9,12 +9,7 @@ Parent:Engine/Niagara/HowTo
 Order: 5
 Tags: Niagara
 Tags: Early Access
-
-Prerequisite Topics
-
-This page assumes you have prior knowledge of the following topics. Please read them before proceeding.
-
-*   [Enable the Niagara Plugin](Engine/Niagara/HowTo/EnableNiagara "Describes how you can enable the Niagara Plugin.")
+prereq: Engine/Niagara/HowTo/EnableNiagara
 
 Simulating natural phenomena is challenging, especially when using sprite or mesh-based particles to simulate smoke or vapor trails. **Ribbon Emitters** are an excellent solution for simulating these objects. In the following How-To, you will learn how to set up a Niagara Emitter to emit a continuous ribbon-style particle effect into the world.
 

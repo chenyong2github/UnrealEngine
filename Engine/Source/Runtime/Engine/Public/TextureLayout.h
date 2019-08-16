@@ -8,6 +8,13 @@
 
 #include "CoreMinimal.h"
 
+enum class ETextureLayoutAspectRatio
+{
+	None,
+	Force2To1,
+	ForceSquare,
+};
+
 /**
  * An incremental texture space allocator.
  * For best results, add the elements ordered descending in size.
@@ -26,11 +33,11 @@ public:
 	 * @param	bInForce2To1Aspect - True if the texture size must have a 2:1 aspect.
 	 * @param	bInAlignByFour - True if the texture size must be a multiple of 4..
 	 */
-	FTextureLayout(uint32 MinSizeX, uint32 MinSizeY, uint32 MaxSizeX, uint32 MaxSizeY, bool bInPowerOfTwoSize = false, bool bInForce2To1Aspect = false, bool bInAlignByFour = true):
+	FTextureLayout(uint32 MinSizeX, uint32 MinSizeY, uint32 MaxSizeX, uint32 MaxSizeY, bool bInPowerOfTwoSize = false, ETextureLayoutAspectRatio InAspect = ETextureLayoutAspectRatio::None, bool bInAlignByFour = true):
 		SizeX(MinSizeX),
 		SizeY(MinSizeY),
+		AspectRatio(InAspect),
 		bPowerOfTwoSize(bInPowerOfTwoSize),
-		bForce2To1Aspect(bInForce2To1Aspect),
 		bAlignByFour(bInAlignByFour)
 	{
 		new(Nodes) FTextureLayoutNode(0, 0, MaxSizeX, MaxSizeY);
@@ -83,10 +90,21 @@ public:
 				SizeX = FMath::Max<uint32>(SizeX, FMath::RoundUpToPowerOfTwo(Node.MinX + ElementSizeX));
 				SizeY = FMath::Max<uint32>(SizeY, FMath::RoundUpToPowerOfTwo(Node.MinY + ElementSizeY));
 			
-				if (bForce2To1Aspect)
+				switch(AspectRatio)
 				{
+				case ETextureLayoutAspectRatio::None:
+					break;
+				case ETextureLayoutAspectRatio::ForceSquare:
+					SizeX = FMath::Max(SizeX, SizeY);
+					SizeY = SizeX;
+					break;
+				case ETextureLayoutAspectRatio::Force2To1:
 					SizeX = FMath::Max( SizeX, SizeY * 2 );
 					SizeY = FMath::Max( SizeY, SizeX / 2 );
+					break;
+				default:
+					checkNoEntry();
+					break;
 				}
 			}
 			else
@@ -200,8 +218,8 @@ private:
 
 	uint32 SizeX;
 	uint32 SizeY;
+	ETextureLayoutAspectRatio AspectRatio;
 	bool bPowerOfTwoSize;
-	bool bForce2To1Aspect;
 	bool bAlignByFour;
 	TArray<FTextureLayoutNode,TInlineAllocator<5> > Nodes;
 
@@ -266,10 +284,21 @@ private:
 					ExpectedSizeX = FMath::RoundUpToPowerOfTwo(ExpectedSizeX);
 					ExpectedSizeY = FMath::RoundUpToPowerOfTwo(ExpectedSizeY);
 
-					if (bForce2To1Aspect)
+					switch (AspectRatio)
 					{
-						ExpectedSizeX = FMath::Max( ExpectedSizeX, ExpectedSizeY * 2 );
-						ExpectedSizeY = FMath::Max( ExpectedSizeY, ExpectedSizeX / 2 );
+					case ETextureLayoutAspectRatio::None:
+						break;
+					case ETextureLayoutAspectRatio::ForceSquare:
+						ExpectedSizeX = FMath::Max(ExpectedSizeX, ExpectedSizeY);
+						ExpectedSizeY = ExpectedSizeX;
+						break;
+					case ETextureLayoutAspectRatio::Force2To1:
+						ExpectedSizeX = FMath::Max(ExpectedSizeX, ExpectedSizeY * 2);
+						ExpectedSizeY = FMath::Max(ExpectedSizeY, ExpectedSizeX / 2);
+						break;
+					default:
+						checkNoEntry();
+						break;
 					}
 				}
 				

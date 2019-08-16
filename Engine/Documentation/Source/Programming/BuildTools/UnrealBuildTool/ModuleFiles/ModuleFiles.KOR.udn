@@ -1,0 +1,86 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Title: Modules
+Description: An overview of UBT Modules, including property descriptions.
+Version: 4.21
+Parent: Programming/BuildTools/UnrealBuildTool
+Order: 1
+
+
+[TOC (start:2 end:4)]
+
+Modules are the building blocks of UE4. The engine is implemented as a large collection of modules, and games supply their own modules to augment them. Each module encapsulates a set of functionality, and can provide a public interface and compile environment (with macros, include paths, and so on) for use by other modules.
+
+Modules are declared through C# source files with a .build.cs extension, and are stored under your project's *Source* directory. The C++ source code belonging to a module is stored next to to the .build.cs file, or in subdirectories of it. Each .build.cs file declares a class deriving from the ModuleRules base class, and sets properties controlling how it should be built from its constructor. These .build.cs files are compiled by UnrealBuildTool and constructed to determine the overall compile environment.
+
+The typical structure for a .build.cs file is as follows.
+
+    using UnrealBuildTool;
+    using System.Collections.Generic;
+    public class MyModule : ModuleRules
+    {
+        public MyModule(ReadOnlyTargetRules Target) : base(Target)
+        {
+            // Settings go here
+        }
+    }
+
+## Read/Write Properties
+
+| Property | Description |
+| --- | --- |
+| Type (ModuleType) | Type of module |
+| BinariesSubFolder (String) | Subfolder of Binaries/PLATFORM folder to put this module in when building DLLs. This should only be used by modules that are found via searching like the TargetPlatform or ShaderFormat modules. If FindModules is not used to track them down, the modules will not be found. |
+| OptimizeCode (CodeOptimization) | When this module's code should be optimized. |
+| PrivatePCHHeaderFile (String) | Explicit private PCH for this module. Implies that this module will not use a shared PCH. |
+| SharedPCHHeaderFile (String) | Header file name for a shared PCH provided by this module. Must be a valid relative path to a public C++ header file. This should only be set for header files that are included by a significant number of other C++ modules. |
+| ShortName (String) | Specifies an alternate name for intermediate directories and files for intermediates of this module. Useful when hitting path length limitations. |
+| PCHUsage (PCHUsageMode) | Precompiled header usage for this module. |
+| bTreatAsEngineModule (Boolean) | Whether this module should be treated as an engine module (eg. using engine definitions, PCHs, compiled with optimizations enabled in DebugGame configurations, etc...). Initialized to a default based on the rules assembly it was created from. |
+| bUseBackwardsCompatibleDefaults (Boolean) | Whether to use backwards compatible defaults for this module. By default, engine modules always use the latest default settings, while project modules do not (to support an easier migration path). |
+| bUseRTTI (Boolean) | Use run time type information. |
+| bUseAVX (Boolean) | Use AVX instructions. |
+| bEnableBufferSecurityChecks (Boolean) | Enable buffer security checks. This should usually be enabled as it prevents severe security risks. |
+| bEnableExceptions (Boolean) | Enable exception handling. |
+| bEnableObjCExceptions (Boolean) | Enable objective C exception handling. |
+| bEnableShadowVariableWarnings (Boolean) | Enable warnings for shadowed variables. |
+| bEnableUndefinedIdentifierWarnings (Boolean) | Enable warnings for using undefined identifiers in #if expressions. |
+| bFasterWithoutUnity (Boolean) | If true and unity builds are enabled, this module will build without unity. |
+| MinSourceFilesForUnityBuildOverride (Int32) | The number of source files in this module before unity build will be activated for that module. If set to anything besides -1, will override the default setting which is controlled by MinGameModuleSourceFilesForUnityBuild. |
+| MinFilesUsingPrecompiledHeaderOverride (Int32) | Overrides BuildConfiguration.MinFilesUsingPrecompiledHeader if non-zero. |
+| bBuildLocallyWithSNDBS (Boolean) | Module uses a #import so must be built locally when compiling with SN-DBS. |
+| IsRedistributableOverride (Nullable<Boolean>) | Redistribution override flag for this module. |
+| bOutputPubliclyDistributable (Boolean) | Whether the output from this module can be publicly distributed, even if it has code/ dependencies on modules that are not (CarefullyRedist, NotForLicensees, NoRedist). This should be used when you plan to release binaries but not source. |
+| WhitelistRestrictedFolders (List<String>) | List of folders which are whitelisted to be referenced when compiling this binary, without propagating restricted folder names. |
+| bEnforceIWYU (Boolean) | Enforce "include what you use" rules when PCHUsage is set to ExplicitOrSharedPCH; warns when monolithic headers (Engine.h, UnrealEd.h, etc...) are used, and checks that source files include their matching header first. |
+| bAddDefaultIncludePaths (Boolean) | Whether to add all the default include paths to the module (eg. the Source/Classes folder, subfolders under Source/Public). |
+| bPrecompile (Boolean) | Whether this module should be precompiled. Defaults to the bPrecompile flag from the target. Clear this flag to prevent a module being precompiled. |
+| bUsePrecompiled (Boolean) | Whether this module should use precompiled data. Always true for modules created from installed assemblies. |
+| PublicIncludePathModuleNames (List<String>) | List of modules names (no path needed) with header files that our module's public headers needs access to, but we don't need to "import" or link against. |
+| PublicDependencyModuleNames (List<String>) | List of public dependency module names (no path needed) (automatically does the private/public include). These are modules that are required by our public source files. |
+| PrivateIncludePathModuleNames (List<String>) | List of modules name (no path needed) with header files that our module's private code files needs access to, but we don't need to "import" or link against. |
+| PrivateDependencyModuleNames (List<String>) | List of private dependency module names. These are modules that our private code depends on but nothing in our public include files depend on. |
+| CircularlyReferencedDependentModules (List<String>) | Only for legacy reasons, should not be used in new code. List of module dependencies that should be treated as circular references. This modules must have already been added to either the public or private dependent module list. |
+| PublicSystemIncludePaths (List<String>) | List of system/library include paths - typically used for External (third party) modules. These are public stable header file directories that are not checked when resolving header dependencies. |
+| PublicIncludePaths (List<String>) | (This setting is currently not need as we discover all files from the 'Public' folder) List of all paths to include files that are exposed to other modules. |
+| PrivateIncludePaths (List<String>) | List of all paths to this module's internal include files, not exposed to other modules (at least one include to the 'Private' path, more if we want to avoid relative paths). |
+| PublicLibraryPaths (List<String>) | List of system/library paths (directory of .lib files) - typically used for External (third party) modules. |
+| PrivateRuntimeLibraryPaths (List<String>) | List of search paths for libraries at runtime (such as .so files). |
+| PublicRuntimeLibraryPaths (List<String>) | List of search paths for libraries at runtime (such as .so files). |
+| PublicAdditionalLibraries (List<String>) | List of additional libraries (names of the .lib files including extension) - typically used for External (third party) modules. |
+| PublicFrameworks (List<String>) | List of XCode frameworks (iOS and MacOS). |
+| PublicWeakFrameworks (List<String>) | List of weak frameworks (for OS version transitions). |
+| PublicAdditionalFrameworks (List<Framework>) | List of addition frameworks - typically used for External (third party) modules on Mac and iOS. |
+| AdditionalBundleResources (List<BundleResource>) | List of addition resources that should be copied to the app bundle for Mac or iOS. |
+| PublicAdditionalShadowFiles (List<String>) | For builds that execute on a remote machine (e.g. iOS), this list contains additional files that need to be copied over in order for the app to link successfully. Source/header files and PCHs are automatically copied. Usually this is simply a list of precompiled third party library dependencies. |
+| PublicDelayLoadDLLs (List<String>) | List of delay load DLLs - typically used for External (third party) modules. |
+| PrivateDefinitions (List<String>) | Private compiler definitions for this module. |
+| PublicDefinitions (List<String>) | Public compiler definitions for this module. |
+| DynamicallyLoadedModuleNames (List<String>) | Addition modules this module may require at run-time. |
+| RuntimeDependencies (RuntimeDependencyList) | List of files which this module depends on at runtime. These files will be staged along with the target. |
+| AdditionalPropertiesForReceipt (ReceiptPropertyList) | List of additional properties to be added to the build receipt. |
+| PrecompileForTargets (PrecompileTargetsType) | Which targets this module should be precompiled for |
+| ExternalDependencies (List<String>) | External files which invalidate the makefile if modified. Relative paths are resolved relative to the .build.cs file. |
+| bRequiresImplementModule (Nullable<Boolean>) | Whether this module requires the IMPLEMENT\_MODULE macro to be implemented. Most UE4 modules require this, since we use the IMPLEMENT\_MODULE macro to do other global overloads (eg. operator new/delete forwarding to GMalloc). |
+| bLegacyPublicIncludePaths (Nullable<Boolean>) | Whether this module qualifies included headers from other modules relative to the root of their 'Public' folder. This reduces the number of search paths that have to be passed to the compiler, improving performance and reducing the length of the compiler command line. |
+| CppStandard (CppStandardVersion) | Which standard to use for compiling this module. |

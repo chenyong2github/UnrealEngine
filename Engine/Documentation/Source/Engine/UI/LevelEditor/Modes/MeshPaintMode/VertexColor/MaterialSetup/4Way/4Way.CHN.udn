@@ -1,17 +1,17 @@
-﻿INTSourceChangelist:1547582
+﻿INTSourceChangelist:3108692
 Availability: Public
 Title:4路混合材质
 Crumbs:%ROOT%, Engine, Engine/UI/LevelEditor/Modes/MeshPaintMode/VertexColor, Engine/UI/LevelEditor/Modes/MeshPaintMode/VertexColor/MaterialSetup
 Description:关于设置材质进行4路(ARGB)贴图混合的指南。
+Version: 4.9
+SkillLevel: Intermediate
 
 
 
 
 要想在混合权重设置中处理4张贴图，您需要创建一个类似于这样的材质:
 
-**点击查看完整尺寸**
-
-[![](4-way_material.png)(w:720)](4-way_material.png)
+![](4-way_material.png)
 
 这个材质的工作原理和3路混合材质设置类似，但引入了alpha到混合中，从而给出第四个混合选项。以下是该材质的工作原理：
 

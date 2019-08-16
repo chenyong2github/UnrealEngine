@@ -340,6 +340,7 @@ public:
 		FLevelEditorSequencerIntegrationOptions Options;
 		Options.bRequiresLevelEvents = true;
 		Options.bRequiresActorEvents = false;
+		Options.bForceRefreshDetails = false;
 		Options.bCanRecord = false;
 
 		FLevelEditorSequencerIntegration::Get().AddSequencer(Sequencer.ToSharedRef(), Options);
@@ -386,7 +387,7 @@ public:
 			UBlueprint* Blueprint = BlueprintEditor->GetBlueprintObj();
 			if (Blueprint)
 			{
-				EditingComponent = SelectedNode->GetEditableComponentTemplate(Blueprint);
+				EditingComponent = SelectedNode->GetOrCreateEditableComponentTemplate(Blueprint);
 			}
 		}
 		else if (AActor* Actor = GetPreviewActor())

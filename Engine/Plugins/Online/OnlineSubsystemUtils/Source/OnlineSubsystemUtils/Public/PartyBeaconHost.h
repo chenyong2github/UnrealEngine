@@ -252,10 +252,11 @@ class ONLINESUBSYSTEMUTILS_API APartyBeaconHost : public AOnlineBeaconHostObject
 	 * An existing reservation for this party leader must already exist
 	 * 
 	 * @param ReservationUpdateRequest reservation update information (doesn't need existing party members, simply a delta)
+	 * @param bIsRemovingMembers set to true if we wish to remove these members from the reservation instead of adding)
 	 *
 	 * @return update attempt result
 	 */
-	virtual EPartyReservationResult::Type UpdatePartyReservation(const FPartyReservation& ReservationUpdateRequest);
+	virtual EPartyReservationResult::Type UpdatePartyReservation(const FPartyReservation& ReservationUpdateRequest, bool bIsRemovingMembers);
 
 	/**
 	 * Attempts to remove a party reservation from the beacon
@@ -297,8 +298,9 @@ class ONLINESUBSYSTEMUTILS_API APartyBeaconHost : public AOnlineBeaconHostObject
 	 * @param Client client beacon making the request
 	 * @param SessionId id of the session that is being checked
 	 * @param ReservationRequest payload of the update request (existing reservation for party leader required)
+	 * @param bRemovingMembers true if this update is removing members, false if adding members.
 	 */
-	virtual void ProcessReservationUpdateRequest(APartyBeaconClient* Client, const FString& SessionId, const FPartyReservation& ReservationUpdateRequest);
+	virtual void ProcessReservationUpdateRequest(APartyBeaconClient* Client, const FString& SessionId, const FPartyReservation& ReservationUpdateRequest, bool bIsRemovingMember);
 
 	/**
 	 * Handle a reservation cancellation request received from an incoming client
@@ -406,6 +408,13 @@ protected:
 	 * @param NewPlayer reservation of newly joining player
 	 */
 	void NewPlayerAdded(const FPlayerReservation& NewPlayer);
+
+	/**
+	 * Handle a newly removed player
+	 *
+	 * @param NewPlayer reservation of newly removed player
+	 */
+	void PlayerRemoved(const FPlayerReservation& RemovedPlayer);
 
 	/**
 	 * Does the session match the one associated with this beacon

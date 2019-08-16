@@ -285,8 +285,12 @@ struct FOpenGLCommonState
 		CleanupResources();
 	}
 
+	// NumCombinedTextures must be greater than or equal to FOpenGL::GetMaxCombinedTextureImageUnits()
+	// NumComputeUAVUnits must be greater than or equal to OGL_MAX_COMPUTE_STAGE_UAV_UNITS
 	virtual void InitializeResources(int32 NumCombinedTextures, int32 NumComputeUAVUnits)
 	{
+		check(NumCombinedTextures >= FOpenGL::GetMaxCombinedTextureImageUnits());
+		check(NumComputeUAVUnits >= OGL_MAX_COMPUTE_STAGE_UAV_UNITS);
 		check(!Textures && !SamplerStates && !UAVs);
 		Textures = new FTextureStage[NumCombinedTextures];
 		SamplerStates = new FOpenGLSamplerState*[NumCombinedTextures];

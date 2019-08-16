@@ -11,33 +11,72 @@ FSequencerSectionLayoutBuilder::FSequencerSectionLayoutBuilder(TSharedRef<FSeque
 	, CurrentNode(InRootTrackNode)
 	, Section(InSection)
 	, bHasAnyLayout(false)
-{}
+{
+	InsertIndexStack.Add(0);
+}
+
+TSharedPtr<FSequencerDisplayNode> FindAndRelocateExistingNode(TSharedRef<FSequencerDisplayNode> ParentNode, int32 ExpectedIndex, ESequencerNode::Type NodeType, FName NodeName)
+{
+	auto MatchNode = [NodeType, NodeName](const TSharedRef<FSequencerDisplayNode>& InNode)
+	{
+		return InNode->GetType() == NodeType && InNode->GetNodeName() == NodeName;
+	};
+
+	const TArray<TSharedRef<FSequencerDisplayNode>>& CurrentChildren = ParentNode->GetChildNodes();
+
+	if (!ensureAlwaysMsgf(ExpectedIndex <= CurrentChildren.Num(), TEXT("Invalid desired index specified")))
+	{
+		ExpectedIndex = FMath::Clamp(ExpectedIndex, 0, CurrentChildren.Num());
+	}
+
+	// Common up-to-date case: check the desired insert index for an existing node that matches
+	if (CurrentChildren.IsValidIndex(ExpectedIndex) && MatchNode(CurrentChildren[ExpectedIndex]))
+	{
+		// Node already exists and is in the correct position
+		return CurrentChildren[ExpectedIndex];
+	}
+	// Rare-case: find an existing match at the wrong index, and move it to the correct index
+	else for (int32 Index = 0; Index < CurrentChildren.Num(); ++Index)
+	{
+		if (MatchNode(CurrentChildren[Index]))
+		{
+			// *Important - we copy the child here so that it's still valid after it gets moved
+			TSharedRef<FSequencerDisplayNode> Child = CurrentChildren[Index];
+
+			// Node already exists but is at the wrong index - needs moving
+			ParentNode->MoveChild(Index, ExpectedIndex);
+
+			return Child;
+		}
+	}
+
+	return nullptr;
+}
 
 void FSequencerSectionLayoutBuilder::PushCategory( FName CategoryName, const FText& DisplayLabel )
 {
 	bHasAnyLayout = true;
 
-	TSharedPtr<FSequencerSectionCategoryNode> CategoryNode;
+	const int32 DesiredInsertIndex = InsertIndexStack.Last();
 
-	// Attempt to re-use an existing key area of the same name
-	for (const TSharedRef<FSequencerDisplayNode>& Child : CurrentNode->GetChildNodes())
-	{
-		if (Child->GetType() == ESequencerNode::Category && Child->GetNodeName() == CategoryName)
-		{
-			// Ensure its name is up to date
-			CategoryNode = StaticCastSharedRef<FSequencerSectionCategoryNode>(Child);
-		}
-	}
+	TSharedPtr<FSequencerDisplayNode>         ExistingNode = FindAndRelocateExistingNode(CurrentNode, DesiredInsertIndex, ESequencerNode::Category, CategoryName);
+	TSharedPtr<FSequencerSectionCategoryNode> CategoryNode = StaticCastSharedPtr<FSequencerSectionCategoryNode>(ExistingNode);
 
-	if (!CategoryNode)
+	if (!ExistingNode)
 	{
 		CategoryNode = MakeShared<FSequencerSectionCategoryNode>(CategoryName, RootNode->GetParentTree());
-		CategoryNode->SetParent(CurrentNode);
+		CategoryNode->SetParent(CurrentNode, DesiredInsertIndex);
 	}
 
 	CategoryNode->DisplayName = DisplayLabel;
 	CategoryNode->TreeSerialNumber = RootNode->TreeSerialNumber;
 	CurrentNode = CategoryNode.ToSharedRef();
+	
+	// Move onto the next index at this level
+	++InsertIndexStack.Last();
+
+	// Add a new index to add to inside the new current node
+	InsertIndexStack.Add(0);
 }
 
 void FSequencerSectionLayoutBuilder::PopCategory()
@@ -48,6 +87,7 @@ void FSequencerSectionLayoutBuilder::PopCategory()
 		if (CurrentNode->GetType() == ESequencerNode::Category)
 		{
 			CurrentNode = Parent.ToSharedRef();
+			InsertIndexStack.Pop();
 		}
 	}
 }
@@ -83,30 +123,34 @@ void FSequencerSectionLayoutBuilder::AddChannel( const FMovieSceneChannelHandle&
 
 	bHasAnyLayout = true;
 
-	TSharedPtr<FSequencerSectionKeyAreaNode> KeyAreaNode;
+	const int32 DesiredInsertIndex = InsertIndexStack.Last();
 
-	// Attempt to re-use an existing key area of the same name
-	for (const TSharedRef<FSequencerDisplayNode>& Child : CurrentNode->GetChildNodes())
-	{
-		if (Child->GetType() == ESequencerNode::KeyArea && Child->GetNodeName() == MetaData->Name)
-		{
-			KeyAreaNode = StaticCastSharedRef<FSequencerSectionKeyAreaNode>(Child);
-		}
-	}
+	TSharedPtr<FSequencerDisplayNode>        ExistingNode = FindAndRelocateExistingNode(CurrentNode, DesiredInsertIndex, ESequencerNode::KeyArea, MetaData->Name);
+	TSharedPtr<FSequencerSectionKeyAreaNode> KeyAreaNode  = StaticCastSharedPtr<FSequencerSectionKeyAreaNode>(ExistingNode);
 
 	if (!KeyAreaNode.IsValid())
 	{
 		// No existing node found make a new one
 		KeyAreaNode = MakeShared<FSequencerSectionKeyAreaNode>(MetaData->Name, CurrentNode->GetParentTree());
 		KeyAreaNode->DisplayName = MetaData->DisplayText;
-		KeyAreaNode->SetParent(CurrentNode);
+		KeyAreaNode->SetParent(CurrentNode, DesiredInsertIndex);
 	}
 
 	AddOrUpdateChannel(KeyAreaNode.ToSharedRef(), Channel);
+
+	// Move onto the next index at this level
+	int32& NextIndex = InsertIndexStack.Last();
+	NextIndex = FMath::Clamp(NextIndex + 1, 0, CurrentNode->GetChildNodes().Num());
 }
 
 void FSequencerSectionLayoutBuilder::AddOrUpdateChannel(TSharedRef<FSequencerSectionKeyAreaNode> KeyAreaNode, const FMovieSceneChannelHandle& Channel)
 {
+	const FMovieSceneChannelMetaData* MetaData = Channel.GetMetaData();
+	if (!ensureAlwaysMsgf(MetaData, TEXT("Attempting to update an expired channel handle to the node tree")))
+	{
+		return;
+	}
+
 	KeyAreaNode->TreeSerialNumber = RootNode->TreeSerialNumber;
 
 	TSharedPtr<IKeyArea> KeyArea = KeyAreaNode->GetKeyArea(Section);
@@ -115,8 +159,11 @@ void FSequencerSectionLayoutBuilder::AddOrUpdateChannel(TSharedRef<FSequencerSec
 		// No key area for this section exists - create a new one
 		TSharedRef<IKeyArea> NewKeyArea = MakeShared<IKeyArea>(Section, Channel);
 		KeyAreaNode->AddKeyArea(NewKeyArea);
+		return;
 	}
-	else if (KeyArea->GetChannel() != Channel)
+
+	KeyArea->TreeSerialNumber = RootNode->TreeSerialNumber;
+	if (KeyArea->GetChannel() != Channel)
 	{
 		// A key area exists but for a different channel handle so this needs re-creating
 		KeyArea->Reinitialize(Section, Channel);
@@ -124,7 +171,7 @@ void FSequencerSectionLayoutBuilder::AddOrUpdateChannel(TSharedRef<FSequencerSec
 	else
 	{
 		// Just ensure the name is up to date
-		KeyArea->SetName(CurrentNode->GetNodeName());
+		KeyArea->SetName(MetaData->Name);
 	}
 }
 

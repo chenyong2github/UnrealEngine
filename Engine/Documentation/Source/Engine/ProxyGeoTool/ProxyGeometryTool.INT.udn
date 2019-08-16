@@ -1,0 +1,35 @@
+Availability: Public
+Crumbs: 
+Title:  Proxy Geometry Tool
+Description: The Proxy Geometry tool set was developed as a way to increase your Unreal Engine 4 (UE4) projects performance while keeping the visual quality of your project uneffected. 
+Type: how-to
+SkillLevel: Intermediate
+Version: 
+Parent: Engine
+Order: 
+Tags: Rendering
+Tags: Optimization
+Tags: ProxyGeometryTool
+hero-image:ProxyLOD_BannerImage.png
+
+
+The Proxy Geometry tool set was developed as a way to increase your Unreal Engine 4 (UE4) project's performance while keeping the visual quality of your project uneffected. 
+
+[REGION:note]
+The Proxy Geometry Tool is currently only supported on PCs that use Microsoft Windows. Mac and Linux support will be added at a later date.
+[/REGION]
+
+## Starting Out
+
+[DIR(output:"topic" parent:"Engine/ProxyGeoTool" type:"overview")]
+
+## Guides
+
+[DIR(output:"fancy" parent:"Engine/ProxyGeoTool" org:"hierarchy" skill_level:"Beginner")]
+[DIR(output:"fancy" parent:"Engine/ProxyGeoTool" org:"hierarchy" skill_level:"Intermediate")]
+[DIR(output:"fancy" parent:"Engine/ProxyGeoTool" org:"hierarchy" skill_level:"Advanced")]
+
+## Reference
+
+[DIR(output:"topic" parent:"Engine/ProxyGeoTool" type:"Reference")]
+

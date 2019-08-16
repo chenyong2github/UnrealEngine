@@ -216,11 +216,18 @@ int32 SConstraintCanvas::OnPaint( const FPaintArgs& Args, const FGeometry& Allot
 		if (!IsChildWidgetCulled(MyCullingRect, CurWidget))
 		{
 			// Bools in ChildLayers tell us whether to paint the next child in front of all previous
-			ChildLayerId = ChildLayers[ChildIndex] ? MaxLayerId + 1 : ChildLayerId;
+			if (ChildLayers[ChildIndex])
+			{
+				ChildLayerId = MaxLayerId + 1;
+			}
 
 			const int32 CurWidgetsMaxLayerId = CurWidget.Widget->Paint(NewArgs, CurWidget.Geometry, MyCullingRect, OutDrawElements, ChildLayerId, InWidgetStyle, bForwardedEnabled);
 
 			MaxLayerId = FMath::Max(MaxLayerId, CurWidgetsMaxLayerId);
+		}
+		else
+		{
+			//SlateGI - RemoveContent
 		}
 	}
 

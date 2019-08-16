@@ -1,0 +1,239 @@
+INTSourceChangelist:3622284
+Availability:Public
+Title:VR启动画面
+Crumbs:%ROOT%
+Description:设置和使用VR启动画面和影片。
+Version: 4.17
+parent:Platforms/VR/DevelopVR
+Type:overview
+Skilllevel: Intermediate
+Tags:VR
+Order:2
+
+[TOC(start:2)]
+
+虚幻引擎4（UE4）提供支持，使你能够为使用Oculus、Gear VR、SteamVR和PSVR头戴式显示器（HMD）时的关卡加载显示视频或图像。加载的影片或图像将在渲染线程中运行，也可有助于掩盖内容加载时的帧率问题。在本文档中，我们将介绍如何在UE4项目中设置这些VR **启动画面**。
+
+(#vrsplashscreensupportedplatforms)
+## 支持VR启动画面的平台 
+
+下列VR平台支持VR启动画面。 
+
+* [Oculus VR](https://www.oculus.com/)
+* [Steam VR](http://store.steampowered.com/steamvr)
+* [PSVR](https://www.playstation.com/en-us/explore/playstation-vr/)
+* [Gear VR](http://www.samsung.com/global/galaxy/gear-vr/)
+* [Google Daydream](https://vr.google.com/daydream/)
+
+(#vrsplashscreenprojectsetup)
+## VR启动画面项目设置
+
+设置和使用VR启动画面前，你首先需要创建新的 **游戏模式（Game Mode）** 和 **Pawn** 蓝图，以便于使用VR启动画面。在本部分中，我们将介绍需要创建的蓝图以及应该如何对它们进行设置。
+
+1. 右键单击 **内容浏览器**，然后从 **创建基本资源（Create Basic Asset）** 列表中选择 **蓝图类（Blueprint Class）** 选项。
+
+    ![](VRLS_Intro_01.png)
+
+1. 在 **选择父类（Pick Parent Class）** 对话框的 **所有类（All Classes）** 部分中，搜索 **Game Mode**。找到游戏模式（Game Mode）后，选中它，然后按 **选择（Select）** 按钮并将它命名为 **VR_GameMode**。
+
+    [REGION:lightbox]
+    [![](VRLS_Intro_02.png)(w:272)](VRLS_Intro_02.png)
+    [/REGION]
+
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+
+1. 重复上述过程，但是这次从“选择父类（Pick Parent Class）”对话框中选择 **Pawn** 选项并将此新Pawn命名为 **VR_Pawn**。
+
+    [REGION:lightbox]
+    [![](VRLS_Intro_03.png)(w:272)](VRLS_Intro_03.png)
+    [/REGION]
+
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+
+1. 打开VR_GameMode蓝图，在 **类（Classes）** 部分中，将 **默认Pawn类（Default Pawn Class）** 设置为刚才创建的VR_Pawn。完成后，编译并保存VR_Gamemode蓝图。
+
+    [REGION:lightbox]
+    [![](VRLS_Intro_04.png)(w:352)](VRLS_Intro_04.png)
+    [/REGION]
+
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+
+现在已设置好了Pawn和游戏模式（Game Mode），接下来我们将介绍如何在Pawn的 **事件图表** 中设置VR启动画面。 
+
+(#vrsplashscreensetup)
+## VR启动画面设置
+
+在本部分中，我们将介绍如何在Pawn的事件图表中设置VR启动画面。 
+
+[region:note]
+请注意，此示例展示了在项目中使自动加载的启动画面（Auto Loading Splash Screen）发挥作用的最快捷方法。在生产项目中使用此方法时，你需要确保手动显示和隐藏关卡过渡时的启动画面，从而确保你将关卡完成流式切入花费的时间纳入考虑范围。
+[/region]
+
+1. 打开VR_Pawn并转至 **事件图表（Event Graph）**，然后向事件图表中添加下列蓝图节点：
+
+    * [**启用自动加载的启动画面（Enable Auto Loading Splash Screen）**](Platforms\VR\DevelopVR\SplashScreens\VRSplashScreenNodeReference#EnableAutoLoadingSplashScreen)
+    * [**设置启动画面（Set Splash Screen）**](Platforms\VR\DevelopVR\SplashScreens\VRSplashScreenNodeReference#SetSplashScreen)
+    * [**隐藏启动画面（Hide Splash Screen）**](Platforms\VR\DevelopVR\SplashScreens\VRSplashScreenNodeReference#HideSplashScreen)
+
+    [REGION:lightbox]
+    [![](VRLS_Setup_01.png)(w:249)](VRLS_Setup_01.png)
+    [/REGION]
+
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+
+1. 向事件图表中添加这些节点之后，排列并连接这些节点，使它们与下图中的设置匹配。
+
+    [REGION:lightbox]
+    [![](VRLS_Setup_02.png)(w:480)](VRLS_Setup_02.png)
+    [/REGION]
+
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+
+1. 由于我们希望VR启动画面在每次关卡加载时都加载，在“启用自动加载的启动画面（Enable Auto Loading Splash Screen）”节点上，选中 **自动显示启用（In Auto Show Enabled）**。
+
+    [REGION:lightbox]
+    [![](VRLS_Setup_03.png)(w:480)](VRLS_Setup_03.png)
+    [/REGION]
+
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+
+1. 使用“设置启动画面（Set Splash Screen）”节点，你可以指定用于VR启动画面的纹理。要设置VR启动画面纹理，在内容浏览器中选中一个纹理，然后按“设置启动画面（Set Splash Screen）”节点的“纹理（Texture）”部分的白色小箭头，以将该纹理用作VR启动画面。
+
+    [REGION:lightbox]
+    [![](VRLS_Setup_04.png)(w:408)](VRLS_Setup_04.png)
+    [/REGION]
+
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+    [region:note]
+    针对此示例，我们在Photoshop中创建了一个噪点纹理，然后将它导入到UE4中并使用。对于此部分，你可以使用任何你选择的纹理。
+    [/region]
+    [region:warning]
+    如果你的目标平台是 **SteamVR**，需要确保将用于启动画面的纹理的 **压缩设置（Compression Settings）** 设置为 **UserInterface2D(RGBA)**，否则，调用启动画面时它将不会显示。
+
+    ![](VIL_SteamVR_Comp_Settings.png)
+    [/region]
+
+1. 最后，在“设置启动画面（Set Splash Screen）”节点上，选中 **设置时显示（Show on Set）** 选项，以确保在关卡加载时，你指定的纹理会显示。
+
+    [REGION:lightbox]
+    [![](VRLS_Setup_05.png)(w:408)](VRLS_Setup_05.png)
+    [/REGION]
+
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+
+现在，VR启动画面已设置好了，在下一部分中，我们将介绍如何在新关卡加载时调用VR启动画面。
+
+(#vrsplashscreenuse)
+## VR启动画面使用
+
+现在，我们已将Pawn设置为使用VR启动画面，接下来，我们将介绍如何在关卡加载时显示VR启动画面。
+
+1. 为此，你需要创建 **两个** 可供加载的关卡。要创建这些关卡，转至 **主工具栏** 并选择 **文件（File）** > **新关卡（New Level）** 选项。**新关卡（New Level）** 弹出框显示时，选择 **默认（Default）** 关卡选项。
+
+    [REGION:lightbox]
+    [![](VLI_NewLevel_00.png)(w:746)](VLI_NewLevel_00.png)
+    [/REGION]
+
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+
+1. 在 **内容浏览器** 中，按 **全部保存（Save All）** 按钮，并将新关卡命名为 **Level_00**。在它保存好之后，右键单击Level_00并选择 **复制（Duplicate）** 选项。将复制的关卡命名为 **Level_01**。完成上述所有操作之后，现在在内容浏览器中应有两个新关卡，如下图所示：
+
+    [REGION:lightbox]
+    [![](VLI_NewLevel_01.png)(w:746)](VLI_NewLevel_01.png)
+    [/REGION]
+
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+
+1. 打开每个关卡并转至 **世界场景设置（World Settings）** > **游戏模式（Game Mode）**，然后将 **游戏模式覆盖（Game Mode Override）** 设置为前面创建的VR_GameMode蓝图。这样，我们可以确保在关卡加载时所使用的是正确的Pawn。
+
+    ![](VLI_NewLevel_06.png)
+
+1. 打开VR_Pawn蓝图，然后，在事件图表中，添加 **R** 和 **T** 键的键输入。
+
+    [REGION:lightbox]
+    [![](VLI_NewLevel_02.png)(w:746)](VLI_NewLevel_02.png)
+    [/REGION]
+
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+
+1. 右键单击事件图表并搜索 **打开关卡（Open Level）** 蓝图节点。将它添加到事件图表中。将T键的 **按下（Pressed）** 输出与“打开关卡（Open Level）”输入相连接，然后在 **关卡名称（Level Name）** 字段中输入 **Level_00**。
+
+    [REGION:lightbox]
+    [![](VLI_NewLevel_03.png)(w:746)](VLI_NewLevel_03.png)
+    [/REGION]
+
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+
+1. 选中“打开关卡（Open Level）”节点，然后在键盘上按下 **CTRL + W** 键以复制它。将R键的 **按下（Pressed）** 输出与新的“打开关卡（Open Level）”节点相连接，然后将关卡名称更改为 **Level_01**。
+
+    [REGION:lightbox]
+    [![](VLI_NewLevel_04.png)(w:746)](VLI_NewLevel_04.png)
+    [/REGION]
+
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+
+1. 按 **编译（Compile）** 和 **保存（Save）** 按钮以编译和保存Pawn蓝图，然后使用“VR预览（VR Preview）”启动项目。
+
+    [REGION:lightbox]
+    [![](VLI_NewLevel_05.png)(w:746)](VLI_NewLevel_05.png)
+    [/REGION]
+
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+
+1. 戴上HMD，然后按 **R** 键以加载 Level_01。关卡加载时，你应该可以看到你在“设置启动画面（Set Splash Screen）”节点的“纹理（Texture）”输入中指定的图像。Level_01 加载好之后，按 **T** 键以加载 Level_00，此关卡加载时，你也应该可以看到相同的图像显示。
+
+    [OBJECT:EmbeddedVideo]
+        [PARAMLITERAL:videoid]
+        5x5zH8JE0pQ
+        [/PARAMLITERAL]
+        [PARAMLITERAL:width]
+        100
+        [/PARAMLITERAL]
+        [PARAMLITERAL:height]
+        56.25
+        [/PARAMLITERAL]
+        [PARAMLITERAL:units]
+        %
+        [/PARAMLITERAL]
+        [PARAMLITERAL:type]
+        simple
+        [/PARAMLITERAL]
+    [/OBJECT]
+
+现在“按键可更改关卡”的功能已奏效，下一步是对此进行设置，以便当玩家输入关卡流送体积或触发器（任何游戏或交互性项目中的常见操作）时它能够正常工作。
+
+
+(#vrsplashscreennodereference)
+## VR启动画面节点参考
+
+单击下面的链接可查看VR启动画面节点参考页面。在此页面中，我们将对可用于VR启动画面的每个节点进行详细说明。
+
+[**VR启动画面节点参考**](Platforms\VR\DevelopVR\SplashScreens\VRSplashScreenNodeReference)

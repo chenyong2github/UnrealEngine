@@ -203,7 +203,6 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 		// Under certain error conditions an LOD's material will be set to 
 		// DefaultMaterial. Ensure our material view relevance is set properly.
 		const int32 NumSections = NewLODInfo->Sections.Num();
-		bool bHasNonUnlitSections = false;
 		for (int32 SectionIndex = 0; SectionIndex < NumSections; ++SectionIndex)
 		{
 			const FLODInfo::FSectionInfo& SectionInfo = NewLODInfo->Sections[SectionIndex];
@@ -212,22 +211,11 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 			{
 				MaterialRelevance |= UMaterial::GetDefaultMaterial(MD_Surface)->GetRelevance(FeatureLevel);
 			}
-
-			// #dxr_todo warning this is a hack:
-			//  - The only reason we exclude unlit from any RT acceleration structure right now is to not hit the sky dome. 
-			//  - It works but this would need consideration (e.g. infinite RTAO would not work if the sky dome is hit, double reflection due sky light cubemap, reflection testing no intersection, etc.).
-			if (SectionInfo.Material->GetShadingModels().IsLit())
-			{
-				bHasNonUnlitSections = true;
-			}
 		}
 
-#if RHI_RAYTRACING
-		if (bHasNonUnlitSections)
-		{
-			RayTracingGeometries[LODIndex] = RenderData->LODResources[LODIndex].RayTracingGeometry.RayTracingGeometryRHI;
-		}
-#endif
+	#if RHI_RAYTRACING
+		RayTracingGeometries[LODIndex] = &RenderData->LODResources[LODIndex].RayTracingGeometry;
+	#endif
 	}
 
 	// WPO is typically used for ambient animations, so don't include in cached shadowmaps
@@ -371,50 +359,49 @@ bool FStaticMeshSceneProxy::GetShadowMeshElement(int32 LODIndex, int32 BatchInde
 	const FLODInfo& ProxyLODInfo = LODs[LODIndex];
 
 	const bool bUseReversedIndices = GUseReversedIndexBuffer && IsLocalToWorldDeterminantNegative() && LOD.bHasReversedDepthOnlyIndices;
+	const bool bNoIndexBufferAvailable = !bUseReversedIndices && !LOD.bHasDepthOnlyIndices;
 
-	if ((bUseReversedIndices && !LOD.bHasReversedDepthOnlyIndices) || (!bUseReversedIndices && !LOD.bHasDepthOnlyIndices))
+	if (bNoIndexBufferAvailable)
 	{
 		return false;
 	}
 
-	FMeshBatchElement& OutBatchElement = OutMeshBatch.Elements[0];
-	OutBatchElement.VertexFactoryUserData = ProxyLODInfo.OverrideColorVertexBuffer ? ProxyLODInfo.OverrideColorVFUniformBuffer.GetReference() : VFs.VertexFactory.GetUniformBuffer();
-	OutMeshBatch.MaterialRenderProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
-	OutMeshBatch.VertexFactory = ProxyLODInfo.OverrideColorVertexBuffer ? &VFs.VertexFactoryOverrideColorVertexBuffer : &VFs.VertexFactory;
-	OutBatchElement.IndexBuffer = LOD.AdditionalIndexBuffers && bUseReversedIndices ? &LOD.AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer : &LOD.DepthOnlyIndexBuffer;
-	OutMeshBatch.Type = PT_TriangleList;
-	OutBatchElement.FirstIndex = 0;
-	OutBatchElement.NumPrimitives = LOD.DepthOnlyNumTriangles;
-	OutBatchElement.MinVertexIndex = 0;
-	OutBatchElement.MaxVertexIndex = LOD.VertexBuffers.PositionVertexBuffer.GetNumVertices() - 1;
-	OutMeshBatch.DepthPriorityGroup = InDepthPriorityGroup;
-	OutMeshBatch.ReverseCulling = (bReverseCulling || IsLocalToWorldDeterminantNegative()) && !bUseReversedIndices;
+	FMeshBatchElement& OutMeshBatchElement = OutMeshBatch.Elements[0];
+
+	if (ProxyLODInfo.OverrideColorVertexBuffer)
+	{
+		OutMeshBatch.VertexFactory = &VFs.VertexFactoryOverrideColorVertexBuffer;
+		OutMeshBatchElement.VertexFactoryUserData = ProxyLODInfo.OverrideColorVFUniformBuffer.GetReference();
+	}
+	else
+	{
+		OutMeshBatch.VertexFactory = &VFs.VertexFactory;
+		OutMeshBatchElement.VertexFactoryUserData = VFs.VertexFactory.GetUniformBuffer();
+	}
+
+	OutMeshBatchElement.IndexBuffer = LOD.AdditionalIndexBuffers && bUseReversedIndices ? &LOD.AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer : &LOD.DepthOnlyIndexBuffer;
+	OutMeshBatchElement.FirstIndex = 0;
+	OutMeshBatchElement.NumPrimitives = LOD.DepthOnlyNumTriangles;
+	OutMeshBatchElement.MinVertexIndex = 0;
+	OutMeshBatchElement.MaxVertexIndex = LOD.VertexBuffers.PositionVertexBuffer.GetNumVertices() - 1;
+
 	OutMeshBatch.LODIndex = LODIndex;
 #if STATICMESH_ENABLE_DEBUG_RENDERING
 	OutMeshBatch.VisualizeLODIndex = LODIndex;
 	OutMeshBatch.VisualizeHLODIndex = HierarchicalLODIndex;
 #endif
+	OutMeshBatch.ReverseCulling = IsReversedCullingNeeded(bUseReversedIndices);
+	OutMeshBatch.Type = PT_TriangleList;
+	OutMeshBatch.DepthPriorityGroup = InDepthPriorityGroup;
 	OutMeshBatch.LCI = &ProxyLODInfo;
-	if (ForcedLodModel > 0) 
-	{
-		OutBatchElement.MaxScreenSize = 0.0f;
-		OutBatchElement.MinScreenSize = -1.0f;
-	}
-	else
-	{
-		OutMeshBatch.bDitheredLODTransition = bDitheredLODTransition;
-		OutBatchElement.MaxScreenSize = GetScreenSize(LODIndex);
-		OutBatchElement.MinScreenSize = 0.0f;
-		if (LODIndex < MAX_STATIC_MESH_LODS - 1)
-		{
-			OutBatchElement.MinScreenSize = GetScreenSize(LODIndex + 1);
-		}
-	}
+	OutMeshBatch.MaterialRenderProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
 
 	// By default this will be a shadow only mesh.
 	OutMeshBatch.bUseForMaterial = false;
 	OutMeshBatch.bUseForDepthPass = false;
 	OutMeshBatch.bUseAsOccluder = false;
+
+	SetMeshElementScreenSize(LODIndex, bDitheredLODTransition, OutMeshBatch);
 
 	return true;
 }
@@ -429,18 +416,19 @@ bool FStaticMeshSceneProxy::GetMeshElement(
 	bool bAllowPreCulledIndices, 
 	FMeshBatch& OutMeshBatch) const
 {
-	OutMeshBatch.SegmentIndex = SectionIndex;
-
 	const ERHIFeatureLevel::Type FeatureLevel = GetScene().GetFeatureLevel();
 	const FStaticMeshLODResources& LOD = RenderData->LODResources[LODIndex];
 	const FStaticMeshVertexFactories& VFs = RenderData->LODVertexFactories[LODIndex];
 	const FStaticMeshSection& Section = LOD.Sections[SectionIndex];
-	
 	const FLODInfo& ProxyLODInfo = LODs[LODIndex];
+
 	UMaterialInterface* MaterialInterface = ProxyLODInfo.Sections[SectionIndex].Material;
-	
-	OutMeshBatch.MaterialRenderProxy = MaterialInterface->GetRenderProxy();
-	OutMeshBatch.VertexFactory = &VFs.VertexFactory;
+	FMaterialRenderProxy* MaterialRenderProxy = MaterialInterface->GetRenderProxy();
+	const FMaterial* Material = MaterialRenderProxy->GetMaterial(FeatureLevel);
+
+	const FVertexFactory* VertexFactory = nullptr;
+
+	FMeshBatchElement& OutMeshBatchElement = OutMeshBatch.Elements[0];
 
 #if WITH_EDITORONLY_DATA
 	// If material is hidden, then skip the draw.
@@ -457,66 +445,63 @@ bool FStaticMeshSceneProxy::GetMeshElement(
 	OutMeshBatch.bUseSelectionOutline = bPerSectionSelection ? bUseSelectionOutline : true;
 #endif
 
-	const bool bWireframe = false;
-	const bool bRequiresAdjacencyInformation = RequiresAdjacencyInformation( MaterialInterface, OutMeshBatch.VertexFactory->GetType(), FeatureLevel );
-	const FMaterial* Material = OutMeshBatch.MaterialRenderProxy->GetMaterial(FeatureLevel);
-	
-	// Two sided material use bIsFrontFace which is wrong with Reversed Indices. AdjacencyInformation use another index buffer.
-	CA_SUPPRESS(6239);
-	const bool bUseReversedIndices = !bWireframe && GUseReversedIndexBuffer && IsLocalToWorldDeterminantNegative() && LOD.bHasReversedIndices && !bRequiresAdjacencyInformation && !Material->IsTwoSided();
-
-	SetIndexSource(LODIndex, SectionIndex, OutMeshBatch, bWireframe, bRequiresAdjacencyInformation, bUseReversedIndices, bAllowPreCulledIndices);
-
-	FMeshBatchElement& OutBatchElement = OutMeshBatch.Elements[0];
-
-	OutBatchElement.VertexFactoryUserData = ProxyLODInfo.OverrideColorVertexBuffer ? ProxyLODInfo.OverrideColorVFUniformBuffer.GetReference() : VFs.VertexFactory.GetUniformBuffer();
-
 	// Has the mesh component overridden the vertex color stream for this mesh LOD?
-	if (ProxyLODInfo.OverrideColorVertexBuffer != NULL)
+	if (ProxyLODInfo.OverrideColorVertexBuffer)
 	{
 		// Make sure the indices are accessing data within the vertex buffer's
-		check(Section.MaxVertexIndex < ProxyLODInfo.OverrideColorVertexBuffer->GetNumVertices());
-		// Switch out the stock mesh vertex factory with the instanced colors one
-		OutMeshBatch.VertexFactory = &VFs.VertexFactoryOverrideColorVertexBuffer;
-		OutBatchElement.UserData = ProxyLODInfo.OverrideColorVertexBuffer;
-		OutBatchElement.bUserDataIsColorVertexBuffer = true;
+		check(Section.MaxVertexIndex < ProxyLODInfo.OverrideColorVertexBuffer->GetNumVertices())
+
+		// Use the instanced colors vertex factory.
+		VertexFactory = &VFs.VertexFactoryOverrideColorVertexBuffer;
+
+		OutMeshBatchElement.VertexFactoryUserData = ProxyLODInfo.OverrideColorVFUniformBuffer.GetReference();
+		OutMeshBatchElement.UserData = ProxyLODInfo.OverrideColorVertexBuffer;
+		OutMeshBatchElement.bUserDataIsColorVertexBuffer = true;
+	}
+	else
+	{
+		VertexFactory = &VFs.VertexFactory;
+
+		OutMeshBatchElement.VertexFactoryUserData = VFs.VertexFactory.GetUniformBuffer();
 	}
 
-	if(OutBatchElement.NumPrimitives > 0)
+	const bool bWireframe = false;
+	const bool bRequiresAdjacencyInformation = RequiresAdjacencyInformation(MaterialInterface, VertexFactory->GetType(), FeatureLevel);
+
+	// Two sided material use bIsFrontFace which is wrong with Reversed Indices. AdjacencyInformation use another index buffer.
+	const bool bUseReversedIndices = GUseReversedIndexBuffer && IsLocalToWorldDeterminantNegative() && (LOD.bHasReversedIndices != 0) && !bRequiresAdjacencyInformation && !Material->IsTwoSided();
+
+	// No support for stateless dithered LOD transitions for movable meshes
+	const bool bDitheredLODTransition = !IsMovable() && Material->IsDitheredLODTransition();
+
+	const uint32 NumPrimitives = SetMeshElementGeometrySource(LODIndex, SectionIndex, bWireframe, bRequiresAdjacencyInformation, bUseReversedIndices, bAllowPreCulledIndices, VertexFactory, OutMeshBatch);
+
+	if(NumPrimitives > 0)
 	{
-		OutMeshBatch.LCI = &ProxyLODInfo;
-		OutBatchElement.MinVertexIndex = Section.MinVertexIndex;
-		OutBatchElement.MaxVertexIndex = Section.MaxVertexIndex;
+		OutMeshBatch.SegmentIndex = SectionIndex;
+
 		OutMeshBatch.LODIndex = LODIndex;
 #if STATICMESH_ENABLE_DEBUG_RENDERING
-		OutBatchElement.VisualizeElementIndex = SectionIndex;
 		OutMeshBatch.VisualizeLODIndex = LODIndex;
 		OutMeshBatch.VisualizeHLODIndex = HierarchicalLODIndex;
 #endif
-		OutMeshBatch.ReverseCulling = (bReverseCulling || IsLocalToWorldDeterminantNegative()) && !bUseReversedIndices;
+		OutMeshBatch.ReverseCulling = IsReversedCullingNeeded(bUseReversedIndices);
 		OutMeshBatch.CastShadow = bCastShadow && Section.bCastShadow;
 #if RHI_RAYTRACING
 		OutMeshBatch.CastRayTracedShadow = OutMeshBatch.CastShadow;
 #endif
 		OutMeshBatch.DepthPriorityGroup = (ESceneDepthPriorityGroup)InDepthPriorityGroup;
-		if (ForcedLodModel > 0) 
-		{
-			OutBatchElement.MaxScreenSize = 0.0f;
-			OutBatchElement.MinScreenSize = -1.0f;
-		}
-		else
-		{
-			// no support for stateless dithered LOD transitions for movable meshes
-			OutMeshBatch.bDitheredLODTransition = !IsMovable() && Material->IsDitheredLODTransition();
+		OutMeshBatch.LCI = &ProxyLODInfo;
+		OutMeshBatch.MaterialRenderProxy = MaterialRenderProxy;
 
-			OutBatchElement.MaxScreenSize = GetScreenSize(LODIndex);
-			OutBatchElement.MinScreenSize = 0.0f;
-			if (LODIndex < MAX_STATIC_MESH_LODS - 1)
-			{
-				OutBatchElement.MinScreenSize = GetScreenSize(LODIndex + 1);
-			}
-		}
-			
+		OutMeshBatchElement.MinVertexIndex = Section.MinVertexIndex;
+		OutMeshBatchElement.MaxVertexIndex = Section.MaxVertexIndex;
+#if STATICMESH_ENABLE_DEBUG_RENDERING
+		OutMeshBatchElement.VisualizeElementIndex = SectionIndex;
+#endif
+
+		SetMeshElementScreenSize(LODIndex, bDitheredLODTransition, OutMeshBatch);
+
 		return true;
 	}
 	else
@@ -525,15 +510,15 @@ bool FStaticMeshSceneProxy::GetMeshElement(
 	}
 }
 
-bool FStaticMeshSceneProxy::CollectOccluderElements(FOccluderElementsCollector& Collector) const
+int32 FStaticMeshSceneProxy::CollectOccluderElements(FOccluderElementsCollector& Collector) const
 {
 	if (OccluderData)
 	{	
 		Collector.AddElements(OccluderData->VerticesSP, OccluderData->IndicesSP, GetLocalToWorld());
-		return true;
+		return 1;
 	}
 	
-	return false;
+	return 0;
 }
 
 /** Sets up a wireframe FMeshBatch for a specific LOD. */
@@ -542,39 +527,108 @@ bool FStaticMeshSceneProxy::GetWireframeMeshElement(int32 LODIndex, int32 BatchI
 	const FStaticMeshLODResources& LODModel = RenderData->LODResources[LODIndex];
 	const FStaticMeshVertexFactories& VFs = RenderData->LODVertexFactories[LODIndex];
 	const FLODInfo& ProxyLODInfo = LODs[LODIndex];
+	const FVertexFactory* VertexFactory = nullptr;
 
 	FMeshBatchElement& OutBatchElement = OutMeshBatch.Elements[0];
 
-	OutBatchElement.VertexFactoryUserData = ProxyLODInfo.OverrideColorVertexBuffer ? ProxyLODInfo.OverrideColorVFUniformBuffer.GetReference() : VFs.VertexFactory.GetUniformBuffer();
-	OutMeshBatch.VertexFactory = ProxyLODInfo.OverrideColorVertexBuffer ? &VFs.VertexFactoryOverrideColorVertexBuffer : &VFs.VertexFactory;
-	OutMeshBatch.MaterialRenderProxy = WireframeRenderProxy;
-	OutBatchElement.MinVertexIndex = 0;
-	OutBatchElement.MaxVertexIndex = LODModel.GetNumVertices() - 1;
-	OutMeshBatch.ReverseCulling = bReverseCulling || IsLocalToWorldDeterminantNegative();
-	OutMeshBatch.CastShadow = bCastShadow;
-	OutMeshBatch.DepthPriorityGroup = (ESceneDepthPriorityGroup)InDepthPriorityGroup;
-	if (ForcedLodModel > 0) 
+	if (ProxyLODInfo.OverrideColorVertexBuffer)
 	{
-		OutBatchElement.MaxScreenSize = 0.0f;
-		OutBatchElement.MinScreenSize = -1.0f;
+		VertexFactory = &VFs.VertexFactoryOverrideColorVertexBuffer;
+
+		OutBatchElement.VertexFactoryUserData = ProxyLODInfo.OverrideColorVFUniformBuffer.GetReference();
 	}
 	else
 	{
-		OutBatchElement.MaxScreenSize = GetScreenSize(LODIndex);
-		OutBatchElement.MinScreenSize = 0.0f;
-		if (LODIndex < MAX_STATIC_MESH_LODS - 1)
-		{
-			OutBatchElement.MinScreenSize = GetScreenSize(LODIndex + 1);
-		}
+		VertexFactory = &VFs.VertexFactory;
+
+		OutBatchElement.VertexFactoryUserData = VFs.VertexFactory.GetUniformBuffer();
 	}
 
 	const bool bWireframe = true;
 	const bool bRequiresAdjacencyInformation = false;
 	const bool bUseReversedIndices = false;
+	const bool bDitheredLODTransition = false;
 
-	SetIndexSource(LODIndex, 0, OutMeshBatch, bWireframe, bRequiresAdjacencyInformation, bUseReversedIndices, bAllowPreCulledIndices);
+	OutMeshBatch.ReverseCulling = IsReversedCullingNeeded(bUseReversedIndices);
+	OutMeshBatch.CastShadow = bCastShadow;
+	OutMeshBatch.DepthPriorityGroup = (ESceneDepthPriorityGroup)InDepthPriorityGroup;
+	OutMeshBatch.MaterialRenderProxy = WireframeRenderProxy;
 
-	return OutBatchElement.NumPrimitives > 0;
+	OutBatchElement.MinVertexIndex = 0;
+	OutBatchElement.MaxVertexIndex = LODModel.GetNumVertices() - 1;
+
+	const uint32_t NumPrimitives = SetMeshElementGeometrySource(LODIndex, 0, bWireframe, bRequiresAdjacencyInformation, bUseReversedIndices, bAllowPreCulledIndices, VertexFactory, OutMeshBatch);
+	SetMeshElementScreenSize(LODIndex, bDitheredLODTransition, OutMeshBatch);
+
+	return NumPrimitives > 0;
+}
+
+bool FStaticMeshSceneProxy::GetCollisionMeshElement(
+	int32 LODIndex,
+	int32 BatchIndex,
+	int32 SectionIndex,
+	uint8 InDepthPriorityGroup,
+	const FMaterialRenderProxy* RenderProxy,
+	FMeshBatch& OutMeshBatch) const
+{
+	const FStaticMeshLODResources& LOD = RenderData->LODResources[LODIndex];
+	const FStaticMeshVertexFactories& VFs = RenderData->LODVertexFactories[LODIndex];
+	const FStaticMeshSection& Section = LOD.Sections[SectionIndex];
+	const FVertexFactory* VertexFactory = nullptr;
+
+	const FLODInfo& ProxyLODInfo = LODs[LODIndex];
+
+	const bool bWireframe = false;
+	const bool bRequiresAdjacencyInformation = false;
+	const bool bUseReversedIndices = false;
+	const bool bAllowPreCulledIndices = true;
+	const bool bDitheredLODTransition = false;
+
+	SetMeshElementGeometrySource(LODIndex, SectionIndex, bWireframe, bRequiresAdjacencyInformation, bUseReversedIndices, bAllowPreCulledIndices, VertexFactory, OutMeshBatch);
+
+	FMeshBatchElement& OutMeshBatchElement = OutMeshBatch.Elements[0];
+
+	if (ProxyLODInfo.OverrideColorVertexBuffer)
+	{
+		VertexFactory = &VFs.VertexFactoryOverrideColorVertexBuffer;
+
+		OutMeshBatchElement.VertexFactoryUserData = ProxyLODInfo.OverrideColorVFUniformBuffer.GetReference();
+	}
+	else
+	{
+		VertexFactory = &VFs.VertexFactory;
+
+		OutMeshBatchElement.VertexFactoryUserData = VFs.VertexFactory.GetUniformBuffer();
+	}
+
+	if (OutMeshBatchElement.NumPrimitives > 0)
+	{
+		OutMeshBatch.LODIndex = LODIndex;
+#if STATICMESH_ENABLE_DEBUG_RENDERING
+		OutMeshBatch.VisualizeLODIndex = LODIndex;
+		OutMeshBatch.VisualizeHLODIndex = HierarchicalLODIndex;
+#endif
+		OutMeshBatch.ReverseCulling = IsReversedCullingNeeded(bUseReversedIndices);
+		OutMeshBatch.CastShadow = false;
+		OutMeshBatch.DepthPriorityGroup = (ESceneDepthPriorityGroup)InDepthPriorityGroup;
+		OutMeshBatch.LCI = &ProxyLODInfo;
+		OutMeshBatch.VertexFactory = VertexFactory;
+		OutMeshBatch.MaterialRenderProxy = RenderProxy;
+
+		OutMeshBatchElement.MinVertexIndex = Section.MinVertexIndex;
+		OutMeshBatchElement.MaxVertexIndex = Section.MaxVertexIndex;
+#if STATICMESH_ENABLE_DEBUG_RENDERING
+		OutMeshBatchElement.VisualizeElementIndex = SectionIndex;
+#endif
+
+		SetMeshElementScreenSize(LODIndex, bDitheredLODTransition, OutMeshBatch);
+
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 }
 
 #if WITH_EDITORONLY_DATA
@@ -651,6 +705,15 @@ bool FStaticMeshSceneProxy::GetMaterialTextureScales(int32 LODIndex, int32 Secti
 					UVChannelIndices[TextureIndex / 4][TextureIndex % 4] = TextureData.UVChannelIndex;
 				}
 			}
+			for (const FMaterialTextureInfo TextureData : Material->TextureStreamingDataMissingEntries)
+			{
+				const int32 TextureIndex = TextureData.TextureIndex;
+				if (TextureIndex >= 0 && TextureIndex < TEXSTREAM_MAX_NUM_TEXTURES_PER_MATERIAL)
+				{
+					OneOverScales[TextureIndex / 4][TextureIndex % 4] = 1.f;
+					UVChannelIndices[TextureIndex / 4][TextureIndex % 4] = 0;
+				}
+			}
 			return true;
 		}
 	}
@@ -658,76 +721,119 @@ bool FStaticMeshSceneProxy::GetMaterialTextureScales(int32 LODIndex, int32 Secti
 }
 #endif
 
-/**
- * Sets IndexBuffer, FirstIndex and NumPrimitives of OutMeshElement.
- */
-void FStaticMeshSceneProxy::SetIndexSource(int32 LODIndex, int32 SectionIndex, FMeshBatch& OutMeshElement, bool bWireframe, bool bRequiresAdjacencyInformation, bool bUseReversedIndices, bool bAllowPreCulledIndices) const
+uint32 FStaticMeshSceneProxy::SetMeshElementGeometrySource(
+	int32 LODIndex,
+	int32 SectionIndex,
+	bool bWireframe,
+	bool bRequiresAdjacencyInformation,
+	bool bUseReversedIndices,
+	bool bAllowPreCulledIndices,
+	const FVertexFactory* VertexFactory,
+	FMeshBatch& OutMeshBatch) const
 {
-	FMeshBatchElement& OutElement = OutMeshElement.Elements[0];
 	const FStaticMeshLODResources& LODModel = RenderData->LODResources[LODIndex];
+	const FStaticMeshSection& Section = LODModel.Sections[SectionIndex];
+	const FLODInfo& LODInfo = LODs[LODIndex];
+	const FLODInfo::FSectionInfo& SectionInfo = LODInfo.Sections[SectionIndex];
+
+	FMeshBatchElement& OutMeshBatchElement = OutMeshBatch.Elements[0];
+	uint32 NumPrimitives = 0;
+
+	const bool bHasPreculledTriangles = LODInfo.Sections[SectionIndex].NumPreCulledTriangles >= 0;
+	const bool bUsePreculledIndices = bAllowPreCulledIndices && GUsePreCulledIndexBuffer && bHasPreculledTriangles;
+
 	if (bWireframe)
 	{
-		if(LODModel.AdditionalIndexBuffers && LODModel.AdditionalIndexBuffers->WireframeIndexBuffer.IsInitialized()
-			&& !(RHISupportsTessellation(GetScene().GetShaderPlatform()) && OutMeshElement.VertexFactory->GetType()->SupportsTessellationShaders())
-			)
+		const bool bSupportsTessellation = RHISupportsTessellation(GetScene().GetShaderPlatform()) && VertexFactory->GetType()->SupportsTessellationShaders();
+
+		if (LODModel.AdditionalIndexBuffers && LODModel.AdditionalIndexBuffers->WireframeIndexBuffer.IsInitialized() && !bSupportsTessellation)
 		{
-			OutMeshElement.Type = PT_LineList;
-			OutElement.FirstIndex = 0;
-			OutElement.IndexBuffer = &LODModel.AdditionalIndexBuffers->WireframeIndexBuffer;
-			OutElement.NumPrimitives = LODModel.AdditionalIndexBuffers->WireframeIndexBuffer.GetNumIndices() / 2;
+			OutMeshBatch.Type = PT_LineList;
+			OutMeshBatchElement.FirstIndex = 0;
+			OutMeshBatchElement.IndexBuffer = &LODModel.AdditionalIndexBuffers->WireframeIndexBuffer;
+			NumPrimitives = LODModel.AdditionalIndexBuffers->WireframeIndexBuffer.GetNumIndices() / 2;
 		}
 		else
 		{
-			OutMeshElement.Type = PT_TriangleList;
+			OutMeshBatch.Type = PT_TriangleList;
 
-			if (bAllowPreCulledIndices
-				&& GUsePreCulledIndexBuffer 
-				&& LODs[LODIndex].Sections[SectionIndex].NumPreCulledTriangles >= 0)
+			if (bUsePreculledIndices)
 			{
-				OutElement.IndexBuffer = LODs[LODIndex].PreCulledIndexBuffer;
-				OutElement.FirstIndex = 0;
-				OutElement.NumPrimitives = LODs[LODIndex].PreCulledIndexBuffer->GetNumIndices() / 3;
+				OutMeshBatchElement.IndexBuffer = LODInfo.PreCulledIndexBuffer;
+				OutMeshBatchElement.FirstIndex = 0;
+				NumPrimitives = LODInfo.PreCulledIndexBuffer->GetNumIndices() / 3;
 			}
 			else
 			{
-				OutElement.FirstIndex = 0;
-				OutElement.IndexBuffer = &LODModel.IndexBuffer;
-				OutElement.NumPrimitives = LODModel.IndexBuffer.GetNumIndices() / 3;
+				OutMeshBatchElement.FirstIndex = 0;
+				OutMeshBatchElement.IndexBuffer = &LODModel.IndexBuffer;
+				NumPrimitives = LODModel.IndexBuffer.GetNumIndices() / 3;
 			}
 
-			OutMeshElement.bWireframe = true;
-			OutMeshElement.bDisableBackfaceCulling = true;
+			OutMeshBatch.bWireframe = true;
+			OutMeshBatch.bDisableBackfaceCulling = true;
 		}
 	}
 	else
 	{
-		const FStaticMeshSection& Section = LODModel.Sections[SectionIndex];
-		OutMeshElement.Type = PT_TriangleList;
+		OutMeshBatch.Type = PT_TriangleList;
 
-		if (bAllowPreCulledIndices
-			&& GUsePreCulledIndexBuffer 
-			&& LODs[LODIndex].Sections[SectionIndex].NumPreCulledTriangles >= 0)
+		if (bUsePreculledIndices)
 		{
-			OutElement.IndexBuffer = LODs[LODIndex].PreCulledIndexBuffer;
-			OutElement.FirstIndex = LODs[LODIndex].Sections[SectionIndex].FirstPreCulledIndex;
-			OutElement.NumPrimitives = LODs[LODIndex].Sections[SectionIndex].NumPreCulledTriangles;
+			OutMeshBatchElement.IndexBuffer = LODInfo.PreCulledIndexBuffer;
+			OutMeshBatchElement.FirstIndex = SectionInfo.FirstPreCulledIndex;
+			NumPrimitives = SectionInfo.NumPreCulledTriangles;
 		}
 		else
 		{
-			OutElement.IndexBuffer = bUseReversedIndices ? &LODModel.AdditionalIndexBuffers->ReversedIndexBuffer : &LODModel.IndexBuffer;
-			OutElement.FirstIndex = Section.FirstIndex;
-			OutElement.NumPrimitives = Section.NumTriangles;
+			OutMeshBatchElement.IndexBuffer = bUseReversedIndices ? &LODModel.AdditionalIndexBuffers->ReversedIndexBuffer : &LODModel.IndexBuffer;
+			OutMeshBatchElement.FirstIndex = Section.FirstIndex;
+			NumPrimitives = Section.NumTriangles;
 		}
 	}
 
-	if ( bRequiresAdjacencyInformation )
+	if (bRequiresAdjacencyInformation)
 	{
-		check( LODModel.bHasAdjacencyInfo );
+		check(LODModel.bHasAdjacencyInfo);
 		check(LODModel.AdditionalIndexBuffers);
-		OutElement.IndexBuffer = &LODModel.AdditionalIndexBuffers->AdjacencyIndexBuffer;
-		OutMeshElement.Type = PT_12_ControlPointPatchList;
-		OutElement.FirstIndex *= 4;
+		OutMeshBatchElement.IndexBuffer = &LODModel.AdditionalIndexBuffers->AdjacencyIndexBuffer;
+		OutMeshBatch.Type = PT_12_ControlPointPatchList;
+		OutMeshBatchElement.FirstIndex *= 4;
 	}
+
+	OutMeshBatchElement.NumPrimitives = NumPrimitives;
+	OutMeshBatch.VertexFactory = VertexFactory;
+
+	return NumPrimitives;
+}
+
+void FStaticMeshSceneProxy::SetMeshElementScreenSize(int32 LODIndex, bool bDitheredLODTransition, FMeshBatch& OutMeshBatch) const
+{
+	FMeshBatchElement& OutBatchElement = OutMeshBatch.Elements[0];
+
+	if (ForcedLodModel > 0)
+	{
+		OutMeshBatch.bDitheredLODTransition = false;
+
+		OutBatchElement.MaxScreenSize = 0.0f;
+		OutBatchElement.MinScreenSize = -1.0f;
+	}
+	else
+	{
+		OutMeshBatch.bDitheredLODTransition = bDitheredLODTransition;
+
+		OutBatchElement.MaxScreenSize = GetScreenSize(LODIndex);
+		OutBatchElement.MinScreenSize = 0.0f;
+		if (LODIndex < MAX_STATIC_MESH_LODS - 1)
+		{
+			OutBatchElement.MinScreenSize = GetScreenSize(LODIndex + 1);
+		}
+	}
+}
+
+bool FStaticMeshSceneProxy::IsReversedCullingNeeded(bool bUseReversedIndices) const
+{
+	return (bReverseCulling || IsLocalToWorldDeterminantNegative()) && !bUseReversedIndices;
 }
 
 // FPrimitiveSceneProxy interface.
@@ -934,21 +1040,41 @@ void FStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PD
 #endif // WITH_EDITOR
 
 					const int32 NumBatches = GetNumMeshBatches();
+					const int32 NumRuntimeVirtualTextureTypes = RuntimeVirtualTextureMaterialTypes.Num();
 
-					PDI->ReserveMemoryForMeshes(NumBatches);
+					PDI->ReserveMemoryForMeshes(NumBatches * (1 + NumRuntimeVirtualTextureTypes));
 
 					for (int32 BatchIndex = 0; BatchIndex < NumBatches; BatchIndex++)
 					{
-						FMeshBatch MeshBatch;
-
-						if (GetMeshElement(LODIndex, BatchIndex, SectionIndex, PrimitiveDPG, bIsMeshElementSelected, true, MeshBatch))
+						FMeshBatch BaseMeshBatch;
+						if (GetMeshElement(LODIndex, BatchIndex, SectionIndex, PrimitiveDPG, bIsMeshElementSelected, true, BaseMeshBatch))
 						{
-							// If we have submitted an optimized shadow-only mesh, remaining mesh elements must not cast shadows.
-							MeshBatch.CastShadow &= !bUseUnifiedMeshForShadow;
-							MeshBatch.bUseAsOccluder &= !bUseUnifiedMeshForDepth;
-							MeshBatch.bUseForDepthPass &= !bUseUnifiedMeshForDepth;
+							{
+								// Standard mesh elements.
+								// If we have submitted an optimized shadow-only mesh, remaining mesh elements must not cast shadows.
+								FMeshBatch MeshBatch(BaseMeshBatch);
+								MeshBatch.CastShadow &= !bUseUnifiedMeshForShadow;
+								MeshBatch.bUseAsOccluder &= !bUseUnifiedMeshForDepth;
+								MeshBatch.bUseForDepthPass &= !bUseUnifiedMeshForDepth;
+								PDI->DrawMesh(MeshBatch, ScreenSize);
+							}
+							if (NumRuntimeVirtualTextureTypes > 0)
+							{
+								// Runtime virtual texture mesh elements.
+								FMeshBatch MeshBatch(BaseMeshBatch);
+								MeshBatch.CastShadow = 0;
+								MeshBatch.bUseAsOccluder = 0;
+								MeshBatch.bUseForDepthPass = 0;
+								MeshBatch.bUseForMaterial = 0;
+								MeshBatch.bDitheredLODTransition = 0;
+								MeshBatch.bRenderToVirtualTexture = 1;
 
-							PDI->DrawMesh(MeshBatch, ScreenSize);
+								for (ERuntimeVirtualTextureMaterialType MaterialType : RuntimeVirtualTextureMaterialTypes)
+								{
+									MeshBatch.RuntimeVirtualTextureMaterialType = (uint32)MaterialType;
+									PDI->DrawMesh(MeshBatch, FLT_MAX);
+								}
+							}
 						}
 					}
 				}
@@ -1254,9 +1380,8 @@ void FStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView
 								for (int32 BatchIndex = 0; BatchIndex < GetNumMeshBatches(); BatchIndex++)
 								{
 									FMeshBatch& CollisionElement = Collector.AllocateMesh();
-									if (GetMeshElement(DrawLOD, BatchIndex, SectionIndex, SDPG_World, bSectionIsSelected, true, CollisionElement))
+									if (GetCollisionMeshElement(DrawLOD, BatchIndex, SectionIndex, SDPG_World, CollisionMaterialInstance, CollisionElement))
 									{
-										CollisionElement.MaterialRenderProxy = CollisionMaterialInstance;
 										Collector.AddMesh(ViewIndex, CollisionElement);
 										INC_DWORD_STAT_BY(STAT_StaticMeshTriangles, CollisionElement.GetNumPrimitives());
 									}
@@ -1293,13 +1418,13 @@ void FStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView
 						Collector.RegisterOneFrameMaterialProxy(SolidMaterialInstance);
 
 						FTransform GeomTransform(GetLocalToWorld());
-						BodySetup->AggGeom.GetAggGeom(GeomTransform, GetWireframeColor().ToFColor(true), SolidMaterialInstance, false, true, UseEditorDepthTest(), ViewIndex, Collector);
+						BodySetup->AggGeom.GetAggGeom(GeomTransform, GetWireframeColor().ToFColor(true), SolidMaterialInstance, false, true, DrawsVelocity(), ViewIndex, Collector);
 					}
 					// wireframe
 					else
 					{
 						FTransform GeomTransform(GetLocalToWorld());
-						BodySetup->AggGeom.GetAggGeom(GeomTransform, GetSelectionColor(SimpleCollisionColor, bProxyIsSelected, IsHovered()).ToFColor(true), NULL, ( Owner == NULL ), false, UseEditorDepthTest(), ViewIndex, Collector);
+						BodySetup->AggGeom.GetAggGeom(GeomTransform, GetSelectionColor(SimpleCollisionColor, bProxyIsSelected, IsHovered()).ToFColor(true), NULL, ( Owner == NULL ), false, DrawsVelocity(), ViewIndex, Collector);
 					}
 
 
@@ -1470,7 +1595,7 @@ void FStaticMeshSceneProxy::GetLightRelevance(const FLightSceneProxy* LightScene
 	}
 }
 
-void FStaticMeshSceneProxy::GetDistancefieldAtlasData(FBox& LocalVolumeBounds, FVector2D& OutDistanceMinMax, FIntVector& OutBlockMin, FIntVector& OutBlockSize, bool& bOutBuiltAsIfTwoSided, bool& bMeshWasPlane, float& SelfShadowBias, TArray<FMatrix>& ObjectLocalToWorldTransforms) const
+void FStaticMeshSceneProxy::GetDistancefieldAtlasData(FBox& LocalVolumeBounds, FVector2D& OutDistanceMinMax, FIntVector& OutBlockMin, FIntVector& OutBlockSize, bool& bOutBuiltAsIfTwoSided, bool& bMeshWasPlane, float& SelfShadowBias, TArray<FMatrix>& ObjectLocalToWorldTransforms, bool& bOutThrottled) const
 {
 	if (DistanceFieldData)
 	{
@@ -1482,6 +1607,7 @@ void FStaticMeshSceneProxy::GetDistancefieldAtlasData(FBox& LocalVolumeBounds, F
 		bMeshWasPlane = DistanceFieldData->bMeshWasPlane;
 		ObjectLocalToWorldTransforms.Add(GetLocalToWorld());
 		SelfShadowBias = DistanceFieldSelfShadowBias;
+		bOutThrottled = DistanceFieldData->VolumeTexture.Throttled();
 	}
 	else
 	{
@@ -1492,6 +1618,7 @@ void FStaticMeshSceneProxy::GetDistancefieldAtlasData(FBox& LocalVolumeBounds, F
 		bOutBuiltAsIfTwoSided = false;
 		bMeshWasPlane = false;
 		SelfShadowBias = 0;
+		bOutThrottled = false;
 	}
 }
 

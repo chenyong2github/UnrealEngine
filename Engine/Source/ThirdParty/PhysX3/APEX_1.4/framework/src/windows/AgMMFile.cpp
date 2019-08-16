@@ -12,6 +12,11 @@
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
 #include "AgMMFile.h"
+// @ATG_CHANGE : BEGIN HoloLens support (for PX_ARRAY_SIZE)
+#if PX_HOLOLENS
+#include "PsUtilities.h"
+#endif
+// @ATG_CHANGE : END
 
 using namespace nvidia;
 
@@ -29,12 +34,25 @@ void AgMMFile::create(char *name, unsigned int size, bool &alreadyExists)
 	alreadyExists = false;
 	mSize = size;
 
+// @ATG_CHANGE : BEGIN HoloLens support (non-wide variant removed from API set)
+#if PX_HOLOLENS
+	wchar_t wideName[MAX_PATH];
+	MultiByteToWideChar(CP_ACP, 0, name, -1, wideName, PX_ARRAY_SIZE(wideName));
+	mFileH = CreateFileMapping(INVALID_HANDLE_VALUE,	// use paging file
+		NULL,											// default security
+		PAGE_READWRITE,									// read/write access
+		0,												// buffer size (upper 32bits)
+		mSize,											// buffer size (lower 32bits)
+		wideName);										// name of mapping object
+#else
 	mFileH = CreateFileMapping(INVALID_HANDLE_VALUE,	// use paging file
 		NULL,											// default security
 		PAGE_READWRITE,									// read/write access
 		0,												// buffer size (upper 32bits)
 		mSize,											// buffer size (lower 32bits)
 		name);											// name of mapping object
+#endif
+// @ATG_CHANGE : END
 	if (mFileH == NULL || mFileH == INVALID_HANDLE_VALUE)
 	{
 		mSize=0;

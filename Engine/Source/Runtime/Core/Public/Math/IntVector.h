@@ -190,6 +190,46 @@ public:
 	FIntVector operator-( const FIntVector& Other ) const;
 
 	/**
+	 * Shifts all components to the right.
+	 *
+	 * @param Shift The number of bits to shift.
+	 * @return A new shifted int point.
+	 */
+	FIntVector operator>>(int32 Shift) const;
+
+	/**
+	 * Shifts all components to the left.
+	 *
+	 * @param Shift The number of bits to shift.
+	 * @return A new shifted int point.
+	 */
+	FIntVector operator<<(int32 Shift) const;
+
+	/**
+	 * Component-wise AND.
+	 *
+	 * @param Value Number to AND with the each component.
+	 * @return A new shifted int point.
+	 */
+	FIntVector operator&(int32 Val) const;
+
+	/**
+	 * Component-wise OR.
+	 *
+	 * @param Value Number to OR with the each component.
+	 * @return A new shifted int point.
+	 */
+	FIntVector operator|(int32 Value) const;
+
+	/**
+	 * Component-wise XOR.
+	 *
+	 * @param Value Number to XOR with the each component.
+	 * @return A new shifted int point.
+	 */
+	FIntVector operator^(int32 Value) const;
+
+	/**
 	 * Is vector equal to zero.
 	 * @return is zero
 	*/
@@ -202,14 +242,14 @@ public:
 	 *
 	 * @return The maximum value in the point.
 	 */
-	float GetMax() const;
+	int32 GetMax() const;
 
 	/**
 	 * Gets the minimum value in the point.
 	 *
 	 * @return The minimum value in the point.
 	 */
-	float GetMin() const;
+	int32 GetMin() const;
 
 	/**
 	 * Gets the distance of this point from (0,0,0).
@@ -408,20 +448,43 @@ FORCEINLINE FIntVector FIntVector::operator-( const FIntVector& Other ) const
 	return FIntVector(*this) -= Other;
 }
 
+FORCEINLINE FIntVector FIntVector::operator>>(int32 Shift) const
+{
+	return FIntVector(X >> Shift, Y >> Shift, Z >> Shift);
+}
+
+FORCEINLINE FIntVector FIntVector::operator<<(int32 Shift) const
+{
+	return FIntVector(X << Shift, Y << Shift, Z << Shift);
+}
+
+FORCEINLINE FIntVector FIntVector::operator&(int32 Value) const
+{
+	return FIntVector(X & Value, Y & Value, Z & Value);
+}
+
+FORCEINLINE FIntVector FIntVector::operator|(int32 Value) const
+{
+	return FIntVector(X | Value, Y | Value, Z | Value);
+}
+
+FORCEINLINE FIntVector FIntVector::operator^(int32 Value) const
+{
+	return FIntVector(X ^ Value, Y ^ Value, Z ^ Value);
+}
 
 FORCEINLINE FIntVector FIntVector::DivideAndRoundUp( FIntVector lhs, int32 Divisor )
 {
 	return FIntVector(FMath::DivideAndRoundUp(lhs.X, Divisor), FMath::DivideAndRoundUp(lhs.Y, Divisor), FMath::DivideAndRoundUp(lhs.Z, Divisor));
 }
 
-
-FORCEINLINE float FIntVector::GetMax() const
+FORCEINLINE int32 FIntVector::GetMax() const
 {
 	return FMath::Max(FMath::Max(X, Y), Z);
 }
 
 
-FORCEINLINE float FIntVector::GetMin() const
+FORCEINLINE int32 FIntVector::GetMin() const
 {
 	return FMath::Min(FMath::Min(X, Y), Z);
 }
@@ -489,28 +552,304 @@ struct FIntVector4
 	{
 	}
 
-	FORCEINLINE const int32& operator[](int32 ComponentIndex) const
-	{
-		return (&X)[ComponentIndex];
-	}
+	/**
+	 * Gets specific component of a point.
+	 *
+	 * @param ComponentIndex Index of point component.
+	 * @return const reference to component.
+	 */
+	const int32& operator()(int32 ComponentIndex) const;
 
+	/**
+	 * Gets specific component of a point.
+	 *
+	 * @param ComponentIndex Index of point component.
+	 * @return reference to component.
+	 */
+	int32& operator()(int32 ComponentIndex);
 
-	FORCEINLINE int32& operator[](int32 ComponentIndex)
-	{
-		return (&X)[ComponentIndex];
-	}
+	/**
+	 * Gets specific component of a point.
+	 *
+	 * @param ComponentIndex Index of point component.
+	 * @return const reference to component.
+	 */
+	const int32& operator[](int32 ComponentIndex) const;
 
-	FORCEINLINE bool operator==(const FIntVector4& Other) const
-	{
-		return X==Other.X && Y==Other.Y && Z==Other.Z && W==Other.W;
-	}
+	/**
+	 * Gets specific component of a point.
+	 *
+	 * @param ComponentIndex Index of point component.
+	 * @return reference to component.
+	 */
+	int32& operator[](int32 ComponentIndex);
 
+	/**
+	 * Compares points for equality.
+	 *
+	 * @param Other The other int point being compared.
+	 * @return true if the points are equal, false otherwise..
+	 */
+	bool operator==(const FIntVector4& Other) const;
 
-	FORCEINLINE bool operator!=(const FIntVector4& Other) const
-	{
-		return X!=Other.X || Y!=Other.Y || Z!=Other.Z || W!=Other.W;
-	}
+	/**
+	 * Compares points for inequality.
+	 *
+	 * @param Other The other int point being compared.
+	 * @return true if the points are not equal, false otherwise..
+	 */
+	bool operator!=(const FIntVector4& Other) const;
+
+	/**
+	 * Scales this point.
+	 *
+	 * @param Scale What to multiply the point by.
+	 * @return Reference to this point after multiplication.
+	 */
+	FIntVector4& operator*=(int32 Scale);
+
+	/**
+	 * Divides this point.
+	 *
+	 * @param Divisor What to divide the point by.
+	 * @return Reference to this point after division.
+	 */
+	FIntVector4& operator/=(int32 Divisor);
+
+	/**
+	 * Adds to this point.
+	 *
+	 * @param Other The point to add to this point.
+	 * @return Reference to this point after addition.
+	 */
+	FIntVector4& operator+=(const FIntVector4& Other);
+
+	/**
+	 * Subtracts from this point.
+	 *
+	 * @param Other The point to subtract from this point.
+	 * @return Reference to this point after subtraction.
+	 */
+	FIntVector4& operator-=(const FIntVector4& Other);
+
+	/**
+	 * Assigns another point to this one.
+	 *
+	 * @param Other The point to assign this point from.
+	 * @return Reference to this point after assignment.
+	 */
+	FIntVector4& operator=(const FIntVector4& Other);
+
+	/**
+	 * Gets the result of scaling on this point.
+	 *
+	 * @param Scale What to multiply the point by.
+	 * @return A new scaled int point.
+	 */
+	FIntVector4 operator*(int32 Scale) const;
+
+	/**
+	 * Gets the result of division on this point.
+	 *
+	 * @param Divisor What to divide the point by.
+	 * @return A new divided int point.
+	 */
+	FIntVector4 operator/(int32 Divisor) const;
+
+	/**
+	 * Gets the result of addition on this point.
+	 *
+	 * @param Other The other point to add to this.
+	 * @return A new combined int point.
+	 */
+	FIntVector4 operator+(const FIntVector4& Other) const;
+
+	/**
+	 * Gets the result of subtraction from this point.
+	 *
+	 * @param Other The other point to subtract from this.
+	 * @return A new subtracted int point.
+	 */
+	FIntVector4 operator-(const FIntVector4& Other) const;
+
+	/**
+	 * Shifts all components to the right.
+	 *
+	 * @param Shift The number of bits to shift.
+	 * @return A new shifted int point.
+	 */
+	FIntVector4 operator>>(int32 Shift) const;
+
+	/**
+	 * Shifts all components to the left.
+	 *
+	 * @param Shift The number of bits to shift.
+	 * @return A new shifted int point.
+	 */
+	FIntVector4 operator<<(int32 Shift) const;
+
+	/**
+	 * Component-wise AND.
+	 *
+	 * @param Value Number to AND with the each component.
+	 * @return A new shifted int point.
+	 */
+	FIntVector4 operator&(int32 Val) const;
+
+	/**
+	 * Component-wise OR.
+	 *
+	 * @param Value Number to OR with the each component.
+	 * @return A new shifted int point.
+	 */
+	FIntVector4 operator|(int32 Value) const;
+
+	/**
+	 * Component-wise XOR.
+	 *
+	 * @param Value Number to XOR with the each component.
+	 * @return A new shifted int point.
+	 */
+	FIntVector4 operator^(int32 Value) const;
 };
+
+FORCEINLINE const int32& FIntVector4::operator()(int32 ComponentIndex) const
+{
+	return (&X)[ComponentIndex];
+}
+
+
+FORCEINLINE int32& FIntVector4::operator()(int32 ComponentIndex)
+{
+	return (&X)[ComponentIndex];
+}
+
+
+FORCEINLINE const int32& FIntVector4::operator[](int32 ComponentIndex) const
+{
+	return (&X)[ComponentIndex];
+}
+
+
+FORCEINLINE int32& FIntVector4::operator[](int32 ComponentIndex)
+{
+	return (&X)[ComponentIndex];
+}
+
+FORCEINLINE bool FIntVector4::operator==(const FIntVector4& Other) const
+{
+	return X == Other.X && Y == Other.Y && Z == Other.Z;
+}
+
+
+FORCEINLINE bool FIntVector4::operator!=(const FIntVector4& Other) const
+{
+	return X != Other.X || Y != Other.Y || Z != Other.Z || W != Other.W;
+}
+
+
+FORCEINLINE FIntVector4& FIntVector4::operator*=(int32 Scale)
+{
+	X *= Scale;
+	Y *= Scale;
+	Z *= Scale;
+	W *= Scale;
+
+	return *this;
+}
+
+
+FORCEINLINE FIntVector4& FIntVector4::operator/=(int32 Divisor)
+{
+	X /= Divisor;
+	Y /= Divisor;
+	Z /= Divisor;
+	W /= Divisor;
+
+	return *this;
+}
+
+
+FORCEINLINE FIntVector4& FIntVector4::operator+=(const FIntVector4& Other)
+{
+	X += Other.X;
+	Y += Other.Y;
+	Z += Other.Z;
+	W += Other.W;
+
+	return *this;
+}
+
+
+FORCEINLINE FIntVector4& FIntVector4::operator-=(const FIntVector4& Other)
+{
+	X -= Other.X;
+	Y -= Other.Y;
+	Z -= Other.Z;
+	W -= Other.W;
+
+	return *this;
+}
+
+
+FORCEINLINE FIntVector4& FIntVector4::operator=(const FIntVector4& Other)
+{
+	X = Other.X;
+	Y = Other.Y;
+	Z = Other.Z;
+	W = Other.W;
+
+	return *this;
+}
+
+
+FORCEINLINE FIntVector4 FIntVector4::operator*(int32 Scale) const
+{
+	return FIntVector4(*this) *= Scale;
+}
+
+
+FORCEINLINE FIntVector4 FIntVector4::operator/(int32 Divisor) const
+{
+	return FIntVector4(*this) /= Divisor;
+}
+
+
+FORCEINLINE FIntVector4 FIntVector4::operator+(const FIntVector4& Other) const
+{
+	return FIntVector4(*this) += Other;
+}
+
+FORCEINLINE FIntVector4 FIntVector4::operator-(const FIntVector4& Other) const
+{
+	return FIntVector4(*this) -= Other;
+}
+
+FORCEINLINE FIntVector4 FIntVector4::operator>>(int32 Shift) const
+{
+	return FIntVector4(X >> Shift, Y >> Shift, Z >> Shift, W >> Shift);
+}
+
+FORCEINLINE FIntVector4 FIntVector4::operator<<(int32 Shift) const
+{
+	return FIntVector4(X << Shift, Y << Shift, Z << Shift, W << Shift);
+}
+
+FORCEINLINE FIntVector4 FIntVector4::operator&(int32 Value) const
+{
+	return FIntVector4(X & Value, Y & Value, Z & Value, W & Value);
+}
+
+FORCEINLINE FIntVector4 FIntVector4::operator|(int32 Value) const
+{
+	return FIntVector4(X | Value, Y | Value, Z | Value, W | Value);
+}
+
+FORCEINLINE FIntVector4 FIntVector4::operator^(int32 Value) const
+{
+	return FIntVector4(X ^ Value, Y ^ Value, Z ^ Value, W ^ Value);
+}
+
 
 struct FUintVector4
 {

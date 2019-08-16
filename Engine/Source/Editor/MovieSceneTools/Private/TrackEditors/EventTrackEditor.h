@@ -43,7 +43,7 @@ public:
 	// ISequencerTrackEditor interface
 
 	virtual void BuildAddTrackMenu(FMenuBuilder& MenuBuilder) override;
-	virtual void BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const FGuid& ObjectBinding, const UClass* ObjectClass) override;
+	virtual void BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass) override;
 	virtual bool SupportsType( TSubclassOf<UMovieSceneTrack> Type ) const override;
 	virtual bool SupportsSequence(UMovieSceneSequence* InSequence) const override;
 	virtual const FSlateBrush* GetIconBrush() const override;
@@ -55,8 +55,10 @@ public:
 
 private:
 
-	/** Callback for executing the "Add Event Track" menu entry. */
-	void HandleAddEventTrackMenuEntryExecute(FGuid InObjectBindingID);
+	void AddEventSubMenu(FMenuBuilder& MenuBuilder, TArray<FGuid>);
 
-	void CreateNewSection(UMovieSceneTrack* Track, int32 RowIndex, UClass* SectionType);
+	/** Callback for executing the "Add Event Track" menu entry. */
+	void HandleAddEventTrackMenuEntryExecute(TArray<FGuid> InObjectBindingIDs, UClass* SectionType);
+
+	void CreateNewSection(UMovieSceneTrack* Track, int32 RowIndex, UClass* SectionType, bool bSelect);
 };

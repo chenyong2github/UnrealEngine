@@ -1,0 +1,58 @@
+Availability: Public
+Crumbs: 
+Title: Using the Proxy Geometry Tool
+Description: In the following How - To we will take a look at how you go about using the Proxy Geometry Tool in your UE4 projects.
+Type: how-to
+SkillLevel:Intermediate
+Version: 4.19
+Parent: Engine/ProxyGeoTool
+Order: 2
+Tags: Optmization
+Tags: Proxy Geometry Tool
+
+
+In the following How - To we will take a look at using the Proxy Geometry Tool to create new Static Meshes and Textures for your UE4 projects levels.
+
+## Steps
+
+1.  The  **Proxy Geometry Tools**  are part of the Merge Actor tools so to open them up you need to go to  **Window > Developer Tools** and then click on the **Merge Actors** option.
+
+    ![](ProxyLOD_05.png "ProxyLOD_05.png")
+
+1.  When the Merge Actors tool is open, you should see two icons at the top. Click on the second icon to show the options for the Proxy Geometry Tools.   
+
+    ![](ProxyLOD_04.png "ProxyLOD_04.png")
+
+    [REGION:note]
+    The options in the Proxy Geometry tool will only become active when you have Static Meshes selected in a level.
+    [/REGION]
+    
+1.  Navigate to a location in a level and then start selecting Static Meshes. For this example 21 Static Meshes have been selected but please feel free to select as many Static Meshes as you want.  
+
+    ![](Proxy_Geo_HT_Using_01.png "Proxy_Geo_HT_Using_01.png")
+
+1.  With the Static Meshes still selected locate the Merge Actors window and then press the **Merge Actors** button to begin the Proxy Geometry tool creation process.  
+
+    ![](Proxy_Geo_HT_Using_02.png "Proxy_Geo_HT_Using_02.png") 
+
+1.  When prompted, specify a **Name** and **Location** for the new assets that the Proxy Geometry Tool will create. Once that is completed, press the **Save** button to continue the Proxy Geometry tool creation process.  
+
+    ![](Proxy_Geo_HT_Using_03.png "Proxy_Geo_HT_Using_03.png")
+
+    [REGION:note]
+    The time that it takes for the Proxy Geometry tool to finish can range from a few minutes to a few hours. The current progress will be shown in the following window.
+
+	![](Proxy_Geo_HT_Using_04.png "Proxy_Geo_HT_Using_04.png")
+    [/REGION]
+    
+1.  When the Proxy Geometry tool has completed, go to the Content Browser and search for the newly created assets by input the name given to them in step five.  
+
+    ![](Proxy_Geo_HT_Using_05.png "Proxy_Geo_HT_Using_05.png")
+
+## End Result
+
+To view the Static Mesh that was created, go to the Content Browser and double-click on the Static Mesh that was generated. When looking at the Static Mesh in the Static Mesh Editor, note the reduced triangle and material count.   
+
+![](Proxy_Geo_HT_Using_06.png "Proxy_Geo_HT_Using_06.png")
+
+[](#)[](#)

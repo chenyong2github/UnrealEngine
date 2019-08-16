@@ -19,6 +19,14 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 {
 	GENERATED_UCLASS_BODY()
 
+	/**
+	* Controls the depth bias scaling across cascades. This allows to mitigage the shadow acne difference on shadow cascades transition.
+	* A value of 1 scales shadow bias based on each cascade size (Default).
+	* A value of 0 scales shadow bias uniformly accross all cacascade.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Light, AdvancedDisplay, meta = (UIMin = "0", UIMax = "1"))
+	float ShadowCascadeBiasDistribution;
+
 	/** Whether to occlude fog and atmosphere inscattering with screenspace blurred occlusion from this light. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=LightShafts, meta=(DisplayName = "Light Shaft Occlusion"))
 	uint32 bEnableLightShaftOcclusion:1;

@@ -1,17 +1,16 @@
-﻿INTSourceChangelist:4368844
+﻿INTSourceChangelist:6594438
 Availability: Public
-Crumbs: 
 Title: 低延迟框架同步
 Description: 改变线程同步方式以大幅降低输入延迟。
-Version: 
+Type: overview
 Parent: Platforms
-Order: 1
-Tags: Xbox One, PS4, Additional
+Tags: Xbox One
+Tags: PS4
+Tags: Additional
+Order: 9
 
 
-[REGION:note]
 我们提前发布本内容的草稿版以便于你启动和运行。后续更新将很快发布，敬请关注！
-[/REGION]
 
 低延迟帧同步模式会修改游戏、渲染及RHI线程和GPU之间线程同步的执行方式，以显著减少和控制输入延迟。在之前的引擎发行版中，游戏线程在帧结束时与渲染线程同步。当启用 **r.OneFrameThreadLag** CVar（默认情况下启用）时，这种同步方式可确保游戏线程不会比渲染线程提前一整帧以上。   
 

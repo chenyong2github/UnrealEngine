@@ -4,6 +4,7 @@
 #include "Graph/ControlRigGraphSchema.h"
 #include "Graph/ControlRigGraphNode.h"
 #include "Graph/SGraphPinBoneName.h"
+#include "Graph/SGraphPinCurveName.h"
 #include "Graph/SGraphPinCurveFloat.h"
 #include "KismetPins/SGraphPinExec.h"
 #include "ControlRig.h"
@@ -41,6 +42,10 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 							if (Property->HasMetaData(UControlRig::BoneNameMetaName))
 							{
 								return SNew(SGraphPinBoneName, InPin);
+							}
+							else if (Property->HasMetaData(UControlRig::CurveNameMetaName))
+							{
+								return SNew(SGraphPinCurveName, InPin);
 							}
 						}
 					}

@@ -421,8 +421,8 @@ public:
 	 * @param Value The value to serialize.
 	 */
 #if WITH_EDITOR
-private:
-	void SerializeBool( bool& D );
+protected:
+	virtual void SerializeBool( bool& D );
 public:
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, bool& D)
 	{
@@ -746,8 +746,6 @@ public:
 	 * @param	bTreatBufferAsFileReader true if V is actually an FArchive, which is used when saving to read data - helps to avoid single huge allocations of source data
 	 * @param	bUsePlatformBitWindow use a platform specific bitwindow setting
 	 */
-	UE_DEPRECATED(4.20, "Use the FName based version of SerializeCompressed (which also removes the basically-unused bUsePlatformBitWindow)")
-	void SerializeCompressed(void* V, int64 Length, ECompressionFlags Flags = COMPRESS_NoFlags, bool bTreatBufferAsFileReader = false, bool bUsePlatformBitWindow = false);
 	void SerializeCompressed(void* V, int64 Length, FName CompressionFormat, ECompressionFlags Flags=COMPRESS_NoFlags, bool bTreatBufferAsFileReader=false);
 
 
@@ -895,7 +893,6 @@ public:
 		return this;
 	}
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FORCEINLINE bool IsLoading() const
 	{
 		return ArIsLoading;
@@ -920,7 +917,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 	FORCEINLINE bool IsTextFormat() const
 	{
-		return ArIsTextFormat;
+		return (ArIsTextFormat && WITH_TEXT_ARCHIVE_SUPPORT);
 	}
 
 	FORCEINLINE bool WantBinaryPropertySerialization() const
@@ -937,7 +934,6 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	{
 		return ArIsPersistent;
 	}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	FORCEINLINE bool IsError() const
 	{
@@ -1140,6 +1136,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	/**
 	 * Indicates whether this archive is saving or loading game state
 	 *
+	 * @note This is intended for game-specific archives and is not true for any of the build in save methods
 	 * @return true if the archive is dealing with save games, false otherwise.
 	 */
 	bool IsSaveGame()
@@ -1369,34 +1366,28 @@ private:
 	/** Copies all of the members except CustomVersionContainer */
 	void CopyTrivialFArchiveStatusMembers(const FArchive& ArchiveStatusToCopy);
 
-public:
 	/** Whether this archive is for loading data. */
-	UE_DEPRECATED(4.20, "Direct access to ArIsLoading has been deprecated - please use IsLoading() and SetIsLoading() instead.")
 	uint8 ArIsLoading : 1;
 
 	/** Whether this archive is for saving data. */
-	UE_DEPRECATED(4.20, "Direct access to ArIsSaving has been deprecated - please use IsSaving() and SetIsSaving() instead.")
 	uint8 ArIsSaving : 1;
 
 	/** Whether archive is transacting. */
-	UE_DEPRECATED(4.20, "Direct access to ArIsTransacting has been deprecated - please use IsTransacting() and SetIsTransacting() instead.")
 	uint8 ArIsTransacting : 1;
 
 	/** Whether this archive serializes to a text format. Text format archives should use high level constructs from FStructuredArchive for delimiting data rather than manually seeking through the file. */
-	UE_DEPRECATED(4.20, "Direct access to ArIsTextFormat has been deprecated - please use IsTextFormat() and SetIsTextFormat() instead.")
 	uint8 ArIsTextFormat : 1;
 
 	/** Whether this archive wants properties to be serialized in binary form instead of tagged. */
-	UE_DEPRECATED(4.20, "Direct access to ArWantBinaryPropertySerialization has been deprecated - please use WantBinaryPropertySerialization() and SetWantBinaryPropertySerialization() instead.")
 	uint8 ArWantBinaryPropertySerialization : 1;
 
 	/** Whether this archive wants to always save strings in unicode format */
-	UE_DEPRECATED(4.20, "Direct access to ArForceUnicode has been deprecated - please use ForceUnicode() and SetForceUnicode() instead.")
 	uint8 ArForceUnicode : 1;
 
 	/** Whether this archive saves to persistent storage. */
-	UE_DEPRECATED(4.20, "Direct access to ArIsPersistent has been deprecated - please use IsPersistent() and SetIsPersistent() instead.")
 	uint8 ArIsPersistent : 1;
+
+public:
 
 	/** Whether this archive contains errors. */
 	uint8 ArIsError : 1;

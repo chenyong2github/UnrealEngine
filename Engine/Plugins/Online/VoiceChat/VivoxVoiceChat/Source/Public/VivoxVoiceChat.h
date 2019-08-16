@@ -14,7 +14,7 @@ THIRD_PARTY_INCLUDES_START
 #include "vivoxclientapi/clientconnection.h"
 THIRD_PARTY_INCLUDES_END
 
-#include "VoiceChat.h"
+#include "Interfaces/VoiceChat.h"
 #include "Stats/Stats.h"
 #include "Misc/CoreMisc.h"
 #include "Logging/LogMacros.h"
@@ -22,6 +22,14 @@ THIRD_PARTY_INCLUDES_END
 DECLARE_LOG_CATEGORY_EXTERN(LogVivoxVoiceChat, Log, All);
 
 DECLARE_STATS_GROUP(TEXT("Vivox"), STATGROUP_Vivox, STATCAT_Advanced);
+
+class VIVOXVOICECHAT_API FVivoxDelegates
+{
+public:
+	/** Delegate called when the status of the audio device has changed. Triggered on platforms that the vivox sdk provides this event for */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnAudioUnitCaptureDeviceStatusChanged, int);
+	static FOnAudioUnitCaptureDeviceStatusChanged OnAudioUnitCaptureDeviceStatusChanged;
+};
 
 class FVivoxVoiceChat : public FSelfRegisteringExec, public IVoiceChat, protected VivoxClientApi::DebugClientApiEventHandler
 {
@@ -33,6 +41,8 @@ public:
 	virtual bool Initialize() override;
 	virtual bool Uninitialize() override;
 	virtual bool IsInitialized() const override;
+	virtual void SetSetting(const FString& Name, const FString& Value) override;
+	virtual FString GetSetting(const FString& Name) override;
 	virtual void SetAudioInputVolume(float Volume) override;
 	virtual void SetAudioOutputVolume(float Volume) override;
 	virtual float GetAudioInputVolume() const override;
@@ -272,6 +282,11 @@ protected:
 	void ClearChannelSessions();
 
 	void ClearLoginSession();
+
+	// Log spam avoidance
+	FString LastLogMessage;
+	LogLevel LastLogLevel;
+	int LogSpamCount = 0;
 
 	// ~Begin FSelfRegisteringExec Interface
 	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;

@@ -107,7 +107,7 @@ bool GIsReinstancing = false;
 
 /**
  * If true, we are running an editor script that should not prompt any dialog modal. The default value of any model will be used.
- * This is used when running a Blutility or script like Python and we don't want an OK dialog to pop while the script is running.
+ * This is used when running an editor utility blueprint or script like Python and we don't want an OK dialog to pop while the script is running.
  * Could be set for commandlet with -RUNNINGUNATTENDEDSCRIPT
  */
 bool GIsRunningUnattendedScript = false;
@@ -181,7 +181,7 @@ bool					GExitPurge						= false;
 
 FChunkedFixedUObjectArray* GCoreObjectArrayForDebugVisualizers = nullptr;
 #if PLATFORM_UNIX
-FNameEntry*** CORE_API GFNameTableForDebuggerVisualizers_MT = FName::GetNameTableForDebuggerVisualizers_MT();
+uint8** CORE_API GNameBlocksDebug = FNameDebugVisualizer::GetBlocks();
 FChunkedFixedUObjectArray*& CORE_API GObjectArrayForDebugVisualizers = GCoreObjectArrayForDebugVisualizers;
 #endif
 
@@ -346,7 +346,7 @@ static struct FBootTimingStart
 } GBootTimingStart;
 
 
-#define USE_BOOT_PROFILING (0)
+#define USE_BOOT_PROFILING (BUILD_EMBEDDED_APP)
 
 #if !USE_BOOT_PROFILING
 FScopedBootTiming::FScopedBootTiming(const ANSICHAR *InMessage)
@@ -362,6 +362,7 @@ FScopedBootTiming::~FScopedBootTiming()
 }
 void BootTimingPoint(const ANSICHAR *Message)
 {
+	TRACE_BOOKMARK(TEXT("%s"), *FString(Message));
 }
 void DumpBootTiming()
 {
@@ -398,6 +399,8 @@ void DumpBootTiming()
 
 static void BootTimingPoint(const TCHAR *Message, const TCHAR *Prefix = nullptr, int32 Depth = 0, double TookTime = 0.0)
 {
+	TRACE_BOOKMARK(TEXT("%s"), Message);
+
 	static double LastTime = 0.0;
 	static TArray<FString> MessageStack;
 	static FString LastGapMessage;
@@ -550,8 +553,6 @@ DEFINE_STAT(STAT_SkeletalMeshMotionBlurSkinningMemory);
 DEFINE_STAT(STAT_VertexShaderMemory);
 DEFINE_STAT(STAT_PixelShaderMemory);
 DEFINE_STAT(STAT_NavigationMemory);
-DEFINE_STAT(STAT_PhysSceneReadLock);
-DEFINE_STAT(STAT_PhysSceneWriteLock);
 
 DEFINE_STAT(STAT_ReflectionCaptureTextureMemory);
 DEFINE_STAT(STAT_ReflectionCaptureMemory);

@@ -266,7 +266,11 @@ struct FVectorVMContext : TThreadSingleton<FVectorVMContext>
 	TArray<uint8, TAlignedHeapAllocator<VECTOR_WIDTH_BYTES>> TempRegTable;
 	uint8 *RESTRICT RegisterTable[VectorVM::MaxRegisters];
 
+	/** Thread local random stream for use in external functions needing non-deterministic randoms. */
 	FRandomStream RandStream;
+
+	/** Thread local per instance random counters for use in external functions needing deterministic randoms. */
+	TArray<int32> RandCounters;
 
 	FVectorVMContext();
 
@@ -294,6 +298,9 @@ struct FVectorVMContext : TThreadSingleton<FVectorVMContext>
 		Code = InCode;
 		NumInstances = InNumInstances;
 		StartInstance = InStartInstance;
+
+		RandCounters.Reset();
+		RandCounters.SetNumZeroed(InNumInstances);
 	}
 };
 

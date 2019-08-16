@@ -33,8 +33,7 @@ UReimportSoundFactory::UReimportSoundFactory(const FObjectInitializer& ObjectIni
 
 bool UReimportSoundFactory::CanReimport(UObject* Obj, TArray<FString>& OutFilenames)
 {
-	USoundWave* SoundWave = Cast<USoundWave>(Obj);
-	if (SoundWave && SoundWave->NumChannels < 3)
+	if (USoundWave* SoundWave = Cast<USoundWave>(Obj))
 	{
 		SoundWave->AssetImportData->ExtractFilenames(OutFilenames);
 

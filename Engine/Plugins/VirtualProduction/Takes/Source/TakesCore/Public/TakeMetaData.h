@@ -156,17 +156,19 @@ public:
 
 	/**
 	 * Set the slate for this take and reset its take number to 1
+	 * @param bEmitChanged Whether or not to send a slate changed event
 	 * @note: Only valid for takes that have not been locked
 	 */
 	UFUNCTION(BlueprintCallable, Category="Take")
-	void SetSlate(FString InSlate);
+	void SetSlate(FString InSlate, bool bEmitChanged = true);
 
 	/**
 	 * Set this take's take number. Take numbers are always clamped to be >= 1.
+	 * @param bEmitChanged Whether or not to send a take number changed event
 	 * @note: Only valid for takes that have not been locked
 	 */
 	UFUNCTION(BlueprintCallable, Category="Take")
-	void SetTakeNumber(int32 InTakeNumber);
+	void SetTakeNumber(int32 InTakeNumber, bool bEmitChanged = true);
 
 	/**
 	 * Set this take's timestamp

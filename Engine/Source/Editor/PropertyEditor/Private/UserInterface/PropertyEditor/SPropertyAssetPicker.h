@@ -15,6 +15,7 @@ public:
 	SLATE_BEGIN_ARGS( SPropertyAssetPicker ) {}
 		SLATE_EVENT( FOnGetAllowedClasses, OnGetAllowedClasses )
 		SLATE_EVENT( FOnAssetSelected, OnAssetSelected )
+		SLATE_ARGUMENT( TSharedPtr<IPropertyHandle>, PropertyHandle )
 	SLATE_END_ARGS()
 
 	void Construct( const FArguments& InArgs );
@@ -32,4 +33,5 @@ private:
 
 	FOnGetAllowedClasses OnGetAllowedClasses;
 	FOnAssetSelected OnAssetSelected;
+	TSharedPtr<IPropertyHandle> PropertyHandle;
 };

@@ -5,12 +5,14 @@
 #include "HAL/UnrealMemory.h"
 #include "Logging/LogMacros.h"
 #include "Misc/Parse.h"
+#include "Misc/ScopeLock.h"
 #include "Misc/CommandLine.h"
 #include "Stats/Stats.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/CompressedGrowableBuffer.h"
 #include "Misc/ICompressionFormat.h"
 
+#include "Misc/MemoryReadStream.h"
 // #include "TargetPlatformBase.h"
 THIRD_PARTY_INCLUDES_START
 #include "ThirdParty/zlib/zlib-1.2.5/Inc/zlib.h"
@@ -22,6 +24,7 @@ DEFINE_LOG_CATEGORY(LogCompression);
 DECLARE_STATS_GROUP( TEXT( "Compression" ), STATGROUP_Compression, STATCAT_Advanced );
 
 TMap<FName, struct ICompressionFormat*> FCompression::CompressionFormats;
+FCriticalSection FCompression::CompressionFormatsCriticalSection;
 
 
 static void *zalloc(void *opaque, unsigned int size, unsigned int num)
@@ -210,6 +213,64 @@ bool appUncompressMemoryZLIB( void* UncompressedBuffer, int32 UncompressedSize, 
 	return bOperationSucceeded;
 }
 
+bool appUncompressMemoryStreamZLIB(void* UncompressedBuffer, int32 UncompressedSize, IMemoryReadStream* Stream, int64 StreamOffset, int32 CompressedSize, int32 BitWindow)
+{
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("Uncompress Memory ZLIB"), STAT_appUncompressMemoryZLIB, STATGROUP_Compression);
+
+	int64 ChunkOffset = 0;
+	int64 ChunkSize = 0;
+	const void* ChunkMemory = Stream->Read(ChunkSize, StreamOffset + ChunkOffset, CompressedSize);
+	ChunkOffset += ChunkSize;
+
+	z_stream stream;
+	stream.zalloc = &zalloc;
+	stream.zfree = &zfree;
+	stream.opaque = Z_NULL;
+	stream.next_in = (uint8*)ChunkMemory;
+	stream.avail_in = ChunkSize;
+	stream.next_out = (uint8*)UncompressedBuffer;
+	stream.avail_out = UncompressedSize;
+
+	if (BitWindow == 0)
+	{
+		BitWindow = DEFAULT_ZLIB_BIT_WINDOW;
+	}
+
+	int32 Result = inflateInit2(&stream, BitWindow);
+	if (Result != Z_OK)
+		return false;
+
+	while (Result == Z_OK)
+	{
+		if (stream.avail_in == 0u)
+		{
+			ChunkMemory = Stream->Read(ChunkSize, StreamOffset + ChunkOffset, CompressedSize - ChunkOffset);
+			ChunkOffset += ChunkSize;
+			check(ChunkOffset <= CompressedSize);
+
+			stream.next_in = (uint8*)ChunkMemory;
+			stream.avail_in = ChunkSize;
+		}
+
+		Result = inflate(&stream, Z_SYNC_FLUSH);
+	}
+
+	int32 EndResult = inflateEnd(&stream);
+	if (Result >= Z_OK)
+	{
+		Result = EndResult;
+	}
+
+	// These warnings will be compiled out in shipping.
+	UE_CLOG(Result == Z_MEM_ERROR, LogCompression, Warning, TEXT("appUncompressMemoryStreamZLIB failed: Error: Z_MEM_ERROR, not enough memory!"));
+	UE_CLOG(Result == Z_BUF_ERROR, LogCompression, Warning, TEXT("appUncompressMemoryStreamZLIB failed: Error: Z_BUF_ERROR, not enough room in the output buffer!"));
+	UE_CLOG(Result == Z_DATA_ERROR, LogCompression, Warning, TEXT("appUncompressMemoryStreamZLIB failed: Error: Z_DATA_ERROR, input data was corrupted or incomplete!"));
+
+	bool bOperationSucceeded = (Result == Z_OK);
+
+	return bOperationSucceeded;
+}
+
 /** Time spent compressing data in cycles. */
 TAtomic<uint64> FCompression::CompressorTimeCycles(0);
 /** Number of bytes before compression.		*/
@@ -247,6 +308,7 @@ static ECompressionFlags CheckGlobalCompressionFlags(ECompressionFlags Flags)
 
 ICompressionFormat* FCompression::GetCompressionFormat(FName FormatName, bool bErrorOnFailure)
 {
+	FScopeLock Lock(&CompressionFormatsCriticalSection);
 	ICompressionFormat** ExistingFormat = CompressionFormats.Find(FormatName);
 	if (ExistingFormat == nullptr)
 	{
@@ -418,7 +480,7 @@ bool FCompression::UncompressMemory(FName FormatName, void* UncompressedBuffer, 
 			bUncompressSucceeded = true;
 		}
 		// Always log an error
-		UE_LOG(LogCompression, Error, TEXT("FCompression::UncompressMemory - Failed to uncompress memory (%d/%d) using format %s, this may indicate the asset is corrupt!"), CompressedSize, UncompressedSize, *FormatName.ToString());
+		UE_LOG(LogCompression, Error, TEXT("FCompression::UncompressMemory - Failed to uncompress memory (%d/%d) from address %p using format %s, this may indicate the asset is corrupt!"), CompressedSize, UncompressedSize, CompressedBuffer, *FormatName.ToString());
 	}
 
 #if	STATS
@@ -429,6 +491,42 @@ bool FCompression::UncompressMemory(FName FormatName, void* UncompressedBuffer, 
 #endif // STATS
 	
 	return bUncompressSucceeded;
+}
+
+bool FCompression::UncompressMemoryStream(FName FormatName, void* UncompressedBuffer, int32 UncompressedSize, IMemoryReadStream* Stream, int64 StreamOffset, int32 CompressedSize, ECompressionFlags Flags, int32 CompressionData)
+{
+	int64 ContiguousChunkSize = 0;
+	const void* ContiguousMemory = Stream->Read(ContiguousChunkSize, StreamOffset, CompressedSize);
+	bool bUncompressResult = false;
+	if (ContiguousChunkSize >= CompressedSize)
+	{
+		// able to map entire memory stream as contiguous buffer, use default uncompress here to take advantage of possible platform optimization
+		bUncompressResult = UncompressMemory(FormatName, UncompressedBuffer, UncompressedSize, ContiguousMemory, CompressedSize, Flags, CompressionData);
+	}
+	else if (FormatName == NAME_Zlib)
+	{
+		SCOPED_NAMED_EVENT(FCompression_UncompressMemoryStream, FColor::Cyan);
+		// Keep track of time spent uncompressing memory.
+		STAT(double UncompressorStartTime = FPlatformTime::Seconds();)
+		// ZLib supports streaming implementation for non-contiguous buffers
+		bUncompressResult = appUncompressMemoryStreamZLIB(UncompressedBuffer, UncompressedSize, Stream, StreamOffset, CompressedSize, CompressionData);
+#if	STATS
+		if (FThreadStats::IsThreadingReady())
+		{
+			INC_FLOAT_STAT_BY(STAT_UncompressorTime, (float)(FPlatformTime::Seconds() - UncompressorStartTime))
+		}
+#endif // STATS
+	}
+	else
+	{
+		// need to allocate temp memory to create contiguous buffer for default uncompress
+		void* TempMemory = FMemory::Malloc(CompressedSize);
+		Stream->CopyTo(TempMemory, StreamOffset, CompressedSize);
+		bUncompressResult = UncompressMemory(FormatName, UncompressedBuffer, UncompressedSize, TempMemory, CompressedSize, Flags, CompressionData);
+		FMemory::Free(TempMemory);
+	}
+
+	return bUncompressResult;
 }
 
 /*-----------------------------------------------------------------------------

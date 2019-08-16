@@ -29,6 +29,7 @@
 #include "AdvancedPreviewScene.h"
 #include "AssetViewerSettings.h"
 #include "Engine/PostProcessVolume.h"
+#include "Widgets/Input/SCheckBox.h"
 
 #define LOCTEXT_NAMESPACE "MaterialEditor"
 
@@ -172,7 +173,7 @@ FLinearColor FMaterialEditorViewportClient::GetBackgroundColor() const
 				{
 					BackgroundColor = FLinearColor::White;
 				}
-				else if (PreviewBlendMode == BLEND_Translucent || PreviewBlendMode == BLEND_AlphaComposite)
+				else if (PreviewBlendMode == BLEND_Translucent || PreviewBlendMode == BLEND_AlphaComposite || PreviewBlendMode == BLEND_AlphaHoldout)
 				{
 					BackgroundColor = FColor(64, 64, 64);
 				}
@@ -393,7 +394,7 @@ bool SMaterialEditor3DPreviewViewport::SetPreviewAsset(UObject* InAsset)
 	// Add the new component to the scene
 	if (PreviewMeshComponent != nullptr)
 	{
-		if (GEditor->PreviewFeatureLevel <= ERHIFeatureLevel::ES3_1)
+		if (GEditor->PreviewPlatform.GetEffectivePreviewFeatureLevel() <= ERHIFeatureLevel::ES3_1)
 		{
 			PreviewMeshComponent->SetMobility(EComponentMobility::Static);
 		}
@@ -890,7 +891,7 @@ void SMaterialEditorUIPreviewZoomer::SetPreviewMaterial(UMaterialInterface* InPr
 
 void SMaterialEditorUIPreviewViewport::Construct( const FArguments& InArgs, UMaterialInterface* PreviewMaterial )
 {
-
+	bRealtime = false;
 	ChildSlot
 	[
 		SNew( SVerticalBox )
@@ -903,6 +904,21 @@ void SMaterialEditorUIPreviewViewport::Construct( const FArguments& InArgs, UMat
 			.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
 			[
 				SNew( SHorizontalBox )
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.Padding( 9.f )
+				.AutoWidth()
+				[
+					SNew( SCheckBox )
+					.CheckBoxContentUsesAutoWidth( true )
+					.OnCheckStateChanged(this, &SMaterialEditorUIPreviewViewport::OnRealtimeChanged)
+					.IsChecked(this, &SMaterialEditorUIPreviewViewport::IsRealtimeChecked)
+					.Content()
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("Realtime", "Realtime"))
+					]
+				]
 				+ SHorizontalBox::Slot()
 				.VAlign(VAlign_Center)
 				.Padding( 3.f )
@@ -1003,6 +1019,34 @@ void SMaterialEditorUIPreviewViewport::OnPreviewYChanged( int32 NewValue )
 void SMaterialEditorUIPreviewViewport::OnPreviewYCommitted( int32 NewValue, ETextCommit::Type )
 {
 	OnPreviewYChanged( NewValue );
+}
+
+void SMaterialEditorUIPreviewViewport::OnRealtimeChanged(ECheckBoxState State)
+{
+	if (State == ECheckBoxState::Checked)
+	{
+		bRealtime = true;
+		ActiveTimerHandle = RegisterActiveTimer(0.f, FWidgetActiveTimerDelegate::CreateSP(this, &SMaterialEditorUIPreviewViewport::EnsureTick));
+	}
+	else
+	{
+		bRealtime = false;
+		if (ActiveTimerHandle.IsValid())
+		{
+			UnRegisterActiveTimer(ActiveTimerHandle.Pin().ToSharedRef());
+		}
+	}
+}
+
+ECheckBoxState SMaterialEditorUIPreviewViewport::IsRealtimeChecked() const
+{
+	return bRealtime ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+EActiveTimerReturnType SMaterialEditorUIPreviewViewport::EnsureTick(double InCurrentTime, float InDeltaTime)
+{
+	// Keep the timer going if we're realtime
+	return bRealtime ? EActiveTimerReturnType::Continue : EActiveTimerReturnType::Stop;
 }
 
 #undef LOCTEXT_NAMESPACE

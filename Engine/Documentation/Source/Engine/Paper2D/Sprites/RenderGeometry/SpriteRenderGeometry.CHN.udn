@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:2739096
+﻿INTSourceChangelist:3108692
 Availability:Public
 Title:Sprite 源区和渲染几何体
 Crumbs: %ROOT%, Engine, Engine/Paper2D, Engine/Paper2D/Sprites
@@ -18,6 +18,7 @@ Version:4.9
 
 利用 **编辑渲染几何体** 可方便地优化透明或被遮罩的 sprite，消除多余三角面，以减少纹理透明区的过度绘制。设置和工具均与编辑自定义碰撞几何体完全相同。编辑自定义几何体后必须使用 **捕捉至像素网格** 工具（在未来版本中此操作将自动进行，当前版本须手动进行）。
 
+(#DefiningtheSourceRegion)
 ## 定义源区
 
 Sprite 的 **源区** 定义用于渲染 Sprite 的源纹理区域。 
@@ -36,6 +37,8 @@ Sprite 的 **源区** 定义用于渲染 Sprite 的源纹理区域。
 
 ![](edit_source_region.png)
 
+
+(#ModifyingRenderGeometry)
 ## 修改渲染几何体
 
 图像来自源区的实际渲染几何体被默认映射到一个四线组中，匹配源区的边界； 

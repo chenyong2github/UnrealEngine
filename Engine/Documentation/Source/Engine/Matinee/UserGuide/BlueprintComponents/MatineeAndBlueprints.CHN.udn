@@ -1,144 +1,159 @@
-﻿INTSourceChangelist:2088413
+INTSourceChangelist:3108692
 Availability: Public
 Title:使用Matinee修改蓝图属性
 Crumbs:%ROOT%, Engine, Engine/Matinee, Engine/Matinee/UserGuide
-Description: 关于Matinee如何控制蓝图组件的概述。
+Description:使用Matinee控制蓝图组件的概述。
+Version: 4.9
+SkillLevel: Intermediate
 
 [TOC(start:2 end:2)]
 
 
-## 概述
 
-正如您可以在Matinee中使静态网格物体、骨架网格物体、光源及其他Actor产生动画一样，当这些对象是蓝图的组件时，您仍然可以使用Matinee使得它们产生动画。您可以通过给Matinee暴露某些特定类型的蓝图变量来控制蓝图组件及其他属性、使用Matinee的轨迹来随着时间修改这些变量、将这些变量同蓝图中的事件及参数结合使用。
+正如你可以在Matinee中为静态网格体、骨架网格体、光源和其他Actor制作动画，当它们是蓝图组件时，你也可以为这些对象制作动画。 
+你可以通过如下方法来控制蓝图组件和其他属性：将特定种类的蓝图变量公开给Matinee，使用Matinee的轨迹修改这些随着时间的推移变化的变量， 
+然后在蓝图中将这些变量与事件和函数结合使用。
 
-您也可以在Matinee中创建事件，使用它们来在Matinee序列播放过程中的特定时间点处出发蓝图函数。
+你也可以在Matinee中创建事件，然后在Matinee序列播放的特定时间使用它们触发蓝图函数。
 
-## 给Matinee暴露蓝图变量
+(#exposingblueprintvariablestomatinee)
+## 将蓝图变量公开给Matinee
 
-您可以在蓝图中创建并暴露给Matinee的蓝图类型包括：
+你可以在蓝图中创建然后公开给Matinee的变量类型包括：
 
-* 布尔型
+* 布尔
 
-* 浮点型
+* 浮点
 
-* 向量型
+* 矢量
 
-* LinearColor (可以在 **Struct** 类目中找到)
+* 线性颜色（属于 **结构体（Struct）** 类别）
 
-**要想给Matinee暴露蓝图变量**:
+**要将蓝图变量公开给Matinee**：
 
-1. 在蓝图中创建一个 Bool、Float、Vector或LinearColor型变量。
+1. 在蓝图中创建布尔、浮点、矢量或线性颜色变量。
 
-1. 在该变量的 **详细信息** 面板中选择 **Expose to Matinee（暴露给Matinee）** 选项。
+1. 在变量的 **细节（Details）** 面板中选中 **公开给Matinee（Expose to Matinee）** 选项。
 
 	![](BP_ExposeToMatinee.png)
 
-关于蓝图变量的更多信息，请参照 [](Engine/Blueprints/UserGuide/Variables)。
+有关蓝图变量的更多信息，请参阅 [](Engine/Blueprints/UserGuide/Variables)。
 
 
 
-## 随着时间修改变量
+(#modifyingvariablesovertime)
+## 修改随着时间的推移变化的变量
 
-一般，当您想在Matinee序列中使用Blueprint变量时，都是因为您想随着时间修改那个变量的值。
+当你希望在Matinee序列中使用蓝图变量时，通常是因为你希望修改随着时间的推移变化的该变量的数值。
 
-**要想在Matinee中修改变量的值**:
+**要在Matinee中修改变量的数值**：
 
-1. 在Matinee中打开该Matinee Actor。
+1. 在Matinee中 **打开** Matinee Actor。
 
-1. 在场景大纲视图或者视口中，选择包含该变量的蓝图Actor。
+1. 在 **世界大纲视图** 或视口中，选择包含变量的蓝图Actor。
 
-1. 在Matinee中，创建一个Empty Group(空组) 赋予它一个相关名称，比如 "Blueprint Actor" 。
+1. 在Matinee中，创建一个 **空组（Empty Group）**。为它指定一个相关性较高的名称，例如，“Blueprint Actor”。
 
 	![](Matinee_AddEmptyGroup.png)
 
-	关于在Matinee中创建组的更多信息，请参照[应用组和轨迹](Engine/Matinee/UserGuide)页面。
+	有关在Matinee中创建组的更多信息，请参阅[使用组和轨迹](Engine/Matinee/UserGuide#WorkingwithGroupsAndTracks)。
 
-1. 右击该新组，并从关联菜单中选择您需要的轨迹类型：
+1. **右键单击** 新组，然后从情境菜单中选择需要的轨迹类型：
 
-	* **Bool Property Track（布尔型属性轨迹）**
+	* **布尔属性轨迹（Bool Property Track）**
 
-	*  **Float Property Track（浮点型属性轨迹）**
+	*  **浮点属性轨迹（Float Property Track）**
 
-	* **Vector Property Track（向量型属性轨迹）**
+	* **矢量属性轨迹（Vector Property Track）**
 
-	* **LinearColor Property Track（线性颜色属性轨迹）**
+	* **线性颜色属性轨迹（LinearColor Property Track）**
 
 	![](Matinee_AddVectorTrack.png)
 
-1. 在出现的下拉菜单中，选择您想修改的变量的名称，然后点击 **OK（确定）** 。
+1. 在显示的下拉菜单中，选择要修改的变量的名称，然后单击 **确定（OK）**。
 
 	![](Matinee_ChooseVectorVariable.png)
 
-1. 在您想修改该变量的值的时间点处，将关键帧添加到新轨迹中。(关于添加关键帧的更多信息，请参照[工具条](Engine/Matinee/UI))。
+1. 在新轨迹中你希望更改变量数值的时间点上添加关键帧。（有关添加关键帧的信息，请参阅[工具栏](Engine/Matinee/UI#Toolbar)。）
 
 	![](Matinee_AddKeyframes.png)
 
-1. 修改该变量的值。
+1. 修改变量的数值：
 
-	* 对于浮点型、向量型及线性颜色型变量，请点击轨迹名称旁边的切换图标 (![](Engine/Matinee/UI/curve_send_button.jpg))来在曲线编辑器中显示它的动画曲线。在曲线编辑器中修改该曲线。
+	* 对于浮点、矢量和线性颜色变量，单击轨迹名称旁的 **切换** 图标（![](Engine/Matinee/UI/curve_send_button.jpg)），以使其动画曲线在 
+	曲线编辑器中显示。在曲线编辑器中修改曲线。
 
 		![](Matinee_CurveEditorIcon.png)
 
 		![](Matinee_Curves.png)
 
-		关于曲线编辑器的更多信息，请参照[](Engine/UI/CurveEditor)。
+		有关曲线编辑器的更多信息，请参阅 [](Engine/UI/CurveEditor)。
 
-	* 对于布尔型变量，请右击关键帧，并根据该布尔型变量的当前值来点击 **Set to True（设置为true）** 或 **Set to False（设置为false）** 。
+	* 对于布尔变量，**右键单击** 关键帧，然后单击 **设置为True（Set to True）** 或 **设置为False（Set to False）**，具体取决于布尔变量的当前数值。
 
 		![](Matinee_BoolTrack.png)
 
 [REGION:note]
-当您在Matinee中使得蓝图的组件产生动画时，您不能通过拖拉时间轴来预览它。您必须关闭Matinee，并使用‘在编辑器中运行(PIE)’或‘模拟’功能来预览该动画。
+当你在Matinee中为蓝图组件制作动画时，无法通过拖动时间轴预览动画。相反，你必须关闭Matinee，然后使用“在编辑器中播放（Play In Editor）”（PIE）或“模拟（Simulate）”预览动画。
 [/REGION]
 
 
 
-## 在蓝图中使用已修改的变量
+(#usingthemodifiedvariablesinblueprints)
+## 在蓝图中使用修改后的变量
 
-在您的蓝图中，您可以使用Matinee中修改的变量来随着时间产生特定的动画改变。要想完成这个处理，在图表模式中，给该变量创建一个getter节点。然后，您可以把那个变量节点连接到适当的函数上，并选择一个事件来触发它。
+在蓝图中，你可以使用在Matinee中修改后的变量为随着时间的推移发生的变化制作动画。具体步骤如下，在 **图表面板** 中为变量创建一个 **获取（Get）** 节点。 
+接下来，将该变量节点与相应的函数相连接，然后选择事件以触发它。
 
-**要想在蓝图中使用一个通过Matinee修改的变量**:
+**要在蓝图中使用在Matinee中修改后的变量**：
 
-1. 打开该蓝图。
+1. **打开** 蓝图。
 
-1. 在图表模式中，为该变量创建一个"getter" 节点，这可以通过按住 **Ctrl**  并将该变量拖拽到图表中，或者通过拖拽该变量到图表中从出现的关联菜单中选择 **Get** 来完成。
+1. 在图表面板中，为该变量创建一个 **获取（Get）** 节点（可在按住 **Ctrl** 键的同时将变量拖到图表中，或者先将变量拖到图表中， 
+然后从显示的情境菜单中选择“获取（Get）”）。
 
-1. 添加及连接适当的事件及函数。比如，要想使用一个向量变量来随着时间修改一个静态网格物体组件的比例大小，那么您可以将一个 **Event Tick** 事件节点链接到 **Set Relative Scale 3D** 函数节点上， 使用静态网格物体组件作为 **Target** ，并将那个变量连接到  **New Scale 3D** 引脚上。Tick 事件是每帧都调用的，所以一般情况下在使用Matinee控制变量值时，这里是更新蓝图的较好地方。
+1. **添加** 并连接相应的事件和函数。例如，要使用矢量变量更改随着时间的推移变化的静态网格体组件的比例，可将 **Event Tick** 
+事件节点与 **Set Relative Scale 3D** 函数节点相连接，将静态网格体组件作为 **目标（Target）**，并将变量节点与 **New Scale 3D** 引脚相连接。将会在每帧上都调用该“Tick”事件， 
+因此一般来说，使用Matinee控制变量数值时非常适合使用它来更新蓝图。
 
 	![](BP_MatineeVariable.png)
 
 
 
-## 随着时间触发事件
+(#triggeringeventsovertime)
+## 随着时间的推移触发事件
 
-在Matinee中，可以为一个蓝图Actor创建一个Event Track，来计时以触发特定的事件。然后您可以在蓝图中暴露这些事件，并把它们连接到您想在指定时间触发的函数上。
+在Matinee中，你可以为蓝图Actor创建事件轨迹，以安排特定事件触发的时间。然后，你可以在蓝图中公开这些事件并将它们与 
+你希望在特定时间触发的函数相连接。
 
-**要想使用Matinee事件在蓝图的特定时间点处触发动作**:
+**要在蓝图中使用Matinee事件以在特定时间触发操作**：
 
-1. 在Matinee中，给和蓝图相关的组添加一个Event Track。
+1. 在Matinee中，向与蓝图关联的组中添加一个 **事件轨迹**。
 
 	![](Matinee_EventTrack.png)
 
-1. 在Event Track的指定时间点处添加关键帧。您每次添加一个关键帧，就会提示您给该新事件提供一个名称。
+1. 在事件轨迹的特定时刻上添加 **关键帧**。每次添加关键帧时，你都会收到为新事件命名的提示。
 
 	![](Matinee_AddEvent.png)
 
 	![](Matinee_Events.png)
 
-1. 在关卡蓝图中，选中Matinee Actor，在图表中右击。其中有一个针对您的Matinee  Actor的选项是添加一个MatineeController 。选择它来创建一个MatineeController节点，该节点列出了您在Matinee中为其创建关键帧的事件。
+1. 在 **关卡蓝图** 中，先选中Matinee Actor，然后在图表中 **右键单击**。此时可供你选择的选项之一是“为Matinee Actor添加MatineeController（Add MatineeController for Matinee Actor）”。 
+选择它以创建MatineeController节点，该节点将列出你已在Matinee中创建了关键帧的事件。
 
 	![](Matinee_AddController.png)
 
 	![](Matinee_ControllerWithEvents.png)
 
-	现在您可以把MatineeController中的事件执行引脚连接到将要在播放Matinee序列时触发的函数节点上。
+	现在你可以将MatineeController中的事件执行引脚与将在Matinee序列播放过程中触发的函数节点相连接。
 
 
 [REGION:note]
-每个Matinee Actor仅能有一个 MatineeController 节点。如果您在关联菜单中没有看到MatineeController 选项，那么您可能在您的关卡蓝图中已经有一个MatineeController 节点。
+一个Matinee Actor只能拥有一个MatineeController节点。如果未在情境菜单中看到MatineeController选项，原因可能是关卡蓝图中已有一个MatineeController节点。
 [/REGION]
 
 
 [REGION:tip]
-在关卡蓝图中，如果您添加了MatineeController 节点后，给Matinee Event Track添加了一个事件，那么您可以通过右击该事件并选择Refresh（刷新）节点来更新该节点的事件列表。
+如果你在关卡蓝图中添加MatineeController节点之后又向Matinee事件轨迹中添加了事件，那么你可以更新该节点的事件列表，方法是 **右键单击** 它，然后单击“刷新节点（Refresh Node）”。
 [/REGION]
+

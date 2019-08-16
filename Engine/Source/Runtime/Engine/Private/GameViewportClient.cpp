@@ -39,6 +39,7 @@
 #include "EngineModule.h"
 #include "AudioDeviceManager.h"
 #include "AudioDevice.h"
+#include "Audio/AudioDebug.h"
 #include "Sound/SoundWave.h"
 #include "HighResScreenshot.h"
 #include "BufferVisualizationData.h"
@@ -84,9 +85,6 @@ FSimpleMulticastDelegate UGameViewportClient::CreatedDelegate;
 
 /** A list of all the stat names which are enabled for this viewport (static so they persist between runs) */
 TArray<FString> UGameViewportClient::EnabledStats;
-
-/** Those sound stat flags which are enabled on this viewport */
-FViewportClient::ESoundShowFlags::Type UGameViewportClient::SoundShowFlags = FViewportClient::ESoundShowFlags::Disabled;
 
 /**
  * UI Stats
@@ -374,15 +372,15 @@ void UGameViewportClient::SetEnabledStats(const TArray<FString>& InEnabledStats)
 		UE_LOG(LogPlayerManagement, Warning, TEXT("WARNING: Stats disabled for non multi-threading platforms"));
 	}
 
-#if !UE_BUILD_SHIPPING
+#if ENABLE_AUDIO_DEBUG
 	if (UWorld* MyWorld = GetWorld())
 	{
-		if (FAudioDevice* AudioDevice = MyWorld->GetAudioDevice())
+		if (FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager())
 		{
-			AudioDevice->ResolveDesiredStats(this);
+			FAudioDebugger::ResolveDesiredStats(this);
 		}
 	}
-#endif
+#endif // ENABLE_AUDIO_DEBUG
 }
 
 
@@ -433,12 +431,9 @@ void UGameViewportClient::Init(struct FWorldContext& WorldContext, UGameInstance
 			{
 				AudioDeviceHandle = NewDeviceResults.Handle;
 
-#if !UE_BUILD_SHIPPING
-				if (NewDeviceResults.bNewDevice)
-				{
-					NewDeviceResults.AudioDevice->ResolveDesiredStats(this);
-				}
-#endif // UE_BUILD_SHIPPING
+#if ENABLE_AUDIO_DEBUG
+				FAudioDebugger::ResolveDesiredStats(this);
+#endif // ENABLE_AUDIO_DEBUG
 
 				// Set the base mix of the new device based on the world settings of the world
 				if (World)
@@ -972,7 +967,7 @@ void UGameViewportClient::SetDropDetail(float DeltaSeconds)
 		GetWorld()->bAggressiveLOD	= FrameRate < FMath::Clamp(GEngine->MinDesiredFrameRate - 5.f, 1.f, 100.f) && !bTimeIsManipulated;
 
 		// this is slick way to be able to do something based on the frametime and whether we are bound by one thing or another
-#if 0 
+#if 0
 		// so where we check to see if we are above some threshold and below 150 ms (any thing above that is usually blocking loading of some sort)
 		// also we don't want to do the auto trace when we are blocking on async loading
 		if ((0.070 < FrameTime) && (FrameTime < 0.150) && IsAsyncLoading() == false && GetWorld()->bRequestedBlockOnAsyncLoading == false && (GetWorld()->GetTimeSeconds() > 30.0f))
@@ -992,7 +987,7 @@ void UGameViewportClient::SetDropDetail(float DeltaSeconds)
 #endif // WITH_EDITORONLY_DATA
 			}
 		}
-#endif // 0 
+#endif // 0
 	}
 }
 
@@ -1120,7 +1115,7 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 	// Create a temporary canvas if there isn't already one.
 	static FName CanvasObjectName(TEXT("CanvasObject"));
 	UCanvas* CanvasObject = GetCanvasByName(CanvasObjectName);
-	CanvasObject->Canvas = SceneCanvas;		
+	CanvasObject->Canvas = SceneCanvas;
 
 	// Create temp debug canvas object
 	FIntPoint DebugCanvasSize = InViewport->GetSizeXY();
@@ -1155,7 +1150,7 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 	}
 
 	// create the view family for rendering the world scene to the viewport's render target
-	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues( 	
+	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
 		InViewport,
 		MyWorld->Scene,
 		EngineShowFlags)
@@ -1405,7 +1400,7 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 			}
 		}
 	}
-	
+
 	// If the views don't cover the entire bounding rectangle, clear the entire buffer.
 	bool bBufferCleared = false;
 	bool bStereoscopicPass = (ViewFamily.Views.Num() != 0 && ViewFamily.Views[0]->StereoPass != eSSP_FULL);
@@ -1415,10 +1410,10 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 		{
 			SceneCanvas->Clear(FLinearColor::Transparent);
 		}
-		
+
 		bBufferCleared = true;
 	}
-	
+
 	// Force screen percentage show flag to be turned off if not supported.
 	if (!ViewFamily.SupportsScreenPercentage())
 	{
@@ -1520,7 +1515,7 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 		// Make sure RHI resources get flushed if we're not using a renderer
 		ENQUEUE_RENDER_COMMAND(UGameViewportClient_FlushRHIResources)(
 			[](FRHICommandListImmediate& RHICmdList)
-			{ 
+			{
 				RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
 			});
 	}
@@ -1552,7 +1547,7 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 			SceneCanvas->DrawTile(MinX,MaxY,MaxX,InViewport->GetSizeXY().Y,0.0f,0.0f,1.0f,1.f,FLinearColor::Black,NULL,false);
 		}
 	}
-	
+
 	// Remove temporary debug lines.
 	if (MyWorld->LineBatcher != nullptr)
 	{
@@ -1571,6 +1566,7 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 	}
 
 	// Render the UI.
+	if (FSlateApplication::Get().GetPlatformApplication()->IsAllowedToRender())
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UIDrawingTime);
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UI);
@@ -1590,13 +1586,13 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 					{
 						// rendering to directly to viewport target
 						FVector CanvasOrigin(FMath::TruncToFloat(View->UnscaledViewRect.Min.X), FMath::TruncToInt(View->UnscaledViewRect.Min.Y), 0.f);
-												
+
 						CanvasObject->Init(View->UnscaledViewRect.Width(), View->UnscaledViewRect.Height(), View, SceneCanvas);
 
 						// Set the canvas transform for the player's view rectangle.
 						check(SceneCanvas);
 						SceneCanvas->PushAbsoluteTransform(FTranslationMatrix(CanvasOrigin));
-						CanvasObject->ApplySafeZoneTransform();						
+						CanvasObject->ApplySafeZoneTransform();
 
 						// Render the player's HUD.
 						if( PlayerController->MyHUD )
@@ -1607,7 +1603,7 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 							PlayerController->MyHUD->SetCanvas(CanvasObject, DebugCanvasObject);
 
 							PlayerController->MyHUD->PostRender();
-							
+
 							// Put these pointers back as if a blueprint breakpoint hits during HUD PostRender they can
 							// have been changed
 							CanvasObject->Canvas = SceneCanvas;
@@ -1628,7 +1624,7 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 						}
 
 						CanvasObject->PopSafeZoneTransform();
-						SceneCanvas->PopTransform();						
+						SceneCanvas->PopTransform();
 
 						// draw subtitles
 						if (!bDisplayedSubtitles)
@@ -1700,10 +1696,12 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 	EndDrawDelegate.Broadcast();
 }
 
-void UGameViewportClient::ProcessScreenShots(FViewport* InViewport)
+bool UGameViewportClient::ProcessScreenShots(FViewport* InViewport)
 {
+	bool bIsScreenshotSaved = false;
+
 	if (GIsDumpingMovie || FScreenshotRequest::IsScreenshotRequested() || GIsHighResScreenshot)
-	{	
+	{
 		TArray<FColor> Bitmap;
 
 		bool bShowUI = false;
@@ -1753,7 +1751,7 @@ void UGameViewportClient::ProcessScreenShots(FViewport* InViewport)
 				}
 
 				GetHighResScreenshotConfig().MergeMaskIntoAlpha(Bitmap);
-				
+
 				FIntRect SourceRect(0, 0, GScreenshotResolutionX, GScreenshotResolutionY);
 				if (GIsHighResScreenshot)
 				{
@@ -1789,7 +1787,8 @@ void UGameViewportClient::ProcessScreenShots(FViewport* InViewport)
 				// Save the contents of the array to a png file.
 				TArray<uint8> CompressedBitmap;
 				FImageUtils::CompressImageArray(Size.X, Size.Y, Bitmap, CompressedBitmap);
-				FFileHelper::SaveArrayToFile(CompressedBitmap, *ScreenShotName);
+				bIsScreenshotSaved = FFileHelper::SaveArrayToFile(CompressedBitmap, *ScreenShotName);
+
 			}
 		}
 
@@ -1799,6 +1798,8 @@ void UGameViewportClient::ProcessScreenShots(FViewport* InViewport)
 		// Reeanble screen messages - if we are NOT capturing a movie
 		GAreScreenMessagesEnabled = GScreenMessagesRestoreState;
 	}
+
+	return bIsScreenshotSaved;
 }
 
 void UGameViewportClient::Precache()
@@ -1830,7 +1831,7 @@ void UGameViewportClient::Precache()
 TOptional<bool> UGameViewportClient::QueryShowFocus(const EFocusCause InFocusCause) const
 {
 	UUserInterfaceSettings* UISettings = GetMutableDefault<UUserInterfaceSettings>(UUserInterfaceSettings::StaticClass());
-	
+
 	if ( UISettings->RenderFocusRule == ERenderFocusRule::Never ||
 		(UISettings->RenderFocusRule == ERenderFocusRule::NonPointer && InFocusCause == EFocusCause::Mouse) ||
 		(UISettings->RenderFocusRule == ERenderFocusRule::NavigationOnly && InFocusCause != EFocusCause::Navigation))
@@ -1843,7 +1844,7 @@ TOptional<bool> UGameViewportClient::QueryShowFocus(const EFocusCause InFocusCau
 
 void UGameViewportClient::LostFocus(FViewport* InViewport)
 {
-	// We need to reset some key inputs, since keyup events will sometimes not be processed (such as going into immersive/maximized mode).  
+	// We need to reset some key inputs, since keyup events will sometimes not be processed (such as going into immersive/maximized mode).
 	// Resetting them will prevent them from "sticking"
 	UWorld* const ViewportWorld = GetWorld();
 	if (ViewportWorld && !ViewportWorld->bIsTearingDown)
@@ -1874,7 +1875,7 @@ void UGameViewportClient::ReceivedFocus(FViewport* InViewport)
 #endif
 
 	if (GEngine && GEngine->GetAudioDeviceManager())
-	{ 
+	{
 		GEngine->GetAudioDeviceManager()->SetActiveDevice(AudioDeviceHandle);
 		bHasAudioFocus = true;
 	}
@@ -1917,7 +1918,7 @@ void UGameViewportClient::CloseRequested(FViewport* InViewport)
 #if PLATFORM_DESKTOP || PLATFORM_HTML5
 	FSlateApplication::Get().SetGameIsFakingTouchEvents(false);
 #endif
-	
+
 	// broadcast close request to anyone that registered an interest
 	CloseRequestedDelegate.Broadcast(InViewport);
 
@@ -2132,7 +2133,7 @@ void UGameViewportClient::LayoutPlayers()
 {
 	UpdateActiveSplitscreenType();
 	const ESplitScreenType::Type SplitType = GetCurrentSplitscreenConfiguration();
-	
+
 	// Initialize the players
 	const TArray<ULocalPlayer*>& PlayerList = GetOuterUEngine()->GetGamePlayers(this);
 
@@ -2417,17 +2418,17 @@ bool UGameViewportClient::CalculateDeadZoneForAllSides( ULocalPlayer* LPlayer, U
 }
 
 void UGameViewportClient::DrawTitleSafeArea( UCanvas* Canvas )
-{	
+{
 #if WITH_EDITOR
 	FMargin SafeZone;
 	const ULevelEditorPlaySettings* PlayInSettings = GetDefault<ULevelEditorPlaySettings>();
-	
+
 	const float Width = Canvas->UnsafeSizeX;
 	const float Height = Canvas->UnsafeSizeY;
 	const FLinearColor UnsafeZoneColor(1.0f, 0.0f, 0.0f, 0.25f);
 	FCanvasTileItem TileItem(FVector2D::ZeroVector, GWhiteTexture, UnsafeZoneColor);
 	TileItem.BlendMode = SE_BLEND_Translucent;
-	
+
 	// CalculateSafeZoneValues() can be slow, so we only want to run it if we have boundaries to draw
 	if (FDisplayMetrics::GetDebugTitleSafeZoneRatio() < 1.f)
 	{
@@ -2474,22 +2475,22 @@ void UGameViewportClient::DrawTransition(UCanvas* Canvas)
 	{
 		switch (GetOuterUEngine()->TransitionType)
 		{
-		case TT_Loading:
+		case ETransitionType::Loading:
 			DrawTransitionMessage(Canvas, NSLOCTEXT("GameViewportClient", "LoadingMessage", "LOADING").ToString());
 			break;
-		case TT_Saving:
+		case ETransitionType::Saving:
 			DrawTransitionMessage(Canvas, NSLOCTEXT("GameViewportClient", "SavingMessage", "SAVING").ToString());
 			break;
-		case TT_Connecting:
+		case ETransitionType::Connecting:
 			DrawTransitionMessage(Canvas, NSLOCTEXT("GameViewportClient", "ConnectingMessage", "CONNECTING").ToString());
 			break;
-		case TT_Precaching:
+		case ETransitionType::Precaching:
 			DrawTransitionMessage(Canvas, NSLOCTEXT("GameViewportClient", "PrecachingMessage", "PRECACHING").ToString());
 			break;
-		case TT_Paused:
+		case ETransitionType::Paused:
 			DrawTransitionMessage(Canvas, NSLOCTEXT("GameViewportClient", "PausedMessage", "PAUSED").ToString());
 			break;
-		case TT_WaitingToConnect:
+		case ETransitionType::WaitingToConnect:
 			DrawTransitionMessage(Canvas, TEXT("Waiting to connect...")); // Temp - localization of the FString messages is broke atm. Loc this when its fixed.
 			break;
 		}
@@ -2504,7 +2505,7 @@ void UGameViewportClient::DrawTransitionMessage(UCanvas* Canvas,const FString& M
 	TextItem.Text = FText::FromString(Message);
 	float XL, YL;
 	Canvas->StrLen( Font , Message, XL, YL );
-	Canvas->DrawItem( TextItem, 0.5f * (Canvas->ClipX - XL), 0.66f * Canvas->ClipY - YL * 0.5f );	
+	Canvas->DrawItem( TextItem, 0.5f * (Canvas->ClipX - XL), 0.66f * Canvas->ClipY - YL * 0.5f );
 }
 
 void UGameViewportClient::NotifyPlayerAdded( int32 PlayerIndex, ULocalPlayer* AddedPlayer )
@@ -2646,7 +2647,7 @@ bool UGameViewportClient::Exec( UWorld* InWorld, const TCHAR* Cmd,FOutputDevice&
 	else if( FParse::Command(&Cmd,TEXT("TOGGLE_FULLSCREEN")) || FParse::Command(&Cmd,TEXT("FULLSCREEN")) )
 	{
 		return HandleToggleFullscreenCommand();
-	}	
+	}
 	else if( FParse::Command(&Cmd,TEXT("SETRES")) )
 	{
 		return HandleSetResCommand( Cmd, Ar );
@@ -2661,7 +2662,7 @@ bool UGameViewportClient::Exec( UWorld* InWorld, const TCHAR* Cmd,FOutputDevice&
 	}
 	else if( FParse::Command(&Cmd,TEXT("SHOT")) || FParse::Command(&Cmd,TEXT("SCREENSHOT")) )
 	{
-		return HandleScreenshotCommand( Cmd, Ar );	
+		return HandleScreenshotCommand( Cmd, Ar );
 	}
 	else if ( FParse::Command(&Cmd, TEXT("BUGSCREENSHOTWITHHUDINFO")) )
 	{
@@ -2673,7 +2674,7 @@ bool UGameViewportClient::Exec( UWorld* InWorld, const TCHAR* Cmd,FOutputDevice&
 	}
 	else if( FParse::Command(&Cmd,TEXT("KILLPARTICLES")) )
 	{
-		return HandleKillParticlesCommand( Cmd, Ar );	
+		return HandleKillParticlesCommand( Cmd, Ar );
 	}
 	else if( FParse::Command(&Cmd,TEXT("FORCESKELLOD")) )
 	{
@@ -2808,7 +2809,7 @@ bool UGameViewportClient::HandleShowCommand( const TCHAR* Cmd, FOutputDevice& Ar
 				{
 					VerifyPathRenderingComponents();
 				}
-					
+
 				if(FEngineShowFlags::IsNameThere(Cmd, TEXT("Volumes")))
 				{
 					// TODO: Investigate why this is doesn't appear to work
@@ -2855,7 +2856,7 @@ bool UGameViewportClient::HandleShowCommand( const TCHAR* Cmd, FOutputDevice& Ar
 		FIterSink Sink(LinesToSort, EngineShowFlags);
 
 		FEngineShowFlags::IterateAllFlags(Sink);
-	}	
+	}
 
 	LinesToSort.Sort( TLess<FString>() );
 
@@ -3000,7 +3001,7 @@ bool UGameViewportClient::HandleShowLayerCommand( const TCHAR* Cmd, FOutputDevic
 		for (FActorIterator It(InWorld); It; ++It)
 		{
 			AActor* Actor = *It;
-			
+
 			if (Actor->Layers.Contains(LayerFName))
 			{
 				// look for always toggle, or a set when it's unset, etc
@@ -3090,7 +3091,14 @@ bool UGameViewportClient::HandleViewModeCommand( const TCHAR* Cmd, FOutputDevice
 		{
 			if(i != 0)
 			{
-				ViewModes += TEXT(", ");
+				if ((i % 5) == 0)
+				{
+					ViewModes += TEXT("\n     ");
+				}
+				else
+				{
+					ViewModes += TEXT(", ");
+				}
 			}
 			ViewModes += GetViewModeName((EViewModeIndex)i);
 		}
@@ -3105,7 +3113,7 @@ bool UGameViewportClient::HandleViewModeCommand( const TCHAR* Cmd, FOutputDevice
 
 	if (FPlatformProperties::SupportsWindowedMode() == false)
 	{
-		if(ViewModeIndex == VMI_Unlit			
+		if(ViewModeIndex == VMI_Unlit
 			|| ViewModeIndex == VMI_StationaryLightOverlap
 			|| ViewModeIndex == VMI_Lit_DetailLighting
 			|| ViewModeIndex == VMI_ReflectionOverride)
@@ -3218,7 +3226,7 @@ bool UGameViewportClient::SetDisplayConfiguration(const FIntPoint* Dimensions, E
 	}
 
 	UGameEngine* GameEngine = Cast<UGameEngine>(GEngine);
-	
+
 	if (GameEngine)
 	{
 		UGameUserSettings* UserSettings = GameEngine->GetGameUserSettings();
@@ -3242,7 +3250,7 @@ bool UGameViewportClient::SetDisplayConfiguration(const FIntPoint* Dimensions, E
 			NewX = Dimensions->X;
 			NewY = Dimensions->Y;
 		}
-	
+
 		FSystemResolution::RequestResolutionChange(NewX, NewY, WindowMode);
 	}
 
@@ -3322,7 +3330,7 @@ bool UGameViewportClient::HandleSetResCommand( const TCHAR* Cmd, FOutputDevice& 
 			{
 				WindowMode = EWindowMode::Windowed;
 			}
-			
+
 		}
 		else if(FCString::Strchr(Cmd,'f') || FCString::Strchr(Cmd,'F'))
 		{
@@ -3424,7 +3432,7 @@ bool UGameViewportClient::HandleForceSkelLODCommand( const TCHAR* Cmd, FOutputDe
 		USkeletalMeshComponent* SkelComp = *It;
 		if( SkelComp->GetScene() == InWorld->Scene && !SkelComp->IsTemplate())
 		{
-			SkelComp->ForcedLodModel = ForceLod;
+			SkelComp->SetForcedLOD(ForceLod);
 		}
 	}
 	return true;
@@ -3438,14 +3446,12 @@ bool UGameViewportClient::HandleDisplayCommand( const TCHAR* Cmd, FOutputDevice&
 		FParse::Token(Cmd, PropStr, ARRAY_COUNT(PropStr), true) )
 	{
 		UObject* Obj = FindObject<UObject>(ANY_PACKAGE, ObjectName);
-		if (Obj != NULL)
+		if (Obj != nullptr)
 		{
 			FName PropertyName(PropStr, FNAME_Find);
-			if (PropertyName != NAME_None && FindField<UProperty>(Obj->GetClass(), PropertyName) != NULL)
+			if (PropertyName != NAME_None && FindField<UProperty>(Obj->GetClass(), PropertyName) != nullptr)
 			{
-				FDebugDisplayProperty& NewProp = DebugProperties[DebugProperties.AddZeroed()];
-				NewProp.Obj = Obj;
-				NewProp.PropertyName = PropertyName;
+				AddDebugDisplayProperty(Obj, nullptr, PropertyName);
 			}
 			else
 			{
@@ -3468,7 +3474,7 @@ bool UGameViewportClient::HandleDisplayAllCommand( const TCHAR* Cmd, FOutputDevi
 	if (FParse::Token(Cmd, ClassName, ARRAY_COUNT(ClassName), true))
 	{
 		bool bValidClassToken = true;
-		UClass* WithinClass = NULL;
+		UClass* WithinClass = nullptr;
 		{
 			FString ClassStr(ClassName);
 			int32 DotIndex = ClassStr.Find(TEXT("."));
@@ -3476,7 +3482,7 @@ bool UGameViewportClient::HandleDisplayAllCommand( const TCHAR* Cmd, FOutputDevi
 			{
 				// first part is within class
 				WithinClass = FindObject<UClass>(ANY_PACKAGE, *ClassStr.Left(DotIndex));
-				if (WithinClass == NULL)
+				if (WithinClass == nullptr)
 				{
 					Ar.Logf(TEXT("Within class not found"));
 					bValidClassToken = false;
@@ -3492,10 +3498,10 @@ bool UGameViewportClient::HandleDisplayAllCommand( const TCHAR* Cmd, FOutputDevi
 		{
 			FParse::Token(Cmd, PropStr, ARRAY_COUNT(PropStr), true);
 			UClass* Cls = FindObject<UClass>(ANY_PACKAGE, ClassName);
-			if (Cls != NULL)
+			if (Cls != nullptr)
 			{
 				FName PropertyName(PropStr, FNAME_Find);
-				UProperty* Prop = PropertyName != NAME_None ? FindField<UProperty>(Cls, PropertyName) : NULL;
+				UProperty* Prop = PropertyName != NAME_None ? FindField<UProperty>(Cls, PropertyName) : nullptr;
 				{
 					// add all un-GCable things immediately as that list is static
 					// so then we only have to iterate over dynamic things each frame
@@ -3505,25 +3511,12 @@ bool UGameViewportClient::HandleDisplayAllCommand( const TCHAR* Cmd, FOutputDevi
 						{
 							break;
 						}
-						else if (It->IsA(Cls) && !It->IsTemplate() && (WithinClass == NULL || (It->GetOuter() != NULL && It->GetOuter()->GetClass()->IsChildOf(WithinClass))))
+						else if (It->IsA(Cls) && !It->IsTemplate() && (WithinClass == nullptr || (It->GetOuter() != nullptr && It->GetOuter()->GetClass()->IsChildOf(WithinClass))))
 						{
-							FDebugDisplayProperty& NewProp = DebugProperties[DebugProperties.AddZeroed()];
-							NewProp.Obj = *It;
-							NewProp.PropertyName = PropertyName;
-							if (!Prop)
-							{
-								NewProp.bSpecialProperty = true;
-							}
+							AddDebugDisplayProperty(*It, nullptr, PropertyName, !Prop);
 						}
 					}
-					FDebugDisplayProperty& NewProp = DebugProperties[DebugProperties.AddZeroed()];
-					NewProp.Obj = Cls;
-					NewProp.WithinClass = WithinClass;
-					NewProp.PropertyName = PropertyName;
-					if (!Prop)
-					{
-						NewProp.bSpecialProperty = true;
-					}
+					AddDebugDisplayProperty(Cls, WithinClass, PropertyName, !Prop);
 				}
 			}
 			else
@@ -3542,7 +3535,7 @@ bool UGameViewportClient::HandleDisplayAllLocationCommand( const TCHAR* Cmd, FOu
 	if (FParse::Token(Cmd, ClassName, ARRAY_COUNT(ClassName), true))
 	{
 		UClass* Cls = FindObject<UClass>(ANY_PACKAGE, ClassName);
-		if (Cls != NULL)
+		if (Cls != nullptr)
 		{
 			// add all un-GCable things immediately as that list is static
 			// so then we only have to iterate over dynamic things each frame
@@ -3554,16 +3547,10 @@ bool UGameViewportClient::HandleDisplayAllLocationCommand( const TCHAR* Cmd, FOu
 				}
 				else if (It->IsA(Cls))
 				{
-					FDebugDisplayProperty& NewProp = DebugProperties[DebugProperties.AddZeroed()];
-					NewProp.Obj = *It;
-					NewProp.PropertyName = NAME_Location;
-					NewProp.bSpecialProperty = true;
+					AddDebugDisplayProperty(*It, nullptr, NAME_Location, true);
 				}
 			}
-			FDebugDisplayProperty& NewProp = DebugProperties[DebugProperties.AddZeroed()];
-			NewProp.Obj = Cls;
-			NewProp.PropertyName = NAME_Location;
-			NewProp.bSpecialProperty = true;
+			AddDebugDisplayProperty(Cls, nullptr, NAME_Location, true);
 		}
 		else
 		{
@@ -3580,7 +3567,7 @@ bool UGameViewportClient::HandleDisplayAllRotationCommand( const TCHAR* Cmd, FOu
 	if (FParse::Token(Cmd, ClassName, ARRAY_COUNT(ClassName), true))
 	{
 		UClass* Cls = FindObject<UClass>(ANY_PACKAGE, ClassName);
-		if (Cls != NULL)
+		if (Cls != nullptr)
 		{
 			// add all un-GCable things immediately as that list is static
 			// so then we only have to iterate over dynamic things each frame
@@ -3592,16 +3579,10 @@ bool UGameViewportClient::HandleDisplayAllRotationCommand( const TCHAR* Cmd, FOu
 				}
 				else if (It->IsA(Cls))
 				{
-					FDebugDisplayProperty& NewProp = DebugProperties[DebugProperties.AddZeroed()];
-					NewProp.Obj = *It;
-					NewProp.PropertyName = NAME_Rotation;
-					NewProp.bSpecialProperty = true;
+					AddDebugDisplayProperty(*It, nullptr, NAME_Rotation, true);
 				}
 			}
-			FDebugDisplayProperty& NewProp = DebugProperties[DebugProperties.AddZeroed()];
-			NewProp.Obj = Cls;
-			NewProp.PropertyName = NAME_Rotation;
-			NewProp.bSpecialProperty = true;
+			AddDebugDisplayProperty(Cls, nullptr, NAME_Rotation, true);
 		}
 		else
 		{
@@ -3804,7 +3785,7 @@ bool UGameViewportClient::SetHardwareCursor(EMouseCursor::Type CursorShape, FNam
 	{
 		PlatformCursor->SetTypeShape(CursorShape, HardwareCursor);
 	}
-	
+
 	return true;
 }
 
@@ -3867,6 +3848,24 @@ void* UGameViewportClient::LoadCursorFromPngs(ICursor& PlatformCursor, const FSt
 	}
 
 	return nullptr;
+}
+
+void UGameViewportClient::AddDebugDisplayProperty(class UObject* Obj, TSubclassOf<class UObject> WithinClass, const FName& PropertyName, bool bSpecialProperty /*= false*/)
+{
+	// If this property already exists than don't add a new one
+	for (const FDebugDisplayProperty& Prop : DebugProperties)
+	{
+		if (Prop.Obj == Obj && Prop.PropertyName == PropertyName)
+		{
+			return;
+		}
+	}
+
+	FDebugDisplayProperty& NewProp = DebugProperties.AddDefaulted_GetRef();
+	NewProp.Obj = Obj;
+	NewProp.WithinClass = WithinClass;
+	NewProp.PropertyName = PropertyName;
+	NewProp.bSpecialProperty = bSpecialProperty;
 }
 
 bool UGameViewportClient::LoadAvailableCursorPngs(TArray< TSharedPtr<FPngFileData> >& Results, const FString& InPathToCursorWithoutExtension)

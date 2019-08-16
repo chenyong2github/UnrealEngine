@@ -48,7 +48,7 @@ TArray<FName> UAnimGraphNode_ModifyCurve::GetCurvesToAdd() const
 			CurvesToAdd.RemoveSingleSwap(ExistingCurveName, false);
 		}
 
-		CurvesToAdd.Sort();
+		CurvesToAdd.Sort(FNameLexicalLess());
 	}
 
 	return CurvesToAdd;
@@ -59,7 +59,7 @@ void UAnimGraphNode_ModifyCurve::GetAddCurveMenuActions(FMenuBuilder& MenuBuilde
 	TArray<FName> CurvesToAdd = GetCurvesToAdd();
 	for (FName CurveName : CurvesToAdd)
 	{
-		FUIAction Action = FUIAction(FExecuteAction::CreateUObject(this, &UAnimGraphNode_ModifyCurve::AddCurvePin, CurveName));
+		FUIAction Action = FUIAction(FExecuteAction::CreateUObject(const_cast<UAnimGraphNode_ModifyCurve*>(this), &UAnimGraphNode_ModifyCurve::AddCurvePin, CurveName));
 		MenuBuilder.AddMenuEntry(FText::FromName(CurveName), FText::GetEmpty(), FSlateIcon(), Action);
 	}
 }
@@ -68,7 +68,7 @@ void UAnimGraphNode_ModifyCurve::GetRemoveCurveMenuActions(FMenuBuilder& MenuBui
 {
 	for (FName CurveName : Node.CurveNames)
 	{
-		FUIAction Action = FUIAction(FExecuteAction::CreateUObject(this, &UAnimGraphNode_ModifyCurve::RemoveCurvePin, CurveName));
+		FUIAction Action = FUIAction(FExecuteAction::CreateUObject(const_cast<UAnimGraphNode_ModifyCurve*>(this), &UAnimGraphNode_ModifyCurve::RemoveCurvePin, CurveName));
 		MenuBuilder.AddMenuEntry(FText::FromName(CurveName), FText::GetEmpty(), FSlateIcon(), Action);
 	}
 }
@@ -92,7 +92,7 @@ void UAnimGraphNode_ModifyCurve::GetContextMenuActions(const FGraphNodeContextMe
 			if (PinPropertyName  == GET_MEMBER_NAME_CHECKED(FAnimNode_ModifyCurve, CurveValues) && Context.Pin->Direction == EGPD_Input)
 			{
 				FString PinName = Context.Pin->PinFriendlyName.ToString();
-				FUIAction Action = FUIAction( FExecuteAction::CreateUObject(this, &UAnimGraphNode_ModifyCurve::RemoveCurvePin, FName(*PinName)) );
+				FUIAction Action = FUIAction( FExecuteAction::CreateUObject(const_cast<UAnimGraphNode_ModifyCurve*>(this), &UAnimGraphNode_ModifyCurve::RemoveCurvePin, FName(*PinName)) );
 				FText RemovePinLabelText = FText::Format(LOCTEXT("RemoveThisPin", "Remove This Curve Pin: {0}"), FText::FromString(PinName));
 				Context.MenuBuilder->AddMenuEntry(RemovePinLabelText, LOCTEXT("RemoveThisPinTooltip", "Remove this curve pin from this node"), FSlateIcon(), Action);
 			}

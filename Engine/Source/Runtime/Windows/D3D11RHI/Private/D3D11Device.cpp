@@ -10,7 +10,9 @@
 #include "Modules/ModuleManager.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 	#include <delayimp.h>
+	#if !PLATFORM_HOLOLENS
 	#include "amd_ags.h"
+	#endif
 #include "Windows/HideWindowsPlatformTypes.h"
 
 
@@ -67,12 +69,6 @@ FD3D11DynamicRHI::FD3D11DynamicRHI(IDXGIFactory1* InDXGIFactory1,D3D_FEATURE_LEV
 	CurrentDSVAccessType(FExclusiveDepthStencil::DepthWrite_StencilWrite),
 	bDiscardSharedConstants(false),
 	bUsingTessellation(false),
-	PendingNumVertices(0),
-	PendingVertexDataStride(0),
-	PendingNumPrimitives(0),
-	PendingMinVertexIndex(0),
-	PendingNumIndices(0),
-	PendingIndexDataStride(0),
 	GPUProfilingData(this),
 	ChosenAdapter(InChosenAdapter),
 	ChosenDescription(InChosenDescription)
@@ -190,7 +186,8 @@ FD3D11DynamicRHI::FD3D11DynamicRHI(IDXGIFactory1* InDXGIFactory1,D3D_FEATURE_LEV
 	GPixelFormats[ PF_R8G8B8A8_SNORM].PlatformFormat	= DXGI_FORMAT_R8G8B8A8_SNORM;
 	GPixelFormats[ PF_R8G8			].PlatformFormat	= DXGI_FORMAT_R8G8_UNORM;
 	GPixelFormats[ PF_R32G32B32A32_UINT].PlatformFormat = DXGI_FORMAT_R32G32B32A32_UINT;
-	GPixelFormats[ PF_R16G16_UINT].PlatformFormat = DXGI_FORMAT_R16G16_UINT;
+	GPixelFormats[ PF_R16G16_UINT   ].PlatformFormat    = DXGI_FORMAT_R16G16_UINT;
+	GPixelFormats[ PF_R32G32_UINT   ].PlatformFormat    = DXGI_FORMAT_R32G32_UINT;
 
 	GPixelFormats[ PF_BC6H			].PlatformFormat	= DXGI_FORMAT_BC6H_UF16;
 	GPixelFormats[ PF_BC7			].PlatformFormat	= DXGI_FORMAT_BC7_TYPELESS;
@@ -420,21 +417,6 @@ void FD3D11DynamicRHI::SetupAfterDeviceCreation()
 			D3D11RHI_ShouldAllowAsyncResourceCreation() ? TEXT("no driver support") : TEXT("disabled by user"));
 	}
 
-#if PLATFORM_WINDOWS
-	IUnknown* RenderDoc;
-	IID RenderDocID;
-	if (SUCCEEDED(IIDFromString(L"{A7AA6116-9C8D-4BBA-9083-B4D816B71B78}", &RenderDocID)))
-	{
-		if (SUCCEEDED(Direct3DDevice->QueryInterface(RenderDocID, (void**)(&RenderDoc))))
-		{
-			bRenderDoc = true;
-
-			// Running under RenderDoc, so enable capturing mode
-			GDynamicRHI->EnableIdealGPUCaptureOptions(true);
-		}
-	}
-#endif
-
 	// Check for typed UAV load support
 	for (uint32 PF = 0; PF < PF_MAX; ++PF)
 	{
@@ -552,6 +534,7 @@ void FD3D11DynamicRHI::CleanupD3DDevice()
 		ReleaseCachedQueries();
 
 
+#ifdef AMD_AGS_API
 		// Clean up the AMD extensions and shut down the AMD AGS utility library
 		if (AmdAgsContext != NULL)
 		{
@@ -569,6 +552,8 @@ void FD3D11DynamicRHI::CleanupD3DDevice()
 			StopIntelMetricsDiscovery();
 		}
 #endif // INTEL_METRICSDISCOVERY
+
+#endif //AMD_AGS_API
 
 		// When running with D3D debug, clear state and flush the device to get rid of spurious live objects in D3D11's report.
 		if (D3D11RHI_ShouldCreateWithD3DDebug())

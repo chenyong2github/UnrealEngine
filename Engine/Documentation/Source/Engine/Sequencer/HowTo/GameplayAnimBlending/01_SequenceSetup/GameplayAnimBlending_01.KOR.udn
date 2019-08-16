@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3782314
-Availability: Public
+﻿INTSourceChangelist:6419241
+Availability: Docs
 Title:1. 시퀀스 구성
 Crumbs: %ROOT%, Engine, Engine/Sequencer, Engine/Sequencer/HowTo
 Description:여기서는 레벨 시퀀스를 만들어 블렌딩 대상 애니메이션을 시퀀서에 추가하도록 하겠습니다.
@@ -10,7 +10,7 @@ order:1
 checkpoint: editorqs
 tags:Sequencer
 tags:Animation
-type:how-to
+type:multi-step
 
 
 [VAR:Steps]

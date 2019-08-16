@@ -1,6 +1,6 @@
-﻿INTSourceChangelist:3810467
+﻿INTSourceChangelist:6652343
 Availability: Public
-Title:블루프린트 - 비법
+Title:블루프린트 - 하우투
 Crumbs: %ROOT%, Engine, Engine/Blueprints
 Description:블루프린트 작업시 여러가지 짤막한 단계별 안내를 제공해 드리는 페이지입니다.
 Related: Engine/Blueprints
@@ -14,10 +14,29 @@ tags:Blueprints
 topic-image:BP_HowTo_Topic.png
 
 
-언리얼 엔진 4 의 [](Engine/Blueprints) 가 처음이시라면, 이 **블루프린트 - 비법** 시리즈에서 블루프린트 생성, 노드 추가 및 연결, 변수 생성과 아울러 아래 표에서 볼 수 있는 여러가지 핵심적인 부분에 대한 정보를 얻으실 수 있습니다.
+언리얼 엔진 4 의 [](Engine/Blueprints) 가 처음이시라면, 이 **블루프린트 - 하우투** 시리즈에서 블루프린트 생성, 노드 추가 및 연결, 변수 생성과 아울러 아래 표에서 볼 수 있는 여러가지 핵심적인 부분에 대한 정보를 얻으실 수 있습니다.
 
-블루프린트의 핵심 개념에 대한 이해를 갖춰 준비가 되신 분들은, [](Gameplay) 에서 액터 스폰/소멸, (소멸시) 리스폰, 타이머 사용 등과 같은 게임플레이 관련 요소에 대한 비법을 찾아보실 수 있습니다.
+블루프린트의 핵심 개념에 대한 이해를 갖춰 준비가 되신 분들은, [](Gameplay) 에서 액터 스폰/소멸, (소멸시) 리스폰, 타이머 사용 등과 같은 게임플레이 관련 요소 안내서를 찾아보실 수 있습니다.
 
+<!-- removing for now
+[REGION:tip]
+블루프린트 또는 비주얼 스크립팅이 처음인 분들은, **Blueprint Essential Concepts** (블루프린트 핵심 개념) 비디오 튜토리얼 시리즈도 확인해 보시면 좋습니다. 언리얼 엔진 4 의 블루프린트를 사용하는 데 관련된 기본 및 핵심 개념, 블루프린트와 전통적인 프로그래밍 언어의 관계, 블루프린트 에디터 UI, 컴포넌트, 그래프, 블루프린트 사용 시 주의점을 몇 가지 다룹니다.
+[OBJECT:TopicCompact]
+	[PARAM:image]
+		![](BlueprintEssentialsUA.png)
+	[/PARAM]
+	[PARAM:icon]
+		![](%ROOT%/blueprint_icon.png)(convert:false)
+	[/PARAM]
+	[PARAM:title]
+		블루프린트 핵심 개념 강의
+	[/PARAM]
+	[PARAMLITERAL:path]
+		https://academy.unrealengine.com/Class/blueprint-essential-concepts
+	[/PARAMLITERAL]
+[/OBJECT]
+[/REGION]
+-->
 
 ## 초급
 [DIR(output:"fancy" type:"how-to" skill:"Beginner" parent:"Engine/Blueprints/BP_HowTo" org:"hierarchy")]

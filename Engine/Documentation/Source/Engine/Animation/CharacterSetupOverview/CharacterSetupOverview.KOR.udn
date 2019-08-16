@@ -1,7 +1,6 @@
-﻿INTSourceChangelist:3467293
+﻿INTSourceChangelist:6412650
 Availability:Public
 Title: 캐릭터 셋업 개요
-Crumbs: %ROOT%, Engine, Engine/Animation
 Description:언리얼 엔진 4 에서 커스텀 플레이가능 캐릭터를 셋업하는 법에 대한 하이 레벨 개요서입니다.
 Related: Engine/Content/FBX/Animations
 Related: Engine/Content/Types/SkeletalMeshes
@@ -12,6 +11,9 @@ Related: Engine/Animation/AnimBlueprints/EventGraph
 Related: Engine/Animation/StateMachines
 Related: Gameplay/AI
 version: 4.9
+tags:Animation
+tags:Animation Features
+tags:Character Setup
 topic-image:SettingUpACharacter_topic.png
 
 [REGION:fullwidth]

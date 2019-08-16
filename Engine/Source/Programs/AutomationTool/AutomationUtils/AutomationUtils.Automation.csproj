@@ -92,6 +92,7 @@
     <Compile Include="UE4Build.cs" />
     <Compile Include="Utils.cs" />
     <Compile Include="WindowsHostPlatform.cs" />
+    <Compile Include="P4WriteConfig.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\DotNETCommon\DotNETUtilities\DotNETUtilities.csproj">

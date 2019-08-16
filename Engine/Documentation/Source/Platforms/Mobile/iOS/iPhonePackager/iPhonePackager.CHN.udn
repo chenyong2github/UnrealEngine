@@ -1,0 +1,58 @@
+﻿INTSourceChangelist:5558417
+Availability: Public
+Crumbs: 
+Title: iPhone Packager
+Description: 指导您使用IPhonePackager工具来将IPA放置在您的iOS设备上进行测试的教程指南。
+Type: 
+Version: 4.20
+Parent: Platforms/Mobile/iOS
+Order: 
+Tags: 
+topic-image: iOS_QS_Editor_TopicImage.png
+topic-icon: %ROOT%/ue4_icon.png
+
+
+![](IPhonePackager_Hero_Image.png "IPhonePackager_Hero_Image.png")
+
+由于Apple改动软件开发工具包(SDK)，在运行Windows系统的计算机上已经不可以使用Itunes加载IPA。要从运行Windows系统的计算机上加载IPA，需要使用 **IPhonePackager** 工具，在下面的教程指南中，我们将了解如何执行该操作。
+
+[REGION:note]
+本教程假设您已经完成了iOS游戏开发文档的[开始](Platforms/Mobile/iOS/QuickStart)部分中的所有项目，因此拥有一个可以部署到iOS设备的IPA。
+[/REGION]
+
+(#steps)
+
+## 步骤
+
+在下面部分，我们将了解iPhone Packager工具所处的位置，以及如何用它将UE4 iOS项目部署到iPhone或iPad上。
+
+1.  首先，前往 **UE4 Engine** 安装文件夹的 **Engine\\Binaries\\DotNET\\IOS**，找到 **IPhonePackager** 工具。
+![IPhonePackager_Tool_Location .png](IPhonePackager_Tool_Location%20.png "IPhonePackager_Tool_Location .png")
+2.  接下来，找到并 **IPhonePackager.exe** 双击打开。
+![](IPhonePackager_EXE-1.png "IPhonePackager_EXE-1.png")
+    
+3.  一旦IPhonePackager工具打开后，立即按 **取消（Cancel）** 按钮以完整显示该工具。
+![](IPhonePackager_CancleButton.png "IPhonePackager_CancleButton.png")
+    
+4.  现在IPhonePackager工具已打开，查找顶部的三个选项卡，然后单击 **高级工具（Advanced Tools）** 选项卡。
+![](IPhonePackager_Advanced_Tools.png "IPhonePackager_Advanced_Tools.png")
+    
+5.  当高级工具（Advanced Tools）选项卡打开后，单击 **将IPA安装到硬件......（Install IPA to hardware…）**选项。
+![](IPhonePackager_InstallIPAToHardware.png "IPhonePackager_InstallIPAToHardware.png")
+    
+6.  找到要安装的IPA，选择它，然后按 **打开（Open）** 按钮以启动安装过程。 
+![](IPhonePackager_LocateIPA.png "IPhonePackager_LocateIPA.png")
+    
+7.  您可以通过单击启动IPhonePackager工具时打开的 **命令行窗口** 来查看IPA的安装进度。
+![](IPhonePackager_CommandLineWindow.png "IPhonePackager_CommandLineWindow.png")  
+    
+
+(#endresult)
+
+## 最终结果
+
+一旦IPhonePackager工具完成，您应该可以立即在您的iPhone或iPad上看到已安装的IPA，如下图所示。
+
+![IPhonePackager_EndResult.png](IPhonePackager_EndResult-resize283x502.png "IPhonePackager_EndResult.png")
+
+[](#)[](#)

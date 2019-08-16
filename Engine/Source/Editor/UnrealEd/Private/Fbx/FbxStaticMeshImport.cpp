@@ -34,6 +34,7 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "MeshDescription.h"
 #include "MeshAttributes.h"
+#include "MeshDescriptionOperations.h"
 #include "IMeshBuilderModule.h"
 #include "Settings/EditorExperimentalSettings.h"
 
@@ -68,6 +69,14 @@ static FbxString GetNodeNameWithoutNamespace( FbxNode* Node )
 	}
 }
 
+void CreateTokenizedErrorForDegeneratedPart(UnFbx::FFbxImporter* FbxImporter, const FString MeshName, const FString NodeName)
+{
+	FFormatNamedArguments Arguments;
+	Arguments.Add(TEXT("MeshName"), FText::FromString(MeshName));
+	Arguments.Add(TEXT("PartName"), FText::FromString(NodeName));
+	FText ErrorMsg = LOCTEXT("MeshHasNoRenderableTriangles", "Mesh name: [{MeshName}] part name: [{PartName}]  could not be created because all of its polygons are degenerate.");
+	FbxImporter->AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText::Format(ErrorMsg, Arguments)), FFbxErrors::StaticMesh_AllTrianglesDegenerate);
+}
 
 //-------------------------------------------------------------------------
 //
@@ -268,9 +277,9 @@ struct FFBXUVs
 bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh* StaticMesh, TArray<FFbxMaterial>& MeshMaterials, int32 LODIndex,
 	EVertexColorImportOption::Type VertexColorImportOption, const TMap<FVector, FColor>& ExistingVertexColorData, const FColor& VertexOverrideColor)
 {
-	check(StaticMesh->SourceModels.IsValidIndex(LODIndex));
+	check(StaticMesh->IsSourceModelValid(LODIndex));
 	FbxMesh* Mesh = Node->GetMesh();
-	FStaticMeshSourceModel& SrcModel = StaticMesh->SourceModels[LODIndex];
+	FString FbxNodeName = UTF8_TO_TCHAR(Node->GetName());
 	
 	FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription(LODIndex);
 	//The mesh description should have been created before calling BuildStaticMeshFromGeometry
@@ -390,7 +399,7 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 	if (!Mesh->IsTriangleMesh())
 	{
 		if(!GIsAutomationTesting)
-		UE_LOG(LogFbx, Display, TEXT("Triangulating static mesh %s"), UTF8_TO_TCHAR(Node->GetName()));
+		UE_LOG(LogFbx, Display, TEXT("Triangulating static mesh %s"), *FbxNodeName);
 
 		const bool bReplace = true;
 		FbxNodeAttribute* ConvertedNode = GeometryConverter->Triangulate(Mesh, bReplace);
@@ -501,16 +510,16 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 	bool bEnableCollision = bImportedCollision || (GBuildStaticMeshCollision && LODIndex == 0 && ImportOptions->bRemoveDegenerates);
 	for(int32 SectionIndex=MaterialIndexOffset; SectionIndex<MaterialIndexOffset+MaterialCount; SectionIndex++)
 	{
-		FMeshSectionInfo Info = StaticMesh->SectionInfoMap.Get(LODIndex, SectionIndex);
+		FMeshSectionInfo Info = StaticMesh->GetSectionInfoMap().Get(LODIndex, SectionIndex);
 		
 		Info.bEnableCollision = bEnableCollision;
 		//Make sure LOD greater then 0 copy the LOD 0 sections collision flags
 		if (LODIndex != 0)
 		{
 			//Match the material slot index
-			for (int32 LodZeroSectionIndex = 0; LodZeroSectionIndex < StaticMesh->SectionInfoMap.GetSectionNumber(0); ++LodZeroSectionIndex)
+			for (int32 LodZeroSectionIndex = 0; LodZeroSectionIndex < StaticMesh->GetSectionInfoMap().GetSectionNumber(0); ++LodZeroSectionIndex)
 			{
-				FMeshSectionInfo InfoLodZero = StaticMesh->SectionInfoMap.Get(0, LodZeroSectionIndex);
+				FMeshSectionInfo InfoLodZero = StaticMesh->GetSectionInfoMap().Get(0, LodZeroSectionIndex);
 				if (InfoLodZero.MaterialIndex == Info.MaterialIndex)
 				{
 					Info.bEnableCollision = InfoLodZero.bEnableCollision;
@@ -519,7 +528,7 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 				}
 			}
 		}
-		StaticMesh->SectionInfoMap.Set(LODIndex, SectionIndex, Info);
+		StaticMesh->GetSectionInfoMap().Set(LODIndex, SectionIndex, Info);
 	}
 
 	//
@@ -907,10 +916,7 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 	
 	if (!bHasNonDegeneratePolygons)
 	{
-		FFormatNamedArguments Arguments;
-		Arguments.Add( TEXT("MeshName"), FText::FromString(StaticMesh->GetName()));
-		FText ErrorMsg = LOCTEXT("MeshHasNoRenderableTriangles", "{MeshName} could not be created because all of its polygons are degenerate.");
-		AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText::Format(ErrorMsg, Arguments)), FFbxErrors::StaticMesh_AllTrianglesDegenerate);
+		CreateTokenizedErrorForDegeneratedPart(this, StaticMesh->GetName(), FbxNodeName);
 	}
 
 	bool bIsValidMesh = bHasNonDegeneratePolygons;
@@ -995,9 +1001,9 @@ UStaticMesh* UnFbx::FFbxImporter::ReimportSceneStaticMesh(uint64 FbxNodeUniqueId
 						{
 							//For LOD we don't pass the ExistMeshDataPtr
 							ImportStaticMeshAsSingle(Mesh->GetOutermost(), AllNodeInLod, *Mesh->GetName(), RF_Public | RF_Standalone, TemplateImportData, FirstBaseMesh, LODIndex, nullptr);
-							if (FirstBaseMesh->SourceModels.IsValidIndex(LODIndex))
+							if (FirstBaseMesh->IsSourceModelValid(LODIndex))
 							{
-								FirstBaseMesh->SourceModels[LODIndex].bImportWithBaseMesh = true;
+								FirstBaseMesh->GetSourceModel(LODIndex).bImportWithBaseMesh = true;
 							}
 						}
 					}
@@ -1044,24 +1050,27 @@ UStaticMesh* UnFbx::FFbxImporter::ReimportSceneStaticMesh(uint64 FbxNodeUniqueId
 void UnFbx::FFbxImporter::AddStaticMeshSourceModelGeneratedLOD(UStaticMesh* StaticMesh, int32 LODIndex)
 {
 	//Add a Lod generated model
-	while (StaticMesh->SourceModels.Num() <= LODIndex)
+	while (StaticMesh->GetNumSourceModels() <= LODIndex)
 	{
 		StaticMesh->AddSourceModel();
 	}
+
+	FStaticMeshSourceModel& ThisSourceModel = StaticMesh->GetSourceModel(LODIndex);
 	if (LODIndex - 1 > 0 && StaticMesh->IsReductionActive(LODIndex - 1))
 	{
-		if (StaticMesh->SourceModels[LODIndex - 1].ReductionSettings.PercentTriangles < 1.0f)
+		const FStaticMeshSourceModel& PrevSourceModel = StaticMesh->GetSourceModel(LODIndex - 1);
+		if (PrevSourceModel.ReductionSettings.PercentTriangles < 1.0f)
 		{
-			StaticMesh->SourceModels[LODIndex].ReductionSettings.PercentTriangles = StaticMesh->SourceModels[LODIndex - 1].ReductionSettings.PercentTriangles * 0.5f;
+			ThisSourceModel.ReductionSettings.PercentTriangles = PrevSourceModel.ReductionSettings.PercentTriangles * 0.5f;
 		}
-		else if (StaticMesh->SourceModels[LODIndex - 1].ReductionSettings.MaxDeviation > 0.0f)
+		else if (PrevSourceModel.ReductionSettings.MaxDeviation > 0.0f)
 		{
-			StaticMesh->SourceModels[LODIndex].ReductionSettings.MaxDeviation = StaticMesh->SourceModels[LODIndex - 1].ReductionSettings.MaxDeviation + 1.0f;
+			ThisSourceModel.ReductionSettings.MaxDeviation = PrevSourceModel.ReductionSettings.MaxDeviation + 1.0f;
 		}
 	}
 	else
 	{
-		StaticMesh->SourceModels[LODIndex].ReductionSettings.PercentTriangles = FMath::Pow(0.5f, (float)LODIndex);
+		ThisSourceModel.ReductionSettings.PercentTriangles = FMath::Pow(0.5f, (float)LODIndex);
 	}
 }
 
@@ -1239,9 +1248,9 @@ UStaticMesh* UnFbx::FFbxImporter::ReimportStaticMesh(UStaticMesh* Mesh, UFbxStat
 			{
 				ImportStaticMeshAsSingle(Mesh->GetOuter(), LODMeshesArray, *Mesh->GetName(), RF_Public | RF_Standalone, TemplateImportData, NewMesh, LODIndex, nullptr);
 				ReimportLodList.Add(LODIndex);
-				if (NewMesh && NewMesh->SourceModels.IsValidIndex(LODIndex))
+				if (NewMesh && NewMesh->IsSourceModelValid(LODIndex))
 				{
-					NewMesh->SourceModels[LODIndex].bImportWithBaseMesh = true;
+					NewMesh->GetSourceModel(LODIndex).bImportWithBaseMesh = true;
 				}
 			}
 		}
@@ -1286,9 +1295,9 @@ UStaticMesh* UnFbx::FFbxImporter::ReimportStaticMesh(UStaticMesh* Mesh, UFbxStat
 							//For LOD we don't pass the ExistMeshDataPtr
 							ImportStaticMeshAsSingle(Mesh->GetOuter(), AllNodeInLod, *Mesh->GetName(), RF_Public | RF_Standalone, TemplateImportData, NewMesh, LODIndex, nullptr);
 							ReimportLodList.Add(LODIndex);
-							if (NewMesh->SourceModels.IsValidIndex(LODIndex))
+							if (NewMesh->IsSourceModelValid(LODIndex))
 							{
-								NewMesh->SourceModels[LODIndex].bImportWithBaseMesh = true;
+								NewMesh->GetSourceModel(LODIndex).bImportWithBaseMesh = true;
 							}
 						}
 					}
@@ -1432,15 +1441,6 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 	{
 		ExistingMesh->GetVertexColorData(ExistingVertexColorData);
 
-		if (0 == ExistingVertexColorData.Num())
-		{
-			// If there were no vertex colors and we specified to ignore FBX vertex colors, automatically take vertex colors from the file anyway.
-			if (VertexColorImportOption == EVertexColorImportOption::Ignore)
-			{
-				VertexColorImportOption = EVertexColorImportOption::Replace;
-			}
-		}
-
 		// Free any RHI resources for existing mesh before we re-create in place.
 		ExistingMesh->PreEditChange(NULL);
 	}
@@ -1467,20 +1467,6 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 			AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText::Format(LOCTEXT("ContentBrowser_CannotDeleteReferenced", "{0} wasn't created.\n\nThe asset is referenced by other content."), FText::FromString(MeshName))), FFbxErrors::Generic_CannotDeleteReferenced);
 			return NULL;
 		}
-
-		// Vertex colors should be copied always if there is no existing static mesh.
-		if (VertexColorImportOption == EVertexColorImportOption::Ignore)
-		{
-			VertexColorImportOption = EVertexColorImportOption::Replace;
-		}
-	}
-	else
-	{ 
-		// Vertex colors should be copied always if there is no existing static mesh.
-		if (VertexColorImportOption == EVertexColorImportOption::Ignore)
-		{
-			VertexColorImportOption = EVertexColorImportOption::Replace;
-		}
 	}
 	
 	if( InStaticMesh != NULL && LODIndex > 0 )
@@ -1492,16 +1478,18 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 		StaticMesh = NewObject<UStaticMesh>(Package, FName(*MeshName), Flags | RF_Public);
 	}
 
-	if (StaticMesh->SourceModels.Num() < LODIndex+1)
+	if (StaticMesh->GetNumSourceModels() < LODIndex+1)
 	{
 		// Add one LOD 
 		StaticMesh->AddSourceModel();
 		
-		if (StaticMesh->SourceModels.Num() < LODIndex+1)
+		if (StaticMesh->GetNumSourceModels() < LODIndex+1)
 		{
-			LODIndex = StaticMesh->SourceModels.Num() - 1;
+			LODIndex = StaticMesh->GetNumSourceModels() - 1;
 		}
 	}
+
+	FStaticMeshSourceModel& SrcModel = StaticMesh->GetSourceModel(LODIndex);
 
 	FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription(LODIndex);
 	if (MeshDescription == nullptr)
@@ -1511,9 +1499,9 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 		StaticMesh->CommitMeshDescription(LODIndex);
 		//Make sure an imported mesh do not get reduce if there was no mesh data before reimport.
 		//In this case we have a generated LOD convert to a custom LOD
-		StaticMesh->SourceModels[LODIndex].ReductionSettings.MaxDeviation = 0.0f;
-		StaticMesh->SourceModels[LODIndex].ReductionSettings.PercentTriangles = 1.0f;
-		StaticMesh->SourceModels[LODIndex].ReductionSettings.PercentVertices = 1.0f;
+		SrcModel.ReductionSettings.MaxDeviation = 0.0f;
+		SrcModel.ReductionSettings.PercentTriangles = 1.0f;
+		SrcModel.ReductionSettings.PercentVertices = 1.0f;
 	}
 	else if (InStaticMesh != NULL && LODIndex > 0)
 	{
@@ -1521,8 +1509,6 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 		MeshDescription->Empty();
 	}
 
-	FStaticMeshSourceModel& SrcModel = StaticMesh->SourceModels[LODIndex];
-	
 	// make sure it has a new lighting guid
 	StaticMesh->LightingGuid = FGuid::NewGuid();
 
@@ -1530,7 +1516,9 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 	StaticMesh->LightMapResolution = 64;
 	StaticMesh->LightMapCoordinateIndex = 1;
 
+	float SqrBoundingBoxThreshold = THRESH_POINTS_ARE_NEAR * THRESH_POINTS_ARE_NEAR;
 
+	bool bAllDegenerated = true;
 	TArray<FFbxMaterial> MeshMaterials;
 	for (MeshIndex = 0; MeshIndex < MeshNodeArray.Num(); MeshIndex++ )
 	{
@@ -1538,13 +1526,32 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 
 		if (Node->GetMesh())
 		{
-			if (!BuildStaticMeshFromGeometry(Node, StaticMesh, MeshMaterials, LODIndex,
-											 VertexColorImportOption, ExistingVertexColorData, ImportOptions->VertexOverrideColor))
+			Node->GetMesh()->ComputeBBox();
+			FbxDouble3 BoxExtend;
+			BoxExtend[0] = Node->GetMesh()->BBoxMax.Get()[0] - Node->GetMesh()->BBoxMin.Get()[0];
+			BoxExtend[1] = Node->GetMesh()->BBoxMax.Get()[1] - Node->GetMesh()->BBoxMin.Get()[1];
+			BoxExtend[2] = Node->GetMesh()->BBoxMax.Get()[2] - Node->GetMesh()->BBoxMin.Get()[2];
+			double SqrSize = (BoxExtend[0] * BoxExtend[0]) + (BoxExtend[1] * BoxExtend[1]) + (BoxExtend[2] * BoxExtend[2]);
+			//If the bounding box of the mesh part is smaller then the position threshold, the part is consider degenerated and will be skip.
+			if (SqrSize > SqrBoundingBoxThreshold)
 			{
-				bBuildStatus = false;
-				break;
+				bAllDegenerated = false;
+				if (!BuildStaticMeshFromGeometry(Node, StaticMesh, MeshMaterials, LODIndex,
+					VertexColorImportOption, ExistingVertexColorData, ImportOptions->VertexOverrideColor))
+				{
+					bBuildStatus = false;
+					break;
+				}
+			}
+			else
+			{
+				CreateTokenizedErrorForDegeneratedPart(this, StaticMesh->GetName(), UTF8_TO_TCHAR(Node->GetName()));
 			}
 		}
+	}
+	if (bAllDegenerated)
+	{
+		bBuildStatus = false;
 	}
 
 	if (bBuildStatus)
@@ -1632,10 +1639,10 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 						MaterialIndex = PolygonGroupID.GetValue();
 					}
 				}
-				FMeshSectionInfo Info = StaticMesh->SectionInfoMap.Get(LODIndex, SectionIndex);
+				FMeshSectionInfo Info = StaticMesh->GetSectionInfoMap().Get(LODIndex, SectionIndex);
 				Info.MaterialIndex = MaterialIndex;
-				StaticMesh->SectionInfoMap.Remove(LODIndex, SectionIndex);
-				StaticMesh->SectionInfoMap.Set(LODIndex, SectionIndex, Info);
+				StaticMesh->GetSectionInfoMap().Remove(LODIndex, SectionIndex);
+				StaticMesh->GetSectionInfoMap().Set(LODIndex, SectionIndex, Info);
 				SectionIndex++;
 			}
 		}
@@ -1649,13 +1656,13 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 			check(CurrentPlatform);
 			const FStaticMeshLODGroup& LODGroup = CurrentPlatform->GetStaticMeshLODSettings().GetLODGroup(ImportOptions->StaticMeshLODGroup);
 			int32 NumLODs = LODGroup.GetDefaultNumLODs();
-			while (StaticMesh->SourceModels.Num() < NumLODs)
+			while (StaticMesh->GetNumSourceModels() < NumLODs)
 			{
 				StaticMesh->AddSourceModel();
 			}
 			for (int32 ModelLODIndex = 0; ModelLODIndex < NumLODs; ++ModelLODIndex)
 			{
-				StaticMesh->SourceModels[ModelLODIndex].ReductionSettings = LODGroup.GetDefaultSettings(ModelLODIndex);
+				StaticMesh->GetSourceModel(ModelLODIndex).ReductionSettings = LODGroup.GetDefaultSettings(ModelLODIndex);
 			}
 			StaticMesh->LightMapResolution = LODGroup.GetDefaultLightMapResolution();
 		}
@@ -1754,7 +1761,7 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 	return StaticMesh;
 }
 
-void ReorderMaterialAfterImport(UStaticMesh* StaticMesh, TArray<FbxNode*>& MeshNodeArray)
+void ReorderMaterialAfterImport(UStaticMesh* StaticMesh, TArray<FbxNode*>& MeshNodeArray, bool bAllowFbxReorder)
 {
 	if (StaticMesh == nullptr)
 	{
@@ -1843,70 +1850,73 @@ void ReorderMaterialAfterImport(UStaticMesh* StaticMesh, TArray<FbxNode*>& MeshN
 	}
 
 	//Reorder the StaticMaterials array to reflect the order in the fbx file
-	//So we make sure the order reflect the material ID in the DCCs
-	FMeshSectionInfoMap OldSectionInfoMap = StaticMesh->SectionInfoMap;
-	TArray<int32> FbxRemapMaterials;
-	TArray<FStaticMaterial> NewStaticMaterials;
-	for (int32 FbxMaterialIndex = 0; FbxMaterialIndex < MeshMaterials.Num(); ++FbxMaterialIndex)
+	if (bAllowFbxReorder)
 	{
-		const FString &FbxMaterial = MeshMaterials[FbxMaterialIndex];
-		int32 FoundMaterialIndex = INDEX_NONE;
+		//So we make sure the order reflect the material ID in the DCCs
+		FMeshSectionInfoMap OldSectionInfoMap = StaticMesh->GetSectionInfoMap();
+		TArray<int32> FbxRemapMaterials;
+		TArray<FStaticMaterial> NewStaticMaterials;
+		for (int32 FbxMaterialIndex = 0; FbxMaterialIndex < MeshMaterials.Num(); ++FbxMaterialIndex)
+		{
+			const FString &FbxMaterial = MeshMaterials[FbxMaterialIndex];
+			int32 FoundMaterialIndex = INDEX_NONE;
+			for (int32 BuildMaterialIndex = 0; BuildMaterialIndex < StaticMesh->StaticMaterials.Num(); ++BuildMaterialIndex)
+			{
+				FStaticMaterial &BuildMaterial = StaticMesh->StaticMaterials[BuildMaterialIndex];
+				if (FbxMaterial.Compare(BuildMaterial.ImportedMaterialSlotName.ToString()) == 0)
+				{
+					FoundMaterialIndex = BuildMaterialIndex;
+					break;
+				}
+			}
+
+			if (FoundMaterialIndex != INDEX_NONE)
+			{
+				FbxRemapMaterials.Add(FoundMaterialIndex);
+				NewStaticMaterials.Add(StaticMesh->StaticMaterials[FoundMaterialIndex]);
+			}
+		}
+		//Add the materials not used by the LOD 0 at the end of the array. The order here is irrelevant since it can be used by many LOD other then LOD 0 and in different order
 		for (int32 BuildMaterialIndex = 0; BuildMaterialIndex < StaticMesh->StaticMaterials.Num(); ++BuildMaterialIndex)
 		{
-			FStaticMaterial &BuildMaterial = StaticMesh->StaticMaterials[BuildMaterialIndex];
-			if (FbxMaterial.Compare(BuildMaterial.ImportedMaterialSlotName.ToString()) == 0)
+			const FStaticMaterial &StaticMaterial = StaticMesh->StaticMaterials[BuildMaterialIndex];
+			bool bFoundMaterial = false;
+			for (const FStaticMaterial &BuildMaterial : NewStaticMaterials)
 			{
-				FoundMaterialIndex = BuildMaterialIndex;
-				break;
+				if (StaticMaterial == BuildMaterial)
+				{
+					bFoundMaterial = true;
+					break;
+				}
+			}
+			if (!bFoundMaterial)
+			{
+				FbxRemapMaterials.Add(BuildMaterialIndex);
+				NewStaticMaterials.Add(StaticMaterial);
 			}
 		}
 
-		if (FoundMaterialIndex != INDEX_NONE)
-		{
-			FbxRemapMaterials.Add(FoundMaterialIndex);
-			NewStaticMaterials.Add(StaticMesh->StaticMaterials[FoundMaterialIndex]);
-		}
-	}
-	//Add the materials not used by the LOD 0 at the end of the array. The order here is irrelevant since it can be used by many LOD other then LOD 0 and in different order
-	for (int32 BuildMaterialIndex = 0; BuildMaterialIndex < StaticMesh->StaticMaterials.Num(); ++BuildMaterialIndex)
-	{
-		const FStaticMaterial &StaticMaterial = StaticMesh->StaticMaterials[BuildMaterialIndex];
-		bool bFoundMaterial = false;
+		StaticMesh->StaticMaterials.Empty();
 		for (const FStaticMaterial &BuildMaterial : NewStaticMaterials)
 		{
-			if (StaticMaterial == BuildMaterial)
-			{
-				bFoundMaterial = true;
-				break;
-			}
+			StaticMesh->StaticMaterials.Add(BuildMaterial);
 		}
-		if (!bFoundMaterial)
-		{
-			FbxRemapMaterials.Add(BuildMaterialIndex);
-			NewStaticMaterials.Add(StaticMaterial);
-		}
-	}
 
-	StaticMesh->StaticMaterials.Empty();
-	for (const FStaticMaterial &BuildMaterial : NewStaticMaterials)
-	{
-		StaticMesh->StaticMaterials.Add(BuildMaterial);
-	}
-
-	//Remap the material instance of the staticmaterial array and remap the material index of all sections
-	for (int32 LODResoureceIndex = 0; LODResoureceIndex < StaticMesh->RenderData->LODResources.Num(); ++LODResoureceIndex)
-	{
-		FStaticMeshLODResources& LOD = StaticMesh->RenderData->LODResources[LODResoureceIndex];
-		int32 NumSections = LOD.Sections.Num();
-		for (int32 SectionIndex = 0; SectionIndex < NumSections; ++SectionIndex)
+		//Remap the material instance of the staticmaterial array and remap the material index of all sections
+		for (int32 LODResoureceIndex = 0; LODResoureceIndex < StaticMesh->RenderData->LODResources.Num(); ++LODResoureceIndex)
 		{
-			FMeshSectionInfo Info = OldSectionInfoMap.Get(LODResoureceIndex, SectionIndex);
-			int32 RemapIndex = FbxRemapMaterials.Find(Info.MaterialIndex);
-			if (StaticMesh->StaticMaterials.IsValidIndex(RemapIndex))
+			FStaticMeshLODResources& LOD = StaticMesh->RenderData->LODResources[LODResoureceIndex];
+			int32 NumSections = LOD.Sections.Num();
+			for (int32 SectionIndex = 0; SectionIndex < NumSections; ++SectionIndex)
 			{
-				Info.MaterialIndex = RemapIndex;
-				StaticMesh->SectionInfoMap.Set(LODResoureceIndex, SectionIndex, Info);
-				StaticMesh->OriginalSectionInfoMap.Set(LODResoureceIndex, SectionIndex, Info);
+				FMeshSectionInfo Info = OldSectionInfoMap.Get(LODResoureceIndex, SectionIndex);
+				int32 RemapIndex = FbxRemapMaterials.Find(Info.MaterialIndex);
+				if (StaticMesh->StaticMaterials.IsValidIndex(RemapIndex))
+				{
+					Info.MaterialIndex = RemapIndex;
+					StaticMesh->GetSectionInfoMap().Set(LODResoureceIndex, SectionIndex, Info);
+					StaticMesh->GetOriginalSectionInfoMap().Set(LODResoureceIndex, SectionIndex, Info);
+				}
 			}
 		}
 	}
@@ -2015,18 +2025,18 @@ void UnFbx::FFbxImporter::PostImportStaticMesh(UStaticMesh* StaticMesh, TArray<F
 	{
 		StaticMesh->bAutoComputeLODScreenSize = false;
 
-		for (int32 LodIndex = 0; LodIndex < StaticMesh->SourceModels.Num(); ++LodIndex)
+		for (int32 LodIndex = 0; LodIndex < StaticMesh->GetNumSourceModels(); ++LodIndex)
 		{
-			FStaticMeshSourceModel &StaticMeshSourceModel = StaticMesh->SourceModels[LodIndex];
+			FStaticMeshSourceModel& StaticMeshSourceModel = StaticMesh->GetSourceModel(LodIndex);
 			StaticMeshSourceModel.ScreenSize = ImportOptions->LodDistances.IsValidIndex(LodIndex) ? ImportOptions->LodDistances[LodIndex] : 0.0f;
 		}
 	}
 
 	// this is damage control. After build, we'd like to absolutely sure that 
 	// all index is pointing correctly and they're all used. Otherwise we remove them
-	FMeshSectionInfoMap TempOldSectionInfoMap = StaticMesh->SectionInfoMap;
-	StaticMesh->SectionInfoMap.Clear();
-	StaticMesh->OriginalSectionInfoMap.Clear();
+	FMeshSectionInfoMap TempOldSectionInfoMap = StaticMesh->GetSectionInfoMap();
+	StaticMesh->GetSectionInfoMap().Clear();
+	StaticMesh->GetOriginalSectionInfoMap().Clear();
 	if (StaticMesh->RenderData)
 	{
 		// fix up section data
@@ -2039,8 +2049,8 @@ void UnFbx::FFbxImporter::PostImportStaticMesh(UStaticMesh* StaticMesh, TArray<F
 				FMeshSectionInfo Info = TempOldSectionInfoMap.Get(LODResoureceIndex, SectionIndex);
 				if (StaticMesh->StaticMaterials.IsValidIndex(Info.MaterialIndex))
 				{
-					StaticMesh->SectionInfoMap.Set(LODResoureceIndex, SectionIndex, Info);
-					StaticMesh->OriginalSectionInfoMap.Set(LODResoureceIndex, SectionIndex, Info);
+					StaticMesh->GetSectionInfoMap().Set(LODResoureceIndex, SectionIndex, Info);
+					StaticMesh->GetOriginalSectionInfoMap().Set(LODResoureceIndex, SectionIndex, Info);
 				}
 			}
 		}
@@ -2063,7 +2073,7 @@ void UnFbx::FFbxImporter::PostImportStaticMesh(UStaticMesh* StaticMesh, TArray<F
 	//If we have import a LOD other then the base, the material array cannot be sorted, because only the base LOD reorder the material array
 	if (LODIndex == 0 && StaticMesh->StaticMaterials.Num() > 1)
 	{
-		ReorderMaterialAfterImport(StaticMesh, MeshNodeArray);
+		ReorderMaterialAfterImport(StaticMesh, MeshNodeArray, ImportOptions->bReorderMaterialToFbxOrder);
 	}
 }
 
@@ -2096,10 +2106,10 @@ void UnFbx::FFbxImporter::UpdateStaticMeshImportData(UStaticMesh *StaticMesh, UF
 			for (int32 SectionIndex = 0; SectionIndex < NumSections; ++SectionIndex)
 			{
 				int32 MaterialLodSectionIndex = LOD.Sections[SectionIndex].MaterialIndex;
-				if (StaticMesh->SectionInfoMap.GetSectionNumber(LODResoureceIndex) > SectionIndex)
+				if (StaticMesh->GetSectionInfoMap().GetSectionNumber(LODResoureceIndex) > SectionIndex)
 				{
 					//In case we have a different ordering then the original fbx order use the sectioninfomap
-					const FMeshSectionInfo &SectionInfo = StaticMesh->SectionInfoMap.Get(LODResoureceIndex, SectionIndex);
+					const FMeshSectionInfo &SectionInfo = StaticMesh->GetSectionInfoMap().Get(LODResoureceIndex, SectionIndex);
 					MaterialLodSectionIndex = SectionInfo.MaterialIndex;
 				}
 				if (ImportData->ImportMaterialOriginalNameData.IsValidIndex(MaterialLodSectionIndex))
@@ -2201,7 +2211,7 @@ void UnFbx::FFbxImporter::ImportStaticMeshLocalSockets(UStaticMesh* StaticMesh, 
 			check(Socket);
 
 			Socket->SocketName = SocketNode.SocketName;
-			StaticMesh->Sockets.Add(Socket);
+			StaticMesh->AddSocket(Socket);
 		}
 
 		if (Socket)
@@ -2267,7 +2277,7 @@ void UnFbx::FFbxImporter::ImportStaticMeshGlobalSockets( UStaticMesh* StaticMesh
 			check(Socket);
 
 			Socket->SocketName = SocketNode.SocketName;
-			StaticMesh->Sockets.Add(Socket);
+			StaticMesh->AddSocket(Socket);
 			//Remove the axis conversion for the socket since its attach to a mesh containing this conversion.
 			const FbxAMatrix& SocketMatrix = Scene->GetAnimationEvaluator()->GetNodeGlobalTransform(SocketNode.Node) * FFbxDataConverter::GetAxisConversionMatrixInv();
 			FTransform SocketTransform;

@@ -5,6 +5,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Math/RandomStream.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
@@ -327,8 +328,9 @@ struct FNetworkObjectInfo;
 class UChannel;
 class IAnalyticsProvider;
 class FNetAnalyticsAggregator;
+class UNetDriver;
 
-using FConnectionMap = TMap<TSharedRef<FInternetAddr>, UNetConnection*, FDefaultSetAllocator, FInternetAddrKeyMapFuncs<UNetConnection*>>;
+using FConnectionMap = TMap<TSharedRef<const FInternetAddr>, UNetConnection*, FDefaultSetAllocator, FInternetAddrConstKeyMapFuncs<UNetConnection*>>;
 
 extern ENGINE_API TAutoConsoleVariable<int32> CVarNetAllowEncryption;
 extern ENGINE_API int32 GNumSaturatedConnections;
@@ -372,7 +374,7 @@ DECLARE_DELEGATE_SevenParams(FOnSendRPC, AActor* /*Actor*/, UFunction* /*Functio
 USTRUCT()
 struct ENGINE_API FPacketSimulationSettings
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
 	/**
 	 * When set, will cause calls to FlushNet to drop packets.
@@ -383,7 +385,7 @@ struct ENGINE_API FPacketSimulationSettings
 	 * Works with all other settings.
 	 */
 	UPROPERTY(EditAnywhere, Category="Simulation Settings")
-	int32	PktLoss;
+	int32	PktLoss = 0;
 
 	/**
 	* Sets the maximum size of packets in bytes that will be dropped
@@ -392,7 +394,7 @@ struct ENGINE_API FPacketSimulationSettings
 	* Works with all other settings.
 	*/
 	UPROPERTY(EditAnywhere, Category = "Simulation Settings")
-	int32	PktLossMaxSize;
+	int32	PktLossMaxSize = 0;
 
 	/**
 	* Sets the minimum size of packets in bytes that will be dropped
@@ -401,7 +403,7 @@ struct ENGINE_API FPacketSimulationSettings
 	* Works with all other settings.
 	*/
 	UPROPERTY(EditAnywhere, Category = "Simulation Settings")
-	int32	PktLossMinSize;
+	int32	PktLossMinSize = 0;
 
 	/**
 	 * When set, will cause calls to FlushNet to change ordering of packets at random.
@@ -411,7 +413,7 @@ struct ENGINE_API FPacketSimulationSettings
 	 * Takes precedence over PktDup and PktLag.
 	 */
 	UPROPERTY(EditAnywhere, Category="Simulation Settings")
-	int32	PktOrder;
+	int32	PktOrder = 0;
 
 	/**
 	 * When set, will cause calls to FlushNet to duplicate packets.
@@ -422,7 +424,7 @@ struct ENGINE_API FPacketSimulationSettings
 	 * Cannot be used with PktOrder or PktLag.
 	 */
 	UPROPERTY(EditAnywhere, Category="Simulation Settings")
-	int32	PktDup;
+	int32	PktDup = 0;
 	
 	/**
 	 * When set, will cause calls to FlushNet to delay packets.
@@ -431,34 +433,62 @@ struct ENGINE_API FPacketSimulationSettings
 	 * Cannot be used with PktOrder.
 	 */
 	UPROPERTY(EditAnywhere, Category="Simulation Settings")
-	int32	PktLag;
+	int32	PktLag = 0;
 	
 	/**
 	 * When set, will cause PktLag to use variable lag instead of constant.
 	 * Value is treated as millisecond lag range (e.g. -GivenVariance <= 0 <= GivenVariance).
-	 * Clamped between 0 and 100.
 	 *
 	 * Can only be used when PktLag is enabled.
 	 */
 	UPROPERTY(EditAnywhere, Category="Simulation Settings")
-	int32	PktLagVariance;
+	int32	PktLagVariance = 0;
 
-	/** Ctor. Zeroes the settings */
-	FPacketSimulationSettings() : 
-		PktLoss(0),
-		PktLossMaxSize(INT_MAX/8),
-		PktLossMinSize(0),
-		PktOrder(0),
-		PktDup(0),
-		PktLag(0),
-		PktLagVariance(0) 
-	{
-	}
+	/**
+	 * If set lag values will randomly fluctuate between Min and Max.
+	 * Ignored if PktLag value is set
+	 */
+	UPROPERTY(EditAnywhere, Category = "Simulation Settings")
+	int32	PktLagMin = 0;
+	UPROPERTY(EditAnywhere, Category = "Simulation Settings")
+	int32	PktLagMax = 0;
+
+	/**
+	 * Set a value to add a minimum delay in milliseconds to incoming
+	 * packets before they are processed.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Simulation Settings")
+	int32	PktIncomingLagMin = 0;
+	
+	/**
+	 * The maximum delay in milliseconds to add to incoming
+	 * packets before they are processed.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Simulation Settings")
+	int32	PktIncomingLagMax = 0;
+
+	/**
+	 * The ratio of incoming packets that will be dropped
+	 * to simulate packet loss
+	 */
+	UPROPERTY(EditAnywhere, Category = "Simulation Settings")
+	int32	PktIncomingLoss = 0;
 
 	/** reads in settings from the .ini file 
 	 * @note: overwrites all previous settings
 	 */
 	void LoadConfig(const TCHAR* OptionalQualifier = nullptr);
+	
+	/** 
+	 * Load a preconfigured emulation profile from the .ini
+	 * Returns true if the given profile existed
+	 */
+	bool LoadEmulationProfile(const TCHAR* ProfileName);
+
+	/**
+	 * Force new emulation settings and ignore config or cmdline values
+	 */
+	void ApplySettings(const FPacketSimulationSettings& NewSettings);
 
 	/**
 	 * Registers commands for auto-completion, etc.
@@ -466,9 +496,20 @@ struct ENGINE_API FPacketSimulationSettings
 	void RegisterCommands();
 
 	/**
-	 * Unregisters commands for auto-completion, etc.
+	 * Ensure that settings have proper values
 	 */
-	void UnregisterCommands();
+	void ValidateSettings();
+	void ResetSettings();
+
+	/**
+	* Tells if a packet fits the size settings to potentially be dropped
+	*/
+	bool ShouldDropPacketOfSize(int32 NumBits) const
+	{
+		const bool bIsBigEnough = NumBits > PktLossMinSize * 8;
+		const bool bIsSmallEnough = PktLossMaxSize == 0 || NumBits < PktLossMaxSize * 8;
+		return bIsBigEnough && bIsSmallEnough;
+	}
 
 	/**
 	 * Reads the settings from a string: command line or an exec
@@ -584,11 +625,18 @@ struct ENGINE_API FChannelDefinition
 struct FDisconnectedClient
 {
 	/** The address of the client */
-	TSharedRef<FInternetAddr>	Address;
+	TSharedRef<const FInternetAddr>	Address;
 
 	/** The time at which the client disconnected  */
 	double						DisconnectTime;
 
+	FDisconnectedClient(TSharedRef<const FInternetAddr>& InAddress, double InDisconnectTime)
+		: Address(InAddress)
+		, DisconnectTime(InDisconnectTime)
+	{
+	}
+
+	UE_DEPRECATED(4.23, "This object does not update address information, and should have const addresses passed in")
 	FDisconnectedClient(TSharedRef<FInternetAddr>& InAddress, double InDisconnectTime)
 		: Address(InAddress)
 		, DisconnectTime(InDisconnectTime)
@@ -598,7 +646,7 @@ struct FDisconnectedClient
 
 
 UCLASS(Abstract, customConstructor, transient, MinimalAPI, config=Engine)
-class UNetDriver : public UObject, public FExec
+class ENGINE_VTABLE UNetDriver : public UObject, public FExec
 {
 	GENERATED_UCLASS_BODY()
 
@@ -626,6 +674,10 @@ public:
 	/** @todo document */
 	UPROPERTY(Config)
 	int32 NetServerMaxTickRate;
+
+	/** Limit tick rate of replication to allow very high frame rates to still replicate data. A value less or equal to zero means use the engine tick rate. A value greater than zero will clamp the net tick rate to this value.  */
+	UPROPERTY(Config)
+	int32 MaxNetTickRate;
 
 	/** @todo document */
 	UPROPERTY(Config)
@@ -676,6 +728,13 @@ public:
 	 */
 	UPROPERTY(Config)
 	bool bNoTimeouts;
+
+	/**
+	 * If true this NetDriver will not apply the network emulation settings that simulate
+	 * latency and packet loss in non-shippable builds
+	 */
+	UPROPERTY(Config)
+	bool bNeverApplyNetworkEmulationSettings;
 
 	/** Connection to the server (this net driver is a client) */
 	UPROPERTY()
@@ -1019,7 +1078,8 @@ public:
 	/** DDoS detection management */
 	FDDoSDetection DDoS;
 
-
+	/** Local address this net driver is associated with */
+	TSharedPtr<FInternetAddr> LocalAddr;
 
 	/**
 	* Updates the standby cheat information and
@@ -1033,7 +1093,12 @@ public:
 #if DO_ENABLE_NET_TEST
 	FPacketSimulationSettings	PacketSimulationSettings;
 
-	ENGINE_API void SetPacketSimulationSettings(FPacketSimulationSettings NewSettings);
+	/**
+	 * Modify the current emulation settings
+	 */
+	ENGINE_API void SetPacketSimulationSettings(const FPacketSimulationSettings& NewSettings);
+
+	void OnPacketSimulationSettingsChanged();
 #endif
 
 	// Constructors.
@@ -1138,7 +1203,10 @@ public:
 	ENGINE_API virtual void LowLevelDestroy();
 
 	/* @return network number */
-	virtual FString LowLevelGetNetworkNumber() PURE_VIRTUAL(UNetDriver::LowLevelGetNetworkNumber,return TEXT(""););
+	ENGINE_API virtual FString LowLevelGetNetworkNumber();
+
+	/* @return local addr of this machine if set */
+	ENGINE_API virtual TSharedPtr<const FInternetAddr> GetLocalAddr() { return LocalAddr; }
 
 	/** Make sure this connection is in a reasonable state. */
 	ENGINE_API virtual void AssertValid();
@@ -1203,8 +1271,13 @@ public:
 	ENGINE_API virtual void LowLevelSend(FString Address, void* Data, int32 CountBits)
 	{
 		FOutPacketTraits EmptyTraits;
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		LowLevelSend(Address, Data, CountBits, EmptyTraits);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
+
+	UE_DEPRECATED(4.22, "Change arguments to support FInternetAddr instead")
+	ENGINE_API virtual void LowLevelSend(FString Address, void* Data, int32 CountBits, FOutPacketTraits& Traits);
 
 	/**
 	 * Sends a 'connectionless' (not associated with a UNetConection) packet, to the specified address.
@@ -1215,7 +1288,7 @@ public:
 	 * @param CountBits		The size of the packet data, in bits
 	 * @param Traits		Traits for the packet, if applicable
 	 */
-	ENGINE_API virtual void LowLevelSend(FString Address, void* Data, int32 CountBits, FOutPacketTraits& Traits)
+	ENGINE_API virtual void LowLevelSend(TSharedPtr<const FInternetAddr> Address, void* Data, int32 CountBits, FOutPacketTraits& Traits)
 		PURE_VIRTUAL(UNetDriver::LowLevelSend,);
 
 	/**
@@ -1520,9 +1593,22 @@ public:
 		return bMaySendProperties;
 	}
 
+	/**
+	 * Get the current number of sent packets for which we have received a delivery notification
+	 */
+	ENGINE_API uint32 GetOutTotalNotifiedPackets() const { return OutTotalNotifiedPackets; }
+
+	/**
+	 * Increase the current number of sent packets for which we have received a delivery notification
+	 */
+	inline void IncreaseOutTotalNotifiedPackets() { ++OutTotalNotifiedPackets; }
+
 protected:
 
 	bool bMaySendProperties;
+
+	/** Stream of random numbers to be used by this instance of UNetDriver */
+	FRandomStream UpdateDelayRandomStream;
 
 private:
 
@@ -1551,4 +1637,13 @@ private:
 
 	/** NetDriver time to end packet loss burst simulation. */
 	float PacketLossBurstEndTime;
+
+	/** Count the number of notified packets, i.e. packets that we know if they are delivered or not. Used to reliably measure outgoing packet loss */
+	uint32 OutTotalNotifiedPackets;
+
+#if DO_ENABLE_NET_TEST
+	/** Dont load packet settings from config or cmdline when true*/
+	bool bForcedPacketSettings;
+#endif 
+
 };

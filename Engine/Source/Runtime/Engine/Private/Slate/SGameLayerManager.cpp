@@ -25,6 +25,7 @@ SGameLayerManager::SGameLayerManager()
 :	DefaultWindowTitleBarHeight(64.0f)
 ,	bIsGameUsingBorderlessWindow(false)
 ,	bUseScaledDPI(false)
+,	CachedInverseDPIScale(0.0f)
 {
 }
 
@@ -130,17 +131,17 @@ void SGameLayerManager::SetSceneViewport(FSceneViewport* InSceneViewport)
 	DebugCanvas->SetSceneViewport(InSceneViewport);
 }
 
-const FGeometry& SGameLayerManager::GetViewportWidgetHostGeometry() const
+FGeometry SGameLayerManager::GetViewportWidgetHostGeometry() const
 {
-	return WidgetHost->GetCachedGeometry();
+	return WidgetHost->GetTickSpaceGeometry();
 }
 
-const FGeometry& SGameLayerManager::GetPlayerWidgetHostGeometry(ULocalPlayer* Player) const
+FGeometry SGameLayerManager::GetPlayerWidgetHostGeometry(ULocalPlayer* Player) const
 {
 	TSharedPtr<FPlayerLayer> PlayerLayer = PlayerLayers.FindRef(Player);
 	if ( PlayerLayer.IsValid() )
 	{
-		return PlayerLayer->Widget->GetCachedGeometry();
+		return PlayerLayer->Widget->GetTickSpaceGeometry();
 	}
 
 	static FGeometry Identity;
@@ -256,9 +257,11 @@ void SGameLayerManager::ClearWidgets()
 
 void SGameLayerManager::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
-	CachedGeometry = AllottedGeometry;
-
-	UpdateLayout();
+	//if (AllottedGeometry != CachedGeometry)
+	{
+		CachedGeometry = AllottedGeometry;
+		UpdateLayout();
+	}
 }
 
 int32 SGameLayerManager::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
@@ -433,7 +436,14 @@ void SGameLayerManager::AddOrUpdatePlayerLayers(const FGeometry& AllottedGeometr
 	ESplitScreenType::Type SplitType = ViewportClient->GetCurrentSplitscreenConfiguration();
 	TArray<struct FSplitscreenData>& SplitInfo = ViewportClient->SplitscreenInfo;
 
-	float InverseDPIScale = ViewportClient->Viewport ? 1.0f / GetGameViewportDPIScale() : 1.0f;
+	const float InverseDPIScale = ViewportClient->Viewport ? 1.0f / GetGameViewportDPIScale() : 1.0f;
+
+	if (CachedInverseDPIScale != InverseDPIScale)
+	{
+		InvalidatePrepass();
+		Invalidate(EInvalidateWidget::Layout);
+		CachedInverseDPIScale = InverseDPIScale;
+	}
 
 	// Add and Update Player Layers
 	for ( int32 PlayerIndex = 0; PlayerIndex < GamePlayers.Num(); PlayerIndex++ )

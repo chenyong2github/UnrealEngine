@@ -5,6 +5,11 @@
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "UObject/Package.h"
 
+#if INCLUDE_CHAOS
+#include "Framework/Threading.h"
+#include "ChaosSolversModule.h"
+#endif
+
 UPhysicsSettings::UPhysicsSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, DefaultGravityZ(-980.f)
@@ -112,6 +117,12 @@ void UPhysicsSettings::PostEditChangeProperty(struct FPropertyChangedEvent& Prop
 	{
 		UMovementComponent::PhysicsLockedAxisSettingChanged();
 	}
+
+	const FName MemberName = PropertyChangedEvent.MemberProperty ? PropertyChangedEvent.MemberProperty->GetFName() : NAME_None;
+	if(MemberName == GET_MEMBER_NAME_CHECKED(UPhysicsSettings, ChaosSettings))
+	{
+		ChaosSettings.OnSettingsUpdated();
+	}
 }
 
 void UPhysicsSettings::LoadSurfaceType()
@@ -147,4 +158,23 @@ void UPhysicsSettings::LoadSurfaceType()
 		Enum->RemoveMetaData(*HiddenMeta, Iter->Type);
 	}
 }
+
 #endif	// WITH_EDITOR
+
+FChaosPhysicsSettings::FChaosPhysicsSettings() 
+	: DefaultThreadingModel(EChaosThreadingMode::TaskGraph)
+	, DedicatedThreadTickMode(EChaosSolverTickMode::VariableCappedWithTarget)
+	, DedicatedThreadBufferMode(EChaosBufferMode::Double)
+{
+
+}
+
+void FChaosPhysicsSettings::OnSettingsUpdated()
+{
+#if INCLUDE_CHAOS
+	if(FChaosSolversModule* SolverModule = FChaosSolversModule::GetModule())
+	{
+		SolverModule->OnSettingsChanged();
+	}
+#endif
+}

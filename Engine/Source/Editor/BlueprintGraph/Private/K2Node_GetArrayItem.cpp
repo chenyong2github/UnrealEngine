@@ -194,7 +194,7 @@ void UK2Node_GetArrayItem::GetContextMenuActions(const FGraphNodeContextMenuBuil
 		bReturnIsRef ? LOCTEXT("ChangeNodeToRef", "Change to return a copy") : LOCTEXT("ChangeNodeToVal", "Change to return a reference"),
 		ToggleTooltip,
 		FSlateIcon(),
-		FUIAction(FExecuteAction::CreateUObject(this, &UK2Node_GetArrayItem::ToggleReturnPin),
+		FUIAction(FExecuteAction::CreateUObject(const_cast<UK2Node_GetArrayItem*>(this), &UK2Node_GetArrayItem::ToggleReturnPin),
 			FCanExecuteAction::CreateLambda([bCannotReturnRef]()->bool { return !bCannotReturnRef; }))
 		);
 	Context.MenuBuilder->EndSection();

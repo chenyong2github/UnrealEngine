@@ -1,0 +1,30 @@
+﻿INTSourceChangelist:2940199
+Availability:Public
+Title:モバイル プラットフォーム向けコンテンツの作成
+Crumbs:%ROOT%, Platforms, Platforms/Mobile
+Description:モバイル ゲーム向けコンテンツ作成のためのガイドライン
+Platform:Mobile
+version:4.9
+parent:Platforms/Mobile
+order:4
+type:overview
+tags:mobile
+
+## メッシュ タイプ
+
+以下のリストは、モバイル プラットフォームでサポートされているメッシュ タイプの全一覧です。**これ以外のメッシュ タイプはサポートされていません。**
+
+* [Skeletal Meshes](Engine/Content/Types/SkeletalMeshes)
+* [Static Meshes](Engine/Content/Types/StaticMeshes)
+* [Landscape](Engine/Landscape)
+* [CPU particle sprites, particle meshes](Engine/Rendering/ParticleSystems)
+
+[インポート プロセス](Engine/Content/FBX) あるいはアセット作成プロセスは、他のプラットフォーム用なので、 
+モバイル上のこれらのタイプに対しては同じです。
+
+## メッシュの制限
+
+ハードウェアに起因して、モバイル プラットフォームでサポートされているメッシュ タイプには一定の制限があります。
+
+* 全てのメッシュ タイプは、モバイル ハードウェア上での 32 bit インデックスサポートがないため、頂点は 65k までとなります。
+* スケルタル メッシュは 75 ボーンまで持つことができます。

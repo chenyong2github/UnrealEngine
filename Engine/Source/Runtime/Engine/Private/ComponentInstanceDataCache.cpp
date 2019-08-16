@@ -6,6 +6,7 @@
 #include "Serialization/DuplicatedObject.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"
+#include "Serialization/ObjectAndNameAsStringProxyArchive.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectAnnotation.h"
 #include "UObject/UObjectGlobals.h"
@@ -251,7 +252,8 @@ bool FActorComponentDuplicatedObjectData::Serialize(FArchive& Ar)
 		ObjectPersistentFlags = DuplicatedObject->GetFlags() & RF_Load;
 		if (ObjectClass)
 		{
-			FMemoryWriter Writer(ObjectData);
+			FMemoryWriter MemAr(ObjectData);
+			FObjectAndNameAsStringProxyArchive Writer(MemAr, false);
 			ObjectClass->SerializeTaggedProperties(Writer, (uint8*)DuplicatedObject, ObjectClass, nullptr);
 		}
 	}
@@ -276,7 +278,8 @@ bool FActorComponentDuplicatedObjectData::Serialize(FArchive& Ar)
 				DuplicatedObject = NewObject<UObject>(FoundOuter, ObjectClass, *ObjectName.ToString(), (EObjectFlags)ObjectPersistentFlags);
 
 				// Deserialize the duplicated object
-				FMemoryReader Reader(ObjectData);
+				FMemoryReader MemAr(ObjectData);
+				FObjectAndNameAsStringProxyArchive Reader(MemAr, false);
 				ObjectClass->SerializeTaggedProperties(Reader, (uint8*)DuplicatedObject, ObjectClass, nullptr);
 			}
 		}
@@ -579,16 +582,19 @@ void FComponentInstanceDataCache::ApplyToActor(AActor* Actor, const ECacheApplyP
 		{
 			if (USceneComponent* SceneComponent = Cast<USceneComponent>(Component))
 			{
-				// Scene components that aren't attached to the root component hierarchy won't already have been processed so process them now.
-				// * If there is an unattached scene component 
-				// * If there is a scene component attached to another Actor's hierarchy
-				// * If the scene is not registered (likely because bAutoRegister is false or component is marked pending kill), then we may not have successfully attached to our parent and properly been handled
-				USceneComponent* ParentComponent = SceneComponent->GetAttachParent();
-				if (   (ParentComponent == nullptr && SceneComponent != Actor->GetRootComponent()) 			
-					|| (ParentComponent && ParentComponent->GetOwner() != Actor) 					
-					|| (ParentComponent && !SceneComponent->IsRegistered() && !ParentComponent->GetAttachChildren().Contains(SceneComponent)))
+				if (SceneComponent != Actor->GetRootComponent())
 				{
-					AddComponentHierarchy(SceneComponent);
+					// Scene components that aren't attached to the root component hierarchy won't already have been processed so process them now.
+					// * If there is an unattached scene component 
+					// * If there is a scene component attached to another Actor's hierarchy
+					// * If the scene is not registered (likely because bAutoRegister is false or component is marked pending kill), then we may not have successfully attached to our parent and properly been handled
+					USceneComponent* ParentComponent = SceneComponent->GetAttachParent();
+					if (   (ParentComponent == nullptr)
+					    || (ParentComponent->GetOwner() != Actor) 					
+					    || (!SceneComponent->IsRegistered() && !ParentComponent->GetAttachChildren().Contains(SceneComponent)))
+					{
+						AddComponentHierarchy(SceneComponent);
+					}
 				}
 			}
 			else if (Component)

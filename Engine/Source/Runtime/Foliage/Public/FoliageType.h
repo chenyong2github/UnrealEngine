@@ -9,6 +9,7 @@
 #include "Engine/EngineTypes.h"
 #include "Components/PrimitiveComponent.h"
 #include "Curves/CurveFloat.h"
+#include "VT/RuntimeVirtualTextureEnum.h"
 #include "FoliageType.generated.h"
 
 class UStaticMesh;
@@ -88,6 +89,7 @@ class UFoliageType : public UObject
 	virtual UObject* GetSource() const PURE_VIRTUAL(UFoliageType::GetSource, return nullptr; );
 		
 	virtual void Serialize(FArchive& Ar) override;
+	virtual void PostLoad() override;
 
 	virtual bool IsNotAssetOrBlueprint() const;
 
@@ -272,7 +274,7 @@ public:
 	/** Whether the foliage receives decals. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=InstanceSettings)
 	uint32 bReceivesDecals : 1;
-	
+
 	/** Whether to override the lightmap resolution defined in the static mesh. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=InstanceSettings, meta=(InlineEditConditionToggle))
 	uint32 bOverrideLightMapRes:1;
@@ -315,6 +317,17 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=InstanceSettings,  meta=(UIMin = "0", UIMax = "255", editcondition = "bRenderCustomDepth", DisplayName = "CustomDepth Stencil Value"))
 	int32 CustomDepthStencilValue;
 
+	/**
+	 * Translucent objects with a lower sort priority draw behind objects with a higher priority.
+	 * Translucent objects with the same priority are rendered from back-to-front based on their bounds origin.
+	 * This setting is also used to sort objects being drawn into a runtime virtual texture.
+	 *
+	 * Ignored if the object is not translucent.  The default priority is zero.
+	 * Warning: This should never be set to a non-default value unless you know what you are doing, as it will prevent the renderer from sorting correctly.
+	 * It is especially problematic on dynamic gameplay effects.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=InstanceSettings)
+	int32 TranslucencySortPriority;
 
 #if WITH_EDITORONLY_DATA
 	/** Bitflag to represent in which editor views this foliage mesh is hidden. */
@@ -491,6 +504,28 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, Category=Scalability)
 	uint32 bEnableDensityScaling:1;
+
+public:
+	// VIRTUAL TEXTURE
+
+	/** 
+	 * Array of runtime virtual textures into which we render the instances. 
+	 * The mesh material also needs to be set up to output to a virtual texture. 
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=VirtualTexture, meta = (DisplayName = "Render to Virtual Textures"))
+	TArray<URuntimeVirtualTexture*> RuntimeVirtualTextures;
+
+	/**
+	 * Number of lower mips in the runtime virtual texture to skip for rendering this primitive.
+	 * Larger values reduce the effective draw distance in the runtime virtual texture.
+	 * This culling method doesn't take into account primitive size or virtual texture size.
+	 */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Virtual Texture Skip Mips", UIMin = "0", UIMax = "15"))
+	int32 VirtualTextureCullMips = 0;
+
+	/** Render to the main pass based on the virtual texture settings. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Virtual Texture Pass Type"))
+	ERuntimeVirtualTextureMainPassType VirtualTextureRenderPassType = ERuntimeVirtualTextureMainPassType::Exclusive;
 
 private:
 

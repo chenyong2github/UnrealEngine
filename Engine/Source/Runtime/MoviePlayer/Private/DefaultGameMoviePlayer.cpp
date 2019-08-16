@@ -845,7 +845,8 @@ void FMoviePlayerWidgetRenderer::DrawWindow(float DeltaTime)
 
 	FSlateRect ClipRect = WindowGeometry.GetLayoutBoundingRect();
 
-	HittestGrid->ClearGridForNewFrame(ClipRect);
+	HittestGrid->SetHittestArea(VirtualRenderWindow->GetPositionInScreen(), VirtualRenderWindow->GetViewportSize());
+	HittestGrid->Clear();
 
 	// Get the free buffer & add our virtual window
 	FSlateDrawBuffer& DrawBuffer = SlateRenderer->GetDrawBuffer();
@@ -855,7 +856,7 @@ void FMoviePlayerWidgetRenderer::DrawWindow(float DeltaTime)
 
 	int32 MaxLayerId = 0;
 	{
-		FPaintArgs PaintArgs(*VirtualRenderWindow, *HittestGrid, FVector2D::ZeroVector, FSlateApplication::Get().GetCurrentTime(), FSlateApplication::Get().GetDeltaTime());
+		FPaintArgs PaintArgs(nullptr, *HittestGrid, FVector2D::ZeroVector, FSlateApplication::Get().GetCurrentTime(), FSlateApplication::Get().GetDeltaTime());
 
 		// Paint the window
 		MaxLayerId = VirtualRenderWindow->Paint(

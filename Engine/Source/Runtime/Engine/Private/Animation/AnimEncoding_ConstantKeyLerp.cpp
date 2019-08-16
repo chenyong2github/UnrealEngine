@@ -11,19 +11,19 @@
 /**
  * Handles the ByteSwap of compressed rotation data on import
  *
- * @param	Seq				The UAnimSequence container.
+ * @param	CompressedData		The compressed animation data being operated on.
  * @param	MemoryReader	The FMemoryReader to read from.
  * @param	TrackData		The compressed data stream.
  * @param	NumKeys			The number of keys present in the stream.
  */
 void AEFConstantKeyLerpShared::ByteSwapRotationIn(
-	UAnimSequence& Seq, 
+	FUECompressedAnimData& CompressedData,
 	FMemoryReader& MemoryReader,
 	uint8*& TrackData,
 	int32 NumKeys)
 {
 	// Calculate the effective compression (in a track with only one key, it's always stored lossless)
-	const int32 EffectiveFormat = (NumKeys == 1) ? ACF_Float96NoW : (int32) Seq.RotationCompressionFormat;
+	const int32 EffectiveFormat = (NumKeys == 1) ? ACF_Float96NoW : (int32)CompressedData.RotationCompressionFormat;
 	const int32 KeyComponentSize = CompressedRotationStrides[EffectiveFormat];
 	const int32 KeyNumComponents = CompressedRotationNum[EffectiveFormat];
 
@@ -49,19 +49,19 @@ void AEFConstantKeyLerpShared::ByteSwapRotationIn(
 /**
  * Handles the ByteSwap of compressed translation data on import
  *
- * @param	Seq				The UAnimSequence container.
+ * @param	CompressedData	The compressed animation data being operated on.
  * @param	MemoryReader	The FMemoryReader to read from.
  * @param	TrackData		The compressed data stream.
  * @param	NumKeys			The number of keys present in the stream.
  */
 void AEFConstantKeyLerpShared::ByteSwapTranslationIn(
-	UAnimSequence& Seq, 
+	FUECompressedAnimData& CompressedData,
 	FMemoryReader& MemoryReader,
 	uint8*& TrackData,
 	int32 NumKeys)
 {
 	// Calculate the effective compression (in a track with only one key, it's always stored lossless)
-	const int32 EffectiveFormat = (NumKeys == 1) ? ACF_None : (int32) Seq.TranslationCompressionFormat;
+	const int32 EffectiveFormat = (NumKeys == 1) ? ACF_None : (int32) CompressedData.TranslationCompressionFormat;
 	const int32 KeyComponentSize = CompressedTranslationStrides[EffectiveFormat];
 	const int32 KeyNumComponents = CompressedTranslationNum[EffectiveFormat];
 
@@ -87,19 +87,19 @@ void AEFConstantKeyLerpShared::ByteSwapTranslationIn(
 /**
  * Handles the ByteSwap of compressed Scale data on import
  *
- * @param	Seq				The UAnimSequence container.
+ * @param	CompressedData	The compressed animation data being operated on.
  * @param	MemoryReader	The FMemoryReader to read from.
  * @param	TrackData		The compressed data stream.
  * @param	NumKeys			The number of keys present in the stream.
  */
 void AEFConstantKeyLerpShared::ByteSwapScaleIn(
-	UAnimSequence& Seq, 
+	FUECompressedAnimData& CompressedData,
 	FMemoryReader& MemoryReader,
 	uint8*& TrackData,
 	int32 NumKeys)
 {
 	// Calculate the effective compression (in a track with only one key, it's always stored lossless)
-	const int32 EffectiveFormat = (NumKeys == 1) ? ACF_None : (int32) Seq.ScaleCompressionFormat;
+	const int32 EffectiveFormat = (NumKeys == 1) ? ACF_None : (int32)CompressedData.ScaleCompressionFormat;
 	const int32 KeyComponentSize = CompressedScaleStrides[EffectiveFormat];
 	const int32 KeyNumComponents = CompressedScaleNum[EffectiveFormat];
 
@@ -124,19 +124,19 @@ void AEFConstantKeyLerpShared::ByteSwapScaleIn(
 /**
  * Handles the ByteSwap of compressed rotation data on export
  *
- * @param	Seq				The UAnimSequence container.
+ * @param	CompressedData	The compressed animation data being operated on.
  * @param	MemoryWriter	The FMemoryWriter to write to.
  * @param	TrackData		The compressed data stream.
  * @param	NumKeys			The number of keys to write to the stream.
  */
 void AEFConstantKeyLerpShared::ByteSwapRotationOut(
-	UAnimSequence& Seq, 
+	FUECompressedAnimData& CompressedData,
 	FMemoryWriter& MemoryWriter,
 	uint8*& TrackData,
 	int32 NumKeys)
 {
 	// Calculate the effective compression (in a track with only one key, it's always stored lossless)
-	const int32 EffectiveFormat = (NumKeys == 1) ? ACF_Float96NoW : (int32) Seq.RotationCompressionFormat;
+	const int32 EffectiveFormat = (NumKeys == 1) ? ACF_Float96NoW : (int32) CompressedData.RotationCompressionFormat;
 	const int32 KeyComponentSize = CompressedRotationStrides[EffectiveFormat];
 	const int32 KeyNumComponents = CompressedRotationNum[EffectiveFormat];
 
@@ -162,19 +162,19 @@ void AEFConstantKeyLerpShared::ByteSwapRotationOut(
 /**
  * Handles the ByteSwap of compressed translation data on export
  *
- * @param	Seq				The UAnimSequence container.
+ * @param	CompressedData	The compressed animation data being operated on.
  * @param	MemoryWriter	The FMemoryWriter to write to.
  * @param	TrackData		The compressed data stream.
  * @param	NumKeys			The number of keys to write to the stream.
  */
 void AEFConstantKeyLerpShared::ByteSwapTranslationOut(
-	UAnimSequence& Seq, 
+	FUECompressedAnimData& CompressedData,
 	FMemoryWriter& MemoryWriter,
 	uint8*& TrackData,
 	int32 NumKeys)
 {
 	// Calculate the effective compression (in a track with only one key, it's always stored lossless)
-	const int32 EffectiveFormat = (NumKeys == 1) ? ACF_None : (int32) Seq.TranslationCompressionFormat;
+	const int32 EffectiveFormat = (NumKeys == 1) ? ACF_None : (int32) CompressedData.TranslationCompressionFormat;
 	const int32 KeyComponentSize = CompressedTranslationStrides[EffectiveFormat];
 	const int32 KeyNumComponents = CompressedTranslationNum[EffectiveFormat];
 
@@ -200,19 +200,19 @@ void AEFConstantKeyLerpShared::ByteSwapTranslationOut(
 /**
  * Handles the ByteSwap of compressed Scale data on export
  *
- * @param	Seq				The UAnimSequence container.
+ * @param	CompressedData	The compressed animation data being operated on.
  * @param	MemoryWriter	The FMemoryWriter to write to.
  * @param	TrackData		The compressed data stream.
  * @param	NumKeys			The number of keys to write to the stream.
  */
 void AEFConstantKeyLerpShared::ByteSwapScaleOut(
-	UAnimSequence& Seq, 
+	FUECompressedAnimData& CompressedData,
 	FMemoryWriter& MemoryWriter,
 	uint8*& TrackData,
 	int32 NumKeys)
 {
 	// Calculate the effective compression (in a track with only one key, it's always stored lossless)
-	const int32 EffectiveFormat = (NumKeys == 1) ? ACF_None : (int32) Seq.ScaleCompressionFormat;
+	const int32 EffectiveFormat = (NumKeys == 1) ? ACF_None : (int32) CompressedData.ScaleCompressionFormat;
 	const int32 KeyComponentSize = CompressedScaleStrides[EffectiveFormat];
 	const int32 KeyNumComponents = CompressedScaleNum[EffectiveFormat];
 

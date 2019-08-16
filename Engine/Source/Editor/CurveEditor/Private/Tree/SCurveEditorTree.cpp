@@ -7,62 +7,8 @@
 #include "CurveEditor.h"
 
 #include "Widgets/Views/STableRow.h"
-#include "Widgets/Views/STreeView.h"
 #include "Widgets/Views/SExpanderArrow.h"
 
-template <> struct TListTypeTraits<FCurveEditorTreeItemID>
-{
-public:
-	struct NullableType : FCurveEditorTreeItemID
-	{
-		NullableType(TYPE_OF_NULLPTR){}
-		NullableType(FCurveEditorTreeItemID Other) : FCurveEditorTreeItemID(Other) {}
-	};
-
-	using MapKeyFuncs = TDefaultMapHashableKeyFuncs<FCurveEditorTreeItemID, TSharedRef<ITableRow>, false>;
-	using MapKeyFuncsSparse = TDefaultMapHashableKeyFuncs<FCurveEditorTreeItemID, FSparseItemInfo, false>;
-	using SetKeyFuncs = DefaultKeyFuncs<FCurveEditorTreeItemID>;
-
-	static void AddReferencedObjects(FReferenceCollector&, TArray<FCurveEditorTreeItemID>&, TSet<FCurveEditorTreeItemID>&) {}
-
-	static bool IsPtrValid(NullableType InPtr)
-	{
-		return InPtr.IsValid();
-	}
-
-	static void ResetPtr(NullableType& InPtr)
-	{
-		InPtr = nullptr;
-	}
-
-	static NullableType MakeNullPtr()
-	{
-		return nullptr;
-	}
-
-	static FCurveEditorTreeItemID NullableItemTypeConvertToItemType(NullableType InPtr)
-	{
-		return InPtr;
-	}
-
-	static FString DebugDump(FCurveEditorTreeItemID InPtr)
-	{
-		return FString::Printf(TEXT("%d"), InPtr.GetValue());
-	}
-
-	class SerializerType{};
-};
-template <>
-struct TIsValidListItem<FCurveEditorTreeItemID>
-{
-	enum
-	{
-		Value = true
-	};
-};
-
-class SCurveEditorTreeView : public STreeView<FCurveEditorTreeItemID>
-{};
 
 struct SCurveEditorTableRow : SMultiColumnTableRow<FCurveEditorTreeItemID>
 {
@@ -75,6 +21,16 @@ struct SCurveEditorTableRow : SMultiColumnTableRow<FCurveEditorTreeItemID>
 		WeakCurveEditor = InCurveEditor;
 
 		SMultiColumnTableRow::Construct(InArgs, OwnerTableView);
+
+		SetForegroundColor(MakeAttributeSP(this, &SCurveEditorTableRow::GetForegroundColorByFilterState));
+	}
+
+	FSlateColor GetForegroundColorByFilterState() const
+	{
+		TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
+
+		const bool bIsMatch = CurveEditor.IsValid() && ( CurveEditor->GetTree()->GetFilterState(TreeItemID) == ECurveEditorTreeFilterState::Match );
+		return bIsMatch ? FSlateColor::UseForeground() : FSlateColor::UseSubduedForeground();
 	}
 
 	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& InColumnName) override
@@ -82,10 +38,12 @@ struct SCurveEditorTableRow : SMultiColumnTableRow<FCurveEditorTreeItemID>
 		TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
 		TSharedPtr<ICurveEditorTreeItem> TreeItem = CurveEditor ? CurveEditor->GetTreeItem(TreeItemID).GetItem() : nullptr;
 
+		TSharedRef<ITableRow> TableRow = SharedThis(this);
+
 		TSharedPtr<SWidget> Widget;
 		if (TreeItem.IsValid())
 		{
-			Widget = TreeItem->GenerateCurveEditorTreeWidget(InColumnName, WeakCurveEditor, TreeItemID);
+			Widget = TreeItem->GenerateCurveEditorTreeWidget(InColumnName, WeakCurveEditor, TreeItemID, TableRow);
 		}
 
 		if (!Widget.IsValid())
@@ -114,8 +72,10 @@ struct SCurveEditorTableRow : SMultiColumnTableRow<FCurveEditorTreeItemID>
 	}
 };
 
+
 void SCurveEditorTree::Construct(const FArguments& InArgs, TSharedPtr<FCurveEditor> InCurveEditor)
 {
+	bFilterWasActive = false;
 	HeaderRow = SNew(SHeaderRow)
 		.Visibility(EVisibility::Collapsed)
 
@@ -126,13 +86,12 @@ void SCurveEditorTree::Construct(const FArguments& InArgs, TSharedPtr<FCurveEdit
 
 	CurveEditor = InCurveEditor;
 
-	ChildSlot
-	[
-		SAssignNew(TreeView, SCurveEditorTreeView)
+	STreeView<FCurveEditorTreeItemID>::Construct(
+		STreeView<FCurveEditorTreeItemID>::FArguments()
 		.SelectionMode(ESelectionMode::Multi)
 		.HeaderRow(HeaderRow)
 		.HighlightParentNodesForSelection(true)
-		.TreeItemsSource(&InCurveEditor->GetRootTreeItems())
+		.TreeItemsSource(&RootItems)
 		.OnGetChildren(this, &SCurveEditorTree::GetTreeItemChildren)
 		.OnGenerateRow(this, &SCurveEditorTree::GenerateRow)
 		.OnSetExpansionRecursive(this, &SCurveEditorTree::SetItemExpansionRecursive)
@@ -142,16 +101,90 @@ void SCurveEditorTree::Construct(const FArguments& InArgs, TSharedPtr<FCurveEdit
 				this->OnTreeSelectionChanged(InItemID, Type);
 			}
 		)
-	];
+	);
 
-	CurveEditor->OnTreeChanged().AddSP(TreeView.ToSharedRef(), &SCurveEditorTreeView::RequestTreeRefresh);
+	CurveEditor->GetTree()->Events.OnItemsChanged.AddSP(this, &SCurveEditorTree::RefreshTree);
+}
+
+void SCurveEditorTree::RefreshTree()
+{
+	RootItems.Reset();
+
+	const FCurveEditorTree* CurveEditorTree = CurveEditor->GetTree();
+	const FCurveEditorFilterStates& FilterStates = CurveEditorTree->GetFilterStates();
+
+	// When changing to/from a filtered state, we save and restore expansion states
+	if (FilterStates.IsActive() && !bFilterWasActive)
+	{
+		// Save expansion states
+		PreFilterExpandedItems.Reset();
+		GetExpandedItems(PreFilterExpandedItems);
+	}
+	else if (!FilterStates.IsActive() && bFilterWasActive)
+	{
+		// Add any currently selected items' parents to the expanded items array.
+		// This ensures that items that were selected during a filter operation remain expanded and selected when finished
+		for (FCurveEditorTreeItemID SelectedItemID : GetSelectedItems())
+		{
+			// Add the selected item's parent and any grandparents to the list
+			const FCurveEditorTreeItem* ParentItem = CurveEditorTree->FindItem(SelectedItemID);
+			if (ParentItem)
+			{
+				ParentItem = CurveEditorTree->FindItem(ParentItem->GetParentID());
+			}
+
+			while (ParentItem)
+			{
+				PreFilterExpandedItems.Add(ParentItem->GetID());
+				ParentItem = CurveEditorTree->FindItem(ParentItem->GetParentID());
+			}
+		}
+
+		// Restore expansion states
+		ClearExpandedItems();
+		for (FCurveEditorTreeItemID ExpandedItem : PreFilterExpandedItems)
+		{
+			SetItemExpansion(ExpandedItem, true);
+		}
+		PreFilterExpandedItems.Reset();
+	}
+
+	// Repopulate root tree items based on filters
+	for (FCurveEditorTreeItemID RootItemID : CurveEditor->GetRootTreeItems())
+	{
+		if (FilterStates.Get(RootItemID) != ECurveEditorTreeFilterState::NoMatch)
+		{
+			RootItems.Add(RootItemID);
+		}
+	}
+
+	RootItems.Shrink();
+	RequestTreeRefresh();
+
+	if (FilterStates.IsActive())
+	{
+		// If a filter is active, all matched items and their parents are expanded
+		ClearExpandedItems();
+		for (const TTuple<FCurveEditorTreeItemID, FCurveEditorTreeItem>& Pair : CurveEditorTree->GetAllItems())
+		{
+			ECurveEditorTreeFilterState FilterState = FilterStates.Get(Pair.Key);
+
+			// Expand any matched items or parents of matched items
+			if (FilterState == ECurveEditorTreeFilterState::Match || FilterState == ECurveEditorTreeFilterState::ImplicitParent)
+			{
+				SetItemExpansion(Pair.Key, true);
+			}
+		}
+	}
+
+	bFilterWasActive = FilterStates.IsActive();
 }
 
 FReply SCurveEditorTree::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
 	if (InKeyEvent.GetKey() == EKeys::Escape)
 	{
-		TreeView->ClearSelection();
+		ClearSelection();
 		return FReply::Handled();
 	}
 
@@ -165,20 +198,27 @@ TSharedRef<ITableRow> SCurveEditorTree::GenerateRow(FCurveEditorTreeItemID ItemI
 
 void SCurveEditorTree::GetTreeItemChildren(FCurveEditorTreeItemID Parent, TArray<FCurveEditorTreeItemID>& OutChildren)
 {
-	TArrayView<const FCurveEditorTreeItemID> Children = CurveEditor->GetTreeItem(Parent).GetChildren();
-	OutChildren.Append(Children.GetData(), Children.Num());
+	const FCurveEditorFilterStates& FilterStates = CurveEditor->GetTree()->GetFilterStates();
+
+	for (FCurveEditorTreeItemID ChildID : CurveEditor->GetTreeItem(Parent).GetChildren())
+	{
+		if (FilterStates.Get(ChildID) != ECurveEditorTreeFilterState::NoMatch)
+		{
+			OutChildren.Add(ChildID);
+		}
+	}
 }
 
 void SCurveEditorTree::OnTreeSelectionChanged(FCurveEditorTreeItemID, ESelectInfo::Type)
 {
-	CurveEditor->SetDirectTreeSelection(TreeView->GetSelectedItems());
+	CurveEditor->GetTree()->SetDirectSelection(GetSelectedItems(), CurveEditor.Get());
 }
 
 void SCurveEditorTree::SetItemExpansionRecursive(FCurveEditorTreeItemID Model, bool bInExpansionState)
 {
 	if (Model.IsValid())
 	{
-		TreeView->SetItemExpansion(Model, bInExpansionState);
+		SetItemExpansion(Model, bInExpansionState);
 
 		TArray<FCurveEditorTreeItemID> Children;
 		GetTreeItemChildren(Model, Children);

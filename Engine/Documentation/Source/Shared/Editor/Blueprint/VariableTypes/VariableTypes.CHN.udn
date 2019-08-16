@@ -1,72 +1,96 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3780178
 Availability:NoPublish
 Title:变量类型
 Crumbs:
 
-[EXCERPT:Bool]
-布尔（或布尔型）是一个 '_true_’ 或 '_false_’ 值。
+[EXCERPT:布尔]
+布尔是“_true_”或“_false_”值。
 [VAR:ToolTipFullLink]
 Engine/Blueprints/UserGuide/Variables
 [/VAR]
-[/EXCERPT:Bool]
+[/EXCERPT:布尔]
 
-[EXCERPT:Byte]
-一个字节使用 8 位元并代表 0 到 255 之间的一个完整数。
-[/EXCERPT:Byte]
+[EXCERPT:字节]
+一个字节使用8个比特，代表在0到255范围内的整数。
+[/EXCERPT:字节]
 
-[EXCERPT:Int]
-整数就是完整数，无法拥有小数部分。举例：2、-6、1045。
+[EXCERPT:整数]
+整数不能有小数部分。例如：2、-6、1045。
 [VAR:ToolTipFullLink]
 Engine/Blueprints/UserGuide/Variables
 [/VAR]
-[/EXCERPT:Int]
+[/EXCERPT:整数]
 
-[EXCERPT:Float]
-浮点数可拥有小数部分。举例：1.0、-3.7、10432.89。
+[EXCERPT:浮点]
+浮点数可以包含小数部分。例如：1.0、-3.7、10432.89。
 [VAR:ToolTipFullLink]
 Engine/Blueprints/UserGuide/Variables
 [/VAR]
-[/EXCERPT:Float]
+[/EXCERPT:浮点]
 
-[EXCERPT:Name]
-命名是一段文本，用于在游戏中进行辨识。识别命名比识别字符串更容易。
-[/EXCERPT:Name]
+[EXCERPT:名称]
+名称是一段文本，用来标识游戏中的某个事物。比较两个名称要大大快于比较两个字符串。
+[/EXCERPT:名称]
 
-[EXCERPT:String]
-字符串是一段文本。 
+[EXCERPT:字符串]
+一个字符串就是一段文本。 
 [VAR:ToolTipFullLink]
 Engine/Blueprints/UserGuide/Variables
 [/VAR]
-[/EXCERPT:String]
+[/EXCERPT:字符串]
 
-[EXCERPT:Text]
-Text 变量用于本地化文本。需要对向玩家展示的文本使用该变量，以便将文本翻译为不同语言。
+[EXCERPT:文本]
+文本变量用于本地化的文本。如果此文本会对用户显示，你就应该使用文本变量，这样就可以将它翻译为不同的语言。
 [VAR:ToolTipFullLink]
 Engine/Blueprints/UserGuide/Variables
 [/VAR]
-[/EXCERPT:Text]
+[/EXCERPT:文本]
 
-[EXCERPT:Vector]
-矢量表述 3D 空间中的位置或方向，由 XYZ 轴的组件构成。
+[EXCERPT:矢量]
+矢量描述3D空间中的位置或方向，由X、Y和Z分量组成。
 [VAR:ToolTipFullLink]
 Engine/Blueprints/UserGuide/Variables
 [/VAR]
-[/EXCERPT:Vector]
+[/EXCERPT:矢量]
 
-[EXCERPT:Rotator]
-旋转体表述 3D 空间中的方向，由 X（绕 X 轴的旋转）、Y（绕 Y 轴的旋转）和 Z（绕 Z 轴的旋转）的组件构成。
+[EXCERPT:旋转体]
+旋转体描述3D空间中的朝向，由X（Roll）、Y（Pitch）和Z（Yaw）分量组成。
 [VAR:ToolTipFullLink]
 Engine/Blueprints/UserGuide/Variables
 [/VAR]
-[/EXCERPT:Rotator]
+[/EXCERPT:旋转体]
 
-[EXCERPT:Transform]
-变形是包含平移、旋转和 3D 比例的 3D 仿射变换。
+[EXCERPT:变换]
+变换是3D仿射变换，包含平移、旋转和3D比例。
 [VAR:ToolTipFullLink]
 Engine/Blueprints/UserGuide/Variables
 [/VAR]
-[/EXCERPT:Transform]
+[/EXCERPT:变换]
 
-[EXCERPT:Array]
-阵列是一个排序序列。可拥有任意类型变量的阵列。需要多个同类资源时便要用到阵列。可通过索引在阵列中访问条目。
-[/EXCERPT:Array]
+[EXCERPT:数组]
+数组是有序的系列。数组可以由任何类型的变量组成。如果你需要不止一种变量，那么数组就很有用。可以通过索引访问数组中的条目。
+[/EXCERPT:数组]
+
+[EXCERPT:Object]
+硬资源引用。被引用的资源：
+- 如果是，则被加载。 
+- 如果是，则被转化。
+[/EXCERPT:Object]
+
+[EXCERPT:类]
+硬类引用。被引用的类：
+- 如果是，则被加载。 
+- 如果是，则被转化。
+[/EXCERPT:类]
+
+[EXCERPT:SoftObject]
+软资源引用。被引用的资源：
+- 如果是，则不自动加载。
+- 如果是，则被转化。
+[/EXCERPT:SoftObject]
+
+[EXCERPT:SoftClass]
+软类引用。被引用的类：
+- 如果是，则不自动加载。
+- 如果是，则被转化。
+[/EXCERPT:SoftClass]

@@ -1,0 +1,119 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Crumbs: 
+Title: Proxy Geometry Tool Reference
+Description: Product documentation including reference and guides for Unreal Engine 4
+Type: reference
+Version: 4.19
+Parent: Engine/ProxyGeoTool
+Order: 
+Tags: HLOD
+Tags: Proxy Geometry Tool
+Tags: Reference
+topic-image: ProxyGeoReferanceTopicImage_01.png
+
+
+## Reference
+
+![](Proxy_Geo_RF_01.png "Proxy_Geo_RF_01.png")
+
+In the following table you will find property descriptions for each of the settings that you will find in the Proxy Geometry Tool:
+
+| **Property Name** | **Description** |
+|---|---|
+| **Screen Size** | Screen size of the resulting proxy mesh in pixels. |
+| **Override Spatial Sampling Distance** | Override when converting mesh from proxy lod merging. Warning, large geometry with small sampling has very high memory costs. |
+| **Material Settings** | Material simplification settings. |
+| **Calculate Correct LOD Model** | Determines whether or not the correct LOD models should be calculated given the source meshes and transition size. |
+| **Merge Distance** | Distance at which meshes should be merged together, this can close gaps like doors and windows in distant geometry. |
+| **Unresolved Geometry Color** | Base color assigned to LOD geometry that can't be associated with source geometry. For example, doors and windows that have been closed by the Merge Distance. |
+| **Transfer Distance Override** | Override search distance used when discovering Texture values for simplified geometry. Useful when non-zero Merge Distance settings generates new geometry in concave corners. |
+| **Hard Edge Angle** | Angle at which a hard edge is introduced between faces. Note: Increases vertex count and may introduce additional UV seams. It is only recommended if not using Normal Maps. |
+| **Normal Calculation Method** | Controls the method used to calculate the Normal for simplified geometry. |
+| **Light Map Resolution** | Lightmap resolution size. |
+| **Compute Light Map Resolution** | If ticked will compute the lightmap resolution by summing the dimensions for each mesh included for merging. |
+| **Enable Volume Culling** | Allows culling volumes to exclude geometry. |
+| **Allow Adjacency** | Whether to allow Adjacency buffers to tessellation in the merged mesh. |
+| **Allow Distance Field** | Whether to allow distance field to be computed for this mesh. Disable this to save memory if your mesh will only rendered in the distance. |
+| **Reuse Mesh Lightmap UVs** | Whether to attempt to reuse the source mesh's lightmap UVs when baking the Material or always generate a new set. |
+| **Allow Vertex Colors** | Whether to allow Vertex Colors saved in the merged mesh. |
+| **Generate Lightmap UVs** | Whether to generate lightmap UVs for the merged mesh. |
+
+In the following table you will find description for each of the available [Console Commands](Programming/Development/Tools/ConsoleManager) that can be used with the Proxy Geometry Tool: 
+
+| **Command Name** | **Description** |
+|---|---|
+| **r.ProxyLODChartColorVerts** | [INCLUDE:#excerpt_0] |
+| **r.ProxyLODCorrectCollapsedWalls** | [INCLUDE:#excerpt_1] |
+| **r.ProxyLODMaterialInParallel** | [INCLUDE:#excerpt_2] |
+| **r.ProxyLODMaxDilationSteps** | [INCLUDE:#excerpt_3 |
+| **r.ProxyLODMeshReductionModule** | Name of the Proxy LOD reduction module to choose. If blank it chooses any that exist. |
+| **r.ProxyLODRemeshOnly** | [INCLUDE:#excerpt_4] |
+| **r.ProxyLODSingleThreadSimplify** | [INCLUDE:#excerpt_5] |
+| **r.ProxyLODTransfer** | [INCLUDE:#excerpt_6] |
+| **r.ProxyLODUseTangentSpace** | [INCLUDE:#excerpt_7] |
+
+[COMMENT:none]
+[EXCERPT:excerpt_0]
+Color verts by UV chart. Default off.  
+0: Disabled.  
+1: Enabled.
+[/EXCERPT:excerpt_0]
+[/COMMENT]
+
+[COMMENT:none]
+[EXCERPT:excerpt_1]
+Shall the ProxyLOD system attempt to correct walls with interpenetrating faces  
+0: Disabled - Default.  
+1: Enable, may cause cracks.
+[/EXCERPT:excerpt_1]
+[/COMMENT]
+
+[COMMENT:none]
+[EXCERPT:excerpt_2]
+Doing material work in parallel with mesh simplification.  
+0: Disable.  
+1: Enable - Default.
+[/EXCERPT:excerpt_2]
+[/COMMENT]
+
+[COMMENT:none]
+[EXCERPT:excerpt_3]
+Limit the number of dilation steps used in gap filling for performance reasons. This may affect gap filling quality as bigger dilations steps will be used with a smaller max.  
+0: Will disable gap filling.  
+1: Default.- Default.
+[/EXCERPT:excerpt_3]
+[/COMMENT]
+
+[COMMENT:none]
+[EXCERPT:excerpt_4]
+Only remesh. No simplification or Materials. 
+0: Disabled - will simplify and generate Materials.- Default.  
+1: Enabled - will not simplify or generate Materials.
+[/EXCERPT:excerpt_4]
+[/COMMENT]
+
+[COMMENT:none]
+[EXCERPT:excerpt_5]
+Use single-threaded code path.  
+0: Multithreaded. - Default.  
+1: Single threaded.
+[/EXCERPT:excerpt_5]
+[/COMMENT]
+
+[COMMENT:none]
+[EXCERPT:excerpt_6]
+0: shoot both ways.  
+1: preference for forward - Default.
+[/EXCERPT:excerpt_6]
+[/COMMENT]
+
+[COMMENT:none]
+[EXCERPT:excerpt_7]
+Controls the option to generate a Mikk-T space at each vertex. Default on. When this is disabled, a tangent space of (1,0,0) (0, 0, 1) (0,1,0) is added to each vertex for encoding the normal map.  
+0: world space at each vertex.  
+1: tangent space at each vertex - Default.
+[/EXCERPT:excerpt_7]
+[/COMMENT]
+
+[](#)[](#)

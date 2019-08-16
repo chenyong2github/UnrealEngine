@@ -149,6 +149,11 @@ public:
 		PackedPerRibbonDataByIndexSRV = InPackedPerRibbonDataByIndexSRV;
 	}
 
+	void SetFacingMode(uint32 InFacingMode)
+	{
+		FacingMode = InFacingMode;
+	}
+
 	FORCEINLINE FShaderResourceViewRHIRef GetParticleDataFloatSRV()
 	{
 		return ParticleDataFloatSRV;
@@ -187,6 +192,11 @@ public:
 	FORCEINLINE FShaderResourceViewRHIRef GetPackedPerRibbonDataByIndexSRV()
 	{
 		return PackedPerRibbonDataByIndexSRV;
+	}
+
+	FORCEINLINE int32 GetFacingMode()
+	{
+		return FacingMode;
 	}
 
 	/**
@@ -231,5 +241,5 @@ private:
 	FShaderResourceViewRHIRef PackedPerRibbonDataByIndexSRV;
 
 	uint32 SortedIndicesOffset;
-
+	int32 FacingMode;
 };

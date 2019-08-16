@@ -543,7 +543,7 @@ APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FMetalShaderPipeline)
 			case MTLArgumentTypeBuffer:
 			{
 				checkf(Arg.index < ML_MaxBuffers, TEXT("Metal buffer index exceeded!"));
-				if (FString(Arg.name) != TEXT("BufferSizes"))
+				if (FString(Arg.name) != TEXT("BufferSizes") && FString(Arg.name) != TEXT("spvBufferSizeConstants"))
 				{
 					ResourceMask[Frequency].BufferMask |= (1 << Arg.index);
 				
@@ -652,7 +652,7 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
 		METAL_DEBUG_OPTION(FMemory::Memzero(Pipeline->ResourceMask, sizeof(Pipeline->ResourceMask)));
 
 		mtlpp::RenderPipelineDescriptor RenderPipelineDesc;
-		mtlpp::ComputePipelineDescriptor ComputePipelineDesc(nil);
+        mtlpp::ComputePipelineDescriptor ComputePipelineDesc(nil);
 #if PLATFORM_MAC
         mtlpp::RenderPipelineDescriptor DebugPipelineDesc;
 #elif !PLATFORM_TVOS
@@ -718,9 +718,9 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
 #if !PLATFORM_TVOS
 		auto DebugColorAttachements = DebugPipelineDesc.GetColorAttachments();
 #endif
-		
+
 		uint32 TargetWidth = 0;
-        for (uint32 i = 0; i < NumActiveTargets; i++)
+		for (uint32 i = 0; i < NumActiveTargets; i++)
         {
             EPixelFormat TargetFormat = (EPixelFormat)Init.RenderTargetFormats[i];
 			
@@ -1245,7 +1245,7 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
 	#endif
         Pipeline->FragmentSource = PixelShader ? PixelShader->GetSourceCode() : nil;
     #endif
-
+		
 #if !PLATFORM_TVOS
 		if (GMetalCommandBufferDebuggingEnabled)
 		{
@@ -1296,14 +1296,14 @@ static void ReleaseMTLRenderPipeline(FMetalShaderPipeline* Pipeline)
 bool FMetalGraphicsPipelineState::Compile()
 {
 	FMemory::Memzero(PipelineStates);
-	for (uint32 i = 0; i < EMetalIndexType_Num; i++)
-	{
-		PipelineStates[i] = [GetMTLRenderPipeline(true, this, Initializer, (EMetalIndexType)i) retain];
-		if(!PipelineStates[i])
+		for (uint32 i = 0; i < EMetalIndexType_Num; i++)
 		{
-			return false;
+			PipelineStates[i] = [GetMTLRenderPipeline(true, this, Initializer, (EMetalIndexType)i) retain];
+			if(!PipelineStates[i])
+			{
+				return false;
+			}
 		}
-	}
 	
 	return true;
 }
@@ -1321,13 +1321,13 @@ FMetalShaderPipeline* FMetalGraphicsPipelineState::GetPipeline(EMetalIndexType I
 {
 	check(IndexType < EMetalIndexType_Num);
 
-	if(!PipelineStates[IndexType])
-	{
-		PipelineStates[IndexType] = [GetMTLRenderPipeline(true, this, Initializer, IndexType) retain];
-	}
+		if(!PipelineStates[IndexType])
+		{
+			PipelineStates[IndexType] = [GetMTLRenderPipeline(true, this, Initializer, IndexType) retain];
+		}
 	FMetalShaderPipeline* Pipe = PipelineStates[IndexType];
 
-	check(Pipe);
+		check(Pipe);
     return Pipe;
 }
 

@@ -12,6 +12,12 @@ class IARSystemSupport;
 DECLARE_MULTICAST_DELEGATE(FARSystemOnSessionStarted);
 DECLARE_MULTICAST_DELEGATE_OneParam(FARSystemOnAlignmentTransformUpdated, const FTransform&);
 
+#define DECLARE_AR_SI_DELEGATE_FUNCS(DelegateName) \
+public: \
+	FDelegateHandle Add##DelegateName##Delegate_Handle(const F##DelegateName##Delegate& Delegate); \
+	void Clear##DelegateName##Delegate_Handle(FDelegateHandle& Handle); \
+	void Clear##DelegateName##Delegates(void* Object);
+
 /**
  * Composition Components for tracking system features
 */
@@ -106,6 +112,12 @@ public:
 	//~ FGCObject
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	//~ FGCObject
+
+	// Pass through helpers to create the methods needed to add/remove delegates from the AR system
+	DECLARE_AR_SI_DELEGATE_FUNCS(OnTrackableAdded)
+	DECLARE_AR_SI_DELEGATE_FUNCS(OnTrackableUpdated)
+	DECLARE_AR_SI_DELEGATE_FUNCS(OnTrackableRemoved)
+	// End helpers
 
 	FARSystemOnSessionStarted OnARSessionStarted;
 	FARSystemOnAlignmentTransformUpdated OnAlignmentTransformUpdated;

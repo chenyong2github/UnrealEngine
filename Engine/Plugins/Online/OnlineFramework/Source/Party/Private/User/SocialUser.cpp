@@ -560,14 +560,14 @@ void USocialUser::GetRichPresenceText(FText& OutRichPresence) const
 		const FOnlineUserPresence* PrimaryPresence = GetFriendPresenceInfo(ESocialSubsystem::Primary);
 		if (PrimaryPresence && !PrimaryPresence->Status.StatusStr.IsEmpty())
 		{
-			OutRichPresence = FText::FromString(PrimaryPresence->Status.StatusStr);
+			OutRichPresence = FText::FromString(SanitizePresenceString(PrimaryPresence->Status.StatusStr));
 		}
 		else
 		{
 			const FOnlineUserPresence* PlatformPresence = GetFriendPresenceInfo(ESocialSubsystem::Platform);
 			if (PlatformPresence && !PlatformPresence->Status.StatusStr.IsEmpty())
 			{
-				OutRichPresence = FText::FromString(PlatformPresence->Status.StatusStr);
+				OutRichPresence = FText::FromString(SanitizePresenceString(PlatformPresence->Status.StatusStr)); 
 			}
 			else
 			{
@@ -1164,6 +1164,11 @@ void USocialUser::HandleQueryUserInfoComplete(ESocialSubsystem SubsystemType, bo
 
 	UE_LOG(LogParty, VeryVerbose, TEXT("User [%s] finished querying user info on subsystem [%s] with result [%d]. [%d] queries still pending."), *ToDebugString(), ToString(SubsystemType), UserInfo.IsValid(), NumPendingQueries);
 	TryBroadcastInitializationComplete();
+}
+
+FString USocialUser::SanitizePresenceString(FString InString) const
+{
+	return InString;
 }
 
 #undef LOCTEXT_NAMESPACE

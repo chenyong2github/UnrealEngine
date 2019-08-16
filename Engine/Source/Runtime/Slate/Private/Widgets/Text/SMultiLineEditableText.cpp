@@ -531,6 +531,13 @@ int32 SMultiLineEditableText::OnPaint( const FPaintArgs& Args, const FGeometry& 
 	FWidgetStyle TextWidgetStyle = FWidgetStyle(InWidgetStyle)
 		.SetForegroundColor(ForegroundColor);
 
+	const bool bAutoWrap = EditableTextLayout->GetAutoWrapText();
+	if (bAutoWrap && EditableTextLayout->GetComputedWrappingWidth() == 0)
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_Slate_AutoWrapRecompute)
+		const_cast<SMultiLineEditableText*>(this)->CacheDesiredSize(GetPrepassLayoutScaleMultiplier());
+	}
+
 	LayerId = EditableTextLayout->OnPaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, TextWidgetStyle, ShouldBeEnabled(bParentEnabled));
 
 	if (bIsSoftwareCursor)

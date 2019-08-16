@@ -49,6 +49,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Toolkits/AssetEditorManager.h"
 #include "Engine/HLODProxy.h"
+#include "Misc/ScopedSlowTask.h"
 
 #define LOCTEXT_NAMESPACE "HLODOutliner"
 
@@ -981,7 +982,7 @@ namespace HLODOutliner
 			LOCTEXT("AutoLODTooltip", "Determine LOD level automatically"),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateSP(this, &SHLODOutliner::SetForcedLODLevel, -1), 
+				FExecuteAction::CreateSP(const_cast<SHLODOutliner*>(this), &SHLODOutliner::SetForcedLODLevel, -1), 
 				FCanExecuteAction(), 
 				FGetActionCheckState::CreateLambda([this](){ return ForcedLODLevel == -1 ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })),
 			NAME_None,
@@ -999,7 +1000,7 @@ namespace HLODOutliner
 						FText::Format(LOCTEXT("LODLevelTooltipFormat", "Force LOD to level {0}"), FText::AsNumber(LODIndex)),
 						FSlateIcon(),
 						FUIAction(
-							FExecuteAction::CreateSP(this, &SHLODOutliner::SetForcedLODLevel, LODIndex), 
+							FExecuteAction::CreateSP(const_cast<SHLODOutliner*>(this), &SHLODOutliner::SetForcedLODLevel, LODIndex), 
 							FCanExecuteAction(), 
 							FGetActionCheckState::CreateLambda([this, LODIndex](){ return ForcedLODLevel == LODIndex ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })),
 						NAME_None,
@@ -1098,6 +1099,9 @@ namespace HLODOutliner
 			// This call came from a context menu
 			auto SelectedItems = TreeView->GetSelectedItems();
 			
+			FScopedSlowTask SlowTask(SelectedItems.Num(), FText::Format(LOCTEXT("SHLODOutliner_BuildProxy", "Building Proxy {0}|plural(one=Mesh,other=Meshes)"), SelectedItems.Num()));
+			SlowTask.MakeDialog();
+
 			// Loop over all selected items (context menu can't be called with multiple items selected that aren't of the same types)
 			for (auto SelectedItem : SelectedItems )
 			{
@@ -1116,6 +1120,8 @@ namespace HLODOutliner
 						}
 					}
 				}
+
+				SlowTask.EnterProgressFrame();
 			}
 			
 			SetForcedLODLevel(ForcedLODLevel);
@@ -1135,6 +1141,9 @@ namespace HLODOutliner
 			// This call came from a context menu
 			auto SelectedItems = TreeView->GetSelectedItems();
 
+			FScopedSlowTask SlowTask(SelectedItems.Num(), FText::Format(LOCTEXT("SHLODOutliner_RebuildProxy", "Rebuild Proxy {0}|plural(one=Mesh,other=Meshes)"), SelectedItems.Num()));
+			SlowTask.MakeDialog();
+
 			// Loop over all selected items (context menu can't be called with multiple items selected that aren't of the same types)
 			for (auto SelectedItem : SelectedItems)
 			{
@@ -1150,6 +1159,8 @@ namespace HLODOutliner
 						CurrentWorld->HierarchicalLODBuilder->BuildMeshForLODActor(ActorItem->LODActor.Get(), LevelItem->LODLevelIndex);
 					}
 				}
+
+				SlowTask.EnterProgressFrame();
 			}
 
 			SetForcedLODLevel(ForcedLODLevel);
@@ -1649,15 +1660,14 @@ namespace HLODOutliner
 				for (TWeakObjectPtr<ALODActor> Actor : ActorArray)
 				{
 					// Check if actor is not null due to Destroy Actor
-					if (Actor.IsValid())
+					if (Actor.IsValid() && Actor != InActor)
 					{
 						Actor->CleanSubActorArray();
-						const bool bRemovedSubActor = Actor->RemoveSubActor(InActor);
+						Actor->RemoveSubActor(InActor);
 
-						if (bRemovedSubActor && Actor->SubActors.Num() == 0)
+						if (Actor->SubActors.Num() == 0)
 						{
 							HierarchicalLODUtilities->DestroyCluster(Actor.Get());
-							Actor->GetWorld()->DestroyActor(Actor.Get());
 						}
 					}
 				}

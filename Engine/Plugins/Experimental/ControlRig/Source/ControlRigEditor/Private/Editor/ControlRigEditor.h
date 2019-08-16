@@ -110,6 +110,8 @@ public:
 	// restart animation 
 	void OnHierarchyChanged();
 	void OnBoneRenamed(const FName& OldName, const FName& NewName);
+	void OnCurveContainerChanged();
+	void OnCurveRenamed(const FName& OldName, const FName& NewName);
 
 	void OnGraphNodeDropToPerform(TSharedPtr<FGraphNodeDragDropOp> DragDropOp, UEdGraph* Graph, const FVector2D& NodePosition, const FVector2D& ScreenPosition);
 
@@ -123,6 +125,7 @@ protected:
 	virtual bool IsSectionVisible(NodeSectionID::Type InSectionID) const override;
 	virtual FGraphAppearanceInfo GetGraphAppearance(class UEdGraph* InGraph) const override;
 	virtual bool IsEditable(UEdGraph* InGraph) const override;
+	virtual bool IsCompilingEnabled() const override;
 	virtual FText GetGraphDecorationString(UEdGraph* InGraph) const override;
 	virtual void OnActiveTabChanged( TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated ) override;
 	virtual void OnSelectedNodesChangedImpl(const TSet<class UObject*>& NewSelection) override;
@@ -157,6 +160,14 @@ private:
 	/** Extend toolbar */
 	void ExtendToolbar();
 
+	/** Fill the toolbar with content */
+	void FillToolbar(FToolBarBuilder& ToolbarBuilder);
+
+	virtual void GetCustomDebugObjects(TArray<FCustomDebugObject>& DebugList) const override;
+	virtual bool OnlyShowCustomDebugObjects() const override { return true; }
+	virtual void HandleSetObjectBeingDebugged(UObject* InObject) override;
+	virtual FString GetCustomDebugObjectLabel(UObject* ObjectBeingDebugged) const override;
+
 	/** Handle hiding items in the graph */
 	void HandleHideItem();
 	bool CanHideItem() const;
@@ -174,11 +185,15 @@ private:
 	/** Update the bone name list for use in bone name combo boxes */
 	void CacheBoneNameList();
 
+	/** Update the curve name list for use in curve name combo boxes */
+	void CacheCurveNameList();
+
 	/** Rebind our anim instance to the preview's skeletal mesh component */
 	void RebindToSkeletalMeshComponent();
 
 	/** Wraps the normal blueprint editor's action menu creation callback */
 	FActionMenuContent HandleCreateGraphActionMenu(UEdGraph* InGraph, const FVector2D& InNodePosition, const TArray<UEdGraphPin*>& InDraggedPins, bool bAutoExpand, SGraphEditor::FActionMenuClosed InOnMenuClosed);
+	void OnNodeTitleCommitted(const FText& NewText, ETextCommit::Type CommitInfo, UEdGraphNode* NodeBeingChanged);
 
 	void ToggleExecuteGraph();
 	bool IsExecuteGraphOn() const;
@@ -231,6 +246,7 @@ protected:
 
 	bool bControlRigEditorInitialized;
 	bool bIsSelecting;
+	bool bIsSettingObjectBeingDebugged;
 
 	/** The log to use for errors resulting from the init phase of the units */
 	FControlRigLog ControlRigLog;

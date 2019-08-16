@@ -1,101 +1,332 @@
-﻿Availability:Public
-Title:Formatting User-Facing Text
-Crumbs:%ROOT%, Gameplay, Gameplay/Localization
-Description:Using the Format function to present localized text to your users
-Parent:Gameplay/Localization
-Order:3
-version: 4.13
-Related:Programming/UnrealArchitecture/StringHandling/FText
+Availability: Public
+Crumbs: 
+Title: Text Localization
+Description: This page covers all necessary information about localizing text, including text literals, text formatting, text generation, string tables, and other topics.
+Type: 
+Version: 4.22
+Parent: Gameplay/Localization
+Order: 2
+Tags: Localization
+Tags: Text Formatting
+Related: Programming/UnrealArchitecture/StringHandling/FText
 
-FText is used to create user-facing text, which is often localized. This means that user interface text that changes dynamically over the course of gameplay can also be subject to grammar rules from a number of different languages. Using `FText::Format` and the corresponding 
-**Format Text** Blueprint node enables you to construct reusable format patterns to make the localization process easier and less prone to edge-case errors. Both functions support ordered arguments, named arguments, and specialized arguments based on plural forms, gender forms, 
-and Hangul post-positions.
 
-In C++, you can pre-compile your `FText` format pattern into an `FTextFormat` to reuse the compiled format pattern. This is useful if you're reusing a format pattern frequently, and it also automatically recompiles if the source format pattern changes due to a culture change.
+Text in Unreal Engine 4 (UE4) is the primary component for localization. It is a specialized string, represented by the [`FText`](Programming/UnrealArchitecture/StringHandling/FText) type in C++. This should be used when you have user-facing text that needs to be localized.
 
-You can also format FText in Blueprints using the **Format Text** node. The **Format** text can be a literal or connected to a pin. When used as a literal, it will auto-generate arguments for formatting. So by entering the literal "There are {number} days until {day}.", a **Number** pin and a **Day** pin will be 
-automatically added to the node. These pins can be filled in as a literal or from a variable and the output **Text** will replace the arguments with whatever values are hooked to the pins.
+Internally, `FText` is implemented as a [`TSharedRef`](https://api.unrealengine.com/INT/API/Runtime/Core/Templates/TSharedRef/index.html) to an [`ITextData`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/ITextData/index.html). This makes it very cheap to copy, and the [`FTextSnapshot`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FTextSnapshot/index.html) utility provides an efficient way to detect if a cached FText value has actually changed.
 
-When the **Format** pin is connected to a variable, the **Format** can not be deciphered because it can possibly change over the course of gameplay. In this case, you can add pins yourself and name them after the possible arguments. In this way, you can set up the **Format Text** node to be ready for multiple possibilities. Whenever an argument 
-matches an argument in the Format variable, it will utilize the provided information.
+The data held within `FText` instances varies, depending on how the `FText` was created. This variance is handled by the internal “text history” (`FTextHistory`). Text histories support the culture-correct rebuilding of text, and and also form the key component for the following:
 
-Pin names can be changed, added, and removed from the **Details** panel.
+*   Live culture switching.
 
-[REGION:imagetable]
-|![](FormatNode.png)(h:400) | ![](FormatNodeDetails.png)(h:400)|
-|--- |---- |
-|**Format Text** node | **Details** panel | 
+*   Sending `FText` over the network.
+
+*   Creating culture invariant sources.
+
+[REGION:note]
+Converting `FText` to [`FString`](https://api.unrealengine.com/INT/API/Runtime/Core/Containers/FString/index.html) is typically a lossy operation, as it loses the text history. It should only be done if you no longer need the localization data. For example, if there is a lower-level API that works on strings, which is managed by a higher-level API that watches for text changes (such as [`STextBlock`](https://api.unrealengine.com/INT/API/Runtime/Slate/Widgets/Text/STextBlock/index.html)). This conversion can also be used when passing the data into an external API that only accepts strings.
 [/REGION]
-
-
 [REGION:tip]
-For those using a source build of Unreal Engine, `TextTest.cpp` can show you examples of how to perform valid culture aware formatting, comparison, and sorting.
+If you need text that not localizable (such as converting a player name from an external API into something you can display in your UI), you can use [`FText::AsCultureInvariant`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/AsCultureInvariant/2/index.html), which produces an `FText` instance that has no localization data (and cannot be localized). The `INVTEXT` macro can do the same thing for literal strings.
 [/REGION]
 
-## Ordered Arguments
- 
- When building a format argument with ordered arguments, curly braces denote the beginning and end of the format argument and the number indicates the parameter passed.
- Arguments start at {0} and proceed sequentially ( {0}, {1}, {2}, etc.). The `Format` function and **Format Text** node slot variables into the format argument in the order 
- they are provided. 
+## Text Literals
 
- The following C++ and Blueprint snippets show an ordered format argument to display the player's current health and maximum health.
+Localizable text is made up of three components: a **namespace**; a **key** (which form its identity); and a **source string** (which is the basis of what gets translated, and acts as validation against “stale” translations). The most common way to create localizable text in UE4 is by using a text literal.
 
-### C++ Example
+### Creating Text Literals in C++
 
-	FText::Format( LOCTEXT( "HealthFormatStr",  "{0} / {1}" ), FText::AsNumber( CurrentHealth ), FText::AsNumber( MaxHealth )  ) 
-		
-### Blueprint Example
+Text literals can be created in C++ by using the LOCTEXT family of macros.
 
-![](OrderedArgs.png)
+**Text Literal Macros**
+| Macro | Description |
+| --- | --- |
+| **NSLOCTEXT** | Creates a localized piece of text by defining the namespace, key, and source string. |
+| **LOCTEXT** | Creates a localized piece of text by defining the key and source string, with the namespace being defined with `LOCTEXT_NAMESPACE`. |
 
-## Named Arguments 
+**Example:**
 
-When building a format argument with named arguments, curly braces denote the beginning and end of the format argument and the text in the braces is the name of the argument to be found in the arguments passed in.
-Common argument examples are {Name}, {ID}, {Health}, etc.
+    // Define the namespace to use with LOCTEXT
+    // This is only valid within a single file, and must be undefined before the end of the file
+    #define LOCTEXT_NAMESPACE "MyNamespace"
+    // Create text literals
+    constFTextHelloWorld= NSLOCTEXT("MyOtherNamespace","HelloWorld","Hello World!")
+    constFTextGoodbyeWorld= LOCTEXT("GoodbyeWorld","Goodbye World!")
+    // Undefine the namespace before the end of the file
+    #undef LOCTEXT_NAMESPACE
 
-The following C++ and Blueprint snippets show a named format argument to display the player's current health.
+### Creating Text Literals in INI Files
 
-### C++ Example
+Text literals can be created in INI files using the [`NSLOCTEXT`](https://api.unrealengine.com/INT/API/Runtime/Engine/NSLOCTEXT/129/index.html) macro syntax.
 
-	FFormatNamedArguments Arguments;
-	Arguments.Add(TEXT("CurrentHealth"), FText::AsNumber( CurrentHealth ));
-	EditorErrors.Error(FText::Format(LOCTEXT("ExampleFText", "You currently have {CurrentHealth} health left."), Arguments ) );
+### Creating Text Literals in Assets
 
-### Blueprint Example
-			
-![](CurrentHealth.png)
+Text literals can be created using `FText` properties. A key is generated for you automatically, but you can define a custom namespace or key for your text by using the advanced combo next to the text field. It is also fine to use the default namespace or key.
 
-## Specialized Arguments
+## Text Formatting
 
-To allow you to pass in the numeric/gender values needed for plural/gender form support, all of the `FText::Format(...)` family of functions now take their values as FFormatArgumentValue rather than FText. This can be implicitly constructed from any numeric type, ETextGender, or FText. 
+Text formatting provides a way to combine text in a way that is easier to localize, by using a localizable format pattern that injects real text to replace format placeholders.
 
-The ability to set these value types in Blueprints has been exposed using wildcard pins on the **Format Text** node.
+Format placeholders are contained within a pair of curly braces, and can be numbers (for index-based formatting) or strings (for name-based formatting). For example:
 
-Following from the examples above, these format patterns can be supplied as arguments to `FText::Format` or to **Format Text**. 
+`"You have {0} health left."`  
+`"You have {CurrentHealth} health left."`
 
-### Plural Forms
+Format placeholders can also specify a function (called an "argument modifier") to run on their argument data. These are specified as a pipe followed by the function name and arguments. For example:
 
-Plural forms allow you to use different text based upon a numeric variable given to your text format. Plural forms may be cardinal, such as "There is 1 cat" or "There are 4 cats", or ordinal, such as "You came 1st!" or "You came 2nd!".
+`"{NumCats} {NumCats}|plural(one=cat,other=cats)"`
 
-Plural forms are specified as key->value pairs, and support any of the following keywords (as defined for your culture by the [CLDR data](http://www.unicode.org/cldr/charts/29/supplemental/language_plural_rules.html)): zero, one, two, few, many, other. Values are an optionally quoted string 
-that may also contain format markers.
+### Text Formatting in C++
 
-Cardinal Format Example: `"There {NumCats}|plural(one=is,other=are) {NumCats} {NumCats}|plural(one=cat,other=cats)"`
+Text formatting in C++ is handled by the [`FText::Format`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/Format/1/index.html) family of functions. Each function takes an [`FTextFormat`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FTextFormat/index.html) pattern, which will implicitly construct from an `FText` instance, followed by additional arguments as defined in the table below.
 
-Ordinal Format Example: `"You came {Place}{Place}|ordinal(one=st,two=nd,few=rd,other=th)!"`
+| Argument | Formatting Type | Description |
+| --- | --- | --- |
+| **FText::Format** | General text formatting. | Either accepts index-based arguments (using [`FFormatOrderedArguments`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FFormatOrderedArguments/index.html) or variadic arguments), or name-based arguments (using [`FFormatNamedArguments`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FFormatNamedArguments/index.html)). |
+| [**FText::FormatOrdered**](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/FormatOrdered/index.html) | Variadic index-based formatting. | Accepts any arguments that [`FFormatArgumentValue`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FFormatArgumentValue/index.html) can construct from. |
+| **[FText::FormatNamed](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/FormatNamed/index.html)** | Variadic name-based formatting. | Accepts consecutive name (anything that `FString` can construct from) then value (anything that that `FFormatArgumentValue` can construct from) arguments. |
 
+[REGION:note]
+You should consider pre-compiling format patterns you use frequently into an `FTextFormat` to improve formatting performance. The compiled pattern will automatically recompile if the active culture changes.
+[/REGION]
 
-### Gender Forms
+### Text Formatting in Blueprints
 
-Gender forms allow you to use different text based upon an ETextGender value given to your text format, such as "Le guerrier est fort" or "La guerrière est forte".
-Gender forms are specified as a list of values in the order of [masculine, feminine, neuter], where neuter is optional. Values are an optionally quoted string that may also contain format markers.
+Text formatting in Blueprints is handled by the **Format Text** node. This node can either take a literal format pattern, or the node can have the pattern linked to another Text pin.
 
-Format Example: `"{Gender}|gender(Le,La) {Gender}|gender(guerrier,guerrière) est {Gender}|gender(fort,forte)"`
+*   When a literal format pattern is specified, the format argument pins will be generated automatically.  
+    ![](TextFormat-Blueprints-01.png)
 
-### Hangul Post-Positions
+*   When the format pattern is linked to another Text pin, you must manually specify the arguments for the format using the Details panel of the node.  
+    
+    | --- | --- |
+    | ![](TextFormat-Blueprints-02.png) | ![](TextFormat-Blueprints-03.png) |
+    
 
-Hangul post-positions help you deal with the grammar rules present in Korean, and will insert the correct glyph(s) based upon whether the value being inserted ends in a consonant or a verb, such as "사람은" or "사자는".
-Hangul post-positions are specified as a list of values in the order of [consonant, verb]. Values are an optionally quoted string.
+### Argument Modifiers
 
-Format Example: `"{Arg}|hpp(은,는)"`
+Argument modifiers provide a way to pre-process an argument before it gets added to the formatted string. Argument modifiers are extensible. You create an argument modifier by implementing the [`ITextFormatArgumentModifier`](http://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/ITextFormatArgumentModifier/index.html) interface, and registering a factory function for a given keyword (see [`FTextFormatter::RegisterTextArgumentModifier`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FTextFormatter/RegisterTextArgumentModifier/index.html)).
 
+UE4 provides some argument modifiers by default: there are modifiers for plurality, gender, and Hangul post-positions.
+
+#### Plural Forms
+
+Plural forms allow you to use different text based upon a numeric variable given to your text format. Plural forms may be cardinal (such as "There is 1 cat" or "There are 4 cats"), or ordinal (such as "You finished 1st!" or "You finished 2nd!"). Plural forms are specified as key-value pairs, and support any of the following keywords (as defined for your culture by the CLDR data): zero, one, two, few, many, other. Values are an optionally quoted string, that can also contain format markers.
+
+**Cardinal Format Example:**  
+
+    "There {NumCats}|plural(one=is,other=are) {NumCats} {NumCats}|plural(one=cat,other=cats)"
+
+**Ordinal Format Example:**  
+
+    "You came {Place}{Place}|ordinal(one=st,two=nd,few=rd,other=th)!"
+
+#### Gender Forms
+
+Gender forms allow you to use different text based on an [`ETextGender`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/ETextGender/index.html) value given to your text format, such as "Le guerrier est fort" or "La guerrière est forte". Gender forms are specified as a list of values in the order of \[masculine, feminine, neuter\], where neuter is optional. Values are an optionally quoted string that may also contain format markers.
+
+**Format Example:**  
+
+    "{Gender}|gender(Le,La) {Gender}|gender(guerrier,guerrière) est {Gender}|gender(fort,forte)"
+
+#### Hangul Post-Positions
+
+Hangul post-positions help you follow the grammar rules present in Korean, and will insert the correct glyph(s) based on whether the value being inserted ends in a consonant or a vowel, such as "사람은" or "사자는". Hangul post-positions are specified as a list of values in the order of \[consonant, vowel\]. Values are an optionally quoted string.
+
+**Format Example:**  
+
+    "{Arg}|hpp(은,는)"
+
+### Text Formatting Best Practices
+
+*   When injecting a number that affects the sentence, handle these variances using the plural forms argument modifiers, rather than branching in code. When you use plural forms, the sentence is correctly translated for languages that do not share the plural rules of your source language.
+
+*   When injecting a personal noun, make sure you include an argument for the gender of the person. This is important for languages with grammar rules for gender, as it allows your translators to switch their translation based on the gender (see [Gender Forms](#genderforms)).
+
+*   Avoid injecting nouns for objects (such as “table,” “door,” or “chair”), or be prepared to make them localizable. These nouns might have one gender in one language, and a different gender in another language. This makes the format pattern string impossible to accurately localize without per-culture metadata. Ideally, you should include full sentences rather than just the noun. This will ensure accurate translations.
+
+[REGION:note]
+Future versions of UE4 might include a function for translators to use metadata to tag text that represents nouns, that they can later branch on in format patterns to produce accurate translations.
+[/REGION]
+*   Avoid concatenating partial sentences. This can cause problems, as it is possible for each clause or part to be translated correctly and yet the translation of the whole could be incorrect. It is better to rewrite the text into full sentences, so you can ensure correct translation.
+
+## Text Generation
+
+Text generation uses internationalization data to produce culture-correct text that doesn’t rely on direct localization. There are three types of text generation: numerical, chronological, and transformative.
+
+### Numerical Text Generation
+
+Numerical generation is used to convert numeric types into a text representation that is friendly for humans to read. The exact rules for this are culture-specific, and can also be tweaked on a per-generation basis if more specific control is required.
+
+As an example, under the default generation rules, the floating-point number "1234.5" would generate as "1,234.5" under English, "1 234,5" under French, and "١٬٢٣٤٫٥" under Arabic.
+
+#### Numerical Generation in C++
+
+Numerical generation in C++ is handled by the following functions.
+
+| Function | Description |
+| --- | --- |
+| **[FText::AsNumber](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/AsNumber/1/index.html)** | Converts any numeric type supported by UE4 into a user-friendly text representation ("1234.5" becomes "1,234.5"). |
+| **[FText::AsPercent](http://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/AsPercent/1/index.html)** | Converts a float or double into a percentage text representation ("0.2" becomes 20%). |
+| **[FText::AsMemory](http://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/AsMemory/index.html)** | Converts a value (in bytes) to a user-friendly memory representation (“1234” becomes “1.2 KiB”). |
+| **[FText::AsCurrencyBase](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/AsCurrencyBase/index.html)** | Converts a value in the base representation of a currency into a user-friendly currency representation (“123450” for “USD” becomes “$1,234.50”). |
+
+Most of the functions in the table take an optional `[FNumberFormattingOptions](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FNumberFormattingOptions/index.html)` to control the output (the default is taken from the active locale), and also an optional culture (default is the active locale).
+
+#### Numerical Generation in Blueprints
+
+Numerical generation in Blueprints is handled by the following nodes.
+
+| Nodes | Description |
+| --- | --- |
+| **ToText (byte), ToText (integer), ToText (float)** | Converts the supported numeric types into a user-friendly text representation (“1234.5” becomes “1,234.5”). |
+| **AsPercent** | Converts a float or double into a percentage text representation (“0.2” becomes 20%). |
+| **AsCurrency** | Converts a value in the base representation of a currency into a user-friendly currency representation (“123450” for “USD” becomes “$1,234.50”). |
+
+Most of the nodes in the table take advanced arguments to control the output.
+
+### Chronological
+
+Chronological generation is used to convert date and time types into a text representation that is friendly for humans to read. The exact rules for this are culture-specific, and the date/time style can be adjusted on a per-generation basis if more specific control is required.
+
+Under the default generation rules, a date representing the 22nd day of the 5th month of the year 1998 would generate "May 22, 1998" under English (United States), "22 May 1998" under English (United Kingdom), "22 mai 1998" under French, and "٢٢‏/٠٥‏/١٩٩٨" under Arabic.
+
+#### Chronological Generation in C++
+
+Chronological generation in C++ is handled by the following functions.
+
+| Function | Description |
+| --- | --- |
+| **[FText::AsDate](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/AsDate/index.html)** | Converts a FDateTime value to a user-friendly date representation. |
+| **[FText::AsTime](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/AsTime/index.html)** | Converts a FDateTime value to a user-friendly time representation. |
+| **[FText::AsDateTime](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/AsDateTime/index.html)** | Converts a FDateTime value to a user-friendly date and time representation. |
+| **[FText::AsTimespan](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/AsTimespan/index.html)** | Converts a FTimespan value to a user-friendly delta-time representation (in hours, minutes, and seconds). |
+
+Most of the above take EDateTimeStyle to control the output (default is taken from the active locale, but may be set as “short”, “medium”, “long”, or “full”).
+
+[REGION:note]
+Time generation expects to be given a UTC-based time by default (which it will convert to the local timezone). If the given time is not UTC-based (such as if it is already in local time), then you should pass `[FText::GetInvariantTimeZone()](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/GetInvariantTimeZone/index.html)` as the timezone argument.
+[/REGION]
+
+#### Chronological Generation in Blueprints
+
+Chronological generation in Blueprints is handled by the following nodes.
+
+| Nodes | Description |
+| --- | --- |
+| **AsDate** | Converts a non-UTC-based “DateTime” value to a user-friendly date representation as-is (without adjusting to the local timezone). |
+| **AsDate (from UTC)** | Converts a UTC-based “DateTime” value to a user-friendly date representation (adjusting to the local timezone). |
+| **AsTime** | Converts a non-UTC-based “DateTime” value to a user-friendly time representation as-is (without adjusting to the local timezone). |
+| **AsTime (from UTC)** | Converts a UTC-based “DateTime” value to a user-friendly time representation (adjusting to the local timezone). |
+| **AsDateTime** | Converts a non-UTC-based “DateTime” value to a user-friendly date and time representation as-is (without adjusting to the local timezone). |
+| **AsDateTime (from UTC)** | Converts a UTC-based “DateTime” value to a user-friendly date and time representation (adjusting to the local timezone). |
+| **AsTimespan** | Converts a “Timespan” value to a user-friendly delta-time representation (in hours, minutes, and seconds). |
+
+### Transformative
+
+Transformative generation is used to convert text into a different representation of itself. For example, you can convert lower case text to upper case text, or convert upper case text to lower case text.
+
+#### Transformative Generation in C++
+
+Transformative generation in C++ is handled by the following functions.
+
+| Function | Description |
+| --- | --- |
+| **[FText::ToLower](http://api.unrealengine.com/INT/API/Runtime/Core/Containers/FString/ToLower/)** | Converts a FText instance to its lowercase form in a unicode compliant way. |
+| **[FText::ToUpper](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/ToUpper/index.html)** | Converts a FText instance to its uppercase form in a unicode compliant way. |
+
+#### Transformative Generation in Blueprints
+
+Transformative generation in Blueprints is handled by the following nodes.
+
+| Node | Description |
+| --- | --- |
+| **Text to Lower** | Converts a "Text" instance to its lowercase form in a unicode compliant way. |
+| **Text to Upper** | Converts a "Text" instance to its uppercase form in a unicode compliant way. |
+
+## String Tables
+
+String Tables provide a way to centralize your localized text into one (or several) known locations, and then reference the entries within a string table from other assets or code in a robust way that allows for easy re-use of localized text.
+
+String Tables can be defined in C++, loaded using a CSV file, or created as an Asset. See the [String Tables](Gameplay/Localization/StringTables) page for more information.
+
+## Text Value Marshalling
+
+Text values can be losslessly marshalled as strings (using [`FTextStringHelper`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FTextStringHelper/index.html), or the [`ImportText`](https://api.unrealengine.com/INT/API/Runtime/CoreUObject/UObject/UScriptStruct/ImportText/index.html) and `ExportText` functions of [`UTextProperty`](https://api.unrealengine.com/INT/API/Runtime/CoreUObject/UObject/UTextProperty/index.html)).
+
+The following formats are supported:
+
+| Text Literal | Description |
+| --- | --- |
+| [`NSLOCTEXT`](https://api.unrealengine.com/INT/API/Runtime/Engine/NSLOCTEXT/129/index.html) | A text literal that specifies the namespace, key, and source string. |
+| `LOCTEXT` | A text literal that specifies the key, and source string. |
+| `LOCTABLE` | A String Table reference. |
+| `INVTEXT` | A piece of culture-invariant text (see [`FText::AsCultureInvariant`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/AsCultureInvariant/2/index.html)). |
+| `LOCGEN_NUMBER` | A piece of text generated from a number (see [`FText::AsNumber`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/AsNumber/1/index.html)). |
+| `LOCGEN_NUMBER_GROUPED` | A piece of text generated from a number with grouping enabled (see `FText::AsNumber` and [`FNumberFormattingOptions::DefaultWithGrouping`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FNumberFormattingOptions/DefaultWithGroup-/index.html)). |
+| `LOCGEN_NUMBER_UNGROUPED` | A piece of text generated from a number with grouping disabled (see `FText::AsNumber` and [`FNumberFormattingOptions::DefaultNoGrouping`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FNumberFormattingOptions/DefaultNoGrouping/index.html)). |
+| `LOCGEN_NUMBER_CUSTOM` | A piece of text generated from a number with custom formatting options (see `FText::AsNumber` and [`FNumberFormattingOptions`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FNumberFormattingOptions/index.html)). |
+| `LOCGEN_PERCENT` | A piece of text generated from a number as percentage (see [`FText::AsPercent`](http://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/AsPercent/1/index.html)). |
+| `LOCGEN_PERCENT_GROUPED` | A piece of text generated from a number as a percentage with grouping enabled (see `FText::AsPercent`, and `FNumberFormattingOptions::DefaultWithGrouping`). |
+| `LOCGEN_PERCENT_UNGROUPED` | A piece of text generated from a number as a percentage with grouping disabled (see `FText::AsPercent`, and `FNumberFormattingOptions::DefaultNoGrouping`). |
+| `LOCGEN_PERCENT_CUSTOM` | A piece of text generated from a number as a percentage with custom formatting options (see `FText::AsPercent`, and `FNumberFormattingOptions`). |
+| `LOCGEN_CURRENCY` | A piece of text generated from a number as a currency (see [`FText::AsCurrencyBase`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/AsCurrencyBase/index.html)). |
+| `LOCGEN_DATE_UTC` | A piece of text generated from a UTC date adjusted to the specified or local timezone (see [`FText::AsDate`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/AsDate/index.html)). |
+| `LOCGEN_DATE_LOCAL` | A piece of text generated from a non-UTC date without timezone adjustment (see `FText::AsDate`). |
+| `LOCGEN_TIME_UTC` | A piece of text generated from a UTC time adjusted to the specified or local timezone (see [`FText::AsTime`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/AsTime/index.html)). |
+| `LOCGEN_TIME_LOCAL` | A piece of text generated from a non-UTC time without timezone adjustment (see `FText::AsTime`). |
+| `LOCGEN_DATETIME_UTC` | A piece of text generated from a UTC date and time adjusted to the specified or local timezone (see `FText::AsDateTime`). |
+| `LOCGEN_DATETIME_LOCAL` | A piece of text generated from a non-UTC date and time without timezone adjustment (see `FText::AsDateTime`). |
+| `LOCGEN_TOLOWER` | A piece of text converted to lowercase in a unicode compliant way (see `FText::ToLower`). |
+| `LOCGEN_TOUPPER` | A piece of text converted to uppercase in a unicode compliant way (see `FText::ToUpper`). |
+| `LOCGEN_FORMAT_ORDERED` | A piece of text generated from a formatting pattern using index-based arguments (see [`FText::FormatOrdered`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/FormatOrdered/index.html)). |
+| `LOCGEN_FORMAT_NAMED` | A piece of text generated from a formatting pattern using name-based arguments (see [`FText::FormatNamed`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/FormatNamed/index.html)). |
+
+[REGION:note]
+"Raw" strings can also be imported, but a new key will be generated for each import. This produces unstable keys for localization.
+[/REGION]
+
+## Data Tables
+
+One common cause of unstable localization keys is iteratively importing raw strings from a CSV file into a Data Table, as this causes a new key to be generated after each import. A solution for this is to assign the imported text a deterministic key post-import by overriding the `OnPostDataImport` function on your row struct, and calling `FText::ChangeKey` to assign the new key.
+
+Typically we use the data table name as the namespace, and a combination of the row name and property name as the key. For example:
+
+    voidFMyTableRow::OnPostDataImport(constUDataTable*InDataTable,constFNameInRowName,TArray&OutCollectedImportProblems)
+    {
+    #if WITH_EDITOR
+        MyTextProperty = FText::ChangeKey(
+        InDataTable->GetName(),
+        FString::Printf(TEXT("%s_%s"),*InRowName.ToString(), GET_MEMBER_NAME_STRING_CHECKED(FMyTableRow,MyTextProperty)),
+        MyTextProperty
+        );
+    #endif// WITH_EDITOR
+    }
+
+[REGION:note]
+As of the 4.22 release, deterministic keys are already applied to any raw strings imported into a Data Table, but you can still override `OnPostDataImport` if you need custom keying behavior.
+[/REGION]
+
+## Polyglot Data
+
+Polyglot data allows new localization data to be added at runtime, either to interface with an external system, or to allow hot-fixing localization without building new `LocRes` files.
+
+Polyglot data is comprised of: a namespace and key (its identity); a native string; the category of the text (such as game, engine, editor), to control when the polyglot data is used; an optional native culture (which will fallback to the native culture of the category if unset); and a series of per-culture translations.
+
+[REGION:note]
+If you want to use polyglot data to override an existing translation, then you must ensure the namespace, key, and native string of the polyglot data matches that of the source text you intend to replace.
+[/REGION]
+
+### Polyglot Data in C++
+
+Polyglot data in C++ is represented by the [`FPolyglotTextData`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FPolyglotTextData/index.html) type, and it can either be used directly (using [`FPolyglotTextData::GetText`](http://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FPolyglotTextData/GetText/index.html) to resolve the polyglot data into a text instance), or it can be passed to [`FTextLocalizationManager::RegisterPolyglotTextData`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FTextLocalizationManager/RegisterPolyglot-/index.html) (to patch existing text entries).
+
+### Polyglot Data in Blueprints
+
+Polyglot data in Blueprints is represented by the **Polyglot Text** Data type, and can be used with the **Polyglot Data to Text** function to resolve the polyglot data into a text instance.
+
+## Localized Text Sources
+
+Localized text sources are the primary way that the UE4 text localization manager discovers and processes localized text data. UE4 provides two of these by default: `FLocalizationResourceTextSource` (which hosts `LocRes` support), and `FPolyglotTextSource` (which hosts polyglot data support).
+
+Localized text sources can provide a way to interface with an external system, and can be added on a per-project basis by creating and registering a type derived from [`ILocalizedTextSource`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/ILocalizedTextSource/index.html).

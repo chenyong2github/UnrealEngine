@@ -1,0 +1,64 @@
+﻿INTSourceChangelist:6107950
+Availability:Public
+Title:1.Gear VR项目创建
+Crumbs:%ROOT%, Platforms/VR/GearVR
+Description:如何创建Gear VR头戴设备可用的UE4项目。
+Navigation:platform
+Version: 4.17
+Skilllevel: Intermediate
+tags:VR
+tags:Gear VR
+type:multi-step
+parent:Platforms/VR/GearVR/QuickStart
+order:1
+Checkpoint:GearVRQS
+
+[nav]
+
+
+以下《Gear VR快速入门》讲述如何设置Gear VR可用的新UE4项目。
+
+(#steps)
+## 步骤
+
+1. 从[虚幻引擎启动程序](http://tinyurl.com/oawb7x2)下载并安装 **4.17** 版或更高版本的UE4，然后按 **启动（Launch）** 按钮打开 **虚幻项目浏览器（Unreal Project Browser）**。
+
+    [REGION:lightbox]
+    [![](GVR_New_Project_00.png)(w:550)](GVR_New_Project_00.png)
+    [/REGION]
+
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+
+1. 在虚幻项目浏览器的“新建项目（New Project）”选项卡上，创建新的基于 **蓝图** 的 **空白** 项目并进行以下设置：
+
+    [REGION:lightbox]
+    [![](GVR_New_Project_01.png)(w:550)](GVR_New_Project_01.png)
+    [/REGION]
+
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+
+    * **空白项目**
+    * **手机/平板电脑**
+    * **可伸缩3D/2D**
+    * **不包含初学者内容包**
+
+1. 接下来，设置项目的位置并为其命名。此例中命名为 **GearVRQS**，也可以自己随意命名。完成后，按 **创建项目（Create Project）** 按钮创建项目并加载UE4编辑器。
+
+    [REGION:lightbox]
+    [![](GVR_New_Project_02.png)(w:550)](GVR_New_Project_02.png)
+    [/REGION]
+
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+
+(#endresult)
+## 最终结果
+
+完成后，我们就创建了设置为Gear VR可用的空白项目。
+
+[nav]

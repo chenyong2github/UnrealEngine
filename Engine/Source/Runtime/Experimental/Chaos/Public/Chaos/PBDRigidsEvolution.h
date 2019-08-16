@@ -3,266 +3,272 @@
 
 #include "Chaos/PBDCollisionConstraint.h"
 #include "Chaos/PBDCollisionConstraintPGS.h"
+#include "Chaos/PBDConstraintGraph.h"
 #include "Chaos/PBDRigidClustering.h"
 #include "Chaos/PBDRigidParticles.h"
+#include "Chaos/PBDConstraintRule.h"
+#include "Chaos/ParticleHandle.h"
 #include "Chaos/Transform.h"
+#include "Chaos/Framework/DebugSubstep.h"
 #include "HAL/Event.h"
+#include "Chaos/PBDRigidsSOAs.h"
 
 namespace Chaos
 {
+class FChaosArchive;
+
+struct CHAOS_API FEvolutionStats
+{
+	int32 ActiveCollisionPoints;
+	int32 ActiveShapes;
+	int32 ShapesForAllConstraints;
+	int32 CollisionPointsForAllConstraints;
+
+	FEvolutionStats()
+	{
+		Reset();
+	}
+
+	void Reset()
+	{
+		ActiveCollisionPoints = 0;
+		ActiveShapes = 0;
+		ShapesForAllConstraints = 0;
+		CollisionPointsForAllConstraints = 0;
+	}
+
+	FEvolutionStats& operator+=(const FEvolutionStats& Other)
+	{
+		ActiveCollisionPoints += Other.ActiveCollisionPoints;
+		ActiveShapes += Other.ActiveShapes;
+		ShapesForAllConstraints += Other.ShapesForAllConstraints;
+		CollisionPointsForAllConstraints += Other.CollisionPointsForAllConstraints;
+		return *this;
+	}
+};
+
 template<class FPBDRigidsEvolution, class FPBDCollisionConstraint, class T, int d>
 class TPBDRigidsEvolutionBase
 {
   public:
-	// TODO(mlentine): Init particles from some type of input
-	CHAOS_API TPBDRigidsEvolutionBase(TPBDRigidParticles<T, d>&& InParticles, int32 NumIterations = 1);
-	CHAOS_API ~TPBDRigidsEvolutionBase() {}
+	typedef TFunction<void(TTransientPBDRigidParticleHandle<T,d>& Particle, const T)> FForceRule;
+	typedef TFunction<void(const TParticleView<TPBDRigidParticles<T, d>>&, const T)> FUpdateVelocityRule;
+	typedef TFunction<void(const TParticleView<TPBDRigidParticles<T, d>>&, const T)> FUpdatePositionRule;
+	typedef TFunction<void(TPBDRigidParticles<T, d>&, const T, const T, const int32)> FKinematicUpdateRule;
 
-	CHAOS_API inline void EnableDebugMode()
+	CHAOS_API TPBDRigidsEvolutionBase(TPBDRigidsSOAs<T, d>& InParticles, int32 InNumIterations = 1);
+	CHAOS_API virtual ~TPBDRigidsEvolutionBase()
 	{
-		check(IsInGameThread());
-		MDebugMode = true;
-		MDebugLock.Lock();
+		Particles.GetParticleHandles().RemoveArray(&PhysicsMaterials);
+		Particles.GetParticleHandles().RemoveArray(&PerParticlePhysicsMaterials);
+		Particles.GetParticleHandles().RemoveArray(&ParticleDisableCount);
+		Particles.GetParticleHandles().RemoveArray(&Collided);
 	}
 
-	CHAOS_API inline void InitializeFromParticleData()
+	CHAOS_API TArray<TGeometryParticleHandle<T, d>*> CreateStaticParticles(int32 NumParticles, const TGeometryParticleParameters<T, d>& Params = TGeometryParticleParameters<T, d>()) { return Particles.CreateStaticParticles(NumParticles, Params); }
+	CHAOS_API TArray<TKinematicGeometryParticleHandle<T, d>*> CreateKinematicParticles(int32 NumParticles, const TKinematicGeometryParticleParameters<T, d>& Params = TKinematicGeometryParticleParameters<T, d>()) { return Particles.CreateKinematicParticles(NumParticles, Params); }
+	CHAOS_API TArray<TPBDRigidParticleHandle<T, d>*> CreateDynamicParticles(int32 NumParticles, const TPBDRigidParticleParameters<T, d>& Params = TPBDRigidParticleParameters<T, d>()) { return Particles.CreateDynamicParticles(NumParticles, Params); }
+	CHAOS_API TArray<TPBDRigidClusteredParticleHandle<T, d>*> CreateClusteredParticles(int32 NumParticles, const TPBDRigidParticleParameters<T, d>& Params = TPBDRigidParticleParameters<T, d>()) { return Particles.CreateClusteredParticles(NumParticles, Params); }
+
+	CHAOS_API void AddForceFunction(FForceRule ForceFunction) { ForceRules.Add(ForceFunction); }
+	CHAOS_API void SetParticleUpdateVelocityFunction(FUpdateVelocityRule ParticleUpdate) { ParticleUpdateVelocity = ParticleUpdate; }
+	CHAOS_API void SetParticleUpdatePositionFunction(FUpdatePositionRule ParticleUpdate) { ParticleUpdatePosition = ParticleUpdate; }
+
+	CHAOS_API TGeometryParticleHandles<T, d>& GetParticleHandles() { return Particles.GetParticleHandles(); }
+	CHAOS_API const TGeometryParticleHandles<T, d>& GetParticleHandles() const { return Particles.GetParticleHandles(); }
+
+	CHAOS_API TPBDRigidsSOAs<T,d>& GetParticles() { return Particles; }
+	CHAOS_API const TPBDRigidsSOAs<T, d>& GetParticles() const { return Particles; }
+
+	typedef TPBDConstraintGraph<T, d> FConstraintGraph;
+	typedef TPBDConstraintGraphRule<T, d> FConstraintRule;
+
+	CHAOS_API void AddConstraintRule(FConstraintRule* ConstraintRule)
 	{
-		MActiveIndices.Reset();
-		for (uint32 i = 0; i < MParticles.Size(); ++i)
+		uint32 ContainerId = (uint32)ConstraintRules.Num();
+		ConstraintRules.Add(ConstraintRule);
+		ConstraintRule->BindToGraph(ConstraintGraph, ContainerId);
+	}
+
+	CHAOS_API void EnableParticle(TGeometryParticleHandle<T,d>* Particle, const TGeometryParticleHandle<T, d>* ParentParticle)
+	{
+		Particles.EnableParticle(Particle);
+		ConstraintGraph.EnableParticle(Particle, ParentParticle);
+	}
+
+	CHAOS_API void DisableParticle(TGeometryParticleHandle<T,d>* Particle)
+	{
+		Particles.DisableParticle(Particle);
+		ConstraintGraph.DisableParticle(Particle);
+
+		RemoveConstraints(TSet<TGeometryParticleHandle<T,d>*>({ Particle }));
+	}
+
+	CHAOS_API void DestroyParticle(TGeometryParticleHandle<T, d>* Particle)
+	{
+		ConstraintGraph.RemoveParticle(Particle);
+		RemoveConstraints(TSet<TGeometryParticleHandle<T, d>*>({ Particle }));
+		Particles.DestroyParticle(Particle);
+	}
+
+	CHAOS_API void DisableParticles(const TSet<TGeometryParticleHandle<T,d>*>& InParticles)
+	{
+		for (TGeometryParticleHandle<T, d>* Particle : InParticles)
 		{
-			if (MParticles.Sleeping(i) || MParticles.Disabled(i))
-				continue;
-			MActiveIndices.Add(i);
+			Particles.DisableParticle(Particle);
+		}
+
+		ConstraintGraph.DisableParticles(InParticles);
+
+		RemoveConstraints(InParticles);
+	}
+
+	CHAOS_API void WakeIsland(const int32 Island)
+	{
+		ConstraintGraph.WakeIsland(Island);
+		//Update Particles SOAs
+		/*for (auto Particle : ContactGraph.GetIslandParticles(Island))
+		{
+			ActiveIndices.Add(Particle);
+		}*/
+	}
+
+	// @todo(ccaulfield): Remove the uint version
+	CHAOS_API void RemoveConstraints(const TSet<TGeometryParticleHandle<T, d>*>& RemovedParticles)
+	{
+		for (FConstraintRule* ConstraintRule : ConstraintRules)
+		{
+			ConstraintRule->RemoveConstraints(RemovedParticles);
 		}
 	}
 
-	CHAOS_API void WakeIsland(const int32 i)
+	//TEMP: this is only needed while clustering continues to use indices directly
+	const auto& GetActiveClusteredArray() const { return Particles.GetActiveClusteredArray(); }
+	const auto& GetNonDisabledClusteredArray() const { return Particles.GetNonDisabledClusteredArray(); }
+
+	CHAOS_API TSerializablePtr<TChaosPhysicsMaterial<T>> GetPhysicsMaterial(const TGeometryParticleHandle<T, d>* Particle) const { return Particle->AuxilaryValue(PhysicsMaterials); }
+	CHAOS_API void SetPhysicsMaterial(TGeometryParticleHandle<T,d>* Particle, TSerializablePtr<TChaosPhysicsMaterial<T>> InMaterial)
 	{
-		for (const auto& Index : MIslandParticles[i])
+		check(!Particle->AuxilaryValue(PerParticlePhysicsMaterials)); //shouldn't be setting non unique material if a unique one already exists
+		Particle->AuxilaryValue(PhysicsMaterials) = InMaterial;
+	}
+
+	CHAOS_API const TArray<TGeometryParticleHandle<T,d>*>& GetIslandParticles(const int32 Island) const { return ConstraintGraph.GetIslandParticles(Island); }
+	CHAOS_API int32 NumIslands() const { return ConstraintGraph.NumIslands(); }
+
+	void InitializeAccelerationStructures()
+	{
+		ConstraintGraph.InitializeGraph(Particles.GetNonDisabledView());
+
+		for (FConstraintRule* ConstraintRule : ConstraintRules)
 		{
-			MParticles.SetSleeping(Index, false);
-			IslandSleepCounts[i] = 0;
+			ConstraintRule->AddToGraph();
+		}
+
+		ConstraintGraph.ResetIslands(Particles.GetNonDisabledDynamicView());
+
+		for (FConstraintRule* ConstraintRule : ConstraintRules)
+		{
+			ConstraintRule->InitializeAccelerationStructures();
 		}
 	}
 
-	CHAOS_API void ReconcileIslands()
+	void UpdateAccelerationStructures(int32 Island)
 	{
-		for (int32 i = 0; i < MIslandParticles.Num(); ++i)
+		for (FConstraintRule* ConstraintRule : ConstraintRules)
 		{
-			bool IsSleeping = true;
-			bool IsSet = false;
-			for (const auto& Index : MIslandParticles[i])
+			ConstraintRule->UpdateAccelerationStructures(Island);
+		}
+	}
+
+	void ApplyConstraints(const T Dt, int32 Island)
+	{
+		for (FConstraintRule* ConstraintRule : ConstraintRules)
+		{
+			ConstraintRule->UpdateAccelerationStructures(Island);
+		}
+
+		for (int i = 0; i < NumIterations; ++i)
+		{
+			for (FConstraintRule* ConstraintRule : ConstraintRules)
 			{
-				if (!IsSet)
-				{
-					IsSet = true;
-					IsSleeping = MParticles.Sleeping(Index);
-				}
-				if (MParticles.Sleeping(Index) != IsSleeping)
-				{
-					WakeIsland(i);
-					break;
-				}
+				ConstraintRule->ApplyConstraints(Dt, Island);
 			}
 		}
 	}
 
-	//CHAOS_API void SetKinematicUpdateFunction(TFunction<void(TPBDRigidParticles<T, d>&, const T, const T, const int32)> KinematicUpdate) { MKinematicUpdate = KinematicUpdate; }
-	CHAOS_API void SetParticleUpdateVelocityFunction(TFunction<void(TPBDRigidParticles<T, d>&, const T, const TArray<int32>& ActiveIndices)> ParticleUpdate) { MParticleUpdateVelocity = ParticleUpdate; }
-	CHAOS_API void SetParticleUpdatePositionFunction(TFunction<void(TPBDRigidParticles<T, d>&, const T)> ParticleUpdate) { MParticleUpdatePosition = ParticleUpdate; }
-	CHAOS_API void AddPBDConstraintFunction(TFunction<void(TPBDRigidParticles<T, d>&, const T, const int32)> ConstraintFunction) { MConstraintRules.Add(ConstraintFunction); }
-	CHAOS_API void AddForceFunction(TFunction<void(TPBDRigidParticles<T, d>&, const T, const int32)> ForceFunction) { MForceRules.Add(ForceFunction); }
-	CHAOS_API void SetCollisionContactsFunction(TFunction<void(TPBDRigidParticles<T, d>&, TPBDCollisionConstraint<T, d>&)> CollisionContacts) { MCollisionContacts = CollisionContacts; }
-	CHAOS_API void SetBreakingFunction(TFunction<void(TPBDRigidParticles<T, d>&)> Breaking) { MBreaking = Breaking; }
-	CHAOS_API void SetTrailingFunction(TFunction<void(TPBDRigidParticles<T, d>&)> Trailing) { MTrailing = Trailing; }
+	const auto& GetRigidClustering() const { return Clustering; }
+	auto& GetRigidClustering() { return Clustering; }
 
-	/**/
-	CHAOS_API TPBDRigidParticles<T, d>& Particles() { return MParticles; }
-	CHAOS_API const TPBDRigidParticles<T, d>& Particles() const { return MParticles; }
-
-	/**/
-	CHAOS_API TArray<TSet<int32>>& IslandParticles() { return MIslandParticles; }
-	CHAOS_API const TArray<TSet<int32>>& IslandParticles() const { return MIslandParticles; }
-
-	/**/
-	CHAOS_API TArray<int32>& ActiveIndicesArray() { return MActiveIndicesArray; }
-	CHAOS_API const TArray<int32>& ActiveIndicesArray() const { return MActiveIndicesArray; }
-
-	/**/
-	CHAOS_API TSet<int32>& ActiveIndices() { return MActiveIndices; }
-	CHAOS_API const TSet<int32>& ActiveIndices() const { return MActiveIndices; }
-
-	/**/
-	CHAOS_API TSet<TTuple<int32, int32>>& DisabledCollisions() { return MDisabledCollisions; }
-	CHAOS_API const TSet<TTuple<int32, int32>>& DisabledCollisions() const { return MDisabledCollisions; }
-
-	/**/
-	CHAOS_API inline const TArrayCollectionArray<ClusterId> & ClusterIds() const { return MClustering.ClusterIds(); }
-	CHAOS_API inline const TArrayCollectionArray<TRigidTransform<T, d>>& ClusterChildToParentMap() const{ return MClustering.ChildToParentMap(); }
-	CHAOS_API inline const TArrayCollectionArray<bool>& ClusterInternalCluster() const { return MClustering.InternalCluster(); }
-	CHAOS_API inline int32 CreateClusterParticle(const TArray<uint32>& Children) { return MClustering.CreateClusterParticle(Children); }
-	CHAOS_API inline TSet<uint32> DeactivateClusterParticle(const uint32 ClusterIndex) { return MClustering.DeactivateClusterParticle(ClusterIndex); }
-	CHAOS_API inline const T Strain(const uint32 Index) const { return MClustering.Strain(Index); }
-	CHAOS_API inline T& Strain(const uint32 Index) { return MClustering.Strain(Index); }
-
-	/**/
-	CHAOS_API inline void SetFriction(T Friction ) { MFriction = Friction; }
-	CHAOS_API inline void SetRestitution(T Restitution) { MRestitution = Restitution; }
-	CHAOS_API inline void SetIterations(int32 Iterations) { MNumIterations = Iterations; }
-	CHAOS_API inline void SetPushOutIterations(int32 PushOutIterations) { MPushOutIterations = PushOutIterations; }
-	CHAOS_API inline void SetPushOutPairIterations(int32 PushOutPairIterations) { MPushOutPairIterations = PushOutPairIterations; }
-	CHAOS_API inline void SetSleepThresholds(const T LinearThrehsold, const T AngularThreshold)
+protected:
+	int32 NumConstraints() const
 	{
-		SleepLinearThreshold = LinearThrehsold;
-		SleepAngularThreshold = AngularThreshold;
-	}
-
-  protected:
-	inline void AddSubstep()
-	{
-		if (!MDebugMode)
-			return;
-		check(!IsInGameThread());
-		while (!MDebugLock.TryLock())
+		int32 NumConstraints = 0;
+		for (const FConstraintRule* ConstraintRule : ConstraintRules)
 		{
-			MWaitEvent->Wait(1);
+			NumConstraints += ConstraintRule->NumConstraints();
 		}
-		MDebugLock.Unlock();
+		return NumConstraints;
 	}
-	inline void ProgressSubstep()
+
+	void UpdateConstraintPositionBasedState(T Dt)
 	{
-		if (!MDebugMode)
-			return;
-		check(IsInGameThread());
-		MDebugLock.Unlock();
-		MWaitEvent->Trigger();
-		MDebugLock.Lock();
+		for (FConstraintRule* ConstraintRule : ConstraintRules)
+		{
+			ConstraintRule->UpdatePositionBasedState(Dt);
+		}
 	}
 
-	TPBDRigidParticles<T, d> MParticles;
-	TPBDRigidClustering<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d> MClustering;
+	void CreateConstraintGraph()
+	{
+		ConstraintGraph.InitializeGraph(Particles.GetNonDisabledView());
 
-	TArray<TSet<int32>> MIslandParticles;
-	TArray<int32> IslandSleepCounts;
-	TSet<int32> MActiveIndices;
-	TArray<int32> MActiveIndicesArray;
-	TSet<TTuple<int32, int32>> MDisabledCollisions;
-	T MTime;
+		for (FConstraintRule* ConstraintRule : ConstraintRules)
+		{
+			ConstraintRule->AddToGraph();
+		}
+	}
 
-	// User query data
-	TArrayCollectionArray<bool> MCollided;
-	TArray<TFunction<void(TPBDRigidParticles<T, d>&, const T, const int32)>> MForceRules;
-	TArray<TFunction<void(TPBDRigidParticles<T, d>&, const T, const int32)>> MConstraintRules;
-	TFunction<void(TPBDRigidParticles<T, d>&, const T, const TArray<int32>&)> MParticleUpdateVelocity;
-	TFunction<void(TPBDRigidParticles<T, d>&, const T)> MParticleUpdatePosition;
-	TFunction<void(TPBDRigidParticles<T, d>&, const T, const T, const int32)> MKinematicUpdate;
-	TFunction<void(TPBDRigidParticles<T, d>&, TPBDCollisionConstraint<T, d>&)> MCollisionContacts;
-	TFunction<void(TPBDRigidParticles<T, d>&)> MBreaking;
-	TFunction<void(TPBDRigidParticles<T, d>&)> MTrailing;
+	void CreateIslands()
+	{
+		ConstraintGraph.UpdateIslands(Particles.GetNonDisabledDynamicView(), Particles);
 
-	TPBDCollisionConstraint<T, d> MCollisionRule;
+		for (FConstraintRule* ConstraintRule : ConstraintRules)
+		{
+			ConstraintRule->InitializeAccelerationStructures();
+		}
+	}
+	
+	void UpdateVelocities(const T Dt, int32 Island)
+	{
+		ParticleUpdateVelocity(Particles.GetActiveParticlesView(), Dt);
+	}
 
-	FCriticalSection MDebugLock;
-	TUniquePtr<FEvent> MWaitEvent;
-	bool MDebugMode;
+	void ApplyPushOut(const T Dt, int32 Island)
+	{
+		for (FConstraintRule* ConstraintRule : ConstraintRules)
+		{
+			ConstraintRule->ApplyPushOut(Dt, Island);
+		}
+	}
 
-	T MFriction;
-	T MRestitution;
-	T SleepLinearThreshold;
-	T SleepAngularThreshold;
-	int32 MNumIterations;
-	int32 MPushOutIterations;
-	int32 MPushOutPairIterations;
+
+	TArray<FForceRule> ForceRules;
+	FUpdateVelocityRule ParticleUpdateVelocity;
+	FUpdatePositionRule ParticleUpdatePosition;
+	FKinematicUpdateRule KinematicUpdate;
+	TArray<FConstraintRule*> ConstraintRules;
+	FConstraintGraph ConstraintGraph;
+	TArrayCollectionArray<TSerializablePtr<TChaosPhysicsMaterial<T>>> PhysicsMaterials;
+	TArrayCollectionArray<TUniquePtr<TChaosPhysicsMaterial<T>>> PerParticlePhysicsMaterials;
+	TArrayCollectionArray<int32> ParticleDisableCount;
+	TArrayCollectionArray<bool> Collided;
+
+	TPBDRigidsSOAs<T, d>& Particles;
+
+	TPBDRigidClustering<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d> Clustering;
+
+	int32 NumIterations;
 };
 
-template<class T, int d>
-class TPBDRigidsEvolutionPGS : public TPBDRigidsEvolutionBase<TPBDRigidsEvolutionPGS<T, d>, TPBDCollisionConstraintPGS<T, d>, T, d>
-{
-	typedef TPBDRigidsEvolutionBase<TPBDRigidsEvolutionPGS<T, d>, TPBDCollisionConstraintPGS<T, d>, T, d> Base;
-  public:
-	typedef TPBDCollisionConstraintPGS<T, d> FPBDCollisionConstraint;
-
-    using Base::ActiveIndices;
-    using Base::AddSubstep;
-    using Base::IslandParticles;
-	using Base::IslandSleepCounts;
-    using Base::MActiveIndices;
-    using Base::MActiveIndicesArray;
-    using Base::MConstraintRules;
-    using Base::MCollisionContacts;
-	using Base::MBreaking;
-	using Base::MTrailing;
-	using Base::MClustering;
-	using Base::MCollisionRule;
-	using Base::MCollided;
-    using Base::MForceRules;
-    using Base::MFriction;
-    using Base::MIslandParticles;
-    using Base::MKinematicUpdate;
-    using Base::MNumIterations;
-    using Base::MParticles;
-    using Base::MParticleUpdatePosition;
-    using Base::MParticleUpdateVelocity;
-    using Base::MPushOutIterations;
-    using Base::MPushOutPairIterations;
-    using Base::MRestitution;
-    using Base::MTime;
-    using Base::SetParticleUpdatePositionFunction;
-    using Base::SetParticleUpdateVelocityFunction;
-	using Base::SleepLinearThreshold;
-	using Base::SleepAngularThreshold;
-
-	// TODO(mlentine): Init particles from some type of input
-	CHAOS_API TPBDRigidsEvolutionPGS(TPBDRigidParticles<T, d>&& InParticles, int32 NumIterations = 1);
-	CHAOS_API ~TPBDRigidsEvolutionPGS() {}
-
-	CHAOS_API void IntegrateV(const TArray<int32>& ActiveIndices, const T dt);
-	CHAOS_API void IntegrateX(const TArray<int32>& ActiveIndices, const T dt);
-	CHAOS_API void AdvanceOneTimeStep(const T dt);
-};
-
-template<class T, int d>
-class TPBDRigidsEvolutionGBF : public TPBDRigidsEvolutionBase<TPBDRigidsEvolutionGBF<T, d>, TPBDCollisionConstraint<T, d>, T, d>
-{
-	typedef TPBDRigidsEvolutionBase<TPBDRigidsEvolutionGBF<T, d>, TPBDCollisionConstraint<T, d>, T, d> Base;
-  public:
-	typedef TPBDCollisionConstraint<T, d> FPBDCollisionConstraint;
-
-    using Base::ActiveIndices;
-    using Base::AddSubstep;
-    using Base::IslandParticles;
-	using Base::IslandSleepCounts;
-    using Base::MActiveIndices;
-    using Base::MActiveIndicesArray;
-    using Base::MConstraintRules;
-    using Base::MCollisionContacts;
-	using Base::MBreaking;
-	using Base::MTrailing;
-	using Base::MClustering;
-	using Base::MCollisionRule;
-    using Base::MCollided;
-    using Base::MForceRules;
-    using Base::MFriction;
-    using Base::MIslandParticles;
-    using Base::MKinematicUpdate;
-    using Base::MNumIterations;
-    using Base::MParticles;
-    using Base::MParticleUpdatePosition;
-    using Base::MParticleUpdateVelocity;
-    using Base::MPushOutIterations;
-    using Base::MPushOutPairIterations;
-    using Base::MRestitution;
-    using Base::MTime;
-    using Base::SetParticleUpdatePositionFunction;
-    using Base::SetParticleUpdateVelocityFunction;
-	using Base::SleepLinearThreshold;
-	using Base::SleepAngularThreshold;
-
-	// TODO(mlentine): Init particles from some type of input
-	CHAOS_API TPBDRigidsEvolutionGBF(TPBDRigidParticles<T, d>&& InParticles, int32 NumIterations = 1);
-	CHAOS_API ~TPBDRigidsEvolutionGBF() {}
-
-	CHAOS_API void Integrate(const TArray<int32>& ActiveIndices, const T dt);
-	CHAOS_API void AdvanceOneTimeStep(const T dt);
-};
 }

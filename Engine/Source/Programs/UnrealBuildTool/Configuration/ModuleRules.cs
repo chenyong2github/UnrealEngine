@@ -563,6 +563,11 @@ namespace UnrealBuildTool
 		public bool bAddDefaultIncludePaths = true;
 
 		/// <summary>
+		/// Whether to ignore dangling (i.e. unresolved external) symbols in modules
+		/// </summary>
+		public bool bIgnoreUnresolvedSymbols = false;
+
+		/// <summary>
 		/// Whether this module should be precompiled. Defaults to the bPrecompile flag from the target. Clear this flag to prevent a module being precompiled.
 		/// </summary>
 		public bool bPrecompile;
@@ -873,7 +878,10 @@ namespace UnrealBuildTool
 		/// </summary>
 		public void SetupModulePhysicsSupport(ReadOnlyTargetRules Target)
 		{
-            bool bUseNonPhysXInterface = Target.bUseChaos == true || Target.bCompileImmediatePhysics == true;
+			PublicIncludePathModuleNames.Add("PhysicsCore");
+			PublicDependencyModuleNames.Add("PhysicsCore");
+
+			bool bUseNonPhysXInterface = Target.bUseChaos == true;
 
             // 
             if (Target.bCompileChaos == true || Target.bUseChaos == true)
@@ -882,14 +890,12 @@ namespace UnrealBuildTool
                 PublicIncludePathModuleNames.AddRange(
                     new string[] {
                         "Chaos",
-						"ChaosSolvers",
-						"FieldSystemCore",
+						"FieldSystemCore"
                     }
                 );
                 PublicDependencyModuleNames.AddRange(
                   new string[] {
                         "Chaos",
-						"ChaosSolvers",
 						"FieldSystemCore"
                   }
                 );
@@ -915,7 +921,19 @@ namespace UnrealBuildTool
 			{
 				// Disable non-physx interfaces
 				PublicDefinitions.Add("WITH_CHAOS=0");
-				PublicDefinitions.Add("PHYSICS_INTERFACE_LLIMMEDIATE=0");
+
+				// 
+				// WITH_CHAOS_NEEDS_TO_BE_FIXED
+				//
+				// Anything wrapped in this define needs to be fixed
+				// in one of the build targets. This define was added
+				// to help identify complier failures between the
+				// the three build targets( UseChaos, PhysX, WithChaos )
+				// This defaults to off , and will be enabled for bUseChaos. 
+				// This define should be removed when all the references 
+				// have been fixed across the different builds. 
+				//
+				PublicDefinitions.Add("WITH_CHAOS_NEEDS_TO_BE_FIXED=0");
 
 				if (Target.bCompilePhysX)
 				{
@@ -934,9 +952,21 @@ namespace UnrealBuildTool
 					}
 					PrivateDependencyModuleNames.Add("APEX");
 					PublicDefinitions.Add("WITH_APEX=1");
+
+// @MIXEDREALITY_CHANGE : BEGIN - Do not use Apex Cloth for HoloLens.  TODO: can we enable this in the future?
+				if (Target.Platform == UnrealTargetPlatform.HoloLens)
+				{
+					PublicDefinitions.Add("WITH_APEX_CLOTHING=0");
+					PublicDefinitions.Add("WITH_CLOTH_COLLISION_DETECTION=0");
+				}
+				else
+				{
 					PublicDefinitions.Add("WITH_APEX_CLOTHING=1");
 					PublicDefinitions.Add("WITH_CLOTH_COLLISION_DETECTION=1");
-					PublicDefinitions.Add("WITH_PHYSX_COOKING=1");  // APEX currently relies on cooking even at runtime
+				}
+// @MIXEDREALITY_CHANGE : END
+
+				PublicDefinitions.Add("WITH_PHYSX_COOKING=1");  // APEX currently relies on cooking even at runtime
 
 				}
 				else
@@ -976,6 +1006,7 @@ namespace UnrealBuildTool
 				if(Target.bUseChaos)
 				{
 					PublicDefinitions.Add("WITH_CHAOS=1");
+					PublicDefinitions.Add("WITH_CHAOS_NEEDS_TO_BE_FIXED=1");
 					PublicDefinitions.Add("COMPILE_ID_TYPES_AS_INTS=0");
 					
 					PublicIncludePathModuleNames.AddRange(
@@ -993,16 +1024,7 @@ namespace UnrealBuildTool
 				else
 				{
 					PublicDefinitions.Add("WITH_CHAOS=0");
-				}
-
-				if(Target.bCompileImmediatePhysics)
-				{
-					PublicDefinitions.Add("PHYSICS_INTERFACE_LLIMMEDIATE=1");
-					PublicDependencyModuleNames.Add("PhysX");
-				}
-				else
-				{
-					PublicDefinitions.Add("PHYSICS_INTERFACE_LLIMMEDIATE=0");
+					PublicDefinitions.Add("WITH_CHAOS_NEEDS_TO_BE_FIXED=0");
 				}
 			}
 

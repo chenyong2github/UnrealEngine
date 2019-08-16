@@ -432,7 +432,7 @@ bool FUntypedBulkData::IsBulkDataLoaded() const
 	return !!BulkData;
 }
 
-bool FUntypedBulkData::IsAsyncLoadingComplete()
+bool FUntypedBulkData::IsAsyncLoadingComplete() const 
 {
 	return SerializeFuture.IsValid() == false || SerializeFuture.WaitFor(FTimespan::Zero());
 }
@@ -804,7 +804,7 @@ void FUntypedBulkData::StartSerializingBulkData(FArchive& Ar, UObject* Owner, in
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FUntypedBulkData::StartSerializingBulkData"), STAT_UBD_StartSerializingBulkData, STATGROUP_Memory);
 	check(SerializeFuture.IsValid() == false);	
 
-	SerializeFuture = Async<bool>(EAsyncExecution::ThreadPool, [=]() 
+	SerializeFuture = Async(EAsyncExecution::ThreadPool, [=]() 
 	{ 
 		AsyncLoadBulkData(); 
 		return true;
@@ -974,10 +974,12 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 			const bool bPayloadInline = !(BulkDataFlags&BULKDATA_PayloadAtEndOfFile);
 
 			// fix up the file offset, but only if not stored inline
+			int64 OffsetInFileFixup = 0;
 			if (Owner != NULL && Owner->GetLinker() && !bPayloadInline)
 			{
-				BulkDataOffsetInFile += Owner->GetLinker()->Summary.BulkDataStartOffset;
+				OffsetInFileFixup = Owner->GetLinker()->Summary.BulkDataStartOffset;
 			}
+			BulkDataOffsetInFile += OffsetInFileFixup;
 
 			// We're allowing defered serialization.
 			FArchive* CacheableArchive = Ar.GetCacheableArchive();
@@ -1032,6 +1034,53 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 							// if the payload is stored inline, just serialize it
 							SerializeBulkData(Ar, BulkData.Get());
 						}
+					}
+				}
+				else if (BulkDataFlags & BULKDATA_DuplicateNonOptionalPayload)
+				{
+					// Load from optional payload instead if optional payload is available
+					FString OptionalFilename = FPaths::ChangeExtension(Filename, TEXT(".uptnl"));
+					if (IFileManager::Get().FileExists(*OptionalFilename))
+					{
+						Filename = OptionalFilename;
+						Ar << BulkDataFlags;
+						BulkDataFlags |= BULKDATA_OptionalPayload;
+
+						if (BulkDataFlags & BULKDATA_Size64Bit)
+						{
+							Ar << BulkDataSizeOnDisk;
+						}
+						else
+						{
+							int32 BulkDataSizeOnDiskAsInt32;
+							Ar << BulkDataSizeOnDiskAsInt32;
+							BulkDataSizeOnDisk = BulkDataSizeOnDiskAsInt32;
+						}
+
+						Ar << BulkDataOffsetInFile;
+						BulkDataOffsetInFile += OffsetInFileFixup;
+					}
+					else
+					{
+						// Skip all bulkdata info of the copy in uptnl.
+						uint32 DummyBulkDataFlags;
+						Ar << DummyBulkDataFlags;
+
+						if (BulkDataFlags & BULKDATA_Size64Bit)
+						{
+							int64 DummyBulkDataSizeOnDisk;
+							Ar << DummyBulkDataSizeOnDisk;
+						}
+						else
+						{
+							int32 DummyBulkDataSizeOnDiskAsInt32;
+							Ar << DummyBulkDataSizeOnDiskAsInt32;
+						}
+
+						int64 DummyBulkDataOffsetInFile;
+						Ar << DummyBulkDataOffsetInFile;
+
+						Filename = FPaths::ChangeExtension(Filename, TEXT(".ubulk"));
 					}
 				}
 				else if (BulkDataFlags & BULKDATA_OptionalPayload)
@@ -1119,7 +1168,7 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 							Ar.Seek(CurOffset);
 						}
 					}
-  			}
+  				}
 			}
 		}
 		// We're saving to the persistent archive.
@@ -1188,6 +1237,50 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 				BulkStore.BulkDataFlagsPos = SavedBulkDataFlagsPos;
 				BulkStore.BulkDataFlags = BulkDataFlags;
 				BulkStore.BulkData = this;
+
+				// If having flag BULKDATA_DuplicateNonOptionalPayload, duplicate bulk data in optional storage (.uptnl)
+				if (BulkDataFlags & BULKDATA_DuplicateNonOptionalPayload)
+				{
+					int64 SavedDupeBulkDataFlagsPos = INDEX_NONE;
+					int64 SavedDupeBulkDataSizeOnDiskPos = INDEX_NONE;
+					int64 SavedDupeBulkDataOffsetInFilePos = INDEX_NONE;
+
+					int32 SavedDupeBulkDataFlags = (BulkDataFlags & ~BULKDATA_DuplicateNonOptionalPayload) | BULKDATA_OptionalPayload;
+					{
+						FArchive::FScopeSetDebugSerializationFlags S(Ar, DSF_IgnoreDiff);
+
+						SavedDupeBulkDataFlagsPos = Ar.Tell();
+						Ar << SavedDupeBulkDataFlags;
+
+						// And serialize the placeholder which is going to be overwritten later.
+						SavedDupeBulkDataSizeOnDiskPos = Ar.Tell();
+						BulkDataSizeOnDisk = INDEX_NONE;
+						if (BulkDataFlags & BULKDATA_Size64Bit)
+						{
+							Ar << BulkDataSizeOnDisk;
+						}
+						else
+						{
+							int32 BulkDataSizeOnDiskAsInt32 = BulkDataSizeOnDisk;
+							Ar << BulkDataSizeOnDiskAsInt32;
+						}
+						// Keep track of position we are going to serialize placeholder BulkDataOffsetInFile.
+						SavedDupeBulkDataOffsetInFilePos = Ar.Tell();
+						BulkDataOffsetInFile = INDEX_NONE;
+						// And serialize the placeholder which is going to be overwritten later.
+						Ar << BulkDataOffsetInFile;
+					}
+
+					// add duplicate bulkdata with different flag
+					Index = LinkerSave->BulkDataToAppend.AddZeroed(1);
+					FLinkerSave::FBulkDataStorageInfo& DupeBulkStore = LinkerSave->BulkDataToAppend[Index];
+
+					DupeBulkStore.BulkDataOffsetInFilePos = SavedDupeBulkDataOffsetInFilePos;
+					DupeBulkStore.BulkDataSizeOnDiskPos = SavedDupeBulkDataSizeOnDiskPos;
+					DupeBulkStore.BulkDataFlagsPos = SavedDupeBulkDataFlagsPos;
+					DupeBulkStore.BulkDataFlags = SavedDupeBulkDataFlags;
+					DupeBulkStore.BulkData = this;
+				}
 				
 				// Serialize bulk data into the storage info
 				BulkDataSizeOnDisk = -1;
@@ -1538,7 +1631,7 @@ void FUntypedBulkData::LoadDataIntoMemory( void* Dest )
 	checkf( AttachedAr, TEXT( "Attempted to load bulk data without an attached archive. Most likely the bulk data was loaded twice on console, which is not supported" ) );
 
 	FArchive* BulkDataArchive = nullptr;
-	if (Linker && Linker->GetFArchiveAsync2Loader() && Linker->GetFArchiveAsync2Loader()->IsCookedForEDLInEditor() &&
+	if (Linker && Linker->GetAsyncLoader() && Linker->GetAsyncLoader()->IsCookedForEDLInEditor() &&
 		(BulkDataFlags & BULKDATA_PayloadInSeperateFile))
 	{
 		// The attached archive is a package cooked for EDL loaded in the editor so the actual bulk data sits in a separate ubulk file.

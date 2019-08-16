@@ -73,6 +73,7 @@ struct CONTROLRIGDEVELOPER_API FControlRigModelPair
 
 #if CONTROLRIG_UNDO
 
+	static int32 ArgumentSize();
 	void AppendArgumentsForAction(TArray<FString>& InOutArguments, const UControlRigModel* InModel) const;
 	void ConfigureFromActionArguments(const TArray<FString>& InOutArguments, int32 ArgumentIndex, const UControlRigModel* InModel);
 
@@ -102,6 +103,7 @@ struct CONTROLRIGDEVELOPER_API FControlRigModelLink
 
 #if CONTROLRIG_UNDO
 
+	static int32 ArgumentSize();
 	void AppendArgumentsForAction(TArray<FString>& InOutArguments, const UControlRigModel* InModel) const;
 	void ConfigureFromActionArguments(const TArray<FString>& InOutArguments, int32 ArgumentIndex, const UControlRigModel* InModel);
 
@@ -173,6 +175,7 @@ struct CONTROLRIGDEVELOPER_API FControlRigModelPin
 
 #if CONTROLRIG_UNDO
 
+	static int32 ArgumentSize();
 	void AppendArgumentsForAction(TArray<FString>& InOutArguments) const;
 	void ConfigureFromActionArguments(const TArray<FString>& InOutArguments, int32 ArgumentIndex = 0);
 
@@ -187,6 +190,14 @@ enum class EControlRigModelParameterType : uint8
 	Hidden
 };
 
+enum class EControlRigModelNodeType : uint8
+{
+	Function,
+	Parameter,
+	Comment,
+	Invalid
+};
+
 /**
  * A single node within the model.
  */
@@ -194,28 +205,46 @@ struct CONTROLRIGDEVELOPER_API FControlRigModelNode
 {
 	FName Name;
 	int32 Index;
+	EControlRigModelNodeType NodeType;
 	FName FunctionName;
 	FVector2D Position;
+	FVector2D Size;
+	FLinearColor Color;
 	TArray<FControlRigModelPin> Pins;
 	EControlRigModelParameterType ParameterType;
+	FString Text;
 
 	FControlRigModelNode()
 		: Name(NAME_None)
 		, Index(INDEX_NONE)
+		, NodeType(EControlRigModelNodeType::Invalid)
 		, FunctionName(NAME_None)
 		, Position(FVector2D::ZeroVector)
+		, Size(FVector2D::ZeroVector)
+		, Color(FLinearColor::Black)
 		, ParameterType(EControlRigModelParameterType::None)
+		, Text(FString())
 	{
 	}
 
 	bool IsValid() const
 	{
-		return Index != INDEX_NONE && Name != NAME_None;
+		return Index != INDEX_NONE && NodeType != EControlRigModelNodeType::Invalid && Name != NAME_None;
+	}
+
+	bool IsFunction() const
+	{
+		return NodeType == EControlRigModelNodeType::Function;
 	}
 
 	bool IsParameter() const
 	{
-		return ParameterType != EControlRigModelParameterType::None;
+		return NodeType == EControlRigModelNodeType::Parameter && ParameterType != EControlRigModelParameterType::None;
+	}
+
+	bool IsComment() const
+	{
+		return NodeType == EControlRigModelNodeType::Comment;
 	}
 
 	FString GetPinPath(int32 InPinIndex, bool bIncludeNodeName = true) const;
@@ -227,6 +256,7 @@ struct CONTROLRIGDEVELOPER_API FControlRigModelNode
 
 #if CONTROLRIG_UNDO
 
+	static int32 ArgumentSize();
 	void AppendArgumentsForAction(TArray<FString>& InOutArguments) const;
 	void ConfigureFromActionArguments(const TArray<FString>& InOutArguments, int32 ArgumentIndex = 0);
 
@@ -269,6 +299,7 @@ public:
 
 	const TArray<FControlRigModelNode>& Nodes() const;
 	TArray<FControlRigModelNode> SelectedNodes() const;
+	bool IsNodeSelected(const FName& InName) const;
 	const TArray<FControlRigModelLink>& Links() const;
 	TArray<FControlRigModelPin> LinkedPins(const FControlRigModelPair& InPin) const;
 	TArray<FControlRigModelPin> LinkedPins(const FName& InNodeName, const FName& InPinName, bool bLookForInput = true) const;
@@ -314,9 +345,13 @@ private:
 	bool IsNodeNameAvailable(const FName& InName) const;
 	bool AddNode(const FControlRigModelNode& InNode, bool bUndo = true);
 	bool AddParameter(const FName& InName, const FEdGraphPinType& InDataType, EControlRigModelParameterType InParameterType, const FVector2D& InPosition, bool bUndo = true);
+	bool AddComment(const FName& InName, const FString& InText, const FVector2D& InPosition, const FVector2D& InSize, const FLinearColor& InColor, bool bUndo = true);
 	bool RemoveNode(const FName& InName, bool bUndo = true);
 	bool SetNodePosition(const FName& InName, const FVector2D& InPosition, bool bUndo = true);
+	bool SetNodeSize(const FName& InName, const FVector2D& InSize, bool bUndo = true);
+	bool SetNodeColor(const FName& InName, const FLinearColor& InColor, bool bUndo = true);
 	bool SetParameterType(const FName& InName, EControlRigModelParameterType InParameterType, bool bUndo = true);
+	bool SetCommentText(const FName& InName, const FString& InText, bool bUndo = true);
 	bool RenameNode(const FName& InOldNodeName, const FName& InNewNodeName, bool bUndo = true);
 	bool SelectNode(const FName& InName, bool bInSelected);
 	bool AreCompatibleTypes(const FEdGraphPinType& A, const FEdGraphPinType& B) const;
@@ -353,7 +388,6 @@ private:
 
 	bool bIsSelecting;
 	TArray<FName> _SelectedNodes;
-	TMap<FName, FVector2D> _LastNodePositions;
 	FModifiedEvent _ModifiedEvent;
 
 	FControlRigModelPair _CycleCheckSubject;

@@ -7,6 +7,7 @@
 #include "Logging/LogMacros.h"
 #include "HAL/PlatformTLS.h"
 #include "Templates/Atomic.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 class Error;
 class FConfigCacheIni;
@@ -70,7 +71,7 @@ struct CORE_API FScopedBootTiming
 };
 
 
-#define SCOPED_BOOT_TIMING(x) FScopedBootTiming ANONYMOUS_VARIABLE(BootTiming_)(x);
+#define SCOPED_BOOT_TIMING(x) TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT(x)); FScopedBootTiming ANONYMOUS_VARIABLE(BootTiming_)(x);
 
 #define GLog GetGlobalLogSingleton()
 extern CORE_API FConfigCacheIni* GConfig;

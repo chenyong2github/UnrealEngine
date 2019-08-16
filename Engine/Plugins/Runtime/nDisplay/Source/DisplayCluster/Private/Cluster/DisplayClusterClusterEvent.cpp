@@ -1,7 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Cluster/DisplayClusterClusterEvent.h"
-#include "Misc/DisplayClusterLog.h"
+
+#include "DisplayClusterLog.h"
 #include "DisplayClusterStrings.h"
 
 

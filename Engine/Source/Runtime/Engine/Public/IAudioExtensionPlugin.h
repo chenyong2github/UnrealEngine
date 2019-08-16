@@ -1,15 +1,22 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Sound/SoundSubmix.h"
-#include "UObject/ObjectMacros.h"
-#include "Modules/ModuleInterface.h"
-#include "Modules/ModuleManager.h"
+
 #include "Features/IModularFeature.h"
 #include "IAmbisonicsMixer.h"
+#include "Modules/ModuleInterface.h"
+#include "Modules/ModuleManager.h"
+#include "Sound/SoundSubmix.h"
+#include "UObject/ObjectMacros.h"
+
+#if !UE_BUILD_SHIPPING
+#include "CanvasTypes.h"
+#include "UnrealClient.h"
+#endif // !UE_BUILD_SHIPPING
+
 #include "IAudioExtensionPlugin.generated.h"
+
 
 class FAudioDevice;
 
@@ -25,6 +32,7 @@ enum class EAudioPlatform : uint8
 	Switch,
 	HTML5,
 	Lumin,
+	HoloLens,
 	Unknown
 };
 
@@ -36,18 +44,23 @@ enum class EAudioPlugin : uint8
 {
 	SPATIALIZATION = 0,
 	REVERB = 1,
-	OCCLUSION = 2
+	OCCLUSION = 2,
+	MODULATION = 3,
+
+	COUNT = 4
 };
 
 class IAudioSpatialization;
+class IAudioModulation;
 class IAudioOcclusion;
 class IAudioReverb;
 class IAudioPluginListener;
 
-typedef TSharedPtr<IAudioSpatialization, ESPMode::ThreadSafe> TAudioSpatializationPtr;
-typedef TSharedPtr<IAudioOcclusion, ESPMode::ThreadSafe> TAudioOcclusionPtr;
-typedef TSharedPtr<IAudioReverb, ESPMode::ThreadSafe> TAudioReverbPtr;
-typedef TSharedPtr<IAudioPluginListener, ESPMode::ThreadSafe> TAudioPluginListenerPtr;
+using TAudioSpatializationPtr = TSharedPtr<IAudioSpatialization, ESPMode::ThreadSafe>;
+using TAudioModulationPtr     = TSharedPtr<IAudioModulation, ESPMode::ThreadSafe>;
+using TAudioOcclusionPtr      = TSharedPtr<IAudioOcclusion, ESPMode::ThreadSafe>;
+using TAudioReverbPtr         = TSharedPtr<IAudioReverb, ESPMode::ThreadSafe>;
+using TAudioPluginListenerPtr = TSharedPtr<IAudioPluginListener, ESPMode::ThreadSafe>;
 
 /**
 * FSpatializationParams
@@ -203,7 +216,7 @@ public:
 
 /************************************************************************/
 /* IAudioSpatializationFactory                                          */
-/* Implement this modular feature to make your Spatialialization plugin */
+/* Implement this modular feature to make your Spatialization plugin */
 /* visible to the engine.                                               */
 /************************************************************************/
 class IAudioSpatializationFactory : public IAudioPluginFactory, public IModularFeature
@@ -440,6 +453,116 @@ public:
 	}
 };
 
+
+/** Override to provide users with modulation settings custom to individual sounds */
+UCLASS(config = Engine, abstract, editinlinenew, BlueprintType)
+class ENGINE_API USoundModulationPluginSourceSettingsBase : public UObject
+{
+	GENERATED_BODY()
+};
+
+/** Collection of settings available on sound objects */
+USTRUCT(BlueprintType)
+struct ENGINE_API FSoundModulation
+{
+	GENERATED_USTRUCT_BODY()
+
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Modulation)
+	TArray<USoundModulationPluginSourceSettingsBase*> Settings;
+};
+
+/************************************************************************/
+/* IAudioModulationFactory                                              */
+/*                                                                      */
+/************************************************************************/
+class IAudioModulationFactory : public IAudioPluginFactory, public IModularFeature
+{
+public:
+	/** Virtual destructor */
+	virtual ~IAudioModulationFactory()
+	{
+	}
+
+	// IModularFeature
+	static FName GetModularFeatureName()
+	{
+		static FName AudioExtFeatureName = FName(TEXT("AudioModulationPlugin"));
+		return AudioExtFeatureName;
+	}
+
+	/* Begin IAudioPluginWithMetadata implementation */
+	virtual FString GetDisplayName() override
+	{
+		static FString DisplayName = FString(TEXT("Generic Audio Modulation Plugin"));
+		return DisplayName;
+	}
+	/* End IAudioPluginWithMetadata implementation */
+
+	virtual TAudioModulationPtr CreateNewModulationPlugin(FAudioDevice* OwningDevice) = 0;
+
+	/**
+	* @return the UClass type of your settings for modulation. This allows us to only pass in user settings for your plugin.
+	*/
+	virtual UClass* GetCustomModulationSettingsClass() const
+	{
+		return nullptr;
+	}
+};
+
+
+struct FSoundModulationControls
+{
+	float Volume;
+	float Pitch;
+	float Lowpass;
+	float Highpass;
+
+	FSoundModulationControls()
+		: Volume(1.0f)
+		, Pitch(1.0f)
+		, Lowpass(20000.0f)
+		, Highpass(20.0f)
+	{
+	}
+};
+
+class IAudioModulation
+{
+public:
+	/** Virtual destructor */
+	virtual ~IAudioModulation() { }
+
+	/** Initialize the modulation plugin with the same rate and number of sources. */
+	virtual void Initialize(const FAudioPluginInitializationParams& InitializationParams) { }
+
+	/** Called when a source is assigned to a voice. */
+	virtual void OnInitSource(const uint32 SourceId, const FName& AudioComponentUserId, const uint32 NumChannels, USoundModulationPluginSourceSettingsBase* Settings) { }
+
+	/** Called when a source is done playing and is released. */
+	virtual void OnReleaseSource(const uint32 SourceId) { }
+
+#if !UE_BUILD_SHIPPING
+	/** Request to post help from active plugin (non-shipping builds only) */
+	virtual bool OnPostHelp(FCommonViewportClient* ViewportClient, const TCHAR* Stream) { return false;  };
+
+	/** Render stats pertaining to modulation (non-shipping builds only) */
+	virtual int32 OnRenderStat(FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const UFont& Font, const FVector* ViewLocation, const FRotator* ViewRotation) { return Y; }
+
+	/** Toggle showing render stats pertaining to modulation (non-shipping builds only) */
+	virtual bool OnToggleStat(FCommonViewportClient* ViewportClient, const TCHAR* Stream) { return false; }
+#endif //!UE_BUILD_SHIPPING
+
+	/** Processes audio with the given input and output data structs.*/
+	virtual void ProcessAudio(const FAudioPluginSourceInputData& InputData, FAudioPluginSourceOutputData& OutputData) { }
+
+	/** Processes modulated sound controls */
+	virtual void ProcessControls(const uint32 SourceId, FSoundModulationControls& Controls) { }
+
+	/** Processes all modulators */
+	virtual void ProcessModulators(const float Elapsed) { }
+};
+
 /** This is a class which should be overridden to provide users with settings to use for individual sounds */
 UCLASS(config = Engine, abstract, editinlinenew, BlueprintType)
 class ENGINE_API UReverbPluginSourceSettingsBase : public UObject
@@ -518,6 +641,9 @@ public:
 	virtual void ProcessSourceAudio(const FAudioPluginSourceInputData& InputData, FAudioPluginSourceOutputData& OutputData)
 	{
 	}
+
+	/** Returns whether or not the plugin reverb overrides the master reverb. If true, then the built in reverb will be uninitialized and bypassed. */
+	virtual bool DoesReverbOverrideMasterReverb() const { return true; }
 };
 
 /************************************************************************/

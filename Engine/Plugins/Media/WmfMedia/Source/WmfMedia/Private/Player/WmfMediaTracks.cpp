@@ -1,12 +1,13 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "WmfMediaTracks.h"
-#include "WmfMediaPrivate.h"
+#include "WmfMediaCommon.h"
 
 #if WMFMEDIA_SUPPORTED_PLATFORM
 
 #include "IHeadMountedDisplayModule.h"
 #include "IMediaOptions.h"
+#include "IWmfMediaModule.h"
 #include "MediaHelpers.h"
 #include "MediaSampleQueueDepths.h"
 #include "MediaPlayerOptions.h"
@@ -21,6 +22,7 @@
 
 #include "WmfMediaAudioSample.h"
 #include "WmfMediaBinarySample.h"
+#include "WmfMediaCodec/WmfMediaCodecManager.h"
 #include "WmfMediaHardwareVideoDecodingTextureSample.h"
 #include "WmfMediaOverlaySample.h"
 #include "WmfMediaSampler.h"
@@ -48,6 +50,7 @@ FWmfMediaTracks::FWmfMediaTracks()
 	, SelectedMetadataTrack(INDEX_NONE)
 	, SelectedVideoTrack(INDEX_NONE)
 	, SelectionChanged(false)
+	, bVideoTrackRequestedHardwareAcceleration(false)
 	, VideoSamplePool(nullptr)
 	, VideoHardwareVideoDecodingSamplePool(nullptr)
 {}
@@ -147,6 +150,7 @@ TComPtr<IMFTopology> FWmfMediaTracks::CreateTopology()
 
 	// add enabled streams to topology
 	bool TracksAdded = false;
+	bVideoTrackRequestedHardwareAcceleration = false;
 
 	if (AudioTracks.IsValidIndex(SelectedAudioTrack))
 	{
@@ -177,9 +181,12 @@ TComPtr<IMFTopology> FWmfMediaTracks::CreateTopology()
 
 	if (GetDefault<UWmfMediaSettings>()->HardwareAcceleratedVideoDecoding)
 	{
+		bool bHardwareAccelerated = false;
 		WmfMediaTopologyLoader MediaTopologyLoader;
-		bool bHardwareAccelerated = MediaTopologyLoader.IsHardwareAccelerated(Topology);
-		UE_LOG(LogWmfMedia, Verbose, TEXT("Tracks %p: Video (media source %p) will be decoded on %s"), this, MediaSource.Get(), bHardwareAccelerated ? "GPU" : "CPU");
+		bHardwareAccelerated = MediaTopologyLoader.EnableHardwareAcceleration(Topology);
+		bHardwareAccelerated = bHardwareAccelerated || bVideoTrackRequestedHardwareAcceleration;
+
+		UE_LOG(LogWmfMedia, Verbose, TEXT("Tracks %p: Video (media source %p) will be decoded on %s"), this, MediaSource.Get(), bHardwareAccelerated ? TEXT("GPU") : TEXT("CPU"));
 		Info += FString::Printf(TEXT("Video decoded on %s\n"), bHardwareAccelerated ? TEXT("GPU") : TEXT("CPU"));
 	}
 
@@ -1086,6 +1093,7 @@ bool FWmfMediaTracks::AddTrackToTopology(const FTrack& Track, IMFTopology& Topol
 			UE_LOG(LogWmfMedia, Verbose, TEXT("Tracks %p: Failed to configure output node for stream %i"), this, Track.StreamIndex);
 			return false;
 		}
+		bVideoTrackRequestedHardwareAcceleration = true;
 	}
 	else
 	{
@@ -1118,8 +1126,44 @@ bool FWmfMediaTracks::AddTrackToTopology(const FTrack& Track, IMFTopology& Topol
 		return false;
 	}
 
-	// connect nodes
-	const HRESULT Result = SourceNode->ConnectOutput(0, OutputNode, 0);
+	// Check subtype
+	GUID SubType;
+
+	if (FAILED(Format.InputType->GetGUID(MF_MT_SUBTYPE, &SubType)))
+	{
+		UE_LOG(LogWmfMedia, Verbose, TEXT("Tracks %p: Unable to query MF_MT_SUBTYPE"), this);
+		return false;
+	}
+
+	HRESULT Result = S_OK;
+
+	TComPtr<IMFTopologyNode> DecoderNode;
+	TComPtr<IMFTransform> Transform;
+
+	IWmfMediaModule* WmfMediaModule = IWmfMediaModule::Get();
+
+	if (WmfMediaModule && 
+		WmfMediaModule->GetCodecManager()->SetupDecoder(MajorType, SubType, DecoderNode, Transform) &&
+		DecoderNode &&
+		Transform)
+	{
+		if (FAILED(DecoderNode->SetObject(Transform)) ||
+			FAILED(DecoderNode->SetUINT32(MF_TOPONODE_STREAMID, 0)) ||
+			FAILED(Topology.AddNode(DecoderNode)) ||
+			FAILED(SourceNode->ConnectOutput(0, DecoderNode, 0)) ||
+			FAILED(DecoderNode->ConnectOutput(0, OutputNode, 0)) ||
+			FAILED(DecoderNode->SetUINT32(MF_TOPONODE_CONNECT_METHOD, MF_CONNECT_ALLOW_CONVERTER)) ||
+			FAILED(OutputNode->SetUINT32(MF_TOPONODE_CONNECT_METHOD, MF_CONNECT_ALLOW_CONVERTER)))
+		{
+			UE_LOG(LogWmfMedia, Verbose, TEXT("Tracks %p: Failed to configure decoder node for stream %i"), this, Track.StreamIndex);
+			return false;
+		}
+	}
+	else
+	{
+		// connect nodes
+		Result = SourceNode->ConnectOutput(0, OutputNode, 0);
+	}
 
 	if (FAILED(Result))
 	{

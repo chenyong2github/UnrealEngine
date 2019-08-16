@@ -1,0 +1,123 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Title: Adding a New Weapon
+Description: Going over how to add a new weapon to ARPG.
+Type: how-to
+Version: 4.21
+Parent: Resources/SampleGames/ARPG
+topic-image: AddingaNewWeapon.png
+SkillLevel: Intermediate
+Order: 6
+Related: Engine/Blueprints/UserGuide/Variables
+Related: Engine/Blueprints/Scripting
+Related: Programming/UnrealArchitecture/Actors/Components
+
+
+[TOC (start:2 end:2)]
+
+By default Action RPG (ARPG) provides the player with a single weapon that they can use for battle. As the game progresses, and the player gathers more and more souls from the enemies that they vanquish, the player can unlock four additional weapons to use. In the following How-To, we will take a look at adding a new weapon for the player to purchase and use in ARPG.
+
+## Steps
+
+1.  First, locate the **Weapons** folder and then make a new folder named **Blade_Talon**.   
+	 ![](image1.png)
+    
+
+1.  Next, you will need to locate a **Skeletal Mes****h** to use for a weapon. For this example, we will be using the **SK\_Dual\_Blade_Talon** Skeletal Mesh from the [Infinity Blade Weapons](https://www.unrealengine.com/marketplace/infinity-blade-weapons) pack.   
+    ![](image13.png)
+       
+
+1.  Use the [Migration tool](Engine/Content/Browser/UserGuide/Migrate) to help you move the **SK\_Dual\_Blad_Talon** Skeletal Mesh and all of its assets from the [Infinity Blade Weapons](https://www.unrealengine.com/marketplace/infinity-blade-weapons) pack to the **Blade_Talon** folder in Action RPG.  
+    ![](image4.png)
+    
+
+1.  Now, remove the word Dual from each of the assets names and make sure to replace it with the appropriate asset tag.  
+    ![](image6.png)
+    
+
+1.  In the **Content Browser**, go to the **Blueprints**  \> **Weapons**  folder and then create a new Blueprint that has **WeaponActor** as the **Parent** **Class**  and a name of **BladeTalonActor**.  
+    ![](image11.png)
+    
+
+1.  Open up the BladeTalonActor Blueprint and in the **Components**  tab, select the **SkeletalMesh(inherited)** option. Then in the **Details** panel, under the **Mesh**  section,change the **Skeletal** **Mesh**  to point to the **SK\_Blade\_Talon** Skeletal Mesh.  
+    [REGION:lightbox]
+    [![](image3.png)(w:900)](image3.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+
+1.  Next, in the **Component**  tab, select the **CapsuleCollision (Inherited)** component and then in the **Details**  panel under the **Shape**  section, set the **Capsule** **Half** **Height** to **49**  and the **Capsule** **Radius**  to **10**.  
+    [REGION:lightbox]
+    [![](image8.png)(w:900)](image8.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    Because the Capsule Collision is used to determine if something has been hit or not, it is very important that the entire weapon is inside of the Capsule Collision volume.
+
+1.  When that is completed, compile and save your newly created weapon Blueprint and then locate the **Items\\Weapons** folder.  
+    ![](image14.png)
+    
+
+1.  Now we need to create a **Data Asse****t** that will be used to connect all of the needed assets for the Blade Talon sword to function together. To do this, first, **right-click** in the Content Browser and from the displayed list, go to the **Miscellaneous** section and then select the **Data Asset**  option from the displayed list.  
+    ![](image9.png)
+    
+
+1.  Next, in the **Pick Data Asset Class** window, under the **All Classe**s section input **RPGW** into the search box and then select the **RPGWeaponItem** option, press **Select** to complete the process.  
+    ![](image5.png)  
+    
+
+1.  Give the newly created Data Asset a name of **Weapon_Talon** then double-click on it to open it up.
+
+1.  Inside of the **Weapon_Talon Data Asset**, under the **Weapon** section, set the **Weapon** **Actor** to the **BladeTalonActor** **Blueprint** that was created in step five. This will make sure that when this weapon is selected, the correct Skeletal Mesh will be used.  
+    ![](image2.png)
+    
+
+1.  Next, we will need to set up all of the information that this item will display when viewed in the store. To do this you will need to expand the Item section and then fill in the following sections with the following information.
+
+    ![](image7.png)
+    
+    ||||
+    | --- | --- | --- |
+    | **Property** | **Value** | **Description** |
+    | Item Type | Weapon | The type of item. |
+    | Item Name | Talon Sword | The name of the item. This name will be displayed in the store. |
+    | Item Description | Short and dangerous! | The description of the item. This description will be displayed in the store. |
+    | Item Icon | T\_UI\_Weapon_Sword | The icon that will be shown in the store. |
+    | Price | 100 | The cost of the item in the store. |
+    
+
+1.  Now we need to set up the level that this asset can be and also how many instances of this asset the player can have in their inventory at one time. To do this expand the **Max** section and input the following values for the following parameters.  
+	![](image7-1.png)
+    
+    ||||
+    | --- | --- | --- |
+    | **Property** | **Value** | **Description** |
+    | Max Count | 1 | The maximum number of this asset that can be in inventory at once. |
+    | Max Level | 1 | Maximum level this asset can be. |
+    
+
+1.  Now we need to set up which ability will be used when this weapon is equipped. To do this expand the **Abilities** section and set the **Granted** **Ability** input to **GA_PlayerSwordMelee**.   
+    ![](image7-2.png)
+    [REGION:note]
+    When using the **GA_PlayerSwordMelee** ability you will see trails when the weapon is used. To get rid of these trails you will need to make a new **Gameplay Ability** which uses a different **Montage** **To** **Play** that does not use trails.
+    [/REGION]
+    
+
+## End Result
+
+With the **Weapon_Talon** data asset now set up, make sure to save all of the assets and then launch Action RPG. When the game loads, open up the store and you should now see the Talon Sword as a weapon you can purchase and use just like in the following video.
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ 63YWgUblGdQ
+ [/PARAMLITERAL]
+[/OBJECT]

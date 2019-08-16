@@ -1,83 +1,86 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+
 #if INCLUDE_CHAOS
 
 #include "PBDRigidsSolver.h"
 
-#include "Chaos/Utilities.h"
-#include "Chaos/PBDCollisionConstraintUtil.h"
 #include "Async/AsyncWork.h"
-#include "Misc/ScopeLock.h"
+#include "Chaos/ChaosArchive.h"
+#include "Chaos/Framework/SingleParticlePhysicsProxy.h"
+#include "Chaos/PBDCollisionConstraintUtil.h"
+#include "Chaos/Utilities.h"
 #include "ChaosStats.h"
-
+#include "ChaosSolversModule.h"
+#include "HAL/FileManager.h"
+#include "Misc/ScopeLock.h"
+#include "PhysicsProxy/SkeletalMeshPhysicsProxy.h"
+#include "PhysicsProxy/StaticMeshPhysicsProxy.h"
+#include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
+#include "PhysicsProxy/FieldSystemPhysicsProxy.h"
+#include "EventDefaults.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPBDRigidsSolverSolver, Log, All);
 
 namespace Chaos
 {
 
-	int8 PBDRigidsSolver::Invalid = -1;
-
 	class AdvanceOneTimeStepTask : public FNonAbandonableTask
 	{
 		friend class FAutoDeleteAsyncTask<AdvanceOneTimeStepTask>;
 	public:
 		AdvanceOneTimeStepTask(
-			PBDRigidsSolver* Scene,
-			const float DeltaTime,
-			TSharedPtr<FCriticalSection> PrevFrameLock,
-			TSharedPtr<FEvent> PrevFrameEvent,
-			TSharedPtr<FCriticalSection> CurrentFrameLock,
-			TSharedPtr<FEvent> CurrentFrameEvent)
-			: MScene(Scene)
+			FPBDRigidsSolver* Scene,
+			const float DeltaTime)
+			: MSolver(Scene)
 			, MDeltaTime(DeltaTime)
-			, PrevLock(PrevFrameLock)
-			, CurrentLock(CurrentFrameLock)
-			, PrevEvent(PrevFrameEvent)
-			, CurrentEvent(CurrentFrameEvent)
 		{
 			UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("AdvanceOneTimeStepTask::AdvanceOneTimeStepTask()"));
-			CurrentFrameLock->Lock();
 		}
 
 		void DoWork()
 		{
 			UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("AdvanceOneTimeStepTask::DoWork()"));
 
-			while (PrevLock.IsValid() && !PrevLock->TryLock())
 			{
-				PrevEvent->Wait(1);
-			}
-			MScene->CreateRigidBodyCallback(MScene->MEvolution->Particles());
-			MScene->ParameterUpdateCallback(MScene->MEvolution->Particles(), MScene->MTime);
-			MScene->DisableCollisionsCallback(MScene->MEvolution->DisabledCollisions());
-			
-			{
-				SCOPE_CYCLE_COUNTER(STAT_BeginFrame);
-				MScene->StartFrameCallback(MDeltaTime, MScene->MTime);
+				//SCOPE_CYCLE_COUNTER(STAT_UpdateParams);
+				//MSolver->ParameterUpdateCallback(MSolver->GetSolverTime());
 			}
 
-			while (MDeltaTime > MScene->MMaxDeltaTime)
 			{
-				MScene->ForceUpdateCallback(MScene->MEvolution->Particles(), MScene->MTime);
-				MScene->MEvolution->ReconcileIslands();
-				MScene->KinematicUpdateCallback(MScene->MEvolution->Particles(), MScene->MMaxDeltaTime, MScene->MTime);
-				MScene->MEvolution->AdvanceOneTimeStep(MScene->MMaxDeltaTime);
-				MDeltaTime -= MScene->MMaxDeltaTime;
-			}
-			MScene->ForceUpdateCallback(MScene->MEvolution->Particles(), MScene->MTime);
-			MScene->MEvolution->ReconcileIslands();
-			MScene->KinematicUpdateCallback(MScene->MEvolution->Particles(), MDeltaTime, MScene->MTime);
-			MScene->MEvolution->AdvanceOneTimeStep(MDeltaTime);
-			MScene->MTime += MDeltaTime;
-			MScene->CurrentFrame++;
-
-			{
-				SCOPE_CYCLE_COUNTER(STAT_EndFrame);
-				MScene->EndFrameCallback(MDeltaTime);
+				//SCOPE_CYCLE_COUNTER(STAT_BeginFrame);
+				//MSolver->StartFrameCallback(MDeltaTime, MSolver->GetSolverTime());
 			}
 
-			CurrentLock->Unlock();
-			CurrentEvent->Trigger();
+			{
+				SCOPE_CYCLE_COUNTER(STAT_EvolutionAndKinematicUpdate);
+				while (MDeltaTime > MSolver->GetMaxDeltaTime())
+				{
+					//MSolver->ForceUpdateCallback(MSolver->GetSolverTime());
+					//MSolver->GetEvolution()->ReconcileIslands();
+					//MSolver->KinematicUpdateCallback(MSolver->GetMaxDeltaTime(), MSolver->GetSolverTime());
+					MSolver->GetEvolution()->AdvanceOneTimeStep(MSolver->GetMaxDeltaTime());
+					MDeltaTime -= MSolver->GetMaxDeltaTime();
+				}
+				//MSolver->ForceUpdateCallback(MSolver->GetSolverTime());
+				//MSolver->GetEvolution()->ReconcileIslands();
+				//MSolver->KinematicUpdateCallback(MDeltaTime, MSolver->GetSolverTime());
+				MSolver->GetEvolution()->AdvanceOneTimeStep(MDeltaTime);
+			}
+
+			{
+				SCOPE_CYCLE_COUNTER(STAT_EventDataGathering);
+				MSolver->GetEventManager()->FillProducerData(MSolver);
+				MSolver->GetEventManager()->FlipBuffersIfRequired();
+			}
+
+			{
+				//SCOPE_CYCLE_COUNTER(STAT_EndFrame);
+				//MSolver->EndFrameCallback(MDeltaTime);
+			}
+
+			MSolver->GetSolverTime() += MDeltaTime;
+			MSolver->GetCurrentFrame()++;
 		}
 
 	protected:
@@ -87,40 +90,215 @@ namespace Chaos
 			RETURN_QUICK_DECLARE_CYCLE_STAT(AdvanceOneTimeStepTask, STATGROUP_ThreadPoolAsyncTasks);
 		}
 
-		PBDRigidsSolver* MScene;
+		FPBDRigidsSolver* MSolver;
 		float MDeltaTime;
 		TSharedPtr<FCriticalSection> PrevLock, CurrentLock;
 		TSharedPtr<FEvent> PrevEvent, CurrentEvent;
 	};
-	
-	PBDRigidsSolver::PBDRigidsSolver()
-		: TimeStepMultiplier(1.f)
+
+
+
+
+	FPBDRigidsSolver::FPBDRigidsSolver(const EMultiBufferMode BufferingModeIn)
+		: CurrentFrame(0)
+		, MTime(0.0)
+		, MLastDt(0.0)
+		, MMaxDeltaTime(0.0)
+		, TimeStepMultiplier(1.0)
 		, bEnabled(false)
 		, bHasFloor(true)
 		, bIsFloorAnalytic(false)
 		, FloorHeight(0.f)
-		, MaxCollisionDataSize(1024)
-		, CollisionDataTimeWindow(0.1f)
-		, DoCollisionDataSpatialHash(true)
-		, CollisionDataSpatialHashRadius(15.f)
-		, MaxCollisionPerCell(1)
-		, MaxBreakingDataSize(1024)
-		, BreakingDataTimeWindow(0.1f)
-		, DoBreakingDataSpatialHash(true)
-		, BreakingDataSpatialHashRadius(15.f)
-		, MaxBreakingPerCell(1)
-		, MaxTrailingDataSize(1024)
-		, TrailingDataTimeWindow(0.1f)
-		, TrailingMinSpeedThreshold(100.f)
-		, TrailingMinVolumeThreshold(1000.f)
-		, MCurrentEvent(nullptr)
-		, MCurrentLock(nullptr)
+		, MEvolution(new FPBDRigidsEvolution(Particles))
+		, MEventManager(new FEventManager(BufferingModeIn))
+		, MSolverEventFilters(new FSolverEventFilters())
+		, BufferMode(BufferingModeIn)
+		, MCurrentLock(new FCriticalSection())
 	{
 		UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("PBDRigidsSolver::PBDRigidsSolver()"));
 		Reset();
 	}
 
-	void PBDRigidsSolver::Reset()
+	void FPBDRigidsSolver::RegisterObject(TGeometryParticle<float, 3>* GTParticle)
+	{
+		UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("FPBDRigidsSolver::RegisterObject()"));
+
+		// Make sure this particle doesn't already have a proxy
+		checkSlow(GTParticle->Proxy == nullptr);
+
+		// Grab the particle's type
+		const EParticleType InParticleType = GTParticle->ObjectType();
+
+		IPhysicsProxyBase* ProxyBase = nullptr;
+		// NOTE: Do we really need this list of proxies if we can just
+		// access them through the GTParticles list?
+		
+		Chaos::FParticleData* ProxyData;
+
+		// Make a physics proxy, giving it our particle and particle handle
+		if (InParticleType == EParticleType::Dynamic)
+		{
+			auto Proxy = new FRigidParticlePhysicsProxy(GTParticle->AsDynamic(), nullptr);
+			RigidParticlePhysicsProxies.Add((FRigidParticlePhysicsProxy*)Proxy);
+			ProxyData = Proxy->NewData();
+			ProxyBase = Proxy;
+		}
+		else if (InParticleType == EParticleType::Kinematic)
+		{
+			auto Proxy = new FKinematicGeometryParticlePhysicsProxy(GTParticle->AsKinematic(), nullptr);
+			KinematicGeometryParticlePhysicsProxies.Add((FKinematicGeometryParticlePhysicsProxy*)Proxy);
+			ProxyData = Proxy->NewData();
+			ProxyBase = Proxy;
+		}
+		else // Assume it's a static (geometry) if it's not dynamic or kinematic
+		{
+			auto Proxy = new FGeometryParticlePhysicsProxy(GTParticle, nullptr);
+			GeometryParticlePhysicsProxies.Add((FGeometryParticlePhysicsProxy*)Proxy);
+			ProxyData = Proxy->NewData();
+			ProxyBase = Proxy;
+		}
+
+		ProxyBase->SetSolver(this);
+
+		// Associate the proxy with the particle
+		GTParticle->Proxy = ProxyBase;
+
+		//enqueue onto physics thread for finalizing registration
+		FChaosSolversModule::GetModule()->GetDispatcher()->EnqueueCommandImmediate(this, [GTParticle, InParticleType, ProxyBase, ProxyData](FPBDRigidsSolver* Solver)
+		{
+			UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("FPBDRigidsSolver::RegisterObject() ~ Dequeue"));
+
+			// Create a handle for the new particle
+			TGeometryParticleHandle<float, 3>* Handle;
+
+			// Insert the particle ptr into the auxiliary array
+			//
+			// TODO: Is this array even necessary?
+			//       Proxy should be able to map back to Particle.
+			//
+
+			if (InParticleType == EParticleType::Dynamic)
+			{
+				Handle = Solver->Particles.CreateDynamicParticles(1)[0];
+				auto Proxy = static_cast<FRigidParticlePhysicsProxy*>(ProxyBase);
+				Proxy->SetHandle(Handle->AsDynamic());
+				Proxy->PushToPhysicsState(ProxyData);
+			}
+			else if (InParticleType == EParticleType::Kinematic)
+			{
+				Handle = Solver->Particles.CreateKinematicParticles(1)[0];
+				auto Proxy = static_cast<FKinematicGeometryParticlePhysicsProxy*>(ProxyBase);
+				Proxy->SetHandle(Handle->AsKinematic());
+				Proxy->PushToPhysicsState(ProxyData);
+			}
+			else // Assume it's a static (geometry) if it's not dynamic or kinematic
+			{
+				Handle = Solver->Particles.CreateStaticParticles(1)[0];
+
+				auto Proxy = static_cast<FGeometryParticlePhysicsProxy*>(ProxyBase);
+				Proxy->SetHandle(Handle);
+				Proxy->PushToPhysicsState(ProxyData);
+			}
+
+			Handle->GTGeometryParticle() = GTParticle;
+
+			delete ProxyData;
+		});
+	}
+
+	void FPBDRigidsSolver::UnregisterObject(TGeometryParticle<float, 3>* GTParticle)
+	{
+		UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("FPBDRigidsSolver::UnregisterObject()"));
+
+		// Get the proxy associated with this particle
+		IPhysicsProxyBase* InProxy = GTParticle->Proxy;
+		check(InProxy);
+
+		// Grab the particle's type
+		const EParticleType InParticleType = GTParticle->ObjectType();
+
+		// Null out the particle's proxy pointer
+		GTParticle->Proxy = nullptr;
+
+		// Remove the proxy from the GT proxy map
+		if (InParticleType == EParticleType::Dynamic)
+		{
+			RigidParticlePhysicsProxies.Remove((FRigidParticlePhysicsProxy*)InProxy);
+		}
+		else if (InParticleType == EParticleType::Kinematic)
+		{
+			KinematicGeometryParticlePhysicsProxies.Remove((FKinematicGeometryParticlePhysicsProxy*)InProxy);
+		}
+		else
+		{
+			GeometryParticlePhysicsProxies.Remove((FGeometryParticlePhysicsProxy*)InProxy);
+		}
+
+		// Enqueue a command to remove the particle and delete the proxy
+		FChaosSolversModule::GetModule()->GetDispatcher()->EnqueueCommandImmediate(this, [InProxy, InParticleType](FPBDRigidsSolver* Solver)
+		{
+			UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("FPBDRigidsSolver::UnregisterObject() ~ Dequeue"));
+
+			// Get the physics thread-handle from the proxy, and then delete the proxy.
+			//
+			// NOTE: We have to delete the proxy from its derived version, because the
+			// base destructor is protected. This makes everything just a bit uglier,
+			// maybe that extra safety is not needed if we continue to contain all
+			// references to proxy instances entirely in Chaos?
+			TGeometryParticleHandle<float, 3>* Handle;
+			if (InParticleType == Chaos::EParticleType::Dynamic)
+			{
+				auto Proxy = (FRigidParticlePhysicsProxy*)InProxy;
+				Handle = Proxy->GetHandle();
+				delete Proxy;
+			}
+			else if (InParticleType == Chaos::EParticleType::Kinematic)
+			{
+				auto Proxy = (FKinematicGeometryParticlePhysicsProxy*)InProxy;
+				Handle = Proxy->GetHandle();
+				delete Proxy;
+			}
+			else
+			{
+				auto Proxy = (FGeometryParticlePhysicsProxy*)InProxy;
+				Handle = Proxy->GetHandle();
+				delete Proxy;
+			}
+
+			// Use the handle to destroy the particle data
+			Solver->Particles.DestroyParticle(Handle);
+		});
+	}
+
+	bool FPBDRigidsSolver::IsSimulating() const
+	{
+		for (FGeometryParticlePhysicsProxy* Obj : GeometryParticlePhysicsProxies)
+			if (Obj->IsSimulating())
+				return true;
+		for (FKinematicGeometryParticlePhysicsProxy* Obj : KinematicGeometryParticlePhysicsProxies)
+			if (Obj->IsSimulating())
+				return true;
+		for (FRigidParticlePhysicsProxy* Obj : RigidParticlePhysicsProxies)
+			if (Obj->IsSimulating())
+				return true;
+		for (FSkeletalMeshPhysicsProxy* Obj : SkeletalMeshPhysicsProxies)
+			if (Obj->IsSimulating())
+				return true;
+		for (FStaticMeshPhysicsProxy* Obj : StaticMeshPhysicsProxies)
+			if (Obj->IsSimulating())
+				return true;
+		for (FGeometryCollectionPhysicsProxy* Obj : GeometryCollectionPhysicsProxies)
+			if (Obj->IsSimulating())
+				return true;
+		for (FFieldSystemPhysicsProxy* Obj : FieldSystemPhysicsProxies)
+			if (Obj->IsSimulating())
+				return true;
+		return false;
+	}
+
+
+
+	void FPBDRigidsSolver::Reset()
 	{
 
 		UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("PBDRigidsSolver::Reset()"));
@@ -130,549 +308,116 @@ namespace Chaos
 		bEnabled = false;
 		CurrentFrame = 0;
 		MMaxDeltaTime = 1;
-		FieldForceNum = 0;
+		TimeStepMultiplier = 1;
+		MEvolution = TUniquePtr<FPBDRigidsEvolution>(new FPBDRigidsEvolution(Particles));
 
-		FParticlesType TRigidParticles;
-		MEvolution = TUniquePtr<FPBDRigidsEvolution>(new FPBDRigidsEvolution(MoveTemp(TRigidParticles)));
-		GetRigidParticles().AddArray(&FieldForce);
-
-		MEvolution->AddPBDConstraintFunction([&](FParticlesType& Particle, const float Time, const int32 Island)
-		{
-			this->AddConstraintCallback(Particle, Time, Island);
-		});
-		MEvolution->AddForceFunction([&](FParticlesType& Particles, const float Time, const int32 Index)
-		{
-			this->AddForceCallback(Particles, Time, Index);
-		});
-		MEvolution->AddForceFunction([&](FParticlesType& Particles, const float Time, const int32 Index)
-		{
-			if (Index < FieldForceNum)
-			{
-				Particles.F(Index) += FieldForce[Index];
-			}
-		});
-		MEvolution->SetCollisionContactsFunction([&](FParticlesType& Particles, FCollisionConstraintsType& CollisionConstraints)
-		{
-			this->CollisionContactsCallback(Particles, CollisionConstraints);
-		});
-		MEvolution->SetBreakingFunction([&](FParticlesType& Particles)
-		{
-			this->BreakingCallback(Particles);
-		});
-		MEvolution->SetTrailingFunction([&](FParticlesType& Particles)
-		{
-			this->TrailingCallback(Particles);
-		});
-
-		Callbacks.Reset();
-		FieldCallbacks.Reset();
-		KinematicProxies.Reset();
+		FEventDefaults::RegisterSystemEvents(*GetEventManager());
 	}
 
-	void PBDRigidsSolver::RegisterCallbacks(FSolverCallbacks* CallbacksIn)
+	void FPBDRigidsSolver::ChangeBufferMode(Chaos::EMultiBufferMode InBufferMode)
 	{
-		UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("PBDRigidsSolver::RegisterCallbacks()"));
-		Callbacks.Add(CallbacksIn);
-		KinematicProxies.Add(FKinematicProxy());
+		// This seems unused inside the solver? #BH
+		BufferMode = InBufferMode;
 	}
 
-	void PBDRigidsSolver::UnregisterCallbacks(FSolverCallbacks* CallbacksIn)
-	{
-		UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("PBDRigidsSolver::UnregisterCallbacks()"));
-		for (int CallbackIndex = 0; CallbackIndex < Callbacks.Num(); CallbackIndex++)
-		{
-			if (Callbacks[CallbackIndex] == CallbacksIn)
-			{
-				Callbacks[CallbackIndex] = nullptr;
-			}
-		}
-	}
-
-	void PBDRigidsSolver::RegisterFieldCallbacks(FSolverFieldCallbacks* CallbacksIn)
-	{
-		UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("PBDRigidsSolver::RegisterFieldCallbacks()"));
-		FieldCallbacks.Add(CallbacksIn);
-	}
-
-	void PBDRigidsSolver::UnregisterFieldCallbacks(FSolverFieldCallbacks* CallbacksIn)
-	{
-		UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("PBDRigidsSolver::UnregisterFieldCallbacks()"));
-		for (int CallbackIndex = 0; CallbackIndex < FieldCallbacks.Num(); CallbackIndex++)
-		{
-			if (FieldCallbacks[CallbackIndex] == CallbacksIn)
-			{
-				FieldCallbacks[CallbackIndex] = nullptr;
-			}
-		}
-	}
-
-
-	void PBDRigidsSolver::AdvanceSolverBy(float DeltaTime)
+	void FPBDRigidsSolver::AdvanceSolverBy(float DeltaTime)
 	{
 		UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("PBDRigidsSolver::Tick(%3.5f)"), DeltaTime);
 		if (bEnabled)
 		{
 			MLastDt = DeltaTime;
 
-			// @todo : This is kind of strange. can we expose the solver to the
-			//         callbacks in a different way?
-			for (int CallbackIndex = 0; CallbackIndex < Callbacks.Num(); CallbackIndex++)
-			{
-				if (Callbacks[CallbackIndex] != nullptr)
-				{
-					Callbacks[CallbackIndex]->SetSolver(this);
-				}
-			}
-			for (int CallbackIndex = 0; CallbackIndex < FieldCallbacks.Num(); CallbackIndex++)
-			{
-				if (FieldCallbacks[CallbackIndex] != nullptr)
-				{
-					FieldCallbacks[CallbackIndex]->SetSolver(this);
-				}
-			}
-
 			int32 NumTimeSteps = (int32)(1.f*TimeStepMultiplier);
-			float dt = FMath::Min(DeltaTime, float(5 / 30.)) / (float)NumTimeSteps;
+			float dt = FMath::Min(DeltaTime, float(5.f / 30.f)) / (float)NumTimeSteps;
 			for (int i = 0; i < NumTimeSteps; i++)
 			{
-				TSharedPtr<FCriticalSection> NewFrameLock(new FCriticalSection());
-				TSharedPtr<FEvent> NewFrameEvent(FPlatformProcess::CreateSynchEvent());
-				//(new FAutoDeleteAsyncTask<AdvanceOneTimeStepTask>(this, DeltaTime, MCurrentLock, MCurrentEvent, NewFrameLock, NewFrameEvent))->StartBackgroundTask();
-				AdvanceOneTimeStepTask(this, DeltaTime, MCurrentLock, MCurrentEvent, NewFrameLock, NewFrameEvent).DoWork();
-				MCurrentLock = NewFrameLock;
-				MCurrentEvent = NewFrameEvent;
+				AdvanceOneTimeStepTask(this, DeltaTime).DoWork();
 			}
 		}
 
 	}
 
-
-	void PBDRigidsSolver::CreateRigidBodyCallback(PBDRigidsSolver::FParticlesType& Particles)
+	void FPBDRigidsSolver::UpdatePhysicsThreadStructures()
 	{
-		UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("PBDRigidsSolver::CreateRigidBodyCallback()"));
-		int32 NumParticles = Particles.Size();
-		if (!Particles.Size())
-		{
-			UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("... creating particles"));
-			if (bHasFloor)
-			{
-				UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("... creating floor"));
-				int Index = Particles.Size();
-				Particles.AddParticles(1);
-				Particles.X(Index) = Chaos::TVector<float, 3>(0.f, 0.f, FloorHeight);
-				Particles.V(Index) = Chaos::TVector<float, 3>(0.f, 0.f, 0.f);
-				Particles.R(Index) = Chaos::TRotation<float, 3>::MakeFromEuler(Chaos::TVector<float, 3>(0.f, 0.f, 0.f));
-				Particles.W(Index) = Chaos::TVector<float, 3>(0.f, 0.f, 0.f);
-				Particles.P(Index) = Particles.X(0);
-				Particles.Q(Index) = Particles.R(0);
-				Particles.M(Index) = 1.f;
-				Particles.InvM(Index) = 0.f;
-				Particles.I(Index) = Chaos::PMatrix<float, 3, 3>(1.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f);
-				Particles.InvI(Index) = Chaos::PMatrix<float, 3, 3>(0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f);
-				Particles.Geometry(Index) = new Chaos::TPlane<float, 3>(Chaos::TVector<float, 3>(0.f, 0.f, FloorHeight), Chaos::TVector<float, 3>(0.f, 0.f, 1.f));
-				Particles.Geometry(Index)->IgnoreAnalyticCollisions(!bIsFloorAnalytic);
-			}
-		}
+		//ensure(IsInPhyscisThread<BufferMode>());
 
-		for (int CallbackIndex = 0; CallbackIndex < Callbacks.Num(); CallbackIndex++)
+		if (FChaosSolversModule* ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers"))
 		{
-			UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("... creating bodies from callbacks"));
-			if (Callbacks[CallbackIndex]!=nullptr && Callbacks[CallbackIndex]->IsSimulating())
+			// #todo(benn.gallagher) : why is the dispatcher failing here...
+			if (Chaos::IDispatcher* Dispatcher = ChaosModule->GetDispatcher())
 			{
-				Callbacks[CallbackIndex]->CreateRigidBodyCallback(Particles);
-			}
-		}
-
-		if (NumParticles != Particles.Size())
-		{
-			int Size = ParticleCallbackMapping.Num();
-			ParticleCallbackMapping.Resize(Particles.Size());
-			for (int Index = Size; Index < ParticleCallbackMapping.Num(); Index++)
-			{
-				ParticleCallbackMapping[Index] = Invalid;
-			}
-
-			for (int CallbackIndex = 0; CallbackIndex < Callbacks.Num(); CallbackIndex++)
-			{
-				if (Callbacks[CallbackIndex] != nullptr)
+				this->ForEachPhysicsProxyParallel([Dispatcher](auto* Proxy)
 				{
-					Callbacks[CallbackIndex]->BindParticleCallbackMapping(CallbackIndex, ParticleCallbackMapping);
-				}
+					if (Chaos::FParticleData* ProxyData = Proxy->NewData())
+					{
+						Dispatcher->EnqueueCommandImmediate([Proxy , ProxyData](Chaos::FPersistentPhysicsTask* PhysThread)
+						{
+							Proxy->PushToPhysicsState(ProxyData);
+							delete ProxyData;
+						});
+						//Proxy->Particle()->ClearDirtyFlags()
+					}
+				});
 			}
-
-			InitializeFromParticleData();
-		}
-	}
-
-	bool PBDRigidsSolver::Enabled() const
-	{
-		UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("PBDRigidsSolver::Enabled()"));
-		if (bEnabled)
-		{
-			for (int CallbackIndex = 0; CallbackIndex < Callbacks.Num(); CallbackIndex++)
+			else // no threading
 			{
-				if (Callbacks[CallbackIndex] != nullptr && Callbacks[CallbackIndex]->IsSimulating())
-					return true;
-			}
-		}
-		return false;
-	}
-
-	void PBDRigidsSolver::ParameterUpdateCallback(PBDRigidsSolver::FParticlesType& Particles, const float Time)
-	{
-		UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("PBDRigidsSolver::ParameterUpdateCallback()"));
-
-		for (int CallbackIndex = 0; CallbackIndex < Callbacks.Num(); CallbackIndex++)
-		{
-			if (Callbacks[CallbackIndex] != nullptr && Callbacks[CallbackIndex]->IsSimulating())
-			{
-				Callbacks[CallbackIndex]->ParameterUpdateCallback(Particles, Time);
-			}
-		}
-	}
-
-	void PBDRigidsSolver::ForceUpdateCallback(PBDRigidsSolver::FParticlesType& Particles, const float Time)
-	{
-		UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("PBDRigidsSolver::ParameterUpdateCallback()"));
-
-		// reset the FieldForces
-		FieldForceNum = FieldForce.Num();
-		for (int32 i = 0; i < FieldForce.Num(); i++)
-		{
-			FieldForce[i] = FVector(0);
-		}
-
-		for (int CallbackIndex = 0; CallbackIndex < FieldCallbacks.Num(); CallbackIndex++)
-		{
-			if (FieldCallbacks[CallbackIndex] != nullptr && FieldCallbacks[CallbackIndex]->IsSimulating())
-			{
-				FieldCallbacks[CallbackIndex]->CommandUpdateCallback(Particles, FieldForce, Time);
-			}
-		}
-	}
-
-
-	void PBDRigidsSolver::DisableCollisionsCallback(TSet<TTuple<int32, int32>>& CollisionPairs)
-	{
-		UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("PBDRigidsSolver::DisableCollisionsCallback()"));
-		for (int CallbackIndex = 0; CallbackIndex < Callbacks.Num(); CallbackIndex++)
-		{
-			if (Callbacks[CallbackIndex] != nullptr && Callbacks[CallbackIndex]->IsSimulating())
-			{
-				Callbacks[CallbackIndex]->DisableCollisionsCallback(CollisionPairs);
-			}
-		}
-	}
-
-	void PBDRigidsSolver::StartFrameCallback(const float Dt, const float Time)
-	{
-		UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("PBDRigidsSolver::StartFrameCallback()"));
-		for (int CallbackIndex = 0; CallbackIndex < Callbacks.Num(); CallbackIndex++)
-		{
-			if (Callbacks[CallbackIndex] != nullptr)
-			{
-				Callbacks[CallbackIndex]->StartFrameCallback(Dt, Time);
-			}
-			// @todo: This data should be pushed; not pulled
-			if (Callbacks[CallbackIndex] != nullptr && Callbacks[CallbackIndex]->IsSimulating())
-			{
-				Callbacks[CallbackIndex]->UpdateKinematicBodiesCallback(MEvolution->Particles(), Dt, Time, KinematicProxies[CallbackIndex]);
-			}
-		}
-	}
-
-	void PBDRigidsSolver::EndFrameCallback(const float EndFrame)
-	{
-		UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("PBDRigidsSolver::EndFrameCallback()"));
-		for (int CallbackIndex = 0; CallbackIndex < Callbacks.Num(); CallbackIndex++)
-		{
-			if (Callbacks[CallbackIndex] != nullptr && Callbacks[CallbackIndex]->IsSimulating())
-			{
-				Callbacks[CallbackIndex]->EndFrameCallback(EndFrame);
-			}
-		}
-	}
-
-	void PBDRigidsSolver::KinematicUpdateCallback(PBDRigidsSolver::FParticlesType& Particles, const float Dt, const float Time)
-	{
-		UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("PBDRigidsSolver::KinematicUpdateCallback()"));
-		SCOPE_CYCLE_COUNTER(STAT_KinematicUpdate);
-
-		PhysicsParallelFor(KinematicProxies.Num(), [&](int32 i)
-		{
-			FKinematicProxy& KinematicProxy = KinematicProxies[i];
-			for (int32 ProxyIndex = 0; ProxyIndex < KinematicProxy.Ids.Num(); ++ProxyIndex)
-			{
-				const int32 Index = KinematicProxy.Ids[ProxyIndex];
-				if (Index < 0 || Particles.InvM(Index) != 0 || Particles.Disabled(Index))
+				this->ForEachPhysicsProxy([](auto* Proxy)
 				{
-					continue;
-				}
-				Particles.X(Index) = KinematicProxy.Position[ProxyIndex];
-				Particles.R(Index) = KinematicProxy.Rotation[ProxyIndex];
-				Particles.V(Index) = (KinematicProxy.NextPosition[ProxyIndex] - KinematicProxy.Position[ProxyIndex]) / Dt;
-				TRotation<float, 3> Delta = KinematicProxy.NextRotation[ProxyIndex] * KinematicProxy.Rotation[ProxyIndex].Inverse();
-				TVector<float, 3> Axis;
-				float Angle;
-				Delta.ToAxisAndAngle(Axis, Angle);
-				Particles.W(Index) = Axis * Angle / Dt;
+					if (Chaos::FParticleData* ProxyData = Proxy->NewData())
+					{
+						Proxy->PushToPhysicsState(ProxyData);
+						delete ProxyData;
+						//Proxy->Particle()->ClearDirtyFlags()
+					}
+				});
 			}
+		}
+	}
+
+	void FPBDRigidsSolver::UpdateGameThreadStructures()
+	{
+		//ensure(IsInGameThread());
+
+		// on game thread
+		this->ForEachPhysicsProxy([](auto* Object)
+		{
+			Object->PullFromPhysicsState();
 		});
-	}
 
-	void PBDRigidsSolver::AddConstraintCallback(PBDRigidsSolver::FParticlesType& Particles, const float Time, const int32 Island)
+	}
+	
+	void FPBDRigidsSolver::BufferPhysicsResults()
 	{
-		UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("PBDRigidsSolver::AddConstraintCallback()"));
-		for (int CallbackIndex = 0; CallbackIndex < Callbacks.Num(); CallbackIndex++)
+		//ensure(IsInGameThread());
+
+		// on game thread
+		this->ForEachPhysicsProxy([](auto* Object)
 		{
-			if (Callbacks[CallbackIndex] != nullptr && Callbacks[CallbackIndex]->IsSimulating())
-			{
-				Callbacks[CallbackIndex]->AddConstraintCallback(Particles, Time, Island);
-			}
-		}
+			Object->BufferPhysicsResults();
+		});
+
 	}
 
-	void PBDRigidsSolver::AddForceCallback(PBDRigidsSolver::FParticlesType& Particles, const float Dt, const int32 Index)
+
+		
+	void FPBDRigidsSolver::FlipBuffers()
 	{
-		// @todo : The index based callbacks need to change. This should be based on the indices
-		//         managed by the specific Callback. 
-		UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("PBDRigidsSolver::AddForceCallback()"));
-		Chaos::PerParticleGravity<float, 3>(Chaos::TVector<float, 3>(0, 0, -1), 980.0).Apply(Particles, Dt, Index);
+		//ensure(IsInGameThread());
+
+		// on game thread
+		this->ForEachPhysicsProxy([](auto* Object)
+		{
+			Object->FlipBuffer();
+		});
+
 	}
 
-	void PBDRigidsSolver::CollisionContactsCallback(PBDRigidsSolver::FParticlesType& Particles, PBDRigidsSolver::FCollisionConstraintsType& CollisionConstraints)
+	void FPBDRigidsSolver::SyncEvents_GameThread()
 	{
-		float CurrentTime = MTime;
-
-		if (CurrentTime == 0.f)
-		{
-			CollisionData.TimeCreated = CurrentTime;
-			CollisionData.NumCollisions = 0;
-			CollisionData.CollisionDataArray.SetNum(MaxCollisionDataSize);
-		}
-		else
-		{
-			if (CurrentTime - CollisionData.TimeCreated > CollisionDataTimeWindow)
-			{
-				CollisionData.TimeCreated = CurrentTime;
-				CollisionData.NumCollisions = 0;
-				CollisionData.CollisionDataArray.Empty(MaxCollisionDataSize);
-				CollisionData.CollisionDataArray.SetNum(MaxCollisionDataSize);
-			}
-		}
-
-		const TArray<Chaos::TPBDCollisionConstraint<float, 3>::FRigidBodyContactConstraint>& AllConstraintsArray = CollisionConstraints.GetAllConstraints();
-		if (AllConstraintsArray.Num() > 0)
-		{
-			// Only process the constraints with AccumulatedImpulse != 0
-			TArray<Chaos::TPBDCollisionConstraint<float, 3>::FRigidBodyContactConstraint> ConstraintsArray;
-			FBox BoundingBox(ForceInitToZero);
-			for (int32 Idx = 0; Idx < AllConstraintsArray.Num(); ++Idx)
-			{
-				if (!AllConstraintsArray[Idx].AccumulatedImpulse.IsZero() && 
-					AllConstraintsArray[Idx].Phi < 0.f)
-				{
-					if (ensure(FMath::IsFinite(AllConstraintsArray[Idx].Location.X) &&
-							   FMath::IsFinite(AllConstraintsArray[Idx].Location.Y) &&
-							   FMath::IsFinite(AllConstraintsArray[Idx].Location.Z)))
-					{
-						ConstraintsArray.Add(AllConstraintsArray[Idx]);
-						BoundingBox += AllConstraintsArray[Idx].Location;
-					}
-				}
-			}
-
-			if (ConstraintsArray.Num() > 0)
-			{			
-				if (DoCollisionDataSpatialHash)
-				{
-					if (CollisionDataSpatialHashRadius > 0.0 &&
-						(BoundingBox.GetExtent().X > 0.0 || BoundingBox.GetExtent().Y > 0.0 || BoundingBox.GetExtent().Z > 0.0))
-					{
-						// Spatial hash the constraints
-						TMultiMap<int32, int32> HashTableMap;
-						ComputeHashTable(ConstraintsArray, BoundingBox, HashTableMap, CollisionDataSpatialHashRadius);
-
-						TArray<int32> UsedCellsArray;
-						HashTableMap.GetKeys(UsedCellsArray);
-
-						for (int32 IdxCell = 0; IdxCell < UsedCellsArray.Num(); ++IdxCell)
-						{
-							TArray<int32> ConstraintsInCellArray;
-							HashTableMap.MultiFind(UsedCellsArray[IdxCell], ConstraintsInCellArray);
-
-							int32 NumConstraintsToGetFromCell = FMath::Min(MaxCollisionPerCell, ConstraintsInCellArray.Num());
-
-							for (int32 IdxConstraint = 0; IdxConstraint < NumConstraintsToGetFromCell; ++IdxConstraint)
-							{
-								const Chaos::TPBDCollisionConstraint<float, 3>::FRigidBodyContactConstraint& Constraint = ConstraintsArray[ConstraintsInCellArray[IdxConstraint]];
-								TCollisionData<float, 3> CollisionDataItem{
-									CurrentTime,
-									Constraint.Location,
-									Constraint.AccumulatedImpulse,
-									Constraint.Normal,
-									Particles.V(Constraint.ParticleIndex), Particles.V(Constraint.LevelsetIndex),
-									Particles.M(Constraint.ParticleIndex), Particles.M(Constraint.LevelsetIndex),
-									Constraint.ParticleIndex, Constraint.LevelsetIndex
-								};
-
-								int32 Idx = CollisionData.NumCollisions % MaxCollisionDataSize;
-								CollisionData.CollisionDataArray[Idx] = CollisionDataItem;
-								CollisionData.NumCollisions++;
-							}
-						}
-					}
-				}
-				else
-				{
-					for (int32 IdxConstraint = 0; IdxConstraint < ConstraintsArray.Num(); ++IdxConstraint)
-					{
-						const Chaos::TPBDCollisionConstraint<float, 3>::FRigidBodyContactConstraint& Constraint = ConstraintsArray[IdxConstraint];
-						TCollisionData<float, 3> CollisionDataItem{
-							CurrentTime,
-							Constraint.Location,
-							Constraint.AccumulatedImpulse,
-							Constraint.Normal,
-							Particles.V(Constraint.ParticleIndex), Particles.V(Constraint.LevelsetIndex),
-							Particles.M(Constraint.ParticleIndex), Particles.M(Constraint.LevelsetIndex),
-							Constraint.ParticleIndex, Constraint.LevelsetIndex
-						};
-
-						int32 Idx = CollisionData.NumCollisions % MaxCollisionDataSize;
-						CollisionData.CollisionDataArray[Idx] = CollisionDataItem;
-						CollisionData.NumCollisions++;
-					}
-				}
-			}
-		}
+		GetEventManager()->DispatchEvents();
 	}
 
-	void PBDRigidsSolver::BreakingCallback(PBDRigidsSolver::FParticlesType& Particles)
-	{
-	}
+}; // namespace Chaos
 
-	void PBDRigidsSolver::TrailingCallback(PBDRigidsSolver::FParticlesType& Particles)
-	{
-		float CurrentTime = MTime;
-		if (CurrentTime == 0.f)
-		{
-			TrailingData.TimeLastUpdated = 0.f;
-			TrailingData.TrailingDataSet.Empty(MaxTrailingDataSize);
-		}
-		else
-		{
-			if (CurrentTime - TrailingData.TimeLastUpdated > TrailingDataTimeWindow)
-			{
-				TrailingData.TimeLastUpdated = CurrentTime;
-			}
-			else
-			{
-				return;
-			}
-		}
-
-		const float TrailingMinSpeedThresholdSquared = TrailingMinSpeedThreshold * TrailingMinSpeedThreshold;
-
-		if (Particles.Size() > 0)
-		{
-			// Remove Sleeping, Disabled or too slow particles from TrailingData.TrailingDataSet
-			if (TrailingData.TrailingDataSet.Num() > 0)
-			{
-				FTrailingDataSet ParticlesToRemoveFromTrailingSet;
-				for (auto& TrailingDataItem : TrailingData.TrailingDataSet)
-				{
-					int32 ParticleIndex = TrailingDataItem.ParticleIndex;
-					if (Particles.Sleeping(ParticleIndex) ||
-						Particles.Disabled(ParticleIndex) ||
-						Particles.V(ParticleIndex).SizeSquared() < TrailingMinSpeedThresholdSquared)
-					{
-						ParticlesToRemoveFromTrailingSet.Add(TrailingDataItem);
-					}
-				}
-				TrailingData.TrailingDataSet = TrailingData.TrailingDataSet.Difference(TrailingData.TrailingDataSet.Intersect(ParticlesToRemoveFromTrailingSet));
-			}
-
-			for (uint32 IdxParticle = 0; IdxParticle < Particles.Size(); ++IdxParticle)
-			{
-				if (TrailingData.TrailingDataSet.Num() >= MaxTrailingDataSize)
-				{
-					break;
-				}
-
-				if (!Particles.Disabled(IdxParticle) &&
-					!Particles.Sleeping(IdxParticle) &&
-					Particles.InvM(IdxParticle) != 0.f)
-				{
-					if (Particles.Geometry(IdxParticle)->HasBoundingBox())
-					{
-						TVector<float, 3> Location = Particles.X(IdxParticle);
-						TVector<float, 3> Velocity = Particles.V(IdxParticle);
-						TVector<float, 3> AngularVelocity = Particles.W(IdxParticle);
-						float Mass = Particles.M(IdxParticle);
-
-						if (ensure(FMath::IsFinite(Location.X) &&
-								   FMath::IsFinite(Location.Y) &&
-								   FMath::IsFinite(Location.Z) &&
-								   FMath::IsFinite(Velocity.X) &&
-								   FMath::IsFinite(Velocity.Y) &&
-								   FMath::IsFinite(Velocity.Z) &&
-								   FMath::IsFinite(AngularVelocity.X) &&
-								   FMath::IsFinite(AngularVelocity.Y) &&
-								   FMath::IsFinite(AngularVelocity.Z)))
-						{
-							TBox<float, 3> BoundingBox = Particles.Geometry(IdxParticle)->BoundingBox();
-							TVector<float, 3> Extents = BoundingBox.Extents();
-							float ExtentMax = Extents[BoundingBox.LargestAxis()];
-
-							int32 SmallestAxis;
-							if (Extents[0] < Extents[1] && Extents[0] < Extents[2])
-							{
-								SmallestAxis = 0;
-							}
-							else if (Extents[1] < Extents[2])
-							{
-								SmallestAxis = 1;
-							}
-							else
-							{
-								SmallestAxis = 2;
-							}
-							float ExtentMin = Extents[SmallestAxis];
-							float Volume = Extents[0] * Extents[1] * Extents[2];
-							float SpeedSquared = Velocity.SizeSquared();
-
-							if (SpeedSquared > TrailingMinSpeedThresholdSquared &&
-								Volume > TrailingMinVolumeThreshold)
-							{
-								TTrailingData<float, 3> TrailingDataItem{
-									CurrentTime,
-									Location,
-									ExtentMin,
-									ExtentMax,
-									Velocity,
-									AngularVelocity,
-									Mass,
-									(int32)IdxParticle
-								};
-
-								if (!TrailingData.TrailingDataSet.Contains(TrailingDataItem))
-								{
-									TrailingData.TrailingDataSet.Add(TrailingDataItem);
-								}
-								else
-								{
-									FSetElementId Id = TrailingData.TrailingDataSet.FindId(TrailingDataItem);
-									TrailingData.TrailingDataSet[Id].Location = Location;
-									TrailingData.TrailingDataSet[Id].Velocity = Velocity;
-									TrailingData.TrailingDataSet[Id].AngularVelocity = AngularVelocity;
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-}
 
 #endif

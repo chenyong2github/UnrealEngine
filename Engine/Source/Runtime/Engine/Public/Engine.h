@@ -24,8 +24,8 @@ MONOLITHIC_HEADER_BOILERPLATE()
 
 #include "ComponentInstanceDataCache.h"
 #include "SceneTypes.h"
-#include "GenericOctreePublic.h"
-#include "GenericOctree.h"
+#include "Math/GenericOctreePublic.h"
+#include "Math/GenericOctree.h"
 #include "PrecomputedLightVolume.h"
 #include "PixelFormat.h"
 #include "Components.h"

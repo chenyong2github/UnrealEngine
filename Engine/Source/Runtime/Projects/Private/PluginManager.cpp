@@ -618,6 +618,11 @@ bool FPluginManager::ConfigureEnabledPlugins()
 								// if plugin config overrides are applied then don't save
 								FoundConfig->NoSave = true;
 							}
+
+#if ALLOW_INI_OVERRIDE_FROM_COMMANDLINE
+							// Don't allow plugins to stomp command line overrides
+							FConfigFile::OverrideFromCommandline(FoundConfig, PluginConfigFilename);
+#endif // ALLOW_INI_OVERRIDE_FROM_COMMANDLINE
 						}
 					}
 				}

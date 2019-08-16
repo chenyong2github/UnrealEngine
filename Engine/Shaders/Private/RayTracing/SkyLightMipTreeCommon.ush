@@ -131,63 +131,62 @@ float TexelCoordSolidAngle(uint2 TextureCoord, uint2 TextureRes)
 	return SolidAngle;
 }
 
-uint SampleFace(uint MipCount, float RandSample, out float FacePdf)
+void BuildFaceCdf(uint MipCount, out float FaceCdf[7])
 {
 	uint BufferOffset = BufferOffsetAtPixel(uint2(0, 0), MipCount, SkyLight.MipDimensions.xy);
 
-	float FaceCdf[6];
-	FaceCdf[0] = SkyLight.MipTreePosX[BufferOffset];
-	FaceCdf[1] = FaceCdf[0] + SkyLight.MipTreeNegX[BufferOffset];
-	FaceCdf[2] = FaceCdf[1] + SkyLight.MipTreePosY[BufferOffset];
-	FaceCdf[3] = FaceCdf[2] + SkyLight.MipTreeNegY[BufferOffset];
-	FaceCdf[4] = FaceCdf[3] + SkyLight.MipTreePosZ[BufferOffset];
-	FaceCdf[5] = FaceCdf[4] + SkyLight.MipTreeNegZ[BufferOffset];
-	float Sum = FaceCdf[5];
+	FaceCdf[0] = 0.0;
+	FaceCdf[1] = SkyLight.MipTreePosX[BufferOffset];
+	FaceCdf[2] = FaceCdf[1] + SkyLight.MipTreeNegX[BufferOffset];
+	FaceCdf[3] = FaceCdf[2] + SkyLight.MipTreePosY[BufferOffset];
+	FaceCdf[4] = FaceCdf[3] + SkyLight.MipTreeNegY[BufferOffset];
+	FaceCdf[5] = FaceCdf[4] + SkyLight.MipTreePosZ[BufferOffset];
+	FaceCdf[6] = FaceCdf[5] + SkyLight.MipTreeNegZ[BufferOffset];
+	float Sum = FaceCdf[6];
 
-	for (uint Index = 0; Index < 5; ++Index)
+	for (uint Index = 1; Index < 6; ++Index)
 	{
 		FaceCdf[Index] /= Sum;
 	}
-	FaceCdf[5] = 1.0;
+	FaceCdf[6] = 1.0;
+}
 
+uint SampleFace(float FaceCdf[7], float RandSample, out float FacePdf)
+{
 	// Determine CDF entry
-	uint FaceIndex = 0;
+	uint FaceIndex = 1;
 	while (RandSample > FaceCdf[FaceIndex])
 	{
 		FaceIndex++;
 	}
 
 	// Calculate PDF and return entry
-	FacePdf = FaceCdf[FaceIndex];
-	if (FaceIndex > 0)
-		FacePdf -= FaceCdf[FaceIndex - 1];
-	return FaceIndex;
+	FacePdf = FaceCdf[FaceIndex] - FaceCdf[FaceIndex - 1];
+
+	// Cdf is incremented by 1
+	return FaceIndex - 1;
 }
 
-float PdfFace(uint MipCount, uint FaceIndex)
+uint SampleFace(int MipCount, float RandSample, out float FacePdf)
 {
-	// Build Cdf
-	uint BufferOffset = BufferOffsetAtPixel(uint2(0, 0), MipCount, SkyLight.MipDimensions.xy);
+	float FaceCdf[7];
+	BuildFaceCdf(MipCount, FaceCdf);
+	return SampleFace(FaceCdf, RandSample, FacePdf);
+}
 
-	float FaceCdf[6];
-	FaceCdf[0] = SkyLight.MipTreePosX[BufferOffset];
-	FaceCdf[1] = FaceCdf[0] + SkyLight.MipTreeNegX[BufferOffset];
-	FaceCdf[2] = FaceCdf[1] + SkyLight.MipTreePosY[BufferOffset];
-	FaceCdf[3] = FaceCdf[2] + SkyLight.MipTreeNegY[BufferOffset];
-	FaceCdf[4] = FaceCdf[3] + SkyLight.MipTreePosZ[BufferOffset];
-	FaceCdf[5] = FaceCdf[4] + SkyLight.MipTreeNegZ[BufferOffset];
-	float Sum = FaceCdf[5];
-
-	for (uint Index = 0; Index < 5; ++Index)
-	{
-		FaceCdf[Index] /= Sum;
-	}
-	FaceCdf[5] = 1.0;
-
-	float Pdf = FaceCdf[FaceIndex];
-	if (FaceIndex > 0)
-		Pdf -= FaceCdf[FaceIndex - 1];
+float PdfFace(float FaceCdf[7], uint FaceIndex)
+{
+	// Cdf is offset by 1
+	FaceIndex++;
+	float Pdf = FaceCdf[FaceIndex] - FaceCdf[FaceIndex - 1];
 	return Pdf;
+}
+
+float PdfFace(int MipCount, uint FaceIndex)
+{
+	float FaceCdf[7];
+	BuildFaceCdf(MipCount, FaceCdf);
+	return PdfFace(FaceCdf, FaceIndex);
 }
 
 float4 SampleMipTree(uint FaceIndex, uint4 BufferOffset)

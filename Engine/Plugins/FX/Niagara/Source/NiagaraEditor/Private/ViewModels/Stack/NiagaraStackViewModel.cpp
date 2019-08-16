@@ -2,6 +2,7 @@
 
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "ViewModels/Stack/NiagaraStackRoot.h"
+#include "ViewModels/Stack/NiagaraStackSpacer.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
@@ -21,17 +22,105 @@
 
 #define LOCTEXT_NAMESPACE "NiagaraStackViewModel"
 const double UNiagaraStackViewModel::MaxSearchTime = .02f; // search at 50 fps
-TSharedPtr<FNiagaraSystemViewModel> UNiagaraStackViewModel::GetSystemViewModel()
+
+bool UNiagaraStackViewModel::FTopLevelViewModel::IsValid() const
 {
-	return SystemViewModel;
+	return (SystemViewModel.IsValid() && EmitterHandleViewModel.IsValid() == false) ||
+		(SystemViewModel.IsValid() == false && EmitterHandleViewModel.IsValid());
 }
 
-TSharedPtr<FNiagaraEmitterHandleViewModel> UNiagaraStackViewModel::GetEmitterHandleViewModel()
+UNiagaraStackEditorData* UNiagaraStackViewModel::FTopLevelViewModel::GetStackEditorData() const
 {
-	return EmitterHandleViewModel;
+	if (SystemViewModel.IsValid())
+	{
+		return &SystemViewModel->GetEditorData().GetStackEditorData();
+	}
+	else if (EmitterHandleViewModel.IsValid())
+	{
+		return &EmitterHandleViewModel->GetEmitterViewModel()->GetEditorData().GetStackEditorData();
+	}
+	else
+	{
+		return nullptr;
+	}
 }
 
-void UNiagaraStackViewModel::Initialize(TSharedPtr<FNiagaraSystemViewModel> InSystemViewModel, TSharedPtr<FNiagaraEmitterHandleViewModel> InEmitterHandleViewModel)
+FText UNiagaraStackViewModel::FTopLevelViewModel::GetDisplayName() const
+{
+	if (SystemViewModel.IsValid())
+	{
+		return SystemViewModel->GetDisplayName();
+	}
+	else if (EmitterHandleViewModel.IsValid())
+	{
+		return EmitterHandleViewModel->GetNameText();
+	}
+	else
+	{
+		return FText();
+	}
+}
+
+bool UNiagaraStackViewModel::FTopLevelViewModel::operator==(const FTopLevelViewModel& Other) const
+{
+	return Other.SystemViewModel == SystemViewModel && Other.EmitterHandleViewModel == EmitterHandleViewModel;
+}
+
+void UNiagaraStackViewModel::InitializeWithViewModels(TSharedPtr<FNiagaraSystemViewModel> InSystemViewModel, TSharedPtr<FNiagaraEmitterHandleViewModel> InEmitterHandleViewModel, FNiagaraStackViewModelOptions InOptions)
+{
+	Reset();
+
+	Options = InOptions;
+	SystemViewModel = InSystemViewModel;
+	EmitterHandleViewModel = InEmitterHandleViewModel;
+
+	TSharedPtr<FNiagaraSystemViewModel> SystemViewModelPinned = SystemViewModel.Pin();
+	TSharedPtr<FNiagaraEmitterViewModel> EmitterViewModel = InEmitterHandleViewModel.IsValid() ? InEmitterHandleViewModel->GetEmitterViewModel() : TSharedPtr<FNiagaraEmitterViewModel>();
+
+	if (SystemViewModelPinned.IsValid())
+	{
+		GEditor->RegisterForUndo(this);
+
+		if (EmitterViewModel.IsValid())
+		{
+			EmitterViewModel->OnScriptCompiled().AddUObject(this, &UNiagaraStackViewModel::OnEmitterCompiled);
+			EmitterViewModel->OnParentRemoved().AddUObject(this, &UNiagaraStackViewModel::EmitterParentRemoved);
+		}
+		SystemViewModelPinned->OnSystemCompiled().AddUObject(this, &UNiagaraStackViewModel::OnSystemCompiled);
+		
+		UNiagaraStackRoot* StackRoot = NewObject<UNiagaraStackRoot>(this);
+		UNiagaraStackEntry::FRequiredEntryData RequiredEntryData(SystemViewModelPinned.ToSharedRef(), EmitterViewModel,
+			UNiagaraStackEntry::FExecutionCategoryNames::System, UNiagaraStackEntry::FExecutionSubcategoryNames::Settings,
+			SystemViewModelPinned->GetEditorData().GetStackEditorData());
+		StackRoot->Initialize(RequiredEntryData, Options.GetIncludeSystemInformation(), Options.GetIncludeEmitterInformation());
+		StackRoot->RefreshChildren();
+		StackRoot->OnStructureChanged().AddUObject(this, &UNiagaraStackViewModel::EntryStructureChanged);
+		StackRoot->OnDataObjectModified().AddUObject(this, &UNiagaraStackViewModel::EntryDataObjectModified);
+		StackRoot->OnRequestFullRefresh().AddUObject(this, &UNiagaraStackViewModel::EntryRequestFullRefresh);
+		StackRoot->OnRequestFullRefreshDeferred().AddUObject(this, &UNiagaraStackViewModel::EntryRequestFullRefreshDeferred);
+		RootEntry = StackRoot;
+		RootEntries.Add(RootEntry);
+
+		bExternalRootEntry = false;
+	}
+
+	StructureChangedDelegate.Broadcast();
+}
+
+void UNiagaraStackViewModel::InitializeWithRootEntry(UNiagaraStackEntry* InRootEntry)
+{
+	Reset();
+	bUsesTopLevelViewModels = true;
+
+	RootEntry = InRootEntry;
+	RootEntry->OnStructureChanged().AddUObject(this, &UNiagaraStackViewModel::EntryStructureChanged);
+	RootEntries.Add(RootEntry);
+
+	GEditor->RegisterForUndo(this);
+	StructureChangedDelegate.Broadcast();
+}
+
+void UNiagaraStackViewModel::Reset()
 {
 	if (RootEntry != nullptr)
 	{
@@ -39,55 +128,39 @@ void UNiagaraStackViewModel::Initialize(TSharedPtr<FNiagaraSystemViewModel> InSy
 		RootEntry->OnDataObjectModified().RemoveAll(this);
 		RootEntry->OnRequestFullRefresh().RemoveAll(this);
 		RootEntry->OnRequestFullRefreshDeferred().RemoveAll(this);
-		RootEntries.Empty();
-		RootEntry->Finalize();
+		if (bExternalRootEntry == false)
+		{
+			RootEntry->Finalize();
+		}
 		RootEntry = nullptr;
-		GEditor->UnregisterForUndo(this);
 	}
+	RootEntries.Empty();
 
-	if (EmitterHandleViewModel.IsValid() && EmitterHandleViewModel->GetEmitterViewModel().IsValid())
+	if (EmitterHandleViewModel.IsValid())
 	{
-		EmitterHandleViewModel->GetEmitterViewModel()->OnScriptCompiled().RemoveAll(this);
+		EmitterHandleViewModel.Pin()->GetEmitterViewModel()->OnScriptCompiled().RemoveAll(this);
+		EmitterHandleViewModel.Reset();
 	}
 
 	if (SystemViewModel.IsValid())
 	{
-		SystemViewModel->OnSystemCompiled().RemoveAll(this);
+		SystemViewModel.Pin()->OnSystemCompiled().RemoveAll(this);
+		SystemViewModel.Reset();
 	}
 
-	SystemViewModel = InSystemViewModel;
-	EmitterHandleViewModel = InEmitterHandleViewModel;
-	TSharedPtr<FNiagaraEmitterViewModel> EmitterViewModel = InEmitterHandleViewModel.IsValid() ? InEmitterHandleViewModel->GetEmitterViewModel() : TSharedPtr<FNiagaraEmitterViewModel>();
-
-	if (SystemViewModel.IsValid() && EmitterViewModel.IsValid() && EmitterViewModel->GetSharedScriptViewModel()->GetGraphViewModel()->GetGraph() != nullptr)
-	{
-		GEditor->RegisterForUndo(this);
-
-		EmitterViewModel->OnScriptCompiled().AddUObject(this, &UNiagaraStackViewModel::OnEmitterCompiled);
-		SystemViewModel->OnSystemCompiled().AddUObject(this, &UNiagaraStackViewModel::OnSystemCompiled);
-		
-		RootEntry = NewObject<UNiagaraStackRoot>(this);
-		UNiagaraStackEntry::FRequiredEntryData RequiredEntryData(SystemViewModel.ToSharedRef(), EmitterViewModel.ToSharedRef(),
-			NAME_None, NAME_None,
-			SystemViewModel->GetOrCreateEditorData().GetStackEditorData());
-		RootEntry->Initialize(RequiredEntryData);
-		RootEntry->RefreshChildren();
-		RootEntry->OnStructureChanged().AddUObject(this, &UNiagaraStackViewModel::EntryStructureChanged);
-		RootEntry->OnDataObjectModified().AddUObject(this, &UNiagaraStackViewModel::EntryDataObjectModified);
-		RootEntry->OnRequestFullRefresh().AddUObject(this, &UNiagaraStackViewModel::EntryRequestFullRefresh);
-		RootEntry->OnRequestFullRefreshDeferred().AddUObject(this, &UNiagaraStackViewModel::EntryRequestFullRefreshDeferred);
-		RootEntries.Add(RootEntry);
-	}
+	TopLevelViewModels.Empty();
+	
+	GEditor->UnregisterForUndo(this);
 
 	CurrentFocusedSearchMatchIndex = -1;
-	StructureChangedDelegate.Broadcast();
 	bRestartSearch = false;
 	bRefreshPending = false;
+	bUsesTopLevelViewModels = false;
 }
 
 void UNiagaraStackViewModel::Finalize()
 {
-	Initialize(nullptr, nullptr);
+	Reset();
 }
 
 void UNiagaraStackViewModel::BeginDestroy()
@@ -165,36 +238,69 @@ void UNiagaraStackViewModel::CollapseToHeaders()
 void UNiagaraStackViewModel::UndismissAllIssues()
 {
 	FScopedTransaction ScopedTransaction(LOCTEXT("UnDismissIssues", "Undismiss issues"));
-	UNiagaraStackEditorData& EmitterData = GetEmitterHandleViewModel()->GetEmitterViewModel()->GetEditorData().GetStackEditorData();
-	EmitterData.Modify();
-	EmitterData.UndismissAllIssues();
 
-	UNiagaraStackEditorData& SystemData = GetSystemViewModel()->GetEditorData().GetStackEditorData();
-	SystemData.Modify();
-	SystemData.UndismissAllIssues();
+	TArray<UNiagaraStackEditorData*> StackEditorDatas;
+	for (TSharedRef<UNiagaraStackViewModel::FTopLevelViewModel> TopLevelViewModel : TopLevelViewModels)
+	{
+		if (TopLevelViewModel->IsValid())
+		{
+			StackEditorDatas.AddUnique(TopLevelViewModel->GetStackEditorData());
+		}
+	}
+
+	for (UNiagaraStackEditorData* StackEditorData : StackEditorDatas)
+	{
+		StackEditorData->Modify();
+		StackEditorData->UndismissAllIssues();
+	}
 	
 	RootEntry->RefreshChildren();
 }
 
 bool UNiagaraStackViewModel::HasDismissedStackIssues()
 {
-	return GetSystemViewModel()->GetEditorData().GetStackEditorData().GetDismissedStackIssueIds().Num() > 0
-		|| GetEmitterHandleViewModel()->GetEmitterViewModel()->GetEditorData().GetStackEditorData().GetDismissedStackIssueIds().Num() > 0;
-}
-
-bool UNiagaraStackViewModel::HasEmitterSource() const
-{
-	return EmitterHandleViewModel->GetEmitterHandle()->GetSource() != nullptr;
-}
-
-void UNiagaraStackViewModel::RemoveEmitterSource()
-{
+	for (TSharedRef<FTopLevelViewModel> TopLevelViewModel : TopLevelViewModels)
 	{
-		FScopedTransaction ScopedTransaction(LOCTEXT("RemoveEmitterSourceTransaction", "Remove Emitter Source"));
-		SystemViewModel->GetSystem().Modify();
-		EmitterHandleViewModel->GetEmitterHandle()->RemoveSource();
+		if (TopLevelViewModel->IsValid() && TopLevelViewModel->GetStackEditorData()->GetDismissedStackIssueIds().Num() > 0)
+		{
+			return true;
+		}
 	}
-	RootEntry->RefreshChildren();
+	return false;
+}
+
+const TArray<TSharedRef<UNiagaraStackViewModel::FTopLevelViewModel>>& UNiagaraStackViewModel::GetTopLevelViewModels() const
+{
+	return TopLevelViewModels;
+}
+
+TSharedPtr<UNiagaraStackViewModel::FTopLevelViewModel> UNiagaraStackViewModel::GetTopLevelViewModelForEntry(UNiagaraStackEntry& InEntry) const
+{
+	if (InEntry.GetEmitterViewModel().IsValid())
+	{
+		const TSharedRef<FTopLevelViewModel>* MatchingTopLevelViewModel = TopLevelViewModels.FindByPredicate([&InEntry](const TSharedRef<FTopLevelViewModel>& TopLevelViewModel) 
+		{ 
+			return TopLevelViewModel->EmitterHandleViewModel.IsValid() && TopLevelViewModel->EmitterHandleViewModel->GetEmitterViewModel() == InEntry.GetEmitterViewModel(); 
+		});
+
+		if (MatchingTopLevelViewModel != nullptr)
+		{
+			return *MatchingTopLevelViewModel;
+		}
+	}
+	else
+	{
+		const TSharedRef<FTopLevelViewModel>* MatchingTopLevelViewModel = TopLevelViewModels.FindByPredicate([&InEntry](const TSharedRef<FTopLevelViewModel>& TopLevelViewModel) 
+		{ 
+			return TopLevelViewModel->SystemViewModel == InEntry.GetSystemViewModel(); 
+		});
+
+		if (MatchingTopLevelViewModel != nullptr)
+		{
+			return *MatchingTopLevelViewModel;
+		}
+	}
+	return TSharedPtr<FTopLevelViewModel>();
 }
 
 void UNiagaraStackViewModel::CollapseToHeadersRecursive(TArray<UNiagaraStackEntry*> Entries)
@@ -237,6 +343,11 @@ void UNiagaraStackViewModel::OnEmitterCompiled()
 	OnSearchTextChanged(CurrentSearchText);
 }
 
+void UNiagaraStackViewModel::EmitterParentRemoved()
+{
+	RootEntry->RefreshChildren();
+}
+
 void UNiagaraStackViewModel::SearchTick()
 {
 	// perform partial searches here, by processing a fixed number of entries (maybe more than one?)
@@ -264,7 +375,6 @@ void UNiagaraStackViewModel::SearchTick()
 
 	if (IsSearching())
 	{
-		UNiagaraStackEditorData& EditorData = GetSystemViewModel()->GetEditorData().GetStackEditorData();
 		double SearchStartTime = FPlatformTime::Seconds();
 		double CurrentSearchLoopTime = SearchStartTime;
 		// process at least one item, but don't go over MaxSearchTime for the rest
@@ -279,9 +389,9 @@ void UNiagaraStackViewModel::SearchTick()
 				TSet<FName> MatchedKeys;
 				for (UNiagaraStackEntry::FStackSearchItem SearchItem : SearchItems)
 				{
-					if (!ItemsToSearch[0].GetEntry()->GetStackEditorDataKey().IsEmpty())
+					if (!EntryToProcess->GetStackEditorDataKey().IsEmpty())
 					{
-						EditorData.SetStackEntryWasExpandedPreSearch(ItemsToSearch[0].GetEntry()->GetStackEditorDataKey(), ItemsToSearch[0].GetEntry()->GetIsExpanded());
+						EntryToProcess->GetStackEditorData().SetStackEntryWasExpandedPreSearch(EntryToProcess->GetStackEditorDataKey(), EntryToProcess->GetIsExpanded());
 					}
 
 					if (ItemMatchesSearchCriteria(SearchItem)) 
@@ -346,7 +456,6 @@ void UNiagaraStackViewModel::GeneratePathForEntry(UNiagaraStackEntry* Root, UNia
 
 void UNiagaraStackViewModel::RestoreStackEntryExpansionPreSearch()
 {
-	UNiagaraStackEditorData& StackEditorData = SystemViewModel->GetEditorData().GetStackEditorData();
 	GenerateTraversalEntries(RootEntry, TArray<UNiagaraStackEntry*>(), ItemsToRestoreExpansionState);
 
 	while (ItemsToRestoreExpansionState.Num() != 0)
@@ -354,10 +463,11 @@ void UNiagaraStackViewModel::RestoreStackEntryExpansionPreSearch()
 		UNiagaraStackEntry* EntryToProcess = ItemsToRestoreExpansionState[0].GetEntry();
 		if (EntryToProcess->GetIsSearchResult() && !EntryToProcess->IsA<UNiagaraStackRoot>())
 		{
-			for (auto EntryToExpand : ItemsToRestoreExpansionState[0].EntryPath)
+			for (UNiagaraStackEntry* EntryToExpand : ItemsToRestoreExpansionState[0].EntryPath)
 			{
 				if (!EntryToExpand->IsA<UNiagaraStackRoot>())
 				{
+					UNiagaraStackEditorData& StackEditorData = EntryToExpand->GetStackEditorData();
 					EntryToExpand->SetIsExpanded(StackEditorData.GetStackEntryWasExpandedPreSearch(EntryToExpand->GetStackEditorDataKey(), false));
 				}
 			}
@@ -383,85 +493,100 @@ UNiagaraStackViewModel::FOnSearchCompleted& UNiagaraStackViewModel::OnSearchComp
 
 bool UNiagaraStackViewModel::GetShowAllAdvanced() const
 {
-	if (SystemViewModel.IsValid() && EmitterHandleViewModel.IsValid())
+	for (TSharedRef<FTopLevelViewModel> TopLevelViewModel : TopLevelViewModels)
 	{
-		return SystemViewModel->GetEditorData().GetStackEditorData().GetShowAllAdvanced() ||
-			EmitterHandleViewModel->GetEmitterViewModel()->GetEditorData().GetStackEditorData().GetShowAllAdvanced();
+		if (TopLevelViewModel->IsValid() && TopLevelViewModel->GetStackEditorData()->GetShowAllAdvanced())
+		{
+			return true;
+		}
 	}
 	return false;
 }
 
 void UNiagaraStackViewModel::SetShowAllAdvanced(bool bInShowAllAdvanced)
 {
-	if (SystemViewModel.IsValid() && EmitterHandleViewModel.IsValid())
+	for (TSharedRef<FTopLevelViewModel> TopLevelViewModel : TopLevelViewModels)
 	{
-		SystemViewModel->GetOrCreateEditorData().GetStackEditorData().SetShowAllAdvanced(bInShowAllAdvanced);
-		EmitterHandleViewModel->GetEmitterViewModel()->GetOrCreateEditorData().GetStackEditorData().SetShowAllAdvanced(bInShowAllAdvanced);
-		OnSearchTextChanged(CurrentSearchText);
-		StructureChangedDelegate.Broadcast();
+		if (TopLevelViewModel->IsValid()) 
+		{
+			TopLevelViewModel->GetStackEditorData()->SetShowAllAdvanced(bInShowAllAdvanced);
+		}
 	}
+
+	OnSearchTextChanged(CurrentSearchText);
+	StructureChangedDelegate.Broadcast();
 }
 
 bool UNiagaraStackViewModel::GetShowOutputs() const
 {
-	if (SystemViewModel.IsValid() && EmitterHandleViewModel.IsValid())
+	for (TSharedRef<FTopLevelViewModel> TopLevelViewModel : TopLevelViewModels)
 	{
-		return SystemViewModel->GetEditorData().GetStackEditorData().GetShowOutputs() ||
-			EmitterHandleViewModel->GetEmitterViewModel()->GetEditorData().GetStackEditorData().GetShowOutputs();
+		if (TopLevelViewModel->IsValid() && TopLevelViewModel->GetStackEditorData()->GetShowOutputs())
+		{
+			return true;
+		}
 	}
 	return false;
 }
 
 void UNiagaraStackViewModel::SetShowOutputs(bool bInShowOutputs)
 {
-	if (SystemViewModel.IsValid() && EmitterHandleViewModel.IsValid())
+	for (TSharedRef<FTopLevelViewModel> TopLevelViewModel : TopLevelViewModels)
 	{
-		SystemViewModel->GetOrCreateEditorData().GetStackEditorData().SetShowOutputs(bInShowOutputs);
-		EmitterHandleViewModel->GetEmitterViewModel()->GetOrCreateEditorData().GetStackEditorData().SetShowOutputs(bInShowOutputs);
-		OnSearchTextChanged(CurrentSearchText);
-
-		// Showing outputs changes indenting so a full refresh is needed.
-		RootEntry->RefreshChildren();
+		if (TopLevelViewModel->IsValid())
+		{
+			TopLevelViewModel->GetStackEditorData()->SetShowOutputs(bInShowOutputs);
+		}
 	}
+	
+	// Showing outputs changes indenting so a full refresh is needed.
+	OnSearchTextChanged(CurrentSearchText);
+	RootEntry->RefreshChildren();
 }
 
 bool UNiagaraStackViewModel::GetShowLinkedInputs() const
 {
-	if (SystemViewModel.IsValid() && EmitterHandleViewModel.IsValid())
+	for (TSharedRef<FTopLevelViewModel> TopLevelViewModel : TopLevelViewModels)
 	{
-		return SystemViewModel->GetEditorData().GetStackEditorData().GetShowLinkedInputs() ||
-			EmitterHandleViewModel->GetEmitterViewModel()->GetEditorData().GetStackEditorData().GetShowLinkedInputs();
+		if (TopLevelViewModel->IsValid() && TopLevelViewModel->GetStackEditorData()->GetShowLinkedInputs())
+		{
+			return true;
+		}
 	}
 	return false;
 }
 
 void UNiagaraStackViewModel::SetShowLinkedInputs(bool bInShowLinkedInputs)
 {
-	if (SystemViewModel.IsValid() && EmitterHandleViewModel.IsValid())
+	for (TSharedRef<FTopLevelViewModel> TopLevelViewModel : TopLevelViewModels)
 	{
-		SystemViewModel->GetOrCreateEditorData().GetStackEditorData().SetShowLinkedInputs(bInShowLinkedInputs);
-		EmitterHandleViewModel->GetEmitterViewModel()->GetOrCreateEditorData().GetStackEditorData().SetShowLinkedInputs(bInShowLinkedInputs);
-		OnSearchTextChanged(CurrentSearchText);
-
-		// Showing linked inputs changes indenting so a full refresh is needed.
-		RootEntry->RefreshChildren();
+		if (TopLevelViewModel->IsValid())
+		{
+			TopLevelViewModel->GetStackEditorData()->SetShowLinkedInputs(bInShowLinkedInputs);
+		}
 	}
+
+	// Showing linked inputs changes indenting so a full refresh is needed.
+	OnSearchTextChanged(CurrentSearchText);
+	RootEntry->RefreshChildren();
 }
 
 double UNiagaraStackViewModel::GetLastScrollPosition() const
 {
+	// TODO: Fix this with the new overview paradigm.
 	if (EmitterHandleViewModel.IsValid())
 	{
-		return EmitterHandleViewModel->GetEmitterViewModel()->GetEditorData().GetStackEditorData().GetLastScrollPosition();
+		return EmitterHandleViewModel.Pin()->GetEmitterViewModel()->GetEditorData().GetStackEditorData().GetLastScrollPosition();
 	}
 	return 0;
 }
 
 void UNiagaraStackViewModel::SetLastScrollPosition(double InLastScrollPosition)
 {
+	// TODO: Fix this with the new overview paradigm.
 	if (EmitterHandleViewModel.IsValid())
 	{
-		EmitterHandleViewModel->GetEmitterViewModel()->GetOrCreateEditorData().GetStackEditorData().SetLastScrollPosition(InLastScrollPosition);
+		EmitterHandleViewModel.Pin()->GetEmitterViewModel()->GetOrCreateEditorData().GetStackEditorData().SetLastScrollPosition(InLastScrollPosition);
 	}
 }
 
@@ -478,13 +603,20 @@ void UNiagaraStackViewModel::PostUndo(bool bSuccess)
 
 void UNiagaraStackViewModel::EntryStructureChanged()
 {
+	if (bUsesTopLevelViewModels)
+	{
+		RefreshTopLevelViewModels();
+	}
 	StructureChangedDelegate.Broadcast();
 	OnSearchTextChanged(CurrentSearchText);
 }
 
 void UNiagaraStackViewModel::EntryDataObjectModified(UObject* ChangedObject)
 {
-	SystemViewModel->NotifyDataObjectChanged(ChangedObject);
+	if (SystemViewModel.IsValid())
+	{
+		SystemViewModel.Pin()->NotifyDataObjectChanged(ChangedObject);
+	}
 	OnSearchTextChanged(CurrentSearchText);
 }
 
@@ -497,6 +629,56 @@ void UNiagaraStackViewModel::EntryRequestFullRefresh()
 void UNiagaraStackViewModel::EntryRequestFullRefreshDeferred()
 {
 	bRefreshPending = true;
+}
+
+void UNiagaraStackViewModel::RefreshTopLevelViewModels()
+{
+	TArray<TSharedRef<FTopLevelViewModel>> CurrentTopLevelViewModels = TopLevelViewModels;
+	TopLevelViewModels.Empty();
+
+	TArray<UNiagaraStackEntry*> RootChildren;
+	RootEntry->GetUnfilteredChildren(RootChildren);
+	for (UNiagaraStackEntry* RootChild : RootChildren)
+	{
+		if (RootChild->IsA<UNiagaraStackSpacer>())
+		{
+			// Skip spacers they're not a good indication of top level object.  This will be unnecessary when spacers are removed.
+			continue;
+		}
+
+		TSharedPtr<FTopLevelViewModel> TopLevelViewModel;
+		if (RootChild->GetEmitterViewModel().IsValid())
+		{
+			TSharedPtr<FNiagaraEmitterHandleViewModel> RootChildEmitterHandleViewModel = RootChild->GetSystemViewModel()->GetEmitterHandleViewModelForEmitter(RootChild->GetEmitterViewModel()->GetEmitter());
+			TSharedRef<FTopLevelViewModel>* CurrentTopLevelViewModelPtr = CurrentTopLevelViewModels.FindByPredicate(
+				[&RootChildEmitterHandleViewModel](const TSharedRef<FTopLevelViewModel>& TopLevelViewModel) { return TopLevelViewModel->EmitterHandleViewModel == RootChildEmitterHandleViewModel; });
+			if (CurrentTopLevelViewModelPtr != nullptr)
+			{
+				TopLevelViewModel = *CurrentTopLevelViewModelPtr;
+			}
+			else
+			{
+				TopLevelViewModel = MakeShared<FTopLevelViewModel>(RootChildEmitterHandleViewModel);
+			}
+		}
+		else
+		{
+			TSharedRef<FTopLevelViewModel>* CurrentTopLevelViewModelPtr = CurrentTopLevelViewModels.FindByPredicate(
+				[RootChild](const TSharedRef<FTopLevelViewModel>& TopLevelViewModel) { return TopLevelViewModel->SystemViewModel == RootChild->GetSystemViewModel(); });
+			if (CurrentTopLevelViewModelPtr != nullptr)
+			{
+				TopLevelViewModel = *CurrentTopLevelViewModelPtr;
+			}
+			else
+			{
+				TopLevelViewModel = MakeShared<FTopLevelViewModel>(RootChild->GetSystemViewModel());
+			}
+		}
+		if (TopLevelViewModels.ContainsByPredicate([&TopLevelViewModel](const TSharedRef<FTopLevelViewModel>& ExistingTopLevelViewModel) { return *TopLevelViewModel == *ExistingTopLevelViewModel; }) == false)
+		{
+			TopLevelViewModels.Add(TopLevelViewModel.ToSharedRef());
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

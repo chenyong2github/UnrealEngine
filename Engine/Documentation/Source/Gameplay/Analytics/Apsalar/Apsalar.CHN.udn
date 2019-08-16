@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:2601374
+﻿INTSourceChangelist:3108692
 Availability:Public
 Title:Apsalar
 Crumbs: %ROOT%, Gameplay, Gameplay/Analytics
@@ -11,6 +11,7 @@ Description:Apsalar 是一项 Facebook 移动广告分析服务，最新版本�
  获得应用程序密钥和唯一识别您的应用程序的密码，然后下载已编译到 Apsalar 插件的库。请查看该插件相应的“<PlatformAndName>.Build.cs”文件，
  以了解应将库和标头置于何处。 
  
+(#Configuration)
 ## 配置
 
 完成先决条件并且成功为目标平台构建插件后，您便可为游戏配置插件。自 4.5 版本起，有五个配置 

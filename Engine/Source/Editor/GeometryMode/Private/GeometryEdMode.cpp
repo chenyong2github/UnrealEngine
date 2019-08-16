@@ -228,7 +228,7 @@ int32 FEdModeGeometry::CountSelectedPolygons()
 * @param	InPolygons	An array to fill with the selected polygons.
 */
 
-void FEdModeGeometry::GetSelectedPolygons( TArray<FGeomPoly*>& InPolygons )
+void FEdModeGeometry::GetSelectedPolygons( TArray<FGeomPoly*>& InPolygons ) const
 {
 	for( int32 ObjectIdx = 0 ; ObjectIdx < GeomObjects.Num() ; ++ObjectIdx )
 	{
@@ -317,7 +317,7 @@ bool FEdModeGeometry::HaveEdgesSelected()
 *
 * @param	InEdges	An array to fill with the selected edges.
 */
-void FEdModeGeometry::GetSelectedEdges( TArray<FGeomEdge*>& InEdges )
+void FEdModeGeometry::GetSelectedEdges( TArray<FGeomEdge*>& InEdges ) const
 {
 	for( int32 ObjectIdx = 0 ; ObjectIdx < GeomObjects.Num() ; ++ObjectIdx )
 	{
@@ -384,7 +384,7 @@ bool FEdModeGeometry::HaveVerticesSelected()
 *
 * @param	InVerts		An array to fill with the unique list of selected vertices.
 */
-void FEdModeGeometry::GetSelectedVertices( TArray<FGeomVertex*>& InVerts )
+void FEdModeGeometry::GetSelectedVertices( TArray<FGeomVertex*>& InVerts ) const
 {
 	InVerts.Empty();
 
@@ -439,6 +439,47 @@ FVector FEdModeGeometry::GetWidgetLocation() const
 bool FEdModeGeometry::IsCompatibleWith(FEditorModeID OtherModeID) const
 {
 	return OtherModeID == FBuiltinEditorModes::EM_Bsp;
+}
+
+bool FEdModeGeometry::ComputeBoundingBoxForViewportFocus(AActor* Actor, UPrimitiveComponent* PrimitiveComponent, FBox& InOutBox) const
+{
+	if (Actor->IsA<ABrush>())
+	{
+		TArray<FGeomVertex*> SelectedVertices;
+		TArray<FGeomPoly*> SelectedPolys;
+		TArray<FGeomEdge*> SelectedEdges;
+
+		GetSelectedVertices(SelectedVertices);
+		GetSelectedPolygons(SelectedPolys);
+		GetSelectedEdges(SelectedEdges);
+
+		if (SelectedVertices.Num() + SelectedPolys.Num() + SelectedEdges.Num() > 0)
+		{
+			InOutBox.Init();
+
+			for (FGeomVertex* Vertex : SelectedVertices)
+			{
+				InOutBox += Vertex->GetWidgetLocation();
+			}
+
+			for (FGeomPoly* Poly : SelectedPolys)
+			{
+				InOutBox += Poly->GetWidgetLocation();
+			}
+
+			for (FGeomEdge* Edge : SelectedEdges)
+			{
+				InOutBox += Edge->GetWidgetLocation();
+			}
+
+			// Zoom out a little bit so you can see the selection
+			InOutBox = InOutBox.ExpandBy(25);
+
+			return true;
+		}
+	}
+
+	return false;
 }
 
 // ------------------------------------------------------------------------------

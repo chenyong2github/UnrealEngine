@@ -1,8 +1,8 @@
-﻿INTSourceChangelist:4649792
+INTSourceChangelist:4649792
 Availability: Public
 Crumbs:%ROOT%
-Title: 클로딩 툴 프로퍼티 참고서
-Description: 클로딩 툴에서 사용할 수 있는 프로퍼티 참고서입니다.
+Title: 클로딩 툴 프로퍼티 레퍼런스
+Description: 클로딩 툴에서 사용할 수 있는 프로퍼티 레퍼런스입니다.
 Type:reference
 Version:4.17
 Parent:Engine/Physics/Cloth/Overview
@@ -204,7 +204,7 @@ Tags:Cloth
 
 ### 클로스 페인팅
 
-**Cloth Painting** (클로스 페인팅) 섹션에서는 브러시, 그레디언트, 스무드, 채우기 등 여러가지 툴을 선택할 수 있습니다.
+**Cloth Painting** (클로스 페인팅) 섹션에서는 브러시, 그레이디언트, 스무드, 채우기 등 여러가지 툴을 선택할 수 있습니다.
 
 [애셋](#애셋) 창에서 클로딩 애셋을 선택한 뒤 **Enable Paint Tools** (페인트 툴 활성화) 버튼을 클릭해야 이 프로퍼티를 채울 수 있습니다.
 
@@ -213,7 +213,7 @@ Tags:Cloth
 클로스 값을 칠할 때 사용할 툴 유형입니다.
 
 * [브러시](#브러시)
-* [그레디언트](#그레디언트)
+* [그레이디언트](#그레이디언트)
 * [스무드](#스무드)
 * [채우기](#채우기)
 
@@ -245,9 +245,9 @@ Tags:Cloth
 | **Ignore back-facing** | 뒷면 무시 - 칠할 때 뒷면을 향하는 트라이앵글을 무시할지 입니다. |
 [/REGION]
 
-#### 그레디언트
+#### 그레이디언트
 
-**Gradient** (그레디언트) 툴은 선택된 클로스 값 세트의 한 값에서 다른 값으로 서서히 변해가는 그레디언트를 칠합니다.
+**Gradient** (그레이디언트) 툴은 선택된 클로스 값 세트의 한 값에서 다른 값으로 서서히 변해가는 그레이디언트를 칠합니다.
 
 ![](Gradient.png)
 
@@ -262,8 +262,8 @@ Tags:Cloth
 | **Cull Backface** | 뒷면 컬링 - 메시 프리뷰를 렌더링할 때 뒷면 트라이앵글을 컬링할지 입니다. |
 | **Opacity** | 불투명도 - 메시 프리뷰의 불투명도 값으로, 메시를 통과해 볼 수 있도록 합니다. |
 | [REGION:tablesection] Tool Settings [/REGION] ||
-| **Gradient Start Value** | 그레디언트 시작 값 - 시작 지점의 그레디언트 값입니다. |
-| **Gradient End Value** | 그레디언트 끝 값 - 끝 지점의 그레디언트 값입니다. |
+| **Gradient Start Value** | 그레이디언트 시작 값 - 시작 지점의 그레이디언트 값입니다. |
+| **Gradient End Value** | 그레이디언트 끝 값 - 끝 지점의 그레이디언트 값입니다. |
 | **Use Regular Brush** | 일반 브러시 사용 - 점이 아닌 브러시를 사용하여 선택 지점을 칠합니다. |
 | [REGION:tablesection] Brush [/REGION] ||
 | **Radius** | 반경 - 칠할 때 사용할 브러시 반경입니다. |

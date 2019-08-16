@@ -1,0 +1,82 @@
+Availability: Public
+Crumbs: %ROOT%
+Title: Samsung Gear VR Headset Prerequisites
+Description: Required initial setup for the Gear VR Headset
+Type: Reference
+Version: 4.17
+parent:Platforms/VR/GearVR
+Order: 1
+tags:VR
+tags:Gear VR
+tags:Basics
+tags:Getting Started
+prereq: Engine\Blueprints\GettingStarted
+prereq:Platforms/Mobile/Android/GettingStarted/
+topic-image:Platforms\VR\GearVR\SamsungGearVRDevelopment_topic.png
+
+[TOC(start:1 end:2)]
+
+![](Platforms\VR\GearVR\QuickStart\GVR_Headset_00.png)
+
+Unreal Engine 4 (UE4) offers support for building Virtual Reality (VR) projects for the Samsung Gear VR Headset that can transform your supported Samsung Smartphone into an immersive VR device. In the following sections, we will go over everything you need to know to get your UE4 project properly set up so that it can work with the Samsung Gear VR headset.
+
+## Gear VR Official Documentation
+
+For an in-depth look at how the Gear VR SDK works or for more information on Oculus Mobile VR development, check out the official Oculus documents linked below.
+
+* [Oculus Mobile Software Development Kit (SDK) Device and Environment Setup Guide](http://static.oculus.com/sdk-downloads/documents/Oculus_Mobile_v0.4.0_Device_and_Environment_Setup_Guide.pdf)
+* [Oculus Mobile Development Documentation](http://static.oculus.com/sdk-downloads/documents/Oculus_Mobile_v0.5.0_SDK_Documentation.pdf)
+
+
+## Gear VR Headset Prerequisites 
+
+Before we can get into UE4 Gear VR development, we first must make sure that the following prerequisites are fulfilled because if we don't, we run the risk of having Gear VR projects not working with the Gear VR Headset. 
+
+* Make sure you have the USB cord used for charging your Samsung Galaxy Smartphone available and plugged into a USB port on the PC you are developing on. 
+The USB cord is of vital importance, as this is how you transfer data between your development PC and your Smartphone.
+
+* Only the following types of Samsung Galaxy Smartphones will work with the Gear VR Headset. 
+    * Galaxy Note 8, S8, S8+, S7, S7 edge, Note5, S6 edge+, S6, S6 Edge
+    * For more information, make sure to check out the [Samsung GearVR website](http://www.samsung.com/global/galaxy/gear-vr/).
+
+* Make sure to download and install the specific USB drivers for your Galaxy Smartphone from the [Samsung Website](http://www.samsung.com/us/support/downloads). 
+
+* Install the **CodeWorks for Android 1R6u1**, which can be found in **Engine\Extras\Android**.  
+
+* Check to see if [Developer Mode](https://docs.unrealengine.com/latest/INT/Platforms/Mobile/Android/GettingStarted/2/index.html ) has been enabled on your Samsung Galaxy Smartphone and if not, enable it. 
+
+* To make sure your PC will always recognize your device after unplugging/plugging it in, you can enable **USB Debugging** in the developer options. When doing so, make sure to accept the RSA Fingerprint key from your PC, or you will not be able to deploy to your device.
+
+    ![](USB_Debugging_Enabled.png)(w:350)
+
+* Generate and download the **OSIG File** for your Samsung Smartphone using your Smartphone's Device ID and the [Oculus](https://developer.oculus.com/tools/osig/) website.
+If you are not sure how to get your Smartphone's **Device ID**, the [Oculus website](https://developer.oculus.com/tools/osig/) has detailed directions on how to do this.
+    
+    ![](Platforms\VR\GearVR\GVR_OSIG_Website.png)
+
+* After you download the OSIG file, create a folder called **assets** and place the **OSIG** file inside of it. 
+Then, place that folder in **Engine/Build/Android/Java**. 
+
+    [region:warning]
+    If you do not do this, your project will fail to launch on your Smartphone.
+    [/region]
+    
+    ![](Platforms\VR\GearVR\GVR_OSIG_File_Location.png)
+
+* You can also place the OSIG file in your project's **Build/Android/assets** directory instead of Engine/Build/Android/Java. 
+
+    [region:note]
+    Keep in mind that adding your OSIG file in this manner will result in your OSIG file only being used in the project that it is added to and not for any Gear VR project.
+    [/region]
+
+
+It is very important that you make sure all items listed in the Gear VR Prerequisites section are completed before moving on to the next part. 
+Skipping a step could result in your project not working with the Gear VR Headset. 
+
+## Gear VR Development
+
+[REGION:buttonlist]
+* [](Platforms/VR/GearVR/QuickStart "%Platforms/VR/GearVR/QuickStart:description%")
+* [](Platforms/VR/GearVR/BestPractices "%Platforms/VR/GearVR/BestPractices:description%")
+* [](Platforms/VR/GearVR/Debugging "%Platforms/VR/GearVR/BestPractices:description%")
+[/REGION]

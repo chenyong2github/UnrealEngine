@@ -151,12 +151,12 @@ namespace UnrealGameSync
 			UpdateOkButton();
 		}
 
-		public static bool ShowModal(IWin32Window Owner, string ServerAndPort, string UserName, TextWriter Log, out string SelectedUserName)
+		public static bool ShowModal(IWin32Window Owner, PerforceConnection Perforce, TextWriter Log, out string SelectedUserName)
 		{
 			EnumerateUsersTask Task = new EnumerateUsersTask();
 
 			string ErrorMessage;
-			ModalTaskResult Result = PerforceModalTask.Execute(Owner, null, ServerAndPort, UserName, Task, "Finding users", "Finding users, please wait...", Log, out ErrorMessage);
+			ModalTaskResult Result = PerforceModalTask.Execute(Owner, Perforce, Task, "Finding users", "Finding users, please wait...", Log, out ErrorMessage);
 			if(Result != ModalTaskResult.Succeeded)
 			{
 				if(!String.IsNullOrEmpty(ErrorMessage))

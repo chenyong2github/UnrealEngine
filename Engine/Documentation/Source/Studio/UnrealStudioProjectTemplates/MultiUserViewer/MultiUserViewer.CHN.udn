@@ -1,0 +1,60 @@
+INTSourceChangelist:5282493
+Availability: Public
+Crumbs: 
+Title:Unreal Studio多用户查看器模板
+Description:介绍如何借助多用户查看器模板开始进行协作式VR和桌面设计审查。
+Type: 
+Version: 4.21
+Parent: Studio/UnrealStudioProjectTemplates
+Order: 
+Tags: Unreal Studio
+Tags: template
+Tags: Multi-user
+topic-image:multiuserviewer-topic.png
+
+
+![](multiuserviewer-banner.png)
+
+多用户查看器模板可将多个人员连接起来，共同体验相同的3D内容。它旨在使组织可以更轻松快捷地实时审查设计并围绕设计展开交流，从而更加高效地识别问题及进行内容迭代。
+
+每个参加者都可以使用配备标准鼠标和键盘的计算机或配备VR头盔和运动控制器的计算机。所有参加者都可以看到每个其他玩家的头像，并能够使用激光笔工具指示环境中的要点，以供所有其他玩家查看。
+
+[REGION:lightbox]
+[![与多个同步用户共同审查](multiuserviewer-overview.png "Review with multiple simulataneous users")](multiuserviewer-overview.png)
+
+*单击查看大图。*
+[/REGION]
+
+多用户查看器模板可以处理多用户查看器体验中固有的大部分难题，包括建立连接及在多台计算机之间复制在线状态信息。可将它作为设计审查体验的起始点，这样你就可以节省设置网络的时间，将更多时间集中在斟酌设计上。
+
+(#workflow)
+## 工作流
+
+多用户查看器模板的典型使用模式是：  
+
+1.  以模板为基础创建新项目，或将模板内容导入到你自己的现有项目中。
+2.  设置项目，使它具有你希望与他人分享的内容。  
+    通常，此过程中涉及到的数据导入和外观开发任务与在任何虚幻引擎项目中执行的这些任务类型相同。有关设置内容时需要注意的具体注意事项（例如，碰撞和寻路网格体）相关的详细信息，请参阅[将你自己的内容与多用户查看器模板配合使用](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVContent)。
+3.  使用虚幻编辑器中内置的工具将项目封装成可执行文件。
+4.  将该文件共享给需要参加协作式审查的人员。
+5.  一个人员启动已封装的虚幻引擎应用程序并以服务器模式启动它。
+6.  需要参加同一个审查会话的其他所有人员在各自的计算机上启动该应用程序的副本并加入服务器会话。
+
+有关介绍使用模板中的默认内容执行上述步骤的详细教程，请参阅[多用户查看器入门](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MultiUserViewerIntro)。
+
+(#gettingstarted)
+## 入门
+
+%Studio/UnrealStudioProjectTemplates/MultiUserViewer/MultiUserViewerIntro:topic%
+
+(#how-toguides)
+## 操作指南
+
+[DIR(output:"topic" parent:"Studio/UnrealStudioProjectTemplates/MultiUserViewer" tags:"how to" end:"1")]
+
+(#reference)
+## 参考
+%Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVControlling:topic%
+
+%Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVNetworking:topic%
+

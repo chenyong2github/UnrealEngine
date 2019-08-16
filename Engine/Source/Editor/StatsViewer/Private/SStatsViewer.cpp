@@ -615,7 +615,7 @@ TSharedRef<SWidget> SStatsViewer::OnGetDisplayMenuContent() const
 			StatsPage->GetToolTip(), 
 			FSlateIcon(), 
 			FUIAction( 
-				FExecuteAction::CreateSP( this, &SStatsViewer::SetDisplayedStats, StatsPage ),
+				FExecuteAction::CreateSP( const_cast<SStatsViewer*>(this), &SStatsViewer::SetDisplayedStats, StatsPage ),
 				FCanExecuteAction(),
 				FIsActionChecked::CreateSP( this, &SStatsViewer::AreStatsDisplayed, StatsPage )
 			),
@@ -640,7 +640,7 @@ TSharedRef<SWidget> SStatsViewer::OnGetObjectSetMenuContent() const
 				FText::FromString( CurrentStats->GetObjectSetToolTip( ObjectSetIndex ) ), 
 				FSlateIcon(), 
 				FUIAction( 
-					FExecuteAction::CreateSP( this, &SStatsViewer::SetObjectSet, ObjectSetIndex ),
+					FExecuteAction::CreateSP( const_cast<SStatsViewer*>(this), &SStatsViewer::SetObjectSet, ObjectSetIndex ),
 					FCanExecuteAction(),
 					FIsActionChecked::CreateSP( this, &SStatsViewer::IsObjectSetSelected, ObjectSetIndex )
 				),
@@ -686,7 +686,7 @@ TSharedRef<SWidget> SStatsViewer::OnGetFilterMenuContent() const
 					FText::Format( LOCTEXT( "FilterMenuEntry_Tooltip", "Search statistics by {FilterName}.\n{FilterDesc}" ), Arguments ), 
 					FSlateIcon(), 
 					FUIAction( 
-						FExecuteAction::CreateSP( this, &SStatsViewer::SetSearchFilter, ColumnIndex ),
+						FExecuteAction::CreateSP( const_cast<SStatsViewer*>(this), &SStatsViewer::SetSearchFilter, ColumnIndex ),
 						FCanExecuteAction(),
 						FIsActionChecked::CreateSP( this, &SStatsViewer::IsSearchFilterSelected, ColumnIndex )
 					),

@@ -79,6 +79,9 @@ namespace MediaTextureResource
 		case EMediaTextureSampleFormat::YUVv210:
 			return PF_R32G32B32A32_UINT;
 
+		case EMediaTextureSampleFormat::Y416:
+			return PF_A16B16G16R16;
+
 		default:
 			return PF_Unknown;
 		}
@@ -92,7 +95,8 @@ namespace MediaTextureResource
 		case EMediaTextureSampleFormat::CharBGR10A2:
 		case EMediaTextureSampleFormat::YUVv210:
 			return PF_A2B10G10R10;
-
+		case EMediaTextureSampleFormat::Y416:
+			return PF_B8G8R8A8;
 		default:
 			return PF_B8G8R8A8;
 		}
@@ -247,22 +251,8 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 			}
 			else if (Sample->GetMediaTextureSampleConverter())
 			{
-				
 				CreateOutputRenderTarget(Sample, Params);
-#if MEDIATEXTURERESOURCE_TRACE_RENDER
-				const bool bDecoded = Sample->GetMediaTextureSampleConverter()->Convert(RenderTargetTextureRHI);
-				if (bDecoded == false)
-				{
-					UE_LOG(LogMediaAssets, VeryVerbose, TEXT("TextureResource %p: Unable to decode video sample using hardware acceleration with time %s at time %s"),
-						this,
-						*Sample->GetTime().ToString(TEXT("%h:%m:%s.%t")),
-						*Params.Time.ToString(TEXT("%h:%m:%s.%t"))
-					);
-				}
-#else
 				Sample->GetMediaTextureSampleConverter()->Convert(RenderTargetTextureRHI);
-#endif
-
 			}
 			else if (MediaTextureResource::RequiresConversion(Sample, Params.SrgbOutput))
 			{
@@ -333,6 +323,9 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 			ClearTexture(Params.ClearColor, Params.SrgbOutput);
 		}
 	}
+	
+	//Cache next available sample time in the MediaTexture owner since we're the only one that can consume from the queue
+	CacheNextAvailableSampleTime(SampleSource);
 
 	// update external texture registration
 	if (!GSupportsImageExternal)
@@ -880,4 +873,18 @@ void FMediaTextureResource::CreateOutputRenderTarget(const TSharedPtr<IMediaText
 	}
 }
 
+void FMediaTextureResource::CacheNextAvailableSampleTime(const TSharedPtr<FMediaTextureSampleSource, ESPMode::ThreadSafe>& InSampleQueue) const
+{
+	FTimespan SampleTime(FTimespan::MinValue());
 
+	if (InSampleQueue.IsValid())
+	{
+		TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> Sample;
+		if (InSampleQueue->Peek(Sample))
+		{
+			SampleTime = Sample->GetTime();
+		}
+	}
+
+	Owner.CacheNextAvailableSampleTime(SampleTime);
+}

@@ -1,4 +1,4 @@
-Availability: Public
+Availability: Docs
 Title:Installing the Robo Recall Mod Kit
 Crumbs:%ROOT%
 Description:Guide to downloading and installing the Robo Recall mod Kit used to make mods for the game
@@ -10,9 +10,9 @@ tags:Robo Recall
 topic-image:install_topic.png
 social-image:install.png
 
-1. [Sign up for an Epic ID](GettingStarted/Installation#bookmark1)
+1. [Sign up for an Epic ID](GettingStarted/Installation#creatinganepicgamesaccount)
 
-1. [Download and install the Epic Games Launcher](GettingStarted/Installation#bookmark2)
+1. [Download and install the Epic Games Launcher](GettingStarted/Installation#downloadingandrunningtheinstaller)
 
 1. Click **Install** to download the Robo Recall Mod Kit from the Epic Games Launcher.
 

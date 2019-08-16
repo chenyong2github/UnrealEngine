@@ -5,9 +5,14 @@
 
 #include "Engine/Engine.h"
 #include "FixedFrameRateCustomTimeStep.h"
-#include "IMediaModule.h"
 #include "ITimeManagementModule.h"
 #include "Misc/App.h"
+
+#if WITH_EDITOR
+#include "Editor.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#endif //WITH_EDITOR
 
 #define LOCTEXT_NAMESPACE "TimecodeSynchronizer"
 
@@ -167,6 +172,17 @@ namespace TimecodeSynchronizerPrivate
 		}
 	};
 
+	void ShowSlateNotification()
+	{
+#if WITH_EDITOR
+		if (GIsEditor)
+		{
+			FNotificationInfo NotificationInfo(LOCTEXT("TimecodeSynchronizerError", "The synchronization failed. Check the Output Log for details."));
+			NotificationInfo.ExpireDuration = 2.0f;
+			FSlateNotificationManager::Get().AddNotification(NotificationInfo);
+		}
+#endif // WITH_EDITOR
+	}
 }
 
 /**
@@ -174,14 +190,13 @@ namespace TimecodeSynchronizerPrivate
  */
 
 UTimecodeSynchronizer::UTimecodeSynchronizer()
-	: bUseCustomTimeStep(false)
-	, CustomTimeStep(nullptr)
-	, FixedFrameRate(30, 1)
+	: FixedFrameRate(30, 1)
 	, TimecodeProviderType(ETimecodeSynchronizationTimecodeType::TimecodeProvider)
 	, TimecodeProvider(nullptr)
 	, MasterSynchronizationSourceIndex(INDEX_NONE)
 	, PreRollingTimecodeMarginOfErrors(4)
 	, PreRollingTimeout(30.f)
+	, bIsTickEnabled(false)
 	, State(ESynchronizationState::None)
 	, StartPreRollingTime(0.0)
 	, bRegistered(false)
@@ -215,6 +230,10 @@ bool UTimecodeSynchronizer::CanEditChange(const UProperty* InProperty) const
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UTimecodeSynchronizer, TimecodeProvider))
 	{
 		return TimecodeProviderType == ETimecodeSynchronizationTimecodeType::TimecodeProvider;
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UTimecodeSynchronizer, FixedFrameRate))
+	{
+		return FrameRateSource == ETimecodeSynchronizationFrameRateSources::CustomFrameRate;
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UTimecodeSynchronizer, MasterSynchronizationSourceIndex))
 	{
@@ -309,7 +328,7 @@ FFrameTime UTimecodeSynchronizer::GetProviderFrameTime() const
 
 FFrameRate UTimecodeSynchronizer::GetFrameRate() const
 {
-	return bUseCustomTimeStep && CustomTimeStep ? CustomTimeStep->GetFixedFrameRate() : FixedFrameRate;
+	return RegisteredCustomTimeStep ? RegisteredCustomTimeStep->GetFixedFrameRate() : FixedFrameRate;
 }
 
 ETimecodeProviderSynchronizationState UTimecodeSynchronizer::GetSynchronizationState() const
@@ -374,28 +393,25 @@ void UTimecodeSynchronizer::Register()
 	{
 		bRegistered = true;
 
-		if (bUseCustomTimeStep)
+		if (FrameRateSource == ETimecodeSynchronizationFrameRateSources::EngineCustomTimeStepFrameRate)
 		{
-			if (GEngine->GetCustomTimeStep())
+			if (GEngine->GetCustomTimeStep() == nullptr)
 			{
-				UE_LOG(LogTimecodeSynchronizer, Error, TEXT("Genlock source is already in place."));
-				SwitchState(ESynchronizationState::Error);
-				return;
-			}
-			else if (!CustomTimeStep)
-			{
-				UE_LOG(LogTimecodeSynchronizer, Error, TEXT("The Genlock source is not set."));
-				SwitchState(ESynchronizationState::Error);
-				return;
-			}
-			else if (!GEngine->SetCustomTimeStep(CustomTimeStep))
-			{
-				UE_LOG(LogTimecodeSynchronizer, Error, TEXT("The Genlock source failed to be set on Engine."));
+				UE_LOG(LogTimecodeSynchronizer, Error, TEXT("Engine does not have Genlock in place."));
 				SwitchState(ESynchronizationState::Error);
 				return;
 			}
 
-			RegisteredCustomTimeStep = CustomTimeStep;
+			UFixedFrameRateCustomTimeStep* FixedFrameRateCustomTimeStep = Cast< UFixedFrameRateCustomTimeStep>(GEngine->GetCustomTimeStep());
+
+			if (FixedFrameRateCustomTimeStep == nullptr)
+			{
+				UE_LOG(LogTimecodeSynchronizer, Error, TEXT("Engine CustomTimeStep must be a FixedFrameRateCustomTimeStep."));
+				SwitchState(ESynchronizationState::Error);
+				return;
+			}
+
+			RegisteredCustomTimeStep = FixedFrameRateCustomTimeStep;
 		}
 		else
 		{
@@ -450,12 +466,7 @@ void UTimecodeSynchronizer::Unregister()
 		}
 		CachedTimecodeProvider = nullptr;
 
-		UEngineCustomTimeStep* TimeStep = GEngine->GetCustomTimeStep();
-		if (TimeStep == RegisteredCustomTimeStep)
-		{
-			GEngine->SetCustomTimeStep(nullptr);
-		}
-		else if (RegisteredCustomTimeStep == nullptr)
+		if (RegisteredCustomTimeStep == nullptr)
 		{
 			GEngine->FixedFrameRate = PreviousFixedFrameRate;
 			GEngine->bUseFixedFrameRate = bPreviousUseFixedFrameRate;
@@ -468,22 +479,15 @@ void UTimecodeSynchronizer::Unregister()
 
 void UTimecodeSynchronizer::SetTickEnabled(bool bEnabled)
 {
-	IMediaModule* MediaModule = FModuleManager::LoadModulePtr<IMediaModule>("Media");
-	if (MediaModule == nullptr)
-	{
-		UE_LOG(LogTimecodeSynchronizer, Error, TEXT("The 'Media' module couldn't be loaded"));
-		SwitchState(ESynchronizationState::Error);
-		return;
-	}
-
-	MediaModule->GetOnTickPreEngineCompleted().RemoveAll(this);
-	if (bEnabled)
-	{
-		MediaModule->GetOnTickPreEngineCompleted().AddUObject(this, &UTimecodeSynchronizer::Tick);
-	}
+	bIsTickEnabled = bEnabled;
 }
 
-void UTimecodeSynchronizer::Tick()
+bool UTimecodeSynchronizer::IsTickable() const
+{
+	return bIsTickEnabled;
+}
+
+void UTimecodeSynchronizer::Tick(float DeltaTime)
 {
 	UpdateSourceStates();
 	CurrentProviderFrameTime = GetProviderFrameTime();
@@ -616,6 +620,7 @@ void UTimecodeSynchronizer::SwitchState(const ESynchronizationState NewState)
 		{
 			TGuardValue<bool> FailScope(bFailGuard, true);
 			StopSynchronization();
+			TimecodeSynchronizerPrivate::ShowSlateNotification();
 			break;
 		}
 
@@ -667,7 +672,7 @@ bool UTimecodeSynchronizer::ShouldTick()
 
 bool UTimecodeSynchronizer::Tick_TestGenlock()
 {
-	if (bUseCustomTimeStep)
+	if (FrameRateSource == ETimecodeSynchronizationFrameRateSources::EngineCustomTimeStepFrameRate)
 	{
 		if (RegisteredCustomTimeStep == nullptr)
 		{
@@ -911,6 +916,10 @@ void UTimecodeSynchronizer::OpenSources()
 				{
 					NonSynchronizedSources.Emplace(InputSource);
 				}
+			}
+			else
+			{
+				UE_LOG(LogTimecodeSynchronizer, Warning, TEXT("Source %d, could not be open."), Index);
 			}
 		}
 	}

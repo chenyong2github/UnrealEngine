@@ -1,10 +1,11 @@
-﻿INTSourceChangelist:3807090
+﻿INTSourceChangelist:6536723
 Availability: Public
 Title: 虚幻引擎 4 术语
 Crumbs: %ROOT%, Gameplay, GettingStarted
 Description: 介绍了应用虚幻引擎4时用到的常用术语。
 version: 4.9
 topic-image:terminology_topic.png
+Order: 5
 
 本页面的目的是介绍当应用 **虚幻引擎 4** 时遇到的常用术语。比如，如果您发现自己会问像 “什么是 Actor”、“什么是 **组件**”、“什么是 Pawn”这样的问题，
 那么本页面便突出介绍了并提供了关于这些类型问题的描述。一旦您理解了每个术语的意思，下面的链接提供了更多文档及如何使用它们的指南。

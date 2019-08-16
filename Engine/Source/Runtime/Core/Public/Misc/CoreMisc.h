@@ -265,6 +265,14 @@ struct CORE_API FScopedScriptExceptionHandler
 	#endif
 #endif
 
+#ifndef SCRIPT_AUDIT_ROUTINES
+	#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		#define SCRIPT_AUDIT_ROUTINES 1
+	#else
+		#define SCRIPT_AUDIT_ROUTINES 0
+	#endif
+#endif
+
 #if DO_BLUEPRINT_GUARD
 struct FFrame;
 

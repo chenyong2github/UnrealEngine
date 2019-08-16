@@ -1,29 +1,683 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6593340
 Availability: Public
-Title:UMG UI 디자이너 퀵스타트 가이드
-Crumbs:%ROOT%, Engine, Engine/UMG
-Description:언리얼 엔진 4 에서 언리얼 모션 그래픽 사용 시작하기 입니다.
-version: 4.9
-tags:UMG UI Designer
-topic-image:UMGQS_Topic.png
+Title: UMG UI 디자이너 퀵스타트 가이드
+Description: 언리얼 엔진 4 에서 언리얼 모션 그래픽 사용 시작 안내입니다.
+Version: 4.22
+Parent: Engine/UMG
+Type: quick start
+type:multi-step
+Tags: UMG UI Designer
+topic-image: UMGQS_Topic.png
+Order: 0
+
+
+[TOC (start:2 end:2)]
 
 이 **퀵 스타트 가이드** 에서는 **언리얼 모션 그래픽 UI 디자이너 (UMG)** 를 사용하여 기본적인 게임내 HUD 요소와 프론트 엔드 메뉴를 구현하는 법을 배워보겠습니다. 헬쓰 및 에너지 바는 물론 플레이어의 탄창을 기록하고 표시하는 법도 살펴보겠습니다. 게임 실행, 해상도 옵션 설정, 게임 종료 등이 가능한 메인 메뉴를 만드는 법도 알아보겠습니다. 거기서 게임 일시정지 또는 메인 메뉴로 돌아가는 데 사용되는 게임내 일시정지 메뉴를 추가하는 법도 배워보겠습니다.
 
 이 가이드 전반에 걸쳐 제공되는 부가 문서 링크를 통해, 각 섹션별로 추가적인 질문이 생길 수 있는 주제를 깊이 파고들 수 있습니다. 이 가이드에서는 각 단계별 진행에 필요한 구체적인 작업을 안내해 드립니다만, 이전에 언리얼 에디터로 작업을 해 본 적이 없는 경우 먼저 **[레벨 디자이너 퀵스타트 가이드](Engine/QuickStart/)** 를 먼저 참고하여 일반적인 에디터 사용법, 용어, 프로세스에 대해 먼저 익숙해 질 것을 추천합니다.
 
+## 1 - 필수 프로젝트 구성
 
-## 단계
-
-[REGION:buttonlist]
-* [](Engine/UMG\QuickStart\1 "%Engine/UMG\QuickStart\1:description%")
-* [](Engine/UMG\QuickStart\2 "%Engine/UMG\QuickStart\2:description%")
-* [](Engine/UMG\QuickStart\3 "%Engine/UMG\QuickStart\3:description%")
-* [](Engine/UMG\QuickStart\4 "%Engine/UMG\QuickStart\4:description%")
-* [](Engine/UMG\QuickStart\5 "%Engine/UMG\QuickStart\5:description%")
-* [](Engine/UMG\QuickStart\6 "%Engine/UMG\QuickStart\6:description%")
+[REGION:note]
+이 튜토리얼에서는 **시작용 콘텐츠** 를 포함시킨 **블루프린트 일인칭** 템플릿을 사용합니다. 새 프로젝트 생성 및 템플릿 사용법을 잘 모르겠는 경우, [](Engine/Basics/Projects/Browser) 문서를 참고하시기 바랍니다.
 [/REGION]
 
+1.  **콘텐츠 브라우저** 에서 **신규 추가** 버튼을 누른 다음, *유저 인터페이스* 아래 **위젯 블루프린트** 를 선택하고 이름을 **HUD** 라 짓습니다.
+
+    ![](RequiredSetup_1.1.png)
+
+    모든 (HUD, 메뉴 등의) 유저 인터페이스 요소는 **위젯 블루프린트** 안에 생성 및 저장됩니다. 위젯 블루프린트를 통해 UI 요소의 시각적 배치는 물론 그 요소에 스크립트 함수 기능을 제공해 줄 수 있습니다. 플레이어 캐릭터가 월드에 스폰되면 표시하기 위해 생성은 하더라도 구성은 나중에 해 주도록 하겠습니다.
+
+    [REGION:note]
+    **위젯 블루프린트** 관련 상세 정보는 [](Engine/UMG/UserGuide/WidgetBlueprints) 문서를 참고하시기 바랍니다.
+    [/REGION]
+
+1.  **위젯 블루프린트** 를 두 개 더 만들어, 이름을 **MainMenu** 와 **PauseMenu** 라 합니다.
+
+    ![](AllWidgets.png)
+
+1.  **콘텐츠 브라우저** 에 **우클릭** 하고 **레벨** 을 새로 만들어 이름을 **Main** 이라 합니다. 
+
+    ![](RequiredSetup_1.3.png)
+
+    나중에 메인 메뉴 구성시 사용할 것입니다.
+
+1.  **콘텐츠 브라우저** 에서 **Content/FirstPersonBP/Blueprints** 폴더 아래 위치한 **FirstPersonCharacter** 블루프린트를 엽니다.
+
+    ![](UMGQS2.png)
+
+    이는 플레이가능 캐릭터의 블루프린트로, 여기서 몇 가지 정보를 만들어 **HUD** 위젯 블루프린트에 전달하여 표시하도록 합니다.
+
+1.  **내 블루프린트** 창에서, **변수 추가** 버튼을 클릭합니다. 
+
+    ![](RequiredSetup_1.5.png)
+
+1.  새 변수의 **디테일** 패널에서, 이름을 **Health** 라 짓고 유형을 **Float** 변수로 변경한 뒤 **Default Value** 를 **1.0** 으로 설정합니다.
+
+    ![](RequiredSetup_1.6.png)
+
+    이 변수는 HUD 에 표시할 플레이어 캐릭터의 생명력을 나타냅니다.
+
+1.  **Float** 변수를 하나 더 만들어 **Energy** 라 하고 **Default Value** 를 **1.0** 으로 설정합니다.
+ 
+    ![](RequiredSetup_1.7.png)
+
+    이 변수는 HUD 에 표시할 플레이어 캐릭터의 에너지를 나타냅니다.
+
+    [REGION:note]
+    Default Value 에 들어갈 수 없다면? 툴바의 **컴파일** 버튼을 클릭하여 블루프린트를 컴파일한 뒤 다시 해 보세요.
+    [/REGION]
+
+1.  **Integer** 유형 변수를 하나 더 만들어 **Ammo** 라 하고, **Default Value** 는 **25** 라 합니다.
+
+    ![](RequiredSetup_1.8.png)
+
+1.  **Integer** 변수를 하나 더 만들고 **MaxAmmo** 라 한 다음 **Default Value** 는 **25** 로 설정합니다.
+
+1.  **그래프** 창 안에서, **Event Begin Play** 노드를 찾습니다. 실행 핀에 우클릭하고 **Break Link to Branch ()** (Branch () 링크 끊기)를 선택합니다. 
+
+    ![](RequiredSetup_1.10.png)
+
+    그러면 Event Begin Play 와의 연결이 끊어져 새로운 기능을 추가할 수 있습니다.
+
+    [REGION:tip]
+    실행 핀을 Alt + 클릭해도 연결을 끊을 수 있습니다.
+    [/REGION]
+
+1.  **Event Begin Play** 노드를 선택하고 왼쪽으로 드래그하여 다음 단계에서 새로 만들 노드의 공간을 확보합니다.
+
+1.  **Event Begin play** 를 끌어 놓고 **Create Widget** 노드를 추가한 뒤 **Class** 를 **HUD** 위젯 블루프린트로 설정합니다.
+
+    ![](RequiredSetup_1.12.png)
+
+1.  **Create HUD_C Widget** 의 **Return Value** 를 끌어놓고 **변수로 승격** 한 다음 이름을 **HUD Reference** 라 합니다.
+
+    ![](RequiredSetup_1.13.png)
+
+    그러면 게임 시작시 HUD 위젯 블루프린트를 생성하여 나중에 접근할 수 있는 변수로 저장합니다. 나중에 HUD 의 프로퍼티 설정이나 함수 호출시 유용한데, 예를 들면 게임 일시정지 도중에는 HUD 를 숨기고 싶다면 이 변수를 통해 HUD 에 접근하면 됩니다.
+
+1.  **Set** 노드의 출력 핀을 끌어놓고 **Add to Viewport** 노드를 추가합니다.
+
+    ![](UMGQS9.png)
+
+    이름에서 알 수 있듯이, 지정된 위젯 블루프린트를 플레이어 뷰포트로의 타깃으로 추가하여 화면상에 그리도록 합니다.
+
+### 캐릭터 변수 조정
+
+실제로 HUD 생성 시작 전에 할 마지막 작업은 캐릭터 변수를 변경할 수 있는 방법을 마련하는 것입니다.
+
+1.  **FirstPersonCharacter** 블루프린트 안에서 **Alt** 키를 누른 채 **Energy** 변수를 끌어 Jump 스크립트 옆에 놓습니다.
+
+    ![Step2_1.png](RequiredSetup_1.2.1.png)
+
+1.  **Ctrl** 키를 누르고 **Energy** 변수의 사본을 배치한 다음 **Float - Float** 노드에 연결하고 **0.25** 로 설정한 뒤 아래와 같이 연결합니다.
+
+    ![](Step2_2.png)
+
+    캐릭터가 점프할 때마다 캐릭터의 현재 Energy 값에서 0.25 를 뺍니다.
+
+1.  **Health** 변수에도 같은 스크립트를 구성해 주되, 테스트를 위해 **F** Key Event (또는 다른 키 눌림 이벤트)를 사용합니다.
+
+    ![](Step2_3.png)
+
+    그러면 키가 눌릴 때마다 HUD 를 통해 Health 변수가 제대로 표시되는지 테스트할 수 있습니다.
+
+1.  **Spawn Projectile** 스크립트를 찾아 **InputAction Fire** 이벤트 다음에 **우클릭** 한 다음 **Branch** (분기) 노드를 추가합니다.
+
+1.  **Branch** (분기)의 조건에는, **Ctrl** 키를 누르고 **Ammo** 변수를 놓은 다음 **Integer > Integer** 에 연결하고 **0** 으로 설정한 뒤 아래와 같이 연결합니다.
+
+    ![](Step2_4.png)(w:820)
+
+    플레이어의 탄창이 0 보다 클 경우에만 탄환(projectile)을 발사할 수 있도록 합니다.
+
+1.  **Spawn Projectile** 스크립트 끝부분 **Play Sound at Location** 다음에, **Ammo** 를 **Ammo - 1** 로 설정합니다.
+
+    ![](RequiredSetup_1.2.5.png)(w:640)
+
+    플레이어가 탄환을 발사할 때마다 Ammo 를 1 씩 빼며, 이것을 HUD 에 표시하면 됩니다.
+
+    [REGION:tip]
+    재장전 기능을 추가하려면, R 키 이벤트를 추가하고, Ammo 변수를 Alt 드래그, Max Ammo 변수를 Ctrl 드래그해 놓은 뒤 아래 이미지와 같이 연결합니다:  
+    ![](RequiredSetup_ReloadAmmoNote.png)
+    [/REGION]
+
+1.  블루프린트를 **컴파일**, **저장** 후 닫습니다.
+
+다음 단계에서는 HUD 에 Health, Energy, Ammo 변수를 표시하고 게임내에서 작동되도록 구성해 주겠습니다.
+
+## 2 - 생명력, 에너지, 탄창 표시
+
+### 비주얼: 생명력, 에너지, 탄창
+
+여기서는 HUD 의 시각적인 면에 대한 구성을 시작하도록 하겠습니다.
+
+1.  **HUD** 위젯 블루프린트를 **위젯 블루프린트 에디터** 에서 엽니다.
+
+    ![Step2_6.png](DisplayingHealth_2.1.png)
+
+    위젯 블루프린트 에디터 안에서 HUD 의 비주얼 레이아웃과 스크립트 함수 기능을 제공해 줄 수 있습니다. 
+
+    [REGION:note]
+    위젯 블루프린트 에디터의 여러가지 부분에 대한 상세 정보는 [](Engine/UMG/UserGuide/WidgetBlueprints) 문서를 참고하세요. 
+    [/REGION]
+
+1.  **팔레트** 창 안의 **Panel** 아래 **Horizontal Box** 를 끌어 **계층구초** 창의 **CanvasPanel** 에 놓습니다.
+
+    ![](DisplayingHealth_2.2.png)
+
+    **Panel** 위젯은 다른 위젯에 대한 일종의 컨테이너로, 그 안의 위젯에 대해 부가적인 함수 기능을 제공하는 것입니다.
+
+1.  또 **Panel** 아래에서 **Vertical Box** 를 두 개 끌어 **Horizontal Box** 위에 놓습니다.
+
+    ![](Step2_8.png)
+
+1.  **Common** 아래 **Text** 위젯을 두 개 끌어 첫째 Vertical Box 에, **Progress Bar** 를 두 개 끌어 둘째 Vertical Box 에 놓습니다.
+
+    ![](Step2_9.png)
+
+1.  **Horizontal Box** 를 선택한 다음 그래프에서 박스가 창의 좌상단 구석에 오도록 크기와 위치를 조정합니다.
+
+    ![](Step2_10.png)
+
+    Progress Bar (진행상황 바)가 매우 작아 보이지만, 걱정 마세요. 바로 고쳐주겠습니다.
+
+1.  **Progress Bar** 를 둘 다 선택한 다음 **디테일** 패널에서 **Size** (크기) 를 **Fill** (채우기)로 설정합니다.
+
+    ![](DisplayingHealth_2.6.png)
+
+1.  진행상황 바가 들어있는 **Vertical Box** 를 선택한 다음 그것도 **채우기** 로 설정합니다.
+
+    ![](DisplayingHealth_2.7.png)
+
+1.  **Horizontal Box** 를 다시 선택한 다음 바와 텍스트가 같은 줄에 오도록 크기를 조절합니다.
+
+    ![](Step2_13.png)
+
+1.  **계층구조** 창에서 가장 위의 **Text** 위젯을 선택한 다음 **디테일** 패널에서 **Content** 아래 **Health :** (생명력이)라 입력합니다.
+
+    ![](DisplayingHealth_2.9.png)
+
+    나머지 **Text** 위젯은 이름을 **Energy** (에너지)라 합니다. 그래프가 다음과 같아 보일 것입니다.
+
+    ![](Step2_15.png)
+
+1.  Health 옆의 **Progress Bar** 를 선택하고 **디테일** 패널에서 **Fill Color and Opacity** (채우기 색 및 불투명도)를 녹색으로 설정합니다.
+
+    ![UMGColorPicker1.jpg](DisplayingHealth_2.10.png)
+
+    색을 정했는데도 진행상황 바의 색이 변하지 않습니다. 왜냐면 바를 채우는 **Percent** 값이 0.0 으로 설정되었기 때문입니다 (이 값을 바꿔 색을 테스트해 볼 수 있는데, 나중에 여기에 캐릭터의 생명력 값을 연동시키도록 하겠습니다).
+
+1.  **Energy** 바에도 채우기 색을 설정해 줍니다 (여기서는 주황색을 선택했습니다).
+
+1.  Ammo (탄창) 표시에는 위의 방법을 사용해서 다음과 같이 배치되도록 **계층구조** 에 위젯을 추가합니다.
+
+    ![](Step2_16.png)
+
+1.  탄창 정보가 들어있는 **Horizontal Box** 를 선택한 채, 우상단 구석에 오도록 크기와 위치를 조정합니다.
+
+    ![](DisplayingHealth_2.13.png)
+
+1.  **Horizontal Box** 를 계속 선택한 채, **디테일** 패널에서 **앵커** 를 클릭한 뒤 우상단 앵커를 선택합니다.
+
+    ![](DisplayingHealth_2.14.png)
+
+    그러면 앵커 메달이 화면 우상단 구석으로 이동됩니다.
+
+    ![](Step2_19.png)
+
+    위젯 **앵커** 를 통해 화면 크기와 상관 없이 앵커 메달 위치를 기준으로 위젯의 표시 위치를 지정할 수 있습니다. 다른 말로 화면 크기가 바뀌면, 위젯을 앵커 메달 위치(이 예제에서는 화면 우상단 구석)에서 똑같은 거리만큼 이동시킨다는 뜻입니다.
+
+    [REGION:note]
+    그래프 내 **Preview Size** (미리보기 크기) 옵션을 클릭하고 변경하여 다른 화면 크기를 테스트해 볼 수 있습니다.
+    [/REGION]
 
 
+### 스크립트: 생명력, 에너지, 탄창
 
+비주얼 레이아웃이 준비되었으니, HUD 요소 배후의 함수 기능을 제공해 줄 것들을 연결해 주면 됩니다.
 
+1.  위젯 블루프린트 에디터 창의 우상단 구석에 있는 **그래프** 버튼을 클릭합니다.
+
+    ![](Step2_20.png)
+
+1.  **그래프** 에서 **Event Construct** 노드 아래 **우클릭** 한 뒤 **Get Player Character** 노드를 추가합니다.
+
+1.  **Return Value** 핀을 끌어놓고 **FirstPersonCharacter 에 형변환** 을 선택합니다.
+
+    ![](ScriptHealthEnergyAmmo_2.3.png)
+
+    여기서는 플레이어 캐릭터에 사용되는 캐릭터 블루프린트가 정말 **First Person Character** 블루프린트인지 검사합니다.
+
+1.  **As First Person Character** 핀을 끌어놓고 **변수로 승격** 을 선택(하고서 이름을 **My Character** 로 설정)한 뒤 아래와 같이 연결합니다.
+
+    ![](Step2_22.png)
+
+    **FirstPersonCharacter** 블루프린트 안에 들어있는 변수에 접근할 수 있게 됩니다.
+
+1.  툴바의 **컴파일** 을 클릭하여 스크립트를 컴파일합니다.
+
+1.  **디자이너** 탭으로 돌아가 **Health** 옆의 **Progress Bar** 를 선택합니다.
+
+1.  **디테일** 패널에서 **Progress** 아래, **Percent** 옆의 **바인드** 옵션을 선택한 다음 **MyCharacter** 의 **Health** 를 사용하도록 설정합니다.
+
+    ![](ScriptHealthEnergyAmmo_2.7.png)
+
+    그러면 Progress Bar 의 값이 **First Person Character** 블루프린트 안의 **Health** 값에 바인딩합니다. 이제 캐릭터 블루프린트의 Health 값이 바뀔 때마다 HUD 의 값도 자동으로 업데이트됩니다. 바인딩 후 Progress Bar 가 변하지 않는 것도 볼 수 있는데, **Event Construct** (이벤트 구성시, 다른 말로 게임이 시작되면 벌어지는 HUD 구성시) 벌어지도록 해놨기 때문입니다.
+
+1.  Energy 옆의 **Progress Bar** 를 선택하고 위 프로세스를 반복, **Percent** 를 **MyCharacter** 의 **Energy** 에 바인딩합니다.
+
+    ![](ScriptHealthEnergyAmmo_2.8.png)
+
+1.  Ammo 텍스트 다음의 25 를 선택한 다음, **Text** 에 대한 **디테일** 패널에서 **바인드** 를 클릭하고 **바인딩 생성** 합니다.
+
+    ![](ScriptHealthEnergyAmmo_2.9.png)
+
+    기존에 **Sub-Object Properties** 를 사용하여 같은 유형의 프로퍼티를 바인딩했던 방식으로, 별도의 커스텀 바인딩을 만들 수도 있습니다. 여기서는 **Text** 프로퍼티를 **First Person Character** 블루프린트의 **Integer** 프로퍼티에 바인딩하여 현재 탄창 수를 표시하도록 하겠습니다.
+
+1.  생성되어 자동으로 열린 함수 안에서 **Ctrl** 키를 누르고 **MyCharacter** 변수를 끌어 그래프에 놓습니다.
+
+    ![Step2_27.png](ScriptHealthEnergyAmmo_2.10.png)
+
+1.  **MyCharacter** 핀을 끌어놓고 **Get Ammo** 를 선택합니다.
+
+1.  Ammo 핀을 **Return Node** 의 **Return Value** 에 연결합니다.
+
+    ![](Step2_28.png)
+
+    연결시 **To Text** 로의 변환 노드가 자동 생성됩니다.
+
+1.  나머지 25 텍스트에도 위 과정을 반복하여 "Max Ammo" 텍스트에 대한 바인딩을 만들어 줍니다.
+
+    ![](Step2_29.png)
+
+    Max Ammo 를 바꾸지 않으려면 필요없는 작업이지만, 아무튼 이렇게 해 주면 바꿀 수 있습니다.
+
+1.  **컴파일**, **저장** 후 **플레이** 버튼을 클릭하여 에디터에서 플레이합니다.
+
+이제 HUD 에 Health, Energy, Ammo 값이 표시되며, 캐릭터 블루프린트의 현재 값이 반영됩니다. **Space** 를 누르면 캐릭터가 점프하면서 에너지가 소모되고, **좌클릭** 은 무기를 발사하며 탄창이 줄고, **F** 키를 누르면 생명력을 잃게 됩니다 (나중에 여기에 대미지 시스템을 연결해 주면 됩니다).
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ RhDX0QrUmTI
+ [/PARAMLITERAL]
+[/OBJECT]
+
+다음 섹션에서는 지금까지 구성한 게임에 로드하는 데 사용할 수 있는 Main Menu (메인 메뉴)를 만들겠습니다.
+
+## 3 - 메인 메뉴 생성
+
+먼저 아래와 같은 메인 메뉴 레아아웃을 만들어 줍니다.
+
+1.  **MainMenu** 위젯 블루프린트를 엽니다.
+
+1.  **디자이너** 탭에서, **팔레트** 의 위젯을 **계층구조** 로 끌어 놓아 아래처럼 구성합니다.
+
+    ![](Hierarchy1.png)
+
+    참고로 **Canvas Panel** 에는 **Image** 하나, **Text** 가 있는 **Vertical Box** 하나, **Text** 가 있는 **Button** 세 개가 들어있습니다.
+
+1.  **계층구조** 에서 **Vertical Box** 를 선택한 다음 **우클릭** 한 뒤 **복사** 합니다.
+
+1.  **Canvas Panel** 에 **우클릭** 한 다음 **붙여넣기** 하여 **Vertical Box** 둘째 사본을 생성합니다.
+
+    ![](Hierarchy2.png)
+
+1.  새로운 **Vertical Box** 에서 **Button** 을 **우클릭** 복사하고 붙여넣어 넷째 Button/Text 위젯을 만듭니다.
+
+    ![](Hierarchy3.png)
+
+1.  첫째 **Vertical Box** 를 선택하고 **디테일** 패널에서 이름을 **MainMenu** 로 변경하고, **isVariable** 옵션을 체크한 뒤 **ZOrder** 를 **1** 로 설정합니다.
+
+    ![](CreatingAMenu_3.6.png)
+
+    명확성을 위해 위젯 이름을 지어주고 접근할 수 있도록 변수로 설정함과 아울러 이미지 위에 나타나도록 **ZOrder** 설정도 해 줍니다. 이 부분은 곧 설정해 주도록 하겠습니다.
+
+1.  다른 **Vertical Box** 를 선택하고 **디테일** 패널에서 이름을 **Options** 로 변경한 뒤, **isVariable** 옵션을 체크하고 **ZOrder** 를 **1** 로 설정합니다.
+
+1.  각 **Button** 이름을 아래 그림처럼 변경합니다.
+
+    ![](Hierarchy5.png)
+
+    각 버튼의 역할을 알 수 있도록 이름을 바꿔주면, 그 함수 기능 스크립트를 짜기가 수월해집니다.
+
+1.  각 **Text** 위젯의 **디테일** 패널 *Content* 아래 **Text** 섹션을 통해 아래와 같이 업데이트합니다.
+
+    ![](CreatingAMenu_3.9.png)
+
+    각 버튼과 메뉴 제목줄에 표시되는 텍스트를 업데이트하고 있습니다.
+
+1.  **Ctrl** 키를 누르고 각 **Button** 을 선택한 다음 **디테일** 패널에서 **Hovered** 에 대한 **Tint** 색을 설정하고 각각의 **Size** 를 **채우기** 로 설정합니다.
+
+    ![](CreatingAMenu_3.10.png)
+
+    모든 버튼의 크기 조절은 물론 마우스를 올렸을 때의 색을 정의하고 있습니다.
+
+1.  **계층구조** 에서 **Image** 를 선택한 다음 **디테일** 에서 *Appearance* 와 *Brush* 아래 사용할 **Texture**, **Sprite**, 또는 **Material** 을 선택합니다.
+
+    ![](CreatingAMenu_3.11.png)
+
+    [REGION:note]
+    이 가이드와 똑같은 것을 사용하려면, 여기서 다운로드하면 됩니다: [예제 배경](ExampleBackground.png) 을 **언리얼 엔진** 에 끌어놓아 임포트합니다 (확인 창이 뜨면 **예** 를 클릭합니다).
+    [/REGION]
+
+1.  **디자이너** 창에서 이미지가 전체 레이아웃에 맞도록 크기를 조절합니다.
+
+    ![](Hierarchy9.png)
+
+1.  **Image** 의 **디테일** 패널에서 **앵커** 버튼을 클릭한 다음 화면 채우기 옵션을 선택합니다. 스케일박스를 사용하여 이미지를 담으면, 종횡비에 맞게 스케일과 크기가 자동 조절되도록 할 수 있습니다.
+
+    ![](CreatingAMenu_3.13.png)
+
+1.  **Vertical Box** 둘 다 선택한 다음 **앵커** 위치를 왼쪽 중앙으로 설정합니다.
+
+    ![](CreatingAMenu_3.14.png)
+
+1.  **Options** Vertical Box 를 선택한 다음 **Visibility** 세팅을 **Hidden** 으로 설정합니다.
+
+    ![](CreatingAMenu_3.15.png)
+
+    옵션은 기본적으로 보이지 않도록 했다가, 스크립트를 통해 보이도록 할 것입니다.
+
+1.  **MainMenu** Vertical Box 를 선택한 다음 **디자이너** 창에서 원하는 대로 크기와 위치를 조정합니다.
+
+    ![](Hierarchy13.png)
+
+1.  각 **Text** 위젯의 **디테일** 패널에서 **Font**, **Size**, **Alignment** 를 설정할 수 있습니다.
+
+    ![](CreatingAMenu_3.17.png)
+
+    이 세팅을 실험하여 원하는 효과를 얻을 수 있습니다.
+
+1.  **Options** Vertical Box 를 원하는 대로 구성한 다음 **Main Menu** Vertical Box 바로 뒤로 옮깁니다.
+
+    ![](Hierarchy15.png)
+
+    한 번에 하나만 보일 것이므로, 서로 겹쳐놔도 괜찮습니다.
+
+메뉴의 비주얼 레이아웃 작업이 끝났으니, 다음 단계에서는 메뉴의 함수 기능 스크립트 작업을 하겠습니다.
+
+## 4 - 메인 메뉴 스크립팅
+
+이제 본격적으로 메인 메뉴 함수 기능 스크립트를 짜 볼 차례입니다. 이번 단계가 끝나면 게임에 메인 메뉴를 띄워, 게임 시작은 물론 옵션 메뉴에서 해상도를 변경할 수도 있을 것입니다.
+
+1.  **MainMenu** 위젯 블루프린트를 열고 **그래프** 탭을 클릭합니다.
+
+    ![](ScriptingMainMenu_4.1.png)
+
+1.  **내 블루프린트** 창에서 **PlayButton** 을 클릭한 다음 **디테일** 패널에서 **On Clicked** (클릭시) 옆의 더하기 부호를 클릭합니다.
+
+    ![](ScriptingMainMenu_4.2.png)
+
+    버튼을 클릭할 때마다 실행되는 노드를 그래프에 추가합니다.
+
+1.  각각의 버튼마다 **On Clicked** 이벤트를 추가합니다.
+
+    ![](ScriptingMainMenu_4.3.png)
+
+    명확성을 위해 메뉴 레이아웃과 비슷한 방식으로 그래프에 버튼을 배치했습니다.
+
+1.  **OnClicked(PlayButton)** 을 끌어 (**FirstPersonExampleMap** 로 설정된) **OpenLevel** 노드와 **Remove from Parent** 노드를 추가합니다.
+
+    ![](ScriptingMainMenu_4.4.png)
+
+    **Level Name** 은 로드하고자 하는 레벨 이름(여기서는 First Person Example 맵)을 나타내는 곳입니다. **Remove from Parent** 노드는 뷰포트에서 *타깃* 위젯 블루프린트를 제거합니다. 타깃은 셀프로 설정되어 있습니다 (레벨 로드 이후 뷰에서 제거하려는 메인 메뉴 위젯 블루프린트입니다).
+
+1.  **Ctrl** 키를 누르고 **MainMenu** 와 **OptionsMenu** 변수를 끌어 놓습니다.
+
+1.  **MainMenu** 를 끌어놓고 **Set Visibility** 노드를 추가합니다. **In Visibility** 를 Hidden 으로 설정합니다.
+
+1.  또하나 끌어놓고 **Set Visibility** 노드를 추가합니다. **Invisibility** 를 Visible 로 설정합니다.
+
+1.  타깃을 **OptionsMenu** 변수에 붙입니다.
+
+    ![](OptionsButton.png)(w:820)
+
+    옵션 버튼을 클릭하면 메인 메뉴를 끄고 옵션 메뉴를 켭니다.
+
+1.  각각의 **Settings** 버튼에서 **Execute Console Command** 노드를 추가합니다.
+
+1.  각각의 **Command** 에 **r.setRes XxY** 를 사용하여 X 와 Y 에 사용할 해상도 크기를 지정합니다.
+
+    ![](Resolution.png)
+
+    위에서 사용한 세팅은 다음과 같습니다: **640x480**, **1280x720**, **1920x1080**. 
+
+1.  **Return Button** 에는 6 단계를 반복하지만, 메인 메뉴를 보이고 옵션 메뉴를 숨기도록 세팅을 반대로 합니다.
+
+    ![](ReturnButton.png)(w:820)
+
+1.  **OnClicked (QuitButton)** 에서 **Execute Console Command** 을 끌어놓고 **Quit** 명령을 설정합니다.
+
+    ![](QuitButton.png)
+
+1.  **컴파일**, **저장** 후 위젯 블루프린트를 닫습니다.
+
+1.  **콘텐츠 브라우저** 에서 **Main** 레벨을 연 다음 **레벨 블루프린트** 를 엽니다.
+
+    ![](ScriptingMainMenu_4.14.png)
+
+1.  그래프에 **우클릭** 한 다음 **Event Begin Play** 노드를 추가하고 **Create Widget** 을 연결 (**Class** 를 **Main Menu** 로 설정)합니다.
+
+    ![](EventBeginPlay.png)
+
+1.  **Add to Viewport** 노드를 연결하고 **Get Player Controller** 노드를 추가합니다.
+
+1.  **Get Player Controller** 에서 **True** 로 설정된 **Set Show Mouse Cursor** 노드를 추가한 다음, 블루프린트를 **컴파일** 하고 닫습니다.
+
+    ![](FinishedLevel.png)(w:820)
+
+1.  **Content/FirstPersonBP/Blueprints** 폴더의 **First Person Character** 블루프린트를 엽니다. 
+
+1.  **Event Begin Play** 스크립트 뒤에 **Get Player Controller** 이후 **Set Input Mode Game Only** 노드를 추가합니다.
+
+    ![](PlayerCharacterBlueprint.png)(w:820)
+
+    커서를 끄고 플레이어 입력을 게임 전용으로 설정합니다.
+
+1.  **Set Input Mode Game Only** 의 출력 핀을 **Branch** 노드에 연결합니다.
+
+    ![](ScriptingMainMenu_4.20.png)
+
+1.  **컴파일** 후 블루프린트를 닫고, **월드 세팅** 을 엽니다.
+
+    ![](ScriptingMainMenu_4.21.png)
+
+1.  *Game Mode* 아래 **GameMode Override** 를 **FirstPersonGameMode** 로 설정하고 **Default Pawn Class** 를 **Character** 로 변경합니다.
+
+    ![](ScriptingMainMenu_4.22.png)
+
+    이 맵의 게임 모드를 할당하고 플레이어의 캐릭터를 **FirstPersonCharacter** 블루프린트 내 엔진 디폴트 캐릭터를 사용하도록 변경합니다. 플레이어가 메인 메뉴 뒤에서 총쏘며 돌아다니지 않았으면 하기 때문입니다.
+
+1.  메인 툴바의 **플레이** 버튼을 클릭하고 에디터에서 플레이합니다. 해상도 옵션을 테스트하려면, **에디터에서 플레이** 드롭다운 메뉴에서 **새 에디터 창** 을 선택합니다.
+
+플레이어가 게임 플레이 (지정된 레벨을 로드하여 플레이어를 게임플레이 상태로 전환), 해상도 변경, 게임 종료가 가능한 메인 메뉴를 만들었습니다.
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ CPe_n60XyZY
+ [/PARAMLITERAL]
+[/OBJECT]
+
+다음 단계에서는 게임중 플레이어가 게임을 일시정지하거나 게임을 종료하거나 이 게임 메뉴로 돌아올 수 있는 일시정지 메뉴를 추가하겠습니다.
+
+## 5 - 게임내 일시정지 메뉴 생성 / 스크립팅
+
+마지막으로 할 작업은 플레이어가 게임을 일시정지 또는 종료시킬 수 있는 단순한 일시정지 메뉴를 만드는 것입니다.
+
+### 비주얼: 일시정지 메뉴 레이아웃
+
+여기서는 기본적인 일시정지 메뉴의 비주얼 레이아웃을 만듭니다.
+
+1.  **Pause Menu** 위젯 블루프린트를 엽니다.
+
+1.  **디자이너** 탭의 **팔레트** 에서 위젯을 **계층구조** 로 끌어놓아 아래 구성을 만듭니다.
+
+    ![](Pause1.png)
+
+    **캔버스 패널** 에는 **Text** 포함 **Button** 두 개와 **Text** 포함 **Vertical Box** 가 하나 들어있는 **Border** 가 있습니다.
+
+1.  **디자이너** 창에서 **Border** 가 전체 점선 창을 (화면을) 채우도록 크기를 조절합니다.
+
+    ![](InGamePause_5.3.png)
+
+    **디테일** 패널 안의 **Brush Color** 옵션을 통해 색을 바꿀 수도 있습니다.
+
+    ![](InGamePause_5.3.2.png)
+
+    컬러의 **Alpha** 를 **0.5** 로 설정하여 약간 반투명하게 할 수도 있습니다. 게임플레이 도중 일시정지 메뉴가 열리면, Border 가 화면을 채우지만, 약간 반투명하게 해 두면 뒤로 게임을 계속 확인할 수 있습니다.
+
+1.  또 **Border** 의 **디테일** 패널에서 앵커가 화면을 채우도록 설정되어 있는지도 확인합니다.
+
+    ![](InGamePause_5.4.png)
+
+    그래야 화면 크기에 상관없이 Border 가 화면을 가득 채웁니다.
+
+1.  **계층구조** 에서 **Vertical Box** 를 선택하고 **디테일** 패널에서 가로 세로 중앙을 선택합니다.
+
+    ![](InGamePause_5.5.png)
+
+1.  **Vertical Box** 아래 **Text** 를 선택한 다음 **디테일** 패널에서 **Content** 에 **Pause Menu** 라 입력합니다.
+
+    ![](InGamePause_5.6.png)
+
+1.  나머지 두 개의 **Text** 블록에는 **Resume** 과 **Quit** 라 입력합니다.
+
+    ![](Pause7.png)
+
+1.  **Ctrl** 키를 누르고 **계층구조** 의 두 **Button** 을 선택한 다음, **디테일** 패널에서 **Style** 아래 **Hovered** 에 색을 지정합니다.
+
+    ![](InGamePause_5.8.png)
+
+1.  **디테일** 패널에서 **Button** 이름을 **Resume** 과 **Quit** 으로 각각 바꿉니다.
+
+    ![](InGamePause_5.9.png)
+
+### 스크립트: 일시정지 메뉴 함수 기능
+
+비주얼 설정이 다 됐으면, 일시정지 메뉴의 함수 기능 스크립트를 짤 차례입니다.
+
+1.  위젯 블루프린트 에디터 창 우상단의 **그래프** 버튼을 클릭합니다.
+
+1.  **내 블루프린트** 창의 **그래프** 탭에서 **QuitButton** 을 클릭한 다음 **디테일** 패널에서 **OnClicked** 이벤트를 추가합니다.
+
+    ![](PauseMenuFunctionality_5.2.png)
+
+1.  또 **ResumeButton** 에 대한 **OnClicked** 이벤트를 추가합니다. 
+
+1.  **그래프** 창에 **우클릭** 한 다음 **Get Player Controller** 노드를 추가합니다.
+
+    ![](PauseScript2.png)
+
+1.  **Get Player Controller** 를 끌어놓고 **Set Input Mode Game Only** 를 사용한 뒤, 다시 **Get Player Controller** 를 끌어 놓고 **Set Show Mouse Cursor** 를 사용해 **False** 로 설정한 다음, **Remove from Parent** 와 **Set Game Paused** 를 아래와 같이 설정합니다.
+
+    ![](PauseMenuFunctionality_5.5.png)
+
+    **Resume Button** 을 클릭하면, 입력 모드는 게임 전용으로 설정되어 일시정지 메뉴 활성화시 표시되는 커서가 제거됩니다. **Remove from Parent** 노드를 사용해서 일시정지 상태를 나가기 전 실제 일시정지 메뉴 위젯 표시를 제고하는데, **Set Game Paused** 노드를 사용하고 **Paused** 체크를 해제하는 것입니다.
+
+1.  **함수** 를 새로 만들어 **Remove HUD** 라 합니다.
+
+    ![](PauseMenuFunctionality_5.6.png)
+
+    일시정지 메뉴가 활성화되면 플레이어의 뷰에서 게임 HUD 를 제거하는 데 쓸 것입니다.
+
+1.  함수에서 **Get Player Character** 노드를 추가하고 **Return Value** 을 끌어놓고 **Cast ToFirstPersonCharacter** 노드를 추가합니다.
+
+    ![](ScriptPauseMenu_5.7.png)
+
+    플레이어에 사용되는 캐릭터 블루프린트와 그 플레이어에 사용되는 게임 HUD 를 접근할 수 있게 됩니다.
+
+1.  **As First Person Character** 에서 **Get HUD Reference** 와 **Remove from Parent** 를 아래와 같이 사용합니다.
+
+    ![](PauseScript6.png)(w:840)
+
+    플레이어 캐릭터에 사용중인 HUD 에 접근하여 게임 종료시 뷰포트에서 제거해 줍니다.
+
+1.  **이벤트 그래프** 의 **Get Player Controller** 에서 **True** 로 설정된 **Set Show Mouse Cursor** 노드를 사용합니다.
+
+    ![](ScriptPauseMenu_5.9.png)(w:840)
+
+    **Quit** 를 클릭하면, 메인 메뉴로 돌아갈 때의 메뉴 조작용 마우스 커서를 켭니다.
+
+1.  다음 위에서 생성한 **Remove HUD** 함수를 (**MainMenu** 또는 메인 메뉴가 있는 레벨 이름으로 설정된) **Open Level** 뒤에 추가하고 다음과 같이 연결합니다.
+
+    [REGION:lightbox]
+    [![](PauseMenuFunctionality_5.10.png)](PauseMenuFunctionality_5.10.png)
+    [/REGION]
+    *클릭하면 원본을 확인합니다.* 두 버튼 구성이 완료되었으니, 마지막으로 해 줄 작업은 플레이어가 일시정지 메뉴를 호출하여 게임을 일시정지시킬 수 있도록 하는 것입니다.
+
+1.  **콘텐츠 브라우저** 에서 **Content/FirstPersonBP/Blueprints** 아래 **FirstPersonCharacter** 블루프린트를 엽니다.
+
+    ![](PauseScript9.png)
+
+1.  그래프에서 **M** Key Event 와 **Create Widget** (**Pause Menu** 로 설정) 노드를 추가하고 **Return Value** 핀을 변수로 승격시킵니다.
+
+    ![](PauseMenuFunctionality_5.12.png)
+
+    일시정지 메뉴를 불러오는 데 **M** 키를 사용했지만, 아무 키나 사용해도 됩니다. 승격된 변수의 이름은 **Pause Menu Reference** 로 했는데, 생성된 일시정지 메뉴의 레퍼런스를 저장할 것이기 때문입니다.
+
+1.  **Ctrl** 키를 누르고 **내 블루프린트** 창에서 변수를 끌어놓은 다음 **IsValid** 노드에 연결합니다.
+
+    ![](PauseMenuFunctionality_5.13.png)
+
+    일시정지 메뉴 위젯이 생성되어 이 변수에 저장되었는지 검사하고 있습니다.
+
+1.  **Is Not Valid** 핀을 **Create PauseMenu_C Widget** 에 연결합니다.
+
+    ![](PauseScript12.png)
+
+1.  **우클릭** 후 **Get Player Controller** 노드를 추가한 뒤 **Set Show Mouse Cursor** 를 **True** 설정합니다.
+
+1.  **Get Player Controller** 노드를 다시 끌어 놓은 다음 **Get Player Controller Set Input Mode UI Only** 를 아래와 같이 연결합니다.
+
+    [REGION:lightbox]
+    [![](PauseMenuFunctionality_5.16.png)](PauseMenuFunctionality_5.16.png)
+    [/REGION]
+
+    **M** 키를 누르면, 일시정지 메뉴가 열려있는 경우 다시 생성하지 않고 변수를 접근합니다. 일시정지 메뉴를 처음 연 것이라면 생성한 뒤 나중에 접근할 수 있게끔 변수로 저장합니다. 어느 경우든 일시정지 메뉴 표시 전 입력 모드는 UI 전용으로 설정합니다 (곧 해 줄 작업입니다).
+
+1.  **Pause Menu Reference** 변수에서 **Add to Viewport** 노드를 사용한 뒤 **Set Game Paused** (**Paused** 를 **True**) 설정합니다.
+
+    [REGION:lightbox]
+    [![](PauseScript14.png)(w:840)](PauseScript14.png)
+    [/REGION]
+    *클릭하면 원본을 확인합니다.* 일시정지 메뉴 구성이 완료되었으니, 테스트할 차례입니다.
+
+1.  **컴파일**, **저장** 버튼을 클릭한 뒤, **플레이** 버튼을 눌러 에디터에서 플레이합니다.
+
+게임내에서 **M** (또는 자체 설정한) 키를 누르면, 게임이 일시정지되고 일시정지 메뉴가 뜨는 것이 보일 것입니다. 여기서 **Resume** 버튼으로 게임플레이를 재개하거나, **Quit** 버튼으로 메인 메뉴로 빠져나갈 수 있습니다.
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ kx3iF82EzMc
+ [/PARAMLITERAL]
+[/OBJECT]
+
+다음 섹션에는 **언리얼 모션 그래픽** 과 **블루프린트** 작업시 추가 정보를 제공해 드리겠습니다.
+
+## 6 - 추가 자료
+
+에디터 전반적으로 이 퀵스타트 가이드에서 다룬 주제 관련 상세 정보는, [엔진 기능](Engine) 문서를 살펴보세요.
+
+이 가이드에서 구체적으로 다룬 주제 관련:
+
+* 언리얼 모션 그래픽 관련 상세 정보: [](Engine/UMG)
+* 블루프린트 관련 상세 정보: [](Engine/Blueprints)

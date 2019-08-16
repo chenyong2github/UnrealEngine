@@ -18,9 +18,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogEngineService, Log, All)
 
 FEngineService::FEngineService()
 {
-	// always grant access to session owner
-	AuthorizedUsers.Add(FApp::GetSessionOwner());
-
 	// initialize messaging
 	MessageEndpoint = FMessageEndpoint::Builder("FEngineService")
 		.Handling<FEngineServiceAuthDeny>(this, &FEngineService::HandleAuthDenyMessage)
@@ -127,9 +124,9 @@ void FEngineService::SendPong( const TSharedRef<IMessageContext, ESPMode::Thread
 
 void FEngineService::HandleAuthGrantMessage( const FEngineServiceAuthGrant& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context )
 {
-	if (AuthorizedUsers.Contains(Message.UserName))
+	if (FApp::IsAuthorizedUser(Message.UserName))
 	{
-		AuthorizedUsers.AddUnique(Message.UserToGrant);
+		FApp::AuthorizeUser(Message.UserToGrant);
 
 		UE_LOG(LogEngineService, Log, TEXT("%s granted remote access to user %s."), *Message.UserName, *Message.UserToGrant);
 	}
@@ -142,9 +139,9 @@ void FEngineService::HandleAuthGrantMessage( const FEngineServiceAuthGrant& Mess
 
 void FEngineService::HandleAuthDenyMessage( const FEngineServiceAuthDeny& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context )
 {
-	if (AuthorizedUsers.Contains(Message.UserName))
+	if (FApp::IsAuthorizedUser(Message.UserName))
 	{
-		AuthorizedUsers.RemoveSwap(Message.UserToDeny);
+		FApp::DenyUser(Message.UserToDeny);
 
 		UE_LOG(LogEngineService, Log, TEXT("%s removed remote access from user %s."), *Message.UserName, *Message.UserToDeny);
 	}
@@ -157,7 +154,7 @@ void FEngineService::HandleAuthDenyMessage( const FEngineServiceAuthDeny& Messag
 
 void FEngineService::HandleExecuteCommandMessage( const FEngineServiceExecuteCommand& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context )
 {
-	if (AuthorizedUsers.Contains(Message.UserName))
+	if (FApp::IsAuthorizedUser(Message.UserName))
 	{
 		if (GEngine != nullptr)
 		{
@@ -185,7 +182,7 @@ void FEngineService::HandlePingMessage( const FEngineServicePing& Message, const
 
 void FEngineService::HandleTerminateMessage( const FEngineServiceTerminate& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context )
 {
-	if (AuthorizedUsers.Contains(Message.UserName))
+	if (FApp::IsAuthorizedUser(Message.UserName))
 	{
 		if (GEngine != nullptr)
 		{

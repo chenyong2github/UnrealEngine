@@ -1,9 +1,10 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/DisplayClusterBarrier.h"
-#include "Misc/DisplayClusterLog.h"
-#include "Engine/EngineTypes.h"
 
+#include "DisplayClusterLog.h"
+
+#include "Engine/EngineTypes.h"
 #include <chrono>
 
 

@@ -166,35 +166,35 @@ public:
 };
 
 
-struct FLinkerNamePairKeyFuncs : DefaultKeyFuncs<FName, false>
+struct UE_DEPRECATED(4.23, "Outdated since display index replaced FName as key") FLinkerNamePairKeyFuncs : DefaultKeyFuncs<FName, false>
 {
 	static FORCEINLINE bool Matches(FName A, FName B)
 	{
 		// The linker requires that FNames preserve case, but the numeric suffix can be ignored since
 		// that is stored separately for each FName instance saved
-		return A.IsEqual(B, ENameCase::CaseSensitive, false/*bCompareNumber*/);
+		return A.GetDisplayIndex() == B.GetDisplayIndex();
 	}
 
 	static FORCEINLINE uint32 GetKeyHash(FName Key)
 	{
-		return Key.GetComparisonIndex();
+		return GetTypeHash(Key.GetDisplayIndex());
 	}
 };
 
 
 template<typename ValueType>
-struct TLinkerNameMapKeyFuncs : TDefaultMapKeyFuncs<FName, ValueType, false>
+struct UE_DEPRECATED(4.23, "Outdated since display indexes replaced FNames as keys") TLinkerNameMapKeyFuncs : TDefaultMapKeyFuncs<FName, ValueType, false>
 {
 	static FORCEINLINE bool Matches(FName A, FName B)
 	{
 		// The linker requires that FNames preserve case, but the numeric suffix can be ignored since
 		// that is stored separately for each FName instance saved
-		return A.IsEqual(B, ENameCase::CaseSensitive, false/*bCompareNumber*/);
+		return A.GetDisplayIndex() == B.GetDisplayIndex();
 	}
 
 	static FORCEINLINE uint32 GetKeyHash(FName Key)
 	{
-		return Key.GetComparisonIndex();
+		return GetTypeHash(Key.GetDisplayIndex());
 	}
 };
 
@@ -231,7 +231,7 @@ public:
 	FPackageFileSummary		Summary;
 
 	/** Names used by objects contained within this package */
-	TArray<FName>			NameMap;
+	TArray<FNameEntryId>	NameMap;
 
 	/** Gatherable text data contained within this package */
 	TArray<FGatherableTextData> GatherableTextDataMap;

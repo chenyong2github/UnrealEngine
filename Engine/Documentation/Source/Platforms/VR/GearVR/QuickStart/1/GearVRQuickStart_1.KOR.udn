@@ -1,0 +1,62 @@
+﻿INTSourceChangelist:6426975
+Availability: Docs
+Title:1. Gear VR 프로젝트 생성
+Crumbs:%ROOT%, Platforms/VR/GearVR
+Description: Gear VR 헤드셋에 사용할 수 있는 UE4 C++ 기반 프로젝트 생성 방법 안내입니다.
+Navigation:platform
+Version: 4.17
+Skilllevel: Intermediate
+tags:VR
+tags:Gear VR
+type:multi-step
+parent:Platforms/VR/GearVR/QuickStart
+order:1
+Checkpoint:GearVRQS
+
+[nav]
+
+
+Gear VR 퀵 스타트 여기서는 Gear VR 에 사용할 수 있도록 새로운 UE4 프로젝트를 구성하는 법을 살펴보겠습니다.
+
+## 단계
+
+1. [언리얼 엔진 런처](http://tinyurl.com/oawb7x2) 에서 UE4 **4.17** 이상 버전을 다운로드하여 설치했는지 확인한 후 **실행** 하면 **언리얼 프로젝트 브라우저** 가 열립니다.
+
+    [REGION:lightbox]
+    [![](GVR_New_Project_00.png)(w:550)](GVR_New_Project_00.png)
+    [/REGION]
+
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1. 언리얼 프로젝트 브라우저의 새 프로젝트 탭에서, 새 **블루프린트** 기반 프로젝트를 **공백** 으로 만들고 다음 세팅을 사용합니다.
+
+    [REGION:lightbox]
+    [![](GVR_New_Project_01.png)(w:550)](GVR_New_Project_01.png)
+    [/REGION]
+
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+    * **공백 프로젝트**
+    * **모바일 / 태블릿**
+    * **스케일가능 3D / 2D**
+    * **시작용 콘텐츠 없음**
+
+1. 다음, 프로젝트의 위치와 이름을 정합니다. 이 예제에서 이름은 **GearVRQS** 로 하지만 아무렇게나 해도 괜찮습니다. 완료 후 **프로젝트 생성** 버튼을 누르면 프로젝트가 생성되어 UE4 에디터가 로드됩니다.
+
+    [REGION:lightbox]
+    [![](GVR_New_Project_02.png)(w:550)](GVR_New_Project_02.png)
+    [/REGION]
+
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+## 최종 결과
+
+완료되면 Gear VR 에 사용할 수 있는 공백 프로젝트가 새로 생성되었을 것입니다.
+
+[nav]

@@ -1017,7 +1017,11 @@ void FBuildAllHandler::ProcessBuild(const TWeakPtr<SBuildProgressWidget>& BuildP
 			LightingOptions.QualityLevel = (ELightingBuildQuality)QualityLevel;
 
 			GUnrealEd->BuildLighting(LightingOptions);
-
+			while (GUnrealEd->IsLightingBuildCurrentlyRunning())
+			{
+				GUnrealEd->UpdateBuildLighting();
+			}
+			
 			// TODO!
 			//bShouldMapCheck = false;
 
@@ -1080,11 +1084,73 @@ EDebugViewShaderMode ViewModeIndexToDebugViewShaderMode(EViewModeIndex SelectedV
 		return DVSM_MaterialTextureScaleAccuracy;
 	case VMI_RequiredTextureResolution:
 		return DVSM_RequiredTextureResolution;
+	case VMI_RayTracingDebug:
+		return DVSM_RayTracingDebug;
 	case VMI_Unknown:
 	default :
 		return DVSM_None;
 	}
 }
+
+void FEditorBuildUtils::UpdateTextureStreamingMaterialBindings(UWorld* InWorld)
+{
+	const EMaterialQualityLevel::Type QualityLevel = EMaterialQualityLevel::High;
+	const ERHIFeatureLevel::Type FeatureLevel = GMaxRHIFeatureLevel;
+
+	CollectGarbage( GARBAGE_COLLECTION_KEEPFLAGS );
+
+	TSet<UMaterialInterface*> Materials;
+	if (GetUsedMaterialsInWorld(InWorld, Materials, nullptr))
+	{
+		// Flush renderthread since we are about to update the material streaming data.
+		FlushRenderingCommands();
+
+		for (UMaterialInterface* MaterialInterface : Materials)
+		{
+			if (!MaterialInterface)
+			{
+				continue;
+			}
+
+			TArray<UTexture*> UsedTextures;
+			TArray< TArray<int32> > UsedIndices;
+			MaterialInterface->GetUsedTexturesAndIndices(UsedTextures, UsedIndices, QualityLevel, FeatureLevel);
+			MaterialInterface->SortTextureStreamingData(true, false);
+
+			MaterialInterface->TextureStreamingDataMissingEntries.Empty();
+
+			for (int32 UsedIndex = 0; UsedIndex < UsedTextures.Num(); ++UsedIndex)
+			{
+				if (UsedTextures[UsedIndex])
+				{
+					TArray<FMaterialTextureInfo>& MaterialData = MaterialInterface->GetTextureStreamingData();
+
+					int32 LowerIndex = INDEX_NONE;
+					int32 HigherIndex = INDEX_NONE;
+					if (MaterialInterface->FindTextureStreamingDataIndexRange(UsedTextures[UsedIndex]->GetFName(), LowerIndex, HigherIndex))
+					{
+						// Here we expect every entry in UsedIndices to match one of the entry in the range.
+						for (int32 SubIndex = 0; LowerIndex <= HigherIndex && SubIndex < UsedIndices[UsedIndex].Num(); ++LowerIndex, ++SubIndex)
+						{
+							MaterialData[LowerIndex].TextureIndex = UsedIndices[UsedIndex][SubIndex];
+						}
+					}
+					else // If the texture is missing in the material data, add it ass missing
+					{
+						FMaterialTextureInfo MissingInfo;
+						MissingInfo.TextureName = UsedTextures[UsedIndex]->GetFName();
+						for (int32 SubIndex = 0; SubIndex < UsedIndices[UsedIndex].Num(); ++SubIndex)
+						{
+							MissingInfo.TextureIndex = UsedIndices[UsedIndex][SubIndex];
+							MaterialInterface->TextureStreamingDataMissingEntries.Add(MissingInfo);
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 
 bool FEditorBuildUtils::EditorBuildTextureStreaming(UWorld* InWorld, EViewModeIndex SelectedViewMode)
 {
@@ -1198,7 +1264,7 @@ bool FEditorBuildUtils::EditorBuildMaterialTextureStreamingData(UPackage* Packag
 				FMaterialResource* Resource = Material->GetMaterialResource(FeatureLevel);
 				if (Resource)
 				{
-					Resource->CacheShaders(GMaxRHIShaderPlatform, false);
+					Resource->CacheShaders(GMaxRHIShaderPlatform);
 					Materials.Add(Material);
 				}
 			}
@@ -1275,67 +1341,6 @@ bool FEditorBuildUtils::EditorBuildMaterialTextureStreamingData(UPackage* Packag
 	return bAnyPackagesDirtied;
 }
 
-bool FEditorBuildUtils::CompileViewModeShaders(UWorld* InWorld, EViewModeIndex SelectedViewMode)
-{
-	if (!InWorld)
-	{
-		return false;
-	}
-
-	// This process is incredibly slow for large projects even if we end up compiling no shaders
-	// but isn't essential and we will lazily compile shaders afterwards. This upfront compile
-	// was found to cause minute-long stalls every time the view mode was activated on a simulated
-	// feature level so the check for !bExtractComplexityStats has been removed for shader complexity.
-	//const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(FeatureLevel);
-	//bool bIsSimulated = IsSimulatedPlatform(ShaderPlatform);
-	//bool bExtractComplexityStats = bIsSimulated && (SelectedViewMode == VMI_ShaderComplexity || SelectedViewMode == VMI_ShaderComplexityWithQuadOverdraw);
-	EDebugViewShaderMode DebugViewMode = ViewModeIndexToDebugViewShaderMode(SelectedViewMode);
-	if (DebugViewMode == DVSM_None)
-	{
-		return false;
-	}
-
-	const ERHIFeatureLevel::Type FeatureLevel = InWorld->FeatureLevel;
-	const EMaterialQualityLevel::Type QualityLevel = GetCachedScalabilityCVars().MaterialQualityLevel;;
-
-	FScopedSlowTask CompileShaderTask(3.f, LOCTEXT("CompileMissingViewModeShaders", "Compiling Missing ViewMode Shaders")); // { Get Used Materials, Sync Pending Shader, Wait for Compilation }
-	CompileShaderTask.MakeDialog(false); // Can't cancel because get compiled anyway if shaders are missing.
-
-	CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
-
-	TSet<UMaterialInterface*> Materials;
-	if (!GetUsedMaterialsInWorld(InWorld, Materials, &CompileShaderTask))
-	{
-		return false;
-	}
-
-	if (Materials.Num())
-	{
-		// As mentioned above this is now only done if the SelectedViewMode is VMI_RequiredTextureResolution so removing the unused code
-/*		if (SelectedViewMode == VMI_ShaderComplexity || SelectedViewMode == VMI_ShaderComplexityWithQuadOverdraw)
-		{
-			if (!CompileShadersComplexityViewMode(QualityLevel, FeatureLevel, Materials, CompileShaderTask))
-			{
-				return false;
-			}
-		}
-		else if (SelectedViewMode == VMI_RequiredTextureResolution)*/
-		{
-			if (!CompileDebugViewModeShaders(DebugViewMode, QualityLevel, FeatureLevel, false, true, Materials, &CompileShaderTask))
-			{
-				return false;
-			}
-		}
-	}
-	else
-	{
-		CompileShaderTask.EnterProgressFrame();
-	}
-
-	CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
-	return true;
-}
-
 /** classed used to compile shaders for a specific (mobile) platform and copy the number of instruction to the editor-emulated (mobile) platform */
 class FMaterialOfflineCompilation : public FMaterialResource
 {
@@ -1385,7 +1390,7 @@ bool FEditorBuildUtils::CompileShadersComplexityViewMode(EMaterialQualityLevel::
 
 		FMaterialShaderMapId ResourceId;
 		SpecialResource->GetShaderMapId(ShaderPlatform, ResourceId);
-		SpecialResource->CacheShaders(ResourceId, ShaderPlatform, false);
+		SpecialResource->CacheShaders(ResourceId, ShaderPlatform);
 
 		OfflineShaderResources.Add(SpecialResource);
 	}

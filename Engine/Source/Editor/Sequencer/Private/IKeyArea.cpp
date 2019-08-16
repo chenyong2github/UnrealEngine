@@ -14,7 +14,8 @@
 #include "MovieSceneSequence.h"
 
 IKeyArea::IKeyArea(UMovieSceneSection* InSection, FMovieSceneChannelHandle InChannel)
-	: ChannelHandle(InChannel)
+	: TreeSerialNumber(0)
+	, ChannelHandle(InChannel)
 {
 	Reinitialize(InSection, InChannel);
 }
@@ -220,7 +221,7 @@ TUniquePtr<FCurveModel> IKeyArea::CreateCurveEditorModel(TSharedRef<ISequencer> 
 {
 	ISequencerChannelInterface* EditorInterface = FindChannelEditorInterface();
 	UMovieSceneSection* OwningSection = GetOwningSection();
-	if (EditorInterface && OwningSection)
+	if (EditorInterface && OwningSection && ChannelHandle.Get() != nullptr)
 	{
 		TUniquePtr<FCurveModel> CurveModel = EditorInterface->CreateCurveEditorModel_Raw(ChannelHandle, OwningSection, InSequencer);
 		if (CurveModel.IsValid())

@@ -6,6 +6,8 @@
 #include "CanvasItem.h"
 #include "Settings/LevelEditorViewportSettings.h"
 #include "GameFramework/Volume.h"
+#include "Editor/UnrealEdEngine.h"
+#include "UnrealEdGlobals.h"
 #include "EngineUtils.h"
 #include "EditorModeManager.h"
 #include "EditorModes.h"
@@ -150,8 +152,11 @@ void FDragTool_ActorBoxSelect::EndDrag()
 	// Let the editor mode try to handle the box selection.
 	const bool bEditorModeHandledBoxSelection = ModeTools->BoxSelect(SelBBox, bLeftMouseButtonDown);
 
+	// Let the component visualizers try to handle the selection.
+	const bool bComponentVisHandledSelection = !bEditorModeHandledBoxSelection && GUnrealEd->ComponentVisManager.HandleBoxSelect(SelBBox, LevelViewportClient, LevelViewportClient->Viewport);
+
 	// If the edit mode didn't handle the selection, try normal actor box selection.
-	if ( !bEditorModeHandledBoxSelection )
+	if ( !bEditorModeHandledBoxSelection && !bComponentVisHandledSelection )
 	{
 		const bool bStrictDragSelection = GetDefault<ULevelEditorViewportSettings>()->bStrictBoxSelection;
 

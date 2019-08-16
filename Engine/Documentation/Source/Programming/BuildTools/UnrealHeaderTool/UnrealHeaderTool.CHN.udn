@@ -1,0 +1,16 @@
+﻿INTSourceChangelist:6446418
+Availability: Public
+Title: 虚幻标头工具
+Description: 虚幻标头工具（UHT）是支持UObject系统的自定义解析和代码生成工具。
+Type: landing
+Parent: Programming/BuildTools
+Order: 1
+
+
+ **虚幻标头工具（UHT）** 是支持UObject系统的自定义解析和代码生成工具。代码编译分两个阶段进行：
+
+1.  调用UHT。它将解析C++标头中引擎相关类元数据，并生成自定义代码，以实现诸多UObject相关的功能。
+
+1.  调用普通C++编译器，以便对结果进行编译。
+
+编译时，两个工具皆有可能出现错误，必须仔细检查。

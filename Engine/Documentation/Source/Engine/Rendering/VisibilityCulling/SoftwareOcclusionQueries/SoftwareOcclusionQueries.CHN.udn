@@ -1,0 +1,123 @@
+﻿INTSourceChangelist:5302474
+Availability: Public
+Crumbs: 
+Title:面向移动平台的软件遮挡查询
+Description:概括介绍如何使用面向移动平台的软件遮挡查询作为动态遮挡剔除方法。 
+Type: 
+Version: 4.21
+Parent: Engine/Rendering/VisibilityCulling
+Order: 
+Tags: 
+
+
+**软件遮挡查询** 是一种遮挡方法，使用一个Actor的指定细节层次（LOD）来遮挡它后面的Actor。这种剔除方法会对CPU上的场景进行光栅化来剔除Actor，而相较而言，硬件遮挡查询则对GPU执行可视性检查。软件遮挡的保守式设计意味着可以在任何移动设备上启用和使用。还需要注意的是，软件遮挡只有单帧延迟，而硬件遮挡查询则不然，在移动平台上有双帧延迟。
+
+![](SOQ_Banner.png "SOQ_Banner.png")
+
+[REGION:caption]
+左：使用软件遮挡调试可视化的场景，其中包含一组为遮挡指定的静态网格体。右：房屋后面的背面场景视图，显示“遮挡物”静态网格体如何剔除几何结构。
+[/REGION]
+
+(#enablingsoftwareocclusionqueries)
+## 启用软件遮挡查询
+
+在 **项目设置（Project Settings）>渲染（Rendering）>移动（Mobile）** 中启用软件遮挡，并设置 **支持软件遮挡剔除（Support Software Occlusion Culling）**。
+
+或者，可以使用以下控制台变量：
+
+`r.mobile.AllowSoftwareOcclusion 1`
+
+[REGION:tip]
+如果有多个目标设备，请使用[设备描述](Platforms/DeviceProfiles)管理器来启用软件遮挡。
+[/REGION]
+
+(#settingoccludermeshes)
+## 设置遮挡物网格体
+
+要使遮挡剔除能够发挥作用，必须先将一个静态网格体的LOD指定为遮挡物。指定的LOD必须在进入摄像机视图后，用于阻挡场景中位于这个Actor后面的其他Actor。
+
+在静态网格体编辑器中，使用 **细节（Details）** 面板，并将任何值设置为0或更大的值来启用 **遮挡物网格体的LOD（LOD for Occluder Mesh）**。
+
+![](Soq_SMEditorSettings.png "Soq_SMEditorSettings.png")
+
+设置LOD遮挡物网格体的值时，只能使用等于或小于该网格体拥有的LOD数量的值。例如，如果网格体有三个LOD，0应该是基础网格体，LOD 1和2应是较低细节的网格体。如果您使用值-1，不会将LOD指定为遮挡物网格体。
+[REGION:warning]
+仅启用中大型网格体，因为这类网格体才适合作为遮挡物。较小网格体对遮挡几乎没有影响。
+[/REGION]
+
+(#debuggingvisualizationforsoftwareocclusion)
+## 调试软件遮挡的可视化
+
+在您将LOD设置为用作静态网格体的遮挡物网格体后，可以在关卡视口中启用 **软件遮挡缓冲（Software Occlusion Buffer）** 可视化。在使用[移动预览器](Platforms/Mobile/Previewer)时，该视图模式在屏幕右上角启用一个小窗口。缓冲仅显示所选遮挡物网格体，并使用它们来剔除在它们的视野中被遮挡的任何网格体，类似于硬件遮挡查询剔除场景中挡住其他对象的对象。   
+  
+根据以下步骤启用该可视化视图模式：  
+
+1.  将关卡视口设置为使用[移动预览器](Platforms/Mobile/Previewer)。   
+    ![](soq_enablevisualization-1.png "soq_enablevisualization-1.png")
+2.  使用控制台（**`**）通过 **r.SO.VisualizeBuffer 1** 启用软件遮挡可视化程序。
+
+启用后，任何作为遮挡物启用的静态网格体都将绘制到关卡视口左上角显示的缓冲可视化。
+
+[REGION:lightbox]
+[![](soq_visualization.png "soq_visualization.png")](soq_visualization.png)
+[/REGION]
+[REGION:caption]
+单击查看大图。
+[/REGION]
+
+您现在应在静态网格体编辑器中看到已经作为 **被遮挡网格体LOD（LOD for Occluded Mesh）** 启用的任何静态网格体。为了更好地说明这一点，以下示例显示了针对缓冲可视化视图模式，作为遮挡物网格体启用的高亮Actor。
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![场景视图](soq_sceneOccluders.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![高亮遮挡物网格体的场景视图](soq_sceneOccludersHighlighted.png) 
+ [/PARAM]
+[/OBJECT]
+
+(#performancestatistics)
+## 性能统计信息
+
+使用命令 **stat softwareocclusion** 了解软件遮挡在关卡中的效果。
+
+[REGION:lightbox]
+[![](StatSOftwareOcclusion.png "StatSOftwareOcclusion.png")](StatSOftwareOcclusion.png)
+[/REGION]
+[REGION:caption]
+单击查看大图。
+[/REGION]
+
+使用 **循环计数器（Cycle Counters）** 以了解这对场景处理的内容以及渲染时间。**计数器（Counters）** 用于定义哪些场景三角形光栅化到缓冲区，包括遮挡物、被遮挡物和进行了遮挡剔除的其他对象的总数。 
+
+(#examplescenestats)
+### 示例场景统计信息
+
+[REGION:note]
+该练习仅使用一个视图，并且提供了统计数据。对于最终场景，您想要测试多个视图并根据需要添加更多遮挡物来改善遮挡剔除。
+[/REGION]在该示例场景中，我们将分析统计数据，它们对性能和剔除的含义以及如何改善。
+
+![](Soq_SceneViewAndOcclusionBuffer-1.png "Soq_SceneViewAndOcclusionBuffer-1.png")  
+
+[REGION:caption]
+场景视图与软件遮挡缓冲可视化对比。
+[/REGION]如果我们从上述这样一个场景入手，其中有几个静态网格体已启用使用LOD 0，我们获得了以下统计数据，表示的是软件遮挡在关卡中的这个位置以及视图中的的效用：
+
+![](SOStats1.png "SOStats1.png")
+
+该统计数据输出中需要注意的几点事项：
+
+*   在 **循环计数器（Cycle Counters）** 中，**处理时间（Process Time）**、**处理遮挡物时间（Process Occluder Time）** 和 **光栅化时间（Rasterize Time）** 耗费了大量时间。所有这些问题可以通过减少需要在缓冲区中光栅化的三角形数量加以改善，这就是我们下面要叙述的内容。
+*   在 **计数器（Counters）** 中，我们需要注意 **光栅化遮挡物三角形（Rasterized occluder tris）**。这些三角形表示指定为遮挡物的静态网格体LOD。当前总共有 **3,055** 个三角形，被光栅化的遮挡物有 **17** 个。使用三角形较少的较低LOD会缩短用来处理它们所用的时间。
+
+从这些统计数据来看，我们能确定可以通过减少需要处理的三角形数量，改善软件遮挡性能的一些方面。为此，您可以使用[静态网格体编辑器生成具有较少三角形的LOD](Engine/Content/Types/StaticMeshes/HowTo/AutomaticLODGeneration#manuallycreatinglods)。在该示例场景中，大部分内容取自[无尽之剑：草地](https://www.unrealengine.com/marketplace/infinity-blade-plain-lands)内容包，平均遮挡物静态网格体大约有2000个三角形。在设置一些新的LOD并将它们指定为遮挡物网格体的LOD后，我们得到以下统计结果：
+
+![](SOStats2.png "SOStats2.png")
+
+最后一组需要注意的统计数据是 **被遮挡物总数（Total occludees）**、**剔除（Culled）** 和 **遮挡物总数（Total occluders）**。这些统计数据通过显示被剔除对象数量、遮挡物对象总数和当前可见的被遮挡物数量，来显示软件遮挡的效果。您可以比较这些数据来了解可以改进的空间。 
+
+![](SOStats3.png "SOStats3.png")
+
+如果详细分析，可以从当前视图中剔除的潜在对象总数是 **951** 个。在这些潜在对象中，有 **406** 个已经被该视图中的 **17** 遮挡物剔除。这意味着，这17个遮挡物通过遮挡剔除的对象数约占被遮挡剔除的对象的43%。请注意，小遮挡物对于阻挡其他对象作用不大。只有使用中大型网格体作为遮挡物，才能发挥合理的作用，同时剔除大部分对象。  
+
+要提高被剔除对象数量，设置更多遮挡物来阻挡部分场景。使用[缓冲可视化程序](#debuggingvisualizationforsoftwareocclusion)来了解从当前摄像机位置阻挡的内容，同时检查关卡中不同位置处的统计数据。

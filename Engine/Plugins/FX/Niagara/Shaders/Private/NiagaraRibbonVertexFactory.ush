@@ -42,6 +42,8 @@ Buffer<float4> TangentsAndDistances;
 Buffer<uint> MultiRibbonIndices;
 Buffer<float> PackedPerRibbonDataByIndex;
 
+uint FacingMode;
+
 // Naming convention :
 // RawParticleId : Used to access per particle data stored in the VF. Actual particle data needs to be indirected through SortedIndices.
 // ParticleId : Used to access particle data in NiagaraVFParticleAccess.
@@ -89,6 +91,7 @@ struct FVertexFactoryIntermediates
 	float3 Right;
 	float3 Up;
 	float3 Facing;
+	float3 SideVector;
 	float4 TexCoord;
 	
 #if USE_PARTICLE_POSITION
@@ -297,8 +300,8 @@ struct FVertexFactoryInterpolantsVSToPS
 	float4 DynamicParameter3	: PARTICLE_DYNAMIC_PARAM3;
 #endif
 
-#if NUM_MATERIAL_TEXCOORDS
-	float4	TexCoords[(NUM_MATERIAL_TEXCOORDS + 1) / 2]	: TEXCOORD3;
+#if NUM_TEX_COORD_INTERPOLATORS
+	float4	TexCoords[(NUM_TEX_COORD_INTERPOLATORS + 1) / 2]	: TEXCOORD3;
 #endif
 
 #if NEEDS_PARTICLE_COLOR
@@ -331,7 +334,7 @@ struct FVertexFactoryInterpolantsVSToPS
 #endif
 };
 
-#if NUM_MATERIAL_TEXCOORDS
+#if NUM_TEX_COORD_INTERPOLATORS
 bool UVIndexUseZW(int UVIndex)
 {
 	#if COMPILER_GLSL_ES2
@@ -340,7 +343,6 @@ bool UVIndexUseZW(int UVIndex)
 	return (UVIndex % 2) != 0;
 	#endif
 }
-
 
 float2 GetUV(FVertexFactoryInterpolantsVSToPS Interpolants, int UVIndex)
 {
@@ -427,9 +429,9 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 	// GetMaterialPixelParameters is responsible for fully initializing the result
 	FMaterialPixelParameters Result = MakeInitializedMaterialPixelParameters();
 
-#if NUM_MATERIAL_TEXCOORDS
+#if NUM_TEX_COORD_INTERPOLATORS
 	UNROLL
-	for (int CoordinateIndex = 0; CoordinateIndex < NUM_MATERIAL_TEXCOORDS; CoordinateIndex++)
+	for (int CoordinateIndex = 0; CoordinateIndex < NUM_TEX_COORD_INTERPOLATORS; CoordinateIndex++)
 	{
 		Result.TexCoords[CoordinateIndex] = GetUV(Interpolants, CoordinateIndex);
 	}
@@ -556,7 +558,7 @@ float3 SafeNormalize(float3 V)
 #endif
 
 void GetNiagaraParticleTangents(in FInterpVtxData InterpVtxData, in out FVertexFactoryIntermediates Intermediates)
-{
+{	
 	BRANCH
 	if(NiagaraRibbonVF.FacingDataOffset != -1)
 	{
@@ -567,14 +569,26 @@ void GetNiagaraParticleTangents(in FInterpVtxData InterpVtxData, in out FVertexF
 	else
 	{
 		Intermediates.Facing = normalize(ResolvedView.WorldCameraOrigin - Intermediates.Position);
-	}	
+	}
+
+	BRANCH
+    if (FacingMode == 2 /* CustomSide */)
+	{
+		Intermediates.SideVector = -Intermediates.Facing;
+		Intermediates.Right = normalize(Intermediates.SideVector - dot(Intermediates.SideVector, Intermediates.Direction * Intermediates.Direction));
+		Intermediates.Facing = normalize(cross(Intermediates.Direction, Intermediates.Right));
+	}
+	else
+	{
+		Intermediates.Right = normalize(cross(Intermediates.Facing, Intermediates.Direction));
+		Intermediates.SideVector = Intermediates.Right;
+	}
 
 	ISOLATE
 	{
-		Intermediates.Right = normalize(cross(Intermediates.Facing, Intermediates.Direction));
 		Intermediates.Up = cross(Intermediates.Right, Intermediates.Facing);
 	}
-
+	
 	BRANCH
 	if (NiagaraRibbonVF.TwistDataOffset != -1)
 	{
@@ -596,7 +610,7 @@ float4 CalcWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates 
 	{
 		// expand and align
 		int Sgn = (((int)Input.InterpVtxId & 0x1) * 2) - 1;
-		float3 Pos = Intermediates.Position.xyz + Intermediates.Right * Sgn * (Intermediates.RibbonWidth.xxx / 2);
+		float3 Pos = Intermediates.Position.xyz + Intermediates.SideVector * Sgn * (Intermediates.RibbonWidth.xxx / 2);
 		// Intermediates are already in world space, only need to account for the translation around view origin.
 		return float4(Pos + ResolvedView.PreViewTranslation, 1);
 	}
@@ -648,6 +662,12 @@ float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIn
 	return CalcWorldPosition(Input, Intermediates);
 }
 
+float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	return Intermediates.Facing;
+}
+
+
 float4 VertexFactoryGetRasterizedWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float4 InWorldPosition)
 {
 	return InWorldPosition;
@@ -663,11 +683,16 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 	FVertexFactoryInterpolantsVSToPS Interpolants;
 	Interpolants = (FVertexFactoryInterpolantsVSToPS)0;
 
-#if NUM_MATERIAL_TEXCOORDS
-	float2 UV1 = Intermediates.TexCoord.xy;
-	float2 UV2 = Intermediates.TexCoord.zw;
-	SetUV(Interpolants, 0, UV1);
-	SetUV(Interpolants, 1, UV2);
+#if NUM_TEX_COORD_INTERPOLATORS
+	float2 CustomizedUVs[NUM_TEX_COORD_INTERPOLATORS];
+	GetMaterialCustomizedUVs(VertexParameters, CustomizedUVs);
+	GetCustomInterpolators(VertexParameters, CustomizedUVs);
+
+	UNROLL
+	for (int CoordinateIndex = 0; CoordinateIndex < NUM_TEX_COORD_INTERPOLATORS; CoordinateIndex++)
+	{
+		SetUV(Interpolants, CoordinateIndex, CustomizedUVs[CoordinateIndex]);
+	}
 #endif
 
 #if NEEDS_PARTICLE_COLOR

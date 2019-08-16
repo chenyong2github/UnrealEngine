@@ -1,0 +1,64 @@
+﻿INTSourceChangelist:3766270
+Availability:Public
+Title:Oculus Rift ベスト プラクティス
+Crumbs:%ROOT%, Platforms, Platforms/VR/OculusVR/OculusRift
+Description:Oculus Rift 向け UE4 プロジェクト開発におけるベストプラクティス
+Navigation:platform
+Version:4.17
+parent:Platforms/VR/OculusVR/OculusRift
+type:overview
+order:
+skilllevel:Beginner
+tags:VR
+tags:Oculus Rift
+topic-image:Platforms\VR\OculusVR\OculusRift\oculus_bp.png
+
+[TOC(start:1 end:2)]
+
+Oculus Rift とは、ユーザーが見たりプレイしているワールドとゲームへ深く没入することを可能にするヘッドマウント ディスプレイ (HMD) です。Oculus Rift 向けコンテンツをアンリアル エンジンで開発する場合に知っておくべき情報をまとめました。
+
+## Oculus HMD ターゲット フレーム レート
+
+以下は、Oculus Rift HMD デバイスを使用するために UE4 プロジェクトが満たさなければならないフレームレートです。 
+
+| HMD デバイス  | ターゲット フレーム レート |
+| --- | --- |
+| **Rift Retail** | 90 FPS|
+| **DK2** | 75 FPS|
+| **DK1** | 60 FPS|
+
+## Oculus Rift サニティ チェック
+
+Oculus HMD が動かない場合は、Oculus プラグインが有効になっているかどうかをまず確認してください。Oculus プラグインは **[Virtual Reality]** セクションの [プラグイン](Programming/Plugins) メニューにあります。  
+
+[REGION:lightbox]
+[![](T_VR_Plug-In_On_00.png)(w:491)](T_VR_Plug-In_On_00.png)
+[/REGION]
+
+[REGION:caption]
+クリックしてフルサイズで表示
+[/REGION]
+
+Rift がパッケージ ゲームで動かない場合、**[Start in VR]** にチェックが入っているかを確認してください。**[Start In VR]** の場所は、**[Project Settings]** > **[Description]** > **[Settings]** です。 
+
+![](Rift_Packed_Game.png)
+
+## Oculus Rift で作業を確認する
+
+Oculus Rift HMD は UE4 Editor ビューポート、またはデフォルトの Play In Editor (PIE) セッションでは動きません。Rift にプロジェクトを表示するには、**[VR Preview (VR プレビュー)]** オプションを使います。[VR Preview] オプションを使用するには、UE4 エディタで以下の操作が必要です。 
+
+1. メイン ツールバー上にある **[Play (プレイ)]** セクションの [Play (プレイ)] ボタン横の小さな白い三角をクリックします。 
+
+	![](Rift_Preview_00.png)
+
+1. ドロップダウン メニューから **[VR Preview]** オプションを選択して、Rift を装着し、VR の中のプロジェクトを見ます。
+
+	![](Rift_Preview_01.png)
+
+	[region:note]
+	プレイ モードを [VR Preview] オプションに切り替えておけば、**ALT + P** などのショートカットでもプロジェクトが VR でいつでも起動します。  
+	[/region]
+
+## Oculus のリファレンス
+
+Oculus 社は膨大な時間とエネルギーをかけて、ユーザーが Rift を使って最大限素晴らしい VR 体験ができるように研究しました。Oculus の [ウェブサイト]( https://developer.oculus.com/) を是非ご覧ください。ユーザーに最高の VR 体験を開発および提供するために役立つ様々な情報が載っています。

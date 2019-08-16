@@ -1,0 +1,179 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "ConcertSyncClient.h"
+
+#include "IConcertModule.h"
+#include "IConcertClient.h"
+#include "IConcertSession.h"
+#include "ConcertSyncClientLiveSession.h"
+#include "ConcertClientWorkspace.h"
+#include "ConcertClientSequencerManager.h"
+#include "ConcertClientPresenceManager.h"
+#include "ConcertSourceControlProxy.h"
+
+#define LOCTEXT_NAMESPACE "ConcertSyncClient"
+
+FConcertSyncClient::FConcertSyncClient(const FString& InRole, IConcertClientPackageBridge* InPackageBridge, IConcertClientTransactionBridge* InTransactionBridge)
+	: ConcertClient(IConcertModule::Get().CreateClient(InRole))
+	, SessionFlags(EConcertSyncSessionFlags::None)
+	, PackageBridge(InPackageBridge)
+	, TransactionBridge(InTransactionBridge)
+#if WITH_EDITOR
+	, SequencerManager(MakeUnique<FConcertClientSequencerManager>(this))
+	, SourceControlProxy(MakeUnique<FConcertSourceControlProxy>())
+#endif
+{
+	check(PackageBridge);
+	check(TransactionBridge);
+
+	ConcertClient->OnSessionStartup().AddRaw(this, &FConcertSyncClient::RegisterConcertSyncHandlers);
+	ConcertClient->OnSessionShutdown().AddRaw(this, &FConcertSyncClient::UnregisterConcertSyncHandlers);
+}
+
+FConcertSyncClient::~FConcertSyncClient()
+{
+	ConcertClient->OnSessionStartup().RemoveAll(this);
+	ConcertClient->OnSessionShutdown().RemoveAll(this);
+}
+
+void FConcertSyncClient::Startup(const UConcertClientConfig* InClientConfig, const EConcertSyncSessionFlags InSessionFlags)
+{
+	SessionFlags = InSessionFlags;
+
+	// Boot the client instance
+	ConcertClient->Configure(InClientConfig);
+	ConcertClient->Startup();
+
+	// if auto connection, start auto-connection routine
+	if (InClientConfig->bAutoConnect && ConcertClient->CanAutoConnect())
+	{
+		ConcertClient->StartAutoConnect();
+	}
+}
+
+void FConcertSyncClient::Shutdown()
+{
+	ConcertClient->Shutdown();
+}
+
+IConcertClientRef FConcertSyncClient::GetConcertClient() const
+{
+	return ConcertClient;
+}
+
+TSharedPtr<IConcertClientWorkspace> FConcertSyncClient::GetWorkspace() const
+{
+	return Workspace;
+}
+
+IConcertClientPresenceManager* FConcertSyncClient::GetPresenceManager() const
+{
+	IConcertClientPresenceManager* Manager = nullptr;
+#if WITH_EDITOR
+	Manager = PresenceManager.Get();
+#endif
+	return Manager;
+}
+
+IConcertClientSequencerManager* FConcertSyncClient::GetSequencerManager() const
+{
+	IConcertClientSequencerManager* Manager = nullptr;
+#if WITH_EDITOR
+	Manager = SequencerManager.Get();
+#endif
+	return Manager;
+}
+
+FOnConcertClientWorkspaceStartupOrShutdown& FConcertSyncClient::OnWorkspaceStartup()
+{
+	return OnWorkspaceStartupDelegate;
+}
+
+FOnConcertClientWorkspaceStartupOrShutdown& FConcertSyncClient::OnWorkspaceShutdown()
+{
+	return OnWorkspaceShutdownDelegate;
+}
+
+void FConcertSyncClient::PersistAllSessionChanges()
+{
+#if WITH_EDITOR
+	if (Workspace)
+	{
+		TArray<FString> SessionChanges = Workspace->GatherSessionChanges();
+		Workspace->PersistSessionChanges(SessionChanges, SourceControlProxy.Get());
+	}
+#endif
+}
+
+
+void FConcertSyncClient::GetSessionClientActions(const FConcertSessionClientInfo& InClientInfo, TArray<FConcertActionDefinition>& OutActions) const
+{
+#if WITH_EDITOR
+	if (PresenceManager)
+	{
+		PresenceManager->GetPresenceClientActions(InClientInfo, OutActions);
+	}
+#endif
+}
+
+void FConcertSyncClient::CreateWorkspace(const TSharedRef<FConcertSyncClientLiveSession>& InLiveSession)
+{
+	DestroyWorkspace();
+	Workspace = MakeShared<FConcertClientWorkspace>(InLiveSession, PackageBridge, TransactionBridge);
+	OnWorkspaceStartupDelegate.Broadcast(Workspace);
+#if WITH_EDITOR
+	if (GIsEditor && EnumHasAllFlags(SessionFlags, EConcertSyncSessionFlags::EnablePackages | EConcertSyncSessionFlags::ShouldUsePackageSandbox))
+	{
+		// TODO: Revisit this, as all it seems to be used for now is forcing redirectors to be left behind
+		SourceControlProxy->SetWorkspace(Workspace);
+	}
+#endif
+}
+
+void FConcertSyncClient::DestroyWorkspace()
+{
+#if WITH_EDITOR
+	if (GIsEditor)
+	{
+		SourceControlProxy->SetWorkspace(nullptr);
+	}
+#endif
+	OnWorkspaceShutdownDelegate.Broadcast(Workspace);
+	Workspace.Reset();
+}
+
+void FConcertSyncClient::RegisterConcertSyncHandlers(TSharedRef<IConcertClientSession> InSession)
+{
+	LiveSession = MakeShared<FConcertSyncClientLiveSession>(InSession, SessionFlags);
+	if (LiveSession->IsValidSession())
+	{
+		CreateWorkspace(LiveSession.ToSharedRef());
+#if WITH_EDITOR
+		PresenceManager.Reset();
+		if (EnumHasAnyFlags(SessionFlags, EConcertSyncSessionFlags::EnablePresence))
+		{
+			PresenceManager = MakeShared<FConcertClientPresenceManager>(InSession); // TODO: Use LiveSession?
+		}
+		if (EnumHasAnyFlags(SessionFlags, EConcertSyncSessionFlags::EnableSequencer))
+		{
+			SequencerManager->Register(InSession);  // TODO: Use LiveSession?
+		}
+#endif
+	}
+	else
+	{
+		LiveSession.Reset();
+	}
+}
+
+void FConcertSyncClient::UnregisterConcertSyncHandlers(TSharedRef<IConcertClientSession> InSession)
+{
+#if WITH_EDITOR
+	SequencerManager->Unregister(InSession);
+	PresenceManager.Reset();
+#endif
+	DestroyWorkspace();
+	LiveSession.Reset();
+}
+
+#undef LOCTEXT_NAMESPACE

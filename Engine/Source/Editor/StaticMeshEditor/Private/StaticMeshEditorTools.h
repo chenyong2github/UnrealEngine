@@ -25,6 +25,7 @@ class FStaticMeshEditor;
 class IDetailCategoryBuilder;
 class IDetailChildrenBuilder;
 class IDetailLayoutBuilder;
+class IDetailGroup;
 class IStaticMeshEditor;
 class UMaterialInterface;
 struct FSectionLocalizer;
@@ -62,6 +63,18 @@ private:
 	TSharedPtr<FLevelOfDetailSettingsLayout> LevelOfDetailSettings;
 	/** Static mesh editor */
 	class FStaticMeshEditor& StaticMeshEditor;
+
+	// Property handle used to determine if the VertexColorImportOverride property should be enabled.
+	TSharedPtr<IPropertyHandle> VertexColorImportOptionHandle;
+	
+	// Property handle used during UI construction
+	TSharedPtr<IPropertyHandle> VertexColorImportOverrideHandle;
+
+	// Delegate implementation of FOnInstancedPropertyIteration used during DataImport UI construction
+	void OnInstancedFbxStaticMeshImportDataPropertyIteration(IDetailCategoryBuilder& BaseCategory, IDetailGroup* PropertyGroup, TSharedRef<IPropertyHandle>& Property) const;
+
+	// Delegate used at runtime to determine the state of the VertexOverrideColor property
+	bool GetVertexOverrideColorEnabledState() const;
 };
 
 
@@ -420,7 +433,7 @@ public:
 
 	virtual ~FMeshMaterialsLayout();
 
-	void AddToCategory(IDetailCategoryBuilder& CategoryBuilder);
+	void AddToCategory(IDetailCategoryBuilder& CategoryBuilder, TSharedPtr<class IPropertyHandle> InHandle);
 
 private:
 	UStaticMesh& GetStaticMesh() const;

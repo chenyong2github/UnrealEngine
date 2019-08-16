@@ -13,7 +13,9 @@
 
 #pragma once
 
-#ifdef _M_ARM
+#if PX_P64_FAMILY
+#include <arm64_neon.h>
+#else
 #include <arm_neon.h>
 #endif
 
@@ -24,7 +26,7 @@ namespace cloth
 
 uint32_t findBitSet(uint32_t mask)
 {
-#ifdef _M_ARM
+#if defined(_M_ARM) || defined(_M_ARM64)
 	__n64 t = { mask };
 	return 31 - (vclz_u32(t)).n64_u32[0];
 #else
@@ -51,7 +53,7 @@ Simd4i horizontalOr(Simd4i mask)
 
 Gather<Simd4i>::Gather(const Simd4i& index)
 {
-#ifdef __arm64__
+#if defined( __arm64__)// || defined(_M_ARM64)
 	using namespace simdi;
 	PX_ALIGN(16, uint8x8x2_t) byteIndex = reinterpret_cast<const uint8x8x2_t&>(sPack);
 	uint8x16_t lohiIndex = reinterpret_cast<const uint8x16_t&>(index);
@@ -72,7 +74,7 @@ Gather<Simd4i>::Gather(const Simd4i& index)
 
 Simd4i Gather<Simd4i>::operator()(const Simd4i* ptr) const
 {
-#ifdef __arm64__
+#if defined( __arm64__)// || defined(_M_ARM64)
 	PX_ALIGN(16, uint8x8x2_t) result = reinterpret_cast<const uint8x8x2_t&>(mPermute);
 	const uint8x16x2_t* table = reinterpret_cast<const uint8x16x2_t*>(ptr);
 	result.val[0] = vtbl2q_u8(*table, result.val[0]);
@@ -81,8 +83,8 @@ Simd4i Gather<Simd4i>::operator()(const Simd4i* ptr) const
 #else
 	PX_ALIGN(16, uint8x8x2_t) result = reinterpret_cast<const uint8x8x2_t&>(mPermute);
 	const uint8x8x4_t* table = reinterpret_cast<const uint8x8x4_t*>(ptr);
-	result.val[0] = vtbl4_u8(*table, result.val[0]);
-	result.val[1] = vtbl4_u8(*table, result.val[1]);
+	result.val[0] = vtbl4_u8((*table), (result.val[0]));
+	result.val[1] = vtbl4_u8((*table), (result.val[1]));
 	return reinterpret_cast<const Simd4i&>(result);
 #endif
 }

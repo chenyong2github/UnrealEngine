@@ -1,84 +1,117 @@
-﻿INTSourceChangelist:2105020
+﻿INTSourceChangelist:3244370
 Availability:Public
-Title:暴露游戏元素给蓝图
+Title:向蓝图公开游戏进程元素
 Crumbs: %ROOT%, Programming, Engine/Blueprints/TechnicalGuide
-Description: 关于为蓝图暴露游戏元素的游戏参数的技术指南。
+Description:游戏玩法程序员向蓝图公布游戏进程元素的技术指南。
+Related: Engine/Blueprints/TechnicalGuide/Guidelines
+tags:Blueprints
 
 [TOC(start:2)]
 
+作为一名程序员，使用蓝图可以使代码非常灵活，从而为您提供许多好处。例如， 
+游戏进程设计人员可能希望在游戏中实现一种新型武器。作为程序员， 
+您现在编写武器代码的方式与传统方式几乎完全相同，而不同之处仅在于您公开了一些重要的功能， 
+比如射速和Fire()函数。在游戏测试后，设计师确定他们需要改变枪支的射速 
+以呈曲线射击。设计师可以简单地进入蓝图并直接更改射速， 
+而不是对射速重新编码并重新编译游戏， 
+从而节省设计师和程序员的时间。 
 
-## 概述
+有关在项目中优化C++/蓝图发布版的详细信息，或在创建向蓝图公开的API时要记住的技巧，
+请参阅[](Engine/Blueprints/TechnicalGuide/Guidelines)。
 
-作为程序员，使用蓝图可以使您的代码非常灵活，这会为您带来很多好处。比如， 
-游戏设计人员可能想在游戏中实现一种新类型的武器。您作为程序员， 
-可以像以前一样编写武器相关代码,但是您需要暴露一些重要的功能，比如 
-设计速率和Fire()函数。测试后，设计人员决定他们需要修改 
-枪支的射击速率，以便在曲线上应用。这时不需要重新编码该枪支的射击速率并重新 
-编译游戏，设计人员可以简单地到蓝图中，直接地修改射击速率，这样既可以节省设计人员的时间， 
-也可以节省程序员的时间。
+(#makingclassesblueprintable)
 
+## 使类可蓝图化
 
-## 创建蓝图可以继承的类
+为了创建从某一个类扩展而来的蓝图，必须将该类定义为 **可蓝图化（Blueprintable）**； 
+这涉及到在类定义之前的 **UCLASS()** 宏中添加此关键字。此关键字使蓝图系统能够感知该类， 
+以便它显示在 **新建蓝图（New Blueprint）** 对话框的类列表中， 
+并且可以选择它作为所创建的蓝图的父类。
 
-为了创建继承于一个类的蓝图，那么该类必须定义为 **Blueprintable(可蓝图化的)** ，这涉及到 
-在处理类定义的 `UCLASS()` 宏中添加这个关键字。该关键字使得蓝图系统 
-知道这个类的存在，以便该类显示在 **New Blueprint(新建蓝图)** 对话框的类列表中，并且可以  
-选择它作为正在创建的蓝图的父类。
-
-声明蓝图可以继承的类的最简单的格式如下所示：
+可蓝图化类最简单的声明形式如下所示：
 
 	UCLASS(Blueprintable)
 	class AMyBlueprintableClass : AActor
 	{
-		GENERATED_UCLASS_BODY()
+		GENERATED_BODY()
 	}
 
 
-| 关键字 | 描述 |
+| 关键字 | 说明 |
 | -- | -- |
-| **Blueprintable** | 暴露这个类为创建蓝图时可以接受的基类。默认为是NotBlueprintable，除非从其他类继承Blueprintable关键字。子类可以继承这个属性。|
-| **BlueprintType** | 暴露这个类作为蓝图中变量可以使用的一种类型。|
-| **NotBlueprintable** | 指定这个类是不能作为创建蓝图的基类。使得父类具有的Blueprintable关键字无效。|
+| **可蓝图化（Blueprintable）** | 将该类公开为可接受的用于创建蓝图的基类。默认值为不可蓝图化（NotBlueprintable），但以其他方式继承时除外。这是由子类继承的。|
+| **蓝图类型（BlueprintType）** | 将该类公开为可用于蓝图中的变量的类型。|
+| **不可蓝图化（NotBlueprintable）** | 指定此类不是用于创建蓝图的可接受基类。否定指定了可蓝图化关键字的父类的效果。|
 
+
+(#readableandwritableproperties)
 
 ## 可读和可写属性
 
-为了将在C++类中定义的一个变量暴露给继承该类的蓝图，那么那个变量在处理变量定义的 `UPROPERTY()` 宏 
-中必须使用以下列出的其中一个关键字进行定义。
-这些关键字使得蓝图系统意识到该变量的存在，从而使它显示在 **MyBlueprint（我的蓝图）** 面板中，并且可以   
-设置或访问它的值。
+为了将C++类中定义的变量公开给从该类扩展而来的蓝图，必须使用变量定义之前的 **UPROPERTY()** 宏 
+中列出的下列关键字之一来定义该变量。 
+这些关键字使蓝图系统能够感知该变量，以便在 **我的蓝图（My Blueprint）** 面板中显示该变量， 
+并且可以设置或访问该变量的值。
 
 	//Character's Health
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Character")
 	float health;
 
-| 关键字 | 描述 |
+| 关键字 | 说明 |
 | -- | -- |
-| **BlueprintReadOnly** | 该属性由蓝图读取，但是不能修改。|
-| **BlueprintReadWrite** | 该属性可以从蓝图中读取或写入。|
-| [REGION:tablesection]多路广播代理关键字[/REGION] ||
-| **BlueprintAssignable** | 暴露该属性来在蓝图中进行分配赋值。|
-| **BlueprintCallable** |  暴露该属性来在蓝图图表中进行调用。|
+| **BlueprintReadOnly** | 此属性可以由蓝图读取，但不能修改。|
+| **BlueprintReadWrite** | 此属性可以通过蓝图读取或写入。|
+| [REGION:tablesection]Multicast Delegate Keywords[/REGION] ||
+| **BlueprintAssignable** | 应公开属性以在蓝图中分配。|
+| **BlueprintCallable** |  应公开属性以在蓝图图表中调用。|
 
-## 可执行的和可重载的函数
+(#executableandoverridablefunctions)
 
-为了从蓝图中调用一个原生函数，则必须在处理函数定义的  `UFUNCTION()` 宏中使用 
-以下列出的其中一个关键字来定义函数。这些关键字使得蓝图系统意识到 
-该函数的存在，以便它可以显示在关联菜单或者Palette(控制板)中，可以添加到图表中并执行（如果它们是事件）， 
-以便可以进行重载及执行。
+## 可执行和可覆盖函数
 
-声明BlueprintCallable（蓝图可调用）函数的最简单的形式如下所示：
+为了从蓝图调用本地函数，必须使用函数定义前面的 **UFUNCTION()** 宏 
+中列出的下列关键字之一来定义该函数。这些关键字使蓝图系统能够感知该函数， 
+以便在上下文菜单或控制板中显示该函数，并可将其添加到图中并执行 - 或者， 
+在发生事件的情况下，可以覆盖和执行这些函数。
+
+BlueprintCallable函数最简单的声明形式如下所示：
 
 	//Fire a Weapon
 	UFUNCTION(BlueprintCallable, Category="Weapon")
 	void Fire();
 
+在创建函数签名时，请注意，通过引用传递某一参数将使该参数成为蓝图节点上的输出引脚。若要使参数通过引用传递并仍然显示为输入，
+请使用“UPARAM()”宏。
 
-| 关键字 | 描述 |
+![](UParam.png)
+	
+	UFUNCTION(BlueprintCallable, Category = "Example Nodes")
+	static void HandleTargets(UPARAM(ref) TArray<FVector>& InputLocations, TArray<FVector>& OutputLocations);
+
+您还可以使用“UPARAM()”来更改引脚的显示名称。例如，KismetMathLibrary中的MakeRotator函数使用“UPARAM()”和“DisplayName”关键字来更改绕Z轴的旋转、绕X轴的旋转、绕Y轴的旋转参数在蓝图中的显示方式。
+
+![](UParam2.png)
+
+	/** 根据采用度数的旋转值制作一个旋转体{绕Z轴的旋转、绕X轴的旋转、绕Y轴的旋转} */
+	UFUNCTION(BlueprintPure, Category="Math|Rotator", meta=(Keywords="construct build rotation rotate rotator makerotator", NativeMakeFunc))
+	static FRotator MakeRotator(
+	UPARAM(DisplayName="X (Roll)") float Roll,	
+	UPARAM(DisplayName="Y (Pitch)") float Pitch,
+	UPARAM(DisplayName="Z (Yaw)") float Yaw);
+
+
+
+| 关键字 | 说明 |
 | -- | -- |
-| [REGION:tablesection]蓝图到原生代码的通信[/REGION] ||
-| **BlueprintCallable** | 这是一个可以从蓝图中调用的原生函数，它执行原生代码，修改正在调用它的对象上的一些内容或者一些其他的全局状态。这意味着它应该是“提前规划的”，或者已经清楚地知道相对于其他节点的执行顺序。我们通过白色执行连线完成这个处理。所有蓝图可调用的函数都按照它们沿着白色执行线出现的顺序进行调用。|
-| **BlueprintPure** |这是一个可以从蓝图中调用的原生函数，它执行原生代码，不会修改调用它的对象的任何内容，也不会修改任何其他的全局状态。这意味着调用该代码不会修改任何内容，它仅是取入输入，并向您提供一个输出。像数学节点(+ 、 - 、 * 等)、变量获取节点、或者任何不永久性地修改任何内容的东西都属于这类内容。这些内容不需要规划如何执行，它们没有线连接到白色执行线。编译器会根据哪个BlueprintCallable节点需要这些节点处理的数据来自动地辨别出他们。|
-| [REGION:tablesection]原生代码到蓝图的通信[/REGION] ||
-| **BlueprintImplementableEvent** | 这是我们允许原生函数调用蓝图的主要方式。它们就像您在蓝图本身内实现的虚函数。如果函数没有实现，那么该函数调用将会被忽略掉。需要注意的很重要的一点是，如果一个BlueprintImplementableEvent没有返回值或输出参数，那么它将呈现为一个事件，您可以通过右击并从蓝图的事件图表中选择它。如果他具有返回值或任何输出参数，那么它将列在 **My Blueprints(我的蓝图)** 中，并且可以通过右击它并选择 “实现”函数来重载它。注意，BlueprintImplementableEvents没有该函数的原生代码实现。|
-| **BlueprintNativeEvent** |这些关键字和上面的一样，但是它具有该函数的原生默认实现，如果蓝图没有重载该函数则调用默认实现。如果蓝图没有实现函数，您需要某种默认行为；但是在需要重载函数的地方，您又需要重载该函数，对于这种情况这个关键字是非常有用的。这些关键字的性能消耗较大，所以我们仅把它们放在需要该功能的地方。当您重载该BlueprintNativeEvent时，如果您想调用原生实现，那么通过右击该事件或函数入口节点并选择"Add call to parent" ， 您仍然可以调用原生实现。|
+| [REGION:tablesection]蓝图到本地通信[/REGION] ||
+| **BlueprintCallable** | 这是一种可以从执行本地代码的蓝图中调用的本地函数，这些代码将更改它所调用的对象的某些内容或一些其他全局状态。这意味着，必须“调度”此函数，或者明确地告诉它相对于其他节点执行的顺序。我们用白色的执行行来执行此操作。所有蓝图可调用函数将按照它们在白色执行行上出现的顺序调用。|
+| **BlueprintPure** | 这是一种可以从执行本地代码的蓝图中调用的本地函数，这些代码不会更改它所调用的对象的任何内容或任何其他全局状态。这意味着调用这个节点不会改变任何东西，它只需要输入，然后告诉您输出。它们是诸如数学节点（+、-、*等）、或者变量获取器或者任何永远都不会改变任何内容的项目之类的东西。它们不需要调度，也没有白色的执行行的连接。它们由编译器根据哪个BlueprintCallable节点需要这些节点生成的数据而自动计算出来。|
+| [REGION:tablesection]Native to Blueprint Communication[/REGION] ||
+| **BlueprintImplementableEvent** | 这是我们允许本地函数调用蓝图的主要方式。它们就像您在蓝图本身中实现的虚拟函数。如果不存在实现，则该函数调用将被忽略。必须注意的是，如果BlueprintImplementableEvent没有返回值或输出参数，那么它将显示为一个事件，可以通过**右键单击**并在蓝图的事件图表中选择它来使用。如果它有返回值或任何输出参数，它将在 **我的蓝图（My Blueprints）** 选项卡中列出，然后可以通过 **右键单击** 并选择实施函数来覆盖。请注意，BlueprintImplementableEvents没有函数的本地实现。|
+| **BlueprintNativeEvent** | 除了如果蓝图没有覆盖此函数，则调用此函数的本地默认实现之外，此函数与上述函数别无二致。如果您想要某种默认行为（而蓝图没有实现它），但又希望蓝图能够在需要时覆盖功能，那么此函数将大有帮助。这些函数的使用成本更高，所以我们只将它们用在需要功能的地方。当您覆盖BlueprintNativeEvent时，如果需要，您仍然可以调用本地实现，方法是在事件或函数条目节点上 **右键单击**，并选择“将调用添加到父项（Add call to parent）”。|
+
+
+
+
+
+

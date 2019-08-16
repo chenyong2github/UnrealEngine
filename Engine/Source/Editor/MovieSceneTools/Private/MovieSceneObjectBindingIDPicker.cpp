@@ -213,7 +213,7 @@ private:
 				{
 					UMovieSceneSubSection* SubSection = Cast<UMovieSceneSubSection>(Section);
 					UMovieSceneSequence* SubSequence = SubSection ? SubSection->GetSequence() : nullptr;
-					if (SubSequence)
+					if (SubSequence && Section->IsActive())
 					{
 						// Hold onto the current parent ID before adding our ID onto the stack
 						FMovieSceneSequenceID ParentID = SequenceIDStack.GetCurrent();

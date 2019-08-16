@@ -332,7 +332,8 @@ public:
    * @return the new position
    * @stable ICU 2.0
    */
-  virtual int32_t      move32(int32_t delta, EOrigin origin);
+
+  virtual int32_t      HACK_ICU_MOVE32_FIX(int32_t delta, EOrigin origin);
 
   /**
    * Sets the iterator to iterate over a new range of text

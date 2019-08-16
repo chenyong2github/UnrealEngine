@@ -17,10 +17,12 @@ struct FLightmapSceneData
 	float4 ShadowMapCoordinateScaleBias;
 	float4 LightMapScale[2];
 	float4 LightMapAdd[2];
+	uint4 LightmapVTPackedPageTableUniform[2];
+	uint4 LightmapVTPackedUniform[5];
 };
 
 // Stride of a single lightmap data entry in float4's, must match C++
-#define LIGHTMAP_SCENE_DATA_STRIDE 8
+#define LIGHTMAP_SCENE_DATA_STRIDE 15
 
 // Fetch from scene lightmap data buffer
 FLightmapSceneData GetLightmapData(uint LightmapDataIndex) 
@@ -38,6 +40,13 @@ FLightmapSceneData GetLightmapData(uint LightmapDataIndex)
 	LightmapData.LightMapScale[1] = View.LightmapSceneData[LightmapDataBaseOffset + 5];
 	LightmapData.LightMapAdd[0] = View.LightmapSceneData[LightmapDataBaseOffset + 6];
 	LightmapData.LightMapAdd[1] = View.LightmapSceneData[LightmapDataBaseOffset + 7];
+	LightmapData.LightmapVTPackedPageTableUniform[0] = asuint(View.LightmapSceneData[LightmapDataBaseOffset + 8]);
+	LightmapData.LightmapVTPackedPageTableUniform[1] = asuint(View.LightmapSceneData[LightmapDataBaseOffset + 9]);
+
+	for (uint i = 0u; i < 5u; ++i)
+	{
+		LightmapData.LightmapVTPackedUniform[i] = asuint(View.LightmapSceneData[LightmapDataBaseOffset + 10 + i]);
+	}
 
 	return LightmapData;
 }

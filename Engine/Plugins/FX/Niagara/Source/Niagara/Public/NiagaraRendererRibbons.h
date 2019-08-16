@@ -18,10 +18,11 @@ class NIAGARA_API FNiagaraRendererRibbons : public FNiagaraRenderer
 {
 public:
 	FNiagaraRendererRibbons(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter);	// FNiagaraRenderer Interface 
+	~FNiagaraRendererRibbons();
 
 	// FNiagaraRenderer Interface 
-	virtual void CreateRenderThreadResources() override;
-	virtual void ReleaseRenderThreadResources() override;
+	virtual void CreateRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher) override;
+	virtual void ReleaseRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher) override;
 
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector, const FNiagaraSceneProxy *SceneProxy) const override;
 	virtual FNiagaraDynamicDataBase *GenerateDynamicData(const FNiagaraSceneProxy* Proxy, const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitteride) const override;
@@ -48,6 +49,12 @@ private:
 	FVector2D UV1Offset;
 	ENiagaraRibbonAgeOffsetMode UV1AgeOffsetMode;
 	ENiagaraRibbonDrawDirection DrawDirection;
+	ENiagaraRibbonTessellationMode TessellationMode;
+	float CustomCurveTension;
+	int32 CustomTessellationFactor;
+	bool bCustomUseConstantFactor;
+	float CustomTessellationMinAngle;
+	bool bCustomUseScreenSpace;
 
 	int32 PositionDataOffset;
 	int32 VelocityDataOffset;

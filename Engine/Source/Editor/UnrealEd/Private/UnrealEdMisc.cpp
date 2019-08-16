@@ -11,9 +11,11 @@
 #include "Misc/CoreDelegates.h"
 #include "Misc/App.h"
 #include "Modules/ModuleManager.h"
+#include "Features/IModularFeatures.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/InputBindingManager.h"
 #include "Framework/Docking/TabManager.h"
+#include "Toolkits/FConsoleCommandExecutor.h"
 #include "TexAlignTools.h"
 #include "ISourceControlModule.h"
 #include "Editor/UnrealEdEngine.h"
@@ -80,6 +82,7 @@
 #include "IVREditorModule.h"
 #include "ILauncherPlatform.h"
 #include "LauncherPlatformModule.h"
+#include "ILauncherServicesModule.h"
 
 #define USE_UNIT_TESTS 0
 
@@ -228,6 +231,10 @@ void FUnrealEdMisc::OnInit()
 	FScopedSlowTask SlowTask(100);
 	SlowTask.EnterProgressFrame(10);
 
+	// Register the command executor
+	CmdExec = MakeUnique<FConsoleCommandExecutor>();
+	IModularFeatures::Get().RegisterModularFeature(IConsoleCommandExecutor::ModularFeatureName(), CmdExec.Get());
+
 	// Register all callback notifications
 	FEditorDelegates::SelectedProps.AddRaw(this, &FUnrealEdMisc::CB_SelectedProps);
 	FEditorDelegates::DisplayLoadErrors.AddRaw(this, &FUnrealEdMisc::CB_DisplayLoadErrors);
@@ -257,7 +264,6 @@ void FUnrealEdMisc::OnInit()
 	FPlayWorldCommands::Register();
 	FPlayWorldCommands::BindGlobalPlayWorldCommands();
 
-
 	// Register common asset editor commands
 	FAssetEditorCommonCommands::Register();
 
@@ -277,7 +283,6 @@ void FUnrealEdMisc::OnInit()
 	FUserActivityTracking::SetActivity(FUserActivity(TEXT("EditorInit"), EUserActivityContext::Editor));
 
 	FEditorModeRegistry::Initialize();
-
 
 	// Are we in immersive mode?
 	const TCHAR* ParsedCmdLine = FCommandLine::Get();
@@ -610,6 +615,11 @@ void FUnrealEdMisc::InitEngineAnalytics()
 * @EventParam IsDebugger (bool) Whether the debugger is currently present
 * @EventParam WasDebuggerPresent (bool) Whether the debugger was present previously
 * @EventParam IsInVRMode (bool) If the current heartbeat occurred while VR mode was active
+* @EventParam bIsEnterprise (bool) If the editor has an enterprise project loaded
+* @EventParam Is5MinIdle (bool) Whether the user is idle, using the 5 minute methodology
+* @EventParam Is30MinIdle (bool) Whether the user is idle, using the 30 minute methodology
+* @EventParam IsInPIE (bool) Whether the user is/was in PIE during this heartbeat
+* @EventParam RealIntervalSec (bool) The real time since the last heartbeat
 *
 * @Source Editor
 *
@@ -630,6 +640,13 @@ void FUnrealEdMisc::EditorAnalyticsHeartbeat()
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	const double HeartbeatInvervalSec = (double)(UnrealEdMiscDefs::HeartbeatIntervalSeconds);
 	const double Now = FPlatformTime::Seconds();
+
+	static double LastTimeInPIE = 0;
+	if (FPlayWorldCommandCallbacks::IsInPIE())
+	{
+		LastTimeInPIE = Now;
+	}
+
 	// Initialize to ensure the first time this is called we will DEF execute the heartbeat.
 	static double LastHeartbeatTime = Now - HeartbeatInvervalSec;
 	// allow a little bit of slop in the timing in case the event is only firing slightly too soon, even though that is technically impossible.
@@ -650,10 +667,10 @@ void FUnrealEdMisc::EditorAnalyticsHeartbeat()
 	const bool bInVRMode = IVREditorModule::Get().IsVREditorModeActive();
 	const bool bIsEnterprise = IProjectManager::Get().IsEnterpriseProject();
 
-	double LastInteractionTime = FSlateApplication::Get().GetLastUserInteractionTime();
+	const double LastInteractionTime = FSlateApplication::Get().GetLastUserInteractionTime();
 	
 	// Did the user interact since the last heartbeat
-	bool bIdle = LastInteractionTime < LastHeartbeatTime;
+	const bool bIdle = LastInteractionTime < LastHeartbeatTime;
 	
 	extern ENGINE_API float GAverageFPS;
 
@@ -674,9 +691,22 @@ void FUnrealEdMisc::EditorAnalyticsHeartbeat()
 	Attributes.Add(FAnalyticsEventAttribute(TEXT("IsInVRMode"), bInVRMode));
 	Attributes.Add(FAnalyticsEventAttribute(TEXT("Enterprise"), bIsEnterprise));
 
+	// In the 5 Min and 30 Min idle case we treat longer periods of time as none idle post user interaction
+	const bool b5MinIdle = LastInteractionTime + (5.0f * 60.0f) < LastHeartbeatTime;
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Is5MinIdle"), b5MinIdle));
+	const bool b30MinIdle = LastInteractionTime + (30.0f * 60.0f) < LastHeartbeatTime;
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Is30MinIdle"), b30MinIdle));
+
+	// InPIE bool, added a 5 second grace period to include PIE shutdown issues in the "InPIE" window
+	const bool bInPIE = LastTimeInPIE + 5.0f > LastHeartbeatTime;
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("IsInPIE"), bInPIE));
+
+	// Interval seconds actually track the entirety of the time since last heartbeat.
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("RealIntervalSec"), Now - LastHeartbeatTime));
+
 	FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.Heartbeat"), Attributes);
 	
-	LastHeartbeatTime = FPlatformTime::Seconds();
+	LastHeartbeatTime = Now;
 }
 
 void FUnrealEdMisc::TickAssetAnalytics()
@@ -960,6 +990,10 @@ void FUnrealEdMisc::OnExit()
 		}
 		FPlatformProcess::CloseProc(Handle);
 	}
+
+	// Unregister the command executor
+	IModularFeatures::Get().UnregisterModularFeature(IConsoleCommandExecutor::ModularFeatureName(), CmdExec.Get());
+	CmdExec.Reset();
 
 	//Release static class to be sure its not release in a random way. This class use a static multicastdelegate which can be delete before and crash the editor on exit
 	GTexAlignTools.Release();
@@ -1792,29 +1826,8 @@ bool FUnrealEdMisc::GetURL( const TCHAR* InKey, FString& OutURL, const bool bChe
 
 FString FUnrealEdMisc::GetExecutableForCommandlets() const
 {
-	FString ExecutableName = FString(FPlatformProcess::ExecutablePath());
-#if PLATFORM_WINDOWS
-	// turn UE4editor into UE4editor-cmd
-	if(ExecutableName.EndsWith(".exe", ESearchCase::IgnoreCase) && !FPaths::GetBaseFilename(ExecutableName).EndsWith("-cmd", ESearchCase::IgnoreCase))
-	{
-		FString NewExeName = ExecutableName.Left(ExecutableName.Len() - 4) + "-Cmd.exe";
-		if (FPaths::FileExists(NewExeName))
-		{
-			ExecutableName = NewExeName;
-		}
-	}
-#elif PLATFORM_MAC
-	// turn UE4editor into UE4editor-cmd
-	if (!FPaths::GetBaseFilename(ExecutableName).EndsWith("-cmd", ESearchCase::IgnoreCase))
-	{
-		FString NewExeName = ExecutableName + "-Cmd";
-		if (FPaths::FileExists(NewExeName))
-		{
-			ExecutableName = NewExeName;
-		}
-	}
-#endif
-	return ExecutableName;
+	ILauncherServicesModule& LauncherServicesModule = FModuleManager::LoadModuleChecked<ILauncherServicesModule>(TEXT("LauncherServices"));
+	return LauncherServicesModule.GetExecutableForCommandlets();
 }
 
 void FUnrealEdMisc::OpenMarketplace(const FString& CustomLocation)

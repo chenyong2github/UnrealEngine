@@ -66,6 +66,24 @@ void ADebugCameraHUD::PostRender()
 		UFont* RenderFont = GEngine->GetSmallFont();
 		if( DCC != NULL )
 		{
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+			if (ADebugCameraController::EnableDebugBuffers() && DCC->bEnableBufferVisualizationFullMode)
+			{
+				RenderFont = GEngine->GetMediumFont();
+				FFontRenderInfo FontRenderInfo = Canvas->CreateFontRenderInfo(false, true);
+
+				Canvas->SetDrawColor(255, 255, 64, 255);
+				FString BufferText = DCC->GetSelectedBufferMaterialName();
+				float xl, yl;
+				Canvas->StrLen(RenderFont, BufferText, xl, yl);
+				float X = Canvas->SizeX * 0.05f;
+				float Y = Canvas->SizeY < 3.0f * yl ? 0.0f : Canvas->SizeY - 3.0f * yl;
+				Canvas->DrawText(RenderFont, BufferText, X, Y, 1.f, 1.f, FontRenderInfo);
+
+				return;
+			}
+#endif	
+
 			FFontRenderInfo FontRenderInfo = Canvas->CreateFontRenderInfo(false, true);
 
 			Canvas->SetDrawColor(64, 64, 255, 255);
@@ -101,10 +119,14 @@ void ADebugCameraHUD::PostRender()
 			Canvas->DrawText(RenderFont, SpeedString, X, yl, 1.f, 1.f, FontRenderInfo);
 			yl += Y;
 
-			FString const ViewModeString = FString::Printf(TEXT("ViewMode=%s"), GetWorld()->GetGameViewport() ? GetViewModeName((EViewModeIndex)GetWorld()->GetGameViewport()->ViewModeIndex) : TEXT("<Not found>"));
-			Canvas->DrawText(RenderFont, ViewModeString, X, yl, 1.f, 1.f, FontRenderInfo);
-			yl += Y;
-
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+			if (ADebugCameraController::EnableDebugViewmodes())
+			{
+				FString const ViewModeString = FString::Printf(TEXT("ViewMode=%s"), GetWorld()->GetGameViewport() ? GetViewModeName((EViewModeIndex)GetWorld()->GetGameViewport()->ViewModeIndex) : TEXT("<Not found>"));
+				Canvas->DrawText(RenderFont, ViewModeString, X, yl, 1.f, 1.f, FontRenderInfo);
+				yl += Y;
+			}
+#endif
 			const TCHAR* CVarComplexName = TEXT("g.DebugCameraTraceComplex");
 			bool bTraceComplex = true;
 
@@ -199,7 +221,7 @@ void ADebugCameraHUD::PostRender()
 
 
 			// controls display
-			yl += Y*10;
+			yl += Y*2;
 			
 			Canvas->SetDrawColor(64, 64, 255, 255);
 			Canvas->DrawText(RenderFont, TEXT("Controls"), X, yl, 1.f, 1.f, FontRenderInfo);
@@ -224,11 +246,20 @@ void ADebugCameraHUD::PostRender()
 			Canvas->DrawText(RenderFont, TEXT("Orbit Selected Actor: Shift-O"), X, yl, 1.f, 1.f, FontRenderInfo);
 			yl += Y;
 
-			Canvas->DrawText(RenderFont, TEXT("Toggle Buffer Visualization: B ('Enter' to toggle full buffer mode)"), X, yl, 1.f, 1.f, FontRenderInfo);
-			yl += Y;
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
-			Canvas->DrawText(RenderFont, TEXT("Cycle View Mode: V"), X, yl, 1.f, 1.f, FontRenderInfo);
-			yl += Y;
+			if (ADebugCameraController::EnableDebugBuffers())
+			{
+				Canvas->DrawText(RenderFont, TEXT("Toggle Buffer Visualization: B ('Enter' to toggle full buffer mode)"), X, yl, 1.f, 1.f, FontRenderInfo);
+				yl += Y;
+			}
+
+			if (ADebugCameraController::EnableDebugViewmodes())
+			{
+				Canvas->DrawText(RenderFont, TEXT("Cycle View Mode: V"), X, yl, 1.f, 1.f, FontRenderInfo);
+				yl += Y;
+			}
+#endif
 		}
 	}
 #endif

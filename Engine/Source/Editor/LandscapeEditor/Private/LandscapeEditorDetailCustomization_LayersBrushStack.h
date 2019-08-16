@@ -56,17 +56,24 @@ protected:
 
 	static class FEdModeLandscape* GetEditorMode();
 
-	TSharedPtr<SWidget> GenerateRow(int32 InLayerIndex);
+	TSharedPtr<SWidget> GenerateRow(int32 InBrushIndex);
+	TSharedPtr<SWidget> OnBrushContextMenuOpening(int32 InBrushIndex);
 
+	void FillAddBrushMenu(FMenuBuilder& MenuBuilder, TArray<ALandscapeBlueprintBrushBase*> Brushes);
+
+	FReply OnToggleVisibility(int32 InBrushIndex);
+	FReply OnToggleAffectsHeightmap(int32 InBrushIndex);
+	FReply OnToggleAffectsWeightmap(int32 InBrushIndex);
+
+	const FSlateBrush* GetAffectsHeightmapBrush(int32 InBrushIndex) const;
+	const FSlateBrush* GetAffectsWeightmapBrush(int32 InBrushIndex) const;
+	const FSlateBrush* GetVisibilityBrush(int32 InBrushIndex) const;
 	bool IsBrushSelected(int32 InBrushIndex) const;
+	bool IsBrushEnabled(int32 InBrushIndex) const;
 	void OnBrushSelectionChanged(int32 InBrushIndex);
 	FText GetBrushText(int32 InBrushIndex) const;
 	FSlateColor GetBrushTextColor(int32 InBrushIndex) const;
-	ALandscapeBlueprintCustomBrush* GetBrush(int32 InBrushIndex) const;
-
-	FReply ToggleCommitBrushes();
-	bool IsCommitBrushesButtonEnabled() const;
-	FText GetCommitBrushesButtonText() const;
+	ALandscapeBlueprintBrushBase* GetBrush(int32 InBrushIndex) const;
 
 	// Drag/Drop handling
 	FReply HandleDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, int32 SlotIndex, SVerticalBox::FSlot* Slot);

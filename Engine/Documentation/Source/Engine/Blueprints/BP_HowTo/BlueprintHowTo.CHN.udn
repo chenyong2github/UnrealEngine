@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3810467
+﻿INTSourceChangelist:6652343
 Availability:Public
 Title:蓝图指导
 Crumbs: %ROOT%, Engine, Engine/Blueprints
@@ -17,16 +17,32 @@ topic-image:BP_HowTo_Topic.png
 
 在熟悉并了解蓝图的核心要素后，可在 [](Gameplay) 中查看“游戏性导向蓝图指导”。该部分将对游戏性相关要素进行说明，如生成/摧毁 Actors、重生（摧毁后）、使用计时器等。 
 
+<!-- removing for now
+[REGION:tip]
+如果您是蓝图或可视化脚本方面的新手，还可以查看 **蓝图基础概念** 系列视频教程。此系列涵盖了在虚幻引擎4中使用蓝图的基础与核心概念、如果将蓝图与传统编程的关联、蓝图编辑器UI导览、组件、图表以及一些使用蓝图的禁忌。 
+[OBJECT:TopicCompact]
+	[PARAM:image]
+		![](BlueprintEssentialsUA.png)
+	[/PARAM]
+	[PARAM:icon]
+		![](%ROOT%/blueprint_icon.png)(convert:false)
+	[/PARAM]
+	[PARAM:title]
+		蓝图基础概念课程
+	[/PARAM]
+	[PARAMLITERAL:path]
+		https://academy.unrealengine.com/Class/blueprint-essential-concepts
+	[/PARAMLITERAL]
+[/OBJECT]
+[/REGION]
+-->
 
-(#Beginner)
 ## 初级
 [DIR(output:"fancy" type:"how-to" skill:"Beginner" parent:"Engine/Blueprints/BP_HowTo" org:"hierarchy")]
 
-(#Intermediate)
 ## 中级
 [DIR(output:"fancy" type:"how-to" skill:"Intermediate" parent:"Engine/Blueprints/BP_HowTo" org:"hierarchy")]
 
-(#Advanced)
 ## 高级
 [DIR(output:"fancy" type:"how-to" skill:"Advanced" parent:"Engine/Blueprints/BP_HowTo" org:"hierarchy")]
 

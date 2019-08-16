@@ -36,7 +36,7 @@ private:
  * To override this behavior, override GetPrimaryAssetId in your native class
  */
 UCLASS(abstract, MinimalAPI, Blueprintable)
-class UPrimaryDataAsset : public UDataAsset
+class ENGINE_VTABLE UPrimaryDataAsset : public UDataAsset
 {
 	GENERATED_BODY()
 

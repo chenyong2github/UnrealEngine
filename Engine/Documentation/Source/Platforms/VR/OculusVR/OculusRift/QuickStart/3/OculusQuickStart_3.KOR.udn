@@ -1,0 +1,26 @@
+﻿INTSourceChangelist:6424607
+Availability: Docs
+Crumbs: %ROOT%
+Title: 3. Oculus 계정 생성 및 로그인
+Description: Oculus Rift 에서 UE4 프로젝트를 실행할 때 필요한 소프트웨어를 설치합니다.
+Type: quick start
+SkillLevel: Beginner
+Version: 4.17
+Parent:Platforms/VR/OculusVR/OculusRift/QuickStart
+Order: 3
+Checkpoint:RIFTQS
+
+[NAV]
+
+여기서는 Oculus 리프트 소프트웨어를 설치한 이후 작업에 대해 다룹니다.
+
+1. Oculus 리프트 소프트웨어가 설치되면, **Next** 버튼을 눌러 하드웨어 셋업을 시작합니다.
+
+    ![](Rift_Finshed_Install_00.png)
+
+1. 그리고 Oculus 에 **Sign in** (로그인) 또는 **Create Account** (계정 생성) 창이 뜹니다.
+
+    ![](Rift_Create_Account_LogIn_00.png)
+
+
+[NAV]

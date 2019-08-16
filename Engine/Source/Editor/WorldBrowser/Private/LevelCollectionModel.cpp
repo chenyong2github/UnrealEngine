@@ -52,6 +52,7 @@ FLevelCollectionModel::FLevelCollectionModel()
 	, bSelectionHasChanged(true)
 	, bUpdatingLevelsSelection(false)
 {
+	FEditorDelegates::RefreshLevelBrowser.AddRaw(this, &FLevelCollectionModel::PopulateLevelsList);
 }
 
 FLevelCollectionModel::~FLevelCollectionModel()
@@ -68,6 +69,8 @@ FLevelCollectionModel::~FLevelCollectionModel()
 	{
 		CurrentWorld->OnSelectedLevelsChanged().RemoveAll(this);
 	}
+
+	FEditorDelegates::RefreshLevelBrowser.RemoveAll(this);
 }
 
 void FLevelCollectionModel::Initialize(UWorld* InWorld)
@@ -794,7 +797,7 @@ void FLevelCollectionModel::CustomizeFileMainMenu(FMenuBuilder& InMenuBuilder) c
 	InMenuBuilder.AddSubMenu( 
 		LOCTEXT("SourceControl", "Source Control"),
 		LOCTEXT("SourceControl_ToolTip", "Source Control Options"),
-		FNewMenuDelegate::CreateSP(this, &FLevelCollectionModel::FillSourceControlSubMenu));
+		FNewMenuDelegate::CreateSP(const_cast<FLevelCollectionModel*>(this), &FLevelCollectionModel::FillSourceControlSubMenu));
 		
 	if (AreAnyLevelsSelected())
 	{
@@ -1258,7 +1261,7 @@ void FLevelCollectionModel::SCCDiffAgainstDepot(const FLevelModelList& InList, U
 					{
 						// Try and load that package
 						FText NotMapReason;
-						UPackage* OldPackage = LoadPackage(NULL, *TempFileName, LOAD_DisableCompileOnLoad);
+						UPackage* OldPackage = LoadPackage(NULL, *TempFileName, LOAD_ForDiff|LOAD_DisableCompileOnLoad);
 						if(OldPackage != NULL && InEditor->PackageIsAMapFile(*TempFileName, NotMapReason))
 						{
 							/* Set the revision information*/
@@ -1729,7 +1732,7 @@ void FLevelCollectionModel::MoveActorsToSelected_Executed()
 
 		if (Actor != nullptr)
 		{
-			FFoliageEditUtility::MoveActorFoliageInstancesToLevel(GetWorld()->GetCurrentLevel());
+			FFoliageEditUtility::MoveActorFoliageInstancesToLevel(GetWorld()->GetCurrentLevel(), Actor);
 		}
 	}
 

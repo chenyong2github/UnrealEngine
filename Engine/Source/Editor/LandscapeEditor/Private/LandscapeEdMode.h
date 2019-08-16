@@ -49,6 +49,7 @@ struct FLandscapeToolMode
 
 	TArray<FName>			ValidTools;
 	FName					CurrentToolName;
+	FName					CurrentTargetLayerName;
 
 	FLandscapeToolMode(FName InToolModeName, int32 InSupportedTargetTypes)
 		: ToolModeName(InToolModeName)
@@ -152,7 +153,7 @@ struct FLandscapeTargetListInfo
 
 	FName GetLayerName() const;
 
-	FString& ReimportFilePath() const
+	FString GetReimportFilePath() const
 	{
 		if (TargetType == ELandscapeToolTargetType::Weightmap)
 		{
@@ -162,7 +163,39 @@ struct FLandscapeTargetListInfo
 		}
 		else //if (TargetType == ELandscapeToolTargetType::Heightmap)
 		{
-			return LandscapeInfo->GetLandscapeProxy()->ReimportHeightmapFilePath;
+			if (LandscapeInfo.IsValid())
+			{
+				ALandscapeProxy* LandscapeProxy = LandscapeInfo->GetLandscapeProxy();
+
+				if (LandscapeProxy)
+				{
+					return LandscapeProxy->ReimportHeightmapFilePath;
+				}
+			}
+
+			return FString(TEXT(""));
+		}
+	}
+
+	void SetReimportFilePath(const FString& InNewPath)
+	{
+		if (TargetType == ELandscapeToolTargetType::Weightmap)
+		{
+			FLandscapeEditorLayerSettings* EditorLayerSettings = GetEditorLayerSettings();
+			check(EditorLayerSettings);
+			EditorLayerSettings->ReimportLayerFilePath = InNewPath;
+		}
+		else //if (TargetType == ELandscapeToolTargetType::Heightmap)
+		{
+			if (LandscapeInfo.IsValid())
+			{
+				ALandscapeProxy* LandscapeProxy = LandscapeInfo->GetLandscapeProxy();
+
+				if (LandscapeProxy)
+				{
+					LandscapeProxy->ReimportHeightmapFilePath = InNewPath;
+				}
+			}
 		}
 	}
 };
@@ -323,13 +356,14 @@ public:
 	void InitializeTool_Splines();
 	void InitializeTool_Ramp();
 	void InitializeTool_Mirror();
-	void InitializeTool_BPCustom();
+	void InitializeTool_BlueprintBrush();
 	void UpdateToolModes();
 
 	/** Destructor */
 	virtual ~FEdModeLandscape();
 
 	/** ILandscapeEdModeInterface */
+	virtual void PostUpdateLayerContent() override;
 	virtual ELandscapeToolTargetType::Type GetLandscapeToolTargetType() const override;
 	virtual const FLandscapeLayer* GetLandscapeSelectedLayer() const override;
 	virtual ULandscapeLayerInfoObject* GetSelectedLandscapeLayerInfo() const override;
@@ -467,14 +501,18 @@ public:
 	void SetCurrentToolMode(FName ToolModeName, bool bRestoreCurrentTool = true);
 
 	/** Change current tool */
-	void SetCurrentTool(FName ToolName);
-	void SetCurrentTool(int32 ToolIdx);
+	void SetCurrentTool(FName ToolName, FName TargetLayerName = NAME_None);
+	void SetCurrentTool(int32 ToolIdx, FName TargetLayerName = NAME_None);
+	void SetCurrentTargetLayer(FName TargetLayerName, TWeakObjectPtr<ULandscapeLayerInfoObject> LayerInfo);
 
 	void SetCurrentBrushSet(FName BrushSetName);
 	void SetCurrentBrushSet(int32 BrushSetIndex);
 
 	void SetCurrentBrush(FName BrushName);
 	void SetCurrentBrush(int32 BrushIndex);
+
+	void UpdateBrushList();
+	const TArray<ALandscapeBlueprintBrushBase*>& GetBrushList() const;
 
 	const TArray<TSharedRef<FLandscapeTargetListInfo>>& GetTargetList() const;
 	const TArray<FName>* GetTargetDisplayOrderList() const;
@@ -494,6 +532,7 @@ public:
 	void MoveTargetLayerDisplayOrder(int32 IndexToMove, int32 IndexToDestination);
 
 	/** Update shown layer list */	
+	void RequestUpdateShownLayerList();
 	void UpdateShownLayerList();
 	bool ShouldShowLayer(TSharedRef<FLandscapeTargetListInfo> Target) const;
 	void UpdateLayerUsageInformation(TWeakObjectPtr<ULandscapeLayerInfoObject>* LayerInfoObjectThatChanged = nullptr);
@@ -527,13 +566,10 @@ public:
 	void AutoUpdateDirtyLandscapeSplines();
 	bool CanEditLayer(FText* Reason = nullptr, FLandscapeLayer* InLayer = nullptr);
 
-	void AddBrushToCurrentLayer(int32 InTargetType, class ALandscapeBlueprintCustomBrush* InBrush);
-	void RemoveBrushFromCurrentLayer(int32 InTargetType, class ALandscapeBlueprintCustomBrush* InBrush);
-	bool AreAllBrushesCommitedToCurrentLayer(int32 InTargetType);
-	void SetBrushesCommitStateForCurrentLayer(int32 InTargetType, bool InCommited);
-	TArray<int8>& GetBrushesOrderForCurrentLayer(int32 InTargetType) const;
-	class ALandscapeBlueprintCustomBrush* GetBrushForCurrentLayer(int32 InTargetType, int8 BrushIndex) const;
-	TArray<class ALandscapeBlueprintCustomBrush*> GetBrushesForCurrentLayer(int32 InTargetType);
+	void AddBrushToCurrentLayer(class ALandscapeBlueprintBrushBase* InBrush);
+	void RemoveBrushFromCurrentLayer(class ALandscapeBlueprintBrushBase* InBrush);
+	class ALandscapeBlueprintBrushBase* GetBrushForCurrentLayer(int8 BrushIndex) const;
+	TArray<class ALandscapeBlueprintBrushBase*> GetBrushesForCurrentLayer();
 	
 	bool NeedToFillEmptyMaterialLayers() const;
 	void RequestLayersContentUpdate(ELandscapeLayerUpdateMode InUpdateMode);
@@ -585,6 +621,7 @@ public:
 private:
 	TArray<TSharedRef<FLandscapeTargetListInfo>> LandscapeTargetList;
 	TArray<FLandscapeListInfo> LandscapeList;
+	TArray<ALandscapeBlueprintBrushBase*> BrushList;
 	TArray<FName> ShownTargetLayerList;
 	
 	/** Represent the index offset of the target layer in LandscapeTargetList */
@@ -606,4 +643,7 @@ private:
 
 	/** The interactor that is currently painting, prevents multiple interactors from sculpting when one actually is */
 	class UViewportInteractor* InteractorPainting;
+
+	/** Delayed refresh */
+	bool bNeedsUpdateShownLayerList;
 };

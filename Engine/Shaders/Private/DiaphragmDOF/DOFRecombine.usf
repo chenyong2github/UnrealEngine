@@ -10,6 +10,8 @@
 #include "../SceneTexturesCommon.ush"
 #include "../Random.ush"
 #include "../MonteCarlo.ush"
+#include "../SobolRandom.ush"
+
 
 
 //------------------------------------------------------- DEBUG COMPILE TIME CONFIG
@@ -129,12 +131,37 @@
 
 //------------------------------------------------------- PARAMETERS
 
+float4 ViewportSize;
+uint4 ViewportRect;
+
 float2 TemporalJitterPixels;
 float4 CocModelParameters;
 float2 DepthBlurParameters;
 float2 DOFBufferUVMax;
 
-RWTexture2D<float4>	Output0;
+Texture2D BokehLUT;
+
+Texture2D SceneColorInput;
+Texture2D SceneDepthTexture;
+Texture2D SceneSeparateCoc;
+Texture2D SceneSeparateTranslucency;
+
+float4 ConvolutionInputSize;
+
+Texture2D ForegroundConvolution_SceneColor;
+Texture2D ForegroundConvolution_SeparateAlpha;
+
+Texture2D ForegroundHoleFillingConvolution_SceneColor;
+Texture2D ForegroundHoleFillingConvolution_SeparateAlpha;
+
+Texture2D SlightOutOfFocusConvolution_SceneColor;
+Texture2D SlightOutOfFocusConvolution_SeparateAlpha;
+
+Texture2D BackgroundConvolution_SceneColor;
+Texture2D BackgroundConvolution_SeparateAlpha;
+
+
+RWTexture2D<float4>	SceneColorOutput;
 
 
 //------------------------------------------------------- INTERMEDIARY STRUCTURES
@@ -160,6 +187,11 @@ struct FRecombineInputParameters
 
 
 //------------------------------------------------------- FUNCTIONS
+
+float SampleWorldDepth(float2 BufferUV)
+{
+	return ConvertFromDeviceZ(SceneDepthTexture.SampleLevel(GlobalPointClampedSampler, BufferUV, 0).x);
+}
 
 // {0 to 1} output.
 float NoizNorm(float2 N, float X)
@@ -526,7 +558,7 @@ void FetchAndAccumulateSamplePair(
 	float SampleDistance = FullResPixelDistanceToCocDistance(length(PixelOffset));
 
 	// Scene buffer offset.
-	float2 SceneBufferUVOffset = PixelOffset * PostprocessInput0Size.zw;
+	float2 SceneBufferUVOffset = PixelOffset * View.BufferSizeAndInvSize.zw;
 	
 	// Two sample to gather at same time.
 	FGatherSample Sample[2];
@@ -543,7 +575,7 @@ void FetchAndAccumulateSamplePair(
 			const float InvLutSize = rcp(float(BOKEH_LUT_SIZE));
 
 			float2 LookupUV = (0.5 + 0.5 * InvLutSize) + PixelOffset * (SampleSign * InvLutSize);
-			float4 LookupSample = PostprocessInput10.SampleLevel(GlobalPointClampedSampler, LookupUV, 0);
+			float4 LookupSample = BokehLUT.SampleLevel(GlobalPointClampedSampler, LookupUV, 0);
 			SampleDistance = LookupSample.x;
 		}
 		#endif
@@ -557,11 +589,11 @@ void FetchAndAccumulateSamplePair(
 		
 		// Fetch full res color and CocRadius.
 		#if CONFIG_FETCH_FULLRES_COC_FROM_ALPHA
-			Sample[k].Color = PostprocessInput0.SampleLevel(GlobalPointClampedSampler, BufferUV, 0);
+			Sample[k].Color = SceneColorInput.SampleLevel(GlobalPointClampedSampler, BufferUV, 0);
 			Sample[k].CocRadius = Sample[k].Color.a;
 		#else
-			Sample[k].Color = PostprocessInput0.SampleLevel(GlobalPointClampedSampler, BufferUV, 0);
-			Sample[k].CocRadius = DepthToHalfResCocRadius(CalcSceneDepth(BufferUV));
+			Sample[k].Color = SceneColorInput.SampleLevel(GlobalPointClampedSampler, BufferUV, 0);
+			Sample[k].CocRadius = DepthToHalfResCocRadius(SampleWorldDepth(BufferUV));
 		#endif
 		
 		// Convert scene color alpha from translucency to opacity.
@@ -657,7 +689,7 @@ void RecombineMainCS(
 	// Setup input parameters.
 	FRecombineInputParameters InputParameters;
 	{
-		InputParameters.DOFBufferSize = (DIM_LAYER_PROCESSING == LAYER_PROCESSING_BACKGROUND_ONLY) ? PostprocessInput7Size : PostprocessInput3Size;
+		InputParameters.DOFBufferSize = ConvolutionInputSize;
 
 		InputParameters.ViewportUV = (DispatchThreadId + 0.5) * ViewportSize.zw;
 		InputParameters.SceneBufferUV = ViewportUVToBufferUV(InputParameters.ViewportUV);
@@ -688,13 +720,13 @@ void RecombineMainCS(
 
 		#elif CONFIG_DOF_ALPHA
 			// Sample premultiplied RGBA foreground.
-			ForegroundColor = PostprocessInput3.SampleLevel(
+			ForegroundColor = ForegroundConvolution_SceneColor.SampleLevel(
 				GlobalBilinearClampedSampler, InputParameters.DOFBufferUV, 0);
-			ForegroundTranslucency = 1 - PostprocessInput4.SampleLevel(
+			ForegroundTranslucency = 1 - ForegroundConvolution_SeparateAlpha.SampleLevel(
 				GlobalBilinearClampedSampler, InputParameters.DOFBufferUV, 0).r;
 		#else
 			// Sample premultiplied RGBA foreground.
-			ForegroundColor = PostprocessInput3.SampleLevel(
+			ForegroundColor = ForegroundConvolution_SceneColor.SampleLevel(
 				GlobalBilinearClampedSampler, InputParameters.DOFBufferUV, 0);
 			ForegroundTranslucency = 1 - ForegroundColor.a;
 
@@ -704,13 +736,13 @@ void RecombineMainCS(
 	
 	// Get full res color and coc radius.
 	FGatherSample CenterSample;
-	CenterSample.Color = PostprocessInput0.SampleLevel(GlobalPointClampedSampler, InputParameters.SceneBufferUV, 0);
+	CenterSample.Color = SceneColorInput.SampleLevel(GlobalPointClampedSampler, InputParameters.SceneBufferUV, 0);
 	CenterSample.Intersection = 1.0;
 
 	#if CONFIG_FETCH_FULLRES_COC_FROM_ALPHA
 		CenterSample.CocRadius = CenterSample.Color.a;
 	#else
-		CenterSample.CocRadius = DepthToHalfResCocRadius(CalcSceneDepth(InputParameters.SceneBufferUV));
+		CenterSample.CocRadius = DepthToHalfResCocRadius(SampleWorldDepth(InputParameters.SceneBufferUV));
 	#endif
 	
 	// Convert scene color alpha from translucency to opacity.
@@ -743,7 +775,7 @@ void RecombineMainCS(
 			{
 				const float2 SamplePixelOffset = float2(kOffsetsCross3x3[j]) * CocDistanceToFullResPixelDistance(MAX_RECOMBINE_ABS_COC_RADIUS);
 
-				float2 SampleUVOffset = PostprocessInput0Size.zw * SamplePixelOffset;
+				float2 SampleUVOffset = View.BufferSizeAndInvSize.zw * SamplePixelOffset;
 				float2 SampleUV = InputParameters.SceneBufferUV + SampleUVOffset;
 			
 				if (CONFIG_CLAMP_SCENE_BUFFER_UV)
@@ -752,9 +784,9 @@ void RecombineMainCS(
 				}
 
 				#if CONFIG_FETCH_FULLRES_COC_FROM_ALPHA
-					float SampleCocRadius = PostprocessInput0.SampleLevel(GlobalPointClampedSampler, SampleUV, 0).a;
+					float SampleCocRadius = SceneColorInput.SampleLevel(GlobalPointClampedSampler, SampleUV, 0).a;
 				#else
-					float SampleCocRadius = DepthToHalfResCocRadius(CalcSceneDepth(SampleUV));
+					float SampleCocRadius = DepthToHalfResCocRadius(SampleWorldDepth(SampleUV));
 				#endif
 
 				float SampleAbsCocRadius = abs(SampleCocRadius);
@@ -898,7 +930,7 @@ void RecombineMainCS(
 					SampleUV = min(SampleUV, DOFBufferUVMax);
 				}
 
-				float4 StableSampleColor = PostprocessInput9.SampleLevel(GlobalPointClampedSampler, SampleUV, 0);
+				float4 StableSampleColor = SlightOutOfFocusConvolution_SceneColor.SampleLevel(GlobalPointClampedSampler, SampleUV, 0);
 
 				if (i == 0)
 				{
@@ -964,10 +996,10 @@ void RecombineMainCS(
 	}
 	else if (CONFIG_COMPOSITING_METHOD == COMPOSITING_METHOD_BILINEAR_BKG)
 	{
-		BackgroundColor = PostprocessInput7.SampleLevel(GlobalBilinearClampedSampler, InputParameters.DOFBufferUV, 0);
+		BackgroundColor = BackgroundConvolution_SceneColor.SampleLevel(GlobalBilinearClampedSampler, InputParameters.DOFBufferUV, 0);
 
 		#if CONFIG_DOF_ALPHA
-			BackgroundValidity = PostprocessInput8.SampleLevel(GlobalBilinearClampedSampler, InputParameters.DOFBufferUV, 0).r;
+			BackgroundValidity = BackgroundConvolution_SeparateAlpha.SampleLevel(GlobalBilinearClampedSampler, InputParameters.DOFBufferUV, 0).r;
 		#else
 			//Background = float4(0, 0, 0, 1);
 			BackgroundValidity = BackgroundColor.a;
@@ -979,10 +1011,10 @@ void RecombineMainCS(
 		// Hole fill the background in output final scene color before composing foreground on top.
 		#if CONFIG_HOLE_FILLING_METHOD == HOLE_FILLING_METHOD_SEPARATE_GATHER
 		{
-			HoleFillingAdditiveColor = PostprocessInput5.SampleLevel(GlobalBilinearClampedSampler, InputParameters.DOFBufferUV, 0);
+			HoleFillingAdditiveColor = ForegroundHoleFillingConvolution_SceneColor.SampleLevel(GlobalBilinearClampedSampler, InputParameters.DOFBufferUV, 0);
 
 			#if CONFIG_DOF_ALPHA
-				HoleFillingTranslucency = PostprocessInput6.SampleLevel(GlobalBilinearClampedSampler, InputParameters.DOFBufferUV, 0).r;
+				HoleFillingTranslucency = ForegroundHoleFillingConvolution_SeparateAlpha.SampleLevel(GlobalBilinearClampedSampler, InputParameters.DOFBufferUV, 0).r;
 			#else
 				HoleFillingTranslucency = HoleFillingAdditiveColor.a;
 			#endif
@@ -1039,7 +1071,7 @@ void RecombineMainCS(
 	// Compose separate translucency.
 	if (1)
 	{
-		float4 SeparateTranslucencyColor = PostprocessInput2.SampleLevel(GlobalPointClampedSampler, InputParameters.SceneBufferUV, 0);
+		float4 SeparateTranslucencyColor = SceneSeparateTranslucency.SampleLevel(GlobalPointClampedSampler, InputParameters.SceneBufferUV, 0);
 		float SeparateTranslucency = SeparateTranslucencyColor.a;
 		SeparateTranslucencyColor.a = 1 - SeparateTranslucencyColor.a;
 
@@ -1049,6 +1081,13 @@ void RecombineMainCS(
 	// Convert alpha channel from opacity back to translucency.
 	OutputFinalSceneColor.a = 1 - OutputFinalSceneColor.a;
 
+	// Ensure that alpha values that are expected to be opaque (but are only close to opaque) are forced to be opaque.
+	// (0.005 chosen to accomodate handling of 1/255)
+	if (OutputFinalSceneColor.a < 0.005)
+	{
+		OutputFinalSceneColor.a = 0;
+	}
+	
 	// Debug optimisation colors.
 	#if DEBUG_FAST_PATHS
 	{
@@ -1086,7 +1125,7 @@ void RecombineMainCS(
 		//OutputFinalSceneColor = ForegroundColor;
 		//OutputFinalSceneColor = HoleFillingAdditiveColor;
 		//OutputFinalSceneColor = BackgroundColor.a;
-		//OutputFinalSceneColor = PostprocessInput9.SampleLevel(GlobalPointClampedSampler, InputParameters.DOFBufferUV, 0).a;
+		//OutputFinalSceneColor = SlightOutOfFocusConvolution_SceneColor.SampleLevel(GlobalPointClampedSampler, InputParameters.DOFBufferUV, 0).a;
 		//OutputFinalSceneColor = GatherBackgroundUnpremultipliedColor;
 		//OutputFinalSceneColor.a = GatherBackgroundTranslucency;
 	}
@@ -1104,7 +1143,7 @@ void RecombineMainCS(
 			OutputFinalSceneColor = GatherForegroundTranslucency;
 		
 		//OutputFinalSceneColor = GatherForegroundTranslucency;
-		//OutputFinalSceneColor = PostprocessInput7.SampleLevel(GlobalBilinearClampedSampler, InputParameters.DOFBufferUV, 0);
+		//OutputFinalSceneColor = BackgroundConvolution_SceneColor.SampleLevel(GlobalBilinearClampedSampler, InputParameters.DOFBufferUV, 0);
 
 
 		//if (View.GeneralPurposeTweak > 3.5)
@@ -1114,19 +1153,19 @@ void RecombineMainCS(
 
 		//OutputFinalSceneColor = BackgroundColor;
 		//OutputFinalSceneColor = PostprocessInput3.SampleLevel(GlobalPointClampedSampler, InputParameters.DOFBufferUV, 0);
-		//OutputFinalSceneColor = PostprocessInput5.SampleLevel(GlobalPointClampedSampler, InputParameters.DOFBufferUV, 0);
+		//OutputFinalSceneColor = ForegroundHoleFillingConvolution_SceneColor.SampleLevel(GlobalPointClampedSampler, InputParameters.DOFBufferUV, 0);
 	}
 	#endif
 	
 	#if 1 // Lower VGPR footprint.
-		uint2 OutputPixelPosition = InputParameters.SceneBufferUV * PostprocessInput0Size.xy;
+		uint2 OutputPixelPosition = InputParameters.SceneBufferUV * View.BufferSizeAndInvSize.xy;
 	#else
 		uint2 OutputPixelPosition = ViewportRect.xy + DispatchThreadId;
 	#endif
 
 	#if CONFIG_DOF_ALPHA
-		Output0[OutputPixelPosition] = OutputFinalSceneColor;
+		SceneColorOutput[OutputPixelPosition] = OutputFinalSceneColor;
 	#else
-		Output0[OutputPixelPosition] = float4(OutputFinalSceneColor.rgb, 0);
+		SceneColorOutput[OutputPixelPosition] = float4(OutputFinalSceneColor.rgb, 0);
 	#endif
 }

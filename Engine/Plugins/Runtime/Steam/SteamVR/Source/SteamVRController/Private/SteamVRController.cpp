@@ -21,6 +21,7 @@
 #include "GameFramework/PlayerInput.h"
 
 #include "Misc/FileHelper.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 
@@ -182,6 +183,9 @@ public:
 
 		InitialButtonRepeatDelay = 0.2f;
 		ButtonRepeatDelay = 0.1f;
+
+		GConfig->GetFloat(TEXT("/Script/Engine.InputSettings"), TEXT("InitialButtonRepeatDelay"), InitialButtonRepeatDelay, GInputIni);
+		GConfig->GetFloat(TEXT("/Script/Engine.InputSettings"), TEXT("ButtonRepeatDelay"), ButtonRepeatDelay, GInputIni);
 
 		InitControllerMappings();
 		InitLegacyControllerKeys();
@@ -381,6 +385,10 @@ public:
 				{
 					if (VRControllerState.unPacketNum != ControllerState.PacketNum )
 					{
+						// Register a controller scope, using the model name
+						static FName SystemName(TEXT("SteamVR"));
+						FInputDeviceScope InputScope(this, SystemName, DeviceIndex, ControllerState.ControllerName);
+
 						bool CurrentStates[ ESteamVRControllerButton::TotalButtonCount ] = {0};
 
 						// Get the current state of all buttons
@@ -547,6 +555,8 @@ public:
 				return;
 			}
 
+			static FName SystemName(TEXT("SteamVR"));
+
 			for (auto& Action : Actions)
 			{
 				switch (Action.Type)
@@ -559,6 +569,23 @@ public:
 					{
 						if (Data.bState != Action.bState)
 						{
+							// Find the action origin
+							int32 DeviceIndex = INDEX_NONE;
+							FString ControllerName;
+							vr::InputOriginInfo_t ActionOrigin;
+							Err = VRInput->GetOriginTrackedDeviceInfo(Data.activeOrigin, &ActionOrigin, sizeof(ActionOrigin));
+
+							if (Err == vr::VRInputError_None)
+							{
+								DeviceIndex = ActionOrigin.trackedDeviceIndex;
+								if (DeviceIndex > 0 && DeviceIndex <= MaxControllers)
+								{
+									ControllerName = ControllerStates[DeviceIndex].ControllerName;
+								}
+							}
+
+							FInputDeviceScope InputScope(this, SystemName, DeviceIndex, ControllerName);
+
 							Action.bState = Data.bState;
 							if (Action.bState)
 							{
@@ -587,6 +614,23 @@ public:
 					Err = VRInput->GetAnalogActionData(Action.Handle, &Data, sizeof(Data), vr::k_ulInvalidInputValueHandle);
 					if (Err == vr::VRInputError_None)
 					{
+						// Find the action origin
+						int32 DeviceIndex = INDEX_NONE;
+						FString ControllerName;
+						vr::InputOriginInfo_t ActionOrigin;
+						Err = VRInput->GetOriginTrackedDeviceInfo(Data.activeOrigin, &ActionOrigin, sizeof(ActionOrigin));
+
+						if (Err == vr::VRInputError_None)
+						{
+							DeviceIndex = ActionOrigin.trackedDeviceIndex;
+							if (DeviceIndex > 0 && DeviceIndex <= MaxControllers)
+							{
+								ControllerName = ControllerStates[DeviceIndex].ControllerName;
+							}
+						}
+
+						FInputDeviceScope InputScope(this, SystemName, DeviceIndex, ControllerName);
+
 						if (!Action.ActionKey_X.IsNone() && Data.x != Action.Value.X)
 						{
 							Action.Value.X = Data.x;
@@ -959,7 +1003,24 @@ private:
 		// determine which player controller to assign the device to
 		int32 ControllerIndex = FMath::FloorToInt(NumControllersMapped / CONTROLLERS_PER_PLAYER);
 
-		UE_LOG(LogSteamVRController, Verbose, TEXT("Controller device %i is being assigned unreal hand %i (left=0, right=1), for player %i."), DeviceIndex, (int32)ChosenHand, ControllerIndex);
+		// read the model name for later use
+		vr::TrackedPropertyError APIError;
+		TArray<char> Buffer;
+		Buffer.AddUninitialized(vr::k_unMaxPropertyStringSize);
+
+		int Size = VRSystem->GetStringTrackedDeviceProperty(DeviceIndex, vr::Prop_RenderModelName_String, Buffer.GetData(), Buffer.Num(), &APIError);
+		if (APIError == vr::TrackedProp_BufferTooSmall)
+		{
+			Buffer.AddUninitialized(Size - Buffer.Num());
+			Size = VRSystem->GetStringTrackedDeviceProperty(DeviceIndex, vr::Prop_RenderModelName_String, Buffer.GetData(), Buffer.Num(), &APIError);
+		}
+
+		if (APIError == vr::TrackedProp_Success)
+		{
+			ControllerStates[DeviceIndex].ControllerName = UTF8_TO_TCHAR(Buffer.GetData());
+		}
+
+		UE_LOG(LogSteamVRController, Verbose, TEXT("Controller device %i (%s) is being assigned unreal hand %i (left=0, right=1), for player %i."), *ControllerStates[DeviceIndex].ControllerName, DeviceIndex, (int32)ChosenHand, ControllerIndex);
 		ControllerStates[DeviceIndex].Hand = ChosenHand;
 		UnrealControllerHandUsageCount[(int32)ChosenHand] += 1;
 
@@ -1554,6 +1615,9 @@ private:
 	{
 		/** Which hand this controller is representing */
 		EControllerHand Hand;
+
+		/** Name of this controller, uses the render model name as that is most useful */
+		FString ControllerName;
 
 		/** If packet num matches that on your prior call, then the controller state hasn't been changed since 
 		  * your last call and there is no need to process it. */

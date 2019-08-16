@@ -38,8 +38,6 @@ AutoSDK を使用する前に、**UE_SDKS_ROOT** 環境変数を設定しなけ�
 
 	クライアント ワークスペース定義にディレクトリを追加したので、次は **UE_SDKS_ROOT** 環境変数を設定しましょう。
 
-%Globals:OSSelect_Linux%
-
 [OBJECT:ToggleButtonContent]
 	[PARAMLITERAL:category]
 	OS

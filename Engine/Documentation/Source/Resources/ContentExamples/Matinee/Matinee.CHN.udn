@@ -1,82 +1,94 @@
-﻿Availability: Docs
-Title:Matinee
-Crumbs:%ROOT%, Resources, Resources/ContentExamples
-Description:材质节点示例关卡概述
+﻿INTSourceChangelist:3782314
+Availability: Public
+Title:Matinee内容范例
+Crumbs: %ROOT%, Resources, Resources/ContentExamples
+Description:Matinee内容范例中的样本总览。
+Related: Engine/Matinee
+Related: Engine/Matinee/UserGuide
+Related: Engine/Matinee/TrackReference
+Related: Engine/UI/CurveEditor
+Version: 4.9
+topic-image:Matinee_Compact.png
+
+
+[REGION:banner]
+![](Matinee_Header.png)(convert:false)
+[/REGION]
 
 [TOC(start:2 end:2)]
 
-[VAR:Topic]
-[OBJECT:Topic]
-	[PARAM:image]
-		![%Resources/ContentExamples/Matinee:title%](matinee_topic.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/anim_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		%Resources/ContentExamples/Matinee:title%
-	[/PARAM]
-	[PARAM:description]
-		%Resources/ContentExamples/Matinee:description%
-	[/PARAM]
-	[PARAM:path]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
-
-[VAR:TopicCompact]
-[OBJECT:TopicCompact]
-	[PARAM:image]
-		![%Resources/ContentExamples/Matinee:title%](matinee_topic.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/anim_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		%Resources/ContentExamples/Matinee:title%
-	[/PARAM]
-	[PARAM:description]
-		%Resources/ContentExamples/Matinee:description%
-	[/PARAM]
-	[PARAM:path]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
-
-[COMMENT:none]
-Insert Path when finished  [RELATIVE:Resources/ContentExamples/Matinee]-
-[/COMMENT]
 
 
-## 概述
+内容范例中的 **Matinee** 地图提供了数个范例，介绍如何沿时间轴放置关键帧生成过场或创建gameplay序列。每个关键帧将告知目标actor在时间轴上的该点处“执行操作”——移动到一个位置、修改颜色、在蓝图中触发事件，等等。 
 
-[REGION:fullwidth]
-
-[/REGION]
-
-欢迎来到 **Matinee** 示例关卡!
-
-[INCLUDE:Resources\ContentExamples\ExampleLevelOverview#ExampleLevel]
-
-## 示例
-
-[REGION:topics fourth]
-%Resources/ContentExamples/Matinee/1_1:Topic%
-%Resources/ContentExamples/Matinee/1_2:Topic%
-%Resources/ContentExamples/Matinee/1_3:Topic%
-%Resources/ContentExamples/Matinee/1_4:Topic%
-%Resources/ContentExamples/Matinee/2_1:Topic%
-%Resources/ContentExamples/Matinee/2_2:Topic%
-%Resources/ContentExamples/Matinee/2_3:Topic%
-%Resources/ContentExamples/Matinee/2_4:Topic%
-%Resources/ContentExamples/Matinee/2_5:Topic%
-%Resources/ContentExamples/Matinee/3_1:Topic%
-%Resources/ContentExamples/Matinee/3_2:Topic%
-%Resources/ContentExamples/Matinee/3_3:Topic%
-%Resources/ContentExamples/Matinee/4_1:Topic%
-%Resources/ContentExamples/Matinee/4_2:Topic%
-%Resources/ContentExamples/Matinee/4_3:Topic%
-[/REGION]
+使用导演分组（参见下方2.5部分）后，即可设置序列来取代游戏中的摄像机，以便切换至不同摄像机，或将其他特殊效果添加到场景（实用于创建过场）。 
 
 
-## 相关主题及扩展阅读
+(#matineemap)
+
+## Matinee地图
+**Matinee** 地图被分解为如下所述的4个部分。 
+
+(#matineebasics)
+
+### Matinee基础
+
+![](Matinee_1.png)(w:480)
+
+以下是 **Matinee基础** 部分列出的范例：
+
+| 范例 | 展示内容 |
+| ------- | ------------ |
+| **1.1 Matinee Actor** | 放置在关卡中的一个Matinee Actor，描述如何打开Matinee编辑器。 |
+| **1.2 轨迹与关键帧** | 显示运动轨迹和关键帧如何用于在场景中移动Actor。 |
+| **1.3 轨迹类型** | 使用多个轨迹来影响一个actor的Matinee实例（例如actor被缩放、移动、其材质被修改、被设为不可见，以及音效在Matinee场景中播放）。 |
+| **1.4 关键帧类型** | 不同的关键帧类型如何用于影响随时间变化的轨迹的属性（例如从A点移动到B点的多个actor，其过渡由关键帧类型修改）。 |
+
+
+(#matineegroups)
+
+### Matinee分组
+
+![](Matinee_2.png)(w:480)
+
+以下是 **Matinee分组** 部分列出的范例：
+
+| 范例 | 展示内容 |
+| ------- | ------------ |
+| **2.1 光照分组** | 光照分组用于影响灯光随时间的运动、强度、亮度、光照颜色和光照半径。 |
+| **2.2 粒子分组** | 粒子分组用于开关粒子，可用于决定粒子显示的长度。  |
+| **2.3 骨架分组** | 骨架分组可用于将运动或动画指定到一个 **骨架网格体**，其可被指定到特定的关键帧上播放。 |
+| **2.4 相机分组** | 相机分组用于调整相机的运动和（或）视野，操纵放置在关卡中的一个相机。 |
+| **2.5 导演分组** | 导演分组用于控制游戏中的相机和多个相机之间的切换、添加淡化或慢动作效果、调整主音频轨迹，或为场景应用新色阶。 |
+
+
+(#matineeblueprintinteraction)
+
+### Matinee蓝图交互
+
+![](Matinee_3.png)(w:480)
+
+以下是 **Matinee蓝图交互** 部分列出的范例：
+
+| 范例 | 展示内容 |
+| ------- | ------------ |
+| **3.1 Matinee蓝图函数** | 展示可在蓝图中调用的标准Matinee蓝图函数（如play、pause、stop、rewind、reverse、loop和set position）。 |
+| **3.2 Matinee事件/事件轨迹** | 显示如何使用Matinee中的一个事件轨迹在蓝图中触发事件（被触发的事件可用于执行并开始脚本的任意分段）。 |
+| **3.3 修改Matinee属性** | 可在Matinee actor自身上设置的部分属性的一个范例（如调整播放率、在关卡加载时播放、检查循环或可跳过、禁用运动来操纵玩家、寻找输入，或隐藏玩家角色）。 |
+
+
+(#matineeadvanced)
+
+### Matinee高级
+
+![](Matinee_4.png)(w:480)
+
+以下是 **Matinee高级** 部分列出的范例：
+
+| 范例 | 展示内容 |
+| ------- | ------------ |
+| **4.1 曲线编辑器** | 如何使用Matinee中的曲线编辑器来对参数进行更好的控制（例如通过曲线手动调整来微调actor的运动）。 |
+| **4.2 拆分平移和旋转** | 将自动运动坐标划分为可在每个关键帧处手动调整的平移和旋转，对运动进行额外控制。 |
+
+
+

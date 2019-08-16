@@ -252,6 +252,7 @@ FAudioEffectsManager::FAudioEffectsManager( FAudioDevice* InDevice )
 	, bEQActive(false)
 	, bReverbChanged(true) // Setting to true to catch the first default reverb setting
 	, bEQChanged(false)
+	, bUseLegacyReverb(false)
 {
 	InitAudioEffects();
 }
@@ -292,7 +293,8 @@ void FAudioEffectsManager::AddReferencedObjects( FReferenceCollector& Collector 
 void FAudioEffectsManager::SetReverbSettings( const FReverbSettings& ReverbSettings, bool bForce)
 {
 	/** Update the settings if the reverb type has changed */
-	if( ReverbSettings.bApplyReverb && (ReverbSettings.ReverbEffect != CurrentReverbAsset || bForce))
+	if( ReverbSettings.bApplyReverb && (ReverbSettings.ReverbEffect != CurrentReverbAsset || bForce || 
+		!FMath::IsNearlyEqual(ReverbSettings.Volume, CurrentReverbSettings.Volume)))
 	{
 		FString CurrentReverbName = CurrentReverbAsset ? CurrentReverbAsset->GetName() : TEXT("None");
 		FString NextReverbName = ReverbSettings.ReverbEffect ? ReverbSettings.ReverbEffect->GetName() : TEXT("None");

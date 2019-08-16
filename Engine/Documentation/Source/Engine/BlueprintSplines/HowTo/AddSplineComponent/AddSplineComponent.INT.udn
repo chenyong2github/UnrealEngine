@@ -5,7 +5,7 @@ Description:This how-to will show you how to add a Spline or Spline Mesh Compone
 Navigation:topic
 parent:Engine/BlueprintSplines/HowTo
 order:1
-social-image:Splines_social.png
+social-image:Engine/BlueprintSplines/Splines_Social.png
 version:4.13
 skilllevel:Beginner
 related:Engine/BlueprintSplines/HowTo/EditSplineComponentInEditor

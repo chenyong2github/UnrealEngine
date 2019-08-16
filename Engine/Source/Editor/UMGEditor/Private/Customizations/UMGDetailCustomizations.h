@@ -43,6 +43,9 @@ private:
 	FReply HandleAddOrViewEventForVariable(const FName EventName, FName PropertyName, TWeakObjectPtr<UClass> PropertyClass);
 
 	int32 HandleAddOrViewIndexForButton(const FName EventName, FName PropertyName) const;
+
+	/** Handle specific customizations for ESlateAccessibleBehavior properties */
+	void CustomizeAccessibilityProperty(IDetailLayoutBuilder& DetailLayout, const FName& BehaviorPropertyName, const FName& TextPropertyName);
 private:
 
 	TWeakPtr<FWidgetBlueprintEditor> Editor;

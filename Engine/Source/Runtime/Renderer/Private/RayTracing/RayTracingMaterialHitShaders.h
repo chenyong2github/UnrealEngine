@@ -76,17 +76,4 @@ class FOpaqueShadowHitGroup : public FGlobalShader
 	using FParameters = FEmptyShaderParameters;
 };
 
-class FDefaultMaterialMS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FDefaultMaterialMS)
-	SHADER_USE_ROOT_PARAMETER_STRUCT(FDefaultMaterialMS, FGlobalShader)
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
-	}
-
-	using FParameters = FEmptyShaderParameters;
-};
-
 #endif // RHI_RAYTRACING

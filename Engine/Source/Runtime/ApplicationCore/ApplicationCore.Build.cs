@@ -32,6 +32,10 @@ public class ApplicationCore : ModuleRules
 			AddEngineThirdPartyPrivateStaticDependencies(Target, 
 				"XInput"
 				);
+            if (Target.bCompileWithAccessibilitySupport && !Target.bIsBuildingConsoleApplication)
+            {
+                PublicAdditionalLibraries.Add("uiautomationcore.lib");
+            }
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{

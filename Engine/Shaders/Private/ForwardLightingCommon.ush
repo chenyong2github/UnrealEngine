@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	ForwardLightingCommon.usf
+	ForwardLightingCommon.ush
 =============================================================================*/
 
 #define NON_DIRECTIONAL_DIRECT_LIGHTING (TRANSLUCENCY_LIGHTING_VOLUMETRIC_NONDIRECTIONAL || TRANSLUCENCY_LIGHTING_VOLUMETRIC_PERVERTEX_NONDIRECTIONAL)
@@ -80,11 +80,6 @@ float4 GetForwardDynamicShadowFactors(float2 ScreenUV)
 	return Square(Value);
 }
 
-float4 UnpackShadowMapChannelMask(uint ShadowMapChannelMaskPacked)
-{
-	return float4((ShadowMapChannelMaskPacked & 1) ? 1.0f : 0.0f, (ShadowMapChannelMaskPacked & 2) ? 1.0f : 0.0f, (ShadowMapChannelMaskPacked & 4) ? 1.0f : 0.0f, (ShadowMapChannelMaskPacked & 8) ? 1.0f : 0.0f);
-}
-
 float GetIndirectOcclusion(float2 ScreenUV, FGBufferData GBufferData)
 {
 	float IndirectOcclusion;
@@ -120,7 +115,7 @@ float3 GetForwardDirectLighting(uint GridIndex, float3 WorldPosition, float3 Cam
 	uint LightingChannelMask = GetPrimitiveData(PrimitiveId).LightingChannelMask;
 
 	const FDirectionalLightData DirectionalLightData = GetDirectionalLightData(EyeIndex);
-	FRectTexture RectTexture = InitRectTexture(DeferredLightUniforms.SourceTexture);
+	FRectTexture RectTexture = InitRectTexture(ForwardLightData.DummyRectLightSourceTexture);
 
 	BRANCH
 	if (DirectionalLightData.HasDirectionalLight)
@@ -196,17 +191,23 @@ float3 GetForwardDirectLighting(uint GridIndex, float3 WorldPosition, float3 Cam
 		LightData.bSpotLight = LightData.SpotAngles.x > -2.0f;
 		LightData.SpecularScale = SpecularScale;
 
-		uint PackedShadowMapChannelMask = asuint(LocalLight.LightDirectionAndShadowMask.w);
-		LightData.ShadowedBits = (PackedShadowMapChannelMask & 0xFF) != 0 ? 1 : 0;
+		// LightType=bits[17:16], LightingChannelMask=[15:8], DynShadowMask=[7:4] ShadowMapChannelMask=[3:0]
+		uint LightTypeAndPackedShadowMapChannelMask = asuint(LocalLight.LightDirectionAndShadowMask.w);
+
+		// TODO: currently LightType is ignored and the code always sets 'LightData.bRectLight' to false (initialization)
+		//       but the light grid adds rect lights as well so this probably leads to artifacts.
+		uint LightType = LightTypeAndPackedShadowMapChannelMask >> 16;
+
+		LightData.ShadowedBits = (LightTypeAndPackedShadowMapChannelMask & 0xFF) != 0 ? 1 : 0;
 		// Static shadowing uses ShadowMapChannel, dynamic shadows are packed into light attenuation using PreviewShadowMapChannel
-		LightData.ShadowMapChannelMask = UnpackShadowMapChannelMask(PackedShadowMapChannelMask);
-		float4 PreviewShadowMapChannelMask = UnpackShadowMapChannelMask(PackedShadowMapChannelMask >> 4);
+		LightData.ShadowMapChannelMask = UnpackShadowMapChannelMask(LightTypeAndPackedShadowMapChannelMask);
+		float4 PreviewShadowMapChannelMask = UnpackShadowMapChannelMask(LightTypeAndPackedShadowMapChannelMask >> 4);
 		float DynamicShadowing = dot(PreviewShadowMapChannelMask, DynamicShadowFactors);
 		float4 LightAttenuation = float4(1, 1, DynamicShadowing.x, DynamicShadowing.x);
 		float3 NewLighting = GetDynamicLighting(WorldPosition, -CameraVector, GBufferData, 1, GBufferData.ShadingModelID, LightData, LightAttenuation, Dither, uint2(0,0), RectTexture).xyz;
 
 		FLATTEN
-		if ((PackedShadowMapChannelMask >> 8) & LightingChannelMask)
+		if ((LightTypeAndPackedShadowMapChannelMask >> 8) & LightingChannelMask)
 		{
 			DirectLighting += NewLighting;
 		}
@@ -339,35 +340,29 @@ half3 GetImageBasedReflectionLighting(FMaterialPixelParameters MaterialParameter
 		SingleCaptureIndex,
 		EyeIndex);
 
-	// Factors derived from EnvBRDFApprox( SpecularColor, 1, 1 ) == SpecularColor * 0.4524 - 0.0024
-	float3 SpecularBounce = 0.45f * SpecularColor * IndirectIrradiance;
-	// Replace reflection captures with indirect diffuse when we're rendering to a reflection capture, to avoid a feedback loop
-	SpecularIBL.rgb = lerp(SpecularIBL.rgb, SpecularBounce, ResolvedView.RenderingReflectionCaptureMask);
-
 #if MATERIAL_SSR && !FORWARD_SHADING
 	if( View.CameraCut == 0 )
 	{
 		float StepOffset = InterleavedGradientNoise( MaterialParameters.SvPosition.xy, View.StateFrameIndexMod8 );
 		StepOffset -= 0.5;
-		
-		float4 HitUVzTime;
-		float HCBLevel;
 
-		RayCast(
-			TranslucentBasePass.HZBTexture, TranslucentBasePass.HZBSampler, float2(1, 1),
-			MaterialParameters.WorldPosition_CamRelative, RayDirection, 0, 0, MaterialParameters.ScreenPosition.w,
+		float3 HitUVz;
+		float Level = 0;
+
+		bool bHit = RayCast(
+			TranslucentBasePass.HZBTexture, TranslucentBasePass.HZBSampler,
+			MaterialParameters.WorldPosition_CamRelative, RayDirection, Roughness, MaterialParameters.ScreenPosition.w,
 			12, StepOffset,
 			TranslucentBasePass.HZBUvFactorAndInvFactor,
-			TranslucentBasePass.PrevScreenPositionScaleBias,
-			HitUVzTime, HCBLevel
+			HitUVz,
+			Level
 		);
 
-		// if there was a hit
-		BRANCH if( HitUVzTime.w < 1 )
+		BRANCH if( bHit )
 		{
 			float2 SampleUV;
 			float Vignette;
-			ReprojectHit(TranslucentBasePass.PrevScreenPositionScaleBias, HitUVzTime.xyz, SampleUV, Vignette);
+			ReprojectHit(TranslucentBasePass.PrevScreenPositionScaleBias, HitUVz, SampleUV, Vignette);
 
 			float4 SSR = SampleScreenColor( 
 				TranslucentBasePass.PrevSceneColor, 

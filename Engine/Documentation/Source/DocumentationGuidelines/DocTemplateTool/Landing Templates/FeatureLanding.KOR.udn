@@ -1,0 +1,28 @@
+﻿INTSourceChangelist:6551603
+Availability: Docs <!--[R] Enter Docs (default), Public, or Licensee-->
+Title: New Feature Landing Page <!--[R] Enter New Title-->
+Description: Temporary Description <!--[R] Enter New Description-->
+Type: landing
+Version: <!--[R] Enter Engine Version-->
+Parent: <!--[R] Enter Parent Page-->
+Order: <!--[O] Enter Page Order-->
+Tags: <!--[O][+] Enter Document Tag-->
+<!--topic-image: [O] Enter Topic Image File Name (tip, make sure it is in the 'Images' folder)-->
+
+
+[R] ADD Banner Image
+[REGION:note]
+The Banner Image should show the user what the system, feature, or process looks like.
+[/REGION]
+
+
+[R] ADD Overview Text
+[REGION:note]
+The Overview text should describe the system, feature, or process at a high level.
+[/REGION]
+
+
+[R][+] ADD Topic List
+[REGION:note]
+The topic list should link to all direct child topics.
+[/REGION]

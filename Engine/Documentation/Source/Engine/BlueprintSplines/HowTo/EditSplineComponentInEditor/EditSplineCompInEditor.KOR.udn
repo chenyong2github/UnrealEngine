@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:6187230
 Availability:Public
 Title:뷰포트에서 스플라인 컴포넌트 편집하기
 Crumbs: %ROOT%, Engine
@@ -6,7 +6,7 @@ Description:Null
 Navigation:topic
 parent:Engine/BlueprintSplines/HowTo
 order:2
-social-image:Splines_social.png
+social-image:Engine/BlueprintSplines/Splines_Social.png
 related:Engine/BlueprintSplines/HowTo/EditSplineInConstScript
 version:4.13
 skilllevel:Beginner
@@ -14,7 +14,7 @@ reference-image:FullEdit.gif
 tags:Splines
 topic-image:Engine/BlueprintSplines/Splines_topic.png
 
-이번 비법에서는 레벨 에디터에서 **Blueprint Spline Component** (블루프린트 스플라인 컴포넌트) 커브를 편집하는 법을 단계별로 알아봅니다. **Blueprint Spline Mesh Components** (블루프린트 스플라인 메시 컴포넌트) 역시 레벨 에디터에서 편집 가능하도록 설정할 수 있으나, 사용할 수 있는 포인트가 둘 뿐이며 추가할 수 없습니다.
+이번 하우투에서는 레벨 에디터에서 **Blueprint Spline Component** (블루프린트 스플라인 컴포넌트) 커브를 편집하는 법을 단계별로 알아봅니다. **Blueprint Spline Mesh Components** (블루프린트 스플라인 메시 컴포넌트) 역시 레벨 에디터에서 편집 가능하도록 설정할 수 있으나, 사용할 수 있는 포인트가 둘 뿐이며 추가할 수 없습니다.
 
 [REGION:note]
 여기서는 레벨 에디터에 있을 때의 스플라인 편집 방법을 다루지만, 동일한 방법과 툴을 사용하여 블루프린트 에디터의 뷰포트에서도 **블루프린트 스플라인 컴포넌트** 또는 **블루프린트 스플라인 메시 컴포넌트** 편집 기능 전체를 사용할 수 있습니다.

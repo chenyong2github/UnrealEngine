@@ -344,13 +344,13 @@ void FWorldTileCollectionModel::BuildWorldCompositionMenu(FMenuBuilder& InMenuBu
 			InMenuBuilder.AddSubMenu( 
 				LOCTEXT("VisibilityHeader", "Visibility"),
 				LOCTEXT("VisibilitySubMenu_ToolTip", "Selected Level(s) visibility commands"),
-				FNewMenuDelegate::CreateSP(this, &FWorldTileCollectionModel::FillVisibilitySubMenu ) );
+				FNewMenuDelegate::CreateSP(const_cast<FWorldTileCollectionModel*>(this), &FWorldTileCollectionModel::FillVisibilitySubMenu ) );
 
 			// Lock commands
 			InMenuBuilder.AddSubMenu( 
 				LOCTEXT("LockHeader", "Lock"),
 				LOCTEXT("LockSubMenu_ToolTip", "Selected Level(s) lock commands"),
-				FNewMenuDelegate::CreateSP(this, &FWorldTileCollectionModel::FillLockSubMenu ) );
+				FNewMenuDelegate::CreateSP(const_cast<FWorldTileCollectionModel*>(this), &FWorldTileCollectionModel::FillLockSubMenu ) );
 
 			InMenuBuilder.AddMenuEntry(Commands.World_FindInContentBrowser);
 		}
@@ -364,7 +364,7 @@ void FWorldTileCollectionModel::BuildWorldCompositionMenu(FMenuBuilder& InMenuBu
 				InMenuBuilder.AddSubMenu( 
 					LOCTEXT("Layer_Assign", "Assign to Layer"),
 					FText::GetEmpty(),
-					FNewMenuDelegate::CreateSP(this, &FWorldTileCollectionModel::FillLayersSubMenu));
+					FNewMenuDelegate::CreateSP(const_cast<FWorldTileCollectionModel*>(this), &FWorldTileCollectionModel::FillLayersSubMenu));
 			}
 			InMenuBuilder.EndSection();
 		}
@@ -410,7 +410,7 @@ void FWorldTileCollectionModel::BuildWorldCompositionMenu(FMenuBuilder& InMenuBu
 				InMenuBuilder.AddSubMenu( 
 					LOCTEXT("AddLandscapeLevel", "Add Adjacent Landscape Level"),
 					FText::GetEmpty(),
-					FNewMenuDelegate::CreateSP(this, &FWorldTileCollectionModel::FillAdjacentLandscapeSubMenu));
+					FNewMenuDelegate::CreateSP(const_cast<FWorldTileCollectionModel*>(this), &FWorldTileCollectionModel::FillAdjacentLandscapeSubMenu));
 			}
 
 			// Tiled landscape
@@ -419,7 +419,7 @@ void FWorldTileCollectionModel::BuildWorldCompositionMenu(FMenuBuilder& InMenuBu
 				InMenuBuilder.AddSubMenu( 
 					LOCTEXT("ReimportTiledLandscape", "Reimport Tiled Landscape"),
 					FText::GetEmpty(),
-					FNewMenuDelegate::CreateSP(this, &FWorldTileCollectionModel::FillReimportTiledLandscapeSubMenu));
+					FNewMenuDelegate::CreateSP(const_cast<FWorldTileCollectionModel*>(this), &FWorldTileCollectionModel::FillReimportTiledLandscapeSubMenu));
 			}
 		
 			InMenuBuilder.EndSection();
@@ -454,13 +454,13 @@ void FWorldTileCollectionModel::BuildHierarchyMenu(FMenuBuilder& InMenuBuilder) 
 		InMenuBuilder.AddSubMenu( 
 			LOCTEXT("VisibilityHeader", "Visibility"),
 			LOCTEXT("VisibilitySubMenu_ToolTip", "Selected Level(s) visibility commands"),
-			FNewMenuDelegate::CreateSP(this, &FWorldTileCollectionModel::FillVisibilitySubMenu ) );
+			FNewMenuDelegate::CreateSP(const_cast<FWorldTileCollectionModel*>(this), &FWorldTileCollectionModel::FillVisibilitySubMenu ) );
 
 		// Lock commands
 		InMenuBuilder.AddSubMenu( 
 			LOCTEXT("LockHeader", "Lock"),
 			LOCTEXT("LockSubMenu_ToolTip", "Selected Level(s) lock commands"),
-			FNewMenuDelegate::CreateSP(this, &FWorldTileCollectionModel::FillLockSubMenu ) );
+			FNewMenuDelegate::CreateSP(const_cast<FWorldTileCollectionModel*>(this), &FWorldTileCollectionModel::FillLockSubMenu ) );
 	
 		InMenuBuilder.AddMenuEntry(Commands.World_FindInContentBrowser);
 	}
@@ -474,7 +474,7 @@ void FWorldTileCollectionModel::BuildHierarchyMenu(FMenuBuilder& InMenuBuilder) 
 			InMenuBuilder.AddSubMenu( 
 				LOCTEXT("WorldLayers", "Assign to Layer"),
 				FText::GetEmpty(),
-				FNewMenuDelegate::CreateSP(this, &FWorldTileCollectionModel::FillLayersSubMenu)
+				FNewMenuDelegate::CreateSP(const_cast<FWorldTileCollectionModel*>(this), &FWorldTileCollectionModel::FillLayersSubMenu)
 			);
 		}
 		InMenuBuilder.EndSection();
@@ -524,7 +524,7 @@ void FWorldTileCollectionModel::FillLayersSubMenu(FMenuBuilder& InMenuBuilder) c
 			FText::FromString((*It).Name), 
 			FText(), FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(
-				this, &FWorldTileCollectionModel::AssignSelectedLevelsToLayer_Executed, (*It)
+				const_cast<FWorldTileCollectionModel*>(this), &FWorldTileCollectionModel::AssignSelectedLevelsToLayer_Executed, (*It)
 				)
 			)
 		);
@@ -550,7 +550,7 @@ void FWorldTileCollectionModel::FillReimportTiledLandscapeSubMenu(FMenuBuilder& 
 			LOCTEXT("Menu_HeightmapTitle", "Heightmap"), 
 			FText(), FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(
-				this, &FWorldTileCollectionModel::ReimportTiledLandscape_Executed, HeightmapLayerName
+				const_cast<FWorldTileCollectionModel*>(this), &FWorldTileCollectionModel::ReimportTiledLandscape_Executed, HeightmapLayerName
 				)
 			)
 		);
@@ -570,7 +570,7 @@ void FWorldTileCollectionModel::FillWeightmapsSubMenu(FMenuBuilder& InMenuBuilde
 			LOCTEXT("Menu_AllWeightmapsTitle", "All Weightmaps"), 
 			FText(), FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(
-				this, &FWorldTileCollectionModel::ReimportTiledLandscape_Executed, FName(NAME_None)
+				const_cast<FWorldTileCollectionModel*>(this), &FWorldTileCollectionModel::ReimportTiledLandscape_Executed, FName(NAME_None)
 				)
 			)
 		);
@@ -596,7 +596,7 @@ void FWorldTileCollectionModel::FillWeightmapsSubMenu(FMenuBuilder& InMenuBuilde
 			FText::FromName(LayerName), 
 			FText(), FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(
-				this, &FWorldTileCollectionModel::ReimportTiledLandscape_Executed, LayerName
+				const_cast<FWorldTileCollectionModel*>(this), &FWorldTileCollectionModel::ReimportTiledLandscape_Executed, LayerName
 				)
 			)
 		);

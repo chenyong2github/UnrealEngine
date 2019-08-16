@@ -603,6 +603,115 @@ void FPipelineCacheFileFormatPSO::CommonFromString(const FString& Src)
 #endif
 }
 
+bool FPipelineCacheFileFormatPSO::Verify() const
+{
+	if(Type == DescriptorType::Compute)
+	{
+		return ComputeDesc.ComputeShader != FSHAHash();
+	}
+	else if(Type == DescriptorType::Graphics)
+	{
+		if(GraphicsDesc.VertexShader == FSHAHash())
+		{
+			// No vertex shader - no graphics - nothing else matters
+			return false;
+		}
+		
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+		if( GraphicsDesc.HullShader == FSHAHash() && GraphicsDesc.DomainShader == FSHAHash() && GraphicsDesc.PrimitiveType >= PT_1_ControlPointPatchList && GraphicsDesc.PrimitiveType <= PT_32_ControlPointPatchList)
+		{
+			// Not using tessellation - we shouldn't try to draw patches
+			return false;
+		}
+		else if( (GraphicsDesc.HullShader != FSHAHash() && GraphicsDesc.DomainShader == FSHAHash()) ||
+				 (GraphicsDesc.HullShader == FSHAHash() && GraphicsDesc.DomainShader != FSHAHash()) )
+		{
+			// Hull without Domain or vice-versa
+			return false;
+		}
+#else
+		if(GraphicsDesc.HullShader != FSHAHash() || GraphicsDesc.DomainShader != FSHAHash())
+		{
+			// Define says we don't support tessellation - why have we got tessellation shaders - not a valid PSO for target platform
+			return false;
+		}
+		
+		if(GraphicsDesc.PrimitiveType >= PT_1_ControlPointPatchList && GraphicsDesc.PrimitiveType <= PT_32_ControlPointPatchList)
+		{
+			// Define says we don't support tessellation - can't draw patches - not a valid PSO for target platform
+			return false;
+		}
+#endif
+
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
+		// Is there anything to actually test here?
+#endif
+		
+		if( GraphicsDesc.RenderTargetsActive > MaxSimultaneousRenderTargets ||
+			GraphicsDesc.MSAASamples > 16 ||
+			(uint32)GraphicsDesc.PrimitiveType >= (uint32)EPrimitiveType::PT_Num ||
+			(uint32)GraphicsDesc.DepthStencilFormat >= (uint32)EPixelFormat::PF_MAX ||
+			(uint8)GraphicsDesc.DepthLoad >= (uint8)ERenderTargetLoadAction::Num ||
+			(uint8)GraphicsDesc.StencilLoad >= (uint8)ERenderTargetLoadAction::Num ||
+			(uint8)GraphicsDesc.DepthStore >= (uint8)ERenderTargetStoreAction::Num ||
+			(uint8)GraphicsDesc.StencilStore >= (uint8)ERenderTargetStoreAction::Num )
+		{
+			return false;
+		}
+		
+		for(uint32 rt = 0;rt < GraphicsDesc.RenderTargetsActive;++rt)
+		{
+			if((uint32)GraphicsDesc.RenderTargetFormats[rt] >= (uint32)EPixelFormat::PF_MAX)
+			{
+				return false;
+			}
+			
+			if( GraphicsDesc.BlendState.RenderTargets[rt].ColorBlendOp >= EBlendOperation::EBlendOperation_Num ||
+				GraphicsDesc.BlendState.RenderTargets[rt].AlphaBlendOp >= EBlendOperation::EBlendOperation_Num ||
+				GraphicsDesc.BlendState.RenderTargets[rt].ColorSrcBlend >= EBlendFactor::EBlendFactor_Num ||
+				GraphicsDesc.BlendState.RenderTargets[rt].ColorDestBlend >= EBlendFactor::EBlendFactor_Num ||
+				GraphicsDesc.BlendState.RenderTargets[rt].AlphaSrcBlend >= EBlendFactor::EBlendFactor_Num ||
+				GraphicsDesc.BlendState.RenderTargets[rt].AlphaDestBlend >= EBlendFactor::EBlendFactor_Num ||
+				GraphicsDesc.BlendState.RenderTargets[rt].ColorWriteMask > 0xf)
+			{
+				return false;
+			}
+		}
+		
+		if( (uint8)GraphicsDesc.RasterizerState.FillMode >= (uint8)ERasterizerFillMode::ERasterizerFillMode_Num ||
+			(uint8)GraphicsDesc.RasterizerState.CullMode >= (uint8)ERasterizerCullMode_Num)
+		{
+			return false;
+		}
+		
+		if( (uint8)GraphicsDesc.DepthStencilState.DepthTest >= (uint8)ECompareFunction::ECompareFunction_Num ||
+			(uint8)GraphicsDesc.DepthStencilState.FrontFaceStencilTest >= (uint8)ECompareFunction::ECompareFunction_Num ||
+			(uint8)GraphicsDesc.DepthStencilState.BackFaceStencilTest >= (uint8)ECompareFunction::ECompareFunction_Num ||
+			(uint8)GraphicsDesc.DepthStencilState.FrontFaceStencilFailStencilOp >= (uint8)EStencilOp::EStencilOp_Num ||
+			(uint8)GraphicsDesc.DepthStencilState.FrontFaceDepthFailStencilOp >= (uint8)EStencilOp::EStencilOp_Num ||
+			(uint8)GraphicsDesc.DepthStencilState.FrontFacePassStencilOp >= (uint8)EStencilOp::EStencilOp_Num ||
+			(uint8)GraphicsDesc.DepthStencilState.BackFaceStencilFailStencilOp >= (uint8)EStencilOp::EStencilOp_Num ||
+			(uint8)GraphicsDesc.DepthStencilState.BackFaceDepthFailStencilOp >= (uint8)EStencilOp::EStencilOp_Num ||
+			(uint8)GraphicsDesc.DepthStencilState.BackFacePassStencilOp >= (uint8)EStencilOp::EStencilOp_Num)
+		{
+			return false;
+		}
+
+		uint32 ElementCount = (uint32)GraphicsDesc.VertexDescriptor.Num();
+		for (uint32 i = 0; i < ElementCount;++i)
+		{
+			if(GraphicsDesc.VertexDescriptor[i].Type >= EVertexElementType::VET_MAX)
+			{
+				return false;
+			}
+		}
+		
+		return true;
+	}
+	
+	return false;
+}
+
 /**
   * FPipelineCacheFileFormatPSO
   **/
@@ -848,7 +957,13 @@ FPipelineCacheFileFormatPSO::FPipelineCacheFileFormatPSO()
 	
 	PSO.ComputeDesc.ComputeShader = Init->GetHash();
 	
-	return true;
+	bool bOK = true;
+	
+#if !UE_BUILD_SHIPPING
+	bOK = PSO.Verify();
+#endif
+	
+	return bOK;
 }
 
 /*static*/ bool FPipelineCacheFileFormatPSO::Init(FPipelineCacheFileFormatPSO& PSO, FGraphicsPipelineStateInitializer const& Init)
@@ -969,6 +1084,10 @@ FPipelineCacheFileFormatPSO::FPipelineCacheFileFormatPSO()
 
 	PSO.GraphicsDesc.SubpassHint = (uint8)Init.SubpassHint;
 	PSO.GraphicsDesc.SubpassIndex = Init.SubpassIndex;
+	
+#if !UE_BUILD_SHIPPING
+	bOK = bOK && PSO.Verify();
+#endif
 	
 	return bOK;
 }

@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3716214
+﻿INTSourceChangelist:6649752
 Availability:Public
 Title:파생 데이터 캐시
 Crumbs:%ROOT%
@@ -12,28 +12,18 @@ tags:Programming
 
 **Derived Data Cache** (DDC, 파생 데이터 캐시)는 여러 버전의 애셋을 언리얼 엔진과 그 타깃 플랫폼에서 사용되는 포맷으로 저장하는 기능입니다. 아티스트가 만들어서 에디터로 임포트하여 .uasset 파일로 저장되는 소스 포맷과는 다르지요. DDC 에 저장된 콘텐츠는 .uasset 파일에 저장된 데이터를 사용하여 언제든지 재생성할 수 있다는 의미에서 _일회성_ 이라 볼 수 있습니다. 이렇게 _파생된_ 포맷을 외부에 저장함으로써 소스 애셋 파일을 수정할 필요 없이 엔진이 사용하는 포맷을 쉽게 추가 또는 변경할 수 있습니다.
 
-
-
-
-
-
-## 공유 DDC 사용하기
+## Using a Shared DDC
 
 개발사에서는 모든 사용자가 접근할 수 있는 특정 위치에 공유 DDC 를 사용하는 것이 좋습니다. 이런 식으로 한 사람만 파생된 애셋 포맷을 빌드해 줘도 다른 모든 사용자도 자동으로 사용할 수 있게 됩니다. 규모가 꽤 작은 팀에서도 애셋 처리 작업을 이런 식으로 공유하면 처리 시간을 크게 단축시킬 수 있습니다.
 
+[REGION:warning]
+전체 DDC 를 인터넷을 통해 복사하거나, DDC 를 백업하거나, 백업에서 DDC 를 복원하는 것은 좋지 않습니다. 그런다고 어떤 해가 되는 것은 아니지만, DDC 에 저장된 데이터를 전송하는 것보다 로컬에서 그냥 아예 새로 만드는 것이 더 빠르기에 시간 낭비가 되고 맙니다.
+[/REGION]
 
+공유 DDC 구성을 위해서는, 게임의 DefaultEngine.ini 에서 (에픽 게임즈 런처의 바이너리 버전을 사용하는지 소스 컴파일 버전을 사용하는지에 따라) `[InstalledDerivedDataBackendGraph]` 또는 `[DerivedDataBackendGraph]` 섹션을 선언하여 그에 대한 경로를 덮어씁니다. 이 섹션은 원래 BaseEngine.ini 에 선언되며, 기본적으로 에픽의 내부 DDC 공유 경로로 설정되어 있습니다. 다른 네트워크 공유 경로로 설정하려면 이 섹션을 다시 선언하고 경로를 변경해야 합니다.
 
-
-[REGION:warning]전체 DDC 를 인터넷을 통해 복사하거나, DDC 를 백업하거나, 백업에서 DDC 를 복원하는 것은 좋지 않습니다. 그런다고 어떤 해가 되는 것은 아니지만, DDC 에 저장된 데이터를 전송하는 것보다 로컬에서 그냥 아예 새로 만드는 것이 더 빠르기에 시간 낭비가 되고 맙니다.[/REGION]
-
-
-
-
-
-공유 DDC 구성을 위해서는, 게임의 DefaultEngine.ini 에서 (에픽 게임즈 런처의 바이너리 버전을 사용하는지 소스 컴파일 버전을 사용하는지에 따라) `[InstalledDerivedDataBackendGraph]` 또는 `[DerivedDataBackendGraph]` 섹션을 선언하여 그에 대한 경로를 덮어씁니다. 이 섹션은 원래 BaseEngine.ini 에 선언되며, 기본적으로 에픽의 내부 DDC 공유 경로로 설정되어 있습니다. 다른 네트워크 공유 경로로 설정하려면 이 섹션을 다시 선언하고 경로를 (Path=\\mystudio.net\DDC 식으로) 바꿔 주어야 합니다.
-
-
-
+* Windows: (`Path=\\mystudio.net\DDC`)
+* Mac: (`Path=/Volumes/UE4DDC`)
 
 %Globals:BinarySourceSelectVar%
 
@@ -85,19 +75,13 @@ tags:Programming
     [/PARAM]
 [/OBJECT]
 
-
-
 여러 지사에서 하나의 공유 코드 베이스로 작업을 하려는 경우, UE-SharedDataCachePath 환경 변수를 각 지사의 모든 사용자가 읽고 쓸 수 있는 경로로 설정해 줍니다. 그러면 각 지사 자체적으로 공유 DDC 가 생깁니다.
-
-
 
 예:
 
     UE-SharedDataCachePath=\\mystudio.net\DDC
 
 ## 로컬 DDC 사용하기
-
-
 
 1인 개발자나 원격 작업을 하는 개발자는 보통 그냥 로컬 DDC 를 사용합니다. 엔진에서 공유 DDC 를 사용하지 않도록 하는 방법은 다음과 같습니다:
 
@@ -122,14 +106,13 @@ windows
 애셋을 임포트하는 사람이 파생 데이터도 빌드하게 마련인데, 거의 그 사람이 엔진에서 사용하고 테스트하기 때문입니다. 그런데 새로운 애셋을 처리해야 할 때가 있을 수가 있습니다. 그 작업은 요청에 따라 자동으로 이루어지며, 빠른 하드웨어에서는 약간의 버벅인다 해도 그다지 무리는 없을 것입니다.
 
 
-
- 
-
 파생 데이터 캐시는 언제든 채울 수 있으며, 그 명령은 아래와 같습니다:
  
     UE4\Engine\Binaries\Win64\UE4Editor.exe ProjectName -run=DerivedDataCache -fill
 
+[REGION:tip]
 에픽게임즈에서는 이 작업을 야간에 돌려 DDC 가 항상 준비되어 있도록 하지만, 일반적인 자동 캐시 기능으로도 충분할 것이므로 필수는 아닙니다.
+[/REGION]
 
 [/PARAM]
 [/OBJECT]
@@ -147,9 +130,6 @@ mac
 일반적으로는 애셋을 임포트하는 사람이 파생 데이터도 빌드하게 마련인데, 거의 그 사람이 엔진에서 사용하고 테스트하기 때문입니다. 그런데 새로운 애셋을 처리해야 할 때가 있을 수가 있습니다. 그 작업은 요청에 따라 자동으로 이루어지며, 빠른 하드웨어에서는 약간의 버벅인다 해도 그다지 무리는 없을 것입니다.
 
 
-
- 
-
 파생 데이터 캐시는 언제든 채울 수 있으며, 그 명령은 아래와 같습니다:
  
     open -a "ProjectName.app" --args -run=DerivedDataCache -fill
@@ -158,6 +138,12 @@ mac
 
 [/PARAM]
 [/OBJECT]
+
+## DDC 폴더 마운트
+
+내부 네트워크에서 DDC 를 사용하려면, DDC 가 들어있는 폴더를 네트워크 드라이브에 mount(마운트)해야 합니다. 그 자세한 방법은 다음 링크를 참고하세요.
+
+*[Map A Network Drive on Windows](https://support.microsoft.com/en-us/help/4026635/windows-map-a-network-drive)
 
 
 ## DDC 포함 배포하기
@@ -174,7 +160,6 @@ windows
 [/PARAMLITERAL]
 [PARAM:content]
 게임 패키징에 있어 선호되는 방식은 쿠킹으로, 쿠킹된 빌드는 DDC 를 필요로( 또는 사용)하지 않습니다. 하지만 DDC 는 필요에 따라 배포 패키지에 포함시킬 수도 있습니다.
-
 
 **DDC 패키징을 위해서는:**
  
@@ -199,7 +184,6 @@ mac
 [/PARAMLITERAL]
 [PARAM:content]
 게임 패키징에 있어 일반적으로 선호되는 방식은 쿠킹으로, 쿠킹된 빌드는 DDC 를 필요로( 또는 사용)하지 않습니다. 하지만 DDC 는 필요에 따라 배포 패키지에 포함시킬 수도 있습니다.
-
 
 **DDC 패키징을 위해서는:**
  

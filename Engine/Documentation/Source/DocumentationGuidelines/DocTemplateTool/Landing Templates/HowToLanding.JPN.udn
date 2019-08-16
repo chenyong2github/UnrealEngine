@@ -1,0 +1,32 @@
+﻿INTSourceChangelist:6551603
+Availability: Docs <!--[R] Enter Docs (default), Public, or Licensee-->
+Title: New How-To Landing Page <!--[R] Enter New Title-->
+Description: Temporary Description <!--[R] Enter New Description-->
+Type: how-to
+SkillLevel: <!--[R] Enter beginner, intermediate or advanced-->
+Version: <!--[R] Enter Engine Version-->
+Parent: <!--[R] Enter Parent Page-->
+Order: <!--[O] Enter Page Order-->
+Tags: <!--[O][+] Enter Document Tag-->
+<!--type: multi-step [O] Add this if there is more than one step-->
+<!--prereq: [O][+] If needed, add path to prerequisite doc-->
+<!--topic-image: [O] Enter Topic Image File Name (tip, make sure it is in the 'Images' folder)-->
+
+
+[R] ADD Overview Text
+[REGION:note]
+The Overview text should describe what the user will create during the activity.
+[/REGION]
+
+
+[O] ADD Hero Image or Video
+[REGION:note]
+The Hero image or video should show the user what they will create during the activity.
+[/REGION]
+
+
+[R] ADD Steps
+[REGION:note]
+Steps should be shown, listing the pages that make up the How-To guide, using a Directory List.
+[/REGION]
+

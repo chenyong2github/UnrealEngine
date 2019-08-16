@@ -1,0 +1,68 @@
+Availability: Docs
+Title: Behavior Tree Node Reference: Composites
+Description: Reference for the Behavior Tree Composite nodes.
+Type: reference
+Version: 4.21
+Parent: Engine/ArtificialIntelligence/BehaviorTrees/BehaviorTreeNodeReference
+Tags: AI
+Tags: Behavior Tree Node Reference
+topic-image: BehaviorTreeNodes_Composite_Topic.png
+social-image: BehaviorTreeNodes_Composite_Topic.png
+topic-icon: BehaviorTreeNodes_Composite_Topic.png
+Order: 0
+
+
+[TOC (start:2 end:2)]
+
+**Composite** nodes define the root of a branch, and the base rules for how that branch is executed. They can have [Decorators](Engine/ArtificialIntelligence/BehaviorTrees/BehaviorTreeNodeReference/BehaviorTreeNodeReferenceDecorators) applied to them to modify entry into their branch, or even cancel out mid-execution. Also, they can have [Services](Engine/ArtificialIntelligence/BehaviorTrees/BehaviorTreeNodeReference/BehaviorTreeNodeReferenceServices) attached to them that will only be active if the children of the Composite are being executed. 
+
+[REGION:note]
+Only Composite nodes can be attached to the Root node of a Behavior Tree.
+[/REGION]
+
+## Selector
+
+**![](Selector_01.png "Selector_01.png")**
+
+**Selector** Nodes execute their children from left to right. They stop executing when one of their children succeeds. If a Selector's child succeeds, the Selector succeeds. If all the Selector's children fail, the Selector fails.
+
+  
+| Property | Description |
+| --- | --- |
+| **Apply Decorator Scope** | If set, all Decorators in the branch below will be removed when execution flow leaves the branch (Decorators on this node are not affected). |
+| **Node Name** | The name the node should display in the Behavior Tree graph. |
+
+## Sequence
+
+**![](Sequence_01.png "Sequence_01.png")**
+
+**Sequence** nodes execute their children from left to right. They stop executing when one of their children fails. If a child fails, then the Sequence fails. If all the Sequence's children succeed, then the Sequence succeeds.
+
+  
+| Property | Description |
+| --- | --- |
+| **Apply Decorator Scope** | If set, all Decorators in the branch below will be removed when execution flow leaves the branch (Decorators on this node are not affected). |
+| **Node Name** | The name the node should display in the Behavior Tree graph. |
+
+## Simple Parallel
+
+![](SimpleParallel_01.png "SimpleParallel_01.png")
+
+The **Simple Parallel** node allows a single main Task node to be executed alongside of a full tree. When the main Task finishes, the setting in **Finish Mode** dictates if the node should finish immediately, aborting the secondary tree, or if it should delay for the secondary tree to finish.
+
+  
+| Property | Description |
+| --- | --- |
+| **Finish Mode** | [INCLUDE:#excerpt_0] |
+| **Node Name** | The name the node should display in the Behavior Tree graph. |
+
+<!--
+[EXCERPT:excerpt_0]
+
+|||
+| --- | --- |  
+| **Immediate** | Once the main Task finishes, the background tree will be aborted. |
+| **Delayed** | The background tree will be permitted to finish once the main Task has finished. |
+
+[/EXCERPT:excerpt_0]
+-->

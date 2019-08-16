@@ -1,21 +1,27 @@
-﻿Availability: Public
+﻿INTSourceChangelist:3750353
+Availability: Public
 Title:选择颜色
 Crumbs:%ROOT%, Engine, Engine/UI/LevelEditor/Modes/MeshPaintMode/VertexColor
-Description:关于网格物体模式的颜色选择过程的概述。
-
+Description:网格体绘制模式的颜色选择流程概览。
+Version: 4.9
+parent:Engine/UI/LevelEditor/Modes/MeshPaintMode/VertexColor
+type:how-to
+order:1
+skilllevel:Beginner
+topic-image:Engine/UI/LevelEditor/Modes/MeshPaintMode/VertexColor/ColorpickerCropped.png
 
 [EXCERPT:Intro]
-网格物体描画工具正常工作时要依赖于两种颜色，它们是 _Paint Color(描画色)_ 和一种 _Erase Color（擦除色）_ 。用户可以分别选择这两种颜色，并可以随时切换它们。选择颜色时可以应用标准的[颜色选择器窗口](Engine/UI/ColorPicker)。
+网格体绘制工具的工作依赖于颜色。使用者可以选择 _绘制颜色_ 和 _擦除颜色_，并在这两者之间随时切换。颜色选择通过标准[取色器窗口](Engine/UI/ColorPicker)进行。
 [/EXCERPT:Intro]
 
 
 ![](ColorPicker.png)
 
-出于工作流程考虑，把 _Erase Color（擦除色）_ 简单地作为另一种“描画色”会更加容易理解。应用“擦除色”并不是删除您之前画上去的笔画，这点和Photoshop或类似图片编辑器软件中的Erase Tool(清除工具)不尽相同。这里的“擦除色”仅是用来表示另外一个颜色。因此，如果你的基础底色是白色，使用白色作为擦除色是一个好的做法。
+为简化工作流，最好将 _擦除颜色_ 视为另一种颜色绘制。使用“擦除颜色”并非是移除之前的笔划，和Photoshop及其他图像编辑软件中的擦除颜色工具有所不同。它只是在绘制另一个颜色。如果底色为白色，则最好将白色用作擦除颜色。
 
-同时，在 **网格物体描画模式** 面板中，您也可以点击Swap按钮![](button_swap.png)来切换“描画色”和“擦除色”。当您需要快速地在这两种颜色见前后切换或者快速地修补错误的画刷描画时，这是非常方便的。
+在 **网格体绘制模式** 面板中时，可按下切换按钮![](button_swap.png)在绘制颜色和擦除颜色之间切换。需要在两个颜色之间来回切换、或对错误放置的笔刷笔划进行快速修改时，此操作尤为实用。
 
 [REGION:tip]
-	请记住，颜色选择器有各种帮助您快速的选择颜色的方法，包括保存颜色样本和设置颜色主题。请参照[颜色选择器文档](Engine/UI/ColorPicker)获得更多细节。
+	注意：取色器拥有多种方法来帮助快速选中颜色，例如保存颜色样本和设置颜色主题。请参见[取色器文档](Engine/UI/ColorPicker)中的详情。
 [/REGION]
 

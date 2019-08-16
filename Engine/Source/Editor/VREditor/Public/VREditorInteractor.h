@@ -25,7 +25,7 @@ enum class EControllerType : uint8
 
 /** Directions the trackpad can be swiped to */
 UENUM( BlueprintType )
-enum ETouchSwipeDirection
+enum class ETouchSwipeDirection : uint8
 {
 	None = 0,
 	Left = 1,
@@ -254,7 +254,7 @@ protected:
 	//
 
 	/** Mesh for this hand */
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, Category = "VREditorInteractor")
 	class UStaticMeshComponent* HandMeshComponent;
 private:
 

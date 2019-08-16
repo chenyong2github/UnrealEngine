@@ -11,7 +11,8 @@ TSharedRef<ISequencerTrackEditor> FActorReferencePropertyTrackEditor::CreateTrac
 
 void FActorReferencePropertyTrackEditor::GenerateKeysFromPropertyChanged( const FPropertyChangedParams& PropertyChangedParams, FGeneratedTrackKeys& OutGeneratedKeys )
 {
-	AActor* NewReferencedActor = PropertyChangedParams.GetPropertyValue<AActor*>();
+	// Care is taken here to ensure that GetPropertyValue is templated on UObject* which causes it to use the correct instantiation of GetPropertyValueImpl
+	AActor* NewReferencedActor = Cast<AActor>(PropertyChangedParams.GetPropertyValue<UObject*>());
 	if ( NewReferencedActor != nullptr )
 	{
 		FGuid ActorGuid = GetSequencer()->GetHandleToObject( NewReferencedActor );

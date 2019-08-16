@@ -318,7 +318,6 @@ protected:
 
 			// Input Layout State
 			D3D12_RECT CurrentScissorRects[D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
-			D3D12_RECT CurrentViewportScissorRects[D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
 			uint32 CurrentNumberOfScissorRects;
 
 			uint16 StreamStrides[MaxVertexElementCount];
@@ -499,33 +498,13 @@ public:
 
 	template <EShaderFrequency ShaderFrequency>
 	void SetShaderResourceView(FD3D12ShaderResourceView* SRV, uint32 ResourceIndex);
-
-	template <EShaderFrequency ShaderFrequency>
-	D3D12_STATE_CACHE_INLINE void GetShaderResourceViews(uint32 StartResourceIndex, uint32& NumResources, FD3D12ShaderResourceView** SRV)
-	{
-		{
-			uint32 NumLoops = D3D12_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT - StartResourceIndex;
-			NumResources = 0;
-			for (uint32 ResourceLoop = 0; ResourceLoop < NumLoops; ResourceLoop++)
-			{
-				SRV[ResourceLoop] = PipelineState.Common.CurrentShaderResourceViews[ShaderFrequency][ResourceLoop + StartResourceIndex];
-				if (SRV[ResourceLoop])
-				{
-					SRV[ResourceLoop]->AddRef();
-					NumResources = ResourceLoop;
-				}
-			}
-		}
-	}
-
-	void UpdateViewportScissorRects();
+	
 	void SetScissorRects(uint32 Count, const D3D12_RECT* const ScissorRects);
 	void SetScissorRect(const D3D12_RECT& ScissorRect);
 
-	D3D12_STATE_CACHE_INLINE void GetScissorRect(D3D12_RECT* ScissorRect) const
+	D3D12_STATE_CACHE_INLINE const D3D12_RECT& GetScissorRect(int32 Index = 0) const
 	{
-		check(ScissorRect);
-		FMemory::Memcpy(ScissorRect, &PipelineState.Graphics.CurrentScissorRects, sizeof(D3D12_RECT));
+		return PipelineState.Graphics.CurrentScissorRects[Index];
 	}
 
 	void SetViewport(const D3D12_VIEWPORT& Viewport);
@@ -536,10 +515,9 @@ public:
 		return PipelineState.Graphics.CurrentNumberOfViewports;
 	}
 
-	D3D12_STATE_CACHE_INLINE void GetViewport(D3D12_VIEWPORT* Viewport) const
+	D3D12_STATE_CACHE_INLINE const D3D12_VIEWPORT& GetViewport(int32 Index = 0) const
 	{
-		check(Viewport);
-		FMemory::Memcpy(Viewport, &PipelineState.Graphics.CurrentViewport, sizeof(D3D12_VIEWPORT));
+		return PipelineState.Graphics.CurrentViewport[Index];
 	}
 
 	D3D12_STATE_CACHE_INLINE void GetViewports(uint32* Count, D3D12_VIEWPORT* Viewports) const
@@ -833,7 +811,9 @@ public:
 	{
 		if (LastComputePipelineType != PipelineType)
 		{
-			ClearState();
+			PipelineState.Common.bNeedSetPSO = true;
+			PipelineState.Compute.bNeedSetRootSignature = true;
+
 			LastComputePipelineType = PipelineType;
 		}
 	}

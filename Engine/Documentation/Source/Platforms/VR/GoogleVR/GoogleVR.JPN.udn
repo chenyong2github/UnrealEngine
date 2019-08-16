@@ -1,0 +1,40 @@
+﻿INTSourceChangelist:3782314
+Availability:Public
+Crumbs: %ROOT%
+Title:Google VR 向けの開発	
+Description:UE4 を使って Google VR 向けプロジェクトを開発するための情報
+Version:4.17
+Crumbs:%ROOT%, Platforms
+type:landing
+Parent:Platforms/VR
+Order:1
+tags:Google VR
+tags:Platform
+tags:VR
+Tags:Mobile VR
+prereq:Platforms/Mobile/Android/GettingStarted
+social-image:googlevr_social.png
+topic-image:GoogleVR_Topic_Image.png
+
+
+![](googlevr_social.png)
+
+[region:note]
+Google のマニュアルに Daydream の使用方法に関する詳細な説明があります。[Google Daydream Unreal 公式サイト](https://developers.google.com/vr/unreal/) のヘルプをご覧ください。
+[/region]
+
+## はじめよう 
+
+[DIR(end:"1" output:"topic" type:"quick start" parent:"Platforms/VR/GoogleVR")]
+
+## Samsung Gear VR の開発
+
+[DIR(end:"1" output:"topic" type:"reference,overview" parent:"Platforms/VR/GoogleVR")]
+
+## ガイド
+
+[DIR(output:"fancy" type:"how-to" skilllevel:"Beginner" parent:"Platforms/VR/GoogleVR" org:"flat")]
+[DIR(output:"fancy" type:"how-to" skilllevel:"Intermediate" parent:"Platforms/VR/GoogleVR" org:"flat")]
+[DIR(output:"fancy" type:"how-to" skilllevel:"Advanced" parent:"Platforms/VR/GoogleVR" org:"flat")]
+[DIR(output:"fancy" type:"how-to" skilllevel:"Expert" parent:"Platforms/VR/GoogleVR" org:"flat")]
+

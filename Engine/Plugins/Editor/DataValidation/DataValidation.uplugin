@@ -19,7 +19,7 @@
 	[
 		{
 			"Name" : "DataValidation",
-			"Type": "Developer",
+			"Type": "Editor",
 			"LoadingPhase" : "PreDefault"
 		}
 	]

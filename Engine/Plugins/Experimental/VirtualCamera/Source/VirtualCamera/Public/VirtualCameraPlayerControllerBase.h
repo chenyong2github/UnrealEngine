@@ -942,4 +942,10 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Virtual Camera|Movement")
 	bool ToggleAxisLock(const EVirtualCameraAxis AxisToToggle);
+
+	/**
+	 * Helper to bring the game viewport to front.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Virtual Camera")
+	void ActivateGameViewport();
 };

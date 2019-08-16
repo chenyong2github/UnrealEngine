@@ -20,13 +20,10 @@ public:
 	void Setup(const FTransform& ParentToWorld, USceneComponent* Component, bool bSkipLateUpdate);
 
 	/** Returns true if the LateUpdateSetup data is stale. */
-	bool GetSkipLateUpdate_RenderThread() const;
+	bool GetSkipLateUpdate_RenderThread() const { return RenderThreadState.bSkip; }
 
 	/** Apply the late update delta to the cached components */
 	void Apply_RenderThread(FSceneInterface* Scene, const FTransform& OldRelativeTransform, const FTransform& NewRelativeTransform);
-
-	/** Increments the double buffered read index, etc. - in prep for the next render frame (read: MUST be called for each frame Setup() was called on). */
-	void PostRender_RenderThread();
 
 private:
 
@@ -35,15 +32,26 @@ private:
 	/** Generates a LateUpdatePrimitiveInfo for the given component if it has a SceneProxy and appends it to the current LateUpdatePrimitives array */
 	void CacheSceneInfo(USceneComponent* Component);
 
-	/** Parent world transform used to reconstruct new world transforms for late update scene proxies */
-	FTransform LateUpdateParentToWorld[2];
-	/** Primitives that need late update before rendering */
-	TMap<FPrimitiveSceneInfo*,int32> LateUpdatePrimitives[2];
-	/** Late Update Info Stale, if this is found true do not late update */
-	bool SkipLateUpdate[2];
+	struct FLateUpdateState
+	{
+		FLateUpdateState()
+			: ParentToWorld(FTransform::Identity)
+			, bSkip(false)
+			, TrackingNumber(-1)
+		{}
 
-	int32 LateUpdateGameWriteIndex;
-	int32 LateUpdateRenderReadIndex;
+		/** Parent world transform used to reconstruct new world transforms for late update scene proxies */
+		FTransform ParentToWorld;
+		/** Primitives that need late update before rendering */
+		TMap<FPrimitiveSceneInfo*, int32> Primitives;
+		/** Late Update Info Stale, if this is found true do not late update */
+		bool bSkip;
+		/** Frame tracking number - used to flag if the game and render threads get badly out of sync */
+		int64 TrackingNumber;
+	};
 
+	FLateUpdateState GameThreadState;
+	FLateUpdateState RenderThreadState;
+	FCriticalSection StateCriticalSection;
 };
 

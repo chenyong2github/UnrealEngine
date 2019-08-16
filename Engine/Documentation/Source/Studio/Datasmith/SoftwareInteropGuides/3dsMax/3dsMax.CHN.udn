@@ -1,0 +1,513 @@
+﻿INTSourceChangelist:6085005
+Availability: Public
+Crumbs: 
+Title: 使用Datasmith和3ds Max
+Description: 介绍仅当使用Datasmith将Autodesk 3ds Max中的场景导入虚幻编辑器时才适用的特殊注意事项。
+Type: 
+Version: 4.22
+Parent: Studio/Datasmith/SoftwareInteropGuides
+Order: 
+Tags: Enterprise
+Tags: 3DS Max
+Tags: Unreal Studio
+Tags: Datasmith
+Tags: overview
+Tags: interop
+topic-image: max_datasmith_topic.png
+topic-icon: %ROOT%/ue4_icon.png
+
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![V-Ray in 3ds Max](max_datasmith_compare_vray.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![UE4](max_datasmith_compare_unreal.png) 
+ [/PARAM]
+[/OBJECT]
+
+*图片由Litrix提供。*
+
+本页面介绍Datasmith如何将场景从Autodesk 3ds Max导入到虚幻编辑器中。它遵循[Datasmith概述](Studio/Datasmith/Overview)和[关于Datasmith导入过程](Studio/Datasmith/Overview/ImportProcess)中概述的基本过程，但是添加了一些特定于3ds Max的特殊转换行为。如果您打算使用Datasmith将场景从3ds Max导入到虚幻编辑器中，阅读此页可以帮助您理解场景是如何转换的，以及如何在虚幻编辑器中处理结果。
+
+(#3dsmaxworkflow)
+
+## 3ds Max工作流程
+
+Datasmith为3ds Max使用 **导出插件** 工作流程。这意味着，要使用Datasmith将您的3ds Max内容导入虚幻引擎，您需要：
+
+1.  为3ds Max安装一个插件。请参阅[为3ds Max安装Datasmith导出器插件](Studio/Datasmith/SoftwareInteropGuides/3dsMax/InstallingExporterPlugin)。
+2.  将您的3ds Max内容导入到 *.udatasmith* 文件中。请参阅[从3ds Max导出Datasmith内容](Studio/Datasmith/SoftwareInteropGuides/3dsMax/ExportingDatasmithContentfrom3dsMax)。
+3.  使用Datasmith导入器将导出的 *.udatasmith* 文件导入到虚幻编辑器。请参阅[将Datasmith内容导入到虚幻引擎4中](Studio/Datasmith/HowTo/ImportingContent)。
+
+(#geometry)
+## 几何体
+
+本节介绍Datasmith将3ds Max场景中的几何对象转换为虚幻引擎项目中的静态网格体资源和Actor的特殊之处。
+
+(#instances)
+
+### 实例
+
+当Datasmith在3ds Max场景中检测到同一个主对象的多个实例时，它只为该对象创建一个静态网格体资源。然后它将该静态网格体的多个实例放置到虚幻引擎的关卡中。对于项目的运行时内存需求和性能来说，这通常是更好的选择，它通过减少静态网格体的数量来帮助您管理内容。
+
+在可能的情况下，我们建议对场景中的所有重复元素（如门窗或椅子）使用3ds Max中的实例，从而利用这一点。
+
+(#pivotpoints)
+
+### 枢轴点
+
+在3ds Max中，您可以为场景中的每个对象设置自定义枢轴点，即使这些对象是相同主对象的实例。然而，在虚幻引擎中，相同几何体的所有实例都需要使用相同的枢轴点。当Datasmith将对象转换至虚幻引擎时，它将处理这些枢轴点，如下所示。
+
+*   如果3ds Max中的 *所有* 实例具有相同的自定义枢轴点，Datasmith只需将其设置为其创建的静态网格体资源的枢轴位置。当您在虚幻引擎关卡中旋转Datasmith为该对象创建的任何静态网格体Actor时，它将按照您的期望围绕自定义枢轴的位置旋转。
+*   如果一个或多个实例使用与其他实例不同的枢轴位置，Datasmith将它在虚幻引擎中创建的静态网格体资源设置为使用3ds Max对象的默认枢轴位置。每次需要将该资源放入关卡时，它不是创建静态网格体Actor，而是在该实例的自定义枢轴位置创建一个新的空父Actor。然后，它给这个父Actor一个静态网格体组件，该组件引用静态网格体资源，并具有来自父Actor的平移偏移量，该偏移量将其放置在3D场景中需要的位置。Datasmith将后缀“_pivot”添加到子组件的名称中。
+
+例如，左边的茶壶在壶盖顶部有一个自定义的枢轴：
+
+![Custom pivot points on instanced objects](InstancedObjectPivotPoint.png "Custom pivot points on instanced objects")
+
+当Datasmith将场景带入虚幻引擎中时，它会在3D世界的枢轴点位置创建一个名为“Teapot002”的新Actor。这个Actor有一个名为“Teapot002_Pivot”的静态网格体组件，它是指茶壶的静态网格体资源，它与父Actor之间的偏移量正好合适，使它相对于场景中的其他几何体出现在正确的位置：
+
+![Parent Actor to represent the custom pivot](PivotPointSubComponent.png "Parent Actor to represent the custom pivot")
+
+您可以在虚幻引擎关卡中移动、旋转和缩放父Actor，您的模型将按照您的期望运行。您需要注意的是，在这种情况下，您的模型是父Actor的“组件”，而不是静态网格体Actor本身。例如，在上面的例子中，右边的茶壶是作为静态网格体Actor而不是带有静态网格体组件的Actor在关卡中实例化的。
+
+Datasmith不支持导入在3ds Max中同时具有不同枢轴点和非均匀缩放的实例。如果您有这样的实例，请在导出之前对它们使用[Reset XForm工具](http://help.autodesk.com/view/3DSMAX/2018/ENU/?guid=GUID-B98414B9-4F28-45F4-A1F4-9DA994548ED9)。
+
+(#uvchannels)
+
+### UV通道
+
+Datasmith总是确保它带入虚幻引擎的每个静态网格体都有一组可供Lightmass使用的UV，当您将静态光照构建到全局光照纹理中时可以使用这些UV。当导入Datasmith文件时，虚幻引擎会自动创建该UV通道，并设置每个静态网格体资源，以使用该新通道生成烘焙光照贴图。
+
+不过，在某些情况下，您可能想要在3ds Max中手工创建自己的自定义光照贴图UV。这可以让您对接缝位置和分配给几何体中的三角形的相对空间拥有完全的美术控制。如果是这样，您需要知道您的UV是如何从3ds Max导入虚幻引擎的，以及如何能覆盖这种行为。
+
+对于每个静态网格体，虚幻引擎支持多达8个UV通道。而且，每次Datasmith从3ds Max将一个几何体对象导入到虚幻引擎中的静态网格体资源时，它都使用两个UV通道来生成该静态网格体的光照贴图UV。因此，Datasmith可以保存多达六个预先存在的UV通道，这些通道来自从3ds Max导入到虚幻引擎的每个对象。
+
+然而，3ds Max中每个对象最多可以有99个UV通道。因此，Datasmith只导出3ds Max中索引最低的六个通道。
+
+例如，下面的3ds Max对象在其修改器列表中有五个UV通道。每个通道都有一个0到99之间的数字与其关联。Datasmith导入这五个UV通道，并将它们的数值重置为从0开始。这导致虚幻引擎中产生一组编号为0-4的UV通道。最后，导入过程为自动生成的光照贴图创建两个额外的UV通道，本例中为5和6。
+
+![UV channel numbering in 3ds Max and Unreal](UVChannels_MaxVsUnreal.png "UV channel numbering in 3ds Max and Unreal")(w:500)
+
+下表列出了3ds Max与虚幻引擎之间UV通道数的关系：
+
+| 3DS Max UV通道 | 产生的虚幻UV通道 |
+| --- | --- |
+| 1 | 0 |
+| 2 | 1 |
+| 3 | 2 |
+| 10 | 3 |
+| 99 | 4 |
+| -- | [INCLUDE:#excerpt_1] |
+| -- | [INCLUDE:#excerpt_2] |
+
+<!--
+[EXCERPT:excerpt_2]
+6
+[REGION:note]
+虚幻引擎中的UV通道6是根据UV通道5生成的，可以根据用于静态网格体光照贴图分辨率值的Datasmith导入选项正确地填充和打包UV图表。
+[/REGION]
+[/EXCERPT:excerpt_2]
+-->
+<!--
+[EXCERPT:excerpt_1]
+5
+[REGION:note]
+虚幻引擎中的UV通道5是在导入过程中生成的，以创建包含在Datasmith场景中几何体的自动展开。它是UV通道6所使用的光照贴图UV生成的基础。
+[/REGION]
+[/EXCERPT:excerpt_1]
+-->
+[REGION:tip]
+如果想让您导入的静态网格体使用您在3ds Max中创建的已有UV通道，您有两个选择：
+
+1.  在从3ds Max导出场景之前，可以使用 **Datasmith属性** 修改器指定希望虚幻引擎用于光照贴图的UV通道的索引。详情请参阅[逐对象式转换设置](Studio/Datasmith/SoftwareInteropGuides/3dsMax/ObjectSettings)。
+2.  将场景导入虚幻编辑器后，可以更改希望虚幻引擎用于光照贴图的UV通道索引。可以这样做：
+    *   在静态网格体编辑器中。在 **详情（Details）** 面板中，在 **一般设置（General Settings）** 组下展开高级功能按钮，并将 **光照贴图坐标索引（Light Map Coordinate Index）** 设置为您想要使用的UV通道。
+    *   在Python中：调用以下函数：
+        
+            static_mesh.set_editor_property("light_map_coordinate_index", index)
+[/REGION]
+
+(#customcollisionshapes)
+### 自定义碰撞形态
+
+在某些情况下，您可能希望在3ds Max中为对象创建自定义几何体模型，并在虚幻引擎中使用该自定义几何体作为相应静态网格体的碰撞网格体。这样做，您可以使场景对象的表示与原始场景对象的体积尽可能匹配，同时最大程度减少它们包含的三角形数量。这可以帮助您改进游戏引擎中物理模拟的行为和性能。
+
+有两种方法可以用Datasmith做到这一点：
+
+*   您可以将3ds Max中的 **Datasmith属性** 修改器分配给场景中的一个或多个对象，然后使用该修改器指定一个您想要让虚幻引擎将其用作碰撞网格体的不同对象。详情请参阅[逐对象转换设置](Studio/Datasmith/SoftwareInteropGuides/3dsMax/ObjectSettings)。
+*   您可以使用与FBX导入器相同的命名惯例，让Datasmith自动将几何体分配给它对应的静态网格体资源：  
+    如果场景中存在一个与另一个对象同名但前缀为“UCX_”的凸包几何体对象，Datasmith将认为这个“UCX_”对象是另一个对象的碰撞形式。Datasmith只导入没有前缀的对象作为静态网格体资源。然后，它将带有“UCX_”前缀的对象的几何体指定为该静态网格体资源的碰撞网格体。
+
+无论使用哪种方法，都可以将设置为碰撞网格体的对象设置为任何完全封闭的凸包3D形状。例如，一个盒子可以是一个凸包对象。下图说明了什么是凸包，什么不是凸包：
+
+![Convex and non-convex examples](Convex-resize334x269.gif "Convex and non-convex examples")
+
+此外，确保自定义几何体的枢轴点与原始对象的枢轴点相对于体积的位置相同。例如，在下图中，右边椅子的枢轴点与对象的底面对齐，它们位于体积的中心。因此，左侧简化几何体体积的枢轴点需要相对于整体体积对齐到相同的位置。
+
+![Pivot points on custom collision volumes](collision-pivots.png "Pivot points on custom collision volumes")
+
+如果您未能将碰撞几何体的枢轴点保持在相对于整体体积的同一位置，则您的对象在物理世界中的表现将不会与该对象的可见范围对齐。这可能会导致在您意想不到的地方产生碰撞。
+
+[REGION:tip]
+通过在关卡视口中打开碰撞渲染，可以验证自定义形状是否已正确导入。从视口覆层菜单中，选择 **显示（Show）> 碰撞（Collision）**。您将看到自定义碰撞体积在场景对象的顶部渲染。在这个例子中，球形模型被分配了一个盒体对象作为它的自定义碰撞体积。
+[REGION:lightbox]
+[![Show Collisions in the Level Viewport](modifier-collision-viewport.png "Show Collisions in the Level Viewport")](modifier-collision-viewport.png)
+
+*单击显示全图。*
+[/REGION]
+[/REGION]
+
+(#vertexcolors)
+
+### 顶点颜色
+
+如果您已经将任何顶点颜色与您的3ds Max对象关联，当Datasmith在虚幻引擎中创建相应的静态网格体资源时，它将保留这些颜色。
+
+在虚幻编辑器中创建自定义材质时，还可以使用这些顶点颜色，方法是在材质图表中包含 **Constants >**  **Vertex Color** 节点。  
+
+例如，下面左侧的图像显示了3ds Max中的一个对象，该对象被设置为显示其顶点颜色。右边的图像显示了一个简单的自定义材质，它检索这些顶点颜色并将它们直接传递到 **基础颜色** 输出中。
+
+[REGION:lightbox]
+[![](vertex-colors_max.png)](vertex-colors_max.png "Vertex colors displayed in 3ds Max ")
+[/REGION]
+
+3ds Max中显示的顶点颜色
+
+[REGION:lightbox]
+[![](vertex-colors-unreal.png)](vertex-colors-unreal.png " Vertex colors displayed in Unreal Engine")
+[/REGION]
+
+虚幻引擎中显示的顶点颜色
+
+您自己的自定义材质图表不需要简单地使用顶点颜色来为表面提供如上所示的可见颜色。您的材质图表可以将顶点颜色与其他表面属性结合和混合。此外，您根本不需要使用顶点颜色来传递文字颜色值。相反，您可以使用顶点颜色作为一种机制，将自定义数据值与源对象的几何体相关联，并让这些值传递到您在虚幻编辑器中创建的自定义材质，以驱动特殊的视觉效果。例如，可以使用顶点颜色为树的枝叶分配权重，并使用这些权重来调节顶点着色器中应用的风动画效果。
+
+您还可以在静态网格体编辑器中打开静态网格体资源，并启用工具栏中的 **顶点颜色（Vert Colors）** 切换按钮，从而可视化您的顶点颜色，以确保它们已被正确转换。
+
+![Vert Colors in the Static Mesh Editor Toolbar](vertex-colors-sm-toolbar.png "Vert Colors in the Static Mesh Editor Toolbar")
+
+Datasmith不转换来自其他3ds Max网格体通道的数据，如 **顶点Alpha**、**贴图通道颜色**，或 **软选择颜色**。
+
+(#levelsofdetail)
+
+### 细节层级
+
+Datasmith目前不导入您在3ds Max中设置的任何自定义细节层级。不过，您可以在虚幻编辑器中自动生成新的细节层级。详情请参阅[自动LOD生成](Engine/Content/Types/StaticMeshes/HowTo/AutomaticLODGeneration)或[在蓝图后Python中创建细节层级](Engine/Editor/ScriptingAndAutomation/HowTos/CreatingLODs)。
+
+(#forestpackandrailcloneobjects)
+
+### Forest Pack和RailClone对象
+
+[Forest Pack](https://www.itoosoft.com/forestpack)和[RailClone](https://www.itoosoft.com/railclone)是3ds Max的可选第三方插件，由[iToo Software](https://www.itoosoft.com/)制作，旨在更加轻松地用大量几何对象填充3ds Max场景，方法是将它们分散或按程序放置。由于这些插件在设计可视化行业的流行，Datasmith为Forest Pack和Railclone对象提供了一些特殊的处理。
+
+使用Datasmith导出包含Forest Pack或RailClone对象的场景，并将该场景导入到虚幻引擎中时：
+
+*   Datasmith在虚幻引擎关卡中创建一个Actor，根据3ds Max中对象的名称命名。
+*   在该Actor中，Datasmith为对象处理的每种不同类型的几何体创建一个 **层级实例化静态网格体(HISM)** 组件。它还在项目内容中为每种几何体类型创建一个静态网格体资源，并将HISM组件设置为引用这个静态网格体资源。  
+    例如，这张图显示了一个Actor，它是由在 **世界大纲视图(1)** 中选择的Forest Pack对象创建的，它的一个HISM组件是在 **详情（Details）** 面板 **(2)** 中选择的。在底部，您还可以在 **静态网格体（Static Mesh）** 设置 **(3)** 中看到分配给所选HISM组件的静态网格体资源。  
+    [REGION:lightbox]
+    [![Hierarchical Instanced Static Mesh for a Forest Pack object](max-forestpack-hism.png "Hierarchical Instanced Static Mesh for a Forest Pack object")](max-forestpack-hism.png)  
+    *单击显示全图。*
+    [/REGION]
+    [REGION:tip]
+    层级实例化静态网格体组件是渲染同一静态网格体多个实例的一种非常有效的方法。虚幻引擎渲染器将同一HISM组件管理的所有实例批处理为一个绘制调用（实际上，每个分配给静态网格体资源的材质都有一个绘制调用）。这增加了渲染器在不影响GPU性能或帧率的情况下可以处理的实例数量。HISM组件也采用了相同的技术来支持虚幻引擎的植被系统。
+    [/REGION]
+    
+*   在每个HISM组件中，Datasmith在3ds Max场景中可见的每个几何体实例的相同位置和旋转处添加一个实例。
+
+通过这个过程，虚幻引擎中的结果与最初的3ds Max场景非常匹配，无论是在场景层级中（一个Forest Pack或RailClone对象，它内部管理其所有实例），还是在可视化结果中。例如，下方左侧的图像显示了3ds Max中的一个场景，其中一个Forest Pack对象分散了两种不同类型的对象。右边的图像显示了将场景导入虚幻引擎的视觉效果。
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![Forest Pack in 3ds Max](datasmith-max-forestpack-before.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![Unreal Engine](datasmith-max-forestpack-after.png) 
+ [/PARAM]
+[/OBJECT]
+
+[REGION:tip]
+您可能正在使用Forest Pack或RailClone来管理具有复杂几何体的对象，例如树，您打算在虚幻引擎中使用更简单的几何体来替换这些对象，以便更有效地实时执行。  
+在本例中，您可以将 **Datasmith属性** 修改器应用于3ds Max中的Forest Pack或RailClone对象，并将其设置为只导出几何体的边框。Forest Pack或RailClone Actor管理的所有实例都将使用简化的边界体积。例如：  
+![](datasmith-max-forestpack-bbox.png "datasmith-max-forestpack-bbox.png")  
+有关如何使用 **Datasmith属性** 修改器的更多信息，请参阅[逐对象转换设置](Studio/Datasmith/SoftwareInteropGuides/3dsMax/ObjectSettings)。  
+导入之后，您可以在HISM组件上更改一次 **静态网格体（Static Mesh）** 设置，从而更新虚幻引擎关卡的所有实例，以使用新的静态网格体资源。
+[/REGION]
+
+(#lightingandrenderingenvironment)
+
+## 照明和渲染环境
+
+与Datasmith支持的许多其他第三方软件相比，3ds Max提供了更细致、更复杂的照明和渲染功能。本节介绍了Datasmith试图将这种照明和渲染环境引入虚幻引擎的一些特殊方法。
+
+(#lights)
+
+### 光源
+
+Datasmith维护关于3ds Max场景中光源的丰富信息，目的是使您的虚幻关卡的照明尽可能接近您在3ds Max中设置的照明。
+
+Datasmith可转换多种3ds Max光源类型，包括标准光源、光度光源、V-Ray光源和Corona光源。对于各种光源，它将以下项目导入虚幻引擎中：
+
+*   3D空间中的位置、方向、形状和大小。
+*   光源类型（例如，点光源或聚光源）。
+*   强度、单位、灯颜色、温度和过滤器颜色。
+*   渲染形状可视性。
+*   IES光源描述文件。
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![3ds Max](3DS_LightCharacteristics.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![Unreal Engine 4](UE4_LightCharacteristics.png) 
+ [/PARAM]
+[/OBJECT]
+
+*顶部：带IES描述文件和缩放开尔文温度的点光源。  
+中间：带IES描述文件和缩放光源强度的点光源。  
+底部：带过滤器颜色的聚光源。*
+
+每一种照明系统都会产生不同的效果。Datasmith将您的光源位置、类型和属性尽可能准确地导入到虚幻引擎，但导入后您可能需要调整您关卡的照明，让结果看起来像您期望的那样，并在运行时优化您关卡的照明性能。
+
+当您使用Datasmith时，3ds Max和虚幻引擎之间有几个显著的区别：
+
+*   虚幻引擎目前不支持光源实例。对于您的3ds Max场景中的每个实例光源，Datasmith在虚幻引擎关卡中创建一个单独的光源Actor。
+*   标准光源在3ds Max是无单位的，它们允许虚幻引擎不支持的自定义衰减参数。
+*   一些V-Ray形状不受支持，如垂直圆柱体、球体和自定义网格体光源。
+*   区域光源有专门处理（见下文）。
+
+(#area,plane,andvolumelights)
+
+### 区域、平面和体积光源
+
+3ds Max支持一些从2D形状或3D体积发出的光。这些类型的光源在虚幻引擎中没有完全对应的相似物。这包括mental ray区域光源、V-Ray平面光源、圆盘光源、圆顶光源和球面光源等等。当Datasmith从3ds Max导入其中一个区域光源时，它使用一个特殊的、自定义编写的蓝图类 **DatasmithAreaLightMesh** 来模拟光源的行为。
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![Area light off](max_datasmith_arealightmesh_off.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![Area light on](max_datasmith_arealightmesh_on.png) 
+ [/PARAM]
+[/OBJECT]
+
+该蓝图基本上是将自动生成的自发光表面与自动生成的矩形光源、点光源或聚光源配对：
+
+*   自发光表面的工作是表示关卡的3D空间中可见的物理范围的光，以及来自其他表面的反射。
+*   矩形光源、点光源或聚光源的作用是将实际的光发射到场景中。
+
+您可以控制自发光的形状、大小、颜色和强度，以及光源Actor的属性。在 **关卡视口（Level Viewport）** 或 **世界大纲视图（World Outliner）** 中选择 **DatasmithAreaLightMesh** Actor，并使用 **详情（Details）** 面板的 **光源（Light）** 类别中的设置。例如：
+
+[REGION:lightbox]
+[![DatasmithAreaLightMesh settings](max-datasmith-area-light-422.png "DatasmithAreaLightMesh settings")](max-datasmith-area-light-422.png)
+
+*单击显示全图。*
+[/REGION]
+[REGION:note]
+*   有关光源属性的详情，请参阅[矩形光源](Engine/Rendering/LightingAndShadows/LightTypes/RectLights)、[点光源](Engine/Rendering/LightingAndShadows/LightTypes/Point)和[聚光源](Engine/Rendering/LightingAndShadows/LightTypes/Spot)。
+*   有些设置，如 **颜色（Color）** 和 **强度（Intensity）**，会同时影响到自发光和光源Actor。
+[/REGION]
+
+这种设置的结果是，光源在场景中有一个可见的存在，并照亮周围的物体。然而，不像在从3ds Max执行的离线渲染中，如果您的 *DatasmithAreaLightMesh** 用聚光源或点光源，则DatasmithAreaLightMesh向关卡发出的实际光线将从单个点投射，而不是从整个表面投射。
+
+[REGION:note]
+自发光表面目前不会将任何光线投射到场景中，无论您是使用Lightmass烘焙照明还是使用动态照明。只有点光源或聚光源组件才能真正照亮关卡中的周围对象。
+[/REGION]
+
+(#exposure)
+
+### 曝光
+
+Datasmith保留了从3ds Max导入到虚幻引擎的光源的强度。然而，光源强度本身并不足以保证良好的场景渲染。虚幻引擎渲染器需要在上下文中解释这些光源的强度，以确定场景的亮度：该场景在最终渲染中应该多亮或多暗。这一上下文的一部分是由摄像机或视图的 *曝光* 提供的 - 一组物理特性决定了最终图像对场景中光线强度的敏感度。
+
+为了确保场景中光源的强度在虚幻引擎中以您期望的表观亮度水平生成渲染的图像，Datasmith还转换了来自3ds Max的几个不同的曝光值。详情请参阅以下部分：
+
+*   [物理摄像机曝光设置](#physicalcameraexposuresettings)
+*   [全局曝光设置](#globalexposuresettings)
+*   [自动曝光](#auto-exposure)
+
+(#physicalcameraexposuresettings)
+
+#### 物理摄像机曝光设置
+
+如果您的3ds Max场景包含一个物理摄像机，Datasmith将保存该摄像机的曝光和白平衡设置，并将它们传送到虚拟关卡中代表该物理摄像机的 **CineCameraActor**。
+
+对于每一个摄像机，Datasmith设置 **白平衡（WhiteBalance）> 温度（Temp）**、**快门速度（Shutter Speed）**、**ISO** 和 **孔径（F制光圈）（Aperture (f-stop)）** 设置，以匹配3ds Max中的等效设置。它还将 **曝光（Exposure）> 测光模式（Metering Mode）** 设置为 **手动（Manual）**，以禁用自动曝光。
+
+| 3ds Max中的物理摄像机曝光设置 | UE4中的CineCameraActor曝光设置 |
+| --- | --- |
+| [INCLUDE:#excerpt_3] | [INCLUDE:#excerpt_4] |
+| --- | --- |
+
+<!--
+[EXCERPT:excerpt_4]
+[REGION:lightbox]
+[![CineCameraActor exposure settings in UE4](params-camera-ue4.png "CineCameraActor exposure settings in UE4")](params-camera-ue4.png)
+
+*单击显示全图。*
+[/REGION]
+[/EXCERPT:excerpt_4]
+-->
+<!--
+[EXCERPT:excerpt_3]
+[REGION:lightbox]
+[![Physical Camera exposure settings in 3ds Max](params-camera-max.png "Physical Camera exposure settings in 3ds Max")](params-camera-max.png)
+
+*单击显示全图。*
+[/REGION]
+[/EXCERPT:excerpt_3]
+-->
+
+结果是，当您通过这个摄像机查看您的关卡时，会看到与您在3ds Max渲染中得到的结果非常匹配的光照水平。
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![3ds Max Physical Camera](datasmith-max-exposure-camera.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![Unreal Engine CineCameraActor](datasmith-ue4-exposure-camera.png) 
+ [/PARAM]
+[/OBJECT]
+
+(#globalexposuresettings)
+
+#### 全局曝光设置
+
+如果您在3ds Max中的 **曝光控制（Exposure Control）** 设置使用 **物理摄像机曝光控制（Physical Camera Exposure Control）** 或 **VRay曝光控制（VRay Exposure Control）**，Datasmith现在会在Datasmith场景中创建一个后期处理体积，将这些全局曝光设置应用于整个虚幻引擎关卡。
+
+与物理摄像机一样，Datasmith为后期处理体积设置 **白平衡（WhiteBalance）> 温度（Temp）**、**快门速度（Shutter Speed）**、**ISO** 和 **孔径（F制光圈）（Aperture (f-stop)）** 设置，以匹配3ds Max中的等效设置。它还将 **曝光（Exposure）> 测光模式（Metering Mode）** 设置为 **手动（Manual）**，以禁用自动曝光。
+
+[REGION:tip]
+您将在3ds Max的 **环境和效果（Environment and Effects）** 对话框中找到这些功能按钮。要打开此对话框，从主菜单选择 **渲染（Rendering）>曝光控制...（Exposure Control...）**。
+[/REGION]
+
+| 3ds Max中的物理摄像机曝光控制 | 3ds Max中的VRay曝光控制 | UE4中的后期处理体积曝光设置 |
+| --- | --- | --- |
+| [INCLUDE:#excerpt_5] | [INCLUDE:#excerpt_6] | [INCLUDE:#excerpt_7] |
+| --- | --- | --- |
+
+<!--
+[EXCERPT:excerpt_7]
+[REGION:lightbox]
+[![](params-global-ue4.png "params-global-ue4.png")](params-global-ue4.png)
+
+*单击显示全图。*
+[/REGION]
+[/EXCERPT:excerpt_7]
+-->
+<!--
+[EXCERPT:excerpt_6]
+[REGION:lightbox]
+[![VRay Exposure Control in 3ds Max](params-global-max-vray.png "VRay Exposure Control in 3ds Max")](params-global-max-vray.png)
+
+*单击显示全图。*
+[/REGION]
+[/EXCERPT:excerpt_6]
+-->
+<!--
+[EXCERPT:excerpt_5]
+[REGION:lightbox]
+[![Physical Camera Exposure Control in 3ds Max](params-global-max-physcam.png "Physical Camera Exposure Control in 3ds Max")](params-global-max-physcam.png)
+
+*单击显示全图。*
+[/REGION]
+[/EXCERPT:excerpt_5]
+-->
+
+结果是，当您在虚幻编辑器视口中使用默认透视摄像机查看关卡时，您将再次看到与3ds Max渲染结果非常匹配的光照强度。
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![Global exposure in|3ds Max perspective camera](datasmith-max-exposure-global.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![Post Process Volume|exposure in Unreal Engine](datasmith-ue4-exposure-global.png) 
+ [/PARAM]
+[/OBJECT]
+
+在3ds Max中，您的全局白平衡和曝光设置不需要匹配指定给您的物理摄像机的设置。在这种情况下，如果您从透视摄像机的视角渲染场景，则渲染将使用全局曝光设置，而不是指定给任何特定物理摄像机的设置。  
+导入到虚幻引擎中后，会发生同样的事情。通过关卡视口中的默认摄像机查看场景时使用的是全局曝光设置（如上图所示）。然而，通过任何 **CineCameraActor** 查看场景都使用3ds Max中指定给相应物理摄像机的曝光设置。
+
+(#auto-exposure)
+
+#### 自动曝光
+
+虚幻引擎有一个内置的自动曝光系统，监控到达摄像机的光量，并自动调整曝光，使最终的图像呈现一个合理的亮度水平。这个系统在虚幻引擎中默认是活动的。当Datasmith没有发现它可以从3ds Max场景中引入的物理摄像机或全局曝光设置时，您的项目将使用这个默认的自动曝光系统。
+
+如果您的3ds Max场景包含物理摄像机或全局曝光设置，想要切换回自动曝光模式，只需要将 **CineCameraActor** 或 **PostProcessVolume** 上的 **测光模式（Metering Mode）** 设置的值从 **手动（Manual）** 更改为某个 **自动曝光（Auto Exposure）** 选项（默认通常是 **自动曝光直方图（Auto Exposure Histogram）**）。
+
+*   在 **CineCameraActor** 中，您会在 **后期处理（Post Process）>镜头（Lens）> 曝光（Exposure）> 测光模式（Metering Mode）** 下找到它。
+*   在 **后期处理体积（PostProcessVolume）** 中，您将在 **镜头（Lens）> 曝光（Exposure）> 测光模式（Metering Mode）** 下找到该设置。
+
+另请参阅[眼睛适应（自动曝光）](Engine/Rendering/PostProcessEffects/AutomaticExposure)。
+
+[REGION:tip]
+使用自动曝光时，如果您的场景显示过度曝光或曝光不足，那么场景中的照明可能太亮或太暗，自动曝光系统无法在默认的灵敏度下处理。要解决这个问题，从主菜单中选择 **编辑（Edit）> 项目设置（Project Settings）**，并找到 **引擎（Engine）> 渲染（Rendering）** 部分。在 **默认设置（Default Settings）** 类别下，确保启用了 **Extend default luminance range in Auto Exposure settings** 选项。  
+[REGION:lightbox]
+[![Extend default luminance range in Auto Exposure settings](auto-exposure-extend-range.png "Extend default luminance range in Auto Exposure settings")](auto-exposure-extend-range.png)
+
+*单击显示全图。*
+[/REGION]
+[/REGION]
+
+(#cameras)
+
+## 摄像机
+
+对于Datasmith在您的3ds Max场景中找到的每一个摄像机，它都会在虚幻引擎中的Datasmith场景中创建一个 **CineCameraActor**，采用3D空间中的相同位置和旋转。Datasmith试图保存摄像机的聚焦属性。意图是使通过该摄像机查看关卡的结果与在3ds Max中从该摄像机渲染场景的结果尽可能接近。
+
+此外，如果您的摄像机在3ds Max中设置了一个目标，Datasmith将设置 **CineCameraActor** 来跟踪该目标Actor。与在3ds Max中一样，当您在虚幻引擎关卡中移动目标Actor时，**CineCameraActor** 会自动旋转，以仍然以目标Actor为中心。
+
+举个例子，有一个名为“PhysCamera001”的 **CineCameraActor** 被设置为查看“PhysCamera001_Target”Actor。
+
+![Look at target for a CineCameraActor](datasmith-max-camera-tracking.png "Look at target for a CineCameraActor")
+
+有关Datasmith如何转换物理摄像机曝光设置的详细信息，另请参阅上文的[物理摄像机曝光设置](#physicalcameraexposuresettings)。
+
+(#materials)
+
+## 材质
+
+对于3ds Max场景中的每个材质，Datasmith都会在虚幻引擎项目中创建一个新的材质实例。这些材质资源中的每一个都是Datasmith在您的项目“材质/主”文件夹中创建的父材质实例。Datasmith为每个父材质创建材质图表，其目标是在虚幻引擎的基于物理的渲染器中生成与在3ds Max中渲染时所看到的相同结果。
+
+并不是每个实例化材质都有自己的父项。在可能的情况下，如果两个不同的材质实例可以共享同一个材质图表，Datasmith将尝试为这两个材质实例使用同一个父材质。
+
+只有一个着色模型和相对简单图表的材质应该可以很好地转换。例如，Datasmith将以下3ds Max材质相对平稳地转换为父材质的图表：
+
+![Simple material in 3ds Max](3DS_SimpleMaterial-resize526x484.png "Simple material in 3ds Max")
+
+如果您打开父材质资源，您将注意到它们的图表通常与您在3ds Max中开始时看到的图表有一些不同，即使对于上面所示的简单材质也是如此。这是在着色模型之间转换的正常结果：Datasmith试图保存尽可能贴切的可视化结果，即使这有时意味着在图表中插入额外的连接或常量。  
+
+也就是说，3ds Max支持多种材质的着色模型，比如V-Ray、Corona、Arnold、Mental Ray等等。每个着色模型都是一段单独的软件，有自己独特的特性，这些特性并不总是一致的。有时候，Datasmith能够将这些特性转换为虚幻引擎提供的类似特性。
+
+然而，Datasmith并不总是能够处理这些着色模型的更深奥的特性。对于将多个输出着色器混合在一起的复杂图表，例如下例，它可能无法在虚幻引擎中产生相同的结果：
+
+[REGION:lightbox]
+[![Complex material in 3ds Max](3DS_ComplexMaterial.png "Complex material in 3ds Max")](3DS_ComplexMaterial.png)
+
+*单击显示全图。*
+[/REGION]
+
+在此类情况下，完成导入后，您需要做一些额外的工作来调整或替换虚幻编辑器中的这些材质。
+
+[REGION:note]
+Datasmith不转换来自3ds Max的 **Autodesk材质** 或 **Arnold材质/着色器**。如果您将Revit场景导入到3ds Max中，这些通常是场景使用的材质。您需要在导出到Datasmith之前在3ds Max中替换这些材质，或者在导入场景之后，在虚幻编辑器中替换这些材质。
+[/REGION]
+
+(#conversionnotesandwarnings)
+
+## 转换的注意事项和警告
+
+当Datasmith导出您的3ds Max场景后，它会弹出一个窗口，列出它在导出过程中遇到的任何注意事项、问题、警告或错误：
+
+![3ds Max conversion notes and warnings](max_datasmith_conversion_notes.png "3ds Max conversion notes and warnings")
+
+此窗口的目的是通知您场景中的任何元素，这些元素可能不会像您所期望的那样完全导入到虚幻引擎中。
+
+*   其中一些行，比如上面图片中缺少位图的行，表示源场景存在问题。在再次导出到Datasmith之前，您可能希望在3ds Max中修复这些问题。
+*   其他的会通知您3ds Max场景中不受Datasmith或虚幻引擎支持的内容，或是Datasmith必须以您意想不到的方式转换的内容。
+
+在将Datasmith场景导入到虚幻编辑器后，如果您正在寻找可能需要清理的转换问题，则可以从 **输出警告（Output Warnings）** 窗口中列出的项目开始。
+
+[](#)[](#)

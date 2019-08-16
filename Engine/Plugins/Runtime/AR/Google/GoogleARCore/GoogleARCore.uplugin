@@ -1,8 +1,8 @@
 {
     "FileVersion" : 3,
 
-    "Version" : 10,
-    "VersionName" : "1.6.0",
+    "Version" : 11,
+    "VersionName" : "1.7.0",
     "FriendlyName" : "Google ARCore",
     "Description" : "Support for Google's AR platform.",
     "Category" : "Augmented Reality",
@@ -18,17 +18,23 @@
     [
         {
             "Name" : "GoogleARCoreBase",
-            "Type" : "Runtime"
+            "Type" : "Runtime",
+            "WhitelistPlatforms": [ "Win64", "Mac", "Android", "Linux" ]
         },
         {
             "Name": "GoogleARCoreRendering",
             "Type": "Runtime",
-            "LoadingPhase" : "PostConfigInit"
-        }
+            "LoadingPhase" : "PostConfigInit",
+            "WhitelistPlatforms": [ "Win64", "Mac", "Android", "Linux" ]
+        },
     ],
     "Plugins": [
         {
             "Name": "AndroidPermission",
+            "Enabled": true
+        },
+		{
+            "Name": "ProceduralMeshComponent",
             "Enabled": true
         }
     ]

@@ -49,7 +49,7 @@ public:
 		SLATE_ARGUMENT( class UFbxSceneImportOptionsStaticMesh*, SceneImportOptionsStaticMeshDisplay)
 		SLATE_ARGUMENT( ImportOptionsNameMapPtr, OverrideNameOptionsMap)
 		SLATE_ARGUMENT( class UFbxSceneImportOptionsSkeletalMesh*, SceneImportOptionsSkeletalMeshDisplay)
-		SLATE_ARGUMENT( TSharedPtr<SWindow>, OwnerWindow)
+		SLATE_ARGUMENT( TWeakPtr<SWindow>, OwnerWindow)
 		SLATE_ARGUMENT( FString, FullPath )
 	SLATE_END_ARGS()
 
@@ -142,7 +142,7 @@ private:
 	class UFbxSceneImportOptionsStaticMesh* SceneImportOptionsStaticMeshDisplay;
 	ImportOptionsNameMapPtr OverrideNameOptionsMap;
 	class UFbxSceneImportOptionsSkeletalMesh* SceneImportOptionsSkeletalMeshDisplay;
-	TSharedPtr< SWindow > OwnerWindow;
+	TWeakPtr< SWindow > OwnerWindow;
 	FString FullPath;
 
 	bool bCanReimportHierarchy;

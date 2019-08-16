@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:3782314
 Availability:Public
 Title:뷰 모드
 Crumbs: %ROOT%, Engine, Engine/UI, Engine/UI/LevelEditor/Viewports
@@ -371,7 +371,7 @@ Opacity (오파시티) 뷰모드는 오파시티가 사용되고 있는 불투�
 
 * 뷰 모드 핫키: **없음 (기본적으로 메뉴에만)**
 
-**Scene Depth** (씬 뎁스)는 씬의 깊이를 하양(가장 멀리)에서 검정(가장 가까이)까지의 일정한 그레디언트로 표시합니다.
+**Scene Depth** (씬 뎁스)는 씬의 깊이를 하양(가장 멀리)에서 검정(가장 가까이)까지의 일정한 그레이디언트로 표시합니다.
 
 ### 독립 반투명 RGB
 

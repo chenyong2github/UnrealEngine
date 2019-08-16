@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:2796819
+﻿INTSourceChangelist:3108692
 Availability:Public
 Title: 控制 Actor
 Crumbs: %ROOT%, Gameplay, GettingStarted\HowTo
@@ -19,6 +19,7 @@ SkillLevel: Beginner
 请参考 [](Engine/Basics/Projects/Browser) 页面来了解如何创建/打开项目，以及模板、项目设置等信息。
 [/REGION]
 
+(#MovingActors)
 ## Actor 的平移
 
 这个章节将展示如何在关卡编辑器的窗口中移动 Actor。
@@ -67,6 +68,7 @@ SkillLevel: Beginner
 
 	这里还可以手动的指定 **X**， **Y**， 或 **Z** 的各个数值。
 
+(#RotatingActors)
 ## Actor 的旋转
 
 这一章节说明了如何在关卡编辑窗口中旋转 Actor.
@@ -108,6 +110,7 @@ SkillLevel: Beginner
 	![](Rotate7.png)(w:640)
 	
 
+(#ScalingActors)
 ## Actor 的缩放
 
 这一章节展示如何在关卡编辑窗口中缩放 Actor。
@@ -163,6 +166,7 @@ SkillLevel: Beginner
 	这时在一个值改变的时候，另外两个数值也会自动的修改为对应值。
 
 
+(#KeyboardShortcuts)
 ## 键盘快捷键
 
 下面罗列了一些处理 Actor 时常用的键盘快捷键。

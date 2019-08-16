@@ -65,6 +65,19 @@ namespace
 
 }
 
+FString DataTableJSONUtils::GetKeyFieldName(const UDataTable& InDataTable)
+{
+	FString ExplicitString = InDataTable.ImportKeyField;
+	if (ExplicitString.IsEmpty())
+	{
+		return TEXT("Name");
+	}
+	else
+	{
+		return ExplicitString;
+	}
+}
+
 
 #if WITH_EDITOR
 
@@ -97,6 +110,7 @@ bool FDataTableExporterJSON::WriteTable(const UDataTable& InDataTable)
 		return false;
 	}
 
+	FString KeyField = DataTableJSONUtils::GetKeyFieldName(InDataTable);
 	JsonWriter->WriteArrayStart();
 
 	// Iterate over rows
@@ -106,11 +120,11 @@ bool FDataTableExporterJSON::WriteTable(const UDataTable& InDataTable)
 		{
 			// RowName
 			const FName RowName = RowIt.Key();
-			JsonWriter->WriteValue(TEXT("Name"), RowName.ToString());
+			JsonWriter->WriteValue(KeyField, RowName.ToString());
 
 			// Now the values
 			uint8* RowData = RowIt.Value();
-			WriteRow(InDataTable.RowStruct, RowData);
+			WriteRow(InDataTable.RowStruct, RowData, &KeyField);
 		}
 		JsonWriter->WriteObjectEnd();
 	}
@@ -147,23 +161,30 @@ bool FDataTableExporterJSON::WriteTableAsObject(const UDataTable& InDataTable)
 	return true;
 }
 
-bool FDataTableExporterJSON::WriteRow(const UScriptStruct* InRowStruct, const void* InRowData)
+bool FDataTableExporterJSON::WriteRow(const UScriptStruct* InRowStruct, const void* InRowData, const FString* FieldToSkip)
 {
 	if (!InRowStruct)
 	{
 		return false;
 	}
 
-	return WriteStruct(InRowStruct, InRowData);
+	return WriteStruct(InRowStruct, InRowData, FieldToSkip);
 }
 
-bool FDataTableExporterJSON::WriteStruct(const UScriptStruct* InStruct, const void* InStructData)
+bool FDataTableExporterJSON::WriteStruct(const UScriptStruct* InStruct, const void* InStructData, const FString* FieldToSkip)
 {
 	for (TFieldIterator<const UProperty> It(InStruct); It; ++It)
 	{
 		const UProperty* BaseProp = *It;
 		check(BaseProp);
 
+		const FString Identifier = DataTableUtils::GetPropertyExportName(BaseProp, DTExportFlags);
+		if (FieldToSkip && *FieldToSkip == Identifier)
+		{
+			// Skip this field
+			continue;
+		}
+ 
 		if (BaseProp->ArrayDim == 1)
 		{
 			const void* Data = BaseProp->ContainerPtrToValuePtr<void>(InStructData, 0);
@@ -171,8 +192,6 @@ bool FDataTableExporterJSON::WriteStruct(const UScriptStruct* InStruct, const vo
 		}
 		else
 		{
-			const FString Identifier = DataTableUtils::GetPropertyExportName(BaseProp, DTExportFlags);
-
 			JsonWriter->WriteArrayStart(Identifier);
 
 			for (int32 ArrayEntryIndex = 0; ArrayEntryIndex < BaseProp->ArrayDim; ++ArrayEntryIndex)
@@ -424,12 +443,13 @@ bool FDataTableImporterJSON::ReadTable()
 bool FDataTableImporterJSON::ReadRow(const TSharedRef<FJsonObject>& InParsedTableRowObject, const int32 InRowIdx)
 {
 	// Get row name
-	FName RowName = DataTableUtils::MakeValidName(InParsedTableRowObject->GetStringField(TEXT("Name")));
+	FString RowKey = DataTableJSONUtils::GetKeyFieldName(*DataTable);
+	FName RowName = DataTableUtils::MakeValidName(InParsedTableRowObject->GetStringField(RowKey));
 
 	// Check its not 'none'
 	if (RowName.IsNone())
 	{
-		ImportProblems.Add(FString::Printf(TEXT("Row '%d' missing a name."), InRowIdx));
+		ImportProblems.Add(FString::Printf(TEXT("Row '%d' missing key field '%s'."), InRowIdx, *RowKey));
 		return false;
 	}
 
@@ -459,7 +479,7 @@ bool FDataTableImporterJSON::ReadStruct(const TSharedRef<FJsonObject>& InParsedO
 		UProperty* BaseProp = *It;
 		check(BaseProp);
 
-		const FString ColumnName = DataTableUtils::GetPropertyDisplayName(BaseProp, BaseProp->GetName());
+		const FString ColumnName = DataTableUtils::GetPropertyExportName(BaseProp);
 
 		TSharedPtr<FJsonValue> ParsedPropertyValue;
 		for (const FString& PropertyName : DataTableUtils::GetPropertyImportNames(BaseProp))
@@ -473,7 +493,21 @@ bool FDataTableImporterJSON::ReadStruct(const TSharedRef<FJsonObject>& InParsedO
 
 		if (!ParsedPropertyValue.IsValid())
 		{
-			ImportProblems.Add(FString::Printf(TEXT("Row '%s' is missing an entry for '%s'."), *InRowName.ToString(), *ColumnName));
+#if WITH_EDITOR
+			// If the structure has specified the property as optional for import (gameplay code likely doing a custom fix-up or parse of that property),
+			// then avoid warning about it
+			static const FName DataTableImportOptionalMetadataKey(TEXT("DataTableImportOptional"));
+			if (BaseProp->HasMetaData(DataTableImportOptionalMetadataKey))
+			{
+				continue;
+			}
+#endif // WITH_EDITOR
+
+			if (!DataTable->bIgnoreMissingFields)
+			{
+				ImportProblems.Add(FString::Printf(TEXT("Row '%s' is missing an entry for '%s'."), *InRowName.ToString(), *ColumnName));
+			}
+
 			continue;
 		}
 

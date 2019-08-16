@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ConcertWorkspaceData.h"
+#include "ConcertSyncSessionTypes.h"
 #include "ConcertWorkspaceMessages.generated.h"
 
 USTRUCT()
@@ -12,31 +12,25 @@ struct FConcertWorkspaceSyncEventBase
 	GENERATED_BODY()
 
 	UPROPERTY()
-	int32 RemainingWork;
+	int32 NumRemainingSyncEvents = 0;
 };
 
 USTRUCT()
-struct FConcertWorkspaceSyncTransactionEvent : public FConcertWorkspaceSyncEventBase
+struct FConcertWorkspaceSyncEndpointEvent : public FConcertWorkspaceSyncEventBase
 {
 	GENERATED_BODY()
 
 	UPROPERTY()
-	uint64 TransactionIndex;
-
-	UPROPERTY()
-	TArray<uint8> TransactionData;
+	FConcertSyncEndpointIdAndData Endpoint;
 };
 
 USTRUCT()
-struct FConcertWorkspaceSyncPackageEvent : public FConcertWorkspaceSyncEventBase
+struct FConcertWorkspaceSyncActivityEvent : public FConcertWorkspaceSyncEventBase
 {
 	GENERATED_BODY()
 
 	UPROPERTY()
-	uint32 PackageRevision;
-
-	UPROPERTY()
-	FConcertPackage Package;
+	FConcertSessionSerializedPayload Activity;
 };
 
 USTRUCT()
@@ -49,7 +43,25 @@ struct FConcertWorkspaceSyncLockEvent : public FConcertWorkspaceSyncEventBase
 };
 
 USTRUCT()
-struct FConcertWorkspaceInitialSyncCompletedEvent
+struct FConcertWorkspaceSyncRequestedEvent
+{
+	GENERATED_BODY()
+
+	/** The ID of the first activity to sync */
+	UPROPERTY()
+	int64 FirstActivityIdToSync = 1;
+
+	/** The ID of the last activity to sync (ignored if bEnableLiveSync is true) */
+	UPROPERTY()
+	int64 LastActivityIdToSync = MAX_int64;
+
+	/** True if the server workspace should be live-synced to this client as new activity is added, or false if syncing should only happen in response to these sync request events */
+	UPROPERTY()
+	bool bEnableLiveSync = true;
+};
+
+USTRUCT()
+struct FConcertWorkspaceSyncCompletedEvent
 {
 	GENERATED_BODY()
 };
@@ -61,6 +73,15 @@ struct FConcertPackageUpdateEvent
 
 	UPROPERTY()
 	FConcertPackage Package;
+};
+
+USTRUCT()
+struct FConcertPackageRejectedEvent
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FName PackageName;
 };
 
 UENUM()
@@ -136,5 +157,5 @@ struct FConcertPlaySessionEvent
 	FName PlayPackageName;
 
 	UPROPERTY()
-	bool bIsSimulating;
+	bool bIsSimulating = false;
 };

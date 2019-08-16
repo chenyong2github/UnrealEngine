@@ -1,10 +1,10 @@
 {
 	"FileVersion": 3,
-	"Version" : 1,
-	"VersionName" : "1.0",
+	"Version": 1,
+	"VersionName": "1.0",
 	"FriendlyName": "nDisplay",
-	"CreatedBy" : "Epic Games Inc",
-	"CreatedByURL" : "http://epicgames.com",
+	"CreatedBy": "Epic Games Inc",
+	"CreatedByURL": "http://epicgames.com",
 	"Description": "Support for synchronized clustered rendering using multiple PCs in mono or stereo",
 	"Category": "Misc",
 	"DocsURL": "",
@@ -19,8 +19,7 @@
 			"Name": "DisplayCluster",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms" :
-			[
+			"WhitelistPlatforms": [
 				"Win64"
 			]
 		},
@@ -28,8 +27,7 @@
 			"Name": "DisplayClusterEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms" :
-			[
+			"WhitelistPlatforms": [
 				"Win64"
 			]
 		},
@@ -40,6 +38,68 @@
 			"WhitelistPlatforms": [
 				"Win64"
 			]
+		},
+		{
+			"Name": "MPCDI",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit",
+			"WhitelistPlatforms": [
+				"Win64"
+			]
+		},
+		{
+			"Name": "OutputRemap",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit",
+			"WhitelistPlatforms": [
+				"Win64"
+			]
+		},
+		{
+			"Name": "DisplayClusterProjection",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"Win64"
+			]
+		},
+		{
+			"Name": "DisplayClusterPostprocess",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"Win64"
+			]
+		},
+		{
+			"Name": "PicpMPCDI",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit",
+			"WhitelistPlatforms": [
+				"Win64"
+			]
+		},
+		{
+			"Name": "PicpProjection",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"Win64"
+			]
+		},
+		{
+			"Name": "DisplayClusterMessageInterception",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"Win64"
+			]
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "Composure",
+			"Enabled": true
 		}
 	]
 }

@@ -206,7 +206,6 @@ void ComputeBoundingBox(UStaticMesh* StaticMesh, FVector& Center, FVector& Exten
 {
 	// Calculate bounding Box.
 	
-	FStaticMeshSourceModel& SrcModel = StaticMesh->SourceModels[0];
 	FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription(0);
 	FVector unitVec = FVector(1.f);
 	CalcBoundingBox(*MeshDescription, Center, Extents, unitVec);
@@ -222,8 +221,6 @@ int32 GenerateBoxAsSimpleCollision(UStaticMesh* StaticMesh)
 	UBodySetup* bs = StaticMesh->BodySetup;
 
 	// Calculate bounding Box.
-	FStaticMeshSourceModel& SrcModel = StaticMesh->SourceModels[0];
-	
 	FVector unitVec = bs->BuildScale3D;
 	FVector Center, Extents;
 	FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription(0);

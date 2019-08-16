@@ -29,6 +29,8 @@ struct ENGINE_API AudioPluginUtilities
 	static const EAudioPlatform CurrentPlatform = EAudioPlatform::Switch;
 #elif PLATFORM_HTML5
 	static const EAudioPlatform CurrentPlatform = EAudioPlatform::HTML5;
+#elif PLATFORM_HOLOLENS
+	static const EAudioPlatform CurrentPlatform = EAudioPlatform::HoloLens;
 #else
 	static const EAudioPlatform CurrentPlatform = EAudioPlatform::Unknown;
 #endif
@@ -46,6 +48,7 @@ struct ENGINE_API AudioPluginUtilities
 	static IAudioSpatializationFactory* GetDesiredSpatializationPlugin(EAudioPlatform AudioPlatform);
 	static IAudioReverbFactory* GetDesiredReverbPlugin(EAudioPlatform AudioPlatform);
 	static IAudioOcclusionFactory* GetDesiredOcclusionPlugin(EAudioPlatform AudioPlatform);
+	static IAudioModulationFactory* GetDesiredModulationPlugin(EAudioPlatform AudioPlatform);
 
 	/** This function returns the name of the plugin specified in the platform settings. */
 	static FString GetDesiredPluginName(EAudioPlugin PluginType, EAudioPlatform AudioPlatform);

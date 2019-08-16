@@ -1,120 +1,170 @@
-﻿INTSourceChangelist:2828960
-Availability:Public
-Title:控件类型引用
-Crumbs:%ROOT%, Engine, Engine/UMG, Engine/UMG/UserGuide
-Description:虚幻动态图形中提供的控件类型的引用。
-version:4.9
+﻿INTSourceChangelist:3612551
+Availability: Public
+Crumbs: %ROOT%
+Title:控件类型参考
+Description:虚幻示意图形（UMG）中可用的控件类型的参考。
+Type: Reference
+Version: 4.17
+Parent:Engine/UMG/UserGuide
+Order:3
+Tags:UMG UI Designer
+Tags:Getting Started
+Topic-image:Engine/UMG/UserGuide/WidgetTypeRefTopic.png
 
 [TOC(start:2 end:2)]
 
-在 **控件蓝图编辑器** 中的 **调色板** 窗口下，存在四个 **控件** 类别，每个类别包含不同的控件类型，您可以将其中的控件拖放到 **视觉设计器** 中。通过混合并匹配这些控件类型，您可以在 **设计器** 选项卡上设置 UI 的外观，并通过每个控件 **详情** 面板中的设置以及 **图形** 选项卡添加控件功能。 
+**控件蓝图编辑器** 中的 **选用板（Palette）** 窗口下存在多种类别的 **控件**，每个类别中都包含不同的控件类型，你可以将这些控件类型拖放到 **视觉效果设计器** 中。通过混合和搭配这些控件类型，你可以在 **设计器（Designer）** 选项卡上设计UI布局，通过每个控件的 **细节（Details）** 面板中的设置以及 **图表（Graph）** 选项卡为控件添加功能。 
 
-下方列出了 **调色板** 窗口下的各个控件类型： 
+我们在下面列出了 **选用板（Palette）** 窗口下的所有控件类型： 
 
 [REGION:note]
-点击控件类型（适用时）可了解使用指南以及关于控件本身的更多详细信息。 
+单击控件类型（如适用）可查看使用指南以及与控件本身相关的更多信息。 
 [/REGION]
 
 
-## 常用控件
+(#common)
+## 常用（Common）
 
 ![](Common.png)
 
-最常用的控件很可能归在该类别之下。 
+最经常使用的控件通常包含在此类别中。 
 
-| 选项 | 描述 |
+| 选项 | 说明 |
 | -------- | ----------- |
-| **边框** | 边框是一种容器控件，可以容纳一个子控件，可以为子控件提供环绕的边框图像以及可调整的填充样式。|
-| **按钮** | 按钮是一种单子控件、可点击的基元控件，可实现基本的交互。您可以将其他控件放到按钮中，从而在自己的 UI 中制作一个更为复杂有趣的可点击元素。|
-| **复选框** | 复选框控件用于显示几种切换状态其中之一，即“未选中”、“已选中”以及“不确定”。您可以将复选框用作经典的复选框、切换按钮或者单选按钮。|
-| **图像** | 图像控件用于在 UI 中显示平板刷、纹理或材质。|
-| [Named Slot](Engine\UMG\UserGuide\WidgetTypeReference\NamedSlot) | [INCLUDE:Engine\UMG\UserGuide\WidgetTypeReference\NamedSlot#desc] |
-| **进度条** | 进度条控件是一种简单的可填充条图形，可以重新设置样式以便多次重复使用，比如用于表示经验值、体力值、获得的点数等。|
-| **滑块** | 这是一种简单的控件，可显示滑动条和图柄，用于控制值在 0-1 之间变动。|
-| **文本** | 在屏幕上显示文本的基本方式，可用于对选项或其他 UI 元素进行文本说明。|
-| **文本框** | 允许用户键入自定义的文本。仅允许输入单行文本。|
+| **边框（Border）** | 边框是容器控件，可以包含一个子控件，提供使用边框图像和可调节的填补将其包围起来的机会。|
+| **按钮（Button）** | 按钮是单子项、可点击的Primitive控件，它可实现基本交互。你可将任何其他控件放入按钮控件中，以在UI中创建一个更复杂且有趣的可点击元素。|
+| **复选框（Check Box）** | 借助复选框（Check Box）控件，你可以显示“未选中”、“选中”和“不确定”三种切换状态。你可以使用复选框（Check Box）控件来制作经典复选框、切换按钮或单选按钮。|
+| **图像（Image）** | 借助图像（Image）控件，你可在UI中显示Slate笔刷、纹理、Sprite或材质。[REGION:note]可在Slate中批量处理属于同一纹理图谱的Sprite，前提是渲染时它们都在同一图层上。这意味着如果将Paper2D Sprite用作笔刷（Brush）输入，绘制调用预算很紧的平台将可以更高效地渲染UMG和Slate控件。[/REGION]|
+| [**指定插槽（Named Slot）**](Engine\UMG\UserGuide\WidgetTypeReference\NamedSlot) | [INCLUDE:Engine\UMG\UserGuide\WidgetTypeReference\NamedSlot#desc] |
+| **进度条（Progress Bar）** | 进度条（Progress Bar）控件是可以逐渐填充的简单条形，可以重新设计样式以适应各种用途，例如经验值、生命值、分数等。
+| **滑块（Slider）** | 简单的控件，显示具有手柄的滑块，使你可以在0-1的范围内控制值。|
+| **文本（Text）** | 在屏幕上显示文本的基本方法，可以用于选项或其他UI元素的文本说明。|
+| **文本框（Text Box）** | 允许用户输入自定义文本。仅允许输入单行文本。|
+
+(#extra)
+## 附加（Extra）
+
+![](Extra.png)
+
+此部分中包含的控件是其他控件的补充。 
+
+| 选项 | 说明 |
+| -------- | ----------- |
+| **可扩展区域（Expandable Area）** | 借助它，你可以折叠或展开容器中的子控件。|
 
 
-## 输入控件
+(#input)
+## 输入（Input）
 
 ![](Input.png)
 
-下表列出了一些关于如何允许用户进行输入的选项。 
+此部分中包含下面列出的与如何允许用户进行输入有关的几个选项。 
 
-| 选项 | 描述 |
+| 选项 | 说明 |
 | -------- | ----------- |
-| **组合框（字符串）** | 组合框（字符串）用于通过下拉菜单向用户提供选项列表，用户可以从中选择一项。|
-| **数字调整框** | 一种数值输入框，允许直接输入数字，或通过点击并滑动选择数字。|
-| **文本框（多行）** | 类似于文本框，但允许用户输入多行文本，而不限制为单行文本。|
+| **组合框（字符串）（Combo Box (String)）** | 借助组合框（字符串）（Combo Box (String)），你可以向用户显示包含选项列表的下拉菜单，供他们从中选择一个选项。|
+| **数字显示框（Spin Box）** | 数字输入框，允许直接输入数字或允许用户单击并滚动数字。|
+| **文本框（多行）（Text Box (Multi-Line)）** | 与文本框（Text Box）相似，但允许用户输入多行文本而非单行文本。|
 
 
-## 优化控件
+(#optimization)
+## 优化（Optimization）
 
 ![](OptimizationWidgets.png)
 
-此处包含的控件主要用于优化您的 UI 以获得更好的性能。 
+此部分中包含的控件主要用于优化UI，从而实现性能提升。 
 
-| 选项 | 描述 |
+| 选项 | 说明 |
 | -------- | ----------- |
-| [**Invalidation Box**](Engine\UMG\UserGuide\WidgetTypeReference\Invalidation) | [INCLUDE:Engine\UMG\UserGuide\WidgetTypeReference\Invalidation#desc]|
+| [**无效框（Invalidation Box）**](Engine\UMG\UserGuide\WidgetTypeReference\Invalidation) | [INCLUDE:Engine\UMG\UserGuide\WidgetTypeReference\Invalidation#desc]|
+| **限位框（Retainer Box）** | 先将子控件渲染到渲染目标，然后再将该渲染目标渲染到屏幕。使用该选项，你可以控制频率和相位，以使UI的实际渲染频率低于主游戏渲染频率。它的附带好处是允许在绘制控件之后将材质应用给渲染目标，以应用简单的后期处理。|
 
-## 面板控件
+(#panel)
+## 面板（Panel）
 
 ![](Panel.png)
 
-**面板** 类别包含有用的控件，可用于控制其他控件的布局和放置。 
+**面板（Panel）** 类别中包含用于控制布局和放置其他控件的有用控件。 
 
-| 选项 | 描述 |
+| 选项 | 说明 |
 | -------- | ----------- |
-| **画布面板** | 画布面板是一种对设计人员友好的面板，用于将控件放置在任意位置，锚定控件，或与画布上的其他子对象进行叠置排序。画布面板是进行手动布局的理想控件，但如果您只是需要生成控件并将它们放入容器中，则没必要使用画布面板（除非希望获得绝对布局）。有关锚的详细信息，请参阅 [Anchors](Engine\UMG\UserGuide\Anchors\) 页面。|
-| **网格面板** | 这是一种在所有子控件之间平均分割可用空间的面板。|
-| **水平框** | 用于将子控件水平排布成一行。|
-| **覆盖** | 允许控件互相堆叠，并针对每一层的内容使用简单的流布局。|
-| **安全区** | 拉取平台安全区信息并添加填充。|
-| **缩放框** | 用于以所需的大小放置内容，并对其进行缩放以满足该框所分配到的区域的大小限制。如果您需要对背景图像进行缩放以填充某个区域，但又不希望因为高宽比的不同而产生失真，或者如果您需要将某些文本自动调整放入某个区域，那么该控件可满足您的需求。|
-| **滚动框** | 一组可任意滚动的控件。当需要在一张列表中显示 10-100 个控件时非常有用。该控件不支持虚拟化。|
-| **均匀网格面板** | 一种在所有子对象之间平均分割可用空间的面板。|
-| **垂直框** | 垂直框控件是一种布局面板，用于自动垂直排布子控件。当需要将控件从上到下依次叠放并使控件保持垂直对齐时，这很有用。
-| **控件切换器** | 控件切换器类似于选项卡控件，但没有选项卡，您可以自行创建并组合以获得类似于选项卡的效果。一次最多只显示一个控件。|
-| [Wrap Box](Engine\UMG\UserGuide\WidgetTypeReference\WrapBox) | [INCLUDE:Engine\UMG\UserGuide\WidgetTypeReference\WrapBox#desc] |
+| **画布面板（Canvas Panel）** | 画布面板（Canvas Panel）是一种开发人员友好型的面板，其允许在任意位置布局、固定控件，并将这些控件与画布的其它子项按z序排序。请注意，虽然Z序可以手动更改，但控件按列出顺序渲染，首选方法是在列表中对它们正确排序，而不是依靠Z序排序。画布面板（Canvas Panel）是非常适用于手动布局的控件，但如果想要系统地生成控件并放置在容器中，则用处不大，除非你需要绝对布局。有关锚的更多信息，请参阅 [锚](Engine\UMG\UserGuide\Anchors\) 页面。|
+| **网格面板（Grid Panel）** | 在所有子控件之间平均分割可用空间的面板。|
+| **水平框（Horizontal Box）** | 用于将子控件水平排布成一行。|
+| **覆层（Overlay）** | 允许控件上下堆叠并对每层内容采用简易流动布局的面板。|
+| **安全区（Safe Zone）** | 拉取平台安全区信息并添加填充。|
+| **缩放框（Scale Box）** | 允许用户按所需大小放置内容并将其缩放为符合框内所分配区域的约束尺寸的控件。如果需要对背景图像进行缩放以填充某个区域，但又不希望因为高宽比的不同而产生失真，或者需要将某些文本自动调整放入某个区域，那么该控件可满足你的需求。|
+| **滚动框（Scroll Box）** | 一组可任意滚动的控件。当需要在一个列表中显示10-100个控件时非常有用。该控件不支持虚拟化。|
+| **尺寸框（Size Box）** | 用于指定所需尺寸。部分控件呈报的所需尺寸并非实际需要的尺寸。使用尺寸框（Size Box）包围它们，然后尺寸框（Size Box）会将它们强制限制为特定尺寸。|
+| **均匀网格面板（Uniform Grid Panel）** | 在所有子控件之间平均分割可用空间的面板。|
+| **纵向框（Vertical Box）** | 纵向框（Vertical Box）控件是布局面板，用于自动纵向排布子控件。当需要将控件上下堆叠并使控件保持纵向对齐时，此控件很有用。
+| **控件切换器（Widget Switcher）** | 控件切换器类似于选项卡控件，但没有选项卡，你可以自行创建并与此控件组合以获得类似于选项卡的效果。一次最多只显示一个控件。|
+| [**自动换行框（Wrap Box）**](Engine\UMG\UserGuide\WidgetTypeReference\WrapBox) | [INCLUDE:Engine\UMG\UserGuide\WidgetTypeReference\WrapBox#desc] |
 
 
-## 基元控件
+(#primitive)
+## Primitive
 
 ![](Primitive.png)
 
-**基元** 类别中包含的 **控件** 提供了向用户传达信息或允许他们进行选择的其他方法。 
+包含在 **Primitive** 类别中的 **控件** 提供了向用户传达信息或允许他们进行选择的其他方法。 
 
-| 选项 | 描述 |
+| 选项 | 说明 |
 | -------- | ----------- |
-| **循环动态浏览图示** | 循环展示图像的动态浏览图示控件。|
-| **可编辑的文本** | 这是一种没有框背景的文本字段，允许用户进行输入。该控件仅支持单行可编辑文本。|
-| **可编辑文本（多行）** | 类似于可编辑文本，但支持多行文本，而不限制为单行文本。
-| [Menu Anchor](Engine\UMG\UserGuide\WidgetTypeReference\MenuAnchor) | [INCLUDE:Engine\UMG\UserGuide\WidgetTypeReference\MenuAnchor#desc] |
-| **原生控件宿主** |这是一种容器控件，可容纳一个子平板控件。当您只需要在 UMG 控件中嵌套一个原生控件时，应使用该控件。|
-| **隔离控件** | 隔离控件提供其他控件之间的自定义填充。隔离控件本身并不进行视觉呈现，在游戏中不可见。|
-| **动态浏览图示** | 动画式的动态浏览图示控件，在一行中显示几个缩放的圆圈（例如，可以用来表示正在进行加载）。|
+| **循环动态浏览图示（Circular Throbber）** | 循环展示图像的动态浏览图示控件。|
+| **可编辑文本（Editable Text）** | 文本字段，允许用户输入，没有框背景。该控件仅支持单行可编辑文本。|
+| **可编辑文本（多行）（Editable Text (Multi-Line)）** | 与可编辑文本（Editable Text）相似，但支持多行文本而非单行文本。
+| [**菜单锚（Menu Anchor）**](Engine\UMG\UserGuide\WidgetTypeReference\MenuAnchor) | [INCLUDE:Engine\UMG\UserGuide\WidgetTypeReference\MenuAnchor#desc] |
+| **原生控件宿主（Native Widget Host）** |容器控件，可包含一个子Slate控件。只需要在某个UMG控件中嵌套一个原生控件时，应使用该控件。|
+| **隔离控件（Spacer）** |隔离控件（Spacer）提供与其他控件之间的自定义填充。隔离控件并不进行视觉呈现，在游戏中不可见。|
+| **动态浏览图示（Throbber）** | 动画式的动态浏览图示（Throbber）控件，在一行中显示几个缩放的圆圈（例如，可以用来表示正在进行加载）。|
 
 
-## 用户创建 
+(#specialeffects)
+## 特殊效果（Special Effects）
 
-![](UserCreatedWidgets.png)
+![](SpecialEffects.png)
 
-用户创建的控件是指您创建的 **控件蓝图**，可以放入其他控件蓝图中。该类控件可用于以各控件蓝图的形式创建 UI 元素的“一部分”，然后将它们添加到一起，从而构成整体的 UI 布局。 
+本部分中的控件用于生成基于UI的特殊效果。 
 
-例如，您可以创建一个 _玩家体力_ 控件，其中包含玩家体力的显示信息，创建一个 _库存_ 控件来保存玩家所收集到的物品，创建一个 _动作条_ 控件允许玩家按下按钮并执行不同的动作，也可以创建任意数量的其他类型的控件，将它们组合在一起，放入一个称为 _游戏 HUD_ 的控件下，根据需要切换这些单独组件的开/关状态（而不是在一个控件蓝图中构建出所有这些对象）。 
+| 选项 | 说明 |
+| -------- | ----------- |
+| [**背景模糊（Background Blur）**](Engine\UMG\UserGuide\WidgetTypeReference\BackgroundBlur) | [INCLUDE:Engine\UMG\UserGuide\WidgetTypeReference\BackgroundBlur#desc] |
+
+(#uncategorized)
+## 未分类（Uncategorized）
+
+![](Uncategorized.png)
+
+此部分中的控件是特例，无法归入其他类别。 
+
+| 选项 | 说明 |
+| -------- | ----------- |
+| **输入键选择器（Input Key Selector）** | 用于选择单个键或具有修饰符的单个键的控件。|
+| **窗口标题栏区域（Window Title Bar Area）** | 用于定义应允许用户在桌面平台上拖动窗口的UI区域的面板。|
 
 
+(#usercreated)
+## 用户创建（User Created） 
 
-## 实验性控件
+![](UserCreated.png)
+
+用户创建（User Created）控件是用户创建的、可放在另一个控件蓝图中的 **控件蓝图**。非常适用于创建UI元素“部件”作为个体控件蓝图，然后将它们添加到一起，构造整体UI布局。 
+
+例如，你可以创建包含玩家生命值的显示信息的 _玩家生命值（Player Health）_ 控件、记录玩家收集到的物品的 _物品栏（Inventory）_ 控件、允许玩家按下按钮以执行不同操作的 _操作栏（Action Bar）_ 控件或任意数量的其他类型的控件，然后将它们组合在一起，放入一个 _GameHUD_ 控件，在其中根据需要切换这些个体部件的开/关状态，而不是在一个控件蓝图中构造所有这些对象。 
+
+
+(#experimental)
+## 试验性（Experimental） 
 
 ![](ExperimentalPalette.png)
 
-这些控件在开发早期阶段使用，属于 **实验性质**。要访问这些控件，您需要在 **编辑器偏好设置/实验性** 部分或 **插件** 菜单中启用这些控件。  
+这些控件尚处于早期开发阶段，要使用这些控件，需要在 **插件（Plugins）** 菜单中的 **控件（Widgets）** 下启用它们。 
 
-| 选项 | 描述 |
+| 选项 | 说明 |
 | -------- | ----------- |
-| [Web Browser](Engine\UMG\UserGuide\WidgetTypeReference\WebBrowser) | [INCLUDE:Engine\UMG\UserGuide\WidgetTypeReference\WebBrowser#desc] |
+| [**Web浏览器（Web Browser）**](Engine\UMG\UserGuide\WidgetTypeReference\WebBrowser) | [INCLUDE:Engine\UMG\UserGuide\WidgetTypeReference\WebBrowser#desc] |
+
 
 
 

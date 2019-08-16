@@ -1,0 +1,290 @@
+INTSourceChangelist:6551686
+Availability: Public
+Crumbs: 
+Title: 언리얼 스튜디오 프로덕트 뷰어 템플릿
+Description: Product Viewer, 프로덕트 뷰어 템플릿을 사용하여 PC / VR 용 인터랙티브 제품 시각화를 만드는 법을 설명합니다.
+Type: 
+Version: 4.21
+Parent: Studio/UnrealStudioProjectTemplates
+Order: 0
+Tags: Enterprise
+Tags: Unreal Studio
+Tags: template
+Tags: studio
+reference-image: product_viewer.gif
+reference-image: product_viewer_parenting.gif
+reference-image: product_viewer_explode.gif
+topic-image: studio-product-viewer-template-topic.png
+hero-image:studio-product-viewer-template-banner.png
+
+
+Product Viewer (프로덕트 뷰어) 템플릿으로 데스크톱 및 VR 디바이스용 인터랙티브 제품 시각화 체험을 바로 만들 수 있습니다. 내장된 이동 조작법을 사용하여 씬의 모델과 상호작용하고 조각을 움직이거나 투명하게 만들면서 돌아다닐 수 있습니다.
+
+모든 상호작용 및 조작법은 프로젝트의 블루프린트로 제공되므로, 쉽게 수정하고 배우거나 심지어 자신의 프로젝트로 복사할 수도 있습니다. 블루프린트 사용 방법은 [블루프린트 비주얼 스크립팅](Engine/Blueprints) 문서를 참고하세요.
+
+여기서는 프로덕트 뷰어 템플릿을 시작하고 자신의 모델에 사용하기 위해 알아야 할 모든 것을 설명합니다.
+
+## 프로젝트 플레이
+
+프로덕트 뷰어에는 모델이 약간 내장되어 있어, 만들자 마자 에디터에서 바로 새 프로젝트 작업을 시작할 수 있습니다.
+
+[REGION:asyncgif]
+![](product_viewer.gif)
+[/REGION]
+
+[REGION:note]
+VR 로 프로젝트를 테스트하려면 아래 [에디터에서 VR 테스트](#에디터에서vr테스트) 부분을 참고하세요.
+[/REGION]
+
+### 씬 이동
+
+프로덕트 뷰어에는 데스크톱 및 VR 을 위한 여러 이동 모드를 제공합니다.
+
+#### 데스크톱 궤도 모드 (마우스 이동)
+
+**Orbit mode** (궤도 모드)는 데스크톱 보기의 기본 이동 모드입니다. 이 모드에서 카메라는 항상 3D 월드 특정 지점을 중심으로 배치됩니다.
+
+| 하려는 작업 | 명령 |
+| --- | --- |
+| 현재 관심 지점을 중심으로 회전 | 우클릭 드래그 |
+| 카메라 관심 지점을 새 위치로 변경하고, 현재 줌 레벨은 유지 | 좌클릭 |
+| 카메라 관심 지점을 새 위치로 변경하고, 뷰포트 줌 레벨을 새 오브젝트에 맞게 변경 | 휠클릭 |
+| 카메라 상하좌우 이동 | 휠클릭 드래그 |
+| 현재 관심 지점에서 줌 레벨 변경 | 휠 스크롤 |
+
+[REGION:tip]
+씬의 오브젝트를 궤도 모드에서 관심 지점으로 선택하려면 인터랙티브 오브젝트 아니면 텔레포트 가능 표면으로 설정해야 합니다. 아래 [자신의 콘텐츠 추가](#자신의콘텐츠추가) 부분을 참고하세요.
+[/REGION]
+
+#### 데스크톱 비행 모드 (키보드 이동)
+
+**Flying mode** (비행 모드)는 키보드를 사용하여 씬에서 카메라를 움직일 수 있습니다.
+
+| 하려는 작업 | 명령 |
+| --- | --- |
+| 카메라가 향한 축 앞뒤로 이동 | W S |
+| 카메라가 향한 축 좌우로 이동 | A D |
+| 카메라를 월드 Z 축으로 위아래 이동 | E Q |
+| 카메라가 새 방향을 보도록 회전 | 우클릭 드래그 |
+
+[REGION:note]
+비행 모드 도중 오브젝트 선택, 이동, 엑스레이 제어와 같은 상호작용은 비활성화됩니다.
+[/REGION]
+
+프로덕트 뷰어를 비행 모드로 전환하는 방법은 다음과 같습니다.
+
+1.  **월드 아웃라이너** 패널에서 **ProductViewer_Collector** 액터를 찾아 선택합니다.  
+    ![ProductViewer_Collector 선택](studio-template-product-viewer-collector_world_outliner.png "ProductViewer_Collector 선택")
+2.  **디테일** 패널에서 **Product Viewer** (프로덕트 뷰어) 섹션의 **Navigation Mode** (이동 모드) 세팅을 **FlyingMode** (비행 모드)로 변경합니다.  
+    ![비행 모드 세팅](studio-template-product-viewer-collector-details-navigation.png "비행 모드 세팅")
+    [REGION:tip]
+    기본적으로 **비행 모드** 에서는 씬의 모든 오브젝트를 통과할 수 있으며, 콜리전 메시를 설정했어도 상관 없습니다. 콜리전 메시가 있는 오브젝트는 통과하지 못하게 하려면 **No Collision on Flying Mode** (비행 모드에서 충돌 없음) 옵션의 체크를 지우세요.
+    [/REGION]
+    
+
+#### VR 텔레포트 모드
+
+VR 로 프로덕트 뷰어를 실행하면, VR 씬에서 자신의 위치와 헤드셋으로 씬의 시점을 제어합니다. 씬의 다른 위치로 이동해야 하는 경우 왼쪽 컨트롤러로 텔레포트할 수 있습니다.
+
+1.  왼쪽 컨트롤러 섬스틱 버튼을 클릭합니다. 바닥에 타깃 마커가 강조 표시됩니다.  
+    ![프로덕트 뷰어 텔레포트](VRController.png "프로덕트 뷰어 텔레포트")
+2.  VR 씬에서 이동하고자 하는 위치에 타깃 마커가 오도록 왼쪽 컨트롤러를 움직입니다.
+3.  왼쪽 컨트롤러 섬스틱을 앞뒤로 밀면 타깃 마커가 회전하여 텔레포트 후 향할 방향을 표시합니다.
+4.  타깃 마커 위치와 방향이 올바르면 섬스틱 버튼을 놓습니다.
+
+[REGION:tip]
+기본적으로 바닥에만 텔레포트할 수 있습니다. 직접 콘텐츠를 추가하면 텔레포트할 수 있는 표면을 정확히 지정할 수 있습니다. 아래 [자신의 콘텐츠 추가](#자신의콘텐츠추가) 부분을 참고하세요.
+[/REGION]
+
+### 오브젝트 선택 및 이동
+
+씬에서 인터랙티브로 식별된 무버블 오브젝트는 무엇이든 선택하고 옮길 수 있습니다.
+
+[REGION:tip]
+오브젝트를 인터랙티브 정의하는 방법은 아래 [자신의 콘텐츠 추가](#자신의콘텐츠추가) 부분을 참고하세요.
+[/REGION]
+
+#### 데스크톱
+
+| 하려는 작업 | 명령 |
+| --- | --- |
+| 오브젝트를 씬의 새 위치로 이동 | 오브젝트 좌클릭 드래그 |
+| 오브젝트를 원래 위치로 스냅 | 오브젝트 우클릭 |
+
+#### VR
+
+VR 에서 오른쪽 컨트롤러를 사용하여 오브젝트를 선택하고 이동합니다.
+
+| 하려는 작업 | 명령 |
+| --- | --- |
+| 오브젝트 강조 | 오른쪽 컨트롤러의 레이저 셀렉터로 오브젝트 조준 |
+| 오브젝트 잡기 | 오브젝트 강조 상태에서 오른쪽 트리거 버튼 누름 |
+| 오브젝트 이동 | 오브젝트를 잡은 다음 오른쪽 컨트롤러를 실제 공간에서 이동 |
+| 오브젝트를 새 위치에 놓기 | 오른쪽 트리거 버튼 놓기 |
+| 오브젝트를 원래 시작 위치로 스냅 | 오브젝트를 강조한 다음 오른쪽 컨트롤러의 그립 버튼 누름 |
+
+### 엑스레이 모드 사용
+
+프로덕트 뷰어의 인터랙티브 오브젝트는 엑스레이 모드를 사용할 수 있습니다. 엑스레이 모드에서 오브젝트는 거의 투명한 상태로 잠시 상호작용이 불가능해 집니다. 그 때 그 뒤의 오브젝트를 보고 상호작용할 수 있습니다.
+
+[OBJECT:ComparisonSlider]
+[PARAM:before]
+![엑스레이 끔](studio-template-product-viewer-xray-off.png) 
+[/PARAM]
+[PARAM:after]
+![엑스레이 켬](studio-template-product-viewer-xray-on.png) 
+[/PARAM]
+[/OBJECT]
+
+엑스레이 메뉴에서 선택할 수 있는 옵션은 다음과 같습니다.
+
+| 메뉴 항목 | 효과 |
+| --- | --- |
+| **Apply X-ray** | 엑스레이 적용 - 강조된 오브젝트가 엑스레이 모드를 사용하도록 전환합니다. |
+| **Isolate X-ray** | 엑스레이 고립 - 강조된 오브젝트는 불투명하게 놔두고 다른 모든 오브젝트를 엑스레이 모드로 전환합니다. |
+| **Clear All X-ray** | 모든 엑스레이 지우기 - 씬의 모든 오브젝트를 원래 머티리얼로 리셋합니다. |
+
+#### 데스크톱
+
+엑스레이 메뉴를 열려면 인터랙티브 오브젝트에 커서를 올린 상태에서 스페이스 바를 누릅니다.
+
+#### VR
+
+VR 에서 엑스레이 메뉴를 열고 옵션을 선택하려면 오른쪽 컨트롤러 섬스틱을 앞뒤로 밉니다. 섬스틱 버튼을 누르면 현재 선택을 확인합니다.  
+
+![VR 에서 프로덕트 뷰어 메뉴](studio-template-product-viewer-xray-vr.png "VR 에서 프로덕트 뷰어 메뉴")
+
+  
+
+### 에디터에서 VR 테스트
+
+컴퓨터에 VR 구성을 해 두고 프로덕트 뷰어의 쿠킹 또는 독립형 버전을 실행하면, 스플래시 화면에서 데스크톱 / VR 조작법을 선택할 수 있습니다.
+
+![프로덕트 뷰어 스플래시 화면](studio-template-product-viewer-startup-vr.png "프로덕트 뷰어 스플래시 화면")
+
+하지만 에디터에서 프로덕트 뷰어를 VR 조작법으로 테스트하는 방법은 다음과 같습니다.
+
+1.  **월드 아웃라이너** 패널에서 **ProductViewer_Collector** 액터를 찾아 선택합니다.  
+    ![ProductViewer_Collector 선택](studio-template-product-viewer-collector_world_outliner.png "ProductViewer_Collector 선택")
+2.  **디테일** 패널에서 **Product Viewer** (프로덕트 뷰어) 섹션을 찾아 **VR Preview** (VR 프리뷰) 옵션을 선택합니다.  
+    ![프로덕트 뷰어 VR 프리뷰 세팅](studio-template-product-viewer-collector-details-vrpreview.png "프로덕트 뷰어 VR 프리뷰 세팅")
+3.  프리뷰를 실행하려면 툴바의 **플레이** 버튼 옆 드롭다운 화살표를 클릭하고 **VR Preview** (VR 프리뷰)를 선택합니다.  
+    ![툴바의 VR 프리뷰](studio-template-product-viewer-vr-preview.png "툴바의 VR 프리뷰")
+
+[REGION:warning]
+게임을 쿠킹할 때는 이 세팅을 다시 꺼야 합니다! 끄지 않으면 결과 패키지가 예상대로 작동하지 않습니다.
+[/REGION]
+
+## 자신의 콘텐츠 추가
+
+프로덕트 뷰어에 내장된 콘텐츠가 작동하는 방식을 살펴봤으니, 자신의 모델을 직접 가져와 체험에서 작동하도록 만들어보면 좋습니다.
+
+1.  프로젝트에 콘텐츠를 임포트합니다. 프로젝트에 콘텐츠를 가져오는 방법은 무엇이든 괜찮습니다. FBX 로 임포트하든, [데이터스미스](Studio/Datasmith) 를 사용하든, 마켓플레이스나 다른 피처 또는 콘텐츠 팩에서 추가해도 됩니다.
+2.  살펴볼 모델을 기본 **ProductViewer/Levels/ProductViewer** 레벨에 추가합니다.
+3.  런타임에 이동했으면 하는 모든 스태틱 메시 액터의 **디테일** 패널에서 **모빌리티** 옵션을 **무버블** 로 설정합니다.  
+    [REGION:lightbox]
+    [![액터 모빌리티 세팅](studio-template-accumulator-mobility.png "액터 모빌리티 세팅")](studio-template-accumulator-mobility.png) *클릭하면 이미지 원본을 확인합니다.*
+    [/REGION]
+    
+4.  **월드 아웃라이너** 패널에서 **ProductViewer_Collector** 액터를 찾아 선택합니다.  
+    ![ProductViewer_Collector 선택](studio-template-product-viewer-collector_world_outliner.png "ProductViewer_Collector 선택")
+5.  **디테일** 패널에서 **Product Viewer** (프로덕트 뷰어) 섹션을 찾습니다.  
+    ![프로덕트 뷰어 인터랙티브 루트 및 텔레포트 표면 루트](studio-template-product-viewer-collector-details-rootlists.png "프로덕트 뷰어 인터랙티브 루트 및 텔레포트 표면 루트")
+
+ProductViewer_Collector 액터에는 위와 같이 두 가지 핵심 세팅이 있습니다.
+
+*   **Interactive Root** (인터랙티브 루트)는 씬에서 플레이어가 상호작용할 수 있는 오브젝트 목록입니다.
+*   **Teleport Surface Root** (텔레포트 표면 루트)는 VR 모드에서 플레이어가 텔레포트할 수 있는 씬의 오브젝트 목록입니다.
+
+플레이어가 텔레포트하거나 상호작용할 수 있도록 하려는 모델 각각을 이 목록에 추가하면 됩니다.
+
+[REGION:tip]
+데이터스미스를 사용하여 콘텐츠를 임포트한 경우, 레벨의 Datasmith Scene Actor 는 이미 임포트한 모든 스태틱 메시 액터의 부모로 설정됩니다. **Interactive Root** 리스트에 새 항목을 추가하고 Datasmith Scene Actor 레퍼런스로 설정하면, 그 자손 전부 자동으로 인터랙티브가 됩니다.
+[/REGION]
+
+또는 상호작용이나 텔레포트 가능하게 만들려는 스태틱 메시 액터의 부모를 이미 목록에 있는 다른 액터로 설정해도 됩니다. 예를 들어 기본적으로 ProductViewer_Collector 에는 **Interactive Root** 목록에 항목이 하나뿐인데, `Interactive_Root` 라는 액터입니다. **월드 아웃라이너** 에서 그 액터를 찾아보면 기어, 공, 손전등을 나타내는 여러 액터의 부모인 것이 보입니다.
+
+![Interactive_Root Actor](studio-template-product-viewer-interactive-root.png "Interactive_Root Actor")
+
+**Interactive Root** 목록에 있는 액터의 모든 자손 역시 자동으로 인터랙티브가 됩니다. 즉 자신의 모델 부모를 기존 `Interactive_Root` 액터로 변경하기만 하면 됩니다. **월드 아웃라이너** 에서 드래그 앤 드롭으로 변경할 수 있습니다.
+
+### 부모 및 자손 액터 이동
+
+**월드 아웃라이너** 패널의 인터랙티브 액터의 계층구조는 오브젝트의 런타임 이동 방식에 영향을 줍니다. 인터랙티브 액터를 선택하고 이동할 때, 그 액터의 자손 전부가 부모를 따라 자동으로 이동하며, 현재 부모 기준 오프셋을 유지합니다.
+
+예를 들어 이 경우, 변속기 두 파츠의 부모가 **Part_09**, 검정 막대입니다.
+
+![](product_viewer_parentchildren.png "product_viewer_parentchildren.png")
+
+런타임에 검정 막대를 움직이면 자손 액터도 움직입니다. 하지만 여전히 자손 액터 각각을 움직일 수 있습니다. 다음에 부모를 움직이면, 자손은 새 오프셋을 유지합니다. 
+
+[REGION:asyncgif]
+![](product_viewer_parenting.gif)
+[/REGION]
+
+자손 액터를 원래 위치로 리셋하면 월드 스페이스의 원래 위치와 회전이 아닌, 부모 액터 기준 원래 오프셋으로 리셋됩니다. 부모 액터를 원래 위치로 리셋하면 그 자손도 전부 리셋됩니다.  
+
+### 어셈블리 펼치기 및 접기
+
+작은 파츠로 이루어진 어셈블리와 상호작용하는 일반적인 방법은 *explode* (펼치기), 즉 컴포넌트 파츠를 분해하여 공간에 떼어 놓아, 개별 파츠 단위는 물론 서로 잘 맞는지도 확인하는 방법입니다.
+
+[REGION:asyncgif]
+![](product_viewer_explode.gif)
+[/REGION]
+
+프로덕트 뷰어 템플릿에는 파츠의 펼치기 뷰를 구성하는 데 사용할 수 있는 블루프린트 클래스가 포함되어 있어, 어셈블리의 기본 뷰와 펼치기 뷰를 런타임에 부드럽게 전환할 수 있습니다.
+
+콘텐츠의 펼치기 뷰를 구성하려면:
+
+1.  **콘텐츠 브라우저** 에서 **ProductViewer/Blueprints/Tools** 폴더의 **Explode\_BP\_Actor** 블루프린트 클래스를 찾아 뷰포트로 드래그합니다.  
+    ![Explode_BP_Actor 드래그 앤 드롭](productviewer-explode-dragdrop.png "Explode_BP_Actor 드래그 앤 드롭")
+2.  뷰포트 또는 **월드 아웃라이너** 에서 새 블루프린트 액터를 선택합니다.  
+    ![Explode_BP_Actor 선택](productviewer-explode-selected.png "Explode_BP_Actor 선택")
+3.  **디테일** 패널에서 **Default** (기본) 그룹을 찾습니다. 이 컨트롤 그룹을 사용하여 어셈블리의 기본 뷰와 펼치기 뷰를 구성합니다.  
+    ![Explode_BP_Actor 디테일](productviewer-explode-details.png "Explode_BP_Actor 디테일")
+4.  **Actors Root** (액터 루트) 목록에서, 이 블루프린트의 어느 액터가 레벨에서 애니메이션을 처리해야 하는지 식별해야 합니다. **ProductViewer_Collector** 블루프린트의 **Interactive Root** 및 **Teleport Surface Root** 를 구성하는 것과 매우 비슷하니, [자신의 콘텐츠 추가](#자신의콘텐츠추가) 부분을 참고하세요.
+    
+    *   펼치려는 어셈블리의 각 액터를 목록에 별도로 추가하면 됩니다.
+    *   애니메이션하려는 모든 액터의 부모가 하나의 액터인 경우, 그 부모만 이 목록에 추가하면 됩니다.
+    
+    예를 들어, 위의 이전 단계 이미지에서 **GearsRoot** 액터가 선택되었습니다. 이 액터는 변속기 어셈블리의 부속인 기본 콘텐츠 항목 전부의 부모입니다. 이렇게 하면 파랑 구체 부분을 제외한 씬의 모든 금속부분만 애니메이션 가능해 집니다.
+5.  목록에 필요한 액터가 전부 있으면, (필요한 경우) 모두 기본 시작 위치로 나타나 보이도록 뷰포트에서 이동합니다. **Set Initial Location** (초기 위치 설정) 버튼을 누르면 이 트랜스폼을 기록합니다.
+    [REGION:lightbox]
+    [![초기 위치 설정](productviewer-explode-setinitial.png "초기 위치 설정")](productviewer-explode-setinitial.png) *클릭하면 이미지 원본을 확인합니다.*
+    [/REGION]
+    
+6.  이제 모든 액터를 펼쳤을 때 원하는 위치로 이동합니다. **Set Explode Location** (펼침 위치 설정) 버튼을 누르면 이 트랜스폼이 잠깁니다.
+    [REGION:lightbox]
+    [![펼치기 위치 설정](productviewer-explode-setexploded.png "펼치기 위치 설정")](productviewer-explode-setexploded.png) *클릭하면 이미지 원본을 확인합니다.*
+    [/REGION]
+    
+7.  언리얼 에디터에서 기록한 트랜스폼을 테스트하려면 **View Explode** (뷰 펼침) - **View Initial Location** (뷰 초기 위치) 버튼을 누르면 됩니다. 이 버튼을 누르면, 모든 애니메이션 파츠가 레벨 뷰포트의 프리셋 위치로 교체됩니다.  
+    ![](productviewer-explode-testineditor.png "productviewer-explode-testineditor.png")  
+    
+
+펼치기 / 기본 뷰를 런타임 전환하는 방법입니다.
+
+1.  게임이 실행되면, **Explode\_BP\_Actor** 로 등록한 액터 위에 마우스 커서를 올립니다. **Spacebar** 를 눌러 메뉴를 열면 새로운 **Explode** (펼치기) 버튼이 보입니다.  
+    ![펼치기 메뉴](productviewer-explode-menuexplode.png "펼치기 메뉴")  
+    이 버튼을 누르면 같은 **Explode\_BP\_Actor** 로 등록된 모든 파츠가 레벨의 현재 위치에서 분해 위치로 부드럽게 이동합니다.
+2.  분해한 어셈블리의 액터 위에 커서를 올리고 메뉴를 열면, 이제 **Collapse** (접기) 옵션이 보입니다. 이 버튼을 누르면 현재 위치에서 펼친 파츠를 원래 시작 위치로 돌려보냅니다.  
+    ![접기 메뉴](productviewer-explode-menucollapse.png "접기 메뉴")
+
+[REGION:tip]
+레벨에 **Explode\_BP\_Actors** 를 여러 개 추가하여 어셈블리 다양한 파츠 애니메이션이 가능합니다 하지만 하나의 액터를 둘 이상의 **Explode\_BP\_Actor** 에 포함하지 마세요.
+[/REGION]
+
+## 다른 프로젝트에 프로덕트 뷰어 추가
+
+다른 프로젝트에 콘텐츠가 있는 경우, 프로덕트 뷰어의 이동 및 상호작용 조작법을 다른 프로젝트에 추가할 수 있습니다.
+
+1.  프로덕트 뷰어 조작법으로 향상시키려는 프로젝트와 레벨을 엽니다.
+2.  콘텐츠 브라우저에서 **신규 추가 > 피처 또는 콘텐츠 팩 추가** 를 선택합니다.  
+    ![](studio-template-product-viewer-add-feature.png)
+3.  **프로젝트에 콘텐츠 추가** 창에서 **언리얼 스튜디오 피처** 탭을 엽니다. **프로덕트 뷰어** 썸네일을 클릭한 다음 **\+ 프로젝트에 추가** 를 클릭합니다.  
+    ![](studio-template-product-viewer-add-content-window-1.png "studio-template-product-viewer-add-content-window-1.png")
+4.  **X** 를 클릭하여 **프로젝트에 콘텐츠 추가** 창을 닫습니다.
+5.  콘텐츠 브라우저에서 **ProductViewer/Blueprints/ProductViewer_Collector** 블루프린트 액터를 찾아 레벨 뷰포트에 끌어 놓습니다.
+6.  마지막으로 레벨의 **ProductViewer_Collector** 액터를 위의 [자신의 콘텐츠 추가](#자신의콘텐츠추가) 부분의 설명대로 구성합니다.
+
+[](#)[](#)

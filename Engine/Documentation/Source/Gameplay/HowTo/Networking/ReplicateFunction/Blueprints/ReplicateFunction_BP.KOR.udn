@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3429254
+INTSourceChangelist:3429254
 Availability: Public
 Title:블루프린트에서 함수 리플리케이트
 Crumbs: %ROOT%, Gameplay, Gameplay\HowTo\Networking\ReplicateFunction
@@ -149,7 +149,7 @@ _이 예제에서는 위의 **멀티캐스트 리플리케이션** 예제를 이
 
 	![](HowTo14.png)
 
-	플레이어 캐릭터가 트리거에 들어서면, 우리가 만든 변수를 업데이트하되, 트리거 박스에 들어선 클라이언트만 업데이트합니다.
+	플레이어 캐릭터가 트리거에 들어서면, 우리가 만든 변수를 업데이트하지만, 트리거 박스에 들어선 클라이언트만 업데이트합니다.
 
 1.	**박스 트리거** 의 **디테일** 패널에서 **Rendering** 아래 **Actor Hidden In Game** (게임에서 액터 숨김) 체크를 해제합니다. 
 
@@ -165,7 +165,7 @@ _이 예제에서는 위의 **멀티캐스트 리플리케이션** 예제를 이
 
 	![](HowTo16.png)
 
-1.	전 단계를 반복하되, **Add On Actor End Overlap** 이벤트를 검색 추가합니다.
+1.	전 단계를 반복하지만, **Add On Actor End Overlap** 이벤트를 검색 추가합니다.
 
 1.	각 노드를 **Switch Has Authority** 노드에 연결합니다.
 

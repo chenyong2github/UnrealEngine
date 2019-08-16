@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:2693427
+﻿INTSourceChangelist:3108692
 Availability:Public
 Title:在编辑器中进行联网游戏
 Crumbs:%ROOT%, Engine, Engine/UI, Engine/UI/LevelEditor, Engine/UI/LevelEditor/InEditorTesting
@@ -9,6 +9,7 @@ Version:4.9
 _在编辑器中游戏_ 支持多个环境，因此，您可以测试联网游戏。编辑器会在已装入的 UE4 实例中生成多个环境，这可缩短迭代时间，并 
 允许您调试每个环境的 _蓝图_。
 
+(#SettingupNetworkedTesting)
 ## 设置联网测试
 
 在 **关卡编辑器工具栏** 或 **蓝图编辑器工具栏** 中的 **游戏位置（Play In）** 下拉菜单中，您可以设置在开始 _在编辑器中游戏_ 会话时要创建多少个用户端环境。
@@ -36,6 +37,7 @@ _在编辑器中游戏_ 会话选择 **视口（Viewport）**显示类型，那�
 您可以使用 **Shift+Tab** 和 **Control+Tab** 在用户端窗口之间循环切换焦点。 
 [/REGION]
 
+(#AdvancedSettings)
 ## 高级设置
 
 用户端环境数目以及是否使用专用服务器也可以在 [“关卡编辑器 - 游戏位置设置”（Level Editor - Play In Settings）窗口](Engine/UI/LevelEditor\InEditorTesting\Settings) 中设置。在此处，
@@ -44,6 +46,7 @@ _在编辑器中游戏_ 会话选择 **视口（Viewport）**显示类型，那�
 [INCLUDE:Engine/UI/LevelEditor\InEditorTesting\Settings#NetworkPIESettings]
 
 
+(#DebuggingBlueprints)
 ## 调试蓝图
 
 现在，在多环境场景中运行时，**蓝图编辑器** 将提供一个额外的下拉菜单，用于选择要调试的环境：

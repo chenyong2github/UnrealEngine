@@ -22,6 +22,27 @@ If you would like to read more about coding for Blueprints, or the technical det
 Even if your functionality is well-suited for Blueprints, there are decisions you can make in setting up your Blueprints that will make things go more smoothly. This guide will go
 over some of the more common decisions you will have to make, as well as tips and tricks for Blueprint users.
 
+<!-- removing link for now.
+[REGION:tip]
+If you are new to Blueprints or Visual Scripting, you may want to also check out the **Blueprint Essential Concepts** video tutorial series. This series covers the fundamentals and core concepts to working with Blueprints in Unreal Engine 4, how Blueprints relate to traditional programming, a tour of the Blueprint Editor UI, Components, Graphs, and some of the caveats to using Blueprint. 
+[OBJECT:TopicCompact]
+	[PARAM:image]
+		![](BlueprintEssentialsUA.png)
+	[/PARAM]
+	[PARAM:icon]
+		![](%ROOT%/blueprint_icon.png)(convert:false)
+	[/PARAM]
+	[PARAM:title]
+		Blueprint Essential Concepts Class
+	[/PARAM]
+	[PARAMLITERAL:path]
+		https://academy.unrealengine.com/Class/blueprint-essential-concepts
+	[/PARAMLITERAL]
+[/OBJECT]
+[/REGION]
+-->
+
+
 ## Level Blueprints vs. Blueprint Classes
 
 Level Blueprints may be very familiar to users of UE3's Kismet,  because you can select objects directly in the level, and operate on them. They're great for one-off prototypes, and 

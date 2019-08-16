@@ -5,6 +5,14 @@
 #include "GeometryCollection/GeometryCollectionCache.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 
+#if WITH_EDITOR
+#include "MeshUtilities.h"
+#endif
+
+#include "Modules/ModuleInterface.h"
+#include "Modules/ModuleManager.h"
+
+
 DEFINE_LOG_CATEGORY_STATIC(LogGeoemtryCollectionClean, Verbose, All);
 
 
@@ -13,7 +21,6 @@ void GeometryCollectionEngineUtility::PrintDetailedStatistics(const FGeometryCol
 	check(GeometryCollection);
 
 	TSharedPtr< TManagedArray<FTransform> >   Transform;
-	TSharedPtr< TManagedArray<FGeometryCollectionBoneNode> >  BoneHierarchy;
 
 	int32 NumTransforms = GeometryCollection->NumElements(FGeometryCollection::TransformGroup);
 	int32 NumVertices = GeometryCollection->NumElements(FGeometryCollection::VerticesGroup);
@@ -21,11 +28,11 @@ void GeometryCollectionEngineUtility::PrintDetailedStatistics(const FGeometryCol
 	int32 NumGeometries = GeometryCollection->NumElements(FGeometryCollection::GeometryGroup);
 	int32 NumBreakings = GeometryCollection->NumElements(FGeometryCollection::BreakingGroup);
 
-	const TManagedArray<FVector>& VertexArray = *GeometryCollection->Vertex;
-	const TManagedArray<int32>& BoneMapArray = *GeometryCollection->BoneMap;
+	const TManagedArray<FVector>& VertexArray = GeometryCollection->Vertex;
+	const TManagedArray<int32>& BoneMapArray = GeometryCollection->BoneMap;
 
 	TArray<FTransform> GlobalTransformArray;
-	GeometryCollectionAlgo::GlobalMatrices(GeometryCollection, GlobalTransformArray);
+	GeometryCollectionAlgo::GlobalMatrices(GeometryCollection->Transform, GeometryCollection->Parent, GlobalTransformArray);
 
 	FBox BoundingBox(ForceInitToZero);
 	for (int32 IdxVertex = 0; IdxVertex < NumVertices; ++IdxVertex)
@@ -70,6 +77,7 @@ void GeometryCollectionEngineUtility::PrintDetailedStatistics(const FGeometryCol
 	Buffer += FString::Printf(TEXT("Max = (%f, %f, %f)\n"), BoundingBox.Max.X, BoundingBox.Max.Y, BoundingBox.Max.Z);
 	Buffer += FString::Printf(TEXT("Center = (%f, %f, %f)\n"), BoundingBox.GetCenter().X, BoundingBox.GetCenter().Y, BoundingBox.GetCenter().Z);
 	Buffer += FString::Printf(TEXT("Size = (%f, %f, %f)\n"), 2.f * BoundingBox.GetExtent().X, 2.f * BoundingBox.GetExtent().Y, 2.f * BoundingBox.GetExtent().Z);
+	Buffer += FString::Printf(TEXT("Volume = %f\n"), BoundingBox.GetVolume());
 
 	
 	if(InCache && InCache->GetData())
@@ -173,6 +181,29 @@ void GeometryCollectionEngineUtility::PrintDetailedStatistics(const FGeometryCol
 	
 
 	Buffer += FString::Printf(TEXT("------------------------------------------------------------\n"));
+	Buffer += FString::Printf(TEXT("BONE HIERARCHY TRANSFORM COUNTS\n"));
+	Buffer += FString::Printf(TEXT("------------------------------------------------------------\n"));
+
+	const TManagedArray<int32>& Levels = GeometryCollection->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
+
+	TArray<int32> LevelTransforms;
+	for (int32 Element = 0, NumElement = Levels.Num(); Element < NumElement; ++Element)
+	{
+		const int32 NodeLevel = Levels[Element];
+		while (LevelTransforms.Num() <= NodeLevel)
+		{
+			LevelTransforms.SetNum(NodeLevel + 1);
+			LevelTransforms[NodeLevel] = 0;
+		}
+		++LevelTransforms[NodeLevel];
+	}
+
+	for (int32 Level = 0 ; Level < LevelTransforms.Num() ; ++Level)
+	{
+		Buffer += FString::Printf(TEXT("Level: %d = %d\n"), Level, LevelTransforms[Level]);
+	}
+
+	Buffer += FString::Printf(TEXT("------------------------------------------------------------\n"));
 	Buffer += FString::Printf(TEXT("MESH QUALITY\n"));
 	Buffer += FString::Printf(TEXT("------------------------------------------------------------\n"));
 
@@ -215,5 +246,198 @@ void GeometryCollectionEngineUtility::PrintDetailedStatistics(const FGeometryCol
 	Buffer += FString::Printf(TEXT("Number of boundary edges = %d\n"), NumBoundaryEdges);
 	Buffer += FString::Printf(TEXT("Number of degenerate edges (included in more than 2 faces) = %d\n"), NumDegenerateEdges);
 	Buffer += FString::Printf(TEXT("------------------------------------------------------------\n\n"));
+
+
+
 	UE_LOG(LogGeoemtryCollectionClean, Log, TEXT("%s"), *Buffer);
 }
+
+void GeometryCollectionEngineUtility::PrintDetailedStatisticsSummary(const TArray<const FGeometryCollection*> GeometryCollectionArray)
+{
+	if (GeometryCollectionArray.Num() > 0)
+	{
+		FString Buffer;
+
+		TArray<int32> LevelTransformsAll;
+		LevelTransformsAll.SetNumZeroed(10);
+		int32 LevelMax = INT_MIN;
+
+		for (int32 Idx = 0; Idx < GeometryCollectionArray.Num(); ++Idx)
+		{
+			const FGeometryCollection* GeometryCollection = GeometryCollectionArray[Idx];
+
+			check(GeometryCollection);
+
+
+			Buffer += FString::Printf(TEXT("------------------------------------------------------------\n"));
+			Buffer += FString::Printf(TEXT("BONE HIERARCHY TRANSFORM COUNTS\n"));
+			Buffer += FString::Printf(TEXT("------------------------------------------------------------\n"));
+			Buffer += FString::Printf(TEXT("Sum for all the selected GCs\n\n"));
+
+			const TManagedArray<int32>& Levels = GeometryCollection->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
+
+			TArray<int32> LevelTransforms;
+			for (int32 Element = 0, NumElement = Levels.Num(); Element < NumElement; ++Element)
+			{
+				const int32 NodeLevel = Levels[Element];
+				while (LevelTransforms.Num() <= NodeLevel)
+				{
+					LevelTransforms.SetNum(NodeLevel + 1);
+					LevelTransforms[NodeLevel] = 0;
+				}
+				++LevelTransforms[NodeLevel];
+			}
+
+			for (int32 Level = 0; Level < LevelTransforms.Num(); ++Level)
+			{
+				LevelTransformsAll[Level] += LevelTransforms[Level];
+			}
+
+			if (LevelTransforms.Num() > LevelMax)
+			{
+				LevelMax = LevelTransforms.Num();
+			}
+		}
+
+		for (int32 Level = 0; Level < LevelMax; ++Level)
+		{
+			Buffer += FString::Printf(TEXT("Level: %d = %d\n"), Level, LevelTransformsAll[Level]);
+		}
+
+		UE_LOG(LogGeoemtryCollectionClean, Log, TEXT("%s"), *Buffer);
+	}	
+}
+
+void GeometryCollectionEngineUtility::ComputeNormals(FGeometryCollection* GeometryCollection)
+{
+#if WITH_EDITOR
+	// recompute tangents for geometry collection
+	IMeshUtilities& MeshUtilities = FModuleManager::LoadModuleChecked<IMeshUtilities>("MeshUtilities");
+
+	int32 NumVertices = GeometryCollection->NumElements(FGeometryCollection::VerticesGroup);
+	int32 NumIndices = GeometryCollection->NumElements(FGeometryCollection::FacesGroup);
+
+	// #todo(dmp): Deal with smoothing groups
+	TArray<uint32> SmoothingGroup;
+	SmoothingGroup.Init(0, NumIndices);
+	int32 TangentOptions = 0;
+
+	// Create index and uvs in flat arrays per face vertex
+	TArray<uint32> TmpIndices;
+	TArray<FVector2D> TmpUV;
+
+	TManagedArray<FIntVector>& Indices = GeometryCollection->Indices;
+	TManagedArray<FVector2D>& UV = GeometryCollection->UV;
+	for (int i = 0; i < NumIndices; ++i)
+	{
+		FIntVector CurrTri = Indices[i];
+
+		TmpIndices.Add(CurrTri.X);
+		TmpIndices.Add(CurrTri.Y);
+		TmpIndices.Add(CurrTri.Z);
+
+		TmpUV.Add(UV[CurrTri.X]);
+		TmpUV.Add(UV[CurrTri.Y]);
+		TmpUV.Add(UV[CurrTri.Z]);
+	}
+
+	// Make a copy of the vertex array
+	// #todo(dmp): can we avoid copying?
+	TArray<FVector> Vertex((GeometryCollection->Vertex).GetData(), NumVertices);
+
+	// Compute new tangents and normals
+	TArray<FVector> TmpTangentU;
+	TArray<FVector> TmpTangentV;
+	TArray<FVector> TmpNormal;
+
+	// #todo(dmp): Create our own implementation to avoid all the copying
+	MeshUtilities.CalculateNormals(Vertex, TmpIndices, TmpUV, SmoothingGroup, TangentOptions, TmpNormal);
+
+	TManagedArray<FVector>& Normals = GeometryCollection->Normal;
+
+	// Reset Normals
+	for (int i = 0; i < NumVertices; ++i)
+	{
+		Normals[i] = TmpNormal[i];
+	}
+#else
+	UE_LOG(LogGeoemtryCollectionClean, Fatal, TEXT("GeometryCollectionEngineUtility::ComputeNormals not supported in non-editor builds"));
+#endif
+}
+
+void GeometryCollectionEngineUtility::ComputeTangents(FGeometryCollection* GeometryCollection)
+{
+#if WITH_EDITOR
+	// recompute tangents for geometry collection
+	IMeshUtilities& MeshUtilities = FModuleManager::LoadModuleChecked<IMeshUtilities>("MeshUtilities");
+
+	int32 NumVertices = GeometryCollection->NumElements(FGeometryCollection::VerticesGroup);
+	int32 NumIndices = GeometryCollection->NumElements(FGeometryCollection::FacesGroup);
+
+	// #todo(dmp): Deal with smoothing groups
+	TArray<uint32> SmoothingGroup;
+	SmoothingGroup.Init(0, NumIndices);
+	int32 TangentOptions = 0;
+
+	// Create index and uvs in flat arrays per face vertex
+	TArray<uint32> TmpIndices;
+	TArray<FVector2D> TmpUV;
+
+	TManagedArray<FIntVector>& Indices = GeometryCollection->Indices;
+	TManagedArray<FVector2D>& UV = GeometryCollection->UV;
+	for (int i = 0; i < NumIndices; ++i)
+	{
+		FIntVector CurrTri = Indices[i];
+
+		TmpIndices.Add(CurrTri.X);
+		TmpIndices.Add(CurrTri.Y);
+		TmpIndices.Add(CurrTri.Z);
+
+		TmpUV.Add(UV[CurrTri.X]);
+		TmpUV.Add(UV[CurrTri.Y]);
+		TmpUV.Add(UV[CurrTri.Z]);
+	}
+
+	// Make a copy of the vertex array
+	// #todo(dmp): can we avoid copying?
+	TArray<FVector> Vertex((GeometryCollection->Vertex).GetData(), NumVertices);
+
+	// Compute new tangents and normals
+	TArray<FVector> TmpTangentU;
+	TArray<FVector> TmpTangentV;
+	TArray<FVector> TmpNormal;
+
+	// #todo(dmp): Create our own implementation to avoid all the copying
+	MeshUtilities.CalculateTangents(Vertex, TmpIndices, TmpUV, SmoothingGroup, TangentOptions, TmpTangentU, TmpTangentV, TmpNormal);
+
+	// we only use the tangents along with the original normals
+	TManagedArray<FVector>& TangentU = GeometryCollection->TangentU;
+	TManagedArray<FVector>& TangentV = GeometryCollection->TangentV;
+
+	// Reset  tangents
+	for (int i = 0; i < NumVertices; ++i)
+	{
+		TangentU[i] = FVector(0, 0, 0);
+		TangentV[i] = FVector(0, 0, 0);
+		// Normal[i] = FVector(0, 0, 0);
+	}
+
+	// Sum all face vertex tangents to the smaller vertex array
+	for (int i = 0; i < TmpIndices.Num(); ++i)
+	{
+		int32 VertIndex = TmpIndices[i];
+		TangentU[VertIndex] += TmpTangentU[i];
+		TangentV[VertIndex] += TmpTangentV[i];
+	}
+
+	// normalize tangents
+	for (int i = 0; i < NumVertices; ++i)
+	{
+		TangentU[i].Normalize();
+		TangentV[i].Normalize();
+	}
+#else
+	UE_LOG(LogGeoemtryCollectionClean, Fatal, TEXT("GeometryCollectionEngineUtility::ComputeTangents not supported in non-editor builds"));
+#endif
+}
+

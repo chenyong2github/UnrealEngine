@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3807090
+INTSourceChangelist:3807090
 Availability: Public
 Title: 머티리얼 표현식 및 함수 배치
 Crumbs: %ROOT%, Engine, Engine/Rendering/Materials, Engine/Rendering/Materials/HowTo
@@ -15,7 +15,7 @@ tags:Materials
 
 머티리얼 표현식 및 머티리얼 함수는 언리얼 엔진 4 에서 제대로 된 머티리얼을 만드는 데 사용되는 기본 요소입니다. 
 각 표현식이나 함수는 그 입력에 작은 코드 스니펫을 실행하여 결과를 출력할 수 있는, 자립된 블랙 박스입니다.
-이 비법 안내서에서는 머티리얼 그래프에 머티리얼 표현식과 머티리얼 함수를 배치하는 여러가지 방법에 대해 알아보겠습니다.
+이 하우투 안내서에서는 머티리얼 그래프에 머티리얼 표현식과 머티리얼 함수를 배치하는 여러가지 방법에 대해 알아보겠습니다.
 
 ## 머티리얼 표현식
 

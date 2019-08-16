@@ -29,10 +29,14 @@ public:
 	static bool ConstructPreviewParameter(const FName& InDataType, EControlRigModelParameterType InParameterType, FControlRigModelNode& OutNode);
 	static bool ConstructPreviewNode(const FName& InFunctionName, FControlRigModelNode& OutNode);
 	virtual bool AddParameter(const FName& InName, const FName& InDataType, EControlRigModelParameterType InParameterType = EControlRigModelParameterType::Input, const FVector2D& InPosition = FVector2D::ZeroVector, bool bUndo = true);
+	virtual bool AddComment(const FName& InName, const FString& InText, const FVector2D& InPosition, const FVector2D& InSize, const FLinearColor& InColor = FLinearColor::White, bool bUndo = true);
 	virtual bool AddNode(const FName& InFunctionName, const FVector2D& InPosition = FVector2D::ZeroVector, const FName& InName = NAME_None, bool bUndo = true);
 	virtual bool RemoveNode(const FName& InName, bool bUndo = true);
 	virtual bool SetNodePosition(const FName& InName, const FVector2D& InPosition, bool bUndo = true);
+	virtual bool SetNodeSize(const FName& InName, const FVector2D& InSize, bool bUndo = true);
+	virtual bool SetNodeColor(const FName& InName, const FLinearColor& InColor, bool bUndo = true);
 	virtual bool SetParameterType(const FName& InName, EControlRigModelParameterType InParameterType, bool bUndo = true);
+	virtual bool SetCommentText(const FName& InName, const FString& InText, bool bUndo = true);
 	virtual bool RenameNode(const FName& InOldNodeName, const FName& InNewNodeName, bool bUndo = true);
 	virtual bool ClearSelection();
 	virtual bool SetSelection(const TArray<FName>& InNodeSelection);

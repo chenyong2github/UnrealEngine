@@ -1,0 +1,41 @@
+﻿INTSourceChangelist:3643552
+Availability:Public
+Title:Samsung Gear VR UE 4 のクイックスタート
+Crumbs:%ROOT%
+Description:Samsung Gear VR ヘッドセットと使えるようにプロジェクトを簡単に設定およびデプロイする方法の説明
+Navigation:platform
+Platform:Gear VR
+Skilllevel:Intermediate
+Version:4.17
+type:quick start
+type:landing
+parent:Platforms/VR/GearVR
+tags:VR
+tags:GearVR
+tags:Getting Started
+order:2
+Checkpoint:GearVRQS
+prereq:Platforms/Mobile/Android/GettingStarted/
+prereq:Platforms\VR\GearVR\Prerequisites
+Topic-image:Platforms\VR\GearVR\SamsungGearVRDevelopment_topic.png
+
+![](GVR_Headset_00.png)
+
+## 目標
+
+このページは、開発 PC と Sammsung スマートフォン を VR ヘッドセットと連携させるための設定ガイドです。
+
+## 目的
+
+* Gear VR 開発をターゲットにした UE4 プロジェクトを新規作成する。
+* 必要なプロジェクト設定を完了し、プロジェクトで Gear VR が使用できるようにする。
+* Gear VR HMD で UE プロジェクトをデプロイおよび表示する。
+
+## ステップ
+
+[DIR(output:"checkpoint" parent:"Platforms/VR/GearVR/QuickStart")]
+
+[REGION:call_to_action]
+ [ここをクリックして始めましょう](Platforms/VR/GearVR/QuickStart/1 "%Platforms/VR/GearVR/QuickStart/1:title%")
+[/REGION]
+

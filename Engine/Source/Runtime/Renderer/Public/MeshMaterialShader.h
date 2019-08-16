@@ -23,8 +23,8 @@ template<typename TBufferStruct> class TUniformBufferRef;
 class FMeshMaterialShaderElementData
 {
 public:
-	FUniformBufferRHIParamRef FadeUniformBuffer = nullptr;
-	FUniformBufferRHIParamRef DitherUniformBuffer = nullptr;
+	FRHIUniformBuffer* FadeUniformBuffer = nullptr;
+	FRHIUniformBuffer* DitherUniformBuffer = nullptr;
 
 	RENDERER_API void InitializeMeshMaterialData(const FSceneView* SceneView, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, const FMeshBatch& RESTRICT MeshBatch, int32 StaticMeshId, bool bAllowStencilDither);
 };
@@ -32,6 +32,7 @@ public:
 /** Base class of all shaders that need material and vertex factory parameters. */
 class RENDERER_API FMeshMaterialShader : public FMaterialShader
 {
+	DECLARE_SHADER_TYPE(FMeshMaterialShader, MeshMaterial);
 public:
 	FMeshMaterialShader() {}
 
@@ -66,7 +67,7 @@ public:
 		const FScene* Scene, 
 		const FSceneView* ViewIfDynamicMeshCommand, 
 		const FVertexFactory* VertexFactory,
-		bool bShaderRequiresPositionOnlyStream,
+		const EVertexInputStreamType InputStreamType,
 		ERHIFeatureLevel::Type FeatureLevel,
 		const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 		const FMeshBatch& MeshBatch,

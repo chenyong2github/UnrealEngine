@@ -6,7 +6,8 @@
 #include "UObject/Object.h"
 #include "UObject/WeakObjectPtr.h"
 #include "Types/ISlateMetaData.h"
-#include "Widgets/SWidget.h"
+
+class SWidget;
 
 /**
  * Reflection meta-data that can be used by the widget reflector to determine
@@ -39,6 +40,9 @@ public:
 	TWeakObjectPtr<const UObject> Asset;
 
 public:
+
+	static FString GetWidgetPath(const SWidget* InWidget, bool bShort = true, bool bNativePathOnly = false);
+	static FString GetWidgetPath(const SWidget& InWidget, bool bShort = true, bool bNativePathOnly = false);
 
 	static FString GetWidgetDebugInfo(const SWidget* InWidget);
 	static FString GetWidgetDebugInfo(const SWidget& InWidget);

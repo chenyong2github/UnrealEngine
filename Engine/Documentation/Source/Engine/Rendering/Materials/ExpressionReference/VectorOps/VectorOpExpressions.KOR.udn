@@ -16,7 +16,7 @@ tags:Materials
 AppendVector (벡터 덧붙이기) 표현식은 채널을 합쳐 원래보다 채널 수가 많은 벡터를 만듭니다. 예를 들어 두 개의 [Constant](Engine/Rendering/Materials/ExpressionReference/Constant#Constant) 값을 덧붙이면 [Constant2Vector](Engine/Rendering/Materials/ExpressionReference/Constant#Constant2Vector) 값을 만들 수 있습니다. 하나의 텍스처 안에서 채널의 순서를 재배치한다던가 여러 개의 회색조 텍스처를 RGB 컬러 텍스처로 합친다든가 할 때 유용하게 쓸 수 있습니다.
 
 | 항목 | 설명 |
-| ---- | ---- |
+| --- | --- |
 | [REGION:tablesection]입력[/REGION] ||
 | **A** | 덧붙일 값을 받습니다. |
 | **B** | 이 값에 덧붙입니다. |
@@ -35,7 +35,7 @@ AppendVector (벡터 덧붙이기) 표현식은 채널을 합쳐 원래보다 �
 ComponentMask (컴포넌트 마스크) 표현식은 입력에서 (R, G, B, A 중 하나 이상의) 채널 부분집합을 선택하여 출력으로 통과시킵니다. 입력에 존재하지 않는 채널을 통과시키려 하면, 입력이 단일 상수값이 아닌 이상 오류가 납니다. 입력이 단일 상수값인 경우는 그 값을 각 채널로 통과시킵니다. 현재 통과되도록 선택된 채널은 표현식의 제목줄에 표시됩니다.
 
 | 항목 | 설명 |
-| ---- | ---- |
+| --- | --- |
 | [REGION:tablesection]프로퍼티[/REGION] ||
 | **R** | 체크하면 입력값의 빨강 또는 첫째 채널을 출력으로 통과시킵니다. |
 | **G** | 체크하면 입력값의 초록 또는 둘째 채널을 출력으로 통과시킵니다. |
@@ -60,7 +60,7 @@ ComponentMask (컴포넌트 마스크) 표현식은 입력에서 (R, G, B, A 중
 DeriveNormalZ 표현식은 주어진 X 와 Y 성분으로 탄젠트 스페이스 노멀의 Z 성분을 구한 다음 3 채널 탄젠트 스페이스 노멀로 출력시킵니다. Z 값의 계산식은 다음과 같습니다: Z = sqrt(1 - (x \* x + y \* y));
 
 | 항목 | 설명 |
-| ---- | ---- |
+| --- | --- |
 | [REGION:tablesection]입력[/REGION] ||
 | **InXY** | 탄젠트 스페이스 노멀의 X, Y 성분을 2 채널 벡터값 형태로 받습니다. |
 
@@ -81,7 +81,7 @@ Transform (트랜스폼, 변환) 표현식은 한 좌표계의 3채널 벡터값
 기본적으로 머티리얼의 모든 셰이더 계산은 탄젠트 스페이스에서 이루어집니다. 벡터 상수, 카메라 벡터, 라이트 벡터 등은 모두 머티리얼에서 사용되기 전 탄젠트 스페이스로 변환됩니다. Transform 표현식은 이러한 벡터를 탄젠트 스페이스에서 월드, 로컬, 뷰 스페이스 좌표계로 변환해 줍니다. 추가로 월드 스페이스와 로컬 스페이스의 경우, 서로 다른 좌표계로 변환해 주기도 합니다.
 
 | 항목 | 설명 |
-| ---- | ---- |
+| --- | --- |
 | [REGION:tablesection]프로퍼티[/REGION] ||
 | **Transform Source Type** | 벡터를 변환해 올 소스 좌표계를 나타냅니다. World, Local, Tangent 중 하나입니다. |
 | **Transform Type** | 벡터를 변환할 타깃 좌표계를 나타냅니다. World, View, Local, Tangent 중 하나입니다. |

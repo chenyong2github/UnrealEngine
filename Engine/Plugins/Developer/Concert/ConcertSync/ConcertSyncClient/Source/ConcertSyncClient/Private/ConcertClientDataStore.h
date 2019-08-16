@@ -7,7 +7,7 @@
 #include "ConcertDataStore.h"
 #include "ConcertDataStoreMessages.h"
 
-class IConcertClientSession;
+class FConcertSyncClientLiveSession;
 struct FConcertSessionContext;
 
 /**
@@ -23,7 +23,7 @@ public:
 	 * Constructs a data store on the client side.
 	 * @param InSession The session owning this store and used to send requests and receive responses or events.
 	 */
-	FConcertClientDataStore(TSharedRef<IConcertClientSession> InSession);
+	FConcertClientDataStore(TSharedRef<FConcertSyncClientLiveSession> InLiveSession);
 	virtual ~FConcertClientDataStore();
 
 protected:
@@ -46,7 +46,7 @@ private:
 	void OnReplicationEvent(const FConcertSessionContext& Context, const FConcertDataStore_ReplicateEvent& Event);
 
 	/** The session used to dispatch requests. */
-	TSharedRef<IConcertClientSession> Session;
+	TSharedRef<FConcertSyncClientLiveSession> LiveSession;
 
 	/** Critical section to support clients calling from multiple threads. */
 	mutable FCriticalSection CritSection;

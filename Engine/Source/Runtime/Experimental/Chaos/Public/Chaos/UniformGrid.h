@@ -31,10 +31,13 @@ class CHAOS_API TUniformGridBase
 			MCells += TVector<T, d>(2 * GhostCells);
 		}
 
-		const TVector<T, d> MinToDXRatio = MMinCorner / MDx;
-		for (int32 Axis = 0; Axis < d; ++Axis)
+		if (MDx >= TVector<T, d>(SMALL_NUMBER))
 		{
-			check(MinToDXRatio[Axis] < 1e7);	//make sure we have the precision we need
+			const TVector<T, d> MinToDXRatio = MMinCorner / MDx;
+			for (int32 Axis = 0; Axis < d; ++Axis)
+			{
+				ensure(FMath::Abs(MinToDXRatio[Axis]) < 1e7); //make sure we have the precision we need
+			}
 		}
 	}
 	TUniformGridBase(std::istream& Stream)
@@ -52,6 +55,14 @@ class CHAOS_API TUniformGridBase
 		MMaxCorner.Write(Stream);
 		MCells.Write(Stream);
 	}
+	void Serialize(FArchive& Ar)
+	{
+		Ar << MMinCorner;
+		Ar << MMaxCorner;
+		Ar << MCells;
+		Ar << MDx;
+	}
+
 	TVector<T, d> Location(const TVector<int32, d>& Cell) const
 	{
 		return MDx * Cell + MMinCorner + (MDx / 2);
@@ -117,6 +128,7 @@ class CHAOS_API TUniformGrid : public TUniformGridBase<T, d>
 	TVector<int32, d> ClampIndex(const TVector<int32, d>& Index) const;
 	TVector<T, d> Clamp(const TVector<T, d>& X) const;
 	TVector<T, d> ClampMinusHalf(const TVector<T, d>& X) const;
+	bool IsValid(const TVector<int32, d>& X) const;
 };
 
 template<class T>
@@ -150,5 +162,14 @@ class CHAOS_API TUniformGrid<T, 3> : public TUniformGridBase<T, 3>
 	TVector<int32, 3> ClampIndex(const TVector<int32, 3>& Index) const;
 	TVector<T, 3> Clamp(const TVector<T, 3>& X) const;
 	TVector<T, 3> ClampMinusHalf(const TVector<T, 3>& X) const;
+	bool IsValid(const TVector<int32, 3>& X) const;
 };
+
+template <typename T, int d>
+FArchive& operator<<(FArchive& Ar, TUniformGridBase<T, d>& Value)
+{
+	Value.Serialize(Ar);
+	return Ar;
+}
+
 }

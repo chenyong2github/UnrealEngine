@@ -232,14 +232,13 @@ void UNiagaraDataInterfaceVectorField::GetParameterDefinitionHLSL(FNiagaraDataIn
 		Texture3D {TextureName};
 		SamplerState {SamplerName};
 	)");
-	TMap<FString, FStringFormatArg> ArgsDeclarations = {
-		{ TEXT("TilingAxesName"), TilingAxesBaseName + ParamInfo.DataInterfaceHLSLSymbol },
-		{ TEXT("DimensionsName"), DimensionsBaseName + ParamInfo.DataInterfaceHLSLSymbol },
-		{ TEXT("MinBoundsName"),  MinBoundsBaseName + ParamInfo.DataInterfaceHLSLSymbol },
-		{ TEXT("MaxBoundsName"),  MaxBoundsBaseName + ParamInfo.DataInterfaceHLSLSymbol },
-		{ TEXT("TextureName"),    TextureBaseName + ParamInfo.DataInterfaceHLSLSymbol },
-		{ TEXT("SamplerName"),    SamplerBaseName + ParamInfo.DataInterfaceHLSLSymbol }
-	};
+	TMap<FString, FStringFormatArg> ArgsDeclarations;
+	ArgsDeclarations.Add(TEXT("TilingAxesName"), TilingAxesBaseName + ParamInfo.DataInterfaceHLSLSymbol);
+	ArgsDeclarations.Add(TEXT("DimensionsName"), DimensionsBaseName + ParamInfo.DataInterfaceHLSLSymbol);
+	ArgsDeclarations.Add(TEXT("MinBoundsName"), MinBoundsBaseName + ParamInfo.DataInterfaceHLSLSymbol);
+	ArgsDeclarations.Add(TEXT("MaxBoundsName"), MaxBoundsBaseName + ParamInfo.DataInterfaceHLSLSymbol);
+	ArgsDeclarations.Add(TEXT("TextureName"), TextureBaseName + ParamInfo.DataInterfaceHLSLSymbol);
+	ArgsDeclarations.Add(TEXT("SamplerName"), SamplerBaseName + ParamInfo.DataInterfaceHLSLSymbol);
 	OutHLSL += FString::Format(FormatDeclarations, ArgsDeclarations);
 }
 
@@ -254,13 +253,12 @@ bool UNiagaraDataInterfaceVectorField::GetFunctionHLSL(const FName& DefinitionFu
 				Out_Sample = Texture3DSample({TextureName}, {SamplerName}, SamplePoint).xyz;
 			}
 		)");
-		TMap<FString, FStringFormatArg> ArgsSample = {
-			{TEXT("FunctionName"), InstanceFunctionName},
-			{TEXT("TextureName"), TextureBaseName + ParamInfo.DataInterfaceHLSLSymbol},
-			{TEXT("MinBoundsName"), MinBoundsBaseName + ParamInfo.DataInterfaceHLSLSymbol},
-			{TEXT("MaxBoundsName"), MaxBoundsBaseName + ParamInfo.DataInterfaceHLSLSymbol},
-			{TEXT("SamplerName"), SamplerBaseName + ParamInfo.DataInterfaceHLSLSymbol}
-		};
+		TMap<FString, FStringFormatArg> ArgsSample;
+		ArgsSample.Add(TEXT("FunctionName"), InstanceFunctionName);
+		ArgsSample.Add(TEXT("TextureName"), TextureBaseName + ParamInfo.DataInterfaceHLSLSymbol);
+		ArgsSample.Add(TEXT("MinBoundsName"), MinBoundsBaseName + ParamInfo.DataInterfaceHLSLSymbol);
+		ArgsSample.Add(TEXT("MaxBoundsName"), MaxBoundsBaseName + ParamInfo.DataInterfaceHLSLSymbol);
+		ArgsSample.Add(TEXT("SamplerName"), SamplerBaseName + ParamInfo.DataInterfaceHLSLSymbol);
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
@@ -272,10 +270,9 @@ bool UNiagaraDataInterfaceVectorField::GetFunctionHLSL(const FName& DefinitionFu
 				Out_TilingAxes = {TilingAxesName};
 			}
 		)");
-		TMap<FString, FStringFormatArg> ArgsTilingAxes = {
-			{TEXT("FunctionName"), InstanceFunctionName},
-			{TEXT("TilingAxesName"), TilingAxesBaseName + ParamInfo.DataInterfaceHLSLSymbol}
-		};
+		TMap<FString, FStringFormatArg> ArgsTilingAxes;
+		ArgsTilingAxes.Add(TEXT("FunctionName"), InstanceFunctionName);
+		ArgsTilingAxes.Add(TEXT("TilingAxesName"), TilingAxesBaseName + ParamInfo.DataInterfaceHLSLSymbol);
 		OutHLSL += FString::Format(FormatTilingAxes, ArgsTilingAxes);
 		return true;
 	}
@@ -287,10 +284,9 @@ bool UNiagaraDataInterfaceVectorField::GetFunctionHLSL(const FName& DefinitionFu
 				Out_Dimensions = {DimensionsName};
 			}
 		)");
-		TMap<FString, FStringFormatArg> ArgsDimensions = {
-			{TEXT("FunctionName"), InstanceFunctionName},
-			{TEXT("DimensionsName"), DimensionsBaseName + ParamInfo.DataInterfaceHLSLSymbol}
-		};
+		TMap<FString, FStringFormatArg> ArgsDimensions;
+		ArgsDimensions.Add(TEXT("FunctionName"), InstanceFunctionName);
+		ArgsDimensions.Add(TEXT("DimensionsName"), DimensionsBaseName + ParamInfo.DataInterfaceHLSLSymbol);
 		OutHLSL += FString::Format(FormatDimensions, ArgsDimensions);
 		return true;
 	}
@@ -303,11 +299,10 @@ bool UNiagaraDataInterfaceVectorField::GetFunctionHLSL(const FName& DefinitionFu
 				Out_MaxBounds = {MaxBoundsName};
 			}
 		)");
-		TMap<FString, FStringFormatArg> ArgsBounds = {
-			{TEXT("FunctionName"), InstanceFunctionName},
-			{TEXT("MinBoundsName"), MinBoundsBaseName + ParamInfo.DataInterfaceHLSLSymbol},
-			{TEXT("MaxBoundsName"), MaxBoundsBaseName + ParamInfo.DataInterfaceHLSLSymbol}
-		};
+		TMap<FString, FStringFormatArg> ArgsBounds;
+		ArgsBounds.Add(TEXT("FunctionName"), InstanceFunctionName);
+		ArgsBounds.Add(TEXT("MinBoundsName"), MinBoundsBaseName + ParamInfo.DataInterfaceHLSLSymbol);
+		ArgsBounds.Add(TEXT("MaxBoundsName"), MaxBoundsBaseName + ParamInfo.DataInterfaceHLSLSymbol);
 		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
 		return true;
 	}
@@ -345,7 +340,7 @@ struct FNiagaraDataInterfaceParametersCS_VectorField : public FNiagaraDataInterf
 		//     1st bit: X-axis tiling flag
 		//     2nd bit: Y-axis tiling flag
 		//     3rd bit: Z-axis tiling flag
-		static FSamplerStateRHIParamRef SamplerStates[8] = { nullptr };
+		static FRHISamplerState* SamplerStates[8] = { nullptr };
 		if (SamplerStates[0] == nullptr)
 		{
 			SamplerStates[0] = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
@@ -359,7 +354,7 @@ struct FNiagaraDataInterfaceParametersCS_VectorField : public FNiagaraDataInterf
 		}
 
 		// Get shader and DI
-		const FComputeShaderRHIParamRef ComputeShaderRHI = Context.Shader->GetComputeShader();
+		FRHIComputeShader* ComputeShaderRHI = Context.Shader->GetComputeShader();
 		FNiagaraDataInterfaceProxyVectorField* VFDI = static_cast<FNiagaraDataInterfaceProxyVectorField*>(Context.DataInterface);
 		
 		// Note: There is a flush in PreEditChange to make sure everything is synced up at this point 
@@ -368,7 +363,7 @@ struct FNiagaraDataInterfaceParametersCS_VectorField : public FNiagaraDataInterf
 		SetTextureParameter(RHICmdList, ComputeShaderRHI, VectorFieldTexture, VFDI->TextureRHI); 
 		
 		// Get and set sampler state
-		FSamplerStateRHIParamRef SamplerState = SamplerStates[int(VFDI->bTileX) + 2 * int(VFDI->bTileY) + 4 * int(VFDI->bTileZ)];
+		FRHISamplerState* SamplerState = SamplerStates[int(VFDI->bTileX) + 2 * int(VFDI->bTileY) + 4 * int(VFDI->bTileZ)];
 		SetSamplerParameter(RHICmdList, ComputeShaderRHI, VectorFieldSampler, SamplerState);
 
 		//
@@ -498,14 +493,14 @@ void UNiagaraDataInterfaceVectorField::SampleVectorField(FVectorVMContext& Conte
 			const FVector4 OneOverBoundSize(FVector::OneVector / BoundSize, 1.0f);
 
 			// Math helper
-			static auto FVector4Clamp = [](FVector4 v, FVector4 a, FVector4 b) {
+			static auto FVector4Clamp = [](const FVector4& v, const FVector4& a, const FVector4& b) {
 				return FVector4(FMath::Clamp(v.X, a.X, b.X),
 					FMath::Clamp(v.Y, a.Y, b.Y),
 					FMath::Clamp(v.Z, a.Z, b.Z),
 					FMath::Clamp(v.W, a.W, b.W));
 			};
 
-			static auto FVector4Floor = [](FVector4 v) {
+			static auto FVector4Floor = [](const FVector4& v) {
 				return FVector4(FGenericPlatformMath::FloorToFloat(v.X),
 					FGenericPlatformMath::FloorToFloat(v.Y),
 					FGenericPlatformMath::FloorToFloat(v.Z),

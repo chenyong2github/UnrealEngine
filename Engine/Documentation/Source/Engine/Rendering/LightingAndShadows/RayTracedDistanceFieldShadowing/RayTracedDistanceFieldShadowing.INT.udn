@@ -16,13 +16,8 @@ Tags:Distance Fields
 Tags:Getting Started
 Topic-image:DistanceFieldShadowing_Topic.jpg
 Social-Image:DirectionalLightAreaShadows.jpg
+hero-image: DistanceFieldShadowing_Header.jpg
  
-
-[REGION:fullwidth raw]
-![](DistanceFieldShadowing_Header.jpg)
-[/REGION]
-
-[TOC(start:2 end:2)]
 
 Shadowing from movable light sources is provided using object Distance Fields for each rigid mesh to compute efficient area shadowing from dynamic light sources. In Unreal Engine 4 (UE4), this is 
 called **Ray Traced Distance Field Shadows** (RTDF). To calculate shadowing, a ray is traced from the point being shaded through the scene's Signed Distance Fields (SDF) toward each light.

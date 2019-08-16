@@ -20,11 +20,11 @@ FControlRigBindingTrackEditor::FControlRigBindingTrackEditor(TSharedRef<ISequenc
 }
 
 
-void FControlRigBindingTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const FGuid& ObjectBinding, const UClass* ObjectClass)
+void FControlRigBindingTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass)
 {
 	UMovieSceneSequence* MovieSequence = GetSequencer()->GetFocusedMovieSceneSequence();
 
-	if (!MovieSequence || MovieSequence->GetClass()->GetName() != TEXT("LevelSequence") || !MovieSequence->GetMovieScene()->FindSpawnable(ObjectBinding))
+	if (!MovieSequence || MovieSequence->GetClass()->GetName() != TEXT("LevelSequence") || !MovieSequence->GetMovieScene()->FindSpawnable(ObjectBindings[0]))
 	{
 		return;
 	}
@@ -34,8 +34,8 @@ void FControlRigBindingTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& Me
 		LOCTEXT("AddBindingTrackTooltip", "Adds a new track that controls the lifetime and binding of the animation controller."),
 		FSlateIcon(),
 		FUIAction(
-			FExecuteAction::CreateRaw(this, &FControlRigBindingTrackEditor::HandleAddBindingTrackMenuEntryExecute, ObjectBinding),
-			FCanExecuteAction::CreateSP(this, &FControlRigBindingTrackEditor::CanAddBindingTrack, ObjectBinding)
+			FExecuteAction::CreateRaw(this, &FControlRigBindingTrackEditor::HandleAddBindingTrackMenuEntryExecute, ObjectBindings),
+			FCanExecuteAction::CreateSP(this, &FControlRigBindingTrackEditor::CanAddBindingTrack, ObjectBindings[0])
 		)
 	);
 }
@@ -46,11 +46,16 @@ bool FControlRigBindingTrackEditor::SupportsType(TSubclassOf<UMovieSceneTrack> T
 	return (Type == UControlRigBindingTrack::StaticClass());
 }
 
-void FControlRigBindingTrackEditor::HandleAddBindingTrackMenuEntryExecute(FGuid ObjectBinding)
+void FControlRigBindingTrackEditor::HandleAddBindingTrackMenuEntryExecute(TArray<FGuid> ObjectBindings)
 {
 	FScopedTransaction AddSpawnTrackTransaction(LOCTEXT("AddBindingTrack_Transaction", "Add Binding Track"));
-	AddTrack(GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene(), ObjectBinding, UControlRigBindingTrack::StaticClass(), NAME_None);
-	GetSequencer()->NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::MovieSceneStructureItemAdded );
+
+	for (FGuid ObjectBinding : ObjectBindings)
+	{
+		AddTrack(GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene(), ObjectBinding, UControlRigBindingTrack::StaticClass(), NAME_None);
+	}
+	
+	GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
 
 	if (FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName)))
 	{

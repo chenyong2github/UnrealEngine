@@ -35,6 +35,7 @@
 #include "Serialization/Formatters/BinaryArchiveFormatter.h"
 #include "Serialization/Formatters/JsonArchiveInputFormatter.h"
 #include "Serialization/ArchiveUObjectFromStructuredArchive.h"
+#include "Serialization/LoadTimeTracePrivate.h"
 #include "HAL/FileManager.h"
 #include "UObject/CoreRedirects.h"
 
@@ -383,7 +384,9 @@ static FTexture2DResourceMem* CreateResourceMem(int32 SizeX, int32 SizeY, int32 
 
 static inline int32 HashNames(FName Object, FName Class, FName Package)
 {
-	return Object.GetComparisonIndex() + 7 * Class.GetComparisonIndex() + 31 * FPackageName::GetShortFName(Package).GetComparisonIndex();
+	return GetTypeHash(Object.GetComparisonIndex())
+		+ 7 * GetTypeHash(Class.GetComparisonIndex())
+		+ 31 * GetTypeHash(FPackageName::GetShortFName(Package).GetComparisonIndex());
 }
 
 static FORCEINLINE bool IsCoreUObjectPackage(const FName& PackageName)
@@ -466,10 +469,13 @@ void FLinkerLoad::SetLoader(FArchive* InLoader)
 
 	check(StructuredArchive == nullptr);
 	check(!StructuredArchiveRootRecord.IsSet());
-	check(StructuredArchiveFormatter == nullptr);
-	
-	// Create structured archive wrapper
-	StructuredArchiveFormatter = new FBinaryArchiveFormatter(*this);
+
+	if (StructuredArchiveFormatter == nullptr)
+	{
+		// Create structured archive wrapper
+		StructuredArchiveFormatter = new FBinaryArchiveFormatter(*this);
+	}
+
 	StructuredArchive = new FStructuredArchive(*StructuredArchiveFormatter);
 	StructuredArchiveRootRecord.Emplace(StructuredArchive->Open().EnterRecord());
 }
@@ -811,12 +817,11 @@ FLinkerLoad::FLinkerLoad(UPackage* InParent, const TCHAR* InFilename, uint32 InL
 , TemplateForGetArchetypeFromLoader(nullptr)
 , bForceSimpleIndexToObject(false)
 , bLockoutLegacyOperations(false)
-, bLoaderIsFArchiveAsync2(false)
+, bIsAsyncLoader(false)
 , StructuredArchive(nullptr)
 , StructuredArchiveFormatter(nullptr)
 , Loader(nullptr)
 , AsyncRoot(nullptr)
-, NameMapIndex(0)
 , GatherableTextDataMapIndex(0)
 , ImportMapIndex(0)
 , ExportMapIndex(0)
@@ -852,10 +857,12 @@ FLinkerLoad::FLinkerLoad(UPackage* InParent, const TCHAR* InFilename, uint32 InL
 #endif
 
 	OwnerThread = FPlatformTLS::GetCurrentThreadId();
+	TRACE_LOADTIME_NEW_LINKER(this);
 }
 
 FLinkerLoad::~FLinkerLoad()
 {
+	TRACE_LOADTIME_DESTROY_LINKER(this);
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 	FLinkerManager::Get().GetLiveLinkers().Remove(this);
 #endif
@@ -1011,12 +1018,12 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::CreateLoader(
 			else
 #endif
 			{
-				// If want to be able to load cooked data in the editor we need to use FArchiveAsync2 which supports EDL cooked packages,
+				// If want to be able to load cooked data in the editor we need to use FAsyncArchive which supports EDL cooked packages,
 				// otherwise the generic file reader is faster in the editor so use that
-				bool bCanUseFArchiveAsync2 = FPlatformProperties::RequiresCookedData() || GAllowCookedDataInEditorBuilds;
-				if (bCanUseFArchiveAsync2)
+				bool bCanUseAsyncLoader = FPlatformProperties::RequiresCookedData() || GAllowCookedDataInEditorBuilds;
+				if (bCanUseAsyncLoader)
 				{
-					Loader = new FArchiveAsync2(*Filename
+					Loader = new FAsyncArchive(*Filename
 							, GEventDrivenLoaderEnabled ? Forward<TFunction<void()>>(InSummaryReadyCallback) : TFunction<void()>([]() {})
 						);
 				}
@@ -1024,6 +1031,8 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::CreateLoader(
 				{
 					Loader = IFileManager::Get().CreateFileReader(*Filename);
 				}
+
+				TRACE_LOADTIME_LINKER_ARCHIVE_ASSOCIATION(this, Loader);
 
 				if (!Loader)
 				{
@@ -1065,7 +1074,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::CreateLoader(
 				}
 				else
 				{
-					bLoaderIsFArchiveAsync2 = bCanUseFArchiveAsync2;
+					bIsAsyncLoader = bCanUseAsyncLoader;
 				}
 			}
 		} 
@@ -1096,9 +1105,9 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::CreateLoader(
 		bool bExecuteNextStep = true;
 		if( bHasSerializedPackageFileSummary == false )
 		{
-			if (bLoaderIsFArchiveAsync2)
+			if (bIsAsyncLoader)
 			{
-				bExecuteNextStep = GetFArchiveAsync2Loader()->ReadyToStartReadingHeader(bUseTimeLimit, bUseFullTimeLimit, TickStartTime, TimeLimit);
+				bExecuteNextStep = GetAsyncLoader()->ReadyToStartReadingHeader(bUseTimeLimit, bUseFullTimeLimit, TickStartTime, TimeLimit);
 			}
 			else
 			{
@@ -1141,9 +1150,9 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummary()
 			UE_LOG(LogLinker, Warning, TEXT("The file '%s' contains unrecognizable data, check that it is of the expected type."), *Filename);
 			return LINKER_Failed;
 		}
-		if (bLoaderIsFArchiveAsync2)
+		if (bIsAsyncLoader)
 		{
-			GetFArchiveAsync2Loader()->StartReadingHeader();
+			GetAsyncLoader()->StartReadingHeader();
 		}
 
 #if WITH_EDITOR
@@ -1154,6 +1163,8 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummary()
 #endif
 		// Read summary from file.
 		StructuredArchiveRootRecord.GetValue() << NAMED_FIELD(Summary);
+
+		TRACE_LOADTIME_PACKAGE_SUMMARY(this, Summary.TotalHeaderSize, Summary.NameCount, Summary.ImportCount, Summary.ExportCount);
 
 		// Check tag.
 		if( Summary.Tag != PACKAGE_FILE_TAG )
@@ -1213,7 +1224,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummary()
 			if (!GAllowCookedDataInEditorBuilds)
 			{
 				UE_LOG(LogLinker, Warning, 
-					TEXT("Unable to load package (%s). Package contains cooked data which is not supported by the current build. Set [Core.System] AllowCookedDataInEditorBuilds to true in Engine.ini to allow it."), 
+					TEXT("Unable to load package (%s). Package contains cooked data which is not supported by the current build. Enable 'Allow Cooked Content In The Editor' in Project Settings under 'Engine - Cooker' section to load it."), 
 					*Filename);
 				return LINKER_Failed;
 			}
@@ -1385,69 +1396,62 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializeNameMap()
 {
 	DECLARE_SCOPE_CYCLE_COUNTER( TEXT( "FLinkerLoad::SerializeNameMap" ), STAT_LinkerLoad_SerializeNameMap, STATGROUP_LinkerLoad );
 
+	// Text archives don't have name tables
+	if (IsTextFormat())
+	{
+		return LINKER_Loaded;
+	}
+
 	// The name map is the first item serialized. We wait till all the header information is read
 	// before any serialization. @todo async, @todo seamless: this could be spread out across name,
 	// import and export maps if the package file summary contained more detailed information on
 	// serialized size of individual entries.
-	bool bFinishedPrecaching = true;
-
-	if( NameMapIndex == 0 && Summary.NameCount > 0 )
+	const int32 NameCount = Summary.NameCount;
+	if (NameMap.Num() == 0 && NameCount > 0)
 	{
-		if (!IsTextFormat())
-		{
-			Seek(Summary.NameOffset);
-		}
+		Seek(Summary.NameOffset);
 
 		// Make sure there is something to precache first.
-		if( Summary.TotalHeaderSize > 0 )
+		if (Summary.TotalHeaderSize > 0)
 		{
+			bool bFinishedPrecaching = true;
+
 			// Precache name, import and export map.
-			if (bLoaderIsFArchiveAsync2)
+			if (bIsAsyncLoader)
 			{
-				bFinishedPrecaching = GetFArchiveAsync2Loader()->ReadyToStartReadingHeader(bUseTimeLimit, bUseFullTimeLimit, TickStartTime, TimeLimit);
+				bFinishedPrecaching = GetAsyncLoader()->ReadyToStartReadingHeader(bUseTimeLimit, bUseFullTimeLimit, TickStartTime, TimeLimit);
 				check(!GEventDrivenLoaderEnabled || bFinishedPrecaching || !EVENT_DRIVEN_ASYNC_LOAD_ACTIVE_AT_RUNTIME);
 			}
 			else
 			{
 				bFinishedPrecaching = Loader->Precache(Summary.NameOffset, Summary.TotalHeaderSize - Summary.NameOffset);
 			}
-		}
-		// Backward compat code for VER_MOVED_EXPORTIMPORTMAPS_ADDED_TOTALHEADERSIZE.
-		else
-		{
-			bFinishedPrecaching = true;
+
+			if (!bFinishedPrecaching)
+			{
+				return LINKER_TimedOut;
+			}
 		}
 	}
 
-	FStructuredArchive::FStream NameStream = StructuredArchiveRootRecord->EnterStream(FIELD_NAME_TEXT("Names"));
-	const bool bIsTextFormat = StructuredArchiveRootRecord->GetUnderlyingArchive().IsTextFormat();
+	SCOPED_LOADTIMER(LinkerLoad_SerializeNameMap_ProcessingEntries);
 
-	NameMap.Reserve(Summary.NameCount);
-
-	while (bFinishedPrecaching && NameMapIndex < Summary.NameCount && !IsTimeLimitExceeded(TEXT("serializing name map"), 100))
+	NameMap.Reserve(NameCount);
+	FNameEntrySerialized NameEntry(ENAME_LinkerConstructor);
+	for (int32 Idx = NameMap.Num(); Idx < NameCount; ++Idx)
 	{
-		SCOPED_LOADTIMER(LinkerLoad_SerializeNameMap_ProcessingEntries);
+		*this << NameEntry;
+		NameMap.Emplace(FName(NameEntry).GetDisplayIndex());
 
-		FNameEntrySerialized NameEntry(ENAME_LinkerConstructor);
-
-		if (bIsTextFormat)
+		constexpr int32 TimeSliceGranularity = 128;
+		if (Idx % TimeSliceGranularity == TimeSliceGranularity - 1 && 
+			NameMap.Num() != NameCount && IsTimeLimitExceeded(TEXT("serializing name map")))
 		{
-			NameStream.EnterElement() << NameEntry;
+			return LINKER_TimedOut;
 		}
-		else
-		{
-			// Read the name from the underlying Archive when the format is binary to avoid the overhead from ArchiveProxy
-			NameStream.GetUnderlyingArchive() << NameEntry;
-		}
-
-		// Add it to the name table with no splitting and no hash calculations
-		NameMap.Emplace(NameEntry);
-
-		NameMapIndex++;
 	}
-
-	// Return whether we finished this step and it's safe to start with the next.
-	return ((NameMapIndex == Summary.NameCount) && !IsTimeLimitExceeded( TEXT("serializing name map") )) ? LINKER_Loaded : LINKER_TimedOut;
+	
+	return LINKER_Loaded;
 }
 
 /**
@@ -2082,9 +2086,9 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::FinalizeCreation()
 			}
 		}
 
-		if (bLoaderIsFArchiveAsync2)
+		if (bIsAsyncLoader)
 		{
-			GetFArchiveAsync2Loader()->EndReadingHeader();
+			GetAsyncLoader()->EndReadingHeader();
 		}
 
 		if ( !(LoadFlags & LOAD_NoVerify) )
@@ -3425,7 +3429,6 @@ UObject* FLinkerLoad::Create( UClass* ObjectClass, FName ObjectName, UObject* Ou
 
 void FLinkerLoad::Preload( UObject* Object )
 {
-
 	//check(IsValidLowLevel());
 	check(Object);
 
@@ -3512,14 +3515,14 @@ void FLinkerLoad::Preload( UObject* Object )
 				// is stored
 				Seek(Export.SerialOffset);
 
-				FArchiveAsync2* FAA2 = GetFArchiveAsync2Loader();
+				FAsyncArchive* AsyncLoader = GetAsyncLoader();
 
 				{
 					SCOPE_CYCLE_COUNTER(STAT_LinkerPrecache);
 					// tell the file reader to read the raw data from disk
-					if (FAA2)
+					if (AsyncLoader)
 					{
-						bool bReady = FAA2->Precache(Export.SerialOffset, Export.SerialSize, bUseTimeLimit, bUseFullTimeLimit, TickStartTime, TimeLimit);
+						bool bReady = AsyncLoader->PrecacheWithTimeLimit(Export.SerialOffset, Export.SerialSize, bUseTimeLimit, bUseFullTimeLimit, TickStartTime, TimeLimit);
 						UE_CLOG(!(bReady || !bUseTimeLimit || !FPlatformProperties::RequiresCookedData()), LogLinker, Warning, TEXT("Hitch on async loading of %s; this export was not properly precached."), *Object->GetFullName());
 					}
 					else
@@ -3532,6 +3535,7 @@ void FLinkerLoad::Preload( UObject* Object )
 				Object->ClearFlags ( RF_NeedLoad );
 
 				{
+					TRACE_LOADTIME_OBJECT_SCOPE(Export.Object, LoadTimeProfilerObjectEventType_Serialize);
 					SCOPE_CYCLE_COUNTER(STAT_LinkerSerialize);
 #if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 					// communicate with FLinkerPlaceholderBase, what object is currently serializing in
@@ -3863,6 +3867,8 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 	// Check whether we already loaded the object and if not whether the context flags allow loading it.
 	if( !Export.Object && !FilterExport(Export) ) // for some acceptable position, it was not "not for" 
 	{
+		TRACE_LOADTIME_CREATE_EXPORT_SCOPE(this, &Export.Object, Export.SerialOffset, Export.SerialSize, Export.bIsAsset);
+
 		FUObjectSerializeContext* CurrentLoadContext = GetSerializeContext();
 		check(!GEventDrivenLoaderEnabled || !bLockoutLegacyOperations || !EVENT_DRIVEN_ASYNC_LOAD_ACTIVE_AT_RUNTIME);
 		check(Export.ObjectName!=NAME_None || !(Export.ObjectFlags&RF_Public));
@@ -4754,10 +4760,10 @@ void FLinkerLoad::Detach()
 		CurrentLoadContext->RemoveDelayedLinkerClosePackage(this);
 	}
 
-		delete StructuredArchive;
-		StructuredArchive = nullptr;
-		delete StructuredArchiveFormatter;
-		StructuredArchiveFormatter = nullptr;
+	delete StructuredArchive;
+	StructuredArchive = nullptr;
+	delete StructuredArchiveFormatter;
+	StructuredArchiveFormatter = nullptr;
 
 	if (Loader)
 	{
@@ -4885,7 +4891,7 @@ FArchive& FLinkerLoad::operator<<( UObject*& Object )
 	return *this;
 }
 
-void FLinkerLoad::BadNameIndexError(NAME_INDEX NameIndex)
+void FLinkerLoad::BadNameIndexError(int32 NameIndex)
 {
 	UE_LOG(LogLinker, Error, TEXT("Bad name index %i/%i"), NameIndex, NameMap.Num());
 }
@@ -5115,6 +5121,20 @@ bool FLinkerLoad::RemoveKnownMissingPackage(FName PackageName)
 	return FCoreRedirects::RemoveKnownMissing(ECoreRedirectFlags::Type_Package, FCoreRedirectObjectName(NAME_None, NAME_None, PackageName));
 }
 
+void FLinkerLoad::OnNewFileAdded(const FString& Filename)
+{
+	FString PackageName;
+	if (FPackageName::TryConvertFilenameToLongPackageName(Filename, PackageName))
+	{
+		FName PackageFName(*PackageName);
+		if (FLinkerLoad::IsKnownMissingPackage(PackageFName))
+		{
+			FLinkerLoad::RemoveKnownMissingPackage(PackageFName);
+		}
+	}
+}
+
+
 void FLinkerLoad::AddGameNameRedirect(const FName OldName, const FName NewName)
 {
 	TArray<FCoreRedirect> NewRedirects;
@@ -5140,14 +5160,9 @@ bool AreObjectExportsEqualForDuplicateChecks(const FObjectExport& Lhs, const FOb
 bool ExportMapSorter(const FObjectExport& Lhs, const FObjectExport& Rhs)
 {
 	// Check names first.
-	if (Lhs.ObjectName < Rhs.ObjectName)
+	if (Lhs.ObjectName != Rhs.ObjectName)
 	{
-		return true;
-	}
-
-	if (Lhs.ObjectName > Rhs.ObjectName)
-	{
-		return false;
+		return Lhs.ObjectName.LexicalLess(Rhs.ObjectName);
 	}
 
 	// Names are equal, check classes.

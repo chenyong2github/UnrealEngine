@@ -38,11 +38,17 @@ void FEmitDefaultValueHelper::OuterGenerate(FEmitterLocalContext& Context
 	, const uint8* DataContainer
 	, const uint8* OptionalDefaultDataContainer
 	, EPropertyAccessOperator AccessOperator
-	, bool bAllowProtected)
+	, EPropertyGenerationControlFlags ControlFlags)
 {
 	check(Property);
 
-	if (Property->HasAnyPropertyFlags(CPF_EditorOnly | CPF_Transient))
+	const bool bAllowTransient = !!(ControlFlags & EPropertyGenerationControlFlags::AllowTransient);
+	const bool bAllowProtected = !!(ControlFlags & EPropertyGenerationControlFlags::AllowProtected);
+
+	// Don't allow these flags to propagate through to nested calls.
+	ControlFlags &= ~EPropertyGenerationControlFlags::AllowProtected;
+
+	if (Property->HasAnyPropertyFlags(CPF_EditorOnly) || (!bAllowTransient && Property->HasAnyPropertyFlags(CPF_Transient)) )
 	{
 		UE_LOG(LogK2Compiler, Verbose, TEXT("FEmitDefaultValueHelper Skip EditorOnly or Transient property: %s"), *Property->GetPathName());
 		return;
@@ -128,7 +134,7 @@ void FEmitDefaultValueHelper::OuterGenerate(FEmitterLocalContext& Context
 
 			const uint8* ValuePtr = Property->ContainerPtrToValuePtr<uint8>(DataContainer, ArrayIndex);
 			const uint8* DefaultValuePtr = OptionalDefaultDataContainer ? Property->ContainerPtrToValuePtr<uint8>(OptionalDefaultDataContainer, ArrayIndex) : nullptr;
-			InnerGenerate(Context, Property, PathToMember, ValuePtr, DefaultValuePtr);
+			InnerGenerate(Context, Property, PathToMember, ValuePtr, DefaultValuePtr, ControlFlags | EPropertyGenerationControlFlags::IncludeFirstConstructionLine);
 		}
 	}
 }
@@ -150,7 +156,7 @@ void FEmitDefaultValueHelper::GenerateUserStructConstructor(const UUserDefinedSt
 		TGuardValue<FCodeText*> OriginalDefaultTarget(Context.DefaultTarget, &Context.Body);
 		FStructOnScope StructData(Struct);
 		FUserStructOnScopeIgnoreDefaults RawDefaultStructOnScope(Struct);
-		for (auto Property : TFieldRange<const UProperty>(Struct))
+		for (const UProperty* Property : TFieldRange<const UProperty>(Struct))
 		{
 			// Since UDS types are converted to native USTRUCT, all POD fields must be initialized in the ctor, just as with "regular" native USTRUCT types.
 			const bool bForceInit = Property->HasAnyPropertyFlags(CPF_IsPlainOldData);
@@ -162,8 +168,13 @@ void FEmitDefaultValueHelper::GenerateUserStructConstructor(const UUserDefinedSt
 	Context.Body.AddLine(TEXT("}"));
 }
 
-void FEmitDefaultValueHelper::InnerGenerate(FEmitterLocalContext& Context, const UProperty* Property, const FString& PathToMember, const uint8* ValuePtr, const uint8* DefaultValuePtr, bool bWithoutFirstConstructionLine)
+void FEmitDefaultValueHelper::InnerGenerate(FEmitterLocalContext& Context, const UProperty* Property, const FString& PathToMember, const uint8* ValuePtr, const uint8* DefaultValuePtr, EPropertyGenerationControlFlags ControlFlags)
 {
+	const bool bWithoutFirstConstructionLine = !(ControlFlags & EPropertyGenerationControlFlags::IncludeFirstConstructionLine);
+
+	// Don't propagate this flag through to nested calls.
+	ControlFlags &= ~EPropertyGenerationControlFlags::IncludeFirstConstructionLine;
+
 	auto InlineValueStruct = [&](UScriptStruct* OuterStruct, const uint8* LocalValuePtr) -> UScriptStruct*
 	{ 
 		UScriptStruct* InnerStruct = FBackendHelperUMG::InlineValueStruct(OuterStruct, LocalValuePtr);
@@ -242,11 +253,12 @@ void FEmitDefaultValueHelper::InnerGenerate(FEmitterLocalContext& Context, const
 
 		const FString ActualPathToMember = InnerInlineStruct ? FString::Printf(TEXT("((%s*)%s.GetPtr())"), *FEmitHelper::GetCppName(InnerInlineStruct), *PathToMember) : PathToMember;
 
-		for (auto LocalProperty : TFieldRange<const UProperty>(ActualStruct))
+		for (const UProperty* LocalProperty : TFieldRange<const UProperty>(ActualStruct))
 		{
 			OuterGenerate(Context, LocalProperty, ActualPathToMember, ActualValuePtr
 				, (ActualDefaultValuePtr ? ActualDefaultValuePtr : DefaultStructOnScope.GetStructMemory())
-				, InnerInlineStruct ? EPropertyAccessOperator::Pointer : EPropertyAccessOperator::Dot);
+				, InnerInlineStruct ? EPropertyAccessOperator::Pointer : EPropertyAccessOperator::Dot
+				, ControlFlags);
 		}
 	}
 
@@ -275,7 +287,7 @@ void FEmitDefaultValueHelper::InnerGenerate(FEmitterLocalContext& Context, const
 		return bInitializeWithoutScriptStruct ? EStructConstructionType::EmptyConstructor : EStructConstructionType::Custom;
 	};
 
-	auto CreateElementSimple = [OneLineConstruction](FEmitterLocalContext& LocalContext, const UProperty* LocalProperty, const uint8* LocalValuePtr) -> FString
+	auto CreateElementSimple = [OneLineConstruction, ControlFlags](FEmitterLocalContext& LocalContext, const UProperty* LocalProperty, const uint8* LocalValuePtr) -> FString
 	{
 		FString ValueStr;
 		const bool bComplete = OneLineConstruction(LocalContext, LocalProperty, LocalValuePtr, ValueStr, true);
@@ -284,7 +296,7 @@ void FEmitDefaultValueHelper::InnerGenerate(FEmitterLocalContext& Context, const
 		{
 			const FString ElemLocName = LocalContext.GenerateUniqueLocalName();
 			LocalContext.AddLine(FString::Printf(TEXT("auto %s = %s;"), *ElemLocName, *ValueStr));
-			InnerGenerate(LocalContext, LocalProperty, ElemLocName, LocalValuePtr, nullptr, /*bWithoutFirstConstructionLine=*/true);
+			InnerGenerate(LocalContext, LocalProperty, ElemLocName, LocalValuePtr, nullptr, ControlFlags);
 			ValueStr = ElemLocName;
 		}
 		return ValueStr;
@@ -314,7 +326,7 @@ void FEmitDefaultValueHelper::InnerGenerate(FEmitterLocalContext& Context, const
 					const FString ArrayElementRefName = Context.GenerateUniqueLocalName();
 					Context.AddLine(FString::Printf(TEXT("auto& %s = %s[%d];"), *ArrayElementRefName, *PathToMember, Index));
 					// This is a Regular Struct (no special constructor), so we don't need to call constructor
-					InnerGenerate(Context, ArrayProperty->Inner, ArrayElementRefName, ScriptArrayHelper.GetRawPtr(Index), nullptr, /*bWithoutFirstConstructionLine=*/ true);
+					InnerGenerate(Context, ArrayProperty->Inner, ArrayElementRefName, ScriptArrayHelper.GetRawPtr(Index), nullptr, ControlFlags);
 				}
 			}
 			else
@@ -331,7 +343,7 @@ void FEmitDefaultValueHelper::InnerGenerate(FEmitterLocalContext& Context, const
 					if (!bComplete)
 					{
 						// The constructor was already called
-						InnerGenerate(Context, ArrayProperty->Inner, FString::Printf(TEXT("%s[%d]"), *PathToMember, Index), LocalValuePtr, nullptr, /*bWithoutFirstConstructionLine=*/ true);
+						InnerGenerate(Context, ArrayProperty->Inner, FString::Printf(TEXT("%s[%d]"), *PathToMember, Index), LocalValuePtr, nullptr, ControlFlags);
 					}
 				}
 			}
@@ -373,7 +385,7 @@ void FEmitDefaultValueHelper::InnerGenerate(FEmitterLocalContext& Context, const
 					const FString ElementName = Context.GenerateUniqueLocalName();
 					Context.AddLine(FString::Printf(TEXT("%s& %s = *(%s*)%s.GetElementPtr(%s.AddDefaultValue_Invalid_NeedsRehash());")
 						, *StructCppName, *ElementName, *StructCppName, *SetHelperName, *SetHelperName));
-					InnerGenerate(Context, StructProperty, ElementName, ScriptSetHelper.GetElementPtr(Index), nullptr, /*bWithoutFirstConstructionLine=*/true);
+					InnerGenerate(Context, StructProperty, ElementName, ScriptSetHelper.GetElementPtr(Index), nullptr, ControlFlags);
 				});
 				Context.AddLine(FString::Printf(TEXT("%s.Rehash();"), *SetHelperName));
 			}
@@ -441,7 +453,7 @@ void FEmitDefaultValueHelper::InnerGenerate(FEmitterLocalContext& Context, const
 						}
 						if (!bKeyComplete)
 						{
-							InnerGenerate(Context, MapProperty->KeyProp, KeyPath, ScriptMapHelper.GetKeyPtr(Index), nullptr, /*bWithoutFirstConstructionLine=*/true);
+							InnerGenerate(Context, MapProperty->KeyProp, KeyPath, ScriptMapHelper.GetKeyPtr(Index), nullptr, ControlFlags);
 						}
 					}
 
@@ -459,7 +471,7 @@ void FEmitDefaultValueHelper::InnerGenerate(FEmitterLocalContext& Context, const
 						}
 						if (!bValueComplete)
 						{
-							InnerGenerate(Context, MapProperty->ValueProp, ValuePath, ScriptMapHelper.GetValuePtr(Index), nullptr, /*bWithoutFirstConstructionLine=*/true);
+							InnerGenerate(Context, MapProperty->ValueProp, ValuePath, ScriptMapHelper.GetValuePtr(Index), nullptr, ControlFlags);
 						}
 					}
 
@@ -506,9 +518,9 @@ bool FEmitDefaultValueHelper::SpecialStructureConstructor(const UStruct* Struct,
 		if (OutResult)
 		{
 			const FTransform* Transform = reinterpret_cast<const FTransform*>(ValuePtr);
-			const auto Rotation = Transform->GetRotation();
-			const auto Translation = Transform->GetTranslation();
-			const auto Scale = Transform->GetScale3D();
+			const FQuat Rotation = Transform->GetRotation();
+			const FVector Translation = Transform->GetTranslation();
+			const FVector Scale = Transform->GetScale3D();
 			*OutResult = FString::Printf(TEXT("FTransform( FQuat(%s,%s,%s,%s), FVector(%s,%s,%s), FVector(%s,%s,%s) )"),
 				*FEmitHelper::FloatToString(Rotation.X), *FEmitHelper::FloatToString(Rotation.Y), *FEmitHelper::FloatToString(Rotation.Z), *FEmitHelper::FloatToString(Rotation.W),
 				*FEmitHelper::FloatToString(Translation.X), *FEmitHelper::FloatToString(Translation.Y), *FEmitHelper::FloatToString(Translation.Z),
@@ -867,7 +879,7 @@ struct FDefaultSubobjectData
 		// Now walk through the property list and initialize delta values for this instance. Any nested instanced default
 		// subobjects found above that are also assigned to a reference property will be correctly seen as already handled.
 		const UClass* ObjectClass = Object->GetClass();
-		for (auto Property : TFieldRange<const UProperty>(ObjectClass))
+		for (const UProperty* Property : TFieldRange<const UProperty>(ObjectClass))
 		{
 			if (!HandledAsSpecialProperty(Context, Property))
 			{
@@ -963,7 +975,7 @@ protected:
 
 			// Emit the C++ code needed to initialize the remainder of the struct's value within the component that's now being instanced as a default subobject within the converted context.
 			const FString PathToMember = FString::Printf(TEXT("%s->BodyInstance"), *VariableName);
-			FEmitDefaultValueHelper::InnerGenerate(Context, BodyInstanceProperty, PathToMember, (const uint8*)&Component->BodyInstance, BodyInstanceToCompare.GetStructMemory());
+			FEmitDefaultValueHelper::InnerGenerate(Context, BodyInstanceProperty, PathToMember, (const uint8*)&Component->BodyInstance, BodyInstanceToCompare.GetStructMemory(), FEmitDefaultValueHelper::EPropertyGenerationControlFlags::IncludeFirstConstructionLine);
 		}
 		else
 		{
@@ -974,7 +986,7 @@ protected:
 	}
 };
 
-struct FNonativeComponentData : public FDefaultSubobjectData
+struct FNonNativeComponentData : public FDefaultSubobjectData
 {
 	////
 	const USCS_Node* SCSNode;
@@ -982,13 +994,13 @@ struct FNonativeComponentData : public FDefaultSubobjectData
 	/** Socket/Bone that Component might attach to */
 	FName AttachToName;
 
-	FNonativeComponentData()
+	FNonNativeComponentData()
 		: SCSNode(nullptr)
 	{
 		bAddLocalScope = false;
 	}
 
-	virtual ~FNonativeComponentData()
+	virtual ~FNonNativeComponentData()
 	{
 	}
 
@@ -1017,7 +1029,7 @@ struct FNonativeComponentData : public FDefaultSubobjectData
 
 FString FEmitDefaultValueHelper::HandleNonNativeComponent(FEmitterLocalContext& Context, const USCS_Node* Node
 	, TSet<const UProperty*>& OutHandledProperties, TArray<FString>& NativeCreatedComponentProperties
-	, const USCS_Node* ParentNode, TArray<FNonativeComponentData>& ComponentsToInit
+	, const USCS_Node* ParentNode, TArray<FNonNativeComponentData>& ComponentsToInit
 	, bool bBlockRecursion)
 {
 	check(Node);
@@ -1050,10 +1062,10 @@ FString FEmitDefaultValueHelper::HandleNonNativeComponent(FEmitterLocalContext& 
 
 		if (ComponentTemplate->GetOuter() == BPGC)
 		{
-			FNonativeComponentData NonativeComponentData;
-			NonativeComponentData.SCSNode = Node;
-			NonativeComponentData.VariableName = NativeVariablePropertyName;
-			NonativeComponentData.Object = ComponentTemplate;
+			FNonNativeComponentData NonNativeComponentData;
+			NonNativeComponentData.SCSNode = Node;
+			NonNativeComponentData.VariableName = NativeVariablePropertyName;
+			NonNativeComponentData.Object = ComponentTemplate;
 			UClass* ComponentClass = ComponentTemplate->GetClass();
 			check(ComponentClass != nullptr);
 
@@ -1071,7 +1083,7 @@ FString FEmitDefaultValueHelper::HandleNonNativeComponent(FEmitterLocalContext& 
 					, *FEmitHelper::GetCppName(ComponentClass)
 					, *VariableCleanName));
 
-				NonativeComponentData.bWasCreated = true;
+				NonNativeComponentData.bWasCreated = true;
 				NativeCreatedComponentProperties.Add(NativeVariablePropertyName);
 
 				FString ParentVariableName;
@@ -1085,18 +1097,18 @@ FString FEmitDefaultValueHelper::HandleNonNativeComponent(FEmitterLocalContext& 
 				{
 					ParentVariableName = Context.FindGloballyMappedObject(ParentComponentTemplate, USceneComponent::StaticClass());
 				}
-				NonativeComponentData.ParentVariableName = ParentVariableName;
-				NonativeComponentData.AttachToName = Node->AttachToName;
+				NonNativeComponentData.ParentVariableName = ParentVariableName;
+				NonNativeComponentData.AttachToName = Node->AttachToName;
 			}
-			NonativeComponentData.Archetype = ObjectToCompare;
-			ComponentsToInit.Add(NonativeComponentData);
+			NonNativeComponentData.Archetype = ObjectToCompare;
+			ComponentsToInit.Add(NonNativeComponentData);
 		}
 	}
 
 	// Recursively handle child nodes.
 	if (!bBlockRecursion)
 	{
-		for (auto ChildNode : Node->ChildNodes)
+		for (USCS_Node* ChildNode : Node->ChildNodes)
 		{
 			HandleNonNativeComponent(Context, ChildNode, OutHandledProperties, NativeCreatedComponentProperties, Node, ComponentsToInit, bBlockRecursion);
 		}
@@ -1619,7 +1631,7 @@ void FEmitDefaultValueHelper::AddRegisterHelper(FEmitterLocalContext& Context)
 
 void FEmitDefaultValueHelper::GenerateCustomDynamicClassInitialization(FEmitterLocalContext& Context, TSharedPtr<FGatherConvertedClassDependencies> ParentDependencies)
 {
-	auto BPGC = CastChecked<UBlueprintGeneratedClass>(Context.GetCurrentlyGeneratedClass());
+	UBlueprintGeneratedClass* BPGC = CastChecked<UBlueprintGeneratedClass>(Context.GetCurrentlyGeneratedClass());
 	const FString CppClassName = FEmitHelper::GetCppName(BPGC);
 
 	{
@@ -1643,7 +1655,7 @@ void FEmitDefaultValueHelper::GenerateCustomDynamicClassInitialization(FEmitterL
 		{
 			Context.AddLine(TEXT("// List of all referenced converted enums"));
 		}
-		for (auto LocEnum : Context.Dependencies.ConvertedEnum)
+		for (UUserDefinedEnum* LocEnum : Context.Dependencies.ConvertedEnum)
 		{
 			Context.AddLine(FString::Printf(TEXT("InDynamicClass->%s.Add(LoadObject<UEnum>(nullptr, TEXT(\"%s\")));"), GET_MEMBER_NAME_STRING_CHECKED(UDynamicClass, ReferencedConvertedFields), *(LocEnum->GetPathName().ReplaceCharWithEscapedChar())));
 			Context.EnumsInCurrentClass.Add(LocEnum);
@@ -1653,7 +1665,7 @@ void FEmitDefaultValueHelper::GenerateCustomDynamicClassInitialization(FEmitterL
 		{
 			Context.AddLine(TEXT("// List of all referenced converted classes"));
 		}
-		for (auto LocStruct : Context.Dependencies.ConvertedClasses)
+		for (UBlueprintGeneratedClass* LocStruct : Context.Dependencies.ConvertedClasses)
 		{
 			UClass* ClassToLoad = Context.Dependencies.FindOriginalClass(LocStruct);
 			if (ensure(ClassToLoad))
@@ -1685,7 +1697,7 @@ void FEmitDefaultValueHelper::GenerateCustomDynamicClassInitialization(FEmitterL
 		{
 			Context.AddLine(TEXT("// List of all referenced converted structures"));
 		}
-		for (auto LocStruct : Context.Dependencies.ConvertedStructs)
+		for (UUserDefinedStruct* LocStruct : Context.Dependencies.ConvertedStructs)
 		{
 			if (ParentDependencies.IsValid() && ParentDependencies->ConvertedStructs.Contains(LocStruct))
 			{
@@ -1698,7 +1710,7 @@ void FEmitDefaultValueHelper::GenerateCustomDynamicClassInitialization(FEmitterL
 
 		TArray<UActorComponent*> ActorComponentTempatesOwnedByClass = BPGC->ComponentTemplates;
 		// Gather all CT from SCS and IH, the remaining ones are generated for class..
-		if (auto SCS = BPGC->SimpleConstructionScript)
+		if (USimpleConstructionScript* SCS = BPGC->SimpleConstructionScript)
 		{
 			// >>> This code should be removed, once UE-39168 is fixed
 			//TODO: it's an ugly workaround - template from DefaultSceneRootNode is unnecessarily cooked :(
@@ -1709,12 +1721,12 @@ void FEmitDefaultValueHelper::GenerateCustomDynamicClassInitialization(FEmitterL
 			}
 			// <<< This code should be removed, once UE-39168 is fixed
 
-			for (auto Node : SCS->GetAllNodes())
+			for (USCS_Node* Node : SCS->GetAllNodes())
 			{
 				ActorComponentTempatesOwnedByClass.RemoveSwap(Node->ComponentTemplate);
 			}
 		}
-		if (auto IH = BPGC->GetInheritableComponentHandler())
+		if (UInheritableComponentHandler* IH = BPGC->GetInheritableComponentHandler())
 		{
 			TArray<UActorComponent*> AllTemplates;
 			IH->GetAllTemplates(AllTemplates);
@@ -1734,7 +1746,7 @@ void FEmitDefaultValueHelper::GenerateCustomDynamicClassInitialization(FEmitterL
 
 		auto CreateAndInitializeClassSubobjects = [&](bool bCreate, bool bInitialize)
 		{
-			for (auto ComponentTemplate : ActorComponentTempatesOwnedByClass)
+			for (UActorComponent* ComponentTemplate : ActorComponentTempatesOwnedByClass)
 			{
 				if (ComponentTemplate)
 				{
@@ -1742,7 +1754,7 @@ void FEmitDefaultValueHelper::GenerateCustomDynamicClassInitialization(FEmitterL
 				}
 			}
 
-			for (auto TimelineTemplate : BPGC->Timelines)
+			for (UTimelineTemplate* TimelineTemplate : BPGC->Timelines)
 			{
 				if (TimelineTemplate)
 				{
@@ -1750,7 +1762,7 @@ void FEmitDefaultValueHelper::GenerateCustomDynamicClassInitialization(FEmitterL
 				}
 			}
 
-			for (auto DynamicBindingObject : BPGC->DynamicBindingObjects)
+			for (UDynamicBlueprintBinding* DynamicBindingObject : BPGC->DynamicBindingObjects)
 			{
 				if (DynamicBindingObject)
 				{
@@ -1811,7 +1823,7 @@ void FEmitDefaultValueHelper::GenerateConstructor(FEmitterLocalContext& Context)
 
 		// Subobjects that must be fixed after serialization
 		TArray<FDefaultSubobjectData> SubobjectsToInit;
-		TArray<FNonativeComponentData> ComponentsToInit;
+		TArray<FNonNativeComponentData> ComponentsToInit;
 
 		{
 			Context.AddLine(TEXT(""));
@@ -1823,7 +1835,7 @@ void FEmitDefaultValueHelper::GenerateConstructor(FEmitterLocalContext& Context)
 			// @TODO - We can probably make this faster by generating code to directly index through the DSO array instead (i.e. in place of HandleInstancedSubobject which will generate a lookup call per DSO).
 			TArray<UObject*> NativeDefaultObjectSubobjects;
 			BPGC->GetDefaultObjectSubobjects(NativeDefaultObjectSubobjects);
-			for (auto DSO : NativeDefaultObjectSubobjects)
+			for (UObject* DSO : NativeDefaultObjectSubobjects)
 			{
 				if (DSO && DSO->GetClass()->HasAnyClassFlags(CLASS_DefaultToInstanced))
 				{
@@ -1851,7 +1863,7 @@ void FEmitDefaultValueHelper::GenerateConstructor(FEmitterLocalContext& Context)
 			}
 
 			// Emit the code to initialize all instanced default subobjects now referenced by a local variable.
-			for (auto& DSOEntry : SubobjectsToInit)
+			for (FDefaultSubobjectData& DSOEntry : SubobjectsToInit)
 			{
 				DSOEntry.EmitPropertyInitialization(Context);
 			}
@@ -1913,7 +1925,7 @@ void FEmitDefaultValueHelper::GenerateConstructor(FEmitterLocalContext& Context)
 						{
 							if (Node)
 							{
-								const bool bNodeWasProcessed = nullptr != ComponentsToInit.FindByPredicate([=](const FNonativeComponentData& InData) { return Node == InData.SCSNode; });
+								const bool bNodeWasProcessed = nullptr != ComponentsToInit.FindByPredicate([=](const FNonNativeComponentData& InData) { return Node == InData.SCSNode; });
 								if (!bNodeWasProcessed)
 								{
 									HandleNonNativeComponent(Context, Node, HandledProperties, NativeCreatedComponentProperties, nullptr, ComponentsToInit, true);
@@ -1924,14 +1936,14 @@ void FEmitDefaultValueHelper::GenerateConstructor(FEmitterLocalContext& Context)
 					}
 				}
 
-				for (auto& ComponentToInit : ComponentsToInit)
+				for (FNonNativeComponentData& ComponentToInit : ComponentsToInit)
 				{
 					ComponentToInit.EmitPropertyInitialization(Context);
 				}
 			}
 
 			// Collect all anim node properties
-			for (auto Property : TFieldRange<const UProperty>(BPGC))
+			for (const UProperty* Property : TFieldRange<const UProperty>(BPGC))
 			{
 				if (!HandledProperties.Contains(Property))
 				{
@@ -1949,14 +1961,14 @@ void FEmitDefaultValueHelper::GenerateConstructor(FEmitterLocalContext& Context)
 			}
 
 			// Generate ctor init code for generated Blueprint class property values that may differ from parent class defaults (or that otherwise belong to the generated Blueprint class).
-			for (auto Property : TFieldRange<const UProperty>(BPGC))
+			for (const UProperty* Property : TFieldRange<const UProperty>(BPGC))
 			{
 				if (!HandledProperties.Contains(Property))
 				{
 					if(!FBackendHelperAnim::ShouldAddAnimNodeInitializationFunctionCall(Context, Property))
 					{
 						const bool bNewProperty = Property->GetOwnerStruct() == BPGC;
-						OuterGenerate(Context, Property, TEXT(""), reinterpret_cast<const uint8*>(CDO), bNewProperty ? nullptr : reinterpret_cast<const uint8*>(ParentCDO), EPropertyAccessOperator::None, true);
+						OuterGenerate(Context, Property, TEXT(""), reinterpret_cast<const uint8*>(CDO), bNewProperty ? nullptr : reinterpret_cast<const uint8*>(ParentCDO), EPropertyAccessOperator::None, EPropertyGenerationControlFlags::AllowProtected);
 					}
 				}
 			}
@@ -1989,7 +2001,7 @@ void FEmitDefaultValueHelper::GenerateConstructor(FEmitterLocalContext& Context)
 	Context.AddLine(TEXT("{"));
 	Context.IncreaseIndent();
 	Context.AddLine(FString::Printf(TEXT("Super::%s(OuterInstanceGraph);"), GET_FUNCTION_NAME_STRING_CHECKED(UObject, PostLoadSubobjects)));
-	for (auto& ComponentToFix : NativeCreatedComponentProperties)
+	for (FString& ComponentToFix : NativeCreatedComponentProperties)
 	{
 		Context.AddLine(FString::Printf(TEXT("if(%s)"), *ComponentToFix));
 		Context.AddLine(TEXT("{"));
@@ -2070,8 +2082,8 @@ FString FEmitDefaultValueHelper::HandleClassSubobject(FEmitterLocalContext& Cont
 		
 		if (ensure(!LocalNativeName.IsEmpty()))
 		{
-			auto CDO = Object->GetClass()->GetDefaultObject(false);
-			for (auto Property : TFieldRange<const UProperty>(Object->GetClass()))
+			UObject* CDO = Object->GetClass()->GetDefaultObject(false);
+			for (const UProperty* Property : TFieldRange<const UProperty>(Object->GetClass()))
 			{
 				OuterGenerate(Context, Property, LocalNativeName
 					, reinterpret_cast<const uint8*>(Object)
@@ -2124,8 +2136,8 @@ FString FEmitDefaultValueHelper::HandleInstancedSubobject(FEmitterLocalContext& 
 		}
 	}
 
-	auto BPGC = Context.GetCurrentlyGeneratedClass();
-	auto CDO = BPGC ? BPGC->GetDefaultObject(false) : nullptr;
+	UClass* BPGC = Context.GetCurrentlyGeneratedClass();
+	UObject* CDO = BPGC ? BPGC->GetDefaultObject(false) : nullptr;
 
 	FString OuterStr;
 	if (ensure(CDO) && (CDO == Object->GetOuter()))

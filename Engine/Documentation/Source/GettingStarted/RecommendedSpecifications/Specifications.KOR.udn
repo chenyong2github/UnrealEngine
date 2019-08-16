@@ -1,297 +1,337 @@
-﻿INTSourceChangelist:3810557
-Availability:Public
-Title:하드웨어 & 소프트웨어 사양
-SEO-Title:하드웨어 & 소프트웨어 사양
-Crumbs: %ROOT%, GettingStarted
-Description:언리얼 엔진으로 개발하는 데 있어 최소/추천 하드웨어 사양과 필수 소프트웨어 입니다.
-version: 4.18
-Type:reference
-Parent:GettingStarted
-Order:
-Tags:Specifications
+﻿INTSourceChangelist:6536723
+Availability: Public
+Title: 하드웨어 및 소프트웨어 사양
+Description: 언리얼 엔진으로 개발할 때 필요한 최소 및 권장 하드웨어 사양과 필요한 소프트웨어 정보입니다.
+Type: reference
+Version: 4.22
+Parent: GettingStarted
+Tags: Specifications
+Tags: Pre-requisites
+Order: 0
 
-%Globals:OSSelect_Linux%
+[TOC]
 
-[TOC(start:2)]
+언리얼 엔진에는 에디터를 실행하기위한 몇 가지 특정 하드웨어 및 소프트웨어 요구 사항이 있습니다. 여기서는 이러한 요구 사항은 물론 언리얼 엔진 인스톨러에 포함된 필수 구성 요소 설치 관리자가 설치하는 내용을 설명합니다.
 
-[EXCERPT:Main]
-[INCLUDE:#Intro]
-
-## 추천 하드웨어 사양
+## 권장 하드웨어
 
 [OBJECT:ToggleButtonContent]
-	[PARAMLITERAL:category]
-	OS
-	[/PARAMLITERAL]
-	[PARAMLITERAL:id]
-	windows
-	[/PARAMLITERAL]
-	[PARAMLITERAL:active]
-	active_button_content
-	[/PARAMLITERAL]
-	[PARAM:content]
-	[INCLUDE:#windowsminhardware]
-	[/PARAM]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    windows
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_1]
+    [/PARAM]
 [/OBJECT]
-[OBJECT:ToggleButtonContent]
-	[PARAMLITERAL:category]
-	OS
-	[/PARAMLITERAL]
-	[PARAMLITERAL:id]
-	mac
-	[/PARAMLITERAL]
-	[PARAMLITERAL:active]
-	[/PARAMLITERAL]
-	[PARAM:content]
-	[INCLUDE:#macosminhardware]
-	[/PARAM]
-[/OBJECT]
-[OBJECT:ToggleButtonContent]
-	[PARAMLITERAL:category]
-	OS
-	[/PARAMLITERAL]
-	[PARAMLITERAL:id]
-	linux
-	[/PARAMLITERAL]
-	[PARAMLITERAL:active]
-	[/PARAMLITERAL]
-	[PARAM:content]
-	[INCLUDE:#linuxminhardware]
-	[/PARAM]
-[/OBJECT]
-
-
-[PUBLISH:Licensee]
-[REGION:note]
-**주:** 네트워킹 코드 작업을 하는 경우 듀얼 프로세서 구성이 매우 유용합니다. 같은 컴퓨터에서 빠른 속도로 서버와 클라이언트를 동시에 구동시킬 수 있기 때문입니다.
-[/REGION]
-[/PUBLISH:Licensee]
-
-## 최소 소프트웨어 사양
-
-엔진이나 에디터 실행에 필요한 소프트웨어는 아래와 같습니다.
-
-(#MinSoftwareReqs)
-
-[OBJECT:ToggleButtonContent]
-	[PARAMLITERAL:category]
-	OS
-	[/PARAMLITERAL]
-	[PARAMLITERAL:id]
-	windows
-	[/PARAMLITERAL]
-	[PARAMLITERAL:active]
-	active_button_content
-	[/PARAMLITERAL]
-	[PARAM:content]
-	[INCLUDE:#windowsminsoftware]
-	[/PARAM]
-[/OBJECT]
-[OBJECT:ToggleButtonContent]
-	[PARAMLITERAL:category]
-	OS
-	[/PARAMLITERAL]
-	[PARAMLITERAL:id]
-	mac
-	[/PARAMLITERAL]
-	[PARAMLITERAL:active]
-	[/PARAMLITERAL]
-	[PARAM:content]
-	[INCLUDE:#macosminsoftware]
-	[/PARAM]
-[/OBJECT]
-[OBJECT:ToggleButtonContent]
-	[PARAMLITERAL:category]
-	OS
-	[/PARAMLITERAL]
-	[PARAMLITERAL:id]
-	linux
-	[/PARAMLITERAL]
-	[PARAMLITERAL:active]
-	[/PARAMLITERAL]
-	[PARAM:content]
-	[INCLUDE:#linuxminsoftware]
-	[/PARAM]
-[/OBJECT]
-
-[PUBLISH:Licensee]
-[REGION:note]
-**주:** `//depot/UE4/Engine/Extras/Redist/en-us` 에 있는 `UE4PrereqSetup.msi` 를 실행시키면 언리얼 엔진에 필요한 소프트웨어, 이를테면 앞서 언급한 DirectX 나 VC++ 런타임같은 것을 설치합니다.
-[/REGION]
-[/PUBLISH:Licensee]
-
-
-엔진으로 개발하는 프로그래머용 필수 소프트웨어는 아래와 같습니다.
-
-[OBJECT:ToggleButtonContent]
-	[PARAMLITERAL:category]
-	OS
-	[/PARAMLITERAL]
-	[PARAMLITERAL:id]
-	windows
-	[/PARAMLITERAL]
-	[PARAMLITERAL:active]
-	active_button_content
-	[/PARAMLITERAL]
-	[PARAM:content]
-	[INCLUDE:#windowsmindevelopment]
-	[/PARAM]
-[/OBJECT]
-[OBJECT:ToggleButtonContent]
-	[PARAMLITERAL:category]
-	OS
-	[/PARAMLITERAL]
-	[PARAMLITERAL:id]
-	mac
-	[/PARAMLITERAL]
-	[PARAMLITERAL:active]
-	[/PARAMLITERAL]
-	[PARAM:content]
-	[INCLUDE:#macosmindevelopment]
-	[/PARAM]
-[/OBJECT]
-[OBJECT:ToggleButtonContent]
-	[PARAMLITERAL:category]
-	OS
-	[/PARAMLITERAL]
-	[PARAMLITERAL:id]
-	linux
-	[/PARAMLITERAL]
-	[PARAMLITERAL:active]
-	[/PARAMLITERAL]
-	[PARAM:content]
-	[INCLUDE:#linuxmindevelopment]
-	[/PARAM]
-[/OBJECT]
-
-
-
-[PUBLISH:Licensee]
-## 그래픽 카드 드라이버
-
-현재로서는 각 카드 제조사의 최신 안정 드라이버를 사용하실 것을 추천합니다:
-
-* [NVIDIA 드라이버 다운로드](http://www.nvidia.co.kr/Download/index.aspx?lang=kr)
-* [AMD 드라이버 다운로드](http://support.amd.com/ko-kr/download)
-
-
-## 퍼포먼스 참고
-
-VTune 은 퍼포먼스 문제를 찾아내는 데 매우 유용한 툴이지만, 인텔 CPU 에서만 작동합니다.
-
-아래는 에픽의 프로그래머와 아티스트가 사용하는 전형적인 시스템 사양입니다. 언리얼 엔진 4 로 게임을 개발하는 데 있어 좋은 기반이 됩니다.
-
-**프로그래머:**
-
-* Windows 7 64-비트
-* 듀얼 프로세서 - 6 코어 - Intel Xeon X5660 @ 2.8GHz
-* 24GB RAM
-* 300GB 10K SATA (OS)
-* 2X 300GB 10K SATA (데이터용 RAID0)
-* NVIDIA Geforce 470 - 580
-
-
-**아티스트/렙디:**
-
-* Windows 7 64-비트
-* 듀얼 프로세서 - 쿼드 코어 - Intel Xeon X5472 @ 3.0GHz
-* 16GB RAM
-* 500GB SATA (OS)
-* 2X 500GB SATA (데이터용 RAID0)
-* NVIDIA Geforce 580
-
-
-[REGION:note]
-	기본적으로 병목현상은 I/O 에서 발생하므로, RAID 0 이나 램을 많이 확보하면 큰 도움이 됩니다.
-[/REGION]
-[/PUBLISH:Licensee]
-[/EXCERPT:Main]
-[COMMENT:none]
-[EXCERPT:Intro]
-언리얼 엔진으로 개발을 하거나 게임 및 에디터를 실행시키는 데는 일정 수준의 하드웨어 사양과 소프트웨어가 필요합니다.
-[/EXCERPT:Intro]
-[EXCERPT:VS]
-Visual Studio 2015 Professional 또는 Visual Studio 2015 Community:
-
-* [Pro](https://www.visualstudio.com/downloads/download-visual-studio-vs)
-* [Community](https://www.visualstudio.com/en-us/products/visual-studio-community-vs.aspx)
-
-[/EXCERPT:VS]
-[EXCERPT:WindowsMinDevelopment]
-| 엔진으로 개발 ||
-| -------- | --- |
-| **'엔진 실행' 에 필요한 모든 요건 (자동 설치)** ||
-| **Visual Studio 버전** | [INCLUDE:#VS] |
-| [REGION:tablesection]iOS 개발[/REGION] ||
-| **iTunes 버전** | [iTunes 11 이상](http://www.apple.com/itunes/) |
-[/EXCERPT:WindowsMinDevelopment]
-[EXCERPT:MacOSMinDevelopment]
-| 엔진으로 개발 ||
-| -------- | --- |
-| **Xcode 버전** | 9.0 [REGION:note]Xcode 버전이 올바른지 확인하려면 터미널 창에 다음 명령을 입력하세요: `sudo xcode-select -s /Applications/Xcode-beta.app/Contents/Developer`[/REGION] |
-[/EXCERPT:MacOSMinDevelopment]
-[EXCERPT:LinuxMinDevelopment]
-| 엔진으로 개발 ||
-| -------- | --- |
-| **운영 체제** | Ubuntu 15.04  |
-| **컴파일러** | clang 3.5.x 또는 3.6.x  |
-| [REGION:tablesection]옵션[/REGION] ||
-| **IDE** | QtCreator 3.1 또는 KDevelop 4.6|
-| **빌드 시스템** | CMake 2.8 |
-[/EXCERPT:LinuxMinDevelopment]
-[EXCERPT:WindowsMinSoftware]
-| 엔진 실행 ||
-| -------- | --- |
-| **운영 체제** | Windows 7/8 64-비트 |
-| **DirectX Runtime** | [DirectX End-User Runtimes (June 2010)](http://www.microsoft.com/en-us/download/details.aspx?id=8109) |
-
-[/EXCERPT:WindowsMinSoftware]
-
-[EXCERPT:MacOSMinSoftware]
-| 엔진 실행 ||
-| -------- | --- |
-| **운영 체제** | macOS 10.12.6 Sierra  |
-[/EXCERPT:MacOSMinSoftware]
-
-[EXCERPT:LinuxMinSoftware]
-| 엔진 실행 ||
-| -------- | --- |
-| **운영 체제** | 적합한 신형 Linux 배포판 (최신 테스트 버전은 CentOS 6.x)  |
-| **Linux Kernel 버전** | kernel 2.6.32 이상 |
-| **부가 종속성** | glibc 2.12.2 이상  |
-[/EXCERPT:LinuxMinSoftware]
-
-[EXCERPT:WER]
-[REGION:note]
-UE4 의 크래시 리포트 기능은 **Windows Error Reporting** (Windows 오류 보고) 기능이 켜져있어야 하며, 기본 설정되어 있습니다. 이 기능을 껐다면, 켜주시기 바랍니다.
-[/REGION]
-[/EXCERPT:WER]
-
-[EXCERPT:VCRuntime]
-[Visual Studio C++ 2015 Redist](https://www.microsoft.com/en-us/download/details.aspx?id=48145)
-[/EXCERPT:VCRuntime]
-[EXCERPT:WindowsMinHardware]
+<!--
+[EXCERPT:excerpt_1]
+  
 |||
-| -------- | --- |
-| **운영 체제** | Windows 7/8 64-bit |
-| **프로세서** | 쿼드코어 Intel 또는 AMD, 2.5 GHz 이상 |
-| **메모리** | 8 GB RAM |
-| **비디오 카드/DirectX 버전** | DirectX 11 호환 그래픽 카드 |
-[/EXCERPT:WindowsMinHardware]
-[EXCERPT:MacOSMinHardware]
+| --- | --- |
+| **운영 체제** | Windows 10 64 비트 |
+| **프로세서** | 쿼드 코어 Intel 또는 AMD, 2.5GHz 이상 |
+| **메모리** | 8GB RAM |
+| **비디오 카드/DirectX 버전** | DirectX 11 또는 DirectX 12 호환 그래픽 카드 |
+
+[/EXCERPT:excerpt_1]
+-->
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    mac
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_2]
+    [/PARAM]
+[/OBJECT]
+<!--
+[EXCERPT:excerpt_2]
+  
 |||
-| -------- | --- |
-| **운영 체제** | macOS 10.13 High Sierra  |
-| **프로세서** | 쿼드코어 Intel, 2.5 GHz 이상 |
+| --- | --- |
+| **운영 체제** | macOS 10.14 Mojave |
+| **프로세서** | 쿼드 코어 Intel, 2.5GHz 이상 |
 | **메모리** | 8 GB RAM |
 | **비디오 카드** | Metal 1.2 호환 그래픽 카드 |
-[/EXCERPT:MacOSMinHardware]
-[EXCERPT:LinuxMinHardware]
+
+[/EXCERPT:excerpt_2]
+-->
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    linux
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_3]
+    [/PARAM]
+[/OBJECT]
+<!--
+[EXCERPT:excerpt_3]
+
+  
 |||
-| -------- | --- |
-| **운영 체제** | Ubuntu 15.04  |
-| **프로세서** | 쿼드코어 Intel 또는 AMD, 2.5 GHz 이상 |
-| **메모리** | 16 GB RAM |
-| **비디오 카드** | 	NVIDIA GeForce 470 GTX 이상, 최신 NVIDIA 바이너리 드라이버 |
-[/EXCERPT:LinuxMinHardware]
-[/COMMENT]
+| --- | --- |
+| **운영 체제** | Ubuntu 18.04 |
+| **프로세서** | 쿼드 코어 Intel 또는 AMD, 2.5GHz 이상 |
+| **메모리** | 8 GB RAM |
+| **비디오 카드** | NVIDIA GeForce 960 GTX 이상에 최신 NVIDIA 바이너리 드라이버 |
+
+[/EXCERPT:excerpt_3]
+-->
+
+## 소프트웨어 최소 사양
+
+엔진 또는 에디터 실행을 위한 최소 사양은 다음과 같습니다.
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    windows
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_4]
+    [/PARAM]
+[/OBJECT]
+<!--
+[EXCERPT:excerpt_4]
+
+  
+| 엔진 실행 ||
+| --- | --- |
+| **운영 체제** | Windows 7 |
+| ** DirectX 런타임 ** | [DirectX 최종 사용자 런타임 (2010 년 6 월)](http://www.microsoft.com/en-us/download/details.aspx) |
+
+[/EXCERPT:excerpt_4]
+-->
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    mac
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_5]
+    [/PARAM]
+[/OBJECT]
+<!--
+[EXCERPT:excerpt_5]
+
+  
+| 엔진 실행 ||
+| --- | --- |
+| **운영 체제** | macOS 10.14 Mojave |
+
+[/EXCERPT:excerpt_5]
+-->
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    linux
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_6]
+    [/PARAM]
+[/OBJECT]
+<!--
+[EXCERPT:excerpt_6]
+
+  
+| 엔진 실행 ||
+| --- | --- |
+| **운영 체제** | CentOS 7.x 이상의 새로운 Linux 배포판 |
+| **Linux 커널 버전** | 커널 3.x 이상 |
+| **추가 종속성** | glibc 2.17 이상 |
+
+[/EXCERPT:excerpt_6]
+-->
+
+엔진으로 개발하는 프로그래머용 사양은 다음과 같습니다.
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    windows
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_7]
+    [/PARAM]
+[/OBJECT]
+<!--
+[EXCERPT:excerpt_7]
+
+  
+| 엔진으로 개발 ||
+| --- | --- |
+| **모든 '엔진 실행' 요구사항 (자동 설치)** ||
+| **Visual Studio 버전** | [INCLUDE:#excerpt_0] |
+| [REGION:tablesection]iOS 개발[/REGION] ||
+| **iTunes 버전** | [iTunes 11 이상](http://www.apple.com/itunes/) |
+
+[/EXCERPT:excerpt_7]
+-->
+<!--
+[EXCERPT:excerpt_0]
+
+*   Visual Studio 2017 v15.6 이상 (권장)
+
+*   Visual Studio 2019
+
+[/EXCERPT:excerpt_0]
+-->
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    mac
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_8]
+    [/PARAM]
+[/OBJECT]
+<!--
+[EXCERPT:excerpt_8]
+
+| 엔진으로 개발 ||
+| --- | --- |
+| **Xcode Version** | 9.4 |
+
+[/EXCERPT:excerpt_8]
+-->
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    linux
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_9]
+    [/PARAM]
+[/OBJECT]
+<!--
+[EXCERPT:excerpt_9]
+
+  
+| 엔진으로 개발 ||
+| --- | --- |
+| **운영 체제** | Ubuntu 18.04 |
+| **컴파일러** | clang 6.0.1 |
+| [REGION:tablesection]옵션[/REGION] ||
+| **IDE** | Visual Studio Code, CLion, QtCreator |
+
+[/EXCERPT:excerpt_9]
+-->
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    windows
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_10]
+    [/PARAM]
+[/OBJECT]
+<!--
+[EXCERPT:excerpt_10]
+
+## 필수 구성 요소 설치 관리자가 설치한 소프트웨어
+
+언리얼 엔진에는 필수 구성 요소 설치 관리자가 포함되어 있어, 다양한 Direct X 구성 요소는 물론 Visual C++ 재배포판을 설치합니다. 필수 구성 요소 설치 관리자 위치는 Perforce 에서 `Engine/Extras/Redist/en-us` 이며, 32 비트 및 64 비트 Windows 버전이 있습니다. 에디터 실행에 필요한 모든 것이 포함되어 있으며, 런처가 자동 설치합니다. 그 소스 위치는 `Engine/Source/Programs/PrereqInstaller` 입니다. 아래 표는 필수 구성 요소 설치 관리자에 포함된 소프트웨어 목록입니다.
+
+   
+| Direct X 구성 요소 | Visual C++ 재배포 |
+| :-- | :-- |
+| XInput 1.3 (April 2007) | Visual C++ 2010 CRT |
+| X3DAudio 1.7 (February 2010) | Visual C++ 2010 OpenMP library |
+| XAudio 2.7 (June 2010) | Visual C++ 2012 CRT |
+| D3D Compiler 4.3 (June 2010) | Visual C++ 2013 CRT |
+| D3DCSX 4.3 (June 2010) | Visual C++ 2015 CRT |
+| D3DX9 4.3 (June 2010) |  |
+| D3DX10 4.3 (June 2010) |  |
+| D3DX11 4.3 (June 2010) |  |
+
+[REGION:note]
+위 목록에서 가장 중요한 Direct X 구성 요소는 XInput, X3DAudio, XAudio 종속성입니다. DirectX 표준 설치 버전에 포함되지 (, 게다가 Windows 에 기본 배포되지도) 않아 수동 설치하거나 애플리케이션과 같이 배포해야 합니다.
+[/REGION]
+[/EXCERPT:excerpt_10]
+-->
+
+## 그래픽 카드 드라이버
+
+현재 각 카드 제조사가 공개한 가장 안정적인 버전을 사용할 것을 권합니다.
+
+*   [NVIDIA 드라이버 다운로드](http://www.nvidia.com/Download/index.aspx)
+
+*   [AMD 드라이버 다운로드](http://support.amd.com/us/gpudownload/Pages/index.aspx)
+
+[REGION:note]
+자세한 내용은 [Linux 에 지원되는 그래픽 드라이버 ](Platforms/Linux/BeginnerLinuxDeveloper/SupportedGfxDrivers) 문서를 참고하세요.
+[/REGION]
+
+## 퍼포먼스 노트
+
+이 목록은 에픽에서 사용되는 일반적인 시스템이며, 언리얼 엔진 4 로 게임을 개발하기 위한 합리적인 기준을 제시합니다.
+
+*   Windows 10 64 비트
+
+*   64GB RAM
+
+*   256GB SSD (OS 드라이브)
+
+*   2TB SSD (데이터 드라이브)
+
+*   NVIDIA GeForce GTX 970
+
+*   Xoreax Incredibuild (개발 툴 패키지)
+
+*   Six Core Xeon E5-2643 @ 3.4GHz  
+[REGION:note]
+Xoreax Incredibuild (개발 툴 패키지) 액세스 권한이 없다면, 코어 수가 12 에서 16 개인 머신에서 컴파일할 것을 권장합니다. 그러나 컴파일할 때 XGE 가 있고 없고의 차이는 [하드웨어 벤치마크 (2017)](GettingStarted/RecommendedSpecifications/HardwareBenchmarks) 문서를 참고하세요.
+[/REGION]

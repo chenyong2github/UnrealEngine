@@ -1,14 +1,14 @@
-﻿INTSourceChangelist:4649792
+﻿INTSourceChangelist:6411601
 Availability:Public
 Title:심플 휠 비히클 무브먼트 컴포넌트
-Crumbs:
+Parent: Engine/Physics/Vehicles
 Description: SimpleWheeledVehicleMovement 컴포넌트에 대한 언리얼 엔진 4 블루프린트 비히클 유저 가이드입니다.
-Parent: Engine/Vehicles/
 type:how-to
 prereq: Engine/Physics/Vehicles/VehicleUserGuide
 Version: 4.15
 SkillLevel: Advanced
 tags: vehicles
+Order:2
 
 **SimpleWheeledVehicleMovement** 컴포넌트는 구동렬 시뮬레이션 또는 복잡한 엔진 설계 없이 휠 서스펜션이나 타이어 마찰을 제공해 줍니다. 그 대신, 
 Wheeled Vehicle Movement 컴포넌트를 상속하는 컴포넌트에 대한 개별 타이어에 토크를 쉽게 적용할 수 있어서, Wheeled Vehicle Actor  클래스에 의존할 

@@ -98,7 +98,7 @@ public:
 
         return pos;
     };
-    virtual int32_t move32(int32_t delta, CharacterIterator::EOrigin origin){    
+    virtual int32_t HACK_ICU_MOVE32_FIX(int32_t delta, CharacterIterator::EOrigin origin){    
         switch(origin) {
         case kStart:
             pos = begin;
@@ -566,26 +566,26 @@ void CharIterTest::TestIterationUChar32() {
 
         c=iter.setToStart();
         i=0;
-        i=iter.move32(1, CharacterIterator::kStart);
+        i=iter.HACK_ICU_MOVE32_FIX(1, CharacterIterator::kStart);
         c=iter.current32();
         if(c != text.char32At(1) || i!=1)
-            errln("move32(1, kStart) didn't work correctly expected %X got %X", c, text.char32At(1) );
+            errln("HACK_ICU_MOVE32_FIX(1, kStart) didn't work correctly expected %X got %X", c, text.char32At(1) );
 
-        i=iter.move32(2, CharacterIterator::kCurrent);
+        i=iter.HACK_ICU_MOVE32_FIX(2, CharacterIterator::kCurrent);
         c=iter.current32();
         if(c != text.char32At(4) || i!=4)
-            errln("move32(2, kCurrent) didn't work correctly expected %X got %X i=%ld", c, text.char32At(4), i);
+            errln("HACK_ICU_MOVE32_FIX(2, kCurrent) didn't work correctly expected %X got %X i=%ld", c, text.char32At(4), i);
         
-        i=iter.move32(-2, CharacterIterator::kCurrent);
+        i=iter.HACK_ICU_MOVE32_FIX(-2, CharacterIterator::kCurrent);
         c=iter.current32();
         if(c != text.char32At(1) || i!=1)
-            errln("move32(-2, kCurrent) didn't work correctly expected %X got %X i=%d", c, text.char32At(1), i);
+            errln("HACK_ICU_MOVE32_FIX(-2, kCurrent) didn't work correctly expected %X got %X i=%d", c, text.char32At(1), i);
 
 
-        i=iter.move32(-2, CharacterIterator::kEnd);
+        i=iter.HACK_ICU_MOVE32_FIX(-2, CharacterIterator::kEnd);
         c=iter.current32();
         if(c != text.char32At((text.length()-3)) || i!=(text.length()-3))
-            errln("move32(-2, kEnd) didn't work correctly expected %X got %X i=%d", c, text.char32At((text.length()-3)), i);
+            errln("HACK_ICU_MOVE32_FIX(-2, kEnd) didn't work correctly expected %X got %X i=%d", c, text.char32At((text.length()-3)), i);
         
 
         c = iter.first32();
@@ -1115,7 +1115,7 @@ public:
         return 0;
     }
 
-    virtual int32_t move32(int32_t /*delta*/, EOrigin /*origin*/) {
+    virtual int32_t HACK_ICU_MOVE32_FIX(int32_t /*delta*/, EOrigin /*origin*/) {
         return 0;
     }
 

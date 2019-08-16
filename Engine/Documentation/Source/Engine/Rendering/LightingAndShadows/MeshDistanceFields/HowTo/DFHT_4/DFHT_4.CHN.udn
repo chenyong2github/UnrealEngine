@@ -1,28 +1,24 @@
-﻿INTSourceChangelist:3716175
+﻿INTSourceChangelist:6407987
 Availability: Public
-Crumbs: %ROOT%
 Title: 使用距离场间接阴影
 Description: 如何设置和使用距离场间接阴影。
 Type: how-to
-SkillLevel:Intermediate
-Version:4.18
-Parent:Engine/Rendering/LightingAndShadows/MeshDistanceFields/HowTo
-Related:Engine/Rendering/LightingAndShadows/MeshDistanceFields
-Related:Engine/Rendering/LightingAndShadows/DistanceFieldAmbientOcclusion
-Related:Engine/Rendering/LightingAndShadows/RayTracedDistanceFieldShadowing
-Related:Engine/Rendering/LightingAndShadows/MeshDistanceFields/Reference
-Related:Engine/Rendering/LightingAndShadows/VolumetricLightmaps
-Related:Engine/Rendering/LightingAndShadows/IndirectLightingCache
-Order:2
-Tags:Lighting
-Topic-image:DFIS_topic.png
-Social-image:DFISBanner1.png
+Version: 4.18
+Parent: Engine/Rendering/LightingAndShadows/MeshDistanceFields/HowTo
+Tags: Lighting
+topic-image: DFIS_topic.png
+social-image: DFISBanner1.png
+SkillLevel: Intermediate
+Order: 3
+Related: Engine/Rendering/LightingAndShadows/MeshDistanceFields/Reference
+Related: Engine/Rendering/LightingAndShadows/DistanceFieldAmbientOcclusion
+Related: Engine/Rendering/LightingAndShadows/IndirectLightingCache
+Related: Engine/Rendering/LightingAndShadows/MeshDistanceFields
+Related: Engine/Rendering/LightingAndShadows/RayTracedDistanceFieldShadowing
+Related: Engine/Rendering/LightingAndShadows/VolumetricLightmaps
 
 
-
-[REGION:fullwidth raw]
 ![](DFISBanner.png)
-[/REGION]
 
 如果游戏针对间接光照区域使用预计算照明，混合可移动对象可能会非常具有挑战性，因为它们不会拥有柔和区域阴影。有时需要模拟这种类型的效果，以使用复杂材质设置乃至贴花将动态对象与场景的其他部分混合起来。**距离场间接阴影（Distance Field Indirect Shadows）**（DFIS）使你能够为用于间接光照区域中的区域阴影的单个静态网格体生成[网格体距离场](Engine/Rendering/LightingAndShadows/MeshDistanceFields)。
 在这些区域中，传统的阴影贴图方法表现不佳。
@@ -32,23 +28,16 @@ Social-image:DFISBanner1.png
 在本指南中，你将学习如何为单个网格体启用距离场，然后将这类网格体在关卡中用于使用静态间接照明照亮的区域，从而得到类似于该视频中的效果：
 
 [OBJECT:EmbeddedVideo]
-	[PARAMLITERAL:videoid]
-	4Kd-w531mVg
-	[/PARAMLITERAL]
-	[PARAMLITERAL:width]
-	60
-	[/PARAMLITERAL]
-	[PARAMLITERAL:height]
-	95
-	[/PARAMLITERAL]
-	[PARAMLITERAL:units]
-	%
-	[/PARAMLITERAL]
-	[PARAMLITERAL:type]
-	simple
-	[/PARAMLITERAL]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ 4Kd-w531mVg
+ [/PARAMLITERAL]
 [/OBJECT]
-
 
 ## 步骤
 
@@ -56,47 +45,48 @@ Social-image:DFISBanner1.png
 与其他[网格体距离场（Mesh Distance Field）](Engine/Rendering/LightingAndShadows/MeshDistanceFields)功能不同，DFIS不要求为整个项目启用 **生成网格体距离场（Generate Mesh Distance Fields）**。它可以在网格体级别启用，如以下步骤所述。
 [/REGION]
 
+1.  在 **内容浏览器（Content Browser）** 中，首先选择任意 **静态网格体（Static Mesh）** 资源，然后双击以打开“静态网格体编辑器（Static Mesh Editor）”。
 
-1. 在 **内容浏览器（Content Browser）** 中，首先选择任意 **静态网格体（Static Mesh）** 资源，然后双击以打开“静态网格体编辑器（Static Mesh Editor）”。 
+    ![](ContentBrowser.png)(w:350)
 
-  ![](ContentBrowser.png)(w:350)
+    [REGION:note]
+    在该示例中，静态网格体（Static Mesh）**SM_Statue**（来自Sun Temple项目）(位于Epic Games启动程序中)将会被用于演示。
+    [/REGION]
 
-  [REGION:note]
-  在该示例中，静态网格体（Static Mesh）**SM_Statue**（来自Sun Temple项目）(位于Epic Games启动程序中)将会被用于演示。
-  [/REGION]
-2. 在“静态网格体编辑器（Static Mesh Editor）”中，导航至 **细节（Details）** 面板。在 **静态网格体设置（Static Mesh Settings）** 部分中，将 **生成网格体距离场（Generate Mesh Distance Fields）** 设置为启用。启用它后，可以 **保存** 并 **关闭**“静态网格体编辑器（Static Mesh Editor）”。
+1.  在“静态网格体编辑器（Static Mesh Editor）”中，导航至 **细节（Details）** 面板。在 **静态网格体设置（Static Mesh Settings）** 部分中，将 **生成网格体距离场（Generate Mesh Distance Fields）** 设置为启用。启用它后，可以 **保存** 并 **关闭**“静态网格体编辑器（Static Mesh Editor）”。
 
-  [REGION:raw]
-  ![](EnableDistanceField.png)(w:1050)
-  [/REGION]
-3. 从 **内容浏览器（Content Browser）** 中，选择 **SM_Statue** 网格体并将它拖动到关卡视口中，在其中，你会留意到该静态网格体没有阴影。
+    [REGION:lightbox]
+    [![](EnableDistanceField.png)(w:900)](EnableDistanceField.png)
+    [/REGION]
 
-  ![](DragToWorld.png)(w:550)
+    [REGION:caption]
+    点击查看全图
+    [/REGION]
 
-4. 在关卡中选中该Actor之后，转至 **细节（Details）** 面板并将其 **可移动性（Mobility）** 设置为 **可移动（Movable）**。 
+1.  从 **内容浏览器（Content Browser）** 中，选择 **SM_Statue** 网格体并将它拖动到关卡视口中，在其中，你会留意到该静态网格体没有阴影。
 
-  ![](TransformMobility.png)(w:550)
+    ![](DragToWorld.png)(w:550)
 
-5. 然后，在 **照明（Lighting）** 选项卡下面，启用 **距离场间接阴影（Distance Field Indirect Shadow）**。
-  ​
-  ![](EnableDFIS.png)(w:550)
+1.  在关卡中选中该Actor之后，转至 **细节（Details）** 面板并将其 **可移动性（Mobility）** 设置为 **可移动（Movable）**。
 
-6. 如果场景尚未进行照明构建，使用主工具栏并单击 **构建** 按钮来为场景构建照明。
-  ​
-  ![](BuildLightingButton.png)
+    ![](TransformMobility.png)(w:550)
+
+1.  然后，在 **照明（Lighting）** 选项卡下面，启用 **距离场间接阴影（Distance Field Indirect Shadow）**。
+
+    ![](EnableDFIS.png)(w:550)
+
+1.  如果场景尚未进行照明构建，使用主工具栏并单击 **构建** 按钮来为场景构建照明。
+
+    ![](BuildLightingButton.png)
 
 ## 最终结果
 
-在有很多反射光照的间接光照区域中，应该可以看到可移动静态网格体能在间接光照区域中投射柔和阴影，而之前并没有阴影投射。 
+在有很多反射光照的间接光照区域中，应该可以看到可移动静态网格体能在间接光照区域中投射柔和阴影，而之前并没有阴影投射。
 
 ![](DFISMinVisibility_1.png)(w:550)
 
-请记住，在采用直接光照的区域或采用通明光照的区域，间接阴影基本上不存在。 
-
+请记住，在采用直接光照的区域或采用通明光照的区域，间接阴影基本上不存在。
 
 ## 其他设置
 
 使用[距离场参考](Engine/Rendering/LightingAndShadows/MeshDistanceFields/Reference#ActorComponents)来了解特定于静态网格体Actor的距离场间接阴影（Distance Field Indirect Shadows）设置。
-
-
-

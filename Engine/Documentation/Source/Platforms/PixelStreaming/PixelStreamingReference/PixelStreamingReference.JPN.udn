@@ -1,8 +1,8 @@
-﻿INTSourceChangelist:0
+﻿INTSourceChangelist:4684167
 Availability: Public
 Crumbs: 
-Title: Pixel Streaming Reference
-Description: Supported browsers, networking ports, and configuration options for the components of the Pixel Streaming system.
+Title: Pixel Streaming リファレンス
+Description: Pixel Streaming システムのコンポーネントでサポートされているブラウザ、ネットワーキング ポート、設定オプションについて説明します。
 Type: 
 Version: 4.21
 Parent: Platforms/PixelStreaming
@@ -12,316 +12,316 @@ Tags: Reference
 Tags: Early Access
 Tags: Pixel Streaming
 
-This page describes options, settings, and command-line parameters exposed by the various parts of the Pixel Streaming system.
+このページでは、Pixel Streaming システムの各部で公開されているコマンドライン パラメータ、設定、オプションについて説明します。
 
-## Supported Graphics Hardware
+## サポートされるグラフィック ハードウェア
 
-The computer that runs the Unreal Engine application with the Pixel Streaming Plugin must use NVIDIA GPU hardware that supports Hardware-Accelerated Video Encoding (NVENC). See the [matrix of supported devices](https://developer.nvidia.com/nvidia-video-codec-sdk#NVENCFeatures) from NVIDIA.
+Pixel Streaming プラグインを使う Unreal Engine アプリケーションを実行するコンピュータでは、ハードウェアアクセラレート ビデオ エンコーディング (NVENC) をサポートする NVIDIA GPU ハードウェアを使用する必要があります。NVIDIA 社の「[matrix of supported devices (サポート デバイスのマトリクス)](https://developer.nvidia.com/nvidia-video-codec-sdk#NVENCFeatures)」を参照してください。
 
 [REGION:tip]
-If you receive the error message **Failed to load NvEncode dll** when you try to use the Pixel Streaming Plugin, it is very likely that your GPU does not support NVENC.
+Pixel Streaming プラグインを使用した際に、エラー メッセージ「**Failed to load NvEncode dll**」 (NvEncode dll をロードできない) が表示された場合は、使用している GPU が NVENC をサポートしていない可能性があります。
 [/REGION]
 
-## Supported Operating Systems
+## サポートされるオペレーティング システム
 
-The Pixel Streaming Plugin, the WebRTC Proxy Server, and the Signalling and Web Server have been tested on Windows 8 and Windows 10.
+Pixel Streaming プラグイン、WebRTC Proxy サーバー、Signalling and Web サーバーは、Windows 8 および Windows 10 でテスト済みです。
 
-They have not been tested on any other operating systems, including Windows 7.
+Windows 7 など他のオペレーティング システムではテストされていません。
 
-## Supported Client Browsers
+## サポートされるクライアント ブラウザ
 
-Pixel Streaming playback works on any modern browser that supports the WebRTC protocol. For example, it has been tested and is known to work in recent versions of the following browsers without additional configuration:
+Pixel Streaming の再生は、WebRTC プロトコルをサポートする最新のブラウザで動作します。例えば、次のブラウザの最新バージョン (2、3 のバージョン) はテスト済みで、追加設定なしで動作することが確認されています。
 
-*   Google Chrome (desktop and mobile)
-*   Mozilla Firefox (desktop and mobile)
-*   Apple Safari (desktop and mobile)
+* Google Chrome (デスクトップ版とモバイル版)
+* Mozilla Firefox (デスクトップ版とモバイル版)
+* Apple Safari (デスクトップ版とモバイル版)
 
-Other browsers such as Microsoft Edge and Opera may require add-ons or plugins, and may not work on all systems.
+Microsoft Edge や Opera など他のブラウザは、アドオンやプラグインが必要になることがあり、さらにシステムによっては動作しない可能性があります。
 
-## Default Network Ports
+## デフォルトのネットワーク ポート
 
-The components of the Pixel Streaming system communicate using the default ports specified below. You'll need to make sure that these ports are open on the host that runs each of these components.
+Pixel Streaming システムの各コンポーネントは、以下に指定したデフォルト ポートを使用して通信します。これらのコンポーネントが動作するホストで、それぞれのポートがオープンであることを確認する必要があります。
 
-| Component | Ports |
-| --- | --- |
-| **Unreal Engine and WebRTC Proxy Server host** | [INCLUDE:#excerpt_3] |
-| **Signaling Server host** | [INCLUDE:#excerpt_5] |
-| **Matchmaker Server host** | [INCLUDE:#excerpt_7] |
+| コンポーネント| ポート|
+| ---| ---|
+| `Unreal Engine and WebRTC Proxy Server host` | [INCLUDE:#excerpt_3] |
+| `Signaling Server host` | [INCLUDE:#excerpt_5] |
+| `Matchmaker Server host` | [INCLUDE:#excerpt_7] |
 
 [COMMENT:none]
 [EXCERPT:excerpt_7]
-*   **90** \- for all HTTP requests coming from clients.  
-    To change this value, use the **--httpPort** parameter for the Matchmaker Server.
-*   **9999** \- for all messages sent by the Signaling Server.  
-    To change this value, set **both** the **--matchmakerPort** parameter for the Matchmaker Server **and** the **--matchmakerPort** parameter for the Signaling Server.
+* **90** \- クライアントから受け取るすべての HTTP リクエスト用。
+    この値を変更するには、Matchmaker サーバーに対して **--httpPort** パラメータを使用します。
+* **9999** \- シグナリング サーバーにより送信されるすべてのメッセージ用。
+    この値を変更するには、Matchmaker サーバーに対して、**--matchmakerPort** パラメータ**と**、Signaling サーバーに対して **--matchmakerPort** パラメータの**両方**を設定します。
 [/EXCERPT:excerpt_7]
 [/COMMENT]
 
 [COMMENT:none]
 [EXCERPT:excerpt_5]
-*   **80** \- for all HTTP requests coming from clients.  
-    To change this value, set the **--httpPort** parameter for the Signaling Server.
-*   **443** \- for all HTTPS requests coming from clients, when the Signaling Server is running in HTTPS mode.  
-    To change this value, set the **--httpsPort** parameter for the Signaling Server.
-*   **8888** \- for all incoming connection requests from the WebRTC Proxy Server.  
-    To change this value, set **both** the **--proxyPort** parameter for the Signaling Server **and** the **-Cirrus** parameter for the WebRTC Proxy Server.
+* **80** \- クライアントから受け取るすべての HTTP リクエスト用。
+    この値を変更するには、Signaling サーバーに対して **--httpPort** パラメータを使用します。
+* **443** \- クライアントから受け取るすべての HTTPS リクエスト用 (Signaling サーバーが HTTPS モードで動作している場合)。
+    この値を変更するには、Signaling サーバーに対して **--httpsPort** パラメータを使用します。
+* **8888** \- WebRTC Proxy サーバーから受け取るすべての接続リクエスト用。
+    この値を変更するには、Signaling サーバーに対して **--proxyPort** パラメータ**と**、WebRTC Proxy サーバーに対して **-Cirrus** パラメータの**両方**を設定します。
 [/EXCERPT:excerpt_5]
 [/COMMENT]
 
 [COMMENT:none]
 [EXCERPT:excerpt_3]
-*   **8124** \- for all communication between the application and the WebRTC Proxy Server.  
-    To change this value, set **both** the **-PixelStreamingPort** command-line parameter when you start your packaged Unreal Engine application **and** the **-UE4Port** parameter for the WebRTC Proxy Server.
+* **8124** \- アプリケーションと WebRTC Proxy サーバー間のすべての通信用。
+    この値を変更するには、パッケージ化された Unreal Engine アプリケーションを起動するときの **-PixelStreamingPort** コマンドライン パラメータ**と**、WebRTC Proxy サーバーに対して **-UE4Port** パラメータの**両方**を設定します。
 [/EXCERPT:excerpt_3]
 [/COMMENT]
 
-## Unreal Engine Console Commands
+## Unreal Engine コンソール コマンド
 
-**Encoder** commands control the way the Pixel Streaming Plugin encodes the rendered frames from the Unreal Engine into video images. **Streamer** commands control the way the Pixel Streaming Plugin sends those images through the WebRTC Proxy.
+**Encoder** コマンドでは、Pixel Streaming プラグインで Unreal Engine からのレンダリングされたフレームをビデオ イメージにエンコードする方法をコントロールします。**Streamer** コマンドでは、Pixel Streaming プラグインで、これらのイメージを WebRTC Proxy を通じて送信する方法をコントロールします。
 
-| Command | Description |
-| --- | --- |
-| **Encoder.AverageBitrate** | Determines the target bit rate of the encoder, in Mbps (before any reduction to account for bandwidth limitations). |
-| **Encoder.MaxBitrate** | The maximum bitrate allowed, in Mbps (ignoring the values reported by the WebRTC Proxy Server) |
-| **Encoder.TargetSize** | [INCLUDE:#excerpt_15] |
-| **Encoder.UseBackBufferSize** | Makes the encoder use the back buffer size (that is, the size of the rendered game viewport) rather than the custom size set by **Encoder.TargetSize**. |
-| **Encoder.SaveVideoToFile** | [INCLUDE:#excerpt_19] |
-| **Streamer.PrioritiseQuality** | Reduces the frame rate of the Engine automatically for low-bitrate connections. In bad network conditions, this trades frames per second (increasing latency) in order to keep the apparent quality of each video frame higher. |
-| **Streamer.LowBitrate** |The lowest bitrate that the streamer permits when adapting quality for network conditions, in Kbps. |
-| **Streamer.HighBitrate** | The highest bitrate that the streamer permits when adapting quality for network conditions, in Kbps.  |
-| **Streamer.MinFPS** | The lowest number of frames per second that the streamer permits when adapting quality for network conditions. |
-| **Streamer.BitrateReduction** | Determines how the streamer reduces the bitrate reported by WebRTC to handle jitter, expressed as a percentage. |
+| コマンド| 説明|
+| ---| ---|
+| `Encoder.AverageBitrate` | エンコーダのターゲット ビットレート (Mbps 単位、帯域幅制限で低下する前) を判断します。|
+| `Encoder.MaxBitrate` | 許容される最大ビットレート (Mbps 単位、WebRTC Proxy サーバーで報告された値を無視)。|
+| `Encoder.TargetSize` | [INCLUDE:#excerpt_15] |
+| `Encoder.UseBackBufferSize` | **Encoder.TargetSize** で設定されたカスタム サイズではなく、バック バッファ サイズ (レンダリング ゲーム ビューポートのサイズ) を使用するようにエンコーダを設定します。|
+| `Encoder.SaveVideoToFile` | [INCLUDE:#excerpt_19] |
+| `Streamer.PrioritiseQuality` | 低ビットレートの接続に対して自動的に Engine のフレームレートを削減します。ネットワーク状態が良好ではないとき、各ビデオ フレームの見かけの画質を高く維持するため、フレーム/秒を代わりに落とします (レイテンシーを増加)。|
+| `Streamer.LowBitrate` |ネットワーク状態に適した品質で、ストリーマーで許容される最小ビットレート (Kbps 単位)。|
+| `Streamer.HighBitrate` | ネットワーク状態に適した品質で、ストリーマーで許容される最大ビットレート (Kbps 単位)。|
+| `Streamer.MinFPS` | ネットワーク状態に適した品質で、ストリーマーで許容される最小フレーム数 (毎秒)。|
+| `Streamer.BitrateReduction` | WebRTC からジッターに対応するために報告されたビットレートをストリーマーでどれだけ削減するのかを決定します (% で表現)。|
 
 
 [COMMENT:none]
 [EXCERPT:excerpt_19]
-Saves encoded video into a file named **EncodedVideoFile.h264** in the working directory of your Unreal Engine application.  
-Only works in Development builds of the Unreal Engine, not in Shipping builds.
+Unreal Engine アプリケーションの作業ディレクトリにある「**EncodedVideoFile.h264**」というファイルにエンコードされたビデオが保存されます。
+Unreal Engine の開発用ビルドのみで機能します。シッピング ビルドでは使用できません。
 [/EXCERPT:excerpt_19]
 [/COMMENT]
 
 [COMMENT:none]
 [EXCERPT:excerpt_15]
-The target resolution size for the encoder, in the format `<width>x<height>`.  
-Also set **Encoder.UseBackBufferSIze** to false in order for the stream to use this custom size.
+エンコーダのターゲット解像度サイズ (`<width>x<height>` の形式)。
+ストリームでこのカスタム サイズを使用するためには、さらに **Encoder.UseBackBufferSIze** を「false」に設定します。
 [/EXCERPT:excerpt_15]
 [/COMMENT]
 
-## Unreal Engine Command-Line Parameters
+## Unreal Engine コマンドライン パラメータ
 
-Set these properties on the command line when you launch your Unreal Engine application.
+Unreal Engine アプリケーションを起動する際に、コマンドラインで以下のプロパティを設定します。
 
-| Parameter | Description |
-| --- | --- |
-| **-AllowPixelStreamingCommands** | [INCLUDE:#excerpt_33] |
-| **-AudioMixer** | [INCLUDE:#excerpt_35] |
-| **-PixelStreamingIP=<value>** | [INCLUDE:#excerpt_37] |
-| **-PixelStreamingPort=<value>** | [INCLUDE:#excerpt_39] |
-| **-PixelStreamingKeyFilter="<value>"** | [INCLUDE:#excerpt_41] |
-| **-RenderOffScreen** | [INCLUDE:#excerpt_43] |
-| **-NvEncFrameRateNum=<value>** | [INCLUDE:#excerpt_45] |
-| **-NvEncMaxEncodeWidth=<value>** | [INCLUDE:#excerpt_47] |
-| **-NvEncMaxEncodeHeight=<value>** | [INCLUDE:#excerpt_49] |
-| **-NvEncAverageBitRate=<value>** | If specified, overrides the encoder's default average bitrate. |
-| **-NvEncH264ConfigLevel=<value>** | [INCLUDE:#excerpt_53] |
+| パラメータ| 説明|
+| ---| ---|
+| `-AllowPixelStreamingCommands` | [INCLUDE:#excerpt_33] |
+| `-AudioMixer` | [INCLUDE:#excerpt_35] |
+| `-PixelStreamingIP=<value>` | [INCLUDE:#excerpt_37] |
+| `-PixelStreamingPort=<value>` | [INCLUDE:#excerpt_39] |
+| `-PixelStreamingKeyFilter="<value>"` | [INCLUDE:#excerpt_41] |
+| `-RenderOffScreen` | [INCLUDE:#excerpt_43] |
+| `-NvEncFrameRateNum=<value>` | [INCLUDE:#excerpt_45] |
+| `-NvEncMaxEncodeWidth=<value>` | [INCLUDE:#excerpt_47] |
+| `-NvEncMaxEncodeHeight=<value>` | [INCLUDE:#excerpt_49] |
+| `-NvEncAverageBitRate=<value>` | 指定した場合、エンコーダのデフォルト平均ビットレートをオーバーライドします。|
+| `-NvEncH264ConfigLevel=<value>` | [INCLUDE:#excerpt_53] |
 
 [COMMENT:none]
 [EXCERPT:excerpt_53]
-Set this parameter to `NV_ENC_LEVEL_H264_52` to make the encoder use H.264 level 5.2. If not set, the encoder uses H.264 level 5.1.  
-This increases the capabilities of the encoder, which might be required in order to handle creating videos at high resolutions such as 3840x2160 (4K). For more information about H.264 levels, see [this page](https://en.wikipedia.org/wiki/H.264/MPEG-4_AVC#Levels).  
-If your Unreal Engine application reports that it **Failed to initialize NvEncoder**, and if you are working at a high output resolution, then you may need to enable this option.
+このパラメータを `NV_ENC_LEVEL_H264_52` に設定して、エンコーダで H.264 level 5.2 を使用します。設定しない場合、エンコーダは H.264 level 5.1 を使用します。
+これによりエンコーダの機能が強化されます。強化された機能は、3840x2160 (4K) など高解像度でのビデオの作成に対応するために必要となる場合があります。H.264 レベルの詳細については、[このページ](https://en.wikipedia.org/wiki/H.264/MPEG-4_AVC#Levels)を参照してください。
+高出力解像度での作業時に Unreal Engine アプリケーションで「**Failed to initialize NvEncoder**」 (NvEncoder を初期化できない) と表示される場合は、必要に応じてこのオプションを有効にしてください。
 [/EXCERPT:excerpt_53]
 [/COMMENT]
 
 [COMMENT:none]
 [EXCERPT:excerpt_49]
-The maximum height of a frame that the encoder can encode.  
-The default value is `2160`.
+エンコーダによるエンコードが可能な、フレームの最大高さ。
+デフォルト値は `2160` です。
 [/EXCERPT:excerpt_49]
 [/COMMENT]
 
 [COMMENT:none]
 [EXCERPT:excerpt_47]
-The maximum width of a frame that the encoder can encode.  
-The default value is `3840`.
+エンコーダによるエンコードが可能な、フレームの最大幅。
+デフォルト値は `3840` です。
 [/EXCERPT:excerpt_47]
 [/COMMENT]
 
 [COMMENT:none]
 [EXCERPT:excerpt_45]
-If specified, overrides the default encoder frame rate.  
-The default value is set to match `t.MaxFPS`.
+指定した場合、デフォルトのエンコーダ フレーム レートをオーバーライドします。
+デフォルト値は `t.MaxFPS` に適合するように設定されます。
 [/EXCERPT:excerpt_45]
 [/COMMENT]
 
 [COMMENT:none]
 [EXCERPT:excerpt_43]
-Run the Unreal Engine application headless, without any visible rendering at all on the local computer. The application will not display any windows, and will not render in full screen.  
-You can use this parameter in conjunction with `-ForceRes` to stop the Unreal Engine from automatically adjusting resolution based on the resolution of the primary display.  
-If you omit this parameter, the Unreal Engine application window will be rendered normally. If this application window is ever minimized, the Pixel Streaming video and input capture will stop working. We therefore recommend always including this parameter, unless you need to be able to see the rendered output from the Unreal Engine application locally on the same computer while it is running.
+Unreal Engine アプリケーションをヘッドレス (ローカル コンピュータで表示されるレンダリングが何もない状態) で実行します。アプリケーションはウィンドウを表示せず、全画面でのレンダリングもありません。
+このパラメータを `-ForceRes` とともに使用すると、Unreal Engine はメイン ディスプレイの解像度を基に解像度を自動的に調整できなくなります。
+このパラメータを省略すると、Unreal Engine アプリケーションのウィンドウは通常どおりレンダリングされます。このアプリケーション ウィンドウが最小化されると、Pixel Streaming ビデオと入力の取り込みは停止します。したがって、このパラメータを常に含めることをお勧めします。ただし、同じコンピュータで実行時に、Unreal Engine アプリケーションからのレンダリング出力をローカルで確認する必要がある場合は除きます。
 [/EXCERPT:excerpt_43]
 [/COMMENT]
 
 [COMMENT:none]
 [EXCERPT:excerpt_41]
-A comma-separated list of keyboard keys that the WebRTC Proxy should filter out from the input that it relays from the player web page to the Unreal Engine. If a user presses one of these keys in the browser, that event will not be relayed to the Unreal Engine's input controller.  
-For example, `-PixelStreamingKeyFilter="F1..F12,W,A,S,D"` filters out all twelve function keys and the movement keys.
+WebRTC Proxy が入力から除外するキーを記載した、キーボードのキーのコンマ区切りリストです。この入力は、WebRTC Proxy によりプレイヤー Web ページから Unreal Engine に中継されます。ユーザーがブラウザでこれらのキーのいずれかを押した場合、そのイベントは Unreal Engine の入力コントローラーに中継されません。
+例えば、`-PixelStreamingKeyFilter="F1..F12,W,A,S,D"` は 12 個のファンクション キーすべてと移動キーを除外します。
 [/EXCERPT:excerpt_41]
 [/COMMENT]
 
 [COMMENT:none]
 [EXCERPT:excerpt_39]
-The port used for communications between the Unreal Engine and the WebRTC Proxy Server.  
-The default value is `8124`.
+Unreal Engine と WebRTC Proxy サーバー間の通信で使用するポート番号。
+デフォルト値は `8124` です。
 [/EXCERPT:excerpt_39]
 [/COMMENT]
 
 [COMMENT:none]
 [EXCERPT:excerpt_37]
-Specifies the IP address the Unreal Engine listens on for incoming connections from the WebRTC Proxy server.  
-The default value is `0.0.0.0`, which includes all internal IP addresses (usually the local machine's own IP address, and `127.0.0.1`).
+Unreal Engine が WebRTC Proxy サーバーからの受信接続をリッスンする IP アドレスを指定します。
+デフォルト値は `0.0.0.0` で、すべての内部 IP アドレス (一般にはローカル マシンの独自 IP アドレスと `127.0.0.1`) を含みます。
 [/EXCERPT:excerpt_37]
 [/COMMENT]
 
 [COMMENT:none]
 [EXCERPT:excerpt_35]
-Forces the Unreal Engine to use software mixing for audio, so that the Pixel Streaming Plugin can capture audio.  
-**This parameter is required in order to capture audio from the application and stream it to the browser.**
+Unreal Engine でオーディオにソフトウェア ミキシングを使用するようにします。したがって Pixel Streaming プラグインでオーディオをキャプチャできます。
+**このパラメータはアプリケーションからオーディオをキャプチャし、ブラウザにストリームするために必要です。**
 [/EXCERPT:excerpt_35]
 [/COMMENT]
 
 [COMMENT:none]
 [EXCERPT:excerpt_33]
-Determines whether the player Web page can use the `emitCommand()` function to execute console commands in the Unreal Engine remotely. Note that this may have security implications, so enable it with care.
+プレイヤー Web ページが `emitCommand()` 関数を使用して、Unreal Engine でリモートにコンソール コマンドを実行するかどうかを指定します。セキュリティ上の問題になる可能性があるので、有効にする場合は注意してください。
 [/EXCERPT:excerpt_33]
 [/COMMENT]
 
-## Signaling Server Configuration Parameters
+## Signaling サーバーのコンフィギュレーション パラメータ
 
-There are two ways you can set these parameters:
+これらのパラメータを設定するには 2 つの方法があります。
 
-*   On the command line, when you start the Signaling and Web Server by running `run.bat` or `node cirrus.js`. In this case, prefix each parameter name with `--` (two dashes), then follow it with a space, then the value you want to set. For example: `--httpPort 81`.
-*   In a configuration file. By default, the Signaling and Web Server (`cirrus.js`) looks for a file named `config.json` in the same folder. In this case, set each parameter and the value you want to set for it as a key-value pair in the JSON object defined in the file. If you've already started the Signaling and Web Server at least once, see the parameters that are already listed in the `Engine/Source/Programs/PixelStreaming/WebServers/SignallingWebServer/config.json` file for an example.
+* `run.bat` または `node cirrus.js` を実行して Signaling and Web サーバーを起動する際は、コマンドラインで設定します。この場合、各パラメータにプレフィックス `--` (2 つのダッシュ) を付け、スペースを入力してから設定する値を続けます。例：`--httpPort 81`
+* コンフィギュレーション ファイルで設定します。デフォルトでは、Signaling and Web サーバー (`cirrus.js`) は同じフォルダで、「`config.json`」というファイルを探します。この場合、ファイルで定義された JSON オブジェクトのキーと値のペアとして、必要な各パラメータと値を設定します。Signaling and Web サーバーを少なくとも 1 回起動したことがある場合は、例の「`Engine/Source/Programs/PixelStreaming/WebServers/SignallingWebServer/config.json`」ファイルにリストされているパラメータを確認します。
 
-| Parameter | Description |
-| --- | --- |
-| **publicIp** | The public IP of the computer running the Signaling and Web Server. |
-| **httpPort** | The port that the Signaling and Web Server uses for HTTP connections with client browsers. |
-| **proxyPort** | The port that the Signaling and Web Server listens to for incoming connections from the WebRTC Proxy Server. |
-| **peerConnectionOptions** | [INCLUDE:#excerpt_63] |
-| **HomepageFile** | [INCLUDE:#excerpt_65] |
-| **AdditionalRoutes** | [INCLUDE:#excerpt_67] |
-| **LogToFile** | [INCLUDE:#excerpt_69] |
-| **UseHttps** | [INCLUDE:#excerpt_71] |
-| **httpsPort** | [INCLUDE:#excerpt_73] |
-| **UseMatchmaker** | Determines whether the Signaling and Web Server sends its current status to a Matchmaker Server, in order to help client browsers find a Signaling Server and WebRTC Proxy Server that are not currently in use.|
-| **matchmakerAddress**[ | The IP address of the Matchmaker Server that the Signaling and Web Server should contact. |
-| **matchmakerPort** | The port that the Matchmaker Server listens to for incoming messages from Signaling and Web Servers. |
-| **configFile** | Specifies the path and file name of the configuration file that the Signaling Server should use to retrieve the values of the properties above. Can only be set on the command line. |
+| パラメータ| 説明|
+| ---| ---|
+| `publicIp` | Signaling and Web サーバーが動作しているコンピュータのパブリック IP。|
+| `httpPort` | クライアント ブラウザとの HTTP 接続に Signaling and Web サーバーが使用するポート番号。|
+| `proxyPort` | Signaling and Web サーバーが WebRTC Proxy サーバーからの受信接続をリッスンするポート番号。|
+| `peerConnectionOptions` | [INCLUDE:#excerpt_63] |
+| `HomepageFile` | [INCLUDE:#excerpt_65] |
+| `AdditionalRoutes` | [INCLUDE:#excerpt_67] |
+| `LogToFile` | [INCLUDE:#excerpt_69] |
+| `UseHttps` | [INCLUDE:#excerpt_71] |
+| `httpsPort` | [INCLUDE:#excerpt_73] |
+| `UseMatchmaker` | クライアント ブラウザが、その時点で使用されていない Signaling サーバーと WebRTC Proxy サーバーを検出できるように、Signaling and Web サーバーが現在のステータスを Matchmaker サーバーに送信するかどうかを指定します。|
+| `matchmakerAddress` | Signaling and Web サーバーが問い合わせる Matchmaker サーバーの IP アドレス。|
+| `matchmakerPort` | Signaling and Web サーバーからの受信メッセージを Matchmaker サーバーがリッスンするポート番号。|
+| `configFile` | Signaling サーバーが前に示した各プロパティの値を取得するために使用する、コンフィギュレーション ファイルのパスとファイル名を指定します。コマンドラインでのみ設定できます。|
 
 [COMMENT:none]
 [EXCERPT:excerpt_73]
-The port to listen to for HTTPS connections. Only used when **UseHttps** is enabled.  
-The default value is 443.
+HTTPS 接続をリッスンするポート番号。**UseHttps** が有効な場合にのみ使用されます。
+デフォルト値は 443 です。
 [/EXCERPT:excerpt_73]
 [/COMMENT]
 
 [COMMENT:none]
 [EXCERPT:excerpt_71]
-Set this parameter to **true** in order to make the Signaling Server accept only HTTPS connections on the **httpsPort**.  
-You will also need to put your *client-key.pem* and *client-cert.pem* files into the *certificates* folder under the Signaling and Web Server's root folder.
+このパラメータを「**true**」に設定すると、Signaling サーバーは HTTPS 接続のみを **httpsPort** で受け入れるようになります。
+「*client-key.pem*」および「*client-cert.pem*」ファイルを Signaling and Web サーバーの「root」フォルダにある「*certificates*」フォルダに配置する必要もあります。
 [/EXCERPT:excerpt_71]``
 [/COMMENT]
 
 [COMMENT:none]
 [EXCERPT:excerpt_69]
-Determines whether the Signaling and Web Server writes log messages to files in the *./logs* folder.  
-The default value is **true**.
+Signaling and Web サーバーがログ メッセージを「*./logs*」フォルダのファイルに書き込むかどうかを指定します。
+デフォルト値は「**true**」です。
 [/EXCERPT:excerpt_69]
 [/COMMENT]
 
 [COMMENT:none]
 [EXCERPT:excerpt_67]
-Specifies additional folders that the Signaling and Web Server should serve.  
-This parameter must be a JSON object, which means you can only provide it in the JSON configuration file, not on the command line.  
-It must be an object in which each key is a part of a URL, and the value of each key is a local path that the server should serve to requesting clients. For example, if you set:  
+Signaling and Web サーバーがサービスを提供する追加フォルダを指定します。
+このパラメータは JSON オブジェクトである必要があります。つまり、コマンドラインではなく、JSON コンフィギュレーション ファイルでのみ提供できます。
+また、このオブジェクトでは、各キーが URL の一部であり、各キーの値がサーバーがリクエスト元のクライアントに提供するローカル パスである必要があります。例えば、
 `"AdditionalRoutes" = { "/myfolder", "C:\some_local_path" }`  
-then when a client requests `http://server-name/myfolder/index.html` the server will provide the file named `C:\some_local_path\index.html`.
+を設定した場合、クライアントが `http://server-name/myfolder/index.html` をリクエストすると、サーバーは「`C:\some_local_path\index.html`」という名前のファイルを提供します。
 [/EXCERPT:excerpt_67]
 [/COMMENT]
 
 [COMMENT:none]
 [EXCERPT:excerpt_65]
-The filename of the default page the server will provide to connecting client browsers that do not request a specific URL.  
-The default value is `player.htm`.
+特定の URL をリクエストしていないクライアント ブラウザが接続したときに、サーバーが提供するデフォルト ページのファイル名。
+デフォルト値は `player.htm` です。
 [/EXCERPT:excerpt_65]
 [/COMMENT]
 
 [COMMENT:none]
 [EXCERPT:excerpt_63]
-Specifies the hostnames or IP addresses of any STUN and TURN servers you want the WebRTC Proxy Server and browser to query when they need to discover their own external IP addresses.  
-For more information on STUN and TURN servers, see the [Hosting and Networking Guide](https://docs.unrealengine.com/en-us/Platforms/PixelStreaming/Hosting).  
-This parameter must be a string that lists the server URLs in the order you want them to be contacted. It must have the following format:  
+WebRTC Proxy サーバーとブラウザが、それぞれの外部 IP アドレスを把握する必要がある場合にクエリするための STUN および TURN サーバーのホスト名または IP アドレスを指定します。
+STUN および TURN サーバーの詳細については、「[ホスティングおよびネットワーキング ガイド](Platforms/PixelStreaming/Hosting)」を参照してください。
+このパラメータは、問い合わせる順にサーバーの URL をリストした文字列であることが必要です。次の形式で作成する必要があります。
 `"{ \"iceServers\": [{\"urls\": [<url1>,<url2>,<url3>,...]}] }"`  
-For example:  
+例：
 `"{ \"iceServers\": [{\"urls\": [\"stun:34.250.222.95:19302\"]}] }"`  
-or  
+または
 `"{ \"iceServers\": [{\"urls\": [\"stun:34.250.222.95:19302\",\"turn:34.250.222.95:19312\"]}] }"`  
-The TURN server implementation that ships with the Unreal Engine requires a user name and password, as follows:  
+Unreal Engine に付属して出荷される TURN サーバーの実装に対しては、次の形式でユーザー名とパスワードを提供する必要があります。
 `"{\"iceServers\":[{\"urls\":[\"stun: 34.250.222.95:19302\",\"turn: 34.250.222.95:19312\"],\"username\":\"<TURN_Username>\",\"credential\":\"<TURN_Password>\"}]}"`  
-Other STUN and TURN implemetations may have different requirements for their credentials.
+他の STUN および TURN 実装では、認証情報に対して要件が異なる場合があります。
 [REGION:note]
-The value must be formatted as a string, even if you use a JSON configuration file to provide the parameter. Always surround it in double-quotes, and use backslashes to escape any quotes inside the string, as shown above.
+JSON コンフィギュレーション ファイルでパラメータを指定する場合でも、この値は文字列形式であることが必要です。常に二重引用符 (") で囲み、前に示したように、文字列内ではバックスラッシュ (\) を使用して引用符をエスケープします。
 [/REGION]
 [/EXCERPT:excerpt_63]
 [/COMMENT]
 
-## WebRTC Proxy Server Command-Line Parameters
+## WebRTC Proxy サーバー コマンドライン パラメータ
 
-You can configure the operation of the WebRTC Proxy Server by providing these parameters on the command line when you run the `WebRTCProxy_x64_<build>.exe` file.
+WebRTC Proxy サーバーの動作を設定するには、「`WebRTCProxy_x64_<build>.exe`」ファイルを実行するときに、コマンドラインで以下のパラメータを指定します。
 
-Note that unlike with the Signaling and Web Server above and the Matchmaker Server below, these parameters do not work when you add them to the end of the *.bat* file in the same folder.
+前の Signaling and Web サーバーや以下の Matchmaker サーバーの場合と異なり、同じフォルダの「*.bat*」ファイルの最後に追加したときは、これらのパラメータは機能しないことに注意してください。
 
-| Parameter | Description |
-| --- | --- |
-| **-Cirrus=<value>** | [INCLUDE:#excerpt_85] |
-| **-UE4Port=<value>** | [INCLUDE:#excerpt_87] |
-| **-PlanB** | Switches the WebRTC Proxy Server to use PlanB SDP semantics. |
-| **-LocalTime** | Prints timestamps in log messages using local time instead of UTC. |
+| パラメータ| 説明|
+| ---| ---|
+| `-Cirrus=<value>` | [INCLUDE:#excerpt_85] |
+| `-UE4Port=<value>` | [INCLUDE:#excerpt_87] |
+| `-PlanB` | WebRTC Proxy サーバーを PlanB SDP セマンティクスを使用するように切り替えます。|
+| `-LocalTime` | UTC ではなくローカル タイムを使用してログ メッセージにタイムスタンプを記録します。|
 
 [COMMENT:none]
 [EXCERPT:excerpt_87]
-The port that the WebRTC Proxy Server connects to for communication with the Unreal Engine application running on the local host.  
-The default value is `8124`.
+ローカル ホストで動作している Unreal Engine アプリケーションとの通信用に WebRTC Proxy サーバーが接続するポート番号。
+デフォルト値は `8124` です。
 [/EXCERPT:excerpt_87]
 [/COMMENT]
 
 [COMMENT:none]
 [EXCERPT:excerpt_85]
-The IP address of the Signaling Server that the WebRTC Proxy Server connects to.  
-The default value is `127.0.0.1:8888`.
+WebRTC Proxy サーバーが接続する Signaling サーバーの IP アドレス。
+デフォルト値は `127.0.0.1:8888` です。
 [/EXCERPT:excerpt_85]
 [/COMMENT]
 
-## Matchmaker Server Command-Line Parameters
+## Matchmaker サーバー コマンドライン パラメータ
 
-Provide these parameters on the command line when you start the Matchmaker Server by running its `run.bat` file, or when you start it by running `node.exe matchmaker.js`.
+Matchmaker サーバーを「`run.bat`」ファイルを実行して起動するとき、または「`node.exe matchmaker.js`」を実行して起動するときに、コマンドラインで以下のパラメータを指定します。
 
-| Parameter | Description |
-| --- | --- |
-| **--httpPort <value>** | [INCLUDE:#excerpt_95] |
-| **--matchmakerPort <value>** | [INCLUDE:#excerpt_97] |
+| パラメータ| 説明|
+| ---| ---|
+| `--httpPort <value>` | [INCLUDE:#excerpt_95] |
+| `--matchmakerPort <value>` | [INCLUDE:#excerpt_97] |
 
 [COMMENT:none]
 [EXCERPT:excerpt_97]
-Sets the port number that the Matchmaker listens to for incoming messages from Cirrus signaling servers.  
-The default value is `9999`.
+Cirrus Signaling サーバーからの受信メッセージを Matchmaker がリッスンするポート番号を設定します。
+デフォルト値は `9999` です。
 [/EXCERPT:excerpt_97]
 [/COMMENT]
 
 [COMMENT:none]
 [EXCERPT:excerpt_95]
-Sets the port number that the Matchmaker listens to for HTTP connections from clients.  
-The default value is `90`.
+クライアントからの HTTP接続を Matchmaker がリッスンするポート番号を設定します。
+デフォルト値は `90` です。
 [/EXCERPT:excerpt_95]
 [/COMMENT]

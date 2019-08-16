@@ -127,9 +127,12 @@ void SScrollBox::Construct( const FArguments& InArgs )
 	ConsumeMouseWheel = InArgs._ConsumeMouseWheel;
 	TickScrollDelta = 0;
 	AllowOverscroll = InArgs._AllowOverscroll;
+	bAnimateWheelScrolling = InArgs._AnimateWheelScrolling;
+	WheelScrollMultiplier = InArgs._WheelScrollMultiplier;
 	NavigationScrollPadding = InArgs._NavigationScrollPadding;
 	NavigationDestination = InArgs._NavigationDestination;
 	bTouchPanningCapture = false;
+	bVolatilityAlwaysInvalidatesPrepass = true;
 
 	if (InArgs._ExternalScrollbar.IsValid())
 	{
@@ -144,6 +147,7 @@ void SScrollBox::Construct( const FArguments& InArgs )
 		ScrollBar = ConstructScrollBar();
 		ScrollBar->SetDragFocusCause(InArgs._ScrollBarDragFocusCause);
 		ScrollBar->SetThickness(InArgs._ScrollBarThickness);
+		ScrollBar->SetPadding(InArgs._ScrollBarPadding);
 		ScrollBar->SetUserVisibility(InArgs._ScrollBarVisibility);
 		ScrollBar->SetScrollBarAlwaysVisible(InArgs._ScrollBarAlwaysVisible);
 
@@ -323,6 +327,13 @@ float SScrollBox::GetScrollOffset() const
 	return DesiredScrollOffset;
 }
 
+float SScrollBox::GetScrollOffsetOfEnd() const
+{
+	const FGeometry ScrollPanelGeometry = FindChildGeometry(CachedGeometry, ScrollPanel.ToSharedRef());
+	const float ContentSize = GetScrollComponentFromVector(ScrollPanel->GetDesiredSize());
+	return FMath::Max(ContentSize - GetScrollComponentFromVector(ScrollPanelGeometry.Size), 0.0f);
+}
+
 float SScrollBox::GetViewFraction() const
 {
 	const FGeometry ScrollPanelGeometry = FindChildGeometry(CachedGeometry, ScrollPanel.ToSharedRef());
@@ -489,6 +500,11 @@ void SScrollBox::SetScrollBarThickness(FVector2D InThickness)
 	ScrollBar->SetThickness(InThickness);
 }
 
+void SScrollBox::SetScrollBarPadding(const FMargin& InPadding)
+{
+	ScrollBar->SetPadding(InPadding);
+}
+
 void SScrollBox::SetScrollBarRightClickDragAllowed(bool bIsAllowed)
 {
 	bAllowsRightClickDragScrolling = bIsAllowed;
@@ -535,6 +551,7 @@ EActiveTimerReturnType SScrollBox::UpdateInertialScroll(double InCurrentTime, fl
 	{
 		bIsScrolling = false;
 		bIsScrollingActiveTimerRegistered = false;
+		Invalidate(EInvalidateWidget::LayoutAndVolatility);
 		UpdateInertialScrollHandle.Reset();
 	}
 
@@ -568,27 +585,28 @@ void SScrollBox::Tick( const FGeometry& AllottedGeometry, const double InCurrent
 
 	// If this scroll box has no size, do not compute a view fraction because it will be wrong and causes pop in when the size is available
 	const float ViewFraction = GetViewFraction();
-	const float ViewOffset = GetViewOffsetFraction();
+	const float TargetViewOffset = GetViewOffsetFraction();
 	
+	const float CurrentViewOffset = bAnimateScroll ? FMath::FInterpTo(ScrollBar->DistanceFromTop(), TargetViewOffset, InDeltaTime, 15.f) : TargetViewOffset;
+
 	// Update the scrollbar with the clamped version of the offset
-	float TargetPhysicalOffset = GetScrollComponentFromVector(ViewOffset*ScrollPanel->GetDesiredSize());
+	float NewPhysicalOffset = GetScrollComponentFromVector(CurrentViewOffset * ScrollPanel->GetDesiredSize());
 	if ( AllowOverscroll == EAllowOverscroll::Yes )
 	{
-		TargetPhysicalOffset += Overscroll.GetOverscroll(AllottedGeometry);
+		NewPhysicalOffset += Overscroll.GetOverscroll(AllottedGeometry);
 	}
 
 	const bool bWasScrolling = bIsScrolling;
-	bIsScrolling = !FMath::IsNearlyEqual(TargetPhysicalOffset, ScrollPanel->PhysicalOffset, 0.001f);
-	ScrollPanel->PhysicalOffset = (bAnimateScroll)
-		? FMath::FInterpTo(ScrollPanel->PhysicalOffset, TargetPhysicalOffset, InDeltaTime, 15.f)
-		: TargetPhysicalOffset;
+	bIsScrolling = !FMath::IsNearlyEqual(NewPhysicalOffset, ScrollPanel->PhysicalOffset, 0.001f);
 
+	ScrollPanel->PhysicalOffset = NewPhysicalOffset;
+	
 	if (bWasScrolling && !bIsScrolling)
 	{
 		Invalidate(EInvalidateWidget::Layout);
 	}
 	
-	ScrollBar->SetState(ViewOffset, ViewFraction);
+	ScrollBar->SetState(CurrentViewOffset, ViewFraction);
 	if (!ScrollBar->IsNeeded())
 	{
 		// We cannot scroll, so ensure that there is no offset.
@@ -807,7 +825,7 @@ FReply SScrollBox::OnMouseWheel( const FGeometry& MyGeometry, const FPointerEven
 		// Make sure scroll velocity is cleared so it doesn't fight with the mouse wheel input
 		InertialScrollManager.ClearScrollVelocity();
 
-		const bool bScrollWasHandled = ScrollBy(MyGeometry, -MouseEvent.GetWheelDelta() * GetGlobalScrollAmount(), EAllowOverscroll::No, false);
+		const bool bScrollWasHandled = ScrollBy(MyGeometry, -MouseEvent.GetWheelDelta() * GetGlobalScrollAmount() * WheelScrollMultiplier, EAllowOverscroll::No, bAnimateWheelScrolling);
 
 		if ( bScrollWasHandled && !bIsScrollingActiveTimerRegistered )
 		{
@@ -1076,6 +1094,16 @@ void SScrollBox::SetAllowOverscroll(EAllowOverscroll NewAllowOverscroll)
 	}
 }
 
+void SScrollBox::SetAnimateWheelScrolling(bool bInAnimateWheelScrolling)
+{
+	bAnimateWheelScrolling = bInAnimateWheelScrolling;
+}
+
+void SScrollBox::SetWheelScrollMultiplier(float NewWheelScrollMultiplier)
+{
+	WheelScrollMultiplier = NewWheelScrollMultiplier;
+}
+
 void SScrollBox::BeginInertialScrolling()
 {
 	if ( !UpdateInertialScrollHandle.IsValid() )
@@ -1091,7 +1119,7 @@ void SScrollBox::EndInertialScrolling()
 {
 	bIsScrolling = false;
 	bIsScrollingActiveTimerRegistered = false;
-
+	Invalidate(EInvalidateWidget::LayoutAndVolatility);
 	if ( UpdateInertialScrollHandle.IsValid() )
 	{
 		UnRegisterActiveTimer(UpdateInertialScrollHandle.ToSharedRef());

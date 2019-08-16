@@ -1,40 +1,51 @@
-﻿Availability: Public
-Title:创建并使用自定义高度图和图层
-Crumbs: %ROOT%, Engine, Engine/Landscape
-Description:在您的地貌中创建和使用自定义高度图和图层。
-
+﻿INTSourceChangelist: 3782314
+Availability: Public
+Title:创建和使用自定义高度图和图层
+Crumbs:
+Description:为地形创建和使用自定义高度图和层。
+version: 4.14
+parent:Engine/Landscape/Creation
+order:
+type:overview
+SkillLevel:Intermediate
+related:Engine/Landscape/Editing
+related:Engine/Landscape/Editing/PaintMode
+related:Engine/Landscape/Creation
+tags:Landscape
 
 [TOC(start:2 end:3)]
 
+有时需要使用第三方程序来创建需要的地形高度图和层。 
+虚幻引擎4（UE4）在此指南中讲述了这种工作流，以及使用这种工具流时需要注意的事项。 
 
-## 概述
 ![](Landscape_Example_Image.png)
 
-有时制作地貌会要求您使用外部程序来创建所需的高度图和图层。 当您使用诸如本指南中出现的流程图时，您可以很好地在虚幻引擎4中使用它。 如果这是您第一次使用地貌工具，您可能会需要首先查看一下[地貌概述](Engine/Landscape/Editing) 文档，因为这里讲的内容可能对新用户来说比较难。 
+[REGION:note]
+如果这是您首次使用地形工作，可能需要首先查阅[地形总览](Engine/Landscape/Editing)，此处讲述的内容可能过于高深。 
+[/REGION]
 
+(#layers)
 
-## 图层
+## 层
 
-地貌图层是特殊贴图，可以帮助细分地貌的外观和感觉。 
-[COMMENT:none]
-Each Landscape Layer can be thought of 
+地形层是特殊的纹理，有助于构建地形的效果。 
 
-[/COMMENT]
+(#layerformats)
+
 ### 图层格式
-如需正确导入外部程序中创建的地貌图层，此图像应符合以下要求。 
-* 灰度，每像素8位，单通道文件。
-* 以.PNG或.RAW格式之一存储。 
+通过 `ILandscapeHeightmapFileFormat` 和 `ILandscapeWeightmapFileFormat` 接口的实现即可从第三方程序导出地形层。编辑器对基于图像的导出的现有支持已转换为使用此接口，且仍完全支持。内置格式的图像仍需要为灰阶、每像素8位、.PNG或.RAW格式的单通道文件。如果在Photoshop中创建层，创建新文件时应使用以下设置：
 
-如果您正在Photoshop中创建图层，您应该在创建文档时使用以下设置。 
 ![](Photoshop_Layer_Example.png)
 
 [COMMENT:none]
 
-### Landscape Size vs. Layer Size
+(#landscapesizevs.layersize)
 
-The following chart shows the relation between Landscape height map size and Landscape layer size. It is very important that you make sure that you Landscape layer is the correct size. If the layer size is wrong it will not import into UE4.
+### 地形大小VS层大小
 
-| Landscape Height Map Size | Layer Size|
+以下表格显示了地形高度图大小和地形层大小之间的关系。确保地形层大小正确十分重要。如果层尺寸不正确，其将不会导入UE4。
+
+| 地形高度图尺寸 | 图层尺寸|
 | --------|---------|
 | 16 x 16 | 16 x 16 |
 | 32 x 32 | 32 x 32 |
@@ -46,98 +57,112 @@ The following chart shows the relation between Landscape height map size and Lan
 | 2048 x 2048 | 2160 x 2160 |
 | 4096 x 4096 | 4336 x 4336 |
 
-If your layers are not output at the correct size you will receive the following warning.  
+如果层未以正确的尺寸输出，将出现以下警告。  
 
 ![](Landscape_Layer_Import_Error.png)
 
 [/COMMENT]
 
 
-### 图层导入 
+(#layerimport)
 
-在外部应用中导入图层是一个简单的步骤，但您首先需要确认设置了一些内容，这样可以让所有内容都能顺利地运行。 
+### 层导入 
 
-1. 首先您需要有一个制作完成的地貌文件。 如果目前还没有，请先创建一个。 
-1. 在您的地貌文件创建完成后，您需要为其制作一个新材质。 在本例中，我们会制作一个很简单的材质，但这个材质在需要的情况下可以很方便地进行扩展。 您需要设置的材质应该看起来像下图这样。 
-![](Landscape_Simple_Shader.png)
-1. 在材质创建后，将其应用到地貌Actor，这样会看起来像下图这样。 
-![](Landscape_Applied_Material.png)
-1. 在应用了材质后，我们可以添加一些 **Layer Info** （图层信息）到地貌Actor。 对每个图层都添加一个 **Layer Info** （图层信息）对象。 
-在这个示例中，我们有三个对象。 如需了解更多关于 **Layer Info** （图层信息）对象的内容，请查阅[描画模式](Engine/Landscape/Editing/PaintMode) 文档的[图层信息对象](Engine/Landscape/Editing/PaintMode#LayerInfoObjects) 。 在完成后，您的 **Target Layers** （对象图层）部分看起来应该和下图一样。 
-![](Landscape_Target_Layers.png)
-1. 现在可以导入图层了。 要完成这个内容，您需要对想要导入图层的 **Target Layer** （目标图层） **点击右键** ，然后选择您想要从弹出的对话框中导入的图层。 
-![](Landscape_Import_Layer_Option.png)
-1. 如果您的图层没有以正确的大小进行导出，您将会获得如下警告信息。  
-![](Landscape_Layer_Import_Error.png)
+导入第三方应用程序中制作的层流程极为简单，但首先需要进行几项设置，才能让工作顺利进行。 
+
+1. 首先需要确保拥有一个可使用的地形，没有则先创建。 
+
+1. 地形创建后，则需要为其制作一些新材质。我们将针对此例制作一些非常简单的材质，但可以根据此需求轻松延展。需要设置的材质应与下图类似。
+
+	![](Landscape_Simple_Shader.png)
+
+1. 材质创建后，将其应用到地形Actor，得出的结果应与下图相似。 
+
+	![](Landscape_Applied_Material.png)
+
+1. 应用材质后即可将 **Layer Info** 添加到地形Actor。为将拥有的每个层添加一个 **Layer Info**。此例中将有3个层。如需阅读关于 **Layer Info** 对象的更多内容，请参阅[绘制模式](Engine/Landscape/Editing/PaintMode)文档的[Layer Info对象](Engine/Landscape/Editing/PaintMode#LayerInfOobjects)部分。
+
+	![](Landscape_Create_Layer.png)
+
+1. 操作完成后，您的 **Target Layer** 部分应与下图类似。 
+
+	![](Landscape_Target_Layers.png)
+
+1. 现在可以导入层了。右键点击需要导入层的 **Target Layer**，然后从出现的对话框中选择需要导入的层。 
+
+	![](Landscape_Import_Layer_Option.png)
+
+1. 如果层未以正确的尺寸输出，将出现以下警告。  
+
+	![](Landscape_Layer_Import_Error.png)
  
-	 如需修复此问题，您需要确认您正在尝试导入的地貌应该为多大。 如需了解此信息，您可以通过对想要查看的 **Target Layer** （对象图层） **右键点击** 来导出任意图层，然后从弹出的对话框中选择 **Export** （导出）。
-	 在您完成该项操作后，您将会被要求在电脑上保存图层文件的位置。 在文件被保存后，您可以打开该文件以确定您的图层应该为多大。 
+	 要修复此问题，需要确定尝试导入的 **地形** 层的大小。确定大小的方法是在要查看的 **Target Layer** 上点击右键，然后从出现的对话框中选择 **导出**，将层导出。
+	 执行此操作后，程序将要求您将层文件保存到电脑上的路径中。文件保存后，即可将其打开来确定层的大小。 
 
-
-
-
+(#heightmaps)
 
 ## 高度图
 
-使用外部工具来创建基础高度图是在虚幻引擎内加速景观创建过程的好方法。 该基础高度图可以随后使用虚幻编辑器内的编辑工具来导入、清理或修改，从而对景观进行自定义，并使之更好地适合世界风格和您所期望的游戏过程。 
+加快地形创建进程的实用方法是使用第三方工具创建一个基础高度图，然后将此作为基础转入虚幻引擎。之后即可使用虚幻编辑器中的编辑工具来导入、清理或修改基础高度图，对地形进行自定义，使其与世界场景和所需的游戏进程更为相符。 
+
+(#heightmapformats)
 
 ### 高度图格式
 
-当您从外部程序中导入高度图时，在虚幻引擎4中仅可使用以下格式。
+从第三方程序导出高度图时，只有以下格式才能在UE4中使用。
 
-* 16位的灰度PNG文件。
+* 16位灰阶PNG文件。
 
-* 16位、灰度、以小字节序排列的RAW文件。
+* 16位灰阶.RAW文件，以小端字节排序。
 
-如果您正在使用Photoshop来导出您的高度图，请确认您按照如下方式设置新图像。 
+如果使用Photoshop来导出高度图，则需要按下图对新图像进行设置。 
 ![](Photoshop_HeighMap_Example.png)
 
 [REGION:tip]
-当您在外部应用中制作高度图时， **白色** 的值（所有通道均为255）将代表您高度图上的最高点，而 **黑色** 的值（所有通道均为0）将代表您高度图上的最低点。 
+在第三方应用程序中制作高度图时，**白色** 的值（在所有通道中为255）代表高度图上的最高点；**黑色** 的值（在所有通道中为0）代表高度图上的最低点。 
 [/REGION]
 
+(#importingcustomheightmaps)
+
 ### 导入自定义高度图 
-导入自定义高度图很简单。 这个过程从地貌模式面板的 **New Landscape** （新建地貌）部分进行初始化。 如需激活它，请选择标记为 **Import from File** （从文件导入）的单选框，从而显示从文件中导入高度图的能力。
+导入自定义高度图的方法十分简单。此进程从“地形模式”面板的 **新地形（New Landscape）** 部分开始。选择标有 **从文件导入（Import from File）** 的框，公开从文件导入高度图的功能，即可将其启用。
 
 ![](Engine\Landscape\Creation\Landscape_Import_Section.png)
 
-
-如需选择一个高度图文件以供导入，请按下 **Please specify a heightmap** （指定高度图）框旁的按钮，然后使用文件浏览器来选择高度图。 
+按下“请指定高度图”框旁边的按钮来选择要导入的高度图，然后选择高度图使用文件浏览器。 
 
 ![](Engine\Landscape\Creation\Landscape_Import_Section_Button.png)
 
-现在让我们尝试导入自定义高度图。 在这个示例中，我们会使用以下的图像，请确认您已经导入了该图像。  
+现在尝试导入一个自定义高度图。在此例中，我们将使用下方的图像。  
 
+![](Engine\Landscape\Creation\Landscape_Test_HM.png)(convert:false)
 [REGION:caption]
-请确认您在图像上进行了右键点击并选择Save as（另存为）来将其下载到您的电脑上。
+点击，选择上图中显示的 **另存为**，将其下载到PC。
 [/REGION]
 
-![](Engine\Landscape\Creation\Landscape_Test_HM.png)
-
-一旦您在电脑上保存了高度图后，您可以在地貌工具中使用它。 
-1. 打开地貌工具，然后转到[**管理模式**](Engine/Landscape/Editing/ManageMode)。
+将高度图保存到电脑后，即可在地形工具中进行使用。 
+1. 打开地形工具并前往[管理模式](Engine/Landscape/Editing/ManageMode)。
 	
 	![](Landscape_Open_Manage_Mode.png)
 
-1. 将选项设置为 **Import from File.** （从文件导入）
+1. 选择 **从文件导入** 选项。
 	
 	![](Engine\Landscape\Creation\Landscape_Import_Section.png)
 
-1. 选择您想要从 **Heightmap File** （高度图文件）部分导入的高度图。 
+1. 从 **高度图文件** 部分中选择需要导入的高度图。 
 
 	![](Engine\Landscape\Creation\Landscape_Import_Section_Button.png)
 
-1. 当以上步骤完成后，请按下 **导入** 按钮来创建基于您的高度图的新地貌文件。
+1. 上方的操作完成后，按下 **导入（Import）** 按钮会基于高度图新建一个地形。
 
 	![](Landscape_Press_Import.png)
 
 
-按下导入按钮前的效果图：
+按下导入按钮之前：
 ![](Engine\Landscape\Creation\Landscape_Import_Heightmap_Setup.png)
 
-按下导入按钮后的效果图：
+按下导入按钮之后：
 ![](Engine\Landscape\Creation\Landscape_Import_Heightmap_Finsh.png)
 
 
-现在您有了一个新的地貌文件，它是基于您刚导入的高度图而创建的。 
-
+现在，新地形将以刚导入的高度图为基础。 

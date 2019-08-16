@@ -1,26 +1,26 @@
 ﻿INTSourceChangelist:3426963
 Availability: NoPublish
-Title: Mac Instructions
+Title: Mac说明
 Crumbs: %ROOT%
-Description: Telling Mac users how to download the Unreal Engine source code from GitHub.
+Description: 告知Mac用户如何从GitHub下载虚幻引擎源代码。
 version: 4.16
 parent:GettingStarted
 Order:
 
-1.	Install [GitHub for Mac](https://mac.github.com/) then [fork and clone our repository](https://guides.github.com/activities/forking/). 
+1.	安装[Mac版GitHub](https://mac.github.com/)，然后[分叉并复制元库](https://guides.github.com/activities/forking/)。 
 
-	To use Git from the Terminal, see the [Setting up Git](https://help.github.com/articles/set-up-git/) and [Fork a Repo](https://help.github.com/articles/fork-a-repo/) articles.
-	If you'd rather not use Git, use the 'Download ZIP' button on the right to get the source directly.
+	如需在终端使用Git，请参阅文章[设置Git](https://help.github.com/articles/set-up-git/)和[分叉元库](https://help.github.com/articles/fork-a-repo/)。
+	若不想使用Git，点击右边的“下载ZIP（Download ZIP）”即可直接获得源。
 
-1.	Install the latest version of [Xcode](https://itunes.apple.com/us/app/xcode/id497799835).
+1.	安装最新版本的[Xcode](https://itunes.apple.com/us/app/xcode/id497799835)。
 
-1.	Open your source folder in Finder and double-click on **Setup.command** to download binary content for the engine. You can close the Terminal window afterwards.
+1.	在查找器中打开源文件夹，双击 **Setup.command** 下载引擎的二进制内容。之后可以关闭终端窗口。
 
-	If you downloaded the source as a .zip file, you may see a warning about it being from an unidentified developer (because .zip files on GitHub aren't digitally signed).
-	To work around it, right-click on Setup.command, select Open, then click the Open button.
+	如果将源代码下载为.zip文件，可能会弹出警告，称其来自无法识别的开发者（因为GitHub上的.zip文件未进行数字签名）。
+	解决方法是右键点击Setup.command、选择Open，然后点击Open按钮。
 
-1.	In the same folder, double-click **GenerateProjectFiles.command**.  It should take less than a minute to complete.  
+1.	在同一个文件夹中双击 **GenerateProjectFiles.command**。完成操作的时间应短于一分钟。  
 
-1.	Load the project into Xcode by double-clicking on the **UE4.xcworkspace** file. Select the **ShaderCompileWorker** for **My Mac** target in the title bar, then select the 'Product > Build' menu item. When Xcode finishes building, do the same for the **UE4** for **My Mac** target. Compiling may take anywhere between 15 and 40 minutes, depending on your system specs.
+1.	双击 **UE4.xcworkspace** 文件将项目加载到Xcode中。在标题栏中选择 **My Mac** 目标的 **ShaderCompileWorker**，然后选择“产品（Product） > 编译（Build）”菜单项。Xcode完成编译后，为 **My Mac** 目标的 **UE4** 执行相同操作。编译时间可能在15到40分钟之间，具体取决于系统配置。
    
-1.	After compiling finishes, select the 'Product > Run' menu item to load the editor.
+1.	编译完成后，选择“产品（Product） > 运行（Run）”菜单项目来加载编辑器。

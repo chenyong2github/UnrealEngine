@@ -5,8 +5,8 @@
 #include "Misc/Paths.h"
 #include "Engine/EngineBaseTypes.h"
 #include "Sound/SoundAttenuation.h"
-#include "Audio.h"
 #include "Sound/SoundWave.h"
+#include "Audio.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/Package.h"
 #include "ActiveSound.h"
@@ -161,8 +161,8 @@ static void PlayOneShotSound(FAudioDevice* InAudioDevice, const TArray<USoundWav
 	FActiveSound NewActiveSound;
 	NewActiveSound.SetSound(SoundWave);
 
-	NewActiveSound.VolumeMultiplier = 0.25f;
-	NewActiveSound.PitchMultiplier = FMath::FRandRange(0.1f, 3.0f);
+	NewActiveSound.SetVolume(0.25f);
+	NewActiveSound.SetPitch(FMath::FRandRange(0.1f, 3.0f));
 
 	NewActiveSound.RequestedStartTime = 0.0f;
 

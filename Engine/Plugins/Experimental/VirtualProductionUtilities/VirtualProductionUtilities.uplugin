@@ -4,7 +4,7 @@
 	"VersionName": "1.0",
 	"FriendlyName": "Virtual Production Utilities",
 	"Description": "",
-	"Category": "Other",
+	"Category": "Virtual Production",
 	"CreatedBy": "",
 	"CreatedByURL": "",
 	"DocsURL": "",
@@ -17,27 +17,31 @@
 		{
 			"Name": "VPUtilities",
 			"Type": "Runtime",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "PostDefault"
 		},
 		{
 			"Name": "VPUtilitiesEditor",
 			"Type": "Editor",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "PostEngineInit"
 		},
 		{
 			"Name": "VPBookmark",
 			"Type": "Runtime",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "PostDefault"
 		},
 		{
 			"Name": "VPBookmarkEditor",
 			"Type": "Editor",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "PostDefault"
 		}
 	],
 	"Plugins": [
 		{
-			"Name": "ConcertSyncClient",
+			"Name": "MultiUserClient",
+			"Enabled": true
+		},
+		{
+			"Name": "EditorScriptingUtilities",
 			"Enabled": true
 		}
 	]

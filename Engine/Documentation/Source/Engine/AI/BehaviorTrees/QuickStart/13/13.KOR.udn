@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3891955
+INTSourceChangelist:3891955
 Availability:Public
 Title: 13. 데코레이터 생성
 Crumbs:%ROOT%, Engine, Gameplay, Engine/AI/BehaviorTrees, Engine/AI/BehaviorTrees/QuickStart
@@ -573,7 +573,7 @@ order:13
 	[/REGION]
 
 1. **Receive Condition Check** 이벤트는 비헤이비어 트리가 이 조건이 달려있는 노드에 걸렸을 때 이 블루프린트에 전송되는 이벤트입니다.
-1. 다시 한 번, AI Controller 를 저장하여 나중에 쉽게 레퍼런싱하도록 합니다.
+1. 다시 한 번, AI Controller 를 저장하여 나중에 쉽게 참조하도록 합니다.
 1. 따라가고자 하는 액터(플레이어 폰)를 구합니다.
 1. 액터와 AI 폰 사이의 거리를 구합니다.
 1. 거리가 설정된 양보다 크면, 조건이 **True** 를 반환합니다. 크지 않으면, **False** 를 반환하고 해당 비헤이비어 트리 부분 실행을 막습니다.

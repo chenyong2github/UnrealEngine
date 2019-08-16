@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6572591
 Availability:Public
 Title: 材质 
 Crumbs: %ROOT%, Engine
@@ -10,11 +10,7 @@ order:2
 type:landing
 tags:Materials
 topic-image:materials_topic.png
-
-
-[REGION:banner]
-![Materials](materials.png)
-[/REGION]
+hero-image:materials.png
 
 **材质** 是可以应用到网格物体上的资源，用它可控制场景的可视外观。从较高的层面上来说，可能最简单的方法就是把材质视为应用到一个物体的"描画"。但这种说法也会产生一点点误导，因为材质实际上定义了组成该物体所用的表面类型。您可以定义它的颜色、它的光泽度及您是否能看穿该物体等等。
 

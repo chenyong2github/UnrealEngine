@@ -1,11 +1,12 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
+﻿INTSourceChangelist:6061116
+Availability: docs
 Title:2.显示生命值、能量和弹药量
 Crumbs:%ROOT%, Engine, Engine/UMG, Engine/UMG/QuickStart
 Description:在这一步中，我们将在 HUD 上连接并显示玩家的体力、能量和弹药量。 
 version:4.9
 tags:UMG UI Designer
 
+## 此页面已不再需要。
 
 [VAR:Steps]
 [OBJECT:Navigation]

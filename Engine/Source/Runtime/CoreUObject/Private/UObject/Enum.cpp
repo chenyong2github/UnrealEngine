@@ -414,6 +414,17 @@ FText UEnum::GetDisplayNameTextByValue(int64 Value) const
 	return GetDisplayNameTextByIndex(Index);
 }
 
+FString UEnum::GetAuthoredNameStringByIndex(int32 InIndex) const
+{
+	return GetNameStringByIndex(InIndex);
+}
+
+FString UEnum::GetAuthoredNameStringByValue(int64 Value) const
+{
+	int32 Index = GetIndexByValue(Value);
+	return GetAuthoredNameStringByIndex(Index);
+}
+
 int32 UEnum::GetIndexByNameString(const FString& InSearchString, EGetByNameFlags Flags) const
 {
 	ENameCase         NameComparisonMethod   = !!(Flags & EGetByNameFlags::CaseSensitive) ? ENameCase  ::CaseSensitive : ENameCase  ::IgnoreCase;
@@ -469,12 +480,25 @@ int32 UEnum::GetIndexByNameString(const FString& InSearchString, EGetByNameFlags
 	FName SearchName = FName(*SearchEnumEntryString);
 	FName ModifiedName = FName(*ModifiedEnumEntryString);
 
+	// Check authored name, but only if this is a subclass of Enum that might have implemented it
+	const bool bCheckAuthoredName = !!(Flags & EGetByNameFlags::CheckAuthoredName) && (GetClass() != UEnum::StaticClass());
+
 	const int32 Count = Names.Num();
 	for (int32 Counter = 0; Counter < Count; ++Counter)
 	{
 		if (Names[Counter].Key.IsEqual(SearchName, NameComparisonMethod) || Names[Counter].Key.IsEqual(ModifiedName, NameComparisonMethod))
 		{
 			return Counter;
+		}
+
+		if (bCheckAuthoredName)
+		{
+			FString AuthoredName = GetAuthoredNameStringByIndex(Counter);
+
+			if (AuthoredName.Equals(SearchEnumEntryString, StringComparisonMethod) || AuthoredName.Equals(ModifiedEnumEntryString, StringComparisonMethod))
+			{
+				return Counter;
+			}
 		}
 	}
 

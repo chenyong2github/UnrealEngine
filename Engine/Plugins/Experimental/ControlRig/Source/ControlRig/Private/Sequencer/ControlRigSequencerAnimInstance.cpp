@@ -15,8 +15,13 @@ FAnimInstanceProxy* UControlRigSequencerAnimInstance::CreateAnimInstanceProxy()
 	return new FControlRigSequencerAnimInstanceProxy(this);
 }
 
-bool UControlRigSequencerAnimInstance::UpdateControlRig(UControlRig* InControlRig, uint32 SequenceId, bool bAdditive, bool bApplyBoneFilter, const FInputBlendPose& BoneFilter, float Weight)
+bool UControlRigSequencerAnimInstance::UpdateControlRig(UControlRig* InControlRig, uint32 SequenceId, bool bAdditive, bool bApplyBoneFilter, const FInputBlendPose& BoneFilter, float Weight, bool bExternalSource)
 {
 	CachedControlRig = InControlRig;
-	return GetProxyOnGameThread<FControlRigSequencerAnimInstanceProxy>().UpdateControlRig(InControlRig, SequenceId, bAdditive, bApplyBoneFilter, BoneFilter, Weight);
+	return GetProxyOnGameThread<FControlRigSequencerAnimInstanceProxy>().UpdateControlRig(InControlRig, SequenceId, bAdditive, bApplyBoneFilter, BoneFilter, Weight, bExternalSource);
+}
+
+bool UControlRigSequencerAnimInstance::SetAnimationAsset(class UAnimationAsset* NewAsset)
+{
+	return GetProxyOnGameThread<FControlRigSequencerAnimInstanceProxy>().SetAnimationAsset(NewAsset);
 }

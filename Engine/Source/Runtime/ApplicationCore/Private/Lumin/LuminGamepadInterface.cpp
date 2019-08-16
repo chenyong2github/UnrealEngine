@@ -3,6 +3,7 @@
 #include "LuminGamepadInterface.h"
 #include "Android/AndroidApplication.h"
 #include "GenericPlatform/GenericApplication.h"
+#include "Misc/ConfigCacheIni.h"
 #include "HAL/PlatformTime.h"
 #include <dirent.h>
 #include <errno.h>
@@ -75,6 +76,9 @@ FLuminGamepadInterface::FLuminGamepadInterface(const TSharedRef< FGenericApplica
 
 	InitialButtonRepeatDelay = 0.2f;
 	ButtonRepeatDelay = 0.1f;
+
+	GConfig->GetFloat(TEXT("/Script/Engine.InputSettings"), TEXT("InitialButtonRepeatDelay"), InitialButtonRepeatDelay, GInputIni);
+	GConfig->GetFloat(TEXT("/Script/Engine.InputSettings"), TEXT("ButtonRepeatDelay"), ButtonRepeatDelay, GInputIni);
 
 	// In the engine, all controllers map to xbox controllers for consistency 
 	X360ToXboxControllerMapping[0] = 0;		// A

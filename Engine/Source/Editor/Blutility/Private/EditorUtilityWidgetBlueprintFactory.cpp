@@ -83,5 +83,5 @@ UObject* UEditorUtilityWidgetBlueprintFactory::FactoryCreateNew(UClass* Class, U
 
 bool UEditorUtilityWidgetBlueprintFactory::CanCreateNew() const
 {
-	return GetDefault<UEditorExperimentalSettings>()->bEnableEditorUtilityBlueprints;
+	return true;
 }

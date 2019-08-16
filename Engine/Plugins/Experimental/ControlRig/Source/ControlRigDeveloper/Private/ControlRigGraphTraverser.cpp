@@ -39,6 +39,12 @@ bool FControlRigGraphTraverser::IsWiredToExecution(const FControlRigModelNode* N
 		return true;
 	}
 
+	if (Node->IsParameter() && Node->ParameterType == EControlRigModelParameterType::Output)
+	{
+		VisitedNodes.Add(Node->Name, true);
+		return true;
+	}
+
 	VisitedNodes.Add(Node->Name, false);
 
 	bool bFoundWiredPin = false;

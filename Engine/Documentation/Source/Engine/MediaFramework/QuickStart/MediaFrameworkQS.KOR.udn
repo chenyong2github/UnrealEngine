@@ -1,55 +1,258 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
+﻿INTSourceChangelist:6503306
+Availability: Public
 Title: 미디어 프레임워크 퀵스타트
-Crumbs: %ROOT%, Engine
 Description: 미디어 프레임워크로 게임 레벨 안에 비디오를 빠르게 추가하고 재생하는 방법에 대한 안내입니다.
-Navigation:topic
-parent:Engine/MediaFramework
-order:1
-Version: 4.18
-type:quick start
-checkpoint:mediaframeworkqs
-tags:Media Framework
-topic-image:MediaFrameworkTopic.png
+Type: quick start
+Version: 4.22
+Parent: Engine/MediaFramework
+Tags: Media Framework
+topic-image: MediaFrameworkHero.png
+Order: 2
+Related: Engine/Blueprints
+Related: Engine/Rendering/Materials
 
-![](MediaFrameworkHero.png)
 
-_이 가이드를 마칠 즈음이면 레벨에 각기 다른 콘텐츠가 재생되며 그 옆에 서서 끄고 켤 수 있는 TV 가 다수 있을 것입니다._
+[TOC (start:2 end:2)]
 
-## 목적
+![](MediaFrameworkHero.png)(w:1080)
 
-이 안내서의 목적은 레벨 안에서 비디오를 재생할 수 있는 TV 구성 방법을 안내해 드리는 것입니다.
-또한 TV 를 블루프린트로 구성하여 TV 에서 재생되는 콘텐츠를 변경하고 레벨에 다수의 TV 를 배치하여 필요한 경우 각기 다른 콘텐츠를 재생할 수도 있도록 하겠습니다.
-미디어 프레임워크 툴이 처음이거나 레벨의 스태틱 메시에서 비디오를 재생하는 방법이 궁금하신 분들을 위한 안내서입니다.
+*이 가이드를 마칠 즈음이면 옆에 서서 키를 눌러 켜고 끄면 콘텐츠가 재생되는 TV 가 생길 것입니다.*
+
+### 목적
+
+이 안내서의 목적은 레벨 안에서 비디오를 재생할 수 있는 TV 구성 방법을 안내해 드리는 것입니다. 또한 TV 를 버튼을 눌러 켤 수 있도록 블루프린트로 구성합니다. 미디어 프레임워크 변수도 **디테일** 패널에 노출시켜 TV 에 재생되는 콘텐츠를 빠르게 변경할 수 있도록 합니다. 미디어 프레임워크 툴이 처음이거나 레벨의 스태틱 메시에서 비디오를 재생하는 방법이 궁금하신 분들을 위한 안내서입니다.
 
 [REGION:note]
-이 안내서에는 [](Engine/Rendering/Materials) 및 [블루프린트](Engine/Blueprints) 를 사용하여 TV 에서 비디오가 재생되는 효과를 내는 구성 방법이 몇 가지 포함되어 있습니다.
-이와 관련해서 있으면 좋은 사전 지식이 있기는 하지만 필수는 아닙니다.
+이 안내서에는 [](Engine/Rendering/Materials) 및 [블루프린트](Engine/Blueprints) 를 사용하여 TV 에서 비디오가 재생되는 효과를 내는 구성 방법이 몇 가지 포함되어 있습니다. 이와 관련해서 있으면 좋은 사전 지식이 있기는 하지만 필수는 아닙니다.
 [/REGION]
 
-## 목표
+### 목표
 
 이 안내서에서 얻을 수 있는 지식은 다음과 같습니다:
 
-*	미디어를 임포트하고 다양한 미디어 소스를 사용하는 방법.
-*	미디어 파일 재생에 사용되는 미디어 텍스처 사용 머티리얼을 만드는 방법.
-*	블루프린트로 미디어 재생을 시작, 중지, 일시정지하는 방법.
-*	TV 블루프린트를 만들어 사용할 미디어 소스를 지정하는 방법.
+*    미디어를 임포트하고 다양한 미디어 소스를 사용하는 방법.
+*    미디어 파일 재생에 사용되는 미디어 텍스처 사용 머티리얼을 만드는 방법.
+*    블루프린트로 미디어 재생을 시작, 중지하는 방법.
+*    TV 블루프린트를 만들어 사용할 미디어 소스를 지정하는 방법.
 
-## 단계
+## 1 - 프로젝트 및 머티리얼 구성
 
-[DIR(output:"checkpoint" parent:"Engine\MediaFramework\QuickStart" org:"hierarchy")]
+1.  **ThirdPerson** (삼인칭) 블루프린트 템플릿을 사용해서 새 프로젝트를 만들고 아무 이름이나 짓습니다.
 
-[REGION:call_to_action]
-	[클릭하면 시작합니다.](Engine\MediaFramework\QuickStart/1 "%Engine\MediaFramework\QuickStart/1:title%")
+    [REGION:lightbox]
+    [![](MediaFrameworkQS_01.png)(w:640)](MediaFrameworkQS_01.png)
+    [/REGION]
+    [REGION:caption]
+    이미지를 클릭하면 원본을 확인합니다. 
+    [/REGION]
+
+1.  이 [샘플 콘텐츠](Sample_Content.rar) 압축을 컴퓨터에 풀고 모든 콘텐츠를 엔진에 임포트합니다. 
+    
+    ![](MediaFrameworkQS_02.png)
+
+    선택적으로 새 폴더를 만들어 모든 샘플 콘텐츠를 저장할 수 있습니다. 텍스처 애셋에 따라 **머티리얼** 이 자동 생성됩니다. 
+
+1.  **M_TV_Inst** 머티리얼에서 **Vector Parameter** (벡터 파라미터) 노드를 삭제하고, **Texture Sample** (텍스처 샘플)을 추가한 뒤 **Sample Type** (샘플 유형)을 **External** (외부)로 설정합니다. 
+
+    ![](MediaFrameworkQS_03.png)
+
+1.  **Texture Object Parameter** (텍스처 오브젝트 파라미터)를 추가하고 이름을 **TV_Texture** 라 한 뒤 **Tex** 핀을 통해 **Texture Sample** (텍스처 샘플)에 연결합니다. 
+
+1.  **TV_Texture** Param Tex Object 에 대해, **Texture** (텍스처)를 새로운 **Media Texture** (미디어 텍스처)로 변경하고 **MediaPlayer_01_Video** 라 합니다. 
+
+    [REGION:lightbox]
+    [![](MediaFrameworkQS_04.png)(w:640)](MediaFrameworkQS_04.png)
+    [/REGION]
+    [REGION:caption]
+    이미지를 클릭하면 원본을 확인합니다. 
+    [/REGION]
+
+1.  돋보기 아이콘을 클릭하여 **MediaPlayer_01_Video** 애셋을 엽니다. 
+
+    ![](MediaFrameworkQS_04b.png)    
+
+1.  **Media Player** (미디어 플레이어) 드롭다운 메뉴를 클릭하고 **미디어 플레이어** 애셋을 생성한 뒤 **MyMediaPlayer** 라 합니다. 
+      
+    ![](MediaFrameworkQS_04c.png)
+
+    **미디어 플레이어 생성** 팝업 메뉴가 나타나면, **확인** 을 클릭합니다. 위 5 단계에서 했으므로 다른 **미디어 텍스처** 를 만들 필요가 없기 때문입니다. 
+
+    ![](MediaFrameworkQS_04d.png)
+
+1.  **MyMediaPlayer** 애셋을 연 다음, **Gideon_1080p_H264** 파일에 더블클릭하면 비디오 재생이 시작됩니다. 
+
+    [REGION:lightbox]
+    [![](MediaFrameworkQS_04e.png)(w:640)](MediaFrameworkQS_04e.png)
+    [/REGION]
+    [REGION:caption]
+    이미지를 클릭하면 원본을 확인합니다. 
+    [/REGION]
+
+1.  **M_TV_Inst** 머티리얼에 **TexCoord** 를 추가하고 **VTiling** 을 **2.0** 으로 설정한 뒤 **Texture Sample** 의 **UVs** 핀에 연결합니다. 
+
+    ![](MediaFrameworkQS_05.png)
+
+1.  **TextureSample** 을 또 하나 추가하고 **Texture** 를 **T_TV_M2** 애셋으로 설정합니다. 
+
+    ![](MediaFrameworkQS_06.png)
+
+1.  **LinearInterpolate** 노드를 추가하고 이전 단계의 **Texture** 를 **Green** 채널을 통해 **Alpha** 에 연결합니다. 
+
+    ![](MediaFrameworkQS_07.png)
+
+1.  나머지 핀을 아래와 같이 연결합니다. 
+
+    [REGION:lightbox]
+    [![](MediaFrameworkQS_08.png)(w:640)](MediaFrameworkQS_08.png)
+    [/REGION]
+    [REGION:caption]
+    이미지를 클릭하면 원본을 확인합니다. 
+    [/REGION]
+
+### 섹션 결과
+
+**미디어 플레이어** 및 연관된 **미디어 텍스처** 애셋을 사용해서 미디어를 재생하는 머티리얼을 구성했습니다. **콘텐츠 브라우저** 에서 TV 메시를 열면, 화면이 검정( 또는 경우에 따라 하양)으로 나타날 수 있습니다. 
+
+![](MediaFrameworkQS_08a.png)(w:720)
+
+미리보려면 미디어 플레이어 애셋을 열고 미디어 소스를 더블클릭합니다. 그러면 미디어가 뷰포트의 스태틱 메시 TV 에 재생됩니다. 
+
+[REGION:lightbox]
+[![](MediaFrameworkQS_09.png)(w:640)](MediaFrameworkQS_09.png)
+[/REGION]
+[REGION:caption]
+이미지를 클릭하면 원본을 확인합니다. 
 [/REGION]
 
 
+## 2 - TV 블루프린트 - 컴포넌트 구성
+
+이 단계에서는 TV 스태틱 메시와 나머지 컴포넌트를 사용해서 레벨의 TV 를 작동하게 만드는 블루프린트를 생성합니다. 
+
+1.  **콘텐츠 브라우저** 에서 **신규 추가** 버튼을 클릭하고 **블루프린트 클래스** 를 선택합니다. 
+
+    ![](MediaFrameworkQS_010.png)
+
+1.  **부모 클래스 선택** 메뉴에서 **Actor** 를 선택하고 이름을 **TV_BP** 라 합니다. 
+    
+    ![](MediaFrameworkQS_011.png)  
+
+1.  **TV_BP** 애셋에서 **컴포넌트 추가** 버튼을 클릭하고 **Static Mesh** (스태틱 메시)를 선택합니다. 
+
+    ![](MediaFrameworkQS_012.png)
+
+1.  그 **스태틱 메시** 의 **디테일** 패널에서 **SM_TV** 를 사용하도록 설정합니다. 
+
+    ![](MediaFrameworkQS_013.png)
+
+1.  **Box Collision** (박스 콜리전) 컴포넌트를 추가한 다음 아래와 같이 TV 앞에 오도록 위치와 스케일을 조정합니다. 
+
+    [REGION:lightbox]
+    [![](MediaFrameworkQS_014.png)(w:640)](MediaFrameworkQS_014.png)
+    [/REGION]
+    [REGION:caption]
+    이미지를 클릭하면 원본을 확인합니다. 
+    [/REGION]
+
+    박스 콜리전을 사용해서 플레이어가 TV 앞에 있을 때 켤 수 있음을 나타냅니다 (뒤에 있을 때는 켤 수 없게 하고 싶습니다). 
+
+1.  **MediaSound** (미디어 사운드) 컴포넌트를 추가하고 **디테일** 패널에서 **Media Player** (미디어 플레이어) 프로퍼티에 **MyMediaPlayer** 애셋을 할당합니다. 
+
+    ![](MediaFrameworkQS_015.png)
+
+    **미디어 플레이어** 안에 정의된 **미디어 소스** 에 연관된 오디오를 재생하는 데 사용됩니다. 
+
+1.  **박스 콜리전** 에 대한 **디테일** 패널에서 **On Component Begin Overlap** 및 **On Component End Overlap** 이벤트를 추가합니다. 
+
+    ![](MediaFrameworkQS_016.png)
+
+### 섹션 결과
+
+TV 블루프린트가 구성되었으니, 다음에는 스크립트 기능을 추가하여 TV 앞에 서서 키를 눌렀을 때 켤 수 있도록 하겠습니다. 
 
 
+## 3 - TV 블루프린트 - 스크립트 구성
 
+이 마지막 단계에서는 스크립트 기능을 추가하여 플레이어가 버튼을 누르면 TV 를 켜거나 끌 수 있도록 하겠습니다.
 
+1.  TV 블루프린트의 **이벤트 그래프** 에서 **Get Player Controller**, **Enable Input**, **Disable** 입력을 아래와 같이 연결합니다. 
 
+    [REGION:lightbox]
+    [![](MediaFrameworkQS_017.png)(w:640)](MediaFrameworkQS_017.png)
+    [/REGION]
+    [REGION:caption]
+    이미지를 클릭하면 원본을 확인합니다. 
+    [/REGION]
 
+1.  그래프에 우클릭하고 **P** Keyboard (또는 원하는 키 눌림) 이벤트를 추가하고 **Pressed** 를 **FlipFlop** 노드에 연결합니다. 
+    
+    ![](MediaFrameworkQS_018.png)
 
+1.  그래프에 우클릭하고 **컨텍스트에 따라** 옵션을 해제한 뒤 **Open Source** 노드를 추가합니다. 
+
+    ![](MediaFrameworkQS_019.png)
+
+1.  **Open Source** 노드에서 **타깃** 핀에 우클릭하고 **변수로 승격** 한 뒤 **MediaPlayerforVideo** 라 합니다. 
+
+    ![](MediaFrameworkQS_020.png)
+
+    기본적으로 미디어 플레이어는 **Play on Open** (열리면 재생) 설정되어 있어서 미디어를 열면 재생합니다. 
+
+    [REGION:note]
+    **Play on Open** 이 비활성화된 미디어 플레이어의 경우, **Play** 노드에 **Open Source** 호출을 사용하면 됩니다. 
+    [/REGION]
+
+1.  **Media Source** (미디어 소스)를 변수로 승격하고 **SourceToOpen** 라 합니다. 
+
+1.  **변수** 목록에서 두 변수의 눈 모양 아이콘을 클릭하여 **Instance Editable** (인스턴스 편집가능)으로 만들고 아래와 같이 연결합니다.     
+
+    ![](MediaFrameworkQS_021.png)
+
+1.  **Close** 노드를 추가하고 **FlipFlop** 의 **B** 핀에 연결한 뒤 **타깃** 을 **MediaPlayerforVideo** 로 설정합니다. 
+
+    ![](MediaFrameworkQS_022.png)
+
+1.  **TV_BP** 를 레벨에 드래그한 뒤 **디테일** 패널에서 **MyMediaPlayer** 및 **Gideon_1080p_H264** 애셋을 할당합니다. 
+
+    ![](MediaFrameworkQS_023.png)
+    
+    박스 콜리전을 사용해서 플레이어가 TV 앞에 있을 때 켤 수 있음을 나타냅니다 (뒤에 있을 때는 켤 수 없게 하고 싶습니다). 
+
+1. **MyMediaPlayer** 애셋 안에서 **Loop** 옵션을 활성화합니다. 
+
+    ![](MediaFrameworkQS_024.png)
+
+    그러면 닫기 명령을 내리지 않는 한 비디오를 자동으로 반복 재생합니다. 
+
+1. **플레이** 버튼을 눌러 레벨에서 플레이합니다. 
+
+### 최종 결과
+
+레벨에서 플레이하고 TV 에 다가간 뒤 P 버튼을 누르면 할당된 미디어 재생이 시작됩니다. P 를 다시 누르면 재생이 멈춥니다. 
+
+[OBJECT:EmbeddedVideo]
+    [PARAMLITERAL:videoid]
+    9y7RfFJ-yP4
+    [/PARAMLITERAL]
+    [PARAMLITERAL:width]
+    100
+    [/PARAMLITERAL]
+    [PARAMLITERAL:height]
+    56.25
+    [/PARAMLITERAL]
+    [PARAMLITERAL:units]
+    %
+    [/PARAMLITERAL]
+    [PARAMLITERAL:type]
+    simple
+    [/PARAMLITERAL]
+[/OBJECT]
+
+## 4 - 직접 해보기!
+
+미디어 프레임워크 툴을 사용해서 프로젝트에 시도해 볼 수있는 추가 작업은 다음과 같습니다. 
+
+* 플레이어가 TV 의 [재생을 제어](Engine/MediaFramework/HowTo/ControllingPlayback) 할 수 있도록 합니다.
+* [미디어 플레이리스트](Engine\MediaFramework\HowTo\MediaPlaylists\) 를 미디어 소스로 사용하여 플레이어가 TV 의 채널을 변경할 수 있도록 합니다.
+* 자체 미디어 플레이어, 미디어 사운드, 미디어 소스 애셋이 있는 두 번째 TV 블루프린트를 레벨에 추가합니다. 
 

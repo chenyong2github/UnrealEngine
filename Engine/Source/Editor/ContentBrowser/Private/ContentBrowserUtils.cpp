@@ -1303,7 +1303,7 @@ bool ContentBrowserUtils::IsValidFolderName(const FString& FolderName, FText& Re
 		return false;
 	}
 
-	const FString InvalidChars = INVALID_LONGPACKAGE_CHARACTERS TEXT("/"); // Slash is an invalid character for a folder name
+	const FString InvalidChars = INVALID_LONGPACKAGE_CHARACTERS TEXT("/[]"); // Slash is an invalid character for a folder name
 
 	// See if the name contains invalid characters.
 	FString Char;

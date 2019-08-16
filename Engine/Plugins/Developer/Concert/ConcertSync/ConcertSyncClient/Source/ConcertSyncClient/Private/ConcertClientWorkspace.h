@@ -6,54 +6,66 @@
 #include "Misc/ITransaction.h"
 #include "IConcertClientWorkspace.h"
 #include "IConcertSessionHandler.h"
+#include "ConcertSyncSessionFlags.h"
 #include "ConcertWorkspaceMessages.h"
+#include "ConcertClientWorkspaceData.h"
 
 class IConcertClientSession;
-class FConcertPackageLedger;
-class FConcertSandboxPlatformFile;
+class IConcertClientPackageBridge;
+class FConcertClientPackageManager;
+class IConcertClientTransactionBridge;
 class FConcertClientTransactionManager;
-class ISourceControlProvider;
-class FConcertClientActivityLedger;
-class FConcertClientDataStore;
+class FConcertClientLockManager;
 class FConcertClientLiveTransactionAuthors;
+class FConcertSyncClientLiveSession;
+class ISourceControlProvider;
+class FConcertClientDataStore;
 
-class FOutputDevice;
-struct FAssetData;
 struct FScopedSlowTask;
-
-enum class EMapChangeType : uint8;
 
 class FConcertClientWorkspace : public IConcertClientWorkspace
 {
 public:
-	FConcertClientWorkspace(const TSharedRef<IConcertClientSession>& InSession);
+	FConcertClientWorkspace(TSharedRef<FConcertSyncClientLiveSession> InLiveSession, IConcertClientPackageBridge* InPackageBridge, IConcertClientTransactionBridge* InTransactionBridge);
 	virtual ~FConcertClientWorkspace();
 
 	// IConcertClientWorkspace interface
-	virtual TSharedPtr<IConcertClientSession> GetSession() const override;
+	virtual IConcertClientSession& GetSession() const override;
 	virtual FGuid GetWorkspaceLockId() const override;
 	virtual FGuid GetResourceLockId(const FName InResourceName) const override;
 	virtual bool AreResourcesLockedBy(TArrayView<const FName> ResourceNames, const FGuid& ClientId) override;
 	virtual TFuture<FConcertResourceLockResponse> LockResources(TArray<FName> InResourceNames) override;
 	virtual TFuture<FConcertResourceLockResponse> UnlockResources(TArray<FName> InResourceNames) override;
+	virtual bool HasSessionChanges() const override;
 	virtual TArray<FString> GatherSessionChanges() override;
 	virtual bool PersistSessionChanges(TArrayView<const FString> InFilesToPersist, ISourceControlProvider* SourceControlProvider, TArray<FText>* OutFailureReasons = nullptr) override;
-	virtual bool FindTransactionEvent(const uint64 TransactionIndex, FConcertTransactionFinalizedEvent& OutTransaction) const override;
-	virtual bool FindPackageEvent(const FName& PackageName, const uint32 Revision, FConcertPackageInfo& OutPackage) const override;
-	virtual uint64 GetActivityCount() const override;
-	virtual uint64 GetLastActivities(uint32 Limit, TArray<FStructOnScope>& OutActivities) const override;
-	virtual void GetActivities(uint64 Offset, uint32 Limit, TArray<FStructOnScope>& OutActivities) const override;
-	virtual FOnAddActivity& OnAddActivity() override;
+	virtual bool HasLiveTransactionSupport(UPackage* InPackage) const override;
+	virtual bool ShouldIgnorePackageDirtyEvent(class UPackage* InPackage) const override;
+	virtual bool FindTransactionEvent(const int64 TransactionEventId, FConcertSyncTransactionEvent& OutTransactionEvent, const bool bMetaDataOnly) const override;
+	virtual bool FindPackageEvent(const int64 PackageEventId, FConcertSyncPackageEvent& OutPackageEvent, const bool bMetaDataOnly) const override;
+	virtual void GetActivities(const int64 FirstActivityIdToFetch, const int64 MaxNumActivities, TMap<FGuid, FConcertClientInfo>& OutEndpointClientInfoMap, TArray<FConcertClientSessionActivity>& OutActivities) const override;
+	virtual int64 GetLastActivityId() const override;
+	virtual FOnActivityAddedOrUpdated& OnActivityAddedOrUpdated() override;
 	virtual FOnWorkspaceSynchronized& OnWorkspaceSynchronized() override;
 	virtual IConcertClientDataStore& GetDataStore() override;
-	virtual bool IsAssetModifiedByOtherClients(const FName& AssetName, int* OutOtherClientsWithModifNum, TArray<FConcertClientInfo>* OutOtherClientsWithModifInfo, int OtherClientsWithModifMaxFetchNum) const override;
+	virtual bool IsAssetModifiedByOtherClients(const FName& AssetName, int32* OutOtherClientsWithModifNum, TArray<FConcertClientInfo>* OutOtherClientsWithModifInfo, int32 OtherClientsWithModifMaxFetchNum) const override;
 
 private:
 	/** Bind the workspace to this session. */
-	void BindSession(const TSharedRef<IConcertClientSession>& InSession);
+	void BindSession(TSharedPtr<FConcertSyncClientLiveSession> InLiveSession, IConcertClientPackageBridge* InPackageBridge, IConcertClientTransactionBridge* InTransactionBridge);
 
 	/** Unbind the workspace to its bound session. */
 	void UnbindSession();
+
+	/**
+	 * Load client side info associated with this session if any. (i.e already persisted files)
+	 */
+	void LoadSessionData();
+
+	/**
+	 * Save client side info associated with this session if any. (i.e already persisted files)
+	 */
+	void SaveSessionData();
 
 	/** */
 	void HandleConnectionChanged(IConcertClientSession& InSession, EConcertConnectionStatus Status);
@@ -63,22 +75,10 @@ private:
 	void SaveLiveTransactionsToPackages();
 
 	/** */
-	bool CanSavePackage(UPackage* InPackage, const FString& InFilename, FOutputDevice* ErrorLog);
-
-	/** */
-	void HandlePackageSaved(const FString& PackageFilename, UObject* Outer);
-
-	/** */
-	void HandleAssetAdded(UObject *Object);
-
-	/** */
-	void HandleAssetDeleted(UObject *Object);
-
-	/** */
-	void HandleAssetRenamed(const FAssetData& Data, const FString& OldName);
-
-	/** */
 	void HandleAssetLoaded(UObject* InAsset);
+
+	/** */
+	void HandlePackageDiscarded(UPackage* InPackage);
 
 	/** */
 	void HandlePostPIEStarted(const bool InIsSimulating);
@@ -88,107 +88,92 @@ private:
 
 	/** */
 	void HandleEndPIE(const bool InIsSimulating);
-
-	/** */
-	void HandleTransactionStateChanged(const FTransactionContext& InTransactionContext, const ETransactionStateEventType InTransactionState);
-
-	/** */
-	void HandleObjectTransacted(UObject* InObject, const FTransactionObjectEvent& InTransactionEvent);
 #endif	// WITH_EDITOR
 
 	/** */
 	void OnEndFrame();
 
 	/** */
-	void HandleWorkspaceSyncTransactionEvent(const FConcertSessionContext& Context, const FConcertWorkspaceSyncTransactionEvent& Event);
+	void HandleWorkspaceSyncEndpointEvent(const FConcertSessionContext& Context, const FConcertWorkspaceSyncEndpointEvent& Event);
 
 	/** */
-	void HandleWorkspaceSyncPackageEvent(const FConcertSessionContext& Context, const FConcertWorkspaceSyncPackageEvent& Event);
+	void HandleWorkspaceSyncActivityEvent(const FConcertSessionContext& Context, const FConcertWorkspaceSyncActivityEvent& Event);
 
 	/** */
 	void HandleWorkspaceSyncLockEvent(const FConcertSessionContext& Context, const FConcertWorkspaceSyncLockEvent& Event);
 
 	/** */
-	void HandleWorkspaceInitialSyncCompletedEvent(const FConcertSessionContext& Context, const FConcertWorkspaceInitialSyncCompletedEvent& Event);
-
-	/** */
-	void HandleResourceLockEvent(const FConcertSessionContext& Context, const FConcertResourceLockEvent& Event);
-
-	/** */
-	void SavePackageFile(const FConcertPackage& Package);
-
-	/** */
-	void DeletePackageFile(const FConcertPackage& Package);
+	void HandleWorkspaceSyncCompletedEvent(const FConcertSessionContext& Context, const FConcertWorkspaceSyncCompletedEvent& Event);
 
 	/**
-	 * Can we currently perform content hot-reloads or purges?
-	 * True if we are neither suspended nor unable to perform a blocking action, false otherwise.
+	 * Set an endpoint in the session database, creating or replacing it.
+	 *
+	 * @param InEndpointId				The ID of the endpoint to set.
+	 * @param InEndpointData			The endpoint data to set.
 	 */
-	bool CanHotReloadOrPurge() const;
+	void SetEndpoint(const FGuid& InEndpointId, const FConcertSyncEndpointData& InEndpointData);
 
-	/** */
-	void HotReloadPendingPackages();
+	/**
+	 * Set a connection activity in the session database, creating or replacing it.
+	 * @note The endpoint ID referenced by the activity must exist in the database (@see SetEndpoint).
+	 *
+	 * @param InConnectionActivity		The connection activity to set.
+	 */
+	void SetConnectionActivity(const FConcertSyncConnectionActivity& InConnectionActivity);
 
-	/** */
-	void PurgePendingPackages();
+	/**
+	 * Set a lock activity in the session database, creating or replacing it.
+	 * @note The endpoint ID referenced by the activity must exist in the database (@see SetEndpoint).
+	 *
+	 * @param InLockActivity			The lock activity to set.
+	 */
+	void SetLockActivity(const FConcertSyncLockActivity& InLockActivity);
 
-#if WITH_EDITOR
-	/** */
-	TUniquePtr<FConcertSandboxPlatformFile> SandboxPlatformFile; // TODO: Will need to ensure the sandbox also works on cooked clients
-#endif
+	/**
+	 * Set a transaction activity in the session database, creating or replacing it.
+	 * @note The endpoint ID referenced by the activity must exist in the database (@see SetEndpoint).
+	 *
+	 * @param InTransactionActivity		The transaction activity to set.
+	 */
+	void SetTransactionActivity(const FConcertSyncTransactionActivity& InTransactionActivity);
 
-	/** */
-	TUniquePtr<FConcertPackageLedger> PackageLedger;
+	/**
+	 * Set a package activity in the session database, creating or replacing it.
+	 * @note The endpoint ID referenced by the activity must exist in the database (@see SetEndpoint).
+	 *
+	 * @param InPackageActivity		The package activity to set.
+	 */
+	void SetPackageActivity(const FConcertSyncPackageActivity& InPackageActivity);
+
+	/**
+	 * Called after any updated in the session database.
+	 *
+	 * @param InActivity			The activity that was updated.
+	 */
+	void PostActivityUpdated(const FConcertSyncActivity& InActivity);
 
 	/** */
 	TUniquePtr<FConcertClientTransactionManager> TransactionManager;
 
-	/** Tracks locked resources from the server (resource ID -> endpoint ID) */
-	TMap<FName, FGuid> LockedResources;
-
-	/** Holds the client activity ledger. */
-	TUniquePtr<FConcertClientActivityLedger> ActivityLedger;
+	/** */
+	TUniquePtr<FConcertClientPackageManager> PackageManager;
 
 	/** */
-	TSharedPtr<IConcertClientSession> Session;
+	TUniquePtr<FConcertClientLockManager> LockManager;
+
+	/**
+	 * Tracks the clients that have live transactions on any given packages.
+	 */
+	TUniquePtr<FConcertClientLiveTransactionAuthors> LiveTransactionAuthors;
 
 	/** */
-	FDelegateHandle SessionConnectedHandle;
-
-#if WITH_EDITOR
-	/** */
-	FCoreUObjectDelegates::FIsPackageOKToSaveDelegate OkToSaveBackupDelegate;
+	IConcertClientPackageBridge* PackageBridge;
 
 	/** */
-	FDelegateHandle PostPIEStartedHandle;
+	TSharedPtr<FConcertSyncClientLiveSession> LiveSession;
 
-	/** */
-	FDelegateHandle SwitchBeginPIEAndSIEHandle;
-
-	/** */
-	FDelegateHandle EndPIEHandle;
-
-	/** */
-	FDelegateHandle TransactionStateChangedHandle;
-	
-	/** */
-	FDelegateHandle ObjectTransactedHandle;
-#endif	// WITH_EDITOR
-
-	/** */
-	FDelegateHandle OnEndFrameHandle;
-
-	/** Map of packages that are in the process of being renamed */
-	TMap<FName, FName> PackagesBeingRenamed;
-
-	/** Array of package names that are pending a content hot-reload */
-	TArray<FName> PackagesPendingHotReload;
-
-	/** Array of package names that are pending an in-memory purge */
-	TArray<FName> PackagesPendingPurge;
-
-	/** True if we are currently saving a package */
-	bool bIsSavingPackage;
+	/** Persistent client workspace data associated with this workspaces session. */
+	FConcertClientWorkspaceData SessionData;
 
 	/** True if this client has performed its initial sync with the server session */
 	bool bHasSyncedWorkspace;
@@ -199,12 +184,12 @@ private:
 	/** Slow task used during the initial sync of this workspace */
 	TUniquePtr<FScopedSlowTask> InitialSyncSlowTask;
 
+	/** The delegate called every time activity is added to or updated in this session. */
+	FOnActivityAddedOrUpdated OnActivityAddedOrUpdatedDelegate;
+
 	/** The delegate called every time the workspace is synced. */
 	FOnWorkspaceSynchronized OnWorkspaceSyncedDelegate;
 	
 	/** The session key/value store proxy. The real store is held by the server and shared across all clients. */
 	TUniquePtr<FConcertClientDataStore> DataStore;
-
-	/** Tracks the clients that have live transactions on any given packages. */
-	TUniquePtr<FConcertClientLiveTransactionAuthors> LiveTransactionAuthors;
 };

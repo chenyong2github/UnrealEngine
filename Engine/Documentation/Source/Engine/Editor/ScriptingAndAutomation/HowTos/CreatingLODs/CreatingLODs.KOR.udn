@@ -1,14 +1,20 @@
-INTSourceChangelist:4751773
+INTSourceChangelist:6536708
 Availability: Public
 Crumbs: 
 Title: 블루프린트와 Python 으로 레벨 오브 디테일 생성
 Description: 블루프린트와 Python 을 사용하여 언리얼 에디터에서 자동 레벨 오브 디테일을 설정하는 방법을 설명합니다.
-Type:how-to
+Type: how-to
+SkillLevel:Intermediate
 Version: 4.20
 Parent: Engine/Editor/ScriptingAndAutomation/HowTos
-SkillLevel:Intermediate
-Order: 1
-Tags: Blueprints, how-to, Python, scripting, editor, lods, levels of detail
+Order: 0
+Tags: Blueprints
+Tags: how-to
+Tags: Python
+Tags: scripting
+Tags: editor
+Tags: lods
+Tags: levels of detail
 
 
 메시의 레벨 오브 디테일(LOD)을 만들면 비주얼 퀄리티 희생 없이 게임의 퍼포먼스와 프레임 속도를 높일 수 있습니다.
@@ -20,17 +26,16 @@ Tags: Blueprints, how-to, Python, scripting, editor, lods, levels of detail
 에디터는 스태틱 메시 애셋을 지정한 한계치에 따라 점진적으로 단순화하여 레벨 오브 디테일을 자동 생성할 수 있습니다. 이 시스템 작동 방식 및 스태틱 메시 에디터에서 설정하는 방법 관련 자세한 내용은 [자동 LOD 생성](https://docs.unrealengine.com/en-us/Engine/Content/Types/StaticMeshes/HowTo/AutomaticLODGeneration) 문서를 참고하세요.
 
 [REGION:lightbox]
-[![스태틱 메시 에디터의 레벨 오브 디테일 세팅](ALC_PM_00.png "스태틱 메시 에디터의 레벨 오브 디테일 세팅")](ALC_PM_00.png)
-[/REGION:lightbox]
-[REGION:caption]
-이미지를 클릭하면 원본을 확인합니다.
-[/REGION:caption]
+[![스태틱 메시 에디터의 레벨 오브 디테일 세팅](ALC_PM_00.png "스태틱 메시 에디터의 레벨 오브 디테일 세팅")(w:1000)](ALC_PM_00.png)
+
+*이미지를 클릭하면 원본을 확인합니다.*
+[/REGION]
 
 하지만 에디터가 LOD 를 자동 생성할 수는 있더라도, 프로젝트의 모든 스태틱 메시 애셋을 하나씩 열어 설정하는 것은 불가능합니다. 애셋을 대량 편집할 수는 있지만, 스태틱 메시 애셋의 다양한 특성에 따라 다른 세팅을 적용하려는 경우 도움이 되지 않습니다. 예를 들어, 메시의 기존 트라이앵글 수 또는 애셋 명명 규칙에 따라 다른 감소 세팅을 적용하는 것입니다. 스크립트로 작성한 대규모 커스텀 애셋 파이프라인 내 하위 단계에서 LOD 를 생성하려는 경우에도 도움이 되지 않습니다. 이런 경우에는 블루프린트나 Python 으로 자동 LOD 생성 시스템 스크립트를 작성하면 됩니다.
 
-[REGION:note]
-**Editor Scripting Utilities** (에디터 스크립팅 유틸리티) 플러그인을 설치하지 않은 경우 미리 설치해야 합니다. 자세한 내용은 [에디터 자동화 및 스크립팅](Engine/Editor/ScriptingAndAutomation) 문서를 참고하세요.
-[/REGION:note]
+**필수 구성 요소:** **Editor Scripting Utilities** (에디터 스크립팅 유틸리티) 플러그인을 설치하지 않은 경우 미리 설치해야 합니다. 자세한 내용은 [에디터 자동화 및 스크립팅](Engine/Editor/ScriptingAndAutomation) 문서를 참고하세요.
+
+## 새 레벨 오브 디테일 생성
 
 %Globals:BlueprintOrPythonSelectVar%
 
@@ -45,9 +50,36 @@ Tags: Blueprints, how-to, Python, scripting, editor, lods, levels of detail
     active_button_content
     [/PARAMLITERAL]
     [PARAM:content]
-        [INCLUDE:#blueprintSection1]
+    [INCLUDE:#excerpt_0]
     [/PARAM]
 [/OBJECT]
+
+<!--
+[EXCERPT:excerpt_0]
+
+LOD 관리를 해줘야 하는 노드는 **Editor Scripting > Static Mesh** (에디터 스크립팅 > 스태틱 메시) 카테고리에서 찾을 수 있습니다.
+
+[REGION:note]
+이 노드를 사용하려면, **PlacedEditorUtilityBase** 와 같은 에디터 전용 클래스에서 파생한 블루프린트 클래스여야 합니다. 자세한 내용은 [블루프린트를 사용하여 에디터 스크립팅](Engine/Editor/ScriptingAndAutomation/Blueprints) 문서를 참고하세요.
+[/REGION]
+
+*   핵심 노드는 **Set Lods** 로, 전달한 스태틱 메시 애셋의 레벨 오브 디테일을 자동 생성합니다. 이 노드를 사용하려면 생성하고자 하는 각 레벨 오브 디테일의 상대 트라이앵글 퍼센트와 화면 크기 한계치를 정의하는 감소 세팅 집합을 노드에 제공해야 합니다. 아래 예제를 참고하세요.
+    [REGION:note]
+    **EditorScriptingMeshReductionOptions** 노드의 **Reduction Settings** 입력에 전달하는 **EditorScriptingMeshReductionSettings** 첫 항목은 효과가 없습니다. LOD 0 에는 항상 메시의 모든 트라이앵글이 있기 때문입니다.
+    [/REGION]
+*   **Get Lod Count** 및 **Get Lod Screen Sizes** 를 사용하여 현재 스태틱 메시에 설정된 레벨 오브 디테일 관련 정보를 얻을 수 있습니다.
+*   **Remove Lods** 를 사용하여 (항상 메시의 모든 트라이앵글이 들어있는 LOD 0 을 제외한) 기존 LOD 를 모두 제거할 수도 있습니다.
+*   LOD 를 설정하면 스태틱 메시 애셋이 수정됩니다. 변경사항을 유지한다 가정하면, 나중에 **Save Asset** 또는 **Save Loaded Asset** 같은 노드도 사용해야 합니다.
+
+    다음 예제는 각 스태틱 메시 애셋을 입력 경로에 차례로 로드합니다. 버텍스 수가 최소 한계치보다 많은 것을 찾을 때마다, 스태틱 메시에 세 개의 추가 LOD 를 설정하고 나중에 저장합니다.
+
+[REGION:lightbox]
+[![블루프린트 예제의 Set LODs](set_lods_example.png "블루프린트 예제의 Set LODs")(w:1000)](set_lods_example.png)  
+*이미지를 클릭하면 원본을 확인합니다.*
+[/REGION]
+
+[/EXCERPT:excerpt_0]
+-->
 
 [OBJECT:ToggleButtonContent]
     [PARAMLITERAL:category]
@@ -59,84 +91,59 @@ Tags: Blueprints, how-to, Python, scripting, editor, lods, levels of detail
     [PARAMLITERAL:active]
     [/PARAMLITERAL]
     [PARAM:content]
-        [INCLUDE:#pythonSection1]
+    [INCLUDE:#excerpt_1]
     [/PARAM]
 [/OBJECT]
 
+<!--
+[EXCERPT:excerpt_1]
 
-[COMMENT:none]
-[EXCERPT:blueprintSection1]
-LOD 관리를 해줘야 하는 노드는 **Editor Scripting > Static Mesh** (에디터 스크립팅 > 스태틱 메시) 카테고리에서 찾을 수 있습니다.
-
-[REGION:note]
-이 노드를 사용하려면, **PlacedEditorUtilityBase** 와 같은 에디터 전용 클래스에서 파생한 블루프린트 클래스여야 합니다. 자세한 내용은 [블루프린트를 사용하여 에디터 스크립팅](Engine/Editor/ScriptingAndAutomation/Blueprints) 문서를 참고하세요.
-[/REGION]
-
-*   핵심 노드는 **Set Lods** 로, 전달한 스태틱 메시 애셋의 레벨 오브 디테일을 자동 생성합니다. 이 노드를 사용하려면 생성하고자 하는 각 레벨 오브 디테일의 상대 트라이앵글 퍼센트와 화면 크기 한계치를 정의하는 감소 세팅 집합을 노드에 제공해야 합니다. 아래 예제를 참고하세요.
-    [REGION:note]
-    **EditorScriptingMeshReductionOptions** 노드의 **Reduction Settings** 입력에 전달하는 **EditorScriptingMeshReductionSettings** 첫 항목은 효과가 없는데, LOD 0 은 항상 모든 트라이앵글이 있는 최고 디테일 메시를 표시하는 것으로 간주하기 때문입니다.
-    [/REGION]
-*   **Get Lod Count** 및 **Get Lod Screen Sizes** 를 사용하여 현재 스태틱 메시에 설정된 레벨 오브 디테일 관련 정보를 얻을 수 있습니다.
-*   **Remove Lods** 를 사용하여 (항상 최고 디테일인 LOD 0 을 제외한) 기존 LOD 를 모두 제거할 수도 있습니다.
-*   LOD 를 설정하면 스태틱 메시 애셋이 수정됩니다. 변경사항을 유지한다 가정하면, 나중에 **Save Asset** 또는 **Save Loaded Asset** 같은 노드도 사용해야 합니다.
-
-    다음 예제는 각 스태틱 메시 애셋을 입력 경로에 차례로 로드합니다. 버텍스 수가 최소 한계치보다 많은 것을 찾을 때마다, 스태틱 메시에 세 개의 추가 LOD 를 설정하고 나중에 저장합니다.
-
-[REGION:lightbox]
-[![블루프린트 예제의 Set LODs](set_lods_example.png "블루프린트 예제의 Set LODs")](set_lods_example.png)
-[/REGION]
-[REGION:caption]
-이미지를 클릭하면 원본을 확인합니다.
-[/REGION:caption]
-[/EXCERPT:blueprintSection1]
-[/COMMENT]
-
-[COMMENT:none]
-[EXCERPT:pythonSection1]
 `unreal.EditorStaticMeshLibrary` 클래스에서 LOD 관리 함수를 찾을 수 있습니다.
 
 *   핵심 함수는 `unreal.EditorStaticMeshLibrary.set_lods()` 인데, 전달하는 스태틱 메시 애셋의 레벨 오브 디테일을 자동 생성합니다. 이 함수를 사용하려면, `EditorScriptingMeshReductionOptions` 오브젝트를 전달해야 합니다. 여기에는 `EditorScriptingMeshReductionSettings` 세트가 들어있어 생성하고자 하는 각 레벨 오브 디테일의 상대 트라이앵글 퍼센트와 화면 크기 한계치를 정의합니다. 아래 예제를 참고하세요.
     [REGION:note]
     `EditorScriptingMeshReductionOptions.reduction_settings` 배열에 설정하는 `EditorScriptingMeshReductionSettings` 첫 항목은 효과가 없는데, LOD 0 은 항상 모든 트라이앵글이 있는 최고 디테일 메시를 표시하는 것으로 간주하기 때문입니다.
-    [/REGION:Note]
+    [/REGION]
+    
 *   `unreal.EditorStaticMeshLibrary.get_lod_count()` 및 `unreal.EditorStaticMeshLibrary.get_lod_screen_sizes` 를 사용하여 현재 스태틱 메시에 설정된 레벨 오브 디테일 관련 정보를 구할 수 있습니다.
 *   `unreal.EditorStaticMeshLibrary.remove_lods()` 를 사용하여 (항상 최고 디테일 메시인 LOD 0 을 제외한) 기존 LOD 를 전부 제거할 수도 있습니다.
 *   LOD 를 설정하면 스태틱 메시 애셋이 수정됩니다. 변경사항을 유지한다 가정하면, 나중에 `unreal.EditorAssetLibrary.save_asset()` 또는 `unreal.EditorAssetLibrary.save_loaded_asset()` 과 같은 함수도 사용해야 합니다.
 
 다음 예제는 각 스태틱 메시 애셋을 입력 경로에 차례로 로드합니다. 버텍스 수가 최소 한계치보다 많은 것을 찾을 때마다, 스태틱 메시에 세 개의 추가 LOD 를 설정하고 나중에 저장합니다.
 
-    import unrealasset_path = "/Game/studio"
+    import unreal
+    asset_path = "/Game/studio"
     # 지정한 스태틱 메시 애셋의 LOD 를 새로 생성하는 함수를 정의합니다.
     def apply_lods(static_mesh):
-    # 메시 복잡도가 충분한지 검사합니다.
-    number_of_vertices = unreal.EditorStaticMeshLibrary.get_number_verts(static_mesh, 0)
-    if number_of_vertices < 10:
-        return
-    print("treating asset: " + static_mesh.get_name())
-    print("existing LOD count: " + str(unreal.EditorStaticMeshLibrary.get_lod_count(static_mesh)))
-    # 레벨 오브 디테일을 자동 생성하는 옵션을 설정합니다.
-    options = unreal.EditorScriptingMeshReductionOptions()
-    # 새 개의 레벨 오브 디테일을 새로 요청합니다. 각각 다음과 같이 구성됩니다.
-    # - 이 레벨 오브 디테일이 나타나는 화면 공간 한계치.
-    # - 이 레벨을 유지할 LOD 0 의 트라이앵글 퍼센트./
-    options.reduction_settings = [ unreal.EditorScriptingMeshReductionSettings(1.0, 1.0),
-        unreal.EditorScriptingMeshReductionSettings(0.8, 0.75),
-        unreal.EditorScriptingMeshReductionSettings(0.6, 0.5),
-        unreal.EditorScriptingMeshReductionSettings(0.4, 0.25)
-    ]
-    # 자동 계산 보다는 위에 설정한 화면 공간 한계치를 사용합니다.
-    options.auto_compute_lod_screen_size = False
-    # 스태틱 메시 애셋에 옵션을 설정합니다.
-    unreal.EditorStaticMeshLibrary.set_lods(static_mesh, options)
-    # 변경사항을 저장합니다.
-    unreal.EditorAssetLibrary.save_loaded_asset(static_mesh)
-    print("new LOD count: " + str(unreal.EditorStaticMeshLibrary.get_lod_count(static_mesh)))
+        # 메시 복잡도가 충분한지 검사합니다.
+        number_of_vertices = unreal.EditorStaticMeshLibrary.get_number_verts(static_mesh, 0)
+        if number_of_vertices < 10:
+            return
+        print("treating asset: " + static_mesh.get_name())
+        print("existing LOD count: " + str(unreal.EditorStaticMeshLibrary.get_lod_count(static_mesh)))
+        # 레벨 오브 디테일을 자동 생성하는 옵션을 설정합니다.
+        options = unreal.EditorScriptingMeshReductionOptions()
+        # 새 개의 레벨 오브 디테일을 새로 요청합니다. 각각 다음과 같이 구성됩니다.
+        # - 이 레벨 오브 디테일이 나타나는 화면 공간 한계치.
+        # - 이 레벨을 유지할 LOD 0 의 트라이앵글 퍼센트./
+        options.reduction_settings = [ unreal.EditorScriptingMeshReductionSettings(1.0, 1.0),
+            unreal.EditorScriptingMeshReductionSettings(0.8, 0.75),
+            unreal.EditorScriptingMeshReductionSettings(0.6, 0.5),
+            unreal.EditorScriptingMeshReductionSettings(0.4, 0.25)
+        ]
+        # 자동 계산 보다는 위에 설정한 화면 공간 한계치를 사용합니다.
+        options.auto_compute_lod_screen_size = False
+        # 스태틱 메시 애셋에 옵션을 설정합니다.
+        unreal.EditorStaticMeshLibrary.set_lods(static_mesh, options)
+        # 변경사항을 저장합니다.
+        unreal.EditorAssetLibrary.save_loaded_asset(static_mesh)
+        print("new LOD count: " + str(unreal.EditorStaticMeshLibrary.get_lod_count(static_mesh)))
     # 경로의 모든 애셋 목록을 구합니다.
     all_assets = unreal.EditorAssetLibrary.list_assets(asset_path)
     # 모두 메모리에 로드합니다.
     all_assets_loaded = [unreal.EditorAssetLibrary.load_asset(a) for a in all_assets]
     # 스태틱 메시만 포함하도록 목록에 필터를 적용합니다.
-    static_mesh_assets = unreal.EditorFilterLibrary.by_class(all_assets_loaded, unreal.StaticMesh)
+    static_mesh_assets = unreal.EditorFilterLibrary.by_class(all_assets_loaded, unreal.StaticMesh)StaticMesh)
     # 목록의 스태틱 메시마다 위 함수를 실행합니다.
     map(apply_lods, static_mesh_assets)
 
@@ -147,21 +154,134 @@ LOD 관리를 해줘야 하는 노드는 **Editor Scripting > Static Mesh** (에
     import unreal
     asset_path = "/Game/studio/"
     def set_high_detail(static_mesh):
-    # LOD 그룹을 설정합니다.
-    static_mesh.set_editor_property("lod_group", "HighDetail")
-    # 애셋을 저장합니다.
-    unreal.EditorAssetLibrary.save_loaded_asset(static_mesh)
+        # LOD 그룹을 설정합니다.
+        static_mesh.set_editor_property("lod_group", "HighDetail")
+        # 애셋을 저장합니다.
+        unreal.EditorAssetLibrary.save_loaded_asset(static_mesh)
     # 경로의 모든 애셋 목록을 구합니다.
     all_assets = unreal.EditorAssetLibrary.list_assets(asset_path)
     # 모두 메모리에 로드합니다.
     all_assets_loaded = [unreal.EditorAssetLibrary.load_asset(a) for a in all_assets]
     # 스태틱 메시만 포함하도록 목록에 필터를 적용합니다.
-    static_mesh_assets = unreal.EditorFilterLibrary.by_class(all_assets_loaded, unreal.StaticMesh)
+    static_mesh_assets = unreal.EditorFilterLibrary.by_class(all_assets_loaded, unreal.StaticMesh)StaticMesh)
     # 목록의 스태틱 메시마다 위 함수를 실행합니다.
     map(set_high_detail, static_mesh_assets)
 
 [REGION:tip]
 이 시스템 작동 방식 및 에디터에서 사용하는 방법 관련 자세한 정보는 [자동 LOD 생성](Engine/Content/Types/StaticMeshes/HowTo/AutomaticLODGeneration) 문서를 참고하세요.
-[/REGION:tip]
-[/EXCERPT:pythonSection1]
-[/COMMENT:none]
+[/REGION]
+
+[/EXCERPT:excerpt_1]
+-->
+
+## 다른 스태틱 메시에서 LOD 재사용
+
+스태틱 메시에 대한 LOD 를 자동 재생성하기 위해 위에 설명한 프로세스를 사용하는 방법 말고, 기존 (*소스*) 스태틱 메시에 이미 있는 LOD 를 받아, 다른 (*대상*) 스태틱 메시의 LOD 로 재사용할 수 있습니다.
+
+%Globals:BlueprintOrPythonSelectVar%
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    BlueprintOrCPPSelect
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    blueprintimplementation
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_2]
+    [/PARAM]
+[/OBJECT]
+
+<!--
+[EXCERPT:excerpt_2]
+
+블루프린트 스크립트에서 기존 LOD 를 재사용하려면, **Editor Scripting > Static Mesh > Set Lod From Static Mesh** 노드를 사용합니다. 
+
+![스태틱 메시에서 LOD 설정](set_lod_from_static_mesh.png "스태틱 메시에서 LOD 설정")
+
+이 노드에 필요한 입력은 다음과 같습니다.
+
+*   대상 스태틱 메시로의 레퍼런스입니다. 이 메시에 LOD 를 새로 만듭니다. **Editor Scripting > Asset > Load Asset** 이 애셋을 먼저 로드해야 합니다.
+*   대상 스태틱 메시에 만들려는 LOD 의 인덱스입니다.
+    [REGION:warning]
+    대상 스태틱 메시에 이미 같은 인덱스의 LOD 가 있는 경우 덮어씁니다.
+    [/REGION]
+    
+*   소스 스태틱 메시로의 레퍼런스입니다. 대상 스태틱 메시에서 이 스태틱 메시의 기존 LOD 를 가리킵니다. 위와 마찬가지로, **Editor Scripting > Asset > Load Asset** 노드를 사용하여 이 애셋을 먼저 로드해야 합니다.
+*   대상 스태틱 메시에 대해 사용하려는 소스 스태틱 메시 안의 LOD 인덱스입니다.
+*   소스 LOD 의 머티리얼 슬롯을 대상 스태틱 메시에 이미 존재하는 슬롯으로 병합 시도할지 결정하는 부울 파라미터입니다. 이 세팅을 활성화하면, 함수는 대상 메시의 섹션과 같은 머티리얼이 할당된 섹션을 소스 지오메트리에서 찾습니다. 찾으면, LOD 의 섹션이 대상 스태틱 메시의 기존 섹션과 일치하도록 리매핑 시도합니다. 두 스태틱 메시가 같은 머티리얼을 사용하는 경우 메모리를 조금 절약할 수 있습니다. 이 세팅을 비활성화로 놔두면, 소스 메시의 모든 메시 섹션을 대상 스태틱 메시에 덧붙입니다.
+
+LOD 를 설정하면 대상 스태틱 메시 애셋이 수정됩니다. 변경사항을 유지한다 가정하면, 나중에 **Save Asset** 또는 **Save Loaded Asset** 같은 노드도 사용해야 합니다.
+
+예를 들어, 다음 스크립트는 소스 스태틱 메시에서 지정된 LOD 를 받아, 그 지오메트리를 대상 스태틱 메시의 다른 지정 LOD 인덱스에 재사용합니다.
+
+[REGION:lightbox]
+[![스태틱 메시 예제에서 LOD 설정](set_lod_from_mesh_example.png "스태틱 메시 예제에서 LOD 설정")(w:1000)](set_lod_from_mesh_example.png)  
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
+
+**Set Lod from Static Mesh** (스태틱 메시에서 LOD 설정) 노드를 실행하면, 소스 스태틱 메시에서 LOD 를 복사하여 대상 스태틱 메시에 추가합니다. 스태틱 메시 애셋 사이 지속되는 연결은 없으므로, 이 시점부터 소스 스태틱 메시 변경 사항은 대상 스태틱 메시에 자동으로 영향 주지 않습니다.
+
+[/EXCERPT:excerpt_2]
+-->
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    BlueprintOrCPPSelect
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    pythonimplementation
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_3]
+    [/PARAM]
+[/OBJECT]
+
+<!--
+[EXCERPT:excerpt_3]
+
+
+Python 스크립트로 LOD 를 재사용하려면, `unreal.EditorStaticMeshLibrary.set_lod_from_static_mesh()` 함수를 호출합니다. 이 함수에 전달해야 하는 것은 다음과 같습니다.
+
+*   대상 스태틱 메시입니다. 이 스태틱 메시에 새 LOD 를 생성합니다. `unreal.EditorAssetLibrary.load_asset()` 함수를 사용해서 이 애셋을 먼저 로드해야 합니다.
+*   대상 스태틱 메시에 대해 만들려는 LOD 인덱스입니다. 이 값은 0 보다 커야 합니다. 대상 스태틱 메시에서 LOD 0 을 대체할 수 없습니다.
+    [REGION:warning]
+    대상 스태틱 메시에 이미 인덱스가 같은 LOD 가 있으면 덮어씁니다.
+    [/REGION]
+    
+*   소스 스태틱 메시입니다. 이 스태틱 메시에 있는 기존 LOD 를 대상 스태틱 메시에서 가리킵니다. 위와 마찬가지로, 이 애셋을 먼저 로드해야 합니다. 위와 마찬가지로,  `unreal.EditorAssetLibrary.load_asset()` 함수를 사용해서 이 애셋을 먼저 로드해야 합니다.
+*   대상 스태틱 메시에 대해 사용하려는 소스 스태틱 메시 내 LOD 인덱스입니다.
+*   대상 스태틱 메시의 머티리얼 슬롯 병합 시도 여부를 결정하는 부울 파라미터입니다. 이 파라미터를 `True` 설정하면, 소스 메시에서 대상 메시의 섹션과 동일한 머티리얼이 지정된 섹션을 찾습니다. 찾으면, LOD 의 섹션이 대상 스태틱 메시의 기존 섹션과 일치하도록 리매핑 시도합니다. 이 파라미터를 `False` 로 설정하면, 소스 메시의 모든 메시 섹션을 대상 스태틱 메시에 덧붙입니다.
+
+이 LOD 를 구성하면 스태틱 메시 애셋이 수정됩니다. 변경사항을 유지한다 가정하면, 나중에 `unreal.EditorAssetLibrary.save_asset()` 또는 `unreal.EditorAssetLibrary.save_loaded_asset()` 같은 함수를 사용해야 합니다.
+
+예를 들어, 다음 스크립트는 단순화된 소스 스태틱 메시에서 LOD 0 을 받아, 그 지오메트리를 보다 복잡한 대상 스태틱 메시의 LOD 1 로 재사용합니다.
+
+    import unreal
+    destination_name = "/Game/MyGeometries/Accumulator_case"
+    source_name = "/Game/MyGeometries/Simplified_box"
+    def set_mesh_as_lod(destination_name, source_name):
+        destination_mesh = unreal.EditorAssetLibrary.load_asset(destination_name)
+        source_mesh = unreal.EditorAssetLibrary.load_asset(source_name)
+        lod_count = unreal.EditorStaticMeshLibrary.get_lod_count(destination_mesh)
+        print("Current LOD count: " + str(lod_count))
+        slot_replaced = unreal.EditorStaticMeshLibrary.set_lod_from_static_mesh(destination_mesh, 1, source_mesh, 0, True)
+        if slot_replaced > 0:
+            print("Added mesh as LOD for slot " + str(slot_replaced))
+            lod_count = unreal.EditorStaticMeshLibrary.get_lod_count(destination_mesh)
+            print("New LOD count: " + str(lod_count))
+            unreal.EditorAssetLibrary.save_loaded_asset(destination_mesh)
+        else
+            unreal.log_error("Unable to add mesh as LOD!")
+    set_mesh_as_lod(destination_name, source_name)
+
+`unreal.EditorStaticMeshLibrary.set_lod_from_static_mesh()` 함수가 실행되면, 소스 스태틱 메시에서 LOD 를 복사하여 대상 스태틱 메시에 추가합니다. 스태틱 메시 애셋 사이 지속되는 연결은 없으므로, 이 시점부터 소스 스태틱 메시 변경 사항은 대상 스태틱 메시에 자동으로 영향 주지 않습니다.
+
+[/EXCERPT:excerpt_3]
+-->
+

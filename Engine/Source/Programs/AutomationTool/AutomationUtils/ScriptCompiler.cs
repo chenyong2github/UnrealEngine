@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -73,7 +73,6 @@ namespace AutomationTool
 			// Compile only if not disallowed.
 			if (DoCompile && !String.IsNullOrEmpty(CommandUtils.CmdEnv.MsBuildExe))
 			{
-				CleanupScriptsAssemblies();
 				FindAndCompileScriptModules(ScriptsForProjectFileName, AdditionalScriptsFolders);
 			}
 
@@ -128,8 +127,6 @@ namespace AutomationTool
 
 		private static void FindAndCompileScriptModules(string ScriptsForProjectFileName, List<string> AdditionalScriptsFolders)
 		{
-			Log.TraceInformation("Compiling scripts.");
-
 			var OldCWD = Environment.CurrentDirectory;
 			var UnrealBuildToolCWD = CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, "Engine", "Source");
 
@@ -138,13 +135,13 @@ namespace AutomationTool
 			// Configure the rules compiler
 			// Get all game folders and convert them to build subfolders.
 			List<DirectoryReference> AllGameFolders;
-			if(ScriptsForProjectFileName == null)
+			if (ScriptsForProjectFileName == null)
 			{
 				AllGameFolders = NativeProjects.EnumerateProjectFiles().Select(x => x.Directory).ToList();
 			}
 			else
 			{
-				AllGameFolders = new List<DirectoryReference>{ new DirectoryReference(Path.GetDirectoryName(ScriptsForProjectFileName)) };
+				AllGameFolders = new List<DirectoryReference> { new DirectoryReference(Path.GetDirectoryName(ScriptsForProjectFileName)) };
 			}
 
 			var AllAdditionalScriptFolders = new List<DirectoryReference>(AdditionalScriptsFolders.Select(x => new DirectoryReference(x)));
@@ -172,42 +169,168 @@ namespace AutomationTool
 					CommandUtils.LogVerbose("Script module {0} filtered by the Host Platform and will not be compiled.", ModuleFilename);
 				}
 			}
-
-			if ((UnrealBuildTool.BuildHostPlatform.Current.Platform == UnrealBuildTool.UnrealTargetPlatform.Win64) ||
-				(UnrealBuildTool.BuildHostPlatform.Current.Platform == UnrealBuildTool.UnrealTargetPlatform.Win32))
-			{
-				string Modules = string.Join(";", ModulesToCompile.ToArray());
-				var UATProj = CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, @"Engine\Source\Programs\AutomationTool\Scripts\UAT.proj");
-				var CmdLine = String.Format("\"{0}\" /p:Modules=\"{1}\" /p:Configuration={2} /verbosity:minimal /nologo", UATProj, Modules, BuildConfig);
-				// suppress the run command because it can be long and intimidating, making the logs around this code harder to read.
-				var Result = CommandUtils.Run(CommandUtils.CmdEnv.MsBuildExe, CmdLine, Options: CommandUtils.ERunOptions.Default | CommandUtils.ERunOptions.NoLoggingOfRunCommand | CommandUtils.ERunOptions.LoggingOfRunDuration);
-				if (Result.ExitCode != 0)
-				{
-					throw new AutomationException(String.Format("Failed to build \"{0}\":{1}{2}", UATProj, Environment.NewLine, Result.Output));
-				}
-			}
-			else
-			{
-				CompileModules(ModulesToCompile);
-			}
 			
+			CompileModules(ModulesToCompile);
 
 			Environment.CurrentDirectory = OldCWD;
 		}
 
 		/// <summary>
+		/// Creates a hash collection that represents the state of all modules in this list. If 
+		/// a module has no current output or is missing files then a null collection will be returned
+		/// </summary>
+		/// <param name="Modules"></param>
+		/// <returns></returns>
+		private static HashCollection HashModules(IEnumerable<string> Modules, bool WarnOnFailure=true)
+		{
+			HashCollection Hashes = new HashCollection();
+
+			foreach (string Module in Modules)
+			{
+				// this project is built by the AutomationTool project that the RunUAT script builds so 
+				// it will always be newer than was last built
+				if (Module.Contains("AutomationUtils.Automation"))
+				{
+					continue;
+				}
+
+				CsProjectInfo Proj;
+
+				Dictionary<string, string> Properties = new Dictionary<string, string>();
+				Properties.Add("Platform", "AnyCPU");
+				Properties.Add("Configuration", "Development");
+
+				FileReference ModuleFile = new FileReference(Module);
+
+				if (!CsProjectInfo.TryRead(ModuleFile, Properties, out Proj))
+				{
+					if (WarnOnFailure)
+					{
+						Log.TraceWarning("Failed to read file {0}", ModuleFile);
+					}
+					return null;
+				}
+
+				if (!Hashes.AddCsProjectInfo(Proj, HashCollection.HashType.MetaData))
+				{
+					if (WarnOnFailure)
+					{
+						Log.TraceWarning("Failed to hash file {0}", ModuleFile);
+					}
+					return null;
+				}
+			}
+
+			return Hashes;
+		}
+
+		/// <summary>
+		/// Pulls all dependencies from the specified module list, gathers the state of them, and
+		/// compares it to the state expressed in the provided file from a previous run
+		/// </summary>
+		/// <param name="ModuleList"></param>
+		/// <param name="DependencyFile"></param>
+		/// <returns></returns>
+		private static bool AreDependenciesUpToDate(IEnumerable<string> ModuleList, string DependencyFile)
+		{
+			bool UpToDate = false;
+
+			if (File.Exists(DependencyFile))
+			{
+				Log.TraceVerbose("Read dependency file at {0}", DependencyFile);
+
+				HashCollection OldHashes = HashCollection.CreateFromFile(DependencyFile);
+
+				if (OldHashes != null)
+				{
+					HashCollection CurrentHashes = HashModules(ModuleList, false);
+
+					if (OldHashes.Equals(CurrentHashes))
+					{
+						UpToDate = true;
+					}
+					else
+					{
+						if (Log.OutputLevel >= LogEventType.VeryVerbose)
+						{
+							CurrentHashes.LogDifferences(OldHashes);
+						}
+					}
+				}
+				else
+				{
+					Log.TraceInformation("Failed to read dependency info!");
+				}
+			}
+			else
+			{
+				Log.TraceVerbose("No dependency file exists at {0}. Will do full build.", DependencyFile);
+			}
+
+			return UpToDate;
+		}
+		
+		/// <summary>
 		/// Compiles all script modules.
 		/// </summary>
 		/// <param name="Modules">Module project filenames.</param>
-		/// <param name="CompiledModuleFilenames">The resulting compiled module assembly filenames.</param>
 		private static void CompileModules(List<string> Modules)
-		{
-			Log.TraceInformation("Building script modules");
-			// Make sure DefaultScriptsDLLName is compiled first
-			var DefaultScriptsProjName = Path.ChangeExtension(DefaultScriptsDLLName, "csproj");
-			foreach (var ModuleName in Modules)
+		{			
+			string DependencyFile = Path.Combine(CommandUtils.CmdEnv.EngineSavedFolder, "UATModuleHashes.xml");
+			
+			if (AreDependenciesUpToDate(Modules, DependencyFile) && !GlobalCommandLine.IgnoreDependencies)
 			{
-				if (ModuleName.IndexOf(DefaultScriptsProjName, StringComparison.InvariantCultureIgnoreCase) >= 0)
+				Log.TraceInformation("Dependencies are up to date. Skipping compile.");
+				return;
+			}
+
+			Log.TraceInformation("Dependencies are out of date. Compiling scripts....");
+
+			// clean old assemblies
+			CleanupScriptsAssemblies();
+
+			DateTime StartTime = DateTime.Now;
+
+			string BuildTool = CommandUtils.CmdEnv.MsBuildExe;
+
+			// msbuild (standard on windows, in mono >=5.0 is preferred due to speed and parallel compilation)
+			bool UseParallelMsBuild = Path.GetFileNameWithoutExtension(BuildTool).ToLower() == "msbuild";
+
+			if (UseParallelMsBuild)
+			{
+				string ModulesList = string.Join(";", Modules);
+
+				// Mono has an issue where arugments with semicolons or commas can't be passed through to
+				// as arguments so we need to manually construct a temp file with the list of modules
+				// see (https://github.com/Microsoft/msbuild/issues/471)
+				var UATProjTemplate = CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, @"Engine\Source\Programs\AutomationTool\Scripts\UAT.proj");
+				var UATProjFile = Path.Combine(CommandUtils.CmdEnv.EngineSavedFolder, "UATTempProj.proj");
+
+				string ProjContents = File.ReadAllText(UATProjTemplate);
+				ProjContents = ProjContents.Replace("$(Modules)", ModulesList);
+
+				Directory.CreateDirectory(Path.GetDirectoryName(UATProjFile));
+				File.WriteAllText(UATProjFile, ProjContents);
+				
+				string MsBuildVerbosity = Log.OutputLevel >= LogEventType.Verbose ? "minimal" : "quiet";
+
+				var CmdLine = String.Format("\"{0}\" /p:Configuration={1} /verbosity:{2} /nologo", UATProjFile, BuildConfig, MsBuildVerbosity);
+				// suppress the run command because it can be long and intimidating, making the logs around this code harder to read.
+				var Result = CommandUtils.Run(BuildTool, CmdLine, Options: CommandUtils.ERunOptions.Default | CommandUtils.ERunOptions.NoLoggingOfRunCommand | CommandUtils.ERunOptions.LoggingOfRunDuration);
+				if (Result.ExitCode != 0)
+				{
+					throw new AutomationException(String.Format("Failed to build \"{0}\":{1}{2}", UATProjFile, Environment.NewLine, Result.Output));
+				}
+			}
+			else
+			{
+				// Make sure DefaultScriptsDLLName is compiled first
+				var DefaultScriptsProjName = Path.ChangeExtension(DefaultScriptsDLLName, "csproj");
+
+				// Primary modules must be built first
+				List<string> PrimaryModules = Modules.Where(M => M.IndexOf(DefaultScriptsProjName, StringComparison.InvariantCultureIgnoreCase) >= 0).ToList();
+
+				foreach (var ModuleName in PrimaryModules)
 				{
 					Log.TraceInformation("Building script module: {0}", ModuleName);
 					try
@@ -220,13 +343,14 @@ namespace AutomationTool
 						throw new AutomationException("Failed to compile module {0}", ModuleName);
 					}
 					break;
-				}
-			}
 
-			// Second pass, compile everything else
-			foreach (var ModuleName in Modules)
-			{
-				if (ModuleName.IndexOf(DefaultScriptsProjName, StringComparison.InvariantCultureIgnoreCase) < 0)
+				}
+
+				// Second pass, compile everything else
+				List<string> SecondaryModules = Modules.Where(M => !PrimaryModules.Contains(M)).ToList();
+
+				// Non-parallel method
+				foreach (var ModuleName in SecondaryModules)
 				{
 					Log.TraceInformation("Building script module: {0}", ModuleName);
 					try
@@ -239,11 +363,27 @@ namespace AutomationTool
 						throw new AutomationException("Failed to compile module {0}", ModuleName);
 					}
 				}
+			}			
+			
+			TimeSpan Duration = DateTime.Now - StartTime;
+			Log.TraceInformation("Compiled {0} modules in {1} secs", Modules.Count, Duration.TotalSeconds);
+
+			HashCollection NewHashes = HashModules(Modules);
+
+			if (NewHashes == null)
+			{
+				Log.TraceWarning("Failed to save dependency info!");
+			}
+			else
+			{
+				NewHashes.SaveToFile(DependencyFile);
+				Log.TraceVerbose("Wrote depencencies to {0}", DependencyFile);
 			}
 		}
 
 		/// <summary>
-		/// Builds a script module (csproj file)
+		/// Starts compiling the provided project file and returns the process. Caller should check HasExited
+		/// or call WaitForExit() to get results
 		/// </summary>
 		/// <param name="ProjectFile"></param>
 		/// <returns></returns>
@@ -258,11 +398,12 @@ namespace AutomationTool
 				throw new AutomationException(String.Format("Unable to build Project {0}. Project file not found.", ProjectFile));
 			}
 
-			string CmdLine = String.Format("\"{0}\" /verbosity:quiet /nologo /target:Build /property:Configuration={1} /property:Platform=AnyCPU /p:TreatWarningsAsErrors=false /p:NoWarn=\"612,618,672\" /p:BuildProjectReferences=true",
+			string CmdLine = String.Format("\"{0}\" /verbosity:quiet /nologo /target:Build /property:Configuration={1} /property:Platform=AnyCPU /p:TreatWarningsAsErrors=false /p:NoWarn=\"612,618,672,1591\" /p:BuildProjectReferences=true",
 				ProjectFile, BuildConfig);
 
 			// Compile the project
 			var Result = CommandUtils.Run(CommandUtils.CmdEnv.MsBuildExe, CmdLine);
+
 			if (Result.ExitCode != 0)
 			{
 				throw new AutomationException(String.Format("Failed to build \"{0}\":{1}{2}", ProjectFile, Environment.NewLine, Result.Output));
@@ -328,7 +469,7 @@ namespace AutomationTool
 			}
 		}
 
-		private void CleanupScriptsAssemblies()
+		private static void CleanupScriptsAssemblies()
 		{
 			CommandUtils.LogVerbose("Cleaning up script DLL folder");
 			CommandUtils.DeleteDirectory(GetScriptAssemblyFolder());

@@ -1,18 +1,16 @@
-﻿INTSourceChangelist:3801137
-Availability:Public
-Title:프로그래밍 가이드
-Crumbs: %ROOT%
-Description:언리얼 엔진으로 개발하는 프로그래머를 위한 정보입니다.
-version: 4.18
-parent:%ROOT%
-order:4
-type:landing
-topic-icon:%ROOT%/prog_icon.png
-Topic-image:ProgrammingGuide_topic.png
+﻿INTSourceChangelist:6537156
+Availability: Public
+Title: 프로그래밍 가이드
+Description: 언리얼 엔진으로 개발하는 프로그래머를 위한 정보입니다.
+Type: landing
+Version: 4.18
+Parent: %ROOT%
+topic-image: ProgrammingGuide_topic.png
+topic-icon: %ROOT%/prog_icon.png
+Order: 3
 
-언리얼 엔진 4 는 프로그래머용으로 두 가지 툴세트를 제공하며, 이 둘을 같이 사용했을 때 개발 작업방식이 빨라질 수도 있습니다. 새로운 게임플레이 클래스, Slate 와 Canvas 유저 인터페이스 요소, 
-에디터 함수성을 C++ 로 작성한 이후, 변경된 내용을 Visual Studio 나 XCode 로 컴파일하면 그 내용이 언리얼 에디터에 바로 반영됩니다. Blueprint (블루프린트) 비주얼 스크립팅 시스템은 
-에디터 안에서 함수 블록과 프로퍼티 레퍼런스를 와이어로 연결하여 클래스를 만들 수 있는 탄탄한 툴입니다.
+
+언리얼 엔진 4 는 프로그래머용으로 두 가지 툴세트를 제공하며, 이 둘을 같이 사용했을 때 개발 작업방식이 빨라질 수도 있습니다. 새로운 게임플레이 클래스, Slate 와 Canvas 유저 인터페이스 요소, 에디터 함수성을 C++ 로 작성한 이후, 변경된 내용을 Visual Studio 나 XCode 로 컴파일하면 그 내용이 언리얼 에디터에 바로 반영됩니다. Blueprint (블루프린트) 비주얼 스크립팅 시스템은 에디터 안에서 함수 블록과 프로퍼티 레퍼런스를 와이어로 연결하여 클래스를 만들 수 있는 탄탄한 툴입니다.
 
 C++ 클래스는 Blueprint 클래스에 대한 베이스 클래스로 사용될 수 있기에, 프로그래머가 근본적인 게임플레이 클래스를 구성해 두면 레벨 디자이너는 그 클래스를 기반으로 서브 클래스를 만들고 반복작업을 할 수 있습니다.
 
@@ -34,6 +32,7 @@ C++ 로 프로그래밍을 하든, 블루프린트로 하든, 그 둘을 조합�
 ## 게임플레이 아키텍처
 
 [DIR(output:"role" parent:"Programming/UnrealArchitecture" org:"hierarchy" end:"1")]
+[DIR(output:"role" parent:"Programming/UnrealArchitecture/Objects" org:"hierarchy" end:"1")]
 
 ## 게임플레이 가이드
 
@@ -43,19 +42,21 @@ C++ 로 프로그래밍을 하든, 블루프린트로 하든, 그 둘을 조합�
 
 ## 언리얼 엔진 API 레퍼런스
 
+<!--- Note: We're purposely not listing Core, CoreUObject, and Engine API pages here, as that seems like arbitrary clutter. --->
+
 [OBJECT:Role]
-	[PARAM:icon]
-	![](%ROOT%/ue4_icon.png)
-	[/PARAM]
-	[PARAM:title]
-		Unreal Engine C++ API Reference
-	[/PARAM]
-	[PARAM:description]
-	언리얼 엔진 C++ 소스 코드에 대한 API 프로그래밍 참고서입니다.
-	[/PARAM]
-	[PARAMLITERAL:path]
-		https://api.unrealengine.com/cpp
-	[/PARAMLITERAL]
+[PARAM:icon]
+![](%ROOT%/ue4_icon.png)
+[/PARAM]
+[PARAM:title]
+	언리얼 엔진 C++ API 레퍼런스
+[/PARAM]
+[PARAM:description]
+언리얼 엔진 C++ 소스 코드에 대한 API 프로그래밍 레퍼런스입니다.
+[/PARAM]
+[PARAM:path]
+	[RELATIVE:API]
+[/PARAM]
 [/OBJECT]
 
 ## 시스템 가이드
@@ -67,8 +68,15 @@ C++ 로 프로그래밍을 하든, 블루프린트로 하든, 그 둘을 조합�
 %Programming/Online/Steam:role%
 %Programming/Rendering:role%
 %Programming/Slate:role%
-%Programming/UnrealBuildSystem:role%
+%Programming/BuildTools:role%
 
+## 자동화 빌드
+
+%Programming/BuildTools/AutomationTool/BuildGraph/ScriptAnatomy/Conditions:role%
+%Programming/BuildTools/AutomationTool/BuildGraph/ScriptAnatomy/Elements:role%
+%Programming/BuildTools/AutomationTool/BuildGraph/ScriptAnatomy/Types:role%
+%Programming/BuildTools/AutomationTool/BuildGraph:role%
+%Programming/BuildTools/AutomationTool/BuildGraph/Usage:role%
 
 ## 애셋 처리 레퍼런스 가이드
 

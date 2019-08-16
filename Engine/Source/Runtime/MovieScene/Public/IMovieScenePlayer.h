@@ -11,6 +11,8 @@
 #include "MovieSceneSpawnRegister.h"
 #include "Containers/ArrayView.h"
 #include "Evaluation/MovieSceneEvaluationState.h"
+#include "Misc/InlineValue.h"
+#include "Evaluation/IMovieSceneMotionVectorSimulation.h"
 #include "Evaluation/MovieSceneEvaluationOperand.h"
 
 
@@ -49,7 +51,7 @@ struct EMovieSceneViewportParams
  * Interface for movie scene players
  * Provides information for playback of a movie scene
  */
-class IMovieScenePlayer
+class MOVIESCENE_VTABLE IMovieScenePlayer
 {
 public:
 	virtual ~IMovieScenePlayer() { }
@@ -276,6 +278,19 @@ public:
 	}
 
 	/**
+	 * Attempt to save specific global state for the specified token state before it animates an object.
+	 * @note: Will only call IMovieSceneExecutionToken::CacheExistingState if no state has been previously cached for the specified token type
+	 *
+	 * @param InObject			The object to cache state for
+	 * @param InTokenType		Unique marker that identifies the originating token type
+	 * @param InProducer		Producer implementation that defines how to create the preanimated token, if it doesn't already exist
+	 */
+	FORCEINLINE void SaveGlobalPreAnimatedState(UObject& InObject, FMovieSceneAnimTypeID InTokenType, const IMovieScenePreAnimatedTokenProducer& InProducer)
+	{
+		PreAnimatedState.SavePreAnimatedState(InTokenType, InProducer, InObject, ECapturePreAnimatedState::Global, FMovieSceneEvaluationKey());
+	}
+
+	/**
 	 * Restore all pre-animated state
 	 */
 	void RestorePreAnimatedState()
@@ -292,6 +307,16 @@ public:
 	void RestorePreAnimatedState(UObject& Object)
 	{
 		PreAnimatedState.RestorePreAnimatedState(*this, Object);
+	}
+
+	/**
+	 * Restore any pre-animated state that has been cached for the specified class
+	 *
+	 * @param GeneratedClass			The class of the object to restore
+	 */
+	void RestorePreAnimatedState(UClass* GeneratedClass)
+	{
+		PreAnimatedState.RestorePreAnimatedState(*this, GeneratedClass);
 	}
 
 	/**
@@ -331,7 +356,10 @@ public:
 
 	/** Container that stores any per-animated state tokens  */
 	FMovieScenePreAnimatedState PreAnimatedState;
-	
+
+	/** Motion Vector Simulation */
+	TInlineValue<IMovieSceneMotionVectorSimulation> MotionVectorSimulation;
+
 private:
 
 	/** Null register that asserts on use */

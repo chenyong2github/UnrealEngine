@@ -10,6 +10,7 @@
 #include "RHIStaticStates.h"
 #include "ResolveShader.h"
 #include "PipelineStateCache.h"
+#include "Math/PackedVector.h"
 
 static inline DXGI_FORMAT ConvertTypelessToUnorm(DXGI_FORMAT Format)
 {
@@ -216,11 +217,11 @@ void FD3D11DynamicRHI::ResolveTextureUsingShader(
 * @param bKeepOriginalSurface - true if the original surface will still be used after this function so must remain valid
 * @param ResolveParams - optional resolve params
 */
-void FD3D11DynamicRHI::RHICopyToResolveTarget(FTextureRHIParamRef SourceTextureRHI, FTextureRHIParamRef DestTextureRHI, const FResolveParams& ResolveParams)
+void FD3D11DynamicRHI::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI, FRHITexture* DestTextureRHI, const FResolveParams& ResolveParams)
 {
 	if (!SourceTextureRHI || !DestTextureRHI)
 	{
-		// no need to do anything (sliently ignored)
+		// no need to do anything (silently ignored)
 		return;
 	}
 
@@ -393,86 +394,6 @@ void FD3D11DynamicRHI::RHICopyToResolveTarget(FTextureRHIParamRef SourceTextureR
 	}
 }
 
-/**
-* Helper for storing IEEE 32 bit float components
-*/
-struct FFloatIEEE
-{
-	union
-	{
-		struct
-		{
-			uint32	Mantissa : 23, Exponent : 8, Sign : 1;
-		} Components;
-
-		float	Float;
-	};
-};
-
-/**
-* Helper for storing 16 bit float components
-*/
-struct FD3DFloat16
-{
-	union
-	{
-		struct
-		{
-			uint16	Mantissa : 10, Exponent : 5, Sign : 1;
-		} Components;
-
-		uint16	Encoded;
-	};
-
-	/**
-	* @return full 32 bit float from the 16 bit value
-	*/
-	operator float()
-	{
-		FFloatIEEE	Result;
-
-		Result.Components.Sign = Components.Sign;
-		Result.Components.Exponent = Components.Exponent - 15 + 127; // Stored exponents are biased by half their range.
-		Result.Components.Mantissa = FMath::Min<uint32>(FMath::FloorToInt((float)Components.Mantissa / 1024.0f * 8388608.0f),(1 << 23) - 1);
-
-		return Result.Float;
-	}
-};
-
-/**
-* Helper for storing DXGI_FORMAT_R11G11B10_FLOAT components
-*/
-struct FD3DFloatR11G11B10
-{
-	// http://msdn.microsoft.com/En-US/library/bb173059(v=VS.85).aspx
-	uint32 R_Mantissa : 6;
-	uint32 R_Exponent : 5;
-	uint32 G_Mantissa : 6;
-	uint32 G_Exponent : 5;
-	uint32 B_Mantissa : 5;
-	uint32 B_Exponent : 5;
-
-	/**
-	* @return decompress into three 32 bit float
-	*/
-	operator FLinearColor()
-	{
-		FFloatIEEE	Result[3];
-
-		Result[0].Components.Sign = 0;
-		Result[0].Components.Exponent = R_Exponent - 15 + 127;
-		Result[0].Components.Mantissa = FMath::Min<uint32>(FMath::FloorToInt((float)R_Mantissa / 32.0f * 8388608.0f),(1 << 23) - 1);
-		Result[1].Components.Sign = 0;
-		Result[1].Components.Exponent = G_Exponent - 15 + 127;
-		Result[1].Components.Mantissa = FMath::Min<uint32>(FMath::FloorToInt((float)G_Mantissa / 64.0f * 8388608.0f),(1 << 23) - 1);
-		Result[2].Components.Sign = 0;
-		Result[2].Components.Exponent = B_Exponent - 15 + 127;
-		Result[2].Components.Mantissa = FMath::Min<uint32>(FMath::FloorToInt((float)B_Mantissa / 64.0f * 8388608.0f),(1 << 23) - 1);
-
-		return FLinearColor(Result[0].Float, Result[1].Float, Result[2].Float);
-	}
-};
-
 // Only supports the formats that are supported by ConvertRAWSurfaceDataToFColor()
 static uint32 ComputeBytesPerPixel(DXGI_FORMAT Format)
 {
@@ -565,7 +486,7 @@ static uint32 ComputeBytesPerPixel(DXGI_FORMAT Format)
 	return BytesPerPixel;
 }
 
-TRefCountPtr<ID3D11Texture2D> FD3D11DynamicRHI::GetStagingTexture(FTextureRHIParamRef TextureRHI,FIntRect InRect, FIntRect& StagingRectOUT, FReadSurfaceDataFlags InFlags)
+TRefCountPtr<ID3D11Texture2D> FD3D11DynamicRHI::GetStagingTexture(FRHITexture* TextureRHI,FIntRect InRect, FIntRect& StagingRectOUT, FReadSurfaceDataFlags InFlags)
 {
 	FD3D11TextureBase* Texture = GetD3D11TextureFromRHITexture(TextureRHI);
 	D3D11_TEXTURE2D_DESC SourceDesc; 
@@ -634,7 +555,7 @@ TRefCountPtr<ID3D11Texture2D> FD3D11DynamicRHI::GetStagingTexture(FTextureRHIPar
 	return TempTexture2D;
 }
 
-void FD3D11DynamicRHI::ReadSurfaceDataNoMSAARaw(FTextureRHIParamRef TextureRHI,FIntRect InRect,TArray<uint8>& OutData, FReadSurfaceDataFlags InFlags)
+void FD3D11DynamicRHI::ReadSurfaceDataNoMSAARaw(FRHITexture* TextureRHI,FIntRect InRect,TArray<uint8>& OutData, FReadSurfaceDataFlags InFlags)
 {
 	checkf(InRect.Width() <= TextureRHI->GetSizeXYZ().X >> InFlags.GetMip(), TEXT("Provided rect width (%d), must be smaller or equal to the texture size requested Mip (%d)"), InRect.Width(), TextureRHI->GetSizeXYZ().X >> InFlags.GetMip());
 	checkf(InRect.Height() <= TextureRHI->GetSizeXYZ().Y >> InFlags.GetMip(), TEXT("Provided rect height (%d), must be smaller or equal to the texture size requested Mip (%d)"), InRect.Height(), TextureRHI->GetSizeXYZ().Y >> InFlags.GetMip());
@@ -790,11 +711,11 @@ static void ConvertRAWSurfaceDataToFColor(DXGI_FORMAT Format, uint32 Width, uint
 		FPlane	MinValue(0.0f,0.0f,0.0f,0.0f),
 			MaxValue(1.0f,1.0f,1.0f,1.0f);
 
-		check(sizeof(FD3DFloat16)==sizeof(uint16));
+		check(sizeof(FFloat16)==sizeof(uint16));
 
 		for(uint32 Y = 0; Y < Height; Y++)
 		{
-			FD3DFloat16* SrcPtr = (FD3DFloat16*)(In + Y * SrcPitch);
+			FFloat16* SrcPtr = (FFloat16*)(In + Y * SrcPitch);
 
 			for(uint32 X = 0; X < Width; X++)
 			{
@@ -812,7 +733,7 @@ static void ConvertRAWSurfaceDataToFColor(DXGI_FORMAT Format, uint32 Width, uint
 
 		for(uint32 Y = 0; Y < Height; Y++)
 		{
-			FD3DFloat16* SrcPtr = (FD3DFloat16*)(In + Y * SrcPitch);
+			FFloat16* SrcPtr = (FFloat16*)(In + Y * SrcPitch);
 			FColor* DestPtr = Out + Y * Width;
 
 			for(uint32 X = 0; X < Width; X++)
@@ -831,16 +752,16 @@ static void ConvertRAWSurfaceDataToFColor(DXGI_FORMAT Format, uint32 Width, uint
 	}
 	else if (Format == DXGI_FORMAT_R11G11B10_FLOAT)
 	{
-		check(sizeof(FD3DFloatR11G11B10) == sizeof(uint32));
+		check(sizeof(FFloat3Packed) == sizeof(uint32));
 
 		for(uint32 Y = 0; Y < Height; Y++)
 		{
-			FD3DFloatR11G11B10* SrcPtr = (FD3DFloatR11G11B10*)(In + Y * SrcPitch);
+			FFloat3Packed* SrcPtr = (FFloat3Packed*)(In + Y * SrcPitch);
 			FColor* DestPtr = Out + Y * Width;
 
 			for(uint32 X = 0; X < Width; X++)
 			{
-				FLinearColor Value = *SrcPtr;
+				FLinearColor Value = (*SrcPtr).ToLinearColor();
 
 				FColor NormalizedColor = Value.ToFColor(bLinearToGamma);
 				FMemory::Memcpy(DestPtr++, &NormalizedColor, sizeof(FColor));
@@ -873,7 +794,7 @@ static void ConvertRAWSurfaceDataToFColor(DXGI_FORMAT Format, uint32 Width, uint
 		
 		for(uint32 Y = 0; Y < Height; Y++)
 		{
-			float* SrcPtr = (float*)In;
+			float* SrcPtr = (float*)(In + Y * SrcPitch);
 			FColor* DestPtr = Out + Y * Width;
 
 			for(uint32 X = 0; X < Width; X++)
@@ -1000,7 +921,7 @@ static void ConvertRAWSurfaceDataToFColor(DXGI_FORMAT Format, uint32 Width, uint
 	}
 }
 
-void FD3D11DynamicRHI::RHIReadSurfaceData(FTextureRHIParamRef TextureRHI,FIntRect InRect,TArray<FColor>& OutData, FReadSurfaceDataFlags InFlags)
+void FD3D11DynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI,FIntRect InRect,TArray<FColor>& OutData, FReadSurfaceDataFlags InFlags)
 {
 	if (!ensure(TextureRHI))
 	{
@@ -1043,7 +964,7 @@ void FD3D11DynamicRHI::RHIReadSurfaceData(FTextureRHIParamRef TextureRHI,FIntRec
 	ConvertRAWSurfaceDataToFColor(TextureDesc.Format, SizeX, SizeY, OutDataRaw.GetData(), SrcPitch, OutData.GetData(), InFlags);
 }
 
-void FD3D11DynamicRHI::ReadSurfaceDataMSAARaw(FRHICommandList_RecursiveHazardous& RHICmdList, FTextureRHIParamRef TextureRHI,FIntRect InRect,TArray<uint8>& OutData, FReadSurfaceDataFlags InFlags)
+void FD3D11DynamicRHI::ReadSurfaceDataMSAARaw(FRHICommandList_RecursiveHazardous& RHICmdList, FRHITexture* TextureRHI,FIntRect InRect,TArray<uint8>& OutData, FReadSurfaceDataFlags InFlags)
 {
 	FD3D11TextureBase* Texture = GetD3D11TextureFromRHITexture(TextureRHI);
 
@@ -1169,7 +1090,7 @@ void FD3D11DynamicRHI::ReadSurfaceDataMSAARaw(FRHICommandList_RecursiveHazardous
 	}
 }
 
-void FD3D11DynamicRHI::RHIMapStagingSurface(FTextureRHIParamRef TextureRHI,void*& OutData,int32& OutWidth,int32& OutHeight)
+void FD3D11DynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI,void*& OutData,int32& OutWidth,int32& OutHeight)
 {
 	ID3D11Texture2D* Texture = (ID3D11Texture2D*)(GetD3D11TextureFromRHITexture(TextureRHI)->GetResource());
 	
@@ -1187,14 +1108,14 @@ void FD3D11DynamicRHI::RHIMapStagingSurface(FTextureRHIParamRef TextureRHI,void*
 	check(OutData);
 }
 
-void FD3D11DynamicRHI::RHIUnmapStagingSurface(FTextureRHIParamRef TextureRHI)
+void FD3D11DynamicRHI::RHIUnmapStagingSurface(FRHITexture* TextureRHI)
 {
 	ID3D11Texture2D* Texture = (ID3D11Texture2D*)(GetD3D11TextureFromRHITexture(TextureRHI)->GetResource());
 
 	Direct3DDeviceIMContext->Unmap(Texture,0);
 }
 
-void FD3D11DynamicRHI::RHIReadSurfaceFloatData(FTextureRHIParamRef TextureRHI,FIntRect InRect,TArray<FFloat16Color>& OutData,ECubeFace CubeFace,int32 ArrayIndex,int32 MipIndex)
+void FD3D11DynamicRHI::RHIReadSurfaceFloatData(FRHITexture* TextureRHI,FIntRect InRect,TArray<FFloat16Color>& OutData,ECubeFace CubeFace,int32 ArrayIndex,int32 MipIndex)
 {
 	FD3D11TextureBase* Texture = GetD3D11TextureFromRHITexture(TextureRHI);
 
@@ -1347,7 +1268,7 @@ static void ConvertRAWSurfaceDataToFLinearColor(EPixelFormat Format, uint32 Widt
 		{
 			for (uint32 Y = 0; Y < Height; Y++)
 			{
-				FD3DFloat16* SrcPtr = (FD3DFloat16*)(In + Y * SrcPitch);
+				FFloat16* SrcPtr = (FFloat16*)(In + Y * SrcPitch);
 				FLinearColor* DestPtr = Out + Y * Width;
 
 				for (uint32 X = 0; X < Width; X++)
@@ -1363,11 +1284,11 @@ static void ConvertRAWSurfaceDataToFLinearColor(EPixelFormat Format, uint32 Widt
 			FPlane	MinValue(0.0f, 0.0f, 0.0f, 0.0f);
 			FPlane	MaxValue(1.0f, 1.0f, 1.0f, 1.0f);
 
-			check(sizeof(FD3DFloat16) == sizeof(uint16));
+			check(sizeof(FFloat16) == sizeof(uint16));
 
 			for (uint32 Y = 0; Y < Height; Y++)
 			{
-				FD3DFloat16* SrcPtr = (FD3DFloat16*)(In + Y * SrcPitch);
+				FFloat16* SrcPtr = (FFloat16*)(In + Y * SrcPitch);
 
 				for (uint32 X = 0; X < Width; X++)
 				{
@@ -1385,7 +1306,7 @@ static void ConvertRAWSurfaceDataToFLinearColor(EPixelFormat Format, uint32 Widt
 
 			for (uint32 Y = 0; Y < Height; Y++)
 			{
-				FD3DFloat16* SrcPtr = (FD3DFloat16*)(In + Y * SrcPitch);
+				FFloat16* SrcPtr = (FFloat16*)(In + Y * SrcPitch);
 				FLinearColor* DestPtr = Out + Y * Width;
 
 				for (uint32 X = 0; X < Width; X++)
@@ -1404,16 +1325,16 @@ static void ConvertRAWSurfaceDataToFLinearColor(EPixelFormat Format, uint32 Widt
 	}
 	else if (Format == PF_FloatRGB || Format == PF_FloatR11G11B10)
 	{
-		check(sizeof(FD3DFloatR11G11B10) == sizeof(uint32));
+		check(sizeof(FFloat3Packed) == sizeof(uint32));
 
 		for (uint32 Y = 0; Y < Height; Y++)
 		{
-			FD3DFloatR11G11B10* SrcPtr = (FD3DFloatR11G11B10*)(In + Y * SrcPitch);
+			FFloat3Packed* SrcPtr = (FFloat3Packed*)(In + Y * SrcPitch);
 			FLinearColor* DestPtr = Out + Y * Width;
 
 			for (uint32 X = 0; X < Width; X++)
 			{
-				*DestPtr = *SrcPtr;
+				*DestPtr = (*SrcPtr).ToLinearColor();
 				++DestPtr;
 				++SrcPtr;
 			}
@@ -1558,7 +1479,7 @@ static void ConvertRAWSurfaceDataToFLinearColor(EPixelFormat Format, uint32 Widt
 	}
 }
 
-void FD3D11DynamicRHI::RHIReadSurfaceData(FTextureRHIParamRef TextureRHI, FIntRect InRect, TArray<FLinearColor>& OutData, FReadSurfaceDataFlags InFlags)
+void FD3D11DynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect InRect, TArray<FLinearColor>& OutData, FReadSurfaceDataFlags InFlags)
 {
 	TArray<uint8> OutDataRaw;
 
@@ -1597,7 +1518,7 @@ void FD3D11DynamicRHI::RHIReadSurfaceData(FTextureRHIParamRef TextureRHI, FIntRe
 	}
 }
 
-void FD3D11DynamicRHI::RHIRead3DSurfaceFloatData(FTextureRHIParamRef TextureRHI,FIntRect InRect,FIntPoint ZMinMax,TArray<FFloat16Color>& OutData)
+void FD3D11DynamicRHI::RHIRead3DSurfaceFloatData(FRHITexture* TextureRHI,FIntRect InRect,FIntPoint ZMinMax,TArray<FFloat16Color>& OutData)
 {
 	FD3D11TextureBase* Texture = GetD3D11TextureFromRHITexture(TextureRHI);
 

@@ -1,0 +1,128 @@
+﻿INTSourceChangelist:6093398
+Availability: Public
+Title: 径向动态模糊
+Description: 介绍径向动态模糊的设置
+Type: how-to
+Version: 4.22
+Parent: Engine/Rendering/Materials/HowTo
+SkillLevel: Advanced
+Order: 22
+
+
+[TOC (start:2 end:2)]
+
+![](PerBoneMotionBlurTopicImage-1.png "PerBoneMotionBlurTopicImage-1.png")
+
+当虚幻引擎4（UE4） 的标准动态模糊应用至快速旋转的物体时（例如车轮），会产生视觉误差。为了解决这一问题，我们开发了特殊的 **径向动态模糊** 材质，可以用它对快速旋转物体的模糊方式进行控制。 
+
+在您的UE4项目中使用径向动态模糊前，首先您需要确保已关闭UE4编辑器，然后找到项目的 **DefaultEngine.ini** 文件。在DefaultEngine.ini文件中，查找找 **\[/Script/Engine.RendererSettings\]** 部分，并添加 **r.CustomDepth=3**，完成后保存文件。
+
+![](RadialMotionBlur_iniSettings.png "RadialMotionBlur_iniSettings.png")  
+
+使用径向动态模糊材质前，您需要制作一个“仿真” **Actor**，并用其覆盖所有您希望运用径向动态模糊的Actor。在下方的图片示例中，“仿真”物体（右），除了所应用的材质以外，完全复制了静态模型（左） 
+
+[REGION:lightbox]
+[![](PerBoneMotionBlur_BlurObject.png)(w:500px)](PerBoneMotionBlur_BlurObject.png)
+[/REGION]
+[REGION:caption]
+单击查看大图。
+[/REGION]
+[REGION:caption]
+选择添加的“仿真”Actor，并对其运行 **MI_径向动态模糊** 材质实例。
+[/REGION]
+[REGION:lightbox]
+[![](RadialMotionBlur_ApplyBlurMaterial.png)(w:500px)](RadialMotionBlur_ApplyBlurMaterial.png)
+[/REGION]
+[REGION:caption]
+单击查看大图。
+[/REGION]
+[REGION:note]
+如果想要在另一个UE4项目中使用M_径向动态模糊材质，您可以使用[迁移工具](Engine/Content/Browser/UserGuide/Migrate)，将该材质迁移至另一个UE4项目。
+[/REGION]
+现在，选中需要进行动态模糊的Actor，在渲染选项的“高级”选项卡中，对以下两个参数进行设置：  
+[REGION:lightbox]
+[![](PerBoneMotionBlur_MotionBlurSettings.png)(w:500px)](PerBoneMotionBlur_MotionBlurSettings.png)
+[/REGION]
+[REGION:caption]
+单击查看大图。
+[/REGION]
+
+| 选项 | 说明 |
+| --- | --- |
+| [INCLUDE:#excerpt_0] | True |
+| [INCLUDE:#excerpt_1] | 5.0 |
+
+<!--
+[EXCERPT:excerpt_0]
+
+**渲染自定义深度通道**  
+
+[/EXCERPT:excerpt_0]
+-->
+<!--
+[EXCERPT:excerpt_1]
+
+**自定义深度模板值**  
+
+[/EXCERPT:excerpt_1]
+-->
+
+为了控制径向模糊的视觉效果，您可以对MI_径向动态模糊的材质实例中的 **角度（Angle）** 参数和 **边缘半径（RimRadius）** 参数进行调整。  
+
+![](PerBoneMotionBlur_MISettings.jpg "PerBoneMotionBlur_MISettings.jpg")
+
+以下两个图像序列会向您展示，当您调整 **角度** 和 **边缘半径** 材质输入值后，径向模糊的视觉效果将受到怎样的影响。
+
+[EXCERPT:PerBoneMotionBlurMaterialAngleSettingsSlider]
+[OBJECT:SliderSequence]
+	[PARAMLITERAL:max]
+	11
+	[/PARAMLITERAL]
+	[PARAMLITERAL:ext]
+	jpg
+	[/PARAMLITERAL]
+	[PARAMLITERAL:id]
+	PerBoneMotionBlurMaterialAngleSettings
+	[/PARAMLITERAL]
+	[PARAM:caption]
+	该角度参数用于控制径向模糊的强度。
+	[/PARAM]
+	[PARAM:image_list]
+	![](PerBoneMB_001.png)
+	![](PerBoneMB_002.png)
+	![](PerBoneMB_003.png)
+	![](PerBoneMB_004.png)
+	![](PerBoneMB_005.png)
+	![](PerBoneMB_006.png)
+	![](PerBoneMB_007.png)
+	![](PerBoneMB_008.png)
+	![](PerBoneMB_009.png)
+	![](RadialBlur_10-2.png)
+	![](RadialBlur_11-2.png)
+	[/PARAM]
+[/OBJECT]
+[/EXCERPT:PerBoneMotionBlurMaterialAngleSettingsSlider]
+
+[EXCERPT:RimRadiusSlider]
+[OBJECT:SliderSequence]
+	[PARAMLITERAL:max]
+	5
+	[/PARAMLITERAL]
+	[PARAMLITERAL:ext]
+	jpg
+	[/PARAMLITERAL]
+	[PARAMLITERAL:id]
+	边缘半径
+	[/PARAMLITERAL]
+	[PARAM:caption]
+	边缘半径参数用于限制径向模糊的范围。您设置的边缘半径应该与进行径向模糊的网格体的半径一致。
+	[/PARAM]
+	[PARAM:image_list]
+	![](RimRadius_0.png)
+	![](RimRadius_20.png)
+	![](RimRadius_25.png)
+	![](RimRadius_30.png)
+	![](RimRadius_42.png)
+	[/PARAM]
+[/OBJECT]
+[/EXCERPT:RimRadiusSlider]

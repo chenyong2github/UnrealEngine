@@ -95,6 +95,16 @@ public:
 	/** Gets the LOD draw distance */
 	float GetDrawDistance() const { return LODDrawDistance; }
 	float GetLODDrawDistance() const { return LODDrawDistance; }
+	float GetLODDrawDistanceWithOverride() const;
+
+	/** 
+	 * Set LOD Parent component for all of our components, normally associated with an ALODActor. 
+	 * @param InLODParent			This component used to compute visibility when hierarchical LOD is enabled. 
+	 * @param InParentDrawDistance	Updates the MinDrawDistances of the LODParent
+	 * @param bInApplyToImposters	Whether this should be applied to imposters instanced static meshes components.
+	 */
+	void SetLODParent(UPrimitiveComponent* InLODParent, float InParentDrawDistance, bool bInApplyToImposters);
+
 
 	/** Get the key that we use to check if we need to (re)build */
 	const FName& GetKey() const { return Key; }

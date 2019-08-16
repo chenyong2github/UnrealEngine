@@ -11,6 +11,7 @@
 #include "RenderResource.h"
 #include "RenderGraph.h"
 
+#define SUPPORTS_VISUALIZE_TEXTURE (WITH_ENGINE && !(UE_BUILD_SHIPPING || UE_BUILD_TEST))
 
 class RENDERCORE_API FVisualizeTexture : public FRenderResource
 {
@@ -104,7 +105,7 @@ private:
 	bool ShouldCapture(const TCHAR* DebugName);
 
 	/** Create a pass capturing a texture. */
-	void CreateContentCapturePass(FRDGBuilder& GraphBuilder, const FRDGTextureRef Texture);
+	void CreateContentCapturePass(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture);
 #endif
 
 	friend class FRDGBuilder;

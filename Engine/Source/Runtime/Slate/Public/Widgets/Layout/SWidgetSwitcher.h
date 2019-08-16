@@ -153,7 +153,7 @@ protected:
 	virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
 	virtual FVector2D ComputeDesiredSize( float ) const override;
 	virtual FChildren* GetChildren( ) override;
-
+	virtual bool ComputeVolatility() const override { return WidgetIndex.IsBound(); }
 	const FSlot* GetActiveSlot() const;
 
 private:
@@ -169,4 +169,9 @@ private:
 
 	/** Required to implement GetChildren() in a way that can dynamically return the currently active child. */
 	TOneDynamicChild<FSlot> OneDynamicChild;
+
+#if WITH_ACCESSIBILITY
+	/** Used to detect when WidgetIndex changes while bound. */
+	TWeakPtr<SWidget> LastActiveWidget;
+#endif
 };

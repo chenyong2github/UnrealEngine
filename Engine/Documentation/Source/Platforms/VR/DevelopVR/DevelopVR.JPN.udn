@@ -1,0 +1,34 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Title: Virtual Reality Development
+Description: General information about developing for virtual reality platforms.
+Type: landing
+Version: 4.17
+Tags: Platform
+Tags: VR
+topic-image: 
+topic-icon: 
+
+## Desktop Platforms
+
+%Platforms/Oculus:topic%
+
+%Platforms/SteamVR:topic%
+
+%Platforms/VR/DevelopVR/WMR:topic%
+
+
+## Mobile Platforms
+
+%Platforms/GoogleVR:topic%
+
+%Platforms/GearVR:topic%
+
+
+## General VR Development
+
+[DIR(end:"1" output:"topic" parent:"Platforms/VR/DevelopVR" type:"overview,reference,how-to")]
+
+## Training Streams
+
+[DIR(output:"video" type:"video" tags:"Virtual Reality")]

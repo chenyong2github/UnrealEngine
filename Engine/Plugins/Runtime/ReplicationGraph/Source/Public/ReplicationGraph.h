@@ -114,7 +114,18 @@ public:
 		return NewNode;
 	}
 
-	void RemoveChildNode(UReplicationGraphNode* OutChildNode);
+	/** Node removal behavior */
+	enum class NodeOrdering
+	{
+		IgnoreOrdering, // Use faster removal but may break node processing order
+		KeepOrder,		// Use slower removal but keep the node order intact
+	};
+
+	/** Remove a child node from our list and flag it for destruction */
+	void RemoveChildNode(UReplicationGraphNode* OutChildNode, UReplicationGraphNode::NodeOrdering NodeOrder=UReplicationGraphNode::NodeOrdering::IgnoreOrdering);
+
+	/** Remove all null and about to be destroyed nodes from our list */
+	void CleanChildNodes(UReplicationGraphNode::NodeOrdering NodeOrder);
 
 protected:
 
@@ -368,6 +379,7 @@ protected:
 	virtual void GatherActors_DistanceOnly(const FActorRepListRefView& RepList, FGlobalActorReplicationInfoMap& GlobalMap, FPerConnectionActorInfoMap& ConnectionMap, const FConnectionGatherActorListParameters& Params);
 
 	void CalcFrequencyForActor(AActor* Actor, UReplicationGraph* RepGraph, UNetConnection* NetConnection, FGlobalActorReplicationInfo& GlobalInfo, FConnectionReplicationActorInfo& ConnectionInfo, FSettings& MySettings, const FNetViewerArray& Viewers, const uint32 FrameNum, int32 ExistingItemIndex);
+	UE_DEPRECATED(4.23, "Use the other function to allow for multiple viewers")
 	void CalcFrequencyForActor(AActor* Actor, UReplicationGraph* RepGraph, UNetConnection* NetConnection, FGlobalActorReplicationInfo& GlobalInfo, FConnectionReplicationActorInfo& ConnectionInfo, FSettings& MySettings, const FVector& ConnectionViewLocation, const FVector& ConnectionViewDir, const uint32 FrameNum, int32 ExistingItemIndex);
 };
 
@@ -712,9 +724,11 @@ public:
 	UPROPERTY()
 	TArray<FAlwaysRelevantActorInfo> PastRelevantActors;
 
+	UE_DEPRECATED(4.23, "ViewTargets are now handled inside the PastRelevantActorMap")
 	UPROPERTY()
 	AActor* LastViewer = nullptr;
 	
+	UE_DEPRECATED(4.23, "ViewTargets are now handled inside the PastRelevantActorMap")
 	UPROPERTY()
 	AActor* LastViewTarget = nullptr;
 };
@@ -737,7 +751,7 @@ struct FTearOffActorInfo
 	bool bHasReppedOnce;
 };
 
-/** Adds actors that are always relevant for a connection. This engine version just adds the PlayerController and ViewTarget (usually the pawn) */
+/** Manages actors that are Tear Off. We will try to replicate these actors one last time to each connection. */
 UCLASS()
 class REPLICATIONGRAPH_API UReplicationGraphNode_TearOff_ForConnection : public UReplicationGraphNode
 {
@@ -948,10 +962,12 @@ protected:
 
 	/** Default Replication Path */
 	void ReplicateActorListsForConnections_Default(UNetReplicationGraphConnection* ConnectionManager, FGatheredReplicationActorLists& GatheredReplicationListsForConnection, FNetViewerArray& Viewers);
+	UE_DEPRECATED(4.23, "Use the array format to support subconnections as well")
 	void ReplicateActorListsForConnection_Default(UNetReplicationGraphConnection* ConnectionManager, FGatheredReplicationActorLists& GatheredReplicationListsForConnection, FNetViewer& Viewer);
 
 	/** "FastShared" Replication Path */
 	void ReplicateActorListsForConnections_FastShared(UNetReplicationGraphConnection* ConnectionManager, FGatheredReplicationActorLists& GatheredReplicationListsForConnection, FNetViewerArray& Viewers);
+	UE_DEPRECATED(4.23, "Use the array format to support subconnections as well")
 	void ReplicateActorListsForConnection_FastShared(UNetReplicationGraphConnection* ConnectionManager, FGatheredReplicationActorLists& GatheredReplicationListsForConnection, FNetViewer& Viewer);
 
 	/** Connections needing a FlushNet in PostTickDispatch */
@@ -1039,6 +1055,7 @@ public:
 	// ID that is assigned by the replication graph. Will be reassigned/compacted as clients disconnect. Useful for spacing out connection operations. E.g., not stable but always compact.
 	int32 ConnectionId; 
 
+	UE_DEPRECATED(4.23, "Use the LastGatherLocations to have support for subconnection lookups")
 	FVector LastGatherLocation;
 
 	UPROPERTY()

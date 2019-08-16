@@ -26,6 +26,8 @@ struct FNiagaraVariableLayoutInfo
 
 class FNiagaraDataSet;
 class FNiagaraShader;
+class FNiagaraGPUInstanceCountManager;
+struct FNiagaraComputeExecutionContext;
 
 //Base class for objects in Niagara that are owned by one object but are then passed for reading to other objects, potentially on other threads.
 //This class allows us to know if the object is being used so we do not overwrite it and to ensure it's lifetime so we do not access freed data.
@@ -94,12 +96,12 @@ protected:
 public:
 	FNiagaraDataBuffer(FNiagaraDataSet* InOwner);
 	void Allocate(uint32 NumInstances, bool bMaintainExisting = false);
-	void AllocateGPU(uint32 InNumInstances, FRHICommandList &RHICmdList);
+	void AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceCountManager& GPUInstanceCountManager, FRHICommandList &RHICmdList);
 	void SwapInstances(uint32 OldIndex, uint32 NewIndex);
 	void KillInstance(uint32 InstanceIdx);
 	void CopyTo(FNiagaraDataBuffer& DestBuffer, int32 StartIdx, int32 NumInstances)const;
 	void CopyTo(FNiagaraDataBuffer& DestBuffer)const;
-	void GPUCopyFrom(float* GPUReadBackFloat, int* GPUReadBackInt, int32 StartIdx, int32 NumInstances);
+	void GPUCopyFrom(float* GPUReadBackFloat, int* GPUReadBackInt, int32 StartIdx, int32 NumInstances, uint32 InSrcFloatStride, uint32 InSrcIntStride);
 	void Dump(int32 StartIndex, int32 NumInstances, const FString& Label)const;
 
 	bool AppendToRegisterTable(uint8** Registers, int32& NumRegisters, int32 StartInstance);
@@ -129,7 +131,8 @@ public:
 	FORCEINLINE uint32 GetSizeBytes()const { return FloatData.Num() + Int32Data.Num(); }
 	FORCEINLINE FRWBuffer& GetGPUBufferFloat() { return GPUBufferFloat; }
 	FORCEINLINE FRWBuffer& GetGPUBufferInt() { return GPUBufferInt;	}
-	FORCEINLINE FRWBuffer& GetGPUIndices() { return GPUIndices; }
+	FORCEINLINE uint32 GetGPUInstanceCountBufferOffset() const { return GPUInstanceCountBufferOffset; }
+	FORCEINLINE void ClearGPUInstanceCountBufferOffset() { GPUInstanceCountBufferOffset = INDEX_NONE; }
 
 	FORCEINLINE int32 GetSafeComponentBufferSize() const { return GetSafeComponentBufferSize(GetNumInstancesAllocated()); }
 	FORCEINLINE uint32 GetFloatStride() const { return FloatStride; }
@@ -146,6 +149,9 @@ public:
 	template<bool bDoResourceTransitions>
 	void SetShaderParams(class FNiagaraShader *Shader, FRHICommandList &CommandList, bool bInput);
 	void UnsetShaderParams(class FNiagaraShader *Shader, FRHICommandList &CommandList);
+
+	void ReleaseGPUInstanceCount(FNiagaraGPUInstanceCountManager& GPUInstanceCountManager);
+
 private:
 
 	void CheckUsage(bool bReadOnly)const;
@@ -173,13 +179,14 @@ private:
 
 	//////////////////////////////////////////////////////////////////////////
 	// GPU Data
+	/** The buffer offset where the instance count is accumulated. */
+	uint32 GPUInstanceCountBufferOffset;
+	/** The num of allocated chunks, each being of size ALLOC_CHUNKSIZE */
 	uint32 NumChunksAllocatedForGPU;
 	/** GPU Buffer containing floating point values for GPU simulations. */
 	FRWBuffer GPUBufferFloat;
 	/** GPU Buffer containing floating point values for GPU simulations. */
 	FRWBuffer GPUBufferInt;
-	/** GPU Buffer containing args to allow indirect rendering of this buffer. */
-	FRWBuffer GPUIndices;
 	//////////////////////////////////////////////////////////////////////////
 
 	/** Number of instances in data. */
@@ -215,7 +222,7 @@ public:
 	FNiagaraDataBuffer& BeginSimulate();
 
 	/** Ends a simulation pass and sets the current simulation state. */
-	void EndSimulate();
+	void EndSimulate(bool SetCurrentData = true);
 
 	/** Allocates space for NumInstances in the current destination buffer. */
 	void Allocate(int32 NumInstances, bool bMaintainExisting = false);
@@ -255,7 +262,7 @@ public:
 
 	void CopyTo(FNiagaraDataSet& Other, int32 StartIdx = 0, int32 NumInstances = INDEX_NONE)const;
 
-	void CopyFromGPUReadback(float* GPUReadBackFloat, int* GPUReadBackInt, int32 StartIdx = 0, int32 NumInstances = INDEX_NONE);
+	void CopyFromGPUReadback(float* GPUReadBackFloat, int* GPUReadBackInt, int32 StartIdx = 0, int32 NumInstances = INDEX_NONE, uint32 FloatStride = 0, uint32 IntStride = 0);
 
 	void CheckForNaNs()const;
 
@@ -276,6 +283,9 @@ public:
 		check(DestinationData);
 		return *DestinationData;
 	}
+
+	/** Release the GPU instance counts so that they can be reused */
+	void ReleaseGPUInstanceCounts(FNiagaraGPUInstanceCountManager& GPUInstanceCountManager);
 
 private:
 
@@ -342,7 +352,7 @@ private:
 	We keep track of the Current and Previous buffers which move with each simulate.
 	Additional buffers may be in here if they are currently being used by the render thread.
 	*/
-	TArray<FNiagaraDataBuffer*> Data;
+	TArray<FNiagaraDataBuffer*, TInlineAllocator<2>> Data;
 
 	FString DebugName;
 };
@@ -1451,14 +1461,14 @@ class NIAGARA_API FScopedNiagaraDataSetGPUReadback
 {
 public:
 	FScopedNiagaraDataSetGPUReadback() {}
-	FScopedNiagaraDataSetGPUReadback(FNiagaraDataSet* DataSet) { ReadbackData(DataSet); }
 	~FScopedNiagaraDataSetGPUReadback();
 
-	void ReadbackData(FNiagaraDataSet* InDataSet);
+	void ReadbackData(class NiagaraEmitterInstanceBatcher* Batcher, FNiagaraDataSet* InDataSet);
 	uint32 GetNumInstances() const { check(DataSet != nullptr); return NumInstances; }
 
 private:
 	FNiagaraDataSet*	DataSet = nullptr;
 	FNiagaraDataBuffer* DataBuffer = nullptr;
+	NiagaraEmitterInstanceBatcher* Batcher = nullptr;
 	uint32				NumInstances = 0;
 };

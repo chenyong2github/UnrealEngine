@@ -463,8 +463,9 @@ struct FSequencerSectionPainterImpl : FSequencerSectionPainter
 		}
 
 		const FSlateBrush* MyBrush = FEditorStyle::Get().GetBrush("Sequencer.Timeline.EaseInOut");
-		FSlateShaderResourceProxy *ResourceProxy = FSlateDataPayload::ResourceManager->GetShaderResource(*MyBrush);
+
 		FSlateResourceHandle ResourceHandle = FSlateApplication::Get().GetRenderer()->GetResourceHandle(*MyBrush);
+		const FSlateShaderResourceProxy* ResourceProxy = ResourceHandle.GetResourceProxy();
 
 		FVector2D AtlasOffset = ResourceProxy ? ResourceProxy->StartUV : FVector2D(0.f, 0.f);
 		FVector2D AtlasUVSize = ResourceProxy ? ResourceProxy->SizeUV : FVector2D(1.f, 1.f);
@@ -846,6 +847,12 @@ bool SSequencerSection::CheckForEasingHandleInteraction( const FPointerEvent& Mo
 {
 	UMovieSceneSection* ThisSection = SectionInterface->GetSectionObject();
 	if (!ThisSection)
+	{
+		return false;
+	}
+
+	UMovieSceneTrack* Track = ThisSection->GetTypedOuter<UMovieSceneTrack>();
+	if (!Track || Track->GetSupportedBlendTypes().Num() == 0)
 	{
 		return false;
 	}

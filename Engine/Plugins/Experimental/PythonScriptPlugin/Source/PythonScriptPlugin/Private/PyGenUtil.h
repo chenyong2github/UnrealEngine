@@ -13,6 +13,7 @@
 
 #if WITH_PYTHON
 
+struct FOutParmRec;
 struct FPyWrapperBaseMetaData;
 
 class FPyWrapperOwnerContext;
@@ -756,11 +757,7 @@ namespace PyGenUtil
 	/** Stores the data needed by a runtime generated Python enum entry */
 	struct FGeneratedWrappedEnumEntry
 	{
-		FGeneratedWrappedEnumEntry()
-			: EntryValue(0)
-		{
-		}
-
+		FGeneratedWrappedEnumEntry() = default;
 		FGeneratedWrappedEnumEntry(FGeneratedWrappedEnumEntry&&) = default;
 		FGeneratedWrappedEnumEntry(const FGeneratedWrappedEnumEntry&) = default;
 		FGeneratedWrappedEnumEntry& operator=(FGeneratedWrappedEnumEntry&&) = default;
@@ -773,7 +770,7 @@ namespace PyGenUtil
 		FUTF8Buffer EntryDoc;
 
 		/** The value of the entry */
-		int64 EntryValue;
+		int64 EntryValue = 0;
 	};
 
 	/** Stores the data needed by a runtime generated Python enum type */
@@ -830,7 +827,7 @@ namespace PyGenUtil
 		FPyObjectPtr PyFunction;
 
 		/** Is this a function hidden from Python? (eg, internal getter/setter function) */
-		bool bIsHidden;
+		bool bIsHidden = false;
 	};
 
 	/** How should PythonizeName adjust the final name? */
@@ -907,7 +904,10 @@ namespace PyGenUtil
 	PyObject* PackReturnValues(const void* InBaseParamsAddr, const TArray<FGeneratedWrappedMethodParameter>& InOutputParams, const TCHAR* InErrorCtxt, const TCHAR* InCallingCtxt);
 
 	/** Given a Python return value, unpack the values into the struct data associated with them */
-	bool UnpackReturnValues(PyObject* InRetVals, void* InBaseParamsAddr, const TArray<FGeneratedWrappedMethodParameter>& InOutputParams, const TCHAR* InErrorCtxt, const TCHAR* InCallingCtxt);
+	bool UnpackReturnValues(PyObject* InRetVals, const FOutParmRec* InOutputParms, const TCHAR* InErrorCtxt, const TCHAR* InCallingCtxt);
+
+	/** Invoke a Python callable from an Unreal function thunk (ie, DEFINE_FUNCTION), ensuring that the calling convention is correct for both native and script function callers */
+	bool InvokePythonCallableFromUnrealFunctionThunk(FPyObjectPtr InSelf, PyObject* InCallable, const UFunction* InFunc, UObject* Context, FFrame& Stack, RESULT_DECL);
 
 	/** Get the current value of the given property from the given struct */
 	PyObject* GetPropertyValue(const UStruct* InStruct, void* InStructData, const FGeneratedWrappedProperty& InPropDef, const char *InAttributeName, PyObject* InOwnerPyObject, const TCHAR* InErrorCtxt);

@@ -71,6 +71,7 @@ public:
 	explicit FSlateClippingZone(const FGeometry& BoundingGeometry);
 	explicit FSlateClippingZone(const FPaintGeometry& PaintingGeometry);
 	FSlateClippingZone(const FVector2D& InTopLeft, const FVector2D& InTopRight, const FVector2D& InBottomLeft, const FVector2D& InBottomRight);
+	FSlateClippingZone() {}
 
 	/**  */
 	FORCEINLINE bool GetShouldIntersectParent() const
@@ -150,16 +151,25 @@ public:
 		);
 	}
 
+	FSlateClippingZone ConvertRelativeToAbsolute(const FVector2D& WindowOffset) const
+	{
+		FSlateClippingZone Absolute(TopLeft + WindowOffset, TopRight + WindowOffset, BottomLeft + WindowOffset, BottomRight + WindowOffset);
+		Absolute.bIsAxisAligned = bIsAxisAligned;
+		Absolute.bIntersect = bIntersect;
+		Absolute.bAlwaysClip = bAlwaysClip;
+
+		return Absolute;
+	}
 private:
 	void InitializeFromArbitraryPoints(const FVector2D& InTopLeft, const FVector2D& InTopRight, const FVector2D& InBottomLeft, const FVector2D& InBottomRight);
 
 private:
 	/** Is the clipping zone axis aligned?  Axis aligned clipping zones are much cheaper. */
-	bool bIsAxisAligned : 1;
+	uint8 bIsAxisAligned : 1;
 	/** Should this clipping zone intersect the current one? */
-	bool bIntersect : 1;
+	uint8 bIntersect : 1;
 	/** Should this clipping zone always clip, even if another zone wants to ignore intersection? */
-	bool bAlwaysClip : 1;
+	uint8 bAlwaysClip : 1;
 };
 
 FORCEINLINE uint32 GetTypeHash(const FSlateClippingZone& Zone)
@@ -198,6 +208,8 @@ class SLATECORE_API FSlateClippingState
 public:
 	FSlateClippingState(EClippingFlags InFlags = EClippingFlags::None);
 	
+	FSlateClippingState(const FSlateClippingState& Other);
+
 	/** Is a point inside the clipping state? */
 	bool IsPointInside(const FVector2D& Point) const;
 
@@ -275,11 +287,69 @@ private:
 	/** The specialized flags needed for this clipping state. */
 	EClippingFlags Flags;
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if WITH_SLATE_DEBUGGING
 	/** For a given frame, this is a unique index into a state array of clipping zones that have been registered for a window being drawn. */
 	mutable int32 Debugging_StateIndex;
 	mutable int32 Debugging_StateIndexFromFrame;
 #endif
+};
+
+struct FClipStateHandle
+{
+public:
+	FClipStateHandle()
+		: CachedClipState(nullptr)
+		, PrecachedClipIndex(INDEX_NONE)
+	{}
+
+	int32 GetPrecachedClipIndex() const { return PrecachedClipIndex; }
+	const FSlateClippingState* GetCachedClipState() const { return CachedClipState; }
+
+	bool operator==(const FClipStateHandle& Other) const
+	{
+		return CachedClipState == Other.CachedClipState && PrecachedClipIndex == Other.PrecachedClipIndex;
+	}
+
+	void SetPreCachedClipIndex(int32 InClipIndex)
+	{
+		PrecachedClipIndex = InClipIndex;
+	}
+
+	void SetCachedClipState(const FSlateClippingState* CachedState)
+	{
+		CachedClipState = CachedState;
+		PrecachedClipIndex = INDEX_NONE;
+	}
+private:
+	const FSlateClippingState* CachedClipState;
+	int32 PrecachedClipIndex;
+
+};
+
+
+class FSlateCachedClipState
+{
+public:
+	FSlateCachedClipState(const FSlateClippingState& InState)
+		: ClippingState(InState)
+		, UsageCount(1)
+	{}
+
+	FSlateClippingState ClippingState;
+
+	int32 GetUsageCount() const { return UsageCount; }
+	void BeginUsingState()
+	{
+		FPlatformAtomics::InterlockedIncrement(&UsageCount);
+	}
+
+	void EndUsingState()
+	{
+		int32 NewCount = FPlatformAtomics::InterlockedDecrement(&UsageCount);
+		check(NewCount >= 0);
+	}
+private:
+	int32 UsageCount;
 };
 
 
@@ -293,21 +363,20 @@ public:
 
 	int32 PushClip(const FSlateClippingZone& InClippingZone);
 	int32 PushClippingState(const FSlateClippingState& InClipState);
-	int32 PushAndMergePartialClippingState(const FSlateClippingState& NewPartialClippingState);
 	int32 GetClippingIndex() const;
 	TOptional<FSlateClippingState> GetActiveClippingState() const;
-	const TArray< FSlateClippingState >& GetClippingStates() const;
+	const TArray<int32>& GetClippingStack() const { return ClippingStack; }
+	const TArray<FSlateClippingState>& GetClippingStates() const;
 	void PopClip();
-
-	int32 MergePartialClippingStates(const TArray< FSlateClippingState >& States);
+	void PopToStackIndex(int32 Index);
+	int32 GetClippingIndexAtStackIndex(int32 StackIndex) const { return ClippingStack.IsValidIndex(StackIndex) ? ClippingStack[StackIndex] : INDEX_NONE; }
+	int32 GetStackDepth() const { return ClippingStack.Num(); }
+	const FSlateClippingState* GetPreviousClippingState(bool bWillIntersectWithParent) const;
 
 	void ResetClippingState();
 
-	void CopyClippingStateTo( FSlateClippingManager& Other) const;
-
 private:
-	FSlateClippingState MergePartialClippingState(const FSlateClippingState& State) const;
-	const FSlateClippingState* GetPreviousClippnigState(bool bWillIntersectWithParent) const;
+
 	FSlateClippingState CreateClippingState(const FSlateClippingZone& InClipRect) const;
 
 private:

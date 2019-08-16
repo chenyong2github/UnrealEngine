@@ -1,49 +1,60 @@
-﻿INTSourceChangelist:2390214
-Title: 类修饰符
-Crumbs:%ROOT%, Programming/UnrealArchitecture/Reference,  Programming/UnrealArchitecture/Reference, Programming/UnrealArchitecture/Reference/Classes
-Description: 在声明游戏类时使用的关键字，以指定引擎和编辑器的不同方面的类表现。
+INTSourceChangelist:3767127
 Availability:Public
+Title:类说明符
+Crumbs:%ROOT%
+Description:关键词，用于在声明UClasses时指定类相对于引擎和编辑器的各个方面的行为。
+type:reference
+Version: 4.18
+parent:Programming/UnrealArchitecture/Reference/Classes
+order:0
+topic-image:components_topic.png
+tags:UCLASS
+tags:Specifiers
+
 
 [EXCERPT:main]
-在声明类时，声明上可添加修饰符以控制引擎和编辑器的不同方面的类表现。
+声明类时，可以为声明添加 **类说明符**，以控制类相对于引擎和编辑器的各个方面的行为。
 
-[REGION:buttonlist]
-* [](Programming/UnrealArchitecture/Reference/Classes/Specifiers/Abstract) 
-* [](Programming/UnrealArchitecture/Reference/Classes/Specifiers/AdvancedClassDisplay) 
-* [](Programming/UnrealArchitecture/Reference/Classes/Specifiers/AutoCollapseCategories) 
-* [](Programming/UnrealArchitecture/Reference/Classes/Specifiers/AutoExpandCategories) 
-* [](Programming/UnrealArchitecture/Reference/Classes/Specifiers/Blueprintable) 
-* [](Programming/UnrealArchitecture/Reference/Classes/Specifiers/BlueprintType) 
-* [](Programming/UnrealArchitecture/Reference/Classes/Specifiers/ClassGroup) 
-* [](Programming/UnrealArchitecture/Reference/Classes/Specifiers/CollapseCategories) 
-* [](Programming/UnrealArchitecture/Reference/Classes/Specifiers/Config) 
-* [](Programming/UnrealArchitecture/Reference/Classes/Specifiers/Const) 
-* [](Programming/UnrealArchitecture/Reference/Classes/Specifiers/ConversionRoot) 
-* [](Programming/UnrealArchitecture/Reference/Classes/Specifiers/CustomConstructor) 
-* [](Programming/UnrealArchitecture/Reference/Classes/Specifiers/DefaultToInstanced) 
-* [](Programming/UnrealArchitecture/Reference/Classes/Specifiers/DependsOn)
-* [](Programming/UnrealArchitecture/Reference/Classes/Specifiers/Deprecated) 
-* [](Programming/UnrealArchitecture/Reference/Classes/Specifiers/DontAutoCollapseCategories) 
-* [](Programming/UnrealArchitecture/Reference/Classes/Specifiers/DontCollapseCategories)
-* [](Programming/UnrealArchitecture/Reference/Classes/Specifiers/EditInlineNew)
-* [](Programming/UnrealArchitecture/Reference/Classes/Specifiers/HideCategories)
-* [](Programming/UnrealArchitecture/Reference/Classes/Specifiers/HideDropdown)
-* [](Programming/UnrealArchitecture/Reference/Classes/Specifiers/HideFunctions)
-* [](Programming/UnrealArchitecture/Reference/Classes/Specifiers/Intrinsic) 
-* [](Programming/UnrealArchitecture/Reference/Classes/Specifiers/MinimalAPI) 
-* [](Programming/UnrealArchitecture/Reference/Classes/Specifiers/NoExport) 
-* [](Programming/UnrealArchitecture/Reference/Classes/Specifiers/NonTransient) 
-* [](Programming/UnrealArchitecture/Reference/Classes/Specifiers/NotBlueprintable) 
-* [](Programming/UnrealArchitecture/Reference/Classes/Specifiers/NotPlaceable) 
-* [](Programming/UnrealArchitecture/Reference/Classes/Specifiers/PerObjectConfig) 
-* [](Programming/UnrealArchitecture/Reference/Classes/Specifiers/Placeable) 
-* [](Programming/UnrealArchitecture/Reference/Classes/Specifiers/ShowCategories) 
-* [](Programming/UnrealArchitecture/Reference/Classes/Specifiers/ShowFunctions) 
-* [](Programming/UnrealArchitecture/Reference/Classes/Specifiers/Transient) 
-* [](Programming/UnrealArchitecture/Reference/Classes/Specifiers/Within) 
-[/REGION]
+| 类说明符 | 效果 |
+| --- | --- |
+| `Abstract` | **Abstract** 说明符会将类声明为“抽象基类”，阻止用户向关卡中添加此类的Actor。对于单独存在时没有意义的类，此说明符非常有用。例如，`ATriggerBase`基类是抽象类，而`ATriggerBox`子类不是抽象类，可以放置在关卡中。|
+| `AdvancedClassDisplay` | **AdvancedClassDisplay** 说明符强制类的所有属性仅在显示这些属性的“细节（Details）”面板的[“高级（Advanced）”部分](Engine/UI/LevelEditor/Details#AdvancedProperties)中显示。要覆盖单个属性上的此说明符，在该属性上使用`SimpleDisplay`说明符。|
+| `AutoCollapseCategories=(Category1, Category2, ...)`| `AutoCollapseCategories`说明符使父类上的 **AutoExpandCategories** 说明符的列出类别的效果无效。|
+| `AutoExpandCategories=(Category1, Category2, ...)`| 为此类的对象指定应自动在虚幻编辑器属性窗口中展开的一个或多个类别。要自动展开未使用类别声明的变量，请使用声明变量的类的名称。|
+| `Blueprintable` | 将此类公开为用于创建蓝图的可接受基类。默认为`NotBlueprintable`，除非继承时就并非如此。此说明符由子类继承。|
+| `BlueprintType` | 将此类公开为可用于蓝图中的变量的类型。|
+| `ClassGroup=GroupName` | 指示在虚幻编辑器的Actor浏览器中启用 **组视图（Group View）** 时，**Actor浏览器** 应在指定的 `GroupName` 中包含此类及此类的所有子类。|
+| `CollapseCategories` | 指示此类的属性不应划分到虚幻编辑器属性窗口的类别中。此说明符会传播到子类，可由`DontCollapseCategories`说明符覆盖。|
+| `Config=ConfigName` | 指示此类可在配置文件（`.ini`）中存储数据。如果存在任何使用`config`或`globalconfig`说明符声明的类属性，此说明符将使这些属性存储在指定的配置文件中。此说明符会传播到所有子类并且无法使此说明符无效，但是子类可通过重新声明`config`说明符并提供不同的`ConfigName`来更改配置文件。常见的`ConfigName`值是“Engine”、“Editor”、“Input”和“Game”。|
+| `Const` | 此类中的所有属性和函数都是`const`并且导出为`const`。此说明符由子类继承。|
+| `ConversionRoot` | 根转换，将子类限制为仅可沿层级向上转换为第一个根类的子类。|
+| `CustomConstructor` | 阻止构造函数声明自动生成。|
+| `DefaultToInstanced` | 此类的所有实例都被认为是“实例化的”。实例化的类（组件）将在构造时被复制。此说明符由子类继承。|
+| `DependsOn=(ClassName1, ClassName2, ...)`| 列出的所有类将先于此类被编译。提供的类名必须指示同一个或前一个包中的类。可以使用单个`DependsOn`行（以逗号分隔）来标识多个依赖类，或者可以通过为每个类使用单独的`DependsOn`行来指定多个依赖类。当某个类使用在另一个类中声明的结构体或枚举时，这非常重要，因为编译器仅知道它已编译了类中的哪些部分。|
+| `Deprecated` | 此类已弃用，序列化时将不保存此类的对象。此说明符由子类继承。|
+| `DontAutoCollapseCategories=(Category, Category, ...)`| 使列出的类别的继承自父类的`AutoCollapseCategories`说明符无效。|
+| `DontCollapseCategories` | 使继承自基类的`CollapseCatogories`说明符无效。|
+| `EditInlineNew` | 指示可以从虚幻编辑器“属性（Property）”窗口创建此类的对象，而非从现有资源引用。默认行为是仅可通过“属性（Property）”窗口指定对现有对象的引用。此说明符会传播到所有子类；子类可通过 `NotEditInlineNew` 说明符覆盖它。|
+| `HideCategories=(Category1, Category2, ...)`| 列出应在虚幻编辑器“属性（Property）”窗口中对于此类的对象隐藏的一个或多个类别。要隐藏未使用类别声明的属性，请使用声明变量的类的名称。此说明符会传播到子类。|
+| `HideDropdown` | 阻止此类在属性窗口组合框中显示。|
+| `HideFunctions=(Category1, Category2, ...)`| 在属性查看器中不显示指定类别中的所有函数。|
+| `HideFunctions=FunctionName` | 在属性查看器中不显示指定的函数。|
+| `Intrinsic` | 指示此类直接在C++中声明，无 **Unreal Header Tool** 生成的样板。请勿在新类上使用此说明符。|
+| `MinimalAPI` | 导致仅导出此类的类型信息，以供其他模块使用。可以以此类为目标进行强制转换，但此类的函数无法被调用（除了使用内联方法）。这可以缩短编译时间，因为没有针对无需从其他模块访问其所有函数的类导出一切。|
+| `NoExport` | 指示此类的声明不应包含在由标头生成器自动生成的C++头文件中。必须在单独的头文件中手动定义该C++类声明。仅对本地类有效。请勿对新类使用此说明符。|
+| `NonTransient` | 使继承自基类的`Transient`说明符无效。|
+| `NotBlueprintable` | 指定此类不是可用于创建蓝图的可接受基类。此为默认说明符，将由子类继承。|
+| `NotPlaceable` | 使继承自基类的`Placeable`说明符无效。指示不可以在编辑器中将此类的对象放置到关卡、UI场景或蓝图中。|
+| `PerObjectConfig` | 此类的配置信息将按对象存储，在`.ini`文件中，每个对象都有一个分段，根据对象命名，格式为`[ObjectName ClassName]`。此说明符会传播到子类。|
+| `Placeable` | 指示可在编辑器中创建此类，而且可将此类放置到关卡、UI场景或蓝图（取决于类类型）中。此标志会传播到所有子类；子类可使用`NotPlaceable`说明符覆盖此标志。|
+| `ShowCategories=(Category1, Category2, ...)`| 使列出的类别的继承自基类的`HideCategories`说明符无效。|
+| `ShowFunctions=(Category1, Category2, ...)`| 在属性查看器中显示列出的类别中的所有函数。|
+| `ShowFunctions=FunctionName` | 在属性查看器中显示指定的函数。|
+| `Transient` | 从不将属于此类的对象保存到磁盘。当与播放器或窗口等本质上不持久的特定种类的原生类配合使用时，它非常有用。此说明符会传播到子类，但是可由`NonTransient`说明符覆盖。|
+| `Within=OuterClassName` | 此类的对象无法在`OuterClassName`对象的实例之外存在。这意味着，要创建此类的对象，需要提供`OuterClassName`的一个实例作为其`Outer`对象。|
 
-## 元数据修饰符
+(#metadataspecifiers)
+## 元数据说明符
 [INCLUDE:Programming/UnrealArchitecture/Reference/Metadata#MetadataUsage]
 [INCLUDE:Programming/UnrealArchitecture/Reference/Metadata#ClassMetadata]
 

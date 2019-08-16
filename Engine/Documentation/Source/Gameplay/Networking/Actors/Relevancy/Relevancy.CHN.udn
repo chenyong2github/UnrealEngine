@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:2713438
+﻿INTSourceChangelist:3108692
 Availability:Public
 Title:Actor 相关性与优先级
 Crumbs:%ROOT%, Gameplay, Gameplay/Networking, Gameplay/Networking/Actors
@@ -9,6 +9,7 @@ version: 4.9
 
 [TOC (start:2 end:3)]
 
+(#Relevancy)
 ## 相关性
 
 场景的规模可能非常大，在特定时刻某个玩家只能看到关卡中的一小部分 Actor。场景中的其他大多数 Actor 都不会被看到和听到，
@@ -33,6 +34,7 @@ Pawn 和 PlayerController 将覆盖 `AActor::IsNetRelevantFor()` 并最终具有
 
 这些规则可以在很大程度上接近于那些可能真正影响玩家的 Actor 组。当然，这种做法还算不上完美：距离检查在遇到大型 Actor 时可能会出现漏报（尽管我们用了一些启发式方法来应对），也不能处理环境声音的吸收，另外还有其他的问题。然而，相对于互联网的延迟和数据包丢失这些网络环境所固有的问题来说，这种近似法产生的错误就不那么明显了。
 
+(#Prioritization)
 ## 优先级设定
 
 虚幻引擎采用了负载平衡技术来安排所有 Actor 的优先级，并根据它们对游戏的重要性为其分别提供一个公平的带宽份额。

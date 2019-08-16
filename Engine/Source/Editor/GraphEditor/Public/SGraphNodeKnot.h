@@ -28,11 +28,6 @@ public:
 	virtual void RequestRenameOnSpawn() override { }
 	// End of SGraphNode interface
 
-	// SWidget interface
-	virtual void OnMouseEnter( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual void OnMouseLeave( const FPointerEvent& MouseEvent ) override;
-	// End of SWidget interface
-
 protected:
 	/** Returns Offset to center comment on the node's only pin */
 	FVector2D GetCommentOffset() const;

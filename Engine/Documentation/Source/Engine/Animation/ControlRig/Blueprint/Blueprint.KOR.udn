@@ -1,0 +1,148 @@
+INTSourceChangelist:5531868
+Availability: Public
+Crumbs: 
+Title: 컨트롤 릭 블루프린트
+Description: 컨트롤 릭은 스크립트를 만들 수 있는 리깅 시스템인 반면, Control Rig Blueprint 컨트롤 릭 블루프린트 애셋은 스크립트로 된 함수 기능을 제공하고 리깅 파라미터를 구성할 수 있습니다. 
+Type:
+Version: 4.21
+Parent: Engine/Animation/ControlRig
+Order: 
+Tags: Experimental
+Tags: Control Rig
+Tags: Rigging
+Tags: Control Rig Blueprints
+topic-image:ControlRigBlueprintTopic.png
+
+
+컨트롤 릭은 스크립트 지원 리깅 시스템이긴 하지만, **Control Rig Blueprints** (컨트롤 릭 블루프린트) 애셋에는 스크립트로 된 함수 기능을 제공하고 리깅 파라미터를 구성할 수 있습니다. 컨트롤 릭 플러그인 활성화 이후, **콘텐츠 브라우저** > **신규 추가** (또는 우클릭 컨텍스트 메뉴)에서 **고급 애셋 생성 > 애니메이션 > 컨트롤 릭** 을 선택하면 생성됩니다.
+
+![](ControlRigBlueprint.png "ControlRigBlueprint.png")
+
+애셋 생성 후, 부모 릭을 선택할 지 묻습니다. 
+
+![](ParentRig.png "ParentRig.png")  
+보통 베이스 클래스 **ControlRig** 을 선택하고 **Create** 를 클릭해야 합니다. 생성한 컨트롤 릭 블루프린트는 Parent Rig (부모 릭)으로 할당할 수 있습니다. 그러면 새 컨트롤 릭 블루프린트의 부모 안에 정의된 함수 기능을 상속할 수 있습니다. 새 컨트롤 릭 블루프린트에 이름을 할당하고 더블클릭하여 열면, 메인 컨트롤 릭 에디터가 표시됩니다.
+
+## 컨트롤 릭 에디터 UI
+
+![](ControlRigWindow_2.png "ControlRigWindow_2.png")
+
+1.  [메뉴](Engine/Blueprints/Editor/UIComponents/Menu) / [메인 툴바](Engine/Blueprints/Editor/UIComponents/Toolbar) \- 블루프린트 에디터와 같으며 저장이나 애셋 열기처럼 편집에 필요한 일반적인 명령은 물론, 리깅 에디터 창 표시 또는 숨기기, 컨트롤 릭 블루프린트 컴파일, 다양한 클래스 세팅 및 클래스 디폴트 프로퍼티 할당 명령을 쉽게 액세스할 수 있습니다.
+2.  [뷰포트](Engine/Animation/Persona/Viewport) \- 뷰포트는 애니메이션 에디터 뷰포트와 비슷하며, 다양한 뷰포트 옵션, 뷰 모드, 표시 및 캐릭터 옵션, LOD 옵션을 변경할 수 있습니다. 
+3.  [릭 / 계층구조](#스켈레탈메시계층구조임포트) \- 릭 탭에서는 새 릭 유닛을 추가할 수 있는 반면 계층구조 탭에서는 계층구조로 사용할 스켈레탈 메시를 임포트할 수 있습니다. 계층구조 탭에서 우클릭 컨텍스트 메뉴로 조인트 새로 추가, 이름변경, 제거도 가능합니다. 
+4.  [이벤트 그래프](Engine/Blueprints/UserGuide/EventGraph) / 릭 그래프 - 이벤트 그래프는 블루프린트 에디터의 이벤트 그래프 기능과 비슷하며, 런타임에 스크립트를 실행하여 파라미터를 구동할 수 있는 방법을 제공합니다. 릭 그래프는 다양한 애니메이션 관련 노드 망을 구성할 수 있다는 점에서 애니메이션 블루프린트의 애님 그래프와 비슷합니다. 하지만 릭 그래프에서, 노드는 **Rig Units** (릭 유닛)이라고도 합니다. 
+5.  [디테일](Engine/Blueprints/Editor/UIComponents/Details) / [프리뷰 씬 세팅](Engine/Animation/Persona/PreviewSettings) \- 디테일 패널에서는 (블루프린트 에디터의 디테일 패널과 마찬가지로) 릭 유닛과 변수의 프로퍼티 값을 편집하고 변경할 수 있습니다. 프리뷰 씬 세팅 패널에 있는 툴을 사용하면 뷰포트에 보이는 씬의 모습을 빠르게 변경할 수 있으며, 애니메이션 에디터의 프리뷰 씬 세팅 탭과 비슷한 기능을 합니다. 
+
+## 스켈레탈 메시 계층구조 임포트
+
+스켈레탈 메시를 컨트롤 릭 시스템으로 조작할 때, 가장 빨리 시작할 수 있는 방법은 스켈레탈 메시 **계층구조** 를 컨트롤 릭 블루프린트로 임포트하는 것입니다.  
+
+그 방법은 계층구조 패널에 우클릭하고 **임포트** 를 선택합니다. 임포트 메뉴에서 **없음** 드롭다운 박스를 클릭하고 임포트하려는 스켈레탈 메시 계층구조를 선택하면 됩니다.  
+
+![](ImportSkeletalMesh.png "ImportSkeletalMesh.png")  
+선택 스켈레탈 메시에 관련된 스켈레톤에 따라 시스템이 계층구조를 자동 생성합니다. **메시 에디터 (창 > 컨트롤 릭)** 의 컨트롤 릭 창에서 명명 규칙을 설정하면 선택 컨트롤 릭에 대한 매핑 구성을 설정할 수 있습니다.   
+
+![](ConfigureControlRig.png "ConfigureControlRig.png")  
+스켈레탈 메시를 임포트한 후, 메시에 대한 조인트 계층구조가 표시됩니다.  
+
+![](JointHierarchy.png "JointHierarchy.png")  
+조인트에 우클릭하면 추가 컨텍스트 옵션이 나타납니다.  
+
+![](JointRightClick.png "JointRightClick.png")  
+조인트 컨텍스트 메뉴에서 새 조인트를 선택 조인트의 자손으로 추가, 조인트 삭제, 조인트 복제, 조인트 이름변경, 메시를 추가로 임포트하여 계층구조에 추가할 수 있습니다.
+
+스켈레탈 메시를 임포트하고 계층구조를 생성한 이후, 스켈레탈 메시를 **프리뷰 메시** 로 할당해야 뷰포트에 보입니다. 이 작업은 **프리뷰 씬 세팅** 탭에서 할 수 있습니다.  
+
+![](PreviewMesh.png "PreviewMesh.png")
+
+[REGION:warning]
+스켈레탈 메시 계층구조를 임포트하고 해당하는 프리뷰 메시를 할당한 이후, 컴파일 버튼을 눌러 블루프린트를 컴파일하는 것이 좋습니다. 그래야 릭 그래프 안에 만든 계층구조로의 레퍼런스를 제대로 구하고 릭 유닛으로 조인트를 조작하기 시작할 수 있습니다.
+[/REGION]
+
+## 컨트롤 릭 그래프
+
+컨트롤 릭에 대한 계층구조를 생성한 이후, **릭 그래프** 안에서 계층구조에 대한 레퍼런스를 구하고 다양한 **릭 유닛** 으로 그 조인트를 원하는 대로 구동하여 조인트를 조작할 수 있습니다. 우클릭 컨텍스트 메뉴에서 **Rig Hierarchy Ref** 를 검색합니다 (컨텍스트 메뉴의 **New Variable > Structure** (새 변수 > 구조체) 카테고리에서도 찾을 수 있습니다).
+
+![](RigHierarchyReference.png "RigHierarchyReference.png")  
+**디테일** 패널 안에서 변수 이름을 변경할 수 있습니다. 아래에서는 이름을 **Base_Hierarchy** 라 했습니다.  
+
+![](VariableRenamed.png "VariableRenamed.png")  
+계층구조로의 레퍼런스를 가지고 다양한 **릭 유닛** 을 사용하여 조인트에 어떤 작업을 하거나 조작할 수 있습니다.  
+
+### 릭 유닛 유형
+
+릭 유닛은 여러가지 유형이 있지만, 크게 두 가지 카테고리로 나뉩니다. 
+
+*   **Operators** 연산자 \- 데이터 유형, 수학 표현식, 모션 시스템(컨스트레인트, FKIK, IK 스플라인 등)으로 이루어집니다.
+*   **Manipulators** 조작자 \- 외부 소스에서 트랜스폼을 제어할 수 있도록 해주는 릭 유닛 특수 유형입니다 (조인트 애니메이션 또는 조작이 가능합니다).  
+    
+
+그래프 안에서 우클릭하여 컨텍스트 메뉴에 액세스하면, 다음과 같은 릭 유닛 섹션이 보입니다.  
+
+![](RigUnitSections.png "RigUnitSections.png")  
+
+### 예제 - 투 본 IK / FK
+
+캐릭터의 팔을 구성하여 움직이고 싶다고 가정해 봅시다. **TwoBoneIK/FK** 계층구조에 조인트와 그 조인트를 제어하는 **컨트롤 릭** 유닛을 정의하고, 그 계층구조의 레퍼런스를 사용하면 됩니다.  
+  
+**TwoBoneIK/FK** 릭 유닛은 **Transforms** (트랜스폼) 섹션에서 찾을 수 있습니다.
+
+![](TwoBoneIK.png "TwoBoneIK.png")  
+**TwoBoneIK/FK** 릭 유닛에서 **Start Joint** (시작 조인트) 및 **End Joint** (끝 조인트)는 물론 **Hierarchy Ref.** (계층구조 레퍼런스)를 정의할 수 있습니다. 아래에서 (Base Hierarchy 라는) 릭 계층구조 레퍼런스 변수를 연결했습니다.  
+
+![](TwoBoneIKJointSetup.png "TwoBoneIKJointSetup.png")  
+이 구성으로, 계층구조의 다음 조인트를 조작하려 합니다.
+
+![](3JointChain.png "3JointChain.png")  
+대상으로 사용할 트랜스폼은 **End Effector** (엔드 이펙터)라 하며, **TwoBoneIK/FK** 릭 유닛에 사용할 수 있는 핀이 있습니다. 트랜스폼은 전용 **컨트롤** 릭 유닛으로 구동합니다.  
+  
+아래에서, **컨트롤** 릭 유닛을 사용하여 **Result** (결과) 핀을 **TwoBoneIK/FK** 의 **End Effector** (엔드 이펙트)에 연결했스니다. 또한 명확성을 위해, 컨트롤 이름을 RightArm_Effector 로 변경했는데, 오른팔 구동에 사용되는 컨트롤이기 때문입니다.  
+
+![](RightArm_Effector.png "RightArm_Effector.png")  
+이제 컨트롤을 선택한 다음, 뷰포트에서 위젯을 움직여 조작할 수 있습니다. 또한 (아래 비디오처럼) 두 번째 컨트롤을 **Pole Target** 으로 추가하여 팔의 회전을 제어할 수도 있습니다. Pole Target 은 위치만 받습니다. **Result** 옆 확장 아이콘을 클릭하여 릭 유닛의 추가 파라미터를 펼칠 수 있습니다 (그러면 **Translation** 핀을 집어 Pole Target 에 연결할 수 있습니다).
+
+[OBJECT:EmbeddedVideo]
+	[PARAMLITERAL:width]
+	640
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	360
+	[/PARAMLITERAL]
+	[PARAMLITERAL:videoid]
+	aUZsx5GorB8
+	[/PARAMLITERAL]
+[/OBJECT]
+
+블루프린트를 컴파일하면, (이 예제에서) 팔이 원점으로 스냅되는 것이 보일 것입니다. 컨트롤 릭 유닛에 대한 초기 트랜스폼은 **Init Transform** 정보로 제공할 수 있습니다.
+
+**Rig Hierarchy Ref** 에서 **Get Joint Transform** 를 사용하여 트랜스펌 정보를 구해올 조인트를 지정할 수 있습니다 (예로 우리 예제의 End Joint 또는 hand\_r). 아래는 hand\_r **Initial** 트랜스폼 데이터를 컨트롤 릭 유닛의 **Init Transform** 으로 사용합니다.  
+
+![](GetJointTransform.png "GetJointTransform.png")  
+이 구성으로 캐릭터의 오른팔을 제어할 수 있는데, 왼팔도 제어하려면 릭 유닛 망을 복제한 뒤 Start/End Joints 를 왼팔로 변경하면 됩니다.  
+
+[REGION:lightbox]
+[![](BothArmsSetup.png)(w:900)](BothArmsSetup.png)
+[/REGION]
+[REGION:caption]
+이미지를 클릭하면 원본을 확인합니다.
+[/REGION]
+
+### 예제 - Apply FK
+
+개별 조인트를 제어하려면, **Apply FK** 노드에 계층구조로의 레퍼런스와 **컨트롤** 릭 유닛을 (투 본 IK/FK 예제와 비슷하게) 사용하면 됩니다.  
+
+![](NeckControl_ApplyFK.png "NeckControl_ApplyFK.png")
+
+**Apply FK** 릭 유닛에서, 트랜스폼은 **글로벌 스페이스** 로 적용하고 있습니다. 여기서 영향을 주는 조인트는 neck_01 (캐릭터의 목 조인트)입니다. **컨트롤** 릭 유닛을 트랜스폼으로 추가하면, 위젯으로 뷰포트의 조인트를 조작할 수 있습니다.  
+
+[OBJECT:EmbeddedVideo]
+	[PARAMLITERAL:width]
+	640
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	360
+	[/PARAMLITERAL]
+	[PARAMLITERAL:videoid]
+	9Xhn9PoqcY4
+	[/PARAMLITERAL]
+[/OBJECT]

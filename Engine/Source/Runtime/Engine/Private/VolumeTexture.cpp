@@ -46,7 +46,7 @@ bool UVolumeTexture::UpdateSourceFromSourceTexture()
 			const int32 FormatDataSize = InitialSource.GetBytesPerPixel();
 			if (FormatDataSize > 0)
 			{
-				TArray<uint8> Ref2DData;
+				TArray64<uint8> Ref2DData;
 				if (InitialSource.GetMipData(Ref2DData, 0))
 				{
 					uint8* NewData = (uint8*)FMemory::Malloc(Source2DTileSizeX * Source2DTileSizeY * TileSizeZ * FormatDataSize);
@@ -97,49 +97,51 @@ bool UVolumeTexture::UpdateSourceFromSourceTexture()
 	return bSourceValid;
 }
 
-ENGINE_API bool UVolumeTexture::UpdateSourceFromFunction(TFunction<void(const int32 x, const int32 y, const int32 z, FFloat16 *ret)> Func, const int32 SizeX, const int32 SizeY, const int32 SizeZ)
+ENGINE_API bool UVolumeTexture::UpdateSourceFromFunction(TFunction<void(int32, int32, int32, void*)> Func, int32 SizeX, int32 SizeY, int32 SizeZ, ETextureSourceFormat Format)
 {
 	bool bSourceValid = false;
 
 #if WITH_EDITOR
-	if (SizeX <= 0 || SizeY <= 0 || SizeZ <= 0) {
+	if (SizeX <= 0 || SizeY <= 0 || SizeZ <= 0)
+	{
 		UE_LOG(LogTexture, Warning, TEXT("%s UpdateSourceFromFunction size in x,y, and z must be greater than zero"), *GetFullName());
 		return false;
 	}
 
-	// Note for now we are only supporting 16 bit rgba 3d textures
-	// @todo: expose this as a parameter
-	const FPixelFormatInfo& InitialFormat = GPixelFormats[PF_A16B16G16R16];
-	const int32 FormatDataSize = InitialFormat.BlockBytes;
+	// First clear up the existing source with the requested TextureSourceFormat
+	Source.Init(0, 0, 0, 1, Format, nullptr);
+	// It is now possible to query the correct FormatDataSize (there is no static version of GetBytesPerPixel)
+	const int32 FormatDataSize = Source.GetBytesPerPixel();
 
 	// Allocate temp buffer used to fill texture
-	uint8* NewData = (uint8*)FMemory::Malloc(SizeX * SizeY * SizeZ * FormatDataSize);
+	uint8* const NewData = (uint8*)FMemory::Malloc(SizeX * SizeY * SizeZ * FormatDataSize);
 	uint8* CurPos = NewData;
 
-	// tmp array to store a single voxel value extracted from the lambda
-	FFloat16 *tmpVoxel = (FFloat16*)FMemory::Malloc(4 * sizeof(FFloat16));
+	// Temporary storage for a single voxel value extracted from the lambda, type depends on Format
+	void* const NewValue = FMemory::Malloc(FormatDataSize);
 
-	// loop over all voxels and fill from our TFunction
-	for (int x = 0; x < SizeX; ++x) {
-		for (int y = 0; y < SizeY; ++y) {
-			for (int z = 0; z < SizeZ; ++z) {
+	// Loop over all voxels and fill from our TFunction
+	for (int32 PosZ = 0; PosZ < SizeZ; ++PosZ)
+	{
+		for (int32 PosY = 0; PosY < SizeY; ++PosY)
+		{
+			for (int32 PosX = 0; PosX < SizeX; ++PosX)
+			{
+				Func(PosX, PosY, PosZ, NewValue);
 
-				Func(x, y, z, tmpVoxel);
-
-				FMemory::Memcpy(CurPos, (uint8*)tmpVoxel, FormatDataSize);
+				FMemory::Memcpy(CurPos, NewValue, FormatDataSize);
 
 				CurPos += FormatDataSize;
 			}
 		}
 	}
 
-	// Init the source data from the temp buffer
-	// @todo: expose texture type as a parameters
-	Source.Init(SizeX, SizeY, SizeZ, 1, TSF_RGBA16F, NewData);
+	// Init the final source data from the temp buffer
+	Source.Init(SizeX, SizeY, SizeZ, 1, Format, NewData);
 	
 	// Free temp buffers
 	FMemory::Free(NewData);
-	FMemory::Free(tmpVoxel);
+	FMemory::Free(NewValue);
 
 	SetLightingGuid(); // Because the content has changed, use a new GUID.
 
@@ -478,7 +480,7 @@ public:
 		DEC_DWORD_STAT_FNAME_BY( LODGroupStatName, TextureSize );
 		if (TextureReference)
 		{
-			RHIUpdateTextureReference(TextureReference->TextureReferenceRHI, FTextureRHIParamRef());
+			RHIUpdateTextureReference(TextureReference->TextureReferenceRHI, nullptr);
 		}
 		Texture3DRHI.SafeRelease();
 		FTextureResource::ReleaseRHI();

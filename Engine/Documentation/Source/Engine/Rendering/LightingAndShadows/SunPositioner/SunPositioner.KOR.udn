@@ -1,0 +1,128 @@
+INTSourceChangelist:6408898
+Availability: Public
+Crumbs: 
+Title: 지리적으로 정확한 태양 위치
+Description: 레벨의 지구상 위치, 날짜, 시간을 지정하여 태양의 위치를 제어합니다.
+Type: 
+Version: 4.21
+Parent: Engine/Rendering/LightingAndShadows
+Order: 
+Tags: Lighting
+Tags: Early Access
+Tags: sun positioning
+topic-image: sunpos-topic.png
+hero-image: sunpos-hero.png
+
+
+어떤 상황에서는 태양이 하늘 어디에 있는지가 미적인 선택이 아닐 수 있습니다. 훨씬 더 중요한 디자인 요소일 수도 있지요.
+
+대규모 건축 및 건설 프로젝트라면 거의 그렇지만, 햇빛과 그림자 사이 사실적인 패턴을 보여야 하는 실사 렌더링이 필요한 경우라면 모두 해당합니다.
+
+이 경우 언리얼 엔진 레벨에서 태양 위치를 정확히 결정할 수 있어야 하는데, 실제 지구에서 하늘의 태양 위치를 결정하는 동일한 수학 방정식을 따르면 됩니다. 이 복잡한 방정식은 지구에서 관측자의 지리적 위치, 날짜, 시간을 포함한 여러가지 설정이 필요합니다.
+
+**Sun Position Calculator** (태양 위치 계산기) 플러그인은 언리얼 엔진에서 이러한 수학 방정식을 풀어 줍니다. 위도, 경도, 기본 방위, 날짜, 시간을 정의합니다. 그러면 태양 위치 계산기는 언리얼 엔진의 기본 하늘 구체에 태양 원반을 배치하고 레벨의 메인 디렉셔널 라이트 방향을 결정합니다.
+
+## 시작하기
+
+[REGION:note]
+**전제 조건**: 태양 위치 계산기는 언리얼 에디터에서 대부분의 새 레벨을 생성할 때 이미 구성되어 있는 기본 **BP_SkySphere** 를 사용합니다. 레벨에 **BP_SkySphere** 인스턴스가 있는지 확인해야 합니다.
+[/REGION]
+
+시작하는 방법은 다음과 같습니다.
+
+1.  메인 메뉴에서 **편집 > 플러그인** 을 선택합니다.
+2.  **Misc** (기타) 카테고리 아래 **Sun Position Calculator** (태양 위치 계산기) 플러그인을 찾아 **Enabled** (활성화) 박스를 체크합니다.  
+    ![Enable the Sun Position Calculator](sunpos-enble.png "Enable the Sun Position Calculator")
+3.  **Restart Now** (지금 재시작) 버튼을 클릭하면 변경사항이 적용되고 언리얼 에디터가 다시 열립니다.  
+    ![Restart Now](sunpos-3-restart.png "Restart Now")
+4.  **콘텐츠 브라우저** 에서 소스 패널을 엽니다.  
+    ![Sources](sunpos-4-sources.png "Sources")
+5.  **콘텐츠 브라우저** 우하단의 **뷰 옵션** 메뉴을 열고 **Show Engine Content** (엔진 콘텐츠 표시)와 **Show Plugin Content** (플러그인 콘텐츠 표시) 둘 다 선택합니다.  
+    ![Show Engine and Plugin Content](sunpos-5-viewoptions.png "Show Engine and Plugin Content")
+6.  **SunPosition Content** 폴더의 **BP_SunPosition** 애셋을 찾아 뷰포트에 끌어 놓습니다.  
+    ![Drag and drop the BP_SunPosition](sunpos-6-dragdrop.png "Drag and drop the BP_SunPosition")
+나침반의 기본 방위같은 기즈모로 나타납니다. (이 기즈모는 에디터에만 나타나며, 프로젝트를 실행할 때는 나타나지 않습니다.)
+7.  뷰포트에서 기즈모를 선택하거나, **월드 아웃라이너** 에서 **BP_SunPosition** 액터를 선택합니다.  
+    ![Select the BP_SunPosition](sunpos-7-select.png "Select the BP_SunPosition")
+8.  **디테일** 패널에서 태양 위치를 제어하는 씬 프로퍼티를 구성합니다.  
+    ![Set the location, date, and time](sunpos-8-details.png "Set the location, date, and time")  
+    
+    | 세팅 | 설명 |
+    | --- | --- |
+    | **Latitude** | 위도 - 적도 남쪽 좌표는 음수, 북쪽은 양수 값을 사용합니다. |
+    | **Longitude** | 경도 - 자오선 서쪽 좌표는 음수, 동쪽은 양수 값을 사용합니다. |
+    | **Time Zone** | 시간대 - 씬의 시간대를 협정 세계시(UTC) 또는 그리니치 표준시(GMT) 기준 오프셋으로 나타내는 값입니다. |
+    | **North Offset** | [INCLUDE:#excerpt_9] |
+    | **Date** and **Time** | 날짜와 시간 - 시뮬레이션 할 일년 중 시기와 하루 중 시간을 설정합니다. |
+    
+
+[COMMENT:none]
+[EXCERPT:excerpt_9]
+레벨의 오브젝트와 나침반의 기본 방위 사이 관계를 제어합니다. 이 컨트롤을 변경하면 레벨에 있는 **BP_SunPosition** 기즈모의 시각적 배치도 회전됩니다. 기즈모 지점에 보이는 기본 방위가 레벨의 오브젝트 기준 올바른 방향이 될 때까지 이 값을 조절합니다.
+[REGION:note]
+레벨 뷰포트의 회전 툴로 기즈모 자체를 회전하지 마세요. 이 North Offset 값으로만 기본 방위를 제어해야 합니다.
+[/REGION]
+[/EXCERPT:excerpt_9]
+[/COMMENT]
+
+    
+
+이 프로퍼티 값을 변경하면 에디터에서 하늘의 태양 위치와 그림자가 변하는 것이 보일 것입니다.
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 100
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 56.25
+ [/PARAMLITERAL]
+ [PARAMLITERAL:units]
+ %
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ MqLpNQaKLN0
+ [/PARAMLITERAL]
+[/OBJECT]
+
+## 런타임에 세팅 수정
+
+런타임에 **BP_SunPosition** 액터 세팅을 변경할 수 있습니다. 그러면 UI 위젯 또는 다른 게임플레이 이벤트에 따라 태양의 위치와 햇빛 각도를 조절할 수 있습니다.
+
+1.  런타임에 햇빛의 각도를 변경하기 위해서는, 레벨의 메인 디렉셔널 라이트를 무버블로 만들어야 합니다. **월드 아웃라이너** 또는 레벨 뷰포트에서 디렉셔널 라이트를 선택하고, **디테일** 패널에서 **모빌리티** 세팅을 찾아 **무버블** 로 설정합니다.  
+    ![Light Mobility](sunpos-runtime-1-movable.png "Light Mobility")
+2.  블루프린트 스크립트에서 런타임에 값을 수정하려면, 레벨에 있는 **BP_SunPosition** 액터로의 오브젝트 레퍼런스가 필요합니다. **Get All Actors of Class** 노드를 아래와 같이 사용하면 동적으로 얻을 수 있습니다.  
+    ![Get a reference to the BP_SunPosition Actor](sunpos-runtime-2-getvariable.png "Get a reference to the BP_SunPosition Actor")  
+    [REGION:note]
+    **Get All Actors of Class** 는 비쌀 수 있으니 (레벨 로드 또는 위젯 구성 이후) 한 번만 호출하고 결과를 변수에 저장하면 값을 얻거나 설정할 때마다 호출하지 않아도 됩니다.
+    [/REGION]
+3.  오브젝트 레퍼런스가 생겼으면, 그 출력을 오른쪽으로 드래그하고 **Variables** (변수) 카테고리를 펼쳐, 목록의 **Get** 및 **Set** 노드을 사용하면 언리얼 에디터의 **디테일** 패널에 노출된 것과 똑같은 값을 얻고 설정할 수 있습니다.  
+    ![Get and Set API for the BP_SunPosition Actor](sunpos-runtime-3-getsetapi.png "Get and Set API for the BP_SunPosition Actor")
+4.  새 값에 필요한 만큼 설정합니다. 완료되면 **BP_SunPosition** 변수의 출력을 오른쪽으로 드래그하고 그 **Update Sun** 노드를 호출합니다.  
+    ![Update Sun function](sunpos-runtime-4-updatesun.png "Update Sun function")
+
+예를 들어, 다음 위젯 블루프린트 스니펫은 오전 6시부터 오후 10시 사이의 값으로 시간을 변경하는 UI 슬라이더를 구성합니다.
+
+[REGION:lightbox]
+[![Example of changing the sun position at runtime](sunpos-runtime-example.png "Example of changing the sun position at runtime")](sunpos-runtime-example.png)
+[/REGION]
+
+[REGION:caption]
+클릭하면 이미지 원본을 확인합니다.
+[/REGION]
+
+실제로 슬라이더는 다음과 같습니다.
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 100
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 56.25
+ [/PARAMLITERAL]
+ [PARAMLITERAL:units]
+ %
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ 0e9c4pcwZO8
+ [/PARAMLITERAL]
+[/OBJECT]

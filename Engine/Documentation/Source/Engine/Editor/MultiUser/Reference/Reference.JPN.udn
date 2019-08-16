@@ -1,0 +1,275 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Title: Multi-User Editing Reference
+Description: Contains reference information for Project settings, console commands, and command-line parameters involved in Multi-User Editing.
+Type: reference
+Version: 4.22
+Parent: Engine/Editor/MultiUser
+Tags: Reference
+Tags: Early Access
+Tags: Multi-User Editing
+topic-image: multiusereditingref-topic.png
+Order: 2
+
+
+[TOC]
+
+This page contains information about requirements, settings, command-line parameters, and console commands for the Multi-User Editing system.
+
+## Project Settings
+
+When you have the Multi-User Editing Plugin activated in your Project, you'll have access to the following settings in the **Project Settings** window, under **Plugins > Multi-User Editing**.
+
+[REGION:lightbox]
+[![Multi-User Editing settings](multiuserediting-settings.png "Multi-User Editing settings")](multiuserediting-settings.png)  
+*Click for full image.*
+[/REGION]
+
+| Setting | Description |
+| --- | --- |
+| [REGION:tablesection]**Client Settings**[/REGION] ||
+| **Auto Connect** | Enable this setting to make the Unreal Editor immediately attempt to connect to the default server and default session name set below each time you open this Project. |
+| **Default Server URL** | Sets the name of the server that the Multi-User Editing system tries to connect to when you click the **Go Live** button in the Toolbar or when you have the **Auto Connect** setting enabled. This must be the hostname of the computer running the server, as it appears in the **Session Browser** window. |
+| **Default Session Name** | Sets the name of the session that the Multi-User Editing system tries to connect to when you click the **Go Live** button in the Toolbar or when you have the **Auto Connect** setting enabled. If a session with that name doesn't exist yet on the default server, the server will start a new session. |
+| **Default Session to Restore** | If you want to restore a saved session when you click the **Go Live** button in the Toolbar or when you have the **Auto Connect** setting enabled, enter the name of that saved session. |
+| **Default Save Session As** | If you want the Multi-User Editing system to save the session it opens when you click the **Go Live** button in the Toolbar or when you have the **Auto Connect** setting enabled, enter the name you want that session to saved as. |
+| **Display Name** | Sets the name that identifies you in all presence information visible to other users. |
+| **Avatar Color** | Sets the color that the Multi-User Editing system associates with you in all presence information visible to other users. |
+| **Desktop Avatar Actor Class** | [INCLUDE:#excerpt_0] |
+| **VRAvatar Actor Class** | [INCLUDE:#excerpt_1] |
+| [REGION:tablesection]**Client Settings — Advanced**[/REGION] ||
+| **Discovery Timeout** | If a previously discovered server does not respond to a message within this time span, it is considered stale and removed from the list in the **Multi-User Browser**. |
+| **Session Tick Frequency** | Determines how frequently this instance of Unreal Editor processes session updates. |
+| **Latency Compensation** | Determines how much compensation this instance of Unreal Editor should apply when treating incoming transactions that involve time-sensitive operations such as Sequencer playback. |
+| [REGION:tablesection]**Endpoint Settings**[/REGION] ||
+| **Enable Logging** | [INCLUDE:#excerpt_logging] |
+| **Purge Processed Message Delay** | Determines how long this instance of Unreal Editor should wait before removing from memory any messages about the session state that it has already processed. |
+| **Remote Endpoint Timeout** | If a remote instance of Unreal Editor does not respond to a message within this time span, it is considered stale and removed from the current session. |
+
+<!--
+[EXCERPT:excerpt_0]
+Sets the class that the Multi-User Editing system uses to represent you in other users' Level Viewports when you're using a standard keyboard and mouse to interact with the Unreal Editor.  
+If you want to change the default avatar, you can derive your own Blueprint class from the built-in **DesktopPresence** class and customize your class to meet your needs.
+[/EXCERPT:excerpt_0]
+-->
+<!--
+[EXCERPT:excerpt_1]
+Sets the class that the Multi-User Editing system uses to represent you in other users' Level Viewports when you're using the VR Editing system to work in the Level using a VR headset and controllers.  
+If you want to change the default avatar, you can derive your own Blueprint class from the built-in **VRPresence** class and customize your class to meet your needs.
+[/EXCERPT:excerpt_1]
+-->
+<!--
+[EXCERPT:excerpt_logging]
+Determines whether this instance of Unreal Editor should log detailed information about the current session.
+[REGION:note]
+Activating this option can consume large amounts of disk space in a short time.
+[/REGION]
+[/EXCERPT]
+-->
+
+You'll also have access to the following settings under **Plugins > Multi-User Transactions**.
+
+[REGION:lightbox]
+[![Multi-User Editing transaction settings](multiuserediting-transactionsettings.png "Multi-User Editing transaction settings")](multiuserediting-transactionsettings.png)  
+*Click for full image.*
+[/REGION]
+[REGION:note]
+Avoid adjusting these settings until you have used the Multi-User Editing system extensively with the default values, and you have a good understanding of how the system works. Altering these settings can affect the stability of the system.
+[/REGION]
+
+| Setting | Description |
+| --- | --- |
+| [REGION:tablesection]**Transaction Settings**[/REGION] ||
+| **Snapshot Transactions Per Second** | The number of transactions the Multi-User Editing system sends per second while you are interacting with a tool or control that synchronizes changes instantly with other clients — for example, while dragging an Actor in the Level Viewport, or while dragging a slider in an Actor's **Details** panel. |
+| **Include Object Class Filters** | While this list is empty, the Multi-User Editing system automatically sends transactions for modifications to all class types. If you instead want to synchronize modifications only for specific classes, you can specify those classes in this list. The values that appear in this list by default are ones that have been tested and judged to be stable enough to expose. |
+| **Exclude Transaction Class Filters** | [INCLUDE:#excerpt_2] |
+| **Allowed Transient Properties** | [INCLUDE:#excerpt_transient] |
+| [REGION:tablesection]**Transaction Settings — Advanced**[/REGION] ||
+| **Interactive Editor Hot Reload** | Determines how Unreal Editor should handle the situation when it needs to replace an already loaded Asset with a different version of the same Asset. This happens when another user connected to your session modifies and saves an Asset. It also happens when you leave a session without persisting changes, and the Editor needs to replace content that was modified during the session with the content you initially had before you joined the session. Leave this setting disabled to have the newly loaded content immediately replace the content you already had loaded. Enable this setting if you want to be prompted whether to reload each modified Asset. |
+| **Show Presence in PIE** | Determines whether other users' presence information should be shown while you are in a **Play In Editor (PIE)** session. |
+
+<!--
+[EXCERPT:excerpt_2]
+If you want to restrict the Multi-User Editing system from synchronizing modifications to certain classes, you can specify those classes in this list. Any transaction that involves a change to an object with one of these excluded classes won't be synchronized.  
+This list takes priority over the **Include Object Class Filters** list above.
+[REGION:note]
+By default, this list includes Landscape classes. Any modifications you make to a Landscape are not synchronized until you save the Level that contains that Landscape.
+[/REGION]
+[/EXCERPT:excerpt_2]
+-->
+<!--
+[EXCERPT:excerpt_transient]
+Contains a list of transient class properties that are always synchronized, even if they would normally be filtered out. The default entries synchronize Actor visibility in the Editor. You can remove these default entries from the list if you want different users working in the same Level to be able to show and hide different sets of Actors.
+[REGION:note]
+If you need to change these values, make your changes directly in the `[/Script/ConcertSyncCore.ConcertSyncConfig]` section of the `Saved/Config/<platform>/Engine.ini` file rather than in the UI.
+[/REGION]
+[/EXCERPT]
+-->
+
+## UnrealMultiUserServer Command-line Parameters
+
+The Getting Started page shows how to launch the server component of the Multi-User Editing system from inside the UI of the Unreal Editor. However, you can also launch this server from the command line on any computer that has Unreal Engine installed.  
+
+If you run the server from the command line, you don't need to have your Project on that computer. The server only records transactions and modified Assets; it has no dependency on having the entire Project content available. Only the computers that join a session need to have copies of the Project content.
+
+You'll find the Multi-User Editing server in your Unreal Engine installation folder, at `Engine/Binaries/<platform>/UnrealMultiUserServer.exe`. When you launch it, you can provide the following optional parameters on the command line to control its behavior.
+
+| Parameter | Description |
+| --- | --- |
+| **-ConcertSession=<session_name>** | [INCLUDE:#excerpt_3] |
+| **-ConcertProject=<uproject_name>** | [INCLUDE:#excerpt_4] |
+| **-ConcertVersion=<engine_version>** | [INCLUDE:#excerpt_5] |
+| **-ConcertRevision=<changelist_number>** | [INCLUDE:#excerpt_6] |
+| **-ConcertIgnore** | [INCLUDE:#excerpt_ignore] |
+| **-ConcertClean** | [INCLUDE:#excerpt_clean] |
+| **-ConcertSaveSessionAs=<session_name>** | [INCLUDE:#excerpt_7] |
+| **-ConcertSessionToRestore=<session_name>** | If you've specified a **-ConcertSession**, then you can use this parameter to restore a session that this server previously saved with the specified name instead of creating a new session. |
+
+<!--
+[EXCERPT:excerpt_3]
+If specified, the server creates a new session with this name when it starts up. For example:  
+`-ConcertSession=DemoSession`
+[/EXCERPT:excerpt_3]
+-->
+<!--
+[EXCERPT:excerpt_4]
+If you've specified a **-ConcertSession**, then the server will use the value of **ConcertProject** as the name of the Unreal Engine Project associated with the session. It will only permit connections from Unreal Editor instances that are running a Project with the same name. For example:  
+`-ConcertProject=MyUprojectName`
+[/EXCERPT:excerpt_4]
+-->
+<!--
+[EXCERPT:excerpt_5]
+If you've specified a **-ConcertSession**, then the server will use the value of **ConcertVersion** as the version of the Unreal Engine associated with the session. It will only permit connections from Unreal Editor instances that are built with the same version. For example:  
+`-ConcertVersion=4.22.0-123456`
+[REGION:tip]
+To get this version number, open the Unreal Editor and choose **Help > About Unreal Editor...** from the main menu.
+[/REGION]
+[/EXCERPT:excerpt_5]
+-->
+<!--
+[EXCERPT:excerpt_6]
+If you've specified a **-ConcertSession**, then the server will use the value of **ConcertRevsion** as the base source control changelist associated with the session. It will only permit connections from Unreal Editor instances that are have Source Control active, and that have the same revision of the content checked out, with no local modifications. For example:  
+`-ConcertRevision=4725058`
+[/EXCERPT:excerpt_6]
+-->
+<!--
+[EXCERPT:excerpt_7]
+If you've specified a **-ConcertSession**, then the server uses the **ConcertSaveSessionAs** value to define the name it uses to save the session data in the event that it shuts down before the session has been deleted. Specifying the name in this way is equivalent to setting the **Session Data Management > Save Session As** value when you create a new session in the Unreal Editor UI.  
+Once the session has been saved and the server shut down, you can start the server again with the **ConcertSessionToRestore** parameter to restore the state of that session.
+[/EXCERPT:excerpt_7]
+-->
+<!--
+[EXCERPT:excerpt_ignore]
+Add this value to the command line if you want to prevent the Multi-User Editing server from validating that connecting Unreal Editor instances match the Project name, Engine version, and content source control changelist associated with each session.
+[REGION:note]
+Although it can sometimes be useful to permit clients to connect despite minor discrepancies in their Project content, you should avoid relying on this setting for your typical workflow in order to avoid any unexpected behavior that may be caused by your content being out of sync on different clients.
+[/REGION]
+[/EXCERPT]
+-->
+<!--
+[EXCERPT:excerpt_clean]
+Add this value to the command line if you want the server to remove all existing session files from its temporary storage directory when it starts up.
+[REGION:note]
+This removes all saved sessions.
+[/REGION]
+[/EXCERPT]
+-->
+
+## Unreal Editor Command-line Parameters
+
+If you launch the Unreal Editor from the command line, you can use the following parameters to control the behavior of the Multi-User Editing system. These parameters set default values for some of the settings listed under [Project Settings](#projectsettings) above.
+
+| Parameter | Description |
+| --- | --- |
+| **-ConcertAutoConnect** | Enables the **Auto Connect** setting for your Project. Immediately after starting up, the Unreal Editor will attempt to connect to the default server and session configured for it. You can pre-set this default session configuration in the **Project Settings**, or specify them on the command line using the parameters below. |
+| **-ConcertServer=<server_name>** | Sets the value of the **Default Server URL** setting for your Project. |
+| **-ConcertSession=<session_name>** | Sets the value of the **Default Session Name** setting for your Project. |
+| **-ConcertSaveSessionAs=<session_name>** | Sets the value of the **Default Save Session As** setting for your Project. |
+| **-ConcertSessionToRestore=<session_name>** | Sets the value of the **Default Session to Restore** setting for your Project. |
+| **-ConcertDisplayName=<user_name>** | Sets the value of the **Display Name** setting for your Project. |
+
+## Console Commands
+
+This section lists the Unreal Engine console commands that affect the Multi-User Editing system.
+
+| Command | Description |
+| --- | --- |
+| `Concert.DefaultConnect` | If you've set up a **Default Server URL** and a **Default Session Name** in your Project Settings, and if you're not already connected to a Multi-User Editing session, this console command immediately tries to connect you to the default server and session. |
+| `Concert.Disconnect` | Disconnects you from the session you're currently connected to, if any. |
+| `Concert.EnableOpenRemoteSequencer` | [INCLUDE:#excerpt_8] |
+| `Concert.EnablePresence` | When you have this setting enabled, you'll see an Actor in the Level Viewport that represents the current position and point of view of each other user working in the same Level that has a **Desktop Avatar Actor Class** or **VRAvatar Actor Class** set in their Project Settings. |
+| `Concert.EnableSequencePlayer` | [INCLUDE:#excerpt_9] |
+| `Concert.OpenBrowser` | Opens the **Multi-User Browser** window. Equivalent to choosing **Session Browser** from the **Go Live** button in the Toolbar. |
+| `Concert.OpenSettings` | [INCLUDE:#excerpt_10] |
+
+<!--
+[EXCERPT:excerpt_8]
+Anytime a user with this setting enabled opens a Level Sequence or Master Sequence in the Sequencer UI, the Multi-User Editing system automatically opens the Sequencer UI for all other users in the same session who also have this setting enabled, and loads the same Sequence.  
+This setting is disabled by default. Use `Concert.EnableOpenRemoteSequencer 1` to enable it, or `Concert.EnableOpenRemoteSequencer 0` to disable it.
+[/EXCERPT:excerpt_8]
+-->
+<!--
+[EXCERPT:excerpt_9]
+By default, the Multi-User Editing system only synchronizes Sequencer playback events between Unreal Editor instances that have the same Sequence open in the Sequencer UI.  
+If you also want to synchronize Sequencer playback events to Unreal Editor instances that are running in `-game` mode, enable this setting.  
+This setting is disabled by default. Use `Concert.EnableOpenRemoteSequencer 1` to enable it, or `Concert.EnableOpenRemoteSequencer 0` to disable it. You must enable it for each Unreal Editor instance that you start with the `-game` argument that you want to respond to those playback events.
+[/EXCERPT:excerpt_9]
+-->
+<!--
+[EXCERPT:excerpt_10]
+Opens the **Project Settings** window to the **Plugins - Multi-User Editin****g** page. Equivalent to choosing **Multi-User Settings** from the **Go Live** button in the Toolbar.  
+For details on these settings, see [Project Settings](#projectsettings) above.
+[/EXCERPT:excerpt_10]
+-->
+
+## Advanced Networking
+
+If you're not able to get the Multi-User Editing system working on your network using the instructions in the Getting Started page, try using the techniques below to set the IP addresses of your server and your Unreal Editor instances.
+
+### Setting the Local IP Address
+
+If your computer has multiple network cards or adapters, you may need to change the IP address that the Multi-User Editing service uses when it communicates with other endpoints.
+
+To set the local IP address for the Unreal Editor:
+
+1.  From the main menu, select **Edit > Project Settings**.
+
+1.  In the **Project Settings** window, go to the **Plugins > UDP Messaging** section, and find the **Transport >** **Unicast Endpoint** setting.  
+    ![Unicast Endpoint](multiuserediting-network-unicastendpoint.png "Unicast Endpoint")
+
+1.  Set the value of this property to the IP address of the network adapter you want the Unreal Editor to use. Always use port **0**.  
+    For example, `192.168.10.73:0`.
+
+To set the local IP address for the Multi-User Editing server:
+
+1.  If your server is already running, shut it down.
+
+1.  In your Unreal Engine installation folder, go to the `Engine/Programs/UnrealMultiUserServer/Saved/Config/<platform>` folder, and open the `Engine.ini` file in a text editor. If that file doesn't already exist, create it.
+
+1.  Add the following block of settings to the file:
+    
+        [/Script/UdpMessaging.UdpMessagingSettings]
+        EnableTransport=True
+        UnicastEndpoint=192.168.0.73:0
+        MulticastEndpoint=230.0.0.1:6666
+        MulticastTimeToLive=1
+        EnableTunnel=False
+        TunnelUnicastEndpoint=
+        TunnelMulticastEndpoint=
+    
+
+1.  Set the value of the `UnicastEndpoint` setting to the IP address of the network adapter you want the Unreal Editor to use. Always use port **0**.
+
+1.  Save the file and restart your server.
+
+### Specifying the Server Address for the Unreal Editor
+
+If you've launched the Multi-User Editing server, but an Unreal Editor running in the same LAN or VPN can't automatically detect that server, you can try specifying the IP address of the server as a static endpoint for the Unreal Editor.
+
+1.  From the main menu, select **Edit > Project Settings**.
+
+1.  In the **Project Settings** window, go to the **Plugins > UDP Messaging** section. Expand the advanced settings under the **Transport** section and find the **Static Endpoints** setting.  
+    ![Static Endpoints list](multiuserediting-network-staticendpoints.png "Static Endpoints list")
+
+1.  Press **+** to add a new item to the list, and set the value of the new item to the IP address of your server. Make sure you include the port used by the Multicast Endpoint, which is typically **6666**.  
+    ![Set the server's IP address](multiuserediting-network-staticendpoints-added.png "Set the server's IP address")

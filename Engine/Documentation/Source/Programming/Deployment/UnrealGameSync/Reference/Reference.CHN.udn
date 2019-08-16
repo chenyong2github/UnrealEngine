@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4527375
+﻿INTSourceChangelist:6173642
 Availability: Public
 Crumbs: 
 Title: UGS参考
@@ -110,7 +110,7 @@ Epic设置位于每个工具下的 `NotForLicensees/ProgramSettings.cs` 文件�
 由于UGS不允许你在进行代码更改之后同步任何变更列表（甚至内容变更列表）（除非存在相应的二进制文件），和本地构建版本一样，也对打包的编辑器二进制文件实施了相同的限制。只要未修改 `*.cpp`、`*.h`、`*.cs`、`*.usf` 和 `*.ush` 文件，它允许你使用先前提交的二进制文件同步仅对内容进行的更改。
 [/REGION]
 
-我们提供了可供你随意使用的示例 [BuildGraph](Programming/Development/BuildGraph) 脚本，以展示如何从构建机器创建并提交格式正确的编辑器二进制文件。该示例脚本位于以下位置：  
+我们提供了可供你随意使用的示例 [BuildGraph](Programming/BuildTools/AutomationTool/BuildGraph) 脚本，以展示如何从构建机器创建并提交格式正确的编辑器二进制文件。该示例脚本位于以下位置：  
 
 `Engine/Build/Graph/Examples/BuildEditorAndTools.xml`
 

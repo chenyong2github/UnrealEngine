@@ -81,6 +81,7 @@ DECLARE_LLM_MEMORY_STAT(TEXT("Animation"), STAT_AnimationLLM, STATGROUP_LLMFULL)
 DECLARE_LLM_MEMORY_STAT(TEXT("StaticMesh"), STAT_StaticMeshLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("Materials"), STAT_MaterialsLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("Particles"), STAT_ParticlesLLM, STATGROUP_LLMFULL);
+DECLARE_LLM_MEMORY_STAT(TEXT("Niagara"), STAT_NiagaraLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("GC"), STAT_GCLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("UI"), STAT_UILLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("PhysX"), STAT_PhysXLLM, STATGROUP_LLMFULL);
@@ -103,6 +104,8 @@ DECLARE_LLM_MEMORY_STAT(TEXT("SkeletalMesh"), STAT_SkeletalMeshLLM, STATGROUP_LL
 DECLARE_LLM_MEMORY_STAT(TEXT("InstancedMesh"), STAT_InstancedMeshLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("Landscape"), STAT_LandscapeLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("VideoStreaming"), STAT_VideoStreamingLLM, STATGROUP_LLMFULL);
+DECLARE_LLM_MEMORY_STAT(TEXT("MMIO"), STAT_PlatformMMIOLLM, STATGROUP_LLMPlatform);
+DECLARE_LLM_MEMORY_STAT(TEXT("VirtualMemory"), STAT_PlatformVMLLM, STATGROUP_LLMPlatform);
 
 /*
 * LLM Summary stats referenced by ELLMTagNames
@@ -116,6 +119,7 @@ DECLARE_LLM_MEMORY_STAT(TEXT("Animation"), STAT_AnimationSummaryLLM, STATGROUP_L
 DECLARE_LLM_MEMORY_STAT(TEXT("StaticMesh"), STAT_StaticMeshSummaryLLM, STATGROUP_LLM);
 DECLARE_LLM_MEMORY_STAT(TEXT("Materials"), STAT_MaterialsSummaryLLM, STATGROUP_LLM);
 DECLARE_LLM_MEMORY_STAT(TEXT("Particles"), STAT_ParticlesSummaryLLM, STATGROUP_LLM);
+DECLARE_LLM_MEMORY_STAT(TEXT("Niagara"), STAT_NiagaraSummaryLLM, STATGROUP_LLM);
 DECLARE_LLM_MEMORY_STAT(TEXT("UI"), STAT_UISummaryLLM, STATGROUP_LLM);
 DECLARE_LLM_MEMORY_STAT(TEXT("Textures"), STAT_TexturesSummaryLLM, STATGROUP_LLM);
 
@@ -412,9 +416,11 @@ protected:
 
 	uint32 TlsSlot;
 
-	FCriticalSection ThreadArraySection;
 	FLLMObjectAllocator<FLLMThreadState> ThreadStateAllocator;
 	FLLMArray<FLLMThreadState*> ThreadStates;
+
+	FCriticalSection PendingThreadStatesGuard;
+	FLLMArray<FLLMThreadState*> PendingThreadStates;
 
 	int64 TrackedMemoryOverFrames GCC_ALIGN(8);
 
@@ -443,7 +449,7 @@ static int64 FNameToTag(FName Name)
 	}
 
 	// get the bits out of the FName we need
-	int64 NameIndex = Name.GetComparisonIndex();
+	int64 NameIndex = Name.GetComparisonIndex().ToUnstableInt();
 	int64 NameNumber = Name.GetNumber();
 	int64 tag = (NameNumber << 32) | NameIndex;
 	LLMCheckf(tag > LLM_TAG_COUNT, TEXT("Passed with a name index [%d - %s] that was less than MemTracker_MaxUserAllocation"), NameIndex, *Name.ToString());
@@ -455,7 +461,7 @@ static int64 FNameToTag(FName Name)
 static FName TagToFName(int64 Tag)
 {
 	// pull the bits back out of the tag
-	int32 NameIndex = (int32)(Tag & 0xFFFFFFFF);
+	FNameEntryId NameIndex = FNameEntryId::FromUnstableInt((int32)(Tag & 0xFFFFFFFF));
 	int32 NameNumber = (int32)(Tag >> 32);
 	return FName(NameIndex, NameIndex, NameNumber);
 }
@@ -520,9 +526,7 @@ FLowLevelMemTracker::FLowLevelMemTracker()
 
 FLowLevelMemTracker::~FLowLevelMemTracker()
 {
-	// Ensure that we skip any further tracking since it will fail after this destructor
-	bIsDisabled = true;
-	
+	bIsDisabled = true; // tracking must stop at this point or it will crash while tracking its own destruction
 	for (int32 TrackerIndex = 0; TrackerIndex < (int32)ELLMTracker::Max; ++TrackerIndex)
 	{
 		Trackers[TrackerIndex]->~FLLMTracker();
@@ -1169,6 +1173,7 @@ void FLLMTracker::Initialise(
 
 	ThreadStateAllocator.SetAllocator(Allocator);
 	ThreadStates.SetAllocator(Allocator);
+	PendingThreadStates.SetAllocator(Allocator);
 }
 
 FLLMTracker::FLLMThreadState* FLLMTracker::GetOrCreateState()
@@ -1178,12 +1183,14 @@ FLLMTracker::FLLMThreadState* FLLMTracker::GetOrCreateState()
 	// get one if needed
 	if (State == nullptr)
 	{
-		// protect any accesses to the ThreadStates array
-		FScopeLock Lock(&ThreadArraySection);
-
 		State = ThreadStateAllocator.New();
 		State->SetAllocator(Allocator);
-		ThreadStates.Add(State);
+
+		// Add to pending thread states, these will be consumed on the GT
+		{
+			FScopeLock Lock(&PendingThreadStatesGuard);
+			PendingThreadStates.Add(State);
+		}
 
 		// push to Tls
 		FPlatformTLS::SetTlsValue(TlsSlot, State);
@@ -1352,6 +1359,13 @@ bool FLLMTracker::IsPaused(ELLMAllocType AllocType)
 
 void FLLMTracker::Clear()
 {
+	{
+		FScopeLock Lock(&PendingThreadStatesGuard);
+		for (uint32 Index = 0; Index < PendingThreadStates.Num(); ++Index)
+			ThreadStateAllocator.Delete(PendingThreadStates[Index]);
+		PendingThreadStates.Clear(true);
+	}
+
 	for (uint32 Index = 0; Index < ThreadStates.Num(); ++Index)
 		ThreadStateAllocator.Delete(ThreadStates[Index]);
 	ThreadStates.Clear(true);
@@ -1374,11 +1388,29 @@ void FLLMTracker::SetTotalTags(ELLMTag InUntaggedTotalTag, ELLMTag InTrackedTota
 
 void FLLMTracker::Update(FLLMCustomTag* CustomTags, const int32* ParentTags)
 {
-	// protect any accesses to the ThreadStates array
-	FScopeLock Lock(&ThreadArraySection);
+	int ThreadStateNum = ThreadStates.Num();
+
+	// Consume pending thread states
+	// We must be careful to do all allocations outside of the PendingThreadStatesGuard guard as that can lead to a deadlock due to contention with PendingThreadStatesGuard & Locks inside the underlying allocator (i.e. MallocBinned2 -> Mutex)
+	{
+		PendingThreadStatesGuard.Lock();
+		const int NumPendingThreadStatesToConsume = PendingThreadStates.Num();
+		if (NumPendingThreadStatesToConsume > 0 )
+		{
+			PendingThreadStatesGuard.Unlock();
+			ThreadStates.Reserve(ThreadStateNum + NumPendingThreadStatesToConsume);
+			PendingThreadStatesGuard.Lock();
+
+			for ( int32 i=0; i < NumPendingThreadStatesToConsume; ++i )
+			{
+				ThreadStates.Add(PendingThreadStates.RemoveLast());
+			}
+			ThreadStateNum += NumPendingThreadStatesToConsume;
+		}
+		PendingThreadStatesGuard.Unlock();
+	}
 
 	// accumulate the totals for each thread
-	int ThreadStateNum = ThreadStates.Num();
 	for (int32 ThreadIndex = 0; ThreadIndex < ThreadStateNum; ThreadIndex++)
 	{
 		ThreadStates[ThreadIndex]->UpdateFrameStatGroups(CustomTags,ParentTags);
@@ -2034,6 +2066,7 @@ FString FLLMCsvWriter::GetTagName(int64 Tag, FLLMCustomTag* CustomTags, const in
 			Result = GetTagName( ParentTags[Tag], CustomTags, nullptr ) + TEXT("/");
 		}
 
+		LLMCheckf(CustomTags[Tag - LLM_CUSTOM_TAG_START].Name != nullptr, TEXT("Tag %lld has no name"), Tag ); 
 		Result += CustomTags[Tag - LLM_CUSTOM_TAG_START].Name;
 	}
 	else

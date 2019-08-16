@@ -481,9 +481,12 @@ void FSlateEditableTextLayout::SetMargin(const TAttribute<FMargin>& InMargin)
 
 void FSlateEditableTextLayout::SetJustification(const TAttribute<ETextJustify::Type>& InJustification)
 {
-	Justification = InJustification;
+	if (!Justification.IdenticalTo(InJustification))
+	{
+		Justification = InJustification;
 
-	OwnerWidget->GetSlateWidget()->Invalidate(EInvalidateWidget::LayoutAndVolatility);
+		OwnerWidget->GetSlateWidget()->Invalidate(EInvalidateWidget::LayoutAndVolatility);
+	}
 }
 
 void FSlateEditableTextLayout::SetLineHeightPercentage(const TAttribute<float>& InLineHeightPercentage)
@@ -663,6 +666,17 @@ FVector2D FSlateEditableTextLayout::GetScrollOffset() const
 	return ScrollOffset;
 }
 
+
+float FSlateEditableTextLayout::GetComputedWrappingWidth() const
+{
+	return TextLayout->GetWrappingWidth();
+}
+
+bool FSlateEditableTextLayout::GetAutoWrapText() const
+{
+	return AutoWrapText.Get();
+}
+
 bool FSlateEditableTextLayout::HandleFocusReceived(const FFocusEvent& InFocusEvent)
 {
 	if (ActiveContextMenu.IsValid())
@@ -734,6 +748,9 @@ bool FSlateEditableTextLayout::HandleFocusReceived(const FFocusEvent& InFocusEve
 
 	// Focus change affects volatility, so update that too
 	OwnerWidget->GetSlateWidget()->Invalidate(EInvalidateWidget::LayoutAndVolatility);
+
+	// Force update of last cursor interaction time to ensure the caret blinks at the correct frequency regardless of how focus is set.
+	CursorInfo.UpdateLastCursorInteractionTime();
 
 	return true;
 }
@@ -856,25 +873,43 @@ FReply FSlateEditableTextLayout::HandleKeyDown(const FKeyEvent& InKeyEvent)
 
 	if (Key == EKeys::Left)
 	{
-		Reply = BoolToReply(MoveCursor(FMoveCursor::Cardinal(
-			// Ctrl moves a whole word instead of one character.	
-			InKeyEvent.IsControlDown() ? ECursorMoveGranularity::Word : ECursorMoveGranularity::Character,
-			// Move left
-			FIntPoint(-1, 0),
-			// Shift selects text.	
-			InKeyEvent.IsShiftDown() ? ECursorAction::SelectText : ECursorAction::MoveCursor
+		if (OwnerWidget->IsTextPassword() && InKeyEvent.IsControlDown())
+		{
+			// If the text is sensitive, we should not clue the user in to where word breaks are
+			JumpTo(ETextLocation::BeginningOfLine, InKeyEvent.IsShiftDown() ? ECursorAction::SelectText : ECursorAction::MoveCursor);
+			Reply = FReply::Handled();
+		}
+		else
+		{
+			Reply = BoolToReply(MoveCursor(FMoveCursor::Cardinal(
+				// Ctrl moves a whole word instead of one character.	
+				InKeyEvent.IsControlDown() ? ECursorMoveGranularity::Word : ECursorMoveGranularity::Character,
+				// Move left
+				FIntPoint(-1, 0),
+				// Shift selects text.	
+				InKeyEvent.IsShiftDown() ? ECursorAction::SelectText : ECursorAction::MoveCursor
 			)));
+		}
 	}
 	else if (Key == EKeys::Right)
 	{
-		Reply = BoolToReply(MoveCursor(FMoveCursor::Cardinal(
-			// Ctrl moves a whole word instead of one character.	
-			InKeyEvent.IsControlDown() ? ECursorMoveGranularity::Word : ECursorMoveGranularity::Character,
-			// Move right
-			FIntPoint(+1, 0),
-			// Shift selects text.	
-			InKeyEvent.IsShiftDown() ? ECursorAction::SelectText : ECursorAction::MoveCursor
+		if (OwnerWidget->IsTextPassword() && InKeyEvent.IsControlDown())
+		{
+			// If the text is sensitive, we should not clue the user in to where word breaks are
+			JumpTo(ETextLocation::EndOfLine, InKeyEvent.IsShiftDown() ? ECursorAction::SelectText : ECursorAction::MoveCursor);
+			Reply = FReply::Handled();
+		}
+		else
+		{
+			Reply = BoolToReply(MoveCursor(FMoveCursor::Cardinal(
+				// Ctrl moves a whole word instead of one character.	
+				InKeyEvent.IsControlDown() ? ECursorMoveGranularity::Word : ECursorMoveGranularity::Character,
+				// Move right
+				FIntPoint(+1, 0),
+				// Shift selects text.	
+				InKeyEvent.IsShiftDown() ? ECursorAction::SelectText : ECursorAction::MoveCursor
 			)));
+		}
 	}
 	else if (Key == EKeys::Up)
 	{
@@ -934,24 +969,6 @@ FReply FSlateEditableTextLayout::HandleKeyDown(const FKeyEvent& InKeyEvent)
 		HandleCarriageReturn();
 		Reply = FReply::Handled();
 	}
-	else if (Key == EKeys::Delete && !OwnerWidget->IsTextReadOnly())
-	{
-		// @Todo: Slate keybindings support more than one set of keys. 
-		// Delete to next word boundary (Ctrl+Delete)
-		if (InKeyEvent.IsControlDown() && !InKeyEvent.IsAltDown() && !InKeyEvent.IsShiftDown())
-		{
-			MoveCursor(FMoveCursor::Cardinal(
-				ECursorMoveGranularity::Word,
-				// Move right
-				FIntPoint(+1, 0),
-				// selects text.	
-				ECursorAction::SelectText
-				));
-		}
-
-		FScopedEditableTextTransaction TextTransaction(*this);
-		Reply = BoolToReply(HandleDelete());
-	}
 	else if (Key == EKeys::Tab && OwnerWidget->CanTypeCharacter(TEXT('\t')))
 	{
 		Reply = FReply::Handled();
@@ -969,7 +986,33 @@ FReply FSlateEditableTextLayout::HandleKeyDown(const FKeyEvent& InKeyEvent)
 		CutSelectedTextToClipboard();
 		Reply = FReply::Handled();
 	}
+	// This must come after the Cut hotkey or else Cut is unreachable
+	else if (Key == EKeys::Delete && !OwnerWidget->IsTextReadOnly())
+	{
+		// @Todo: Slate keybindings support more than one set of keys. 
+		// Delete to next word boundary (Ctrl+Delete), only if there is no Text Selected in that case we carry on with a normal delete.
+		if (!AnyTextSelected() && InKeyEvent.IsControlDown() && !InKeyEvent.IsAltDown() && !InKeyEvent.IsShiftDown())
+		{
+			if (OwnerWidget->IsTextPassword())
+			{
+				// If the text is sensitive, we should not clue the user in to where word breaks are
+				JumpTo(ETextLocation::EndOfLine, ECursorAction::SelectText);
+			}
+			else
+			{
+				MoveCursor(FMoveCursor::Cardinal(
+					ECursorMoveGranularity::Word,
+					// Move right
+					FIntPoint(+1, 0),
+					// selects text.	
+					ECursorAction::SelectText
+				));
+			}
+		}
 
+		FScopedEditableTextTransaction TextTransaction(*this);
+		Reply = BoolToReply(HandleDelete());
+	}
 	// @Todo: Slate keybindings support more than one set of keys. 
 	// Alternate key for copy (Ctrl+Insert) 
 	else if (Key == EKeys::Insert && InKeyEvent.IsControlDown() && CanExecuteCopy())
@@ -1013,12 +1056,20 @@ FReply FSlateEditableTextLayout::HandleKeyDown(const FKeyEvent& InKeyEvent)
 	{
 		FScopedEditableTextTransaction TextTransaction(*this);
 
-		MoveCursor(FMoveCursor::Cardinal(
-			ECursorMoveGranularity::Word,
-			// Move left
-			FIntPoint(-1, 0),
-			ECursorAction::SelectText
+		if (OwnerWidget->IsTextPassword())
+		{
+			// If the text is sensitive, we should not clue the user in to where word breaks are
+			JumpTo(ETextLocation::BeginningOfLine, ECursorAction::SelectText);
+		}
+		else
+		{
+			MoveCursor(FMoveCursor::Cardinal(
+				ECursorMoveGranularity::Word,
+				// Move left
+				FIntPoint(-1, 0),
+				ECursorAction::SelectText
 			));
+		}
 		Reply = BoolToReply(HandleBackspace());
 	}
 
@@ -1059,7 +1110,7 @@ FReply FSlateEditableTextLayout::HandleKeyDown(const FKeyEvent& InKeyEvent)
 
 FReply FSlateEditableTextLayout::HandleKeyUp(const FKeyEvent& InKeyEvent)
 {
-	if (FPlatformApplicationMisc::RequiresVirtualKeyboard() && InKeyEvent.GetKey() == EKeys::Virtual_Accept)
+	if (FPlatformApplicationMisc::RequiresVirtualKeyboard() && FSlateApplication::Get().GetNavigationActionForKey(InKeyEvent.GetKey()) == EUINavigationAction::Accept)
 	{
 		if (!OwnerWidget->IsTextReadOnly())
 		{

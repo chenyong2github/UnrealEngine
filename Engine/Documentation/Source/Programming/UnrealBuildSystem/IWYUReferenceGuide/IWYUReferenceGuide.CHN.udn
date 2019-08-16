@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3356804
+﻿INTSourceChangelist:3518154
 Availability:Public
 Title:IWYU 参考指南
 Crumbs:
@@ -27,6 +27,7 @@ IWYU 在游戏和游戏插件中默认禁用，但在引擎和引擎插件中默
 
 [/REGION]
 
+(#WhatitMeanstoIWYU)
 ## IWYU 的含义
 
 在旧版本的虚幻引擎 4（UE4），引擎的大部分功能通过大型、以模块为中心的头文件进行包含（如 `Engine.h` 和 `UnrealEd.h`）。 
@@ -41,6 +42,7 @@ IWYU 在游戏和游戏插件中默认禁用，但在引擎和引擎插件中默
 1.	**PCH 文件已不再是显式包含。**
 1.	**不再包含单块头文件。**
 
+(#IWYUConventions)
 ### IWYU 规则
 
 以下 IWYU 规则描述可助您了解 IWYU 的含义。
@@ -77,6 +79,7 @@ IWYU 在游戏和游戏插件中默认禁用，但在引擎和引擎插件中默
 	单块头文件仍存在于 UE4 中，以保证游戏项目的兼容性。如游戏项目包含单块头文件，（默认）将不会发出警告。
 	[/REGION]
 
+(#EnablingIWYU)
 ##启用 IWYU
 
 随 4.15 版发布建立 IWYU 规则之前，UE4 代码通常在每个 CPP 文件上方包含一个 PCH 文件，这和开发者希望 IWYU 合规代码所包含的内容相悖。新建 IWYU 规则后，PCH 文件可被视为编译时优化的层，独立于代码原始编写的方式进行应用。因此我们不组成和包含 PCH 文件，而是让 UBT 决定使用的 PCH 文件（如有）。
@@ -95,6 +98,7 @@ IWYU 在游戏和游戏插件中默认禁用，但在引擎和引擎插件中默
 
 [/REGION]
 
+(#RunninginIWYUMode)
 ### 在 IWYU 模式中运行
 
 如在 IWYU 模式中运行游戏，则需要首先确保 \*.cpp 文件包含其相应的 \*.h 文件。这是一项很实用的操作，因为将启用编译器确保 \*.h 文件包含其所需的全部依赖性（PCH 文件和统一编译禁用）。如不首先包含匹配的头文件（针对其相应的 CPP 文件），虚幻编译工具（UBT）将发出警告。 
@@ -109,6 +113,7 @@ IWYU 在游戏和游戏插件中默认禁用，但在引擎和引擎插件中默
 
 [/REGION]
 
+(#GeneralTips)
 ## 常规提示
 
 如需要游戏使用 IWYU，需要注意以下几点：
@@ -116,3 +121,4 @@ IWYU 在游戏和游戏插件中默认禁用，但在引擎和引擎插件中默
 1.	在每个头文件的顶部包含 `CoreMinimal.h`。
 1.	禁用 PCH 文件，在非统一模式中编译游戏项目，即可验证所有源文件包含其必须的所有依赖性。
 1.	如需要访问在 `Runtime\Engine\Classes\Engine\Engine.h` 中定义的 **UEngine** 或 **Gengine，**，可 `#include Engine/Engine.h`（有别于 `Runtime\Engine\Public\Engine.h` 中的单块头文件）。
+1.	如要使用编译器无法识别的类，而且不知道需要包含什么头文件中可能缺少的内容。在转换编译正确的非 IWYU 代码时，尤其可能出现这种情况。您可以在[API 文档](API)中查找类并在页面底部找到必须的模块和头文件。

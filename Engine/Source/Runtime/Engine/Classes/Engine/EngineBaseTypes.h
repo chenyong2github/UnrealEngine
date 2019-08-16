@@ -190,13 +190,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category="Tick", AdvancedDisplay)
 	TEnumAsByte<enum ETickingGroup> EndTickGroup;
 
-protected:
-	/** Internal data that indicates the tick group we actually started in (it may have been delayed due to prerequisites) **/
-	TEnumAsByte<enum ETickingGroup> ActualStartTickGroup;
-
-	/** Internal data that indicates the tick group we actually started in (it may have been delayed due to prerequisites) **/
-	TEnumAsByte<enum ETickingGroup> ActualEndTickGroup;
-
 public:
 	/** Bool indicating that this function should execute even if the game is paused. Pause ticks are very limited in capabilities. **/
 	UPROPERTY(EditDefaultsOnly, Category="Tick", AdvancedDisplay)
@@ -221,11 +214,6 @@ public:
 	uint8 bRunOnAnyThread:1;
 
 private:
-	/** If true, means that this tick function is in the master array of tick functions */
-	bool bRegistered;
-
-	/** Cache whether this function was rescheduled as an interval function during StartParallel */
-	bool bWasInterval;
 
 	enum class ETickState : uint8
 	{
@@ -241,42 +229,65 @@ private:
 	 **/
 	ETickState TickState;
 
-	/** Internal data to track if we have started visiting this tick function yet this frame **/
-	int32 TickVisitedGFrameCounter;
-
-	/** Internal data to track if we have finshed visiting this tick function yet this frame **/
-	int32 TickQueuedGFrameCounter;
-
-	/** Pointer to the task, only used during setup. This is often stale. **/
-	void *TaskPointer;
-
-	/** Prerequisites for this tick function **/
-	TArray<struct FTickPrerequisite> Prerequisites;
-
-	/** The next function in the cooling down list for ticks with an interval*/
-	FTickFunction* Next;
-
-	/** 
-	  * If TickFrequency is greater than 0 and tick state is CoolingDown, this is the time, 
-	  * relative to the element ahead of it in the cooling down list, remaining until the next time this function will tick 
-	  */
-	float RelativeTickCooldown;
-
-	/** 
-	* The last world game time at which we were ticked. Game time used is dependent on bTickEvenWhenPaused
-	* Valid only if we've been ticked at least once since having a tick interval; otherwise set to -1.f
-	*/
-	float LastTickGameTimeSeconds;
-
 public:
-
 	/** The frequency in seconds at which this tick function will be executed.  If less than or equal to 0 then it will tick every frame */
 	UPROPERTY(EditDefaultsOnly, Category="Tick", meta=(DisplayName="Tick Interval (secs)"))
 	float TickInterval;
 
-	/** Back pointer to the FTickTaskLevel containing this tick function if it is registered **/
-	class FTickTaskLevel*						TickTaskLevel;
+private:
 
+	/** Prerequisites for this tick function **/
+	TArray<struct FTickPrerequisite> Prerequisites;
+
+	/** Internal Data structure that contains members only required for a registered tick function **/
+	struct FInternalData
+	{
+		FInternalData();
+
+		/** Whether the tick function is registered. */
+		bool bRegistered : 1;
+
+		/** Cache whether this function was rescheduled as an interval function during StartParallel */
+		bool bWasInterval:1;
+
+		/** Internal data that indicates the tick group we actually started in (it may have been delayed due to prerequisites) **/
+		TEnumAsByte<enum ETickingGroup> ActualStartTickGroup;
+
+		/** Internal data that indicates the tick group we actually started in (it may have been delayed due to prerequisites) **/
+		TEnumAsByte<enum ETickingGroup> ActualEndTickGroup;
+		
+		/** Internal data to track if we have started visiting this tick function yet this frame **/
+		int32 TickVisitedGFrameCounter;
+
+		/** Internal data to track if we have finshed visiting this tick function yet this frame **/
+		int32 TickQueuedGFrameCounter;
+
+		/** Pointer to the task, only used during setup. This is often stale. **/
+		void* TaskPointer;
+
+		/** The next function in the cooling down list for ticks with an interval*/
+		FTickFunction* Next;
+
+		/** 
+		 * If TickFrequency is greater than 0 and tick state is CoolingDown, this is the time, 
+		 * relative to the element ahead of it in the cooling down list, remaining until the next time this function will tick 
+		 **/
+		float RelativeTickCooldown;
+
+		/** 
+		 * The last world game time at which we were ticked. Game time used is dependent on bTickEvenWhenPaused
+		 * Valid only if we've been ticked at least once since having a tick interval; otherwise set to -1.f
+		 **/
+		float LastTickGameTimeSeconds;
+
+		/** Back pointer to the FTickTaskLevel containing this tick function if it is registered **/
+		class FTickTaskLevel*						TickTaskLevel;
+	};
+
+	/** Lazily allocated struct that contains the necessary data for a tick function that is registered. **/
+	TUniquePtr<FInternalData> InternalData;
+
+public:
 	/** Default constructor, intitalizes to reasonable defaults **/
 	FTickFunction();
 	/** Destructor, unregisters the tick function **/
@@ -290,14 +301,14 @@ public:
 	/** Removes the tick function from the master list of tick functions. **/
 	void UnRegisterTickFunction();
 	/** See if the tick function is currently registered */
-	bool IsTickFunctionRegistered() const { return bRegistered; }
+	bool IsTickFunctionRegistered() const { return (InternalData && InternalData->bRegistered); }
 
 	/** Enables or disables this tick function. **/
 	void SetTickFunctionEnable(bool bInEnabled);
 	/** Returns whether the tick function is currently enabled */
 	bool IsTickFunctionEnabled() const { return TickState != ETickState::Disabled; }
 	/** Returns whether it is valid to access this tick function's completion handle */
-	bool IsCompletionHandleValid() const { return TaskPointer != nullptr; }
+	bool IsCompletionHandleValid() const { return (InternalData && InternalData->TaskPointer); }
 	/**
 	* Gets the current completion handle of this tick function, so it can be delayed until a later point when some additional
 	* tasks have been completed.  Only valid after TG_PreAsyncWork has started and then only until the TickFunction finishes
@@ -311,7 +322,7 @@ public:
 	**/
 	TEnumAsByte<enum ETickingGroup> GetActualTickGroup() const
 	{
-		return ActualStartTickGroup;
+		return (InternalData ? InternalData->ActualStartTickGroup : TickGroup);
 	}
 
 	/** 
@@ -320,7 +331,7 @@ public:
 	**/
 	TEnumAsByte<enum ETickingGroup> GetActualEndTickGroup() const
 	{
-		return ActualEndTickGroup;
+		return (InternalData ? InternalData->ActualEndTickGroup : EndTickGroup);
 	}
 
 
@@ -478,7 +489,7 @@ struct FActorComponentTickFunction : public FTickFunction
 	ENGINE_API virtual FName DiagnosticContext(bool bDetailed) override;
 
 	/**
-	 * Conditionally calls ExecuteTickFunc if bRegistered == true and a bunch of other criteria are met
+	 * Conditionally calls ExecuteTickFunc if registered and a bunch of other criteria are met
 	 * @param Target - the actor component we are ticking
 	 * @param bTickInEditor - whether the target wants to tick in the editor
 	 * @param DeltaTime - The time since the last tick.
@@ -852,6 +863,11 @@ struct ENGINE_API FURL
 	 * Convert this URL to text.
 	 */
 	FString ToString( bool FullyQualified=0 ) const;
+
+	/**
+	 * Prepares the Host and Port values into a standards compliant string
+	 */
+	FString GetHostPortString() const;
 
 	/**
 	 * Serializes a FURL to or from an archive.

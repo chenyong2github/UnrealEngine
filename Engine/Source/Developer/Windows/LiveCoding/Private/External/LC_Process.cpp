@@ -4,361 +4,18 @@
 #include "LC_Memory.h"
 #include "LC_PointerUtil.h"
 #include "LC_VirtualMemory.h"
+#include "LC_WindowsInternals.h"
+#include "LC_WindowsInternalFunctions.h"
 #include "LC_Logging.h"
 #include <Psapi.h>
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 
 // BEGIN EPIC MODS
 #pragma warning(push)
 #pragma warning(disable:6011) // warning C6011: Dereferencing NULL pointer 'processInfo'.
 #pragma warning(disable:6335) // warning C6335: Leaking process information handle 'context->pi.hProcess'.
 // END EPIC MODS
-
-// internal ntdll.dll definitions
-typedef LONG NTSTATUS;
-typedef LONG KPRIORITY;
-
-enum NT_SYSTEM_INFORMATION_CLASS
-{
-	SystemBasicInformation = 0,
-	SystemPerformanceInformation = 2,
-	SystemTimeOfDayInformation = 3,
-	SystemProcessInformation = 5,
-	SystemProcessorPerformanceInformation = 8,
-	SystemHandleInformation = 16,
-	SystemInterruptInformation = 23,
-	SystemExceptionInformation = 33,
-	SystemRegistryQuotaInformation = 37,
-	SystemLookasideInformation = 45,
-	SystemProcessIdInformation = 0x58
-};
-
-enum NT_KWAIT_REASON
-{
-	Executive,
-	FreePage,
-	PageIn,
-	PoolAllocation,
-	DelayExecution,
-	Suspended,
-	UserRequest,
-	WrExecutive,
-	WrFreePage,
-	WrPageIn,
-	WrPoolAllocation,
-	WrDelayExecution,
-	WrSuspended,
-	WrUserRequest,
-	WrEventPair,
-	WrQueue,
-	WrLpcReceive,
-	WrLpcReply,
-	WrVirtualMemory,
-	WrPageOut,
-	WrRendezvous,
-	Spare2,
-	Spare3,
-	Spare4,
-	Spare5,
-	Spare6,
-	WrKernel,
-	MaximumWaitReason
-};
-
-struct NT_CLIENT_ID
-{
-	HANDLE UniqueProcess;
-	HANDLE UniqueThread;
-};
-
-struct NT_SYSTEM_THREAD_INFORMATION
-{
-	LARGE_INTEGER KernelTime;
-	LARGE_INTEGER UserTime;
-	LARGE_INTEGER CreateTime;
-	ULONG WaitTime;
-	PVOID StartAddress;
-	NT_CLIENT_ID ClientId;
-	KPRIORITY Priority;
-	LONG BasePriority;
-	ULONG ContextSwitches;
-	ULONG ThreadState;
-	NT_KWAIT_REASON WaitReason;
-};
-
-struct NT_UNICODE_STRING
-{
-	USHORT Length;
-	USHORT MaximumLength;
-	PWSTR Buffer;
-};
-
-struct NT_SYSTEM_PROCESS_INFORMATION
-{
-	ULONG uNext;
-	ULONG uThreadCount;
-	LARGE_INTEGER WorkingSetPrivateSize; // since VISTA
-	ULONG HardFaultCount; // since WIN7
-	ULONG NumberOfThreadsHighWatermark; // since WIN7
-	ULONGLONG CycleTime; // since WIN7
-	LARGE_INTEGER CreateTime;
-	LARGE_INTEGER UserTime;
-	LARGE_INTEGER KernelTime;
-	NT_UNICODE_STRING ImageName;
-	KPRIORITY BasePriority;
-	HANDLE uUniqueProcessId;
-	HANDLE InheritedFromUniqueProcessId;
-	ULONG HandleCount;
-	ULONG SessionId;
-	ULONG_PTR UniqueProcessKey; // since VISTA (requires SystemExtendedProcessInformation)
-	SIZE_T PeakVirtualSize;
-	SIZE_T VirtualSize;
-	ULONG PageFaultCount;
-	SIZE_T PeakWorkingSetSize;
-	SIZE_T WorkingSetSize;
-	SIZE_T QuotaPeakPagedPoolUsage;
-	SIZE_T QuotaPagedPoolUsage;
-	SIZE_T QuotaPeakNonPagedPoolUsage;
-	SIZE_T QuotaNonPagedPoolUsage;
-	SIZE_T PagefileUsage;
-	SIZE_T PeakPagefileUsage;
-	SIZE_T PrivatePageCount;
-	LARGE_INTEGER ReadOperationCount;
-	LARGE_INTEGER WriteOperationCount;
-	LARGE_INTEGER OtherOperationCount;
-	LARGE_INTEGER ReadTransferCount;
-	LARGE_INTEGER WriteTransferCount;
-	LARGE_INTEGER OtherTransferCount;
-	NT_SYSTEM_THREAD_INFORMATION Threads[1];
-};
-
-enum NT_PROCESS_INFORMATION_CLASS
-{
-	ProcessBasicInformation,
-	ProcessQuotaLimits,
-	ProcessIoCounters,
-	ProcessVmCounters,
-	ProcessTimes,
-	ProcessBasePriority,
-	ProcessRaisePriority,
-	ProcessDebugPort,
-	ProcessExceptionPort,
-	ProcessAccessToken,
-	ProcessLdtInformation,
-	ProcessLdtSize,
-	ProcessDefaultHardErrorMode,
-	ProcessIoPortHandlers,          // Note: this is kernel mode only
-	ProcessPooledUsageAndLimits,
-	ProcessWorkingSetWatch,
-	ProcessUserModeIOPL,
-	ProcessEnableAlignmentFaultFixup,
-	ProcessPriorityClass,
-	ProcessWx86Information,
-	ProcessHandleCount,
-	ProcessAffinityMask,
-	ProcessPriorityBoost,
-	ProcessDeviceMap,
-	ProcessSessionInformation,
-	ProcessForegroundInformation,
-	ProcessWow64Information,
-	ProcessImageFileName,
-	ProcessLUIDDeviceMapsEnabled,
-	ProcessBreakOnTermination,
-	ProcessDebugObjectHandle,
-	ProcessDebugFlags,
-	ProcessHandleTracing,
-	ProcessIoPriority,
-	ProcessExecuteFlags,
-	ProcessTlsInformation,
-	ProcessCookie,
-	ProcessImageInformation,
-	ProcessCycleTime,
-	ProcessPagePriority,
-	ProcessInstrumentationCallback,
-	ProcessThreadStackAllocation,
-	ProcessWorkingSetWatchEx,
-	ProcessImageFileNameWin32,
-	ProcessImageFileMapping,
-	ProcessAffinityUpdateMode,
-	ProcessMemoryAllocationMode,
-	ProcessGroupInformation,
-	ProcessTokenVirtualizationEnabled,
-	ProcessConsoleHostProcess,
-	ProcessWindowInformation,
-	MaxProcessInfoClass
-};
-
-struct RTL_USER_PROCESS_PARAMETERS
-{
-	BYTE Reserved1[16];
-	PVOID Reserved2[10];
-	NT_UNICODE_STRING ImagePathName;
-	NT_UNICODE_STRING CommandLine;
-};
-
-struct NT_LDR_DATA_TABLE_ENTRY
-{
-	LIST_ENTRY InLoadOrderLinks;
-	LIST_ENTRY InMemoryOrderLinks;
-	LIST_ENTRY InInitializationOrderLinks;
-	PVOID DllBase;
-	PVOID EntryPoint;
-	ULONG SizeOfImage;
-	NT_UNICODE_STRING FullDllName;
-	NT_UNICODE_STRING BaseDllName;
-	ULONG Flags;
-	USHORT LoadCount;
-	USHORT ObsoleteLoadCount;
-	USHORT TlsIndex;
-	LIST_ENTRY HashLinks;
-	ULONG TimeDateStamp;
-};
-
-struct NT_PEB_LDR_DATA
-{
-	ULONG Length;
-	BOOLEAN Initialized;
-	PVOID SsHandle;
-	LIST_ENTRY InLoadOrderModuleList;
-	LIST_ENTRY InMemoryOrderModuleList;
-	LIST_ENTRY InInitializationOrderModuleList;
-	PVOID EntryInProgress;
-	BOOLEAN ShutdownInProgress;
-	HANDLE ShutdownThreadId;
-};
-
-typedef VOID (NTAPI *NT_PS_POST_PROCESS_INIT_ROUTINE)(VOID);
-
-// not the real full definition, but enough for our purposes
-struct NT_PEB
-{
-	BYTE Reserved1[2];
-	BYTE BeingDebugged;
-	BYTE Reserved2[1];
-	PVOID Reserved3[2];
-	NT_PEB_LDR_DATA* Ldr;
-	RTL_USER_PROCESS_PARAMETERS* ProcessParameters;
-	PVOID Reserved4[3];
-	PVOID AtlThunkSListPtr;
-	PVOID Reserved5;
-	ULONG Reserved6;
-	PVOID Reserved7;
-	ULONG Reserved8;
-	ULONG AtlThunkSListPtr32;
-	PVOID Reserved9[45];
-	BYTE Reserved10[96];
-	NT_PS_POST_PROCESS_INIT_ROUTINE* PostProcessInitRoutine;
-	BYTE Reserved11[128];
-	PVOID Reserved12[1];
-	ULONG SessionId;
-};
-
-struct NT_PROCESS_BASIC_INFORMATION
-{
-	NTSTATUS ExitStatus;
-	NT_PEB* PebBaseAddress;
-	ULONG_PTR AffinityMask;
-	KPRIORITY BasePriority;
-	HANDLE UniqueProcessId;
-	HANDLE InheritedFromUniqueProcessId;
-};
-
-#define NT_SUCCESS(Status)				((NTSTATUS)(Status) >= 0)
-#define STATUS_INFO_LENGTH_MISMATCH		((NTSTATUS)0xC0000004L)
-
-
-// these are undocumented functions, found in ntdll.dll.
-// we don't call them directly, but use them for extracting their signature.
-extern "C" NTSTATUS NtSuspendProcess(HANDLE ProcessHandle);
-extern "C" NTSTATUS NtResumeProcess(HANDLE ProcessHandle);
-extern "C" NTSTATUS NtWriteVirtualMemory(HANDLE ProcessHandle, PVOID BaseAddress, PVOID Buffer, ULONG NumberOfBytesToWrite, PULONG NumberOfBytesWritten);
-extern "C" NTSTATUS NtQuerySystemInformation(NT_SYSTEM_INFORMATION_CLASS SystemInformationClass, PVOID SystemInformation, ULONG SystemInformationLength, PULONG ReturnLength);
-extern "C" NTSTATUS NtQueryInformationProcess(HANDLE ProcessHandle, NT_PROCESS_INFORMATION_CLASS ProcessInformationClass, PVOID ProcessInformation, ULONG ProcessInformationLength, PULONG ReturnLength);
-extern "C" NTSTATUS NtContinue(CONTEXT* ThreadContext, BOOLEAN RaiseAlert);
-
-
-namespace
-{
-	// helper class that allows us to call an undocumented function in any Windows DLL, as long as it is exported and we know its signature
-	template <typename T>
-	class UndocumentedFunction {};
-
-	template <typename R, typename... Args>
-	class UndocumentedFunction<R(Args...)>
-	{
-		typedef R (NTAPI *Function)(Args...);
-
-	public:
-		UndocumentedFunction(const char* moduleName, const char* functionName)
-			: m_moduleName(moduleName)
-			, m_functionName(functionName)
-			, m_function(nullptr)
-		{
-			HMODULE module = ::GetModuleHandleA(moduleName);
-			if (!module)
-			{
-				LC_ERROR_USER("Cannot get handle for module %s", moduleName);
-				return;
-			}
-
-			m_function = reinterpret_cast<Function>(reinterpret_cast<uintptr_t>(::GetProcAddress(module, functionName)));
-			if (!m_function)
-			{
-				LC_ERROR_USER("Cannot get address of function %s in module %s", functionName, moduleName);
-			}
-		}
-
-		R operator()(Args... args) const
-		{
-			const NTSTATUS status = m_function(std::forward<Args>(args)...);
-			if (!NT_SUCCESS(status))
-			{
-				LC_ERROR_USER("Call to function %s in module %s failed. Error: 0x%X", m_functionName, m_moduleName, status);
-			}
-
-			return status;
-		}
-
-	private:
-		const char* m_moduleName;
-		const char* m_functionName;
-		Function m_function;
-	};
-
-
-	static uint32_t ConvertToExecutableProtection(uint32_t currentProtection)
-	{
-		// cut off PAGE_GUARD, PAGE_NOCACHE, PAGE_WRITECOMBINE, and PAGE_REVERT_TO_FILE_MAP
-		const uint32_t extraBits = currentProtection & 0xFFFFFF00u;
-		const uint32_t pageProtection = currentProtection & 0x000000FFu;
-
-		switch (pageProtection)
-		{
-			case PAGE_NOACCESS:
-			case PAGE_READONLY:
-			case PAGE_READWRITE:
-			case PAGE_WRITECOPY:
-				return (pageProtection << 4u) | extraBits;
-
-			case PAGE_EXECUTE:
-			case PAGE_EXECUTE_READ:
-			case PAGE_EXECUTE_READWRITE:
-			case PAGE_EXECUTE_WRITECOPY:
-			default:
-				return currentProtection;
-		}
-	}
-}
-
-
-namespace undocumentedFunctions
-{
-	static UndocumentedFunction<decltype(NtSuspendProcess)> NtSuspendProcess("ntdll.dll", "NtSuspendProcess");
-	static UndocumentedFunction<decltype(NtResumeProcess)> NtResumeProcess("ntdll.dll", "NtResumeProcess");
-	static UndocumentedFunction<decltype(NtWriteVirtualMemory)> NtWriteVirtualMemory("ntdll.dll", "NtWriteVirtualMemory");
-	static UndocumentedFunction<decltype(NtQuerySystemInformation)> NtQuerySystemInformation("ntdll.dll", "NtQuerySystemInformation");
-	static UndocumentedFunction<decltype(NtQueryInformationProcess)> NtQueryInformationProcess("ntdll.dll", "NtQueryInformationProcess");
-	static UndocumentedFunction<decltype(NtContinue)> NtContinue("ntdll.dll", "NtContinue");
-}
 
 
 namespace process
@@ -476,10 +133,21 @@ namespace process
 			LC_LOG_DEV("Command line: %S", commandLineBuffer ? commandLineBuffer : L"none");
 			LC_LOG_DEV("Working directory: %S", workingDirectory ? workingDirectory : L"none");
 			LC_LOG_DEV("Custom environment block: %S", environmentBlock ? L"yes" : L"no");
+			LC_LOG_DEV("Flags: %u", flags);
+		}
+
+		DWORD creationFlags = CREATE_UNICODE_ENVIRONMENT;
+		if (flags & SpawnFlags::NO_WINDOW)
+		{
+			creationFlags |= CREATE_NO_WINDOW;
+		}
+		if (flags & SpawnFlags::SUSPENDED)
+		{
+			creationFlags |= CREATE_SUSPENDED;
 		}
 
 		// the environment block is not written to by CreateProcess, so it is safe to const_cast (it's a Win32 API mistake)
-		const BOOL success = ::CreateProcessW(exePath, commandLineBuffer, NULL, NULL, Windows::TRUE, CREATE_NO_WINDOW, const_cast<void*>(environmentBlock), workingDirectory, &startupInfo, &context->pi);
+		const BOOL success = ::CreateProcessW(exePath, commandLineBuffer, NULL, NULL, Windows::TRUE, creationFlags, const_cast<void*>(environmentBlock), workingDirectory, &startupInfo, &context->pi);
 		if (success == 0)
 		{
 			LC_ERROR_USER("Could not spawn process %S. Error: %d", exePath, ::GetLastError());
@@ -495,6 +163,12 @@ namespace process
 		}
 
 		return context;
+	}
+
+
+	void ResumeMainThread(Context* context)
+	{
+		::ResumeThread(context->pi.hThread);
 	}
 
 
@@ -515,6 +189,18 @@ namespace process
 
 		DWORD exitCode = 0xFFFFFFFFu;
 		::GetExitCodeProcess(context->pi.hProcess, &exitCode);
+
+		return exitCode;
+	}
+
+
+	unsigned int Wait(Handle handle)
+	{
+		// wait until process terminates
+		::WaitForSingleObject(handle, INFINITE);
+
+		DWORD exitCode = 0xFFFFFFFFu;
+		::GetExitCodeProcess(handle, &exitCode);
 
 		return exitCode;
 	}
@@ -558,6 +244,21 @@ namespace process
 		::QueryFullProcessImageName(handle, 0u, processName, &charCount);
 
 		return std::wstring(processName);
+	}
+
+
+	std::wstring GetWorkingDirectory(void)
+	{
+		wchar_t workingDirectory[MAX_PATH + 1] = {};
+		::GetCurrentDirectoryW(MAX_PATH + 1u, workingDirectory);
+
+		return std::wstring(workingDirectory);
+	}
+
+
+	std::wstring GetCommandLine(void)
+	{
+		return std::wstring(::GetCommandLineW());
 	}
 
 
@@ -619,7 +320,7 @@ namespace process
 			// than in previous versions of Windows.
 			// this bug was reported here:
 			// https://developercommunity.visualstudio.com/content/problem/228061/writeprocessmemory-slowdown-on-windows-10.html
-			undocumentedFunctions::NtWriteVirtualMemory(handle, destAddress, const_cast<PVOID>(srcBuffer), static_cast<ULONG>(size), NULL);
+			windowsInternal::NtWriteVirtualMemory(handle, destAddress, const_cast<PVOID>(srcBuffer), static_cast<ULONG>(size), NULL);
 		}
 		::VirtualProtectEx(handle, destAddress, size, oldProtect, &oldProtect);
 	}
@@ -644,8 +345,8 @@ namespace process
 				return nullptr;
 			}
 
-			MEMORY_BASIC_INFORMATION memoryInfo = {};
-			::VirtualQueryEx(handle, scan, &memoryInfo, sizeof(MEMORY_BASIC_INFORMATION));
+			::MEMORY_BASIC_INFORMATION memoryInfo = {};
+			::VirtualQueryEx(handle, scan, &memoryInfo, sizeof(::MEMORY_BASIC_INFORMATION));
 
 			if ((memoryInfo.RegionSize >= size) && (memoryInfo.State == MEM_FREE))
 			{
@@ -665,15 +366,15 @@ namespace process
 
 		for (const void* scan = address; /* nothing */; /* nothing */)
 		{
-			MEMORY_BASIC_INFORMATION memoryInfo = {};
-			const SIZE_T bytesInBuffer = ::VirtualQueryEx(handle, scan, &memoryInfo, sizeof(MEMORY_BASIC_INFORMATION));
+			::MEMORY_BASIC_INFORMATION memoryInfo = {};
+			const SIZE_T bytesInBuffer = ::VirtualQueryEx(handle, scan, &memoryInfo, sizeof(::MEMORY_BASIC_INFORMATION));
 			if (bytesInBuffer == 0u)
 			{
 				// could not query the protection, bail out
 				break;
 			}
 
-			const uint32_t executableProtection = ConvertToExecutableProtection(memoryInfo.Protect);
+			const uint32_t executableProtection = ConvertPageProtectionToExecutableProtection(memoryInfo.Protect);
 			if (executableProtection != memoryInfo.Protect)
 			{
 				// change this page into an executable one
@@ -702,19 +403,19 @@ namespace process
 
 	void Suspend(Handle handle)
 	{
-		undocumentedFunctions::NtSuspendProcess(handle);
+		windowsInternal::NtSuspendProcess(handle);
 	}
 
 
 	void Resume(Handle handle)
 	{
-		undocumentedFunctions::NtResumeProcess(handle);
+		windowsInternal::NtResumeProcess(handle);
 	}
 
 
 	void Continue(CONTEXT* threadContext)
 	{
-		undocumentedFunctions::NtContinue(threadContext, Windows::FALSE);
+		windowsInternal::NtContinue(threadContext, Windows::FALSE);
 	}
 
 
@@ -726,14 +427,14 @@ namespace process
 		// 2MB should be enough for getting the process information, even on systems with high load
 		ULONG bufferSize = 2048u * 1024u;
 		void* processSnapshot = nullptr;
-		NTSTATUS status = 0;
+		windowsInternal::NTSTATUS status = 0;
 
 		do
 		{
 			processSnapshot = ::malloc(bufferSize);
 
 			// try getting a process snapshot into the provided buffer
-			status = undocumentedFunctions::NtQuerySystemInformation(SystemProcessInformation, processSnapshot, bufferSize, NULL);
+			status = windowsInternal::NtQuerySystemInformation(windowsInternal::SystemProcessInformation, processSnapshot, bufferSize, NULL);
 
 			if (status == STATUS_INFO_LENGTH_MISMATCH)
 			{
@@ -756,17 +457,17 @@ namespace process
 
 		// find the process information for the given process ID
 		{
-			NT_SYSTEM_PROCESS_INFORMATION* processInfo = static_cast<NT_SYSTEM_PROCESS_INFORMATION*>(processSnapshot);
+			windowsInternal::NT_SYSTEM_PROCESS_INFORMATION* processInfo = static_cast<windowsInternal::NT_SYSTEM_PROCESS_INFORMATION*>(processSnapshot);
 
 			while (processInfo != nullptr)
 			{
-				if (processInfo->uUniqueProcessId == reinterpret_cast<HANDLE>(static_cast<DWORD_PTR>(processId)))
+				if (processInfo->UniqueProcessId == reinterpret_cast<HANDLE>(static_cast<DWORD_PTR>(processId)))
 				{
 					// we found the process we're looking for
 					break;
 				}
 
-				if (processInfo->uNext == 0u)
+				if (processInfo->NextEntryOffset == 0u)
 				{
 					// we couldn't find our process
 					LC_ERROR_USER("Cannot enumerate threads, process not found (PID: %d)", processId);
@@ -777,14 +478,14 @@ namespace process
 				else
 				{
 					// walk to the next process info
-					processInfo = pointer::Offset<NT_SYSTEM_PROCESS_INFORMATION*>(processInfo, processInfo->uNext);
+					processInfo = pointer::Offset<windowsInternal::NT_SYSTEM_PROCESS_INFORMATION*>(processInfo, processInfo->NextEntryOffset);
 				}
 			}
 
 			// record all threads belonging to the given process
 			if (processInfo)
 			{
-				for (ULONG i = 0u; i < processInfo->uThreadCount; ++i)
+				for (ULONG i = 0u; i < processInfo->NumberOfThreads; ++i)
 				{
 					const DWORD threadId = static_cast<DWORD>(reinterpret_cast<DWORD_PTR>(processInfo->Threads[i].ClientId.UniqueThread));
 					threadIds.push_back(threadId);
@@ -800,38 +501,159 @@ namespace process
 
 	std::vector<Module> EnumerateModules(Handle handle)
 	{
+		// 1024 modules should be enough for most processes
 		std::vector<Module> modules;
-		modules.reserve(256u);
+		modules.reserve(1024u);
 
-		NT_PROCESS_BASIC_INFORMATION pbi = {};
-		undocumentedFunctions::NtQueryInformationProcess(handle, ProcessBasicInformation, &pbi, sizeof(pbi), NULL);
+		windowsInternal::NT_PROCESS_BASIC_INFORMATION pbi = {};
+		windowsInternal::NtQueryInformationProcess(handle, windowsInternal::ProcessBasicInformation, &pbi, sizeof(pbi), NULL);
 
-		NT_PEB processPEB = {};
-		ReadProcessMemory(handle, pbi.PebBaseAddress, &processPEB, sizeof(NT_PEB));
-
-		NT_PEB_LDR_DATA loaderData = {};
-		ReadProcessMemory(handle, processPEB.Ldr, &loaderData, sizeof(NT_PEB_LDR_DATA));
+		const windowsInternal::NT_PEB processPEB = ReadProcessMemory<windowsInternal::NT_PEB>(handle, pbi.PebBaseAddress);
+		const windowsInternal::NT_PEB_LDR_DATA loaderData = ReadProcessMemory<windowsInternal::NT_PEB_LDR_DATA>(handle, processPEB.Ldr);
 
 		LIST_ENTRY* listHeader = loaderData.InLoadOrderModuleList.Flink;
 		LIST_ENTRY* currentNode = listHeader;
 		do
 		{
-			NT_LDR_DATA_TABLE_ENTRY entry = {};
-			ReadProcessMemory(handle, currentNode, &entry, sizeof(NT_LDR_DATA_TABLE_ENTRY));
+			const windowsInternal::NT_LDR_DATA_TABLE_ENTRY entry = ReadProcessMemory<windowsInternal::NT_LDR_DATA_TABLE_ENTRY>(handle, currentNode);
 
-			currentNode = entry.InLoadOrderLinks.Flink;
-
-			WCHAR fullDllName[MAX_PATH] = {};
+			wchar_t fullDllName[MAX_PATH] = {};
 			if (entry.FullDllName.Length > 0)
 			{
 				ReadProcessMemory(handle, entry.FullDllName.Buffer, fullDllName, entry.FullDllName.Length);
 			}
 
 			modules.emplace_back(Module { fullDllName, entry.DllBase, entry.SizeOfImage });
+
+			currentNode = entry.InLoadOrderLinks.Flink;
+			if (currentNode == nullptr)
+			{
+				break;
+			}
 		}
 		while (listHeader != currentNode);
 
 		return modules;
+	}
+
+
+	uint32_t ConvertPageProtectionToExecutableProtection(uint32_t protection)
+	{
+		// cut off PAGE_GUARD, PAGE_NOCACHE, PAGE_WRITECOMBINE, and PAGE_REVERT_TO_FILE_MAP
+		const uint32_t extraBits = protection & 0xFFFFFF00u;
+		const uint32_t pageProtection = protection & 0x000000FFu;
+
+		switch (pageProtection)
+		{
+			case PAGE_NOACCESS:
+			case PAGE_READONLY:
+			case PAGE_READWRITE:
+			case PAGE_WRITECOPY:
+				return (pageProtection << 4u) | extraBits;
+
+			case PAGE_EXECUTE:
+			case PAGE_EXECUTE_READ:
+			case PAGE_EXECUTE_READWRITE:
+			case PAGE_EXECUTE_WRITECOPY:
+			default:
+				return protection;
+		}
+	}
+
+
+	bool IsWoW64(Handle handle)
+	{
+		// a WoW64 process has a PEB32 instead of a real PEB.
+		// if we get a meaningful pointer to this PEB32, the process is running under WoW64.
+		ULONG_PTR peb32 = 0u;
+		windowsInternal::NtQueryInformationProcess(handle, windowsInternal::ProcessWow64Information, &peb32, sizeof(ULONG_PTR), NULL);
+
+		return (peb32 != 0u);
+	}
+
+
+	Environment* CreateEnvironment(Handle handle)
+	{
+		const void* processEnvironment = nullptr;
+
+		const bool isWow64 = IsWoW64(handle);
+		if (!isWow64)
+		{
+			// this is either a 32-bit process running on 32-bit Windows, or a 64-bit process running on 64-bit Windows.
+			// the environment can be retrieved directly from the process' PEB and process parameters.
+			windowsInternal::NT_PROCESS_BASIC_INFORMATION pbi = {};
+			windowsInternal::NtQueryInformationProcess(handle, windowsInternal::ProcessBasicInformation, &pbi, sizeof(pbi), NULL);
+
+			const windowsInternal::NT_PEB peb = ReadProcessMemory<windowsInternal::NT_PEB>(handle, pbi.PebBaseAddress);
+			const windowsInternal::RTL_USER_PROCESS_PARAMETERS parameters = ReadProcessMemory<windowsInternal::RTL_USER_PROCESS_PARAMETERS>(handle, peb.ProcessParameters);
+
+			processEnvironment = parameters.Environment;
+		}
+		else
+		{
+			// this is a process running under WoW64.
+			// we must get the environment from the PEB32 of the process, rather than the "real" PEB.
+			ULONG_PTR peb32Wow64 = 0u;
+			windowsInternal::NtQueryInformationProcess(handle, windowsInternal::ProcessWow64Information, &peb32Wow64, sizeof(ULONG_PTR), NULL);
+
+			const windowsInternal::NT_PEB32 peb32 = ReadProcessMemory<windowsInternal::NT_PEB32>(handle, pointer::FromInteger<const void*>(peb32Wow64));
+			const windowsInternal::RTL_USER_PROCESS_PARAMETERS32 parameters32 = ReadProcessMemory<windowsInternal::RTL_USER_PROCESS_PARAMETERS32>(handle, pointer::FromInteger<const void*>(peb32.ProcessParameters32));
+
+			processEnvironment = pointer::FromInteger<const void*>(parameters32.Environment);		
+		}
+
+		if (!processEnvironment)
+		{
+			return nullptr;
+		}
+
+		// query the size of the page(s) the environment is stored in
+		::MEMORY_BASIC_INFORMATION memoryInfo = {};
+		const SIZE_T bytesInBuffer = ::VirtualQueryEx(handle, processEnvironment, &memoryInfo, sizeof(::MEMORY_BASIC_INFORMATION));
+		if (bytesInBuffer == 0u)
+		{
+			// operation failed, bail out
+			return nullptr;
+		}
+
+		Environment* environment = new Environment;
+		environment->size = memoryInfo.RegionSize - (reinterpret_cast<uintptr_t>(processEnvironment) - reinterpret_cast<uintptr_t>(memoryInfo.BaseAddress));
+		environment->data = new char[environment->size];
+
+		ReadProcessMemory(handle, processEnvironment, environment->data, environment->size);
+
+		return environment;
+	}
+
+
+	// BEGIN EPIC MOD - Allow passing environment block for linker
+	Environment* CreateEnvironmentFromMap(const TMap<FString, FString>& Pairs)
+	{
+		std::vector<wchar_t> environmentData;
+		for (const TPair<FString, FString>& Pair : Pairs)
+		{
+			FString Variable = FString::Printf(TEXT("%s=%s"), *Pair.Key, *Pair.Value);
+			environmentData.insert(environmentData.end(), *Variable, *Variable + (Variable.Len() + 1));
+		}
+		environmentData.push_back('\0');
+
+		Environment* environment = new Environment;
+		environment->size = environmentData.size();
+		environment->data = new char[environmentData.size() * sizeof(wchar_t)];
+		memcpy(environment->data, environmentData.data(), environmentData.size() * sizeof(wchar_t));
+		return environment;
+	}
+	// END EPIC MOD
+
+
+	void DestroyEnvironment(Environment*& environment)
+	{
+		if (environment)
+		{
+			delete[] environment->data;
+		}
+
+		memory::DeleteAndNull(environment);
 	}
 
 

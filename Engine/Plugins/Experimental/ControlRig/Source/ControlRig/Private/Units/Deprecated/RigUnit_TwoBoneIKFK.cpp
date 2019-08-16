@@ -7,6 +7,7 @@
 
 void FRigUnit_TwoBoneIKFK::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	FRigHierarchyRef& HierarchyRef = ExecuteContext.HierarchyReference;
 
 	if (Context.State == EControlRigState::Init)
@@ -118,18 +119,7 @@ void FRigUnit_TwoBoneIKFK::Execute(const FRigUnitContext& Context)
 
 void FRigUnit_TwoBoneIKFK::SolveIK()
 {
-	if (bUsePoleTarget)
-	{
-		AnimationCore::SolveTwoBoneIK(StartJointIKTransform, MidJointIKTransform, EndJointIKTransform, PoleTarget, EndEffector.GetLocation(), UpperLimbLength, LowerLimbLength, false, 1.0f, 1.05f);
-	}
-	else
-	{
-		// default IK
-		// @todo: we don't have that yet, so default to using pole vector
-		ensure(false);
-		AnimationCore::SolveTwoBoneIK(StartJointIKTransform, MidJointIKTransform, EndJointIKTransform, PoleTarget, EndEffector.GetLocation(), UpperLimbLength, LowerLimbLength, false, 1.0f, 1.05f);
-	}
-
+	AnimationCore::SolveTwoBoneIK(StartJointIKTransform, MidJointIKTransform, EndJointIKTransform, PoleTarget, EndEffector.GetLocation(), UpperLimbLength, LowerLimbLength, false, 1.0f, 1.05f);
 	// set end effector rotation to current rotation
 	EndJointIKTransform.SetRotation(EndEffector.GetRotation());
 }

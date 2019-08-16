@@ -1,31 +1,31 @@
-﻿INTSourceChangelist:3409833
-title:分层细节级别
-description:分层细节级别系统在虚幻引擎 4 中的着陆页面。
-crumbs:
-availability:Public
-version:4.13
-parent:Engine
-order:13
-type:landing
-tags:HLOD
+﻿INTSourceChangelist:6519040
+Availability: Public
+Title: 分层细节级别
+Description: 关于虚幻引擎4中分层细节级别系统的信息。
+Type: landing
+Version: 4.22
+Parent: Engine
+Order:13
+Tags: HLOD
 topic-image:defaultHLOD_topic.png
 social-image:HLOD_social.png
+topic-icon: defaultHLOD_topic.png
 
 ![](HLOD_header.png)
 
-[INCLUDE:Shared/Editor/HLOD#main]
+**分层细节级别** （HLOD）系统以被部署到引擎中，它可以提升性能并让使用虚幻引擎4.11或更高版本的项目保持高品质水准。HLOD系统可以使用单个经过合并的静态网格体Actor替换远距离上的多个静态网格体Actor。这有助于减少场景中需要渲染的Actor数量，通过降低每帧的绘制调用数量来提升性能。
 
-(#StartingOut)
-## 开始
+查看下方的各部分内容，了解关于如何使用该系统的更多信息。 
+
+
+## 入门
 
 [DIR(output:"topic" type:"overview" parent:"Engine/HLOD")]
 
-(#Guides)
 ## 指南
 
-[DIR(output:"topic" type:"how-to" parent:"Engine/HLOD")]
+[DIR(output:"topic" type:"landing" parent:"Engine/HLOD")]
 
-(#Reference)
 ## 参考
 
 [DIR(output:"topic" type:"reference" parent:"Engine/HLOD")]

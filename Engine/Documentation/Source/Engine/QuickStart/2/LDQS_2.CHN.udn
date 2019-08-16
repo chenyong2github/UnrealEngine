@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3782314
-Availability: Public
+﻿INTSourceChangelist:6077702
+Availability: docs
 Title:2 - 导航视口
 Crumbs:%ROOT%, GettingStarted, Engine/QuickStart
 Description:学习在虚幻引擎4中导航不同视口的各种方法。 
@@ -9,6 +9,8 @@ Related:Engine/UI/LevelEditor/Viewports
 Related:Engine/Levels
 Related:Engine/UI/LevelEditor/Viewports/ViewportControls
 checkpoint: editorqs
+
+## 页面已被合并，标记为docs。 
 
 [VAR:Steps]
 [OBJECT:Navigation]

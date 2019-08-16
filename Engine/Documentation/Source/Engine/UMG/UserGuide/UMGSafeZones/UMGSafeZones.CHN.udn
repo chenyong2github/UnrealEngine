@@ -4,7 +4,7 @@ Crumbs:
 Title: UMG安全区
 Description: 此页面介绍了安全区，它是设计用于防止UI显示在玩家看不到的地方的控件。
 Version: 4.20
-Parent: Engine/
+Parent: Engine/UMG/UserGuide
 Order: 5 
 Tags: UMG UI Designer
 Tags: UMG

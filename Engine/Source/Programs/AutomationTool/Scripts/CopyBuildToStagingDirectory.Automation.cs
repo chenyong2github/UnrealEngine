@@ -402,6 +402,7 @@ public partial class Project : CommandUtils
 			// stage all the previously staged files
 			SC.StageFiles(StagedFileType.NonUFS, DirectoryReference.Combine(SC.ProjectRoot, "Saved", "SharedIterativeBuild", SC.CookPlatform, "Staged"), StageFilesSearch.AllDirectories, StagedDirectoryReference.Root); // remap to the root directory
 		}
+		bool bCreatePluginManifest = false;
 		if (Params.HasDLCName)
 		{
 			// Making a plugin
@@ -516,10 +517,7 @@ public partial class Project : CommandUtils
 				}
 			}
 
-			if (Params.UsePak(SC.StageTargetPlatform))
-			{
-				CreatePluginManifest(SC, SC.FilesToStage.UFSFiles, StagedFileType.UFS, Params.DLCFile.GetFileNameWithoutAnyExtensions());
-			}
+			bCreatePluginManifest = true;
 		}
 		else
 		{
@@ -825,18 +823,7 @@ public partial class Project : CommandUtils
 					}
 				}
 
-				// Generate a plugin manifest if we're using a pak file and not creating a mod. Mods can be enumerated independently by users copying them into the Mods directory.
-				if (Params.UsePak(SC.StageTargetPlatform))
-				{
-					if (Params.HasDLCName)
-					{
-						CreatePluginManifest(SC, SC.FilesToStage.NonUFSFiles, StagedFileType.NonUFS, Params.DLCFile.GetFileNameWithoutExtension());
-					}
-					else
-					{
-						CreatePluginManifest(SC, SC.FilesToStage.UFSFiles, StagedFileType.UFS, Params.ShortProjectName);
-					}
-				}
+				bCreatePluginManifest = true;
 			}
 			else
 			{
@@ -886,6 +873,20 @@ public partial class Project : CommandUtils
 		SC.FilesToStage.NonUFSFiles = SC.FilesToStage.NonUFSFiles.ToDictionary(x => ApplyDirectoryRemap(SC, x.Key), x => x.Value);
 		SC.FilesToStage.NonUFSDebugFiles = SC.FilesToStage.NonUFSDebugFiles.ToDictionary(x => ApplyDirectoryRemap(SC, x.Key), x => x.Value);
 		SC.FilesToStage.NonUFSSystemFiles = SC.FilesToStage.NonUFSSystemFiles.ToDictionary(x => ApplyDirectoryRemap(SC, x.Key), x => x.Value);
+
+		// Create plugin manifests after the directory mappings
+		if (bCreatePluginManifest && Params.UsePak(SC.StageTargetPlatform))
+		{
+			// Generate a plugin manifest if we're using a pak file and not creating a mod. Mods can be enumerated independently by users copying them into the Mods directory.
+			if (Params.HasDLCName)
+			{
+				CreatePluginManifest(SC, SC.FilesToStage.UFSFiles, StagedFileType.UFS, Params.DLCFile.GetFileNameWithoutAnyExtensions());
+			}
+			else
+			{
+				CreatePluginManifest(SC, SC.FilesToStage.UFSFiles, StagedFileType.UFS, Params.ShortProjectName);
+			}
+		}
 
 		// Make all the filenames lowercase
 		if (SC.StageTargetPlatform.DeployLowerCaseFilenames())
@@ -1367,6 +1368,8 @@ public partial class Project : CommandUtils
 			return null;
 		}
 
+		bool bChunkedBuild = SC.PlatformUsesChunkManifests && DoesChunkPakManifestExist(Params, SC);
+
 		ConfigHierarchy PakRulesConfig = new ConfigHierarchy(ConfigFiles);
 
 		List<PakFileRules> RulesList = new List<PakFileRules>();
@@ -1374,8 +1377,29 @@ public partial class Project : CommandUtils
 		{
 			//LogInformation("Building PakFileRules for Section {0}", SectionName);
 
-			string PlatformString, TargetString, PakString;
+			bool bOnlyChunkedBuilds = false;
+			if (!PakRulesConfig.TryGetValue(SectionName, "bOnlyChunkedBuilds", out bOnlyChunkedBuilds))
+			{
+				bOnlyChunkedBuilds = false;
+			}
 
+			bool bOnlyNonChunkedBuilds = false;
+			if (!PakRulesConfig.TryGetValue(SectionName, "bOnlyNonChunkedBuilds", out bOnlyNonChunkedBuilds))
+			{
+				bOnlyNonChunkedBuilds = false;
+			}
+
+			if (bChunkedBuild && bOnlyNonChunkedBuilds)
+			{
+				continue;
+			}
+
+			if(!bChunkedBuild && bOnlyChunkedBuilds)
+			{
+				continue;
+			}
+
+			string PlatformString;
 			if (PakRulesConfig.TryGetValue(SectionName, "Platforms", out PlatformString))
 			{
 				string[] PlatformStrings = PlatformString.Split(new char[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
@@ -1403,6 +1427,7 @@ public partial class Project : CommandUtils
 				}
 			}
 
+			string TargetString;
 			if (PakRulesConfig.TryGetValue(SectionName, "Targets", out TargetString))
 			{
 				string[] TargetStrings = TargetString.Split(new char[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
@@ -1436,6 +1461,7 @@ public partial class Project : CommandUtils
 			PakRules.Name = SectionName;
 			PakRulesConfig.TryGetValue(SectionName, "bExcludeFromPaks", out PakRules.bExcludeFromPaks);
 			PakRulesConfig.TryGetValue(SectionName, "bOverrideChunkManifest", out PakRules.bOverrideChunkManifest);
+			string PakString;
 			PakRulesConfig.TryGetValue(SectionName, "OverridePaks", out PakString);
 
 			if (PakString != null && PakString.Length > 0)
@@ -1458,7 +1484,7 @@ public partial class Project : CommandUtils
 				continue;
 			}
 
-			IEnumerable<string> FilesEnumberable;
+			IReadOnlyList<string> FilesEnumberable;
 			if (PakRulesConfig.TryGetValues(SectionName, "Files", out FilesEnumberable))
 			{
 				// Only add if we have actual files, we can end up with none due to config overriding
@@ -1502,6 +1528,7 @@ public partial class Project : CommandUtils
 					{
 						return;
 					}
+
 					if (PakRules.OverridePaks != null)
 					{
 						LogInformation("Overridding chunk assignment {0} to {1}, this can cause broken references", StagingFile.Key, string.Join(", ", PakRules.OverridePaks));
@@ -1510,7 +1537,6 @@ public partial class Project : CommandUtils
 					{
 						LogInformation("Removing {0} from pak despite chunk assignment, this can cause broken references", StagingFile.Key);
 					}
-
 				}
 
 				bExcludeFromPaks = PakRules.bExcludeFromPaks;
@@ -1524,6 +1550,7 @@ public partial class Project : CommandUtils
 				{
 					//LogInformation("Excluding {0} from pak file", StagingFile.Key);
 				}
+
 				return;
 			}
 		}
@@ -1539,18 +1566,19 @@ public partial class Project : CommandUtils
 	{
 		LogInformation("Creating pak using staging manifest.");
 
-		DumpManifest(SC, CombinePaths(CmdEnv.LogFolder, "PrePak" + (SC.DedicatedServer ? "_Server" : "")));
+		DumpManifest(SC, CombinePaths(CmdEnv.LogFolder, "PrePak" + (SC.DedicatedServer ? "_Server" : "") + "_" + SC.CookPlatform));
 
 		var UnrealPakResponseFile = CreatePakResponseFileFromStagingManifest(SC, SC.FilesToStage.UFSFiles);
 
 		List<PakFileRules> PakRulesList = GetPakFileRules(Params, SC);
 
-		List<string> PakList = new List<string>();
 		List<string> FilesToRemove = new List<string>();
 
 		// Apply the pak file rules, this can remove things but will not override the pak file name
 		foreach (var StagingFile in UnrealPakResponseFile)
 		{
+			List<string> PakList = new List<string>();
+
 			bool bExcludeFromPaks = false;
 			ApplyPakFileRules(PakRulesList, StagingFile, PakList, out bExcludeFromPaks);
 
@@ -2047,13 +2075,17 @@ public partial class Project : CommandUtils
 					string ChunkInstallBasePath = CombinePaths(Params.ChunkInstallDirectory, SC.FinalCookPlatform);
 					string RawDataPath = CombinePaths(ChunkInstallBasePath, VersionString, PakName);
 					string RawDataPakPath = CombinePaths(RawDataPath, PakName + "-" + SC.FinalCookPlatform + PostFix + ".pak");
+					bool bPakFilesAreSigned = InternalUtils.SafeFileExists(Path.ChangeExtension(OutputLocation.FullName, ".sig"));
+
 					//copy the pak chunk to the raw data folder
-					if (InternalUtils.SafeFileExists(RawDataPakPath, true))
-					{
-						InternalUtils.SafeDeleteFile(RawDataPakPath, true);
-					}
+					InternalUtils.SafeDeleteFile(RawDataPakPath, true);
+					InternalUtils.SafeDeleteFile(Path.ChangeExtension(RawDataPakPath, ".sig"), true);
 					InternalUtils.SafeCreateDirectory(RawDataPath, true);
 					InternalUtils.SafeCopyFile(OutputLocation.FullName, RawDataPakPath);
+					if (bPakFilesAreSigned)
+					{
+						InternalUtils.SafeCopyFile(Path.ChangeExtension(OutputLocation.FullName, ".sig"), Path.ChangeExtension(RawDataPakPath, ".sig"), true);
+					}
 					InternalUtils.SafeDeleteFile(OutputLocation.FullName, true);
 
 					if (Params.IsGeneratingPatch)
@@ -2066,6 +2098,10 @@ public partial class Project : CommandUtils
 						// for distribution.
 						string SourceRawDataPakPath = CombinePaths(RawDataPath, PakName + "-" + SC.FinalCookPlatform + ".pak");
 						InternalUtils.SafeCopyFile(PatchSourceContentPath, SourceRawDataPakPath);
+						if (bPakFilesAreSigned)
+						{
+							InternalUtils.SafeCopyFile(PatchSourceContentPath, Path.ChangeExtension(SourceRawDataPakPath, ".sig"), true);
+						}
 					}
 
 					string BuildRoot = MakePathSafeToUseWithCommandLine(RawDataPath);
@@ -2323,7 +2359,7 @@ public partial class Project : CommandUtils
 	private static void CreatePaksUsingChunkManifests(ProjectParams Params, DeploymentContext SC)
 	{
 		LogInformation("Creating pak using streaming install manifests.");
-		DumpManifest(SC, CombinePaths(CmdEnv.LogFolder, "PrePak" + (SC.DedicatedServer ? "_Server" : "")));
+		DumpManifest(SC, CombinePaths(CmdEnv.LogFolder, "PrePak" + (SC.DedicatedServer ? "_Server" : "") + "_" + SC.CookPlatform));
 
 		ConfigHierarchy PlatformGameConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, DirectoryReference.FromFile(Params.RawProjectPath), SC.StageTargetPlatform.IniPlatformType);
 
@@ -2412,9 +2448,9 @@ public partial class Project : CommandUtils
 					ChunkDefinition Chunk = ChunkDefinitions[ChunkIndex];
 
 					if (Chunk.Manifest.Contains(OriginalFilename) ||
-							Chunk.Manifest.Contains(OriginalReplaceSlashes) ||
-							Chunk.Manifest.Contains(NoExtension) ||
-							Chunk.Manifest.Contains(NoExtensionReplaceSlashes))
+						Chunk.Manifest.Contains(OriginalReplaceSlashes) ||
+						Chunk.Manifest.Contains(NoExtension) ||
+						Chunk.Manifest.Contains(NoExtensionReplaceSlashes))
 					{
 						PakList.Add(Chunk.ChunkName);
 					}

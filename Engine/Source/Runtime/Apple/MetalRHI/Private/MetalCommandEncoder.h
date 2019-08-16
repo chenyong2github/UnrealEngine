@@ -511,7 +511,7 @@ private:
 		/** The usage mask for the bound resource or 0 */
 		mtlpp::ResourceUsage Usage[ML_MaxBuffers];
 		/** The bound buffer lengths */
-		uint32 Lengths[ML_MaxBuffers*2];
+		uint32 Lengths[(ML_MaxBuffers*2) + (ML_MaxTextures*2)];
         /** A bitmask for which buffers were bound by the application where a bit value of 1 is bound and 0 is unbound. */
         uint32 Bound;
 	};

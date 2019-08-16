@@ -9,10 +9,7 @@ order:5
 type:landing
 tags:Rendering
 Topic-image:ppe_topic.png
-
-[REGION:banner]
-![Post Process Effects](ppe_landing_banner1.png)
-[/REGION]
+hero-image:ppe_landing_banner1.png
 
 [EXCERPT:Intro]
 Unreal Engine provides Post Process Effects to allow artists and designers to tweak the overall look and feel of the scene. Examples of elements and effects include bloom (HDR blooming effect on bright objects), ambient occlusion, and tone mapping.

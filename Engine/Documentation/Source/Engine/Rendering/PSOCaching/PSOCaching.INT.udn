@@ -8,9 +8,9 @@ Parent: Engine/Rendering
 Order: 
 Tags: Rendering
 Tags: Graphics
+hero-image:PSO_Caching_Header.png
+topic-image: PSO_Topic_Image.png
 
-
-![](PSO_Caching_Header.png "PSO_Caching_Header.png")
 
 The **Pipeline State Object** (PSO) caching tool can be used to help reduce hitching that might happen when an Unreal Engine 4 (UE4) Level loads a piece of content. On the following pages, you will find a wide range of information that relates to building and using PSO data in your UE4 project.
 

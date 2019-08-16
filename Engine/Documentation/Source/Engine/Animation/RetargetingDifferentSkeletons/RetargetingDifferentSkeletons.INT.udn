@@ -1,8 +1,8 @@
 Availability:Public
 Title: Animation Retargeting (Different Skeletons)
-Crumbs: %ROOT%, Engine, Engine/Animation
 Description:Retargeting animations for use between different skeletons. 
 Version: 4.9
+tags: Animation Retargeting
 Topic-image:AnimRetargetingDiffSkeleton_topic.png
 
 [REGION:fullwidth]

@@ -73,14 +73,14 @@ struct FEventGraphColumns
 {
 	/** Default constructor. */
 	FEventGraphColumns()
-		: NumColumns( EEventPropertyIndex::None+1 )
+		: NumColumns( (uint32)EEventPropertyIndex::None+1 )
 	{
 		// Make event property is initialized.
 		FEventGraphSample::InitializePropertyManagement();
 
 		Collection = new FEventGraphColumn[NumColumns];
 
-		Collection[EEventPropertyIndex::StatName] = FEventGraphColumn
+		Collection[(uint32)EEventPropertyIndex::StatName] = FEventGraphColumn
 		(
 			EEventPropertyIndex::StatName,
 			TEXT( "name" ),
@@ -91,7 +91,7 @@ struct FEventGraphColumns
 			0.0f
 		);
 
-		Collection[EEventPropertyIndex::InclusiveTimeMS] = FEventGraphColumn
+		Collection[(uint32)EEventPropertyIndex::InclusiveTimeMS] = FEventGraphColumn
 		(
 			EEventPropertyIndex::InclusiveTimeMS,
 			TEXT( "inc" ),
@@ -102,7 +102,7 @@ struct FEventGraphColumns
 			72.0f
 		);
 
-		Collection[EEventPropertyIndex::InclusiveTimePct] = FEventGraphColumn
+		Collection[(uint32)EEventPropertyIndex::InclusiveTimePct] = FEventGraphColumn
 		(
 			EEventPropertyIndex::InclusiveTimePct,
 			TEXT( "inc%" ),
@@ -113,7 +113,7 @@ struct FEventGraphColumns
 			72.0f
 		);
 
-		Collection[EEventPropertyIndex::ExclusiveTimeMS] = FEventGraphColumn
+		Collection[(uint32)EEventPropertyIndex::ExclusiveTimeMS] = FEventGraphColumn
 		(
 			EEventPropertyIndex::ExclusiveTimeMS,
 			TEXT( "exc" ),
@@ -124,7 +124,7 @@ struct FEventGraphColumns
 			72.0f
 		);
 
-		Collection[EEventPropertyIndex::ExclusiveTimePct] = FEventGraphColumn
+		Collection[(uint32)EEventPropertyIndex::ExclusiveTimePct] = FEventGraphColumn
 		(
 			EEventPropertyIndex::ExclusiveTimePct,
 			TEXT( "exc%" ),
@@ -135,7 +135,7 @@ struct FEventGraphColumns
 			72.0f
 		);
 
-		Collection[EEventPropertyIndex::NumCallsPerFrame] = FEventGraphColumn
+		Collection[(uint32)EEventPropertyIndex::NumCallsPerFrame] = FEventGraphColumn
 		(
 			EEventPropertyIndex::NumCallsPerFrame,
 			TEXT( "calls" ),
@@ -147,7 +147,7 @@ struct FEventGraphColumns
 		);
 
 		// Fake column used as a default column for NAME_None
-		Collection[EEventPropertyIndex::None] = FEventGraphColumn
+		Collection[(uint32)EEventPropertyIndex::None] = FEventGraphColumn
 		(
 			EEventPropertyIndex::None,
 			TEXT( "None" ),
@@ -159,13 +159,13 @@ struct FEventGraphColumns
 		);
 
 		ColumnNameToIndexMapping = TMapBuilder<FName, const FEventGraphColumn*>()
-			.Add( TEXT( "StatName" ), &Collection[EEventPropertyIndex::StatName] )
-			.Add( TEXT( "InclusiveTimeMS" ), &Collection[EEventPropertyIndex::InclusiveTimeMS] )
-			.Add( TEXT( "InclusiveTimePct" ), &Collection[EEventPropertyIndex::InclusiveTimePct] )
-			.Add( TEXT( "ExclusiveTimeMS" ), &Collection[EEventPropertyIndex::ExclusiveTimeMS] )
-			.Add( TEXT( "ExclusiveTimePct" ), &Collection[EEventPropertyIndex::ExclusiveTimePct] )
-			.Add( TEXT( "NumCallsPerFrame" ), &Collection[EEventPropertyIndex::NumCallsPerFrame] )
-			.Add( NAME_None, &Collection[EEventPropertyIndex::None] )
+			.Add( TEXT( "StatName" ), &Collection[(uint32)EEventPropertyIndex::StatName] )
+			.Add( TEXT( "InclusiveTimeMS" ), &Collection[(uint32)EEventPropertyIndex::InclusiveTimeMS] )
+			.Add( TEXT( "InclusiveTimePct" ), &Collection[(uint32)EEventPropertyIndex::InclusiveTimePct] )
+			.Add( TEXT( "ExclusiveTimeMS" ), &Collection[(uint32)EEventPropertyIndex::ExclusiveTimeMS] )
+			.Add( TEXT( "ExclusiveTimePct" ), &Collection[(uint32)EEventPropertyIndex::ExclusiveTimePct] )
+			.Add( TEXT( "NumCallsPerFrame" ), &Collection[(uint32)EEventPropertyIndex::NumCallsPerFrame] )
+			.Add( NAME_None, &Collection[(uint32)EEventPropertyIndex::None] )
 			;
 	}
 
@@ -495,7 +495,7 @@ public:
 			SNew( SEventGraphTableCell, SharedThis(this), OwnerEventGraph )
 			.Visibility( this, &SEventGraphTableRow::IsColumnVisible, ColumnID )
 			.ColumnID( ColumnID )
-			.IsEventNameColumn( ColumnID == FEventGraphColumns::Get().Collection[EEventPropertyIndex::StatName].ID )
+			.IsEventNameColumn( ColumnID == FEventGraphColumns::Get().Collection[(uint32)EEventPropertyIndex::StatName].ID )
 			.EventPtr( EventPtr )
 			.OnSetHoveredTableCell( this, &SEventGraphTableRow::OnSetHoveredTableCell )
 		];
@@ -1051,7 +1051,7 @@ void SEventGraph::FillThreadFilterOptions()
 	// Sort the thread names alphabetically
 	ThreadNamesForCombo.Sort([]( const TSharedPtr<FName> Lhs, const TSharedPtr<FName> Rhs ) 
 	{
-		return Lhs->IsNone() || ( !Rhs->IsNone() && *Lhs < *Rhs );
+		return Lhs->IsNone() || ( !Rhs->IsNone() && Lhs->LexicalLess(*Rhs) );
 	});
 
 	// Refresh the combo box
@@ -1735,7 +1735,7 @@ TSharedPtr<SWidget> SEventGraph::EventGraph_GetMenuContent() const
 
 		FUIAction Action_ExpandHotPath
 		(
-			FExecuteAction::CreateSP( this, &SEventGraph::ContextMenu_ExpandHotPath_Execute ),
+			FExecuteAction::CreateSP( const_cast<SEventGraph*>(this), &SEventGraph::ContextMenu_ExpandHotPath_Execute ),
 			FCanExecuteAction::CreateSP( this, &SEventGraph::ContextMenu_ExpandHotPath_CanExecute )
 		);
 		MenuBuilder.AddMenuEntry
@@ -1812,7 +1812,7 @@ TSharedPtr<SWidget> SEventGraph::EventGraph_GetMenuContent() const
 	{
 		FUIAction Action_CopySelectedToClipboard
 		(
-			FExecuteAction::CreateSP( this, &SEventGraph::ContextMenu_CopySelectedToClipboard_Execute ),
+			FExecuteAction::CreateSP( const_cast<SEventGraph*>(this), &SEventGraph::ContextMenu_CopySelectedToClipboard_Execute ),
 			FCanExecuteAction::CreateSP( this, &SEventGraph::ContextMenu_CopySelectedToClipboard_CanExecute )
 		);
 		MenuBuilder.AddMenuEntry
@@ -1826,7 +1826,7 @@ TSharedPtr<SWidget> SEventGraph::EventGraph_GetMenuContent() const
 
 		FUIAction Action_SelectStack
 		(
-			FExecuteAction::CreateSP( this, &SEventGraph::ContextMenu_SelectStack_Execute ),
+			FExecuteAction::CreateSP( const_cast<SEventGraph*>(this), &SEventGraph::ContextMenu_SelectStack_Execute ),
 			FCanExecuteAction::CreateSP( this, &SEventGraph::ContextMenu_SelectStack_CanExecute )
 		);
 		MenuBuilder.AddMenuEntry
@@ -1840,7 +1840,7 @@ TSharedPtr<SWidget> SEventGraph::EventGraph_GetMenuContent() const
 		( 
 			LOCTEXT("ContextMenu_Header_Misc_Sort", "Sort By"), 
 			LOCTEXT("ContextMenu_Header_Misc_Sort_Desc", "Sort by column"), 
-			FNewMenuDelegate::CreateSP( this, &SEventGraph::EventGraph_BuildSortByMenu ),
+			FNewMenuDelegate::CreateSP( const_cast<SEventGraph*>(this), &SEventGraph::EventGraph_BuildSortByMenu ),
 			false, 
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortBy")
 		);
@@ -1853,14 +1853,14 @@ TSharedPtr<SWidget> SEventGraph::EventGraph_GetMenuContent() const
 		( 
 			LOCTEXT("ContextMenu_Header_Columns_View", "View Column"), 
 			LOCTEXT("ContextMenu_Header_Columns_View_Desc", "Hides or shows columns"), 
-			FNewMenuDelegate::CreateSP( this, &SEventGraph::EventGraph_BuildViewColumnMenu ),
+			FNewMenuDelegate::CreateSP( const_cast<SEventGraph*>(this), &SEventGraph::EventGraph_BuildViewColumnMenu ),
 			false,
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ViewColumn")
 		);
 
 		FUIAction Action_ResetColumns
 		(
-			FExecuteAction::CreateSP( this, &SEventGraph::ContextMenu_ResetColumns_Execute ),
+			FExecuteAction::CreateSP( const_cast<SEventGraph*>(this), &SEventGraph::ContextMenu_ResetColumns_Execute ),
 			FCanExecuteAction::CreateSP( this, &SEventGraph::ContextMenu_ResetColumns_CanExecute )
 		);
 		MenuBuilder.AddMenuEntry
@@ -2106,7 +2106,7 @@ void SEventGraph::TreeViewHeaderRow_CreateColumnArgs( const uint32 ColumnIndex )
 void SEventGraph::InitializeAndShowHeaderColumns()
 {
 	ColumnSortMode = EColumnSortMode::Descending;
-	ColumnBeingSorted = FEventGraphColumns::Get().Collection[EEventPropertyIndex::InclusiveTimeMS].ID;
+	ColumnBeingSorted = FEventGraphColumns::Get().Collection[(uint32)EEventPropertyIndex::InclusiveTimeMS].ID;
 
 	for (uint32 ColumnIndex = 0; ColumnIndex < FEventGraphColumns::Get().NumColumns; ColumnIndex++)
 	{
@@ -2287,7 +2287,7 @@ void SEventGraph::ContextMenu_ExpandHotPath_Execute()
 	FEventGraphSamplePtr EventPtr = SelectedItems[0];
 
 	ColumnSortMode = EColumnSortMode::Descending;
-	ColumnBeingSorted = FEventGraphColumns::Get().Collection[EEventPropertyIndex::InclusiveTimeMS].ID;
+	ColumnBeingSorted = FEventGraphColumns::Get().Collection[(uint32)EEventPropertyIndex::InclusiveTimeMS].ID;
 	SortEvents();
 	
 	// Clear hot path
@@ -2424,7 +2424,7 @@ bool SEventGraph::ContextMenu_SortMode_IsChecked( const EColumnSortMode::Type In
 void SEventGraph::ContextMenu_ResetColumns_Execute()
 {
 	ColumnSortMode = EColumnSortMode::Descending;
-	ColumnBeingSorted = FEventGraphColumns::Get().Collection[EEventPropertyIndex::InclusiveTimeMS].ID;
+	ColumnBeingSorted = FEventGraphColumns::Get().Collection[(uint32)EEventPropertyIndex::InclusiveTimeMS].ID;
 
 	for( uint32 ColumnIndex = 0; ColumnIndex < FEventGraphColumns::Get().NumColumns; ColumnIndex++ )
 	{
@@ -2553,12 +2553,12 @@ void SEventGraph::ShowEventsInViewMode( const TArray<FEventGraphSamplePtr>& Even
 	if( NewViewMode == EEventGraphViewModes::FlatInclusive || NewViewMode == EEventGraphViewModes::FlatInclusiveCoalesced || NewViewMode == EEventGraphViewModes::Hierarchical )
 	{
 		ColumnIndex = EEventPropertyIndex::InclusiveTimeMS;
-		SetSortModeForColumn( FEventGraphColumns::Get().Collection[ColumnIndex].ID, EColumnSortMode::Descending );
+		SetSortModeForColumn( FEventGraphColumns::Get().Collection[(uint32)ColumnIndex].ID, EColumnSortMode::Descending );
 	}
 	else if( NewViewMode == EEventGraphViewModes::FlatExclusive || NewViewMode == EEventGraphViewModes::FlatExclusiveCoalesced )
 	{
 		ColumnIndex = EEventPropertyIndex::ExclusiveTimeMS;
-		SetSortModeForColumn( FEventGraphColumns::Get().Collection[ColumnIndex].ID, EColumnSortMode::Descending );
+		SetSortModeForColumn( FEventGraphColumns::Get().Collection[(uint32)ColumnIndex].ID, EColumnSortMode::Descending );
 	}
 
 	ScrollToTheSlowestSelectedEvent( ColumnIndex );
@@ -2589,7 +2589,7 @@ void SEventGraph::ScrollToTheSlowestSelectedEvent( EEventPropertyIndex ColumnInd
 	if( SelectedEvents.Num() > 0 )
 	{
 		// Sort events by the inclusive or the exclusive time, depends on the view mode.
-		const FEventGraphColumn& Column = FEventGraphColumns::Get().Collection[ColumnIndex];
+		const FEventGraphColumn& Column = FEventGraphColumns::Get().Collection[(uint32)ColumnIndex];
 		FEventArraySorter::Sort( SelectedEvents, Column.ID, EEventCompareOps::Greater );
 
 		// Scroll to the the slowest item.
@@ -2804,7 +2804,7 @@ void SEventGraph::GenerateTopEvents( const TSet< FEventGraphSamplePtr >& EventPt
 	}
 
 	// Sort events by the inclusive time.
-	const FEventGraphColumn& Column = FEventGraphColumns::Get().Collection[EEventPropertyIndex::InclusiveTimeMS];
+	const FEventGraphColumn& Column = FEventGraphColumns::Get().Collection[(uint32)EEventPropertyIndex::InclusiveTimeMS];
 	FEventArraySorter::Sort( EventPtrArray, Column.ID, EEventCompareOps::Greater );
 
 	// Calculate total time for the top events.

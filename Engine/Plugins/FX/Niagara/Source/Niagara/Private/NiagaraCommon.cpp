@@ -368,3 +368,11 @@ void FNiagaraUtilities::PrepareRapidIterationParameters(const TArray<UNiagaraScr
 	}
 }
 #endif
+
+//////////////////////////////////////////////////////////////////////////
+
+FNiagaraUserParameterBinding::FNiagaraUserParameterBinding()
+	: Parameter(FNiagaraTypeDefinition::GetUObjectDef(), NAME_None)
+	{
+
+	}

@@ -1,75 +1,171 @@
-﻿Availability:Public
+﻿INTSourceChangelist:3782314
+Availability:Public
 Title:详细信息面板
 Crumbs: %ROOT%, Engine, Engine/UI, Engine/UI/LevelEditor
-Description:该面板为关卡编辑器中选中的Actor提供了详细信息和自定义工具。
-
-
+Description:为关卡编辑器中的选定Actor提供信息和自定义编辑工具的面板。
+Version: 4.12
 
 [TOC(start:2 end:3)]
 
-## 概述
-
 [EXCERPT:DetailsOverview]
-**Details（详细信息）** 面板包含了关于视口中当前选中对象的信息、工具及功能。它包含了用于移动、旋转及缩放Actor的变换编辑框，显示了选中Actor的所有可编辑属性，并提供了和视口中选中Actor类型相关的其他编辑功能的快速访问。比如，选中的Actor可以导出到FBX文件中，并可以转换为另一种兼容类型。**详细信息** 面板还允许您查看这些材质，并可以快速地打开它们进行编辑。
+ **详细信息（Details）** 面板包含特定于视口中的当前选项的信息、工具和函数。 
+它包含用于移动、旋转和缩放Actor的转换编辑框，显示选定Actor的所有可编辑属性， 
+并根据视口中选定Actor的类型提供对附加编辑功能的快速 
+访问。例如，可以将选定Actor导出到FBX并转换为另一种兼容类型。详细信息（Details） 
+面板还允许您查看选定Actor使用的材质（如有）并快速打开它们进行编辑。
 [/EXCERPT:DetailsOverview]
 
-![Level Editor Details Panel](LE_DetailsUI2.png)
+![Level Editor Details Panel](details_panel.png)
 
-关于虚幻引擎的 **Details（详细信息）** 面板用户接口的更多信息，请参照  [](Engine/UI/LevelEditor\Details\Interface)。
+有关 **详细信息（Details）** 面板的更多信息，请参阅[](Engine/UI/LevelEditor/Details)。
+
+(#actornames)
 
 ## Actor名称
 
-Actor可以有 _友好的_ 名称，由设计人员直接从编辑器中进行设置。这些名称可被用于访问这些Actors，或者使用位于 [场景大纲视图面板](Engine/UI/LevelEditor\SceneOutliner)中的搜索功能来搜寻它们。
+设计人员可以直接在编辑器中为Actor设置_友好_名称。可以使用这些名称访问这些Actor，也可以 
+使用 **[世界大纲视图（World Outliner）面板](Engine/UI/LevelEditor\SceneOutliner)** 中的搜索功能找到它们。
 
-要想编辑 **Actor名称** ，仅需在 **详细信息** 面板顶部的文本框内简单地输入名称即可。
+要编辑Actor名称，只需在 **详细信息（Details）** 面板顶部的文本框中键入名称。
 
 ![Actor Name Field](LE_DetailsFriendlyName.png)
 
+(#searchfilter)
+
 ## 搜索过滤器
 
-**详细信息** 面板中显示的属性可以通过 **搜索** 框来进行过滤。随着您的输入，属性被自动筛选为仅显示匹配文本的属性。
+可以使用 **搜索（Search）** 框过滤 **详细信息（Details）** 面板中显示的属性。当您键入时，将自动过滤属性， 
+只显示与文本匹配的属性。
 
 ![Properties filtered](LE_DetailsSearch2.png)
 
-要想清除过滤器，请点击 **搜索** 框右侧的 ![Clear Search](button_clear_search.png) 按钮。
+要清除过滤器，单击 **搜索（Search）** 框右侧的![Clear Search](button_clear_search.png)按钮。
 
 [REGION:tip]
-由于这行搜索隐藏掉了不满足搜索条件的所有详细信息，所以如果您没看到您正在查找的属性，请检查确保清除该搜索框。
+因为这一行隐藏了与搜索条件不匹配的所有详细信息， 
+所以如果没有看到要查找的属性，请检查以确保清除了这些详细信息。
 [/REGION]
+
+(#favorites)
+
+## 收藏夹
+
+[REGION:warning]
+该选项目前被认为是实验性的，一些功能可能不如预期有效。 
+[/REGION]
+
+如果Actor中有您经常更改或者想要快速访问的属性，您可以使用 **收藏夹（Favorites）** 属性来标记它们，以便它们显示在 **详细信息（Details）** 面板的顶部。 
+
+![](Favorites.png)
+
+[REGION:caption]
+上面，我们选择了两个选项作为 **收藏夹（Favorites）**，在它们的属性名旁边设置星号图标指示，以便于访问。
+[/REGION]
+
+ **启用收藏夹：**
+
+1. 在 **编辑（Edit）** 菜单中，选择 **编辑器偏好设置（Editor Preferences）**。
+
+	[OBJECT:ToggleButtonContent]
+	[PARAMLITERAL:category]
+	操作系统
+	[/PARAMLITERAL]
+	[PARAMLITERAL:id]
+	windows
+	[/PARAMLITERAL]
+	[PARAMLITERAL:active]
+	[/PARAMLITERAL]
+	[PARAM:content]
+	![Main Menu Bar](EditorPrefs.png)
+	[/PARAM]
+	[/OBJECT]
+
+	[OBJECT:ToggleButtonContent]
+	[PARAMLITERAL:category]
+	操作系统
+	[/PARAMLITERAL]
+	[PARAMLITERAL:id]
+	mac
+	[/PARAMLITERAL]
+	[PARAMLITERAL:active]
+	[/PARAMLITERAL]
+	[PARAM:content]
+	![Main Menu Bar](EditorPrefs_Mac.png)
+	[/PARAM]
+	[/OBJECT]
+
+1. 在 **实验性（Experimental）** 下，选中 **Enable Details Panel Favorites（@@@）** 选项。 
+
+	![](Experimental.png)
+
+[REGION:note]
+可能需要重启编辑器，才会应用所做更改。 
+[/REGION]
+
+ **将属性标记为收藏夹：**
+
+1. 启用此选项后，在任何详细信息（Details）面板中单击属性旁边的星号图标。 
+
+	![](ClickFavorite.png)
+
+1. 该属性（以及所有其他标记的收藏夹）将列在面板的 **收藏夹（Favorites）** 部分下。 
+
+	![](MarkedFavorites.png)
+
+[REGION:note]
+由于自定义的复杂性，有些属性可能无法提供收藏它们的功能。 
+[/REGION]
+
+
+(#defaultvalues)
 
 ## 默认值
 
-当一个属性被改为 _默认_ 值以外的其他值时，会显示一个指示符。
+当属性被修改为其_默认_值以外的值时，将显示一个指示器。
 
 ![Property not set to default](default_indicator.png)
 
-所有属性都可以通过点击![Reset to Default](button_reset_default.png) 指示符并从菜单中选择重置该值来将其重置为默认值。
+通过单击![Reset to Default](button_reset_default.png)指示器并从菜单中选择重置值， 
+可以轻松地将所有属性重置为默认值。
 
 ![Reset to Default Menu](reset_default_menu.png)
 
-该属性的值会被重置为菜单中显示的默认值，指示符消失。
+属性的值被重置为默认值，如菜单所示，指示器不再存在。
 
 ![Property set to default](default_property.png)
 
+(#editconditions
+
 ## 编辑条件
 
-您可以启用或禁用属性。仅在启用了属性时才可以对该属性进行编辑。默认情况下，所有属性都被启用，除非它们具有 **编辑条件** 。具有编辑条件的属性依赖于另一个变量的值来决定是否启用该属性，及是否能够对其进行编辑。
+可以启用或禁用属性。属性只有在启用后才能进行编辑。默认情况下， 
+所有属性都已启用，除非它们有编辑条件。有编辑条件的属性 
+依赖于另一个变量的值来确定它们是否启用、可否进行编辑。 
 
-某些情况下，编辑条件用于决定该属性是否要覆盖其他值或是否有效。还有些情况是，某些属性只有满足某个条件才有意义。举例来说，您可能具有关于间接光照的属性组，并有一个 ‘布尔型’属性用于在全局范围内切换是否启用该间接光照。因为组的每个属性都可能以该全局切换状态为前提条件，所以仅当正在应用间接光照时才启用这些属性。
+在某些情况下，编辑条件用于确定属性是否会覆盖某些其他值，或者是否有 
+任何影响。其他时候，除非满足某些条件，否则某些属性可能根本没有意义。例如，您可能有 
+一组与间接光照有关的属性，以及一个能够全局切换是启用还用禁用间接光照的 
+“bool”属性。组中的每个属性都可以以全局切换为条件，以便只有在使用间接光照时才 
+启用它们。
 
-具有简单编辑条件的属性的左侧会显示一个复选框。当选中该复选框时，启用该属性。当取消选中该复选框时，禁用该属性，呈现为灰掉状态。
+有简单的编辑条件的属性将在左侧空白处显示一个复选框。当该复选框被选中时， 
+该属性将被启用。当未选中时，该属性将被禁用并显示为灰色。
 
 ![EditConsition Properties](edit_condition.png)
 
+(#editconstproperties)
+
 ## EditConst属性
 
-声明为`editconst` 的属性，不能在编辑器中修改，此处显示了属性的值，并进行了突出显示，指出不能对其进行修改。
+声明为“editconst”的属性（不能在编辑器中修改）显示它们的值，并高亮显示以表明它们不能编辑。
 
 ![EditConst Property](edit_const.png)
 
-## 属性操作
+(#propertycontrols)
+## 属性控件
 
-**详细信息** 面板中通过使用常见的编辑器控件显示了很多基本类型的属性。其他类型的属性使用自定义控件，当修改这些属性的值时，可以提供更加直观的体验。
+许多基本类型的属性都使用熟悉的编辑控件显示在详细信息（Details）面板中。 
+其他类型使用自定义控件在修改其值时提供更直观的体验。
 
 [REGION:topics fourth]
 [OBJECT:TopicCompact]
@@ -127,19 +223,53 @@ Actor可以有 _友好的_ 名称，由设计人员直接从编辑器中进行�
 	[RELATIVE:Engine/UI/LevelEditor/Details/Properties/Array]
 	[/PARAM]
 [/OBJECT]
+[OBJECT:TopicCompact]
+	[PARAM:image]
+	![](Engine/UI/LevelEditor/Details/Properties/Map/map_topic.png)(convert:false)
+	[/PARAM]
+	[PARAM:title]
+	%Engine/UI/LevelEditor/Details/Properties/Map:title%
+	[/PARAM]
+	[PARAM:path]
+	[RELATIVE:Engine/UI/LevelEditor/Details/Properties/Map]
+	[/PARAM]
+[/OBJECT]
+[OBJECT:TopicCompact]
+	[PARAM:image]
+	![](Engine/UI/LevelEditor/Details/Properties/Set/set_topic.png)(convert:false)
+	[/PARAM]
+	[PARAM:title]
+	%Engine/UI/LevelEditor/Details/Properties/Set:title%
+	[/PARAM]
+	[PARAM:path]
+	[RELATIVE:Engine/UI/LevelEditor/Details/Properties/Set]
+	[/PARAM]
+[/OBJECT]
 [/REGION]
 
-## 类目
+(#categories)
 
-**显示** 面板中的属性是按 _类目_ 呈现的。一般来说， **Rendering(渲染)** 、**Lighting(光照)** 、 **Collision(碰撞)** 等这些类目是由属性在代码中的定义方式决定的，用于把相关属性组织放到各个组中。您在 **详细信息** 面板中看到的其他类目 - **Transform(变换)** **Static Mesh（静态网格物体）** 、 **Materials（材质）** 、 **Actor** 、 **Code View（代码视图）** 、 **Layers（图层）** - 是自定义控件，用于更加显现地暴露某些属性或者功能，使得查找、修改或应用它们变得更加容易。
+## 类别
+
+在 **显示（Display）** 面板中，属性按 _类别_ 显示。通常，这些类别 —— **渲染（Rendering）**、 
+**光照（Lighting）**、**碰撞（Collision）** 等 —— 由属性在代码中的声明方式决定， 
+并用作将相关属性组织成组的一种方法。您在详细信息（Details）面板中看到的其他类别 —— **转换（Transform）**、 
+**静态网格体（Static Mesh）**、**材质（Materials）**、**Actor**、**代码视图（Code View）**、**图层（Layers）** —— 是自定义控件，专门设计用于 
+以一种显眼的方式公开某些属性或功能，使它们易于查找、修改或使用。
+
+(#advancedproperties)
 
 ### 高级属性
 
-某些属性声明为 **高级属性** ，默认情况下 **详细信息** 面板会隐藏这些属性。包含高级属性的类别有一个扩展按钮![](button_advanced.png)。点击按钮来显示高级属性。
+有些属性被声明为高级属性，默认情况下隐藏在详细信息（Details）面板中。包含 
+高级属性的类别有一个展开按钮![](button_advanced.png)。单击该按钮将显示 
+高级属性。
 
 
 
-### 自定义的类目
+(#customcategories)
+
+### 自定义类别
 
 [EXCERPT:CustomCategories]
 [REGION:topics fourth]
@@ -215,5 +345,3 @@ Actor可以有 _友好的_ 名称，由设计人员直接从编辑器中进行�
 [/OBJECT]
 [/REGION]
 [/EXCERPT:CustomCategories]
-
-

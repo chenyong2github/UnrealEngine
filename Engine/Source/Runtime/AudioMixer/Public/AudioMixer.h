@@ -8,7 +8,6 @@
 #include "AudioEffect.h"
 #include "AudioMixerTypes.h"
 #include "HAL/Runnable.h"
-#include "Stats/Stats.h"
 #include "Sound/AudioSettings.h"
 #include "Misc/SingleThreadRunnable.h"
 #include "AudioMixerNullDevice.h"
@@ -25,45 +24,6 @@
 #define AUDIO_MIXER_ENABLE_DEBUG_MODE 1
 #endif
 #endif
-
-// Cycle stats for audio mixer
-DECLARE_STATS_GROUP(TEXT("AudioMixer"), STATGROUP_AudioMixer, STATCAT_Advanced);
-
-// Tracks the time for the full render block 
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Render Audio"), STAT_AudioMixerRenderAudio, STATGROUP_AudioMixer, AUDIOMIXER_API);
-
-// Tracks the time it takes to up the source manager (computes source buffers, source effects, sample rate conversion)
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Source Manager Update"), STAT_AudioMixerSourceManagerUpdate, STATGROUP_AudioMixer, AUDIOMIXER_API);
-
-// The time it takes to compute the source buffers (handle decoding tasks, resampling)
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Source Buffers"), STAT_AudioMixerSourceBuffers, STATGROUP_AudioMixer, AUDIOMIXER_API);
-
-// The time it takes to process the source buffers through their source effects
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Source Effect Buffers"), STAT_AudioMixerSourceEffectBuffers, STATGROUP_AudioMixer, AUDIOMIXER_API);
-
-// The time it takes to apply channel maps and get final pre-submix source buffers
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Source Output Buffers"), STAT_AudioMixerSourceOutputBuffers, STATGROUP_AudioMixer, AUDIOMIXER_API);
-
-// The time it takes to process the subix graph. Process submix effects, mix into the submix buffer, etc.
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Submix Graph"), STAT_AudioMixerSubmixes, STATGROUP_AudioMixer, AUDIOMIXER_API);
-
-// The time it takes to process the subix graph. Process submix effects, mix into the submix buffer, etc.
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Submix Graph Child Processing"), STAT_AudioMixerSubmixChildren, STATGROUP_AudioMixer, AUDIOMIXER_API);
-
-// The time it takes to process the subix graph. Process submix effects, mix into the submix buffer, etc.
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Submix Graph Source Mixing"), STAT_AudioMixerSubmixSource, STATGROUP_AudioMixer, AUDIOMIXER_API);
-
-// The time it takes to process the subix graph. Process submix effects, mix into the submix buffer, etc.
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Submix Graph Effect Processing"), STAT_AudioMixerSubmixEffectProcessing, STATGROUP_AudioMixer, AUDIOMIXER_API);
-
-// The time it takes to process the master reverb.
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Master Reverb"), STAT_AudioMixerMasterReverb, STATGROUP_AudioMixer, AUDIOMIXER_API);
-
-// The time it takes to process the master EQ effect.
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Master EQ"), STAT_AudioMixerMasterEQ, STATGROUP_AudioMixer, AUDIOMIXER_API);
-
-// The time it takes to process the HRTF effect.
-DECLARE_CYCLE_STAT_EXTERN(TEXT("HRTF"), STAT_AudioMixerHRTF, STATGROUP_AudioMixer, AUDIOMIXER_API);
 
 
 // Enable debug checking for audio mixer
@@ -177,7 +137,7 @@ namespace Audio
 		bool bRestoreIfRemoved;
 
 		/* The maximum number of sources we will try to decode or playback at once. */
-		int32 MaxChannels;
+		int32 MaxSources;
 
 		FAudioMixerOpenStreamParams()
 			: OutputDeviceIndex(INDEX_NONE)
@@ -186,7 +146,7 @@ namespace Audio
 			, AudioMixer(nullptr)
 			, SampleRate(44100)
 			, bRestoreIfRemoved(false)
-			, MaxChannels(32)
+			, MaxSources(0)
 		{}
 	};
 

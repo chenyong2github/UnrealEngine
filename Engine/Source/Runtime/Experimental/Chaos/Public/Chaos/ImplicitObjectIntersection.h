@@ -57,6 +57,19 @@ class TImplicitObjectIntersection : public TImplicitObject<T, d>
 
 	virtual const TBox<T,d>& BoundingBox() const { return MLocalBoundingBox; }
 
+
+	virtual uint32 GetTypeHash() const override
+	{
+		uint32 OutHash = MObjects.Num() > 0 ? MObjects[0]->GetTypeHash() : 0;
+
+		for(const TUniquePtr<TImplicitObject<T, d>>& Ptr : MObjects)
+		{
+			OutHash = HashCombine(Ptr->GetTypeHash(), OutHash);
+		}
+
+		return OutHash;
+	}
+
 private:
 	virtual Pair<TVector<T, d>, bool> FindClosestIntersectionImp(const TVector<T, d>& StartPoint, const TVector<T, d>& EndPoint, const T Thickness) const
 	{

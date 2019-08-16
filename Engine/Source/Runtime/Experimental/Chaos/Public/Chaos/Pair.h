@@ -6,6 +6,11 @@ namespace Chaos
 template<class T1, class T2>
 struct Pair
 {
+	Pair()
+	{}
+	Pair(const T1& First, const T2& Second)
+		: First(First), Second(Second)
+	{}
 	T1 First;
 	T2 Second;
 };

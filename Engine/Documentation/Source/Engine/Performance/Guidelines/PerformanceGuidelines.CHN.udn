@@ -1,6 +1,6 @@
-﻿INTSourceChangelist:2704361
+﻿INTSourceChangelist:3108692
 Availability:Public
-Title: 性能指南
+Title: 写给美术师和设计师的性能指南
 Crumbs: %ROOT%, Engine
 Description: 对于内容优化和关卡优化的通用提示和技巧
 Navigation:topic
@@ -8,6 +8,7 @@ version: 4.9
 
 我们针对内容制作和关卡设计在性能优化方面有一些通用的指南。
 
+(#ForArtists)
 ### 对美术而言
 
 * 最小化每个物体的元素数量。
@@ -25,6 +26,7 @@ version: 4.9
 * 有些材质表达式会比其他更花费性能（sin, pow, cos, divide, Noise）。最快的几个表达式是：multiply, add, subtract, 以及使用 0 和 1 的 clamp()。
 * 着色模式本身具有一定的性能开销：无光模式最快，光照模式应该在大部分情况下使用。其他模式都会费一些。
 
+(#ForLevelDesigners)
 ### 对于关卡设计师而言
 
 * 控制固定光照和动态光照的数量。

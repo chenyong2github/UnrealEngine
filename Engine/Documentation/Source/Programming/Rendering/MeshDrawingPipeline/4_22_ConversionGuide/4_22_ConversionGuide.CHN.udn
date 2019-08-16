@@ -1,0 +1,82 @@
+﻿INTSourceChangelist:5993627
+Availability: Public
+Title: 虚幻引擎4.22的网格体绘制管道转换指南 
+Description: 包括虚幻引擎4适用参考和指南在内的产品文档
+Type: reference
+Version: 4.22
+Parent: Programming/Rendering/MeshDrawingPipeline
+Tags: Rendering
+Order: 0
+
+
+[TOC (start:2 end:2)]
+
+在虚幻引擎(UE4)4.22版本中，[网格体绘制管道](Programming/Rendering/MeshDrawingPipeline)会被完全重写。主要的变更是从 **即时（Immediate）** 模式（每一帧都构建可见的绘制）转移到 **保留（Retained）** 模式（所有场景绘制都提前准备好）。这是一个重要的变更，因为它能够支持新兴技术，例如DirectX光线追踪(DXR)技术，该技术要求着色器绑定表用于整个场景，或者GPU驱动渲染技术，在该技术中CPU必须能够在不知道可视性的情况下准备绘制。
+
+[REGION:note]
+有关UE4 4.22中网格体绘制管道变更的更多详情，请参阅[网格体绘制管道](Programming/Rendering/MeshDrawingPipeline)文档和游戏开发者大会(GDC)报告[重构虚幻引擎4.22的网格体绘制管道](https://www.youtube.com/watch)。
+[/REGION]
+
+(#meshdrawcommands)
+
+## 网格体绘制命令
+
+在旧管道中，网格体通道绘制规则基于“FMeshBatch”直接执行渲染硬件接口(RHI)命令。新管道引入了网格体绘制命令“FMeshDrawCommand”的概念，将其作为“FMeshBatch”与RHI之间的接口。网格体绘制命令是一个完整的独立绘制描述。它存储RHI需要知道的有关绘制的所有信息。这允许缓存和重用整个绘制状态及其着色器绑定。
+
+(#staticdrawlistsandprimitivesets)
+
+## 静态绘制列表和基元集
+
+在4.22的网格体渲染管道中，静态绘制列表（“TStaticMeshDrawList”）和基元集（例如“FTranslucentPrimSet”和“FCustomDepthPrimSet”）被替换为“FParallelMeshDrawCommandPass”。“FParallelMeshDrawCommandPass”每个通道封装一个可见的网格体绘制命令列表。
+
+新设计有两个重要的变更： 
+
+*   首先，**每个场景的网格体列表** 被替换为 **可见网格体列表**。之前绘制静态网格体通道时，会遍历场景中每个静态网格体的整个列表（“TStaticMeshDrawList”），通过为每个静态网格体选中“FViewInfo::StaticMeshVisibilityMap”来选择可见的网格体。在新设计中，绘制只是一个可视化网格体绘制命令数组的简单遍历（FMeshDrawCommandPassSetupTaskContext::MeshDrawCommands）。随着场景复杂度的增加，新方法可以更好地扩展。 
+
+*   其次，一个重要的变更是我们合并静态和动态网格体绘制列表的方式，这简化了整个网格体绘制管道，也使渲染器能够将静态和动态绘制排序在一起。
+
+该管道还通过“DrawDynamicMeshPass”函数提供即时模式网格体渲染模拟。这是一个非常灵活的渲染路径，但应该只用于非性能关键型的网格体通道，因为它不支持缓存、自动实例化和进行多个动态内存分配。例如，它替换了“DrawViewElements”，后者负责渲染纯编辑器的助手网格体。
+
+(#drawingpolicies)
+
+## 绘制规则
+
+“FDepthDrawingPolicy”或“FBasePassDrawingPolicy”等绘制规则被替换为“FDepthPassMeshProcessor”和“FBasePassMeshProcessor”。特定的通道网格体处理器派生自一个“FMeshProcessor”基类，负责将每个“FMeshBatch”转换为一组用于通道的网格体绘制命令。这是最终的绘制过滤发生的地方，选择着色器置换并收集着色器绑定。
+
+(#shaderbindings)
+
+## 着色器绑定
+
+之前，所有的着色器参数都是依据相关绘制规则直接在“RHICmdList”上设置的。现在，所有参数都被收集到“FMeshDrawSingleShaderBindings”中，稍后在绘制过程中通过调用“SetOnCommandList”在“RHICmdList”上设置这些参数。这需要能够使用着色器绑定缓存完整的绘制状态。
+
+旧管道使用“FDrawingPolicyRenderState”来传递通用的高级网格体通道渲染状态，例如通道统一缓冲区。新管道将“FDrawingPolicyRenderState”重命名为“FMeshPassProcessorRenderState”，而没有对其功能进行重大变更。
+
+着色器绑定的其他部分填充在着色器的“SetParameters”和“SetMesh”函数中，这些函数被替换为“GetShaderBindings”和“GetElementShaderBindings”，且pass per-draw参数位于自定义的“ShaderElementDataType”中。
+
+通过重构，许多松散的参数被提取到每个通道或其他的统一缓冲区中。这是设置参数的首选方法，使用松散的参数将禁用自动实例化，而且会导致每次绘制之间持续更新缓冲区，从而导致速度减慢。
+
+之前，标准统一缓冲区，例如“ViewUniformBuffer”或“DepthPassUniformBuffer”都是使用新数据在每一帧中重新创建的。在新管道中，它们是永久性、全局性的（保存在“FScene::FPersistentUniformBuffers”），而不是重新创建它们，它们将新数据传递到“RHIUpdateUniformBuffer”中，它们的内容使用新的RHI函数进行更新。这种间接性使着色器能够接收每帧的数据，尽管会缓存它们的网格体绘制命令。
+
+(#fprimitiveviewrelevance)
+
+## FPrimitiveViewRelevance
+
+“FPrimitiveViewRelevance”扩展了两个额外的相关性标记：
+
+*   单独的速度传递需要 **bVelocityRelevance**。
+
+*   半透明自身阴影需要 **bTranslucentSelfShadow**。
+
+此外，所有动态绘制现在都依赖于视图相关性，禁用视图相关性中的某些传递也将禁用其渲染。
+
+  
+
+(#shaders)
+
+## 着色器
+
+新管道引入了GPUScene，它是一个结构化的缓冲区，包含场景中所有基元的基元统一缓冲区数据。
+目前，只有本地顶点factory（静态网格体组件）和SM5功能级别可以使用该渲染路径。着色器需要使用“GetPrimitiveData(PrimitiveId)”，而不是直接访问基元统一缓冲区，来在启用GPUScene的情况下进行编译。
+  
+  
+基元数据访问通常在 **Custom Expression** Material 节点内使用。例如，用于访问基元的边界框。为了转换这些，“Primitive.Member”需要替换为“GetPrimitiveData(Parameters.PrimitiveId).Member”。

@@ -10,7 +10,7 @@ ShadowSetupMobile.cpp: Shadow setup implementation for mobile specific features.
 #include "EngineDefines.h"
 #include "ConvexVolume.h"
 #include "RendererInterface.h"
-#include "GenericOctree.h"
+#include "Math/GenericOctree.h"
 #include "LightSceneInfo.h"
 #include "SceneRendering.h"
 #include "DynamicPrimitiveDrawing.h"
@@ -41,7 +41,7 @@ static bool CouldStaticMeshEverReceiveCSMFromStationaryLight(ERHIFeatureLevel::T
 	const bool bMobileAllowDistanceFieldShadows = CVarMobileAllowDistanceFieldShadows->GetValueOnRenderThread() == 1;
 
 	bool bHasCSMApplicableLightInteraction = bMobileAllowDistanceFieldShadows && StaticMesh.LCI && StaticMesh.LCI->GetLightMapInteraction(FeatureLevel).GetType() == LMIT_Texture;
-	bool bHasCSMApplicableShadowInteraction = bHasCSMApplicableLightInteraction && StaticMesh.LCI && StaticMesh.LCI->GetShadowMapInteraction().GetType() == SMIT_Texture;
+	bool bHasCSMApplicableShadowInteraction = bHasCSMApplicableLightInteraction && StaticMesh.LCI && StaticMesh.LCI->GetShadowMapInteraction(FeatureLevel).GetType() == SMIT_Texture;
 
 	return (bHasCSMApplicableLightInteraction && bHasCSMApplicableShadowInteraction) ||
 		(!bHasCSMApplicableLightInteraction && PrimitiveSceneInfo->Proxy->IsMovable());
@@ -62,7 +62,7 @@ static bool EnableStaticMeshCSMVisibilityState(bool bMovableLight, const FPrimit
 		const FStaticMeshBatch& StaticMesh = PrimitiveSceneInfo->StaticMeshes[MeshIndex];
 
 		bool bHasCSMApplicableShadowInteraction = View.StaticMeshVisibilityMap[StaticMesh.Id] && StaticMesh.LCI;
-		bHasCSMApplicableShadowInteraction = bHasCSMApplicableShadowInteraction && StaticMesh.LCI->GetShadowMapInteraction().GetType() == SMIT_Texture;
+		bHasCSMApplicableShadowInteraction = bHasCSMApplicableShadowInteraction && StaticMesh.LCI->GetShadowMapInteraction(View.GetFeatureLevel()).GetType() == SMIT_Texture;
 
 		if (bMovableLight || CouldStaticMeshEverReceiveCSMFromStationaryLight(View.GetFeatureLevel(), PrimitiveSceneInfo, StaticMesh))
 		{

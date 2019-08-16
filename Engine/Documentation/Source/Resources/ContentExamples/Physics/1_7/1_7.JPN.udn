@@ -4,7 +4,7 @@ Title:1.7 - 線形モーター
 Crumbs:%ROOT%, Resources, Resources/ContentExamples, Resources/ContentExamples/Physics
 Description: 物理のサンプル レベルの概要、サンプル 1.7:物理コンストレイント 線形モーター
 Related:Engine/Physics/PhysicsBodies
-Related:Engine/Physics/PhAT/HowTo
+Related:Engine/Physics/PhysicsAssetEditor/HowTo
 Related:Engine/Physics/Constraints/ConstraintsReference
 Related:Engine/Physics/Constraints/ConstraintsUserGuide
 Related:Engine/Physics/Collision

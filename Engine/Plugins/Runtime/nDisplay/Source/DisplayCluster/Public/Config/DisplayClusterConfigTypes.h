@@ -51,7 +51,6 @@ struct DISPLAYCLUSTER_API FDisplayClusterConfigClusterNode : public FDisplayClus
 	int32   Port_SS = 41002;
 	int32   Port_CE = 41003;
 	bool    SoundEnabled = false;
-	bool    EyeSwap = false;
 
 	virtual FString ToString() const override;
 	virtual bool    DeserializeFromString(const FString& line) override;
@@ -64,6 +63,7 @@ struct DISPLAYCLUSTER_API FDisplayClusterConfigWindow : public FDisplayClusterCo
 {
 	FString Id;
 	TArray<FString> ViewportIds;
+	TArray<FString> PostprocessIds;
 	bool IsFullscreen = false;
 	int32 WinX = 0;
 	int32 WinY = 0;
@@ -80,9 +80,24 @@ struct DISPLAYCLUSTER_API FDisplayClusterConfigWindow : public FDisplayClusterCo
 struct DISPLAYCLUSTER_API FDisplayClusterConfigViewport : public FDisplayClusterConfigBase
 {
 	FString Id;
-	FString ScreenId;
+	FString ProjectionId;
+	FString CameraId;
 	FIntPoint Loc  = FIntPoint::ZeroValue;
 	FIntPoint Size = FIntPoint::ZeroValue;
+	bool IsRTT = false;
+
+	virtual FString ToString() const override;
+	virtual bool    DeserializeFromString(const FString& line) override;
+};
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+// Postprocess configuration
+//////////////////////////////////////////////////////////////////////////////////////////////
+struct DISPLAYCLUSTER_API FDisplayClusterConfigPostprocess : public FDisplayClusterConfigBase
+{
+	FString Id;
+	FString PostprocessId;
+	FString ConfigLine;
 
 	virtual FString ToString() const override;
 	virtual bool    DeserializeFromString(const FString& line) override;
@@ -120,6 +135,9 @@ struct DISPLAYCLUSTER_API FDisplayClusterConfigScreen : public FDisplayClusterCo
 //////////////////////////////////////////////////////////////////////////////////////////////
 struct DISPLAYCLUSTER_API FDisplayClusterConfigCamera : public FDisplayClusterConfigSceneNode
 {
+	float EyeDist = 0.064f;
+	bool  EyeSwap = false;
+	int   ForceOffset = 0;
 
 	virtual FString ToString() const override;
 	virtual bool    DeserializeFromString(const FString& line) override;
@@ -180,7 +198,6 @@ struct DISPLAYCLUSTER_API FDisplayClusterConfigRender : public FDisplayClusterCo
 //////////////////////////////////////////////////////////////////////////////////////////////
 struct DISPLAYCLUSTER_API FDisplayClusterConfigStereo : public FDisplayClusterConfigBase
 {
-	float EyeDist = 0.064f;
 
 	virtual FString ToString() const override;
 	virtual bool    DeserializeFromString(const FString& line) override;
@@ -218,7 +235,20 @@ struct DISPLAYCLUSTER_API FDisplayClusterConfigDebug : public FDisplayClusterCon
 //////////////////////////////////////////////////////////////////////////////////////////////
 struct DISPLAYCLUSTER_API FDisplayClusterConfigCustom : public FDisplayClusterConfigBase
 {
-	TMap<FString, FString> Args;
+	TMap<FString, FString> Params;
+
+	virtual FString ToString() const override;
+	virtual bool    DeserializeFromString(const FString& line) override;
+};
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+// Projection data
+//////////////////////////////////////////////////////////////////////////////////////////////
+struct DISPLAYCLUSTER_API FDisplayClusterConfigProjection : public FDisplayClusterConfigBase
+{
+	FString Id;
+	FString Type;
+	FString Params;
 
 	virtual FString ToString() const override;
 	virtual bool    DeserializeFromString(const FString& line) override;

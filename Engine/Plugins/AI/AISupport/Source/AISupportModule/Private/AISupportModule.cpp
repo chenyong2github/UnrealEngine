@@ -2,6 +2,7 @@
 
 #include "AISupportModule.h"
 #include "Modules/ModuleManager.h"
+#include "AITypes.h"
 
 #define LOCTEXT_NAMESPACE "AISupport"
 
@@ -16,17 +17,15 @@ IMPLEMENT_MODULE(FAISupportModule, AISupportModule)
 
 void FAISupportModule::StartupModule()
 {
-	// Called right after the module DLL has been loaded and the module object has been created
-	// Load dependent modules here, and they will be guaranteed to be available during ShutdownModule. ie:
-	// 		FModuleManager::Get().LoadModuleChecked(TEXT("HTTP"));
+	// We need to actually link in something from the AI module, otherwise DLL dependencies will not get loaded early enough
+	// It is NOT safe to actually call startup on the AI module though, as that depends on things that get initialized later in launch
+	static int32 ForceLink = FAIResources::GetResourcesCount();
+	ForceLink++;
 }
 
 void FAISupportModule::ShutdownModule()
 {
-	// Called before the module is unloaded, right before the module object is destroyed.
-	// During normal shutdown, this is called in reverse order that modules finish StartupModule().
-	// This means that, as long as a module references dependent modules in it's StartupModule(), it
-	// can safely reference those dependencies in ShutdownModule() as well.
+
 }
 
 #undef LOCTEXT_NAMESPACE

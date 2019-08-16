@@ -1,36 +1,42 @@
 ﻿Availability:Public
-Title: 静态网格物体类目
+INTSourceChangelist:3782314
+Title: 静态网格体类别
 Crumbs: %ROOT%, Engine, Engine/UI, Engine/UI/LevelEditor, Engine/UI/LevelEditor/Details
-Description:用于查看及修改应用到Actor的所有组件上的静态网格物体资源的自定义操作。
+Description:用于查看和修改应用于Actor的所有组件的静态网格体资源的自定义控件。
+Version: 4.9
 
-仅当选中的Actor是StaticMeshActors或InterpActors时， **详细信息** 面板中才会显示  **Static Mesh(静态网格物体)** 类目。它提供了Actor的StaticMeshComponent包含的一般情况下隐藏的 **StaticMesh** 属性，  令它醒目地呈现，并且显示的是包含缩略图和一般[对象引用](Engine/UI/LevelEditor/Details/Properties/ObjectReference)  属性操作的自定义控件。
+ **详细信息（Details）** 面板中的 **静态网格体（Static Mesh）** 类别只有当选择的Actor为静态网格体Actor或插值Actor时 
+才显示。它提升了Actor静态网格体组件通常为埋藏状态的静态网格体属性， 
+使它成为一级对象，并使用一个自定义控件来显示它，该控件包括一个缩略图和常用的 
+[**对象引用（Object reference）**](Engine/UI/LevelEditor/Details/Properties/ObjectReference)属性控件。
 
 ![](staticmesh.png)
 
-另外，当选中一个StaticmeshActor时，该类目将会包含 _高级控件_ ，通过点击 ![](button_advanced_controls.png)按钮可以查看这些控件。
+此外，当选择静态网格体Actor时，类别包含可以通过单击![](button_advanced_controls.png)按钮公开的 _高级控件_。
 
 ![](staticmesh_advanced.png)
 
-要想使用各种预制方法来生成BlockingVolume(阻挡体积)。
+使用各种预设的方法 
+生成阻挡体积。
 
-| 操作| 描述|
+| 控件 | 说明 |
 | ------- | ----------- |
-| ![](button_blocking_volume.png) | 使用以下方法从该 _StaticMesh（静态网格物体）_ 生成一个 _BlockingVolume（阻挡体积）_ 作为碰撞： [INCLUDE:#BlockingVolume] |
+| ![](button_blocking_volume.png) | 使用以下方法之一来从 _静态网格体_ 生成 _阻挡体积_：[INCLUDE:#BlockingVolume] |
 
 [COMMENT:none]
 
 [EXCERPT:BlockingVolume]
 [REGION:simpletable]
-|方法|描述|
+| 方法 | 说明 |
 | ------ | ----------- |
-|  Blocking Volume(阻挡体积) | 根据静态网格物体的几何形状，创建一个立方体的BlockingVolume（阻挡体积）。|
-| Heavy Convex Volume(具有严重凸面的体积) | 根据静态网格物体的几何形状，创建一个凸多边形的BlockingVolume（阻挡体积），设置 **NormalTolerance**  为0.01。|
-| Normal Convex Volume（具有一般凸面的体积） |根据静态网格物体的几何形状，创建一个凸多边形的BlockingVolume（阻挡体积），设置 **NormalTolerance**  为0.15。|
-| Light Convex Volume（具有轻微凸面的体积） | 根据静态网格物体的几何形状，创建一个凸多边形的BlockingVolume（阻挡体积），设置 **NormalTolerance**  为0.50。|
-| Rough Convex Volume（近似凸面的体积） | 从静态网格物体的几何体创建一个凸多边形的BlockingVolume（阻挡体积），设置 **NormalTolerance**  为0.75。|
+| *阻挡体积（Blocking Volume）* | 创建一个立方体形状的阻挡体积，其尺寸为静态网格体的绑定盒的尺寸。|
+| *重度凸面体积（Heavy Convex Volume）* | 从静态网格体的几何体创建一个凸包阻挡体积，其 **法线公差（NormalTolerance）** 为0.01。|
+| *普通凸面体积（Normal Convex Volume）* | 从静态网格体的几何体创建一个凸包阻挡体积，其 **法线公差（NormalTolerance）** 为0.15。|
+| *轻度凸面体积（Light Convex Volume* | 从静态网格体的几何体创建一个凸包阻挡体积，其 **法线公差（NormalTolerance）** 为0.50。|
+| *粗糙凸面体积（Rough Convex Volume）* | 从静态网格体的几何体创建一个凸包阻挡体积，其 **法线公差（NormalTolerance）** 为0.75。|
 [/REGION]
 [REGION:note]
-$ NormalTolerance（正态容差） : 容差尺度。当计算哪些面和阻挡体积立方体相交时，代码里会忽略任何与当前面法线差小于"NormalTolerance"的切割面。这减少了用于生成切割面的平面数量，另一个作用是，同时也去掉了重复的面。
+$ 法线公差（NormalTolerance）：拒绝公差。在计算要切割阻挡体积立方体的平面时，代码将拒绝任何法线中低于“法线公差”的平面。这减少了用于生成切割平面的平面数量，另外一个作用是消除了重复项。
 [/REGION]
 [/EXCERPT:BlockingVolume]
 

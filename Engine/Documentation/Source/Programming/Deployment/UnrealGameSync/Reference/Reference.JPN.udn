@@ -110,7 +110,7 @@ Epic による設定は各ツールの「 `NotForLicensees/ProgramSettings.cs` �
 zip されたエディタ バイナリに対してはローカル ビルドに対するものと同様の制限事項が適用されるため、チェンジリストに一致するバイナリが存在しない限り、コンテンツ チェンジリストであっても、コード変更後は UGS によってチェンジリストの同期は認められません。コンテンツのみの変更については、「*.cpp`, `*.h`, `*.cs`, `*.usf`, `*.ush」ファイルが変更されていない限り、以前にサブミット済みのバイナリを使用して同期することができます。
 [/REGION]
 
-各ユーザーが自由に使用できるよう、ビルド マシンでエディタ バイナリを正しい形式で作成してサブミットする方法を紹介する [BuildGraph](Programming/Development/BuildGraph) スクリプトの例を次の場所で提供しています。
+各ユーザーが自由に使用できるよう、ビルド マシンでエディタ バイナリを正しい形式で作成してサブミットする方法を紹介する [BuildGraph](Programming/BuildTools/AutomationTool/BuildGraph) スクリプトの例を次の場所で提供しています。
 
 `Engine/Build/Graph/Examples/BuildEditorAndTools.xml`
 

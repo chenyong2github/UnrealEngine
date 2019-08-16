@@ -1,12 +1,12 @@
-﻿INTSourceChangelist:3801260
+INTSourceChangelist:6187230
 Availability:Public
-Title:블루프린트 스플라인 에디터 툴 참고서
+Title:블루프린트 스플라인 에디터 툴 레퍼런스
 Crumbs: %ROOT%, Engine
-Description:레벨 에디터에서 블루프린트 스플라인 컴포넌트 편집을 위한 툴과 절차에 대한 간단 참고서입니다.
+Description:레벨 에디터에서 블루프린트 스플라인 컴포넌트 편집을 위한 툴과 절차에 대한 간단 레퍼런스입니다.
 Navigation:topic
 parent:Engine/BlueprintSplines
 order:1
-social-image:Splines_social.png
+social-image:Engine/BlueprintSplines/Splines_Social.png
 version:4.13
 type:reference
 reference-image:MovePoint.gif

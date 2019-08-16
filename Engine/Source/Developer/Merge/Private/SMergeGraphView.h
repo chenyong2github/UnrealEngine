@@ -25,7 +25,7 @@ public:
 					, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutConflicts);
 private:
 	/** Helper functions and event handlers: */
-	void FocusGraph(FName GraphName);
+	void FocusGraph(const FString& GraphPath);
 	void HighlightEntry(const struct FMergeGraphRowEntry& Conflict);
 	bool HasNoDifferences() const;
 	

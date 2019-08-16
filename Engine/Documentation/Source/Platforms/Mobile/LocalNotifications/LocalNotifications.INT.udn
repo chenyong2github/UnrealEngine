@@ -2,11 +2,14 @@ Availability: Public
 Crumbs: 
 Title: Local Notification For Android and iOS
 Description: Product documentation including reference and guides for Unreal Engine 4
-Type: 
+Type:landing 
 Version: 4.21
 Parent: Platforms/Mobile
 Order: 
-Tags: mobileservices, Early Access, Landing Page
+skilllevel:Intermediate
+Tags: mobileservices
+tags:Early Access
+tags:Landing Page
 
 
 Local notifications are messages that can be displayed outside of your Unreal Engine 4 (UE4) application, alerting users to changes or updates that have been made.  In the following How-To we will take a look at how to set up local notifications that will work on both Android and iOS devices.

@@ -1,0 +1,56 @@
+Availability: Public
+Crumbs: 
+Title: Control Rig
+Description: Control Rigs in Unreal Engine 4 is a scriptable rigging system that is based on Blueprint and is mainly designed for controlling properties to drive animation.
+Type:
+Version: 4.21
+Parent: Engine/Animation
+Order: 
+Tags: Animation
+Tags: Experimental
+Tags: Landing Page
+Tags: Control Rig
+Tags: Rigging
+
+
+![](ControlRigBanner.png "ControlRigBanner.png")
+
+**Control Rigs** in Unreal Engine 4 are a scriptable rigging system that is based on Blueprint and is mainly designed for controlling properties to drive animation. However, unlike Blueprint, Control Rig does not rely on the Blueprint Virtual Machine (VM) but instead uses its own lighter-weight VM to translate code (mostly copy and execute). Control Rig uses a graph-based, node interface where you connect nodes that are executable sections of code called **Rig Units** together to achieve and drive animation that is defined by your Rig Unit network and properties.
+
+Importing a Skeletal Mesh will generate a Hierarchy that enables you to drive and animate the Bones in a Skeletal Mesh using Rig Units. The **Hierarchy** can be an input or output to Rig Units, similar to a Pose being input or output to Anim Nodes in an Animation Blueprint. The Hierarchy itself can be imported, joints can be added, removed, or even renamed. Control Rig is not bound to just Skeletal Meshes as you can use a Blueprint Actor or animate Static Meshes (for example, moving platforms) by providing and applying Transform properties through Rig Units. 
+
+You may want to use Control Rig in your projects if you are looking at ways to accomplish Procedural Rigging, Animating in Engine, or setting up Retargeting or Full Body IK solutions. Retargeting and Full Body IK can be done without Control Rigs in the Engine; however, Control Rigs are more integrated, customizable, and scriptable than other methods, giving you more flexibility.
+
+[OBJECT:EmbeddedVideo]
+	[PARAMLITERAL:width]
+	640
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	360
+	[/PARAMLITERAL]
+	[PARAMLITERAL:videoid]
+	aUZsx5GorB8
+	[/PARAMLITERAL]
+[/OBJECT]
+
+## Enabling the Control Rig Plugin
+
+To use Control Rig, you will first need to enable the Control Rig Plugin:
+
+1.  From the Main Editor under **Edit**, select **Plugins**.  
+    ![](ControlRig_EditPlugins.png "ControlRig_EditPlugins.png")
+2.  From the **Animation **tab, enable the **Control Rig **plugin.   
+    ![](ControlRigPlugin.png "ControlRigPlugin.png")
+3.  Restart the Editor for the plugin to be applied. 
+
+You can create **Control Rig Blueprints** and **Control Rig Sequences** from the **Add New** button under **Animation**:
+
+![](ControlRigAssets.png "ControlRigAssets.png")
+
+## Further Reading
+
+%Engine/Animation/ControlRig/Blueprint:topic%
+
+%Engine/Animation/ControlRig/Sequences:topic%
+
+%Engine/Animation/AnimHowTo/ControlRigAnimBPNode:topic%

@@ -2,13 +2,13 @@ Availability: Public
 Crumbs: 
 Title: AJA Video I/O Quick Start
 Description: A step-by-step guide to getting video from a supported AJA media card into the Unreal Engine, and sending captured video output from the Unreal Engine out to a port on the AJA card.
-Type: 
+Type: quick start
 Version: 4.20
 Parent: Engine/ProVideoIO
-Order: 
+Order: 0
 Tags: Getting Started
-Tags: Early Access
 Tags: professional video
+topic-image: aja-qs-topic-421.png
 
 
 ![](aja-qs-banner.png)
@@ -20,7 +20,7 @@ In this Quick Start guide, we walk through the process of setting up an Unreal E
 *   you'll know where to go when you want to set up more advanced adjustments to your video inputs, such as correcting lens deformation and applying chroma-keying effects.
 
 [REGION:tip]
-For a working example that shows many of the elements described below put into practice, see the [Virtual Studio](Resources/Showcases/VirtualStudio) showcase, available on the Learn tab of the Epic Games Launcher.
+For a working example that shows many of the elements described below put into practice, see the **[Virtual Studio](Resources/Showcases/VirtualStudio)** showcase, available on the Learn tab of the Epic Games Launcher.
 [/REGION]
 
 [REGION:note]
@@ -43,12 +43,15 @@ Before you can get video input from your AJA card into your Unreal Engine Level,
     Open the Epic Games Launcher, go to the **Marketplace** tab, and search for **AJA Media Player**. Follow the instructions in the Launcher to install the Plugin to your version of the Unreal Engine.
 2.  Open the Project that you want to use with AJA video I/O in the Unreal Editor.
 3.  In the **Plugins** window, find the **Aja Media Player** plugin under the **Installed** list. Check its **Enabled** checkbox.  
-    ![Enable the Aja Media Player Plugin](aja-qs-enable-plugin.png "Enable the Aja Media Player Plugin")  
     
-4.  Find the **Media Framework Utilities** Plugin under the **Media** category. Check its**Enabled** checkbox, if it's not already checked.  
-    ![Enable the Media Framework Utilities Plugin](media-qs-utilities-enabled.png "Enable the Media Framework Utilities Plugin")
+	![Enable the Aja Media Player Plugin](aja-qs-enable-plugin.png "Enable the Aja Media Player Plugin")  
+    
+4.  Find the **Media Framework Utilities** Plugin under the **Media** category. Check its **Enabled** checkbox, if it's not already checked.  
+    
+	![Enable the Media Framework Utilities Plugin](media-qs-utilities-enabled.png "Enable the Media Framework Utilities Plugin")
 5.  Click **Restart Now** to restart the Unreal Editor and reopen your Project.  
-    ![Restart Now](media-qs-utilities-restart.png "Restart Now")
+    
+	![Restart Now](media-qs-utilities-restart.png "Restart Now")
 
 ### End Result
 
@@ -65,36 +68,50 @@ In this process, we'll make video input from the AJA card visible in the current
     Rename your new folder **AJA**.  
     
 2.  Open your new folder, right-click in the **Content Browser** and choose **Media > Media Bundle**.  
-    ![New Media Bundle](aja-qs-2b-2-newbundle.png "New Media Bundle")
+    
+	![New Media Bundle](aja-qs-2b-2-newbundle.png "New Media Bundle")
 3.  Your new Asset's name is automatically selected in the Content Browser, so you can give it a descriptive name:  
-    ![Name the Media Bundle](aja-qs-2b-3-filename.png "Name the Media Bundle")Type a new name, like **AjaMediaBundle**, and press **Enter**.  
-    A new folder of Media Framework Assets is automatically created next to your Media Bundle, named with the suffix **_InnerAssets**. 
+    
+	![Name the Media Bundle](aja-qs-2b-3-filename.png "Name the Media Bundle")
+	
+	Type a new name, like **AjaMediaBundle**, and press **Enter**. A new folder of Media Framework Assets is automatically created next to your Media Bundle, named with the suffix **_InnerAssets**. 
 4.  Save your new Assets by clicking the **Save All** button in the **Content Browser**.  
-    ![Save All Assets](aja-qs-2b-4-saveall.png "Save All Assets")
+    
+	![Save All Assets](aja-qs-2b-4-saveall.png "Save All Assets")
 5.  Double-click your new Media Bundle to edit its properties. The Media Bundle is capable of playing video from any kind of media source the Engine supports, so you'll need to tell it that you want to get the video from your AJA card.  
     In the **Media Source** property, select **Aja Media Source** from the drop-down list:  
-    ![Set the AJA Media Source](aja-qs-2b-4-sourcetype.png "Set the AJA Media Source")
+    
+	![Set the AJA Media Source](aja-qs-2b-4-sourcetype.png "Set the AJA Media Source")
 6.  Once you've identified the type of Media Source you want the Media Bundle to handle, you can then set up any configuration properties offered by that type of source.  
     The most important thing to set here for the Aja Media Source is the **Configuration** setting, to make sure that the bundle is set up to capture video from the right device and input port, using the same resolution and frame rate as the actual video feed. Click the arrow to open the settings submenu, select the options that match your setup, then click **Apply** in the submenu.  
-    ![Aja Media Source Configuration](aja-qs-2b-5-configuration.png "Aja Media Source Configuration") The options you see may vary depending on the devices you have installed. For details on all of the properties you can set for an AJA Media Source, see the [AJA Media Reference](https://docs.unrealengine.com/en-us/Engine/ProVideoIO/AjaIOReference) page.
+    
+	![Aja Media Source Configuration](aja-qs-2b-5-configuration.png "Aja Media Source Configuration")  
+    The options you see may vary depending on the devices you have installed. For details on all of the properties you can set for an AJA Media Source, see the [AJA Media Reference](Engine/ProVideoIO/AjaIOReference) page.
 7.  If you want to apply any compensation to the incoming video to account for lens distortion, you can set up the physical properties of the lens in the **Lens Parameters** section.   
-    ![Lens undistortion parameters](aja-qs-2b-6-lensdistortion.png "Lens undistortion parameters")  
-    These **Lens Parameters** just set up the physical properties of the lens. You'll actually activate the lens compensation later, when you edit the Material Instance used by the Media Bundle.  
+    
+	![Lens undistortion parameters](aja-qs-2b-6-lensdistortion.png "Lens undistortion parameters")  
+    
+	These **Lens Parameters** just set up the physical properties of the lens. You'll actually activate the lens compensation later, when you edit the Material Instance used by the Media Bundle.  
     Save your Media Bundle when you're done setting up its properties, and return to the **AJA** folder in the Content Browser.
 8.  Drag your **AjaMediaBundle** Asset from the Content Browser into the Level Viewport.  
-    ![Drag and drop the Media Bundle](aja-qs-2b-9-dragdrop.png "Drag and drop the Media Bundle")  
-    You'll see a new plane appear, showing the video currently being played over the port configured for your Media Bundle. Use the transform tools in the Viewport toolbar to move, rotate, and resize it.  
+    
+	![Drag and drop the Media Bundle](aja-qs-2b-9-dragdrop.png "Drag and drop the Media Bundle")  
+    
+	You'll see a new plane appear, showing the video currently being played over the port configured for your Media Bundle. Use the transform tools in the Viewport toolbar to move, rotate, and resize it.  
     If your Media Bundle doesn't start playing automatically, select it, then click the **Media Bundle > Request Play Media** button in the **Details** panel.  
-    ![Request Play Media](aja-request-play-media.png "Request Play Media")
+    
+	![Request Play Media](aja-request-play-media.png "Request Play Media")
 9.  Now, we'll see how to apply keying and compositing effects to the video stream.  
     Back in the Media Bundle Editor, click the **Open Material Editor** button in the Toolbar to edit the Material Instance that this Media Bundle uses to draw its incoming video feed on to an object in the Level.  
-    ![Open Material Editor](aja-open-material-editr.png "Open Material Editor")  
+    
+	![Open Material Editor](aja-open-material-editr.png "Open Material Editor")  
     [REGION:tip]
     This Material Instance is saved inside the **AjaMediaBundle_InnerAssets** folder that was created automatically with your Media Bundle.  
     ![Material Instance](aja-qs-2b-7-materialinstance.png "Material Instance")
     [/REGION]
 10.  In the Material Instance Editor, you'll see a number of properties exposed for you to configure keying, cropping, and color correction, and to activate the correction for the lens distortion that you set up in the Media Bundle.  
-    ![Material Instance Editor](aja-qs-2b-8-materialinstanceeditor.png "Material Instance Editor")  
+    
+	![Material Instance Editor](aja-qs-2b-8-materialinstanceeditor.png "Material Instance Editor")  
     While you adjust the settings in the Material Instance Editor, you can see the effect of your changes on the video feed playing back in the main Level Viewport.
     [REGION:tip]
     You may find it more convenient to see the effects of the changes you make in the preview panel of the Material Instance Editor instead. To do this, temporarily enable the **IsValid** setting, and set its value to `1.0`.  
@@ -111,7 +128,7 @@ In this process, we'll make video input from the AJA card visible in the current
 
 At this point, you should have video playing over an SDI port showing up inside your Unreal Engine Level, and you should understand where to set up more advanced features like lens deformation and chroma-keying.
 
-If you're already familiar with the Media Framework, another way you could get video into your Level is to create a new **AjaMediaSource** Asset in your Project, and set it up with the same source properties you set up inside the Media Bundle in the procedure above. Then, create your own **MediaPlayer** and **MediaTexture** Assets to handle the playback of that source in your Level. For details, see the [Media Framework](https://docs.unrealengine.com/en-us/Engine/MediaFramework) documentation. However, we recommend using the Media Bundle, as shown above, to get the best balance between ease of use and professional quality video features.
+If you're already familiar with the Media Framework, another way you could get video into your Level is to create a new **AjaMediaSource** Asset in your Project, and set it up with the same source properties you set up inside the Media Bundle in the procedure above. Then, create your own **MediaPlayer** and **MediaTexture** Assets to handle the playback of that source in your Level. For details, see the [Media Framework](Engine/MediaFramework) documentation. However, we recommend using the Media Bundle, as shown above, to get the best balance between ease of use and professional quality video features.
 
 ## 3 - Output Captures from the Unreal Editor
 
@@ -120,34 +137,45 @@ In this process, you'll set up an AJA Media Output object, and use the **Media C
 ### Steps
 
 1.  Right-click in the Content Browser, and select **Media > Aja Media Output**.   
-    ![New AJA Media Output](aja-qs-3-1-newoutput.png "New AJA Media Output")  
+    
+	![New AJA Media Output](aja-qs-3-1-newoutput.png "New AJA Media Output")  
     Name your new Asset **AjaMediaOutput**.
 2.  Double-click your new Asset to open it up for editing. Just like when you created your Aja Media Source, you have to set up the **Configuration** property to control the properties of the video feed that the Unreal Engine sends to your AJA card. Click the arrow to open the submenu, select the options that match your video setup, then click **Apply** in the submenu.  
-    ![Aja Media Output Configuration](aja-qs-3-2-configuration.png "Aja Media Output Configuration")  
+    
+	![Aja Media Output Configuration](aja-qs-3-2-configuration.png "Aja Media Output Configuration")  
     For details on all of the properties you can set in the AJA Media Output, see the [AJA Media Reference](Engine/ProVideoIO/AjaIOReference) page.Save and close your Media Output when you're done.
 3.  Now we'll place two cameras in the Level, to give us viewpoints for the output we'll send to the AJA card. In the **Modes** panel, open the **Cinematic** tab, and drag two instances of the **Cine Camera Actor** into the viewport.  
-    ![Drag and drop Cine Camera Actors](aja-qs-3-3-cinecameras.png "Drag and drop Cine Camera Actors")  
+    
+	![Drag and drop Cine Camera Actors](aja-qs-3-3-cinecameras.png "Drag and drop Cine Camera Actors")  
     Place the cameras where you want them in the Level, so that they're showing different viewpoints on the scene.
     [REGION:tip]
     **Piloting** the camera is a fast and easy way to set its viewpoint exactly the way you want it. See [Pilot Actors in the Viewport](Engine/UI/LevelEditor/Viewports/ActorLocking).
     [/REGION]
 4.  From the main menu, choose **Window > Media Capture**. You'll use the **Media Capture** window to control when the Editor sends output to your AJA port, and what camera it should use in the Level.  
-    ![Media Capture window](aja-qs-3-4-mediacapture.png "Media Capture window")
+    
+	![Media Capture window](aja-qs-3-4-mediacapture.png "Media Capture window")
 5.  Under the **Media Viewport Capture** area, find the **Viewport Captures** control. Click the **+** button to add a new capture to this list.  
-    ![Add a viewport capture](aja-qs-3-5-newcapture.png "Add a viewport capture")
+    
+	![Add a viewport capture](aja-qs-3-5-newcapture.png "Add a viewport capture")
 6.  Expand the new entry. First, we'll add the cameras that we want to capture from. In the **Locked Camera Actors** control, click the **+** button to add a new entry.  
-    ![Add a camera actor](aja-qs-3-6-newcamera.png "Add a camera actor")  
+    
+	![Add a camera actor](aja-qs-3-6-newcamera.png "Add a camera actor")  
     Then, use the drop-down list to choose one of the cameras you placed in the Level.  
-    ![Select the camera actor](aja-qs-3-6-selectcamera.png "Select the camera actor")  
+    
+	![Select the camera actor](aja-qs-3-6-selectcamera.png "Select the camera actor")  
     Repeat the same steps to add the other camera to the list.
 7.  Now, set up the output that you want to capture these cameras to. Set the **Media Output** control to point to the new AJA Media Output Asset that you created above. You can do this by selecting it in the drop-down list, or drag your AJA Media Output Asset from the Content Browser and drop it into this slot.  
-    ![Set the AJA Media Output](aja-qs-3-7-selectoutput.png "Set the AJA Media Output")
+    
+	![Set the AJA Media Output](aja-qs-3-7-selectoutput.png "Set the AJA Media Output")
 8.  At the top of the window, click the **Capture** button.  
-    ![Start capturing](aja-qs-3-8-capture.png "Start capturing")  
+    
+	![Start capturing](aja-qs-3-8-capture.png "Start capturing")  
     You'll see a new frame at the bottom of the window that shows a preview of the output being sent to the AJA card. If you have this port hooked up to another downstream device, you should start to see the output coming through.  
-    ![Active Media Capture](aja-qs-output-8.png "Active Media Capture")
+    
+	![Active Media Capture](aja-qs-output-8.png "Active Media Capture")
 9.  Each camera that you added to the Locked Camera Actors list for this viewport capture is represented by a corresponding button above the video preview. Click the buttons to switch the capture back and forth between the two views.  
-    ![Switch Cameras](aja-qs-output-9.png "Switch Cameras")
+    
+	![Switch Cameras](aja-qs-output-9.png "Switch Cameras")
 
 ### End Result
 
@@ -158,7 +186,7 @@ Now you've set up the Unreal Editor to stream output from cameras in your Level 
 The **Media Capture** window that you used in the last section is a practical and easy way to send captures to the AJA card. However, it only works inside the Unreal Editor. To do the same thing when you're running your Project as a standalone application, you'll need to use the Blueprint API provided by the Media Output. In this procedure, we'll set up a simple toggle switch in the Level Blueprint that starts and stops capturing when the player presses a key on the keyboard.
 
 [REGION:tip]
-The [Virtual Studio](Resources/Showcases/VirtualStudio)** showcase, available on the **Learn** tab of the Epic Games Launcher, contains a UMG interface widget that demonstrates how you could control capturing from an on-screen user interface.
+The **[Virtual Studio](Resources/Showcases/VirtualStudio)** showcase, available on the **Learn** tab of the Epic Games Launcher, contains a UMG interface widget that demonstrates how you could control capturing from an on-screen user interface.
 [/REGION]
 
 ### Steps
@@ -198,7 +226,8 @@ The [Virtual Studio](Resources/Showcases/VirtualStudio)** showcase, available o
     [REGION:note]
     Video capture from the Editor will only work when you play your Project in a **New Editor Window (PIE)** or a **Standalone Game**. It won't work in the default **Selected Viewport** mode, or in **Simulate** mode.  
     In addition, the viewport resolution of your Project (that is, the size of the rendered image the Unreal Engine generates each frame) must match the output resolution set in the active Media Profile, so that it will be the right size for the output video feed.
-    [/REGION]After your project starts up, you should be able to press the **P** button on your keyboard to toggle sending the output from the Engine to the AJA card.
+    [/REGION]  
+    After your project starts up, you should be able to press the **P** button on your keyboard to toggle sending the output from the Engine to the AJA card.
 
 ### End Result
 
@@ -209,4 +238,4 @@ At this point, you should have a basic idea of how to work with Aja Media Source
 Now that you've seen the basics of how to get a new Project exchanging video input and output with an AJA card, you can continue learning on your own:
 
 *   Explore the in-engine keying solution in the Material Instance created by your Media Bundle. Try passing some green-screen video into your card's input port, and use the keying controls in the Material Instance to remove the background.
-*   Explore the [Virtual Studio](Resources/Showcases/VirtualStudio) showcase to see what it adds to this basic setup, like its on-screen UI that switches cameras and controls video capture at runtime.
+*   Explore the **[Virtual Studio](Resources/Showcases/VirtualStudio)** showcase to see what it adds to this basic setup, like its on-screen UI that switches cameras and controls video capture at runtime.

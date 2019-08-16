@@ -18,6 +18,7 @@
 
 //------------------------------------------------------- PASSES.
 
+uint4 ViewportRect;
 uint SampleOffsetMultipler = 1;
 float fSampleOffsetMultipler = 1;
 
@@ -25,11 +26,17 @@ float fSampleOffsetMultipler = 1;
 float CocRadiusToBucketDistanceUpperBound;
 float BucketDistanceToCocRadius;
 
+Texture2D TileInput_Foreground;
+Texture2D TileInput_Background;
+
+Texture2D DilatedTileMinMax_Foreground;
+Texture2D DilatedTileMinMax_Background;
+
 
 //------------------------------------------------------- OUTPUTS.
 
-RWTexture2D<float4>	Output0;
-RWTexture2D<float4>	Output1;
+RWTexture2D<float4>	TileOutput_Foreground;
+RWTexture2D<float4>	TileOutput_Background;
 
 
 //------------------------------------------------------- ENTRY POINT.
@@ -57,7 +64,7 @@ void CocDilateMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 	// Fetches the already dilated min foreground and max background COC radius.
 	#if DIM_DILATE_MODE == DILATE_MODE_MIN_ABS
-		FCocTileSample DilatedMinMaxSample = LoadCocTile(CocTileLayout, PostprocessInput2, PostprocessInput3, PixelPos);
+		FCocTileSample DilatedMinMaxSample = LoadCocTile(CocTileLayout, DilatedTileMinMax_Foreground, DilatedTileMinMax_Background, PixelPos);
 	#endif
 
 	// Iterate over all input tiles and assign them into their buckets.
@@ -74,7 +81,7 @@ void CocDilateMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		OutSampleBuckets[BucketId].BgdMinIntersectableCoc = EXTREMELY_LARGE_COC_RADIUS;
 		OutSampleBuckets[BucketId].BgdMinConservativeCloserGoemetryDistance = EXTREMELY_LARGE_COC_RADIUS;
 
-		UNROLL
+		UNROLL_N(DIM_DILATE_RADIUS*4)
 		for (uint BatchId = 0; BatchId < 4 * RingDistance; BatchId++)
 		{
 			// Generates at compile time sample location if square shaped ring in sample count distance from the kernel's center.
@@ -128,7 +135,7 @@ void CocDilateMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 					//ClosestDistance = fRadiusMultiplier * float((BucketId + 1) * COC_TILE_SIZE) - COC_TILE_SIZE;
 
 					// Sample tile.
-					const FCocTileSample NeightborSample = LoadCocTile(CocTileLayout, PostprocessInput0, PostprocessInput1, SampleIndex);
+					const FCocTileSample NeightborSample = LoadCocTile(CocTileLayout, TileInput_Foreground, TileInput_Background, SampleIndex);
 
 					OutSampleBuckets[BucketId].FgdMinCoc = min(
 						OutSampleBuckets[BucketId].FgdMinCoc,
@@ -164,7 +171,7 @@ void CocDilateMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	} // for (uint BucketId = 0; BucketId < Radius; BucketId++)
 	
 	// Sample the center bucket.
-	FCocTileSample OutSample = LoadCocTile(CocTileLayout, PostprocessInput0, PostprocessInput1, PixelPos);
+	FCocTileSample OutSample = LoadCocTile(CocTileLayout, TileInput_Foreground, TileInput_Background, PixelPos);
 
 	#if DIM_DILATE_MODE == DILATE_MODE_MIN_ABS
 	{
@@ -240,10 +247,10 @@ void CocDilateMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		float4 RawOutput[COC_TILE_MAX_BUFFER_COUNT];
 		EncodeCocTileSample(OutSample, CocTileLayout, RawOutput);
 
-		Output0[PixelPos] = RawOutput[0];
+		TileOutput_Foreground[PixelPos] = RawOutput[0];
 		if (static_condition(GetBufferCountForCocTileLayour(CocTileLayout) > 1))
 		{
-			Output1[PixelPos] = RawOutput[1];
+			TileOutput_Background[PixelPos] = RawOutput[1];
 		}
 	}
 }

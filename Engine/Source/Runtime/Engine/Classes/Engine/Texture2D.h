@@ -42,7 +42,7 @@ public:
 	FORCEINLINE FIntPoint GetImportedSize() const
 	{
 #if WITH_EDITOR
-		return FIntPoint(Source.GetSizeX(),Source.GetSizeY());
+		return Source.GetLogicalSize();
 #else // #if WITH_EDITOR
 		return ImportedSize;
 #endif // #if WITH_EDITOR
@@ -103,6 +103,7 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 	virtual void BeginDestroy() override;
+	virtual bool IsReadyForAsyncPostLoad() const override;
 	virtual void PostLoad() override;
 	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
@@ -113,7 +114,7 @@ public:
 	virtual float GetSurfaceWidth() const override { return GetSizeX(); }
 	virtual float GetSurfaceHeight() const override { return GetSizeY(); }
 	virtual FTextureResource* CreateResource() override;
-	virtual EMaterialValueType GetMaterialType() const override { return MCT_Texture2D; }
+	virtual EMaterialValueType GetMaterialType() const override;
 	virtual void UpdateResource() override;
 	virtual float GetAverageBrightness(bool bIgnoreTrueBlack, bool bUseGrayscale) override;
 	virtual FTexturePlatformData** GetRunningPlatformData() final override { return &PlatformData; }
@@ -178,16 +179,20 @@ public:
 	{
 		if (PlatformData)
 		{
+			if (IsCurrentlyVirtualTextured())
+			{
+				return PlatformData->GetNumVTMips();
+			}
 			return PlatformData->Mips.Num();
 		}
 		return 0;
 	}
 
-	FORCEINLINE EPixelFormat GetPixelFormat() const
+	FORCEINLINE EPixelFormat GetPixelFormat(uint32 LayerIndex = 0u) const
 	{
 		if (PlatformData)
 		{
-			return PlatformData->PixelFormat;
+			return PlatformData->GetLayerPixelFormat(LayerIndex);
 		}
 		return PF_Unknown;
 	}
@@ -370,7 +375,7 @@ public:
 	friend struct FStreamingRenderAsset;
 	
 	/** creates and initializes a new Texture2D with the requested settings */
-	ENGINE_API static class UTexture2D* CreateTransient(int32 InSizeX, int32 InSizeY, EPixelFormat InFormat = PF_B8G8R8A8);
+	ENGINE_API static class UTexture2D* CreateTransient(int32 InSizeX, int32 InSizeY, EPixelFormat InFormat = PF_B8G8R8A8, const FName InName = NAME_None);
 
 	/**
 	 * Gets the X size of the texture, in pixels
@@ -389,4 +394,19 @@ public:
 	 * This is added to any existing mip bias values.
 	 */
 	virtual void RefreshSamplerStates();
+
+	/**
+	 * Returns if the texture is actually being rendered using virtual texturing right now.
+	 * Unlike the 'VirtualTextureStreaming' property which reflects the user's desired state
+	 * this reflects the actual current state on the renderer depending on the platform, VT
+	 * data being built, project settings, ....
+	 */
+	virtual bool IsCurrentlyVirtualTextured() const override
+	{
+		if (VirtualTextureStreaming && PlatformData && PlatformData->VTData)
+		{
+			return true;
+		}
+		return false;
+	}
 };

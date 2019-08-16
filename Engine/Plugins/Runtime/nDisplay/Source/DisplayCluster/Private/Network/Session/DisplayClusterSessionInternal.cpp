@@ -3,8 +3,8 @@
 #include "Network/Session/DisplayClusterSessionInternal.h"
 #include "Network/DisplayClusterMessage.h"
 
-#include "Misc/DisplayClusterLog.h"
 #include "DisplayClusterConstants.h"
+#include "DisplayClusterLog.h"
 
 
 FDisplayClusterSessionInternal::FDisplayClusterSessionInternal(FSocket* InSocket, IDisplayClusterSessionListener* InListener, const FString& InName) :
@@ -33,7 +33,7 @@ uint32 FDisplayClusterSessionInternal::Run()
 		TSharedPtr<FDisplayClusterMessage> Response = GetListener()->ProcessMessage(Request);
 		if (Response.IsValid())
 		{
-			UE_LOG(LogDisplayClusterNetwork, Log, TEXT("Internal message has been processed"), *GetName());
+			UE_LOG(LogDisplayClusterNetwork, Verbose, TEXT("Internal message has been processed"), *GetName());
 			SendMsg(Response);
 		}
 		else
@@ -44,7 +44,7 @@ uint32 FDisplayClusterSessionInternal::Run()
 		}
 	}
 
-	Stop();
+	GetListener()->NotifySessionClose(this);
 
 	UE_LOG(LogDisplayClusterNetwork, Log, TEXT("Session thread %s finished"), *GetName());
 	return 0;

@@ -3,7 +3,7 @@ Crumbs:
 Title: UMG Safe Zones
 Description: This page describes Safe Zones, which are designed to keep the UI from displaying somewhere the player can't see.
 Version: 4.20
-Parent: Engine/
+Parent: Engine/UMG/UserGuide
 Order: 5 
 Tags: UMG UI Designer
 Tags: UMG

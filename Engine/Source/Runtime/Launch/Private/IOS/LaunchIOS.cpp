@@ -31,8 +31,6 @@
 FEngineLoop GEngineLoop;
 FGameLaunchDaemonMessageHandler GCommandSystem;
 
-static const double cMaxThreadWaitTime = 2.0;    // Setting this to be 2 seconds
-
 static int32 DisableAudioSuspendOnAudioInterruptCvar = 1;
 FAutoConsoleVariableRef CVarDisableAudioSuspendOnAudioInterrupt(
     TEXT("au.DisableAudioSuspendOnAudioInterrupt"),
@@ -61,7 +59,7 @@ void FAppEntry::Suspend(bool bIsInterrupt)
 	// if background audio is active, then we don't want to do suspend any audio
 	if ([[IOSAppDelegate GetDelegate] IsFeatureActive:EAudioFeature::BackgroundAudio] == false)
 	{
-		if (GEngine && GEngine->GetMainAudioDevice())
+		if (GEngine && GEngine->GetMainAudioDevice() && !GIsRequestingExit)
 		{
 			FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
 			if (bIsInterrupt && DisableAudioSuspendOnAudioInterruptCvar)
@@ -108,10 +106,13 @@ void FAppEntry::Suspend(bool bIsInterrupt)
 						AudioCommandFence.BeginFence();
 						AudioCommandFence.Wait();
 					}, TStatId(), NULL, ENamedThreads::GameThread);
-            
+					
+					float BlockTime = [[IOSAppDelegate GetDelegate] GetBackgroundingMainThreadBlockTime];
+
 					// Do not wait forever for this task to complete since the game thread may be stuck on waiting for user input from a modal dialog box
+					FEmbeddedCommunication::KeepAwake(TEXT("Background"), false);
 					double    startTime = FPlatformTime::Seconds();
-					while((FPlatformTime::Seconds() - startTime) < cMaxThreadWaitTime)
+					while((FPlatformTime::Seconds() - startTime) < BlockTime)
 					{
 						FPlatformProcess::Sleep(0.05f);
 						if(ResignTask->IsComplete())
@@ -119,6 +120,7 @@ void FAppEntry::Suspend(bool bIsInterrupt)
 							break;
 						}
 					}
+					FEmbeddedCommunication::AllowSleep(TEXT("Background"));
 				}
 				else
 				{

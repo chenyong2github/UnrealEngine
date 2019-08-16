@@ -80,17 +80,21 @@ void ScatterGroupPackMainCS(
 		BRANCH
 		if (GroupId == 0)
 		{
+			#if DIM_HYBRID_SCATTER_FGD
 			for (uint i = 0; i < 5; i++)
 			{
 				OutForegroundScatterDrawList[ScatterGroupCount * 5 + GroupThreadIndex + i * SCATTER_GROUP_PER_INSTANCE] = float4(0, 0, 0, 0);
 			}
+			#endif
 		}
 		else
-		{		
+		{	
+			#if DIM_HYBRID_SCATTER_BGD
 			for (uint i = 0; i < 5; i++)
 			{
 				OutBackgroundScatterDrawList[ScatterGroupCount * 5 + GroupThreadIndex + i * SCATTER_GROUP_PER_INSTANCE] = float4(0, 0, 0, 0);
 			}
+			#endif
 		}
 	}
 	#endif

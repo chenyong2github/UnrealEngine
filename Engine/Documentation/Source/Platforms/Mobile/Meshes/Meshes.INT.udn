@@ -1,0 +1,35 @@
+Availability: Public
+Title: Meshes for Mobile Platforms
+Description: Guidelines for creating content for mobile games.
+Type: overview
+Version: 4.9
+Parent: Platforms/Mobile
+skilllevel:Beginner
+Tags: mobile
+
+## Mesh Types
+
+The list below shows all of the mesh types supported on mobile platforms. **No other types of mesh are supported.**
+
+*   [Skeletal Meshes](Engine/Content/Types/SkeletalMeshes)
+*   [Static Meshes](Engine/Content/Types/StaticMeshes)
+*   [Landscape](Engine/Landscape)
+*   [CPU particle sprites, particle meshes](Engine/Rendering/ParticleSystems)
+    
+The [import process](Engine/Content/FBX) or asset creation process is the same for these types on mobile as it is for other platforms.
+
+## Mesh Limitations
+
+There are certain restrictions on the mesh types supported on mobile platforms due to the hardware.
+
+*   All mesh types can have up to 65k vertices due to the lack of 32 bit index support on mobile hardware.
+*   Skeletal Meshes can have up to 75 bones.
+
+## Mesh Optimization Tools
+
+The following tools can be used to help optimize the meshes that are used in your UE4 mobile projects:
+
+*   [Creating and Using LOD's](Engine/Content/Types/StaticMeshes/HowTo/LODs) \- This How - To shows you how to create and setup LOD meshes right inside UE4.
+*   [Per-Platform LOD](Engine/Content/Types/StaticMeshes/PerPlatformLOD) \- This How - To shows you how to set up LOD's on a per platforum bases. 
+*   [Per-Platform LOD Screen Size](Engine/Content/Types/StaticMeshes/HowTo/PerPlatformLODScreenSize) \- This How - To shows you how to adjust the distance at with LOD's transition on a per platforum bases.
+*   [Strip Unused LOD](Engine/Content/Types/StaticMeshes/HowTo/StripUnUsedLOD) - This How - To shows you how to remove unused LOD on a per platforum bases.

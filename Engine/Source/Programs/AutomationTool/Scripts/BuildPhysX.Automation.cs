@@ -134,6 +134,10 @@ class BuildPhysX : BuildCommand
 		{
 			return "Win64/" + VisualStudioDirectoryName;
 		}
+		if (TargetData.Platform ==  UnrealTargetPlatform.HoloLens)
+		{
+			return "HoloLens/" + VisualStudioDirectoryName;
+		}
 		if (TargetData.Platform == UnrealTargetPlatform.Android)
 		{
 			switch (TargetData.Architecture)
@@ -225,6 +229,10 @@ class BuildPhysX : BuildCommand
 				{
 					return DirectoryReference.Combine(PhysXCMakeFiles, "Windows").ToString() + " -G \"" + VisualStudioName + "\" -Ax64 -DTARGET_BUILD_PLATFORM=windows" + OutputFlags;
 				}
+				if (TargetData.Platform == UnrealTargetPlatform.HoloLens)
+				{
+					return DirectoryReference.Combine(PhysXCMakeFiles, "Windows").ToString() + " -G \"" + VisualStudioName + "\" -A ARM64" + "-DTARGET_BUILD_PLATFORM=windows -DCMAKE_SYSTEM_NAME=WindowsStore -DCMAKE_SYSTEM_VERSION=10.0" + OutputFlags;
+				}
 				if (TargetData.Platform == UnrealTargetPlatform.PS4)
 				{
 					return DirectoryReference.Combine(PhysXCMakeFiles, "PS4").ToString() + " -G \"Unix Makefiles\" -DTARGET_BUILD_PLATFORM=ps4 -DCMAKE_BUILD_TYPE=" + BuildConfig + " -DCMAKE_TOOLCHAIN_FILE=\"" + PhysXSourceRootDirectory + "\\Externals\\CMakeModules\\ps4\\PS4Toolchain.txt\"" + OutputFlags;
@@ -298,6 +306,10 @@ class BuildPhysX : BuildCommand
 				{
 					return DirectoryReference.Combine(ApexCMakeFiles, "Windows").ToString() + " -G \"" + VisualStudioName + "\" -Ax64 -DTARGET_BUILD_PLATFORM=windows" + OutputFlags + ApexFlags;
 				}
+				if (TargetData.Platform == UnrealTargetPlatform.HoloLens)
+				{
+					return DirectoryReference.Combine(ApexCMakeFiles, "Windows").ToString() + " -G \"" + VisualStudioName + "\" -A ARM64" + " -DTARGET_BUILD_PLATFORM=windows -DCMAKE_SYSTEM_NAME=WindowsStore -DCMAKE_SYSTEM_VERSION=10.0" + OutputFlags + ApexFlags;
+				}
 				if (TargetData.Platform == UnrealTargetPlatform.PS4)
 				{
 					return DirectoryReference.Combine(ApexCMakeFiles, "PS4").ToString() + " -G \"Unix Makefiles\" -DTARGET_BUILD_PLATFORM=ps4 -DCMAKE_BUILD_TYPE=" + BuildConfig + " -DCMAKE_TOOLCHAIN_FILE=\"" + PhysXSourceRootDirectory + "\\Externals\\CMakeModules\\ps4\\PS4Toolchain.txt\"" + OutputFlags + ApexFlags;
@@ -328,6 +340,10 @@ class BuildPhysX : BuildCommand
 				if (TargetData.Platform == UnrealTargetPlatform.Win64)
 				{
 					return DirectoryReference.Combine(NvClothCMakeFiles, "Windows").ToString() + " -G \"" + VisualStudioName + "\" -Ax64 -DTARGET_BUILD_PLATFORM=windows -DNV_CLOTH_ENABLE_CUDA=0 -DNV_CLOTH_ENABLE_DX11=0" + OutputFlags;
+				}
+				if (TargetData.Platform == UnrealTargetPlatform.HoloLens)
+				{
+					return DirectoryReference.Combine(NvClothCMakeFiles, "Windows").ToString() + " -G \"" + VisualStudioName + "\" -A ARM64" + " -DTARGET_BUILD_PLATFORM=windows -DCMAKE_SYSTEM_NAME=WindowsStore -DCMAKE_SYSTEM_VERSION=10.0 -DNV_CLOTH_ENABLE_CUDA=0 -DNV_CLOTH_ENABLE_DX11=0" + OutputFlags;
 				}
 				if (TargetData.Platform == UnrealTargetPlatform.PS4)
 				{
@@ -365,6 +381,9 @@ class BuildPhysX : BuildCommand
 		if (TargetData.Platform == UnrealTargetPlatform.Win64)
 		{
 			return MsDev14Exe.ToString();
+		}if (TargetData.Platform == UnrealTargetPlatform.HoloLens)
+		{
+			return MsDev14Exe.ToString();
 		}
 		if (TargetData.Platform == UnrealTargetPlatform.XboxOne)
 		{
@@ -381,7 +400,8 @@ class BuildPhysX : BuildCommand
 	private static string GetMsBuildExe(TargetPlatformData TargetData)
 	{
 		if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64 ||
-			TargetData.Platform == UnrealTargetPlatform.XboxOne || TargetData.Platform == UnrealTargetPlatform.Switch)
+			TargetData.Platform == UnrealTargetPlatform.XboxOne || TargetData.Platform == UnrealTargetPlatform.Switch || 
+			TargetData.Platform == UnrealTargetPlatform.HoloLens)
 		{
 			return MsBuildExe.ToString();
 		}
@@ -413,7 +433,8 @@ class BuildPhysX : BuildCommand
 	private static bool DoesPlatformUseMSBuild(TargetPlatformData TargetData)
 	{
 		if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64 ||
-			TargetData.Platform == UnrealTargetPlatform.XboxOne || TargetData.Platform == UnrealTargetPlatform.Switch)
+			TargetData.Platform == UnrealTargetPlatform.XboxOne || TargetData.Platform == UnrealTargetPlatform.Switch || 
+			TargetData.Platform == UnrealTargetPlatform.HoloLens)
 		{
 			return true;
 		}
@@ -463,7 +484,7 @@ class BuildPhysX : BuildCommand
 		List<TargetPlatformData> TargetPlatforms = new List<TargetPlatformData>();
 
 		// Remove any platforms that aren't enabled on the command line
-		string TargetPlatformFilter = ParseParamValue("TargetPlatforms", "Win32+Win64+PS4+Switch");
+		string TargetPlatformFilter = ParseParamValue("TargetPlatforms", "Win32+Win64+PS4+Switch+HoloLens");
 		if (TargetPlatformFilter != null)
 		{
 			foreach (string TargetPlatformName in TargetPlatformFilter.Split(new char[] { '+' }, StringSplitOptions.RemoveEmptyEntries))
@@ -620,7 +641,8 @@ class BuildPhysX : BuildCommand
 
 		string CMakeName = GetCMakeNameAndSetupEnv(TargetData);
 
-		if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64)
+		if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64 || 
+			TargetData.Platform == UnrealTargetPlatform.HoloLens)
 		{
 			// for windows platforms we support building against multiple compilers
 			foreach (WindowsCompiler TargetWindowsCompiler in TargetWindowsCompilers)
@@ -1119,7 +1141,8 @@ class BuildPhysX : BuildCommand
 	{
 		if (DoesPlatformUseMSBuild(TargetData))
 		{
-			if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64)
+			if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64 || 
+				TargetData.Platform == UnrealTargetPlatform.HoloLens)
 			{
 				// for windows platforms we support building against multiple compilers
 				foreach (WindowsCompiler TargetWindowsCompiler in TargetWindowsCompilers)
@@ -1179,6 +1202,10 @@ class BuildPhysX : BuildCommand
 		{
 			ArchName = "Win64";
 		}
+		else if (TargetData.Platform == UnrealTargetPlatform.HoloLens)
+		{
+			ArchName = "HoloLens";
+		}
 		else if (TargetData.Platform == UnrealTargetPlatform.Mac)
 		{
 			ArchName = "Mac";
@@ -1219,6 +1246,10 @@ class BuildPhysX : BuildCommand
 		else if (TargetData.Platform == UnrealTargetPlatform.Win64)
 		{
 			ArchName = "Win64";
+		}
+		else if (TargetData.Platform == UnrealTargetPlatform.HoloLens)
+		{
+			ArchName = "HoloLens";
 		}
 		else if (TargetData.Platform == UnrealTargetPlatform.XboxOne)
 		{
@@ -1276,7 +1307,8 @@ class BuildPhysX : BuildCommand
 		return TargetData.Platform == UnrealTargetPlatform.Win32 ||
 			TargetData.Platform == UnrealTargetPlatform.Win64 ||
 			TargetData.Platform == UnrealTargetPlatform.Mac ||
-			TargetData.Platform == UnrealTargetPlatform.Linux;
+			TargetData.Platform == UnrealTargetPlatform.Linux || 
+			TargetData.Platform == UnrealTargetPlatform.HoloLens;
 	}
 	private static bool PlatformUsesDebugDatabase(TargetPlatformData TargetData)
 	{
@@ -1284,11 +1316,13 @@ class BuildPhysX : BuildCommand
 			TargetData.Platform == UnrealTargetPlatform.Win64 ||
 			// Target.Platform == UnrealTargetPlatform.Mac || 
 			TargetData.Platform == UnrealTargetPlatform.Linux ||
-			TargetData.Platform == UnrealTargetPlatform.XboxOne;
+			TargetData.Platform == UnrealTargetPlatform.XboxOne || 
+			TargetData.Platform == UnrealTargetPlatform.HoloLens;
 	}
 	private static string GetPlatformDebugDatabaseExtension(TargetPlatformData TargetData)
 	{
-		if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64 || TargetData.Platform == UnrealTargetPlatform.XboxOne)
+		if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64 || TargetData.Platform == UnrealTargetPlatform.XboxOne || 
+				TargetData.Platform == UnrealTargetPlatform.HoloLens)
 		{
 			return "pdb";
 		}
@@ -1305,7 +1339,8 @@ class BuildPhysX : BuildCommand
 
 	private static string GetPlatformBinaryExtension(TargetPlatformData TargetData)
 	{
-		if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64)
+		if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64 || 
+				TargetData.Platform == UnrealTargetPlatform.HoloLens)
 		{
 			return "dll";
 		}
@@ -1322,7 +1357,8 @@ class BuildPhysX : BuildCommand
 
 	private static string GetPlatformLibExtension(TargetPlatformData TargetData)
 	{
-		if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64 || TargetData.Platform == UnrealTargetPlatform.XboxOne)
+		if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64 || TargetData.Platform == UnrealTargetPlatform.XboxOne || 
+				TargetData.Platform == UnrealTargetPlatform.HoloLens)
 		{
 			return "lib";
 		}
@@ -1482,7 +1518,8 @@ class BuildPhysX : BuildCommand
 		{
 			SearchSuffix += "_x86";
 		}
-		else if (TargetData.Platform == UnrealTargetPlatform.Win64)
+		else if (TargetData.Platform == UnrealTargetPlatform.Win64 || 
+				TargetData.Platform == UnrealTargetPlatform.HoloLens)
 		{
 			SearchSuffix += "_x64";
 		}
@@ -1519,7 +1556,8 @@ class BuildPhysX : BuildCommand
 				TargetData.Platform == UnrealTargetPlatform.PS4 ||
 				TargetData.Platform == UnrealTargetPlatform.XboxOne ||
 				TargetData.Platform == UnrealTargetPlatform.Mac ||
-				TargetData.Platform == UnrealTargetPlatform.Switch)
+				TargetData.Platform == UnrealTargetPlatform.Switch || 
+				TargetData.Platform == UnrealTargetPlatform.HoloLens)
 			{
 				return true;
 			}
@@ -1539,7 +1577,8 @@ class BuildPhysX : BuildCommand
 				TargetData.Platform == UnrealTargetPlatform.PS4 ||
 				TargetData.Platform == UnrealTargetPlatform.XboxOne ||
 				TargetData.Platform == UnrealTargetPlatform.Mac ||
-				TargetData.Platform == UnrealTargetPlatform.Switch)
+				TargetData.Platform == UnrealTargetPlatform.Switch || 
+				TargetData.Platform == UnrealTargetPlatform.HoloLens)
 			{
 				return true;
 			}
@@ -1655,7 +1694,8 @@ class BuildPhysX : BuildCommand
 					foreach (string TargetConfiguration in TargetConfigurations)
 					{
 						// Delete output files before building them
-						if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64)
+						if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64 || 
+								TargetData.Platform == UnrealTargetPlatform.HoloLens)
 						{
 							foreach (WindowsCompiler TargetCompiler in TargetWindowsCompilers)
 							{
@@ -1727,7 +1767,8 @@ class BuildPhysX : BuildCommand
 						}
 
 
-						if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64)
+						if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64 || 
+								TargetData.Platform == UnrealTargetPlatform.HoloLens)
 						{
 							foreach (WindowsCompiler TargetCompiler in TargetWindowsCompilers)
 							{

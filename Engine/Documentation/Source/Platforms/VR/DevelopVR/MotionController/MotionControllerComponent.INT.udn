@@ -1,0 +1,181 @@
+Availability: Public
+Title: Motion Controller Component Setup
+Description: Information on how to setup Motion Controllers for VR interaction.
+Type: Overview
+SkillLevel:Beginner
+Version:4.17
+parent:Platforms/VR/DevelopVR
+Order: 2
+Tags: VR
+
+[TOC(start:2)]
+
+No matter which Virtual Reality platform you are developing for, adding support for Motion Controllers can add a level of immersion and interaction that is just not possible to achieve with a controller or mouse and keyboard. In the following How - To we will take a look at how to add Motion Controller support to the VR Platforms that support it. 
+
+## Supported Platforms 
+
+The Motion Controller component that is found in the Components tab will work on the following VR platforms.
+
+* Oculus VR
+* Steam VR
+* Gear VR
+* Playstation VR
+* Google VR
+
+If you do not see the platform you are developing for listed above, make sure to check that platform's documentation for how to go about setting use of Motion Controllers. 
+
+## Motion Controller Setup
+
+In the following section we will take a look at how to add and setup the components that are needed for Motion Controllers to work.
+
+[region:note]
+This How - To has been written assuming that you have setup your Pawn to work with the VR Head Mounted Display (HMD) that you are developing for. If you are not sure how to do this, check please check out the getting [started guide](Platforms/VR/DevelopVR) for the VR Head Mounted Display (HMD) you are developing for. 
+[/region]
+
+1. First, inside the  **Content Browser** locate and open up your **Player Pawn** Blueprint.
+
+    [REGION:lightbox]
+    [![](Open_VR_Pawn.png)(w:427)](Open_VR_Pawn.png)
+    [/REGION]
+
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  In the **Components** section click on the **Add Component** button to expose the components that can be added to this Blueprint. 
+
+    [REGION:lightbox]
+    [![](Find_Components.png)(w:435)](Find_Components.png)
+    [/REGION]
+
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1. Input **Motion** in the search box and then click on the **Motion Controller** component to add it to the components list, giving it a name of **MC_Left**..
+
+	![](Add_MC_Component.png)
+
+1. Select the newly added Motion Controller component and over in the **Details** panel under the **Motion Controller** section make sure the **Hand** is set to **Left**.
+
+    [REGION:lightbox]
+    [![](Setting_Up_Components.png)(w:787)](Setting_Up_Components.png)
+    [/REGION]
+
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1. Next, select the **Motion Controller Component** in the **Components panel** and click the **Add Component** button and then search for and add a **Static Mesh Component**, calling it **SM_Left**. 
+
+	![](Add_SM_To_MC.png)
+
+	[region:note]
+	Make sure that the Static Mesh Component is a child of the Motion Controller Component otherwise the Static Mesh will not follow along when the Motion Controller is moved.
+	[/region]
+
+1. Now, in the Details panel of the Static Mesh Component under the **Static Mesh** section input a Static Mesh to represent what the Motion Controllers will look like. For this example we are using a simple box, but feel free to use any Static Mesh you have available.
+
+    [REGION:lightbox]
+    [![](SM_MC_Static_Mesh.png)(w:787)](SM_MC_Static_Mesh.png)
+    [/REGION]
+
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1. Now, duplicate the entire Left hand Motion Controller setup and re-place the word **Left** with **Right**. Also make sure to change the which hand this Motion Controller is used for by going to the Motion Controller component and then changing **Hand** from Left to **Right**.
+
+    [REGION:lightbox]
+    [![](Finshed_MC_Setup.png)(w:787)](Finshed_MC_Setup.png)
+    [/REGION]
+
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1. Compile and save your Pawn Blueprint, make sure it is placed in your test level and then launch your project. When you put on your HMD and pick up your Motion Controlers you should be able to now do what is shown in the following video.
+
+	[OBJECT:EmbeddedVideo]
+		[PARAMLITERAL:videoid]
+		CD6-Mje1y6g
+		[/PARAMLITERAL]
+		[PARAMLITERAL:width]
+		100
+		[/PARAMLITERAL]
+		[PARAMLITERAL:height]
+		56.25
+		[/PARAMLITERAL]
+		[PARAMLITERAL:units]
+		%
+		[/PARAMLITERAL]
+		[PARAMLITERAL:type]
+		simple
+		[/PARAMLITERAL]
+	[/OBJECT]
+
+
+## Motion Controller Component Visualization
+
+Motion Controllers have a **Visualization** category that enables you to quickly and more easily add a display model Static Mesh to your Motion Controllers. By default, the system attempts to load a Static Mesh model matching the device driving the Motion Controller.  The visualization fields  offer the following options: 
+
+![](Motion_Contoller_Visualization_Options_00.png "Motion_Contoller_Visualization_Options_00.png")
+
+[REGION:simpletable]
+|Property Name|Description|
+| --- | --- |  
+| **Display Device Model** | Used to automatically render a model associated with the set hand. |
+| **Display Model Source** | Determines the source of the desired model. Ny default, the active XR system(s) will be queried and (if available) will provide a model for the associated device. Note: This may fail if there's no default model; use 'Custom' to specify your own mode. |
+| **Custom Display Mesh** | A mesh override that'll be displayed attached to this Motion Controller. |
+| **Display Mesh Material Overrides** | Material overrides for the specified Display mesh. |
+[/REGION]
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ sVp5n4FkZwE
+ [/PARAMLITERAL]
+[/OBJECT]
+
+## Training Streams
+
+
+[OBJECT:TopicCompactVideo]
+    [PARAMLITERAL:title]
+    Setting Up Motion Controllers
+    [/PARAMLITERAL]
+    [PARAMLITERAL:videoid]    
+	6ALnsdQnkVQ
+    [/PARAMLITERAL]
+[/OBJECT]
+[OBJECT:TopicCompactVideo]
+    [PARAMLITERAL:title]
+    Creating Interactions in VR With Motion Controllers Part 1
+    [/PARAMLITERAL]
+    [PARAMLITERAL:videoid]
+	eRNtgFo6iU0    
+    [/PARAMLITERAL]
+[/OBJECT]
+[OBJECT:TopicCompactVideo]
+    [PARAMLITERAL:title]
+        Creating Interactions in VR With Motion Controllers Part 2
+    [/PARAMLITERAL]
+    [PARAMLITERAL:videoid]    
+	utOahIZgKgc
+    [/PARAMLITERAL]
+[/OBJECT]
+[OBJECT:TopicCompactVideo]
+    [PARAMLITERAL:title]
+        Creating Interactions in VR With Motion Controllers Part 3
+    [/PARAMLITERAL]
+    [PARAMLITERAL:videoid]
+    fcmRGkpWefY
+    [/PARAMLITERAL]
+[/OBJECT]
+
+

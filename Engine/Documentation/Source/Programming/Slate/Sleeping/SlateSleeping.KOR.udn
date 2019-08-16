@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:Public
 Title:슬레이트 슬립 및 액티브 타이머
 Crumbs:%ROOT%, Programming, Programming/Slate
@@ -83,7 +83,7 @@ Tick() 은 폐기시켜 이런 부분을 보다 명확히 할 것입니다.
 ## FCurveSequence 와 액티브 타이머
 FCurveSequence 의 API 가 업데이트되어 위젯이 애니메이션 중일 때 액티브 틱을 등록하는 프로세스가 단순화되었습니다.
 시퀀스를 재생하면 이제 애니메이션이 일어나는 위젯으로의 레퍼런스가 필요합니다.
-시퀀스 재생 도중에는 전달된 위젯 대신 공백 액티브 틱이 자동 등록됩니다.
+시퀀스 재생 도중에는 전달된 위젯 대신 비어 있는 활성 틱이 자동 등록됩니다.
 시퀀스의 루핑 여부는 이제 시퀀스 플레이시 지정됩니다. 하지만 그렇게 하면 액티브 틱이 무한 등록되므로, 사용시 주의를 요합니다.
 루핑이 되든 말든, Pause(), JumpToStart(), 또는 JumpToEnd() 호출시 액티브 틱 등록은 해제됩니다.
 

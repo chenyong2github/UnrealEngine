@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3750348
-Availability:Public
+﻿INTSourceChangelist:6083686
+Availability:Docs
 Crumbs: %ROOT%
 Title:2 - 设置媒体纹理及材质
 Description:在本节中，我们要设置将用于视频播放的媒体纹理和材质。 
@@ -13,6 +13,8 @@ order:2
 tags:Media Framework
 tags:Materials
  
+ ## 页面已被合并，标记为Docs。 
+
 [NAV]
 
 在上一步中，我们导入了内容并创建了一些将用于本指南的资源，接下来我们将创建将用于播放视频的材质。这要求我们在[材质](Engine/Rendering/Materials)中融入媒体纹理并执行一些步骤以使内容正确地显示在电视机屏幕上。

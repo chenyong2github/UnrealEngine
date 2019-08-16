@@ -234,11 +234,8 @@ class ENGINE_API UMaterialExpression : public UObject
 	 * This is used to link the compiled uniform expressions with their default texture values. 
 	 * Any UMaterialExpression whose compilation creates a texture uniform expression (eg Compiler->Texture, Compiler->TextureParameter) must implement this.
 	 */
-	virtual UTexture* GetReferencedTexture() 
-	{
-		return NULL;
-	}
-
+	virtual UObject* GetReferencedTexture() const { return nullptr; }
+	/** Returns true if GetReferencedTexture() can ever return a valid pointer. */
 	virtual bool CanReferenceTexture() const { return false; }
 
 #if WITH_EDITOR
@@ -300,6 +297,11 @@ class ENGINE_API UMaterialExpression : public UObject
 	 */
 #if WITH_EDITOR
 	virtual bool NeedsRealtimePreview() { return false; }
+
+	/**
+	 * @return text overlaid over the preview in the material editor
+	 */
+	virtual FText GetPreviewOverlayText() const { return FText(); }
 
 	/**
 	 * MatchesSearchQuery: Check this expression to see if it matches the search query
@@ -416,6 +418,8 @@ class ENGINE_API UMaterialExpression : public UObject
 	virtual FName GetParameterName() const { return NAME_None; }
 	virtual void SetParameterName(const FName& Name) {}
 
+	virtual bool HasConnectedOutputs() const;
+
 #endif // WITH_EDITOR
 
 	/** Checks whether any inputs to this expression create a loop */
@@ -431,6 +435,5 @@ protected:
 	 */
 	bool ContainsInputLoopInternal(TArray<class FMaterialExpressionKey>& ExpressionStack, TSet<class FMaterialExpressionKey>& VisitedExpressions, const bool bStopOnFunctionCall);
 };
-
 
 

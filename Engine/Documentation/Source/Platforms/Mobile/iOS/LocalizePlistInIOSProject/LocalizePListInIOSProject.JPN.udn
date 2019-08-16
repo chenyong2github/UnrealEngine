@@ -1,0 +1,98 @@
+﻿INTSourceChangelist:4898254
+Availability: Public
+Crumbs: 
+Title: iOS プロジェクトで｢plist｣と｢NSLocalizedString｣をローカライズする
+Description: このページでは、翻訳が必要なプロジェクト コード内の文字列を識別する方法を説明します。
+Type: 
+Version: 4.20
+Parent: Platforms/Mobile/iOS
+Order: 
+Tags: mobile
+Tags: iOS
+
+
+iOS プロジェクトを様々な言語でデプロイしたい場合があります。iOS プロジェクトをローカライズする時は、コード内の文字列を識別して翻訳する必要があります。iOS アプリを送信する際は、これがローカライズする際の要件となります。この操作ガイドでは、コード内の文字列を翻訳するファイルの作成方法を学びます。
+
+## ステップ
+
+1. `{UEProjectDir}/Build/IOS/Resources/Localization/` ディレクトリに各言語のフォルダを作成します。各フォルダに `{LanguageCode}.lproj` と名前を付けます。たとえば、`EN.lproj` の場合、`EN` が英語の言語コードで、`FR.lproj` では、`FR` がフランス語の言語コード、`JA.lproj` では、`JA` が日本語の言語コードといったようになっています。
+    [REGION:note]
+    ここで使用されている言語コードは、[｢ISO 639-2 標準｣](http://www.loc.gov/standards/iso639-2/php/code_list.php)で使用されている 2 つの文字コードです。
+    [/REGION]
+2. 各言語フォルダに `InfoPlist.strings` という名前でテキスト ファイルを作成します。`InfoPlist.strings` ファイルは、iOS プロジェクトの `info.plist` ファイル内のすべての文字列を翻訳します。
+3. 各言語フォルダに `Localizable.strings` という名前でテキストファイルを作成します。`Localizable.strings` ファイルは、iOS プロジェクトのすべてのコード ファイル内のすべての文字列を翻訳します。
+
+たとえば、 ｢Lovely Game｣という名前のアプリケーションの場合、object-c コードには次の行が含まれています。
+
+    NSString* allRightText = NSLocalizedString(@"All right", @"All right");
+    NSString* cancelText = NSLocalizedString(@"Cancel", @"Cancel");
+
+次の表は、`InfoPlist.strings` ファイルと `Localizable.strings` ファイルをさまざまな言語に変更する方法の例をいくつか示しています。
+
+  
+| 言語| InfoPlist.strings ファイルのコード| Localizable.strings ファイルのコード|
+| ---| ---| ---|
+| 英語| [INCLUDE:#excerpt_4] | [INCLUDE:#excerpt_5] |
+| 中国語| [INCLUDE:#excerpt_7] | [INCLUDE:#excerpt_8] |
+| フランス語| [INCLUDE:#excerpt_10] | [INCLUDE:#excerpt_11] |
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_11]
+`/* All right */`
+`"All right" = "D'accord";`  
+`/* Cancel */`
+`"Cancel" = "Annuler";`  
+[/EXCERPT:excerpt_11]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_10]
+`"CFBundleDisplayName" = "Beau Jeu";`
+`"NSCameraUsageDescription" = "L'appareil photo est nécessaire pour prendre une photo";`
+[/EXCERPT:excerpt_10]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_8]
+`/* OK */ `
+`"OK" = "确定";`  
+`/* Cancel */`
+`"Cancel" = "取消";`
+[/EXCERPT:excerpt_8]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_7]
+`"CFBundleDisplayName" = "可爱的游戏";`
+`"NSCameraUsageDescription" = "需要摄像头用于拍照";`
+[/EXCERPT:excerpt_7]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_5]
+`/* All right */`
+`"All right" = "All right"; ` 
+`/* Cancel */`
+`"Cancel" = "Cancel";`
+[/EXCERPT:excerpt_5]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_4]
+`"CFBundleDisplayName" = "Lovely Game";`
+`"NSCameraUsageDescription" = "The camera is needed to take a picture";`
+[/EXCERPT:excerpt_4]
+-
+[/COMMENT]
+
+## 最終結果
+
+この操作ガイドを使用して作成された `[UEProjectDir]/Build/IOS/Resources/Localization/` フォルダは、Unreal Engine がプロジェクトをパッケージ化して `.IPA` ファイルを作成するときにコピーされます。iOS プロジェクトをパッケージ化するとすべての文字列が翻訳されるので、プロジェクトは Apple に送信できる状態になります。

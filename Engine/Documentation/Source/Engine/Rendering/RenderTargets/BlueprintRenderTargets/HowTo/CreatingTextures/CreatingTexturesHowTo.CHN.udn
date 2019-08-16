@@ -1,23 +1,187 @@
-﻿INTSourceChangelist:3259022
-availability:Public
-title:使用蓝图和渲染目标创建纹理
-Description:说明如何使用蓝图和渲染目标在 UE4 中创建纹理。
-crumbs:%ROOT%, Engine, Engine\Rendering\RenderTargets
-version:4.13
-Type:how-to
-SkillLevel:Intermediate
-parent:Engine/Rendering/RenderTargets/BlueprintRenderTargets/HowTo
-order:1
-Navigation:landing
-tags:Render Targets
-Related:Gameplay/Framework/GameMode/
-Related:Engine/Blueprints/
-Related:Engine/Rendering/Materials/
-Related:Engine/Blueprints/UserGuide/UserConstructionScript/
-checkpoint:CTUB
+﻿INTSourceChangelist:6542935
+Availability: Public
+Title: 使用蓝图和渲染目标创建纹理
+Description: 演示如何使用蓝图和渲染目标在UE4中创建纹理。
+Type: how-to
+Version: 4.13
+Parent: Engine/Rendering/RenderTargets/BlueprintRenderTargets/HowTo
+Tags: Render Targets
+SkillLevel: Intermediate
+Order: 0
+Related: Engine/Blueprints/UserGuide/UserConstructionScript
+Related: Engine/Rendering/Materials
+Related: Gameplay/Framework/GameMode
+Related: Engine/Blueprints
+
+
+[TOC (start:2 end:2)]
 
 ![](Creating_Textures_Header_00.png)
 
-为虚幻引擎 4（UE4）项目创建纹理时，通常需要使用 Adobe Photoshop 或 GIMP 之类的第三方 2D 绘图软件。用这种方法创建的内容效果极佳，在 UE4 中拥有可创建这类内容的实例将十分实用。在以下指南中，我们将了解如何使用蓝图和渲染目标为 UE4 项目创建纹理：首先在 UE4 项目中新建一个空白关卡，然后创建并设置使用的渲染目标。
+在为虚幻引擎4（UE4）项目创建纹理时，您通常需要外部2D绘图程序，如Adobe Photoshop或GIMP。虽然以这种方式编写内容能获得出色的结果，但有些情况下，能够在UE4中创建这类内容非常有用。在以下操作说明中，我们将介绍如何使用蓝图和渲染目标为UE4项目创建纹理。首先在UE4项目中创建一个新的空关卡，然后创建并设置要使用的渲染目标。
 
-[DIR(output:"checkpoint" parent:"Engine/Rendering/RenderTargets/BlueprintRenderTargets/HowTo/CreatingTextures")]
+## 1 - 项目设置
+
+在开始之前，需要在项目设置期间中创建一些资源。
+
+### 创建新的空关卡
+
+创建新的 **空关卡** 以将纹理创建蓝图放在其中，这样可以简化管理，确保不会影响您的纹理创建过程。要在UE4中创建新的空关卡，您将需要完成以下操作：
+
+1. 从 **主工具栏**，转至 **文件（File）** \> **新建关卡（New Level）**。  
+ 
+    ![](New_Level_01.png)
+
+1. 从显示的“新建关卡（New Level）”窗口中，单击 **空关卡（Empty Level）** 选项。 
+
+    ![](New_Level_02.png)
+
+1. 单击 **空关卡（Empty Level）** 选项后，UE4将加载一个没有任何内容的新关卡。完成后，单击主工具栏上的 **保存（Save）** 按钮，将它命名为 `BlueprintTextureCreation` 进行保存。  
+
+    ![](New_Level_03.png)
+
+现在已创建并保存了关卡，在下一部分中，我们将创建和设置所需资源。
+
+## 2 - 所需资源创建和设置
+
+在该部分中，我们将介绍如何创建和设置所需资源，以便您可以使用蓝图和渲染目标创建纹理。
+
+### 材质创建和设置
+
+1.  在内容浏览器中单击右键，从 **创建基本资源（Create Basic Asset）** 部分中，选择 **材质（Material）** 选项以创建新材质。  
+    
+	![](Create_RTT_Material_01.jpg "Create_RTT_Material_01.jpg")  
+    
+
+1. 将材质命名为 **RT_Material_00**，然后双击材质以在 **材质编辑器（Material Editor）** 将其打开。  
+
+    ![](Create_RTT_Material_02.jpg "Create_RTT_Material_02.jpg")
+
+1. 在材质编辑器中打开 **RT_Material_00** 后，将以下 **材质表达式（Material Expression）** 节点添加到 **材质图表（Material Graph）**。
+    
+	*  **纹理坐标**
+    *   **常量**
+    *   **追加**
+    *   **噪点**  
+		![](Create_RTT_Material_03.jpg "Create_RTT_Material_03.jpg")
+
+1. 将所需材质表达式节点添加到材质图表后，连接这些节点，以使它们与下图相符，完成后按 **应用（Apply）** 按钮来编译材质。  
+    ![](Create_RTT_Material_05.jpg "Create_RTT_Material_05.jpg")  
+      
+    
+## 3 - 渲染目标创建和设置
+
+1.  打开UE4编辑器，然后在 **内容浏览器** 中单击右键。从显示的菜单中，找到 **创建高级资源（Create Advanced Asset）** 部分。  
+    
+	![](Create_RTT_01.jpg "Create_RTT_01.jpg")
+
+1.  从“创建高级资源（Create Advanced Asset）”菜单，将鼠标放到 **材质和纹理（Materials & Textures）** 部分上方，从显示的资源列表中，选择 **渲染目标（Render Target）** 选项。  
+    
+	![](Create_RTT_02.jpg "Create_RTT_02.jpg")
+
+1.  将新创建的渲染目标命名为 **RT_00**，完成时，内容浏览器应类似于下图所示：  
+    
+	![](Create_RTT_03.jpg "Create_RTT_03.jpg")  
+    
+
+## 4 - 蓝图设置
+
+设置并准备好渲染目标和所需的材质后，需要使用蓝图将一切内容组合起来。在以下部分中，我们将介绍如何设置高度场绘制蓝图的所有部分。
+
+### 蓝图创建和设置
+
+要创建同时适用于渲染目标和材质的蓝图，需要完成以下操作：
+
+1. 在 **内容浏览器** 中单击右键，从显示的菜单中，在 **创建基本资源（Create Basic Asset）** 部分中选择 **蓝图（Blueprint）** 选项以创建新的蓝图。
+    
+    ![](Create_Blueprint_01.png)
+    
+1. 从 **选取父类（Pick Parent Class）** 窗口中，选择 **Actor** 类，然后将蓝图命名为 `BP_Texture_Creator`。
+    
+    ![](Create_Blueprint_02.png)
+    
+1. 双击 `BP_Texture_Creator` 蓝图以将其打开，打开后，单击 **事件图表（Event Graph）** 选项卡以打开事件图表。
+    
+    ![](Create_Blueprint_03.png)
+    
+1. 将下列蓝图节点添加到事件图表：
+    
+    *  **自定义事件**       
+    *  **将材质绘制到渲染目标**        
+    
+    ![](Create_Blueprint_04.png)
+    
+1. 选择自定义事件节点，并按 **F2**，以便您可以将自定义事件节点重命名为 `Bake`。然后，将其输出连接到 **将材质绘制到渲染目标** 节点的输入。
+    
+    ![](Create_Blueprint_05.png)
+    
+1. 接下来，在 **将材质绘制到渲染目标** 节点上，将之前创建的渲染目标加载到 **纹理渲染目标** 插槽，方法是单击 **选择资源（Select Asset）** 旁边的白色小三角，然后从列表中找到渲染目标 `RT_00` 并单击选中。完成后，对 **材质（Material）** 部分完成相同的操作，选择 `RT_Material_00`。
+    
+    ![](Create_Blueprint_06.png)
+    
+1. 现在，单击 **构造脚本（Construction Script）** 选项卡，从构造脚本节点拖出一根引线以显示 **可执行操作（Executable actions）** 菜单。
+    
+    ![](Create_Blueprint_09.png)
+    
+    [REGION:警告]
+    请注意，DrawMaterialToRenderTarget在UE4编辑器之外无法用于构造脚本，这意味着如果尝试在运行时进行这个操作，则不起作用。
+    [/REGION]
+    
+1. 从该菜单中，在搜索框中输入 **Bake** 以找到 **烘焙（Bake）** 事件，找到后单击以将其添加到图表，然后将构造脚本的输出连接到烘焙节点的输入。
+    
+    ![](Create_Blueprint_07.png)
+    
+1. 最后，按 **编译（Compile）** 和 **保存（Save）** 按钮以编译和保存蓝图。
+    
+    ![](Create_Blueprint_08.png)
+    
+
+现在，蓝图已设置妥当，在下一部分中，我们将介绍如何采集并保存纹理来显示在材质中创建的内容。
+
+## 5 - 纹理创建和最终结果
+
+在本部分中，我们将介绍如何将本操作说明的所有部分组合起来，以便根据创建的材质创建和保存纹理资源。
+
+### 纹理创建
+
+现在，所有必需部分已经创建并设置妥当，我们将介绍如何创建和保存所创建的纹理。
+
+1. 在内容浏览器中找到 `BP_Texture_Creator` 蓝图，将其拖到关卡。
+    
+    ![](Create_Textures_01.png)
+    
+1. 在内容浏览器中找到 `RT_Material_00` 材质，然后双击以将其打开。打开后，选择 **噪点** 材质表达式节点。
+    
+    ![](Create_Textures_02.png)
+    
+1. 选中 **噪点** 材质表达式后，转至 **细节（Details）** 面板，并在相应的参数中输入以下值。完成后，按 **应用（Apply）** 按钮来编译材质。
+    
+    ![](Create_Textures_03.png)
+    
+    *  **缩放：（Scale:）**2.0        
+    *  **关卡：（Levels:）**8.0        
+    *  **输出最小值：（Output Min:）**-0.01        
+    *  **关卡缩放：（Level Scale:）**3.0
+        
+
+1. 选择关卡中放置的 `BP_Texture_Creator` 蓝图，然后沿任意方向稍作移动，以更新内容浏览器中的 `RT_00` 渲染目标。进行这个操作时，您应看到 `RT_00` 渲染目标更新，并显示 `RT_Material_00` 中的确切内容。
+    
+    ![](Create_Textures_04.png)
+    
+    [REGION:note]
+    每当想要查看或更新在材质中做出的更改时，只需[稍微]移动蓝图即可。
+    [/REGION]
+    
+
+1. 在内容浏览器中，右键单击 `RT_00` 渲染目标，在菜单的 **渲染目标操作（Render Targets Actions）** 部分中，选择 **创建静态纹理（Create Static Texture）** 选项，以创建显示 `RT_Material_00` 输出的新纹理资源。
+    
+    ![](Create_Textures_05.png)
+    
+
+### 最终结果
+
+完成后，您应有了一个新的2D纹理，它显示 `RT_Material_00` 的内容，现在可以在您喜欢的任何其他材质中使用。
+
+![](Create_Textures_06.png)
+
+需要记住的是，为了看到您的更改，需要确保编译材质并[稍微]移动蓝图，以便将更改传播到渲染目标。

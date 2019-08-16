@@ -17,6 +17,7 @@
 #include "Misc/AutomationTest.h"
 
 
+/*
 UNiagaraStackViewModel* CreateStackViewModelForEmitter(UNiagaraEmitter* Emitter)
 {
 	TSharedRef<FNiagaraSystemViewModel> SystemViewModel = FNiagaraEditorTestUtilities::CreateTestSystemViewModelForEmitter(Emitter);
@@ -25,6 +26,7 @@ UNiagaraStackViewModel* CreateStackViewModelForEmitter(UNiagaraEmitter* Emitter)
 	StackViewModel->Initialize(SystemViewModel, EmitterHandleViewModel);
 	return StackViewModel;
 }
+*/
 
 /*
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNiagaraEditorStackViewModelAddParameterModulesTest, "System.Plugins.Niagara.Editor.StackViewModel.Add Parameter Modules", EAutomationTestFlags::EditorContext | EAutomationTestFlags::CriticalPriority | EAutomationTestFlags::EngineFilter)

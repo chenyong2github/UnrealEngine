@@ -71,10 +71,8 @@ namespace SceneOutliner
 
 	public:
 
-		SLATE_BEGIN_ARGS( SSceneOutliner ){}
-
+		SLATE_BEGIN_ARGS( SSceneOutliner ) {}
 			SLATE_ARGUMENT( FOnSceneOutlinerItemPicked, OnItemPickedDelegate )
-
 		SLATE_END_ARGS()
 
 		/**
@@ -86,8 +84,7 @@ namespace SceneOutliner
 		void Construct( const FArguments& InArgs, const FInitializationOptions& InitOptions );
 
 		/** Default constructor - initializes data that is shared between all tree items */
-			SSceneOutliner() : SharedData(MakeShareable(new FSharedOutlinerData)),
-				ActorComponentsEnable(TEXT("ActorComponents.Enable"), TEXT("Toggles actor components visible in Scene outliner"), FConsoleCommandDelegate::CreateRaw(this, &SSceneOutliner::ActorComponentsModeToggle)) {}
+			SSceneOutliner() : SharedData(MakeShareable(new FSharedOutlinerData)) {}
 
 		/** SSceneOutliner destructor */
 		~SSceneOutliner();
@@ -211,6 +208,16 @@ namespace SceneOutliner
 			}
 		}
 
+		/** Visitor that is used to validate if the item should added to the tree */
+		struct FValidateItemBeforeAddingToTree : TTreeItemGetter<bool>
+		{
+			/** Override to extract the data from specific tree item types */
+			virtual bool Get(const FActorTreeItem& ActorItem) const { return ActorItem.Actor.IsValid(); }
+			virtual bool Get(const FWorldTreeItem& WorldItem) const { return true; }
+			virtual bool Get(const FFolderTreeItem& FolderItem) const { return true; }
+			virtual bool Get(const FComponentTreeItem& ComponentFunction) const { return true; }
+			virtual bool Get(const FSubComponentTreeItem& CustomFunction) const { return true; }
+		};
 
 		/** Visitor that is used to set up type-specific data after tree items are added to the tree */
 		struct FOnItemAddedToTree : IMutableTreeItemVisitor
@@ -632,12 +639,6 @@ namespace SceneOutliner
 		/** Reentrancy guard */
 		bool bIsReentrant;
 
-		/** Whether Actor Components are enabled in the scene outliner, currently defaults to false */
-		bool bActorComponentsEnabled;
-
-		/** Console commands for enabling/disabling actor components in the scene outliner while it is still in development */
-		FAutoConsoleCommand ActorComponentsEnable;
-
 		/* Widget containing the filtering text box */
 		TSharedPtr< SSearchBox > FilterTextBoxWidget;
 
@@ -654,10 +655,6 @@ namespace SceneOutliner
 		TWeakPtr<ITreeItem> PendingRenameItem;
 
 		TMap<FName, const FSlateBrush*> CachedIcons;
-
-		void ActorComponentsModeToggle() {
-			bActorComponentsEnabled = bActorComponentsEnabled ? false : true; FullRefresh();
-		}
 
 	private:
 		/** Functions relating to sorting */

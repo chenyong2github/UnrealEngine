@@ -258,7 +258,7 @@ namespace Gauntlet
 			// FortniteGame, FortniteClient, FortniteServer
 			// Or EngineTest-WIn64-Shipping, FortniteClient-Win64-Shipping etc
 			// So we need to search for the project name minus 'Game', with the form, build-type, and platform all optional :(
-			string RegExMatch = string.Format(@"{0}(Game|Client|Server|)(?:-(.+?)-(Test|Shipping))?", ShortName);
+			string RegExMatch = string.Format(@"{0}(Game|Client|Server|)(?:-(.+?)-(Debug|Test|Shipping))?", ShortName);
 
 			// Format should be something like
 			// FortniteClient
@@ -297,7 +297,7 @@ namespace Gauntlet
 				}
 
 				UnrealTargetPlatform Platform;
-				if (ConfigType.Length > 0 && UnrealTargetPlatform.TryParse(ConfigType, out Platform))
+				if (PlatformName.Length > 0 && UnrealTargetPlatform.TryParse(PlatformName, out Platform))
 				{
 					Config.Platform = Platform;
 				}
@@ -315,53 +315,6 @@ namespace Gauntlet
 		{
 			return GetUnrealConfigFromFileName(InProjectName, InName).RoleType;
 		}
-
-		static public string GetProjectPath(string InProjectName)
-		{
-			if (File.Exists(InProjectName))
-			{
-				return InProjectName;
-			}
-
-			string ShortName = Path.GetFileNameWithoutExtension(InProjectName);
-		
-			var RootDirs = Directory.EnumerateDirectories(Environment.CurrentDirectory);
-
-			var ProjectDirs = "UE4Games.uprojectdirs";
-
-			if (File.Exists(ProjectDirs))
-			{
-				var ExtraPaths = File.ReadAllLines(ProjectDirs).AsEnumerable();
-
-				ExtraPaths = ExtraPaths.Where(P =>
-				{
-					string Trimmed = P.Trim();
-					Trimmed = Trimmed.Replace('/', Path.DirectorySeparatorChar);
-					Trimmed = Trimmed.Replace('\\', Path.DirectorySeparatorChar);
-					return Trimmed.StartsWith(";") == false && Trimmed.StartsWith(".") == false;
-				});
-
-				RootDirs = RootDirs.Union(ExtraPaths.Select(P => Path.Combine(Environment.CurrentDirectory, P)));
-			}
-
-			foreach (var Dir in RootDirs)
-			{
-				// check both this dir and a subdir with the project name
-				string ProjectName = Path.Combine(Dir, InProjectName) + ".uproject";
-				if (File.Exists(ProjectName))
-				{
-					return ProjectName;
-				}
-
-				ProjectName = Path.Combine(Dir, InProjectName, InProjectName) + ".uproject";
-				if (File.Exists(ProjectName))
-				{
-					return ProjectName;
-				}
-			}
-
-			return "";
-		}
 	}
 
 	/// <summary>
@@ -375,16 +328,18 @@ namespace Gauntlet
 		{
 			PlatformPath = Path;
 
-			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
+			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac || BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Linux)
 			{
+				string PosixMountPath = CommandUtils.IsBuildMachine ? "/Volumes/epicgames.net/root" : "/Volumes/root";
+
 				if (!Path.Contains("P:"))
 				{
-					PlatformPath = Regex.Replace(Path, @"\\\\epicgames.net\\root", "/Volumes/epicgames.net/root", RegexOptions.IgnoreCase);
+					PlatformPath = Regex.Replace(Path, @"\\\\epicgames.net\\root", PosixMountPath, RegexOptions.IgnoreCase);
 				}
-				else 
+				else
 				{
-					PlatformPath = Regex.Replace(Path, "P:", "/Volumes/epicgames.net/root", RegexOptions.IgnoreCase);					
-				}				
+					PlatformPath = Regex.Replace(Path, "P:", PosixMountPath, RegexOptions.IgnoreCase);
+				}
 				
 				PlatformPath = PlatformPath.Replace(@"\", "/");
 			}

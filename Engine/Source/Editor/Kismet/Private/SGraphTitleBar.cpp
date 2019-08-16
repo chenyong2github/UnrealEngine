@@ -7,6 +7,7 @@
 #include "Misc/Paths.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
@@ -33,7 +34,7 @@ SGraphTitleBar::~SGraphTitleBar()
 
 const FSlateBrush* SGraphTitleBar::GetTypeGlyph() const
 {
-	check(EdGraphObj != NULL);
+	check(EdGraphObj != nullptr);
 	return FBlueprintEditor::GetGlyphForGraph(EdGraphObj, true);
 }
 
@@ -52,7 +53,7 @@ FText SGraphTitleBar::GetTitleForOneCrumb(const UEdGraph* Graph)
 
 FText SGraphTitleBar::GetTitleExtra() const
 {
-	check(EdGraphObj != NULL);
+	check(EdGraphObj != nullptr);
 
 	FText ExtraText = Kismet2Ptr.Pin()->GetGraphDecorationString(EdGraphObj);
 
@@ -133,55 +134,68 @@ void SGraphTitleBar::Construct( const FArguments& InArgs )
 					SNew(SHorizontalBox)
 					+SHorizontalBox::Slot()
 					.AutoWidth()
-					.Padding( 10,5 )
+					.Padding( 10.0f,5.0f )
 					.VAlign(VAlign_Center)
 					[
 						SNew(SImage)
 						.Image( this, &SGraphTitleBar::GetTypeGlyph )
 					]
+					+SHorizontalBox::Slot()
+					.FillWidth(1.f)
+					[
+						SAssignNew(BreadcrumbTrailScrollBox, SScrollBox)
+						.Orientation(Orient_Horizontal)
+						.ScrollBarVisibility(EVisibility::Collapsed)
 
-					// show fake 'root' breadcrumb for the title
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					.Padding(BreadcrumbTrailPadding)
-					[
-						SNew(STextBlock)
-						.Text(this, &SGraphTitleBar::GetBlueprintTitle )
-						.TextStyle( FEditorStyle::Get(), TEXT("GraphBreadcrumbButtonText") )
-						.Visibility( this, &SGraphTitleBar::IsGraphBlueprintNameVisible )
-					]
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					[
-						SNew(SImage)
-						.Image( BreadcrumbButtonImage )
-						.Visibility( this, &SGraphTitleBar::IsGraphBlueprintNameVisible )
-					]
+						+SScrollBox::Slot()
+						.Padding(0.f)
+						.VAlign(VAlign_Center)
+						[
+							SNew(SHorizontalBox)
+							// show fake 'root' breadcrumb for the title
+							+SHorizontalBox::Slot()
+							.AutoWidth()
+							.VAlign(VAlign_Center)
+							.Padding(BreadcrumbTrailPadding)
+							[
+								SNew(STextBlock)
+								.Text(this, &SGraphTitleBar::GetBlueprintTitle )
+								.TextStyle( FEditorStyle::Get(), TEXT("GraphBreadcrumbButtonText") )
+								.Visibility( this, &SGraphTitleBar::IsGraphBlueprintNameVisible )
+							]
+							+SHorizontalBox::Slot()
+							.AutoWidth()
+							.VAlign(VAlign_Center)
+							[
+								SNew(SImage)
+								.Image( BreadcrumbButtonImage )
+								.Visibility( this, &SGraphTitleBar::IsGraphBlueprintNameVisible )
+							]
 
-					// New style breadcrumb
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					[
-						SAssignNew(BreadcrumbTrail, SBreadcrumbTrail<UEdGraph*>)
-						.ButtonStyle(FEditorStyle::Get(), "GraphBreadcrumbButton")
-						.TextStyle(FEditorStyle::Get(), "GraphBreadcrumbButtonText")
-						.ButtonContentPadding( BreadcrumbTrailPadding )
-						.DelimiterImage( BreadcrumbButtonImage )
-						.PersistentBreadcrumbs( true )
-						.OnCrumbClicked( this, &SGraphTitleBar::OnBreadcrumbClicked )
-					]
+							// New style breadcrumb
+							+SHorizontalBox::Slot()
+							.AutoWidth()
+							.VAlign(VAlign_Center)
+							[
+								SAssignNew(BreadcrumbTrail, SBreadcrumbTrail<UEdGraph*>)
+								.ButtonStyle(FEditorStyle::Get(), "GraphBreadcrumbButton")
+								.TextStyle(FEditorStyle::Get(), "GraphBreadcrumbButtonText")
+								.ButtonContentPadding( BreadcrumbTrailPadding )
+								.DelimiterImage( BreadcrumbButtonImage )
+								.PersistentBreadcrumbs( true )
+								.OnCrumbClicked( this, &SGraphTitleBar::OnBreadcrumbClicked )
+							]
 
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					[
-						SNew(STextBlock)
-						.Font( FCoreStyle::GetDefaultFontStyle("Regular", 14) )
-						.ColorAndOpacity( FLinearColor(1,1,1,0.5) )
-						.Text( this, &SGraphTitleBar::GetTitleExtra )
+							+SHorizontalBox::Slot()
+							.AutoWidth()
+							.VAlign(VAlign_Center)
+							[
+								SNew(STextBlock)
+								.Font( FCoreStyle::GetDefaultFontStyle("Regular", 14) )
+								.ColorAndOpacity( FLinearColor(1,1,1,0.5) )
+								.Text( this, &SGraphTitleBar::GetTitleExtra )
+							]
+						]
 					]
 				]
 			]
@@ -189,6 +203,7 @@ void SGraphTitleBar::Construct( const FArguments& InArgs )
 	];
 
 	RebuildBreadcrumbTrail();
+	BreadcrumbTrailScrollBox->ScrollToEnd();
 
 	UBlueprint* BlueprintObj = FBlueprintEditorUtils::FindBlueprintForGraph(this->EdGraphObj);
 	if (BlueprintObj)
@@ -208,7 +223,7 @@ void SGraphTitleBar::RebuildBreadcrumbTrail()
 {
 	// Build up a stack of graphs so we can pop them in reverse order and create breadcrumbs
 	TArray<UEdGraph*> Stack;
-	for (UEdGraph* OuterChain = EdGraphObj; OuterChain != NULL; OuterChain = GetOuterGraph(OuterChain))
+	for (UEdGraph* OuterChain = EdGraphObj; OuterChain != nullptr; OuterChain = GetOuterGraph(OuterChain))
 	{
 		Stack.Push(OuterChain);
 	}
@@ -216,7 +231,7 @@ void SGraphTitleBar::RebuildBreadcrumbTrail()
 	BreadcrumbTrail->ClearCrumbs(false);
 
 	//Get the last object in the array
-	UEdGraph* LastObj = NULL;
+	UEdGraph* LastObj = nullptr;
 	if( Stack.Num() > 0 )
 	{
 		LastObj = Stack[Stack.Num() -1];
@@ -248,7 +263,7 @@ UEdGraph* SGraphTitleBar::GetOuterGraph( UObject* Obj )
 			}
 		}
 	}
-	return NULL;
+	return nullptr;
 }
 
 FText SGraphTitleBar::GetBlueprintTitle() const

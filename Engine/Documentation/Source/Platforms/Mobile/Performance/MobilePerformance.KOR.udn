@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3807090
+﻿INTSourceChangelist:6549201
 Availability: Public
 Crumbs: %ROOT%
 Title: 모바일 디바이스용 퍼포먼스 지침서
@@ -25,7 +25,7 @@ Tags:mobile
 UE4 에는 모바일 디바이스용 다양한 라이팅 피처를 지원합니다. 이 피처를 사용하면 퍼포먼스 비용이 들며, 느린 모바일 디바이스에서는 게임 퍼포먼스가 조악해 질 수 있습니다. 
 UE4 의 모바일 라이팅 피처 대부분 섞어 조합하는 것이 가능하지만, 피처 티어 별로 다음과 같이 나누는 것도 유용할 수 있습니다. 
 모바일 게임을 만들 때는, 게임에 필요한 그래픽 퀄리티와 지원하고자 하는 디바이스 유형을 결정해야 합니다. 에픽의 테스트 결과 디바이스별로 적합하다 생각되는 피처 티어에 대한 정보는, 
-[iOS 개발](Platforms/iOS/DeviceCompatibility) 및 [Android 개발](Platforms/Android/DeviceCompatibility) 문서를 참고해 주시기 바랍니다.
+[iOS 개발](Platforms/Mobile/iOS/DeviceCompatibility) 및 [Android 개발](Platforms/Mobile/Android/DeviceCompatibility) 문서를 참고해 주시기 바랍니다.
 
 ###LDR (Low Dynamic Range)
 

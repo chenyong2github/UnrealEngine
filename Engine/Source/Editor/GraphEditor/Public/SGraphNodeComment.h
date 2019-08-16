@@ -104,9 +104,11 @@ private:
 	/** the title bar, needed to obtain it's height */
 	TSharedPtr<SBorder> TitleBar;
 
+protected:
 	/** cached comment title */
 	FString CachedCommentTitle; 
 
+private:
 	/** cached comment title */
 	int32 CachedWidth;
 

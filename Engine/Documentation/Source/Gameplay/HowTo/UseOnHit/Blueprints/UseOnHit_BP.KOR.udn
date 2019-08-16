@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3429254
+INTSourceChangelist:3429254
 Availability: Public
 Title:블루프린트에서 OnHit 이벤트 사용
 Crumbs: %ROOT%, Gameplay, Gameplay\HowTo\UseOnHit
@@ -14,7 +14,7 @@ skilllevel:Intermediate
 이 글에서는 **OnComponentHit** 와 **Event Hit** [이벤트](Engine/Blueprints/UserGuide/Events) 를 사용하여 대미지를 적용하고 디스트럭터블 메시를 부수고 적중 위치에 충격을 가해 디스트럭터블을 밀어내도록 하여, 발사체에 맞아 적중 위치에 힘을 가하는 효과를 시뮬레이션해 보겠습니다.
 
 [REGION:note]
-이번 비법에서는 **시작용 콘텐츠** 를 포함한 **블루프린트 일인칭 템플릿** 을 사용합니다.
+이번 하우투에서는 **시작용 콘텐츠** 를 포함한 **블루프린트 일인칭 템플릿** 을 사용합니다.
 [/REGION]
 
 1.	**콘텐츠 브라우저** 에서 프로젝트의 **Content/Geometry/Meshes** 폴더로 이동합니다.

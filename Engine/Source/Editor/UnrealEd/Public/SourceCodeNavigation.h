@@ -59,10 +59,10 @@ public:
 	/**
 	* Determines whether it is possible to navigate to the UClass using this handler.
 	*
-	* @param	InClass			UClass to inspect
+	* @param	InClass			Class to inspect
 	* @return					True if the class can be handled by this handler.
 	*/
-	virtual bool CanNavigateToClass(const UClass* InClass) { return false; };
+	virtual bool CanNavigateToClass(const UClass* InClass) { return false; }
 
 	/**
 	* Asynchronously navigates to a UClass in an IDE or text editor.
@@ -70,7 +70,23 @@ public:
 	* @param	InClass			Class to which to navigate.
 	* @return					True if the class can be handled by this handler.
 	*/
-	virtual bool NavigateToClass(const UClass* InClass) { return false; };
+	virtual bool NavigateToClass(const UClass* InClass) { return false; }
+
+	/**
+	* Determines whether it is possible to navigate to the UScriptStruct using this handler.
+	*
+	* @param	InStruct		Struct to inspect
+	* @return					True if the struct can be handled by this handler.
+	*/
+	virtual bool CanNavigateToStruct(const UScriptStruct* InStruct) { return false; }
+
+	/**
+	* Asynchronously navigates to a UScriptStruct in an IDE or text editor.
+	*
+	* @param	InStruct		Struct to which to navigate.
+	* @return					True if the struct can be handled by this handler.
+	*/
+	virtual bool NavigateToStruct(const UScriptStruct* InStruct) { return false; }
 
 	/**
 	* Determines whether it is possible to navigate to the UFunction using this handler.
@@ -78,7 +94,7 @@ public:
 	* @param	InFunction		Function to inspect
 	* @return					True if the function can be handled by this handler.
 	*/
-	virtual bool CanNavigateToFunction(const UFunction* InFunction) { return false; };
+	virtual bool CanNavigateToFunction(const UFunction* InFunction) { return false; }
 
 	/**
 	* Asynchronously navigates to a UFunction in an IDE or text editor.
@@ -86,7 +102,7 @@ public:
 	* @param	InFunction		Function to which to navigate.
 	* @return					True if the function can be handled by this handler.
 	*/
-	virtual bool NavigateToFunction(const UFunction* InFunction) { return false; };
+	virtual bool NavigateToFunction(const UFunction* InFunction) { return false; }
 
 	/**
 	* Determines whether it is possible to navigate to the UProperty using this handler.
@@ -94,7 +110,7 @@ public:
 	* @param	InProperty		Property to inspect
 	* @return					True if the property can be handled by this handler.
 	*/
-	virtual bool CanNavigateToProperty(const UProperty* InProperty) { return false; };
+	virtual bool CanNavigateToProperty(const UProperty* InProperty) { return false; }
 
 	/**
 	* Asynchronously navigates to a UProperty in an IDE or text editor.
@@ -102,7 +118,7 @@ public:
 	* @param	InProperty		Property to which to navigate.
 	* @return					True if the property can be handled by this handler.
 	*/
-	virtual bool NavigateToProperty(const UProperty* InProperty) { return false; };
+	virtual bool NavigateToProperty(const UProperty* InProperty) { return false; }
 
 	/**
 	* Determines whether it is possible to navigate to the UStruct using this handler.
@@ -226,6 +242,22 @@ public:
 	UNREALED_API static bool NavigateToClass(const UClass* InClass);
 
 	/**
+	* Determines whether it is possible to navigate to the UScriptStruct in the IDE
+	*
+	* @param	InStruct		UScriptStruct to navigate to in source code
+	* @return					Whether the navigation is likely to be successful or not
+	*/
+	UNREALED_API static bool CanNavigateToStruct(const UScriptStruct* InStruct);
+
+	/**
+	* Navigates asynchronously to the UScriptStruct in the IDE
+	*
+	* @param	InStruct		UScriptStruct to navigate to in source code
+	* @return					Whether the navigation is likely to be successful or not
+	*/
+	UNREALED_API static bool NavigateToStruct(const UScriptStruct* InStruct);
+
+	/**
 	* Determines whether it is possible to navigate to the UFunction in the IDE
 	*
 	* @param	InFunction		UFunction to navigate to in source code
@@ -346,10 +378,10 @@ public:
 	UNREALED_API static FOnNewModuleAdded& AccessOnNewModuleAdded();
 
 	/** Add a navigation handler */
-	UNREALED_API static void AddNavigationHandler(ISourceCodeNavigationHandler* handler);
+	UNREALED_API static void AddNavigationHandler(ISourceCodeNavigationHandler* Handler);
 
 	/** Remove a navigation handler */
-	UNREALED_API static void RemoveNavigationHandler(ISourceCodeNavigationHandler* handler);
+	UNREALED_API static void RemoveNavigationHandler(ISourceCodeNavigationHandler* Handler);
 
 private:
 
@@ -360,5 +392,5 @@ private:
 	static FSourceFileDatabase Instance;
 
 	/** Cached result of check for compiler availability. Speeds up performance greatly since BlueprintEditor is checking this on draw. */
-	static bool bCachedIsCompilerAvailable;
+	static bool UNREALED_API bCachedIsCompilerAvailable;
 };

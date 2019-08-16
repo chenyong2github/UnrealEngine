@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2018 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2019 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -255,7 +255,7 @@ SDL_JoystickThread(void *_data)
             /* WM_DEVICECHANGE not working, no XINPUT, no point in keeping thread alive */
             break;
 #endif /* SDL_JOYSTICK_XINPUT */
-		}
+        }
 
         if (s_bWindowsDeviceChanged || bXInputChanged) {
             s_bDeviceRemoved = SDL_TRUE;
@@ -407,6 +407,18 @@ WINDOWS_JoystickGetDeviceName(int device_index)
     return device->joystickname;
 }
 
+static int
+WINDOWS_JoystickGetDevicePlayerIndex(int device_index)
+{
+    JoyStick_DeviceData *device = SYS_Joystick;
+    int index;
+
+    for (index = device_index; index > 0; index--)
+        device = device->pNext;
+
+    return device->bXInputDevice ? (int)device->XInputUserId : -1;
+}
+
 /* return the stable device guid for this device index */
 static SDL_JoystickGUID
 WINDOWS_JoystickGetDeviceGUID(int device_index)
@@ -544,6 +556,7 @@ SDL_JoystickDriver SDL_WINDOWS_JoystickDriver =
     WINDOWS_JoystickGetCount,
     WINDOWS_JoystickDetect,
     WINDOWS_JoystickGetDeviceName,
+    WINDOWS_JoystickGetDevicePlayerIndex,
     WINDOWS_JoystickGetDeviceGUID,
     WINDOWS_JoystickGetDeviceInstanceID,
     WINDOWS_JoystickOpen,

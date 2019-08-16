@@ -1,95 +1,117 @@
-Availability:Public
-Title:Materials for Mobile Platforms
-Crumbs:%ROOT%, Platforms, Platforms/Mobile
-Description:Setting up Materials for mobile games.
-Platform:Mobile
-Related: Platforms/Mobile/Previewer/
-Related: Platforms/Mobile/Performance
-Related: Platforms/Mobile/Textures
-Related: Engine/Rendering/Materials/CustomizedUVs
-Related: Engine/Rendering/Materials/MaterialProperties/BlendModes
+Availability: Public
+Title: Materials for Mobile Platforms
+Description: Setting up Materials for mobile games.
+Type: overview
+Version: 4.9
+Parent: Platforms/Mobile
+Tags: mobile
+skilllevel:Beginner
 Related: Engine/Rendering/Materials/ExpressionReference/Utility
+Related: Engine/Rendering/Materials/MaterialProperties/BlendModes
+Related: Engine/Rendering/Materials/CustomizedUVs
 Related: Platforms/Mobile/Lighting
-version: 4.9
-parent:Platforms/Mobile
-order:1
-type:overview
-tags:mobile
+Related: Platforms/Mobile/Performance
+Related: Platforms/Mobile/Previewer
+Related: Platforms/Mobile/Textures
 
-[TOC(start:2)]
+Materials on mobile platforms (Feature Level ES 2) use the same node-based creation process used by other platforms. Almost all of the Material inputs are available to mobile Materials, and Materials will generally look and behave the same on mobile platforms as they do on other platforms. For instance, the following Material inputs all work exactly the same on mobile platforms as they do on PC.
 
-Materials on mobile platforms (Feature Level ES 2) use the same node-based creation process used by other platforms. Almost all of the Material inputs are available to mobile Materials, 
-and Materials will generally look and behave the same on mobile platforms as they do on other platforms. For instance, the following Material inputs all work exactly the same on mobile platforms 
-as they do on PC.
-
-* **BaseColor**
-* **Roughness**
-* **Metallic**
-* **Specular**
-* **Normal**
-* **Emissive**
+*   **BaseColor**
+*   **Roughness**
+*   **Metallic**
+*   **Specular**
+*   **Normal**
+*   **Emissive**
+*   **Refraction**
 
 There are some considerations you must take into account when creating Materials to be used on mobile platforms, however:
 
-* You are only allowed to use 5 texture samplers due to hardware limitations.
-* Only Default and Unlit shading models are available.
-* [](Engine/Rendering/Materials/CustomizedUVs) should be used to avoid dependent texture fetches (no math on texture UVs).
-* Translucent and Masked Materials are extremely expensive. It is recommended that you use [Opaque Materials](Engine/Rendering/Materials/MaterialProperties/BlendModes#opaque) wherever possible.
-* Depth fade can be used in translucent Materials for **iOS platforms**. It is not supported on platforms where the hardware does not support fetching from the depth buffer and emulating this would incur an unacceptable performance cost.
+*   You are only allowed to use 5 texture samplers due to hardware limitations.
+*   Only Default and Unlit shading models are available.
+*   [Customized UVs](Engine/Rendering/Materials/CustomizedUVs) should be used to avoid dependent texture fetches (no math on texture UVs).
+*   Translucent and Masked Materials are extremely expensive. It is recommended that you use [Opaque Materials](Engine/Rendering/Materials/MaterialProperties/BlendModes#opaque) wherever possible.
+*   Depth fade can be used in translucent Materials for **iOS platforms**. It is not supported on platforms where the hardware does not support fetching from the depth buffer and emulating this would incur an unacceptable performance cost.
 
 In addition, some features are simply not available on mobile platforms.
 
-* **Scene Color expression**
-* **Refraction input**
-* **Tessellation input**
-* **Subsurface Scattering shading model**
-
+*   **Scene Color expression**
+*   **Tessellation input**
+*   **Subsurface Scattering shading model**
 
 ## Feature Level ES 3.1
 
-Feature Level ES 3.1 exists to target high-end mobile devices (such as Metal-compatible devices). This gives access to up to 16 total samplers to be used in Materials. 
-To maintain compatibility with older devices, use the [Feature Level](Engine/Rendering/Materials/ExpressionReference/Utility#featurelevelswitch) Switch Material node.
-
+Feature Level ES 3.1 exists to target high-end mobile devices (such as Metal-compatible devices). This gives access to up to 16 total samplers to be used in Materials. To maintain compatibility with older devices, use the [Feature Level](Engine/Rendering/Materials/ExpressionReference/Utility#featurelevelswitch) Switch Material node.
 
 ## Mobile-Specific Material Settings
-The following Material properties are to help optimize and or reduce the rendering cost of the Material when used on a mobile device. 
 
+The following Material properties are to help optimize and or reduce the rendering cost of the Material when used on a mobile device.
+
+[REGION:simpletable]  
 | Property | Description |
-| -------- | ---------- |
-| **bFullyRough** | When enabled, saves a number of shader ALU instructions and one sampler.  This effectively disables Specular while maintaining overall reflective energy. |
-| **High Quality Reflections** |Enables high quality reflections in the forward renderer. Enabling this setting reduces the number of samplers available to the Material as two more samplers will be used for reflections cubemaps. |
+| --- | --- |
+| **bFullyRough** | When enabled, saves a number of shader ALU instructions and one sampler. This effectively disables Specular while maintaining overall reflective energy. |
+| **High Quality Reflections** | Enables high quality reflections in the forward renderer. Enabling this setting reduces the number of samplers available to the Material as two more samplers will be used for reflections cubemaps. |
 | **bUseLightmapDirectionality** | When disabled, lighting from lightmaps will be flat but cheaper. |
-| **Use Full Precision** | [INCLUDE:Platforms\Mobile\Materials\#UFP]|
+| **Use Full Precision** | [INCLUDE:#excerpt_0] |
+[/REGION]
 
-## Troubleshooting Materials for Mobile
-Due to hardware differences between PCs and mobile devices you could run into issues with certain options working on the PC but not working when viewed on a mobile device. The following list contains some of the more common issues you could run into and ways to fix them.
-| Issue | Solution |
-| ----- | -------- |
-| Default Material is displayed in the Mobile Previewer. | Open the [log file](Engine/Basics/DirectoryStructure) in **Engine\Saved** and search for error messages to know how to fix the Material. |
-| Material Animation with Time Expressions looks choppy but framerate is good elsewhere. | Make sure the Period property is enabled in the **Time** expression along with a Period. This will move the computation to the CPU and run at full-precision instead of half. |
-| Materials using **World Coordinates** computations or very small values are not being displayed correctly. | Try enabling the Use Full Precision option on the Material that is not displaying correctly on a mobile device. The precision level of Materials on Mobile devices is often truncated to one or two decimal places to help with performance. Enabling **Use Full Precision** will make sure that the Material's precision kept to the values that are set in the Material Editor. |
-| Materials look fine in the editor but not on device. | To get a better idea of what Materials will look like when viewed on a mobile device, you can change the **Preview Rendering Level** of the UE4 editor to simulate the rendering capabilities of the device you are targeting.  Check out the [Mobile Previewer](Platforms/Mobile/Previewer/)  page for more information on how to do this. |
+<!--
+[EXCERPT:excerpt_0]
 
-
-
-[COMMENT:none]
-
-[EXCERPT:UFP]
-When enabled, the Material's shader will use the highest precision math available on a mobile device. This can be used to work around rendering problems caused by low-precision math, such as usage of world coordinates or tight specular reflections on glossy materials. 
+When enabled, the Material's shader will use the highest precision math available on a mobile device. This can be used to work around rendering problems caused by low-precision math, such as usage of world coordinates or tight specular reflections on glossy materials.
 
 [REGION:note]
 Enabling full precision shaders will make the Material more expensive.
 [/REGION]
-
 [OBJECT:ComparisonSlider]
-	[PARAM:before]
-	![Full Precision Off ](Full_Precision_Off.png)
-	[/PARAM]
-	[PARAM:after]
-	![Full Precision On](Full_Precision_On.png)
-	[/PARAM]
+ [PARAM:before]
+ ![Full Precision Off ](Full_Precision_Off.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![Full Precision On](Full_Precision_On.png) 
+ [/PARAM]
 [/OBJECT]
-[/EXCERPT:UFP]
+[/EXCERPT:excerpt_0]
+-->
 
-[/COMMENT]
+## Troubleshooting Materials for Mobile
 
+Due to hardware differences between PCs and mobile devices you could run into issues with certain options working on the PC but not working when viewed on a mobile device. The following list contains some of the more common issues you could run into and ways to fix them.
+
+[REGION:simpletable]  
+| Issue | Solution |
+| --- | --- |
+| Default Material is displayed in the Mobile Previewer. | Open the [log file](Engine/Basics/DirectoryStructure) in `Engine\Saved` and search for error messages to know how to fix the Material. |
+| Material Animation with Time Expressions looks choppy but framerate is good elsewhere. | Make sure the Period property is enabled in the **Time** expression along with a Period. This will move the computation to the CPU and run at full-precision instead of half. |
+| Materials using **World Coordinates** computations or very small values are not being displayed correctly. | Try enabling the Use Full Precision option on the Material that is not displaying correctly on a mobile device. The precision level of Materials on Mobile devices is often truncated to one or two decimal places to help with performance. Enabling **Use Full Precision** will make sure that the Material's precision kept to the values that are set in the Material Editor. |
+| Materials look fine in the editor but not on device. | To get a better idea of what Materials will look like when viewed on a mobile device, you can change the **Preview Rendering Level** of the UE4 editor to simulate the rendering capabilities of the device you are targeting. Check out the [Mobile Previewer](Platforms/Mobile/Previewer) page for more information on how to do this. |
+| Refraction is not working | To get refraction working on mobile devices, you need to make sure that you have Mobile HDR enabled. |
+[/REGION] 
+
+### Platform Stats
+
+You can view the cost of your Material on various platforms by clicking on the Platform Stats icon. 
+
+![](PlatformStats.png "PlatformStats.png")
+
+You can view stats for each rendering API UE4 supports by clicking on the **Settings** option and then selecting the render you want to see stats for. 
+
+![](PlatformStats_More.png "PlatformStats_More.png")
+
+In order to see the stat for **Android** you will need to first install **Mali Offline Compiler** by doing the following:
+
+1.  Download and install the [Mali Offline Compiler](https://developer.arm.com/products/software-development-tools/graphics-development-tools/mali-offline-compiler/downloads)**.**
+
+1.  After the Mali Offline Compiler has been installed, open up UE4 and from the **Main** **Menu** go **Edit** \> **Editor** **Preferences** \> **Content** **Editors** \> **Material** **Editor**.  
+    ![](PlatformStats_CEMaterialEditor.png "PlatformStats_CEMaterialEditor.png")
+
+1.  Click the **three dots** to the right of the **Mali Offline Compiler** option and then locate the `malisc.exe` file that was installed when the Mali Offline Compiler was installed.  
+    ![](PlatformStats_LoadOfflineCompiler.png "PlatformStats_LoadOfflineCompiler.png")
+
+1.  After the previous steps have been completed, you will be able to see stats for the various Android renders that UE4 supports.  
+    ![](PlatformStats_SeeingStatsr.png "PlatformStats_SeeingStatsr.png")  
+      
+
+[REGION:note]
+You will not be able to see the Android Platform stats without the offline compiler.
+[/REGION]

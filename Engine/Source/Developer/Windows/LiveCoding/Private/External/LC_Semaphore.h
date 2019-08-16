@@ -10,8 +10,17 @@ public:
 	Semaphore(unsigned int initialValue, unsigned int maximumValue);
 	~Semaphore(void);
 
+	// Signals the semaphore.
 	void Signal(void);
-	void Wait(void);
+
+	// Waits until the semaphore becomes signaled, blocking.
+	bool Wait(void);
+
+	// Waits until the semaphore becomes signaled, blocking until the timeout is reached.
+	// Returns whether the semaphore was signaled.
+	bool WaitTimeout(unsigned int milliSeconds);
+
+	// Returns whether the semaphore was signaled, non-blocking.
 	bool TryWait(void);
 
 private:

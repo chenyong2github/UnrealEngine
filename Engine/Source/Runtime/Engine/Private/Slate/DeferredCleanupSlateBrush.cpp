@@ -48,5 +48,5 @@ void FDeferredCleanupSlateBrush::AddReferencedObjects(FReferenceCollector& Colle
 
 FString FDeferredCleanupSlateBrush::GetReferencerName() const
 {
-	return "FDeferredCleanupSlateBrush";
+	return TEXT("FDeferredCleanupSlateBrush");
 }

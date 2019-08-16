@@ -92,17 +92,6 @@ enum class ECrossplayPreference : uint8
 	OptedOutRestricted
 };
 
-UENUM()
-enum class ESendFriendInviteFailureReason : uint8
-{
-	NotFound,
-	AlreadyFriends,
-	InvitePending,
-	AddingSelfFail,
-	AddingBlockedFail,
-	UnknownError
-};
-
 /** Thin wrapper to infuse a raw platform string with some meaning */
 USTRUCT()
 struct PARTY_API FUserPlatform

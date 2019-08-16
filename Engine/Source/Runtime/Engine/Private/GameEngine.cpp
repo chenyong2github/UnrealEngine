@@ -31,6 +31,7 @@
 #include "GeneralProjectSettings.h"
 #include "Misc/PackageName.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "ShaderPipelineCache.h"
 
 #include "Misc/ConfigCacheIni.h"
 
@@ -58,6 +59,8 @@
 #include "DynamicResolutionProxy.h"
 #include "DynamicResolutionState.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "RenderTargetPool.h"
+#include "RenderGraphBuilder.h"
 
 #if WITH_EDITOR
 #include "PIEPreviewDeviceProfileSelectorModule.h"
@@ -556,6 +559,7 @@ TSharedRef<SWindow> UGameEngine::CreateGameWindow()
 		Window = PIEPreviewDeviceModule->CreatePIEPreviewDeviceWindow(FVector2D(ResX, ResY), WindowTitle, AutoCenterType, FVector2D(WinX, WinY), MaxWindowWidth, MaxWindowHeight);
 	}
 #endif
+	Window->SetAllowFastUpdate(true);
 
 	const bool bShowImmediately = false;
 
@@ -778,6 +782,16 @@ public:
 			{
 				bool bEnabled = Message.Parameters.FindRef(TEXT("enabled")).ToBool();
 				FPlatformApplicationMisc::ControlScreensaver(bEnabled ? FGenericPlatformApplicationMisc::Enable : FGenericPlatformApplicationMisc::Disable);
+				Message.OnCompleteDelegate({}, TEXT(""));
+			}
+			else if (Message.Command == TEXT("shaderresumebatching"))
+			{
+				FShaderPipelineCache::ResumeBatching();
+				Message.OnCompleteDelegate({}, TEXT(""));
+			}
+			else if (Message.Command == TEXT("shaderpausebatching"))
+			{
+				FShaderPipelineCache::PauseBatching();
 				Message.OnCompleteDelegate({}, TEXT(""));
 			}
 			else if (Message.Command == TEXT("getmemorybucket"))
@@ -1800,8 +1814,9 @@ void UGameEngine::Tick( float DeltaSeconds, bool bIdleMode )
 				// Tick the GRenderingRealtimeClock, unless it's paused
 				GRenderingRealtimeClock.Tick(DeltaSeconds);
 			}
-
-			GetRendererModule().TickRenderTargetPool();
+			
+			GRenderTargetPool.TickPoolElements();
+			FRDGBuilder::TickPoolElements();
 		});
 	}
 

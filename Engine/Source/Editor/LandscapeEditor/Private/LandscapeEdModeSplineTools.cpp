@@ -318,14 +318,19 @@ public:
 
 		if (CopyFromSegment != nullptr)
 		{
-			NewSegment->LayerName         = CopyFromSegment->LayerName;
-			NewSegment->SplineMeshes      = CopyFromSegment->SplineMeshes;
+			NewSegment->LayerName = CopyFromSegment->LayerName;
+			NewSegment->SplineMeshes = CopyFromSegment->SplineMeshes;
 			NewSegment->LDMaxDrawDistance = CopyFromSegment->LDMaxDrawDistance;
-			NewSegment->bRaiseTerrain     = CopyFromSegment->bRaiseTerrain;
-			NewSegment->bLowerTerrain     = CopyFromSegment->bLowerTerrain;
+			NewSegment->bRaiseTerrain = CopyFromSegment->bRaiseTerrain;
+			NewSegment->bLowerTerrain = CopyFromSegment->bLowerTerrain;
 			NewSegment->bPlaceSplineMeshesInStreamingLevels = CopyFromSegment->bPlaceSplineMeshesInStreamingLevels;
-			NewSegment->BodyInstance  = CopyFromSegment->BodyInstance;
-			NewSegment->bCastShadow       = CopyFromSegment->bCastShadow;
+			NewSegment->BodyInstance = CopyFromSegment->BodyInstance;
+			NewSegment->bCastShadow = CopyFromSegment->bCastShadow;
+			NewSegment->TranslucencySortPriority = CopyFromSegment->TranslucencySortPriority;
+			NewSegment->RuntimeVirtualTextures = CopyFromSegment->RuntimeVirtualTextures;
+			NewSegment->VirtualTextureLodBias = CopyFromSegment->VirtualTextureLodBias;
+			NewSegment->VirtualTextureCullMips = CopyFromSegment->VirtualTextureCullMips;
+			NewSegment->VirtualTextureRenderPassType = CopyFromSegment->VirtualTextureRenderPassType;
 		}
 
 		Start->ConnectedSegments.Add(FLandscapeSplineConnection(NewSegment, 0));
@@ -458,6 +463,8 @@ public:
 
 			NewControlPoint->Width       = FirstPoint->Width;
 			NewControlPoint->SideFalloff = FirstPoint->SideFalloff;
+			NewControlPoint->LeftSideFalloffFactor = FirstPoint->LeftSideFalloffFactor;
+			NewControlPoint->RightSideFalloffFactor = FirstPoint->RightSideFalloffFactor;
 			NewControlPoint->EndFalloff  = FirstPoint->EndFalloff;
 
 			if (bCopyMeshToNewControlPoint)
@@ -664,6 +671,8 @@ public:
 		NewControlPoint->Width = FMath::Lerp(Segment->Connections[0].ControlPoint->Width, Segment->Connections[1].ControlPoint->Width, t);
 		NewControlPoint->SideFalloff = FMath::Lerp(Segment->Connections[0].ControlPoint->SideFalloff, Segment->Connections[1].ControlPoint->SideFalloff, t);
 		NewControlPoint->EndFalloff = FMath::Lerp(Segment->Connections[0].ControlPoint->EndFalloff, Segment->Connections[1].ControlPoint->EndFalloff, t);
+		NewControlPoint->LeftSideFalloffFactor = FMath::Clamp(FMath::Lerp(Segment->Connections[0].ControlPoint->LeftSideFalloffFactor, Segment->Connections[1].ControlPoint->LeftSideFalloffFactor, t), 0.f, 1.f);
+		NewControlPoint->RightSideFalloffFactor = FMath::Clamp(FMath::Lerp(Segment->Connections[0].ControlPoint->RightSideFalloffFactor, Segment->Connections[1].ControlPoint->RightSideFalloffFactor, t), 0.f, 1.f);
 
 		ULandscapeSplineSegment* NewSegment = NewObject<ULandscapeSplineSegment>(SplinesComponent, NAME_None, RF_Transactional);
 		SplinesComponent->Segments.Add(NewSegment);
@@ -681,6 +690,11 @@ public:
 		NewSegment->bLowerTerrain = Segment->bLowerTerrain;
 		NewSegment->BodyInstance = Segment->BodyInstance;
 		NewSegment->bCastShadow = Segment->bCastShadow;
+		NewSegment->TranslucencySortPriority = Segment->TranslucencySortPriority;
+		NewSegment->RuntimeVirtualTextures = Segment->RuntimeVirtualTextures;
+		NewSegment->VirtualTextureLodBias = Segment->VirtualTextureLodBias;
+		NewSegment->VirtualTextureCullMips = Segment->VirtualTextureCullMips;
+		NewSegment->VirtualTextureRenderPassType = Segment->VirtualTextureRenderPassType;
 
 		Segment->Connections[0].TangentLen *= t;
 		Segment->Connections[1].ControlPoint->ConnectedSegments.Remove(FLandscapeSplineConnection(Segment, 1));
@@ -748,6 +762,8 @@ public:
 		//ControlPoint->Rotation.Roll = FMath::Lerp(UseSegment->Connections[0].ControlPoint->Rotation.Roll, UseSegment->Connections[1].ControlPoint->Rotation.Roll, tseg);
 		ControlPoint->Width = FMath::Lerp(UseSegment->Connections[0].ControlPoint->Width, UseSegment->Connections[1].ControlPoint->Width, tseg);
 		ControlPoint->SideFalloff = FMath::Lerp(UseSegment->Connections[0].ControlPoint->SideFalloff, UseSegment->Connections[1].ControlPoint->SideFalloff, tseg);
+		ControlPoint->LeftSideFalloffFactor = FMath::Clamp(FMath::Lerp(UseSegment->Connections[0].ControlPoint->LeftSideFalloffFactor, UseSegment->Connections[1].ControlPoint->LeftSideFalloffFactor, tseg), 0.f, 1.f);
+		ControlPoint->RightSideFalloffFactor = FMath::Clamp(FMath::Lerp(UseSegment->Connections[0].ControlPoint->RightSideFalloffFactor, UseSegment->Connections[1].ControlPoint->RightSideFalloffFactor, tseg), 0.f, 1.f);
 		ControlPoint->EndFalloff = FMath::Lerp(UseSegment->Connections[0].ControlPoint->EndFalloff, UseSegment->Connections[1].ControlPoint->EndFalloff, tseg);
 
 		Segment->Connections[0].TangentLen = DuplicateCacheSplitSegmentTangentLenStart * t;
@@ -1028,17 +1044,47 @@ public:
 		if (ViewportClient->IsCtrlPressed())
 		{
 			LandscapeInfo = InTarget.LandscapeInfo.Get();
-			ALandscapeProxy* Landscape = LandscapeInfo->GetCurrentLevelLandscapeProxy(true);
-			if (!Landscape)
-			{
-				return false;
-			}
+			ALandscapeProxy* Landscape = nullptr;
 
+			// If we have a selection use the landscape of the selected spline
 			ULandscapeSplinesComponent* SplinesComponent = nullptr;
 			if (SelectedSplineControlPoints.Num() > 0)
 			{
 				ULandscapeSplineControlPoint* FirstPoint = *SelectedSplineControlPoints.CreateConstIterator();
 				SplinesComponent = FirstPoint->GetOuterULandscapeSplinesComponent();
+			
+				if (SplinesComponent)
+				{
+					Landscape = SplinesComponent->GetTypedOuter<ALandscapeProxy>();
+				}
+			}
+					
+			// Hit Test
+			if (!Landscape)
+			{
+				HHitProxy* HitProxy = ViewportClient->Viewport->GetHitProxy(ViewportClient->Viewport->GetMouseX(), ViewportClient->Viewport->GetMouseY());
+				if (HitProxy->IsA(HActor::StaticGetType()))
+				{
+					HActor* ActorProxy = (HActor*)HitProxy;
+					if (ALandscapeProxy* Proxy = Cast<ALandscapeProxy>(ActorProxy->Actor))
+					{
+						Landscape = Proxy;
+					}
+				}
+
+				
+			}
+
+			// Default to Current level Landscape
+			if (!Landscape)
+			{
+				Landscape = LandscapeInfo->GetCurrentLevelLandscapeProxy(true);
+			}
+
+			// No Landscape found
+			if (!Landscape)
+			{
+				return false;
 			}
 
 			if (!SplinesComponent)

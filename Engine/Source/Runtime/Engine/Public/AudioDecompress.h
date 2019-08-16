@@ -12,6 +12,7 @@
 #include "Sound/SoundWave.h"
 #include "Misc/ScopeLock.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "ContentStreaming.h"
 
 // 186ms of 44.1KHz data
 // 372ms of 22KHz data
@@ -26,6 +27,10 @@ struct FSoundQualityInfo;
 class ICompressedAudioInfo
 {
 public:
+	ICompressedAudioInfo()
+		: StreamingSoundWave(nullptr)
+	{}
+
 	/**
 	* Virtual destructor.
 	*/
@@ -241,6 +246,15 @@ protected:
 	*/
 	uint32	ZeroBuffer(uint8* Destination, uint32 BufferSize);
 
+	/**
+	 * Helper function for getting a chunk of compressed audio.
+	 * @param InSoundWave Pointer to the soundwave to get compressed audio from.
+	 * @param ChunkIndex the index of the chunk to get from InSoundWave.
+	 * @param[out] OutChunkSize the size of the chunk.
+	 * @return a pointer to the chunk if it's loaded, nullptr otherwise.
+	 */
+	const uint8* GetLoadedChunk(USoundWave* InSoundWave, uint32 ChunkIndex, uint32& OutChunkSize);
+
 	/** bool set before ParseHeader. Whether we are streaming a file or not. */
 	bool bIsStreaming;
 	/** Ptr to the current streamed chunk. */
@@ -277,6 +291,8 @@ protected:
 	bool bPrintChunkFailMessage;
 	/** Number of bytes of padding used, overridden in some implementations. Defaults to 0. */
 	uint32 SrcBufferPadding;
+	/** Chunk Handle to ensure that this chunk of streamed audio is not deleted while we are using it. */
+	FAudioChunkHandle CurCompressedChunkHandle;
 };
 
 
@@ -479,6 +495,11 @@ public:
 	void EnsureCompletion(bool bDoWorkOnThisThreadIfNotStarted = true)
 	{
 		FScopeLock Lock(&CritSect);
+
+		if (!bDoWorkOnThisThreadIfNotStarted)
+		{
+			Task->Cancel();
+		}
 		Task->EnsureCompletion(bDoWorkOnThisThreadIfNotStarted);
 	}
 

@@ -2,66 +2,73 @@
 
 #include "Interfaces/IPluginManager.h"
 
+#include "Brushes/SlateBoxBrush.h"
+#include "EdGraphUtilities.h"
 #include "Editor.h"
-
-#include "Modules/ModuleManager.h"
-#include "Features/IModularFeatures.h"
-#include "Misc/CoreDelegates.h"
-#include "Widgets/Docking/SDockTab.h"
-#include "WorkspaceMenuStructure.h"
-#include "WorkspaceMenuStructureModule.h"
 #include "EditorStyleSet.h"
+#include "Features/IModularFeatures.h"
+#include "Framework/Application/SlateApplication.h"
+#include "ISettingsModule.h"
+#include "LevelEditor.h"
+#include "Misc/CoreDelegates.h"
+#include "Modules/ModuleManager.h"
+#include "PropertyEditorModule.h"
 #include "Styling/SlateStyle.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/SlateStyleRegistry.h"
-#include "Framework/Application/SlateApplication.h"
-
-#include "Features/IModularFeatures.h"
-#include "LevelEditor.h"
+#include "Widgets/Docking/SDockTab.h"
+#include "WorkspaceMenuStructure.h"
+#include "WorkspaceMenuStructureModule.h"
 
 #include "LiveLinkClient.h"
 #include "LiveLinkClientPanel.h"
 #include "LiveLinkClientCommands.h"
-#include "TakeRecorderSource/TakeRecorderLiveLinkSource.h"
-
-#include "ISequencerModule.h"
-#include "Sequencer/LiveLinkPropertyTrackEditor.h"
-#include "SequencerRecorderSections/MovieSceneLiveLinkSectionRecorder.h"
-
-#include "ITakeRecorderModule.h"
+#include "LiveLinkEditorPrivate.h"
+#include "LiveLinkGraphPanelPinFactory.h"
+#include "LiveLinkSettings.h"
+#include "LiveLinkSubjectNameDetailCustomization.h"
+#include "LiveLinkSubjectRepresentationDetailCustomization.h"
+#include "LiveLinkTypes.h"
+#include "LiveLinkVirtualSubject.h"
+#include "LiveLinkVirtualSubjectDetailCustomization.h"
 
 /**
- * Implements the Messaging module.
+ * Implements the LiveLinkEditor module.
  */
+
+
+DEFINE_LOG_CATEGORY(LogLiveLinkEditor);
+
 
 #define LOCTEXT_NAMESPACE "LiveLinkModule"
 
 static const FName LiveLinkClientTabName(TEXT("LiveLink"));
 static const FName LevelEditorModuleName(TEXT("LevelEditor"));
-static const FName TakeRecorderModuleName(TEXT("TakeRecorder"));
-static const FName MovieSceneSectionRecorderFactoryName("MovieSceneSectionRecorderFactory");
 
-#define IMAGE_PLUGIN_BRUSH( RelativePath, ... ) FSlateImageBrush( InPluginContent( RelativePath, ".png" ), __VA_ARGS__ )
 
-FString InPluginContent(const FString& RelativePath, const ANSICHAR* Extension)
+namespace LiveLinkEditorModuleUtils
 {
-	static FString ContentDir = IPluginManager::Get().FindPlugin(TEXT("LiveLink"))->GetContentDir();
-	return (ContentDir / RelativePath) + Extension;
+	FString InPluginContent(const FString& RelativePath, const ANSICHAR* Extension)
+	{
+		static FString ContentDir = IPluginManager::Get().FindPlugin(TEXT("LiveLink"))->GetContentDir();
+		return (ContentDir / RelativePath) + Extension;
+	}
 }
+
+#define IMAGE_PLUGIN_BRUSH( RelativePath, ... ) FSlateImageBrush( LiveLinkEditorModuleUtils::InPluginContent( RelativePath, ".png" ), __VA_ARGS__ )
+
 
 class FLiveLinkEditorModule : public IModuleInterface
 {
 public:
-	TSharedPtr<FSlateStyleSet> StyleSet;
-
-	TSharedPtr< class ISlateStyle > GetStyleSet() { return StyleSet; }
+	static TSharedPtr<FSlateStyleSet> StyleSet;
 
 	// IModuleInterface interface
 
 	virtual void StartupModule() override
 	{
 		static FName LiveLinkStyle(TEXT("LiveLinkStyle"));
-		StyleSet = MakeShareable(new FSlateStyleSet(LiveLinkStyle));
+		StyleSet = MakeShared<FSlateStyleSet>(LiveLinkStyle);
 
 		bHasRegisteredTabSpawners = false;
 
@@ -70,19 +77,13 @@ public:
 			RegisterTabSpawner();
 		}
 
-		if (FModuleManager::Get().IsModuleLoaded(TakeRecorderModuleName))
-		{
-			RegisterTakeRecorderSourceMenuExtender();
-		}
-
 		ModulesChangedHandle = FModuleManager::Get().OnModulesChanged().AddRaw(this, &FLiveLinkEditorModule::ModulesChangesCallback);
 
 		FLiveLinkClientCommands::Register();
 
+		const FVector2D Icon8x8(8.0f, 8.0f);
 		const FVector2D Icon16x16(16.0f, 16.0f);
-		const FVector2D Icon20x20(20.0f, 20.0f);
 		const FVector2D Icon40x40(40.0f, 40.0f);
-		const FVector2D Icon64x64(64.0f, 64.0f);
 
 		StyleSet->SetContentRoot(FPaths::EngineContentDir() / TEXT("Editor/Slate"));
 		StyleSet->SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
@@ -90,20 +91,37 @@ public:
 		StyleSet->Set("LiveLinkClient.Common.Icon", new IMAGE_PLUGIN_BRUSH(TEXT("LiveLink_40x"), Icon40x40));
 		StyleSet->Set("LiveLinkClient.Common.Icon.Small", new IMAGE_PLUGIN_BRUSH(TEXT("LiveLink_16x"), Icon16x16));
 
+		StyleSet->Set("ClassIcon.LiveLinkPreset", new IMAGE_PLUGIN_BRUSH("LiveLink_16x", Icon16x16));
+		StyleSet->Set("ClassIcon.LiveLinkFrameInterpolationProcessor", new IMAGE_PLUGIN_BRUSH("LiveLink_16x", Icon16x16));
+		StyleSet->Set("ClassIcon.LiveLinkFramePreProcessor", new IMAGE_PLUGIN_BRUSH("LiveLink_16x", Icon16x16));
+		StyleSet->Set("ClassIcon.LiveLinkFrameTranslator", new IMAGE_PLUGIN_BRUSH("LiveLink_16x", Icon16x16));
+		StyleSet->Set("ClassIcon.LiveLinkPreset", new IMAGE_PLUGIN_BRUSH("LiveLink_16x", Icon16x16));
+		StyleSet->Set("ClassIcon.LiveLinkRole", new IMAGE_PLUGIN_BRUSH("LiveLink_16x", Icon16x16));
+		StyleSet->Set("ClassIcon.LiveLinkVirtualSubject", new IMAGE_PLUGIN_BRUSH("LiveLink_16x", Icon16x16));
+
+		StyleSet->Set("ClassThumbnail.LiveLinkPreset", new IMAGE_PLUGIN_BRUSH("LiveLink_40x", Icon40x40));
+
 		StyleSet->Set("LiveLinkClient.Common.AddSource", new IMAGE_PLUGIN_BRUSH(TEXT("icon_AddSource_40x"), Icon40x40));
 		StyleSet->Set("LiveLinkClient.Common.RemoveSource", new IMAGE_PLUGIN_BRUSH(TEXT("icon_RemoveSource_40x"), Icon40x40));
 		StyleSet->Set("LiveLinkClient.Common.RemoveAllSources", new IMAGE_PLUGIN_BRUSH(TEXT("icon_RemoveSource_40x"), Icon40x40));
 
-		StyleSet->Set("ClassIcon.TakeRecorderLiveLinkSource", new IMAGE_PLUGIN_BRUSH(TEXT("TakeRecorderLiveLinkSource_16x"), Icon16x16));
-		StyleSet->Set("ClassThumbnail.TakeRecorderLiveLinkSource", new IMAGE_PLUGIN_BRUSH(TEXT("TakeRecorderLiveLinkSource_64x"), Icon64x64));
+		FButtonStyle Button = FButtonStyle()
+			.SetNormal(FSlateBoxBrush(StyleSet->RootToContentDir("Common/ButtonHoverHint.png"), FMargin(4 / 16.0f), FLinearColor(1, 1, 1, 0.15f)))
+			.SetHovered(FSlateBoxBrush(StyleSet->RootToContentDir("Common/ButtonHoverHint.png"), FMargin(4 / 16.0f), FLinearColor(1, 1, 1, 0.25f)))
+			.SetPressed(FSlateBoxBrush(StyleSet->RootToContentDir("Common/ButtonHoverHint.png"), FMargin(4 / 16.0f), FLinearColor(1, 1, 1, 0.30f)))
+			.SetNormalPadding(FMargin(0, 0, 0, 1))
+			.SetPressedPadding(FMargin(0, 1, 0, 0));
+		FComboButtonStyle ComboButton = FComboButtonStyle()
+			.SetButtonStyle(Button.SetNormal(FSlateNoResource()))
+			.SetDownArrowImage(FSlateImageBrush(StyleSet->RootToCoreContentDir(TEXT("Common/ComboArrow.png")), Icon8x8))
+			.SetMenuBorderBrush(FSlateBoxBrush(StyleSet->RootToCoreContentDir(TEXT("Old/Menu_Background.png")), FMargin(8.0f / 64.0f)))
+			.SetMenuBorderPadding(FMargin(0.0f));
+		StyleSet->Set("ComboButton", ComboButton);
 
 		FSlateStyleRegistry::RegisterSlateStyle(*StyleSet.Get());
 
-		ISequencerModule& SequencerModule = FModuleManager::LoadModuleChecked<ISequencerModule>("Sequencer");
-		CreateLiveLinkPropertyTrackEditorHandle = SequencerModule.RegisterTrackEditor(FOnCreateTrackEditor::CreateStatic(&FLiveLinkPropertyTrackEditor::CreateTrackEditor));
-
-		IModularFeatures::Get().RegisterModularFeature(MovieSceneSectionRecorderFactoryName, &MovieSceneLiveLinkRecorder);
-
+		RegisterSettings();
+		RegisterCustomizations();
 	}
 
 	void ModulesChangesCallback(FName ModuleName, EModuleChangeReason ReasonForChange)
@@ -112,18 +130,13 @@ public:
 		{
 			RegisterTabSpawner();
 		}
-
-		if (ReasonForChange == EModuleChangeReason::ModuleLoaded && ModuleName == TakeRecorderModuleName)
-		{
-			RegisterTakeRecorderSourceMenuExtender();
-		}
 	}
 
 	virtual void ShutdownModule() override
 	{
-		UnregisterTabSpawner();
+		UnregisterCustomizations();
 
-		UnregisterTakeRecorderSourceMenuExtender();
+		UnregisterTabSpawner();
 
 		FModuleManager::Get().OnModulesChanged().Remove(ModulesChangedHandle);
 
@@ -133,13 +146,7 @@ public:
 			LevelEditorModule.OnTabManagerChanged().Remove(LevelEditorTabManagerChangedHandle);
 		}
 
-		ISequencerModule* SequencerModule = FModuleManager::GetModulePtr<ISequencerModule>("Sequencer");
-		if (SequencerModule != nullptr)
-		{
-			SequencerModule->UnRegisterTrackEditor(CreateLiveLinkPropertyTrackEditorHandle);
-		}
-
-		IModularFeatures::Get().UnregisterModularFeature(MovieSceneSectionRecorderFactoryName, &MovieSceneLiveLinkRecorder);
+		StyleSet.Reset();
 	}
 
 	virtual bool SupportsDynamicReloading() override
@@ -147,11 +154,11 @@ public:
 		return false;
 	}
 
-	static TSharedRef<SDockTab> SpawnLiveLinkTab(const FSpawnTabArgs& SpawnTabArgs, TSharedPtr<FSlateStyleSet> StyleSet)
+	static TSharedRef<SDockTab> SpawnLiveLinkTab(const FSpawnTabArgs& SpawnTabArgs, TSharedPtr<FSlateStyleSet> InStyleSet)
 	{
 		FLiveLinkClient* Client = &IModularFeatures::Get().GetModularFeature<FLiveLinkClient>(FLiveLinkClient::ModularFeatureName);
 
-		const FSlateBrush* IconBrush = StyleSet->GetBrush("LiveLinkClient.Common.Icon.Small");
+		const FSlateBrush* IconBrush = InStyleSet->GetBrush("LiveLinkClient.Common.Icon.Small");
 
 		const TSharedRef<SDockTab> MajorTab =
 			SNew(SDockTab)
@@ -172,11 +179,10 @@ private:
 			UnregisterTabSpawner();
 		}
 
-		TSharedPtr<FSlateStyleSet> StyleSetPtr = StyleSet;
-		FTabSpawnerEntry& SpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(LiveLinkClientTabName, FOnSpawnTab::CreateStatic(&FLiveLinkEditorModule::SpawnLiveLinkTab, StyleSetPtr))
+		FTabSpawnerEntry& SpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(LiveLinkClientTabName, FOnSpawnTab::CreateStatic(&FLiveLinkEditorModule::SpawnLiveLinkTab, StyleSet))
 			.SetDisplayName(LOCTEXT("LiveLinkTabTitle", "Live Link"))
-			.SetTooltipText(LOCTEXT("SequenceRecorderTooltipText", "Open the Live Link streaming manager tab."))
-			.SetIcon(FSlateIcon(StyleSetPtr->GetStyleSetName(), "LiveLinkClient.Common.Icon.Small"));
+			.SetTooltipText(LOCTEXT("LiveLinkTabTooltipText", "Open the Live Link streaming manager tab."))
+			.SetIcon(FSlateIcon(StyleSet->GetStyleSetName(), "LiveLinkClient.Common.Icon.Small"));
 
 		const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
 		SpawnerEntry.SetGroup(MenuStructure.GetLevelEditorCategory());
@@ -190,81 +196,73 @@ private:
 		bHasRegisteredTabSpawners = false;
 	}
 
-	void RegisterTakeRecorderSourceMenuExtender()
+	void RegisterSettings()
 	{
-		if (FModuleManager::Get().IsModuleLoaded(TakeRecorderModuleName))
+		ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
+		if (SettingsModule != nullptr)
 		{
-			ITakeRecorderModule& TakeRecorderModule = FModuleManager::Get().LoadModuleChecked<ITakeRecorderModule>("TakeRecorder");
-			SourcesMenuExtension = TakeRecorderModule.RegisterSourcesMenuExtension(FOnExtendSourcesMenu::CreateStatic(ExtendSourcesMenu));
+			SettingsModule->RegisterSettings("Project", "Plugins", "LiveLink",
+				LOCTEXT("LiveLinkSettingsName", "Live Link"),
+				LOCTEXT("LiveLinkDescription", "Configure the Live Link plugin."),
+				GetMutableDefault<ULiveLinkSettings>()
+			);
 		}
 	}
 
-	void UnregisterTakeRecorderSourceMenuExtender()
+	void UnregisterSettings()
 	{
-		if (ITakeRecorderModule* TakeRecorderModule = FModuleManager::Get().GetModulePtr<ITakeRecorderModule>("TakeRecorder"))
+		// unregister settings
+		ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
+		if (SettingsModule != nullptr)
 		{
-			TakeRecorderModule->UnregisterSourcesMenuExtension(SourcesMenuExtension);
+			SettingsModule->UnregisterSettings("Project", "Media", "MediaProfile");
 		}
 	}
 
-	static void ExtendSourcesMenu(TSharedRef<FExtender> Extender, UTakeRecorderSources* Sources)
+	void RegisterCustomizations()
 	{
-		Extender->AddMenuExtension("Sources", EExtensionHook::Before, nullptr, FMenuExtensionDelegate::CreateStatic(PopulateSourcesMenu, Sources));
+		FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		PropertyEditorModule.RegisterCustomClassLayout(ULiveLinkVirtualSubject::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FLiveLinkVirtualSubjectDetailCustomization::MakeInstance));
+		PropertyEditorModule.RegisterCustomPropertyTypeLayout(FLiveLinkSubjectRepresentation::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FLiveLinkSubjectRepresentationDetailCustomization::MakeInstance));
+		PropertyEditorModule.RegisterCustomPropertyTypeLayout(FLiveLinkSubjectName::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FLiveLinkSubjectNameDetailCustomization::MakeInstance));
+
+		LiveLinkGraphPanelPinFactory = MakeShared<FLiveLinkGraphPanelPinFactory>();
+		FEdGraphUtilities::RegisterVisualPinFactory(LiveLinkGraphPanelPinFactory);
 	}
 
-	static void PopulateSourcesMenu(FMenuBuilder& MenuBuilder, UTakeRecorderSources* Sources)
+	void UnregisterCustomizations()
 	{
-		FName ExtensionName = "LiveLinkSourceSubMenu";
-
-		MenuBuilder.AddSubMenu(
-			NSLOCTEXT("TakeRecorderSources", "LiveLinkList_Label", "From LiveLink"),
-			NSLOCTEXT("TakeRecorderSources", "LiveLinkList_Tip", "Add a new recording source from a Live Link Subject"),
-			FNewMenuDelegate::CreateStatic(PopulateLiveLinkSubMenu, Sources),
-			FUIAction(),
-			ExtensionName,
-			EUserInterfaceActionType::Button
-		);
-	}
-
-	static void PopulateLiveLinkSubMenu(FMenuBuilder& MenuBuilder, UTakeRecorderSources* Sources)
-	{
-		IModularFeatures& ModularFeatures = IModularFeatures::Get();
-		if (ModularFeatures.IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
+		if (UObjectInitialized() && !GIsRequestingExit)
 		{
-			ILiveLinkClient* LiveLinkClient = &IModularFeatures::Get().GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
-			TArray<FName> SubjectNames;
-			LiveLinkClient->GetSubjectNames(SubjectNames);
-
-			for (FName SubjectName : SubjectNames)
+			FEdGraphUtilities::UnregisterVisualPinFactory(LiveLinkGraphPanelPinFactory);
+			FPropertyEditorModule* PropertyEditorModule = FModuleManager::Get().GetModulePtr<FPropertyEditorModule>("PropertyEditor");
+			if (PropertyEditorModule)
 			{
-
-				MenuBuilder.AddMenuEntry(
-					FText::FromName(SubjectName),
-					FText(),
-					FSlateIcon(),
-					FExecuteAction::CreateLambda([Sources, SubjectName]{AddLiveLinkSource(Sources, SubjectName); })
-				);
+				PropertyEditorModule->UnregisterCustomPropertyTypeLayout(FLiveLinkSubjectName::StaticStruct()->GetFName());
+				PropertyEditorModule->UnregisterCustomPropertyTypeLayout(FLiveLinkSubjectRepresentation::StaticStruct()->GetFName());
+				PropertyEditorModule->UnregisterCustomClassLayout(ULiveLinkVirtualSubject::StaticClass()->GetFName());
 			}
 		}
 	}
 
-	static void AddLiveLinkSource(UTakeRecorderSources* Sources,  const FName& SubjectName)
-	{
-		UTakeRecorderLiveLinkSource* NewSource = Sources->AddSource<UTakeRecorderLiveLinkSource>();
-		NewSource->SubjectName = SubjectName;
-	}
-
-
+private:
 	FDelegateHandle LevelEditorTabManagerChangedHandle;
 	FDelegateHandle ModulesChangedHandle;
-	FDelegateHandle CreateLiveLinkPropertyTrackEditorHandle;
-	FDelegateHandle SourcesMenuExtension;
-	FMovieSceneLiveLinkSectionRecorderFactory MovieSceneLiveLinkRecorder;
+
+	TSharedPtr<FLiveLinkGraphPanelPinFactory> LiveLinkGraphPanelPinFactory;
 
 	// Track if we have registered
 	bool bHasRegisteredTabSpawners;
 };
 
+TSharedPtr<FSlateStyleSet> FLiveLinkEditorModule::StyleSet;
+
 IMPLEMENT_MODULE(FLiveLinkEditorModule, LiveLinkEditor);
+
+
+TSharedPtr< class ISlateStyle > FLiveLinkEditorPrivate::GetStyleSet()
+{
+	return FLiveLinkEditorModule::StyleSet;
+}
 
 #undef LOCTEXT_NAMESPACE

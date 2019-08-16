@@ -18,7 +18,7 @@ void SEditorViewportToolBarButton::Construct( const FArguments& Declaration )
 
 	bool bContentOverride = ContentSlotWidget != SNullWidget::NullWidget;
 
-	EUserInterfaceActionType::Type ButtonType = Declaration._ButtonType;
+	EUserInterfaceActionType ButtonType = Declaration._ButtonType;
 	
 	// The style of the image to show in the button
 	const FName ImageStyleName = Declaration._Image.Get();

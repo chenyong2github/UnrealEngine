@@ -1,50 +1,52 @@
-﻿Availability: Public
+﻿INTSourceChangelist:4677192
+Availability: Public
 Crumbs: 
-Title: Enabling & Building PSO Caching
-Description: Taking a look getting your UE4 project is ready to build PSO data.
+Title: PSO キャッシングの有効化とビルド
+Description: UE4 プロジェクトで PSO データをビルドする準備について説明します。
 Type: 
 Version: 4.21
 Parent: Engine/Rendering/PSOCaching
-Order:
+Order: 
 Topic-image:EnablingBuildingPSCaching_Topic_Image.png
 Tags: 
 
-Before you can use **Pipeline State Object (PSO)** Caching in your Unreal Engine 4 (UE4) project, you will first need to enable a few options. In the following How-To, we will take a look at all of the options that need to be enabled to generate the needed files for PSO Caching to work.
 
-## Steps
+**Pipeline State Object (PSO)** のキャッシングを Unreal Engine 4 (UE4) プロジェクトで使用できるようにするには、まずいくつかのオプションを有効化する必要があります。 この操作ガイドでは、PSO キャッシングを動作させるために必要なファイルの生成に必要なオプションをすべて確認します。
+
+## 手順
 
 [REGION:note]
-**Prerequisite:** This How-To uses the [Action RPG](https://www.unrealengine.com/marketplace/action-rpg) example game project that can be downloaded from the Epic Games launcher.
+**前提条件** この操作ガイドでは、Epic Games launcher からダウンロード可能な [Action RPG](https://www.unrealengine.com/marketplace/action-rpg) のサンプル ゲーム プロジェクトを使用します。
 [/REGION]
 
-1.  From the Main Menu go to **Edit** \> **Project** **Settings** \> **Packaging** \> **Packaging** and enable the following options:  
+1.  メイン メニューから **[Edit** \> **Project** **Settings** \> **Packaging** \> **Packaging]** で、以下のオプションを有効にします。  
     *   **Share Material Shader Code**
     *   **Shared Material Native Libraries**  
         [REGION:lightbox]
         [![](Enable_PSO_Caching.png)(w:800px)](Enable_PSO_Caching.png)
         [/REGION]
         [REGION:caption]
-        Click for full image.
+        クリックして最大化。
         [/REGION]
-2.  Then, open up the **Device Profile** tool by going to **Window** \> **Developer** **Tools** \> **Device** **Profiles**.  
+2.  そして、 **[ウィンドウ** \> **デベロッパー** **ツール** \> **Device]** から、 **[デバイス****プロファイル]** **ツール** を開きます。  
     ![](Open_Device_Manager.png "Open_Device_Manager.png")
-3.  Next, in the **Existing Device Profiles** input, locate the **Android** option and click the **ellipsis** next to its name to open that device profile up.  
+3.  次に、**[既存デバイスプロファイル]** の入力フィールドのところで、**[Android]** オプションを探して名前の横の **省略記号** をクリックして、デバイス プロファイルを開きます。  
     ![](Open_Up_Android_Device_Profile.png)
-4.  Under the **Console Variables** section, look for the **Rendering** section and press the **Plus** icon to expose the **Search** input.  
+4.  **[Console Variables]** セクションの下の **レンダリング** を探して、 **[+]** のアイコンをクリックして **検索** 入力フィールドを表示します。  
     ![](Search_For_Command_To_Add.png "Search_For_Command_To_Add.png")
-5.  Inside of the **Search** input, locate and click on the **r.ShaderPipelineCache.Enabled** to add it to the list of Rendering variables.  
+5.  **検索** 入力フィールドで **r.ShaderPipelineCache.Enabled** を探し、クリックしてレンダリング変数のリストに追加します。  
     ![](PSO_Added_To_Device_Profile.png "PSO_Added_To_Device_Profile.png")
-6.  Then set the value of **r.ShaderPipelineCache.Enabled** input to a value of **1**.  
+6.  次に、 **r.ShaderPipelineCache.Enabled** の入力フィールドの値を **1** にセットします。  
     ![](PSO_Caching_Enabled.png "PSO_Caching_Enabled.png")
     [REGION:note]
-    If your project supports multiple platforms, repeat this process for each of the platforms.
+    プロジェクトが複数のプラットフォームをサポートする場合、この処理を各プラットフォームに繰り返します。
     [/REGION]
-7.  When that has been completed, restart your Unreal Editor session.
+7.  完了したら、Unreal Editor のセッションを再起動します。
 
-## End Results
+## まとめ
 
-Now that the  necessary project settings for PSO caching are enabled, next we will create and launch a special version of the project that will output the needed PSO data into a file. 
+PSO キャッシングに必要なプロジェクトの設定が有効化されたので、次は必要な PSO データをファイルに出力する特別なバージョンのプロジェクトを作成して起動します。 
 
 [REGION:note]
-For more information, see [Gathering PSO Data How-To](Engine/Rendering/PSOCaching/GatheringPSOData).
+詳細は、 [](Engine/Rendering/PSOCaching/GatheringPSOData) を参照してください。
 [/REGION]

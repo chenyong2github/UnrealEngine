@@ -3,6 +3,7 @@
 #include "AudioMixerPlatformNonRealtime.h"
 #include "AudioMixer.h"
 #include "AudioMixerDevice.h"
+#include "AudioPluginUtilities.h"
 #include "HAL/PlatformAffinity.h"
 #include "Misc/App.h"
 
@@ -386,6 +387,7 @@ namespace Audio
 
 	FAudioPlatformSettings FMixerPlatformNonRealtime::GetPlatformSettings() const
 	{
+		const TCHAR* ConfigSection = AudioPluginUtilities::GetPlatformConfigSection(EAudioPlatform::Windows);
 		return FAudioPlatformSettings::GetPlatformSettings(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"));
 	}
 

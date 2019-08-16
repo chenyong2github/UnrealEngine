@@ -6,57 +6,26 @@
 #include "TransformCollection.h"
 #include "Misc/Crc.h"
 
+namespace Chaos
+{
+	class FChaosArchive;
+}
+
 /**
 * FGeometryCollection (FTransformCollection)
+*  
+*    see : https://wiki.it.epicgames.net/display/~Brice.Criswell/Geometry+Collections
 *
-* Stores the TArray<T> groups necessary to process simulation geometry. 
-* For example:
-*
-	int32 NumVertices = 100;
-	int32 NumParticles = 200;
-	FGeometryCollection GeometryCollection;
-
-	// Build Geometry Vertex Information
-	GeometryCollection.AddAttribute<FVector>("Vertex", FGeometryCollection::VerticesGroup);
-	int VerticesIndex = GeometryCollection.AddElements(NumVertices, FGeometryCollection::VerticesGroup);
-	check(NumVertices == GeometryCollection.NumElements(FGeometryCollection::VerticesGroup));
-
-	TSharedRef< TManagedArray<FVector> > VerticesArray = GeometryCollection.GetAttribute<FVector>("Vertex", FGeometryCollection::VerticesGroup);
-	TManagedArray<FVector>& Vertices = *VerticesArray;
-	for (int32 Index = VerticesIndex; Index < NumVertices; Index++)
-	{
-		//Vertices[Index] = Something ...
-	}
-
-	// Build a generic particle array
-	GeometryCollection.AddAttribute<FTransform>("Transform", FGeometryCollection::TransformGroup);
-	GeometryCollection.AddAttribute<FVector>("Velocity", FGeometryCollection::TransformGroup);
-	int ParticleIndex = GeometryCollection.AddElements(NumParticles, FGeometryCollection::TransformGroup);
-	check(NumParticles == GeometryCollection.NumElements(FGeometryCollection::TransformGroup));
-
-	TSharedRef< TManagedArray<FTransform> > TransformArray = GeometryCollection.GetAttribute<FTransform>("Transform", FGeometryCollection::TransformGroup);
-	TSharedRef< TManagedArray<FTransform> > VelocityArray = GeometryCollection.GetAttribute<FTransform>("Velocity", FGeometryCollection::TransformGroup);
-
-	TManagedArray<FTransform>& Transform = *TransformArray;
-	TManagedArray<FTransform>& Velocity = *VelocityArray;
-	for (int32 Index = ParticleIndex; Index < NumParticles; Index++)
-	{
-		//Transform[Index] = Something...
-	}
-*
-*
-*
-*
-*
-* @see FGeometryCollectionComponent
 */
 class GEOMETRYCOLLECTIONCORE_API FGeometryCollection : public FTransformCollection
 {
 
 public:
 	FGeometryCollection();
-	~FGeometryCollection() {};
-	FGeometryCollection( FGeometryCollection & );
+	FGeometryCollection(FGeometryCollection &) = delete;
+	FGeometryCollection& operator=(const FGeometryCollection &) = delete;
+	FGeometryCollection(FGeometryCollection &&) = default;
+	FGeometryCollection& operator=(FGeometryCollection &&) = default;
 
 	typedef FTransformCollection Super;
 		/***
@@ -112,72 +81,36 @@ public:
 		*
 		*		 The set of triangles which are rendered with the same material
 		*/
+
 	static const FName VerticesGroup; // Vertices
 	static const FName FacesGroup;	  // Faces
 	static const FName GeometryGroup; // Geometry
 	static const FName BreakingGroup; // Breaking
 	static const FName MaterialGroup; // Materials
 
-	/** Append a single geometric object to a FGeometryCollection */
-	int32 AppendGeometry(const FGeometryCollection & GeometryCollection);
+	static const FName SimulatableParticlesAttribute;
+	static const FName SimulationTypeAttribute;
+	static const FName StatusFlagsAttribute;
 
+	enum ESimulationTypes : uint8
+	{
+		FST_None = 0,
+		FST_Rigid = 1,
+		FST_Clustered = 2,
+		FST_Not_Simulatable = 3
+	};
 
-	/**
-	* Remove Geometry and update dependent elements
-	*/
-	virtual void RemoveElements(const FName & Group, const TArray<int32>& SortedDeletionList) override;
+	enum ENodeFlags : uint32
+	{
+		// additional flags
+		FS_None = 0,
 
-	/**
-	* Remove Geometry elements i.e. verts, faces, etc, leaving the transform nodes intact
-	*/
-	void RemoveGeometryElements(const TArray<int32>& SortedDeletionList);
-
-	/**
-	* Reindex sections to keep polys with same materials together to reduce the number of draw calls
-	*/
-	void ReindexMaterials();
-
-	/**
-	* Connect the Geometry Collection to the users arrays.
-	*/
-	virtual void BindSharedArrays() override;
-		
-	/** Returns true if there is anything to render */
-	bool HasVisibleGeometry();
-
-	/** Returns true if the vertices are contiguous*/
-	bool HasContiguousVertices() const;
-
-	/** Returns true if the faces are contiguous*/
-	bool HasContiguousFaces() const;
-
-	/** Returns true if the render faces are contiguous*/
-	bool HasContiguousRenderFaces() const;
-
-	/**
-	* Setup collection based on input collection, resulting arrays are shared.
-	* @param CollectionIn : Input collection to share
-	*/
-	virtual void Initialize(FManagedArrayCollection & CollectionIn) override;
-
-	/**/
-	void UpdateBoundingBox();
-
-	/* Builds the connectivity data in the GeometryGroup (Proximity array) */
-//	void UpdateProximity();
-
-	/** Serialize */
-	void Serialize(FArchive& Ar);
-
-	/*
-	*  
-	*/
-	void WriteDataToHeaderFile(const FString &Name, const FString &Path);
-
-	/*
-	*  
-	*/
-	void WriteDataToOBJFile(const FString &Name, const FString &Path, const bool WriteTopology=true, const bool WriteAuxStructures=true);
+		// identify nodes that should be removed from the simulation instead of becoming a fractured body
+		FS_RemoveOnFracture = 0x00000004
+	};
+	//
+	//
+	//
 
 	/**
 	 * Create a GeometryCollection from Vertex and Indices arrays
@@ -188,50 +121,179 @@ public:
 	* Create a GeometryCollection from Vertex, Indices, BoneMap, Transform, BoneHierarchy arrays
 	*/
 	static FGeometryCollection* NewGeometryCollection(const TArray<float>& RawVertexArray,
-													  const TArray<int32>& RawIndicesArray,
-													  const TArray<int32>& RawBoneMapArray,
-													  const TArray<FTransform>& RawTransformArray,
-													  const TManagedArray<FGeometryCollectionBoneNode>& RawBoneHierarchyArray);
+		const TArray<int32>& RawIndicesArray,
+		const TArray<int32>& RawBoneMapArray,
+		const TArray<FTransform>& RawTransformArray,
+		const TManagedArray<int32>& RawLevelArray,
+		const TManagedArray<int32>& RawParentArray,
+		const TManagedArray<TSet<int32>>& RawChildrenArray,
+		const TManagedArray<int32>& RawSimulationTypeArray,
+		const TManagedArray<int32>& RawStatusFlagsArray);
+
+	//
+	//
+	//
+
+
+	/** 
+	* Append a single geometric object to a FGeometryCollection 
+	*/
+	int32 AppendGeometry(const FGeometryCollection & GeometryCollection, int32 MaterialIDOffset = 0, bool ReindexAllMaterials = true, const FTransform& TransformRoot = FTransform::Identity);
+
+	/**
+	* Remove Geometry and update dependent elements
+	*/
+	virtual void RemoveElements(const FName & Group, const TArray<int32>& DeletionList, FProcessingParameters Params = FProcessingParameters()) override;
+
+	/**
+	* Reorders elements in a group. NewOrder must be the same length as the group.
+	*/
+	virtual void ReorderElements(FName Group, const TArray<int32>& NewOrder) override;
+
+	//
+	//
+	//
+
+
+	/**
+	*  Update bounding box entries for the geometry
+	*/
+	void UpdateBoundingBox();
+
+	/**
+	 * Update the visibility of specified geometry nodes
+	 */
+	void UpdateGeometryVisibility(const TArray<int32>& NodeList, bool VisibilityState);
+
+	/**
+	* Reindex sections to keep polys with same materials together to reduce the number of draw calls
+	*/
+	void ReindexMaterials();
+		
+	/**
+	* Builds mesh sections for a given index buffer that could be a subset.
+	* Currently, this call assumes that the indices are ordered by MaterialID
+	* #todo(dmp): Refactor this and ReindexMaterials to share code
+	*/
+	TArray<FGeometryCollectionSection> BuildMeshSections(const TArray<FIntVector> &Indices, TArray<int32> BaseMeshOriginalIndicesIndex, TArray<FIntVector> &RetIndices) const;
+	//
+	//
+	//
+
+	/** Returns true if there is anything to render */
+	bool HasVisibleGeometry() const;
+
+	/** Returns true if the vertices are contiguous*/
+	bool HasContiguousVertices() const;
+
+	/** Returns true if the faces are contiguous*/
+	bool HasContiguousFaces() const;
+
+	/** Returns true if the render faces are contiguous*/
+	bool HasContiguousRenderFaces() const;
+
+	FORCEINLINE bool IsGeometry(int32 Element) const { return TransformToGeometryIndex[Element] != INDEX_NONE; }
+	FORCEINLINE bool IsClustered(int32 Element) const { const TManagedArray<int32>& SimType = SimulationType;  return !!(SimType[Element] == ESimulationTypes::FST_Clustered); }
+	FORCEINLINE bool IsTransform(int32 Element) const { return !IsGeometry(Element); }
+	FORCEINLINE void SetFlags(int32 Element, int32 InFlags) { TManagedArray<int32>& Status = StatusFlags; Status[Element] |= InFlags; }
+	FORCEINLINE void ClearFlags(int32 Element, int32 InFlags) { TManagedArray<int32>& Status = StatusFlags; Status[Element] = Status[Element] & ~InFlags; }
+	FORCEINLINE bool HasFlags(int32 Element, int32 InFlags) const { const TManagedArray<int32>& Status = StatusFlags; return (Status[Element] & InFlags) != 0; }
+
+	/** Connection of leaf geometry */
+	TArray<TArray<int32>> ConnectionGraph();
+
+
+	//
+	//
+	//
+
+	/** Serialize */
+	void Serialize(Chaos::FChaosArchive& Ar);
+
+	/**   */
+	void WriteDataToHeaderFile(const FString &Name, const FString &Path);
+
+	/**  */
+	void WriteDataToOBJFile(const FString &Name, const FString &Path, const bool WriteTopology=true, const bool WriteAuxStructures=true);
+
+	//
+	//
+	//
+
+	void SetDefaults(FName Group, uint32 StartSize, uint32 NumElements);
+
+	// Transform Group
+	TManagedArray<int32>		TransformToGeometryIndex;
+	TManagedArray<int32>        SimulationType;
+	TManagedArray<int32>        StatusFlags;
 
 	// Vertices Group
-	TSharedPtr< TManagedArray<FVector> >      Vertex;
-	TSharedPtr< TManagedArray<FVector2D> >    UV;
-	TSharedPtr< TManagedArray<FLinearColor> > Color;
-	TSharedPtr< TManagedArray<FVector> >      TangentU;
-	TSharedPtr< TManagedArray<FVector> >      TangentV;
-	TSharedPtr< TManagedArray<FVector> >      Normal;
-	TSharedPtr< TManagedArray<int32> >        BoneMap;
+	TManagedArray<FVector>		Vertex;
+	TManagedArray<FVector2D>    UV;
+	TManagedArray<FLinearColor> Color;
+	TManagedArray<FVector>      TangentU;
+	TManagedArray<FVector>      TangentV;
+	TManagedArray<FVector>      Normal;
+	TManagedArray<int32>        BoneMap;
 
 	// Faces Group
-	TSharedPtr< TManagedArray<FIntVector> >   Indices;
-	TSharedPtr< TManagedArray<bool> >         Visible;
-	TSharedPtr< TManagedArray<int32> >        MaterialIndex;
-	TSharedPtr< TManagedArray<int32> >        MaterialID;
+	TManagedArray<FIntVector>   Indices;
+	TManagedArray<bool>         Visible;
+	TManagedArray<int32>        MaterialIndex;
+	TManagedArray<int32>        MaterialID;
 
 	// Geometry Group
-	TSharedPtr< TManagedArray<int32> >        TransformIndex;
-	TSharedPtr< TManagedArray<FBox> >		  BoundingBox;
-	TSharedPtr< TManagedArray<float> >		  InnerRadius;
-	TSharedPtr< TManagedArray<float> >		  OuterRadius;
-	TSharedPtr< TManagedArray<int32> >		  VertexStart;
-	TSharedPtr< TManagedArray<int32> >		  VertexCount;
-	TSharedPtr< TManagedArray<int32> >		  FaceStart;
-	TSharedPtr< TManagedArray<int32> >		  FaceCount;
-	TSharedPtr< TManagedArray<TSet<int32>> >  Proximity;
-
-	// Breaking Group
-	TSharedPtr< TManagedArray<int32> >		  BreakingFaceIndex;
-	TSharedPtr< TManagedArray<int32> >		  BreakingSourceTransformIndex;
-	TSharedPtr< TManagedArray<int32> >		  BreakingTargetTransformIndex;
-	TSharedPtr< TManagedArray<FVector> >	  BreakingRegionCentroid;
-	TSharedPtr< TManagedArray<FVector> >	  BreakingRegionNormal;
-	TSharedPtr< TManagedArray<float> >		  BreakingRegionRadius;
+	TManagedArray<int32>        TransformIndex;
+	TManagedArray<FBox>			BoundingBox;
+	TManagedArray<float>		InnerRadius;
+	TManagedArray<float>		OuterRadius;
+	TManagedArray<int32>		VertexStart;
+	TManagedArray<int32>		VertexCount;
+	TManagedArray<int32>		FaceStart;
+	TManagedArray<int32>		FaceCount;
 
 	// Material Group
-	TSharedPtr< TManagedArray<FGeometryCollectionSection>> Sections;
+	TManagedArray<FGeometryCollectionSection> Sections;
 	
 protected:
+
 	void Construct();
+
+	/**
+	* Remove Geometry elements i.e. verts, faces, etc, leaving the transform nodes intact
+	*/
+	void RemoveGeometryElements(const TArray<int32>& SortedGeometryIndicesToDelete);
+
+	/**
+	* Update Face Attributes based on changes in the group.
+	*/
+	void UpdateFaceGroupElements();
+
+	/**
+	* Update Vertex Attributes based on changes in the group.
+	*/
+	void UpdateVerticesGroupElements();
+
+	/** 
+	* Reorder geometry elements. i.e. verts faces etc are reordered so we can get contiguous memory access
+	*/
+	void ReorderGeometryElements(const TArray<int32>& NewOrder);
+
+	/**
+	* Reorder geometry elements based on the new transform order. i.e. verts faces etc are reordered so we can get contiguous memory access
+	*/
+	void ReorderTransformElements(const TArray<int32>& NewOrder);
+
+
+public:
+	/* Backwards compatibility */
+	void UpdateOldAttributeNames();
+
+
 };
 
-
+FORCEINLINE Chaos::FChaosArchive& operator<<(Chaos::FChaosArchive& Ar, FGeometryCollection& Value)
+{
+	Value.Serialize(Ar);
+	return Ar;
+}

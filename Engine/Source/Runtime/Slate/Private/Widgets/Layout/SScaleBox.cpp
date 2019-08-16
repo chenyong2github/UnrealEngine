@@ -5,23 +5,22 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/SViewport.h"
 #include "Misc/CoreDelegates.h"
+#include "Widgets/SWidget.h"
 
 
 /* SScaleBox interface
  *****************************************************************************/
 
-void SScaleBox::Construct( const SScaleBox::FArguments& InArgs )
+void SScaleBox::Construct(const SScaleBox::FArguments& InArgs)
 {
-	Stretch = InArgs._Stretch;
+	bHasCustomPrepass = true;
 
+	Stretch = InArgs._Stretch;
 
 	StretchDirection = InArgs._StretchDirection;
 	UserSpecifiedScale = InArgs._UserSpecifiedScale;
 	IgnoreInheritedScale = InArgs._IgnoreInheritedScale;
-	bSingleLayoutPass = InArgs._SingleLayoutPass;
 
-	LastIncomingScale = 1.0f;
-	LastAreaSize = FVector2D(0, 0);
 	LastFinalOffset = FVector2D(0, 0);
 
 	ChildSlot
@@ -36,7 +35,6 @@ void SScaleBox::Construct( const SScaleBox::FArguments& InArgs )
 	FSlateApplication::Get().OnDebugSafeZoneChanged.AddSP(this, &SScaleBox::DebugSafeAreaUpdated);
 #endif
 
-
 	RefreshSafeZoneScale();
 	OnSafeFrameChangedHandle = FCoreDelegates::OnSafeFrameChangedEvent.AddSP(this, &SScaleBox::RefreshSafeZoneScale);
 }
@@ -46,106 +44,172 @@ SScaleBox::~SScaleBox()
 	FCoreDelegates::OnSafeFrameChangedEvent.Remove(OnSafeFrameChangedHandle);
 }
 
-/* SWidget overrides
- *****************************************************************************/
-
-void SScaleBox::OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const
+bool SScaleBox::CustomPrepass(float LayoutScaleMultiplier)
 {
-	const EVisibility ChildVisibility = ChildSlot.GetWidget()->GetVisibility();
-	if ( ArrangedChildren.Accepts(ChildVisibility) )
+	SWidget& ChildSlotWidget = ChildSlot.GetWidget().Get();
+
+	const bool bNeedsNormalizingPrepassOrLocalGeometry = DoesScaleRequireNormalizingPrepassOrLocalGeometry();
+
+	//bool bCanRenderThisFrame = true;
+
+	// If we need a normalizing prepass, or we've yet to give the child a chance to generate a desired
+	// size, do that now.
+	if (bNeedsNormalizingPrepassOrLocalGeometry || !LastAllocatedArea.IsSet())
 	{
-		const FVector2D AreaSize = AllottedGeometry.GetLocalSize();
-		FVector2D SlotWidgetDesiredSize = ChildSlot.GetWidget()->GetDesiredSize();
+		ChildSlotWidget.SlatePrepass(LayoutScaleMultiplier);
 
-		float FinalScale = 1;
+		NormalizedContentDesiredSize = ChildSlotWidget.GetDesiredSize();
+	}
+	else
+	{
+		NormalizedContentDesiredSize.Reset();
+	}
 
-		bool bAllowFullLayout = true;
+	TOptional<float> NewComputedContentScale;
 
-		if ( bSingleLayoutPass && LastContentDesiredSize.IsSet() && LastFinalScale.IsSet() && LastAreaSize.Equals(AreaSize) && FMath::IsNearlyEqual(LastIncomingScale, AllottedGeometry.Scale) )
+	if (bNeedsNormalizingPrepassOrLocalGeometry)
+	{
+		if (LastAllocatedArea.IsSet())
 		{
-			if ( SlotWidgetDesiredSize.Equals(LastContentDesiredSize.GetValue()) )
-			{
-				bAllowFullLayout = false;
-				FinalScale = LastFinalScale.GetValue();
-			}
+			NewComputedContentScale = ComputeContentScale(LastPaintGeometry.GetValue());
+		}
+	}
+	else
+	{
+		// If we don't need the area, send a false geometry.
+		static const FGeometry NullGeometry;
+		NewComputedContentScale = ComputeContentScale(NullGeometry);
+	}
+
+	if (bNeedsNormalizingPrepassOrLocalGeometry)
+	{
+		ChildSlotWidget.InvalidatePrepass();
+	}
+
+	// Extract the incoming scale out of the layout scale if 
+	if (NewComputedContentScale.IsSet())
+	{
+		if (IgnoreInheritedScale.Get(false) && LayoutScaleMultiplier != 0)
+		{
+			NewComputedContentScale = NewComputedContentScale.GetValue() / LayoutScaleMultiplier;
+		}
+	}
+
+	ComputedContentScale = NewComputedContentScale;
+
+	return true;
+}
+
+bool SScaleBox::DoesScaleRequireNormalizingPrepassOrLocalGeometry() const
+{
+	const EStretch::Type CurrentStretch = Stretch.Get();
+	switch (CurrentStretch)
+	{
+	case EStretch::None:
+	case EStretch::Fill:
+	case EStretch::ScaleBySafeZone:
+	case EStretch::UserSpecified:
+		return false;
+	default:
+		return true;
+	}
+}
+
+bool SScaleBox::IsDesiredSizeDependentOnAreaAndScale() const
+{
+	const EStretch::Type CurrentStretch = Stretch.Get();
+	switch (CurrentStretch)
+	{
+	case EStretch::ScaleToFitX:
+	case EStretch::ScaleToFitY:
+		return true;
+	default:
+		return false;
+	}
+}
+
+float SScaleBox::ComputeContentScale(const FGeometry& PaintGeometry) const
+{
+	const EStretch::Type CurrentStretch = Stretch.Get();
+	const EStretchDirection::Type CurrentStretchDirection = StretchDirection.Get();
+
+	switch (CurrentStretch)
+	{
+	case EStretch::ScaleBySafeZone:
+		return SafeZoneScale;
+	case EStretch::UserSpecified:
+		return UserSpecifiedScale.Get(1.0f);
+	}
+
+	float FinalScale = 1;
+
+	const FVector2D ChildDesiredSize = ChildSlot.GetWidget()->GetDesiredSize();
+
+	if (ChildDesiredSize.X != 0 && ChildDesiredSize.Y != 0)
+	{
+		switch (CurrentStretch)
+		{
+		case EStretch::ScaleToFit:
+		{
+			//FVector2D LocalSnappedArea = PaintGeometry.LocalToRoundedLocal(PaintGeometry.GetLocalSize()) - PaintGeometry.LocalToRoundedLocal(FVector2D(0, 0));
+			//FinalScale = FMath::Min(LocalSnappedArea.X / ChildDesiredSize.X, LocalSnappedArea.Y / ChildDesiredSize.Y);
+			FinalScale = FMath::Min(PaintGeometry.GetLocalSize().X / ChildDesiredSize.X, PaintGeometry.GetLocalSize().Y / ChildDesiredSize.Y);
+			break;
+		}
+		case EStretch::ScaleToFitX:
+			FinalScale = PaintGeometry.GetLocalSize().X / ChildDesiredSize.X;
+			break;
+		case EStretch::ScaleToFitY:
+			FinalScale = PaintGeometry.GetLocalSize().Y / ChildDesiredSize.Y;
+			break;
+		case EStretch::Fill:
+			break;
+		case EStretch::ScaleToFill:
+			FinalScale = FMath::Max(PaintGeometry.GetLocalSize().X / ChildDesiredSize.X, PaintGeometry.GetLocalSize().Y / ChildDesiredSize.Y);
+			break;
 		}
 
-		if ( bAllowFullLayout )
+		switch (CurrentStretchDirection)
 		{
-			const EStretch::Type CurrentStretch = Stretch.Get();
-			const EStretchDirection::Type CurrentStretchDirection = StretchDirection.Get();
+		case EStretchDirection::DownOnly:
+			FinalScale = FMath::Min(FinalScale, 1.0f);
+			break;
+		case EStretchDirection::UpOnly:
+			FinalScale = FMath::Max(FinalScale, 1.0f);
+			break;
+		case EStretchDirection::Both:
+			break;
+		}
+	}
 
-			bool bRequiresAnotherPrepass = CurrentStretch != EStretch::UserSpecified && CurrentStretch != EStretch::ScaleBySafeZone;
+	return FinalScale;
+}
 
-			if ( SlotWidgetDesiredSize.X != 0 && SlotWidgetDesiredSize.Y != 0 )
-			{
-				switch ( CurrentStretch )
-				{
-				case EStretch::None:
-					bRequiresAnotherPrepass = false;
-					break;
-				case EStretch::Fill:
-					SlotWidgetDesiredSize = AreaSize;
-					bRequiresAnotherPrepass = false;
-					break;
-				case EStretch::ScaleToFit:
-					FinalScale = FMath::Min(AreaSize.X / SlotWidgetDesiredSize.X, AreaSize.Y / SlotWidgetDesiredSize.Y);
-					break;
-				case EStretch::ScaleToFitX:
-					FinalScale = AreaSize.X / SlotWidgetDesiredSize.X;
-					break;
-				case EStretch::ScaleToFitY:
-					FinalScale = AreaSize.Y / SlotWidgetDesiredSize.Y;
-					break;
-				case EStretch::ScaleToFill:
-					FinalScale = FMath::Max(AreaSize.X / SlotWidgetDesiredSize.X, AreaSize.Y / SlotWidgetDesiredSize.Y);
-					break;
-				case EStretch::ScaleBySafeZone:
-					FinalScale = SafeZoneScale;
-					bRequiresAnotherPrepass = false;
-					break;
-				case EStretch::UserSpecified:
-					FinalScale = UserSpecifiedScale.Get(1.0f);
-					bRequiresAnotherPrepass = false;
-					break;
-				}
+void SScaleBox::OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const
+{
+	const EVisibility ChildVisibility = ChildSlot.GetWidget()->GetVisibility();
+	if (ArrangedChildren.Accepts(ChildVisibility))
+	{
+		const FVector2D AreaSize = AllottedGeometry.GetLocalSize();
 
-				switch ( CurrentStretchDirection )
-				{
-				case EStretchDirection::DownOnly:
-					FinalScale = FMath::Min(FinalScale, 1.0f);
-					break;
-				case EStretchDirection::UpOnly:
-					FinalScale = FMath::Max(FinalScale, 1.0f);
-					break;
-				case EStretchDirection::Both:
-					break;
-				}
+		const FVector2D CurrentWidgetDesiredSize = ChildSlot.GetWidget()->GetDesiredSize();
+		FVector2D SlotWidgetDesiredSize = CurrentWidgetDesiredSize;
 
-				// Force full layout calculations when the previously calculated final scale is zero
-				if (!FMath::IsNearlyZero(FinalScale) || !bSingleLayoutPass)
-				{
-					LastFinalScale = FinalScale;
-				}
-				else
-				{
-					LastFinalScale.Reset();
-				}
-			}
-			else
-			{
-				LastFinalScale.Reset();
-			}
+		const EStretch::Type CurrentStretch = Stretch.Get();
+		const EStretchDirection::Type CurrentStretchDirection = StretchDirection.Get();
 
-			if ( IgnoreInheritedScale.Get(false) && AllottedGeometry.Scale != 0 )
-			{
-				FinalScale /= AllottedGeometry.Scale;
-			}
+		if (CurrentStretch == EStretch::Fill)
+		{
+			SlotWidgetDesiredSize = AreaSize;
+		}
 
+		if (ComputedContentScale.IsSet())
+		{
 			LastFinalOffset = FVector2D(0, 0);
+			float FinalScale = ComputedContentScale.GetValue();
 
 			// If we're just filling, there's no scale applied, we're just filling the area.
-			if ( CurrentStretch != EStretch::Fill )
+			if (CurrentStretch != EStretch::Fill)
 			{
 				const FMargin SlotPadding(ChildSlot.SlotPadding.Get());
 				AlignmentArrangeResult XResult = AlignChild<Orient_Horizontal>(AreaSize.X, ChildSlot, SlotPadding, FinalScale, false);
@@ -155,57 +219,56 @@ void SScaleBox::OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedC
 
 				// If the layout horizontally is fill, then we need the desired size to be the whole size of the widget, 
 				// but scale the inverse of the scale we're applying.
-				if ( ChildSlot.HAlignment == HAlign_Fill )
+				if (ChildSlot.HAlignment == HAlign_Fill)
 				{
 					SlotWidgetDesiredSize.X = AreaSize.X / FinalScale;
 				}
 
 				// If the layout vertically is fill, then we need the desired size to be the whole size of the widget, 
 				// but scale the inverse of the scale we're applying.
-				if ( ChildSlot.VAlignment == VAlign_Fill )
+				if (ChildSlot.VAlignment == VAlign_Fill)
 				{
 					SlotWidgetDesiredSize.Y = AreaSize.Y / FinalScale;
 				}
 			}
 
-			if (GSlateLayoutCaching && LastAreaSize != AreaSize)
-			{
-				const_cast<SScaleBox*>(this)->InvalidatePrepass();
-				bRequiresAnotherPrepass = true;
-			}
-
-			LastAreaSize = AreaSize;
-			LastIncomingScale = AllottedGeometry.Scale;
-			LastSlotWidgetDesiredSize = SlotWidgetDesiredSize;
-
-			if ( bRequiresAnotherPrepass )
-			{
-				// We need to run another pre-pass now that we know the final scale.
-				// This will allow things that don't scale linearly (such as text) to update their size and layout correctly.
-				//
-				// NOTE: This step is pretty expensive especially if you're nesting scale boxes.
-				ChildSlot.GetWidget()->SlatePrepass(AllottedGeometry.GetAccumulatedLayoutTransform().GetScale() * FinalScale);
-
-				LastContentDesiredSize = ChildSlot.GetWidget()->GetDesiredSize();
-			}
-			else
-			{
-				LastContentDesiredSize.Reset();
-				LastFinalScale.Reset();
-			}
+			ArrangedChildren.AddWidget(ChildVisibility, AllottedGeometry.MakeChild(
+				ChildSlot.GetWidget(),
+				LastFinalOffset,
+				SlotWidgetDesiredSize,
+				FinalScale
+			));
 		}
-
-		ArrangedChildren.AddWidget(ChildVisibility, AllottedGeometry.MakeChild(
-			ChildSlot.GetWidget(),
-			LastFinalOffset,
-			LastSlotWidgetDesiredSize,
-			FinalScale
-		) );
+		else if (GSlateIsOnFastUpdatePath)
+		{
+			// If we're unable to draw it at a scale yet, we need to process the draw request anyway
+			// since the object is visible, we can't just ignore the update for paint since we're
+			// on the fast path.
+			ArrangedChildren.AddWidget(ChildVisibility, AllottedGeometry.MakeChild(
+				ChildSlot.GetWidget(),
+				FVector2D(0, 0),
+				FVector2D(0, 0),
+				0
+			));
+		}
 	}
 }
 
 int32 SScaleBox::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const
 {
+	// We need another layout pass if the incoming allocated geometry is different from last frames.
+	if (!LastAllocatedArea.IsSet() || !AllottedGeometry.GetLocalSize().Equals(LastAllocatedArea.GetValue()))
+	{
+		LastAllocatedArea = AllottedGeometry.GetLocalSize();
+		LastPaintGeometry = AllottedGeometry;
+
+		if (DoesScaleRequireNormalizingPrepassOrLocalGeometry())
+		{
+			const_cast<SScaleBox*>(this)->Invalidate(EInvalidateWidgetReason::Layout);
+			const_cast<SScaleBox*>(this)->InvalidatePrepass();
+		}
+	}
+
 	bool bClippingNeeded = false;
 
 	if (GetClipping() == EWidgetClipping::Inherit)
@@ -228,7 +291,6 @@ int32 SScaleBox::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeome
 		OutDrawElements.PushClip(FSlateClippingZone(AllottedGeometry));
 		FGeometry HitTestGeometry = AllottedGeometry;
 		HitTestGeometry.AppendTransform(FSlateLayoutTransform(Args.GetWindowToDesktopTransform()));
-		Args.GetGrid().PushClip(FSlateClippingZone(HitTestGeometry));
 	}
 
 	int32 MaxLayerId = SCompoundWidget::OnPaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled);
@@ -236,7 +298,6 @@ int32 SScaleBox::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeome
 	if (bClippingNeeded)
 	{
 		OutDrawElements.PopClip();
-		Args.GetGrid().PopClip();
 	}
 
 	return MaxLayerId;
@@ -255,7 +316,7 @@ void SScaleBox::SetHAlign(EHorizontalAlignment HAlign)
 	if(ChildSlot.HAlignment != HAlign)
 	{
 		ChildSlot.HAlignment = HAlign;
-		Invalidate(EInvalidateWidget::Layout);
+		Invalidate(EInvalidateWidgetReason::Layout);
 	}
 }
 
@@ -264,113 +325,100 @@ void SScaleBox::SetVAlign(EVerticalAlignment VAlign)
 	if(ChildSlot.VAlignment != VAlign)
 	{
 		ChildSlot.VAlignment = VAlign;
-		Invalidate(EInvalidateWidget::Layout);
+		Invalidate(EInvalidateWidgetReason::Layout);
 	}
 }
 
 void SScaleBox::SetStretchDirection(EStretchDirection::Type InStretchDirection)
 {
-	if(!StretchDirection.IdenticalTo(InStretchDirection))
+	if (SetAttribute(StretchDirection, TAttribute<EStretchDirection::Type>(InStretchDirection), EInvalidateWidgetReason::Layout))
 	{
-		StretchDirection = InStretchDirection;
-		Invalidate(EInvalidateWidget::Layout);
+		InvalidatePrepass();
 	}
 }
 
 void SScaleBox::SetStretch(EStretch::Type InStretch)
 {
-	if(!Stretch.IdenticalTo(InStretch))
+	if (SetAttribute(Stretch, TAttribute<EStretch::Type>(InStretch), EInvalidateWidgetReason::Layout))
 	{
-		Stretch = InStretch;
+		// This function invalidates the prepass.
 		RefreshSafeZoneScale();
-		Invalidate(EInvalidateWidget::Layout);
+		check(NeedsPrepass());
 	}
 }
 
 void SScaleBox::SetUserSpecifiedScale(float InUserSpecifiedScale)
 {
-	if(!UserSpecifiedScale.IdenticalTo(InUserSpecifiedScale))
+	if (SetAttribute(UserSpecifiedScale, TAttribute<float>(InUserSpecifiedScale), EInvalidateWidgetReason::Layout))
 	{
-		UserSpecifiedScale = InUserSpecifiedScale;
-		Invalidate(EInvalidateWidget::Layout);
+		InvalidatePrepass();
 	}
 }
 
 void SScaleBox::SetIgnoreInheritedScale(bool InIgnoreInheritedScale)
 {
-	if(!IgnoreInheritedScale.IdenticalTo(InIgnoreInheritedScale))
+	if (SetAttribute(IgnoreInheritedScale, TAttribute<bool>(InIgnoreInheritedScale), EInvalidateWidgetReason::Layout))
 	{
-		IgnoreInheritedScale = InIgnoreInheritedScale;
-		Invalidate(EInvalidateWidget::Layout);
+		InvalidatePrepass();
 	}
 }
 
 FVector2D SScaleBox::ComputeDesiredSize(float InScale) const
 {
-	float ExpectedLayoutScale = GetLayoutScale();
-	if (IgnoreInheritedScale.Get(false))
+	if (DoesScaleRequireNormalizingPrepassOrLocalGeometry())
 	{
-		return ExpectedLayoutScale * SCompoundWidget::ComputeDesiredSize(InScale) / InScale;
+		if (NormalizedContentDesiredSize.IsSet())
+		{
+			FVector2D ContentDesiredSizeValue = NormalizedContentDesiredSize.GetValue();
+
+			if (IsDesiredSizeDependentOnAreaAndScale())
+			{
+				// SUPER SPECIAL CASE - 
+				// In the special case that we're only fitting one dimension, we can have the opposite dimension desire the growth of the
+				// expected scale, if we can get that extra space, awesome.
+				if (ComputedContentScale.IsSet() && ComputedContentScale.GetValue() != 0)
+				{
+					const EStretch::Type CurrentStretch = Stretch.Get();
+
+					switch (CurrentStretch)
+					{
+					case EStretch::ScaleToFitX:
+						ContentDesiredSizeValue.Y = ContentDesiredSizeValue.Y * ComputedContentScale.GetValue();
+						break;
+					case EStretch::ScaleToFitY:
+						ContentDesiredSizeValue.X = ContentDesiredSizeValue.X * ComputedContentScale.GetValue();
+						break;
+					}
+				}
+			}
+
+			// If we require a normalizing pre-pass, we can never allow the scaled content's desired size to affect
+			// the area we return that we need, otherwise, we'll be introducing hysteresis.
+			return ContentDesiredSizeValue;
+		}
 	}
-
-	FVector2D ComputedDesiredSize = SCompoundWidget::ComputeDesiredSize(InScale);
-
-	const EStretch::Type CurrentStretch = Stretch.Get();
-
-	switch (CurrentStretch)
+	// If we don't need a normalizing prepass, then we can safely just multiply
+	// the desired size of the children by the computed content scale, so that we request the now larger or smaller
+	// area that we need - this area is a constant scale, either by safezone or user scale.
+	else if (ComputedContentScale.IsSet())
 	{
-	case EStretch::ScaleToFitX:
-		ExpectedLayoutScale = ComputedDesiredSize.X == 0.0f ? 1.0f : FMath::Max(1.0f, GetCachedGeometry().GetLocalSize().X / ComputedDesiredSize.X);
-		break;
-	case EStretch::ScaleToFitY:
-		ExpectedLayoutScale = ComputedDesiredSize.Y == 0.0f ? 1.0f : FMath::Max(1.0f, GetCachedGeometry().GetLocalSize().Y / ComputedDesiredSize.Y);
-		break;
+		return SCompoundWidget::ComputeDesiredSize(InScale) * ComputedContentScale.GetValue();
 	}
-
-	return ExpectedLayoutScale * ComputedDesiredSize;
+	
+	return SCompoundWidget::ComputeDesiredSize(InScale);
 }
 
 float SScaleBox::GetRelativeLayoutScale(const FSlotBase& Child, float LayoutScaleMultiplier) const
 {
-	if ( IgnoreInheritedScale.Get(false) )
-	{
-		return GetLayoutScale() / LayoutScaleMultiplier;
-	}
-
-	return GetLayoutScale();
-}
-
-float SScaleBox::GetLayoutScale() const
-{
-	const EStretch::Type CurrentStretch = Stretch.Get();
-	
-	switch (CurrentStretch)
-	{
-	case EStretch::ScaleBySafeZone:
-		return SafeZoneScale;
-	case EStretch::UserSpecified:
-		return UserSpecifiedScale.Get(1.0f);
-	default:
-		if ( bSingleLayoutPass )
-		{
-			if ( LastFinalScale.IsSet() )
-			{
-				return LastFinalScale.GetValue();
-			}
-		}
-
-		// Because our scale is determined by our size, we always report a scale of 1.0 here, 
-		// as reporting our actual scale can cause a feedback loop whereby the calculated size changes each frame.
-		// We workaround this by forcibly pre-passing our child content a second time once we know its final scale in OnArrangeChildren.
-		return 1.0f;
-	}
+	return ComputedContentScale.IsSet() ? ComputedContentScale.GetValue() : 1.0f;
 }
 
 void SScaleBox::RefreshSafeZoneScale()
 {
 	float ScaleDownBy = 0.f;
-	FMargin SafeMargin;
-	FVector2D ScaleBy;
+	FMargin SafeMargin(0, 0, 0, 0);
+	FVector2D ScaleBy(1, 1);
+
 #if WITH_EDITOR
 	if (OverrideScreenSize.IsSet() && !OverrideScreenSize.GetValue().IsZero())
 	{
@@ -396,6 +444,7 @@ void SScaleBox::RefreshSafeZoneScale()
 			}
 		}
 	}
+
 	const float SafeZoneScaleX = FMath::Max(SafeMargin.Left, SafeMargin.Right)/ (float)ScaleBy.X;
 	const float SafeZoneScaleY = FMath::Max(SafeMargin.Top, SafeMargin.Bottom) / (float)ScaleBy.Y;
 
@@ -403,9 +452,13 @@ void SScaleBox::RefreshSafeZoneScale()
 	ScaleDownBy = FMath::Max(SafeZoneScaleX, SafeZoneScaleY);
 
 	SafeZoneScale = 1.f - ScaleDownBy;
+
+	Invalidate(EInvalidateWidgetReason::Layout);
+	InvalidatePrepass();
 }
 
 #if WITH_EDITOR
+
 void SScaleBox::DebugSafeAreaUpdated(const FMargin& NewSafeZone, bool bShouldRecacheMetrics)
 {
 	RefreshSafeZoneScale();

@@ -3,12 +3,12 @@
 #include "Cluster/Controller/DisplayClusterClusterNodeCtrlSlave.h"
 
 #include "Config/IPDisplayClusterConfigManager.h"
-#include "Misc/DisplayClusterLog.h"
 #include "Network/Service/ClusterEvents/DisplayClusterClusterEventsClient.h"
 #include "Network/Service/ClusterSync/DisplayClusterClusterSyncClient.h"
 #include "Network/Service/SwapSync/DisplayClusterSwapSyncClient.h"
 
 #include "DisplayClusterGlobals.h"
+#include "DisplayClusterLog.h"
 
 
 FDisplayClusterClusterNodeCtrlSlave::FDisplayClusterClusterNodeCtrlSlave(const FString& ctrlName, const FString& nodeName) :

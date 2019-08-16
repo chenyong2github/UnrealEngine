@@ -169,11 +169,6 @@ void FRawProfilerSession::PrepareLoading()
 		Stream.ReadFNamesAndMetadataMessages( *FileReader, MetadataMessages );
 		StatsThreadStats.ProcessMetaDataOnly( MetadataMessages );
 
-		const FName F00245 = FName(245, 245, 0);
-		
-		const FName F11602 = FName(11602, 11602, 0);
-		const FName F06394 = FName(6394, 6394, 0);
-
 		const int64 CurrentFilePos = FileReader->Tell();
 
 		// Update profiler's metadata.

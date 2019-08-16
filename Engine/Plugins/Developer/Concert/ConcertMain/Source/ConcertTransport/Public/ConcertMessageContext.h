@@ -17,11 +17,12 @@ struct FConcertMessageContext
 	}
 
 	/** Construct a context with a reference to the given message data */
-	FConcertMessageContext(const FGuid& InSenderConcertEndpointId, const FDateTime& InUtcNow, const FConcertMessageData* InMessage, const UScriptStruct* InMessageType)
+	FConcertMessageContext(const FGuid& InSenderConcertEndpointId, const FDateTime& InUtcNow, const FConcertMessageData* InMessage, const UScriptStruct* InMessageType, const TMap<FName, FString>& InAnnotations)
 		: SenderConcertEndpointId(InSenderConcertEndpointId)
 		, UtcNow(InUtcNow)
 		, Message(InMessage)
 		, MessageType(InMessageType)
+		, Annotations(InAnnotations)
 	{
 	}
 
@@ -37,6 +38,7 @@ struct FConcertMessageContext
 	FDateTime UtcNow;
 	const FConcertMessageData* Message;
 	const UScriptStruct* MessageType;
+	TMap<FName, FString> Annotations;
 };
 
 struct FConcertMessageCapturedContext

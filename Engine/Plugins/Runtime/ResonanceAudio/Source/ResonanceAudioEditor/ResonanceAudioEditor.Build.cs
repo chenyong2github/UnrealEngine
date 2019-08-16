@@ -12,6 +12,8 @@ namespace UnrealBuildTool.Rules
                 new string[] {
                     "ResonanceAudioEditor/Private",
                     "ResonanceAudio/Private",
+                    "ResonanceAudio/Private/ResonanceAudioLibrary/resonance_audio",
+                    "ResonanceAudio/Private/ResonanceAudioLibrary"
                 }
             );
 
@@ -59,11 +61,10 @@ namespace UnrealBuildTool.Rules
                     "PropertyEditor",
                     "Projects",
                     "EditorStyle",
-                    "ResonanceAudio"
+                    "ResonanceAudio",
+					"Eigen"
                  }
             );
-
-            AddEngineThirdPartyPrivateStaticDependencies(Target, "ResonanceAudioApi");
         }
     }
 }

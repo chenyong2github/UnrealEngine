@@ -23,9 +23,19 @@
 #include "/Engine/Generated/VertexFactory.ush"
 #include "ShadowDepthCommon.ush"
 
-void SetShadowDepthOutputs(float4 WorldPosition, out float4 OutPosition, out float ShadowDepth)
+void SetShadowDepthOutputs(
+	float4x4 WorldToClipMatrix, 
+	float4x4 WorldToShadowMatrix, 
+	float4 WorldPosition, 
+	float3 WorldVertexNormal, 
+	out float4 OutPosition, 
+	out float ShadowDepth
+#if PERSPECTIVE_CORRECT_DEPTH
+	, out float OutDepthBias
+#endif
+)
 {
-	OutPosition = mul(WorldPosition, PassStruct.ProjectionMatrix);
+	OutPosition = mul(WorldPosition, WorldToClipMatrix);
 
 	// Clamp the vertex to the near plane if it is in front of the near plane
 	// This has problems if some vertices of a triangle get clamped and others do not, also causes artifacts with non-ortho projections
@@ -35,13 +45,34 @@ void SetShadowDepthOutputs(float4 WorldPosition, out float4 OutPosition, out flo
 		OutPosition.w = 1.0f;
 	}
 
+	#if ONEPASS_POINTLIGHT_SHADOW
+	const float3 ViewDirection = -normalize(mul(WorldPosition, WorldToShadowMatrix).xyz);
+	const float3 ViewNormal = mul(float4(WorldVertexNormal,0), WorldToShadowMatrix).xyz;
+	const float NoL = abs(dot(ViewDirection, ViewNormal));
+	#else
+	const float NoL = abs(dot(
+		float3(WorldToShadowMatrix[0].z, WorldToShadowMatrix[1].z, WorldToShadowMatrix[2].z),
+		WorldVertexNormal));
+	#endif
+
+	const float MaxSlopeDepthBias = PassStruct.ShadowParams.z;
+	const float Slope = clamp(abs(NoL) > 0 ? sqrt(saturate(1 - NoL*NoL)) / NoL : MaxSlopeDepthBias, 0, MaxSlopeDepthBias);
+	
+	const float SlopeDepthBias = PassStruct.ShadowParams.y;
+	const float SlopeBias = SlopeDepthBias * Slope;
+
+	const float ConstantDepthBias = PassStruct.ShadowParams.x;
+	const float DepthBias = SlopeBias + ConstantDepthBias;
+
 	#if PERSPECTIVE_CORRECT_DEPTH
 		ShadowDepth = OutPosition.z;
+		OutDepthBias = DepthBias;
+	#elif ONEPASS_POINTLIGHT_SHADOW
+		ShadowDepth = 0;
+		//OutPosition.z += DepthBias;
 	#else
-		float DepthBias = PassStruct.ShadowParams.x;
-		float InvMaxSubjectDepth = PassStruct.ShadowParams.y;
-
 		// Output linear, normalized depth
+		const float InvMaxSubjectDepth = PassStruct.ShadowParams.w;
 		ShadowDepth = OutPosition.z * InvMaxSubjectDepth + DepthBias;
 		OutPosition.z = ShadowDepth * OutPosition.w;
 	#endif
@@ -92,7 +123,26 @@ void MainOnePassPointLightGS(triangle FShadowDepthVSToGS Input[3], inout Triangl
 		for (int VertexIndex = 0; VertexIndex < 3; VertexIndex++)
 		{
 			// Calculate the clip space position for each cube face
+			// Note: We don't apply any constant/slop bias here. A constant bias is applied in the shadow projection 
+			// code (see CubemapHardwarePCF() in ShadowProjectionCommon.ush)
+			// If one want to use this code path, don't forget to remove the bias in CubemapHardwarePCF().
+			#if 0
+			const float4 WorldPosition = Input[VertexIndex].GSPosition;
+			const float3 WorldVertexNormal = Input[VertexIndex].WorldNormal;
+			
+			float4 ClipSpacePosition;
+			float ShadowDepth;
+			SetShadowDepthOutputs(
+				PassStruct.ShadowViewProjectionMatrices[CubeFaceIndex],
+				PassStruct.ShadowViewMatrices[CubeFaceIndex], 
+				WorldPosition, 
+				WorldVertexNormal, 
+				ClipSpacePosition, 
+				ShadowDepth);
+			ClipSpacePositions[VertexIndex] = ClipSpacePosition;
+			#else
 			ClipSpacePositions[VertexIndex] = mul(Input[VertexIndex].GSPosition, PassStruct.ShadowViewProjectionMatrices[CubeFaceIndex]);
+			#endif
 		}
 		// Frustum culling, saves GPU time with high poly meshes
 		BRANCH
@@ -106,13 +156,13 @@ void MainOnePassPointLightGS(triangle FShadowDepthVSToGS Input[3], inout Triangl
 			{
 				Output.OutPosition = ClipSpacePositions[VertexIndex];
 
-				#if INTERPOLATE_VF_ATTRIBUTES
-					Output.PSInputs.FactoryInterpolants = Input[VertexIndex].FactoryInterpolants;
-				#endif
+			#if INTERPOLATE_VF_ATTRIBUTES
+				Output.PSInputs.FactoryInterpolants = Input[VertexIndex].FactoryInterpolants;
+			#endif
 
-#if INTERPOLATE_POSITION
+			#if INTERPOLATE_POSITION
 				Output.PSInputs.PixelPosition = Input[VertexIndex].GSPosition.xyz;
-#endif
+			#endif
 				OutStream.Append(Output);
 			}
 			OutStream.RestartStrip();
@@ -144,6 +194,7 @@ struct FShadowDepthDSToPS : FShadowDepthVSToPS
 #else
 	float4 Position : TEXCOORD6;
 #endif
+	float3 WorldNormal : TEXCOORD8;
 #else
 	float4 Position : SV_POSITION;
 #endif
@@ -170,21 +221,29 @@ FShadowDepthDSToPS PassFinalizeTessellationOutput(FShadowDepthVSToDS Interpolant
 	O.FactoryInterpolants = VertexFactoryAssignInterpolants(Interpolants.FactoryInterpolants);
 #endif
 
+	const float3 WorldNormal = MaterialParameters.TangentToWorld[2];
 
 #if ONEPASS_POINTLIGHT_SHADOW
-	O.Position = WorldPosition;
 #if USING_VERTEX_SHADER_LAYER
 	O.LayerIndex = Interpolants.LayerIndex;
 	O.Position = WorldPosition = mul(WorldPosition, PassStruct.ShadowViewProjectionMatrices[Interpolants.LayerIndex]);
-#endif
+	O.InterpPosition = WorldPosition;
+#else
+	O.Position = WorldPosition;
+#endif // USING_VERTEX_SHADER_LAYER
+	O.WorldNormal = WorldNormal;
 #else
 
 	float ShadowDepth;
 	SetShadowDepthOutputs(
+		PassStruct.ProjectionMatrix,
+		PassStruct.ViewMatrix,
 		WorldPosition, 
+		WorldNormal,
 		O.Position, 
 #if PERSPECTIVE_CORRECT_DEPTH
-		O.ShadowDepth
+		O.ShadowDepth,
+		O.DepthBias
 #else
 		ShadowDepth
 #endif
@@ -230,6 +289,8 @@ void Main(
 	float3x3 TangentToLocal = VertexFactoryGetTangentToLocal(Input, VFIntermediates);
 
 	FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, WorldPos.xyz, TangentToLocal);
+	const float3 WorldNormal = VertexFactoryGetWorldNormal(Input, VFIntermediates);
+
 	WorldPos.xyz += GetMaterialWorldPositionOffset(VertexParameters);
 
 #if USING_TESSELLATION
@@ -245,6 +306,7 @@ void Main(
 #elif ONEPASS_POINTLIGHT_SHADOW
 
 	OutPosition = OutParameters.GSPosition = WorldPos;
+	OutParameters.WorldNormal = WorldNormal;
 
 	#if INTERPOLATE_VF_ATTRIBUTES
 		// Masked materials need texture coords to clip
@@ -267,12 +329,16 @@ void Main(
 	float Dummy;
 
 	SetShadowDepthOutputs(
+		PassStruct.ProjectionMatrix,
+		PassStruct.ViewMatrix,
 		WorldPos, 
+		WorldNormal,
 		OutPosition, 
 #if !PERSPECTIVE_CORRECT_DEPTH
 		Dummy
 #else
-		OutParameters.ShadowDepth
+		OutParameters.ShadowDepth,
+		OutParameters.DepthBias
 #endif
 		);
 	
@@ -322,7 +388,7 @@ void MainForGS(
 
 #if POSITION_ONLY
 void PositionOnlyMain(
-	in FPositionOnlyVertexFactoryInput Input,
+	in FPositionAndNormalOnlyVertexFactoryInput Input,
 #if USING_ONEPASS_POINT_VERTEX_LAYER
 	out uint LayerIndex : SV_RenderTargetArrayIndex,
 #endif
@@ -342,9 +408,11 @@ void PositionOnlyMain(
 	OutParameters.FactoryInterpolants = (FVertexFactoryInterpolantsVSToPS)0;
 #endif
 
+	float3 WorldNormal = VertexFactoryGetWorldNormal(Input);
+
 #if ONEPASS_POINTLIGHT_SHADOW
 	OutPosition = OutParameters.GSPosition = WorldPos;
-
+	OutParameters.WorldNormal = WorldNormal;
 	#if USING_ONEPASS_POINT_VERTEX_LAYER
 		LayerIndex = LayerId;
 		OutPosition = mul(WorldPos, PassStruct.ShadowViewProjectionMatrices[LayerIndex]);
@@ -355,10 +423,21 @@ void PositionOnlyMain(
 
 #else // #if ONEPASS_POINTLIGHT_SHADOW
 	float ShadowDepth;
-	SetShadowDepthOutputs(WorldPos,OutPosition,ShadowDepth);
+	SetShadowDepthOutputs(
+		PassStruct.ProjectionMatrix, 
+		PassStruct.ViewMatrix, 
+		WorldPos, 
+		WorldNormal, 
+		OutPosition,
 	#if PERSPECTIVE_CORRECT_DEPTH
-		OutParameters.ShadowDepth = ShadowDepth;
-	#elif !COMPILER_SUPPORTS_EMPTY_STRUCTS
+		OutParameters.ShadowDepth,
+		OutParameters.DepthBias
+	#else
+		ShadowDepth
+	#endif
+	);
+
+	#if !PERSPECTIVE_CORRECT_DEPTH && !COMPILER_SUPPORTS_EMPTY_STRUCTS
 		OutParameters.Dummy = 0;
 	#endif
 #endif // #if ONEPASS_POINTLIGHT_SHADOW
@@ -370,7 +449,7 @@ void PositionOnlyMain(
 
 
 void PositionOnlyMainForGS(
-	in FPositionOnlyVertexFactoryInput Input,
+	in FPositionAndNormalOnlyVertexFactoryInput Input,
 #if USING_ONEPASS_POINT_VERTEX_LAYER
 	out uint LayerIndex : SV_RenderTargetArrayIndex,
 #endif

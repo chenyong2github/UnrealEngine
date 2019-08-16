@@ -1,59 +1,57 @@
-﻿INTSourceChangelist:3681055
-Availability:Public
-Title:공유 레퍼런스
-Crumbs:%ROOT%, Programming, Programming/UnrealArchitecture/SmartPointerLibrary
-Description:초기화되지 않거나 null 할당 불가능한 스마트 포인터 유형입니다.
-Type:reference
+﻿INTSourceChangelist:6371055
+Availability: Public
+Title: Shared References
+Description: Smart pointer type that cannot be uninitialized or assigned null.
+Type: reference
 Version: 4.9
-Parent:Programming/UnrealArchitecture/SmartPointerLibrary
-Order:
-Tags:Programming
+Parent: Programming/UnrealArchitecture/SmartPointerLibrary
+Tags: Programming
+Order: 1
 
-[TOC(start:2)]
 
-**공유 레퍼런스** (shared reference) 는 null 가능하지 않은 공유 포인터입니다. 즉 빈 공유 레퍼런스를 생성하거나 공유 레퍼런스에 null 을 할당할 수 없는 포인터로, 오브젝트에 안전하게 접근할 수 있으니 안전하고 깨끗한 코드 작성에 도움이 됩니다. 사실 공유 레퍼런스는 항상 유효하기 때문에 공유 포인터와는 달리 `IsValid()` 메서드조차 없습니다. 가급적 공유 포인터 대신 항상 공유 레퍼런스를 사용할 것을 추천합니다.
+[TOC]
 
-비어 있거나 null 가능한 레퍼런스가 필요하다면 [](Programming/UnrealArchitecture/SmartPointerLibrary/SharedPointer) 를 대신 사용해야 할 것입니다.
-
-## 선언과 초기화
-
-공유 레퍼런스는 항상 유효한 오브젝트로 초기화(initialize)되며, 초기화되지 않고서는 선언(declare)도 불가능합니다.
-
-새 공유 레퍼런스 생성 예제:
-
-	// Create a shared reference to a new node  새 노드로의 공유 레퍼런스 생성
-	TSharedRef<FTreeNode> NodeRef( new FTreeNode() );
-
-초기화나 null 을 할당하지 않고 공유 레퍼런스를 선언하려 한다니, 경을 칠 노릇입니다!:
-
-	TSharedRef<UBool> EmptyBool;			// 컴파일 아니되오!!
-
-## 공유 레퍼런스 사용법
-
-대부분의 경우에 있어 공유 레퍼런스 사용법은 공유 포인터 사용법과 똑같습니다.
-
-	// Create a shared reference to a new node  새 노드로의 공유 레퍼런스 생성
-	TSharedRef<FTreeNode> NodeRef( new FTreeNode() );
-
-	NodeRef->ListChildren();
-	( *NodeRef ).ListChildren();
-	const FTreeNode& NodeVar = NodeRef.Get();
-
-다시금, 중요한 차이점은 공유 포인터는 null 로 설정할 수 없습니다:
-
-	TSharedRef<FTreeNode> Node = null;		// 컴파일 아니되오!!
-
-### 포인터와 레퍼런스 변환
-
-공유 레퍼런스는 공유 포인터로 묵시적 변환되므로, 항상 레퍼런스에서 포인터를 만드는 것이 안전합니다. 예로 공유 레퍼런스를 공유 포인터에 할당하거나, 공유 포인터를 바라는 메서드에 공유 레퍼런스를 전해줄 수 있습니다.
-
-	TSharedPtr<FTreeNode> SomeNodePtr = NodeRef;
-
-그러나 포인터에서의 변환은 안전하지 않을 수가 있기에, `ToSharedRef()` 함수를 사용하여 명시적 변환을 강제로 해 줘야 합니다.
-
-	// Explicitly reference a pointer. Will assert if the pointer is not valid!  포인터를 명시적으로 가리킵니다. 포인터가 무효하면 assert 가 발생합니다!
-	NodeRef = SomeNodePtr.ToSharedRef();
+A **Shared Reference** is a strong, non-nullable **Smart Pointer** for data objects outside of the Engine's `UObject` system. This means you cannot reset a Shared Reference, assign a null object to it, or create an empty one. Because of this, Shared References always contain a valid object, and do not even have an `IsValid` method. When choosing between Shared References and **[Shared Pointers](Programming/UnrealArchitecture/SmartPointerLibrary/SharedPointer)**, Shared References are the preferred option unless you need an empty or nullable object. If you need potentially-empty or nullable references, you should use Shared Pointers instead.
 
 [REGION:note]
-비슷한 방식으로 C++ 포인터를 가진 `*` 연산자에 대해서도, `ToSharedRef()` 를 사용하면 오브젝트가 유효하지 않은 경우 assert 가 발생합니다.
+Unlike a standard C++ reference, a Shared Reference can be reassigned to another object after creation.
 [/REGION]
+
+## Declaration and Initialization
+
+Shared References are non-nullable, so intialization requires a data object. Attempting to create a Shared Reference without a valid object will not compile, and attempting to initialize a Shared Reference to a null pointer variable.
+
+    // Create a shared reference to a new node
+    TSharedRef<FMyObjectType> NewReference = MakeShared<FMyObjectType>();
+
+Attempting to create a Shared Reference without a valid object will not compile:
+
+    // Neither of these will compile:
+    TSharedRef<FMyObjectType> UnassignedReference;
+    TSharedRef<FMyObjectType> NullAssignedReference = nullptr;
+    // This will compile, but will assert if NullObject is actually null.
+    TSharedRef<FMyObjectType> NullAssignedReference = NullObject;
+
+### Converting Between Shared Pointers and Shared References
+
+Converting between Shared Pointers and Shared References is a common practice. Shared References implicitly convert to Shared Pointers, and provide the additional guarantee that the new Shared Pointer will reference a valid object. Conversion is handled by the normal syntax:
+
+    TSharedPtr<FMyObjectType> MySharedPointer = MySharedReference;
+
+You can create a Shared Reference from a Shared Pointer with the `Shared Pointer` function, `ToSharedRef`, as long as the Shared Pointer references a non-null object. Attempting to create a Shared Reference from a null Shared Pointer will cause the program to assert.
+
+    // Ensure your shared pointer is valid before dereferencing to avoid a potential assertion.
+    If (MySharedPointer.IsValid())
+    {
+        MySharedReference = MySharedPointer.ToSharedRef();
+    }
+
+## Comparison
+
+You can test Shared References against each other for equality. In this context, equality means referencing the same object.
+
+    TSharedRef<FMyObjectType> ReferenceA, ReferenceB;
+    if (ReferenceA == ReferenceB)
+    {
+        // ...
+    }

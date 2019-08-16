@@ -162,7 +162,7 @@ void UOculusSceneCaptureCubemap::Tick(float DeltaTime)
 #if !UE_BUILD_SHIPPING
 void UOculusSceneCaptureCubemap::CaptureCubemapCommandHandler(const TArray<FString>& Args, UWorld* World, FOutputDevice& Ar)
 {
-	bool bCreateGearVRCubemap = false;
+	bool bCreateOculusMobileCubemap = false;
 	FVector CaptureOffset(FVector::ZeroVector);
 	float Yaw = 0.f;
 	for (const FString& Arg : Args)
@@ -171,9 +171,10 @@ void UOculusSceneCaptureCubemap::CaptureCubemapCommandHandler(const TArray<FStri
 		FParse::Value(*Arg, TEXT("YOFF="), CaptureOffset.Y);
 		FParse::Value(*Arg, TEXT("ZOFF="), CaptureOffset.Z);
 		FParse::Value(*Arg, TEXT("YAW="), Yaw);
-		if (Arg.Equals(TEXT("GEARVR"), ESearchCase::IgnoreCase))
+		// Leave GearVR for backwards compat
+		if (Arg.Equals(TEXT("GEARVR"), ESearchCase::IgnoreCase) || Arg.Equals(TEXT("MOBILE"), ESearchCase::IgnoreCase))
 		{
-			bCreateGearVRCubemap = true;
+			bCreateOculusMobileCubemap = true;
 		}
 	}
 
@@ -188,6 +189,6 @@ void UOculusSceneCaptureCubemap::CaptureCubemapCommandHandler(const TArray<FStri
 		CubemapCapturer->SetInitialOrientation(Orient);
 	}
 	const uint32 CaptureHeight = 2048;
-	CubemapCapturer->StartCapture(World, bCreateGearVRCubemap ? CaptureHeight / 2 : CaptureHeight);
+	CubemapCapturer->StartCapture(World, bCreateOculusMobileCubemap ? CaptureHeight / 2 : CaptureHeight);
 }
 #endif

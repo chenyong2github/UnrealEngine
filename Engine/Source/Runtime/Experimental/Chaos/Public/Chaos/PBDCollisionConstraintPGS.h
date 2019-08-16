@@ -2,12 +2,14 @@
 #pragma once
 
 #include "Chaos/PBDCollisionTypes.h"
-#include "Chaos/PBDContactGraph.h"
+#include "Chaos/PBDConstraintGraph.h"
 #include "Chaos/PerParticleRule.h"
 
 #include <memory>
 #include <queue>
 #include <sstream>
+
+#if CHAOS_PARTICLEHANDLE_TODO
 
 namespace ChaosTest
 {
@@ -25,33 +27,32 @@ class TPBDCollisionConstraintPGS
 	friend void ChaosTest::CollisionPGS2<T>();
 
 	typedef TRigidBodyContactConstraintPGS<T, d> FRigidBodyContactConstraint;
+	typedef TPBDConstraintGraph<T, d> FConstraintGraph;
 
-	TPBDCollisionConstraintPGS(TPBDRigidParticles<T, d>& InParticles, TArrayCollectionArray<bool>& Collided, const int32 PushOutIterations = 1, const int32 PushOutPairIterations = 1, const T Thickness = (T)0, const T Restitution = (T)0, const T Friction = (T)0);
+	TPBDCollisionConstraintPGS(TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices, TArrayCollectionArray<bool>& Collided, TArrayCollectionArray<TSerializablePtr<TChaosPhysicsMaterial<T>>>& InPhysicsMaterials, const T Thickness = (T)0);
 	virtual ~TPBDCollisionConstraintPGS() {}
 
-	void ComputeConstraints(const TPBDRigidParticles<T, d>& InParticles, const T Dt);
+	void ComputeConstraints(const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices, const T Dt);
 
-	void Apply(TPBDRigidParticles<T, d>& InParticles, const T Dt, const int32 Island);
-	void ApplyPushOut(TPBDRigidParticles<T, d>& InParticles, const T Dt, const TArray<int32>& ActiveIndices, const int32 Island);
-	template<class T_PARTICLES> void Solve(T_PARTICLES& InParticles, const T Dt, const int32 Island);
-
-	void CopyOutConstraints(int32 Island);
+	void Apply(TPBDRigidParticles<T, d>& InParticles, const T Dt, const TArray<int32>& InConstraintIndices);
+	void ApplyPushOut(TPBDRigidParticles<T, d>& InParticles, const T Dt, const TArray<int32>& InConstraintIndices);
+	template<class T_PARTICLES> void Solve(T_PARTICLES& InParticles, const T Dt, const TArray<int32>& InConstraintIndices);
 
 	void RemoveConstraints(const TSet<uint32>& RemovedParticles);
 	void UpdateConstraints(const TPBDRigidParticles<T, d>& InParticles, T Dt, const TSet<uint32>& AddedParticles, const TArray<uint32>& ActiveParticles);
 
-	/* Pass through for the ContactGraph*/
-	void UpdateIslandsFromConstraints(TPBDRigidParticles<T, d>& InParticles, TArray<TSet<int32>>& IslandParticles, TArray<int32>& IslandSleepCounts, TSet<int32>& ActiveIndices);
-	bool SleepInactive(TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& ActiveIndices, int32& IslandSleepCount, const int32 Island, const T LinearSleepThreshold, const T AngularSleepThreshold) const;
-	void UpdateAccelerationStructures(const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& ActiveIndices, const int32 Island);
 
 	static bool NearestPoint(TArray<Pair<TVector<T, d>, TVector<T, d>>>& Points, TVector<T, d>& Direction);
 
-	const TArray<FRigidBodyContactConstraint>& GetAllConstraints() const { return MConstraints; }
+	const TArray<FRigidBodyContactConstraint>& GetAllConstraints() const { return Constraints; }
+
+	int32 NumConstraints() const { return Constraints.Num(); }
+	TVector<int32, 2> ConstraintParticleIndices(int32 ContactIndex) const { return { Constraints[ContactIndex].ParticleIndex, Constraints[ContactIndex].LevelsetIndex }; }
+	void UpdatePositionBasedState(const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices, const T Dt) { ComputeConstraints(InParticles, InIndices, Dt); }
 
   private:
-	void PrintParticles(const TPBDRigidParticles<T, d>& InParticles, const int32 Island);
-	void PrintConstraints(const TPBDRigidParticles<T, d>& InParticles, const int32 Island);
+	void PrintParticles(const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InConstraintIndices);
+	void PrintConstraints(const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InConstraintIndices);
 
 	template<class T_PARTICLES>
 	void UpdateConstraint(const T_PARTICLES& InParticles, const T Thickness, FRigidBodyContactConstraint& Constraint);
@@ -79,16 +80,14 @@ class TPBDCollisionConstraintPGS
 	FRigidBodyContactConstraint ComputeSphereBoxConstraint(const TPBDRigidParticles<T, d>& InParticles, int32 SphereIndex, int32 BoxIndex, const T Thickness);
 	FRigidBodyContactConstraint ComputeConstraint(const TPBDRigidParticles<T, d>& InParticles, int32 Body1Index, int32 Body2Index, const T Thickness);
 
-	TArray<FRigidBodyContactConstraint> MConstraints;
+	TArray<FRigidBodyContactConstraint> Constraints;
 	TArrayCollectionArray<bool>& MCollided;
-	TPBDContactGraph<FRigidBodyContactConstraint, T, d> MContactGraph;
-	const int32 MNumIterations;
-	const int32 MPairIterations;
+	const TArrayCollectionArray<TSerializablePtr<TChaosPhysicsMaterial<T>>>& MPhysicsMaterials;
 	const T MThickness;
-	const T MRestitution;
-	const T MFriction;
 	const T Tolerance;
 	const T MaxIterations;
 	const bool bUseCCD;
 };
 }
+
+#endif

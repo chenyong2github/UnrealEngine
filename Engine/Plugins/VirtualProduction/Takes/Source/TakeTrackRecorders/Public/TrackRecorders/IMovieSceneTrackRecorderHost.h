@@ -70,6 +70,11 @@ struct FTrackRecorderSettings
 				TArray<FString> ComponentNames;
 				PropertyTrackSetting.ComponentPath.ParseIntoArray(ComponentNames, TEXT("."));
 
+				if (ComponentNames.Num() == 0)
+				{
+					return true;
+				}
+
 				for (const FString& ComponentName : ComponentNames)
 				{
 					if (FindObjectFast<UObject>(InObjectToRecord, *ComponentName) != nullptr)
@@ -162,4 +167,12 @@ public:
 	 * 
 	 */
 	virtual FTrackRecorderSettings GetTrackRecorderSettings() const = 0;
+
+	/** Returns original transform that may get set when recording a skeletal mesh animation. Needed to correctly transform attached children.
+	* @param OtherActor Actor to look for.
+	* @return The FTransform applied to the actor when recording animation, that the attached actor may need to apply to themselves to orient correctly.
+	*/
+	virtual FTransform GetRecordedActorAnimationInitialRootTransform(class AActor* OtherActor) const = 0;
+
+	/**/
 };

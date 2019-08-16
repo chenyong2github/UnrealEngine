@@ -11,7 +11,7 @@
 
 #if WITH_PHYSX && WITH_EDITOR
 
-#include "Physics/IPhysXCookingModule.h"
+#include "IPhysXCookingModule.h"
 
 FDerivedDataPhysXCooker::FDerivedDataPhysXCooker(FName InFormat, EPhysXMeshCookFlags InRuntimeCookFlags, UBodySetup* InBodySetup, bool InIsRuntime)
 	: BodySetup( InBodySetup )

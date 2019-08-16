@@ -43,7 +43,7 @@ FLandscapeEditDataInterface::FLandscapeEditDataInterface(ULandscapeInfo* InLands
 }
 
 FLandscapeTextureDataInterface::FLandscapeTextureDataInterface(bool bInUploadTextureChangesToGPU)
-	: bUploadTextureChangesToGPU(bInUploadTextureChangesToGPU)
+	: bUploadTextureChangesToGPU(bInUploadTextureChangesToGPU), bShouldDirtyPackage(true)
 {}
 
 FLandscapeTextureDataInterface::~FLandscapeTextureDataInterface()
@@ -218,7 +218,7 @@ bool FLandscapeEditDataInterface::GetComponentsInRegion(int32 X1, int32 Y1, int3
 	return bNotLocked;
 }
 
-void FLandscapeEditDataInterface::SetHeightData(int32 X1, int32 Y1, int32 X2, int32 Y2, const uint16* InData, int32 InStride, bool InCalcNormals, const uint16* InNormalData, const uint8* InHeightAlphaBlendData, const uint8* InHeightFlagsData, bool InCreateComponents, UTexture2D* InHeightmap, UTexture2D* InXYOffsetmapTexture,
+void FLandscapeEditDataInterface::SetHeightData(int32 X1, int32 Y1, int32 X2, int32 Y2, const uint16* InData, int32 InStride, bool InCalcNormals, const uint16* InNormalData, const uint16* InHeightAlphaBlendData, const uint8* InHeightFlagsData, bool InCreateComponents, UTexture2D* InHeightmap, UTexture2D* InXYOffsetmapTexture,
 											   bool InUpdateBounds, bool InUpdateCollision, bool InGenerateMips)
 {
 	const int32 NumVertsX = 1 + X2 - X1;
@@ -295,7 +295,7 @@ void FLandscapeEditDataInterface::SetHeightData(int32 X1, int32 Y1, int32 X2, in
 			UTexture2D* Heightmap = InHeightmap != nullptr ? InHeightmap : Component->GetHeightmap(true);
 			UTexture2D* XYOffsetmapTexture = InXYOffsetmapTexture != nullptr ? InXYOffsetmapTexture : Component->XYOffsetmapTexture;
 
-			Component->Modify();
+			Component->Modify(GetShouldDirtyPackage());
 
 			FLandscapeTextureDataInfo* TexDataInfo = GetTextureDataInfo(Heightmap);
 			FColor* HeightmapTextureData = (FColor*)TexDataInfo->GetMipData(0);
@@ -388,9 +388,10 @@ void FLandscapeEditDataInterface::SetHeightData(int32 X1, int32 Y1, int32 X2, in
 							}
 							else if (InHeightAlphaBlendData)
 							{
-								const uint8& HeightAlphaBlend = InHeightAlphaBlendData[DataIndex];
-								TexData.B = HeightAlphaBlend;
-								TexData.A = InHeightFlagsData ? InHeightFlagsData[DataIndex] : 3;
+								const uint16& HeightAlphaBlend = InHeightAlphaBlendData[DataIndex];
+								TexData.B = HeightAlphaBlend >> 8;
+								TexData.A = HeightAlphaBlend & 0xFC;
+								TexData.A |= (InHeightFlagsData ? InHeightFlagsData[DataIndex] : 3) & 0x3;
 							}
 						}
 					}
@@ -459,6 +460,11 @@ void FLandscapeEditDataInterface::SetHeightData(int32 X1, int32 Y1, int32 X2, in
 							XYOffsetMipData);
 					}
 				}
+			}
+			else
+			{
+				// In Layer, cumulate dirty collision region (will be used next time UpdateCollisionHeightData is called)
+				Component->UpdateDirtyCollisionHeightData(FIntRect(ComponentX1, ComponentY1, ComponentX2, ComponentY2));
 			}
 			
 			// Update GUID for Platform Data
@@ -971,16 +977,16 @@ uint16 FLandscapeEditDataInterface::GetHeightMapData(const ULandscapeComponent* 
 	return ((((uint16)TexData.R) << 8) | TexData.G);
 }
 
-uint8 FLandscapeEditDataInterface::GetHeightMapAlphaBlendData(const ULandscapeComponent* Component, int32 TexU, int32 TexV, FColor* TextureData /*= NULL*/)
+uint16 FLandscapeEditDataInterface::GetHeightMapAlphaBlendData(const ULandscapeComponent* Component, int32 TexU, int32 TexV, FColor* TextureData /*= NULL*/)
 {
 	const FColor& TexData = GetHeightMapColor(Component, TexU, TexV, TextureData);
-	return TexData.B;
+	return ((((uint16)TexData.B) << 8) | TexData.A) & 0xFFFC;
 }
 
 uint8 FLandscapeEditDataInterface::GetHeightMapFlagsData(const ULandscapeComponent* Component, int32 TexU, int32 TexV, FColor* TextureData /*= NULL*/)
 {
 	const FColor& TexData = GetHeightMapColor(Component, TexU, TexV, TextureData);
-	return TexData.A;
+	return TexData.A & 0x3;
 }
 
 template<typename TDataAccess, typename TGetHeightMapDataFunction>
@@ -1486,7 +1492,7 @@ void FLandscapeEditDataInterface::GetHeightDataTempl(int32& ValidX1, int32& Vali
 template<typename TDataAccess>
 void FLandscapeEditDataInterface::GetHeightAlphaBlendDataTempl(int32& ValidX1, int32& ValidY1, int32& ValidX2, int32& ValidY2, TDataAccess& StoreData)
 {
-	GetHeightDataInternal(ValidX1, ValidY1, ValidX2, ValidY2, StoreData, [&](const ULandscapeComponent* Component, int32 TexU, int32 TexV, FColor* TextureData)->uint8 { return GetHeightMapAlphaBlendData(Component, TexU, TexV, TextureData); });
+	GetHeightDataInternal(ValidX1, ValidY1, ValidX2, ValidY2, StoreData, [&](const ULandscapeComponent* Component, int32 TexU, int32 TexV, FColor* TextureData)->uint16 { return GetHeightMapAlphaBlendData(Component, TexU, TexV, TextureData); });
 }
 
 template<typename TDataAccess>
@@ -1506,14 +1512,14 @@ void FLandscapeEditDataInterface::GetHeightData(int32& X1, int32& Y1, int32& X2,
 	GetHeightDataTempl(X1, Y1, X2, Y2, ArrayStoreData);
 }
 
-void FLandscapeEditDataInterface::GetHeightAlphaBlendData(int32& X1, int32& Y1, int32& X2, int32& Y2, uint8* Data, int32 Stride)
+void FLandscapeEditDataInterface::GetHeightAlphaBlendData(int32& X1, int32& Y1, int32& X2, int32& Y2, uint16* Data, int32 Stride)
 {
 	if (Stride == 0)
 	{
 		Stride = (1 + X2 - X1);
 	}
 
-	TArrayDataAccess<uint8> ArrayStoreData(X1, Y1, Data, Stride);
+	TArrayDataAccess<uint16> ArrayStoreData(X1, Y1, Data, Stride);
 	GetHeightAlphaBlendDataTempl(X1, Y1, X2, Y2, ArrayStoreData);
 }
 
@@ -1712,13 +1718,13 @@ void ULandscapeComponent::DeleteLayer(ULandscapeLayerInfoObject* LayerInfo, FLan
 
 	// Mark the channel as unallocated, so we can reuse it later
 	ALandscapeProxy* Proxy = Component->GetLandscapeProxy();
-	Component->Modify();
-	Proxy->Modify();
+	Component->Modify(LandscapeEdit.GetShouldDirtyPackage());
+	Proxy->Modify(LandscapeEdit.GetShouldDirtyPackage());
 
 	ULandscapeWeightmapUsage* Usage = ComponentWeightmapTexturesUsage.IsValidIndex(DeleteLayerAllocation.WeightmapTextureIndex) ? ComponentWeightmapTexturesUsage[DeleteLayerAllocation.WeightmapTextureIndex] : nullptr;
 	if (Usage) // can be null if WeightmapUsageMap hasn't been built yet
 	{
-		Usage->Modify();
+		Usage->Modify(LandscapeEdit.GetShouldDirtyPackage());
 		Usage->ChannelUsage[DeleteLayerAllocation.WeightmapTextureChannel] = nullptr;
 	}
 
@@ -1729,8 +1735,7 @@ void ULandscapeComponent::DeleteLayer(ULandscapeLayerInfoObject* LayerInfo, FLan
 	if (bCanRemoveLayerTexture)
 	{
 		ComponentWeightmapTextures[DeleteLayerWeightmapTextureIndex]->SetFlags(RF_Transactional);
-		ComponentWeightmapTextures[DeleteLayerWeightmapTextureIndex]->Modify();
-		ComponentWeightmapTextures[DeleteLayerWeightmapTextureIndex]->MarkPackageDirty();
+		ComponentWeightmapTextures[DeleteLayerWeightmapTextureIndex]->Modify(LandscapeEdit.GetShouldDirtyPackage());
 		ComponentWeightmapTextures[DeleteLayerWeightmapTextureIndex]->ClearFlags(RF_Standalone);
 
 		ComponentWeightmapTextures.RemoveAt(DeleteLayerWeightmapTextureIndex);
@@ -1799,13 +1804,15 @@ void FLandscapeEditDataInterface::DeleteLayer(ULandscapeLayerInfoObject* LayerIn
 		Component->DeleteLayer(LayerInfo, *this);
 	}
 
-	TSet<ULandscapeComponent*> Components;
-	Algo::Transform(LandscapeInfo->XYtoComponentMap, Components, &TPair<FIntPoint, ULandscapeComponent*>::Value);
-	ALandscapeProxy::InvalidateGeneratedComponentData(Components);
-
-	if (LandscapeInfo->LandscapeActor)
+	if (LandscapeInfo->LandscapeActor && LandscapeInfo->LandscapeActor->HasLayersContent())
 	{
 		LandscapeInfo->LandscapeActor->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_All);
+	}
+	else
+	{
+		TSet<ULandscapeComponent*> Components;
+		Algo::Transform(LandscapeInfo->XYtoComponentMap, Components, &TPair<FIntPoint, ULandscapeComponent*>::Value);
+		ALandscapeProxy::InvalidateGeneratedComponentData(Components);
 	}
 }
 
@@ -1816,8 +1823,8 @@ void ULandscapeComponent::FillLayer(ULandscapeLayerInfoObject* LayerInfo, FLands
 	ULandscapeComponent* Component = this;
 
 	ALandscapeProxy* Proxy = Component->GetLandscapeProxy();
-	Component->Modify();
-	Proxy->Modify();
+	Component->Modify(LandscapeEdit.GetShouldDirtyPackage());
+	Proxy->Modify(LandscapeEdit.GetShouldDirtyPackage());
 
 	const bool bFillLayerIsNoWeightBlend = LayerInfo->bNoWeightBlend;
 	bool bClearOtherWeightBlendLayers = !bFillLayerIsNoWeightBlend;
@@ -1897,7 +1904,7 @@ void ULandscapeComponent::FillLayer(ULandscapeLayerInfoObject* LayerInfo, FLands
 			ULandscapeWeightmapUsage* Usage = ComponentWeightmapTexturesUsage[Allocation.WeightmapTextureIndex];
 			if (Usage) // can be null if WeightmapUsageMap hasn't been built yet
 			{
-				Usage->Modify();
+				Usage->Modify(LandscapeEdit.GetShouldDirtyPackage());
 				Usage->ChannelUsage[Allocation.WeightmapTextureChannel] = nullptr;
 			}
 
@@ -1913,7 +1920,7 @@ void ULandscapeComponent::FillLayer(ULandscapeLayerInfoObject* LayerInfo, FLands
 			if (!ComponentWeightmapLayerAllocations.ContainsByPredicate(
 				[TextureIdx](const FWeightmapLayerAllocationInfo& Allocation) { return Allocation.WeightmapTextureIndex == TextureIdx; }))
 			{
-				ComponentWeightmapTextures[TextureIdx]->Modify();
+				ComponentWeightmapTextures[TextureIdx]->Modify(LandscapeEdit.GetShouldDirtyPackage());
 
 				for (int32 LayerIdx = 0; LayerIdx < ComponentWeightmapLayerAllocations.Num(); ++LayerIdx)
 				{
@@ -2036,12 +2043,15 @@ void FLandscapeEditDataInterface::FillLayer(ULandscapeLayerInfoObject* LayerInfo
 		}
 	}
 
-	TSet<ULandscapeComponent*> Components;
-	Algo::Transform(LandscapeInfo->XYtoComponentMap, Components, &TPair<FIntPoint, ULandscapeComponent*>::Value);
-	ALandscapeProxy::InvalidateGeneratedComponentData(Components);
-	if (LandscapeInfo->LandscapeActor)
+	if (LandscapeInfo->LandscapeActor && LandscapeInfo->LandscapeActor->HasLayersContent())
 	{
 		LandscapeInfo->LandscapeActor->RequestLayersContentUpdateForceAll();
+	}
+	else
+	{
+		TSet<ULandscapeComponent*> Components;
+		Algo::Transform(LandscapeInfo->XYtoComponentMap, Components, &TPair<FIntPoint, ULandscapeComponent*>::Value);
+		ALandscapeProxy::InvalidateGeneratedComponentData(Components);
 	}
 }
 
@@ -2191,7 +2201,7 @@ void ULandscapeComponent::ReplaceLayer(ULandscapeLayerInfoObject* FromLayerInfo,
 		//check(Usage);
 		if (Usage)
 		{
-			Usage->Modify();
+			Usage->Modify(LandscapeEdit.GetShouldDirtyPackage());
 			Usage->ChannelUsage[FromLayerAllocation.WeightmapTextureChannel] = nullptr;
 		}
 
@@ -2199,8 +2209,7 @@ void ULandscapeComponent::ReplaceLayer(ULandscapeLayerInfoObject* FromLayerInfo,
 		if (bCanRemoveLayerTexture)
 		{
 			ComponentWeightmapTextures[FromLayerAllocation.WeightmapTextureIndex]->SetFlags(RF_Transactional);
-			ComponentWeightmapTextures[FromLayerAllocation.WeightmapTextureIndex]->Modify();
-			ComponentWeightmapTextures[FromLayerAllocation.WeightmapTextureIndex]->MarkPackageDirty();
+			ComponentWeightmapTextures[FromLayerAllocation.WeightmapTextureIndex]->Modify(LandscapeEdit.GetShouldDirtyPackage());
 			ComponentWeightmapTextures[FromLayerAllocation.WeightmapTextureIndex]->ClearFlags(RF_Standalone);
 
 			ComponentWeightmapTextures.RemoveAt(FromLayerAllocation.WeightmapTextureIndex);
@@ -2282,7 +2291,7 @@ void FLandscapeEditDataInterface::ReplaceLayer(ULandscapeLayerInfoObject* FromLa
 
 	if (LandscapeInfo->LandscapeActor.IsValid() && LandscapeInfo->LandscapeActor->HasLayersContent())
 	{
-		LandscapeInfo->LandscapeActor->Modify();
+		LandscapeInfo->LandscapeActor->Modify(GetShouldDirtyPackage());
 		LandscapeInfo->LandscapeActor->ForEachLayer([&](FLandscapeLayer& CurrentLayer)
 		{
 			bool OutValue;
@@ -2446,7 +2455,7 @@ namespace
 	}
 };
 
-bool DeleteLayerIfAllZero(ULandscapeComponent* const Component, const uint8* const TexDataPtr, int32 TexSize, int32 LayerIdx)
+bool DeleteLayerIfAllZero(ULandscapeComponent* const Component, const uint8* const TexDataPtr, int32 TexSize, int32 LayerIdx, bool bShouldDirtyPackage)
 {
 	// Check the data for the entire component and to see if it's all zero
 	for (int32 TexY = 0; TexY < TexSize; TexY++)
@@ -2465,8 +2474,8 @@ bool DeleteLayerIfAllZero(ULandscapeComponent* const Component, const uint8* con
 	}
 
 	ALandscapeProxy* Proxy = Component->GetLandscapeProxy();
-	Component->Modify();
-	Proxy->Modify();
+	Component->Modify(bShouldDirtyPackage);
+	Proxy->Modify(bShouldDirtyPackage);
 
 	TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations(true);
 	TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures(true);
@@ -2475,7 +2484,7 @@ bool DeleteLayerIfAllZero(ULandscapeComponent* const Component, const uint8* con
 	// Mark the channel as unallocated, so we can reuse it later
 	const int32 DeleteLayerWeightmapTextureIndex = ComponentWeightmapLayerAllocations[LayerIdx].WeightmapTextureIndex;
 	ULandscapeWeightmapUsage& Usage = *ComponentWeightmapTexturesUsage[DeleteLayerWeightmapTextureIndex];
-	Usage.Modify();
+	Usage.Modify(bShouldDirtyPackage);
 	Usage.ChannelUsage[ComponentWeightmapLayerAllocations[LayerIdx].WeightmapTextureChannel] = nullptr;
 
 	// Remove the layer as it's totally painted away.
@@ -2485,7 +2494,6 @@ bool DeleteLayerIfAllZero(ULandscapeComponent* const Component, const uint8* con
 	bool bCanRemoveLayerTexture = !ComponentWeightmapLayerAllocations.ContainsByPredicate([DeleteLayerWeightmapTextureIndex](const FWeightmapLayerAllocationInfo& Allocation){ return Allocation.WeightmapTextureIndex == DeleteLayerWeightmapTextureIndex; });
 	if (bCanRemoveLayerTexture)
 	{
-		ComponentWeightmapTextures[DeleteLayerWeightmapTextureIndex]->MarkPackageDirty();
 		ComponentWeightmapTextures[DeleteLayerWeightmapTextureIndex]->ClearFlags(RF_Standalone);
 		ComponentWeightmapTextures.RemoveAt(DeleteLayerWeightmapTextureIndex);
 
@@ -2621,7 +2629,7 @@ inline TMap<const ULandscapeLayerInfoObject*, uint32> FLandscapeEditDataInterfac
 	for (int32 LayerIdx = 0; LayerIdx < ComponentWeightmapLayerAllocations.Num(); LayerIdx++)
 	{
 		const FWeightmapLayerAllocationInfo& Allocation = ComponentWeightmapLayerAllocations[LayerIdx];
-		if (Allocation.LayerInfo->bNoWeightBlend)
+		if (Allocation.LayerInfo == nullptr || Allocation.LayerInfo->bNoWeightBlend)
 		{
 			continue;
 		}
@@ -2733,7 +2741,8 @@ const ULandscapeLayerInfoObject* FLandscapeEditDataInterface::ChooseReplacementL
 
 void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const LayerInfo, const int32 X1, const int32 Y1, const int32 X2, const int32 Y2, const uint8* Data, int32 Stride, ELandscapeLayerPaintingRestriction PaintingRestriction /*= None*/, bool bWeightAdjust /*= true*/, bool bTotalWeightAdjust /*= false*/)
 {
-	check(LayerInfo != NULL);
+	check(LayerInfo != nullptr);
+	check(Data != nullptr);
 	if (LayerInfo->bNoWeightBlend)
 	{
 		bWeightAdjust = false;
@@ -2779,7 +2788,7 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 				continue;
 			}
 
-			Component->Modify();
+			Component->Modify(GetShouldDirtyPackage());
 
 			TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations(true);
 			int32 UpdateLayerIdx = ComponentWeightmapLayerAllocations.IndexOfByPredicate([LayerInfo](const FWeightmapLayerAllocationInfo& Allocation){ return Allocation.LayerInfo == LayerInfo; });
@@ -2890,6 +2899,12 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 					LayerNoWeightBlends[LayerIdx] = Allocation.LayerInfo->bNoWeightBlend;
 					LayerEditDataAllZero[LayerIdx] = true;
 				}
+				else
+				{
+					LayerDataPtrs[LayerIdx] = nullptr;
+					LayerNoWeightBlends[LayerIdx] = true;
+					LayerEditDataAllZero[LayerIdx] = false;
+				}
 			}
 
 			// Find the texture data corresponding to this vertex
@@ -2965,6 +2980,11 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 									// Adjust other layers' weights accordingly
 									for (int32 LayerIdx = 0; LayerIdx < ComponentWeightmapLayerAllocations.Num(); LayerIdx++)
 									{
+										if (LayerDataPtrs[LayerIdx] == nullptr)
+										{
+											continue;
+										}
+
 										uint8& ExistingWeight = LayerDataPtrs[LayerIdx][TexDataIndex];
 
 										if (LayerIdx == UpdateLayerIdx)
@@ -2991,6 +3011,11 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 										// Normalize
 										for (int32 LayerIdx = 0; LayerIdx < ComponentWeightmapLayerAllocations.Num(); LayerIdx++)
 										{
+											if (LayerDataPtrs[LayerIdx] == nullptr)
+											{
+												continue;
+											}
+
 											uint8& ExistingWeight = LayerDataPtrs[LayerIdx][TexDataIndex];
 
 											if (LayerNoWeightBlends[LayerIdx] == false)
@@ -3008,6 +3033,7 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 
 										if ((255 - OtherLayerWeightSum) && MaxLayerIdx >= 0)
 										{
+											// No need to check for nullptr here because MaxLayerIdx can only be set to a valid layer
 											LayerDataPtrs[MaxLayerIdx][TexDataIndex] += 255 - OtherLayerWeightSum;
 										}
 									}
@@ -3017,9 +3043,10 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 									// Adjust other layers' weights accordingly
 									for (int32 LayerIdx = 0; LayerIdx < ComponentWeightmapLayerAllocations.Num(); LayerIdx++)
 									{
-										// Exclude bNoWeightBlend layers
+										// Exclude bNoWeightBlend layers 
 										if (LayerIdx != UpdateLayerIdx && LayerNoWeightBlends[LayerIdx] == false)
 										{
+											// No need to check for nullptr here because invalid layers have LayerNoWeightBlends set to true.
 											OtherLayerWeightSum += LayerDataPtrs.IsValidIndex(LayerIdx) ? LayerDataPtrs[LayerIdx][TexDataIndex] : 0;
 										}
 									}
@@ -3034,6 +3061,7 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 											{
 												const int32 ReplacementLayerIndex = ComponentWeightmapLayerAllocations.IndexOfByPredicate([&](const FWeightmapLayerAllocationInfo& AllocationInfo) { return AllocationInfo.LayerInfo == ReplacementLayer; });
 
+												// No need to check for nullptr here because ChooseReplacementLayer can't return an invalid layer.
 												LayerDataPtrs[ReplacementLayerIndex][TexDataIndex] = 255 - NewWeight;
 												LayerEditDataAllZero[ReplacementLayerIndex] = false;
 											}
@@ -3049,12 +3077,18 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 											NewWeight = 255;
 										}
 
+										// No need to check for nullptr here because UpdateLayerIdx is always valid
 										LayerDataPtrs[UpdateLayerIdx][TexDataIndex] = NewWeight;
 									}
 									else
 									{
 										for (int32 LayerIdx = 0; LayerIdx < ComponentWeightmapLayerAllocations.Num(); LayerIdx++)
 										{
+											if (LayerDataPtrs[LayerIdx] == nullptr)
+											{
+												continue;
+											}
+
 											uint8& Weight = LayerDataPtrs[LayerIdx][TexDataIndex];
 
 											if (LayerIdx == UpdateLayerIdx)
@@ -3080,6 +3114,7 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 							}
 							else
 							{
+								// No need to check for nullptr here because UpdateLayerIdx is always valid
 								// Weight value set without adjusting other layers' weights
 								uint8& Weight = LayerDataPtrs[UpdateLayerIdx][TexDataIndex];
 								Weight = NewWeight;
@@ -3152,7 +3187,7 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 			{
 				if (LayerEditDataAllZero[LayerIdx])
 				{
-					bool bLayerDeleted = DeleteLayerIfAllZero(Component, LayerDataPtrs[LayerIdx], TexSize, LayerIdx);
+					bool bLayerDeleted = DeleteLayerIfAllZero(Component, LayerDataPtrs[LayerIdx], TexSize, LayerIdx, GetShouldDirtyPackage());
 
 					if (bLayerDeleted)
 					{
@@ -3265,7 +3300,7 @@ void FLandscapeEditDataInterface::SetAlphaData(const TSet<ULandscapeLayerInfoObj
 				}
 				if (PaintingRestriction != ELandscapeLayerPaintingRestriction::ExistingOnly)
 				{
-					Component->Modify();
+					Component->Modify(GetShouldDirtyPackage());
 					for (ULandscapeLayerInfoObject* LayerInfoNeedingAllocation : NeedAllocationInfos)
 					{
 						if (PaintingRestriction == ELandscapeLayerPaintingRestriction::UseMaxLayers &&
@@ -3439,7 +3474,7 @@ void FLandscapeEditDataInterface::SetAlphaData(const TSet<ULandscapeLayerInfoObj
 			{
 				if (LayerEditDataAllZero[LayerIdx])
 				{
-					bool bLayerDeleted = DeleteLayerIfAllZero(Component, LayerDataInfos[LayerIdx].TexDataPtr, TexSize, LayerIdx);
+					bool bLayerDeleted = DeleteLayerIfAllZero(Component, LayerDataInfos[LayerIdx].TexDataPtr, TexSize, LayerIdx, GetShouldDirtyPackage());
 
 					if (bLayerDeleted)
 					{
@@ -4300,7 +4335,7 @@ FLandscapeTextureDataInfo* FLandscapeTextureDataInterface::GetTextureDataInfo(UT
 	FLandscapeTextureDataInfo* Result = TextureDataMap.FindRef(Texture);
 	if( !Result )
 	{
-		Result = TextureDataMap.Add(Texture, new FLandscapeTextureDataInfo(Texture));
+		Result = TextureDataMap.Add(Texture, new FLandscapeTextureDataInfo(Texture, GetShouldDirtyPackage()));
 	}
 	return Result;
 }
@@ -4763,7 +4798,7 @@ void FLandscapeEditDataInterface::SetXYOffsetDataTempl(int32 X1, int32 Y1, int32
 			{
 				if (Component->XYOffsetmapTexture == NULL)
 				{
-					Component->Modify();
+					Component->Modify(GetShouldDirtyPackage());
 					//FlushRenderingCommands();
 					// Construct Texture...
 					int32 WeightmapSize = (Component->SubsectionSizeQuads+1) * Component->NumSubsections;
@@ -5564,14 +5599,14 @@ void FLandscapeEditDataInterface::GetXYOffsetDataFast(const int32 X1, const int3
 // FLandscapeTextureDataInfo
 //
 
-FLandscapeTextureDataInfo::FLandscapeTextureDataInfo(UTexture2D* InTexture)
+FLandscapeTextureDataInfo::FLandscapeTextureDataInfo(UTexture2D* InTexture, bool bShouldDirtyPackage)
 :	Texture(InTexture)
 {
 	check(InTexture->IsAsyncCacheComplete());
 	MipInfo.AddZeroed(Texture->Source.GetNumMips());
 	Texture->SetFlags(RF_Transactional);
 	Texture->TemporarilyDisableStreaming();
-	Texture->Modify();
+	Texture->Modify(bShouldDirtyPackage);
 }
 
 bool FLandscapeTextureDataInfo::UpdateTextureData()

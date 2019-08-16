@@ -1,4 +1,4 @@
-Availability: Public
+Availability: Docs
 Title:3. Using Cinematic Exposed Variables
 Crumbs: %ROOT%, Engine, Engine/Sequencer, Engine/Sequencer/HowTo
 Description:In this step we add our cinematic exposed variable to our Sequence and set up a method for triggering the Sequence playback. 
@@ -9,7 +9,7 @@ order:3
 checkpoint: editorqs
 tags:Sequencer
 tags:Animation
-type:how-to
+type:multi-step
 
 [VAR:Steps]
 [OBJECT:Navigation]

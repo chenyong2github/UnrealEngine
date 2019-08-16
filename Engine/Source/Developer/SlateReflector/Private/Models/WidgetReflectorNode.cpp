@@ -136,6 +136,26 @@ bool FLiveWidgetReflectorNode::GetWidgetFocusable() const
 	return FWidgetReflectorNodeUtils::GetWidgetFocusable(Widget.Pin());
 }
 
+bool FLiveWidgetReflectorNode::GetWidgetNeedsTick() const
+{
+	return FWidgetReflectorNodeUtils::GetWidgetNeedsTick(Widget.Pin());
+}
+
+bool FLiveWidgetReflectorNode::GetWidgetIsVolatile() const
+{
+	return FWidgetReflectorNodeUtils::GetWidgetIsVolatile(Widget.Pin());
+}
+
+bool FLiveWidgetReflectorNode::GetWidgetIsVolatileIndirectly() const
+{
+	return FWidgetReflectorNodeUtils::GetWidgetIsVolatileIndirectly(Widget.Pin());
+}
+
+bool FLiveWidgetReflectorNode::GetWidgetHasActiveTimers() const
+{
+	return FWidgetReflectorNodeUtils::GetWidgetHasActiveTimers(Widget.Pin());
+}
+
 FText FLiveWidgetReflectorNode::GetWidgetReadableLocation() const
 {
 	return FWidgetReflectorNodeUtils::GetWidgetReadableLocation(Widget.Pin());
@@ -205,6 +225,10 @@ FSnapshotWidgetReflectorNode::FSnapshotWidgetReflectorNode(const FArrangedWidget
 	, CachedWidgetVisibilityText(FWidgetReflectorNodeUtils::GetWidgetVisibilityText(InArrangedWidget.Widget))
 	, bCachedWidgetVisible(FWidgetReflectorNodeUtils::GetWidgetVisibility(InArrangedWidget.Widget))
 	, bCachedWidgetFocusable(FWidgetReflectorNodeUtils::GetWidgetFocusable(InArrangedWidget.Widget))
+	, CachedWidgetNeedsTick(FWidgetReflectorNodeUtils::GetWidgetNeedsTick(InArrangedWidget.Widget))
+	, CachedWidgetIsVolatile(FWidgetReflectorNodeUtils::GetWidgetIsVolatile(InArrangedWidget.Widget))
+	, CachedWidgetIsVolatileIndirectly(FWidgetReflectorNodeUtils::GetWidgetIsVolatileIndirectly(InArrangedWidget.Widget))
+	, CachedWidgetHasActiveTimers(FWidgetReflectorNodeUtils::GetWidgetHasActiveTimers(InArrangedWidget.Widget))
 	, CachedWidgetClippingText(FWidgetReflectorNodeUtils::GetWidgetClippingText(InArrangedWidget.Widget))
 	, CachedWidgetReadableLocation(FWidgetReflectorNodeUtils::GetWidgetReadableLocation(InArrangedWidget.Widget))
 	, CachedWidgetFile(FWidgetReflectorNodeUtils::GetWidgetFile(InArrangedWidget.Widget))
@@ -255,6 +279,26 @@ bool FSnapshotWidgetReflectorNode::GetWidgetVisible() const
 FText FSnapshotWidgetReflectorNode::GetWidgetClippingText() const
 {
 	return CachedWidgetClippingText;
+}
+
+bool FSnapshotWidgetReflectorNode::GetWidgetNeedsTick() const
+{
+	return CachedWidgetNeedsTick;
+}
+
+bool FSnapshotWidgetReflectorNode::GetWidgetIsVolatile() const
+{
+	return CachedWidgetIsVolatile;
+}
+
+bool FSnapshotWidgetReflectorNode::GetWidgetIsVolatileIndirectly() const
+{
+	return CachedWidgetIsVolatileIndirectly;
+}
+
+bool FSnapshotWidgetReflectorNode::GetWidgetHasActiveTimers() const
+{
+	return CachedWidgetHasActiveTimers;
 }
 
 FText FSnapshotWidgetReflectorNode::GetWidgetReadableLocation() const
@@ -660,6 +704,25 @@ bool FWidgetReflectorNodeUtils::GetWidgetFocusable(const TSharedPtr<SWidget>& In
 	return InWidget.IsValid() ? InWidget->SupportsKeyboardFocus() : false;
 }
 
+bool FWidgetReflectorNodeUtils::GetWidgetNeedsTick(const TSharedPtr<SWidget>& InWidget)
+{
+	return InWidget.IsValid() ? InWidget->GetCanTick() : false;
+}
+
+bool FWidgetReflectorNodeUtils::GetWidgetIsVolatile(const TSharedPtr<SWidget>& InWidget)
+{
+	return InWidget.IsValid() ? InWidget->IsVolatile() : false;
+}
+
+bool FWidgetReflectorNodeUtils::GetWidgetIsVolatileIndirectly(const TSharedPtr<SWidget>& InWidget)
+{
+	return InWidget.IsValid() ? InWidget->IsVolatileIndirectly() : false;
+}
+
+bool FWidgetReflectorNodeUtils::GetWidgetHasActiveTimers(const TSharedPtr<SWidget>& InWidget)
+{
+	return InWidget.IsValid() ? InWidget->HasActiveTimers() : false;
+}
 
 FText FWidgetReflectorNodeUtils::GetWidgetClippingText(const TSharedPtr<SWidget>& InWidget)
 {

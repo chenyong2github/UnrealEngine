@@ -77,7 +77,7 @@ void UInheritableComponentHandler::PostLoad()
 }
 
 #if WITH_EDITOR
-UActorComponent* UInheritableComponentHandler::CreateOverridenComponentTemplate(FComponentKey Key)
+UActorComponent* UInheritableComponentHandler::CreateOverridenComponentTemplate(const FComponentKey& Key)
 {
 	for (int32 Index = 0; Index < Records.Num(); ++Index)
 	{
@@ -93,7 +93,7 @@ UActorComponent* UInheritableComponentHandler::CreateOverridenComponentTemplate(
 		}
 	}
 
-	auto BestArchetype = FindBestArchetype(Key);
+	UActorComponent* BestArchetype = FindBestArchetype(Key);
 	if (!BestArchetype)
 	{
 		UE_LOG(LogBlueprint, Warning, TEXT("CreateOverridenComponentTemplate '%s': cannot find archetype for component '%s' from '%s'"),
@@ -140,34 +140,42 @@ UActorComponent* UInheritableComponentHandler::CreateOverridenComponentTemplate(
 		NewComponentTemplate->ClearPendingKill();
 		UEngine::FCopyPropertiesForUnrelatedObjectsParams CopyParams;
 		CopyParams.bDoDelta = false;
+		// No good can come of replacing references to BestArchetype with references to NewComponentTemplate
+		CopyParams.bNotifyObjectReplacement = false;
 		UEngine::CopyPropertiesForUnrelatedObjects(BestArchetype, NewComponentTemplate, CopyParams);
 	}
 
 	// Clear transient flag if it was transient before and re copy off archetype
-	if (NewComponentTemplate->HasAnyFlags(RF_Transient) && UnnecessaryComponents.Contains(NewComponentTemplate))
+	if (NewComponentTemplate->HasAnyFlags(RF_Transient))
+	{
+		const int32 ComponentIndex = UnnecessaryComponents.Find(NewComponentTemplate);
+		if (ComponentIndex != INDEX_NONE)
 		{
 			NewComponentTemplate->ClearFlags(RF_Transient);
-		UnnecessaryComponents.Remove(NewComponentTemplate);
+			UnnecessaryComponents.RemoveAtSwap(ComponentIndex);
 
 			UEngine::FCopyPropertiesForUnrelatedObjectsParams CopyParams;
 			CopyParams.bDoDelta = false;
+			// No good can come of replacing references to BestArchetype with references to NewComponentTemplate
+			CopyParams.bNotifyObjectReplacement = false;
 			UEngine::CopyPropertiesForUnrelatedObjects(BestArchetype, NewComponentTemplate, CopyParams);
 		}
+	}
 
 	FComponentOverrideRecord NewRecord;
 	NewRecord.ComponentKey = Key;
 	NewRecord.ComponentClass = NewComponentTemplate->GetClass();
 	NewRecord.ComponentTemplate = NewComponentTemplate;
-	Records.Add(NewRecord);
+	Records.Emplace(MoveTemp(NewRecord));
 
 	return NewComponentTemplate;
 }
 
-void UInheritableComponentHandler::RemoveOverridenComponentTemplate(FComponentKey Key)
+void UInheritableComponentHandler::RemoveOverridenComponentTemplate(const FComponentKey& Key)
 {
 	for (int32 Index = 0; Index < Records.Num(); ++Index)
 	{
-		FComponentOverrideRecord& Record = Records[Index];
+		const FComponentOverrideRecord& Record = Records[Index];
 		if (Record.ComponentKey.Match(Key))
 		{
 			Record.ComponentTemplate->MarkPendingKill(); // hack needed to be able to identify if NewObject returns this back to us in the future
@@ -179,9 +187,9 @@ void UInheritableComponentHandler::RemoveOverridenComponentTemplate(FComponentKe
 
 void UInheritableComponentHandler::UpdateOwnerClass(UBlueprintGeneratedClass* OwnerClass)
 {
-	for (auto& Record : Records)
+	for (FComponentOverrideRecord& Record : Records)
 	{
-		auto OldComponentTemplate = Record.ComponentTemplate;
+		UActorComponent* OldComponentTemplate = Record.ComponentTemplate;
 		if (OldComponentTemplate && (OwnerClass != OldComponentTemplate->GetOuter()))
 		{
 			Record.ComponentTemplate = DuplicateObject(OldComponentTemplate, OwnerClass, OldComponentTemplate->GetFName());
@@ -248,7 +256,7 @@ void UInheritableComponentHandler::ValidateTemplates()
 
 bool UInheritableComponentHandler::IsValid() const
 {
-	for (auto& Record : Records)
+	for (const FComponentOverrideRecord& Record : Records)
 	{
 		if (!IsRecordValid(Record))
 		{
@@ -358,18 +366,18 @@ bool UInheritableComponentHandler::IsRecordNecessary(const FComponentOverrideRec
 			return false;
 		}
 	
-		auto ChildComponentTemplate = Record.ComponentTemplate;
-		auto ParentComponentTemplate = FindBestArchetype(Record.ComponentKey);
+		UActorComponent* ChildComponentTemplate = Record.ComponentTemplate;
+		UActorComponent* ParentComponentTemplate = FindBestArchetype(Record.ComponentKey);
 		check(ChildComponentTemplate && ParentComponentTemplate && (ParentComponentTemplate != ChildComponentTemplate));
 		return !FComponentComparisonHelper::AreIdentical(ChildComponentTemplate, ParentComponentTemplate);
 	}
 }
 
-UActorComponent* UInheritableComponentHandler::FindBestArchetype(FComponentKey Key) const
+UActorComponent* UInheritableComponentHandler::FindBestArchetype(const FComponentKey& Key) const
 {
 	UActorComponent* ClosestArchetype = nullptr;
 
-	auto ActualBPGC = Cast<UBlueprintGeneratedClass>(GetOuter());
+	UBlueprintGeneratedClass* ActualBPGC = Cast<UBlueprintGeneratedClass>(GetOuter());
 	if (ActualBPGC && Key.GetComponentOwner() && (ActualBPGC != Key.GetComponentOwner()))
 	{
 		ActualBPGC = Cast<UBlueprintGeneratedClass>(ActualBPGC->GetSuperClass());
@@ -391,9 +399,9 @@ UActorComponent* UInheritableComponentHandler::FindBestArchetype(FComponentKey K
 	return ClosestArchetype;
 }
 
-bool UInheritableComponentHandler::RefreshTemplateName(FComponentKey OldKey)
+bool UInheritableComponentHandler::RefreshTemplateName(const FComponentKey& OldKey)
 {
-	for (auto& Record : Records)
+	for (FComponentOverrideRecord& Record : Records)
 	{
 		if (Record.ComponentKey.Match(OldKey))
 		{
@@ -406,7 +414,7 @@ bool UInheritableComponentHandler::RefreshTemplateName(FComponentKey OldKey)
 
 FComponentKey UInheritableComponentHandler::FindKey(UActorComponent* ComponentTemplate) const
 {
-	for (auto& Record : Records)
+	for (const FComponentOverrideRecord& Record : Records)
 	{
 		if (Record.ComponentTemplate == ComponentTemplate)
 		{
@@ -420,12 +428,11 @@ FComponentKey UInheritableComponentHandler::FindKey(UActorComponent* ComponentTe
 
 void UInheritableComponentHandler::PreloadAllTempates()
 {
-	for (auto Record : Records)
+	for (const FComponentOverrideRecord& Record : Records)
 	{
 		if (Record.ComponentTemplate && Record.ComponentTemplate->HasAllFlags(RF_NeedLoad))
 		{
-			auto Linker = Record.ComponentTemplate->GetLinker();
-			if (Linker)
+			if (FLinkerLoad* Linker = Record.ComponentTemplate->GetLinker())
 			{
 				Linker->Preload(Record.ComponentTemplate);
 			}
@@ -437,8 +444,7 @@ void UInheritableComponentHandler::PreloadAll()
 {
 	if (HasAllFlags(RF_NeedLoad))
 	{
-		auto Linker = GetLinker();
-		if (Linker)
+		if (FLinkerLoad* Linker = GetLinker())
 		{
 			Linker->Preload(this);
 		}
@@ -458,21 +464,21 @@ FComponentKey UInheritableComponentHandler::FindKey(const FName VariableName) co
 	return FComponentKey();
 }
 
-UActorComponent* UInheritableComponentHandler::GetOverridenComponentTemplate(FComponentKey Key) const
+UActorComponent* UInheritableComponentHandler::GetOverridenComponentTemplate(const FComponentKey& Key) const
 {
-	auto Record = FindRecord(Key);
+	const FComponentOverrideRecord* Record = FindRecord(Key);
 	return Record ? Record->ComponentTemplate : nullptr;
 }
 
-const FBlueprintCookedComponentInstancingData* UInheritableComponentHandler::GetOverridenComponentTemplateData(FComponentKey Key) const
+const FBlueprintCookedComponentInstancingData* UInheritableComponentHandler::GetOverridenComponentTemplateData(const FComponentKey& Key) const
 {
-	auto Record = FindRecord(Key);
+	const FComponentOverrideRecord* Record = FindRecord(Key);
 	return Record ? &Record->CookedComponentInstancingData : nullptr;
 }
 
-const FComponentOverrideRecord* UInheritableComponentHandler::FindRecord(const FComponentKey Key) const
+const FComponentOverrideRecord* UInheritableComponentHandler::FindRecord(const FComponentKey& Key) const
 {
-	for (auto& Record : Records)
+	for (const FComponentOverrideRecord& Record : Records)
 	{
 		if (Record.ComponentKey.Match(Key))
 		{
@@ -486,12 +492,12 @@ void UInheritableComponentHandler::FixComponentTemplateName(UActorComponent* Com
 {
 	// Look for a collision with the template we're trying to rename here. It's possible that names were swapped on the
 	// original component template objects that were inherited from the associated Blueprint's parent class, for example.
-	FComponentOverrideRecord* MatchingRecord = Records.FindByPredicate([ComponentTemplate, NewName](FComponentOverrideRecord& Record)
+	FComponentOverrideRecord* MatchingRecord = Records.FindByPredicate([ComponentTemplate, &NewName](FComponentOverrideRecord& Record)
 	{
 		if (Record.ComponentTemplate && Record.ComponentTemplate != ComponentTemplate && Record.ComponentTemplate->GetName() == NewName)
 		{
 			const UActorComponent* OriginalTemplate = Record.ComponentKey.GetOriginalTemplate();
-			return ensureMsgf(OriginalTemplate && OriginalTemplate->GetName() != Record.ComponentTemplate->GetName(),
+			return ensureMsgf(OriginalTemplate && OriginalTemplate->GetFName() != Record.ComponentTemplate->GetFName(),
 				TEXT("Found a collision with an existing override record, but its associated template object is either invalid or already matches its inherited template's name (%s). This is unexpected."), *NewName);
 		}
 
@@ -531,7 +537,7 @@ FComponentKey::FComponentKey(UBlueprint* Blueprint, const FUCSComponentId& UCSCo
 }
 #endif // WITH_EDITOR
 
-bool FComponentKey::Match(const FComponentKey OtherKey) const
+bool FComponentKey::Match(const FComponentKey& OtherKey) const
 {
 	return (OwnerClass == OtherKey.OwnerClass) && (AssociatedGuid == OtherKey.AssociatedGuid);
 }

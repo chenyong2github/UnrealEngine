@@ -37,7 +37,7 @@ public class SplashActivity extends Activity
 	private Intent GameActivityIntent;
 	private boolean WaitForPermission = false;
 
-	public static Logger Log = new Logger("UE4-SplashActivity");
+	public static Logger Log = new Logger("UE4", "SplashActivity");
 	
 	@SuppressLint("ObsoleteSdkInt")
 	@Override
@@ -101,6 +101,14 @@ public class SplashActivity extends Activity
 		if (android.os.Build.MANUFACTURER.equals("HUAWEI"))
 		{
 			BlockDisplayCutout = false;
+		}
+		else if (android.os.Build.MANUFACTURER.equals("HMD Global"))
+		{
+			String model = android.os.Build.MODEL;
+			if (model.equals("Nokia 8.1"))
+			{
+				BlockDisplayCutout = false;
+			}
 		}
 		else if (android.os.Build.MANUFACTURER.equals("samsung"))
 		{

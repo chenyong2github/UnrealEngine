@@ -24,6 +24,7 @@
 #include "Misc/App.h"
 #include "Misc/EngineVersion.h"
 #include "HAL/PlatformMallocCrash.h"
+#include "Unix/UnixPlatformRealTimeSignals.h"
 #include "Unix/UnixPlatformRunnableThread.h"
 #include "HAL/ExceptionHandling.h"
 #include "Stats/Stats.h"
@@ -421,11 +422,25 @@ void FUnixCrashContext::GenerateCrashInfoAndLaunchReporter(bool bReportingNonCra
 	}
 #endif
 
+	bool bImplicitSend = false;
+	if (!UE_EDITOR && GConfig && !bReportingNonCrash)
+	{
+		// Only check if we are in a non-editor build
+		GConfig->GetBool(TEXT("CrashReportClient"), TEXT("bImplicitSend"), bImplicitSend, GEngineIni);
+	}
+
 	// By default we wont upload unless the *.ini has set this to true
 	bool bSendUnattendedBugReports = false;
 	if (GConfig)
 	{
 		GConfig->GetBool(TEXT("/Script/UnrealEd.CrashReportsPrivacySettings"), TEXT("bSendUnattendedBugReports"), bSendUnattendedBugReports, GEditorSettingsIni);
+	}
+
+	// Controls if we want analytics in the crash report client
+	bool bSendUsageData = true;
+	if (GConfig)
+	{
+		GConfig->GetBool(TEXT("/Script/UnrealEd.AnalyticsPrivacySettings"), TEXT("bSendUsageData"), bSendUsageData, GEditorSettingsIni);
 	}
 
 	// If we are not an editor but still want to agree to upload for non-licensee check the settings
@@ -440,6 +455,7 @@ void FUnixCrashContext::GenerateCrashInfoAndLaunchReporter(bool bReportingNonCra
 		// do not send unattended reports in licensees' builds except for the editor, where it is governed by the above setting
 		bSendUnattendedBugReports = false;
 		bAgreeToCrashUpload = false;
+		bSendUsageData = false;
 	}
 
 	bool bSkipCRC = bUnattended && !bSendUnattendedBugReports && !bAgreeToCrashUpload;
@@ -558,7 +574,17 @@ void FUnixCrashContext::GenerateCrashInfoAndLaunchReporter(bool bReportingNonCra
 			CrashReportClientArguments += TEXT("\"\"") + CrashReportLogFilepath + TEXT("\"\"");
 			CrashReportClientArguments += TEXT(" ");
 
-			if (bUnattended)
+			// If the editor setting has been disabled to not send analytics extend this to the CRC
+			if (!bSendUsageData)
+			{
+				CrashReportClientArguments += TEXT(" -NoAnalytics ");
+			}
+
+			if (bImplicitSend)
+			{
+				CrashReportClientArguments += TEXT(" -Unattended -ImplicitSend ");
+			}
+			else if (bUnattended)
 			{
 				CrashReportClientArguments += TEXT(" -Unattended ");
 			}
@@ -654,6 +680,7 @@ void DefaultCrashHandler(const FUnixCrashContext & Context)
 	const_cast<FUnixCrashContext&>(Context).CaptureStackTrace();
 	if (GLog)
 	{
+		GLog->SetCurrentThreadAsMasterThread();
 		GLog->Flush();
 	}
 	if (GWarn)
@@ -720,6 +747,27 @@ void PlatformCrashHandler(int32 Signal, siginfo_t* Info, void* Context)
 	{
 		// call default one
 		DefaultCrashHandler(CrashContext);
+	}
+}
+
+void ThreadStackWalker(int32 Signal, siginfo_t* Info, void* Context)
+{
+	ThreadStackUserData* ThreadStackData = static_cast<ThreadStackUserData*>(Info->si_value.sival_ptr);
+
+	if (ThreadStackData)
+	{
+		if (ThreadStackData->bCaptureCallStack)
+		{
+			// One for the pthread frame and one for siqueue
+			int32 IgnoreCount = 2;
+			FPlatformStackWalk::StackWalkAndDump(ThreadStackData->CallStack, ThreadStackData->CallStackSize, IgnoreCount);
+		}
+		else
+		{
+			ThreadStackData->BackTraceCount = FPlatformStackWalk::CaptureStackBackTrace(ThreadStackData->BackTrace, ThreadStackData->CallStackSize);
+		}
+
+		ThreadStackData->bDone = true;
 	}
 }
 
@@ -812,6 +860,13 @@ void FUnixPlatformMisc::SetCrashHandler(void (* CrashHandler)(const FGenericCras
 			sigaction(Signal, &Action, nullptr);
 		}
 	}
+
+	struct sigaction ActionForThread;
+	FMemory::Memzero(ActionForThread);
+	sigfillset(&ActionForThread.sa_mask);
+	ActionForThread.sa_flags = SA_SIGINFO | SA_RESTART | SA_ONSTACK;
+	ActionForThread.sa_sigaction = ThreadStackWalker;
+	sigaction(THREAD_CALLSTACK_GENERATOR, &ActionForThread, nullptr);
 
 	checkf(IsInGameThread(), TEXT("Crash handler for the game thread should be set from the game thread only."));
 

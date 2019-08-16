@@ -1,0 +1,307 @@
+Availability: Docs
+Title: Behavior Tree User Guide
+Description: Describes how to create and edit Behavior Trees and Behavior Tree related assets. 
+Type: overview
+Version: 4.21
+Parent: Engine/ArtificialIntelligence/BehaviorTrees
+Tags: AI
+Tags: Behavior Trees
+Tags: Behavior Tree Essentials
+topic-image: BehaviorTreeUserGuide_Topic.png
+social-image: BehaviorTreeUserGuide_Topic.png
+topic-icon: BehaviorTreeUserGuide_Topic.png
+Order: 2
+
+
+[TOC (start:2 end:3)]
+
+## Creating Behavior Tree Assets
+
+This section illustrates how to create the various **Behavior Tree **assets within Unreal Engine 4. 
+
+### Creating a Behavior Tree
+
+**Behavior Trees** are essentially the AI's processor and can make decisions and execute various branches based on the outcome of those decisions. **Behavior Trees** are created inside the **Content Browser **in the following manner: 
+
+Click the **Add New **button, then under **Create Advanced Asset** select **Artificial Intelligence** and **Behavior Tree**.
+
+![](BTUG_01.png "BTUG_01.png")
+
+The new **Behavior Tree** asset will be added to the **Content Browser** where you can define its name.
+
+![](BTUG_02.png "BTUG_02.png")
+
+[REGION:tip]
+You can also use the right-click context menu and select **Add New > Artificial Intelligence > Behavior Tree. **
+[/REGION]
+
+### Creating a Blackboard
+
+The **Blackboard **asset can be considered as the "brain" of the AI and stores **Key** values that the **Behavior Tree** uses to make its decisions.  **Blackboard **assets can be created using the following methods:
+
+Click the **Add New **button, then under **Create Advanced Asset **select **Artificial Intelligence **and **Blackboard**.
+
+![](BTUG_03.png "BTUG_03.png")  
+
+The new **Blackboard **asset will be added to the **Content Browser **which you can rename to your desired name.
+
+![](BTUG_04-1.png "BTUG_04-1.png")
+
+Another method in which you can create a Blackboard is inside a Behavior Tree: 
+
+Inside the **Behavior Tree Editor** from the Toolbar by click the **New Blackboard **button. 
+
+![](BTUG_05.png "BTUG_05.png")  
+
+This will also create a new **Blackboard** asset inside the **Content Browser**. 
+
+### Creating a Behavior Tree Task
+
+A **Task **is an "action" you want the AI to perform, such as move to a location or rotate to face something. 
+
+[REGION:note]
+If optimization is a concern, you may want to consider switching Blueprint Behavior Tree Tasks to native Behavior Tree Tasks.
+[/REGION]
+
+In addition to the existing **Tasks** available, you can create custom **Tasks** with your own logic: 
+
+Click the **New Task **button from the Toolbar inside the **Behavior Tree Editor**. 
+
+![](BTUG_Task.png "BTUG_Task.png")  
+
+This will open a new **Blueprint** of the **BTTask_BlueprintBase** class where you can provide your **Task** logic. 
+
+![](BTUG_Task_2.png "BTUG_Task_2.png")  
+
+The **Task Blueprint** will be created inside the **Content Browser **in the same location as your **Behavior Tree** asset. 
+
+[REGION:tip]
+Whenever you create a new **Task **from the **Behavior Tree Editor**, it's a good practice to go into the **Content Browser **and rename the asset instead of using the default name.
+[/REGION]
+
+When creating a new **Task**, you can use an existing **Behavior Tree Task** as the **Parent Class **to inherit functionality from by selecting it from the drop-down menu. 
+
+![](BTUG_Task_3.png "BTUG_Task_3.png")
+
+### Creating a Behavior Tree Decorator
+
+**Decorators **(also known as conditionals) attach to nodes inside **Behavior Trees** and can be used to make decisions on whether a branch (or even a single node) in the tree can be executed. There are several default **Decorators** that you can use in your **Behavior Trees**, however, you can also create custom ones:
+
+Click the **New Decorator **button from the Toolbar inside the **Behavior Tree Editor**. 
+
+![](BTUG_Decorator.png "BTUG_Decorator.png")  
+
+This will open a new **BTDecorator_BlueprintBase **class where you can provide your **Decorator** logic. 
+
+![](BTUG_Decorator_2.png "BTUG_Decorator_2.png")  
+
+The **Decorator Blueprint** will be created inside the **Content Browser **in the same location as your **Behavior Tree** asset. 
+
+[REGION:tip]
+Whenever you create a new **Decorator **from the **Behavior Tree Editor**, it's a good practice to go into the **Content Browser **and rename the asset instead of using the default name.
+[/REGION]
+
+When creating a new **Decorator**, you can use an existing **Behavior Tree Decorator** as the **Parent Class** to inherit functionality from by selecting it from the drop-down menu. 
+
+![](BTUG_Decorator_3.png "BTUG_Decorator_3.png")  
+  
+
+### Creating a Behavior Tree Service
+
+**Services** attach to **Composite** nodes and will execute at their defined frequency as long as their branch is being executed. These are often used to make checks and to update the **Blackboard **and take the place of traditional Parallel nodes in other Behavior Tree systems. While there are a few **Services **available by default, you will more than likely want to create your own custom **Services** that assist in determining how your **Behavior Tree** is executed. 
+
+[REGION:note]
+If optimization is a concern, you may want to consider switching Blueprint Behavior Tree Services to native Behavior Tree Services.
+[/REGION]
+
+Click the **New Service **button from the Toolbar inside the **Behavior Tree Editor**. 
+
+![](BTUG_Service.png "BTUG_Service.png")  
+
+This will open a new **BTService_BlueprintBase **class where you can provide your **Service **logic. 
+
+![](BTUG_Service_2.png "BTUG_Service_2.png")  
+
+The **Service** **Blueprint** will be created inside the **Content Browser** in the same location as your **Behavior Tree** asset. 
+
+[REGION:tip]
+Whenever you create a new **Service** from the **Behavior Tree Editor**, it's a good practice to go into the **Content Browser **and rename the asset instead of using the default name.
+[/REGION]
+
+When creating a new **Service**, you can use an existing **Behavior Tree Service **as the **Parent Class **to inherit functionality from by selecting it from the drop-down menu. 
+
+![](BTUG_Service_3.png "BTUG_Service_3.png")
+
+## Editing a Blackboard
+
+Usually you'll create a **Blackboard** before your **Behavior Tree** as the **Behavior Tree** references the **Blackboard** in its decision making process (you can always add **Keys** later as you need them). You can edit a **Blackboard** asset by double-clicking on the asset in the **Content Browser** to open it up in the **Blackboard Editor**.  
+
+![](BTUG_BB_01.png "BTUG_BB_01.png")
+
+If you are editing a **Behavior Tree** that has an assigned **Blackboard**, you can switch to the **Blackboard** by clicking the tab in the upper-right corner of the window.  
+
+![](BTUG_BB_02.png "BTUG_BB_02.png")  
+
+In the **Blackboard Details** panel, you can assign a different **Blackboard** as the **Parent**, inheriting **Keys** from it.  
+
+![](BTUG_BB_Parent-1.png "BTUG_BB_Parent-1.png")
+
+You can add **Keys** by clicking the **New Key** button in the **Blackboard** window.  
+
+![](BTUG_BB_03.png "BTUG_BB_03.png")
+
+[REGION:note]
+Please see [Blueprint Variables](Engine/Blueprints/UserGuide/Variables) for a breakdown of variable types that can be stored as **Keys**.
+[/REGION]
+
+When a **Key** has been created, you can define properties associated with the **Key** in the **Blackboard Details** panel.  
+
+![](BTUG_BB_04.png "BTUG_BB_04.png")  
+
+  
+| Property | Description |
+| --- | --- |
+| **Entry Name** | The user defined name of the Key. |
+| **Entry Description** | Optional description to explain what this Blackboard Key does. |
+| **Key Type** | [INCLUDE:#excerpt_0] |
+| **Instance Synced** | This is used to determine if the Key will be synchronized across all instances of the Blackboard. |
+
+<!--
+[EXCERPT:excerpt_0]
+
+Defined when you create the Key, however **Object** and **Class** Keys provide the additional option of defining a specific **Class**. This enables you to store any type of data that inherits from Object (such as Actors) in them.  
+
+[/EXCERPT:excerpt_0]
+-->
+
+To **Rename** or **Delete** Key, right-click a **Key** to bring up the context menu, or press **F2** or **Delete** on a **Key**.  
+
+![](BTUG_BB_05.png "BTUG_BB_05.png")
+
+For **Class** and **Object** Keys, you can click the little triangle beside **Key Type** which enables you to define the Base Actor Class to use.  
+
+![](BTUserGuide_BaseClass.png "BTUserGuide_BaseClass.png")
+
+For **Enum** Keys, there are additional properties that can be set by clicking the little triangle beside **Key Type**.  
+
+![](BTUserGuide_AdvancedEnum.png "BTUserGuide_AdvancedEnum.png")
+
+  
+| Property | Description |
+| --- | --- |
+| **Enum Type** | The assigned Enumeration to use. |
+| **Enum Name** | The name of the enum defined in C++ code, will take priority over the asset assigned under **Enum Type**. |
+| **Is Enum Name Valid** | Set when **Enum Name** override is valid and active. |
+
+## Editing a Behavior Tree
+
+To edit a **Behavior Tree**, you will need to open a **Behavior Tree **asset: 
+
+Double-click a **Behavior Tree **asset in the **Content Browser** to enter **Behavior Tree Mode**. 
+
+![](BTUG_BT_01-1.png "BTUG_BT_01-1.png")  
+
+Or by switching over to **Behavior Tree Mode**:
+
+Click the **Behavior Tree **tab in the upper-right corner of the **Behavior Tree Editor**. 
+
+![](BTUG_BT_02-1.png "BTUG_BT_02-1.png")  
+
+To switch over to **Behavior Tree Mode**, you will need to have a currently opened **Behavior Tree **asset and are switching from **Blackboard Mode**. 
+
+### Assigning a Blackboard
+
+In order for the **Behavior Tree** to access a **Blackboard**, you must assign a **Blackboard **asset: 
+
+Select the **Root **node in the graph (or deselect all nodes), then in the **Details **panel, set your desired **Blackboard Asset**. 
+
+![](BTUG_BT_03-1.png "BTUG_BT_03-1.png")  
+
+After assigning a **Blackboard**, the **Blackboard **panel will update with its associated **Blackboard Keys**.
+
+![](BTUG_BT_03b-1.png "BTUG_BT_03b-1.png")
+
+### Working with Nodes
+
+To add **Composites **or **Tasks **to the graph of your **Behavior Tree**, right-click the graph to bring up the context menu and select your desired node. 
+
+![](BTUG_BT_Nodes.png "BTUG_BT_Nodes.png")
+[REGION:note]
+Only **Composite **nodes can be connected to the **Root **node of a **Behavior Tree**.
+[/REGION]
+
+You can also drag off a node and select a node to add from the context menu. 
+
+![](BTUG_BT_DragAdd.png "BTUG_BT_DragAdd.png")
+
+To remove nodes from the graph, select a node (or nodes) and press **Delete** (or right-click and select **Delete**). 
+
+![](BTUG_BT_Delete.png "BTUG_BT_Delete.png")
+
+To connect nodes together, left-click and drag from the output pin, to an input pin on another node. 
+
+![](BTUG_BT_ConnectNodes.png "BTUG_BT_ConnectNodes.png")
+[REGION:note]
+Connecting nodes in **Behavior Trees** only work by connecting an output to an input (you cannot connect from an input to an output).
+[/REGION]
+
+To disconnect nodes, right-click a node (or define a selection of nodes) and select your desired **Break Link(s) **method. 
+
+![](BTUG_BT_BreakLinks.png "BTUG_BT_BreakLinks.png")  
+**Break Link(s) **can be used to break a single link or multiple nodes that are linked. **Break link to**... will break the connection to the specified node. 
+[REGION:note]
+You can also press alt + left-click on an input or output pin to break the connection.
+[/REGION]
+
+To edit a node, select a node, then in the **Details **panel you can adjust its properties.
+
+![](BTUG_BT_NodeDetails.png "BTUG_BT_NodeDetails.png")
+
+You can also copy and paste selected nodes and their settings. To do this, select a node (or drag a selection box around a selection of nodes) then press ctrl+c (to copy) and ctrl+v (to paste). 
+
+![](BTUserGuide_CopyPasteNodes.png "BTUserGuide_CopyPasteNodes.png")
+
+### Node Decorators and Services
+
+You can add **Decorators **or **Services **to a node in your **Behavior Tree **graphs from the node context menu.
+
+To do this, right-click a **Composite **or **Task **node, then select the **Decorator **or **Service** you want to add to the node. 
+
+![](BTUG_RightClickContext.png "BTUG_RightClickContext.png")
+
+To remove a **Decorator **or **Service **from a node, select a **Decorator **or **Service** then press the **Delete **key or use the right-click context menu. 
+
+![](BTUG_DeleteContext.png "BTUG_DeleteContext.png")
+
+To edit a **Decorator **or **Service **attached to the node, first select the **Decorator **or **Service**, then you can adjust your desired properties in the **Details **panel. 
+
+![](BTUG_DecoratorDetails.png "BTUG_DecoratorDetails.png")
+
+**Composite** **Decorators **that are added to a node, can be opened up for editing. 
+
+To open a Composite Decorator, double-click a **Composite Decorator** to open a graph that returns a Boolean (true or false) value. 
+
+[REGION:lightbox]
+[![](BTUG_Composites.png)(w:900)](BTUG_Composites.png)
+[/REGION]
+[REGION:caption]
+Click image for full view
+[/REGION]
+
+Any **Task**, **Decorator**, or **Service **created from the toolbar, can be opened up in **Blueprint **for editing.
+
+After creating a custom **Task**, **Decorator**, or **Service** and adding it to your graph, double-click it to open it for editing: 
+
+![](BTUG_UserGenerated.png "BTUG_UserGenerated.png")
+
+You can also open any custom **Task**, **Decorator**, or **Service **in the **Content Browser**.
+
+Double-click a custom **Task**, **Decorator**, or **Service** in the **Content Browser** to open it in **Blueprint** for editing. 
+
+![](BTUG_ContentBrowser.png "BTUG_ContentBrowser.png")
+
+You can also copy **Decorators **or **Services **and paste them onto other nodes.
+
+Select a Decorator or Service and press ctrl+c (to copy) and ctrl+v (to paste) onto another node. 
+
+![](BTUserGuide_DecoratorsServices.png)

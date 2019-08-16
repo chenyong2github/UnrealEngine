@@ -125,7 +125,7 @@ namespace nDisplayLauncher.Cluster.Config
 			return CleanString;
 		}
 
-		public static string GetStringValue(string ArgName, string text)
+		public static string GetStringValue(string text, string ArgName, string DefaultValue = "")
 		{
 			// Break the string to separate key-value substrings
 			string[] ArgValPairs = text.Split(' ');
@@ -134,99 +134,163 @@ namespace nDisplayLauncher.Cluster.Config
 			foreach (string Pair in ArgValPairs)
 			{
 				string[] KeyValue = Pair.Trim().Split('=');
-				if (KeyValue[0].CompareTo(ArgName) == 0)
+				if (KeyValue[0].Equals(ArgName, StringComparison.InvariantCultureIgnoreCase))
 				{
-					return KeyValue[1];
+					char[] charsToTrim = { '\"' };
+					return KeyValue[1].Trim(charsToTrim);
 				}
 			}
 
-			return string.Empty;
+			return DefaultValue;
 		}
 
-		public static bool GetBoolValue(string ArgName, string text)
+		public static string SetValue<T>(string text, string ArgName, T ArgVal)
 		{
-			string Value = GetStringValue(ArgName, text);
+			string Result = string.Empty;
+			bool ValueFoundAndSet = false;
 
-			if (Value.CompareTo("true") == 0 || Value.CompareTo("1") == 0)
+			// Break the string to separate key-value substrings
+			string[] ArgValPairs = text.Split(' ');
+
+			// Parse each key-value substring to find the requested argument (key)
+			foreach (string Pair in ArgValPairs)
+			{
+				string[] KeyValue = Pair.Trim().Split('=');
+				if (KeyValue[0].Equals(ArgName, StringComparison.InvariantCultureIgnoreCase))
+				{
+					Result += string.Format("{0}=\"{1}\" ", KeyValue[0], ArgVal.ToString());
+					ValueFoundAndSet = true;
+				}
+				else
+				{
+					// Just add the pair
+					Result += (Pair + " ");
+				}
+			}
+
+			// If no value found, add it
+			if (!ValueFoundAndSet)
+			{
+				Result += string.Format("{0}=\"{1}\" ", ArgName, ArgVal.ToString());
+			}
+
+			return Result.Trim();
+		}
+
+		public static bool GetBoolValue(string text, string ArgName, bool DefaultValue = false)
+		{
+			string Value = GetStringValue(text, ArgName);
+			if (string.IsNullOrEmpty(Value))
+			{
+				return DefaultValue;
+			}
+
+			if (Value.Equals("true", StringComparison.InvariantCultureIgnoreCase) || Value.CompareTo("1") == 0)
 			{
 				return true;
 			}
-			else if (Value.CompareTo("false") == 0 || Value.CompareTo("0") == 0)
+			else if (Value.Equals("false", StringComparison.InvariantCultureIgnoreCase) || Value.CompareTo("0") == 0)
 			{
 				return false;
 			}
 			else
 			{
-				// some logs
-				return false;
+				return DefaultValue;
 			}
 		}
 
-		public static int GetIntValue(string ArgName, string text)
+		public static int GetIntValue(string text, string ArgName, int DefaultValue = 0)
 		{
-			string StringValue = GetStringValue(ArgName, text);
+			string StringValue = GetStringValue(text, ArgName);
+			if (string.IsNullOrEmpty(StringValue))
+			{
+				return DefaultValue;
+			}
+
 			int IntValue = 0;
 
 			try
 			{
 				IntValue = int.Parse(StringValue);
 			}
-			catch (Exception)
+			catch (Exception e)
 			{
-				// some logs
+				AppLogger.Log(string.Format("An error occurred while parsing {0} to int:\n{1}", ArgName, e.Message));
+				return DefaultValue;
 			}
 
 			return IntValue;
 		}
 
-		public static List<string> GetStringArrayValue(string ArgName, string text)
+		public static float GetFloatValue(string text, string ArgName, float DefaultValue = 0.0f)
 		{
-			string[] Values = null;
-			string StringValue = GetStringValue(ArgName, text);
+			string StringValue = GetStringValue(text, ArgName);
+			if (string.IsNullOrEmpty(StringValue))
+			{
+				return DefaultValue;
+			}
+
+			float FloatValue = 0;
 
 			try
 			{
-				// Remove leading quotes
-				if (StringValue.StartsWith("\""))
-				{
-					StringValue = StringValue.Substring(1);
-				}
+				FloatValue = float.Parse(StringValue);
+			}
+			catch (Exception e)
+			{
+				AppLogger.Log(string.Format("An error occurred while parsing {0} to float:\n{1}", ArgName, e.Message));
+				return DefaultValue;
+			}
 
-				// Remove trailing quotes
-				if (StringValue.EndsWith("\""))
-				{
-					StringValue = StringValue.Substring(0, StringValue.Length - 1);
-				}
+			return FloatValue;
+		}
+
+		public static List<string> GetStringArrayValue(string text, string ArgName, List<string> DefaultValue = null)
+		{
+			string StringValue = GetStringValue(text, ArgName);
+			if (string.IsNullOrEmpty(StringValue))
+			{
+				return DefaultValue;
+			}
+
+			string[] Values = null;
+
+			try
+			{
+				// Remove quotes
+				char[] charsToTrim = { '\"' };
+				StringValue = StringValue.Trim(charsToTrim);
 
 				// Split value parameters
 				Values = StringValue.Split(',');
 			}
-			catch (Exception)
+			catch (Exception e)
 			{
-				// some logs
+				AppLogger.Log(string.Format("An error occurred while parsing {0} to array:\n{1}", ArgName, e.Message));
+				return DefaultValue;
 			}
 
 			return Values.ToList();
 		}
 
-		public static string RemoveArgument(string ArgName, string text)
+		public static string RemoveArgument(string text, string ArgName)
 		{
-			string Result = text.ToLower().Trim();
-			int Idx1 = Result.IndexOf(ArgName.ToLower().Trim());
-			if (Idx1 >= 0)
+			string Result = string.Empty;
+
+			// Break the string to separate key-value substrings
+			string[] ArgValPairs = text.Split(' ');
+
+			// Parse each key-value substring to find the requested argument (key)
+			foreach (string Pair in ArgValPairs)
 			{
-				int Idx2 = Result.IndexOf(' ', Idx1 + 1);
-				if (Idx2 > Idx1)
+				string[] KeyValue = Pair.Trim().Split('=');
+				if (!KeyValue[0].Equals(ArgName, StringComparison.InvariantCultureIgnoreCase))
 				{
-					Result = Result.Remove(Idx1, Idx2 - Idx1 + 1);
-				}
-				else
-				{
-					Result = Result.Remove(Idx1);
+					Result += (Pair + " ");
 				}
 			}
 
-			return Result;
+			return Result.Trim();
 		}
 	}
 }

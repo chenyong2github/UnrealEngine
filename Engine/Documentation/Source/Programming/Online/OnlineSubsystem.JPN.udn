@@ -56,7 +56,7 @@ Version:4.9
 
 オンラインサービスのセッションサービスのインターフェース定義です。セッションサービスは、セッションとそのステートの管理に関連するものとして定義されます。
 
-詳細は [](Programming/Online/Interfaces/Session) ページで参照してください。
+詳細は [](Programming/Online/SessionInterface) ページで参照してください。
 
 #### 共有クラウド
 
@@ -90,7 +90,7 @@ Version:4.9
 ## リファレンス
 
 [REGION:buttonlist]
-* [](Programming/Online/Interfaces/Session "%Programming/Online/Interfaces/Session:Description%")
+* [](Programming/Online/SessionInterface "%Programming/Online/SessionInterface:Description%")
 * [](Programming/Online/Types/ "%Programming/Online/Types:Description%")	
 [/REGION]
 

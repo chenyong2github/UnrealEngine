@@ -35,6 +35,9 @@ class SEQUENCER_API IKeyArea : public TSharedFromThis<IKeyArea>
 {
 public:
 
+	/** Serial number of the node tree from the last time this key area was seen */
+	uint32 TreeSerialNumber;
+
 	/**
 	 * Constructor
 	 *

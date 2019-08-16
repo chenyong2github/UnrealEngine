@@ -1021,6 +1021,31 @@ void FLinuxApplication::ProcessDeferredMessage( SDL_Event Event )
 	}
 }
 
+void FLinuxApplication::CheckIfApplicatioNeedsDeactivation()
+{
+	// If FocusOutDeactivationTime is set we have had a focus out event and are waiting to see if we need to Deactivate the Application
+	if (!FMath::IsNearlyZero(FocusOutDeactivationTime))
+	{
+		// We still havent hit our timeout limit, keep waiting
+		if (FocusOutDeactivationTime > FPlatformTime::Seconds())
+		{
+			return;
+		}
+		// If we don't use bIsDragWindowButtonPressed the draged window will be destroyed because we
+		// deactivate the whole appliacton. TODO Is that a bug? Do we have to do something?
+		else if (!CurrentFocusWindow.IsValid() && !bIsDragWindowButtonPressed)
+		{
+			DeactivateApplication();
+
+			FocusOutDeactivationTime = 0.0;
+		}
+		else
+		{
+			FocusOutDeactivationTime = 0.0;
+		}
+	}
+}
+
 FVector2D FLinuxApplication::GetTouchEventLocation(SDL_HWindow NativeWindow, SDL_Event TouchEvent)
 {
 	checkf(TouchEvent.type == SDL_FINGERDOWN || TouchEvent.type == SDL_FINGERUP || TouchEvent.type == SDL_FINGERMOTION, TEXT("Wrong touch event."));

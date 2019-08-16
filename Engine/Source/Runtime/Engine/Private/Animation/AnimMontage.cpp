@@ -2695,7 +2695,16 @@ UAnimMontage* FAnimMontageInstance::SetSequencerMontagePosition(FName SlotName, 
 			// ensure full weighting to this instance
 			MontageInstanceToUpdate->Blend.SetDesiredValue(Weight);
 			MontageInstanceToUpdate->Blend.SetAlpha(Weight);
-			MontageInstanceToUpdate->SetPosition(InPosition);
+			
+			if (bInPlaying)
+			{
+				MontageInstanceToUpdate->SetNextPositionWithEvents(InPosition);
+			}
+			else
+			{
+				MontageInstanceToUpdate->SetPosition(InPosition);
+			}
+
 			MontageInstanceToUpdate->bPlaying = bInPlaying;
 			return PlayingMontage;
 		}

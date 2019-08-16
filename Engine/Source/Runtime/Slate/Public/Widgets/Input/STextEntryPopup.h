@@ -26,7 +26,7 @@ public:
 		/** Test to place into text entry box before anything is typed */
 		SLATE_ARGUMENT( FText, DefaultText )
 
-		/** Called whenever the text is changed interactively by the user */
+		/** Called whenever the text is changed programmatically or interactively by the user */
 		SLATE_EVENT( FOnTextChanged, OnTextChanged )
 
 		/** Called when the text is committed. */

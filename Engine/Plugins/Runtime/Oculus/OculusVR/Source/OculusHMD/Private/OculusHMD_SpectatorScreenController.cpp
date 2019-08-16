@@ -64,7 +64,7 @@ void FSpectatorScreenController::RenderSpectatorModeUndistorted(FRHICommandListI
 	FIntRect DestRect(0, 0, TargetTexture->GetSizeX() / 2, TargetTexture->GetSizeY());
 	for (int i = 0; i < 2; ++i)
 	{
-		OculusHMD->CopyTexture_RenderThread(RHICmdList, EyeTexture, Settings->EyeRenderViewport[i], TargetTexture, DestRect, false, true);
+		OculusHMD->CopyTexture_RenderThread(RHICmdList, EyeTexture, Settings->EyeUnscaledRenderViewport[i], TargetTexture, DestRect, false, true);
 		DestRect.Min.X += TargetTexture->GetSizeX() / 2;
 		DestRect.Max.X += TargetTexture->GetSizeX() / 2;
 	}
@@ -87,7 +87,7 @@ void FSpectatorScreenController::RenderSpectatorModeSingleEye(FRHICommandListImm
 {
 	CheckInRenderThread();
 	FSettings* Settings = OculusHMD->GetSettings_RenderThread();
-	const FIntRect SrcRect= Settings->EyeRenderViewport[0];
+	const FIntRect SrcRect= Settings->EyeUnscaledRenderViewport[0];
 	const FIntRect DstRect(0, 0, TargetTexture->GetSizeX(), TargetTexture->GetSizeY());
 
 	OculusHMD->CopyTexture_RenderThread(RHICmdList, EyeTexture, SrcRect, TargetTexture, DstRect, false, true);

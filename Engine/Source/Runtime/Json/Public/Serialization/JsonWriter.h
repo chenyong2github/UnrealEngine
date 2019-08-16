@@ -352,7 +352,16 @@ protected:
 			case TCHAR('\f'): OutString += TEXT("\\f"); break;
 			case TCHAR('\r'): OutString += TEXT("\\r"); break;
 			case TCHAR('\"'): OutString += TEXT("\\\""); break;
-			default: OutString += *Char;
+			default: 
+				// Must escape control characters
+				if (*Char >= TCHAR(32))
+				{
+					OutString += *Char;
+				}
+				else
+				{
+					OutString += FString::Printf(TEXT("\\u%04x"), *Char);
+				}
 			}
 		}
 		OutString += TEXT("\"");

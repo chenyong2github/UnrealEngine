@@ -1,8 +1,8 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability: Public
-Title:마티네 트랙 참고서
+Title:마티네 트랙 레퍼런스
 Crumbs: %ROOT%, Engine, Engine/Matinee
-Description:마티네 애니메이션 툴에서 사용할 수 있는 모든 트랙 유형을 다루는 참고서입니다.
+Description:마티네 애니메이션 툴에서 사용할 수 있는 모든 트랙 유형을 다루는 레퍼런스입니다.
 Version: 4.9
 
 [TOC(start:2 end:2)]

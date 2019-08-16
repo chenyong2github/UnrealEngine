@@ -20,6 +20,14 @@ namespace D3D12RHI
 			TEXT("If true, enable stable power state. This increases GPU timing measurement accuracy but may decrease overall GPU clock rate."),
 			ECVF_Default
 			);
+
+		int32 GInsertOuterOcclusionQuery = 0;
+		static FAutoConsoleVariableRef CVarInsertOuterOcclusionQuery(
+			TEXT("D3D12.InsertOuterOcclusionQuery"),
+			GInsertOuterOcclusionQuery,
+			TEXT("If true, enable a dummy outer occlusion query around occlusion query batches. Can help performance on some GPU architectures"),
+			ECVF_Default
+		);
 	}
 }
 using namespace D3D12RHI;
@@ -36,7 +44,7 @@ FRenderQueryRHIRef FD3D12DynamicRHI::RHICreateRenderQuery(ERenderQueryType Query
 	});
 }
 
-bool FD3D12DynamicRHI::RHIGetRenderQueryResult(FRenderQueryRHIParamRef QueryRHI, uint64& OutResult, bool bWait)
+bool FD3D12DynamicRHI::RHIGetRenderQueryResult(FRHIRenderQuery* QueryRHI, uint64& OutResult, bool bWait)
 {
 	check(IsInRenderingThread());
 	FD3D12Adapter& Adapter = GetAdapter();
@@ -160,10 +168,29 @@ bool FD3D12Device::GetQueryData(FD3D12RenderQuery& Query, bool bWait)
 void FD3D12CommandContext::RHIBeginOcclusionQueryBatch(uint32 NumQueriesInBatch)
 {
 	GetParentDevice()->GetOcclusionQueryHeap()->StartQueryBatch(*this, NumQueriesInBatch);
+	if (RHIConsoleVariables::GInsertOuterOcclusionQuery)
+	{
+		if (!OuterOcclusionQuery.IsValid())
+		{
+			OuterOcclusionQuery = GDynamicRHI->RHICreateRenderQuery(RQT_Occlusion);
+		}
+		
+		FD3D12RenderQuery* OuterOcclusionQueryD3D12 = RetrieveObject<FD3D12RenderQuery>(OuterOcclusionQuery.GetReference());
+		GetParentDevice()->GetOcclusionQueryHeap()->BeginQuery(*this, OuterOcclusionQueryD3D12);
+		bOuterOcclusionQuerySubmitted = true;
+	}
 }
 
 void FD3D12CommandContext::RHIEndOcclusionQueryBatch()
 {
+	if (bOuterOcclusionQuerySubmitted)
+	{
+		check(OuterOcclusionQuery.IsValid());
+		FD3D12RenderQuery* OuterOcclusionQueryD3D12 = RetrieveObject<FD3D12RenderQuery>(OuterOcclusionQuery.GetReference());
+		check(OuterOcclusionQueryD3D12->HeapIndex != INDEX_NONE);
+		GetParentDevice()->GetOcclusionQueryHeap()->EndQuery(*this, OuterOcclusionQueryD3D12);
+		bOuterOcclusionQuerySubmitted = false;
+	}
 	GetParentDevice()->GetOcclusionQueryHeap()->EndQueryBatchAndResolveQueryData(*this);
 
 	// Note: We want to execute this ASAP. The Engine will call RHISubmitCommandHint after this.
@@ -255,19 +282,19 @@ uint32 FD3D12QueryHeap::AllocQuery(FD3D12CommandContext& CmdContext)
 			check(CurrentQueryBatch.bOpen && CurrentQueryBatch.ElementCount == 0);
 		}
 
-		if (CurrentQueryBatch.StartElement > CurrentElement)
-		{
-			// We're in the middle of a batch, but we're at the end of the heap
-			// We need to split the batch in two and resolve the first piece
-			EndQueryBatchAndResolveQueryData(CmdContext);
+	if (CurrentQueryBatch.StartElement > CurrentElement)
+	{
+		// We're in the middle of a batch, but we're at the end of the heap
+		// We need to split the batch in two and resolve the first piece
+		EndQueryBatchAndResolveQueryData(CmdContext);
 		}
 
 		// check for the the batch being closed due to wrap and open a new one
 		if (!CurrentQueryBatch.bOpen)
 		{
 			StartQueryBatch(CmdContext, 256);
-			check(CurrentQueryBatch.bOpen && CurrentQueryBatch.ElementCount == 0);
-		}
+		check(CurrentQueryBatch.bOpen && CurrentQueryBatch.ElementCount == 0);
+	}
 	}
 
 	// Increment the count for the current batch
@@ -344,9 +371,9 @@ void FD3D12QueryHeap::EndQueryBatchAndResolveQueryData(FD3D12CommandContext& Cmd
 	if (CurrentQueryBatch.StartElement + CurrentQueryBatch.ElementCount <= QueryHeapCount)
 	{
 		// Single range
-		CmdContext.CommandListHandle->ResolveQueryData(
-			QueryHeap, QueryType, CurrentQueryBatch.StartElement, CurrentQueryBatch.ElementCount,
-			ResultBuffer->GetResource(), GetResultBufferOffsetForElement(CurrentQueryBatch.StartElement));
+	CmdContext.CommandListHandle->ResolveQueryData(
+		QueryHeap, QueryType, CurrentQueryBatch.StartElement, CurrentQueryBatch.ElementCount,
+		ResultBuffer->GetResource(), GetResultBufferOffsetForElement(CurrentQueryBatch.StartElement));
 	}
 	else
 	{
@@ -390,7 +417,7 @@ void FD3D12QueryHeap::EndQuery(FD3D12CommandContext& CmdContext, FD3D12RenderQue
 
 	if (QueryType == D3D12_QUERY_TYPE_OCCLUSION)
 	{
-		check(CurrentQueryBatch.bOpen);
+	check(CurrentQueryBatch.bOpen);
 	}
 	else
 	{
@@ -452,7 +479,8 @@ void FD3D12QueryHeap::DestroyQueryHeap(bool bDeferDelete)
 	{
 		if (bDeferDelete)
 		{
-			GetParentDevice()->GetParentAdapter()->GetDeferredDeletionQueue().EnqueueResource(QueryHeap);
+			FD3D12Fence& Fence = GetParentDevice()->GetCommandListManager().GetFence();
+			GetParentDevice()->GetParentAdapter()->GetDeferredDeletionQueue().EnqueueResource(QueryHeap, &Fence);
 		}
 		else
 		{

@@ -5,6 +5,7 @@
 
 void FRigUnit_ModifyBoneTransforms::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	FRigHierarchyRef& HierarchyRef = ExecuteContext.HierarchyReference;
 	FRigHierarchy* Hierarchy = HierarchyRef.Get();
 	if (Hierarchy)
@@ -22,14 +23,8 @@ void FRigUnit_ModifyBoneTransforms::Execute(const FRigUnitContext& Context)
 			}
 			case EControlRigState::Update:
 			{
-				float Minimum = WeightMinimum;
-				float Maximum = WeightMaximum;
-				if (Maximum < Minimum)
-				{
-					float Temp = Minimum;
-					Minimum = Maximum;
-					Maximum = Minimum;
-				}
+				float Minimum = FMath::Min<float>(WeightMinimum, WeightMaximum);
+				float Maximum = FMath::Max<float>(WeightMinimum, WeightMaximum);
 
 				if (Weight <= Minimum + SMALL_NUMBER || FMath::IsNearlyEqual(Minimum, Maximum))
 				{

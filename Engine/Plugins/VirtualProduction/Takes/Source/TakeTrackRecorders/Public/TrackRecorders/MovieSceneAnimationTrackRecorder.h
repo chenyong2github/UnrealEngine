@@ -10,6 +10,7 @@
 #include "Animation/AnimSequence.h"
 #include "Serializers/MovieSceneAnimationSerialization.h"
 #include "Sections/MovieSceneSkeletalAnimationSection.h"
+#include "AnimationRecorder.h"
 #include "MovieSceneAnimationTrackRecorder.generated.h"
 
 class FMovieScene3DTransformTrackRecorder;
@@ -56,11 +57,12 @@ protected:
 
 public:
 	void RemoveRootMotion();
-	
+
 	UAnimSequence* GetAnimSequence() const { return AnimSequence.Get(); }
 	USkeletalMesh* GetSkeletalMesh() const { return SkeletalMesh.Get(); }
 	USkeletalMeshComponent* GetSkeletalMeshComponent() const { return SkeletalMeshComponent.Get(); }
 	const FTransform& GetComponentTransform() const { return ComponentTransform; }
+	const FTransform& GetInitialRootTransform() const { return InitialRootTransform; }
 
 private:
 	bool ResolveTransformToRecord(FTransform& TransformToRecord);
@@ -78,7 +80,17 @@ private:
 	/** Local transform of the component we are recording */
 	FTransform ComponentTransform;
 
-	bool bAnimationRecorderCreated; 
+	/** Inverse we are using to zero out root motion */
+	FTransform InitialRootTransform;
+
+	bool bAnimationRecorderCreated;
+
+	/** Animatinon Recorder */
+	FAnimRecorderInstance AnimationRecorder;
+
+	/** Previous Seconds to calc Delta used by Animation Recorder **/
+	float  PreviousSeconds;
+
 	/**Serializer */
 	FAnimationSerializer AnimationSerializer;
 };

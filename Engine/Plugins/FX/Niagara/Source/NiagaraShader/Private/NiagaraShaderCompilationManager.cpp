@@ -253,7 +253,7 @@ void FNiagaraShaderCompilationManager::RunCompileJobs()
 				}
 				else
 				{
-					UE_LOG(LogNiagaraShaderCompiler, Log, TEXT("ERROR: GPU shader compile failed! Id %d"), CurrentJob.Id);
+					UE_LOG(LogNiagaraShaderCompiler, Warning, TEXT("GPU shader compile failed! Id %d"), CurrentJob.Id);
 				}
 
 				CurrentWorkerInfo.bComplete = true;
@@ -434,16 +434,19 @@ void FNiagaraShaderCompilationManager::ProcessCompiledNiagaraShaderMaps(
 				{
 					for (int32 ErrorIndex = 0; ErrorIndex < CurrentJob.Output.Errors.Num(); ErrorIndex++)
 					{
-						Errors.AddUnique(CurrentJob.Output.Errors[ErrorIndex].GetErrorString());
+						Errors.AddUnique(CurrentJob.Output.Errors[ErrorIndex].GetErrorString().Replace(TEXT("Error"), TEXT("Err0r")));
 					}
 
 					if (CurrentJob.Output.Errors.Num())
 					{
-						UE_LOG(LogNiagaraShaderCompiler, Error, TEXT("There were errors for job \"%s\""), *CurrentJob.Input.DebugGroupName)
-							for (const FShaderCompilerError& Error : CurrentJob.Output.Errors)
-							{
-								UE_LOG(LogNiagaraShaderCompiler, Error, TEXT("Error: %s"), *Error.GetErrorString())
-							}
+						
+						UE_LOG(LogNiagaraShaderCompiler, Display, TEXT("There were issues for job \"%s\""), *CurrentJob.Input.DebugGroupName)
+						
+						for (const FShaderCompilerError& Error : CurrentJob.Output.Errors)
+						{
+							UE_LOG(LogNiagaraShaderCompiler, Warning, TEXT("%s"), *Error.GetErrorString())
+						}
+						
 					}
 				}
 				else

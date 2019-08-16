@@ -45,7 +45,7 @@ private:
 			&& Texture->PlatformData->PixelFormat == PF_FloatRGBA
 			&& Texture->PlatformData->Mips.Num() == 1
 			&& Texture->PlatformData->Mips[0].SizeX == AllowedIESProfileWidth() 
-			//#dxr_todo: anisotropy in IES files is ignored so far (to support that, we should not store one IES profile per row but use more than one row per profile in that case)
+			//#dxr_todo: UE-70840 anisotropy in IES files is ignored so far (to support that, we should not store one IES profile per row but use more than one row per profile in that case)
 			&& Texture->PlatformData->Mips[0].SizeY == 1
 			)
 		{

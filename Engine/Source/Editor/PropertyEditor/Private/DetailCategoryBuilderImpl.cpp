@@ -68,6 +68,14 @@ bool FDetailLayoutCustomization::HasExternalPropertyRow() const
 	return HasPropertyNode() && PropertyRow->HasExternalProperty();
 }
 
+bool FDetailLayoutCustomization::IsHidden() const
+{
+	return !IsValidCustomization()
+		|| (HasCustomWidget() && WidgetDecl->VisibilityAttr.Get() != EVisibility::Visible)
+		|| (HasPropertyNode() && PropertyRow->GetPropertyVisibility() != EVisibility::Visible)
+		|| (HasCustomBuilder() && CustomBuilderRow->AreChildCustomizationsHidden());
+}
+
 TSharedPtr<FPropertyNode> FDetailLayoutCustomization::GetPropertyNode() const
 {
 	return PropertyRow.IsValid() ? PropertyRow->GetPropertyNode() : nullptr;
@@ -138,6 +146,12 @@ FDetailWidgetRow& FDetailCategoryImpl::AddCustomRow(const FText& FilterString, b
 	FDetailLayoutCustomization NewCustomization;
 	NewCustomization.WidgetDecl = MakeShareable(new FDetailWidgetRow);
 	NewCustomization.WidgetDecl->FilterString(FilterString);
+
+	IDetailsViewPrivate* DetailsView = GetDetailsView();
+	if (DetailsView && DetailsView->IsCustomRowVisibilityFiltered() && !GetDetailsView()->IsCustomRowVisible(FName(*FilterString.ToString()), FName(*DisplayName.ToString())))
+	{
+		NewCustomization.WidgetDecl->Visibility(TAttribute<EVisibility>(EVisibility::Collapsed));
+	}
 
 	AddCustomLayout(NewCustomization, bForAdvanced);
 

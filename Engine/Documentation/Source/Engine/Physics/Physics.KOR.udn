@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4649792
+INTSourceChangelist:6341512
 Availability: Public
 Title:피직스 시뮬레이션
 Crumbs: %ROOT%, Engine
@@ -43,7 +43,7 @@ topic-icon:%ROOT%/physics_icon.png
 
 [REGION:buttonlist]
 * [](Engine/Physics/Vehicles/VehicleUserGuide "%Engine/Physics/Vehicles/VehicleUserGuide:description%")
-* [](Engine/Physics/Vehicles/VehcileContentCreation "%Engine/Physics/Vehicles/VehcileContentCreation:description%")
+* [](Engine/Physics/Vehicles/VehicleContentCreation "%Engine/Physics/Vehicles/VehicleContentCreation:description%")
 * [](Engine/Physics/Vehicles/SimpleWheeledVehicleMovementComponent "%Engine/Physics/Vehicles/SimpleWheeledVehicleMovementComponent:description%")
 * [](Engine/Physics/Vehicles/DoubleWishboneVehicle "%Engine/Physics/Vehicles/DoubleWishboneVehicle:description%")
 * [Vehicle API Reference](API:AWheeledVehicle)
@@ -55,14 +55,14 @@ topic-icon:%ROOT%/physics_icon.png
 * [](Engine/Physics/PhysicsBodies "%Engine/Physics/PhysicsBodies:description%")
 * [](Engine/Physics/SimpleVsComplex "%Engine/Physics/SimpleVsComplex:description%")
 * [](Engine/Physics/PhysicalMaterials "%Engine/Physics/PhysicalMaterials:description%")
-* [](Engine/Physics/PhAT "%Engine/Physics/PhAT:description%")
+* [](Engine/Physics/PhysicsAssetEditor "%Engine/Physics/PhysicsAssetEditor:description%")
 [/REGION]
 
 ## 관련 링크
 
 [REGION:buttonlist]
-* [](Engine/Content/Types/StaticMeshes/Editor "%Engine/Physics/PhAT:description%")
-* [](Engine/Content/FBX/StaticMeshes "%Engine/Physics/PhAT:description%")
+* [](Engine/Content/Types/StaticMeshes/Editor "%Engine/Physics/PhysicsAssetEditor:description%")
+* [](Engine/Content/FBX/StaticMeshes "%Engine/Physics/PhysicsAssetEditor:description%")
 [/REGION]
 
 

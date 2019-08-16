@@ -12,9 +12,9 @@
 #include "Async/AsyncWork.h"
 #include "Engine/Texture.h"
 #include "PerPlatformProperties.h"
-#include "LandscapeBPCustomBrush.h"
 #include "LandscapeComponent.h"
 #include "LandscapeWeightmapUsage.h"
+#include "VT/RuntimeVirtualTextureEnum.h"
 
 #include "LandscapeProxy.generated.h"
 
@@ -316,11 +316,36 @@ struct FLandscapeProxyMaterialOverride
 {
 	GENERATED_USTRUCT_BODY()
 
-	UPROPERTY(EditAnywhere, Category = Landscape)
+	UPROPERTY(EditAnywhere, Category = Landscape, meta = (UIMin = 0, UIMax = 8, ClampMin = 0, ClampMax = 8))
 	FPerPlatformInt LODIndex;
 
 	UPROPERTY(EditAnywhere, Category = Landscape)
 	UMaterialInterface* Material;
+
+#if WITH_EDITORONLY_DATA
+	bool operator==(const FLandscapeProxyMaterialOverride& InOther) const
+	{
+		if (Material != InOther.Material)
+		{
+			return false;
+		}
+
+		if (LODIndex.Default != InOther.LODIndex.Default || LODIndex.PerPlatform.Num() != InOther.LODIndex.PerPlatform.Num())
+		{
+			return false;
+		}
+
+		for (auto& ItPair : LODIndex.PerPlatform)
+		{
+			if (!InOther.LODIndex.PerPlatform.Contains(ItPair.Key))
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+#endif
 };
 
 class FLandscapeLayersTexture2DCPUReadBackResource : public FTextureResource
@@ -331,6 +356,7 @@ public:
 		, SizeY(InSizeY)
 		, Format(InFormat)
 		, NumMips(InNumMips)
+		, Hash(0)
 	{}
 
 	virtual uint32 GetSizeX() const override
@@ -352,11 +378,22 @@ public:
 		TextureRHI = RHICreateTexture2D(SizeX, SizeY, Format, NumMips, 1, TexCreate_CPUReadback, CreateInfo);
 	}
 
+	bool UpdateHashFromTextureSource(const uint8* MipData)
+	{
+		uint32 LocalHash = FCrc::MemCrc32(MipData, SizeX * SizeY * sizeof(FColor));
+		bool bChanged = (LocalHash != Hash);
+		Hash = LocalHash;
+		return bChanged;
+	}
+	   
+	uint32 GetHash() const { return Hash; }
+
 private:
 	uint32 SizeX;
 	uint32 SizeY;
 	EPixelFormat Format;
 	uint32 NumMips;
+	uint32 Hash;
 };
 
 UCLASS(Abstract, MinimalAPI, NotBlueprintable, hidecategories=(Display, Attachment, Physics, Debug, Lighting, LOD), showcategories=(Lighting, Rendering, "Utilities|Transformation"), hidecategories=(Mobility))
@@ -395,6 +432,10 @@ public:
 	/** Component screen size (0.0 - 1.0) at which we should keep sub sections. This is mostly pertinent if you have large component of > 64 and component are close to the camera. The goal is to reduce draw call, so if a component is smaller than the value, we merge all subsections into 1 drawcall. */
 	UPROPERTY(EditAnywhere, Category = LOD, meta=(ClampMin = "0.01", ClampMax = "1.0", UIMin = "0.01", UIMax = "1.0", DisplayName= "SubSection Min Component ScreenSize"))
 	float ComponentScreenSizeToUseSubSections;
+
+	/** This is the starting screen size used to calculate the distribution, by default it's 1, but you can increase the value if you want less LOD0 component, and you use very large landscape component. */
+	UPROPERTY(EditAnywhere, Category = "LOD Distribution", meta = (DisplayName = "LOD 0 Screen Size", ClampMin = "1.0", ClampMax = "10.0", UIMin = "1.0", UIMax = "10.0"))
+	float LOD0ScreenSize;
 
 	/** The distribution setting used to change the LOD 0 generation, 1.75 is the normal distribution, numbers influence directly the LOD0 proportion on screen. */
 	UPROPERTY(EditAnywhere, Category = "LOD Distribution", meta = (DisplayName = "LOD 0", ClampMin = "1.0", ClampMax = "10.0", UIMin = "1.0", UIMax = "10.0"))
@@ -460,6 +501,43 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = Landscape)
 	TArray<FLandscapeProxyMaterialOverride> LandscapeMaterialsOverride;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(Transient)
+	UMaterialInterface* PreEditLandscapeMaterial;
+
+	UPROPERTY(Transient)
+	UMaterialInterface* PreEditLandscapeHoleMaterial;
+
+	UPROPERTY(Transient)
+	TArray<FLandscapeProxyMaterialOverride> PreEditLandscapeMaterialsOverride;
+
+	UPROPERTY(Transient)
+	bool bIsPerformingInteractiveActionOnLandscapeMaterialOverride;
+#endif 
+
+	/**
+	 * Array of runtime virtual textures into which we render this landscape.
+	 * The material also needs to be set up to output to a virtual texture.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Render to Virtual Textures"))
+	TArray<URuntimeVirtualTexture*> RuntimeVirtualTextures;
+
+	/** 
+	 * Number of mesh levels to use when rendering landscape into runtime virtual texture.
+	 * Set this only if the material used to render the virtual texture requires interpolated vertex data such as height.
+	 * Higher values use more tessellated meshes and are expensive when rendering the runtime virtual texture.
+	 */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Virtual Texture Num LODs", UIMin = "0", UIMax = "7"))
+	int32 VirtualTextureNumLods = 0;
+
+	/** Bias to the LOD selected for rendering to runtime virtual textures. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Virtual Texture LOD Bias", UIMin = "0", UIMax = "7"))
+	int32 VirtualTextureLodBias = 0;
+
+	/** Render to the main pass based on the virtual texture settings. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Virtual Texture Pass Type"))
+	ERuntimeVirtualTextureMainPassType VirtualTextureRenderPassType = ERuntimeVirtualTextureMainPassType::Always;
 
 	/** Allows overriding the landscape bounds. This is useful if you distort the landscape with world-position-offset, for example
 	 *  Extension value in the negative Z axis, positive value increases bound size
@@ -695,15 +773,15 @@ public:
 
 	/** Set an MID texture parameter value for all landscape components. */
 	UFUNCTION(BlueprintCallable, Category = "Landscape|Runtime|Material")
-	void SetLandscapeMaterialTextureParameterValue(FName ParameterName, class UTexture* Value);
+	LANDSCAPE_API void SetLandscapeMaterialTextureParameterValue(FName ParameterName, class UTexture* Value);
 
 	/** Set an MID vector parameter value for all landscape components. */
 	UFUNCTION(BlueprintCallable, meta = (Keywords = "SetColorParameterValue"), Category = "Landscape|Runtime|Material")
-	void SetLandscapeMaterialVectorParameterValue(FName ParameterName, FLinearColor Value);
+	LANDSCAPE_API void SetLandscapeMaterialVectorParameterValue(FName ParameterName, FLinearColor Value);
 
 	/** Set a MID scalar (float) parameter value for all landscape components. */
 	UFUNCTION(BlueprintCallable, meta = (Keywords = "SetFloatParameterValue"), Category = "Landscape|Runtime|Material")
-	void SetLandscapeMaterialScalarParameterValue(FName ParameterName, float Value);
+	LANDSCAPE_API void SetLandscapeMaterialScalarParameterValue(FName ParameterName, float Value);
 
 	// End blueprint functions
 
@@ -724,7 +802,6 @@ public:
 	virtual void PostEditMove(bool bFinished) override;
 	virtual bool ShouldImport(FString* ActorPropString, bool IsMovingLevel) override;
 	virtual bool ShouldExport() override;
-	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
 	//~ End AActor Interface
 #endif	//WITH_EDITOR
 
@@ -880,8 +957,8 @@ public:
 	/** @return Current size of bounding rectangle in quads space */
 	LANDSCAPE_API FIntRect GetBoundingRect() const;
 
-	/** Creates a Texture2D for use by this landscape proxy or one of it's components. */
-	LANDSCAPE_API UTexture2D* CreateLandscapeTexture(int32 InSizeX, int32 InSizeY, TextureGroup InLODGroup, ETextureSourceFormat InFormat, bool bCompress = false) const;
+	/** Creates a Texture2D for use by this landscape proxy or one of it's components. If OptionalOverrideOuter is not specified, the proxy is used. */
+	LANDSCAPE_API UTexture2D* CreateLandscapeTexture(int32 InSizeX, int32 InSizeY, TextureGroup InLODGroup, ETextureSourceFormat InFormat, UObject* OptionalOverrideOuter = nullptr, bool bCompress = false) const;
 
 	/** Creates a LandscapeWeightMapUsage object outered to this proxy. */
 	LANDSCAPE_API ULandscapeWeightmapUsage* CreateWeightmapUsage();
@@ -950,7 +1027,7 @@ public:
 	/** Will tell if the landscape proxy can have some content related to the layer system */
 	LANDSCAPE_API bool CanHaveLayersContent() const;
 
-	void UpdateCachedHasLayersContent(bool InCheckComponentDataIntegrity = false);
+	LANDSCAPE_API void UpdateCachedHasLayersContent(bool InCheckComponentDataIntegrity = false);
 
 protected:
 	friend class ALandscape;

@@ -2,7 +2,6 @@
 
 #include "Engine/UserDefinedStruct.h"
 #include "UObject/UObjectHash.h"
-#include "Serialization/PropertyLocalizationDataGathering.h"
 #include "UObject/StructOnScope.h"
 #include "UObject/UnrealType.h"
 #include "UObject/LinkerLoad.h"
@@ -10,7 +9,6 @@
 #include "Misc/SecureHash.h"
 #include "UObject/PropertyPortFlags.h"
 #include "Misc/PackageName.h"
-#include "Serialization/TextReferenceCollector.h"
 #include "Blueprint/BlueprintSupport.h"
 
 #if WITH_EDITOR
@@ -48,56 +46,10 @@ void FUserStructOnScopeIgnoreDefaults::Initialize()
 	}
 }
 
-#if WITH_EDITORONLY_DATA
-namespace
-{
-	void GatherUserDefinedStructForLocalization(const UObject* const Object, FPropertyLocalizationDataGatherer& PropertyLocalizationDataGatherer, const EPropertyLocalizationGathererTextFlags GatherTextFlags)
-	{
-		const UUserDefinedStruct* const UserDefinedStruct = CastChecked<UUserDefinedStruct>(Object);
-
-		PropertyLocalizationDataGatherer.GatherLocalizationDataFromObject(UserDefinedStruct, GatherTextFlags);
-
-		const FString PathToObject = UserDefinedStruct->GetPathName();
-
-		PropertyLocalizationDataGatherer.GatherLocalizationDataFromStructFields(PathToObject, UserDefinedStruct, UserDefinedStruct->GetDefaultInstance(), nullptr, GatherTextFlags);
-	}
-
-	void CollectUserDefinedStructTextReferences(UObject* Object, FArchive& Ar)
-	{
-		UUserDefinedStruct* const UserDefinedStruct = CastChecked<UUserDefinedStruct>(Object);
-
-		// User Defined Structs need some special handling as they store their default data in a way that serialize doesn't pick up
-		UUserDefinedStructEditorData* UDSEditorData = Cast<UUserDefinedStructEditorData>(UserDefinedStruct->EditorData);
-		if (UDSEditorData)
-		{
-			for (const FStructVariableDescription& StructVariableDesc : UDSEditorData->VariablesDescriptions)
-			{
-				static const FName TextCategory = TEXT("text"); // Must match UEdGraphSchema_K2::PC_Text
-				if (StructVariableDesc.Category == TextCategory)
-				{
-					FText StructVariableValue;
-					if (FTextStringHelper::ReadFromBuffer(*StructVariableDesc.DefaultValue, StructVariableValue))
-					{
-						Ar << StructVariableValue;
-					}
-				}
-			}
-		}
-
-		UserDefinedStruct->Serialize(Ar);
-	}
-}
-#endif
-
 UUserDefinedStruct::UUserDefinedStruct(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	DefaultStructInstance.SetPackage(GetOutermost());
-
-#if WITH_EDITORONLY_DATA
-	{ static const FAutoRegisterLocalizationDataGatheringCallback AutomaticRegistrationOfLocalizationGatherer(UUserDefinedStruct::StaticClass(), &GatherUserDefinedStructForLocalization); }
-	{ static const FAutoRegisterTextReferenceCollectorCallback AutomaticRegistrationOfTextReferenceCollector(UUserDefinedStruct::StaticClass(), &CollectUserDefinedStructTextReferences); }
-#endif
 }
 
 void UUserDefinedStruct::Serialize(FStructuredArchive::FRecord Record)
@@ -212,14 +164,6 @@ void UUserDefinedStruct::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags
 	OutTags.Add(FAssetRegistryTag(TEXT("Tooltip"), FStructureEditorUtils::GetTooltip(this), FAssetRegistryTag::TT_Hidden));
 }
 
-UProperty* UUserDefinedStruct::CustomFindProperty(const FName Name) const
-{
-	const FGuid PropertyGuid = FStructureEditorUtils::GetGuidFromPropertyName(Name);
-	UProperty* Property = PropertyGuid.IsValid() ? FStructureEditorUtils::GetPropertyByGuid(this, PropertyGuid) : FStructureEditorUtils::GetPropertyByDisplayName(this, Name.ToString());
-	ensure(!Property || !PropertyGuid.IsValid() || PropertyGuid == FStructureEditorUtils::GetGuidForProperty(Property));
-	return Property;
-}
-
 void UUserDefinedStruct::ValidateGuid()
 {
 	// Backward compatibility:
@@ -238,22 +182,56 @@ void UUserDefinedStruct::ValidateGuid()
 
 #endif	// WITH_EDITOR
 
-FString UUserDefinedStruct::PropertyNameToDisplayName(FName Name) const
+UProperty* UUserDefinedStruct::CustomFindProperty(const FName Name) const
 {
 #if WITH_EDITOR
-	FGuid PropertyGuid = FStructureEditorUtils::GetGuidFromPropertyName(Name);
-	return FStructureEditorUtils::GetVariableDisplayName(this, PropertyGuid);
-#endif	// WITH_EDITOR
+	// If we have the editor data, check that first as it's more up to date
+	const FGuid PropertyGuid = FStructureEditorUtils::GetGuidFromPropertyName(Name);
+	UProperty* EditorProperty = PropertyGuid.IsValid() ? FStructureEditorUtils::GetPropertyByGuid(this, PropertyGuid) : FStructureEditorUtils::GetPropertyByFriendlyName(this, Name.ToString());
+	ensure(!EditorProperty || !PropertyGuid.IsValid() || PropertyGuid == FStructureEditorUtils::GetGuidForProperty(EditorProperty));
+	if (EditorProperty)
+	{
+		return EditorProperty;
+	}
+#endif // WITH_EDITOR
+
+	// Check the authored names for each field
+	FString NameString = Name.ToString();
+	for (UProperty* CurrentProp : TFieldRange<UProperty>(this))
+	{
+		if (GetAuthoredNameForField(CurrentProp) == NameString)
+		{
+			return CurrentProp;
+		}
+	}
+	return nullptr;
+}
+
+FString UUserDefinedStruct::GetAuthoredNameForField(const UField* Field) const
+{
+	const UProperty* Property = Cast<UProperty>(Field);
+	if (!Property)
+	{
+		return Super::GetAuthoredNameForField(Field);
+	}
+
+#if WITH_EDITOR
+	const FString EditorName = FStructureEditorUtils::GetVariableFriendlyNameForProperty(this, Property);
+	if (!EditorName.IsEmpty())
+	{
+		return EditorName;
+	}
+#endif // WITH_EDITOR
 
 	const int32 GuidStrLen = 32;
 	const int32 MinimalPostfixlen = GuidStrLen + 3;
-	const FString OriginalName = Name.ToString();
+	const FString OriginalName = Property->GetName();
 	if (OriginalName.Len() > MinimalPostfixlen)
 	{
 		FString DisplayName = OriginalName.LeftChop(GuidStrLen + 1);
 		int FirstCharToRemove = -1;
 		const bool bCharFound = DisplayName.FindLastChar(TCHAR('_'), FirstCharToRemove);
-		if(bCharFound && (FirstCharToRemove > 0))
+		if (bCharFound && (FirstCharToRemove > 0))
 		{
 			return DisplayName.Mid(0, FirstCharToRemove);
 		}

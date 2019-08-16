@@ -4,6 +4,7 @@
  #include "Types/PaintArgs.h"
  #include "Layout/ArrangedChildren.h"
  #include "Layout/LayoutUtils.h"
+#include "Rendering/DrawElements.h"
 
 
 SOverlay::SOverlay()
@@ -77,32 +78,42 @@ int32 SOverlay::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeomet
 	// Because we paint multiple children, we must track the maximum layer id that they produced in case one of our parents
 	// wants to an overlay for all of its contents.
 	int32 MaxLayerId = LayerId;
-
-	const FPaintArgs NewArgs = Args.WithNewParent(this);
+	FPaintArgs NewArgs = Args.WithNewParent(this);
 	const bool bChildrenEnabled = ShouldBeEnabled(bParentEnabled);
+
 
 	for (int32 ChildIndex = 0; ChildIndex < ArrangedChildren.Num(); ++ChildIndex)
 	{
+		FArrangedWidget& CurArrangedWidget = ArrangedChildren[ChildIndex];
+
 		// We don't increment the first layer.
 		if (ChildIndex > 0)
 		{
 			MaxLayerId++;
 		}
 
-		FArrangedWidget& CurWidget = ArrangedChildren[ChildIndex];
-
 		const int32 CurWidgetsMaxLayerId =
-			CurWidget.Widget->Paint(
+			CurArrangedWidget.Widget->Paint(
 				NewArgs,
-				CurWidget.Geometry,
+				CurArrangedWidget.Geometry,
 				MyCullingRect,
 				OutDrawElements,
 				MaxLayerId,
 				InWidgetStyle,
 				bChildrenEnabled);
+		
+		// This is a hack to account for widgets incrementing their layer id inside an overlay in global invalidation mode.  
+		// Overlay slots that do not update will not know about the new layer id.  This padding adds buffering to avoid that being a problem for now
+		// This is a temporary solution until we build a full rendering tree
+		const int32 OverlaySlotPadding = 10;
+		MaxLayerId = CurWidgetsMaxLayerId + FMath::Min(FMath::Max((CurWidgetsMaxLayerId - MaxLayerId) / OverlaySlotPadding, 1) * OverlaySlotPadding,100);
 
-		MaxLayerId = FMath::Max(MaxLayerId, CurWidgetsMaxLayerId);
+		// Non padding method
+		//MaxLayerId = FMath::Max(CurWidgetsMaxLayerId, MaxLayerId);
+	
 	}
+
+
 
 	return MaxLayerId;
 }

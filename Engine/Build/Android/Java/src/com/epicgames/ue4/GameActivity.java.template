@@ -3,6 +3,7 @@
 
 package com.epicgames.ue4;
 
+import android.app.NotificationManager;
 import android.opengl.EGL14;
 import android.opengl.EGLConfig;
 import android.opengl.EGLContext;
@@ -140,6 +141,7 @@ import android.view.WindowManager;
 import android.view.Window;
 import android.widget.LinearLayout;
 import android.widget.PopupWindow;
+import android.text.TextUtils;
 
 import android.media.AudioManager;
 
@@ -253,7 +255,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	static float[] current_gravity = new float[]{0, 0, 0};
 	static float[] current_acceleration = new float[]{0, 0, 0};
 
-	public static Logger Log = new Logger("UE4");
+	public static Logger Log = new Logger("UE4", "GameActivity");
 
 	// From cpufeatures.h AndroidCpuFamily enum
 	private static final int ANDROID_CPU_FAMILY_UNKNOWN = 0;
@@ -313,9 +315,10 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	protected ProgressDialog mProgressDialog;
 
 	// Commandline arguments and flags
-	String CommandLineFull = "";
-	ArrayList<String> CommandLineArguments = new ArrayList<String>();
-	HashMap<String, String> CommandLineFlags = new HashMap<String, String>();
+	private boolean bHaveParsedCommandline = false;
+	public String CommandLineFull = "";
+	public ArrayList<String> CommandLineArguments = new ArrayList<String>();
+	public HashMap<String, String> CommandLineFlags = new HashMap<String, String>();
 
 	// Engine branch from manifest
 	String EngineBranch = "UE4";
@@ -403,10 +406,14 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	/** Use ExternalFilesDir for UE4Game files */
     private boolean UseExternalFilesDir = false;
 
+	/** Make log files public */
+    private boolean PublicLogFiles = false;
+
 	/** Flag to ensure we have finished startup before allowing nativeOnActivityResult to get called */
 	private boolean InitCompletedOK = false;
 
 	private boolean bConfigRulesError = false;
+	private String ConfigRulesStatus = "UNSET";
 
 	/** Dialog for force game dialog */
 	private AlertDialog ForceGameDialog = null;
@@ -462,6 +469,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	public String OpenGLDriver = "";
 	public String TextureFormats = "ETC1";
 	public boolean bSupportsFloatingPointRenderTargets = false;
+	private String EGLErrorStatus = "UNSET";
 
 	/** Used for LocalNotification support*/
 	private boolean localNotificationAppLaunched = false;
@@ -628,14 +636,18 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
         return packages.contains(packagename);
     }
 
-	private void ParseCommandline(String ProjectName)
+	public String AndroidThunkJava_GetCommandLine()
 	{
-		File file;
-		InputStream stream = null;
-		BufferedReader reader = null;
+		String commandLine = "";
+		//$${gameActivityGetCommandLineAdditions}$$
+		return commandLine;
+	}
 
-		// first look for an override in the project directory
-		file = new File(android.os.Environment.getExternalStorageDirectory().getAbsolutePath() + "/UE4Game/" + ProjectName + "/UE4CommandLine.txt");
+	private BufferedReader TryOpenFileReader(String Filename)
+	{
+		BufferedReader reader = null;
+		File file = new File(Filename);
+
 		if (file.exists())
 		{
 			try
@@ -647,14 +659,56 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 				reader = null;
 			}
 		}
+		return reader;
+	}
+
+	public void ParseCommandline(String ProjectName, boolean bUseExternalFilesDir)
+	{
+		if (bHaveParsedCommandline)
+		{
+			return;
+		}
+		bHaveParsedCommandline = true;
+		
+		String tempCommandLine = AndroidThunkJava_GetCommandLine();
+		if(!TextUtils.isEmpty(tempCommandLine)) {
+			Log.debug("Using alternative commandline source");
+			// remember full commandline for regex checks by configrules
+			CommandLineFull = tempCommandLine;
+			parseCommandLineParams(tempCommandLine);
+			return;
+		}
+
+		BufferedReader reader = null;
+
+		// determine the proper place to look for UE4CommandLine.txt as override outside APK
+		String BaseDirectory = android.os.Environment.getExternalStorageDirectory().getAbsolutePath();
+		if (bUseExternalFilesDir)
+		{
+			BaseDirectory = getExternalFilesDir(null).getAbsolutePath();
+			if (nativeIsShippingBuild())
+			{
+				BaseDirectory = getFilesDir().getAbsolutePath();
+			}
+		}
+
+		// first look for an override in the project directory
+		String filename = BaseDirectory + "/UE4Game/" + ProjectName + "/UE4CommandLine.txt";
+		reader = TryOpenFileReader(filename);
+		if (reader == null)
+		{
+			filename = BaseDirectory + "/UE4Game/" + ProjectName + "/ue4commandline.txt";
+			reader = TryOpenFileReader(filename);
+		}
 
 		// then look in assets in APK
 		if (reader == null)
 		{
 			try
 			{
-				stream = AssetManagerReference.open("UE4CommandLine.txt");
+				InputStream stream = AssetManagerReference.open("UE4CommandLine.txt");
 				reader = new BufferedReader(new InputStreamReader(stream));
+				Log.debug("Using APK commandline");
 			}
 			catch (FileNotFoundException fe)
 			{
@@ -662,6 +716,8 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			catch (IOException ie)
 			{
 			}
+		} else {
+			Log.debug("Using commandline from: " + filename);
 		}
 
 		// parse the commandline
@@ -677,31 +733,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 					{
 						// remember full commandline for regex checks by configrules
 						CommandLineFull = line;
-
-						// parse the line
-						ArrayList<String> sets = ParseSegments(line, " ", "\"", "\"");
-						for (String set : sets)
-						{
-							String argument = set.trim();
-
-							if (argument.startsWith("-"))
-							{
-								argument = argument.substring(1);
-								ArrayList<String> keyvalues = ParseSegments(argument, "=", "\"", "\"");
-								if (keyvalues.size() == 2)
-								{
-									CommandLineFlags.put(keyvalues.get(0).toLowerCase(), RemoveSurrounds(keyvalues.get(1), "\"", "\""));
-								}
-								else
-								{
-									CommandLineFlags.put(argument.toLowerCase(), "");
-								}
-							}
-							else
-							{
-								CommandLineArguments.add(RemoveSurrounds(argument, "\"", "\""));
-							}
-						}
+						parseCommandLineParams(line);
 					}
 				}
 			}
@@ -718,6 +750,35 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 				catch (IOException ie)
 				{
 				}
+			}
+		}
+	}
+
+	private void parseCommandLineParams(String line) {
+		Log.debug("Parsing commandline: " + line);
+
+		// parse the line
+		ArrayList<String> sets = ParseSegments(line, " ", "\"", "\"");
+		for (String set : sets)
+		{
+			String argument = set.trim();
+
+			if (argument.startsWith("-"))
+			{
+				argument = argument.substring(1);
+				ArrayList<String> keyvalues = ParseSegments(argument, "=", "\"", "\"");
+				if (keyvalues.size() == 2)
+				{
+					CommandLineFlags.put(keyvalues.get(0).toLowerCase(), RemoveSurrounds(keyvalues.get(1), "\"", "\""));
+				}
+				else
+				{
+					CommandLineFlags.put(argument.toLowerCase(), "");
+				}
+			}
+			else
+			{
+				CommandLineArguments.add(RemoveSurrounds(argument, "\"", "\""));
 			}
 		}
 	}
@@ -883,6 +944,8 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	// returns InputStream to most up to date version of configrules
 	private InputStream getConfigRulesStream(String ProjectName)
 	{
+		ConfigRulesStatus = "";
+
 		byte[] configBytesAssets = getByteArrayFromAssets("configrules.bin.png");
 		byte[] configBytesInternal = getByteArrayFromFile(InternalFilesDir + "configrules.bin.png");
 		byte[] configBytesExternal = getByteArrayFromFile(android.os.Environment.getExternalStorageDirectory().getAbsolutePath() + "/UE4Game/" + ProjectName + "/configrules.bin.png");
@@ -894,6 +957,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		// is there one at all?
 		if (assetsVersion == -1 && internalVersion == -1 && externalVersion == -1)
 		{
+			ConfigRulesStatus = "Not found. ";
 			return null;
 		}
 
@@ -928,6 +992,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		}
 		if (result == null)
 		{
+			ConfigRulesStatus = "failed to find config rules. ";
 			bConfigRulesError = true;
 		}
 		return result;
@@ -1058,9 +1123,15 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 	private void getGraphicsInformation()
     {
+		int initialError = EGL14.eglGetError();
+		EGLErrorStatus = (initialError == EGL14.EGL_SUCCESS) ? "" : "InitialEGLError = " + initialError + " ";
+
 		EGLDisplay display = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY);
+		EGLErrorStatus += (display != EGL14.EGL_NO_DISPLAY) ? "" : "eglGetDisplay = " + EGL14.eglGetError() + " ";
+
 		int[] version = new int[2];
-		EGL14.eglInitialize(display, version, 0, version, 1);
+		boolean bEglInitialized = EGL14.eglInitialize(display, version, 0, version, 1);
+		EGLErrorStatus += (bEglInitialized) ? "" : "eglInitialize = " + EGL14.eglGetError() + " ";
 
 		// find a config from EGL
 		int[] configAttr = {EGL14.EGL_COLOR_BUFFER_TYPE, EGL14.EGL_RGB_BUFFER,
@@ -1073,6 +1144,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		EGL14.eglChooseConfig(display, configAttr, 0, configs, 0, 1, numConfig, 0);
 		if (numConfig[0] == 0)
 		{
+			EGLErrorStatus += "eglChooseConfig = " + EGL14.eglGetError() + " ";
 			Log.debug("Did not find an EGL config");
 			return;
 		}
@@ -1081,13 +1153,16 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		// small surface just to make a context
 		int[] surfAttr = {EGL14.EGL_WIDTH, 8, EGL14.EGL_HEIGHT, 8, EGL14.EGL_NONE};
 		EGLSurface surface = EGL14.eglCreatePbufferSurface(display, config, surfAttr, 0);
+		EGLErrorStatus += (surface != EGL14.EGL_NO_SURFACE) ? "" : "eglCreatePbufferSurface = " + EGL14.eglGetError() + " ";
 
 		// create the context (ES 2)
 		int[] contextAttr = {EGL14.EGL_CONTEXT_CLIENT_VERSION, 2, EGL14.EGL_NONE};
 		EGLContext context = EGL14.eglCreateContext(display, config, EGL14.EGL_NO_CONTEXT, contextAttr, 0);
-
+		EGLErrorStatus += (context != EGL14.EGL_NO_CONTEXT) ? "" : "eglCreateContext = " + EGL14.eglGetError() + " ";
+		
 		// make context to gather information
-		EGL14.eglMakeCurrent(display, surface, surface, context);
+		boolean bMakeCurrent = EGL14.eglMakeCurrent(display, surface, surface, context);
+		EGLErrorStatus += bMakeCurrent ? "" : "eglMakeCurrent = " + EGL14.eglGetError() + " ";
 
 		// grab info now
 		String Extensions = GLES20.glGetString(GLES20.GL_EXTENSIONS);
@@ -1095,6 +1170,10 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		OpenGLDevice = GLES20.glGetString(GLES20.GL_RENDERER);
 		OpenGLDriver = GLES20.glGetString(GLES20.GL_VERSION);
 		boolean bES30Support = OpenGLDriver.contains("OpenGL ES 3.");
+
+		// write any gl error to status
+		int finalGLESError = GLES20.glGetError();
+		EGLErrorStatus += finalGLESError == GLES20.GL_NO_ERROR ? "getGraphicsInformation completed. " : "gl error = " + finalGLESError;
 
 		// tear it down
 		EGL14.eglMakeCurrent(display, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_CONTEXT);
@@ -1638,6 +1717,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			}
 			catch (Exception e)
 			{
+				ConfigRulesStatus += "failed to create config rules reader. " + e;
 				reader = null;
 			}
 		}
@@ -2028,9 +2108,11 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			catch (IOException ie)
 			{
 				Log.debug("failed to read configuration rules: " + ie);
+				ConfigRulesStatus += "failed to read configuration rules : " + ie+ " ";
 			}
 			if (reader != null)
 			{
+				ConfigRulesStatus += "configuration rules finished. " + ForceExitMessage;
 				try
 				{
 					reader.close();
@@ -2117,7 +2199,12 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	@Override
 	public void onCreate(Bundle savedInstanceState)
 	{
+		// Grab a reference to the asset manager
+		AssetManagerReference = this.getAssets();
+
+		_activity = this;
 		super.onCreate(savedInstanceState);
+
 		sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
 		accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
 		magnetometer = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
@@ -2214,8 +2301,6 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			//For non-shipping builds we need to request this permission bc we write to the sdcard for logs
 			PermissionHelper.acquirePermissions(new String[] {"android.permission.WRITE_EXTERNAL_STORAGE"}, this);
 		}
-
-		_activity = this;
 
 		// update memory stats every 10 seconds
 		memoryRunnable = new Runnable() {
@@ -2408,9 +2493,6 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			}
 		}
 		
-		// Grab a reference to the asset manager
-		AssetManagerReference = this.getAssets();
-
 		// Read metadata from AndroidManifest.xml
 		appPackageName = getPackageName();
 		String ProjectName = getPackageName();
@@ -2536,6 +2618,16 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
                 Log.debug( "bUseExternalFilesDir not found. Leaving as " + UseExternalFilesDir);
             }
 
+			if (bundle.containsKey("com.epicgames.ue4.GameActivity.bPublicLogFiles"))
+            {
+                PublicLogFiles = bundle.getBoolean("com.epicgames.ue4.GameActivity.bPublicLogFiles");
+                Log.debug( "PublicLogFiles set to " + PublicLogFiles);
+            }
+            else
+            {
+                Log.debug( "PublicLogFiles not found. Leaving as " + PublicLogFiles);
+            }
+
 			if(bundle.containsKey("com.epicgames.ue4.GameActivity.bAllowIMU"))
 			{
 				bAllowIMU = bundle.getBoolean("com.epicgames.ue4.GameActivity.bAllowIMU");
@@ -2570,7 +2662,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		}
 
 		// parse the commandline
-		ParseCommandline(ProjectName);
+		ParseCommandline(ProjectName, UseExternalFilesDir);
 
 //$${gameActivityBeforeConfigRulesAppliedAdditions}$$
 
@@ -2583,7 +2675,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 		Log.debug("APK path: " + getPackageResourcePath());
 		Log.debug("OBB in APK: " + (PackageDataInsideApkValue==1));
-		nativeSetGlobalActivity(UseExternalFilesDir, getFilesDir().getPath(), getExternalFilesDir(null).getPath(), PackageDataInsideApkValue==1, getPackageResourcePath());
+		nativeSetGlobalActivity(UseExternalFilesDir, PublicLogFiles, getFilesDir().getPath(), getExternalFilesDir(null).getPath(), PackageDataInsideApkValue==1, getPackageResourcePath());
 
 		// tell the engine if this is a portrait app
 		nativeSetWindowInfo(getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT, DepthBufferPreference);
@@ -2822,46 +2914,49 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		
 		// check for display cutouts to set safe zone
 		View mainRootView = mainDecorView.findViewById(android.R.id.content).getRootView();
-		mainRootView.setOnApplyWindowInsetsListener(new View.OnApplyWindowInsetsListener() {
-            @Override
-       	    public WindowInsets onApplyWindowInsets(View v, WindowInsets insets) {
-				if (Build.VERSION.SDK_INT >= 28)
-				{
-					DisplayCutout cutout = insets.getDisplayCutout();
-					if (cutout != null)
+		if (Build.VERSION.SDK_INT > 19)
+		{
+			mainRootView.setOnApplyWindowInsetsListener(new View.OnApplyWindowInsetsListener() {
+				@Override
+       			public WindowInsets onApplyWindowInsets(View v, WindowInsets insets) {
+					if (Build.VERSION.SDK_INT >= 28)
 					{
-						Rect fullViewRect = new Rect();
-						mainDecorView.getDrawingRect( mainDecorViewRect );
+						DisplayCutout cutout = insets.getDisplayCutout();
+						if (cutout != null)
+						{
+							Rect fullViewRect = new Rect();
+							mainDecorView.getDrawingRect( mainDecorViewRect );
 
-						android.view.Display display = getWindowManager().getDefaultDisplay();
-						android.graphics.Point displaySize = new android.graphics.Point();
-						display.getRealSize(displaySize);
+							android.view.Display display = getWindowManager().getDefaultDisplay();
+							android.graphics.Point displaySize = new android.graphics.Point();
+							display.getRealSize(displaySize);
 
-						// store safezone independent of resolution
-						float invX = 1.0f / (displaySize.x != 0.0f ? displaySize.x : 1.0f);
-						float invY = 1.0f / (displaySize.y != 0.0f ? displaySize.y : 1.0f);
-						safezoneF.left = (safezone.left = cutout.getSafeInsetLeft()) * invX;
-						safezoneF.top = (safezone.top = cutout.getSafeInsetTop()) * invY;
-						safezoneF.right = (safezone.right = cutout.getSafeInsetRight()) * invX;
-						safezoneF.bottom = (safezone.bottom = cutout.getSafeInsetBottom()) *invY;
-						nativeSetSafezoneInfo(displaySize.y > displaySize.x, safezoneF.left, safezoneF.top, safezoneF.right, safezoneF.bottom);
+							// store safezone independent of resolution
+							float invX = 1.0f / (displaySize.x != 0.0f ? displaySize.x : 1.0f);
+							float invY = 1.0f / (displaySize.y != 0.0f ? displaySize.y : 1.0f);
+							safezoneF.left = (safezone.left = cutout.getSafeInsetLeft()) * invX;
+							safezoneF.top = (safezone.top = cutout.getSafeInsetTop()) * invY;
+							safezoneF.right = (safezone.right = cutout.getSafeInsetRight()) * invX;
+							safezoneF.bottom = (safezone.bottom = cutout.getSafeInsetBottom()) *invY;
+							nativeSetSafezoneInfo(displaySize.y > displaySize.x, safezoneF.left, safezoneF.top, safezoneF.right, safezoneF.bottom);
 
-						//Log.debug("FullViewRect: " + fullViewRect.toString());	
-						//Log.debug("DisplayCutout: " + cutout.toString());
-						//Log.debug("SafeTop: " + cutout.getSafeInsetTop());
-						//Log.debug("SafeBottom: " + cutout.getSafeInsetBottom());
-						//Log.debug("SafeLeft: " + cutout.getSafeInsetLeft());
-						//Log.debug("SafeRight: " + cutout.getSafeInsetRight());
-						//List<Rect>bounds = cutout.getBoundingRects();
-						//for (Rect r : bounds)
-						//{
-						//	Log.debug("Rect: " + r.toString());
-						//}
+							//Log.debug("FullViewRect: " + fullViewRect.toString());	
+							//Log.debug("DisplayCutout: " + cutout.toString());
+							//Log.debug("SafeTop: " + cutout.getSafeInsetTop());
+							//Log.debug("SafeBottom: " + cutout.getSafeInsetBottom());
+							//Log.debug("SafeLeft: " + cutout.getSafeInsetLeft());
+							//Log.debug("SafeRight: " + cutout.getSafeInsetRight());
+							//List<Rect>bounds = cutout.getBoundingRects();
+							//for (Rect r : bounds)
+							//{
+							//	Log.debug("Rect: " + r.toString());
+							//}
+						}
 					}
+					return insets;
 				}
-				return insets;
-			}
-        });
+			});
+		}
 
 		createVirtualKeyboardInput();
 		
@@ -3854,7 +3949,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 				break;
 				case VK_CMD_HIDE:
 				{
-						if(bKeyboardShowing)
+						if (bKeyboardShowing || newVirtualKeyboardInput.getVisibility() != View.GONE)
 						{
 							//Log.debug("VK: Hide newVirtualKeyboardInput");
 
@@ -4001,7 +4096,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		return loginId;
 	}
 
-	public boolean writeFile(String filename, String contents)
+	public static boolean writeFile(String filename, String contents)
 	{
 		File file = new File(filename);
 
@@ -4569,7 +4664,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 				localNotificationLaunchActivationEvent = extrasBundle.get("localNotificationLaunchActivationEvent").toString();
 				int notificationID = extrasBundle.getInt("localNotificationID");
 
-				LocalNotificationRemoveID(notificationID);
+				LocalNotificationRemoveID(this, notificationID);
 
 				// TODO
 				localNotificationLaunchFireDate = 0; 
@@ -4658,9 +4753,9 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		return false;
 	}
 
-	private void LocalNotificationRemoveID(int notificationID)
+	public static void LocalNotificationRemoveID(Context context, int notificationID)
 	{
-		SharedPreferences preferences = getApplicationContext().getSharedPreferences("LocalNotificationPreferences", MODE_PRIVATE);
+		SharedPreferences preferences = context.getSharedPreferences("LocalNotificationPreferences", MODE_PRIVATE);
 		SharedPreferences.Editor editor = preferences.edit();
 		String notificationIDs = preferences.getString("notificationIDs", "");
 
@@ -4699,13 +4794,72 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		editor.putString("notificationIDs", newNotificationIDs);
 		editor.commit();
 	}
+	
+	public static void LocalNotificationRemoveDetails(Context context, int notificationID)
+	{
+		SharedPreferences preferences = context.getSharedPreferences("LocalNotificationPreferences", MODE_PRIVATE);
+		SharedPreferences.Editor editor = preferences.edit();
+
+		try
+		{
+			JSONObject notificationDetails = new JSONObject(preferences.getString("notificationDetails", "{}"));
+			notificationDetails.remove(String.valueOf(notificationID));
+			editor.putString("notificationDetails", notificationDetails.toString());
+			editor.commit();
+		}
+		catch (JSONException e)
+		{
+			e.printStackTrace();
+		}
+	}
 
 	public int AndroidThunkJava_LocalNotificationScheduleAtTime(String targetDateTime, boolean localTime, String title, String body, String action, String activationEvent) 
 	{
 		int notificationID = LocalNotificationGetID(this);
 
+		if (!LocalNotificationScheduleAtTime(this, notificationID, targetDateTime, localTime, title, body, action, activationEvent))
+		{
+			return -1;
+		}
+
+		// Store notification details
+		SharedPreferences preferences = getSharedPreferences("LocalNotificationPreferences", MODE_PRIVATE);
+		SharedPreferences.Editor editor = preferences.edit();
+		JSONObject notificationDetails;
+		try
+		{
+			notificationDetails = new JSONObject(preferences.getString("notificationDetails", "{}"));
+		}
+		catch (JSONException e)
+		{
+			e.printStackTrace(); 
+			notificationDetails = new JSONObject();
+		}
+		JSONObject details = new JSONObject();
+		try
+		{
+			details.put("local-notification-targetDateTime", targetDateTime);
+			details.put("local-notification-localTime", localTime);
+			details.put("local-notification-title", title);
+			details.put("local-notification-body", body);
+			details.put("local-notification-action", action);
+			details.put("local-notification-activationEvent", activationEvent);
+			notificationDetails.put(String.valueOf(notificationID), details);
+			editor.putString("notificationDetails", notificationDetails.toString());
+			editor.commit();
+		}
+		catch (JSONException e)
+		{
+			e.printStackTrace();
+		}
+
+		return notificationID;
+	}
+
+	public static boolean LocalNotificationScheduleAtTime(Context context, int notificationID, String targetDateTime, boolean localTime, String title, String body, String action, String activationEvent)
+	{
 		// Create callback for PendingIntent
-		Intent notificationIntent = new Intent(this, LocalNotificationReceiver.class); 
+		Intent notificationIntent = new Intent(context, LocalNotificationReceiver.class);
 
 		// Add user-provided data
 		notificationIntent.putExtra("local-notification-ID", notificationID);
@@ -4713,9 +4867,9 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		notificationIntent.putExtra("local-notification-body", body);
 		notificationIntent.putExtra("local-notification-action", action);
 		notificationIntent.putExtra("local-notification-activationEvent", activationEvent);
-		
+
 		// Designate the callback as a PendingIntent
-		PendingIntent pendingIntent = PendingIntent.getBroadcast(this, notificationID, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+		PendingIntent pendingIntent = PendingIntent.getBroadcast(context, notificationID, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
 
 		TimeZone targetTimeZone = TimeZone.getTimeZone("UTC");
 
@@ -4737,8 +4891,8 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		catch (ParseException e) 
 		{
 			e.printStackTrace();
-			LocalNotificationRemoveID(notificationID);
-			return -1;
+			LocalNotificationRemoveID(context, notificationID);
+			return false;
 		}
 
 		Date currentDate = new Date();
@@ -4747,17 +4901,17 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 		if(msDiff < 0)
 		{
-			LocalNotificationRemoveID(notificationID);
-			return -1;
+			LocalNotificationRemoveID(context, notificationID);
+			return false;
 		}
 
 		long futureTimeInMillis = SystemClock.elapsedRealtime() + msDiff;//Calculate the time to run the callback
-		AlarmManager alarmManager = (AlarmManager)getSystemService(Context.ALARM_SERVICE);
+		AlarmManager alarmManager = (AlarmManager)context.getSystemService(Context.ALARM_SERVICE);
 
 		//Schedule the operation by using AlarmService
 		alarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, futureTimeInMillis, pendingIntent);
 
-		return notificationID;
+		return true;
 	}
 
 	public class LaunchNotification {
@@ -4794,6 +4948,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		SharedPreferences preferences = getApplicationContext().getSharedPreferences("LocalNotificationPreferences", MODE_PRIVATE);
 		SharedPreferences.Editor editor = preferences.edit();
 		editor.putString("notificationIDs", "");
+		editor.putString("notificationDetails", "{}");
 		editor.commit();
 	}
 
@@ -4807,13 +4962,18 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	{
 		if (AndroidThunkJava_LocalNotificationExists(notificationId))
 		{
-			LocalNotificationRemoveID(notificationId);
+			LocalNotificationRemoveID(this, notificationId);
+			LocalNotificationRemoveDetails(this, notificationId);
 
 			//Cancel the intent itself as well as from the alarm manager
 			AlarmManager alarmManager = (AlarmManager)getSystemService(Context.ALARM_SERVICE);
 			PendingIntent pendingIntent = PendingIntent.getBroadcast(this, notificationId, new Intent(this, LocalNotificationReceiver.class), PendingIntent.FLAG_UPDATE_CURRENT);
 			pendingIntent.cancel();
 			alarmManager.cancel(pendingIntent);
+			
+			//Also clear the notification if currently displayed
+			NotificationManager notificationManager = (NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
+			notificationManager.cancel(notificationId);
 			return true;
 		}
 		return false;
@@ -5882,7 +6042,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 	public native boolean nativeIsShippingBuild();
 	public native void nativeSetAndroidStartupState(boolean bDebuggerAttached);
-	public native void nativeSetGlobalActivity(boolean bUseExternalFilesDir, String internalFilePath, String externalFilePath, boolean bOBBInAPK, String APKPath);
+	public native void nativeSetGlobalActivity(boolean bUseExternalFilesDir, boolean bPublicLogFiles, String internalFilePath, String externalFilePath, boolean bOBBInAPK, String APKPath);
 	public native void nativeSetWindowInfo(boolean bIsPortrait, int DepthBufferPreference);
 	public native void nativeSetObbInfo(String ProjectName, String PackageName, int Version, int PatchVersion, String AppType);
 	public native void nativeSetAndroidVersionInformation( String AndroidVersion, String PhoneMake, String PhoneModel, String PhoneBuildNumber, String OSLanguage );

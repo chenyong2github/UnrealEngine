@@ -176,6 +176,11 @@ protected:
 	uint32 IncrementalBeginDestroyEnabled : 1;
 
 	UPROPERTY(EditAnywhere, config, Category = Optimization, meta = (
+		ConsoleVariable = "gc.MultithreadedDestructionEnabled", DisplayName = "Multithreaded Destruction Enabled",
+		ToolTip = "If true, the engine will free objects' memory on a worker thread."))
+	uint32 MultithreadedDestructionEnabled : 1;
+
+	UPROPERTY(EditAnywhere, config, Category = Optimization, meta = (
 		ConsoleVariable = "gc.CreateGCClusters", DisplayName = "Create Garbage Collector UObject Clusters",
 		ToolTip = "If true, the engine will attempt to create clusters of objects for better garbage collection performance."))
 	uint32 CreateGCClusters : 1;

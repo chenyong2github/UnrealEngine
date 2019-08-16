@@ -1,0 +1,36 @@
+INTSourceChangelist:6674882
+Availability: Public
+Crumbs: 
+Title: 보다 효율적인 결과물 생성
+Description: 약간의 지오메트리를 추가하여 보다 효율적인 결과물을 내는 방법을 설명합니다.
+Type: how-to
+SkillLevel:Intermediate
+Version: 4.19
+Parent: Engine/ProxyGeoTool
+Order: 
+Tags: HLOD
+Tags: Optimization
+Tags: ProxyGeometryTool
+
+
+놀랍게도, 지오메트리를 조금 추가하면 보다 효율적인 프록시 결과물이 생성되는 경우가 있습니다.  프록시 LOD 파이프라인에 내재된 공간 샘플링과 메시 재적용 단계가 액세스할 수 없는 지오메트리를 제거한다는 개념에 기반한다는 사실 때문입니다.  여기서는 언리얼 엔진 4 (UE4) 프로젝트에서 이런 문제를 해결하는 법을 살펴 봅니다.
+
+## 단계
+
+1.  먼저 다음 이미지처럼 열린 공간이 있는 유형의 방을 형성하도록 배열된 스태틱 메시 그룹을 찾습니다.  
+    ![Proxy_Geo_HT_GettingMore_01.png](Proxy_Geo_HT_GettingMore_01-resize793x274.png "Proxy_Geo_HT_GettingMore_01.png")
+2.  방 안에 포함될 수 있는 아이템을 포함해서 방을 이루는 모든 스태틱 메시를 선택하고 프록시 지오메트리 툴을 실행하여 새 프록시 스태틱 메시를 생성합니다.  
+    ![Proxy_Geo_HT_GettingMore_02.png](Proxy_Geo_HT_GettingMore_02-resize784x271.png "Proxy_Geo_HT_GettingMore_02.png")  
+    
+3.  프록시 지오메트리 툴이 새 스태틱 메시를 잘 만들긴 했지만, 안에 제거해도 되는 디테일이 많이 보입니다. 프록시 지오메트리 툴에 이런 부분을 더 잘 알려주면 건물 내 그 지오메트리를 전부 제거할 수 있을테니, 레벨에 작은 스태틱 메시를 추가하고 그 방의 열린 부분을 덮도록 위치를 조정합니다.  
+    ![Proxy_Geo_HT_GettingMore_03.png](Proxy_Geo_HT_GettingMore_03-resize779x277.png "Proxy_Geo_HT_GettingMore_03.png")
+4.  모든 열린 부분을 지오메트리 조각으로 덮은 다음 프록시 지오메트리 툴을 다시 한 번 실행합니다. 
+
+## 최종 결과
+
+프록시 지오메트리 툴이 완료되면, 방 안을 들여다 봅니다. 다음 이미지에서 보듯 내부의 거의 모든 트라이앵글이 제거되었습니다.  
+![](Proxy_Geo_HT_GettingMore_04.png "Proxy_Geo_HT_GettingMore_04.png")
+
+그 이유는 이 모델에 새로 추가한 스태틱 메시가 차단기 역할을 하여 프록시 지오메트리 툴이 프록시 생성 초기에 모든 방의 내부 구조를 자동으로 제거할 수 있습니다. 결과적으로 제작 시간이 훨씬 짧아지고 최종 트라이앵글 수가 줄어들며 텍스처 공간 활용도가 높아집니다.  많은 경우 닫힌 문, 바닥, 또는 복잡한 외부의 뒷면을 밀봉하는 단순한 면 몇 개가 결과물을 크게 단순화시킬 수 있습니다.  
+
+[](#)[](#)

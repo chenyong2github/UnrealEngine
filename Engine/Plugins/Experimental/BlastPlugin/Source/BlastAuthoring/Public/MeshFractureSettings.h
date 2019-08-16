@@ -25,13 +25,44 @@ enum class EMeshFractureMode : uint8
 	/** Simple Plane Slice - non-voronoi */
 	PlaneCut UMETA(DisplayName = "Plane Cut"),
 
-#ifdef CUTOUT_ENABLED
 	/** Bitmap Cutout Slicing algorithm - non-voronoi */
 	Cutout UMETA(DisplayName = "Bitmap Cutout"),
 
 	/** Special case Brick Cutout Slicing algorithm - non-voronoi */
 	Brick UMETA(DisplayName = "Brick"),
-#endif
+};
+
+
+//
+/** Mesh fracture pattern modes */
+UENUM()
+enum class EMeshAutoClusterMode : uint8
+{
+	/** Overlapping bounding box*/
+	BoundingBox UMETA(DisplayName = "Bounding Box"),
+
+	/** GC connectivity */
+	Proximity UMETA(DisplayName = "Proximity"),
+
+	/** Distance */
+	Distance UMETA(DisplayName = "Distance"),
+};
+
+
+
+//
+/** Brick Projection Directions*/
+UENUM()
+enum class EMeshFractureBrickProjection: uint8
+{
+	/** Standard Voronoi */
+	X UMETA(DisplayName = "X"),
+
+	/** Clustered Voronoi */
+	Y UMETA(DisplayName = "Y"),
+
+	/** Radial Voronoi */
+	Z UMETA(DisplayName = "Z"),
 };
 
 //
@@ -123,6 +154,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = CommonFracture)
 		bool DeleteSourceMesh;
 
+	/** Group Detection Mode */
+	UPROPERTY(EditAnywhere, Category = CommonFracture, meta = (DisplayName = "Group Detection Mode"))
+		EMeshAutoClusterMode AutoClusterGroupMode;
+
 	/** Fracture mode */
 	UPROPERTY(EditAnywhere, Category = CommonFracture)
 		EMeshFractureMode FractureMode;
@@ -132,8 +167,36 @@ public:
 		bool RemoveIslands;
 
 	/** Random number generator seed for repeatability */
-	UPROPERTY(EditAnywhere, Category = CommonFracture, meta = (DisplayName = "Random Seed", UIMin = "2", UIMax = "1000", ClampMin = "2", ClampMax = "1000"))
+	UPROPERTY(EditAnywhere, Category = CommonFracture, meta = (DisplayName = "Random Seed", UIMin = "-1", UIMax = "1000", ClampMin = "-1", ClampMax = "1000"))
 		int RandomSeed;
+
+	/** Chance to shatter each mesh.  Useful when shattering multiple selected meshes.  */
+	UPROPERTY(EditAnywhere, Category = CommonFracture, meta = (DisplayName = "Chance To Fracture Per Mesh", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+		float ChanceToFracture;
+
+	/** Generate a fracture pattern across all selected meshes.  */
+	UPROPERTY(EditAnywhere, Category = CommonFracture, meta = (DisplayName = "Group Fracture"))
+		bool bGroupFracture;
+
+	/** Retain the parent un-fractured mesh post fracturing  */
+	//UPROPERTY(EditAnywhere, Category = CommonFracture)
+		bool RetainUnfracturedMeshes;
+
+	/** Reverts the fracture if a mesh is generated with <3 faces or verts  */
+	UPROPERTY(EditAnywhere, Category = CommonFracture, meta = (DisplayName = "Cancel On Bad Geo"))
+		bool bCancelOnBadGeo;
+
+		/** Launches a thread per selected object.  */
+	UPROPERTY(EditAnywhere, Category = CommonFracture, meta = (DisplayName = "Threaded Fracture (experimental)"))
+		bool bThreadedFracture;
+
+	/** Does hole detection and attempts to fill them in.  This is applied to both input and generated meshes  */
+ 	UPROPERTY(EditAnywhere, Category = CommonFracture, meta = (DisplayName = "Heal Holes (experimental)"))
+		bool bHealHoles;
+
+	/** Actor to be used for voronoi bounds or plane cutting  */
+	UPROPERTY(EditAnywhere, Category = CommonFracture, meta = (DisplayName = "Reference Actor"))
+		TLazyObjectPtr<AActor> ReferenceActor;
 
 	int8 GetFractureLevelNumber()
 	{
@@ -151,8 +214,12 @@ public:
 	UUniformFractureSettings();
 
 	/** Number of Voronoi sites - Uniform Voronoi Method */
-	UPROPERTY(EditAnywhere, Category = UniformVoronoi, meta = (DisplayName = "# Voronoi Sites", UIMin = "2", UIMax = "5000", ClampMin = "2", ClampMax = "5000"))
-		int NumberVoronoiSites;
+	UPROPERTY(EditAnywhere, Category = UniformVoronoi, meta = (DisplayName = "Min Voronoi Sites", UIMin = "2", UIMax = "5000", ClampMin = "2"))
+		int NumberVoronoiSitesMin;
+
+	UPROPERTY(EditAnywhere, Category = UniformVoronoi, meta = (DisplayName = "Max Voronoi Sites", UIMin = "2", UIMax = "5000", ClampMin = "2"))
+		int NumberVoronoiSitesMax;
+
 };
 
 UCLASS(config = EditorPerProjectUserSettings)
@@ -161,15 +228,30 @@ class BLASTAUTHORING_API UClusterFractureSettings
 {
 	GENERATED_BODY()
 public:
-	UClusterFractureSettings(); 
+	UClusterFractureSettings();
 
 	/** Number of Clusters - Clustered Voronoi Method */
-	UPROPERTY(EditAnywhere, Category = ClusteredVoronoi)
-		float NumberClusters;
+	UPROPERTY(EditAnywhere, Category = ClusteredVoronoi, meta = (DisplayName = "Minimum Cluster Sites", UIMin = "1", UIMax = "5000", ClampMin = "1", ClampMax = "5000"))
+		int32 NumberClustersMin;
+
+	/** Number of Clusters - Clustered Voronoi Method */
+	UPROPERTY(EditAnywhere, Category = ClusteredVoronoi, meta = (DisplayName = "Maximum Cluster Sites", UIMin = "1", UIMax = "5000", ClampMin = "1", ClampMax = "5000"))
+		int32 NumberClustersMax;
 
 	/** Sites per of Clusters - Clustered Voronoi Method */
+	UPROPERTY(EditAnywhere, Category = ClusteredVoronoi, meta = (DisplayName = "Minimum Sites Per Cluster", UIMin = "0", UIMax = "5000", ClampMin = "2", ClampMax = "5000"))
+		int32 SitesPerClusterMin;
+
+	UPROPERTY(EditAnywhere, Category = ClusteredVoronoi, meta = (DisplayName = "Maximum Sites Per Cluster", UIMin = "0", UIMax = "5000", ClampMin = "2", ClampMax = "5000"))
+		int32 SitesPerClusterMax;
+
+	/** Clusters Radius - Clustered Voronoi Method */
 	UPROPERTY(EditAnywhere, Category = ClusteredVoronoi)
-		float SitesPerCluster;
+		float ClusterRadiusPercentageMin;
+
+	/** Clusters Radius - Clustered Voronoi Method */
+	UPROPERTY(EditAnywhere, Category = ClusteredVoronoi)
+		float ClusterRadiusPercentageMax;
 
 	/** Clusters Radius - Clustered Voronoi Method */
 	UPROPERTY(EditAnywhere, Category = ClusteredVoronoi)
@@ -242,10 +324,21 @@ public:
 	/** Slicing Offset Variation - Slicing Method [0..1] */
 	UPROPERTY(EditAnywhere, Category = Slicing)
 		float SliceOffsetVariation;
+
+	UPROPERTY(EditAnywhere, Category = Noise)
+		float Amplitude;
+
+	UPROPERTY(EditAnywhere, Category = Noise)
+		float Frequency;
+
+	UPROPERTY(EditAnywhere, Category = Noise)
+		int32 OctaveNumber;
+
+	UPROPERTY(EditAnywhere, Category = Noise)
+		int32 SurfaceResolution;
 };
 
-
-struct BLASTAUTHORING_API UPlaneCut 
+struct BLASTAUTHORING_API UPlaneCut
 {
 public:
 	UPlaneCut();
@@ -269,6 +362,24 @@ public:
 	/** Multiple plane cuts */
 	TArray<UPlaneCut> PlaneCuts;
 
+	UPROPERTY(EditAnywhere, Category = PlaneCut)
+	int32 NumberOfCuts;
+
+	/** Chance for subsequent cutting plane to cut individual chunks */
+	UPROPERTY(EditAnywhere, Category = PlaneCut)
+	float CutChunkChance;
+
+	UPROPERTY(EditAnywhere, Category = Noise)
+	float Amplitude;
+
+	UPROPERTY(EditAnywhere, Category = Noise)
+	float Frequency;
+
+	UPROPERTY(EditAnywhere, Category = Noise)
+	int32 OctaveNumber;
+
+	UPROPERTY(EditAnywhere, Category = Noise)
+	int32 SurfaceResolution;
 };
 
 
@@ -332,17 +443,38 @@ class BLASTAUTHORING_API UBrickFractureSettings
 public:
 	UBrickFractureSettings();
 
-	/** Num Slices X axis - Slicing Method */
+	/** Forward Direction to project brick pattern. */
 	UPROPERTY(EditAnywhere, Category = Brick)
-		int SlicesX;
+		EMeshFractureBrickProjection Forward;
 
-	/** Num Slices Y axis - Slicing Method */
+	/** Up Direction for vertical brick slices. */
 	UPROPERTY(EditAnywhere, Category = Brick)
-		int SlicesY;
+		EMeshFractureBrickProjection Up;
 
-	/** Num Slices Z axis - Slicing Method */
+	/** Brick length */
 	UPROPERTY(EditAnywhere, Category = Brick)
-		int SlicesZ;
+		float BrickLength;
+
+// 	/** Num Slices Y axis - Slicing Method */
+// 	UPROPERTY(EditAnywhere, Category = Brick)
+// 		float BrickWidth;
+
+	/** Brick Height */
+	UPROPERTY(EditAnywhere, Category = Brick)
+		float BrickHeight;
+
+	UPROPERTY(EditAnywhere, Category = Noise)
+		float Amplitude;
+
+	UPROPERTY(EditAnywhere, Category = Noise)
+		float Frequency;
+
+	UPROPERTY(EditAnywhere, Category = Noise)
+		int32 OctaveNumber;
+
+	UPROPERTY(EditAnywhere, Category = Noise)
+		int32 SurfaceResolution;
+
 };
 
 

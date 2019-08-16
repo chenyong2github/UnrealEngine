@@ -1,12 +1,13 @@
-﻿INTSourceChangelist:2709333
+﻿INTSourceChangelist:3108692
 Availability:Public
 Title:函数
-Crumbs:%ROOT%, Programming, Programming/UnrealArchitecture/Reference
+Parent: Programming/UnrealArchitecture/Reference
 Description:创建和实现游戏性类函数的参考。
 Version:4.9
 
 [TOC(start:2)]
 
+(#FunctionDeclaration)
 ## 函数声明
 
 **函数** 可以两种基本形式存在：普通 C++ 函数或 `UFunction`。C++ 函数和 `UFunction` 均在 `.h` 类头文件中进行声明。C++ 函数通过标准 C++ 语法进行声明。`UFunctions` 使用的是一种专用的语法，声明中将使用 [函数说明符](#FunctionSpecifiers) 来说明函数的额外信息。
@@ -21,6 +22,7 @@ Version:4.9
 
 [INCLUDE:Programming/UnrealArchitecture/Reference/Functions/Specifiers#main(offset:2)]
 
+(#FunctionParameterSpecifiers)
 ### 函数参数说明符
 
 $ Out : 
@@ -29,16 +31,19 @@ $ Optional :
 通过任选关键词可使部分函数参数变为任选，便于调用。任选参数的数值（调用方未指定）取决于函数。例如，`SpawnActor` 函数使用任选位置和旋转，默认为生成的 Actor 根组件的位置和旋转。添加 `= [value]` 参数可指定任选参数的默认值。例如：`function myFunc(optional int x = -1)`。在多数情况下，如无数值被传递到任选参数，将使用变量类型的默认值或零（例如 0、false、""、none）。
 
 
+(#FunctionImplementations)
 ## 函数实现
 
 类头文件中声明的函数在类源文件中获得定义。 
 
+(#Delegates)
 ## 委托
 
 [INCLUDE:Programming/UnrealArchitecture/Delegates#Overview]
 
 在 [](Programming/UnrealArchitecture/Delegates) 页面中查看参考和使用信息。
 
+(#Timers)
 ## 定时器
 
 [INCLUDE:Programming/UnrealArchitecture/Timers#Overview]

@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4404731
+﻿INTSourceChangelist:6604544
 Availability: Public
 Crumbs: 
 Title: 使用Live Link整合虚幻引擎4与Maya
@@ -31,29 +31,29 @@ Tags: Animation, Maya, Live Link
 
 ## 1 - 启用Live Link插件
 
-1\. 在您的项目中，从 **编辑（Edit）** 下的 **菜单栏（Menu Bar）**，选择 **插件（Plugins）**。
+1. 在您的项目中，从 **编辑（Edit）** 下的 **菜单栏（Menu Bar）**，选择 **插件（Plugins）**。
 
-![](Step_01-1.png)
+    ![](Step_01-1.png)
 
-2\. 在 **动画（Animation）** 部分下，针对 **Live Link** 单击 **已启用（Enabled）**，并在确认窗口上单击 **是（Yes）**，然后重启编辑器。  
+2. 在 **动画（Animation）** 部分下，针对 **Live Link** 单击 **已启用（Enabled）**，并在确认窗口上单击 **是（Yes）**，然后重启编辑器。  
 
-![](Step_02-3.png)
+    ![](Step_02-3.png)
 
-这将启用Live Link插件以连接到外部DDC工具。为了将您的DDC工具连接到UE4，您将需要启用对应插件。对于本方法说明，我们主要关注Maya，并需要在Maya内启用插件。
+    这将启用Live Link插件以连接到外部DDC工具。为了将您的DDC工具连接到UE4，您将需要启用对应插件。对于本方法说明，我们主要关注Maya，并需要在Maya内启用插件。
 
-引擎随附的Maya Live Link插件的预制二进制文件可在您的UE4安装文件夹中找到。
+    引擎随附的Maya Live Link插件的预制二进制文件可在您的UE4安装文件夹中找到。
 
 3. 导航到您的UE4安装文件夹，然后在 **Engine\\Extras\\MayaLiveLink** 文件夹下解压 **LiveLinkMaya.zip** 文件。
 
-[REGION:warning]
-部署4.19后，Maya Live Link插件未包括在Engine\\Extras\\MayaLiveLink文件夹内（应包含在内）。在部署热修复补丁以解决此问题之前，您可以使用 [此链接](https://epicgames.app.box.com/s/awdz97dguh6k61opwy66ovfhn3gpk1hg) 下载该内容。
-[/REGION]
+    [REGION:warning]
+    部署4.19后，Maya Live Link插件未包括在Engine\\Extras\\MayaLiveLink文件夹内（应包含在内）。在部署热修复补丁以解决此问题之前，您可以使用 [此链接](https://epicgames.app.box.com/s/awdz97dguh6k61opwy66ovfhn3gpk1hg) 下载该内容。
+    [/REGION]
 
-![](Step_03-1.png)
+    ![](Step_03-1.png)
 
 4. 针对您的 **Maya** 版本复制该文件夹，然后导航到您的 **Maya** 安装文件夹并将其粘贴到 **plug-ins** 文件夹中。
 
-![](Step_04-1.png)
+    ![](Step_04-1.png)
 
 在下一个步骤中，我们将在Maya中启用Live Link插件，并打开Maya Live LinkUI（Live Link UI）窗口，以便您查看与正在运行的UE4编辑器版本的连接状态。  
 
@@ -77,11 +77,11 @@ Tags: Animation, Maya, Live Link
 
 	![](Step_08-2.png)
 
-这将打开Maya Live LinkUI连接状态（Maya Live Link UI Connection Status）窗口。   
+    这将打开Maya Live LinkUI连接状态（Maya Live Link UI Connection Status）窗口。   
 
-![](Step_09-1.png)
+    ![](Step_09-1.png)
 
-窗口右上方显示连接状态，指示您是否连接到一个正在运行的的UE4编辑器版本。下方的窗口用于命名和添加/移除要流送到UE4（本指南中稍后会执行此操作）的 **主题（Subjects）**。
+    窗口右上方显示连接状态，指示您是否连接到一个正在运行的的UE4编辑器版本。下方的窗口用于命名和添加/移除要流送到UE4（本指南中稍后会执行此操作）的 **主题（Subjects）**。
 
 目前我们还未连接，但在下一步骤中，我们将建立与UE4的连接，导出我们可以在Maya中使用的动画资源和骨架网格，并将其作为一个主题添加，以流送回UE4进行实时预览。
 

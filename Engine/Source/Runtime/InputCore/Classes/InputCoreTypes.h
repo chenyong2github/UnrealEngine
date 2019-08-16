@@ -83,7 +83,7 @@ struct INPUTCORE_API FKey
 
 	friend bool operator==(const FKey& KeyA, const FKey& KeyB) { return KeyA.KeyName == KeyB.KeyName; }
 	friend bool operator!=(const FKey& KeyA, const FKey& KeyB) { return KeyA.KeyName != KeyB.KeyName; }
-	friend bool operator<(const FKey& KeyA, const FKey& KeyB) { return KeyA.KeyName < KeyB.KeyName; }
+	friend bool operator<(const FKey& KeyA, const FKey& KeyB) { return KeyA.KeyName.LexicalLess(KeyB.KeyName); }
 	friend uint32 GetTypeHash(const FKey& Key) { return GetTypeHash(Key.KeyName); }
 
 	friend struct EKeys;
@@ -516,6 +516,7 @@ struct INPUTCORE_API EKeys
 	static void AddKey(const FKeyDetails& KeyDetails);
 	static void GetAllKeys(TArray<FKey>& OutKeys);
 	static TSharedPtr<FKeyDetails> GetKeyDetails(const FKey Key);
+	static void RemoveKeysWithCategory(const FName InCategory);
 
 	// These exist for backwards compatibility reasons only
 	static bool IsModifierKey(FKey Key) { return Key.IsModifierKey(); }

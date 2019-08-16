@@ -20,20 +20,21 @@
 
 
 #define LOCTEXT_NAMESPACE "StaticMeshActor"
+FName AStaticMeshActor::StaticMeshComponentName(TEXT("StaticMeshComponent0"));
 
 AStaticMeshActor::AStaticMeshActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	bCanBeDamaged = false;
 
-	StaticMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StaticMeshComponent0"));
+	StaticMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(StaticMeshComponentName);
 	StaticMeshComponent->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
 	StaticMeshComponent->Mobility = EComponentMobility::Static;
 	StaticMeshComponent->SetGenerateOverlapEvents(false);
 	StaticMeshComponent->bUseDefaultCollision = true;
 
 	RootComponent = StaticMeshComponent;
-
+	
 	// Only actors that are literally static mesh actors can be placed in clusters, native subclasses or BP subclasses are not safe by default
 	bCanBeInCluster = (GetClass() == AStaticMeshActor::StaticClass());
 }
@@ -188,7 +189,7 @@ void AStaticMeshActor::CheckForErrors()
 			AStaticMeshActor *A = Cast<AStaticMeshActor>(Overlaps[OverlapIdx].GetActor());
 			if ( A && (A != this) && (A->GetActorLocation() - GetActorLocation()).IsNearlyZero() && A->StaticMeshComponent
 				&& (A->StaticMeshComponent->GetStaticMesh() == StaticMeshComponent->GetStaticMesh()) && (A->GetActorRotation() == GetActorRotation())
-				&& (A->StaticMeshComponent->RelativeScale3D == StaticMeshComponent->RelativeScale3D) )
+				&& (A->StaticMeshComponent->RelativeScale3D - StaticMeshComponent->RelativeScale3D).IsNearlyZero() )
 			{
 				FFormatNamedArguments Arguments;
 				Arguments.Add(TEXT("ActorName0"), FText::FromString(GetName()));

@@ -172,6 +172,7 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 			check( TopLevelPackage );
 			check( TopLevelPackage->GetOuter() == NULL );
 
+			// Calling IsFullyLoaded() will mark a package as fully loaded if it does not exist on disk
 			if( !TopLevelPackage->IsFullyLoaded() )
 			{	
 				// Ask user to fully load or suppress the message and just fully load

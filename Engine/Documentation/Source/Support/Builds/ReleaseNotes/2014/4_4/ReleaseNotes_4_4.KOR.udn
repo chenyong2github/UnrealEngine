@@ -1,11 +1,10 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:6581787
 Title: 언리얼 엔진 4.4. 릴리즈 노트
 Crumbs:%ROOT%, Support/Builds
 Description:
 Availability:Public
 version: 4.4
-order:4
-
+Order: 40
 [TOC(start:2 end:2)]
 
 [PUBLISH:Licensee]
@@ -60,7 +59,7 @@ Alex Silkin (alexSilkin), Joe Riedel (joeriedel), Joel Riendeau (joelriendeau), 
 
 ![](LandScapeMountains.png)
 
-Matinee Fight Scene (마티네 격투 씬) - 마티네로 제작된 격투 씬을 파고들어가 보면서, 입이 딱 벌어지는 프로급 시네마틱을 제작하는 법을 배워봅시다. 캐릭터 애니메이션에서 VFX 까지, 그 모든 것을 에디터 안에서 어떻게 제어했는가 손쉽게 확인할 수 있습니다. [튜토리얼](Resources/Showcases/MatineeFightScene) 및 간단한 마티네 [비법](Engine/Matinee/HowTo) 문서로 시작해 보세요.
+Matinee Fight Scene (마티네 격투 씬) - 마티네로 제작된 격투 씬을 파고들어가 보면서, 입이 딱 벌어지는 프로급 시네마틱을 제작하는 법을 배워봅시다. 캐릭터 애니메이션에서 VFX 까지, 그 모든 것을 에디터 안에서 어떻게 제어했는가 손쉽게 확인할 수 있습니다. [튜토리얼](Resources/Showcases/MatineeFightScene) 및 간단한 마티네 [하우투](Engine/Matinee/HowTo) 문서로 시작해 보세요.
 
 ![](MatineeFightScene.png)
 
@@ -180,7 +179,7 @@ Clear Coat (클리어 코팅) 셰이딩 모델은 반투명 코팅이 덮여있�
 * 몽타주 슬롯에 잘못된 이름이 사용되면 유용한 오류 메시지가 표시됩니다.
 * 애니메이션 '리타기팅' 옵션이 스켈레톤 트리 탭에만 표시됩니다.
 * 애니메이션 에디터의 줌 기능이 이제 현재 마우스 위치를 기준으로 합니다.
-* 마지막으로 애셋을 레퍼런싱하는 모든 애님 그래프 노드는 이제 애셋에 더블클릭 하여 편집용으로 열 수 있습니다.
+* 마지막으로 애셋을 참조하는 모든 애님 그래프 노드는 이제 애셋에 더블클릭 하여 편집용으로 열 수 있습니다.
 
 #### 블루프린트
 
@@ -237,23 +236,23 @@ Clear Coat (클리어 코팅) 셰이딩 모델은 반투명 코팅이 덮여있�
 
 
 ## 학습 자료
-* [신규 퀵스타트 디렉터리](GettingStarted/QuickStartDirectory) - 시작하기 문서나 에디터에서 모든 퀵스타트 가이드로 바로 점프할 수 있습니다!
+* [신규 퀵스타트 디렉터리](GettingStarted) - 시작하기 문서나 에디터에서 모든 퀵스타트 가이드로 바로 점프할 수 있습니다!
 * [마티네 격투 씬 튜토리얼](Resources/Showcases/MatineeFightScene)
-* [마티네 비법 3-8](Engine/Matinee/HowTo)
+* [마티네 하우투 3-8](Engine/Matinee/HowTo)
 * [페이퍼 2D](Resources/ContentExamples/Paper2D) & [스플라인 컴포넌트](Resources/ContentExamples/Blueprint_Splines) 에 대한 콘텐츠 예제 디렉터리
 * [렌더 투 텍스처](Engine/Content/Tools/RenderToTextureTools)
 * AI 퀵 스타트
 * [FBX 오류 메시지 개선](Shared/Editor/FbxErrors)
 * [Mixamo 임포트 가이드](Engine/Animation/UsingMixamoContent)
-* [iOS 퀵 스타트](Platforms/iOS/QuickStart)
+* [iOS 퀵 스타트](Platforms/Mobile/iOS/QuickStart)
 	* Mac 에서 iOS 로
 	* Windows 에서 iOS 로, 블루프린트 전용
 * iOS 셋업 & 개발을 위한 에디터내 튜토리얼
 * [프로파일러 개요](Engine/Performance/Profiler)
 * [언리얼 모션 그래픽(UMG)](Engine/UMG) - 초기 문서
-* 비헤이비어 트리 개요 & 참고서
+* 비헤이비어 트리 개요 & 레퍼런스
 	* [비헤이비어 트리 퀵 스타트](Engine/AI/BehaviorTrees/QuickStart)
-	* [비헤이비어 트리 노드 참고서](Engine/AI/BehaviorTrees/NodeReference)
+	* [비헤이비어 트리 노드 레퍼런스](Engine/AI/BehaviorTrees/NodeReference)
 	* [비헤이비어 트리 개요](Engine/AI/BehaviorTrees/HowUE4BehaviorTreesDiffer)
 * [델리게이트](Programming/UnrealArchitecture/Delegates) - AddStatic/BindStatic 에 대한 추가 정보
 * [Steam 문서 업데이트](Programming/Online/Steam)
@@ -266,7 +265,7 @@ Clear Coat (클리어 코팅) 셰이딩 모델은 반투명 코팅이 덮여있�
 * 내비게이션 경로가 이제 자체적으로 재계산됩니다!
 * 레벨 브라우저에서 이제 드래그 앤 드롭으로 레벨 순서를 빠르게 변경할 수 있습니다.
 * 메인 에디터 영역에 도킹된 애셋 에디터의 위치를 기억, 다음 번 다시 열 때 그 위치에서 열립니다.
-* 캐스케이드용 머티리얼 작업방식이 새로 추가되었습니다. 이제 네임드 머티리얼을 각 이미터에서 레퍼런싱할 수 있는 시스템에 추가시킬 수 있습니다. 이 머티리얼은 그 이름을 통해 블루프린트나 코드에서 외부적으로 접근 가능하며, 덮어쓸 수도 있습니다.
+* 캐스케이드용 머티리얼 작업방식이 새로 추가되었습니다. 이제 네임드 머티리얼을 각 이미터에서 참조할 수 있는 시스템에 추가시킬 수 있습니다. 이 머티리얼은 그 이름을 통해 블루프린트나 코드에서 외부적으로 접근 가능하며, 덮어쓸 수도 있습니다.
 * 에디터 곳곳에 리치 툴팁 문서 링크를 제공하는 기능을 추가했습니다.
 * 머티리얼 에디터의 라이브 프리뷰 버튼은 모든 편집에 대한 프리뷰 머티리얼 컴파일을 토글시킵니다. 끄면 머티리얼은 '적용'을 눌렀을 때만 컴파일됩니다.
 * 프로젝트 세팅에서 비동기 로딩 시간 제한 및 작동방식을 맞춤 설정할 수 있습니다.
@@ -430,7 +429,7 @@ Clear Coat (클리어 코팅) 셰이딩 모델은 반투명 코팅이 덮여있�
 * 퍼시스턴트 레벨 로드 이후 서브레벨을 로드할 때 더이상 레벨의 트랜스폼이 유지되지 않습니다.
 * 이제 커스텀 스플래시 화면이 정상 표시됩니다.
 * AActor::GetPawn() 와의 혼동을 피하기 위해 AActor::GetControlledPawn() 를 폐기시켰습니다.
-* 열린 마티네에 액터가 레퍼런싱된 경우 액터를 다른 레벨로 이동시킬 수 없도록 했습니다.
+* 열린 마티네에 액터가 참조된 경우 액터를 다른 레벨로 이동시킬 수 없도록 했습니다.
 * 버전비교된 애셋은 더이상 애셋 선택기에 나타나지 않습니다.
 * DestroyApplication 가상 함수는 `F<Platform>Application` 에 대해 제대로 호출됩니다.
 * 모든 클래스 메타데이터 태그를 문서화했습니다.
@@ -481,7 +480,7 @@ Clear Coat (클리어 코팅) 셰이딩 모델은 반투명 코팅이 덮여있�
 	* AActor::PostNetReceiveLocation() 가 로테이션도 포함하도록 변경했습니다 (이제 PostNetReceiveLocationAndRotation 라 부릅니다).
 	* UpdateBasedMovement() 에 잘못된 로테이션 델타 계산을 고쳤습니다.
 	* 리플리케이트된 로테이션이 캐릭터의 상대 로테이션을 덮어쓰는 것을 고쳤습니다.
-	* 속도가 0 에 도달할 때 시뮬레이티드 프락시가 서버 위치와 일치하지 않던 것을 고쳤습니다. 그런 경우 프락시를 한 프레임 더 진행시킵니다.
+	* 속도가 0 에 도달할 때 시뮬레이티드 프록시가 서버 위치와 일치하지 않던 것을 고쳤습니다. 그런 경우 프록시를 한 프레임 더 진행시킵니다.
 	* 시뮬레이티드 클라이언트에 대해 bIgnoreBaseRotation 가 무시되던 것을 고쳤습니다. 이 경우 절대 로테이션이 대신 전송됩니다.
 * 타임스텝이 한계치를 넘었을 때 ApplyVelocityBraking 에 변화가 잘못 누적되던 (특히나 프레임 속도가 낮을 때의) 문제를 고쳤습니다.
 * 낙하 도중 캡슐의 아래 부분이 무언가에 충돌했을 때 경사면이 올라오던 것을 방지합니다.

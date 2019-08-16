@@ -26,6 +26,7 @@ class SWidget;
 class UNiagaraNode;
 class UEdGraphSchema_Niagara;
 class UEdGraphPin;
+class FCompileConstantResolver;
 
 namespace FNiagaraEditorUtilities
 {
@@ -138,19 +139,17 @@ namespace FNiagaraEditorUtilities
 
 	void FixUpNumericPins(const UEdGraphSchema_Niagara* Schema, UNiagaraNode* Node);
 
-	void SetStaticSwitchConstants(UNiagaraGraph* Graph, const TArray<UEdGraphPin*>& CallInputs);
+	void SetStaticSwitchConstants(UNiagaraGraph* Graph, const TArray<UEdGraphPin*>& CallInputs, const FCompileConstantResolver& ConstantResolver);
 
 	bool ResolveConstantValue(UEdGraphPin* Pin, int32& Value);
 
-	void PreprocessFunctionGraph(const UEdGraphSchema_Niagara* Schema, UNiagaraGraph* Graph, const TArray<UEdGraphPin*>& CallInputs, const TArray<UEdGraphPin*>& CallOutputs, ENiagaraScriptUsage ScriptUsage);
-
-	/** Returns the parameter map references for the given graph as if the graph was compiled, factoring in compile-time options such as static switches. */
-	const TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& GetCompiledGraphParameterMapReferences(UNiagaraGraph* Graph);
+	void PreprocessFunctionGraph(const UEdGraphSchema_Niagara* Schema, UNiagaraGraph* Graph, const TArray<UEdGraphPin*>& CallInputs, const TArray<UEdGraphPin*>& CallOutputs, ENiagaraScriptUsage ScriptUsage, const FCompileConstantResolver& ConstantResolver);
 
 	/** Options for the GetScriptsByFilter function. 
 	** @Param ScriptUsageToInclude Only return Scripts that have this usage
 	** @Param (Optional) TargetUsageToMatch Only return Scripts that have this target usage (output node) 
 	** @Param bIncludeDeprecatedScripts Whether or not to return Scripts that are deprecated (defaults to false) 
+	** @Param bIncludeNonLibraryScripts Whether or not to return non-library scripts (defaults to false)
 	*/
 	struct FGetFilteredScriptAssetsOptions
 	{
@@ -158,12 +157,14 @@ namespace FNiagaraEditorUtilities
 			: ScriptUsageToInclude(ENiagaraScriptUsage::Module)
 			, TargetUsageToMatch()
 			, bIncludeDeprecatedScripts(false)
+			, bIncludeNonLibraryScripts(false)
 		{
 		}
 
 		ENiagaraScriptUsage ScriptUsageToInclude;
 		TOptional<ENiagaraScriptUsage> TargetUsageToMatch;
 		bool bIncludeDeprecatedScripts;
+		bool bIncludeNonLibraryScripts;
 	};
 
 	NIAGARAEDITOR_API void GetFilteredScriptAssets(FGetFilteredScriptAssetsOptions InFilter, TArray<FAssetData>& OutFilteredScriptAssets); 
@@ -188,4 +189,14 @@ namespace FNiagaraEditorUtilities
 	TArray<UNiagaraComponent*> GetComponentsThatReferenceSystem(const UNiagaraSystem& ReferencedSystem);
 
 	TArray<UNiagaraComponent*> GetComponentsThatReferenceSystemViewModel(const FNiagaraSystemViewModel& ReferencedSystemViewModel);
+
+	const FGuid AddEmitterToSystem(UNiagaraSystem& InSystem, UNiagaraEmitter& InEmitterToAdd);
+
+	void RemoveEmittersFromSystemByEmitterHandleId(UNiagaraSystem& InSystem, TSet<FGuid> EmitterHandleIdsToDelete);
+
+	/** Kills all system instances using the referenced system. */
+	void KillSystemInstances(const UNiagaraSystem& System);
+
+
+	bool VerifyNameChangeForInputOrOutputNode(const UNiagaraNode& NodeBeingChanged, FName OldName, FName NewName, FText& OutErrorMessage);
 };

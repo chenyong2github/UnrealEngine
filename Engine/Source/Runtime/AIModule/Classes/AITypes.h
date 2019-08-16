@@ -57,8 +57,7 @@ namespace EAIOptionFlag
 	enum Type
 	{
 		Default,
-		Enable UMETA(DisplayName = "Yes"),	// UHT was complaining when tried to use True as value instead of Enable
-
+		Enable UMETA(DisplayName = "Yes"),
 		Disable UMETA(DisplayName = "No"),
 
 		MAX UMETA(Hidden)
@@ -598,4 +597,49 @@ enum class EGenericAICheck : uint8
 	IsTrue,
 
 	MAX UMETA(Hidden)
+};
+
+USTRUCT()
+struct FIntervalCountdown
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category=Time)
+	float Interval;
+
+	float TimeLeft;
+
+	explicit FIntervalCountdown(const float InInterval = -1.f) : Interval(InInterval), TimeLeft(0) {}
+
+	void Set(const float InNewTimeLeft)
+	{
+		TimeLeft = InNewTimeLeft;
+	}
+
+	/**	@return True if time's up */
+	bool Tick(const float TimeDelta)
+	{
+		TimeLeft -= TimeDelta;
+		return TimeLeft <= 0;
+	}
+
+	/** resets the countdown back to Interval */
+	void Reset()
+	{
+		TimeLeft = Interval;
+	}
+
+	/** Note that this function returns meaningful results only if Interval > 0*/
+	float GetElapsedTime() const
+	{
+		ensure(Interval > 0);
+		// using -TimeLeft because at this point TimeLeft is negative
+		return (Interval - TimeLeft);
+	}
+
+	/** @return If Interval > 0 returns time accumulated since resetting. Oterwise returns FallbackValue */
+	float GetElapsedTimeWithFallback(const float FallbackValue) const
+	{
+		return Interval > 0 ? GetElapsedTime() : FallbackValue;
+	}
 };

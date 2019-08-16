@@ -5,8 +5,8 @@
 =============================================================================*/
 
 // Update this GUID to improve shader recompilation for Metal only shaders
-// GUID = 547529DD-FBE7-45BC-A49B-0EFDB6D7F94E
-  
+// GUID = cda708c4-2f08-4eb2-b045-42a269d14ed4
+
 #pragma once
 
 #if VERTEXSHADER && HULLSHADER
@@ -28,3 +28,14 @@
 */
 
 #define COMPILER_SUPPORTS_MINMAX3 0
+
+#if IOS
+#if COMPILER_HLSLCC > 1
+#if PIXELSHADER
+	[[vk::input_attachment_index(0)]] SubpassInput<float4> gl_LastFragData;
+	#define FramebufferFetchES2() gl_LastFragData.SubpassLoad()
+#else
+	#define FramebufferFetchES2() float4(0,0,0,0)
+#endif
+#endif
+#endif

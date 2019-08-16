@@ -62,7 +62,27 @@ public:
 			.ActivationPolicy(EWindowActivationPolicy::Never)
 			.IsInitiallyMaximized(false)
 			[
-				LogWidget.ToSharedRef()
+				SNew(SBorder)
+				.BorderImage(FCoreStyle::Get().GetBrush("ToolPanel.GroupBorder"))
+				[
+					SNew(SVerticalBox)
+
+					+ SVerticalBox::Slot()
+					.FillHeight(1.0f)
+					[
+						LogWidget.ToSharedRef()
+					]
+					
+					+ SVerticalBox::Slot()
+					.HAlign(HAlign_Center)
+					.AutoHeight()
+					.Padding(0.0f, 6.0f, 0.0f, 4.0f)
+					[
+						SNew(SButton)
+						.Text(LOCTEXT("QuickRestart", "Quick Restart"))
+						.OnClicked(FOnClicked::CreateRaw(this, &FLiveCodingConsoleApp::RestartTargets))
+					]
+				]
 			];
 
 		// Add the window without showing it
@@ -179,7 +199,7 @@ private:
 		LogWidget->AppendLine(GetLogColor(Verbosity), MoveTemp(Text));
 	}
 
-	bool CompilePatch(const TArray<FString>& Targets, TMap<FString, TArray<FString>>& ModuleToObjectFiles)
+	bool CompilePatch(const TArray<FString>& Targets, const TArray<FString>& ValidModules, TArray<FString>& RequiredModules, TMap<FString, TArray<FString>>& ModuleToObjectFiles)
 	{
 		// Update the compile start time. This gets copied into the last patch time once a patch has been confirmed to have been applied.
 		NextPatchStartTime = FDateTime::UtcNow();
@@ -188,21 +208,30 @@ private:
 		FString Executable = FPaths::EngineDir() / TEXT("Binaries/DotNET/UnrealBuildTool.exe");
 		FPaths::MakePlatformFilename(Executable);
 
+		// Write out the list of lazy-loaded modules for UBT to check
+		FString ModulesFileName = FPaths::ConvertRelativePathToFull(FPaths::EngineIntermediateDir() / TEXT("LiveCodingModules.txt"));
+		FFileHelper::SaveStringArrayToFile(ValidModules, *ModulesFileName);
+
+		// Delete the output file for non-whitelisted modules
+		FString ModulesOutputFileName = ModulesFileName + TEXT(".out");
+		IFileManager::Get().Delete(*ModulesOutputFileName);
+
+		// Delete any existing manifest
+		FString ManifestFileName = FPaths::ConvertRelativePathToFull(FPaths::EngineIntermediateDir() / TEXT("LiveCoding.json"));
+		IFileManager::Get().Delete(*ManifestFileName);
+
 		// Build the argument list
 		FString Arguments;
 		for (const FString& Target : Targets)
 		{
 			Arguments += FString::Printf(TEXT("-Target=\"%s\" "), *Target.Replace(TEXT("\""), TEXT("\"\"")));
 		}
-
-		FString ManifestFileName = FPaths::ConvertRelativePathToFull(FPaths::EngineIntermediateDir() / TEXT("LiveCoding.json"));
-		Arguments += FString::Printf(TEXT("-LiveCoding -LiveCodingManifest=\"%s\" -WaitMutex"), *ManifestFileName);
-
+		Arguments += FString::Printf(TEXT("-LiveCoding -LiveCodingModules=\"%s\" -LiveCodingManifest=\"%s\" -WaitMutex"), *ModulesFileName, *ManifestFileName);
 		AppendLogLine(ELiveCodingLogVerbosity::Info, *FString::Printf(TEXT("Running %s %s"), *Executable, *Arguments));
 
 		// Spawn UBT and wait for it to complete (or the compile button to be pressed)
 		FMonitoredProcess Process(*Executable, *Arguments, true);
-		Process.OnOutput().BindLambda([this](const FString& Text){ AppendLogLine(ELiveCodingLogVerbosity::Info, *Text); });
+		Process.OnOutput().BindLambda([this](const FString& Text){ AppendLogLine(ELiveCodingLogVerbosity::Info, *(FString(TEXT("  ")) + Text)); });
 		Process.Launch();
 		while(Process.Update())
 		{
@@ -214,9 +243,17 @@ private:
 			FPlatformProcess::Sleep(0.1f);
 		}
 
-		if (Process.GetReturnCode() != 0)
+		int ReturnCode = Process.GetReturnCode();
+		if (ReturnCode != 0)
 		{
-			AppendLogLine(ELiveCodingLogVerbosity::Failure, TEXT("Build failed."));
+			if (FPaths::FileExists(ModulesOutputFileName))
+			{
+				FFileHelper::LoadFileToStringArray(RequiredModules, *ModulesOutputFileName);
+			}
+			else
+			{
+				AppendLogLine(ELiveCodingLogVerbosity::Failure, TEXT("Build failed."));
+			}
 			return false;
 		}
 
@@ -263,6 +300,12 @@ private:
 	{
 		FScopeLock Lock(&CriticalSection);
 		return bRequestCancel;
+	}
+
+	FReply RestartTargets()
+	{
+		Server.RestartTargets();
+		return FReply::Handled();
 	}
 
 	void SetVisibleAsync(bool bVisible)
@@ -382,12 +425,15 @@ bool LiveCodingConsoleMain(const TCHAR* CmdLine)
 	GEngineLoop.PreInit(CmdLine);
 	check(GConfig && GConfig->IsReadyForUse());
 
+	// Initialize high DPI mode
+	FSlateApplication::InitHighDPI(true);
+
 	{
-		// create the platform slate application (what FSlateApplication::Get() returns)
+		// Create the platform slate application (what FSlateApplication::Get() returns)
 		TSharedRef<FSlateApplication> Slate = FSlateApplication::Create(MakeShareable(FPlatformApplicationMisc::CreateApplication()));
 
 		{
-			// initialize renderer
+			// Initialize renderer
 			TSharedRef<FSlateRenderer> SlateRenderer = GetStandardStandaloneRenderer();
 
 			// Try to initialize the renderer. It's possible that we launched when the driver crashed so try a few times before giving up.
@@ -399,7 +445,7 @@ bool LiveCodingConsoleMain(const TCHAR* CmdLine)
 				return false;
 			}
 
-			// set the normal UE4 GIsRequestingExit when outer frame is closed
+			// Set the normal UE4 GIsRequestingExit when outer frame is closed
 			Slate->SetExitRequestedHandler(FSimpleDelegate::CreateStatic(&OnRequestExit));
 
 			// Prepare the custom Slate styles

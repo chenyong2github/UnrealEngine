@@ -1,0 +1,58 @@
+﻿INTSourceChangelist:6593789
+Availability: Public
+Crumbs: 
+Title: VRED 에서 데이터스미스 콘텐츠 익스포트
+Description: Autodesk VRED 용 익스포트 플러그인 스크립트를 설치하고, 데이터스미스가 언리얼로 임포트할 수 있도록 VRED 씬을 FBX 로 익스포트하는 법을 설명합니다.
+Type: 
+Version: 4.21
+SkillLevel:Beginner
+Parent: Studio/Datasmith/SoftwareInteropGuides/DeltagenVRED
+Order: 0
+Tags: Enterprise
+Tags: how to
+Tags: Unreal Studio
+Tags: Datasmith
+Tags: VRED
+
+
+[TOC(start:2 end:2)]
+
+## 익스포터 플러그인 스크립트 설치
+
+언리얼 엔진에서 VRED 콘텐츠 작업을 시작하기 이전 VRED 플러그인 스크립트를 설치해야 합니다.
+
+익스포터 플러그인이 현재 지원하는 VRED Professional 버전을 확인하려면 [](Studio/Datasmith/SupportedSoftwareandFileTypes) 문서를 참고하세요.
+
+아래 방법대로 컴퓨터에 설치된 VRED 지원 버전에 맞는 데이터스미스 익스포터 플러그인 스크립트를 설치하세요.
+
+1.  언리얼 엔진 설치 폴더 아래 `Enterprise\Plugins\Editor\DatasmithFBXImporter\Extras\VREDPlugin` 폴더를 찾으세요.
+
+1.  VRED 설치가 플러그인을 찾는 위치로 이 폴더와 내용물을 같이 복사합니다.
+    Windows 플랫폼을 예로 들면 `C:\Users\<username>\Documents\Autodesk\VRED-<internalVersion>\ScriptPlugins` 에서 `<username>` 는 Windows 사용자 ID 이며, `<InternalVersion>` 는 설치한 VRED 버전을 나타냅니다.
+    이 경로를 찾는 법 관련 자세한 내용은 [the VRED documentation](http://help.autodesk.com/view/VREDPRODUCTS/2018/ENU/?guid=GUID-C085B3DC-A66C-48EB-8FE4-43E4383AC46E) 페이지를 참고하세요.
+    [REGION:tip]
+    VRED Terminal 창을 사용해서 이 경로를 찾을 수도 있습니다. 메인 메뉴의 **View > Terminal** 을 선택하여 Terminal 을 연 다음 **Looking for script plugins in** 로 시작하는 줄을 찾으면 됩니다. 예:  
+    ![](vred-terminal.png "vred-terminal.png")
+    [/REGION]
+
+1.  VRED 를 재시작합니다.
+
+## 데이터스미스로 익스포트
+
+원하는 대로 VRED 씬을 구성했고 변수(variant)를 등록했으면 씬을 FBX 로 익스포트합니다.
+
+1.  VRED 의 메인 메뉴에서 다음과 같이 선택합니다.
+    *   **File > Export > Export to Datasmith...** (VRED 2018 의 경우)
+    *   **File > Export Scene Data > Export to Datasmith...** (VRED 2019 의 경우)  
+        ![VRED 에서 데이터스미스 익스포트](datasmith-vred-export.png "Datasmith export from VRED")
+2.  폴더를 찾아 파일 이름을 선택하세요.
+
+익스포터가 선택한 위치에 *.FBX* 파일을 만듭니다.
+
+### 최종 결과
+
+이제 새로운 *.FBX* 파일을 언리얼 에디터로 임포트할 준비가 되었습니다. [](Studio/Datasmith/HowTo/ImportingContent) 문서를 참고하세요.  
+
+[REGION:note]
+익스포터는 *.FBX* 파일 옆에 다른 파일도 추가로 만듭니다. *.lights* 파일에는 씬의 라이트 관련 추가 정보가, *.var* 파일에는 등록된 변수 관련 정보가 들어있습니다. 데이터스미스 임포터에 필요한 정보입니다. *.FBX* 파일을 새 위치로 이동하는 경우, 같은 상대 경로에 위의 추가 파일도 같이 이동해야 합니다.
+[/REGION]

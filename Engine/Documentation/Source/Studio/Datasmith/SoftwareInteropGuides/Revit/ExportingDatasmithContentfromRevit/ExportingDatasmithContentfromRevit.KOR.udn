@@ -1,0 +1,36 @@
+INTSourceChangelist:6572475
+Availability: Public
+Crumbs: 
+Title: Revit 에서 데이터스미스 콘텐츠 익스포트
+Description: Revit 씬을 데이터스미스 파일로 익스포트한 뒤 언리얼 에디터로 임포트하는 방법을 설명합니다.
+Type: 
+skilllevel:Beginner
+Version: 4.21
+Parent: Studio/Datasmith/SoftwareInteropGuides/Revit
+Order: 1
+Tags: how to
+Tags: Datasmith
+Tags: Early Access
+Tags: Revit
+
+
+Revit 용 데이터스미스 익스포터 플러그인을 설치한 이후, **Add-Ins** 리본에 선택된 3D 뷰를 *.udatasmith* 파일로 익스포트하는 옵션이 새로 생깁니다.
+
+Revit 에서 씬을 그 파일 유형으로 익스포트하는 방법은 다음과 같습니다.
+
+1.  **Project Browser** 에서 익스포트하려는 3D 뷰를 선택합니다.  
+    ![Select a 3D View](revit-select-3d-view.png "Select a 3D View")  
+    데이터스미스 익스포터 플러그인이 현재 3D 뷰에 정의된 가시성 설정을 사용하여 익스포트할 씬 부분을 결정합니다. 자세한 내용은 [](Studio/Datasmith/SoftwareInteropGuides/Revit) 문서를 참고하세요.
+2.  **Add-Ins** 리본을 엽니다. **Unreal Datasmith** 섹션에서 **Export 3D View** 를 클릭합니다.  
+    ![Add-ins | Export 3D View](revit-toolbar.png "Add-ins | Export 3D View")
+3.  **Export 3D View to Unreal Datasmith** 창에서 .udatasmith 파일을 저장하려는 위치로 이동한 다음 **File Name box** 에 파일 이름을 새로 짓습니다.  
+    ![Set the location and file name](revit-ds-export-location.png "Set the location and file name")
+4.  **Save** 를 클릭합니다.
+
+### 최종 결과
+
+이제 새로운 *.udatasmith* 파일을 언리얼 에디터로 임포트할 준비가 되었습니다. 자세한 내용은 [](Studio/Datasmith/HowTo/ImportingContent), [](Studio/Datasmith/HowTo/ReimportingContent) 문서를 참고하세요.
+
+[REGION:note]
+새로운 *.udatasmith* 파일과 함께, 똑같은 이름 뒤에 *_Assets* 가 붙은 폴더가 보일 것입니다. *.udatasmith* 파일을 새 위치로 옮길 때, 이 파일도 같은 위치로 옮겨야 합니다.
+[/REGION]

@@ -29,20 +29,32 @@ struct CONTROLRIG_API FAnimNode_ControlRigBase : public FAnimNode_CustomProperty
 	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
 
 protected:
-	/** Rig Hierarchy node name mapping for the required bones array */
+	/** Rig Hierarchy bone name to required array index mapping */
 	UPROPERTY(transient)
-	TArray<FName> ControlRigNodeMapping;
+	TMap<FName, uint16> ControlRigBoneMapping;
+
+	/** Rig Curve name to Curve LUI mapping */
+	UPROPERTY(transient)
+	TMap<FName, uint16> ControlRigCurveMapping;
 
 	UPROPERTY(transient)
-	TMap<FName, uint16> CurveMappingUIDs;
+	TMap<FName, uint16> InputToCurveMappingUIDs;
 
 	/** Node Mapping Container */
 	UPROPERTY(transient)
 	TWeakObjectPtr<UNodeMappingContainer> NodeMappingContainer;
 
+	UPROPERTY(transient)
+	bool bUpdateInput;
+
+	UPROPERTY(transient)
+	bool bExecute;
+
 	// update input/output to control rig
 	virtual void UpdateInput(UControlRig* ControlRig, const FPoseContext& InOutput);
 	virtual void UpdateOutput(UControlRig* ControlRig, FPoseContext& InOutput);
 	virtual UClass* GetTargetClass() const override;
+
+	friend struct FControlRigSequencerAnimInstanceProxy;
 };
 

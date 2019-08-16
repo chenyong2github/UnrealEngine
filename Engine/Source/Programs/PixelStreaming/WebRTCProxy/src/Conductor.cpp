@@ -44,7 +44,7 @@ FConductor::FConductor()
 
 	ResetPeerConnectionConfig();
 
-	UE4Connection.Connect("127.0.0.1", PARAM_UE4Port);
+	UE4Connection.Connect(PARAM_UE4.first, PARAM_UE4.second);
 }
 
 FConductor::~FConductor()

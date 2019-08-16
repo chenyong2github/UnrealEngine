@@ -238,7 +238,7 @@ void UK2Node_CommutativeAssociativeBinaryOperator::GetContextMenuActions(const F
 					LOCTEXT("RemovePinTooltip", "Remove this input pin"),
 					FSlateIcon(),
 					FUIAction(
-						FExecuteAction::CreateUObject(this, &UK2Node_CommutativeAssociativeBinaryOperator::RemoveInputPin, const_cast<UEdGraphPin*>(Context.Pin))
+						FExecuteAction::CreateUObject(const_cast<UK2Node_CommutativeAssociativeBinaryOperator*>(this), &UK2Node_CommutativeAssociativeBinaryOperator::RemoveInputPin, const_cast<UEdGraphPin*>(Context.Pin))
 					)
 				);
 				Context.MenuBuilder->EndSection();
@@ -252,7 +252,7 @@ void UK2Node_CommutativeAssociativeBinaryOperator::GetContextMenuActions(const F
 				LOCTEXT("AddPinTooltip", "Add another input pin"),
 				FSlateIcon(),
 				FUIAction(
-					FExecuteAction::CreateUObject(this, &UK2Node_CommutativeAssociativeBinaryOperator::AddInputPin)
+					FExecuteAction::CreateUObject(const_cast<UK2Node_CommutativeAssociativeBinaryOperator*>(this), &UK2Node_CommutativeAssociativeBinaryOperator::AddInputPin)
 				)
 			);
 			Context.MenuBuilder->EndSection();

@@ -9,6 +9,7 @@ public class RHI : ModuleRules
 	{
 		PrivateDependencyModuleNames.Add("Core");
 		PrivateDependencyModuleNames.Add("ApplicationCore");
+		PrivateDependencyModuleNames.Add("TraceLog");
 
 		if (Target.bCompileAgainstEngine)
 		{
@@ -23,6 +24,11 @@ public class RHI : ModuleRules
 
 					//#todo-rco: D3D12 requires different SDK headers not compatible with WinXP
 					DynamicallyLoadedModuleNames.Add("D3D12RHI");
+				}
+
+				if ((Target.Platform == UnrealTargetPlatform.HoloLens))
+				{
+					DynamicallyLoadedModuleNames.Add("D3D11RHI");
 				}
 
 				if ((Target.Platform == UnrealTargetPlatform.Win64) ||

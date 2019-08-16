@@ -1,75 +1,323 @@
-Availability:Public
+Availability: Public
 Title: Procedural Foliage Tool Quick Start
-Crumbs:
-Description:How to set up and use the Procedural Foliage tool.
-Navigation:topic
-SkillLevel:Intermediate
+Description: How to set up and use the Procedural Foliage tool.
 Version: 4.8
+Parent: Engine/OpenWorldTools
+topic-image: T_PF_QS_Final_Product.png
+Order: 2
+reference-image:T_Create_Landscape.gif
+reference-image:T_Add_PFS_To_Level.gif
+reference-image:T_Assign_PFT_To_PFS.gif
+reference-image:T_Set_Tree_Mesh.gif
+reference-image:T_Add_New_FT_Type.gif
+reference-image:T_Adding_PFV_To_Level.gif
 
 
-In this Quick Start tutorial we will take a look at how the **Procedural Foliage Tool** that is now available with the 4.8 release of Unreal Engine 4 (UE4) works. 
-Over the course of this Quick Start tutorial you will learn how to create, setup, and spawn an entire forests worth of trees inside of UE4 using only the Procedural Foliage tool. 
-You will also be introduced to key properties and settings that will help you shape your virtual forest to fit your project's needs. 
+[TOC (start:2 end:2)]
+
+In this Quick Start tutorial we will take a look at how the **Procedural Foliage Tool** that is now available with the 4.8 release of Unreal Engine 4 (UE4) works. Over the course of this Quick Start tutorial you will learn how to create, setup, and spawn an entire forests worth of trees inside of UE4 using only the Procedural Foliage tool. You will also be introduced to key properties and settings that will help you shape your virtual forest to fit your project's needs.
 
 ![](T_PF_QS_Final_Product.png)
 
-You will also be exposed to all of the required Actors and properties the Procedural Foliage tool requires to function correctly and deliver the results you want.
-When you have completed this Quick Start you will have a new level that should look similar to the image above. 
+You will also be exposed to all of the required Actors and properties the Procedural Foliage tool requires to function correctly and deliver the results you want. When you have completed this Quick Start you will have a new level that should look similar to the image above.
 
 
-## Prerequisites
+### Prerequisites
+
 Before you can use the Procedural Foliage tools in your project, you must first enable them by doing the following.
 
 1. From the **Main Toolbar** click on the **Edit** option then click on **Editor Preferences**.
-1. Inside of  the Editor Preferences **right - click** on the **Experimental** section.
+1. Inside of the Editor Preferences **right - click** on the **Experimental** section.
 1. Enable the Procedural Foliage option by clicking on the checkmark box next to the word **Procedural Foliage**.
 
-	[OBJECT:EmbeddedVideo]
-	[PARAMLITERAL:width]
-	640
-	[/PARAMLITERAL]
-	[PARAMLITERAL:height]
-	360
-	[/PARAMLITERAL]
-	[PARAMLITERAL:videoid]
-	DzR6UNAIYbs
-	[/PARAMLITERAL]
-	[/OBJECT]
+    [OBJECT:EmbeddedVideo]
+    [PARAMLITERAL:width]
+    640
+    [/PARAMLITERAL]
+    [PARAMLITERAL:height]
+    360
+    [/PARAMLITERAL]
+    [PARAMLITERAL:videoid]
+    DzR6UNAIYbs
+    [/PARAMLITERAL]
+    [/OBJECT]
 
-You will also need to download the **Open World Demo Collection** content pack from the **Unreal Engine Marketplace** as some of the content from the collection will be used in the following Quick Start.
-Once the Open World Demo Collection is downloaded add it to the project that you are using to follow along with this Quick Start by doing the following.
+You will also need to download the **Open World Demo Collection** content pack from the **Unreal Engine Marketplace** as some of the content from the collection will be used in the following Quick Start. Once the Open World Demo Collection is downloaded add it to the project that you are using to follow along with this Quick Start by doing the following.
 
 1. From the Epic Games Launcher in the Marketplace locate and then download the **Open World Demo Collection**.
-	
-	![](Engine\OpenWorldTools\T_OWT_OWDC.png)
 
-1. Go the **Library** section of the launcher and then under **Vault** section locate the Open World Demo Collection . 
-	
-	![](Engine\OpenWorldTools\T_OWT_Add_Content_00.png)
+    ![](T_OWT_OWDC.png)
+
+1. Go the **Library** section of the launcher and then under **Vault** section locate the Open World Demo Collection .
+
+    ![](T_OWT_Add_Content_00.png)
 
 1. Click on the button that says **Add to Project**.
-	
-	![](Engine\OpenWorldTools\T_OWT_Add_To_Project.png)
+
+    ![](T_OWT_Add_To_Project.png)
 
 1. You will then be shown a list of projects that you can add this to, select the project that you are using to follow along with this Quick Start and then press the **Add to Project** button
 
-	![](Engine\OpenWorldTools\T_OWT_ATP.png)
+    ![](T_OWT_ATP.png)
 
-## Steps
+## 1 - Creating Foliage Type Actors
 
-[REGION:buttonlist]
-* [](Engine\OpenWorldTools\ProceduralFoliage\QuickStart\1)
-* [](Engine\OpenWorldTools\ProceduralFoliage\QuickStart\2)
-* [](Engine\OpenWorldTools\ProceduralFoliage\QuickStart\3)
-* [](Engine\OpenWorldTools\ProceduralFoliage\QuickStart\4)
-* [](Engine\OpenWorldTools\ProceduralFoliage\QuickStart\5)
-* [](Engine\OpenWorldTools\ProceduralFoliage\QuickStart\6)
-[/REGION]
+In this step we will create a new Level, Landscape Terrain and all of the Actors the Procedural Foliage Tool requires.
 
 
+1. Create a new level using the **Default Template** as a base.
+
+    ![](T_New_Level.png)
+
+1. Add a new Landscape actor to the level by first clicking on the **Landscape Tool** icon and then pressing the **Create** button to add the Landscape Actor to the level.
+
+    [REGION:asyncgif]
+    ![](T_Create_Landscape.gif)
+    [/REGION]
+
+    [REGION:note]
+    If you are not familiar with how Landscape Terrain works or would like to know more about how it works please check out [Landscape Outdoor Terrain](Engine/Landscape) for more information.
+    [/REGION]
+
+1. Exit the Landscape tool by clicking on the **Place** icon in the **Modes Panel**.
+
+    ![](T_Exit_Landscape_Mode.png)
+
+    [REGION:note]
+    Using a Landscape Terrain Actor quickly provides you with a very large area to spawn your forest on.
+    [/REGION]
+
+1. Create a new Procedural Foliage Spawner by **right-clicking** in the **Content Browser** expanding the **Miscellaneous** section and then click on the **Procedural Foliage Spawner**.
+
+    ![](T_Create_PFS.png)
+
+1. Name the Procedural Foliage Spawner in this example **PFS_Example** or something similar.
+
+    ![](T_Name_PFS.png)
+
+1. Drag the Procedural Foliage Spawner from the **Content Browser** into the level and position it so that it is in the center of the level or at **0,0,200** in the X, Y, and Z axis.
+
+    [REGION:asyncgif]
+    ![](T_Add_PFS_To_Level.gif)
+    [/REGION]
+
+1. Scale Procedural Foliage Spawner to **100,100,10** in the X, Y and Z Axis to give up a large area to spawn our forest in.
+
+1. Now that we have our spawner, we need to give it some types of Foliage to spawn. To do this, **right - click** in the **Content Browser** expanding the **Miscellaneous** section and then click on the **Foliage Type**. Name the Foliage Type **Tree_00** or something similar.
+
+    ![](T_Create_FT.png)
+
+1. At this point you should have something that looks similar to the image below. If you have not done so already, save your work and level by pressing the **Save All** button to save all content and the **Save** button to save the level. When prompted for a level name use the name **PFT_00**.
+
+    ![](T_Save_All.png)
+
+## 2 - Telling the Spawner What to Spawn
+
+In the following section we will cover how to set up the **Foliage Type Actors** to work with the Procedural Foliage Spawner. We will continue to work with the **PFT_00** level that was created in the last step.
+
+1. Open up the **Procedural Foliage Spawner** by **double - clicking** in the Content Browser.
+
+    ![](T_PFS_Opened.png)
+
+1. Add a new item to the **Foliage Types** array by clicking the **Plus Sign** icon that is to the right of the **Foliage Types** menu option.
+
+    ![](T_PFS_Add_FT.png)
+
+1. In the Content Browser select the **Tree_00** Foliage Type and in the **Foliage Types** section of the Procedural Foliage Spawner press the **Arrow** icon to load the selected Foliage Type into the Procedural Foliage Spawner.
+
+    [REGION:asyncgif]
+    ![](T_Assign_PFT_To_PFS.gif)
+    [/REGION]
+
+1. Open up the **Tree_00** Foliage Type by **double - clicking** on it in the Content Browser.
+
+    ![](T_PFT_Window.png)
+
+1. At the top of the **Tree_00** Foliage Type, locate the **Mesh** section and then click on the drop down menu that says **None**.
+
+    ![](T_PFT_Mesh_Section.png)
+
+1. Use the search menu to locate **HillTree_02** Static Mesh from the **Open World Demo Collection** by typing **HillTree_02** as the search term and load it by clicking on it.
+
+    [REGION:asyncgif]
+    ![](T_Set_Tree_Mesh.gif)
+    [/REGION]
+
+1. Back in the viewport select the **Procedural Foliage Spawner** that was placed in the level and then expand the **Procedural Foliage** section under the **Details** panel.
+
+    ![](T_PFV_Select_In_Level.png)
+
+1. Under the **Procedural Foliage** section click on the **Resimulate** button and you should now see the Procedural Foliage Spawner densely packed with tress like in the image below.
+
+    ![](T_Final_Results.png)
 
 
+## 3 - Tweaking Foliage Type Properties
+
+**Foliage Types** come with a number of different properties that you can adjust to control anything from how the Foliage types are placed on other objects in the level to how the Foliage types will grow and spread throughout the Foliage Spawner. In the following section we will take a look at what properties available in **Foliage types** and how you can manipulate these properties to get the results you desire. We will continue to work with the **PFT_00** level that was used in the last step.
+
+1. Open up the **Tree_00** Foliage Type.
+
+1. Expand the **Placement** section and make sure that both **Align to Normal** and **Random Yaw** are enabled.
+
+    ![](T_Placement_Options.png)
+
+    [REGION:note]
+    The Placement section is where you can adjust how the Static Meshes used in the Foliage Type are placed on objects in the level.
+    [/REGION]
+
+1. Under the **Procedural** section of the Foliage type expand the **Collision** section and set the **Shade Radius** to **50**.
+
+    ![](T_Shade_Radius.png)
+
+    [REGION:note]
+    The Collision section determines which Foliage types should be removed when two Foliage Types are competing for the same spawn location or relative space. When a Virtual Seed's collision radius overlaps an existing collision or shade radius from another Foliage Type's Virtual Seed, the Virtual Seed will be replaced or killed based which Foliage Type has the higher propriety.
+    [/REGION]
+
+1. Select the **Procedural Foliage Spawner** that was placed in the level and under **Procedural Foliage** section click on the **Resimulate** button.
+
+    ![](T_Press_ReSimulate.png)
+
+1. Back in the Tree_00 Foliage type collapse the **Collision** section and expand the **Clustering** section, then set **Num Steps** to **0**, so that we get trees that are all the same size and age and then press the **Resimulate** button. When completed you should have something that looks similar to the image below.
+
+    ![](T_Num_Steps_0.png)
+
+    [REGION:note]
+    Clustering uses a number of properties such as density, age, and proximity to help determine how the specified Static Meshes should be placed, grouped and spread around inside of the Procedural Foliage Spawner.
+    [/REGION]
+
+1. While we now have some space in between our trees, the overall density is still a little too high. To fix this, set the **Initial Seed Density** to **0.25** and then click on the **Resimulate** button.
+
+    ![](T_Num_ISD_0.125.png)
+
+1. As you can see, setting the **Initial Seed Density** to **0.25** greatly reduced the density of our forest because we are only growing and spreading trees for a single year. To fix this set the **Num Steps** back to **3**, which will grow and spread the trees for 3 years, and then click on the **Resimulate** button.
+
+    ![](T_Num_Steps_3.png)
+
+1. Expand the **Growth** section then set the following parameters to the following settings.
+
+    * **Max Age**: **20.0**
+    * **Procedural Scale Max**: **10.0**
+
+    ![](T_Set_Growth.png)
+
+    [REGION:note]
+    The Growth section allows you to adjust how the Static Mesh used for the Foliage type will grow and get bigger over time.
+    [/REGION]
+
+1. Finally in the **Instance Settings** under the **Cull Distance** option, set the **Max** value to **20,000** and then click on the **Resimulate** button. When completed you should have something that looks similar to the image below.
+
+    ![](T_Cull_Distance.png)
+
+    [REGION:note]
+    The Instance Settings allows you to adjust how the Static Mesh used for the Foliage type will be displayed in the level. Inside the Instance Settings you can set or adjust many different properties like Cull Distance, Shadowing, and Collision.
+    [/REGION]
 
 
+## 4 - Using Multiple Foliage Types
+
+Adding another species of tree to our virtual forest will greatly help to increase the realism and overall look and feel. Luckily for us the **Procedural Foliage Spawner** allows for you to spawn multiple **Foliage Types** resulting in one single **Procedural Foliage Spawner** being able to spawn an entire forest with a multitude of different trees. In the following section we will take a look at how you can set up a Procedural Foliage Spawner to work with multiple Foliage Types. We will be continuing to work with the **PFT_00** level that was used in the last step.
+
+1. Inside of the **Content Browser** select the **Tree_00** Foliage Type and then press **Ctrl + W** on the Keyboard to duplicate it using **Tree_01** as the name.
+
+    ![](T_Dup_FT.png)
+
+1. Open the newly created **Tree_01** Foliage Type up and under the **Mesh** section change the mesh to the **ScotsPineTall_01** Static Mesh.
+
+    ![](T_New_Mesh.png)
+
+1. Open up the **Procedural Foliage Spawner** from the **Content Browser** and expand the **Foliage Types** section.
+
+    ![](T_Expand_FT.png)
+
+1. Click on the **Plus** sign icon to add the option to input another Foliage Type.
+
+    ![](T_Add_New_FT.png)
+
+1. From the **Content Browser** select the **Tree_01** Foliage Type and then in the Procedural Foliage Spawner under the **Foliage Types** add the **Tree_01** Foliage Type to the empty **Foliage Type Object** by pressing the white **Arrow** icon.
+
+    [REGION:asyncgif]
+    ![](T_Add_New_FT_Type.gif)
+    [/REGION]
+
+1. Select the **Procedural Foliage Spawner** that was placed in the level and then click on the **Resimulate** button. When completed you should see something like the following image.
+
+    ![](T_2_FT_In_Level.png)
+
+1. To make the forest look more interesting open up the **Tree_01** Foliage Type and adjust the following parameters with the following values. The numbers and options that are listed below were selected because they will produce a forest that has interesting clustering and growth interaction with the Foliage Types that are already used. However please feel free to experiment with these numbers and settings till you get something that suits your needs.
+
+    * **Num Steps:** 4 
+    * **Initial Seed Density:** 0.125
+    * **Average Spread Distance:** 100
+    * **Can Grow in Shade:** Enabled
+    * **Spawns in Shade:** Enabled
+    * **Max Age:** 15
+    * **Overlap Priority:** 1
+    * **Procedural Scale:** Max 5.0
+
+1. Once the settings have been adjusted click on the **Resimulate** button on the Procedural Foliage Spawner and you should now have something that looks similar to the image below.
+
+    [REGION:lightbox]
+    [![](T_FT01_Adjust_Settings.png)(w:640)](T_FT01_Adjust_Settings.png)
+    [/REGION]
+
+    [REGION:caption]
+    Click image for full view.
+    [/REGION]
+
+## 5 - Implementing Procedural Foliage Blocking Volumes
+
+The **Procedural Foliage Blocking Volume** is a Volume Actor that can be placed in a level and scaled to a desired size which will prevent the Procedural Foliage Spawner from spawning any Foliage Actors inside of the bounds of the Procedural Foliage Blocking Volume. In the following section we will go over how you can add a **Procedural Foliage Blocking Volume** to your level and use it to prevent Foliage meshes from spawning. We will be continuing to work with the **PFT_00** level that was used in the last step.
+
+1. First find the **Procedural Foliage Blocking Volume** by searching for it in the **Modes** panel using **Proc** as the search term.
+
+    ![](T_Find_ProcF_Blocking_Volume.png)
+
+1. Select the Procedural Foliage Blocking Volume and then drag it from the Modes panel into the level.
+
+    [REGION:asyncgif]
+    ![](T_Adding_PFV_To_Level.gif)
+    [/REGION]
+
+1. To stop foliage meshes from being spawned in the back portion of the Procedural Foliage Spawner move and scale the Procedural Foliage Blocking Volume using the following location and scale values.
+
+    * **Location X:** 5430.0 cm
+    * **Location Y:** -3900.0 cm
+    * **Location Z:** 200.0 cm
+    * **Scale    X:** 41.75
+    * **Scale    Y:** 65.5
+    * **Scale    X:** 41.75
+
+    ![](T_PFBV_Postion.png)
+
+1. Now select the **Procedural Foliage Spawner** in the level and then in the **Details** click on the **Resimulate** button. When the Resimulate is completed you should now be missing the entire back section of trees that where intersecting with the Procedural Foliage Blocking Volume.
+
+    ![](T_PFV_Before_After.png)
+
+    In the following image we can see the before and after results.
+
+    | Image Number | Results |
+    | --- | --- |
+    | 1: | Before Procedural Foliage Blocking Volume is added |
+    | 2: | After Procedural Foliage Blocking Volume is added |
 
 
+## 6 - On Your Own!
+
+Now that you have seen that power the Procedural Foliage tool offers, try using the tools listed below in conjunction with what you just learned about the Procedural Foliage tool to try and make a level that looks like the following image.
+
+![](T_On_Your_Own.jpg)
+
+* Use the [Grass Tool](Engine/OpenWorldTools/Grass/QuickStart) to make the Landscape look like it is densely covered in grass, flowers and bushes.
+
+* Define the look and feel of the Landscape terrain using the [Landscape Sculpt](Engine/Landscape/Editing/SculptMode) tools add things like hills, mountains and lakes.
+
+* Give the surface of the Landscape more visual variety and detail by creating a [Landscape Material](Engine/Landscape/Materials) that has multiple Textures that can be painted on the Landscape terrain.
+
+* Adjust the [Directional Light](Engine/Rendering/LightingAndShadows/LightTypes/Directional) to make the level lighting resemble lighting that happens in the early morning or late afternoon.
+
+* Set up the level lighting to use a completely dynamic based lighting solution that will make use of dynamic shadows as well as [Ray Traced Distance Field Soft Shadows](Engine/Rendering/LightingAndShadows/RayTracedDistanceFieldShadowing).
+
+* Try using the [Foliage System](Engine/Foliage) tools to remove or tweak the placement, rotation and scale of the Foliage meshes that are placed by the Procedural Foliage tool so that you can get the exact look you are going for.
+
+* Show off your creation to others by using a [Camera](Gameplay/HowTo/UsingCameras) in conjunction with [Matinee](Engine/Matinee) to render out a video of your level for you to share with the world.

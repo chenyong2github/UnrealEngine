@@ -20,7 +20,7 @@ struct FPropertyChangedEvent;
 
 /** Usage set on a material function determines feature compatibility and validation. */
 UENUM()
-enum EMaterialFunctionUsage
+enum class EMaterialFunctionUsage : uint8
 {
 	Default,
 	MaterialLayer,
@@ -46,7 +46,7 @@ class UMaterialFunctionInterface : public UObject
 protected:
 	/** The intended usage of this function, required for material layers. */
 	UPROPERTY(AssetRegistrySearchable)
-	TEnumAsByte<enum EMaterialFunctionUsage> MaterialFunctionUsage;
+	EMaterialFunctionUsage MaterialFunctionUsage;
 
 public:
 	virtual EMaterialFunctionUsage GetMaterialFunctionUsage()
@@ -81,7 +81,7 @@ public:
 		PURE_VIRTUAL(UMaterialFunctionInterface::GetDependentFunctions,);
 
 	/** Appends textures referenced by the expressions in this function. */
-	ENGINE_API virtual void AppendReferencedTextures(TArray<UTexture*>& InOutTextures) const
+	ENGINE_API virtual void AppendReferencedTextures(TArray<UObject*>& InOutTextures) const
 		PURE_VIRTUAL(UMaterialFunctionInterface::AppendReferencedTextures,);
 
 #if WITH_EDITOR

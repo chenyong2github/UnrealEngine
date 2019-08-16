@@ -1,10 +1,10 @@
-﻿INTSourceChangelist:3810467
+INTSourceChangelist:6537038
 Availability:Public
 Title: 언리얼 엔진 4.14 릴리즈 노트
 Description: 언리얼 엔진 4.14 릴리즈 노트입니다.
 Crumbs:%ROOT%, Engine
 Parent:Support/Builds
-Order:14
+Order: 30
 reference-image:image_6.gif
 reference-image:image_7.gif
 reference-image:image_9.gif
@@ -164,7 +164,7 @@ r.MSAACount 콘솔 변수는 픽셀마다 계산되는 MSAA 샘플 수를 조절
 
 한 가지 중요한 세팅은 'Auto Compute LOD Distances' (LOD 거리 자동 계산)입니다. 에지가 접힐 때마다 시각적인 차이를 얼마나 더하는지 알고리즘은 알고 있기 때문에, 이 정보를 토대로 거리상의 오차를 얼마나 허용할 것인지 결정할 수 있습니다. 즉 각각의 LOD 에 사용할 화면 크기도 자동으로 계산한다는 뜻입니다.
 
-각 LOD 에서 자동 생성에 관련된 자세한 부분을 고치고 싶은 경우, Reduction Settings (감소 세팅)에서 옵션을 찾을 수 있습니다. 참고로 이 기능은 현재 스태틱 메시에서만 작동하며, 메시 프락시 LOD 생성은 아직 지원되지 않고 있습니다.
+각 LOD 에서 자동 생성에 관련된 자세한 부분을 고치고 싶은 경우, Reduction Settings (감소 세팅)에서 옵션을 찾을 수 있습니다. 참고로 이 기능은 현재 스태틱 메시에서만 작동하며, 메시 프록시 LOD 생성은 아직 지원되지 않고 있습니다.
 
 ## 신기능: 프리컴퓨티드 라이팅 시나리오
 
@@ -367,7 +367,7 @@ UMG 및 슬레이트용 폰트에 이제 Outline(윤곽선)을 적용할 수 있
 [REGION:imagetable]
 | ![image alt text](image_83.jpg)(w:150 convert:false) | ![image alt text](image_84.jpg)(w:150 convert:false) | ![image alt text](image_85.jpg)(w:150 convert:false) | [REGION:asyncgif]![image alt text](image_86.gif)(w:150)[/REGION] | ![image alt text](image_87.jpg)(w:150 convert:false) |
 | --- | --- | --- | --- | --- |
-| 셀노이즈 | 벡터 노이즈 | 그레디언트 | 컬 | 보로노이 |
+| 셀노이즈 | 벡터 노이즈 | 그레이디언트 | 컬 | 보로노이 |
 [/REGION]
 
 새로운 **Vector Noise** (벡터 노이즈) 노드가 3D 또는 4D 벡터 결과 포함 다수 추가되었습니다. 이 함수들은 실행시간 비용이 비싸므로, 일단 모양을 개발한 후에는 4.13 에 도입된 **Draw Material to Render Target** 블루프린트 기능을 사용하여 그 계산 전체 또는 일부를 텍스처에 구워 넣을 것을 추천합니다. 이 머티리얼 그래프 노드들을 사용하면, 최종 텍스처의 절차적인 모습을 엔진에서 개발할 수 있으므로, 외부 프로그램에서 절차적으로 생성되는 텍스처를 만들어 엔진의 애셋에 적용하는 것이 가능합니다. 
@@ -378,7 +378,7 @@ UMG 및 슬레이트용 폰트에 이제 Outline(윤곽선)을 적용할 수 있
 
 2. **Perlin 3D Noise** 펄린 3D 노이즈: 3D 벡터 출력으로 계산한 Perlin Simplex Noise 의 한 가지 버전입니다. 각 출력 컴포넌트의 범위는 -1 에서 1 입니다. 노이즈 출력 세 채널을 한꺼번에 계산하는 것이 세 개의 스칼라 노이즈 함수 결과를 합치는 것보다 쌉니다.
 
-3. **Perlin Gradient** 펄린 그레디언트: 스칼라 Perlin Simplex Noise 의 분석적 3D 그레디언트를 계산합니다. 출력은 4 채널로, 처음 3 (RGB) 채널은 그레디언트이고, 네 번째 (A) 채널은 스칼라 노이즈입니다. 표면의 범프 및 플로우 맵에 좋습니다.
+3. **Perlin Gradient** 펄린 그레이디언트: 스칼라 Perlin Simplex Noise 의 분석적 3D 그레이디언트를 계산합니다. 출력은 4 채널로, 처음 3 (RGB) 채널은 그레이디언트이고, 네 번째 (A) 채널은 스칼라 노이즈입니다. 표면의 범프 및 플로우 맵에 좋습니다.
 
 4. **Perlin Curl** 펄린 컬: 벡터 Perlin Simplex Noise (소위 Curl Noise) 의 분석적 3D 컬 버전을 계산합니다. 출력은 3D 부호화 컬 벡터입니다. 플루이드 또는 파티클 플로우에 좋습니다.
 
@@ -388,7 +388,7 @@ UMG 및 슬레이트용 폰트에 이제 Outline(윤곽선)을 적용할 수 있
 
 ![image alt text](image_36.png)(w:626 convert:false)
 
-펄린 컬과 펄린 그레디언트는 일반 펄린 노이즈처럼 옥타브에 같이 추가시킬 수 있습니다. 보다 복잡한 표현식의 경우, 표현식 결과의 그레디언트를 계산할 필요가 있습니다. 그 작업을 수월하게 하기 위해 표현식을 머티리얼 함수에 넣고, **GradFrom3DDeriv** 나 **CurlFrom3DDeriv** 중 하나, **Prepare3DDeriv**, **Compute3DDeriv** 등에 헬퍼로 사용하면 됩니다. 이들은 사면체 패턴으로 배치된 기본 표현식의 계산을 네 번 사용하여 이와 같은 파생형 기반 연산을 추정해냅니다. 예를 들어 다음은 그레디언트를 사용하여 범프 높이 함수에서 범프 노멀을 계산하는 망입니다.
+펄린 컬과 펄린 그레이디언트는 일반 펄린 노이즈처럼 옥타브에 같이 추가시킬 수 있습니다. 보다 복잡한 표현식의 경우, 표현식 결과의 그레이디언트를 계산할 필요가 있습니다. 그 작업을 수월하게 하기 위해 표현식을 머티리얼 함수에 넣고, **GradFrom3DDeriv** 나 **CurlFrom3DDeriv** 중 하나, **Prepare3DDeriv**, **Compute3DDeriv** 등에 헬퍼로 사용하면 됩니다. 이들은 사면체 패턴으로 배치된 기본 표현식의 계산을 네 번 사용하여 이와 같은 파생형 기반 연산을 추정해냅니다. 예를 들어 다음은 그레이디언트를 사용하여 범프 높이 함수에서 범프 노멀을 계산하는 망입니다.
 
 ![image alt text](image_37.png)(w:929 convert:false)
 
@@ -590,7 +590,11 @@ Get 과 Set 노드의 주요 개선점은, 모든 어트리뷰트가 기본으�
 
 ## 시퀀서 샷 임포트/익스포트 개선
 
-프레임으로 무비 녹화 기능이 샷 별로 처리됩니다. 마스터 시퀀스는 이제 각 샷의 시작과 끝에 부가 프레임을 붙여 렌더링할 수 있습니다. 이 부가 프레임은 편집 결정 목록(EDL) 형태로 컷 인/아웃 되는데, 그 EDL 을 외부 비디오 편집 프로그램에서 샷 사이의 컷을 조절하는 데 사용할 수 있습니다. ![image alt text](image_59.gif)(w:929 convert:false)
+프레임으로 무비 녹화 기능이 샷 별로 처리됩니다. 마스터 시퀀스는 이제 각 샷의 시작과 끝에 부가 프레임을 붙여 렌더링할 수 있습니다. 이 부가 프레임은 편집 결정 목록(EDL) 형태로 컷 인/아웃 되는데, 그 EDL 을 외부 비디오 편집 프로그램에서 샷 사이의 컷을 조절하는 데 사용할 수 있습니다.
+
+[REGION:asyncgif]
+![image alt text](image_59.gif)(w:929)
+[/REGION]
 
 ## 카메라 릭 크레인 개선
 
@@ -602,7 +606,7 @@ Get 과 Set 노드의 주요 개선점은, 모든 어트리뷰트가 기본으�
 
 * 카메라 크레인 마운드의 롤 및 요는 0 입니다.
 
-* 크레인에 대한 마운트 핏치/요를 고정시키는 토글 옵션을 추가했습니다. 기본적으로 고정되어 있지는 않으므로, 카메라가 땅과 수평을 유지합니다.
+* 크레인에 대한 마운트 피치/요를 고정시키는 토글 옵션을 추가했습니다. 기본적으로 고정되어 있지는 않으므로, 카메라가 땅과 수평을 유지합니다.
 
 ## 신기능: 시퀀서 오디오 녹화
 
@@ -744,7 +748,7 @@ GPU 통계는 타이틀 실행 도중 파일에 기록하여 나중에 분석할
 
 DECLARE_FLOAT_COUNTER_STAT(TEXT("Postprocessing"), Stat_GPU_Postprocessing, STATGROUP_GPU);
 
-렌더링 스레드의 코드 블록은 SCOPED_GPU_STAT 매크로에 그 통계 이름을 레퍼런싱하여 인스트루먼트 가능합니다. 이는 SCOPED_DRAW_EVENT 와 비슷한 방식으로 작동합니다. 예:
+렌더링 스레드의 코드 블록은 SCOPED_GPU_STAT 매크로에 그 통계 이름을 참조하여 인스트루먼트 가능합니다. 이는 SCOPED_DRAW_EVENT 와 비슷한 방식으로 작동합니다. 예:
 
 SCOPED_GPU_STAT(RHICmdList, Stat_GPU_Postprocessing);
 

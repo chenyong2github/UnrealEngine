@@ -19,6 +19,7 @@
 #include "UObject/LinkerManager.h"
 #include "Misc/PackageName.h"
 #include "Templates/UniquePtr.h"
+#include "UObject/UObjectGlobals.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogArchiveDiff, Log, All);
 
@@ -968,6 +969,11 @@ static inline FString GetTableKey(const FLinkerLoad* Linker, const FName& Name)
 	return *Name.ToString();
 }
 
+static inline FString GetTableKey(const FLinkerLoad* Linker, FNameEntryId Id)
+{
+	return FName::GetEntry(Id)->GetPlainNameString();
+}
+
 static inline FString GetTableKeyForIndex(const FLinkerLoad* Linker, FPackageIndex Index)
 {
 	if (Index.IsNull())
@@ -991,9 +997,19 @@ bool CompareTableItem(FLinkerLoad* SourceLinker, FLinkerLoad* DestLinker, const 
 	return SourceName == DestName;
 }
 
+bool CompareTableItem(FLinkerLoad* SourceLinker, FLinkerLoad* DestLinker, FNameEntryId SourceName, FNameEntryId DestName)
+{
+	return SourceName == DestName;
+}
+
 FString ConvertItemToText(const FName& Name, FLinkerLoad* Linker)
 {
 	return Name.ToString();
+}
+
+FString ConvertItemToText(FNameEntryId Id, FLinkerLoad* Linker)
+{
+	return FName::GetEntry(Id)->GetPlainNameString();
 }
 
 bool CompareTableItem(FLinkerLoad* SourceLinker, FLinkerLoad* DestLinker, const FObjectImport& SourceImport, const FObjectImport& DestImport)
@@ -1287,8 +1303,6 @@ static void DumpTableDifferences(
 #endif // !NO_LOGGING
 }
 
-extern int32 GAllowCookedDataInEditorBuilds;
-
 void FArchiveStackTrace::DumpPackageHeaderDiffs(const FPackageData& SourcePackage, const FPackageData& DestPackage, const FString& AssetFilename, const int32 MaxDiffsToLog)
 {
 #if !NO_LOGGING
@@ -1321,7 +1335,7 @@ void FArchiveStackTrace::DumpPackageHeaderDiffs(const FPackageData& SourcePackag
 	{
 		if (SourceLinker->NameMap != DestLinker->NameMap)
 		{
-			DumpTableDifferences<FName>(SourceLinker, DestLinker, SourceLinker->NameMap, DestLinker->NameMap, *AssetFilename, TEXT("Name"), MaxDiffsToLog);
+			DumpTableDifferences<FNameEntryId>(SourceLinker, DestLinker, SourceLinker->NameMap, DestLinker->NameMap, *AssetFilename, TEXT("Name"), MaxDiffsToLog);
 		}
 
 		if (!IsImportMapIdentical(SourceLinker, DestLinker))

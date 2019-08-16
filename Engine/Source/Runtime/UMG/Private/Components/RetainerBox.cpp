@@ -142,11 +142,11 @@ const FText URetainerBox::GetPaletteCategory()
 
 #endif
 
-const FGeometry& URetainerBox::GetCachedAllottedGeometry() const
+FGeometry URetainerBox::GetCachedAllottedGeometry() const
 {
 	if (MyRetainerWidget.IsValid())
 	{
-		return MyRetainerWidget->GetCachedGeometry();
+		return MyRetainerWidget->GetTickSpaceGeometry();
 	}
 
 	static const FGeometry TempGeo;

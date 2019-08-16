@@ -714,6 +714,11 @@ void FMoveKeysAndSections::OnDrag(const FPointerEvent& MouseEvent, FVector2D Loc
 		}
 	}
 
+	if (Settings->GetIsSnapEnabled() && Settings->GetSnapKeysAndSectionsToPlayRange() && !Settings->ShouldKeepPlayRangeInSectionBounds())
+	{
+		MouseTime = MovieScene::ClampToDiscreteRange(MouseTime, Sequencer.GetPlaybackRange());
+	}
+
 	// We'll calculate a DeltaX based on limits on movement (snapping, section collision) and then use them on keys and sections below.
 	TOptional<FFrameNumber> MaxDeltaX = GetMovementDeltaX(MouseTime);
 
@@ -857,43 +862,105 @@ TOptional<FFrameNumber> FMoveKeysAndSections::GetMovementDeltaX(FFrameTime Mouse
 	const FFrameNumber MouseDeltaTime = (MouseTime - MouseTimePrev).FloorToFrame();
 
 	// Disallow movement if any of the sections can't move
-	for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Sections)
+	for (int32 Index = 0; Index < Sections.Num(); ++Index)
 	{
 		// If we're moving a section that is blending with something then it's OK if it overlaps stuff, the blend amount will get updated at the end.
-		UMovieSceneSection* Section = WeakSection.Get();
-		if (!Section || Section->GetBlendType().IsValid())
+		UMovieSceneSection* Section = Sections[Index].Get();
+		if (!Section)
 		{
 			continue;
 		}
 
-		// We'll calculate this section's borders and clamp the possible delta time to be less than that
-		TRange<FFrameNumber> SectionBoundaries = GetSectionBoundaries(Section);
+		TOptional<FFrameNumber> LeftMovementMaximum;
+		TOptional<FFrameNumber> RightMovementMaximum;
 
-		FFrameNumber LeftMovementMaximum = MovieScene::DiscreteInclusiveLower(SectionBoundaries);
-		FFrameNumber RightMovementMaximum = MovieScene::DiscreteExclusiveUpper(SectionBoundaries);
+		// We'll calculate this section's borders and clamp the possible delta time to be less than that
 		
-		if (Section->HasStartFrame())
+		if (!Section->GetBlendType().IsValid())
 		{
-			FFrameNumber NewStartTime = Section->GetInclusiveStartFrame() + MouseDeltaTime;
-			if (NewStartTime < LeftMovementMaximum)
+			TRange<FFrameNumber> SectionBoundaries = GetSectionBoundaries(Section);
+			LeftMovementMaximum = MovieScene::DiscreteInclusiveLower(SectionBoundaries);
+			RightMovementMaximum = MovieScene::DiscreteExclusiveUpper(SectionBoundaries);
+		}
+		
+		if (Settings->GetIsSnapEnabled() && Settings->GetSnapKeysAndSectionsToPlayRange() && !Settings->ShouldKeepPlayRangeInSectionBounds())
+		{
+			if (!LeftMovementMaximum.IsSet() || LeftMovementMaximum.GetValue() < Sequencer.GetPlaybackRange().GetLowerBoundValue())
 			{
-				FFrameNumber ClampedDeltaTime = LeftMovementMaximum - Section->GetInclusiveStartFrame();
-				if (!DeltaX.IsSet() || DeltaX.GetValue() > ClampedDeltaTime)
+				LeftMovementMaximum = Sequencer.GetPlaybackRange().GetLowerBoundValue();
+			}
+
+			if (!RightMovementMaximum.IsSet() || RightMovementMaximum.GetValue() > Sequencer.GetPlaybackRange().GetUpperBoundValue())
+			{
+				RightMovementMaximum = Sequencer.GetPlaybackRange().GetUpperBoundValue();
+			}
+		}
+
+		if (LeftMovementMaximum.IsSet())
+		{
+			if (Section->HasStartFrame())
+			{
+				FFrameNumber NewStartTime = Section->GetInclusiveStartFrame() + MouseDeltaTime;
+				if (NewStartTime < LeftMovementMaximum.GetValue())
 				{
-					DeltaX = ClampedDeltaTime;
+					FFrameNumber ClampedDeltaTime = LeftMovementMaximum.GetValue() - Section->GetInclusiveStartFrame();
+					if (!DeltaX.IsSet() || DeltaX.GetValue() > ClampedDeltaTime)
+					{
+						DeltaX = ClampedDeltaTime;
+					}
 				}
 			}
 		}
-		
-		if (Section->HasEndFrame())
+
+		if (RightMovementMaximum.IsSet())
 		{
-			FFrameNumber NewEndTime = Section->GetExclusiveEndFrame() + MouseDeltaTime;
-			if (NewEndTime > RightMovementMaximum)
+			if (Section->HasEndFrame())
 			{
-				FFrameNumber ClampedDeltaTime = RightMovementMaximum - Section->GetExclusiveEndFrame();
-				if (!DeltaX.IsSet() || DeltaX.GetValue() > ClampedDeltaTime)
+				FFrameNumber NewEndTime = Section->GetExclusiveEndFrame() + MouseDeltaTime;
+				if (NewEndTime > RightMovementMaximum.GetValue())
 				{
-					DeltaX = ClampedDeltaTime;
+					FFrameNumber ClampedDeltaTime = RightMovementMaximum.GetValue() - Section->GetExclusiveEndFrame();
+					if (!DeltaX.IsSet() || DeltaX.GetValue() > ClampedDeltaTime)
+					{
+						DeltaX = ClampedDeltaTime;
+					}
+				}
+			}
+		}
+	}
+
+	if (Settings->GetIsSnapEnabled() && Settings->GetSnapKeysAndSectionsToPlayRange() && !Settings->ShouldKeepPlayRangeInSectionBounds())
+	{
+		TArray<FFrameNumber> CurrentKeyTimes;
+		CurrentKeyTimes.SetNum(KeysAsArray.Num());
+		GetKeyTimes(KeysAsArray, CurrentKeyTimes);
+
+		for (int32 Index = 0; Index < CurrentKeyTimes.Num(); ++Index)
+		{
+			FSequencerSelectedKey& SelectedKey = KeysAsArray[Index];
+			const bool bOwningSectionIsSelected = Sections.Contains(SelectedKey.Section);
+
+			// We don't want to apply delta if we have the key's section selected as well, otherwise they get double
+			// transformed (moving the section moves the keys + we add the delta to the key positions).
+			if (!bOwningSectionIsSelected)
+			{
+				FFrameNumber NewKeyTime = CurrentKeyTimes[Index] + MouseDeltaTime;
+				if (NewKeyTime < Sequencer.GetPlaybackRange().GetLowerBoundValue())
+				{
+					FFrameNumber ClampedDeltaTime = CurrentKeyTimes[Index] - Sequencer.GetPlaybackRange().GetLowerBoundValue();
+					if (!DeltaX.IsSet() || DeltaX.GetValue() > ClampedDeltaTime)
+					{
+						DeltaX = ClampedDeltaTime;
+					}
+				}
+
+				if (NewKeyTime > Sequencer.GetPlaybackRange().GetUpperBoundValue())
+				{
+					FFrameNumber ClampedDeltaTime = Sequencer.GetPlaybackRange().GetUpperBoundValue() - CurrentKeyTimes[Index];
+					if (!DeltaX.IsSet() || DeltaX.GetValue() > ClampedDeltaTime)
+					{
+						DeltaX = ClampedDeltaTime;
+					}
 				}
 			}
 		}
@@ -1151,6 +1218,9 @@ void FMoveKeysAndSections::HandleKeyMovement(TOptional<FFrameNumber> MaxDeltaX, 
 
 	for (UMovieSceneSection* Section : ModifiedNonSelectedSections)
 	{
-		Section->MarkAsChanged();
+		if (Section)
+		{
+			Section->MarkAsChanged();
+		}
 	}
 }

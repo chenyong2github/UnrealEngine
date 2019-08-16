@@ -17,32 +17,7 @@
 #include "PhysXPublic.h"
 #include "PhysicsEngine/ConstraintInstance.h"
 #include "PhysicsEngine/BodySetup.h"
-
-int32 GPhysXHackLoopCounter = -1;
-FAutoConsoleVariableRef CVarHackLoopCounter(TEXT("p.TriMeshBufferOverflowCounter"), GPhysXHackLoopCounter, TEXT("Loop logging counter - set to -1 to disable logging"), ECVF_Default);
-
-
-PxFoundation*			GPhysXFoundation = NULL;
-int32					GPhysXHackCurrentLoopCounter = 0;
-PxPvd*					GPhysXVisualDebugger = NULL;
-PxPhysics*				GPhysXSDK = NULL;
-FPhysXAllocator*		GPhysXAllocator = NULL;
-
-#if WITH_APEX
-ENGINE_API apex::ApexSDK*				GApexSDK = NULL;
-ENGINE_API nvidia::apex::PhysX3Interface* GPhysX3Interface = nullptr;
-
-#if WITH_APEX_LEGACY
-ENGINE_API apex::Module*				GApexModuleLegacy = NULL;
-#endif // WITH_APEX_LEGACY
-
-#if WITH_APEX_CLOTHING
-ENGINE_API apex::ModuleClothing*		GApexModuleClothing		= NULL;
-#endif //WITH_APEX_CLOTHING
-
-FApexNullRenderResourceManager		GApexNullRenderResourceManager;
-FApexResourceCallback				GApexResourceCallback;
-#endif	// #if WITH_APEX
+#include "PhysicsPublicCore.h"
 
 int32						GNumPhysXConvexMeshes = 0;
 
@@ -50,84 +25,6 @@ TArray<PxConvexMesh*>	GPhysXPendingKillConvex;
 TArray<PxTriangleMesh*>	GPhysXPendingKillTriMesh;
 TArray<PxHeightField*>	GPhysXPendingKillHeightfield;
 TArray<PxMaterial*>		GPhysXPendingKillMaterial;
-
-///////////////////// Unreal to PhysX conversion /////////////////////
-
-PxTransform UMatrix2PTransform(const FMatrix& UTM)
-{
-	PxQuat PQuat = U2PQuat(UTM.ToQuat());
-	PxVec3 PPos = U2PVector(UTM.GetOrigin());
-
-	PxTransform Result(PPos, PQuat);
-
-	return Result;
-}
-
-PxMat44 U2PMatrix(const FMatrix& UTM)
-{
-	PxMat44 Result;
-
-	const physx::PxMat44 *MatPtr = (const physx::PxMat44 *)(&UTM);
-	Result = *MatPtr;
-
-	return Result;
-}
-
-UCollision2PGeom::UCollision2PGeom(const FCollisionShape& CollisionShape)
-{
-	switch (CollisionShape.ShapeType)
-	{
-		case ECollisionShape::Box:
-		{
-			new (Storage)PxBoxGeometry(U2PVector(CollisionShape.GetBox()));
-			break;
-		}
-		case ECollisionShape::Sphere:
-		{
-			new (Storage)PxSphereGeometry(CollisionShape.GetSphereRadius());
-			break;
-		}
-		case ECollisionShape::Capsule:
-		{
-			new (Storage)PxCapsuleGeometry(CollisionShape.GetCapsuleRadius(), CollisionShape.GetCapsuleAxisHalfLength());
-			break;
-		}
-		default:
-			// invalid point
-			ensure(false);
-	}
-}
-
-///////////////////// PhysX to Unreal conversion /////////////////////
-
-FMatrix P2UMatrix(const PxMat44& PMat)
-{
-	FMatrix Result;
-	// we have to use Memcpy instead of typecasting, because PxMat44's are not aligned like FMatrix is
-	FMemory::Memcpy(&Result, &PMat, sizeof(PMat));
-	return Result;
-}
-
-FMatrix PTransform2UMatrix(const PxTransform& PTM)
-{
-	FQuat UQuat = P2UQuat(PTM.q);
-	FVector UPos = P2UVector(PTM.p);
-
-	FMatrix Result = FQuatRotationTranslationMatrix(UQuat, UPos);
-
-	return Result;
-}
-
-FTransform P2UTransform(const PxTransform& PTM)
-{
-	FQuat UQuat = P2UQuat(PTM.q);
-	FVector UPos = P2UVector(PTM.p);
-
-	FTransform Result = FTransform(UQuat, UPos);
-
-	return Result;
-}
-
 ///////////////////// Utils /////////////////////
 
 
@@ -266,7 +163,7 @@ PxFilterFlags PhysXSimFilterShader(	PxFilterObjectAttributes attributes0, PxFilt
 	}
 	
 	// if these bodies are from the same component, use the disable table to see if we should disable collision. This case should only happen for things like skeletalmesh and destruction. The table is only created for skeletal mesh components at the moment
-#if !WITH_CHAOS && !PHYSICS_INTERFACE_LLIMMEDIATE
+#if !WITH_CHAOS
 	if(filterData0.word2 == filterData1.word2)
 	{
 		check(constantBlockSize == sizeof(FPhysSceneShaderInfo));
@@ -331,7 +228,7 @@ PxFilterFlags PhysXSimFilterShader(	PxFilterObjectAttributes attributes0, PxFilt
 	return PxFilterFlags();
 }
 
-#if !WITH_CHAOS && !PHYSICS_INTERFACE_LLIMMEDIATE
+#if !WITH_CHAOS
 
 /** Figures out the new FCollisionNotifyInfo needed for pending notification. It adds it, and then returns an array that goes from pair index to notify collision index */
 TArray<int32> AddCollisionNotifyInfo(const FBodyInstance* Body0, const FBodyInstance* Body1, const physx::PxContactPair * Pairs, uint32 NumPairs, TArray<FCollisionNotifyInfo> & PendingNotifyInfos)
@@ -661,181 +558,6 @@ PxTriangleMesh* FPhysXCookingDataReader::ReadTriMesh( FBufferReader& Ar, uint8* 
 	return CookedMesh;
 }
 
-SIZE_T GetPhysxObjectSize(PxBase* Obj, const PxCollection* SharedCollection)
-{
-	PxSerializationRegistry* Sr = PxSerialization::createSerializationRegistry(*GPhysXSDK);
-	PxCollection* Collection = PxCreateCollection();
-
-	Collection->add(*Obj);
-	PxSerialization::complete(*Collection, *Sr, SharedCollection);	// chase all other stuff (shared shaps, materials, etc) needed to serialize this collection
-
-	FPhysXCountMemoryStream Out;
-	PxSerialization::serializeCollectionToBinary(Out, *Collection, *Sr, SharedCollection);
-
-	Collection->release();
-	Sr->release();
-
-	return Out.UsedMemory;
-}
-
-
-
-FPhysxSharedData* FPhysxSharedData::Singleton = nullptr;
-
-void FPhysxSharedData::Initialize()
-{
-	check(Singleton == nullptr);
-	Singleton = new FPhysxSharedData();
-}
-
-void FPhysxSharedData::Terminate()
-{
-	if (Singleton)
-	{
-		delete Singleton;
-		Singleton = nullptr;
-	}
-}
-
-void FPhysxSharedData::Add( PxBase* Obj, const FString& OwnerName )
-{
-	if(Obj) 
-	{ 
-		SharedObjects->add(*Obj, (PxSerialObjectId)Obj);
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-		OwnerNames.Add(Obj, OwnerName);
-#endif
-	}
-}
-
-void FPhysxSharedData::Remove(PxBase* Obj) 
-{ 
-	// Check for containment first due to multiple UBodySetups sharing the same ref counted object causing harmless double-frees
-	if (Obj && SharedObjects->contains(*Obj)) 
-	{ 
-		SharedObjects->remove(*Obj); 
-		OwnerNames.Remove(Obj); 
-	} 
-}	
-
-struct FSharedResourceEntry
-{
-	uint64 MemorySize;
-	uint64 Count;
-};
-
-void HelperCollectUsage(const TMap<FString, TArray<PxBase*> >& ObjectsByType, TMap<FString, FSharedResourceEntry>& AllocationsByType, uint64& OverallSize, int32& OverallCount)
-{
-	TArray<FString> TypeNames;
-	ObjectsByType.GetKeys(TypeNames);
-
-	for (int32 TypeIdx = 0; TypeIdx < TypeNames.Num(); ++TypeIdx)
-	{
-		const FString& TypeName = TypeNames[TypeIdx];
-
-		const TArray<PxBase*>* ObjectsArray = ObjectsByType.Find(TypeName);
-		check(ObjectsArray);
-
-		PxSerializationRegistry* Sr = PxSerialization::createSerializationRegistry(*GPhysXSDK);
-		PxCollection* Collection = PxCreateCollection();
-
-		for (int32 i = 0; i < ObjectsArray->Num(); ++i)
-		{
-			Collection->add(*((*ObjectsArray)[i]));;
-		}
-
-		PxSerialization::complete(*Collection, *Sr);	// chase all other stuff (shared shaps, materials, etc) needed to serialize this collection
-
-		FPhysXCountMemoryStream Out;
-		PxSerialization::serializeCollectionToBinary(Out, *Collection, *Sr);
-
-		Collection->release();
-		Sr->release();
-
-		OverallSize += Out.UsedMemory;
-		OverallCount += ObjectsArray->Num();
-
-		FSharedResourceEntry NewEntry;
-		NewEntry.Count = ObjectsArray->Num();
-		NewEntry.MemorySize = Out.UsedMemory;
-
-		AllocationsByType.Add(TypeName, NewEntry);
-	}
-}
-
-void FPhysxSharedData::DumpSharedMemoryUsage(FOutputDevice* Ar)
-{
-	
-
-	struct FSortBySize
-	{
-		FORCEINLINE bool operator()( const FSharedResourceEntry& A, const FSharedResourceEntry& B ) const 
-		{ 
-			// Sort descending
-			return B.MemorySize < A.MemorySize;
-		}
-	};
-
-	TMap<FString, FSharedResourceEntry> AllocationsByType;
-	TMap<FString, FSharedResourceEntry> AllocationsByObject;
-
-	uint64 OverallSize = 0;
-	int32 OverallCount = 0;
-
-	TMap<FString, TArray<PxBase*> > ObjectsByType;
-	TMap<FString, TArray<PxBase*> > ObjectsByObjectName;	//array is just there for code reuse, should be a single object
-
-	for (int32 i=0; i < (int32)SharedObjects->getNbObjects(); ++i)
-	{
-		PxBase& Obj = SharedObjects->getObject(i);
-		FString TypeName = ANSI_TO_TCHAR(Obj.getConcreteTypeName());
-
-		TArray<PxBase*>* ObjectsArray = ObjectsByType.Find(TypeName);
-		if (ObjectsArray == NULL)
-		{
-			ObjectsByType.Add(TypeName, TArray<PxBase*>());
-			ObjectsArray = ObjectsByType.Find(TypeName);
-		}
-
-		check(ObjectsArray);
-		ObjectsArray->Add(&Obj);
-
-		if (const FString* OwnerName = OwnerNames.Find(&Obj))
-		{
-			TArray<PxBase*> Objs;
-			Objs.Add(&Obj);
-			ObjectsByObjectName.Add(*OwnerName, Objs);
-		}
-	}
-
-	HelperCollectUsage(ObjectsByType, AllocationsByType, OverallSize, OverallCount);
-
-	uint64 IgnoreSize;
-	int32 IgnoreCount;
-	HelperCollectUsage(ObjectsByObjectName, AllocationsByObject, IgnoreSize, IgnoreCount);
-
-
-	Ar->Logf(TEXT(""));
-	Ar->Logf(TEXT("Shared Resources:"));
-	Ar->Logf(TEXT(""));
-
-	AllocationsByType.ValueSort(FSortBySize());
-	AllocationsByObject.ValueSort(FSortBySize());
-	
-	Ar->Logf(TEXT("%-10d %s (%d)"), OverallSize, TEXT("Overall"), OverallCount );
-	
-	for( auto It=AllocationsByType.CreateConstIterator(); It; ++It )
-	{
-		Ar->Logf(TEXT("%-10d %s (%d)"), It.Value().MemorySize, *It.Key(), It.Value().Count );
-	}
-
-	Ar->Logf(TEXT("Detailed:"));
-
-	for (auto It = AllocationsByObject.CreateConstIterator(); It; ++It)
-	{
-		Ar->Logf(TEXT("%-10d %s (%d)"), It.Value().MemorySize, *It.Key(), It.Value().Count);
-	}
-}
 
 void AddToCollection(PxCollection* PCollection, PxBase* PBase)
 {
@@ -847,7 +569,7 @@ void AddToCollection(PxCollection* PCollection, PxBase* PBase)
 
 PxCollection* MakePhysXCollection(const TArray<UPhysicalMaterial*>& PhysicalMaterials, const TArray<UBodySetup*>& BodySetups, uint64 BaseId)
 {
-#if WITH_CHAOS || WITH_IMMEDIATE_PHYSX || PHYSICS_INTERFACE_LLIMMEDIATE
+#if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
     ensure(false);
     return nullptr;
 #else
@@ -879,126 +601,6 @@ PxCollection* MakePhysXCollection(const TArray<UPhysicalMaterial*>& PhysicalMate
 
 	return PCollection;
 #endif
-}
-
-/** Util to convert PhysX error code to string */
-FString ErrorCodeToString(PxErrorCode::Enum e)
-{
-	FString CodeString;
-
-	switch (e)
-	{
-	case PxErrorCode::eNO_ERROR:
-		CodeString = TEXT("eNO_ERROR");
-		break;
-	case PxErrorCode::eDEBUG_INFO:
-		CodeString = TEXT("eDEBUG_INFO");
-		break;
-	case PxErrorCode::eDEBUG_WARNING:
-		CodeString = TEXT("eDEBUG_WARNING");
-		break;
-	case PxErrorCode::eINVALID_PARAMETER:
-		CodeString = TEXT("eINVALID_PARAMETER");
-		break;
-	case PxErrorCode::eINVALID_OPERATION:
-		CodeString = TEXT("eINVALID_OPERATION");
-		break;
-	case PxErrorCode::eOUT_OF_MEMORY:
-		CodeString = TEXT("eOUT_OF_MEMORY");
-		break;
-	case PxErrorCode::eINTERNAL_ERROR:
-		CodeString = TEXT("eINTERNAL_ERROR");
-		break;
-	case PxErrorCode::eABORT:
-		CodeString = TEXT("eABORT");
-		break;
-	case PxErrorCode::ePERF_WARNING:
-		CodeString = TEXT("ePERF_WARNING");
-		break;
-	case PxErrorCode::eLOGGING_INFO:
-		CodeString = TEXT("eLOGGING_INFO");
-		break;
-	default:
-		CodeString = TEXT("UNKONWN");		
-	}
-
-	return CodeString;
-}
-
-bool GHillClimbError = false;
-
-void FPhysXErrorCallback::reportError(PxErrorCode::Enum e, const char* message, const char* file, int line)
-{
-	// if not in game, ignore Perf warnings - i.e. Moving Static actor in editor will produce this warning
-	if (GIsEditor && e == PxErrorCode::ePERF_WARNING)
-	{
-		return;
-	}
-
-	if (e == PxErrorCode::eLOGGING_INFO)
-	{
-		if (GPhysXHackLoopCounter == -1)
-		{
-			return;
-		}
-		GPhysXHackCurrentLoopCounter++;
-		if (GPhysXHackCurrentLoopCounter <= GPhysXHackLoopCounter)
-		{
-			return;
-		}
-	}
-
-	if (e == PxErrorCode::eINTERNAL_ERROR)
-	{
-		const char* HillClimbError = "HillClimbing";
-		const char* TestSATCapsulePoly = "testSATCapsulePoly";
-		const char* MeshCleanFailed = "cleaning the mesh failed";
-
-		// HACK: We parse the message to see if it's hill climbing so that we can log some more useful information higher up in the callstack
-		if (FPlatformString::Strstr(message, HillClimbError))
-		{
-			GHillClimbError = true;
-		}
-
-		if (FPlatformString::Strstr(message, TestSATCapsulePoly))
-		{
-			GHillClimbError = true;
-		}
-
-		// HACK: Internal errors which we want to suppress in release builds should be changed to debug warning error codes.
-		// This way we see them in debug but not in production.
-		if (FPlatformString::Strstr(message, MeshCleanFailed))
-		{
-			e = PxErrorCode::eDEBUG_WARNING;
-		}
-	}
-	// Make string to print out, include physx file/line
-	FString ErrorString = FString::Printf(TEXT("PHYSX: (%s %d) %s : %s"), ANSI_TO_TCHAR(file), line, *ErrorCodeToString(e), ANSI_TO_TCHAR(message));
-
-	if (e == PxErrorCode::eOUT_OF_MEMORY || e == PxErrorCode::eABORT)
-	{
-		UE_LOG(LogPhysics, Error, TEXT("%s"), *ErrorString);
-		//ensureMsgf(false, TEXT("%s"), *ErrorString);
-	}
-	else if (e == PxErrorCode::eINVALID_PARAMETER || e == PxErrorCode::eINVALID_OPERATION)
-	{
-		UE_LOG(LogPhysics, Error, TEXT("%s"), *ErrorString);
-		//ensureMsgf(false, TEXT("%s"), *ErrorString);
-	}
-	else if (e == PxErrorCode::ePERF_WARNING || e == PxErrorCode::eINTERNAL_ERROR || e == PxErrorCode::eLOGGING_INFO)
-	{
-		UE_LOG(LogPhysics, Warning, TEXT("%s"), *ErrorString);
-	}
-#if UE_BUILD_DEBUG
-	else if (e == PxErrorCode::eDEBUG_WARNING)
-	{
-		UE_LOG(LogPhysics, Warning, TEXT("%s"), *ErrorString);
-	}
-#endif
-	else
-	{
-		UE_LOG(LogPhysics, Log, TEXT("%s"), *ErrorString);
-	}
 }
 
 void* FPhysXProfilerCallback::zoneStart(const char* eventName, bool detached, uint64_t contextId)

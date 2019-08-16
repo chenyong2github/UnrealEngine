@@ -28,7 +28,9 @@ public:
 	void OnGenerateChildren( FDetailNodeList& OutChildren );
 	bool IsInitiallyCollapsed() const;
 	FDetailWidgetRow GetWidgetRow();
-private:	
+	bool AreChildCustomizationsHidden() const;
+
+private:
 	/** Whether or not our parent is enabled */
 	TAttribute<bool> IsParentEnabled;
 	TSharedPtr<FDetailWidgetRow> HeaderRow;

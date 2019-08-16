@@ -1,8 +1,8 @@
-﻿INTSourceChangelist:0
+﻿INTSourceChangelist:4717155
 Availability: Public
 Crumbs: 
-Title: Hosting and Networking Guide
-Description: Advanced networking configuration and other considerations for hosting the Pixel Streaming system.
+Title: ホスティングおよびネットワーキング ガイド
+Description: Pixel Streaming システムをホストするための高度なネットワーキング設定とその他の考慮事項です。
 Type: 
 Version: 4.21
 Parent: Platforms/PixelStreaming
@@ -13,112 +13,97 @@ Tags: Early Access
 Tags: Pixel Streaming
 
 
-Even without prior experience developing or deploying web services, you should be able to get the Pixel Streaming setup described in the [Overview](Platforms/PixelStreaming/PixelStreamingOverview) and [Getting Started](Platforms/PixelStreaming/PixelStreamingIntro) pages to work within a simple local area network. However, if you try to deploy your service over more complex networks or over the open Internet, or if you want to redesign the user experience and connection flow, you might need to rethink your setup.
+Web サービスの開発やデプロイの経験がない場合でも、「[概要](Platforms/PixelStreaming/PixelStreamingOverview)」および「[入門](Platforms/PixelStreaming/PixelStreamingIntro)」ページで説明されている、シンプルな LAN 内で機能する Pixel Streaming を設定することは可能です。ただし、複雑なネットワークやオープンなインターネット上でサービスをデプロイする場合や、ユーザー エクスペリエンスと接続フローを設計し直す場合は、現行の設定を再検討する必要があります。
 
-This page provides a few examples of how you could set up the components of your Pixel Streaming architecture to achieve different goals.
+このページでは、さまざまな目標を達成するために Pixel Streaming アーキテクチャの各コンポーネントを設定する方法の例をいくつか説明します。
 
-## STUN and TURN Servers
+## STUN および TURN サーバー
 
-In order for the Signaling and Web Server to be able to negotiate a direct connection between the WebRTC Proxy Server and the browser, each party needs to send the other its own IP address. The browser needs to be able to access the IP address sent by the WebRTC Proxy Server, and vice-versa.
+Signaling and Web サーバーで WebRTC Proxy サーバーとブラウザ間の直接接続をネゴシエートできるようにするためには、互いに相手に自身の IP アドレスを送信する必要があります。つまり、ブラウザは WebRTC Proxy サーバーにより送信された IP アドレスにアクセスできる必要があり、その逆も同様です。
 
-Within a simple local area network, each endpoint can usually assume that the other party can access it using the private IP address known to its own network card. Over the open Internet, across subnets, or when network address translation (NAT) services intervene between the browser and the WebRTC Proxy Server, this is not usually the case. Instead, each party needs to find out its own publicly visible IP address by querying a server that implements the STUN (Session Traversal Utilities for NAT) protocol. After the STUN server tells each endpoint its publicly visible IP address, the Signaling and Web Server can continue brokering their direct connection.
+シンプルな LAN では、各エンドポイントは通常、それ自身のネットワーク カードで把握しているプライベート IP アドレスを使用して、相手がアクセスできることを前提にしています。オープンなインターネットやサブネットにまたがる場合、またはブラウザと WebRTC Proxy サーバーの間にネットワーク アドレス変換 (NAT) がある場合、一般的にこの前提は当てはまりません。代わりに、各パーティは STUN (Session Traversal Utilities for NAT) プロトコルを実装しているサーバーにクエリを送信して、それ自身のパブリック公開の IP アドレスを検出する必要があります。STUN サーバーが各エンドポイントにパブリック公開の IP アドレスを通知した後、Signaling and Web サーバーは直接接続を引き続き仲介できます。
 
-![Pixel Streaming with STUN and TURN servers](cloud-stun-turn.png "Pixel Streaming with STUN and TURN servers")  
+![Pixel Streaming と STUN および TURN サーバー](cloud-stun-turn.png "Pixel Streaming と STUN および TURN サーバー")
 
-Alternatively, you can use a TURN server to relay the media stream between the WebRTC Proxy Server and the browser. With the TURN protocol, the TURN server connects to the WebRTC Proxy Server on one hand, and connects to the browser on the other hand. The WebRTC Proxy Server sends all of its streamed data to the TURN server, which forwards the data on to the browser. In this case, there is no direct connection between the WebRTC Proxy Server and the browser. (If you need to support mobile devices over wireless carrier networks, you may have no choice but to use a TURN server. Mobile networks often prevent clients from successfully connecting via the WebRTC protocol.)
+別の方法として、TURN サーバーを使用して、WebRTC Proxy サーバーとブラウザ間のメディア ストリームを中継することができます。TURN プロトコルでは、TURN サーバーは一方では WebRTC Proxy サーバーに接続し、他方ではブラウザに接続します。WebRTC Proxy サーバーは、ストリーム データのすべてを TURN サーバーに送信します。ここからブラウザにデータが転送されます。この場合、WebRTC Proxy サーバーとブラウザ間に直接接続はありません。(ワイヤレス キャリア ネットワーク経由でモバイル デバイスをサポートする必要がある場合、TURN サーバーを使うこと以外の選択肢はありません。モバイル ネットワークでは、WebRTC プロトコル経由でクライアントが正常に接続できないことがあります)。
 
-The STUN and TURN protocols together, along with the ability to fall back from one server to another, make up the ICE (Interactive Connectivity Establishment) framework.
+サーバーから別のサーバーにフォールバックする機能とともに、STUN および TURN プロトコルを併用して、ICE (Interactive Connectivity Establishment) フレームワークを構成します。
 
-You can find several [open-source implementations](https://github.com/coturn/coturn) of STUN and TURN servers on the Internet. There are even [public STUN servers](https://gist.github.com/mondain/b0ec1cf5f60ae726202e) that you can use for free instead of hosting your own, although you should exercise caution when using a service that you are not hosting yourself. (Because of the throughput and bandwidth involved in relaying media through the TURN protocol, public TURN services are rarely available for free.)
+インターネット上では、STUN および TURN サーバーの[オープンソース実装](https://github.com/coturn/coturn)をいくつか見つけることができます。独自にホスティングするのではなく、無料で利用可能な[パブリック STUN サーバー](https://gist.github.com/mondain/b0ec1cf5f60ae726202e)も存在しますが、このようなサービスを利用する際は注意が必要です。(TURN プロトコルを介してメディアを中継する際に必要なスループットと帯域幅のため、無料のパブリック TURN サービスはほとんどありません。)
 
 [REGION:tip]
-For convenience, the Unreal Engine also ships with binary versions of the STUN and TURN reference servers that are defined in the C++ WebRTC SDK. You can find these in the `Engine/Source/ThirdParty/WebRTC/rev.23789/programs/Win64/VS2017/release` folder under your Unreal Engine install location. These implementations may not offer production-grade reliability, but they may help you get started.
+利便性のため、Unreal Engine には、C++ WebRTC SDK で定義された STUN および TURN サーバーのリファレンス実装 (バイナリ) が付属しています。これらは、Unreal Engine のインストール場所の「`Engine/Source/ThirdParty/WebRTC/rev.23789/programs/Win64/VS2017/release`」フォルダにあります。これらの実装は製品グレードの信頼性を提供するものではありませんが、入門用としては役に立ちます。
 [/REGION]
 
-To set up Pixel Streaming to use ICE connections, you need to set the host names of the STUN and TURN servers you want to use in the **peerConnectionOptions** configuration parameter for the Signaling and Web Server. For details on how to format this parameter, and how to supply it, see the [Pixel Streaming Reference](Platforms/PixelStreaming/PixelStreamingReference#signalingserverconfigurationparameters).
+ICE 接続を使用するように Pixel Streaming を設定するには、使用する STUN および TURN サーバーのホスト名を Signaling and Web サーバー用の **peerConnectionOptions** コンフィギュレーション パラメータに設定する必要があります。このパラメータのフォーマットや指定方法の詳細については、「[Pixel Streaming リファレンス](Platforms/PixelStreaming/PixelStreamingReference#signalingserverconfigurationparameters)」を参照してください。
 
-In addition, if you're hosting your own STUN or TURN server, you must make sure that the IP address and port you specify for it in the **peerConnectionOptions** parameter are visible on the open Internet.
+さらに、独自の STUN または TURN サーバーをホスティングする場合、**peerConnectionOptions** パラメータで指定した IP アドレスとポートが、オープンなインターネット上でも認識できることを確認してください。
 
-## Multiple Player Endpoints
+## 複数プレイヤー エンドポイント
 
-You may want all users to be in the same Unreal Engine session, but not have exactly the same ability to control that session.
+同じ Unreal Engine セッションにすべてのユーザーをまとめたいが、そのセッションをコントロールするのに、同じ機能をすべてには利用したくない場合があります。
 
-For example, you might want to create an experience like a presentation, where the presenter has full control over the Unreal Engine from their browser, but other users are only able to view the stream. Or, you may want to create customized sets of controls for different users, so that they can cooperate to control different aspects of the experience in real time.
+例えば、プレゼンテーションのようなエクスペリエンスを作成するときに、プレゼンターは自分のブラウザから Unreal Engine をフルコントロールできるようにして、他のユーザーはストリームを表示できるだけにする場合があります。あるいは、ユーザーごとにカスタマイズした一連のコントロールを作成して、ユーザーが協力してエクスペリエンスの異なる部分をリアルタイムでコントロールできるようにする場合などもあります。
 
-For these kinds of scenarios, you can have one Unreal Engine instance running with one stack of web services, but create different player HTML pages on the Signaling and Web Server:
+これらのシナリオでは、1 つのスタックの Web サービスが動作している Unreal Engine の 1 つのインスタンスがありますが、Signaling and Web サーバーに異なるプレイヤー HTML ページを作成できます。
 
-![Multiple player pages](cloud-multi-player.png "Multiple player pages")
+![複数プレイヤー ページ](cloud-multi-player.png "複数プレイヤー ページ")
 
-In this scenario, you could customize each different HTML player page and its JavaScript environment to expose only the controls you want. Then, each class of users would need to request a different URL from the Signaling and Web Server. For example, maybe the presenter loads `http://yourhostname/presenter.html` and other users load `http://yourhostname/attendee.html`.
+このシナリオでは、異なる HTML プレイヤー ページとその JavaScript 環境をカスタマイズでき、必要なコントロールだけを公開できます。次に、各クラスのユーザーが Signaling and Web サーバーから異なる URL をリクエストする必要があります。例えば、プレゼンターは `http://yourhostname/presenter.html` を、他のユーザーは `http://yourhostname/attendee.html` をロードします。
 
-For more details on how to customize the player page, see [Customizing the Player Web Page](Platforms/PixelStreaming/PixelStreamingReference).
+プレイヤー ページのカスタマイズ方法の詳細については、「[プレイヤー Web ページをカスタマイズする](Platforms/PixelStreaming/PixelStreamingReference)」を参照してください。
 
-## Multiple Full Stacks with Matchmaking
+## マッチメイキングのある複数フルスタック
 
-Instead of having all users connect to the same stream, you may want each person to end up in his or her own interactive experiences. To do this, you can run a separate stack of Pixel Streaming components for each user, and direct each user to a separate Signaling and Web Server to start a connection.
+すべてのユーザーが同じストリームに接続するのではなく、各ユーザーに対して独自のインタラクティブなエクスペリエンスを提供したい場合もあります。これを実行するためには、各ユーザーに対して Pixel Streaming コンポーネントの個別スタックを実行して、各ユーザーを個別の Signaling and Web サーバーに誘導し、接続を開始します。
 
-You can set up each stack of Pixel Streaming components on a separate host, or you can put more than one stack on the same host as long as you configure the port settings for the components within each stack so that they all communicate over different ports. See the [Pixel Streaming Reference](Platforms/PixelStreaming/PixelStreamingReference) for details on these port settings.
+個別ホストで Pixel Streaming コンポーネントの各スタックを設定できます。または、全員が異なるポートで通信するように各スタック内でコンポーネントに対してポートを設定をすることで、同じホストで複数のスタックを配置することもできます。これらのポートの詳細については、「[Pixel Streaming リファレンス](Platforms/PixelStreaming/PixelStreamingReference)」を参照してください。
 
 [REGION:note]
-If you plan to run multiple instances of the Unreal Engine using Pixel Streaming on the same computer, note that many consumer-level graphics cards such as the NVIDIA GeForce line can only run a maximum of two encoders at the same time. Professional-grade cards such as the Quadro and Tesla do not have the same limitation.
+同じコンピュータで Pixel Streaming を使用して Unreal Engine の複数インスタンスを実行する計画の場合、NVIDIA GeForce ラインなど一般ユーザー レベルの多くのグラフィック カードで同時に実行できるエンコーダは最大 2 つであることに注意してください。Quadro や Tesla などプロフェッショナル グレードのカードには、これと同じ制限はありません。
 [/REGION]
 
-To help set up this kind of configuration, the Pixel Streaming system can use a matchmaker server that tracks which Signaling and Web Servers are available, and whether they are being used by a client connection.
+この種の設定のために、Pixel Streaming システムで、利用可能な Signaling and Web サーバーがどれか、クライアント接続で使用されているかどうかを追跡する Matchmaker (マッチメイカー) サーバーを利用することができます。
 
-![Multiple full stacks with a Matchmaker Server](cloud-multi-server.png "Multiple full stacks with a Matchmaker Server")
+![Matchmaker サーバーがある複数フルスタック](cloud-multi-server.png "Matchmaker サーバーがある複数フルスタック")
 
-Instead of each client needing to connect to its own Signaling and Web Server URL, they first connect to the Matchmaker Server. The Matchmaker takes care of redirecting each requester to its own Signaling and Web Server, which sets up the peer-to-peer connection between the client and its WebRTC Proxy Server. As long as that connection is active, the Matchmaker Server will not redirect any new incoming browser connections to the same Signaling and Web Server.
+各クライアントを独自の Signaling and Web サーバーの URL に接続させるのではなく、Matchmaker サーバーに最初に接続します。Matchmaker は独自の Signaling and Web サーバー (クライアントと WebRTC Proxy サーバー間のピアツーピア接続を設定) に対する各リクエスタのリダイレクトを処理します。接続がアクティブである限り、Matchmaker サーバーは、ブラウザからの新しい受信接続を同じ Signaling and Web サーバーにはリダイレクトしません。
 
-The Pixel Streaming system includes a reference implementation for a Matchmaker Server, under the `Engine/Source/Programs/PixelStreaming/WebServers/Matchmaker` folder. You can use this server as-is; or, you can customize the `matchmaker.js` file to fit your needs, as long as you handle the same messages from the Signaling and Web Server.
+Pixel Streaming システムには、Matchmaker サーバーのリファレンス実装が「`Engine/Source/Programs/PixelStreaming/WebServers/Matchmaker`」フォルダに含まれています。このサーバーはそのまま使用できますが、Signaling and Web サーバーから同じメッセージを処理するのであれば、ニーズに合わせて「`matchmaker.js`」ファイルをカスタマイズできます。
 
-To set up the Matchmaker Server:
+Matchmaker サーバーの設定方法
 
-1.  Before you start your Signaling and Web Server, start the Matchmaker Server by running its `run.bat` file. By default, the server listens for HTTP connections from clients on port **90**, and it listens for connections from Signaling and Web Servers on port **9999**. You can override those settings by providing the following configuration parameters on the command line:
+1. Signaling and Web サーバーを起動する前に、「`run.bat`」ファイルを実行して Matchmaker サーバーを起動します。デフォルトでは、サーバーはクライアントからの HTTP 接続に対してポート **90** でリッスンし、Signaling and Web サーバーからの接続はポート **9999** でリッスンします。コマンドラインで次のコンフィギュレーション パラメータを指定することで、これらの設定をオーバーライドすることもできます。
     
-    | Parameter | Description |
-    | --- | --- |
-    | **--httpPort** |  Defines the port the Matchmaker Server listens to for incoming HTTP connections from browsers. |
-    | **--matchmakerPort** | Defines the port the Matchmaker Server listens to for incoming status messages from Signaling and Web Servers. |
+    | パラメータ| 説明|
+    | ---| ---|
+    | **--httpPort**|  ブラウザからの HTTP 受信接続を Matchmaker サーバーがリッスンするポート番号を定義します。|
+    | **--matchmakerPort**| Signaling and Web サーバーからの受信ステータス メッセージを Matchmaker サーバーがリッスンするポート番号を定義します。|
 
-    For example:
-    
+    例：
+
     \> run.bat --httpPort 88 --matchmakerPort 9988
-    	
+
+2. Signaling and Web サーバーに対する次のコンフィギュレーション パラメータを設定します。
     
-2.  Set the following configuration parameters for the Signaling and Web Server:
-    
-    | Parameter | Description |
-    | --- | --- |
-    | **UseMatchmaker** | Set this parameter to `true` to make the Signaling Web Server send its current status to the Matchmaker Server. |
-    | **matchmakerAddress** | The IP address of the Matchmaker Server that this Signaling and Web Server will connect to. |
-    | **matchmakerPort** | The port that this Signaling and Web Server will use when it needs to send messages to the Matchmaker Server. Make sure that this value matches the **--matchmakerPort** value you set for the Matchmaker Server. |
-    | **publicIp** | The publicly visible IP address of the Signaling and Web Server. When the Matchmaker Server redirects a user to this Signaling and Web Server, it sends them to this IP address. Therefore, it has to be visible to the connecting browser. |
-    | **httpPort** | The port that the Signaling and Web Server listens to for HTTP connections. When the Matchmaker Server redirects a user to this Signaling and Web Server, it sends them to this port. |
+    | パラメータ| 説明|
+    | ---| ---|
+    | **UseMatchmaker**| このパラメータを「`true`」にすると、Signaling and Web サーバーが現在のステータスを Matchmaker サーバーに送信するようになります。|
+    | **matchmakerAddress**| Signaling and Web サーバーの接続先である Matchmaker サーバーの IP アドレス。|
+    | **matchmakerPort**| Signaling and Web サーバーがメッセージを Matchmaker サーバーに送信する必要があるときに使用するポート番号。この値が Matchmaker サーバー用に設定した **--matchmakerPort** 値と一致することを確認します。|
+    | **publicIp**| Signaling and Web サーバーのパブリック公開の IP アドレス。Matchmaker サーバーがユーザーを Signaling and Web サーバーにリダイレクトするときは、この IP アドレスに誘導します。したがって、これは接続するブラウザから認識できる必要があります。|
+    | **httpPort**| HTTP 接続を Signaling and Web サーバーがリッスンするポート番号。Matchmaker サーバーがユーザーを Signaling and Web サーバーにリダイレクトするときは、このポート番号に誘導します。|
 
-    [COMMENT:none]
-    -
-    [EXCERPT:excerpt_8]
-    **UseMatchmaker**
-	[/EXCERPT:excerpt_8]
-    -
-    [/COMMENT]
-    [COMMENT:none]
-    -
-    [EXCERPT:excerpt_7]
-    Description
-	[/EXCERPT:excerpt_7]
-    -
-    [/COMMENT]
-    For instructions on how you can set these parameters, see the [Pixel Streaming Reference](Platforms/PixelStreaming/PixelStreamingReference).
+    これらのパラメータを設定する方法については、「[Pixel Streaming リファレンス](Platforms/PixelStreaming/PixelStreamingReference)」を参照してください。
 
-## Scaling on Demand
+## オンデマンドのスケーリング
 
-If you want to use a strategy like the one described above, where a separate full stack serves each incoming client connection, you might not want to have a preset number of Unreal Engine applications running. If you have fewer users than servers, you'll be wasting resources; conversely, if you have fewer servers than users, people may need to wait until a connection is free. Instead, you might want to spin up a new server instance each time a client tries to connect.
+上記に示したような戦略、つまりクライアントの各受信接続に個別のフルスタックで対応しようとすると、実行する Unreal Engine アプリケーションの数を事前に設定したくない場合があります。サーバー数よりユーザー数が少ない場合はリソースが無駄になり、逆にユーザー数よりサーバー数が少ない場合は、接続がフリーになるまでユーザーは待機する必要があります。代わりに、クライアントが接続を試みるたびに、新しいサーバー インスタンスを起動させるようにしたほうがよい場合があります。
 
-With the components of the Pixel Streaming system and the optional Matchmaker Server, you should have all the pieces you need to set up a dynamically scaling hosting system like this. However, for now, this level of cloud deployment is up to you to set up on your own cloud service provider.
+Pixel Streaming システムのコンポーネントとオプションの Matchmaker サーバーがあると、このような動的にスケーリングするホスティング システムの設定に必要なすべての構成要素が揃います。ただし、今のところ、このレベルのクラウド デプロイメントを独自のクラウド サービス プロバイダで設定するかはユーザー次第です。
 
-## Host Machine Hardware Capabilities
+## ホスト マシン ハードウェア機能
 
-If you choose to use a service provider such as Amazon (AWS) or Microsoft Azure to host your Unreal Engine application and Pixel Streaming web services, you may have a choice between multiple different tiers of hosts with different hardware capabilities. Keep in mind that the capabilities of the host may affect the quality of the stream that you can offer.
+Unreal Engine アプリケーションと Pixel Streaming Web サービスをホストするのに Amazon (AWS) や Microsoft Azure などのサービス プロバイダを利用することを選択した場合は、異なるハードウェア機能を備えたホストの多様な複数ティアから選択することになります。ホストの機能は、提供可能なストリームの品質に影響することに留意してください。
 
-For example, AWS machines typically do not offer hardware sound cards. When you run your Unreal Engine application on such a host, your media stream will not contain any sound. Similarly, if you opt for hosts with less powerful GPUs or less memory, you may not be able to get the maximum video quality possible in your streams.
+例えば、AWS マシンでは一般にハードウェア サウンド カードが提供されません。このようなホストで Unreal Engine アプリケーションを実行すると、メディア ストリームにサウンドが含まれません。同様に、GPU の性能やメモリが十分ではないホストを選択すると、ストリームでビデオの品質を最大限に引き出せない場合があります。

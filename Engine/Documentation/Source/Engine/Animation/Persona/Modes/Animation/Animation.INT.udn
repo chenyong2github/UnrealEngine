@@ -12,10 +12,6 @@ tags:FBX Importing
 tags:Tools
 topic-image:animEditor_topic.png
 
-[REGION:banner]
-![](AnimationBanner.png)
-[/REGION]
-
 
 [EXCERPT:Overview]
 The **Animation Editor** provides easy access to the various animation-centric assets available for a Skeletal Mesh. 

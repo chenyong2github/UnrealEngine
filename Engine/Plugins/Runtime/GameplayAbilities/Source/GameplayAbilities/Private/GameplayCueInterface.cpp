@@ -5,6 +5,7 @@
 #include "GameplayTagsModule.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayCueSet.h"
+#include "Engine/PackageMapClient.h"
 
 
 namespace GameplayCueInterfacePrivate
@@ -391,6 +392,24 @@ bool FMinimalGameplayCueReplicationProxy::NetSerialize(FArchive& Ar, class UPack
 	}
 	else
 	{
+		// Only actually update the owner's tag map if we not the 
+		bool UpdateOwnerTagMap = Owner != nullptr;
+		if (bRequireNonOwningNetConnection && Owner)
+		{
+			if (AActor* OwningActor = Owner->GetOwner())
+			{
+				// Note we deliberately only want to do this if the NetConnection is not null
+				if (UNetConnection* OwnerNetConnection = OwningActor->GetNetConnection()) 
+				{
+					if (OwnerNetConnection == CastChecked<UPackageMapClient>(Map)->GetConnection())
+					{
+						UpdateOwnerTagMap = false;
+					}
+				}
+			}
+		}
+
+
 		NumElements = 0;
 		Ar.SerializeBits(&NumElements, NumBits);
 
@@ -415,16 +434,18 @@ bool FMinimalGameplayCueReplicationProxy::NetSerialize(FArchive& Ar, class UPack
 				// This tag already existed and is accounted for
 				LocalBitMask[LocalIdx] = false;
 			}
-			else if (Owner)
+			else if (UpdateOwnerTagMap)
 			{
+				bCachedModifiedOwnerTags = true;
 				// This is a new tag, we need to invoke the WhileActive gameplaycue event
 				Owner->SetTagMapCount(ReplicatedTag, 1);
 				Owner->InvokeGameplayCueEvent(ReplicatedTag, EGameplayCueEvent::WhileActive, Parameters);
 			}
 		}
 
-		if (Owner)
+		if (UpdateOwnerTagMap)
 		{
+			bCachedModifiedOwnerTags = true;
 			for (TConstSetBitIterator<TInlineAllocator<NumInlineTags>> It(LocalBitMask); It; ++It)
 			{
 				FGameplayTag& RemovedTag = LocalTags[It.GetIndex()];
@@ -441,7 +462,7 @@ bool FMinimalGameplayCueReplicationProxy::NetSerialize(FArchive& Ar, class UPack
 
 void FMinimalGameplayCueReplicationProxy::RemoveAllCues()
 {
-	if (!Owner)
+	if (!Owner || !bCachedModifiedOwnerTags)
 	{
 		return;
 	}

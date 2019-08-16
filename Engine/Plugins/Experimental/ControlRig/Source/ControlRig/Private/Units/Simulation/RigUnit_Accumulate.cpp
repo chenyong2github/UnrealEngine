@@ -5,6 +5,7 @@
 
 void FRigUnit_AccumulateFloatAdd::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
 	{
 		Result = AccumulatedValue = InitialValue;
@@ -21,6 +22,7 @@ void FRigUnit_AccumulateFloatAdd::Execute(const FRigUnitContext& Context)
 
 void FRigUnit_AccumulateVectorAdd::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
 	{
 		Result = AccumulatedValue = InitialValue;
@@ -37,6 +39,7 @@ void FRigUnit_AccumulateVectorAdd::Execute(const FRigUnitContext& Context)
 
 void FRigUnit_AccumulateFloatMul::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
 	{
 		Result = AccumulatedValue = InitialValue;
@@ -54,6 +57,7 @@ void FRigUnit_AccumulateFloatMul::Execute(const FRigUnitContext& Context)
 
 void FRigUnit_AccumulateVectorMul::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
 	{
 		Result = AccumulatedValue = InitialValue;
@@ -71,6 +75,7 @@ void FRigUnit_AccumulateVectorMul::Execute(const FRigUnitContext& Context)
 
 void FRigUnit_AccumulateQuatMul::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
 	{
 		Result = AccumulatedValue = InitialValue;
@@ -95,6 +100,7 @@ void FRigUnit_AccumulateQuatMul::Execute(const FRigUnitContext& Context)
 
 void FRigUnit_AccumulateTransformMul::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
 	{
 		Result = AccumulatedValue = InitialValue;
@@ -121,6 +127,7 @@ void FRigUnit_AccumulateTransformMul::Execute(const FRigUnitContext& Context)
 
 void FRigUnit_AccumulateFloatLerp::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
 	{
 		Result = AccumulatedValue = InitialValue;
@@ -133,6 +140,7 @@ void FRigUnit_AccumulateFloatLerp::Execute(const FRigUnitContext& Context)
 
 void FRigUnit_AccumulateVectorLerp::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
 	{
 		Result = AccumulatedValue = InitialValue;
@@ -145,6 +153,7 @@ void FRigUnit_AccumulateVectorLerp::Execute(const FRigUnitContext& Context)
 
 void FRigUnit_AccumulateQuatLerp::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
 	{
 		Result = AccumulatedValue = InitialValue;
@@ -157,6 +166,7 @@ void FRigUnit_AccumulateQuatLerp::Execute(const FRigUnitContext& Context)
 
 void FRigUnit_AccumulateTransformLerp::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
 	{
 		Result = AccumulatedValue = InitialValue;
@@ -173,6 +183,7 @@ void FRigUnit_AccumulateTransformLerp::Execute(const FRigUnitContext& Context)
 
 void FRigUnit_AccumulateFloatRange::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
 	{
 		Minimum = AccumulatedMinimum = Maximum = AccumulatedMaximum = Value;
@@ -186,6 +197,7 @@ void FRigUnit_AccumulateFloatRange::Execute(const FRigUnitContext& Context)
 
 void FRigUnit_AccumulateVectorRange::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
 	{
 		Minimum = AccumulatedMinimum = Maximum = AccumulatedMaximum = Value;

@@ -1,0 +1,47 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Title: Running Gauntlet Tests
+Description: Instructions on how to run a Gauntlet test and an explanation of what happens during the process.
+Parent: Programming/Automation/Gauntlet
+Tags: Automation
+Order: 1
+
+
+In this guide, you will run an existing Gauntlet test available for the Elemental demo. This will familiarize you with the process for running tests and give you an idea what is happening at each step along the way.
+
+## ElementalDemo Test Node
+
+![](image_0.png)
+
+## Run the ElementalDemo Example
+
+1.  Open a command prompt at `Engine/Build/BatchFiles` under your Unreal Engine directory.
+
+1.  Enter the following in the command prompt:
+    
+        RunUAT BuildCookRun -project=Samples/Showcases/ElementalDemo/ElementalDemo.uproject -platform=Win64 -configuration=Development -build -cook -pak -stage
+
+1.  Once that process completes, enter the following in the command prompt:
+    
+        RunUAT RunUnreal -project=Samples/Showcases/ElementalDemo -platform=Win64 -configuration=Development -build=local -test=ElementalDemoTest
+
+## ElementalDemo Test Explanation
+
+1.  `BuildCookRun` generated a Win64 build of **ElementalDemo** in `Samples/ElementalDemo/Saved/StagedBuilds`.
+
+1.  `RunUnreal` launched Gauntlet, which:
+    1.  Created an instance of the `ElementalDemoTest` node, which provided basic rules for running the test.
+    
+    1.  Discovered local builds for the **ElementalDemo** Project.
+    
+    1.  Validated that a Win64 Development build was available.
+    
+    1.  Launched **ElementalDemo**.
+    
+    1.  Monitored the running process for any issues.
+    
+    1.  Detected that **ElementalDemo** had exited.
+    
+    1.  Checked for common issues such as crashes, asserts, and fatal errors.
+
+1.  Along the way, provided the ElementalDemoTest node verifies that the test was still running and that no errors had occurred, create a summary report.

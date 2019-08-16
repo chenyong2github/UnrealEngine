@@ -23,7 +23,8 @@ class TPerParticlePBDUpdateFromDeltaPosition : public TPerParticleRule<T, d>
 
 	inline void Apply(TPBDParticles<T, d>& InParticles, const T Dt, const int32 Index) const override //-V762
 	{
-		ApplyHelper(InParticles, Dt, Index);
+		InParticles.V(Index) = (InParticles.P(Index) - InParticles.X(Index)) / Dt;
+		InParticles.X(Index) = InParticles.P(Index);
 	}
 
 	inline void Apply(TPBDRigidParticles<T, d>& InParticles, const T Dt, const int32 Index) const override //-V762
@@ -35,6 +36,16 @@ class TPerParticlePBDUpdateFromDeltaPosition : public TPerParticleRule<T, d>
 		Delta.ToAxisAndAngle(Axis, Angle);
 		InParticles.W(Index) = Axis * Angle / Dt;
 		//InParticles.R(Index) = InParticles.Q(Index);
+	}
+
+	inline void Apply(TTransientPBDRigidParticleHandle<T, d>& Particle, const T Dt) const override //-V762
+	{
+		Particle.V() = (Particle.P() - Particle.X()) / Dt;
+		TRotation<T, d> Delta = Particle.Q() * Particle.R().Inverse();
+		TVector<T, d> Axis;
+		T Angle;
+		Delta.ToAxisAndAngle(Axis, Angle);
+		Particle.W() = Axis * Angle / Dt;
 	}
 };
 }

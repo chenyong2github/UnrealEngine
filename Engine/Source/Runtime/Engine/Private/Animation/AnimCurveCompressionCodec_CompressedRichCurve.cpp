@@ -26,7 +26,7 @@ struct FCurveDesc
 };
 
 #if WITH_EDITORONLY_DATA
-bool UAnimCurveCompressionCodec_CompressedRichCurve::Compress(const UAnimSequence& AnimSeq, FAnimCurveCompressionResult& OutResult)
+bool UAnimCurveCompressionCodec_CompressedRichCurve::Compress(const FCompressibleAnimData& AnimSeq, FAnimCurveCompressionResult& OutResult)
 {
 	int32 NumCurves = AnimSeq.RawCurveData.FloatCurves.Num();
 
@@ -37,7 +37,7 @@ bool UAnimCurveCompressionCodec_CompressedRichCurve::Compress(const UAnimSequenc
 	int32 KeyDataOffset = 0;
 	KeyDataOffset += sizeof(FCurveDesc) * NumCurves;
 
-	const FAnimKeyHelper Helper(AnimSeq.SequenceLength, AnimSeq.GetRawNumberOfFrames());
+	const FAnimKeyHelper Helper(AnimSeq.SequenceLength, AnimSeq.NumFrames);
 	const float SampleRate = UseAnimSequenceSampleRate ? Helper.KeysPerSecond() : ErrorSampleRate;
 
 	TArray<uint8> KeyData;
@@ -94,12 +94,12 @@ void UAnimCurveCompressionCodec_CompressedRichCurve::PopulateDDCKey(FArchive& Ar
 }
 #endif
 
-void UAnimCurveCompressionCodec_CompressedRichCurve::DecompressCurves(const UAnimSequence& AnimSeq, FBlendedCurve& Curves, float CurrentTime) const
+void UAnimCurveCompressionCodec_CompressedRichCurve::DecompressCurves(const FCompressedAnimSequence& AnimSeq, FBlendedCurve& Curves, float CurrentTime) const
 {
 	const uint8* Buffer = AnimSeq.CompressedCurveByteStream.GetData();
 	const FCurveDesc* CurveDescriptions = (const FCurveDesc*)(Buffer);
 
-	const TArray<FSmartName>& CompressedCurveNames = AnimSeq.GetCompressedCurveNames();
+	const TArray<FSmartName>& CompressedCurveNames = AnimSeq.CompressedCurveNames;
 	const int32 NumCurves = CompressedCurveNames.Num();
 	for (int32 CurveIndex = 0; CurveIndex < NumCurves; ++CurveIndex)
 	{
@@ -114,12 +114,12 @@ void UAnimCurveCompressionCodec_CompressedRichCurve::DecompressCurves(const UAni
 	}
 }
 
-float UAnimCurveCompressionCodec_CompressedRichCurve::DecompressCurve(const UAnimSequence& AnimSeq, SmartName::UID_Type CurveUID, float CurrentTime) const
+float UAnimCurveCompressionCodec_CompressedRichCurve::DecompressCurve(const FCompressedAnimSequence& AnimSeq, SmartName::UID_Type CurveUID, float CurrentTime) const
 {
 	const uint8* Buffer = AnimSeq.CompressedCurveByteStream.GetData();
 	const FCurveDesc* CurveDescriptions = (const FCurveDesc*)(Buffer);
 
-	const TArray<FSmartName>& CompressedCurveNames = AnimSeq.GetCompressedCurveNames();
+	const TArray<FSmartName>& CompressedCurveNames = AnimSeq.CompressedCurveNames;
 	const int32 NumCurves = CompressedCurveNames.Num();
 	for (int32 CurveIndex = 0; CurveIndex < NumCurves; ++CurveIndex)
 	{

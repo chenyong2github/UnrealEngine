@@ -32,6 +32,7 @@
 #include "EditorPrimitivesRendering.h"
 #include "VisualizeTexturePresent.h"
 #include "ScreenSpaceDenoise.h"
+#include "VT/VirtualTextureSystem.h"
 
 DEFINE_LOG_CATEGORY(LogRenderer);
 
@@ -47,10 +48,14 @@ IMPLEMENT_MODULE(FRendererModule, Renderer);
 void FRendererModule::StartupModule()
 {
 	GScreenSpaceDenoiser = IScreenSpaceDenoiser::GetDefaultDenoiser();
+
+	FVirtualTextureSystem::Initialize();
 }
 
 void FRendererModule::ShutdownModule()
 {
+	FVirtualTextureSystem::Shutdown();
+
 	// Free up the memory of the default denoiser. Responsibility of the plugin to free up theirs.
 	delete IScreenSpaceDenoiser::GetDefaultDenoiser();
 }
@@ -100,7 +105,7 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 
 		FSinglePrimitiveStructuredBuffer SinglePrimitiveStructuredBuffer;
 
-		if (Mesh.VertexFactory->GetPrimitiveIdStreamIndex(true) >= 0)
+		if (Mesh.VertexFactory->GetPrimitiveIdStreamIndex(EVertexInputStreamType::PositionOnly) >= 0)
 		{
 			FMeshBatchElement& MeshElement = Mesh.Elements[0];
 
@@ -133,6 +138,12 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 		
 		View.InitRHIResources();
 		DrawRenderState.SetViewUniformBuffer(View.ViewUniformBuffer);
+
+		if (!DrawRenderState.GetReflectionCaptureUniformBuffer())
+		{
+			FReflectionCaptureShaderData EmptyData;
+			DrawRenderState.SetReflectionCaptureUniformBuffer(TUniformBufferRef<FReflectionCaptureShaderData>::CreateUniformBufferImmediate(EmptyData, UniformBuffer_SingleFrame));
+		}
 
 		if (ShadingPath == EShadingPath::Mobile)
 		{
@@ -316,16 +327,6 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 
 		SinglePrimitiveStructuredBuffer.ReleaseResource();
 	}
-}
-
-void FRendererModule::RenderTargetPoolFindFreeElement(FRHICommandListImmediate& RHICmdList, const FPooledRenderTargetDesc& Desc, TRefCountPtr<IPooledRenderTarget> &Out, const TCHAR* InDebugName)
-{
-	GRenderTargetPool.FindFreeElement(RHICmdList, Desc, Out, InDebugName);
-}
-
-void FRendererModule::TickRenderTargetPool()
-{
-	GRenderTargetPool.TickPoolElements();
 }
 
 void FRendererModule::DebugLogOnCrash()

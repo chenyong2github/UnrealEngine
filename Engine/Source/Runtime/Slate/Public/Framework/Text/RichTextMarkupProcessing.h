@@ -3,7 +3,6 @@
 
 #include "CoreMinimal.h"
 #include "SlateGlobals.h"
-#include "Framework/Text/TextRange.h"
 #include "Framework/Text/ITextDecorator.h"
 #include "Internationalization/Regex.h"
 #include "Framework/Text/IRichTextMarkupParser.h"
@@ -35,6 +34,7 @@ class SLATE_API FDefaultRichTextMarkupWriter : public IRichTextMarkupWriter
 {
 public:
 	static TSharedRef< FDefaultRichTextMarkupWriter > Create();
+	static TSharedRef< FDefaultRichTextMarkupWriter > GetStaticInstance();
 
 public:
 	virtual void Write(const TArray<FRichTextLine>& InLines, FString& Output) override;

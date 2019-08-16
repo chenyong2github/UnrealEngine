@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6549201
 Title: 모바일 서비스 순위표 사용법
 Description:게임에서 순위표를 사용하는 법입니다.
 Crumbs:
@@ -28,8 +28,8 @@ Leaderboard (순위표)는 플랫폼별로 플레이어들의 최고 점수를 �
 각 플랫폼별 순위표 환경설정 관련 자세한 내용은 해당 플랫폼별 페이지를 참고하세요:
 
 [REGION:buttonlist]
-* [](Platforms/Android/Leaderboards)
-* [](Platforms/iOS/Leaderboards)
+* [](Platforms/Mobile/Android/Leaderboards)
+* [](Platforms/Mobile/iOS/Leaderboards)
 [/REGION]
 
 [EXCERPT:Usage]

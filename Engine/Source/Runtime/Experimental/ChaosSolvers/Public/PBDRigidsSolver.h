@@ -4,272 +4,257 @@
 
 #include "Chaos/ArrayCollectionArray.h"
 #include "Chaos/Defines.h"
+#include "Chaos/Framework/PhysicsProxy.h"
+#include "Chaos/Framework/MultiBufferResource.h"
+#include "Chaos/Framework/SingleParticlePhysicsProxy.h"
 #include "Chaos/PBDRigidParticles.h"
-#include "Chaos/PBDRigidsEvolution.h"
-#include "Chaos/PBDSpringConstraints.h"
+#include "Chaos/PBDRigidsEvolutionGBF.h"
+#include "Chaos/PBDCollisionConstraint.h"
+#include "Chaos/PBDRigidDynamicSpringConstraints.h"
+#include "Chaos/PBDPositionConstraints.h"
+#include "Chaos/PBDJointConstraints.h"
+#include "Chaos/PBDConstraintRule.h"
 #include "Chaos/PerParticleGravity.h"
+#include "Chaos/ParticleHandle.h"
 #include "Chaos/Transform.h"
 #include "CoreMinimal.h"
 #include "Containers/Queue.h"
 #include "Framework/Dispatcher.h"
 #include "Field/FieldSystem.h"
+#include "EventManager.h"
+#include "SolverEventFilters.h"
 
-#define USE_PGS 0
-
-#if USE_PGS
-typedef Chaos::TPBDRigidsEvolutionPGS<float, 3> FPBDRigidsEvolution;
-#else
-typedef Chaos::TPBDRigidsEvolutionGBF<float, 3> FPBDRigidsEvolution;
+#ifndef CHAOS_WITH_PAUSABLE_SOLVER
+#define CHAOS_WITH_PAUSABLE_SOLVER 1
 #endif
 
+class FPhysicsSolverAdvanceTask;
 class FPhysInterface_Chaos;
+
+class FSkeletalMeshPhysicsProxy;
+class FStaticMeshPhysicsProxy;
+class FGeometryCollectionPhysicsProxy;
+class FFieldSystemPhysicsProxy;
+
+/**
+*
+*/
 namespace Chaos
 {
-	class PBDRigidsSolver;
 	class AdvanceOneTimeStepTask;
 	class FPersistentPhysicsTask;
 	class FPhysicsCommand;
-};
-
-struct FKinematicProxy
-{
-	TArray<int32> Ids;
-	TArray<FVector> Position;
-	TArray<FQuat> Rotation;
-	TArray<FVector> NextPosition;
-	TArray<FQuat> NextRotation;
-};
-
-/**
-*
-*/
-class CHAOSSOLVERS_API FSolverCallbacks
-{
-public:
-	typedef Chaos::TPBDRigidParticles<float, 3> FParticlesType;
-	typedef Chaos::TPBDCollisionConstraint<float, 3> FCollisionConstraintsType;
-	typedef Chaos::TArrayCollectionArray<int32> IntArray;
-
-	FSolverCallbacks()
-		: Solver(nullptr)
-	{}
-
-	virtual ~FSolverCallbacks() {}
-
-	virtual bool IsSimulating() const { return true; }
-	virtual void UpdateKinematicBodiesCallback(const FParticlesType& Particles, const float Dt, const float Time, FKinematicProxy& Index) {}
-	virtual void StartFrameCallback(const float, const float) {}
-	virtual void EndFrameCallback(const float) {}
-	virtual void CreateRigidBodyCallback(FParticlesType&) {}
-	virtual void BindParticleCallbackMapping(const int32 & CallbackIndex, FSolverCallbacks::IntArray & ParticleCallbackMap) {}
-	virtual void ParameterUpdateCallback(FParticlesType&, const float) {}
-	virtual void DisableCollisionsCallback(TSet<TTuple<int32, int32>>&) {}
-	virtual void AddConstraintCallback(FParticlesType&, const float, const int32) {}
-	virtual void AddForceCallback(FParticlesType&, const float, const int32) {}
-	virtual void CollisionContactsCallback(FParticlesType&, FCollisionConstraintsType&) {}
-	virtual void BreakingCallback(FParticlesType&) {}
-	virtual void TrailingCallback(FParticlesType&) {}
-
-	void SetSolver(Chaos::PBDRigidsSolver * SolverIn) { Solver = SolverIn; }
-	Chaos::PBDRigidsSolver* GetSolver() { check(Solver);  return Solver; }
-
-private:
-	Chaos::PBDRigidsSolver * Solver;
-};
-
-
-class CHAOSSOLVERS_API FSolverFieldCallbacks : public FSolverCallbacks
-{
-public:
-	FSolverFieldCallbacks() {}
-
-	FSolverFieldCallbacks(const FFieldSystem & System)
-		: FSolverCallbacks()
-	{
-		FieldSystem.BuildFrom(System);
-	}
-
-	virtual ~FSolverFieldCallbacks() {}
-
-	virtual void CommandUpdateCallback(FParticlesType&, Chaos::TArrayCollectionArray<FVector> &, const float) {}
-
-protected:
-
-	FFieldSystem FieldSystem;
-	TArray<FFieldSystemCommand> FieldCommands;
-};
-
-/**
-*
-*/
-namespace Chaos
-{
-
+	class FChaosArchive;
 	/**
 	*
 	*/
-	class CHAOSSOLVERS_API PBDRigidsSolver
+	class CHAOSSOLVERS_API FPBDRigidsSolver
 	{
-	public:
-		friend class Chaos::AdvanceOneTimeStepTask;
-		friend class Chaos::FPersistentPhysicsTask;
 
-		template<Chaos::DispatcherMode Mode>
-		friend class Chaos::Dispatcher;
+		FPBDRigidsSolver(const EMultiBufferMode BufferingModeIn);
+
+	public:
+		friend class FPersistentPhysicsTask;
+		friend class ::FPhysicsSolverAdvanceTask;
+		friend class ::FChaosSolversModule;
+
+		template<EThreadingMode Mode>
+		friend class FDispatcher;
+		friend class FEventDefaults;
 
 		friend class FPhysInterface_Chaos;
-		static int8 Invalid;
-		typedef TPBDRigidParticles<float, 3> FParticlesType;
-		typedef TPBDCollisionConstraint<float, 3> FCollisionConstraintsType;
-		typedef TArray<TCollisionData<float, 3>> FCollisionDataArray;
-		struct FCollisionData
+		friend class FPhysScene_ChaosInterface;
+
+		void* PhysSceneHack;	//This is a total hack for now to get at the owning scene
+
+		typedef TPBDRigidsSOAs<float, 3> FParticlesType;
+
+		typedef Chaos::TGeometryParticle<float, 3> FParticle;
+		typedef Chaos::TGeometryParticleHandle<float, 3> FHandle;
+		typedef Chaos::TPBDRigidsEvolutionGBF<float, 3> FPBDRigidsEvolution;
+		typedef Chaos::TPBDCollisionConstraint<float, 3> FPBDCollisionConstraints;
+
+		typedef FPBDCollisionConstraints FCollisionConstraints;
+		typedef TPBDJointConstraints<float, 3> FJointConstraints;
+		typedef TPBDRigidDynamicSpringConstraints<float, 3> FRigidDynamicSpringConstraints;
+		typedef TPBDPositionConstraints<float, 3> FPositionConstraints;
+
+		typedef TPBDConstraintIslandRule<FJointConstraints, float, 3> FJointConstraintsRule;
+		typedef TPBDConstraintIslandRule<FRigidDynamicSpringConstraints, float, 3> FRigidDynamicSpringConstraintsRule;
+		typedef TPBDConstraintIslandRule<FPositionConstraints, float, 3> FPositionConstraintsRule;
+
+		//
+		// Execution API
+		//
+
+		void ChangeBufferMode(Chaos::EMultiBufferMode InBufferMode);
+		TQueue<TFunction<void(FPBDRigidsSolver*)>, EQueueMode::Mpsc>& GetCommandQueue() { return CommandQueue; }
+
+
+		//
+		//  Object API
+		//
+
+		void RegisterObject(Chaos::TGeometryParticle<float, 3>* GTParticle);
+		void UnregisterObject(Chaos::TGeometryParticle<float, 3>* GTParticle);
+
+		// TODO: Set up an interface for registering fields and geometry collections
+		//void RegisterObject(FGeometryCollectionPhysicsProxy* InProxy);
+		//int UnregisterObject(FGeometryCollectionPhysicsProxy* InProxy);
+		//void RegisterObject(FFieldSystemPhysicsProxy* InProxy);
+		//int UnregisterObject(FFieldSystemPhysicsProxy* InProxy);
+
+		bool IsSimulating() const;
+
+		template<typename Lambda>
+		void ForEachPhysicsProxy(Lambda InCallable)
 		{
-			float TimeCreated;
-			int32 NumCollisions;
-			FCollisionDataArray CollisionDataArray;
-		};
-		typedef TArray<TBreakingData<float, 3>> FBreakingDataArray;
-		struct FBreakingData
+			for (FGeometryParticlePhysicsProxy* Obj : GeometryParticlePhysicsProxies)
+			{
+				InCallable(Obj);
+			}
+			for (FKinematicGeometryParticlePhysicsProxy* Obj : KinematicGeometryParticlePhysicsProxies)
+			{
+				InCallable(Obj);
+			}
+			for (FRigidParticlePhysicsProxy* Obj : RigidParticlePhysicsProxies)
+			{
+				InCallable(Obj);
+			}
+			for (FSkeletalMeshPhysicsProxy* Obj : SkeletalMeshPhysicsProxies)
+			{
+				InCallable(Obj);
+			}
+			for (FStaticMeshPhysicsProxy* Obj : StaticMeshPhysicsProxies)
+			{
+				InCallable(Obj);
+			}
+			for (FGeometryCollectionPhysicsProxy* Obj : GeometryCollectionPhysicsProxies)
+			{
+				InCallable(Obj);
+			}
+			for (FFieldSystemPhysicsProxy* Obj : FieldSystemPhysicsProxies)
+			{
+				InCallable(Obj);
+			}
+		}
+
+		template<typename Lambda>
+		void ForEachPhysicsProxyParallel(Lambda InCallable)
 		{
-			float TimeCreated;
-			int32 NumBreakings;
-			FBreakingDataArray BreakingDataArray;
-		};
-		typedef TSet<TTrailingData<float, 3>> FTrailingDataSet;
-		struct FTrailingData
-		{
-			float TimeLastUpdated;
-			FTrailingDataSet TrailingDataSet;
-		};
+			Chaos::PhysicsParallelFor(GeometryParticlePhysicsProxies.Num(), [this, &InCallable](const int32 Index)
+			{
+				FGeometryParticlePhysicsProxy* Obj = GeometryParticlePhysicsProxies[Index];
+				InCallable(Obj);
+			});
+			Chaos::PhysicsParallelFor(KinematicGeometryParticlePhysicsProxies.Num(), [this, &InCallable](const int32 Index)
+			{
+				FKinematicGeometryParticlePhysicsProxy* Obj = KinematicGeometryParticlePhysicsProxies[Index];
+				InCallable(Obj);
+			});
+			Chaos::PhysicsParallelFor(RigidParticlePhysicsProxies.Num(), [this, &InCallable](const int32 Index)
+			{
+				FRigidParticlePhysicsProxy* Obj = RigidParticlePhysicsProxies[Index];
+				InCallable(Obj);
+			});
+			Chaos::PhysicsParallelFor(SkeletalMeshPhysicsProxies.Num(), [this, &InCallable](const int32 Index)
+			{
+				FSkeletalMeshPhysicsProxy* Obj = SkeletalMeshPhysicsProxies[Index];
+				InCallable(Obj);
+			});
+			Chaos::PhysicsParallelFor(StaticMeshPhysicsProxies.Num(), [this, &InCallable](const int32 Index)
+			{
+				FStaticMeshPhysicsProxy* Obj = StaticMeshPhysicsProxies[Index];
+				InCallable(Obj);
+			});
+			Chaos::PhysicsParallelFor(GeometryCollectionPhysicsProxies.Num(), [this, &InCallable](const int32 Index)
+			{
+				FGeometryCollectionPhysicsProxy* Obj = GeometryCollectionPhysicsProxies[Index];
+				InCallable(Obj);
+			});
+			Chaos::PhysicsParallelFor(FieldSystemPhysicsProxies.Num(), [this, &InCallable](const int32 Index)
+			{
+				FFieldSystemPhysicsProxy* Obj = FieldSystemPhysicsProxies[Index];
+				InCallable(Obj);
+			});
+		}
 
-		PBDRigidsSolver();
+		bool GetNumPhysicsProxies() const {
+			return GeometryParticlePhysicsProxies.Num() + KinematicGeometryParticlePhysicsProxies.Num() + RigidParticlePhysicsProxies.Num()
+				+ SkeletalMeshPhysicsProxies.Num() + StaticMeshPhysicsProxies.Num()
+				+ GeometryCollectionPhysicsProxies.Num() + FieldSystemPhysicsProxies.Num() ;
+		}
 
-		/* Object Callbacks Registration and Management*/
-		void RegisterCallbacks(FSolverCallbacks* Callbacks);
-		void UnregisterCallbacks(FSolverCallbacks* Callbacks);			
-		const TArray<FSolverCallbacks*>& GetCallbacks() const { return Callbacks; }
+		//
+		//  Simulation API
+		//
 
-		/* Field Callbacks Registration and Management*/
-		void RegisterFieldCallbacks(FSolverFieldCallbacks* Callbacks);
-		void UnregisterFieldCallbacks(FSolverFieldCallbacks* Callbacks);
-		const TArray<FSolverFieldCallbacks*>& GetFieldCallbacks() const { return FieldCallbacks; }
-
-		void ClearCallbacks();
-
+		/**/
+		bool Enabled() const { if (bEnabled) return this->IsSimulating(); return false; }
+		void SetEnabled(bool bEnabledIn) { bEnabled = bEnabledIn; }
+		bool HasActiveParticles() const { return !!GetNumPhysicsProxies(); }
+		bool HasPendingCommands() const { return !CommandQueue.IsEmpty(); }
 
 		/**/
 		void Reset();
 
 		/**/
 		void AdvanceSolverBy(float DeltaTime);
-
-		/* Particle Update and access*/
-		void InitializeFromParticleData() { MEvolution->InitializeFromParticleData(); }
-		const FParticlesType& GetRigidParticles() const { return MEvolution->Particles(); }
-		FParticlesType& GetRigidParticles() { return MEvolution->Particles(); }
-
-		FCollisionConstraintsType& GetCollisionRule() { return MEvolution->MCollisionRule; }
-		FCollisionData& GetCollisionData() { return CollisionData; }
-		FBreakingData& GetBreakingData() { return BreakingData; }
-		FTrailingData& GetTrailingData() { return TrailingData; }
-
-		const TSet<TTuple<int32, int32>>& GetDisabledCollisionPairs() const { return MEvolution->DisabledCollisions(); }
+		void UpdatePhysicsThreadStructures();
+		void UpdateGameThreadStructures();
+		void BufferPhysicsResults();
+		void FlipBuffers();
 
 		/**/
 		void SetCurrentFrame(const int32 CurrentFrameIn) { CurrentFrame = CurrentFrameIn; }
-		int32 GetCurrentFrame() { return CurrentFrame; }
-
-		bool Enabled() const;
-		void SetEnabled(bool bEnabledIn) { bEnabled = bEnabledIn; }
-
-		/* Clustering Access */
-		const TArrayCollectionArray<ClusterId> & ClusterIds() const { return MEvolution->ClusterIds(); }
-		const TArrayCollectionArray<TRigidTransform<float,3>>& ClusterChildToParentMap() const { return MEvolution->ClusterChildToParentMap(); }
-		const TArrayCollectionArray<bool>& ClusterInternalCluster() const { return MEvolution->ClusterInternalCluster(); }
-		int32 CreateClusterParticle(const TArray<uint32>& Children) { return MEvolution->CreateClusterParticle(Children); }
-		TSet<uint32> DeactivateClusterParticle(const uint32 ClusterIndex) { return MEvolution->DeactivateClusterParticle(ClusterIndex); }
-		void SetClusterStrain(const uint32 ClusterId, float Strain) { MEvolution->Strain(ClusterId) = Strain; }
+		int32& GetCurrentFrame() { return CurrentFrame; }
 
 		/**/
-		const FCollisionData GetCollisionDataArray() { return CollisionData; }
-		const FBreakingData GetBreakingDataArray() { return BreakingData; }
-		const FTrailingData GetTrailingDataArray() { return TrailingData; }
-		const float GetSolverTime() { return MTime; }
-		const float GetLastDt() { return MLastDt; }
-		const int32 GetMaxCollisionDataSize() { return MaxCollisionDataSize; }
-		const float GetCollisionDataTimeWindow() { return CollisionDataTimeWindow; }
-		const int32 GetMaxBreakingDataSize() { return MaxBreakingDataSize; }
-		const float GetBreakingDataTimeWindow() { return BreakingDataTimeWindow; }
-		const int32 GetMaxTrailingDataSize() { return MaxTrailingDataSize; }
-		const float GetTrailingDataTimeWindow() { return TrailingDataTimeWindow; }
+		float& GetSolverTime() { return MTime; }
+		const float GetSolverTime() const { return MTime; }
 
 		/**/
-		void SetTimeStepMultiplier(float TimeStepMultiplierIn) { ensure(TimeStepMultiplierIn > 0); TimeStepMultiplier = TimeStepMultiplierIn; }
+		const float GetLastDt() const { return MLastDt; }
+		const float GetMaxDeltaTime() const { return MMaxDeltaTime; }
+
+		/**/
+		void SetGenerateCollisionData(bool bDoGenerate) { GetEventFilters()->SetGenerateCollisionEvents(bDoGenerate); }
+		void SetGenerateBreakingData(bool bDoGenerate)
+		{
+			GetEventFilters()->SetGenerateBreakingEvents(bDoGenerate);
+#if TODO_REIMPLEMENT_RIGID_CLUSTERING
+			GetRigidClustering().SetGenerateClusterBreaking(GenerateBreakingEventsEnabled);
+#endif
+		}
+		void SetGenerateTrailingData(bool bDoGenerate) { GetEventFilters()->SetGenerateTrailingEvents(bDoGenerate); }
+		void SetCollisionFilterSettings(const FSolverCollisionFilterSettings& InCollisionFilterSettings) { GetEventFilters()->GetCollisionFilter()->UpdateFilterSettings(InCollisionFilterSettings); }
+		void SetBreakingFilterSettings(const FSolverBreakingFilterSettings& InBreakingFilterSettings) { GetEventFilters()->GetBreakingFilter()->UpdateFilterSettings(InBreakingFilterSettings); }
+		void SetTrailingFilterSettings(const FSolverTrailingFilterSettings& InTrailingFilterSettings) { GetEventFilters()->GetTrailingFilter()->UpdateFilterSettings(InTrailingFilterSettings); }
 		void SetHasFloor(bool bHasFloorIn) { bHasFloor = bHasFloorIn; }
 		void SetIsFloorAnalytic(bool bIsAnalytic) { bIsFloorAnalytic = bIsAnalytic; }
-		void SetFriction(float Friction) { MEvolution->SetFriction(Friction); }
-		void SetRestitution(float Restitution) { MEvolution->SetRestitution(Restitution); }
-		void SetSleepThresholds(const float LinearThreshold, const float AngularThreshold) { MEvolution->SetSleepThresholds(LinearThreshold, AngularThreshold); }
-		void SetIterations(int32 Iterations) { MEvolution->SetIterations(Iterations); }
-		void SetPushOutIterations(int32 PushOutIterations) { MEvolution->SetPushOutIterations(PushOutIterations); }
-		void SetPushOutPairIterations(int32 PushOutPairIterations) { MEvolution->SetPushOutPairIterations(PushOutPairIterations); }
-		void SetMaxCollisionDataSize(int32 MaxDataSize) { MaxCollisionDataSize = MaxDataSize; }
-		void SetCollisionDataTimeWindow(float TimeWindow) { CollisionDataTimeWindow = TimeWindow; }
-		void SetDoCollisionDataSpatialHash(bool DoSpatialHash) { DoCollisionDataSpatialHash = DoSpatialHash; }
-		void SetCollisionDataSpatialHashRadius(float Radius) { CollisionDataSpatialHashRadius = Radius; }
-		void SetMaxCollisionPerCell(int32 MaxCollision) { MaxCollisionPerCell = MaxCollision; }
-		void SetMaxBreakingDataSize(int32 MaxDataSize) { MaxBreakingDataSize = MaxDataSize; }
-		void SetBreakingDataTimeWindow(float TimeWindow) { BreakingDataTimeWindow = TimeWindow; }
-		void SetDoBreakingDataSpatialHash(bool DoSpatialHash) { DoBreakingDataSpatialHash = DoSpatialHash; }
-		void SetBreakingDataSpatialHashRadius(float Radius) { BreakingDataSpatialHashRadius = Radius; }
-		void SetMaxBreakingPerCell(int32 MaxBreaking) { MaxBreakingPerCell = MaxBreaking; }
-		void SetMaxTrailingDataSize(int32 MaxDataSize) { MaxTrailingDataSize = MaxDataSize; }
-		void SetTrailingDataTimeWindow(float TimeWindow) { TrailingDataTimeWindow = TimeWindow; }
-		void SetTrailingMinSpeedThreshold(float Threshold) { TrailingMinSpeedThreshold = Threshold; }
-		void SetTrailingMinVolumeThreshold(float Threshold) { TrailingMinVolumeThreshold = Threshold; }
 		void SetFloorHeight(float Height) { FloorHeight = Height; }
 
-		TQueue<TFunction<void(PBDRigidsSolver*)>, EQueueMode::Mpsc>& GetCommandQueue() { return CommandQueue; }
-
-	protected:
 		/**/
-		void CreateRigidBodyCallback(FParticlesType& Particles);
+		FPBDRigidsEvolution* GetEvolution() { return MEvolution.Get(); }
+		FPBDRigidsEvolution* GetEvolution() const { return MEvolution.Get(); }
 
-		/**/
-		void ParameterUpdateCallback(FParticlesType& Particles, const float Time);
+		const FParticlesType& GetParticles() const { return Particles; }
 
 		/**/
-		void ForceUpdateCallback(FParticlesType& Particles, const float Time);
+		FEventManager* GetEventManager() { return MEventManager.Get(); }
 
 		/**/
-		void DisableCollisionsCallback(TSet<TTuple<int32, int32>>& CollisionPairs);
+		FSolverEventFilters* GetEventFilters() { return MSolverEventFilters.Get(); }
+		FSolverEventFilters* GetEventFilters() const { return MSolverEventFilters.Get(); }
 
 		/**/
-		void StartFrameCallback(const float Dt, const float Time);
-
-		/**/
-		void EndFrameCallback(const float EndFrame);
-
-		/**/
-		void KinematicUpdateCallback(FParticlesType& Particles, const float Dt, const float Time);
-
-		/**/
-		void AddConstraintCallback(FParticlesType& Particles, const float Time, const int32 Island);
-
-		/**/
-		void AddForceCallback(FParticlesType& Particles, const float Time, const int32 Index);
-
-		/**/
-		void CollisionContactsCallback(FParticlesType& Particles, FCollisionConstraintsType& CollisionConstraints);
-
-		/**/
-		void BreakingCallback(FParticlesType& Particles);
-
-		/**/
-		void TrailingCallback(FParticlesType& Particles);
+		void SyncEvents_GameThread();
 
 	private:
 
+		//
+		// Solver Data
+		//
 		int32 CurrentFrame;
 		float MTime;
 		float MLastDt;
@@ -281,42 +266,30 @@ namespace Chaos
 		bool bIsFloorAnalytic;
 		float FloorHeight;
 
-		int32 MaxCollisionDataSize;
-		float CollisionDataTimeWindow;
-		bool DoCollisionDataSpatialHash;
-		float CollisionDataSpatialHashRadius;
-		int32 MaxCollisionPerCell;
-
-		int32 MaxBreakingDataSize;
-		float BreakingDataTimeWindow;
-		bool DoBreakingDataSpatialHash;
-		float BreakingDataSpatialHashRadius;
-		int32 MaxBreakingPerCell;
-
-		int32 MaxTrailingDataSize;
-		float TrailingDataTimeWindow;
-		float TrailingMinSpeedThreshold;
-		float TrailingMinVolumeThreshold;
-
-		TSharedPtr<FEvent> MCurrentEvent;
-		TSharedPtr<FCriticalSection> MCurrentLock;
-
+		FParticlesType Particles;
 		TUniquePtr<FPBDRigidsEvolution> MEvolution;
-		TArray<FSolverCallbacks*> Callbacks;
-		TArray<FSolverFieldCallbacks*> FieldCallbacks;
+		TUniquePtr<FEventManager> MEventManager;
+		TUniquePtr<FSolverEventFilters> MSolverEventFilters;
 
-		int32 FieldForceNum;
-		Chaos::TArrayCollectionArray<FVector> FieldForce;
-		TArray<FKinematicProxy> KinematicProxies;
+		//
+		// Commands
+		//
+		TQueue<TFunction<void(FPBDRigidsSolver*)>, EQueueMode::Mpsc> CommandQueue;
 
-		FSolverCallbacks::IntArray ParticleCallbackMapping;
-
-		FCollisionData CollisionData;
-		FBreakingData BreakingData;
-		FTrailingData TrailingData;
-
-		TQueue<TFunction<void(PBDRigidsSolver*)>, EQueueMode::Mpsc> CommandQueue;
+		//
+		// Proxies
+		//
+		EMultiBufferMode BufferMode;
+		TSharedPtr<FCriticalSection> MCurrentLock;
+		TArray< FGeometryParticlePhysicsProxy* > GeometryParticlePhysicsProxies;
+		TArray< FKinematicGeometryParticlePhysicsProxy* > KinematicGeometryParticlePhysicsProxies;
+		TArray< FRigidParticlePhysicsProxy* > RigidParticlePhysicsProxies;
+		TArray< FSkeletalMeshPhysicsProxy* > SkeletalMeshPhysicsProxies; // dep
+		TArray< FStaticMeshPhysicsProxy* > StaticMeshPhysicsProxies; // dep
+		TArray< FGeometryCollectionPhysicsProxy* > GeometryCollectionPhysicsProxies;
+		TArray< FFieldSystemPhysicsProxy* > FieldSystemPhysicsProxies;
+				
 	};
-}
 
+}; // namespace Chaos
 #endif

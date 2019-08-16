@@ -1,13 +1,15 @@
-﻿INTSourceChangelist:4401262
+﻿INTSourceChangelist:6413733
 Availability: Public
-Crumbs: 
 Title: 라이브 링크 플러그인
 Description: 언리얼 엔진 4 에서 Live Link Plugin 활성화 및 사용법과 애니메이션 시스템 내 기능에 대한 설명입니다. 
-Type:landing
+Type: overview
 Version: 4.19
 Parent: Engine/Animation
-Order: 1
-Tags: Animation, Animation Tools, Live Link
+Tags: Animation
+Tags: Animation Tools
+Tags: Live Link
+topic-image: LiveLink_01.png
+social-image: LiveLink_01_Social.png
 
 
 [OBJECT:EmbeddedVideo]
@@ -133,13 +135,11 @@ Use Interpolation (보간 사용) 세팅을 활성화하면 연결에 지정된 
 ![](RemapBlueprint-3.png)
 
 리맵 애셋 안에서 **Get Remapped Bone Name** 함수를 오버라이드할 수 있습니다.
-
   
 
 ![](RemapBlueprint2.png)
 
 그러면 에디터에서 Bone Name (본 이름)을 변형할 수 있습니다.
-
   
 
 ![](GetRemappedBone.png)

@@ -1,11 +1,10 @@
-﻿INTSourceChangelist:3810467
+INTSourceChangelist:6537038
 Availability:Public
 Title:언리얼 엔진 4.10 릴리즈 노트
 Crumbs:%ROOT%, Engine
 Description:
-order:10
-
-이번 릴리즈에는 수백종의 언리얼 엔진 4 업데이트와, GitHub 의 언리얼 엔진 개발자 커뮤니티가 제출한 53 종의 개선사항이 포함되어 있습니다! 언리얼 엔진 4.10 에 기여해 주신 모든 개발자분들께 감사 말씀 드립니다:
+Order: 34
+This release brings hundreds of updates for Unreal Engine 4, including 53 improvements submitted by the community of Unreal Engine developers on GitHub! Thanks to all of these contributors to Unreal Engine 4.10:
 
 Andreas Axelsson (judgeaxl), Andrew Scheidecker (AndrewScheidecker), Artem (umerov1999), Artem V. Navrotskiy (bozaro), Cengiz, Terzibas (yaakuro), Christopher P. Yarger (cpyarger), Clay Chai (chaiyuntian), Cliff Jolly (ExpiredPopsicle), Coherent UI (CoherentUE4), Derek van Vliet (derekvanvliet), Frugality, Guillaume Buisson (monsieurgustav), Ian Fox (MaideCa), Jay Mattis (braindx), Jeff Rous (JeffRous), Joshua Olson (MrMormon), Kacper Kowalczuk (Ogniok), Marat Radchenko (slonopotamus), Markus Breyer (pluranium), Michael Allar (Allar), ondys, Piotr Bąk (Pierdek), Rama (EverNewJoy), Ren Wilson (rwils), Rene Rivera (grafikrobot), Robert Khalikov (nbjk667), Robert Williams (Rottbott), Ryan Luck (overlawled), Salamanderrake, Sébastien Rombauts (Srombauts), Sergey Vikhirev (BorMor), Shaijan, ssoria, Sylvain Rochette (labidus), Tam Armstrong (tamarmstrong), TheSoeldner, x414e54
 
@@ -673,7 +672,7 @@ Android가 이제 슬레이트 코드를 사용해서 C++ 로 또는 위젯 블�
 
 * 버그픽스: 몇 가지 경우 편집박스 텍스트 내용을 수락할 때의 크래시를 고쳤습니다.
 
-* 버그픽스: 디바이스 프로파일 에디터가 더이상 여러가지 Android 텍스처 포맷 변종에 대해 공백 디바이스 프로파일을 생성하지 않습니다.
+* 버그픽스: 디바이스 프로파일 에디터가 더이상 여러가지 Android 텍스처 포맷 변종에 대해 빈 디바이스 프로파일을 생성하지 않습니다.
 
 * 버그픽스: 게임이 이미 일시정지 상태인 경우 글로벌 (현재) 오디오 일시정지가 복원을 제대로 처리합니다.
 
@@ -1055,7 +1054,7 @@ Android가 이제 슬레이트 코드를 사용해서 C++ 로 또는 위젯 블�
 
 * UPackage::PackageFlags 가 private 이 되었습니다.
 
-* ConstructorHelpers::FClassFinder 에 레퍼런싱된 클래스가 레퍼런싱 해제되어도 더이상 가비지 콜렉팅 되지 않습니다.
+* ConstructorHelpers::FClassFinder 에 참조된 클래스가 참조 해제되어도 더이상 가비지 콜렉팅 되지 않습니다.
 
 * 스트리밍된 오브젝트의 PostLoad 함수 중 하나에서 오브젝트 로딩과 패키지 스트리밍이 비동기적으로 일어날 때 드물게 발생하는 크래시를 고쳤습니다.
 
@@ -1111,7 +1110,7 @@ Android가 이제 슬레이트 코드를 사용해서 C++ 로 또는 위젯 블�
 
 ## Android
 
-* 새로운 Android 플러그인 시스템이 4.10 에 포함되었으며, GearVR 플러그인에서 사용되고 있습니다. 생성된 AndroidManifest.xml, proguard-project.xt, 그리고 GameActivity.java 에 대한 변경은 패키징 도중에도 가능하며, 여기에는 그 build.cs 에 AndroindPlugin 프로퍼티를 추가하여 명령이 들어있는 XML 파일을 레퍼런싱하는 것도 포함됩니다. AndroidPluginLanguage.cs 에 사용가능한 명령이 기술되어 있습니다.
+* 새로운 Android 플러그인 시스템이 4.10 에 포함되었으며, GearVR 플러그인에서 사용되고 있습니다. 생성된 AndroidManifest.xml, proguard-project.xt, 그리고 GameActivity.java 에 대한 변경은 패키징 도중에도 가능하며, 여기에는 그 build.cs 에 AndroindPlugin 프로퍼티를 추가하여 명령이 들어있는 XML 파일을 참조하는 것도 포함됩니다. AndroidPluginLanguage.cs 에 사용가능한 명령이 기술되어 있습니다.
 
 * 해상도 캐시 RequestedContentScaleFactor 로그 메시지를 수정했습니다.
 

@@ -77,7 +77,12 @@ void UMovieSceneSpawnTrack::AddSection(UMovieSceneSection& Section)
 
 void UMovieSceneSpawnTrack::RemoveSection(UMovieSceneSection& Section)
 {
-	Sections.RemoveAll([&](const UMovieSceneSection* In){ return In == &Section; });
+	Sections.RemoveAll([&](const UMovieSceneSection* In) { return In == &Section; });
+}
+
+void UMovieSceneSpawnTrack::RemoveSectionAt(int32 SectionIndex)
+{
+	Sections.RemoveAt(SectionIndex);
 }
 
 void UMovieSceneSpawnTrack::RemoveAllAnimationData()

@@ -1,7 +1,31 @@
-﻿Availability: Public
-Title:2.2 - 网络关联性（第二部分-函数复制解决方案的尝试）
-Crumbs:%ROOT%, Resources, Resources/ContentExamples/Networking
-Description:网络特性示例关卡概述，示例2.2： 网络关联性（第二部分-函数复制解决方案的尝试）。
+INTSourceChangelist:3782314
+Availability: Public
+Title:2.2 - 网络相关性[第2部分 - 函数复制解决方案尝试]
+Crumbs:%ROOT%, Resources, Resources/ContentExamples, Resources/ContentExamples/Networking
+Description:网络功能示例关卡概述，示例2.2：网络相关性（第2部分 - 函数复制解决方案尝试）。
+Related: Gameplay/Networking
+Related: Gameplay/Networking/Actors/Components
+Related: Gameplay/Networking/Actors
+Related: Gameplay/Networking/Actors/RPCs
+Related: Engine/UI/LevelEditor/InEditorTesting/NetworkedPlayInEditor
+Version: 4.9
+
+[VAR:Steps]
+[OBJECT:Navigation]
+	[PARAM:previous]
+		[前一示例](Resources/ContentExamples/Networking/2_1 "%Resources/ContentExamples/Networking/2_1:title%")
+	[/PARAM]
+	[PARAM:current]
+	[/PARAM]
+	[PARAM:home]
+		[网络主页](Resources/ContentExamples/Networking)
+	[/PARAM]
+	[PARAM:next]
+		[下一示例](Resources/ContentExamples/Networking/2_3 "%Resources/ContentExamples/Networking/2_3:title%")
+	[/PARAM]
+[/OBJECT]
+[/VAR]
+
 
 
 [VAR:TopicCompact]
@@ -27,26 +51,27 @@ Description:网络特性示例关卡概述，示例2.2： 网络关联性（第�
 [/REGION]
 
 [REGION:tip]
-为能同时从 **服务器** 和 **客户端** 进行查看，请在 **Play** （运行）的下拉框中，设置 **Number of Clients** （客户端数量）区域为2。
+为了能够从 **服务器** 和 **客户端** 两个视角进行查看，请在 **运行（Play）** 下拉菜单中将 **客户端数量（Number of Clients）** 字段设置为2。
 [/REGION]
 
 
-## 概述
-本实例尝试通过使用复制的Multicast函数来网络化对箱子的操作。 思路是让箱子调用与其互动的multicast函数，而其将会对所有客户端处理开箱子的视觉效果。 
 
-但是，为展示关联性，此箱子已被修改从而在非常近的距离中成为网络不相关。 将客户端放置在篮圈外，箱子将与客户端不相关，尽管其为可见。 现在移动服务器到箱子处以激活它并观察在客户端上发生的内容。 客户端根本看不到任何变更！ 这是我们预期的情况，因为箱子与客户端并不相关。 将客户端移动到篮圈，将会造成箱子与客户端相关。 现在会发生什么呢？ 仍然什么都没发生，这不是我们预期的。 
+在本示例中，我们尝试通过使用复制的组播函数经网络传递宝箱的行为。我们的想法是，当有玩家与宝箱交互时调用组播，它将处理所有客户端上的宝箱打开视觉效果播放。 
 
-这个解决方案的问题是所有与更新箱子相关的操作都通过复制的函数来传递。 客户端没有接受关联性的函数调用，并且从不进行任何操作来开箱子。 
+但是，为了展示相关性问题，我们对宝箱进行了修改，取消了距离它很近时的网络相关性。只要客户端位于蓝圈外面，宝箱就与客户端不相关，即使它可见也不例外。现在让服务器靠近宝箱以激活它，然后观察客户端上会发生什么。在客户端上根本看不到任何变化！这在意料之中，因为宝箱仍与客户端不相关。将客户端移到蓝圈里面，使宝箱与客户端相关。现在情况如何呢？在客户端上仍然看不到任何变化，这并不是我们想要的。 
 
-## 蓝图详细信息
-在 **BP_Relevancy_Replication_RPC** 蓝图的事件图表中，您将会注意到它来源于示例2.1，不过对其进行了一些修改（同时生成了圈以展示此示例的关联性距离）。 首先，OnChestTouched函数被覆盖，并且新的 **Chest Touch Multicast** （箱子触摸多路广播）事件被调用。 **Chest Touch Multicast** （箱子触摸多路广播）事件在服务器上被调用，并且由于事件被设置为 **Multicast** （多路广播），它将在随后复制事件到所有的远程机。 
+该解决方案存在的问题在于与更新宝箱相关的所有操作都是通过复制的函数发送的。客户端没有接收到对相关性进行的函数调用，从而未执行任何打开宝箱的操作。 
 
-**点击查看放大图片**
+(#blueprintbreakdown)
+## 蓝图详细介绍
+在 **BP_Relevancy_Replication_RPC** 蓝图的事件图表中，你将留意到它继承自示例2.1，但是我们对它进行了一些修改（针对本示例，我们也生成了一个圆圈，以展示相关性距离）。首先，OnChestTouched函数将被覆盖，将调用新 **宝箱触摸组播（Chest Touch Multicast）** 事件。**宝箱触摸组播（Chest Touch Multicast）** 事件在服务器上被调用，然后它会将该事件复制到所有远程计算机上，因为该事件设置为 **组播（Multicast）**。 
+
+**单击查看大图**
 [REGION:lightbox]
 	[![](Resources/ContentExamples/Networking/2_2/2_2_EventGraph.png)(w:640)](Resources/ContentExamples/Networking/2_2/2_2_EventGraph.png)
 [/REGION]
 
-**Chest Touch Multicast** （箱子触摸多路广播）事件本身随后从处理开箱和播放相关特效的父蓝图中执行 **Open Chest** （开箱）和 **Play Gold FX** （播放金币特效）函数。 
+然后，**宝箱触摸组播（Chest Touch Multicast）** 事件本身将执行来自父蓝图的 **打开宝箱（Open Chest）** 和 **播放金色特效（Play Gold FX）** 函数，它们分别处理宝箱打开和关联效果的播放。 
 
-然而如箱子与客户端不相关，客户端将如下图中那样跳过此部分脚本的执行。 
+但是，如果宝箱不相关，客户端将不执行这部分脚本，如下列图像中所示。 
 

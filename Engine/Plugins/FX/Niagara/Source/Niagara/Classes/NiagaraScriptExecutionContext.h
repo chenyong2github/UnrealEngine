@@ -18,6 +18,8 @@ NiagaraEmitterInstance.h: Niagara emitter simulation class
 #include "RHIGPUReadback.h"
 
 struct FNiagaraDataInterfaceProxy;
+class FNiagaraGPUInstanceCountManager;
+class NiagaraEmitterInstanceBatcher;
 
 /** Container for data needed to process event data. */
 struct FNiagaraEventHandlingInfo
@@ -145,14 +147,22 @@ struct FNiagaraScriptExecutionContext
 	bool CanExecute()const;
 };
 
+struct FNiagaraGpuSpawnInfo
+{
+	uint32		EventSpawnTotal = 0;
+	uint32		SpawnRateInstances = 0;
+	FVector4	SpawnInfoStartOffsets[NIAGARA_MAX_GPU_SPAWN_INFOS_V4];
+	FVector4	SpawnInfoParams[NIAGARA_MAX_GPU_SPAWN_INFOS];
+};
+
 struct FNiagaraComputeExecutionContext
 {
 	FNiagaraComputeExecutionContext();
 	~FNiagaraComputeExecutionContext();
 
-	void Reset();
+	void Reset(NiagaraEmitterInstanceBatcher* Batcher);
 
-	void InitParams(UNiagaraScript* InGPUComputeScript, ENiagaraSimTarget InSimTarget, const FString& InDebugSimName);
+	void InitParams(UNiagaraScript* InGPUComputeScript, ENiagaraSimTarget InSimTarget, const FString& InDebugSimName, const int32 InMaxUpdateIterations, const TSet<uint32> InSpawnStages);
 	void DirtyDataInterfaces();
 	bool Tick(FNiagaraSystemInstance* ParentSystemInstance);
 
@@ -161,8 +171,16 @@ struct FNiagaraComputeExecutionContext
 	void SetDataToRender(FNiagaraDataBuffer* InDataToRender);
 	FNiagaraDataBuffer* GetDataToRender()const { return DataToRender; }
 
+	struct 
+	{
+		// The offset at which the GPU instance count (see FNiagaraGPUInstanceCountManager()).
+		uint32 GPUCountOffset = INDEX_NONE;
+		// The CPU instance count at the time the GPU count readback was issued. Always bigger or equal to the GPU count.
+		uint32 CPUCount = 0;
+	}  EmitterInstanceReadback;
+
 private:
-	void ResetInternal();
+	void ResetInternal(NiagaraEmitterInstanceBatcher* Batcher);
 
 public:
 	static uint32 TickCounter;
@@ -186,12 +204,11 @@ public:
 	//Most current buffer that can be used for rendering.
 	FNiagaraDataBuffer* DataToRender;
 
-	FRHIGPUMemoryReadback *GPUDataReadback;
-	uint32 AccumulatedSpawnRate;
-	uint32 NumIndicesPerInstance;	// how many vtx indices per instance the renderer is going to have for its draw call
+	// Game thread spawn info will be sent to the render thread inside FNiagaraComputeInstanceData
+	FNiagaraGpuSpawnInfo GpuSpawnInfo_GT;
 
-	uint32 EventSpawnTotal_GT;
-	uint32 SpawnRateInstances_GT;
+	uint32 MaxUpdateIterations;
+	TSet<uint32> SpawnStages;
 
 #if WITH_EDITORONLY_DATA
 	mutable FRHIGPUMemoryReadback *GPUDebugDataReadbackFloat;
@@ -199,6 +216,9 @@ public:
 	mutable FRHIGPUMemoryReadback *GPUDebugDataReadbackCounts;
 	mutable uint32 GPUDebugDataFloatSize;
 	mutable uint32 GPUDebugDataIntSize;
+	mutable uint32 GPUDebugDataFloatStride;
+	mutable uint32 GPUDebugDataIntStride;
+	mutable uint32 GPUDebugDataCountOffset;
 	mutable TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe> DebugInfo;
 #endif
 
@@ -219,8 +239,7 @@ struct FNiagaraDataInterfaceInstanceData
 
 struct FNiagaraComputeInstanceData
 {
-	uint32 EventSpawnTotal;
-	uint32 SpawnRateInstances;
+	FNiagaraGpuSpawnInfo SpawnInfo;
 	uint8* ParamData;
 	FNiagaraComputeExecutionContext* Context;
 	TArray<FNiagaraDataInterfaceProxy*> DataInterfaceProxies;
@@ -231,9 +250,7 @@ struct FNiagaraComputeInstanceData
 	FNiagaraDataBuffer* DestinationData;
 
 	FNiagaraComputeInstanceData()
-		: EventSpawnTotal(0)
-		, SpawnRateInstances(0)
-		, ParamData(nullptr)
+		: ParamData(nullptr)
 		, Context(nullptr)
 		, CurrentData(nullptr)
 		, DestinationData(nullptr)
@@ -275,4 +292,6 @@ public:
 	FNiagaraDataInterfaceInstanceData* DIInstanceData;
 	uint8* InstanceData_ParamData_Packed;
 	bool bRequiredDistanceFieldData = false;
+	bool bNeedsReset = false;
+	bool bIsFinalTick = false;
 };

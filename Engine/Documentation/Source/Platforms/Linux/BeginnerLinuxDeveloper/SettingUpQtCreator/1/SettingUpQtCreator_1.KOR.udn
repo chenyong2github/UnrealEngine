@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3810467
-Availability: Public
+﻿INTSourceChangelist:6093761
+Availability: Docs
 Title: 1 - UE4 빌드를 위한 Qt Creator 환경설정
 Crumbs:%ROOT%
 Description:UE4 를 Debug 및 Release 모드로 빌드하도록 IDE 를 환경설정하는 방법을 배워봅니다.

@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3807090
-Availability: Licensee
+﻿INTSourceChangelist:6277736
+Availability: Docs
 Title:使用Perforce同步构建
 Crumbs:%ROOT%, Engine, Programming, Programming/Basics, GettingStarted/DownloadingUnrealEngine/Perforce
 Description:使用Perforce获得虚幻引擎4的构建指南。
@@ -15,8 +15,6 @@ version: 4.9
 
 
 
-
-(#p4vandthedepot)
 
 ## P4V和库
 
@@ -48,8 +46,6 @@ UDKGame是Epic当前虚幻引擎4的基于虚幻锦标赛3（Unreal Tournament 3
 在获得修订时，日志窗口中会进行大量下载。当它完成，您想要的是“同步完成，没有任何警告或错误（Sync completed with no warnings or errors）”。
 
 
-
-(#syncingtoaqa-build)
 
 ## 同步到QA构建
 
@@ -91,8 +87,6 @@ UDKGame是Epic当前虚幻引擎4的基于虚幻锦标赛3（Unreal Tournament 3
 	![p4v_sync_progress.jpg](p4v_sync_progress.jpg)(w:800)
 
 
-
-(#bestpracticesandstrategies)
 
 ## 最佳实践和策略
 

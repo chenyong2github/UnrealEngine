@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3259022
-availability:Public
+﻿INTSourceChangelist:6077448
+availability:docs
 title:4. 텍스처 생성 & 최종 결과
 description:텍스처 생성 및 저장 방법을 살펴봅니다.
 crumbs:%ROOT%, Engine, Engine\Rendering\RenderTargets
@@ -11,6 +11,8 @@ Navigation:multi-step
 tags: Render Targets
 Order:4
 checkpoint:CTUB
+
+## Marking as Docs as the page has been combined. 
 
 [NAV]
 

@@ -3,7 +3,7 @@ Title: Unreal Engine 4.20 Release Notes
 Description: Release Notes for Unreal Engine 4.20
 Crumbs:%ROOT%, Engine
 Parent:Support/Builds
-Order:20
+Order: 24
 reference-image:image_13.gif
 reference-image:image_23.gif
 reference-image:image_16.gif
@@ -225,7 +225,7 @@ Cinematic Depth of Field is enabled by default and replaces the current selectio
 
 * Many customizable scalability settings using r.DOF.* console variables to scale it according to your project needs on hardware with finite resources.
 
-For additional information, please see the [Depth of Field](https://docs.unrealengine.com/en-us/Engine/Rendering/PostProcessEffects/DepthOfField/CinematicDOFMethods) documentation.
+For additional information, please see the [Depth of Field](https://docs.unrealengine.com/en-us/Engine/Rendering/PostProcessEffects/DepthOfField/CinematicDOFMethodsDOFMethods) documentation.
 
 ## New: Niagara Visual Effects Editor (Early Access)
 
@@ -544,6 +544,14 @@ The following improvements have been made for UMG Safe Zone workflow:
 
 For additional information, see [UMG Safe Zones](https://docs.unrealengine.com/en-us/Engine/UMG/UserGuide/UMGSafeZones).
 
+##NEW: UMG Rich Text Block Widget
+
+UMG now supports Rich Text styling and inline images through the new Rich Text Block Widget. Unlike the Rich Text widget, the Rich Text Block supports markup for things like styling, inline images, hyperlinks, and much more! It also enables you to specify your own Decorators that you can use to define the markup behavior you need for your project.
+
+![](UMGRichTextBlock.png)
+
+To get started, simply add a **Rich Text Block Widget** to your Canvas panel in UMG and create a Data Table Asset to store all your text styles and images that can be called through markup. When creating a **Data Table Asset**, choose either the **Rich Image Row** or **Rich Text Style Row** where you’ll add images or text stylings that can be referenced by the Rich Text Block.
+
 ## New: Curve Atlases in Materials
 
 Materials can now use a Curve Atlas asset to store and access linear color curve data with additional support provided through Blueprint. The Curve Atlas uses the same linear curve color as before, except you can use as many linear color curves as the size of your specified Atlas.  
@@ -675,14 +683,6 @@ The **Blueprint Watch Window** is designed to speed up debugging by giving you a
 
 ![image alt text](image_33.png)(w:930 convert:false)
 
-## New: Navigation System Code Moved to a Module
-
-Most Navigation System-related code has been moved out of the Engine code and into a new Navigation System Module. Game-specific code using navigation system functionality might need to be updated.
-
-A [Python (3.5) script](https://epicgames.box.com/s/537wc3x95udak7uqq8wja19fyvbgz7ck) is available to parse your project's source code and point out lines that need updating. Optionally, the script can perform the changes but make sure to use this option with caution and assisted by a version control system. Script options can be found at the top of the file.
-
-Please see the Programming Upgrade Notes section for details on upgrading your project to work with these changes.
-
 ## New: Improved Mobile Specular Lighting Model
 
 **Mobile** **specular response** has been changed to use the **GGX Lighting Model** by default. This improves mobile specular quality and better matches **SM5** but adds a small cost to shader processing time. 
@@ -712,6 +712,17 @@ The Replication Graph Plugin provides a replication system optimized for games w
 ## New: Steam Authentication
 
 Steam Authentication has been added! Games can now add a packet handler component that interfaces with Steam's authentication APIs, enabling them to advertise their servers properly, handle VAC/publisher bans, and provide better validation of clients. If enabled, clients joining a server now have to be authenticated by Steam before being allowed into gameplay. By default, clients who fail authentication are kicked from the server.
+
+
+## Virtual Camera Plugin
+
+New to 4.20, the Virtual Camera Plugin enables a user to drive a Cine Camera in Unreal Engine 4 (UE4) using an iPad Pro in a virtual production environment. With ARKit, a Vive Tracker, or an optical motion capture system such as Vicon or Optitrack, the position and rotation of the iPad is broadcast wirelessly to the PC, with the PC sending video back to the iPad.
+
+Camera settings such as focal length, aperture, focus distance, and stabilization can be adjusted using touch input. Additionally, the virtual camera can be used for taking high-res screenshots, setting waypoints, recording camera motion and other tasks related to virtual production.
+
+On the Learn tab of the Epic Games Launcher under the **Engine Feature Samples** section, there is a **Virtual Camera** project which includes a sample scene and project set up for use with the Virtual Camera Plugin.
+
+For more information, please see the [Virtual Camera Plugin](Engine/Plugins/VirtualCameraPlugin) documentation
 
 ## New: Frame Accuracy Improvements for Sequencer
 
@@ -1113,7 +1124,7 @@ In every release, we update the Engine to support the latest SDK releases from p
 
 * **Bug Fix:** Fixed an issue with not Regenerating LODs when re-importing Skeletal Meshes and when it has been simplified, causing mismatched LOD data.
 
-##### **Skeletal Mesh**
+##### Skeletal Mesh
 
 * **Crash Fix:** Fixed a crash in lazy-initialization of morph targets when LODs are stripped from Skeletal Meshes.
 
@@ -2059,7 +2070,7 @@ In every release, we update the Engine to support the latest SDK releases from p
 
 * **New:** The Editor now saves editor config to file first time a favorite folder is added in the Content Browser.
 
-##### **Foliage**
+##### Foliage
 
 * **New:** Added the bool Enable Density Scaling flag to Landscape Grass assets, to prevent density scaling for grass types with gameplay significance.
 
@@ -2881,7 +2892,7 @@ In every release, we update the Engine to support the latest SDK releases from p
 
 * **New:** The Tile Grid color is now customizable.
 
-#### **Physics**
+#### Physics
 
 * **Bug Fix:** Fixed a cook warning with "Contains Physics Tri Mesh Data" returning true but "Get Physics Tri Mesh Data" returning false.
 

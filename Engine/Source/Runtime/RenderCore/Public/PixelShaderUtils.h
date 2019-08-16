@@ -23,6 +23,12 @@ struct RENDERCORE_API FPixelShaderUtils
 	/** Draw a two triangle on the entire viewport. */
 	static void DrawFullscreenQuad(FRHICommandList& RHICmdList, uint32 InstanceCount = 1);
 
+	/** Initialize a pipeline state object initializer with almost all the basics required to do a full viewport pass. */
+	static void InitFullscreenPipelineState(
+		FRHICommandList& RHICmdList,
+		const TShaderMap<FGlobalShaderType>* GlobalShaderMap,
+		const FShader* PixelShader,
+		FGraphicsPipelineStateInitializer& GraphicsPSOInit);
 
 	/** Dispatch a full screen pixel shader to rhi command list with its parameters. */
 	template<typename TShaderClass>
@@ -33,22 +39,12 @@ struct RENDERCORE_API FPixelShaderUtils
 		const typename TShaderClass::FParameters& Parameters,
 		const FIntRect& Viewport)
 	{
-		CA_ASSUME(PixelShader);
-		TShaderMapRef<FVisualizeTextureVS> VertexShader(GlobalShaderMap);
-
-		FGraphicsPipelineStateInitializer GraphicsPSOInit;
-		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-		GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-
-		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(PixelShader);
-		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-
+		check(PixelShader);
 		RHICmdList.SetViewport(Viewport.Min.X, Viewport.Min.Y, 0.0f, Viewport.Max.X, Viewport.Max.Y, 1.0f);
+		
+		FGraphicsPipelineStateInitializer GraphicsPSOInit;
+		InitFullscreenPipelineState(RHICmdList, GlobalShaderMap, PixelShader, /* out */ GraphicsPSOInit);
+		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
 		SetShaderParameters(RHICmdList, PixelShader, PixelShader->GetPixelShader(), Parameters);
 
@@ -65,13 +61,13 @@ struct RENDERCORE_API FPixelShaderUtils
 		typename TShaderClass::FParameters* Parameters,
 		const FIntRect& Viewport)
 	{
-		CA_ASSUME(PixelShader != nullptr);
+		check(PixelShader);
 		ClearUnusedGraphResources(PixelShader, Parameters);
 
 		GraphBuilder.AddPass(
 			Forward<FRDGEventName>(PassName),
 			Parameters,
-			ERenderGraphPassFlags::None,
+			ERDGPassFlags::Raster,
 			[Parameters, GlobalShaderMap, PixelShader, Viewport](FRHICommandList& RHICmdList)
 		{
 			FPixelShaderUtils::DrawFullscreenPixelShader(RHICmdList, GlobalShaderMap, PixelShader, *Parameters, Viewport);

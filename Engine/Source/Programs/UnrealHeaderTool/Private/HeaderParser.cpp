@@ -66,13 +66,17 @@ private:
 
 enum {MAX_ARRAY_SIZE=2048};
 
+static const FName NAME_Comment(TEXT("Comment"));
 static const FName NAME_ToolTip(TEXT("ToolTip"));
+static const FName NAME_DocumentationPolicy(TEXT("DocumentationPolicy"));
 EGeneratedCodeVersion FHeaderParser::DefaultGeneratedCodeVersion = EGeneratedCodeVersion::V1;
 TArray<FString> FHeaderParser::StructsWithNoPrefix;
 TArray<FString> FHeaderParser::StructsWithTPrefix;
 TArray<FString> FHeaderParser::DelegateParameterCountStrings;
 TMap<FString, FString> FHeaderParser::TypeRedirectMap;
+TArray<FString> FHeaderParser::PropertyCPPTypesRequiringUIRanges = { TEXT("float"), TEXT("double") };
 TMap<UClass*, ClassDefinitionRange> ClassDefinitionRanges;
+
 /**
  * Dirty hack global variable to allow different result codes passed through
  * exceptions. Needs to be fixed in future versions of UHT.
@@ -1090,6 +1094,16 @@ namespace
 				}
 			}
 			break;
+
+			case ECheckedMetadataSpecifier::DocumentationPolicy:
+			{
+				const TCHAR* StrictValue = TEXT("Strict");
+				if (InValue != StrictValue)
+				{
+					FError::Throwf(TEXT("'%s' metadata was '%s' but it must be %s"), *InKey, *InValue, *StrictValue);
+				}
+			}
+			break;
 		}
 	}
 
@@ -1619,6 +1633,7 @@ UEnum* FHeaderParser::CompileEnum()
 
 	// Parse all enums tags.
 	FToken TagToken;
+	TArray<TMap<FName, FString>> EntryMetaData;
 
 	TArray<TPair<FName, int64>> EnumNames;
 	int64 CurrentEnumValue = 0;
@@ -1701,6 +1716,9 @@ UEnum* FHeaderParser::CompileEnum()
 			++CurrentEnumValue;
 		}
 
+		TagToken.MetaData.Add(TEXT("Name"), NewTag.ToString());
+		EntryMetaData.Add(TagToken.MetaData);
+
 		// check for metadata on this enum value
 		ParseFieldMetaData(TagToken.MetaData, TagToken.Identifier);
 		if (TagToken.MetaData.Num() > 0)
@@ -1765,6 +1783,7 @@ UEnum* FHeaderParser::CompileEnum()
 		FError::Throwf(TEXT("Unable to generate enum MAX entry '%s' due to name collision"), *MaxEnumItem.ToString());
 	}
 
+	CheckDocumentationPolicyForEnum(Enum, EnumValueMetaData, EntryMetaData);
 	return Enum;
 }
 
@@ -2024,12 +2043,91 @@ FString FHeaderParser::FormatCommentForToolTip(const FString& Input)
 	return Result;
 }
 
+TMap<FName, FString> FHeaderParser::GetParameterToolTipsFromFunctionComment(const FString& Input)
+{
+	TMap<FName, FString> Map;
+	TArray<FString> Params;
+
+	int32 Offset = 0;
+	int32 ParamStart = -1;
+	int32 ParamLength = 0;
+	FString ParamPrefix;
+	while (Offset < Input.Len())
+	{
+		if (ParamStart == -1)
+		{
+			if (Input.Find(TEXT("@param"), ESearchCase::CaseSensitive, ESearchDir::FromStart, Offset) == Offset)
+			{
+				ParamStart = Offset + 6;
+				Offset += 6;
+				continue;
+			}
+			else if (Input.Find(TEXT("@return"), ESearchCase::CaseSensitive, ESearchDir::FromStart, Offset) == Offset)
+			{
+				ParamStart = Offset + 7;
+				Offset += 7;
+				ParamPrefix = TEXT("ReturnValue ");
+				continue;
+			}
+			Offset++;
+			continue;
+		}
+
+		TCHAR CurrentChar = Input[Offset];
+		if ((CurrentChar == '\n') || (CurrentChar == '\r'))
+		{
+			if (ParamLength > 0)
+			{
+				Params.Add(ParamPrefix + Input.Mid(ParamStart, ParamLength));
+				ParamStart = -1;
+				ParamLength = 0;
+			}
+			ParamPrefix.Reset();
+		}
+		else
+		{
+			ParamLength++;
+		}
+		Offset++;
+	}
+	if (ParamLength > 0)
+	{
+		Params.Add(ParamPrefix + Input.Mid(ParamStart, ParamLength));
+	}
+
+	for (FString Param : Params)
+	{
+		Param = Param.ConvertTabsToSpaces(4).TrimStartAndEnd();
+
+		int32 FirstSpaceIndex = -1;
+		if (!Param.FindChar(' ', FirstSpaceIndex))
+		{
+			continue;
+		}
+
+		FString ParamName = Param.Left(FirstSpaceIndex);
+		FString ParamToolTip = Param.Mid(FirstSpaceIndex + 1);
+		ParamToolTip.TrimStartInline();
+
+		Map.Add(*ParamName, ParamToolTip);
+	}
+
+	return Map;
+}
+
+
 void FHeaderParser::AddFormattedPrevCommentAsTooltipMetaData(TMap<FName, FString>& MetaData)
 {
 	// Don't add a tooltip if one already exists.
 	if (MetaData.Find(NAME_ToolTip))
 	{
 		return;
+	}
+
+	// Add the comment if it is not empty
+	if (!PrevComment.IsEmpty())
+	{
+		MetaData.Add(NAME_Comment, *PrevComment);
 	}
 
 	// Don't add a tooltip if the comment is empty after formatting.
@@ -2535,6 +2633,7 @@ UScriptStruct* FHeaderParser::CompileStructDeclaration(FClasses& AllClasses)
 	// Link the properties within the struct
 	Struct->StaticLink(true);
 
+	CheckDocumentationPolicyForStruct(Struct, MetaData);
 	return Struct;
 }
 
@@ -3825,6 +3924,11 @@ void FHeaderParser::GetVarType(
 	{
 		VarProperty = FPropertyBase(CPT_Int64);
 	}
+	else if ( VarType.Matches(TEXT("uint64")) && IsBitfieldProperty() )
+	{
+		// 64-bit bitfield (bool) type, treat it like 8 bit type
+		VarProperty = FPropertyBase(CPT_Bool8);
+	}
 	else if ( VarType.Matches(TEXT("uint32")) && IsBitfieldProperty() )
 	{
 		// 32-bit bitfield (bool) type, treat it like 8 bit type
@@ -5058,6 +5162,11 @@ bool FHeaderParser::CompileDeclaration(FClasses& AllClasses, TArray<UDelegateFun
 		RequireSymbol(TEXT(")"), Token.Identifier);
 
 		FClassMetaData* ClassData = GetCurrentClassData();
+		if (!ClassData)
+		{
+			FString CurrentClassName = GetCurrentClass()->GetName();
+			FError::Throwf(TEXT("Could not find the associated 'U%s' class while parsing 'I%s' - it could be missing or malformed"), *CurrentClassName, *CurrentClassName);
+		}
 
 		ClassData->GeneratedBodyMacroAccessSpecifier = CurrentAccessSpecifier;
 		ClassData->SetInterfaceGeneratedBodyLine(InputLine);
@@ -5847,6 +5956,7 @@ UClass* FHeaderParser::CompileClassDeclaration(FClasses& AllClasses)
 		}
 	}
 
+	CheckDocumentationPolicyForStruct(Class, MetaData);
 	return Class;
 }
 
@@ -6590,10 +6700,6 @@ void FHeaderParser::CompileFunctionDeclaration(FClasses& AllClasses)
 	ProcessFunctionSpecifiers(FuncInfo, SpecifiersFound, MetaData);
 
 	const bool bClassGeneratedFromBP = FClass::IsDynamic(GetCurrentClass());
-	if ((FuncInfo.FunctionFlags & FUNC_NetServer) && !(FuncInfo.FunctionFlags & FUNC_NetValidate) && !bClassGeneratedFromBP)
-	{
-		FError::Throwf(TEXT("Server RPC missing 'WithValidation' keyword in the UFUNCTION() declaration statement.  Required for security purposes."));
-	}
 
 	if ((0 != (FuncInfo.FunctionExportFlags & FUNCEXPORT_CustomThunk)) && !MetaData.Contains("CustomThunk"))
 	{
@@ -6643,7 +6749,7 @@ void FHeaderParser::CompileFunctionDeclaration(FClasses& AllClasses)
 			{
 				UE_LOG_ERROR_UHT(TEXT("An explicit Category specifier is required for Blueprint accessible functions in an Engine module."));
 			}
-		} 
+		}
 	}
 
 	// Verify interfaces with respect to their blueprint accessible functions
@@ -7034,6 +7140,9 @@ void FHeaderParser::CompileFunctionDeclaration(FClasses& AllClasses)
 		// Put the token back so we can continue parsing as normal
 		UngetToken(Token);
 	}
+
+	// perform documentation policy tests
+	CheckDocumentationPolicyForFunc(GetCurrentClass(), FuncInfo.FunctionReference, MetaData);
 }
 
 /** Parses optional metadata text. */
@@ -9494,6 +9603,274 @@ void FHeaderParser::PostPopNestInterface(FClasses& AllClasses, UClass* CurrentIn
 	}
 }
 
+FDocumentationPolicy FHeaderParser::GetDocumentationPolicyFromName(const FString& PolicyName)
+{
+	FDocumentationPolicy DocumentationPolicy;
+	if (PolicyName.Equals(TEXT("Strict")))
+	{
+		DocumentationPolicy.bClassOrStructCommentRequired = true;
+		DocumentationPolicy.bFunctionToolTipsRequired = true;
+		DocumentationPolicy.bMemberToolTipsRequired = true;
+		DocumentationPolicy.bParameterToolTipsRequired = true;
+		DocumentationPolicy.bFloatRangesRequired = true;
+	}
+	else
+	{
+		FError::Throwf(TEXT("Documentation Policy '%s' not yet supported"), *PolicyName);
+	}
+	return DocumentationPolicy;
+}
+
+
+FDocumentationPolicy FHeaderParser::GetDocumentationPolicyForStruct(UStruct* Struct)
+{
+	check(Struct!= nullptr);
+
+	FDocumentationPolicy DocumentationPolicy;
+	FString DocumentationPolicyName;
+	if (Struct->GetStringMetaDataHierarchical(NAME_DocumentationPolicy, &DocumentationPolicyName))
+	{
+		DocumentationPolicy = GetDocumentationPolicyFromName(DocumentationPolicyName);
+	}
+	return DocumentationPolicy;
+}
+
+void FHeaderParser::CheckDocumentationPolicyForEnum(UEnum* Enum, const TMap<FName, FString>& MetaData, const TArray<TMap<FName, FString>>& Entries)
+{
+	check(Enum != nullptr);
+
+	const FString* DocumentationPolicyName = MetaData.Find(NAME_DocumentationPolicy);
+	if (DocumentationPolicyName == nullptr)
+	{
+		return;
+	}
+
+	check(!DocumentationPolicyName->IsEmpty());
+
+	FDocumentationPolicy DocumentationPolicy = GetDocumentationPolicyFromName(*DocumentationPolicyName);
+	if (DocumentationPolicy.bClassOrStructCommentRequired)
+	{
+		const FString* EnumToolTip = MetaData.Find(NAME_ToolTip);
+		if (EnumToolTip == nullptr)
+		{
+			FError::Throwf(TEXT("Enum '%s' does not provide a tooltip / comment (DocumentationPolicy)."), *Enum->GetName());
+		}
+	}
+
+	TMap<FString, FString> ToolTipToEntry;
+	for (const TMap<FName, FString>& Entry : Entries)
+	{
+		const FString* EntryName = Entry.Find(TEXT("Name"));
+		if (EntryName == nullptr)
+		{
+			continue;
+		}
+
+		const FString* ToolTip = Entry.Find(NAME_ToolTip);
+		if (ToolTip == nullptr)
+		{
+			FError::Throwf(TEXT("Enum entry '%s::%s' does not provide a tooltip / comment (DocumentationPolicy)."), *Enum->GetName(), **EntryName);
+		}
+
+		const FString* ExistingEntry = ToolTipToEntry.Find(*ToolTip);
+		if (ExistingEntry != nullptr)
+		{
+			FError::Throwf(TEXT("Enum entries '%s::%s' and '%s::%s' have identical tooltips / comments (DocumentationPolicy)."), *Enum->GetName(), **ExistingEntry, *Enum->GetName(), **EntryName);
+		}
+		ToolTipToEntry.Add(*ToolTip, *EntryName);
+	}
+	
+}
+
+void FHeaderParser::CheckDocumentationPolicyForStruct(UStruct* Struct, const TMap<FName, FString>& MetaData)
+{
+	check(Struct != nullptr);
+
+	FDocumentationPolicy DocumentationPolicy = GetDocumentationPolicyForStruct(Struct);
+	if (DocumentationPolicy.bClassOrStructCommentRequired)
+	{
+		const FString* ClassTooltip = MetaData.Find(NAME_ToolTip);
+		if (ClassTooltip == nullptr)
+		{
+			FError::Throwf(TEXT("Struct '%s' does not provide a tooltip / comment (DocumentationPolicy)."), *Struct->GetName());
+		}
+	}
+
+	if (DocumentationPolicy.bMemberToolTipsRequired)
+	{
+		TMap<FString, FName> ToolTipToPropertyName;
+		for (UProperty* Property : TFieldRange<UProperty>(Struct))
+		{
+			FString ToolTip = Property->GetToolTipText().ToString();
+			if (ToolTip.IsEmpty() || ToolTip.Equals(Property->GetName()))
+			{
+				FError::Throwf(TEXT("Property '%s::%s' does not provide a tooltip / comment (DocumentationPolicy)."), *Struct->GetName(), *Property->GetName());
+			}
+			const FName* ExistingPropertyName = ToolTipToPropertyName.Find(ToolTip);
+			if (ExistingPropertyName != nullptr)
+			{
+				FError::Throwf(TEXT("Property '%s::%s' and '%s::%s' are using identical tooltips (DocumentationPolicy)."), *Struct->GetName(), *ExistingPropertyName->ToString(), *Struct->GetName(), *Property->GetName());
+			}
+			ToolTipToPropertyName.Add(ToolTip, Property->GetFName());
+		}
+	}
+
+	if (DocumentationPolicy.bFloatRangesRequired)
+	{
+		for (UProperty* Property : TFieldRange<UProperty>(Struct))
+		{
+			if(DoesCPPTypeRequireDocumentation(Property->GetCPPType()))
+			{
+				const FString& UIMin = Property->GetMetaData(TEXT("UIMin"));
+				const FString& UIMax = Property->GetMetaData(TEXT("UIMax"));
+				if(!CheckUIMinMaxRangeFromMetaData(UIMin, UIMax))
+				{
+					FError::Throwf(TEXT("Property '%s::%s' does not provide a valid UIMin / UIMax (DocumentationPolicy)."), *Struct->GetName(), *Property->GetName());
+				}
+			}
+		}
+	}
+
+	// also compare all tooltips to see if they are unique
+	if (DocumentationPolicy.bFunctionToolTipsRequired)
+	{
+		UClass* Class = Cast<UClass>(Struct);
+		if (Class != nullptr)
+		{
+			TMap<FString, FString> ToolTipToFunc;
+			for (UField* Field = Class->Children; Field; Field = Field->Next)
+			{
+				UFunction* Func = Cast<UFunction>(Field);
+				if (Func != NULL)
+				{
+					FString ToolTip = Func->GetToolTipText().ToString();
+					if (ToolTip.IsEmpty())
+					{
+						FError::Throwf(TEXT("Function '%s::%s' does not provide a tooltip / comment (DocumentationPolicy)."), *Class->GetName(), *Func->GetName());
+					}
+					const FString* ExistingFuncName = ToolTipToFunc.Find(ToolTip);
+					if (ExistingFuncName != nullptr)
+					{
+						FError::Throwf(TEXT("Functions '%s::%s' and '%s::%s' uses identical tooltips / comments (DocumentationPolicy)."), *Class->GetName(), **ExistingFuncName, *Class->GetName(), *Func->GetName());
+					}
+					ToolTipToFunc.Add(ToolTip, Func->GetName());
+				}
+			}
+		}
+	}
+}
+
+bool FHeaderParser::DoesCPPTypeRequireDocumentation(const FString& CPPType)
+{
+	return PropertyCPPTypesRequiringUIRanges.Find(CPPType) != INDEX_NONE;
+}
+
+// Validates the documentation for a given method
+void FHeaderParser::CheckDocumentationPolicyForFunc(UClass* Class, UFunction* Func, const TMap<FName, FString>& MetaData)
+{
+	check(Class != nullptr);
+	check(Func != nullptr);
+
+	FDocumentationPolicy DocumentationPolicy = GetDocumentationPolicyForStruct(Class);
+	if (DocumentationPolicy.bFunctionToolTipsRequired)
+	{
+		const FString* FunctionTooltip = MetaData.Find(NAME_ToolTip);
+		if (FunctionTooltip == nullptr)
+		{
+			FError::Throwf(TEXT("Function '%s::%s' does not provide a tooltip / comment (DocumentationPolicy)."), *Class->GetName(), *Func->GetName());
+		}
+	}
+
+	if (DocumentationPolicy.bParameterToolTipsRequired)
+	{
+		const FString* FunctionComment = MetaData.Find(NAME_Comment);
+		if (FunctionComment == nullptr)
+		{
+			FError::Throwf(TEXT("Function '%s::%s' does not provide a comment (DocumentationPolicy)."), *Class->GetName(), *Func->GetName());
+		}
+		
+		TMap<FName, FString> ParamToolTips = GetParameterToolTipsFromFunctionComment(*FunctionComment);
+		bool HasAnyParamToolTips = ParamToolTips.Num() > 0;
+		if (ParamToolTips.Num() == 0)
+		{
+			const FString* ReturnValueToolTip = ParamToolTips.Find(TEXT("ReturnValue"));
+			if (ReturnValueToolTip != nullptr)
+			{
+				HasAnyParamToolTips = false;
+			}
+		}
+
+		// only apply the validation for parameter tooltips if a function has any @param statements at all.
+		if (HasAnyParamToolTips)
+		{
+			// ensure each parameter has a tooltip
+			TSet<FName> ExistingFields;
+			for (UProperty* Property : TFieldRange<UProperty>(Func))
+			{
+				FName ParamName = Property->GetFName();
+				if (ParamName.IsEqual(TEXT("ReturnValue")))
+				{
+					continue;
+				}
+				const FString* ParamToolTip = ParamToolTips.Find(ParamName);
+				if (ParamToolTip == nullptr)
+				{
+					FError::Throwf(TEXT("Function '%s::%s' doesn't provide a tooltip for parameter '%s' (DocumentationPolicy)."), *Class->GetName(), *Func->GetName(), *ParamName.ToString());
+				}
+				ExistingFields.Add(ParamName);
+			}
+
+			// ensure we don't have parameter tooltips for parameters that don't exist
+			for (TPair<FName, FString>& Pair : ParamToolTips)
+			{
+				const FName& ParamName = Pair.Key;
+				if (ParamName.IsEqual(TEXT("ReturnValue")))
+				{
+					continue;
+				}
+				if (!ExistingFields.Contains(ParamName))
+				{
+					FError::Throwf(TEXT("Function '%s::%s' provides a tooltip for an unknown parameter '%s' (DocumentationPolicy)."), *Class->GetName(), *Func->GetName(), *Pair.Key.ToString());
+				}
+			}
+
+			// check for duplicate tooltips
+			TMap<FString, FName> ToolTipToParam;
+			for (TPair<FName, FString>& Pair : ParamToolTips)
+			{
+				const FName& ParamName = Pair.Key;
+				if (ParamName.IsEqual(TEXT("ReturnValue")))
+				{
+					continue;
+				}
+				const FName* ExistingParam = ToolTipToParam.Find(Pair.Value);
+				if (ExistingParam != nullptr)
+				{
+					FError::Throwf(TEXT("Function '%s::%s' uses identical tooltips for parameters '%s' and '%s' (DocumentationPolicy)."), *Class->GetName(), *Func->GetName(), *ExistingParam->ToString(), *Pair.Key.ToString());
+				}
+				ToolTipToParam.Add(Pair.Value, Pair.Key);
+			}
+		}
+	}
+}
+
+bool FHeaderParser::CheckUIMinMaxRangeFromMetaData(const FString& UIMin, const FString& UIMax)
+{
+	if (UIMin.IsEmpty() || UIMax.IsEmpty())
+	{
+		return false;
+	}
+
+	double UIMinValue = FCString::Atod(*UIMin);
+	double UIMaxValue = FCString::Atod(*UIMax);
+	if (UIMin > UIMax) // note that we actually allow UIMin == UIMax to disable the range manually.
+	{
+		return false;
+	}
+
+	return true;
+}
+
 template <class TFunctionType>
 TFunctionType* CreateFunctionImpl(const FFuncInfo& FuncInfo, UObject* Outer, FScope* CurrentScope)
 {
@@ -9539,3 +9916,4 @@ UDelegateFunction* FHeaderParser::CreateDelegateFunction(const FFuncInfo &FuncIn
 	UObject* CurrentPackage = LocSourceFile ? LocSourceFile->GetPackage() : nullptr;
 	return CreateFunctionImpl<T>(FuncInfo, IsInAClass() ? (UObject*)GetCurrentClass() : CurrentPackage, GetCurrentScope());
 }
+

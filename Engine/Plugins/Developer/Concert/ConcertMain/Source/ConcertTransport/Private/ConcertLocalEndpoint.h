@@ -44,7 +44,7 @@ protected:
 
 	virtual void InternalQueueRequest(const TSharedRef<IConcertRequest>& Request, const FGuid& Endpoint) override;
 	virtual void InternalQueueResponse(const TSharedRef<IConcertResponse>& Response, const FGuid& Endpoint) override;
-	virtual void InternalQueueEvent(const TSharedRef<IConcertEvent>& Event, const FGuid& Endpoint, EConcertMessageFlags Flags) override;
+	virtual void InternalQueueEvent(const TSharedRef<IConcertEvent>& Event, const FGuid& Endpoint, EConcertMessageFlags Flags, const TMap<FName, FString>& Annotations) override;
 	virtual void InternalPublishEvent(const TSharedRef<IConcertEvent>& Event) override;
 
 private:
@@ -76,7 +76,7 @@ private:
 	void PublishMessage(const TSharedRef<IConcertMessage>& Message);
 
 	/** Send a message to a specific remote endpoint */
-	void SendMessage(const TSharedRef<IConcertMessage>& Message, const FConcertRemoteEndpointRef& RemoteEndpoint, const FDateTime& UtcNow);
+	void SendMessage(const TSharedRef<IConcertMessage>& Message, const FConcertRemoteEndpointRef& RemoteEndpoint, const FDateTime& UtcNow, const TMap<FName, FString>& Annotations = TMap<FName, FString>());
 
 	/** Handle an incoming message from the message bus */
 	void InternalHandleMessage(const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);

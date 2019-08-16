@@ -498,7 +498,7 @@ TSharedPtr<SWidget> SWorldHierarchyImpl::ConstructLevelContextMenu() const
 				MenuBuilder.AddSubMenu(
 					LOCTEXT("MoveSelectionTo", "Move To"),
 					LOCTEXT("MoveSelectionTo_Tooltip", "Move selection to another folder"),
-					FNewMenuDelegate::CreateSP(this, &SWorldHierarchyImpl::FillFoldersSubmenu)
+					FNewMenuDelegate::CreateSP(const_cast<SWorldHierarchyImpl*>(this), &SWorldHierarchyImpl::FillFoldersSubmenu)
 				);
 			}
 
@@ -507,7 +507,7 @@ TSharedPtr<SWidget> SWorldHierarchyImpl::ConstructLevelContextMenu() const
 				MenuBuilder.AddSubMenu(
 					LOCTEXT("SelectSubmenu", "Select"),
 					LOCTEXT("SelectSubmenu_Tooltip", "Select child items of the current selection"),
-					FNewMenuDelegate::CreateSP(this, &SWorldHierarchyImpl::FillSelectionSubmenu)
+					FNewMenuDelegate::CreateSP(const_cast<SWorldHierarchyImpl*>(this), &SWorldHierarchyImpl::FillSelectionSubmenu)
 				);
 			}
 		}

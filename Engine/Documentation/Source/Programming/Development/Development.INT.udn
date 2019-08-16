@@ -1,35 +1,31 @@
 Availability:Public
 Title:Development Setup
-Crumbs: %ROOT%, Programming
 Description:Setting up your code environment, creating code projects, and working with Unreal Engine source.
+type:landing
 version: 4.9
+parent: Programming
 
 ## General Developer Information
 
-[REGION:buttonlist]
-* [](Programming/Development/VisualStudioSetup "%Programming/Development/VisualStudioSetup:description%")
-* [](Programming/Development/Tools "%Programming/Development/Tools:description%")
-* [](Programming/Development/CodingStandard "%Programming/Development/CodingStandard:description%")
-[/REGION]
+[DIR(output:"topic" parent:"Programming/Development" tags:"Visual Studio" end:"1")]
+[DIR(output:"topic" parent:"Programming/Development" type:"landing" end:"1")]
+[DIR(output:"topic" parent:"Programming/Development" type:"reference" end:"1")]
+-->
 
 ## Working With Code Projects
 
-[REGION:buttonlist]
-* [](Programming/Development/ManagingGameCode "%Programming/Development/ManagingGameCode:description%")
-	* [](Programming/Development/ManagingGameCode/CppClassWizard "%Programming/Development/ManagingGameCode/CppClassWizard:description%")
-* [](Programming/Development/CompilingProjects "%Programming/Development/CompilingProjects:description%")
-[/REGION]
+[DIR(output:"topic" parent:"Programming/Development" tags:"managing game code" type:"overview" end:"1")]
+[DIR(output:"topic" parent:"Programming/Development/ManagingGameCode" type:"overview" end:"1")]
+[DIR(output:"topic" parent:"Programming/Development" tags:"compiling" type:"overview" end:"1")]
+
 
 ## Working With Engine Source
 
-[REGION:buttonlist]
-* [](GettingStarted/DownloadingUnrealEngine "%GettingStarted/DownloadingUnrealEngine:description%")
-* [](Programming/Development/BuildingUnrealEngine "%Programming/Development/BuildingUnrealEngine:description%")
-[/REGION]
+[DIR(output:"topic" parent:"GettingStarted" type:"landing" end:"1")]
+[DIR(output:"topic" parent:"Programming/Development" tags:"Unreal Build System" end:"1")]
+
 
 ## Creating Engine Builds
 
-[REGION:buttonlist]
-* [](Programming/Development/BuildGraph "%Programming/Development/BuildGraph:description%")
-* [](Programming/Development/InstalledBuildReference "%Programming/Development/InstalledBuildReference:description%")
-[/REGION]
+[DIR(output:"topic" parent:"Programming/BuildTools/AutomationTool" tags:"BuildGraph" end:"1")]
+%Programming/Deployment:topic%

@@ -16,6 +16,7 @@
 #include "Animation/AnimNode_Root.h"
 #include "Animation/AnimNode_SubInput.h"
 #include "Animation/AnimNode_Layer.h"
+#include "Animation/AnimNode_AssetPlayerBase.h"
 
 /////////////////////////////////////////////////////
 // FStateMachineDebugData
@@ -251,92 +252,15 @@ void UAnimBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProper
 {
 	Super::Link(Ar, bRelinkExistingProperties);
 
-	static const FName DefaultAnimGraphName("AnimGraph");
-
 	// @TODO: Shouldn't be necessary to clear these, but currently the class gets linked twice during compilation
 	AnimNodeProperties.Empty();
 	SubInstanceNodeProperties.Empty();
 	LayerNodeProperties.Empty();
-	AnimBlueprintFunctions.Empty();
-
-	// Patch up blueprint function info
-	for (TFieldIterator<UFunction> It(this); It; ++It)
-	{
-		bool bFoundOutput = false;
-#if WITH_EDITOR
-		// In editor we can grab the group from metadata, otherwise we need to wait until CDO post load (LinkFunctionsToDefaultObjectNodes)
-		FText CategoryText = It->GetMetaDataText(TEXT("Category"), TEXT("UObjectCategory"), It->GetFullGroupName(false));
-		FName Group = CategoryText.IsEmpty() ? NAME_None : FName(*CategoryText.ToString());
-#endif
-		UStructProperty* OutputPoseNodeProperty = nullptr;
-		TArray<FName> InputPoseNames;
-		TArray<int32> InputPoseNodeIndices;
-		TArray<UStructProperty*> InputPoseNodeProperties;
-		TArray<UProperty*> InputProperties;
-
-		// grab the input/output poses, their indices will be patched up later once the CDO is loaded in PostLoadDefaultObject
-		for (TFieldIterator<UProperty> ItParam(*It); ItParam; ++ItParam)
-		{
-			if(UStructProperty* StructProperty = Cast<UStructProperty>(*ItParam))
-			{
-				if(StructProperty->Struct->IsChildOf(FPoseLink::StaticStruct()))
-				{
-					if(StructProperty->GetPropertyFlags() & CPF_OutParm)
-					{
-						if(!bFoundOutput)
-						{
-							OutputPoseNodeProperty = StructProperty;
-							bFoundOutput = true;
-						}
-						else
-						{
-							// our required signature needs us to have a single post link output, so null it out if we find more than one
-							OutputPoseNodeProperty = nullptr;
-						}
-					}
-					else
-					{
-						InputPoseNames.Add(StructProperty->GetFName());
-						InputPoseNodeIndices.Add(INDEX_NONE);
-						InputPoseNodeProperties.Add(nullptr);
-					}
-				}
-				else
-				{
-					InputProperties.Add(*ItParam);
-				}
-			}
-			else
-			{
-				InputProperties.Add(*ItParam);
-			}
-		}
-
-		if(OutputPoseNodeProperty)
-		{
-			// We use the undecorated name here, so trim the postfix
-			FAnimBlueprintFunction* AnimBlueprintFunction = nullptr;
-
-			// Make sure that the default graph is at index 0
-			FName FunctionName = It->GetFName();
-			if(FunctionName == DefaultAnimGraphName)
-			{
-				AnimBlueprintFunction = &AnimBlueprintFunctions.Insert_GetRef(FAnimBlueprintFunction(FunctionName), 0);
-			}
-			else
-			{
-				AnimBlueprintFunction = &AnimBlueprintFunctions.Emplace_GetRef(FunctionName);
-			}
 
 #if WITH_EDITOR
-			AnimBlueprintFunction->Group = Group;
-#endif
-			AnimBlueprintFunction->InputPoseNames.Append(MoveTemp(InputPoseNames));
-			AnimBlueprintFunction->InputPoseNodeIndices.Append(MoveTemp(InputPoseNodeIndices));
-			AnimBlueprintFunction->InputPoseNodeProperties.Append(MoveTemp(InputPoseNodeProperties));
-			AnimBlueprintFunction->InputProperties.Append(MoveTemp(InputProperties));
-		}
-	}
+	// This relies on the entire class being fully loaded, this is not the case with EDL async-loading, in which case the functions are generated in PostLoad
+	GenerateAnimationBlueprintFunctions();
+#endif // WITH_EDITOR
 
 	// Initialize the various tracked node arrays & fix up function internals
 	for (TFieldIterator<UProperty> It(this); It; ++It)
@@ -367,10 +291,11 @@ void UAnimBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProper
 
 	if(RootClass != this)
 	{
-		// State notifies and baked machines from the root class
+		// State notifies and baked machines and asset player information from the root class
 		check(RootClass);
 		AnimNotifies = RootClass->AnimNotifies;
 		BakedStateMachines = RootClass->BakedStateMachines;
+		GraphAssetPlayerInformation = RootClass->GraphAssetPlayerInformation;
 	}
 
 	if(RootClass != this)
@@ -421,6 +346,98 @@ void UAnimBlueprintGeneratedClass::PostLoadDefaultObject(UObject* Object)
 	}
 
 	LinkFunctionsToDefaultObjectNodes(Object);
+}
+
+void UAnimBlueprintGeneratedClass::PostLoad()
+{
+	Super::PostLoad();
+	GenerateAnimationBlueprintFunctions();
+}
+
+void UAnimBlueprintGeneratedClass::GenerateAnimationBlueprintFunctions()
+{
+	AnimBlueprintFunctions.Empty();
+
+	static const FName DefaultAnimGraphName("AnimGraph");
+	// Patch up blueprint function info
+	for (TFieldIterator<UFunction> It(this); It; ++It)
+	{
+		bool bFoundOutput = false;
+#if WITH_EDITOR
+		// In editor we can grab the group from metadata, otherwise we need to wait until CDO post load (LinkFunctionsToDefaultObjectNodes)
+		FText CategoryText = It->GetMetaDataText(TEXT("Category"), TEXT("UObjectCategory"), It->GetFullGroupName(false));
+		FName Group = CategoryText.IsEmpty() ? NAME_None : FName(*CategoryText.ToString());
+#endif
+		UStructProperty* OutputPoseNodeProperty = nullptr;
+		TArray<FName> InputPoseNames;
+		TArray<int32> InputPoseNodeIndices;
+		TArray<UStructProperty*> InputPoseNodeProperties;
+		TArray<UProperty*> InputProperties;
+
+		// grab the input/output poses, their indices will be patched up later once the CDO is loaded in PostLoadDefaultObject
+		for (TFieldIterator<UProperty> ItParam(*It); ItParam; ++ItParam)
+		{
+			if (UStructProperty* StructProperty = Cast<UStructProperty>(*ItParam))
+			{
+				if (StructProperty->Struct->IsChildOf(FPoseLink::StaticStruct()))
+				{
+					if (StructProperty->GetPropertyFlags() & CPF_OutParm)
+					{
+						if (!bFoundOutput)
+						{
+							OutputPoseNodeProperty = StructProperty;
+							bFoundOutput = true;
+						}
+						else
+						{
+							// our required signature needs us to have a single post link output, so null it out if we find more than one
+							OutputPoseNodeProperty = nullptr;
+						}
+					}
+					else
+					{
+						InputPoseNames.Add(StructProperty->GetFName());
+						InputPoseNodeIndices.Add(INDEX_NONE);
+						InputPoseNodeProperties.Add(nullptr);
+					}
+				}
+				else
+				{
+					InputProperties.Add(*ItParam);
+				}
+			}
+			else
+			{
+				InputProperties.Add(*ItParam);
+			}
+		}
+
+		if (OutputPoseNodeProperty)
+		{
+			// We use the undecorated name here, so trim the postfix
+			FAnimBlueprintFunction* AnimBlueprintFunction = nullptr;
+
+			FName FunctionName = It->GetFName();
+
+			// Make sure that the default graph is at index 0
+			if (FunctionName == DefaultAnimGraphName)
+			{
+				AnimBlueprintFunction = &AnimBlueprintFunctions.Insert_GetRef(FAnimBlueprintFunction(FunctionName), 0);
+			}
+			else
+			{
+				AnimBlueprintFunction = &AnimBlueprintFunctions.Emplace_GetRef(FunctionName);
+			}
+
+#if WITH_EDITOR
+			AnimBlueprintFunction->Group = Group;
+#endif
+			AnimBlueprintFunction->InputPoseNames.Append(MoveTemp(InputPoseNames));
+			AnimBlueprintFunction->InputPoseNodeIndices.Append(MoveTemp(InputPoseNodeIndices));
+			AnimBlueprintFunction->InputPoseNodeProperties.Append(MoveTemp(InputPoseNodeProperties));
+			AnimBlueprintFunction->InputProperties.Append(MoveTemp(InputProperties));
+		}
+	}
 }
 
 void UAnimBlueprintGeneratedClass::LinkFunctionsToDefaultObjectNodes(UObject* DefaultObject)

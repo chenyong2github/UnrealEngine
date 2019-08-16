@@ -49,7 +49,7 @@ class FChunkedFixedUObjectArray;
 #define UE4_VISUALIZERS_HELPERS
 #else
 #define UE4_VISUALIZERS_HELPERS \
-	FNameEntry*** GFNameTableForDebuggerVisualizers_MT = FName::GetNameTableForDebuggerVisualizers_MT(); \
+	uint8** GNameBlocksDebug = FNameDebugVisualizer::GetBlocks(); \
 	FChunkedFixedUObjectArray*& GObjectArrayForDebugVisualizers = GCoreObjectArrayForDebugVisualizers;
 #endif
 

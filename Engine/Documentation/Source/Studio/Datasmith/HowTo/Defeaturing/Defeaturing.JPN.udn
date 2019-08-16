@@ -1,0 +1,214 @@
+﻿INTSourceChangelist:4890524
+Availability: Public
+Crumbs: 
+Title: Defeaturing (簡略化) によるスタティック メッシュの単純化
+Description: スタティック メッシュのジオメトリから穴と突起を除去することでレンダリング パフォーマンスを改善する方法について説明します。
+Type: 
+Version: 4.21
+Parent: Studio/Datasmith/HowTo
+Order: 
+Tags: how to
+Tags: Datasmith
+Tags: intermediate
+
+
+![](defeaturing-banner.png)
+
+Defeaturing は突起と穴を除去することでメッシュを単純化する方法です。メッシュに含まれる頂点と三角ポリゴンの数を減らすことでレンダリング パフォーマンスを改善することができます。
+
+とりわけ Defeaturing は、多くのコンピュータ支援デザイン (CAD) アプリケーションで作られたジオメトリにおいて有用です。物理的製造のためにパーツや組立部品を設計、モデル化する際、細かい形状は現実世界のオブジェクトの製造に必須のものとして作成されますが、それらはリアルタイム レンダリング時には不要なものです。
+
+たとえば、この燃料ポンプの組立部品には 20,000 の三角ポリゴンが存在します。穴をいくつか除去すれば三角ポリゴンの数はほぼ半数になります。この場合、組立部品の他のパーツが修正された領域を覆うため、コンテンツ中で見たときにレンダリングの結果に顕著な変化はありません。
+
+[REGION:lightbox]
+[![](defeaturing-fuel-pump-before.png)](defeaturing-fuel-pump-before.png "修正前の三角ポリゴン数：20,617")
+[/REGION]
+
+修正前の三角ポリゴン数：20,617
+
+[REGION:lightbox]
+[![](defeaturing-fuel-pump-after.png)](defeaturing-fuel-pump-after.png "修正後の三角ポリゴン数：11,553")
+[/REGION]
+
+修正後の三角ポリゴン数：11,553
+
+これに加えて、画面領域を少ししか専有しないときの **詳細度 (LODs)** を作成して、さらにメッシュを単純化する予定であれば、簡略化したメッシュから LOD を作成することでメッシュの単純化が目立たなくなります。たとえば、クランクシャフトの組立部品の小さなパーツの小さな穴は、詳細度の低い LOD では非常にギザギザしています。LOD の作成前に小さな穴を除去して簡略化すれば、小さなサイズにしたときのメッシュは格段にきれいに見えます。
+
+[REGION:lightbox]
+[![](defeaturing-crankshaft-lod-0.png)](defeaturing-crankshaft-lod-0.png "オリジナルのメッシュ")
+[/REGION]
+
+オリジナルのメッシュ
+
+[REGION:lightbox]
+[![](defeaturing-crankshaft-lod-2.png)](defeaturing-crankshaft-lod-2.png "LOD 2")
+[/REGION]
+
+LOD 2
+
+[REGION:lightbox]
+[![](defeaturing-crankshaft-lod-2-processed.png)](defeaturing-crankshaft-lod-2-processed.png "簡略化後に LOD 処理したもの")
+[/REGION]
+
+簡略化後に LOD 処理したもの
+
+Unreal Editor は、Datasmith や FBX からインポートした スタティック メッシュ アセットを簡略化する機能を提供します。
+
+[REGION:note]
+このページで説明している簡略化ツールは現在 Unreal Studio プロジェクトでのみ利用可能です。Unreal Studio プロジェクトの作成または既存プロジェクトの変換の詳細については [](Studio/Datasmith/HowTo/SettingUpUnrealProject) を参照してください。
+[/REGION]
+
+## 除去可能な形状
+
+以下のセクションで、簡略化ツールが除去可能な形状の種類および、除去したい形状のサイズを制御するために提供可能な測定値について説明します。
+
+### スルーホール
+
+スルーホールはオブジェクトのサーフェスを反対側まで完全に通り抜ける穴です。
+
+最大直径を指定することにより、除去したいスルーホールのサイズを制限することができます。
+
+[REGION:lightbox]
+[![](defeaturing-through-holes-before.png)](defeaturing-through-holes-before.png "スルーホールを除去する前")
+[/REGION]
+
+スルーホールを除去する前
+
+[REGION:lightbox]
+[![](defeaturing-through-holes-after.png)](defeaturing-through-holes-after.png "スルーホールを除去した後")
+[/REGION]
+
+スルーホールを除去した後
+
+### ブラインドホール
+
+ブラインドホールは、オブジェクトのサーフェスを完全に貫通しない穴です。その代り、ブラインドホールにはサーフェスからある深さのところに底部があります。
+
+穴の最大直径とサーフェスからの最大の深さを指定することで除去したいブラインドホールのサイズを制限することができます。寸法が両方ともこれより小さい穴だけ除去されます。
+
+[REGION:lightbox]
+[![](defeaturing-blind-holes-before.png)](defeaturing-blind-holes-before.png "ブラインドホールを除去する前")
+[/REGION]
+
+ブラインドホールを除去する前
+
+[REGION:lightbox]
+[![](defeaturing-blind-holes-after.png)](defeaturing-blind-holes-after.png "ブラインドホールを除去した後")
+[/REGION]
+
+ブラインドホールを除去した後
+
+### 突起
+
+突起はサーフェスに取り囲まれた隆起です。
+
+突起の最大直径とサーフェスからの隆起の最大の高さを指定することで除去したい突起のサイズを制限することができます。寸法が両方ともこれより小さい突起だけ除去されます。
+
+[REGION:lightbox]
+[![](defeaturing-protrusion-before.png)](defeaturing-protrusion-before.png "突起を除去する前")
+[/REGION]
+
+突起を除去する前
+
+[REGION:lightbox]
+[![](defeaturing-protrusion-after.png)](defeaturing-protrusion-after.png "突起を除去した後")
+[/REGION]
+
+突起を除去した後
+
+## スタティック メッシュ エディタでの簡略化
+
+1. スタティック メッシュ エディタで修正したいスタティック メッシュを開きます。
+    **コンテンツ ブラウザ** のアセットをダブルクリックするか、右クリックして **[編集]** を選択します。 
+2. **[Mesh Editing]** ツールバーを開きます。
+    ![Mesh Editing ツールバーを開く](defeaturing-open-editing-toolbar.png "Mesh Editing ツールバーを開く")
+3. **[Defeaturing (簡略化)]** アイコンをクリックします。   
+    ![Defeaturing](defeaturing-in-toolbar.png "Defeaturing")
+4. 除去したい形状を設定するための設定ダイアログが表示されます。
+    ![Defeaturing 設定](defeaturing_settings.png "Defeaturing 設定")  
+    スタティック メッシュから除去したい形状の種類ごとに、対応するオプションにチェックを入れて、その形状の最大寸法を設定します。 
+    [REGION:note]
+    選択した形状の種類ごとにデフォルト値から値を増加させ、最大寸法を設定してください。
+    [/REGION]
+5. **Proceed (続行)** をクリックして簡略化の操作を開始してスタティック メッシュを修正します。
+    ![Proceed](defeaturing_settings_proceed.png "Proceed")  
+    
+
+## エディタ スクリプトでの簡略化
+
+ブループリントおよび Python でスルーホール、ブラインドホール、突起を除去できます。
+
+[REGION:note]
+**前提条件** 今回の使用が初めての場合は、 **Editor Scripting Utilities プラグイン** をインストールしてください。詳細については [エディタのスクリプティングと自動化](Engine/Editor/ScriptingandAutomation) を参照してください。
+[/REGION]
+
+言語の選択
+
+ブループリント
+
+Python
+
+ブループリントのスタティック メッシュ アセットで **[Mesh Processing] > [Defeature Mesh]** ノードを使用して簡略化ツールを実行します。
+
+![メッシュ ノードの簡略化](defeature_mesh_bp.png "メッシュ ノードの簡略化")
+
+[REGION:note]
+このノードを利用するには、ブループリント クラスを **PlacedEditorUtilityBase** クラスのようなエディタ専用クラスから派生させてください。詳細については、 [「ブループリントを使用したエディタのスクリプティング」](Engine/Editor/ScriptingandAutomation/Blueprints) を参照してください。
+[/REGION]
+
+このノードには以下の入力が必要です。
+
+*   修正したい スタティック メッシュ アセットへの参照。通常このアセットは初めに **[Editor Scripting > Asset > Load Asset]** ノードへのコールによってロードされる必要があります。
+*   スタティック メッシュで修正したい LOD のインデックス。特定の LOD だけ簡略化したいのでなければ 0 を使用してください。
+*   スタティック メッシュから除去する形状の種類と除去したい形状の最大サイズを制御する **MeshDefeaturingParameterObject**。
+    これらのオブジェクトの 1 つをセットアップするには以下を実行します。
+    1. **マイブループリント** パネルの **\+ 変数** ボタンをクリックしてブループリントに新規変数を追加します。
+        ![変数を追加](defeaturing-add-variable.png "変数を追加")
+    2. **Mesh Defeaturing Parameter Object** への参照となるように変数の種類を設定します。
+        ![Mesh Defeaturing Parameter Object](defeaturing-add-parameter-object.png "Mesh Defeaturing Parameter Object")
+    3. **Control** を押したまま、変数をブループリント グラフにドラッグして、変数を取得する新規ノードを作成します。
+        ![ドラッグアンドドロップ](defeaturing-drag-variable.png "ドラッグアンドドロップ")
+    4. 新規変数ノードの出力ポートから右にドラッグして、  **変数** リストから、変更したい設定の **Set** ノードを選択します。
+        ![簡略化パラメータ API](defeaturing-parameter-api.png "簡略化パラメータ API")
+
+たとえば、以下のスクリプトでは、 スタティック メッシュ アセットから幅が 5 センチ以下のスルーホールをすべて除去しています。
+
+[REGION:lightbox]
+[![簡略化の例](defeature_example_bp.png "簡略化の例")](defeature_example_bp.png) 
+
+*クリックして最大化。*
+[/REGION]
+
+`unreal.EditorMeshProcessing.defeature_mesh()` 関数を呼ぶと、スタティック メッシュ アセットの簡略化ツールが実行されます。
+
+関数に以下の内容を渡す必要があります。
+
+*    修正したい スタティック メッシュ アセット。通常このアセットは初めに 「unreal.EditorAssetLibrary.load_asset()」へのコールによってロードされる必要があります。
+*    スタティック メッシュで修正したい LOD のインデックス。特定の LOD だけ簡略化したいのでなければ 0 を使用してください。
+*   作成した「unreal.MeshDefeaturingParameterObject」スタティック メッシュと、除去したい形状の最大サイズから除去する形状の種類を制御する設定パラメータを、このオブジェクトに設定してください。
+
+たとえば、以下のスクリプトでは、  「unreal.MeshDefeaturingParameterObject」
+ に設定した直径以下の、スタティック メッシュのすべてのスルーホール、ブラインドホール、および突起を除去します。
+~~~
+import unreal
+asset_name = "/Game/Unreal_Sportbike/Geometries/0x25f0e0b7Unreal_Sportbike_geom_3180.Accumulator_case"
+def set_mesh_as_lod(mesh_name):
+    # アセットをロード
+    mesh_asset = unreal.EditorAssetLibrary.load_asset(mesh_name)
+    # パラメータ オブジェクトを作成
+    options = unreal.MeshDefeaturingParameterObject()
+    # プロパティをセットアップ
+    options.fill_blind_holes = True
+    options.filled_hole_max_diameter = 10
+    options.filled_hole_max_depth = 5
+    options.fill_through_holes = True
+    options.through_hole_max_diameter = 10
+    options.remove_protrusions = True
+    options.protrusion_max_diameter = 10
+    options.protrusion_max_height = 5
+    # 簡略化を実行
+    unreal.MeshProcessingLibrary.defeature_mesh(mesh_asset, 0, options)
+    # アセットを保存
+    unreal.EditorAssetLibrary.save_loaded_asset(mesh_asset)
+defeature_mesh(asset_name)
+~~~

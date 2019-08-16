@@ -19,11 +19,12 @@ void FCurveEditorDragOperation_PanView::OnBeginDrag(FVector2D InitialPosition, F
 	InitialInputMax = ViewSpace.GetInputMax();
 	InitialOutputMin = ViewSpace.GetOutputMin();
 	InitialOutputMax = ViewSpace.GetOutputMax();
+	SnappingState.Reset();
 }
 
 void FCurveEditorDragOperation_PanView::OnDrag(FVector2D InitialPosition, FVector2D CurrentPosition, const FPointerEvent& MouseEvent)
 {
-	FVector2D PixelDelta = CurveEditor->GetAxisSnap().GetSnappedPosition(InitialPosition, CurrentPosition, MouseEvent, true) - InitialPosition;
+	FVector2D PixelDelta = CurveEditor->GetAxisSnap().GetSnappedPosition(InitialPosition, CurrentPosition, MouseEvent, SnappingState, true) - InitialPosition;
 
 	FCurveEditorScreenSpace ViewSpace = View->GetViewSpace();
 
@@ -46,11 +47,12 @@ void FCurveEditorDragOperation_PanInput::OnBeginDrag(FVector2D InitialPosition, 
 	FCurveEditorScreenSpaceH InputSpace = CurveEditor->GetPanelInputSpace();
 	InitialInputMin = InputSpace.GetInputMin();
 	InitialInputMax = InputSpace.GetInputMax();
+	SnappingState.Reset();
 }
 
 void FCurveEditorDragOperation_PanInput::OnDrag(FVector2D InitialPosition, FVector2D CurrentPosition, const FPointerEvent& MouseEvent)
 {
-	FVector2D PixelDelta = CurveEditor->GetAxisSnap().GetSnappedPosition(InitialPosition, CurrentPosition, MouseEvent, true) - InitialPosition;
+	FVector2D PixelDelta = CurveEditor->GetAxisSnap().GetSnappedPosition(InitialPosition, CurrentPosition, MouseEvent, SnappingState, true) - InitialPosition;
 
 	FCurveEditorScreenSpaceH InputSpace = CurveEditor->GetPanelInputSpace();
 

@@ -1,0 +1,116 @@
+﻿INTSourceChangelist:6626060
+Availability: Public
+Crumbs: 
+Title: 모바일용 소프트웨어 오클루전 쿼리
+Description: 모바일 플랫폼에서 Software Occlusion Queries, 소프트웨어 오클루전 쿼리를 다이내믹 오클루전 컬링 메서드로 사용하는 방법 개요입니다. 
+Type: 
+Version: 4.21
+Parent: Engine/Rendering/VisibilityCulling
+Order: 
+Tags: 
+
+
+**Software Occlusion Queries** (소프트웨어 오클루전 쿼리)는 액터에 지정된 레벨 오브 디테일(LOD)을 사용하여 그 뒤의 액터를 가리는 오클루전 메서드입니다. 이 컬링 메서드는 CPU 에서 씬을 래스터라이즈하여 액터를 컬링하는데, 하드웨어 오클루전 쿼리가 GPU 에서 가시성 검사를 하는 것과 대조됩니다.  오프트웨어 오클루전은 보수적으로 설계되어 있어 모든 모바일 디바이스에서 활성화하여 사용할 수 있습니다. 또한 소프트웨어 오클루전은 모바일에서 지연시간이 단 1 프레임인데, 이는 2 프레임인 하드웨어 오클루전 쿼리와 비교됩니다.
+
+![](SOQ_Banner.png "SOQ_Banner.png")
+
+[REGION:caption]
+왼쪽: 오클루전에 대해 할당된 스태틱 메시 집합을 포함한 소프트웨어 오클루전 디버그 시각화를 사용한 씬 뷰입니다. 오른쪽: "오클루더" 스태틱 메시가 지오메트리를 어떻게 가리는지 볼 수 있도록 집 뒤에서 본 반대편 씬 뷰입니다.
+[/REGION]
+
+## 소프트웨어 오클루전 쿼리 활성화
+
+**프로젝트 세팅 > 렌더링 > 모바일** 에서 **Support Software Occlusion Culling** (소프트웨어 오클루전 컬링 지원) 옵션을 켜면 활성화됩니다.
+
+또는 다음 콘솔 명령을 사용하면 됩니다: `r.mobile.AllowSoftwareOcclusion 1`
+
+[REGION:tip]
+여러 디바이스를 대상으로 삼을 때, [디바이스 프로파일](Platforms/DeviceProfiles) 매니저로 소프트웨어 오클루전을 활성화할 수 있습니다.
+[/REGION]
+
+## 오클루더 메시 설정
+
+오클루전 컬링 작동을 위해서는 먼저 스태틱 메시의 LOD 를 오클루더로 지정해야 합니다. 지정된 LOD 는 씬에서 뷰에 있는 그 뒤의 다른 액터를 가리는 데 사용됩니다.
+
+스태틱 메시 에디터에서 **디테일** 패널의 **LOD for Occluder Mesh** (오클루더 메시에 대한 LOD) 를 0 이상의 값으로 설정하면 활성화됩니다.
+
+![](Soq_SMEditorSettings.png "Soq_SMEditorSettings.png")
+
+LOD 오클루더 메시에 대한 값을 설정할 때, 해당 메시에 대한 LOD 수가 그 이하인 것만 사용할 수 있습니다. 예를 들어 메시에 LOD 가 셋인 경우, 0 이 베이스 메시이고 LOD 1 과 2 는 디테일이 낮은 것이 됩니다. 값이 -1 이면 오클루더 메시로 지정되는 LOD 가 없습니다.
+[REGION:warning]
+오클루더로 적당한 중간 및 큰 크기의 메시에만 활성화하세요. 작은 메시는 오클루전 영향이 미미하거나 없습니다.
+[/REGION]
+
+## 소프트웨어 오클루전에 대한 디버깅 시각화
+
+스태틱 메시에 대한 오클루더 메시로 사용할 LOD 를 설정했으면, 레벨 뷰포트에서 **Software Occlusion Buffer** (소프트웨어 오클루전 버퍼) 시각화를 활성화할 수 있습니다. 이 뷰 모드에서는 [모바일 프리뷰어](Platforms/Mobile/Previewer) 를 사용할 때 화면 우상단에 작은 창이 뜹니다. 이 버퍼에는 선택된 오클루더 메시만 표시되며, 이를 사용해 뷰에서 가려진 메시를 컬링하는데 그 방법은 하드웨어 오클루전 쿼리가 씬에서 다른 것에 가려진 오브젝트를 컬링하는 것과 비슷합니다.   
+  
+이 시각화 뷰 모드를 활성화하는 단계는 다음과 같습니다.  
+
+1.  [모바일 프리뷰어](Platforms/Mobile/Previewer) 를 사용하도록 레벨 뷰포트를 설정합니다.   
+    ![](soq_enablevisualization-1.png "soq_enablevisualization-1.png")
+2.  콘솔 (**`**) 에서 다음 명령을 입력하여 소프트웨어 오클루전 비주얼라이저를 활성화합니다: **r.SO.VisualizeBuffer 1**.
+
+활성화되면, 오클루더로 활성화된 스태틱 메시는 레벨 뷰포트 좌상단에 표시되는 버퍼 시각화에 그려집니다.
+
+[REGION:lightbox]
+[![](soq_visualization.png "soq_visualization.png")](soq_visualization.png)
+[/REGION]
+[REGION:caption]
+이미지를 클릭하면 원본을 확인합니다.
+[/REGION]
+
+스태틱 메시 에디터에 **LOD for Occluded Mesh** (가려진 메시에 대한 LOD)로 활성화된 스태틱 메시가 보일 것입니다. 이해를 돕기 위해, 아래 예제에서 강조된 액터는 버퍼 시각화 뷰 모드에 대해 오클루더 메시로 활성화된 것입니다.
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![씬 뷰](soq_sceneOccluders.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![씬 뷰에서 오클루더 메시 강조](soq_sceneOccludersHighlighted.png) 
+ [/PARAM]
+[/OBJECT]
+
+## 퍼포먼스 통계
+
+**stat softwareocclusion** 명령을 사용하면 레벨의 소프트웨어 오클루전 효과를 파악할 수 있습니다.
+
+[REGION:lightbox]
+[![](StatSOftwareOcclusion.png "StatSOftwareOcclusion.png")](StatSOftwareOcclusion.png)
+[/REGION]
+[REGION:caption]
+이미지를 클릭하면 원본을 확인합니다.
+[/REGION]
+
+**Cycle Counters** (사이클 카운터)를 사용해 씬에서 처리되는 내용과 렌더링에 걸ㄹ 시간을 파악할 수 있습니다. **Counters** (카운터)는 씬의 트라이앵글 중 어느 것을 버퍼에 래스터화할지 정의하며, 오클루더(가리는 것), 오클루디(가려지는 것), 오클루전 컬링되는 다른 오브젝트 총 개수를 포함합니다. 
+
+### 예제 씬 통계
+
+[REGION:note]
+여기서는 단일 뷰만 사용해서 통계 데이터를 제공합니다. 보통 최종 씬에서는 둘 이상의 뷰를 테스트하면서 필요에 따라 오클루더를 추가하면서 오클루전 컬링을 향상시킵니다.
+[/REGION]이 예제 씬에서, 통계가 퍼포먼스와 컬링에 어떤 의미가 있는지, 그리고 어떻게 개선시킬지도 살펴 보겠습니다.
+
+![](Soq_SceneViewAndOcclusionBuffer-1.png "Soq_SceneViewAndOcclusionBuffer-1.png")  
+
+[REGION:caption]
+소프트웨어 오클루전 버퍼 시각화와 비교한 씬 뷰.
+[/REGION]위와 같은 씬으로 시작해서 두 개의 스태틱 메시가 LOD 0 을 사용하도록 활성화한 경우, 레벨의 이 위치와 뷰에서 소프트웨어 오클루전 퍼포먼스를 나타내는 통계가 나옵니다.
+
+![](SOStats1.png "SOStats1.png")
+
+이 통계 출력에서 주목해 볼 것은 둘 정도 있습니다.
+
+*   **Cycle Counters** (사이클 카운터)에서, **Process Time** (처리 시간), **Process Occluder Time** (오클루더 처리 시간), **Rasterize Time** (래스터화 시간)에 많은 시간이 소요됩니다. 이 모두 버퍼에 래스터화시킬 트라이앵글 수를 줄여 향상시킬 수 있는데, 다음에 이어집니다.
+*   **Counters** (카운터)에서, **Rasterized occluder tris** (래스터화된 오클루더 트라이앵글)에 주목합니다. 이 트라이앵글은 오클루더로 지정된 스태틱 메시 LOD 를 나타냅니다. 현재 래스터화되고 있는 오클루더는 **17** 개이며, 트라이앵글 수는 총 **3,055** 개입니다. 트라이앵글 수가 적은 하위 LOD 를 사용하면 그 처리 시간이 단축됩니다.
+
+이 두 가지 통계에서 처리할 트라이앵글 수를 줄이는 것으로 소프트웨어 오클루전 퍼포먼스를 향상시킬 수 있는 영역을 식별했습니다. 향상시키는 방법은 [스태틱 메시 에디터에서 자체 LOD 를 생성하여](Engine/Content/Types/StaticMeshes/HowTo/AutomaticLODGeneration#LOD수동생성) 트라이앵글 수를 줄이는 것입니다. 이 예제 씬에 있는 대부분의 콘텐츠는 [Infinity Blade: Grass Lands](https://www.unrealengine.com/marketplace/infinity-blade-plain-lands) 콘텐츠 팩에서 가져온 것으로, 오클루더 스태틱 메시의 평균 트라이앵글 수가 2000 정도입니다. 새 LOD 를 몇 개 구성한 뒤 오클루더 메시용 LOD 로 할당한 이후 다음과 같은 통계 결과를 얻었습니다.
+
+![](SOStats2.png "SOStats2.png")
+
+주목해 볼 통계 몇 가지는 **Total occludees** (총 오클루디), **Culled** (컬링됨), **Total occluders** (총 오클루더) 입니다. 이 통계는 소프트웨어 오클루전의 퍼포먼스를 컬링되는 오브젝트 수, 오클루더 오브젝트 총 개수, 현재 보이는 오클루디 개수로 나타냅니다. 이 수치를 비교하면 개선이 가능한 부분을 파악할 수 있습니다. 
+
+![](SOStats3.png "SOStats3.png")
+
+분석해 보면, 현재 뷰에서 컬링 가능한 오브젝트 수는 총 **951** 개입니다. 그 중에서 **406** 개가 오클루더 **17** 개에 의해 컬링되었습니다. 즉 17 개의 오클루더가 오클루전 컬링 가능한 오브젝트 중 약 43% 를 오클루전 컬링하고 있다는 뜻입니다. 참고로 작은 오클루더는 다른 오브젝트를 가리는 데 별 도움이 되지 않습니다. 중간에서 큰 크기의 메시만 오클루더로 사용해야 다수의 오브젝트를 컬링하면서 적당한 퍼포먼스를 유지할 수 있습니다.  
+
+컬링되는 오브젝트 수를 늘리려면, 씬의 일부분을 가리는 오클루더를 추가 구성합니다. [버퍼 시각화](#소프트웨어오클루전에대한디버깅시각화) 를 사용하면 레벨의 다양한 위치에서 통계를 확인하면서 현재 카메라 위치에서 무엇이 가려지고 있는지를 파악할 수 있습니다.

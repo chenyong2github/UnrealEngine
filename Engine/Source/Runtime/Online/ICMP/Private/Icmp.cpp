@@ -53,7 +53,9 @@ bool ResolveIp(ISocketSubsystem* SocketSub, const FString& HostName, FString& Ou
 	if (SocketSub)
 	{
 		TSharedRef<FInternetAddr> HostAddr = SocketSub->CreateInternetAddr();
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		ESocketErrors HostResolveError = SocketSub->GetHostByName(TCHAR_TO_ANSI(*HostName), *HostAddr);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		if (HostResolveError == SE_NO_ERROR || HostResolveError == SE_EWOULDBLOCK)
 		{
 			OutIp = HostAddr->ToString(false);

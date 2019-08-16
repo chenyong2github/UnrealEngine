@@ -1,21 +1,21 @@
-﻿INTSourceChangelist:4261534
+﻿INTSourceChangelist:0
 Availability: Public
-Crumbs: %ROOT%
 Title: 모바일 프리뷰어
 Description: 선택된 모바일 플랫폼에 따라 UE4 에디터 안에서 게임을 미리보는 기능입니다.
-Type: Overview
+Type: overview
+Version: 4.22
+Parent: Platforms/Mobile
+Tags: mobile
 skilllevel:Beginner
-Version:4.16
-Parent:Platforms/Mobile
-Related:Platforms/Mobile
-Related:Engine/Rendering
-Related:Engine/UI/LevelEditor
-Order:7
-Tags:Mobile
-Topic-image:MobilePreview_topic.png
-Social-Image:T_Rendering_Level_Examples.png
+topic-image: MobilePreview_topic.png
+social-image: T_Rendering_Level_Examples.png
+Order: 16
+Related: Engine/UI/LevelEditor
+Related: Engine/Rendering
+Related: Platforms/Mobile
 
-[TOC(start:2 end:2)]
+
+[TOC (start:2 end:2)]
 
 ![](T_Rendering_Level_Examples.png)
 
@@ -33,82 +33,77 @@ Social-Image:T_Rendering_Level_Examples.png
 새로운 프리뷰 렌더링 레벨 적용을 위해 에디터를 재시작할 필요는 없지만, 프리뷰 렌더링 레벨을 처음 바꿀 때 에디터가 셰이더를 다시 컴파일하는 데 시간이 걸릴 것입니다. 그 이후 기존에 사용된 렌더링 레벨로 바꾸는 것은 거의 즉시 가능할 것입니다.
 [/REGION]
 
-1.  메인 툴바에서, **세팅** 버튼을 선택하여 나열된 메뉴 항목을 확장합니다. **Scalability** (엔진 퀄리티) 섹션 아래 **Preview Rendering Level** (프리뷰 렌더링 레벨)에 커서를 올리면 선택할 수 있는 
-여러가지 렌더링 레벨 옵션이 표시됩니다.
+1.  메인 툴바에서, **세팅** 버튼을 선택하여 나열된 메뉴 항목을 확장합니다. **Scalability** (엔진 퀄리티) 섹션 아래 **Preview Rendering Level** (프리뷰 렌더링 레벨)에 커서를 올리면 선택할 수 있는 여러가지 렌더링 레벨 옵션이 표시됩니다.  
+    ![](mobile_preview_level.png "mobile_preview_level.png")  
+1.  마우스를 미리보고자 하는 섹션 렌데링 레벨에 올린 뒤 좌클릭으로 선택합니다.  
+    **Changing Preview Rendering Level** (프리뷰 렌더링 레벨 변경) 진행상황이 표시됩니다. 셰이더 리컴파일이 끝날 때까지 기다리세요.  
+    ![](ChangingPreviewRenderingLevel.png)(w:450)  
+    The **Preview Mode** button appears next to the **Settings** button, the button shows the icon for the selected preview mode. Clicking it disables the Mobile Previewer.   
+    ![](previewer_icon.png "previewer_icon.png")
+
+1.  렌더링 레벨을 선택하고나면, 뷰포트의 머티리얼을 자동 업데이트하여 해당 타깃 플랫폼에 대해 머티리얼 퀄리티 옵션을 켜고 끈 상태의 새로운 렌더링 메서드를 반영합니다. (이 부분을 더욱 자세히 조절하는 방법에 대한 내용은 [플랫폼 머티리얼 퀄리티 세팅](#플랫폼머티리얼퀄리티세팅) 부분을 참고하세요.)
     
-    ![](PreviewRenderingLevel.png)(w:475)
-2.  마우스를 미리보고자 하는 섹션 렌데링 레벨에 올린 뒤 좌클릭으로 선택합니다. 이 예제에서는 **Android Vulkan Preview** 를 선택했습니다.
-    
-    ![](SelectTargetPlatform.png)
-    
-    **Changing Preview Rendering Level** (프리뷰 렌더링 레벨 변경) 진행상황이 표시됩니다. 셰이더 리컴파일이 끝날 때까지 기다리세요.
-    
-    ![](ChangingPreviewRenderingLevel.png)(w:450)
-3.  렌더링 레벨을 선택하고나면, 뷰포트의 머티리얼을 자동 업데이트하여 해당 타깃 플랫폼에 대해 머티리얼 퀄리티 옵션을 켜고 끈 상태의 새로운 렌더링 메서드를 반영합니다. (이 부분을 더욱 자세히 조절하는 방법에 대한 내용은 [플랫폼 머티리얼 퀄리티 세팅](#플랫폼머티리얼퀄리티세팅) 부분을 참고하세요.)
-    
-    [OBJECT:ComparisonSlider]
-     [PARAM:before]
-     ![Android Vulkan 프리뷰](VulkanPreview.png) 
-     [/PARAM]
-     [PARAM:after]
-     ![데스크톱 셰이더 모델 5 (SM5) 프리뷰](Sm5Preview.png) 
-     [/PARAM]
-    [/OBJECT]
-    
+	[OBJECT:ComparisonSlider]
+		[PARAM:before]
+		![Android Vulkan Preview](VulkanPreview.png)
+		Android Vulkan Preview
+		[/PARAM]
+		[PARAM:after]
+		![Desktop Shader Model 5 (SM5) Preview](Sm5Preview.png)
+		Desktop Shader Model 5 (SM5) Preview
+		[/PARAM]
+	[/OBJECT]
 
 [REGION:note]
 모바일 프리뷰어는 모바일 디바이스에 최대한 비슷하게 일치하도록 의도된 것이지만, 항상 타깃 디바이스에서 프로젝트가 어때 보이는지를 나타내는 것은 아닙니다. 제대로 된 테스트는 반드시 타깃 디바이스에서 하고, 모바일 프리뷰어는 작업물이 올바른 방향으로 향하고 있는지 확인하는 용도로만 사용해야 합니다.
 [/REGION]
 
-### 4.8 이전 버전에서 모바일 프리뷰어 사용
+### Mobile Previewer in PIE
 
-언리얼 엔진 4.8 버전에는 에디터 뷰포트 렌더링 메서드가 모바일 렌더링을 시뮬레이션하도록 변경하는 기능이 없습니다. 프로젝트가 모바일에서 어떤지 확인하기 위해서는, **Enable Mobile Preview** (모바일 프리뷰 켜기) 옵션을 사용하여 독립형 게임으로 실행시켜야 합니다.
+You can use the **Mobile Preview ES2 (PIE)** option to launch a standalone version of your UE4 mobile project that will use the same rendering path as if the project was run on a mobile device. This is a great way to preview the changes you are making without having to go through the entire cooking and deploying process. To launch your UE4 project in a Standalone game that uses the Mobile Preview, you will need to do the following:
 
-모바일 프리뷰 모드 옵션을 켜는 방법은 다음과 같습니다:
+1.  From the **Main Toolbar,** click on the drop-down button that is next to the **Play** button to expose the **Change Play Mode and Play Settings** settings.  
+    ![](ShowPlayModeOptions.png "ShowPlayModeOptions.png")
 
-1.  메인 툴바에서, **플레이** 버튼 옆 화살표를 선택하여 다양한 플레이 모드를 노출시킵니다.
+1.  Select **Mobile Preview ES2 (PIE)** option and your project will then be launched in a new window that simulates what your project should look like on a mobile device.  
     
-2.  **모바일 프리뷰** 를 선택하면 프로젝트가 새 창에서 실행되어 모바일 디바이스에 프로젝트가 어때보이는지 시뮬레이션할 수 있습니다.
-    
-    ![](T_Activate_Mobile_Preview.png)
-    
+    ![](T_Activate_Mobile_Preview-1.png "T_Activate_Mobile_Preview-1.png")  
 
-## 고사양 모바일 프리뷰 플랫폼 활성화
+## Enabling Vulkan Mobile Preview
 
-Android OPENGLES 3.1, Android Vulkan, iOS Metal 와 같은 고사양 플랫폼의 경우, 이들 각각은 **High-End Mobile / Metal** (고사양 모바일 / Metal) 프리뷰 리스트를 채우는 프리뷰 렌더링 레벨을 통해 개별적으로 켜고 끌 수 있습니다. 이 타깃 플랫폼을 활성화 또는 비활성화할 때, 그에 맞게 리스트에/서 추가/제거됩니다.
+You can use the **Vulkan Mobile Preview (PIE)** option to launch a standalone version of your UE4 mobile project using the Vulkan render. This is a great way to preview the changes you are making without having to go through the entire cooking and deploying process. To launch your UE4 project in a Standalone game that uses the Vulkan Mobile Preview, you will need to do the following:
 
-모바일 프리뷰어에서 이 타깃 플랫폼을 활성화/비활성화시키는 방법은 다음과 같습니다:
+1.  To enable the Vulkan Previewer you will need to first open up the **Editor Preferences** by going to the **Main Toolbar** and clicking on **Edit** and then select **Editor Preferences**.  
+    ![](VulkanMobilePreview_EditorPreferences-2.png "VulkanMobilePreview_EditorPreferences-2.png")
 
-1.  먼저 **프로젝트 세팅** 창을 엽니다. 파일 메뉴 > **편집** > **창** > **프로젝트 세팅** 입니다.
-    
-    ![](OpenProjectSettings.png)(w:300)
-2.  **프로젝트 세팅** 에서 **Platforms** (플랫폼) 섹션 아래 **Android** 또는 **iOS** 섹션을 선택합니다.
-    
+1.  In the Editor Preferences menu, locate the **General** heading and then click on the **Experimental** section.  
     [REGION:lightbox]
-    [![](PS_SelectPlatform.png)(w:900)](PS_SelectPlatform.png)
+    [![](VulkanMobilePreview_ExpermentalOptions.png)(w:500px)](VulkanMobilePreview_ExpermentalOptions.png)
     [/REGION]
     [REGION:caption]
-    이미지를 클릭하면 원본을 확인합니다.
+    Click for full image.
     [/REGION]
-    
-    **Android OPENGLES 3.1** 와 **VULKAN** 프리뷰의 경우, **Build** 아래 **Android** 섹션에서, **Support OpenGLES 3.1** 또는 **Support Vulkan** 옵션을 설정합니다. 
-    
-    ![](AndroidTarget.png)(w:650)
-    
-    **iOS Metal** 의 경우, **Rendering** 아래 **iOS** 섹션에서, **Support Forward Rendering with Metal (A7 and up devices)** 옵션을 설정합니다. 
-    
-    ![](MetalTarget.png)(w:650)
-3.  이들 중 어떤 것이든 활성화 또는 비활성화시키면, 프리뷰 렌더링 레벨 리스트에 지원 플랫폼 리스트가 업데이트된 것이 보일 것입니다.
-    
-    ![](HighEndPreviewEnabled.png)
-    
+
+1.  Locate the **PIE** section and then click on the **Allow Vulkan Mobile Preview** option to enable it.  
+    [REGION:lightbox]
+    [![](VulkanMobilePreview_EnableVulkan.png)(w:500px)](VulkanMobilePreview_EnableVulkan.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Close the Editor Preferences menu and then from the **Main Toolbar**, click on the drop-down button that is next to the **Play** button to expose the **Change Play Mode and Play Settings** settings.  
+    ![](ShowPlayModeOptions.png "ShowPlayModeOptions.png")
+
+1.  Select the **Vulkan Mobile Preview (PIE)** option and your project will then be launched in a new window that simulates what your project should look like on a mobile device.  
+    ![](VulkanMobilePreview_UseVulkanMobilePreview.png "VulkanMobilePreview_UseVulkanMobilePreview.png")  
 
 ## 플랫폼 머티리얼 퀄리티 세팅
 
 **프로젝트 세팅** 에서 **Platforms** (플랫폼) 카테고리 아래, 다양한 플랫폼 **Material Quality** (머티리얼 퀄리티) 섹션을 선택하여 해당 플랫폼에 대한 특정 피처를 활성화/비활성화시킬 수 있습니다.
 
 [REGION:lightbox]
-[![](MaterialQualityProjectSettings.png)(w:900)](MaterialQualityProjectSettings.png)
+[![](MaterialQualityProjectSettings.png)(w:500px)](MaterialQualityProjectSettings.png)
 [/REGION]
 [REGION:caption]
 이미지를 클릭하면 원본을 확인합니다.
@@ -122,6 +117,7 @@ Android OPENGLES 3.1, Android Vulkan, iOS Metal 와 같은 고사양 플랫폼�
 
 프리뷰 렌더링 레벨을 선택하면, 몇 가지 선택할 수 있는 옵션이 있습니다. 아래 표를 참고하여 타깃 디바이스에 가장 잘 맞는 옵션을 선택하세요.
 
+[REGION:raw]
 | 디바이스 타깃 | 설명 |
 | --- | --- |
 | [REGION:tablesection] 고사양 모바일 / Metal [/REGION] ||
@@ -133,8 +129,39 @@ Android OPENGLES 3.1, Android Vulkan, iOS Metal 와 같은 고사양 플랫폼�
 | **Default Mobile / HTML5** | 기본 모바일 / HTML5 - **프로젝트 세팅** 에 지정된 머티리얼 퀄리티 오버라이드를 사용하지 않고 기본 모바일 머티리얼 퀄리티 세팅을 에뮬레이트합니다. |
 | **Android** | Android - 지원되는 Android OpenGL ES2 퀄리티 세팅의 프리뷰 에뮬레이션을 제공합니다. 머티리얼 퀄리티 세팅은 **프로젝트 세팅** > **Android Material Quality - ES2** 섹션에서 설정할 수 있습니다. |
 | **iOS ES2** | iOS ES2 - 지원되는 iOS OpenGL ES2 퀄리티 세팅의 프리뷰 에뮬레이션을 제공합니다. 머티리얼 퀄리티 세팅은 **프로젝트 세팅** > **iOS Material Quality - ES2** 섹션에서 설정할 수 있습니다. |
-
-
-[REGION: note]
+[/REGION]
+[REGION:note]
 사용할 수 있는 프리뷰 렌더링 레벨 중 몇 가지, 이를테면 Android OpenGLES 3.1, Android Vulkan 같은 것들은 프로젝트 세팅을 통해 타깃 플랫폼으로 활성화시키지 않는 이상 보이지 않습니다. iOS Metal 은 기본적으로 켜져있지만, 그 타깃 플랫폼이 비활성화된 경우 사용할 수 있는 프리뷰 옵션으로는 제거될 것입니다.
 [/REGION]
+
+## Mobile Device Preview Options
+
+Due to the wide range of mobile phone bezel designs, it can be challenging to make sure that parts of your UI are not obscured by the mobile device's bevel. To help make sure your UI is not obscured by the device, you can use the **Device Launch** option to overlay different mobile phone bezel designs. To use this in your UE4 project, all you need to do is the following.
+
+1.  First, open up your **Editor Preferences** by going to the **Main Toolbar** and clicking on **Edit** and then select **Editor Preferences**.  
+    ![](VulkanMobilePreview_EditorPreferences-2.png "VulkanMobilePreview_EditorPreferences-2.png")
+
+1.  In the **Editor Preferences** menu, locate the **General** heading and then click on the **Experimental** section.  
+    [REGION:lightbox]
+    [![](VulkanMobilePreview_ExpermentalOptions.png)(w:500px)](VulkanMobilePreview_ExpermentalOptions.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Locate the **PIE** section and then click on the **Enable mobile PIE with preview device launch options** to enable the bezel overlays.  
+    [REGION:lightbox]
+    [![](EnableDevicePreview.png)(w:500px)](EnableDevicePreview.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Close the Editor Preferences menu and then from the **Main Toolbar**, click on the drop-down button that is next to the **Play**button to expose the **Change Play Mode and Play Settings** settings.  
+    ![](ShowPlayModeOptions.png "ShowPlayModeOptions.png")
+
+1.  From the displayed menu, go to **Mobile Preview (PIE)** > **Android** and then select the device you want to test against from the list.  
+    ![](SelectDevicePreview.png "SelectDevicePreview.png")
+
+1.  Now click the **Launch** button to launch your project. When your project loads it will be using the device preview like in the following image.  
+    ![](PhoneBezel.png "PhoneBezel.png")

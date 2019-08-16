@@ -1,0 +1,71 @@
+﻿INTSourceChangelist:6536708
+Availability: Public
+Crumbs:
+Title: 全局Blutility类和Blutility架
+Description: 介绍如何创建全局蓝图工具类，以及如何从内容浏览器或自定义架调用它们的函数。
+Type: how-to
+Version: 4.22
+Parent: Engine/Editor/ScriptingAndAutomation/Blueprints/Blutilities
+SkillLevel: Beginner
+Tags: Experimental
+Tags: scripting
+Tags: editor
+Tags: Blutilities
+Order:0
+
+
+
+[TOC]
+
+![Global Editor Utilities](blutility-classes-banner.png "Global Editor Utilities")
+
+本页的说明向您展示如何创建和使用 **全局编辑器工具（Global Editor Utility）** 蓝图类。
+
+对于典型的蓝图类，您需要将蓝图类的一个实例放入一个关卡中，以便如[使用蓝图脚本化编辑器](Engine/Editor/ScriptingAndAutomation/Blueprints)页面所述调用其编辑器内函数和自定义事件。然而，当您创建扩展编辑器的工具时，您的脚本通常不依赖于一个特定的关卡。例如，如果您创建了一个在项目的内容浏览器中操作资源的工具脚本，那么将该类的实例放到一个关卡中并不能帮助它完成任务。
+
+当您创建一个全局编辑器工具蓝图类时，您可以从内容浏览器调用其编辑器内函数和自定义事件，也可以从一个新的Blutility架面板来调用它们，您可以自定义该面板来保留所需的全局编辑器工具类。
+
+[REGION:note]
+ **先决条件：**
+
+*   您必须如[蓝图工具(Blutilities)](Engine/Editor/ScriptingAndAutomation/Blueprints/Blutilities)下所述启用了实验性Blutility功能。
+[/REGION]
+
+## 步骤
+
+1.  在 **内容浏览器（Content Browser）** 中，右键单击要创建新蓝图工具类的文件夹，并从快捷菜单中选择 **蓝图（Blueprints）> Blutility**。  
+    ![Create new Blutility](bp-blutility-menu.png "Create new Blutility")
+
+2.  选择“GlobalEditorUtilityBase”作为父类，然后单击 **选择（Select）**。  
+    ![GlobalEditorUtilityBase parent class](bp-global-editor-utility-base.png "GlobalEditorUtilityBase parent class")
+
+3.  要编辑新类的蓝图图表，右键单击它并从快捷菜单中选择 **编辑蓝图（Edit Blueprint）**。
+    [REGION:note]
+    与典型的蓝图不同，双击全局编辑器工具类不会打开其图表进行编辑。相反，它会打开一个窗口，提供对该蓝图中所有函数和自定义事件的访问，这些函数和自定义事件已使用 **在编辑器中调用（Call in Editor）** 设置标记。 
+    [/REGION]
+    
+4.  为蓝图类创建一个新函数，或者在事件图表中创建一个新的 **Custom Event** 节点，并启用其 **在编辑器中调用（Call in Editor）** 设置。从该函数或自定义事件的输出端口创建想要工具执行的蓝图逻辑。  
+    例如，该图表迭代项目中的每个资源，并删除指定给所有静态网格体资源的所有碰撞形态：
+    [REGION:lightbox]
+    [![Global utility example](blutility-classes-example.png "Global utility example")](blutility-classes-example.png)
+    [/REGION]
+	[REGION:caption]
+	*点击查看全图*
+	[/REGION]
+    [REGION:note]
+    Custom Event节点或函数不能有任何输入。如果它们有任何输入，当您稍后从 **内容浏览器（Content Browser）** 或从 **Blutility架（Blutility Shelf）** 打开Blutility时，则不会列出它们。
+    [/REGION]
+    
+5.  **保存（Save）** 并 **编译（Compile）** 蓝图类。
+
+## 最终结果
+
+在内容浏览器中双击蓝图类，以打开一个新窗口，其中列出启用了 **在编辑器中调用（Call in Editor）** 设置的所有函数和Custom Event节点。单击任意按钮以触发在Blutility类中创建的对应蓝图图表。  
+
+![](blutility-classes-trigger.png "blutility-classes-trigger.png")
+
+您可以访问您在 **Blutility架（Blutility Shelf）** 面板中创建的所有Blutility类，而无需在 **内容浏览器（Content Browser）** 中导航到Blutility类来启动效用函数。
+
+![Blutility Shelf](bp-blutility-shelf.png "Blutility Shelf")
+
+从主菜单中选择 **窗口（Window）> Blutility架（Blutility Shelf）** 打开该面板。

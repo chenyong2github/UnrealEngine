@@ -669,7 +669,7 @@ void UPathFollowingComponent::SetMovementComponent(UNavMovementComponent* MoveCo
 		
 		if (NavSys)
 		{
-			MyNavData = NavSys->GetNavDataForProps(NavAgentProps);
+			MyNavData = NavSys->GetNavDataForProps(NavAgentProps, MoveComp->GetActorLocation());
 			if (MyNavData == nullptr)
 			{
 				if (NavSys->IsInitialized() == false)
@@ -693,7 +693,7 @@ void UPathFollowingComponent::OnNavigationInitDone()
 		UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(MyWorld);
 		check(NavSys);
 		const FNavAgentProperties& NavAgentProps = MovementComp->GetNavAgentPropertiesRef();
-		MyNavData = NavSys->GetNavDataForProps(NavAgentProps);
+		MyNavData = NavSys->GetNavDataForProps(NavAgentProps, MovementComp->GetActorLocation());
 		NavSys->OnNavigationInitDone.RemoveAll(this);
 	}
 }

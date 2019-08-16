@@ -46,6 +46,7 @@ enum EMaterialUsage
 	MATUSAGE_MorphTargets,
 	MATUSAGE_SplineMesh,
 	MATUSAGE_InstancedStaticMeshes,
+	MATUSAGE_GeometryCollections,
 	MATUSAGE_Clothing,
 	MATUSAGE_NiagaraSprites,
 	MATUSAGE_NiagaraRibbons,
@@ -69,7 +70,7 @@ struct ENGINE_API FMaterialRelevance
 	uint8 bUsesSceneColorCopy : 1;
 	uint8 bDisableOffscreenRendering : 1; // Blend Modulate
 	uint8 bDisableDepthTest : 1;
-	uint8 bOutputsVelocityInBasePass : 1;
+	uint8 bOutputsTranslucentVelocity : 1;
 	uint8 bUsesGlobalDistanceField : 1;
 	uint8 bUsesWorldPositionOffset : 1;
 	uint8 bDecal : 1;
@@ -210,7 +211,7 @@ struct FMaterialTextureInfo
 };
 
 UCLASS(abstract, BlueprintType, MinimalAPI, HideCategories = (Thumbnail))
-class UMaterialInterface : public UObject, public IBlendableInterface, public IInterface_AssetUserData
+class ENGINE_VTABLE UMaterialInterface : public UObject, public IBlendableInterface, public IInterface_AssetUserData
 {
 	GENERATED_UCLASS_BODY()
 
@@ -258,6 +259,10 @@ public:
 	//~ End IInterface_AssetUserData Interface
 
 #if WITH_EDITORONLY_DATA
+	/** List of all used but missing texture indices in TextureStreamingData. Used for visualization / debugging only. */
+	UPROPERTY(transient)
+	TArray<FMaterialTextureInfo> TextureStreamingDataMissingEntries;
+
 	/** The mesh used by the material editor to preview the material.*/
 	UPROPERTY(EditAnywhere, Category=Previewing, meta=(AllowedClasses="StaticMesh,SkeletalMesh", ExactClass="true"))
 	FSoftObjectPath PreviewMesh;
@@ -285,7 +290,7 @@ private:
 
 private:
 	/** Feature level bitfield to compile for all materials */
-	static uint32 FeatureLevelsForAllMaterials;
+	ENGINE_API static uint32 FeatureLevelsForAllMaterials;
 public:
 	/** Set which feature levels this material instance should compile. GMaxRHIFeatureLevel is always compiled! */
 	ENGINE_API void SetFeatureLevelToCompile(ERHIFeatureLevel::Type FeatureLevel, bool bShouldCompile);
@@ -508,7 +513,7 @@ public:
 		PURE_VIRTUAL(UMaterialInterface::GetStaticComponentMaskParameterDefaultValue,return false;);
 		
 	/** Appends textures referenced by expressions, including nested functions. */
-	virtual void AppendReferencedTextures(TArray<UTexture*>& InOutTextures) const
+	virtual void AppendReferencedTextures(TArray<UObject*>& InOutTextures) const
 		PURE_VIRTUAL(UMaterialInterface::AppendReferencedTextures,);
 
 	virtual void SaveShaderStableKeysInner(const class ITargetPlatform* TP, const struct FStableShaderKeyAndValue& SaveKeyVal)
@@ -713,10 +718,12 @@ public:
 	ENGINE_API virtual bool IsTwoSided() const;
 	ENGINE_API virtual bool IsDitheredLODTransition() const;
 	ENGINE_API virtual bool IsTranslucencyWritingCustomDepth() const;
+	ENGINE_API virtual bool IsTranslucencyWritingVelocity() const;
 	ENGINE_API virtual bool IsMasked() const;
 	ENGINE_API virtual bool IsDeferredDecal() const;
 
 	ENGINE_API virtual USubsurfaceProfile* GetSubsurfaceProfile_Internal() const;
+	ENGINE_API virtual bool CastsRayTracedShadows() const;
 
 	/**
 	 * Force the streaming system to disregard the normal logic for the specified duration and
@@ -797,6 +804,11 @@ public:
 	/** Return number of used texture coordinates and whether or not the Vertex data is used in the shader graph */
 	ENGINE_API void AnalyzeMaterialProperty(EMaterialProperty InProperty, int32& OutNumTextureCoordinates, bool& bOutRequiresVertexData);
 
+#if WITH_EDITOR
+	/** Checks to see if the given property references the texture */
+	ENGINE_API bool IsTextureReferencedByProperty(EMaterialProperty InProperty, const UTexture* InTexture);
+#endif // WITH_EDITOR
+
 	/** Iterate over all feature levels currently marked as active */
 	template <typename FunctionType>
 	static void IterateOverActiveFeatureLevels(FunctionType InHandler) 
@@ -821,6 +833,10 @@ public:
 	FORCEINLINE bool HasTextureStreamingData() const { return TextureStreamingData.Num() != 0; }
 	/** Accessor to the data. */
 	FORCEINLINE const TArray<FMaterialTextureInfo>& GetTextureStreamingData() const { return TextureStreamingData; }
+	FORCEINLINE TArray<FMaterialTextureInfo>& GetTextureStreamingData() { return TextureStreamingData; }
+	/** Find entries within TextureStreamingData that match the given name. */
+	ENGINE_API bool FindTextureStreamingDataIndexRange(FName TextureName, int32& LowerIndex, int32& HigherIndex) const;
+
 	/** Set new texture streaming data. */
 	ENGINE_API void SetTextureStreamingData(const TArray<FMaterialTextureInfo>& InTextureStreamingData);
 
@@ -835,8 +851,6 @@ public:
 
 	ENGINE_API virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
 
-protected:
-
 	/**
 	* Sort the texture streaming data by names to accelerate search. Only sorts if required.
 	*
@@ -845,13 +859,12 @@ protected:
 	*/
 	ENGINE_API void SortTextureStreamingData(bool bForceSort, bool bFinalSort);
 
+protected:
+
 	/** Returns a bitfield indicating which feature levels should be compiled for rendering. GMaxRHIFeatureLevel is always present */
 	ENGINE_API uint32 GetFeatureLevelsToCompileForRendering() const;
 
 	void UpdateMaterialRenderProxy(FMaterialRenderProxy& Proxy);
-
-	/** Find entries within TextureStreamingData that match the given name. */
-	bool FindTextureStreamingDataIndexRange(FName TextureName, int32& LowerIndex, int32& HigherIndex) const;
 
 private:
 	/**

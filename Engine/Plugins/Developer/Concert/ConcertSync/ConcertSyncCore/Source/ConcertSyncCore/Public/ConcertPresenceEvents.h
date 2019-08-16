@@ -47,6 +47,8 @@ struct FConcertClientPresenceDataUpdateEvent : public FConcertClientPresenceEven
 	{
 	}
 
+	/** The non-PIE/SIE world path. In PIE/SIE, the world context and its path is different than the non-PIE/SIE context.
+	    For presence management, we are interested in the Non-PIE/SIE world path and this is what is emitted even if the user is in PIE/SIE. */
 	UPROPERTY()
 	FName WorldPath;
 

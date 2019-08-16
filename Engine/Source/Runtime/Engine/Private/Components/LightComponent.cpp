@@ -249,6 +249,7 @@ FLightSceneProxy::FLightSceneProxy(const ULightComponent* InLightComponent)
 	, VolumetricScatteringIntensity(FMath::Max(InLightComponent->VolumetricScatteringIntensity, 0.0f))
 	, ShadowResolutionScale(InLightComponent->ShadowResolutionScale)
 	, ShadowBias(InLightComponent->ShadowBias)
+	, ShadowSlopeBias(InLightComponent->ShadowSlopeBias)
 	, ShadowSharpen(InLightComponent->ShadowSharpen)
 	, ContactShadowLength(InLightComponent->ContactShadowLength)
 	, SpecularScale(InLightComponent->SpecularScale)
@@ -303,19 +304,12 @@ FLightSceneProxy::FLightSceneProxy(const ULightComponent* InLightComponent)
 
 	StaticShadowDepthMap = &LightComponent->StaticShadowDepthMap;
 
-	// Brightness in Lumens
-	float LightBrightness = InLightComponent->ComputeLightBrightness();
-
 	if(LightComponent->IESTexture)
 	{
 		IESTexture = LightComponent->IESTexture;
 	}
-
-	Color = FLinearColor(InLightComponent->LightColor) * LightBrightness;
-	if( InLightComponent->bUseTemperature )
-	{
-		Color *= FLinearColor::MakeFromColorTemperature(InLightComponent->Temperature);
-	}
+	 
+	Color = LightComponent->GetColoredLightBrightness();
 
 	if(LightComponent->LightFunctionMaterial &&
 		LightComponent->LightFunctionMaterial->GetMaterial()->MaterialDomain == MD_LightFunction )
@@ -395,6 +389,7 @@ ULightComponent::ULightComponent(const FObjectInitializer& ObjectInitializer)
 	IndirectLightingIntensity = 1.0f;
 	ShadowResolutionScale = 1.0f;
 	ShadowBias = 0.5f;
+	ShadowSlopeBias = 0.5f;
 	ShadowSharpen = 0.0f;
 	ContactShadowLength = 0.0f;
 	ContactShadowLengthInWS = false;
@@ -648,6 +643,7 @@ void ULightComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, DisabledBrightness) &&
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, ShadowResolutionScale) &&
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, ShadowBias) &&
+		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, ShadowSlopeBias) &&
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, ShadowSharpen) &&
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, ContactShadowLength) &&
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, ContactShadowLengthInWS) &&
@@ -1039,6 +1035,16 @@ void ULightComponent::SetShadowBias(float NewValue)
 	}
 }
 
+void ULightComponent::SetShadowSlopeBias(float NewValue)
+{
+	if (AreDynamicDataChangesAllowed()
+		&& ShadowSlopeBias != NewValue)
+	{
+		ShadowSlopeBias = NewValue;
+		MarkRenderStateDirty();
+	}
+}
+
 void ULightComponent::SetSpecularScale(float NewValue)
 {
 	if (AreDynamicDataChangesAllowed()
@@ -1227,6 +1233,19 @@ void ULightComponent::InitializeStaticShadowDepthMap()
 
 		BeginInitResource(&StaticShadowDepthMap);
 	}
+}
+
+FLinearColor ULightComponent::GetColoredLightBrightness() const
+{
+	// Brightness in Lumens
+	float LightBrightness = ComputeLightBrightness();
+	FLinearColor Energy = FLinearColor(LightColor) * LightBrightness;
+	if (bUseTemperature)
+	{
+		Energy *= FLinearColor::MakeFromColorTemperature(Temperature);
+	}
+
+	return Energy;
 }
 
 UMaterialInterface* ULightComponent::GetMaterial(int32 ElementIndex) const

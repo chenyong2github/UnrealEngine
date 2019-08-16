@@ -4,9 +4,33 @@
 
 #include "CoreTypes.h"
 
+#include "Modules/ModuleInterface.h"
+#include "Templates/Tuple.h"
+#include "USDMemory.h"
+
 #include <string>
 #include <vector>
 #include <memory>
+
+#if USE_USD_SDK
+
+#include "USDIncludesStart.h"
+#include "pxr/pxr.h"
+#include "USDIncludesEnd.h"
+
+PXR_NAMESPACE_OPEN_SCOPE
+	class GfMatrix4d;
+	class SdfPath;
+	class TfToken;
+	class UsdAttribute;
+	class UsdGeomMesh;
+	class UsdPrim;
+	class UsdStage;
+
+	template< typename T > class TfRefPtr;
+PXR_NAMESPACE_CLOSE_SCOPE
+
+#endif // #if USE_USD_SDK
 
 class IUsdPrim;
 
@@ -114,69 +138,10 @@ struct FUsdQuatData
 	float W;
 };
 
-struct FUsdMatrixData
+class IUnrealUSDWrapperModule : public IModuleInterface
 {
-	static const int NumRows = 4;
-	static const int NumColumns = 4;
-
-	double Data[NumRows*NumColumns];
-
-	double* operator[](int Row)
-	{
-		return Data + (Row*NumColumns);
-	}
-
-	const double* operator[](int Row) const
-	{
-		return Data + (Row*NumColumns);
-	}
-};
-
-struct FUsdGeomData
-{
-	FUsdGeomData()
-		: NumUVs(0)
-	{}
-
-	/** How many vertices are in each face.  The size of this array tells you how many faces there are */
-	std::vector<int> FaceVertexCounts;
-	/** Index buffer which matches faces to Points */
-	std::vector<int> FaceIndices;
-	/** Maps a face to a material index.  MaterialIndex = FaceMaterialIndices[FaceNum] */
-	std::vector<int> FaceMaterialIndices;
-	/** For subdivision surfaces these are the indices to vertices that have creases */
-	std::vector<int> CreaseIndices;
-	/** For subdivision surfaces.  Each element gives the number of (must be adjacent) vertices in each crease, whose indices are linearly laid out in the 'CreaseIndices' array. */
-	std::vector<int> CreaseLengths;
-	/** The per-crease or per-edge sharpness for all creases*/
-	std::vector<float> CreaseSharpnesses;
-	/** Indices to points that have sharpness */
-	std::vector<int> CornerCreaseIndices;
-	/** The per-corner sharpness for all corner creases*/
-	std::vector<float> CornerSharpnesses;
-	/** List of all vertices in the mesh. This just holds the untransformed position of the vertex */
-	std::vector<FUsdVectorData> Points;
-	/** List of all normals in the mesh.  */
-	std::vector<FUsdVectorData> Normals;
-	/** List of all vertex colors in the mesh */
-	std::vector<FUsdVectorData> VertexColors;
-	/** List of all materials in the mesh.  The size of this array represents the number of materials */
-	std::vector<std::string> MaterialNames;
-
-	/** Raw UVs.  The size of this array represents how many UV sets there are */
-	FUsdUVData UVs[8];
-
-	FUsdUVData SeparateUMap;
-	FUsdUVData SeparateVMap;
-
-	/** Orientation of the points */
-	EUsdGeomOrientation Orientation;
-
-	EUsdSubdivisionScheme SubdivisionScheme;
-
-	EUsdInterpolationMethod VertexColorInterpMethod;
-
-	int NumUVs;
+public:
+	virtual void Initialize(const std::vector<std::string>& InPluginDirectories) = 0;
 };
 
 class UnrealUSDWrapper
@@ -184,79 +149,36 @@ class UnrealUSDWrapper
 public:
 #if USE_USD_SDK
 	UNREALUSDWRAPPER_API static void Initialize(const std::vector<std::string>& InPluginDirectories);
-	UNREALUSDWRAPPER_API static class IUsdStage* ImportUSDFile(const char* Path, const char* Filename);
-	UNREALUSDWRAPPER_API static void CleanUp();
+	UNREALUSDWRAPPER_API static TUsdStore< pxr::TfRefPtr< pxr::UsdStage > > ImportUSDFile(const char* Path, const char* Filename);
 	UNREALUSDWRAPPER_API static double GetDefaultTimeCode();
 	UNREALUSDWRAPPER_API static const char* GetErrors();
-#else
-	UNREALUSDWRAPPER_API static void Initialize(const std::vector<std::string>& InPluginDirectories) {}
-	UNREALUSDWRAPPER_API static class IUsdStage* ImportUSDFile(const char* Path, const char* Filename) { return nullptr; }
-	UNREALUSDWRAPPER_API static void CleanUp() {}
-	UNREALUSDWRAPPER_API static double GetDefaultTimeCode() { return -1.0; }
-	UNREALUSDWRAPPER_API static const char* GetErrors() { return ""; }
 #endif  // #if USE_USD_SDK
 private:
-	static class FUsdStage* CurrentStage;
 	static std::string Errors;
 	static bool bInitialized;
 };
 
-class FAttribInternalData;
-
 class FUsdAttribute
 {
 public:
-	FUsdAttribute(std::shared_ptr<FAttribInternalData> InternalData);
-	~FUsdAttribute();
-
 #if USE_USD_SDK
-	UNREALUSDWRAPPER_API const char* GetAttributeName() const;
-
-	/** Returns the type name for an attribute or null if the attribute doesn't exist */
-	UNREALUSDWRAPPER_API const char* GetTypeName() const;
-	
-	UNREALUSDWRAPPER_API bool AsInt(int64_t& OutVal, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode()) const;
-	UNREALUSDWRAPPER_API bool AsUnsignedInt(uint64_t& OutVal, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode()) const;
-	UNREALUSDWRAPPER_API bool AsDouble(double& OutVal, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode()) const;
-	UNREALUSDWRAPPER_API bool AsString(const char*& OutVal, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode()) const;
-	UNREALUSDWRAPPER_API bool AsBool(bool& OutVal, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode()) const;
-	UNREALUSDWRAPPER_API bool AsVector2(FUsdVector2Data& OutVal, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode()) const;
-	UNREALUSDWRAPPER_API bool AsVector3(FUsdVectorData& OutVal, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode()) const;
-	UNREALUSDWRAPPER_API bool AsVector4(FUsdVector4Data& OutVal, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode()) const;
-	UNREALUSDWRAPPER_API bool AsColor(FUsdVector4Data& OutVal, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode()) const;
-
-	UNREALUSDWRAPPER_API bool IsUnsigned() const;
+	UNREALUSDWRAPPER_API static std::string GetUnrealPropertyPath(const pxr::UsdAttribute& Attribute);
 
 	// Get the number of elements in the array if it is an array.  Otherwise -1
-	UNREALUSDWRAPPER_API int GetArraySize() const;
+	UNREALUSDWRAPPER_API static int GetArraySize(const pxr::UsdAttribute& Attribute);
 
-	UNREALUSDWRAPPER_API const char* GetUnrealPropertyPath() const;
-#else
-	UNREALUSDWRAPPER_API const char* GetAttributeName() const { return ""; }
+	UNREALUSDWRAPPER_API static bool AsInt(int64_t& OutVal, const pxr::UsdAttribute& Attribute, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode());
+	UNREALUSDWRAPPER_API static bool AsUnsignedInt(uint64_t& OutVal, const pxr::UsdAttribute& Attribute, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode());
+	UNREALUSDWRAPPER_API static bool AsDouble(double& OutVal, const pxr::UsdAttribute& Attribute, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode());
+	UNREALUSDWRAPPER_API static bool AsString(const char*& OutVal, const pxr::UsdAttribute& Attribute, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode());
+	UNREALUSDWRAPPER_API static bool AsBool(bool& OutVal, const pxr::UsdAttribute& Attribute, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode());
+	UNREALUSDWRAPPER_API static bool AsVector2(FUsdVector2Data& OutVal, const pxr::UsdAttribute& Attribute, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode());
+	UNREALUSDWRAPPER_API static bool AsVector3(FUsdVectorData& OutVal, const pxr::UsdAttribute& Attribute, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode());
+	UNREALUSDWRAPPER_API static bool AsVector4(FUsdVector4Data& OutVal, const pxr::UsdAttribute& Attribute, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode());
+	UNREALUSDWRAPPER_API static bool AsColor(FUsdVector4Data& OutVal, const pxr::UsdAttribute& Attribute, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode());
 
-	/** Returns the type name for an attribute or null if the attribute doesn't exist */
-	UNREALUSDWRAPPER_API const char* GetTypeName() const { return ""; }
-	
-	UNREALUSDWRAPPER_API bool AsInt(int64_t& OutVal, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode()) const { return false; }
-	UNREALUSDWRAPPER_API bool AsUnsignedInt(uint64_t& OutVal, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode()) const { return false; }
-	UNREALUSDWRAPPER_API bool AsDouble(double& OutVal, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode()) const { return false; }
-	UNREALUSDWRAPPER_API bool AsString(const char*& OutVal, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode()) const { return false; }
-	UNREALUSDWRAPPER_API bool AsBool(bool& OutVal, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode()) const { return false; }
-	UNREALUSDWRAPPER_API bool AsVector2(FUsdVector2Data& OutVal, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode()) const { return false; }
-	UNREALUSDWRAPPER_API bool AsVector3(FUsdVectorData& OutVal, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode()) const { return false; }
-	UNREALUSDWRAPPER_API bool AsVector4(FUsdVector4Data& OutVal, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode()) const { return false; }
-	UNREALUSDWRAPPER_API bool AsColor(FUsdVector4Data& OutVal, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode()) const { return false; }
-
-	UNREALUSDWRAPPER_API bool IsUnsigned() const { return false; }
-
-	// Get the number of elements in the array if it is an array.  Otherwise -1
-	UNREALUSDWRAPPER_API int GetArraySize() const{ return -1; }
-
-	UNREALUSDWRAPPER_API const char* GetUnrealPropertyPath() const { return ""; }
+	UNREALUSDWRAPPER_API static bool IsUnsigned(const pxr::UsdAttribute& Attribute);
 #endif // #if USE_USD_SDK
-
-private:
-	std::shared_ptr<FAttribInternalData> InternalData;
 	
 };
 
@@ -265,57 +187,35 @@ private:
 class IUsdPrim
 {
 public:
-	virtual ~IUsdPrim() {}
-	virtual const char* GetPrimName() const = 0;
-	virtual const char* GetPrimPath() const = 0;
-	virtual const char* GetUnrealPropertyPath() const = 0;
-	virtual const char* GetKind() const = 0;
-	virtual bool IsKindChildOf(const std::string& InBaseKind) const = 0;
-	virtual bool IsGroup() const = 0;
-	virtual bool IsModel() const = 0;
-	virtual bool IsUnrealProperty() const = 0;
-	virtual bool IsProxyOrGuide() const = 0;
-	virtual bool HasTransform() const = 0;
-	virtual FUsdMatrixData GetLocalToWorldTransform(double Time = UnrealUSDWrapper::GetDefaultTimeCode()) const = 0;
-	virtual FUsdMatrixData GetLocalToParentTransform(double Time = UnrealUSDWrapper::GetDefaultTimeCode()) const = 0;
-	virtual FUsdMatrixData GetLocalToAncestorTransform(IUsdPrim* Ancestor, double Time = UnrealUSDWrapper::GetDefaultTimeCode()) const = 0;
+#if USE_USD_SDK
+	static UNREALUSDWRAPPER_API bool IsProxyOrGuide(const pxr::UsdPrim& Prim);
+	static UNREALUSDWRAPPER_API bool HasGeometryData(const pxr::UsdPrim& Prim);
+	static UNREALUSDWRAPPER_API bool HasGeometryDataOrLODVariants(const pxr::UsdPrim& Prim);
+	static UNREALUSDWRAPPER_API int GetNumLODs(const pxr::UsdPrim& Prim);
+	static UNREALUSDWRAPPER_API bool IsKindChildOf(const pxr::UsdPrim& Prim, const std::string& InBaseKind);
+	static UNREALUSDWRAPPER_API pxr::TfToken GetKind(const pxr::UsdPrim& Prim);
 
-	virtual int GetNumChildren() const = 0;
-	virtual IUsdPrim* GetChild(int ChildIndex) = 0;
-	virtual const char* GetUnrealAssetPath() const = 0;
-	virtual const char* GetUnrealActorClass() const = 0;
+	static UNREALUSDWRAPPER_API pxr::GfMatrix4d GetLocalTransform(const pxr::UsdPrim& Prim);
+	static UNREALUSDWRAPPER_API pxr::GfMatrix4d GetLocalToWorldTransform(const pxr::UsdPrim& Prim );
+	static UNREALUSDWRAPPER_API pxr::GfMatrix4d GetLocalToWorldTransform(const pxr::UsdPrim& Prim, double Time );
+	static UNREALUSDWRAPPER_API pxr::GfMatrix4d GetLocalToWorldTransform(const pxr::UsdPrim& Prim, double Time, const pxr::SdfPath& AbsoluteRootPath);
 
-	virtual bool HasGeometryData() const = 0;
-	virtual bool HasGeometryDataOrLODVariants() const = 0;
+	static UNREALUSDWRAPPER_API TTuple< TArray< FString >, TArray< int32 > > GetGeometryMaterials(double Time, const pxr::UsdPrim& Prim);
 
+	static UNREALUSDWRAPPER_API bool IsUnrealProperty(const pxr::UsdPrim& Prim);
+	static UNREALUSDWRAPPER_API bool HasTransform(const pxr::UsdPrim& Prim);
+	static UNREALUSDWRAPPER_API std::string GetUnrealPropertyPath(const pxr::UsdPrim& Prim);
 
-	/** Returns usd geometry data at a given time.  Note that it will reuse internal structures so  */
-	virtual const FUsdGeomData* GetGeometryData(double Time = UnrealUSDWrapper::GetDefaultTimeCode()) = 0;
-	virtual int GetNumLODs() const = 0;
-	virtual bool SetActiveLODIndex(int LODIndex) = 0;
+	static UNREALUSDWRAPPER_API TUsdStore< std::vector<pxr::UsdAttribute> > GetUnrealPropertyAttributes(const pxr::UsdPrim& Prim);
 
-	virtual const std::vector<FUsdAttribute>& GetAttributes() const = 0;
+	static UNREALUSDWRAPPER_API std::string GetUnrealAssetPath(const pxr::UsdPrim& Prim);
+	static UNREALUSDWRAPPER_API std::string GetUnrealActorClass(const pxr::UsdPrim& Prim);
 
-	/** Get attributes which map to unreal properties (i.e have unrealPropertyPath metadata)*/
-	virtual const std::vector<FUsdAttribute>& GetUnrealPropertyAttributes() const = 0;
+	static UNREALUSDWRAPPER_API bool SetActiveLODIndex(const pxr::UsdPrim& Prim, int LODIndex);
 
+	static UNREALUSDWRAPPER_API EUsdGeomOrientation GetGeometryOrientation(const pxr::UsdGeomMesh& Mesh);
+	static UNREALUSDWRAPPER_API EUsdGeomOrientation GetGeometryOrientation(const pxr::UsdGeomMesh& Mesh, double Time);
+#endif // #if USE_USD_SDK
 };
-
-class IUsdStage
-{
-public:
-	virtual ~IUsdStage() {}
-	virtual EUsdUpAxis GetUpAxis() const = 0;
-	virtual IUsdPrim* GetRootPrim() = 0;
-	virtual void ResetGetPrimAtPathLookup() = 0;
-	virtual IUsdPrim* GetPrimAtPath(const std::string& InPath) = 0;
-	virtual bool HasAuthoredTimeCodeRange() const = 0;
-	virtual double GetStartTimeCode() const = 0;
-	virtual double GetEndTimeCode() const = 0;
-	virtual double GetFramesPerSecond() const = 0;
-	virtual double GetTimeCodesPerSecond() const = 0;
-};
-
-
 
 

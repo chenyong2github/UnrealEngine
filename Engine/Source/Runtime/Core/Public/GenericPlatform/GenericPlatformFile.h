@@ -234,6 +234,11 @@ public:
 	virtual void		InitializeAfterSetActive() { }
 
 	/**
+	 * Build an in memory unique pak file from a subset of files in this pak file
+	 */
+	virtual void		MakeUniquePakFilesForTheseFiles(TArray<TArray<FString>> InFiles) { }
+
+	/**
 	* Performs initialization of the platform file after the new async IO has been enabled
 	*/
 	virtual void		InitializeNewAsyncIO() { }

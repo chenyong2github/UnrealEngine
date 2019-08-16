@@ -257,7 +257,7 @@ namespace BuildPatchServices
 		{
 			if (Download->WasSuccessful())
 			{
-				Async<void>(EAsyncExecution::ThreadPool, [Download, RelevantPromisePtr]()
+				Async(EAsyncExecution::ThreadPool, [Download, RelevantPromisePtr]()
 				{
 					FBuildPatchAppManifestPtr DownloadedManifest = MakeShareable(new FBuildPatchAppManifest());
 					if (!DownloadedManifest->DeserializeFromData(Download->GetData()))

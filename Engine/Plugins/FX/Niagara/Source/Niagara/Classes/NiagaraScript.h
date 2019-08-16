@@ -139,6 +139,7 @@ public:
 	UPROPERTY()
 	FGuid BaseScriptID;
 
+#if WITH_EDITORONLY_DATA
 	/**
 	* The hash of the subgraph this shader primarily represents.
 	*/
@@ -155,6 +156,7 @@ public:
 
 	/** Temp storage while generating the Id. This is NOT serialized and shouldn't be used in any comparisons*/
 	TArray<UObject*> ReferencedObjects;
+#endif
 
 	FNiagaraVMExecutableDataId()
 		: CompilerVersionID()
@@ -186,6 +188,7 @@ public:
 	void GetScriptHash(FSHAHash& OutHash) const;
 #endif
 
+#if WITH_EDITORONLY_DATA
 	/**
 	* Tests this set against another for equality, disregarding override settings.
 	*
@@ -201,6 +204,7 @@ public:
 
 	/** Appends string representations of this Id to a key string. */
 	void AppendKeyString(FString& KeyString) const;
+#endif
 };
 
 /** Struct containing all of the data needed to run a Niagara VM executable script.*/
@@ -255,6 +259,7 @@ public:
 	UPROPERTY()
 	TArray<FNiagaraStatScope> StatScopes;
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	FString LastHlslTranslation;
 
@@ -266,18 +271,22 @@ public:
 
 	UPROPERTY()
 	uint32 LastOpCount;
+#endif
 
 	UPROPERTY()
 	TArray<FNiagaraDataInterfaceGPUParamInfo> DIParamInfo; //TODO: GPU Param info should not be in the "VM executable data"
 
+#if WITH_EDITORONLY_DATA
 	/** The parameter collections used by this script. */
 	UPROPERTY()
 	TArray<FString> ParameterCollectionPaths;
-	
+#endif
+
 	/** Last known compile status. Lets us determine the latest state of the script byte buffer.*/
 	UPROPERTY()
 	ENiagaraScriptCompileStatus LastCompileStatus;
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	bool bReadsAttributeData;
 
@@ -290,11 +299,12 @@ public:
 	/** Array of all compile events generated last time the script was compiled.*/
 	UPROPERTY()
 	TArray<FNiagaraCompileEvent> LastCompileEvents;
+#endif
 
 	void SerializeData(FArchive& Ar, bool bDDCData);
 	
 	bool IsValid() const;
-	
+
 	void Reset();
 };
 
@@ -322,11 +332,11 @@ private:
 	FGuid UsageId;
 
 public:
+#if WITH_EDITORONLY_DATA
 	/** When used as a module, what are the appropriate script types for referencing this module?*/
 	UPROPERTY(AssetRegistrySearchable, EditAnywhere, Category = Script, meta = (Bitmask, BitmaskEnum = ENiagaraScriptUsage))
 	int32 ModuleUsageBitmask;
 
-#if WITH_EDITORONLY_DATA
 	/** Used to break up scripts of the same Usage type in UI display.*/
 	UPROPERTY(AssetRegistrySearchable, EditAnywhere, Category = Script)
 	FText Category;
@@ -347,18 +357,20 @@ public:
 	UPROPERTY(EditAnywhere, Category = Script, meta = (EditCondition = "bDeprecated"))
 	UNiagaraScript* DeprecationRecommendation;
 
+	/* If this script is exposed to the library. */
+	UPROPERTY(AssetRegistrySearchable, EditAnywhere, Category = Script)
+	uint32 bExposeToLibrary : 1;
 #endif
-
 
 	/** Contains all of the top-level values that are iterated on in the UI. These are usually "Module" variables in the graph. They don't necessarily have to be in the order that they are expected in the uniform table.*/
 	UPROPERTY()
 	FNiagaraParameterStore RapidIterationParameters;
 
+#if WITH_EDITORONLY_DATA
 	/** The mode to use when deducing the type of numeric output pins from the types of the input pins. */
 	UPROPERTY(EditAnywhere, Category=Script)
 	ENiagaraNumericOutputTypeSelectionMode NumericOutputTypeSelectionMode;
 
-#if WITH_EDITORONLY_DATA
 	UPROPERTY(AssetRegistrySearchable, EditAnywhere, Category = Script, meta = (MultiLine = true))
 	FText Description;
 
@@ -432,8 +444,10 @@ public:
 
 	static bool NIAGARA_API ConvertUsageToGroup(ENiagaraScriptUsage InUsage, ENiagaraScriptGroup& OutGroup);
 
+#if WITH_EDITORONLY_DATA
 	NIAGARA_API TArray<ENiagaraScriptUsage> GetSupportedUsageContexts() const;
 	static NIAGARA_API TArray<ENiagaraScriptUsage> GetSupportedUsageContextsForBitmask(int32 InModuleUsageBitmask);
+#endif
 
 	NIAGARA_API bool CanBeRunOnGpu() const;
 	NIAGARA_API bool IsReadyToRun(ENiagaraSimTarget SimTarget) const;
@@ -454,6 +468,7 @@ public:
 	//~ Begin UObject interface
 	void Serialize(FArchive& Ar)override;
 	virtual void PostLoad() override;
+	virtual bool IsDestructionThreadSafe() const override { return false; }
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
@@ -461,11 +476,14 @@ public:
 	//~ End UObject interface
 
 	// Infrastructure for GPU compute Shaders
+#if WITH_EDITOR
 	NIAGARA_API void CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, TArray<FNiagaraShaderScript*>& InOutCachedResources);
 
 	NIAGARA_API void CacheResourceShadersForRendering(bool bRegenerateId, bool bForceRecompile=false);
 	void BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPlatform);
+	virtual bool IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform) override;
 	void CacheShadersForResources(EShaderPlatform ShaderPlatform, FNiagaraShaderScript *ResourceToCache, bool bApplyCompletedShaderMapForRendering, bool bForceRecompile = false, bool bCooking=false);
+#endif // WITH_EDITOR
 	FNiagaraShaderScript* AllocateResource();
 	FNiagaraShaderScript *GetRenderThreadScript()
 	{
@@ -514,7 +532,7 @@ public:
 	NIAGARA_API void MarkScriptAndSourceDesynchronized(FString Reason);
 	
 	/** Request a synchronous compile for the script, possibly forcing it to compile.*/
-	NIAGARA_API void RequestCompile();
+	NIAGARA_API void RequestCompile(bool bForceCompile = false);
 
 	/** Request an asynchronous compile for the script, possibly forcing it to compile. The output values are the compilation id of the data as well as the async handle to 
 		gather up the results with. bTrulyAsync tells the system whether or not the compile task must be completed on the main thread (mostly used for debugging). The

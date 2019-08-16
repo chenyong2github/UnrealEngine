@@ -106,6 +106,8 @@ DEFINE_STAT(STAT_PostTickComponentRecreate);
 DEFINE_STAT(STAT_PostTickComponentUpdate);
 DEFINE_STAT(STAT_PostTickComponentUpdateWait);
 
+DECLARE_CYCLE_STAT(TEXT("OnEndOfFrameUpdateDuringTick"), STAT_OnEndOfFrameUpdateDuringTick, STATGROUP_Game);
+
 DEFINE_STAT(STAT_TickTime);
 DEFINE_STAT(STAT_WorldTickTime);
 DEFINE_STAT(STAT_UpdateCameraTime);
@@ -141,8 +143,6 @@ DEFINE_STAT(STAT_NetBroadcastPostTickTime);
 DEFINE_STAT(STAT_NetRebuildConditionalTime);
 DEFINE_STAT(STAT_PackageMap_SerializeObjectTime);
 
-DECLARE_CYCLE_STAT(TEXT("TickableGameObjects Time"), STAT_TickableGameObjectsTime, STATGROUP_Game);
-
 
 /*-----------------------------------------------------------------------------
 	Externs.
@@ -150,13 +150,6 @@ DECLARE_CYCLE_STAT(TEXT("TickableGameObjects Time"), STAT_TickableGameObjectsTim
 
 extern bool GShouldLogOutAFrameOfMoveComponent;
 extern bool GShouldLogOutAFrameOfSetBodyTransform;
-
-/*-----------------------------------------------------------------------------
-	FTickableGameObject implementation.
------------------------------------------------------------------------------*/
-
-/** Static array of tickable objects */
-bool FTickableGameObject::bIsTickingObjects = false;
 
 #if LOG_DETAILED_PATHFINDING_STATS
 /** Global detailed pathfinding stats. */
@@ -989,6 +982,28 @@ void UWorld::SendAllEndOfFrameUpdates()
 		return;
 	}
 
+	//If we call SendAllEndOfFrameUpdates during a tick, we must ensure that all marked objects have completed any async work etc before doing the updates.
+	if (bInTick)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_OnEndOfFrameUpdateDuringTick);
+
+		//If this proves too slow we can possibly have the mark set a complimentary bit array that marks which components need this call? Or just another component array?
+		for (UActorComponent* Component : ComponentsThatNeedEndOfFrameUpdate)
+		{
+			if (Component)
+			{
+				Component->OnEndOfFrameUpdateDuringTick();
+			}
+		}
+		for (UActorComponent* Component : ComponentsThatNeedEndOfFrameUpdate_OnGameThread)
+		{
+			if (Component)
+			{
+				Component->OnEndOfFrameUpdateDuringTick();
+			}
+		}
+	}
+
 	// Issue a GPU event to wrap GPU work done during SendAllEndOfFrameUpdates, like skin cache updates
 	FSendAllEndOfFrameUpdates* SendAllEndOfFrameUpdates = BeginSendEndOfFrameUpdatesDrawEvent(Scene ? Scene->GetGPUSkinCache() : nullptr);
 
@@ -1248,7 +1263,7 @@ static void RecordWorldCountsToCSV(UWorld* World)
 
 			bool bDetailed = (CVarDetailedTickContextForCSV.GetValueOnGameThread() != 0);
 
-			TSortedMap<FName, int32> TickContextToCountMap;
+			TSortedMap<FName, int32, FDefaultAllocator, FNameFastLess> TickContextToCountMap;
 			int32 EnabledCount;
 			FTickTaskManagerInterface::Get().GetEnabledTickFunctionCounts(World, TickContextToCountMap, EnabledCount, bDetailed);
 
@@ -1316,68 +1331,6 @@ void EndTickDrawEvent(TDrawEvent<FRHICommandList>* TickDrawEvent)
 			STOP_DRAW_EVENT((*InTickDrawEvent));
 			delete InTickDrawEvent;
 		});
-}
-
-
-void FTickableGameObject::TickObjects(UWorld* World, const int32 InTickType, const bool bIsPaused, const float DeltaSeconds)
-{
-	SCOPE_CYCLE_COUNTER(STAT_TickableGameObjectsTime);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Tickables);
-
-	TArray<FTickableGameObject*>& PendingTickableObjects = GetPendingTickableObjects();
-	TArray<FTickableObjectEntry>& TickableObjects = GetTickableObjects();
-
-	for (FTickableGameObject* PendingTickable : PendingTickableObjects)
-	{
-		AddTickableObject(TickableObjects, PendingTickable);
-	}
-	PendingTickableObjects.Empty();
-
-	if (TickableObjects.Num() > 0)
-	{
-		check(!bIsTickingObjects);
-		bIsTickingObjects = true;
-
-		bool bNeedsCleanup = false;
-		const ELevelTick TickType = (ELevelTick)InTickType;
-
-		for (const FTickableObjectEntry& TickableEntry : TickableObjects)
-		{
-			if (FTickableGameObject* TickableObject = static_cast<FTickableGameObject*>(TickableEntry.TickableObject))
-			{
-				// If it is tickable and in this world
-				if (((TickableEntry.TickType == ETickableTickType::Always) || TickableObject->IsTickable()) && (TickableObject->GetTickableGameObjectWorld() == World))
-				{
-					const bool bIsGameWorld = InTickType == LEVELTICK_All || (World && World->IsGameWorld());
-					// If we are in editor and it is editor tickable, always tick
-					// If this is a game world then tick if we are not doing a time only (paused) update and we are not paused or the object is tickable when paused
-					if ((GIsEditor && TickableObject->IsTickableInEditor()) ||
-						(bIsGameWorld && ((!bIsPaused && TickType != LEVELTICK_TimeOnly) || (bIsPaused && TickableObject->IsTickableWhenPaused()))))
-					{
-						FScopeCycleCounter Context(TickableObject->GetStatId());
-						TickableObject->Tick(DeltaSeconds);
-
-						// In case it was removed during tick
-						if (TickableEntry.TickableObject == nullptr)
-						{
-							bNeedsCleanup = true;
-						}
-					}
-				}
-			}
-			else
-			{
-				bNeedsCleanup = true;
-			}
-		}
-
-		if (bNeedsCleanup)
-		{
-			TickableObjects.RemoveAll([](const FTickableObjectEntry& Entry) { return Entry.TickableObject == nullptr; });
-		}
-
-		bIsTickingObjects = false;
-	}
 }
 
 /**
@@ -1538,6 +1491,15 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 			// Run pre-actor tick delegates that want clamped/dilated time
 			SCOPE_CYCLE_COUNTER(STAT_TickTime);
 			FWorldDelegates::OnWorldPreActorTick.Broadcast(this, TickType, DeltaSeconds);
+		}
+
+		// Tick level sequence actors first
+		for (AActor* LevelSequenceActor : LevelSequenceActors)
+		{
+			if (LevelSequenceActor != nullptr)
+			{
+				LevelSequenceActor->Tick(DeltaSeconds);
+			}
 		}
 	}
 

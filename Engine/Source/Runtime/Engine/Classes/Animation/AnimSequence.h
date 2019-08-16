@@ -15,15 +15,11 @@
 #include "Animation/AnimationAsset.h"
 #include "Animation/AnimCurveTypes.h"
 #include "Animation/AnimSequenceBase.h"
-
-#include "Async/MappedFileHandle.h"
-#include "HAL/PlatformFilemanager.h"
-#include "GenericPlatform/GenericPlatformFile.h"
-#include "Misc/Paths.h"
-#include "Serialization/BulkData.h"
+#include "Animation/AnimCompressionTypes.h"
 
 #include "AnimSequence.generated.h"
 
+#define USE_SEGMENTING_CONTEXT 0 // Uses segmenting in anim compression + context in decompression
 
 typedef TArray<FTransform> FTransformArrayA2;
 
@@ -32,54 +28,6 @@ struct FAnimCompressContext;
 struct FAnimSequenceDecompressionContext;
 struct FCompactPose;
 
-/**
- * Indicates animation data key format.
- */
-UENUM()
-enum AnimationKeyFormat
-{
-	AKF_ConstantKeyLerp,
-	AKF_VariableKeyLerp,
-	AKF_PerTrackCompression,
-	AKF_MAX,
-};
-
-/**
- * Raw keyframe data for one track.  Each array will contain either NumFrames elements or 1 element.
- * One element is used as a simple compression scheme where if all keys are the same, they'll be
- * reduced to 1 key that is constant over the entire sequence.
- */
-USTRUCT()
-struct ENGINE_API FRawAnimSequenceTrack
-{
-	GENERATED_USTRUCT_BODY()
-
-	/** Position keys. */
-	UPROPERTY()
-	TArray<FVector> PosKeys;
-
-	/** Rotation keys. */
-	UPROPERTY()
-	TArray<FQuat> RotKeys;
-
-	/** Scale keys. */
-	UPROPERTY()
-	TArray<FVector> ScaleKeys;
-
-	// Serializer.
-	friend FArchive& operator<<( FArchive& Ar, FRawAnimSequenceTrack& T )
-	{
-		T.PosKeys.BulkSerialize(Ar);
-		T.RotKeys.BulkSerialize(Ar);
-
-		if (Ar.UE4Ver() >= VER_UE4_ANIM_SUPPORT_NONUNIFORM_SCALE_ANIMATION)
-		{
-			T.ScaleKeys.BulkSerialize(Ar);
-		}
-
-		return Ar;
-	}
-};
 
 // These two always should go together, but it is not right now. 
 // I wonder in the future, we change all compressed to be inside as well, so they all stay together
@@ -116,33 +64,6 @@ struct ENGINE_API FAnimSequenceTrackContainer
 	{
 		check (TrackNames.Num() == AnimationTracks.Num());
 		return (AnimationTracks.Num());
-	}
-};
-
-// @note We have a plan to support skeletal hierarchy. When that happens, we'd like to keep skeleton indexing.
-USTRUCT()
-struct ENGINE_API FTrackToSkeletonMap
-{
-	GENERATED_USTRUCT_BODY()
-
-	// Index of Skeleton.BoneTree this Track belongs to.
-	UPROPERTY()
-	int32 BoneTreeIndex;
-
-
-	FTrackToSkeletonMap()
-		: BoneTreeIndex(0)
-	{
-	}
-
-	FTrackToSkeletonMap(int32 InBoneTreeIndex)
-		: BoneTreeIndex(InBoneTreeIndex)
-	{
-	}
-
-	friend FArchive& operator<<(FArchive& Ar, FTrackToSkeletonMap &Item)
-	{
-		return Ar << Item.BoneTreeIndex;
 	}
 };
 
@@ -249,61 +170,6 @@ struct ENGINE_API FCompressedTrack
 
 };
 
-struct ENGINE_API FCompressedOffsetData
-{
-	TArray<int32> OffsetData;
-
-	int32 StripSize;
-
-	FCompressedOffsetData( int32 InStripSize=2 )
-		: StripSize (InStripSize)
-		{}
-
-	void SetStripSize(int32 InStripSize)
-	{
-		ensure (InStripSize > 0 );
-		StripSize = InStripSize;
-	}
-
-	const int32 GetOffsetData(int32 StripIndex, int32 Offset) const
-	{
-		checkSlow(OffsetData.IsValidIndex(StripIndex * StripSize + Offset));
-
-		return OffsetData[StripIndex * StripSize + Offset];
-	}
-
-	void SetOffsetData(int32 StripIndex, int32 Offset, int32 Value)
-	{
-		checkSlow(OffsetData.IsValidIndex(StripIndex * StripSize + Offset));
-		OffsetData[StripIndex * StripSize + Offset] = Value;
-	}
-
-	void AddUninitialized(int32 NumOfTracks)
-	{
-		OffsetData.AddUninitialized(NumOfTracks*StripSize);
-	}
-
-	void Empty(int32 NumOfTracks=0)
-	{
-		OffsetData.Empty(NumOfTracks*StripSize);
-	}
-
-	int32 GetMemorySize() const
-	{
-		return sizeof(int32)*OffsetData.Num() + sizeof(int32);
-	}
-
-	int32 GetNumTracks() const
-	{
-		return OffsetData.Num()/StripSize;
-	}
-
-	bool IsValid() const
-	{
-		return (OffsetData.Num() > 0);
-	}
-};
-
 // Param structure for UAnimSequence::RequestAnimCompressionParams
 struct ENGINE_API FRequestAnimCompressionParams
 {
@@ -328,276 +194,7 @@ struct ENGINE_API FRequestAnimCompressionParams
 	void InitFrameStrippingFromPlatform(const class ITargetPlatform* TargetPlatform);
 };
 
-#if WITH_EDITOR
-// Cache debugging data in editor for UE-49335
-struct FAnimLoadingDebugData
-{
-public:
-	//Single debug entry
-	struct Entry
-	{
-		FString Tag;
-		int32 RawDataCount;
-		int32 SourceDataCount;
-
-		Entry(const TCHAR* InTag, int32 InRawDataCount, int32 InSourceDataCount)
-			: Tag(InTag)
-			, RawDataCount(InRawDataCount)
-			, SourceDataCount(InSourceDataCount)
-		{}
-	};
-
-	template <typename... ArgsType>
-	void AddEntry(ArgsType&&... Args)
-	{
-		Entries.Emplace(Args...);
-	}
-
-	// Build a string of all the debug entries for output
-	FString GetEntries() const
-	{
-		FString Ret;
-		for (const Entry& E : Entries)
-		{
-			TArray<FStringFormatArg> Args;
-			Args.Add(LexToString(E.Tag));
-			Args.Add(LexToString(E.RawDataCount));
-			Args.Add(LexToString(E.SourceDataCount));
-			Ret += FString::Format(TEXT("\t{0}: Raw:{1} Source:{2}\n"), Args);
-		}
-		return Ret;
-	}
-
-private:
-
-	TArray<Entry> Entries;
-};
-
-#endif
-
 FArchive& operator<<(FArchive& Ar, FCompressedOffsetData& D);
-
-/**
- * Represents a segment of the anim sequence that is compressed.
- */
-USTRUCT()
-struct ENGINE_API FCompressedSegment
-{
-	GENERATED_USTRUCT_BODY()
-
-	// Frame where the segment begins in the anim sequence
-	int32 StartFrame;
-
-	// Num of frames contained in the segment
-	int32 NumFrames;
-
-	// Segment data offset in CompressedByteStream
-	int32 ByteStreamOffset;
-
-	/** The compression format that was used to compress translation tracks. */
-	TEnumAsByte<enum AnimationCompressionFormat> TranslationCompressionFormat;
-
-	/** The compression format that was used to compress rotation tracks. */
-	TEnumAsByte<enum AnimationCompressionFormat> RotationCompressionFormat;
-
-	/** The compression format that was used to compress rotation tracks. */
-	TEnumAsByte<enum AnimationCompressionFormat> ScaleCompressionFormat;
-
-	FCompressedSegment()
-		: StartFrame(0)
-		, NumFrames(0)
-		, ByteStreamOffset(0)
-		, TranslationCompressionFormat(ACF_None)
-		, RotationCompressionFormat(ACF_None)
-		, ScaleCompressionFormat(ACF_None)
-	{
-	}
-
-	friend FArchive& operator<<(FArchive& Ar, FCompressedSegment &Segment)
-	{
-		return Ar << Segment.StartFrame << Segment.NumFrames << Segment.ByteStreamOffset
-			<< Segment.TranslationCompressionFormat << Segment.RotationCompressionFormat << Segment.ScaleCompressionFormat;
-	}
-};
-
-
-template<uint32 Alignment = DEFAULT_ALIGNMENT>
-class TMaybeMappedAllocator
-{
-public:
-
-	enum { NeedsElementType = false };
-	enum { RequireRangeCheck = true };
-
-	class ForAnyElementType
-	{
-	public:
-
-		/** Default constructor. */
-		ForAnyElementType()
-			: Data(nullptr)
-			, MappedHandle(nullptr)
-			, MappedRegion(nullptr)
-		{}
-
-		/**
-		 * Moves the state of another allocator into this one.
-		 * Assumes that the allocator is currently empty, i.e. memory may be allocated but any existing elements have already been destructed (if necessary).
-		 * @param Other - The allocator to move the state from.  This allocator should be left in a valid empty state.
-		 */
-		void MoveToEmpty(ForAnyElementType& Other)
-		{
-			checkSlow(this != &Other);
-
-			Reset();
-
-			Data = Other.Data;
-			Other.Data = nullptr;
-
-			MappedRegion = Other.MappedRegion;
-			Other->MappedRegion = nullptr;
-
-			MappedHandle = Other.MappedHandle;
-			Other->MappedHandle = nullptr;
-		}
-
-		/** Destructor. */
-		~ForAnyElementType()
-		{
-			Reset();
-		}
-
-		// FContainerAllocatorInterface
-		FScriptContainerElement* GetAllocation() const
-		{
-			return Data;
-		}
-		void ResizeAllocation(
-			int32 PreviousNumElements,
-			int32 NumElements,
-			SIZE_T NumBytesPerElement
-		)
-		{
-			// Avoid calling FMemory::Realloc( nullptr, 0 ) as ANSI C mandates returning a valid pointer which is not what we want.
-			if (Data || NumElements)
-			{
-				check(!MappedHandle && !MappedRegion); // this could be supported, but it probably is never what you want, so we will just assert.
-					//checkSlow(((uint64)NumElements*(uint64)ElementTypeInfo.GetSize() < (uint64)INT_MAX));
-				Data = (FScriptContainerElement*)FMemory::Realloc(Data, NumElements*NumBytesPerElement, Alignment);
-			}
-		}
-		int32 CalculateSlackReserve(int32 NumElements, int32 NumBytesPerElement) const
-		{
-			check(!MappedHandle && !MappedRegion); // this could be supported, but it probably is never what you want, so we will just assert.
-			return DefaultCalculateSlackReserve(NumElements, NumBytesPerElement, true, Alignment);
-		}
-		int32 CalculateSlackShrink(int32 NumElements, int32 NumAllocatedElements, int32 NumBytesPerElement) const
-		{
-			check(!MappedHandle && !MappedRegion); // this could be supported, but it probably is never what you want, so we will just assert.
-			return DefaultCalculateSlackShrink(NumElements, NumAllocatedElements, NumBytesPerElement, true, Alignment);
-		}
-		int32 CalculateSlackGrow(int32 NumElements, int32 NumAllocatedElements, int32 NumBytesPerElement) const
-		{
-			check(!MappedHandle && !MappedRegion); // this could be supported, but it probably is never what you want, so we will just assert.
-			return DefaultCalculateSlackGrow(NumElements, NumAllocatedElements, NumBytesPerElement, true, Alignment);
-		}
-
-		SIZE_T GetAllocatedSize(int32 NumAllocatedElements, SIZE_T NumBytesPerElement) const
-		{
-			return NumAllocatedElements * NumBytesPerElement;
-		}
-
-		bool HasAllocation()
-		{
-			return !!Data;
-		}
-
-		void AcceptFileMapping(IMappedFileHandle* InMappedHandle, IMappedFileRegion* InMappedRegion, void *MallocPtr)
-		{
-			check(!MappedHandle && !Data); // we could support stuff like this, but that usually isn't what we want for streamlined loading
-			Reset(); // just in case
-			if (InMappedHandle || InMappedRegion)
-			{
-				MappedHandle = InMappedHandle;
-				MappedRegion = InMappedRegion;
-				Data = (FScriptContainerElement*)MappedRegion->GetMappedPtr(); //@todo mapped files should probably be const-correct
-				check(IsAligned(Data, FPlatformProperties::GetMemoryMappingAlignment()));
-			}
-			else
-			{
-				Data = (FScriptContainerElement*)MallocPtr;
-			}
-		}
-
-		bool IsMapped() const
-		{
-			return MappedRegion || MappedHandle;
-		}
-	private:
-
-		FScriptContainerElement* Data;
-		IMappedFileHandle* MappedHandle;
-		IMappedFileRegion* MappedRegion;
-
-		void Reset()
-		{
-			if (MappedRegion || MappedHandle)
-			{
-				delete MappedRegion;
-				delete MappedHandle;
-				MappedRegion = nullptr;
-				MappedHandle = nullptr;
-				Data = nullptr; // make sure we don't try to free this pointer
-			}
-			if (Data)
-			{
-				FMemory::Free(Data);
-				Data = nullptr;
-			}
-		}
-
-
-		ForAnyElementType(const ForAnyElementType&);
-		ForAnyElementType& operator=(const ForAnyElementType&);
-	};
-
-	template<typename ElementType>
-	class ForElementType : public ForAnyElementType
-	{
-	public:
-
-		/** Default constructor. */
-		ForElementType()
-		{}
-
-		ElementType* GetAllocation() const
-		{
-			return (ElementType*)ForAnyElementType::GetAllocation();
-		}
-	};
-};
-
-template<typename T, uint32 Alignment = DEFAULT_ALIGNMENT>
-class TMaybeMappedArray : public TArray<T, TMaybeMappedAllocator<Alignment>>
-{
-public:
-	TMaybeMappedArray()
-	{
-	}
-	TMaybeMappedArray(TMaybeMappedArray&&) = default;
-	TMaybeMappedArray(const TMaybeMappedArray&) = default;
-	TMaybeMappedArray& operator=(TMaybeMappedArray&&) = default;
-	TMaybeMappedArray& operator=(const TMaybeMappedArray&) = default;
-
-	void AcceptOwnedBulkDataPtr(FOwnedBulkDataPtr* OwnedPtr, int32 Num)
-	{
-		this->ArrayNum = Num;
-		this->ArrayMax = Num;
-		this->AllocatorInstance.AcceptFileMapping(OwnedPtr->GetMappedHandle(), OwnedPtr->GetMappedRegion(), (void*)OwnedPtr->GetPointer());
-		OwnedPtr->RelinquishOwnership();
-	}
-};
-
 
 UCLASS(config=Engine, hidecategories=(UObject, Length), BlueprintType)
 class ENGINE_API UAnimSequence : public UAnimSequenceBase
@@ -621,28 +218,12 @@ protected:
 	UPROPERTY(AssetRegistrySearchable, meta = (DisplayName = "Number of Keys"))
 	int32 NumFrames;
 
-	// The number of frames that the animation had when compressed data was created (may have been resampled for instance)
-	int32 CompressedNumFrames;
-
 	/**
 	 * In the future, maybe keeping RawAnimSequenceTrack + TrackMap as one would be good idea to avoid inconsistent array size
 	 * TrackToSkeletonMapTable(i) should contains  track mapping data for RawAnimationData(i). 
 	 */
 	UPROPERTY()
 	TArray<struct FTrackToSkeletonMap> TrackToSkeletonMapTable;
-
-	/**
-	 * Version of TrackToSkeletonMapTable for the compressed tracks. Due to baking additive data
-	 * we can end up with a different amount of tracks to the original raw animation and so we must index into the 
-	 * compressed data using this 
-	 */
-	TArray<struct FTrackToSkeletonMap> CompressedTrackToSkeletonMapTable;
-
-	/**
-	 * Much like track indices above, we need to be able to remap curve names. The FName inside FSmartName
-	 * is serialized and the UID is generated at runtime. Stored in the DDC.
-	 */
-	TArray<struct FSmartName> CompressedCurveNames;
 
 	/**
 	 * Raw uncompressed keyframe data. 
@@ -664,12 +245,6 @@ protected:
 	 * Source RawAnimationData. Only can be overridden by when transform curves are added first time OR imported
 	 */
 	TArray<struct FRawAnimSequenceTrack> SourceRawAnimationData;
-
-	/**
-	* Temporary base pose buffer for additive animation that is used by compression. Do not use this unless within compression. It is not available.
-	* This is used by remove linear key that has to rebuild to full transform in order to compress
-	*/
-	TArray<struct FRawAnimSequenceTrack> TemporaryAdditiveBaseAnimationData;
 #endif
 
 public:
@@ -688,86 +263,25 @@ public:
 	UPROPERTY(Category = Compression, EditAnywhere)
 	bool bAllowFrameStripping;
 
+	/**
+	 * Set a scale for error threshold on compression. This is useful if the animation will 
+	 * be played back at a different scale (e.g. if you know the animation will be played
+	 * on an actor/component that is scaled up by a factor of 10, set this value to 10)
+	 */
+	UPROPERTY(Category = Compression, EditAnywhere)
+	float CompressionErrorThresholdScale;
+
 #endif
 
 	/** The curve compression settings used to compress curves in this sequence. */
 	UPROPERTY(Category=Compression, EditAnywhere)
 	class UAnimCurveCompressionSettings* CurveCompressionSettings;
 
-	/** The codec used by the compressed data as determined by the compression settings. */
-	class UAnimCurveCompressionCodec* CurveCompressionCodec;
-
-	/** The compression format that was used to compress translation tracks. */
-	TEnumAsByte<enum AnimationCompressionFormat> TranslationCompressionFormat;
-
-	/** The compression format that was used to compress rotation tracks. */
-	TEnumAsByte<enum AnimationCompressionFormat> RotationCompressionFormat;
-
-	/** The compression format that was used to compress rotation tracks. */
-	TEnumAsByte<enum AnimationCompressionFormat> ScaleCompressionFormat;
-
-	/**
-	 * An array of 4*NumTrack ints, arranged as follows: - PerTrack is 2*NumTrack, so this isn't true any more
-	 *   [0] Trans0.Offset
-	 *   [1] Trans0.NumKeys
-	 *   [2] Rot0.Offset
-	 *   [3] Rot0.NumKeys
-	 *   [4] Trans1.Offset
-	 *   . . .
-	 */
-	TArray<int32> CompressedTrackOffsets;
-
-	/**
-	 * An array of 2*NumTrack ints, arranged as follows: 
-		if identity, it is offset
-		if not, it is num of keys 
-	 *   [0] Scale0.Offset or NumKeys
-	 *   [1] Scale1.Offset or NumKeys
-
-	 * @TODO NOTE: first implementation is offset is [0], numkeys [1]
-	 *   . . .
-	 */
-	FCompressedOffsetData CompressedScaleOffsets;
-
-	/**
-	 * ByteStream for compressed animation data.
-	 * The memory layout is dependent on the algorithm used to compress the anim sequence.
-	 */
-#if WITH_EDITOR
-	TArray<uint8> CompressedByteStream;
-	FByteBulkData OptionalBulk;
-#else
-	TMaybeMappedArray<uint8> CompressedByteStream;
-#endif
-
-
-	/**
-	 * Array of segment descriptors for this compressed anim sequence.
-	 */
-	TArray<FCompressedSegment> CompressedSegments;
-
-	TEnumAsByte<enum AnimationKeyFormat> KeyEncodingFormat;
-
-	/**
-	 * The runtime interface to decode and byte swap the compressed animation
-	 * May be NULL. Set at runtime - does not exist in editor
-	 */
-	class AnimEncoding* TranslationCodec;
-
-	class AnimEncoding* RotationCodec;
-
-	class AnimEncoding* ScaleCodec;
-
-	/* Compressed curve data stream used by AnimCurveCompressionCodec */
-	TArray<uint8> CompressedCurveByteStream;
-
-	// The size of the raw data used to create the compressed data
-	int32 CompressedRawDataSize;
+	FCompressedAnimSequence CompressedData;
 
 	// Accessors for animation frame count
 	int32 GetRawNumberOfFrames() const { return NumFrames; }
 	void SetRawNumberOfFrame(int32 InNumFrames) { NumFrames = InNumFrames; }
-	int32 GetCompressedNumberOfFrames() const { return CompressedNumFrames; }
 
 	/** Additive animation type. **/
 	UPROPERTY(EditAnywhere, Category=AdditiveSettings, AssetRegistrySearchable)
@@ -784,11 +298,6 @@ public:
 	/* Additve reference frame if RefPoseType == AnimFrame **/
 	UPROPERTY(EditAnywhere, Category=AdditiveSettings)
 	int32 RefFrameIndex;
-
-	// Versioning Support
-	/** The version of the global encoding package used at the time of import */
-	UPROPERTY()
-	int32 EncodingPkgVersion;
 
 	/** Base pose to use when retargeting */
 	UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category=Animation)
@@ -829,12 +338,6 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, Category=Compression)
 	uint32 bDoNotOverrideCompression:1;
-
-	/**
-	 * Used to track whether, or not, this sequence was compressed with it's full translation tracks
-	 */
-	UPROPERTY()
-	uint32 bWasCompressedWithoutTranslations:1;
 
 	/** Importing data and options used for this mesh */
 	UPROPERTY(VisibleAnywhere, Instanced, Category=ImportSettings)
@@ -906,6 +409,7 @@ public:
 		bUseRawDataOnly = true;
 		RawDataGuid = bForceNewRawDatGuid ? FGuid::NewGuid() : GenerateGuidFromRawData();
 		FlagDependentAnimationsAsRawDataOnly();
+		UpdateDependentStreamingAnimations();
 	}
 #endif
 	//~ End UAnimSequenceBase Interface
@@ -949,34 +453,24 @@ public:
 #if WITH_EDITORONLY_DATA
 	bool  HasSourceRawData() const { return SourceRawAnimationData.Num() > 0; }
 	const TArray<FName>& GetAnimationTrackNames() const { return AnimationTrackNames; }
-	const TArray<FRawAnimSequenceTrack>& GetAdditiveBaseAnimationData() const { return TemporaryAdditiveBaseAnimationData; }
-	void  UpdateCompressedTrackMapFromRaw() { CompressedTrackToSkeletonMapTable = TrackToSkeletonMapTable; }
-	void  UpdateCompressedNumFramesFromRaw() { CompressedNumFrames = NumFrames; }
-	void  UpdateCompressedCurveNames();
+	
 	void  UpdateCompressedCurveName(SmartName::UID_Type CurveUID, const struct FSmartName& NewCurveName);
 	
 	// Adds a new track (if no track of the supplied name is found) to the raw animation data, optionally setting it to TrackData.
 	int32 AddNewRawTrack(FName TrackName, FRawAnimSequenceTrack* TrackData = nullptr);
+
+	// Get the Alternate compression error threshold 
+	float GetAltCompressionErrorThreshold() const;
 #endif
 
 	const TArray<FTrackToSkeletonMap>& GetRawTrackToSkeletonMapTable() const { return TrackToSkeletonMapTable; }
-	const TArray<FTrackToSkeletonMap>& GetCompressedTrackToSkeletonMapTable() const { return CompressedTrackToSkeletonMapTable; }
-	const TArray<struct FSmartName>& GetCompressedCurveNames() const { return CompressedCurveNames; }
+	const TArray<FTrackToSkeletonMap>& GetCompressedTrackToSkeletonMapTable() const { return CompressedData.CompressedTrackToSkeletonMapTable; }
+	const TArray<struct FSmartName>& GetCompressedCurveNames() const { return CompressedData.CompressedCurveNames; }
 
 	FRawAnimSequenceTrack& GetRawAnimationTrack(int32 TrackIndex) { return RawAnimationData[TrackIndex]; }
 	const FRawAnimSequenceTrack& GetRawAnimationTrack(int32 TrackIndex) const { return RawAnimationData[TrackIndex]; }
 
 private:
-	/** 
-	 * Utility function.
-	 * When extracting root motion, this function resets the root bone to the first frame of the animation.
-	 * 
-	 * @param	BoneTransform		Root Bone Transform
-	 * @param	RequiredBones		BoneContainer
-	 * @param	ExtractionContext	Extraction Context to access root motion extraction information.
-	 */
-	void ResetRootBoneForRootMotion(FTransform& BoneTransform, const FBoneContainer & RequiredBones, ERootMotionRootLock::Type InRootMotionRootLock) const;
-
 	/**
 	* Retarget a single bone transform, to apply right after extraction.
 	*
@@ -1061,18 +555,17 @@ public:
 	int32 GetApproxRawSize() const;
 
 	/**
+	 * @return		The approximate size of compressed animation data for only bones.
+	 */
+	int32 GetApproxBoneCompressedSize() const;
+	
+	/**
 	 * @return		The approximate size of compressed animation data.
 	 */
 	int32 GetApproxCompressedSize() const;
 
 	// Initialize curve compression settings, does nothing if scheme already valid
 	void InitCurveCompressionScheme();
-
-	/**
-	 *  Utility function for lossless compression of a FRawAnimSequenceTrack 
-	 *  @return true if keys were removed.
-	 **/
-	bool CompressRawAnimSequenceTrack(FRawAnimSequenceTrack& RawTrack, float MaxPosDiff, float MaxAngleDiff);
 
 	/**
 	 * Removes trivial frames -- frames of tracks when position or orientation is constant
@@ -1119,7 +612,7 @@ public:
 	*/
 	int32 GetSkeletonIndexFromCompressedDataTrackIndex(const int32 TrackIndex) const
 	{
-		return CompressedTrackToSkeletonMapTable[TrackIndex].BoneTreeIndex;
+		return GetCompressedTrackToSkeletonMapTable()[TrackIndex].BoneTreeIndex;
 	}
 
 	/** Clears any data in the AnimSequence */
@@ -1129,12 +622,6 @@ public:
 	/** Clears some data in the AnimSequence, so it can be reused when importing a new animation with same name over it. */
 	void CleanAnimSequenceForImport();
 #endif
-
-	/** 
-	 * Utility function to copy all UAnimSequence properties from Source to Destination.
-	 * Does not copy however RawAnimData, CompressedAnimData and AdditiveBasePose.
-	 */
-	static bool CopyAnimSequenceProperties(UAnimSequence* SourceAnimSeq, UAnimSequence* DestAnimSeq, bool bSkipCopyingNotifies=false);
 
 	/** 
 	 * Copy AnimNotifies from one UAnimSequence to another.
@@ -1274,19 +761,22 @@ public:
 	bool CanBakeAdditive() const;
 
 	// Bakes out track data for the skeletons virtual bones into the raw data
-	void BakeOutVirtualBoneTracks();
+	void BakeOutVirtualBoneTracks(TArray<FRawAnimSequenceTrack>& NewRawTracks, TArray<FName>& NewAnimationTrackNames, TArray<FTrackToSkeletonMap>& NewTrackToSkeletonMapTable);
 
 	// Performs multiple evaluations of the animation as a test of compressed data validatity
 	void TestEvalauteAnimation() const;
 
 	// Bakes out the additive version of this animation into the raw data.
-	void BakeOutAdditiveIntoRawData();
+	void BakeOutAdditiveIntoRawData(TArray<FRawAnimSequenceTrack>& NewRawTracks, TArray<FName>& NewAnimationTrackNames, TArray<FTrackToSkeletonMap>& NewTrackToSkeletonMapTable, FRawCurveTracks& NewCurveTracks, TArray<FRawAnimSequenceTrack>& AdditiveBaseAnimationData);
 
 	// Test whether at any point we will scale a bone to 0 (needed for validating additive anims)
 	bool DoesSequenceContainZeroScale();
 
 	// Helper function to allow us to notify animations that depend on us that they need to update
 	void FlagDependentAnimationsAsRawDataOnly() const;
+
+	// Helper function to allow us to update streaming animations that depend on us with our data when we are updated
+	void UpdateDependentStreamingAnimations() const;
 
 	// Generate a GUID from a hash of our own raw data
 	FGuid GenerateGuidFromRawData() const;
@@ -1356,16 +846,8 @@ private:
 	/** Take a set of marker positions and validates them against a requested start position, updating them as desired */
 	void ValidateCurrentPosition(const FMarkerSyncAnimPosition& Position, bool bPlayingForwards, bool bLooping, float&CurrentTime, FMarkerPair& PreviousMarker, FMarkerPair& NextMarker) const;
 	bool UseRawDataForPoseExtraction(const FBoneContainer& RequiredBones) const;
-	void UpdateSHAWithCurves(FSHA1& Sha, const FRawCurveTracks& RawCurveData) const;
 	// Should we be always using our raw data (i.e is our compressed data stale)
 	bool bUseRawDataOnly;
-
-	// Populate InOutPose based on raw animation data. 
-	void BuildPoseFromRawData(const TArray<FRawAnimSequenceTrack>& InAnimationData, FCompactPose& InOutPose, float InTime) const;
-	
-	// Internal functionality used by BuildPoseFromRawData. Template param specifies whether KeyIndex2 and Alpha are expected to be used.
-	template<bool INTERPOLATE>
-	void BuildPoseFromRawDataInternal(const TArray<FRawAnimSequenceTrack>& InAnimationData, FCompactPose& InOutPose, int32 KeyIndex1, int32 KeyIndex2, float Alpha) const;
 
 public:
 	// Are we currently compressing this animation
@@ -1373,71 +855,7 @@ public:
 
 	friend class UAnimationAsset;
 	friend struct FScopedAnimSequenceRawDataCache;
-
-#if WITH_EDITOR
-	// Cache debugging data in editor for UE-49335
-	FAnimLoadingDebugData AnimLoadingDebugData;
-#endif
-
-	// Cache debugging data in editor for UE-49335
-	void AddAnimLoadingDebugEntry(const TCHAR* Tag)
-	{
-#if WITH_EDITOR
-		AnimLoadingDebugData.AddEntry(Tag, RawAnimationData.Num(), SourceRawAnimationData.Num());
-#endif
-	}
-
 	friend class UAnimationBlueprintLibrary;
-};
-
-struct FScopedAnimSequenceRawDataCache
-{
-	UAnimSequence* SrcAnim;
-	TArray<FRawAnimSequenceTrack> RawAnimationData;
-	TArray<FRawAnimSequenceTrack> TemporaryAdditiveBaseAnimationData;
-	TArray<FName> AnimationTrackNames;
-	TArray<FTrackToSkeletonMap> TrackToSkeletonMapTable;
-	FRawCurveTracks RawCurveData;
-	bool bWasEmpty;
-	int32 NumFrames;
-
-	FScopedAnimSequenceRawDataCache() : SrcAnim(nullptr), bWasEmpty(false) {}
-	~FScopedAnimSequenceRawDataCache()
-	{
-		if (SrcAnim)
-		{
-			RestoreTo(SrcAnim);
-		}
-	}
-
-	void InitFrom(UAnimSequence* Src)
-	{
-#if WITH_EDITORONLY_DATA
-		check(!SrcAnim);
-		SrcAnim = Src;
-		RawAnimationData = Src->RawAnimationData;
-		TemporaryAdditiveBaseAnimationData = Src->TemporaryAdditiveBaseAnimationData;
-		bWasEmpty = RawAnimationData.Num() == 0;
-		AnimationTrackNames = Src->AnimationTrackNames;
-		TrackToSkeletonMapTable = Src->TrackToSkeletonMapTable;
-		RawCurveData = Src->RawCurveData;
-		NumFrames = Src->NumFrames;
-#endif
-	}
-
-	void RestoreTo(UAnimSequence* Src)
-	{
-#if WITH_EDITORONLY_DATA
-		Src->RawAnimationData = MoveTemp(RawAnimationData);
-		Src->TemporaryAdditiveBaseAnimationData = MoveTemp(TemporaryAdditiveBaseAnimationData);
-		check(bWasEmpty || Src->RawAnimationData.Num() > 0);
-		Src->AnimationTrackNames = MoveTemp(AnimationTrackNames);
-		Src->TrackToSkeletonMapTable = MoveTemp(TrackToSkeletonMapTable);
-		Src->RawCurveData = RawCurveData;
-		Src->NumFrames = NumFrames;
-#endif
-	}
-
 };
 
 

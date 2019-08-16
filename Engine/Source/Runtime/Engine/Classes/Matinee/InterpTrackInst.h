@@ -17,7 +17,7 @@ class AActor;
 class UInterpTrack;
 
 UCLASS(MinimalAPI)
-class UInterpTrackInst : public UObject
+class ENGINE_VTABLE UInterpTrackInst : public UObject
 {
 	GENERATED_UCLASS_BODY()
 

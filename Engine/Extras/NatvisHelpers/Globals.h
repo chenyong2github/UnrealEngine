@@ -5,5 +5,5 @@
 struct FNameEntry;
 class FChunkedFixedUObjectArray;
 
-extern FNameEntry*** GFNameTableForDebuggerVisualizers_MT;
+extern uint8** GNameBlocksDebug;
 extern FChunkedFixedUObjectArray* GObjectArrayForDebugVisualizers;

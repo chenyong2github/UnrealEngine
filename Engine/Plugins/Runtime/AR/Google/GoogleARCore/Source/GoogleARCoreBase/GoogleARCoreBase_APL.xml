@@ -113,7 +113,7 @@
   <buildGradleAdditions>
       <insert>
         dependencies {
-          compile('com.google.ar:core:1.6.0')
+          compile('com.google.ar:core:1.9.0')
         }
       </insert>
   </buildGradleAdditions>
@@ -123,7 +123,7 @@
     <insertNewline/>
     <if condition="bGradle">
       <false>
-        <insert>com.google.ar, core, 1.6.0</insert>
+        <insert>com.google.ar, core, 1.9.0</insert>
         <insertNewline/>
       </false>
     </if>

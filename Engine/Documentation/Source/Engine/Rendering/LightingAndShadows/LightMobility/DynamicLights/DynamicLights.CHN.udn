@@ -1,67 +1,111 @@
-﻿INTSourceChangelist:2677195
+﻿INTSourceChangelist:3736212
 Availability:Public
-Title: 可移动光源
+Title:可移动光源
 Crumbs: %ROOT%, Engine, Engine/Rendering/LightingAndShadows,Engine/Rendering/LightingAndShadows/LightMobility
-Description: 完全动态的光源，可以在运行时改变其自身的所有属性。
+Description:能在运行时修改所有属性的全动态光源。
 Version: 4.9
+parent:Engine/Rendering/LightingAndShadows/LightMobility
+order:3
+type:overview
+topic-image:PL_Topic.png
 
-[VAR:Topic]
-[OBJECT:Topic]
-	[PARAM:image]
-		![%Engine/Rendering/LightingAndShadows/LightMobility/DynamicLights:title%](PL_Topic.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/light_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		%Engine/Rendering/LightingAndShadows/LightMobility/DynamicLights:title%
-	[/PARAM]
-	[PARAM:description]
-		%Engine/Rendering/LightingAndShadows/LightMobility/DynamicLights:description%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Engine/Rendering/LightingAndShadows/LightMobility/DynamicLights]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
-[VAR:TopicCompact]
-[OBJECT:TopicCompact]
-	[PARAM:image]
-		![%Engine/Rendering/LightingAndShadows/LightMobility/DynamicLights:title%](PL_Topic.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/light_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		%Engine/Rendering/LightingAndShadows/LightMobility/DynamicLights:title%
-	[/PARAM]
-	[PARAM:description]
-		%Engine/Rendering/LightingAndShadows/LightMobility/DynamicLights:description%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Engine/Rendering/LightingAndShadows/LightMobility/DynamicLights]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
 
 [REGION:fullwidth raw]
 ![](Engine/Rendering/LightingAndShadows/lighting_overview_banner_001.png)(convert:false)
 [/REGION]
 
-[TOC(start:2 end:2)]
+[TOC(start:2 end:3)]
 
 [EXCERPT:Movable001]
 
-**可移动光源（Movable Lights）** 产生完全动态的光照和阴影，可以改变光源位置、旋转度、颜色、亮度、衰减、半径等属性，几乎光源的任何属性都可以修改。它们产生的光照不会烘焙到光照贴图中，也不会产生间接光照效果。
+**可移动光源** 将投射完全动态的光照和阴影，可修改位置、旋转、颜色、亮度、衰减、半径等所有属性。其产生的光照不会被烘焙到光照贴图中，当前版本中其也无法产生间接光照。
 
 [/EXCERPT:Movable001]
 
-## 阴影
+(#shadowing)
 
-可移动光源使用全场景动态阴影的方式来投射阴影，具有很大的性能开销。性能消耗的程度主要取决于受到该光源影响的模型的数量，以及这些模型的三角面的数量。也就是说一个半径较大的可移动光源造成阴影的性能开销可能会几倍于一个半径较小的可移动光源。
+## 阴影投射
 
-## 应用
+可移动光源使用全场景动态阴影来投射阴影，此方式性能开销很高。性能开销主要取决于受该光源影响的网格体的数量，以及这些网格体的三角形数量。这意味着半径较大的可移动光源的阴影投射性能开销可能是半径较小的可移动光源的数倍之多。
 
-在任何光源的 **Transform** 区块下，可以看到一个 **Mobility（移动性）** 的属性，把它改为 **Movable（可移动）**。该属性也会出现在添加到蓝图上的光源组件上。
+(#usage)
+
+## 使用
+
+在光源的 **变换** 部分中有一个名为 **移动性（Mobility）** 的属性，将其改为 **可移动（Movable）**。此属性也会出现在添加到蓝图上的光源组件上。
 
 ![](ML_movableProp.png)
+
+(#shadowmapcaching)
+
+## 阴影贴图缓存 
+
+当一个点光源或聚光源不移动时，可以保存此光源的阴影贴图，并在下一帧重复使用。利用此方法便能在环境通常情况下不移动的游戏中对点光源和聚光源进行阴影投射。以下文档将介绍如何在虚幻引擎4项目中使用此功能。
+
+(#shadowmapcaching&performance)
+
+### 阴影贴图缓存与性能
+阴影贴图缓存应在所有UE4项目中自动启动。如需确认使用阴影贴图缓存获得的性能，可执行以下操作来启用或禁用阴影贴图。
+
+[region:note]
+下方的阴影贴图缓存展示中使用了Sun Temple项目。在Epic Games launcher中的“学习”选项卡下可找到Sun Temple地图。
+[/region]
+
+1. 选择所有要在项目关卡中投射动态阴影的光源。
+
+	![](SMC_Select_All_Lights.png)
+
+1. 将光源的 **移动性（Mobility）** 设为 **可移动（Movable）**，将 **投射阴影（Cast Shadows）** 启用。
+
+	![](SMC_Set_Mob_Shadow_Cast.png)
+
+1. 按下 **重音符（`）** 键打开 **控制台**，输入 `Stat Shadowrendering` 查看动态阴影当前的开销。 
+
+	![](SMC_Console_ShadowRendering.png)
+
+1. 再次按下 **重音符（`）** 键打开 **控制台**，输入 `r.Shadow.CacheWholeSceneShadows 0` 禁用动态阴影缓存。
+
+	![](SMC_Disable_Shadow_Cache.png)
+	
+	[region:note]
+	 纪录 **CallCount** 和 **InclusiveAug** 部分中的数字。
+	[/region]
+
+1. 再次按下重音符键打开 **控制台**，输入 `r.Shadow.CacheWholeSceneShadows 1` 重新启用阴影缓存。对比 **CallCount** 和 **InclusiveAug** 的数字即可知悉此功能对动态阴影性能产生的影响。
+
+	[OBJECT:ComparisonSlider]
+		[PARAM:before]
+		![Shadow Caching On](SMC_On.png)
+		[/PARAM]
+		[PARAM:after]
+		![Shadow Caching Off](SMC_Off.png)
+		[/PARAM]
+	[/OBJECT]
+
+(#performance)
+
+### 性能
+阴影贴图缓存对会对性能产生极大影响。以下是使用NVIDIA 970 GTX GPU在1920x1200屏幕分辨率下进行优化测试的结果。
+
+* 在启用此功能之前，3个不带缓存的点光源阴影投射花费了14.89毫秒来完成阴影深度渲染。
+
+* 启用缓存阴影贴图后，同样的3个光源阴影投射花费0.9毫秒便完成渲染，速度 **快16倍**！
+	[region:note]
+	注意：渲染33个点光源的贡献仍花费了2毫秒，可通过其他方式进行优化，此修改无法对其产生影响。
+	[/region]
+* 可使用 **r.Shadow.WholeSceneShadowCacheMb** 来控制阴影贴图缓存使用的最大内存量
+
+(#limitations)
+
+### 限制
+虽然阴影贴图缓存可降低在UE4项目中使用动态阴影的开销，但其仍存在一些限制，结合不支持的功能使用时可能引起渲染瑕疵。以下部分将介绍阴影贴图缓存的限制，以及处理方法。
+
+
+* 默认情况下，只有对象满足以下条件才能进行缓存：
+
+	* 基元将其 **移动性** 设为 **静态** 或 **静止**。 
+	* 关卡中使用的材质不使用 **场景位置偏移**。
+	* 光源必须是 **点光源** 或 **聚光源**，**移动性** 设为 **可移动**，并启用 **阴影投射**。
+	* 光源必须停留在一处。
+	* 如果材质使用带动画的 **曲面细分** 或 **像素深度偏移**，缓存其阴影深度时可能出现瑕疵。
+

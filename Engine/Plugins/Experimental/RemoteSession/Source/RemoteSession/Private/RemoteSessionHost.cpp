@@ -62,13 +62,6 @@ void FRemoteSessionHost::SetScreenSharing(const bool bEnabled)
 {
 }
 
-void FRemoteSessionHost::SetConsumeInput(const bool bConsume)
-{
-	/*if (PlaybackMessageHandler.IsValid())
-	{
-		PlaybackMessageHandler->SetConsumeInput(bConsume);
-	}*/
-}
 
 bool FRemoteSessionHost::StartListening(const uint16 InPort)
 {

@@ -1,0 +1,65 @@
+﻿INTSourceChangelist:4687484
+Availability: Public
+Crumbs: 
+Title: Android プロジェクトのパッケージ化
+Description: 最終的な Android プロジェクトのパッケージ化について説明します。
+Type: 
+Version: 4.19
+Parent: Platforms/Mobile/Android
+Order: 
+Tags: mobile
+Tags: Android
+Tags: Guides
+
+
+## 手順
+
+以下の操作ガイドでは、Android デバイスへデプロイするための UE4 Android プロジェクト全体をパッケージ化する方法について説明します。
+
+[REGION:note]
+現在このゲームはテスト中なので **[Development (開発)]** にパッケージ化します。ただし、ゲームが完成したら **[Package Project (プロジェクトをパッケージ化)]** メニューの **[Build Configurations (ビルド コンフィギュレーション)]** オプションにカーソルを当てて **[Shipping (シッピング)]** にパッケージ化することができます。
+[/REGION]
+
+1. **[File (ファイル)]** メニューで、**[Package Project (プロジェクトをパッケージ化)] > [Android]** に移動して、パッケージ化するテクスチャ形式を選択します。この例では、すべてのデバイスでサポートされていることから、Android **ETC1** を選択します。
+    
+    [REGION:lightbox]
+    [![](package_menu.png)(w:300px data-verified=)](package_menu.png)
+    [/REGION]
+    [REGION:note]
+    実行するハードウェアによっては、デバイスごとに異なるテクスチャ形式がサポートされています。様々な形式の詳細な内訳については、[｢Android Development Reference (Android 開発リファレンス)｣](Platforms/Mobile/Android/Reference)を参照してください。
+    [/REGION]
+    
+    | **形式**| **説明文**|
+    | ---| ---|
+    | **ETC1**| すべての Android ベースのデバイスでサポートされていますが、アルファ テクスチャを圧縮することはできません (圧縮されずに保存されます)。より高品質な圧縮を得るためにアルファが必要な場合、RGB と別なアルファ テクスチャの使用をお勧めします。|
+    | **ETC2**| すべての OpenGL 3.x クラスのデバイスでサポートされています。また、アルファでの圧縮をサポートしています。|
+    | **ATC**| すべての Qualcomm Adreno GPU でサポートされています。また、アルファでの圧縮をサポートしています。|
+    | **DXT**| すべての Nvidia Tegra GPU でサポートされています。また、アルファでの圧縮をサポートしています。|
+    | **PVRTC**| すべての PowerVR GPU でサポートされています。また、アルファでの圧縮をサポートしています。|
+    | **ASTC**| ブロック サイズを指定することによって、より高度な品質管理ができます。また、最新のテクスチャ圧縮フォーマットとアルファでの圧縮をサポートします。現時点では、いくつかのデバイスで利用可能です。|    
+2. パッケージ化したゲームの保存場所の指定を求められます。ここではデスクトップに新しいフォルダを作成し、プロジェクトの保存場所としてそのフォルダを選択します。
+    [REGION:lightbox]
+    [![](package_folder.png)(w:200px)](package_folder.png)
+    [/REGION]
+3. プロジェクトがパッケージ化されている間、パッケージ化の進行状況を示すメッセージが右下隅に表示されます。
+    ![](package_toast.png)
+4. パッケージ化が正常に終了すると、パッケージ化完了のメッセージがエディタの右下隅に表示されます。
+    ![](Packageing_Completed.png)
+5. 手順 2 で作成したフォルダに移動します。このフォルダには、パッケージ化をした際に選択したテクスチャ タイプ専用の新しいフォルダがあります。この例では、そのフォルダ名は**｢Android_ETC1｣**となっています。
+    [REGION:lightbox]
+    [![](Android_ECT1_Folder.png)(w:300px)](Android_ECT1_Folder.png)
+    [/REGION]
+6. ｢Android_ETC1｣フォルダを開き、**｢Install_\[ProjectName\]_Development.bat｣**バッチファイルを**ダブルクリック**して、Android デバイスにプロジェクトをインストールします。
+    [REGION:lightbox]
+    [![](Install_Bat.png)(w:300)](Install_Bat.png)
+    [/REGION]
+    [REGION:note]
+    プロジェクトをデバイスにデプロイするには、USB ケーブルを使用して Android デバイスを開発に使用している PC に接続する必要があります。デバイスが接続されていない場合、｢.BAT｣ファイルを実行しても何も起きません。
+    [/REGION]
+
+## まとめ
+
+完了すると、UE4 プロジェクトを含む｢.APK｣ファイルが作成されます。このファイルは、次の図のように、Android ベースのスマートフォンに｢.BAT｣ファイルを介してデプロイできます。
+[REGION:lightbox]
+[![](Game_On_Phone.png)(w:200px)](Game_On_Phone.png)
+[/REGION]

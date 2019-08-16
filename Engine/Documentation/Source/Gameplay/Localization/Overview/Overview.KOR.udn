@@ -1,64 +1,226 @@
-﻿INTSourceChangelist:3108692
-Availability:Public
-Title: 현지화 시스템 개요
-Crumbs:%ROOT%, Gameplay, Gameplay/Localization
-Description:프로젝트 현지화에 관련된 요소에 대한 개요입니다.
-version: 4.9
-Parent:Gameplay/Localization
-Order:1
-
-프로젝트 현지화에는 몇 가지 핵심 개념이 있습니다:
-
-* [텍스트](#텍스트)
-* [타깃](#타깃)
-* [컬처](#컬처)
-* [Manifest](#manifest)
-* [Archive](#archive)
-* [LocRes](#현지화리소스_locres_)
-
-[REGION:raw]
-![](OverviewDiagram.png)
-[/REGION:raw]
+INTSourceChangelist:6412660
+Availability: Public
+Crumbs: 
+Title: 현지화 개요
+Description: 프로젝트 현지화 관련 요소에 대한 개요입니다.
+Type: 
+Version: 4.21
+Parent: Gameplay/Localization
+Order: 0
+Tags: Localization
+Tags: Overview
 
 
+## 현지화 및 국제화
 
-## 텍스트
-텍스트는 현지화의 기본 단위입니다. 텍스트는 네임스페이스, 키, 소스 스트링, 디스플레이 스트링으로 정의됩니다. 종합해서 네임스페이스와 키로 이루어진 고유 id 를 텍스트가 가리키는 방식입니다. 
-네임스페이스는 동형이의어(문자는 같지만 뜻이 다른 단어)에 다른 id 를 부여하여 다르게 번역할 수 있도록 하는 것입니다. 키는 텍스트에 관련된 특정 컨텍스트를 제공합니다.
-소스 스트링은 번역되지 않은 상태의 원본 형태 스트링입니다. 디스플레이 스트링은 표시되는 스트링으로, 보통 소스 스트링의 번역된 형태입니다.
+Localization (L10N, 현지화) 및 Internationalization (I18N, 국제화)는 "현지화"의 산물로 결합되는 두 가지 개념입니다. 하지만 그 둘은 별개의 것으로, 언리얼 엔진 4 (UE4)에서는 다르게 처리합니다. UE4 의 현지화 시스템은 "텍스트" 유형을 중심으로 하는 반면, 국제화 지원은 [유니코드용 국제 구성요소](http://site.icu-project.org/) (ICU) 라이브러리를 활용합니다.
 
-예를 들어, 대화상자가 영어 또는 스페인어로 나타날 수 있습니다. 대화상자에 메시지, "Ok" 버튼, "Cancel" 버튼이 있을 수 있습니다. 세 텍스트 조각 모두 "MyProject" 네임스페이스를 사용할 수 있습니다. 메시지 텍스트는 
-"MyMessage" 라는 키, "Ok" 텍스트는 "DialogBox.AffirmativeButtonLabel" 라는 키, "Cancel" 텍스트는 "DialogBox.NegatoryButtonLabel" 라는 키를 사용할 수 있습니다. 네임스페이스와 키에 따라, 
-각 텍스트 조각은 고유 id 를 지녀 번역 가능합니다.
+그 둘은 분리되어 있지만, UE4 에서는 적합한 국제화 지원이 없으면 런타임에 현지화를 사용할 수 없습니다.
 
-## 타깃
-타깃은 자체적으로 별도의 이름으로 독립된 현지화 데이터 모듈입니다. 타깃은 지정된 소스 세트로부터 텍스트를 수집하여, manifest 파일에 저장한 다음, 특정 컬처에 해당하는 archive 파일로 번역되어, 
-특정 컬처에 해당하는 locres 파일로 컴파일되고, 이 locres 파일을 시스템에 로드하여 표시합니다.
+## ICU 및 현지화 지원
 
-단순한 경우 한 프로젝트는 타깃이 하나이거나, 프로젝트의 현지화 데이터를 분리가능한 섹션으로 나누기 위해 타깃을 여럿으로 할 수도 있습니다. 언리얼 에디터에는 언리얼 엔진 나머지와 타깃이 별도로 되어있어,
-에디터는 현지화하되 그 현지화 데이터는 게임 배포시 포함되지 않도록 할 수 있습니다. 보통 한 게임은 게임의 제반 현지화 데이터에 대해 하나의 타깃으로 만들고, 
- 확장팩용으로 타깃을 추가합니다.
+ICU 는 오랜 기간 바탕을 둔 견고한 국제화 라이브러리로, UE4 에서는 이를 사용하여 문화권(컬처) 관련 데이터의 취급 또는 처리하고 있으며, 여기에는 다음과 같은 사항이 포함됩니다.
+
+*   플랫폼/OS 의 현재 컬처를 구합니다.
+
+*   컬처를 예비 전환하는 우선순위를 처리합니다.
+
+*   올바른 포맷의 (백분율과 통화 포함) 숫자, (시간대 데이터 포함) 날짜와 시간을 처리합니다.
+
+*   컬처에 따른 올바른 숫자 복수 표현을 (텍스트 포매팅 도중) 처리합니다. (역주: 한국어의 경우 종성에 따른 조사를 처리하는 명령도 (hpp) 있습니다.)
+
+*   텍스트의 유니코드 호환 변환을 (예: ToUpper, ToLower) 처리합니다.
+
+*   텍스트의 유니코드 호환 비교와 정렬(collation)을 처리합니다.
+
+*   유니코드 호환 [경계 분석](http://userguide.icu-project.org/boundaryanalysis) (글자, 단어, 줄바꿈)을 처리합니다.
+
+*   유니코드 호환 양방향 (BiDi) 텍스트 감지를 처리합니다.
+
+ICU 작동을 위해 필요한 컬처 관련 데이터는 ICU 자체 외부에 저장되며, UE4 는 프로젝트 크기를 최소화하기 위해 대략적인 데이터 세트를 제공합니다.
+
+*   영어 (~1.77MB)
+
+*   EFIGS - 영어, 프랑스어, 이탈리아어, 독일어, 스페인어 (~2.38MB)
+
+*   EFIGSCJK - 영어, 프랑스어, 이탈리아어, 독일어, 스페인어, 중국어, 일본어, 한국어 (~5.99MB)
+
+*   CJK - 중국어, 일본어, 한국어 (~5.16MB)
+
+*   모두 (~15.3MB)
+
+어느 것을 선택할지는 프로젝트를 현지화하려는 지역에 따라 달라지며, 이 선택은 프로젝트 세팅에서 설정할 수 있습니다. 자세한 정보는 [현지화 데이터 패키지](#현지화데이터패키지) 부분을 참고하세요.
 
 ## 컬처
-컬처(culture)는 로케일(locale)이라고도 하는데, 언어, 문자, 지역과 같은 디테일을 정의합니다. 컬처는 필수 언어 코드 (ISO-639 표준), 옵션 문자 코드 
-(ISO-15924 표준), 옵션 지역 코드 (ISO-3166 표준) 각각이 빼기 또는 밑줄 부호로 구분되는 포맷 스트링으로 식별됩니다.
 
-컬처 코드의 예라면 "en" (영어), "es-MX" (스페인어, 멕시코 지역), "zh-Hans-CN" (중국어, 간체, 중국 지역) 식입니다.
+UE4 의 컬처에는 특정 로케일에 대한 국제화 정보가 들어있습니다. 컬처 이름은 하이픈으로 구분된 세 부분으로 ([IETF 언어 태그](https://en.wikipedia.org/wiki/IETF_language_tag) 로) 구성됩니다.
 
-## Manifest
-Manifest 는 수집한 텍스트를 네임스페이스와 키로 매핑시켜 사람이 읽을 수 있는 JSON 포맷의 소스 스트링으로 저장합니다. Manifest 는 특수한 텍스트 수집 커맨드렛으로 수집된 텍스트를 사용하여 
-생성됩니다. Manifests 는 매번 완전히 새로 잘라낸(truncate) 다음 생성되므로, 수동 업데이트해서는 안됩니다.
+*   두 글자 [ISO 639-1](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes) 언어 코드 (예: "zh").
 
-## Archive
-Archive 는 소스 스트링과 그 번역을, 네임스페이스로 매핑시켜 인간이 읽을 수 있는 JSON 포맷으로 저장합니다. Archive 는 지정된 manifest 의 모든 항목에서 텍스트를 짜내는 커맨드렛으로 생성됩니다.
- archive 의 항목에는 키가 없기 때문에, 한 네임스페이스에서 같은 소스를 공유하는 manifest 내 모든 항목은 하나의 archive 항목으로 압축되며, 텍스트가 키만 다르다면 추상적으로 동일한 것으로 간주하여 같은 번역을 사용합니다.
- archive 는 이미 존재한다면 잘라내지 않고 업데이트됩니다. archive 는 그대로 또는 다른 포맷으로 변환하여 번역가에게 제공, 
- 빈 곳에 번역을 채워 반환받으면 됩니다.
+*   옵션 네 글자 [ISO 15924](https://en.wikipedia.org/wiki/ISO_15924) 문자 코드 (예: "Hans").
 
-## 현지화 리소스 (LocRes)
-LocRes 는 번역된 텍스트를 시스템에 로드할 바이너리 포맷으로 저장합니다. LocRes 는 지정된 하나의 manifest 와 하나 이상의 archive 를 컴파일하는 커맨드렛으로 생성됩니다.
+*   옵션 두 글자 [ISO 3166-1](https://en.wikipedia.org/wiki/ISO_3166-1) 국가 코드 (예: “CN”).
 
-시스템은 프로젝트 세팅과 현재 컬처에 따라 LocRes 파일을 로드합니다. 현재 컬처의 LocRes 에 있는 현지화 텍스트는, 현재 컬처의 모든 부모 컬처의 LocRes 에 있는 현지화 텍스트에 추가로 사용됩니다.
- 그 덕에 한 언어에 대한 일반적인 번역과 아울러 특정 지역에 대한 특정 번역을 추가하는 것이 가능합니다. 기본적인 예를 들면,
- "Color" 라는 텍스트가 들어있고 "en" (영어) 및 "en-UK" (영국 영어) 컬처를 지원하는 타깃에 대해, "en" LocRes 에는 "Color" 가 "Color" 로 현지화되는 반면,
- "en-UK" LocRes 에는 "Colour" 로 현지화될 것입니다. 사용자가 "en-CA" (캐나다 영어)로 전환했는데 "en-CA" LocRes 에는 "Color" 에 대한 현지화가 없다면, "en" LocRes 에서 "Color" 를 받습니다.
+UE4 가 특정 컬처에 대한 현지화 데이터를 찾을 때, 가장 구체적인 것에서부터 처리합니다. 예:
+
+*   zh-Hans-CN 의 처리는 "zh-Hans-CN", "zh-CN", "zh-Hans", "zh" 순서입니다.
+
+*   en-GB 의 처리는 "en-GB", "en" 순서입니다.
+
+특정 컬처의 가장 넓은 범위를 커버하려면 가장 구체적이지 않은 유효 컬처 코드를 사용하세요. 보통 언어 코드만 넣으면 되지만, 지역에 따라 언어가 달라질 수 있음에 유의해야 합니다.
+
+대부분의 경우 이런 지역적 변형은 특정 국가 코드에 한정시켜, 해결하기 도록 만듭니다. 하지만 아래와 같이 좀 더 복잡한 경우가 있습니다.
+
+### 중국어
+
+중국어에는 두 가지 변형이 있는데, 간체(Simplified)와 번체(Traditional), ISO-15924 문자 코드로는 “Hans” 와 “Hant” 로 표시합니다. 간체 현지화에는 “zh-Hans” 를, 번체 현지화에는 “zh-Hant” 를 사용합니다.
+
+### 스페인어
+
+스페인어는 크게 두 가지, 유럽과 라틴 아메리카 변형이 있습니다. 하지만 그 둘을 편하게 구분할 수 있는 문자 코드가 없습니다. 라틴 아메리카 스페인어에 대한 IETF 언어 태그는 ("es-419") 있지만, 대부분의 플랫폼에 지원되지 않으며, 그 대신 실제 국가 코드를 ("es-MX") 사용합니다.
+
+이를 해결하기 위해, 유럽 스페인어에는 "es", 라틴 아메리카 스페인어에는 "es-419" 를 사용합니다. 그래서 UE4 의 [컬처 리매핑](Gameplay/Localization/ManageActiveCultureRuntime#컬처리매핑) 기능은 라틴 아메리카 스페인어 사용 국가를 "es-419" 로 매핑합니다.
+
+그 방법은 `DefaultGame.ini` 파일에 다음과 같이 추가하면 됩니다.
+
+    [Internationalization]
+    +CultureMappings="es-AR;es-419"
+    +CultureMappings="es-BO;es-419"
+    +CultureMappings="es-CL;es-419"
+    +CultureMappings="es-CO;es-419"
+    +CultureMappings="es-CR;es-419"
+    +CultureMappings="es-CU;es-419"
+    +CultureMappings="es-DO;es-419"
+    +CultureMappings="es-EC;es-419"
+    +CultureMappings="es-GT;es-419"
+    +CultureMappings="es-HN;es-419"
+    +CultureMappings="es-MX;es-419"
+    +CultureMappings="es-NI;es-419"
+    +CultureMappings="es-PA;es-419"
+    +CultureMappings="es-PE;es-419"
+    +CultureMappings="es-PR;es-419"
+    +CultureMappings="es-PY;es-419"
+    +CultureMappings="es-SV;es-419"
+    +CultureMappings="es-US;es-419"
+    +CultureMappings="es-UY;es-419"
+    +CultureMappings="es-VE;es-419"
+
+## 현지화 타깃
+
+**Localization Targets** (현지화 타깃)은 현지화 데이터의 독립형 모듈입니다. 현지화 타깃에는 다음과 같은 프로퍼티가 있습니다.
+
+*   지정된 소스 세트에서 수집한 텍스트가 있습니다.
+
+*   이 텍스트는 manifest 파일에 저장합니다.
+
+*   그 manifest 의 번역은 컬처 별 archive 파일에 저장합니다.
+
+*   이를 컬처 별 현지화 리소스 (locres) 파일로 컴파일하고, 시스템에서 그 locres 파일을 표시합니다.
+
+프로젝트는 현지화 타깃을 하나만 만들어 단순하게 할 수 있지만, 여러 개로 만들어 프로젝트의 현지화 데이터를 섹션 별로 나눌 수도 있습니다. 언리얼 에디터의 현지화 타깃은 UE4 나머지 부분과 분리되어 있어, 게임에 현지화 데이터를 포함시키지 않고 에디러를 현지화할 수 있습니다. 일반적으로 게임은 모든 바탕 프로젝트의 현지화 데이터에 대해 하나의 현지화 타깃이 있고, 확장되는 부분에 대해 추가 현지화 타깃을 만듭니다.
+
+## 현지화 파이프라인
+
+UE4 현지화 파이프라인은 “author-at-source” (소스에 저작) 방식을 따르고 있습니다. 즉 UI 에 "Hello World!" 라는 텍스트가 필요하면, 그냥 텍스트 프로퍼티에 "Hello World!" 를 입력( 또는 C++ 의 `LOCTEXT` 매크로 또는 `NSLOCTEXT` 를 사용)하면, 현지화 수집 툴(gatherer)이 그 텍스트를 현지화할 수 있도록 갈무리합니다.
+
+"소스에 저작" 방식은 매우 동적이라, 개발 도중 현지화 관련해서 개발자가 별로 생각할 부분이 없습니다. 하지만 프로젝트에 사용할 텍스트를 엄격히 제어하려는 팀에게는 오히려 안좋을 수도 있습니다. 이를 해결하기 위해 UE4 에서는 [스트링 테이블](Gameplay/Localization/StringTables) 을 지원하여 "author-once-and-reference" (한 번 저작 후 참조) 현지화 방식을 사용할 수 있습니다 (내부적으로, 파이프라인은 그 스트링 테이블 자체를 또다른 "소스에 저작" 소스로 취급하기는 합니다).
+
+[REGION:warning]
+네이티브 스트링 테이블이 없던 시절 이전 (더이상 지원되지 않는) 우회법은 "가짜" 네이티브 컬처(, "es-US-POSIX" 같은 것)에 ID 를 소스 텍스트로 붙인 다음, UE4 4.14 이전에 있던 스트링 축소(collapse) 함수를 사용하여 이 ID 를 각 언어로 변환했었습니다. 이 방법에 대한 참고자료는 이전 기술지원 질문에서 찾을 수는 있지만, 더이상 사용되지 않습니다. 그 방법을 사용하는 프로젝트는 스트링 테이블로 이주해야 합니다.
+[/REGION]
+
+현지화 파이프라인 자체는 현지화 타깃에서 작동하며, 현지화 타깃은 두 부분으로 이루어집니다. (`Config/Localization/` 에 저장되는) 환경설정과 (`Content/Localization/{TargetName}/` 에 저장되는) 그 데이터입니다.
+
+현지화 타깃이 영어("en")와 프랑스어("fr")라 가정하면, `Content/Localization/` 폴더의 레이아웃은 다음과 같습니다.
+
+    {TargetName}/
+       {TargetName}.manifest
+       {TargetName}.locmeta
+       en/
+          {TargetName}.archive
+          {TargetName}.po
+          {TargetName}.locres
+       fr/
+          {TargetName}.archive
+          {TargetName}.po
+          {TargetName}.locres
+
+위의 모든 파일과 폴더는 현지화 파이프라인의 다양한 부분에서 생성됩니다.
+
+| 폴더 | 설명 |
+| --- | --- |
+| **{TargetName}.manifest** | [INCLUDE:#excerpt_1] |
+| **{TargetName}.archive** | [INCLUDE:#excerpt_2] |
+| **{TargetName}.po** | [INCLUDE:#excerpt_3] |
+| **{TargetName}.locres** | [INCLUDE:#excerpt_4] |
+| **{TargetName}.locmeta** | [INCLUDE:#excerpt_5] |
+
+<!--
+[EXCERPT:excerpt_5]
+
+*   LocMeta 는 런타임에 사용할 컴파일된 타깃 메타 데이터를 (현재 타깃에 대한 네이티브 컬처에 대해서만) 저장하는 커스텀 바이너리 파일입니다.
+
+*   LocMeta 파일은 현지화 데이터를 컴파일할 때마다 재생성되며, 패키지 빌드에 스테이지합니다.
+
+[/EXCERPT:excerpt_5]
+-->
+<!--
+[EXCERPT:excerpt_4]
+
+*   LocRes 는 런타임에 사용할 컬처 별 번역 컴파일을 저장하는 커스텀 바이너리 파일입니다.
+
+*   LocRes 파일은 현지화 컴파일 단계를 실행할 때마다 재생성되며, 패키지 빌드에 스테이지합니다.
+
+*   LocRes 는 프로젝트에서 런타임에(, 그리고 에디터에서도) 로드하는 현지화 데이터 중 유일한 파일로, (PO 파일 임포트와 같은) 소스 데이터에 대한 편집이나 변경사항은 반드시 컴파일해야 효과가 적용됩니다.
+
+[/EXCERPT:excerpt_4]
+-->
+<!--
+[EXCERPT:excerpt_3]
+
+*   PO ([Portable Object](https://www.gnu.org/software/gettext/manual/html_node/PO-Files.html)) 파일에는 컬처 별로 번역할 텍스트, 그 현재 번역이 같이 저장됩니다.
+
+*   PO 파일은 현지화 텍스트 익스포트 단계에서 생성, 현지화 텍스트 임포트 단계에서 archive 로 리임포트됩니다.
+
+*   PO 는 일반적인 포맷으로, 로컬에서 수동으로, [Poedit](https://poedit.net/) 같은 번역 툴로, [OneSky](https://www.oneskyapp.com/) 또는 [XLOC](http://www.xloc.com/) 같은 협업 툴로 편집할 수 있습니다.
+
+[/EXCERPT:excerpt_3]
+-->
+<!--
+[EXCERPT:excerpt_2]
+
+*   archive 는 manifest 에 수집된 텍스트에 대한 컬처 별 번역을 저장하는 커스텀 JSON 파일입니다.
+
+*   archive 는 현지화 수집 또는 임포트 단계를 실행할 때매다 정리(trim)하여 이전 소스 항목을 제거합니다.
+
+*   archive 는 직접 편집할 수도 있지만, 그렇게 하지 않는 것이 좋습니다. 익스포트된 PO 파일을 편집하고 다시 임포트할 것을 권장합니다.
+
+[/EXCERPT:excerpt_2]
+-->
+<!--
+[EXCERPT:excerpt_1]
+
+*   manifest 는 현지화 파이프라인이 소스 코드와 애셋에서 수집한 모든 텍스트를 저장하는 커스텀 JSON 파일입니다.
+
+*   manifest 는 현지화 수집 단계를 실행할 때마다 재생성되며, 직접 편집해서는 안됩니다.
+
+[/EXCERPT:excerpt_1]
+-->
+
+현지화 타깃은 “네이티브” 컬처를 지정할 수도 있으며, 콘텐츠를 저작하는 컬처로 설정해야 합니다 (일반적으로 "source text" (소스 텍스트) 또는 "source data" (소스 데이터)라 합니다).
+
+네이티브 컬처에는 다른 컬처처럼 “translations” (번역)이 있을 수 있지만, 소스 코드나 애셋을 직접 수정하지 않고도 소스 텍스트를 복사 편집하기 쉽게 하기 위한 것입니다.
+
+외국 컬처는 네이티브 컬처를 번역의 소스 텍스트로 사용하며, 네이티브 컬처 텍스트가 변경되면 "stale" (구버전) 상태가 됩니다 (현지화 컴파일 단계에서 구버전 번역이 필요하면 놔두는 옵션이 있습니다).
+
+현지화 파이프라인 최적화 관련 자세한 정보는 [파이프라인 최적화](Gameplay/Localization/LocalizationPipelineOptimization) 문서를 참고하세요.
+
+## 현지화 데이터 패키지
+
+프로젝트의 현지화 및 국제화 데이터를 올바르게 패키지하기 위해서는 **프로젝트** 세팅의 고급 **패키지** 섹션 아래 일부 세팅을 조정해야 합니다.
+
+확인해야 하는 세팅은 두 가지입니다.
+
+*   **Localizations to Package** 패키지할 현지화 \- 현지화 데이터를 스테이지할 컬처를 선택할 수 있습니다. **Show Localized** (현지화만 표시) 옵션으로 목록에 필터를 적용하면 `LocRes` 파일이 있는 대상만 표시합니다.
+
+*   **Internationalization Support** 국제화 지원 \- 어느 ICU 국제화 데이터 세트를 스테이지할 지 선택할 수 있습니다. 이 옵션은 스테이지하려는 현지화 데이터와 겹쳐야 합니다.

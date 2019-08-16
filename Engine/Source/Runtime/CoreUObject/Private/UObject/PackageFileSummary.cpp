@@ -350,3 +350,9 @@ FArchive& operator<<( FArchive& Ar, FPackageFileSummary& Sum )
 	FStructuredArchiveFromArchive(Ar).GetSlot() << Sum;
 	return Ar;
 }
+
+void FPackageFileSummary::SetCustomVersionContainer(const FCustomVersionContainer& InContainer)
+{
+	CustomVersionContainer = InContainer;
+	CustomVersionContainer.SortByKey();
+}

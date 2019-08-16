@@ -37,7 +37,7 @@ namespace ResonanceAudio
 		virtual void OnReleaseSource(const uint32 SourceId) override;
 		virtual void ProcessAudio(const FAudioPluginSourceInputData& InputData, FAudioPluginSourceOutputData& OutputData) override;
 
-		void SetResonanceAudioApi(vraudio::VrAudioApi* InResonanceAudioApi) { ResonanceAudioApi = InResonanceAudioApi; };
+		void SetResonanceAudioApi(vraudio::ResonanceAudioApi* InResonanceAudioApi) { ResonanceAudioApi = InResonanceAudioApi; };
 
 	private:
 		bool DirectivityChanged(const uint32 SourceId);
@@ -45,7 +45,7 @@ namespace ResonanceAudio
 
 		bool bIsInitialized;
 		TArray<FBinauralSource> BinauralSources;
-		vraudio::VrAudioApi* ResonanceAudioApi;
+		vraudio::ResonanceAudioApi* ResonanceAudioApi;
 		class FResonanceAudioModule* ResonanceAudioModule;
 		TArray<UResonanceAudioSpatializationSourceSettings*> SpatializationSettings;
 	};

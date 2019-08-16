@@ -24,7 +24,7 @@ enum EDisplayClusterInputDeviceType
 class IDisplayClusterInputManager
 {
 public:
-	virtual ~IDisplayClusterInputManager()
+	virtual ~IDisplayClusterInputManager() = 0
 	{ }
 
 	//////////////////////////////////////////////////////////////////////////

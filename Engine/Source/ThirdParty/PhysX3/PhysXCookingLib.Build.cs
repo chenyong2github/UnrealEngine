@@ -70,6 +70,11 @@ public class PhysXCookingLib : ModuleRules
 	{
         Type = ModuleType.External;
 
+		if(!Target.bCompilePhysX)
+        {
+            return;
+        }
+
         // Determine which kind of libraries to link against
         PhysXLibraryMode LibraryMode = GetPhysXLibraryMode(Target.Configuration);
         string LibrarySuffix = GetPhysXLibrarySuffix(LibraryMode);

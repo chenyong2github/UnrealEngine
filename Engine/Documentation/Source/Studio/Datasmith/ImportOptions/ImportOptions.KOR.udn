@@ -1,0 +1,206 @@
+﻿INTSourceChangelist:6596077
+Availability: Public
+Crumbs: 
+Title: 데이터스미스 임포트 옵션
+Description: 데이터스미스를 사용하여 콘텐츠를 언리얼로 임포트할 때 설정할 수 있는 모든 옵션을 설명합니다.
+Type: reference
+Version: 4.22
+Parent: Studio/Datasmith
+Order: 4
+Tags: Enterprise
+Tags: Unreal Studio
+Tags: Datasmith
+Tags: Reference
+topic-image: import-options-topic.png
+Related: Studio/Datasmith/SoftwareInteropGuides/3dsMax
+Related: Studio/Datasmith/HowTo/ImportingContent
+Related: Studio/Datasmith/SoftwareInteropGuides/Rhino
+Related: Studio/Datasmith/Overview/ImportProcess
+Related: Studio/Datasmith/SoftwareInteropGuides/DeltagenVRED
+Related: Studio/Datasmith/SoftwareInteropGuides/CAD
+
+
+데이터스미스를 사용하여 지원 디자인 프로그램의 파일 또는 데이터 포맷 파일을 임포트할 때, 또는 원본 소스에서 데이터스미스 씬 애셋을 리임포트할 때 설정할 수 있는 옵션 설명서입니다.
+
+먼저 **일반 임포트 옵션** 에서 지원하는 모든 파일 포맷을 설명합니다. 그런 다음 임포트하려는 파일 유형에 따라 해당 포맷 전용 옵션이 추가로 있을 수 있습니다. 자세한 내용은 다음 섹션을 참고하세요.
+
+## 일반 데이터스미스 임포트 옵션
+
+데이터스미스를 사용하여 어떤 파일 유형을 임포트할 때, 다음과 같은 옵션을 설정할 수 있습니다.
+
+![Common Datasmith import options](import-options-common-422.png "Common Datasmith import options")
+
+| 프로퍼티 | 설명 |
+| --- | --- |
+| **Geometry** | 지오메트리 - 소스 파일에서 지오메트리를 임포트하여 프로젝트의 스태틱 메시 애셋으로 변환할지 여부입니다. |
+| **Materials & Textures** | 머티리얼 & 텍스처 - 소스 파일에서 머티리얼 및 텍스처를 임포트하여 프로젝트의 머티리얼 및 텍스처 애셋으로 변환할지 여부입니다. |
+| **Lights** | 라이트 - 소스 파일의 라이트를 데이터스미스 씬에 유지된 씬 계층구조 그대로 포함시켜, 레벨에 라이트 액터를 만들어 표현할지 여부입니다. |
+| **Cameras** | 카메라 - 소스 파일의 카메라를 데이터스미스 씬에 유지된 씬 계층구조 그대로 포함시켜, 레벨에 시네 카메라 액터를 만들어 표현할지 여부입니다. |
+| **Animations** | 애니메이션 - 데이터스미스가 소스 씬의 오브젝트 애니메이션을 언리얼 엔진 안에서 애니메이션을 재생할 때 사용할 수 있는 레벨 시퀀스로 임포트할지 여부를 지정합니다. |
+| **Min Lightmap Resolution** | 최소 라이트맵 해상도 - 생성할 스태틱 메시 애셋의 최소 라이트맵 해상도를 설정합니다. 이 값은 언리얼 엔진 4 에서 라이트맵 UV 를 생성할 때 패킹된 UV 차트 사이 패딩 양을 결정하는 데 사용됩니다. 보통 Max Lightmap Resolution (최대 라이트맵 해상도) 절반이 좋습니다. |
+| **Max Lightmap Resolution** | [INCLUDE:#excerpt_1] |
+
+<!--
+[EXCERPT:excerpt_1]
+
+최대 라이트맵 해상도 - 생성할 스태틱 메시 애셋의 라이트맵 해상도를 설정합니다. 레벨에 프리컴퓨티드 라이팅(, 즉 스태틱 및 스테이셔너리 라이트)을 사용하면 인스턴스별 라이팅 정보를 이 라이트맵에 저장합니다. 
+
+임포트할 때 이 값을 너무 높게 설정하지 마세요. 프로젝트에 적당한 기준을 세워두고, 라이팅을 빌드하면서 필요한 스태틱 메시 애셋만 해상도를 높이면 됩니다.
+
+[/EXCERPT:excerpt_1]
+-->
+[REGION:note]
+데이터스미스 씬을 리임포트할 때, **Include** (포함) 섹션 아래 체크박스를 통해 소스 파일의 신규/수정 콘텐츠로 업데이트할 애셋 또는 액터 유형을 선택할 수 있습니다. 이 항목 중 하나의 체크를 없애도, 그 유형의 기존 애셋 또는 액터가 프로젝트에서 삭제되지는 않습니다.
+[/REGION]
+
+## CAD 임포트 옵션
+
+데이터스미스 CAD 임포터를 통해 CAD 파일을 임포트할 때, 다음과 같은 옵션을 추가로 설정할 수 있습니다.
+
+소스 파일에 커브로 정의되지 않는 표면이 있는 경우, 데이터스미스는 그 표면을 트라이앵글형 메시로 테셀레이션합니다. 이 파라미터는 테셀레이션 프로세스를 제어합니다. 원본 메시에 얼마나 근접하게 메시를 생성할지, 즉 그 메시의 복잡도를 제어합니다. 모든 세팅에 대해 값이 작을 수록 트라이앵글 수가 늘어나며, 클 수록 트라이앵글 수가 줄어듭니다.
+
+![Geometry and Tessellation Options for CAD](import-options-cad-422.png "Geometry and Tessellation Options for CAD")
+
+  
+| 프로퍼티 | 설명 |
+| --- | --- |
+| [REGION:tablesection] 지오메트리 & 테셀레이션 옵션 [/REGION] ||
+| **Chord Tolerance** | 현 허용치 - 원본 표면과 생성되는 트라이앵글 내 한 점 사이 최대 거리를 설정합니다. |
+| **Max Edge Length** | 최대 에지 길이 - 생성되는 트라이앵글의 에지 최대 길이를 설정합니다. |
+| **Normal Tolerance** | 노멀 허용치 - 한 표면에서 생성되는 인접 트라이앵글 사이 최대 각도를 설정합니다. |
+| **Stitching Technique** | 스티칭 기법 - 임포트 프로세스가 연결된 것으로 보이지만 실제로는 별개의 오브젝트로 모델링된 표면을 병합 시도할지 결정합니다. |
+
+[REGION:note]
+이 파라미터에 대한 상세 설명과 결과 스태틱 메시 지오메트리에 주는 영향에 대해서는 [](Studio/Datasmith/SoftwareInteropGuides/CAD) 문서를 참고하세요.
+[/REGION]
+
+## GLTF 임포트 옵션
+
+데이터스미스 GLTF 임포터로 .glTF ([GL Transmission Format](https://www.khronos.org/gltf/)) 파일을 임포트하는 경우, 다음과 같은 부가 옵션을 설정할 수 있습니다.
+
+![glTF import options](import-options-gltf-422.png "glTF import options")
+
+  
+| 프로퍼티 | 설명 |
+| --- | --- |
+| [REGION:tablesection]**Lightmaps**[/REGION]| **라이트맵** |
+| **Generate Lightmap UVs** | [INCLUDE:#excerpt_2] |
+| [REGION:tablesection]**Asset Importing**[/REGION]| ** 애셋 임포트** |
+| **Import Uniform Scale** | [INCLUDE:#excerpt_3] |
+
+<!--
+[EXCERPT:excerpt_3]
+균등 스케일 임포트 - 임포터가 선형 거리 변환에 사용할 스케일 인수를 결정합니다.  
+기본값 100 은 (glTF 사양의 정의대로) 미터를 (언리얼 엔진에서 사용하는) 센티미터로 변환합니다. 소스 씬이 미터 이외 다른 측정 단위를 사용하는 경우, 이 값을 유닛 당 센티미터 수치로 조정하세요.
+[/EXCERPT:excerpt_3]
+-->
+<!--
+[EXCERPT:excerpt_2]
+라이트맵 UV 생성 - 언리얼 엔진에서 스태틱 또는 스테이셔너리 라이트를 사용하기 위해서는, 모델에 두 트라이앵글이 겹치지 않는 라이트맵 UV 가 있어야 합니다.
+
+*   이 옵션을 활성화하면 데이터스미스 임포터가 생성하는 스태틱 메시에 대해 이 라이트맵 UV 를 자동 생성합니다.  
+    정상 작동을 위해서는 모델에 최소 하나의 비어있지 않은 UV 세트가 있어야 합니다. 모델에 UV 세트가 전혀 없다면, 임포터는 스태틱 메시 애셋에 대해 빈 UV 세트를 만들지만, 이 빈 UV 세트는 스태틱 메시에 텍스처 또는 라이트맵을 적용하는 데 사용할 수 없을 것입니다.
+
+*   소스 애플리케이션의 오브젝트에 대해 유효한 겹치지 않는 라이트맵을 이미 생성한 경우, 이 옵션은 해제 상태로 놔두면 데이터스미스 임포터가 새 라이트맵 UV 생성을 생략합니다. 이 경우 스태틱 메시 애셋은 최고 인덱스 UV 세트를 라이트맵 UV 로 사용합니다.
+
+추가 배경 정보는 [](Engine/Content/Types/StaticMeshes/HowTo/UVChannels) 문서를 참고하세요.
+
+[/EXCERPT:excerpt_2]
+-->
+
+## VRED 임포트 옵션
+
+데이터스미스 VRED Fbx 임포터를 사용하여 VRED 에서 익스포트한 .fbx 파일을 임포트할 때, 다음과 같은 부가 옵션을 설정할 수 있습니다.
+
+![VRED import options](datasmith-import-settings-vred.png "VRED import options")
+
+  
+| 프로퍼티 | 설명 |
+| --- | --- |
+| [REGION:tablesection]**Processing**[/REGION] | **처리** |
+| **Merge Nodes** | [INCLUDE:#excerpt_4] |
+| **Optimize Duplicated Nodes** | 중복 노드 최적화 - 전체 동일 서브트리를 재사용하여 씬 계층구조의 노드 총 개수를 줄입니다. |
+| [REGION:tablesection]**Asset Importing**[/REGION]| **애셋 임포트** |
+| **Import FBX animations** | FBX 애니메이션 임포트 - 활성화하면 VRED 씬의 애니메이션을 언리얼로 임포트하여, 프로젝트의 블루프린트 스크립트에서 사용할 수 있도록 만듭니다. |
+| **Import variants file** | 베리언트 파일 임포트 - 활성화하면 VRED 씬의 베리언트 및 베리언트 세트를 언리얼로 임포트하고, 프로젝트의 블루프린트 스크립트에서 사용할 수 있도록 만듭니다. |
+| **Variants file path** | 베리언트 파일 경로 - VRED 씬의 베리언트 관련 데이터가 들어있는 .var 파일 경로를 지정합니다. 기본적으로 임포트하는 .fbx 파일의 경로 및 파일명에 맞게 설정됩니다. 다른 위치의 .var 파일을 임포트해야 하는 경우에만 수동 설정해 주면 됩니다. |
+| **Import lights file** | [INCLUDE:#excerpt_5] |
+| **Light file path** | 라이트 파일 경로 - VRED 씬의 베리언트 관련 데이터가 들어있는 *.lights* 파일 경로를 지정합니다. 기본적으로 임포트하는 .fbx 파일의 경로 및 파일명에 맞게 설정됩니다. 다른 위치의 .lights 파일을 임포트해야 하는 경우에만 수동 설정해 주면 됩니다. |
+| **Textures folder** | 텍스처 폴더 - .fbx 파일에 참조된 텍스처 파일을 데이터스미스가 검색하기 위한 폴더 경로를 지정합니다. |
+| [REGION:tablesection]**Debug**[/REGION]| **디버그** |
+| **Intermediate Serialization** | 중간 직렬화 - 활성화하면 .fbx 파일에서 읽은 씬 데이터를 중간 포맷으로 저장합니다. 같은 씬을 자주 임포트해야 하는 데 FBX 임포터에 병목이 걸리는 경우 좋은 옵션입니다. |
+| **Colorize materials** | 머티리얼 착색 - 활성화하면 DiffuseColor 또는 텍스처같은 머티리얼 파라미터를 임포트하는 대신 무작위 색의 단순한 머티리얼을 사용합니다. |
+| [REGION:tablesection]**Lightmaps**[/REGION] | **라이트맵** |
+| **Generate Lightmap UVs** | [INCLUDE:#excerpt_6] |
+
+<!--
+[EXCERPT:excerpt_6]
+라이트맵 UV 생성 - 언리얼 엔진에서 스태틱 또는 스테이셔너리 라이트를 사용하기 위해서는, 모델에 두 트라이앵글이 겹치지 않는 라이트맵 UV 가 있어야 합니다.
+
+*   이 옵션을 활성화하면 데이터스미스 임포터가 생성하는 스태틱 메시에 대해 이 라이트맵 UV 를 자동 생성합니다.  
+    정상 작동을 위해서는 모델에 최소 하나의 비어있지 않은 UV 세트가 있어야 합니다. 모델에 UV 세트가 전혀 없다면, 임포터는 스태틱 메시 애셋에 대해 빈 UV 세트를 만들지만, 이 빈 UV 세트는 스태틱 메시에 텍스처 또는 라이트맵을 적용하는 데 사용할 수 없을 것입니다.
+
+*   소스 애플리케이션의 오브젝트에 대해 유효한 겹치지 않는 라이트맵을 이미 생성한 경우, 이 옵션은 해제 상태로 놔두면 데이터스미스 임포터가 새 라이트맵 UV 생성을 생략합니다. 이 경우 스태틱 메시 애셋은 최고 인덱스 UV 세트를 라이트맵 UV 로 사용합니다.
+
+추가 배경 정보는 [](Engine/Content/Types/StaticMeshes/HowTo/UVChannels) 문서를 참고하세요.
+
+[/EXCERPT:excerpt_6]
+-->
+<!--
+[EXCERPT:excerpt_5]
+라이트 파일 임포트 - 이 옵션은 비활성화하고 일반 데이터스미스 프로퍼티의 **Import > Lights** 세팅은 활성화하면 데이터스미스가 언리얼에 만드는 라이트에는 .fbx 파일에 저장된 정보만 포함됩니다.
+이 옵션을 활성화하면, 데이터스미스는 씬을 익스포트할 때 생성된 .lights 파일에서 VRED 씬의 라이트 관련 부가 정보를 임포트합니다. IES 라이트 프로파일처럼 FBX 에 지원되지 않는 라이트 관련 추가 프로퍼티를 가져오므로, 보통 VRED 의 라이팅에 보다 근접한 더 나은 시각적 결과를 제공합니다.
+[/EXCERPT:excerpt_5]
+-->
+<!--
+[EXCERPT:excerpt_4]
+애니메이션, 베리언트, 또는 다른 기능에 사용되지 않는 스태틱 메시 노드의 서브트리를 하나의 스태틱 메시 노드로 합칩니다.  
+씬 계층구조의 깊이와 복잡도를 감소시켜 언리얼의 씬 관리가 쉬워집니다. 그러나 임포트한 스태틱 메시를 수동 정리해야 하거나, 씬에 같은 지오메트리 인스턴스가 많은 경우 이 옵션은 권장하지 않습니다.
+[/EXCERPT:excerpt_4]
+-->
+
+
+## Deltagen 임포트 옵션
+
+Deltagen 에서 익스포트한 *.fbx* 파일을 데이터스미스 Deltagen Fbx 임포터로 임포트할 때 설정할 수 있는 옵션은 다음과 같습니다.
+
+![Deltagen 임포트 옵션](datasmith-import-settings-deltagen.png "Deltagen import options")
+
+  
+| 프로퍼티 | 설명 |
+| --- | --- |
+| [REGION:tablesection]**프로퍼티**[/REGION] ||
+| **Merge Nodes** | [INCLUDE:#excerpt_7] |
+| **Optimize Duplicated Nodes** | 중복 노드 최적화 - 동일한 서브트리 전체를 재사용하여 씬 계층구조의 노드 총 개수를 줄입니다. |
+| **Remove Invisble Nodes** | 보이지 않는 노드 제거 - 활성화하면 Deltagen 에서 숨긴 지오메트리를 임포트하지 않습니다. |
+| **Simplify Node Hierarchy** | 노드 계층구조 단순화 - 활성화하면 데이터스미스 씬 계층구조를 평평하게 만듭니다. |
+| [REGION:tablesection]**애셋 임포트**[/REGION] ||
+| **Import VAR** | VAR 임포트 - 활성화하면 Deltagen 씬의 베리언트를 언리얼로 임포트하고, 프로젝트의 블루프린트 스크립트에 사용할 수 있습니다. |
+| **Import POS** | POS 임포트 - 활성화하면 Deltagen 씬의 스테이트 데이터를 언리얼로 임포트합니다. |
+| **Import TML** | TML 임포트 - 활성화하면 Deltagen 씬의 애니메이션 데이터를 언리얼로 임포트하고, 프로젝트의 블루프린트 스크립트에서 사용할 수 있도록 합니다. |
+| **Textures Dir** | 텍스처 폴더 - *.fbx* 파일에 참조된 텍스처 파일을 검색할 폴더를 지정합니다. |
+|[REGION:tablesection]**디버그**[/REGION]||
+| **Intermediate Serialization** | 중간 직렬화 - 활성화하면 .fbx 파일에서 읽은 씬 데이터를 중간 포맷으로 저장합니다. 같은 씬을 자주 임포트해야 하는데 FBX 임포터에 병목이 발생하는 경우 유용할 수 있습니다. |
+| **Colorize materials** | 머티리얼 착색 - 활성화하면 DiffuseColor 또는 텍스처같은 머티리얼 파라미터를 임포트하는 대신 색이 무작위인 단순 머티리얼을 사용합니다. |
+| [REGION:tablesection]**라이트맵**[/REGION]||
+| **Generate Lightmap UVs** | [INCLUDE:#excerpt_8] |
+
+<!--
+[EXCERPT:excerpt_8]
+라이트맵 UV 생성 - 언리얼 엔진에서 스태틱 또는 스테이셔너리 라이트를 사용하기 위해서는, 모델에 두 트라이앵글이 겹치지 않는 라이트맵 UV 가 있어야 합니다.
+
+*   이 옵션을 활성화하면 데이터스미스 임포터가 생성하는 스태틱 메시에 대해 이 라이트맵 UV 를 자동 생성합니다.  
+    정상 작동을 위해서는 모델에 최소 하나의 비어있지 않은 UV 세트가 있어야 합니다. 모델에 UV 세트가 전혀 없다면, 임포터는 스태틱 메시 애셋에 대해 빈 UV 세트를 만들지만, 이 빈 UV 세트는 스태틱 메시에 텍스처 또는 라이트맵을 적용하는 데 사용할 수 없을 것입니다.
+
+*   소스 애플리케이션의 오브젝트에 대해 유효한 겹치지 않는 라이트맵을 이미 생성한 경우, 이 옵션은 해제 상태로 놔두면 데이터스미스 임포터가 새 라이트맵 UV 생성을 생략합니다. 이 경우 스태틱 메시 애셋은 최고 인덱스 UV 세트를 라이트맵 UV 로 사용합니다.
+
+추가 배경 정보는 [](Engine/Content/Types/StaticMeshes/HowTo/UVChannels) 문서를 참고하세요.
+
+[/EXCERPT:excerpt_8]
+-->
+<!--
+[EXCERPT:excerpt_7]
+노드 병합 - 애니메이션, 베리언트, 또는 다른 기능에 사용되지 않는 스태틱 메시 노드의 서브트리를 하나의 스태틱 메시 노드로 병합합니다.  
+언리얼의 씬 계층구조 깊이와 복잡도를 줄여 씬 관리가 쉬워집니다. 하지만 임포트한 메시를 수동으로 정리해야 하거나 씬에 같은 지오메트리의 인스턴스가 여럿 있는 경우, 이 옵션은 사용하지 않는 것이 좋습니다.  
+[/EXCERPT:excerpt_7]
+-->

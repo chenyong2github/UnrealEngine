@@ -1,0 +1,115 @@
+﻿INTSourceChangelist:6424558
+Availability: Public
+Title: Google VR开发要求
+Description: Google VR开发要求，包括硬件、软件和SDK信息。 
+Type: reference
+Version: 4.22
+Parent: Platforms/VR/GoogleVR
+Tags: Specifications
+Tags: Google VR
+Order: 8
+
+
+[TOC (start:2 end:2)]
+
+在本页中，您将了解开始为[Google VR](Platforms/VR/GoogleVR)平台开发所需的硬件和软件开发工具包(SDK)要求。
+
+## 虚幻引擎4.22
+
+| 硬件要求 ||
+| --- | --- |
+| **推荐桌面硬件** | 请参阅[硬件和软件规格](GettingStarted/RecommendedSpecifications)。|
+| **支持的VR头戴设备** | [Cardboard viewer](https://vr.google.com/cardboard/get-cardboard/)；[Daydream View](https://store.google.com/product/google_daydream_view) |
+| **推荐设备硬件** | [INCLUDE:#excerpt_0] |
+
+| 软件要求 ||
+| --- | --- |
+| **桌面操作系统** | 请参阅[硬件和软件规格](GettingStarted/RecommendedSpecifications)。|
+| **SDK版本** | Android SDK 8（API第26级）或更高版本。|
+| **Android Studio版本** | 2.3.3或更高版本。|
+
+<!--
+[EXCERPT:excerpt_0]
+Cardboard要求Android设备运行4.4“Kit Kat”（API第19级）或更高版本。  
+有关Daydream，请参阅[Google的Daydream设备兼容性](https://vr.google.com/daydream/smartphonevr/phones/)。
+[/EXCERPT:excerpt_0]
+-->
+
+[REGION:note]
+当前支持的SDK版本可在“UEBuildTODO.cs”中找到。您可以在“[UE4根目录]/Engine/Source/Programs/UnrealBuildTool/Platforms/TODO”文件夹中找到它。
+[/REGION]
+
+## 虚幻引擎4.21
+
+| 硬件要求 ||
+| --- | --- |
+| **推荐桌面硬件** | 请参阅[硬件和软件规格](GettingStarted/RecommendedSpecifications)。|
+| **支持的VR头戴设备** | [Cardboard viewer](https://vr.google.com/cardboard/get-cardboard/)；[Daydream View](https://store.google.com/product/google_daydream_view) |
+| **推荐设备硬件** | [INCLUDE:#excerpt_1] |
+
+| 软件要求 ||
+| --- | --- |
+| **桌面操作系统** | 请参阅[硬件和软件规格](GettingStarted/RecommendedSpecifications)。|
+| **SDK版本** | Android SDK 7.1.1“Nougat”（API第25级）或更高版本。|
+| **Android Studio版本** | 2.3.3或更高版本。|
+
+<!--
+[EXCERPT:excerpt_1]
+Cardboard要求Android设备运行4.4“Kit Kat”（API第19级）或更高版本。  
+有关Daydream，请参阅[Google的Daydream设备兼容性](https://vr.google.com/daydream/smartphonevr/phones/)。
+[/EXCERPT:excerpt_1]
+-->
+
+[REGION:note]
+当前支持的SDK版本可在“UEBuildTODO.cs”中找到。您可以在“[UE4根目录]/Engine/Source/Programs/UnrealBuildTool/Platforms/TODO”文件夹中找到它。
+[/REGION]
+
+## 虚幻引擎4.20
+
+| 硬件要求 ||
+| --- | --- |
+| **推荐桌面硬件** | 请参阅[硬件和软件规格](GettingStarted/RecommendedSpecifications)。|
+| **支持的VR头戴设备** | [Cardboard viewer](https://vr.google.com/cardboard/get-cardboard/)；[Daydream View](https://store.google.com/product/google_daydream_view) |
+| **推荐设备硬件** | [INCLUDE:#excerpt_2] |
+
+| 软件要求 ||
+| --- | --- |
+| **桌面操作系统** | 请参阅[硬件和软件规格](GettingStarted/RecommendedSpecifications)。|
+| **SDK版本** | Android SDK 7.1.1“Nougat”（API第25级）或更高版本。|
+| **Android Studio版本** | 2.3.3或更高版本。|
+
+<!--
+[EXCERPT:excerpt_2]
+Cardboard要求Android设备运行4.4“Kit Kat”（API第19级）或更高版本。  
+有关Daydream，请参阅[Google的Daydream设备兼容性](https://vr.google.com/daydream/smartphonevr/phones/)。
+[/EXCERPT:excerpt_2]
+-->
+
+[REGION:note]
+当前支持的SDK版本可在“UEBuildTODO.cs”中找到。您可以在“[UE4根目录]/Engine/Source/Programs/UnrealBuildTool/Platforms/TODO”文件夹中找到它。
+[/REGION]
+
+## 虚幻引擎4.19
+
+| 硬件要求 ||
+| --- | --- |
+| **推荐桌面硬件** | 请参阅[硬件和软件规格](GettingStarted/RecommendedSpecifications)。|
+| **支持的VR头戴设备** | [Cardboard viewer](https://vr.google.com/cardboard/get-cardboard/)；[Daydream View](https://store.google.com/product/google_daydream_view) |
+| **推荐设备硬件** | [INCLUDE:#excerpt_3] |
+
+| 软件要求 ||
+| --- | --- |
+| **桌面操作系统** | 请参阅[硬件和软件规格](GettingStarted/RecommendedSpecifications)。|
+| **SDK版本** | Android SDK 7.1.1“Nougat”（API第25级）或更高版本。|
+| **Android Studio版本** | 2.3.3或更高版本。|
+
+<!--
+[EXCERPT:excerpt_3]
+Cardboard要求Android设备运行4.4“Kit Kat”（API第19级）或更高版本。  
+有关Daydream，请参阅[Google的Daydream设备兼容性](https://vr.google.com/daydream/smartphonevr/phones/)。
+[/EXCERPT:excerpt_3]
+-->
+
+[REGION:note]
+当前支持的SDK版本可在“UEBuildTODO.cs”中找到。您可以在“[UE4根目录]/Engine/Source/Programs/UnrealBuildTool/Platforms/TODO”文件夹中找到它。
+[/REGION]

@@ -1,1253 +1,959 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	PostProcessMotionBlur.cpp: Post process MotionBlur implementation.
-=============================================================================*/
-
 #include "PostProcess/PostProcessMotionBlur.h"
 #include "StaticBoundShaderState.h"
 #include "CanvasTypes.h"
 #include "RenderTargetTemp.h"
 #include "SceneUtils.h"
-#include "PostProcess/SceneRenderTargets.h"
 #include "SceneRenderTargetParameters.h"
 #include "ScenePrivate.h"
 #include "PostProcess/SceneFilterRendering.h"
-#include "CompositionLighting/PostProcessAmbientOcclusion.h"
+#include "PostProcess/SceneRenderTargets.h"
 #include "PostProcess/PostProcessing.h"
+#include "CompositionLighting/PostProcessAmbientOcclusion.h"
 #include "DeferredShadingRenderer.h"
 #include "ClearQuad.h"
 #include "PipelineStateCache.h"
 #include "SpriteIndexBuffer.h"
 
+namespace
+{
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-static TAutoConsoleVariable<int32> CVarMotionBlurFiltering(
-	TEXT("r.MotionBlurFiltering"),
-	0,
-	TEXT("Useful developer variable\n")
-	TEXT("0: off (default, expected by the shader for better quality)\n")
-	TEXT("1: on"),
-	ECVF_Cheat | ECVF_RenderThreadSafe);
+	TAutoConsoleVariable<int32> CVarMotionBlurFiltering(
+		TEXT("r.MotionBlurFiltering"),
+		0,
+		TEXT("Useful developer variable\n")
+		TEXT("0: off (default, expected by the shader for better quality)\n")
+		TEXT("1: on"),
+		ECVF_Cheat | ECVF_RenderThreadSafe);
 #endif
 
-static TAutoConsoleVariable<float> CVarMotionBlur2ndScale(
-	TEXT("r.MotionBlur2ndScale"),
-	1.0f,
-	TEXT(""),
-	ECVF_Cheat | ECVF_RenderThreadSafe);
+	TAutoConsoleVariable<float> CVarMotionBlur2ndScale(
+		TEXT("r.MotionBlur2ndScale"),
+		1.0f,
+		TEXT(""),
+		ECVF_Cheat | ECVF_RenderThreadSafe);
 
-const int32 kMotionBlurTileSize = 16;
+	TAutoConsoleVariable<int32> CVarMotionBlurScatter(
+		TEXT("r.MotionBlurScatter"),
+		0,
+		TEXT("Forces scatter based max velocity method (slower)."),
+		ECVF_RenderThreadSafe);
 
-const int32 GMotionBlurComputeTileSizeX = 8;
-const int32 GMotionBlurComputeTileSizeY = 8;
+	TAutoConsoleVariable<int32> CVarMotionBlurSeparable(
+		TEXT("r.MotionBlurSeparable"),
+		0,
+		TEXT("Adds a second motion blur pass that smooths noise for a higher quality blur."),
+		ECVF_RenderThreadSafe);
 
-FIntPoint GetNumTiles16x16( FIntPoint PixelExtent )
-{
-	uint32 TilesX = FMath::DivideAndRoundUp(PixelExtent.X, kMotionBlurTileSize);
-	uint32 TilesY = FMath::DivideAndRoundUp(PixelExtent.Y, kMotionBlurTileSize);
-	return FIntPoint( TilesX, TilesY );
-}
+	TAutoConsoleVariable<int32> CVarMotionBlurPreferCompute(
+		TEXT("r.MotionBlur.PreferCompute"),
+		0,
+		TEXT("Will use compute shaders for motion blur pass."),
+		ECVF_RenderThreadSafe);
 
-FVector4 GetMotionBlurParameters( const FRenderingCompositePassContext& Context, float Scale = 1.0f )
-{
-	const float TileSize = kMotionBlurTileSize;
+	TAutoConsoleVariable<int32> CVarAllowMotionBlurInVR(
+		TEXT("vr.AllowMotionBlurInVR"),
+		0,
+		TEXT("For projects with motion blur enabled, this allows motion blur to be enabled even while in VR."));
 
-	const float SizeX = Context.SceneColorViewRect.Width();
-	const float SizeY = Context.SceneColorViewRect.Height();
-	const float AspectRatio = SizeY / SizeX;
-
-	const FSceneViewState* ViewState = (FSceneViewState*) Context.ViewState;
-	float MotionBlurTimeScale = ViewState ? ViewState->MotionBlurTimeScale : 1.0f;
-	float MotionBlurScale = 0.5f * MotionBlurTimeScale * Context.View.FinalPostProcessSettings.MotionBlurAmount;
-
-	// 0:no 1:full screen width, percent conversion
-	float MaxVelocity = Context.View.FinalPostProcessSettings.MotionBlurMax / 100.0f;
-
-	// Scale by 0.5 due to blur samples going both ways
-	float PixelScale = Scale * SizeX * 0.5f;
-
-	FVector4 MotionBlurParameters(
-		AspectRatio,
-		PixelScale * MotionBlurScale,			// Scale for pixels
-		PixelScale * MotionBlurScale / TileSize,// Scale for tiles
-		FMath::Abs( PixelScale ) * MaxVelocity	// Max velocity pixels
-	);
-
-	return MotionBlurParameters;
-}
-
-FVector4 GetSceneColorBufferUVToViewBufferUV(const FRenderingCompositePassContext& Context)
-{
-	const FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(Context.RHICmdList);
-
-	FVector2D SceneColorOffset = FVector2D(Context.SceneColorViewRect.Min) / FVector2D(Context.ReferenceBufferSize);
-	FVector2D SceneColorExtent = FVector2D(Context.SceneColorViewRect.Size()) / FVector2D(Context.ReferenceBufferSize);
-	FVector2D ViewOffset = FVector2D(Context.View.ViewRect.Min) / FVector2D(SceneContext.GetBufferSizeXY());
-	FVector2D ViewExtent = FVector2D(Context.View.ViewRect.Size()) / FVector2D(SceneContext.GetBufferSizeXY());
-
-	FVector4 SceneColorBufferUVToViewBufferUVValue;
-
-	SceneColorBufferUVToViewBufferUVValue.X = ViewExtent.X / SceneColorExtent.X;
-	SceneColorBufferUVToViewBufferUVValue.Y = ViewExtent.Y / SceneColorExtent.Y;
-	SceneColorBufferUVToViewBufferUVValue.Z = ViewOffset.X - SceneColorBufferUVToViewBufferUVValue.X * SceneColorOffset.X;
-	SceneColorBufferUVToViewBufferUVValue.W = ViewOffset.Y - SceneColorBufferUVToViewBufferUVValue.Y * SceneColorOffset.Y;
-
-	return SceneColorBufferUVToViewBufferUVValue;
-}
-
-class FPostProcessVelocityFlattenCS : public FGlobalShader
-{
-	DECLARE_SHADER_TYPE(FPostProcessVelocityFlattenCS, Global);
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	FMatrix GetPreviousWorldToClipMatrix(const FViewInfo& View)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-	}
-
-	FPostProcessVelocityFlattenCS() {}
-
-public:
-	FShaderParameter		OutVelocityFlat;		// UAV
-	FShaderParameter		OutMaxTileVelocity;		// UAV
-
-	FPostProcessVelocityFlattenCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		PostprocessParameter.Bind(Initializer.ParameterMap);
-		MotionBlurParameters.Bind(Initializer.ParameterMap, TEXT("MotionBlurParameters"));
-		OutVelocityFlat.Bind(Initializer.ParameterMap, TEXT("OutVelocityFlat"));
-		OutMaxTileVelocity.Bind(Initializer.ParameterMap, TEXT("OutMaxTileVelocity"));
-	}
-
-	void SetCS( FRHICommandList& RHICmdList, const FRenderingCompositePassContext& Context, const FSceneView& View )
-	{
-		const FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
-
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
-		PostprocessParameter.SetCS(ShaderRHI, Context, Context.RHICmdList, TStaticSamplerState<SF_Point,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI());
-
-		SetShaderValue(Context.RHICmdList, ShaderRHI, MotionBlurParameters, GetMotionBlurParameters( Context ) );
-	}
-	
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << PostprocessParameter;
-		Ar << MotionBlurParameters;
-		Ar << OutVelocityFlat;
-		Ar << OutMaxTileVelocity;
-		return bShaderHasOutdatedParameters;
-	}
-
-private:
-	FPostProcessPassParameters	PostprocessParameter;
-	FShaderParameter			MotionBlurParameters;
-};
-
-IMPLEMENT_SHADER_TYPE(,FPostProcessVelocityFlattenCS,TEXT("/Engine/Private/PostProcessVelocityFlatten.usf"),TEXT("VelocityFlattenMain"),SF_Compute);
-
-
-FRCPassPostProcessVelocityFlatten::FRCPassPostProcessVelocityFlatten()
-{}
-
-void FRCPassPostProcessVelocityFlatten::Process(FRenderingCompositePassContext& Context)
-{
-	const FPooledRenderTargetDesc* InputDesc = GetInputDesc(ePId_Input0);
-
-	const FViewInfo& View = Context.View;
-
-	SCOPED_DRAW_EVENTF(Context.RHICmdList, MotionBlur, TEXT("VelocityFlattenCS %dx%d"),
-		View.ViewRect.Width(), View.ViewRect.Height());
-
-	const FSceneRenderTargetItem& DestRenderTarget0 = PassOutputs[0].RequestSurface(Context);
-	const FSceneRenderTargetItem& DestRenderTarget1 = PassOutputs[1].RequestSurface(Context);
-
-	TShaderMapRef< FPostProcessVelocityFlattenCS > ComputeShader( Context.GetShaderMap() );
-
-	// #todo-renderpasses remove once everything is renderpasses
-	UnbindRenderTargets(Context.RHICmdList);
-
-	Context.SetViewportAndCallRHI( View.ViewRect );
-	Context.RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
-
-	// set destination
-	Context.RHICmdList.SetUAVParameter(ComputeShader->GetComputeShader(), ComputeShader->OutVelocityFlat.GetBaseIndex(), DestRenderTarget0.UAV);
-	Context.RHICmdList.SetUAVParameter(ComputeShader->GetComputeShader(), ComputeShader->OutMaxTileVelocity.GetBaseIndex(), DestRenderTarget1.UAV);
-
-	ComputeShader->SetCS(Context.RHICmdList, Context, View);
-
-	FIntPoint ThreadGroupCountValue = GetNumTiles16x16(View.ViewRect.Size());
-	DispatchComputeShader(Context.RHICmdList, *ComputeShader, ThreadGroupCountValue.X, ThreadGroupCountValue.Y, 1);
-
-	//	void FD3D11DynamicRHI::RHIGraphicsWaitOnAsyncComputeJob( uint32 FenceIndex )
-	Context.RHICmdList.FlushComputeShaderCache();
-
-	// un-set destination
-	Context.RHICmdList.SetUAVParameter(ComputeShader->GetComputeShader(), ComputeShader->OutVelocityFlat.GetBaseIndex(), NULL);
-	Context.RHICmdList.SetUAVParameter(ComputeShader->GetComputeShader(), ComputeShader->OutMaxTileVelocity.GetBaseIndex(), NULL);
-
-	Context.RHICmdList.CopyToResolveTarget(DestRenderTarget0.TargetableTexture, DestRenderTarget0.ShaderResourceTexture, FResolveParams());
-	Context.RHICmdList.CopyToResolveTarget(DestRenderTarget1.TargetableTexture, DestRenderTarget1.ShaderResourceTexture, FResolveParams());
-}
-
-FPooledRenderTargetDesc FRCPassPostProcessVelocityFlatten::ComputeOutputDesc(EPassOutputId InPassOutputId) const
-{
-	if( InPassOutputId == ePId_Output0 )
-	{
-		// Flattened velocity
-		FPooledRenderTargetDesc Ret = GetInput(ePId_Input0)->GetOutput()->RenderTargetDesc;
-		Ret.Reset();
-		Ret.ClearValue = FClearValueBinding::None;
-		Ret.Format = PF_FloatR11G11B10;
-		Ret.TargetableFlags |= TexCreate_UAV;
-		Ret.TargetableFlags |= TexCreate_RenderTargetable;
-		Ret.Flags |= GFastVRamConfig.VelocityFlat;
-		Ret.DebugName = TEXT("VelocityFlat");
-
-		return Ret;
-	}
-	else
-	{
-		// Max tile velocity
-		FPooledRenderTargetDesc UnmodifiedRet = GetInput(ePId_Input0)->GetOutput()->RenderTargetDesc;
-		UnmodifiedRet.Reset();
-
-		FIntPoint PixelExtent = UnmodifiedRet.Extent;
-		FIntPoint TileCount = GetNumTiles16x16(PixelExtent);
-
-		FPooledRenderTargetDesc Ret(FPooledRenderTargetDesc::Create2DDesc(TileCount, PF_FloatRGBA, FClearValueBinding::None, TexCreate_None, TexCreate_RenderTargetable | TexCreate_UAV, false));
-		Ret.Flags |= GFastVRamConfig.VelocityMax;
-		Ret.DebugName = TEXT("MaxVelocity");
-
-		return Ret;
-	}
-}
-
-
-TGlobalResource< FSpriteIndexBuffer<8> > GScatterQuadIndexBuffer;
-
-class FPostProcessVelocityScatterVS : public FGlobalShader
-{
-	DECLARE_SHADER_TYPE(FPostProcessVelocityScatterVS,Global);
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
-	}
-
-	/** Default constructor. */
-	FPostProcessVelocityScatterVS() {}
-	
-public:
-	FPostProcessPassParameters PostprocessParameter;
-	FShaderParameter DrawMax;
-	FShaderParameter MotionBlurParameters;
-
-	/** Initialization constructor. */
-	FPostProcessVelocityScatterVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		PostprocessParameter.Bind(Initializer.ParameterMap);
-		DrawMax.Bind(Initializer.ParameterMap, TEXT("bDrawMax"));
-		MotionBlurParameters.Bind( Initializer.ParameterMap, TEXT("MotionBlurParameters") );
-	}
-
-	// FShader interface.
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << PostprocessParameter << DrawMax << MotionBlurParameters;
-		return bShaderHasOutdatedParameters;
-	}
-
-	/** to have a similar interface as all other shaders */
-	void SetParameters(const FRenderingCompositePassContext& Context, int32 bDrawMax)
-	{
-		const FVertexShaderRHIParamRef ShaderRHI = GetVertexShader();
-
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(Context.RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
-		PostprocessParameter.SetVS(ShaderRHI, Context, TStaticSamplerState<SF_Point,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI());
-
-		SetShaderValue(Context.RHICmdList, ShaderRHI, DrawMax, bDrawMax);
-		SetShaderValue(Context.RHICmdList, ShaderRHI, MotionBlurParameters, GetMotionBlurParameters( Context ) );
-	}
-
-	static const TCHAR* GetSourceFilename()
-	{
-		return TEXT("/Engine/Private/PostProcessMotionBlur.usf");
-	}
-
-	static const TCHAR* GetFunctionName()
-	{
-		return TEXT("VelocityScatterVS");
-	}
-};
-
-class FPostProcessVelocityScatterPS : public FGlobalShader
-{
-	DECLARE_SHADER_TYPE(FPostProcessVelocityScatterPS, Global);
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
-	}
-
-	/** Default constructor. */
-	FPostProcessVelocityScatterPS() {}
-
-public:
-	/** Initialization constructor. */
-	FPostProcessVelocityScatterPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{}
-
-	void SetParameters(const FRenderingCompositePassContext& Context)
-	{
-		const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
-
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(Context.RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
-	}
-};
-
-IMPLEMENT_SHADER_TYPE(,FPostProcessVelocityScatterVS,TEXT("/Engine/Private/PostProcessMotionBlur.usf"),TEXT("VelocityScatterVS"),SF_Vertex);
-IMPLEMENT_SHADER_TYPE(,FPostProcessVelocityScatterPS,TEXT("/Engine/Private/PostProcessMotionBlur.usf"),TEXT("VelocityScatterPS"),SF_Pixel);
-
-
-void FRCPassPostProcessVelocityScatter::Process(FRenderingCompositePassContext& Context)
-{
-	const FPooledRenderTargetDesc* InputDesc = GetInputDesc(ePId_Input0);
-	
-	const FViewInfo& View = Context.View;
-
-	SCOPED_DRAW_EVENTF(Context.RHICmdList, MotionBlur, TEXT("VelocityScatter %dx%d"),
-		View.ViewRect.Width(), View.ViewRect.Height());
-
-	FIntPoint SrcSize = InputDesc->Extent;
-	FIntPoint DestSize = PassOutputs[0].RenderTargetDesc.Extent;
-
-	FIntPoint TileCount = GetNumTiles16x16( View.ViewRect.Size() );
-
-	const FSceneRenderTargetItem& DestRenderTarget = PassOutputs[0].RequestSurface(Context);
-
-	TRefCountPtr<IPooledRenderTarget> DepthTarget;
-	FPooledRenderTargetDesc Desc( FPooledRenderTargetDesc::Create2DDesc( DestSize, PF_ShadowDepth, FClearValueBinding::DepthOne, TexCreate_None, TexCreate_DepthStencilTargetable, false ) );
-	GRenderTargetPool.FindFreeElement(Context.RHICmdList, Desc, DepthTarget, TEXT("VelocityScatterDepth") );
-
-	// Set the view family's render target/viewport.
-	FRHIRenderPassInfo RPInfo(DestRenderTarget.TargetableTexture, ERenderTargetActions::Load_Store);
-	RPInfo.DepthStencilRenderTarget.DepthStencilTarget = DepthTarget->GetRenderTargetItem().TargetableTexture;
-	RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::Clear_Store, ERenderTargetActions::Load_Store);
-	RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthWrite_StencilWrite;
-
-	Context.RHICmdList.BeginRenderPass(RPInfo, TEXT("VelocityScatterDepth"));
-	{
-		// clear depth
-		// Max >= Min so no need to clear on second pass
-		Context.SetViewportAndCallRHI(0, 0, 0.0f, TileCount.X, TileCount.Y, 1.0f);
-
-		FGraphicsPipelineStateInitializer GraphicsPSOInit;
-		Context.RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-
-		// Min,Max
-		for (int i = 0; i < 2; i++)
+		if (View.Family->EngineShowFlags.CameraInterpolation)
 		{
-			if (i == 0)
-			{
-				// min
-				GraphicsPSOInit.BlendState = TStaticBlendStateWriteMask< CW_RGBA >::GetRHI();
-				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState< true, CF_Less >::GetRHI();
-			}
-			else
-			{
-				// max
-				GraphicsPSOInit.BlendState = TStaticBlendStateWriteMask< CW_BA >::GetRHI();
-				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState< true, CF_Greater >::GetRHI();
-			}
-
-			TShaderMapRef< FPostProcessVelocityScatterVS > VertexShader(Context.GetShaderMap());
-			TShaderMapRef< FPostProcessVelocityScatterPS > PixelShader(Context.GetShaderMap());
-
-			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GEmptyVertexDeclaration.VertexDeclarationRHI;
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
-			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-
-			SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
-
-			VertexShader->SetParameters(Context, i);
-			PixelShader->SetParameters(Context);
-
-			// needs to be the same on shader side (faster on NVIDIA and AMD)
-			int32 QuadsPerInstance = 8;
-
-			Context.RHICmdList.SetStreamSource(0, NULL, 0);
-			Context.RHICmdList.DrawIndexedPrimitive(GScatterQuadIndexBuffer.IndexBufferRHI, 0, 0, 32, 0, 2 * QuadsPerInstance, FMath::DivideAndRoundUp(TileCount.X * TileCount.Y, QuadsPerInstance));
-		}
-	}
-	Context.RHICmdList.EndRenderPass();
-	Context.RHICmdList.CopyToResolveTarget(DestRenderTarget.TargetableTexture, DestRenderTarget.ShaderResourceTexture, FResolveParams());
-}
-
-FPooledRenderTargetDesc FRCPassPostProcessVelocityScatter::ComputeOutputDesc(EPassOutputId InPassOutputId) const
-{
-	FPooledRenderTargetDesc Ret = GetInput(ePId_Input0)->GetOutput()->RenderTargetDesc;
-	Ret.Reset();
-
-	Ret.DebugName = TEXT("ScatteredMaxVelocity");
-
-	return Ret;
-}
-
-
-class FPostProcessVelocityGatherCS : public FGlobalShader
-{
-	DECLARE_SHADER_TYPE(FPostProcessVelocityGatherCS, Global);
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
-	}
-
-	/** Default constructor. */
-	FPostProcessVelocityGatherCS() {}
-
-public:
-	FShaderParameter		OutScatteredMaxVelocity;
-
-	/** Initialization constructor. */
-	FPostProcessVelocityGatherCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		PostprocessParameter.Bind(Initializer.ParameterMap);
-		MotionBlurParameters.Bind(Initializer.ParameterMap, TEXT("MotionBlurParameters"));
-		OutScatteredMaxVelocity.Bind(Initializer.ParameterMap, TEXT("OutScatteredMaxVelocity"));
-	}
-
-	// FShader interface.
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << PostprocessParameter;
-		Ar << MotionBlurParameters;
-		Ar << OutScatteredMaxVelocity;
-		return bShaderHasOutdatedParameters;
-	}
-
-	void SetParameters(const FRenderingCompositePassContext& Context)
-	{
-		const FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
-
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(Context.RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
-
-		PostprocessParameter.SetCS(ShaderRHI, Context, Context.RHICmdList, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
-		SetShaderValue(Context.RHICmdList, ShaderRHI, MotionBlurParameters, GetMotionBlurParameters( Context ) );
-	}
-	
-private:
-	FPostProcessPassParameters	PostprocessParameter;
-	FShaderParameter			MotionBlurParameters;
-};
-
-IMPLEMENT_SHADER_TYPE(,FPostProcessVelocityGatherCS,TEXT("/Engine/Private/PostProcessVelocityFlatten.usf"),TEXT("VelocityGatherCS"),SF_Compute);
-
-void FRCPassPostProcessVelocityGather::Process(FRenderingCompositePassContext& Context)
-{
-	const FPooledRenderTargetDesc* InputDesc = GetInputDesc(ePId_Input0);
-
-	const FViewInfo& View = Context.View;
-
-	SCOPED_DRAW_EVENTF(Context.RHICmdList, MotionBlur, TEXT("VelocityGatherCS %dx%d"),
-		View.ViewRect.Width(), View.ViewRect.Height());
-
-	FIntPoint TileCount = GetNumTiles16x16( View.ViewRect.Size() );
-	
-	const FSceneRenderTargetItem& DestRenderTarget = PassOutputs[0].RequestSurface(Context);
-
-	// #todo-renderpasses remove when everything is renderpasses.
-	UnbindRenderTargets(Context.RHICmdList);
-	Context.SetViewportAndCallRHI( 0, 0, 0.0f, TileCount.X, TileCount.Y, 1.0f );
-	
-	TShaderMapRef< FPostProcessVelocityGatherCS > ComputeShader( Context.GetShaderMap() );
-	Context.RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
-
-	// set destination
-	Context.RHICmdList.SetUAVParameter( ComputeShader->GetComputeShader(), ComputeShader->OutScatteredMaxVelocity.GetBaseIndex(), DestRenderTarget.UAV );
-
-	ComputeShader->SetParameters( Context );
-
-	FIntPoint GroupCount = GetNumTiles16x16( TileCount );
-	DispatchComputeShader(Context.RHICmdList, *ComputeShader, GroupCount.X, GroupCount.Y, 1);
-
-	// un-set destination
-	Context.RHICmdList.SetUAVParameter( ComputeShader->GetComputeShader(), ComputeShader->OutScatteredMaxVelocity.GetBaseIndex(), NULL );
-
-	Context.RHICmdList.CopyToResolveTarget(DestRenderTarget.TargetableTexture, DestRenderTarget.ShaderResourceTexture, FResolveParams());
-}
-
-FPooledRenderTargetDesc FRCPassPostProcessVelocityGather::ComputeOutputDesc(EPassOutputId InPassOutputId) const
-{
-	FPooledRenderTargetDesc Ret = GetInput(ePId_Input0)->GetOutput()->RenderTargetDesc;
-	Ret.Reset();
-
-	Ret.TargetableFlags |= TexCreate_UAV;
-	Ret.TargetableFlags |= TexCreate_RenderTargetable;
-	Ret.Flags |= GFastVRamConfig.MotionBlur;
-	Ret.DebugName = TEXT("ScatteredMaxVelocity");
-
-	return Ret;
-}
-
-
-/**
- * @param Quality 0: visualize, 1:low, 2:medium, 3:high, 4:very high
- * @param InnerLoopConfig 0: fastest, 1: clamp uv, 2: clamp uv and handle different viewport res between scene color and depth.
- */
-template< uint32 Quality, uint32 InnerLoopConfig >
-class FPostProcessMotionBlurPS : public FGlobalShader
-{
-	DECLARE_SHADER_TYPE(FPostProcessMotionBlurPS, Global);
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters,OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("MOTION_BLUR_QUALITY"), Quality);
-		OutEnvironment.SetDefine(TEXT("MOTION_BLUR_INNER_LOOP_CONFIG"), InnerLoopConfig);
-	}
-
-	/** Default constructor. */
-	FPostProcessMotionBlurPS() {}
-
-public:
-	FPostProcessPassParameters PostprocessParameter;
-	FSceneTextureShaderParameters SceneTextureParameters;
-	FShaderParameter MotionBlurParameters;
-	FShaderParameter SceneColorBufferUVToViewBufferUV;
-	FShaderParameter TileUVMax;
-
-	/** Initialization constructor. */
-	FPostProcessMotionBlurPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		PostprocessParameter.Bind(Initializer.ParameterMap);
-		SceneTextureParameters.Bind(Initializer);
-		MotionBlurParameters.Bind(Initializer.ParameterMap, TEXT("MotionBlurParameters"));
-		SceneColorBufferUVToViewBufferUV.Bind(Initializer.ParameterMap, TEXT("SceneColorBufferUVToViewBufferUV"));
-		TileUVMax.Bind(Initializer.ParameterMap, TEXT("TileUVMax"));
-	}
-
-	// FShader interface.
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << PostprocessParameter << SceneTextureParameters << MotionBlurParameters << SceneColorBufferUVToViewBufferUV << TileUVMax;
-		return bShaderHasOutdatedParameters;
-	}
-
-	void SetParameters(const FRenderingCompositePassContext& Context, float Scale)
-	{
-		const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
-
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(Context.RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
-
-		SceneTextureParameters.Set(Context.RHICmdList, ShaderRHI, Context.View.FeatureLevel, ESceneTextureSetupMode::All);
-
-		{
-			bool bFiltered = false;
-
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-			bFiltered = CVarMotionBlurFiltering.GetValueOnRenderThread() != 0;
-#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-
-			if(bFiltered)
-			{
-				//PostprocessParameter.SetPS(ShaderRHI, Context, TStaticSamplerState<SF_Bilinear,AM_Border,AM_Border,AM_Clamp>::GetRHI());
-
-				FSamplerStateRHIParamRef Filters[] =
-				{
-					TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI(),
-					TStaticSamplerState<SF_Point,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI(),
-					TStaticSamplerState<SF_Point,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI(),
-					TStaticSamplerState<SF_Point,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI(),
-				};
-
-				PostprocessParameter.SetPS(Context.RHICmdList, ShaderRHI, Context, 0, eFC_0000, Filters);
-			}
-			else
-			{
-				PostprocessParameter.SetPS(Context.RHICmdList, ShaderRHI, Context, TStaticSamplerState<SF_Point,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI());
-			}
-		}
-
-		SetShaderValue(Context.RHICmdList, ShaderRHI, MotionBlurParameters, GetMotionBlurParameters( Context, Scale ) );
-		SetShaderValue(Context.RHICmdList, ShaderRHI, SceneColorBufferUVToViewBufferUV, GetSceneColorBufferUVToViewBufferUV(Context));
-
-		if (TileUVMax.IsBound())
-		{
-			FIntPoint VelocityBufferSize = FSceneRenderTargets::Get(Context.RHICmdList).GetBufferSizeXY();
-
-			FIntPoint TileBufferSize = GetNumTiles16x16(VelocityBufferSize);
-			FIntPoint TileCount = GetNumTiles16x16(Context.View.ViewRect.Size());
-			FVector2D TileUVMaxValue(
-				(TileCount.X - 0.5f) / float(TileBufferSize.X),
-				(TileCount.Y - 0.5f) / float(TileBufferSize.Y));
-
-			SetShaderValue(Context.RHICmdList, ShaderRHI, TileUVMax, TileUVMaxValue);
-		}
-	}
-
-	static const TCHAR* GetSourceFilename()
-	{
-		return TEXT("/Engine/Private/PostProcessMotionBlur.usf");
-	}
-
-	static const TCHAR* GetFunctionName()
-	{
-		return TEXT("MainPS");
-	}
-};
-
-#define VARIATION2(A, B) typedef FPostProcessMotionBlurPS<A, B> FPostProcessMotionBlurPS##A##B; \
-	IMPLEMENT_SHADER_TYPE2(FPostProcessMotionBlurPS##A##B, SF_Pixel);
-
-#define VARIATION1(A) VARIATION2(A, 0) VARIATION2(A, 1) VARIATION2(A, 2)
-
-VARIATION1(1)
-VARIATION1(2)
-VARIATION1(3)
-VARIATION1(4)
-
-#undef VARIATION1
-#undef VARIATION2
-
-/**
- * @param Quality 0: visualize, 1:low, 2:medium, 3:high, 4:very high
- * @param InnerLoopConfig 0: fastest, 1: clamp uv, 2: clamp uv and handle different viewport res between scene color and depth.
- */
-template< uint32 Quality, uint32 InnerLoopConfig >
-class FPostProcessMotionBlurCS : public FGlobalShader
-{
-	DECLARE_SHADER_TYPE(FPostProcessMotionBlurCS, Global);
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		// CS Params
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), GMotionBlurComputeTileSizeX);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), GMotionBlurComputeTileSizeY);
-
-		// PS params
-		OutEnvironment.SetDefine(TEXT("MOTION_BLUR_QUALITY"), Quality);
-		OutEnvironment.SetDefine(TEXT("MOTION_BLUR_INNER_LOOP_CONFIG"), InnerLoopConfig);
-	}
-
-	/** Default constructor. */
-	FPostProcessMotionBlurCS() {}
-
-public:
-	// CS params
-	FRWShaderParameter OutComputeTex;
-	FShaderParameter MotionBlurComputeParams;
-
-	// PS params
-	FPostProcessPassParameters PostprocessParameter;
-	FSceneTextureShaderParameters SceneTextureParameters;
-	FShaderParameter MotionBlurParameters;
-	FShaderParameter SceneColorBufferUVToViewBufferUV;
-	FShaderParameter TileUVMax;
-
-	/** Initialization constructor. */
-	FPostProcessMotionBlurCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		// CS params
-		OutComputeTex.Bind(Initializer.ParameterMap, TEXT("OutComputeTex"));
-		MotionBlurComputeParams.Bind(Initializer.ParameterMap, TEXT("MotionBlurComputeParams"));
-
-		// PS params
-		PostprocessParameter.Bind(Initializer.ParameterMap);
-		SceneTextureParameters.Bind(Initializer);
-		MotionBlurParameters.Bind(Initializer.ParameterMap, TEXT("MotionBlurParameters"));
-		SceneColorBufferUVToViewBufferUV.Bind(Initializer.ParameterMap, TEXT("SceneColorBufferUVToViewBufferUV"));
-		TileUVMax.Bind(Initializer.ParameterMap, TEXT("TileUVMax"));
-	}
-
-	template <typename TRHICmdList>
-	void SetParameters(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, const FIntPoint& DestSize, FUnorderedAccessViewRHIParamRef DestUAV, float Scale)
-	{
-		const FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
-
-		// CS params
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
-		OutComputeTex.SetTexture(RHICmdList, ShaderRHI, nullptr, DestUAV);
-		
-		FVector4 MotionBlurComputeValues(0, 0, 1.f / (float)DestSize.X, 1.f / (float)DestSize.Y);
-		SetShaderValue(RHICmdList, ShaderRHI, MotionBlurComputeParams, MotionBlurComputeValues);
-
-		// PS params
-		SceneTextureParameters.Set(RHICmdList, ShaderRHI, Context.View.FeatureLevel, ESceneTextureSetupMode::All);
-
-		{
-			bool bFiltered = false;
-
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-			bFiltered = CVarMotionBlurFiltering.GetValueOnRenderThread() != 0;
-#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-
-			if(bFiltered)
-			{
-				FSamplerStateRHIParamRef Filters[] =
-				{
-					TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI(),
-					TStaticSamplerState<SF_Point,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI(),
-					TStaticSamplerState<SF_Point,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI(),
-					TStaticSamplerState<SF_Point,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI(),
-				};
-
-				PostprocessParameter.SetCS( ShaderRHI, Context, RHICmdList, 0, eFC_0000, Filters );
-			}
-			else
-			{
-				PostprocessParameter.SetCS(ShaderRHI, Context, RHICmdList, TStaticSamplerState<SF_Point,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI());
-			}
-		}
-
-		SetShaderValue(RHICmdList, ShaderRHI, MotionBlurParameters, GetMotionBlurParameters(Context, Scale));
-		SetShaderValue(Context.RHICmdList, ShaderRHI, SceneColorBufferUVToViewBufferUV, GetSceneColorBufferUVToViewBufferUV(Context));
-
-		if (TileUVMax.IsBound())
-		{
-			FIntPoint VelocityBufferSize = FSceneRenderTargets::Get(Context.RHICmdList).GetBufferSizeXY();
-
-			FIntPoint TileBufferSize = GetNumTiles16x16(VelocityBufferSize);
-			FIntPoint TileCount = GetNumTiles16x16(Context.View.ViewRect.Size());
-			FVector2D TileUVMaxValue(
-				(TileCount.X - 0.5f) / float(TileBufferSize.X),
-				(TileCount.Y - 0.5f) / float(TileBufferSize.Y));
-
-			SetShaderValue(Context.RHICmdList, ShaderRHI, TileUVMax, TileUVMaxValue);
-		}
-	}
-
-	template <typename TRHICmdList>
-	void UnsetParameters(TRHICmdList& RHICmdList)
-	{
-		const FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
-		OutComputeTex.UnsetUAV(RHICmdList, ShaderRHI);
-	}
-
-	// FShader interface.
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		// CS params
-		Ar << OutComputeTex << MotionBlurComputeParams;
-		// PS params
-		Ar << PostprocessParameter << SceneTextureParameters << MotionBlurParameters << SceneColorBufferUVToViewBufferUV << TileUVMax;
-		return bShaderHasOutdatedParameters;
-	}
-
-	static const TCHAR* GetSourceFilename()
-	{
-		return TEXT("/Engine/Private/PostProcessMotionBlur.usf");
-	}
-
-	static const TCHAR* GetFunctionName()
-	{
-		return TEXT("MainCS");
-	}
-};
-
-#define VARIATION2(A, B) typedef FPostProcessMotionBlurCS<A, B> FPostProcessMotionBlurCS##A##B; \
-	IMPLEMENT_SHADER_TYPE2(FPostProcessMotionBlurCS##A##B, SF_Compute);
-
-#define VARIATION1(A) VARIATION2(A, 0) VARIATION2(A, 1) VARIATION2(A, 2)
-
-VARIATION1(1)
-VARIATION1(2)
-VARIATION1(3)
-VARIATION1(4)
-
-#undef VARIATION1
-#undef VARIATION2
-
-
-template< uint32 Quality, uint32 InnerLoopConfig >
-static void SetMotionBlurShaderNewTempl( const FRenderingCompositePassContext& Context, float Scale )
-{
-	FGraphicsPipelineStateInitializer GraphicsPSOInit;
-	Context.RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-	GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-
-	TShaderMapRef< FPostProcessVS > VertexShader( Context.GetShaderMap() );
-	TShaderMapRef< FPostProcessMotionBlurPS< Quality, InnerLoopConfig > >	PixelShader( Context.GetShaderMap() );
-
-	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
-	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-
-	SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
-
-	VertexShader->SetParameters(Context);
-	PixelShader->SetParameters(Context, Scale);
-}
-
-
-template< uint32 Quality >
-static void SetMotionBlurShaderNewTempl(const FRenderingCompositePassContext& Context, float Scale, uint32 InnerLoopConfig)
-{
-	switch (InnerLoopConfig)
-	{
-	case 0: SetMotionBlurShaderNewTempl<Quality, 0>(Context, Scale); break;
-	case 1: SetMotionBlurShaderNewTempl<Quality, 1>(Context, Scale); break;
-	case 2: SetMotionBlurShaderNewTempl<Quality, 2>(Context, Scale); break;
-	default: check(0);
-	}
-}
-
-
-void FRCPassPostProcessMotionBlur::Process(FRenderingCompositePassContext& Context)
-{
-	const FPooledRenderTargetDesc* InputDesc = GetInputDesc(ePId_Input0);
-	AsyncEndFence = FComputeFenceRHIRef();
-
-	if(!InputDesc)
-	{
-		// input is not hooked up correctly
-		return;
-	}
-
-	const FViewInfo& View = Context.View;
-
-	// we assume the input and output is full resolution
-
-	FIntPoint SrcSize = InputDesc->Extent;
-	FIntPoint DestSize = PassOutputs[0].RenderTargetDesc.Extent;
-
-	FIntRect SrcRect = Context.SceneColorViewRect;
-	FIntRect DestRect = SrcRect;
-
-	float BlurScaleLUT[] =
-	{
-		1.0f - 0.5f / 4.0f,
-		1.0f - 0.5f / 6.0f,
-		1.0f - 0.5f / 8.0f,
-		1.0f - 0.5f / 16.0f,
-		1.0f /  4.0f * CVarMotionBlur2ndScale.GetValueOnRenderThread(),
-		1.0f /  6.0f * CVarMotionBlur2ndScale.GetValueOnRenderThread(),
-		1.0f /  8.0f * CVarMotionBlur2ndScale.GetValueOnRenderThread(),
-		1.0f / 16.0f * CVarMotionBlur2ndScale.GetValueOnRenderThread(),
-	};
-	float Scale = Pass >= 0 ? BlurScaleLUT[ (Pass * 4) + (Quality - 1) ] : 1.0f;
-
-	SCOPED_DRAW_EVENTF(Context.RHICmdList, MotionBlur, TEXT("MotionBlur%s %dx%d"),
-		bIsComputePass?TEXT("Compute"):TEXT(""), SrcRect.Width(), SrcRect.Height());
-
-	const FSceneRenderTargetItem& DestRenderTarget = PassOutputs[0].RequestSurface(Context);
-
-	uint32 InnerLoopConfig = 1;
-	if (Context.View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale)
-	{
-		InnerLoopConfig = 2;
-	}
-	else if (DestSize == SrcRect.Size() && SrcRect.Min.X == 0 && SrcRect.Min.Y == 0)
-	{
-		InnerLoopConfig = 0;
-	}
-
-	if (bIsComputePass)
-	{
-		// Common setup
-		// #todo-renderpasses remove once everything is renderpasses.
-		UnbindRenderTargets(Context.RHICmdList);
-		Context.SetViewportAndCallRHI(DestRect, 0.0f, 1.0f);
-		
-		static FName AsyncEndFenceName(TEXT("AsyncMotionBlurEndFence"));
-		AsyncEndFence = Context.RHICmdList.CreateComputeFence(AsyncEndFenceName);
-
-		if (IsAsyncComputePass())
-		{
-			// Async path
-			FRHIAsyncComputeCommandListImmediate& RHICmdListComputeImmediate = FRHICommandListExecutor::GetImmediateAsyncComputeCommandList();
-			{
-				SCOPED_COMPUTE_EVENT(RHICmdListComputeImmediate, AsyncMotionBlur);
-				WaitForInputPassComputeFences(RHICmdListComputeImmediate);
-				RHICmdListComputeImmediate.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, DestRenderTarget.UAV);
-				DispatchCS(RHICmdListComputeImmediate, Context, DestSize, DestRect, DestRenderTarget.UAV, Scale, InnerLoopConfig);
-				RHICmdListComputeImmediate.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, DestRenderTarget.UAV, AsyncEndFence);
-			}
-			FRHIAsyncComputeCommandListImmediate::ImmediateDispatch(RHICmdListComputeImmediate);
+			// Instead of finding the world space position of the current pixel, calculate the world space position offset by the camera position, 
+			// then translate by the difference between last frame's camera position and this frame's camera position,
+			// then apply the rest of the transforms.  This effectively avoids precision issues near the extents of large levels whose world space position is very large.
+			FVector ViewOriginDelta = View.ViewMatrices.GetViewOrigin() - View.PrevViewInfo.ViewMatrices.GetViewOrigin();
+			return FTranslationMatrix(ViewOriginDelta) * View.PrevViewInfo.ViewMatrices.ComputeViewRotationProjectionMatrix();
 		}
 		else
 		{
-			// Direct path
-			WaitForInputPassComputeFences(Context.RHICmdList);
-			Context.RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, DestRenderTarget.UAV);
-			DispatchCS(Context.RHICmdList, Context, DestSize, DestRect, DestRenderTarget.UAV, Scale, InnerLoopConfig);			
-			Context.RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, DestRenderTarget.UAV, AsyncEndFence);
+			return View.ViewMatrices.ComputeViewRotationProjectionMatrix();
 		}
+	}
+
+	int32 GetMotionBlurQualityFromCVar()
+	{
+		int32 MotionBlurQuality;
+
+		static const auto ICVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MotionBlurQuality"));
+		MotionBlurQuality = FMath::Clamp(ICVar->GetValueOnRenderThread(), 0, 4);
+
+		return MotionBlurQuality;
+	}
+}
+
+const int32 kMotionBlurTileSize = 16;
+const int32 kMotionBlurComputeTileSizeX = 8;
+const int32 kMotionBlurComputeTileSizeY = 8;
+
+bool IsMotionBlurEnabled(const FViewInfo& View)
+{
+	if (View.GetFeatureLevel() < ERHIFeatureLevel::SM5)
+	{
+		return false;
+	}
+
+	const int32 MotionBlurQuality = GetMotionBlurQualityFromCVar();
+
+	const FSceneViewFamily& ViewFamily = *View.Family;
+
+	return ViewFamily.EngineShowFlags.PostProcessing
+		&& ViewFamily.EngineShowFlags.MotionBlur
+		&& View.FinalPostProcessSettings.MotionBlurAmount > 0.001f
+		&& View.FinalPostProcessSettings.MotionBlurMax > 0.001f
+		&& ViewFamily.bRealtimeUpdate
+		&& MotionBlurQuality > 0
+		&& !IsSimpleForwardShadingEnabled(GShaderPlatformForFeatureLevel[View.GetFeatureLevel()])
+		&& (CVarAllowMotionBlurInVR->GetInt() != 0 || !(ViewFamily.Views.Num() > 1));
+}
+
+bool IsMotionBlurScatterRequired(const FViewInfo& View, const FScreenPassTextureViewport& SceneViewport)
+{
+	const FSceneViewState* ViewState = View.ViewState;
+	const float SceneExtentX = SceneViewport.Extent.X;
+
+	// Normalize percentage value.
+	const float VelocityMax = View.FinalPostProcessSettings.MotionBlurMax / 100.0f;
+
+	// Scale by 0.5 due to blur samples going both ways and convert to tiles.
+	const float VelocityMaxInTiles = VelocityMax * SceneExtentX * (0.5f / 16.0f);
+
+	// Compute path only supports the immediate neighborhood of tiles.
+	const float TileDistanceMaxGathered = 3.0f;
+
+	// Scatter is used when maximum velocity exceeds the distance supported by the gather approach.
+	const bool bIsScatterRequiredByVelocityLength = VelocityMaxInTiles > TileDistanceMaxGathered;
+
+	// Cinematic is paused.
+	const bool bInPausedCinematic = (ViewState && ViewState->SequencerState == ESS_Paused);
+
+	// Use the scatter approach if requested by cvar or we're in a paused cinematic (higher quality).
+	const bool bIsScatterRequiredByUser = CVarMotionBlurScatter.GetValueOnRenderThread() == 1 || bInPausedCinematic;
+
+	return bIsScatterRequiredByUser || bIsScatterRequiredByVelocityLength;
+}
+
+FIntPoint GetMotionBlurTileCount(FIntPoint PixelExtent)
+{
+	const uint32 TilesX = FMath::DivideAndRoundUp(PixelExtent.X, kMotionBlurTileSize);
+	const uint32 TilesY = FMath::DivideAndRoundUp(PixelExtent.Y, kMotionBlurTileSize);
+	return FIntPoint(TilesX, TilesY);
+}
+
+EMotionBlurQuality GetMotionBlurQuality()
+{
+	// Quality levels begin at 1. 0 is reserved for 'off'.
+	const int32 Quality = FMath::Clamp(GetMotionBlurQualityFromCVar(), 1, static_cast<int32>(EMotionBlurQuality::MAX));
+
+	return static_cast<EMotionBlurQuality>(Quality - 1);
+}
+
+FRHISamplerState* GetMotionBlurColorSampler()
+{
+	bool bFiltered = false;
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	bFiltered = CVarMotionBlurFiltering.GetValueOnRenderThread() != 0;
+#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+
+	if (bFiltered)
+	{
+		return TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	}
 	else
 	{
-		WaitForInputPassComputeFences(Context.RHICmdList);
-
-		ERenderTargetLoadAction LoadAction = Context.GetLoadActionForRenderTarget(DestRenderTarget);
-
-		FRHIRenderPassInfo RPInfo(DestRenderTarget.TargetableTexture, MakeRenderTargetActions(LoadAction, ERenderTargetStoreAction::EStore));
-		Context.RHICmdList.BeginRenderPass(RPInfo, TEXT("MotionBlur"));
-		{
-			Context.SetViewportAndCallRHI(SrcRect);
-
-			if (Quality == 1)
-			{
-				SetMotionBlurShaderNewTempl<1>(Context, Scale, InnerLoopConfig);
-			}
-			else if (Quality == 2)
-			{
-				SetMotionBlurShaderNewTempl<2>(Context, Scale, InnerLoopConfig);
-			}
-			else if (Quality == 3 || Pass > 0)
-			{
-				SetMotionBlurShaderNewTempl<3>(Context, Scale, InnerLoopConfig);
-			}
-			else
-			{
-				check(Quality == 4);
-				SetMotionBlurShaderNewTempl<4>(Context, Scale, InnerLoopConfig);
-			}
-
-			TShaderMapRef<FPostProcessVS> VertexShader(Context.GetShaderMap());
-
-			DrawPostProcessPass(
-				Context.RHICmdList,
-				0, 0,
-				SrcRect.Width(), SrcRect.Height(),
-				SrcRect.Min.X, SrcRect.Min.Y,
-				SrcRect.Width(), SrcRect.Height(),
-				SrcRect.Size(),
-				SrcSize,
-				*VertexShader,
-				View.StereoPass,
-				Context.HasHmdMesh(),
-				EDRF_UseTriangleOptimization);
-		}
-		Context.RHICmdList.EndRenderPass();
-		Context.RHICmdList.CopyToResolveTarget(DestRenderTarget.TargetableTexture, DestRenderTarget.ShaderResourceTexture, FResolveParams());
+		return TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	}
 }
 
-template <typename TRHICmdList>
-void FRCPassPostProcessMotionBlur::DispatchCS(TRHICmdList& RHICmdList, FRenderingCompositePassContext& Context, const FIntPoint& DestSize, const FIntRect& DestRect, FUnorderedAccessViewRHIParamRef DestUAV, float Scale, uint32 InnerLoopConfig)
+FRHISamplerState* GetMotionBlurVelocitySampler()
 {
-	auto ShaderMap = Context.GetShaderMap();
-
-	uint32 GroupSizeX = FMath::DivideAndRoundUp(DestSize.X, GMotionBlurComputeTileSizeX);
-	uint32 GroupSizeY = FMath::DivideAndRoundUp(DestSize.Y, GMotionBlurComputeTileSizeY);
-
-#define DISPATCH_CASE(A, B)																\
-	case A:																				\
-	{																					\
-		TShaderMapRef<FPostProcessMotionBlurCS<A, B>> ComputeShader(ShaderMap);			\
-		RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());					\
-		ComputeShader->SetParameters(RHICmdList, Context, DestSize, DestUAV, Scale);	\
-		DispatchComputeShader(RHICmdList, *ComputeShader, GroupSizeX, GroupSizeY, 1);	\
-		ComputeShader->UnsetParameters(RHICmdList);										\
-	}																					\
-	break;
-
-	const uint32 CSQuality = (Pass > 0) ? 3 : Quality;
-
-	if (InnerLoopConfig == 0)
-	{
-		switch (CSQuality)
-		{
-		DISPATCH_CASE(1, 0)
-		DISPATCH_CASE(2, 0)
-		DISPATCH_CASE(3, 0)
-		DISPATCH_CASE(4, 0)
-		default:
-			check(0);
-		}
-	}
-	else if (InnerLoopConfig == 1)
-	{
-		switch (CSQuality)
-		{
-		DISPATCH_CASE(1, 1)
-		DISPATCH_CASE(2, 1)
-		DISPATCH_CASE(3, 1)
-		DISPATCH_CASE(4, 1)
-		default:
-			check(0);
-		}
-	}
-	else if (InnerLoopConfig == 2)
-	{
-		switch (CSQuality)
-		{
-		DISPATCH_CASE(1, 2)
-		DISPATCH_CASE(2, 2)
-		DISPATCH_CASE(3, 2)
-		DISPATCH_CASE(4, 2)
-		default:
-			check(0);
-		}
-	}
-	else
-	{
-		check(0);
-	}
-
-#undef DISPATCH_CASE
+	return TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 }
 
-FPooledRenderTargetDesc FRCPassPostProcessMotionBlur::ComputeOutputDesc(EPassOutputId InPassOutputId) const
+// Set of common shader parameters shared by all motion blur shaders.
+BEGIN_SHADER_PARAMETER_STRUCT(FMotionBlurParameters, )
+	SHADER_PARAMETER(float, AspectRatio)
+	SHADER_PARAMETER(float, VelocityScale)
+	SHADER_PARAMETER(float, VelocityScaleForTiles)
+	SHADER_PARAMETER(float, VelocityMax)
+END_SHADER_PARAMETER_STRUCT()
+
+FMotionBlurParameters GetMotionBlurParameters(const FViewInfo& View, FIntPoint SceneViewportExtent, float BlurScale)
 {
-	FPooledRenderTargetDesc Ret = GetInput(ePId_Input0)->GetOutput()->RenderTargetDesc;
-	Ret.Reset();
+	const FSceneViewState* ViewState = View.ViewState;
 
-	Ret.TargetableFlags &= ~(TexCreate_RenderTargetable | TexCreate_UAV);
-	Ret.TargetableFlags |= bIsComputePass ? TexCreate_UAV : TexCreate_RenderTargetable;
+	const float TileSize = kMotionBlurTileSize;
+	const float SceneViewportExtentX = SceneViewportExtent.X;
+	const float SceneViewportExtentY = SceneViewportExtent.Y;
+	const float MotionBlurTimeScale = ViewState ? ViewState->MotionBlurTimeScale : 1.0f;
 
-	if (!FPostProcessing::HasAlphaChannelSupport())
-	{
-		Ret.Format = PF_FloatRGB;
-	}
-	Ret.Flags |= GFastVRamConfig.MotionBlur;
-	Ret.DebugName = TEXT("MotionBlur");
-	Ret.AutoWritable = false;
+	// Scale by 0.5 due to blur samples going both ways.
+	const float VelocityScale = MotionBlurTimeScale * View.FinalPostProcessSettings.MotionBlurAmount * 0.5f;
+	const float VelocityUVToPixel = BlurScale * SceneViewportExtentX * 0.5f;
 
-	return Ret;
+	// 0:no 1:full screen width, percent conversion
+	const float UVVelocityMax = View.FinalPostProcessSettings.MotionBlurMax / 100.0f;
+
+	FMotionBlurParameters MotionBlurParameters;
+	MotionBlurParameters.AspectRatio = SceneViewportExtentY / SceneViewportExtentX;
+	MotionBlurParameters.VelocityScale = VelocityUVToPixel * VelocityScale;
+	MotionBlurParameters.VelocityScaleForTiles = MotionBlurParameters.VelocityScale / TileSize;
+	MotionBlurParameters.VelocityMax = FMath::Abs(VelocityUVToPixel) * UVVelocityMax;
+	return MotionBlurParameters;
 }
 
-
-
-
-class FPostProcessVisualizeMotionBlurPS : public FGlobalShader
+// Base class for a motion blur / velocity shader.
+class FMotionBlurShader : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FPostProcessVisualizeMotionBlurPS, Global);
+public:
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+
+	FMotionBlurShader() = default;
+	FMotionBlurShader(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{}
+};
+
+class FMotionBlurVelocityFlattenCS : public FMotionBlurShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FMotionBlurVelocityFlattenCS);
+	SHADER_USE_PARAMETER_STRUCT(FMotionBlurVelocityFlattenCS, FMotionBlurShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_STRUCT(FMotionBlurParameters, MotionBlur)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Velocity)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VelocityTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutVelocityFlatTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutVelocityTileTexture)
+	END_SHADER_PARAMETER_STRUCT()
+};
+
+IMPLEMENT_GLOBAL_SHADER(FMotionBlurVelocityFlattenCS, "/Engine/Private/PostProcessVelocityFlatten.usf", "VelocityFlattenMain", SF_Compute);
+
+BEGIN_SHADER_PARAMETER_STRUCT(FMotionBlurVelocityDilateParameters, )
+	SHADER_PARAMETER_STRUCT(FMotionBlurParameters, MotionBlur)
+	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, VelocityTile)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VelocityTileTexture)
+END_SHADER_PARAMETER_STRUCT()
+
+class FMotionBlurVelocityDilateGatherCS : public FMotionBlurShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FMotionBlurVelocityDilateGatherCS);
+	SHADER_USE_PARAMETER_STRUCT(FMotionBlurVelocityDilateGatherCS, FMotionBlurShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FMotionBlurVelocityDilateParameters, Dilate)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutVelocityTileTexture)
+	END_SHADER_PARAMETER_STRUCT()
+};
+
+IMPLEMENT_GLOBAL_SHADER(FMotionBlurVelocityDilateGatherCS, "/Engine/Private/PostProcessVelocityFlatten.usf", "VelocityGatherCS", SF_Compute);
+
+enum class EMotionBlurVelocityScatterPass : uint32
+{
+	DrawMin,
+	DrawMax,
+	MAX
+};
+
+BEGIN_SHADER_PARAMETER_STRUCT(FMotionBlurVelocityDilateScatterParameters, )
+	SHADER_PARAMETER(uint32, ScatterPass)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FMotionBlurVelocityDilateParameters, Dilate)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
+
+class FMotionBlurVelocityDilateScatterVS : public FMotionBlurShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FMotionBlurVelocityDilateScatterVS);
+	SHADER_USE_PARAMETER_STRUCT(FMotionBlurVelocityDilateScatterVS, FMotionBlurShader);
+	using FParameters = FMotionBlurVelocityDilateScatterParameters;
+};
+
+IMPLEMENT_GLOBAL_SHADER(FMotionBlurVelocityDilateScatterVS, "/Engine/Private/PostProcessVelocityFlatten.usf", "VelocityScatterVS", SF_Vertex);
+
+class FMotionBlurVelocityDilateScatterPS : public FMotionBlurShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FMotionBlurVelocityDilateScatterPS);
+	SHADER_USE_PARAMETER_STRUCT(FMotionBlurVelocityDilateScatterPS, FMotionBlurShader);
+	using FParameters = FMotionBlurVelocityDilateScatterParameters;
+};
+
+IMPLEMENT_GLOBAL_SHADER(FMotionBlurVelocityDilateScatterPS, "/Engine/Private/PostProcessVelocityFlatten.usf", "VelocityScatterPS", SF_Pixel);
+
+class FMotionBlurQualityDimension : SHADER_PERMUTATION_ENUM_CLASS("MOTION_BLUR_QUALITY", EMotionBlurQuality);
+
+using FMotionBlurFilterPermutationDomain = TShaderPermutationDomain<FMotionBlurQualityDimension>;
+
+BEGIN_SHADER_PARAMETER_STRUCT(FMotionBlurFilterParameters, )
+	SHADER_PARAMETER_STRUCT(FMotionBlurParameters, MotionBlur)
+
+	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Color)
+	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Velocity)
+	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, VelocityTile)
+
+	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportTransform, ColorToVelocity)
+	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportTransform, ColorToVelocityTile)
+
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ColorTexture)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VelocityFlatTexture)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VelocityTileTexture)
+
+	SHADER_PARAMETER_SAMPLER(SamplerState, ColorSampler)
+	SHADER_PARAMETER_SAMPLER(SamplerState, VelocitySampler)
+	SHADER_PARAMETER_SAMPLER(SamplerState, VelocityTileSampler)
+	SHADER_PARAMETER_SAMPLER(SamplerState, VelocityFlatSampler)
+END_SHADER_PARAMETER_STRUCT()
+
+class FMotionBlurFilterPS : public FMotionBlurShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FMotionBlurFilterPS);
+	SHADER_USE_PARAMETER_STRUCT(FMotionBlurFilterPS, FMotionBlurShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FMotionBlurFilterParameters, Filter)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+
+	using FPermutationDomain = FMotionBlurFilterPermutationDomain;
+};
+
+IMPLEMENT_GLOBAL_SHADER(FMotionBlurFilterPS, "/Engine/Private/PostProcessMotionBlur.usf", "MainPS", SF_Pixel);
+
+class FMotionBlurFilterCS : public FMotionBlurShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FMotionBlurFilterCS);
+	SHADER_USE_PARAMETER_STRUCT(FMotionBlurFilterCS, FMotionBlurShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FMotionBlurFilterParameters, Filter)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutColorTexture)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), kMotionBlurComputeTileSizeX);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), kMotionBlurComputeTileSizeY);
+	}
+
+	using FPermutationDomain = FMotionBlurFilterPermutationDomain;
+};
+
+IMPLEMENT_GLOBAL_SHADER(FMotionBlurFilterCS, "/Engine/Private/PostProcessMotionBlur.usf", "MainCS", SF_Compute);
+
+class FMotionBlurVisualizePS : public FMotionBlurShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FMotionBlurVisualizePS);
+	SHADER_USE_PARAMETER_STRUCT(FMotionBlurVisualizePS, FMotionBlurShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FMatrix, WorldToClipPrev)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ColorTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VelocityTexture)
+
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Color)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Velocity)
+
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportTransform, ColorToVelocity)
+
+		SHADER_PARAMETER_SAMPLER(SamplerState, ColorSampler)
+		SHADER_PARAMETER_SAMPLER(SamplerState, VelocitySampler)
+		SHADER_PARAMETER_SAMPLER(SamplerState, DepthSampler)
+
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4);
 	}
+};
 
-	/** Default constructor. */
-	FPostProcessVisualizeMotionBlurPS() {}
+IMPLEMENT_GLOBAL_SHADER(FMotionBlurVisualizePS, "/Engine/Private/PostProcessMotionBlur.usf", "VisualizeMotionBlurPS", SF_Pixel);
 
-public:
-	FPostProcessPassParameters PostprocessParameter;
-	FSceneTextureShaderParameters SceneTextureParameters;
-	FShaderParameter PrevViewProjMatrix;
+TGlobalResource<FSpriteIndexBuffer<8>> GScatterQuadIndexBuffer;
 
-	/** Initialization constructor. */
-	FPostProcessVisualizeMotionBlurPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
+enum class EMotionBlurFilterPass : uint32
+{
+	Separable0,
+	Separable1,
+	Unified,
+	MAX
+};
+
+struct FMotionBlurViewports
+{
+	FMotionBlurViewports(
+		const FScreenPassTextureViewport& InColorViewport,
+		const FScreenPassTextureViewport& InVelocityViewport)
 	{
-		PostprocessParameter.Bind(Initializer.ParameterMap);
-		SceneTextureParameters.Bind(Initializer);
-		PrevViewProjMatrix.Bind(Initializer.ParameterMap, TEXT("PrevViewProjMatrix"));
+		Color = InColorViewport;
+		Velocity = InVelocityViewport;
+		VelocityTile = FScreenPassTextureViewport(
+			FIntRect(
+				FIntPoint::ZeroValue,
+				GetMotionBlurTileCount(Velocity.Rect.Size())));
+
+		ColorParameters = GetScreenPassTextureViewportParameters(Color);
+		VelocityParameters = GetScreenPassTextureViewportParameters(Velocity);
+		VelocityTileParameters = GetScreenPassTextureViewportParameters(VelocityTile);
+
+		ColorToVelocityTransform = GetScreenPassTextureViewportTransform(ColorParameters, VelocityParameters);
+		ColorToVelocityTileTransform = GetScreenPassTextureViewportTransform(ColorParameters, VelocityTileParameters);
 	}
 
-	// FShader interface.
-	virtual bool Serialize(FArchive& Ar) override
+	FScreenPassTextureViewport Color;
+	FScreenPassTextureViewport Velocity;
+	FScreenPassTextureViewport VelocityTile;
+
+	FScreenPassTextureViewportParameters ColorParameters;
+	FScreenPassTextureViewportParameters VelocityParameters;
+	FScreenPassTextureViewportParameters VelocityTileParameters;
+
+	FScreenPassTextureViewportTransform ColorToVelocityTransform;
+	FScreenPassTextureViewportTransform ColorToVelocityTileTransform;
+};
+
+void ComputeMotionBlurVelocity(
+	FRDGBuilder& GraphBuilder,
+	const FScreenPassViewInfo& ScreenPassView,
+	const FMotionBlurViewports& Viewports,
+	FRDGTextureRef ColorTexture,
+	FRDGTextureRef DepthTexture,
+	FRDGTextureRef VelocityTexture,
+	FRDGTextureRef* VelocityFlatTextureOutput,
+	FRDGTextureRef* VelocityTileTextureOutput)
+{
+	check(ColorTexture);
+	check(DepthTexture);
+	check(VelocityTexture);
+	check(VelocityFlatTextureOutput);
+	check(VelocityTileTextureOutput);
+
+	const FViewInfo& View = ScreenPassView.View;
+
+	const FIntPoint VelocityTileCount = Viewports.VelocityTile.Extent;
+
+	FRDGTextureRef VelocityFlatTexture =
+		GraphBuilder.CreateTexture(
+			FRDGTextureDesc::Create2DDesc(
+				Viewports.Velocity.Extent,
+				PF_FloatR11G11B10,
+				FClearValueBinding::None,
+				GFastVRamConfig.VelocityFlat,
+				TexCreate_ShaderResource | TexCreate_UAV,
+				false),
+			TEXT("VelocityFlat"));
+
+	FRDGTextureRef VelocityTileTextureSetup =
+		GraphBuilder.CreateTexture(
+			FRDGTextureDesc::Create2DDesc(
+				VelocityTileCount,
+				PF_FloatRGBA,
+				FClearValueBinding::None,
+				GFastVRamConfig.VelocityMax,
+				TexCreate_ShaderResource | TexCreate_UAV,
+				false),
+			TEXT("VelocityTile"));
+
+	const FMotionBlurParameters MotionBlurParametersNoScale = GetMotionBlurParameters(View, Viewports.Color.Extent, 1.0f);
+
+	// Velocity flatten pass: combines depth / velocity into a single target for sampling efficiency.
 	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << PostprocessParameter << SceneTextureParameters << PrevViewProjMatrix;
-		return bShaderHasOutdatedParameters;
+		FMotionBlurVelocityFlattenCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMotionBlurVelocityFlattenCS::FParameters>();
+		PassParameters->MotionBlur = MotionBlurParametersNoScale;
+		PassParameters->View = View.ViewUniformBuffer;
+		PassParameters->Velocity = Viewports.VelocityParameters;
+		PassParameters->DepthTexture = DepthTexture;
+		PassParameters->VelocityTexture = VelocityTexture;
+		PassParameters->OutVelocityFlatTexture = GraphBuilder.CreateUAV(VelocityFlatTexture);
+		PassParameters->OutVelocityTileTexture = GraphBuilder.CreateUAV(VelocityTileTextureSetup);
+
+		TShaderMapRef<FMotionBlurVelocityFlattenCS> ComputeShader(View.ShaderMap);
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("Velocity Flatten"),
+			*ComputeShader,
+			PassParameters,
+			FComputeShaderUtils::GetGroupCount(Viewports.Velocity.Extent, FComputeShaderUtils::kGolden2DGroupSize));
 	}
 
-	template <typename TRHICmdList>
-	void SetParameters(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context)
+	FRDGTextureRef VelocityTileTexture =
+		GraphBuilder.CreateTexture(
+			FRDGTextureDesc::Create2DDesc(
+				VelocityTileCount,
+				PF_FloatRGBA,
+				FClearValueBinding::None,
+				GFastVRamConfig.MotionBlur,
+				TexCreate_ShaderResource | TexCreate_UAV | TexCreate_RenderTargetable,
+				false),
+			TEXT("DilatedVelocityTile"));
+
+	FMotionBlurVelocityDilateParameters VelocityDilateParameters;
+	VelocityDilateParameters.MotionBlur = MotionBlurParametersNoScale;
+	VelocityDilateParameters.VelocityTile = Viewports.VelocityTileParameters;
+	VelocityDilateParameters.VelocityTileTexture = VelocityTileTextureSetup;
+
+	if (IsMotionBlurScatterRequired(View, Viewports.Color))
 	{
-		const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
+		FRDGTextureRef VelocityTileDepthTexture =
+			GraphBuilder.CreateTexture(
+				FRDGTextureDesc::Create2DDesc(
+					VelocityTileCount,
+					PF_ShadowDepth,
+					FClearValueBinding::DepthOne,
+					TexCreate_None,
+					TexCreate_DepthStencilTargetable,
+					false),
+				TEXT("DilatedVelocityDepth"));
 
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
+		FMotionBlurVelocityDilateScatterParameters* PassParameters = GraphBuilder.AllocParameters<FMotionBlurVelocityDilateScatterParameters>();
+		PassParameters->Dilate = VelocityDilateParameters;
 
-		SceneTextureParameters.Set(RHICmdList, ShaderRHI, Context.View.FeatureLevel, ESceneTextureSetupMode::All);
+		PassParameters->RenderTargets.DepthStencil =
+			FDepthStencilBinding(
+				VelocityTileDepthTexture,
+				ERenderTargetLoadAction::EClear,
+				ERenderTargetStoreAction::EStore,
+				ERenderTargetLoadAction::ENoAction,
+				ERenderTargetStoreAction::ENoAction,
+				FExclusiveDepthStencil::DepthWrite_StencilNop);
 
-		{
-			bool bFiltered = false;
+		PassParameters->RenderTargets[0] =
+			FRenderTargetBinding(
+				VelocityTileTexture,
+				ERenderTargetLoadAction::ENoAction,
+				ERenderTargetStoreAction::EStore);
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-			bFiltered = CVarMotionBlurFiltering.GetValueOnRenderThread() != 0;
-#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-
-			if(bFiltered)
-			{
-				PostprocessParameter.SetPS(RHICmdList, ShaderRHI, Context, TStaticSamplerState<SF_Bilinear,AM_Border,AM_Border,AM_Clamp>::GetRHI());
-			}
-			else
-			{
-				PostprocessParameter.SetPS(RHICmdList, ShaderRHI, Context, TStaticSamplerState<SF_Point,AM_Border,AM_Border,AM_Clamp>::GetRHI());
-			}
-		}
+		TShaderMapRef<FMotionBlurVelocityDilateScatterVS> VertexShader(View.ShaderMap);
+		TShaderMapRef<FMotionBlurVelocityDilateScatterPS> PixelShader(View.ShaderMap);
 		
-		if( Context.View.Family->EngineShowFlags.CameraInterpolation )
+		ValidateShaderParameters(*VertexShader, *PassParameters);
+		ValidateShaderParameters(*PixelShader, *PassParameters);
+
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("VelocityTileScatter %dx%d", VelocityTileCount.X, VelocityTileCount.Y),
+			PassParameters,
+			ERDGPassFlags::Raster,
+			[VertexShader, PixelShader, VelocityTileCount, PassParameters](FRHICommandListImmediate& RHICmdList)
 		{
-			// Instead of finding the world space position of the current pixel, calculate the world space position offset by the camera position, 
-			// then translate by the difference between last frame's camera position and this frame's camera position,
-			// then apply the rest of the transforms.  This effectively avoids precision issues near the extents of large levels whose world space position is very large.
-			FVector ViewOriginDelta = Context.View.ViewMatrices.GetViewOrigin() - Context.View.PrevViewInfo.ViewMatrices.GetViewOrigin();
-			SetShaderValue(RHICmdList, ShaderRHI, PrevViewProjMatrix, FTranslationMatrix(ViewOriginDelta) * Context.View.PrevViewInfo.ViewMatrices.ComputeViewRotationProjectionMatrix());
+			FRHIVertexShader* RHIVertexShader = GETSAFERHISHADER_VERTEX(*VertexShader);
+
+			FGraphicsPipelineStateInitializer GraphicsPSOInit;
+			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GEmptyVertexDeclaration.VertexDeclarationRHI;
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = RHIVertexShader;
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
+			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+
+			// Max >= Min so no need to clear on second pass
+			RHICmdList.SetViewport(0, 0, 0.0f, VelocityTileCount.X, VelocityTileCount.Y, 1.0f);
+
+			// Min, Max
+			for (uint32 ScatterPassIndex = 0; ScatterPassIndex < static_cast<uint32>(EMotionBlurVelocityScatterPass::MAX); ScatterPassIndex++)
+			{
+				const EMotionBlurVelocityScatterPass ScatterPass = static_cast<EMotionBlurVelocityScatterPass>(ScatterPassIndex);
+
+				if (ScatterPass == EMotionBlurVelocityScatterPass::DrawMin)
+				{
+					GraphicsPSOInit.BlendState = TStaticBlendStateWriteMask<CW_RGBA>::GetRHI();
+					GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<true, CF_Less>::GetRHI();
+				}
+				else
+				{
+					GraphicsPSOInit.BlendState = TStaticBlendStateWriteMask<CW_BA>::GetRHI();
+					GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<true, CF_Greater>::GetRHI();
+				}
+
+				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+
+				PassParameters->ScatterPass = ScatterPassIndex;
+
+				SetShaderParameters(RHICmdList, *VertexShader, RHIVertexShader, *PassParameters);
+
+				// Needs to be the same on shader side (faster on NVIDIA and AMD)
+				const int32 QuadsPerInstance = 8;
+
+				RHICmdList.SetStreamSource(0, nullptr, 0);
+				RHICmdList.DrawIndexedPrimitive(GScatterQuadIndexBuffer.IndexBufferRHI, 0, 0, 32, 0, 2 * QuadsPerInstance, FMath::DivideAndRoundUp(VelocityTileCount.X * VelocityTileCount.Y, QuadsPerInstance));
+			}
+		});
+	}
+	else
+	{
+		FMotionBlurVelocityDilateGatherCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMotionBlurVelocityDilateGatherCS::FParameters>();
+		PassParameters->Dilate = VelocityDilateParameters;
+		PassParameters->OutVelocityTileTexture = GraphBuilder.CreateUAV(VelocityTileTexture);
+
+		TShaderMapRef<FMotionBlurVelocityDilateGatherCS> ComputeShader(View.ShaderMap);
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("VelocityTileGatherCS %dx%d", VelocityTileCount.X, VelocityTileCount.Y),
+			*ComputeShader,
+			PassParameters,
+			FComputeShaderUtils::GetGroupCount(VelocityTileCount, FComputeShaderUtils::kGolden2DGroupSize));
+	}
+
+	*VelocityFlatTextureOutput = VelocityFlatTexture;
+	*VelocityTileTextureOutput = VelocityTileTexture;
+}
+
+FRDGTextureRef ComputeMotionBlurFilter(
+	FRDGBuilder& GraphBuilder,
+	const FScreenPassViewInfo& ScreenPassView,
+	const FMotionBlurViewports& Viewports,
+	FRDGTextureRef ColorTexture,
+	FRDGTextureRef VelocityFlatTexture,
+	FRDGTextureRef VelocityTileTexture,
+	EMotionBlurFilterPass MotionBlurFilterPass,
+	EMotionBlurQuality MotionBlurQuality)
+{
+	check(ColorTexture);
+	check(VelocityFlatTexture);
+	check(VelocityTileTexture);
+	check(MotionBlurFilterPass != EMotionBlurFilterPass::MAX);
+	check(MotionBlurQuality != EMotionBlurQuality::MAX);
+
+	const FViewInfo& View = ScreenPassView.View;
+
+	const float MotionBlur2ndScale = CVarMotionBlur2ndScale.GetValueOnRenderThread();
+
+	const bool bUseCompute = ScreenPassView.bUseComputePasses;
+
+	const float BlurScaleLUT[static_cast<uint32>(EMotionBlurFilterPass::MAX)][static_cast<uint32>(EMotionBlurQuality::MAX)] =
+	{
+		// Separable0
+		{
+			1.0f - 0.5f / 4.0f,
+			1.0f - 0.5f / 6.0f,
+			1.0f - 0.5f / 8.0f,
+			1.0f - 0.5f / 16.0f
+		},
+
+		// Separable1
+		{
+			1.0f / 4.0f  * MotionBlur2ndScale,
+			1.0f / 6.0f  * MotionBlur2ndScale,
+			1.0f / 8.0f  * MotionBlur2ndScale,
+			1.0f / 16.0f * MotionBlur2ndScale
+		},
+
+		// Unified
+		{
+			1.0f,
+			1.0f,
+			1.0f,
+			1.0f
+		}
+	};
+
+	const float BlurScale = BlurScaleLUT[static_cast<uint32>(MotionBlurFilterPass)][static_cast<uint32>(MotionBlurQuality)];
+
+	FMotionBlurFilterParameters MotionBlurFilterParameters;
+	MotionBlurFilterParameters.MotionBlur = GetMotionBlurParameters(View, Viewports.Color.Extent, BlurScale);
+	MotionBlurFilterParameters.Color = Viewports.ColorParameters;
+	MotionBlurFilterParameters.Velocity = Viewports.VelocityParameters;
+	MotionBlurFilterParameters.VelocityTile = Viewports.VelocityTileParameters;
+	MotionBlurFilterParameters.ColorToVelocity = Viewports.ColorToVelocityTransform;
+	MotionBlurFilterParameters.ColorToVelocityTile = Viewports.ColorToVelocityTileTransform;
+	MotionBlurFilterParameters.ColorTexture = ColorTexture;
+	MotionBlurFilterParameters.VelocityFlatTexture = VelocityFlatTexture;
+	MotionBlurFilterParameters.VelocityTileTexture = VelocityTileTexture;
+	MotionBlurFilterParameters.ColorSampler = GetMotionBlurColorSampler();
+	MotionBlurFilterParameters.VelocitySampler = GetMotionBlurVelocitySampler();
+	MotionBlurFilterParameters.VelocityTileSampler = GetMotionBlurVelocitySampler();
+	MotionBlurFilterParameters.VelocityFlatSampler = GetMotionBlurVelocitySampler();
+
+	FRDGTextureDesc OutColorDesc = ColorTexture->Desc;
+	OutColorDesc.Reset();
+	OutColorDesc.TargetableFlags &= ~(TexCreate_RenderTargetable | TexCreate_UAV);
+	OutColorDesc.TargetableFlags |= bUseCompute ? TexCreate_UAV : TexCreate_RenderTargetable;
+	OutColorDesc.Flags |= GFastVRamConfig.MotionBlur;
+	OutColorDesc.AutoWritable = false;
+	OutColorDesc.Format = FPostProcessing::HasAlphaChannelSupport() ? PF_FloatRGBA : PF_FloatRGB;
+
+	FRDGTextureRef ColorTextureOutput = GraphBuilder.CreateTexture(OutColorDesc, TEXT("MotionBlur"));
+
+	FMotionBlurFilterPermutationDomain PermutationVector;
+	PermutationVector.Set<FMotionBlurQualityDimension>(MotionBlurQuality);
+
+	if (bUseCompute)
+	{
+		FMotionBlurFilterCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMotionBlurFilterCS::FParameters>();
+		PassParameters->Filter = MotionBlurFilterParameters;
+		PassParameters->OutColorTexture = GraphBuilder.CreateUAV(ColorTextureOutput);
+
+		TShaderMapRef<FMotionBlurFilterCS> ComputeShader(View.ShaderMap, PermutationVector);
+
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("Motion Blur %dx%d (CS)", Viewports.Color.Rect.Width(), Viewports.Color.Rect.Height()),
+			*ComputeShader,
+			PassParameters,
+			FComputeShaderUtils::GetGroupCount(Viewports.Color.Extent, FComputeShaderUtils::kGolden2DGroupSize));
+	}
+	else
+	{
+		FMotionBlurFilterPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMotionBlurFilterPS::FParameters>();
+		PassParameters->Filter = MotionBlurFilterParameters;
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(ColorTextureOutput, ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::EStore);
+
+		TShaderMapRef<FMotionBlurFilterPS> PixelShader(View.ShaderMap, PermutationVector);
+
+		AddDrawScreenPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("Motion Blur %dx%d (PS)", Viewports.Color.Rect.Width(), Viewports.Color.Rect.Height()),
+			ScreenPassView,
+			Viewports.Color,
+			Viewports.Color,
+			*PixelShader,
+			PassParameters);
+	}
+
+	return ColorTextureOutput;
+}
+
+FRDGTextureRef ComputeMotionBlur(
+	FRDGBuilder& GraphBuilder,
+	const FScreenPassViewInfo& ScreenPassView,
+	FIntRect ColorViewportRect,
+	FIntRect VelocityViewportRect,
+	FRDGTextureRef ColorTexture,
+	FRDGTextureRef DepthTexture,
+	FRDGTextureRef VelocityTexture)
+{
+	check(ColorTexture);
+	check(DepthTexture);
+	check(VelocityTexture);
+
+	const FMotionBlurViewports Viewports(
+		FScreenPassTextureViewport(ColorViewportRect, ColorTexture),
+		FScreenPassTextureViewport(VelocityViewportRect, VelocityTexture));
+
+	FRDGTextureRef VelocityFlatTexture = nullptr;
+	FRDGTextureRef VelocityTileTexture = nullptr;
+	ComputeMotionBlurVelocity(
+		GraphBuilder,
+		ScreenPassView,
+		Viewports,
+		ColorTexture,
+		DepthTexture,
+		VelocityTexture,
+		&VelocityFlatTexture,
+		&VelocityTileTexture);
+
+	const EMotionBlurQuality MotionBlurQuality = GetMotionBlurQuality();
+
+	const bool bUseSeparableFilter = CVarMotionBlurSeparable.GetValueOnRenderThread() != 0;
+
+	if (bUseSeparableFilter)
+	{
+		FRDGTextureRef MotionBlurFilterTexture = ComputeMotionBlurFilter(
+			GraphBuilder,
+			ScreenPassView,
+			Viewports,
+			ColorTexture,
+			VelocityFlatTexture,
+			VelocityTileTexture,
+			EMotionBlurFilterPass::Separable0,
+			MotionBlurQuality);
+
+		return ComputeMotionBlurFilter(
+			GraphBuilder,
+			ScreenPassView,
+			Viewports,
+			MotionBlurFilterTexture,
+			VelocityFlatTexture,
+			VelocityTileTexture,
+			EMotionBlurFilterPass::Separable1,
+			MotionBlurQuality);
+	}
+	else
+	{
+		return ComputeMotionBlurFilter(
+			GraphBuilder,
+			ScreenPassView,
+			Viewports,
+			ColorTexture,
+			VelocityFlatTexture,
+			VelocityTileTexture,
+			EMotionBlurFilterPass::Unified,
+			MotionBlurQuality);
+	}
+}
+
+FRDGTextureRef VisualizeMotionBlur(
+	FRDGBuilder& GraphBuilder,
+	const FScreenPassViewInfo& ScreenPassView,
+	FIntRect ColorViewportRect,
+	FIntRect VelocityViewportRect,
+	FRDGTextureRef ColorTexture,
+	FRDGTextureRef DepthTexture,
+	FRDGTextureRef VelocityTexture)
+{
+	check(ColorTexture);
+	check(DepthTexture);
+	check(VelocityTexture);
+
+	const FViewInfo& View = ScreenPassView.View;
+
+	const FScreenPassTextureViewport ColorViewport(ColorViewportRect, ColorTexture);
+	const FScreenPassTextureViewport VelocityViewport(VelocityViewportRect, VelocityTexture);
+	const FMotionBlurViewports Viewports(ColorViewport, VelocityViewport);
+
+	FRDGTextureRef ColorTextureOutput = GraphBuilder.CreateTexture(ColorTexture->Desc, TEXT("MotionBlurVisualize"));
+
+	FMotionBlurVisualizePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMotionBlurVisualizePS::FParameters>();
+	PassParameters->WorldToClipPrev = GetPreviousWorldToClipMatrix(View);
+	PassParameters->View = View.ViewUniformBuffer;
+	PassParameters->ColorTexture = ColorTexture;
+	PassParameters->DepthTexture = DepthTexture;
+	PassParameters->VelocityTexture = VelocityTexture;
+	PassParameters->Color = Viewports.ColorParameters;
+	PassParameters->Velocity = Viewports.VelocityParameters;
+	PassParameters->ColorToVelocity = Viewports.ColorToVelocityTransform;
+	PassParameters->ColorSampler = GetMotionBlurColorSampler();
+	PassParameters->VelocitySampler = GetMotionBlurVelocitySampler();
+	PassParameters->DepthSampler = GetMotionBlurVelocitySampler();
+	PassParameters->RenderTargets[0] = FRenderTargetBinding(ColorTextureOutput, ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::EStore);
+
+	TShaderMapRef<FMotionBlurVisualizePS> PixelShader(View.ShaderMap);
+
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("MotionBlurVisualize"),
+		PassParameters,
+		ERDGPassFlags::Raster,
+		[ScreenPassView, ColorTextureOutput, ColorViewport, PixelShader, PassParameters](FRHICommandListImmediate& RHICmdList)
+	{
+		DrawScreenPass(RHICmdList, ScreenPassView, ColorViewport, ColorViewport, *PixelShader, *PassParameters);
+
+		// Draw debug text.
+		{
+			const FViewInfo& LocalView = ScreenPassView.View;
+			const FSceneViewFamily& ViewFamily = *LocalView.Family;
+			FRenderTargetTemp TempRenderTarget(static_cast<FRHITexture2D*>(ColorTextureOutput->GetRHI()), ColorViewport.Extent);
+			FCanvas Canvas(&TempRenderTarget, nullptr, ViewFamily.CurrentRealTime, ViewFamily.CurrentWorldTime, ViewFamily.DeltaWorldTime, LocalView.GetFeatureLevel());
+
+			float X = 20;
+			float Y = 38;
+			const float YStep = 14;
+			const float ColumnWidth = 200;
+
+			FString Line;
+
+			Line = FString::Printf(TEXT("Visualize MotionBlur"));
+			Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), FLinearColor(1, 1, 0));
+
+			static const auto MotionBlurDebugVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MotionBlurDebug"));
+			const int32 MotionBlurDebug = MotionBlurDebugVar ? MotionBlurDebugVar->GetValueOnRenderThread() : 0;
+
+			Line = FString::Printf(TEXT("%d, %d"), ViewFamily.FrameNumber, MotionBlurDebug);
+			Canvas.DrawShadowedString(X, Y += YStep, TEXT("FrameNo, r.MotionBlurDebug:"), GetStatsFont(), FLinearColor(1, 1, 0));
+			Canvas.DrawShadowedString(X + ColumnWidth, Y, *Line, GetStatsFont(), FLinearColor(1, 1, 0));
+
+			static const auto VelocityTestVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VelocityTest"));
+			const int32 VelocityTest = VelocityTestVar ? VelocityTestVar->GetValueOnRenderThread() : 0;
+
+			extern bool IsParallelVelocity();
+
+			Line = FString::Printf(TEXT("%d, %d, %d"), ViewFamily.bWorldIsPaused, VelocityTest, IsParallelVelocity());
+			Canvas.DrawShadowedString(X, Y += YStep, TEXT("Paused, r.VelocityTest, Parallel:"), GetStatsFont(), FLinearColor(1, 1, 0));
+			Canvas.DrawShadowedString(X + ColumnWidth, Y, *Line, GetStatsFont(), FLinearColor(1, 1, 0));
+
+			const FScene* Scene = (const FScene*)LocalView.Family->Scene;
+			const FSceneViewState *SceneViewState = (const FSceneViewState*)LocalView.State;
+
+			Line = FString::Printf(TEXT("View=%.4x PrevView=%.4x"),
+				LocalView.ViewMatrices.GetViewMatrix().ComputeHash() & 0xffff,
+				LocalView.PrevViewInfo.ViewMatrices.GetViewMatrix().ComputeHash() & 0xffff);
+			Canvas.DrawShadowedString(X, Y += YStep, TEXT("ViewMatrix:"), GetStatsFont(), FLinearColor(1, 1, 0));
+			Canvas.DrawShadowedString(X + ColumnWidth, Y, *Line, GetStatsFont(), FLinearColor(1, 1, 0));
+
+			const bool bForce = false;
+			const bool bInsideRenderThread = true;
+			Canvas.Flush_RenderThread(RHICmdList, bForce, bInsideRenderThread);
+		}
+	});
+
+	return ColorTextureOutput;
+}
+
+//////////////////////////////////////////////////////////////////////////
+//! Shim methods to hook into the legacy pipeline until the full RDG conversion is complete.
+
+FRenderingCompositeOutputRef ComputeMotionBlurShim(
+	FRenderingCompositionGraph& Graph,
+	FRenderingCompositeOutputRef ColorInput,
+	FRenderingCompositeOutputRef DepthInput,
+	FRenderingCompositeOutputRef VelocityInput,
+	bool bVisualizeMotionBlur)
+{
+	FRenderingCompositePass* MotionBlurPass = Graph.RegisterPass(new(FMemStack::Get()) TRCPassForRDG<3, 1>(
+		[bVisualizeMotionBlur](FRenderingCompositePass* Pass, FRenderingCompositePassContext& InContext)
+	{
+		FRDGBuilder GraphBuilder(InContext.RHICmdList);
+
+		FRDGTextureRef ColorTexture = Pass->CreateRDGTextureForRequiredInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"));
+		FRDGTextureRef DepthTexture = Pass->CreateRDGTextureForRequiredInput(GraphBuilder, ePId_Input1, TEXT("SceneDepth"));
+		FRDGTextureRef VelocityTexture = Pass->CreateRDGTextureForRequiredInput(GraphBuilder, ePId_Input2, TEXT("SceneVelocity"));
+
+		const FIntRect ColorViewportRect(InContext.SceneColorViewRect);
+		const FIntRect VelocityViewportRect(InContext.View.ViewRect);
+
+		const FScreenPassViewInfo ScreenPassView(InContext.View);
+
+		FRDGTextureRef ColorTextureOutput;
+
+		if (bVisualizeMotionBlur)
+		{
+			ColorTextureOutput = VisualizeMotionBlur(
+				GraphBuilder,
+				ScreenPassView,
+				ColorViewportRect,
+				VelocityViewportRect,
+				ColorTexture,
+				DepthTexture,
+				VelocityTexture);
 		}
 		else
 		{
-			SetShaderValue(RHICmdList, ShaderRHI, PrevViewProjMatrix, Context.View.ViewMatrices.ComputeViewRotationProjectionMatrix());
+			ColorTextureOutput = ComputeMotionBlur(
+				GraphBuilder,
+				ScreenPassView,
+				ColorViewportRect,
+				VelocityViewportRect,
+				ColorTexture,
+				DepthTexture,
+				VelocityTexture);
 		}
-	}
 
-	static const TCHAR* GetSourceFilename()
-	{
-		return TEXT("/Engine/Private/PostProcessMotionBlur.usf");
-	}
+		Pass->ExtractRDGTextureForOutput(GraphBuilder, ePId_Output0, ColorTextureOutput);
 
-	static const TCHAR* GetFunctionName()
-	{
-		return TEXT("VisualizeMotionBlurPS");
-	}
-};
+		GraphBuilder.Execute();
+	}));
 
-IMPLEMENT_SHADER_TYPE3(FPostProcessVisualizeMotionBlurPS, SF_Pixel);
-
-void FRCPassPostProcessVisualizeMotionBlur::Process(FRenderingCompositePassContext& Context)
-{
-	SCOPED_DRAW_EVENT(Context.RHICmdList, VisualizeMotionBlur);
-
-	const FPooledRenderTargetDesc* InputDesc = GetInputDesc(ePId_Input0);
-
-	if(!InputDesc)
-	{
-		// input is not hooked up correctly
-		return;
-	}
-
-	const FViewInfo& View = Context.View;
-	const FSceneViewFamily& ViewFamily = *(View.Family);
-
-	FIntPoint TexSize = InputDesc->Extent;
-
-	// we assume the input and output is full resolution
-
-	FIntPoint SrcSize = InputDesc->Extent;
-	FIntPoint DestSize = PassOutputs[0].RenderTargetDesc.Extent;
-
-	// e.g. 4 means the input texture is 4x smaller than the buffer size
-	uint32 ScaleFactor = FSceneRenderTargets::Get(Context.RHICmdList).GetBufferSizeXY().X / SrcSize.X;
-
-	FIntRect SrcRect = FIntRect::DivideAndRoundUp(View.ViewRect, ScaleFactor);
-	FIntRect DestRect = SrcRect;
-
-	const FSceneRenderTargetItem& DestRenderTarget = PassOutputs[0].RequestSurface(Context);
-
-	// Set the view family's render target/viewport.
-	FRHIRenderPassInfo RPInfo(DestRenderTarget.TargetableTexture, ERenderTargetActions::DontLoad_Store);
-	Context.RHICmdList.BeginRenderPass(RPInfo, TEXT("VisualizeMotionBlur"));
-	{
-		Context.SetViewportAndCallRHI(SrcRect);
-
-		FGraphicsPipelineStateInitializer GraphicsPSOInit;
-		Context.RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-		GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-
-		TShaderMapRef<FPostProcessVS> VertexShader(Context.GetShaderMap());
-		TShaderMapRef<FPostProcessVisualizeMotionBlurPS> PixelShader(Context.GetShaderMap());
-
-		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
-		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-
-		SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
-
-		VertexShader->SetParameters(Context);
-		PixelShader->SetParameters(Context.RHICmdList, Context);
-
-		// Draw a quad mapping scene color to the view's render target
-		DrawRectangle(
-			Context.RHICmdList,
-			0, 0,
-			SrcRect.Width(), SrcRect.Height(),
-			SrcRect.Min.X, SrcRect.Min.Y,
-			SrcRect.Width(), SrcRect.Height(),
-			SrcRect.Size(),
-			SrcSize,
-			*VertexShader,
-			EDRF_UseTriangleOptimization);
-	}
-	Context.RHICmdList.EndRenderPass();
-
-	FRenderTargetTemp TempRenderTarget(View, (const FTexture2DRHIRef&)DestRenderTarget.TargetableTexture);
-	FCanvas Canvas(&TempRenderTarget, NULL, ViewFamily.CurrentRealTime, ViewFamily.CurrentWorldTime, ViewFamily.DeltaWorldTime, Context.GetFeatureLevel());
-
-	float X = 20;
-	float Y = 38;
-	const float YStep = 14;
-	const float ColumnWidth = 200;
-
-	FString Line;
-
-	Line = FString::Printf(TEXT("Visualize MotionBlur"));
-	Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), FLinearColor(1, 1, 0));
-
-	static const auto MotionBlurDebugVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MotionBlurDebug"));
-	const int32 MotionBlurDebug = MotionBlurDebugVar ? MotionBlurDebugVar->GetValueOnRenderThread() : 0;
-
-	Line = FString::Printf(TEXT("%d, %d"), ViewFamily.FrameNumber, MotionBlurDebug);
-	Canvas.DrawShadowedString(X, Y += YStep, TEXT("FrameNo, r.MotionBlurDebug:"), GetStatsFont(), FLinearColor(1, 1, 0));
-	Canvas.DrawShadowedString(X + ColumnWidth, Y, *Line, GetStatsFont(), FLinearColor(1, 1, 0));
-
-	static const auto VelocityTestVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VelocityTest"));
-	const int32 VelocityTest = VelocityTestVar ? VelocityTestVar->GetValueOnRenderThread() : 0;
-
-	extern bool IsParallelVelocity();
-
-	Line = FString::Printf(TEXT("%d, %d, %d"), ViewFamily.bWorldIsPaused, VelocityTest, IsParallelVelocity());
-	Canvas.DrawShadowedString(X, Y += YStep, TEXT("Paused, r.VelocityTest, Parallel:"), GetStatsFont(), FLinearColor(1, 1, 0));
-	Canvas.DrawShadowedString(X + ColumnWidth, Y, *Line, GetStatsFont(), FLinearColor(1, 1, 0));
-
-	const FScene* Scene = (const FScene*)View.Family->Scene;
-	const FSceneViewState *SceneViewState = (const FSceneViewState*)View.State;
-
-	Line = FString::Printf(TEXT("View=%.4x PrevView=%.4x"),
-		View.ViewMatrices.GetViewMatrix().ComputeHash() & 0xffff,
-		View.PrevViewInfo.ViewMatrices.GetViewMatrix().ComputeHash() & 0xffff);
-	Canvas.DrawShadowedString(X, Y += YStep, TEXT("ViewMatrix:"), GetStatsFont(), FLinearColor(1, 1, 0));
-	Canvas.DrawShadowedString(X + ColumnWidth, Y, *Line, GetStatsFont(), FLinearColor(1, 1, 0));
-
-	Canvas.Flush_RenderThread(Context.RHICmdList);
-
-	Context.RHICmdList.CopyToResolveTarget(DestRenderTarget.TargetableTexture, DestRenderTarget.ShaderResourceTexture, FResolveParams());
+	MotionBlurPass->SetInput(ePId_Input0, ColorInput);
+	MotionBlurPass->SetInput(ePId_Input1, DepthInput);
+	MotionBlurPass->SetInput(ePId_Input2, VelocityInput);
+	return FRenderingCompositeOutputRef(MotionBlurPass);
 }
 
-FPooledRenderTargetDesc FRCPassPostProcessVisualizeMotionBlur::ComputeOutputDesc(EPassOutputId InPassOutputId) const
-{
-	FPooledRenderTargetDesc Ret = GetInput(ePId_Input0)->GetOutput()->RenderTargetDesc;
-
-	Ret.Reset();
-	Ret.DebugName = TEXT("MotionBlur");
-	Ret.AutoWritable = false;
-
-	return Ret;
-}
+//////////////////////////////////////////////////////////////////////////

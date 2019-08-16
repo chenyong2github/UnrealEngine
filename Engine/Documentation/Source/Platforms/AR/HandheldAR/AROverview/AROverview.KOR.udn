@@ -1,6 +1,5 @@
-INTSourceChangelist:4400433
+INTSourceChangelist:6549201
 Availability: Public
-Crumbs: 
 Title: 증강 현실 개요
 Description: 에픽의 Augmented Reality 구현 개요입니다.
 Type: 
@@ -12,7 +11,11 @@ Tags: Android
 Tags: StartingOut
 Tags: AR
 Tags: Mobile AR
+Related: Platforms/AR/HandheldAR/ARQuickStart
+Related: Platforms/AR/HandheldAR/ARKitPrerequisites
+Related: Platforms/AR/HandheldAR/ARCorePrerequisites
 
+[TOC (start:2 end:3)]
 
 Augmented Reality (증강 현실, AR)은 사용자가 보는 현실에 컴퓨터 생성 이미지 오버레이를 합성하는 기술입니다. 
 
@@ -72,11 +75,11 @@ Augmented Reality (증강 현실, AR)은 사용자가 보는 현실에 컴퓨터
 
 ### iOS
 
-iOS 증강 현실 전제 조건 관련 자세한 정보는 [](Platforms/AR/HandheldAR/ARKitPrerequisites) 문서를 참고하세요. 추가로 언리얼 엔진 및 iOS 디바이스 기본 구성은 [](Platforms/iOS) 문서를 참고하세요.   
+iOS 증강 현실 전제 조건 관련 자세한 정보는 [](Platforms/AR/HandheldAR/ARKitPrerequisites) 문서를 참고하세요. 추가로 언리얼 엔진 및 iOS 디바이스 기본 구성은 [](Platforms/Mobile/iOS) 문서를 참고하세요.   
 
 ### Android
 
-Android 증강 현실 전제 조건 관련 자세한 정보는 [](Platforms/AR/HandheldAR/ARCorePrerequisites) 문서를 참고하세요. 언리얼 엔진 및 Android 디바이스 기본 구성은 [](Platforms/Android/GettingStarted) 문서를 참고하세요. 
+Android 증강 현실 전제 조건 관련 자세한 정보는 [](Platforms/AR/HandheldAR/ARCorePrerequisites) 문서를 참고하세요. 언리얼 엔진 및 Android 디바이스 기본 구성은 [](Platforms/Mobile/Android/GettingStarted) 문서를 참고하세요. 
 
 ## 언리얼 AR 시작하기
 

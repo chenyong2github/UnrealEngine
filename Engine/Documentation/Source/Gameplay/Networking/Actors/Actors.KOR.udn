@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+﻿INTSourceChangelist:6572489
 Availability:Public
 Title: 액터 리플리케이션
 Crumbs:%ROOT%, Gameplay, Gameplay/Networking
@@ -22,3 +22,5 @@ version: 4.9
 RPC 의 예제라면, 각 클라이언트마다 특정 위치에서 보이도록 하고픈 폭발을 들 수 있습니다. 위치와 반경을 파라미터로 하는 RPC 를 선언한 다음, 폭발이 발생할 때마다 그것을 호출해 주면 됩니다. 이것을 클라이언트 통신을 위한 리플리케이트용 프로퍼티 그룹으로 저장할 수도 있지만, 효율은 약간 떨어지는 것이, 폭발이라는 것이 프로퍼티로 할 만큼 자주 일어나지는 않을 수 있기 때문입니다.
 
 RPC 관련 상세 정보는, [](Gameplay/Networking/Actors/RPCs) 문서를 참고하세요.
+
+[DIR(output:"topic" parent:"Gameplay/Networking/Actors" org:"hierarchy" end:"1")]

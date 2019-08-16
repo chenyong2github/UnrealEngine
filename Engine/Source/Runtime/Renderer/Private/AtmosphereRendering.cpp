@@ -15,7 +15,6 @@
 #include "Atmosphere/AtmosphericFogComponent.h"
 #include "PostProcess/SceneRenderTargets.h"
 #include "GlobalShader.h"
-#include "AtmosphereTextureParameters.h"
 #include "SceneRenderTargetParameters.h"
 #include "DeferredShadingRenderer.h"
 #include "ScenePrivate.h"
@@ -23,7 +22,81 @@
 #include "AtmosphereTextures.h"
 #include "PostProcess/SceneFilterRendering.h"
 #include "PipelineStateCache.h"
+#include "LightSceneInfo.h"
 DECLARE_GPU_STAT(Atmosphere);
+DECLARE_GPU_STAT(AtmospherePreCompute);
+
+
+//////////////////////////////////////////////////////////////////////////
+// FAtmosphereShaderTextureParameters
+
+
+/** Shader parameters needed for atmosphere passes. */
+class FAtmosphereShaderTextureParameters
+{
+public:
+	void Bind(const FShaderParameterMap& ParameterMap);
+
+	template< typename TRHIShader >
+	FORCEINLINE_DEBUGGABLE void Set(FRHICommandList& RHICmdList, TRHIShader* ShaderRHI, const FSceneView& View) const
+	{
+		if (TransmittanceTexture.IsBound() || IrradianceTexture.IsBound() || InscatterTexture.IsBound())
+		{
+			SetTextureParameter(RHICmdList, ShaderRHI, TransmittanceTexture, TransmittanceTextureSampler,
+				TStaticSamplerState<SF_Bilinear>::GetRHI(), View.AtmosphereTransmittanceTexture);
+			SetTextureParameter(RHICmdList, ShaderRHI, IrradianceTexture, IrradianceTextureSampler,
+				TStaticSamplerState<SF_Bilinear>::GetRHI(), View.AtmosphereIrradianceTexture);
+			SetTextureParameter(RHICmdList, ShaderRHI, InscatterTexture, InscatterTextureSampler,
+				TStaticSamplerState<SF_Bilinear>::GetRHI(), View.AtmosphereInscatterTexture);
+		}
+	}
+
+	friend FArchive& operator<<(FArchive& Ar, FAtmosphereShaderTextureParameters& P);
+
+private:
+	FShaderResourceParameter TransmittanceTexture;
+	FShaderResourceParameter TransmittanceTextureSampler;
+	FShaderResourceParameter IrradianceTexture;
+	FShaderResourceParameter IrradianceTextureSampler;
+	FShaderResourceParameter InscatterTexture;
+	FShaderResourceParameter InscatterTextureSampler;
+};
+
+void FAtmosphereShaderTextureParameters::Bind(const FShaderParameterMap& ParameterMap)
+{
+	TransmittanceTexture.Bind(ParameterMap, TEXT("AtmosphereTransmittanceTexture"));
+	TransmittanceTextureSampler.Bind(ParameterMap, TEXT("AtmosphereTransmittanceTextureSampler"));
+	IrradianceTexture.Bind(ParameterMap, TEXT("AtmosphereIrradianceTexture"));
+	IrradianceTextureSampler.Bind(ParameterMap, TEXT("AtmosphereIrradianceTextureSampler"));
+	InscatterTexture.Bind(ParameterMap, TEXT("AtmosphereInscatterTexture"));
+	InscatterTextureSampler.Bind(ParameterMap, TEXT("AtmosphereInscatterTextureSampler"));
+}
+
+#define IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET( TRHIShader ) \
+	template void FAtmosphereShaderTextureParameters::Set< TRHIShader >( FRHICommandList& RHICmdList, TRHIShader* ShaderRHI, const FSceneView& View ) const;
+
+IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET(FRHIVertexShader);
+IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET(FRHIHullShader);
+IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET(FRHIDomainShader);
+IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET(FRHIGeometryShader);
+IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET(FRHIPixelShader);
+IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET(FRHIComputeShader);
+
+FArchive& operator<<(FArchive& Ar, FAtmosphereShaderTextureParameters& Parameters)
+{
+	Ar << Parameters.TransmittanceTexture;
+	Ar << Parameters.TransmittanceTextureSampler;
+	Ar << Parameters.IrradianceTexture;
+	Ar << Parameters.IrradianceTextureSampler;
+	Ar << Parameters.InscatterTexture;
+	Ar << Parameters.InscatterTextureSampler;
+	return Ar;
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+// FAtmosphereShaderPrecomputeTextureParameters
+
 
 class FAtmosphereShaderPrecomputeTextureParameters
 {
@@ -152,6 +225,11 @@ FArchive& operator<<(FArchive& Ar,FAtmosphereShaderPrecomputeTextureParameters& 
 	}
 	return Ar;
 }
+
+
+//////////////////////////////////////////////////////////////////////////
+// Global shaders
+
 
 /** A pixel shader for rendering atmospheric fog. */
 class FAtmosphericFogPS : public FGlobalShader
@@ -346,6 +424,12 @@ void SetAtmosphericFogShaders(FRHICommandList& RHICmdList, FGraphicsPipelineStat
 
 	auto ShaderMap = View.ShaderMap;
 
+	if (View.bIsReflectionCapture)
+	{
+		// We do not render the sun in in reflection captures as the specular component is already handled analytically when rendering directional lights.
+		RenderFlag |= uint32(EAtmosphereRenderFlag::E_DisableSunDisk);
+	}
+
 	TShaderMapRef<FAtmosphericVS> VertexShader(ShaderMap);
 	FAtmosphericFogPS* PixelShader = NULL;
 	switch (RenderFlag)
@@ -425,6 +509,12 @@ void FDeferredShadingSceneRenderer::RenderAtmosphere(FRHICommandListImmediate& R
 
 		SceneContext.FinishRenderingSceneColor(RHICmdList);
 	}
+}
+
+namespace
+{
+	const float RadiusGround = 6360;
+	const float RadiusAtmosphere = 6420;
 }
 
 #if WITH_EDITOR
@@ -1015,11 +1105,13 @@ IMPLEMENT_SHADER_TYPE(,FAtmosphereCopyInscatterFBackPS,TEXT("/Engine/Private/Atm
 IMPLEMENT_SHADER_TYPE(,FAtmospherePrecomputeVS,TEXT("/Engine/Private/AtmospherePrecompute.usf"),TEXT("MainVS"),SF_Vertex);
 IMPLEMENT_SHADER_TYPE(,FAtmospherePrecomputeInscatterVS,TEXT("/Engine/Private/AtmospherePrecomputeInscatter.usf"),TEXT("MainVS"),SF_Vertex);
 
+
+//////////////////////////////////////////////////////////////////////////
+// FAtmosphericFogSceneInfo
+
+
 namespace
 {
-	const float RadiusGround = 6360;
-	const float RadiusAtmosphere = 6420;
-
 	enum
 	{
 		AP_Transmittance = 0,
@@ -1165,7 +1257,7 @@ void FAtmosphericFogSceneInfo::RenderAtmosphereShaders(FRHICommandList& RHICmdLi
 		{
 			int32 Layer = Atmosphere3DTextureIndex;
 			{
-				FTextureRHIParamRef RenderTargets[] =
+				FRHITexture* RenderTargets[] =
 				{
 					AtmosphereTextures->AtmosphereDeltaSR->GetRenderTargetItem().TargetableTexture,
 					AtmosphereTextures->AtmosphereDeltaSM->GetRenderTargetItem().TargetableTexture,
@@ -1615,6 +1707,7 @@ void FAtmosphericFogSceneInfo::Read3DPixelsPtr(FRHICommandListImmediate& RHICmdL
 
 void FAtmosphericFogSceneInfo::PrecomputeTextures(FRHICommandListImmediate& RHICmdList, const FViewInfo* View, FSceneViewFamily* ViewFamily)
 {
+	SCOPED_GPU_STAT(RHICmdList, AtmospherePreCompute);
 	check(Component != NULL);
 	if (AtmosphereTextures == NULL)
 	{
@@ -1730,8 +1823,24 @@ void FAtmosphericFogSceneInfo::PrecomputeTextures(FRHICommandListImmediate& RHIC
 }
 #endif
 
+void FAtmosphericFogSceneInfo::PrepareSunLightProxy(FLightSceneInfo& SunLight) const
+{
+	// See explanation in https://media.contentapi.ea.com/content/dam/eacom/frostbite/files/s2016-pbs-frostbite-sky-clouds-new.pdf page 26
+	FLinearColor TransmittanceTowardSun = bAtmosphereAffectsSunIlluminance ? UAtmosphericFogComponent::GetTransmittance(-SunLight.Proxy->GetDirection(), RHeight) : FLinearColor(FLinearColor::White);
+	FLinearColor TransmittanceAtZenithFinal = bAtmosphereAffectsSunIlluminance ? TransmittanceAtZenith : FLinearColor(FLinearColor::White);
+
+	FLinearColor SunZenithIlluminance = SunLight.Proxy->GetColor();
+	FLinearColor SunOuterSpaceIlluminance = SunZenithIlluminance / TransmittanceAtZenithFinal;
+
+	// SunDiscScale is only considered as a visual tweak so we do not make it influence the sun disk outerspace luminance.
+	const float SunSolidAngle = 2.0f * PI * (1.0f - FMath::Cos(SunLight.Proxy->GetSunLightHalfApexAngleRadian())); // Solid angle from aperture https://en.wikipedia.org/wiki/Solid_angle 
+	FLinearColor SunDiskOuterSpaceLuminance = SunOuterSpaceIlluminance / SunSolidAngle; // approximation  
+
+	SunLight.Proxy->SetAtmosphereRelatedProperties(TransmittanceTowardSun / TransmittanceAtZenithFinal, SunDiskOuterSpaceLuminance);
+}
+
 /** Initialization constructor. */
-FAtmosphericFogSceneInfo::FAtmosphericFogSceneInfo(UAtmosphericFogComponent* InComponent, const FScene* InScene)
+FAtmosphericFogSceneInfo::FAtmosphericFogSceneInfo(const UAtmosphericFogComponent* InComponent)
 	: Component(InComponent)
 	, SunMultiplier(InComponent->SunMultiplier)
 	, FogMultiplier(InComponent->FogMultiplier)
@@ -1740,12 +1849,13 @@ FAtmosphericFogSceneInfo::FAtmosphericFogSceneInfo(UAtmosphericFogComponent* InC
 	, GroundOffset(InComponent->GroundOffset)
 	, DistanceScale(InComponent->DistanceScale)
 	, AltitudeScale(InComponent->AltitudeScale)
-	, RHeight(InComponent->PrecomputeParams.DensityHeight * InComponent->PrecomputeParams.DensityHeight * InComponent->PrecomputeParams.DensityHeight * 64.f)
+	, RHeight(InComponent->PrecomputeParams.GetRHeight())
 	, StartDistance(InComponent->StartDistance)
 	, DistanceOffset(InComponent->DistanceOffset)
 	, SunDiscScale(InComponent->SunDiscScale)
 	, RenderFlag(EAtmosphereRenderFlag::E_EnableAll)
 	, InscatterAltitudeSampleNum(InComponent->PrecomputeParams.InscatterAltitudeSampleNum)
+	, bAtmosphereAffectsSunIlluminance(InComponent->bAtmosphereAffectsSunIlluminance)
 
 #if WITH_EDITORONLY_DATA
 	, bNeedRecompute(false)
@@ -1758,6 +1868,7 @@ FAtmosphericFogSceneInfo::FAtmosphericFogSceneInfo(UAtmosphericFogComponent* InC
 	, AtmoshpereOrder(2)
 	, AtmosphereTextures(NULL)
 #endif
+	, TransmittanceAtZenith(Component->GetTransmittance(FVector(0.0f, 0.0f, 1.0f)))
 {
 	StartDistance *= DistanceScale * 0.00001f; // Convert to km in Atmospheric fog shader
 	// DistanceOffset is in km, no need to change...
@@ -1802,11 +1913,16 @@ bool ShouldRenderAtmosphere(const FSceneViewFamily& Family)
 		&& SupportAtmosphericFog->GetValueOnAnyThread();
 }
 
+
+//////////////////////////////////////////////////////////////////////////
+// FScene
+
+
 void FScene::AddAtmosphericFog(UAtmosphericFogComponent* FogComponent)
 {
 	check(FogComponent);
 
-	FAtmosphericFogSceneInfo* FogSceneInfo = new FAtmosphericFogSceneInfo(FogComponent, this);
+	FAtmosphericFogSceneInfo* FogSceneInfo = new FAtmosphericFogSceneInfo(FogComponent);
 	FScene* Scene = this;
 	ENQUEUE_RENDER_COMMAND(FAddAtmosphericFogCommand)(
 		[Scene, FogSceneInfo](FRHICommandListImmediate& RHICmdList)

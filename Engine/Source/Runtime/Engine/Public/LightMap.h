@@ -21,6 +21,8 @@ class UMapBuildDataRegistry;
 class UPrimitiveComponent;
 struct FQuantizedLightmapData;
 class UVirtualTexture;
+class FShadowMapData2D;
+class FFourDistanceFieldSamples;
 
 /** Whether to use bilinear filtering on lightmaps */
 extern ENGINE_API bool GUseBilinearLightmaps;
@@ -76,6 +78,7 @@ public:
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) {}
 	virtual void Serialize(FArchive& Ar);
 	virtual FLightMapInteraction GetInteraction(ERHIFeatureLevel::Type InFeatureLevel) const = 0;
+	virtual FShadowMapInteraction GetShadowInteraction(ERHIFeatureLevel::Type InFeatureLevel) const { return FShadowMapInteraction::None(); }
 
 	// Runtime type casting.
 	virtual FLightMap2D* GetLightMap2D() { return NULL; }
@@ -89,7 +92,7 @@ public:
 	}
 	void Release()
 	{
-		check(IsInGameThread() || IsInAsyncLoadingThread());
+		check(IsInGameThread() || IsInAsyncLoadingThread() || IsInGarbageCollectorThread());
 		checkSlow(NumRefs > 0);
 		if(--NumRefs == 0)
 		{
@@ -237,7 +240,7 @@ public:
 
 	UTexture2D* GetAOMaterialMaskTexture() const;
 
-	ULightMapVirtualTexture* GetVirtualTexture() const { return VirtualTexture; }
+	ULightMapVirtualTexture2D* GetVirtualTexture() const { return VirtualTexture; }
 
 	/**
 	 * Returns whether the specified basis has a valid lightmap texture or not.
@@ -254,6 +257,7 @@ public:
 
 	virtual void Serialize(FArchive& Ar);
 	virtual FLightMapInteraction GetInteraction(ERHIFeatureLevel::Type InFeatureLevel) const;
+	virtual FShadowMapInteraction GetShadowInteraction(ERHIFeatureLevel::Type InFeatureLevel) const;
 
 	// Runtime type casting.
 	virtual const FLightMap2D* GetLightMap2D() const { return this; }
@@ -264,12 +268,15 @@ public:
 	 * If the light-map has no lights in it, it will return NULL.
 	 * SourceQuantizedData will be deleted by this function.
 	 * @param	LightMapOuter - The package to create the light-map and textures in.
-	 * @param	SourceQuantizedData - If the data is already quantized, the values will be in here, and not in RawData.  
+	 * @param	SourceQuantizedData - If the data is already quantized, the values will be in here, and not in RawData. 
+	 * @param	SourceShadowMapData - Shadow map data to be combined into the lightmap atlas, used when creating VT lightmaps
 	 * @param	Bounds - The bounds of the primitive the light-map will be rendered on.  Used as a hint to pack light-maps on nearby primitives in the same texture.
 	 * @param	InPaddingType - the method for padding the lightmap.
 	 * @param	LightmapFlags - flags that determine how the lightmap is stored (e.g. streamed or not)
 	 */
-	static TRefCountPtr<FLightMap2D> AllocateLightMap(UObject* LightMapOuter, FQuantizedLightmapData*& SourceQuantizedData,
+	static TRefCountPtr<FLightMap2D> AllocateLightMap(UObject* LightMapOuter,
+		FQuantizedLightmapData*& SourceQuantizedData,
+		const TMap<ULightComponent*, FShadowMapData2D*>& SourceShadowMapData,
 		const FBoxSphereBounds& Bounds, ELightMapPaddingType InPaddingType, ELightMapFlags InLightmapFlags );
 
 	/**
@@ -282,7 +289,9 @@ public:
 	 * @param	InPaddingType - the method for padding the lightmap.
 	 * @param	LightmapFlags - flags that determine how the lightmap is stored (e.g. streamed or not)
 	 */
-	static TRefCountPtr<FLightMap2D> AllocateInstancedLightMap(UObject* LightMapOuter, UInstancedStaticMeshComponent* Component, TArray<TUniquePtr<FQuantizedLightmapData>> SourceQuantizedData,
+	static TRefCountPtr<FLightMap2D> AllocateInstancedLightMap(UObject* LightMapOuter, UInstancedStaticMeshComponent* Component,
+		TArray<TUniquePtr<FQuantizedLightmapData>> SourceQuantizedData,
+		TArray<TMap<ULightComponent*, TUniquePtr<FShadowMapData2D>>>&& InstancedShadowMapData,
 		UMapBuildDataRegistry* Registry, FGuid MapBuildDataId, const FBoxSphereBounds& Bounds, ELightMapPaddingType InPaddingType, ELightMapFlags LightmapFlags);
 
 	/**
@@ -291,6 +300,13 @@ public:
 	 * @param	bForceCompletion	Force all encoding to be fully completed (they may be asynchronous).
 	 */
 	static void EncodeTextures( UWorld* InWorld, bool bLightingSuccessful, bool bMultithreadedEncode = false );
+
+#if WITH_EDITOR
+	/**
+	 * Constructs mip maps for a single shadowmap texture.
+	 */
+	static int32 EncodeShadowTexture(ULevel* LightingScenario, struct FLightMapPendingTexture& PendingTexture, TArray<TArray<FFourDistanceFieldSamples>>& MipData);
+#endif // WITH_EDITOR
 
 	/** Call to enable/disable status update of LightMap encoding */
 	static void SetStatusUpdate(bool bInEnable)
@@ -316,8 +332,10 @@ protected:
 
 	ULightMapTexture2D* AOMaterialMaskTexture;
 
+	UShadowMapTexture2D* ShadowMapTexture;
+
 	/** The virtual textures containing the light-map data. */
-	ULightMapVirtualTexture *VirtualTexture;
+	ULightMapVirtualTexture2D *VirtualTexture;
 
 	/** A scale to apply to the coefficients. */
 	FVector4 ScaleVectors[NUM_STORED_LIGHTMAP_COEF];
@@ -330,6 +348,12 @@ protected:
 
 	/** The bias which is applied to the light-map coordinates before sampling the light-map textures. */
 	FVector2D CoordinateBias;
+
+	/** Stores the inverse of the penumbra size, normalized.  Stores 1 to interpret the shadowmap as a shadow factor directly, instead of as a distance field. */
+	FVector4 InvUniformPenumbraSize;
+
+	/** Tracks which of the 4 channels has valid texture data. */
+	bool bShadowChannelValid[4];
 
 	/** If true, update the status when encoding light maps */
 	static bool bUpdateStatus;
@@ -612,17 +636,25 @@ void CropUnmappedTexels( const TMappingData& MappingData, int32 SizeX, int32 Siz
 class FLightmapResourceCluster : public FRenderResource
 {
 public:
+	FLightmapResourceCluster() : AllocatedVT(nullptr) {}
+	virtual ~FLightmapResourceCluster();
 
 	ENGINE_API virtual void InitRHI();
-
-	virtual void ReleaseRHI()
-	{
-		UniformBuffer = nullptr;
-	}
+	ENGINE_API virtual void ReleaseRHI();
 
 	ENGINE_API void UpdateUniformBuffer(ERHIFeatureLevel::Type InFeatureLevel);
 
-	FLightmapClusterResourceInput Input;
+	void UpdateUniformBuffer_RenderThread();
 
+	/**
+	 * Allocates virtual texture on demand and returns it, may return nullptr if not using virtual texture
+	 * 'const' method setting 'mutable' member is not amazing, but this is required to work around ordering of render commands submitted from main thread,
+	 * it's possible for commands that want to access AllocatedVT from here execute before this has a chance to run InitRHI()
+	 */
+	IAllocatedVirtualTexture* AcquireAllocatedVT() const;
+	void ReleaseAllocatedVT();
+
+	FLightmapClusterResourceInput Input;
+	mutable IAllocatedVirtualTexture* AllocatedVT;
 	FUniformBufferRHIRef UniformBuffer;
 };

@@ -27,7 +27,7 @@ struct FPrimitiveSceneData
 	float DecalReceiverMask;
 	float PerObjectGBufferData;
 	float UseVolumetricLightmapShadowFromStationaryLights;
-	float UseEditorDepthTest;
+	float DrawsVelocity;
 	float4 ObjectOrientation;
 	float4 NonUniformScale;
 	float3 LocalObjectBoundsMin;
@@ -84,7 +84,7 @@ FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId)
 	PrimitiveData.DecalReceiverMask = View.PrimitiveSceneData[PrimitiveBaseOffset + 20].x;
 	PrimitiveData.PerObjectGBufferData = View.PrimitiveSceneData[PrimitiveBaseOffset + 20].y;
 	PrimitiveData.UseVolumetricLightmapShadowFromStationaryLights = View.PrimitiveSceneData[PrimitiveBaseOffset + 20].z;
-	PrimitiveData.UseEditorDepthTest = View.PrimitiveSceneData[PrimitiveBaseOffset + 20].w;
+	PrimitiveData.DrawsVelocity = View.PrimitiveSceneData[PrimitiveBaseOffset + 20].w;
 
 	PrimitiveData.ObjectOrientation = View.PrimitiveSceneData[PrimitiveBaseOffset + 21];
 	PrimitiveData.NonUniformScale = View.PrimitiveSceneData[PrimitiveBaseOffset + 22];
@@ -96,7 +96,7 @@ FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId)
 	PrimitiveData.LightmapDataIndex = asuint(View.PrimitiveSceneData[PrimitiveBaseOffset + 24].w);
 
 	PrimitiveData.PreSkinnedLocalBoundsMin = View.PrimitiveSceneData[PrimitiveBaseOffset + 25].xyz;
-	PrimitiveData.SingleCaptureIndex = View.PrimitiveSceneData[PrimitiveBaseOffset + 25].w;
+	PrimitiveData.SingleCaptureIndex = asuint(View.PrimitiveSceneData[PrimitiveBaseOffset + 25].w);
 
 	PrimitiveData.PreSkinnedLocalBoundsMax = View.PrimitiveSceneData[PrimitiveBaseOffset + 26].xyz;
 	PrimitiveData.OutputVelocity = asuint(View.PrimitiveSceneData[PrimitiveBaseOffset + 26].w);

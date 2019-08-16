@@ -38,6 +38,7 @@ private:
 	FBlendedHeapCurve PreviousAnimCurves;
 	FTransform PreviousComponentToWorld;
 	FTransform InvInitialRootTransform;
+	FTransform InitialRootTransform;
 	int32 SkeletonRootIndex;
 
 	/** Array of currently active notifies that have duration */
@@ -75,12 +76,16 @@ public:
 
 	bool SetAnimCompressionScheme(TSubclassOf<class UAnimCompress> SchemeClass);
 
+	const FTransform& GetInitialRootTransform() const { return InitialRootTransform; }
+
 	/** If true, it will record root to include LocalToWorld */
 	uint8 bRecordLocalToWorld :1;
 	/** If true, asset will be saved to disk after recording. If false, asset will remain in mem and can be manually saved. */
 	uint8 bAutoSaveAsset : 1;
 	/** If true, the root bone transform will be removed from all bone transforms */
 	uint8 bRemoveRootTransform : 1;
+	/** If true we check delta time at beginning of recording */
+	uint8 bCheckDeltaTimeAtBeginning : 1;
 	/** The interpolation mode for the recorded keys */
 	ERichCurveInterpMode InterpMode;
 	/** The tangent mode for the recorded keys*/
@@ -167,6 +172,7 @@ public:
 	float GetCurrentRecordingTime(USkeletalMeshComponent* Component);
 	void StopRecordingAnimation(USkeletalMeshComponent* Component, bool bShowMessage = true);
 	void StopRecordingAllAnimations();
+	const FTransform& GetInitialRootTransform(USkeletalMeshComponent* Component) const;
 
 	void Tick(float DeltaTime);
 

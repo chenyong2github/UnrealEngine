@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	GlobalDistanceFieldShared.usf
+	GlobalDistanceFieldShared.ush
 =============================================================================*/
 
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM5

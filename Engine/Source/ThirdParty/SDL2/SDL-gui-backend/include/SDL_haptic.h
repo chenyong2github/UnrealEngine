@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2018 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2019 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -116,6 +116,17 @@
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
+
+/* FIXME: For SDL 2.1, adjust all the magnitude variables to be Uint16 (0xFFFF).
+ *
+ * At the moment the magnitude variables are mixed between signed/unsigned, and
+ * it is also not made clear that ALL of those variables expect a max of 0x7FFF.
+ *
+ * Some platforms may have higher precision than that (Linux FF, Windows XInput)
+ * so we should fix the inconsistency in favor of higher possible precision,
+ * adjusting for platforms that use different scales.
+ * -flibit
+ */
 
 /**
  *  \typedef SDL_Haptic

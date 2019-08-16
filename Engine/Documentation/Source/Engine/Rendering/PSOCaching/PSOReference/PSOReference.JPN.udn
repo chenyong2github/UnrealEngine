@@ -1,8 +1,8 @@
-﻿INTSourceChangelist:0
+﻿INTSourceChangelist:4687638
 Availability: Public
 Crumbs: 
-Title: PSO Reference
-Description: Complete reference for PSO caching options.
+Title: PSO のリファレンス
+Description: PSO キャッシング オプションの完全リファレンス。
 Type: 
 Version: 4.21
 Parent: Engine/Rendering/PSOCaching
@@ -10,83 +10,83 @@ Order:
 Topic-image:placeholder_topic.png
 Tags: 
 
-On the following page you will find all of the various commands and options that can be used with the **Pipeline State Object** (PSO) caching system.
+以下のページで **Pipeline State Object** (PSO) キャッシング システムで使用可能な各種コマンドおよびオプションのすべてを説明します。
 
-## Properties  
+## プロパティ
 
-| **Property** | **Description** |
-| --- | --- |
-| **SetBatchMode Background** | Should be used behind interactive menus. |
-| **SetBatchMode Fast** | Should be used when a loading screen or movie is being displayed to allow more PSOs to be compiled. |
-| **ResumeBatching** | Should be used to restart the batching process. |
-| **NumPrecompilesRemaining** | Is used to determine the total number of outstanding PSOs to compile. |
-| **NumPrecompilesActive** | Returns the number of pipelines actively being precompiled this frame. |
-| **OpenPipelineFileCache** | Opens the shader pipeline cache file with either the LastOpened setting if available, or the project name otherwise. |
-| **SavePipelineFileCache**  | Saves the current shader pipeline cache to disk using one of the defined save modes, Fast uses an incremental approach whereas Slow will consolidate all data into the file. |
-| **ClosePipelineFileCache** | Closes the existing pipeline cache, allowing it to be reopened with a different file and/or shader platform. Will implicitly invoke a Fast Save. |
-| **ShaderLibraryStateChanged** | Called by FShaderCodeLibrary to notify us that the shader code library state changed and shader availability will need to be re-evaluated. |
-| **SetGameUsageMaskWithComparison** | Set the current PSO Game Usage Mask and comparison function. Returns true if this mask is different from the old mask or false if not or the cache system is disabled or if the mask feature is disabled. Any new PSO's found will be logged with this value or existing PSO should have their masks updated.  See FPipelineFileCache for more details.  |
+| **プロパティ**| **説明**|
+| ---| ---|
+| **SetBatchMode Background**| インタラクティブ メニューのバックグラウンドで使用されます。|
+| **SetBatchMode Fast**| ロード画面や動画の表示中に使用され、より多くの PSO のコンパイルを可能にします。|
+| **ResumeBatching**| バッチ処理を再起動するために使用されます。|
+| **NumPrecompilesRemaining**| 未コンパイル PSO の総数を検出するために使用されます。|
+| **NumPrecompilesActive**| このフレームのプリコンパイルがアクティブなパイプラインの数を返します。|
+| **OpenPipelineFileCache**| シェーダ パイプライン キャッシュ ファイルを利用可能であれば LastOpened 設定で、利用可能でなければプロジェクト名で開きます。|
+| **SavePipelineFileCache**| 現在のシェーダ パイプライン キャッシュを、インクリメント アプローチを使用する Fast または、全データをファイルに統合する Slow いずれかの保存モードでディスクに保存します。|
+| **ClosePipelineFileCache**| 既存のパイプライン キャッシュを閉じて、異なるファイルかつ / または異なるシェーダ プラットフォームで再オープンできるようにします。暗黙的に Fast 保存を実行します。|
+| **ShaderLibraryStateChanged**| FShaderCodeLibrary によって呼び出される。シェーダ コード ライブラリの状態が変化したためシェーダの利用状態を再評価する必要があることを通知します。|
+| **SetGameUsageMaskWithComparison**| 現在の PSO Game Usage Mask と比較関数を設定します。このマスクが古いマスクと異なる場合は true を、そうでないか、キャッシュ システムまたはマスク機能が無効の場合は false を返します。新しい PSO が見つかるとこの値と共にロギングされるか、既存 PSO のマスクが更新されます。詳細については FPipelineFileCache を参照してください。|
 
 
 ## FShaderPipelineCache
 
-The FShaderPipelineCache provides the new PSO logging, serialisation & precompilation mechanism that replaces FShaderCache. Caching Pipeline State Objects and serialising the initialisers to disk allows for precompilation of these states the next time the game is run, which reduces hitching.To achieve this FShaderPipelineCache relies upon FShaderCodeLibrary & "Share Material Shader Code" and the RHI-level backend FPipelineFileCache.
+FShaderPipelineCache は FShaderCache に代わる新たな PSO のロギング、シリアル化およびプリコンパイル処理の仕組みを提供します。パイプライン ステート オブジェクトのキャッシングとディスクへの初期化子のシリアル化により、次回ゲーム実行時にこれらの状態をプリコンパイル処理してヒッチを減らします。FShaderPipelineCache は FShaderCodeLibrary と「Share Material Shader Code」および RHI レベルのバックエンド FPipelineFileCache に依存します。
 
-## Basic Runtime Usage
+## 基本的なランタイムの使用方法
 
-The following commands can be used while the PSO caching is running to help make sure that your project does not hitch while PSO data is being complied.
+以下のコマンドは、PSO キャッシング実行中の PSO データのコンパイル中にプロジェクトがヒッチすることを防ぐのに役立ちます。
 
-*   You can enable the cache with **r.ShaderPipelineCache.Enabled = 1**, which allows the pipeline cache to load existing data from disk and precompile it. 
-*   Setting the default batch size with r**.ShaderPipelineCache.BatchSize = X**, where X is the maximum number of PSOs to compile in a single batch when precompiling in the default **Fast BatchMode**.
-*   Setting the background batch size with **r.ShaderPipelineCache.BackgroundBatchSize = X**, where X is the maximum number of PSOs to compile when in the Background Batch Mode. 
-*   Instrument the game code to call **FShaderPipelineCache::SetBatchMode** to switch the batch mode between Fast & Background modes. 
-*   **BatchMode::Fast** should be used when a loading screen or movie is being displayed to allow more PSOs to be compiled whereas Background should be used behind interactive menus. If required call **NumPrecompilesRemaining** to determine the total number of outstanding PSOs to compile and keep the loading screen or movie visible until complete. 
-*   Depending on the game & target platform performance it may also be required to call **PauseBatching** to suspend precompilation during gameplay and then **ResumeBatching** when behind a loading screen, menu or movie to restart precompilation.
+*   **r.ShaderPipelineCache.Enabled = 1** としてキャッシュを有効にして、パイプライン キャッシュが既存データをディスクからロードしてプリコンパイルします。 
+*   **r.ShaderPipelineCache.BatchSize = X** でデフォルト バッチ サイズを設定します。X はデフォルトの **Fast BatchMode** でプリコンパイルする場合に、ひとつのバッチでコンパイルされる PSO の最大数です。
+*   **r.ShaderPipelineCache.BackgroundBatchSize = X** でバックグラウンドのバッチ サイズを設定します。X はバックグラウンド バッチ モード時にコンパイルされる PSO の最大数です。 
+*   **FShaderPipelineCache::SetBatchMode** を呼び出すゲーム コードを実装して、ファスト モードとバックグラウンド モードを切り替えます。 
+*   **BatchMode::Fast** を使用することで、ロード画面または動画の描画中に、より多くの PSO のコンパイルが可能になります。一方で、Background はインタラクティブ メニューのバックグラウンドで使用されます。必要に応じて **NumPrecompilesRemaining** を呼び出して、コンパイルすべき未処理の PSO の総数を調べて、終了するまでロード中の画面または動画を表示し続けます。 
+*   ゲームと対象プラットフォームのパフォーマンスに応じて、 **PauseBatching** を呼び出してゲームプレイ中のプリコンパイル処理を一時停止して ロード画面、メニューや動画のバックグラウンドで **ResumeBatching** によりプリコンパイル処理を再開する必要もあるかもしれません。
 
-## Other Runtime Options
+## その他のランタイム オプション
 
-The following commands can be used to help further control when the PSO will build the cache.
+以下のコマンドは、PSO によるキャッシュのビルド時の、より細かな制御をするのに役立ちます。
 
-*   In the **GGameIni** (and thus also GGameUserSettingsIni) the Shader Pipeline Cache uses the [**ShaderPipelineCache.CacheFile**] section to store some settings.
-*   The **LastOpened** setting stores the name of the last opened cache file as specified with Open, which if present will be used within **FShaderPipelineCache::Initialize** to open the existing cache. If not specified this will default to the AppName.
-*   The **SortMode** settings stores the desired sort mode for the PSOs, which is one of:  
+*   **GGameIni** (それに伴い GGameUserSettingsIni も) 内でシェーダー パイプライン キャッシュに設定を保持する [**ShaderPipelineCache.CacheFile**] セクションを使用させます。
+*   **LastOpened** 設定は、最後に開いたキャシュの名前を Open を併記して保持します。 **FShaderPipelineCache::Initialize** が存在する場合は、その内部で使用され、既存キャッシュを開きます。記述がなければ AppName がデフォルトになります。
+*   **SortMode** 設定は、以下いずれかひとつの中から希望する PSO のソート モードを保持します。
     
-    *   **Default**: Loaded in the order specified in the file.
+    *   **Default**:ファイルに記述された順番でロードします。
     
-    *   **FirstToLatestUsed**: Start with the PSOs with the lowest first-frame used and work toward those with the highest.
+    *   **FirstToLatestUsed**:最も低利用な最初フレームの PSO から開始して、最も高利用なものに向かって処理します。
     
-    *   **MostToLeastUsed**: Start with the most often used PSOs working toward the least.
-*   Will use "Default" within **FShaderPipelineCache::Initialize** & **OpenPipelineFileCache** if nothing is specified. 
-*   The **GameVersionKey** is a read-only integer specified in the **GGameIni** that specifies the game content version to disambiguate incompatible versions of the game content. By default this is taken from the **FEngineVersion** changlist.
+    *   **MostToLeastUsed**:最も高利用な PSO から開始して最も低利用なものに向かって処理します。
+* 指定がなければ    **FShaderPipelineCache::Initialize** と **OpenPipelineFileCache** 内で「Default」を使用します。 
+*   **GameVersionKey** は読み取り専用の整数値で **GGameIni** 内で指定され、ゲーム コンテンツで互換性の無いバージョンの曖昧さ回避のためにゲーム コンテンツのバージョンを指定します。デフォルト値は **FEngineVersion** 変更リストから取得されます。
 
-## Logging Usage
+## ログの使用
 
-The following commands can be used when you are capturing PSO data.
+以下のコマンドを PSO データのキャプチャ時に利用できます。
 
-*   You can enable PSO cache using the r**.ShaderPipelineCache.Enabled = 1** command and then turn on runtime logging using the **r.ShaderPipelineCache.LogPSO = 1** command. 
-*   When doing this you need to ensure that you have configured the game to open the appropriate cache on startup and allow the game to play. 
-*   PSOs are logged as they are encountered as Unreal Engine 4 (UE4) does not provide facility to cook them offline, so this system will only collect PSOs which are actually used to render. 
-*   As such you must either manually play through the game to collect logs or automate the process which is beyond the scope of this code. 
-*   The data can be saved at any time by calling **FShaderPipelineCache::SavePipelineFileCache** and this can happen automatically after a given number of PSOs by setting **r.ShaderPipelineCache.SaveAfterPSOsLogged = X** where X is the desired number of PSOs to log before saving (0 will disable auto-save).
-*   Log files are shader platform specific to reduce overheads.
+*   **r.ShaderPipelineCache.Enabled = 1** コマンドを使用して PSO キャッシュを有効にして、 **r.ShaderPipelineCache.LogPSO = 1** コマンドにより実行時のログ取得を起動します。 
+*   上記を実行する場合、ゲームが起動時に適切なキャッシュを開いて、ゲーム プレイが可能になっていることを確認してください。 
+*   PSO は検出時にログが取得されます。Unreal Engine 4 (UE4) は PSO をオフラインで クックする機能を提供していないため、このシステムは実際のレンダリングに使用されている PSO のみを収集します。 
+*   そのため、ゲームをマニュアル プレイしてログを収集するか、このコードのスコープ外の処理を自動化しなければなりません。 
+ *   **FShaderPipelineCache::SavePipelineFileCache** を呼び出すことでいつでもデータを保存できます。 ** これは、 r.ShaderPipelineCache.SaveAfterPSOsLogged = X** を設定して PSO の数を与えることで自動実行させることができます。 ここでの X は保存前にログ取得したい PSO の数です (0 で自動保存が無効)。
+*   ログ ファイルはオーバヘッドを減らすために、シェーダー プラットフォーム固有です。
 
-## File Locations & Packaging
+## ファイルの場所とパッケージ化
 
-The following information provided more information on where the PSO data will be stored.
+さらに以下に、PSO データが保存される場所について記述します。
 
-*   The writable cache file is always stored in the User Saved directory.
-*   The game can also provide an immutable copy within its Game Content directory which will be used as the initial or seed data. 
-*   Having generated logs in development and merged them with **UnrealEd.MergeShaderPipelineCaches** they should be packaged inside the Game Content directory for the relevant platform.
+*   書込み可能なキャッシュは常に「User Saved」ディレクトリに保存されます。
+*   ゲームは「Game Content」ディレクトリ内に初期またはシード データとして使用する変更不可能なコピーを作成することができます。 
+*   開発環境で生成して **UnrealEd.MergeShaderPipelineCaches** でマージしたログは、関連するプラットフォームの「Game Content」ディレクトリ内にパッケージ化されます。
 
-## Requirements
+## 要件
 
-The following requirements must be adhered to when trying to setup PSO to be captured in your project.
+プロジェクトでの PSO のキャプチャをセットアップするにあたっての要件は以下の通りです。
 
-*   FShaderCodeLibrary must be enabled through **Project Settings** \> **Packaging** \> **Share Material Shader Code**.
-*   Enabling **Native Shader Libraries** is optional, but strongly preferred for **Metal**.
+*   FShaderCodeLibrary が **「Project Settings** \> **Packaging** \> **Share Material Shader Code」** によって有効化されている必要があります。
+*   **Native Shader Libraries** を有効にするかどうかは任意ですが **Metal** のために強くお勧めします。
 
-## Additional Notes
+## 追記
 
-*   The open cache file can be changed by closing the existing file with **ClosePipelineFileCache** (which implicitly Fast saves) and then opening a new one with **OpenPipelineFileCache**. 
-*   When logging if you switch files only new entries from after the switch will be logged, which means you will miss any PSOs that should have been logged prior to switching. This prevents polluting the cache with unexpected entries. 
-*   The **UnrealEd.MergeShaderPipelineCaches** command-let can be used to merge cache files with the same file-version, shader platform and game-version.
+*   **ClosePipelineFileCache** (暗黙的に Fast セーブします) で既存ファイルを閉じて **OpenPipelineFileCache** で新規に開くことで開いているキャッシュ ファイルを変更できます。 
+*   ログ取得時に、スイッチがロギングされてから新規エントリのみスイッチするとと、スイッチの前にログ取得されるはずだった PSO が失われます。これにより想定外のエントリによってキャッシュが汚れるのを防ぎます。 
+*   **UnrealEd.MergeShaderPipelineCaches** コマンドレット を使用して同じファイルバージョン、シェーダー プラットフォーム、ゲームバージョンのキャッシュ ファイルをマージすることができます。

@@ -121,6 +121,7 @@ FPrimaryCrashProperties::FPrimaryCrashProperties()
 	, CrashReporterMessage( FGenericCrashContext::RuntimePropertiesTag, TEXT( "CrashReporterMessage" ), this )
 	, PlatformCallbackResult(FGenericCrashContext::PlatformPropertiesTag, TEXT("PlatformCallbackResult"), this)
 	, CrashReportClientVersion(FGenericCrashContext::RuntimePropertiesTag, TEXT("CrashReportClientVersion"), this)
+	, CPUBrand(FGenericCrashContext::RuntimePropertiesTag, TEXT("CPUBrand"), this)
 	, XmlFile( nullptr )
 {
 	CrashVersion = ECrashDescVersions::VER_1_NewCrashFormat;
@@ -170,8 +171,11 @@ void FPrimaryCrashProperties::ReadXML( const FString& CrashContextFilepath  )
 {
 	XmlFilepath = CrashContextFilepath;
 	XmlFile = new FXmlFile( XmlFilepath );
-	TimeOfCrash = FDateTime::UtcNow().GetTicks();
-	UpdateIDs();
+	if (XmlFile->IsValid())
+	{
+		TimeOfCrash = FDateTime::UtcNow().GetTicks();
+		UpdateIDs();
+	}
 }
 
 void FPrimaryCrashProperties::SetCrashGUID( const FString& Filepath )
@@ -213,6 +217,7 @@ FString FPrimaryCrashProperties::EncodeArrayStringAsXMLString( const TArray<FStr
  * @EventParam AppDefaultLocale - The ICU default locale string or "en" if ICU is not enabled.
  * @EventParam UserActivityHint - Application-specific user activity string, if set in the crashed process. The meaning is game/app-specific.
  * @EventParam GameSessionID - Application-specific session Id, if set in the crashed process.
+ * @EventParam PCallStackHash - The hash of the portable callstack
  * @EventParam DeploymentName - Deployment name, also known as EpicApp. (e.g. "DevPlaytest", "PublicTest", "Live", etc)
  */
 void SendPreUploadEnsureAnalytics(const TArray<FAnalyticsEventAttribute>& InCrashAttributes)
@@ -245,6 +250,7 @@ void SendPreUploadEnsureAnalytics(const TArray<FAnalyticsEventAttribute>& InCras
  * @EventParam AppDefaultLocale - The ICU default locale string or "en" if ICU is not enabled.
  * @EventParam UserActivityHint - Application-specific user activity string, if set in the crashed process. The meaning is game/app-specific.
  * @EventParam GameSessionID - Application-specific session Id, if set in the crashed process.
+ * @EventParam PCallStackHash - The hash of the portable callstack
  * @EventParam DeploymentName - Deployment name, also known as EpicApp. (e.g. "DevPlaytest", "PublicTest", "Live", etc)
  */
 void SendPreUploadCrashAnalytics(const TArray<FAnalyticsEventAttribute>& InCrashAttributes)
@@ -390,33 +396,46 @@ void FPrimaryCrashProperties::MakeCrashEventAttributes(TArray<FAnalyticsEventAtt
 	OutCrashAttributes.Add(FAnalyticsEventAttribute(TEXT("UserActivityHint"), UserActivityHint.AsString()));
 	OutCrashAttributes.Add(FAnalyticsEventAttribute(TEXT("GameSessionID"), GameSessionID.AsString()));
 	OutCrashAttributes.Add(FAnalyticsEventAttribute(TEXT("DeploymentName"), DeploymentName));
+	OutCrashAttributes.Add(FAnalyticsEventAttribute(TEXT("PCallStackHash"), PCallStackHash));
+	OutCrashAttributes.Add(FAnalyticsEventAttribute(TEXT("CPUBrand"), CPUBrand.AsString()));
 
 	// Add arbitrary engine data
-	const FXmlNode* EngineNode = XmlFile->GetRootNode()->FindChildNode( FGenericCrashContext::EngineDataTag );
-	if (EngineNode)
+	if (XmlFile->IsValid())
 	{
-		for (const FXmlNode* ChildNode : EngineNode->GetChildrenNodes())
+		const FXmlNode* EngineNode = XmlFile->GetRootNode()->FindChildNode( FGenericCrashContext::EngineDataTag );
+		if (EngineNode)
 		{
-			FString KeyName = FString(TEXT("EngineData.")) + ChildNode->GetTag();
-			OutCrashAttributes.Add(FAnalyticsEventAttribute(*KeyName, ChildNode->GetContent()));
+			for (const FXmlNode* ChildNode : EngineNode->GetChildrenNodes())
+			{
+				FString KeyName = FString(TEXT("EngineData.")) + ChildNode->GetTag();
+				OutCrashAttributes.Add(FAnalyticsEventAttribute(*KeyName, ChildNode->GetContent()));
+			}
+		}
+
+		// Add arbitrary game data
+		const FXmlNode* GameNode = XmlFile->GetRootNode()->FindChildNode( FGenericCrashContext::GameDataTag );
+		if (GameNode)
+		{
+			for (const FXmlNode* ChildNode : GameNode->GetChildrenNodes())
+			{
+				FString KeyName = FString(TEXT("GameData.")) + ChildNode->GetTag();
+				OutCrashAttributes.Add(FAnalyticsEventAttribute(*KeyName, ChildNode->GetContent()));
+			}
 		}
 	}
-
-	// Add arbitrary game data
-	const FXmlNode* GameNode = XmlFile->GetRootNode()->FindChildNode( FGenericCrashContext::GameDataTag );
-	if (GameNode)
+	else
 	{
-		for (const FXmlNode* ChildNode : GameNode->GetChildrenNodes())
-		{
-			FString KeyName = FString(TEXT("GameData.")) + ChildNode->GetTag();
-			OutCrashAttributes.Add(FAnalyticsEventAttribute(*KeyName, ChildNode->GetContent()));
-		}
+		FString KeyName = FString(TEXT("EngineData.InvalidXML"));
+		OutCrashAttributes.Add(FAnalyticsEventAttribute(*KeyName, true));
 	}
 }
 
 void FPrimaryCrashProperties::Save()
 {
-	XmlFile->Save( XmlFilepath );
+	if (XmlFile->IsValid())
+	{
+		XmlFile->Save( XmlFilepath );
+	}
 }
 
 /*-----------------------------------------------------------------------------
@@ -469,6 +488,7 @@ FCrashContext::FCrashContext( const FString& CrashContextFilepath )
 		GetCrashProperty( bIsEnsure, FGenericCrashContext::RuntimePropertiesTag, TEXT("IsEnsure"));
 		GetCrashProperty( CrashType, FGenericCrashContext::RuntimePropertiesTag, TEXT("CrashType"));
 		GetCrashProperty( NumMinidumpFramesToIgnore, FGenericCrashContext::RuntimePropertiesTag, TEXT("NumMinidumpFramesToIgnore"));
+		GetCrashProperty( PCallStackHash, FGenericCrashContext::RuntimePropertiesTag, TEXT("PCallStackHash"));
 
 		if (CrashDumpMode == ECrashDumpMode::FullDump)
 		{

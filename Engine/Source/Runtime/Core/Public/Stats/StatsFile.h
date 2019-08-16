@@ -363,8 +363,10 @@ protected:
 	{
 		FName RawName = NameAndInfo.GetRawName();
 		bool bSendFName = !FNamesSent.Contains( RawName.GetComparisonIndex() );
-		int32 Index = RawName.GetComparisonIndex();
-		Ar << Index;
+
+		int32 ComparisonInt = RawName.GetComparisonIndex().ToUnstableInt();
+		Ar << ComparisonInt;
+
 		int32 Number = NameAndInfo.GetRawNumber();
 		if (bSendFName)
 		{
@@ -415,7 +417,7 @@ protected:
 	}
 
 	/** Set of names already sent. */
-	TSet<int32> FNamesSent;
+	TSet<FNameEntryId> FNamesSent;
 
 	/** Data to write. */
 	TArray<uint8> OutData;
@@ -612,7 +614,7 @@ public:
 	FStatsStreamHeader Header;
 
 	/** FNames have a different index on each machine, so we translate via this map. **/
-	TMap<int32, int32> FNamesIndexMap;
+	TMap<int32, FNameEntryId> FNamesIndexMap;
 
 	/** Array of stats frame info. Empty for the raw stats. */
 	TArray<FStatsFrameInfo> FramesInfo;
@@ -702,7 +704,7 @@ public:
 			{
 				if( FNamesIndexMap.Contains( Index ) )
 				{
-					const int32 MyIndex = FNamesIndexMap.FindChecked( Index );
+					const FNameEntryId MyIndex = FNamesIndexMap.FindChecked( Index );
 					TheFName = FName( MyIndex, MyIndex, 0 );
 				}
 				else
@@ -723,7 +725,7 @@ public:
 			}
 			if( FNamesIndexMap.Contains( Index ) )
 			{
-				const int32 MyIndex = FNamesIndexMap.FindChecked( Index );
+				const FNameEntryId MyIndex = FNamesIndexMap.FindChecked( Index );
 				TheFName = FName( MyIndex, MyIndex, 0 );
 			}
 			else

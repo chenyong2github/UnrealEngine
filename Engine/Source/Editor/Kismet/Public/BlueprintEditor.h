@@ -43,7 +43,9 @@ class UEdGraph;
 class UEdGraphNode;
 class UUserDefinedEnum;
 class UUserDefinedStruct;
+class UBlueprintEditorOptions;
 struct Rect;
+class UK2Node_FunctionEntry;
 
 /* Enums to use when grouping the blueprint members in the list panel. The order here will determine the order in the list */
 namespace NodeSectionID
@@ -204,6 +206,7 @@ public:
 
 	//~ Begin FGCObject Interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override;
 	//~ End FGCObject Interface
 
 	//~ Begin IBlueprintEditor Interface
@@ -215,7 +218,7 @@ public:
 	virtual void JumpToPin(const class UEdGraphPin* Pin) override;
 	virtual void SummonSearchUI(bool bSetFindWithinBlueprint, FString NewSearchTerms = FString(), bool bSelectFirstResult = false) override;
 	virtual void SummonFindAndReplaceUI() override;
-	virtual TSharedPtr<SGraphEditor> OpenGraphAndBringToFront(UEdGraph* Graph) override;
+	virtual TSharedPtr<SGraphEditor> OpenGraphAndBringToFront(UEdGraph* Graph, bool bSetFocus = true) override;
 	virtual TArray<TSharedPtr<class FSCSEditorTreeNode> > GetSelectedSCSEditorTreeNodes() const override;
 	virtual TSharedPtr<class FSCSEditorTreeNode> FindAndSelectSCSEditorTreeNode(const UActorComponent* InComponent, bool IsCntrlDown) override;
 	virtual int32 GetNumberOfSelectedNodes() const override;
@@ -346,7 +349,7 @@ public:
 	bool InEditingMode() const;
 
 	/** Returns true if able to compile */
-	bool IsCompilingEnabled() const;
+	virtual bool IsCompilingEnabled() const;
 
 	/** Returns true if the parent class is also a Blueprint */
 	bool IsParentClassOfObjectABlueprint(const UBlueprint* Blueprint) const;
@@ -580,6 +583,12 @@ public:
 	/** Adds to a list of custom objects for debugging beyond what will automatically be found/used */
 	virtual void GetCustomDebugObjects(TArray<FCustomDebugObject>& DebugList) const { }
 
+	/** If returns true only the custom debug list will be used */
+	virtual bool OnlyShowCustomDebugObjects() const { return false; }
+
+	/** Can be overloaded to customize the labels in the debug filter */
+	virtual FString GetCustomDebugObjectLabel(UObject* ObjectBeingDebugged) const { return FString(); }
+
 	/** Called when a node's title is committed for a rename */
 	void OnNodeTitleCommitted(const FText& NewText, ETextCommit::Type CommitInfo, UEdGraphNode* NodeBeingChanged);
 
@@ -807,6 +816,53 @@ protected:
 	void OnExpandNodes();
 	bool CanExpandNodes() const;
 
+	/**
+	* Move the given set of nodes to an average spot near the Source position
+	* 
+	* @param AverageNodes					The nodes to move
+	* @param SourcePos						The source position used to average the nodes around
+	* @param bExpandedNodesNeedUniqueGuid	If true then a new Guid will be generated for each node in the set
+	*/
+	void MoveNodesToAveragePos(TSet<UEdGraphNode*>& AverageNodes, FVector2D SourcePos, bool bExpandedNodesNeedUniqueGuid = false) const;
+
+	void OnConvertFunctionToEvent();
+	bool CanConvertFunctionToEvent() const;
+
+	/*
+	* Given a function node, move all nodes from the function out of the function graph,
+	* create an event with the same function name, and connect nodes to that event. 
+	* 
+	* @param SelectedCallFunctionNode	The function node to convert to an event
+	*/
+	void ConvertFunctionToEvent(UK2Node_FunctionEntry* SelectedCallFunctionNode);
+
+	/**
+	* Output a map of pin names to a set of connections given a function entry pin
+	* 
+	* @param Node				The entry pin to gather connections from
+	* @param OutPinConnections	Output map of connection data
+	*/
+	void GetPinConnectionMap(UEdGraphNode* Node, TMap<FString, TSet<UEdGraphPin*>>& OutPinConnections) const;
+
+	/**
+	* Reconnect the pin map to the given node
+	* 
+	* @param Node				The node to connect pins to
+	* @param PinConnections		Map of pin connections to set
+	*/
+	void ReconnectPinMap(UEdGraphNode* Node, const TMap<FString, TSet<UEdGraphPin*>>& PinConnections);
+
+	void OnConvertEventToFunction();
+	bool CanConvertEventToFunction() const;
+
+	/**
+	* Get all connected nodes and add them to a set of out nodes
+	* 
+	* @param Node		The node to get all connects to 
+	* @return	TArray of all connected nodes
+	*/
+	TArray<UEdGraphNode*> GetAllConnectedNodes(UEdGraphNode* const Node) const;
+
 	void OnAlignTop();
 	void OnAlignMiddle();
 	void OnAlignBottom();
@@ -824,6 +880,14 @@ protected:
 
 	virtual void DeleteSelectedNodes();
 	bool CanDeleteNodes() const;
+
+	/**
+	* Given a node, make connections from anything connected to it's input pin to
+	* anything connected to it's "then" pins. Only works on impure nodes with single exec/then pins.
+	* 
+	* @param Node	The node to reconnect
+	*/
+	void ReconnectExecPins(class UK2Node* Node);
 
 	void DeleteSelectedDuplicatableNodes();
 
@@ -947,6 +1011,19 @@ protected:
 	/**
 	 * Expands passed in node */
 	static void ExpandNode(UEdGraphNode* InNodeToExpand, UEdGraph* InSourceGraph, TSet<UEdGraphNode*>& OutExpandedNodes);
+
+	/**
+	* Move every node from the source graph to the destination graph. Add Each node that is moved to the OutExpandedNodes set.
+	* If the source graph is a function graph, keep track of the entry and result nodes in the given Out Parameters. 
+	*
+	* @param SourceNodes		Nodes to move
+	* @param DestinationGraph	Graph to move nodes to
+	* @param OutExpandedNodes	Set of each node that was moved from the source to destination graph
+	* @param OutEntry			Pointer to the function entry node
+	* @param OutResult			Pointer to the function result node
+	* @param bIsCollapsedGraph	Whether or not the source graph is collapsed
+	**/
+	static void MoveNodesToGraph(TArray<UEdGraphNode*>& SourceNodes, UEdGraph* DestinationGraph, TSet<UEdGraphNode*>& OutExpandedNodes, UEdGraphNode** OutEntry, UEdGraphNode** OutResult, const bool bIsCollapsedGraph = false);
 
 	/** Start editing the defaults for this blueprint */
 	void OnStartEditingDefaultsClicked();
@@ -1082,6 +1159,19 @@ private:
 	/** Returns the appropriate check box state representing whether or not the selected nodes are enabled */
 	ECheckBoxState GetEnabledCheckBoxStateForSelectedNodes();
 
+	/** Configuration class used to store editor settings across sessions. */
+	UBlueprintEditorOptions* EditorOptions;
+
+	/**
+	 * Load editor settings from disk (docking state, window pos/size, option state, etc).
+	 */
+	virtual void LoadEditorSettings();
+
+	/**
+	 * Saves editor settings to disk (docking state, window pos/size, option state, etc).
+	 */
+	virtual void SaveEditorSettings();
+
 	/** Attempt to match the given enabled state for currently-selected nodes */
 	ECheckBoxState CheckEnabledStateForSelectedNodes(ENodeEnabledState CheckState);
 
@@ -1090,6 +1180,9 @@ private:
 
 public://@TODO
 	TSharedPtr<FDocumentTracker> DocumentManager;
+	
+	/** Update all nodes' unrelated states when the graph has changed */
+	void UpdateNodesUnrelatedStatesAfterGraphChange();
 
 protected:
 
@@ -1190,6 +1283,35 @@ protected:
 
 	/** The preview actor representing the current preview */
 	mutable TWeakObjectPtr<AActor> PreviewActorPtr;
+
+	/** If true, fade out nodes which are unrelated to the selected nodes automatically. */
+	bool bHideUnrelatedNodes;
+
+	/** Lock the current fade state of each node */
+	bool bLockNodeFadeState;
+
+	/** If a regular node (not a comment node) has been selected */
+	bool bSelectRegularNode;
+
+	/** Focus nodes which are related to the selected nodes */
+	void ResetAllNodesUnrelatedStates();
+	void CollectExecUpstreamNodes(UEdGraphNode* CurrentNode, TArray<UEdGraphNode*>& CollectedNodes);
+	void CollectExecDownstreamNodes(UEdGraphNode* CurrentNode, TArray<UEdGraphNode*>& CollectedNodes);
+	void CollectPureDownstreamNodes(UEdGraphNode* CurrentNode, TArray<UEdGraphNode*>& CollectedNodes);
+	void CollectPureUpstreamNodes(UEdGraphNode* CurrentNode, TArray<UEdGraphNode*>& CollectedNodes);
+	void HideUnrelatedNodes();
+
+public:
+	/** Make nodes which are unrelated to the selected nodes fade out */
+	void ToggleHideUnrelatedNodes();
+	bool IsToggleHideUnrelatedNodesChecked() const;
+
+	/** Make a drop down menu to control the opacity of unrelated nodes */
+	TSharedRef<SWidget> MakeHideUnrelatedNodesOptionsMenu();
+	TOptional<float> HandleUnrelatedNodesOpacityBoxValue() const;
+	void HandleUnrelatedNodesOpacityBoxChanged(float NewOpacity);
+	void OnLockNodeStateCheckStateChanged(ECheckBoxState NewCheckedState);
+
 
 public:
 	//@TODO: To be moved/merged

@@ -6,6 +6,7 @@
 #include "Windows/WindowsHWrapper.h"
 #endif
 
+PRAGMA_DEFAULT_VISIBILITY_START
 THIRD_PARTY_INCLUDES_START
 #include <Alembic/AbcCoreHDF5/All.h>
 #include <Alembic/AbcCoreOgawa/All.h>
@@ -13,6 +14,7 @@ THIRD_PARTY_INCLUDES_START
 #include <Alembic/AbcCoreAbstract/TimeSampling.h>
 #include <Alembic/AbcCoreHDF5/All.h>
 THIRD_PARTY_INCLUDES_END
+PRAGMA_DEFAULT_VISIBILITY_END
 
 #include "Misc/Paths.h"
 #include "Misc/FeedbackContext.h"
@@ -231,7 +233,7 @@ UStaticMesh* FAbcImporter::CreateStaticMeshFromSample(UObject* InParent, const F
 		GenerateMeshDescriptionFromSample(Sample, MeshDescription, StaticMesh);
 
 		// Get the first LOD for filling it up with geometry, only support one LOD
-		FStaticMeshSourceModel& SrcModel = StaticMesh->SourceModels[LODIndex];
+		FStaticMeshSourceModel& SrcModel = StaticMesh->GetSourceModel(LODIndex);
 		// Set build settings for the static mesh
 		SrcModel.BuildSettings.bRecomputeNormals = false;
 		SrcModel.BuildSettings.bRecomputeTangents = false;

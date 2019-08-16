@@ -79,6 +79,19 @@ namespace AndroidTexFormat
 	static FName NamePOTERROR(TEXT("POTERROR"));
 }
 
+/** Listed in order of priority...if device supports multiple formats, first format in list will be chosen */
+enum class EAndroidTextureFormatCategory
+{
+	PVRTC,
+	DXT,
+	ATC,
+	ETC2,
+	ETC1a,
+	ETC1,
+	ASTC,
+
+	Count,
+};
 
 /**
  * FAndroidTargetPlatform, abstraction for cooking Android platforms
@@ -177,6 +190,11 @@ public:
 		return true;
 	}
 
+	virtual bool SupportsTextureFormatCategory(EAndroidTextureFormatCategory Category) const
+	{
+		return true;
+	}
+
 	virtual bool SupportsCompressedNonPOT( ) const
 	{
 		// most formats do support non-POT compressed textures
@@ -192,7 +210,7 @@ public:
 	
 	virtual const class FStaticMeshLODSettings& GetStaticMeshLODSettings() const override;
 
-	virtual void GetTextureFormats( const UTexture* InTexture, TArray<FName>& OutFormats ) const override;
+	virtual void GetTextureFormats( const UTexture* InTexture, TArray< TArray<FName> >& OutFormats) const override;
 
 	virtual void GetAllTextureFormats(TArray<FName>& OutFormats) const override;
 
@@ -348,6 +366,11 @@ public:
 		return false;
 	}
 
+	virtual bool SupportsTextureFormatCategory(EAndroidTextureFormatCategory Category) const override
+	{
+		return Category == EAndroidTextureFormatCategory::DXT;
+	}
+
 	virtual bool SupportedByExtensionsString(const FString& ExtensionsString, const int GLESVersion) const override
 	{
 		return (ExtensionsString.Contains(TEXT("GL_NV_texture_compression_s3tc")) || ExtensionsString.Contains(TEXT("GL_EXT_texture_compression_s3tc")));
@@ -395,6 +418,11 @@ public:
 			return true;
 		}
 		return false;
+	}
+
+	virtual bool SupportsTextureFormatCategory(EAndroidTextureFormatCategory Category) const override
+	{
+		return Category == EAndroidTextureFormatCategory::ATC;
 	}
 
 	virtual bool SupportedByExtensionsString(const FString& ExtensionsString, const int GLESVersion) const override
@@ -449,8 +477,13 @@ public:
 		return false;
 	}
 
+	virtual bool SupportsTextureFormatCategory(EAndroidTextureFormatCategory Category) const override
+	{
+		return Category == EAndroidTextureFormatCategory::ASTC;
+	}
+
 #if WITH_ENGINE
-	virtual void GetTextureFormats(const UTexture* Texture, TArray<FName>& OutFormats) const
+	virtual void GetTextureFormats(const UTexture* Texture, TArray< TArray<FName> >& OutFormats) const
 	{
 		check(Texture);
 
@@ -467,36 +500,28 @@ public:
 			{ { FName(TEXT("AutoDXT")) },{ FName(TEXT("ASTC_RGBAuto")) } },
 		};
 
-		FName TextureFormatName = NAME_None;
+		GetDefaultTextureFormatNamePerLayer(OutFormats.AddDefaulted_GetRef(), this, Texture, EngineSettings, false, false, 1);
 
-		// forward rendering only needs one channel for shadow maps
-		if (Texture->LODGroup == TEXTUREGROUP_Shadowmap)
+		for (FName& TextureFormatName : OutFormats.Last())
 		{
-			TextureFormatName = FName(TEXT("G8"));
-		}
-
-		// if we didn't assign anything specially, then use the defaults
-		if (TextureFormatName == NAME_None)
-		{
-			TextureFormatName = GetDefaultTextureFormatName(this, Texture, EngineSettings, false, false, 1);
-		}
-
-		// perform any remapping away from defaults
-		bool bFoundRemap = false;
-		for (int32 RemapIndex = 0; RemapIndex < ARRAY_COUNT(FormatRemap); ++RemapIndex)
-		{
-			if (TextureFormatName == FormatRemap[RemapIndex][0])
+			if (Texture->LODGroup == TEXTUREGROUP_Shadowmap)
 			{
-				// we found a remapping
-				bFoundRemap = true;
-				OutFormats.AddUnique(FormatRemap[RemapIndex][1]);
+				// forward rendering only needs one channel for shadow maps
+				TextureFormatName = FName(TEXT("G8"));
 			}
-		}
-
-		// if we didn't already remap above, add it now
-		if (!bFoundRemap)
-		{
-			OutFormats.Add(TextureFormatName);
+			else
+			{
+				// perform any remapping away from defaults
+				for (int32 RemapIndex = 0; RemapIndex < ARRAY_COUNT(FormatRemap); ++RemapIndex)
+				{
+					if (TextureFormatName == FormatRemap[RemapIndex][0])
+					{
+						// we found a remapping
+						TextureFormatName = FormatRemap[RemapIndex][1];
+						break;
+					}
+				}
+			}
 		}
 	}
 
@@ -581,6 +606,11 @@ public:
 		return false;
 	}
 
+	virtual bool SupportsTextureFormatCategory(EAndroidTextureFormatCategory Category) const override
+	{
+		return Category == EAndroidTextureFormatCategory::PVRTC;
+	}
+
 	virtual bool SupportedByExtensionsString(const FString& ExtensionsString, const int GLESVersion) const override
 	{
 		return ExtensionsString.Contains(TEXT("GL_IMG_texture_compression_pvrtc"));
@@ -631,6 +661,10 @@ public:
 		return false;
 	}
 
+	virtual bool SupportsTextureFormatCategory(EAndroidTextureFormatCategory Category) const override
+	{
+		return Category == EAndroidTextureFormatCategory::ETC2;
+	}
 
 	virtual bool SupportedByExtensionsString(const FString& ExtensionsString, const int GLESVersion) const override
 	{
@@ -678,6 +712,11 @@ public:
 		}
 
 		return false;
+	}
+
+	virtual bool SupportsTextureFormatCategory(EAndroidTextureFormatCategory Category) const override
+	{
+		return Category == EAndroidTextureFormatCategory::ETC1;
 	}
 
 	// End FAndroidTargetPlatform overrides
@@ -730,6 +769,11 @@ public:
 		}
 
 		return false;
+	}
+
+	virtual bool SupportsTextureFormatCategory(EAndroidTextureFormatCategory Category) const override
+	{
+		return Category == EAndroidTextureFormatCategory::ETC1a;
 	}
 
 	// End FAndroidTargetPlatform overrides
@@ -824,16 +868,16 @@ public:
 	}
 
 #if WITH_ENGINE
-	virtual void GetTextureFormats(const UTexture* Texture, TArray<FName>& OutFormats) const
+	virtual void GetTextureFormats(const UTexture* Texture, TArray< TArray<FName> >& OutFormats) const
 	{
 		// Ask each platform variant to choose texture formats
 		for (ITargetPlatform* Platform : FormatTargetPlatforms)
 		{
-			TArray<FName> PlatformFormats;
+			TArray< TArray<FName> > PlatformFormats;
 			Platform->GetTextureFormats(Texture, PlatformFormats);
-			for (FName Format : PlatformFormats)
+			for (const TArray<FName>& FormatPerLayer : PlatformFormats)
 			{
-				OutFormats.AddUnique(Format);
+				OutFormats.AddUnique(FormatPerLayer);
 			}
 		}
 	}

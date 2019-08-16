@@ -1,0 +1,123 @@
+﻿INTSourceChangelist:6412478
+Availability: Public
+Title: 安装iOS必备软件
+Description: 获取并安装为iOS设备开发游戏必需的所有软件。
+Type: how-to
+Version: 4.19
+Parent: Platforms/Mobile/iOS
+Tags: iOS
+Tags: StartingOut
+topic-image: iOS_QS_Editor_TopicImage.png
+SkillLevel: Beginner
+
+
+要开始使用虚幻引擎4开发iOS项目，你必须首先在你的开发PC上下载并安装下列程序。 
+
+## 步骤
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    windows
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_0]
+    [/PARAM]
+[/OBJECT]]
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    mac
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_2]
+    [/PARAM]
+[/OBJECT]
+
+
+<!--
+[EXCERPT:excerpt_0]
+
+如果使用Windows，你必须安装 **iTunes** 才能将你的iOS项目打包并部署到iOS设备。你可以使用下列链接从苹果网站下载iTunes：
+
+[安装iTunes](http://www.apple.com/itunes/)
+
+![](itunes.png)
+
+
+在iTunes完成下载后，确保将它安装到你的开发PC。
+
+[/EXCERPT:excerpt_0]
+-->
+
+<!--
+[EXCERPT:excerpt_2]
+
+你必须在使用Mac OS的设备上安装最新版本的 **Xcode** 才能将iOS项目打包并部署到设备。你可以使用下列链接从苹果下载Xcode的安装程序：  
+[安装Xcode]https://developer.apple.com/xcode/)
+
+[![](DownloadXCode.png)](https://developer.apple.com/xcode/)
+
+在 **Xcode** 完成下载后，一定要安装并运行它。
+
+[/EXCERPT:excerpt_2]
+-->
+
+## 最终结果
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    windows
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_1]
+    [/PARAM]
+[/OBJECT]
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    mac
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_3]
+    [/PARAM]
+[/OBJECT]
+
+<!--
+[EXCERPT:excerpt_1]
+
+完成以后，你就已安装了iTunes，可以将UE4项目部署到iOS设备了。
+
+[/EXCERPT:excerpt_1]
+-->
+
+<!--
+[EXCERPT:excerpt_3]
+
+完成以后，你就已安装了XCode，可以将UE4项目部署到iOS设备了。
+
+[/EXCERPT:excerpt_3]
+-->
+
+

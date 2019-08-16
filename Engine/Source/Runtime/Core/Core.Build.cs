@@ -14,6 +14,8 @@ public class Core : ModuleRules
 
 		PrivateDependencyModuleNames.Add("BuildSettings");
 
+		PublicDependencyModuleNames.Add("TraceLog");
+
 		PrivateIncludePaths.AddRange(
 			new string[] {
 				"Developer/DerivedDataCache/Public",
@@ -65,6 +67,17 @@ public class Core : ModuleRules
 			{
 				PrivateDefinitions.Add("USE_BUNDLED_DBGHELP=0");
 			}
+		}
+		else if ((Target.Platform == UnrealTargetPlatform.HoloLens))
+		{
+			PublicIncludePaths.Add("Runtime/Core/Public/HoloLens");
+			AddEngineThirdPartyPrivateStaticDependencies(Target,
+				"zlib");
+
+			AddEngineThirdPartyPrivateStaticDependencies(Target,
+				"IntelTBB",
+				"XInput"
+				);
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
@@ -169,6 +182,11 @@ public class Core : ModuleRules
 			}
 		}
 
+		if( Target.Platform == UnrealTargetPlatform.HoloLens)
+		{
+			PublicDefinitions.Add("WITH_VS_PERF_PROFILER=0");
+		}
+
 		WhitelistRestrictedFolders.Add("Private/NoRedist");
 
         if (Target.Platform == UnrealTargetPlatform.XboxOne)
@@ -176,7 +194,8 @@ public class Core : ModuleRules
             PublicDefinitions.Add("WITH_DIRECTXMATH=1");
         }
         else if ((Target.Platform == UnrealTargetPlatform.Win64) ||
-                (Target.Platform == UnrealTargetPlatform.Win32))
+                (Target.Platform == UnrealTargetPlatform.Win32) ||
+				(Target.Platform == UnrealTargetPlatform.HoloLens))
         {
 			// To enable this requires Win8 SDK
             PublicDefinitions.Add("WITH_DIRECTXMATH=0");  // Enable to test on Win64/32.
@@ -197,7 +216,7 @@ public class Core : ModuleRules
         bool bWithMallocStomp = false;
         if (Target.Configuration != UnrealTargetConfiguration.Shipping)
         {
-			if (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Mac)
+			if (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.Win64)
 			// Target.Platform == UnrealTargetPlatform.Win32: // 32-bit windows can technically be supported, but will likely run out of virtual memory space quickly
 			// Target.Platform == UnrealTargetPlatform.XboxOne: // XboxOne could be supported, as it's similar enough to Win64
 			{

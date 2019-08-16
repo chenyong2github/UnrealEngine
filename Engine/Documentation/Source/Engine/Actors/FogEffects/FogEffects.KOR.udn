@@ -1,20 +1,16 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6572591
 Availability: Public
-Title:포그 이펙트
-Crumbs: %ROOT%, Engine
-Description:포그를 사용하여 월드의 환경을 조성하고 분위기를 설정하는 방법입니다.
-parent:Engine/Rendering
-order:6
-type:landing
-topic-image:fog_topic.png
-
-[REGION:banner]
-![Fog Effects](fog_landing_banner.png)
-[/REGION]
+Title: 포그 이펙트
+Description: 포그를 사용하여 월드의 환경을 조성하고 분위기를 설정하는 방법입니다.
+Type: landing
+Parent: Engine/Rendering
+Tags: Rendering
+Tags: Graphics
+topic-image: fog_topic.png
+hero-image:fog_landing_banner.png
 
 포그 이펙트는 배경의 무드를 설정하여 월드의 분위기를 잡는 데 사용됩니다. 예를 들면 땅에서 피어오르는 안개로 으스스한 느낌을 낼 수가 있습니다.
 
-[REGION:topics half]
-%Engine/Actors/FogEffects/AtmosphericFog:topic%
-%Engine/Actors/FogEffects/HeightFog:topic%
-[/REGION]
+[DIR(output:"topic" parent:"Engine/Actors/FogEffects" tags:"overview" tags:"atmospheric fog" end:"1")]
+
+[DIR(output:"topic" parent:"Engine/Actors/FogEffects" tags:"overview" tags:"exponential height fog" end:"1")]

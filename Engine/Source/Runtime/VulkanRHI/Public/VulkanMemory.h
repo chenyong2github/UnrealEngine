@@ -13,6 +13,12 @@
 #define VULKAN_MEMORY_TRACK_CALLSTACK	0
 
 
+#define VULKAN_MEMORY_LOW_PRIORITY 0.f
+#define VULKAN_MEMORY_MEDIUM_PRIORITY 0.5f
+#define VULKAN_MEMORY_HIGHER_PRIORITY 0.75f
+#define VULKAN_MEMORY_HIGHEST_PRIORITY 1.f
+
+
 class FVulkanQueue;
 class FVulkanCmdBuffer;
 
@@ -20,13 +26,14 @@ enum class EDelayAcquireImageType
 {
 	None,			// acquire next image on frame start
 	DelayAcquire,	// acquire next image just before presenting, rendering is done to intermediate image which is copied to real backbuffer
-	PreAcquire,		// acquire next image immediately after presenting current
+	LazyAcquire,	// acquire next image on first use
 };
 
 extern EDelayAcquireImageType GVulkanDelayAcquireImage;
 
 namespace VulkanRHI
 {
+	static uint32 GetMaxSize(class FBufferAllocation* Allocation);
 	class FFenceManager;
 
 	extern int32 GVulkanUseBufferBinning;
@@ -267,13 +274,13 @@ namespace VulkanRHI
 
 
 		// bCanFail means an allocation failing is not a fatal error, just returns nullptr
-		FDeviceMemoryAllocation* Alloc(bool bCanFail, VkDeviceSize AllocationSize, uint32 MemoryTypeIndex, void* DedicatedAllocateInfo, const char* File, uint32 Line);
+		FDeviceMemoryAllocation* Alloc(bool bCanFail, VkDeviceSize AllocationSize, uint32 MemoryTypeIndex, void* DedicatedAllocateInfo, float Priority, const char* File, uint32 Line);
 
-		inline FDeviceMemoryAllocation* Alloc(bool bCanFail, VkDeviceSize AllocationSize, uint32 MemoryTypeBits, VkMemoryPropertyFlags MemoryPropertyFlags, void* DedicatedAllocateInfo, const char* File, uint32 Line)
+		inline FDeviceMemoryAllocation* Alloc(bool bCanFail, VkDeviceSize AllocationSize, uint32 MemoryTypeBits, VkMemoryPropertyFlags MemoryPropertyFlags, void* DedicatedAllocateInfo, float Priority, const char* File, uint32 Line)
 		{
 			uint32 MemoryTypeIndex = ~0;
 			VERIFYVULKANRESULT(this->GetMemoryTypeFromProperties(MemoryTypeBits, MemoryPropertyFlags, &MemoryTypeIndex));
-			return Alloc(bCanFail, AllocationSize, MemoryTypeIndex, DedicatedAllocateInfo, File, Line);
+			return Alloc(bCanFail, AllocationSize, MemoryTypeIndex, DedicatedAllocateInfo, Priority, File, Line);
 		}
 
 		// Sets the Allocation to nullptr
@@ -525,6 +532,10 @@ namespace VulkanRHI
 			, Owner(InOwner)
 			, Handle(InHandle)
 		{
+			uint32 Size = GetMaxSize(InOwner);
+			check(InAlignedOffset <= Size);
+			check(InAllocationOffset + InAllocationSize <= Size);
+			check(InAlignedOffset + InRequestedSize <= Size);
 		}
 
 		virtual ~FBufferSuballocation();
@@ -541,6 +552,8 @@ namespace VulkanRHI
 
 		// Returns the pointer to the mapped data for this SubAllocation, not the full buffer!
 		void* GetMappedPointer();
+
+		void Flush();
 
 	protected:
 		friend class FBufferAllocation;
@@ -575,13 +588,7 @@ namespace VulkanRHI
 		virtual FResourceSuballocation* CreateSubAllocation(uint32 Size, uint32 AlignedOffset, uint32 AllocatedSize, uint32 AllocatedOffset) = 0;
 		virtual void Destroy(FVulkanDevice* Device) = 0;
 
-		FResourceSuballocation* TryAllocateNoLocking(uint32 InSize, uint32 InAlignment, const char* File, uint32 Line);
-
-		inline FResourceSuballocation* TryAllocateLocking(uint32 InSize, uint32 InAlignment, const char* File, uint32 Line)
-		{
-			FScopeLock ScopeLock(&CS);
-			return TryAllocateNoLocking(InSize, InAlignment, File, Line);
-		}
+		FResourceSuballocation* TryAllocate(uint32 InSize, uint32 InAlignment, const char* File, uint32 Line);
 
 		inline uint32 GetAlignment() const
 		{
@@ -593,6 +600,8 @@ namespace VulkanRHI
 			return MemoryAllocation->GetMappedPointer();
 		}
 
+		void Flush(VkDeviceSize Offset, VkDeviceSize AllocationSize);
+		uint32 GetMaxSize(){ return MaxSize; }
 	protected:
 		FResourceHeapManager* Owner;
 		uint32 MemoryTypeIndex;
@@ -738,6 +747,10 @@ namespace VulkanRHI
 
 		friend class FResourceHeapManager;
 	};
+	static inline uint32 GetMaxSize(FBufferAllocation* Allocation)
+	{
+		return Allocation->GetMaxSize();
+	}
 
 	// Manages heaps and their interactions
 	class FResourceHeapManager : public FDeviceChild
@@ -833,8 +846,11 @@ namespace VulkanRHI
 #if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
 		void DumpMemory();
 #endif
+		
+		FBufferSuballocation* AllocUniformBuffer(uint32 Size, const void* Contents);
+		void ReleaseUniformBuffer(FBufferSuballocation* UBAlloc);
 
-		void* Hotfix;
+		void* Hotfix = nullptr;
 
 	protected:
 		FDeviceMemoryManager* DeviceMemoryManager;
@@ -911,6 +927,21 @@ namespace VulkanRHI
 
 		void ReleaseFreedResources(bool bImmediately);
 		void DestroyResourceAllocations();
+		struct FUBPendingFree
+		{
+			FBufferSuballocation* Allocation = nullptr;
+			uint64 Frame = 0;
+		};
+
+		struct
+		{
+			FCriticalSection CS;
+			TArray<FUBPendingFree> PendingFree;
+			uint32 Peak = 0;
+		} UBAllocations;
+
+		void ProcessPendingUBFreesNoLock(bool bForce);
+		void ProcessPendingUBFrees(bool bForce);
 	};
 
 	class FStagingBuffer : public FRefCount
@@ -953,6 +984,10 @@ namespace VulkanRHI
 		{
 			ResourceAllocation->InvalidateMappedMemory();
 		}
+
+#if VULKAN_MEMORY_TRACK_CALLSTACK
+		FString Callstack;
+#endif
 
 	protected:
 		TRefCountPtr<FOldResourceAllocation> ResourceAllocation;

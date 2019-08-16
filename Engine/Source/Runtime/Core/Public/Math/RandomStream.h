@@ -8,6 +8,7 @@
 #include "Math/Matrix.h"
 #include "Math/RotationMatrix.h"
 #include "Math/Transform.h"
+#include "HAL/PlatformTime.h"
 
 /**
  * Implements a thread-safe SRand based RNG.
@@ -36,9 +37,20 @@ public:
 	 * @param InSeed The seed value.
 	 */
 	FRandomStream( int32 InSeed )
-		: InitialSeed(InSeed)
-		, Seed(InSeed)
-	{ }
+	{ 
+		Initialize(InSeed);
+	}
+
+	/**
+	 * Creates and initializes a new random stream from the specified name.
+	 *
+	 * @note If NAME_None is provided, the stream will be seeded using the current time.
+	 * @param InName The name value from which the stream will be initialized.
+	 */
+	FRandomStream( FName InName )
+	{
+		Initialize(InName);
+	}
 
 public:
 
@@ -51,6 +63,26 @@ public:
 	{
 		InitialSeed = InSeed;
 		Seed = InSeed;
+	}
+
+	/**
+	 * Initializes this random stream using the specified name.
+	 *
+	 * @note If NAME_None is provided, the stream will be seeded using the current time.
+	 * @param InName The name value from which the stream will be initialized.
+	 */
+	void Initialize( FName InName )
+	{
+		if (InName != NAME_None)
+		{
+			InitialSeed = GetTypeHash(InName.ToString());
+		}
+		else
+		{
+			InitialSeed = FPlatformTime::Cycles();
+		}
+
+		Seed = InitialSeed;
 	}
 
 	/**
@@ -295,6 +327,16 @@ public:
 	 * @see ImportTextItem
 	 */
 	CORE_API bool ExportTextItem(FString& ValueStr, FRandomStream const& DefaultValue, class UObject* Parent, int32 PortFlags, class UObject* ExportRootScope) const;
+
+	/**
+	 * Get a textual representation of the RandomStream.
+	 *
+	 * @return Text describing the RandomStream.
+	 */
+	FString ToString() const
+	{
+		return FString::Printf(TEXT("FRandomStream(InitialSeed=%i, Seed=%i)"), InitialSeed, Seed);
+	}
 
 protected:
 

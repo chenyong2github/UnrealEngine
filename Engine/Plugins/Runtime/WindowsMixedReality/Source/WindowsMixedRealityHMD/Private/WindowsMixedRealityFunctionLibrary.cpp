@@ -5,6 +5,8 @@
 #include "Engine/Engine.h"
 #include "WindowsMixedRealityHMD.h"
 
+#include <functional>
+
 UWindowsMixedRealityFunctionLibrary::UWindowsMixedRealityFunctionLibrary(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -53,6 +55,17 @@ bool UWindowsMixedRealityFunctionLibrary::IsCurrentlyImmersive()
 	return hmd->IsCurrentlyImmersive();
 }
 
+bool UWindowsMixedRealityFunctionLibrary::IsDisplayOpaque()
+{
+	WindowsMixedReality::FWindowsMixedRealityHMD* hmd = GetWindowsMixedRealityHMD();
+	if (hmd == nullptr)
+	{
+		return true;
+	}
+
+	return hmd->IsDisplayOpaque();
+}
+
 void UWindowsMixedRealityFunctionLibrary::LockMouseToCenter(bool locked)
 {
 	WindowsMixedReality::FWindowsMixedRealityHMD* hmd = GetWindowsMixedRealityHMD();
@@ -62,4 +75,43 @@ void UWindowsMixedRealityFunctionLibrary::LockMouseToCenter(bool locked)
 	}
 
 	hmd->LockMouseToCenter(locked);
+}
+
+bool UWindowsMixedRealityFunctionLibrary::IsTrackingAvailable()
+{
+#if WITH_WINDOWS_MIXED_REALITY
+	WindowsMixedReality::FWindowsMixedRealityHMD* hmd = GetWindowsMixedRealityHMD();
+	if (hmd == nullptr)
+	{
+		return false;
+	}
+
+	return hmd->IsTrackingAvailable();
+#else
+	return false;
+#endif
+}
+
+FPointerPoseInfo UWindowsMixedRealityFunctionLibrary::GetPointerPoseInfo(EControllerHand hand)
+{
+	FPointerPoseInfo info;
+
+#if WITH_WINDOWS_MIXED_REALITY
+
+	WindowsMixedReality::FWindowsMixedRealityHMD* hmd = GetWindowsMixedRealityHMD();
+	if (hmd == nullptr)
+	{
+		return info;
+	}
+
+	WindowsMixedReality::PointerPoseInfo p;
+	hmd->GetPointerPose(hand, p);
+
+	info.Origin = FVector(p.origin.x, p.origin.y, p.origin.z);
+	info.Direction = FVector(p.direction.x, p.direction.y, p.direction.z);
+	info.Up = FVector(p.up.x, p.up.y, p.up.z);
+	info.Orientation = FQuat(p.orientation.x, p.orientation.y, p.orientation.z, p.orientation.w);
+#endif
+
+	return info;
 }

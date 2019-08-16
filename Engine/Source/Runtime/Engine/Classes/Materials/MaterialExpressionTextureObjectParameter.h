@@ -16,6 +16,10 @@ UCLASS(collapsecategories, hidecategories=(Object, MaterialExpressionTextureSamp
 class UMaterialExpressionTextureObjectParameter : public UMaterialExpressionTextureSampleParameter
 {
 	GENERATED_UCLASS_BODY()
+	
+	//~ Begin UMaterialExpressionTextureSampleParameter Interface
+	virtual bool TextureIsValid(UTexture* InTexture, FString& OutMessage) override;
+	//~ End UMaterialExpressionTextureSampleParameter Interface
 
 
 	//~ Begin UMaterialExpression Interface
@@ -27,11 +31,6 @@ class UMaterialExpressionTextureObjectParameter : public UMaterialExpressionText
 	virtual const TArray<FExpressionInput*> GetInputs() override;
 #endif
 	//~ End UMaterialExpression Interface
-
-	//~ Begin UMaterialExpressionTextureSampleParameter Interface
-	virtual const TCHAR* GetRequirements() override;
-	//~ End UMaterialExpressionTextureSampleParameter Interface
-
 };
 
 

@@ -14,15 +14,33 @@
 #include "Misc/CommandLine.h"
 #include "HAL/PlatformStackWalk.h"
 
+struct FCachedWindowRect
+{
+	FCachedWindowRect() : WindowWidth(-1), WindowHeight(-1), WindowInit(false), ContentScaleFactor(-1.0f), bLastMosaicState(false), Window_EventThread(nullptr)
+	{
+	}
+
+	int32 WindowWidth;
+	int32 WindowHeight;
+	bool WindowInit;
+	float ContentScaleFactor;
+	bool bLastMosaicState;
+	ANativeWindow* Window_EventThread;
+};
+
+
 // Cached calculated screen resolution
-static int32 WindowWidth = -1;
-static int32 WindowHeight = -1;
+static FCachedWindowRect CachedWindowRect;
+static FCachedWindowRect CachedWindowRect_EventThread;
+
+static void ClearCachedWindowRects()
+{
+	CachedWindowRect.WindowInit = false;
+	CachedWindowRect_EventThread.WindowInit = false;
+}
+
 static int32 GSurfaceViewWidth = -1;
 static int32 GSurfaceViewHeight = -1;
-static bool WindowInit = false;
-static float ContentScaleFactor = -1.0f;
-static ANativeWindow* LastWindow = NULL;
-static bool bLastMosaicState = false;
 
 void* FAndroidWindow::NativeWindow = NULL;
 
@@ -36,17 +54,14 @@ TSharedRef<FAndroidWindow> FAndroidWindow::Make()
 	return MakeShareable( new FAndroidWindow() );
 }
 
-FAndroidWindow::FAndroidWindow() :Window(NULL)
+FAndroidWindow::FAndroidWindow()
 {
 }
 
 void FAndroidWindow::Initialize( class FAndroidApplication* const Application, const TSharedRef< FGenericWindowDefinition >& InDefinition, const TSharedPtr< FAndroidWindow >& InParent, const bool bShowImmediately )
 {
-	//set window here.
-
 	OwningApplication = Application;
 	Definition = InDefinition;
-	Window = static_cast<ANativeWindow*>(FAndroidWindow::GetHardwareWindow());
 }
 
 bool FAndroidWindow::GetFullScreenInfo( int32& X, int32& Y, int32& Width, int32& Height ) const
@@ -64,7 +79,8 @@ bool FAndroidWindow::GetFullScreenInfo( int32& X, int32& Y, int32& Width, int32&
 
 void FAndroidWindow::SetOSWindowHandle(void* InWindow)
 {
-	Window = static_cast<ANativeWindow*>(InWindow);
+	// not expecting a window to be supplied on android.
+	check(InWindow == nullptr);
 }
 
 
@@ -76,7 +92,7 @@ static FVector4 GAndroidLandscapeSafezone = FVector4(-1.0f, -1.0f, -1.0f, -1.0f)
 #if USE_ANDROID_JNI
 JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeSetWindowInfo(JNIEnv* jenv, jobject thiz, jboolean bIsPortrait, jint DepthBufferPreference)
 {
-	WindowInit = false;
+	ClearCachedWindowRects();
 	GAndroidIsPortrait = bIsPortrait == JNI_TRUE;
 	GAndroidDepthBufferPreference = DepthBufferPreference;
 	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("App is running in %s\n"), GAndroidIsPortrait ? TEXT("Portrait") : TEXT("Landscape"));
@@ -108,6 +124,10 @@ JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeSetSafezoneInfo(JNIEnv
 }
 #endif
 
+bool FAndroidWindow::bAreCachedNativeDimensionsValid = false;
+int32 FAndroidWindow::CachedNativeWindowWidth = -1;
+int32 FAndroidWindow::CachedNativeWindowHeight = -1;
+
 bool FAndroidWindow::IsPortraitOrientation()
 {
 	return GAndroidIsPortrait;
@@ -125,7 +145,7 @@ int32 FAndroidWindow::GetDepthBufferPreference()
 
 void FAndroidWindow::InvalidateCachedScreenRect()
 {
-	WindowInit = false;
+	ClearCachedWindowRects();
 }
 
 void FAndroidWindow::AcquireWindowRef(ANativeWindow* InWindow)
@@ -142,14 +162,71 @@ void FAndroidWindow::ReleaseWindowRef(ANativeWindow* InWindow)
 #endif
 }
 
-void FAndroidWindow::SetHardwareWindow(void* InWindow)
+ void FAndroidWindow::SetHardwareWindow_EventThread(void* InWindow)
 {
 	NativeWindow = InWindow; //using raw native window handle for now. Could be changed to use AndroidWindow later if needed
 }
 
-void* FAndroidWindow::GetHardwareWindow()
+void* FAndroidWindow::GetHardwareWindow_EventThread()
 {
 	return NativeWindow;
+}
+
+bool FAndroidWindow::WaitForWindowDimensions()
+{
+	while (!bAreCachedNativeDimensionsValid)
+	{
+		if (GIsRequestingExit
+#if USE_ANDROID_EVENTS
+		|| FAppEventManager::GetInstance()->WaitForEventInQueue(EAppEventState::APP_EVENT_STATE_ON_DESTROY, 0.0f)
+#endif
+			)
+		{
+			// Application is shutting down
+			return false;
+		}
+		FPlatformProcess::Sleep(0.001f);
+	}
+	return true;
+}
+
+// To be called during initialization from the event thread.
+// once set the dimensions are 'valid' and further changes are updated via FAppEventManager::Tick 
+void FAndroidWindow::SetWindowDimensions_EventThread(ANativeWindow* DimensionWindow)
+{
+	if(bAreCachedNativeDimensionsValid == false)
+	{
+#if USE_ANDROID_JNI
+		CachedNativeWindowWidth = ANativeWindow_getWidth(DimensionWindow);
+		CachedNativeWindowHeight = ANativeWindow_getHeight(DimensionWindow);
+#else // Lumin case.
+		int32 ResWidth, ResHeight;
+		if (FPlatformMisc::GetOverrideResolution(ResWidth, ResHeight))
+		{
+			CachedNativeWindowWidth = ResWidth;
+			CachedNativeWindowHeight = ResHeight;
+		}
+#endif
+		FPlatformMisc::MemoryBarrier();
+		bAreCachedNativeDimensionsValid = true;
+	}
+}
+
+// Update the dimensions from FAppEventManager::Tick based on messages posted from the event thread.
+void FAndroidWindow::EventManagerUpdateWindowDimensions(int32 Width, int32 Height)
+{
+	check(bAreCachedNativeDimensionsValid);
+	check(Width >= 0 && Height >= 0);
+
+	bool bChanged = CachedNativeWindowWidth != Width || CachedNativeWindowHeight != Height;
+
+	CachedNativeWindowWidth = Width;
+	CachedNativeWindowHeight = Height;
+
+	if (bChanged)
+	{
+		InvalidateCachedScreenRect();
+	}
 }
 
 void* FAndroidWindow::WaitForHardwareWindow()
@@ -167,8 +244,8 @@ void* FAndroidWindow::WaitForHardwareWindow()
 	// It is not sufficient to check the GIsRequestingExit global variable, as the handler reacting to the APP_EVENT_STATE_ON_DESTROY
 	// may be running in the same thread as this method and therefore lead to a deadlock.
 
-	void* Window = GetHardwareWindow();
-	while (Window == nullptr)
+	void* WindowEventThread = GetHardwareWindow_EventThread();
+	while (WindowEventThread == nullptr)
 	{
 #if USE_ANDROID_EVENTS
 		if (GIsRequestingExit || FAppEventManager::GetInstance()->WaitForEventInQueue(EAppEventState::APP_EVENT_STATE_ON_DESTROY, 0.0f))
@@ -178,62 +255,71 @@ void* FAndroidWindow::WaitForHardwareWindow()
 		}
 #endif
 		FPlatformProcess::Sleep(0.001f);
-		Window = GetHardwareWindow();
+		WindowEventThread = GetHardwareWindow_EventThread();
 	}
-	return Window;
+	return WindowEventThread;
 }
 
 #if USE_ANDROID_JNI
-extern bool AndroidThunkCpp_IsGearVRApplication();
+extern bool AndroidThunkCpp_IsOculusMobileApplication();
 #endif
 
-bool FAndroidWindow::IsCachedRectValid(const bool bMosaicEnabled, const float RequestedContentScaleFactor, ANativeWindow* Window)
+bool FAndroidWindow::IsCachedRectValid(bool bUseEventThreadWindow, const bool bMosaicEnabled, const float RequestedContentScaleFactor, ANativeWindow* Window)
 {
-	if (!WindowInit)
+	// window must be valid when bUseEventThreadWindow and null when !bUseEventThreadWindow.
+	check((Window != nullptr) == bUseEventThreadWindow);
+
+	const FCachedWindowRect& CachedRect = bUseEventThreadWindow ? CachedWindowRect_EventThread : CachedWindowRect;
+
+	if (!CachedRect.WindowInit)
 	{
 		return false;
 	}
 
 	bool bValidCache = true;
 
-	if (bLastMosaicState != bMosaicEnabled)
+	if (CachedRect.bLastMosaicState != bMosaicEnabled)
 	{
-		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("***** Mosaic State change (to %s), not using res cache"), bMosaicEnabled ? TEXT("enabled") : TEXT("disabled"));
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("***** Mosaic State change (to %s), not using res cache (%d)"), bMosaicEnabled ? TEXT("enabled") : TEXT("disabled"), (int32)bUseEventThreadWindow);
 		bValidCache = false;
 	}
 
-	if (RequestedContentScaleFactor != ContentScaleFactor)
+	if (CachedRect.ContentScaleFactor != RequestedContentScaleFactor )
 	{
-		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("***** RequestedContentScaleFactor different %f != %f, not using res cache"), RequestedContentScaleFactor, ContentScaleFactor);
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("***** RequestedContentScaleFactor different %f != %f, not using res cache (%d)"), RequestedContentScaleFactor, CachedWindowRect.ContentScaleFactor, (int32)bUseEventThreadWindow);
 		bValidCache = false;
 	}
 
-	if (Window != LastWindow)
+	if (CachedRect.Window_EventThread != Window)
 	{
-		FPlatformMisc::LowLevelOutputDebugString(TEXT("***** Window different, not using res cache"));
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("***** Window different, not using res cache (%d)"), (int32)bUseEventThreadWindow);
 		bValidCache = false;
 	}
 
-	if (WindowWidth <= 8)
+	if (CachedRect.WindowWidth <= 8)
 	{
-		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("***** WindowWidth is %d, not using res cache"), WindowWidth);
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("***** WindowWidth is %d, not using res cache (%d)"), CachedRect.WindowWidth, (int32)bUseEventThreadWindow);
 		bValidCache = false;
 	}
 
 	return bValidCache;
 }
 
-void FAndroidWindow::CacheRect(ANativeWindow* Window, const int32 Width, const int32 Height, const float RequestedContentScaleFactor, const bool bMosaicEnabled)
+void FAndroidWindow::CacheRect(bool bUseEventThreadWindow, const int32 Width, const int32 Height, const float RequestedContentScaleFactor, const bool bMosaicEnabled, ANativeWindow* Window)
 {
-	WindowWidth = Width;
-	WindowHeight = Height;
-	WindowInit = true;
-	ContentScaleFactor = RequestedContentScaleFactor;
-	LastWindow = Window;
-	bLastMosaicState = bMosaicEnabled;
+	check(Window != nullptr || !bUseEventThreadWindow);
+
+	FCachedWindowRect& CachedRect = bUseEventThreadWindow ? CachedWindowRect_EventThread : CachedWindowRect;
+
+	CachedRect.WindowWidth = Width;
+	CachedRect.WindowHeight = Height;
+	CachedRect.WindowInit = true;
+	CachedRect.ContentScaleFactor = RequestedContentScaleFactor;
+	CachedRect.bLastMosaicState = bMosaicEnabled;
+	CachedRect.Window_EventThread = Window;
 }
 
-FPlatformRect FAndroidWindow::GetScreenRect()
+FPlatformRect FAndroidWindow::GetScreenRect(bool bUseEventThreadWindow)
 {
 	int32 OverrideResX, OverrideResY;
 	// allow a subplatform to dictate resolution - we can't easily subclass FAndroidWindow the way its used
@@ -254,37 +340,43 @@ FPlatformRect FAndroidWindow::GetScreenRect()
 	return FPlatformRect();
 #else
 
-	static const bool bIsGearVRApp = AndroidThunkCpp_IsGearVRApplication();
-
-	ANativeWindow* Window = (ANativeWindow*)FAndroidWindow::GetHardwareWindow();
+	static const bool bIsOculusMobileApp = AndroidThunkCpp_IsOculusMobileApplication();
 	static const bool bIsDaydreamApp = FAndroidMisc::IsDaydreamApplication();
-	if (bIsDaydreamApp && Window == NULL)
+	if (bIsDaydreamApp)
 	{
-		// Sleep if the hardware window isn't currently available.
-		FPlatformMisc::LowLevelOutputDebugString(TEXT("Waiting for Native window in FAndroidWindow::GetScreenRect"));
-		Window = (ANativeWindow*)FAndroidWindow::WaitForHardwareWindow();
-	}
-	//	check(Window != NULL);
-	if (Window == NULL)
-	{
-		FPlatformRect ScreenRect;
-		ScreenRect.Left = 0;
-		ScreenRect.Top = 0;
-		ScreenRect.Right = GAndroidIsPortrait ? 720 : 1280;
-		ScreenRect.Bottom = GAndroidIsPortrait ? 1280 : 720;
+		// TODO: confirm that this is no longer required.
+		ANativeWindow* Window = (ANativeWindow*)FAndroidWindow::GetHardwareWindow_EventThread();
+		if (Window == NULL)
+		{
+			// Sleep if the hardware window isn't currently available.
+			FPlatformMisc::LowLevelOutputDebugString(TEXT("Waiting for Native window in FAndroidWindow::GetScreenRect"));
+			Window = (ANativeWindow*)FAndroidWindow::WaitForHardwareWindow();
+		}
 
-		UE_LOG(LogAndroid, Log, TEXT("FAndroidWindow::GetScreenRect: Window was NULL, returned default resolution: %d x %d"), ScreenRect.Right, ScreenRect.Bottom);
+		if (Window == NULL)
+		{
+			FPlatformRect ScreenRect;
+			ScreenRect.Left = 0;
+			ScreenRect.Top = 0;
+			ScreenRect.Right = GAndroidIsPortrait ? 720 : 1280;
+			ScreenRect.Bottom = GAndroidIsPortrait ? 1280 : 720;
 
-		return ScreenRect;
+			UE_LOG(LogAndroid, Log, TEXT("FAndroidWindow::GetScreenRect: Window was NULL, returned default resolution: %d x %d"), ScreenRect.Right, ScreenRect.Bottom);
+
+			return ScreenRect;
+		}
+
+		// dont cache rect.
+		bUseEventThreadWindow = true;
 	}
 
 	// determine mosaic requirements:
-	const bool bMosaicEnabled = AndroidWindowUtils::ShouldEnableMosaic() && !(bIsGearVRApp || bIsDaydreamApp);
+	const bool bMosaicEnabled = AndroidWindowUtils::ShouldEnableMosaic() && !(bIsOculusMobileApp || bIsDaydreamApp);
 
 	// CSF is a multiplier to 1280x720
 	static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MobileContentScaleFactor"));
-	// If the app is for Gear VR then always use 0 as ScaleFactor (to match window size).
-	float RequestedContentScaleFactor = bIsGearVRApp ? 0.0f : CVar->GetFloat();
+	// If the app is for Oculus Mobile then always use 0 as ScaleFactor (to match window size).
+	float RequestedContentScaleFactor = bIsOculusMobileApp ? 0.0f : CVar->GetFloat();
 
 	FString CmdLineCSF;
 	if (FParse::Value(FCommandLine::Get(), TEXT("mcsf="), CmdLineCSF, false))
@@ -292,21 +384,22 @@ FPlatformRect FAndroidWindow::GetScreenRect()
 		RequestedContentScaleFactor = FCString::Atof(*CmdLineCSF);
 	}
 
-	// since orientation won't change on Android, use cached results if still valid
-	bool bComputeRect = !IsCachedRectValid(bMosaicEnabled, RequestedContentScaleFactor, Window);
+	// since orientation won't change on Android, use cached results if still valid. Different cache is maintained for event_thread flavor.
+	ANativeWindow* Window = bUseEventThreadWindow ? (ANativeWindow*)FAndroidWindow::GetHardwareWindow_EventThread() : nullptr;
+	bool bComputeRect = !IsCachedRectValid(bUseEventThreadWindow, bMosaicEnabled, RequestedContentScaleFactor, Window);
 	if (bComputeRect)
 	{
 		// currently hardcoding resolution
 
 		// get the aspect ratio of the physical screen
 		int32 ScreenWidth, ScreenHeight;
-		CalculateSurfaceSize(Window, ScreenWidth, ScreenHeight);
+		CalculateSurfaceSize(ScreenWidth, ScreenHeight, bUseEventThreadWindow);
 
 		static auto* MobileHDRCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileHDR"));
 		const bool bMobileHDR = (MobileHDRCvar && MobileHDRCvar->GetValueOnAnyThread() == 1);
 		UE_LOG(LogAndroid, Log, TEXT("Mobile HDR: %s"), bMobileHDR ? TEXT("YES") : TEXT("no"));
 
-		if (!bIsGearVRApp)
+		if (!bIsOculusMobileApp)
 		{
 			bool bSupportsES30 = FAndroidMisc::SupportsES30();
 			if (!bIsDaydreamApp && !bSupportsES30)
@@ -318,21 +411,23 @@ FPlatformRect FAndroidWindow::GetScreenRect()
 		}
 
 		// save for future calls
-		CacheRect(Window, ScreenWidth, ScreenHeight, RequestedContentScaleFactor, bMosaicEnabled);
+		CacheRect(bUseEventThreadWindow, ScreenWidth, ScreenHeight, RequestedContentScaleFactor, bMosaicEnabled, Window);
 	}
+
+	const FCachedWindowRect& CachedRect = bUseEventThreadWindow ? CachedWindowRect_EventThread : CachedWindowRect;
 
 	// create rect and return
 	FPlatformRect ScreenRect;
 	ScreenRect.Left = 0;
 	ScreenRect.Top = 0;
-	ScreenRect.Right = WindowWidth;
-	ScreenRect.Bottom = WindowHeight;
+	ScreenRect.Right = CachedRect.WindowWidth;
+	ScreenRect.Bottom = CachedRect.WindowHeight;
 
 	return ScreenRect;
 #endif
 }
 
-void FAndroidWindow::CalculateSurfaceSize(void* InWindow, int32_t& SurfaceWidth, int32_t& SurfaceHeight)
+void FAndroidWindow::CalculateSurfaceSize(int32_t& SurfaceWidth, int32_t& SurfaceHeight, bool bUseEventThreadWindow)
 {
 	// allow a subplatform to dictate resolution - we can't easily subclass FAndroidWindow the way its used
 	if (FPlatformMisc::GetOverrideResolution(SurfaceWidth, SurfaceHeight))
@@ -347,56 +442,76 @@ void FAndroidWindow::CalculateSurfaceSize(void* InWindow, int32_t& SurfaceWidth,
 
 #else
 
-	static const bool bIsMobileVRApp = AndroidThunkCpp_IsGearVRApplication() || FAndroidMisc::IsDaydreamApplication();
-
-	ANativeWindow* Window = (ANativeWindow*)InWindow;
-
-	if (InWindow == nullptr)
+	// daydream case still using hardware window direct from event thread, this might not be required now.
+	if (FAndroidMisc::IsDaydreamApplication())
 	{
-		// log the issue and callstack for backtracking the issue
-		// dump the stack HERE
+		ANativeWindow* Window = (ANativeWindow*)GetHardwareWindow_EventThread();
+		if (Window == nullptr)
 		{
-			const SIZE_T StackTraceSize = 65535;
-			ANSICHAR* StackTrace = (ANSICHAR*)FMemory::Malloc(StackTraceSize);
-			StackTrace[0] = 0;
-
-			// Walk the stack and dump it to the allocated memory.
-			FPlatformStackWalk::StackWalkAndDump(StackTrace, StackTraceSize, 0, NULL);
-
-			FPlatformMisc::LowLevelOutputDebugString(TEXT("== WARNNG: CalculateSurfaceSize called with NULL window:"));
-
-			ANSICHAR* Start = StackTrace;
-			ANSICHAR* Next = StackTrace;
-			FPlatformMisc::LowLevelOutputDebugString(TEXT("==> STACK TRACE"));
-			while (*Next)
+			// log the issue and callstack for backtracking the issue
+			// dump the stack HERE
 			{
+				const SIZE_T StackTraceSize = 65535;
+				ANSICHAR* StackTrace = (ANSICHAR*)FMemory::Malloc(StackTraceSize);
+				StackTrace[0] = 0;
+
+				// Walk the stack and dump it to the allocated memory.
+				FPlatformStackWalk::StackWalkAndDump(StackTrace, StackTraceSize, 0, NULL);
+
+				FPlatformMisc::LowLevelOutputDebugString(TEXT("== WARNNG: CalculateSurfaceSize called with NULL hardware window:"));
+
+				ANSICHAR* Start = StackTrace;
+				ANSICHAR* Next = StackTrace;
+				FPlatformMisc::LowLevelOutputDebugString(TEXT("==> STACK TRACE"));
 				while (*Next)
 				{
-					if (*Next == 10 || *Next == 13)
+					while (*Next)
 					{
-						while (*Next == 10 || *Next == 13)
+						if (*Next == 10 || *Next == 13)
 						{
-							*Next++ = 0;
+							while (*Next == 10 || *Next == 13)
+							{
+								*Next++ = 0;
+							}
+							break;
 						}
-						break;
+						++Next;
 					}
-					++Next;
+					FPlatformMisc::LowLevelOutputDebugStringf(TEXT("==> %s"), ANSI_TO_TCHAR(Start));
+					Start = Next;
 				}
-				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("==> %s"), ANSI_TO_TCHAR(Start));
-				Start = Next;
+				FPlatformMisc::LowLevelOutputDebugString(TEXT("<== STACK TRACE"));
+
+				FMemory::Free(StackTrace);
 			}
-			FPlatformMisc::LowLevelOutputDebugString(TEXT("<== STACK TRACE"));
 
-			FMemory::Free(StackTrace);
+			SurfaceWidth = (GSurfaceViewWidth > 0) ? GSurfaceViewWidth : 1280;
+			SurfaceHeight = (GSurfaceViewHeight > 0) ? GSurfaceViewHeight : 720;
 		}
-
-		SurfaceWidth = (GSurfaceViewWidth > 0) ? GSurfaceViewWidth : 1280;
-		SurfaceHeight = (GSurfaceViewHeight > 0) ? GSurfaceViewHeight : 720;
+		else
+		{
+			SurfaceWidth = (GSurfaceViewWidth > 0) ? GSurfaceViewWidth : ANativeWindow_getWidth(Window);
+			SurfaceHeight = (GSurfaceViewHeight > 0) ? GSurfaceViewHeight : ANativeWindow_getHeight(Window);
+		}
 	}
 	else
 	{
-		SurfaceWidth = (GSurfaceViewWidth > 0) ? GSurfaceViewWidth : ANativeWindow_getWidth(Window);
-		SurfaceHeight = (GSurfaceViewHeight > 0) ? GSurfaceViewHeight : ANativeWindow_getHeight(Window);
+		if (bUseEventThreadWindow)
+		{
+			check(IsInAndroidEventThread());
+			ANativeWindow* WindowEventThread = (ANativeWindow*)GetHardwareWindow_EventThread();
+			check(WindowEventThread);
+
+			SurfaceWidth = (GSurfaceViewWidth > 0) ? GSurfaceViewWidth : ANativeWindow_getWidth(WindowEventThread);
+			SurfaceHeight = (GSurfaceViewHeight > 0) ? GSurfaceViewHeight : ANativeWindow_getHeight(WindowEventThread);
+		}
+		else
+		{
+			FAndroidWindow::WaitForWindowDimensions();
+
+			SurfaceWidth = (GSurfaceViewWidth > 0) ? GSurfaceViewWidth : CachedNativeWindowWidth;
+			SurfaceHeight = (GSurfaceViewHeight > 0) ? GSurfaceViewHeight : CachedNativeWindowHeight;
+		}
 	}
 
 	// some phones gave it the other way (so, if swap if the app is landscape, but width < height)
@@ -409,6 +524,7 @@ void FAndroidWindow::CalculateSurfaceSize(void* InWindow, int32_t& SurfaceWidth,
 	// ensure the size is divisible by a specified amount
 	// do not convert to a surface size that is larger than native resolution
 	// Mobile VR doesn't need buffer quantization as UE4 never renders directly to the buffer in VR mode. 
+	static const bool bIsMobileVRApp = AndroidThunkCpp_IsOculusMobileApplication() || FAndroidMisc::IsDaydreamApplication();
 	const int DividableBy = bIsMobileVRApp ? 1 : 8;
 	SurfaceWidth = (SurfaceWidth / DividableBy) * DividableBy;
 	SurfaceHeight = (SurfaceHeight / DividableBy) * DividableBy;

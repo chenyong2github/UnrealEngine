@@ -134,6 +134,11 @@ typedef void (*pf_on_audio_unit_before_capture_audio_sent_t)(void *callback_hand
 typedef void (*pf_on_audio_unit_before_recv_audio_rendered_t)(void *callback_handle, const char *session_group_handle, const char *initial_target_uri, short *pcm_frames, int pcm_frame_count, int audio_frame_rate, int channels_per_frame, int is_silence);
 
 /**
+ * Called when capture device status changes. No blocking operations should occur on this callback
+ */
+typedef void (*pf_on_audio_unit_capture_device_status_changed_t)(int);
+
+/**
 * Configuration Options passed to vx_initialize3()
 * \ingroup initialization
 */
@@ -408,6 +413,12 @@ typedef struct vx_sdk_config {
      * To disable set value to 0.
      */
     int dynamic_voice_processing_switching;
+
+    /*
+    * If set, this function is called when the active capture device status is updated.
+    * Currently this function is called only on specific platforms. Please contact Vivox for more information.
+    */
+    pf_on_audio_unit_capture_device_status_changed_t pf_on_audio_unit_capture_device_status_changed;
 } vx_sdk_config_t;
 
 #ifdef __cplusplus

@@ -9,6 +9,7 @@
 #include "Widgets/SNullWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Styling/SlateTypes.h"
 #include "Textures/SlateIcon.h"
 #include "Framework/Commands/UIAction.h"
@@ -31,6 +32,7 @@
 
 #if WITH_ENGINE
 #include "AudioDevice.h"
+#include "ContentStreaming.h"
 #endif 
 
 #define LOCTEXT_NAMESPACE "WindowsTargetSettingsDetails"
@@ -54,17 +56,13 @@ static FText GetFriendlyNameFromWindowsRHIName(const FString& InRHIName)
 	{
 		FriendlyRHIName = LOCTEXT("DirectX11", "DirectX 11 & 12 (SM5)");
 	}
-	else if (InRHIName == TEXT("PCD3D_SM4"))
+	else if (InRHIName == TEXT("PCD3D_ES31"))
 	{
-		FriendlyRHIName = LOCTEXT("DirectX10", "DirectX 10 (SM4)");
-	}
-	else if (InRHIName == TEXT("GLSL_430"))
-	{
-		FriendlyRHIName = LOCTEXT("OpenGL4", "OpenGL 4 (SM5, Experimental)");
+		FriendlyRHIName = LOCTEXT("DirectXES31", "DirectX Mobile Emulation (ES3.1)");
 	}
 	else if (InRHIName == TEXT("SF_VULKAN_SM5"))
 	{
-		FriendlyRHIName = LOCTEXT("VulkanSM5", "Vulkan (SM5, Experimental)");
+		FriendlyRHIName = LOCTEXT("VulkanSM5", "Vulkan (SM5)");
 	}
 	else if (InRHIName == TEXT("GLSL_SWITCH"))
 	{
@@ -76,7 +74,8 @@ static FText GetFriendlyNameFromWindowsRHIName(const FString& InRHIName)
 	}
 	else if (InRHIName == TEXT("GLSL_150_ES2") || InRHIName == TEXT("GLSL_150_ES31") || InRHIName == TEXT("GLSL_150")
 		|| InRHIName == TEXT("SF_VULKAN_ES31_ANDROID") || InRHIName == TEXT("SF_VULKAN_ES31")
-		|| InRHIName == TEXT("SF_VULKAN_SM4") || InRHIName == TEXT("PCD3D_ES2") || InRHIName == TEXT("PCD3D_ES31"))
+		|| InRHIName == TEXT("SF_VULKAN_SM4") || InRHIName == TEXT("PCD3D_ES2")
+		|| InRHIName == TEXT("GLSL_430") || InRHIName == TEXT("PCD3D_SM4"))
 	{
 		// Explicitly remove these formats as they are obsolete/not quite supported; users can still target them by adding them as +TargetedRHIs in the TargetPlatform ini.
 		FriendlyRHIName = FText::GetEmpty();
@@ -288,50 +287,34 @@ void FWindowsTargetSettingsDetails::CustomizeDetails( IDetailLayoutBuilder& Deta
 		]
 	];
 
-	TSharedPtr<IPropertyHandle> AudioDevicePropertyHandle = DetailBuilder.GetProperty("AudioDevice");
-	IDetailCategoryBuilder& AudioDeviceCategory = DetailBuilder.EditCategory("Audio");
-	IDetailPropertyRow& AudioDevicePropertyRow = AudioDeviceCategory.AddProperty(AudioDevicePropertyHandle);
 
-	AudioDevicePropertyRow.CustomWidget()
-	.NameContent()
-	[
-		AudioDevicePropertyHandle->CreatePropertyNameWidget()
-	]
-	.ValueContent()
-	.MaxDesiredWidth(500.0f)
-	.MinDesiredWidth(100.0f)
-	[
-		SNew(SHorizontalBox)
-
-		+ SHorizontalBox::Slot()
-		.FillWidth(1.0f)
-		[
-			SNew(SEditableTextBox)
-			.ForegroundColor(this, &FWindowsTargetSettingsDetails::HandleAudioDeviceBoxForegroundColor, AudioDevicePropertyHandle)
-			.OnTextChanged(this, &FWindowsTargetSettingsDetails::HandleAudioDeviceTextBoxTextChanged, AudioDevicePropertyHandle)
-			.OnTextCommitted(this, &FWindowsTargetSettingsDetails::HandleAudioDeviceTextBoxTextComitted, AudioDevicePropertyHandle)
-			.Text(this, &FWindowsTargetSettingsDetails::HandleAudioDeviceTextBoxText, AudioDevicePropertyHandle)
-			.ToolTipText(AudioDevicePropertyHandle->GetToolTipText())
-		]
-
-		+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(2.0f, 0.0f, 0.0f, 0.0f)
-			[
-				SNew(SComboButton)
-				.ButtonContent()
-				[
-					SNullWidget::NullWidget
-				]
-				.ContentPadding(FMargin(6.0f, 1.0f))
-				.MenuContent()
-				[
-					MakeAudioDeviceMenu(AudioDevicePropertyHandle)
-				]
-				.ToolTipText(LOCTEXT("AudioDevicesButtonToolTip", "Pick from the list of available audio devices"))
-			]
-	];
 	AudioPluginWidgetManager.BuildAudioCategory(DetailBuilder, EAudioPlatform::Windows);
+	IDetailCategoryBuilder& AudioCategory = DetailBuilder.EditCategory("Audio");
+
+	// Here we add a callback when the 
+	TSharedPtr<IPropertyHandle> AudioStreamCachingPropertyHandle = DetailBuilder.GetProperty("bUseAudioStreamCaching");
+	IDetailCategoryBuilder& AudioStreamCachingCategory = DetailBuilder.EditCategory("Audio");
+	IDetailPropertyRow& AudioStreamCachingPropertyRow = AudioCategory.AddProperty(AudioStreamCachingPropertyHandle);
+	AudioStreamCachingPropertyRow.CustomWidget()
+		.NameContent()
+		[
+			AudioStreamCachingPropertyHandle->CreatePropertyNameWidget()
+		]
+		.ValueContent()
+		.MaxDesiredWidth(500.0f)
+		.MinDesiredWidth(100.0f)
+		[
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			[
+				SNew(SCheckBox)
+				.OnCheckStateChanged(this, &FWindowsTargetSettingsDetails::HandleAudioStreamCachingToggled, AudioStreamCachingPropertyHandle)
+				.IsChecked(this, &FWindowsTargetSettingsDetails::GetAudioStreamCachingToggled, AudioStreamCachingPropertyHandle)
+				.ToolTipText(AudioStreamCachingPropertyHandle->GetToolTipText())
+			]
+		];
 }
 
 bool FWindowsTargetSettingsDetails::HandlePreExternalIconCopy(const FString& InChosenImage)
@@ -352,115 +335,28 @@ bool FWindowsTargetSettingsDetails::HandlePostExternalIconCopy(const FString& In
 	return true;
 }
 
-void FWindowsTargetSettingsDetails::HandleAudioDeviceSelected(FString AudioDeviceName, TSharedPtr<IPropertyHandle> PropertyHandle)
+void FWindowsTargetSettingsDetails::HandleAudioStreamCachingToggled(ECheckBoxState EnableStreamCaching, TSharedPtr<IPropertyHandle> PropertyHandle)
 {
-	PropertyHandle->SetValue(AudioDeviceName);
-}
-
-FSlateColor FWindowsTargetSettingsDetails::HandleAudioDeviceBoxForegroundColor(TSharedPtr<IPropertyHandle> PropertyHandle) const
-{
-	FString Value;
-
-	if (PropertyHandle->GetValue(Value) == FPropertyAccess::Success)
-	{
-		if (Value.IsEmpty() || IsValidAudioDeviceName(Value))
-		{
-			static const FName InvertedForegroundName("InvertedForeground");
-
-			// Return a valid slate color for a valid audio device
-			return FEditorStyle::GetSlateColor(InvertedForegroundName);
-		}
-	}
-
-	// Return Red, which means its an invalid audio device
-	return FLinearColor::Red;
-}
-
-FText FWindowsTargetSettingsDetails::HandleAudioDeviceTextBoxText(TSharedPtr<IPropertyHandle> PropertyHandle) const
-{
-	FString Value;
-
-	if (PropertyHandle->GetValue(Value) == FPropertyAccess::Success)
-	{
-		FString WindowsAudioDeviceName;
-		GConfig->GetString(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("AudioDevice"), WindowsAudioDeviceName, GEngineIni);
-		return FText::FromString(WindowsAudioDeviceName);
-	}
-
-	return FText::GetEmpty();
-}
-
-void FWindowsTargetSettingsDetails::HandleAudioDeviceTextBoxTextChanged(const FText& InText, TSharedPtr<IPropertyHandle> PropertyHandle)
-{
-	PropertyHandle->SetValue(InText.ToString());
-}
-
-void FWindowsTargetSettingsDetails::HandleAudioDeviceTextBoxTextComitted(const FText& InText, ETextCommit::Type CommitType, TSharedPtr<IPropertyHandle> PropertyHandle)
-{
-	FString Value;
-
-	// Clear the property if its not valid
-	if ((PropertyHandle->GetValue(Value) != FPropertyAccess::Success) || !IsValidAudioDeviceName(Value))
-	{
-		PropertyHandle->SetValue(FString());
-	}
-}
-
-bool FWindowsTargetSettingsDetails::IsValidAudioDeviceName(const FString& InDeviceName) const
-{
-	bool bIsValid = false;
+	PropertyHandle->SetValue(EnableStreamCaching == ECheckBoxState::Checked);
 
 #if WITH_ENGINE
-	FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
-	if (AudioDevice)
-	{
-		TArray<FString> DeviceNames;
-		AudioDevice->GetAudioDeviceList(DeviceNames);
-
-		for (FString& DeviceName : DeviceNames)
-		{
-			if (InDeviceName == DeviceName)
-			{
-				bIsValid = true;
-				break;
-			}
-		}
-	}
+	IStreamingManager::Get().OnAudioStreamingParamsChanged();
 #endif
-
-	return bIsValid;
 }
 
-TSharedRef<SWidget> FWindowsTargetSettingsDetails::MakeAudioDeviceMenu(const TSharedPtr<IPropertyHandle>& PropertyHandle)
+ECheckBoxState FWindowsTargetSettingsDetails::GetAudioStreamCachingToggled(TSharedPtr<IPropertyHandle> PropertyHandle) const
 {
-	FMenuBuilder MenuBuilder(true, nullptr);
+	bool bEnabled = false;
+	PropertyHandle->GetValue(bEnabled);
 
-#if WITH_ENGINE
-	FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
-	if (AudioDevice)
+	if (bEnabled)
 	{
-		TArray<FString> AudioDeviceNames;
-		AudioDevice->GetAudioDeviceList(AudioDeviceNames);
-
-		// Construct the custom menu widget from the list of device names
-		MenuBuilder.BeginSection(NAME_None, LOCTEXT("AudioDevicesSectionHeader", "Audio Devices"));
-		{
-			for (int32 i = 0; i < AudioDeviceNames.Num(); i++)
-			{
-				FUIAction Action(FExecuteAction::CreateRaw(this, &FWindowsTargetSettingsDetails::HandleAudioDeviceSelected, AudioDeviceNames[i], PropertyHandle));
-				MenuBuilder.AddMenuEntry(
-					FText::FromString(AudioDeviceNames[i]),
-					FText::FromString(TEXT("")),
-					FSlateIcon(),
-					Action
-					);
-			}
-		}
-		MenuBuilder.EndSection();
+		return ECheckBoxState::Checked;
 	}
-#endif
-
-	return MenuBuilder.MakeWidget();
+	else
+	{
+		return ECheckBoxState::Unchecked;
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

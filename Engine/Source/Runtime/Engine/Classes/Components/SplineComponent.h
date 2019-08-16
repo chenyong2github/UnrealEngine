@@ -37,6 +37,21 @@ namespace ESplineCoordinateSpace
 	};
 }
 
+UCLASS(Abstract)
+class ENGINE_API USplineMetadata : public UObject
+{
+	GENERATED_UCLASS_BODY()
+
+public:
+	virtual void InsertPoint(float InputKey, int32 Index) PURE_VIRTUAL(USplineMetadata::InsertPoint, );
+	virtual void AddPoint(float InputKey) PURE_VIRTUAL(USplineMetadata::AddPoint, );
+	virtual void RemovePoint(int32 Index) PURE_VIRTUAL(USplineMetadata::RemovePoint, );
+	virtual void DuplicatePoint(int32 Index) PURE_VIRTUAL(USplineMetadata::DuplicatePoint, );
+	virtual void CopyPoint(const USplineMetadata* FromSplineMetadata, int32 FromIndex, int32 ToIndex) PURE_VIRTUAL(USplineMetadata::CopyPoint, );
+	virtual void Reset(int32 NumPoints) PURE_VIRTUAL(USplineMetadata::Reset, );
+	virtual void Fixup(int32 NumPoints, USplineComponent* SplineComp) PURE_VIRTUAL(USplineMetadata::Fixup, );
+};
+
 USTRUCT()
 struct ENGINE_API FSplineCurves
 {
@@ -57,6 +72,9 @@ struct ENGINE_API FSplineCurves
 	/** Input: distance along curve, output: parameter that puts you there. */
 	UPROPERTY()
 	FInterpCurveFloat ReparamTable;
+
+	UPROPERTY()
+	USplineMetadata* Metadata_DEPRECATED;
 
 	bool operator==(const FSplineCurves& Other) const
 	{
@@ -266,6 +284,7 @@ public:
 
 	//~ Begin UObject Interface
 	virtual void Serialize(FArchive& Ar) override;
+	virtual void PostLoad() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif
@@ -294,6 +313,9 @@ public:
 	const FInterpCurveQuat& GetSplinePointsRotation() const { return SplineCurves.Rotation; }
 	FInterpCurveVector& GetSplinePointsScale() { return SplineCurves.Scale; }
 	const FInterpCurveVector& GetSplinePointsScale() const { return SplineCurves.Scale; }
+
+	virtual USplineMetadata* GetSplinePointsMetadata() { return nullptr; }
+	virtual const USplineMetadata* GetSplinePointsMetadata() const { return nullptr; }
 
 	void ApplyComponentInstanceData(struct FSplineInstanceData* ComponentInstanceData, const bool bPostUCS);
 
@@ -330,6 +352,12 @@ public:
 
 	/** Get scale at the provided input key value */
 	FVector GetScaleAtSplineInputKey(float InKey) const;
+
+	/** Get a metadata property float value along the spline at spline input key */
+	float GetFloatPropertyAtSplineInputKey(float InKey, FName PropertyName) const;
+
+	/** Get a metadata property vector value along the spline at spline input key */
+	FVector GetVectorPropertyAtSplineInputKey(float InKey, FName PropertyName) const;
 
 	/** Specify unselected spline component segment color in the editor */
 	UFUNCTION(BlueprintCallable, Category = Editor)
@@ -493,6 +521,14 @@ public:
 	/** Get the distance along the spline at the spline point */
 	UFUNCTION(BlueprintCallable, Category=Spline)
 	float GetDistanceAlongSplineAtSplinePoint(int32 PointIndex) const;
+
+    /** Get a metadata property float value along the spline at spline point */
+	UFUNCTION(BlueprintCallable, Category = Spline)
+	float GetFloatPropertyAtSplinePoint(int32 Index, FName PropertyName) const;
+	
+ 	/** Get a metadata property vector value along the spline at spline point */
+	UFUNCTION(BlueprintCallable, Category = Spline)
+	FVector GetVectorPropertyAtSplinePoint(int32 Index, FName PropertyName) const;
 
 	/** Returns total length along this spline */
 	UFUNCTION(BlueprintCallable, Category=Spline) 

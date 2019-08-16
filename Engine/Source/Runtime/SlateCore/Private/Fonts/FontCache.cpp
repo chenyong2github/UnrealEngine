@@ -1197,7 +1197,7 @@ bool FSlateFontCache::FlushCache()
 void FSlateFontCache::FlushData()
 {
 	// Ensure all invalidation panels are cleared of cached widgets
-	FSlateApplicationBase::Get().InvalidateAllWidgets();
+	FSlateApplicationBase::Get().InvalidateAllWidgets(false);
 
 	if (GIsEditor || UnloadFreeTypeDataOnFlush)
 	{

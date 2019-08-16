@@ -41,31 +41,30 @@ FD3D12DeferredDeletionQueue::~FD3D12DeferredDeletionQueue()
 	}
 }
 
-void FD3D12DeferredDeletionQueue::EnqueueResource(FD3D12Resource* pResource)
+void FD3D12DeferredDeletionQueue::EnqueueResource(FD3D12Resource* pResource, FD3D12Fence* Fence)
 {
 	check(pResource->ShouldDeferDelete());
-	const uint64 CurrentFrameFence = GetParentAdapter()->GetFrameFence().GetCurrentFence();
 
 	// Useful message for identifying when resources are released on the rendering thread.
-	//UE_CLOG(IsInActualRenderingThread(), LogD3D12RHI, Display, TEXT("Rendering Thread: Deleting %#016llx when done with frame fence %llu"), pResource, CurrentFrameFence);
+	//UE_CLOG(IsInActualRenderingThread(), LogD3D12RHI, Display, TEXT("Rendering Thread: Deleting %#016llx when done with frame fence %llu"), pResource, Fence->GetCurrentFence());
 
 	FencedObjectType FencedObject;
 	FencedObject.RHIObject  = pResource;
-	FencedObject.FenceValue = CurrentFrameFence;
+	FencedObject.Fence      = Fence;
+	FencedObject.FenceValue = Fence->GetCurrentFence();
 	FencedObject.Type       = EObjectType::RHI;
 	DeferredReleaseQueue.Enqueue(FencedObject);
 }
 
-void FD3D12DeferredDeletionQueue::EnqueueResource(ID3D12Object* pResource)
+void FD3D12DeferredDeletionQueue::EnqueueResource(ID3D12Object* pResource, FD3D12Fence* Fence)
 {
-	const uint64 CurrentFrameFence = GetParentAdapter()->GetFrameFence().GetCurrentFence();
-
 	// Useful message for identifying when resources are released on the rendering thread.
-	//UE_CLOG(IsInActualRenderingThread(), LogD3D12RHI, Display, TEXT("Rendering Thread: Deleting %#016llx when done with frame fence %llu"), pResource, CurrentFrameFence);
+	//UE_CLOG(IsInActualRenderingThread(), LogD3D12RHI, Display, TEXT("Rendering Thread: Deleting %#016llx when done with frame fence %llu"), pResource, Fence->GetCurrentFence());
 
 	FencedObjectType FencedObject;
 	FencedObject.D3DObject  = pResource;
-	FencedObject.FenceValue = CurrentFrameFence;
+	FencedObject.Fence      = Fence;
+	FencedObject.FenceValue = Fence->GetCurrentFence();
 	FencedObject.Type       = EObjectType::D3D;
 	DeferredReleaseQueue.Enqueue(FencedObject);
 }
@@ -76,24 +75,16 @@ bool FD3D12DeferredDeletionQueue::ReleaseResources(bool DeleteImmediately)
 
 		struct FDequeueFenceObject
 		{
-			FDequeueFenceObject(FD3D12Fence& InFence)
-				: FrameFence(InFence)
-			{
-			}
-
 			bool operator() (FencedObjectType FenceObject) const
 			{
-				return FrameFence.IsFenceComplete(FenceObject.FenceValue);
+				return FenceObject.Fence->IsFenceComplete(FenceObject.FenceValue);
 			}
-
-		private:
-			FD3D12Fence& FrameFence;
 		};
 
 	if (GD3D12AsyncDeferredDeletion)
-		{
+	{
 		if (DeleteImmediately)
-			{
+		{
 			FAsyncTask<FD3D12AsyncDeletionWorker>* DeleteTask = nullptr;
 			// Call back all threads
 			while (DeleteTasks.Peek(DeleteTask))
@@ -103,28 +94,27 @@ bool FD3D12DeferredDeletionQueue::ReleaseResources(bool DeleteImmediately)
 				delete(DeleteTask);
 			}
 		}
-	else
-	{
-		FAsyncTask<FD3D12AsyncDeletionWorker>* DeleteTask = nullptr;
-		while (DeleteTasks.Peek(DeleteTask) && DeleteTask->IsDone())
+		else
 		{
-			DeleteTasks.Dequeue(DeleteTask);
-			delete(DeleteTask);
+			FAsyncTask<FD3D12AsyncDeletionWorker>* DeleteTask = nullptr;
+			while (DeleteTasks.Peek(DeleteTask) && DeleteTask->IsDone())
+			{
+				DeleteTasks.Dequeue(DeleteTask);
+				delete(DeleteTask);
+			}
+
+			DeleteTask = new FAsyncTask<FD3D12AsyncDeletionWorker>(Adapter, &DeferredReleaseQueue);
+
+			DeleteTask->StartBackgroundTask();
+			DeleteTasks.Enqueue(DeleteTask);
+
+			return false;
 		}
-
-		DeleteTask = new FAsyncTask<FD3D12AsyncDeletionWorker>(Adapter, &DeferredReleaseQueue);
-
-		DeleteTask->StartBackgroundTask();
-		DeleteTasks.Enqueue(DeleteTask);
-
-		return false;
-	}
 	}
 
 	FencedObjectType FenceObject;
-	const FDequeueFenceObject DequeueFenceObject(Adapter->GetFrameFence());
 
-	while (DeferredReleaseQueue.Dequeue(FenceObject, DequeueFenceObject))
+	while (DeferredReleaseQueue.Dequeue(FenceObject, FDequeueFenceObject()))
 	{
 		if (FenceObject.Type == EObjectType::RHI)
 		{
@@ -144,22 +134,13 @@ FD3D12DeferredDeletionQueue::FD3D12AsyncDeletionWorker::FD3D12AsyncDeletionWorke
 {
 	struct FDequeueFenceObject
 	{
-		FDequeueFenceObject(FD3D12Fence& InFence)
-			: FrameFence(InFence)
-		{
-		}
-
 		bool operator() (FencedObjectType FenceObject) const
 		{
-			return FrameFence.IsFenceComplete(FenceObject.FenceValue);
+			return FenceObject.Fence->IsFenceComplete(FenceObject.FenceValue);
 		}
-
-	private:
-		FD3D12Fence& FrameFence;
 	};
 
-	const FDequeueFenceObject DequeueFenceObject(Adapter->GetFrameFence());
-	DeletionQueue->BatchDequeue(&Queue, DequeueFenceObject, 4096);
+	DeletionQueue->BatchDequeue(&Queue, FDequeueFenceObject(), 4096);
 }
 
 void FD3D12DeferredDeletionQueue::FD3D12AsyncDeletionWorker::DoWork()
@@ -267,7 +248,7 @@ void FD3D12Resource::UpdateResidency(FD3D12CommandListHandle& CommandList)
 
 void FD3D12Resource::DeferDelete()
 {
-	GetParentDevice()->GetParentAdapter()->GetDeferredDeletionQueue().EnqueueResource(this);
+	GetParentDevice()->GetParentAdapter()->GetDeferredDeletionQueue().EnqueueResource(this, &GetParentDevice()->GetCommandListManager().GetFence());
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -483,7 +464,7 @@ void FD3D12ResourceLocation::TransferOwnership(FD3D12ResourceLocation& Destinati
 
 	// update tracked allocation
 #if !PLATFORM_WINDOWS && ENABLE_LOW_LEVEL_MEM_TRACKER
-	if (Source.GetType() == ResourceLocationType::eSubAllocation)
+	if (Source.GetType() == ResourceLocationType::eSubAllocation && Source.AllocatorType != AT_SegList)
 	{
 		FLowLevelMemTracker::Get().OnLowLevelAllocMoved( ELLMTracker::Default, &Destination, &Source );
 	}
@@ -495,6 +476,25 @@ void FD3D12ResourceLocation::TransferOwnership(FD3D12ResourceLocation& Destinati
 
 void FD3D12ResourceLocation::Swap(FD3D12ResourceLocation& Other)
 {
+	// TODO: Probably shouldn't manually track suballocations. It's error-prone and inaccurate
+#if !PLATFORM_WINDOWS && ENABLE_LOW_LEVEL_MEM_TRACKER
+	const bool bRequiresManualTracking = GetType() == ResourceLocationType::eSubAllocation && AllocatorType != AT_SegList;
+	const bool bOtherRequiresManualTracking = Other.GetType() == ResourceLocationType::eSubAllocation && Other.AllocatorType != AT_SegList;
+
+	if (bRequiresManualTracking)
+	{
+		FLowLevelMemTracker::Get().OnLowLevelFree(ELLMTracker::Default, this);
+	}
+	if (bOtherRequiresManualTracking)
+	{
+		FLowLevelMemTracker::Get().OnLowLevelAllocMoved(ELLMTracker::Default, this, &Other);
+	}
+	if (bRequiresManualTracking)
+	{
+		FLowLevelMemTracker::Get().OnLowLevelAlloc(ELLMTracker::Default, &Other, GetSize());
+	}
+#endif
+
 	::Swap(*this, Other);
 }
 

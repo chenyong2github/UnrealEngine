@@ -10,7 +10,7 @@
 /**
  * Implements a cinematic shot section.
  */
-UCLASS()
+UCLASS(BlueprintType)
 class MOVIESCENETRACKS_API UMovieSceneCinematicShotSection
 	: public UMovieSceneSubSection
 {

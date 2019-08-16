@@ -18,6 +18,7 @@ FAnimNode_ObserveBone::FAnimNode_ObserveBone()
 
 void FAnimNode_ObserveBone::GatherDebugData(FNodeDebugData& DebugData)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(GatherDebugData)
 	const FString DebugLine = FString::Printf(TEXT("(Bone: %s has T(%s), R(%s), S(%s))"), *BoneToObserve.BoneName.ToString(), *Translation.ToString(), *Rotation.Euler().ToString(), *Scale.ToString());
 
 	DebugData.AddDebugItem(DebugLine);
@@ -27,6 +28,7 @@ void FAnimNode_ObserveBone::GatherDebugData(FNodeDebugData& DebugData)
 
 void FAnimNode_ObserveBone::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(EvaluateSkeletalControl_AnyThread)
 	const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
 
 	const FCompactPoseBoneIndex BoneIndex = BoneToObserve.GetCompactPoseIndex(BoneContainer);
@@ -55,5 +57,6 @@ bool FAnimNode_ObserveBone::IsValidToEvaluate(const USkeleton* Skeleton, const F
 
 void FAnimNode_ObserveBone::InitializeBoneReferences(const FBoneContainer& RequiredBones)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(InitializeBoneReferences)
 	BoneToObserve.Initialize(RequiredBones);
 }

@@ -47,6 +47,9 @@ struct CORE_API FDebug
 	/** Dumps the stack trace into the log, meant to be used for debugging purposes. */
 	static void DumpStackTraceToLog();
 
+	/** Dumps the stack trace into the log with a custom heading, meant to be used for debugging purposes. */
+	static void DumpStackTraceToLog(const TCHAR* Heading);
+
 #if DO_CHECK || DO_GUARD_SLOW
 private:
 	static void VARARGS CheckVerifyFailedImpl(const ANSICHAR* Expr, const char* File, int32 Line, const TCHAR* Format, ...);

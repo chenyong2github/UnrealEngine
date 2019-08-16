@@ -25,7 +25,7 @@ version: 4.9
 | 핀 | 설명 |
 | --- | ----------- |
 | [REGION:tablesection]**Output Pins**[/REGION] ||
-| 실행 (공백) | 코드에서 `BlueprintInitializeAnimation()` 이벤트가 실행되면 각 프레임마다 한 번 호출됩니다. |
+| Exec (Blank) | 코드에서 `BlueprintInitializeAnimation()` 이벤트가 실행되면 각 프레임마다 한 번 호출됩니다. |
 
 [/EXCERPT:Initialize]
 
@@ -39,7 +39,7 @@ version: 4.9
 | 핀 | 설명 |
 | --- | ----------- |
 | [REGION:tablesection]**출력 핀**[/REGION] ||
-| 실행 (공백) | 코드에서 `BlueprintUpdateAnimation()` 이벤트가 실행되면 각 프레임에 한 번 발동됩니다. |
+| Exec (Blank) | 코드에서 `BlueprintUpdateAnimation()` 이벤트가 실행되면 각 프레임에 한 번 발동됩니다. |
 | Delta Time X | 지난 실행 주기 이후 경과된 시간을 출력합니다. |
 
 [/EXCERPT:Update]

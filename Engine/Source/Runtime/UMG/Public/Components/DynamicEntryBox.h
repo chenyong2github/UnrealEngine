@@ -79,7 +79,7 @@ private:
 	UUserWidget* BP_CreateEntry();
 
 	/** Creates and establishes a new dynamic entry in the box using the specified class instead of the default. */
-	UFUNCTION(BlueprintCallable, Category = DynamicEntryBox, meta = (DisplayName = "Create Entry of Class", AllowPrivateAccess = true))
+	UFUNCTION(BlueprintCallable, Category = DynamicEntryBox, meta = (DisplayName = "Create Entry of Class", AllowPrivateAccess = true, DeterminesOutputType = "EntryClass"))
 	UUserWidget* BP_CreateEntryOfClass(TSubclassOf<UUserWidget> EntryClass);
 
 	/**

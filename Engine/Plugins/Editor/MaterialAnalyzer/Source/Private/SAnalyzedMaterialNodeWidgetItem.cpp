@@ -6,6 +6,9 @@
 #include "Widgets/Images/SImage.h"
 #include "Engine/EngineTypes.h"
 #include "MaterialShaderType.h"
+#include "PropertyCustomizationHelpers.h"
+#include "Editor.h"
+#include "EditorStyleSet.h"
 
 #define LOCTEXT_NAMESPACE "MaterialAnalyzer"
 
@@ -18,20 +21,22 @@ FName SAnalyzedMaterialNodeWidgetItem::NAME_StaticComponentMaskParameters(TEXT("
 
 void SAnalyzedMaterialNodeWidgetItem::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView)
 {
-	this->MaterialInfo = InArgs._MaterialInfoToVisualize;
+	MaterialInfo = InArgs._MaterialInfoToVisualize;
 
-	this->SetPadding(0);
-
-	this->BasePropertyOverrideNodes = MaterialInfo->BasePropertyOverrides;
-	this->StaticSwitchNodes = MaterialInfo->StaticSwitchParameters;
-	this->StaticMaterialLayerNodes = MaterialInfo->MaterialLayerParameters;
-	this->StaticComponentMaskNodes = MaterialInfo->StaticComponentMaskParameters;
-
+	SetPadding(0);
+	BasePropertyOverrideNodes = MaterialInfo->BasePropertyOverrides;
+	StaticSwitchNodes = MaterialInfo->StaticSwitchParameters;
+	StaticMaterialLayerNodes = MaterialInfo->MaterialLayerParameters;
+	StaticComponentMaskNodes = MaterialInfo->StaticComponentMaskParameters;
+	AssetData = MaterialInfo->AssetData;
 	CachedMaterialName = FText::FromString(MaterialInfo->Path);
 	TotalNumberOfChildren = MaterialInfo->TotalNumberOfChildren();
 	NumberOfChildren = MaterialInfo->ActualNumberOfChildren();
 
-	SMultiColumnTableRow< FAnalyzedMaterialNodeRef >::Construct(SMultiColumnTableRow< FAnalyzedMaterialNodeRef >::FArguments().Padding(0), InOwnerTableView);
+	SMultiColumnTableRow< FAnalyzedMaterialNodeRef >::Construct(SMultiColumnTableRow< FAnalyzedMaterialNodeRef >::FArguments()
+		.Padding(0)
+		.Style(FEditorStyle::Get(), "DataTableEditor.CellListViewRow")
+		, InOwnerTableView);
 }
 
 TSharedRef<SWidget> SAnalyzedMaterialNodeWidgetItem::GenerateWidgetForColumn(const FName& ColumnName)
@@ -39,10 +44,9 @@ TSharedRef<SWidget> SAnalyzedMaterialNodeWidgetItem::GenerateWidgetForColumn(con
 	if(ColumnName == NAME_MaterialName)
 	{
 		return SNew(SHorizontalBox)
-
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
-		.VAlign(VAlign_Top)
+		.VAlign(VAlign_Center)
 		[
 			SNew(SExpanderArrow, SharedThis(this))
 			.IndentAmount(16)
@@ -50,10 +54,25 @@ TSharedRef<SWidget> SAnalyzedMaterialNodeWidgetItem::GenerateWidgetForColumn(con
 		+SHorizontalBox::Slot()
 		.AutoWidth()
 		.Padding(2.0f, 0.0f)
-		.VAlign(VAlign_Top)
+		.VAlign(VAlign_Center)
 		[
 			SNew(STextBlock)
 			.Text(this, &SAnalyzedMaterialNodeWidgetItem::GetMaterialName)
+		]
+		+ SHorizontalBox::Slot()
+		.Padding(1.0f, 1.0f)
+		.AutoWidth()
+		[
+			SNew(SButton)
+			.OnClicked(this, &SAnalyzedMaterialNodeWidgetItem::FindInContentBrowser)
+			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ToolTipText(LOCTEXT("BrowseInContentBrowser", "Browse to this asset in the Content Browser"))
+			.DesiredSizeScale(FVector2D(0.4f, 0.4f))
+			.VAlign(VAlign_Center)
+			[
+				SNew(SImage)
+				.Image(FSlateIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.FindInContentBrowser").GetIcon())
+			]
 		];
 	}
 	else if(ColumnName == NAME_NumberOfChildren)
@@ -84,6 +103,14 @@ TSharedRef<SWidget> SAnalyzedMaterialNodeWidgetItem::GenerateWidgetForColumn(con
 	}
 
 	return SNullWidget::NullWidget;
+}
+
+FReply SAnalyzedMaterialNodeWidgetItem::FindInContentBrowser()
+{
+	TArray<FAssetData> AssetDataArray;
+	AssetDataArray.Add(AssetData);
+	GEditor->SyncBrowserToObjects(AssetDataArray);
+	return FReply::Handled();
 }
 
 

@@ -117,6 +117,7 @@ const FName FBlueprintMetadata::MD_DeprecatedFunction(TEXT("DeprecatedFunction")
 const FName FBlueprintMetadata::MD_DeprecationMessage(TEXT("DeprecationMessage"));
 const FName FBlueprintMetadata::MD_CompactNodeTitle(TEXT("CompactNodeTitle"));
 const FName FBlueprintMetadata::MD_DisplayName(TEXT("DisplayName"));
+const FName FBlueprintMetadata::MD_ReturnDisplayName(TEXT("ReturnDisplayName"));
 const FName FBlueprintMetadata::MD_InternalUseParam(TEXT("InternalUseParam"));
 
 const FName FBlueprintMetadata::MD_PropertyGetFunction(TEXT("BlueprintGetter"));
@@ -887,7 +888,7 @@ bool UEdGraphSchema_K2::CanFunctionBeUsedInGraph(const UClass* InClass, const UF
 	return false;
 }
 
-UFunction* UEdGraphSchema_K2::GetCallableParentFunction(UFunction* Function) const
+UFunction* UEdGraphSchema_K2::GetCallableParentFunction(UFunction* Function)
 {
 	if( Function && Cast<UClass>(Function->GetOuter()) )
 	{
@@ -906,13 +907,13 @@ UFunction* UEdGraphSchema_K2::GetCallableParentFunction(UFunction* Function) con
 bool UEdGraphSchema_K2::CanUserKismetCallFunction(const UFunction* Function)
 {
 	return Function && 
-		(Function->HasAllFunctionFlags(FUNC_BlueprintCallable) && !Function->HasAllFunctionFlags(FUNC_Delegate) && !Function->GetBoolMetaData(FBlueprintMetadata::MD_BlueprintInternalUseOnly) && !Function->HasMetaData(FBlueprintMetadata::MD_DeprecatedFunction));
+		(Function->HasAllFunctionFlags(FUNC_BlueprintCallable) && !Function->HasAllFunctionFlags(FUNC_Delegate) && !Function->GetBoolMetaData(FBlueprintMetadata::MD_BlueprintInternalUseOnly) && (!Function->HasMetaData(FBlueprintMetadata::MD_DeprecatedFunction) || GetDefault<UBlueprintEditorSettings>()->bExposeDeprecatedFunctions));
 }
 
 bool UEdGraphSchema_K2::CanKismetOverrideFunction(const UFunction* Function)
 {
 	return  Function && 
-		(Function->HasAllFunctionFlags(FUNC_BlueprintEvent) && !Function->HasAllFunctionFlags(FUNC_Delegate) && !Function->GetBoolMetaData(FBlueprintMetadata::MD_BlueprintInternalUseOnly) && !Function->HasMetaData(FBlueprintMetadata::MD_DeprecatedFunction));
+		(Function->HasAllFunctionFlags(FUNC_BlueprintEvent) && !Function->HasAllFunctionFlags(FUNC_Delegate) && !Function->GetBoolMetaData(FBlueprintMetadata::MD_BlueprintInternalUseOnly) && (!Function->HasMetaData(FBlueprintMetadata::MD_DeprecatedFunction) || GetDefault<UBlueprintEditorSettings>()->bExposeDeprecatedFunctions));
 }
 
 bool UEdGraphSchema_K2::HasFunctionAnyOutputParameter(const UFunction* InFunction)
@@ -1295,7 +1296,7 @@ bool UEdGraphSchema_K2::PinHasSplittableStructType(const UEdGraphPin* InGraphPin
 				bCanSplit = UK2Node_MakeStruct::CanBeSplit(StructType);
 				if (!bCanSplit)
 				{
-					const FString& MetaData = StructType->GetMetaData(TEXT("HasNativeMake"));
+					const FString& MetaData = StructType->GetMetaData(FBlueprintMetadata::MD_NativeMakeFunction);
 					UFunction* Function = FindObject<UFunction>(NULL, *MetaData, true);
 					bCanSplit = (Function != NULL);
 				}
@@ -1305,7 +1306,7 @@ bool UEdGraphSchema_K2::PinHasSplittableStructType(const UEdGraphPin* InGraphPin
 				bCanSplit = UK2Node_BreakStruct::CanBeSplit(StructType);
 				if (!bCanSplit)
 				{
-					const FString& MetaData = StructType->GetMetaData(TEXT("HasNativeBreak"));
+					const FString& MetaData = StructType->GetMetaData(FBlueprintMetadata::MD_NativeBreakFunction);
 					UFunction* Function = FindObject<UFunction>(NULL, *MetaData, true);
 					bCanSplit = (Function != NULL);
 				}
@@ -1344,6 +1345,20 @@ bool UEdGraphSchema_K2::PinDefaultValueIsEditable(const UEdGraphPin& InGraphPin)
 	}
 
 	return true;
+}
+
+bool UEdGraphSchema_K2::PinHasCustomDefaultFormat(const UEdGraphPin& InGraphPin) const
+{
+	if (InGraphPin.PinType.PinCategory == PC_Struct)
+	{
+		// Some struct types have custom formats for default value for historical reasons
+		UObject const& SubCategoryObject = *InGraphPin.PinType.PinSubCategoryObject;
+		return &SubCategoryObject == VectorStruct
+			|| &SubCategoryObject == RotatorStruct
+			|| &SubCategoryObject == TransformStruct
+			|| &SubCategoryObject == LinearColorStruct;
+	}
+	return false;
 }
 
 void UEdGraphSchema_K2::SelectAllNodesInDirection(TEnumAsByte<enum EEdGraphPinDirection> InDirection, UEdGraph* Graph, UEdGraphPin* InGraphPin)
@@ -1645,6 +1660,16 @@ void UEdGraphSchema_K2::GetContextMenuActions(const UEdGraph* CurrentGraph, cons
 					MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().CollapseSelectionToFunction );
 					MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().CollapseSelectionToMacro );
 					MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().ExpandNodes );
+
+					if (InGraphNode->IsA(UK2Node_FunctionEntry::StaticClass()))
+					{
+						MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().ConvertFunctionToEvent);
+					}
+
+					if (InGraphNode->IsA(UK2Node_Event::StaticClass()))
+					{
+						MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().ConvertEventToFunction);
+					}
 
 					if(InGraphNode->IsA(UK2Node_Composite::StaticClass()))
 					{
@@ -2402,7 +2427,22 @@ private:
 			// Exclude the bitmask subcategory string from integral types so that autocast will work.
 			PinSubCategory.Reset();
 		}
-		return FString::Printf(TEXT("%s;%s;%s"), *PinType.PinCategory.ToString(), *PinSubCategory, Obj ? *Obj->GetPathName() : TEXT(""));
+		
+		FString TypeString = FString::Printf(TEXT("%s;%s;%s;%d"), *PinType.PinCategory.ToString(), *PinSubCategory, Obj ? *Obj->GetPathName() : TEXT(""), (int32)PinType.ContainerType);
+
+		if (PinType.ContainerType == EPinContainerType::Map)
+		{
+			// Add value type to string
+			Obj = PinType.PinValueType.TerminalSubCategoryObject.Get();
+			PinSubCategory = PinType.PinValueType.TerminalSubCategory.ToString();
+			if (PinSubCategory.StartsWith(UEdGraphSchema_K2::PSC_Bitmask.ToString()))
+			{
+				PinSubCategory.Reset();
+			}
+			return FString::Printf(TEXT("%s;%s;%s;%s"), *TypeString, *PinType.PinValueType.TerminalCategory.ToString(), *PinSubCategory, Obj ? *Obj->GetPathName() : TEXT(""));
+		}
+
+		return TypeString;
 	}
 
 	static FString GenerateCastData(const FEdGraphPinType& InputPinType, const FEdGraphPinType& OutputPinType)
@@ -2572,68 +2612,72 @@ bool UEdGraphSchema_K2::SearchForAutocastFunction(const UEdGraphPin* OutputPin, 
 			FunctionOwner = Function->GetOwnerClass();
 			return true;
 		}
-		return false;
+		
+		// Skip the other special cases if container check fails, but allow checking the autocast map
 	}
-
-	// SPECIAL CASES, not supported by FAutocastFunctionMap
-	if ((OutputPin->PinType.PinCategory == PC_Interface) && (InputPin->PinType.PinCategory == PC_Object))
+	else
 	{
-		UClass const* InputClass = Cast<UClass const>(InputPin->PinType.PinSubCategoryObject.Get());
-
-		bool const bInputIsUObject = (InputClass && (InputClass == UObject::StaticClass()));
-		if (bInputIsUObject)
-		{
-			UFunction* Function = UKismetSystemLibrary::StaticClass()->FindFunctionByName(GET_MEMBER_NAME_CHECKED(UKismetSystemLibrary, Conv_InterfaceToObject));
-			TargetFunction = Function->GetFName();
-			FunctionOwner = Function->GetOwnerClass();
-		}
-	}
-	else if (OutputPin->PinType.PinCategory == PC_Object)
-	{
-		UClass const* OutputClass = Cast<UClass const>(OutputPin->PinType.PinSubCategoryObject.Get());
-		if (InputPin->PinType.PinCategory == PC_Class)
+		// SPECIAL CASES, not supported by FAutocastFunctionMap.
+		if ((OutputPin->PinType.PinCategory == PC_Interface) && (InputPin->PinType.PinCategory == PC_Object))
 		{
 			UClass const* InputClass = Cast<UClass const>(InputPin->PinType.PinSubCategoryObject.Get());
-			if ((OutputClass != nullptr) &&
-				(InputClass != nullptr) &&
-				OutputClass->IsChildOf(InputClass))
+
+			bool const bInputIsUObject = (InputClass && (InputClass == UObject::StaticClass()));
+			if (bInputIsUObject)
 			{
-				UFunction* Function = UGameplayStatics::StaticClass()->FindFunctionByName(GET_MEMBER_NAME_CHECKED(UGameplayStatics, GetObjectClass));
+				UFunction* Function = UKismetSystemLibrary::StaticClass()->FindFunctionByName(GET_MEMBER_NAME_CHECKED(UKismetSystemLibrary, Conv_InterfaceToObject));
 				TargetFunction = Function->GetFName();
 				FunctionOwner = Function->GetOwnerClass();
 			}
 		}
-		else if (InputPin->PinType.PinCategory == PC_String)
+		else if (OutputPin->PinType.PinCategory == PC_Object)
 		{
-			UFunction* Function = UKismetSystemLibrary::StaticClass()->FindFunctionByName(GET_MEMBER_NAME_CHECKED(UKismetSystemLibrary, GetDisplayName));
-			TargetFunction = Function->GetFName();
-			FunctionOwner = Function->GetOwnerClass();
-		}
-	}
-	else if (OutputPin->PinType.PinCategory == PC_Class)
-	{
-		if (InputPin->PinType.PinCategory == PC_String)
-		{
-			UFunction* Function = UKismetSystemLibrary::StaticClass()->FindFunctionByName(GET_MEMBER_NAME_CHECKED(UKismetSystemLibrary, GetClassDisplayName));
-			TargetFunction = Function->GetFName();
-			FunctionOwner = Function->GetOwnerClass();
-		}
-	}
-	else if (OutputPin->PinType.PinCategory == PC_Struct)
-	{
-		const UScriptStruct* OutputStructType = Cast<const UScriptStruct>(OutputPin->PinType.PinSubCategoryObject.Get());
-		if (OutputStructType == TBaseStructure<FRotator>::Get())
-		{
-			const UScriptStruct* InputStructType = Cast<const UScriptStruct>(InputPin->PinType.PinSubCategoryObject.Get());
-			if ((InputPin->PinType.PinCategory == PC_Struct) && (InputStructType == TBaseStructure<FTransform>::Get()))
+			UClass const* OutputClass = Cast<UClass const>(OutputPin->PinType.PinSubCategoryObject.Get());
+			if (InputPin->PinType.PinCategory == PC_Class)
 			{
-				UFunction* Function = UKismetMathLibrary::StaticClass()->FindFunctionByName(GET_MEMBER_NAME_CHECKED(UKismetMathLibrary, MakeTransform));
+				UClass const* InputClass = Cast<UClass const>(InputPin->PinType.PinSubCategoryObject.Get());
+				if ((OutputClass != nullptr) &&
+					(InputClass != nullptr) &&
+					OutputClass->IsChildOf(InputClass))
+				{
+					UFunction* Function = UGameplayStatics::StaticClass()->FindFunctionByName(GET_MEMBER_NAME_CHECKED(UGameplayStatics, GetObjectClass));
+					TargetFunction = Function->GetFName();
+					FunctionOwner = Function->GetOwnerClass();
+				}
+			}
+			else if (InputPin->PinType.PinCategory == PC_String)
+			{
+				UFunction* Function = UKismetSystemLibrary::StaticClass()->FindFunctionByName(GET_MEMBER_NAME_CHECKED(UKismetSystemLibrary, GetDisplayName));
 				TargetFunction = Function->GetFName();
 				FunctionOwner = Function->GetOwnerClass();
+			}
+		}
+		else if (OutputPin->PinType.PinCategory == PC_Class)
+		{
+			if (InputPin->PinType.PinCategory == PC_String)
+			{
+				UFunction* Function = UKismetSystemLibrary::StaticClass()->FindFunctionByName(GET_MEMBER_NAME_CHECKED(UKismetSystemLibrary, GetClassDisplayName));
+				TargetFunction = Function->GetFName();
+				FunctionOwner = Function->GetOwnerClass();
+			}
+		}
+		else if (OutputPin->PinType.PinCategory == PC_Struct)
+		{
+			const UScriptStruct* OutputStructType = Cast<const UScriptStruct>(OutputPin->PinType.PinSubCategoryObject.Get());
+			if (OutputStructType == TBaseStructure<FRotator>::Get())
+			{
+				const UScriptStruct* InputStructType = Cast<const UScriptStruct>(InputPin->PinType.PinSubCategoryObject.Get());
+				if ((InputPin->PinType.PinCategory == PC_Struct) && (InputStructType == TBaseStructure<FTransform>::Get()))
+				{
+					UFunction* Function = UKismetMathLibrary::StaticClass()->FindFunctionByName(GET_MEMBER_NAME_CHECKED(UKismetMathLibrary, MakeTransform));
+					TargetFunction = Function->GetFName();
+					FunctionOwner = Function->GetOwnerClass();
+				}
 			}
 		}
 	}
 
+	// Try looking for a marked up autocast if we've not found a built-in one that works
 	if (TargetFunction == NAME_None)
 	{
 		const FAutocastFunctionMap& AutocastFunctionMap = FAutocastFunctionMap::Get();
@@ -4597,7 +4641,7 @@ void UEdGraphSchema_K2::HandleGraphBeingDeleted(UEdGraph& GraphBeingRemoved) con
 	}
 }
 
-void UEdGraphSchema_K2::GetPinDefaultValuesFromString(const FEdGraphPinType& PinType, UObject* OwningObject, const FString& NewDefaultValue, FString& UseDefaultValue, UObject*& UseDefaultObject, FText& UseDefaultText) const
+void UEdGraphSchema_K2::GetPinDefaultValuesFromString(const FEdGraphPinType& PinType, UObject* OwningObject, const FString& NewDefaultValue, FString& UseDefaultValue, UObject*& UseDefaultObject, FText& UseDefaultText, bool bPreserveTextIdentity) const
 {
 	if ((PinType.PinCategory == PC_Object)
 		|| (PinType.PinCategory == PC_Class)
@@ -4629,16 +4673,20 @@ void UEdGraphSchema_K2::GetPinDefaultValuesFromString(const FEdGraphPinType& Pin
 	}
 	else if (PinType.PinCategory == PC_Text)
 	{
-		FString PackageNamespace;
-#if USE_STABLE_LOCALIZATION_KEYS
-		if (GIsEditor)
+		if (bPreserveTextIdentity)
 		{
-			PackageNamespace = TextNamespaceUtil::EnsurePackageNamespace(OwningObject);
+			UseDefaultText = FTextStringHelper::CreateFromBuffer(*NewDefaultValue);
 		}
-#endif // USE_STABLE_LOCALIZATION_KEYS
-		if (!FTextStringHelper::ReadFromBuffer(*NewDefaultValue, UseDefaultText, nullptr, *PackageNamespace))
+		else
 		{
-			UseDefaultText = FText::FromString(NewDefaultValue);
+			FString PackageNamespace;
+#if USE_STABLE_LOCALIZATION_KEYS
+			if (GIsEditor)
+			{
+				PackageNamespace = TextNamespaceUtil::EnsurePackageNamespace(OwningObject);
+			}
+#endif // USE_STABLE_LOCALIZATION_KEYS
+			UseDefaultText = FTextStringHelper::CreateFromBuffer(*NewDefaultValue, nullptr, *PackageNamespace);
 		}
 		UseDefaultObject = nullptr;
 		UseDefaultValue.Empty();
@@ -4665,13 +4713,13 @@ void UEdGraphSchema_K2::GetPinDefaultValuesFromString(const FEdGraphPinType& Pin
 	}
 }
 
-void UEdGraphSchema_K2::TrySetDefaultValue(UEdGraphPin& Pin, const FString& NewDefaultValue) const
+void UEdGraphSchema_K2::TrySetDefaultValue(UEdGraphPin& Pin, const FString& NewDefaultValue, bool bMarkAsModified) const
 {
 	FString UseDefaultValue;
 	UObject* UseDefaultObject = nullptr;
 	FText UseDefaultText;
 
-	GetPinDefaultValuesFromString(Pin.PinType, Pin.GetOwningNodeUnchecked(), NewDefaultValue, UseDefaultValue, UseDefaultObject, UseDefaultText);
+	GetPinDefaultValuesFromString(Pin.PinType, Pin.GetOwningNodeUnchecked(), NewDefaultValue, UseDefaultValue, UseDefaultObject, UseDefaultText, /*bPreserveTextIdentity*/false);
 
 	// Check the default value and make it an error if it's bogus
 	if (IsPinDefaultValid(&Pin, UseDefaultValue, UseDefaultObject, UseDefaultText).IsEmpty())
@@ -4689,12 +4737,15 @@ void UEdGraphSchema_K2::TrySetDefaultValue(UEdGraphPin& Pin, const FString& NewD
 			Node->PinConnectionListChanged(&Pin);
 		}
 
-		UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(Node);
-		FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+		if (bMarkAsModified)
+		{
+			UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(Node);
+			FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+		}
 	}
 }
 
-void UEdGraphSchema_K2::TrySetDefaultObject(UEdGraphPin& Pin, UObject* NewDefaultObject) const
+void UEdGraphSchema_K2::TrySetDefaultObject(UEdGraphPin& Pin, UObject* NewDefaultObject, bool bMarkAsModified) const
 {
 	FText UseDefaultText;
 
@@ -4721,11 +4772,14 @@ void UEdGraphSchema_K2::TrySetDefaultObject(UEdGraphPin& Pin, UObject* NewDefaul
 		Node->PinConnectionListChanged(&Pin);
 	}
 
-	UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(Node);
-	FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+	if (bMarkAsModified)
+	{
+		UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(Node);
+		FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+	}
 }
 
-void UEdGraphSchema_K2::TrySetDefaultText(UEdGraphPin& InPin, const FText& InNewDefaultText) const
+void UEdGraphSchema_K2::TrySetDefaultText(UEdGraphPin& InPin, const FText& InNewDefaultText, bool bMarkAsModified) const
 {
 	// No reason to set the FText if it is not a PC_Text.
 	if(InPin.PinType.PinCategory == PC_Text)
@@ -4747,8 +4801,11 @@ void UEdGraphSchema_K2::TrySetDefaultText(UEdGraphPin& InPin, const FText& InNew
 			Node->PinConnectionListChanged(&InPin);
 		}
 
-		UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(Node);
-		FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+		if (bMarkAsModified)
+		{
+			UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(Node);
+			FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+		}
 	}
 }
 
@@ -5390,6 +5447,11 @@ void UEdGraphSchema_K2::GetGraphDisplayInformation(const UEdGraph& Graph, /*out*
 		{
 			DisplayInfo.Notes.Add(TEXT("const"));
 		}
+
+		if (Function->HasMetaData(FBlueprintMetadata::MD_DeprecatedFunction))
+		{
+			DisplayInfo.Notes.Add(LOCTEXT("FunctionGraphDisplayInfo_Deprecated", "deprecated").ToString());
+		}
 	}
 
 	// Mark transient graphs as obviously so
@@ -5979,19 +6041,21 @@ struct FBackwardCompatibilityConversionHelper
 	{
 		if (ConversionParams.FuncScope)
 		{
-			const UFunction* OldFunc = ConversionParams.FuncScope->FindFunctionByName(ConversionParams.OldFuncName);
-			check(OldFunc);
 			const UFunction* NewFunc = ConversionParams.FuncScope->FindFunctionByName(ConversionParams.NewFuncName);
-			check(NewFunc);
-
-			for (UK2Node_CallFunction* Node : Nodes)
+			if (ensureMsgf(NewFunc, TEXT("Can't find conversion function %s on %s!"), *ConversionParams.NewFuncName.ToString(), *ConversionParams.FuncScope->GetName()))
 			{
-				if (OldFunc == Node->GetTargetFunction())
+				for (UK2Node_CallFunction* Node : Nodes)
 				{
-					UK2Node_CallFunction* NewNode = NewObject<UK2Node_CallFunction>(Graph);
-					NewNode->SetFromFunction(NewFunc);
-					ConvertNode(Node, ConversionParams.BlueprintPinName, NewNode,
-						ConversionParams.ClassPinName, Schema, bOnlyWithDefaultBlueprint);
+					// Check to see if the class scope and name are the same, we can't depend on the UFunction still existing
+					UClass* MemberParent = Node->FunctionReference.GetMemberParentClass(Node->GetBlueprintClassFromNode());
+
+					if (MemberParent == ConversionParams.FuncScope && Node->FunctionReference.GetMemberName() == ConversionParams.OldFuncName)
+					{
+						UK2Node_CallFunction* NewNode = NewObject<UK2Node_CallFunction>(Graph);
+						NewNode->SetFromFunction(NewFunc);
+						ConvertNode(Node, ConversionParams.BlueprintPinName, NewNode,
+							ConversionParams.ClassPinName, Schema, bOnlyWithDefaultBlueprint);
+					}
 				}
 			}
 		}
@@ -6495,7 +6559,12 @@ UEdGraph* UEdGraphSchema_K2::DuplicateGraph(UEdGraph* GraphToDuplicate) const
 					if (EntryNode->FunctionReference.GetMemberName() == GraphToDuplicate->GetFName())
 					{
 						EntryNode->Modify();
-						EntryNode->FunctionReference.SetMemberName(NewGraph->GetFName());
+						
+						// We're duplicating the graph, so fully reset the member reference (including the GUID!)
+						FMemberReference NewRef;
+						NewRef.SetMemberName(NewGraph->GetFName());
+						EntryNode->FunctionReference = NewRef;
+
 						break;
 					}
 				}
@@ -6814,7 +6883,7 @@ UK2Node* UEdGraphSchema_K2::CreateSplitPinNode(UEdGraphPin* Pin, const FCreateSp
 		}
 		else
 		{
-			const FString& MetaData = StructType->GetMetaData(TEXT("HasNativeMake"));
+			const FString& MetaData = StructType->GetMetaData(FBlueprintMetadata::MD_NativeMakeFunction);
 			const UFunction* Function = FindObject<UFunction>(nullptr, *MetaData, true);
 
 			UK2Node_CallFunction* CallFunctionNode;
@@ -6862,7 +6931,7 @@ UK2Node* UEdGraphSchema_K2::CreateSplitPinNode(UEdGraphPin* Pin, const FCreateSp
 		}
 		else
 		{
-			const FString& MetaData = StructType->GetMetaData(TEXT("HasNativeBreak"));
+			const FString& MetaData = StructType->GetMetaData(FBlueprintMetadata::MD_NativeBreakFunction);
 			const UFunction* Function = FindObject<UFunction>(nullptr, *MetaData, true);
 
 			UK2Node_CallFunction* CallFunctionNode;

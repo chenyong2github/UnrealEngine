@@ -60,4 +60,12 @@ public:
 
 	/** Called when packages are deleted in the editor */
 	virtual void OnPackagesDeleted(const TArray<UPackage*>& DeletedPackages) = 0;
+
+	/**
+	 * Set a flag to bypass the recovery UI prompt and to automatically decline package recovery. The auto-saver
+	 * flow runs as usual but when the user is normally prompted for recovery, the system will bypass the prompt and select
+	 * to dismiss automatically if the flag it set. The flag must be raised before the Engine reach the recovery point
+	 * during the boot process, otherwise, it has no effect.
+	 */
+	virtual void DisableRestorePromptAndDeclinePackageRecovery() = 0;
 };

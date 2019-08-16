@@ -140,11 +140,14 @@ void UpdateWorldBoneTM(TAssetWorldBoneTMArray& WorldBoneTMs, const TArray<FTrans
 		ParentTM = WorldBoneTMs[ParentIndex].TM;
 	}
 
-	RelTM = InBoneSpaceTransforms[BoneIndex];
-	RelTM.ScaleTranslation( Scale3D );
+	if (InBoneSpaceTransforms.IsValidIndex(BoneIndex))
+	{
+		RelTM = InBoneSpaceTransforms[BoneIndex];
+		RelTM.ScaleTranslation(Scale3D);
 
-	WorldBoneTMs[BoneIndex].TM = RelTM * ParentTM;
-	WorldBoneTMs[BoneIndex].bUpToDate = true;
+		WorldBoneTMs[BoneIndex].TM = RelTM * ParentTM;
+		WorldBoneTMs[BoneIndex].bUpToDate = true;
+	}
 }
 TAutoConsoleVariable<int32> CVarPhysicsAnimBlendUpdatesPhysX(TEXT("p.PhysicsAnimBlendUpdatesPhysX"), 1, TEXT("Whether to update the physx simulation with the results of physics animation blending"));
 
@@ -240,6 +243,11 @@ void USkeletalMeshComponent::PerformBlendPhysicsBones(const TArray<FBoneIndexTyp
 					// if we wan't 'full weight' we just find 
 					if(UsePhysWeight > 0.f)
 					{
+						if (!(ensure(InBoneSpaceTransforms.Num())))
+						{
+							continue;
+						}
+
 						if(BoneIndex == 0)
 						{
 							ParentWorldTM = LocalToWorldTM;
@@ -364,6 +372,7 @@ void USkeletalMeshComponent::BlendInPhysics(FTickFunction& ThisTickFunction)
 		const bool bParallelBlend = !!CVarUseParallelBlendPhysics.GetValueOnGameThread() && FApp::ShouldUseThreadingForPerformance();
 		if(bParallelBlend)
 		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			if (SkeletalMesh->RefSkeleton.GetNum() != AnimEvaluationContext.BoneSpaceTransforms.Num())
 			{
 				// Initialize Parallel Task arrays
@@ -372,6 +381,7 @@ void USkeletalMeshComponent::BlendInPhysics(FTickFunction& ThisTickFunction)
 
 			AnimEvaluationContext.BoneSpaceTransforms.Reset(BoneSpaceTransforms.Num());
 			AnimEvaluationContext.BoneSpaceTransforms.Append(BoneSpaceTransforms);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			ParallelAnimationEvaluationTask = TGraphTask<FParallelBlendPhysicsTask>::CreateTask().ConstructAndDispatchWhenReady(this);
 
@@ -387,7 +397,9 @@ void USkeletalMeshComponent::BlendInPhysics(FTickFunction& ThisTickFunction)
 		}
 		else
 		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			PerformBlendPhysicsBones(RequiredBones, BoneSpaceTransforms);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			FinalizeAnimationUpdate();
 		}
 	}
@@ -454,8 +466,10 @@ void USkeletalMeshComponent::FinalizeAnimationUpdate()
 
 void USkeletalMeshComponent::CompleteParallelBlendPhysics()
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	Exchange(AnimEvaluationContext.BoneSpaceTransforms, AnimEvaluationContext.bDoInterpolation ? CachedBoneSpaceTransforms : BoneSpaceTransforms);
-		
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	FinalizeAnimationUpdate();
 
 	ParallelAnimationEvaluationTask.SafeRelease();
@@ -574,23 +588,43 @@ void USkeletalMeshComponent::UpdateKinematicBonesToAnim(const TArray<FTransform>
 					FPhysicsActorHandle& ActorHandle = BodyInst->ActorHandle;
 					const bool bIsRigidBody = FPhysicsInterface::IsRigidBody(ActorHandle);
 
-					if(ActorHandle.IsValid() && bIsRigidBody && (bTeleport || !BodyInst->IsInstanceSimulatingPhysics()))	//If we have a body and it's kinematic, or we are teleporting a simulated body
+					if (FPhysicsInterface::IsValid(ActorHandle) && bIsRigidBody && (bTeleport || !BodyInst->IsInstanceSimulatingPhysics()))	//If we have a body and it's kinematic, or we are teleporting a simulated body
 					{
 						const int32 BoneIndex = BodyInst->InstanceBoneIndex;
 
 						// If we could not find it - warn.
 						if(BoneIndex == INDEX_NONE || BoneIndex >= NumComponentSpaceTransforms)
 						{
-							const FName BodyName = PhysicsAsset->SkeletalBodySetups[i]->BoneName;
+							FName BodyName = TEXT("UNKNOWN");
+							if (PhysicsAsset->SkeletalBodySetups.IsValidIndex(i))
+							{
+								BodyName = PhysicsAsset->SkeletalBodySetups[i]->BoneName;
+							}
 							UE_LOG(LogPhysics, Log, TEXT("UpdateRBBones: WARNING: Failed to find bone '%s' need by PhysicsAsset '%s' in SkeletalMesh '%s'."), *BodyName.ToString(), *PhysicsAsset->GetName(), *SkeletalMesh->GetName());
 						}
 						else
 						{
+							if (BoneIndex >= InSpaceBases.Num())
+							{
+								FName BodyName = TEXT("UNKNOWN");
+								if (PhysicsAsset->SkeletalBodySetups.IsValidIndex(i))
+								{
+									BodyName = PhysicsAsset->SkeletalBodySetups[i]->BoneName;
+								}
+								UE_LOG(LogPhysics, Warning, TEXT("BoneIndex %d out of range of SpaceBases (Size %d) on PhysicsAsset '%s' in SkeletalMesh '%s' for bone '%s'"), BoneIndex, InSpaceBases.Num(), *PhysicsAsset->GetName(), *SkeletalMesh->GetName(), *BodyName.ToString());
+								continue;
+							}
+
 							// update bone transform to world
 							const FTransform BoneTransform = InSpaceBases[BoneIndex] * CurrentLocalToWorld;
 							if(!BoneTransform.IsValid())
 							{
-								const FName BodyName = PhysicsAsset->SkeletalBodySetups[i]->BoneName;
+								FName BodyName = TEXT("UNKNOWN");
+								if (PhysicsAsset->SkeletalBodySetups.IsValidIndex(i))
+								{
+									BodyName = PhysicsAsset->SkeletalBodySetups[i]->BoneName;
+								}
+
 								UE_LOG(LogPhysics, Warning, TEXT("UpdateKinematicBonesToAnim: Trying to set transform with bad data %s on PhysicsAsset '%s' in SkeletalMesh '%s' for bone '%s'"), *BoneTransform.ToHumanReadableString(), *PhysicsAsset->GetName(), *SkeletalMesh->GetName(), *BodyName.ToString());
 								BoneTransform.DiagnosticCheck_IsValid();	//In special nan mode we want to actually ensure
 
@@ -719,10 +753,12 @@ void USkeletalMeshComponent::UpdateRBJointMotors()
 				(GetBoneVisibilityStates()[BoneIndex] == BVS_Visible) &&
 				(CI->IsAngularOrientationDriveEnabled()) )
 			{
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				check(BoneIndex < BoneSpaceTransforms.Num());
 
 				// If we find the joint - get the local-space animation between this bone and its parent.
 				FQuat LocalQuat = BoneSpaceTransforms[BoneIndex].GetRotation();
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				FQuatRotationTranslationMatrix LocalRot(LocalQuat, FVector::ZeroVector);
 
 				// We loop from the graphics parent bone up to the bone that has the body which the joint is attached to, to calculate the relative transform.
@@ -734,16 +770,20 @@ void USkeletalMeshComponent::UpdateRBJointMotors()
 
 				while(!bFoundControlBody)
 				{
+					PRAGMA_DISABLE_DEPRECATION_WARNINGS
 					// Abort if we find a bone scaled to zero.
 					const FVector Scale3D = BoneSpaceTransforms[TestBoneIndex].GetScale3D();
+					PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					const float ScaleSum = Scale3D.X + Scale3D.Y + Scale3D.Z;
 					if(ScaleSum < KINDA_SMALL_NUMBER)
 					{
 						break;
 					}
 
+					PRAGMA_DISABLE_DEPRECATION_WARNINGS
 					// Add the current animated local transform into the overall controlling body->parent bone TM
 					FMatrix RelTM = BoneSpaceTransforms[TestBoneIndex].ToMatrixNoScale();
+					PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					RelTM.SetOrigin(FVector::ZeroVector);
 					ControlBodyToParentBoneTM = ControlBodyToParentBoneTM * RelTM;
 

@@ -191,7 +191,7 @@ namespace CrossCompiler
 				InsertToken(TEXT(">>"), EHlslToken::GreaterGreater);
 				InsertToken(TEXT(">>="), EHlslToken::GreaterGreaterEqual);
 				InsertToken(TEXT("&"), EHlslToken::And);
-				InsertToken(TEXT("&="), EHlslToken::And);
+				InsertToken(TEXT("&="), EHlslToken::AndEqual);
 				InsertToken(TEXT("|"), EHlslToken::Or);
 				InsertToken(TEXT("|="), EHlslToken::OrEqual);
 				InsertToken(TEXT("^"), EHlslToken::Xor);
@@ -335,7 +335,7 @@ namespace CrossCompiler
 				InsertToken(TEXT("float3x4"), EHlslToken::Float3x4);
 				InsertToken(TEXT("float4x4"), EHlslToken::Float4x4);
 
-				InsertToken(TEXT("Texture"), EHlslToken::Texture);
+				InsertToken(TEXT("texture"), EHlslToken::Texture);
 				InsertToken(TEXT("Texture1D"), EHlslToken::Texture1D);
 				InsertToken(TEXT("Texture1DArray"), EHlslToken::Texture1DArray);
 				InsertToken(TEXT("Texture1D_Array"), EHlslToken::Texture1DArray);	// PSSL
@@ -351,11 +351,11 @@ namespace CrossCompiler
 				InsertToken(TEXT("TextureCubeArray"), EHlslToken::TextureCubeArray);
 				InsertToken(TEXT("TextureCube_Array"), EHlslToken::TextureCubeArray);	// PSSL
 
-				InsertToken(TEXT("Sampler"), EHlslToken::Sampler);
-				InsertToken(TEXT("Sampler1D"), EHlslToken::Sampler1D);
-				InsertToken(TEXT("Sampler2D"), EHlslToken::Sampler2D);
-				InsertToken(TEXT("Sampler3D"), EHlslToken::Sampler3D);
-				InsertToken(TEXT("SamplerCube"), EHlslToken::SamplerCube);
+				InsertToken(TEXT("sampler"), EHlslToken::Sampler);
+				InsertToken(TEXT("sampler1D"), EHlslToken::Sampler1D);
+				InsertToken(TEXT("sampler2D"), EHlslToken::Sampler2D);
+				InsertToken(TEXT("sampler3D"), EHlslToken::Sampler3D);
+				InsertToken(TEXT("samplerCUBE"), EHlslToken::SamplerCube);
 				InsertToken(TEXT("SamplerState"), EHlslToken::SamplerState);
 				InsertToken(TEXT("SamplerComparisonState"), EHlslToken::SamplerComparisonState);
 
@@ -385,6 +385,7 @@ namespace CrossCompiler
 				InsertToken(TEXT("RW_Texture3D"), EHlslToken::RWTexture3D);	// PSSL
 				InsertToken(TEXT("StructuredBuffer"), EHlslToken::StructuredBuffer);
 				InsertToken(TEXT("RegularBuffer"), EHlslToken::StructuredBuffer);	// PSSL
+				InsertToken(TEXT("RaytracingAccelerationStructure"), EHlslToken::RaytracingAccelerationStructure);
 
 				// Modifiers
 				InsertToken(TEXT("in"), EHlslToken::In);
@@ -406,6 +407,7 @@ namespace CrossCompiler
 				InsertToken(TEXT("ConstantBuffer"), EHlslToken::CBuffer);	// PSSL
 				InsertToken(TEXT("groupshared"), EHlslToken::GroupShared);
 				InsertToken(TEXT("row_major"), EHlslToken::RowMajor);
+				InsertToken(TEXT("register"), EHlslToken::Register);
 			}
 		} GStaticInitializer;
 	}
@@ -612,7 +614,7 @@ namespace CrossCompiler
 			}
 		}
 
-		bool MatchFloatNumber(float& OutNum)
+		bool MatchFloatNumber(FString& OutLiteral)
 		{
 			auto* Original = Current;
 			TCHAR Char = Peek();
@@ -622,6 +624,7 @@ namespace CrossCompiler
 			// [0-9]+\.[0-9]+([eE][+-]?[0-9]+)?[fF]?	-> Digits+ Dot Digits+ Exp? F?
 			// [0-9]+[eE][+-]?[0-9]+[fF]?				-> Digits+ Exp F?
 			// [0-9]+[fF]								-> Digits+ F
+			// 1.#INF									-> Infinity constant
 			if (!IsDigit(Char) && Char != '.')
 			{
 				return false;
@@ -649,6 +652,19 @@ namespace CrossCompiler
 
 				if (Match('.'))
 				{
+					// Check for infinity constant
+					if (Match('#'))
+					{
+						if (MatchString(TEXT("INF"), 3))
+						{
+							goto Done;
+						}
+						else
+						{
+							goto NotFloat;
+						}
+					}
+
 					bExpOptional = true;
 					MatchAndSkipDigits();
 				}
@@ -698,7 +714,7 @@ namespace CrossCompiler
 			}
 
 		Done:
-			OutNum = FCString::Atof(Original);
+			OutLiteral = FString(static_cast<int32>(Current - Original), Original);
 			return true;
 
 		NotFloat:
@@ -973,10 +989,9 @@ namespace CrossCompiler
 				FString Identifier;
 				EHlslToken SymbolToken;
 				uint32 UnsignedInteger;
-				float FloatNumber;
-				if (Tokenizer.MatchFloatNumber(FloatNumber))
+				if (Tokenizer.MatchFloatNumber(Identifier))
 				{
-					AddToken(FHlslToken(FloatNumber), Tokenizer);
+					AddToken(FHlslToken(EHlslToken::FloatConstant, Identifier), Tokenizer);
 				}
 				else if (Tokenizer.MatchLiteralInteger(UnsignedInteger))
 				{
@@ -1042,7 +1057,7 @@ namespace CrossCompiler
 				break;
 
 			case EHlslToken::FloatConstant:
-				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("** %d: FloatConstant '%f'\n"), Index, Token.Float);
+				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("** %d: FloatConstant '%s'\n"), Index, *Token.String);
 				break;
 
 			default:

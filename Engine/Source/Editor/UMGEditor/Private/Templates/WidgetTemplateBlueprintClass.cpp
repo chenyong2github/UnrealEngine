@@ -87,11 +87,6 @@ FReply FWidgetTemplateBlueprintClass::OnDoubleClicked()
 	return FReply::Handled();
 }
 
-FAssetData FWidgetTemplateBlueprintClass::GetWidgetAssetData()
-{
-	return WidgetAssetData;
-}
-
 bool FWidgetTemplateBlueprintClass::Supports(UClass* InClass)
 {
 	return InClass != nullptr && InClass->IsChildOf(UWidgetBlueprint::StaticClass());

@@ -22,22 +22,27 @@ public:
 	// UTexture interface implementation
 	virtual void BeginDestroy() override;
 	virtual FTextureResource* CreateResource() override;
-	virtual EMaterialValueType GetMaterialType() const override { return MCT_TextureExternal; }
+	virtual EMaterialValueType GetMaterialType() const override { return MCT_Texture2D; }
 	virtual float GetSurfaceWidth() const override { return Size.X; }
 	virtual float GetSurfaceHeight() const override { return Size.Y; }
-	virtual FGuid GetExternalTextureGuid() const override { return ExternalTextureGuid; }
 	// End UTexture interface
 
-#if SUPPORTS_ARKIT_1_0
+#if PLATFORM_MAC || PLATFORM_IOS
 	/** Sets any initialization data */
 	virtual void Init(float InTimestamp, CVPixelBufferRef InCameraImage);
+
+	/** Queues the conversion on the render thread */
+	virtual void Init_RenderThread();
+
+    /** Store off the camera image for a later resource update */
+	void EnqueueNewCameraImage(CVPixelBufferRef InCameraImage);
 #endif
 
 	virtual EAppleTextureType GetTextureType() const override { return EAppleTextureType::PixelBuffer; }
 
 #if PLATFORM_MAC || PLATFORM_IOS
 	/** Returns the cached camera image. You must retain this if you hold onto it */
-	CVPixelBufferRef GetCameraImage() { return CameraImage; }
+	CVPixelBufferRef GetCameraImage() const { return CameraImage; }
 
 	// IAppleImageInterface interface implementation
 	virtual CVPixelBufferRef GetPixelBuffer() const override { return CameraImage; }
@@ -48,6 +53,8 @@ private:
 #if PLATFORM_MAC || PLATFORM_IOS
 	/** The Apple specific representation of the ar camera image */
 	CVPixelBufferRef CameraImage;
+	CVPixelBufferRef NewCameraImage;
+	FCriticalSection PendingImageLock;
 #endif
 };
 

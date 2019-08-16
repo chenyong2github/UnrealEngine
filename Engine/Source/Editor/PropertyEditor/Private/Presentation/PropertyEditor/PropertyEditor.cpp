@@ -16,8 +16,13 @@
 #include "Kismet2/KismetEditorUtilities.h"
 #include "IConfigEditorModule.h"
 #include "PropertyNode.h"
+#include "Kismet2/BlueprintEditorUtils.h"
+#include "EditConditionParser.h"
+#include "EditConditionContext.h"
 
 #define LOCTEXT_NAMESPACE "PropertyEditor"
+
+DEFINE_LOG_CATEGORY_STATIC(LogPropertyEditor, Log, All);
 
 const FString FPropertyEditor::MultipleValuesDisplayName = NSLOCTEXT("PropertyEditor", "MultipleValues", "Multiple Values").ToString();
 
@@ -27,11 +32,9 @@ TSharedRef< FPropertyEditor > FPropertyEditor::Create( const TSharedRef< class F
 }
 
 FPropertyEditor::FPropertyEditor( const TSharedRef<FPropertyNode>& InPropertyNode, const TSharedRef<IPropertyUtilities>& InPropertyUtilities )
-	: PropertyEditConditions()
-	, PropertyHandle( NULL )
+	: PropertyHandle( NULL )
 	, PropertyNode( InPropertyNode )
 	, PropertyUtilities( InPropertyUtilities )
-	, EditConditionProperty( NULL )
 {
 	// FPropertyEditor isn't built to handle CategoryNodes
 	check( InPropertyNode->AsCategoryNode() == NULL );
@@ -40,14 +43,19 @@ FPropertyEditor::FPropertyEditor( const TSharedRef<FPropertyNode>& InPropertyNod
 
 	if( Property )
 	{
-		//see if the property supports some kind of edit condition and this isn't the "parent" property of a static array
-		const bool bStaticArray = Property->ArrayDim > 1 && InPropertyNode->GetArrayIndex() == INDEX_NONE;
+		static const FName EditConditionName = TEXT("EditCondition");
 
-		if ( Property->HasMetaData( TEXT( "EditCondition" ) ) && !bStaticArray ) 
+		//see if the property supports some kind of edit condition and this isn't the "parent" property of a static array
+		if (Property->HasMetaData(EditConditionName) && !PropertyEditorHelpers::IsStaticArray(PropertyNode.Get()))
 		{
-			if ( !GetEditConditionPropertyAddress( /*OUT*/EditConditionProperty, *InPropertyNode, PropertyEditConditions ) )
+			TSharedPtr<FEditConditionParser> Parser = PropertyUtilities->GetEditConditionParser();
+			if (Parser.IsValid())
 			{
-				EditConditionProperty = NULL;
+				EditConditionExpression = Parser->Parse(Property->GetMetaData(EditConditionName));
+				if (EditConditionExpression.IsValid())
+				{
+					EditConditionContext = MakeShareable(new FEditConditionContext(PropertyNode.Get()));
+				}
 			}
 		}
 	}
@@ -195,6 +203,12 @@ void FPropertyEditor::AddItem()
 	PropertyUtilities->EnqueueDeferredAction( FSimpleDelegate::CreateSP( this, &FPropertyEditor::OnAddItem ) );
 }
 
+void FPropertyEditor::AddGivenItem(const FString& InGivenItem)
+{
+	// This action must be deferred until next tick so that we avoid accessing invalid data before we have a chance to tick
+	PropertyUtilities->EnqueueDeferredAction(FSimpleDelegate::CreateSP(this, &FPropertyEditor::OnAddGivenItem, InGivenItem));
+}
+
 void FPropertyEditor::OnAddItem()
 {
 	// Check to make sure that the property is a valid container
@@ -227,6 +241,30 @@ void FPropertyEditor::OnAddItem()
 	}
 }
 
+void FPropertyEditor::OnAddGivenItem(const FString InGivenItem)
+{
+	OnAddItem();
+
+	// Check to make sure that the property is a valid container
+	TSharedPtr<IPropertyHandleArray> ArrayHandle = PropertyHandle->AsArray();
+
+	check(ArrayHandle.IsValid());
+
+	TSharedPtr<IPropertyHandle> ElementHandle;
+
+	if (ArrayHandle.IsValid())
+	{
+		uint32 Last;
+		ArrayHandle->GetNumElements(Last);
+		ElementHandle = ArrayHandle->GetElement(Last - 1);
+	}
+
+	if (ElementHandle.IsValid())
+	{
+		ElementHandle->SetValueFromFormattedString(InGivenItem);
+	}
+}
+
 void FPropertyEditor::ClearItem()
 {
 	OnClearItem();
@@ -244,12 +282,19 @@ void FPropertyEditor::MakeNewBlueprint()
 	UClassProperty* ClassProp = Cast<UClassProperty>(NodeProperty);
 	UClass* Class = (ClassProp ? ClassProp->MetaClass : FEditorClassUtils::GetClassFromString(NodeProperty->GetMetaData("MetaClass")));
 
+	UClass* RequiredInterface = FEditorClassUtils::GetClassFromString(NodeProperty->GetMetaData("MustImplement"));
+
 	if (Class)
 	{
 		UBlueprint* Blueprint = FKismetEditorUtilities::CreateBlueprintFromClass(LOCTEXT("CreateNewBlueprint", "Create New Blueprint"), Class, FString::Printf(TEXT("New%s"),*Class->GetName()));
 
 		if(Blueprint != NULL && Blueprint->GeneratedClass)
 		{
+			if (RequiredInterface != nullptr && FKismetEditorUtilities::CanBlueprintImplementInterface(Blueprint, RequiredInterface))
+			{
+				FBlueprintEditorUtils::ImplementNewInterface(Blueprint, RequiredInterface->GetFName());
+			}
+			
 			PropertyHandle->SetValueFromFormattedString(Blueprint->GeneratedClass->GetPathName());
 
 			FAssetEditorManager::Get().OpenEditorForAsset(Blueprint);
@@ -402,52 +447,57 @@ bool FPropertyEditor::IsEditConst() const
 	return PropertyNode->IsEditConst();
 }
 
-void FPropertyEditor::SetEditConditionState( bool bShouldEnable )
+void FPropertyEditor::ToggleEditConditionState()
 {
 	const FScopedTransaction Transaction(FText::Format(LOCTEXT("SetEditConditionState", "Set {0} edit condition state "), PropertyNode->GetDisplayName()));
 
-	// Propagate the value change to any instances if we're editing a template object.
-	FObjectPropertyNode* ObjectNode = PropertyNode->FindObjectItemParent();
+	PropertyNode->NotifyPreChange( PropertyNode->GetProperty(), PropertyUtilities->GetNotifyHook() );
+
+	const UBoolProperty* EditConditionProperty = EditConditionContext->GetSingleBoolProperty(EditConditionExpression);
+	check(EditConditionProperty != nullptr);
 
 	FPropertyNode* ParentNode = PropertyNode->GetParentNode();
 	check(ParentNode != nullptr);
 
-	PropertyNode->NotifyPreChange( PropertyNode->GetProperty(), PropertyUtilities->GetNotifyHook() );
-	for ( int32 ValueIdx = 0; ValueIdx < PropertyEditConditions.Num(); ValueIdx++ )
+	bool OldValue = true;
+
+	FComplexPropertyNode* ComplexParentNode = PropertyNode->FindComplexParent();
+	for (int32 Index = 0; Index < ComplexParentNode->GetInstancesNum(); ++Index)
 	{
-		// Get the address corresponding to the base of this property (i.e. if a struct property, set BaseOffset to the address of value for the whole struct)
-		uint8* BaseOffset = ParentNode->GetValueAddress(PropertyEditConditions[ValueIdx].BaseAddress);
-		check(BaseOffset != NULL);
+		// ComplexParentNode points to the top-level object 
+		// ParentNode can point to a struct inside that object (which is stored as an FItemPropertyNode)
+		// We need all three pointers to get the value pointer
+		uint8* BaseAddress = ComplexParentNode->GetMemoryOfInstance(Index);
+		uint8* ParentOffset = ParentNode->GetValueAddress(BaseAddress);
+		uint8* ValuePtr = EditConditionProperty->ContainerPtrToValuePtr<uint8>(ParentOffset);
 
-		uint8* ValueAddr = EditConditionProperty->ContainerPtrToValuePtr<uint8>(BaseOffset);
+		OldValue &= EditConditionProperty->GetPropertyValue(ValuePtr);
+		EditConditionProperty->SetPropertyValue(ValuePtr, !OldValue);
+	}
 
-		const bool OldValue = EditConditionProperty->GetPropertyValue( ValueAddr );
-		const bool NewValue = XOR(bShouldEnable, PropertyEditConditions[ValueIdx].bNegateValue);
-		EditConditionProperty->SetPropertyValue( ValueAddr, NewValue );
-
-		if (ObjectNode != nullptr)
+	// Propagate the value change to any instances if we're editing a template object
+	FObjectPropertyNode* ObjectNode = PropertyNode->FindObjectItemParent();
+	if (ObjectNode != nullptr)
+	{
+		for (int32 ObjIndex = 0; ObjIndex < ObjectNode->GetNumObjects(); ++ObjIndex)
 		{
-			for (int32 ObjIndex = 0; ObjIndex < ObjectNode->GetNumObjects(); ++ObjIndex)
+			TWeakObjectPtr<UObject> ObjectWeakPtr = ObjectNode->GetUObject(ObjIndex);
+			UObject* Object = ObjectWeakPtr.Get();
+			if (Object != nullptr && Object->IsTemplate())
 			{
-				TWeakObjectPtr<UObject> ObjectWeakPtr = ObjectNode->GetUObject(ObjIndex);
-				UObject* Object = ObjectWeakPtr.Get();
-				if (Object != nullptr && Object->IsTemplate())
+				TArray<UObject*> ArchetypeInstances;
+				Object->GetArchetypeInstances(ArchetypeInstances);
+				for (int32 InstanceIndex = 0; InstanceIndex < ArchetypeInstances.Num(); ++InstanceIndex)
 				{
-					TArray<UObject*> ArchetypeInstances;
-					Object->GetArchetypeInstances(ArchetypeInstances);
-					for (int32 InstanceIndex = 0; InstanceIndex < ArchetypeInstances.Num(); ++InstanceIndex)
+					uint8* ArchetypeBaseOffset = ComplexParentNode->GetValueAddress((uint8*) ArchetypeInstances[InstanceIndex]);
+					uint8* ArchetypeParentOffset = ParentNode->GetValueAddress(ArchetypeBaseOffset);
+					uint8* ArchetypeValueAddr = EditConditionProperty->ContainerPtrToValuePtr<uint8>(ArchetypeParentOffset);
+
+					// Only propagate if the current value on the instance matches the previous value on the template.
+					const bool CurValue = EditConditionProperty->GetPropertyValue(ArchetypeValueAddr);
+					if (OldValue == CurValue)
 					{
-						// Only propagate if the current value on the instance matches the previous value on the template.
-						uint8* ArchetypeBaseOffset = ParentNode->GetValueAddress((uint8*)ArchetypeInstances[InstanceIndex]);
-						if(ArchetypeBaseOffset)
-						{
-							uint8* ArchetypeValueAddr = EditConditionProperty->ContainerPtrToValuePtr<uint8>(ArchetypeBaseOffset);
-							const bool CurValue = EditConditionProperty->GetPropertyValue(ArchetypeValueAddr);
-							if(OldValue == CurValue)
-							{
-								EditConditionProperty->SetPropertyValue(ArchetypeValueAddr, NewValue);
-							}
-						}
+						EditConditionProperty->SetPropertyValue(ArchetypeValueAddr, !OldValue);
 					}
 				}
 			}
@@ -505,8 +555,7 @@ void FPropertyEditor::OnGetActorFiltersForSceneOutliner( TSharedPtr<SceneOutline
 
 bool FPropertyEditor::IsPropertyEditingEnabled() const
 {
-	return ( PropertyUtilities->IsPropertyEditingEnabled() ) && 
-		(EditConditionProperty == NULL || IsEditConditionMet( EditConditionProperty, PropertyEditConditions ));
+	return ( PropertyUtilities->IsPropertyEditingEnabled() ) && (!HasEditCondition() || IsEditConditionMet());
 }
 
 void FPropertyEditor::ForceRefresh()
@@ -521,17 +570,53 @@ void FPropertyEditor::RequestRefresh()
 
 bool FPropertyEditor::HasEditCondition() const 
 { 
-	return EditConditionProperty != NULL; 
+	return EditConditionExpression.IsValid();
 }
 
 bool FPropertyEditor::IsEditConditionMet() const 
 { 
-	return IsEditConditionMet( EditConditionProperty, PropertyEditConditions ); 
+	if (HasEditCondition())
+	{
+		TSharedPtr<FEditConditionParser> EditConditionParser = PropertyUtilities->GetEditConditionParser();
+		if (EditConditionParser.IsValid())
+		{
+			TOptional<bool> Result = EditConditionParser->Evaluate(*EditConditionExpression.Get(), *EditConditionContext.Get());
+			if (Result.IsSet())
+			{
+				return Result.GetValue();
+			}
+		}
+	}
+
+	return true;
 }
 
 bool FPropertyEditor::SupportsEditConditionToggle() const
 {
-	return SupportsEditConditionToggle( PropertyNode->GetProperty() );
+	UProperty* Property = PropertyNode->GetProperty();
+
+	static const FName Name_HideEditConditionToggle("HideEditConditionToggle");
+	if (!Property->HasMetaData(Name_HideEditConditionToggle) && EditConditionExpression.IsValid())
+	{
+		const UBoolProperty* ConditionalProperty = EditConditionContext->GetSingleBoolProperty(EditConditionExpression);
+		if (ConditionalProperty != nullptr)
+		{
+			static const FName Name_InlineEditConditionToggle("InlineEditConditionToggle");
+			if (ConditionalProperty->HasMetaData(Name_InlineEditConditionToggle))
+			{
+				// If the edit condition property is not marked as editable, it's technically a bug.
+				// However, this was the behaviour prior to 4.23, so just warn and allow it for now.
+				if (!ConditionalProperty->HasAllPropertyFlags(CPF_Edit))
+				{
+					UE_LOG(LogPropertyEditor, Error, TEXT("Property being used as InlineEditConditionToggle is not marked as editable: Field \"%s\" in class \"%s\"."), *ConditionalProperty->GetNameCPP(), *Property->GetOwnerStruct()->GetName());
+				}
+
+				return true;
+			}
+		}
+	}
+
+	return false;
 }
 
 void FPropertyEditor::AddPropertyEditorChild( const TSharedRef<FPropertyEditor>& Child )
@@ -562,145 +647,6 @@ const UProperty* FPropertyEditor::GetProperty() const
 TSharedRef< IPropertyHandle > FPropertyEditor::GetPropertyHandle() const
 {
 	return PropertyHandle.ToSharedRef();
-}
-
-bool FPropertyEditor::IsEditConditionMet( UBoolProperty* ConditionProperty, const TArray<FPropertyConditionInfo>& ConditionValues ) const
-{
-	check(ConditionProperty);
-
-	bool bResult = false;
-
-	FPropertyNode* ParentNode = PropertyNode->GetParentNode();
-	if (ParentNode)
-	{
-		bool bAllConditionsMet = true;
-		for (int32 ValueIdx = 0; bAllConditionsMet && ValueIdx < ConditionValues.Num(); ValueIdx++)
-		{
-			if (!ConditionValues[ValueIdx].Object.IsValid())
-			{
-				bAllConditionsMet = false;
-				break;
-			}
-
-			uint8* BaseOffset = ParentNode->GetValueAddress(ConditionValues[ValueIdx].BaseAddress);
-			if (!BaseOffset)
-			{
-				bAllConditionsMet = false;
-				break;
-			}
-
-			uint8* ValueAddr = EditConditionProperty->ContainerPtrToValuePtr<uint8>(BaseOffset);
-
-			if (ConditionValues[ValueIdx].bNegateValue)
-			{
-				bAllConditionsMet = !ConditionProperty->GetPropertyValue(ValueAddr);
-			}
-			else
-			{
-				bAllConditionsMet = ConditionProperty->GetPropertyValue(ValueAddr);
-			}
-		}
-
-		bResult = bAllConditionsMet;
-	}
-
-	return bResult;
-}
-
-bool FPropertyEditor::GetEditConditionPropertyAddress( UBoolProperty*& ConditionProperty, FPropertyNode& InPropertyNode, TArray<FPropertyConditionInfo>& ConditionPropertyAddresses )
-{
-	bool bResult = false;
-	bool bNegate = false;
-	UBoolProperty* EditConditionProperty = PropertyCustomizationHelpers::GetEditConditionProperty(InPropertyNode.GetProperty(), bNegate);
-	if ( EditConditionProperty != NULL )
-	{
-		FPropertyNode* ParentNode = InPropertyNode.GetParentNode();
-		check(ParentNode);
-
-		UProperty* Property = InPropertyNode.GetProperty();
-		if (Property)
-		{
-			bool bStaticArray = (Property->ArrayDim > 1) && (InPropertyNode.GetArrayIndex() != INDEX_NONE);
-			if (bStaticArray)
-			{
-				//in the case of conditional static arrays, we have to go up one more level to get the proper parent struct.
-				ParentNode = ParentNode->GetParentNode();
-				check(ParentNode);
-			}
-		}
-
-		auto ComplexParentNode = ParentNode->FindComplexParent();
-		if (ComplexParentNode)
-		{
-			for (int32 Index = 0; Index < ComplexParentNode->GetInstancesNum(); ++Index)
-			{
-				uint8* BaseAddress = ComplexParentNode->GetMemoryOfInstance(Index);
-				if (BaseAddress)
-				{
-					// Get the address corresponding to the base of this property (i.e. if a struct property, set BaseOffset to the address of value for the whole struct)
-					uint8* BaseOffset = ParentNode->GetValueAddress(BaseAddress);
-					check(BaseOffset != NULL);
-
-					FPropertyConditionInfo NewCondition;
-					// now calculate the address of the property value being used as the condition and add it to the array.
-					NewCondition.Object = ComplexParentNode->AsStructureNode() ? TWeakObjectPtr<UObject>(ComplexParentNode->GetBaseStructure()) : ComplexParentNode->GetInstanceAsUObject(Index);
-					NewCondition.BaseAddress = BaseAddress;
-					NewCondition.bNegateValue = bNegate;
-					ConditionPropertyAddresses.Add(NewCondition);
-					bResult = true;
-				}
-			}
-		}
-	}
-
-	if ( bResult )
-	{
-		// set the output variable
-		ConditionProperty = EditConditionProperty;
-	}
-
-	return bResult;
-}
-
-bool FPropertyEditor::SupportsEditConditionToggle( UProperty* InProperty ) 
-{
-	bool bShowEditConditionToggle = false;
-
-	static const FName Name_HideEditConditionToggle("HideEditConditionToggle");
-	if (!InProperty->HasMetaData(Name_HideEditConditionToggle))
-	{
-		bool bNegateValue = false;
-		UBoolProperty* ConditionalProperty = PropertyCustomizationHelpers::GetEditConditionProperty( InProperty, bNegateValue );
-		if( ConditionalProperty != NULL )
-		{
-			if (!ConditionalProperty->HasAllPropertyFlags(CPF_Edit))
-			{
-				// Warn if the editcondition property is not marked as editable; this will break when the component is added to a Blueprint.
-				UObject* PropertyScope = InProperty->GetOwnerClass();
-				UObject* ConditionalPropertyScope = ConditionalProperty->GetOwnerClass();
-				if (!PropertyScope)
-				{
-					PropertyScope = InProperty->GetOwnerStruct();
-					ConditionalPropertyScope = ConditionalProperty->GetOwnerStruct();
-				}
-				const FString PropertyScopeName = PropertyScope ? PropertyScope->GetName() : FString();
-				const FString ConditionalPropertyScopeName = ConditionalPropertyScope ? ConditionalPropertyScope->GetName() : FString();
-
-				bShowEditConditionToggle = true;
-			}
-			else
-			{
-				// If it's editable, then only put an inline toggle box if the metadata specifies it
-				static const FName Name_InlineEditConditionToggle("InlineEditConditionToggle");
-				if (ConditionalProperty->HasMetaData(Name_InlineEditConditionToggle))
-				{
-					bShowEditConditionToggle = true;
-				}
-			}		
-		}
-	}
-
-	return bShowEditConditionToggle;
 }
 
 void FPropertyEditor::SyncToObjectsInNode( const TWeakPtr< FPropertyNode >& WeakPropertyNode )

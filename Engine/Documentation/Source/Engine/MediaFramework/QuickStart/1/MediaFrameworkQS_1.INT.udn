@@ -1,4 +1,4 @@
-Availability:Public
+Availability:docs
 Crumbs: %ROOT%
 Title:1 - Required Setup
 Description:In this step, we import the required content and set up the assets we will use in this guide. 
@@ -10,6 +10,8 @@ type:quick start
 type:multi-step
 order:1
 tags:Media Framework
+
+## Marked as Docs as the page has been combined into one page. 
  
 [NAV]
 

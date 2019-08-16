@@ -62,10 +62,20 @@ struct UNREALED_API FReplaceInstancesOfClassParameters
 	bool bPreserveRootComponent; 
 };
 
+struct UNREALED_API FBatchReplaceInstancesOfClassParameters
+{
+	TSet<UObject*>* ObjectsThatShouldUseOldStuff = nullptr;
+	
+	const TSet<UObject*>* InstancesThatShouldUseOldClass = nullptr;
+
+	bool bArchetypesAreUpToDate = false; 
+};
+
 class UNREALED_API FBlueprintCompileReinstancer : public TSharedFromThis<FBlueprintCompileReinstancer>, public FGCObject
 {
 protected:
 	friend struct FBlueprintCompilationManagerImpl;
+	friend struct FReinstancingJob;
 
 	static TSet<TWeakObjectPtr<UBlueprint>> DependentBlueprintsToRefresh;
 	static TSet<TWeakObjectPtr<UBlueprint>> DependentBlueprintsToRecompile;
@@ -153,7 +163,7 @@ public:
 	static void ReplaceInstancesOfClassEx(const FReplaceInstancesOfClassParameters& Parameters );
 
 	/** Batch replaces a mapping of one or more classes to their new class by leveraging ReplaceInstancesOfClass */
-	static void BatchReplaceInstancesOfClass(TMap<UClass*, UClass*>& InOldToNewClassMap, bool bArchetypesAreUpToDate);
+	static void BatchReplaceInstancesOfClass(TMap<UClass*, UClass*>& InOldToNewClassMap, const FBatchReplaceInstancesOfClassParameters& Options = FBatchReplaceInstancesOfClassParameters());
 	
 	/** Function used to safely discard a CDO, so that the class can have its layout changed, callers must move parent CDOs aside before moving child CDOs aside: */
 	static UClass* MoveCDOToNewClass(UClass* OwnerClass, const TMap<UClass*, UClass*>& OldToNewMap, bool bAvoidCDODuplication);

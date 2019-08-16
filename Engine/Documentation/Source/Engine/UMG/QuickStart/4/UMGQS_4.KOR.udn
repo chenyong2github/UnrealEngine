@@ -1,11 +1,12 @@
-﻿INTSourceChangelist:3782314
-Availability: Public
+INTSourceChangelist:6061116
+Availability: docs
 Title:4. 메인 메뉴 스크립트
 Crumbs:%ROOT%, Engine, Engine/UMG, Engine/UMG/QuickStart
 Description:이번 단계에서는 메인 메뉴와 게임 로드 함수성 스크립트를 짜도록 하겠습니다.
 version: 4.9
 tags:UMG UI Designer
 
+## 더이상 필요하지 않은 페이지입니다.
 
 [VAR:Steps]
 [OBJECT:Navigation]
@@ -71,7 +72,7 @@ tags:UMG UI Designer
 
 	위에서 사용한 세팅은 다음과 같습니다: **640x480**, **1280x720**, **1920x1080**. 
 
-1.	**Return Button** 에는 6 단계를 반복하되, 메인 메뉴를 보이고 옵션 메뉴를 숨기도록 세팅을 반대로 합니다.
+1.	**Return Button** 에는 6 단계를 반복하지만, 메인 메뉴를 보이고 옵션 메뉴를 숨기도록 세팅을 반대로 합니다.
 
 	![](ReturnButton.png)(w:820)
 

@@ -1,8 +1,10 @@
-Availability: Public
+Availability: docs
 Title:3. Place a Camera Director in the World
 Crumbs:%ROOT%, Programming, Programming/Tutorials, Programming/Tutorials/AutoCamera
 Description:Placing a Camera Director in the world and assigning Cameras to it
 version:4.9
+
+## No longer needed as page has been combined.
 
 [VAR:Steps]
 [OBJECT:Navigation]

@@ -10,11 +10,12 @@
 class Error;
 class GenericApplication;
 class IPlatformChunkInstall;
-class IPlatformInstallBundleManager;
+class IInstallBundleManager;
 class IPlatformCompression;
 struct FGenericCrashContext;
 struct FGenericMemoryWarningContext;
-struct FChunkTagID;
+struct FCustomChunk;
+enum class ECustomChunkType : uint8;
 
 template <typename FuncType>
 class TFunction;
@@ -524,6 +525,14 @@ struct CORE_API FGenericPlatformMisc
 	{
 	}
 
+	/**
+	 * Determines if a warning handler has been set
+	 */
+	static bool HasMemoryWarningHandler()
+	{
+		return false;
+	}
+	
 	FORCEINLINE static uint32 GetLastError()
 	{
 		return 0;
@@ -853,13 +862,6 @@ public:
 	 * @return	Returns the platform specific chunk based install implementation
 	 */
 	static IPlatformChunkInstall* GetPlatformChunkInstall();
-
-	/**
-	 * Returns the platform specific Install Bundle Manager
-	 *
-	 * @return	Returns the platform specific Install Bundle Manager implementation
-	 */
-	static IPlatformInstallBundleManager* GetPlatformInstallBundleManager();
 
 	/**
 	 * Returns the platform specific compression interface
@@ -1277,13 +1279,17 @@ public:
 
 	static bool RequestDeviceCheckToken(TFunction<void(const TArray<uint8>&)> QuerySucceededFunc, TFunction<void(const FString&, const FString&)> QueryFailedFunc);
 
-	static TArray<FChunkTagID> GetOnDemandChunkTagIDs();
+	static TArray<FCustomChunk> GetAllOnDemandChunks();
+	static TArray<FCustomChunk> GetAllLanguageChunks();
+	static TArray<FCustomChunk> GetCustomChunksByType(ECustomChunkType DesiredChunkType);
 
 	/*
 	 * Loads a text file relative to the package root on platforms that distribute apps in package formats.
 	 * For other platforms, the path is relative to the root directory.
 	*/
 	static FString LoadTextFileFromPlatformPackage(const FString& RelativePath);
+
+	static bool FileExitsInPlatformPackage(const FString& RelativePath);
 
 	static void ParseChunkIdPakchunkIndexMapping(TArray<FString> ChunkIndexRedirects, TMap<int32, int32>& OutMapping);
 

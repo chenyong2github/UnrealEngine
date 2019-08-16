@@ -29,7 +29,12 @@
 #include "MovieScene.h"
 #include "Tracks/MovieSceneCinematicShotTrack.h"
 #include "Tracks/MovieSceneCameraCutTrack.h"
+#include "SKeyAreaEditorSwitcher.h"
 #include "MovieSceneFolder.h"
+#include "Tracks/MovieScenePropertyTrack.h"
+#include "Tracks/MovieScene3DTransformTrack.h"
+#include "Tracks/MovieScenePrimitiveMaterialTrack.h"
+#include "MovieSceneCommonHelpers.h"
 
 #define LOCTEXT_NAMESPACE "SequencerTrackNode"
 
@@ -236,6 +241,8 @@ void FSequencerTrackNode::UpdateSections()
 	{
 		Sections.RemoveAt(Sections.Num()-NumToRemove, NumToRemove, true);
 	}
+
+	RemoveStaleChildren();
 }
 
 void FSequencerTrackNode::ClearChildren()
@@ -246,6 +253,37 @@ void FSequencerTrackNode::ClearChildren()
 	for (TSharedRef<FSequencerDisplayNode> Child : OldChildren)
 	{
 		Child->SetParent(nullptr);
+	}
+}
+
+void FSequencerTrackNode::RemoveStaleChildren()
+{
+	// Gather stale nodes into a separate array
+	TArray<TSharedRef<FSequencerDisplayNode>> StaleNodes;
+
+	TArray<TSharedRef<FSequencerDisplayNode>> NodesToCheck = ChildNodes;
+	for (int32 Index = 0; Index < NodesToCheck.Num(); ++Index)
+	{
+		TSharedRef<FSequencerDisplayNode> Child = NodesToCheck[Index];
+		if (Child->TreeSerialNumber != TreeSerialNumber)
+		{
+			// This node is stale - remove it and orphan any children
+			StaleNodes.Add(Child);
+			continue;
+		}
+
+		if (Child->GetType() == ESequencerNode::KeyArea)
+		{
+			StaticCastSharedRef<FSequencerSectionKeyAreaNode>(Child)->RemoveStaleKeyAreas();
+		}
+
+		// This node is still relevant, but its children may not be - recurse into those
+		NodesToCheck.Append(Child->GetChildNodes());
+	}
+
+	for (TSharedRef<FSequencerDisplayNode> StaleNode : StaleNodes)
+	{
+		StaleNode->SetParent(nullptr);
 	}
 }
 
@@ -348,7 +386,7 @@ TSharedRef<SWidget> FSequencerTrackNode::GetCustomOutlinerContent()
 	TSharedPtr<SWidget> KeyEditorWidget;
 	if (KeyAreaNode.IsValid())
 	{
-		KeyEditorWidget = KeyAreaNode->GetOrCreateKeyAreaEditorSwitcher();
+		KeyEditorWidget = SNew(SKeyAreaEditorSwitcher, KeyAreaNode.ToSharedRef());
 	}
 
 	TAttribute<bool> NodeIsHovered = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FSequencerDisplayNode::IsHovered));
@@ -648,6 +686,45 @@ FText FSequencerTrackNode::GetDisplayName() const
 	return AssociatedTrack.IsValid() ? AssociatedTrack->GetDisplayName() : FText::GetEmpty();
 }
 
+FLinearColor FSequencerTrackNode::GetDisplayNameColor() const
+{
+	UMovieSceneTrack* Track = GetTrack();
+
+	// Display track node is red if the property track is not bound to valid property
+	if (UMovieScenePropertyTrack* PropertyTrack = Cast<UMovieScenePropertyTrack>(Track))
+	{
+		// 3D transform tracks don't map to property bindings as below
+		if (Track->IsA<UMovieScene3DTransformTrack>() || Track->IsA<UMovieScenePrimitiveMaterialTrack>())
+		{
+			return FLinearColor::White;
+		}
+
+		FGuid ObjectBinding;
+		TSharedPtr<FSequencerDisplayNode> ParentSeqNode = GetParent();
+
+		if (ParentSeqNode.IsValid() && (ParentSeqNode->GetType() == ESequencerNode::Object))
+		{
+			ObjectBinding = StaticCastSharedPtr<FSequencerObjectBindingNode>(ParentSeqNode)->GetObjectBinding();
+		}
+
+		if (ObjectBinding.IsValid())
+		{
+			for (auto RuntimeObject : GetSequencer().FindBoundObjects(ObjectBinding, GetSequencer().GetFocusedTemplateID()))
+			{
+				FTrackInstancePropertyBindings PropertyBinding(FName(*PropertyTrack->GetName()), PropertyTrack->GetPropertyPath());
+
+				if (PropertyBinding.GetProperty(*RuntimeObject))
+				{
+					return FLinearColor::White;
+				}
+			}
+
+			return FLinearColor::Red;
+		}
+	}
+
+	return FLinearColor::White;
+}
 
 float FSequencerTrackNode::GetNodeHeight() const
 {

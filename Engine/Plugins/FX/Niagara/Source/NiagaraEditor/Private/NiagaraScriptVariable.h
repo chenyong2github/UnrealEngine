@@ -11,9 +11,11 @@ class UNiagaraScriptVariable : public UObject
 public:
 	GENERATED_UCLASS_BODY()
 
+	virtual void PostLoad() override;
+
 	UPROPERTY()
 	FNiagaraVariable Variable;
 
-	UPROPERTY(EditAnywhere, Category = Metadata)
+	UPROPERTY(EditAnywhere, Category = Metadata, meta=(NoResetToDefault, ShowOnlyInnerProperties))
 	FNiagaraVariableMetaData Metadata;
 };

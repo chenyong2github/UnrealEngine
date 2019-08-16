@@ -13,9 +13,9 @@
 #include "Dom/JsonObject.h"
 
 #include "Misc/DisplayClusterAppExit.h"
-#include "Misc/DisplayClusterLog.h"
 #include "Misc/DisplayClusterHelpers.h"
-#include "Misc/DisplayClusterTypesConverter.h"
+
+#include "DisplayClusterUtils/DisplayClusterTypesConverter.h"
 
 #include "Input/IPDisplayClusterInputManager.h"
 
@@ -23,6 +23,8 @@
 
 #include "DisplayClusterBuildConfig.h"
 #include "DisplayClusterGlobals.h"
+#include "DisplayClusterLog.h"
+#include "DisplayClusterStrings.h"
 
 #include "SocketSubsystem.h"
 
@@ -78,7 +80,7 @@ bool FDisplayClusterClusterManager::StartSession(const FString& configPath, cons
 			FString resolvedNodeId;
 			if (GetResolvedNodeId(resolvedNodeId))
 			{
-				DisplayClusterHelpers::str::DustCommandLineValue(resolvedNodeId);
+				DisplayClusterHelpers::str::TrimStringValue(resolvedNodeId);
 				ClusterNodeId = resolvedNodeId;
 			}
 			else
@@ -185,11 +187,12 @@ void FDisplayClusterClusterManager::PreTick(float DeltaSeconds)
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterCluster);
 
-	// Clear cached data from previous game frame
-	{
-		FScopeLock lock(&ObjectsToSyncCritSec);
-		SyncObjectsCache.Empty(SyncObjectsCache.Num() | 0x07);
-	}
+	// Moved clearing of the sync object cache to the end of the frame
+	//// Clear cached data from previous game frame
+	//{
+	//	FScopeLock lock(&ObjectsToSyncCritSec);
+	//	SyncObjectsCache.Empty(SyncObjectsCache.Num() | 0x07);
+	//}
 
 	// Move cluster events from the primary pool to the output pool. These will be synchronized on the current frame.
 	{
@@ -364,9 +367,9 @@ void FDisplayClusterClusterManager::ExportSyncData(FDisplayClusterMessage::DataT
 				}
 			}
 		}
-	}
 
-	data = SyncObjectsCache;
+		data = SyncObjectsCache;
+	}
 }
 
 void FDisplayClusterClusterManager::ImportSyncData(const FDisplayClusterMessage::DataType& data)
@@ -519,6 +522,12 @@ void FDisplayClusterClusterManager::SyncEvents()
 		ExportEventsData(EventsData);
 		ImportEventsData(EventsData);
 	}
+}
+
+void FDisplayClusterClusterManager::ClearSyncObjects()
+{
+	FScopeLock lock(&ObjectsToSyncCritSec);
+	SyncObjectsCache.Empty(SyncObjectsCache.Num() | 0x07);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////

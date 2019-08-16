@@ -9,6 +9,7 @@
 #include "Misc/CommandLine.h"
 #include "Misc/NetworkGuid.h"
 #include "Stats/Stats.h"
+#include "Misc/App.h"
 #include "Misc/MemStack.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/LowLevelMemTracker.h"
@@ -64,6 +65,8 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Engine/LevelScriptActor.h"
 #include "Net/NetworkGranularMemoryLogging.h"
+#include "SocketSubsystem.h"
+#include "AddressInfoTypes.h"
 
 #if USE_SERVER_PERF_COUNTERS
 #include "PerfCountersModule.h"
@@ -267,25 +270,40 @@ UNetDriver::UNetDriver(const FObjectInitializer& ObjectInitializer)
 #endif
 ,	ProcessQueuedBunchesCurrentFrameMilliseconds(0.0f)
 ,	DDoS()
+,	LocalAddr(nullptr)
 ,	NetworkObjects(new FNetworkObjectList)
 ,	LagState(ENetworkLagState::NotLagging)
 ,	DuplicateLevelID(INDEX_NONE)
 ,	PacketLossBurstEndTime(-1.0f)
+,	OutTotalNotifiedPackets(0u)
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ChannelClasses[CHTYPE_Control]	= UControlChannel::StaticClass();
 	ChannelClasses[CHTYPE_Actor]	= UActorChannel::StaticClass();
 	ChannelClasses[CHTYPE_Voice]	= UVoiceChannel::StaticClass();
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	UpdateDelayRandomStream.Initialize(FApp::bUseFixedSeed ? GetFName() : NAME_None);
 }
 
 void UNetDriver::InitPacketSimulationSettings()
 {
 #if DO_ENABLE_NET_TEST
-	// read the settings from .ini and command line, with the command line taking precedence	
-	PacketSimulationSettings = FPacketSimulationSettings();
-	PacketSimulationSettings.LoadConfig(*NetDriverName.ToString());
+	if (bNeverApplyNetworkEmulationSettings)
+	{
+		return;
+	}
+
 	PacketSimulationSettings.RegisterCommands();
+
+	if (bForcedPacketSettings)
+	{
+		return;
+	}
+
+	// Read the settings from .ini and command line, with the command line taking precedence	
+	PacketSimulationSettings.ResetSettings();
+	PacketSimulationSettings.LoadConfig(*NetDriverName.ToString());
 	PacketSimulationSettings.ParseSettings(FCommandLine::Get(), *NetDriverName.ToString());
 #endif
 }
@@ -361,7 +379,8 @@ void UNetDriver::LoadChannelDefinitions()
 
 		for (FChannelDefinition& ChannelDef : ChannelDefinitions)
 		{
-			UE_CLOG((ChannelDef.ChannelName.GetComparisonIndex() > MAX_NETWORKED_HARDCODED_NAME), LogNet, Warning, TEXT("Channel name will be serialized as a string: %s"), *ChannelDef.ChannelName.ToString());
+			UE_CLOG(!ChannelDef.ChannelName.ToEName() || !ShouldReplicateAsInteger(*ChannelDef.ChannelName.ToEName()), 
+				LogNet, Warning, TEXT("Channel name will be serialized as a string: %s"), *ChannelDef.ChannelName.ToString());
 			UE_CLOG(ChannelDefinitionMap.Contains(ChannelDef.ChannelName), LogNet, Error, TEXT("Channel name is defined multiple times: %s"), *ChannelDef.ChannelName.ToString());
 			UE_CLOG(StaticChannelIndices.Contains(ChannelDef.StaticChannelIndex), LogNet, Error, TEXT("Channel static index is already in use: %s %i"), *ChannelDef.ChannelName.ToString(), ChannelDef.StaticChannelIndex);
 
@@ -1317,6 +1336,22 @@ void UNetDriver::PostTickFlush()
 	}
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+void UNetDriver::LowLevelSend(FString Address, void* Data, int32 CountBits, FOutPacketTraits& Traits)
+{
+	if (GetSocketSubsystem() != nullptr)
+	{
+		TSharedPtr<FInternetAddr> NetAddress = GetSocketSubsystem()->GetAddressFromString(*Address);
+		if (NetAddress.IsValid())
+		{
+			LowLevelSend(NetAddress, Data, CountBits, Traits);
+			return;
+		}
+	}
+	UE_LOG(LogNet, Warning, TEXT("Could not infer the address to use for LowLevelSend, please use the one that takes an FInternetAddr to avoid this problem"));
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 bool UNetDriver::InitConnectionClass(void)
 {
 	if (NetConnectionClass == NULL && NetConnectionClassName != TEXT(""))
@@ -1389,6 +1424,22 @@ bool UNetDriver::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, const FU
 		});
 	}
 
+#if DO_ENABLE_NET_TEST
+	bool bSettingFound(false);
+	FPacketSimulationSettings PacketSettings;
+
+	for (const FString& URLOption : URL.Op)
+	{
+		bSettingFound |= PacketSettings.ParseSettings(*URLOption);
+	}
+
+	if( bSettingFound )
+	{
+		SetPacketSimulationSettings(PacketSettings);
+		bForcedPacketSettings = true;
+	}
+#endif //#if DO_ENABLE_NET_TEST
+
 	Notify = InNotify;
 
 	return bSuccess;
@@ -1406,6 +1457,11 @@ void UNetDriver::InitConnectionlessHandler()
 
 		if (ConnectionlessHandler.IsValid())
 		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			ConnectionlessHandler->InitializeAddressSerializer([this](const FString& InAddress) {
+				return GetSocketSubsystem()->GetAddressFromString(InAddress);
+			});
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			ConnectionlessHandler->NotifyAnalyticsProvider(AnalyticsProvider, AnalyticsAggregator);
 			ConnectionlessHandler->Initialize(Handler::Mode::Server, MAX_PACKET_SIZE, true, nullptr, nullptr, NetDriverName);
 
@@ -1534,10 +1590,6 @@ void UNetDriver::Shutdown()
 	ActorChannelPool.Empty();
 
 	ConnectionlessHandler.Reset(nullptr);
-
-#if DO_ENABLE_NET_TEST
-	PacketSimulationSettings.UnregisterCommands();
-#endif
 
 	SetReplicationDriver(nullptr);
 
@@ -1698,16 +1750,18 @@ void UNetDriver::PostTickDispatch()
 	// Flush out of order packet caches for connections that did not receive the missing packets during TickDispatch
 	if (ServerConnection != nullptr)
 	{
-		ServerConnection->FlushPacketOrderCache(true);
+		if (!ServerConnection->IsPendingKill())
+		{
+			ServerConnection->PostTickDispatch();
+		}
 	}
 
 	TArray<UNetConnection*> ClientConnCopy = ClientConnections;
-
 	for (UNetConnection* CurConn : ClientConnCopy)
 	{
 		if (!CurConn->IsPendingKill())
 		{
-			CurConn->FlushPacketOrderCache(true);
+			CurConn->PostTickDispatch();
 		}
 	}
 
@@ -2215,6 +2269,11 @@ void UNetDriver::SetAnalyticsProvider(TSharedPtr<IAnalyticsProvider> InProvider)
 		ConnectionlessHandler->NotifyAnalyticsProvider(AnalyticsProvider, AnalyticsAggregator);
 	}
 
+	if (ServerConnection != nullptr)
+	{
+		ServerConnection->NotifyAnalyticsProvider();
+	}
+
 	for (UNetConnection* CurConn : ClientConnections)
 	{
 		if (CurConn != nullptr)
@@ -2411,6 +2470,10 @@ void UNetDriver::LowLevelDestroy()
 	SetWorld(NULL);
 }
 
+FString UNetDriver::LowLevelGetNetworkNumber()
+{
+	return LocalAddr.IsValid() ? LocalAddr->ToString(true) : FString(TEXT(""));
+}
 
 #if !UE_BUILD_SHIPPING
 bool UNetDriver::HandleSocketsCommand( const TCHAR* Cmd, FOutputDevice& Ar )
@@ -2717,7 +2780,8 @@ bool UNetDriver::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 	}
 #if DO_ENABLE_NET_TEST
 	// This will allow changing the Pkt* options at runtime
-	else if (PacketSimulationSettings.ParseSettings(Cmd, *NetDriverName.ToString()))
+	else if (bNeverApplyNetworkEmulationSettings == false && 
+			 PacketSimulationSettings.ParseSettings(Cmd, *NetDriverName.ToString()))
 	{
 		if (ServerConnection)
 		{
@@ -3183,9 +3247,19 @@ void UNetDriver::AddReferencedObjects(UObject* InThis, FReferenceCollector& Coll
 
 #if DO_ENABLE_NET_TEST
 
-void UNetDriver::SetPacketSimulationSettings(FPacketSimulationSettings NewSettings)
+void UNetDriver::SetPacketSimulationSettings(const FPacketSimulationSettings& NewSettings)
 {
+	if (bNeverApplyNetworkEmulationSettings)
+	{
+		return;
+	}
+
 	PacketSimulationSettings = NewSettings;
+	OnPacketSimulationSettingsChanged();
+}
+
+void UNetDriver::OnPacketSimulationSettingsChanged()
+{
 	if (ServerConnection)
 	{
 		ServerConnection->UpdatePacketSimulationSettings();
@@ -3213,10 +3287,7 @@ public:
  */
 void FPacketSimulationSettings::LoadConfig(const TCHAR* OptionalQualifier)
 {
-	if (ConfigHelperInt(TEXT("PktLoss"), PktLoss, OptionalQualifier))
-	{
-		PktLoss = FMath::Clamp<int32>(PktLoss, 0, 100);
-	}
+	ConfigHelperInt(TEXT("PktLoss"), PktLoss, OptionalQualifier);
 	
 	ConfigHelperInt(TEXT("PktLossMinSize"), PktLossMinSize, OptionalQualifier);
 	ConfigHelperInt(TEXT("PktLossMaxSize"), PktLossMaxSize, OptionalQualifier);
@@ -3226,16 +3297,82 @@ void FPacketSimulationSettings::LoadConfig(const TCHAR* OptionalQualifier)
 	PktOrder = int32(InPktOrder);
 	
 	ConfigHelperInt(TEXT("PktLag"), PktLag, OptionalQualifier);
+	ConfigHelperInt(TEXT("PktLagVariance"), PktLagVariance, OptionalQualifier);
+
+	ConfigHelperInt(TEXT("PktLagMin"), PktLagMin, OptionalQualifier);
+	ConfigHelperInt(TEXT("PktLagMax"), PktLagMax, OptionalQualifier);
 	
-	if (ConfigHelperInt(TEXT("PktDup"), PktDup, OptionalQualifier))
+	ConfigHelperInt(TEXT("PktDup"), PktDup, OptionalQualifier);
+
+	ConfigHelperInt(TEXT("PktIncomingLagMin"), PktIncomingLagMin, OptionalQualifier);
+	ConfigHelperInt(TEXT("PktIncomingLagMax"), PktIncomingLagMax, OptionalQualifier);
+	ConfigHelperInt(TEXT("PktIncomingLoss"), PktIncomingLoss, OptionalQualifier);
+
+	ValidateSettings();
+}
+
+bool FPacketSimulationSettings::LoadEmulationProfile(const TCHAR* ProfileName)
+{
+	const FString SectionName = FString::Printf(TEXT("%s.%s"), TEXT("PacketSimulationProfile"), ProfileName);
+
+	TArray<FString> SectionConfigs;
+	bool bSectionExists = GConfig->GetSection(*SectionName, SectionConfigs, GEngineIni);
+	if (!bSectionExists)
 	{
-		PktDup = FMath::Clamp<int32>(PktDup, 0, 100);
+		UE_LOG(LogNet, Log, TEXT("EmulationProfile [%s] was not found in %s. Packet settings were not changed"), *SectionName, *GEngineIni);
+		return false;
+	}
+
+	ResetSettings();
+
+	UScriptStruct* ThisStruct = FPacketSimulationSettings::StaticStruct();
+
+	for (const FString& ConfigVar : SectionConfigs)
+	{
+		FString VarName;
+		FString VarValue;
+		if (ConfigVar.Split(TEXT("="), &VarName, &VarValue))
+		{
+			// If using the one line struct definition
+			if (VarName.Equals(TEXT("PacketSimulationSettings"), ESearchCase::IgnoreCase))
+			{
+				ThisStruct->ImportText(*VarValue, this, nullptr, 0, (FOutputDevice*)GWarn, TEXT("FPacketSimulationSettings"));
+			}
+			else if (UProperty* StructProperty = ThisStruct->FindPropertyByName(FName(*VarName, FNAME_Find)))
+			{
+				StructProperty->ImportText(*VarValue, StructProperty->ContainerPtrToValuePtr<void>(this), 0, nullptr);
+			}
+			else
+			{
+				UE_LOG(LogNet, Warning, TEXT("FPacketSimulationSettings::LoadEmulationProfile could not find property named %s"), *VarName);
+			}
+		}
 	}
 	
-	if (ConfigHelperInt(TEXT("PktLagVariance"), PktLagVariance, OptionalQualifier))
-	{
-		PktLagVariance = FMath::Clamp<int32>(PktLagVariance, 0, 100);
-	}
+	ValidateSettings();
+
+	return true;
+}
+
+void FPacketSimulationSettings::ResetSettings()
+{
+	*this = FPacketSimulationSettings();
+}
+
+void FPacketSimulationSettings::ValidateSettings()
+{
+	PktLoss = FMath::Clamp<int32>(PktLoss, 0, 100);
+
+	PktOrder = FMath::Clamp<int32>(PktOrder, 0, 1);
+
+	PktLagMin = FMath::Max(PktLagMin, 0);
+	PktLagMax = FMath::Max(PktLagMin, PktLagMax);
+
+	PktDup = FMath::Clamp<int32>(PktDup, 0, 100);
+
+	PktIncomingLagMin = FMath::Max(PktIncomingLagMin, 0);
+	PktIncomingLagMax = FMath::Max(PktIncomingLagMin, PktIncomingLagMax);
+	PktIncomingLoss = FMath::Clamp<int32>(PktIncomingLoss, 0, 100);
 }
 
 bool FPacketSimulationSettings::ConfigHelperInt(const TCHAR* Name, int32& Value, const TCHAR* OptionalQualifier)
@@ -3279,37 +3416,26 @@ void FPacketSimulationSettings::RegisterCommands()
 	IConsoleManager& ConsoleManager = IConsoleManager::Get();
 	
 	// Register exec commands with the console manager for auto-completion if they havent been registered already by another net driver
-	if (!ConsoleManager.IsNameRegistered(TEXT("Net PktLoss=")))
+	if (!ConsoleManager.IsNameRegistered(TEXT("NetEmulation PktEmulationProfile=")))
 	{
-		ConsoleManager.RegisterConsoleCommand(TEXT("Net PktLoss="), TEXT("PktLoss=<n> (simulates network packet loss)"));
-		ConsoleManager.RegisterConsoleCommand(TEXT("Net PktOrder="), TEXT("PktOrder=<n> (simulates network packet received out of order)"));
-		ConsoleManager.RegisterConsoleCommand(TEXT("Net PktDup="), TEXT("PktDup=<n> (simulates sending/receiving duplicate network packets)"));
-		ConsoleManager.RegisterConsoleCommand(TEXT("Net PktLag="), TEXT("PktLag=<n> (simulates network packet lag)"));
-		ConsoleManager.RegisterConsoleCommand(TEXT("Net PktLagVariance="), TEXT("PktLagVariance=<n> (simulates variable network packet lag)"));
+		ConsoleManager.RegisterConsoleCommand(TEXT("NetEmulation PktEmulationProfile="), TEXT("PktEmulationProfile=<NAME> (apply an emulation profile)"));
+
+		ConsoleManager.RegisterConsoleCommand(TEXT("NetEmulation PktLoss="), TEXT("PktLoss=<n> (simulates network packet loss)"));
+		ConsoleManager.RegisterConsoleCommand(TEXT("NetEmulation PktOrder="), TEXT("PktOrder=<n> (simulates network packet received out of order)"));
+		ConsoleManager.RegisterConsoleCommand(TEXT("NetEmulation PktDup="), TEXT("PktDup=<n> (simulates sending/receiving duplicate network packets)"));
+		ConsoleManager.RegisterConsoleCommand(TEXT("NetEmulation PktLag="), TEXT("PktLag=<n> (simulates network packet lag)"));
+		ConsoleManager.RegisterConsoleCommand(TEXT("NetEmulation PktLagVariance="), TEXT("PktLagVariance=<n> (simulates variable network packet lag)"));
+
+		ConsoleManager.RegisterConsoleCommand(TEXT("NetEmulation PktLagMin="), TEXT("PktLagMin=<n> (minimum outgoing packet latency)"));
+		ConsoleManager.RegisterConsoleCommand(TEXT("NetEmulation PktLagMax="), TEXT("PktLagMax=<n> (maximum outgoing packet latency)"));
+
+		ConsoleManager.RegisterConsoleCommand(TEXT("NetEmulation PktIncomingLagMin="), TEXT("PktIncomingLagMin=<n> (minimum incoming packet latency)"));
+		ConsoleManager.RegisterConsoleCommand(TEXT("NetEmulation PktIncomingLagMax="), TEXT("PktIncomingLagMax=<n> (maximum incoming packet latency)"));
+		ConsoleManager.RegisterConsoleCommand(TEXT("NetEmulation PktIncomingLoss="), TEXT("PktIncomingLoss=<n> (simulates incoming packet loss)"));
 	}
-}
 
-
-void FPacketSimulationSettings::UnregisterCommands()
-{
-	// Never unregister the console commands. Since net drivers come and go, and we can sometimes have more than 1, etc. 
+	// Note we never unregister the console commands since net drivers come and go, and we can sometimes have more than 1, etc. 
 	// We could do better bookkeeping for this, but its not worth it right now. Just ensure the commands are always there for tab completion.
-#if 0
-	IConsoleManager& ConsoleManager = IConsoleManager::Get();
-
-	// Gather up all relevant console commands
-	TArray<IConsoleObject*> PacketSimulationConsoleCommands;
-	ConsoleManager.ForEachConsoleObjectThatStartsWith(
-		FConsoleObjectVisitor::CreateStatic< TArray<IConsoleObject*>& >(
-		&FPacketSimulationConsoleCommandVisitor::OnPacketSimulationConsoleCommand,
-		PacketSimulationConsoleCommands ), TEXT("Net Pkt"));
-
-	// Unregister them from the console manager
-	for(int32 i = 0; i < PacketSimulationConsoleCommands.Num(); ++i)
-	{
-		ConsoleManager.UnregisterConsoleObject(PacketSimulationConsoleCommands[i]);
-	}
-#endif
 }
 
 /**
@@ -3319,15 +3445,19 @@ void FPacketSimulationSettings::UnregisterCommands()
  */
 bool FPacketSimulationSettings::ParseSettings(const TCHAR* Cmd, const TCHAR* OptionalQualifier)
 {
-	UE_LOG(LogTemp, Display, TEXT("ParseSettings for %s"), OptionalQualifier);
 	// note that each setting is tested.
 	// this is because the same function will be used to parse the command line as well
 	bool bParsed = false;
 
+	FString EmulationProfileName;
+	if (FParse::Value(Cmd, TEXT("PktEmulationProfile="), EmulationProfileName))
+	{
+		UE_LOG(LogNet, Log, TEXT("Applying EmulationProfile %s"), *EmulationProfileName);
+		bParsed = LoadEmulationProfile(*EmulationProfileName);
+	}
 	if( ParseHelper(Cmd, TEXT("PktLoss="), PktLoss, OptionalQualifier) )
 	{
 		bParsed = true;
-		PktLoss = FMath::Clamp<int32>( PktLoss, 0, 100 );
 		UE_LOG(LogNet, Log, TEXT("PktLoss set to %d"), PktLoss);
 	}
 	if (ParseHelper(Cmd, TEXT("PktLossMinSize="), PktLossMinSize, OptionalQualifier))
@@ -3343,7 +3473,6 @@ bool FPacketSimulationSettings::ParseSettings(const TCHAR* Cmd, const TCHAR* Opt
 	if( ParseHelper(Cmd, TEXT("PktOrder="), PktOrder, OptionalQualifier) )
 	{
 		bParsed = true;
-		PktOrder = FMath::Clamp<int32>( PktOrder, 0, 1 );
 		UE_LOG(LogNet, Log, TEXT("PktOrder set to %d"), PktOrder);
 	}
 	if( ParseHelper(Cmd, TEXT("PktLag="), PktLag, OptionalQualifier) )
@@ -3354,15 +3483,40 @@ bool FPacketSimulationSettings::ParseSettings(const TCHAR* Cmd, const TCHAR* Opt
 	if( ParseHelper(Cmd, TEXT("PktDup="), PktDup, OptionalQualifier) )
 	{
 		bParsed = true;
-		PktDup = FMath::Clamp<int32>( PktDup, 0, 100 );
 		UE_LOG(LogNet, Log, TEXT("PktDup set to %d"), PktDup);
 	}	
 	if (ParseHelper(Cmd, TEXT("PktLagVariance="), PktLagVariance, OptionalQualifier))
 	{
 		bParsed = true;
-		PktLagVariance = FMath::Clamp<int32>( PktLagVariance, 0, 100 );
 		UE_LOG(LogNet, Log, TEXT("PktLagVariance set to %d"), PktLagVariance);
 	}
+	if (ParseHelper(Cmd, TEXT("PktLagMin="), PktLagMin, OptionalQualifier))
+	{
+		bParsed = true;
+		UE_LOG(LogNet, Log, TEXT("PktLagMin set to %d"), PktLagMin);
+	}
+	if (ParseHelper(Cmd, TEXT("PktLagMax="), PktLagMax, OptionalQualifier))
+	{
+		bParsed = true;
+		UE_LOG(LogNet, Log, TEXT("PktLagMax set to %d"), PktLagMax);
+	}
+	if (ParseHelper(Cmd, TEXT("PktIncomingLagMin="), PktIncomingLagMin, OptionalQualifier))
+	{
+		bParsed = true;
+		UE_LOG(LogNet, Log, TEXT("PktIncomingLagMin set to %d"), PktIncomingLagMin);
+	}
+	if (ParseHelper(Cmd, TEXT("PktIncomingLagMax="), PktIncomingLagMax, OptionalQualifier))
+	{
+		bParsed = true;
+		UE_LOG(LogNet, Log, TEXT("PktIncomingLagMax set to %d"), PktIncomingLagMax);
+	}
+	if (ParseHelper(Cmd, TEXT("PktIncomingLoss="), PktIncomingLoss, OptionalQualifier))
+	{
+		bParsed = true;
+		UE_LOG(LogNet, Log, TEXT("PktIncomingLoss set to %d"), PktIncomingLoss);
+	}
+
+	ValidateSettings();
 	return bParsed;
 }
 
@@ -3668,7 +3822,7 @@ void UNetDriver::ServerReplicateActors_BuildConsiderList( TArray<FNetworkObjectI
 			const float NextUpdateDelta = bUseAdapativeNetFrequency ? ActorInfo->OptimalNetUpdateDelta : 1.0f / Actor->NetUpdateFrequency;
 
 			// then set the next update time
-			ActorInfo->NextUpdateTime = World->TimeSeconds + FMath::SRand() * ServerTickTime + NextUpdateDelta;
+			ActorInfo->NextUpdateTime = World->TimeSeconds + UpdateDelayRandomStream.FRand() * ServerTickTime + NextUpdateDelta;
 
 			// and mark when the actor first requested an update
 			//@note: using Time because it's compared against UActorChannel.LastUpdateTime which also uses that value
@@ -3995,9 +4149,7 @@ int32 UNetDriver::ServerReplicateActors_ProcessPrioritizedActors( UNetConnection
 			}
 
 			// if the actor is now relevant or was recently relevant
-			const bool bIsRecentlyRelevant = bIsRelevant || ( Channel && Time - Channel->RelevantTime < RelevantTimeout ) || ActorInfo->bForceRelevantNextUpdate;
-
-			ActorInfo->bForceRelevantNextUpdate = false;
+			const bool bIsRecentlyRelevant = bIsRelevant || ( Channel && Time - Channel->RelevantTime < RelevantTimeout ) || (ActorInfo->ForceRelevantFrame >= Connection->LastProcessedFrame);
 
 			if ( bIsRecentlyRelevant )
 			{
@@ -4031,7 +4183,7 @@ int32 UNetDriver::ServerReplicateActors_ProcessPrioritizedActors( UNetConnection
 					// if it is relevant then mark the channel as relevant for a short amount of time
 					if ( bIsRelevant )
 					{
-						Channel->RelevantTime = Time + 0.5f * FMath::SRand();
+						Channel->RelevantTime = Time + 0.5f * UpdateDelayRandomStream.FRand();
 					}
 					// if the channel isn't saturated
 					if ( Channel->IsNetReady( 0 ) )
@@ -4433,13 +4585,21 @@ int32 UNetDriver::ServerReplicateActors(float DeltaSeconds)
 					PriorityActors[k]->ActorInfo->bPendingNetUpdate = true;
 					if ( Channel != NULL )
 					{
-						Channel->RelevantTime = Time + 0.5f * FMath::SRand();
+						Channel->RelevantTime = Time + 0.5f * UpdateDelayRandomStream.FRand();
 					}
+				}
+
+				// If the actor was forced to relevant and didn't get processed, try again on the next update;
+				if (PriorityActors[k]->ActorInfo->ForceRelevantFrame >= Connection->LastProcessedFrame)
+				{
+					PriorityActors[k]->ActorInfo->ForceRelevantFrame = ReplicationFrame+1;
 				}
 			}
 			RelevantActorMark.Pop();
 
 			ConnectionViewers.Reset();
+
+			Connection->LastProcessedFrame = ReplicationFrame;
 
 			const bool bWasSaturated = GNumSaturatedConnections > LocalNumSaturated;
 			Connection->TrackReplicationForAnalytics(bWasSaturated);
@@ -4791,20 +4951,17 @@ void UNetDriver::AddClientConnection(UNetConnection * NewConnection)
 
 	ClientConnections.Add(NewConnection);
 
-	TSharedPtr<FInternetAddr> ConnAddr = NewConnection->GetInternetAddr();
+	TSharedPtr<const FInternetAddr> ConnAddr = NewConnection->GetRemoteAddr();
 
 	if (ConnAddr.IsValid())
 	{
-		TSharedRef<FInternetAddr> ConnAddrRef = ConnAddr.ToSharedRef();
-
-		MappedClientConnections.Add(ConnAddrRef, NewConnection);
-
+		MappedClientConnections.Add(ConnAddr.ToSharedRef(), NewConnection);
 
 		// On the off-chance of the same IP:Port being reused, check RecentlyDisconnectedClients
 		int32 RecentDisconnectIdx = RecentlyDisconnectedClients.IndexOfByPredicate(
-			[&ConnAddrRef](const FDisconnectedClient& CurElement)
+			[&ConnAddr](const FDisconnectedClient& CurElement)
 			{
-				return *ConnAddrRef == *CurElement.Address;
+				return *ConnAddr == *CurElement.Address;
 			});
 
 		if (RecentDisconnectIdx != INDEX_NONE)
@@ -4916,28 +5073,28 @@ void UNetDriver::RemoveClientConnection(UNetConnection* ClientConnectionToRemove
 {
 	verify(ClientConnections.Remove(ClientConnectionToRemove) == 1);
 
-	TSharedPtr<FInternetAddr> AddrToRemove = ClientConnectionToRemove->GetInternetAddr();
+	TSharedPtr<const FInternetAddr> AddrToRemove = ClientConnectionToRemove->GetRemoteAddr();
 
 	if (AddrToRemove.IsValid())
 	{
-		TSharedRef<FInternetAddr> AddrRef = AddrToRemove.ToSharedRef();
+		TSharedRef<const FInternetAddr> ConstAddrRef = AddrToRemove.ToSharedRef();
 
 		if (RecentlyDisconnectedTrackingTime > 0)
 		{
-			UNetConnection** FoundVal = MappedClientConnections.Find(AddrRef);
+			UNetConnection** FoundVal = MappedClientConnections.Find(ConstAddrRef);
 
 			// Mark recently disconnected clients as nullptr (don't wait for GC), and keep the MappedClientConections entry for a while.
 			// Required for identifying/ignoring packets from recently disconnected clients, with the same performance as for NetConnection's (important for DDoS detection)
 			if (ensure(FoundVal != nullptr))
 			{
-				RecentlyDisconnectedClients.Add(FDisconnectedClient(AddrRef, FPlatformTime::Seconds()));
+				RecentlyDisconnectedClients.Add(FDisconnectedClient(ConstAddrRef, FPlatformTime::Seconds()));
 
 				*FoundVal = nullptr;
 			}
 		}
 		else
 		{
-			verify(MappedClientConnections.Remove(AddrRef) == 1);
+			verify(MappedClientConnections.Remove(ConstAddrRef) == 1);
 		}
 	}
 
@@ -5516,7 +5673,7 @@ static bool NetDriverExec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 	bool bHandled = false;
 
 	// Ignore any execs that don't start with NET
-	if (FParse::Command(&Cmd, TEXT("NET")))
+	if (FParse::Command(&Cmd, TEXT("NET")) || FParse::Command(&Cmd, TEXT("NETEMULATION")))
 	{
 		UNetDriver* NamedDriver = NULL;
 		TCHAR TokenStr[128];

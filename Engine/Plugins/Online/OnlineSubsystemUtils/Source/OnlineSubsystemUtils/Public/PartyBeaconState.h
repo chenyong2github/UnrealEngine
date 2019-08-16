@@ -195,6 +195,12 @@ struct ONLINESUBSYSTEMUTILS_API FPartyReservation
 	UPROPERTY(Transient)
 	TArray<FPlayerReservation> PartyMembers;
 
+	/** Keeping a record of all logged out players from this reservation. */
+	UPROPERTY(Transient)
+	TArray<FPlayerReservation> RemovedPartyMembers;
+	void RemovePartyMemberAtIndex(int32 Idx);
+	int32 RemoveAllPartyMembers(const FPlayerReservation& OtherRes);
+
 	/** Is this data well formed */
 	bool IsValid() const;
 

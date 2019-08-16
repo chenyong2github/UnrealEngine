@@ -1,0 +1,119 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	VirtualTextureFillTest.usf: 
+	Material shader for runtime virtual texture
+=============================================================================*/
+
+#include "Common.ush"
+#include "/Engine/Generated/Material.ush"
+#include "/Engine/Generated/VertexFactory.ush"
+
+struct FVirtualTextureVSOutput
+{
+	FVertexFactoryInterpolantsVSToPS FactoryInterpolants;
+	float4 Position : SV_POSITION;
+};
+
+void MainVS(
+	FVertexFactoryInput Input,
+	out FVirtualTextureVSOutput Output
+    )
+{
+	ResolvedView = ResolveView();
+
+	FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
+
+	float4 WorldPosition = VertexFactoryGetWorldPosition(Input, VFIntermediates);
+	float3x3 TangentToLocal = VertexFactoryGetTangentToLocal(Input, VFIntermediates);	
+	FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, WorldPosition.xyz, TangentToLocal);
+
+	ISOLATE
+	{
+		float4 RasterizedWorldPosition = VertexFactoryGetRasterizedWorldPosition(Input, VFIntermediates, WorldPosition);
+		float4 ClipSpacePosition = INVARIANT(mul(RasterizedWorldPosition, ResolvedView.TranslatedWorldToClip));
+		Output.Position = INVARIANT(ClipSpacePosition);
+	}
+
+	Output.FactoryInterpolants = VertexFactoryGetInterpolantsVSToPS(Input, VFIntermediates, VertexParameters);
+}
+
+// Prepare for VirtualTextureUnpackNormal() in VirtualTextureCommon.h
+float2 PackNormal( float3 N )
+{
+	return normalize(N).xy * 0.5 + 0.5;
+}
+
+// Prepare for VirtualTextureUnpackHeightR16() in VirtualTextureCommon.ush
+float PackWorldHeight( float Height )
+{
+	Height *= 0.5f;
+	return saturate((Height + 32768.f) / 65535.f);
+}
+
+void FPixelShaderInOut_MainPS(
+	in FVertexFactoryInterpolantsVSToPS Interpolants,
+	inout FPixelShaderIn In, 
+	inout FPixelShaderOut Out )
+{
+	ResolvedView = ResolveView();
+
+	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Interpolants, In.SvPosition);
+
+	FPixelMaterialInputs PixelMaterialInputs;
+	CalcPixelMaterialInputs(MaterialParameters, PixelMaterialInputs);
+
+	float4 ScreenPosition = SvPositionToResolvedScreenPosition(In.SvPosition);
+	float3 TranslatedWorldPosition = SvPositionToResolvedTranslatedWorld(In.SvPosition);
+	CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, In.SvPosition, ScreenPosition, In.bIsFrontFace, TranslatedWorldPosition, TranslatedWorldPosition);
+
+#if VIRTUAL_TEXTURE_OUTPUT
+	// Output is from a UMaterialExpressionRuntimeVirtualTextureOutput node
+	half3 BaseColor = GetVirtualTextureOutput0(MaterialParameters);
+	half Specular = GetVirtualTextureOutput1(MaterialParameters);
+	half Roughness = GetVirtualTextureOutput2(MaterialParameters);
+	half3 Normal = GetVirtualTextureOutput3(MaterialParameters);
+	half WorldHeight = GetVirtualTextureOutput4(MaterialParameters);
+	float Opacity = GetVirtualTextureOutput5(MaterialParameters);
+#else
+	// Output is from standard material output attribute node
+	half3 BaseColor = GetMaterialBaseColor(PixelMaterialInputs);
+	half Specular = GetMaterialSpecular(PixelMaterialInputs);
+	half Roughness = GetMaterialRoughness(PixelMaterialInputs);
+	half3 Normal = mul(MaterialParameters.WorldNormal, (float3x3)ResolvedView.WorldToVirtualTexture);
+	float WorldHeight = MaterialParameters.AbsoluteWorldPosition.z;
+	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
+#endif
+
+#if defined(OUT_BASECOLOR)
+	Out.MRT[0] = float4(BaseColor, 1.f) * Opacity;
+#elif defined(OUT_BASECOLOR_NORMAL)
+	Out.MRT[0] = float4(BaseColor, 1.f) * Opacity;
+	Out.MRT[1] = float4(PackNormal(Normal), 0.f, 1.f) * Opacity;
+#elif defined(OUT_BASECOLOR_NORMAL_SPECULAR)
+	Out.MRT[0] = float4(BaseColor, 1.f) * Opacity;
+	Out.MRT[1] = float4(PackNormal(Normal), 0.f, 1.f) * Opacity;
+	Out.MRT[2] = float4(Roughness, Specular, 0.f, 1.f) * Opacity;
+#elif defined(OUT_WORLDHEIGHT)
+	Out.MRT[0] = float4(PackWorldHeight(WorldHeight), 0, 0, 1);
+#endif
+}
+
+#define PIXELSHADEROUTPUT_INTERPOLANTS 1
+
+#if defined(OUT_BASECOLOR)
+#define PIXELSHADEROUTPUT_MRT0 1
+#elif defined(OUT_BASECOLOR_NORMAL)
+#define PIXELSHADEROUTPUT_MRT0 1
+#define PIXELSHADEROUTPUT_MRT1 1
+#elif defined(OUT_BASECOLOR_NORMAL_SPECULAR)
+#define PIXELSHADEROUTPUT_MRT0 1
+#define PIXELSHADEROUTPUT_MRT1 1
+#define PIXELSHADEROUTPUT_MRT2 1
+#elif defined(OUT_WORLDHEIGHT)
+#define PIXELSHADEROUTPUT_MRT0 1
+#endif
+
+// all PIXELSHADEROUTPUT_ and "void FPixelShaderInOut_MainPS()" need to be setup before this include
+// this include generates the wrapper code to call MainPS(inout FPixelShaderOutput PixelShaderOutput)
+#include "PixelShaderOutputCommon.ush"

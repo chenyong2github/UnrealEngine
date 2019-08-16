@@ -13,6 +13,7 @@
 #include "SequencerEdMode.h"
 #include "SequencerObjectChangeListener.h"
 #include "IDetailKeyframeHandler.h"
+#include "Tree/CurveEditorTreeFilter.h"
 #include "AnimatedPropertyKey.h"
 
 #define LOCTEXT_NAMESPACE "SequencerEditor"
@@ -20,6 +21,12 @@
 // Destructor defined in CPP to avoid having to #include SequencerChannelInterface.h in the main module definition
 ISequencerModule::~ISequencerModule()
 {
+}
+
+ECurveEditorTreeFilterType ISequencerModule::GetSequencerSelectionFilterType()
+{
+	static ECurveEditorTreeFilterType FilterType = FCurveEditorTreeFilter::RegisterFilterType();
+	return FilterType;
 }
 
 /**
@@ -34,8 +41,10 @@ public:
 
 	virtual TSharedRef<ISequencer> CreateSequencer(const FSequencerInitParams& InitParams) override
 	{
-		TSharedRef<FSequencer> Sequencer = MakeShareable(new FSequencer);
-		TSharedRef<ISequencerObjectChangeListener> ObjectChangeListener = MakeShareable(new FSequencerObjectChangeListener(Sequencer));
+		TSharedRef<FSequencer> Sequencer = MakeShared<FSequencer>();
+		TSharedRef<ISequencerObjectChangeListener> ObjectChangeListener = MakeShared<FSequencerObjectChangeListener>(Sequencer);
+
+		OnPreSequencerInit.Broadcast(Sequencer, ObjectChangeListener, InitParams);
 
 		Sequencer->InitSequencer(InitParams, ObjectChangeListener, TrackEditorDelegates, EditorObjectBindingDelegates);
 
@@ -88,6 +97,16 @@ public:
 	virtual void UnregisterOnSequencerCreated(FDelegateHandle InHandle) override
 	{
 		OnSequencerCreated.Remove(InHandle);
+	}
+
+	virtual FDelegateHandle RegisterOnPreSequencerInit(FOnPreSequencerInit::FDelegate InOnPreSequencerInit) override
+	{
+		return OnPreSequencerInit.Add(InOnPreSequencerInit);
+	}
+
+	virtual void UnregisterOnPreSequencerInit(FDelegateHandle InHandle) override
+	{
+		OnPreSequencerInit.Remove(InHandle);
 	}
 
 	virtual FDelegateHandle RegisterEditorObjectBinding(FOnCreateEditorObjectBinding InOnCreateEditorObjectBinding) override
@@ -192,6 +211,9 @@ private:
 
 	/** List of object binding handler delegates sequencers will execute when they are created */
 	TArray< FOnCreateEditorObjectBinding > EditorObjectBindingDelegates;
+
+	/** Multicast delegate used to notify others of sequencer initialization params and allow modification. */
+	FOnPreSequencerInit OnPreSequencerInit;
 
 	/** Multicast delegate used to notify others of sequencer creations */
 	FOnSequencerCreated OnSequencerCreated;

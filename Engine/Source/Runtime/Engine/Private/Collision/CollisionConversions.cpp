@@ -9,18 +9,16 @@
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "PhysicsEngine/PhysicsSettings.h"
 #include "PhysicsEngine/BodySetup.h"
-#include "PhysicsEngine/PxQueryFilterCallback.h"
 #include "Physics/PhysicsInterfaceUtils.h"
 
 #if PHYSICS_INTERFACE_PHYSX
 #include "PhysXInterfaceWrapper.h"
 #include "Collision/CollisionConversionsPhysx.h"
-#elif PHYSICS_INTERFACE_LLIMMEDIATE
-#include "Physics/Experimental/LLImmediateInterfaceWrapper.h"
-#include "Collision/Experimental/CollisionConversionsLLImmediate.h"
 #elif WITH_CHAOS
+#include "Physics/Experimental/ChaosInterfaceWrapper.h"
 #include "Physics/Experimental/PhysInterface_Chaos.h"
 #endif
+#include "PhysicsEngine/CollisionQueryFilterCallback.h"
 
 // Used to place overlaps into a TMap when deduplicating them
 struct FOverlapKey
@@ -101,7 +99,7 @@ static FVector FindGeomOpposingNormal(ECollisionShapeType QueryGeomType, const F
 	// TODO: can we support other shapes here as well?
 	if (QueryGeomType == ECollisionShapeType::Capsule || QueryGeomType == ECollisionShapeType::Sphere)
 	{
-		FPhysicsShape* Shape = GetShape(Hit);
+		const FPhysicsShape* Shape = GetShape(Hit);
 		if (Shape)
 		{
 			ECollisionShapeType GeomType = GetGeometryType(*Shape);
@@ -113,7 +111,7 @@ static FVector FindGeomOpposingNormal(ECollisionShapeType QueryGeomType, const F
 			case ECollisionShapeType::Convex:		return FindConvexMeshOpposingNormal(Hit, TraceDirectionDenorm, InNormal);
 			case ECollisionShapeType::Heightfield:		return FindHeightFieldOpposingNormal(Hit, TraceDirectionDenorm, InNormal);
 			case ECollisionShapeType::Trimesh:	return FindTriMeshOpposingNormal(Hit, TraceDirectionDenorm, InNormal);
-			default: check(false);	//unsupported geom type
+			default: break; //TODO_SQ_IMPLEMENTATION check(false);	//unsupported geom type
 			}
 		}
 	}
@@ -129,10 +127,7 @@ static void SetHitResultFromShapeAndFaceIndex(const FPhysicsShape& Shape,  const
 	UPrimitiveComponent* OwningComponent = nullptr;
 	if(const FBodyInstance* BodyInst = GetUserData(Actor))
 	{
-#if WITH_CHAOS || WITH_IMMEDIATE_PHYSX || PHYSICS_INTERFACE_LLIMMEDIATE
-        ensure(false);
-#else
-		BodyInst = FPhysicsInterface_PhysX::ShapeToOriginalBodyInstance(BodyInst, &Shape);
+		BodyInst = FPhysicsInterface::ShapeToOriginalBodyInstance(BodyInst, &Shape);
 
 		//Normal case where we hit a body
 		OutResult.Item = BodyInst->InstanceBodyIndex;
@@ -143,7 +138,6 @@ static void SetHitResultFromShapeAndFaceIndex(const FPhysicsShape& Shape,  const
 		}
 
 		OwningComponent = BodyInst->OwnerComponent.Get();
-#endif
 	}
 #if PHYSICS_INTERFACE_PHYSX
 	else if(const FCustomPhysXPayload* CustomPayload = GetUserData<FCustomPhysXPayload>(Shape))	//todo(ocohen): wrap with PHYSX
@@ -190,8 +184,6 @@ static void SetHitResultFromShapeAndFaceIndex(const FPhysicsShape& Shape,  const
 	OutResult.FaceIndex = INDEX_NONE;
 }
 
-#if WITH_PHYSX
-
 EConvertQueryResult ConvertQueryImpactHit(const UWorld* World, const FHitLocation& Hit, FHitResult& OutResult, float CheckLength, const FCollisionFilterData& QueryFilter, const FVector& StartLoc, const FVector& EndLoc, const FPhysicsGeometry* Geom, const FTransform& QueryTM, bool bReturnFaceIndex, bool bReturnPhysMat)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ConvertQueryImpactHit);
@@ -207,8 +199,8 @@ EConvertQueryResult ConvertQueryImpactHit(const UWorld* World, const FHitLocatio
 #endif
 
 	FHitFlags Flags = GetFlags(Hit);
-
 	checkSlow(Flags & EHitFlags::Distance);
+
 	const bool bInitialOverlap = HadInitialOverlap(Hit);
 	if (bInitialOverlap && Geom)
 	{
@@ -216,8 +208,17 @@ EConvertQueryResult ConvertQueryImpactHit(const UWorld* World, const FHitLocatio
 		return EConvertQueryResult::Valid;
 	}
 
-	const FPhysicsShape& HitShape = *GetShape(Hit);
-	const FPhysicsActor& HitActor = *GetActor(Hit);
+	const FPhysicsShape* pHitShape = GetShape(Hit);
+	const FPhysicsActor* pHitActor = GetActor(Hit);
+	if ((pHitShape == nullptr) || (pHitActor == nullptr))
+	{
+		OutResult.Reset();
+		return EConvertQueryResult::Invalid;
+	}
+
+	const FPhysicsShape& HitShape = *pHitShape;
+	const FPhysicsActor& HitActor = *pHitActor;
+
 	const uint32 InternalFaceIndex = GetInternalFaceIndex(Hit);
 
 	// See if this is a 'blocking' hit
@@ -338,7 +339,13 @@ EConvertQueryResult ConvertTraceResults(bool& OutHasValidBlockingHit, const UWor
 		{
 			if (TIsSame<HitType, FHitSweep>::Value)
 			{
+#if WITH_PHYSX
 				SetInternalFaceIndex(Hit, FindFaceIndex(Hit, Dir));
+#else
+				//#TODO Chaos implementation
+				ensure(false);
+				SetInternalFaceIndex(Hit, 0);
+#endif
 			}
 
 			FHitResult& NewResult = OutHits[OutHits.AddDefaulted()];
@@ -380,15 +387,21 @@ template EConvertQueryResult ConvertTraceResults<FHitSweep>(bool& OutHasValidBlo
 template EConvertQueryResult ConvertTraceResults<FHitRaycast>(bool& OutHasValidBlockingHit, const UWorld* World, int32 NumHits, FHitRaycast* Hits, float CheckLength, const FCollisionFilterData& QueryFilter, TArray<FHitResult>& OutHits, const FVector& StartLoc, const FVector& EndLoc, const FPhysicsGeometry& Geom, const FTransform& QueryTM, float MaxDistance, bool bReturnFaceIndex, bool bReturnPhysMat);
 template EConvertQueryResult ConvertTraceResults<FHitRaycast>(bool& OutHasValidBlockingHit, const UWorld* World, int32 NumHits, FHitRaycast* Hits, float CheckLength, const FCollisionFilterData& QueryFilter, FHitResult& OutHit, const FVector& StartLoc, const FVector& EndLoc, const FPhysicsGeometry& Geom, const FTransform& QueryTM, float MaxDistance, bool bReturnFaceIndex, bool bReturnPhysMat);
 
-#endif
-
 /** Util to convert an overlapped shape into a sweep hit result, returns whether it was a blocking hit. */
 static bool ConvertOverlappedShapeToImpactHit(const UWorld* World, const FHitLocation& Hit, const FVector& StartLoc, const FVector& EndLoc, FHitResult& OutResult, const FPhysicsGeometry& Geom, const FTransform& QueryTM, const FCollisionFilterData& QueryFilter, bool bReturnPhysMat)
 {
 	SCOPE_CYCLE_COUNTER(STAT_CollisionConvertOverlapToHit);
 
-	const FPhysicsShape& HitShape = *GetShape(Hit);
-	const FPhysicsActor& HitActor = *GetActor(Hit);
+	const FPhysicsShape* pHitShape = GetShape(Hit);
+	const FPhysicsActor* pHitActor = GetActor(Hit);
+	if ((pHitShape == nullptr) || (pHitActor == nullptr))
+	{
+		OutResult.Reset();
+		return false;
+	}
+
+	const FPhysicsShape& HitShape = *pHitShape;
+	const FPhysicsActor& HitActor = *pHitActor;
 
 	// See if this is a 'blocking' hit
 	FCollisionFilterData ShapeFilter = GetQueryFilterData(HitShape);
@@ -404,7 +417,7 @@ static bool ConvertOverlappedShapeToImpactHit(const UWorld* World, const FHitLoc
 	// Return start location as 'safe location'
 	OutResult.Location = QueryTM.GetLocation();
 
-	const bool bValidPosition = (GetFlags(Hit) & EHitFlags::Position);
+	const bool bValidPosition = !!(GetFlags(Hit) & EHitFlags::Position);
 	if (bValidPosition)
 	{
 		const FVector HitPosition = GetPosition(Hit);
@@ -490,7 +503,7 @@ void ConvertQueryOverlap(const FPhysicsShape& Shape, const FPhysicsActor& Actor,
 	// Try body instance
 	if (const FBodyInstance* BodyInst = GetUserData(Actor))
 	{
-#if WITH_CHAOS || WITH_IMMEDIATE_PHYSX || PHYSICS_INTERFACE_LLIMMEDIATE
+#if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
         ensure(false);
 #else
         BodyInst = FPhysicsInterface_PhysX::ShapeToOriginalBodyInstance(BodyInst, &Shape);

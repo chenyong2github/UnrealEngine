@@ -222,7 +222,7 @@ void SSlotNameReferenceWindow::UpdateInfo(FReferenceWindowInfo& UpdatedInfo)
 		// Sort for nicer display
 		UpdatedInfo.ReferencingMontages->Sort([](const FAssetData& A, const FAssetData& B)
 		{
-			return A.AssetName < B.AssetName;
+			return A.AssetName.LexicalLess(B.AssetName);
 		});
 
 		ReferencingMontages.Empty(UpdatedInfo.ReferencingMontages->Num());

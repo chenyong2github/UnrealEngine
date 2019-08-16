@@ -589,6 +589,11 @@ float3x3 VertexFactoryGetTangentToLocal( FVertexFactoryInput Input, FVertexFacto
 	return TangentToLocal;
 }
 
+float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	return VertexFactoryGetTangentToLocal(Input, Intermediates)[2].xyz;
+}
+
 /**
  * Constructs values that need to be interpolated from the vertex shader to the pixel shader.
  * @param Input - Vertex attributes.

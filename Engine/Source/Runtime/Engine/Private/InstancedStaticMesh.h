@@ -166,9 +166,9 @@ struct FInstancedStaticMeshDataType
 	/** The stream to read the Lightmap Bias and Random instance ID from. */
 	FVertexStreamComponent InstanceLightmapAndShadowMapUVBiasComponent;
 
-	FShaderResourceViewRHIParamRef InstanceOriginSRV = nullptr;
-	FShaderResourceViewRHIParamRef InstanceTransformSRV = nullptr;
-	FShaderResourceViewRHIParamRef InstanceLightmapSRV = nullptr;
+	FRHIShaderResourceView* InstanceOriginSRV = nullptr;
+	FRHIShaderResourceView* InstanceTransformSRV = nullptr;
+	FRHIShaderResourceView* InstanceLightmapSRV = nullptr;
 };
 
 /**
@@ -258,17 +258,17 @@ public:
 	virtual bool SupportsNullPixelShader() const override { return false; }
 #endif
 
-	inline const FShaderResourceViewRHIParamRef GetInstanceOriginSRV() const
+	inline FRHIShaderResourceView* GetInstanceOriginSRV() const
 	{
 		return Data.InstanceOriginSRV;
 	}
 
-	inline const FShaderResourceViewRHIParamRef GetInstanceTransformSRV() const
+	inline FRHIShaderResourceView* GetInstanceTransformSRV() const
 	{
 		return Data.InstanceTransformSRV;
 	}
 
-	inline const FShaderResourceViewRHIParamRef GetInstanceLightmapSRV() const
+	inline FRHIShaderResourceView* GetInstanceLightmapSRV() const
 	{
 		return Data.InstanceLightmapSRV;
 	}
@@ -334,7 +334,7 @@ class FInstancedStaticMeshVertexFactoryShaderParameters : public FLocalVertexFac
 		const class FSceneInterface* Scene,
 		const FSceneView* View,
 		const FMeshMaterialShader* Shader,
-		bool bShaderRequiresPositionOnlyStream,
+		const EVertexInputStreamType InputStreamType,
 		ERHIFeatureLevel::Type FeatureLevel,
 		const FVertexFactory* VertexFactory,
 		const FMeshBatchElement& BatchElement,
@@ -431,37 +431,7 @@ public:
 		check(PerInstanceRenderData.IsValid());
 		// Allocate the vertex factories for each LOD
 		InitVertexFactories();
-		ReInitVertexFactories();
 		RegisterSpeedTreeWind();
-	}
-
-	~FInstancedStaticMeshRenderData()
-	{
-	}
-
-	void ReInitVertexFactories()
-	{
-		// Initialize the static mesh's vertex factory.
-		TIndirectArray<FInstancedStaticMeshVertexFactory>* InVertexFactories = &VertexFactories;
-		FInstancedStaticMeshRenderData* InstancedRenderData = this;
-		UStaticMesh* Parent = Component->GetStaticMesh();
-		ENQUEUE_RENDER_COMMAND(CallInitStaticMeshVertexFactory)(
-			[InVertexFactories, InstancedRenderData, Parent](FRHICommandListImmediate& RHICmdList)
-		{
-			InitStaticMeshVertexFactories(InVertexFactories, InstancedRenderData, Parent );
-		});
-	}
-
-	void RegisterSpeedTreeWind()
-	{
-		// register SpeedTree wind with the scene
-		if (Component->GetStaticMesh()->SpeedTreeWind.IsValid())
-		{
-			for (int32 LODIndex = 0; LODIndex < LODModels.Num(); LODIndex++)
-			{
-				Component->GetScene()->AddSpeedTreeWind(&VertexFactories[LODIndex], Component->GetStaticMesh());
-			}
-		}
 	}
 
 	void ReleaseResources(FSceneInterface* Scene, const UStaticMesh* StaticMesh)
@@ -475,16 +445,11 @@ public:
 			}
 		}
 
-		for( int32 LODIndex=0;LODIndex<VertexFactories.Num();LODIndex++ )
+		for (int32 LODIndex = 0; LODIndex < VertexFactories.Num(); LODIndex++)
 		{
 			VertexFactories[LODIndex].ReleaseResource();
 		}
 	}
-
-	static void InitStaticMeshVertexFactories(
-		TIndirectArray<FInstancedStaticMeshVertexFactory>* VertexFactories,
-		FInstancedStaticMeshRenderData* InstancedRenderData,
-		UStaticMesh* Parent);
 
 	/** Source component */
 	UInstancedStaticMeshComponent* Component;
@@ -502,24 +467,17 @@ public:
 	ERHIFeatureLevel::Type FeatureLevel;
 
 private:
+	void InitVertexFactories();
 
-	void InitVertexFactories()
+	void RegisterSpeedTreeWind()
 	{
-		const bool bEmulatedInstancing = !GRHISupportsInstancing;
-		
-		// Allocate the vertex factories for each LOD
-		for( int32 LODIndex=0;LODIndex<LODModels.Num();LODIndex++ )
+		// register SpeedTree wind with the scene
+		if (Component->GetStaticMesh()->SpeedTreeWind.IsValid())
 		{
-			FInstancedStaticMeshVertexFactory* VertexFactoryPtr;
-			if (bEmulatedInstancing)
+			for (int32 LODIndex = 0; LODIndex < LODModels.Num(); LODIndex++)
 			{
-				VertexFactoryPtr = new FEmulatedInstancedStaticMeshVertexFactory(FeatureLevel);
+				Component->GetScene()->AddSpeedTreeWind(&VertexFactories[LODIndex], Component->GetStaticMesh());
 			}
-			else
-			{
-				VertexFactoryPtr = new FInstancedStaticMeshVertexFactory(FeatureLevel);
-			}
-			VertexFactories.Add(VertexFactoryPtr);
 		}
 	}
 };
@@ -544,11 +502,22 @@ public:
 	{
 		bVFRequiresPrimitiveUniformBuffer = true;
 		SetupProxy(InComponent);
+
+#if RHI_RAYTRACING
+		SetupRayTracingCullClusters();
+#endif
 	}
 
 	~FInstancedStaticMeshSceneProxy()
 	{
 		InstancedRenderData.ReleaseResources(&GetScene( ), StaticMesh);
+
+#if RHI_RAYTRACING
+		for (int32 i = 0; i < RayTracingCullClusterInstances.Num(); ++i)
+		{
+			delete RayTracingCullClusterInstances[i];
+		}
+#endif
 	}
 
 	// FPrimitiveSceneProxy interface.
@@ -570,6 +539,17 @@ public:
 		return Result;
 	}
 
+#if RHI_RAYTRACING
+	virtual bool IsRayTracingStaticRelevant() const override
+	{
+		return false;
+	}
+
+	virtual void GetDynamicRayTracingInstances(struct FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances) final override;
+	void SetupRayTracingCullClusters();
+
+#endif
+
 	virtual void GetLightRelevance(const FLightSceneProxy* LightSceneProxy, bool& bDynamic, bool& bRelevant, bool& bLightMapped, bool& bShadowMapped) const override;
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
 
@@ -584,9 +564,11 @@ public:
 	/** Sets up a wireframe FMeshBatch for a specific LOD. */
 	virtual bool GetWireframeMeshElement(int32 LODIndex, int32 BatchIndex, const FMaterialRenderProxy* WireframeRenderProxy, uint8 InDepthPriorityGroup, bool bAllowPreCulledIndices, FMeshBatch& OutMeshBatch) const override;
 
-	virtual void GetDistancefieldAtlasData(FBox& LocalVolumeBounds, FVector2D& OutDistanceMinMax, FIntVector& OutBlockMin, FIntVector& OutBlockSize, bool& bOutBuiltAsIfTwoSided, bool& bMeshWasPlane, float& SelfShadowBias, TArray<FMatrix>& ObjectLocalToWorldTransforms) const override;
+	virtual void GetDistancefieldAtlasData(FBox& LocalVolumeBounds, FVector2D& OutDistanceMinMax, FIntVector& OutBlockMin, FIntVector& OutBlockSize, bool& bOutBuiltAsIfTwoSided, bool& bMeshWasPlane, float& SelfShadowBias, TArray<FMatrix>& ObjectLocalToWorldTransforms, bool& bOutThrottled) const override;
 
 	virtual void GetDistanceFieldInstanceInfo(int32& NumInstances, float& BoundsSurfaceArea) const override;
+
+	virtual int32 CollectOccluderElements(FOccluderElementsCollector& Collector) const override;
 
 	/**
 	 * Creates the hit proxies are used when DrawDynamicElements is called.
@@ -619,6 +601,12 @@ protected:
 	FInstancingUserData UserData_AllInstances;
 	FInstancingUserData UserData_SelectedInstances;
 	FInstancingUserData UserData_DeselectedInstances;
+
+#if RHI_RAYTRACING
+	TArray< FVector >						RayTracingCullClusterBoundsMin;
+	TArray< FVector >						RayTracingCullClusterBoundsMax;
+	TArray< TDoubleLinkedList< uint32 >* >	RayTracingCullClusterInstances;
+#endif
 
 	/** Common path for the Get*MeshElement functions */
 	void SetupInstancedMeshBatch(int32 LODIndex, int32 BatchIndex, FMeshBatch& OutMeshBatch) const;

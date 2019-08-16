@@ -16,6 +16,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SHyperlink.h"
 #include "Widgets/Input/SEditableTextBox.h"
@@ -301,7 +302,25 @@ TSharedRef<SWidget> FMovieSceneEventCustomization::GetMenuContent()
 
 		TArray<UK2Node_FunctionEntry*> EntryNodes;
 
-		for (UEdGraph* FunctionGraph : DirectorBP->FunctionGraphs)
+		TArray<UEdGraph*> AllFunctionGraphs;
+		UBlueprint* BlueprintClass = DirectorBP;
+		do
+		{
+			// Add the functions that belong to this Blueprint Class
+			AllFunctionGraphs.Append(BlueprintClass->FunctionGraphs);
+
+			// And then see if we have a parent Blueprint Class to get functions from too.
+			if (BlueprintClass->ParentClass)
+			{
+				BlueprintClass = Cast<UBlueprint>(BlueprintClass->ParentClass->ClassGeneratedBy);
+			}
+			else
+			{
+				BlueprintClass = nullptr;
+			}
+		} while (BlueprintClass != nullptr);
+
+		for (UEdGraph* FunctionGraph : AllFunctionGraphs) 
 		{
 			EntryNodes.Reset();
 			FunctionGraph->GetNodesOfClass<UK2Node_FunctionEntry>(EntryNodes);
@@ -331,6 +350,8 @@ TSharedRef<SWidget> FMovieSceneEventCustomization::GetMenuContent()
 
 void FMovieSceneEventCustomization::PopulateQuickBindSubMenu(FMenuBuilder& MenuBuilder, UClass* TemplateClass)
 {
+	FMenuBuilder SubMenuBuilder(true, nullptr, nullptr, true);
+
 	FSlateIcon Icon(FEditorStyle::GetStyleSetName(), "GraphEditor.Function_16x");
 	static const FName DeprecatedFunctionName(TEXT("DeprecatedFunction"));
 
@@ -339,22 +360,22 @@ void FMovieSceneEventCustomization::PopulateQuickBindSubMenu(FMenuBuilder& MenuB
 	UClass* SuperClass = TemplateClass;
 	while (SuperClass)
 	{
-		MenuBuilder.BeginSection(NAME_None, SuperClass->GetDisplayNameText());
+		SubMenuBuilder.BeginSection(NAME_None, SuperClass->GetDisplayNameText());
 
 		Functions.Reset();
 		for (UFunction* Function : TFieldRange<UFunction>(SuperClass, EFieldIteratorFlags::ExcludeSuper, EFieldIteratorFlags::ExcludeDeprecated))
 		{
-			if (Function->HasAllFunctionFlags(FUNC_BlueprintCallable|FUNC_Public) && !Function->HasMetaData(DeprecatedFunctionName))
+			if (Function->HasAllFunctionFlags(FUNC_BlueprintCallable | FUNC_Public) && !Function->HasMetaData(DeprecatedFunctionName) && !Function->HasAnyFunctionFlags(FUNC_EditorOnly))
 			{
 				Functions.Add(Function);
 			}
 		}
 	
-		Algo::SortBy(Functions, &UFunction::GetFName);
+		Algo::SortBy(Functions, &UFunction::GetFName, FNameLexicalLess());
 
 		for (UFunction* Function : Functions)
 		{
-			MenuBuilder.AddMenuEntry(
+			SubMenuBuilder.AddMenuEntry(
 				FText::FromName(Function->GetFName()),
 				FText(),
 				Icon,
@@ -364,10 +385,20 @@ void FMovieSceneEventCustomization::PopulateQuickBindSubMenu(FMenuBuilder& MenuB
 			);
 		}
 
-		MenuBuilder.EndSection();
+		SubMenuBuilder.EndSection();
 
 		SuperClass = SuperClass->GetSuperClass();
 	}
+
+	// Limit the height intentionally so that it doesn't go offscreen
+	MenuBuilder.AddWidget(
+		SNew(SBox)
+		.MaxDesiredHeight(600.0f)
+		[
+			SubMenuBuilder.MakeWidget()
+		]
+		, FText(), true, false
+	);
 }
 
 const FSlateBrush* FMovieSceneEventCustomization::GetEventIcon() const
@@ -469,6 +500,8 @@ void FMovieSceneEventCustomization::SetEventEndpoint(UK2Node_FunctionEntry* NewE
 
 	// Ensure that anything listening for property changed notifications are notified of the new binding
 	PropertyHandle->NotifyFinishedChangingProperties();
+
+	FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
 }
 
 bool FMovieSceneEventCustomization::CompareCurrentEventEndpoint(UK2Node_FunctionEntry* NewEndpoint)

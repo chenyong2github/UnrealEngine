@@ -122,22 +122,26 @@ void UFontFace::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 	OutTags.Add(FAssetRegistryTag(SourceFileTagName(), ImportInfo.ToJson(), FAssetRegistryTag::TT_Hidden));
 }
 
-void UFontFace::CookAdditionalFiles(const TCHAR* PackageFilename, const ITargetPlatform* TargetPlatform)
+void UFontFace::CookAdditionalFilesOverride(const TCHAR* PackageFilename, const ITargetPlatform* TargetPlatform,
+	TFunctionRef<void(const TCHAR* Filename, void* Data, int64 Size)> WriteAdditionalFile)
 {
-	Super::CookAdditionalFiles(PackageFilename, TargetPlatform);
-
 	if (LoadingPolicy != EFontLoadingPolicy::Inline)
 	{
-		// Iterative COTF can't handle the .ufont files generated when this UFontFace is within a UFont asset (rather than its own asset) so emit a warning about that
+		// Iterative COTF can't handle the .ufont files generated when this UFontFace is within a UFont asset (rather than its own asset)
 		if (UFont* OuterFont = GetTypedOuter<UFont>())
 		{
-			UE_LOG(LogFontFace, Warning, TEXT("The font asset '%s' contains nested font faces which can cause issues for iterative cook-on-the-fly. Please edit the font asset and split the font faces into their own assets."), *OuterFont->GetPathName());
+			UE_LOG(LogFontFace, Warning, 
+				TEXT("The font asset '%s' contains nested font faces which can cause issues for iterative cook-on-the-fly."
+					"Please edit the font asset and split the font faces into their own assets."),
+				*OuterFont->GetPathName());
 		}
 
 		// We replace the package name with the cooked font face name
 		// Note: This must match the replacement logic in UFontFace::GetCookedFilename
 		const FString CookedFontFilename = FPaths::GetPath(PackageFilename) / GetName() + TEXT(".ufont");
-		FFileHelper::SaveArrayToFile(FontFaceData->GetData(), *CookedFontFilename);
+		const TArray<uint8>& Data = FontFaceData->GetData();
+		const int32 NumBytes = Data.Num() * Data.GetTypeSize();
+		WriteAdditionalFile(*CookedFontFilename, (void*)Data.GetData(), NumBytes);
 	}
 }
 #endif // WITH_EDITOR

@@ -37,13 +37,25 @@ float Reciprocal(float x){ return 1.0f/x; }
  */
 #if GPU_SIMULATION
 
-	#include "/Engine/Private/SceneTexturesCommon.ush"
+	#define THREADGROUP_SIZE 64
 
 	static uint3 GDispatchThreadId;
+	static uint3 GGroupThreadId;
 	static uint GCurrentPhase;
+	static uint GEmitterTickCounter;
+	static uint GSimStart;
+
+	// To be removed as well but don't know who is using it
+	#include "/Engine/Private/SceneTexturesCommon.ush"
+
+	// Temporary include while everything is moved to plugins
+	#if USE_SHADER_STAGES == 1
+		#include "NiagaraStrandsPhysics.ush"
+	#endif
+
 	uint EmitterTickCounter;
 
-	#define THREADGROUP_SIZE 64
+	
 
 	float4 Modulo(float4 x, float4 y){ return fmod(x,y); }
 	float3 Modulo(float3 x, float3 y){ return fmod(x,y); }
@@ -55,6 +67,45 @@ float Reciprocal(float x){ return 1.0f/x; }
 	{
 		float4 HomogeneousWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToWorld);
 		return HomogeneousWorldPosition.xyz / HomogeneousWorldPosition.w;
+	}
+
+	// MASSIVE HACK - Tracked in JIRA UE-69298
+	// Hardcoded random function accessible from inner part of node implementation.
+	// It works for now at least and avoids exposing every random needed in the UI. 
+	// Temporary solution, it will be replaced when a design is validated.
+	float NiagaraInternalNoise(uint u, uint v, uint s)
+	{
+		static uint RandomSeedOffset = 0;
+		uint Seed = (u * 1664525u + v) + s + RandomSeedOffset;
+		RandomSeedOffset += Seed;
+		return float(Rand3DPCG32(int3(u,v,Seed)).x) / 4294967296.0f;
+	}
+
+	// NIAGARA_MAX_GPU_SPAWN_INFOS is set from the shader compiler
+	#define NIAGARA_MAX_GPU_SPAWN_INFOS_V4	((NIAGARA_MAX_GPU_SPAWN_INFOS + 3) / 4)
+
+	float4	EmitterSpawnInfoOffsets[NIAGARA_MAX_GPU_SPAWN_INFOS_V4];
+	float4	EmitterSpawnInfoParams[NIAGARA_MAX_GPU_SPAWN_INFOS];			// Packed data where x = IntervalDt, y = InterpStartDt, z = Group, w = Start Particle Index
+
+	static int GInterpSpawnIndex;
+	static float Emitter_SpawnInterval;
+	static float Emitter_InterpSpawnStartDt;
+	static int Emitter_SpawnGroup;
+
+	void GetEmitterSpawnInfoForParticle(int ParticleIndex)
+	{
+		int SpawnInfoIndex = 0;
+		UNROLL
+		for ( int i=0; i < NIAGARA_MAX_GPU_SPAWN_INFOS_V4; ++i )
+		{
+			SpawnInfoIndex += (int)dot(1.0f, ParticleIndex >= EmitterSpawnInfoOffsets[i]);
+		}
+
+		Emitter_SpawnInterval		= EmitterSpawnInfoParams[SpawnInfoIndex].x;
+		Emitter_InterpSpawnStartDt	= EmitterSpawnInfoParams[SpawnInfoIndex].y;
+		Emitter_SpawnGroup			= asint(EmitterSpawnInfoParams[SpawnInfoIndex].z);
+
+		GInterpSpawnIndex		= ParticleIndex - asint(EmitterSpawnInfoParams[SpawnInfoIndex].w);
 	}
 #endif
 
@@ -285,8 +336,9 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 	/* Parameters for spawning and simulations
 	 */
 	uint UpdateStartInstance;
+	uint ShaderStageIndex;
+	int IterationInterfaceCount;
 	uint SpawnedInstances;
-	uint NumIndicesPerInstance;
 
 	uint ComponentBufferSizeRead;
 	uint ComponentBufferSizeWrite;
@@ -294,6 +346,7 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 	int NumParticlesPerEvent;
 	uint CopyInstancesBeforeStart;
 
+	uint SimStart;
 
 	/* Buffers for particle data and DrawIndirect calls
 	 */
@@ -301,15 +354,14 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 	Buffer<int> InputInt;
 	RWBuffer<int> RWOutputInt;
 	RWBuffer<float> RWOutputFloat;
-	RWBuffer<uint> RWDataSetIndices;
-	Buffer<uint> ReadDataSetIndices;
 
+	RWBuffer<uint> RWInstanceCounts;
+	uint ReadInstanceCountOffset;
+	uint WriteInstanceCountOffset;
 
 	//TODO: IDs for GPU
 //	void AcquireID(int DataSetID, out int IDIndex, out int IDAcquireTag);
 // 	void UpdateID(int DataSetID, int IDIndex, int InstanceIndex);
-
-
 
 	/* Returns the current instance index relative to the operation (spawn/update)
 	 */
@@ -329,20 +381,44 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 	/* Acquire an output index - the default index is the scratch instance; one additional instance is allocated 
 	 *	at the end of the buffer, so no branching on -1 is necessary during OutputData operations
 	 */
-	int AcquireIndex(int DataSetID, bool bDoAcquire)
+	int AcquireIndex(uniform int DataSetID, bool bDoAcquire)
 	{
-		int PrevIdx = GSpawnStartInstance + SpawnedInstances;	// scratch instance as default; write to that for dead particles
-		if(bDoAcquire == true)
-		{
-			// Have to use uint's here to avoid PS4 compiler warnings about InterlockedAdd, cannot propagate uint due to CPU VM limitations...
-			uint RetPrevIdx;
-			InterlockedAdd(RWDataSetIndices[DataSetID*5+1], (uint)1U, RetPrevIdx);
-			PrevIdx = (int)RetPrevIdx;
-		}
-		return PrevIdx;
+		// Begin static assert : GPU particles only support DataSetID 0
+		int MustBe0[1];
+		MustBe0[DataSetID] = 0;
+		// End static assert
+
+		#if USE_SHADER_STAGES
+			if(ShaderStageIndex == 0)
+			{
+				int PrevIdx = GSpawnStartInstance + SpawnedInstances;	// scratch instance as default; write to that for dead particles
+				if(bDoAcquire == true)
+				{
+					// Have to use uint's here to avoid PS4 compiler warnings about InterlockedAdd, cannot propagate uint due to CPU VM limitations...
+					uint RetPrevIdx;
+					// @TODO : add some TLS logic to avoid thread group for doing atomic for each thread. (gathering the actual required count)
+					InterlockedAdd(RWInstanceCounts[WriteInstanceCountOffset], (uint)1U, RetPrevIdx);
+					PrevIdx = (int)RetPrevIdx;
+				}
+				return PrevIdx;
+			}
+			else
+			{
+				return ExecIndex();
+			}
+		#else
+			int PrevIdx = GSpawnStartInstance + SpawnedInstances;	// scratch instance as default; write to that for dead particles
+			if(bDoAcquire == true)
+			{
+				// Have to use uint's here to avoid PS4 compiler warnings about InterlockedAdd, cannot propagate uint due to CPU VM limitations...
+				uint RetPrevIdx;
+				// @TODO : add some TLS logic to avoid thread group for doing atomic for each thread. (gathering the actual required count)
+				InterlockedAdd(RWInstanceCounts[WriteInstanceCountOffset], (uint)1U, RetPrevIdx);
+				PrevIdx = (int)RetPrevIdx;
+			}
+			return PrevIdx;
+		#endif
 	}
-
-
 
 	/* ---------------------------------------------------------------------
 	 * InputData operations 
@@ -387,6 +463,20 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 	void ExitStatScope()	{}
 #endif
 
+	/* 
+	 * Get the index to write onto the output buffer
+	 */
+	int OutputIndex(const int DataSetID, const bool bIsPersistent, const bool bIsValid)
+	{
+		#if USE_SHADER_STAGES
+			const int DenseIndex = AcquireIndex(DataSetID,bIsValid);
+			const int SparseIndex = ExecIndex();
+			return (bIsPersistent && (DenseIndex != SparseIndex) ) ? SparseIndex : DenseIndex;
+		#else
+			return AcquireIndex(DataSetID,bIsValid);
+		#endif
+	}
+
 //Include the simulation shader code generated by the node graph.
 #include "/Engine/Generated/NiagaraEmitterInstance.ush"
 
@@ -404,7 +494,9 @@ void SimulateMainComputeCS(
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
 	GDispatchThreadId = DispatchThreadId;
-
+	GGroupThreadId = GroupThreadId;
+	GEmitterTickCounter = EmitterTickCounter;
+	GSimStart = SimStart;
 	/*
 	if(CopyInstancesBeforeStart == 1)
 	{
@@ -413,10 +505,35 @@ void SimulateMainComputeCS(
 	*/
 
 	uint InstanceID = UpdateStartInstance + DispatchThreadId.x;
-	GSpawnStartInstance = ReadDataSetIndices[1];				// needed by ExecIndex()
+	if (ReadInstanceCountOffset == 0xFFFFFFFF)
+	{
+		GSpawnStartInstance = 0;
+	}
+	else
+	{
+		GSpawnStartInstance = RWInstanceCounts[ReadInstanceCountOffset];				// needed by ExecIndex()
+	}
 	int MaxInstances = GSpawnStartInstance + SpawnedInstances;
 
-	if(InstanceID < UpdateStartInstance + MaxInstances )
+	bool UseInterface = false;
+	#if USE_SHADER_STAGES
+	if (IterationInterfaceCount > 0)
+	{
+		if (InstanceID < IterationInterfaceCount)
+		{
+			if (GSimStart == 1)
+			{
+				SimulateMain(InstanceID, 0, 0);
+			}
+			else
+			{
+				SimulateMain(InstanceID, 0, 1);
+			}
+		}
+		UseInterface = true;
+	}
+	#endif
+	if( !UseInterface && InstanceID < UpdateStartInstance + MaxInstances )
 	{
 		// calculate event index for the current instance; this is primarily for spawn events, where we do a single read from a secondary DataSet for a subset of particles
 		//  for all-particle events, this will always end up being 0 because NumParticlesPerEvent = total particles in the set
@@ -448,15 +565,6 @@ void SimulateMainComputeCS(
 			GCurrentPhase = 0;
 			SimulateMain(InstanceID, EventIndex, 0);		// SimulateMain spawn phase
 		}
-	}
-
-	// fill in the rest of RWDataSetIndices for the DrawIndirect call for the main data set; number of instances is incremented in AcquireIndex
-	if(InstanceID == 0)
-	{
-		RWDataSetIndices[0] = NumIndicesPerInstance;		// IndexCountPerInstance; passed in from the renderer - TODO: support multiple renderers with multiple indirect draw calls
-		RWDataSetIndices[2] = 0;		// StartIndexLocation
-		RWDataSetIndices[3] = 0;		// BaseVertexLocation
-		RWDataSetIndices[4] = 0;		// StartInstanceLocation
 	}
 }
 

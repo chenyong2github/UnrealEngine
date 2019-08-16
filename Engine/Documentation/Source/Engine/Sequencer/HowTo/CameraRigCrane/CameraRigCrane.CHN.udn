@@ -1,117 +1,23 @@
-﻿INTSourceChangelist:3009005
-Availability:Public
-Title:从摄像机吊臂拍摄
-Crumbs:%ROOT%, Engine, Engine/Sequencer, Engine/Sequencer/HowTo
-Description:在这里我们使用摄像机吊臂以摇摆运动拍摄场景。 
-Version:4.12
-SkillLevel:Intermediate
+﻿INTSourceChangelist:3683933
+Availability: Public
+Title:从摄像机绑定摇臂拍摄
+Crumbs:
+Description:学习如何使用摄像机绑定摇臂通过扫描移动来拍摄场景。 
+Version: 4.14
+SkillLevel: Intermediate
 parent:Engine/Sequencer/HowTo
 order:1
 checkpoint: editorqs
-Related:Engine/Sequencer/Overview
-Related:Engine\Sequencer\ReferenceEditor\
+Related: Engine/Sequencer/Overview
+Related: Engine/Sequencer/ReferenceEditor
+tags:Sequencer
+type:how-to
 
-现实中电影工作者用来拍摄平滑摇动镜头的手段之一就是将摄像机连接到吊臂上，通过吊臂的运动控制镜头。
-您可以在 Sequencer 中使用 **摄像机吊臂** Actor 和连接的 **摄像机** 创作类似的镜头。 
+真实场景制片人制作流畅扫描镜头的方法之一，就是将摄像机固定到摇臂上，通过摇臂的移动来控制镜头。
+您可以在Sequencer中使用 **摄像机绑定摇臂（Camera Rig Crane）** Actor和附带的 **摄像机（Camera）** 创建类似镜头。您可以设定绑定摇臂的绕X轴旋转、绕Y轴旋转或长度 
+的关键帧，以及锁定挂载摄像机的绕X轴旋转或绕Y轴旋转（将跟踪摇臂的移动）。 
 
-在本操作指南中，我们将添加一个摄像机吊臂，连接一个摄像机，然后创建一个样本吊臂镜头。 
-
-
-## 步骤
-
-[REGION:note]
-在本操作指南中，我们使用 **Blueprint Third Person Template** 项目，并启用了 **起步内容**。 
-[/REGION]
-
-1. 	在您的项目中，在 **模式（Modes）**面板的 **过场动画（Cinematic）**下，将一个 **摄像机吊臂（Camera Rig Crane）**资产拖动到关卡中。 
-
-	![](Crane01.png)
-
-1. 	还是在 **过场动画（Cinematic）**下，将一个 **电影摄像机 Actor（Cine Camera Actor）**拖到关卡中。 
-
-	![](Crane02.png)
-
-1. 	在 **全局大纲（World Outliner）**窗口中，将 **CineCameraActor** 拖放到 **CameraRig_Crane** 上。 
-
-	![](Crane03.png)
-
-	这将把摄像机连接到吊臂，使其跟随吊臂运动。 
-
-1. 	选择 **CineCameraActor**，然后在 **细节（Details）**面板的 **转换（Transform）**下，输入“0”作为 **位置（Location）**和 **旋转（Rotation）**值。 
-
-	![](Crane04.png)
-
-	这将使摄像机的转换归零，正确连接到吊臂。 
-
-1. 	在主工具栏中，单击 **过场动画（Cinematics）**，然后选择 **添加关卡序列（Add Level Sequence）**。 
-
-	![](Crane05.png)
-
-1. 	按住 **Ctrl** 键并同时选中 **CameraRigCrane** 和 **CineCameraActor**，然后将它们添加到 Sequencer 中。 
-
-	![](Crane06.png)
-
-1. 	单击 **添加（Add）**，然后选择 **镜头切换轨道（Camera Cut Track）**。 
-
-	![](Crane07.png)
-
-	这样我们就可以定义用哪个摄像机来拍摄此关卡序列。 
-
-1. 	在 **镜头切换** 轨道上，单击 **添加摄像机（+ Camera）**按钮，然后选择 **CineCameraActor**。 
-
-	![](Crane08.png)
-
-	现在我们已经做好了使用摄像机吊臂和电影摄像机 Actor 拍摄场景的准备。 
-	您可在 **镜头切换轨道** 上单击 **将视口锁定到摄像机（Lock Viewport to Camera）**按钮，通过我们添加的摄像机的视角预览场景。 
-
-	![](Crane09.png)
-
-	再次单击 **将视口锁定到摄像机（Lock Viewport to Camera）**将解锁摄像机。 	
-
-1. 	使用 **平移** 工具（**W** 键）和 **旋转** 工具（**E** 键）按下图所示旋转吊臂/摄像机。 
-
-	![](Crane10.png)
-
-	在此特定镜头中，我们将要抬高吊臂，将其外推到焦点，拍摄站在关卡中的角色。 
-
-1. 	在 **转换轨道** 上单击 **添加键（Add Key）**按钮为 **电影摄像机 Actor** 的 **转换（Transform）**位置添加一个键。 
-
-	![](Crane11.png)
-
-1. 	在 **CameraRig_Crane** 上单击 **添加轨道（+ Track）**按钮，并添加 **吊臂长度（Crane Arm Length）**、**吊臂倾斜角（Crane Pitch）**和 **吊臂旋角（Crane Yaw）**轨道。 
-
-	![](Crane12.png)
-
-1. 	将时间轴标记向前推进到 **50**，然后将 **吊臂长度（Crane Arm Length）**设置为 **1000**，将 **吊臂倾斜角（Crane Pitch）**设置为 **20**，并为这两个值添加键。 
-
-	![](Crane13.png)
-
-	如果您在开头和第 50 帧之间来回移动时间轴，应该会在视口中看到吊臂运动。
-
-1. 	将时间轴标记移动到序列结尾 (**150**)。
-
-1. 	在 **CameraRig_Crane** 的 **细节（Details）**面板中，将 **吊臂旋角（Crane Yaw）**设置为 **-25**，并添加一个键。 
-
-	![](Crane14.png)
-
-	您可以在 **细节（Details）**面板中分别单击 **吊臂长度（Crane Arm Length）**、**吊臂倾斜角（Crane Pitch）**和 **吊臂旋角（Crane Yaw）**旁的 **添加键（Add Key）**按钮来设置这些属性。 
-
-1. 	在 **CineCameraActor** 的 **细节（Details）**面板中，将 **旋转（Rotation）**的 **XYZ** 设置为 **0、-25、-50**。 
-
-	![](Crane16.png)
-
-	这些值可能并不确切，系统可能会自动调整，这是正常现象。 
-
-1. 	在仍然选中 **Cine Camera Actor** 的情况下，按 **Shift + E** 为旋转值添加一个键。 
-
-	![](Crane17.png)
-
-1. 	将视口锁定到 **镜头切换** 轨道，然后单击 **预览播放（Preview Play）**按钮。 
-
-	
-## 最终结果
-
-你应该得到类似下面示例的镜头，摄像机随吊臂平移并推近角色。 
+在本指南中，我们将添加一个摄像机绑定摇臂，附着一个摄像机，并创建一个示例摇臂镜头，如下所示： 
 
 [OBJECT:EmbeddedVideo]
 [PARAMLITERAL:width]
@@ -121,47 +27,154 @@ Related:Engine\Sequencer\ReferenceEditor\
 360
 [/PARAMLITERAL]
 [PARAMLITERAL:videoid]
-RAsfP5G0Shk
+WnwtVEBUORc
 [/PARAMLITERAL]
 [/OBJECT]
 
-您可以在关键帧窗口中通过将键拖动到新值来调整它们。在上例中我们将在第 **50** 帧添加的 **吊臂长度（Crane Arm Length）**和 **吊臂倾斜角（Crane Pitch）**关键帧移动到第 **100** 帧，从而减慢了吊臂向上运动的速度。 
 
-[REGION:tip]
-在 Sequencer 中有一种可以用来处理 **摄像机吊臂** 资产的高级方法，可自动执行本操作指南中的多个步骤。请参见 [**工作流程快捷键**](Engine\Sequencer\Workflow\CheatSheet) 一节了解更多信息。 
+(#steps)
+
+## 步骤
+
+[REGION:note]
+对于本指南，我们使用的是已启用 **初学者内容包（Starter Content）** 的 **蓝图第三人称模板（Blueprint Third Person Template）** 项目。 
 [/REGION]
 
+1.	在项目的关卡视口中，选择 **第三人称角色（ThirdPersonCharacter）**，然后按住 **Alt**，拖出并旋转副本，使其朝向现有角色。 
 
+	![](Crane01.png)
 
+	这两个角色将成为我们的摇臂镜头的对象。 
 
+1.	在主工具栏中，单击 **过场动画（Cinematics）** 按钮，然后从下拉菜单中选择 **添加关卡序列（Add Level Sequence）**。 
 
+	![](Crane02.png)
 
+1.	从 **过场动画（Cinematics）** 下的 **模式（Modes）** 面板中，将 **摄像机绑定摇臂（Camera Rig Crane）** 拖至关卡中。 
 
+	![](Crane03.png)
 
+1.	从 **过场动画（Cinematics）** 下的 **模式（Modes）** 面板中，将 **过场动画摄像机Actor（Cine Camera Actor）** 拖至关卡中。 
 
+	![](Crane04.png)
 
+1.	在 **世界大纲视图（World Outliner）** 面板中，将 **过场动画摄像机Actor（Cine Camera Actor）** 拖到 **摄像机绑定摇臂（Camera Rig Crane）** 顶部以使其附着。 
 
+	![](Crane05.png)
 
+	这会将摄像机附着到摇臂上，从而能够移动到摇臂移动到的地方。 
 
+1.	在 **过场动画摄像机Actor（Cine Camera Actor）** 的 **详细信息（Details）** 面板中， 将 **位置（Location）** 和 **旋转（Rotation）** 的值设置为 **0.0**。 
 
+	![](Crane06.png)
 
+	这将允许摄像机附着到到摄像机绑定摇臂的安装位置。 
 
+1.	对 **摄像机绑定摇臂（Camera Rig Crane）** 的位置进行任何调整，以设置您的镜头（见下图，位置在角色后面）。 
 
+	![](Crane07.png)
 
+1.	按住 **Ctrl** 并选择 **摄像机绑定摇臂（Camera Rig Crane）** 和 **过场动画摄像机Actor（Cine Camera Actor）** （以便两者都被选中），然后在Sequencer中单击 **添加（Add）**，将两者都添加到关卡序列中。 
 
+	![](Crane08.png)
 
+1.	选择 **摄像机绑定摇臂（Camera Rig Crane）**，然后在 **详细信息（Details）** 面板中，并为 **摇臂绕X轴旋转（Crane Pitch）**、**摇臂绕Y轴旋转（Crane Yaw）** 和 **摇臂长度（Crane Arm Length）** 单击 **添加关键帧（Add Key）** 按钮。 
 
+	![](Crane09.png)
 
+	这将设置每项的默认位置以启动序列。 
 
+1.	在Sequencer中，选择 **过场动画摄像机Actor（Cine Camera Actor）**，然后按下 **S** 键。 
 
+	![](Crane10.png)
 
+	这是一个为当前的 **变换（Transform）** 值添加关键帧的快捷方式，用于初始化摄像机的位置。 
 
+1.	将时间轴推移至帧 **50**，然后将 **摄像机绑定摇臂（Camera Rig Crane）** 上的 **摄像机绕X轴旋转（Crane Pitch）** 值更改为 **40.0**，然后单击 **添加关键帧（Add Key）** 按钮。 
 
+	![](Crane11.png)
 
+	如果您将时间轴移回0并拉动到50，您将看到摇臂在两个关键帧之间的移动（如下所示）。 
 
+	[OBJECT:EmbeddedVideo]
+	[PARAMLITERAL:width]
+	640
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	360
+	[/PARAMLITERAL]
+	[PARAMLITERAL:videoid]
+	LiJ2TXYz7A8
+	[/PARAMLITERAL]
+	[/OBJECT]
 
+	[REGION:note]
+	视频（上文）中还包括启用 **锁定支座绕X轴旋转（Lock Mount Pitch）** 选项会如何影响附着的摄像机。 
+	禁用该选项后，摄像机将保持其设置位置。当启用该选项时，挂载的摄像机会跟随摇臂的绕X轴旋转，并且会随着摇臂的移动而自动改变。 
+	该选项可以设定关键帧，以便您可以根据镜头需要通过Sequencer打开/关闭该选项。 
+	[/REGION]
 
+1.	当时间轴位于帧 **50** 时，选择 **过场动画摄像机Actor（Cine Camera Actor）**，然后按下 **S** 以添加其他关键帧。 
 
+	![](Crane12.png)
 
+1.	将时间轴向前推移到镜头的结尾部分，将 **摄像机绕Y轴旋转（Crane Yaw）** 和 **摄像机长度（Crane Arm Length）** 分别更改为 **75** 和 **600**，然后为每项添加关键帧。 
 
+	![](Crane13.png)
 
+	您应该会看到，当您全程推移时间轴时，在关键帧之间摄像机绕Y轴旋转（Crane Yaw）与摇臂长度（Crane Arm Length）的值出现了移位。 
+
+	[OBJECT:EmbeddedVideo]
+	[PARAMLITERAL:width]
+	640
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	360
+	[/PARAMLITERAL]
+	[PARAMLITERAL:videoid]
+	d7K3mHA0bXM
+	[/PARAMLITERAL]
+	[/OBJECT]
+
+	[REGION:note]
+	另外，类似于 **锁定支座绕X轴旋转（Lock Mount Pitch）**，**锁定支座绕Y轴旋转（Lock Mount Yaw）** 选项允许您将安装的摄像机强制锁定到摇臂的绕Y轴旋转位置。 
+	如果您同时启用了 **锁定支座绕X轴旋转（Lock Mount Pitch）** 和 **锁定支座Y轴旋转（Lock Mount Yaw）**，挂载的摄像机将在与摄像机相同的方向上绕X轴旋转和绕Y轴旋转。 
+	[/REGION]
+
+1.	在关卡视口中旋转摄像机以拍下两个角色，然后按下 **S** 以为该位置添加一个关键帧。 
+
+	![](Crane14.png)
+
+1.	在Sequencer中，单击 **过场动画摄像机Actor（Cine Camera Actor）** 轨迹上的 **摄像机锁定（Camera Lock）** 按钮。 
+
+	![](Crane15.png)
+
+	这将视口锁定至摄像机的视角，让我们可以在使用摄像机时可以查看镜头效果。
+
+	
+(#endresult)
+## 最终结果
+
+您应该有类似于下面的视频，其中摄像机的移动跟随摇臂定义的路径。 
+
+[OBJECT:EmbeddedVideo]
+[PARAMLITERAL:width]
+640
+[/PARAMLITERAL]
+[PARAMLITERAL:height]
+360
+[/PARAMLITERAL]
+[PARAMLITERAL:videoid]
+WnwtVEBUORc
+[/PARAMLITERAL]
+[/OBJECT]
+
+在视频中，我们将视口锁定到摄像机上，并开启了 **游戏视图（Game View）**（**G** 键）来隐藏所有编辑器图标，以让我们了解拍摄的效果。 
+
+在本指南中，我们将摄像机绑定摇臂添加到了关卡中，然后添加了一个过场动画摄像机Actor，并手动将其附着到了摇臂上。
+在将摄像机绑定摇臂资源添加到关卡上时，您可以使用一种高级方法，该方法将自动执行本指南中提到的其中几个步骤，将自动添加过场动画摄像机Actor并将其附着到摄像机绑定摇臂上。 
+该方法还会将这两个资源添加到一个开放的关卡序列中，指定摄像机切换轨迹，并指定要用于拍摄的摄像机。 
+
+[REGION:tip]
+有关该自动方法和其他Sequencer技巧，请参阅[工作流快捷方式](Engine\Sequencer\Workflow\CheatSheet)Sequencer文档。 
+[/REGION]

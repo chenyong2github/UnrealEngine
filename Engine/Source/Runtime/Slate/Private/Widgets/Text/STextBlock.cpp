@@ -8,6 +8,9 @@
 #include "Rendering/DrawElements.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Fonts/FontMeasure.h"
+#if WITH_ACCESSIBILITY
+#include "Widgets/Accessibility/SlateAccessibleWidgets.h"
+#endif
 
 DECLARE_CYCLE_STAT(TEXT("STextBlock::SetText Time"), Stat_SlateTextBlockSetText, STATGROUP_SlateVerbose)
 DECLARE_CYCLE_STAT(TEXT("STextBlock::OnPaint Time"), Stat_SlateTextBlockOnPaint, STATGROUP_SlateVerbose)
@@ -19,6 +22,10 @@ STextBlock::STextBlock()
 	SetCanTick(false);
 	bCanSupportFocus = false;
 	bSimpleTextMode = false;
+
+#if WITH_ACCESSIBILITY
+	AccessibleData = FAccessibleWidgetData(EAccessibleBehavior::Auto, EAccessibleBehavior::Auto, false);
+#endif
 }
 
 STextBlock::~STextBlock()
@@ -191,10 +198,16 @@ int32 STextBlock::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeom
 		const bool bShouldBeEnabled = ShouldBeEnabled(bParentEnabled);
 
 		const FText& LocalText = GetText();
-		const FSlateFontInfo LocalFont = GetFont();
+		FSlateFontInfo LocalFont = GetFont();
 
 		if (ShouldDropShadow)
 		{
+			const int32 OutlineSize = LocalFont.OutlineSettings.OutlineSize;
+			if (!LocalFont.OutlineSettings.bApplyOutlineToDropShadows)
+			{
+				LocalFont.OutlineSettings.OutlineSize = 0;
+			}
+
 			FSlateDrawElement::MakeText(
 				OutDrawElements,
 				LayerId,
@@ -204,6 +217,9 @@ int32 STextBlock::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeom
 				bShouldBeEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect,
 				InWidgetStyle.GetColorAndOpacityTint() * LocalShadowColorAndOpacity
 			);
+
+			// Restore outline size for main text
+			LocalFont.OutlineSettings.OutlineSize = OutlineSize;
 
 			// actual text should appear above the shadow
 			++LayerId;
@@ -456,3 +472,16 @@ FTextBlockStyle STextBlock::GetComputedTextStyle() const
 	ComputedStyle.SetHighlightShape( *GetHighlightShape() );
 	return ComputedStyle;
 }
+
+#if WITH_ACCESSIBILITY
+TSharedRef<FSlateAccessibleWidget> STextBlock::CreateAccessibleWidget()
+{
+	return MakeShareable<FSlateAccessibleWidget>(new FSlateAccessibleTextBlock(SharedThis(this)));
+}
+
+void STextBlock::SetDefaultAccessibleText(EAccessibleType AccessibleType)
+{
+	TAttribute<FText>& Text = (AccessibleType == EAccessibleType::Main) ? AccessibleData.AccessibleText : AccessibleData.AccessibleSummaryText;
+	Text.Bind(this, &STextBlock::GetTextCopy);
+}
+#endif

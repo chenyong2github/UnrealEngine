@@ -136,7 +136,7 @@ FText UNiagaraStackRendererItem::GetDisplayName() const
 {
 	if (RendererProperties != nullptr)
 	{
-		return FText::FromString(RendererProperties->GetClass()->GetName());
+		return RendererProperties->GetClass()->GetDisplayNameText();
 	}
 	else
 	{
@@ -158,7 +158,8 @@ void UNiagaraStackRendererItem::Delete()
 	Emitter->RemoveRenderer(RendererProperties.Get());
 
 	OnDataObjectModified().Broadcast(RendererProperties.Get());
-	ModifiedGroupItemsDelegate.ExecuteIfBound();
+	Finalize();
+	ModifiedGroupItemsDelegate.Broadcast();
 }
 
 bool UNiagaraStackRendererItem::HasBaseRenderer() const
@@ -168,7 +169,7 @@ bool UNiagaraStackRendererItem::HasBaseRenderer() const
 		if (bHasBaseRendererCache.IsSet() == false)
 		{
 			TSharedRef<FNiagaraScriptMergeManager> MergeManager = FNiagaraScriptMergeManager::Get();
-			const UNiagaraEmitter* BaseEmitter = FNiagaraStackGraphUtilities::GetBaseEmitter(*GetEmitterViewModel()->GetEmitter(), GetSystemViewModel()->GetSystem());
+			const UNiagaraEmitter* BaseEmitter = GetEmitterViewModel()->GetEmitter()->GetParent();
 			bHasBaseRendererCache = BaseEmitter != nullptr && MergeManager->HasBaseRenderer(*BaseEmitter, RendererProperties->GetMergeId());
 		}
 		return bHasBaseRendererCache.GetValue();
@@ -183,7 +184,7 @@ bool UNiagaraStackRendererItem::CanResetToBase() const
 		if (bCanResetToBaseCache.IsSet() == false)
 		{
 			TSharedRef<FNiagaraScriptMergeManager> MergeManager = FNiagaraScriptMergeManager::Get();
-			const UNiagaraEmitter* BaseEmitter = FNiagaraStackGraphUtilities::GetBaseEmitter(*GetEmitterViewModel()->GetEmitter(), GetSystemViewModel()->GetSystem());
+			const UNiagaraEmitter* BaseEmitter = GetEmitterViewModel()->GetEmitter()->GetParent();
 			bCanResetToBaseCache = BaseEmitter != nullptr && MergeManager->IsRendererDifferentFromBase(*GetEmitterViewModel()->GetEmitter(), *BaseEmitter, RendererProperties->GetMergeId());
 		}
 		return bCanResetToBaseCache.GetValue();
@@ -196,9 +197,9 @@ void UNiagaraStackRendererItem::ResetToBase()
 	if (CanResetToBase())
 	{
 		TSharedRef<FNiagaraScriptMergeManager> MergeManager = FNiagaraScriptMergeManager::Get();
-		const UNiagaraEmitter* BaseEmitter = FNiagaraStackGraphUtilities::GetBaseEmitter(*GetEmitterViewModel()->GetEmitter(), GetSystemViewModel()->GetSystem());
+		const UNiagaraEmitter* BaseEmitter = GetEmitterViewModel()->GetEmitter()->GetParent();
 		MergeManager->ResetRendererToBase(*GetEmitterViewModel()->GetEmitter(), *BaseEmitter, RendererProperties->GetMergeId());
-		ModifiedGroupItemsDelegate.ExecuteIfBound();
+		ModifiedGroupItemsDelegate.Broadcast();
 	}
 }
 
@@ -280,22 +281,6 @@ void UNiagaraStackRendererItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 		NewIssues.Add(TargetSupportError);
 	}
 
-	// Currently we don't support multiple different renderers on GPU emitters
-	// Multiple sprite renderers may currently work but not multiple of other types or combinations of types and there is no guarantee
-	if ( GetEmitterViewModel()->GetEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim )
-	{
-		if ( GetEmitterViewModel()->GetEmitter()->GetRenderers().Num() > 1 )
-		{
-			FStackIssue GpuSupportError(
-				EStackIssueSeverity::Error,
-				LOCTEXT("FailedRendererDueToMultipleGpuRenderers", "Multiple GPU renderers."),
-				LOCTEXT("FailedRendererDueToMultipleGpuRenderersLong", "Multiple GPU renderers are currently not supported, rendered results may not be correct."),
-				GetStackEditorDataKey(),
-				false);
-
-			NewIssues.Add(GpuSupportError);
-		}
-	}
 }
 
 void UNiagaraStackRendererItem::RendererChanged()

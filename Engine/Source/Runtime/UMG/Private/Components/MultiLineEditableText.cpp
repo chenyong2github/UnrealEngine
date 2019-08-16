@@ -11,12 +11,21 @@
 /////////////////////////////////////////////////////
 // UMultiLineEditableText
 
+static FTextBlockStyle* DefaultMultiLineEditableTextStyle = nullptr;
+
 UMultiLineEditableText::UMultiLineEditableText(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-	static const FTextBlockStyle StaticNormalText = FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText");
-	WidgetStyle = StaticNormalText;
+	if (DefaultMultiLineEditableTextStyle == nullptr)
+	{
+		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
+		DefaultMultiLineEditableTextStyle = new FTextBlockStyle(FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"));
+
+		// Unlink UMG default colors from the editor settings colors.
+		DefaultMultiLineEditableTextStyle->UnlinkColors();
+	}
+
+	WidgetStyle = *DefaultMultiLineEditableTextStyle;
 	
 	bIsReadOnly = false;
 	SelectAllTextWhenFocused = false;
@@ -94,6 +103,17 @@ void UMultiLineEditableText::SynchronizeProperties()
 	Super::SynchronizeTextLayoutProperties(*MyMultiLineEditableText);
 }
 
+
+void UMultiLineEditableText::SetJustification(ETextJustify::Type InJustification)
+{
+	Super::SetJustification(InJustification);
+
+	if (MyMultiLineEditableText.IsValid())
+	{
+		MyMultiLineEditableText->SetJustification(InJustification);
+	}
+}
+
 FText UMultiLineEditableText::GetText() const
 {
 	if ( MyMultiLineEditableText.IsValid() )
@@ -141,6 +161,16 @@ void UMultiLineEditableText::SetIsReadOnly(bool bReadOnly)
 	if ( MyMultiLineEditableText.IsValid() )
 	{
 		MyMultiLineEditableText->SetIsReadOnly(bIsReadOnly);
+	}
+}
+
+void UMultiLineEditableText::SetWidgetStyle(const FTextBlockStyle& InWidgetStyle)
+{
+	WidgetStyle = InWidgetStyle;
+
+	if (MyMultiLineEditableText.IsValid())
+	{
+		MyMultiLineEditableText->SetTextStyle(&WidgetStyle);
 	}
 }
 

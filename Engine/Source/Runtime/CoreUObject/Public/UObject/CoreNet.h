@@ -502,6 +502,12 @@ struct FNetDeltaSerializeInfo
 	/** Whether or not we support FFastArraySerializer::FastArrayDeltaSerialize_DeltaSerializeStructs */
 	bool bSupportsFastArrayDeltaStructSerialization = false;
 
+	/**
+	 * Whether or the connection is completely reliable.
+	 * We cache this off separate from UNetConnection so we can limit usage.
+	 */
+	bool bInternalAck = false;
+
 	/** The object that owns the struct we're serializing. */
 	UObject* Object = nullptr;
 
@@ -522,7 +528,7 @@ struct FNetDeltaSerializeInfo
 	/** When non-null, this indicates the given Guid has become unmapped and any references to it should be updated. */
 	const FNetworkGUID* MoveGuidToUnmapped = nullptr;
 
-	int32 PropertyRepIndex = INDEX_NONE;
+	uint16 CustomDeltaIndex = INDEX_NONE;
 
 	// Debugging variables
 	FString DebugName;

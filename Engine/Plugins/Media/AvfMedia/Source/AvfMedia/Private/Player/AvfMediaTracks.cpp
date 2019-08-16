@@ -627,6 +627,7 @@ void FAvfMediaTracks::Reset()
 			if (PinnedVideoSampler.IsValid())
 			{
 				PinnedVideoSampler->SetOutput(nil, 0.0f);
+				PinnedVideoSampler->Reset();
 			}
 		});
 	

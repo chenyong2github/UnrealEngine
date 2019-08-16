@@ -24,7 +24,7 @@ class UModel;
 /**
  * A render target.
  */
-class FRenderTarget
+class ENGINE_VTABLE FRenderTarget
 {
 public:
 
@@ -297,7 +297,7 @@ struct FStatHitchesData
  * Encapsulates the I/O of a viewport.
  * The viewport display is implemented using the platform independent RHI.
  */
-class FViewport : public FRenderTarget, protected FRenderResource
+class ENGINE_VTABLE FViewport : public FRenderTarget, protected FRenderResource
 {
 public:
 	/** delegate type for viewport resize events ( Params: FViewport* Viewport, uint32 ) */
@@ -317,7 +317,7 @@ public:
 	virtual void Destroy() = 0;
 
 	// New MouseCapture/MouseLock API
-	virtual bool HasMouseCapture() const				{ return true; }
+	virtual bool HasMouseCapture() const				{ return false; }
 	virtual bool HasFocus() const					{ return true; }
 	virtual bool IsForegroundWindow() const			{ return true; }
 	virtual void CaptureMouse( bool bCapture )		{ }
@@ -635,6 +635,7 @@ protected:
 
 		/** FGCObject interface */
 		virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+		virtual FString GetReferencerName() const override;
 
 		const FTexture2DRHIRef& GetHitProxyTexture(void) const		{ return HitProxyTexture; }
 		const FTexture2DRHIRef& GetHitProxyCPUTexture(void) const		{ return HitProxyCPUTexture; }
@@ -767,28 +768,12 @@ public:
 class FViewportClient
 {
 public:
-	/** The different types of sound stat flags */
-	struct ESoundShowFlags
-	{
-		enum Type
-		{
-			Disabled = 0x00,
-			Debug = 0x01,
-			Sort_Distance = 0x02,
-			Sort_Class = 0x04,
-			Sort_Name = 0x08,
-			Sort_WavesNum = 0x10,
-			Sort_Disabled = 0x20,
-			Long_Names = 0x40,
-		};
-	};
-
 	virtual ~FViewportClient(){}
 	virtual void Precache() {}
 	virtual void RedrawRequested(FViewport* Viewport) { Viewport->Draw(); }
 	virtual void RequestInvalidateHitProxy(FViewport* Viewport) { Viewport->InvalidateHitProxy(); }
 	virtual void Draw(FViewport* Viewport,FCanvas* Canvas) {}
-	virtual void ProcessScreenShots(FViewport* Viewport) {}
+	virtual bool ProcessScreenShots(FViewport* Viewport) { return false; }
 	virtual UWorld* GetWorld() const { return NULL; }
 	virtual struct FEngineShowFlags* GetEngineShowFlags() { return NULL; }
 
@@ -1025,16 +1010,6 @@ public:
 	virtual void SetShowStats(bool bWantStats) { }
 
 	/**
-	 * Get the sound stat flags enabled for this viewport
-	 */
-	virtual ESoundShowFlags::Type GetSoundShowFlags() const { return ESoundShowFlags::Disabled; }
-
-	/**
-	 * Set the sound stat flags enabled for this viewport
-	 */
-	virtual void SetSoundShowFlags(const ESoundShowFlags::Type InSoundShowFlags) {}
-
-	/**
 	 * Check whether we should ignore input.
 	 */
 	virtual bool IgnoreInput() { return false; }
@@ -1095,7 +1070,7 @@ extern ENGINE_API class FCommonViewportClient* GStatProcessingViewportClient;
  * Common functionality for game and editor viewport clients
  */
 
-class FCommonViewportClient : public FViewportClient
+class ENGINE_VTABLE FCommonViewportClient : public FViewportClient
 {
 public:
 	FCommonViewportClient()

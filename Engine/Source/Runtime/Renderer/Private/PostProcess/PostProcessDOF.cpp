@@ -65,7 +65,7 @@ public:
 	template <typename TRHICmdList>
 	void SetParameters(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context)
 	{
-		const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = GetPixelShader();
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
 
@@ -84,7 +84,7 @@ public:
 		{
 			FVector4 DepthOfFieldParamValues[2];
 
-			FRCPassPostProcessBokehDOF::ComputeDepthOfFieldParams(Context, DepthOfFieldParamValues);
+			FRCPassPostProcessDOFSetup::ComputeDepthOfFieldParams(Context, DepthOfFieldParamValues);
 
 			SetShaderValueArray(RHICmdList, ShaderRHI, DepthOfFieldParams, DepthOfFieldParamValues, 2);
 		}
@@ -172,7 +172,7 @@ void FRCPassPostProcessDOFSetup::Process(FRenderingCompositePassContext& Context
 	const FSceneRenderTargetItem& DestRenderTarget1 = (NumRenderTargets == 2) ? PassOutputs[1].RequestSurface(Context) : FSceneRenderTargetItem();
 
 	// Set the view family's render target/viewport.
-	FTextureRHIParamRef RenderTargets[2] =
+	FRHITexture* RenderTargets[2] =
 	{
 		DestRenderTarget0.TargetableTexture,
 		DestRenderTarget1.TargetableTexture
@@ -342,7 +342,7 @@ public:
 	void SetParameters(const FRenderingCompositePassContext& Context)
 	{
 		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(Context.RHICmdList);
-		const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = GetPixelShader();
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(Context.RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
 
@@ -519,4 +519,35 @@ FPooledRenderTargetDesc FRCPassPostProcessDOFRecombine::ComputeOutputDesc(EPassO
 	Ret.ClearValue = FClearValueBinding(FLinearColor::Black);
 
 	return Ret;
+}
+
+// static
+void FRCPassPostProcessDOFSetup::ComputeDepthOfFieldParams(const FRenderingCompositePassContext& Context, FVector4 Out[2])
+{
+	// border between front and back layer as we don't use viewports (only possible with GS)
+	const uint32 SafetyBorder = 40;
+
+	uint32 FullRes = FSceneRenderTargets::Get(Context.RHICmdList).GetBufferSizeXY().Y;
+	uint32 HalfRes = FMath::DivideAndRoundUp(FullRes, (uint32)2);
+	uint32 BokehLayerSizeY = HalfRes * 2 + SafetyBorder;
+	float SkyFocusDistance = Context.View.FinalPostProcessSettings.DepthOfFieldSkyFocusDistance;
+	
+	// *2 to go to account for Radius/Diameter, 100 for percent
+	float DepthOfFieldVignetteSize = FMath::Max(0.0f, Context.View.FinalPostProcessSettings.DepthOfFieldVignetteSize / 100.0f * 2);
+	// doesn't make much sense to expose this property as the effect is very non linear and it would cost some performance to fix that
+	float DepthOfFieldVignetteFeather = 10.0f / 100.0f;
+	float DepthOfFieldVignetteMul = 1.0f / DepthOfFieldVignetteFeather;
+	float DepthOfFieldVignetteAdd = (0.5f - DepthOfFieldVignetteSize) * DepthOfFieldVignetteMul;
+	Out[0] = FVector4(
+		(SkyFocusDistance > 0) ? SkyFocusDistance : 100000000.0f,			// very large if <0 to not mask out skybox, can be optimized to disable feature completely
+		DepthOfFieldVignetteMul,
+		DepthOfFieldVignetteAdd,
+		Context.View.FinalPostProcessSettings.DepthOfFieldOcclusion);
+	FIntPoint ViewSize = Context.View.ViewRect.Size();
+	
+	// Scale and offset to put two views in one texture with safety border
+	float UsedYDivTextureY = HalfRes / (float)BokehLayerSizeY;
+	float YOffsetInPixel = HalfRes + SafetyBorder;
+	float YOffsetInUV = (HalfRes + SafetyBorder) / (float)BokehLayerSizeY;
+	Out[1] = FVector4(0.0f, YOffsetInUV, UsedYDivTextureY, YOffsetInPixel);
 }

@@ -1702,7 +1702,9 @@ void UParticleEmitter::CacheEmitterModuleInfo()
 	LockAxisFlags = EPAL_NONE;
 	ModuleOffsetMap.Empty();
 	ModuleInstanceOffsetMap.Empty();
+	ModuleRandomSeedInstanceOffsetMap.Empty();
 	ModulesNeedingInstanceData.Empty();
+	ModulesNeedingRandomSeedInstanceData.Empty();
 	MeshMaterials.Empty();
 	DynamicParameterDataOffset = 0;
 	LightDataOffset = 0;
@@ -1791,6 +1793,25 @@ void UParticleEmitter::CacheEmitterModuleInfo()
 					ModuleInstanceOffsetMap.Add(CurLODLevel->Modules[ModuleIdx], ReqInstanceBytes);
 				}
 				ReqInstanceBytes += TempInstanceBytes;
+			}
+
+			// Add space for per instance random seed value if required
+			if (FApp::bUseFixedSeed || ParticleModule->bSupportsRandomSeed)
+			{
+				// Add the high-lodlevel offset to the lookup map
+				ModuleRandomSeedInstanceOffsetMap.Add(ParticleModule, ReqInstanceBytes);
+				// Remember that this module has emitter-instance data
+				ModulesNeedingRandomSeedInstanceData.Add(ParticleModule);
+
+				// Add all the other LODLevel modules, using the same offset.
+				// This removes the need to always also grab the HighestLODLevel pointer.
+				for (int32 LODIdx = 1; LODIdx < LODLevels.Num(); LODIdx++)
+				{
+					UParticleLODLevel* CurLODLevel = LODLevels[LODIdx];
+					ModuleRandomSeedInstanceOffsetMap.Add(CurLODLevel->Modules[ModuleIdx], ReqInstanceBytes);
+				}
+
+				ReqInstanceBytes += sizeof(FParticleRandomSeedInstancePayload);
 			}
 		}
 
@@ -3336,6 +3357,8 @@ UParticleSystemComponent::UParticleSystemComponent(const FObjectInitializer& Obj
 	bResetOnDetach = false;
 	OldPosition = FVector(0.0f, 0.0f, 0.0f);
 
+	RandomStream.Initialize(FApp::bUseFixedSeed ? GetFName() : NAME_None);
+
 	PartSysVelocity = FVector(0.0f, 0.0f, 0.0f);
 
 	WarmupTime = 0.0f;
@@ -3696,7 +3719,7 @@ void UParticleSystemComponent::Serialize( FArchive& Ar )
 
 void UParticleSystemComponent::BeginDestroy()
 {
-	ForceAsyncWorkCompletion(ENSURE_AND_STALL);
+	ForceAsyncWorkCompletion(ENSURE_AND_STALL, true, true);
 	Super::BeginDestroy();
 
 	if (PoolingMethod == EPSCPoolMethod::AutoRelease || PoolingMethod == EPSCPoolMethod::ManualRelease)
@@ -3715,7 +3738,7 @@ void UParticleSystemComponent::BeginDestroy()
 
 void UParticleSystemComponent::FinishDestroy()
 {
-	ForceAsyncWorkCompletion(ENSURE_AND_STALL);
+	ForceAsyncWorkCompletion(ENSURE_AND_STALL, true, true);
 	for (int32 EmitterIndex = 0; EmitterIndex < EmitterInstances.Num(); EmitterIndex++)
 	{
 		FParticleEmitterInstance* EmitInst = EmitterInstances[EmitterIndex];
@@ -3799,18 +3822,22 @@ void UParticleSystemComponent::OnRegister()
 				AutoAttachSocketName = GetAttachSocketName();
 			}
 
-			// Prevent attachment before Super::OnRegister() tries to attach us, since we only attach when activated.
-			if (GetAttachParent()->GetAttachChildren().Contains(this))
+			// If in a game world, detach now if necessary. Activation will cause auto-attachment.
+			if (World->IsGameWorld())
 			{
-				// Only detach if we are not about to auto attach to the same target, that would be wasteful.
-				if (!bAutoActivate || (AutoAttachLocationRule != EAttachmentRule::KeepRelative && AutoAttachRotationRule != EAttachmentRule::KeepRelative && AutoAttachScaleRule != EAttachmentRule::KeepRelative) || (AutoAttachSocketName != GetAttachSocketName()) || (AutoAttachParent != GetAttachParent()))
+				// Prevent attachment before Super::OnRegister() tries to attach us, since we only attach when activated.
+				if (GetAttachParent()->GetAttachChildren().Contains(this))
 				{
-					DetachFromComponent(FDetachmentTransformRules(EDetachmentRule::KeepRelative, /*bCallModify=*/ false));
+					// Only detach if we are not about to auto attach to the same target, that would be wasteful.
+					if (!bAutoActivate || (AutoAttachLocationRule != EAttachmentRule::KeepRelative && AutoAttachRotationRule != EAttachmentRule::KeepRelative && AutoAttachScaleRule != EAttachmentRule::KeepRelative) || (AutoAttachSocketName != GetAttachSocketName()) || (AutoAttachParent != GetAttachParent()))
+					{
+						DetachFromComponent(FDetachmentTransformRules(EDetachmentRule::KeepRelative, /*bCallModify=*/ false));
+					}
 				}
-			}
-			else
-			{
-				SetupAttachment(nullptr, NAME_None);
+				else
+				{
+					SetupAttachment(nullptr, NAME_None);
+				}
 			}
 		}
 
@@ -3833,8 +3860,8 @@ void UParticleSystemComponent::OnRegister()
 	}
 
 	UE_LOG(LogParticles,Verbose,
-		TEXT("OnRegister %s Component=0x%p Scene=0x%p FXSystem=0x%p"),
-		Template != NULL ? *Template->GetName() : TEXT("NULL"), this, World->Scene, FXSystem);
+		TEXT("OnRegister %s Component=0x%p World=0x%p Scene=0x%p FXSystem=0x%p"),
+		Template != NULL ? *Template->GetName() : TEXT("NULL"), this, GetWorld(), World->Scene, FXSystem);
 
 	if (LODLevel == -1)
 	{
@@ -3863,13 +3890,18 @@ void UParticleSystemComponent::OnUnregister()
 	check(FXSystem == NULL);
 }
 
+void UParticleSystemComponent::OnEndOfFrameUpdateDuringTick()
+{
+	WaitForAsyncAndFinalize(STALL);
+}
+
 void UParticleSystemComponent::CreateRenderState_Concurrent()
 {
 	LLM_SCOPE(ELLMTag::Particles);
 	SCOPE_CYCLE_COUNTER(STAT_ParticleSystemComponent_CreateRenderState_Concurrent);
 	SCOPE_CYCLE_COUNTER(STAT_ParticlesOverview_GT_CNC);
 
-	ForceAsyncWorkCompletion(ENSURE_AND_STALL);
+	ForceAsyncWorkCompletion(ENSURE_AND_STALL, false, true);
 	check( GetWorld() );
 	UE_LOG(LogParticles,Verbose,
 		TEXT("CreateRenderState_Concurrent @ %fs %s"), GetWorld()->TimeSeconds,
@@ -3904,7 +3936,7 @@ void UParticleSystemComponent::SendRenderTransform_Concurrent()
 	SCOPE_CYCLE_COUNTER(STAT_ParticleSystemComponent_SendRenderTransform_Concurrent);
 	SCOPE_CYCLE_COUNTER(STAT_ParticlesOverview_GT_CNC);
 
-	ForceAsyncWorkCompletion(ENSURE_AND_STALL);
+	ForceAsyncWorkCompletion(ENSURE_AND_STALL, false, true);
 	if (bIsActive)
 	{
 		if (bSkipUpdateDynamicDataDuringTick == false)
@@ -3922,7 +3954,7 @@ void UParticleSystemComponent::SendRenderDynamicData_Concurrent()
 	SCOPE_CYCLE_COUNTER(STAT_ParticleSystemComponent_SendRenderDynamicData_Concurrent);
 	SCOPE_CYCLE_COUNTER(STAT_ParticlesOverview_GT_CNC);
 
-	ForceAsyncWorkCompletion(ENSURE_AND_STALL);
+	ForceAsyncWorkCompletion(ENSURE_AND_STALL, false, true);
 	Super::SendRenderDynamicData_Concurrent();
 
 	check(!bAsyncDataCopyIsValid);
@@ -3957,7 +3989,8 @@ void UParticleSystemComponent::DestroyRenderState_Concurrent()
 	SCOPE_CYCLE_COUNTER(STAT_ParticleSystemComponent_DestroyRenderState_Concurrent);
 	SCOPE_CYCLE_COUNTER(STAT_ParticlesOverview_GT_CNC);
 
-	ForceAsyncWorkCompletion(ENSURE_AND_STALL);
+	ForceAsyncWorkCompletion(ENSURE_AND_STALL, false, true);
+
 	check( GetWorld() );
 	UE_LOG(LogParticles,Verbose,
 		TEXT("DestroyRenderState_Concurrent @ %fs %s"), GetWorld()->TimeSeconds,
@@ -4592,7 +4625,13 @@ FBoxSphereBounds UParticleSystemComponent::CalcBounds(const FTransform& LocalToW
 	FBox BoundingBox;
 	BoundingBox.Init();
 
-	if (FXConsoleVariables::bAllowCulling == false)
+	const USceneComponent* UseAutoParent = (bAutoManageAttachment && GetAttachParent() == nullptr) ? AutoAttachParent.Get() : nullptr;
+	if (UseAutoParent)
+	{
+		// We use auto attachment but have detached, don't use our own bogus bounds (we're off near 0,0,0), use the usual parent's bounds.
+		return UseAutoParent->Bounds;
+	}
+	else if (FXConsoleVariables::bAllowCulling == false)
 	{
 		BoundingBox.Min = FVector(-HALF_WORLD_MAX);
 		BoundingBox.Max = FVector(+HALF_WORLD_MAX);
@@ -5875,7 +5914,7 @@ void UParticleSystemComponent::ActivateSystem(bool bFlagAsJustAttached)
 		// Auto attach if requested
 		const bool bWasAutoAttached = bDidAutoAttach;
 		bDidAutoAttach = false;
-		if (bAutoManageAttachment)
+		if (bAutoManageAttachment && bIsGameWorld)
 		{
 			USceneComponent* NewParent = AutoAttachParent.Get();
 			if (NewParent)
@@ -5884,7 +5923,7 @@ void UParticleSystemComponent::ActivateSystem(bool bFlagAsJustAttached)
 				if (!bAlreadyAttached)
 				{
 					bDidAutoAttach = bWasAutoAttached;
-					CancelAutoAttachment(true);
+					CancelAutoAttachment(true, World);
 					SavedAutoAttachRelativeLocation = RelativeLocation;
 					SavedAutoAttachRelativeRotation = RelativeRotation;
 					SavedAutoAttachRelativeScale3D = RelativeScale3D;
@@ -5896,7 +5935,7 @@ void UParticleSystemComponent::ActivateSystem(bool bFlagAsJustAttached)
 			}
 			else
 			{
-				CancelAutoAttachment(true);
+				CancelAutoAttachment(true, World);
 			}
 		}
 
@@ -6065,7 +6104,7 @@ void UParticleSystemComponent::Complete()
 	}
 	else if (bAutoManageAttachment)
 	{
-		CancelAutoAttachment(/*bDetachFromParent=*/ true);
+		CancelAutoAttachment(/*bDetachFromParent=*/ true, World);
 	}
 }
 
@@ -6139,9 +6178,9 @@ void UParticleSystemComponent::DeactivateSystem()
 	SetLastRenderTime(World->GetTimeSeconds());
 }
 
-void UParticleSystemComponent::CancelAutoAttachment(bool bDetachFromParent)
+void UParticleSystemComponent::CancelAutoAttachment(bool bDetachFromParent, const UWorld* MyWorld)
 {
-	if (bAutoManageAttachment)
+	if (bAutoManageAttachment && MyWorld && MyWorld->IsGameWorld())
 	{
 		if (bDidAutoAttach)
 		{
@@ -6555,7 +6594,7 @@ void UParticleSystemComponent::InitializeSystem()
 
 			if( Template->bUseDelayRange )
 			{
-				const float	Rand = FMath::FRand();
+				const float	Rand = RandomStream.FRand();
 				EmitterDelay	 = Template->DelayLow + ((Template->Delay - Template->DelayLow) * Rand);
 			}
 		}
@@ -7228,8 +7267,7 @@ bool UParticleSystemComponent::GetFloatParameter(const FName InName,float& OutFl
 			}
 			else if (Param.ParamType == PSPT_ScalarRand)
 			{
-				// check(IsInGameThread()); this isn't exactly cool to call from multiple threads, but it isn't terrible.
-				OutFloat = Param.Scalar + (Param.Scalar_Low - Param.Scalar) * FMath::SRand();
+				OutFloat = Param.Scalar + (Param.Scalar_Low - Param.Scalar) * RandomStream.FRand();
 				return true;
 			}
 		}
@@ -7260,9 +7298,7 @@ bool UParticleSystemComponent::GetVectorParameter(const FName InName,FVector& Ou
 			}
 			else if (Param.ParamType == PSPT_VectorRand)
 			{
-				check(IsInGameThread());
-				FVector RandValue(FMath::SRand(), FMath::SRand(), FMath::SRand());
-				OutVector = Param.Vector + (Param.Vector_Low - Param.Vector) * RandValue;
+				OutVector = Param.Vector + (Param.Vector_Low - Param.Vector) * RandomStream.VRand();
 				return true;
 			}
 		}
@@ -7292,9 +7328,7 @@ bool UParticleSystemComponent::GetAnyVectorParameter(const FName InName,FVector&
 			}
 			if (Param.ParamType == PSPT_VectorRand)
 			{
-				//check(IsInGameThread());
-				FVector RandValue(FMath::SRand(), FMath::SRand(), FMath::SRand());
-				OutVector = Param.Vector + (Param.Vector_Low - Param.Vector) * RandValue;
+				OutVector = Param.Vector + (Param.Vector_Low - Param.Vector) * RandomStream.VRand();
 				return true;
 			}
 			if (Param.ParamType == PSPT_Scalar)
@@ -7305,8 +7339,7 @@ bool UParticleSystemComponent::GetAnyVectorParameter(const FName InName,FVector&
 			}
 			if (Param.ParamType == PSPT_ScalarRand)
 			{
-				// check(IsInGameThread()); this isn't exactly cool to call from multiple threads, but it isn't terrible.
-				float OutFloat = Param.Scalar + (Param.Scalar_Low - Param.Scalar) * FMath::SRand();
+				float OutFloat = Param.Scalar + (Param.Scalar_Low - Param.Scalar) * RandomStream.FRand();
 				OutVector = FVector(OutFloat, OutFloat, OutFloat);
 				return true;
 			}
@@ -8519,6 +8552,15 @@ FPSCTickData& UParticleSystemComponent::GetManagerTickData()
 FParticleSystemWorldManager* UParticleSystemComponent::GetWorldManager()const
 {
 	return FParticleSystemWorldManager::Get(GetWorld());
+}
+
+void UParticleSystemComponent::SetAutoAttachmentParameters(USceneComponent* Parent, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule)
+{
+	AutoAttachParent = Parent;
+	AutoAttachSocketName = SocketName;
+	AutoAttachLocationRule = LocationRule;
+	AutoAttachRotationRule = RotationRule;
+	AutoAttachScaleRule = ScaleRule;
 }
 
 #undef LOCTEXT_NAMESPACE

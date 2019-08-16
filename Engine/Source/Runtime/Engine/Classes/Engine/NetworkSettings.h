@@ -9,6 +9,18 @@
 
 struct FPropertyChangedEvent;
 
+USTRUCT()
+struct FNetworkEmulationProfileDescription
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FString ProfileName;
+
+	UPROPERTY()
+	FString ToolTip;
+};
+
 /**
  * Network settings.
  */
@@ -46,6 +58,10 @@ class ENGINE_API UNetworkSettings : public UDeveloperSettings
 		ToolTip = "Maximum allowable size for replicated dynamic arrays (in bytes).  Must be between 1 and 65535.",
 		ClampMin = "1", ClampMax = "65535", UIMin = "1", UIMax = "65535"))
 	int32 MaxRepArrayMemory = DefaultMaxRepArrayMemory;
+
+	/** This lists the common network emulation profiles that will be selectable in PIE settings */
+	UPROPERTY(config)
+	TArray<FNetworkEmulationProfileDescription> NetworkEmulationProfiles;
 
 public:
 

@@ -31,6 +31,9 @@
 #endif // WITH_EDITOR
 #include "MeshMaterialShader.h"
 
+#if RHI_RAYTRACING
+#include "RayTracingInstance.h"
+#endif
 
 #include "Interfaces/ITargetPlatform.h"
 #if WITH_EDITOR
@@ -49,6 +52,37 @@ TAutoConsoleVariable<int32> CVarMinLOD(
 	TEXT("foliage.MinLOD"),
 	-1,
 	TEXT("Used to discard the top LODs for performance evaluation. -1: Disable all effects of this cvar."));
+
+static TAutoConsoleVariable<int32> CVarRayTracingRenderInstances(
+	TEXT("r.RayTracing.InstancedStaticMeshes"),
+	1,
+	TEXT("Include static mesh instances in ray tracing effects (default = 1 (Instances enabled in ray tracing))"));
+
+static TAutoConsoleVariable<int32> CVarRayTracingRenderInstancesCulling(
+	TEXT("r.RayTracing.InstancedStaticMeshes.Culling"),
+	0,
+	TEXT("Enable culling for instances in ray tracing (default = 0 (Culling disabled))"));
+
+static TAutoConsoleVariable<float> CVarRayTracingInstancesCullClusterMaxRadiusMultiplier(
+	TEXT("r.RayTracing.InstancedStaticMeshes.CullClusterMaxRadiusMultiplier"),
+	20.0f, 
+	TEXT("Multiplier for the maximum instance size (default = 20cm)"));
+
+static TAutoConsoleVariable<float> CVarRayTracingInstancesCullClusterRadius(
+	TEXT("r.RayTracing.InstancedStaticMeshes.CullClusterRadius"),
+	10000.0f, // 100 m
+	TEXT("Ignore instances outside of this radius in ray tracing effects (default = 10000 (100m))"));
+
+static TAutoConsoleVariable<float> CVarRayTracingInstancesLowScaleThreshold(
+	TEXT("r.RayTracing.InstancedStaticMeshes.LowScaleRadiusThreshold"),
+	50.0f, // Instances with a radius smaller than this threshold get culled after CVarRayTracingInstancesLowScaleCullRadius
+	TEXT("Threshold that classifies instances as small (default = 50cm))"));
+
+static TAutoConsoleVariable<float> CVarRayTracingInstancesLowScaleCullRadius(
+	TEXT("r.RayTracing.InstancedStaticMeshes.LowScaleCullRadius"),
+	1000.0f, 
+	TEXT("Cull radius for small instances (default = 1000 (10m))"));
+
 
 /** InstancedStaticMeshInstance hit proxy */
 void HInstancedStaticMeshInstance::AddReferencedObjects(FReferenceCollector& Collector)
@@ -159,7 +193,7 @@ void FInstanceUpdateCmdBuffer::SetShadowMapData(int32 RenderIndex, const FVector
 
 void FInstanceUpdateCmdBuffer::ResetInlineCommands()
 {
-	Cmds.Reset();
+	Cmds.Empty();
 	NumAdds = 0;
 }
 
@@ -170,7 +204,7 @@ void FInstanceUpdateCmdBuffer::Edit()
 
 void FInstanceUpdateCmdBuffer::Reset()
 {
-	Cmds.Reset();
+	Cmds.Empty();
 	NumAdds = 0;
 	NumEdits = 0;
 }
@@ -335,6 +369,13 @@ void FStaticMeshInstanceBuffer::CreateVertexBuffer(FResourceArrayInterface* InRe
 
 void FStaticMeshInstanceBuffer::BindInstanceVertexBuffer(const class FVertexFactory* VertexFactory, FInstancedStaticMeshDataType& InstancedStaticMeshData) const
 {
+	if (InstanceData->GetNumInstances())
+	{
+		check(InstanceOriginSRV);
+		check(InstanceTransformSRV);
+		check(InstanceLightmapSRV);
+	}
+
 	{
 		InstancedStaticMeshData.InstanceOriginSRV = InstanceOriginSRV;
 		InstancedStaticMeshData.InstanceTransformSRV = InstanceTransformSRV;
@@ -483,23 +524,32 @@ void FInstancedStaticMeshVertexFactory::InitRHI()
 	check(HasValidFeatureLevel());
 	const bool bInstanced = GRHISupportsInstancing;
 
-#if !ALLOW_DITHERED_LOD_FOR_INSTANCED_STATIC_MESHES // position only shaders cannot work with dithered LOD
+#if !ALLOW_DITHERED_LOD_FOR_INSTANCED_STATIC_MESHES // position(and normal) only shaders cannot work with dithered LOD
 	// If the vertex buffer containing position is not the same vertex buffer containing the rest of the data,
 	// then initialize PositionStream and PositionDeclaration.
 	if(Data.PositionComponent.VertexBuffer != Data.TangentBasisComponents[0].VertexBuffer)
 	{
-		FVertexDeclarationElementList PositionOnlyStreamElements;
-		PositionOnlyStreamElements.Add(AccessPositionStreamComponent(Data.PositionComponent,0));
-
-		if (bInstanced)
+		auto AddDeclaration = [&Data](EVertexInputStreamType InputStreamType, bool bInstanced, bool bAddNormal)
 		{
-			// toss in the instanced location stream
-			PositionOnlyStreamElements.Add(AccessPositionStreamComponent(Data.InstanceOriginComponent,8));
-			PositionOnlyStreamElements.Add(AccessPositionStreamComponent(Data.InstanceTransformComponent[0],9));
-			PositionOnlyStreamElements.Add(AccessPositionStreamComponent(Data.InstanceTransformComponent[1],10));
-			PositionOnlyStreamElements.Add(AccessPositionStreamComponent(Data.InstanceTransformComponent[2],11));
-		}
-		InitPositionDeclaration(PositionOnlyStreamElements);
+			FVertexDeclarationElementList StreamElements;
+			StreamElements.Add(AccessPositionStreamComponent(Data.PositionComponent, 0));
+
+			if (bAddNormal)
+				StreamElements.Add(AccessPositionStreamComponent(Data.TangentBasisComponents[2], 2));
+
+			if (bInstanced)
+			{
+				// toss in the instanced location stream
+				StreamElements.Add(AccessPositionStreamComponent(Data.InstanceOriginComponent, 8));
+				StreamElements.Add(AccessPositionStreamComponent(Data.InstanceTransformComponent[0], 9));
+				StreamElements.Add(AccessPositionStreamComponent(Data.InstanceTransformComponent[1], 10));
+				StreamElements.Add(AccessPositionStreamComponent(Data.InstanceTransformComponent[2], 11));
+			}
+
+			InitDeclaration(StreamElements, InputStreamType);
+		};
+		AddDeclaration(EVertexInputStreamType::PositionOnly, bInstanced, false);
+		AddDeclaration(EVertexInputStreamType::PositionAndNormalOnly, bInstanced, true);
 	}
 #endif
 
@@ -596,50 +646,50 @@ FVertexFactoryShaderParameters* FInstancedStaticMeshVertexFactory::ConstructShad
 	return ShaderFrequency == SF_Vertex ? new FInstancedStaticMeshVertexFactoryShaderParameters() : NULL;
 }
 
-IMPLEMENT_VERTEX_FACTORY_TYPE(FInstancedStaticMeshVertexFactory,"/Engine/Private/LocalVertexFactory.ush",true,true,true,true,true);
-IMPLEMENT_VERTEX_FACTORY_TYPE(FEmulatedInstancedStaticMeshVertexFactory,"/Engine/Private/LocalVertexFactory.ush",true,true,true,true,true);
+IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FInstancedStaticMeshVertexFactory,"/Engine/Private/LocalVertexFactory.ush",true,true,true,true,true,true,false);
+IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FEmulatedInstancedStaticMeshVertexFactory,"/Engine/Private/LocalVertexFactory.ush",true,true,true,true,true,true,false);
 
-void FInstancedStaticMeshRenderData::InitStaticMeshVertexFactories(
-		TIndirectArray<FInstancedStaticMeshVertexFactory>* VertexFactories,
-		FInstancedStaticMeshRenderData* InstancedRenderData,
-		UStaticMesh* Parent)
+void FInstancedStaticMeshRenderData::InitVertexFactories()
 {
 	const bool bInstanced = GRHISupportsInstancing;
 
-	for( int32 LODIndex=0;LODIndex<VertexFactories->Num(); LODIndex++ )
+	// Allocate the vertex factories for each LOD
+	for (int32 LODIndex = 0; LODIndex < LODModels.Num(); LODIndex++)
 	{
-		const FStaticMeshLODResources* RenderData = &InstancedRenderData->LODModels[LODIndex];
-						
-		FInstancedStaticMeshVertexFactory::FDataType Data;
-		// Assign to the vertex factory for this LOD.
-		FInstancedStaticMeshVertexFactory& VertexFactory = (*VertexFactories)[LODIndex];
+		VertexFactories.Add(bInstanced ? new FInstancedStaticMeshVertexFactory(FeatureLevel) : new FEmulatedInstancedStaticMeshVertexFactory(FeatureLevel));
+	}
 
-		RenderData->VertexBuffers.PositionVertexBuffer.BindPositionVertexBuffer(&VertexFactory, Data);
-		RenderData->VertexBuffers.StaticMeshVertexBuffer.BindTangentVertexBuffer(&VertexFactory, Data);
-		RenderData->VertexBuffers.StaticMeshVertexBuffer.BindPackedTexCoordVertexBuffer(&VertexFactory, Data);
-		if (Parent->LightMapCoordinateIndex < (int32)RenderData->VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords() && Parent->LightMapCoordinateIndex >= 0)
+	const int32 LightMapCoordinateIndex = Component->GetStaticMesh()->LightMapCoordinateIndex;
+	ENQUEUE_RENDER_COMMAND(InstancedStaticMeshRenderData_InitVertexFactories)(
+		[this, LightMapCoordinateIndex, bInstanced](FRHICommandListImmediate& RHICmdList)
+	{
+		for (int32 LODIndex = 0; LODIndex < VertexFactories.Num(); LODIndex++)
 		{
-			RenderData->VertexBuffers.StaticMeshVertexBuffer.BindLightMapVertexBuffer(&VertexFactory, Data, Parent->LightMapCoordinateIndex);
-		}
-		RenderData->VertexBuffers.ColorVertexBuffer.BindColorVertexBuffer(&VertexFactory, Data);
+			const FStaticMeshLODResources* RenderData = &LODModels[LODIndex];
 
-		if (bInstanced && InstancedRenderData->PerInstanceRenderData.IsValid())
-		{
-			const FStaticMeshInstanceBuffer& InstanceBuffer = InstancedRenderData->PerInstanceRenderData->InstanceBuffer;
-			InstanceBuffer.BindInstanceVertexBuffer(&VertexFactory, Data);
-		}
+			FInstancedStaticMeshVertexFactory::FDataType Data;
+			// Assign to the vertex factory for this LOD.
+			FInstancedStaticMeshVertexFactory& VertexFactory = VertexFactories[LODIndex];
 
-		VertexFactory.SetData(Data);
+			RenderData->VertexBuffers.PositionVertexBuffer.BindPositionVertexBuffer(&VertexFactory, Data);
+			RenderData->VertexBuffers.StaticMeshVertexBuffer.BindTangentVertexBuffer(&VertexFactory, Data);
+			RenderData->VertexBuffers.StaticMeshVertexBuffer.BindPackedTexCoordVertexBuffer(&VertexFactory, Data);
+			if (LightMapCoordinateIndex < (int32)RenderData->VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords() && LightMapCoordinateIndex >= 0)
+			{
+				RenderData->VertexBuffers.StaticMeshVertexBuffer.BindLightMapVertexBuffer(&VertexFactory, Data, LightMapCoordinateIndex);
+			}
+			RenderData->VertexBuffers.ColorVertexBuffer.BindColorVertexBuffer(&VertexFactory, Data);
 
-		if (VertexFactory.IsInitialized())
-		{
-			VertexFactory.UpdateRHI();
-		}
-		else
-		{
+			if (bInstanced)
+			{
+				check(PerInstanceRenderData);
+				PerInstanceRenderData->InstanceBuffer.BindInstanceVertexBuffer(&VertexFactory, Data);
+			}
+
+			VertexFactory.SetData(Data);
 			VertexFactory.InitResource();
 		}
-	}
+	});
 }
 
 FPerInstanceRenderData::FPerInstanceRenderData(FStaticMeshInstanceData& Other, ERHIFeatureLevel::Type InFeaureLevel, bool InRequireCPUAccess)
@@ -783,6 +833,28 @@ int32 FInstancedStaticMeshSceneProxy::GetNumMeshBatches() const
 	}
 }
 
+int32 FInstancedStaticMeshSceneProxy::CollectOccluderElements(FOccluderElementsCollector& Collector) const
+{
+	if (OccluderData)
+	{	
+		FStaticMeshInstanceBuffer& InstanceBuffer = InstancedRenderData.PerInstanceRenderData->InstanceBuffer;
+		const int32 NumInstances = InstanceBuffer.GetNumInstances();
+		
+		for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; ++InstanceIndex)
+		{
+			FMatrix InstanceToLocal;
+			InstanceBuffer.GetInstanceTransform(InstanceIndex, InstanceToLocal);	
+			InstanceToLocal.M[3][3] = 1.0f;
+						
+			Collector.AddElements(OccluderData->VerticesSP, OccluderData->IndicesSP, InstanceToLocal * GetLocalToWorld());
+		}
+		
+		return NumInstances;
+	}
+	
+	return 0;
+}
+
 void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* InComponent)
 {
 #if WITH_EDITOR
@@ -920,9 +992,9 @@ bool FInstancedStaticMeshSceneProxy::GetWireframeMeshElement(int32 LODIndex, int
 	return false;
 }
 
-void FInstancedStaticMeshSceneProxy::GetDistancefieldAtlasData(FBox& LocalVolumeBounds, FVector2D& OutDistanceMinMax, FIntVector& OutBlockMin, FIntVector& OutBlockSize, bool& bOutBuiltAsIfTwoSided, bool& bMeshWasPlane, float& SelfShadowBias, TArray<FMatrix>& ObjectLocalToWorldTransforms) const
+void FInstancedStaticMeshSceneProxy::GetDistancefieldAtlasData(FBox& LocalVolumeBounds, FVector2D& OutDistanceMinMax, FIntVector& OutBlockMin, FIntVector& OutBlockSize, bool& bOutBuiltAsIfTwoSided, bool& bMeshWasPlane, float& SelfShadowBias, TArray<FMatrix>& ObjectLocalToWorldTransforms, bool& bOutThrottled) const
 {
-	FStaticMeshSceneProxy::GetDistancefieldAtlasData(LocalVolumeBounds, OutDistanceMinMax, OutBlockMin, OutBlockSize, bOutBuiltAsIfTwoSided, bMeshWasPlane, SelfShadowBias, ObjectLocalToWorldTransforms);
+	FStaticMeshSceneProxy::GetDistancefieldAtlasData(LocalVolumeBounds, OutDistanceMinMax, OutBlockMin, OutBlockSize, bOutBuiltAsIfTwoSided, bMeshWasPlane, SelfShadowBias, ObjectLocalToWorldTransforms, bOutThrottled);
 
 	ObjectLocalToWorldTransforms.Reset();
 
@@ -971,6 +1043,216 @@ HHitProxy* FInstancedStaticMeshSceneProxy::CreateHitProxies(UPrimitiveComponent*
 
 	return FStaticMeshSceneProxy::CreateHitProxies(Component, OutHitProxies);
 }
+
+#if RHI_RAYTRACING
+void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances)
+{
+	if (!CVarRayTracingRenderInstances.GetValueOnRenderThread())
+	{
+		return;
+	}
+
+	//#dxr_todo: select the appropriate LOD depending on Context.View
+	uint32 LOD = 0;
+	const int32 InstanceCount = InstancedRenderData.Component->PerInstanceSMData.Num();
+
+	if (InstanceCount == 0)
+	{
+		return;
+	}
+	//setup a 'template' for the instance first, so we aren't duplicating work
+	//#dxr_todo: when multiple LODs are used, template needs to be an array of templates, probably best initialized on-demand via a lamda
+	FRayTracingInstance RayTracingInstanceTemplate;
+	RayTracingInstanceTemplate.Geometry = &RenderData->LODResources[LOD].RayTracingGeometry;
+
+	//preallocate the worst-case to prevent an explosion of reallocs
+	//#dxr_todo: possibly track used instances and reserve based on previous behavior
+	RayTracingInstanceTemplate.InstanceTransforms.Reserve(InstanceCount);
+
+
+	int32 SectionCount = InstancedRenderData.LODModels[LOD].Sections.Num();
+
+	for (int32 SectionIdx = 0; SectionIdx < SectionCount; ++SectionIdx)
+	{
+		//#dxr_todo: so far we use the parent static mesh path to get material data
+		FMeshBatch MeshBatch;
+		FStaticMeshSceneProxy::GetMeshElement(LOD, 0, SectionIdx, 0, false, false, MeshBatch);
+
+		RayTracingInstanceTemplate.Materials.Add(MeshBatch);
+	}
+	RayTracingInstanceTemplate.BuildInstanceMaskAndFlags();
+
+	if (CVarRayTracingRenderInstancesCulling.GetValueOnRenderThread() > 0 && RayTracingCullClusterInstances.Num() > 0)
+	{
+		const float BVHCullRadius = CVarRayTracingInstancesCullClusterRadius.GetValueOnRenderThread();
+		const float BVHLowScaleThreshold = CVarRayTracingInstancesLowScaleThreshold.GetValueOnRenderThread();
+		const float BVHLowScaleRadius = CVarRayTracingInstancesLowScaleCullRadius.GetValueOnRenderThread();
+		const bool ApplyGeneralCulling = BVHCullRadius > 0.0f;
+		const bool ApplyLowScaleCulling = BVHLowScaleThreshold > 0.0f && BVHLowScaleRadius > 0.0f;
+		FMatrix ToWorld = InstancedRenderData.Component->GetComponentTransform().ToMatrixWithScale();
+
+		// Iterate over all culling clusters
+		for (int32 ClusterIdx = 0; ClusterIdx < RayTracingCullClusterBoundsMin.Num(); ++ClusterIdx)
+		{
+			FVector VClusterBBoxSize = RayTracingCullClusterBoundsMax[ClusterIdx] - RayTracingCullClusterBoundsMin[ClusterIdx];
+			FVector VClusterCenter = 0.5f * (RayTracingCullClusterBoundsMax[ClusterIdx] + RayTracingCullClusterBoundsMin[ClusterIdx]);
+			FVector VToClusterCenter = VClusterCenter - Context.ReferenceView->ViewLocation;
+			float ClusterRadius = 0.5f * VClusterBBoxSize.Size();
+			float DistToClusterCenter = VToClusterCenter.Size();
+
+			// Cull whole cluster if the bounding sphere is too far away
+			if ((DistToClusterCenter - ClusterRadius) > BVHCullRadius && ApplyGeneralCulling)
+			{
+				continue;
+			}
+
+			TDoubleLinkedList< uint32 >* InstanceList = RayTracingCullClusterInstances[ClusterIdx];
+
+			// Unroll instances in the current cluster into the array
+			for (TDoubleLinkedList<uint32>::TDoubleLinkedListNode* InstancePtr = InstanceList->GetHead(); InstancePtr != nullptr; InstancePtr = InstancePtr->GetNextNode())
+			{
+				const uint32 Instance = InstancePtr->GetValue();
+
+				if (InstancedRenderData.Component->PerInstanceSMData.IsValidIndex(Instance))
+				{
+					const FInstancedStaticMeshInstanceData& InstanceData = InstancedRenderData.Component->PerInstanceSMData[Instance];
+					FMatrix InstanceTransform = InstanceData.Transform * ToWorld;
+					FVector InstanceLocation = InstanceTransform.TransformPosition({ 0.0f,0.0f,0.0f });
+					FVector VToInstanceCenter = Context.ReferenceView->ViewLocation - InstanceLocation;
+					float   DistanceToInstanceCenter = VToInstanceCenter.Size();
+
+					FVector VMin, VMax, VDiag;
+					InstancedRenderData.Component->GetLocalBounds(VMin, VMax);
+					VMin = InstanceTransform.TransformPosition(VMin);
+					VMax = InstanceTransform.TransformPosition(VMax);
+					VDiag = VMax - VMin;
+
+					float InstanceRadius = 0.5f * VDiag.Size();
+					float DistanceToInstanceStart = DistanceToInstanceCenter - InstanceRadius;
+
+					// Cull instance based on distance
+					if (DistanceToInstanceStart > BVHCullRadius && ApplyGeneralCulling)
+						continue;
+
+					// Special culling for small scale objects
+					if (InstanceRadius < BVHLowScaleThreshold && ApplyLowScaleCulling)
+					{
+						if (DistanceToInstanceStart > BVHLowScaleRadius)
+							continue;
+					}
+
+					RayTracingInstanceTemplate.InstanceTransforms.Add(InstanceTransform);
+				}
+			}
+		}
+	}
+	else
+	{
+		// No culling
+		for (int32 InstanceIdx = 0; InstanceIdx < InstanceCount; ++InstanceIdx)
+		{
+			if (InstancedRenderData.Component->PerInstanceSMData.IsValidIndex(InstanceIdx))
+			{
+				const FInstancedStaticMeshInstanceData& InstanceData = InstancedRenderData.Component->PerInstanceSMData[InstanceIdx];
+				FMatrix ComponentLocalToWorld = InstancedRenderData.Component->GetComponentTransform().ToMatrixWithScale();
+				FMatrix InstanceTransform = InstanceData.Transform * ComponentLocalToWorld;
+
+				RayTracingInstanceTemplate.InstanceTransforms.Add(InstanceTransform);
+			}
+		}
+	}
+
+	OutRayTracingInstances.Add(RayTracingInstanceTemplate);
+}
+
+void FInstancedStaticMeshSceneProxy::SetupRayTracingCullClusters()
+{
+	//#dxr_todo: select the appropriate LOD depending on Context.View
+	int32 LOD = 0;
+	if (RenderData->LODResources.Num() > LOD && RenderData->LODResources[LOD].RayTracingGeometry.IsInitialized())
+	{
+		const float MaxClusterRadiusMultiplier = CVarRayTracingInstancesCullClusterMaxRadiusMultiplier.GetValueOnAnyThread();
+		const int32 Batches = GetNumMeshBatches();
+		const int32 InstanceCount = InstancedRenderData.Component->PerInstanceSMData.Num();
+		int32 ClusterIndex = 0;
+		FMatrix ComponentLocalToWorld = InstancedRenderData.Component->GetComponentTransform().ToMatrixWithScale();
+		float MaxInstanceRadius = 0.0f;
+
+		// Init first cluster
+		RayTracingCullClusterInstances.Add(new TDoubleLinkedList< uint32>());
+		RayTracingCullClusterBoundsMin.Add(FVector(MAX_FLT, MAX_FLT, MAX_FLT));
+		RayTracingCullClusterBoundsMax.Add(FVector(-MAX_FLT, -MAX_FLT, -MAX_FLT));
+
+		// Traverse instances to find maximum rarius
+		for (int32 Instance = 0; Instance < InstanceCount; ++Instance)
+		{
+			if (InstancedRenderData.Component->PerInstanceSMData.IsValidIndex(Instance))
+			{
+				const FInstancedStaticMeshInstanceData& InstanceData = InstancedRenderData.Component->PerInstanceSMData[Instance];
+				FMatrix InstanceTransform = InstanceData.Transform * ComponentLocalToWorld;
+				FVector VMin, VMax;
+
+				InstancedRenderData.Component->GetLocalBounds(VMin, VMax);
+				VMin = InstanceTransform.TransformPosition(VMin);
+				VMax = InstanceTransform.TransformPosition(VMax);
+
+				FVector VBBoxSize = VMax - VMin;
+
+				MaxInstanceRadius = FMath::Max(0.5f * VBBoxSize.Size(), MaxInstanceRadius);
+			}
+		}
+
+		float MaxClusterRadius = MaxInstanceRadius * MaxClusterRadiusMultiplier;
+
+		// Build clusters
+		for (int32 Instance = 0; Instance < InstanceCount; ++Instance)
+		{
+			if (InstancedRenderData.Component->PerInstanceSMData.IsValidIndex(Instance))
+			{
+				const FInstancedStaticMeshInstanceData& InstanceData = InstancedRenderData.Component->PerInstanceSMData[Instance];
+				FMatrix InstanceTransform = InstanceData.Transform * ComponentLocalToWorld;
+				FVector InstanceLocation = InstanceTransform.TransformPosition({ 0.0f,0.0f,0.0f });
+				FVector VMin = InstanceLocation - FVector(MaxInstanceRadius, MaxInstanceRadius, MaxInstanceRadius);
+				FVector VMax = InstanceLocation + FVector(MaxInstanceRadius, MaxInstanceRadius, MaxInstanceRadius);
+				bool bClusterFound = false;
+
+				// Try to find suitable cluster
+				for (int32 CandidateCluster = 0; CandidateCluster <= ClusterIndex; ++CandidateCluster)
+				{
+					// Build new candidate cluster bounds
+					FVector VCandidateMin = VMin.ComponentMin(RayTracingCullClusterBoundsMin[CandidateCluster]);
+					FVector VCandidateMax = VMax.ComponentMax(RayTracingCullClusterBoundsMax[CandidateCluster]);
+
+					FVector VCandidateBBoxSize = VCandidateMax - VCandidateMin;
+					float MaxCandidateRadius = 0.5f * VCandidateBBoxSize.Size();
+
+					// If new candidate is still small enough, update current cluster
+					if (MaxCandidateRadius <= MaxClusterRadius)
+					{
+						RayTracingCullClusterInstances[CandidateCluster]->AddTail(Instance);
+						RayTracingCullClusterBoundsMin[CandidateCluster] = VCandidateMin;
+						RayTracingCullClusterBoundsMax[CandidateCluster] = VCandidateMax;
+						bClusterFound = true;
+						break;
+					}
+				}
+
+				// if we couldn't add the instance to an existing cluster create a new one
+				if (!bClusterFound)
+				{
+					++ClusterIndex;
+					RayTracingCullClusterInstances.Add(new TDoubleLinkedList< uint32>());
+					RayTracingCullClusterInstances[ClusterIndex]->AddTail(Instance);
+					RayTracingCullClusterBoundsMin.Add(VMin);
+					RayTracingCullClusterBoundsMax.Add(VMax);
+				}
+			}
+		}
+	}
+}
+
+#endif
+
 
 /*-----------------------------------------------------------------------------
 	UInstancedStaticMeshComponent
@@ -1152,7 +1434,7 @@ void UInstancedStaticMeshComponent::BuildRenderData(FStaticMeshInstanceData& Out
 	const FMeshMapBuildData* MeshMapBuildData = nullptr;
 	if (LODData.Num() > 0)
 	{
-		MeshMapBuildData = GetMeshMapBuildData(LODData[0]);
+		MeshMapBuildData = GetMeshMapBuildData(LODData[0], false);
 	}
 	
 	check(InstancingRandomSeed != 0);
@@ -1461,6 +1743,9 @@ void UInstancedStaticMeshComponent::GetStaticLightingInfo(FStaticLightingPrimiti
 
 void UInstancedStaticMeshComponent::ApplyLightMapping(FStaticLightingTextureMapping_InstancedStaticMesh* InMapping, ULevel* LightingScenario)
 {
+	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTexturedLightmaps"));
+	const bool bUseVirtualTextures = (CVar->GetValueOnAnyThread() != 0) && UseVirtualTexturing(GMaxRHIFeatureLevel);
+
 	NumPendingLightmaps--;
 
 	if (NumPendingLightmaps == 0)
@@ -1502,11 +1787,18 @@ void UInstancedStaticMeshComponent::ApplyLightMapping(FStaticLightingTextureMapp
 		MeshBuildData.PerInstanceLightmapData.AddZeroed(AllQuantizedData.Num());
 
 		// Create a light-map for the primitive.
+		// When using VT, shadow map data is included with lightmap allocation
 		const ELightMapPaddingType PaddingType = GAllowLightmapPadding ? LMPT_NormalPadding : LMPT_NoPadding;
-		TRefCountPtr<FLightMap2D> NewLightMap = FLightMap2D::AllocateInstancedLightMap(Registry, this, MoveTemp(AllQuantizedData), Registry, LODData[0].MapBuildDataId, Bounds, PaddingType, LMF_Streamed);
+		TArray<TMap<ULightComponent*, TUniquePtr<FShadowMapData2D>>> EmptyShadowMapData;
+		TRefCountPtr<FLightMap2D> NewLightMap = FLightMap2D::AllocateInstancedLightMap(Registry, this,
+			MoveTemp(AllQuantizedData),
+			bUseVirtualTextures ? MoveTemp(AllShadowMapData) : MoveTemp(EmptyShadowMapData),
+			Registry, LODData[0].MapBuildDataId, Bounds, PaddingType, LMF_Streamed);
 
-		// Create a shadow-map for the primitive.
-		TRefCountPtr<FShadowMap2D> NewShadowMap = bNeedsShadowMap ? FShadowMap2D::AllocateInstancedShadowMap(Registry, this, MoveTemp(AllShadowMapData), Registry, LODData[0].MapBuildDataId, Bounds, PaddingType, SMF_Streamed) : nullptr;
+		// Create a shadow-map for the primitive, only needed when not using VT
+		TRefCountPtr<FShadowMap2D> NewShadowMap = (bNeedsShadowMap && !bUseVirtualTextures)
+			? FShadowMap2D::AllocateInstancedShadowMap(Registry, this, MoveTemp(AllShadowMapData), Registry, LODData[0].MapBuildDataId, Bounds, PaddingType, SMF_Streamed)
+			: nullptr;
 
 		MeshBuildData.LightMap = NewLightMap;
 		MeshBuildData.ShadowMap = NewShadowMap;
@@ -1661,6 +1953,7 @@ void UInstancedStaticMeshComponent::SerializeRenderData(FArchive& Ar)
 					FStaticMeshInstanceData RenderInstanceData = FStaticMeshInstanceData(GVertexElementTypeSupport.IsSupported(VET_Half2));
 					BuildRenderData(RenderInstanceData, PerInstanceRenderData->HitProxies);
 					PerInstanceRenderData->UpdateFromPreallocatedData(RenderInstanceData);
+					MarkRenderStateDirty();
 				}
 			}
 		
@@ -1831,11 +2124,22 @@ bool UInstancedStaticMeshComponent::RemoveInstanceInternal(int32 InstanceIndex, 
 #endif
 
 	// update the physics state
-	if (bPhysicsStateCreated)
+	if (bPhysicsStateCreated && InstanceBodies.IsValidIndex(InstanceIndex))
 	{
-		// TODO: it may be possible to instead just update the BodyInstanceIndex for all bodies after the removed instance. 
-		ClearAllInstanceBodies();
-		CreateAllInstanceBodies();
+		if (FBodyInstance*& InstanceBody = InstanceBodies[InstanceIndex])
+		{
+			InstanceBody->TermBody();
+			delete InstanceBody;
+			InstanceBody = nullptr;
+
+			InstanceBodies.RemoveAt(InstanceIndex);
+
+			// Re-target instance indices for shifting of array.
+			for (int32 i = InstanceIndex; i < InstanceBodies.Num(); ++i)
+			{
+				InstanceBodies[i]->InstanceBodyIndex = i;
+			}
+		}
 	}
 
 	// Force recreation of the render data
@@ -2312,7 +2616,8 @@ void UInstancedStaticMeshComponent::OnComponentCreated()
 	{
 		// if we are pasting/duplicating this component, it may be created with some instances already in place
 		// in this case, need to ensure that the instance render data is properly created
-		const bool InitializeFromCurrentData = PerInstanceSMData.Num() > 0;
+		// We only need to only init from current data if the reorder table == per instance data, but only for the HISM Component, in the case of ISM, the reorder table is never used.
+		const bool InitializeFromCurrentData = PerInstanceSMData.Num() > 0 && (InstanceReorderTable.Num() == PerInstanceSMData.Num() || InstanceReorderTable.Num() == 0);
 		InitPerInstanceRenderData(InitializeFromCurrentData);
 	}
 }
@@ -2338,14 +2643,16 @@ void UInstancedStaticMeshComponent::OnPostLoadPerInstanceData()
 
 	if (PerInstanceRenderData.IsValid())
 	{
-		AActor* Owner = GetOwner();
-		ULevel* OwnerLevel = Owner->GetLevel();
-		UWorld* OwnerWorld = OwnerLevel ? OwnerLevel->OwningWorld : nullptr;
-
-		if (OwnerWorld && OwnerWorld->GetActiveLightingScenario() != nullptr && OwnerWorld->GetActiveLightingScenario() != OwnerLevel)
+		if (AActor* Owner = GetOwner())
 		{
-			//update the instance data if the lighting scenario isn't the owner level
-			InstanceUpdateCmdBuffer.Edit();
+			ULevel* OwnerLevel = Owner->GetLevel();
+			UWorld* OwnerWorld = OwnerLevel ? OwnerLevel->OwningWorld : nullptr;
+
+			if (OwnerWorld && OwnerWorld->GetActiveLightingScenario() != nullptr && OwnerWorld->GetActiveLightingScenario() != OwnerLevel)
+			{
+				//update the instance data if the lighting scenario isn't the owner level
+				InstanceUpdateCmdBuffer.Edit();
+			}
 		}
 	}
 }
@@ -2398,6 +2705,7 @@ void UInstancedStaticMeshComponent::GetNavigationData(FNavigationRelevantData& D
 		UNavCollisionBase* NavCollision = GetStaticMesh()->NavCollision;
 		if (NavCollision->IsDynamicObstacle())
 		{
+			Data.Modifiers.MarkAsPerInstanceModifier();
 			NavCollision->GetNavigationModifier(Data.Modifiers, FTransform::Identity);
 
 			// Hook per instance transform delegate
@@ -2611,7 +2919,7 @@ void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings
 	const class FSceneInterface* Scene,
 	const FSceneView* View,
 	const FMeshMaterialShader* Shader,
-	bool bShaderRequiresPositionOnlyStream,
+	const EVertexInputStreamType InputStreamType,
 	ERHIFeatureLevel::Type FeatureLevel,
 	const FVertexFactory* VertexFactory,
 	const FMeshBatchElement& BatchElement,
@@ -2619,25 +2927,45 @@ void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings
 	FVertexInputStreamArray& VertexStreams
 	) const
 {
+	const bool bInstanced = GRHISupportsInstancing;
+
 	// Decode VertexFactoryUserData as VertexFactoryUniformBuffer
-	FUniformBufferRHIParamRef VertexFactoryUniformBuffer = static_cast<FUniformBufferRHIParamRef>(BatchElement.VertexFactoryUserData);
-	FLocalVertexFactoryShaderParametersBase::GetElementShaderBindingsBase(Scene, View, Shader, bShaderRequiresPositionOnlyStream, FeatureLevel, VertexFactory, BatchElement, VertexFactoryUniformBuffer, ShaderBindings, VertexStreams);
+	FRHIUniformBuffer* VertexFactoryUniformBuffer = static_cast<FRHIUniformBuffer*>(BatchElement.VertexFactoryUserData);
+	FLocalVertexFactoryShaderParametersBase::GetElementShaderBindingsBase(Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, VertexFactoryUniformBuffer, ShaderBindings, VertexStreams);
 
 	const FInstancingUserData* InstancingUserData = (const FInstancingUserData*)BatchElement.UserData;
 	const auto* InstancedVertexFactory = static_cast<const FInstancedStaticMeshVertexFactory*>(VertexFactory);
 	const int32 InstanceOffsetValue = BatchElement.UserIndex;
 
-	if (InstancedVertexFactory->SupportsManualVertexFetch(FeatureLevel))
+	if (bInstanced)
 	{
-		ShaderBindings.Add(VertexFetch_InstanceOriginBufferParameter, InstancedVertexFactory->GetInstanceOriginSRV());
-		ShaderBindings.Add(VertexFetch_InstanceTransformBufferParameter, InstancedVertexFactory->GetInstanceTransformSRV());
-		ShaderBindings.Add(VertexFetch_InstanceLightmapBufferParameter, InstancedVertexFactory->GetInstanceLightmapSRV());
-		ShaderBindings.Add(InstanceOffset, InstanceOffsetValue);
-	}
+		if (InstancedVertexFactory->SupportsManualVertexFetch(FeatureLevel))
+		{
+			ShaderBindings.Add(VertexFetch_InstanceOriginBufferParameter, InstancedVertexFactory->GetInstanceOriginSRV());
+			ShaderBindings.Add(VertexFetch_InstanceTransformBufferParameter, InstancedVertexFactory->GetInstanceTransformSRV());
+			ShaderBindings.Add(VertexFetch_InstanceLightmapBufferParameter, InstancedVertexFactory->GetInstanceLightmapSRV());
+			ShaderBindings.Add(InstanceOffset, InstanceOffsetValue);
+		}
 
-	if (GRHISupportsInstancing && InstanceOffsetValue > 0 && VertexStreams.Num() > 0)
+		if (InstanceOffsetValue > 0 && VertexStreams.Num() > 0)
+		{
+			VertexFactory->OffsetInstanceStreams(InstanceOffsetValue, InputStreamType, VertexStreams);
+		}
+	}
+	else if (CPUInstanceOrigin.IsBound())
 	{
-		VertexFactory->OffsetInstanceStreams(InstanceOffsetValue, bShaderRequiresPositionOnlyStream, VertexStreams);
+		const float ShortScale = 1.0f / 32767.0f;
+		auto* InstancingData = (const FInstancingUserData*)BatchElement.UserData;
+		check(InstancingData);
+
+		FVector4 InstanceTransform[3];
+		FVector4 InstanceLightmapAndShadowMapUVBias;
+		FVector4 InstanceOrigin;
+		InstancingData->RenderData->PerInstanceRenderData->InstanceBuffer.GetInstanceShaderValues(BatchElement.UserIndex, InstanceTransform, InstanceLightmapAndShadowMapUVBias, InstanceOrigin);
+
+		ShaderBindings.Add(CPUInstanceOrigin, InstanceOrigin);
+		ShaderBindings.Add(CPUInstanceTransform, InstanceTransform);
+		ShaderBindings.Add(CPUInstanceLightmapAndShadowMapBias, InstanceLightmapAndShadowMapUVBias);
 	}
 
 	if( InstancingWorldViewOriginOneParameter.IsBound() )
@@ -2783,25 +3111,5 @@ void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings
 
 		ShaderBindings.Add(InstancingFadeOutParamsParameter, InstancingFadeOutParams);
 
-	}
-
-	const bool bInstanced = GRHISupportsInstancing;
-	if (!bInstanced)
-	{
-		if (CPUInstanceOrigin.IsBound())
-		{
-			const float ShortScale = 1.0f / 32767.0f;
-			auto* InstancingData = (const FInstancingUserData*)BatchElement.UserData;
-			check(InstancingData);
-
-			FVector4 InstanceTransform[3];
-			FVector4 InstanceLightmapAndShadowMapUVBias;
-			FVector4 InstanceOrigin;
-			InstancingData->RenderData->PerInstanceRenderData->InstanceBuffer.GetInstanceShaderValues(BatchElement.UserIndex, InstanceTransform, InstanceLightmapAndShadowMapUVBias, InstanceOrigin);
-
-			ShaderBindings.Add(CPUInstanceOrigin, InstanceOrigin);
-			ShaderBindings.Add(CPUInstanceTransform, InstanceTransform);
-			ShaderBindings.Add(CPUInstanceLightmapAndShadowMapBias, InstanceLightmapAndShadowMapUVBias);
-		}
 	}
 }

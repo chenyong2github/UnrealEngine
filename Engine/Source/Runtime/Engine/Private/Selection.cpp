@@ -79,7 +79,7 @@ void USelection::Deselect(UObject* InObject)
 	SelectionAnnotation->Clear(InObject);
 
 	// Remove from selected list.
-	SelectedObjects.Remove( InObject );
+	SelectedObjects.RemoveSingle( InObject );
 
 	if( !IsBatchSelecting() )
 	{

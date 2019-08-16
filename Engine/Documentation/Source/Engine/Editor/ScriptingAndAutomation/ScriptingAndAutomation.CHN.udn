@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4284468
+﻿INTSourceChangelist:6536732
 Availability: Public
 Crumbs: 
 Title: 编辑器的脚本与自动化
@@ -6,8 +6,10 @@ Description: 介绍使用蓝图及Python对虚幻编辑器进行程序化控制�
 type: landing
 Version: 4.20
 Parent: Engine/Editor
-Order: 1
-Tags: Blueprints, Python, scripting
+Order: 13
+Tags: Blueprints
+Tags: Python
+Tags: scripting
 
 
 在虚幻编辑器用户界面中，可以使用各种各样的可视化工具来设置项目，设计和构建关卡，创建游戏性交互等等。但有些时候，当你确定了需要编辑器执行的操作后，可能想要通过编程方式，以可重复使用的脚本调用它的工具和命令。

@@ -58,10 +58,10 @@ public:
 		return KeyAreas;
 	}
 
-	void ClearKeyAreas();
-
-	/** Retrieve the key area editor switcher widget, creating it if it doesn't yet exist */
-	TSharedRef<SWidget> GetOrCreateKeyAreaEditorSwitcher();
+	/**
+	 * Remove any key areas that do not correspond to the current tree serial number of this node
+	 */
+	void RemoveStaleKeyAreas();
 
 public:
 
@@ -79,6 +79,8 @@ public:
 	virtual void CreateCurveModels(TArray<TUniquePtr<FCurveModel>>& OutCurveModels) override;
 
 private:
+
+	EVisibility GetKeyEditorVisibility() const;
 
 	/** All key areas on this node (one per section). */
 	TArray<TSharedRef<IKeyArea>> KeyAreas;

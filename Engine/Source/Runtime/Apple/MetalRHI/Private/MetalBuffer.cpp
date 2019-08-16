@@ -158,10 +158,10 @@ void FMetalBuffer::Release()
 
 void FMetalBuffer::SetOwner(class FMetalRHIBuffer* Owner)
 {
-    if (Heap)
-    {
-        Heap->SetOwner(ns::Range(GetOffset(), GetLength()), Owner);
-    }
+	if (Heap)
+	{
+		Heap->SetOwner(ns::Range(GetOffset(), GetLength()), Owner);
+	}
 }
 
 FMetalSubBufferHeap::FMetalSubBufferHeap(NSUInteger Size, NSUInteger Alignment, mtlpp::ResourceOptions Options, FCriticalSection& InPoolMutex)
@@ -221,39 +221,39 @@ FMetalSubBufferHeap::~FMetalSubBufferHeap()
 
 void FMetalSubBufferHeap::SetOwner(ns::Range const& Range, FMetalRHIBuffer* Owner)
 {
-    FScopeLock Lock(&PoolMutex);
-    for (uint32 i = 0; i < AllocRanges.Num(); i++)
-    {
-        if (AllocRanges[i].Range.Location == Range.Location)
-        {
-            check(AllocRanges[i].Range.Length == Range.Length);
-            check(AllocRanges[i].Owner == nullptr || Owner == nullptr);
-            AllocRanges[i].Owner = Owner;
-            break;
-        }
-    }
+	FScopeLock Lock(&PoolMutex);
+	for (uint32 i = 0; i < AllocRanges.Num(); i++)
+	{
+		if (AllocRanges[i].Range.Location == Range.Location)
+		{
+			check(AllocRanges[i].Range.Length == Range.Length);
+			check(AllocRanges[i].Owner == nullptr || Owner == nullptr);
+			AllocRanges[i].Owner = Owner;
+			break;
+		}
+	}
 }
 
 void FMetalSubBufferHeap::FreeRange(ns::Range const& Range)
 {
-    FPlatformAtomics::InterlockedDecrement(&OutstandingAllocs);
-    {
-        FScopeLock Lock(&PoolMutex);
-        for (uint32 i = 0; i < AllocRanges.Num(); i++)
-        {
-            if (AllocRanges[i].Range.Location == Range.Location)
-            {
-                check(AllocRanges[i].Range.Length == Range.Length);
-                AllocRanges.RemoveAt(i);
-                break;
-            }
-        }
-    }
+	FPlatformAtomics::InterlockedDecrement(&OutstandingAllocs);
+	{
+		FScopeLock Lock(&PoolMutex);
+		for (uint32 i = 0; i < AllocRanges.Num(); i++)
+		{
+			if (AllocRanges[i].Range.Location == Range.Location)
+			{
+				check(AllocRanges[i].Range.Length == Range.Length);
+				AllocRanges.RemoveAt(i);
+				break;
+			}
+		}
+	}
 	if (ParentHeap)
 	{
-        INC_MEMORY_STAT_BY(STAT_MetalBufferUnusedMemory, Range.Length);
-        INC_MEMORY_STAT_BY(STAT_MetalHeapBufferUnusedMemory, Range.Length);
-        DEC_MEMORY_STAT_BY(STAT_MetalHeapBufferMemory, Range.Length);
+		INC_MEMORY_STAT_BY(STAT_MetalBufferUnusedMemory, Range.Length);
+		INC_MEMORY_STAT_BY(STAT_MetalHeapBufferUnusedMemory, Range.Length);
+		DEC_MEMORY_STAT_BY(STAT_MetalHeapBufferMemory, Range.Length);
 	}
 	else
 	{
@@ -306,8 +306,8 @@ void FMetalSubBufferHeap::FreeRange(ns::Range const& Range)
 			
 			INC_MEMORY_STAT_BY(STAT_MetalBufferUnusedMemory, Range.Length);
 			INC_MEMORY_STAT_BY(STAT_MetalHeapBufferUnusedMemory, Range.Length);
-            DEC_MEMORY_STAT_BY(STAT_MetalHeapBufferMemory, Range.Length);
-
+			DEC_MEMORY_STAT_BY(STAT_MetalHeapBufferMemory, Range.Length);
+		
 #if METAL_DEBUG_OPTIONS
 			uint64 LostSize = GetSize() - UsedSize;
 			for (ns::Range const& FreeRange : FreeRanges)
@@ -394,7 +394,7 @@ NSUInteger FMetalSubBufferHeap::GetUsedSize() const
 
 int64 FMetalSubBufferHeap::NumCurrentAllocations() const
 {
-    return OutstandingAllocs;
+	return OutstandingAllocs;
 }
 
 void FMetalSubBufferHeap::SetLabel(const ns::String& label)
@@ -430,19 +430,19 @@ NSUInteger FMetalSubBufferHeap::MaxAvailableSize() const
 
 bool FMetalSubBufferHeap::CanAllocateSize(NSUInteger Size) const
 {
-    if (ParentHeap)
-    {
-        NSUInteger Storage = (NSUInteger(GetStorageMode()) << mtlpp::ResourceStorageModeShift);
-        NSUInteger Cache = (NSUInteger(GetCpuCacheMode()) << mtlpp::ResourceCpuCacheModeShift);
-        mtlpp::ResourceOptions Opt = mtlpp::ResourceOptions(Storage | Cache);
-        
-        NSUInteger Align = ParentHeap.GetDevice().HeapBufferSizeAndAlign(Size, Opt).Align;
-        return Size <= ParentHeap.MaxAvailableSizeWithAlignment(Align);
-    }
-    else
-    {
-        return Size <= MaxAvailableSize();
-    }
+	if (ParentHeap)
+	{
+		NSUInteger Storage = (NSUInteger(GetStorageMode()) << mtlpp::ResourceStorageModeShift);
+		NSUInteger Cache = (NSUInteger(GetCpuCacheMode()) << mtlpp::ResourceCpuCacheModeShift);
+		mtlpp::ResourceOptions Opt = mtlpp::ResourceOptions(Storage | Cache);
+		
+		NSUInteger Align = ParentHeap.GetDevice().HeapBufferSizeAndAlign(Size, Opt).Align;
+		return Size <= ParentHeap.MaxAvailableSizeWithAlignment(Align);
+	}
+	else
+	{
+		return Size <= MaxAvailableSize();
+	}
 }
 
 FMetalBuffer FMetalSubBufferHeap::NewBuffer(NSUInteger length)
@@ -460,9 +460,9 @@ FMetalBuffer FMetalSubBufferHeap::NewBuffer(NSUInteger length)
 #if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
 		MetalLLM::LogAllocBuffer(GetMetalDeviceContext().GetDevice(), Result);
 #endif
-        DEC_MEMORY_STAT_BY(STAT_MetalBufferUnusedMemory, Result.GetLength());
-        DEC_MEMORY_STAT_BY(STAT_MetalHeapBufferUnusedMemory, Result.GetLength());
-        INC_MEMORY_STAT_BY(STAT_MetalHeapBufferMemory, Result.GetLength());
+		DEC_MEMORY_STAT_BY(STAT_MetalBufferUnusedMemory, Result.GetLength());
+		DEC_MEMORY_STAT_BY(STAT_MetalHeapBufferUnusedMemory, Result.GetLength());
+		INC_MEMORY_STAT_BY(STAT_MetalHeapBufferMemory, Result.GetLength());
 	}
 	else
 	{
@@ -482,12 +482,12 @@ FMetalBuffer FMetalSubBufferHeap::NewBuffer(NSUInteger length)
 					
 					DEC_MEMORY_STAT_BY(STAT_MetalBufferUnusedMemory, Range.Length);
 					DEC_MEMORY_STAT_BY(STAT_MetalHeapBufferUnusedMemory, Range.Length);
-                    INC_MEMORY_STAT_BY(STAT_MetalHeapBufferMemory, Range.Length);
-
+					INC_MEMORY_STAT_BY(STAT_MetalHeapBufferMemory, Range.Length);
+				
 					if (Range.Length > Size)
 					{
 						ns::Range Split = ns::Range(Range.Location + Size, Range.Length - Size);
-                        FPlatformAtomics::InterlockedIncrement(&OutstandingAllocs);
+						FPlatformAtomics::InterlockedIncrement(&OutstandingAllocs);
 						FreeRange(Split);
 						
 						Range.Length = Size;
@@ -503,7 +503,7 @@ FMetalBuffer FMetalSubBufferHeap::NewBuffer(NSUInteger length)
 #endif
 					
 					Result = FMetalBuffer(MTLPP_VALIDATE(mtlpp::Buffer, ParentBuffer, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, NewBuffer(Range)), this);
-                    
+				
                     Allocation Alloc;
                     Alloc.Range = Range;
                     Alloc.Resource = Result.GetPtr();
@@ -515,7 +515,7 @@ FMetalBuffer FMetalSubBufferHeap::NewBuffer(NSUInteger length)
 			}
 		}
 	}
-    FPlatformAtomics::InterlockedIncrement(&OutstandingAllocs);
+	FPlatformAtomics::InterlockedIncrement(&OutstandingAllocs);
 	check(Result && Result.GetPtr());
 	return Result;
 }
@@ -553,13 +553,13 @@ FMetalSubBufferLinear::FMetalSubBufferLinear(NSUInteger Size, NSUInteger Alignme
 	MetalLLM::LogAllocBuffer(GetMetalDeviceContext().GetDevice(), ParentBuffer);
 #endif
 	INC_MEMORY_STAT_BY(STAT_MetalBufferUnusedMemory, FullSize);
-    INC_MEMORY_STAT_BY(STAT_MetalLinearBufferUnusedMemory, FullSize);
+	INC_MEMORY_STAT_BY(STAT_MetalLinearBufferUnusedMemory, FullSize);
 }
 
 FMetalSubBufferLinear::~FMetalSubBufferLinear()
 {
 	DEC_MEMORY_STAT_BY(STAT_MetalBufferUnusedMemory, ParentBuffer.GetLength());
-    DEC_MEMORY_STAT_BY(STAT_MetalLinearBufferUnusedMemory, ParentBuffer.GetLength());
+	DEC_MEMORY_STAT_BY(STAT_MetalLinearBufferUnusedMemory, ParentBuffer.GetLength());
 }
 
 void FMetalSubBufferLinear::FreeRange(ns::Range const& Range)
@@ -577,8 +577,8 @@ void FMetalSubBufferLinear::FreeRange(ns::Range const& Range)
 	{
 		FreedSize += Range.Length;
 		INC_MEMORY_STAT_BY(STAT_MetalBufferUnusedMemory, Range.Length);
-        INC_MEMORY_STAT_BY(STAT_MetalLinearBufferUnusedMemory, Range.Length);
-        DEC_MEMORY_STAT_BY(STAT_MetalLinearBufferMemory, Range.Length);
+		INC_MEMORY_STAT_BY(STAT_MetalLinearBufferUnusedMemory, Range.Length);
+		DEC_MEMORY_STAT_BY(STAT_MetalLinearBufferMemory, Range.Length);
 		if (FreedSize == UsedSize)
 		{
 			UsedSize = 0;
@@ -649,8 +649,8 @@ FMetalBuffer FMetalSubBufferLinear::NewBuffer(NSUInteger length)
 	{
 		ns::Range Range(NewWriteHead, Size);
 		DEC_MEMORY_STAT_BY(STAT_MetalBufferUnusedMemory, Range.Length);
-        DEC_MEMORY_STAT_BY(STAT_MetalLinearBufferUnusedMemory, Range.Length);
-        INC_MEMORY_STAT_BY(STAT_MetalLinearBufferMemory, Range.Length);
+		DEC_MEMORY_STAT_BY(STAT_MetalLinearBufferUnusedMemory, Range.Length);
+		INC_MEMORY_STAT_BY(STAT_MetalLinearBufferMemory, Range.Length);
 		Result = FMetalBuffer(MTLPP_VALIDATE(mtlpp::Buffer, ParentBuffer, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, NewBuffer(Range)), this);
 		UsedSize += Size;
 		WriteHead = NewWriteHead + Size;
@@ -721,7 +721,7 @@ FMetalSubBufferMagazine::~FMetalSubBufferMagazine()
 	if (ParentHeap)
 	{
 		DEC_MEMORY_STAT_BY(STAT_MetalBufferUnusedMemory, ParentHeap.GetSize());
-        DEC_MEMORY_STAT_BY(STAT_MetalMagazineBufferUnusedMemory, ParentHeap.GetSize());
+		DEC_MEMORY_STAT_BY(STAT_MetalMagazineBufferUnusedMemory, ParentHeap.GetSize());
 	}
 	else
 	{
@@ -732,12 +732,12 @@ FMetalSubBufferMagazine::~FMetalSubBufferMagazine()
 
 void FMetalSubBufferMagazine::FreeRange(ns::Range const& Range)
 {
-    FPlatformAtomics::InterlockedDecrement(&OutstandingAllocs);
+	FPlatformAtomics::InterlockedDecrement(&OutstandingAllocs);
 	if (ParentHeap)
 	{
-        INC_MEMORY_STAT_BY(STAT_MetalBufferUnusedMemory, Range.Length);
-        INC_MEMORY_STAT_BY(STAT_MetalMagazineBufferUnusedMemory, Range.Length);
-        DEC_MEMORY_STAT_BY(STAT_MetalMagazineBufferMemory, Range.Length);
+		INC_MEMORY_STAT_BY(STAT_MetalBufferUnusedMemory, Range.Length);
+		INC_MEMORY_STAT_BY(STAT_MetalMagazineBufferUnusedMemory, Range.Length);
+		DEC_MEMORY_STAT_BY(STAT_MetalMagazineBufferMemory, Range.Length);
 	}
 	else
 	{
@@ -756,7 +756,7 @@ void FMetalSubBufferMagazine::FreeRange(ns::Range const& Range)
 		
 		INC_MEMORY_STAT_BY(STAT_MetalBufferUnusedMemory, Range.Length);
 		INC_MEMORY_STAT_BY(STAT_MetalMagazineBufferUnusedMemory, Range.Length);
-        DEC_MEMORY_STAT_BY(STAT_MetalMagazineBufferMemory, Range.Length);
+		DEC_MEMORY_STAT_BY(STAT_MetalMagazineBufferMemory, Range.Length);
 	}
 }
 
@@ -846,12 +846,12 @@ NSUInteger FMetalSubBufferMagazine::GetFreeSize() const
 
 int64 FMetalSubBufferMagazine::NumCurrentAllocations() const
 {
-    return OutstandingAllocs;
+	return OutstandingAllocs;
 }
 
 bool FMetalSubBufferMagazine::CanAllocateSize(NSUInteger Size) const
 {
-    return GetFreeSize() >= Size;
+	return GetFreeSize() >= Size;
 }
 
 void FMetalSubBufferMagazine::SetLabel(const ns::String& label)
@@ -868,7 +868,7 @@ void FMetalSubBufferMagazine::SetLabel(const ns::String& label)
 
 FMetalBuffer FMetalSubBufferMagazine::NewBuffer()
 {
-    NSUInteger Size = BlockSize;
+	NSUInteger Size = BlockSize;
 	FMetalBuffer Result;
 
 	if (ParentHeap)
@@ -881,9 +881,9 @@ FMetalBuffer FMetalSubBufferMagazine::NewBuffer()
 #if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
 		MetalLLM::LogAllocBuffer(GetMetalDeviceContext().GetDevice(), Result);
 #endif
-        DEC_MEMORY_STAT_BY(STAT_MetalBufferUnusedMemory, Result.GetLength());
-        DEC_MEMORY_STAT_BY(STAT_MetalMagazineBufferUnusedMemory, Result.GetLength());
-        INC_MEMORY_STAT_BY(STAT_MetalMagazineBufferMemory, Result.GetLength());
+		DEC_MEMORY_STAT_BY(STAT_MetalBufferUnusedMemory, Result.GetLength());
+		DEC_MEMORY_STAT_BY(STAT_MetalMagazineBufferUnusedMemory, Result.GetLength());
+		INC_MEMORY_STAT_BY(STAT_MetalMagazineBufferMemory, Result.GetLength());
 	}
 	else
 	{
@@ -904,7 +904,7 @@ FMetalBuffer FMetalSubBufferMagazine::NewBuffer()
 		}
 	}
 
-    FPlatformAtomics::InterlockedIncrement(&OutstandingAllocs);
+	FPlatformAtomics::InterlockedIncrement(&OutstandingAllocs);
 	check(Result && Result.GetPtr());
 	return Result;
 }
@@ -986,7 +986,7 @@ FMetalBuffer FMetalSubBufferRing::NewBuffer(NSUInteger Size, uint32 Alignment)
 	// Allocate on first use
 	if(!Buffer.IsValid())
 	{
-        Buffer = MakeShared<FMetalRingBufferRef, ESPMode::ThreadSafe>(GetMetalDeviceContext().GetResourceHeap().CreateBuffer(InitialSize, MinAlign, BUF_Dynamic, Options, true));
+		Buffer = MakeShared<FMetalRingBufferRef, ESPMode::ThreadSafe>(GetMetalDeviceContext().GetResourceHeap().CreateBuffer(InitialSize, MinAlign, BUF_Dynamic, Options, true));
 	}
 	
 	if(Buffer->LastRead <= WriteHead)
@@ -1005,7 +1005,7 @@ FMetalBuffer FMetalSubBufferRing::NewBuffer(NSUInteger Size, uint32 Alignment)
 		else if (Storage == mtlpp::StorageMode::Managed)
 		{
 			Submit();
-            Buffer = MakeShared<FMetalRingBufferRef, ESPMode::ThreadSafe>(GetMetalDeviceContext().GetResourceHeap().CreateBuffer(Buffer->Buffer.GetLength(), MinAlign, BUF_Dynamic, Options, true));
+			Buffer = MakeShared<FMetalRingBufferRef, ESPMode::ThreadSafe>(GetMetalDeviceContext().GetResourceHeap().CreateBuffer(Buffer->Buffer.GetLength(), MinAlign, BUF_Dynamic, Options, true));
 			WriteHead = 0;
 			CommitHead = 0;
 			SubmitHead = 0;
@@ -1026,7 +1026,7 @@ FMetalBuffer FMetalSubBufferRing::NewBuffer(NSUInteger Size, uint32 Alignment)
 		
 		Submit();
 		
-        Buffer = MakeShared<FMetalRingBufferRef, ESPMode::ThreadSafe>(GetMetalDeviceContext().GetResourceHeap().CreateBuffer(NewBufferSize, MinAlign, BUF_Dynamic, Options, true));
+		Buffer = MakeShared<FMetalRingBufferRef, ESPMode::ThreadSafe>(GetMetalDeviceContext().GetResourceHeap().CreateBuffer(NewBufferSize, MinAlign, BUF_Dynamic, Options, true));
 		WriteHead = 0;
 		CommitHead = 0;
 		SubmitHead = 0;
@@ -1063,8 +1063,8 @@ void FMetalSubBufferRing::Shrink()
 			
 			UE_LOG(LogMetal, Verbose, TEXT("Shrinking RingBuffer from %u to %u as max. usage is %u at frame %lld]"), (uint32)Buffer->Buffer.GetLength(), (uint32)ThreeQuarterSize, (uint32)FrameMax, GFrameNumberRenderThread);
 			
-            Buffer = MakeShared<FMetalRingBufferRef, ESPMode::ThreadSafe>(GetMetalDeviceContext().GetResourceHeap().CreateBuffer(ThreeQuarterSize, MinAlign, BUF_Dynamic, Options, true));
-
+			Buffer = MakeShared<FMetalRingBufferRef, ESPMode::ThreadSafe>(GetMetalDeviceContext().GetResourceHeap().CreateBuffer(ThreeQuarterSize, MinAlign, BUF_Dynamic, Options, true));
+			
 			WriteHead = 0;
 			CommitHead = 0;
 			SubmitHead = 0;
@@ -1206,7 +1206,7 @@ FMetalBuffer FMetalBufferPoolPolicyData::CreateResource(CreationArguments Args)
 
 FMetalBufferPoolPolicyData::CreationArguments FMetalBufferPoolPolicyData::GetCreationArguments(FMetalBuffer const& Resource)
 {
-    return FMetalBufferPoolPolicyData::CreationArguments(Resource.GetDevice(), Resource.GetLength(), 0, Resource.GetStorageMode());
+	return FMetalBufferPoolPolicyData::CreationArguments(Resource.GetDevice(), Resource.GetLength(), 0, Resource.GetStorageMode());
 }
 
 void FMetalBufferPoolPolicyData::FreeResource(FMetalBuffer& Resource)
@@ -1265,8 +1265,11 @@ FMetalTexture FMetalTexturePool::CreateTexture(mtlpp::Device Device, mtlpp::Text
 		Pool.Remove(Descriptor);
 		if (GMetalResourcePurgeInPool)
 		{
-        	Texture.SetPurgeableState(mtlpp::PurgeableState::NonVolatile);
-		}
+			if (@available(iOS 12.0, macOS 10.13, *))
+			{
+        		Texture.SetPurgeableState(mtlpp::PurgeableState::NonVolatile);
+			}
+        }
 	}
 	else
 	{
@@ -1294,9 +1297,12 @@ void FMetalTexturePool::ReleaseTexture(FMetalTexture& Texture)
 	Descriptor.usage = Texture.GetUsage();
 	Descriptor.freedFrame = GFrameNumberRenderThread;
 	
-	if (GMetalResourcePurgeInPool && Texture.SetPurgeableState(mtlpp::PurgeableState::KeepCurrent) == mtlpp::PurgeableState::NonVolatile)
+	if (@available(iOS 12.0, macOS 10.13, *))
 	{
-		Texture.SetPurgeableState(mtlpp::PurgeableState::Volatile);
+		if (GMetalResourcePurgeInPool && Texture.SetPurgeableState(mtlpp::PurgeableState::KeepCurrent) == mtlpp::PurgeableState::NonVolatile)
+		{
+			Texture.SetPurgeableState(mtlpp::PurgeableState::Volatile);
+		}
 	}
 	
 	FScopeLock Lock(&PoolMutex);
@@ -1318,12 +1324,18 @@ void FMetalTexturePool::Drain(bool const bForce)
 			{
 				It.RemoveCurrent();
 			}
-            else if (GMetalResourcePurgeInPool && (GFrameNumberRenderThread - It->Key.freedFrame) >= PurgeAfterNumFrames)
+            else
             {
-                It->Value.SetPurgeableState(mtlpp::PurgeableState::Empty);
+				if (GMetalResourcePurgeInPool && (GFrameNumberRenderThread - It->Key.freedFrame) >= PurgeAfterNumFrames)
+				{
+					if (@available(iOS 12.0, macOS 10.13, *))
+					{
+						It->Value.SetPurgeableState(mtlpp::PurgeableState::Empty);
+					}
+				}
             }
-		}
-	}
+        }
+    }
 }
 
 FMetalResourceHeap::FMetalResourceHeap(void)
@@ -1478,8 +1490,8 @@ FMetalBuffer FMetalResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, uin
 	static bool bSupportsBufferSubAllocation = FMetalCommandQueue::SupportsFeature(EMetalFeaturesBufferSubAllocation);
 	bForceUnique |= (!bSupportsBufferSubAllocation && !bSupportsHeaps);
 	
-    uint32 Usage = (Flags & BUF_Static) ? UsageStatic : UsageDynamic;
-    
+	uint32 Usage = (Flags & BUF_Static) ? UsageStatic : UsageDynamic;
+	
 	FMetalBuffer Buffer;
 	uint32 BlockSize = Align(Size, Alignment);
 	mtlpp::StorageMode StorageMode = (mtlpp::StorageMode)(((NSUInteger)Options & mtlpp::ResourceStorageModeMask) >> mtlpp::ResourceStorageModeShift);
@@ -1514,15 +1526,18 @@ FMetalBuffer FMetalResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, uin
 				 	return Found->NewBuffer(BlockSize);
 				 }
 				 else
-				{
+				 {
                     Buffer = ManagedBuffers.CreatePooledResource(FMetalPooledBufferArgs(Queue->GetDevice(), BlockSize, Flags, StorageMode));
-					if (GMetalResourcePurgeInPool)
+					if (@available(iOS 12.0, macOS 10.13, *))
 					{
-                    	Buffer.SetPurgeableState(mtlpp::PurgeableState::NonVolatile);
+						if (GMetalResourcePurgeInPool)
+						{
+							Buffer.SetPurgeableState(mtlpp::PurgeableState::NonVolatile);
+						}
 					}
 					DEC_MEMORY_STAT_BY(STAT_MetalBufferUnusedMemory, Buffer.GetLength());
 					DEC_MEMORY_STAT_BY(STAT_MetalPooledBufferUnusedMemory, Buffer.GetLength());
-                    INC_MEMORY_STAT_BY(STAT_MetalPooledBufferMemory, Buffer.GetLength());
+					INC_MEMORY_STAT_BY(STAT_MetalPooledBufferMemory, Buffer.GetLength());
 				}
 				break;
 			}
@@ -1539,12 +1554,12 @@ FMetalBuffer FMetalResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, uin
 					FScopeLock Lock(&Mutex);
 					
 					uint32 i = GetMagazineIndex(BlockSize);
-                    TArray<FMetalSubBufferMagazine*>& Heaps = SmallBuffers[Usage][Storage][i];
-
+					TArray<FMetalSubBufferMagazine*>& Heaps = SmallBuffers[Usage][Storage][i];
+					
 					FMetalSubBufferMagazine* Found = nullptr;
 					for (FMetalSubBufferMagazine* Heap : Heaps)
 					{
-                        if (Heap->CanAllocateSize(BlockSize))
+						if (Heap->CanAllocateSize(BlockSize))
 						{
 							Found = Heap;
 							break;
@@ -1554,7 +1569,7 @@ FMetalBuffer FMetalResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, uin
 					if (!Found)
 					{
 						Found = new FMetalSubBufferMagazine(MagazineAllocSizes[i], MagazineSizes[i], mtlpp::ResourceOptions((NSUInteger)Options & (mtlpp::ResourceStorageModeMask|mtlpp::ResourceHazardTrackingModeMask)));
-                        SmallBuffers[Usage][Storage][i].Add(Found);
+						SmallBuffers[Usage][Storage][i].Add(Found);
 					}
 					check(Found);
 					
@@ -1566,12 +1581,12 @@ FMetalBuffer FMetalResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, uin
 					FScopeLock Lock(&Mutex);
 					
 					uint32 i = GetHeapIndex(BlockSize);
-                    TArray<FMetalSubBufferHeap*>& Heaps = BufferHeaps[Usage][Storage][i];
-
+					TArray<FMetalSubBufferHeap*>& Heaps = BufferHeaps[Usage][Storage][i];
+					
 					FMetalSubBufferHeap* Found = nullptr;
 					for (FMetalSubBufferHeap* Heap : Heaps)
 					{
-                        if (Heap->CanAllocateSize(BlockSize))
+						if (Heap->CanAllocateSize(BlockSize))
 						{
 							Found = Heap;
 							break;
@@ -1580,9 +1595,9 @@ FMetalBuffer FMetalResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, uin
 					
 					if (!Found)
 					{
-                        uint32 MinAlign = PLATFORM_MAC ? 256 : 64;
-                        Found = new FMetalSubBufferHeap(HeapAllocSizes[i], MinAlign, mtlpp::ResourceOptions((NSUInteger)Options & (mtlpp::ResourceStorageModeMask|mtlpp::ResourceHazardTrackingModeMask)), Mutex);
-                        BufferHeaps[Usage][Storage][i].Add(Found);
+						uint32 MinAlign = PLATFORM_MAC ? 256 : 64;
+						Found = new FMetalSubBufferHeap(HeapAllocSizes[i], MinAlign, mtlpp::ResourceOptions((NSUInteger)Options & (mtlpp::ResourceStorageModeMask|mtlpp::ResourceHazardTrackingModeMask)), Mutex);
+						BufferHeaps[Usage][Storage][i].Add(Found);
 					}
 					check(Found);
 					
@@ -1595,11 +1610,14 @@ FMetalBuffer FMetalResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, uin
                     Buffer = Buffers[Storage].CreatePooledResource(FMetalPooledBufferArgs(Queue->GetDevice(), BlockSize, Flags, StorageMode));
 					if (GMetalResourcePurgeInPool)
 					{
-                    	Buffer.SetPurgeableState(mtlpp::PurgeableState::NonVolatile);
+						if (@available(iOS 12.0, macOS 10.13, *))
+						{
+                    		Buffer.SetPurgeableState(mtlpp::PurgeableState::NonVolatile);
+						}
 					}
 					DEC_MEMORY_STAT_BY(STAT_MetalBufferUnusedMemory, Buffer.GetLength());
 					DEC_MEMORY_STAT_BY(STAT_MetalPooledBufferUnusedMemory, Buffer.GetLength());
-                    INC_MEMORY_STAT_BY(STAT_MetalPooledBufferMemory, Buffer.GetLength());
+					INC_MEMORY_STAT_BY(STAT_MetalPooledBufferMemory, Buffer.GetLength());
 				}
 				break;
 			}
@@ -1617,7 +1635,7 @@ FMetalBuffer FMetalResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, uin
 #if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
 		MetalLLM::LogAllocBuffer(Queue->GetDevice(), Buffer);
 #endif
-        INC_MEMORY_STAT_BY(STAT_MetalDeviceBufferMemory, Buffer.GetLength());
+		INC_MEMORY_STAT_BY(STAT_MetalDeviceBufferMemory, Buffer.GetLength());
 	}
 	
 	if (GMetalBufferZeroFill && Buffer.GetStorageMode() != mtlpp::StorageMode::Private)
@@ -1640,10 +1658,13 @@ void FMetalResourceHeap::ReleaseBuffer(FMetalBuffer& Buffer)
 		INC_MEMORY_STAT_BY(STAT_MetalBufferUnusedMemory, Buffer.GetLength());
 		INC_MEMORY_STAT_BY(STAT_MetalPooledBufferUnusedMemory, Buffer.GetLength());
         DEC_MEMORY_STAT_BY(STAT_MetalPooledBufferMemory, Buffer.GetLength());
-
+		
 		if (GMetalResourcePurgeInPool)
 		{
-        	Buffer.SetPurgeableState(mtlpp::PurgeableState::Volatile);
+			if (@available(iOS 12.0, macOS 10.13, *))
+			{
+        		Buffer.SetPurgeableState(mtlpp::PurgeableState::Volatile);
+			}
 		}
         
 		switch (StorageMode)
@@ -1674,8 +1695,8 @@ void FMetalResourceHeap::ReleaseBuffer(FMetalBuffer& Buffer)
 	}
 	else
 	{
-        DEC_MEMORY_STAT_BY(STAT_MetalDeviceBufferMemory, Buffer.GetLength());
-        Buffer.Release();
+		DEC_MEMORY_STAT_BY(STAT_MetalDeviceBufferMemory, Buffer.GetLength());
+		Buffer.Release();
 	}
 }
 
@@ -1861,7 +1882,7 @@ uint32 FMetalResourceHeap::MagazineSizes[FMetalResourceHeap::NumMagazineSizes] =
 	1024,
 	2048,
 	4096,
-    8192,
+	8192,
 };
 
 uint32 FMetalResourceHeap::HeapSizes[FMetalResourceHeap::NumHeapSizes] = {
@@ -1879,7 +1900,7 @@ uint32 FMetalResourceHeap::MagazineAllocSizes[FMetalResourceHeap::NumMagazineSiz
 	16384,
 	16384,
 	16384,
-    32768,
+	32768,
 };
 
 uint32 FMetalResourceHeap::HeapAllocSizes[FMetalResourceHeap::NumHeapSizes] = {

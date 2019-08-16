@@ -1,12 +1,15 @@
-Availability: Public
+Availability:Public
 Title:Blueprint Communication Project
-Crumbs: %ROOT%, Engine, Engine/Blueprints
 Description:A sample project created using different methods of Blueprint Communications. 
+Type: quick start
+type: multi-step
 version: 4.9
+Parent: Engine/Editor/Blueprints Visual Scripting
 tags:Blueprints
 topic-image:BPCommTopic.png
+Order: 0
 
-
+[TOC (start:2 end:2)]
 
 In this **Blueprint Communication Project**, we will create a simple shooting gallery style game. Over the course of the project you will learn how to communicate information from the level to a character as well as how to pass character information to a HUD. At the end of the project, you will have something similar to below:
 
@@ -24,15 +27,567 @@ In this **Blueprint Communication Project**, we will create a simple shooting ga
 
 In this short game example, we are spawning a destructible Static Mesh from inside our Character Blueprint when the player presses a button. The location where the rock is spawned and launched from is randomly selected from spawn points we placed in the level, so we must communicate the spawn locations from the level to our Character Blueprint. 
 We are also taking information stored in our Character Blueprint (the amount of pulls or rocks left to launch, number of shots left per pull and the player's score) and passing that information to a HUD to display it onscreen. 
+After going through this tutorial, developers will know the following:
 
-## Steps
-	
-[DIR(output:"checkpoint" parent:"Engine\Blueprints\HowTo")]
+* Required asset and character setup
+* Spawning the shootable rock
+* Passing information from Level to Character
+* Destroying the Rock
+* Communicating with the HUD
+On this page, we will do a little bit of prep-work and set up the assets we will need to use later in this guide. We will create a destroyable Static Mesh, place down some spawn locations, and create a basic HUD to display information to the player about the state of the game. 
 
-[REGION:call_to_action]
-[Click to Start](Engine\Blueprints\HowTo/BPHT_1 "%Engine\Blueprints\HowTo\BPHT_1:description%")
+[REGION:note]
+For this guide, we have created a new project based off the **Blueprint First Person** template with **Starter Content** enabled. If you are unsure of how to create a project based off a template or how to enable Starter Content, please see the [](Engine/Basics/Projects/Browser) documentation for information on setting up a project. 
 [/REGION]
 
+With your project created and open, press **Ctrl+N** to create a **New Level** and choose **Default** when prompted at the pop-up window. Once you have a fresh level created, follow the sections below to begin setting up each of the required assets. 
+
+## 1. Required Asset Setup
+### Create a Destructible Static Mesh
+
+First we will create our shootable rock that will be destroyed when we hit it. 
+
+1.	In the **Content Browser**, open the **Content/StarterContent/Props** folder. 
+
+1.	In the **Props** folder, **Right-click** on the **SM_Rock** and choose **Create Destructible Mesh**. 
+
+	![](CreateMesh.png)
+
+1.	Open the **SM_Rock_DM** asset, then click the **Fracture Mesh** button from the toolbar. 
+
+	![](FractureMesh.png)
+
+	[REGION:note]
+	If you do not see the rock in the preview window, close the window and re-open it. 
+	[/REGION]
+
+1.	**Save** and close the **SM_Rock_DM** asset. 
+
+1.	**Right-click** on the **SM_Rock_DM** asset then choose **Asset Actions/Create Blueprint Using This...**. 
+
+	![](CreateBlueprint.png)
+
+	When prompted, give the Blueprint a name such as **BP_Rock**. 
+
+1.	When the Blueprint opens, click the **Add Component** button, then add a **Projectile Movement** component. 
+
+	![](AddProjectile.png)
+
+1.	Click the **Projectile Movement** component, then in the **Details** set the **Initial Speed**, **Max Speed**, and **Velocity** for **X** to **1500.00**. 
+
+	![](ProjectileDetails.png)
+
+1.	Select the **Destructible** component, then in the **Details** panel under **Collision** check the **Simulation Generates Hit Events** option. 
+
+	![](GenerateHits.png)
+
+1.	Click the **Compile** and **Save** buttons, then close the Blueprint. 
+
+### Place Spawn Points 
+
+Next, we will create some spawn points in our level to launch the shootable rock from. 
+
+1.	From the **Modes** menu, search for and add the **Target Point** to the level. 
+
+	![](AddTargetPoint.png)
+
+1.	Select the **TargetPoint** in the level, and set its **Transform** as shown below. 
+
+	![](TargetPointTransform.png)
+
+	**Location** for **X** is **7.0m, 0.0m, 0.0m** and **Rotation** is **0.0, 40.0, 0.0**. 
+
+	[REGION:note]
+	By entering 7.0m, it may convert the value to 700cm which is the equivalent value. Check out the [World Scale](Platforms/VR/DevelopVR/ContentSetup) section on the VR Best Practies page as it gives a breakdown of how Unreal Units are calculated as well as how to change the way measurements are displayed. 
+	[/REGION]
+
+1.	In the level, with the **Target Point** selected, press **Ctrl+W** to duplicate it and set its **Details** as shown below. 
+
+	![](Duplicate1.png)
+
+	This will move the spawn point to the left of the first spawn point. 
+
+1.	Press **Ctrl+W** to duplicate the **Target Point** again and set the new Target Point's **Details** as shown below. 
+
+	![](NewDuplicate.png)
+
+1.	Select the **PlayerStart** in the level, then press **E** to enter **Rotation** mode and rotate it so it faces the Target Points. 
+
+	![](TargetPointsAdded.png)
+
+	You will now have three spawn points across from the Player Start (controller icon and direction indicated by the Blue Arrow). 
 
 
+### Creating a HUD
 
+The final piece of setup requires us to create a basic HUD to communicate information to. 
+
+1.	In an empty space in the **Content Browser**, **Right-click** and select **User Interface/Widget Blueprint**. 
+
+	![](CreateWidgetBlueprint.png)
+
+	A **Widget Blueprint** is a type of Blueprint used with **Unreal Motion Graphics UI** used to create HUD elements. 
+
+	[REGION:note]
+	See [](Engine/UMG) for more information. 
+	[/REGION]
+
+1.	When prompted, call it **HUD** then open it up. 
+
+1.	In the **Palette** window under **Panel**, drag a **Vertical Box** onto the **CanvasPanel** in the **Hierarchy** window. 
+
+	![](AddVerticalBox.png)
+
+1.	Also under **Panel**, drag a **Horizontal Box** onto the **Vertical Box** in the **Hierarchy** window. 
+
+	![](AddHorizontalBox.png)
+
+1.	Under the **Common** section in the **Palette**, drag two **Text** widgets onto the **Horizontal Box** in the **Hierarchy** window.  
+
+	![](AddTextBlocks.png)
+
+1.	Select the **Vertical Box** in the **Hierarchy** window, then in the **Details** panel click **Anchors** and select the one shown below. 
+
+	![](AnchorSelected.png)
+
+	[REGION:note]
+	An **Anchor** will lock the UI element in the position specified regardless of screen size (see [](Engine/UMG/UserGuide/Anchors) for more information). 
+	[/REGION]
+
+1.	With the **Vertical Box** selected, move it over to the right-side of the screen and resize it so the text is displayed. 
+
+	![](MovedWidget.png)
+
+1.	Click on the left-most text displayed in the box, then in the **Details** panel under **Text** enter "Pulls:". 
+
+	![](EnterText1.png)
+
+1.	For the other text, enter the "10" for its **Text** field. 
+
+	![](EnterText2.png)
+
+	This text is what we will communicate with later and update based on the state of the game. 
+
+1.	In the **Hierarchy** window, **Right-click** and **Copy** the **Horizontal Box**, the paste it on top of the **Vertical Box**. 
+
+1.	Repeat the previous step so that there are now three **Horizontal Boxes** under **Vertical Box** and the text appears as shown below. 
+
+	![](AddedBoxes.png)
+
+1.	Update the other text fields to "Shots" (set to "3") and "Score" (set to "0") and click the **Compile** button.  
+
+	![](UpdateText.png)
+
+1.	**Compile** and **Save** then close the HUD Widget Blueprint. 
+
+
+## 2. Character Setup 
+
+Next, we will work on our Character Blueprint by adding the variables that will be passed to the HUD later in this guide. We will also add some conditions to determine how many times the player can shoot at each rock that is launched.  
+
+1.	Inside the **Content Browser** under **Content/FirstPersonBP/Blueprints**, open the **First Person Character** Blueprint. 
+
+	![](FirstPersonCharacter.png)
+
+1.	Inside the graph, delete the **Stick Input**, **Movement Input**, and **Jump** sections so that you only contain the sections below. 
+
+	![](CleanUp.png)
+
+	For our sample game, we only need to allow the player to turn and shoot so we have removed the other script to clean up our Blueprint. 
+
+1.	**Right-click** in the graph and search for and add the **Event Begin Play** node. 
+
+	![](EventBeginPlay.png)
+
+1.	Drag off the **Event Being Play** node and search for and add the **Create Widget** node. 
+
+	![](CreateWidget.png)
+
+	We are going to call our **HUD** Widget Blueprint upon begin play of the game and display it. 
+
+1.	On the **Create Widget** node for **Class** select the **HUD**, then off the **Return Value**, use the **Add to Viewport** node. 
+
+	![](AddToViewport.png)
+
+	Our HUD will now be displayed and we need to create some variables to pass to it. Let us do that now. 
+
+1.	In the **MyBlueprint** window, click the **Add Variable** button. 
+
+	![](AddVariable.png)
+
+1.	Select the new variable, then in the **Details** panel, rename it to **IsActive** and make sure it is the **Boolean** type. 
+
+	![](NewVariable1.png)
+
+1.	Create another variable, rename it to **SpawnLocation** and make the type a **Transform**. 
+
+	![](NewVariable2.png)
+
+	This variable will be used to tell the rock where to spawn and will be updated from the level. 
+
+1.	Create another variable, rename it to **Pulls** and make the type a **Integer**. 
+
+	![](NewVariable3.png)
+
+	This variable will hold the amount of rocks left the player can spawn by button press. 
+
+1.	Create two more **Integer** variables, one called **Shots** and the other called **Score**. 
+
+	![](AllVariables.png)
+
+	Your added variables should look similar to above. 
+
+1.	Click the **Compile** button, then in the **Details** panel for **Pulls** set its **Default Value** to **10**. 
+
+	![](DefaultValuePulls.png)
+
+1.	Set the **Default Value** for **Shots** to **3** and **Score** to **0**. 
+
+
+### Firing Weapon Setup
+
+Here we are going to make some minor changes to how many times the player can fire a shot per pull. 
+
+1.	Find the **InputAction Fire** event and drag off it and add the **Do N** node. 
+
+	![](DoN.png)
+
+	This node will execute the script following it a set number of times (allowing us to control the number of times the player can shoot). 
+
+1.	Set the **N** to **3**, then while holding **Alt** drag in the **Shots** variable from the **My Blueprint** window and reconnect the nodes. 
+
+	![](SetDoN.png)
+
+	Following the **Shots** node, connect the **Set** back to the **Montage Play** node. 
+
+1.	While holding **Control**, drag in the **Shots** variable again and connect it to a **Integer - Integer** node (set to **1**) and connect as shown. 
+
+	![](ConnectShots.png)
+
+	Here we are setting shots to decrement by 1 each time **Fire** is pressed. 
+
+1.	**Right-click** in the graph next to **Shots** and add a **Custom Event** called **ResetShots**. 
+
+	![](CreateCustomEvent.png)
+
+1.	**Alt** drag in **Shots** and set it to **3**, then connect it following the **Custom Event** and into the **Reset** on the **Do N** node. 
+
+	![](ResetEventSet.png)
+	
+	When this custom event is called, it will set shots back to 3 and reset the Do N node so that it can be executed again. 
+
+
+## 3. Spawning the Shootable Rock
+
+Next, we will set up the logic for allowing the player to press a button to spawn a shootable rock (providing other conditions are met). In our level, we have defined some spawn points and, in order to get the location of one of those, we will use an **Event Dispatcher** which will fire off an event in our **Level Blueprint** (which we will create in the next step) to get one of those locations and send it to our Character Blueprint. 
+
+1.	Inside the **FirstPersonCharacter** Blueprint, **Right-click** somewhere in an empty space in the graph and add an **F** Key Event. 
+
+	![](FKeyEvent.png)
+
+1.	Hold **B** and **Left-click** in the graph to create a **Branch** node. 
+
+1.	**Alt** drag in the **IsActive** variable and check the checkbox then connect as shown below. 
+
+	![](BranchAdded.png)
+
+1.	Hold **Control** and drag in the **IsActive** and **Pulls** variables. 
+
+1.	Connect the **IsActive** to a **NOT Boolean** node (Not true) and the **Pulls** to a **>** node (set to 0). 
+
+	![](TwoNodesAdded.png)
+	[REGION:note]
+	In older versions of the engine, the **NOT Boolean** node is referred to as the **!=** node
+	[/REGION]
+
+1.	Connect both outputs to an **And** node and feed it into the **Condition** of the **Branch**. 
+
+	![](AndAdded.png)
+
+	Here, we set up the logic to determine if the player can spawn a rock by checking if a variable called **IsActive** is not true and if the player's **Pulls** count is greater than 0. If both those statements are true, we will proceed down the **True** side of the **Branch** node and spawn the rock (well, that part of the script still needs to be set up which we will do below). 
+
+1.	**Alt** drag in the **Pulls** variable and connect it following the **Set IsActive** node.
+
+1.	**Control** drag in the **Pulls** variable and connect it to a **Int - Int** node (set to 1) and connect to **Set Pulls**. 
+
+	![](PullsSet.png)
+
+1.	Click **Compile**, then off the **Set Pulls** node add the **ResetShots** Custom Event. 
+
+	![](CallCustomEvent.png)
+
+	Your setup should look similar to below. 
+
+	![](ScriptBeforeEventDispatcher.png)
+
+	Our logic for when the player can spawn a rock is set, now we need to communicate with the level to get a spawn location. We will do this by using an **Event Dispatcher** that is called when **F** is pressed. The **Level Blueprint** will listen for the Event Dispatcher and when it is called, will fire its own event that will get the location of one of our spawn points and pass that back to our Character Blueprint. 
+
+1.	Click the **+ Event Dispatcher** button in the **My Blueprint** window. 
+
+	![](AddEventDispatcher.png)
+
+1.	Click the new Event Dispatcher and press **F2** with it selected to rename it and call it **GetSpawnLocation**. 
+
+	![](RenameEventDispatcher.png)
+
+1.	In the graph following the **Reset Shots** function, add the **Call GetSpawnLocation** node. 
+
+	![](CallEventDispatcher.png)
+
+	The Event Dispatcher will be added which is denoted by the envelope icon in the upper-right corner of the node. 
+
+	![](NewNodeAdded.png)
+
+1.	Off the **GetSpawnLocation** node, add a **Spawn Actor from Class** node. 
+
+ 	![](SpawnActorNode.png)
+
+1.	On the **Spawn Actor** node, set the **Class** to **BP_Rock**. 
+
+1.	Also on the **Spawn Actor** node, drag-and-drop the **SpawnLocation** variable onto the **SpawnTransform** pin. 
+
+	![](SpawnActorComplete.png)
+
+	Our Character Blueprint is now set up to spawn a shootable rock and receive a **Transform** location to spawn the rock at. 
+
+
+## 4. Passing Information from Level to Character
+
+Next, we will use the **Level Blueprint** to get the location of one of our spawn points and pass that information to our Character Blueprint when our Character Blueprint's Event Dispatcher is called (so we are going from Character Blueprint to Level Blueprint and back to Character Blueprint, passing information between them). 
+
+1. From the toolbar in the Main Editor view, click the **Blueprints** button and select **Open Level Blueprint**. 
+
+	![](OpenLevelBlueprint.png)
+
+1. In the graph, **Right-click** and add an **Event Begin Play** node and a **Get Player Character** node. 
+
+	![](GetPlayerCharacter.png)
+
+1. Drag off the **Return Value** of the **Get Player Character** and add a **Cast To FirstPersonCharacter** node. 
+
+	![](CastToNode.png)
+
+	Here we are using a **Cast** node to first get the player character, then get the Character Blueprint used by that player (which in this case is called **FirstPersonCharacter** and is where we set up our other scripts for the playable character). By using the Cast node, we are able to access our player character's Blueprint and the variables, events, and functions within it. 
+
+	[REGION:note]
+	For more information on **Casting**, please see the [](Engine/Blueprints/UserGuide/CastNodes) documentation page. 
+	[/REGION]
+
+1. Connect the nodes as shown below, then off the **Return Value** of the **Cast To** node, select **Promote to variable**. 
+
+	![](PromoteToVariable.png)
+
+	We are going to create a variable to hold a reference to the **FirstPersonCharacter** Blueprint the player is using so that we do not have to use a Cast to get to it each time. By doing this upon Event Begin Play, it will save us time later. 
+
+1. Select the promoted variable, then in the **Details** panel, rename it to **MyCharacter**. 
+
+	![](RenamedMyCharacter.png)
+
+1. Off the **Return Value** of the **MyCharacter** node, add the **Assign Get Spawn Location** node. 
+
+	![](AssignSpawnLocation.png)
+
+	This is the **Event Dispatcher** we created. When you select this, two additional nodes will be added. 
+	
+	[REGION:note]
+	If you do not see this node in the list, make sure that you clicked **Compile** inside the **FirstPersonCharacter** Blueprint and try again. 
+	[/REGION]
+
+1. Make sure you connect the newly added nodes from the **Bind Event**. 
+
+	![](ConnectAddedNodes.png)
+
+	Now, when **GetSpawnLocation** is called in our Character Blueprint, this new Custom Event will also get called. 
+
+1. Hold **Control** and drag in the **MyCharacter** variable from the **MyBlueprint** window, then off it add the **Set Spawn Location** node. 
+
+	![](SetSpawnLocation.png)
+
+1. Return to the Main Editor window and in the **World Outliner**, search for and select each of the **Target Points** by holding **Ctrl** and clicking each one. 
+
+	![](SelectAllTargetPoints.png)
+
+1. Return to the **Level Blueprint** and **Right-click** in the graph and select the **Create References to 3 selected Actors**. 
+
+	![](AddReferences.png)
+
+1. **Right-click** in the graph and add a **Make Array** node, then connect each of the **Target Points** to it. 
+
+	![](MakeArray.png)
+
+	You can add more pins by clicking the **Add Pin** button. This Array will store a collection of our Target Points which we can access. 
+
+1.	Off the **Array** pin, add a **Get** node. 
+
+1.	Off the **Get**, add a **Random Integer in Range** node with **Min** set to "0" and **Max** set to "2". 
+
+	![](GetNodeAdded.png)
+
+	Here we are getting a random Target Point for use as our Spawn Point. If you had more spawn locations, you could add them to the array and increase the **Max** value of the Random Integer in Range node to include them. 
+
+1.	Off the out of the **Get** node, add a **Get Actor Transform** node and connect it to the **Set Spawn Location** node. 
+
+	[REGION:lightbox]
+	[![](FullScript.png)(w:640)](FullScript.png)
+	[/REGION]
+
+	Your full script should look similar to above, click for a full view. 
+
+
+## 5. Destroying the Rock
+
+In this step, we will allow our rock to be destroyed when it is hit by the projectile the player fires. To do this, we will use another **Bind Event**, but we are not going to bind it to an Event Dispatcher. Instead we will use a collision event called **OnHit** which fires off when the collision of our rock is hit by something which is perfect for our situation. 
+
+Let's blow stuff up!
+
+1.	Back inside the **FirstPersonCharacter** Blueprint, find the **Spawn Actor** node where we spawn our rock. 
+
+1.	Drag off the **Return Value** of the **Spawn Actor** node and choose **Assign On Actor Hit**. 
+
+	![](OnActorHit.png)
+
+1.	Connect the **Spawn Actor** and **Bind Event**. 
+
+1.	Off the **Return Value** of the **Spawn Actor**, choose **Apply Radius Damage (Destructible)**. 
+
+	![](ApplyDamage.png)
+
+	We could use **Apply Damage**, but would have additional parameters to enter. For simplicity we are going to use Radius Damage. 
+
+1.	On the **Apply Radius Damage** node, enter in **50000** for each of the fields shown below and connect a **Get Actor Location** node. 
+
+	![](EnterDamage.png)
+
+	This will ensure we do enough damage to actually cause the rock to explode into pieces. 
+
+1.	Following the **Apply Radius Damage** node, add a **Set Score** node. 
+
+1.	Hold **Control** and drag in the **Score** variable and connect it to a **Int + Int** node (set to 1) and connect the nodes. 
+
+	![](IncreaseScore.png)
+
+	This will get the current score and add 1 to it each time a rock is hit. 
+
+1.	Connect the **Bind Event** and **Set Score** nodes to a **Delay** node set to **3** seconds.
+
+	![](DelayNode.png)
+
+	After 3 seconds once the rock has been spawned (whether it was hit or not), we are going to destroy it. 
+
+1. Following the **Delay** add a **Destroy Actor** node. 
+
+	![](DestroyActor.png)
+
+	Drag off the **Return Value** of the **Spawn Actor** node and feed it into the **Target** of the **Destroy Actor** node. 
+
+1. Following the **Destroy Actor** node, add the **Set IsActive** variable node and leave it unchecked. 
+
+	![](SetIsActive.png)
+
+	We are now saying that the spawned rock is no longer active so the player can spawn another one (if they have enough pulls left). 
+
+Our core gameplay is set up, if we were to play in the editor now you would see that you can show spawn, shoot and destroy a rock which is spawned from a random spawn point in the level. 
+
+## 6. Communicating with the HUD 
+
+The last step is to update the values displayed on our HUD Widget Blueprint by communicating with our Character Blueprint to get values stored in it for Pulls, Shots, and Score. To do this, we will use a **Cast** node to access the player's Character Blueprint then Bind properties in our HUD to values in our Character Blueprint so they automatically get updated when those values are updated in the Character Blueprint. 
+
+Our game is almost complete, let's finish it off by updating the HUD. 
+
+1.	Open the **HUD** Widget Blueprint you created. 
+
+1.	Click the **Graph** tab inside your **HUD** Widget Blueprint. 
+
+	![](GraphClick.png)
+
+1.	**Right-click** in the graph and add the **Event Construct** node. 
+
+	![](EventConstruct.png)
+
+	This node is similar to an **Event Begin Play** and is called when the Widget Blueprint is constructed. 
+
+1.	Add a **Get Player Character** node and **CastTo FirstPersonCharacter**. 
+
+	![](CastToFirstPerson.png)
+
+1.	Off the **As First Person Character** pin, select **Promote to variable** and rename the new node to **MyCharacter**. 
+
+	![](MyCharacter.png)
+
+	You can rename the variable from the **My Blueprint** window by selecting the variable and pressing **F2**. 
+
+1.	On the **Designer** tab, click the value for **Pulls** then next to **Text** in the **Details** panel, click the **Bind** option and choose **Create Binding**. 
+
+	![](Bind1.png)
+
+	This will open a new graph for the binding. 
+
+1.	Hold **Control** and drag in the **MyCharacter** variable, then off it **Get Pulls** and connect it to the **Return Value** of the **Return Node**. 
+
+	![](GetPulls.png)
+
+	The **To Text (Int)** conversion node will automatically be created. We are now set to properly display our Pulls value. 
+
+1. On the **Designer** tab, click the value for **Shots** and in the **Details** panel, click the **Bind** option and create the binding below. 
+
+	![](GetShots.png)
+
+	This will update and display the proper amount of shots left per pull. 
+
+1. On the **Designer** tab, click the value for **Score** and in the **Details** panel, click the **Bind** option and create the binding below. 
+
+	![](GetScore.png)
+
+	And finally, this will get and display the proper score for the player when hitting a rock. 
+
+1. Click **Compile** and **Save**, then close the Blueprint. 
+
+1. From the Main Editor view, click the **Play** button to play in the editor. 
+
+	[OBJECT:EmbeddedVideo]
+	[PARAMLITERAL:width]
+	640
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	360
+	[/PARAMLITERAL]
+	[PARAMLITERAL:videoid]
+	tbwor-dRyEs
+	[/PARAMLITERAL]
+	[/OBJECT]
+
+
+Your simple shooting gallery game is now complete! To spawn a rock, press **F** as we bound it do that event in a previous section. Over the course of this guide, we have learned how to communicate between three different types of Blueprints using an **Event Dispatcher**, **Cast** nodes, and **Binding**. We have learned how to pass information from the level to a Character Blueprint as well as how to communicate variables from the character to a HUD. 
+
+## 7. On Your Own!
+
+Using what you have learned over the course of this project, try to do the following: 
+
+[OBJECT:EmbeddedVideo]
+[PARAMLITERAL:width]
+640
+[/PARAMLITERAL]
+[PARAMLITERAL:height]
+360
+[/PARAMLITERAL]
+[PARAMLITERAL:videoid]
+yut5Feu1KxI
+[/PARAMLITERAL]
+[/OBJECT]
+
+* In the **FirstPersonCharacter** Blueprint, award a higher score for hitting the rock on the 1st versus 2nd or 3rd shot. 
+* Also in the **FirstPersonCharacter** Blueprint, set it so the player cannot shoot unless a rock has been spawned. 
+* In the level, add two more spawn points (perhaps at the corners, or on the left/right side of the player). 
+* In the HUD, add a new category to keep track of the number of "first shot" hits by a player. 
+
+For more information on the topics covered in this guide, and across the entire editor, see the [Unreal Editor Manual](Engine).
+
+As for coverage related to the topics in this guide:
+
+* For more information on Blueprints in general, see: [Blueprints Visual Scripting](Engine/Blueprints)
+* For more information on using Blueprint Communication and when to use it, see: [Blueprint Communication Usage](Engine/Blueprints/UserGuide/BlueprintCommsUsage)
+* For more information on Event Dispatchers, see: [Event Dispatchers](Engine/Blueprints/UserGuide/EventDispatcher)
+* For more information on Casting, see: [Casting](Engine/Blueprints/UserGuide/CastNodes)
+* For more information on creating HUD elements with Unreal Motion Graphics (UMG), see: [Unreal Motion Graphics](Engine/UMG)
+
+ 

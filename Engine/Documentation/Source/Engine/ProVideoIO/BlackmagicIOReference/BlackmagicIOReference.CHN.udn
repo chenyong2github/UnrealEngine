@@ -1,0 +1,151 @@
+﻿INTSourceChangelist:6537140
+Availability: Public
+Crumbs: 
+Title: Blackmagic媒体引用
+Description: 介绍Blackmagic Design媒体框架组件公开的选项和设置。
+Type:reference
+Version: 4.21
+Parent: Engine/ProVideoIO
+Order: 5
+Tags: Reference
+Tags: professional video
+topic-image: blackmagic_reference_topic.png
+
+
+本页面介绍Blackmagic媒体框架对象上公开的选项和设置。
+
+## 支持的Blackmagic卡
+
+Blackmagic媒体源和Blackmagic媒体输出已经使用以下卡进行了测试：
+
+*   **DeckLink 4K Extreme 12G**
+*   **DeckLink Duo 2**
+*   **DeckLink 8K Pro**
+
+其他设备可能如预期的那样工作，也可能无法正常工作。
+
+## Blackmagic媒体源设置
+
+您创建的每个Blackmagic媒体源对象都公开以下配置设置。
+
+  
+| 属性 | 说明 |
+| --- | --- |
+| [REGION:tablesection]Configuration Options[/REGION] ||
+| [INCLUDE:#excerpt_0]||
+| **设备（Device）** | 设置此媒体源将用于将视频导入虚幻引擎的Blackmagic设备和SDI连接。如果您的计算机上连接着多个卡或设备，您可以在这里选择一个使用。|
+| **分辨率（Resolution）** | 设置传入视频源的分辨率。注意，这必须与实际的视频源完全匹配。|
+| **标准（Standard）** | 设置传入的视频源是逐行还是隔行的。注意，这必须与实际的视频源完全匹配。|
+| **帧率（Frame Rate）** | 设置传入内容中每秒的视频帧数。注意，这必须与实际的视频源完全匹配。|
+| [REGION:tablesection]其他Blackmagic选项[/REGION] ||
+| **时间码格式（Timecode Format）** | 指定伴随视频信号的时间码类型。|
+| [REGION:tablesection]Audio[/REGION] ||
+| **采集音频（Capture Audio）** | 确定虚幻引擎是否从媒体端口采集音频。|
+| **音频通道（Audio Channels）** | 指定包含您希望虚幻引擎采集的信号的音频通道。|
+| **最大帧数音频框架缓存（Max Num Audio Frame Buffer）** | 设置虚幻引擎在任何给定时间将存储在内存中的音频数据的最大帧数。如果输入视频跳帧或卡顿，您可以尝试提高这个值。|
+| [REGION:tablesection]Video[/REGION] ||
+| **采集视频（Capture Video）** | 确定虚幻引擎是否从媒体端口采集视频。|
+| **颜色格式（Color Format）** | 确定构成输入视频中各个像素的颜色通道的顺序，以及每个通道中的比特数。|
+| **最大帧数视频框架缓存（Max Num Video Frame Buffer）** | 设置虚幻引擎在任何给定时间将存储在内存中的视频数据的最大帧数。如果输入视频跳帧或卡顿，您可以尝试提高这个值。|
+| [REGION:tablesection]Debug[/REGION] ||
+| **记录丢帧（Log Drop Frame）** | 启用后，每当虚幻引擎检测到输入内容中的帧丢失时，它就在输出日志上记录一条消息。|
+| **时间码纹素编码（Encode Timecode in Texel）** | 启用后，引擎将每个帧的时间码嵌入到采集的视频中。您可以用它来检查每个输入帧的时间码是否与您预期的值匹配。请参阅[时间码Texel编码](https://docs.unrealengine.com/en-us/Engine/ProVideoIO/TimecodeGenlock#timecodetexelencoding)。|
+| [REGION:tablesection]Synchronization[/REGION] ||
+| **与引擎的时间码同步（Synchronize with Engine's Timecode）** | 默认情况下，虚幻引擎会尝试在视频帧传入时播放它们。启用此设置以缓冲传入的帧，并尝试使它们与虚幻引擎的内部时间码保持一致。如果任何缓冲帧的时间码与虚幻引擎的内部时间码匹配，则视频输入将从该帧起向前同步。|
+| [REGION:tablesection]Platforms[/REGION] ||
+| **播放器覆盖（Player Overrides）** | 将这些选项保留为Blackmagic媒体源的默认值。|
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_0] 
+
+![Blackmagic Media Source Configuration](bm-source-settings.png "Blackmagic Media Source Configuration")
+
+[/EXCERPT:excerpt_0]
+-
+[/COMMENT]
+
+## Blackmagic媒体输出设置
+
+您创建的每个Blackmagic媒体输出对象都公开以下配置设置。
+
+  
+| **属性** | **说明** |
+| --- | --- |
+| [REGION:tablesection]Configuration Settings[/REGION] ||
+| [INCLUDE:#excerpt_1]||
+| **输出类型（Output Type）** | [INCLUDE:#excerpt_2]|
+| **设备（Device）** | 设置此媒体源将其视频源发送到的Blackmagic设备和SDI连接。如果您的计算机上连接着多个卡或设备，您可以在这里选择一个使用。|
+| **分辨率（Resolution）** | 设置此媒体输出生成的视频源的分辨率。|
+| **标准（Standard）** | 设置此媒体输出生成的输出内容是逐行还是隔行的。|
+| **帧率（Frame Rate）** |设置此媒体输出生成的视频源中的每秒帧数。|
+| **关键源（Key Source）** | 设置当 **输出类型（Output Type）** 被设置为 **填充和关键（Fill and Key）** 时，从虚幻引擎接收关键图像的端口。|
+| [REGION:tablesection]Output[/REGION] ||
+| **时间码格式（Timecode Format）** | 确定虚幻引擎是否应该在输出内容中嵌入时间码，以及应该使用哪种时间码格式。|
+| **像素格式（Pixel Format）** | [INCLUDE:#excerpt_3] |
+| **Blackmagic缓冲区数（Number of Blackmagic Buffers）** | [INCLUDE:#excerpt_4] |
+| **隔行区域时间码需匹配（Interlaced Fields Timecode Need to Match）** | 在生成隔行视频源时，此设置确定是否需要匹配单个隔行帧中两个字段的时间码值。|
+| **纹理缓冲区数（Number of Texture Buffers）** | [INCLUDE:#excerpt_5] |
+| [REGION:tablesection]Synchronization[/REGION] ||
+| **等待同步事件（Wait for Sync Event）** | [INCLUDE:#excerpt_6] |
+| [REGION:tablesection]Debug[/REGION] ||
+| **时间码像素编码（Encode Timecode in Pixel）** | 启用后，引擎将每个帧的时间码嵌入到输出信号中。请参阅[时间码Texel编码](Engine/ProVideoIO/TimecodeGenlock#timecodetexelencoding)。|
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_6]
+如果禁用此选项，并且您还没有将虚幻引擎集中同步到输入信号，则引擎将以它能够管理的最快帧率运行，并将生成的所有帧提供给Blackmagic卡。每当卡准备输出一个新帧时，它都会选择由引擎生成的帧。
+
+启用此选项后，在Blackmagic卡准备接受新帧之前，虚幻引擎不会生成任何新的输出帧。其效果类似于集中同步，但它不是将虚幻引擎的帧率锁定为输入信号，而是将引擎的帧率锁定为Blackmagic卡的输出计时。  
+
+当您还没有可以将虚幻引擎的帧率锁定到的输入信号，但您希望确保引擎为输出视频源中的每一帧只生成一个输出帧时，这个选项非常有用。  
+
+如果您已经使用自定义时间步将虚幻引擎集中同步到输入内容，则不要启用此选项。
+[/EXCERPT:excerpt_6]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_5]
+设置用于将各个帧图像从GPU传输到主线程内存的缓冲区数量。  
+值越小，越可能在GPU端造成瓶颈，因为它要等待每次传输完成；数值越大，则越可能增加延迟。
+[/EXCERPT:excerpt_5]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_4]
+设置用于将各个帧图像从主线程内存传输到Blackmagic卡的缓冲区数量。  
+值越小，越可能导致丢帧，因为它要等待每次传输完成；数值越大，则越可能增加延迟。
+[/EXCERPT:excerpt_4]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_3]
+确定构成各个像素的颜色通道的顺序，以及每个通道中的比特数。
+
+[REGION:tip]
+如果您想输出alpha，请将 **输出类型（Output Type）** 设置为 **填充和关键（Fill and Key）**，并使用 **关键源（Key Source）** 将alpha发送到Blackmagic卡上的输出端口。
+[/REGION]
+[/EXCERPT:excerpt_3]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_2]
+确定虚幻引擎是只输出填充图像，还是同时输出填充图像和关键图像。  
+当您将此设置为 **仅填充（Fill Only）** 时，仅将填充图像输出到下面的 **源（Source）** 集合。  
+当您将此设置为 **填充和关键（Fill and Key）** 时，填充图像将输出到 **源（Source）**，关键图像将输出到 **关键源（Key Source）**。
+[/EXCERPT:excerpt_2]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_1]  
+
+![Blackmagic Media Output Configuration](bm-output-settings.png "Blackmagic Media Output Configuration")
+
+[/EXCERPT:excerpt_1]
+-
+[/COMMENT]

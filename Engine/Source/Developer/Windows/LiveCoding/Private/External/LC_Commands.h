@@ -37,9 +37,17 @@ namespace commands
 		static const uint32_t ID = Acknowledge::ID + 1u;
 
 		void* processBase;
-		unsigned int processId;
-		unsigned int threadId;		// thread ID of Live++ thread running in host
-		const void* jumpToSelf;		// address of jump-to-self instruction in host
+		unsigned int processId;				// current process ID
+		unsigned int restartedProcessId;	// process ID of the previous, restarted process. 0 if non-existent
+		unsigned int threadId;				// thread ID of Live++ thread running in host
+		const void* jumpToSelf;				// address of jump-to-self instruction in host
+
+		size_t imagePathSize;
+		size_t commandLineSize;
+		size_t workingDirectorySize;
+		size_t environmentSize;
+
+		// image path, command line, working directory and environment follow as payload
 	};
 
 	// tell the DLL that registration has finished
@@ -175,10 +183,16 @@ namespace commands
 		static const uint32_t ID = DisconnectClient::ID + 1u;
 	};
 
+	// tell Live++ to log a message
+	struct LogMessage
+	{
+		static const uint32_t ID = TriggerRecompile::ID + 1u;
+	};
+
 	// tell Live++ to build a patch using an array of object files
 	struct BuildPatch
 	{
-		static const uint32_t ID = TriggerRecompile::ID + 1u;
+		static const uint32_t ID = LogMessage::ID + 1u;
 
 		unsigned int fileCount;
 
@@ -257,6 +271,7 @@ namespace commands
 		unsigned int processId;
 		wchar_t fileName[260];
 		Windows::HMODULE moduleBase;
+		void* token;
 	};
 
 	struct FinishedLazyLoadingModules

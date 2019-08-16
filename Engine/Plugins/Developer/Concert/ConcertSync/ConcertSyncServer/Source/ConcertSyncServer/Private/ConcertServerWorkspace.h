@@ -6,32 +6,31 @@
 #include "IConcertSessionHandler.h"
 #include "ConcertWorkspaceMessages.h"
 
-class FConcertServerActivityLedger;
 class IConcertServerSession;
+class FConcertSyncServerLiveSession;
 class FConcertServerSyncCommandQueue;
-class FConcertPackageLedger;
-class FConcertTransactionLedger;
-struct FConcertTransactionFinalizedEvent;
-struct FConcertTransactionSnapshotEvent;
 class FConcertServerDataStore;
+struct FConcertTransactionSnapshotEvent;
+struct FConcertTransactionFinalizedEvent;
 
 enum class EConcertLockFlags : uint8
 {
 	None		= 0,
 	Explicit	= 1 << 0,
 	Force		= 1 << 1,
+	Temporary	= 1 << 2,
 };
 ENUM_CLASS_FLAGS(EConcertLockFlags);
 
 class FConcertServerWorkspace
 {
 public:
-	FConcertServerWorkspace(const TSharedRef<IConcertServerSession>& InSession);
+	explicit FConcertServerWorkspace(const TSharedRef<FConcertSyncServerLiveSession>& InLiveSession);
 	~FConcertServerWorkspace();
 
 private:
 	/** Bind the workspace to this session. */
-	void BindSession(const TSharedRef<IConcertServerSession>& InSession);
+	void BindSession(const TSharedRef<FConcertSyncServerLiveSession>& InLiveSession);
 
 	/** Unbind the workspace to its bound session. */
 	void UnbindSession();
@@ -41,6 +40,9 @@ private:
 
 	/** */
 	void HandleSessionClientChanged(IConcertServerSession& InSession, EConcertClientStatus InClientStatus, const FConcertSessionClientInfo& InClientInfo);
+
+	/** */
+	void HandleSyncRequestedEvent(const FConcertSessionContext& Context, const FConcertWorkspaceSyncRequestedEvent& Event);
 
 	/** */
 	void HandlePackageUpdateEvent(const FConcertSessionContext& Context, const FConcertPackageUpdateEvent& Event);
@@ -120,27 +122,110 @@ private:
 	bool IsWorkspaceResourceLocked(const FName InResourceName, const FGuid& InLockEndpointId) const;
 
 	/**
-	 * Load the working session data from the disk
+	 * Set an endpoint in the session database, creating or replacing it, and sync the result back to all clients.
+	 *
+	 * @param InEndpointId				The ID of the endpoint to set.
+	 * @param InEndpointData			The endpoint data to set.
 	 */
-	void LoadWorkingSessionData();
+	void SetEndpoint(const FGuid& InEndpointId, const FConcertSyncEndpointData& InEndpointData);
 
-	/** Server Session tracked by this workspace */
-	TSharedPtr<IConcertServerSession> Session;
+	/**
+	 * Send a sync event for an endpoint in the session database.
+	 *
+	 * @param InTargetEndpointId		The ID of the endpoint to send the sync event to.
+	 * @param InSyncEndpointId			The ID of the endpoint to send the sync event for.
+	 * @param InNumRemainingSyncEvents	The number of items left in the sync queue.
+	 */
+	void SendSyncEndpointEvent(const FGuid& InTargetEndpointId, const FGuid& InSyncEndpointId, const int32 InNumRemainingSyncEvents) const;
 
-	/** Array of newly connected endpoints that haven't completed a full sync yet */
-	TArray<FGuid> UnsyncedEndpoints;
+	/**
+	 * Add a new connection activity to the session database, assigning it both an activity and connection event ID, and sync the result back to all clients.
+	 * @note The endpoint ID referenced by the activity must exist in the database (@see SetEndpoint).
+	 *
+	 * @param InConnectionActivity		The connection activity to add (the ActivityId, EventTime, EventType, and EventId members are ignored).
+	 */
+	void AddConnectionActivity(const FConcertSyncConnectionActivity& InConnectionActivity);
+
+	/**
+	 * Send a sync event for a connection activity in the session database.
+	 *
+	 * @param InTargetEndpointId		The ID of the endpoint to send the sync event to.
+	 * @param InSyncActivityId			The ID of the activity to send the sync event for.
+	 * @param InNumRemainingSyncEvents	The number of items left in the sync queue.
+	 */
+	void SendSyncConnectionActivityEvent(const FGuid& InTargetEndpointId, const int64 InSyncActivityId, const int32 InNumRemainingSyncEvents) const;
+
+	/**
+	 * Add a new lock activity to the session database, assigning it both an activity and lock event ID, and sync the result back to all clients.
+	 * @note The endpoint ID referenced by the activity must exist in the database (@see SetEndpoint).
+	 *
+	 * @param InLockActivity			The lock activity to add (the ActivityId, EventTime, EventType, and EventId members are ignored).
+	 */
+	void AddLockActivity(const FConcertSyncLockActivity& InLockActivity);
+
+	/**
+	 * Send a sync event for a lock activity in the session database.
+	 *
+	 * @param InTargetEndpointId		The ID of the endpoint to send the sync event to.
+	 * @param InSyncActivityId			The ID of the activity to send the sync event for.
+	 * @param InNumRemainingSyncEvents	The number of items left in the sync queue.
+	 */
+	void SendSyncLockActivityEvent(const FGuid& InTargetEndpointId, const int64 InSyncActivityId, const int32 InNumRemainingSyncEvents) const;
+
+	/**
+	 * Add a new transaction activity to the session database, assigning it both an activity and transaction event ID, and sync the result back to all clients.
+	 * @note The endpoint ID referenced by the activity must exist in the database (@see SetEndpoint).
+	 *
+	 * @param InTransactionActivity		The transaction activity to add (the ActivityId, EventTime, EventType, and EventId members are ignored).
+	 */
+	void AddTransactionActivity(const FConcertSyncTransactionActivity& InTransactionActivity);
+
+	/**
+	 * Send a sync event for a transaction activity in the session database.
+	 *
+	 * @param InTargetEndpointId		The ID of the endpoint to send the sync event to.
+	 * @param InSyncActivityId			The ID of the activity to send the sync event for.
+	 * @param InNumRemainingSyncEvents	The number of items left in the sync queue.
+	 * @param InLiveOnly				True if the bulk of the transaction data should only be sent if this transaction is live.
+	 */
+	void SendSyncTransactionActivityEvent(const FGuid& InTargetEndpointId, const int64 InSyncActivityId, const int32 InNumRemainingSyncEvents, const bool InLiveOnly = true) const;
+
+	/**
+	 * Add a new package activity to the session database, assigning it both an activity and package event ID, and sync the result back to all clients.
+	 * @note The endpoint ID referenced by the activity must exist in the database (@see SetEndpoint).
+	 *
+	 * @param InPackageActivity			The package activity to add (the ActivityId, EventTime, EventType, EventId, and PackageRevision members are ignored).
+	 */
+	void AddPackageActivity(const FConcertSyncPackageActivity& InPackageActivity);
+
+	/**
+	 * Send a sync event for a package activity in the session database.
+	 *
+	 * @param InTargetEndpointId		The ID of the endpoint to send the sync event to.
+	 * @param InSyncActivityId			The ID of the activity to send the sync event for.
+	 * @param InNumRemainingSyncEvents	The number of items left in the sync queue.
+	 * @param InHeadOnly				True if the bulk of the package data should only be sent if this package is the head revision.
+	 */
+	void SendSyncPackageActivityEvent(const FGuid& InTargetEndpointId, const int64 InSyncActivityId, const int32 InNumRemainingSyncEvents, const bool InHeadOnly = true) const;
+
+	/**
+	 * Called after any activity is added to the session database.
+	 *
+	 * @param InActivityId				The ID of the activity that was added.
+	 */
+	void PostActivityAdded(const int64 InActivityId);
+
+	/** Live session tracked by this workspace */
+	TSharedPtr<FConcertSyncServerLiveSession> LiveSession;
+
+	/** Array of endpoints that are subscribed to live-sync (server automatically pushes updates) */
+	TArray<FGuid> LiveSyncEndpoints;
+
+	/** Array of endpoints that are currently undergoing a manual sync (client explicitly request data) */
+	TArray<FGuid> ManualSyncEndpoints;
 
 	/** */
 	TSharedPtr<FConcertServerSyncCommandQueue> SyncCommandQueue;
-
-	/** */
-	TUniquePtr<FConcertPackageLedger> PackageLedger;
-
-	/** Persistent ledger of transactions for this session. */
-	TUniquePtr<FConcertTransactionLedger> TransactionLedger;
-
-	/** */
-	TUniquePtr<FConcertServerActivityLedger> ActivityLedger;
 
 	/** Contains the play state (PIE/SIE) of a client endpoint. */
 	struct FPlaySessionInfo
@@ -157,16 +242,11 @@ private:
 	struct FLockOwner
 	{
 		FGuid EndpointId;
-		bool bExplicit;
+		bool bExplicit = false;
+		bool bTemporary = false;
 	};
-	TMap<FName, FLockOwner> LockedResources;
-
-
-	/** Delegate handle for the ticker function. */
-	FDelegateHandle TickHandle;
-
-	/** Delegate handle for the client changed event. */
-	FDelegateHandle SessionClientChangedHandle;
+	typedef TMap<FName, FLockOwner> FLockedResources;
+	TUniquePtr<FLockedResources> LockedResources;
 
 	/** The data store shared by all clients connected to the server tracked by this workspace. */
 	TUniquePtr<FConcertServerDataStore> DataStore;

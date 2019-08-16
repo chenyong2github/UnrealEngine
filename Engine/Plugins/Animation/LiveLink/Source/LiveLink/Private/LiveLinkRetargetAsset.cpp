@@ -2,11 +2,12 @@
 
 #include "LiveLinkRetargetAsset.h"
 
-#include "Animation/Skeleton.h"
-#include "LiveLinkTypes.h"
-#include "BonePose.h"
-#include "Animation/AnimTypes.h"
 #include "Animation/AnimCurveTypes.h"
+#include "Animation/AnimTypes.h"
+#include "Animation/Skeleton.h"
+#include "BonePose.h"
+#include "GenericPlatform/GenericPlatformMath.h"
+#include "Roles/LiveLinkAnimationTypes.h"
 
 ULiveLinkRetargetAsset::ULiveLinkRetargetAsset(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -22,16 +23,19 @@ void ULiveLinkRetargetAsset::ApplyCurveValue(const USkeleton* Skeleton, const FN
 	}
 }
 
-void ULiveLinkRetargetAsset::BuildCurveData(const FLiveLinkSubjectFrame& InFrame, const FCompactPose& InPose, FBlendedCurve& OutCurve) const
+void ULiveLinkRetargetAsset::BuildCurveData(const FLiveLinkSkeletonStaticData* InSkeletonData, const FLiveLinkAnimationFrameData* InFrameData, const FCompactPose& InPose, FBlendedCurve& OutCurve) const
 {
 	const USkeleton* Skeleton = InPose.GetBoneContainer().GetSkeletonAsset();
 
-	for (int32 CurveIdx = 0; CurveIdx < InFrame.CurveKeyData.CurveNames.Num(); ++CurveIdx)
+	if (InSkeletonData->PropertyNames.Num() == InFrameData->PropertyValues.Num())
 	{
-		const FOptionalCurveElement& Curve = InFrame.Curves[CurveIdx];
-		if (Curve.IsValid())
+		for (int32 CurveIdx = 0; CurveIdx < InSkeletonData->PropertyNames.Num(); ++CurveIdx)
 		{
-			ApplyCurveValue(Skeleton, InFrame.CurveKeyData.CurveNames[CurveIdx], Curve.Value, OutCurve);
+			const float Curve = InFrameData->PropertyValues[CurveIdx];
+			if (FMath::IsFinite(Curve))
+			{
+				ApplyCurveValue(Skeleton, InSkeletonData->PropertyNames[CurveIdx], Curve, OutCurve);
+			}
 		}
 	}
 }

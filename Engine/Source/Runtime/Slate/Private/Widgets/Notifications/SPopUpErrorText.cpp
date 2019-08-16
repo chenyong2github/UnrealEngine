@@ -9,6 +9,7 @@ void SPopupErrorText::Construct( const FArguments& InArgs )
 		.ComboButtonStyle( FCoreStyle::Get(), "MessageLogListingComboButton" )
 		.HasDownArrow(false)
 		.ContentPadding(0)
+		.IsFocusable(false)
 		.ButtonContent()
 		[
 			SAssignNew( HasErrorSymbol, SErrorText )

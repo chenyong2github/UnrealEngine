@@ -75,6 +75,7 @@ bool FNumberFormattingRulesTest::RunTest (const FString& Parameters)
 	int16 Int16NegativeValue = -12345;
 	int32 Int32NegativeValue = -12345;
 	int64 Int64NegativeValue = -12345;
+	int64 Int64MinValue = MIN_int64;
 
 	FInternationalization& I18N = FInternationalization::Get();
 	
@@ -99,6 +100,7 @@ bool FNumberFormattingRulesTest::RunTest (const FString& Parameters)
 		Test(this, TEXT("Convert a Negative int16 to a number formatted correct for en-US"),	FText::AsNumber(Int16NegativeValue),	FText::FromString(TEXT("-12,345")));
 		Test(this, TEXT("Convert a Negative int32 to a number formatted correct for en-US"),	FText::AsNumber(Int32NegativeValue),	FText::FromString(TEXT("-12,345")));
 		Test(this, TEXT("Convert a Negative int64 to a number formatted correct for en-US"),	FText::AsNumber(Int64NegativeValue),	FText::FromString(TEXT("-12,345")));
+		Test(this, TEXT("Convert a Negative int64 to a number formatted correct for en-US"),	FText::AsNumber(Int64MinValue),			FText::FromString(TEXT("-9,223,372,036,854,775,808")));
 
 		// Test Number Formatting Options
 		{
@@ -125,6 +127,7 @@ bool FNumberFormattingRulesTest::RunTest (const FString& Parameters)
 			Test(this, TEXT("Convert a Negative int16 to a number formatted correct for en-US"),	FText::AsNumber(Int16NegativeValue, &(NumberFormattingOptions)),	FText::FromString(TEXT("-00000000000000012345.000")));
 			Test(this, TEXT("Convert a Negative int32 to a number formatted correct for en-US"),	FText::AsNumber(Int32NegativeValue, &(NumberFormattingOptions)),	FText::FromString(TEXT("-00000000000000012345.000")));
 			Test(this, TEXT("Convert a Negative int64 to a number formatted correct for en-US"),	FText::AsNumber(Int64NegativeValue, &(NumberFormattingOptions)),	FText::FromString(TEXT("-00000000000000012345.000")));
+			Test(this, TEXT("Convert a Negative int64 to a number formatted correct for en-US"),	FText::AsNumber(Int64MinValue, &(NumberFormattingOptions)),			FText::FromString(TEXT("-09223372036854775808.000")));
 		}
 
 		{
@@ -248,6 +251,7 @@ bool FNumberFormattingRulesTest::RunTest (const FString& Parameters)
 		Test(this, TEXT("Convert a Negative int16 to a currency formatted correct for en-US"),	FText::AsCurrency(Int16NegativeValue),	FText::FromString(TEXT("-$12,345.00")));
 		Test(this, TEXT("Convert a Negative int32 to a currency formatted correct for en-US"),	FText::AsCurrency(Int32NegativeValue),	FText::FromString(TEXT("-$12,345.00")));
 		Test(this, TEXT("Convert a Negative int64 to a currency formatted correct for en-US"),	FText::AsCurrency(Int64NegativeValue),	FText::FromString(TEXT("-$12,345.00")));
+		Test(this, TEXT("Convert a Negative int64 to a currency formatted correct for en-US"),	FText::AsCurrency(Int64MinValue),		FText::FromString(TEXT("-$9,223,372,036,854,775,808.00")));
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		Test(this, TEXT("Convert a Double to a percent formatted correct for en-US"),			FText::AsPercent(DoubleValue),			FText::FromString(TEXT("1,234,567,890%")));
@@ -278,6 +282,7 @@ bool FNumberFormattingRulesTest::RunTest (const FString& Parameters)
 		Test(this, TEXT("Convert a Negative int16 to a number formatted correct for hi-IN"),	FText::AsNumber(Int16NegativeValue),	FText::FromString(TEXT("-12,345")));
 		Test(this, TEXT("Convert a Negative int32 to a number formatted correct for hi-IN"),	FText::AsNumber(Int32NegativeValue),	FText::FromString(TEXT("-12,345")));
 		Test(this, TEXT("Convert a Negative int64 to a number formatted correct for hi-IN"),	FText::AsNumber(Int64NegativeValue),	FText::FromString(TEXT("-12,345")));
+		Test(this, TEXT("Convert a Negative int64 to a number formatted correct for hi-IN"),	FText::AsNumber(Int64MinValue),			FText::FromString(TEXT("-92,23,37,20,36,85,47,75,808")));
 
 		{
 			const FCulturePtr& InvariantCulture = I18N.GetInvariantCulture();
@@ -297,6 +302,7 @@ bool FNumberFormattingRulesTest::RunTest (const FString& Parameters)
 			Test(this, TEXT("Convert a Negative int16 to a number formatted correct for hi-IN but as invariant"),		FText::AsNumber(Int16NegativeValue, NULL, InvariantCulture),	FText::FromString(TEXT("-12345")));
 			Test(this, TEXT("Convert a Negative int32 to a number formatted correct for hi-IN but as invariant"),		FText::AsNumber(Int32NegativeValue, NULL, InvariantCulture),	FText::FromString(TEXT("-12345")));
 			Test(this, TEXT("Convert a Negative int64 to a number formatted correct for hi-IN but as invariant"),		FText::AsNumber(Int64NegativeValue, NULL, InvariantCulture),	FText::FromString(TEXT("-12345")));
+			Test(this, TEXT("Convert a Negative int64 to a number formatted correct for hi-IN but as invariant"),		FText::AsNumber(Int64MinValue, NULL, InvariantCulture),			FText::FromString(TEXT("-9223372036854775808")));
 		}
 
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -316,6 +322,7 @@ bool FNumberFormattingRulesTest::RunTest (const FString& Parameters)
 		Test(this, TEXT("Convert a Negative int16 to a currency formatted correct for hi-IN"),		FText::AsCurrency(Int16NegativeValue),	FText::FromString(TEXT("-") TEXT("\x20B9") TEXT("12,345.00")));
 		Test(this, TEXT("Convert a Negative int32 to a currency formatted correct for hi-IN"),		FText::AsCurrency(Int32NegativeValue),	FText::FromString(TEXT("-") TEXT("\x20B9") TEXT("12,345.00")));
 		Test(this, TEXT("Convert a Negative int64 to a currency formatted correct for hi-IN"),		FText::AsCurrency(Int64NegativeValue),	FText::FromString(TEXT("-") TEXT("\x20B9") TEXT("12,345.00")));
+		Test(this, TEXT("Convert a Negative int64 to a currency formatted correct for hi-IN"),		FText::AsCurrency(Int64MinValue),		FText::FromString(TEXT("-") TEXT("\x20B9") TEXT("92,23,37,20,36,85,47,75,808.00")));
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		Test(this, TEXT("Convert a Double to a percent formatted correct for hi-IN"),				FText::AsPercent(DoubleValue),			FText::FromString(TEXT("1,23,45,67,890%")));

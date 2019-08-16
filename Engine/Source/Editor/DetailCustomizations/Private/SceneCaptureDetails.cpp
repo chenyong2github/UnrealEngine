@@ -161,6 +161,7 @@ void FSceneCaptureDetails::CustomizeDetails( IDetailLayoutBuilder& DetailLayout 
 				GroupName = LOCTEXT("CollisionModesShowFlagsMenu", "Collision Modes Show Flags");
 				break;
 			case SFG_Hidden:
+			case SFG_Transient:
 				GroupName = LOCTEXT("HiddenShowFlagsMenu", "Hidden Show Flags");
 				break;
 			default:

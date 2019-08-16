@@ -298,8 +298,8 @@ void FEditableSkeleton::RenameSmartname(const FName InContainerName, SmartName::
 						{
 							SequencesToRecompress.Add(Seq);
 
-							Seq->CompressedCurveByteStream.Empty();
-							Seq->CurveCompressionCodec = nullptr;
+							Seq->CompressedData.CompressedCurveByteStream.Empty();
+							Seq->CompressedData.CurveCompressionCodec = nullptr;
 						}
 					}
 				}
@@ -425,9 +425,9 @@ void FEditableSkeleton::RemoveSmartnamesAndFixupAnimations(const FName& InContai
 		{ 
 			if (A.AssetClass == B.AssetClass)
 			{
-				return A.AssetName < B.AssetName;
+				return A.AssetName.LexicalLess(B.AssetName);
 			}
-			return A.AssetClass < B.AssetClass;
+			return A.AssetClass.LexicalLess(B.AssetClass);
 		});
 
 		for (FAssetData& Data : AnimationAssets)

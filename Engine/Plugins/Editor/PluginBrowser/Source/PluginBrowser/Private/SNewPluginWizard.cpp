@@ -750,6 +750,9 @@ FReply SNewPluginWizard::OnCreatePluginClicked()
 			bSucceeded = false;
 		}
 
+		// Reset the module paths cache. For unique build environments, the modules may be generated to the project binaries directory.
+		FModuleManager::Get().ResetModulePathsCache();
+
 		// Generate project files if we happen to be using a project file.
 		if (bSucceeded && !FDesktopPlatformModule::Get()->GenerateProjectFiles(FPaths::RootDir(), FPaths::GetProjectFilePath(), GWarn))
 		{

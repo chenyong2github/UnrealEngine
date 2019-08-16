@@ -225,6 +225,7 @@ private:
 	// tmap of the Config name, Section name, Key name, to the value
 	typedef TMap<FName, TMap<FName, TMap<FName, TArray<FString>>>> FIniSettingContainer;
 
+	mutable FCriticalSection ConfigFileCS;
 	mutable bool IniSettingRecurse = false;
 	mutable FIniSettingContainer AccessedIniStrings;
 	TArray<const FConfigFile*> OpenConfigFiles;
@@ -280,6 +281,11 @@ public:
 	* FExec interface used in the editor
 	*/
 	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
+
+	/**
+	  * UObject interface
+	  */
+	virtual bool IsDestructionThreadSafe() const override { return false; }
 
 	/**
 	 * Dumps cooking stats to the log
@@ -678,6 +684,13 @@ private:
 	* Initialize all target platforms
 	*/
 	void InitializeTargetPlatforms();
+
+	/**
+	* Some content plugins does not support all target platforms.
+	* Build up a map of unsupported packages per platform that can be checked before saving.
+	*/
+	void DiscoverPlatformSpecificNeverCookPackages(
+		const TArray<FName>& TargetPlatformNames, const TArray<FString>& UBTPlatformStrings);
 
 	/**
 	* Clean up the sandbox

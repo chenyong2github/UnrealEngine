@@ -1,0 +1,104 @@
+﻿INTSourceChangelist:5319966
+Availability: Public
+Crumbs: 
+Title: 在多用户查看器模板中四处移动
+Description: 讲述多用户查看器模板提供的选项，它们可在桌面和VR导航模式中运行时控制相机。
+Type: 
+Version: 4.21
+Parent: Studio/UnrealStudioProjectTemplates/MultiUserViewer
+Order: 
+Tags: Reference
+Tags: multi-user viewer
+reference-image: VR_teleport.jpg
+
+
+此页面讲述了在多用户查看器中可运行时控制相机的不同方式，可在[桌面](#desktopcontrols)和[VR](#vrcontrols)模式中控制相机在场景内四处移动。
+
+(#desktopcontrols)
+
+## 桌面控制
+
+桌面模式提供了两种不同的导航控制系统：行走模式和飞行模式。
+
+*   在行走模式中，重力将使您处于地面，您会与关卡中设置了碰撞体积的物体发生碰撞。
+*   在飞行模式中，您可在场景中向任意方向自由飞翔，并无视碰撞设置穿过所有几何体。  
+    
+
+| To... | Do... |
+| --- | --- |
+| 从当前位置环顾场景 | 点击右键并拖动。 |
+| 从当前位置向前、向左、向后或向右移动 | 按住鼠标右键并按 **W**、**A**、**S** 和 **D** 键。 |
+| 上下移动（沿场景的全局Z轴） | [INCLUDE:#excerpt_7] |
+| 在行走模式和飞行模式之间切换 | [INCLUDE:#excerpt_9] |
+| 启动激光指针 | 将鼠标指针移动到需要高亮显示的对象，然后按下左键。 |
+| 在书签位置之间循环 | 左右箭头键。 |
+| 移动至预设书签位置 | 按下已映射到指定书签位置的任意0-9数字键。请参见[在多用户查看器模板中使用书签](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVBookmarks)。 |
+| 退出应用程序 | 按下 **Esc** 键。 |
+
+
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_9]
+按下 **空格键**。  
+在飞行模式中重新启用重力即可返回行走模式。您将自由落体到达地面，或对齐到最近的地面，具体取决于您的位置。
+[/EXCERPT:excerpt_9]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_7]
+长按鼠标右键并按下 **Q** 和 **E** 键。  
+仅在飞行模式中可用。
+[/EXCERPT:excerpt_7]
+[/COMMENT]
+
+(#vrcontrols)
+
+## VR控制
+
+| To... | Do... |
+| --- | --- |
+| 瞬移到新位置 | [INCLUDE:#excerpt_21] |
+| 启用激光指针 | 按下任一控制器上的主扳机键，并在真实场景空间中移动控制器。 |
+| 退出应用程序 | 按下电脑键盘上的 **Esc** 键。 |
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_21]
+按下任一控制器上的界面按钮或次扳机键。  
+控制器将发出弧光，目标标记将重叠在地面上。目标标记代表您的瞬移位置。在真实场景空间中移动控制器，将标记放置在尽量靠近要移动的位置处。
+[REGION:asyncgif]
+![](VR_teleport.jpg)(convert:false)
+[/REGION]标记的指针代表瞬移后面朝的方向。旋转手腕即可控制面朝方向。  
+松开界面按钮或次扳机键来完成瞬移。
+[/EXCERPT:excerpt_21]
+-
+[/COMMENT]
+
+
+(#testinginvrintheunrealeditor)
+
+## 在虚幻编辑器中进行VR测试
+
+在电脑上用VR设置启动多用户模板的打包或standalone版本时，您将能够选择以标准桌面控制方式启动，还是以VR控制方式启动。
+
+如果希望使用VR控制方式在虚幻编辑器中对项目进行测试，则需要执行以下步骤：
+
+1.  在内容浏览器中 *MultiUserViewer/Blueprints/GameInstance* 下方找到 **BP\_MultiUser\_GameInstance** 资源。  
+    ![BP_MultiUser_GameInstance](multiuserviewer-gameinstance.png "BP_MultiUser_GameInstance")  
+    
+2.  双击资源将其在蓝图编辑器中打开。  
+    ![Game Instance Blueprint](multiuserviewer-gameinstance-bp.png "Game Instance Blueprint")  
+    
+3.  在 **细节** 面板中启用 **VRmode** 选项。  
+    ![Game Instance Details panel](multiuserviewer-gameinstance-vrmode.png "Game Instance Details panel")  
+    
+4.  **编译** 并 **保存** 蓝图。
+5.  使用工具栏中“运行”按钮旁的下拉箭头选择 **VR预览（VR Preview）** 即可启动预览。  
+    ![VR Preview](multiuserviewer-gameinstance-preview.png "VR Preview")  
+    
+
+[REGION:note]
+请勿忘记在打包应用程序之前关闭此设置！如未关闭，结果包的功能将于预期有所差异。
+[/REGION]

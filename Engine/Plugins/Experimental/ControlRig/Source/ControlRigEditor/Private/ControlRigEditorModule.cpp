@@ -17,6 +17,7 @@
 #include "ControlRigSequenceActions.h"
 #include "ControlRigEditorStyle.h"
 #include "Framework/Docking/LayoutExtender.h"
+#include "Framework/Application/SlateApplication.h"
 #include "LevelEditor.h"
 #include "MovieSceneToolsProjectSettings.h"
 #include "PropertyEditorModule.h"
@@ -53,6 +54,7 @@
 #include "Graph/NodeSpawners/ControlRigPropertyNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigUnitNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigVariableNodeSpawner.h"
+#include "Graph/NodeSpawners/ControlRigCommentNodeSpawner.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetDebugUtilities.h"
 #include "Graph/ControlRigGraphNode.h"
@@ -68,12 +70,24 @@
 #include "ControlRigDetails.h"
 #include "Units/Deprecated/RigUnitEditor_TwoBoneIKFK.h"
 #include "Animation/AnimSequence.h"
+#include "Editor/SControlRigProfilingView.h"
+#include "WorkspaceMenuStructure.h"
+#include "WorkspaceMenuStructureModule.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditorModule"
 
 DEFINE_LOG_CATEGORY(LogControlRigEditor);
 
 TMap<FName, TSubclassOf<URigUnitEditor_Base>> FControlRigEditorModule::RigUnitEditorClasses;
+
+TSharedRef<SDockTab> SpawnRigProfiler( const FSpawnTabArgs& Args )
+{
+	return SNew(SDockTab)
+		.TabRole(ETabRole::NomadTab)
+		[
+			SNew(SControlRigProfilingView)
+		];
+}
 
 void FControlRigEditorModule::StartupModule()
 {
@@ -301,10 +315,28 @@ void FControlRigEditorModule::StartupModule()
 
 	// register rig unit base editor class
 	RegisterRigUnitEditorClass("RigUnit_TwoBoneIKFK", URigUnitEditor_TwoBoneIKFK::StaticClass());
+
+#if WITH_EDITOR
+	if (FSlateApplication::IsInitialized())
+	{
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner("HierarchicalProfiler", FOnSpawnTab::CreateStatic(&SpawnRigProfiler))
+			.SetDisplayName(NSLOCTEXT("UnrealEditor", "HierarchicalProfilerTab", "Hierarchical Profiler"))
+			.SetTooltipText(NSLOCTEXT("UnrealEditor", "HierarchicalProfilerTooltip", "Open the Hierarchical Profiler tab."))
+			.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsMiscCategory())
+			.SetIcon(FSlateIcon(TEXT("ControlRigEditorStyle"), TEXT("ControlRig.RigUnit")));
+	};
+#endif
 }
 
 void FControlRigEditorModule::ShutdownModule()
 {
+#if WITH_EDITOR
+	if (FSlateApplication::IsInitialized())
+	{
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner("ControlRigProfiler");
+	}
+#endif
+
 	FBlueprintEditorUtils::OnRefreshAllNodesEvent.Remove(RefreshAllNodesDelegateHandle);
 	FBlueprintEditorUtils::OnReconstructAllNodesEvent.Remove(ReconstructAllNodesDelegateHandle);
 	FBlueprintEditorUtils::OnRenameVariableReferencesEvent.Remove(RenameVariableReferencesDelegateHandle);
@@ -746,6 +778,10 @@ void FControlRigEditorModule::GetTypeActions(const UControlRigBlueprint* CRB, FB
 		ActionRegistrar.AddBlueprintAction(ActionKey, NodeSpawner);
 	});
 
+	UBlueprintNodeSpawner* CommentNodeSpawner = UControlRigCommentNodeSpawner::Create();
+	check(CommentNodeSpawner != nullptr);
+	ActionRegistrar.AddBlueprintAction(ActionKey, CommentNodeSpawner);
+
 	// Add 'new properties'
 	TArray<FEdGraphPinType> PinTypes;
 	GetDefault<UControlRigGraphSchema>()->GetVariablePinTypes(PinTypes);
@@ -835,7 +871,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphNode* 
 					LOCTEXT("ClearArray", "Clear"),
 					LOCTEXT("ClearArray_Tooltip", "Clear this array of all of its entries"),
 					FSlateIcon(),
-					FUIAction(FExecuteAction::CreateUObject(Node, &UControlRigGraphNode::HandleClearArray, Context.Pin->PinName.ToString())));
+					FUIAction(FExecuteAction::CreateUObject(const_cast<UControlRigGraphNode*>(Node), &UControlRigGraphNode::HandleClearArray, Context.Pin->PinName.ToString())));
 
 				Context.MenuBuilder->EndSection();
 			}
@@ -851,13 +887,13 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphNode* 
 					LOCTEXT("RemoveArrayElement", "Remove"),
 					LOCTEXT("RemoveArrayElement_Tooltip", "Remove this array element"),
 					FSlateIcon(),
-					FUIAction(FExecuteAction::CreateUObject(Node, &UControlRigGraphNode::HandleRemoveArrayElement, Context.Pin->PinName.ToString())));
+					FUIAction(FExecuteAction::CreateUObject(const_cast<UControlRigGraphNode*>(Node), &UControlRigGraphNode::HandleRemoveArrayElement, Context.Pin->PinName.ToString())));
 
 				Context.MenuBuilder->AddMenuEntry(
 					LOCTEXT("InsertArrayElement", "Insert"),
 					LOCTEXT("InsertArrayElement_Tooltip", "Insert an array element after this one"),
 					FSlateIcon(),
-					FUIAction(FExecuteAction::CreateUObject(Node, &UControlRigGraphNode::HandleInsertArrayElement, Context.Pin->PinName.ToString())));
+					FUIAction(FExecuteAction::CreateUObject(const_cast<UControlRigGraphNode*>(Node), &UControlRigGraphNode::HandleInsertArrayElement, Context.Pin->PinName.ToString())));
 
 				Context.MenuBuilder->EndSection();
 			}

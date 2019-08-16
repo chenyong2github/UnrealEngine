@@ -1,56 +1,15 @@
-﻿Availability: Public
+﻿INTSourceChangelist:3782314
+Availability: Public
 Title:动态场景阴影
 Crumbs:%ROOT%, Resources
-Description:动态场景阴影内容示例贴图概述。
+Description:概述动态场景阴影内容示例图。
 Related: Engine/Rendering/LightingAndShadows/Basics
 Related: Engine/Rendering/LightingAndShadows/LightTypes/Directional
 Related: Engine/Rendering/LightingAndShadows/LightMobility/DynamicLights
 Related: Engine/Rendering/LightingAndShadows/Shadows
+Version: 4.9
+topic-image:DynamicSceneShadow_TopicCompact.png
 
-
-[VAR:Topic]
-[OBJECT:Topic]
-	[PARAM:image]
-		![%Resources/ContentExamples/DynamicSceneShadows:title%](DynamicSceneShadow_TopicCompact.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/physics_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		%Resources/ContentExamples/DynamicSceneShadows:title%
-	[/PARAM]
-	[PARAM:description]
-		%Resources/ContentExamples/DynamicSceneShadows:description%
-	[/PARAM]
-	[PARAM:path]
-	[RELATIVE:Resources/ContentExamples/DynamicSceneShadows]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
-
-[VAR:TopicCompact]
-[OBJECT:TopicCompact]
-	[PARAM:image]
-		![%Resources/ContentExamples/DynamicSceneShadows:title%](DynamicSceneShadow_TopicCompact.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/physics_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		%Resources/ContentExamples/DynamicSceneShadows:title%
-	[/PARAM]
-	[PARAM:description]
-		%Resources/ContentExamples/DynamicSceneShadows:description%
-	[/PARAM]
-	[PARAM:path]
-	[RELATIVE:Resources/ContentExamples/DynamicSceneShadows]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
-
-[COMMENT:none]
-   Insert path when done [RELATIVE:Resources/ContentExamples/DynamicSceneShadows]-
-[/COMMENT]
 
 [REGION:banner]
 ![](CascadedShadowMapsBanner.png)
@@ -60,32 +19,38 @@ Related: Engine/Rendering/LightingAndShadows/Shadows
 
 [TOC(start:2 end:2)]
 
-## 概述
-**Dynamic Scene Shadows** （动态场景阴影）内容示例贴图展示了如何通过使用 **Cascading Shadow Mapping** （层叠型阴影贴图）来创建具有烘焙光照的动态阴影特效，而层叠型阴影贴图是专门用来和 **Directional Light Actors** （定向光源Actors）一起使用的。它们比烘焙阴影要好，因为它们可以对动态对象进行阴影处理，比如对具有随风飘动的树叶的树的场景创建更为真实的效果。
+[/REGION]
 
-## 层叠型阴影贴图的工作原理
+ **动态场景阴影（Dynamic Scene Shadows）** 内容示例图演示了如何通过使用 **级联阴影贴图（Cascading Shadow Mapping）** 创建使用烘焙光照的动态阴影效果，**级联阴影贴图（Cascading Shadow Mapping）** 是一种专门用于 **定向光源Actor（Directional Light Actors）** 的阴影方法。
+它们优于烘焙阴影，因为它们允许动态对象的阴影，例如树叶在风中摇摆的树木，创建一种更逼真的场景。
 
-**层叠型阴影贴图** 方式将视锥体分为一系列基于距离的阴影贴图，每个贴图都会随您对摄像机的远离而逐渐降低分辨率。这表示离玩家视野最近的阴影有最高的分辨率，离得最远的则分辨率最低。在 **Dynamic Shadow Distance（动态阴影距离）** 属性的范围之外，系统混合回静态烘焙阴影。这样的话，您就可以制作一个具有烘焙光照的场景，并随着您与对象的远离而平滑过渡到静态烘焙阴影。
+(#howcascadingshadowmapswork)
+## 级联阴影贴图的工作原理
+
+级联阴影贴图方法将视图视锥划分成一系列基于距离的阴影级联，当您离摄像机越远，每个级联的分辨率就越低。 
+这意味着，离玩家视野最近的阴影分辨率最高，而距离最远的阴影分辨率最低。 
+超出 **动态阴影距离（Dynamic Shadow Distance）** 属性的范围，系统将重新混合到静态烘焙阴影中。通过这种方式，您可以拍摄一个使用烘焙光照的场景，并在您离开对象时，将其平滑地过渡为静态烘焙阴影。
 
 ![](CascadedShadowMapsImage.png)
 
 [REGION:caption]
-在上图中，请注意动态阴影（离摄像机较近的位置）在黄线位置附近消失，这被用来指定动态阴影距离。
-1. 这个区域显示的是静态阴影
-2. 这个是离摄像机较近的区域，显示的是层叠型阴影贴图
+在上图中，注意动态阴影（靠近摄像机）在黄线附近逐渐淡化消失，黄线用于指定动态阴影距离。
+1.显示静态阴影的区域
+2.靠近摄像机的区域，显示级联阴影贴图
 
 [/REGION]
-## 层叠型阴影贴图属性
+(#cascadedshadowmapproperties)
 
-在 **定向光照Actor** 的 **细节** 面板中，您可以找到 **Cascaded Shadow Map** （层叠型阴影贴图）分类。其中有以下属性。
+## 级联阴影贴图属性
 
-| **属性** | **描述** |
+在定向光源Actor的 **详细信息（Details）** 面板中，您将找到 **级联阴影贴图（Cascading Shadow Mapping）** 类别。其中包含以下属性。
+
+| **属性** | **说明** |
 |--------|---|
-| **Dynamic Shadow Distance (MovableLight and StationaryLight)** 动态阴影距离(可移动光源和固定光源）| 这个属性值控制您看到的层叠型阴影贴图与摄像机的距离。除此之外，您将仅能看到预计算的阴影贴图。设置为 0 会有效地禁用动态阴影。请注意有一个对 **可移动光源** 和 **固定光源** 的设置。|
-| **Num Dynamic Shadow Cascades** (动态阴影层叠数量）| 这个属性值控制了划分动态阴影距离的层叠部分的数量。更多的层次将会使得一定距离的阴影分辨率更佳，但对性能的损耗也更大。|
-| **Cascade Distribution Exponent** （层叠分布指数）| 这个属性值控制了在不同的层叠间发生的摄像机变换在多近距离内会发生。这个值被作为 **动态阴影距离** 的分数值。这个值如果为1，则会导致变换发生的距离与它们的分辨率成一定比例。大于1的值则会将变换更拉近摄像机。|
-| **Cascade Transition Fraction** (层叠变换分数值)| 这个属性值控制从一个层叠到另一个层叠间的淡入淡出比例。随着数字愈加接近0，转换变得更频繁。这个值一旦为0，则不再发生转换，导致在不同的层叠间产生尖锐边缘。|
-| **Shadow Distance Fadeout Fraction** (阴影距离淡出分数）| 这个值会将到层叠阴影贴图的变换作为一个整体进行柔化处理，0表示尖锐变换，而1表示完全的柔化。值0.1在一般情况下已足够。改变这个设置不产生性能消耗。|
-| **Use Inset Shadows for Movable Objects** （对可移动对象使用嵌入阴影）| 这个选项对由固定光源照亮的可移动对象使用嵌入阴影。当可移动对象在 **Dynamic Shadow Distance** （动态阴影距离）外进行移动时，这就很有用了，特别是在 **Dynamic Shadow Distance** （动态阴影距离）被设置为一个较低的值时。当 **Dynamic Shadow Distance** （动态阴影距离）的值非常大时（当前>8000)，这个选项就会被强制关闭。|
+| **动态阴影距离（可移动光源和静态光源）（Dynamic Shadow Distance (MovableLight and StationaryLight)）** | 它控制与摄像机的距离，您将在其中看到级联阴影贴图。超出此范围，您将只看到预计算的阴影贴图。设置为0可以有效地禁用动态阴影。注意，有一个可移动光源和静态光源的设置。|
+| **数字动态阴影级联（Num Dynamic Shadow Cascades）** | 它控制将在其中划分动态阴影距离的级联分段数量。在距离上级别越多，阴影分辨率越好，但性能消耗也会更高。|
+| **级联分布指数（Cascade Distribution Exponent）** | 它控制在级联之间可进行摄像机过渡的距离。该值作为动态阴影距离（Dynamic Shadow Distance）的一部分应用。值为1将使得在与分辨率成比例的距离进行过渡。值大于1将使过渡更靠近摄像机。|
+| **级联过渡部分（Cascade Transition Fraction）** | 它控制从一个级联到下一个级联的淡化比例。当值趋近于0时，过渡收紧。当值为0处，没有过渡，导致级联之间形成硬边。|
+| **阴影距离淡出部分（Shadow Distance Fadeout Fraction）** | 它从整体上将过渡柔化成级联阴影贴图，当值为0时为硬转换，当值为1为完全柔化。通常，值为0.1是较好的。该值没有性能开销。|
+| **使用可移动对象嵌入阴影（Use Inset Shadows for Movable Objects）** | 该选项允许在由静态光源照亮的可移动对象上使用嵌入阴影。当可移动对象移动到动态阴影距离（Dynamic Shadow Distance）的范围之外时，特别是当动态阴影距离（Dynamic Shadow Distance）设置为一个较低的值时，该选项非常有用。当动态阴影距离（Dynamic Shadow Distance）非常大时（当前 > 8000），将强制关闭该选项。|
 
-[/REGION]

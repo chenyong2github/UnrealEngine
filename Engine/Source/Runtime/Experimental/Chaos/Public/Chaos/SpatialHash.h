@@ -38,12 +38,30 @@ private:
 	void Init(const T Radius);
 	void Init();
 	
+	T SmallestAxis() const
+	{
+		TVector<T, 3> Extents = MBoundingBox.Extents();
+
+		if (Extents[0] < Extents[1] && Extents[0] < Extents[2])
+		{
+			return 0;
+		}
+		else if (Extents[1] < Extents[2])
+		{
+			return 1;
+		}
+		else
+		{
+			return 2;
+		}
+	}
+
 	int32 ComputeMaxN(const TVector<T, 3>& Particle, const T Radius);
 	TSet<int32> GetNRing(const TVector<T, 3>& Particle, const int32 N);
 	void ComputeGridXYZ(const TVector<T, 3>& Particle, int32& XIndex, int32& YIndex, int32& ZIndex);
 
 	int32 HashFunction(const TVector<T, 3>& Particle);
-	int32 HashFunction(int32& XIndex, int32& YIndex, int32& ZIndex);
+	int32 HashFunction(const int32 XIndex, const int32 YIndex, const int32 ZIndex);
 
 private:
 	TArray<TVector<T, 3>> MParticles;

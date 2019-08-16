@@ -1,84 +1,105 @@
-﻿INTSourceChangelist:3807090
-title:계층형 레벨 오브 디테일 개요
-description:언리얼 엔진 4 의 계층형 레벨 오브 디테일 시스템 개요입니다.
-crumbs:%ROOT%
-availability:Public
-version:4.13
-parent:Engine/HLOD
-type:overview
-order:1
-tags:HLOD
-topic-image:Engine/HLOD/HowTo/HLOD_howto_Topic_01.png
+INTSourceChangelist:6489782
+Availability: Public
+Title: 계층형 레벨 오브 디테일 개요
+Description: 언리얼 엔진 4 의 Hierarchical Level of Detail, 계층형 레벨 오브 디테일 시스템 개요입니다.
+Type: overview
+Version: 4.22
+Parent: Engine/HLOD
+Tags: HLOD
+topic-image: HLOD_Overview_Topic.png
+social-image: HLOD_Overview_Topic.png
+topic-icon: HLOD_Overview_Topic.png
 
-![](Engine\HLOD\HowTo\HLOD_howto_header.png)
 
-HLOD (Hierarchical Level of Detail, 계층형 LOD)란 가장 단순한 형태에서, 기존의 **스태틱 메시 액터** 다수를 하나의 **스태틱 메시 액터** 와 머티리얼에, 아틀라스 텍스처를 포함해서 합쳐 넣은 것입니다. 이는 드로 콜 수를 줄여 게임의 퍼포먼스에 도움이 될 수 있도록 하기 위함입니다. 그러한 **HLOD 액터** 를 만들 때 무엇을 생성해야 하는지 설정할 수 있는 탄탄한 시스템이 구비되어 있습니다.
+[TOC (start:2 end:3)]
 
-## 프락시 메시
+![](HLOD_howto_header.png)
 
-프락시 메시를 생성하고나면, 프로젝트의 `HLOD` 폴더 아래에서 찾을 수 있습니다. 여기에는 **HLOD 아웃라이너** 에 레퍼런싱되는 **LOD 액터** 가 포함됩니다.
-
-![image alt text](image_15.png)(w:373 convert:false)
-
-이 프락시 메시는 별개로 열어 세팅을 조정할 수 있습니다.
-
-![image alt text](image_16.png)(w:404 convert:false)
-
-위의 프락시 메시에는 여러가지 다양한 요소가 있는데, 원래는 별도의 텍스처에 들어있던 것을 하나의 텍스처로 합친 것입니다.
-
+**Hierarchical Level of Detail** (계층형 레벨 오브 디테일, 줄여서 HLOD) 는 가당 단순한 형태로, 기존 [스태틱 메시 액터](Engine/Actors/StaticMeshActor) 를 하나의 HLOD 프록시 메시 및 머티리얼로 (아틀라스 텍스처를 포함해서) 합치는 것입니다. HLOD 를 사용하면 각 스태틱 메시 액터 당 하나의 드로 콜이 들던 것에서 프록시 메시 당 하나의 드로 콜로 수를 줄일 수 있어서 퍼포먼스가 향상될 수 있습니다. HLOD 프록시 메시를 생성할 때, 스태틱 메시 액터를 클러스터 그룹으로 묶어 궁극적으로 프록시 메시로 만드는 방식을 정의하는 파라미터가 다수 있습니다. 
 
 [REGION:note]
-
-이는 **마스크** 또는 **오파시티** 를 사용하는 것에 문제가 될 수 있습니다. 이 알파 채널은 병합되는 텍스처의 애셋에는 전달되지 않습니다. 오파시티 또는 마스크를 사용해야 하는 경우, **Merge Textures** (텍스처 병합) 옵션을 끄는 것을 고려해 봐야 합니다. 그러면 프락시 메시는 원본 머티리얼을 합치는 대신 **Material Element ID** 로 할당합니다.
-
+HLOD 를 사용하려면, 시스템을 활용하려는 각 레벨에서 [HLOD 시스템을 활성화](Engine/HLOD/HowTo/Enabling) 해야 합니다.
 [/REGION]
 
-![image alt text](image_17.png)(w:422 convert:false)
+## 프록시 메시
 
-## HLOD 볼륨
+프록시 메시는 개별적으로 열어 그 세팅을 원하는 대로 조정할 수 있습니다. 
 
-**HLOD Volume** (HLOD 볼륨)은 HLOD 클러스터를 수동으로 정의하고 생성하는 데 사용됩니다. 이 볼륨은 **모드** 패널의 **배치 모드** 에서 레벨에 끌어 놓는 것으로 추가할 수 있습니다.
+![](image_16.png)(w:404)
 
-![image alt text](image_18.png)(w:229 convert:false)
+위 프록시 메시의 여러 요소에 있는 텍스처를 하나의 텍스처로 합칩니다 (아래).  
 
-같은 클러스터 그룹에 넣고자 하는 **액터** 들을 이 볼륨으로 묶습니다. 묶으려는 **액터** 들에 딱 맞게 하기 보다는 약간 크게 하는 것이 좋습니다. 볼륨을 배치한 후에는 HLOD 아웃라이너의 **Generate Clusters** (클러스터 생성) 옵션을 통해 볼륨으로 묶은 **액터** 로 새로운 클러스터를 만듭니다.
+![](image_17.png)(w:422)
+[REGION:note]
+**Mask** (마스크) 또는 **Opacity** (오파시티)를 사용하는 경우, 알파 채널은 병합 텍스처에 전달되지 않습니다. 오파시티 또는 마스크 항목이 필요한 경우, **Merge Textures** (텍스처 병합)에 대한 옵션을 비활성화하세요. 그렇게 하면 프록시 메시는 원래 머티리얼을 합치는 대신 **Material Element ID** 로 할당합니다.
+[/REGION]
 
-### 예
+## 계층형 LOD 볼륨
 
-HLOD 볼륨을 추가하기 전과 후의 생성된 클러스터 예는 다음과 같습니다.
+**Hierarchical LOD Volume** (계층형 LOD 볼륨, HLOD 볼륨)은 HLOD 클러스터를 수동 정의/생성하는 데 사용됩니다. **계층형 LOD 볼륨** 은 **모드** 패널의 **배치 모드 > 볼륨** 에서 레벨로 드래그하여 배치할 수 있습니다.
 
-![image alt text](image_19.png)(w:354 convert:false)
+![](HLODOverview_HLODvolume.png "HLODOverview_HLODvolume.png")
 
-HLOD Level Desired Bound Radius: 500
+같은 클러스터 그룹으로 묶으려는 액터를 이 볼륨 안에 넣으면 됩니다. 포함시킬 액터에 딱 맞게 하기 보다는 살짝 크게 만드는 것이 좋습니다. 액터 주위에 볼륨을 배치한 이후 **HLOD Outliner** (HLOD 아웃라이너)에서 **Generate Clusters** (클러스터 생성) 옵션을 사용하면 그 그룹 액터로 새 클러스터를 생성합니다.
 
-![image alt text](image_20.png)(w:372 convert:false)
+아래에서 HLOD 볼륨 안에 큐브와 구체가 여러 개 있고 볼륨 밖에 큐브 하나와 바닥이 있습니다. 
 
-볼륨을 끌어 놓고 **액터** 에 맞게 늘렸습니다.
+![](HLODOverview_Volume01.png "HLODOverview_Volume01.png")
 
- ![image alt text](image_21.png)(w:370 convert:false)
+**HLOD 아웃라이너** 안의 **클러스터 생성** 명령을 내리면, 두 개의 클러스터가 생깁니다. 하나에는 HLOD 볼륨 안의 스태틱 메시 액터가 들어있고, 다른 하나에는 HLOD 볼륨 안에 있지 않은 스태틱 메시 액터가 들어 있습니다. 
 
-HLOD 아웃라이너에서 생성된 **LOD 액터** 를 선택하면 생성된 클러스터와 클러스터 바운드가 표시됩니다.
+[REGION:lightbox]
+[![](HLODOverview_Volume02-1.png)(w:900)](HLODOverview_Volume02-1.png)
+[/REGION]
+[REGION:caption]
+이미지를 클릭하면 원본을 확인합니다.
+[/REGION]
+선택 사항으로, (아래처럼) **Only Generate Clusters for Volumes** (볼륨에 대한 클러스터만 생성) 옵션을 선택하면 HLOD 볼륨 안에 있는 스태틱 메시 액터에 대해서만 클러스터를 생성합니다. 
+[REGION:lightbox]
+[![](HLODOverview_Volume03.png)(w:900)](HLODOverview_Volume03.png)
+[/REGION]
+[REGION:caption]
+이미지를 클릭하면 원본을 확인합니다.
+[/REGION]
 
-HLOD 아웃라이너에서 **LOD 액터** 에 우클릭하고 **Select Contained Actors** (포함된 액터 선택)을 클릭하면 씬에서 이 특정 **LOD 액터** 에 사용된 **액터** 확인이 가능합니다.
+### 예제 구성
 
-![image alt text](image_22.png)(w:212 convert:false)
+아래는 HLOD 볼륨을 추가하기 이전과 이후의 생성 클러스터 예제입니다.
 
-![image alt text](image_23.png)(w:357 convert:false)
+![](image_19.png)(w:354)
 
-## LOD 액터의 디테일 패널
+HLOD 레벨 원하는 바운드 반경: 500
 
-레벨의 **LOD 액터** 를 선택하면 디테일 패널에 생성된 HLOD 의 일정 부분을 덮어쓸 수 있는 세팅이 몇 가지 표시되며, 이 클러스터에 어떤 스태틱 메시가 들어있는지도 같이 표시됩니다. 현재 디자인 상의 제약에 맞도록 어떤 값을 변경하거나 덮어쓸 수 있는 옵션이 있다는 점에서 씬의 다른 **액터** 와 다를 바 없습니다.
+![](image_20.png)(w:372)
 
-![image alt text](image_24.png)(w:270 convert:false)
+볼륨을 드래그하고 **액터** 에 맞게 스케일을 조정합니다.
 
-[COMMENT:none]
+![](image_21.png)(w:370)
 
+HLOD 아웃라이너에서 생성된 **LODActor** 를 선택하면 클러스터와 그 클러스터 바운드가 표시됩니다.
 
-HLOD 심플리곤 기능 관련 문서가 추가될 예정입니다.
+HLOD 아웃라이너에 **LODActor** 를 우클릭하고 **Select Contained Actors** (들어있는 액터 선택)을 클릭하면 씬에서 해당 **LODActor** 에 사용된 **액터** 를 확인할 수 있습니다.
 
-## HLOD 메시 컬링 볼륨
+![](image_22.png)(w:212) 
 
-HLODMesh Culling Volume (HLOD 메시 컬링 볼륨)은 HLOD 클러스터에 추가하여 소스 메시에서 불필요한 트라이앵글을 제거한 뒤 HLOD 메시를 생성하도록 하는 데 사용되는 볼륨입니다.
+![](image_23.png)(w:357)
 
+## HLOD 오버라이드
 
-[/COMMENT]
+레벨의 LOD 액터를 선택하면 **디테일** 패널 안에서 사용 중인 **Hierarchical LODSettings** (계층형 LOD 세팅)을 오버라이드할 수 있습니다. 
+
+![](HLODOverview_Overides.png "HLODOverview_Overides.png")
+
+[REGION:note]
+자세한 정보는 [메시 생성 세팅](Engine/HLOD/Reference#메시생성세팅) 및 프로퍼티를 참고하세요.
+[/REGION]
+
+## HLOD 시각화
+
+뷰포트에서 메시 LOD 와 HLOD 를 볼 수 있는 시각화 모드가 있습니다. 액세스하려면 뷰포트 좌상단 구석의 **뷰 모드** 버튼을 클릭하고 선호하는 LOD 배색 방법을 선택합니다. 
+
+![](LevelOfDetailColoration.png)
+
+[REGION:note]
+플레이 세션 도중 `viewmode hlodcoloration` 콘솔 명령을 입력해도 같은 결과를 얻을 수 있습니다.
+[/REGION]

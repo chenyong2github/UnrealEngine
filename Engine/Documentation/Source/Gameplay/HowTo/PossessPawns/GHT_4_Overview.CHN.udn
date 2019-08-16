@@ -17,7 +17,6 @@ order:3
 
 以下“设置”部分的链接将通过示例介绍如何使用蓝图支配 Pawn。
 
-(#ImplementationGuides)
 ## 实现指南
 
 [DIR(output:"role" parent:"Gameplay/HowTo/PossessPawns" org:"hierarchy" end:"1")]

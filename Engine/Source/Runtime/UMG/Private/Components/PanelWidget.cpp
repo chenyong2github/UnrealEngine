@@ -193,7 +193,7 @@ void UPanelWidget::ShiftChild(int32 Index, UWidget* Child)
 	Slots.Insert(Child->Slot, FMath::Clamp(Index, 0, Slots.Num()));
 }
 
-void UPanelWidget::SetDesignerFlags(EWidgetDesignFlags::Type NewFlags)
+void UPanelWidget::SetDesignerFlags(EWidgetDesignFlags NewFlags)
 {
 	Super::SetDesignerFlags(NewFlags);
 

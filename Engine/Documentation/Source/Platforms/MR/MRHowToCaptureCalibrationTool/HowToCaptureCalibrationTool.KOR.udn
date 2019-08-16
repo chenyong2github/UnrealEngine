@@ -1,14 +1,14 @@
-INTSourceChangelist:4320499
+INTSourceChangelist:6451428
 Availability: Public
-Crumbs: %ROOT%, Platforms, Platforms/MR
 Title: 혼합 현실 캡처 보정 툴 사용법
-Description: 언리얼 엔진 4 의 혼합 현실 캡처 기능에 대한 가이드와 레퍼런스입니다.
+Description: Mixed Reality Capture Calibration Tool 사용 안내서입니다.
 Version: 4.20
 Parent: Platforms/MR
 Tags: GettingStarted
 Tags: MR
 Tags: landingpage
 Tags: Early Access
+type:how-to
 topic-image:AdjustingAlignmentStep.png
 reference-image:AdjustingAlignment2.gif
 reference-image:MR_AdjustSample.gif
@@ -293,7 +293,7 @@ HTC Vive 의 경우 컨트롤러가 켜졌는지 확인한 후 툴을 실행하�
 | Chroma Opacity Strength | 크로마 불투명도 강도 - 나머지 픽셀의 불투명도에 대한 스케일입니다. 값이 클 수록 반투명도는 줄어듭니다. 크로마 색에 가까운 색일 수록, 이 값을 올려야 투명해지지 않습니다. |
 | Despill Strength | 번짐제거 강도 - 번짐제거 강도 스케일입니다. 값이 0 이면 번짐제거 보정을 하지 않는다는 뜻입니다. |
 | Despill Cutoff Cap | 번짐제거 잘라내기 상한 - 크로마 색과 이 허용치 이상 다른 색은 번짐제거 보정에 영향받지 않습니다. 값이 클 수록, 색 보정이 많이 됩니다. |
-| Despill Sharpness | 번짐제거 선명도 - 번짐제거 그라데이션을 부드럽게 하는 데 사용됩니다. 번짐제거 감쇠 커브를 정의합니다. 번짐제거 강도 스케일을 기하급수적으로 조절합니다. 값이 작을 수록 미묘해/부드러워 집니다. |
+| Despill Sharpness | 번짐제거 선명도 - 번짐제거 그러데이션을 부드럽게 하는 데 사용됩니다. 번짐제거 감쇠 커브를 정의합니다. 번짐제거 강도 스케일을 기하급수적으로 조절합니다. 값이 작을 수록 미묘해/부드러워 집니다. |
 | Faux Bounce Intensity | 가복원 강도 - 번짐제거 프로세스의 일부로 제거한 색의 대체색 세기에 적용할 스케일입니다. 값이 0 이면 가복원 색을 적용하지 않는다는 뜻입니다. |
 | Faux Bounce Color | 가복원 색 - 번짐제거 프로세스의 일부로 제거한 크로마 색이 번진 부분을 대체할 색입니다. |
 

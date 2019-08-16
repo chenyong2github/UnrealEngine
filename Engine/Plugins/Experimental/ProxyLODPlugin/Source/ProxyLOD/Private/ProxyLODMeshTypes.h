@@ -219,7 +219,7 @@ public:
 	*/
 	const openvdb::math::Transform& GetTransform() const
 	{
-		return *Transform;
+		return Transform;
 	}
 
 private:
@@ -227,14 +227,20 @@ private:
 	// Pointer to the raw mesh we are wrapping
 	const FMeshDescription* RawMesh;
 
+	
+
 	//////////////////////////////////////////////////////////////////////////
 	//Cache data
 	void InitializeCacheData();
 	uint32 TriangleCount;
 	TVertexAttributesConstRef<FVector> VertexPositions;
+	// Local version of the index array.  The FMeshDescription doesn't really have one.
+	TArray<FVertexInstanceID> IndexBuffer;
+
+
 
 	// Transform used to convert the mesh space into the index space used by voxelization
-	const openvdb::math::Transform* Transform;
+	const openvdb::math::Transform Transform;
 };
 
 namespace ProxyLOD
@@ -420,6 +426,9 @@ protected:
 	std::vector<FMeshDescriptionAttributesGetter> RawMeshArrayData;
 
 	std::vector<const FMeshMergeData*>  MergeDataArray;
+
+	// Need to build local index buffers for each mesh because the FMeshDescription doesn't natively have the construct.
+	std::vector<std::vector<FVertexInstanceID>> IndexBufferArray;
 
 };
 

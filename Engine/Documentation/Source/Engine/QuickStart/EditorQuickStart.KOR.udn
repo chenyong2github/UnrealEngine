@@ -1,39 +1,320 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
+﻿INTSourceChangelist:6582572
+Availability: Public
 Title: 레벨 디자이너 퀵스타트 가이드
-Crumbs: %ROOT%, GettingStarted
 Description: 언리얼 에디터의 기본적인 준비를 돕는 문서입니다.
 prereq:GettingStarted/Installation
 prereq:Engine/Basics/Projects/Browser
-SkillLevel: Beginner
+Type: quick start
+type:multi-step
 Version: 4.9
-parent:Engine/Editor
-order:1
-checkpoint: editorqs
-type:quick start
-topic-image:engine_qs_topic.png
+Parent: Engine/Editor
+topic-image: engine_qs_topic.png
+Order: 0
+
+[TOC (start:2 end:2)]
 
 ![](Finished.png)
 
-_이 가이드를 마칠 즈음엔 위 그림과 같은 방이 생겨있을 것입니다._
-
-## 목적
+*이 가이드를 마칠 즈음엔 위 그림과 같은 방이 생겨있을 것입니다.*
 
 이 언리얼 에디터 퀵스타트 가이드에서는 언리얼 엔진 4 작업에 있어서의 기본적인 내용을 안내해 드리는 데 초점을 맞춥니다.
 
-## 목표
-
 이 튜토리얼에서 배울 수 있는 내용은 다음과 같습니다:
 
-*	뷰포트 조작 방법
-*	새 레벨 생성 방법
-*	레벨에 액터 배치 및 편집 방법
-*	레벨 빌드 및 실행 방법
+*   뷰포트 조작 방법
+*   새 레벨 생성 방법
+*   레벨에 액터 배치 및 편집 방법
+*   레벨 빌드 및 실행 방법
 
-## 단계
+## 1. 필수 구성
 
-[DIR(output:"checkpoint" parent:"Engine/QuickStart" org:"hierarchy")]
+1. [언리얼 엔진 설치](GettingStarted/Installation) 및 언리얼 에디터 실행 이후, **프로젝트 브라우저** 가 뜰 것입니다.
 
-[REGION:call_to_action]
-	[클릭하면 시작합니다.](Engine/QuickStart/1 "%Engine/QuickStart/1:title%")
+1. **새 프로젝트** 탭을 클릭한 다음 **기본** 블루프린트 템플릿을 선택하고, 저장 위치와 이름을 입력한 뒤, **프로젝트 생성** 을 클릭합니다.
+
+    ![](NewProject_Windows.png)
+
+    **새 프로젝트** 탭에서는 여러가지 템플릿 유형을 기반으로 새 프로젝트를 생성할 수 있는 반면, **프로젝트** 탭에는 기존에 생성된 프로젝트 또는 다운로드한 샘플이 표시됩니다.
+
+## 2. 뷰포트 조작
+
+프로젝트가 열리고 시작할 준비가 되었으면, 먼저 언리얼 에디터 중앙에 [뷰포트](Engine/UI/LevelEditor/Viewports) 가 보일 것입니다.
+
+![](TableAndChairs.png)(w:720)
+
+뷰포트 안에서 레벨 구성 대부분의 작업이 이루어집니다. 이전 단계에서 선택한 템플릿 프로젝트에는 처음부터 작은 샘플 [레벨](Engine/Levels) 및 애셋이 포함되어 있습니다. 이 작은 방을 기준점으로 해서, 언리얼 엔진 4 의 뷰포트 조작에 흔히 사용되는 방법을 사용하여 [뷰포트 카메라 조작법](Engine/UI/LevelEditor/Viewports/ViewportControls) 을 익히는 시간을 가져보도록 하겠습니다.
+
+### 표준 제어
+
+[INCLUDE:Engine\UI\LevelEditor\Viewports\ViewportControls#StandardControls]
+
+[REGION:tip]
+[직교 뷰](https://www.youtube.com/watch?v=RoiQOwCg-4Q) 로 전환하려면, **원근** 드롭다운을 클릭한 다음 **직교 뷰 모드** 를 선택하면 됩니다.
+
+![](OrthographicViews.png)
 [/REGION]
+
+### WASD 비행 제어
+
+[INCLUDE:Engine\UI\LevelEditor\Viewports\ViewportControls#GameControls]
+
+### 오빗, 달리, 트랙
+
+[INCLUDE:Engine\UI\LevelEditor\Viewports\ViewportControls#MayaLikeControls]
+
+## 3. 새 레벨 생성
+
+다음으로 게임 환경을 지을 새 [레벨](Engine/Levels) 을 만들겠습니다. 새 레벨을 만드는 방법은 여러가지 있지만, 레벨 선택 옵션이 제공되는 **파일 메뉴** 방법을 사용하겠습니다.
+
+1. 언리얼 에디터 안에서, **파일 메뉴** 옵션을 선택한 다음 **새 레벨...** 을 선택합니다.
+
+    [OBJECT:ToggleButtonContent]
+        [PARAMLITERAL:category]
+        OS
+        [/PARAMLITERAL]
+        [PARAMLITERAL:id]
+        windows
+        [/PARAMLITERAL]
+        [PARAMLITERAL:active]
+        active_button_content
+        [/PARAMLITERAL]
+        [PARAM:content]
+        ![](FileMenu_Windows.png)
+        [/PARAM]
+    [/OBJECT]
+
+    [OBJECT:ToggleButtonContent]
+        [PARAMLITERAL:category]
+        OS
+        [/PARAMLITERAL]
+        [PARAMLITERAL:id]
+        mac
+        [/PARAMLITERAL]
+        [PARAMLITERAL:active]
+        [/PARAMLITERAL]
+        [PARAM:content]
+        ![](FileMenu_Mac.png)
+        [/PARAM]
+    [/OBJECT]
+
+    그러면 **새 레벨** 대화창이 열립니다.
+
+    [OBJECT:ToggleButtonContent]
+        [PARAMLITERAL:category]
+        OS
+        [/PARAMLITERAL]
+        [PARAMLITERAL:id]
+        windows
+        [/PARAMLITERAL]
+        [PARAMLITERAL:active]
+        active_button_content
+        [/PARAMLITERAL]
+        [PARAM:content]
+        ![](NewLevel_Windows.png)
+        [/PARAM]
+    [/OBJECT]
+
+    [OBJECT:ToggleButtonContent]
+        [PARAMLITERAL:category]
+        OS
+        [/PARAMLITERAL]
+        [PARAMLITERAL:id]
+        mac
+        [/PARAMLITERAL]
+        [PARAMLITERAL:active]
+        [/PARAMLITERAL]
+        [PARAM:content]
+        ![](NewLevel_Mac.png)
+        [/PARAM]
+    [/OBJECT]
+
+    위의 **디폴트** 레벨에는 레벨 제작시 흔히 사용되는 애셋이 약간 포함되어 있고, **VR-Basic** 레벨에는 VR 에디터로 레벨을 제작할 때 쓰이는 애셋이 포함되어 있으며, **기본 레벨** 은 애셋 없이 완전히 비어있는 레벨입니다. 이 가이드의 목적상 완전히 비어있는 레벨에서 시작하도록 하겠습니다.
+
+1. **기본 레벨** 을 클릭하여 선택합니다.
+
+## 4. 레벨에 액터 배치
+
+이번 단계에서는 기본 레벨에 (라이트나 지오메트리같은) [액터](Engine/Actors) 배치를 시작하겠습니다. 레벨에 액터를 추가하는 데 쓰이는 가장 흔한 방법 두 가지를 다뤄볼 텐데, 하나는 [배치 모드](Engine/UI/LevelEditor/Modes/PlaceMode) 를 통해서, 다른 하나는 [콘텐츠 브라우저](Engine/Content/Browser) 를 통해서입니다. 이번 단계를 완료한 이후에는 레벨에 액터를 배치하고 그 액터를 조작하여 환경 제작을 시작할 수 있습니다.
+
+1. **모드 패널** 에서 **배치 모드** 를 켠 상태로 [BSP](Engine/Actors/Brushes) 카테고리에 **Box** 를 선택합니다.
+
+    ![](ModesPanel.png)
+
+1. **Box** 를 **좌클릭** 으로 끌어 **레벨 뷰포트** 에 놓습니다.
+
+    ![](placeBox.png)
+
+    **왼쪽 마우스 버튼** 을 놓는 순간, **Box** 가 레벨에 추가됩니다.
+
+    ![](place2.png)
+
+1. **Box** 를 선택한 채로 (에디터 우하단 창) [디테일](Engine/UI/LevelEditor/Details) 패널에서 **위치** 와 **회전** 을 모두 **0** 으로 설정합니다.
+
+1. **스케일** 을 **4 x 4 x 0.1** 으로 설정합니다. 
+
+    ![](resize_floor.png)
+
+    플레이어가 걸어다닐 수 있는 바닥으로 사용하겠습니다.
+
+1. **모드 패널** 에서 **라이트** 탭을 선택한 다음, **디렉셔널 라이트** 를 레벨 속 바닥 위에 끌어 놓습니다.
+
+    ![](placeLight.png)
+
+1. [이동 툴](Engine/UI/LevelEditor/Viewports/ViewportControls) 에서 Z (파랑) 축 기즈모를 클릭한 다음 바닥 표면 위로 끌어올립니다.
+
+    ![](moveLight.png)
+
+    **디렉셔널 라이트** 가 선택 해제되면, **레벨 뷰포트** 에서 **좌클릭** 으로 다시 선택할 수 있습니다.
+
+1. **모드 패널** 에서 **비주얼 이펙트** 탭을 클릭한 다음 [애트머스페릭 포그](Engine/Actors/FogEffects/AtmosphericFog) 를 레벨에 끌어 놓습니다.
+
+    ![](placeFog.png)
+
+    **애트머스페릭 포그** 액터는 레벨에 기본적인 하늘을 추가하여 암흑이 아닌 빛이 있는 레벨이 됩니다.
+
+1. **모드 패널** 에서 **기본** 탭에 [플레이어 스타트](Engine/Actors/PlayerStart) 를 끌어 레벨에 놓습니다.
+
+    ![](placeStart.png)
+
+1. **모드 패널** 에서 **볼륨** 탭에 [Lightmass Importance Volume](Engine/Rendering/LightingAndShadows/Lightmass/Basics) 을 끌어 레벨에 놓습니다.
+
+    ![](placeVolume.png)
+
+    **Lightmass Importance Volume** 은 볼륨 안에 영향을 끼치는 라이팅과 섀도잉을 제어하고 집중시키는 데 사용됩니다. 레벨에 Lightmass Importance Volume 을 배치할 때, 볼륨의 기본 크기로 플레이가능 영역이 뒤덮이지 않으므로 스케일을 키워줘야 합니다.
+
+1. **레벨 뷰포트** 안에서 **R** 키를 눌러 [스케일 툴](Engine/UI/LevelEditor/Viewports/ViewportControls) 로 전환합니다.
+
+1. **스케일 툴** 중앙의 하양 박스를 잡아 끌어 바닥이 **Lightmass Importance Volume** 에 포함되도록 합니다.
+
+    ![](scaleVolume.png)
+
+1. **콘텐츠 브라우저** 의 **콘텐츠 > StarterContent > Props** 에서 **SM_TableRound** 를 끌어 레벨에 놓습니다.
+
+    ![](placeTable.png)
+
+    **이동 툴** (선택되지 않은 경우 **W** 키) 을 사용해서 탁자를 바닥 중앙에 오도록 합니다.
+
+1. 또 **Content > StarterContent > Props** 아래 **SM_Chair** 를 끌어 레벨에 놓습니다.
+
+    ![](addChair.png)
+
+1. 레벨 뷰포트 안에 **SM_Chair** 를 선택한 채로 **E** 키를 눌러 [회전 툴](Engine/UI/LevelEditor/Viewports/ViewportControls) 에 접근합니다.
+
+    ![](Rotate1.png)(w:440)
+
+1. **파랑** 축 원호를 좌클릭으로 잡아 끌어 (기즈모에 각도가 업데이트되면서) 탁자를 향하도록 의자를 회전시킵니다.
+
+    ![](Rotate2.png)(w:440)
+
+1. 위의 배치 방법을 사용해서 **모드 패널** 과 **콘텐츠 브라우저** 에서 액터를 더 추가하여 작은 씬을 만듭니다.
+
+    ![](placeThings.png)
+
+    라이트, 소품, 벽, 지붕을 추가해 보세요 (**Content > StarterContent > Architecture** 폴더에서 찾을 수 있습니다). 
+
+## 5. 배치된 액터 편집
+
+레벨에 여러가지 **액터** 를 배치했으니, 다음 단계는 [액터 프로퍼티 편집](GettingStarted/HowTo/DetailsPanel) 을 통해 레벨 내 액터의 모양이나 작동 방식을 바꾸어, 레벨을 보다 특화시키는 것입니다. **디렉셔널 라이트 액터** 의 프로퍼티 편집으로 시작해서 이미 레벨에 배치한 [스태틱 메시 액터](Engine/Actors/StaticMeshActor) 중 몇 가지에 [머티리얼](Engine/Rendering/Materials) 을 적용하는 데 초점을 옮기도록 하겠습니다.
+
+이 단계를 마치고 나면, 액터의 프로퍼티 어디를 접근해서 편집하기 시작해야 레벨 내 여러가지 세팅을 실험해 볼 수 있을지 알 수 있게 될 것입니다.
+
+1. **디렉셔널 라이트 액터** 를 뷰포트에서 **좌클릭** 하여 선택합니다.
+
+    ![](selectDL.png)
+
+1. **디테일 패널** 에서 **Light** 카테고리 아래 **Used as Atmosphere Sun Light** (대기 태양광으로 사용) 옵션을 켭니다:
+
+    ![](enableSun.png)
+
+    **디렉셔널 라이트 액터** 의 회전에 따라 하늘빛이 달라지며, 뷰포트를 회전시키면 태양이 디렉셔널 라이트 액터에 일치되는 것이 보일 것입니다. 이는 실시간 처리이므로 디렉셔널 라이트 액터를 ( **E** 키를 눌러 **회전 모드** 로 전환하여) 회전시키면 하늘 색이 밤, 일출, 낮, 일몰로 변합니다.
+
+다음으로 배치된 **스태틱 메시 액터** 중 하나의 **머티리얼** 을 변경하겠습니다. 먼저 선택합니다.
+
+1. 액터가 선택된 채로 **디테일** 패널에서 **Materials** 아래 **엘리먼트 0** 아래 드롭다운 박스를 클릭합니다.
+
+    ![](material_1.png)(w:900)
+
+1. 팝업창에서 **M_Brick_Clay_New** 머티리얼을 선택합니다.
+
+    ![](material_2.png)(w:900)
+
+1.  레벨의 모든 **액터** 에는 **디테일** 패널에서 조절할 수 있는 프로퍼티가 다수 있습니다. 세팅을 변경해 가며 살펴보세요!
+
+    ![](beforeBake.png)(w:900)
+
+    레벨 내 라이트의 **라이트 컬러** 변경, **머티리얼** 추가 적용, 액터의 **스케일** 변경 작업을 해 보세요.
+
+## 6. 빌드 프로세스 실행
+
+지금쯤 그림자와 벽 아래 새어 드는 빛에 "Preview" 딱지가 붙어있는 것을 눈치챘을 것입니다.
+
+![](beforeBake2.png)
+
+씬의 모든 라이트가 스태틱이라 미리계산되는 구워진 라이팅인데, 아직 계산되지 않았기 때문입니다. "Preview" 딱지는 현재 뷰포트에서 보는 것이 게임에서 보이는 것과 다르다는 것을 알려드리기 위함입니다.
+
+이번 단계에서는 **빌드** 프로세스를 통해 모든 레벨을 빌드(라이팅 및 비저빌리티 데이터 미리계산, 내비게이션 망 및 모든 브러시 모델 생성)하겠습니다. **빌드 옵션** 중 빌드된 라이트의 퀄리티를 조절할 수 있는 **Light Quality** (라이트 퀄리티) 옵션도 살펴보겠습니다.
+
+1. 메인 툴바에서 **빌드** 옵션 옆의 아래 화살표를 클릭합니다.
+
+    ![](buildOptionsButton.png)
+
+1.  **라이팅 퀄리티** 아래 **Production** (프로덕션) 세팅을 선택합니다.
+
+    ![](productionLighting.png)
+
+    그러면 최상의 라이팅 퀄리티가 나지만 계산 시간 측면에서 가장 느려 게임 **빌드** 에 걸리는 시간이 늘어납니다. 레벨이 작으니 그리 큰 영향은 없겠지만, 큰 레벨을 제작할 때는 제작 단계에선 중저수준 세팅으로 놔뒀다가 레벨 제작 최종 단계에서 **프로덕션** 으로 전환하면 된다는 점 유념해 주시기 바랍니다.
+
+1. **빌드** 완료시까지 기다립니다.
+
+    ![](wait.png)
+
+    위 그림에서 보듯이 언리얼 에디터 우하단 구석에 진행상황이 보일 것입니다. **빌드** 프로세스가 완료되면, 레벨 라이팅이 업데이트되어 최종 결과를 더욱 잘 확인할 수 있을 것입니다.
+
+    ![](built.png)
+
+1. 메인 툴바에서 **플레이** 버튼을 클릭하여 에디터에서 플레이합니다.
+
+    ![](PlayInEditor.png)
+
+    **WASD** 키와 **마우스** 를 사용하여 카메라를 회전시키며 레벨을 날아다닐 수 있습니다.
+
+## 7. 직접 해보기!
+
+이 시점에서 레벨에 라이트를 **빌드** 하고 **에디터에서 플레이** 기능으로 게임을 미리봤을 것입니다. 지금까지 언리얼 에디터 안에서 레벨을 구성할 때 가장 자주 사용하는 기능을 빠르게 익힐 수 있도록 도와드렸습니다.
+
+이 가이드에서 배운 내용을 토대로 다음과 같은 작업을 직접 해보세요:
+
+![](update1.png)(w:830)
+
+* 레벨의 라이팅을 달빛으로 바꾸어 밤 씬을 만듭니다.
+* 첫 방에 붙은 방을 하나 더 추가합니다.
+
+![](update2.png)(h:380) ![](update4.png)(h:380)
+
+* 붙은 방을 공중으로 띄워 계단으로 연결합니다.
+* 식물, 소파, 선반, 정문을 추가합니다.
+
+![](update6.png)(w:830)
+
+* 형형색색 다양한 라이트를 추가합니다.
+* 몇몇 액터에 다양한 머티리얼을 사용합니다.
+
+[REGION:note]
+이 퀵 스타트 가이드에서 다룬 주제 및 전체 에디터 관련 정보는, [언리얼 에디터 매뉴얼](Engine) 문서를 참고해 주세요.
+[/REGION]
+
+이 퀵 스타트에서 다룬 부분의 경우:
+
+* 레벨 에디터 관련: [레벨 에디터](Engine/UI/LevelEditor)
+
+* 뷰포트 관련: [뷰포트](Engine/UI/LevelEditor/Viewports)
+
+* 언리얼 에디터 4 에서 사용가능한 편집 모드 관련: [레벨 에디터 모드](Engine/UI/LevelEditor/Modes)
+
+* **콘텐츠 브라우저** 관련: [콘텐츠 브라우저](Engine/Content/Browser)
+
+* **디테일** 패널 관련: [디테일 패널](Engine/UI/LevelEditor/Details)
+
+* 빌드 관련: [라이트매스](Engine/Rendering/LightingAndShadows/Lightmass)
+
+* 라이팅 관련: [라이팅 퀵스타트 가이드](Engine/Rendering/LightingAndShadows/QuickStart)

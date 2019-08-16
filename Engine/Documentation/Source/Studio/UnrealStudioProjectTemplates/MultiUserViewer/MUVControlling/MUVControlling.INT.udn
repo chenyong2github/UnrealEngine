@@ -1,0 +1,98 @@
+Availability: Public
+Crumbs: 
+Title: Moving Around in the Multi-User Viewer Template
+Description: Describes the options provided by the Multi-User Viewer Template for controlling the camera at runtime, in desktop and VR navigation modes.
+Type: 
+Version: 4.21
+Parent: Studio/UnrealStudioProjectTemplates/MultiUserViewer
+Order: 3
+Tags: Reference
+Tags: multi-user viewer
+topic-image: multiuserviewer-controls-topic.png
+reference-image: VR_teleport.gif
+
+
+This page describes the different ways you can control the camera at runtime in the Multi-User Viewer to move around the scene, in both [desktop](#desktopcontrols) and [VR](#vrcontrols) navigation modes.
+
+## Desktop Controls
+
+Desktop mode offers two different navigation control systems: walk mode and fly mode.
+
+*   In walk mode, you're held down to the ground by gravity, and you collide with objects in the Level that are set up with collision volumes.
+*   In fly mode, you can fly freely around the scene in all directions, passing through all geometry regardless of their collision settings.  
+    
+
+| To... | Do... |
+| --- | --- |
+| Look around the world from your current position | Right-click and drag. |
+| Move forward, to the left, backward, or to the right from your current position | Hold the right mouse button and press **W**, **A**, **S** and **D**. |
+| Move straight up or down (along the world's global Z axis) | [INCLUDE:#excerpt_7] |
+| Toggle between walk mode and fly mode| [INCLUDE:#excerpt_9] |
+| Activate the laser pointer | Move the mouse cursor to the object you want to highlight, then left-click. |
+| Cycle through bookmark locations | Left and right arrow keys. |
+| Move to a preset bookmark location | Press any number key from 0-9 that has been mapped to a specific bookmark location. See [Working with Bookmarks in the Multi-User Viewer Template](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVBookmarks). |
+| Exit the application |  Press **Esc**. |
+
+
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_9]
+Press **Spacebar**.  
+Returning to walk mode after being in fly mode re-enables gravity. Depending on your location, you will either free-fall until you reach the ground, or you will snap to the closest ground surface.
+[/EXCERPT:excerpt_9]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_7]
+Hold the right mouse button and press **Q** and **E**.  
+Available in fly mode only.
+[/EXCERPT:excerpt_7]
+[/COMMENT]
+
+## VR Controls
+
+| To... | Do... |
+| --- | --- |
+| Teleport to a new location | [INCLUDE:#excerpt_21] |
+| Activate the laser pointer | Press the main trigger button on either controller, and move the controller around in real world space. |
+| Exit the application | Press **Esc** on your computer keyboard. |
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_21]
+Press and hold any face button or the secondary trigger on either controller.  
+You'll see an arc emitted from your controller, and a target marker superimposed on the ground. The target marker represents your teleport location. Move your controller in real world space to place the marker as close as possible to the place you want to move.
+[REGION:asyncgif]
+![](VR_teleport.gif)(w:800)
+[/REGION]The pointer of the marker represents your facing direction after the teleport. You can control this facing direction by rotating your wrist.  
+Release the face button or secondary trigger to complete the teleport.
+[/EXCERPT:excerpt_21]
+-
+[/COMMENT]
+
+
+## Testing in VR in the Unreal Editor
+
+When you launch a packaged or standalone version of the Multi-User Template with VR set up on your computer, you'll be able to choose whether you want to launch using standard desktop controls or VR controls.
+
+However, if you want to test your Project in the Unreal Editor using VR controls, you'll need to follow these steps:
+
+1.  Find the **BP\_MultiUser\_GameInstance** Asset in the Content Browser under *MultiUserViewer/Blueprints/GameInstance*.  
+    ![BP_MultiUser_GameInstance](multiuserviewer-gameinstance.png "BP_MultiUser_GameInstance")  
+    
+2.  Double-click the Asset to open it in the Blueprint Editor.  
+    ![Game Instance Blueprint](multiuserviewer-gameinstance-bp.png "Game Instance Blueprint")  
+    
+3.  In the **Details** panel, enable the **VRmode** option.  
+    ![Game Instance Details panel](multiuserviewer-gameinstance-vrmode.png "Game Instance Details panel")  
+    
+4.  **Compile** and **Save** the Blueprint.
+5.  To launch the preview, use the drop-down arrow next to the Play button in the Toolbar to select **VR Preview**.  
+    ![VR Preview](multiuserviewer-gameinstance-preview.png "VR Preview")  
+    
+
+[REGION:note]
+Don't forget to turn this setting back off before you package your application! If you don't, the resulting package will not work as you expect.
+[/REGION]

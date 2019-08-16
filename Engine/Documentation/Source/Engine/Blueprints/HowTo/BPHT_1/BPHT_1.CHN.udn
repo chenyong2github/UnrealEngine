@@ -1,6 +1,6 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6430399
 Availability: Public
-Title:1.需要的资源设置
+Title:1. 需要的资源设置
 Crumbs: %ROOT%, Engine, Engine/Blueprints, Engine/Blueprints/HowTo
 Description:在这一步中，我们将设置在项目中使用的资源。 
 version: 4.9
@@ -19,8 +19,6 @@ order:1
 [/REGION]
 
 创建并打开项目后，按 **Ctrl+N** 创建一个 **新关卡（New Level）**，并在弹出窗口提示时选择 **默认（Default）**。一旦您创建了一个新的关卡，请按照下面的部分开始设置各个必需的资源。 
-
-(#createadestructiblestaticmesh)
 
 ## 创建可破坏的静态网格体
 
@@ -62,8 +60,6 @@ order:1
 
 1.	单击 **编译（Compile）** 和 **保存（Save）** 按钮，然后关闭蓝图。 
 
-(#placespawnpoints)
-
 ## 放置生成点 
 
 现在我们将在要启动可射击岩石的关卡中创建一些生成点。 
@@ -79,7 +75,7 @@ order:1
 	**X** 的 **位置（Location）** 为 **7.0m、0.0m、0.0m**，**旋转（Rotation）** 为 **0.0、40.0、0.0**。 
 
 	[REGION:note]
-	输入7.0m，即可将该值转换为700cm，即等值。检查VR最佳实践（VR Best Practies）页面上的[世界场景比例](Platforms/VR/ContentSetup)部分，因为它给出了如何计算虚幻单位以及如何更改测量值显示方式的细分。 
+	输入7.0m，即可将该值转换为700cm，即等值。检查VR最佳实践（VR Best Practies）页面上的[世界场景比例](Platforms/VR/DevelopVR/ContentSetup)部分，因为它给出了如何计算虚幻单位以及如何更改测量值显示方式的细分。 
 	[/REGION]
 
 1.	在关卡中，选择 **目标点（Target Point）**，按下 **Ctrl+W** 复制它并设置其 **细节（Details）**，如下所示。 
@@ -98,8 +94,6 @@ order:1
 
 	您现在将有三个生成点在玩家出生点对面（蓝色箭头指示控制器图标和方向）。 
 
-
-(#creatingahud)
 
 ## 创建HUD
 

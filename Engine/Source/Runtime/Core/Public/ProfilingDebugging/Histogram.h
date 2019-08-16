@@ -35,6 +35,12 @@ struct CORE_API FHistogram
 	/** Inits histogram with the specified bin boundaries, with the final bucket extending to infinity (e.g., passing in 0,5 creates a [0..5) bucket and a [5..infinity) bucket) */
 	void InitFromArray(TArrayView<const double> Thresholds);
 
+	/** Inits histogram with the specified bin boundaries, with the final bucket extending to infinity (e.g., passing in 0,5 creates a [0..5) bucket and a [5..infinity) bucket) */
+	FORCEINLINE void InitFromArray(std::initializer_list<double> Thresholds)
+	{
+		InitFromArray(MakeArrayView(Thresholds));
+	}
+
 	/** Resets measurements, without resetting the configured bins. */
 	void Reset();
 

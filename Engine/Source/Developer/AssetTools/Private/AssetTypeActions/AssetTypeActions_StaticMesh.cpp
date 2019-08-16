@@ -111,7 +111,7 @@ void FAssetTypeActions_StaticMesh::GetImportLODMenu(class FMenuBuilder& MenuBuil
 		FText ToolTip = NSLOCTEXT("AssetTypeActions_StaticMesh", "ReimportTip", "Reimport over existing LOD");
 		if(LOD == First->GetNumLODs())
 		{
-			Description = FText::Format( NSLOCTEXT("AssetTypeActions_StaticMesh", "LOD (number)", "LOD {0}"), LODText );
+			Description = FText::Format( NSLOCTEXT("AssetTypeActions_StaticMesh", "LOD (number)", "Add LOD {0}"), LODText );
 			ToolTip = NSLOCTEXT("AssetTypeActions_StaticMesh", "NewImportTip", "Import new LOD");
 		}
 
@@ -191,11 +191,11 @@ void FAssetTypeActions_StaticMesh::ExecutePasteLODSettings(TArray<TWeakObjectPtr
 	};
 
 	TArray<FLODSettings> LODSettings;
-	LODSettings.AddZeroed(LODCopyMesh->SourceModels.Num());
-	for (int32 i = 0; i < LODCopyMesh->SourceModels.Num(); i++)
+	LODSettings.AddZeroed(LODCopyMesh->GetNumSourceModels());
+	for (int32 i = 0; i < LODCopyMesh->GetNumSourceModels(); i++)
 	{
-		LODSettings[i].ReductionSettings = LODCopyMesh->SourceModels[i].ReductionSettings;
-		LODSettings[i].ScreenSize = LODCopyMesh->SourceModels[i].ScreenSize.Default;
+		LODSettings[i].ReductionSettings = LODCopyMesh->GetSourceModel(i).ReductionSettings;
+		LODSettings[i].ScreenSize = LODCopyMesh->GetSourceModel(i).ScreenSize.Default;
 	}
 
 	const bool bAutoComputeLODScreenSize = LODCopyMesh->bAutoComputeLODScreenSize;
@@ -212,14 +212,7 @@ void FAssetTypeActions_StaticMesh::ExecutePasteLODSettings(TArray<TWeakObjectPtr
 
 			for (int32 i = 0; i < LODCount; i++)
 			{
-				Mesh->SourceModels[i].ReductionSettings = LODSettings[i].ReductionSettings;
-				Mesh->SourceModels[i].ScreenSize.Default = LODSettings[i].ScreenSize;
-			}
-
-			for (int32 i = LODCount; i < LODSettings.Num(); ++i)
-			{
-				FStaticMeshSourceModel& SrcModel = Mesh->SourceModels[i];
-
+				FStaticMeshSourceModel& SrcModel = Mesh->GetSourceModel(i);
 				SrcModel.ReductionSettings = LODSettings[i].ReductionSettings;
 				SrcModel.ScreenSize.Default = LODSettings[i].ScreenSize;
 			}

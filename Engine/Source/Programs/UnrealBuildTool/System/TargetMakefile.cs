@@ -1,5 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -20,7 +21,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The version number to write
 		/// </summary>
-		public const int CurrentVersion = 13;
+		public const int CurrentVersion = 18;
 
 		/// <summary>
 		/// The time at which the makefile was created
@@ -38,6 +39,11 @@ namespace UnrealBuildTool
 		public string ExternalMetadata;
 
 		/// <summary>
+		/// The main executable output by this target
+		/// </summary>
+		public FileReference ExecutableFile;
+
+		/// <summary>
 		/// Path to the receipt file for this target
 		/// </summary>
 		public FileReference ReceiptFile;
@@ -51,6 +57,11 @@ namespace UnrealBuildTool
 		/// Type of the target
 		/// </summary>
 		public TargetType TargetType;
+
+		/// <summary>
+		/// Map of config file keys to values. Makefile will be invalidated if any of these change.
+		/// </summary>
+		public ConfigValueTracker ConfigValueTracker;
 
 		/// <summary>
 		/// Whether the target should be deployed after being built
@@ -99,6 +110,11 @@ namespace UnrealBuildTool
 		public HashSet<string> HotReloadModuleNames;
 
 		/// <summary>
+		/// List of all source directories
+		/// </summary>
+		public List<DirectoryItem> SourceDirectories;
+
+		/// <summary>
 		/// Set of all source directories. Any files being added or removed from these directories will invalidate the makefile.
 		/// </summary>
 		public Dictionary<DirectoryItem, FileItem[]> DirectoryToSourceFiles;
@@ -124,6 +140,11 @@ namespace UnrealBuildTool
 		public List<UHTModuleHeaderInfo> UObjectModuleHeaders = new List<UHTModuleHeaderInfo>();
 
 		/// <summary>
+		/// List of config settings in generated config files
+		/// </summary>
+		public Dictionary<string, string> ConfigSettings = new Dictionary<string, string>();
+
+		/// <summary>
 		/// List of all plugin names. The makefile will be considered invalid if any of these changes, or new plugins are added.
 		/// </summary>
 		public HashSet<FileItem> PluginFiles;
@@ -131,32 +152,37 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Additional files which are required 
 		/// </summary>
-		public HashSet<FileItem> AdditionalDependencies = new HashSet<FileItem>(); 
+		public HashSet<FileItem> AdditionalDependencies = new HashSet<FileItem>();
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="ToolchainInfo">String describing the toolchain used to build. This will be output before executing actions.</param>
 		/// <param name="ExternalMetadata">External build metadata from the platform</param>
+		/// <param name="ExecutableFile">Path to the executable or primary output binary for this target</param>
 		/// <param name="ReceiptFile">Path to the receipt file</param>
 		/// <param name="ProjectIntermediateDirectory">Path to the project intermediate directory</param>
 		/// <param name="TargetType">The type of target</param>
+		/// <param name="ConfigValueTracker">Set of dependencies on config files</param>
 		/// <param name="bDeployAfterCompile">Whether to deploy the target after compiling</param>
 		/// <param name="bHasProjectScriptPlugin">Whether the target has a project script plugin</param>
-		public TargetMakefile(string ToolchainInfo, string ExternalMetadata, FileReference ReceiptFile, DirectoryReference ProjectIntermediateDirectory, TargetType TargetType, bool bDeployAfterCompile, bool bHasProjectScriptPlugin)
+		public TargetMakefile(string ToolchainInfo, string ExternalMetadata, FileReference ExecutableFile, FileReference ReceiptFile, DirectoryReference ProjectIntermediateDirectory, TargetType TargetType, ConfigValueTracker ConfigValueTracker, bool bDeployAfterCompile, bool bHasProjectScriptPlugin)
 		{
 			this.CreateTimeUtc = DateTime.UtcNow;
 			this.ToolchainInfo = ToolchainInfo;
 			this.ExternalMetadata = ExternalMetadata;
+			this.ExecutableFile = ExecutableFile;
 			this.ReceiptFile = ReceiptFile;
 			this.ProjectIntermediateDirectory = ProjectIntermediateDirectory;
 			this.TargetType = TargetType;
+			this.ConfigValueTracker = ConfigValueTracker;
 			this.bDeployAfterCompile = bDeployAfterCompile;
 			this.bHasProjectScriptPlugin = bHasProjectScriptPlugin;
 			this.Actions = new List<Action>();
 			this.OutputItems = new List<FileItem>();
 			this.ModuleNameToOutputItems = new Dictionary<string, FileItem[]>(StringComparer.OrdinalIgnoreCase);
 			this.HotReloadModuleNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+			this.SourceDirectories = new List<DirectoryItem>();
 			this.DirectoryToSourceFiles = new Dictionary<DirectoryItem, FileItem[]>();
 			this.WorkingSet = new HashSet<FileItem>();
 			this.CandidatesForWorkingSet = new HashSet<FileItem>();
@@ -175,9 +201,11 @@ namespace UnrealBuildTool
 			CreateTimeUtc = new DateTime(Reader.ReadLong(), DateTimeKind.Utc);
 			ToolchainInfo = Reader.ReadString();
 			ExternalMetadata = Reader.ReadString();
+			ExecutableFile = Reader.ReadFileReference();
 			ReceiptFile = Reader.ReadFileReference();
 			ProjectIntermediateDirectory = Reader.ReadDirectoryReference();
 			TargetType = (TargetType)Reader.ReadInt();
+			ConfigValueTracker = new ConfigValueTracker(Reader);
 			bDeployAfterCompile = Reader.ReadBool();
 			bHasProjectScriptPlugin = Reader.ReadBool();
 			AdditionalArguments = Reader.ReadArray(() => Reader.ReadString());
@@ -187,6 +215,7 @@ namespace UnrealBuildTool
 			OutputItems = Reader.ReadList(() => Reader.ReadFileItem());
 			ModuleNameToOutputItems = Reader.ReadDictionary(() => Reader.ReadString(), () => Reader.ReadArray(() => Reader.ReadFileItem()), StringComparer.OrdinalIgnoreCase);
 			HotReloadModuleNames = Reader.ReadHashSet(() => Reader.ReadString(), StringComparer.OrdinalIgnoreCase);
+			SourceDirectories = Reader.ReadList(() => Reader.ReadDirectoryItem());
 			DirectoryToSourceFiles = Reader.ReadDictionary(() => Reader.ReadDirectoryItem(), () => Reader.ReadArray(() => Reader.ReadFileItem()));
 			WorkingSet = Reader.ReadHashSet(() => Reader.ReadFileItem());
 			CandidatesForWorkingSet = Reader.ReadHashSet(() => Reader.ReadFileItem());
@@ -205,9 +234,11 @@ namespace UnrealBuildTool
 			Writer.WriteLong(CreateTimeUtc.Ticks);
 			Writer.WriteString(ToolchainInfo);
 			Writer.WriteString(ExternalMetadata);
+			Writer.WriteFileReference(ExecutableFile);
 			Writer.WriteFileReference(ReceiptFile);
 			Writer.WriteDirectoryReference(ProjectIntermediateDirectory);
 			Writer.WriteInt((int)TargetType);
+			ConfigValueTracker.Write(Writer);
 			Writer.WriteBool(bDeployAfterCompile);
 			Writer.WriteBool(bHasProjectScriptPlugin);
 			Writer.WriteArray(AdditionalArguments, Item => Writer.WriteString(Item));
@@ -217,6 +248,7 @@ namespace UnrealBuildTool
 			Writer.WriteList(OutputItems, Item => Writer.WriteFileItem(Item));
 			Writer.WriteDictionary(ModuleNameToOutputItems, k => Writer.WriteString(k), v => Writer.WriteArray(v, e => Writer.WriteFileItem(e)));
 			Writer.WriteHashSet(HotReloadModuleNames, x => Writer.WriteString(x));
+			Writer.WriteList(SourceDirectories, x => Writer.WriteDirectoryItem(x));
 			Writer.WriteDictionary(DirectoryToSourceFiles, k => Writer.WriteDirectoryItem(k), v => Writer.WriteArray(v, e => Writer.WriteFileItem(e)));
 			Writer.WriteHashSet(WorkingSet, x => Writer.WriteFileItem(x));
 			Writer.WriteHashSet(CandidatesForWorkingSet, x => Writer.WriteFileItem(x));
@@ -377,20 +409,11 @@ namespace UnrealBuildTool
 					return null;
 				}
 
-				// Check if ini files are newer. Ini files contain build settings too.
-				DirectoryReference ProjectDirectory = DirectoryReference.FromFile(ProjectFile);
-				foreach (ConfigHierarchyType IniType in (ConfigHierarchyType[])Enum.GetValues(typeof(ConfigHierarchyType)))
+				// Check if any config settings have changed. Ini files contain build settings too.
+				if(!Makefile.ConfigValueTracker.IsValid())
 				{
-					foreach (FileReference IniFilename in ConfigHierarchy.EnumerateConfigFileLocations(IniType, ProjectDirectory, Platform))
-					{
-						FileInfo IniFileInfo = new FileInfo(IniFilename.FullName);
-						if(IniFileInfo.LastWriteTimeUtc > Makefile.CreateTimeUtc)
-						{
-							// Ini files are newer than makefile
-							ReasonNotLoaded = "ini files are newer than makefile";
-							return null;
-						}
-					}
+					ReasonNotLoaded = "config setting changed";
+					return null;
 				}
 
 				// Get the current build metadata from the platform
@@ -488,52 +511,26 @@ namespace UnrealBuildTool
 					}
 				}
 
-				// We do a check to see if any modules' headers have changed which have
-				// acquired or lost UHT types.  If so, which should be rare,
-				// we'll just invalidate the entire makefile and force it to be rebuilt.
-
-				// Get all H files in processed modules newer than the makefile itself
-				HashSet<FileItem> HFilesNewerThanMakefile = new HashSet<FileItem>();
-				foreach(UHTModuleHeaderInfo ModuleHeaderInfo in Makefile.UObjectModuleHeaders)
-				{
-					foreach(FileItem HeaderFile in ModuleHeaderInfo.SourceFolder.EnumerateFiles())
-					{
-						if(HeaderFile.HasExtension(".h") && HeaderFile.LastWriteTimeUtc > Makefile.CreateTimeUtc)
-						{
-							HFilesNewerThanMakefile.Add(HeaderFile);
-						}
-					}
-				}
-
-				// Get all H files in all modules processed in the last makefile build
-				HashSet<FileItem> AllUHTHeaders = new HashSet<FileItem>(Makefile.UObjectModuleHeaders.SelectMany(x => x.HeaderFiles));
-
-				// Check whether any headers have been deleted. If they have, we need to regenerate the makefile since the module might now be empty. If we don't,
-				// and the file has been moved to a different module, we may include stale generated headers.
-				foreach (FileItem HeaderFile in AllUHTHeaders)
-				{
-					if (!HeaderFile.Exists)
-					{
-						Log.TraceLog("File processed by UHT was deleted ({0}); invalidating makefile", HeaderFile);
-						ReasonNotLoaded = string.Format("UHT file was deleted");
-						return false;
-					}
-				}
-
-				// Makefile is invalid if:
-				// * There are any newer files which contain no UHT data, but were previously in the makefile
-				// * There are any newer files contain data which needs processing by UHT, but weren't not previously in the makefile
+				// Load the metadata cache
 				SourceFileMetadataCache MetadataCache = SourceFileMetadataCache.CreateHierarchy(ProjectFile);
-				foreach (FileItem HeaderFile in HFilesNewerThanMakefile)
+
+				// Find the set of files that contain reflection markup
+				ConcurrentBag<FileItem> NewFilesWithMarkupBag = new ConcurrentBag<FileItem>();
+				using (ThreadPoolWorkQueue Queue = new ThreadPoolWorkQueue())
 				{
-					bool bContainsUHTData = MetadataCache.ContainsReflectionMarkup(HeaderFile);
-					bool bWasProcessed = AllUHTHeaders.Contains(HeaderFile);
-					if (bContainsUHTData != bWasProcessed)
+					foreach(DirectoryItem SourceDirectory in Makefile.SourceDirectories)
 					{
-						Log.TraceLog("{0} {1} contain UHT types and now {2} , ignoring it", HeaderFile, bWasProcessed ? "used to" : "didn't", bWasProcessed ? "doesn't" : "does");
-						ReasonNotLoaded = string.Format("new files with reflected types");
-						return false;
+						Queue.Enqueue(() => FindFilesWithMarkup(SourceDirectory, MetadataCache, ExcludedFolderNames, NewFilesWithMarkupBag, Queue));
 					}
+				}
+
+				// Check whether the list has changed
+				List<FileItem> PrevFilesWithMarkup = Makefile.UObjectModuleHeaders.Where(x => !x.bUsePrecompiled).SelectMany(x => x.HeaderFiles).ToList();
+				List<FileItem> NextFilesWithMarkup = NewFilesWithMarkupBag.ToList();
+				if (NextFilesWithMarkup.Count != PrevFilesWithMarkup.Count || NextFilesWithMarkup.Intersect(PrevFilesWithMarkup).Count() != PrevFilesWithMarkup.Count)
+				{
+					ReasonNotLoaded = "UHT files changed";
+					return false;
 				}
 
 				// If adaptive unity build is enabled, do a check to see if there are any source files that became part of the
@@ -597,6 +594,35 @@ namespace UnrealBuildTool
 				}
 			}
 			return false;
+		}
+
+		/// <summary>
+		/// Finds all the source files under a directory that contain reflection markup
+		/// </summary>
+		/// <param name="Directory">The directory to search</param>
+		/// <param name="MetadataCache">Cache of source file metadata</param>
+		/// <param name="ExcludedFolderNames">Set of folder names to ignore when recursing the directory tree</param>
+		/// <param name="FilesWithMarkup">Receives the set of files which contain reflection markup</param>
+		/// <param name="Queue">Queue to add sub-tasks to</param>
+		static void FindFilesWithMarkup(DirectoryItem Directory, SourceFileMetadataCache MetadataCache, ReadOnlyHashSet<string> ExcludedFolderNames, ConcurrentBag<FileItem> FilesWithMarkup, ThreadPoolWorkQueue Queue)
+		{
+			// Search through all the subfolders
+			foreach(DirectoryItem SubDirectory in Directory.EnumerateDirectories())
+			{
+				if(!ExcludedFolderNames.Contains(SubDirectory.Name))
+				{
+					Queue.Enqueue(() => FindFilesWithMarkup(SubDirectory, MetadataCache, ExcludedFolderNames, FilesWithMarkup, Queue));
+				}
+			}
+
+			// Check for all the headers in this folder
+			foreach(FileItem File in Directory.EnumerateFiles())
+			{
+				if(File.HasExtension(".h") && MetadataCache.ContainsReflectionMarkup(File))
+				{
+					FilesWithMarkup.Add(File);
+				}
+			}
 		}
 
 		/// <summary>

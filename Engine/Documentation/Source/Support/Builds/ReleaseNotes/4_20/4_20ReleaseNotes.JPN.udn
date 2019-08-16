@@ -226,7 +226,7 @@ Nintendo Switch向けフォートナイトの開発で行った **無数のパ�
 
 * 一連の r.DOF.* コンソール変数で、ハードウェアリソースが限られたプロジェクトでのスケーラブル設定のカスタマイズが可能です。
 
-詳細については[DOF (Depth of field:被写界深度)](https://docs.unrealengine.com/en-us/Engine/Rendering/PostProcessEffects/DepthOfField/CinematicDOFMethods)ドキュメントを参照してください
+詳細については[DOF (Depth of field:被写界深度)](https://docs.unrealengine.com/en-us/Engine/Rendering/PostProcessEffects/DepthOfField/CinematicDOFMethodsDOFMethods)ドキュメントを参照してください
 
 ## 新規：ナイアガラ ビジュアルエフェクト エディタ(アーリーアクセス)
 

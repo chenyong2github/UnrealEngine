@@ -2,6 +2,8 @@
 
 #include "LightmapUniformShaderParameters.h"
 #include "SceneManagement.h"
+#include "LightMap.h"
+#include "VT/VirtualTexture.h"
 #include "UnrealEngine.h"
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FPrecomputedLightingUniformParameters, "PrecomputedLightingBuffer");
@@ -15,7 +17,7 @@ FLightmapSceneShaderData::FLightmapSceneShaderData(const class FLightCacheInterf
 
 void FLightmapSceneShaderData::Setup(const FPrecomputedLightingUniformParameters& ShaderParameters)
 {
-	static_assert(sizeof(FPrecomputedLightingUniformParameters) == 128, "The FLightmapSceneShaderData manual layout below and in usf must match FPrecomputedLightingUniformParameters.  Update this assert when adding a new member.");
+	static_assert(sizeof(FPrecomputedLightingUniformParameters) == sizeof(FVector4) * 15, "The FLightmapSceneShaderData manual layout below and in usf must match FPrecomputedLightingUniformParameters.  Update this assert when adding a new member.");
 	// Note: layout must match GetLightmapData in usf
 
 	Data[0] = ShaderParameters.StaticShadowMapMasks;
@@ -26,6 +28,12 @@ void FLightmapSceneShaderData::Setup(const FPrecomputedLightingUniformParameters
 	Data[5] = ShaderParameters.LightMapScale[1];
 	Data[6] = ShaderParameters.LightMapAdd[0];
 	Data[7] = ShaderParameters.LightMapAdd[1];
+	
+	// bitcast FUintVector4 -> FVector4
+	FMemory::Memcpy(&Data[8], &ShaderParameters.LightmapVTPackedPageTableUniform[0], sizeof(FVector4) * 2u);
+
+	// bitcast FUintVector4 -> FVector4
+	FMemory::Memcpy(&Data[10], &ShaderParameters.LightmapVTPackedUniform[0], sizeof(FVector4) * 5u);
 }
 
 void GetDefaultPrecomputedLightingParameters(FPrecomputedLightingUniformParameters& Parameters)
@@ -41,6 +49,13 @@ void GetDefaultPrecomputedLightingParameters(FPrecomputedLightingUniformParamete
 		Parameters.LightMapScale[CoefIndex] = FVector4(1, 1, 1, 1);
 		Parameters.LightMapAdd[CoefIndex] = FVector4(0, 0, 0, 0);
 	}
+
+	FMemory::Memzero(Parameters.LightmapVTPackedPageTableUniform);
+
+	for (uint32 LayerIndex = 0u; LayerIndex < 5u; ++LayerIndex)
+	{
+		Parameters.LightmapVTPackedUniform[LayerIndex] = FUintVector4(ForceInitToZero);
+	}
 }
 
 void GetPrecomputedLightingParameters(
@@ -49,8 +64,11 @@ void GetPrecomputedLightingParameters(
 	const FLightCacheInterface* LCI
 )
 {
+	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTexturedLightmaps"));
+	const bool bUseVirtualTextures = (CVar->GetValueOnRenderThread() != 0) && UseVirtualTexturing(FeatureLevel);
+
 	// TDistanceFieldShadowsAndLightMapPolicy
-	const FShadowMapInteraction ShadowMapInteraction = LCI ? LCI->GetShadowMapInteraction() : FShadowMapInteraction();
+	const FShadowMapInteraction ShadowMapInteraction = LCI ? LCI->GetShadowMapInteraction(FeatureLevel) : FShadowMapInteraction();
 	if (ShadowMapInteraction.GetType() == SMIT_Texture)
 	{
 		Parameters.ShadowMapCoordinateScaleBias = FVector4(ShadowMapInteraction.GetCoordinateScale(), ShadowMapInteraction.GetCoordinateBias());
@@ -64,6 +82,7 @@ void GetPrecomputedLightingParameters(
 		Parameters.InvUniformPenumbraSizes = FVector4(0, 0, 0, 0);
 	}
 
+
 	// TLightMapPolicy
 	const FLightMapInteraction LightMapInteraction = LCI ? LCI->GetLightMapInteraction(FeatureLevel) : FLightMapInteraction();
 	if (LightMapInteraction.GetType() == LMIT_Texture)
@@ -75,14 +94,30 @@ void GetPrecomputedLightingParameters(
 		const FVector2D LightmapCoordinateBias = LightMapInteraction.GetCoordinateBias();
 		Parameters.LightMapCoordinateScaleBias = FVector4(LightmapCoordinateScale.X, LightmapCoordinateScale.Y, LightmapCoordinateBias.X, LightmapCoordinateBias.Y);
 
-		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTexturedLightmaps"));
-		if (CVar->GetValueOnRenderThread() == 0)
+		uint32 NumLightmapVTLayers = 0u;
+		if (bUseVirtualTextures)
 		{
+			check(LCI); // If LCI was nullptr, LightMapInteraction.GetType() would be LMIT_None, not LMIT_Texture
+			const FLightmapResourceCluster* ResourceCluster = LCI->GetResourceCluster();
+			check(ResourceCluster);
+			IAllocatedVirtualTexture* AllocatedVT = ResourceCluster->AcquireAllocatedVT();
+			check(AllocatedVT);
 
+			AllocatedVT->GetPackedPageTableUniform(&Parameters.LightmapVTPackedPageTableUniform[0], true);
+			NumLightmapVTLayers = AllocatedVT->GetNumLayers();
+			for (uint32 LayerIndex = 0u; LayerIndex < NumLightmapVTLayers; ++LayerIndex)
+			{
+				AllocatedVT->GetPackedUniform(&Parameters.LightmapVTPackedUniform[LayerIndex], LayerIndex);
+			}
 		}
 		else
 		{
-			checkf(0, TEXT("VT needs to be implemented with Mesh Draw Command pipeline"));
+			FMemory::Memzero(Parameters.LightmapVTPackedPageTableUniform);
+		}
+
+		for (uint32 LayerIndex = NumLightmapVTLayers; LayerIndex < 5u; ++LayerIndex)
+		{
+			Parameters.LightmapVTPackedUniform[LayerIndex] = FUintVector4(ForceInitToZero);
 		}
 
 		const uint32 NumCoef = bAllowHighQualityLightMaps ? NUM_HQ_LIGHTMAP_COEF : NUM_LQ_LIGHTMAP_COEF;

@@ -927,6 +927,7 @@ namespace AutomationTool
 							// Create one zip per thread using the given basename
 							using (var ZipArchive = new Ionic.Zip.ZipFile(ZipFileName.FullName) { CompressionLevel = Ionic.Zlib.CompressionLevel.BestSpeed })
 							{
+								ZipArchive.UseZip64WhenSaving = Ionic.Zip.Zip64Option.AsNecessary;
 
 								// pull from the queue until we are out of files.
 								do
@@ -1108,15 +1109,27 @@ namespace AutomationTool
 		public static bool IsDuplicateBuildProduct(FileReference LocalFile)
 		{
 			string FileName = LocalFile.GetFileName();
-			if(FileName.Equals("AgentInterface.dll", StringComparison.OrdinalIgnoreCase) || FileName.Equals("AgentInterface.pdb", StringComparison.OrdinalIgnoreCase))
+			if (FileName.Equals("AgentInterface.dll", StringComparison.OrdinalIgnoreCase) || FileName.Equals("AgentInterface.pdb", StringComparison.OrdinalIgnoreCase))
 			{
 				return true;
 			}
-			if(FileName.Equals("dxil.dll", StringComparison.OrdinalIgnoreCase))
+			if (FileName.Equals("dxil.dll", StringComparison.OrdinalIgnoreCase))
 			{
 				return true;
 			}
-			if(FileName.Equals("dxcompiler.dll", StringComparison.OrdinalIgnoreCase))
+			if (FileName.Equals("dxcompiler.dll", StringComparison.OrdinalIgnoreCase))
+			{
+				return true;
+			}
+			if (FileName.Equals("embree.2.14.0.dll", StringComparison.OrdinalIgnoreCase) || FileName.Equals("libembree.2.14.0.dylib", StringComparison.OrdinalIgnoreCase))
+			{
+				return true;
+			}
+			if (FileName.Equals("tbb.dll", StringComparison.OrdinalIgnoreCase) || FileName.Equals("libtbb.dylib", StringComparison.OrdinalIgnoreCase))
+			{
+				return true;
+			}
+			if (FileName.Equals("tbbmalloc.dll", StringComparison.OrdinalIgnoreCase) || FileName.Equals("libtbbmalloc.dylib", StringComparison.OrdinalIgnoreCase))
 			{
 				return true;
 			}

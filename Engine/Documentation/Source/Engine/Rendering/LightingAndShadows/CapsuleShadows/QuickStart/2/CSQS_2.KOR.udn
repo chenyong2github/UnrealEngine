@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3454749
-Availability:Public
+﻿INTSourceChangelist:6341512
+Availability:public
 Title:2 - 캐릭터 - 섀도 피직스 애셋 생성
 Crumbs:
 Description:이번 단계에서는 캐릭터의 그림자 표현으로 사용할 스켈레탈 메시의 피직스 애셋을 새로 만들어 보겠습니다.
@@ -7,7 +7,7 @@ SkillLevel:Intermediate
 Version:4.15
 checkpoint: capsuleshadowsqs
 parent:Engine/Rendering/LightingAndShadows/CapsuleShadows/QuickStart
-Prereq: Engine/Physics/PhAT/HowTo/
+Prereq: Engine/Physics/PhysicsAssetEditor/HowTo/
 type:quick start
 order:2
 tags:Lighting
@@ -35,7 +35,7 @@ tags:Lighting
 	최적의 결과를 위해서는 스필(Sphyl) 바디만 사용하세요. 구체(Sphere) 바디 역시 작동은 합니다만, 캐릭터 스켈레탈 메시에 사용하기에는 유연성이 떨어집니다.
 	[/REGION]
 
-1. 다음 `SK_Mannequin` 스켈레탈 메시의 새로운 피직스 애셋이 [피직스 애셋 툴](Engine/Physics/PhAT) (PhAT) 에 열립니다.
+1. 다음 `SK_Mannequin` 스켈레탈 메시의 새로운 피직스 애셋이 [피직스 애셋 툴](Engine/Physics/PhysicsAssetEditor) (PhAT) 에 열립니다.
 
 	![](PA_Character.png)(w:500)
 

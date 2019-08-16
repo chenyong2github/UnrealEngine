@@ -21,6 +21,7 @@ public class Matinee : ModuleRules
                 "UnrealEd",	//compatibility for FBX exporter
                 "MainFrame",
                 "WorkspaceMenuStructure",
+				"Analytics"
             }
             );
 

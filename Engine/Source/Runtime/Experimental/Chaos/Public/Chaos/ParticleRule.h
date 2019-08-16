@@ -21,14 +21,16 @@ namespace Chaos
 	template<typename T, int d>
 	class TPBDRigidParticles;
 
+/**
+ * Apply an effect to all particles.
+ */
 template<class T, int d>
-class TParticleRule
+class CHAOS_API TParticleRule
 {
   public:
 	virtual void Apply(TParticles<T, d>& InParticles, const T Dt) const { check(0); }
 	virtual void Apply(TDynamicParticles<T, d>& InParticles, const T Dt) const { Apply(static_cast<TParticles<T, d>&>(InParticles), Dt); }
 	virtual void Apply(TPBDParticles<T, d>& InParticles, const T Dt) const { Apply(static_cast<TDynamicParticles<T, d>&>(InParticles), Dt); }
-	virtual void Apply(TRigidParticles<T, d>& InParticles, const T Dt, const int32 Island) const { check(0); }
-	virtual void Apply(TPBDRigidParticles<T, d>& InParticles, const T Dt, const int32 Island) const { Apply(static_cast<TRigidParticles<T, d>&>(InParticles), Dt, Island); }
 };
+
 }

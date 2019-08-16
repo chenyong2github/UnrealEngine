@@ -101,7 +101,7 @@ struct FDynamicMeshVertex
 	FColor Color;
 };
 
-class FMeshBuilderOneFrameResources : public FOneFrameResource
+class ENGINE_VTABLE FMeshBuilderOneFrameResources : public FOneFrameResource
 {
 public:
 	class FPooledDynamicMeshVertexBuffer* VertexBuffer = nullptr;
@@ -180,6 +180,8 @@ public:
 							FMeshElementCollector& Collector, const FHitProxyId HitProxyId = FHitProxyId());
 	ENGINE_API void GetMesh(const FMatrix& LocalToWorld, const FMaterialRenderProxy* MaterialRenderProxy, uint8 DepthPriorityGroup, const FDynamicMeshBuilderSettings& Settings, FDynamicMeshDrawOffset const * const DrawOffset, int32 ViewIndex,
 		FMeshElementCollector& Collector, const FHitProxyId HitProxyId = FHitProxyId());
+	ENGINE_API void GetMesh(const FMatrix& LocalToWorld, const FMatrix& PrevLocalToWorld, const FMaterialRenderProxy* MaterialRenderProxy, uint8 DepthPriorityGroup, const FDynamicMeshBuilderSettings& Settings,
+		FDynamicMeshDrawOffset const * const DrawOffset, int32 ViewIndex, FMeshElementCollector& Collector, const FHitProxyId HitProxyId = FHitProxyId());
 
 	ENGINE_API void GetMeshElement(const FMatrix& LocalToWorld, const FMaterialRenderProxy* MaterialRenderProxy, uint8 DepthPriorityGroup, bool bDisableBackfaceCulling, bool bReceivesDecals, int32 ViewIndex, FMeshBuilderOneFrameResources& OneFrameResource, FMeshBatch& Mesh);
 

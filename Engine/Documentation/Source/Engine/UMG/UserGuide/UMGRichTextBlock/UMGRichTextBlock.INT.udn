@@ -1,0 +1,162 @@
+Availability: Public
+Crumbs: 
+Title: UMG Rich Text Block
+Description: UMG RichTextBlock provides a more flexible text block that supports markup for things like style changes, inline images, hyperlinks, and more. UMG RichTextBlock accepts decorator classes, which you can write to define the markup behavior you need for your project.
+Type: 
+Version: 4.21
+Parent: Engine/UMG/UserGuide
+Order: 
+Tags: UMG UI Designer
+Tags: UMG
+Tags: Rich Text Block
+
+
+While the Text Block provided in Unreal Motion Graphics (UMG) offers a variety of style options and customization, you might need a more flexible text block option that supports markup for things like style changes, inline images, and hyperlinks.
+
+The **RichTextBlock** uses a Data Table Asset to manage added styles and customization. With the Data Table Asset, you can create your own styles, or write your own decorator classes that define the markup behavior you need for your project. We’ve included an example decorator class, **RichTextBlockImageDecorator**, which you can use as a starting point for writing your own decorator classes. Follow the steps below to learn more about the RichTextBlock in UMG, and how you can write your own decorator classes.
+
+## Creating and Assigning a Data Table Asset
+
+Before you can apply styles to a Rich Text Block Widget, you’ll need to create a **Data Table** Asset. With this Data Table Asset, you can create different types of data tags that you can use with Rich Text Blocks in UMG. The Data Table Asset can specify text styles, or it can specify images that you can use in-line with Rich Text.  
+
+[REGION:lightbox]
+[![](CreateDataTableAsset_DTAEditor.png)(w:500)](CreateDataTableAsset_DTAEditor.png) 
+
+*Click here for full view*
+[/REGION]
+
+A Data Table Asset can be created like any other asset, by clicking **Add New** in the Content Browser. Then select **Miscellaneous > Data Table**.  
+![](AddNewDataTableAsset.png)(w:350)
+
+When the **Pick Structure** box displays, you can select either **Rich Image Row** or **Rich Text Style Row**.  
+![](CreateDataTableAsset_PickStructure.png)
+
+[REGION:note]
+The Rich Image Row uses a custom decorator class, which you can find more details about in the Decorator Classes section.
+[/REGION]
+
+### Rich Image Row Data Type
+
+The Rich Image Row data type is a custom decorator class provided as an example that stores your images with different customization options that can be used with inline text in a RichTextBlock in UMG. The steps below show an example of how to use the Rich Image Row data type.  
+
+[REGION:lightbox]
+[![CreateDataTableAsset_DTAEditor.png](InlineImages_RichImageRowDT.png)(w:450)](InlineImages_RichImageRowDT.png) 
+
+*Click here for full view*
+[/REGION]
+
+1.  Create a Data Table Asset, and when the **Pick Structure** box displays, choose **Rich Image Row**.
+2.  Create rows in the Data Table Asset for all of the inline images you want to use in your Rich Text Block, and set the different properties under **Appearance** that you want to use for the images.
+3.  When you are finished adding rows, click **Save** and close the Data Table Asset.
+
+[REGION:note]
+See [UMG Rich Text Block Properties](Engine/UMG/UserGuide/UMGRichTextBlock) for more information about these settings.
+[/REGION]
+
+### Rich Text Style Row Data Type
+
+The Rich Text Style Row data type is the default decorator class that enables you to set various styles and customizations for fonts that can be used with text in a RichTextBlock in UMG.
+
+[REGION:lightbox]
+[![](CreateDataTableAsset_DTAEditor.png)](CreateDataTableAsset_DTAEditor.png) 
+
+*Rich Text Style Row. Click for full view.*
+[/REGION]
+
+Create rows in the Data Table Asset for all the stylings you want to use in your RichTextBlock and set the different properties under **Appearance** that you want to use for each font.
+
+[REGION:note]
+See [UMG Rich Text Block Properties](Engine/UMG/UserGuide/UMGRichTextBlock) for more information about these settings.
+[/REGION]
+
+### Add Style or Image Rows in the Data Table Asset
+
+Follow these steps to add Style or Image Rows to your Data Table Asset.
+
+1.  Once you've created a **Data Table** Asset, double-click it to open it in the **Data Table Editor**.
+2.  In the **Row Editor** panel, click the **Plus sign** (**+**) icon to add a row.
+3.  For the first row in a Rich Text Style Data Table Asset, type **Default** in the **Row Name** field. This will detail the default style for text in your project, if there are no other styles applied. In both Rich Text Data Table Assets and Rich Image Data Table Assets, the Row Name for each row will be the tag used in brackets when you apply that row’s style, or images, to the Rich Text Block widget.
+
+[REGION:note]
+Except for naming the first row "Default," you can name rows in any way you want. You are not restricted to using prefixes or camel case or any other convention.
+[/REGION]
+[REGION:lightbox]
+[![](CreateDataTableAsset_AddStyleRows.png)(w:500)](CreateDataTableAsset_AddStyleRows.png)
+
+*Click for full view.*
+[/REGION]
+
+### Remove Style or Image Rows in the Data Table Asset
+
+If you want to delete a row in a Data Table Asset, first select the row or rows you want to delete. Then click the **X** icon next to the **Plus sign** (**+**) icon in the **Row Editor** panel.  
+
+[REGION:lightbox]
+[![CreateDataTableAsset_AddStyleRows.png](CreateDataTableAsset_DeleteStyleRows.png)(w:600)](CreateDataTableAsset_DeleteStyleRows.png)
+[/REGION]*Click for full view.*
+
+## Using Rich Text Block Widgets in UMG UI Designer
+
+When you have created a Data Table Asset with Rich Text Block Rows or Rich Image Rows, you can use [UMG UI Designer](Engine/UMG) to add Rich Text Block widgets to the Designer Viewport.
+
+### Add a Rich Text Block Widget
+
+In the **Palette** panel on the left, scroll down until you see **Rich Text Block**. Drag the Rich Text Block over to your **Graph**. You can scale or resize the Rich Text Block if you are using larger text sizes.
+
+![](AddRichTextBlock_DragRichTextBoxToGraph.png)
+[REGION:note]
+The text box does not scale automatically to fit the text size. If you do not resize the box to fit your text size, some of your text may be clipped and not display properly.
+[/REGION]
+
+### Assign a Data Table Asset to a Rich Text Block
+
+Once you’ve added the Rich Text Block widget to the graph, select it and use the Details panel on the right to apply your **Rich Text Style Row** or **Rich Image Row** data types in the **Appearance** section.  
+![](UMGRTB-AssignDataTable-01.png)(w:400)
+
+Use the **Text Style Set** to apply your Rich Text Style Rows. Any styles you created in your Data Table Asset can be referenced using the **Row Name** you gave it.
+
+Use **Decorator Classes** to apply any custom decorator classes you’ve created for your project. In this example, we use the Rich Image Row decorator class that has been provided in order to create inline images with the rich text.
+
+### Apply Style to Text
+
+Once you’ve assigned the Data Table Asset to the Rich Text Block Widget, you'll want to apply styles to the text. Follow these steps to apply styles.
+
+1.  Locate the **Content** section on the **Details** panel.  
+    ![](ApplyStyleToText_01.png)
+2.  Type your text into the **Text** field of the Rich Text Block.
+3.  You will see the text display in the styles you chose for the **Default** row in the Data Table Asset. For example, if we typed “This is some rich text!” it would display using only our default **Appearance** values referenced by the Data Table Asset.
+4.  To apply a different style to your text, type the name of the style row in enclosed brackets, using the format **<StyleName>Text</>**.  
+    For example: `This is some <RichText.Emphasis>rich</> text!`  
+    ![](AddStyleToRTB_1.png)
+    [REGION:tip]
+    When referencing a Data Table Asset Row Name in your Rich Text Block, the row name is not case sensitive.
+    [/REGION]
+
+## Decorator Classes
+
+If you want to include something other than styled text in your Rich Text Block, you can create Decorator Classes. When you create a Decorator Class, you can set up your own markup tags that allow you to use [Slate](Programming/Slate) to render other elements seamlessly within your text. 
+
+### Using Decorators
+
+To help you get started using your own Decorator Classes, we’ve included a built-in example with **RichTextBlockImageDecorator**, which enables you to add inline images to text when using a Rich Text Block.
+
+To create a Data Table Asset that references your own decorator classes, refer to the [Creating and Assigning a Data Table Asset](Engine/UMG/UserGuide/UMGRichTextBlock#creatingandassigningadatatableasset) section above.
+
+To create and use your own decorator classes, you need to extend the example RichTextBlockImageDecorator class, and then point your subclass at the Data Table Asset. One way to do that is to follow these steps.
+
+1.  Create a new Blueprint class, and choose RichTextBlockImageDecorator as the parent class.
+2.  Open your new Blueprint, and assign your Data Table to the **Image Set** property.
+    [REGION:note]
+    The RichTextBlockImageDecorator class doesn’t appear on the list of parent classes. Instead, you can extend it as a C++ class. Then either assign your Data Table Asset in the C++ file, or add **Blueprintable** to the UCLASS macro at the top of the header, and then extend your subclass as a Blueprint.
+    [/REGION]
+3.  Once your Decorator Class is set up, add it to your Rich Text Block’s Decorator Classes array in UMG. Then insert images from your Data Table using the markup `<img id="*ImageNameFromTable*"/>` (where "*ImageNameFromTable*" is the Row Name you assigned) and the image will appear as soon as you recompile your widget.  
+    ![](UsingDecorators_InlineImage.png)
+
+### Adding New Decorators
+
+While Unreal Engine provides the `RichTextBlockImageDecorator` as an example Decorator Class, you can define your own customized Decorator Classes, that can leverage Slate to add anything you want inline with your text. To do this, you’ll need to write two classes: a `URichTextBlockDecorator` and an `FRichTextDecorator`. Once you’ve set up these classes, you’ll be able to add your Decorator to any RichTextBlock using the `DecoratorClasses` array, and use your markup to parse text with your Decorator.
+
+`URichTextBlockDecorator` defines a `UObject`to implement `CreateDecorator`, which should return a `SharedPtr` to the `FRichTextDecorator` instance you’ll create to do the heavy lifting. You can also implement any properties and utility functions here, which will let designers subclass your Decorator as a Blueprint. Then they can pass in whatever data they need. Remember, the `RichTextBlockImageDecorator` defines a Data Table property, so that we can pass in our table of images. Anything you want to modify in Blueprints should exist here on the `UObject`.
+
+[REGION:note]
+See the [UMG Rich Text Block Properties](Engine/UMG/UserGuide/UMGRichTextBlockProperties) page for a complete list of all Rich Text Block and Data Table Asset properties.
+[/REGION]

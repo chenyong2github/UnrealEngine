@@ -28,6 +28,7 @@
 #include "Widgets/SOverlay.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/CoreStyle.h"
+#include "FastUpdate/SlateInvalidationRoot.h"
 
 class FActiveTimerHandle;
 class FHittestGrid;
@@ -37,6 +38,9 @@ class FWidgetPath;
 class IWindowTitleBar;
 class SPopupLayer;
 class SWindow;
+class SImage;
+
+enum class EUpdateFastPathReason : uint8;
 
 /** Notification that a window has been activated */
 DECLARE_DELEGATE( FOnWindowActivated );
@@ -125,7 +129,9 @@ private:
  */
 class SLATECORE_API SWindow
 	: public SCompoundWidget
+	, public FSlateInvalidationRoot
 {
+
 public:
 
 	SLATE_BEGIN_ARGS( SWindow )
@@ -155,6 +161,7 @@ public:
 		, _SaneWindowPlacement( true )
 		, _LayoutBorder(FMargin(5, 5, 5, 5))
 		, _UserResizeBorder(FMargin(5, 5, 5, 5))
+		, _bManualManageDPI( false )
 
 	{
 	}
@@ -272,6 +279,7 @@ public:
 	 * Default constructor. Use SNew(SWindow) instead.
 	 */
 	SWindow();
+	~SWindow();
 
 public:
 
@@ -339,7 +347,7 @@ public:
 	}
 
 	/** Paint the window and all of its contents. Not the same as Paint(). */
-	int32 PaintWindow( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const;
+	int32 PaintWindow( double CurrentTime, float DeltaTime, FSlateWindowElementList& OutDrawElements, const FWidgetStyle& InWidgetStyle, bool bParentEnabled );
 
 	/**
 	 * Returns the size of the title bar as a Slate size parameter.  Does not take into account application scale!
@@ -783,7 +791,13 @@ public:
 
 	bool IsDrawingEnabled() const { return bIsDrawingEnabled; }
 
-	virtual bool Advanced_IsWindow() const { return true; }
+	virtual bool Advanced_IsWindow() const override { return true; }
+	virtual bool Advanced_IsInvalidationRoot() const override { return bAllowFastUpdate; }
+
+#if WITH_ACCESSIBILITY
+	virtual TSharedRef<FSlateAccessibleWidget> CreateAccessibleWidget() override;
+	virtual void SetDefaultAccessibleText(EAccessibleType AccessibleType = EAccessibleType::Main) override;
+#endif
 private:
 	virtual FReply OnFocusReceived( const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent ) override;
 	virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
@@ -794,7 +808,9 @@ private:
 
 	/** The window's desired size takes into account the ratio between the slate units and the pixel size */
 	virtual FVector2D ComputeDesiredSize(float) const override;
+	virtual bool ComputeVolatility() const override;
 
+	void OnGlobalInvalidationToggled(bool bGlobalInvalidationEnabled);
 public:
 	// For a given client size, calculate the window size required to accomodate any potential non-OS borders and tilebars
 	FVector2D GetWindowSizeFromClientSize(FVector2D InClientSize);
@@ -898,11 +914,12 @@ public:
 	 *
 	 * @see FHittestGrid for more details.
 	 */
-	TSharedRef<FHittestGrid> GetHittestGrid();
+	FHittestGrid& GetHittestGrid();
 
 	/** Optional constraints on min and max sizes that this window can be. */
 	FWindowSizeLimits GetSizeLimits() const;
 
+	void SetAllowFastUpdate(bool bInAllowFastUpdate);
 public:
 
 	// SWidget overrides
@@ -917,24 +934,11 @@ protected:
 	virtual TSharedRef<SWidget> MakeWindowTitleBar(const TSharedRef<SWindow>& Window, const TSharedPtr<SWidget>& CenterContent, EHorizontalAlignment CenterContentAlignment);
 	/**Returns the alignment type for the titlebar's title text. */
 	virtual EHorizontalAlignment GetTitleAlignment();
-	/** Get the desired color of titlebar items. These change during flashing. */
-	FSlateColor GetWindowTitleContentColor() const;
 
 	/** Kick off a morph to whatever the target shape happens to be. */
 	void StartMorph();
 
-	/** Get the brush used to draw the window background */
-	const FSlateBrush* GetWindowBackground() const;
-
-	/** Get the color used to tint the window background */
-	FSlateColor GetWindowBackgroundColor() const;
-
-	/** Get the brush used to draw the window outline */
-	const FSlateBrush* GetWindowOutline() const;
-
-	/** Get the color used to tint the window outline */
-	FSlateColor GetWindowOutlineColor() const;
-
+	virtual bool CustomPrepass(float LayoutScaleMultiplier) override;
 protected:
 
 	/** Type of the window */
@@ -1013,6 +1017,9 @@ protected:
 
 	bool bManualManageDPI : 1;
 
+	/** True if this window allows global invalidation of its contents */
+	bool bAllowFastUpdate : 1;
+
 	/** When should the window be activated upon being shown */
 	EWindowActivationPolicy WindowActivationPolicy;
 
@@ -1086,10 +1093,17 @@ protected:
 		restore focus to a widget after the window regains focus. */
 	TWeakPtr< SWidget > WidgetFocusedOnDeactivate;
 
+private:
 	/** Style used to draw this window */
 	const FWindowStyle* Style;
+
 	const FSlateBrush* WindowBackground;
 
+	TSharedPtr<SImage> WindowBackgroundImage;
+	TSharedPtr<SImage> WindowBorder;
+	TSharedPtr<SImage> WindowOutline;
+	TSharedPtr<SWidget> ContentAreaVBox;
+	EVisibility WindowContentVisibility;
 protected:
 
 	/** Min and Max values for Width and Height; all optional. */
@@ -1099,7 +1113,7 @@ protected:
 	TSharedPtr<FGenericWindow> NativeWindow;
 
 	/** Each window has its own hittest grid for accelerated widget picking. */
-	TSharedRef<FHittestGrid> HittestGrid;
+	TUniquePtr<FHittestGrid> HittestGrid;
 	
 	/** Invoked when the window has been activated. */
 	FOnWindowActivated OnWindowActivated;
@@ -1168,20 +1182,15 @@ protected:
 	
 	void ConstructWindowInternals();
 
-private:
-
-	/**
-	 * @return EVisibility::Visible if we are showing this viewports content.  EVisibility::Hidden otherwise (we hide the content during full screen overlays)
-	 */
-	EVisibility GetWindowContentVisibility() const;
-
-	/**
-	 * @return EVisibility::Visible if the window is flashing. Used to show/hide the white flash in the title area
-	 */
-	EVisibility GetWindowFlashVisibility() const;
-
 	/** One-off active timer to trigger a the morph sequence to play */
 	EActiveTimerReturnType TriggerPlayMorphSequence( double InCurrentTime, float InDeltaTime );
+
+	void SetWindowBackground(const FSlateBrush* InWindowBackground);
+
+	void UpdateWindowContentVisibility();
+
+	int32 PaintSlowPath(const FSlateInvalidationContext& InvalidationContext) override;
+private:
 
 	/** The handle to the active timer */
 	TWeakPtr<FActiveTimerHandle> ActiveTimerHandle;

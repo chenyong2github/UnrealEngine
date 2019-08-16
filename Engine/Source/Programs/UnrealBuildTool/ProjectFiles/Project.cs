@@ -306,7 +306,7 @@ namespace UnrealBuildTool
 					// Ignore any API macros being import/export; we'll assume they're valid across the whole project
 					if(Def.EndsWith("_API", StringComparison.Ordinal))
 					{
-						CurDef = Def + "=";
+                        CurDef = Def + "=";
 						Value = "";
 					}
 

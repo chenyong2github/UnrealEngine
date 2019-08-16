@@ -229,6 +229,21 @@ namespace Audio
 			return *this;
 		}
 
+		// copy from a container of the same element type
+		void CopyFrom(const TArray<SampleType>& InArray, int32 InNumChannels, int32 InSampleRate)
+		{
+			NumSamples = InArray.Num();
+			NumFrames = NumSamples / InNumChannels;
+			NumChannels = InNumChannels;
+			SampleRate = InSampleRate;
+			SampleDuration = ((float)NumFrames) / SampleRate;
+
+			RawPCMData.Reset(NumSamples);
+			RawPCMData.AddZeroed(NumSamples);
+
+			FMemory::Memcpy(RawPCMData.GetData(), InArray.GetData(), NumSamples * sizeof(SampleType));
+		}
+
 		// Append audio data to internal buffer of different sample type of this sample buffer
 		template<class OtherSampleType>
 		void Append(const OtherSampleType* InputBuffer, int32 InNumSamples)
@@ -416,6 +431,89 @@ namespace Audio
 			NumFrames = RawPCMData.Num() / NumChannels;
 			NumSamples = RawPCMData.Num();
 		}
+
+		// InIndex [0.0f, NumSamples - 1.0f]
+		// OutFrame is the multichannel output for one index value
+		// Returns InIndex wrapped between 0.0 and NumFrames
+		float GetAudioFrameAtFractionalIndex(float InIndex, TArray<SampleType>& OutFrame)
+		{
+			InIndex = FMath::Fmod(InIndex, static_cast<float>(NumFrames));
+
+			GetAudioFrameAtFractionalIndexInternal(InIndex, OutFrame);
+
+			return InIndex;
+		}
+
+		// InPhase [0, 1], wrapped, through duration of file (ignores sample rate)
+		// OutFrame is the multichannel output for one phase value
+		// Returns InPhase wrapped between 0.0 and 1.0
+		float GetAudioFrameAtPhase(float InPhase, TArray<SampleType>& OutFrame)
+		{
+			InPhase = FMath::Fmod(InPhase, 1.0f);
+
+			GetAudioFrameAtFractionalIndexInternal(InPhase * NumFrames, OutFrame);
+
+			return InPhase;
+		}
+
+
+		// InTimeSec, get the value of the buffer at the given time (uses sample rate)
+		// OutFrame is the multichannel output for one time value
+		// Returns InTimeSec wrapped between 0.0 and (NumSamples / SampleRate)
+		float GetAudioFrameAtTime(float InTimeSec, TArray<SampleType>& OutFrame)
+		{
+			if (InTimeSec >= SampleDuration)
+			{
+				InTimeSec -= SampleDuration;
+			}
+
+			check(InTimeSec >= 0.0f && InTimeSec <= SampleDuration);
+
+			GetAudioFrameAtFractionalIndexInternal(NumSamples * (InTimeSec / SampleDuration), OutFrame);
+
+			return InTimeSec;
+		}
+
+	private:
+		// Internal implementation. Called by all public GetAudioFrameAt_ _ _ _() functions
+		// public functions do range checking/wrapping and then call this function
+		void GetAudioFrameAtFractionalIndexInternal(float InIndex, TArray<SampleType>& OutFrame)
+		{
+			const float Alpha = FMath::Fmod(InIndex, 1.0f);
+			const int32 WholeThisIndex = FMath::FloorToInt(InIndex);
+			int32 WholeNextIndex = WholeThisIndex + 1;
+
+			// check for interpolation between last and first frames
+			if (WholeNextIndex == NumSamples)
+			{
+				WholeNextIndex = 0;
+			}
+
+			// TODO: if(NumChannels < 4)... do the current (non vectorized) way
+			OutFrame.SetNumUninitialized(NumChannels);
+
+			for (int32 i = 0; i < NumChannels; ++i)
+			{
+				float SampleA, SampleB;
+				
+				if (TIsSame<SampleType, float>::Value)
+				{
+					SampleA = RawPCMData[i * NumChannels + WholeThisIndex];
+					SampleB = RawPCMData[i * NumChannels + WholeNextIndex];
+					OutFrame[i] = FMath::Lerp(SampleA, SampleB, Alpha);
+				}
+				else
+				{
+					SampleA = static_cast<float>(RawPCMData[i * NumChannels + WholeThisIndex]);
+					SampleB = static_cast<float>(RawPCMData[i * NumChannels + WholeNextIndex]);
+					OutFrame[i] = static_cast<SampleType>(FMath::Lerp(SampleA, SampleB, Alpha));
+				}
+			}
+
+			// TODO: else { do vectorized version }
+			// make new function in BufferVectorOperations.cpp
+			// (use FMath::Lerp() overload for VectorRegisters)
+		}
 	};
 
 	// FSampleBuffer is a strictly defined TSampleBuffer that uses the same sample format we use for USoundWaves.
@@ -441,7 +539,8 @@ namespace Audio
 		void Update();
 
 		//~ GCObject Interface
-		void AddReferencedObjects(FReferenceCollector& Collector) override;
+		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+		virtual FString GetReferencerName() const override;
 		//~ GCObject Interface
 
 	private:

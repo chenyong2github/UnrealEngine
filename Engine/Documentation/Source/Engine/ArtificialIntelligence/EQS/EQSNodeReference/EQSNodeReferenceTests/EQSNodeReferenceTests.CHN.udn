@@ -1,0 +1,426 @@
+﻿INTSourceChangelist:6604630
+Availability:Docs
+Title:EQS节点参考：测试
+Description:描述如何在EQS中使用测试来生成“最佳”选项。
+Version:4.21
+Parent:Engine/ArtificialIntelligence/EQS/EQSNodeReference
+Tags:Experimental
+Tags:EQS
+Tags:AI
+Tags:Environmental Query System
+Tags:EQS Node Reference List
+topic-image:Tests_Topic.png
+social-image:Tests_Topic.png
+topic-icon:Tests_Topic.png
+Order:1
+
+
+[TOC (start:2 end:2)]
+
+在场景查询系统（EQS）中，可以执行 **测试** 来确定在给定的[情境](Engine\ArtificialIntelligence\EQS\EQSNodeReference\EQSNodeReferenceContexts\)（或参考帧）下从[生成器](Engine/ArtificialIntelligence/EQS/EQSNodeReference/EQSNodeReferenceGenerators)产生的哪个 **项目（Item）** 是“最佳”选择。引擎中提供了多种测试，可以覆盖很大一部分用例，例如“项目（Item）是否能追踪（看到）另一个位置”，或“项目（Item）与情境之间的距离是否在指定的范围内”。可以对一个生成器添加多个测试，这是缩小结果范围的有效方法，可以提供尽可能好的选择。 
+
+[REGION:note]
+如果默认的引擎测试不能满足需要，可以通过C++代码创建自定义测试。
+[/REGION]
+
+## 通用测试属性
+
+每种测试类型都有一些特有的属性，可以通过它们定义如何执行测试。但是所有测试都有一些通用的属性，用于定义测试的目的和对结果的处理。举例而言，测试是用于过滤掉一些结果，还是用于对结果评分并加权，或者两者兼有？在EQS编辑器中选择测试后，可以在 **细节（Details）** 面板中定义包括 **测试目的（Test Purpose）** 在内的测试属性。 
+
+**测试属性**  
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| **测试目的（Test Purpose）** | [INCLUDE:#excerpt_0] |
+| **测试注释（Test Comment）** | 关于测试用途的可选注释或说明。这可以在测试目的可能不够明确时，特别是在使用多种同一类型的测试时使用。|
+
+<!--
+[EXCERPT:excerpt_0]
+
+定义测试中有哪些可用的附加选项以及测试应该用于什么目的。   
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| **仅过滤（Filter Only）** | 用于过滤可能的结果。未通过测试的项目（Item）将被移除。|
+| **仅计分（Score Only）** | 用于对可能的结果计分。返回的项目（Item）会得到一个加权数值。|
+| **过滤并计分（Filter and Score）** | 由于对结果进行过滤和计分。|
+
+[/EXCERPT:excerpt_0]
+-->
+
+**过滤器属性**  
+
+下列选项在 **测试目的（Test Purpose）** 设置为 **过滤（Filter）**（或设置为 **过滤并计分（Filter and Score）**）时可用：
+
+[REGION:note]
+过滤是在计分前完成的，这是为了避免计算过滤掉的项目（Item）的分数。
+[/REGION]
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| **布尔匹配（Bool Match）** | [INCLUDE:#excerpt_1] |
+| ****多情境过滤运算（Multiple Context Filter Op）**** | [INCLUDE:#excerpt_2] |
+| **最小浮点值（Float Value Min）** | [INCLUDE:#excerpt_3] |
+| **最大浮点值（Float Value Max）** | [INCLUDE:#excerpt_4] |
+| **过滤器类型（Filter Type）** | [INCLUDE:#excerpt_5] |
+
+<!--
+[EXCERPT:excerpt_1]
+
+这是为了授予计分因子而需要匹配的值（true或false）。执行测试时，如果不匹配此值，将不会改变分数。例如，在 **追踪** 测试中，用true或false判断是否命中了什么。或者对于 **寻路** 测试，判断路径是否存在。   
+
+[/EXCERPT:excerpt_1]
+-->
+<!--
+[EXCERPT:excerpt_2]
+
+定义当 **Distance To Context** 返回多个项目（Item）时的过滤运算符。**全部通过（All Pass）** 意味着所有情境都必须通过，而 **任意通过（Any Pass）** 表示至少必须有一个情境通过。  
+
+[/EXCERPT:excerpt_2]
+-->
+<!--
+[EXCERPT:excerpt_3]
+
+过滤任何小于或等于此值的数值。 
+
+[REGION:note]
+此选项仅可用于 **距离** 和 **点** 测试。
+[/REGION]
+[/EXCERPT:excerpt_3]
+-->
+<!--
+[EXCERPT:excerpt_4]
+
+过滤任何大于或等于此值的数值。 
+
+[REGION:note]
+此选项仅可用于 **距离** 和 **点** 测试。
+[/REGION]
+[/EXCERPT:excerpt_4]
+-->
+<!--
+[EXCERPT:excerpt_5]
+
+用于更改应用于**最小值**、**最大值** 或 **值范围** 的过滤器类型。任何超出 **最小浮点值（Float Value Min）** 和/或 **最大浮点值（Float Value Max）** 属性所指定的范围的数值都将被剔除。 
+
+[REGION:note]
+此选项仅可用于 **距离** 和 **点** 测试。
+[/REGION]
+[/EXCERPT:excerpt_5]
+-->
+
+**计分属性**  
+
+下列选项在 **测试目的（Test Purpose）** 设置为 **计分（Score）**（或设置为 **过滤并计分（Filter and Score）**）时可用：
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| ******多情境过滤运算（Multiple Context Filter Op）****** | 定义当 **Distance To Context** 返回多个项目（Item）时的过滤运算符。**全部通过（All Pass）** 意味着所有情境都必须通过，而 **任意通过（Any Pass）** 表示至少必须有一个情境通过。|
+| ****锁定最小值类型（Clamp Min Type）**** | [INCLUDE:#excerpt_6] |
+| **锁定最大值类型（Clamp Max Type）** | [INCLUDE:#excerpt_7] |
+| **计分公式（Scoring Equation）** | [INCLUDE:#excerpt_8] |
+| **计分因子（Scoring Factor）** | [INCLUDE:#excerpt_9] |
+| **规格化类型（Normalization Type）** | [INCLUDE:#excerpt_10] |
+| **参考值（Reference Value）** | [INCLUDE:#excerpt_11] |
+
+<!--
+[EXCERPT:excerpt_6]
+
+定义在应用计分公式前是否应该使用一个 **指定值** 来规格化原始测试值，或者是否应该使用找到（测试）的 **最低** 值。 
+
+[REGION:note]
+此选项仅可用于 **距离** 和 **点** 测试。
+[/REGION]
+[/EXCERPT:excerpt_6]
+-->
+<!--
+[EXCERPT:excerpt_7]
+
+定义在应用计分公式前是否应该使用一个 **指定值** 来规格化原始测试值，或者是否应该使用找到（测试）的 **最高** 值。 
+
+[REGION:note]
+此选项仅可用于 **距离** 和 **点** 测试。
+[/REGION]
+[/EXCERPT:excerpt_7]
+-->
+<!--
+[EXCERPT:excerpt_8]
+
+修改测试的分数，使其符合 **常量**、**线性**、**平方**、**反线性** 或 **平方根** 类型的曲线。 
+
+[REGION:note]
+此选项仅可用于 **距离** 和 **点** 测试。
+[/REGION]
+[/EXCERPT:excerpt_8]
+-->
+<!--
+[EXCERPT:excerpt_9]
+
+在应用计分公式之后，要乘以规格化分数的权重（因子）。此数值可以是负数。 
+
+[REGION:note]
+此选项仅可用于 **距离** 和 **点** 测试。
+[/REGION]
+[/EXCERPT:excerpt_9]
+-->
+<!--
+[EXCERPT:excerpt_10]
+
+指定如何确定用于规格化分数的值范围。**绝对分数（Absolute to Scores）**（使用0作为规格化范围的基础）或 **相对分数（Relative to Scores）**（使用最低项目（Item）分数作为规格化范围的基础）。 
+
+[REGION:note]
+此选项仅可用于 **距离** 和 **点** 测试。
+[/REGION]
+[/EXCERPT:excerpt_10]
+-->
+<!--
+[EXCERPT:excerpt_11]
+
+用于对测试结果进行规格化，使得数值越接近 **参考值**，产生的规格化分数就越高。与 **参考值** 相差最远的值将被规格化为0，而在这两者之间的所有其他值都将按照与 **参考值** 的距离线性规格化。 
+
+[REGION:note]
+此选项仅可用于 **距离** 和 **点** 测试。
+[/REGION]
+[/EXCERPT:excerpt_11]
+-->
+
+## 距离
+
+![](Test_Distance.png "Test_Distance.png")
+
+**距离** 测试将返回项目（Item）和选择的 **距离（Distance To）** 属性之间的直线距离。如果“距离（Distance To）”是多个位置，它会取所有距离的平均值。 
+
+![](Test_Distance_Details-2.png "Test_Distance_Details-2.png")
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| **测试模式（Test Mode）** | 用于测试距离的方法：在3D空间中，在作为XY平面的2D上，沿Z轴或Z（绝对）轴。|
+| **距离（Distance To）** | 将用于测量距离的情境。|
+
+## 点
+
+![](Test_Dot.png "Test_Dot.png")
+
+**点** 测试计算两个矢量的点积。这些矢量可以是情境旋转，也可以是从一个点到另一个点的矢量。此测试是用于确定是否有某些东西面向其他东西。
+
+![](Test_Dot_Details.png "Test_Dot_Details.png")
+
+下列属性可用于 **点** 测试： 
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| **线A模式（Line A Mode）** | [INCLUDE:#excerpt_12] |
+| **线B模式（Line B Mode）** | [INCLUDE:#excerpt_14] |
+| **测试模式（Test Mode）** | 测试应该用完整的3D矢量进行计算，还是只用 **线A** 和 **线B** 矢量的方向矢量计算。|
+| **绝对值（Absolute Value）** | 这将使测试返回点积的绝对值（点积通常返回-1.0到1.0的值）。|
+
+<!--
+[EXCERPT:excerpt_12]
+
+用于定义测试使用的 **第一** 条线的方向。可以使用两种方法获取方向： 
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| **旋转（Rotation）** | 将用作方向的指定情境。|
+| **两点（Two Points）** | 从一个情境位置到另一个情境位置的方向。|
+
+[/EXCERPT:excerpt_12]
+-->
+<!--
+[EXCERPT:excerpt_14]
+
+用于定义测试使用的 **第二** 条线的方向。可以使用两种方法获取方向： 
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| **旋转（Rotation）** | 将用作方向的指定情境。|
+| **两点（Two Points）** | 从一个情境位置到另一个情境位置的方向。|
+
+[/EXCERPT:excerpt_14]
+-->
+
+## Gameplay标记
+
+![](Test_Gameplay.png "Test_Gameplay.png")
+
+**Gameplay标记** 测试可指定一个标记，用于在测试中查询并尝试匹配。 
+
+![](Test_Gameplay_Details.png "Test_Gameplay_Details.png")
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| **要匹配的标记查询（Tag Query to Match）** | 打开[Gameplay标记](Gameplay/Tags)编辑器，可以在其中指定要用于对照验证的标记。|
+
+## 重叠
+
+![](Test_Overlap.png "Test_Overlap.png")
+
+**重叠** 测试可用于确定项目（Item）是否处于属性定义的边界内。 
+
+![](Test_Overlap_Details.png "Test_Overlap_Details.png")
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| **范围X（Extent X）** | X轴上的重叠的形状参数。|
+| **范围Y（Extent Y）** | [INCLUDE:#excerpt_16] |
+| **范围Z（Extent Z）** | Z轴上的重叠的形状参数。|
+| **形状偏移（Shape Offset）** | 以测试重叠的项目（Item）位置为起点的偏移。例如，你可能需要在垂直方向上偏移来避免与平坦的地面重叠。|
+| **重叠信道（Overlap Channel）** | 用于重叠的几何体追踪[信道](Engine/Physics/Collision/Reference)。|
+| **重叠形状（Overlap Shape）** | 用于几何体重叠的形状（**盒体（Box）**、**球体（Sphere）** 或 **胶囊体（Capsule）**）。|
+| **仅阻挡命中（Only Blocking Hits）** | 如果设置此属性，重叠将仅查找[阻挡命中](Engine/Physics/Tracing/Overview#hitresults)。|
+| **重叠复合（Overlap Complex）** | 如果设置此属性，重叠将仅在[符合碰撞](Engine/Physics/SimpleVsComplex)上运行。|
+
+<!--
+[EXCERPT:excerpt_16]
+
+Y轴上的重叠的形状参数。  
+
+[/EXCERPT:excerpt_16]
+-->
+
+## 寻路
+
+![](Test_Path.png "Test_Path.png")
+
+**寻路** 测试可用于确定是否存在通向情境（或从其通出）的路径，通向（或来自）情境的路径开销有多高，或者路径有多长。 
+
+![](Test_Path_Details.png "Test_Path_Details.png")
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| **测试模式（Test Mode）** | [INCLUDE:#excerpt_17] |
+| **情境（Context）** | 这是路径通向（或来自）的情境。|
+| **路径从情境通出（Path from Context）** | 寻路者应该前往情境（false）还是从情境出发（true）。|
+| **过滤器类（Filter Class）** | 要在寻路中使用的可选导航过滤器。|
+| **跳过不可达（Skip Unreachable）** | 如果设置此属性，路径失败的项目（Item）将失效。|
+
+<!--
+[EXCERPT:excerpt_17]
+
+应用测试的方法：
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| **路径存在（Path Exist）** | 是否存在通向（或来自）情境的路径 |
+| **路径成本（Path Cost）** | 通向（或通出）情境的路径的开销。|
+| **路径长度（Path Length）** | 通向（或来自）情境的路径有多长。|
+
+[/EXCERPT:excerpt_17]
+-->
+
+[REGION:note]
+如果 **测试模式（Test Mode）** 设置为 **路径成本（Path Cost）** 或 **路径长度（Path Length）**，**细节（Details）** 面板的 **过滤器（Filter）** 和 **计分（Score）** 部分就会改变，提供通常仅可用于 **点** 测试和 **距离** 测试的通用属性的选项。
+[/REGION]
+
+## 寻路批处理
+
+![](Test_PathBatch.png "Test_PathBatch.png")
+
+**寻路** 测试可用于确定是否存在通向情境（或从其通出）的路径，通向（或来自）情境的路径开销有多高，或者路径有多长。系统将会根据定义的 **测试模式** 对处理的每个情境（路径）计分。 
+
+![](Test_PathBatch_Details.png "Test_PathBatch_Details.png")
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| **测试模式（Test Mode）** | [INCLUDE:#excerpt_20] |
+| **情境（Context）** | 这是AI应该寻路通向或从其通出的情境。|
+| **路径从情境通出（Path from Context）** | 寻路者应该前往情境（false）还是从情境出发（true）。|
+| **过滤器类（Filter Class）** | 要在寻路中使用的可选导航过滤器。|
+| **扫描范围乘数（Scan Range Multiplier）** | 点和情境之间的最大距离的乘数。|
+| **跳过不可达（Skip Unreachable）** | 如果设置此属性，路径失败的项目（Item）将失效。|
+
+<!--
+[EXCERPT:excerpt_20]
+
+应用测试的方法：
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| **路径存在（Path Exist）** | 是否存在通向（或来自）情境的路径。|
+| **路径成本（Path Cost）** | 通向（或来自）情境的路径的开销有多高。|
+| **路径长度（Path Length）** | 通向（或来自）情境的路径有多长。|
+
+[/EXCERPT:excerpt_20]
+-->
+
+[REGION:note]
+如果 **测试模式（Test Mode）** 设置为 **路径成本（Path Cost）** 或 **路径长度（Path Length）**，**细节（Details）** 面板的 **过滤器（Filter）** 和 **计分（Score）** 部分就会改变，提供通常仅可用于 **点** 测试和 **距离** 测试的通用属性的选项。
+[/REGION]
+
+## 投射
+
+![](Test_Project.png "Test_Project.png")
+
+**投射** 测试可用于将产生的项目（Item）投射到寻路网格体（和要使用的寻路网格体数据集）上。   
+
+这将把可能被墙壁围起或阻挡的项目（Item）移动回寻路网格体上，如果网格线恰好在寻路网格体边缘以外，这可能造成聚束。
+
+![](Test_Project_Details.png "Test_Project_Details.png")
+
+  
+| 属性 | 说明 |
+| --- | --- |
+| **追踪模式（Trace Mode）** | [INCLUDE:#excerpt_23] |
+| **导航过滤器（Navigation Filter）** | 要使用的（可选）导航过滤器类。|
+| **范围X（Extent X）** | 追踪的形状参数。|
+| **向下投射（Project Down）** | 搜索高度定义为低于指定点。|
+| **向上投射（Project Up）** | 搜索高度定义为高于指定点。|
+| **投射后垂直偏移（Post Projection Vertical Offset）** | [INCLUDE:#excerpt_25] |
+
+<!--
+[EXCERPT:excerpt_23]
+
+这是用于几何体追踪的形状：
+
+  
+| 属性 | 说明 |
+| --- | --- |
+| **导航（Navigation）** | 是否存在通向（或来自）情境的路径。|
+| **几何体（Geometry）** | 通向（或来自）情境的路径的开销有多高。|
+
+[/EXCERPT:excerpt_23]
+-->
+<!--
+[EXCERPT:excerpt_25]
+
+此数值将添加到产生的位置的Z轴。 
+
+[REGION:note]
+在导航上投射点的时候这可能很有用，因为寻路网格体只是关卡几何体的近似，项目（Item）最终可能在可碰撞几何体的下方，这种情况会导致可视性检测结果不实等后果。
+[/REGION]
+[/EXCERPT:excerpt_25]
+-->
+
+## 追踪
+
+![](Test_Trace-1.png "Test_Trace-1.png")
+
+**追踪** 检测将会[追踪](Engine/Physics/Tracing/Overview)到项目（Item）或情境（或从其出发），然后如果命中或没有命中某些东西又会返回。可以使用 **过滤** 选项 **布尔匹配（Bool Match）** 来反转结果。这类检测的一种典型用例是确定敌人是否能够（或不能）看到关卡中的玩家。 
+
+![](Test_Trace_Details-1.png "Test_Trace_Details-1.png")
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| **追踪信道（Trace Channel）** | 这是用来执行追踪的信道。默认情况下的可用选项是 **可视性（Visibility）** 和 **摄像机（Camera）**，但可以在 **编辑菜单（Edit Menu）> 项目设置（Project Settings）> 物理（Physics）> 追踪信道（Trace Channels）** 部分添加更多信道。|
+| **追踪形状（Trace Shape）** | 用来执行追踪的形状：**线形（Line）**、**球体（Sphere）**、**盒体（Box）** 或 **胶囊体）Capsule）**。|
+| **追踪复合体（Trace Complex）** | 追踪应该针对网格体（复合体），还是仅针对简单碰撞。|
+| **仅阻挡命中（Only Blocking Hits）** | 追踪在结果中使用阻挡追踪还是非阻挡追踪。|
+| **从情境追踪（Trace from Context）** | 要从其追踪的情境，例如查询器、项目（Item）或你创建的任意自定义情境。|
+| **情境（Context）** | 这是追踪的另一端。|
+| **项目（Item）高度偏移（Item Height Offset）** | 将添加以厘米为单位的Z偏移至检测正在追踪到（或从其追踪）的项目（Item）。|
+| **情境高度偏移（Context Height Offset）** | 将添加以厘米为单位的Z偏移至检测正在追踪到（或从其追踪）的情境。|

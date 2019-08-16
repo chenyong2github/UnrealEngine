@@ -49,11 +49,12 @@ class ULocalPlayer;
 class UMaterialParameterCollection;
 class UMaterialParameterCollectionInstance;
 class UModel;
-class UNavigationSystem;
+class UNavigationSystemBase;
 class UNetConnection;
 class UNetDriver;
 class UPrimitiveComponent;
 class UTexture2D;
+class FPhysScene_Chaos;
 struct FUniqueNetIdRepl;
 struct FEncryptionKeyResponse;
 
@@ -111,7 +112,10 @@ private:
 public:
 	~FConstPawnIterator();
 
-	operator bool() const;
+	FConstPawnIterator(FConstPawnIterator&&);
+	FConstPawnIterator& operator=(FConstPawnIterator&&);
+
+	explicit operator bool() const;
 	FPawnIteratorObject operator*() const;
 	TUniquePtr<FPawnIteratorObject> operator->() const;
 
@@ -123,7 +127,7 @@ public:
 	FConstPawnIterator& operator--(int) { return *this; }
 
 private:
-	TActorIterator<APawn>* Iterator;
+	TUniquePtr<TActorIterator<APawn>> Iterator;
 
 	friend UWorld;
 };
@@ -480,7 +484,6 @@ struct TStructOpsTypeTraits<FEndPhysicsTickFunction> : public TStructOpsTypeTrai
 };
 
 /* Struct of optional parameters passed to SpawnActor function(s). */
-PRAGMA_DISABLE_DEPRECATION_WARNINGS // Required for auto-generated functions referencing bNoCollisionFail
 struct ENGINE_API FActorSpawnParameters
 {
 	FActorSpawnParameters();
@@ -508,33 +511,32 @@ private:
 	friend class UPackageMapClient;
 
 	/* Is the actor remotely owned. This should only be set true by the package map when it is creating an actor on a client that was replicated from the server. */
-	uint16	bRemoteOwned:1;
+	uint8	bRemoteOwned:1;
 	
 public:
 
 	bool IsRemoteOwned() const { return bRemoteOwned; }
 
 	/* Determines whether spawning will not fail if certain conditions are not met. If true, spawning will not fail because the class being spawned is `bStatic=true` or because the class of the template Actor is not the same as the class of the Actor being spawned. */
-	uint16	bNoFail:1;
+	uint8	bNoFail:1;
 
 	/* Determines whether the construction script will be run. If true, the construction script will not be run on the spawned Actor. Only applicable if the Actor is being spawned from a Blueprint. */
-	uint16	bDeferConstruction:1;
+	uint8	bDeferConstruction:1;
 	
 	/* Determines whether or not the actor may be spawned when running a construction script. If true spawning will fail if a construction script is being run. */
-	uint16	bAllowDuringConstructionScript:1;
+	uint8	bAllowDuringConstructionScript:1;
 
 #if WITH_EDITOR
 	/** Determines whether the begin play cycle will run on the spawned actor when in the editor. */
-	uint16 bTemporaryEditorActor:1;
+	uint8	bTemporaryEditorActor:1;
 
 	/* Determines wether or not the actor should be hidden from the Scene Outliner */
-	uint16 bHideFromSceneOutliner : 1;
+	uint8	bHideFromSceneOutliner:1;
 #endif
 	
 	/* Flags used to describe the spawned actor/object instance. */
 	EObjectFlags ObjectFlags;		
 };
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 
 /**
@@ -902,6 +904,10 @@ class ENGINE_API UWorld final : public UObject, public FNetworkNotify
 	 */
 	UPROPERTY(Transient)
 	TArray<UObject*>							PerModuleDataObjects;
+
+	// Level sequence actors to tick first
+	UPROPERTY(transient)
+	TArray<AActor*>								LevelSequenceActors;
 
 private:
 	/** Level collection. ULevels are referenced by FName (Package name) to avoid serialized references. Also contains offsets in world units */
@@ -1288,6 +1294,16 @@ private:
 
 	/** Physics scene for this world. */
 	FPhysScene*									PhysicsScene;
+	// Note that this should be merged with PhysScene going forward but is needed for now.
+public:
+#if INCLUDE_CHAOS
+	/** Current global physics scene. */
+	TSharedPtr<FPhysScene_Chaos> PhysicsScene_Chaos;
+
+	/** Default global physics scene. */
+	TSharedPtr<FPhysScene_Chaos> DefaultPhysicsScene_Chaos;
+#endif
+private:
 
 	/** Array of components that need updates at the end of the frame */
 	UPROPERTY(Transient, NonTransactional)
@@ -1319,6 +1335,11 @@ private:
 
 	/** Utility function that is used to ensure that a World has the correct WorldSettings */
 	void RepairWorldSettings();
+	
+#if INCLUDE_CHAOS
+	/** Utility function that is used to ensure that a World has the correct ChaosActor */
+	void RepairChaosActors();
+#endif
 
 	/** Gameplay timers. */
 	class FTimerManager* TimerManager;
@@ -1369,6 +1390,11 @@ private:
 	
 	/** Broadcasts whenever the number of levels changes */
 	FOnLevelsChangedEvent LevelsChangedEvent;
+
+	DECLARE_EVENT(UWorld, FOnBeginTearingDownEvent);
+
+	/** Broadcasted on UWorld::BeginTearingDown */
+	FOnBeginTearingDownEvent BeginTearingDownEvent;
 
 #if WITH_EDITOR
 
@@ -1434,6 +1460,12 @@ public:
 		return (bDebugDrawAllTraceTags || ((DebugDrawTraceTag != NAME_None) && (DebugDrawTraceTag == UsedTraceTag))) && IsInGameThread();
 	}
 #endif
+
+	/** Inserts a post process volume into the world in priority order */
+	void InsertPostProcessVolume(IInterface_PostProcessVolume* InVolume);
+
+	/** Removes a post process volume from the world */
+	void RemovePostProcessVolume(IInterface_PostProcessVolume* InVolume);
 
 	/** An array of post processing volumes, sorted in ascending order of priority.					*/
 	TArray< IInterface_PostProcessVolume * > PostProcessVolumes;
@@ -2386,10 +2418,11 @@ public:
 
 	/**
 	 * Cleans up components, streaming data and assorted other intermediate data.
-	 * @param bSessionEnded whether to notify the viewport that the game session has ended
+	 * @param bSessionEnded whether to notify the viewport that the game session has ended.
 	 * @param NewWorld Optional new world that will be loaded after this world is cleaned up. Specify a new world to prevent it and it's sublevels from being GCed during map transitions.
+	 * @param bResetCleanedUpFlag wheter to reset the bCleanedUpWorld flag or not.
 	 */
-	void CleanupWorld(bool bSessionEnded = true, bool bCleanupResources = true, UWorld* NewWorld = nullptr);
+	void CleanupWorld(bool bSessionEnded = true, bool bCleanupResources = true, UWorld* NewWorld = nullptr, bool bResetCleanedUpFlag = true);
 	
 	/**
 	 * Invalidates the cached data used to render the levels' UModel.
@@ -2442,6 +2475,8 @@ public:
 	 */
 	void UpdateLevelStreaming();
 
+	/** Releases PhysicsScene manually */
+	void ReleasePhysicsScene();
 public:
 	/**
 	 * Flushes level streaming in blocking fashion and returns when all levels are loaded/ visible/ hidden
@@ -3220,6 +3255,9 @@ public:
 	/** Returns the LevelsChangedEvent member. */
 	FOnLevelsChangedEvent& OnLevelsChanged() { return LevelsChangedEvent; }
 
+	/** Returns the BeginTearingDownEvent member. */
+	FOnBeginTearingDownEvent& OnBeginTearingDown() { return BeginTearingDownEvent; }
+
 	/** Returns the actor count. */
 	int32 GetProgressDenominator();
 	
@@ -3586,6 +3624,7 @@ public:
 	// Global Callback after actors have been initialized (on any world)
 	static UWorld::FOnWorldInitializedActors OnWorldInitializedActors;
 
+	static FWorldEvent OnWorldBeginTearDown;
 private:
 	FWorldDelegates() {}
 };

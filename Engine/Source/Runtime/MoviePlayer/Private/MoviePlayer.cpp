@@ -102,7 +102,7 @@ void DestroyMoviePlayer()
 
 IGameMoviePlayer* GetMoviePlayer()
 {
-	if (!IsMoviePlayerEnabled() || GUsingNullRHI)
+	if (!FCommandLine::IsInitialized() || !IsMoviePlayerEnabled() || GUsingNullRHI)
 	{
 		return FNullGameMoviePlayer::Get();
 	}

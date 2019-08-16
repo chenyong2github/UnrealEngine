@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "AppleARKitLiveLinkSourceFactory.h"
 #include "ILiveLinkClient.h"
+#include "LiveLinkTypes.h"
+#include "Roles/LiveLinkAnimationTypes.h"
 #include "Tickable.h"
 #include "ARTrackable.h"
 
@@ -825,8 +827,6 @@ protected:
 	TArray<FFaceTrackingFrame> FrameHistory;
 	/** The name to use when generating the file to save to */
 	FName DeviceName;
-	/** If true, it writes a file each frame. Otherwise, it writes the data upon demand or exit */
-	bool bSavePerFrameOrOnDemand;
 	/**
 	 * The time code provider to use when tagging file time stamps
 	 * Note: this requires the FAppleARKitSystem object to mark it in use so GC doesn't destroy it. Normally it would
@@ -880,7 +880,7 @@ public:
 private:
 	// ILiveLinkSource interface
 	virtual void ReceiveClient(ILiveLinkClient* InClient, FGuid InSourceGuid) override;
-	virtual bool IsSourceStillValid() override;
+	virtual bool IsSourceStillValid() const override;
 	virtual bool RequestSourceShutdown() override;
 	virtual FText GetSourceMachineName() const override;
 	virtual FText GetSourceStatus() const override;
@@ -891,6 +891,11 @@ private:
 	virtual void PublishBlendShapes(FName SubjectName, const FTimecode& Timecode, uint32 FrameRate, const FARBlendShapeMap& FaceBlendShapes, FName DeviceId = NAME_None) override;
 	// End IARKitBlendShapePublisher
 
+	// Update static data property names from blend shape map. Should only happen once per subject name. Pushes static data to livelink to register subject
+	void UpdateStaticData(FName SubjectName, const FARBlendShapeMap& FaceBlendShapes, FName DeviceId);
+
+private:
+
 	/** The local client to push data updates to */
 	ILiveLinkClient* Client;
 
@@ -900,6 +905,13 @@ private:
 	/** The last time we sent the data. Used to not send redundant data */
 	uint32 LastFramePublished;
 
-	/** Used to track names changes for a given device */
-	TMap<FName, FName> DeviceToLastSubjectNameMap;
+	/** Helper struct to contain BlendShape data per deviceId */
+	struct FBlendShapeStaticData
+	{
+		FLiveLinkSubjectKey SubjectKey;
+		FLiveLinkSkeletonStaticData StaticData;
+	};
+
+	/** Used to track names changes for a given device and keep track of property names contained in subject */
+	TMap<FName, FBlendShapeStaticData> BlendShapePerDeviceMap;
 };

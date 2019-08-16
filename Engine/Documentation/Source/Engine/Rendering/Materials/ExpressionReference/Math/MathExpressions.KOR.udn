@@ -1,14 +1,11 @@
-INTSourceChangelist:3409695
-Availability:Public
-Title:Math 표현식
-Crumbs: %ROOT%, Engine, Engine/Rendering/Materials, Engine/Rendering/Materials/ExpressionReference
-Description:하나 이상의 입력에 수학적 연산을 하는 표현식입니다.
+INTSourceChangelist:6528321
+Availability: Public
+Title: Math 표현식
+Description: 하나 이상의 입력에 수학적 연산을 하는 표현식입니다.
+Type: Reference
 Version: 4.9
-tags:Materials
-
-[EXCERPT:TOC]
-[TOC(start:2)]
-[/EXCERPT:TOC]
+Parent: Engine/Rendering/Materials/ExpressionReference
+Tags: Materials
 
 ## Abs
 
@@ -16,148 +13,153 @@ Abs 는 "absolute value", 절대치의 약자입니다. Abs 표현식은 받은 
 
 **예:** Abs -0.7 은 0.7; Abs -1.0 은 1.0; Abs 1.0 역시 1.0
 
-**사용 예:** Abs 는 [DotProduct](#DotProduct) 와 자주 사용됩니다. DotProduct 는 -1..0..1 인 반면, DotProduct 의 Abs 는 1..0..1 입니다.
+**사용 예:** Abs 는 흔히 [DotProduct](Engine/Rendering/Materials/ExpressionReference/Math#dotproduct) (내적)과 같이 사용해서 두 벡터 사이 각도 관계, 즉 평행인지 수직인지 그 중간인지를 결정합니다. 보통 두 벡터의 내적을 구할 때, 값을 1.0 (두 평행 벡터) 및 -1.0 (정반대인 두 벡터) 사이에서 보간하며, 중간점 0 은 두 벡터가 수직임을 나타냅니다. 이 내적의 절대값을 취하면 양수는 그대로지만 음수는 빼기 부호를 버리고 양수로 변환됩니다. 따라서 그 결과는 0 (수직 벡터) 및 1.0 (벡터 점의 방향과 무관한 평행 벡터) 사이 보간이 됩니다. 단순히 두 벡터의 직교 여부만 알려주는 셈입니다.
 
-![AbsExample.png](AbsExample.png)
+[REGION:lightbox]
+[![](AbsExample.png)](AbsExample.png)
 
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
 
 ## Add
 
-Add 표현식은 두 입력을 받아 더한 다음 결과를 출력합니다. 합 연산은 채널별로, 즉 입력의 R 채널이 더해지고, G 채널이 더해지고, B 채널이 더해지는 식으로 이루어집니다. 두 입력 중 하나가 단일 상수값이 아닌 다음에야 채널 수가 일치해야 합니다. 상수는 입력이 여러 개인 벡터에도 더할 수 있습니다.
+Add 표현식은 두 입력을 받아 더한 다음 결과를 출력합니다.
 
+여러 채널로 값을 전달하면, 각 채널 별로 더합니다. 예를 들어, 각 입력에 RGB 컬러 값을 전달하면, 첫째 입력의 R 채널을 둘째 입력의 R 채널에 더하고 그 결과를 출력의 R 채널에 저장하며, 첫째 입력의 G 채널을 둘째 입력의 G 채널에 더하고 그 결과를 출력의 G 채널에 저장하는 식입니다.
+
+두 입력 중 하나가 단일 Constant (상수) 값이 아닌 한 값의 수가 같아야 합니다. 하나만 단일 상수인 경우, 채널이 여럿인 입력의 각 채널을 하나의 상수 값에 더하고, 그 결과를 출력 값의 별도 채널에 저장합니다.
+
+[REGION:simpletable] 
 | 항목 | 설명 |
-| ---- | ---- |
+| --- | --- |
 | [REGION:tablesection]프로퍼티[/REGION] ||
-| **Const A** | 더할 값을 받습니다. A 입력이 사용되지 않았을 경우에만 사용됩니다. |
-| **Const B** | 더해질 값을 받습니다. B 입력이 사용되지 않았을 경우에만 사용됩니다. |
+| **Const A** | 이 값에 더합니다. A 입력이 사용되지 않았을 경우에만 사용됩니다. |
+| **Const B** | 이 값을 더합니다. B 입력이 사용되지 않았을 경우에만 사용됩니다. |
 | [REGION:tablesection]입력[/REGION] ||
-| **A** | 더할 값을 받습니다. |
-| **B** | 더해질 값을 받습니다. |
-
+| **A** | 이 값에 더합니다. |
+| **B** | 이 값을 더합니다. |
+[/REGION]
 
 **예:** 0.2 와 0.4 의 Add 는 0.6; (0.2,-0.4,0.6) 와 (0.1,0.5,1.0) 의 Add 는 (0.3,0.1,1.6); (0.2,-0.4,0.6) 와 1.0 의 Add 는 (1.2,0.6,1.6)
 
 **사용 예:** Add 는 색을 밝게/어둡게 하거나 UV 텍스처 좌표를 오프셋시키는 데 사용합니다.
 
-![AddExample.png](AddExample.png)
+[REGION:lightbox]
+[![](AddExample.png)](AddExample.png)
+
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
 
 
 [INCLUDE:Engine/Rendering/Materials/ExpressionReference/VectorOps#AppendVector]
 
+## Arccosine
 
-## ArcSine 
+**Arccosine** 표현식은 역 코사인 함수를 출력합니다.
 
-[REGION:lightbox]
-[![](MEN_ArcSine.png)(w:469)](MEN_ArcSine.png)
+[REGION:note]
+인스트럭션 카운트에 반영되지 않는 비싼 연산입니다. 대안으로 정확도는 낮지만 더 빠른 [ArccosineFast](#arccosinefast) 가 있습니다.
 [/REGION]
 
-[REGION:caption]
-클릭하면 이미지 원본을 확인합니다.
+![](MEN_ArcCosine.png)(w:469)
+
+위 이미지는 이 표현식을 적용한 결과의 두 가지 다른 시각화를 보여줍니다.
+
+*   상단 바는 출력 컬러 결과를 표시합니다. 바 왼쪽 끝은 이 표현식에 입력 값이 -1 인 경우의 컬러를 나타내며, 오른쪽 끝은 1 인 경우입니다.
+
+*   그래프에서 X 축은 -1 에서 1 범위의 입력 값을 나타냅니다. Y 축은 그 입력 값에 이 표현식을 사용한 결과를 나타내며, 마찬가지로 범위는 -1 에서 1 입니다.
+
+## ArccosineFast
+
+**ArccosineFast** 표현식은 정확도가 높은 [Arccosine](#arccosine) 표현식보다 계산 속도가 빠른 역 코사인 추정 함수를 출력합니다. 입력 값은 -1 에서 1 사이여야 합니다.
+
+위의 **Arccosine** 표현식에서 출력 값 시각화를 확인할 수 있습니다.
+
+## Arcsine
+
+**Arcsine** 표현식은 역 사인 함수를 출력합니다.
+
+[REGION:note]
+인스트럭션 카운트에 반영되지 않는 비싼 연산입니다. 대안으로 정확도는 낮지만 더 빠른 [ArcsineFast](#arcsinefast) 가 있습니다.
 [/REGION]
 
-**Arcsine** (아크사인) 표현식은 사인 함수의 역을 출력합니다. 인스트럭션 카운트에는 반영되지 않는 비싼 연산입니다.
+![](MEN_ArcSine.png)(w:469)
 
-## ArcSineFast
+위 이미지는 이 표현식을 적용한 결과의 두 가지 다른 시각화를 보여줍니다.
 
-[REGION:lightbox]
-[![](MEN_ArcSineFast.png)(w:469)](MEN_ArcSineFast.png)
+*   상단 바는 출력 컬러 결과를 표시합니다. 바 왼쪽 끝은 이 표현식에 입력 값이 -1 인 경우의 컬러를 나타내며, 오른쪽 끝은 1 인 경우입니다.
+
+*   그래프에서 X 축은 -1 에서 1 범위의 입력 값을 나타냅니다. Y 축은 그 입력 값에 이 표현식을 사용한 결과를 나타내며, 마찬가지로 범위는 -1 에서 1 입니다.
+
+## ArcsineFast
+
+**ArcsineFast** 표현식은 정확도가 높은 [Arcsine](#Arcsine) 표현식보다 계산 속도가 빠른 역 사인 추정 함수를 출력합니다. 입력 값은 -1 에서 1 사이여야 합니다.
+
+위의 **Arcsine** 표현식에서 출력 값 시각화를 확인할 수 있습니다.  
+
+## Arctangent
+
+**Arctangent** 표현식은 역 탄젠트 함수를 출력합니다.
+
+[REGION:note]
+인스트럭션 카운트에 반영되지 않는 비싼 연산입니다. 대안으로 정확도는 낮지만 더 빠른 [ArctangentFast](#arctangentfast) 가 있습니다.
 [/REGION]
 
-[REGION:caption]
-클릭하면 이미지 원본을 확인합니다.
+![](MEN_ArcTangent.png)(w:469)
+
+위 이미지는 이 표현식을 적용한 결과의 두 가지 다른 시각화를 보여줍니다.
+
+*   상단 바는 출력 컬러 결과를 표시합니다. 바 왼쪽 끝은 이 표현식에 입력 값이 -1 인 경우의 컬러를 나타내며, 오른쪽 끝은 1 인 경우입니다.
+
+*   그래프에서 X 축은 -1 에서 1 범위의 입력 값을 나타냅니다. Y 축은 그 입력 값에 이 표현식을 사용한 결과를 나타내며, 마찬가지로 범위는 -1 에서 1 입니다.
+
+## Arctangent2
+
+**Arctangent2** 표현식은 x / y 의 역 탄젠트를 출력하며, 입력 부호를 사용해 사분면을 결정합니다.
+
+[REGION:note]
+인스트럭션 카운트에 반영되지 않는 비싼 연산입니다. 대안으로 정확도는 낮지만 더 빠른 Arctangent2Fast 가 있습니다.
 [/REGION]
 
-**ArcsineFast** (빠른 아크사인) 표현식은 사인 함수의 역 추정 버전을 출력합니다. 입력 값은 -1 에서 1 범위여야 합니다.
+![](MEN_ArcTangent2.png)(w:469)
 
-## ArcCosine
+위 이미지는 이 표현식을 적용한 결과의 두 가지 다른 시각화를 보여줍니다.
 
-[REGION:lightbox]
-[![](MEN_ArcCosine.png)(w:469)](MEN_ArcCosine.png)
-[/REGION]
+*   상단 바는 출력 컬러 결과를 표시합니다. 바 왼쪽 끝은 이 표현식에 입력 값이 -1 인 경우의 컬러를 나타내며, 오른쪽 끝은 1 인 경우입니다.
 
-[REGION:caption]
-클릭하면 이미지 원본을 확인합니다.
-[/REGION]
+*   그래프에서 X 축은 -1 에서 1 범위의 입력 값을 나타냅니다. Y 축은 그 입력 값에 이 표현식을 사용한 결과를 나타내며, 마찬가지로 범위는 -1 에서 1 입니다.
 
-**Arccosine** (아크 코사인) 표현식은 코사인 함수의 역을 출력합니다. 인스트럭션 카운트에는 반영되지 않는 비싼 연산입니다.
+## Arctangent2Fast
 
-## ArcCosineFast
+**Arctangent2** 표현식은 x / y 의 역 탄젠트를 추정 출력하며, 입력 부호를 사용해 사분면을 결정합니다. [Arctangent2](#arctangent2) 표현식보다 정확도는 낮지만 계산 속도는 더 빠릅니다.  
 
-[REGION:lightbox]
-[![](MEN_ArcCosineFast.png)(w:469)](MEN_ArcCosineFast.png)
-[/REGION]
+위의 **Arctangent2** 표현식에서 출력 값 시각화를 확인할 수 있습니다.  
 
-[REGION:caption]
-클릭하면 이미지 원본을 확인합니다.
-[/REGION]
+## ArctangentFast
 
+**ArctangentFast** 표현식은 역 탄젠트 추정 함수를 출력하며, [Arctangent](#arctangent) 표현식보다 정확도는 낮지만 계산 속도는 빠릅니다.  
 
-**ArccosineFast** (빠른 아크 코사인) 표현식은 역 코사인 함수의 추정 버전을 출력합니다. 입력 범위는 -1 에서 1 사이여야 합니다.
-
-## ArcTangent
-
-[REGION:lightbox]
-[![](MEN_ArcTangent.png)(w:469)](MEN_ArcTangent.png)
-[/REGION]
-
-[REGION:caption]
-클릭하면 이미지 원본을 확인합니다.
-[/REGION]
-
-**Arctangent** (아크 탄젠트) 표현식은 탄젠트 함수의 역을 출력합니다. 인스트럭션 카운트에 반영되지 않는 비싼 연산입니다.
-
-## ArcTragnetFast
-
-[REGION:lightbox]
-[![](MEN_ArcTangentFast.png)(w:469)](MEN_ArcTangentFast.png)
-[/REGION]
-
-[REGION:caption]
-클릭하면 이미지 원본을 확인합니다.
-[/REGION]
-
-**ArctangentFast** 표현식은 역 탄젠트 함수의 추정 버전을 출력합니다.
-
-## ArcTangent2
-
-[REGION:lightbox]
-[![](MEN_ArcTangent2.png)(w:469)](MEN_ArcTangent2.png)
-[/REGION]
-
-[REGION:caption]
-클릭하면 이미지 원본을 확인합니다.
-[/REGION]
-
-
-**Arctangent2** (아크 탄젠트 2) 표현식은 입력 부호로 사분면을 결정하는 x / y 의 역 탄젠트를 사용합니다. 인스트럭션 카운트에 반영되지 않는 비싼 연산입니다.
-
-## ArcrTangent2Fast
-
-[REGION:lightbox]
-[![](MEN_ArcTangent2Fast.png)(w:469)](MEN_ArcTangent2Fast.png)
-[/REGION]
-
-[REGION:caption]
-클릭하면 이미지 원본을 확인합니다.
-[/REGION]
-
-**Arctangent2Fast** 표현식은 입력 부호로 사분면을 결정하는 X / Y 의 역 탄젠트 추정입니다.
+위 **Arctangent** 표현식에서 출력 값 시각화를 확인할 수 있습니다.  
 
 ## Ceil
 
-Ceil (천정) 표현식은 값을 받아 소수점을 무조건 **올려** 더 큰 정수로 만든 결과를 출력합니다. [Floor](#Floor) 와 [Frac](#Frac) 도 참고하세요.
+Ceil (천정) 표현식은 값을 받아 소수점을 무조건 **올려** 더 큰 정수로 만든 결과를 출력합니다. [Floor](#floor) 와 [Frac](#frac) 도 참고하세요.
 
 **예:** Ceil 0.2 는 1.0; Ceil (0.2,1.6) 는 (1.0,2.0).
 
-![CeilExample.png](CeilExample.png)(w:900)
+[REGION:lightbox]
+[![](CeilExample.png)(w:900)](CeilExample.png)
 
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
 
 ## Clamp
 
-Clamp (제한) 표현식은 값을 받아 최소치와 최대치로 정의된 특정 범위로 제한시킵니다. 최소값이 0.0 이고 최대값이 0.5 라면, 결과값은 절대 0.0 미만으로 떨어지거나 0.5 초과로 넘어가지 않습니다.
+Clamp (범위제한) 표현식은 값을 받아 최소치와 최대치로 정의된 특정 범위로 제한시킵니다. 최소값이 0.0 이고 최대값이 0.5 라면, 결과값은 절대 0.0 미만으로 떨어지거나 0.5 초과로 넘어가지 않습니다.
 
+[REGION:simpletable]  
 | 항목 | 설명 |
-| ---- | ---- |
+| --- | --- |
 | [REGION:tablesection]프로퍼티[/REGION] ||
 | **Clamp Mode** | 사용할 제한 방식을 선택합니다. CMODE_Clamp 는 범위 하한 상한 양쪽에서 제한시키며, CMODE_ClampMin / CMODE_ClampMax 는 하한 / 상한에서만 제한시킵니다. |
 | **Min Default** | 제한시 최소값으로 사용할 값을 받습니다. Min 입력이 사용되지 않을 때만 사용됩니다. |
@@ -165,113 +167,150 @@ Clamp (제한) 표현식은 값을 받아 최소치와 최대치로 정의된 �
 | [REGION:tablesection]입력[/REGION] ||
 | **Min** | 제한시킬 최소값으로 사용할 값을 받습니다. |
 | **Max** | 제한시킬 최대값으로 사용할 값을 받습니다. |
-
+[/REGION]
 
 **예:** (0.0) 에서 (1.0) 입력 범위에서 Min 0.0 및 Max 1.0 일 때 0.3 의 Clamp 결과는 0.3, Min 0.0 및 Max 1.0 상태에서 1.3 의 Clamp 결과는 1.0 입니다.
 
-![ClampExample.png](ClampExample.png)(w:900)
+[REGION:lightbox]
+[![](ClampExample.png)(w:900)](ClampExample.png)
+
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
 
 
 [INCLUDE:Engine/Rendering/Materials/ExpressionReference/VectorOps#ComponentMask]
-
 
 ## Cosine
 
 **Cosine** (코사인) 표현식은 [0, 1] 입력 범위와 [-1, 1] 출력 범위에 걸쳐 둘 다 반복되는 코사인 곡선 값을 출력합니다. 아주 흔하게, 입력에 [Time](Engine/Rendering/Materials/ExpressionReference/Constant#Time) 표현식을 입력하여 연속 진동 파형을 출력하는데 사용되지만, 월드스페이스 또는 스크린스페이스에서 물결을 만들 때나, 연속적인 부드러운 사이클이 필요한 경우에도 사용 가능합니다. 파형의 시각적 표현은 아래와 같으며, [0, 1] 출력 범위로 스케일을 조절한 것입니다:
 
-![CosineWave.png](CosineWave.png)
+![](CosineWave.png)
 
+[REGION:simpletable]   
 | 항목 | 설명 |
-| ---- | ---- |
+| --- | --- |
 | [REGION:tablesection]프로퍼티[/REGION] ||
-| **Period** | 결과 파형의 주기, 다른 말로 진동 한 번에 걸리는 기간을 지정합니다. |
-
+| **Period** | 결과 파형의 주기, 다른 말로 완전한 진동 한 번, 또는 연속 파형에서 저점 또는 고점이 반복되는 데 걸리는 시간입니다. 예를 들어, 위 이미지에서, 주기는 1 초입니다. |
+[/REGION]
 
 **사용 예:** 진동 효과가 필요할 때는 언제고 쓸만한 표현식입니다. 진동의 폭과 속도는 Time 입력(속도) 또는 출력(진폭)을 곱해주는 식으로 쉽게 동적 제어 가능합니다.
 
-![CosineExample.png](CosineExample.png)
+[REGION:lightbox]
+[![](CosineExample.png)](CosineExample.png)
+
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
 
 위 예제에서 컬러는 코사인 곡선같은 모양으로 진동하게 됩니다.
-
 
 [EXCERPT:CrossProduct]
 ## CrossProduct
 
 CrossProduct (교차곱) 표현식은 3채널 벡터 입력값을 둘 받아서 교차곱을 계산한 결과를 3채널 벡터값으로 출력합니다. 공간상에 벡터가 둘 있다 칠 때, 교차곱은 이 두 입력에 수직인 벡터가 됩니다. 
 
+[REGION:simpletable]  
 | 항목 | 설명 |
-| ---- | ---- |
+| --- | --- |
 | [REGION:tablesection]입력[/REGION] ||
 | **A** | 3채널 벡터값을 받습니다. |
 | **B** | 3채널 벡터값을 받습니다. |
-
+[/REGION]
 
 **사용 예:** CrossProduct 는 보통 두 방향에 대한 수직 방향을 계산하는 데 사용됩니다.
 
-![CrossProductExample.png](CrossProductExample.png)
+[REGION:lightbox]
+[![](CrossProductExample.png)](CrossProductExample.png)
 
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
 [/EXCERPT:CrossProduct]
-
 
 ## Divide
 
-Divide (나누기) 표현식은 두 입력을 받아 첫째를 둘째로 나눈 결과를 출력합니다. 나누기는 채널별로 일어납니다. 즉 첫째의 R 채널을 둘째의 R 채널로, 첫째의 G 채널을 둘째의 G 채널로, 그런 식입니다. 나눌(분모) 값이 단일 실수가 아니라면 두 입력의 채널수는 같아야 합니다. 어느 채널이든 0 으로 나누면 그 채널에 로컬 하드웨어의 "무한" 구현이 들어가게 되어, 보통 매우 큰 양수 값이 나오게 됩니다.
+**Divide** (나누기) 표현식은 두 입력 값을 받아 첫 번째 입력을 두 번째 입력으로 나누고, 그 결과를 출력합니다.
 
+여러 채널로 값을 전달하면, 각 채널 별로 나눕니다. 예를 들어, 각 입력에 RGB 컬러 값을 전달하면, 첫째 입력의 R 채널을 둘째 입력의 R 채널로 나누고 그 결과를 출력의 R 채널에 저장하며, 첫째 입력의 G 채널을 둘째 입력의 G 채널로 나누고 그 결과를 출력의 G 채널에 저장하는 식입니다.
+
+두 입력 중 하나가 단일 float 값이 아닌 한 값의 수가 같아야 합니다. 하나만 단일 float 인 경우, 채널이 여럿인 입력의 각 채널을 하나의 float 값에 더하고, 그 결과를 출력 값의 별도 채널에 저장합니다.
+
+[REGION:note]
+어느 채널이든 나눗수가 0 에서 0.00001 사이면 0.00001 로 올리고,  0 에서 -0.00001 사이면 -0.00001 로 내립니다. 0 으로 나누기 오류 발생 가능성을 없애기 위해서입니다. 그러나 이는 채널의 출력 값이 매우 커질 수도 있다는 뜻이기도 합니다.
+[/REGION]
+
+[REGION:simpletable]   
 | 항목 | 설명 |
-| ---- | ---- |
+| --- | --- |
 | [REGION:tablesection]프로퍼티[/REGION] ||
 | **Const A** | 나눠질(분자) 값을 받습니다. A 입력이 사용되지 않을 때만 사용됩니다. |
 | **Const B** | 나눌(분모) 값을 받습니다. B 입력이 사용되지 않을 때만 사용됩니다. |
 | [REGION:tablesection]입력[/REGION] ||
 | **A** | 나눠질(분자) 값을 받습니다. |
 | **B** | 나눌(분모) 값을 받습니다. |
-
+[/REGION]
 
 **예:** Divide 에 A=(1.0) 와 B=(5.0) 결과는 (0.2) 가 되어 짙은 회색으로 나타납니다.
 
-![DivideExample.png](DivideExample.png)
+[REGION:lightbox]
+[![](DivideExample.png)](DivideExample.png)
 
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
 
 [EXCERPT:DotProduct]
 ## DotProduct
 
 DotProduct (도트 곱) 표현식은 두 입력의 도트 곱, 즉 한 벡터를 다른 벡터에 투영했을 때의 길이를 계산합니다. 두 벡터 사이의 코사인에 그 세기(magnitude)를 곱한 것이기도 합니다. 감쇠 계산 기법에 많이 사용되는 계산법입니다. 두 벡터 입력은 채널 수가 같아야 합니다. 
 
+[REGION:simpletable]   
 | 항목 | 설명 |
-| ---- | ---- |
+| --- | --- |
 | [REGION:tablesection]입력[/REGION] ||
 | **A** | 길이 무관 벡터나 값을 받습니다. |
 | **B** | **A** 와 같은 길이의 벡터나 값을 받습니다. |
+[/REGION]
 
+[REGION:lightbox]
+[![](DotProductExample.png)(w:900)](DotProductExample.png)
 
-![DotProductExample.png](DotProductExample.png)(w:900)
-
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
 [/EXCERPT:DotProduct]
 
 ## Floor
 
-Floor (바닥) 표현식은 값을 받아 소수점을 무조건 **내려** 직전의 정수로 만들고 그 결과를 출력합니다. [Ceil](#Ceil), [Frac](#Frac) 참고.
+Floor (바닥) 표현식은 값을 받아 소수점을 무조건 **내려** 직전의 정수로 만들고 그 결과를 출력합니다. [Ceil](#ceil), [Frac](#frac) 참고.
 
 **예:** 0.2 의 Floor 는 0.0; (0.2,1.6) 의 Floor 는 (0.0, 1.0).
 
-![FloorExample.png](FloorExample.png)(w:900)
+[REGION:lightbox]
+[![](FloorExample.png)(w:900)](FloorExample.png)
 
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
 
-## FMod
+## Fmod
 
-**FMod** 표현식은 두 입력의 나누기 연산에서 부동 소수점 나머지를 반환합니다. Dividend (피제수, 입력 "A")는 어떤 값이든 될 수 있지만, 음수 피제수는 음수 결과가 납니다. Divisor (제수, 두 번째 입력)은 0 으로 나눌 수는 없으니 0 이 아니어야 하는데, 제수가 음수인지 양수인지 여부는 결과에 영향을 주지 않습니다. 흔히 사용되는 경우라면 최대값으로 밝혀주는 머티리얼을 만든 다음 바로 다음 프레임에 최소값으로 떨어뜨리고서는 최대치를 향해 다시 오르기 시작하는 것입니다.
+**Fmod** 표현식은 두 입력의 나누기 연산에서 부동 소수점 나머지를 반환합니다. Dividend (피제수, 입력 "A")는 어떤 값이든 될 수 있지만, 음수 피제수는 음수 결과가 납니다. Divisor (제수, 두 번째 입력)은 0 으로 나눌 수는 없으니 0 이 아니어야 하는데, 제수가 음수인지 양수인지 여부는 결과에 영향을 주지 않습니다. 흔히 사용되는 경우라면 최대값으로 밝혀주는 머티리얼을 만든 다음 바로 다음 프레임에 최소값으로 떨어뜨리고서는 최대치를 향해 다시 오르기 시작하는 것입니다.
 
-![FModExample.png](FModExample.png)
+[REGION:lightbox]
+[![](FmodExample.png)](FmodExample.png)
+
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
 
 이 예제에서, FMod 는 0 에서 1 까지의 UV 진행을 받아 초록 채널의 X 축 상에 0.2 UV 유닛마다 반복되는 사이클로 변환합니다.
 
 ## Frac
 
-**Frac** 표현식은 값을 받은 뒤 그 값의 소수점 부분을 출력합니다. 다른 말로 "X" 입력 값에 대해, 결과는 "X 에서 X 의 Floor 를 빼는 것"입니다. 출력 값은 0 에서 1 까지 범위로, 하한값은 포함하지만 상한값은 그렇지 않습니다. [Ceil](#Ceil) 및 [Floor](#Floor) 도 참고해 보세요.
+**Frac** 표현식은 값을 받은 뒤 그 값의 소수점 부분을 출력합니다. 다른 말로 "X" 입력 값에 대해, 결과는 "X 에서 X 의 Floor 를 빼는 것"입니다. 출력 값은 0 에서 1 까지 범위로, 하한값은 포함하지만 상한값은 그렇지 않습니다. [Ceil](#ceil) 및 [Floor](#floor) 도 참고해 보세요.
 
 **예:** Frac 에 (0.2) 는 (0.2). Frac 에 (-0.2) 는 (0.8). Frac 에 (0.0,1.6,1.0) 은 (0.0,0.6,0.0) 입니다.
 
-![FracExample.png](FracExample.png)(w:900)
+[REGION:lightbox]
+[![](FracExample.png)(w:900)](FracExample.png)
+
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
 
 이 예제에서 Frac 노드는 시간을 일련의 0-1 진행 반복 시리즈로 변환, 색이 (Lerp 를 통해) 초록에서 빨강으로 변하다가 다시 초록으로 되돌아가도록 하고 있으며, 무한 반복됩니다.
 
@@ -280,17 +319,22 @@ Floor (바닥) 표현식은 값을 받아 소수점을 무조건 **내려** 직�
 
 두 입력을 비교한 다음, 그 결과에 따라 세 가지 입력값 중 하나를 통과시킵니다. 비교할 두 개의 입력값은 single float 값이어야 합니다.
 
+[REGION:simpletable]   
 | 항목 | 설명 |
-| ---- | ---- |
+| --- | --- |
 | [REGION:tablesection]입력[/REGION] ||
 | **A** | single float 값을 받습니다. |
 | **B** | single float 값을 받습니다. |
 | **A > B** | A 값이 B 값보다 클 때 출력할 값을 받습니다. |
 | **A = B** | A 값이 B 값과 같을 때 출력할 값을 받습니다. |
 | **A &lt; B** | A 값이 B 값보다 작을 때 출력할 값을 받습니다. |
+[/REGION]
 
+[REGION:lightbox]
+[![](IfExample.png)(w:900)](IfExample.png)
 
-![IfExample.png](IfExample.png)(w:900)
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
 
 이 예제에서 If 표현식은 하이트맵을 받은 다음 높이가 0.2 미만이냐 초과냐에 따라 빨강이나 초록 중 하나를 출력합니다.
 
@@ -299,60 +343,100 @@ Floor (바닥) 표현식은 값을 받아 소수점을 무조건 **내려** 직�
 
 [INCLUDE:Engine/Rendering/Materials/ExpressionReference/Utility#LinearInterpolate]
 
+## Logarithm10
+
+**Logarithm10** 노드는 밑이 10 인 로그 값을 반환하며, 입력 값의 일반(common) 로그라고도 합니다. 즉 밑이 10 인 어떤 값을 이 표현식으로 반환되는 수만큼 10 제곱하면 그 입력 값이 나옵니다.
+
+[REGION:note]
+이 표현식에는 양수 입력 값만 사용합니다.
+[/REGION]
+[REGION:lightbox]
+[![](log10.png "log10.png")](log10.png)
+
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
+
+## Logarithm2
+
+Logarithm2 노드는 입력 값에 대해 밑이 2인 로그 값을 반환합니다. 즉 밑이 2인 어떤 값을 이 표현식으로 반환되는 수만큼 2 제곱하면 그 입력 값이 나옵니다.
+
+[REGION:note]
+이 표현식에는 양수 입력 값만 사용합니다.
+[/REGION]
+[REGION:lightbox]
+[![](log2.png "log2.png")](log2.png)
+
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
 
 ## Max
 
 Max (최대) 표현식은 입력을 둘 받은 다음 그 중 높은 것을 출력합니다.
 
-이 노드는 Photoshop Lighten 과 비슷합니다.
+컬러 입력에 이 노드를 사용하면, 결과는 Photoshop 의 **Lighten** (연하게) 레이어 블렌딩 모드와 비슷합니다.
 
-![](MaxExample.png)(w:720)
+[REGION:lightbox]
+[![](MaxExample.png)(w:720)](MaxExample.png)
+
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
 
 위 예제에서 A 는 "0" 이고 B 는 "1" 이므로 "1" (하양) 이 결과 베이스 컬러가 됩니다.
 
+[REGION:simpletable]   
 | 항목 | 설명 |
-| -------- | ----------- |
+| --- | --- |
 | [REGION:tablesection]프로퍼티[/REGION] ||
 | **Const A** | 첫 번째 값을 받습니다. A 입력이 사용되지 않았을 때만 사용됩니다. |
 | **Const B** | 두 번째 값을 받습니다. B 입력이 사용되지 않았을 때만 사용됩니다. |
 | [REGION:tablesection]입력[/REGION] ||
 | **A** | 비교할 첫 번째 값을 받습니다. |
 | **B** | 비교할 두 번째 값을 받습니다. |
-
+[/REGION]
 
 ## Min
 
 Min (최소) 표현식은 입력을 둘 받은 다음 그 중 낮은 것을 출력합니다.
 
-이 노드는 Photoshop 의 Darken 과 비슷합니다. 
+컬러 입력에 이 노드를 사용하면, 결과는 Photoshop 의 **Darken** (어둡게) 레이어 블렌딩 모드와 비슷합니다.
 
-![](MinExample.png)(w:720)
+[REGION:lightbox]
+[![](MinExample.png)(w:720)](MinExample.png)
+
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
 
 위 예제에서 A 는 "0" 이고 B 는 "1" 이므로 "0" (검정)이 결과 베이스 컬러가 됩니다.
 
+[REGION:simpletable]   
 | 항목 | 설명 |
-| -------- | ----------- |
+| --- | --- |
 | [REGION:tablesection]프로퍼티[/REGION] ||
 | **Const A** | 첫 번째 값을 받습니다. A 입력이 사용되지 않았을 때만 사용됩니다. |
 | **Const B** | 두 번째 값을 받습니다. B 입력이 사용되지 않았을 때만 사용됩니다. |
 | [REGION:tablesection]입력[/REGION] ||
 | **A** | 비교할 첫 번째 값을 받습니다. |
 | **B** | 비교할 두 번째 값을 받습니다. |
-
+[/REGION]
 
 ## Multiply
 
-Multiply (곱하기) 표현식은 두 입력을 받아 서로 곱한 다음 결과를 출력합니다. 포포토샵의 멀티플라이 레이어 블렌드와 유사합니다. 곱하기는 채널별로 이루어집니다. 즉 첫째의 R은 둘째의 R로, 첫째의 G는 둘째의 G로 곱하는 식입니다. 둘 중 하나가 단일 실수값이 아닌 다음에야 두 입력은 채널 수가 같아야 합니다.
+**Multiply** (곱하기) 표현식은 두 입력 값을 받아 곱한 뒤 결과를 출력합니다. 컬러 값을 입력으로 전달하면, 결과는 Photoshop 의 **Multiply** 레이어 블렌딩 모드와 비슷합니다.
 
+여러 채널로 값을 전달하면, 각 채널 별로 곱합니다. 예를 들어, 각 입력에 RGB 컬러 값을 전달하면, 첫째 입력의 R 채널을 둘째 입력의 R 채널로 곱하고 그 결과를 출력의 R 채널에 저장하며, 첫째 입력의 G 채널을 둘째 입력의 G 채널로 곱하고 그 결과를 출력의 G 채널에 저장하는 식입니다.
+
+두 입력 중 하나가 단일 float 값이 아닌 한 값의 수가 같아야 합니다. 하나만 단일 float 인 경우, 채널이 여럿인 입력의 각 채널을 하나의 float 값에 곱하고, 그 결과를 출력 값의 별도 채널에 저장합니다.
+
+[REGION:simpletable]   
 | 항목 | 설명 |
-| ---- | ---- |
+| --- | --- |
 | [REGION:tablesection]프로퍼티[/REGION] ||
 | **Const A** | 곱할 첫째 값을 받습니다. A 입력이 사용되지 않았을 경우에만 사용됩니다. |
 | **Const B** | 곱할 둘째 값을 받습니다. B 입력이 사용되지 않았을 경우에만 사용됩니다. |
 | [REGION:tablesection]입력[/REGION] ||
 | **A** | 곱할 첫째 값을 받습니다. |
 | **B** | 곱할 둘째 값을 받습니다. |
-
+[/REGION]
 
 UE4의 범위는 [0,1]로 제한되어있지 않음에 유의하십시오! Multiply 결과 색/값이 1보다 크면 색이 밝아집니다.
 
@@ -360,8 +444,11 @@ UE4의 범위는 [0,1]로 제한되어있지 않음에 유의하십시오! Multi
 
 **사용 예:** Multiply는 보통 색/텍스처를 밝게 또는 어둡게 만들 때 사용합니다. 
 
-![MultiplyExample.png](MultiplyExample.png)(w:900)
+[REGION:lightbox]
+[![](MultiplyExample.png)(w:900)](MultiplyExample.png)
 
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
 
 [EXCERPT:Normalize]
 ## Normalize
@@ -371,18 +458,17 @@ Normalize (정규화) 표현식은 입력값을 정규화시켜 출력합니다.
 **예:** Normalize 에 (0,2,0) 또는 (0,0.2,0) 를 전달하면 (0,1,0) 이 출력됩니다. Normalize 에 (0,1,-1) 를 전달하면 (0, 0.707, -0.707) 이 출력됩니다. 유일하게 특별한 경우라면 모두 0 인 벡터로, 변경되지 않습니다.
 
 [OBJECT:ComparisonSlider]
-	[PARAM:before]
-	![Normalized Input Vector](NormalizeExample.png)(w:900)
-	[/PARAM]
-	[PARAM:after]
-	![Non-Normalized Input Vector](NormalizeExample2.png)(w:900)
-	[/PARAM]
+[PARAM:before]
+![정규화 입력 벡터](NormalizeExample.png) 
+[/PARAM]
+[PARAM:after]
+![비정규화 입력 벡터](NormalizeExample2.png) 
+[/PARAM]
 [/OBJECT]
 
 [REGION:note]
 Normal 머티리얼 출력에 연결되는 표현식은 정규화시킬 필요가 없습니다.
 [/REGION]
-
 [/EXCERPT:Normalize]
 
 ## OneMinus
@@ -393,43 +479,51 @@ OneMinus (1에서 빼기) 표현식은 입력값 "X" 를 받아 "1 에서 X 를 
 
 **사용 예:** 입력 색이 [0,1] 범위인 경우, OneMinus 는 흔히 "invert", 반전과 같은 효과를 냅니다. 즉 OneMinus는 입력에 더하면 흰색이 되는 보색을 반환하게 됩니다.
 
-![OneMinusExample.png](OneMinusExample.png)
+[REGION:lightbox]
+[![](OneMinusExample.png)](OneMinusExample.png)
 
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
 
 ## Power
 
-Power (거듭제곱) 표현식은 입력 둘을 받아서, Base(밑)을  Exp(지수)번 거듭제곱, 다른 말로 밑 x 밑 연산을 지수 번 한 결과를 출력합니다.
+**Power** (거듭제곱) 표현식은 두 입력을 받습니다. 하나는 **Base** (밑), 다른 하나는 **Exp** (지수)입니다. 밑 값을 지수만큼 거듭제곱한 뒤 결과를 출력합니다. 다른 말로 **Base** 를 **Exp** 번 스스로 곱한 값을 반환합니다.
 
+[REGION:simpletable]   
 | 항목 | 설명 |
-| ---- | ---- |
+| --- | --- |
 | [REGION:tablesection]프로퍼티[/REGION] ||
 | **Const Exponent** | 지수 값을 받습니다. Exp 입력이 사용되지 않았을 경우에만 사용됩니다. |
 | [REGION:tablesection]입력[/REGION] ||
 | **Base** | 밑 값을 받습니다. |
 | **Exp** | 지수 값을 받습니다. |
-
+[/REGION]
 
 **예:** Base 0.5, Exp 2.0 의 Power 는 0.25 입니다.
 
 **사용 예:** [0,1] 범위의 색이 전달된 경우, Power 는 매우 밝은 값은 살짝 어두워지지만 어두울 수록 급격히 어두워지는, 일종의 대비 조절 효과를 냅니다.
 
-![PowerExample.png](PowerExample.png)
+[REGION:lightbox]
+[![](PowerExample.png)](PowerExample.png)
 
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
 
 ## Round
 
-**Round** (반올림) 표현식은 소수점이 .5 이상이면 다음 정수로 반올림을, 미만이면 내립니다.
+**Round** (반올림) 표현식은 입력 값을 가장 가까운 정수로 반올림합니다. 입력 값의 분수 부분이 0.5 이상인 경우 출력 값은 반올림됩니다. 그렇지 않은 경우, 출력 값은 내립니다.
 
 [OBJECT:ComparisonSlider]
-	[PARAM:before]
-	![Round 전](RoundExample_00.png)(w:1100)
-	[/PARAM]
-	[PARAM:after]
-	![Round 후](RoundExample_01.png)
-	[/PARAM]
+[PARAM:before]
+![Round 전] 
+[/PARAM]
+[PARAM:after]
+![Round 후] 
+[/PARAM]
 [/OBJECT]
 
-**예:** 
+**예:**
+
 * 1.1 의 Round 는 1 입니다.
 * 1.4 의 Round 는 1 입니다.
 * 1.5 의 Round 는 2 입니다.
@@ -437,83 +531,116 @@ Power (거듭제곱) 표현식은 입력 둘을 받아서, Base(밑)을  Exp(지
 
 ## Saturate
 
-**Saturate** (포화) 노드는 값을 0 에서 1 범위로 클램프(제한)시킵니다. Saturate 인스트럭션 비용은 최근 그래픽 하드웨어에서는 거의 무료입니다.
+**Saturate** (포화) 노드는 값을 0 과 1 사이로 범위 제한합니다. 0 보다 낮으면 0 으로 올리고, 1 보다 크면 1 로 낮추며, 0 이상 1 이하 값은 그대로 유지됩니다. Saturate 의 인스트럭션 비용은 대부분의 그래픽 하드웨어에서 거의 무료이므로, 입력 또는 출력 값을 0 과 1 사이로 범위 제한하려는 경우 이 노드를 사용하면 머티리얼 퍼포먼스 영향이 거의 없습니다.
 
-![](SaturateExample_00.png)
+[REGION:lightbox]
+[![](SaturateExample_00.png)](SaturateExample_00.png)
+
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
 
 **사용 예:** 출력이나 입력 값을 0 에서 1 사이 범위로 제한시키고자 할 때 사용하면 됩니다.
 
+## Sign
+
+**Sign** (부호) 노드는 수치 입력 값이 음수인지, 양수인지, 정확히 0 인지 반환합니다.
+
+*   입력 값이 음수면, 이 노드 출력 값은 -1 입니다.
+*   입력 값이 정확히 0 이면, 이 노드 출력 값은 0 입니다.
+*   입력 값이 양수면, 이 노드 출력 값은 1 입니다.
+
+[REGION:lightbox]
+[![](sign.png "sign.png")](sign.png)
+
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
+
 ## Sine
 
-**Sine** (사인) 표현식은 [0, 1] 입력 범위와 [-1, 1] 출력 범위에 걸쳐 둘 다 반복되는 사인 곡선 값을 출력합니다. [Cosine](#Cosine) 표현식 출력과의 차이는 파형에 주기의 1/4 만큼 오프셋이 적용되어 있습니다. `Cos(X)` 는 `Sin(X + 0.25)` 와 같다는 뜻입니다. 아주 흔하게, 입력에 [Time](Engine/Rendering/Materials/ExpressionReference/Constant#Time) 표현식을 입력하여 연속 진동 파형을 출력하는데 사용되지만, 월드스페이스 또는 스크린스페이스에서 물결을 만들 때나, 연속적인 부드러운 사이클이 필요한 경우에도 사용 가능합니다. 파형의 시각적 표현은 아래와 같으며, [0, 1] 출력 범위로 스케일을 조절한 것입니다:
+**Sine** (사인) 표현식은 [0, 1] 입력 범위와 [-1, 1] 출력 범위에 걸쳐 둘 다 반복되는 사인 곡선 값을 출력합니다. [Cosine](#cosine) 표현식 출력과의 차이는 파형에 주기의 1/4 만큼 오프셋이 적용되어 있습니다. `Cos(X)` 는 `Sin(X + 0.25)` 와 같다는 뜻입니다. 아주 흔하게, 입력에 [Time](Engine/Rendering/Materials/ExpressionReference/Constant#Time) 표현식을 입력하여 연속 진동 파형을 출력하는데 사용되지만, 월드스페이스 또는 스크린스페이스에서 물결을 만들 때나, 연속적인 부드러운 사이클이 필요한 경우에도 사용 가능합니다. 파형의 시각적 표현은 아래와 같으며, [0, 1] 출력 범위로 스케일을 조절한 것입니다:
 
-![SineWave.png](SineWave.png)
+![](SineWave.png)
 
+[REGION:simpletable]  
 | 항목 | 설명 |
-| ---- | ---- |
+| --- | --- |
 | [REGION:tablesection]프로퍼티[/REGION] ||
-| **Period** | 결과 곡선의 주기, 다른 말로 진동 한 번에 걸리는 기간을 나타냅니다. |
-
+| **Period** | 결과 파형의 주기, 다른 말로 완전한 진동 한 번, 또는 연속 파형에서 저점 또는 고점이 반복되는 데 걸리는 시간입니다. 예를 들어, 위 이미지에서, 주기는 1 초입니다. |
+[/REGION]
 
 **사용 예:** 진동 효과가 필요할 때는 언제고 유용한 표현식입니다. 진폭과 그 속도는 Time 입력(속도)이나 출력(진폭)을 곱해 동적 제어가 쉽게 가능합니다.
 
-![SineExample.png](SineExample.png)
+[REGION:lightbox]
+[![](SineExample.png)](SineExample.png)
 
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
 
 ## SquareRoot
 
 SquareRoot (제곱근) 표현식은 입력값의 제곱근을 출력합니다. 벡터에 적용하면 각 컴포넌트는 개별 처리됩니다.
 
-![SqrtExample.png](SqrtExample.png)(w:900)
+[REGION:lightbox]
+[![](SqrtExample.png)(w:900)](SqrtExample.png)
 
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
 
 ## Subtract
 
-Subtract (빼기) 표현식은 두 입력을 받아 첫째에서 둘째를 뺀 차를 출력합니다. 빼기 연산은 채널별로 이루어 집니다. 즉 첫째의 R 채널값에서 둘째의 R 채널값을, 첫째의 G 채널값에서 둘째의 G 채널값을 등등의 식으로 뺍니다. 둘째 입력이 단일 상수값이 아닌 다음에야 두 입력의 채널 수는 같아야 합니다. 상수는 채널 갯수와 무관하게 벡터에서 뺄 수 있습니다. 
+**Subtract** (빼기) 노드는 두 입력을 받아, 첫째 입력에서 둘째 입력을 빼고, 그 차이를 출력합니다.
 
+여러 채널로 값을 전달하면, 각 채널 별로 뺍니다. 예를 들어, 각 입력에 RGB 컬러 값을 전달하면, 첫째 입력의 R 채널에서 둘째 입력의 R 채널을 빼고 그 결과를 출력의 R 채널에 저장하며, 첫째 입력의 G 채널에서 둘째 입력의 G 채널을 빼고 그 결과를 출력의 G 채널에 저장하는 식입니다.
+
+두 입력 중 하나가 단일 Constant (상수) 값이 아닌 한 값의 수가 같아야 합니다. 하나만 단일 상수인 경우, 채널이 여럿인 입력의 각 채널을 하나의 상수 값에 더하고, 그 결과를 출력 값의 별도 채널에 저장합니다.
+
+[REGION:simpletable]   
 | 항목 | 설명 |
-| ---- | ---- |
+| --- | --- |
 | [REGION:tablesection]프로퍼티[/REGION] ||
 | **Const A** | 빼일 값을 받습니다. A 입력이 사용되지 않았을 경우에만 사용됩니다. |
 | **Const B** | 뺄 값을 받습니다. B 입력이 사용되지 않았을 경우에만 사용됩니다. |
 | [REGION:tablesection]입력[/REGION] ||
 | **A** | 빼일 값을 받습니다. |
 | **B** | 뺄 값을 받습니다. |
-
+[/REGION]
 
 **예:** 0.5 와 0.2 의 Subtract 는 0.3; (0.2,-0.4,0.6) 와 (0.1,0.1,1.0) 의 Subtract 는 (0.1,-0.5,-0.4); (0.2,0.4,1.0) 와 0.2 의 Subtract 는 (0.0,0.2,0.8) 
 
 **사용 예:** Subtract 는 색을 어둡게하고 UV를 오프셋하는 데 쓰입니다.
 
-![SubtractExample.png](SubtractExample.png)(w:900)
+[REGION:lightbox]
+[![](SubtractExample.png)(w:900)](SubtractExample.png)
+
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
 
 ## Tangent
 
-[REGION:lightbox]
-[![](MEN_Tangent.png)(w:469)](MEN_Tangent.png)
-[/REGION]
+**Tangent** (탄젠트) 노드는 지정한 값의 탄젠트를 출력합니다.
 
-[REGION:caption]
-클릭하면 이미지 원본을 확인합니다.
-[/REGION]
+![](MEN_Tangent.png)(w:469)
 
-**Tangent** (탄젠트) 노드는 지정된 값의 탄젠트를 출력합니다.
+위 이미지는 이 표현식을 적용한 결과의 두 가지 다른 시각화를 보여줍니다.
+
+*   상단 바는 출력 컬러 결과를 표시합니다. 바 왼쪽 끝은 이 표현식에 입력 값이 -1 인 경우의 컬러를 나타내며, 오른쪽 끝은 1 인 경우입니다.
+*   그래프에서 X 축은 -1 에서 1 범위의 입력 값을 나타냅니다. Y 축은 그 입력 값에 이 표현식을 사용한 결과를 나타내며, 마찬가지로 범위는 -1 에서 1 입니다.
 
 ## Truncate
 
 [OBJECT:ComparisonSlider]
-	[PARAM:before]
-	![Truncate 전](TruncateExample_00.png)(w:1100)
-	[/PARAM]
-	[PARAM:after]
-	![Truncate 후](TruncateExample_01.png)
-	[/PARAM]
+[PARAM:before]
+![Truncate 전](TruncateExample_00.png) 
+[/PARAM]
+[PARAM:after]
+![Truncate 후](TruncateExample_01.png) 
+[/PARAM]
 [/OBJECT]
-
 
 **Truncate** (버림) 노드는 값의 정수 부분만 남기고 소수점 부분은 버립니다.
 
-**예제:** 
+**예제:**
+
 * 1.1 의 Truncate 는 1 입니다.
 * 1.4 의 Truncate 는 1 입니다.
 * 2.5 의 Truncate 는 2 입니다.

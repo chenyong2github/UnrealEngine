@@ -25,9 +25,10 @@ static TAutoConsoleVariable<float> CVarHapticsRest(TEXT("ios.VibrationHapticsRes
 //
 //@end
 
-TArray<TouchInput> FIOSInputInterface::TouchInputStack = TArray<TouchInput>();
-TArray<int32> FIOSInputInterface::KeyInputStack;
-FCriticalSection FIOSInputInterface::CriticalSection;
+// protects the input stack used on 2 threads
+static FCriticalSection CriticalSection;
+static TArray<TouchInput> TouchInputStack;
+static TArray<int32> KeyInputStack;
 
 TSharedRef< FIOSInputInterface > FIOSInputInterface::Create(  const TSharedRef< FGenericApplicationMessageHandler >& InMessageHandler )
 {
@@ -125,7 +126,7 @@ void FIOSInputInterface::HandleConnection(GCController* Controller)
 	static_assert(GCControllerPlayerIndex1 == 0 && GCControllerPlayerIndex4 == 3, "Apple changed the player index enums");
 
 	// is this guy a gamepad (i.e., not the Remote)
-	bool bIsGamepadType = (Controller.gamepad != nil);
+	bool bIsGamepadType = (Controller.extendedGamepad != nil);
 	// if we want to use the Remote as a separate player, then we treat it as a Gamepad for player assignment
 	bool bIsTreatedAsGamepad = bIsGamepadType || bTreatRemoteAsSeparateController;
 
@@ -258,11 +259,11 @@ void ModifyVectorByOrientation(FVector& Vec, bool bIsRotation)
 }
 #endif
 
-void FIOSInputInterface::ProcessTouchesAndKeys(uint32 ControllerId)
+void FIOSInputInterface::ProcessTouchesAndKeys(uint32 ControllerId, const TArray<TouchInput>& InTouchInputStack, const TArray<int32>& InKeyInputStack)
 {
-	for(int i = 0; i < TouchInputStack.Num(); ++i)
+	for(int i = 0; i < InTouchInputStack.Num(); ++i)
 	{
-		const TouchInput& Touch = TouchInputStack[i];
+		const TouchInput& Touch = InTouchInputStack[i];
 		
 		// send input to handler
 		if (Touch.Type == TouchBegan)
@@ -287,30 +288,32 @@ void FIOSInputInterface::ProcessTouchesAndKeys(uint32 ControllerId)
 		}
 	}
 	
-	TouchInputStack.Empty(0);
-	
-	
 	// these come in pairs
-	for(int32 KeyIndex = 0; KeyIndex < KeyInputStack.Num(); KeyIndex+=2)
+	for(int32 KeyIndex = 0; KeyIndex < InKeyInputStack.Num(); KeyIndex+=2)
 	{
-		int32 KeyCode = KeyInputStack[KeyIndex];
-		int32 CharCode = KeyInputStack[KeyIndex + 1];
+		int32 KeyCode = InKeyInputStack[KeyIndex];
+		int32 CharCode = InKeyInputStack[KeyIndex + 1];
 		MessageHandler->OnKeyDown(KeyCode, CharCode, false);
 		MessageHandler->OnKeyChar(CharCode,  false);
 		MessageHandler->OnKeyUp  (KeyCode, CharCode, false);
 	}
-	KeyInputStack.Empty(0);
 }
 
 void FIOSInputInterface::SendControllerEvents()
 {
-	FScopeLock Lock(&CriticalSection);
-
+	TArray<TouchInput> LocalTouchInputStack;
+	TArray<int32> LocalKeyInputStack;
+	{
+		FScopeLock Lock(&CriticalSection);
+		Exchange(LocalTouchInputStack, TouchInputStack);
+		Exchange(LocalKeyInputStack, KeyInputStack);
+	}
+	
 	int32 ControllerIndex = -1;
 	
 #if !PLATFORM_TVOS
 	// on ios, touches always go go player 0
-	ProcessTouchesAndKeys(0);
+	ProcessTouchesAndKeys(0, LocalTouchInputStack, LocalKeyInputStack);
 #endif
 
 	
@@ -341,7 +344,6 @@ void FIOSInputInterface::SendControllerEvents()
 		
 	for (GCController* Cont in [GCController controllers])
  	{
-		GCGamepad* Gamepad = Cont.gamepad;
 		GCExtendedGamepad* ExtendedGamepad = Cont.extendedGamepad;
 #if PLATFORM_TVOS
 		GCMicroGamepad* MicroGamepad = Cont.microGamepad;
@@ -349,7 +351,7 @@ void FIOSInputInterface::SendControllerEvents()
 		GCMotion* Motion = Cont.motion;
 
 		// skip over gamepads if we don't allow controllers
-		if (Gamepad != nil && !bAllowControllers)
+		if (ExtendedGamepad != nil && !bAllowControllers)
 		{
 			continue;
 		}
@@ -453,29 +455,6 @@ if ((Controller.Previous##Gamepad != nil && Gamepad.GCAxis.value != Controller.P
 			Controller.PreviousExtendedGamepad = [ExtendedGamepad saveSnapshot];
 			[Controller.PreviousExtendedGamepad retain];
 		}
-		// get basic input (extended is a superset, don't do both)
-		else if (Gamepad != nil)
-		{
-			HANDLE_BUTTON(Gamepad, buttonA,			FGamepadKeyNames::FaceButtonBottom);
-			HANDLE_BUTTON(Gamepad, buttonA,			FGamepadKeyNames::FaceButtonBottom);
-			HANDLE_BUTTON(Gamepad, buttonB,			FGamepadKeyNames::FaceButtonRight);
-			HANDLE_BUTTON(Gamepad, buttonX,			FGamepadKeyNames::FaceButtonLeft);
-			HANDLE_BUTTON(Gamepad, buttonY,			FGamepadKeyNames::FaceButtonTop);
-			HANDLE_BUTTON(Gamepad, leftShoulder,	FGamepadKeyNames::LeftShoulder);
-			HANDLE_BUTTON(Gamepad, rightShoulder,	FGamepadKeyNames::RightShoulder);
-			HANDLE_BUTTON(Gamepad, dpad.up,			FGamepadKeyNames::DPadUp);
-			HANDLE_BUTTON(Gamepad, dpad.down,		FGamepadKeyNames::DPadDown);
-			HANDLE_BUTTON(Gamepad, dpad.right,		FGamepadKeyNames::DPadRight);
-			HANDLE_BUTTON(Gamepad, dpad.left,		FGamepadKeyNames::DPadLeft);
-			
-
-			HANDLE_ANALOG(ExtendedGamepad, dpad.xAxis,	FGamepadKeyNames::LeftAnalogX);
-			HANDLE_ANALOG(ExtendedGamepad, dpad.yAxis,	FGamepadKeyNames::LeftAnalogY);
-			
-			[Controller.PreviousGamepad release];
-			Controller.PreviousGamepad = [Gamepad saveSnapshot];
-			[Controller.PreviousGamepad retain];
-        }
 #if PLATFORM_TVOS
         // get micro input (shouldn't have the other two)
         else if (MicroGamepad != nil)
@@ -491,13 +470,11 @@ if ((Controller.Previous##Gamepad != nil && Gamepad.GCAxis.value != Controller.P
 				HANDLE_BUTTON(MicroGamepad, dpad.down,	FGamepadKeyNames::LeftStickDown);
 				HANDLE_BUTTON(MicroGamepad, dpad.right,	FGamepadKeyNames::LeftStickRight);
 				HANDLE_BUTTON(MicroGamepad, dpad.left,	FGamepadKeyNames::LeftStickLeft);
-
-				TouchInputStack.Empty(0);
 			}
 			// otherwise, process touches like ios for the remote's index
 			else
 			{
-				ProcessTouchesAndKeys(Cont.playerIndex);
+				ProcessTouchesAndKeys(Cont.playerIndex, LocalTouchInputStack, LocalKeyInputStack);
 			}
 			
 			HANDLE_BUTTON(MicroGamepad, buttonA,	FGamepadKeyNames::FaceButtonBottom);
@@ -566,7 +543,7 @@ void FIOSInputInterface::QueueTouchInput(const TArray<TouchInput>& InTouchEvents
 {
 	FScopeLock Lock(&CriticalSection);
 
-	FIOSInputInterface::TouchInputStack.Append(InTouchEvents);
+	TouchInputStack.Append(InTouchEvents);
 }
 
 void FIOSInputInterface::QueueKeyInput(int32 Key, int32 Char)
@@ -574,8 +551,8 @@ void FIOSInputInterface::QueueKeyInput(int32 Key, int32 Char)
 	FScopeLock Lock(&CriticalSection);
 
 	// put the key and char into the array
-	FIOSInputInterface::KeyInputStack.Add(Key);
-	FIOSInputInterface::KeyInputStack.Add(Char);
+	KeyInputStack.Add(Key);
+	KeyInputStack.Add(Char);
 }
 
 void FIOSInputInterface::EnableMotionData(bool bEnable)

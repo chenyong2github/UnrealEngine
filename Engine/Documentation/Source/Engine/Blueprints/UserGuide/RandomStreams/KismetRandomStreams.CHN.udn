@@ -14,7 +14,6 @@ Description: 介绍了随机流及如何在蓝图中使用它们。
 执行任何其他修改。
 [/EXCERPT:Intro]
 
-(#RandomStreamVariables)
 ## RandomStream（随机流）变量
 
 RandomStreams(随机流)在蓝图中以一种特殊类型的结构体变量呈现。像其他变量一样，您可以通过在 **图表** 模式中的 **我的蓝图** 面板中创建此类变量并添加它们。
@@ -23,7 +22,6 @@ RandomStreams(随机流)在蓝图中以一种特殊类型的结构体变量呈�
 
 请参照[创建变量](Engine/Blueprints/UserGuide\Variables#创建变量) 部分获得关于如何在类蓝图或关卡蓝图中添加新变量的完整指南。
 
-(#RandomStreamFunctions)
 ## 随机流函数
 
 为了使用随机流变量，我们提供了一组函数，它们可以取入一个RandomStream（随机流）作为输入，且根据函数功能不同它们输出一个不同类型的随机值。
@@ -52,7 +50,6 @@ RandomStreams(随机流)在蓝图中以一种特殊类型的结构体变量呈�
 
 正如您看到的，随机的布尔值、浮点型值、整型值、向量及旋转度都可以从同一个流中提取出来。
 
-(#InitialSeed)
 ## 初始种子
 
 Initial Seed（初始种子）属性用于计算随机值流。每次计算一个单独的随机种子所产生的随机值序列 
@@ -91,7 +88,6 @@ LogBlueprintUserMessages: HTHTHTTHTT
 [/COMMENT]
 
 
-(#ModifyingtheInitialSeed)
 ### 修改初始种子
 
 
@@ -106,7 +102,6 @@ LogBlueprintUserMessages: HTHTHTTHTT
 
 
 [COMMENT:none]
-(#ResettingaRandomStream)
 ### 重置一个随机流
 [/COMMENT]
 

@@ -34,11 +34,11 @@ namespace UnrealGameSync
             this.OwnerLabel = new System.Windows.Forms.Label();
             this.tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
             this.tableLayoutPanel3 = new System.Windows.Forms.TableLayoutPanel();
+            this.tableLayoutPanel2 = new System.Windows.Forms.TableLayoutPanel();
+            this.LatestBuildLinkLabel = new System.Windows.Forms.LinkLabel();
             this.DeclineBtn = new UnrealGameSync.AlertButtonControl();
             this.AcceptBtn = new UnrealGameSync.AlertButtonControl();
             this.DetailsBtn = new UnrealGameSync.AlertButtonControl();
-            this.tableLayoutPanel2 = new System.Windows.Forms.TableLayoutPanel();
-            this.LatestBuildLinkLabel = new System.Windows.Forms.LinkLabel();
             this.tableLayoutPanel1.SuspendLayout();
             this.tableLayoutPanel3.SuspendLayout();
             this.tableLayoutPanel2.SuspendLayout();
@@ -47,7 +47,7 @@ namespace UnrealGameSync
             // SummaryLabel
             // 
             this.SummaryLabel.ActiveLinkColor = System.Drawing.Color.FromArgb(((int)(((byte)(16)))), ((int)(((byte)(112)))), ((int)(((byte)(202)))));
-            this.SummaryLabel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.SummaryLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
             this.SummaryLabel.AutoSize = true;
             this.SummaryLabel.Font = new System.Drawing.Font("Segoe UI Semibold", 10F);
             this.SummaryLabel.LinkBehavior = System.Windows.Forms.LinkBehavior.HoverUnderline;
@@ -55,8 +55,8 @@ namespace UnrealGameSync
             this.SummaryLabel.Location = new System.Drawing.Point(2, 0);
             this.SummaryLabel.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             this.SummaryLabel.Name = "SummaryLabel";
-            this.SummaryLabel.Padding = new System.Windows.Forms.Padding(0, 2, 30, 2);
-            this.SummaryLabel.Size = new System.Drawing.Size(99, 23);
+            this.SummaryLabel.Padding = new System.Windows.Forms.Padding(0, 3, 50, 3);
+            this.SummaryLabel.Size = new System.Drawing.Size(119, 23);
             this.SummaryLabel.TabIndex = 0;
             this.SummaryLabel.TabStop = true;
             this.SummaryLabel.Text = "Summary";
@@ -69,8 +69,8 @@ namespace UnrealGameSync
             this.OwnerLabel.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(32)))), ((int)(((byte)(32)))), ((int)(((byte)(64)))));
             this.OwnerLabel.Location = new System.Drawing.Point(3, 23);
             this.OwnerLabel.Name = "OwnerLabel";
-            this.OwnerLabel.Padding = new System.Windows.Forms.Padding(0, 2, 30, 2);
-            this.OwnerLabel.Size = new System.Drawing.Size(72, 19);
+            this.OwnerLabel.Padding = new System.Windows.Forms.Padding(0, 3, 30, 3);
+            this.OwnerLabel.Size = new System.Drawing.Size(72, 21);
             this.OwnerLabel.TabIndex = 5;
             this.OwnerLabel.Text = "Owner";
             this.OwnerLabel.Click += new System.EventHandler(this.IssueAlertWindow_Click);
@@ -120,6 +120,40 @@ namespace UnrealGameSync
             this.tableLayoutPanel3.Size = new System.Drawing.Size(303, 35);
             this.tableLayoutPanel3.TabIndex = 8;
             // 
+            // tableLayoutPanel2
+            // 
+            this.tableLayoutPanel2.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
+            this.tableLayoutPanel2.AutoSize = true;
+            this.tableLayoutPanel2.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+            this.tableLayoutPanel2.ColumnCount = 1;
+            this.tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            this.tableLayoutPanel2.Controls.Add(this.SummaryLabel, 0, 0);
+            this.tableLayoutPanel2.Controls.Add(this.OwnerLabel, 0, 1);
+            this.tableLayoutPanel2.Controls.Add(this.LatestBuildLinkLabel, 0, 2);
+            this.tableLayoutPanel2.Location = new System.Drawing.Point(23, 3);
+            this.tableLayoutPanel2.Name = "tableLayoutPanel2";
+            this.tableLayoutPanel2.RowCount = 3;
+            this.tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 35F));
+            this.tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 32.5F));
+            this.tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 32.5F));
+            this.tableLayoutPanel2.Size = new System.Drawing.Size(334, 68);
+            this.tableLayoutPanel2.TabIndex = 7;
+            this.tableLayoutPanel2.Click += new System.EventHandler(this.IssueAlertWindow_Click);
+            // 
+            // LatestBuildLinkLabel
+            // 
+            this.LatestBuildLinkLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            this.LatestBuildLinkLabel.AutoSize = true;
+            this.LatestBuildLinkLabel.Font = new System.Drawing.Font("Segoe UI Semibold", 9F);
+            this.LatestBuildLinkLabel.LinkColor = System.Drawing.Color.FromArgb(((int)(((byte)(16)))), ((int)(((byte)(102)))), ((int)(((byte)(192)))));
+            this.LatestBuildLinkLabel.Location = new System.Drawing.Point(3, 46);
+            this.LatestBuildLinkLabel.Name = "LatestBuildLinkLabel";
+            this.LatestBuildLinkLabel.Padding = new System.Windows.Forms.Padding(0, 3, 0, 3);
+            this.LatestBuildLinkLabel.Size = new System.Drawing.Size(68, 21);
+            this.LatestBuildLinkLabel.TabIndex = 8;
+            this.LatestBuildLinkLabel.TabStop = true;
+            this.LatestBuildLinkLabel.Text = "Latest build";
+            // 
             // DeclineBtn
             // 
             this.DeclineBtn.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
@@ -138,7 +172,6 @@ namespace UnrealGameSync
             // AcceptBtn
             // 
             this.AcceptBtn.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
-            this.AcceptBtn.AutoSize = true;
             this.AcceptBtn.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
             this.AcceptBtn.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.AcceptBtn.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(255)))));
@@ -154,7 +187,6 @@ namespace UnrealGameSync
             // DetailsBtn
             // 
             this.DetailsBtn.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
-            this.DetailsBtn.AutoSize = true;
             this.DetailsBtn.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
             this.DetailsBtn.Font = new System.Drawing.Font("Segoe UI Semibold", 9F);
             this.DetailsBtn.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(64)))), ((int)(((byte)(86)))), ((int)(((byte)(106)))));
@@ -166,41 +198,6 @@ namespace UnrealGameSync
             this.DetailsBtn.Text = "Details";
             this.DetailsBtn.Theme = UnrealGameSync.AlertButtonControl.AlertButtonTheme.Normal;
             this.DetailsBtn.UseVisualStyleBackColor = true;
-            // 
-            // tableLayoutPanel2
-            // 
-            this.tableLayoutPanel2.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
-            this.tableLayoutPanel2.AutoSize = true;
-            this.tableLayoutPanel2.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
-            this.tableLayoutPanel2.ColumnCount = 1;
-            this.tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 20F));
-            this.tableLayoutPanel2.Controls.Add(this.SummaryLabel, 0, 0);
-            this.tableLayoutPanel2.Controls.Add(this.OwnerLabel, 0, 1);
-            this.tableLayoutPanel2.Controls.Add(this.LatestBuildLinkLabel, 0, 2);
-            this.tableLayoutPanel2.Location = new System.Drawing.Point(23, 6);
-            this.tableLayoutPanel2.Name = "tableLayoutPanel2";
-            this.tableLayoutPanel2.RowCount = 3;
-            this.tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle());
-            this.tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle());
-            this.tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle());
-            this.tableLayoutPanel2.Size = new System.Drawing.Size(334, 61);
-            this.tableLayoutPanel2.TabIndex = 7;
-            this.tableLayoutPanel2.Click += new System.EventHandler(this.IssueAlertWindow_Click);
-            // 
-            // LatestBuildLinkLabel
-            // 
-            this.LatestBuildLinkLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
-            this.LatestBuildLinkLabel.AutoSize = true;
-            this.LatestBuildLinkLabel.Font = new System.Drawing.Font("Segoe UI Semibold", 9F);
-            this.LatestBuildLinkLabel.LinkColor = System.Drawing.Color.FromArgb(((int)(((byte)(16)))), ((int)(((byte)(102)))), ((int)(((byte)(192)))));
-            this.LatestBuildLinkLabel.Location = new System.Drawing.Point(3, 42);
-            this.LatestBuildLinkLabel.Name = "LatestBuildLinkLabel";
-            this.LatestBuildLinkLabel.Padding = new System.Windows.Forms.Padding(0, 2, 0, 2);
-            this.LatestBuildLinkLabel.Size = new System.Drawing.Size(68, 19);
-            this.LatestBuildLinkLabel.TabIndex = 8;
-            this.LatestBuildLinkLabel.TabStop = true;
-            this.LatestBuildLinkLabel.Text = "Latest build";
             // 
             // IssueAlertWindow
             // 
@@ -223,7 +220,6 @@ namespace UnrealGameSync
             this.tableLayoutPanel1.ResumeLayout(false);
             this.tableLayoutPanel1.PerformLayout();
             this.tableLayoutPanel3.ResumeLayout(false);
-            this.tableLayoutPanel3.PerformLayout();
             this.tableLayoutPanel2.ResumeLayout(false);
             this.tableLayoutPanel2.PerformLayout();
             this.ResumeLayout(false);

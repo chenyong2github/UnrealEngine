@@ -57,7 +57,7 @@ ParticleDirection (파티클 방향)은 주어진 파티클의 현재 진행 방
 ParticleMacroUV (파티클 매크로 UV)는 전체 파티클 시스템에 2D 텍스처를 연속적인 방식으로 매핑하는 데, 즉 전체 파티클에 걸쳐 이음새 없는 텍스처를 만드는 데 사용할 수 있는 UV 텍스처 좌표를 출력하는 표현식입니다. UV 는 (캐스케이드에서 MacroUV 범주 아래 ParticleSystem 에 지정된) MacroUVPosition 을 중심으로 하며, MacroUVRadius 는 UV 가 타일링되는 월드 스페이스 반경을 결정합니다. ParticleMacroUV 노드는 파티클에 연속 노이즈를 매핑시켜, 보통의 텍스처 좌표를 가지고 텍스처를 각 파티클에 매핑시킬 때 생기는 패턴을 깨뜨리기에 좋습니다.
 
 | 항목 | 설명 |
-| ---- | ---- |
+| --- | --- |
 | [REGION:tablesection]프로퍼티[/REGION] ||
 | **Use View Space** | _True_ 면 각 스프라이트의 깊이에 따라 좌표를 실제로 이격(offset)시켜 시차 효과를 만들어 내어, 폭발에 방사형 블러링 효과를 내는 데 좋습니다. |
 
@@ -174,7 +174,7 @@ SphericalParticleOpacity (구체형 파티클 불투명도)는 프로시저럴 �
 [INCLUDE:#SPO]
 
 
-[COMMENT:none]
+<!--
 
 [EXCERPT:SPO]
 [REGION:lightbox]
@@ -182,7 +182,7 @@ SphericalParticleOpacity (구체형 파티클 불투명도)는 프로시저럴 �
 [/REGION]
 [/EXCERPT:SPO]
 
-[/COMMENT]
+-->
 
 
 [EXCERPT:ParticleSubUV]
@@ -219,7 +219,7 @@ ParticleSubUV (파티클 Sub UV) 표현식은 텍스처의 서브 이미지를 �
 TextureSampleParameterSubUV (파티클 샘플 파라미터 Sub UV) 표현식은 [ParticleSubUV](Engine/Rendering/Materials/ExpressionReference/Particles#ParticleSubUV) 와 동일하지만, 머티리얼의 인스턴스나 코드를 통해 변경할 수 있는 파라미터라는 점이 다릅니다.
 
 | 항목 | 설명 |
-| ---- | ---- |
+| --- | --- |
 | [REGION:tablesection]프로퍼티[/REGION] ||
 | **Parameter Name** | [INCLUDE:Engine/Rendering/Materials/ExpressionReference/Parameters#ParameterNameDefinition] |
 | **Group**| [INCLUDE:Engine/Rendering/Materials/ExpressionReference/Parameters#GroupDefinition] |

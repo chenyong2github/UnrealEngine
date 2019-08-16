@@ -2,6 +2,10 @@
 
 #include "Widgets/Images/SImage.h"
 #include "Rendering/DrawElements.h"
+#include "Widgets/IToolTip.h"
+#if WITH_ACCESSIBILITY
+#include "Widgets/Accessibility/SlateCoreAccessibleWidgets.h"
+#endif
 
 void SImage::Construct( const FArguments& InArgs )
 {
@@ -9,8 +13,6 @@ void SImage::Construct( const FArguments& InArgs )
 	ColorAndOpacity = InArgs._ColorAndOpacity;
 	bFlipForRightToLeftFlowDirection = InArgs._FlipForRightToLeftFlowDirection;
 	SetOnMouseButtonDown(InArgs._OnMouseButtonDown);
-
-
 }
 
 int32 SImage::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const
@@ -50,27 +52,37 @@ FVector2D SImage::ComputeDesiredSize( float ) const
 
 void SImage::SetColorAndOpacity( const TAttribute<FSlateColor>& InColorAndOpacity )
 {
-	if (!ColorAndOpacity.IdenticalTo(InColorAndOpacity))
-	{
-		ColorAndOpacity = InColorAndOpacity;
-		Invalidate(EInvalidateWidget::PaintAndVolatility);
-	}
+	SetAttribute(ColorAndOpacity, InColorAndOpacity, EInvalidateWidgetReason::Paint);
 }
 
 void SImage::SetColorAndOpacity( FLinearColor InColorAndOpacity )
 {
-	if (!ColorAndOpacity.IdenticalTo(InColorAndOpacity))
-	{
-		ColorAndOpacity = InColorAndOpacity;
-		Invalidate(EInvalidateWidget::PaintAndVolatility);
-	}
+	SetColorAndOpacity(TAttribute<FSlateColor>(InColorAndOpacity));
 }
 
 void SImage::SetImage(TAttribute<const FSlateBrush*> InImage)
 {
-	if (!Image.IdenticalTo(InImage))
+	const bool bImagePointerChanged = SetAttribute(Image, InImage, EInvalidateWidgetReason::Layout);
+
+	const FSlateBrush* ImagePtr = Image.Get();
+	const FSlateBrush NewImageToCache = ImagePtr ? *ImagePtr : FSlateBrush();
+
+	// If the slate brush pointer didn't change, that may not mean nothing changed.  We
+	// sometimes reuse the slate brush memory address and change out the texture.  In those
+	// circumstances we need to actually look at the data the brush has compared to what it had
+	// previously.
+	if (!bImagePointerChanged && ImageCache != NewImageToCache)
 	{
-		Image = InImage;
-		Invalidate(EInvalidateWidget::LayoutAndVolatility);
+		Invalidate(EInvalidateWidgetReason::Layout);
 	}
+
+	// Cache the new image's value in case the memory changes later.
+	ImageCache = NewImageToCache;
 }
+
+#if WITH_ACCESSIBILITY
+TSharedRef<FSlateAccessibleWidget> SImage::CreateAccessibleWidget()
+{
+	return MakeShareable<FSlateAccessibleWidget>(new FSlateAccessibleImage(SharedThis(this)));
+}
+#endif

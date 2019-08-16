@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3782314
-Availability: Public
+INTSourceChangelist:6277736
+Availability: Docs
 Title:1. 필수 구성
 Crumbs:%ROOT%, GettingStarted, Engine\Rendering\LightingAndShadows\QuickStart
 Description:여기서는 나중에 라이팅 작업을 할 작은 방을 몇 개 만들겠습니다.
@@ -25,12 +25,12 @@ Version: 4.9
 
 
 [REGION:note]
-이번 튜토리얼 시리즈에서는 **시작용 콘텐츠** 를 포함한 **공백** 프로젝트를 새로 만들어 사용하겠습니다. 새 프로젝트 생성, 템플릿 사용, 프로젝트 세팅 정의 (및 **시작용 콘텐츠** 포함) 관련 정보는 [](Engine/Basics/Projects/Browser) 문서를 참고하세요.
+이번 튜토리얼 시리즈에서는 **시작용 콘텐츠** 를 포함한 **기본** 프로젝트를 새로 만들어 사용하겠습니다. 새 프로젝트 생성, 템플릿 사용, 프로젝트 세팅 정의 (및 **시작용 콘텐츠** 포함) 관련 정보는 [](Engine/Basics/Projects/Browser) 문서를 참고하세요.
 [/REGION]
 
-(**시작용 콘텐츠** 포함) **공백** 프로젝트 안에서 라이팅 작업에 사용할 간단한 아파트를 다음과 같이 만들어 줍니다.
+(**시작용 콘텐츠** 포함) **기본** 프로젝트 안에서 라이팅 작업에 사용할 간단한 아파트를 다음과 같이 만들어 줍니다.
 
-1.	프로젝트를 열고 **Ctrl+N** 키를 눌러 새 레벨을 만든 다음, **공백 레벨** 을 선택합니다.
+1.	프로젝트를 열고 **Ctrl+N** 키를 눌러 새 레벨을 만든 다음, **기본 레벨** 을 선택합니다.
 
 1.	**콘텐츠 브라우저** 내 **StarterContent/Architecture** 폴더에서, **Floor_400x400** 을 끌어 레벨에 놓습니다.
 

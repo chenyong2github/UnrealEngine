@@ -4,7 +4,9 @@
 
 #include "Interfaces/IPluginManager.h"
 #include "Modules/ModuleManager.h"
+#include "OpenColorIOLibHandler.h"
 #include "ShaderCore.h"
+
 
 
 DEFINE_LOG_CATEGORY(LogOpenColorIO);
@@ -21,6 +23,8 @@ public:
 	//~ IModuleInterface interface
 	virtual void StartupModule() override
 	{
+		FOpenColorIOLibHandler::Initialize();
+
 		// Maps virtual shader source directory /Plugin/OpenCVLensDistortion to the plugin's actual Shaders directory.
 		FString PluginShaderDir = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("OpenColorIO"))->GetBaseDir(), TEXT("Shaders"));
 		AddShaderSourceDirectoryMapping(TEXT("/Plugin/OpenColorIO"), PluginShaderDir);
@@ -28,6 +32,7 @@ public:
 
 	virtual void ShutdownModule() override
 	{
+		FOpenColorIOLibHandler::Shutdown();
 	}
 };
 

@@ -4,7 +4,7 @@ Title:物理のコンテンツ サンプル
 Crumbs:%ROOT%, Resources, Resources/ContentExamples
 Description:物理のコンテンツ サンプルの概要
 Related:Engine/Physics/PhysicsBodies
-Related:Engine/Physics/PhAT
+Related:Engine/Physics/PhysicsAssetEditor
 Related:Engine/Physics/Constraints/ConstraintsReference
 Related:Engine/Physics/Constraints/ConstraintsUserGuide
 Related:Engine/Physics/Collision

@@ -18,7 +18,7 @@ class FNodeHandlingFunctor;
 class UEdGraph;
 
 UCLASS(MinimalAPI)
-class UK2Node_Event : public UK2Node_EditablePinBase, public IK2Node_EventNodeInterface
+class BLUEPRINTGRAPH_VTABLE UK2Node_Event : public UK2Node_EditablePinBase, public IK2Node_EventNodeInterface
 {
 	GENERATED_UCLASS_BODY()
 	BLUEPRINTGRAPH_API static const FName DelegateOutputName;
@@ -66,11 +66,12 @@ class UK2Node_Event : public UK2Node_EditablePinBase, public IK2Node_EventNodeIn
 	BLUEPRINTGRAPH_API virtual bool CanPasteHere(const UEdGraph* TargetGraph) const override;
 	BLUEPRINTGRAPH_API virtual bool IsCompatibleWithGraph(const UEdGraph* TargetGraph) const override;
 	BLUEPRINTGRAPH_API virtual FName GetCornerIcon() const override;
-	BLUEPRINTGRAPH_API virtual bool IsDeprecated() const override;
-	BLUEPRINTGRAPH_API virtual FString GetDeprecationMessage() const override;
+	BLUEPRINTGRAPH_API virtual bool HasDeprecatedReference() const override;
+	BLUEPRINTGRAPH_API virtual FEdGraphNodeDeprecationResponse GetDeprecationResponse(EEdGraphNodeDeprecationType DeprecationType) const override;
 	BLUEPRINTGRAPH_API virtual UObject* GetJumpTargetForDoubleClick() const override;
 	BLUEPRINTGRAPH_API virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
 	BLUEPRINTGRAPH_API virtual FString GetFindReferenceSearchString() const override;
+	BLUEPRINTGRAPH_API virtual void FindDiffs(UEdGraphNode* OtherNode, struct FDiffResults& Results) override;
 	//~ End UEdGraphNode Interface
 
 	//~ Begin UK2Node Interface
@@ -96,7 +97,9 @@ class UK2Node_Event : public UK2Node_EditablePinBase, public IK2Node_EventNodeIn
 
 	/** Checks whether the parameters for this event node are compatible with the specified function entry node */
 	BLUEPRINTGRAPH_API virtual bool IsFunctionEntryCompatible(const class UK2Node_FunctionEntry* EntryNode) const;
-	
+	/** Checks if this event node is implementing an interface event */
+	BLUEPRINTGRAPH_API bool IsInterfaceEventNode() const;
+
 	BLUEPRINTGRAPH_API UFunction* FindEventSignatureFunction();
 	BLUEPRINTGRAPH_API void UpdateDelegatePin(bool bSilent = false);
 	BLUEPRINTGRAPH_API FName GetFunctionName() const;

@@ -3,17 +3,19 @@
 #pragma once
 
 #include "CoreTypes.h"
+
+#include "Algo/Reverse.h"
+#include "Concepts/GetTypeHashable.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
 #include "Misc/AssertionMacros.h"
-#include "Templates/UnrealTypeTraits.h"
-#include "Templates/UnrealTemplate.h"
-#include "Templates/Sorting.h"
 #include "Misc/StructBuilder.h"
 #include "Templates/Function.h"
-#include "Containers/Set.h"
-#include "Algo/Reverse.h"
+#include "Templates/Models.h"
+#include "Templates/Sorting.h"
 #include "Templates/Tuple.h"
-#include "Templates/HasGetTypeHash.h"
-#include "Containers/UnrealString.h"
+#include "Templates/UnrealTemplate.h"
+#include "Templates/UnrealTypeTraits.h"
 
 #define ExchangeB(A,B) {bool T=A; A=B; B=T;}
 
@@ -94,7 +96,7 @@ struct TDefaultMapKeyFuncs : BaseKeyFuncs<TPair<KeyType,ValueType>,KeyType,bInAl
 template<typename KeyType, typename ValueType, bool bInAllowDuplicateKeys>
 struct TDefaultMapHashableKeyFuncs : TDefaultMapKeyFuncs<KeyType, ValueType, bInAllowDuplicateKeys>
 {
-	static_assert(THasGetTypeHash<KeyType>::Value, "TMap must have a hashable KeyType unless a custom key func is provided.");
+	static_assert(TModels<CGetTypeHashable, KeyType>::Value, "TMap must have a hashable KeyType unless a custom key func is provided.");
 };
 
 /** 
@@ -1446,6 +1448,13 @@ public:
 	const void* GetData(int32 Index, const FScriptMapLayout& Layout) const
 	{
 		return Pairs.GetData(Index, Layout.SetLayout);
+	}
+
+	void MoveAssign(FScriptMap& Other, const FScriptMapLayout& Layout)
+	{
+		checkSlow(this != &Other);
+		Empty(0, Layout);
+		Pairs.MoveAssign(Other.Pairs, Layout.SetLayout);
 	}
 
 	void Empty(int32 Slack, const FScriptMapLayout& Layout)

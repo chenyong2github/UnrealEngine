@@ -418,7 +418,7 @@ private:
 
 
 // This object is a base class helper used when building a list of actions for some menu or palette
-struct FGraphActionListBuilderBase
+struct ENGINE_VTABLE FGraphActionListBuilderBase
 {
 public:
 	/** A single entry in the list - can contain multiple actions */
@@ -545,7 +545,7 @@ public:
 };
 
 /** Used to nest all added action under one root category */
-struct FCategorizedGraphActionListBuilder : public FGraphActionListBuilderBase
+struct ENGINE_VTABLE FCategorizedGraphActionListBuilder : public FGraphActionListBuilderBase
 {
 public:
 	ENGINE_API FCategorizedGraphActionListBuilder(FString Category = FString());
@@ -748,14 +748,15 @@ class ENGINE_API UEdGraphSchema : public UObject
 	 *
 	 * @param	Pin			   	The pin on which to set the default value.
 	 * @param	NewDefaultValue	The new default value.
+	 * @param   bMarkAsModified Marks the container of the value as modified
 	 */
-	virtual void TrySetDefaultValue(UEdGraphPin& Pin, const FString& NewDefaultValue) const;
+	virtual void TrySetDefaultValue(UEdGraphPin& Pin, const FString& NewDefaultValue, bool bMarkAsModified = true) const;
 
 	/** Sets the object to the specified pin */
-	virtual void TrySetDefaultObject(UEdGraphPin& Pin, UObject* NewDefaultObject) const;
+	virtual void TrySetDefaultObject(UEdGraphPin& Pin, UObject* NewDefaultObject, bool bMarkAsModified = true) const;
 
 	/** Sets the text to the specified pin */
-	virtual void TrySetDefaultText(UEdGraphPin& InPin, const FText& InNewDefaultText) const;
+	virtual void TrySetDefaultText(UEdGraphPin& InPin, const FText& InNewDefaultText, bool bMarkAsModified = true) const;
 
 	/** Returns if the pin's value matches the given value */
 	virtual bool DoesDefaultValueMatch(const UEdGraphPin& InPin, const FString& InValue) const;

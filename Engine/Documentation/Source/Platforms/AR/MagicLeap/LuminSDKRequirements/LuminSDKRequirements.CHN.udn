@@ -1,0 +1,82 @@
+﻿INTSourceChangelist:6038552
+Availability: Public
+Title: Lumin开发要求
+Description: Magic Leap的Lumin开发要求包括硬件、软件和SDK信息。 
+Type: reference
+Version: 4.22
+Parent: Platforms/AR/MagicLeap
+Tags: Specifications
+Tags: Lumin
+Tags: Magic Leap
+Order: 0
+
+
+[TOC (start:2 end:2)]
+
+在这个页面中，你将找到开始为[Lumin](platforms/AR/MagicLeap)平台开发所需的硬件和软件开发包（SDK）要求。   
+
+## 虚幻引擎4.22
+
+| 硬件要求 ||
+| --- | --- |
+| **建议的台式机硬件** | 见[Magic Leap开发者系统需求](https://creator.magicleap.com/learn/guides/develop-setup)。|
+| **支持的VR头盔** | [Magic Leap One](https://www.magicleap.com/magic-leap-one) |
+| [REGION:tablesection]软件要求[/REGION] ||
+| **台式机操作系统** | [INCLUDE:#excerpt_0] |
+| **SDK版本** | 0.19.0 |
+
+<!--
+[EXCERPT:excerpt_0]
+64位Windows 10或更高版本。  
+MacOS 10.11或更高版本。  
+见[Magic Leap开发者系统需求](https://creator.magicleap.com/learn/guides/develop-setup)。
+[/EXCERPT:excerpt_0]
+-->
+
+[REGION:note]
+可以在 `UEBuildLumin.cs` 中找到当前支持的SDK版本。你可以在你的 `[UE4根目录]/Engine/Source/Programs/UnrealBuildTool/Platforms/Lumin` 文件夹中找到该文件。
+[/REGION]
+
+## 虚幻引擎4.21
+
+| 硬件要求 ||
+| --- | --- |
+| **建议的台式机硬件** | 见[Magic Leap开发者系统需求](https://creator.magicleap.com/learn/guides/develop-setup)。|
+| **支持的VR头盔** | [Magic Leap One](https://www.magicleap.com/magic-leap-one) |
+| [REGION:tablesection]软件要求[/REGION] ||
+| **台式机操作系统** | [INCLUDE:#excerpt_1] |
+| **SDK版本** | 0.16.0 |
+
+<!--
+[EXCERPT:excerpt_1]
+64位Windows 10或更高版本。  
+MacOS 10.11或更高版本。  
+见[Magic Leap开发者系统需求](https://creator.magicleap.com/learn/guides/develop-setup)。
+[/EXCERPT:excerpt_1]
+-->
+
+[REGION:note]
+可以在 `UEBuildLumin.cs` 中找到当前支持的SDK版本。你可以在你的 `[UE4根目录]/Engine/Source/Programs/UnrealBuildTool/Platforms/Lumin` 文件夹中找到该文件。
+[/REGION]
+
+## 虚幻引擎4.20
+
+| 硬件要求 ||
+| --- | --- |
+| **建议的台式机硬件** | 见[Magic Leap开发者系统需求](https://creator.magicleap.com/learn/guides/develop-setup)。|
+| **支持的VR头盔** | [Magic Leap One](https://www.magicleap.com/magic-leap-one) |
+| [REGION:tablesection]软件要求[/REGION] ||
+| **台式机操作系统** | [INCLUDE:#excerpt_2] |
+| **SDK版本** | 0.12.0 |
+
+<!--
+[EXCERPT:excerpt_2]
+64位Windows 10或更高版本。  
+MacOS 10.11或更高版本。  
+见[Magic Leap开发者系统需求](https://creator.magicleap.com/learn/guides/develop-setup)。
+[/EXCERPT:excerpt_2]
+-->
+
+[REGION:note]
+可以在 `UEBuildLumin.cs` 中找到当前支持的SDK版本。你可以在你的 `[UE4根目录]/Engine/Source/Programs/UnrealBuildTool/Platforms/Lumin` 文件夹中找到该文件。
+[/REGION]

@@ -7,14 +7,34 @@ using System.Text;
 using System.Diagnostics;
 using System.IO;
 using UnrealBuildTool;
+using System.Text.RegularExpressions;
+using Tools.DotNETCommon;
 
 namespace AutomationTool
 {
 	class MacHostPlatform : HostPlatform
 	{
+		static string CachedMsBuildTool = "";
+
 		public override string GetMsBuildExe()
 		{
-			return "xbuild";
+			// As of 5.0 mono comes with msbuild which performs better. If that's installed then use it
+			if (string.IsNullOrEmpty(CachedMsBuildTool))
+			{
+				bool CanUseMsBuild = string.IsNullOrEmpty(CommandUtils.WhichApp("msbuild")) == false;
+
+				if (CanUseMsBuild)
+				{
+					CachedMsBuildTool = "msbuild";
+				}
+				else
+				{
+					Log.TraceInformation("Using xbuild. Install Mono 5.0 or greater for faster builds!");
+					CachedMsBuildTool = "xbuild";
+				}
+			}
+
+			return CachedMsBuildTool;
 		}
 
 		public override string RelativeBinariesFolder
@@ -99,7 +119,7 @@ namespace AutomationTool
 			if (AppName == "xbuild")
 			{
 				AppName = "sh";
-				CommandLine = "-c 'xbuild " + (String.IsNullOrEmpty(CommandLine) ? "" : CommandLine) + " /p:DefineConstants=MONO /verbosity:quiet /nologo |grep -i error; if [ $? -ne 1 ]; then exit 1; else exit 0; fi'";
+				CommandLine = "-c 'xbuild " + (String.IsNullOrEmpty(CommandLine) ? "" : CommandLine) + " /p:DefineConstants=MONO /p:DefineConstants=__MonoCS__ /verbosity:quiet /nologo |grep -i error; if [ $? -ne 1 ]; then exit 1; else exit 0; fi'";
 			}
 			if (AppName.EndsWith(".exe") || ((AppName.Contains("/Binaries/Win64/") || AppName.Contains("/Binaries/Mac/")) && string.IsNullOrEmpty(Path.GetExtension(AppName))))
 			{
@@ -118,8 +138,8 @@ namespace AutomationTool
 				else
 				{
 					// It's a C# app, so run it with Mono
-					CommandLine = " -c 'mono \"" + AppName + "\" " + (String.IsNullOrEmpty(CommandLine) ? "" : CommandLine.Replace("\\", "\\\\")) + "'";
-					AppName = "sh";
+					CommandLine = "\"" + AppName + "\" " + (String.IsNullOrEmpty(CommandLine) ? "" : CommandLine);
+					AppName = "mono";
 					Options &= ~CommandUtils.ERunOptions.AppMustExist;
 				}
 			}

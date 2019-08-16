@@ -1,0 +1,45 @@
+﻿INTSourceChangelist:6109506
+Availability: Docs
+Crumbs: %ROOT%
+Title: 5.测试Rift和UE4
+Description: 使用虚幻引擎4加载和播放为Oculus Rift设计的内容。
+Type: quick start
+SkillLevel: Beginner
+Version: 4.17
+Parent:Platforms/VR/OculusVR/OculusRift/QuickStart
+Order: 5
+Checkpoint: RIFTQS
+
+[NAV]
+
+本节中我们将介绍如何进行测试以确定Rift是否与虚幻引擎4配合工作。
+
+1. 打开虚幻项目浏览器，在 **新建项目（New Project）** 选项卡中创建一个新项目，并采用以下设置：
+
+	[REGION:lightbox]
+	[![](Rift_New_Project_00.png)(w:555)](Rift_New_Project_00.png)
+	[/REGION]
+
+	[REGION:caption]
+	单击显示全图。
+	[/REGION]
+
+1. 启动UE4之后，转到 **主菜单（Main Menu）** 并将 **播放（Play）** 选项从默认的 **选中的视口（Selected Viewport）** 更改为 **虚拟现实预览（VR Preview）**，按下虚拟现实预览（VR Preview）以启动关卡。
+
+	![](Rift_VR_Preview_00.png)
+
+1. 现在，戴上Rift，您应该会看到以下内容。 
+
+	[REGION:lightbox]
+	[![](Rift_Preview_Window_00.png)(w:648)](Rift_Preview_Window_00.png)
+	[/REGION]
+
+	[REGION:caption]
+	单击显示全图。
+	[/REGION]
+
+	[region:note]
+	当使用虚拟现实预览（VR preview）选项和Rift时，虚拟现实预览（VR preview）窗口将显示为黑色，看起来就像您启动或重新启动虚拟现实预览（VR preview）窗口时没有更新一样。这是因为当Rift没有戴到您头上时，它会禁用显示输出，以帮助延长显示器的寿命。 
+	[/region]
+
+[NAV]

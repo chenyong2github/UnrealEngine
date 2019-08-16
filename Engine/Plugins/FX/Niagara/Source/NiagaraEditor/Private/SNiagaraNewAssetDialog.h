@@ -14,6 +14,7 @@ class SNiagaraNewAssetDialog : public SWindow
 {
 public:
 	DECLARE_DELEGATE_OneParam(FOnGetSelectedAssetsFromPicker, TArray<FAssetData>& /* OutSelectedAssets */);
+	DECLARE_DELEGATE(FOnSelectionConfirmed);
 
 public:
 	class FNiagaraNewAssetDialogOption
@@ -23,12 +24,14 @@ public:
 		FText AssetPickerHeader;
 		TSharedRef<SWidget> AssetPicker;
 		FOnGetSelectedAssetsFromPicker OnGetSelectedAssetsFromPicker;
+		FOnSelectionConfirmed OnSelectionConfirmed;
 
-		FNiagaraNewAssetDialogOption(FText InOptionText, FText InAssetPickerHeader, FOnGetSelectedAssetsFromPicker InOnGetSelectedAssetsFromPicker, TSharedRef<SWidget> InAssetPicker)
+		FNiagaraNewAssetDialogOption(FText InOptionText, FText InAssetPickerHeader, FOnGetSelectedAssetsFromPicker InOnGetSelectedAssetsFromPicker, FOnSelectionConfirmed InOnSelecitonConfirmed, TSharedRef<SWidget> InAssetPicker)
 			: OptionText(InOptionText)
 			, AssetPickerHeader(InAssetPickerHeader)
 			, AssetPicker(InAssetPicker)
 			, OnGetSelectedAssetsFromPicker(InOnGetSelectedAssetsFromPicker)
+			, OnSelectionConfirmed(InOnSelecitonConfirmed)
 		{
 		}
 	};

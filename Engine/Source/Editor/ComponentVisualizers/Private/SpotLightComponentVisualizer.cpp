@@ -28,6 +28,11 @@ void FSpotLightComponentVisualizer::DrawVisualization( const UActorComponent* Co
 			{
 				DrawWireSphereCappedCone(PDI, TransformNoScale, SpotLightComp->AttenuationRadius, SpotLightComp->InnerConeAngle, 32, 8, 10, FColor(150, 200, 255), SDPG_World);
 			}
+
+			if (SpotLightComp->IESTexture)
+			{
+				LightProfileVisualizer.DrawVisualization( SpotLightComp->IESTexture, TransformNoScale, View, PDI );
+			}
 		}
 	}
 }

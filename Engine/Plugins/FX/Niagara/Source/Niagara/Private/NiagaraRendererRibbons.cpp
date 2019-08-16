@@ -23,8 +23,7 @@ float GNiagaraRibbonTessellationAngle = 15.f * (2.f * PI) / 360.f; // Every 15 d
 static FAutoConsoleVariableRef CVarNiagaraRibbonTessellationAngle(
 	TEXT("Niagara.Ribbon.Tessellation.MinAngle"),
 	GNiagaraRibbonTessellationAngle,
-	TEXT("Ribbon segment angle to tesselate in radian. \n")
-	TEXT("Set 0 to use fixed tesselation. (default=15 degrees)"),
+	TEXT("Ribbon segment angle to tesselate in radian. (default=15 degrees)"),
 	ECVF_Scalability
 );
 
@@ -148,6 +147,12 @@ FNiagaraRendererRibbons::FNiagaraRendererRibbons(ERHIFeatureLevel::Type FeatureL
 	, UV1TilingDistance(0.0f)
 	, UV1Scale(FVector2D(1.0f, 1.0f))
 	, UV1AgeOffsetMode(ENiagaraRibbonAgeOffsetMode::Scale)
+	, TessellationMode(ENiagaraRibbonTessellationMode::Automatic)
+	, CustomCurveTension(0.f)
+	, CustomTessellationFactor(16)
+	, bCustomUseConstantFactor(false)
+	, CustomTessellationMinAngle(15.f * PI / 180.f)
+	, bCustomUseScreenSpace(true)
 	, PositionDataOffset(INDEX_NONE)
 	, VelocityDataOffset(INDEX_NONE)
 	, WidthDataOffset(INDEX_NONE)
@@ -172,6 +177,13 @@ FNiagaraRendererRibbons::FNiagaraRendererRibbons(ERHIFeatureLevel::Type FeatureL
 	UV1Offset = Properties->UV1Offset;
 	UV1AgeOffsetMode = Properties->UV1AgeOffsetMode;
 	DrawDirection = Properties->DrawDirection;
+	TessellationMode = Properties->TessellationMode;
+	CustomCurveTension = FMath::Clamp<float>(Properties->CurveTension, 0.f, 0.9999f);
+	CustomTessellationFactor = Properties->TessellationFactor;
+	bCustomUseConstantFactor = Properties->bUseConstantFactor;
+	CustomTessellationMinAngle = Properties->TessellationAngle > 0.f && Properties->TessellationAngle < 1.f ? 1.f : Properties->TessellationAngle;
+	CustomTessellationMinAngle *= PI / 180.f;
+	bCustomUseScreenSpace = Properties->bScreenSpaceTessellation;
 
 	// required attributes
 	int32 IntDummy;
@@ -197,18 +209,26 @@ FNiagaraRendererRibbons::FNiagaraRendererRibbons(ERHIFeatureLevel::Type FeatureL
 	MaterialParamValidMask |= MaterialParamOffset3 != -1 ? 8 : 0;
 }
 
-
-void FNiagaraRendererRibbons::ReleaseRenderThreadResources()
+FNiagaraRendererRibbons::~FNiagaraRendererRibbons()
 {
-	FNiagaraRenderer::ReleaseRenderThreadResources();
+	if (VertexFactory != nullptr)
+	{
+		delete VertexFactory;
+		VertexFactory = nullptr;
+	}
+}
+
+void FNiagaraRendererRibbons::ReleaseRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher)
+{
+	FNiagaraRenderer::ReleaseRenderThreadResources(Batcher);
 	VertexFactory->ReleaseResource();
 	WorldSpacePrimitiveUniformBuffer.ReleaseResource();
 }
 
 // FPrimitiveSceneProxy interface.
-void FNiagaraRendererRibbons::CreateRenderThreadResources()
+void FNiagaraRendererRibbons::CreateRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher)
 {
-	FNiagaraRenderer::CreateRenderThreadResources();
+	FNiagaraRenderer::CreateRenderThreadResources(Batcher);
 	VertexFactory->InitResource();
 }
 
@@ -301,7 +321,7 @@ void FNiagaraRendererRibbons::GetDynamicMeshElements(const TArray<const FSceneVi
 	int32 TotalFloatSize = SourceParticleData->GetFloatBuffer().Num() / sizeof(float);
 	FGlobalDynamicReadBuffer::FAllocation ParticleData;
 
-	if (DynamicDataRibbon->GetSimTarget() == ENiagaraSimTarget::CPUSim)
+	if (SimTarget == ENiagaraSimTarget::CPUSim)
 	{
 		FGlobalDynamicReadBuffer& DynamicReadBuffer = Collector.GetDynamicReadBuffer();
 		ParticleData = DynamicReadBuffer.AllocateFloat(TotalFloatSize);
@@ -322,7 +342,7 @@ void FNiagaraRendererRibbons::GetDynamicMeshElements(const TArray<const FSceneVi
 			false,
 			SceneProxy->UseSingleSampleShadowFromStationaryLights(),
 			SceneProxy->GetScene().HasPrecomputedVolumetricLightmap_RenderThread(),
-			SceneProxy->UseEditorDepthTest(),
+			SceneProxy->DrawsVelocity(),
 			SceneProxy->GetLightingChannelMask(),
 			0,
 			INDEX_NONE,
@@ -331,6 +351,29 @@ void FNiagaraRendererRibbons::GetDynamicMeshElements(const TArray<const FSceneVi
 			);
 		WorldSpacePrimitiveUniformBuffer.SetContents(PrimitiveUniformShaderParameters);
 		WorldSpacePrimitiveUniformBuffer.InitResource();
+	}
+
+	// Modify tessellation parameters based on tessellation mode
+	// Set auto defaults here:
+	int32 TessellationFactor = GNiagaraRibbonMaxTessellation;
+	bool bUseConstantFactor = false;
+	float TessellationMinAngle = GNiagaraRibbonTessellationAngle;
+	float ScreenPercentage = GNiagaraRibbonTessellationScreenPercentage;
+	switch (TessellationMode)
+	{
+	case ENiagaraRibbonTessellationMode::Automatic:
+		break;
+	case ENiagaraRibbonTessellationMode::Custom:
+		TessellationFactor = CustomTessellationFactor;
+		bUseConstantFactor = bCustomUseConstantFactor;
+		TessellationMinAngle = CustomTessellationMinAngle;
+		ScreenPercentage = bCustomUseScreenSpace && !bUseConstantFactor ? GNiagaraRibbonTessellationScreenPercentage : 0.f;
+		break;
+	case ENiagaraRibbonTessellationMode::Disabled:
+		TessellationFactor = 1;
+		break;
+	default:
+		break;
 	}
 
 	// Compute the per-view uniform buffers.
@@ -345,12 +388,21 @@ void FNiagaraRendererRibbons::GetDynamicMeshElements(const TArray<const FSceneVi
 
 			int32 SegmentTessellation = 1;
 			int32 NumSegments = DynamicDataRibbon->SegmentData.Num();
-			if (GNiagaraRibbonMaxTessellation > 1 && TessellationCurvature > SMALL_NUMBER && ViewFamily.GetFeatureLevel() == ERHIFeatureLevel::SM5)
+			if (TessellationFactor > 1 && TessellationCurvature > SMALL_NUMBER && ViewFamily.GetFeatureLevel() == ERHIFeatureLevel::SM5)
 			{
-				const float MinTesselation = FMath::Max<float>(1.f, FMath::Max(TessellationTwistAngle, TessellationAngle) / FMath::Max<float>(SMALL_NUMBER, GNiagaraRibbonTessellationAngle));
-
+				const float MinTesselation = [&]
+				{
+					if (TessellationMinAngle == 0.f || bUseConstantFactor)
+					{
+						return static_cast<float>(TessellationFactor);
+					}
+					else
+					{
+						return FMath::Max<float>(1.f, FMath::Max(TessellationTwistAngle, TessellationAngle) / FMath::Max<float>(SMALL_NUMBER, TessellationMinAngle));
+					}
+				}(); 
 				const float ViewDistance = SceneProxy->GetBounds().ComputeSquaredDistanceFromBoxToPoint(ViewOriginForDistanceCulling);
-				const float MaxDisplacementError = FMath::Max(GNiagaraRibbonTessellationMinDisplacementError, GNiagaraRibbonTessellationScreenPercentage * FMath::Sqrt(ViewDistance) / View->LODDistanceFactor);
+				const float MaxDisplacementError = FMath::Max(GNiagaraRibbonTessellationMinDisplacementError, ScreenPercentage * FMath::Sqrt(ViewDistance) / View->LODDistanceFactor);
 				float Tess = TessellationAngle / FMath::Max(SMALL_NUMBER, AcosFast(TessellationCurvature / (TessellationCurvature + MaxDisplacementError)));
 				// FMath::RoundUpToPowerOfTwo ? This could avoid vertices moving around as tesselation increases
 
@@ -359,7 +411,7 @@ void FNiagaraRendererRibbons::GetDynamicMeshElements(const TArray<const FSceneVi
 					const float TwistTess  = TessellationTwistAngle / FMath::Max(SMALL_NUMBER, AcosFast(TessellationTwistCurvature / (TessellationTwistCurvature + MaxDisplacementError)));
 					Tess = FMath::Max(TwistTess, Tess);
 				}
-				SegmentTessellation = FMath::Clamp<int32>(FMath::RoundToInt(Tess), FMath::RoundToInt(MinTesselation), GNiagaraRibbonMaxTessellation);
+				SegmentTessellation = FMath::Clamp<int32>(FMath::RoundToInt(Tess), FMath::RoundToInt(MinTesselation), TessellationFactor);
 				NumSegments *= SegmentTessellation;
 			}
 
@@ -393,7 +445,7 @@ void FNiagaraRendererRibbons::GetDynamicMeshElements(const TArray<const FSceneVi
 			PerViewUniformParameters.ColorDataOffset = ColorDataOffset;
 			PerViewUniformParameters.WidthDataOffset = WidthDataOffset;
 			PerViewUniformParameters.TwistDataOffset = TwistDataOffset;
-			PerViewUniformParameters.FacingDataOffset = FacingMode == ENiagaraRibbonFacingMode::Custom ? FacingDataOffset : -1;
+			PerViewUniformParameters.FacingDataOffset = FacingMode == ENiagaraRibbonFacingMode::Custom || FacingMode == ENiagaraRibbonFacingMode::CustomSideVector ? FacingDataOffset : -1;
 			PerViewUniformParameters.NormalizedAgeDataOffset = NormalizedAgeDataOffset;
 			PerViewUniformParameters.MaterialRandomDataOffset = MaterialRandomDataOffset;
 			PerViewUniformParameters.MaterialParamValidMask = MaterialParamValidMask;
@@ -418,6 +470,8 @@ void FNiagaraRendererRibbons::GetDynamicMeshElements(const TArray<const FSceneVi
 			{
 				return;
 			}
+
+			CollectorResources.VertexFactory.SetFacingMode(static_cast<uint32>(FacingMode));
 
 			// TODO: need to make these two a global alloc buffer as well, not recreate
 			// pass in the sorted indices so the VS can fetch the particle data in order
@@ -569,7 +623,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraGenRibbonVertexData);
 
-	if (Emitter->GetData().GetSimTarget() == ENiagaraSimTarget::GPUComputeSim)
+	if (SimTarget == ENiagaraSimTarget::GPUComputeSim)
 	{
 		return nullptr;
 	}
@@ -589,7 +643,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 	FNiagaraDataSetAccessor<FVector> PosData(Data, Properties->PositionBinding.DataSetVariable);
 	FNiagaraDataSetAccessor<float> SizeData(Data, Properties->RibbonWidthBinding.DataSetVariable);
 	FNiagaraDataSetAccessor<float> TwistData(Data, Properties->RibbonTwistBinding.DataSetVariable);
-	FNiagaraDataSetAccessor<FVector> AlignData(Data, Properties->RibbonFacingBinding.DataSetVariable);
+	FNiagaraDataSetAccessor<FVector> FacingData(Data, Properties->RibbonFacingBinding.DataSetVariable);
 	FNiagaraDataSetAccessor<FVector4> MaterialParamData(Data, Properties->DynamicMaterialBinding.DataSetVariable);
 	FNiagaraDataSetAccessor<FVector4> MaterialParam1Data(Data, Properties->DynamicMaterial1Binding.DataSetVariable);
 	FNiagaraDataSetAccessor<FVector4> MaterialParam2Data(Data, Properties->DynamicMaterial2Binding.DataSetVariable);
@@ -598,7 +652,6 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 	FNiagaraDataSetAccessor<int32> RibbonIdData;
 	FNiagaraDataSetAccessor<FNiagaraID> RibbonFullIDData;
 
-	ENiagaraSimTarget SimTarget = Data.GetSimTarget();
 	FNiagaraDataBuffer* DataToRender = Emitter->GetData().GetCurrentData();
 	if (DataToRender == nullptr || DataToRender->GetNumInstances() < 2 || !PosData.IsValid() || !SortKeyData.IsValid())
 	{
@@ -708,7 +761,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 			{
 				// Normalize CurrToNextVec
 				CurrToNextVec *= 1.f / FMath::Max(GNiagaraRibbonMinSegmentLength, CurrToNextSize);
-				const FVector Tangent = (LastToCurrVec + CurrToNextVec).GetSafeNormal();
+				const FVector Tangent = (1.f - CustomCurveTension) * (LastToCurrVec + CurrToNextVec).GetSafeNormal();
 
 				// Update the distance for CurrentIndex.
 				TotalDistance += LastToCurrSize;

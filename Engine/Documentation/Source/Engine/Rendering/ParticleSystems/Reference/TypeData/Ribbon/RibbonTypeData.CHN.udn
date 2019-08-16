@@ -1,8 +1,8 @@
-﻿INTSourceChangelist:2750847
+﻿INTSourceChangelist:3782314
 Availability:Public
 Title:条带类型数据
 Crumbs: %ROOT%, Engine, Engine/Rendering/ParticleSystems, Engine/Rendering/ParticleSystems/Reference
-Description:条带类型数据模块参考，用于创建带流尾的粒子。
+Description:条带类型数据模块决定了发射器应当输出轨迹——连接粒子以形成条带。
 Version:4.9
 
 

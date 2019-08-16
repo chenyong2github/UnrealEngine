@@ -6,10 +6,7 @@
 #include "Serialization/ArchiveUObject.h"
 #include "Serialization/ArchiveObjectGraph.h"
 
-/**
- * Archive for finding shortest path from root to a particular object.
- * Depth-first search.
- */
+// DEPRECATED: This class is out of date and misses many GC references, replace with FReferenceChainSearch
 class FArchiveTraceRoute : public FArchiveUObject
 {
 	/**
@@ -36,6 +33,8 @@ class FArchiveTraceRoute : public FArchiveUObject
 	};
 
 public:
+
+	UE_DEPRECATED(4.23, "This function is out of date and misses many GC references, replace with FReferenceChainSearch")
 	static COREUOBJECT_API TMap<UObject*,UProperty*> FindShortestRootPath( UObject* Object, bool bIncludeTransients, EObjectFlags KeepFlags );
 
 	/**

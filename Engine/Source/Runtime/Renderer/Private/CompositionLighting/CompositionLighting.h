@@ -22,13 +22,9 @@ public:
 	// only call if LPV is enabled
 	void ProcessLpvIndirect(FRHICommandListImmediate& RHICmdList, FViewInfo& View);
 
-	void ProcessAfterLighting(FRHICommandListImmediate& RHICmdList, FViewInfo& View);
-
 	bool CanProcessAsyncSSAO(TArray<FViewInfo>& Views);
 	void ProcessAsyncSSAO(FRHICommandListImmediate& RHICmdList, TArray<FViewInfo>& Views);
 	void GfxWaitForAsyncSSAO(FRHICommandListImmediate& RHICmdList);
-
-	bool IsSubsurfacePostprocessRequired() const;
 
 private:
 	void PrepareAsyncSSAO(FRHICommandListImmediate& RHICmdList, TArray<FViewInfo>& Views);

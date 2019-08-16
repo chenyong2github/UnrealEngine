@@ -37,6 +37,7 @@ ActorFactory.cpp:
 #include "ActorFactories/ActorFactoryPointLight.h"
 #include "ActorFactories/ActorFactorySpotLight.h"
 #include "ActorFactories/ActorFactoryRectLight.h"
+#include "ActorFactories/ActorFactoryRuntimeVirtualTextureVolume.h"
 #include "ActorFactories/ActorFactorySkyLight.h"
 #include "ActorFactories/ActorFactorySkeletalMesh.h"
 #include "ActorFactories/ActorFactoryAnimationAsset.h"
@@ -101,6 +102,7 @@ ActorFactory.cpp:
 #include "Matinee/MatineeActor.h"
 #include "Matinee/InterpData.h"
 #include "InteractiveFoliageActor.h"
+#include "VT/RuntimeVirtualTextureVolume.h"
 
 #include "AssetRegistryModule.h"
 
@@ -309,7 +311,7 @@ AActor* UActorFactory::SpawnActor( UObject* Asset, ULevel* InLevel, const FTrans
 		SpawnInfo.ObjectFlags = InObjectFlags;
 		SpawnInfo.Name = Name;
 #if WITH_EDITOR
-		SpawnInfo.bTemporaryEditorActor = GEditor->bIsSimulatingInEditor ? FLevelEditorViewportClient::IsDroppingPreviewActor(): true;
+		SpawnInfo.bTemporaryEditorActor = FLevelEditorViewportClient::IsDroppingPreviewActor();
 #endif
 		return InLevel->OwningWorld->SpawnActor( DefaultActor->GetClass(), &Transform, SpawnInfo );
 	}
@@ -1885,6 +1887,28 @@ UObject* UActorFactoryMovieScene::GetAssetFromActorInstance(AActor* Instance)
 	}
 
 	return nullptr;
+}
+
+/*-----------------------------------------------------------------------------
+UActorFactoryRuntimeVirtualTextureVolume
+-----------------------------------------------------------------------------*/
+UActorFactoryRuntimeVirtualTextureVolume::UActorFactoryRuntimeVirtualTextureVolume(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	DisplayName = LOCTEXT("VirtualTextureVolume_DisplayName", "Virtual Texture Volume");
+	NewActorClass = ARuntimeVirtualTextureVolume::StaticClass();
+	bShowInEditorQuickMenu = 1;
+}
+
+void UActorFactoryRuntimeVirtualTextureVolume::PostSpawnActor(UObject* Asset, AActor* NewActor)
+{
+	FText ActorName = LOCTEXT("VirtualTextureVolume_DefaultActorName", "Virtual Texture Volume");
+	NewActor->SetActorLabel(ActorName.ToString());
+
+	// Good default size to see object in editor
+	NewActor->SetActorScale3D(FVector(100.f, 100.f, 1.f));
+
+	Super::PostSpawnActor(Asset, NewActor);
 }
 
 #undef LOCTEXT_NAMESPACE

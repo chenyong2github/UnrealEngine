@@ -2,6 +2,8 @@
 
 #include "Engine/Scene.h"
 #include "HAL/IConsoleManager.h"
+#include "UObject/RenderingObjectVersion.h"
+#include "UObject/ReleaseObjectVersion.h"
 
 void FColorGradingSettings::ExportToPostProcessSettings(FPostProcessSettings* OutPostProcessSettings) const
 {
@@ -514,9 +516,8 @@ FPostProcessSettings::FPostProcessSettings()
 	RayTracingGIMaxBounces = 1;
 	RayTracingGISamplesPerPixel = 1;
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	DepthOfFieldFocalDistance = 1000.0f;
-	DepthOfFieldFstop = 4.0f;
+	DepthOfFieldFocalDistance = 0; // Intentionally invalid to disable DOF by default.
+	DepthOfFieldFstop = 4.0f; 
 	DepthOfFieldMinFstop = 1.2f;
 	DepthOfFieldBladeCount = FPostProcessSettings::kDefaultDepthOfFieldBladeCount;
 	DepthOfFieldSensorWidth = 24.576f;			// APS-C
@@ -526,14 +527,10 @@ FPostProcessSettings::FPostProcessSettings()
 	DepthOfFieldNearTransitionRegion = 300.0f;
 	DepthOfFieldFarTransitionRegion = 500.0f;
 	DepthOfFieldScale = 0.0f;
-	DepthOfFieldMaxBokehSize = 15.0f;
 	DepthOfFieldNearBlurSize = 15.0f;
 	DepthOfFieldFarBlurSize = 15.0f;
 	DepthOfFieldOcclusion = 0.4f;
-	DepthOfFieldColorThreshold = 1.0f;
-	DepthOfFieldSizeThreshold = 0.08f;
 	DepthOfFieldSkyFocusDistance = 0.0f;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	// 200 should be enough even for extreme aspect ratios to give the default no effect
 	DepthOfFieldVignetteSize = 200.0f;
 	LensFlareTints[0] = FLinearColor(1.0f, 0.8f, 0.4f, 0.6f);
@@ -713,7 +710,6 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, bOverride_IndirectLightingIntensity(Settings.bOverride_IndirectLightingIntensity)
 	, bOverride_ColorGradingIntensity(Settings.bOverride_ColorGradingIntensity)
 	, bOverride_ColorGradingLUT(Settings.bOverride_ColorGradingLUT)
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	, bOverride_DepthOfFieldFocalDistance(Settings.bOverride_DepthOfFieldFocalDistance)
 	, bOverride_DepthOfFieldFstop(Settings.bOverride_DepthOfFieldFstop)
 	, bOverride_DepthOfFieldMinFstop(Settings.bOverride_DepthOfFieldMinFstop)
@@ -725,18 +721,12 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, bOverride_DepthOfFieldNearTransitionRegion(Settings.bOverride_DepthOfFieldNearTransitionRegion)
 	, bOverride_DepthOfFieldFarTransitionRegion(Settings.bOverride_DepthOfFieldFarTransitionRegion)
 	, bOverride_DepthOfFieldScale(Settings.bOverride_DepthOfFieldScale)
-	, bOverride_DepthOfFieldMaxBokehSize(Settings.bOverride_DepthOfFieldMaxBokehSize)
 	, bOverride_DepthOfFieldNearBlurSize(Settings.bOverride_DepthOfFieldNearBlurSize)
 	, bOverride_DepthOfFieldFarBlurSize(Settings.bOverride_DepthOfFieldFarBlurSize)
-	, bOverride_DepthOfFieldMethod(Settings.bOverride_DepthOfFieldMethod)
 	, bOverride_MobileHQGaussian(Settings.bOverride_MobileHQGaussian)
-	, bOverride_DepthOfFieldBokehShape(Settings.bOverride_DepthOfFieldBokehShape)
 	, bOverride_DepthOfFieldOcclusion(Settings.bOverride_DepthOfFieldOcclusion)
-	, bOverride_DepthOfFieldColorThreshold(Settings.bOverride_DepthOfFieldColorThreshold)
-	, bOverride_DepthOfFieldSizeThreshold(Settings.bOverride_DepthOfFieldSizeThreshold)
 	, bOverride_DepthOfFieldSkyFocusDistance(Settings.bOverride_DepthOfFieldSkyFocusDistance)
 	, bOverride_DepthOfFieldVignetteSize(Settings.bOverride_DepthOfFieldVignetteSize)
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	, bOverride_MotionBlurAmount(Settings.bOverride_MotionBlurAmount)
 	, bOverride_MotionBlurMax(Settings.bOverride_MotionBlurMax)
 	, bOverride_MotionBlurPerObjectSize(Settings.bOverride_MotionBlurPerObjectSize)
@@ -765,9 +755,7 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, bMobileHQGaussian(Settings.bMobileHQGaussian)
 	, BloomMethod(Settings.BloomMethod)
 	, AutoExposureMethod(Settings.AutoExposureMethod)
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	, DepthOfFieldMethod(Settings.DepthOfFieldMethod)
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	//, DepthOfFieldMethod_DEPRECATED(Settings.DepthOfFieldMethod_DEPRECATED)
 	, WhiteTemp(Settings.WhiteTemp)
 	, WhiteTint(Settings.WhiteTint)
 	, ColorSaturation(Settings.ColorSaturation)
@@ -888,7 +876,6 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, RayTracingGISamplesPerPixel(Settings.RayTracingGISamplesPerPixel)
 	, ColorGradingIntensity(Settings.ColorGradingIntensity)
 	, ColorGradingLUT(Settings.ColorGradingLUT)
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	, DepthOfFieldSensorWidth(Settings.DepthOfFieldSensorWidth)
 	, DepthOfFieldFocalDistance(Settings.DepthOfFieldFocalDistance)
 	, DepthOfFieldDepthBlurAmount(Settings.DepthOfFieldDepthBlurAmount)
@@ -897,16 +884,11 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, DepthOfFieldNearTransitionRegion(Settings.DepthOfFieldNearTransitionRegion)
 	, DepthOfFieldFarTransitionRegion(Settings.DepthOfFieldFarTransitionRegion)
 	, DepthOfFieldScale(Settings.DepthOfFieldScale)
-	, DepthOfFieldMaxBokehSize(Settings.DepthOfFieldMaxBokehSize)
 	, DepthOfFieldNearBlurSize(Settings.DepthOfFieldNearBlurSize)
 	, DepthOfFieldFarBlurSize(Settings.DepthOfFieldFarBlurSize)
 	, DepthOfFieldOcclusion(Settings.DepthOfFieldOcclusion)
-	, DepthOfFieldBokehShape(Settings.DepthOfFieldBokehShape)
-	, DepthOfFieldColorThreshold(Settings.DepthOfFieldColorThreshold)
-	, DepthOfFieldSizeThreshold(Settings.DepthOfFieldSizeThreshold)
 	, DepthOfFieldSkyFocusDistance(Settings.DepthOfFieldSkyFocusDistance)
 	, DepthOfFieldVignetteSize(Settings.DepthOfFieldVignetteSize)
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	, MotionBlurAmount(Settings.MotionBlurAmount)
 	, MotionBlurMax(Settings.MotionBlurMax)
 	, MotionBlurTargetFPS(Settings.MotionBlurTargetFPS)
@@ -956,6 +938,55 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	for (int32 i = 0; i < ARRAY_COUNT(LensFlareTints); i++)
 		LensFlareTints[i] = Settings.LensFlareTints[i];
 }
+	
+#if WITH_EDITORONLY_DATA
+bool FPostProcessSettings::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
+	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
+
+	// Don't actually serialize, just write the custom version for PostSerialize
+	return false;
+}
+
+void FPostProcessSettings::PostSerialize(const FArchive& Ar)
+{
+	if (Ar.IsLoading())
+	{
+		const int32 RenderingObjectVersion = Ar.CustomVer(FRenderingObjectVersion::GUID);
+		const int32 ReleaseObjectVersion = Ar.CustomVer(FReleaseObjectVersion::GUID);
+
+		if (RenderingObjectVersion < FRenderingObjectVersion::DiaphragmDOFOnlyForDeferredShadingRenderer)
+		{
+			// This is impossible because FocalDistanceDisablesDOF was in Release 4.23 branch where DiaphragmDOFOnlyForDeferredShadingRenderer was already existing.
+			check(ReleaseObjectVersion < FReleaseObjectVersion::FocalDistanceDisablesDOF);
+
+			// Make sure the DOF of the deferred shading renderer is enabled if the circle DOF method was used before with previous default setting for DepthOfFieldFstop.
+			if (DepthOfFieldFocalDistance == 0.0f && DepthOfFieldMethod_DEPRECATED == DOFM_CircleDOF)
+			{
+				DepthOfFieldFocalDistance = 1000.0f;
+			}
+			else if (DepthOfFieldMethod_DEPRECATED != DOFM_CircleDOF)
+			{
+				// Aggressively force disable DOF by setting default value on the focal distance to be invalid if the method was not CircleDOF, in case.
+				// it focal distance was modified if even if DOF was in the end disabled.
+				DepthOfFieldFocalDistance = 0.0f;
+			}
+
+			// Make sure gaussian DOF is disabled on mobile if the DOF method was set to something else.
+			if (DepthOfFieldMethod_DEPRECATED != DOFM_Gaussian)
+			{
+				DepthOfFieldScale = 0.0f;
+			}
+		}
+		else if (ReleaseObjectVersion < FReleaseObjectVersion::FocalDistanceDisablesDOF)
+		{
+			// This is only for assets saved in the the window DiaphragmDOFOnlyForDeferredShadingRenderer -> FocalDistanceDisablesDOF
+			DepthOfFieldFocalDistance = 0.0f;
+		}
+	}
+}
+#endif
 
 UScene::UScene(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

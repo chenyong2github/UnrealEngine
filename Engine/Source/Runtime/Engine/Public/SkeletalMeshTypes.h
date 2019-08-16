@@ -293,6 +293,14 @@ public:
 
 	virtual void OnTransformChanged() override;
 
+	virtual uint8 GetCurrentFirstLODIdx_RenderThread() const final override
+	{
+		return GetCurrentFirstLODIdx_Internal();
+	}
+
+	const TArray<FMatrix>& GetMeshObjectReferenceToLocalMatrices() const;
+	const TIndirectArray<FSkeletalMeshLODRenderData>& GetSkeletalMeshRenderDataLOD() const;
+
 protected:
 	AActor* Owner;
 	class FSkeletalMeshObject* MeshObject;
@@ -302,6 +310,12 @@ protected:
 	const USkeletalMesh* SkeletalMeshForDebug;
 	class UPhysicsAsset* PhysicsAssetForDebug;
 
+public:
+#if RHI_RAYTRACING
+	bool bAnySegmentUsesWorldPositionOffset : 1;
+#endif
+
+protected:
 	/** data copied for rendering */
 	uint8 bForceWireframe : 1;
 	uint8 bIsCPUSkinned : 1;
@@ -374,6 +388,8 @@ protected:
 
 	void GetMeshElementsConditionallySelectable(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, bool bInSelectable, uint32 VisibilityMap, FMeshElementCollector& Collector) const;
 
+	/** Only call on render thread timeline */
+	uint8 GetCurrentFirstLODIdx_Internal() const;
 private:
 	void CreateBaseMeshBatch(const FSceneView* View, const FSkeletalMeshLODRenderData& LODData, const int32 LODIndex, const int32 SectionIndex, const FSectionElementInfo& SectionElementInfo, FMeshBatch& Mesh) const;
 };

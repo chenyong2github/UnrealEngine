@@ -86,7 +86,7 @@ public:
 		, bIsLocked(false)
 		, bHasOpenColorPicker(false)
 		, bDisableCustomDetailLayouts( false )
-		, NumVisbleTopLevelObjectNodes(0)
+		, NumVisibleTopLevelObjectNodes(0)
 	{
 	}
 
@@ -107,9 +107,8 @@ public:
 
 	virtual int32 GetNumVisibleTopLevelObjects() const override
 	{
-		return NumVisbleTopLevelObjectNodes;
+		return NumVisibleTopLevelObjectNodes;
 	}
-
 
 	/** @return The identifier for this details view, or NAME_None is this view is anonymous */
 	virtual FName GetIdentifier() const override
@@ -132,7 +131,11 @@ public:
 	virtual FOnDisplayedPropertiesChanged& GetOnDisplayedPropertiesChanged() override { return OnDisplayedPropertiesChangedDelegate; }
 	virtual void SetDisableCustomDetailLayouts( bool bInDisableCustomDetailLayouts ) override { bDisableCustomDetailLayouts = bInDisableCustomDetailLayouts; }
 	virtual void SetIsPropertyVisibleDelegate(FIsPropertyVisible InIsPropertyVisible) override;
+	virtual FIsCustomRowVisibilityFiltered& GetIsCustomRowVisibilityFilteredDelegate() override { return IsCustomRowVisibilityFilteredDelegate; };
+	virtual void SetIsCustomRowVisibilityFilteredDelegate(FIsCustomRowVisibilityFiltered InIsCustomRowVisibilityFilteredDelegate) override;
 	virtual FIsPropertyVisible& GetIsPropertyVisibleDelegate() override { return IsPropertyVisibleDelegate; }
+	virtual void SetIsCustomRowVisibleDelegate(FIsCustomRowVisible InIsCustomRowVisible) override;
+	virtual FIsCustomRowVisible& GetIsCustomRowVisibleDelegate() override { return IsCustomRowVisibleDelegate; }
 	virtual void SetIsPropertyReadOnlyDelegate(FIsPropertyReadOnly InIsPropertyReadOnly) override;
 	virtual FIsPropertyReadOnly& GetIsPropertyReadOnlyDelegate() override { return IsPropertyReadOnlyDelegate; }
 	virtual void SetIsPropertyEditingEnabledDelegate(FIsPropertyEditingEnabled IsPropertyEditingEnabled) override;
@@ -144,6 +147,8 @@ public:
 	virtual TSharedPtr<IDetailPropertyExtensionHandler> GetExtensionHandler() override;
 	virtual bool IsPropertyVisible(const struct FPropertyAndParent& PropertyAndParent) const override;
 	virtual bool IsPropertyReadOnly(const struct FPropertyAndParent& PropertyAndParent) const override;
+    virtual bool IsCustomRowVisibilityFiltered() const override;
+	virtual bool IsCustomRowVisible(FName InRowName, FName InParentName) const override;
 	virtual void SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance OnGetGenericDetails) override;
 	virtual FOnGetDetailCustomizationInstance& GetGenericLayoutDetailsDelegate() override { return GenericLayoutDelegate; }
 	virtual bool IsLocked() const override { return bIsLocked; }
@@ -162,6 +167,7 @@ public:
 	virtual void NotifyFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent) override;
 	void RefreshTree() override;
 	TSharedPtr<class FAssetThumbnailPool> GetThumbnailPool() const override;
+	TSharedPtr<FEditConditionParser> GetEditConditionParser() const override;
 	TSharedPtr<IPropertyUtilities> GetPropertyUtilities() override;
 	void CreateColorPickerWindow(const TSharedRef< class FPropertyEditor >& PropertyEditor, bool bUseAlpha) override;
 	virtual void UpdateSinglePropertyMap(TSharedPtr<FComplexPropertyNode> InRootPropertyNode, FDetailLayoutData& LayoutData, bool bIsExternal) override;
@@ -375,6 +381,10 @@ protected:
 	FDetailNodeList RootTreeNodes;
 	/** Delegate executed to determine if a property should be visible */
 	FIsPropertyVisible IsPropertyVisibleDelegate;
+	/** Delegate executed to check if custom row visibility is filtered. */
+	FIsCustomRowVisibilityFiltered IsCustomRowVisibilityFilteredDelegate;
+	/** Delegate executed to determine if a custom row should be visible. */
+	FIsCustomRowVisible IsCustomRowVisibleDelegate;
 	/** Delegate executed to determine if a property should be read-only */
 	FIsPropertyReadOnly IsPropertyReadOnlyDelegate;
 	/** Delegate called to see if a property editing is enabled */
@@ -422,7 +432,7 @@ protected:
 	/** True if we want to skip generation of custom layouts for displayed object */
 	bool bDisableCustomDetailLayouts;
 
-	int32 NumVisbleTopLevelObjectNodes;
+	int32 NumVisibleTopLevelObjectNodes;
 
 	/** Delegate for overriding the show modified filter */
 	FSimpleDelegate CustomFilterDelegate;
@@ -431,4 +441,6 @@ protected:
 	bool bCustomFilterActive;
 
 	FText CustomFilterLabel;
+
+	mutable TSharedPtr<FEditConditionParser> EditConditionParser;
 };

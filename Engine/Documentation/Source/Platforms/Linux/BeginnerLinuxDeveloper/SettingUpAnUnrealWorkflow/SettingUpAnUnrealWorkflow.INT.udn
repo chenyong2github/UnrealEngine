@@ -1,43 +1,222 @@
 Availability: Public
 Title: Linux Quick Start
-Crumbs:
-Description:Learn how to download, build, and run UE4 on Linux.
-Platform:Linux
+Description: Learn how to download, build, and run UE4 on Linux.
+Type: quick start
 Version: 4.13
-type:quick start
-parent:Platforms/Linux
-order: 2
-tags:Linux
-SkillLevel:Beginner
-prereq:GettingStarted/RecommendedSpecifications
-prereq:Platforms/Linux/BeginnerLinuxDeveloper/SupportedGfxDrivers
-topic-image:linuxQS_topic.png
+Parent: Platforms/Linux
+Tags: Linux
+skilllevel:Beginner
+topic-image: linuxQS_topic.png
+Order: 2
 
+
+[TOC (start:2 end:3)]
 
 [REGION:imagetable]
-![](CompiledEditor_Linux.png)(w:920)  
-[REGION:caption]
-At the end of this tutorial, you'll have Unreal Engine 4 (UE4) running on your Linux machine.
+![](CompiledEditor_Linux.png)(w:920) 
+
+At the end of this tutorial, you'll have Unreal Engine 4 (UE4) running on your Linux machine, having learned how to set up Git (to download UE4 source code), how to fork and clone our source code, build Unreal Engine from source, and how to run Unreal Engine on your Linux machine. Ultimately, the focus of this guide is to show you how to set up the primary workflow needed to get UE4 running on your Linux machine.
 [/REGION]
+
+## 1 - Required Setup
+
+Currently, we don't supply a binary installer of UE4 for Linux users. The good news is that you can compile a binary of Unreal Engine from the same source code that we use to develop the engine. If you want to access our source code, you'll have to register for an Epic Games account, sign up for a GitHub account, associate your GitHub username with your Epic Games account, and set up Git on your Linux machine.
+
+### Registering for an Epic Games Account
+
+If you want to create games with Unreal Engine or contribute to the future of UE4 on Linux, you'll need to have a valid Epic Games account.
+
+1.  Navigate to [UnrealEngine.com](https://www.unrealengine.com/what-is-unreal-engine-4).
+
+1.  Click **Get Unreal**.    
+    [REGION:lightbox]
+    [![](Download_Unreal-2.PNG "Download_Unreal-2.PNG")(w:1200)](Download_Unreal-2.PNG)
+    [/REGION]
+
+    *Click for full image.*
+    
+1.  Fill-out our **'Join the Community'** form and click **Sign Up**. Make sure to read through our [terms of service](http://epicgames.com/tos) prior to signing up.  
+    [REGION:lightbox]
+    [![](Create_Account-1.PNG "Create_Account-1.PNG")(w:400)](Create_Account-1.PNG)
+    [/REGION]
+
+    *Click for full image.*
+      
+1.  Read our [Unreal Engine End User License Agreement](https://www.unrealengine.com/eula) (EULA) prior to clicking **Accept**.  Refer to our  [EULA FAQ](https://www.unrealengine.com/faq#legal) if you have additional questions about the EULA's terms and conditions.  
+    [REGION:lightbox]
+    [![](EULA-1.PNG "EULA-1.PNG")(w:400)](EULA-1.PNG)
+    [/REGION]
+
+    *Click for full image.*
+    
+There are many benefits for having an account with us, including (but not limited to) access to the Unreal Engine community, where you'll connect with other UE4 Linux developers, and where you'll be able to keep up with the latest news about Unreal Engine.
+
+### Setting up Git  
+
+Now that you've registered for an Epic Games account, you're ready to work through the following steps to gain access to the UE4 source code on GitHub.
+
+1.  Sign up for a GitHub account at [GitHub.com](https://github.com/EpicGames).    
+    [REGION:lightbox]
+    [![](GItHub_Header.PNG "GItHub_Header.PNG")(w:600)](GItHub_Header.PNG)
+    [/REGION]
+    
+    *Click for full image.*
+
+1.  Go to [your Epic Games account](https://accounts.unrealengine.com/login) and click **Connected Accounts**.  
+    ![](Connected_Accounts-1.PNG "Connected_Accounts-1.PNG")
+
+1.  Link your GitHub username by clicking **Connect** under the GitHub icon.   
+    ![Connect Accounts-1.PNG](ConnectAccounts-1.PNG "Connect Accounts-1.PNG")(w:600)
+
+1.  To authorize the connection click **Authorize EpicGames**.  
+    ![](Authoriize_Connect.PNG "Authoriize_Connect.PNG")(w:600)
+
+1.  Finally, set up [Git](https://help.github.com/articles/set-up-git/) before moving onto the next step.
+
+### Section Result
+
+By now, you've registered for an Epic Games account and linked it with your GitHub username. Also, you've installed Git and you're ready for the next step, where you'll fork and clone the UE4 source code from the Unreal Engine GitHub repository.
+
+## 2 - Downloading UE4 on Linux
+
+Now that you've set up Git on your Linux machine, you're ready to download the Unreal Engine source code from our [GitHub site](http://github.com/EpicGames). There are a couple of ways to download the UE4 source code, one way is to use the download feature on our GitHub page, and the other way is to clone the Unreal Engine repository with your Git client. We'll cover both ways on this page.
+
+### Downloading from GitHub
+
+If don't want to clone the Unreal Engine repository with Git, you can use the **Download ZIP** button on our [GitHub site](http://github.com/EpicGames).
+
+1.  First, select the branch you want to download by clicking **Branch:** on the left side of the page. For more info on branches in the Unreal Engine GitHub repository, please see the [Source Branches Reference](GettingStarted/DownloadingUnrealEngine/SourceBranches) page.  
+    [REGION:lightbox]
+    [![](SelectRepoBranch.png)(w:800)](SelectRepoBranch.png)
+    [/REGION]
+    
+    *Click for full image.*
+
+1.  After selecting the branch you want to download, click Clone or download, which is located on the right side of the page.   
+    [REGION:lightbox]
+    [![](CloneorDownloadButton.png)(w:800)](CloneorDownloadButton.png)
+    [/REGION]
+
+    *Click for full image.*
+
+1.  Click **Download ZIP** to download the Unreal Engine source code. 
+    [REGION:lightbox]
+    [![](DownloadSourceButton.png)(w:800)](DownloadSourceButton.png)
+    [/REGION]
+
+    *Click for full image.*
+
+1.  Finally, decompress `UnrealEngine-(branch_name).zip` onto your hard disk.
+
+### Cloning with Git
+
+If you're new to cloning with Git, refer to [GitHub's Cloning Guide](https://help.github.com/articles/cloning-a-repository/#platform-linux) before executing the following steps.  
+
+1.  Click the **Unreal Engine** link to access our [repository](https://github.com/EpicGames/UnrealEngine).   
+    [REGION:lightbox]
+    [![](Git_Repository-1.PNG "Git_Repository-1.PNG")(w:800)](Git_Repository-1.PNG)
+    [/REGION]
+
+    *Click for full image.*
+
+1.  Click **Clone or download**. 
+    [REGION:lightbox]
+    [![](CloneorDownloadButton.png)(w:800)](CloneorDownloadButton.png)
+    [/REGION]
+
+    *Click for full image.*
+
+1.  Click the **Copy URL** button to copy the clone URL for the repository. 
+    [REGION:lightbox]
+    [![](CopyHTTPS.png)(w:800)](CopyHTTPS.png)
+    [/REGION]
+
+    *Click for full image.*
+
+1.  Open Git Bash, type `git clone`, and paste the URL you copied in the previous step. 
+    [REGION:lightbox]
+    [![](GitBashClone.png)(w:800)](GitBashClone.png)
+    [/REGION]
+
+    *Click for full image.*
+
+1.  Finally, press **Enter** to create your local clone.
+    [REGION:note]
+    If you need a refresher using Git from the command line, refer to [GitHub's documentation](https://help.github.com/articles/set-up-git/#platform-linux).
+    [/REGION]
+
+### Section Result
+
+[REGION:lightbox]
+[![](end_result.png)(w:800)](end_result.png)
 [/REGION]
 
-## Goal
+*Click for full image.*
+  
 
-The focus of this guide is to show you how to set up the primary workflow needed to get UE4 running on your Linux machine.
+Whether you downloaded the Unreal Engine source code by using the **Download ZIP** button on our [GitHub site](http://github.com/EpicGames), or by cloning the Unreal Engine repository using Git, you're ready to build UE4 on Linux with the Unreal Engine source code that is now located on your hard disk.
 
-## Objectives
+## 3 - Building UE4 on Linux
 
-After working through this tutorial, you'll know the following:
+In preparation for this critical step, you downloaded a copy of Unreal Engine's source code onto your hard disk. During this part of the tutorial, you'll get to run several utilities from the terminal to build a binary of UE4 on your Linux machine.
 
-* How to set up Git to download the source code for Unreal Engine.
-* How to fork and clone Unreal Engine's source code.
-* How to build Unreal Engine from source.
-* How to run Unreal Engine on your Linux machine.
+[INCLUDE:Programming/Development/BuildingUnrealEngine#linuxcompile]
 
-## Steps
+### Section Result
 
-[DIR(output:"checkpoint" parent:"Platforms/Linux/BeginnerLinuxDeveloper/SettingUpAnUnrealWorkflow" org:"hierarchy")]
+![](built_engine.png)  
 
-[REGION:call_to_action]
-	[Click to Start](Platforms/Linux/BeginnerLinuxDeveloper/SettingUpAnUnrealWorkflow/1 "%Platforms/Linux/BeginnerLinuxDeveloper/SettingUpAnUnrealWorkflow/1:title%")
-[/REGION]
+At this point, you should have a fully built binary of UE4 on your hard disk. The time has come to run the engine on your Linux system!
+
+## 4 - Running UE4 on Linux
+
+As you worked your way to this final step, you linked your Epic Games account with your GitHub username, you downloaded the Unreal Engine source code from our GitHub site, and you compiled a binary of UE4 on your Linux system. The only remaining task is for you to run the UE4 Editor so that you can start making games for the Linux platform.  
+
+[INCLUDE:Programming/Development/BuildingUnrealEngine#linuxrun]
+
+### Launching UE4 on Linux
+
+Because you've compiled the engine from its source code on Linux, the engine will compile shaders for a few minutes after launching UE4.
+
+![](howTo_compilingshaders.png)(w:1200)
+
+### Creating your First Project
+
+If you haven't already set up an Integrated Development Environment (IDE) to work with UE4, we recommend that you start out by creating a **Blueprint** project.
+
+![](howTo_creatingprrjwithoutIDE.png)(w:1200)
+
+### Section Result
+
+![](howTo_endResult.png)(w:1200)
+
+If you're creating your first game on Linux, you just learned how to establish your primary UE4 workflow on Linux. As you worked your way through this tutorial, you learned:
+
+✓ How to set up Git to download the source code for Unreal Engine.  
+✓ How to fork and clone Unreal Engine's source code.  
+✓ How to build Unreal Engine from source.  
+✓ How to run Unreal Engine on your Linux machine.
+
+Are you ready to do some exercises on your own?
+
+## 5 - On your own!
+
+One way of increasing productivity is to write custom shell scripts that you can run from the terminal. If you know how to write shell scripts in Linux, try writing one that automates the process of setting up and building UE4.
+
+![](autobuild_onyourown.jpg "autobuild_onyourown.jpg")(w:1200)
+
+If you want to track the latest developments with UE4 on Linux, read [this article](https://www.unrealengine.com/blog/unreal-engine-public-issues-tracker-is-now-available) and head over to the [Unreal Engine Public Issues Tracker](https://issues.unrealengine.com/) to check out the latest public issues impacting UE4 on Linux.
+
+![](UE4_publicJira.jpg "UE4_publicJira.jpg")(w:1200)
+
+Do you see a public issue that you can fix? If you know how [fork and clone](GettingStarted/DownloadingUnrealEngine/GitHub) our [repository](https://github.com/EpicGames/UnrealEngine) to submit [pull requests](https://help.github.com/articles/using-pull-requests/) with Git, join our growing community of developers and help shape the future of UE4 on Linux.
+
+![](gitHub_pullrequests.jpg "gitHub_pullrequests.jpg")(w:1200)
+
+If you're looking to quickly get started making projects with UE4, check-out the following tutorials:
+
+*   [Artist Quick Start](Engine/Content/QuickStart)
+
+*   [Programming Quick Start](Programming/QuickStart)
+
+*   [Level Designer Quick Start](Engine/QuickStart)

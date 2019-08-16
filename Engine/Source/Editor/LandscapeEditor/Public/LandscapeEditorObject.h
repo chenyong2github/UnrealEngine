@@ -8,7 +8,7 @@
 #include "LandscapeProxy.h"
 #include "Editor/LandscapeEditor/Private/LandscapeEdMode.h"
 #include "LandscapeFileFormatInterface.h"
-#include "LandscapeBPCustomBrush.h"
+#include "LandscapeBlueprintBrush.h"
 
 #include "LandscapeEditorObject.generated.h"
 
@@ -266,6 +266,9 @@ class ULandscapeEditorObject : public UObject
 	UPROPERTY(NonTransactional)
 	float MaximumValueRadius;
 
+	UPROPERTY(Category="Tool Settings", EditAnywhere, NonTransactional, meta=(ShowForTools="Flatten,Smooth,Erosion,HydraErosion,Ramp", ShowForTargetTypes="Heightmap", ShowForLandscapeLayerSystem))
+	bool bCombinedLayersOperation;
+
 	// Flatten Tool:
 
 	// Whether to flatten by lowering, raising, both or terracing
@@ -448,10 +451,10 @@ class ULandscapeEditorObject : public UObject
 	UPROPERTY(Category="Tool Settings", EditAnywhere, NonTransactional, meta=(DisplayName="Smoothing Width", ShowForTools="Mirror", ClampMin="0", UIMin="0", UIMax="20"))
 	int32 MirrorSmoothingWidth;
 
-	// BP Custom Tool
+	// Blueprint Brush Tool
 
-	UPROPERTY(Category = "Tool Settings", EditAnywhere, Transient, meta = (DisplayName = "Blueprint Brush", ShowForTools = "BPCustom"))
-	TSubclassOf<ALandscapeBlueprintCustomBrush> BlueprintCustomBrush;
+	UPROPERTY(Category = "Tool Settings", EditAnywhere, Transient, meta = (DisplayName = "Blueprint Brush", ShowForTools = "BlueprintBrush"))
+	TSubclassOf<ALandscapeBlueprintBrush> BlueprintBrush;
 
 	// Resize Landscape Tool
 

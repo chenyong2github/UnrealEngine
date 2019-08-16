@@ -88,7 +88,7 @@ static const int32 MaxMetalSamplers = 16;
 // Generates Metal compliant code from IR tokens
 struct FMetalCodeBackend : public FCodeBackend
 {
-	FMetalCodeBackend(FMetalTessellationOutputs& Attribs, unsigned int InHlslCompileFlags, EHlslCompileTarget InTarget, uint8 Version, EMetalGPUSemantics bInDesktop, EMetalTypeBufferMode InTypedMode, uint32 MaxUnrollLoops, bool bInZeroInitialise, bool bInBoundsChecks, bool bInAllFastIntriniscs, bool bForceInvariance);
+	FMetalCodeBackend(FMetalTessellationOutputs& Attribs, unsigned int InHlslCompileFlags, EHlslCompileTarget InTarget, uint8 Version, EMetalGPUSemantics bInDesktop, EMetalTypeBufferMode InTypedMode, uint32 MaxUnrollLoops, bool bInZeroInitialise, bool bInBoundsChecks, bool bInAllFastIntriniscs, bool bInForceInvariance, bool bInSwizzleSample);
 
 	virtual char* GenerateCode(struct exec_list* ir, struct _mesa_glsl_parse_state* ParseState, EHlslShaderFrequency Frequency) override;
 
@@ -132,6 +132,7 @@ struct FMetalCodeBackend : public FCodeBackend
 	bool bAllowFastIntriniscs;
 	bool bExplicitDepthWrites;
 	bool bForceInvariance;
+	bool bSwizzleSample;
 
 	bool bIsTessellationVSHS = false;
 	unsigned int inputcontrolpoints = 0;
@@ -141,3 +142,109 @@ struct FMetalCodeBackend : public FCodeBackend
 
 struct FShaderCompilerEnvironment;
 bool IsRemoteBuildingConfigured(const FShaderCompilerEnvironment* InEnvironment = nullptr);
+
+struct SDMARange
+{
+	unsigned SourceCB;
+	unsigned SourceOffset;
+	unsigned Size;
+	unsigned DestCBIndex;
+	unsigned DestCBPrecision;
+	unsigned DestOffset;
+	
+	bool operator <(SDMARange const & Other) const
+	{
+		if (SourceCB == Other.SourceCB)
+		{
+			return SourceOffset < Other.SourceOffset;
+		}
+		
+		return SourceCB < Other.SourceCB;
+	}
+};
+typedef std::list<SDMARange> TDMARangeList;
+typedef std::map<unsigned, TDMARangeList> TCBDMARangeMap;
+
+
+static void InsertRange( TCBDMARangeMap& CBAllRanges, unsigned SourceCB, unsigned SourceOffset, unsigned Size, unsigned DestCBIndex, unsigned DestCBPrecision, unsigned DestOffset )
+{
+	check(SourceCB < (1 << 12));
+	check(DestCBIndex < (1 << 12));
+	check(DestCBPrecision < (1 << 8));
+	unsigned SourceDestCBKey = (SourceCB << 20) | (DestCBIndex << 8) | DestCBPrecision;
+	SDMARange Range = { SourceCB, SourceOffset, Size, DestCBIndex, DestCBPrecision, DestOffset };
+	
+	TDMARangeList& CBRanges = CBAllRanges[SourceDestCBKey];
+	//printf("* InsertRange: %08x\t%u:%u - %u:%c:%u:%u\n", SourceDestCBKey, SourceCB, SourceOffset, DestCBIndex, DestCBPrecision, DestOffset, Size);
+	if (CBRanges.empty())
+	{
+		CBRanges.push_back(Range);
+	}
+	else
+	{
+		TDMARangeList::iterator Prev = CBRanges.end();
+		bool bAdded = false;
+		for (auto Iter = CBRanges.begin(); Iter != CBRanges.end(); ++Iter)
+		{
+			if (SourceOffset + Size <= Iter->SourceOffset)
+			{
+				if (Prev == CBRanges.end())
+				{
+					CBRanges.push_front(Range);
+				}
+				else
+				{
+					CBRanges.insert(Iter, Range);
+				}
+				
+				bAdded = true;
+				break;
+			}
+			
+			Prev = Iter;
+		}
+		
+		if (!bAdded)
+		{
+			CBRanges.push_back(Range);
+		}
+		
+		if (CBRanges.size() > 1)
+		{
+			// Try to merge ranges
+			bool bDirty = false;
+			do
+			{
+				bDirty = false;
+				TDMARangeList NewCBRanges;
+				for (auto Iter = CBRanges.begin(); Iter != CBRanges.end(); ++Iter)
+				{
+					if (Iter == CBRanges.begin())
+					{
+						Prev = CBRanges.begin();
+					}
+					else
+					{
+						if (Prev->SourceOffset + Prev->Size == Iter->SourceOffset && Prev->DestOffset + Prev->Size == Iter->DestOffset)
+						{
+							SDMARange Merged = *Prev;
+							Merged.Size = Prev->Size + Iter->Size;
+							NewCBRanges.pop_back();
+							NewCBRanges.push_back(Merged);
+							++Iter;
+							NewCBRanges.insert(NewCBRanges.end(), Iter, CBRanges.end());
+							bDirty = true;
+							break;
+						}
+					}
+					
+					NewCBRanges.push_back(*Iter);
+					Prev = Iter;
+				}
+				
+				CBRanges.swap(NewCBRanges);
+			}
+			while (bDirty);
+		}
+	}
+}

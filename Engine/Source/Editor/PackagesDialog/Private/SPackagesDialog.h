@@ -207,14 +207,14 @@ public:
 	 *
 	 * @return the name of the checkbox item
 	 */
-	FString GetName() const { return EntryName; }
+	const FString& GetName() const { return EntryName; }
 
 	/**
 	 * Gets the icon name of the checkbox item
 	 *
 	 * @return the icon name of the checkbox item
 	 */
-	FString GetIconName() const { return IconName; }
+	const FString& GetIconName() const { return IconName; }
 
 	/**
 	 * Get a string containing the name(s) of other users who have the file checked out
@@ -437,6 +437,7 @@ public:
 private:
 
 	//~ Begin SWidget Interface
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
 	//~ End SWidget Interface
 
@@ -552,6 +553,9 @@ private:
 
 	/** When true, the warning message is displayed in the widget */
 	bool bShowWarning;
+
+	/** When true, items will be sorted on the next tick */
+	bool bSortDirty;
 
 	/** The message to display */
 	FText Message;

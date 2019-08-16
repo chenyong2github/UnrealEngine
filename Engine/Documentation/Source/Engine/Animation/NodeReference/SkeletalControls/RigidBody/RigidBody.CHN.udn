@@ -11,8 +11,8 @@ tags:Animation
 tags:Animation Blueprint
 tags:Skeletal Controls
 topic-image:RigidBodyNode.png
-Related: Engine/Physics/PhAT
-Related: Engine/Physics/PhAT/Reference
+Related: Engine/Physics/PhysicsAssetEditor
+Related: Engine/Physics/PhysicsAssetEditor/Reference
 Related: Engine/Animation/AnimBlueprints/AnimGraph
 Related: Engine/Animation/NodeReference/Blend
 
@@ -60,7 +60,7 @@ Related: Engine/Animation/NodeReference/Blend
 
 ## RigidBody节点设置示例
 
-在使用此节点之前，请在[物理资源](Engine/Physics/PhAT)中选择要模拟的[](Engine/Physics/PhysicsBodies)，并将其设置为 **Simulated**。 
+在使用此节点之前，请在[物理资源](Engine/Physics/PhysicsAssetEditor)中选择要模拟的[](Engine/Physics/PhysicsBodies)，并将其设置为 **Simulated**。 
 
 ![](RigidBody_02.png)
 

@@ -4,6 +4,7 @@
 #include "Engine/World.h"
 #include "GameFramework/WorldSettings.h"
 #include "AI/NavigationSystemBase.h"
+#include "NavigationSystem.h"
 #include "TimerManager.h"
 
 #if WITH_EDITORONLY_DATA
@@ -62,7 +63,23 @@ ANavSystemConfigOverride::ANavSystemConfigOverride(const FObjectInitializer& Obj
 void ANavSystemConfigOverride::PostLoad()
 {
 	Super::PostLoad();
+	
+	UWorld* World = GetWorld();
+	if (World != nullptr)
+	{
+		if (World->bInTick)
+		{
+			World->GetTimerManager().SetTimerForNextTick(this, &ANavSystemConfigOverride::ApplyConfig);
+		}
+		else
+		{
+			ApplyConfig();
+		}
+	}
+}
 
+void ANavSystemConfigOverride::ApplyConfig()
+{
 	UWorld* World = GetWorld();
 	if (World && NavigationSystemConfig)
 	{
@@ -75,10 +92,12 @@ void ANavSystemConfigOverride::PostLoad()
 		if (World->bIsWorldInitialized
 			&& NavigationSystemConfig
 #if WITH_EDITOR
-			&& (GIsEditorLoadingPackage == false)
+			&& (GIsEditorLoadingPackage == false || World->IsGameWorld())
 #endif // WITH_EDITOR
 			)
 		{
+			
+			UNavigationSystemV1* PrevNavSys = Cast<UNavigationSystemV1>(World->GetNavigationSystem());
 			World->SetNavigationSystem(nullptr);
 
 			const FNavigationSystemRunMode RunMode = World->WorldType == EWorldType::Editor
@@ -103,6 +122,12 @@ void ANavSystemConfigOverride::PostLoad()
 			else
 			{
 				FNavigationSystem::AddNavigationSystemToWorld(*World, RunMode, NavigationSystemConfig, /*bInitializeForWorld=*/true);
+			}
+
+			UNavigationSystemV1* NewNavSys = Cast<UNavigationSystemV1>(World->GetNavigationSystem());
+			if (NewNavSys && PrevNavSys)
+			{
+				NewNavSys->FinalizeOverridingNavSystem(*PrevNavSys);
 			}
 		}
 	}

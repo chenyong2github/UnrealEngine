@@ -780,7 +780,7 @@ private:
 				}
 				else
 				{
-					const FSlateBrush* FoundSlateBrush = FSlateIconFinder::FindIconBrushForClass(UActorComponent::StaticClass()); //FClassIconFinder::FindIconForActor(const_cast<UActorComponent*>(Component));
+					const FSlateBrush* FoundSlateBrush = FSlateIconFinder::FindIconBrushForClass(Component->GetClass());
 					WeakSceneOutliner.Pin()->CacheIconForClass(Component->GetClass()->GetFName(), const_cast<FSlateBrush*>(FoundSlateBrush));
 					return FoundSlateBrush;
 				}

@@ -65,6 +65,8 @@ struct TShaderTypePermutation
 
 using FShaderPermutation = TShaderTypePermutation<FShaderType>;
 
+const int32 kUniqueShaderPermutationId = 0;
+
 template<typename MetaShaderType>
 FORCEINLINE uint32 GetTypeHash(const TShaderTypePermutation<MetaShaderType>& Var)
 {
@@ -115,7 +117,7 @@ public:
 
 	friend inline uint32 GetTypeHash( const FShaderResourceId& Id )
 	{
-		return FCrc::MemCrc_DEPRECATED((const void*)&Id.OutputHash, sizeof(Id.OutputHash));
+		return GetTypeHash(Id.OutputHash);
 	}
 
 	friend bool operator==(const FShaderResourceId& X, const FShaderResourceId& Y)
@@ -225,13 +227,6 @@ public:
 		checkf(BufferIndex == InBufferIndex, TEXT("Tweak FShaderLooseParameterBufferInfo type sizes"));
 	}
 
-	inline uint32 GetHash() const
-	{
-		uint32 Hash = FCrc::TypeCrc32(BufferIndex, 0);
-		Hash = FCrc::TypeCrc32(BufferSize, Hash);
-		return Hash;
-	}
-
 	friend FArchive& operator<<(FArchive& Ar,FShaderLooseParameterBufferInfo& Info)
 	{
 		Ar << Info.BufferIndex;
@@ -263,16 +258,6 @@ public:
 		Ar << Info.SRVs;
 		Ar << Info.LooseParameterBuffers;
 		return Ar;
-	}
-
-	inline uint32 GetHash() const
-	{
-		uint32 Hash = 0;
-		for (const FShaderLooseParameterBufferInfo& ShaderLooseParameterBufferInfo: LooseParameterBuffers)
-		{
-			Hash = HashCombine(ShaderLooseParameterBufferInfo.GetHash(), Hash);
-		}
-		return Hash;
 	}
 
 	inline bool operator==(const FShaderParameterMapInfo& Rhs) const
@@ -310,7 +295,7 @@ public:
 	RENDERCORE_API void Register();
 
 	/** @return the shader's vertex shader */
-	FORCEINLINE const FVertexShaderRHIParamRef GetVertexShader()
+	FORCEINLINE FRHIVertexShader* GetVertexShader()
 	{
 		checkSlow(Target.Frequency == SF_Vertex);
 		if (!IsInitialized())
@@ -320,7 +305,7 @@ public:
 		return (FRHIVertexShader*)Shader.GetReference();
 	}
 	/** @return the shader's pixel shader */
-	FORCEINLINE const FPixelShaderRHIParamRef GetPixelShader()
+	FORCEINLINE FRHIPixelShader* GetPixelShader()
 	{
 		checkSlow(Target.Frequency == SF_Pixel);
 		if (!IsInitialized())
@@ -330,7 +315,7 @@ public:
 		return (FRHIPixelShader*)Shader.GetReference();
 	}
 	/** @return the shader's hull shader */
-	FORCEINLINE const FHullShaderRHIParamRef GetHullShader()
+	FORCEINLINE FRHIHullShader* GetHullShader()
 	{
 		checkSlow(Target.Frequency == SF_Hull);
 		if (!IsInitialized())
@@ -340,7 +325,7 @@ public:
 		return (FRHIHullShader*)Shader.GetReference();
 	}
 	/** @return the shader's domain shader */
-	FORCEINLINE const FDomainShaderRHIParamRef GetDomainShader()
+	FORCEINLINE FRHIDomainShader* GetDomainShader()
 	{
 		checkSlow(Target.Frequency == SF_Domain);
 		if (!IsInitialized())
@@ -350,7 +335,7 @@ public:
 		return (FRHIDomainShader*)Shader.GetReference();
 	}
 	/** @return the shader's geometry shader */
-	FORCEINLINE const FGeometryShaderRHIParamRef GetGeometryShader()
+	FORCEINLINE FRHIGeometryShader* GetGeometryShader()
 	{
 		checkSlow(Target.Frequency == SF_Geometry);
 		if (!IsInitialized())
@@ -360,7 +345,7 @@ public:
 		return (FRHIGeometryShader*)Shader.GetReference();
 	}
 	/** @return the shader's compute shader */
-	FORCEINLINE const FComputeShaderRHIParamRef GetComputeShader()
+	FORCEINLINE FRHIComputeShader* GetComputeShader()
 	{
 		checkSlow(Target.Frequency == SF_Compute);
 		if (!IsInitialized())
@@ -371,11 +356,12 @@ public:
 	}
 
 #if RHI_RAYTRACING
-	inline const FRayTracingShaderRHIParamRef GetRayTracingShader()
+	inline FRHIRayTracingShader* GetRayTracingShader()
 	{
 		checkSlow(Target.Frequency == SF_RayGen
 			   || Target.Frequency == SF_RayMiss
-			   || Target.Frequency == SF_RayHitGroup);
+			   || Target.Frequency == SF_RayHitGroup
+			   || Target.Frequency == SF_RayCallable);
 
 		if (!IsInitialized())
 		{
@@ -386,9 +372,7 @@ public:
 
 	inline uint32 GetRayTracingMaterialLibraryIndex()
 	{
-		checkSlow(Target.Frequency == SF_RayGen
-			|| Target.Frequency == SF_RayMiss
-			|| Target.Frequency == SF_RayHitGroup);
+		checkSlow(Target.Frequency == SF_RayHitGroup);
 
 		if (!IsInitialized())
 		{
@@ -397,10 +381,10 @@ public:
 		return RayTracingMaterialLibraryIndex;
 	}
 
-	RENDERCORE_API static void GetRayTracingMaterialLibrary(TArray<FRayTracingShaderRHIParamRef>& RayTracingMaterials, FRayTracingShaderRHIParamRef DefaultShader);
+	RENDERCORE_API static void GetRayTracingMaterialLibrary(TArray<FRHIRayTracingShader*>& RayTracingMaterials, FRHIRayTracingShader* DefaultShader);
 
 private:
-	RENDERCORE_API static uint32 AddToRayTracingLibrary(FRayTracingShaderRHIParamRef Shader);
+	RENDERCORE_API static uint32 AddToRayTracingLibrary(FRHIRayTracingShader* Shader);
 	RENDERCORE_API static void RemoveFromRayTracingLibrary(uint32 Index);
 
 	static TArray<uint32> GlobalUnusedIndicies;
@@ -792,6 +776,7 @@ public:
 	TArray<FParameter> Parameters;
 	TArray<FResourceParameter> Textures;
 	TArray<FResourceParameter> SRVs;
+	TArray<FResourceParameter> UAVs;
 	TArray<FResourceParameter> Samplers;
 	TArray<FResourceParameter> GraphTextures;
 	TArray<FResourceParameter> GraphSRVs;
@@ -806,6 +791,7 @@ public:
 		Ar << ParametersBindingData.Parameters;
 		Ar << ParametersBindingData.Textures;
 		Ar << ParametersBindingData.SRVs;
+		Ar << ParametersBindingData.UAVs;
 		Ar << ParametersBindingData.Samplers;
 		Ar << ParametersBindingData.GraphTextures;
 		Ar << ParametersBindingData.GraphSRVs;
@@ -904,38 +890,38 @@ public:
 	virtual const FVertexFactoryParameterRef* GetVertexFactoryParameterRef() const { return NULL; }
 
 	/** @return the shader's vertex shader */
-	inline const FVertexShaderRHIParamRef GetVertexShader() const
+	inline FRHIVertexShader* GetVertexShader() const
 	{
 		return Resource->GetVertexShader();
 	}
 	/** @return the shader's pixel shader */
-	inline const FPixelShaderRHIParamRef GetPixelShader() const
+	inline FRHIPixelShader* GetPixelShader() const
 	{
 		return Resource->GetPixelShader();
 	}
 	/** @return the shader's hull shader */
-	inline const FHullShaderRHIParamRef GetHullShader() const
+	inline FRHIHullShader* GetHullShader() const
 	{
 		return Resource->GetHullShader();
 	}
 	/** @return the shader's domain shader */
-	inline const FDomainShaderRHIParamRef GetDomainShader() const
+	inline FRHIDomainShader* GetDomainShader() const
 	{
 		return Resource->GetDomainShader();
 	}
 	/** @return the shader's geometry shader */
-	inline const FGeometryShaderRHIParamRef GetGeometryShader() const
+	inline FRHIGeometryShader* GetGeometryShader() const
 	{
 		return Resource->GetGeometryShader();
 	}
 	/** @return the shader's compute shader */
-	inline const FComputeShaderRHIParamRef GetComputeShader() const
+	inline FRHIComputeShader* GetComputeShader() const
 	{
 		return Resource->GetComputeShader();
 	}
 
 #if RHI_RAYTRACING
-	inline const FRayTracingShaderRHIParamRef GetRayTracingShader() const
+	inline FRHIRayTracingShader* GetRayTracingShader() const
 	{
 		return Resource->GetRayTracingShader();
 	}
@@ -2719,7 +2705,7 @@ extern RENDERCORE_API void DispatchComputeShader(
 extern RENDERCORE_API void DispatchIndirectComputeShader(
 	FRHICommandList& RHICmdList,
 	FShader* Shader,
-	FVertexBufferRHIParamRef ArgumentBuffer,
+	FRHIVertexBuffer* ArgumentBuffer,
 	uint32 ArgumentOffset);
 
 /** Appends to KeyString for all shaders. */

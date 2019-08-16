@@ -112,5 +112,22 @@ void UTextureThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 W
 			TextItem.Scale = FVector2D(Width / 128.0f, Height / 128.0f);
 			TextItem.Draw(Canvas);
 		}
+
+		if (Texture2D && Texture2D->VirtualTextureStreaming)
+		{
+			auto VTChars = TEXT("VT");
+			int32 VTWidth = 0;
+			int32 VTHeight = 0;
+			StringSize(GEngine->GetLargeFont(), VTWidth, VTHeight, VTChars);
+			float PaddingX = Width / 128.0f;
+			float PaddingY = Height / 128.0f;
+			float ScaleX = Width / 64.0f; //Text is 1/64'th of the size of the thumbnails
+			float ScaleY = Height / 64.0f;
+			// VT overlay
+			FCanvasTextItem TextItem(FVector2D(Width - PaddingX - VTWidth * ScaleX, Height - PaddingY - VTHeight * ScaleY), FText::FromString(VTChars), GEngine->GetLargeFont(), FLinearColor::White);
+			TextItem.EnableShadow(FLinearColor::Black);
+			TextItem.Scale = FVector2D(ScaleX, ScaleY);
+			TextItem.Draw(Canvas);
+		}
 	}
 }

@@ -1,6 +1,10 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "SubmixEffects/AudioMixerSubmixEffectDynamicsProcessor.h"
+#include "ProfilingDebugging/CsvProfiler.h"
+
+// Link to "Audio" profiling category
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXER_API, Audio);
 
 FSubmixEffectDynamicsProcessor::FSubmixEffectDynamicsProcessor()
 {
@@ -69,6 +73,8 @@ void FSubmixEffectDynamicsProcessor::OnPresetChanged()
 
 void FSubmixEffectDynamicsProcessor::OnProcessAudio(const FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData)
 {
+	CSV_SCOPED_TIMING_STAT(Audio, SubmixDynamics);
+
 	const Audio::AlignedFloatBuffer& InBuffer = *InData.AudioBuffer;
 	Audio::AlignedFloatBuffer& OutBuffer = *OutData.AudioBuffer;
 

@@ -1,4 +1,4 @@
-Availability:Public
+Availability:Docs
 Crumbs: %ROOT%
 Title:3 - TV Blueprint Setup - Components
 Description:Here we create our TV Blueprint and set up its Components. 
@@ -11,6 +11,8 @@ type:multi-step
 order:3
 tags:Media Framework
 tags:Blueprints
+
+## Marked as Docs as the page has been combined into one page. 
  
 [NAV]
 

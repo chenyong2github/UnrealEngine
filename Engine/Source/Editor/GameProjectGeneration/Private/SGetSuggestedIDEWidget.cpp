@@ -33,14 +33,14 @@ TSharedRef<SWidget> SGetSuggestedIDEWidget::CreateGetSuggestedIDEWidget() const
 		// If the installer for this platform's IDE can be downloaded and launched directly, show a button
 		return SNew(SButton)
 			.Text(FText::Format(LOCTEXT("IDEInstallButtonText", "Install {0}"), FSourceCodeNavigation::GetSuggestedSourceCodeIDE()))
-			.OnClicked(this, &SGetSuggestedIDEWidget::OnInstallIDEClicked);
+			.OnClicked(const_cast<SGetSuggestedIDEWidget*>(this), &SGetSuggestedIDEWidget::OnInstallIDEClicked);
 	}
 	else
 	{
 		// If the user must open a web page, show a link
 		return SNew(SHyperlink)
 			.Text(FText::Format(LOCTEXT("IDEDownloadLinkText", "Download {0}"), FSourceCodeNavigation::GetSuggestedSourceCodeIDE()))
-			.OnNavigate(this, &SGetSuggestedIDEWidget::OnDownloadIDEClicked, FSourceCodeNavigation::GetSuggestedSourceCodeIDEDownloadURL());
+			.OnNavigate(const_cast<SGetSuggestedIDEWidget*>(this), &SGetSuggestedIDEWidget::OnDownloadIDEClicked, FSourceCodeNavigation::GetSuggestedSourceCodeIDEDownloadURL());
 	}
 }
 

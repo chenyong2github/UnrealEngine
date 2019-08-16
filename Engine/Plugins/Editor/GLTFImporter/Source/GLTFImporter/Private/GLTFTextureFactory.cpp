@@ -112,7 +112,10 @@ GLTF::ITextureElement* FGLTFTextureFactory::CreateTexture(const GLTF::FTexture& 
 		bool bOperationCanceled = false;
 		Texture                 = static_cast<UTexture2D*>(Factory->FactoryCreateFile(UTexture2D::StaticClass(), AssetPackage, *TextureName, Flags,
                                                                       GltfTexture.Source.FilePath, nullptr, nullptr, bOperationCanceled));
-		Texture->AssetImportData->Update(GltfTexture.Source.FilePath);
+		if (Texture)
+		{
+			Texture->AssetImportData->Update(GltfTexture.Source.FilePath);
+		}
 	}
 	else if (GltfTexture.Source.Format != GLTF::FImage::EFormat::Unknown)
 	{

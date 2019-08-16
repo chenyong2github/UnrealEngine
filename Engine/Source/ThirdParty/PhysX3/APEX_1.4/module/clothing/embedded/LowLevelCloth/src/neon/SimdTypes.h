@@ -13,7 +13,11 @@
 
 #pragma once
 
+#if PX_P64_FAMILY
+#include <arm64_neon.h>
+#else
 #include <arm_neon.h>
+#endif
 
 union Simd4f
 {
@@ -23,7 +27,7 @@ union Simd4f
 	Simd4f(const float32x4_t& v) : f4(v)
 	{
 	}
-#ifndef _M_ARM // all *32x4_t map to the same type
+#if !defined( _M_ARM) && !defined( _M_ARM64) // all *32x4_t map to the same type
 	Simd4f(const uint32x4_t& v) : u4(v)
 	{
 	}
@@ -41,7 +45,7 @@ union Simd4i
 	Simd4i(const uint32x4_t& v) : u4(v)
 	{
 	}
-#ifndef _M_ARM // all *32x4_t map to the same type
+#if !defined( _M_ARM) && !defined( _M_ARM64) // all *32x4_t map to the same type
 	Simd4i(const int32x4_t& v) : i4(v)
 	{
 	}

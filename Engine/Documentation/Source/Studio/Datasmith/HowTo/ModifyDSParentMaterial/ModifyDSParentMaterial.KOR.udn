@@ -1,0 +1,63 @@
+INTSourceChangelist:6548867
+Availability: Public
+Title: 데이터스미스 마스터 머티리얼 수정
+Description: 데이터스미스가 만든 머티리얼 인스턴스의 머티리얼 그래프를 수정하는 방법을 설명합니다.
+Type: how-to
+Version: 4.21
+Parent: Studio/Datasmith/HowTo
+Tags: how to
+Tags: Datasmith
+Tags: beginner
+SkillLevel: Beginner
+Related: Engine/Rendering/Materials/Editor/Interface
+Related: Engine/Rendering/Materials/MaterialInstances/Editor
+Related: Engine/Rendering/Materials/MaterialInstances
+
+
+[TOC]
+
+[](Studio/Datasmith/Overview), [](Studio/Datasmith/Overview/ImportProcess) 의 설명대로 데이터스미스는 소스 씬에서 감지한 여러가지 유형의 표면 각각에 대해 프로젝트에 머티리얼 인스턴스를 만듭니다. 이 머티리얼 인스턴스 각각은 프로퍼티 프리셋 목록을 노출하며, 이는 언리얼 엔진 프로젝트에서 자유롭게 수정할 수 있습니다.
+
+그러나 데이터스미스 머티리얼 인스턴스가 기반한 마스터 머티리얼을 수정하려면, 항상 원본 마스터 머티리얼을 복사해서 프로젝트 콘텐츠 안에 사본을 만들고, 그 사본을 수정한 뒤 마스터 머티리얼이 복제본을 가리키도록 설정해야 합니다.
+
+이 글에서는 그 방법을 단계별로 설명합니다.
+
+[REGION:warning]
+*   데이터스미스에 사용된 프리셋 부모 머티리얼 애셋, 예를 들면 **Datasmith_Color**, **SketchUpMaster**, **RevitMaster** 머티리얼은 데이터스미스 플러그인 콘텐츠에 포함되어 있습니다. 이 부모 머티리얼을 수정하는 경우, 현재 프로젝트뿐 아니라 모든 프로젝트에 대해 변경하는 것입니다. 게다가 그 변경사항은 프로젝트에 저장되지도 않아서, 프로젝트를 다른 누군가에게 배포하거나 언리얼 엔진 새 버전으로 업그레이드하는 경우, 그 변경사항을 잃게 됩니다. 항상 프로젝트의 콘텐츠 폴더에 사본을 만드세요.
+
+*   데이터스미스가 프로젝트의 콘텐츠 폴더 안에 만든 부모 머티리얼, 일반적으로 커스텀 3ds Max 머티리얼에 대해 생성된 부모 머티리얼을 사용할 때도, 원본 부모 머티리얼을 직접 수정하기 보다는 항상 이와 똑같은 절차에 따라 원본 부모 머티리얼 사본을 만들어야 합니다. 부모 머티리얼 그래프 변경사항은 데이터스미스 오버라이드로 보존되지 않으므로, 다음 번 데이터스미스 씬 애셋을 리임포트할 때 변경사항을 잃게 됩니다.
+[/REGION]
+
+## 단계
+
+데이터스미스가 만든 머티리얼 인스턴스에 대한 부모 머티리얼을 복제하여 수정하려면:
+
+1.  수정하려는 부모 머티리얼이 있는 머티리얼 인스턴스를 더블클릭합니다. 그러면 머티리얼 인스턴스 에디터에 머티리얼 인스턴스가 열립니다.
+
+2.  **디테일** 패널에서 **General > Parent** 세팅을 찾습니다. 이 머티리얼 인스턴스가 기반한 머티리얼 그래프를 제공하는 부모 머티리얼을 알 수 있습니다.  
+    
+    ![](material-instance-parent-setting.png "material-instance-parent-setting.png")
+
+3.  **Parent** (부모)에 대한 섬네일 이미지를 더블클릭합니다.  
+    
+    ![](material-instance-parent-thumbnail.png "material-instance-parent-thumbnail.png")  
+    
+    그러면 머티리얼 에디터에 부모 머티리얼이 열리고, 그 머티리얼 그래프를 확인할 수 있습니다.
+    [REGION:tip]
+    툴바의 **계층구조** 버튼으로도 부모 머티리얼을 선택해 열 수 있습니다.  
+    ![](material-instance-hierarchy.png "material-instance-hierarchy.png")
+    [/REGION]
+
+4.  부모 머티리얼 에디터의 메인 메뉴에서 **파일 > 다른 이름으로 저장** 한 뒤 프로젝트의 콘텐츠 폴더 내 아무 위치에 부모 머티리얼 사본을 저장합니다.  
+    
+    ![](material-parent-saveas.png "material-parent-saveas.png")
+
+5.  머티리얼 인스턴스로 돌아가 **General > Parent** 세팅을 새로 만든 마스터 머티리얼로 설정합니다.  
+    
+    ![](material-instance-change-parent.png "material-instance-change-parent.png")
+
+6.  머티리얼 인스턴스를 **저장** 합니다.
+
+## 최종 결과
+
+데이터스미스가 할당한 기본 부모 머티리얼을 복제해서 새 부모 머티리얼을 만들고, 새 부모 머티리얼을 자신의 머티리얼 인스턴스로 할당했습니다. 이제 복제된 마스터 머티리얼의 그래프 및 세팅 변경 사항이 머티리얼 인스턴스에 즉시 적용됩니다. 그리고 데이터스미스 씬 애셋을 리임포트해도, 복제된 부모 머티리얼의 수정 사항을 잃지 않습니다.

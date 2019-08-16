@@ -321,7 +321,7 @@ void SPlacementModeTools::Construct( const FArguments& InArgs )
 	}
 
 	TSharedRef<SScrollBar> ScrollBar = SNew(SScrollBar)
-		.Thickness(FVector2D(5, 5));
+		.Thickness(FVector2D(9.0f, 9.0f));
 
 	ChildSlot
 	[

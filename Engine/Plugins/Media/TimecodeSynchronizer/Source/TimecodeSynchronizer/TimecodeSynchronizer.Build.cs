@@ -4,26 +4,26 @@ using UnrealBuildTool;
 
 public class TimecodeSynchronizer : ModuleRules
 {
-    public TimecodeSynchronizer(ReadOnlyTargetRules Target) : base(Target)
-    {
-        PublicDependencyModuleNames.AddRange(
-            new string[] {
-                "Core",
-                "CoreUObject",
-                "Engine",
-                "Media",
-                "MediaAssets",
-                "MediaUtils",
-                "TimeManagement",
-            });
+	public TimecodeSynchronizer(ReadOnlyTargetRules Target) : base(Target)
+	{
+		PublicDependencyModuleNames.AddRange(
+			new string[] {
+				"Core",
+				"CoreUObject",
+				"Engine",
+				"MediaAssets",
+				"MediaUtils",
+				"TimeManagement",
+			});
 
-        if (Target.bBuildEditor == true)
-        {
-            PrivateDependencyModuleNames.AddRange(
-                new string[] {
-                "MediaPlayerEditor",
-                "SlateCore",
-                });
-        }
-    }
+		if (Target.bBuildEditor == true)
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[] {
+				"MediaPlayerEditor",
+				"Slate",
+				"SlateCore",
+				});
+		}
+	}
 }

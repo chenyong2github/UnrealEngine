@@ -5,6 +5,7 @@
 #include "IAudioExtensionPlugin.h"
 #include "AudioPluginUtilities.h"
 #include "AudioCompressionSettings.h"
+#include "AudioStreamingCache.h"
 
 class ENGINE_API FPlatformCompressionUtilities
 {
@@ -19,7 +20,19 @@ public:
 
 	static int32 GetQualityIndexOverrideForCurrentPlatform();
 
-	static const FPlatformAudioCookOverrides* GetCookOverridesForCurrentPlatform();
+	static void RecacheCookOverrides();
+
+	static const FPlatformAudioCookOverrides* GetCookOverridesForCurrentPlatform(bool bForceRecache = false);
+
+	static bool IsCurrentPlatformUsingStreamCaching();
+
+	static const FAudioStreamCachingSettings& GetStreamCachingSettingsForCurrentPlatform();
+
+	/** This is used at runtime to initialize FCachedAudioStreamingManager. */
+	static FCachedAudioStreamingManagerParams BuildCachedStreamingManagerParams();
+
+	/** This is used at runtime in BuildCachedStreamingManagerParams, as well as cooktime in FStreamedAudioCacheDerivedDataWorker::BuildStreamedAudio to split compressed audio.  */
+	static uint32 GetMaxChunkSizeForCookOverrides(const FPlatformAudioCookOverrides* InCompressionOverrides);
 
 private:
 	static const FPlatformRuntimeAudioCompressionOverrides* GetRuntimeCompressionOverridesForCurrentPlatform();

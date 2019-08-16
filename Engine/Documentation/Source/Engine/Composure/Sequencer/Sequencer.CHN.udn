@@ -1,0 +1,70 @@
+﻿INTSourceChangelist:6414631
+Availability: Public
+Title: 用Sequencer进行实时合成
+Description: 包含虚幻引擎4参考和指南的产品文档
+Type: multi-step
+Parent: Engine/Composure
+Tags: Early Access
+Tags:Getting Started
+Order: 2
+reference-image:image1.gif
+reference-image:image4.gif
+
+[TOC (start:2 end:4)]
+
+[Sequencer](Engine/Sequencer/Overview)是我们引擎中的过场动画编辑器，可与Composure合成系统结合使用。   
+
+[REGION:asyncgif]
+![](image1.gif "image1.gif")
+[/REGION]
+
+Sequencer主要可用于： 
+
+1.  控制场景摄像机（由合成系统引用）。
+
+1.  渲染合成内容及其贡献部分，包括任意输出值（AOV）。这实用于引擎之外的合成。
+
+## 渲染元素和AOV
+
+使用 **渲染影片设置（Render Movie Settings）** 对话框和 **Composure导出（ComposureExport）** 输出格式渲染序列时，可将任意Composure元素添加到序列中，指出其输出应被导出。
+
+![](image2.png "image2.png")
+
+当这些元素作为此进程的一部分被渲染时，它们的最终输出将用对话框中指定的文件名格式作为EXR图像来写入磁盘。额外的格式说明符可以包含在 **{element}** 和 **{pass}** 的目录和文件名选项中。
+[REGION:note]
+在Sequencer中为 **导出输出** 包含多个元素时，如果名称中不包含 **{element}**，则它们将写入到同一图像文件上。
+[/REGION]
+
+![](image3.png "image3.png")
+
+在任意CG采集上配置 **要导出的缓冲（Buffers to Export）**，即可在每个元素上指定随每个元素导出的额外AOV。
+
+[REGION:asyncgif]
+![](image4.gif "image4.gif")
+[/REGION]
+
+添加新的缓冲显示材质，并使用以下格式将它们添加`[Engine.BufferVisualizationMaterials]`配置部分后，即可实现自定义AOV：
+
+`CustomAOV=(Material="/Game/AOVs/CustomAOV.CustomAOV", Name=LOCTEXT("CustomAOV", "CustomAOV"))`
+
+## 用Sequencer进行合成
+
+[OBJECT:EmbeddedVideo]
+    [PARAMLITERAL:videoid]
+    4zWPlcnJ5is
+    [/PARAMLITERAL]
+    [PARAMLITERAL:width]
+    78
+    [/PARAMLITERAL]
+    [PARAMLITERAL:height]
+    56.25
+    [/PARAMLITERAL]
+    [PARAMLITERAL:units]
+    %
+    [/PARAMLITERAL]
+    [PARAMLITERAL:type]
+    simple
+    [/PARAMLITERAL]
+[/OBJECT]
+
+

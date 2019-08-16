@@ -48,6 +48,26 @@ DECLARE_CYCLE_STAT(TEXT("TrailEmitterInstance Init GT"), STAT_TrailEmitterInstan
 
 #define MAX_TRAIL_INDICES	65535
 
+namespace FXConsoleVariables
+{
+	int32 MaxDistanceTessellation = MAX_TRAIL_INDICES;
+	int32 MaxTangentTessellation = MAX_TRAIL_INDICES;
+
+	FAutoConsoleVariableRef CVarMaxDistanceTessellation(
+		TEXT("FX.Trail.MaxDistanceTessellation"),
+		MaxDistanceTessellation,
+		TEXT("Maximum tessellation steps allowed for distance based tessellation."),
+		ECVF_Default
+	);
+
+	FAutoConsoleVariableRef CVarMaxTangentTessellation(
+		TEXT("FX.Trail.MaxTangentTessellation"),
+		MaxTangentTessellation,
+		TEXT("Maximum tessellation steps allowed for tangent based tessellation."),
+		ECVF_Default
+	);
+}
+
 /*-----------------------------------------------------------------------------
 	FParticleTrailsEmitterInstance_Base.
 -----------------------------------------------------------------------------*/
@@ -2223,7 +2243,8 @@ bool FParticleRibbonEmitterInstance::ResolveSourcePoint(int32 InTrailIdx,
 						{
 							case EPSSM_Random:
 							{
-								Index = FMath::TruncToInt(FMath::FRand() * SourceEmitter->ActiveParticles);
+								FRandomStream& RandomStream = SourceModule->GetRandomStream(this);
+								Index = RandomStream.RandHelper(SourceEmitter->ActiveParticles);
 							}
 								break;
 							case EPSSM_Sequential:
@@ -2494,7 +2515,7 @@ void FParticleRibbonEmitterInstance::DetermineVertexAndTriangleCount()
 
 					//@todo. Need to adjust the tangent diff count when the distance is REALLY small...
 					float TangDiff = CheckTangent * TrailTypeData->TangentTessellationScalar;
-					int32 InterpCount = FMath::TruncToInt(DistDiff) + FMath::TruncToInt(TangDiff);
+					int32 InterpCount = FMath::Min(FMath::TruncToInt(DistDiff), FXConsoleVariables::MaxDistanceTessellation) + FMath::Min(FMath::TruncToInt(TangDiff), FXConsoleVariables::MaxTangentTessellation);
 
 					// There always is at least 1 point (the source particle itself)
 					InterpCount = (InterpCount > 0) ? InterpCount : 1;
@@ -3768,7 +3789,7 @@ void FParticleAnimTrailEmitterInstance::DetermineVertexAndTriangleCount()
 						// Determine the number of rendered interpolated points between these two particles
 						float CheckDistance = (CurrParticle->Location - PrevParticle->Location).Size();
 						float DistDiff = CheckDistance / TrailTypeData->DistanceTessellationStepSize;
-						InterpCount += FMath::TruncToInt(DistDiff);
+						InterpCount += FMath::Min(FMath::TruncToInt(DistDiff), FXConsoleVariables::MaxDistanceTessellation);
 					}
 					
 					if (bApplyTangentTessellation )
@@ -3787,7 +3808,7 @@ void FParticleAnimTrailEmitterInstance::DetermineVertexAndTriangleCount()
 							CheckTangent = FMath::Max( CheckTangent, NextCheckTangent );
 						}		
 						float TangDiff = CheckTangent / TangentTessellationStepSize;
-						InterpCount += FMath::TruncToInt(TangDiff);
+						InterpCount += FMath::Min(FMath::TruncToInt(TangDiff), FXConsoleVariables::MaxTangentTessellation);
 					}
 
 					if( bApplyWidthTessellation )

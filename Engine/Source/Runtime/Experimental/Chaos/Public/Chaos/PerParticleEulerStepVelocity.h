@@ -33,5 +33,10 @@ class TPerParticleEulerStepVelocity : public TPerParticleRule<T, d>
 		TVector<T, d> L = InParticles.I(Index) * InParticles.W(Index);
 		InParticles.W(Index) += InParticles.InvI(Index) * (InParticles.Torque(Index) - TVector<T, d>::CrossProduct(InParticles.W(Index), L)) * Dt;
 	}
+	
+	inline void Apply(TTransientPBDRigidParticleHandle<T, d>& Particle, const T Dt) const override //-V762
+	{
+		Particle.V() += Particle.F() * Particle.InvM() * Dt;
+	}
 };
 }

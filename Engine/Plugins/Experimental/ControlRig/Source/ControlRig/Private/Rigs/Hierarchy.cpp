@@ -10,6 +10,8 @@
 
 void FRigHierarchy::Sort()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	TMap<int32, TArray<int32>> HierarchyTree;
 
 	TArray<int32> SortedArray;
@@ -69,6 +71,8 @@ void FRigHierarchy::Sort()
 
 void FRigHierarchy::RefreshMapping()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	Sort();
 
 	NameToIndexMapping.Empty();
@@ -80,6 +84,8 @@ void FRigHierarchy::RefreshMapping()
 
 void FRigHierarchy::Initialize()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+	
 	RefreshMapping();
 
 	// update parent index
@@ -101,11 +107,15 @@ void FRigHierarchy::Initialize()
 
 void FRigHierarchy::Reset()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	Bones.Reset();
 }
 
 void FRigHierarchy::ResetTransforms()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	// initialize transform
 	for (int32 Index = 0; Index < Bones.Num(); ++Index)
 	{
@@ -116,6 +126,8 @@ void FRigHierarchy::ResetTransforms()
 
 void FRigHierarchy::PropagateTransform(int32 BoneIndex)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	const TArray<int32> Dependents = Bones[BoneIndex].Dependents;
 	for (int32 DependentIndex = 0; DependentIndex<Dependents.Num(); ++DependentIndex)
 	{
@@ -135,6 +147,8 @@ bool FRigHierarchyRef::CreateHierarchy(const FName& RootName, const FRigHierarch
 
 bool FRigHierarchyRef::CreateHierarchy(const FName& RootName, const FRigHierarchy* SourceHierarchy)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (Container)
 	{
 		FRigHierarchy* Found = Container->Find(Name);
@@ -193,6 +207,8 @@ bool FRigHierarchyRef::CreateHierarchy(const FName& RootName, const FRigHierarch
 
 bool FRigHierarchyRef::MergeHierarchy(const FRigHierarchy* InSourceHierarchy)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	// copy from source to this
 	FRigHierarchy* MyHierarchy = Get();
 	if (InSourceHierarchy && MyHierarchy)
@@ -223,6 +239,8 @@ bool FRigHierarchyRef::MergeHierarchy(const FRigHierarchy* InSourceHierarchy)
 
 bool FRigHierarchyRef::MergeHierarchy(const FRigHierarchyRef& SourceHierarchyRef)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	return MergeHierarchy(SourceHierarchyRef.Get());
 }
 

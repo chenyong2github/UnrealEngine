@@ -16,6 +16,7 @@ struct RAWINPUT_API FRawInputDeviceAxisProperties
 	FRawInputDeviceAxisProperties()
 		: bEnabled(true)
 		, bInverted(false)
+		, bGamepadStick(false)
 		, Offset(0.f)
 	{
 	}
@@ -31,6 +32,10 @@ struct RAWINPUT_API FRawInputDeviceAxisProperties
 	/** Whether the value of the axis as supplied from the driver should be inverted. */
 	UPROPERTY(EditAnywhere, Category="Axis Properties", meta=(EditCondition="bEnabled"))
 	uint8 bInverted:1;
+
+	/** Whether this is a gamepad stick, which means it should scale from -1 to 1 instead of 0 to 1 */
+	UPROPERTY(EditAnywhere, Category="Axis Properties", meta=(EditCondition="bEnabled"))
+	uint8 bGamepadStick:1;
 
 	/** The amount to offset the axis value by to get the desired range (note that this offset is applied after the value has been inverted). */
 	UPROPERTY(EditAnywhere, Category="Axis Properties", meta=(EditCondition="bEnabled"))
@@ -63,11 +68,11 @@ struct RAWINPUT_API FRawInputDeviceConfiguration
 
 	FRawInputDeviceConfiguration();
 
-	// The hexadecimal vendor ID in string form (i.e. 0x046D)
+	/** The hexadecimal vendor ID in string form (e.g. 0x046D). If this is empty, will match all vendors */
 	UPROPERTY(EditAnywhere, Category="Device Config")
 	FString VendorID;
 
-	// The hexadecimal product ID in string form (i.e. 0xC262)
+	/** The hexadecimal product ID in string form (e.g. 0xC262). If this is empty, will match all products */
 	UPROPERTY(EditAnywhere, Category="Device Config")
 	FString ProductID;
 
@@ -98,7 +103,12 @@ public:
 #endif
 	// End UDeveloperSettings Interface
 
+	/** List of bindings to apply based on Vendor and Product Id, these are applied in order. To set a default, add an entry with empty product/vendor id at the end of the array */
 	UPROPERTY(config, EditAnywhere, Category="Device Configurations")
 	TArray<FRawInputDeviceConfiguration> DeviceConfigurations;
+
+	/** Whether the plugin should try to register a default device to handle generic gamepads and joysticks */
+	UPROPERTY(config, EditAnywhere, Category="Device Configurations")
+	bool bRegisterDefaultDevice = true;
 };
 

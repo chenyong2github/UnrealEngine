@@ -100,6 +100,7 @@ protected:
 	virtual bool StreamCompressedInfoInternal(USoundWave* Wave, struct FSoundQualityInfo* QualityInfo) override;
 
 private:
+	const uint8* GetLoadedChunk(USoundWave* InSoundWave, uint32 ChunkIndex, uint32& OutChunkSize);
 
 	struct FVorbisFileWrapper* VFWrapper;
 	const uint8* SrcBufferData;
@@ -115,5 +116,8 @@ private:
 	int32 NextStreamingChunkIndex;
 	uint32 CurrentStreamingChunksSize;
 	bool bHeaderParsed;
+
+	// This handle is used to ensure that a chunk currently being decoded isn't evicted until we are done with it.
+	FAudioChunkHandle CurCompressedChunkHandle;
 };
 #endif

@@ -64,6 +64,9 @@ public:
 	bool IsOnline() const;
 	bool IsPlayingThisGame() const;
 	
+	virtual bool CanReceiveOfflineInvite() const { return false; }
+	virtual int32 GetCustomSortValue() const { return 0; }
+
 	bool SetUserLocalAttribute(ESocialSubsystem SubsystemType, const FString& AttrName, const FString& AttrValue);
 	bool GetUserAttribute(ESocialSubsystem SubsystemType, const FString& AttrName, FString& OutAttrValue) const;
 
@@ -145,6 +148,8 @@ private:
 	
 	void SetUserInfo(ESocialSubsystem SubsystemType, const TSharedRef<FOnlineUser>& UserInfo);
 	void HandleQueryUserInfoComplete(ESocialSubsystem SubsystemType, bool bWasSuccessful, const TSharedPtr<FOnlineUser>& UserInfo);
+
+	virtual FString SanitizePresenceString(FString InString) const;
 	
 private:
 

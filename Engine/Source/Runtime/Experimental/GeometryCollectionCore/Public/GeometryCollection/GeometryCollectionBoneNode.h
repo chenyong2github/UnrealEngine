@@ -4,7 +4,7 @@
 #include "Containers/Set.h"
 #include "CoreMinimal.h"
 
-struct FGeometryCollectionBoneNode
+struct /*UE_DEPRECATED(4.22, "Use the split out Level, Parent, Children.. Managed Arrays instead")*/ FGeometryCollectionBoneNode
 {
 	static const int32 InvalidBone = -1;
 	static const int32 InvalidLevel = -1;
@@ -12,10 +12,13 @@ struct FGeometryCollectionBoneNode
 	enum ENodeFlags : uint32
 	{
 		// A node is currently either a geometry node (bit set) or a null node with a transform only (bit zero)
-		FS_Geometry  = 0x00000001,
+		FS_Geometry = 0x00000001,
 
 		// additional flags
-		FS_Clustered = 0x00000002,	
+		FS_Clustered = 0x00000002,
+
+		// Gets deleted from world instead of becoming a fractured chunk in the world
+		FS_RemoveOnFracture = 0x00000004
 	};
 
 	FGeometryCollectionBoneNode(int32 LevelIn, int32 ParentIn, uint32 StatusFlagsIn)

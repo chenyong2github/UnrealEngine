@@ -25,6 +25,16 @@
       "Type": "Editor",
       "LoadingPhase": "Default"
     },
+	{
+      "Name": "GeometryCollectionTracks",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    },
+    {
+      "Name": "GeometryCollectionSequencer",
+      "Type": "Editor",
+      "LoadingPhase": "Default"
+    },
     ],
 	"Plugins": [
 		{

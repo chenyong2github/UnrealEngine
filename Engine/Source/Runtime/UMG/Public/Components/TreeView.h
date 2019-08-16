@@ -58,7 +58,13 @@ protected:
 	template <template<typename> class TreeViewT = STreeView>
 	TSharedRef<TreeViewT<UObject*>> ConstructTreeView()
 	{
-		MyListView = MyTreeView = ITypedUMGListView<UObject*>::ConstructTreeView<TreeViewT>(this, ListItems, SelectionMode, bClearSelectionOnClick, ConsumeMouseWheel);
+		FTreeViewConstructArgs Args;
+		Args.bClearSelectionOnClick = bClearSelectionOnClick;
+		Args.SelectionMode = SelectionMode;
+		Args.ConsumeMouseWheel = ConsumeMouseWheel;
+
+		MyListView = MyTreeView = ITypedUMGListView<UObject*>::ConstructTreeView<TreeViewT>(this, ListItems, Args);
+		MyTreeView->SetOnEntryInitialized(SListView<UObject*>::FOnEntryInitialized::CreateUObject(this, &UTreeView::HandleOnEntryInitializedInternal));
 		return StaticCastSharedRef<TreeViewT<UObject*>>(MyTreeView.ToSharedRef());
 	}
 

@@ -1,6 +1,55 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Types/ReflectionMetadata.h"
+#include "Widgets/SWidget.h"
+
+FString FReflectionMetaData::GetWidgetPath(const SWidget* InWidget, bool bShort, bool bNativePathOnly)
+{
+	if (!InWidget)
+	{
+		return TEXT("None");
+	}
+
+	return GetWidgetPath(*InWidget, bShort, bNativePathOnly);
+}
+
+FString FReflectionMetaData::GetWidgetPath(const SWidget& InWidget, bool bShort, bool bNativePathOnly)
+{
+	FString WidgetPath;
+
+	int32 bWidgetsInPath = 0;
+
+	const SWidget* CurrentWidget = &InWidget;
+	while (CurrentWidget)
+	{
+		TSharedPtr<FReflectionMetaData> MetaData = CurrentWidget->GetMetaData<FReflectionMetaData>();
+		if (!bNativePathOnly && MetaData.IsValid())
+		{
+			WidgetPath.InsertAt(0, MetaData->Name.ToString());
+		}
+		else
+		{
+			WidgetPath.InsertAt(0, CurrentWidget->GetReadableLocation());
+		}
+
+		CurrentWidget = CurrentWidget->GetParentWidget().Get();
+
+		if (CurrentWidget)
+		{
+			WidgetPath.InsertAt(0, TEXT("/"));
+
+			bWidgetsInPath++;
+
+			if (bShort && bWidgetsInPath >= 5)
+			{
+				WidgetPath.InsertAt(0, TEXT("..."));
+				break;
+			}
+		}
+	}
+
+	return WidgetPath;
+}
 
 FString FReflectionMetaData::GetWidgetDebugInfo(const SWidget* InWidget)
 {

@@ -1,44 +1,45 @@
-﻿Availability: Public
+﻿INTSourceChangelist:3108692
+Availability: Public
 Title:5路混合材质
 Crumbs:%ROOT%, Engine, Engine/UI/LevelEditor/Modes/MeshPaintMode/VertexColor, Engine/UI/LevelEditor/Modes/MeshPaintMode/VertexColor/MaterialSetup
-Description:关于设置材质进行5路(1-ARGB)贴图混合的指南。
+Description:为5路(1-ARGB)纹理混合设置材质的指南。
+Version: 4.9
+SkillLevel: Intermediate
 
 
+要在混合权重设置中处理5个纹理，您需要创建一个类似于这样的材质：
 
-要想在混合权重设置中处理5张贴图，您需要创建一个类似于这样的材质:
+![](5-Way_Material.png)
 
-**点击查看完整尺寸**
+该材质的工作原理和3路材质混合及4路材质混合的设置类似。但是，我们现在通过利用alpha值减一来获得第五个颜色。下面是工作原理：
 
-[![](5-Way_Material.png)(w:720)](5-Way_Material.png)
-
-这个材质的工作原理和3路材质混合及4路材质混合的设置类似。但是，我们现在通过利用1减去alpha值来获得第五个颜色。以下是工作原理：
-
-* 每个颜色通道(ARGB)有其各自的Linear Interpolation（线性插值）表达式。
-* 添加了一个额外的Lerp ，它由1减去Vertex Color(顶点颜色)节点的alpha值后所得的值驱动。这将是第五个颜色。
-* 每个贴图都连入到其对应Lerp节点的B输入端。
-* 和Texture 1对应的Lerp连入到材质中，并且其alpha端和顶点颜色的Alpha 通道相连。
-* 和Texture 2对应的Lerp连接到和Texture 1对应的Lerp的A输入端，并且其alpha端和顶点颜色的Red （红色）通道相连。
-* 和Texture 3对应的Lerp连接到和Texture 2对应的Lerp的A输入端，并且其alpha端和顶点颜色的Green（绿色）通道相连。
-* 和Texture 4对应的Lerp连接到和Texture 3对应的Lerp的A输入端，并且其alpha端和顶点颜色的Blue （蓝色）通道相连。
-* 和Texture 5对应的Lerp连接到和Texture 4对应的Lerp的A输入端，并且其alpha端由1减去顶点颜色的alpha值后所得值驱动。
-* Texture 1也环绕回来，连接到第五个即最后一个Lerp的A端。这使得Texture 1成为默认贴图。
+* 每个颜色通道(ARGB)有其各自的Linear Interpolation（线性插值）表达式。 
+* 添加了一个额外的插值 ，它由1减去顶点颜色（Vertex Color）节点的alpha值后所得的值驱动。这将是第五个颜色。
+* 每个纹理插入到其对应插值节点的B输入。
+* 与纹理1对应的插值插入到材质中，并且其alpha由顶点颜色的Alpha通道驱动。
+* 与纹理2对应的插值连接到与纹理1对应的插值的A输入，并且其alpha由顶点颜色的红色（Red）通道驱动。
+* 与纹理3对应的插值连接到与纹理2对应的插值的A输入，并且其alpha由顶点颜色的绿色（Green）通道驱动。
+* 与纹理4对应的插值连接到与纹理3对应的插值的A输入，并且其alpha由顶点颜色的蓝色（Blue）通道驱动。
+* 与纹理5对应的插值连接到与纹理4对应的插值的A输入，并且其alpha由顶点颜色的1-alpha驱动。
+* 纹理1也环绕回来，连接到第五个即最后一个插值的A端。这使得纹理1成为默认纹理。
 
 
-一旦这样设置后，Blend Weights(混合权重)的 _Texture Count（贴图数量）_ 应该设置为  **5 (1-ARGB)** 。
+一旦这样设置后，混合权重（Blend Weights）的 _纹理数量（Texture Count）_ 应该设置为 **5 (1-ARGB)**。 
 
 ![](5-Way_Setting.png)
 
-以下是这个材质的示例，首先在RGB模式下查看该网格物体，展示了设置的顶点颜色。注意，这个设置中， _alpha_ (显示为黑色)和 Texture 1 对应， _红色_ 和Texture 2对应， _绿色_ 和Texture 3对应， _蓝色_ 和Texture 4对应。附带地alpha也应用于Texture 5，也显示为位于底部的黑色。
+下面是该材质的一个示例，首先在RGB模式下查看该网格体，展示了适当位置的顶点颜色。注意，在该设置中， _alpha_（显示为黑色）与纹理1对应，_红色_ 与纹理2对应，_绿色_ 与纹理3对应，_蓝色_与纹理4对应。附带地alpha也应用于纹理5，并且也在底部显示为黑色。
 
 ![](5-Way_VertexColor.png)(w:400)
 
-这里是最终结果：
+下面是最终结果：
 
 ![](5-way_result.png)(w:400)
 
-注意，第一张图片中的顶点颜色是黑色(Texture 1),没有任何改变。这是因为Texture 1也连入到了第四个Lerp表达式的A输入端（如上所示），从而使其成为了默认贴图。从本质上讲，您以Texture 1为起始点，可以根据需要在其上面描画贴图 2、3和4 ，或者可以把Texture 1再次描画回到它们之上。
+注意，第一张图片中的顶点颜色是黑色（纹理1），没有任何改变。这是因为纹理1也插入到了第四个插值表达式的A输入（如上所示），从而使其成为了默认纹理。从本质上讲，您以纹理1为起始点，可以根据需要在其上面绘制纹理2、3和4，也可以在任何时候将纹理1再次绘制回到它们之上。
 
 [REGION:note]
-	如果您要反复地设置这样的材质，那么最好设置一个自定义的[材质函数](Engine/Rendering/Materials/Functions)!
+	如果您要反复设置这样的材质，那么最好部署一个自定义的[材质函数](Engine/Rendering/Materials/Functions)！
 [/REGION]
+
 

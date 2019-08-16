@@ -1,0 +1,30 @@
+﻿INTSourceChangelist:6426975
+Availability: Public
+Title: Android 게임 개발
+Crumbs:%ROOT%, Platforms
+Description:Android 플랫폼용 게임 개발 관련입니다.
+Platform:Android
+Navigation:platform
+version: 4.9
+tags:Android
+tags:Mobile
+parent:Platforms/Mobile
+type:landing
+Topic-image:AndroidGameDevelopment_topic.png
+
+## 시작하기
+
+[DIR(output:"topic" parent:"Platforms/Mobile/Android" type:"quick start")]
+
+## 가이드
+	
+[DIR(end:"1" output:"fancy" type:"how-to" parent:"Platforms/Mobile/Android" skill_level:"Beginner")]
+[DIR(end:"1" output:"fancy" type:"how-to" parent:"Platforms/Mobile/Android" skill_level:"Intermediate")]
+[DIR(end:"1" output:"fancy" type:"how-to" parent:"Platforms/Mobile/Android" skill_level:"Advanced")]
+
+## 레퍼런스
+
+%Platforms/Mobile/UnrealPluginLanguage:topic%
+[DIR(end:"1" output:"topic" type:"overview" parent:"Platforms/Mobile/Android")]
+[DIR(end:"1" output:"topic" type:"reference" parent:"Platforms/Mobile/Android")]
+

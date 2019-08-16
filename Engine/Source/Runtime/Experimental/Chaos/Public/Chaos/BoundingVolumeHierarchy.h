@@ -8,36 +8,99 @@
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/Transform.h"
 #include "ChaosLog.h"
+#include "Chaos/ISpatialAcceleration.h"
+#include "Templates/Models.h"
+
+template <typename T, bool>
+struct TBVHLeafTraits
+{
+};
+
+template <typename T>
+struct TBVHLeafTraits<T, true>
+{
+	using TPayloadType = typename T::TPayloadType;
+};
+
+template <typename T>
+struct TBVHLeafTraits<T, false>
+{
+	using TPayloadType = typename T::ElementType;
+};
+
+struct CComplexBVHLeaf
+{
+	template <typename T>
+	auto Requires(typename T::TPayloadType) ->void;
+};
 
 #define MIN_NUM_OBJECTS 5
 
 namespace Chaos
 {
-template<class OBJECT_ARRAY, class T, int d>
-class CHAOS_API TBoundingVolumeHierarchy
+
+template <typename T, int d>
+struct TBVHNode
+{
+	TBVHNode() {}
+	~TBVHNode() {}
+	TVector<T, d> MMin, MMax;
+	int32 MAxis;
+	TArray<int32> MChildren;
+	int32 LeafIndex;
+};
+
+template <typename T, int d>
+FArchive& operator<<(FArchive& Ar, TBVHNode<T,d>& LeafNode)
+{
+	return Ar << LeafNode.LeafIndex << LeafNode.MAxis << LeafNode.MChildren << LeafNode.MMax << LeafNode.MMin;
+}
+
+template<class OBJECT_ARRAY, class LEAF_TYPE, class T, int d>
+class CHAOS_API TBoundingVolumeHierarchy final : public ISpatialAcceleration<int32, T,d>
 {
   public:
-	TBoundingVolumeHierarchy(const OBJECT_ARRAY& Objects, const int32 MaxLevels = 12);
-	TBoundingVolumeHierarchy(const TBoundingVolumeHierarchy<OBJECT_ARRAY, T, d>& Other) = delete;
-	TBoundingVolumeHierarchy(TBoundingVolumeHierarchy<OBJECT_ARRAY, T, d>&& Other)
-	    : MObjects(Other.MObjects), MGlobalObjects(MoveTemp(Other.MGlobalObjects)), MWorldSpaceBoxes(MoveTemp(Other.MWorldSpaceBoxes)), MMaxLevels(Other.MMaxLevels), Elements(MoveTemp(Other.Elements))
+	static constexpr int32 DefaultMaxLevels = 12;
+	static constexpr bool DefaultAllowMultipleSplitting = false;
+	static constexpr bool DefaultUseVelocity = false;
+	static constexpr T DefaultDt = 0;
+	using TPayloadType = typename TBVHLeafTraits<LEAF_TYPE, TModels<CComplexBVHLeaf, LEAF_TYPE>::Value>::TPayloadType;
+
+	TBoundingVolumeHierarchy(const OBJECT_ARRAY& Objects, const int32 MaxLevels = DefaultMaxLevels, const bool bUseVelocity = DefaultUseVelocity, const T Dt = DefaultDt);
+	TBoundingVolumeHierarchy(const OBJECT_ARRAY& Objects, const TArray<uint32>& ActiveIndices, const int32 MaxLevels = DefaultMaxLevels, const bool bUseVelocity = DefaultUseVelocity, const T Dt = DefaultDt);
+	
+	TBoundingVolumeHierarchy(const TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>& Other) = delete;
+	TBoundingVolumeHierarchy(TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>&& Other)
+	    : MObjects(Other.MObjects), MGlobalObjects(MoveTemp(Other.MGlobalObjects)), MWorldSpaceBoxes(MoveTemp(Other.MWorldSpaceBoxes)), MMaxLevels(Other.MMaxLevels), Elements(MoveTemp(Other.Elements)), Leafs(MoveTemp(Other.Leafs))
 	{
 	}
 
-	TBoundingVolumeHierarchy& operator=(TBoundingVolumeHierarchy<OBJECT_ARRAY, T, d>&& Other)
+	TBoundingVolumeHierarchy& operator=(TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>&& Other)
 	{
 		MObjects = Other.MObjects;
 		MGlobalObjects = MoveTemp(Other.MGlobalObjects);
 		MWorldSpaceBoxes = MoveTemp(Other.MWorldSpaceBoxes);
 		MMaxLevels = Other.MMaxLevels;
 		Elements = MoveTemp(Other.Elements);
+		Leafs = MoveTemp(Other.Leafs);
 		return *this;
 	}
 
-	void UpdateHierarchy(const bool AllowMultipleSplitting = false);
+	void UpdateHierarchy(const bool AllowMultipleSplitting = DefaultAllowMultipleSplitting, const bool bUseVelocity = DefaultUseVelocity, const T Dt = DefaultDt);
+	void UpdateHierarchy(const TArray<uint32>& ActiveIndices, const bool AllowMultipleSplitting = DefaultAllowMultipleSplitting, const bool bUseVelocity = DefaultUseVelocity, const T Dt = DefaultDt);
+
+	void Reinitialize(bool bUseVelocity, T Dt)
+	{
+		UpdateHierarchy(DefaultAllowMultipleSplitting, bUseVelocity, Dt);
+	}
+
+	void Reinitialize(const TArray<uint32>& ActiveIndices, bool bUseVelocity, T Dt)
+	{
+		UpdateHierarchy(ActiveIndices, DefaultAllowMultipleSplitting, bUseVelocity, Dt);
+	}
 
 	template<class T_INTERSECTION>
-	TArray<int32> FindAllIntersections(const T_INTERSECTION& Intersection) const
+	TArray<int32> FindAllIntersectionsImp(const T_INTERSECTION& Intersection) const
 	{
 		if (Elements.Num())
 		{
@@ -50,45 +113,64 @@ class CHAOS_API TBoundingVolumeHierarchy
 			return MGlobalObjects;
 		}
 	}
-	TArray<int32> FindAllIntersections(const TGeometryParticles<T, d>& InParticles, const int32 i) const;
+
+	// Begin ISpatialAcceleration interface
+	virtual TArray<int32> FindAllIntersections(const TBox<T, d>& Box) const override { return FindAllIntersectionsImp(Box); }
+	virtual TArray<int32> FindAllIntersections(const TSpatialRay<T,d>& Ray) const override { return FindAllIntersectionsImp(Ray); }
+	virtual TArray<int32> FindAllIntersections(const TVector<T, d>& Point) const override { return FindAllIntersectionsImp(Point); }
+	virtual TArray<int32> FindAllIntersections(const TGeometryParticles<T, d>& InParticles, const int32 i) const override;
+	// End ISpatialAcceleration interface
 
 	const TArray<int32>& GlobalObjects() const
 	{
 		return MGlobalObjects;
 	}
 
-  private:
-	struct Node
-	{
-		Node() {}
-		~Node() {}
-		TVector<T, d> MMin, MMax;
-		int32 MAxis;
-		TArray<int32> MObjects;
-		TArray<int32> MChildren;
-	};
+	// TODO(mlentine): Need to move this elsewhere; probably on CollisionConstraint
+	const TBox<T, d>& GetWorldSpaceBoundingBox(const TGeometryParticles<T, d>& InParticles, const int32 Index);
 
-	void PrintTree(FString Prefix, const Node* MyNode) const
+#if !UE_BUILD_SHIPPING
+	virtual void DebugDraw(ISpacialDebugDrawInterface<T>* InInterface) const override;
+#endif
+
+	void Serialize(FArchive& Ar);
+
+  private:
+	void PrintTree(FString Prefix, const TBVHNode<T,d>* MyNode) const
 	{
-		UE_LOG(LogChaos, Verbose, TEXT("%sNode has Box: (%f, %f, %f) to (%f, %f, %f) with %d Children and %d Objects"), *Prefix, MyNode->MMin[0], MyNode->MMin[1], MyNode->MMin[2], MyNode->MMax[0], MyNode->MMax[1], MyNode->MMax[2], MyNode->MChildren.Num(), MyNode->MObjects.Num());
+		UE_LOG(LogChaos, Verbose, TEXT("%sNode has Box: (%f, %f, %f) to (%f, %f, %f) with %d Children"), *Prefix, MyNode->MMin[0], MyNode->MMin[1], MyNode->MMin[2], MyNode->MMax[0], MyNode->MMax[1], MyNode->MMax[2], MyNode->MChildren.Num());
 		for (auto& Child : MyNode->MChildren)
 		{
 			PrintTree(Prefix + " ", &Elements[Child]);
 		}
 	}
 
-	TArray<int32> FindAllIntersectionsHelper(const Node& MyNode, const TVector<T, d>& Point) const;
-	TArray<int32> FindAllIntersectionsHelper(const Node& MyNode, const TBox<T, d>& ObjectBox) const;
-	void FindAllIntersectionsHelperRecursive(const Node& MyNode, const TBox<T, d>& ObjectBox, TArray<int32>& AccumulateElements, TSet<int32>& AccumulateSet) const;
+	TArray<int32> FindAllIntersectionsHelper(const TBVHNode<T,d>& MyNode, const TVector<T, d>& Point) const;
+	TArray<int32> FindAllIntersectionsHelper(const TBVHNode<T,d>& MyNode, const TBox<T, d>& ObjectBox) const;
+	TArray<int32> FindAllIntersectionsHelper(const TBVHNode<T, d>& MyNode, const TSpatialRay<T, d>& Ray) const;
+
+	template <typename QUERY_OBJECT>
+	void FindAllIntersectionsHelperRecursive(const TBVHNode<T,d>& MyNode, const QUERY_OBJECT& ObjectBox, TArray<int32>& AccumulateElements) const;
+	void UpdateHierarchyImp(const TArray<int32>& AllObjects, const bool bAllowMultipleSplitting, const bool bUseVelocity, const T Dt);
 
 	int32 GenerateNextLevel(const TVector<T, d>& GlobalMin, const TVector<T, d>& GlobalMax, const TArray<int32>& Objects, const int32 Axis, const int32 Level, const bool AllowMultipleSplitting);
 	int32 GenerateNextLevel(const TVector<T, d>& GlobalMin, const TVector<T, d>& GlobalMax, const TArray<int32>& Objects, const int32 Level);
 
 	OBJECT_ARRAY const* MObjects;
 	TArray<int32> MGlobalObjects;
-	TArray<TBox<T, d>> MWorldSpaceBoxes;
+	TMap<int32, TBox<T, d>> MWorldSpaceBoxes;
+	TArray<int32> MScratchAllObjects;
 	int32 MMaxLevels;
-	TArray<Node> Elements;
+	TArray<TBVHNode<T,d>> Elements;
+	TArray<LEAF_TYPE> Leafs;
 	FCriticalSection CriticalSection;
 };
+
+template<class OBJECT_ARRAY, class LEAF_TYPE, class T, int d>
+FArchive& operator<<(FArchive& Ar, TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>& BVH)
+{
+	BVH.Serialize(Ar);
+	return Ar;
+}
+
 }

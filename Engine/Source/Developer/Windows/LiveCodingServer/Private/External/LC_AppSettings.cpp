@@ -61,7 +61,7 @@ namespace
 		if (!file::IsDirectory(attributes))
 		{
 			// this is not a directory, but a full path
-			LC_SUCCESS_USER("Using %S at path %S", type, path.c_str());
+// EPIC REMOVED			LC_SUCCESS_USER("Using %S at path %S", type, path.c_str());
 			return path;
 		}
 
@@ -257,6 +257,15 @@ void appSettings::Startup(const wchar_t* group)
 		false
 	);
 
+	g_showTimestamps = new SettingBool
+	(
+		group,
+		L"show_timestamps",
+		L"Show timestamps",
+		L"Specifies whether output will show timestamps",
+		false
+	);
+
 	g_wordWrapOutput = new SettingBool
 	(
 		group,
@@ -434,7 +443,9 @@ void appSettings::Startup(const wchar_t* group)
 		L"install_compiled_patches_multi_process",
 		L"Install compiled patches",
 		L"Specifies whether compiled patches are installed into launched processes belonging to an existing process group",
-		false
+		// BEGIN EPIC MOD - changing default for restart functionality
+		true
+		// END EPIC MOD
 	);
 
 	g_amalgamationSplitIntoSingleParts = new SettingBool
@@ -484,6 +495,7 @@ void appSettings::Shutdown(void)
 	delete g_compileShortcut;
 
 	delete g_showUndecoratedNames;
+	delete g_showTimestamps;
 	delete g_wordWrapOutput;
 	delete g_enableDevLog;
 	delete g_enableTelemetryLog;
@@ -630,7 +642,7 @@ void appSettings::UpdateAmalgamatedCppFileExtensions(void)
 
 void appSettings::ApplySettingBool(const char* const settingName, bool value)
 {
-	const unsigned int COUNT = 20u;
+	const unsigned int COUNT = 21u;
 	SettingBool* settings[COUNT] =
 	{
 		g_showFullPathInTitle,
@@ -640,6 +652,7 @@ void appSettings::ApplySettingBool(const char* const settingName, bool value)
 		g_minimizeOnClose,
 		g_keepTrayIcon,
 		g_showUndecoratedNames,
+		g_showTimestamps,
 		g_wordWrapOutput,
 		g_enableDevLog,
 		g_enableTelemetryLog,
@@ -793,6 +806,7 @@ extern SettingString* appSettings::g_playSoundOnError = nullptr;
 extern SettingShortcut* appSettings::g_compileShortcut = nullptr;
 
 extern SettingBool* appSettings::g_showUndecoratedNames = nullptr;
+extern SettingBool* appSettings::g_showTimestamps = nullptr;
 extern SettingBool* appSettings::g_wordWrapOutput = nullptr;
 extern SettingBool* appSettings::g_enableDevLog = nullptr;
 extern SettingBool* appSettings::g_enableTelemetryLog = nullptr;

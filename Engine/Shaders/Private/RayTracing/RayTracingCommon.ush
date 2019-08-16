@@ -23,37 +23,35 @@ struct FBasicRayData
 	float TFar;
 };
 
-struct FBasicRayIntersectionData
+struct FMinimalPayload
 {
-	float  Distance;
-	uint   PrimitiveIndex; // 0xFFFFFFFF if no intersection if found
-	uint   InstanceIndex;  // 0xFFFFFFFF if no intersection if found
-	float2 Barycentrics;
+	float HitT; // Distance from ray origin to the intersection point in the ray direction. Negative on miss.
+
+	bool IsMiss() { return HitT < 0; }
+	bool IsHit() { return !IsMiss(); }
+
+	void SetMiss() { HitT = -1; }
 };
 
-struct FOcclusionPayload
+struct FIntersectionPayload : FMinimalPayload
 {
-	bool Hit;
+	uint   PrimitiveIndex; // Index of the primitive within the geometry inside the bottom-level acceleration structure instance. Undefined on miss.
+	uint   InstanceIndex;  // Index of the current instance in the top-level structure. Undefined on miss.
+	float2 Barycentrics;   // Primitive barycentric coordinates of the intersection point. Undefined on miss.
 };
 
-struct FDefaultPayload
+struct FDefaultPayload : FIntersectionPayload
 {
-	float2 Barycentrics;
-	uint   InstanceID;
-	uint   InstanceIndex;
-	uint   PrimitiveIndex;
-	float  HitT;
-	float2 Padding;
+	uint   InstanceID; // Value of FRayTracingGeometryInstance::UserData. Undefined on miss.
 };
 
 #define RAY_TRACING_DEFERRED_MATERIAL_KEY_INVALID   0xFFFFFFFF
 #define RAY_TRACING_DEFERRED_MATERIAL_KEY_RAY_MISS  0xFFFFFFFE
 
-struct FDeferredMaterialPayload
+struct FDeferredMaterialPayload : FMinimalPayload
 {
 	uint   SortKey;          // MaterialID by default
 	uint   PixelCoordinates; // X in low 16 bits, Y in high 16 bits
-	float  HitT;
 };
 
 struct FDefaultAttributes
@@ -75,59 +73,135 @@ FRayCone PropagateRayCone(in FRayCone Cone, in float SurfaceSpreadAngle, in floa
 	return NewCone;
 }
 
+float3 ReconstructWorldPositionFromDeviceZ(uint2 PixelCoord, float DeviceZ)
+{
+	float4 TranslatedWorldPosition = mul(float4(PixelCoord + 0.5, DeviceZ, 1), View.SVPositionToTranslatedWorld);
+	TranslatedWorldPosition.xyz /= TranslatedWorldPosition.w;
+	return TranslatedWorldPosition.xyz + View.WorldCameraOrigin;
+}
+
+void ReconstructWorldPositionAndCameraDirectionFromDeviceZ(uint2 PixelCoord, float DeviceZ, out float3 OutWorldPosition, out float3 OutCameraDirection)
+{
+	float4 TranslatedWorldPosition = mul(float4(PixelCoord + 0.5, DeviceZ, 1), View.SVPositionToTranslatedWorld);
+	TranslatedWorldPosition.xyz /= TranslatedWorldPosition.w;
+	OutWorldPosition = TranslatedWorldPosition.xyz + View.WorldCameraOrigin;
+	OutCameraDirection = normalize(TranslatedWorldPosition.xyz - View.TranslatedWorldCameraOrigin);
+}
+
+float3 ReconstructTranslatedWorldPositionFromDeviceZ(uint2 PixelCoord, float DeviceZ)
+{
+	float4 TranslatedWorldPosition = mul(float4(PixelCoord + 0.5, DeviceZ, 1), View.SVPositionToTranslatedWorld);
+	TranslatedWorldPosition.xyz /= TranslatedWorldPosition.w;
+	return TranslatedWorldPosition.xyz;
+}
+
+float3 ReconstructWorldPositionFromDepth(float2 UV, float Depth)
+{
+	float2 ScreenPosition = (UV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+	float4 HomogeneousWorldPosition = mul(float4(ScreenPosition * Depth, Depth, 1), View.ScreenToWorld);
+	float3 WorldPosition = HomogeneousWorldPosition.xyz / HomogeneousWorldPosition.w;
+
+	return WorldPosition;
+}
+
+uint CalcLinearIndex(uint2 PixelCoord)
+{
+	return PixelCoord.y * View.BufferSizeAndInvSize.x + PixelCoord.x;
+}
+
+uint2 GetPixelCoord(uint2 DispatchThreadId, uint UpscaleFactor)
+{
+	uint UpscaleFactorPow2 = UpscaleFactor * UpscaleFactor;
+
+	// TODO: find a way to not interfer with TAA's jittering.
+	uint SubPixelId = View.StateFrameIndex & (UpscaleFactorPow2 - 1);
+
+	return DispatchThreadId * UpscaleFactor + uint2(SubPixelId & (UpscaleFactor - 1), SubPixelId / UpscaleFactor);
+}
+
 #define RAY_TRACING_BLEND_MODE_OPAQUE				0
 #define RAY_TRACING_BLEND_MODE_ALPHA_COMPOSITE		1
 #define RAY_TRACING_BLEND_MODE_TRANSLUCENT			2
 #define RAY_TRACING_BLEND_MODE_ADDITIVE				3
 #define RAY_TRACING_BLEND_MODE_MODULATE				4
+#define RAY_TRACING_BLEND_MODE_ALPHA_HOLDOUT		5
 
-struct FMaterialClosestHitPayload
+#define RAY_TRACING_PAYLOAD_FLAG_FRONT_FACE         1 // Indicates that ray has hit front face of a primitive. Set by closest hit shader.
+#define RAY_TRACING_PAYLOAD_FLAG_MINIMAL_PAYLOAD    2 // Indicates that closest hit shader should only fill FMinimalPayload (HitT), skipping full material evaluation. Set by RayGen shader, before TraceRay().
+
+struct FMaterialClosestHitPayload : FMinimalPayload
 {
 										// Unpacked  Packed
 										// offset    bytes
-	FRayCone RayCone;					// 8         8       64bits
-	float HitT;							// 12        4       32bits
-
-	float3 Radiance;					// 24        6       48bits
-	float3 WorldNormal;					// 36        6       48bits
-	float3 BaseColor;					// 48        6       48bits
-	float3 DiffuseColor;				// 60        0       (derived)
-	float3 SpecularColor;				// 72        0       (derived)
-	float Opacity;						// 76        2       16bits
-	float Metallic;						// 80        1       8bits
-	float Specular;						// 84        1       8bits
-	float Roughness;					// 88        2       16bits
-	float Ior;							// 92        2       16bits
-	uint ShadingModelID;				// 96        1       4bits
-	uint BlendingMode;					// 100       0       4bits (packed with ShadingModelID)
-	uint PrimitiveLightingChannelMask;	// 104       0       (removed)
-	float4 CustomData;					// 120       4       32bits -- only xy are packed at the moment
-	float GBufferAO;					// 124       0       (removed)
-	float3 IndirectIrradiance;			// 136       0       48bits -- gbuffer only has float payload and there are truncation HLSL warnings
+	// float FMinimalPayload::HitT		// 0         4       32bits
+	FRayCone RayCone;					// 4         8       64bits
+	float3 Radiance;					// 8         6       48bits
+	float3 WorldNormal;					// 24        6       48bits
+	float3 BaseColor;					// 36        6       48bits
+	float3 DiffuseColor;				// 48        0       (derived)
+	float3 SpecularColor;				// 60        0       (derived)
+	float Opacity;						// 72        2       16bits
+	float Metallic;						// 76        1       8bits
+	float Specular;						// 80        1       8bits
+	float Roughness;					// 84        2       16bits
+	float Ior;							// 88        2       16bits
+	uint ShadingModelID;				// 92        1       4bits
+	uint BlendingMode;					// 96        0       4bits (packed with ShadingModelID)
+	uint PrimitiveLightingChannelMask;	// 100       0       (removed)
+	float4 CustomData;					// 104       4       32bits -- only xy are packed at the moment
+	float GBufferAO;					// 120       0       (removed)
+	float3 IndirectIrradiance;			// 124       0       48bits -- gbuffer only has float payload and there are truncation HLSL warnings
 
 	// Quite some code assume FRayHitInfo has a WorldPos
 	// So keep it here and force to re-construct it in Unpack call using ray information.
 	// It is not packed in FRayHitInfoPacked
-	float3 WorldPos;					// 148       0       (derived)
+	float3 WorldPos;					// 136       0       (derived)
+	uint Flags;							// 148       4       32bits
+										// 152 total
 
-	uint HitKind;						// 152       0       1bit (packed)
+	void SetMinimalPayloadMode() { Flags |= RAY_TRACING_PAYLOAD_FLAG_MINIMAL_PAYLOAD; }
+	bool IsMinimalPayloadMode() { return (Flags & RAY_TRACING_PAYLOAD_FLAG_MINIMAL_PAYLOAD) != 0; }
+
+	void SetFrontFace() { Flags |= RAY_TRACING_PAYLOAD_FLAG_FRONT_FACE; }
+	bool IsFrontFace() { return (Flags & RAY_TRACING_PAYLOAD_FLAG_FRONT_FACE) != 0; }
 };
 
 #define USE_PACKED_PAYLOAD 1
 
 #if !COMPUTESHADER
-#if USE_PACKED_PAYLOAD
-struct FPackedMaterialClosestHitPayload
+
+RayDesc CreatePrimaryRay(float2 UV)
 {
-	float HitT;                                         // 4  bytes
-	FRayCone RayCone;                                   // 8  bytes
+	float2 ScreenPosition = (UV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+	float3 RayStart_TranslatedWorld = View.TranslatedWorldCameraOrigin;
+	float4 RayEnd_TranslatedWorld = mul(float4(ScreenPosition, 1, 1), View.ScreenToTranslatedWorld);
+	RayEnd_TranslatedWorld *= rcp(RayEnd_TranslatedWorld.w);
+
+	RayDesc Ray;
+	Ray.Origin = View.WorldCameraOrigin;
+	Ray.Direction = normalize(RayEnd_TranslatedWorld.xyz - RayStart_TranslatedWorld);
+	Ray.TMin = 0.0;
+	Ray.TMax = 1.0e27;
+	return Ray;
+}
+
+#if USE_PACKED_PAYLOAD
+struct FPackedMaterialClosestHitPayload : FMinimalPayload
+{
+	// float FMinimalPayload::HitT                       // 4  bytes
+	FRayCone RayCone;                                    // 8  bytes
 	uint RadianceAndNormal[3];                           // 12 bytes
 	uint BaseColorAndOpacity[2];                         // 8  bytes
 	uint MetallicAndSpecularAndRoughness;                // 4  bytes
-	uint IorAndShadingModelIDAndBlendingModeAndHitKind;  // 4  bytes
+	uint IorAndShadingModelIDAndBlendingModeAndFlags;    // 4  bytes
 	uint IndirectIrradiance[2];                          // 8  bytes
 	uint CustomData;                                     // 4  bytes
-};                                                      // 52 bytes total
+	                                                     // 52 bytes total
+
+	void SetMinimalPayloadMode() { IorAndShadingModelIDAndBlendingModeAndFlags |= RAY_TRACING_PAYLOAD_FLAG_MINIMAL_PAYLOAD << 24; }
+	bool IsMinimalPayloadMode() { return ((IorAndShadingModelIDAndBlendingModeAndFlags >> 24) & RAY_TRACING_PAYLOAD_FLAG_MINIMAL_PAYLOAD) != 0; }
+
+};
 
 FPackedMaterialClosestHitPayload PackRayTracingPayload(FMaterialClosestHitPayload Input, in FRayCone RayCone)
 {
@@ -147,10 +221,10 @@ FPackedMaterialClosestHitPayload PackRayTracingPayload(FMaterialClosestHitPayloa
 	Output.MetallicAndSpecularAndRoughness  = (uint(round(Input.Metallic * 255.0f)) & 0xFF);
 	Output.MetallicAndSpecularAndRoughness |= (uint(round(Input.Specular * 255.0f)) & 0xFF) << 8;
 	Output.MetallicAndSpecularAndRoughness |= f32tof16(Input.Roughness) << 16;
-	Output.IorAndShadingModelIDAndBlendingModeAndHitKind  = f32tof16(Input.Ior);
-	Output.IorAndShadingModelIDAndBlendingModeAndHitKind |= (Input.ShadingModelID & 0xF) << 16;
-	Output.IorAndShadingModelIDAndBlendingModeAndHitKind |= (Input.BlendingMode & 0x7) << 20;
-	Output.IorAndShadingModelIDAndBlendingModeAndHitKind |= (Input.HitKind & 0x1) << 31;
+	Output.IorAndShadingModelIDAndBlendingModeAndFlags  = f32tof16(Input.Ior);                // 16 bits
+	Output.IorAndShadingModelIDAndBlendingModeAndFlags |= (Input.ShadingModelID & 0xF) << 16; // 4 bits
+	Output.IorAndShadingModelIDAndBlendingModeAndFlags |= (Input.BlendingMode & 0xF) << 20;   // 4 bits
+	Output.IorAndShadingModelIDAndBlendingModeAndFlags |= (Input.Flags & 0xF) << 24;          // 8 bits
 	Output.IndirectIrradiance[0] = f32tof16(Input.IndirectIrradiance.x);
 	Output.IndirectIrradiance[0] |= f32tof16(Input.IndirectIrradiance.y) << 16;
 	Output.IndirectIrradiance[1] = f32tof16(Input.IndirectIrradiance.z);
@@ -186,10 +260,10 @@ FMaterialClosestHitPayload UnpackRayTracingPayload(FPackedMaterialClosestHitPayl
 	Output.Metallic	   = float(Input.MetallicAndSpecularAndRoughness & 0xFF) / 255.0f;
     Output.Specular	   = float((Input.MetallicAndSpecularAndRoughness >> 8) & 0xFF) / 255.0f;
     Output.Roughness   = f16tof32(Input.MetallicAndSpecularAndRoughness >> 16);
-	Output.Ior			  = f16tof32(Input.IorAndShadingModelIDAndBlendingModeAndHitKind);
-	Output.ShadingModelID = (Input.IorAndShadingModelIDAndBlendingModeAndHitKind >> 16) & 0xF;
-	Output.BlendingMode	  = (Input.IorAndShadingModelIDAndBlendingModeAndHitKind >> 20) & 0x7;
-	Output.HitKind		  = (Input.IorAndShadingModelIDAndBlendingModeAndHitKind >> 31);
+	Output.Ior            = f16tof32(Input.IorAndShadingModelIDAndBlendingModeAndFlags);      // 16 bits
+	Output.ShadingModelID = (Input.IorAndShadingModelIDAndBlendingModeAndFlags >> 16) & 0xF;  // 4 bits
+	Output.BlendingMode	  = (Input.IorAndShadingModelIDAndBlendingModeAndFlags >> 20) & 0xF;  // 4 bits
+	Output.Flags          = (Input.IorAndShadingModelIDAndBlendingModeAndFlags >> 24) & 0xFF; // 8 bits
 	Output.IndirectIrradiance.x	= f16tof32(Input.IndirectIrradiance[0]);
 	Output.IndirectIrradiance.y	= f16tof32(Input.IndirectIrradiance[0] >> 16);
 	Output.IndirectIrradiance.z	= f16tof32(Input.IndirectIrradiance[1]);
@@ -263,6 +337,22 @@ void ApplyPositionBias(inout RayDesc Ray, const float3 WorldNormal, const float 
 
 	Ray.Origin += WorldNormal * NormalBias;
 }
+
+void ApplyCameraRelativeDepthBias(inout RayDesc Ray, uint2 PixelCoord, float DeviceZ, const float3 WorldNormal, const float AbsoluteNormalBias)
+{
+	float3 WorldPosition = ReconstructTranslatedWorldPositionFromDeviceZ(PixelCoord, DeviceZ);
+	float3 CameraDirection = WorldPosition - View.TranslatedWorldCameraOrigin;
+	float DistanceToCamera = length(CameraDirection);
+	CameraDirection = normalize(CameraDirection);
+	float Epsilon = 1.0e-4;
+	float RelativeBias = DistanceToCamera * Epsilon;
+	//float ProjectedBias = RelativeBias / dot(Ray.Direction, WorldNormal);
+
+	float RayBias = max(RelativeBias, AbsoluteNormalBias);
+	Ray.Origin -= CameraDirection * RayBias;
+	ApplyPositionBias(Ray, WorldNormal, RayBias);
+}
+
 #endif // !COMPUTESHADER
 
 #endif // RAYTRACINGCOMMON_USH_INCLUDED // Workarround for UE-66460

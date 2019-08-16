@@ -1,196 +1,223 @@
-﻿INTSourceChangelist:2874484
+﻿INTSourceChangelist:3467293
 Availability:Public
-Title:为虚幻 4 设置 Visual Studio
-Crumbs: %ROOT%, Programming, Programming\Development
-Description: 关于设置 Visual Studio 以便使用 UE4 进行开发的技巧和方法。
-Version: 4.9
+Title:为UE4设置Visual Studio
+Description:如何设置Visual Studio以使用虚幻引擎4进行开发的提示、技巧和技术。
+Crumbs: %ROOT%
+Parent:Programming/Development
+Order:
+Version: 4.16
+type:overview
+tags:Visual Studio
+skilllevel:Beginner
+topic-image:SettingUpVSForUE4_topic.png
 
-[TOC(start:2)]
+[TOC(start:2 end:3)]
 
 [EXCERPT:Intro]
-虚幻引擎 4 （UE4）从设计上就是面向 Visual Studio 的方便整合性，能够快速且方便的修改项目代码，并即刻得到编译反馈。根据 UE4 来正确设置 Visual Studio 能够提高工作效率，并获得更好的使用体验。
 
-在这篇文档中，将会涵盖 UE4 在 VS2013 上的基本的一些方法。
+虚幻引擎4(UE4)设计为可与Visual Studio顺利集成，允许您在项目中快速、轻松地更改代码，以便在编译完成时立即看到结果。 
+设置Visual Studio以配合UE4使用可以帮助使用UE4的开发人员提高效率和整体用户体验。
+
+在本文中，我们还将介绍设置UE4到VS2013工作流程的基础知识。
 [/EXCERPT:Intro]
 
-## 开始设置前
+(#beforesetting-upyourue4-to-vsworkflow)
 
-首先，要注意，Visual Studio 2015（VS2015）默认安装时并不包含 C++ 的工具。在安装 VS2015 时，需选择 **自定义** 安装并勾选 C++ 组件，这对之后的工作时必须的。如果已经安装了 Visual Studio
-2015 的话，可以选择 **File > New > Project > C++** 来安装 C++。
+## 设置您的UE4到VS工作流程之前
 
-下表中列出了 UE4 的版本和预整合的 Visual Studio 版本的对应关系。
+需要注意的是，Visual Studio 2015(VS2015)默认情况下不安装C++工具支持。安装VS2015时，选择 **自定义（Custom）** 安装，然后选择您的工作流程所需的C++组件。
+如果您已经安装了Visual Studio 2015，选择 **文件（File）> 新建（New）> 项目（Project）> C++** 来安装C++。
 
-| 虚幻引擎版本 | Visual Studio 版本 |
+下表列出了Visual Studio的哪些版本可与UE4的二进制版本集成。
+
+| 虚幻引擎版本     | Visual Studio版本 |
 | ------------------------- | --------------------- |
-| **4.10 及以后** | VS2015 |
-| **4.2 到 4.9** | VS2013 |
+| **4.15或更高版本**         | VS2017                |
+| **4.10到4.14**          | VS2015                |
+| **4.2到4.9**            | VS2013                |
 
-虚幻 4 的开源版本（从 GitHub 或 P4 上下载的）已经整合了 VS2013。更早的 UE4 版本和更老的 Visual Studio 这里就不做更多描述了。
+UE4的开源版本（可通过GitHub和P4获得）与VS2013集成。此外，本文档不讨论较早UE4版本与较旧Visual Studio版本的集成。
 
+(#recommendedsettings)
 
 ## 推荐设置
 
-以下是为结合使用Visual Studio和虚幻引擎4的开发人员推荐的设置。
+以下是对使用Visual Studio和虚幻引擎4的开发人员的推荐设置。
 
 [EXCERPT:BasicVSFormat]
-1. 根据以下步骤来增加 Solution Configurations 的下拉框宽度：
-	1. 右键工具栏，选择 **Customize**。
+
+1. 通过执行以下步骤增加解决方案配置下拉菜单的宽度：
+	1. 右键单击工具栏并在出现的菜单底部选择 **自定义（Customize）**。
 		
 		![](SelectingCustomize.png)
-	1. 点击 **Commands** 分页。
+	1. 单击 **命令（Commands）** 选项卡。
 		
 		![](ClickCommandsTab.png)
-	1. 选择 **Toolbar** 选项。
+	1. 选择 **工具栏（Toolbar）** 单选按钮。
 		
 		![](SelectToolbarRadioButton.png)
-	1. 在 **Toolbar** 边上的下拉框内，选择 **Standard**，
+	1. 在 **工具栏（Toolbar）** 旁边的下拉菜单中，选择 **标准（Standard）**。
 		
 		![](SelectStandard.png)
-	1. 在 **Controls** 列表的底部，选择 **Solution Configurations**。
+	1. 在底部的 **控件（Controls）** 列表中，选择 **解决方案配置（Solution Configurations）** 控件。
 		
 		![](SelectSolutionConfigControl.png)
-	1. 点击右侧的 **Modify Selection**。
+	1. 单击右侧的 **修改选择（Modify Selection）**。
 		
 		![](ClickModifySelection.png)
-	1. 将 **Width** 设置为 '200'。
+	1. 将 **宽度（Width）** 设置为“200”。
 		
 		![](SetWidth_200.png)
-	1. 点击 **Close**，工具栏会自动更新。
+	1. 单击 **关闭（Close）**。您的工具栏应立即更新。
 		
 		![](ClickClosetoUpdateToolbar.png)
-1. 根据以下步增加 Solution Platforms 下拉框。
-	1. 找到标准工具栏中最右侧的按钮，点击后有一个下拉菜单，可以为工具栏添加或删除按钮。
+1. 通过执行以下步骤添加解决方案平台（Solution Platforms）下拉菜单。
+	1. 在标准工具栏上找到最右边的按钮，它将打开下拉菜单，允许您从工具栏中添加和删除按钮。
 		
 		![](SelectDropDownButton.png)
-	1. 点击下拉按钮，鼠标移至 **Add or Remove Buttons**，并点击 **Solution Platforms** 以将它添加到工具栏中。
+	1. 单击下拉按钮，将鼠标悬停在 **添加或删除按钮** 上，然后单击 **解决方案平台（Solution Platform）** 将菜单添加到工具栏中。
 
 		![](SelectSolutionPlatforms.png)
-1. 我们建议关闭 **Error List** 窗口。通常，**Error List** 窗口会在遇到错误时自动弹出。然偶，在使用虚幻引擎工作时，**Error List** 可能会显示虚假的错误信息。最好的做法是禁用 **Error List** 窗口并使用 **Output** 窗口来查找真正的代码错误。以下步骤可以关闭 **Error List** 窗口：
-	1. 如果 **Error List** 窗口开着的话，先关闭它。
-	1. 从 **Tools** 菜单中，打开 **Options** 对话框。
+1. 我们建议您关闭 **错误列表（Error List）** 窗口。通常，当代码中出现错误时，**错误列表（Error List）** 窗口会自动弹出。但是，在使用虚幻引擎时，**错误列表（Error List）** 窗口可以显示假的错误信息。在使用虚幻引擎时，最好禁用 **错误列表（Error List）** 窗口，并使用 **输出（Output）** 窗口查看真实的代码错误。下面的步骤向您展示如何关闭 **错误列表（Error List）** 窗口：
+	1. 如果 **错误列表（Error List）** 窗口是打开的，关闭它。 
+	1. 从 **工具（Tools）** 菜单中，打开 **选项（Options）** 对话框。
 		
 		![](OpenOptionsDialog.png)
-	1. 选择 **Projects and Solutions** 并且取消勾选 **Always show Error List if build finishes with error**。
+	1. 选择 **项目和解决方案（Projects and Solutions）**，取消勾选 **如果构建完成时出错，总是显示错误列表（Always show Error List if build finishes with error）**。
 		
 		![](UncheckErrorsListOption.png)
-	1. 点击 **OK**。
+	1. 单击 **确定（OK）**。
+		
 [/EXCERPT:BasicVSFormat]
 
 [REGION:tip]
-其他可能有用的配置选项：
+您可能会发现的其他有用的配置步骤为：
 
-* 关闭 **Show Inactive Blocks(显示不活动的代码块)** 。如果您不关闭此项，在文本编辑器中，很多代码块会呈现出灰掉状态。(_Options(选项) > Text Editor(文本编辑器) > C/C++ > Formatting(格式))_ 。
-* 打开IntelliSense(智能编码)和"squiggles(波浪线提示)"功能,让它们正常运行。(请参照[Intellisense(智能编码), Live Errors(实时错误)和Squiggles(波浪线提示)](#Intellisense)部分)
-* 如果不需要 **Edit & Continue(编辑&继续)** 功能，请关闭它们。(_Options(选项) > Debugging(调试) > Edit and Continue(编辑并继续)_)
+* 关闭 **显示不活动的代码块（Show Inactive Blocks）**。如果未关闭，许多代码块可能在文本编辑器中显示为灰色。（**工具（Tools）> 选项（Options）> 文本编辑器（Text Editor）> C/C++ > 视图（View）**）。
+* 将 **禁用外部依赖性文件夹（Disable External Dependencies Folders）** 设置为True，将不需要的文件夹隐藏在 **解决方案浏览器（Solution Explorer）** 中。（**工具（Tools）> 选项（Options）> 文本编辑器（Text Editor）> C/C++ > 高级（Advanced）** 中的 **禁用外部依赖性文件夹（Disable External Dependencies Folders）**）
+* 关闭 **编辑和继续（Edit & Continue）** 功能，您不需要它们。（**工具（Tools）> 选项（Options）> 调试（Debugging）> 编辑和继续（Edit and Continue）**）
+
+* 打开智能感应（IntelliSense）。（请参阅[智能感应、实时错误和Squiggle](#Intellisense)）
 [/REGION]
 
-### Visual Assist X 用户推荐设置
-* 在 Visual Assist X (VAX)中关闭 **Format After Paste(粘帖后格式化)** 功能。这个功能有时候会导致格式变得混乱。(_VAX Options（VAX选项） > Advanced(高级) > Corrections（校正）_)
-* 在解决方案浏览器中停用 **External(外部)** 文件夹，  它们会扰乱视图。( 在 _Options(选项) > Text Editor（文本编辑器） > C/C++ > Advanced(高级)_ 中 **Disable External Dependencies Folder(禁用外部依赖文件夹)** )
+(#visualassistxusers)
 
+###Visual Assist X用户
+如果已安装了Visual Assist X：
+* 关闭 **粘贴后格式化（Format After Paste）**（**VAssistX > Visual Assist X选项（Visual Assist X Options）> 高级（Advanced）> 纠正（Corrections）**）。如未禁用此选项，Visual Assist X将自动格式化源代码，可能会导致出现格式不佳的文档。
 
+(#visualstudio2017users)
+
+###Visual Studio 2017用户
+
+如果您是第一次安装Visual Studio，您需要确保启用了以下选项。
+
+(#withtheue4installer)
+
+####带UE4安装程序
+
+以下选项将下载UE4安装程序，作为Visual Studio 2017安装的一部分。
+
+![](VS2017_SettingsInstaller.png)
+
+(#withouttheue4installer)
+
+####不带UE4安装程序
+
+以下选项不会将UE4安装程序作为Visual Studio 2017安装的一部分下载。
+
+![](VS2017_SettingsNoInstaller.png)
 
 (#Intellisense)
-## Intellisense（智能编码）、Live Errors (实时错误)和 Squiggles (波浪线提示)
+(#intellisense,liveerrors,andsquiggles)
 
-虚幻引擎 4 项目现在可以正常支持 IntelliSense（智能编码）功能，包括实时 Error List(错误列表) 和 Squiggles(波浪线提示)。
-(请参照以下介绍获得如何启用它的信息。)
+## 智能感应、实时错误和Squiggle
 
-VC10 的 IntelliSense 功能可以在您编写代码的过程中重新编译C++。这比仅检查 VAX 的语法强大很多: VC10使用完整的C++编译器，可以验证每一行代码。这个功能非常强大并且将会加快您的工作流程！
+UE4项目现在有了正确的智能感应支持，包括实时错误列表和squiggle。
+（有关如何启用它，请参见下面的内容。）
+
+当您输入时，智能感应会重新编译C++。这比仅仅使用VAX的语法检查功能强大得多， 
+因为它使用完整的C++编译器来验证每一行代码。它非常棒， 
+可以加快您的工作流程！
 
 ![VC++ Intellisense Squiggles](squiggle.png)
 
-当其和波浪线提示功能结合使用时，如果您正在查看的文件有任何IntelliSense 错误，都可以在Error List(错误列表)中看到。您可以通过Error List（错误列表）的右击菜单来打开或关闭该功能。
+除了Squiggle之外，您还将在正在查看的任何文件的错误列表中看到智能感应错误。 
+您可以在错误列表中的 **右键菜单** 中打开或关闭它。
 
-![VS 2010 Error List](error_list.png)
+![Error List](error_list.png)
 
-由于 Squiggles(波浪线提示) 功能不能和虚幻引擎 4 项目协同工作，您可能已经禁用了它们。请确保点击 C/C++ Advanced(高级) 选卡，并使用以下设置。
+您可能已经禁用了Squiggle，因为它们不能用于UE4项目。请确保点击C/C++高级（C/C++ Advanced）选项卡并使用 
+与下面类似的设置。
 
 ![VC++ Advanced Options](intellisense_options.png)
 
-当您打开一个 C++ 文件时，您可以通过查找这个图标来判断 IntelliSense 编译器是否正在“工作”：
+当您打开一个C++文件，您可以通过寻找以下图标看到智能感应编译器“工作”：
 
 ![Intellisense Progress Indicator](intellisense_progress.png)
 
-### 实现细节
+(#implementationdetails)
 
-* 当编写代码时显示波浪线提示有时候要花几秒钟的时间。
-    * 这是因为我们有很多包含文件，且 IntelliSense 目前不使用预编译头文件。
-* 有时候您会看到“误报的” IntelliSense 错误。以下是几种可能的原因。
-    * IntelliSense 编译器(EDG)比 MSVC 编译器更严格。
-    * 某些针对 IntelliSense 的 #defines 设置和正常编译时的设置不同。
-    * IntelliSense 编译的 C++ 总是被当做32位对待。
-* 如果绝对需要，您可以把代码封装到  `#ifdef __INTELLISENSE__` 中，以消除波浪线提示。
-* IntelliSense 的错误的表达方式和 VC++ 编译器的错误的表达方式略有不同。他们只是表达不同而已。
-* 头文件中的 Squiggles(波浪线提示)功能通过编译包含它的已知  `.cpp` 对应的头文件来进行工作。
-    * 有时候 IntelliSense 把这个功能搞乱了，导致您会在头文件中看到波浪线提示。
-* 如果需要，您可以增大 **Max Cached Translation Units(最大缓存变换单元)** 设置。
-    * 它会使用更多的内存，但可能会提高一点反应速度。
-* 有少量 C++ 文件还不能和 IntelliSense 相兼容。
-* Unreal Build Tool有一个新的 `-IntelliSense` 选项。
-    * 这将为我们的所有项目文件产生 IntelliSense 属性表。
-    * 当添加了新的模块或者项目包含发生改变时仅需要重新运行它即可。
+### 实施详情
+
+* 在编辑代码时，有时需要几秒钟的时间才会显示Squiggle。
+    * 这是因为我们有大量的包含文件，而智能感应目前并不使用PCH。
+* 有时您会看到“错误肯定”的智能感应错误。有几个可能的原因。
+    * 智能感应编译器(EDG)比MSVC编译器更严格。
+    * 有些#定义的智能感应设置与正常构建时的设置不同。
+    * 由智能感应编译的C++总是被视为32位。 
+* 在绝对必要的情况下，您可以将代码打包到“#ifdef __INTELLISENSE__”以消除Squiggle。
+* 智能感应错误的措辞与VC++编译器的错误稍有不同。事实就是如此。
+* 标头文件中的Squiggle的工作原理是根据已知的包含该标头文件的“.cpp”编译标头文件。
+    * 有时智能感应会搞砸，您会在标头中看到Squiggle。
+* 有一个 **Max Cached Translation Units** 设置（如上所示），如果需要可以增加。
+    * 它使用了更多内存，但可能会稍微提高响应能力。
+* 一些C++文件仍然不兼容智能感应。
+* 虚幻构建工具有一个新的“-智能感应（-IntelliSense）”选项。
+    * 这将为我们所有的项目文件生成智能感应属性表。
+    * 这只需要在添加新模块或更改项目包含内容时重新运行。
 
 
-## UnrealVS 插件
+(#unrealvsextension)
+
+## UnrealVS扩展
 
 [INCLUDE:Programming/Development/VisualStudioSetup/UnrealVS#Overview]
 
-[PUBLISH:Rocket]
-[REGION:note]
-UnrealVS 插件不能和 Visual Studio 2012 精简版协同工作。它仅能和 Visual Studio 2012 专业版相兼容。
-[/REGION]
-[/PUBLISH:Rocket]
 
-请参照 [](Programming/Development/VisualStudioSetup/UnrealVS) 页面获得设置及使用该插件的信息。
+有关设置和使用扩展的信息，请参阅[](Programming/Development/VisualStudioSetup/UnrealVS) 
+页面。
 
+
+(#debugging)
 ## 调试
 
-Visual Studio 支持通过‘可视化查看器’来扩展调试器，从而轻松地查看常见的虚幻数据类型，比如对象FNames 和动态数组。根据您所使用的 Visual Studio 2010 或 Visual Studio 2012的不同，这个功能的设置也有所区别。
+Visual Studio支持使用查看器扩展调试器，这些查看器可以方便地检查常见的虚幻类型，如FName和动态阵列。
+
+
+(#installingtheue4visualizerforvisualstudio2013)
+
+### 为Visual Studio 2013安装UE4查看器
+安装UE4查看器需要两个步骤。
 
 [PUBLISH:Licensee]
-### 针对 Visual Studio 2010 的可视化查看器设置
+1. 定位包含查看器逻辑的文件，该文件是UE4发布版的一部分：
 
-虚幻引擎 4 包含了一些针对 Visual Studio 中的 `autoexp.dat` 文件的附加内容，使您可以在调试器中轻松地查看UE4数据类型(array, name, map等)。
-
-可以在以下位置找到这些附加内容：
-
-	//depot/UE4/Engine/Extras/VisualStudioDebugging/AUTOEXP.DAT_addons.txt
-
-您可以设置环境变量 `_vcee_autoexp` 为 `AUTOEXP.DAT_addons.txt` 文件的本地路径，从而使得可以自动包含这个文件中的内容。这意味着不需要将该内容融合到 `autoexp.dat`文件中。
-
-另一个选择是将这些内容融合到您的 Visual Studio 2010 `autoexp.dat` 文件中，可以在以下位置找到该 `autoexp.dat` 文件 (默认):
-
-	C:\Program Files (x86)\Microsoft Visual Studio 10.0\Common7\Packages\Debugger\autoexp.dat
-[/PUBLISH:Licensee]
-
-### 针对 Visual Studio 2012 的可视化查看器设置
-
-[PUBLISH:Licensee]
-您会发现 UE4 发布内容包含了具备该可视化查看器逻辑的文件。
-
-	//depot/UE4/Engine/Extras/VisualStudioDebugging/UE4.natvis
+	* //depot/UE4/Engine/Extras/VisualStudioDebugging/UE4.natvis
 [/PUBLISH:Licensee]
 
 [PUBLISH:Rocket]
-您会发现您的安装文件中包含了具备该可视化查看器逻辑的文件：
+1. 定位包含查看器逻辑的文件，该文件是您的安装的一部分：
 
-	[ROCKETINSTALL]/Engine/Extras/VisualStudioDebugging/UE4.natvis
+    * [UE4Root]/Engine/Extras/VisualStudioDebugging/UE4.natvis
 [/PUBLISH:Rocket]
 
-复制该文件到以下位置：
+1. 将“UE4.natvis”复制到以下任一位置：
 
-	[VSINSTALLDIR]/Common7/Packages/Debugger/Visualizers/UE4.natvis
-	[USERPROFILE]/My Documents/Visual Studio 2012/Visualizers/UE4.natvis
+    * [VisualStudioInstallPath]/Common7/Packages/Debugger/Visualizers/UE4.natvis
+    * [UserProfile]/My Documents/Visual Studio 2013/Visualizers/UE4.natvis
 
 [REGION:warning]
-复制该文件到您的 Visual Studio 安装目录内可能需要管理员权限。
+将文件复制到Visual Studio安装目录可能需要管理员权限。
 [/REGION]
 
-[COMMENT:none]
-
-## 提示和技巧
-
-这里是一些技巧，可以使您在编程时更加轻松，效率更高。
-
-[/COMMENT]

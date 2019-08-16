@@ -1,6 +1,6 @@
-﻿INTSourceChangelist:4649792
+INTSourceChangelist:4649792
 Availability: Public
-Title:피지컬 머티리얼 참고서
+Title:피지컬 머티리얼 레퍼런스
 Crumbs: %ROOT%, Engine, Engine/Physics, Engine/Physics/PhysicalMaterials
 Description:물리 시뮬레이션이 적용되는 프리미티브에 직접 또는 머티리얼을 통해 적용하여 시뮬레이션에 사용되는 물리적 속성을 설정하고 제어하는 데 사용되는 애셋입니다.
 topic-image:Engine/Physics/physics_topic.png
@@ -68,7 +68,7 @@ topic-image:Engine/Physics/physics_topic.png
 
 ## Vehicles
 
-언리얼 엔진 4 의 비히클 전용 프로퍼티입니다. 타이어 처리를 한다고 할 수는 있지만, 비히클에 적용될 때만 그렇습니다 (Tire Data Types, Wheel Blueprints 등은 피지컬 머티리얼을 직접 레퍼런싱하지 않기 때문입니다).
+언리얼 엔진 4 의 비히클 전용 프로퍼티입니다. 타이어 처리를 한다고 할 수는 있지만, 비히클에 적용될 때만 그렇습니다 (Tire Data Types, Wheel Blueprints 등은 피지컬 머티리얼을 직접 참조하지 않기 때문입니다).
 
 ![](p5.png)
 

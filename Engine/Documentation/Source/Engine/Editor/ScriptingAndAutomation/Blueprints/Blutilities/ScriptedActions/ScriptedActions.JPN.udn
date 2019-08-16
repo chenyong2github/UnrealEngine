@@ -1,0 +1,124 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Crumbs:
+Title: Scripted Actions
+Description: Describes how to create Blueprint utilities that you can invoke by right-clicking an Asset in the Content Browser or an Actor in the Level.
+Type: how-to
+Version: 4.22
+Parent: Engine/Editor/ScriptingAndAutomation/Blueprints/Blutilities
+Tags: Experimental
+Tags: scripting
+Tags: editor
+Tags: Blutilities
+SkillLevel: Intermediate
+
+
+[TOC]
+
+![](scripted-actions-banner.png)
+
+**Scripted Actions** are Blueprint utilities that you launch in the Unreal Editor by right-clicking one or more Assets in the **Content Browser**, or by right-clicking one or more Actors in the **Level Viewport** (shown above) or in the **World Outliner**.
+
+This kind of workflow is especially useful any time you need your Blueprint utility to have contextual awareness about a certain set of Assets or Actors. Typically, a Scripted Action gets the list of Assets or Actors that are selected at the time you run the action, then modifies those objects or otherwise takes them into consideration in its graph.
+
+The instructions on this page show you how to create and launch these kinds of Blueprint utilities, and how you can customize them to apply only to specific types of Assets or Actors.
+
+[REGION:note]
+**Prerequisite:** You must have enabled the experimental Blutility feature, as described under [Blueprint Utilities (Blutilities)](Engine/Editor/ScriptingAndAutomation/Blueprints/Blutilities).
+[/REGION]
+
+## Steps
+
+In this procedure, we'll create a new Blueprint class from one of the parent classes that support Scripted Actions, and we'll set up a new event graph for that class that will show up as a Scripted Action.
+
+1.  In the **Content Browser**, right-click the folder where you want to create your new Blueprint utility class, and choose **Blueprints > Blutility** from the contextual menu.  
+    ![Create Blutility](scripted-actions-createclass.png "Create Blutility")
+
+2.  Decide whether you want your Scripted Action to operate on Assets that you select in the **Content Browser**, or on Actors that you select in the **Level Viewport** or **World Outliner**.
+    
+    *   If you want your Scripted Action to operate on Assets, choose **AssetActionUtility** as the parent class, then press **Select**.
+    
+    *   If you want your Scripted Action to operate on Actors, choose **ActorActionUtility** as the parent class, then press **Select**.
+    
+    ![Choose ActorActionUtility or AssetActionUtility](scripted-actions-parent-1.png "Choose ActorActionUtility or AssetActionUtility")
+
+3.  Give your new class a descriptive name in the **Content Browser**.  
+    ![Name your new class](scripted-actions-rename.png "Name your new class")  
+    You won't see this class name when you run its Scripted Actions. You'll need it only to distinguish this class from the other Blueprint classes in your Project if you need to modify your Scripted Actions or add new ones later.
+
+4.  Right-click your new class, and choose **Edit Blueprint** from the contextual menu.  
+    ![Edit Blueprint](scripted-actions-editbp.png "Edit Blueprint")
+
+5.  To create a Scripted Action for this class, you can either create a new function, or create a new **Custom Event** node in the EventGraph for the class.  
+    [REGION:note]
+    Make sure that the **Call In Editor** box is checked on the function entry node or the Custom Event node. This is automatically done for you when you create a new function, but you'll have to do it yourself if you choose to use a Custom Event.
+    [/REGION]
+    For example, this new function on an **AssetActionUtility** iterates through the list of Assets that are selected in the Content Browser, and simply prints the name of each one in the **Level Viewport**.
+    [REGION:lightbox]
+    [![Asset Action example](scripted-actions-asset-example.png "Asset Action example")](scripted-actions-asset-example.png)*Click for full image.*
+    [/REGION]
+    The image below shows a similar function implemented on an **ActorActionUtility**.
+    [REGION:lightbox]
+    [![Actor Action example](scripted-actions-actor-example.png "Actor Action example")](scripted-actions-actor-example.png)*Click for full image.*
+    [/REGION]
+    [REGION:tip]
+    You'll find some useful Blueprint nodes for your Scripted Actions under the **Development > Editor** category, including the nodes shown in the examples above that return a list of the objects selected at the time your Scripted Action is run: **Get Selected Assets**, which returns an array of references to all the Assets selected in the **Content Browser**, and **Get Selection Set**, which returns an array of Actors that are currently selected in the Level.
+    [/REGION]
+    
+6.  **Save** and **Compile** your Blueprint class.
+
+## End Result
+
+Once your Blueprint class is saved and compiled, you should see a new **Scripted Actions** sub-menu in the contextual menu for either Assets or Actors, depending on the parent class you chose for your Blueprint class. This sub-menu contains each of the functions or Custom Events that you set up in your Blueprint class.
+
+For example, when you right-click one or more Assets in the **Content Browser**:
+
+![Run a Scripted Action on selected Assets](scripted-actions-run-assets-1.png "Run a Scripted Action on selected Assets")
+
+Or when you right-click one or more Actors in the **Level Viewport** or **World Outliner**:
+
+![Run a Scripted Action on selected Actors](scripted-actions-run-actors-1.png "Run a Scripted Action on selected Actors")
+
+[REGION:tip]
+Each function and Custom Event that you set up on your **AssetActionUtility** or **ActorActionUtility** class becomes available as a separate option in the contextual menu. You can create as many different Scripted Actions as you need within a single Blueprint class.
+[/REGION]
+
+## Restricting an Action to a Specific Class
+
+Depending on the work you need your Scripted Actions to carry out, you may want them to appear in the contextual menu only for specific types of objects.
+
+For example, say you create a Scripted Action that changes Materials on selected Actors. In this case, you might want that action to only appear when the user right-clicks on Static Mesh Actors, but not when the user right-clicks on Light Actors or Blueprints.
+
+The **AssetActionUtility** and **ActorAssetUtility** base classes both offer a built-in function named **GetSupportedClass.** This function determines the class of objects that need to be selected in order for the Scripted Actions in your Blueprint class to appear in the contextual menu. Each time the user right-clicks on a set of Assets or Actors, this function is called to get the class type supported by the **AssetActionUtility** or **ActorAssetUtility** class. If it returns a class type, that return value is compared against the set of Assets or Actors that the user currently has selected. If at least one of those Assets or Actors has a class that matches the class returned by **GetSupportedClass**, then the Scripted Actions will appear in the contextual menu. By default, the **GetSupportedClass** function returns nothing. This makes all Scripted Actions appear regardless of the classes of Assets or Actors you have selected.
+
+If you want to change this default behavior, you can override the **GetSupportedClass** function in your class to return a specific class type:
+
+![Override GetSupportedClass](scripted-actions-override-getsupported.png "Override GetSupportedClass")
+
+For example, this implementation within an **ActorAssetUtility** returns the **StaticMeshActor** class, so the Scripted Actions in this class will appear in the contextual menu when the user has at least one Static Mesh Actor selected at the time they open the contextual menu:
+
+![Scripted Actions appear for the supported class](scripted-actions-supportedclass-1.png "Scripted Actions appear for the supported class")
+
+But the Scripted Actions does not appear when the user only has other kinds of Actors selected:
+
+![Scripted Actions do not appear for other classes](scripted-actions-unsupportedclass-1.png "Scripted Actions do not appear for other classes")
+
+[REGION:note]
+If you have multiple Assets or Actors selected, the behavior is permissive: as long as *at least one* of the selected items matches the class returned by **GetSupportedClass**, your Scripted Actions will appear in the contextual menu. Even if you override **GetSupportedClass** to restrict the classes handled by your actions, you're not guaranteed to *only* have instances of that class selected when the action gets run. Keep this in mind when you implement your Blueprint graphs.
+[/REGION]
+
+## Dynamic Inputs
+
+Unlike other kinds of Editor Blueprint utilities, Scripted Actions can have inputs. If you add one or more inputs to your function entry node or Custom Event node, you'll be prompted to supply that input each time you run the Scripted Action in the Editor. This can be useful any time your script needs some extra information that may be different each time you call the action.  
+
+For example, this function has three inputs: a string, an Actor Object Reference, and a Material Object Reference:
+
+![A function with inputs](scripted-actions-inputs-1.png "A function with inputs")
+
+When you run the Scripted Action for this function, the Editor pops up a small window for you to set these input values:
+
+![Set input values](scripted-actions-inputs-window-1.png "Set input values")
+
+[REGION:note]
+The Editor validates that each input matches the type of value it is supposed to be. However, it doesn't guarantee that the inputs will have values at all, or that those values will make sense in any particular context. Keep in mind that your script should handle unspecified input values and validate the input values the user does provide.
+[/REGION]

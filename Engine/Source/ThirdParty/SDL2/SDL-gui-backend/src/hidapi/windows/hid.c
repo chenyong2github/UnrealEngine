@@ -19,13 +19,13 @@
  code repository located at:
         http://github.com/signal11/hidapi .
 ********************************************************/
+#include "../../SDL_internal.h"
+
+#ifdef SDL_JOYSTICK_HIDAPI
 
 #include <windows.h>
 
-#ifndef _NTDEF_
-typedef LONG NTSTATUS;
-#endif
-
+#if 0 /* can cause redefinition errors on some toolchains */
 #ifdef __MINGW32__
 #include <ntdef.h>
 #include <winbase.h>
@@ -34,6 +34,11 @@ typedef LONG NTSTATUS;
 #ifdef __CYGWIN__
 #include <ntdef.h>
 #define _wcsdup wcsdup
+#endif
+#endif /* */
+
+#ifndef _NTDEF_
+typedef LONG NTSTATUS;
 #endif
 
 /* SDL C runtime functions */
@@ -291,6 +296,12 @@ int HID_API_EXPORT hid_exit(void)
 	return 0;
 }
 
+int hid_blacklist(unsigned short vendor_id, unsigned short product_id)
+{
+	return vendor_id == 0x1B1C && // (Corsair)
+		product_id == 0x1B3D; // Gaming keyboard?  Causes deadlock when asking for device details
+}
+
 struct hid_device_info HID_API_EXPORT * HID_API_CALL hid_enumerate(unsigned short vendor_id, unsigned short product_id)
 {
 	BOOL res;
@@ -304,7 +315,6 @@ struct hid_device_info HID_API_EXPORT * HID_API_CALL hid_enumerate(unsigned shor
 	SP_DEVICE_INTERFACE_DETAIL_DATA_A *device_interface_detail_data = NULL;
 	HDEVINFO device_info_set = INVALID_HANDLE_VALUE;
 	int device_index = 0;
-	int i;
 
 	if (hid_init() < 0)
 		return NULL;
@@ -368,12 +378,16 @@ struct hid_device_info HID_API_EXPORT * HID_API_CALL hid_enumerate(unsigned shor
 
 		/* Make sure this device is of Setup Class "HIDClass" and has a
 		   driver bound to it. */
-		for (i = 0; ; i++) {
+		/* In the main HIDAPI tree this is a loop which will erroneously open 
+			devices that aren't HID class. Please preserve this delta if we ever
+			update to take new changes */
+		{
 			char driver_name[256];
 
 			/* Populate devinfo_data. This function will return failure
 			   when there are no more interfaces left. */
-			res = SetupDiEnumDeviceInfo(device_info_set, i, &devinfo_data);
+			res = SetupDiEnumDeviceInfo(device_info_set, device_index, &devinfo_data);
+
 			if (!res)
 				goto cont;
 
@@ -386,8 +400,12 @@ struct hid_device_info HID_API_EXPORT * HID_API_CALL hid_enumerate(unsigned shor
 				/* See if there's a driver bound. */
 				res = SetupDiGetDeviceRegistryPropertyA(device_info_set, &devinfo_data,
 				           SPDRP_DRIVER, NULL, (PBYTE)driver_name, sizeof(driver_name), NULL);
-				if (res)
-					break;
+				if (!res)
+					goto cont;
+			}
+			else
+			{
+				goto cont;
 			}
 		}
 
@@ -412,7 +430,8 @@ struct hid_device_info HID_API_EXPORT * HID_API_CALL hid_enumerate(unsigned shor
 		/* Check the VID/PID to see if we should add this
 		   device to the enumeration list. */
 		if ((vendor_id == 0x0 || attrib.VendorID == vendor_id) &&
-		    (product_id == 0x0 || attrib.ProductID == product_id)) {
+		    (product_id == 0x0 || attrib.ProductID == product_id) &&
+			!hid_blacklist(attrib.VendorID, attrib.ProductID)) {
 
 			#define WSTR_LEN 512
 			const char *str;
@@ -905,17 +924,18 @@ int HID_API_EXPORT_CALL HID_API_CALL hid_get_indexed_string(hid_device *dev, int
 	return 0;
 }
 
-
 HID_API_EXPORT const wchar_t * HID_API_CALL  hid_error(hid_device *dev)
 {
 	return (wchar_t*)dev->last_error_str;
 }
 
 
+#if 0
+
 /*#define PICPGM*/
 /*#define S11*/
 #define P32
-#ifdef S11 
+#ifdef S11
   unsigned short VendorID = 0xa0a0;
 	unsigned short ProductID = 0x0001;
 #endif
@@ -925,14 +945,11 @@ HID_API_EXPORT const wchar_t * HID_API_CALL  hid_error(hid_device *dev)
 	unsigned short ProductID = 0x3f;
 #endif
 
-
 #ifdef PICPGM
   unsigned short VendorID = 0x04d8;
   unsigned short ProductID = 0x0033;
 #endif
 
-
-#if 0
 int __cdecl main(int argc, char* argv[])
 {
 	int res;
@@ -981,3 +998,5 @@ int __cdecl main(int argc, char* argv[])
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
+
+#endif /* SDL_JOYSTICK_HIDAPI */

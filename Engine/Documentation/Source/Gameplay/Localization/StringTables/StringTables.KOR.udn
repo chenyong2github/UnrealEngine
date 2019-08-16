@@ -1,0 +1,111 @@
+INTSourceChangelist:6264593
+Availability: Public
+Crumbs: 
+Title: 스트링 테이블
+Description: 
+Type: 
+Version: 4.21
+Parent: Gameplay/Localization
+Order: 4
+Tags: Localization
+Tags: TextLocalization
+Tags: string tables
+
+
+**String Table** (스트링 테이블)은 현지화 텍스트를 하나( 또는 다수)의 알려진 위치로 집중시킨 뒤, 스트링 테이블 안의 항목을 다른 애셋이나 코드에서 참조하는 안전한 방식으로 현지화 텍스트를 쉽게 재사용할 수 있습니다.
+
+## 스트링 테이블 생성
+
+스트링 테이블은 C++ 에서 정의할 수 있으며, CSV 파일로 로드하거나 애셋으로 생성할 수 있습니다.
+
+### C++ 에서 스트링 테이블 생성
+
+C++ 에서 스트링 테이블 생성은 LOCTABLE 매크로 군을 사용하면 됩니다.
+
+| 매크로 | 설명 |
+| --- | --- |
+| `LOCTABLE_NEW` | 빈 스트링 테이블 인스턴스를 생성합니다. |
+| `LOCTABLE_FROMFILE_X` | 스트링 테이블 인스턴스를 생성하고 지정한 CSV 파일로 채웁니다. \_ENGINE 베리언트를 사용하는 경우 파일명 기준은 Engine 콘텐츠 디렉터리이며, \_GAME 베리언트의 경우 프로젝트 콘텐츠 기준입니다. |
+| `LOCTABLE_SETSTRING` | 스트링 테이블에 항목을 설정합니다. |
+| `LOCTABLE_SETMETA` | 스트링 테이블의 항목에 대한 옵션 메타데이터를 설정합니다. |
+
+**예:**
+
+    // C++ 만 사용해서 스트링 테이블을 생성하고 채웁니다.
+    LOCTABLE_NEW("CodeStringTable","CodeStringTable");
+    LOCTABLE_SETSTRING("CodeStringTable","HelloWorld","Hello World!");
+    LOCTABLE_SETMETA("CodeStringTable","HelloWorld","Comment","This is a comment about hello world");
+    LOCTABLE_SETSTRING("CodeStringTable","GoodbyeWorld","Goodbye World!");
+    LOCTABLE_SETMETA("CodeStringTable","GoodbyeWorld","Comment","This is a comment about goodbye world");
+
+### CSV 를 사용하여 스트링 테이블 생성
+
+CSV 에 정의된 스트링 테이블은 LOCTABLE\_FROMFILE\_X 매크로를 사용해서 로드할 수 있으며, 스트링 테이블 애셋 으로/에서 임포트/익스포트할 수 있습니다.
+
+**예:**
+
+    // CSV 파일에서 스트링 테이블을 생성하고 채웁니다.
+    LOCTABLE_FROMFILE_GAME("CSVStringTable","CSVStringTable","StringTableCSV/TestStrings.csv");
+
+스트링 테이블에 사용되는 CSV 포맷에는 필수 열이 두 가지, "Key" 및 "SourceString" 이 있고, 추가 열은 스트링 테이블 항목의 메타 데이터로 파싱됩니다.
+
+    Key,SourceString,Comment
+    "HelloWorld","Hello World!","This is a comment about hello world"
+    "GoodbyeWorld","Goodbye World!","This is a comment about goodbye world"
+
+CSV 파일의 따옴표는 C 스타일 이스케이프 (\\") 보다는 따옴표 두 세트로 ("") 하지만, 스트링의 다른 (탭이나 새 줄 같은) 제어 문자는 C 스타일 이스케이프를 사용해야 합니다.
+
+LOCTABLE\_FROMFILE\_X 매크로로 로드한 CSV 스트링 테이블은 변경사항을 모니터링하다 디스크에서 변경되면 자동 리임포트합니다 (Editor 빌드 전용입니다).
+
+[REGION:note]
+CSV 스트링 테이블은 자동 스테이지되지 않습니다. CSV 스트링 테이블은 알고 있는 폴더 위치에 둔 다음 프로젝트 **패키징** 세팅의 **Additional Non-Asset Directories to Package** (패키지할 애셋 이외 추가 디렉터리)에 추가하면 됩니다.
+[/REGION]
+
+### 스트링 테이블 애셋 생성
+
+스트링 테이블 애셋은 콘텐츠 브라우저에서 (**추가 > 기타 > 스트링 테이블**) 을 사용하여 생성하고, 스트링 테이블 에디터를 통해 관리할 수 있습니다. 스트링 테이블 에디터는 현재 데이터 데이터를 편집할 수 없지만, CSV 파일에서 임포트한 메타 데이터는 보존합니다.
+
+![](StringTables-01.png)
+[REGION:note]
+스트링 테이블 애셋은 바이너리라, 병합에 상충이 발생해도 해결할 수 없습니다. 스트링 테이블 애셋은 C++ 또는 CSV 를 사용할 때보다 입자성을 더욱 곱게 유지하는 것이 상충 영역을 최소화하는 데 좋습니다.
+[/REGION]
+
+## 스트링 테이블 참조
+
+C++, INI 파일, 또는 애셋으로 스트링 테이블을 참조할 수 있습니다.
+
+### C++ 에서 스트링 테이블 참조
+
+스트링 테이블은 C++ 에서 `LOCTABLE` 매크로 또는 스태틱 [`FText::FromStringTable`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/FromStringTable/index.html) 함수로 참조할 수 있습니다. 내재된 논리는 동일하지만, 매크로 쪽이 입력하기 쉬운 대신 리터럴 값만 되는 반면, 함수 쪽은 리터럴과 변수 인수 둘 다 됩니다.
+
+### INI 파일에서 스트링 테이블 참조
+
+스트링 테이블은 INI 파일에서 `LOCTABLE` 매크로 문법으로 참조할 수 있습니다.
+
+### 스트링 테이블 애셋 참조
+
+스트링 테이블은 `FText` 프로퍼티로 참조할 수 있습니다.  
+![](StringTables-02.png)
+
+텍스트 프로퍼티 옆 흰색 화살표를 클릭하면 현지화 텍스트를 인라인 정의하는 대신 그 프로퍼티 인스턴스를 스트링 테이블 항목에 링크합니다.  
+![](StringTables-03.png)
+
+## 스트링 테이블 리디렉션
+
+가능하면 스트리 테이블은 이름변경 또는 이동하지 않는 것이 좋습니다. 하지만 스트링 테이블을 이름변경 또는 이동한 경우, 전체 테이블 리디렉션 방법과 개별 키 리디렉션 방법이 있습니다. INI 파일에서 할 수 있지만, 스트링 테이블 애셋 리디렉션으로만 가능합니다.
+
+### INI 파일에서 스트링 테이블 리디렉션
+
+INI 파일을 사용하여 스트링 테이블을 리디렉션할 수 있습니다. 다음은 전체 스트링 테이블이 다른 스트링 테이블을 가리키도록 리디렉션한 예제입니다.
+
+    [Core.StringTable]
+    +StringTableRedirects=(OldStringTable="Foo",NewStringTable="Bar")
+
+한 스트링 테이블의 한 항목을 다른 스트링 테이블의 한 항목으로 리디렉션하는 예제는 다음과 같습니다.
+
+    [Core.StringTable]
+    +StringTableRedirects=(StringTable="Foo",OldKey="Bar",NewKey="Baz")
+
+### 스트링 테이블 애셋 리디렉션
+
+스트링 테이블 애셋을 이동 또는 이름변경하면 애셋 리디렉터가 남습니다. 이는 다른 애셋 리디렉터와 마찬가지로 처리되고 따라갑니다.

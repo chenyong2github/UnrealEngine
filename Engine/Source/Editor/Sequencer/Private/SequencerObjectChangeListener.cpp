@@ -217,7 +217,11 @@ const FOnAnimatablePropertyChanged* FSequencerObjectChangeListener::FindProperty
 		bool bFoundValidFunction = false;
 		if (Function && !Function->HasMetaData(DeprecatedFunctionName))
 		{
-			bFoundValidFunction = true;
+			// FIXME: FTrackInstancePropertyBindings::InvokeSetterFunction doesn't support array properties.
+			if (!Cast<const UArrayProperty>(&Property))
+			{
+				bFoundValidFunction = true;
+			}
 		}
 
 		bool bFoundValidInterp = false;

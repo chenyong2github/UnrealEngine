@@ -8,6 +8,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "VorbisAudioInfo.h"
 #include "ADPCMAudioInfo.h"
+#include "AudioPluginUtilities.h"
 
 #include <SLES/OpenSLES.h>
 #include "SLES/OpenSLES_Android.h"
@@ -220,7 +221,7 @@ namespace Audio
 
 		AudioStreamInfo.OutputDeviceIndex = 0;
 		AudioStreamInfo.NumOutputFrames = OpenStreamParams.NumFrames;
-		AudioStreamInfo.NumBuffers = OpenStreamParams.NumBuffers;
+		AudioStreamInfo.NumBuffers = FMath::Max(OpenStreamParams.NumBuffers, 4);
 		AudioStreamInfo.AudioMixer = OpenStreamParams.AudioMixer;
 
 		if (!GetOutputDeviceInfo(AudioStreamInfo.OutputDeviceIndex, AudioStreamInfo.DeviceInfo))
@@ -351,7 +352,8 @@ namespace Audio
 
  	FAudioPlatformSettings FMixerPlatformAndroid::GetPlatformSettings() const
  	{
-		FAudioPlatformSettings PlatformSettings = FAudioPlatformSettings::GetPlatformSettings(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"));
+		const TCHAR* ConfigSection = AudioPluginUtilities::GetPlatformConfigSection(EAudioPlatform::Android);
+		FAudioPlatformSettings PlatformSettings = FAudioPlatformSettings::GetPlatformSettings(ConfigSection);
 
 		PlatformSettings.CallbackBufferFrameSize = GetDeviceBufferSize(PlatformSettings.CallbackBufferFrameSize);
 		return PlatformSettings;

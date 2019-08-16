@@ -22,8 +22,6 @@ topic-image:Engine/Blueprints/UserGuide/Types/macro_blueprint.png
 引用该宏的图表中。
 [/EXCERPT:Intro]
 
-(#creatingablueprintmacrolibrary)
-
 ## 创建蓝图宏库
 
 蓝图宏库存储在包中，可以像任何其他资源一样通过 **内容浏览器（Content Browser）** 创建。
@@ -71,26 +69,18 @@ topic-image:Engine/Blueprints/UserGuide/Types/macro_blueprint.png
 1. **选取父类（Pick Parent Class）** 窗口随即显示，从这里开始，蓝图宏库创建过程与使用 **新资源（New Asset）** 按钮时相同。 
 
 
-(#blueprintmacros)
-
 ## 蓝图宏
 
 [INCLUDE:Engine/Blueprints/UserGuide/Macros#Intro]
-
-(#creatingblueprintmacros)
 
 ### 创建蓝图宏
 
 [INCLUDE:Engine/Blueprints/UserGuide/Macros#MacroCreationLib]
 
 
-(#buildingblueprintmacros)
-
 ### 构建蓝图宏
 
 [INCLUDE:Engine/Blueprints/UserGuide/Macros#BuildingMacros]
-
-(#usingmacrosstoredinblueprintmacrolibraries)
 
 ### 使用存储在蓝图宏库中的宏
 

@@ -43,6 +43,7 @@ public:
 	DECLARE_DELEGATE_RetVal_TwoParams(TOptional<FDropResult>, FOnRequestDrop, const UNiagaraStackEntry&, const TArray<UNiagaraStackEntry*>&);
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnFilterChild, const UNiagaraStackEntry&);
 	DECLARE_DELEGATE(FStackIssueFixDelegate);
+	DECLARE_DELEGATE(FOnRequestDeferredOperation);
 
 public:
 	struct NIAGARAEDITOR_API FExecutionCategoryNames
@@ -55,10 +56,11 @@ public:
 
 	struct NIAGARAEDITOR_API FExecutionSubcategoryNames
 	{
-		static const FName Parameters;
+		static const FName Settings;
 		static const FName Spawn;
 		static const FName Update;
 		static const FName Event;
+		static const FName Render;
 	};
 
 	enum class EStackRowStyle
@@ -75,7 +77,7 @@ public:
 
 	struct FRequiredEntryData
 	{
-		FRequiredEntryData(TSharedRef<FNiagaraSystemViewModel> InSystemViewModel, TSharedRef<FNiagaraEmitterViewModel> InEmitterViewModel, FName InExecutionCategoryName, FName InExecutionSubcategoryName, UNiagaraStackEditorData& InStackEditorData)
+		FRequiredEntryData(TSharedRef<FNiagaraSystemViewModel> InSystemViewModel, TSharedPtr<FNiagaraEmitterViewModel> InEmitterViewModel, FName InExecutionCategoryName, FName InExecutionSubcategoryName, UNiagaraStackEditorData& InStackEditorData)
 			: SystemViewModel(InSystemViewModel)
 			, EmitterViewModel(InEmitterViewModel)
 			, ExecutionCategoryName(InExecutionCategoryName)
@@ -85,7 +87,7 @@ public:
 		}
 
 		const TSharedRef<FNiagaraSystemViewModel> SystemViewModel;
-		const TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel;
+		const TSharedPtr<FNiagaraEmitterViewModel> EmitterViewModel;
 		const FName ExecutionCategoryName;
 		const FName ExecutionSubcategoryName;
 		UNiagaraStackEditorData* const StackEditorData;
@@ -167,6 +169,8 @@ public:
 
 	void Finalize();
 
+	bool IsFinalized() const;
+
 	virtual FText GetDisplayName() const;
 
 	UNiagaraStackEditorData& GetStackEditorData() const;
@@ -211,12 +215,13 @@ public:
 
 	void RefreshChildren();
 
+	void RefreshChildrenDeferred();
 
 	FDelegateHandle AddChildFilter(FOnFilterChild ChildFilter);
 	void RemoveChildFilter(FDelegateHandle FilterHandle);
 
 	TSharedRef<FNiagaraSystemViewModel> GetSystemViewModel() const;
-	TSharedRef<FNiagaraEmitterViewModel> GetEmitterViewModel() const;
+	TSharedPtr<FNiagaraEmitterViewModel> GetEmitterViewModel() const;
 
 	template<typename ChildType, typename PredicateType>
 	static ChildType* FindCurrentChildOfTypeByPredicate(const TArray<UNiagaraStackEntry*>& CurrentChildren, PredicateType Predicate)

@@ -28,8 +28,8 @@ topic-image:topic.png
 各プラットフォームに対するアチーブメントの設定の詳細については、プラットフォーム専用ページをご覧ください。
 
 [REGION:buttonlist]
-* [](Platforms/Android/Achievements)
-* [](Platforms/iOS/Achievements)
+* [](Platforms/Mobile/Android/Achievements)
+* [](Platforms/Mobile/iOS/Achievements)
 [/REGION]
 
 

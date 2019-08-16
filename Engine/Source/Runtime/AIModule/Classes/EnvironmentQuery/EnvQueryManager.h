@@ -160,8 +160,11 @@ class AIMODULE_API UEnvQueryManager : public UAISubsystem, public FSelfRegisteri
 	// makes sure we don't have any UEnvQueryManager instances serialized in. 
 	// Any loaded instance will get marked as PendingKill
 	virtual void PostLoad() override;
-
 	virtual void PostInitProperties() override;
+	virtual bool IsDestructionThreadSafe() const
+	{
+		return false;
+	}
 
 	// FTickableGameObject begin
 	virtual void Tick(float DeltaTime) override;

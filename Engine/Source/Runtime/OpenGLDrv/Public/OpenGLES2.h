@@ -115,6 +115,7 @@ struct FOpenGLES2 : public FOpenGLBase
 	static FORCEINLINE bool SupportsColorBufferFloat()					{ return bSupportsColorBufferFloat; }
 	static FORCEINLINE bool SupportsColorBufferHalfFloat()				{ return bSupportsColorBufferHalfFloat; }
 	static FORCEINLINE bool	SupportsRG16UI()							{ return false; }
+	static FORCEINLINE bool	SupportsRG32UI()							{ return false; }
 	static FORCEINLINE bool SupportsR11G11B10F()						{ return false; }
 	static FORCEINLINE bool SupportsShaderFramebufferFetch()			{ return bSupportsShaderFramebufferFetch; }
 	static FORCEINLINE bool SupportsShaderDepthStencilFetch()			{ return bSupportsShaderDepthStencilFetch; }
@@ -244,9 +245,9 @@ struct FOpenGLES2 : public FOpenGLBase
 #if OPENGL_ES2_BRING_UP
 		// Non-written areas retain prior values.
 		// Lack of unsynchronized in glMapBufferOES() is a perf bug which needs to be fixed later.
-		checkf(LockMode == RLM_WriteOnly || LockMode == RLM_WriteOnlyUnsynchronized, TEXT("OpenGL ES 2.0 only supports write-only buffer locks"));
+		checkf(LockMode == EResourceLockMode::RLM_WriteOnly || LockMode == EResourceLockMode::RLM_WriteOnlyUnsynchronized, TEXT("OpenGL ES 2.0 only supports write-only buffer locks"));
 #else
-		checkf(LockMode == RLM_WriteOnly, TEXT("OpenGL ES 2.0 only supports write-only buffer locks"));
+		checkf(LockMode == EResourceLockMode::RLM_WriteOnly, TEXT("OpenGL ES 2.0 only supports write-only buffer locks"));
 #endif
 		check(Type == GL_ARRAY_BUFFER || Type == GL_ELEMENT_ARRAY_BUFFER);
 

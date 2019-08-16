@@ -8,6 +8,7 @@
 #include "ControlRigModel.h"
 #include "ControlRigObjectVersion.h"
 #include "Units/RigUnit.h"
+#include "EdGraphNode_Comment.h"
 #include "ControlRig/Private/Units/Execution/RigUnit_BeginExecution.h"
 
 #if WITH_EDITOR
@@ -28,6 +29,8 @@ UControlRigGraph::UControlRigGraph()
 
 void UControlRigGraph::Initialize(UControlRigBlueprint* InBlueprint)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	InBlueprint->OnModified().RemoveAll(this);
 	InBlueprint->OnModified().AddUObject(this, &UControlRigGraph::HandleModelModified);
 }
@@ -49,6 +52,8 @@ void UControlRigGraph::Serialize(FArchive& Ar)
 #if WITH_EDITOR
 void UControlRigGraph::PostLoad()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	FoundHierarchyRefVariableNodes.Reset();
 	FoundHierarchyRefMutableNodes.Reset();
 	FoundHierarchyRefConnections.Reset();
@@ -132,6 +137,8 @@ void UControlRigGraph::PostLoad()
 
 void UControlRigGraph::OnBlueprintCompiledPostLoad(UBlueprint* InCompiledBlueprint)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (GetLinkerCustomVersion(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::RemovalOfHierarchyRefPins)
 	{
 		UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetOuter());
@@ -267,8 +274,11 @@ void UControlRigGraph::OnBlueprintCompiledPostLoad(UBlueprint* InCompiledBluepri
 
 void UControlRigGraph::CacheBoneNameList(const FRigHierarchy& Hierarchy)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	TArray<FString> Names;
-	for (const FRigBone& Bone : Hierarchy.Bones)
+	const TArray<FRigBone>& Bones = Hierarchy.GetBones();
+	for (const FRigBone& Bone : Bones )
 	{
 		Names.Add(Bone.Name.ToString());
 	}
@@ -290,6 +300,8 @@ const TArray<TSharedPtr<FString>>& UControlRigGraph::GetBoneNameList() const
 
 void UControlRigGraph::HandleModelModified(const UControlRigModel* InModel, EControlRigModelNotifType InType, const void* InPayload)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (bSuspendModelNotifications)
 	{
 		return;
@@ -301,13 +313,12 @@ void UControlRigGraph::HandleModelModified(const UControlRigModel* InModel, ECon
 		{
 			for (const FControlRigModelNode& Node : InModel->Nodes())
 			{
-				UControlRigGraphNode* RigNode = FindNodeFromPropertyName(Node.Name);
-				if (RigNode != nullptr)
+				UEdGraphNode* EdNode = FindNodeFromPropertyName(Node.Name);
+				if (EdNode != nullptr)
 				{
-					RemoveNode(RigNode);
+					RemoveNode(EdNode);
 				}
 			}
-			Modify();
 			break;
 		}
 		case EControlRigModelNotifType::NodeAdded:
@@ -316,17 +327,51 @@ void UControlRigGraph::HandleModelModified(const UControlRigModel* InModel, ECon
 			if (Node != nullptr)
 			{
 				FEdGraphPinType PinType;
-				if (Node->IsParameter())
+				switch (Node->NodeType)
 				{
-					PinType = Node->Pins[0].Type;
-				}
-				UEdGraphNode* EdNode = FControlRigBlueprintUtils::InstantiateGraphNodeForProperty(this, Node->Name, Node->Position, PinType);
-				if (EdNode != nullptr)
-				{
-					EdNode->CreateNewGuid();
-					if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(EdNode))
+					case EControlRigModelNodeType::Parameter:
 					{
-						RigNode->ParameterType = (int32)Node->ParameterType;
+						PinType = Node->Pins[0].Type;
+						// no break - fall through
+					}
+					case EControlRigModelNodeType::Function:
+					{
+						UEdGraphNode* EdNode = FControlRigBlueprintUtils::InstantiateGraphNodeForProperty(this, Node->Name, Node->Position, PinType);
+						if (EdNode != nullptr)
+						{
+							EdNode->CreateNewGuid();
+							if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(EdNode))
+							{
+								RigNode->ParameterType = (int32)Node->ParameterType;
+								RigNode->SetColorFromModel(Node->Color);
+							}
+						}
+						break;
+					}
+					case EControlRigModelNodeType::Comment:
+					{
+						UEdGraphNode_Comment* NewNode = NewObject<UEdGraphNode_Comment>(this, Node->Name);
+						AddNode(NewNode, true);
+
+						NewNode->CreateNewGuid();
+						NewNode->PostPlacedNewNode();
+						NewNode->AllocateDefaultPins();
+
+						NewNode->NodePosX = Node->Position.X;
+						NewNode->NodePosY = Node->Position.Y;
+						NewNode->NodeWidth = Node->Size.X;
+						NewNode->NodeHeight= Node->Size.Y;
+						NewNode->CommentColor = Node->Color;
+						NewNode->NodeComment = Node->Text;
+						NewNode->SetFlags(RF_Transactional);
+						NewNode->GetNodesUnderComment();
+
+						break;
+					}
+					default:
+					{
+						ensure(false);
+						break;
 					}
 				}
 			}
@@ -337,26 +382,42 @@ void UControlRigGraph::HandleModelModified(const UControlRigModel* InModel, ECon
 			const FControlRigModelNode* Node = (const FControlRigModelNode*)InPayload;
 			if (Node != nullptr)
 			{
-				UControlRigGraphNode* RigNode = FindNodeFromPropertyName(Node->Name);
-				if (RigNode != nullptr)
+				UEdGraphNode* EdNode = FindNodeFromPropertyName(Node->Name);
+				if (EdNode != nullptr)
 				{
-					RemoveNode(RigNode);
+					RemoveNode(EdNode);
 				}
 			}
 			break;
 		}
 		case EControlRigModelNotifType::NodeChanged:
 		{
-			const FControlRigModelNode* Node = (const FControlRigModelNode*)InPayload;
-			if (Node != nullptr)
+			if (const FControlRigModelNode* Node = (const FControlRigModelNode*)InPayload)
 			{
-				UControlRigGraphNode* RigNode = FindNodeFromPropertyName(Node->Name);
-				if (RigNode != nullptr)
+				if (UEdGraphNode* EdNode = FindNodeFromPropertyName(Node->Name))
 				{
-					RigNode->NodePosX = (int32)Node->Position.X;
-					RigNode->NodePosY = (int32)Node->Position.Y;
-					RigNode->Modify();
-					RigNode->ParameterType = (int32)Node->ParameterType;
+					EdNode->NodePosX = (int32)Node->Position.X;
+					EdNode->NodePosY = (int32)Node->Position.Y;
+
+					if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(EdNode))
+					{
+						int32 PreviousParameterType = RigNode->ParameterType;
+						RigNode->ParameterType = (int32)Node->ParameterType;
+						RigNode->SetColorFromModel(Node->Color);
+
+						if (Node->IsParameter() && PreviousParameterType != RigNode->ParameterType)
+						{
+							RigNode->ReconstructNode();
+						}
+					}
+
+					if (UEdGraphNode_Comment* CommentNode = Cast<UEdGraphNode_Comment>(EdNode))
+					{
+						CommentNode->NodeWidth = (int32)Node->Size.X;
+						CommentNode->NodeHeight = (int32)Node->Size.Y;
+						CommentNode->NodeComment = Node->Text;
+						CommentNode->CommentColor = Node->Color;
+					}
 				}
 			}
 			break;
@@ -366,12 +427,11 @@ void UControlRigGraph::HandleModelModified(const UControlRigModel* InModel, ECon
 			const FControlRigModelNodeRenameInfo* Info = (const FControlRigModelNodeRenameInfo*)InPayload;
 			if (Info != nullptr)
 			{
-				UControlRigGraphNode* RigNode = FindNodeFromPropertyName(Info->OldName);
+				UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(FindNodeFromPropertyName(Info->OldName));
 				if (RigNode != nullptr)
 				{
 					RigNode->SetPropertyName(Info->NewName, true);
 					RigNode->InvalidateNodeTitle();
-					RigNode->Modify();
 				}
 			}
 			break;
@@ -383,7 +443,7 @@ void UControlRigGraph::HandleModelModified(const UControlRigModel* InModel, ECon
 			if (Pin!= nullptr)
 			{
 				const FControlRigModelNode& Node = InModel->Nodes()[Pin->Node];
-				UControlRigGraphNode* RigNode = FindNodeFromPropertyName(Node.Name);
+				UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(FindNodeFromPropertyName(Node.Name));
 				if (RigNode != nullptr)
 				{
 					RigNode->ReconstructNode();
@@ -404,8 +464,8 @@ void UControlRigGraph::HandleModelModified(const UControlRigModel* InModel, ECon
 				const FControlRigModelNode& TargetNode = InModel->Nodes()[Link->Target.Node];
 				const FControlRigModelPin& TargetPin = TargetNode.Pins[Link->Target.Pin];
 
-				UControlRigGraphNode* SourceRigNode = FindNodeFromPropertyName(SourceNode.Name);
-				UControlRigGraphNode* TargetRigNode = FindNodeFromPropertyName(TargetNode.Name);
+				UControlRigGraphNode* SourceRigNode = Cast<UControlRigGraphNode>(FindNodeFromPropertyName(SourceNode.Name));
+				UControlRigGraphNode* TargetRigNode = Cast<UControlRigGraphNode>(FindNodeFromPropertyName(TargetNode.Name));
 
 				if (SourceRigNode != nullptr && TargetRigNode != nullptr)
 				{
@@ -420,14 +480,10 @@ void UControlRigGraph::HandleModelModified(const UControlRigModel* InModel, ECon
 						if (AddLink)
 						{
 							SourceRigPin->MakeLinkTo(TargetRigPin);
-							SourceRigPin->Modify();
-							TargetRigPin->Modify();
 						}
 						else
 						{
 							SourceRigPin->BreakLinkTo(TargetRigPin);
-							SourceRigPin->Modify();
-							TargetRigPin->Modify();
 						}
 					}
 				}
@@ -481,7 +537,6 @@ void UControlRigGraph::HandleModelModified(const UControlRigModel* InModel, ECon
 								EdPin->DefaultValue = Pin->DefaultValue;
 							}
 						}
-						EdPin->Modify();
 					}
 				}
 			}
@@ -495,22 +550,54 @@ void UControlRigGraph::HandleModelModified(const UControlRigModel* InModel, ECon
 	}
 }
 
-UControlRigGraphNode* UControlRigGraph::FindNodeFromPropertyName(const FName& InPropertyName)
+UEdGraphNode* UControlRigGraph::FindNodeFromPropertyName(const FName& InPropertyName)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	for (UEdGraphNode* EdNode : Nodes)
 	{
-		UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(EdNode);
-		if (RigNode != nullptr)
+		if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(EdNode))
 		{
 			if (RigNode->PropertyName == InPropertyName)
 			{
-				return RigNode;
+				return EdNode;
+			}
+		}
+		else
+		{
+			if (EdNode->GetFName() == InPropertyName)
+			{
+				return EdNode;
 			}
 		}
 	}
 	return nullptr;
 }
 
+void UControlRigGraph::CacheCurveNameList(const FRigCurveContainer& Container)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
+	TArray<FString> Names;
+	const TArray<FRigCurve>& Curves = Container.GetCurves();
+	for (const FRigCurve& Curve : Curves)
+	{
+		Names.Add(Curve.Name.ToString());
+	}
+	Names.Sort();
+
+	CurveNameList.Reset();
+	CurveNameList.Add(MakeShared<FString>(FName(NAME_None).ToString()));
+	for (const FString& Name : Names)
+	{
+		CurveNameList.Add(MakeShared<FString>(Name));
+	}
+}
+
+const TArray<TSharedPtr<FString>>& UControlRigGraph::GetCurveNameList() const
+{
+	return CurveNameList;
+}
 #endif
 
 #undef LOCTEXT_NAMESPACE

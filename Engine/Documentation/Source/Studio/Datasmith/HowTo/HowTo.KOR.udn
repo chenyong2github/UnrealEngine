@@ -1,0 +1,33 @@
+﻿INTSourceChangelist:6572517
+Availability: Public
+Crumbs: 
+Title: 데이터스미스 하우투
+Description: 데이터스미스 워크플로에서 특정한 작업을 하는 방법 안내서입니다.
+Type: landing
+Version: 4.21
+Parent: Studio/Datasmith
+Tags: Datasmith
+Tags: overview
+Tags: Guides
+Order: 2
+
+
+## 초급
+[DIR(output:"fancy" parent:"Studio/Datasmith/HowTo" org:"hierarchy" tags:"beginner" type:"how-to" end:"1" skilllevel:"Beginner")]
+
+## 중급
+[DIR(output:"fancy" parent:"Studio/Datasmith/HowTo" end:"1" skilllevel:"Intermediate")]
+
+## 3ds Max 하우투
+[DIR(output:"fancy" parent:"Studio/Datasmith/SoftwareInteropGuides/3dsMax" org:"hierarchy" end:"1" skilllevel:"Beginner")]
+
+## SketchUp 하우투
+[DIR(output:"fancy" parent:"Studio/Datasmith/SoftwareInteropGuides/SketchUp" org:"hierarchy" end:"1" skilllevel:"Beginner")]
+
+## Revit 하우투
+[DIR(output:"fancy" parent:"Studio/Datasmith/SoftwareInteropGuides/Revit" org:"hierarchy" end:"1" skilllevel:"Beginner")]
+
+## Deltagen 및 VRED 하우투
+[DIR(output:"fancy" parent:"Studio/Datasmith/SoftwareInteropGuides/DeltagenVRED" org:"hierarchy" end:"1" skilllevel:"Beginner")]
+
+

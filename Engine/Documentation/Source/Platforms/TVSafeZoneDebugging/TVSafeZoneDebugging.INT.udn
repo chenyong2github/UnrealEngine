@@ -1,4 +1,4 @@
-Availability:Docs
+Availability:Public
 Title:Setting TV Safe Zone Debugging
 Crumbs:%ROOT%, Platforms
 Description:Making sure that UI elements are not too close to the edges of the TV
@@ -9,25 +9,24 @@ order:1000
 
 [TOC(start:2)]
 
-When working on and Unreal Engine 4 project, it is important that UI or text are not too close to the edges of the screen so that it does not become distorted. To help ensure that this does not happen, the TV Safe Zone Debugging tool was created. In the following document we will go over how to use this tool in your UE4 projects:
+When working on an Unreal Engine 4 (UE4) project, it's important that the UI elements and text are not too close to the edges of the screen. This is so that these elements don't become distorted. To ensure that this doesn't happen, the TV Safe Zone Debugging tool was created. In this document, we will go over how to use this tool in your UE4 projects.
 
-## What is a TV Safe Zone
-A TV Safe Zone or Safe Area is the term used in television production to describe the area of the television picture that ensures the content can be cleanly viewed by a majority of TV viewers. Generally speaking the most important content for a TV show will be placed in this area to ensure that it will not be distorted when viewed on a wide range of TV sets.
+## What are TV Safe Zones
+A TV Safe Zone or Safe Area is the term used in television production to describe the area of the television picture that ensures the content can be cleanly viewed by a majority of TV viewers. Generally speaking, the most important content for a TV show will be placed in this area to ensure that it will not be distorted when viewed on a wide range of TV sets.
 
 [region:note]
-You can read more about TV Safe Zones / Safe Areas on the following Wikipedia page,
-**[TV Safe area](http://tinyurl.com/zq55mzl)**
+You can read more about TV Safe Zones and Safe Areas on the following Wikipedia page: [TV Safe area](http://tinyurl.com/zq55mzl).
 [/region]
 
-## Difference between Title Safe Zone & Action Safe Zone
-UE4 has two different types of TV Safe Zones called, Title Safe Zone and Action Safe Zone which are very similar to one another.
+## Difference between Title Safe Zones & Action Safe Zones
+UE4 has two different types of TV Safe Zones: the Title Safe Zone and the Action Safe Zone.
 
-**Title Safe Zone**: The Title Safe Zone is to ensure that UI or Text elements are not cutoff or distorted when viewed. 
+*   **Title Safe Zone -** The Title Safe Zone is for UI or Text elements, to make sure they are not cut off or distorted when viewed.
 
-**Action Safe Zone**: The Action Safe Zone is used to allow things like characters or enemies to wander partially off screen. 
+*   **Action Safe Zone -** The Action Safe Zone is used to allow characters or enemies to wander partially offscreen.
 
 [region:note]
-The area outside of the Action Safe zone will probably be clipped on displays with overscan, while areas between the Action Safe zone and Title Safe zone may be partially clipped.  It's ok to have some action (e.g., other characters or enemies) occur in that region.  The Action Safe zone is the same size as the Title Safe zone on many platforms.
+The area outside of the Action Safe zone will probably be clipped on displays with overscan, while areas between the Action Safe zone and Title Safe zone may be partially clipped. It's OK to have some action (such as other characters or enemies) occur in that region. The Action Safe zone is the same size as the Title Safe zone on many platforms.
 [/region]
 
 
@@ -38,9 +37,9 @@ You can enter the following TV Safe Zone commands right to into the UE4 console.
 
 |Command Name| Value| Description|
 |----------------------|----------------|--------|
-|r.DebugSafeZone|0| Disables all overlays.|
-|r.DebugSafeZone|1| Enables Title safe zone.|
-|r.DebugSafeZone|2| Enables Action safe zone.| 
+|r.DebugSafeZone.Mode|0| Disables all overlays.|
+|r.DebugSafeZone.Mode|1| Enables Title safe zone.|
+|r.DebugSafeZone.Mode|2| Enables Action safe zone.| 
 |r.DebugSafeZone.OverlayAlpha|0 to 1|Controls how opaque the debug visualization overlay is (Default is 0.3)|
 |r.DebugSafeZone.TitleRatio|0 to 1|Controls the action safe zone margins returned in FDisplayMetrics (Default is 0.9).|
 |r.DebugActionZone.ActionRatio| 0 to 1|Controls the action safe zone margins returned in FDisplayMetrics (Default is 0.9).|
@@ -49,37 +48,32 @@ You can also place the TV Safe Zone commands in your projects **DefaultEngine.in
 
 ![](SZ_Default_Engine_INI.png)
 
-## Activating the Safe & Action Zones
+## Activating the Title Safe Zone Debug Preview
 
 [region:warning]
-For the ratio of the safe areas to be correctly displayed you **must** run the project in **windowed fullscreen** or **fullscreen**. Failing to do this will result in the safe zone being incorrectly displayed or displayed smaller than expected.
+To correctly display the ratio of the safe areas, you **must** run the project in either **Windowed Fullscreen** or **Fullscreen** mode. If you don't, the safe zone will not display correctly, or will display a smaller size than expected.
 [/region]
 
-In the following section, we will take a look at what you need to do to activate the Safe and Action Zones.
+In this section, we will look at activating the Safe Zones in a Debug preview.
 
 
-1. From the **Main Toolbar** go to the **Play** section and click on the small white arrow next to the play icon to change the play mode options.
+1.  From the **Main Toolbar**, go to the **Play** section and click on the small white arrow to change the Play Mode options.
 
 	![](SZ_Play_Mode.png)
 
-1. Once the Play Modes menu has been opened, select the **New Editor Window (PIE)** option so that the game will launch itself in a new stand alone window.
+1.  In the **Play Modes** menu, select **New Editor Window (PIE)**. This launches the game in a new window.
 
 	![](SZ_NEW_PIE.png)
 
-1. Press the Play button to launch the game in its own window and then on the upper right-hand corner of the new game window, click on the **square icon** to maximize the window to full screen. 
+1.  Press **Play** to launch the game in its own window, then maximize the window to full screen.
 
 	![](SZ_Fullscreen_Window.png)
 
-1. With the game window now full screen, press the **Backtick (`)** key to open the Unreal Console and input either of the following commands to display the needed safe zone, pressing the **Enter** key to apply it.
-
-	|Command Name| Value| Description|
-	|----------------------|----------------|--------|
-	|r.DebugSafeZone|1| Enables Title Safe zone.|
-	|r.DebugSafeZone|2| Enables Action Safe zone.| 
+1.  Next, press the TILDE ( ~ ) key to open the Unreal Console. Type `r.DebugSafeZone.Mode 1`, and press the ENTER key to apply it.
 
 	![](SZ_Enter_Command.png)
 
-1. Once the command has been input, you should now see a slightly transparent red border placed around the entire play window like in the following image.
+1.  You should now see a slightly transparent red border placed around the entire play window, as seen in the image below.
 
 	[REGION:lightbox]
 	[![](Safe_Zone_00.png)(w:645)](Safe_Zone_00.png)

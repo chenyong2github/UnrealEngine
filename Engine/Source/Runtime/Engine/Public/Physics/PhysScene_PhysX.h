@@ -11,6 +11,7 @@ class ISQAccelerator;
 class FSQAccelerator;
 class FSQAcceleratorUnion;
 class FSQAcceleratorEntry;
+class FPhysXSQAccelerator;
 
 /** Buffers used as scratch space for PhysX to avoid allocations during simulation */
 struct FSimulationScratchBuffer
@@ -27,7 +28,7 @@ struct FSimulationScratchBuffer
 	int32 BufferSize;
 };
 
-#if !WITH_CHAOS && !WITH_IMMEDIATE_PHYSX && !PHYSICS_INTERFACE_LLIMMEDIATE
+#if !WITH_CHAOS && !WITH_IMMEDIATE_PHYSX
 
 class FPhysicsReplication;
 class IPhysicsReplicationFactory;
@@ -152,9 +153,9 @@ public:
 	void ClearPreSimKinematicUpdate(USkeletalMeshComponent* InSkelComp);
 
 	/** Pending constraint break events */
-	void AddPendingOnConstraintBreak(FConstraintInstance* ConstraintInstance);
+	ENGINE_API void AddPendingOnConstraintBreak(FConstraintInstance* ConstraintInstance);
 	/** Pending wake/sleep events */
-	void AddPendingSleepingEvent(FBodyInstance* BI, ESleepEvent SleepEventType);
+	ENGINE_API void AddPendingSleepingEvent(FBodyInstance* BI, ESleepEvent SleepEventType);
 
 	/** Gets the array of collision notifications, pending execution at the end of the physics engine run. */
 	TArray<FCollisionNotifyInfo>& GetPendingCollisionNotifies() { return PendingCollisionData.PendingCollisionNotifies; }
@@ -197,6 +198,8 @@ public:
 	/** Static factory used to override the physics replication manager from other modules. This is useful for custom game logic.
 	If not set it defaults to using FPhysicsReplication. */
 	ENGINE_API static TSharedPtr<IPhysicsReplicationFactory> PhysicsReplicationFactory;
+
+	ENGINE_API void SerializeForTesting(FArchive& Ar);
 
 	//////////////////////////////////////////////////////////////////////////
 	// PhysScene_PhysX interface
@@ -296,8 +299,11 @@ private:
 	static const int32 SimScratchBufferBoundary = 16 * 1024;
 
 #if WITH_CUSTOM_SQ_STRUCTURE
-	class FSQAcceleratorUnion* SQAcceleratorUnion;
-	class FSQAccelerator* SQAccelerator;
+	FSQAcceleratorUnion* SQAcceleratorUnion;
+	FSQAccelerator* SQAccelerator;
+#if WITH_PHYSX && !WITH_CHAOS
+	FPhysXSQAccelerator* PhysXSQAccelerator;
+#endif
 #endif
 
 #if WITH_PHYSX

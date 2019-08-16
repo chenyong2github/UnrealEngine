@@ -17,6 +17,10 @@ class FInternetAddr;
 class FSocket;
 struct FIPv4Endpoint;
 
+#if !defined(WITH_TARGETPLATFORM_SUPPORT)
+	#define WITH_TARGETPLATFORM_SUPPORT 0
+#endif
+
 
 /**
  * Implements a beacon sender thread.
@@ -104,11 +108,11 @@ protected:
 
 private:
 
-#if WITH_EDITOR || IS_PROGRAM
+#if WITH_TARGETPLATFORM_SUPPORT
 	void HandleTargetPlatformDeviceDiscovered( TSharedRef<class ITargetDevice, ESPMode::ThreadSafe> DiscoveredDevice );
 	void HandleTargetPlatformDeviceLost( TSharedRef<class ITargetDevice, ESPMode::ThreadSafe> LostDevice );
 	void ProcessPendingEndpoints();
-#endif //WITH_EDITOR || IS_PROGRAM
+#endif //WITH_TARGETPLATFORM_SUPPORT
 
 
 	/** Holds the calculated interval between Hello segments. */
@@ -144,7 +148,7 @@ private:
 	/** Holds the thread object. */
 	FRunnableThread* Thread;
 
-#if WITH_EDITOR || IS_PROGRAM
+#if WITH_TARGETPLATFORM_SUPPORT
 	/** Holds target devices that have just been discovered **/
 	struct FPendingEndpoint
 	{
@@ -152,7 +156,7 @@ private:
 		bool bAdd;
 	};
 	TQueue<FPendingEndpoint,EQueueMode::Mpsc> PendingEndpoints;
-#endif //WITH_EDITOR || IS_PROGRAM
+#endif //WITH_TARGETPLATFORM_SUPPORT
 
 private:
 	

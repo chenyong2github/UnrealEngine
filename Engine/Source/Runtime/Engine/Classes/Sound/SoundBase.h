@@ -1,31 +1,51 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
-/** 
- * The base class for a playable sound object 
+/**
+ * The base class for a playable sound object
  */
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
 #include "Audio.h"
-#include "Sound/SoundConcurrency.h"
+#include "CoreMinimal.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "SoundConcurrency.h"
+#include "SoundSourceBusSend.h"
 #include "SoundSubmix.h"
-#include "Sound/SoundSourceBusSend.h"
+#include "IAudioExtensionPlugin.h"
+
 #include "SoundBase.generated.h"
 
-class USoundConcurrency;
+
 class USoundEffectSourcePreset;
-class USoundSubmix;
 class USoundSourceBus;
 class USoundEffectSourcePresetChain;
 
-struct FSoundConcurrencySettings;
-struct FSoundSubmixSendInfo;
-struct FSoundSourceBusSendInfo;
 struct FActiveSound;
 struct FSoundParseParameters;
+
+/**
+ * Method of virtualization when a sound is stopped due to playback constraints
+ * (i.e. by concurrency, priority, and/or MaxChannelCount)
+ * for a given sound.
+ */
+UENUM(BlueprintType)
+enum class EVirtualizationMode : uint8
+{
+	/** Virtualization is disabled */
+	Disabled,
+
+	/** Sound continues to play when silent and not virtualize, continuing to use a voice. If
+	 * sound is looping and stopped due to concurrency or channel limit/priority, sound will
+	 * restart on realization. If any SoundWave referenced in a SoundCue's waveplayer is set
+	 * to 'PlayWhenSilent', entire SoundCue will be overridden to 'PlayWhenSilent' (to maintain
+	 * timing over all wave players).
+	 */
+	PlayWhenSilent,
+
+	/** If sound is looping, sound restarts from beginning upon realization from being virtual */
+	Restart
+};
 
 UCLASS(config=Engine, hidecategories=Object, abstract, editinlinenew, BlueprintType)
 class ENGINE_API USoundBase : public UObject
@@ -37,23 +57,20 @@ public:
 	static USoundConcurrency* DefaultSoundConcurrencyObject;
 
 	/** Sound class this sound belongs to */
-	UPROPERTY(EditAnywhere, Category = Sound, meta = (DisplayName = "Sound Class"), AssetRegistrySearchable)
+	UPROPERTY(EditAnywhere, Category = Sound, meta = (DisplayName = "Class"), AssetRegistrySearchable)
 	USoundClass* SoundClassObject;
 
 	/** When "stat sounds -debug" has been specified, draw this sound's attenuation shape when the sound is audible. For debugging purpose only. */
 	UPROPERTY(EditAnywhere, Category = Debug)
-	uint8 bDebug:1;
+	uint8 bDebug : 1;
 
 	/** Whether or not to override the sound concurrency object with local concurrency settings. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Concurrency)
-	uint8 bOverrideConcurrency:1;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Voice Management|Concurrency")
+	uint8 bOverrideConcurrency : 1;
 
 	/** Whether or not to only send this audio's output to a bus. If true, will not be this sound won't be audible except through bus sends. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Effects)
 	uint8 bOutputToBusOnly : 1;
-
-	UPROPERTY()
-	uint8 bIgnoreFocus_DEPRECATED:1;
 
 	/** Whether or not to only send this audio's output to a bus. If true, will not be this sound won't be audible except through bus sends. */
 	UPROPERTY()
@@ -63,32 +80,39 @@ public:
 	UPROPERTY()
 	uint8 bHasConcatenatorNode : 1;
 
-	/** Whether a sound has virtualize when silent enabled (i.e. for a sound cue, if any sound wave player has it enabled). */
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	uint8 bHasVirtualizeWhenSilent:1;
+	uint8 bHasVirtualizeWhenSilent_DEPRECATED : 1;
+#endif // WITH_EDITORONLY_DATA
 
 	/** Bypass volume weighting priority upon evaluating whether sound should remain active when max channel count is met (See platform Audio Settings). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Priority)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Voice Management|Priority")
 	uint8 bBypassVolumeScaleForPriority : 1;
+
+	/** Virtualization behavior, determining if a sound may revive and how it continues playing when culled or evicted (limited to looping sounds). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Voice Management")
+	EVirtualizationMode VirtualizationMode;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	TEnumAsByte<enum EMaxConcurrentResolutionRule::Type> MaxConcurrentResolutionRule_DEPRECATED;
-#endif
+	TEnumAsByte<EMaxConcurrentResolutionRule::Type> MaxConcurrentResolutionRule_DEPRECATED;
+#endif // WITH_EDITORONLY_DATA
 
 	/** Number of times this cue is currently being played. */
 	int32 CurrentPlayCount;
 
+#if WITH_EDITORONLY_DATA
 	/** If Override Concurrency is false, the sound concurrency settings to use for this sound. */
 	UPROPERTY()
 	USoundConcurrency* SoundConcurrencySettings_DEPRECATED;
+#endif // WITH_EDITORONLY_DATA
 
 	/** Set of concurrency settings to observe (if override is set to false).  Sound must pass all concurrency settings to play. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Concurrency, meta = (EditCondition = "!bOverrideConcurrency"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Voice Management|Concurrency", meta = (EditCondition = "!bOverrideConcurrency"))
 	TSet<USoundConcurrency*> ConcurrencySet;
 
 	/** If Override Concurrency is true, concurrency settings to use. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Concurrency, meta = (EditCondition = "bOverrideConcurrency"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Voice Management|Concurrency", meta = (EditCondition = "bOverrideConcurrency"))
 	FSoundConcurrencySettings ConcurrencyOverrides;
 
 #if WITH_EDITORONLY_DATA
@@ -113,15 +137,19 @@ public:
 	  * (see platform's Audio Settings 'Max Channels' property). Unless bypassed, value is weighted with the final volume of the
 	  * sound to produce final runtime priority value.
 	  */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Priority, meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "100.0", UIMax = "100.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Voice Management|Priority", meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "100.0", UIMax = "100.0"))
 	float Priority;
 
 	/** Attenuation settings package for the sound */
-	UPROPERTY(EditAnywhere, Category=Attenuation)
+	UPROPERTY(EditAnywhere, Category = Attenuation)
 	USoundAttenuation* AttenuationSettings;
 
-	/** Sound submix this sound belongs to. 
-	  * Audio will play here and traverse through the submix graph. 
+	/** Modulation for the sound */
+	UPROPERTY(EditAnywhere, Category = Modulation)
+	FSoundModulation Modulation;
+
+	/** Sound submix this sound belongs to.
+	  * Audio will play here and traverse through the submix graph.
 	  * A null entry will make the sound obey the default master effects graph.
 	  */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Effects, meta = (DisplayName = "Sound Submix"))
@@ -143,7 +171,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Effects, meta = (DisplayName = "Pre-Effect Bus Sends"))
 	TArray<FSoundSourceBusSendInfo> PreEffectBusSends;
 
-public:	
+public:
 
 	//~ Begin UObject Interface.
 	virtual void PostInitProperties() override;
@@ -151,13 +179,14 @@ public:
 	virtual bool CanBeClusterRoot() const override;
 	virtual bool CanBeInCluster() const override;
 	virtual void Serialize(FArchive& Ar) override;
+
 	//~ End UObject interface.
 
 	/** Returns whether the sound base is set up in a playable manner */
 	virtual bool IsPlayable() const;
 
-	/** Returns whether a sound is allowed to be virtualized. */
-	virtual bool IsAllowedVirtual() const;
+	/** Returns whether sound supports subtitles. */
+	virtual bool SupportsSubtitles() const;
 
 	/** Returns whether or not this sound base has an attenuation node. */
 	virtual bool HasAttenuationNode() const;
@@ -170,7 +199,7 @@ public:
 	 */
 	virtual float GetMaxDistance() const;
 
-	/** 
+	/**
 	 * Returns the length of the sound
 	 */
 	virtual float GetDuration();
@@ -181,15 +210,15 @@ public:
 	/** Returns whether or not this sound has a sequencer node, which means it's possible for the owning active sound to persist even though it's not generating audio. */
 	bool HasConcatenatorNode() const;
 
-	/** Returns true if any of the sounds in the sound have "virtualize when silent" enabled. */
-	bool IsVirtualizeWhenSilent() const;
+	/** Returns true if any of the sounds in the sound have "play when silent" enabled. */
+	virtual bool IsPlayWhenSilent() const;
 
 	virtual float GetVolumeMultiplier();
 	virtual float GetPitchMultiplier();
 
 	/** Returns the subtitle priority */
 	virtual float GetSubtitlePriority() const { return DEFAULT_SUBTITLE_PRIORITY; };
-	
+
 	/** Returns whether or not any part of this sound wants interior volumes applied to it */
 	virtual bool ShouldApplyInteriorVolumes();
 

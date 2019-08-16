@@ -249,6 +249,9 @@ public:
 		}
 #endif // WITH_EDITOR
 
+		// parse additional command line args
+		ParseCommandLine(GetMutableDefault<UUdpMessagingSettings>(), FCommandLine::Get());
+
 		// register application events
 		FCoreDelegates::ApplicationHasReactivatedDelegate.AddRaw(this, &FUdpMessagingModule::HandleApplicationHasReactivated);
 		FCoreDelegates::ApplicationWillDeactivateDelegate.AddRaw(this, &FUdpMessagingModule::HandleApplicationWillDeactivate);
@@ -424,6 +427,20 @@ protected:
 			ShutdownTunnel();
 		}
 #endif
+	}
+
+	/**
+	 * Parse command line arguments to override UdpMessagingSettings
+	 */
+	void ParseCommandLine(UUdpMessagingSettings* Settings, const TCHAR* CommandLine)
+	{
+		if (Settings && CommandLine)
+		{
+			// Parse value overrides (if present)
+			FParse::Bool(CommandLine, TEXT("-UDPMESSAGING_TRANSPORT_ENABLE="), Settings->EnableTransport);
+			FParse::Value(CommandLine, TEXT("-UDPMESSAGING_TRANSPORT_UNICAST="), Settings->UnicastEndpoint);
+			FParse::Value(CommandLine, TEXT("-UDPMESSAGING_TRANSPORT_MULTICAST="), Settings->MulticastEndpoint);
+		}
 	}
 
 	/**

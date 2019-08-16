@@ -11,7 +11,7 @@
 namespace PropertyTemplate
 {
 	template<>
-	AActor* ConvertFromIntermediateType<AActor*, FMovieSceneObjectBindingID>(const FMovieSceneObjectBindingID& InObjectBinding, const FMovieSceneEvaluationOperand& Operand, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player)
+	UObject* ConvertFromIntermediateType<UObject*, FMovieSceneObjectBindingID>(const FMovieSceneObjectBindingID& InObjectBinding, const FMovieSceneEvaluationOperand& Operand, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player)
 	{
 		FMovieSceneObjectBindingID ResolvedID = InObjectBinding.ResolveLocalToRoot(Operand.SequenceID, Player.GetEvaluationTemplate().GetHierarchy());
 
@@ -26,25 +26,25 @@ namespace PropertyTemplate
 	}
 
 	template<>
-	AActor* ConvertFromIntermediateType<AActor*, TWeakObjectPtr<AActor>>(const TWeakObjectPtr<AActor>& InWeakPtr, IMovieScenePlayer& Player)
+	UObject* ConvertFromIntermediateType<UObject*, TWeakObjectPtr<>>(const TWeakObjectPtr<>& InWeakPtr, IMovieScenePlayer& Player)
 	{
 		return InWeakPtr.Get();
 	}
 
 	template<>
-	AActor* ConvertFromIntermediateType<AActor*, TWeakObjectPtr<AActor>>(const TWeakObjectPtr<AActor>& InWeakPtr, const FMovieSceneEvaluationOperand& Operand, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player)
+	UObject* ConvertFromIntermediateType<UObject*, TWeakObjectPtr<>>(const TWeakObjectPtr<>& InWeakPtr, const FMovieSceneEvaluationOperand& Operand, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player)
 	{
 		return InWeakPtr.Get();
 	}
 
-	static bool IsValueValid(AActor* InValue)
+	static bool IsValueValid(UObject* InValue)
 	{
 		return InValue != nullptr;
 	}
 
-	template<> IMovieScenePreAnimatedTokenPtr CacheExistingState<AActor*, FMovieSceneObjectBindingID>(UObject& Object, FTrackInstancePropertyBindings& PropertyBindings)
+	template<> IMovieScenePreAnimatedTokenPtr CacheExistingState<UObject*, FMovieSceneObjectBindingID>(UObject& Object, FTrackInstancePropertyBindings& PropertyBindings)
 	{
-		return TCachedState<AActor*, TWeakObjectPtr<AActor>>(PropertyBindings.GetCurrentValue<AActor*>(Object), PropertyBindings);
+		return TCachedState<UObject*, TWeakObjectPtr<>>(PropertyBindings.GetCurrentValue<UObject*>(Object), PropertyBindings);
 	}
 }
 
@@ -59,5 +59,5 @@ void FMovieSceneActorReferenceSectionTemplate::Evaluate(const FMovieSceneEvaluat
 	using namespace PropertyTemplate;
 
 	FMovieSceneActorReferenceKey ObjectBinding = ActorReferenceData.Evaluate(Context.GetTime());
-	ExecutionTokens.Add(TPropertyTrackExecutionToken<AActor*, FMovieSceneObjectBindingID>(ObjectBinding.Object));
+	ExecutionTokens.Add(TPropertyTrackExecutionToken<UObject*, FMovieSceneObjectBindingID>(ObjectBinding.Object));
 }

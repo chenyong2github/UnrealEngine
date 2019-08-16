@@ -15,6 +15,7 @@
 #include "Modules/ModuleManager.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "Framework/Application/SlateApplication.h"
+#include "NiagaraEditorUtilities.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSystemFactory"
 
@@ -129,15 +130,9 @@ UObject* UNiagaraSystemFactoryNew::FactoryCreateNew(UClass* Class, UObject* InPa
 		NewSystem = NewObject<UNiagaraSystem>(InParent, Class, Name, Flags | RF_Transactional);
 		InitializeSystem(NewSystem, true);
 
-		FNiagaraSystemViewModelOptions SystemViewModelOptions;
-		SystemViewModelOptions.bCanAutoCompile = false;
-		SystemViewModelOptions.bCanSimulate = false;
-		SystemViewModelOptions.EditMode = ENiagaraSystemViewModelEditMode::SystemAsset;
-
-		TSharedRef<FNiagaraSystemViewModel> NewSystemViewModel = MakeShared<FNiagaraSystemViewModel>(*NewSystem, SystemViewModelOptions);
 		for (UNiagaraEmitter* EmitterToAddToNewSystem : EmittersToAddToNewSystem)
 		{
-			NewSystemViewModel->AddEmitter(*EmitterToAddToNewSystem);
+			FNiagaraEditorUtilities::AddEmitterToSystem(*NewSystem, *EmitterToAddToNewSystem);
 		}
 	}
 	else
@@ -145,6 +140,8 @@ UObject* UNiagaraSystemFactoryNew::FactoryCreateNew(UClass* Class, UObject* InPa
 		NewSystem = NewObject<UNiagaraSystem>(InParent, Class, Name, Flags | RF_Transactional);
 		InitializeSystem(NewSystem, true);
 	}
+
+	NewSystem->RequestCompile(false);
 
 	return NewSystem;
 }

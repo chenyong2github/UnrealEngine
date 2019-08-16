@@ -19,6 +19,14 @@ class UK2Node_CustomEvent : public UK2Node_Event
 {
 	GENERATED_UCLASS_BODY()
 
+	/** Optional message to display when the event is deprecated */
+	UPROPERTY()
+	FString DeprecationMessage;
+
+	/** Specifies that usage of this event has been deprecated */
+	UPROPERTY()
+	bool bIsDeprecated;
+
 	/** Specifies that the event can be triggered in Editor */
 	UPROPERTY()
 	bool bCallInEditor;
@@ -41,12 +49,15 @@ class UK2Node_CustomEvent : public UK2Node_Event
 	virtual void AutowireNewNode(UEdGraphPin* FromPin) override;
 	virtual void AddSearchMetaDataInfo(TArray<struct FSearchTagDataPair>& OutTaggedMetaData) const override;
 	virtual FText GetKeywords() const override;
+	virtual bool HasDeprecatedReference() const override { return bIsDeprecated; }
+	virtual FEdGraphNodeDeprecationResponse GetDeprecationResponse(EEdGraphNodeDeprecationType DeprecationType) const override;
 	//~ End UEdGraphNode Interface
 
 	//~ Begin UK2Node Interface
-	BLUEPRINTGRAPH_API virtual void ValidateNodeDuringCompilation(class FCompilerResultsLog& MessageLog) const override;
+	virtual void ValidateNodeDuringCompilation(class FCompilerResultsLog& MessageLog) const override;
 	virtual void GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const override;
-	BLUEPRINTGRAPH_API virtual bool NodeCausesStructuralBlueprintChange() const override { return true; }
+	virtual void FixupPinStringDataReferences(FArchive* SavingArchive) override;
+	virtual bool NodeCausesStructuralBlueprintChange() const override { return true; }
 	//~ End UK2Node Interface
 
 	//~ Begin UK2Node_EditablePinBase Interface
@@ -80,6 +91,14 @@ class UK2Node_CustomEvent : public UK2Node_Event
 	 * @return If this CustomEvent is an override, then this is the super's net flags, otherwise it's from the FunctionFlags set on this node.
 	 */
 	BLUEPRINTGRAPH_API uint32 GetNetFlags() const;
+
+	/**
+	* Updates the Signature of this event. Empties current pins and adds the new given parameters.
+	* Does nothing if DelegateSignature is nullptr
+	* 
+	* @param DelegateSignature	The new signature for this function to have
+	*/
+	BLUEPRINTGRAPH_API void SetDelegateSignature(const UFunction* DelegateSignature);
 
 private:
 	/** Constructing FText strings can be costly, so we cache the node's title */

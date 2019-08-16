@@ -48,9 +48,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Scroll")
 	EConsumeMouseWheel ConsumeMouseWheel;
 
-	/**  */
+	/** The thickness of the scrollbar thumb */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Scroll")
 	FVector2D ScrollbarThickness;
+
+	/** The margin around the scrollbar */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Scroll")
+	FMargin ScrollbarPadding;
 
 	/**  */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Scroll")
@@ -63,6 +67,10 @@ public:
 	/**  Disable to stop scrollbars from activating inertial overscrolling */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Scroll")
 	bool AllowOverscroll;
+	
+	/** True to lerp smoothly when wheel scrolling along the scroll box */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Scroll")
+	bool bAnimateWheelScrolling = false;
 
 	/**  */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Scroll")
@@ -79,6 +87,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Scroll")
 	bool bAllowRightClickDragScrolling;
 
+	/** The multiplier to apply when wheel scrolling */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Scroll")
+	float WheelScrollMultiplier = 1.f;
+
 
 	UFUNCTION(BlueprintCallable, Category = "Scroll")
 	void SetConsumeMouseWheel(EConsumeMouseWheel NewConsumeMouseWheel);
@@ -93,10 +105,19 @@ public:
 	void SetScrollbarThickness(const FVector2D& NewScrollbarThickness);
 
 	UFUNCTION(BlueprintCallable, Category = "Scroll")
+	void SetScrollbarPadding(const FMargin& NewScrollbarPadding);
+
+	UFUNCTION(BlueprintCallable, Category = "Scroll")
 	void SetAlwaysShowScrollbar(bool NewAlwaysShowScrollbar);
 	
 	UFUNCTION(BlueprintCallable, Category = "Scroll")
 	void SetAllowOverscroll(bool NewAllowOverscroll);
+
+	UFUNCTION(BlueprintCallable, Category = "Scroll")
+	void SetAnimateWheelScrolling(bool bShouldAnimateWheelScrolling);
+
+	UFUNCTION(BlueprintCallable, Category = "Scroll")
+	void SetWheelScrollMultiplier(float NewWheelScrollMultiplier);
 
 	/** Instantly stops any inertial scrolling that is currently in progress */
 	UFUNCTION(BlueprintCallable, Category = "Scroll")
@@ -120,6 +141,10 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Widget")
 	float GetScrollOffset() const;
+
+	/** Gets the scroll offset of the bottom of the ScrollBox in Slate Units. */
+	UFUNCTION(BlueprintCallable, Category = "Widget")
+	float GetScrollOffsetOfEnd() const;
 
 	UFUNCTION(BlueprintCallable, Category="Widget")
 	float GetViewOffsetFraction() const;
@@ -145,7 +170,10 @@ public:
 	//~ End UVisual Interface
 
 	//~ Begin UObject Interface
+#if WITH_EDITORONLY_DATA
+	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
+#endif // if WITH_EDITORONLY_DATA
 	//~ End UObject Interface
 
 #if WITH_EDITOR

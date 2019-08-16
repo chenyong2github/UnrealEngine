@@ -35,11 +35,8 @@ class FGenerateMipsCS : public FGlobalShader
 IMPLEMENT_GLOBAL_SHADER(FGenerateMipsCS, "/Engine/Private/ComputeGenerateMips.usf", "MainCS", SF_Compute);
 
 //Initialise the texture for usage with RenderGraph and ComputeGenerateMips shader
-FGenerateMipsStruct* FGenerateMips::SetupTexture(FTextureRHIParamRef InTexture,
-	ESamplerFilter InFilter,
-	ESamplerAddressMode InAddressU,
-	ESamplerAddressMode InAddressV,
-	ESamplerAddressMode InAddressW)
+FGenerateMipsStruct* FGenerateMips::SetupTexture(FRHITexture* InTexture,
+	const FGenerateMipsParams& InParams)
 {
 	//Currently only 2D textures supported
 	check(InTexture->GetTexture2D());
@@ -79,10 +76,10 @@ FGenerateMipsStruct* FGenerateMips::SetupTexture(FTextureRHIParamRef InTexture,
 		GRenderTargetPool.CreateUntrackedElement(Desc, InTexture->GenMipsStruct->RenderTarget, RenderTexture);
 
 		//Specify the Sampler details based on the input.
-		InTexture->GenMipsStruct->Sampler.Filter = InFilter;
-		InTexture->GenMipsStruct->Sampler.AddressU = InAddressU;
-		InTexture->GenMipsStruct->Sampler.AddressV = InAddressV;
-		InTexture->GenMipsStruct->Sampler.AddressW = InAddressW;
+		InTexture->GenMipsStruct->Sampler.Filter = InParams.Filter;
+		InTexture->GenMipsStruct->Sampler.AddressU = InParams.AddressU;
+		InTexture->GenMipsStruct->Sampler.AddressV = InParams.AddressV;
+		InTexture->GenMipsStruct->Sampler.AddressW = InParams.AddressW;
 	}
 
 	//Return the raw pointer
@@ -90,7 +87,7 @@ FGenerateMipsStruct* FGenerateMips::SetupTexture(FTextureRHIParamRef InTexture,
 }
 
 //Compute shader execution function for generating mips in real time.
-void FGenerateMips::Compute(FRHICommandListImmediate& RHIImmCmdList, FTextureRHIParamRef InTexture)
+void FGenerateMips::Compute(FRHICommandListImmediate& RHIImmCmdList, FRHITexture* InTexture)
 {
 	check(IsInRenderingThread());	
 	//Currently only 2D textures supported
@@ -129,23 +126,24 @@ void FGenerateMips::Compute(FRHICommandListImmediate& RHIImmCmdList, FTextureRHI
 			FMath::Max(DestTextureSizeY / MIPSSHADER_NUMTHREADS, 1),
 			1);
 		//Pass added per mip level to be written.
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
+		ClearUnusedGraphResources(*ComputeShader, PassParameters);
+
+		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("Generate2DTextureMips DestMipLevel=%d", MipLevel),
-			*ComputeShader,
 			PassParameters,
-			GenMipsGroupCount);
+			ERDGPassFlags::Compute | ERDGPassFlags::GenerateMips,
+			[PassParameters, ComputeShader, GenMipsGroupCount](FRHICommandList& RHICmdList)
+		{
+			FComputeShaderUtils::Dispatch(RHICmdList, *ComputeShader, *PassParameters, GenMipsGroupCount);
+		});
 	}
 	GraphBuilder.QueueTextureExtraction(GraphTexture, &GenMipsStruct->RenderTarget);
 	GraphBuilder.Execute();	
 }
 
 //Public execute function for calling the generate mips compute shader. Handles everything per platform.
-void FGenerateMips::Execute(FRHICommandListImmediate& RHICmdList, FTextureRHIParamRef InTexture,
-	ESamplerFilter InFilter,
-	ESamplerAddressMode InAddressU,
-	ESamplerAddressMode InAddressV,
-	ESamplerAddressMode InAddressW)
+void FGenerateMips::Execute(FRHICommandListImmediate& RHICmdList, FRHITexture* InTexture,
+	const FGenerateMipsParams& InParams)
 {
 	//Only executes if mips are required.
 	if (InTexture->GetNumMips() > 1)
@@ -156,7 +154,7 @@ void FGenerateMips::Execute(FRHICommandListImmediate& RHICmdList, FTextureRHIPar
 			//Generate the RenderGraph texture if required.
 			if (!InTexture->GenMipsStruct)
 			{
-				SetupTexture(InTexture, InFilter, InAddressU, InAddressV, InAddressW);
+				SetupTexture(InTexture, InParams);
 			}
 			Compute(RHICmdList, InTexture);
 		}

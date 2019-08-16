@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3782314
-Availability: Public
+﻿INTSourceChangelist:6277736
+Availability: Docs
 Title:1 - 블렌딩할 애니메이션 구성
 Crumbs: %ROOT%, Engine, Engine\Animation, Engine\Animation\AnimHowTo
 Description:여기서는 플레이어 캐릭터를 업데이트하고 이동 애니메이션 위에 레이어로 놓을 애니메이션에 대한 애님 몽타주를 만들어 봅니다.

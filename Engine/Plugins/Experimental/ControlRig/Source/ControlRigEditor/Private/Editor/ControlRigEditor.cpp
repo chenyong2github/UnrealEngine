@@ -57,9 +57,11 @@
 #include "Graph/ControlRigGraphSchema.h"
 #include "ControlRigObjectVersion.h"
 #include "EdGraphUtilities.h"
+#include "EdGraphNode_Comment.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "SNodePanel.h"
 #include "Kismet/Private/SMyBlueprint.h"
+#include "Kismet/Private/SBlueprintEditorSelectedDebugObjectWidget.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditor"
 
@@ -78,6 +80,7 @@ FControlRigEditor::FControlRigEditor()
 	: ControlRig(nullptr)
 	, bControlRigEditorInitialized(false)
 	, bIsSelecting(false)
+	, bIsSettingObjectBeingDebugged(false)
 {
 }
 
@@ -109,6 +112,8 @@ void FControlRigEditor::ExtendMenu()
 
 void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UControlRigBlueprint* InControlRigBlueprint)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	FPersonaModule& PersonaModule = FModuleManager::GetModuleChecked<FPersonaModule>("Persona");
 
 	FPersonaToolkitArgs PersonaToolkitArgs;
@@ -118,6 +123,7 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 	// set delegate prior to setting mesh
 	// otherwise, you don't get delegate
 	PersonaToolkit->GetPreviewScene()->RegisterOnPreviewMeshChanged(FOnPreviewMeshChanged::CreateSP(this, &FControlRigEditor::HandlePreviewMeshChanged));
+
 	// Set a default preview mesh, if any
 	PersonaToolkit->SetPreviewMesh(InControlRigBlueprint->GetPreviewMesh(), false);
 
@@ -203,7 +209,7 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 		{
 			if (Graph->GetFName().IsEqual(UControlRigGraphSchema::GraphName_ControlRig))
 			{
-				OpenGraphAndBringToFront(Graph);
+				OpenGraphAndBringToFront(Graph, false);
 				break;
 			}
 		}
@@ -233,6 +239,8 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 
 void FControlRigEditor::BindCommands()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	GetToolkitCommands()->MapAction(
 		FControlRigBlueprintCommands::Get().ExecuteGraph,
 		FExecuteAction::CreateSP(this, &FControlRigEditor::ToggleExecuteGraph), 
@@ -255,6 +263,8 @@ bool FControlRigEditor::IsExecuteGraphOn() const
 
 void FControlRigEditor::ExtendToolbar()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	// If the ToolbarExtender is valid, remove it before rebuilding it
 	if(ToolbarExtender.IsValid())
 	{
@@ -279,25 +289,199 @@ void FControlRigEditor::ExtendToolbar()
 		}
 	}
 
-	struct Local
-	{
-		static void FillToolbar(FToolBarBuilder& ToolbarBuilder)
-		{
-			ToolbarBuilder.BeginSection("Toolbar");
-			{
-				ToolbarBuilder.AddToolBarButton(FControlRigBlueprintCommands::Get().ExecuteGraph, 
-					NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.ExecuteGraph"));
-			}
-			ToolbarBuilder.EndSection();
-		}
-	};
-
 	ToolbarExtender->AddToolBarExtension(
 		"Asset",
 		EExtensionHook::After,
 		GetToolkitCommands(),
-		FToolBarExtensionDelegate::CreateStatic(&Local::FillToolbar)
+		FToolBarExtensionDelegate::CreateSP(this, &FControlRigEditor::FillToolbar)
 	);
+}
+
+void FControlRigEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
+{
+	ToolbarBuilder.BeginSection("Toolbar");
+	{
+		ToolbarBuilder.AddToolBarButton(FControlRigBlueprintCommands::Get().ExecuteGraph,
+			NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.ExecuteGraph"));
+
+		ToolbarBuilder.AddWidget(SNew(SBlueprintEditorSelectedDebugObjectWidget, SharedThis(this)));
+	}
+	ToolbarBuilder.EndSection();
+}
+
+void FControlRigEditor::GetCustomDebugObjects(TArray<FCustomDebugObject>& DebugList) const
+{
+	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj());
+	if (RigBlueprint == nullptr)
+	{
+		return;
+	}
+
+	if (ControlRig)
+	{
+		FCustomDebugObject DebugObject;
+		DebugObject.Object = ControlRig;
+		DebugObject.NameOverride = GetCustomDebugObjectLabel(ControlRig);
+		DebugList.Add(DebugObject);
+	}
+
+	UControlRigBlueprintGeneratedClass* GeneratedClass = RigBlueprint->GetControlRigBlueprintGeneratedClass();
+	if (GeneratedClass)
+	{
+		struct Local
+		{
+			static bool IsPendingKillOrUnreachableRecursive(UObject* InObject)
+			{
+				if (InObject != nullptr)
+				{
+					if (InObject->IsPendingKillOrUnreachable())
+					{
+						return true;
+					}
+					return IsPendingKillOrUnreachableRecursive(InObject->GetOuter());
+				}
+				return false;
+			}
+
+			static bool OuterNameContainsRecursive(UObject* InObject, const FString& InStringToSearch)
+			{
+				if (InObject == nullptr)
+				{
+					return false;
+				}
+
+				UObject* InObjectOuter = InObject->GetOuter();
+				if (InObjectOuter == nullptr)
+				{
+					return false;
+				}
+
+				if (InObjectOuter->GetName().Contains(InStringToSearch))
+				{
+					return true;
+				}
+
+				return OuterNameContainsRecursive(InObjectOuter, InStringToSearch);
+			}
+		};
+
+		if (UObject* DefaultObject = GeneratedClass->GetDefaultObject(false))
+		{
+			TArray<UObject*> ArchetypeInstances;
+			DefaultObject->GetArchetypeInstances(ArchetypeInstances);
+
+			for (UObject* Instance : ArchetypeInstances)
+			{
+				UControlRig* InstanceControlRig = Cast<UControlRig>(Instance);
+				if (InstanceControlRig && InstanceControlRig != ControlRig)
+				{
+					if (InstanceControlRig->GetOuter() == nullptr)
+					{
+						continue;
+					}
+
+					UWorld* World = InstanceControlRig->GetWorld();
+					if (World == nullptr)
+					{
+						continue;
+					}
+
+					if (!World->IsGameWorld() && !World->IsPreviewWorld())
+					{
+						continue;
+					}
+
+					// ensure to only allow preview actors in preview worlds
+					if (World->IsPreviewWorld())
+					{
+						if (!Local::OuterNameContainsRecursive(InstanceControlRig, TEXT("Preview")))
+						{
+							continue;
+						}
+					}
+
+					if (Local::IsPendingKillOrUnreachableRecursive(InstanceControlRig))
+					{
+						continue;
+					}
+
+					FCustomDebugObject DebugObject;
+					DebugObject.Object = InstanceControlRig;
+					DebugObject.NameOverride = GetCustomDebugObjectLabel(InstanceControlRig);
+					DebugList.Add(DebugObject);
+				}
+			}
+		}
+	}
+}
+
+void FControlRigEditor::HandleSetObjectBeingDebugged(UObject* InObject)
+{
+	UControlRig* DebuggedControlRig = Cast<UControlRig>(InObject);
+
+	if (DebuggedControlRig == nullptr)
+	{
+		// fall back to our default control rig (which still can be nullptr)
+		if (ControlRig != nullptr && GetBlueprintObj() && !bIsSettingObjectBeingDebugged)
+		{
+			TGuardValue<bool> GuardSettingObjectBeingDebugged(bIsSettingObjectBeingDebugged, true);
+			GetBlueprintObj()->SetObjectBeingDebugged(ControlRig);
+			return;
+		}
+	}
+
+	if (GetBlueprintObj())
+	{
+		FBlueprintEditorUtils::UpdateStalePinWatches(GetBlueprintObj());
+	}
+
+	if (DebuggedControlRig)
+	{
+		bool bIsExternalControlRig = DebuggedControlRig != ControlRig;
+		DebuggedControlRig->DrawInterface = &DrawInterface;
+		DebuggedControlRig->ControlRigLog = &ControlRigLog;
+
+		UControlRigSkeletalMeshComponent* EditorSkelComp = Cast<UControlRigSkeletalMeshComponent>(GetPersonaToolkit()->GetPreviewScene()->GetPreviewMeshComponent());
+		if (EditorSkelComp)
+		{
+			UControlRigSequencerAnimInstance* AnimInstance = Cast<UControlRigSequencerAnimInstance>(EditorSkelComp->GetAnimInstance());
+			if (AnimInstance)
+			{
+				// we might want to move this into another method
+				FInputBlendPose Filter;
+				AnimInstance->UpdateControlRig(DebuggedControlRig, 0, false, false, Filter, 1.0f, bIsExternalControlRig);
+				AnimInstance->RecalcRequiredBones();
+
+				// since rig has changed, rebuild draw skeleton
+				EditorSkelComp->RebuildDebugDrawSkeleton();
+				GetEditMode().SetObjects(DebuggedControlRig, FGuid());
+			}
+		}
+	}
+	else
+	{
+		GetEditMode().SetObjects(nullptr, FGuid());
+	}
+}
+
+FString FControlRigEditor::GetCustomDebugObjectLabel(UObject* ObjectBeingDebugged) const
+{
+	if (ObjectBeingDebugged == nullptr)
+	{
+		return FString();
+	}
+
+	if (ObjectBeingDebugged == ControlRig)
+	{
+		return TEXT("Control Rig Editor Preview");
+	}
+
+	if (AActor* ParentActor = ObjectBeingDebugged->GetTypedOuter<AActor>())
+	{
+		return FString::Printf(TEXT("%s in %s"), *GetBlueprintObj()->GetName(), *ParentActor->GetName());
+	}
+
+	return GetBlueprintObj()->GetName();
 }
 
 UBlueprint* FControlRigEditor::GetBlueprintObj() const
@@ -362,39 +546,61 @@ void FControlRigEditor::OnCreateGraphEditorCommands(TSharedPtr<FUICommandList> G
 
 void FControlRigEditor::Compile()
 {
-	GetBlueprintObj()->SetObjectBeingDebugged(nullptr);
-	ClearDetailObject();
-
-	if (ControlRig)
 	{
-		ControlRig->OnInitialized().Clear();
-		ControlRig->OnExecuted().Clear();
-	}
+		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	FBlueprintEditor::Compile();
+		FString LastDebuggedObjectName = GetCustomDebugObjectLabel(GetBlueprintObj()->GetObjectBeingDebugged());
+		GetBlueprintObj()->SetObjectBeingDebugged(nullptr);
+		ClearDetailObject();
 
-	if (ControlRig)
-	{
-		ControlRig->ControlRigLog = &ControlRigLog;
-		ControlRig->DrawInterface = &DrawInterface;
-
-		UControlRigBlueprintGeneratedClass* GeneratedClass = Cast<UControlRigBlueprintGeneratedClass>(ControlRig->GetClass());
-		if (GeneratedClass)
+		if (ControlRig)
 		{
-			if (GeneratedClass->Operators.Num() == 1) // just the "done" operator
+			ControlRig->OnInitialized().Clear();
+			ControlRig->OnExecuted().Clear();
+		}
+
+		{
+			FBlueprintEditor::Compile();
+		}
+
+		if (ControlRig)
+		{
+			ControlRig->ControlRigLog = &ControlRigLog;
+			ControlRig->DrawInterface = &DrawInterface;
+
+			UControlRigBlueprintGeneratedClass* GeneratedClass = Cast<UControlRigBlueprintGeneratedClass>(ControlRig->GetClass());
+			if (GeneratedClass)
 			{
-				FNotificationInfo Info(LOCTEXT("ControlRigBlueprintCompilerEmptyRigMessage", "The Control Rig you compiled doesn't do anything. Did you forget to add a Begin_Execution node?"));
-				Info.bFireAndForget = true;
-				Info.FadeOutDuration = 10.0f;
-				Info.ExpireDuration = 0.0f;
-				TSharedPtr<SNotificationItem> NotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
-				NotificationPtr->SetCompletionState(SNotificationItem::CS_Success);
+				if (GeneratedClass->Operators.Num() == 1) // just the "done" operator
+				{
+					FNotificationInfo Info(LOCTEXT("ControlRigBlueprintCompilerEmptyRigMessage", "The Control Rig you compiled doesn't do anything. Did you forget to add a Begin_Execution node?"));
+					Info.bFireAndForget = true;
+					Info.FadeOutDuration = 10.0f;
+					Info.ExpireDuration = 0.0f;
+					TSharedPtr<SNotificationItem> NotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
+					NotificationPtr->SetCompletionState(SNotificationItem::CS_Success);
+				}
+			}
+		}
+
+		TArray<FCustomDebugObject> DebugList;
+		GetCustomDebugObjects(DebugList);
+
+		for (const FCustomDebugObject& DebugObject : DebugList)
+		{
+			if (DebugObject.NameOverride == LastDebuggedObjectName)
+			{
+				GetBlueprintObj()->SetObjectBeingDebugged(DebugObject.Object);
 			}
 		}
 	}
 
 	// enable this for creating a new unit test
 	// DumpUnitTestCode();
+
+	// FStatsHierarchical::EndMeasurements();
+	// FMessageLog LogForMeasurements("ControlRigLog");
+	// FStatsHierarchical::DumpMeasurements(LogForMeasurements);
 }
 
 FName FControlRigEditor::GetToolkitFName() const
@@ -424,6 +630,8 @@ FLinearColor FControlRigEditor::GetWorldCentricTabColorScale() const
 
 void FControlRigEditor::DeleteSelectedNodes()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj());
 	if (RigBlueprint == nullptr)
 	{
@@ -444,9 +652,13 @@ void FControlRigEditor::DeleteSelectedNodes()
 				{
 					RigBlueprint->ModelController->RemoveNode(RigNode->PropertyName);
 				}
+				else if (UEdGraphNode_Comment* CommentNode = Cast<UEdGraphNode_Comment>(Node))
+				{
+					RigBlueprint->ModelController->RemoveNode(CommentNode->GetFName());
+				}
 				else
 				{
-					Node->GetGraph()->RemoveNode(Node);
+					ensure(false);
 				}
 			}
 		}
@@ -455,6 +667,8 @@ void FControlRigEditor::DeleteSelectedNodes()
 
 void FControlRigEditor::PasteNodesHere(class UEdGraph* DestinationGraph, const FVector2D& GraphLocation)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj());
 	if (RigBlueprint == nullptr)
 	{
@@ -499,8 +713,7 @@ void FControlRigEditor::PasteNodesHere(class UEdGraph* DestinationGraph, const F
 		Node->NodePosY = (Node->NodePosY - AvgNodePosition.Y) + GraphLocation.Y;
 		Node->SnapToGrid(SNodePanel::GetSnapGridSize());
 
-		UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node);
-		if (RigNode != nullptr)
+		if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
 		{
 			FVector2D NodePosition = FVector2D(Node->NodePosX, Node->NodePosY);
 			UScriptStruct* ScriptStruct = RigNode->GetUnitScriptStruct();
@@ -555,6 +768,12 @@ void FControlRigEditor::PasteNodesHere(class UEdGraph* DestinationGraph, const F
 					}
 				}
 			}
+		}
+		else if (const UEdGraphNode_Comment* CommentNode = Cast<UEdGraphNode_Comment>(Node))
+		{
+			FVector2D NodePosition = FVector2D((float)CommentNode->NodePosX, (float)CommentNode->NodePosY);
+			FVector2D NodeSize = FVector2D((float)CommentNode->NodeWidth, (float)CommentNode->NodeHeight);
+			RigBlueprint->ModelController->AddComment(CommentNode->GetFName(), CommentNode->NodeComment, NodePosition, NodeSize, CommentNode->CommentColor, false);
 		}
 	}
 
@@ -698,6 +917,8 @@ void FControlRigEditor::NotifyPostChange(const FPropertyChangedEvent& PropertyCh
 
 void FControlRigEditor::HandleModelModified(const UControlRigModel* InModel, EControlRigModelNotifType InType, const void* InPayload)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	switch (InType)
 	{
 		case EControlRigModelNotifType::NodeSelected:
@@ -712,13 +933,11 @@ void FControlRigEditor::HandleModelModified(const UControlRigModel* InModel, ECo
 					if (FocusedGraphEdPtr.IsValid())
 					{
 						TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
-						UControlRigGraph* RigGraph = Cast<UControlRigGraph>(FocusedGraphEd->GetCurrentGraph());
-						if (RigGraph != nullptr)
+						if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(FocusedGraphEd->GetCurrentGraph()))
 						{
-							UControlRigGraphNode* RigNode = RigGraph->FindNodeFromPropertyName(Node->Name);
-							if (RigNode != nullptr)
+							if (UEdGraphNode* EdNode = RigGraph->FindNodeFromPropertyName(Node->Name))
 							{
-								FocusedGraphEd->SetNodeSelection(RigNode, InType == EControlRigModelNotifType::NodeSelected);
+								FocusedGraphEd->SetNodeSelection(EdNode, InType == EControlRigModelNotifType::NodeSelected);
 							}
 						}
 					}
@@ -730,12 +949,24 @@ void FControlRigEditor::HandleModelModified(const UControlRigModel* InModel, ECo
 					UClass* Class = GetBlueprintObj()->GeneratedClass.Get();
 					if (Class)
 					{
-						UProperty* Property = Class->FindPropertyByName(Node->Name);
-						if (Property)
+						if (UProperty* Property = Class->FindPropertyByName(Node->Name))
 						{
 							TSet<class UObject*> SelectedObjects;
 							SelectedObjects.Add(Property);
 							FBlueprintEditor::OnSelectedNodesChangedImpl(SelectedObjects);
+						}
+						else
+						{
+							TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
+							if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(FocusedGraphEd->GetCurrentGraph()))
+							{
+								if(UEdGraphNode* EdNode = RigGraph->FindNodeFromPropertyName(Node->Name))
+								{
+									TSet<class UObject*> SelectedObjects;
+									SelectedObjects.Add(EdNode);
+									FBlueprintEditor::OnSelectedNodesChangedImpl(SelectedObjects);
+								}
+							}
 						}
 					}
 				}
@@ -756,9 +987,12 @@ void FControlRigEditor::Tick(float DeltaTime)
 
 bool FControlRigEditor::IsEditable(UEdGraph* InGraph) const
 {
-	bool bEditable = FBlueprintEditor::IsEditable(InGraph);
-	bEditable &= IsGraphInCurrentBlueprint(InGraph);
-	return bEditable;
+	return IsGraphInCurrentBlueprint(InGraph);
+}
+
+bool FControlRigEditor::IsCompilingEnabled() const
+{
+	return true;
 }
 
 FText FControlRigEditor::GetGraphDecorationString(UEdGraph* InGraph) const
@@ -773,6 +1007,8 @@ TStatId FControlRigEditor::GetStatId() const
 
 void FControlRigEditor::OnSelectedNodesChangedImpl(const TSet<class UObject*>& NewSelection)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (bIsSelecting)
 	{
 		return;
@@ -780,25 +1016,22 @@ void FControlRigEditor::OnSelectedNodesChangedImpl(const TSet<class UObject*>& N
 
 	TGuardValue<bool> SelectingGuard(bIsSelecting, true);
 
-	TArray<UControlRigGraphNode*> SelectedNodes;
-	for(UObject* Object : NewSelection)
-	{
-		UControlRigGraphNode* ControlRigGraphNode = Cast<UControlRigGraphNode>(Object);
-		if(ControlRigGraphNode)
-		{
-			SelectedNodes.Add(ControlRigGraphNode);
-		}
-	}
-
 	UControlRigBlueprint* ControlRigBlueprint = CastChecked<UControlRigBlueprint>(GetBlueprintObj());
 	if (ControlRigBlueprint)
 	{
 		if (ControlRigBlueprint->ModelController)
 		{
 			TArray<FName> NodeNamesToSelect;
-			for (UControlRigGraphNode* SelectedNode : SelectedNodes)
+			for (UObject* Object : NewSelection)
 			{
-				NodeNamesToSelect.Add(SelectedNode->GetPropertyName());
+				if (UControlRigGraphNode* ControlRigGraphNode = Cast<UControlRigGraphNode>(Object))
+				{
+					NodeNamesToSelect.Add(ControlRigGraphNode->GetPropertyName());
+				}
+				else if(UEdGraphNode* Node = Cast<UEdGraphNode>(Object))
+				{
+					NodeNamesToSelect.Add(Node->GetFName());
+				}
 			}
 			ControlRigBlueprint->ModelController->SetSelection(NodeNamesToSelect);
 		}
@@ -807,6 +1040,8 @@ void FControlRigEditor::OnSelectedNodesChangedImpl(const TSet<class UObject*>& N
 
 void FControlRigEditor::HandleHideItem()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	UControlRigBlueprint* ControlRigBlueprint = CastChecked<UControlRigBlueprint>(GetBlueprintObj());
 
 	TSet<UObject*> SelectedNodes = GetSelectedNodes();
@@ -833,6 +1068,8 @@ bool FControlRigEditor::CanHideItem() const
 
 void FControlRigEditor::OnBlueprintChangedImpl(UBlueprint* InBlueprint, bool bIsJustBeingCompiled)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!bControlRigEditorInitialized)
 	{
 		return;
@@ -854,17 +1091,19 @@ void FControlRigEditor::OnBlueprintChangedImpl(UBlueprint* InBlueprint, bool bIs
 		{
 			TSet<class UObject*> SelectedObjects;
 			FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
-			for (UObject* SelecteNode : SelectedNodes)
+			for (UObject* SelectedNode : SelectedNodes)
 			{
-				UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(SelecteNode);
-				if (RigNode == nullptr)
+				if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(SelectedNode))
 				{
-					continue;
+					UProperty* Property = Class->FindPropertyByName(RigNode->GetPropertyName());
+					if (Property)
+					{
+						SelectedObjects.Add(Property);
+					}
 				}
-				UProperty* Property = Class->FindPropertyByName(RigNode->GetPropertyName());
-				if (Property)
+				else
 				{
-					SelectedObjects.Add(Property);
+					SelectedObjects.Add(SelectedNode);
 				}
 			}
 			if (SelectedObjects.Num() > 0)
@@ -877,6 +1116,8 @@ void FControlRigEditor::OnBlueprintChangedImpl(UBlueprint* InBlueprint, bool bIs
 
 void FControlRigEditor::HandleViewportCreated(const TSharedRef<class IPersonaViewport>& InViewport)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	// TODO: this is duplicated code from FAnimBlueprintEditor, would be nice to consolidate. 
 	auto GetCompilationStateText = [this]()
 	{
@@ -1020,6 +1261,8 @@ void FControlRigEditor::HandleViewportCreated(const TSharedRef<class IPersonaVie
 
 void FControlRigEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewScene>& InPersonaPreviewScene)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	AAnimationEditorPreviewActor* Actor = InPersonaPreviewScene->GetWorld()->SpawnActor<AAnimationEditorPreviewActor>(AAnimationEditorPreviewActor::StaticClass(), FTransform::Identity);
 	InPersonaPreviewScene->SetActor(Actor);
 
@@ -1027,7 +1270,8 @@ void FControlRigEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPrevi
 	UControlRigSkeletalMeshComponent* EditorSkelComp = NewObject<UControlRigSkeletalMeshComponent>(Actor);
 	EditorSkelComp->SetSkeletalMesh(InPersonaPreviewScene->GetPersonaToolkit()->GetPreviewMesh());
 	InPersonaPreviewScene->SetPreviewMeshComponent(EditorSkelComp);
-	UAnimCustomInstance::BindToSkeletalMeshComponent<UControlRigSequencerAnimInstance>(EditorSkelComp);
+	bool bWasCreated = false;
+	UAnimCustomInstance::BindToSkeletalMeshComponent<UControlRigSequencerAnimInstance>(EditorSkelComp, bWasCreated);
 	InPersonaPreviewScene->AddComponent(EditorSkelComp, FTransform::Identity);
 
 	// set root component, so we can attach to it. 
@@ -1039,6 +1283,8 @@ void FControlRigEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPrevi
 
 void FControlRigEditor::UpdateControlRig()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if(UClass* Class = GetBlueprintObj()->GeneratedClass)
 	{
 		UControlRigSkeletalMeshComponent* EditorSkelComp = Cast<UControlRigSkeletalMeshComponent>(GetPersonaToolkit()->GetPreviewScene()->GetPreviewMeshComponent());
@@ -1057,6 +1303,7 @@ void FControlRigEditor::UpdateControlRig()
  			}
 
 			CacheBoneNameList();
+			CacheCurveNameList();
 
 			// When the control rig is re-instanced on compile, it loses its binding, so we refresh it here if needed
 			if (!ControlRig->GetObjectBinding().IsValid())
@@ -1071,7 +1318,7 @@ void FControlRigEditor::UpdateControlRig()
 			FInputBlendPose Filter;
 			AnimInstance->UpdateControlRig(ControlRig, 0, false, false, Filter, 1.0f);
 			AnimInstance->RecalcRequiredBones();
-			
+
 			// since rig has changed, rebuild draw skeleton
 			EditorSkelComp->RebuildDebugDrawSkeleton();
 			GetEditMode().SetObjects(ControlRig, FGuid());
@@ -1084,6 +1331,8 @@ void FControlRigEditor::UpdateControlRig()
 
 void FControlRigEditor::CacheBoneNameList()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (ControlRig)
 	{
 		// make sure the bone name list is up 2 date for the editor graph
@@ -1096,6 +1345,26 @@ void FControlRigEditor::CacheBoneNameList()
 			}
 
 			RigGraph->CacheBoneNameList(ControlRig->GetBaseHierarchy());
+		}
+	}
+}
+
+void FControlRigEditor::CacheCurveNameList()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
+	if (ControlRig)
+	{
+		// make sure the Curve name list is up 2 date for the editor graph
+		for (UEdGraph* Graph : GetBlueprintObj()->UbergraphPages)
+		{
+			UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph);
+			if (RigGraph == nullptr)
+			{
+				continue;
+			}
+
+			RigGraph->CacheCurveNameList(ControlRig->GetCurveContainer());
 		}
 	}
 }
@@ -1114,18 +1383,24 @@ void FControlRigEditor::HandlePreviewMeshChanged(USkeletalMesh* InOldSkeletalMes
 
 void FControlRigEditor::RebindToSkeletalMeshComponent()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	UDebugSkelMeshComponent* MeshComponent = GetPersonaToolkit()->GetPreviewScene()->GetPreviewMeshComponent();
 	if (MeshComponent)
 	{
-		UAnimCustomInstance::BindToSkeletalMeshComponent<UControlRigSequencerAnimInstance>(MeshComponent);
+		bool bWasCreated = false;
+		UAnimCustomInstance::BindToSkeletalMeshComponent<UControlRigSequencerAnimInstance>(MeshComponent , bWasCreated);
 	}
 }
 
 void FControlRigEditor::SetupGraphEditorEvents(UEdGraph* InGraph, SGraphEditor::FGraphEditorEvents& InEvents)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	FBlueprintEditor::SetupGraphEditorEvents(InGraph, InEvents);
 
 	InEvents.OnCreateActionMenu = SGraphEditor::FOnCreateActionMenu::CreateSP(this, &FControlRigEditor::HandleCreateGraphActionMenu);
+	InEvents.OnTextCommitted = FOnNodeTextCommitted::CreateSP(this, &FControlRigEditor::OnNodeTitleCommitted);
 }
 
 FActionMenuContent FControlRigEditor::HandleCreateGraphActionMenu(UEdGraph* InGraph, const FVector2D& InNodePosition, const TArray<UEdGraphPin*>& InDraggedPins, bool bAutoExpand, SGraphEditor::FActionMenuClosed InOnMenuClosed)
@@ -1133,8 +1408,27 @@ FActionMenuContent FControlRigEditor::HandleCreateGraphActionMenu(UEdGraph* InGr
 	return FBlueprintEditor::OnCreateGraphActionMenu(InGraph, InNodePosition, InDraggedPins, bAutoExpand, InOnMenuClosed);
 }
 
+void FControlRigEditor::OnNodeTitleCommitted(const FText& NewText, ETextCommit::Type CommitInfo, UEdGraphNode* NodeBeingChanged)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
+	if (UEdGraphNode_Comment* CommentBeingChanged = Cast<UEdGraphNode_Comment>(NodeBeingChanged))
+	{
+		if (UControlRigBlueprint* ControlRigBP = GetControlRigBlueprint())
+		{
+			if (ControlRigBP->ModelController)
+			{
+				ControlRigBP->ModelController->SetCommentText(CommentBeingChanged->GetFName(), NewText.ToString(), true);
+			}
+		}
+	}
+}
+
+
 void FControlRigEditor::SelectBone(const FName& InBone)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	// edit mode has to know
 	GetEditMode().SelectBone(InBone);
 	// copy locally, we use this for copying back to template when modified
@@ -1155,6 +1449,8 @@ void FControlRigEditor::SelectBone(const FName& InBone)
 
 FTransform FControlRigEditor::GetBoneTransform(const FName& InBone, bool bLocal) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	// @todo: think about transform mode
 	if (bLocal)
 	{
@@ -1166,6 +1462,8 @@ FTransform FControlRigEditor::GetBoneTransform(const FName& InBone, bool bLocal)
 
 void FControlRigEditor::SetBoneTransform(const FName& InBone, const FTransform& InTransform)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	// execution should be off
 	ensure(!ControlRig->bExecutionOn);
 
@@ -1206,7 +1504,8 @@ void FControlRigEditor::SetBoneTransform(const FName& InBone, const FTransform& 
 
 void FControlRigEditor::OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
 {
-//	UE_LOG(LogControlRigEditor, Warning, TEXT("Current Property being modified : %s"), *GetNameSafe(PropertyChangedEvent.Property));
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+	//	UE_LOG(LogControlRigEditor, Warning, TEXT("Current Property being modified : %s"), *GetNameSafe(PropertyChangedEvent.Property));
 
 	FName PropertyName = (PropertyChangedEvent.Property != NULL) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(FRigBone, InitialTransform))
@@ -1232,6 +1531,8 @@ void FControlRigEditor::OnFinishedChangingProperties(const FPropertyChangedEvent
 
 void FControlRigEditor::OnHierarchyChanged()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	ClearDetailObject();
 
 	FBlueprintEditorUtils::MarkBlueprintAsModified(GetControlRigBlueprint());
@@ -1257,6 +1558,8 @@ void FControlRigEditor::OnHierarchyChanged()
 
 void FControlRigEditor::OnBoneRenamed(const FName& OldName, const FName& NewName)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	UControlRigBlueprint* Blueprint = GetControlRigBlueprint();
 	for (UEdGraph* Graph : Blueprint->UbergraphPages)
 	{
@@ -1303,8 +1606,87 @@ void FControlRigEditor::OnBoneRenamed(const FName& OldName, const FName& NewName
 	}
 }
 
+void FControlRigEditor::OnCurveContainerChanged()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
+	ClearDetailObject();
+
+	FBlueprintEditorUtils::MarkBlueprintAsModified(GetControlRigBlueprint());
+
+	UControlRigSkeletalMeshComponent* EditorSkelComp = Cast<UControlRigSkeletalMeshComponent>(GetPersonaToolkit()->GetPreviewScene()->GetPreviewMeshComponent());
+	if (EditorSkelComp)
+	{
+		// restart animation 
+		EditorSkelComp->InitAnim(true);
+		UpdateControlRig();
+	}
+	CacheCurveNameList();
+
+	// notification
+	FNotificationInfo Info(LOCTEXT("CurveContainerChangeHelpMessage", "CurveContainer has been successfully modified."));
+	Info.bFireAndForget = true;
+	Info.FadeOutDuration = 10.0f;
+	Info.ExpireDuration = 0.0f;
+
+	TSharedPtr<SNotificationItem> NotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
+	NotificationPtr->SetCompletionState(SNotificationItem::CS_Success);
+}
+
+void FControlRigEditor::OnCurveRenamed(const FName& OldName, const FName& NewName)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
+	UControlRigBlueprint* Blueprint = GetControlRigBlueprint();
+	for (UEdGraph* Graph : Blueprint->UbergraphPages)
+	{
+		UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph);
+		if (RigGraph == nullptr)
+		{
+			continue;
+		}
+
+		for (UEdGraphNode* Node : RigGraph->Nodes)
+		{
+			UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node);
+			if (RigNode == nullptr)
+			{
+				continue;
+			}
+
+			UStructProperty* UnitProperty = RigNode->GetUnitProperty();
+			UStruct* UnitStruct = RigNode->GetUnitScriptStruct();
+			if (UnitProperty && UnitStruct)
+			{
+				for (TFieldIterator<UNameProperty> It(UnitStruct); It; ++It)
+				{
+					if (It->HasMetaData(UControlRig::CurveNameMetaName))
+					{
+						FString PinName = FString::Printf(TEXT("%s.%s"), *UnitProperty->GetName(), *It->GetName());
+						UEdGraphPin* Pin = Node->FindPin(PinName, EEdGraphPinDirection::EGPD_Input);
+						if (Pin)
+						{
+							FName CurrentCurve = FName(*Pin->GetDefaultAsString());
+							if (CurrentCurve == OldName)
+							{
+								const FScopedTransaction Transaction(NSLOCTEXT("ControlRigEditor", "ChangeCurveNamePinValue", "Change Curve Name Pin Value"));
+								Pin->Modify();
+								Pin->GetSchema()->TrySetDefaultValue(*Pin, NewName.ToString());
+							}
+						}
+					}
+				}
+			}
+		}
+
+		CacheCurveNameList();
+	}
+}
+
 void FControlRigEditor::OnGraphNodeDropToPerform(TSharedPtr<FGraphNodeDragDropOp> DragDropOp, UEdGraph* Graph, const FVector2D& NodePosition, const FVector2D& ScreenPosition)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (DragDropOp->IsOfType<FRigHierarchyDragDropOp>())
 	{
 		TSharedPtr<FRigHierarchyDragDropOp> RigHierarchyOp = StaticCastSharedPtr<FRigHierarchyDragDropOp>(DragDropOp);
@@ -1429,6 +1811,8 @@ void FControlRigEditor::OnGraphNodeDropToPerform(TSharedPtr<FGraphNodeDragDropOp
 
 void FControlRigEditor::HandleMakeBoneGetterSetter(EBoneGetterSetterType Type, bool bIsGetter, TArray<FName> BoneNames, UEdGraph* Graph, FVector2D NodePosition)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	UStruct* StructTemplate = nullptr;
 
 	if (bIsGetter)
@@ -1547,6 +1931,8 @@ void FControlRigEditor::HandleMakeBoneGetterSetter(EBoneGetterSetterType Type, b
 
 void FControlRigEditor::UpdateGraphCompilerErrors()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(GetBlueprintObj());
 	if (Blueprint)
 	{

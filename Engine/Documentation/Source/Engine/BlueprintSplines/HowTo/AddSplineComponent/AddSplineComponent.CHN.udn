@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6187230
 Availability:Public
 Title:如何将样条组件添加到蓝图
 Crumbs: %ROOT%, Engine
@@ -6,7 +6,7 @@ Description:此指南将说明如何将样条或样条网格体组件添加到�
 Navigation:topic
 parent:Engine/BlueprintSplines/HowTo
 order:1
-social-image:Splines_social.png
+social-image:Engine/BlueprintSplines/Splines_Social.png
 version:4.13
 skilllevel:Beginner
 related:Engine/BlueprintSplines/HowTo/EditSplineComponentInEditor
@@ -17,7 +17,6 @@ topic-image:Engine/BlueprintSplines/Splines_topic.png
 
 本页面将详细说明将 **蓝图样条组件** 或 **蓝图样条网格体组件** 添加到可用蓝图的必要步骤。这两种组件均要求蓝图继承自可回查行数到 **Actor**（Pawn、角色等）的类。
 
-(#Steps)
 ## 步骤
 
 1. 在 **蓝图编辑器** 中新建一个 **蓝图** 或打开一个 **蓝图**。
@@ -32,7 +31,6 @@ topic-image:Engine/BlueprintSplines/Splines_topic.png
 
 	可在 **蓝图编辑器视口** 中直接编辑 **蓝图样条组件** 的点。
 	
-(#Result)
 ## 结果
 
 必须要将 **蓝图样条组件** 或 **蓝图样条网格体组件** 添加至蓝图，可在下个指南中查看操作说明。

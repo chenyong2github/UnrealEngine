@@ -20,7 +20,7 @@ class FSceneViewport;
 /** Structure used to cache various metrics for our capture */
 struct FCachedMetrics
 {
-	FCachedMetrics() : Width(0), Height(0), Frame(0), ElapsedSeconds(0.f) {}
+	FCachedMetrics() : Width(0), Height(0), Frame(0), ElapsedSeconds(0.f), PreviousFrame(INDEX_NONE) {}
 
 	/** The width/Height of the frame */
 	int32 Width, Height;
@@ -28,10 +28,12 @@ struct FCachedMetrics
 	int32 Frame;
 	/** The number of seconds that have elapsed */
 	float ElapsedSeconds;
+	/** The previous frame number */
+	int32 PreviousFrame;
 };
 
 /** Class responsible for capturing scene data */
-UCLASS(config=EditorPerProjectUserSettings, PerObjectConfig)
+UCLASS(config=EditorPerProjectUserSettings, PerObjectConfig, BlueprintType)
 class MOVIESCENECAPTURE_API UMovieSceneCapture : public UObject, public IMovieSceneCaptureInterface, public ICaptureProtocolHost
 {
 public:
@@ -52,7 +54,12 @@ public:
 	virtual void Close() override { Finalize(); }
 	virtual FMovieSceneCaptureHandle GetHandle() const override { return Handle; }
 	const FMovieSceneCaptureSettings& GetSettings() const override { return Settings; }
+	const int32 GetFrameNumberOffset() const override { return FrameNumberOffset; }
 	// End IMovieSceneCaptureInterface
+
+	/*~ Begin UObject interface */
+	virtual bool IsDestructionThreadSafe() const override { return false; }
+	/*~ End UObject interface */
 
 	/** Load save from config helpers */
 	virtual void LoadFromConfig();
@@ -166,7 +173,7 @@ public:
 	double GetEstimatedCaptureDurationSeconds() const { return 0.0; }
 
 
-	virtual FFrameRate GetCaptureFrameRate() const { return Settings.FrameRate; }
+	virtual FFrameRate GetCaptureFrameRate() const { return Settings.GetFrameRate(); }
 	virtual const ICaptureStrategy& GetCaptureStrategy() const { return *CaptureStrategy; }
 	// ~ICaptureProtocolHost interface
 

@@ -466,11 +466,20 @@ void UChildActorComponent::SetChildActorClass(TSubclassOf<AActor> Class)
 			ChildActorTemplate = nullptr;
 		}
 	}
-	else if (IsRegistered())
+	else
 	{
-		ChildActorName = NAME_None;
-		DestroyChildActor();
-		CreateChildActor();
+		// Clear actor template if it no longer matches the set class
+		if (ChildActorTemplate && ChildActorTemplate->GetClass() != ChildActorClass)
+		{
+			ChildActorTemplate = nullptr;
+		}
+
+		if (IsRegistered())
+		{
+			ChildActorName = NAME_None;
+			DestroyChildActor();
+			CreateChildActor();
+		}
 	}
 }
 
@@ -680,6 +689,8 @@ void UChildActorComponent::BeginPlay()
 
 	if (ChildActor && !ChildActor->HasActorBegunPlay())
 	{
-		ChildActor->DispatchBeginPlay();
+		const AActor* Owner = GetOwner();
+		const bool bFromLevelStreaming = Owner ? Owner->IsActorBeginningPlayFromLevelStreaming() : false;
+		ChildActor->DispatchBeginPlay(bFromLevelStreaming);
 	}
 }

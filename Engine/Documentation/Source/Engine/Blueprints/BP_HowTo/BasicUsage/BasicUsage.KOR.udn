@@ -1,4 +1,4 @@
-INTSourceChangelist:4305416
+INTSourceChangelist:6480262
 Availability: Public
 Title:블루프린트 기본 사용 안내서
 Crumbs: %ROOT%, Engine, Engine\Blueprints, Engine\Blueprints\BP_HowTo
@@ -154,11 +154,11 @@ tags:Blueprints
 
 [INCLUDE:Engine/Blueprints/UserGuide/Variables#intro]
 
-**내 블루프린트** 창에서 블루프린트에 쓸 변수를 만들 수 있는데, ![](Engine\Blueprints\Editor\UIComponents\MyBlueprint\myblueprint_variable.png) 변수 목록 제목의 ![](Engine\Blueprints\Editor\UIComponents\MyBlueprint\plus_Button.png) **추가 버튼** 을 누르면 됩니다.
+**내 블루프린트** 창에서 블루프린트에 쓸 변수를 만들 수 있는데, 변수 목록 제목의 **추가 버튼 (+)** 을 누르면 됩니다.
+
+![](Engine\Blueprints\Editor\UIComponents\MyBlueprint\myblueprint_variable.png)
 
 변수를 생성한 이후에는, 변수의 프로퍼티를 정의해 줘야 할 것입니다.
-
-[INCLUDE:Engine/Blueprints/UserGuide/Variables#addvariables]
 
 * 다양한 변수 유형에 대한 상세 정보 및 그 작업 방법에 대해서는 [](Engine/Blueprints/UserGuide/Variables) 문서를 참고하세요.
 

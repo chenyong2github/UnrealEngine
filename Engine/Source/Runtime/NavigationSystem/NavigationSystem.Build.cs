@@ -49,6 +49,16 @@ namespace UnrealBuildTool.Rules
 
             SetupModulePhysicsSupport(Target);
 
+			if (Target.bCompileChaos || Target.bUseChaos)
+            {
+                PublicDependencyModuleNames.AddRange(
+                    new string[] {
+                        "GeometryCollectionCore",
+                        "GeometryCollectionEngine",
+                    }
+					);
+            }
+
             if (Target.bCompileRecast)
             {
                 PrivateDependencyModuleNames.Add("Navmesh");

@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3807090
+INTSourceChangelist:3807090
 Availability:Public
 Title: IES 라이트 프로파일
 Crumbs: %ROOT%, Engine, Engine/Rendering/LightingAndShadows
@@ -30,7 +30,7 @@ IES 라이트 프로파일을 구하기 가장 쉬운 방법은, 제조사의 �
 [Lithonia Lighting](http://www.lithonia.com/photometrics.aspx) 의 좋은 점은, 웹사이트에 웹 브라우저 프로파일 뷰어 기능이 있어서, 실제 원하는 라이트에 착수하면 무엇을 받는지 확인할 수 있습니다.
 [/REGION]
 
-프로파일을 언리얼 에디터에서 살펴보면, 1D 텍스처(그레디언트)로 나타납니다만, 텍스처는 아니며 폭넓은 메타 데이터 배열이 들어있는 아스키 파일입니다:
+프로파일을 언리얼 에디터에서 살펴보면, 1D 텍스처(그레이디언트)로 나타납니다만, 텍스처는 아니며 폭넓은 메타 데이터 배열이 들어있는 아스키 파일입니다:
 
 
 	IESNA:LM-63-2002

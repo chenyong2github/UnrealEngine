@@ -10,8 +10,14 @@
 #include "RenderResource.h"
 #include "RenderUtils.h"
 
+#if PLATFORM_HOLOLENS
+#include "AllowWindowsPlatformTypes.h"
+#include <dxgi1_2.h>
+#include "HideWindowsPlatformTypes.h"
+#endif
+
 /** A D3D event query resource. */
-class FD3D11EventQuery : public FRenderResource
+class D3D11RHI_API FD3D11EventQuery : public FRenderResource
 {
 public:
 
@@ -51,14 +57,15 @@ static DXGI_FORMAT GetRenderTargetFormat(EPixelFormat PixelFormat)
 	}
 }
 
-class FD3D11Viewport : public FRHIViewport
+class D3D11RHI_API FD3D11Viewport : public FRHIViewport
 {
 public:
 
+	FD3D11Viewport(class FD3D11DynamicRHI* InD3DRHI): D3DRHI(InD3DRHI), FrameSyncEvent(InD3DRHI){}
 	FD3D11Viewport(class FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,uint32 InSizeX,uint32 InSizeY,bool bInIsFullscreen, EPixelFormat InPreferredPixelFormat);
 	~FD3D11Viewport();
 
-	void Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen, EPixelFormat PreferredPixelFormat);
+	virtual void Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen, EPixelFormat PreferredPixelFormat);
 
 	/**
 	 * If the swap chain has been invalidated by DXGI, resets the swap chain to the expected state; otherwise, does nothing.
@@ -86,11 +93,15 @@ public:
 		FrameSyncEvent.IssueEvent();
 	}
 
-	IDXGISwapChain* GetSwapChain() const { return SwapChain; } 
+#if PLATFORM_HOLOLENS
+	IDXGISwapChain1* GetSwapChain() const { return SwapChain; } 
+#else
+	IDXGISwapChain* GetSwapChain() const { return SwapChain; }
+#endif
 
 	virtual void* GetNativeSwapChain() const override { return GetSwapChain(); }
-	virtual void* GetNativeBackBufferTexture() const override { return BackBuffer->GetResource(); }
-	virtual void* GetNativeBackBufferRT() const override { return BackBuffer->GetRenderTargetView(0, 0); }
+	virtual void* GetNativeBackBufferTexture() const override { return GetBackBuffer()->GetResource(); }
+	virtual void* GetNativeBackBufferRT() const override { return GetBackBuffer()->GetRenderTargetView(0, 0); }
 
 	virtual void SetCustomPresent(FRHICustomPresent* InCustomPresent) override
 	{
@@ -99,8 +110,9 @@ public:
 	virtual FRHICustomPresent* GetCustomPresent() const { return CustomPresent; }
 
 	virtual void* GetNativeWindow(void** AddParam = nullptr) const override { return (void*)WindowHandle; }
+	static FD3D11Texture2D* GetSwapChainSurface(FD3D11DynamicRHI* D3DRHI, EPixelFormat PixelFormat, uint32 SizeX, uint32 SizeY, IDXGISwapChain* SwapChain);
 
-private:
+protected:
 
 	/** Presents the frame synchronizing with DWM. */
 	void PresentWithVsyncDWM();
@@ -124,7 +136,11 @@ private:
 	bool bIsFullscreen;
 	EPixelFormat PixelFormat;
 	bool bIsValid;
+#if PLATFORM_HOLOLENS
+	TRefCountPtr<IDXGISwapChain1> SwapChain;
+#else
 	TRefCountPtr<IDXGISwapChain> SwapChain;
+#endif
 	TRefCountPtr<FD3D11Texture2D> BackBuffer;
 
 	// Support for selecting non-default output for display in fullscreen exclusive

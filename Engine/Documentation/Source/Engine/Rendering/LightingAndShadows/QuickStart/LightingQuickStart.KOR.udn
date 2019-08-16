@@ -1,32 +1,508 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6413527
 Availability: Public
 Title:라이팅 퀵스타트 가이드
 Crumbs:%ROOT%, GettingStarted
 Description:이 가이드에서는 다양한 라이팅 기법을 사용하여 작은 아파트에 조명 설치 작업을 해 보겠습니다.
 SkillLevel: Beginner
-Version: 4.9
+Version: 4.20
 topic-image:LQS_Topic.png
+type:quick start
+type:multi-step
 
+[TOC]
 
-![](Engine\Rendering\LightingAndShadows\QuickStart\5\litRoom.png)(w:940)
+![](litRoom.png)(w:940)
 
 이 **라이팅 퀵스타트 가이드** 에서는 언리얼 엔진 4 의 라이팅 작업 관련 기본적인 내용을 살펴보며, 여기에는 애트머스페릭 & 디렉셔널 라이트를 이용한 간단한 스카이박스 제작 및 레벨 라이팅, 포인트 라이트 & 스포트 라이트를 이용한 방 라이팅, 라이팅 퀄리티 변경, 리플렉션으로 내는 방의 반사광, IES 라이트 프로파일 사용법이 포함됩니다. 가이드 후반에서는 위 그림과 비슷한 방이 완성될 것입니다. 최종 단계에서는 거기에 직접 살을 붙이는 아이디어와 아울러 관련 문서에 대한 링크도 제공해 드립니다.
 
 이 가이드에서 각 단계를 진행하는 데 필요한 작업을 다루기는 할 테지만, 기존에 언리얼 에디터 작업을 한 경험이 없다면 먼저 **[언리얼 에디터 퀵 스타트](Engine/QuickStart/)** 가이드를 통해 일반적인 에디터 사용법, 용어, 프로세스에 대한 이해도를 높일 수 있습니다.
 
+## 1 - 필수 구성
 
-## 단계
-
-[REGION:buttonlist]
-* [](Engine\Rendering\LightingAndShadows\QuickStart\1 "%Engine\Rendering\LightingAndShadows\QuickStart\1:description%")
-* [](Engine\Rendering\LightingAndShadows\QuickStart\2 "%Engine\Rendering\LightingAndShadows\QuickStart\2:description%")
-* [](Engine\Rendering\LightingAndShadows\QuickStart\3 "%Engine\Rendering\LightingAndShadows\QuickStart\3:description%")
-* [](Engine\Rendering\LightingAndShadows\QuickStart\4 "%Engine\Rendering\LightingAndShadows\QuickStart\4:description%")
-* [](Engine\Rendering\LightingAndShadows\QuickStart\5 "%Engine\Rendering\LightingAndShadows\QuickStart\5:description%")
-* [](Engine\Rendering\LightingAndShadows\QuickStart\6 "%Engine\Rendering\LightingAndShadows\QuickStart\6:description%")
-* [](Engine\Rendering\LightingAndShadows\QuickStart\7 "%Engine\Rendering\LightingAndShadows\QuickStart\7:description%")
+[REGION:note]
+이번 튜토리얼 시리즈에서는 **시작용 콘텐츠** 를 포함한 **기본** 프로젝트를 새로 만들어 사용하겠습니다. 새 프로젝트 생성, 템플릿 사용, 프로젝트 세팅 정의 (및 **시작용 콘텐츠** 포함) 관련 정보는 [](Engine/Basics/Projects/Browser) 문서를 참고하세요.
 [/REGION]
 
+(**시작용 콘텐츠** 포함) **기본** 프로젝트 안에서 라이팅 작업에 사용할 간단한 아파트를 다음과 같이 만들어 줍니다.
 
+1.  프로젝트를 열고 **Ctrl+N** 키를 눌러 새 레벨을 만든 다음, **기본 레벨** 을 선택합니다.
 
+1.  **콘텐츠 브라우저** 내 **StarterContent/Architecture** 폴더에서, **Floor_400x400** 을 끌어 레벨에 놓습니다.
 
+    ![](setup1.png)
+
+1.  **월드 아웃라이너** 안에서 바닥을 선택한 다음 **Ctrl+W** 를 여섯 번 눌러 아래와 같은 바닥을 만듭니다.
+
+    ![](floors.png)
+
+1.  **Floor_400x400** 를 선택한 다음 **디테일** 패널에서 **트랜스폼** 을 아래와 같이 설정합니다.
+
+    ![](SetTransform1.png)
+
+1.  나머지 바닥 조각에 대한 **트랜스폼** 을 아래 표와 같이 설정합니다.
+
+    | 바닥 조각 | 트랜스폼 |
+    | --- | --- |
+    | **400x401** | ![](setup4.png) |
+    | **400x402** | ![](setup5.png) |
+    | **400x403** | ![](setup6.png) |
+    | **400x404** | ![](setup8.png) |
+    | **400x405** | ![](setup9.png) |
+    | **400x406** | ![](setup10.png)|
+
+    모든 조각을 추가한 이후에는 바닥과 지붕이 아래와 같을 것입니다.
+
+    ![](floorandroof.png)
+
+    애셋을 더욱 잘 보이도록 하려면, 뷰 옵션에서 **와이어프레임** 뷰모드로 전환합니다.
+
+    ![](setup3.png)
+
+1.  **콘텐츠 브라우저** 에서 **Wall_400x400** 를 끌어 뷰포트에 놓습니다.
+
+    ![](setup11.png)
+
+1.  **월드 아웃라이너** 안에서 벽을 선택한 다음 **Ctrl+W** 를 11 번 눌러 아래와 같은 벽을 만듭니다.
+
+    ![](wallsOutliner.png)
+
+1.  **Wall_400x400** 를 선택한 다음 **디테일** 패널에서 **트랜스폼** 을 아래와 같이 설정합니다.
+
+    ![](wall1Details.png)
+    
+1.  나머지 벽 조각에 대한 **트랜스폼** 을 아래 표와 같이 설정합니다.
+
+    | 벽 조각 | 트랜스폼 |
+    | --- | --- |
+    | **400x401** | ![](setup13.png) |
+    | **400x402** | ![](setup14.png) |
+    | **400x403** | ![](setup15.png) |
+    | **400x404** | ![](setup16.png) |
+    | **400x405** | ![](setup17.png) |
+    | **400x406** | ![](setup18.png) |
+    | **400x407** | ![](setup19.png) |
+    | **400x408** | ![](setup20.png) |
+    | **400x409** | ![](setup21.png) |
+    | **400x410** | ![](setup23.png) |
+    | **400x411** | ![](setup24.png) |
+
+    모든 조각을 (아래 강조된 것처럼) 추가하면, 외벽과 작은 구석방이 생길 것입니다.
+
+    ![](wallsAdded.png)
+
+1.  **콘텐츠 브라우저** 에서 **Pillar_50x500** 을 끌어 뷰포트에 놓습니다.
+
+    ![](setup25.png)
+
+1.  **월드 아웃라이너** 안에서 기둥을 선택한 다음 **Ctrl+W** 를 다섯 번 눌러 아래와 같이 기둥을 만듭니다.
+
+    ![](pillarsAdded.png)
+
+1.  **Pillar_50x500** 를 선택한 다음 **디테일** 패널에서 **트랜스폼** 을 아래와 같이 설정합니다.
+
+    ![](pillar1Details.png)
+
+1.  나머지 기둥 조각에 대한 **트랜스폼** 을 아래 표와 같이 설정합니다.
+
+    | 기둥 조각 | 트랜스폼 |
+    | --- | --- |
+    | **50x501** | ![](setup27.png) |
+    | **50x502** | ![](setup28.png) |
+    | **50x503** | ![](setup29.png) |
+    | **50x504** | ![](setup30.png) |
+    | **50x505** | ![](setup31.png) |
+
+    모든 기둥을 (아래 강조된 것처럼) 추가하고 나면, 아래와 같아 보이는 구조물이 생길 것입니다.
+
+    ![](setup32.png)
+    
+1.  **월드 아웃라이너** 에서 **Wall_400x407** 벽 조각을 선택합니다.
+
+    ![](setup33.png)
+
+1.  **콘텐츠 브라우저** 에서 **Wall_Door_400x400** 을 선택한 다음, 407 벽 조각에 대한 **디테일** 패널에서 **할당** 버튼을 클릭합니다.
+
+    ![](setup34.png)
+
+1.  **Wall_400x410** 조각에 대해 위의 두 단계를 반복하여 문이 있는 벽으로 전환해 줍니다.
+
+    ![](setup36.png)
+
+1.  **Wall_400x405** 를 선택한 다음 **콘텐츠 브라우저** 에서 **Wall_Window_400x400** 를 선택하고 레벨의 벽에 할당합니다.
+
+    ![](setup39.png)
+
+    이제 두 개의 통로와 창문이 있을 것입니다.
+
+작은 화장실과 테라스용 공간이 있는 간단한 아파트가 완성되었습니다. **다음 단계** 에서는 라이팅 작업을 시작하겠습니다.
+
+## 2 - 애트머스페릭 & 디렉셔널 라이팅
+
+이전 단계에서 기본 아파트 구성이 완료되었으니, 전체적인 레벨 라이팅을 추가하도록 하겠습니다.
+
+1.  먼저 **와이어프레임** 모드를 (활성화되어 있다면) 비활성화시키고 **라이팅포함** 모드로 돌아옵니다 (**Alt+4**).
+
+    ![](step2_1.png)
+
+1.  **모드** 메뉴 안 **비주얼 이펙트** 아래 **애트머스페릭 포그** 를 끌어 레벨 뷰포트에 놓습니다.
+
+    ![](step2_2.png)
+
+    그 이후 레벨에 간단한 스카이박스와 저녁 노을이 생겼을 것입니다.
+
+1.  **모드** 메뉴에서 **라이트** 아래 **디렉셔널 라이트** 를 끌어 레벨 뷰포트에 놓습니다.
+    
+    ![](step2_3.png)
+
+    라이트를 추가한 이후에는 방 안에 **Preview** 라는 글자가 나타나는 것이 보입니다.
+
+    ![](step2_4.png)
+
+    **빌드** 후 게임을 실행하면 실제 게임에서 보이는 라이팅의 미리보기 버전임을 나타냅니다.
+
+1.  **디렉셔널 라이트** 에 대한 **디테일** 패널에서, **트랜스폼** 을 아래와 같이 설정한 다음 **Atmosphere Sun Light** (대기성 태양광) 옵션을 체크합니다.
+
+    ![](newDirectionalLight.png)
+
+    **Atmosphere Sun Light** (대기성 태양광) 옵션이 체크되면, **회전** 모드 (**E**) 로 라이트를 회전시켜 태양 위치를 조절할 수 있습니다.
+
+    [OBJECT:EmbeddedVideo]
+     [PARAMLITERAL:width]
+     640
+     [/PARAMLITERAL]
+     [PARAMLITERAL:height]
+     360
+     [/PARAMLITERAL]
+     [PARAMLITERAL:videoid]
+     d5PdhSHwpWs
+     [/PARAMLITERAL]
+    [/OBJECT]
+
+    레벨의 라이팅이 태양 위치에 따라 변하여 다양한 하루 시간대를 쉽게 전환할 수 있습니다.
+
+현재 우리 기본 라이팅은 이런 모습입니다:
+
+![](step2_9.png)
+
+**디렉셔널 라이트** 에 몇 가지 세팅을 바꿔서 좀 더 따듯한 느낌의 노을을 만들어 봅시다.
+
+1.  **디렉셔널 라이트** 의 **디테일** 패널에서 **Light Color** 바를 클릭하면 **색 선택 툴** 가 나타납니다.
+
+    ![](LightingColorPicker.png)(w:640)
+
+    이 대신, 확장 아이콘을 클릭한 다음 **RGB** 값을 수동 입력하는 것도 가능합니다.
+
+    ![](step2_11.png)
+
+    **RGB** 값을 위와 같이 설정합니다.
+
+게임에서 라이트가 어떻게 표현되는지 더욱 잘 알아볼 수 있도록 게임을 **빌드** 해 봅시다.
+
+1.  **메인 툴바** 에서 **빌드** 아이콘을 클릭합니다.
+
+    ![](step2_12.png)
+
+    에디터 우하단 구석에 보면 빌드 프로세스가 시작되었음을 확인할 수 있습니다.
+
+    ![](step2_13.png)
+
+    완료되었다고 나올 때까지 기다립니다.
+
+    ![](step2_14.png)
+
+    라이팅 빌드과 완료되면 Preview 텍스트가 사라집니다.
+
+    ![](BuiltLighting.png)
+
+    레벨에 라이트 또는 지오메트리를 추가/이동시킬 때마다 라이팅을 리빌드해 줘야 정확한 표현을 확인할 수 있습니다.
+    
+[REGION:note]
+여러가지 **디렉셔널 라이트** 세팅 관련 상세 정보는 [](Engine/Rendering/LightingAndShadows/LightTypes/Directional) 문서를 참고하세요.
+[/REGION]
+
+애트머스페릭 라이팅 구성이 완료되었으니, **다음 단계** 에서는 아파트 안의 어두운 부분을 밝히기 위한 라이트를 조금 추가해 보겠습니다.
+
+## 3 - 포인트 라이트 추가하기
+
+기본 레벨 라이팅이 생겼으니, 작은 아파트 화장실 안에 **포인트 라이트** 를 추가하겠습니다.
+
+1.  **모드** 메뉴에서 **라이트** 아래 **포인트 라이트** 를 끌어 작은 화장실 안에 놓습니다.
+
+    ![](step3_1.png)
+
+    **이동** 위젯으로 라이트를 이동시킬 수 있습니다.
+
+    ![](step3_2.png)(w:720)
+
+    라이트 위치는 다음과 같습니다:
+
+    ![](step3_3.png)
+
+1.  라이트의 **디테일** 패널에서 라이트 컬러를 변경하고 라이트 **Intensity** (강도)를 낮춥니다.
+
+    ![](step3_4.png)
+
+    **Intensity** (강도)는 라이트의 밝기를 조절하는 데 사용할 수 있는 세팅 중 하나입니다.
+
+1.  **Attenuation Radius** (감쇠 반경) 칸을 선택합니다.
+
+    ![](step3_5.png)
+
+    이를 통해 라이트의 영향력을 조절할 수 있습니다. 줌 아웃시키면, 현재 생성된 구체를 확인할 수 있습니다.
+
+    ![](step3_6.png)(w:520)
+
+    **Attenuation Radius** (감쇠 반경)을 350 으로 변경합니다.
+
+    ![](step3_8.png)
+
+    영향력 범위를 작은 화장실에 더욱 잘 맞도록 줄였습니다.
+
+    ![](newLightAdded.png)(w:520)
+
+1.  **메인 툴바** 의 **빌드** 아이콘을 클릭하여 라이팅을 빌드합니다.
+
+[REGION:note]
+**포인트 라이트** 에 사용할 수 있는 세팅 관련 상세 정보는 [](Engine/Rendering/LightingAndShadows/LightTypes/Point) 문서를 참고하세요.
+[/REGION]
+
+화장실에 **포인트 라이트** 를 추가했으니, **다음 단계** 에서는 작은 아파트에 **스포트 라이트** 를 추가하겠습니다.
+
+## 4 - 스포트 라이트 추가하기
+
+이번 섹션에서는, **스포트 라이트** 를 사용해서 입구 위에 스타일리쉬한 라이트를 달아 보도록 하겠습니다.
+
+1.  **모드** 메뉴에서 **라이트** 아래 **스포트 라이트** 를 끌어 레벨에 놓습니다.
+
+    ![](step4_1.png)
+
+1.  스포트 라이트의 **디테일** 패널에서 **트랜스폼** 을 아래와 같이 설정합니다.
+
+    ![](step4_2.png)
+
+    그러면 입구 통로 바로 위에 라이트가 배치됩니다.
+
+1.  **Intensity** (강도) 및 **Light Color** (라이트 색)을 변경합니다 (추천 값은 아래와 같습니다).
+
+    ![](step4_3.png)
+
+1.  스포트 라이트의 원뿔 모양을 **Inner Cone Angle** (내부 원뿔 각, 파랑색 원뿔) 및 **Outer Cone Angle** (외부 원뿔 각, 초록색 원뿔)로 조절합니다.
+
+    ![](step4_4.png)
+
+1.  **Attenuation Radius** (감쇠 반경)을 그 영향력에 영향을 끼치게끔 변경합니다.
+
+    ![](step4_5.png)
+
+1.  **메인 툴바** 의 **빌드** 아이콘을 클릭하여 라이팅을 빌드합니다.
+
+**스포트 라이트** 를 사용하여 배경 라이트를 추가시킬 수도 있습니다.
+
+1.  **스포트 라이트** 를 선택한 채로 뷰포트에서 **Ctrl+W** 키를 눌러 복제한 다음 아래와 같이 세팅합니다.
+
+    ![](step5_2.png)
+
+    외부에서 아파트를 조금 더 밝게 비추어 주게 되니, 약간의 변화를 더 줘 봅시다.
+
+1.  새로운 스포트 라이트의 **디테일** 패널에서, **라이트** 아래 부가 세팅 버튼을 펼칩니다.
+
+    ![](step5_3.png)
+
+1.  **Use Inverse Squared Falloff** (역제곱 감쇠 사용) 옵션을 체크 해제합니다.
+
+    ![](step5_4.png)
+
+    이 옵션은 라이트 감쇠에 영향을 끼치며, 현실에서의 빛의 동작에 가장 유사하게 맞아 떨어집니다.
+
+    [REGION:note]
+    자세한 정보는 [역제곱 감쇠](Resources/ContentExamples/Lighting/4_2) 콘텐츠 예제를 참고하세요.
+    [/REGION]
+
+1.  라이트의 나머지 세팅은 아래와 같이 설정합니다.
+
+    ![](step5_5.png)
+
+    레벨 라이팅과 같은 색이 아닌 연파랑색을 선택한 것을 보실 수 있습니다.
+
+    그렇게 하면 레벨 라이팅에 대비 효과를 주어 방의 라이팅이 좀 더 자연스러워 보입니다.
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![스포트 라이트 배경조명 있음](withSpotLights.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![스포트 라이트 배경조명 없음](withoutSpotLights.png) 
+ [/PARAM]
+[/OBJECT]
+
+부가적인 배경조명에는 **스포트 라이트** 대신 [](Engine/Rendering/LightingAndShadows/LightTypes/SkyLight) 를 사용할 수도 있습니다. 스케일이 큰 영역에는 조금 더 적합할 수는 있지만, 우리 작은 아파트에는 보다 효율적인 라이팅 제어를 위해서라도 **스포트 라이트** 배경조명을 사용했습니다.
+
+**다음 단계** 에서는 라이트의 퀄리티를 향상시키고 아파트에 반사광을 추가해 보겠습니다.
+
+## 5 - 라이트 퀄리티와 리플렉션
+
+아파트에 라이팅 작업이 되었지만, 라이팅 퀄리티 향상을 위해 할 수 있는 작업이 몇 가지 있는데, 우선 **빌드** 옵션부터 시작합니다.
+
+1.  **메인 툴바** 에서 **빌드** 옆의 아래 화살표를 클릭하여 옵션을 펼칩니다.
+
+    ![](BuildOptions.png)
+
+1.  **Lighting Quality** (라이팅 퀄리티) 아래 **Production** (프로덕션) 퀄리티 레벨을 선택합니다.
+
+    ![](productionLighting.png)
+
+1.  **빌드** 아이콘을 클릭하여 게임을 빌드합니다.
+
+    라이팅 퀄리티가 향상되어 빌드 시간이 길어진 것을 알 수 있습니다. 빠른 반복처리를 위해서라면 프로젝트 완성 단계 전까지는 **Preview** (프리뷰) 세팅으로도 괜찮으며, 마무리 단계 근처에서 **프로덕션** 으로 전환하여 빌드하면 됩니다.
+
+또 한가지 할 수 있는 작업은, 라이팅에 중요한 부분에 **Lightmass Importance Volume** 을 추가하여 집중시키는 것입니다.
+
+1.  **모드** 메뉴에서 **볼륨** 아래, **Lightmass Importance Volume** 을 레벨에 끌어 놓습니다.
+
+    ![](lightmass.png)
+
+1.  Lightmass Importance Volume 의 **디테일** 패널에서 **트랜스폼** 을 아래와 같이 설정합니다.
+
+    ![](LightmassSettings.png)
+
+    볼륨 안에 구조물이 들어갈 것입니다.
+
+    ![](LightMassVolumeSet.png)
+
+    [REGION:note]
+    라이트매스 작업 관련 상세 정보는 [](Engine/Rendering/LightingAndShadows/Lightmass/Basics) 문서를 참고하세요.
+    [/REGION]
+
+좀 더 현실적인 모양을 내기 위해서는, **리플렉션 캡처** 액터를 사용하여 빛이 표면을 반사하도록 할 수 있습니다.
+
+우선 아파트에 기본 머티리얼 대신 사용할 머티리얼을 몇 가지 추가해 봅시다.
+
+1.  **콘텐츠 브라우저** 에서 **Content/StarterContent/Materials** 아래 **M_Concrete_Tiles** 를 끌어 테라스 근처 바닥에 놓습니다.
+
+1.  같은 머티리얼을 작은 화장실에도 끌어 놓습니다.
+
+1.  나머지 바닥에는 **M_Wood_Floor_Walnut_Polished** 머티리얼을 끌어 놓습니다.
+
+1.  그 와중에 **M_Metal_Rust** 애셋을 끌어 지붕에 걸친 기둥에 놓습니다.
+
+    ![](materialsAdded.png)
+
+    머티리얼은 마음에 드는 걸로 아무렇게나 바꿔도 됩니다만, 이 정도로 시작하는 데는 무리가 없을 것입니다.
+
+1.  **모드** 메뉴에서 **비주얼 이펙트** 아래 **박스 리플렉션 캡처** 를 끌어 레벨 뷰포트에 놓습니다.
+
+    ![](boxReflection.png)
+
+1.  **디테일** 패널에서 박스 리플렉션 캡처의 **트랜스폼** 을 아래와 같이 설정합니다.
+
+    ![](boxSettings1.png)
+
+    또 **Box Transition Distance** 를 **1.0** 으로 설정합니다.
+
+    ![](BoxTransition.png)
+
+    화장실로 날아가 보면, 박스 리플렉션 캡처가 타일 표면에 어떻게 영향을 끼치는지 확인할 수 있습니다.
+    
+    ![](boxPlaced1.png)(w:520)
+
+    방에 선명한 줄이 그어진 것을 보니 현재 트랜스폼이 이상적이진 않지만, 씬에 어떻게 영향을 끼치는지를 보여주는 데는 좋습니다. 박스 리플렉션 캡처를 상하좌우로 움직여 보면 라이트가 표면에 반사된 라이트가 방에 어떻게 영향을 끼치는지 확인할 수 있습니다. 별도의 세팅을 사용하거나 아래 세팅을 시도해 볼 수 있습니다.
+
+    ![](finalBoxSettings.png)
+
+1.  **빌드** 아이콘을 클릭하여 라이팅을 빌드합니다 (빌드 시간을 단축시키고 싶으면 **프리뷰** 모드로 돌아와도 됩니다).
+
+    ![](bathroomBuilt.png)(w:520)
+
+1.  **박스 리플렉션 캡처** 를 복제하고, 아파트의 나머지 타일 영역으로 옮겨 크기를 조절합니다 (세팅은 아래와 같습니다).
+
+    ![](secondBoxedArea.png)
+
+    [REGION:note]
+        광택 나무 바닥 머티리얼을 추가했으므로, 그 위에 리플렉터를 추가하지는 않았지만 원한다면 해도 됩니다. 레벨에 리플렉터를 하나만 배치한 다음 그 세팅을 조절하여 레벨의 라이팅에 어떻게 영향을 끼치는지 확인할 수 있습니다.
+    [/REGION]
+
+1.  **빌드** 아이콘을 클릭하여 라이팅을 빌드합니다.
+
+    ![](litRoom.png)
+
+이제 우리 작은 아파트에 기본적인 라이팅 작업이 되었습니다. **다음 단계** 에서는 라이트 중 하나를 업데이트하여 약간 더 복잡한 라이트를 만들도록 하겠습니다.
+
+## 6 - 라이트 프로파일 사용하기
+
+아파트가 거의 완료되었으니, 다음으로 **IES 프로파일** 을 사용하는 좀 더 고급 **포인트 라이트** 를 만들어 보겠습니다. **IES 프로파일** 이란 현실의 특정 조명기구에서 나는 빛의 밝기와 감쇠를 도표로 나타내는 조명 업계 표준 방식입니다.
+
+[REGION:note]
+자세한 정보는 [](Engine/Rendering/LightingAndShadows/IESLightProfiles) 문서를 참고하세요.
+[/REGION]
+
+1.  작은 화장실의 **포인트 라이트** 를 클릭합니다.
+
+1.  포인트 라이트의 **디테일** 패널에서 **Light Profile** (라이트 프로파일) 아래 **없음** 드롭다운을 클릭합니다.
+
+    ![](lightProfileNone.png)
+
+1.  뜨는 팝업 메뉴에서 **뷰 옵션** 을 클릭합니다.
+
+    ![](viewOptions.png)
+
+1.  뷰 옵션 선택 이후 나타나는 팝업 메뉴에서 **엔진 콘텐츠 표시** 를 클릭합니다.
+
+    ![](ShowEngineContent.png)
+
+    언리얼 엔진 4 에는 기본적으로 사용할 수 있는 IES 라이트 프로파일 예제가 제공되며, 인터넷에서 추가로 찾아 임포트해 올 수도 있습니다.
+
+1.  **Complex_IES** 프로파일을 선택합니다.
+
+    ![](complexIES.png)
+
+1.  라이트의 **트랜스폼** 을 업데이트해 줘야 효과를 제대로 볼 수 있습니다. **트랜스폼** 을 다음과 같이 설정해 주세요.
+
+    ![](NewLightSettings.png)
+
+1.  **빌드** 를 클릭하여 라이팅을 빌드합니다.
+
+    ![](finalLight.png)(w:520)
+
+    전구를 끼우지는 않았지만, 포인트 라이트에서 빛이 굽어져 나오는 것을 볼 수 있습니다.
+
+이 가이드의 마지막인 **다음 단계** 에서는 직접 시도해 볼 수 있는 예제 몇 가지와 추가적인 라이팅 문서, 샘플, 기법에 대한 링크를 제공해 드리겠습니다.
+
+## 7 - 직접 해 보기!
+
+이번 퀵스타트 가이드에서 지금까지 배운 내용을 토대로, 다음 작업을 해 봅니다:
+
+![](apartment1.png)
+
+*   아파트를 확장하여 방을 추가합니다.
+
+*   다른 방을 **포인트 라이트** 나 **스포트 라이트** 로 밝힙니다.
+
+*   **Content/StarterContent/Props** 폴더에서 (문, 창틀, 문, 램프 등의) 소품을 추가합니다.
+
+![](apartment2.png)
+
+*   방에 **구체 리플렉션 캡처** 를 사용합니다.
+
+*   라이트에 다양한 **IES 프로파일** 을 사용합니다.
+
+*   **스포트 라이트** 를 사용하여 바닥 램프를 만듭니다.
+
+![](apartment4.png)
+
+*   **디렉셔널 라이트** 를 변경하여 밤 씬을 만들 수도 있습니다.
+
+![](nightscene.png)
+
+이 퀵스타트 가이드에서 다룬 주제, 전체 에디터 관련 상세 정보는 [언리얼 에디터 매뉴얼](Engine/Editor) 을 참고하시기 바랍니다.
+
+이 가이드에서 다룬 주제:
+
+*   라이팅 기초: [](Engine/Rendering/LightingAndShadows/Basics)
+
+*   배경 라이팅: [](Engine/Rendering/LightingAndShadows)
+
+*   IES 프로파일: [](Engine/Rendering/LightingAndShadows/IESLightProfiles) 
+
+*   라이트 함수: [](Engine/Rendering/LightingAndShadows/LightFunctions)
+
+*   언리얼 엔진 4 의 렌더링: [](Engine/Rendering/Overview)

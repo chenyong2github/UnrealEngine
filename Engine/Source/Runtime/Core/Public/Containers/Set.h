@@ -164,13 +164,10 @@ public:
 	/** Initialization constructor. */
 	template <typename InitType, typename = typename TEnableIf<!TAreTypesEqual<TSetElement, typename TDecay<InitType>::Type>::Value>::Type> explicit FORCEINLINE TSetElement(InitType&& InValue) : Value(Forward<InitType>(InValue)) {}
 
-	/** Copy/move constructors */
-	FORCEINLINE TSetElement(const TSetElement&  Rhs) : Value(                   Rhs.Value ), HashNextId(         Rhs.HashNextId ), HashIndex(Rhs.HashIndex) {}
-	FORCEINLINE TSetElement(      TSetElement&& Rhs) : Value(MoveTempIfPossible(Rhs.Value)), HashNextId(MoveTemp(Rhs.HashNextId)), HashIndex(Rhs.HashIndex) {}
-
-	/** Copy/move assignment */
-	FORCEINLINE TSetElement& operator=(const TSetElement&  Rhs) { Value =                    Rhs.Value ; HashNextId =          Rhs.HashNextId ; HashIndex = Rhs.HashIndex; return *this; }
-	FORCEINLINE TSetElement& operator=(      TSetElement&& Rhs) { Value = MoveTempIfPossible(Rhs.Value); HashNextId = MoveTemp(Rhs.HashNextId); HashIndex = Rhs.HashIndex; return *this; }
+	TSetElement(TSetElement&&) = default;
+	TSetElement(const TSetElement&) = default;
+	TSetElement& operator=(TSetElement&&) = default;
+	TSetElement& operator=(const TSetElement&) = default;
 
 	/** Serializer. */
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar,TSetElement& Element)
@@ -253,7 +250,7 @@ public:
 	/** Assignment operator. */
 	TSet& operator=(const TSet& Copy)
 	{
-		if(this != &Copy)
+		if (this != &Copy)
 		{
 			int32 CopyHashSize = Copy.HashSize;
 
@@ -1375,6 +1372,15 @@ public:
 	const void* GetData(int32 Index, const FScriptSetLayout& Layout) const
 	{
 		return Elements.GetData(Index, Layout.SparseArrayLayout);
+	}
+
+	void MoveAssign(FScriptSet& Other, const FScriptSetLayout& Layout)
+	{
+		checkSlow(this != &Other);
+		Empty(0, Layout);
+		Elements.MoveAssign(Other.Elements, Layout.SparseArrayLayout);
+		Hash.MoveToEmpty(Other.Hash);
+		HashSize = Other.HashSize; Other.HashSize = 0;
 	}
 
 	void Empty(int32 Slack, const FScriptSetLayout& Layout)

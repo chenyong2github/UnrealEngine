@@ -317,7 +317,7 @@ class UNREALED_API UDebugSkelMeshComponent : public USkeletalMeshComponent
 
 	// @todo anim : you still need to give asset, so that we know which one to disable
 	// we can disable per asset, so that if some other window disabled before me, I don't accidently turn it off
-	void EnablePreview(bool bEnable, class UAnimationAsset * PreviewAsset);
+	virtual void EnablePreview(bool bEnable, class UAnimationAsset * PreviewAsset);
 
 	// reference pose for this component
 	// we don't want to use default refpose because you still want to move joint when this mode is on
@@ -510,7 +510,13 @@ public:
 	 */
 	virtual FTransform GetDrawTransform(int32 BoneIndex) const
 	{
-		return GetComponentSpaceTransforms()[BoneIndex];
+		const TArray<FTransform>& SpaceTransforms = GetComponentSpaceTransforms();
+		if (SpaceTransforms.IsValidIndex(BoneIndex))
+		{
+			return SpaceTransforms[BoneIndex];
+		}
+
+		return FTransform::Identity;
 	}
 
 };

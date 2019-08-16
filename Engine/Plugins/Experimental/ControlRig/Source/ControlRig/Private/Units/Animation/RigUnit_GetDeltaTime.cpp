@@ -5,6 +5,7 @@
 
 void FRigUnit_GetDeltaTime::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Context.DeltaTime;
 }
 

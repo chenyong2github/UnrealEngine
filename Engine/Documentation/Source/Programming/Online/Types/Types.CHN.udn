@@ -77,7 +77,7 @@ Version: 4.9
 
 [COMMENT:none]
 参见：
- * [](Programming/Online/Interfaces/SharedCloud)
+ * [](Programming/Online/SharedCloudInterface)
 [/COMMENT]
 
 
@@ -88,7 +88,7 @@ Version: 4.9
 
 **FSessionInfo** 包含会话的平台特定消息。在多数情况下，这是会话辨识符、主机地址之类的信息，或识别和连接到已创建会话的其他方式。
 
-参见：[](Programming/Online/Interfaces/Session)
+参见：[](Programming/Online/SessionInterface)
 
 
 (#femsfile)
@@ -106,8 +106,8 @@ Version: 4.9
 
 [COMMENT:none]
 参见：
- * [](Programming/Online/Interfaces/SharedCloud)
- * [](Programming/Online/Interfaces/UserCloud)
+ * [](Programming/Online/SharedCloudInterface)
+ * [](Programming/Online/UserCloudInterface)
 [/COMMENT]
 
 
@@ -125,8 +125,8 @@ Version: 4.9
 
 [COMMENT:none]
 参见： 
- * [](Programming/Online/Interfaces/SharedCloud)
- * [](Programming/Online/Interfaces/UserCloud)
+ * [](Programming/Online/SharedCloudInterface)
+ * [](Programming/Online/UserCloudInterface)
 [/COMMENT]
 
 

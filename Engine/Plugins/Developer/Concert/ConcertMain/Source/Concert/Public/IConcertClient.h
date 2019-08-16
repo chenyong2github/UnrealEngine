@@ -66,21 +66,54 @@ struct FConcertCreateSessionArgs
 	/** The desired name for the session */
 	FString SessionName;
 
-	/** Set a name if the session should restore a saved session */
-	FString SessionToRestore;
+	/** The override for the name used when archiving this session */
+	FString ArchiveNameOverride;
+};
 
-	/** Set a name if this session should be saved when it's deleted/destroyed/closed on the server */
-	FString SaveSessionAs;
+struct FConcertRestoreSessionArgs
+{
+	/** True to auto-connect to the session after restoring it */
+	bool bAutoConnect = true;
+
+	/** The ID of the archived session to restore */
+	FGuid SessionId;
+
+	/** The desired name for new session */
+	FString SessionName;
+
+	/** The override for the name used when archiving this session */
+	FString ArchiveNameOverride;
+
+	/** The filter controlling which activities from the session should be restored */
+	FConcertSessionFilter SessionFilter;
+};
+
+struct FConcertArchiveSessionArgs
+{
+	/** The ID of the archived session to archive */
+	FGuid SessionId;
+
+	/** The override for the name used when archiving the session */
+	FString ArchiveNameOverride;
+
+	/** The filter controlling which activities from the session should be archived */
+	FConcertSessionFilter SessionFilter;
 };
 
 /** Interface for Concert client */
 class IConcertClient
 {
 public:
-	virtual ~IConcertClient() {}
+	virtual ~IConcertClient() = default;
+
+	/**
+	 * Get the role of this client (eg, MultiUser, DisasterRecovery, etc)
+	 */
+	virtual const FString& GetRole() const = 0;
 
 	/** 
-	 *	Configure the client settings and its information
+	 * Configure the client settings and its information.
+	 * @note If Configure() is called while the client is in a session, some settings may be applied only once the client leave the session.
 	 */
 	virtual void Configure(const UConcertClientConfig* InSettings) = 0;
 
@@ -90,60 +123,70 @@ public:
 	virtual bool IsConfigured() const = 0;
 
 	/**
-	 *	Get the client information set by Configure
+	 * Return The configuration of this client, or null if it hasn't been configured.
+	 */
+	virtual const UConcertClientConfig* GetConfiguration() const = 0;
+
+	/**
+	 * Get the client information passed to Configure() if the client is not in a session, otherwise, returns
+	 * the current session client info as returned by IConcertClientSession::GetLocalClientInfo().
 	 */
 	virtual const FConcertClientInfo& GetClientInfo() const = 0;
 
 	/**
-	 *	Returns if the client has already been started up.
+	 * Returns if the client has already been started up.
 	 */
 	virtual bool IsStarted() const = 0;
 
 	/**
-	 *	Startup the client, this can be called multiple time
-	 *	Configure needs to be called before startup
+	 * Startup the client, this can be called multiple time
+	 * Configure needs to be called before startup
 	 */
 	virtual void Startup() = 0;
 
 	/**
-	 *	Shutdown the client, its discovery and session, if any.
-	 *	This can be called multiple time with no ill effect.
-	 *	However it depends on the UObject system so need to be called before its exit.
+	 * Shutdown the client, its discovery and session, if any.
+	 * This can be called multiple time with no ill effect.
+	 * However it depends on the UObject system so need to be called before its exit.
 	 */
 	virtual void Shutdown() = 0;
 	
 	/**
-	 *	Returns true if server discovery is enabled.
+	 * Returns true if server discovery is enabled.
 	 */
 	virtual bool IsDiscoveryEnabled() const = 0;
 
-
 	/**
-	 *	Start the discovery service for the client
-	 *	This will look for Concert server and populate the known servers list
-	 *	@see GetKnownServers
+	 * Start the discovery service for the client
+	 * This will look for Concert server and populate the known servers list
+	 * @see GetKnownServers
 	 */
 	virtual void StartDiscovery() = 0;
 
 	/**
-	 *	Stop the discovery service for the client
+	 * Stop the discovery service for the client
 	 */
 	virtual void StopDiscovery() = 0;
 
 	/**
-	 * Try to connect the client to his default session on his default server
+	 * Returns true if the client is configured for auto connection.
 	 */
-	virtual void DefaultConnect() = 0;
-
-	/**
-	 * Disable current auto connection if currently enabled.
-	 */
-	virtual void ResetAutoConnect() = 0;
+	virtual bool CanAutoConnect() const = 0;
 
 	/**
 	 * Returns true if the client has an active auto connection routine.
 	 */
-	virtual bool HasAutoConnection() const = 0;
+	virtual bool IsAutoConnecting() const = 0;
+
+	/**
+	 * Start attempting to auto connect the client to the default session on the default server.
+	 */
+	virtual void StartAutoConnect() = 0;
+
+	/**
+	 * Stop the current auto connection if currently enabled.
+	 */
+	virtual void StopAutoConnect() = 0;
 
 	/**
 	 * Get the list of discovered server information
@@ -185,7 +228,7 @@ public:
 	 * Create a session on the server, matching the client configured settings.
 	 * This also initiates the connection handshake for that session with the client.
 	 * @param ServerAdminEndpointId	The Id of the Concert Server query endpoint
-	 * @param CreateSessionArgs			The arguments that will be use for the creation of the session
+	 * @param CreateSessionArgs		The arguments that will be use for the creation of the session
 	 * @return A future that will contains the final response code of the request
 	 */
 	virtual TFuture<EConcertResponseCode> CreateSession(const FGuid& ServerAdminEndpointId, const FConcertCreateSessionArgs& CreateSessionArgs) = 0;
@@ -194,19 +237,46 @@ public:
 	 * Join a session on the server, the settings of the sessions needs to be compatible with the client settings
 	 * or the connection will be refused.
 	 * @param ServerAdminEndpointId	The Id of the Concert Server query endpoint
-	 * @param SessionName			The name of the session
+	 * @param SessionId				The Id of the session
 	 * @return  A future that will contains the final response code of the request
 	 */
-	virtual TFuture<EConcertResponseCode> JoinSession(const FGuid& ServerAdminEndpointId, const FString& SessionName) = 0;
+	virtual TFuture<EConcertResponseCode> JoinSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId) = 0;
 
 	/**
-	 * Delete a session on the server if the client is the owner of the session.
-	 * If the client is not the owner the request will be refused.
+	 * Restore an archived session on the server, matching the client configured settings.
+	 * This also initiates the connection handshake for that session with the client when bAutoConnect is true in the RestoreSessionArgs.
 	 * @param ServerAdminEndpointId	The Id of the Concert Server query endpoint
-	 * @param SessionName			The name of the session to delete
+	 * @param RestoreSessionArgs	The arguments that will be use for the restoration of the session
 	 * @return A future that will contains the final response code of the request
 	 */
-	virtual TFuture<EConcertResponseCode> DeleteSession(const FGuid& ServerAdminEndpointId, const FString& SessionName) = 0;
+	virtual TFuture<EConcertResponseCode> RestoreSession(const FGuid& ServerAdminEndpointId, const FConcertRestoreSessionArgs& RestoreSessionArgs) = 0;
+
+	/**
+	 * Archive a live session on the server hosting the session.
+	 * @param ServerAdminEndpointId	The Id of the Concert Server hosting the session (and where the archive will be created)
+	 * @param ArchiveSessionArgs	The arguments that will be use for the archiving of the session
+	 * @return A future that will contains the final response code of the request
+	 */
+	virtual TFuture<EConcertResponseCode> ArchiveSession(const FGuid& ServerAdminEndpointId, const FConcertArchiveSessionArgs& ArchiveSessionArgs) = 0;
+
+	/**
+	 * Rename a live or archived session if the client has the permission. The server automatically detects if the session is live or archived.
+	 * If the client is not the owner the request will be refused.
+	 * @param ServerAdminEndpointId	The Id of the Concert Server query endpoint
+	 * @param SessionId				The Id of the live session to rename
+	 * @param NewName				The new session name
+	 * @return A future that will contains the final response code of the request
+	 */
+	virtual TFuture<EConcertResponseCode> RenameSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId, const FString& NewName) = 0;
+
+	/**
+	 * Delete a live or archived session from the server if the client is the owner of the session. The server automatically detects if the session is live or archived.
+	 * If the client is not the owner the request will be refused.
+	 * @param ServerAdminEndpointId	The Id of the Concert Server query endpoint
+	 * @param SessionId				The Id of the session to delete
+	 * @return A future that will contains the final response code of the request
+	 */
+	virtual TFuture<EConcertResponseCode> DeleteSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId) = 0;
 
 	/** 
 	 * Disconnect from the current session.
@@ -241,23 +311,41 @@ public:
 	/** 
 	 * Get the list of sessions available on a server
 	 * @param ServerAdminEndpointId The Id of the Concert server admin endpoint
-	 * @return A future for FConcertAdmin_GetSessionsResponse which contains a list of sessions
+	 * @return A future for FConcertAdmin_GetAllSessionsResponse which contains a list of sessions
 	 */
-	virtual TFuture<FConcertAdmin_GetSessionsResponse> GetServerSessions(const FGuid& ServerAdminEndpointId) const = 0;
+	virtual TFuture<FConcertAdmin_GetAllSessionsResponse> GetServerSessions(const FGuid& ServerAdminEndpointId) const = 0;
+
+	/**
+	 * Get the list of the live sessions data from a server
+	 * @param ServerAdminEndpointId	The Id of the concert sever admin endpoint
+	 * @return A future for FConcertAdmin_GetSessionsResponse which contains the list of the archived sessions.
+	 */
+	virtual TFuture<FConcertAdmin_GetSessionsResponse> GetLiveSessions(const FGuid& ServerAdminEndpointId) const = 0;
+
+	/**
+	 * Get the list of the archived sessions data from a server
+	 * @param ServerAdminEndpointId	The Id of the concert sever admin endpoint
+	 * @return A future for FConcertAdmin_GetSessionsResponse which contains the list of the archived sessions.
+	 */
+	virtual TFuture<FConcertAdmin_GetSessionsResponse> GetArchivedSessions(const FGuid& ServerAdminEndpointId) const = 0;
 
 	/**
 	 * Get the list of clients connected to a session on the server
 	 * @param ServerAdminEndpointId	The Id of the Concert server admin endpoint
-	 * @param SessionName			The name of the session
+	 * @param SessionId				The Id of the session
 	 * @return A future for FConcertAdmin_GetSessionClientsResponse which contains a list of session clients
 	 */
-	virtual TFuture<FConcertAdmin_GetSessionClientsResponse> GetSessionClients(const FGuid& ServerAdminEndpointId, const FString& SessionName) const = 0;
+	virtual TFuture<FConcertAdmin_GetSessionClientsResponse> GetSessionClients(const FGuid& ServerAdminEndpointId, const FGuid& SessionId) const = 0;
 
 	/**
-	 * Get the list of the saved sessions data from a server
-	 * @param ServerAdminEndpointId	The Id of the concert sever admin endpoint
-	 * @return A future for FConcertAdmin_GetSavedSessionNamesResponse which contains the list of the saved session names.
+	 * Get the specified session activities, ordered by Activity ID (ascending) from a live or archived session without being connected to it. The function is used
+	 * to explore the history of a session, for example to implement the disaster recovery scenario. It is possible to get the total number of activities in a
+	 * session using -1 as ActivityCount. The response will contain the last Activity and its ID. To get the N last activities, set ActivityCount = -N.
+	 * @param ServerAdminEndpointId	The Id of the Concert server admin endpoint
+	 * @param SessionId				The Id of the session
+	 * @param FromActivityId		The first activity ID to fetch (1-based) if ActivityCount is positive. Ignored if ActivityCount is negative.
+	 * @param ActivityCount			If positive, request \a ActivityCount starting from \a FromActivityId. If negative, request the Abs(\a ActivityCount) last activities.
+	 * @return A future for FConcertAdmin_GetSessionActivitiesResponse which contains up to Abs(ActivityCount) activities or an error if it fails.
 	 */
-	virtual TFuture<FConcertAdmin_GetSavedSessionNamesResponse> GetSavedSessionNames(const FGuid& ServerAdminEndpointId) const = 0;
-
+	virtual TFuture<FConcertAdmin_GetSessionActivitiesResponse> GetSessionActivities(const FGuid& ServerAdminEndpointId, const FGuid& SessionId, int64 FromActivityId, int64 ActivityCount) const = 0;
 };

@@ -1,23 +1,22 @@
-﻿INTSourceChangelist:0
+﻿INTSourceChangelist:4677192
 Availability: Public
 Crumbs: 
-Title: Compiling & Using PSO Caching Data
-Description: Going over setting up when PSO data will be compiled at run time.
+Title: PSO キャッシング データのコンパイルと使用
+Description: PSO データがランタイム時にコンパイルされる際の設定について説明します。
 Type: 
 Version: 4.21
-Parent: Engine/Rendering/PSO-Caching
+Parent: Engine/Rendering/PSOCaching
 Order: 
+Topic-image:Compiling_&_Using_PSO_Caching_Data_Topic_Image.png
 Tags: 
 
+**Pipeline State Object** (PSO) キャッシング データを ランタイム バージョンの Unreal Engine 4 (UE4) プロジェクトで使用する前には、コンパイルが必要となります。 この操作ガイドでは、UE4 プロジェクト実行中に PSO データをコンパイルする際の、2 種類の制御方法について説明します。
 
-Before the **Pipeline State Object** (PSO) caching data can be used in the run-time version of your Unreal Engine 4 (UE4) project, it needs to be compiled. In the following How-To, we will take a look at two different ways to control when PSO data is being compiled while your UE4 project is running.
+## 画面のロード
 
-## Loading Screens
+ロード画面が表示されているときだけ PSO データをビルドするようにプロジェクトを設定できます。こうするには、ロード画面がの表示が終了する前に PSO キャッシュのコンパイル完了を待つ新しい関数を作成する必要があります。 次のコードは、これを行う方法の例を示しています。  
 
-You can configure your project to build PSO data only while displaying a loading screen. To do this, you need to create a new function that waits for the PSO cache to finish compiling before the loading screen display ends. The following code gives an example of how you can accomplish this:  
-
-~~~
- if(FShaderPipelineCache::NumPrecompilesRemaining() > 0)
+    if (FShaderPipelineCache::NumPrecompilesRemaining() > 0)
     {
         if (OutDebugReason != nullptr)
         {
@@ -28,20 +27,24 @@ You can configure your project to build PSO data only while displaying a loading
 ~~~
 
 [REGION:note]
-If you are developing a mobile project, this is the recommended method for compiling the PSO cache for your project.
+モバイルのプロジェクトを開発中で、プロジェクトの PSO キャッシュをコンパイルする場合、この手法を推奨します。
 [/REGION]
 
-## UI, Cutscenes, and Pause Menus
+## UI、カットシーンおよび一時停止メニュー
 
-You can set up the PSO cache compiling so that it only happens when a UI, Cutscene or Pause Menu is opened.  To do this, you need to use the **ResumeBatching** and **SetBatchMode** functions of the PSO caching system to start and stop when compiling takes place. Below you can find all of the functions that can be used to accomplish this.
-**Pause PSO Caching - Pauses the PSO Caching compilation.**
+UI、カットシーンまたは一時停止メニューが開かれたときだけ、PSO キャッシュがコンパイルされるように設定することができます。  これを行うには、コンパイルの実行時に、 **ResumeBatching** および **SetBatchMode** 関数を使用して PSO キャッシング システムを開始、停止する必要があります。 以下はこれを行うために使用する関数です。
+**Pause PSO Caching - PSO キャッシングのコンパイルを一時停止します。**
 
  FShaderPipelineCache::PauseBatching();
 
-**Set Batch Mode Speed - Sets the speed at which the PSO Caching should be processed.**
+**Set Batch Mode Speed - PSO キャッシングが処理される速度を設定します。**
 
  FShaderPipelineCache::SetBatchMode(FShaderPipelineCache::BatchMode::Background);
 
-**Resume PSO Caching - Resumes the PSO Caching if it has been stopped or paused.**
+**Resume PSO Caching - 停止または一時停止した PSO キャッシングを再開します。**
 
  FShaderPipelineCache::ResumeBatching();
+
+[REGION:note]
+使用方法の詳細については、[](Engine/Rendering/PSOCaching/BuildingPSOCache) を参照してください。
+[/REGION]

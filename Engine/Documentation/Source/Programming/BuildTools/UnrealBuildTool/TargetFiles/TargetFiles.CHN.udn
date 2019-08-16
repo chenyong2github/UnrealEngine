@@ -1,0 +1,187 @@
+﻿INTSourceChangelist:6495804
+Availability: Public
+Title: 目标
+Description: UBT目标总览，包括属性描述。
+Type: reference
+Version: 4.21
+Parent: Programming/BuildTools/UnrealBuildTool
+Order: 0
+
+
+[TOC (start:2 end:4)]
+
+虚幻编译工具支持数个目标类型的编译：
+
+*   **游戏** \- 需要烘焙数据才能运行的独立游戏。
+
+*   **客户端** \- 和“游戏”相同，但不包含任何服务器代码。适用于联网游戏。
+
+*   **服务器** \- 和“游戏”相同，但不包含任何客户端代码。适用于联网游戏中的专属服务器。
+
+*   **编辑器** \- 扩展虚幻编辑器的目标。
+
+*   **程序** \- 在虚幻引擎上方编译的一个独立工具程序。
+
+目标通过带.target.cs扩展名的C#源文件进行声明，并存储在项目的 *Source* 目录下。每个.target.cs文件声明一个派生自TargetRules基类的类，并设置属性来控制从其构造函数对其进行编译的方式。当被要求编译目标时，虚幻编译工具将编译您的target.cs文件，并在其中构造类来确定其设置。
+
+类的名称必须与其被声明时所在文件的名称（后跟'Target'）匹配，（例如，MyProject.target.cs定义类'MyProjectTarget'）。
+
+目标文件的典型结构如下：
+
+    using UnrealBuildTool;
+    using System.Collections.Generic;
+    public class MyProjectTarget : TargetRules
+    {
+        public MyProjectTarget(TargetInfo Target) : base(Target)
+        {
+            Type = TargetType.Game;
+            // 此处为其他属性
+        }
+    }
+
+## 只读属性
+
+| 属性 | 描述 |
+| --- | --- |
+| Name (String) | 此目标的名称。 |
+| Platform (UnrealTargetPlatform) | 编译此目标所针对的平台。 |
+| Configuration (UnrealTargetConfiguration) | 正在被编译的配置。 |
+| Architecture (String) | 编译此目标所针对的架构（或默认项的空白字符串）。 |
+| ProjectFile (FileReference) | 包含此目标的项目的项目文件路径。 |
+| Version (ReadOnlyBuildVersion) | 当前版本。 |
+
+## 读/写属性
+
+| 属性 | 描述 |
+| --- | --- |
+| Type (TargetType) | 目标类型。 |
+| bUsesSteam (Boolean) | 目标是否使用Steam。 |
+| bUsesCEF3 (Boolean) | 目标是否使用CEF3。 |
+| bUsesSlate (Boolean) | 项目是否使用可视Slate UI（与始终可用的低级窗口/消息相反）。 |
+| bUseStaticCRT (Boolean) | 强制与静态CRT连接。由于需要共享分配器实现（举例而言），并且TPS库彼此一致，所以此功能并非完全受整个引擎支持，但可用于工具程序。 |
+| bDebugBuildsActuallyUseDebugCRT (Boolean) | 启用调试版本的调试C++运行时（CRT）。默认始终使用发布运行时，因为调试虚幻引擎项目时调试版本并不十分实用，且链接到调试CRT库将强制使用调试CRT对第三方库依赖性进行编译（执行速度通常更慢）。如果需要第三方静态库调试版本的单独副本才能调试程序代码，那么将不甚便利。 |
+| bOutputPubliclyDistributable (Boolean) | 此目标的输出是否可以公开发布，即使它在拥有特殊限制的文件夹中的模块上存在依赖性也同样如此（如CarefullyRedist、NotForLicensees、NoRedist）。 |
+| UndecoratedConfiguration (UnrealTargetConfiguration) | 指定二进制文件不需要“-Platform-Configuration”后缀的配置。 |
+| bBuildAllPlugins (Boolean) | 编译可以找到的所有插件，即使未启用也进行编译。这对纯内容的项目而言尤为有用，在这些项目中编译的是UE4Editor目标，但使用启用插件的游戏来运行它。 |
+| bBuildAllModules (Boolean) | 编译对该目标类型有效的所有模块。用于CIS和制作已安装的引擎版本。 |
+| AdditionalPlugins (List<String>) | 需要包含在此目标中的额外插件的列表。这允许引用不能被禁用的非可选插件模块，并允许针对不匹配ModuleHostType中的类别的程序目标中的特定模块进行编译。 |
+| EnablePlugins (List<String>) | 应为此目标包含的额外插件。 |
+| DisablePlugins (List<String>) | 要为此目标禁用的插件列表。请注意，项目文件可能仍然会引用它们，因此应该将它们标记为可选，以避免在运行时无法找到。 |
+| PakSigningKeysFile (String) | 内嵌到可执行文件中的pak签名密钥集的路径。 |
+| SolutionDirectory (String) | 允许程序目标指定自身的解决方案文件夹路径。 |
+| bBuildInSolutionByDefault (Nullable<Boolean>) | 目标是否应包含在默认解决方案编译配置中。 |
+| bShouldCompileAsDLL (Boolean) | 是否应将此目标编译为DLL。要求LinkType设为TargetLinkType.Monolithic。 |
+| ExeBinariesSubFolder (String) | 放置可执行文件的子文件夹，相对于默认的位置。 |
+| GeneratedCodeVersion (EGeneratedCodeVersion) | 允许目标模块覆盖UHT代码生成版本。 |
+| bEnableMeshEditor (Boolean) | 是否启用网格体编辑器。 |
+| bCompileChaos (Boolean) | 是否编译Chaos物理插件。 |
+| bUseChaos (Boolean) | 是否使用Chaos物理接口。这将覆盖physx标签来禁用APEX和NvCloth。 |
+| bCompileImmediatePhysics (Boolean) | 是否包含直接模式物理接口。这将覆盖physx标签来禁用APEX和NvCloth。 |
+| bCustomSceneQueryStructure (Boolean) | 场景查询加速是否由UE4执行。PhysX场景查询结构仍会被创建，但我们不会使用它。 |
+| bCompilePhysX (Boolean) | 是否包含PhysX支持。 |
+| bCompileAPEX (Boolean) | 是否包含PhysX APEX支持。 |
+| bCompileNvCloth (Boolean) | 是否包含NvCloth。 |
+| bCompileICU (Boolean) | 是否在核心中包含ICU unicode/i18n支持。 |
+| bCompileCEF3 (Boolean) | 是否编译CEF3支持。 |
+| bBuildRequiresCookedData (Boolean) | 是否编译与编译资源相关的代码。控制台通常无法编译资源。桌面平台通常可以。 |
+| bBuildWithEditorOnlyData (Boolean) | 是否编译已禁用的WITH\_EDITORONLY\_DATA。只有Windows会使用此项，其他平台将把此强行设为false。 |
+| bForceBuildTargetPlatforms (Boolean) | 是否强制编译目标平台模块，即使其通常不会被编译也同样如此。 |
+| bForceBuildShaderFormats (Boolean) | 是否强制编译着色器格式模块，即使其通常不会被编译也同样如此。 |
+| bCompileCustomSQLitePlatform (Boolean) | 使用自定义“虚幻”平台（true）或使用原生平台（false）来编译SQLite。 |
+| bUseCacheFreedOSAllocs (Boolean) | 是否用MallocBinned来利用缓存释出的OS分配。 |
+| bCompileAgainstEngine (Boolean) | 为包含引擎项目的所有版本启用。仅在编译只与Core连接的独立应用程序时才会被禁用。 |
+| bCompileAgainstCoreUObject (Boolean) | 为包含CoreUObject项目的所有版本启用。仅在编译只与核心连接的独立应用程序时才会被禁用。 |
+| bCompileAgainstApplicationCore (Boolean) | 为需要初始化ApplicationCore模块的版本启用。命令行工具通常不需要此项。 |
+| bCompileRecast (Boolean) | 是否编译Recast寻路网格体生成。 |
+| bForceEnableExceptions (Boolean) | 启用所有模块的异常。 |
+| bUseInlining (Boolean) | 启用所有模块的内联。 |
+| bForceEnableObjCExceptions (Boolean) | 启用所有模块的异常。 |
+| bForceEnableRTTI (Boolean) | 启用所有模块的RTTI。 |
+| bWithServerCode (Boolean) | 编译纯服务器代码。 |
+| bCompileWithStatsWithoutEngine (Boolean) | 是否包含统计数据支持，即使没有引擎也同样如此。 |
+| bCompileWithPluginSupport (Boolean) | 是否包含插件支持。 |
+| bIncludePluginsForTargetPlatforms (Boolean) | 是否允许支持所有目标平台的插件存在。 |
+| bWithPerfCounters (Boolean) | 是否包含PerfCounters支持。 |
+| bUseLoggingInShipping (Boolean) | 是否开启测试/发布版本的记录功能。 |
+| bLoggingToMemoryEnabled (Boolean) | 是否开启测试/发布版本的记录到内存功能。 |
+| bUseLauncherChecks (Boolean) | 是否检查进程通过外部启动程序进行启动。 |
+| bUseChecksInShipping (Boolean) | 是否开启测试/发布版本的检查（断言）。 |
+| bCompileFreeType (Boolean) | 如果需要FreeType支持，则设为true。 |
+| bCompileForSize (Boolean) | 如果优化大小重于优化速度，则设为true。 |
+| bForceCompileDevelopmentAutomationTests (Boolean) | 是否编译开发自动化测试。 |
+| bForceCompilePerformanceAutomationTests (Boolean) | 是否编译性能自动化测试。 |
+| bEventDrivenLoader (Boolean) | 如为true，将在烘焙版本中使用事件驱动加载器。 |
+| bUseXGEController (Boolean) | XGE控制器工作器和模块是否应包含在引擎版本中。它们是已发布着色器编译（其使用XGE拦截接口）的必需内容。 |
+| bUseBackwardsCompatibleDefaults (Boolean) | 是否对该模块使用向后兼容默认项。默认情况下，引擎模块将始终使用最新的默认设置，而项目模块则不使用（以支持更容易的迁移路径）。 |
+| bIWYU (Boolean) | 为此目标中的模块默认启用“包含您所使用”。将此项目中任意模块的默认PCH模式改为PCHUsageModule.UseExplicitOrSharedPCHs。 |
+| bEnforceIWYU (Boolean) | 执行“包含您所使用”规则，如果使用单片式标头（Engine.h、UnrealEd.h等）则发出警告。并首先检查源代码是否包含匹配的标头。 |
+| bHasExports (Boolean) | 最终的可执行文件是否应导出符号。 |
+| bPrecompile (Boolean) | 将所有引擎模块的静态库设为此目标的中间物。 |
+| bEnableOSX109Support (Boolean) | 是否应使用OS X 10.9 Mavericks支持来进行编译。用于部分需要与这个版本的OS X兼容的工具。 |
+| bIsBuildingConsoleApplication (Boolean) | 如果正在编译的是主机应用程序，则为true。 |
+| bDisableSymbolCache (Boolean) | 如果为部分平台缓存的调试符号不应被创建，则为true。 |
+| bUseUnityBuild (Boolean) | 是否将C++代码统一到较大的文件中来加快编译速度。 |
+| bForceUnityBuild (Boolean) | 是否强制将C++源文件组合到较大的文件中来加快编译速度。 |
+| bUseAdaptiveUnityBuild (Boolean) | 使用启发法来确定当前正在被迭代的文件，并将其从集合体中排除出来，使增量编译速度加快。当前的实现使用只读标签来区别工作集，假定文件将被源码管理系统设为可写入（如其正在被编辑）。Perforce为true，但Git不为true。 |
+| bAdaptiveUnityDisablesOptimizations (Boolean) | 禁用自适应非统一工作集中文件的优化。 |
+| bAdaptiveUnityDisablesPCH (Boolean) | 禁用自适应非统一工作集中文件的强制包含PCH。 |
+| bAdaptiveUnityCreatesDedicatedPCH (Boolean) | 为工作集中每个源文件创建一个专属PCH，允许在纯cpp修改上进行更快的迭代。 |
+| bAdaptiveUnityEnablesEditAndContinue (Boolean) | 为工作集中每个源文件创建一个专属PCH，允许在纯cpp修改上进行更快的迭代。 |
+| MinGameModuleSourceFilesForUnityBuild (Int32) | 为游戏模块启用统一编译之前，该游戏模块中源文件的数量。这使得小型游戏模块在单一文件上拥有更快的迭代编译速度，而代价则是完整重编译时间更长。此设置可被模块Build.cs文件中的bFasterWithoutUnity选项所覆盖。 |
+| bShadowVariableErrors (Boolean) | 强制阴影变量警告被视为支持平台上的错误。 |
+| bUndefinedIdentifierErrors (Boolean) | 强制将条件表达式中的未定义辨识符视为错误。 |
+| bUseFastMonoCalls (Boolean) | 全新的单片式显卡驱动拥有可选的“快速调用”来替代诸多D3d函数。 |
+| bUseFastSemanticsRenderContexts (Boolean) | 全新Xbox驱动支持“快速语意”情境类型。对于直接和延迟情境，此属性将启用该功能。如果Xbox RHI中出现渲染问题和/或崩溃，请尝试禁用此项。 |
+| NumIncludedBytesPerUnityCPP (Int32) | 要包含在单个统一C++文件中的C++代码字节的大致数量。 |
+| bStressTestUnity (Boolean) | 是否将单个统一文件中的所有C++文件包含在一个项目中，以对C++统一版本的稳定性进行压力测试。 |
+| bForceDebugInfo (Boolean) | 是否强制生成调试信息。 |
+| bDisableDebugInfo (Boolean) | 是否全局禁用调试信息生成；参见DebugInfoHeuristics.cs了解每个配置和每个平台的选项。 |
+| bDisableDebugInfoForGeneratedCode (Boolean) | 是否禁用已生成文件的调试信息生成。这将缩短拥有大量已生成胶合代码的模块的链接时间。 |
+| bOmitPCDebugInfoInDevelopment (Boolean) | 是否在PC上的开发版本中禁用调试信息（可提高开发者迭代速度，调试信息禁用后链接速度极快）。 |
+| bUsePDBFiles (Boolean) | PDB文件是否应用于Visual C++版本。 |
+| bUsePCHFiles (Boolean) | 是否应使用PCH文件。 |
+| MinFilesUsingPrecompiledHeader (Int32) | 在创建和使用前必须使用预编译标头的最小文件数。 |
+| bForcePrecompiledHeaderForGameModules (Boolean) | 启用后，将始终为游戏模块生成预编译标头，即便模块中只有数个源文件也同样如此。这能极大缩短项目中数个文件迭代更改的编译时间，而代价则是小型游戏项目的完整重编译时间变长。在模块的Build.cs文件中设置MinFilesUsingPrecompiledHeaderOverride即可覆盖此项。 |
+| bUseIncrementalLinking (Boolean) | 是否使用增量链接。进行较小的修改时，增量链接可加快迭代速度。当前已默认禁用，因其在部分电脑上会发生一些错误（PDB相关的编译错误）。 |
+| bAllowLTCG (Boolean) | 是否允许使用链接时间代码生成（LTCG）。 |
+| bPGOProfile (Boolean) | 是否在此版本中启用按配置优化（PGO）工具。 |
+| bPGOOptimize (Boolean) | 是否用按配置优化（PGO）优化此版本。 |
+| bAllowASLRInShipping (Boolean) | 是否允许使用地址空间布局随机化（ASLR）（如果支持ASLR）。只应用到发布版本。 |
+| bSupportEditAndContinue (Boolean) | 是否支持编辑和继续。只能在Microsoft编译器上使用。 |
+| bOmitFramePointers (Boolean) | 是否省略帧指针。对于PC上内存分析之类的操作，禁用该属性是有用的。 |
+| bUseMallocProfiler (Boolean) | 如为true，则在版本中启用内存分析（定义USE\_MALLOC\_PROFILER=1并强制bOmitFramePointers=false）。 |
+| bUseSharedPCHs (Boolean) | 启用“共享PCHs”，此功能将极大地提高编译速度。其工作原理是尝试在UBT检测到包含PCH头文件的模块之间共享特定的PCH文件。 |
+| bUseShippingPhysXLibraries (Boolean) | 如开发和发布版本应使用PhysX/APEX的发布配置，则为True。 |
+| bUseCheckedPhysXLibraries (Boolean) | 如开发和发布版本应使用PhysX/APEX的勾选配置，则为True。如bUseShippingPhysXLibraries为true，则此项将被忽略。 |
+| bCheckLicenseViolations (Boolean) | 如当前正在编译的模块违反EULA，则告知UBT进行检查。 |
+| bBreakBuildOnLicenseViolation (Boolean) | 如当前正在编译的模块违反EULA，则告知UBT中断编译。 |
+| bUseFastPDBLinking (Nullable<Boolean>) | 使用/DEBUG进行编译以在Windows上创建本地PDB时，是否使用:FASTLINK选项。速度较快，但当前在调试器中寻找符号时似乎存在问题。 |
+| bCreateMapFile (Boolean) | 将地图文件作为版本的一部分进行输出。 |
+| BundleVersion (String) | Mac应用程序捆绑版。 |
+| bDeployAfterCompile (Boolean) | 在需要部署的平台上进行编译后是否部署可执行文件。 |
+| bAllowRemotelyCompiledPCHs (Boolean) | 启用后，允许XGE在远程机上编译预编译头文件。否则，PCH将始终在本地生成。 |
+| bCheckSystemHeadersForModification (Boolean) | 确定过期操作时是否应检查系统路径中标头的修改。 |
+| bDisableLinking (Boolean) | 是否禁用此目标的链接。 |
+| bFormalBuild (Boolean) | 说明这是用于发行的正式版本。当Build.version拥有变更列表集时，此标记将自动设为true。当前绑定到此标记的唯一行为是为每个二进制文件单独编译默认资源文件，以便正确设置OriginalFilename域。默认情况下，我们只对资源进行一次编译，以减少编译时间。 |
+| bFlushBuildDirOnRemoteMac (Boolean) | 编译前是否在远程Mac上清理版本目录。 |
+| bPrintToolChainTimingInfo (Boolean) | 是否从编译器和链接器写入详细时间信息。 |
+| bHideSymbolsByDefault (Boolean) | 是否在POSIX平台上默认隐藏符号 |
+| ToolChainName (String) | 允许为此目标创建覆盖工具链。这必须匹配UnrealBuildTool程序集中声明的类的名称。 |
+| bDisableUnverifiedCertificates (Boolean) | 是否允许引擎配置来决定是否能加载未验证的证书。 |
+| bAllowGeneratedIniWhenCooked (Boolean) | 是否在烘焙版本中加载生成的ini文件（GameUserSettings.ini以任意方式加载）。 |
+| bAllowNonUFSIniWhenCooked (Boolean) | 是否在烘焙版本中加载非ufs ini文件（GameUserSettings.ini以任意方式加载）。 |
+| bLegacyPublicIncludePaths (Boolean) | 将所有公共文件夹添加为编译环境的包含路径。 |
+| CppStandard (CppStandardVersion) | 用于编译此目标的C++标准。 |
+| BuildVersion (String) | 编译版本字符串。 |
+| GlobalDefinitions (List<String>) | 在整个目标中进行全局定义的宏。 |
+| ProjectDefinitions (List<String>) | 定义项目中所有宏的宏。 |
+| ExtraModuleNames (List<String>) | 编译到目标中的额外模块的列表。 |
+| ManifestFileNames (List<FileReference>) | 此目标输出清单的路径。 |
+| DependencyListFileNames (List<FileReference>) | 预编译时此目标依赖性列表的路径。 |
+| BuildEnvironment (TargetBuildEnvironment) | 指定此目标的编译环境。参见TargetBuildEnvironment，了解可用选项的更多信息。 |
+| PreBuildSteps (List<String>) | 指定在编译此目标之前，应在主机平台外壳的情境中执行的步骤列表。执行前将展开以下变量：$(EngineDir)、$(ProjectDir)、$(TargetName)、$(TargetPlatform)、$(TargetConfiguration)、$(TargetType)、$(ProjectFile)。 |
+| PostBuildSteps (List<String>) | 指定在编译此目标之后，应在主机平台外壳的情境中执行的步骤列表。执行前将展开以下变量：$(EngineDir)、$(ProjectDir)、$(TargetName)、$(TargetPlatform)、$(TargetConfiguration)、$(TargetType)、$(ProjectFile)。 |
+| AdditionalBuildProducts (List<String>) | 指定作为此目标的一部分而生成的额外编译产品。 |
+| AdditionalCompilerArguments (String) | 传递至编译器的额外参数。 |
+| AdditionalLinkerArguments (String) | 传递至链接器的额外参数。 |
+| GeneratedProjectName (String) | 生成项目文件时，指定在存在多个类型相同的目标时要使用的项目文件的名称。 |

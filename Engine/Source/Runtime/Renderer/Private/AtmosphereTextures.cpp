@@ -7,7 +7,6 @@
 #include "AtmosphereTextures.h"
 #include "Atmosphere/AtmosphericFogComponent.h"
 #include "RenderTargetPool.h"
-#include "AtmosphereTextureParameters.h"
 #include "ShaderParameterUtils.h"
 
 void FAtmosphereTextures::InitDynamicRHI()
@@ -74,37 +73,4 @@ void FAtmosphereTextures::ReleaseDynamicRHI()
 	AtmosphereDeltaJ.SafeRelease();
 
 	GRenderTargetPool.FreeUnusedResources();
-}
-
-
-void FAtmosphereShaderTextureParameters::Bind(const FShaderParameterMap& ParameterMap)
-{
-	TransmittanceTexture.Bind(ParameterMap,TEXT("AtmosphereTransmittanceTexture"));
-	TransmittanceTextureSampler.Bind(ParameterMap,TEXT("AtmosphereTransmittanceTextureSampler"));
-	IrradianceTexture.Bind(ParameterMap,TEXT("AtmosphereIrradianceTexture"));
-	IrradianceTextureSampler.Bind(ParameterMap,TEXT("AtmosphereIrradianceTextureSampler"));
-	InscatterTexture.Bind(ParameterMap,TEXT("AtmosphereInscatterTexture"));
-	InscatterTextureSampler.Bind(ParameterMap,TEXT("AtmosphereInscatterTextureSampler"));
-}
-
-
-#define IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET( ShaderRHIParamRef ) \
-	template void FAtmosphereShaderTextureParameters::Set< ShaderRHIParamRef >( FRHICommandList& RHICmdList, const ShaderRHIParamRef ShaderRHI, const FSceneView& View ) const;
-
-IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET( FVertexShaderRHIParamRef );
-IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET( FHullShaderRHIParamRef );
-IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET( FDomainShaderRHIParamRef );
-IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET( FGeometryShaderRHIParamRef );
-IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET( FPixelShaderRHIParamRef );
-IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET( FComputeShaderRHIParamRef );
-
-FArchive& operator<<(FArchive& Ar,FAtmosphereShaderTextureParameters& Parameters)
-{
-	Ar << Parameters.TransmittanceTexture;
-	Ar << Parameters.TransmittanceTextureSampler;
-	Ar << Parameters.IrradianceTexture;
-	Ar << Parameters.IrradianceTextureSampler;
-	Ar << Parameters.InscatterTexture;
-	Ar << Parameters.InscatterTextureSampler;
-	return Ar;
 }

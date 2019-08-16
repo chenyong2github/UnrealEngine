@@ -2811,9 +2811,10 @@ VIVOXSDK_DLLEXPORT char *vx_get_path(unsigned int path_id);
 /**
  * Gets current value of dynamic voice processing switching enabled setting
  *
- * @return               -  0 if disabled, 1 if enabled.
+ * @param enabled - [out] pointer to the returned value (0 if disabled, 1 if enabled)
+ * @return 0 if successful, non-zero if failed.
  */
-VIVOXSDK_DLLEXPORT int vx_get_dynamic_voice_processing_switching_enabled();
+VIVOXSDK_DLLEXPORT int vx_get_dynamic_voice_processing_switching_enabled(int *enabled);
 
 /**
  * Enables and disables dynamic voice processing switching
@@ -2826,9 +2827,10 @@ VIVOXSDK_DLLEXPORT int vx_set_dynamic_voice_processing_switching_enabled(int ena
 /**
  * Returns whether platform-provided AEC is being used.
  *
- * @return               -  0 if disabled, 1 if enabled.
+ * @param enabled - [out] pointer to the returned value (0 if disabled, 1 if enabled)
+ * @return 0 if successful, non-zero if failed.
  */
-VIVOXSDK_DLLEXPORT int vx_get_platform_aec_enabled();
+VIVOXSDK_DLLEXPORT int vx_get_platform_aec_enabled(int *enabled);
 
 /**
  * Enables and disables platform-provided AEC

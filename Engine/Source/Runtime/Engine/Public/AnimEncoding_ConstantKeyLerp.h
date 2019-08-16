@@ -40,13 +40,13 @@ public:
 	/**
 	 * Handles the ByteSwap of compressed rotation data on import
 	 *
-	 * @param	Seq				The UAnimSequence container.
+	 * @param	CompressedData		The compressed animation data being operated on.
 	 * @param	MemoryReader	The FMemoryReader to read from.
 	 * @param	RotTrackData	The compressed rotation data stream.
 	 * @param	NumKeysRot		The number of keys present in the stream.
 	 */
 	virtual void ByteSwapRotationIn(
-		UAnimSequence& Seq, 
+		FUECompressedAnimData& CompressedData,
 		FMemoryReader& MemoryReader,
 		uint8*& RotTrackData,
 		int32 NumKeysRot) override;
@@ -54,13 +54,13 @@ public:
 	/**
 	 * Handles the ByteSwap of compressed translation data on import
 	 *
-	 * @param	Seq				The UAnimSequence container.
+	 * @param	CompressedData	The compressed animation data being operated on.
 	 * @param	MemoryReader	The FMemoryReader to read from.
 	 * @param	TransTrackData	The compressed translation data stream.
 	 * @param	NumKeysTrans	The number of keys present in the stream.
 	 */
 	virtual void ByteSwapTranslationIn(
-		UAnimSequence& Seq, 
+		FUECompressedAnimData& CompressedData,
 		FMemoryReader& MemoryReader,
 		uint8*& TransTrackData,
 		int32 NumKeysTrans) override;
@@ -68,13 +68,13 @@ public:
 	/**
 	 * Handles the ByteSwap of compressed Scale data on import
 	 *
-	 * @param	Seq				The UAnimSequence container.
+	 * @param	CompressedData	The compressed animation data being operated on.
 	 * @param	MemoryReader	The FMemoryReader to read from.
 	 * @param	ScaleTrackData	The compressed Scale data stream.
 	 * @param	NumKeysScale	The number of keys present in the stream.
 	 */
 	virtual void ByteSwapScaleIn(
-		UAnimSequence& Seq, 
+		FUECompressedAnimData& CompressedData,
 		FMemoryReader& MemoryReader,
 		uint8*& ScaleTrackData,
 		int32 NumKeysScale) override;
@@ -83,13 +83,13 @@ public:
 	/**
 	 * Handles the ByteSwap of compressed rotation data on export
 	 *
-	 * @param	Seq				The UAnimSequence container.
+	 * @param	CompressedData	The compressed animation data being operated on.
 	 * @param	MemoryWriter	The FMemoryWriter to write to.
 	 * @param	RotTrackData	The compressed rotation data stream.
 	 * @param	NumKeysRot		The number of keys to write to the stream.
 	 */
 	virtual void ByteSwapRotationOut(
-		UAnimSequence& Seq, 
+		FUECompressedAnimData& CompressedData,
 		FMemoryWriter& MemoryWriter,
 		uint8*& RotTrackData,
 		int32 NumKeysRot) override;
@@ -97,13 +97,13 @@ public:
 	/**
 	 * Handles the ByteSwap of compressed translation data on export
 	 *
-	 * @param	Seq				The UAnimSequence container.
+	 * @param	CompressedData	The compressed animation data being operated on.
 	 * @param	MemoryWriter	The FMemoryWriter to write to.
 	 * @param	TransTrackData	The compressed translation data stream.
 	 * @param	NumKeysTrans	The number of keys to write to the stream.
 	 */
 	virtual void ByteSwapTranslationOut(
-		UAnimSequence& Seq, 
+		FUECompressedAnimData& CompressedData,
 		FMemoryWriter& MemoryWriter,
 		uint8*& TransTrackData,
 		int32 NumKeysTrans) override;
@@ -111,13 +111,13 @@ public:
 	/**
 	 * Handles the ByteSwap of compressed Scale data on export
 	 *
-	 * @param	Seq				The UAnimSequence container.
+	 * @param	CompressedData	The compressed animation data being operated on.
 	 * @param	MemoryWriter	The FMemoryWriter to write to.
 	 * @param	TransTrackData	The compressed Scale data stream.
 	 * @param	NumKeysTrans	The number of keys to write to the stream.
 	 */
 	virtual void ByteSwapScaleOut(
-		UAnimSequence& Seq, 
+		FUECompressedAnimData& CompressedData,
 		FMemoryWriter& MemoryWriter,
 		uint8*& ScaleTrackData,
 		int32 NumKeysScale) override;
@@ -261,7 +261,7 @@ FORCEINLINE void AEFConstantKeyLerp<FORMAT>::GetBoneAtomRotation(FTransform& Out
 	{
 		int32 Index0;
 		int32 Index1;
-		float Alpha = TimeToIndex(*DecompContext.AnimSeq, DecompContext.RelativePos, NumRotKeys, Index0, Index1);
+		float Alpha = TimeToIndex(DecompContext.GetSequenceLength(), DecompContext.RelativePos, NumRotKeys, DecompContext.GetInterpolation(), Index0, Index1);
 
 		const int32 RotationStreamOffset = (FORMAT == ACF_IntervalFixed32NoW) ? (sizeof(float)*6) : 0; // offset past Min and Range data
 
@@ -340,7 +340,7 @@ FORCEINLINE void AEFConstantKeyLerp<FORMAT>::GetBoneAtomTranslation(FTransform& 
 
 	int32 Index0;
 	int32 Index1;
-	float Alpha = TimeToIndex(*DecompContext.AnimSeq, DecompContext.RelativePos, NumTransKeys, Index0, Index1);
+	float Alpha = TimeToIndex(DecompContext.GetSequenceLength(), DecompContext.RelativePos, NumTransKeys, DecompContext.GetInterpolation(), Index0, Index1);
 
 	const int32 TransStreamOffset = ((FORMAT == ACF_IntervalFixed32NoW) && NumTransKeys > 1) ? (sizeof(float)*6) : 0; // offset past Min and Range data
 
@@ -410,7 +410,7 @@ FORCEINLINE void AEFConstantKeyLerp<FORMAT>::GetBoneAtomScale(FTransform& OutAto
 
 	int32 Index0;
 	int32 Index1;
-	float Alpha = TimeToIndex(*DecompContext.AnimSeq, DecompContext.RelativePos, NumScaleKeys, Index0, Index1);
+	float Alpha = TimeToIndex(DecompContext.GetSequenceLength(), DecompContext.RelativePos, NumScaleKeys, DecompContext.GetInterpolation(), Index0, Index1);
 
 	const int32 ScaleStreamOffset = ((FORMAT == ACF_IntervalFixed32NoW) && NumScaleKeys > 1) ? (sizeof(float)*6) : 0; // offset past Min and Range data
 

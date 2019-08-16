@@ -35,7 +35,7 @@ void FTimecodeSynchronizerEditorStyle::Register()
 	TimecodeSynchronizerStyle::StyleInstance->Set("Synchronized.Small", new IMAGE_BRUSH("Icon_Synchronized_40x", TimecodeSynchronizerStyle::Icon20x20));
 	TimecodeSynchronizerStyle::StyleInstance->Set("Stop", new IMAGE_BRUSH("Icon_Stop_40x", TimecodeSynchronizerStyle::Icon40x40));
 	TimecodeSynchronizerStyle::StyleInstance->Set("Stop.Small", new IMAGE_BRUSH("Icon_Stop_40x", TimecodeSynchronizerStyle::Icon20x20));
-
+	TimecodeSynchronizerStyle::StyleInstance->Set("SynchronizationWidget.Small", new IMAGE_BRUSH("Icon_SynchronizationWidget_20x", TimecodeSynchronizerStyle::Icon20x20));
 
 	FSlateStyleRegistry::RegisterSlateStyle(*TimecodeSynchronizerStyle::StyleInstance.Get());
 }

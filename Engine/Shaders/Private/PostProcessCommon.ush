@@ -4,8 +4,7 @@
 	PostProcessCommon.usf: PostProcessing shared functions and structures.
 =============================================================================*/
 
-#ifndef __POST_PROCESS_COMMON__
-#define __POST_PROCESS_COMMON__
+#pragma once
 
 #include "SceneTexturesCommon.ush"
 
@@ -71,12 +70,10 @@ float4 ViewportSize;
 // in pixels (scaled to the current rendertarget resolution), float4(minx,miny,maxx,maxy), depends on SetViewportAndCallRHI() call
 uint4 ViewportRect;
 
-SamplerState BilinearTextureSampler0;
-SamplerState BilinearTextureSampler1;
+SamplerState BilinearTextureSampler;
 
 // transforms ScreenPos to the screen pixel position, not the viewport local position (*xy +wz)
 // (0,0) left top, (width-1,height-1) at right bottom, in pixels (without offset to reach the pixel center)
-// 	use ComputePixelPosCenter(UVAndScreenPos.zw, bPixelCenter) instead of directly accessing this
 float4 ScreenPosToPixel;
 
 float4 SceneColorBufferUVViewport;
@@ -86,24 +83,6 @@ float4 SceneColorBufferUVViewport;
 float2 ViewportUVToPostProcessingSceneColorBufferUV(float2 ViewportUV)
 {
 	return ViewportUV * SceneColorBufferUVViewport.xy + SceneColorBufferUVViewport.zw;
-}
-
-// uses ScreenPosToPixel which is setup in FPostProcessPassParameters
-// for integer output bPixelCenter should be set to true (to avoid rounding errors), but often it's better to use "int2 PixelPos = (int2)SvPosition.xy;" instead
-// @param ScreenPos -1 .. 1, usually from UVAndScreenPos.zw
-// @param bCenter false: left top of the pixel and almost no fractional value, true: added 0.5 to be pixel center
-float2 ComputePixelPosCenter(float2 ScreenPos, bool bPixelCenter)
-{
-	float2 PixelOffset = bPixelCenter ? 0.5f : 0.0f;
-	return ScreenPos * ScreenPosToPixel.xy + ScreenPosToPixel.zw + PixelOffset;
-}
-
-// not well optimized but can be useful
-float2 ScreenPosFromPixelPos(float2 PixelPos, bool bPixelCenter)
-{
-	float2 PixelOffset = bPixelCenter ? 0.5f : 0.0f;
-
-	return (PixelPos - PixelOffset - ScreenPosToPixel.zw) / ScreenPosToPixel.xy;
 }
 
 // shape of the lens for vignette like effects and masking
@@ -188,7 +167,7 @@ float4 GatherSceneDepth(float2 UV, float2 InvBufferSize)
 {
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 	// using Gather: xyzw in counter clockwise order starting with the sample to the lower left of the queried location
-	float4 DeviceZ = SceneTexturesStruct.SceneDepthTextureNonMS.Gather(BilinearTextureSampler0, UV);
+	float4 DeviceZ = SceneTexturesStruct.SceneDepthTextureNonMS.Gather(BilinearTextureSampler, UV);
 
 	return float4(
 		ConvertFromDeviceZ(DeviceZ.x),
@@ -233,4 +212,3 @@ bool IsComputeUVOutOfBounds(in float2 UV)
 	return (max(CenterDist.x, CenterDist.y) >= 0.5f);
 }
 
-#endif // __POST_PROCESS_COMMON__

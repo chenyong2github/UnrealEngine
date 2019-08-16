@@ -20,11 +20,16 @@
 
 //------------------------------------------------------- PARAMETERS
 
+uint4 ViewportRect;
+
 float4 CocModelParameters;
 float2 DepthBlurParameters;
 
 // x: full res basis; y: half res basis.
 float2 CocRadiusBasis;
+
+Texture2D SceneColorTexture;
+Texture2D SceneDepthTexture;
 
 
 //------------------------------------------------------- OUTPUTS
@@ -76,8 +81,8 @@ void SetupCS(
 		SceneBufferUV = clamp(SceneBufferUV, View.BufferBilinearUVMinMax.xy, View.BufferBilinearUVMinMax.zw);
 	}
 
-	float4 SceneColor = PostprocessInput0.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0);
-	float DeviceZ = PostprocessInput1.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).r;
+	float4 SceneColor = SceneColorTexture.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0);
+	float DeviceZ = SceneDepthTexture.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).r;
 	float CocRadius = DepthToHalfResCocRadius(CocModelParameters, DepthBlurParameters, ConvertFromDeviceZ(DeviceZ));
 	
 	// Convert from translucency to opacity.
@@ -176,9 +181,9 @@ void SetupCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
 	float2 SceneBufferUV = (float2(View.ViewRectMin.xy) + (DispatchThreadId + 0.5)) * View.BufferSizeAndInvSize.zw;
 	
-	float4 OutColor = PostprocessInput0.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0);
+	float4 OutColor = SceneColorTexture.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0);
 	
-	float DeviceZ = PostprocessInput1.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).r;
+	float DeviceZ = SceneDepthTexture.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).r;
 	float OutCocRadius = CocRadiusBasis.x * DepthToHalfResCocRadius(CocModelParameters, DepthBlurParameters, ConvertFromDeviceZ(DeviceZ));
 
 	if (all(DispatchThreadId < ViewportRect.zw))
@@ -217,7 +222,7 @@ void SetupCS(
 	if (all(GroupId * GROUP_BORDER_SIZE + (GROUP_BORDER_SIZE + 1) <= ViewportRect.zw))
 	{
 		// Fetch Coc
-		float4 SceneDepthGather = PostprocessInput1.Gather(GlobalPointClampedSampler, SceneBufferUV);
+		float4 SceneDepthGather = SceneDepthTexture.Gather(GlobalPointClampedSampler, SceneBufferUV);
 		float CocRadii[4];
 		CocRadii[0] = DepthToHalfResCocRadius(CocModelParameters, DepthBlurParameters, ConvertFromDeviceZ(SceneDepthGather.w));
 		CocRadii[1] = DepthToHalfResCocRadius(CocModelParameters, DepthBlurParameters, ConvertFromDeviceZ(SceneDepthGather.z));
@@ -229,7 +234,7 @@ void SetupCS(
 		for (uint i = 0; i < 4; i++)
 		{
 			float2 SampleUV = SceneBufferUV + SceneBufferUVOffset * float2(kOffsetsCross3x3[i]);
-			SceneColors[i] = PostprocessInput0.SampleLevel(GlobalPointClampedSampler, SampleUV, 0);
+			SceneColors[i] = SceneColorTexture.SampleLevel(GlobalPointClampedSampler, SampleUV, 0);
 
 			// Convert from translucency to opacity.
 			SceneColors[i].a = 1 - SceneColors[i].a;
@@ -265,12 +270,12 @@ void SetupCS(
 				SampleUV = clamp(SampleUV, View.BufferBilinearUVMinMax.xy, View.BufferBilinearUVMinMax.zw);
 			}
 
-			SceneColors[i] = PostprocessInput0.SampleLevel(GlobalPointClampedSampler, SampleUV, 0);
+			SceneColors[i] = SceneColorTexture.SampleLevel(GlobalPointClampedSampler, SampleUV, 0);
 			
 			// Convert from translucency to opacity.
 			SceneColors[i].a = 1 - SceneColors[i].a;
 
-			float SampleDeviceZ = PostprocessInput1.SampleLevel(GlobalPointClampedSampler, SampleUV, 0).r;
+			float SampleDeviceZ = SceneDepthTexture.SampleLevel(GlobalPointClampedSampler, SampleUV, 0).r;
 			CocRadii[i] = DepthToHalfResCocRadius(CocModelParameters, DepthBlurParameters, ConvertFromDeviceZ(SampleDeviceZ));
 		}
 

@@ -1,0 +1,36 @@
+﻿INTSourceChangelist:6650380
+Availability: Public
+Crumbs: 
+Title: 启用代理几何体工具
+Description: 包括虚幻引擎4适用参考和指南在内的产品文档
+Type: how-to
+SkillLevel: Beginner
+Version: 4.19
+Parent: Engine/ProxyGeoTool
+Order: 1
+Tags: 
+
+
+需要先启用代理几何体工具，之后方可使用该工具。在下面的教程中，我们将了解如何在UE4项目中启用代理几何体工具。
+
+## 步骤
+
+1. 首先启动您的UE4项目，当项目打开后，转到主工具栏选择 **编辑（Edit）> 项目设置（Project Settings）**，来打开项目设置（Project Settings）。  
+    ![](ProxyLOD_01.png "ProxyLOD_01.png")
+2. 打开项目设置（Project Settings）后，转到 **编辑器（Editor）> 层级LOD网格体简化（Hierarchical LOD Mesh Simplification）**，在 **常规（General）** 部分下，单击 **层级LOD网格体简化插件（Hierarchical LOD Mesh Reduction Plugin）**，然后选择 **ProxyLODMeshReduction** 插件。 
+    ![](ProxyLOD_02.png "ProxyLOD_02.png") 
+3. 现在，按UE4编辑器右下角的立即重启（Restart Now）按钮，以在启用代理LOD网格体简化插件的条件下重启UE4。  
+    ![](ProxyLOD_03.png "ProxyLOD_03.png")
+4. 当编辑器重启后，转到 **窗口（Window）> 开发者工具（Developer Tools）**，然后单击 **合并Actor（Merge Actors）** 选项。  
+    ![](ProxyLOD_05.png)
+
+## 最终结果
+
+当合并Actor工具打开时，您应该在顶部看到两个图标。单击第二个图标以访问代理几何体工具的选项。 
+
+![](ProxyLOD_04.png "ProxyLOD_04.png")
+
+[REGION:tip]
+注意，所有选项都将显示为灰色，直至选中了放置在关卡中的一个静态网格体。
+[/REGION]
+

@@ -67,6 +67,11 @@ void FForceFeedbackManager::AddReferencedObjects(FReferenceCollector& Collector)
 	Collector.AddReferencedObjects(ActiveForceFeedbackComponents);
 }
 
+FString FForceFeedbackManager::GetReferencerName() const
+{
+	return TEXT("FForceFeedbackManager");
+}
+
 UWorld* FForceFeedbackManager::GetTickableGameObjectWorld() const
 {
 	return World;

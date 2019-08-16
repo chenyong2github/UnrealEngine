@@ -36,7 +36,7 @@ FUICommandInfoDecl& FUICommandInfoDecl::DefaultChord( const FInputChord& InDefau
 	Info->DefaultChords[static_cast<uint8>(InChordIndex)] = InDefaultChord;
 	return *this;
 }
-FUICommandInfoDecl& FUICommandInfoDecl::UserInterfaceType( EUserInterfaceActionType::Type InType )
+FUICommandInfoDecl& FUICommandInfoDecl::UserInterfaceType( EUserInterfaceActionType InType )
 {
 	Info->UserInterfaceType = InType;
 	return *this;
@@ -75,7 +75,7 @@ const FText FUICommandInfo::GetInputText() const
 }
 
 
-void FUICommandInfo::MakeCommandInfo( const TSharedRef<class FBindingContext>& InContext, TSharedPtr< FUICommandInfo >& OutCommand, const FName InCommandName, const FText& InCommandLabel, const FText& InCommandDesc, const FSlateIcon& InIcon, const EUserInterfaceActionType::Type InUserInterfaceType, const FInputChord& InDefaultChord, const FInputChord& InAlternateDefaultChord)
+void FUICommandInfo::MakeCommandInfo( const TSharedRef<class FBindingContext>& InContext, TSharedPtr< FUICommandInfo >& OutCommand, const FName InCommandName, const FText& InCommandLabel, const FText& InCommandDesc, const FSlateIcon& InIcon, const EUserInterfaceActionType InUserInterfaceType, const FInputChord& InDefaultChord, const FInputChord& InAlternateDefaultChord)
 {
 	ensureMsgf( !InCommandLabel.IsEmpty(), TEXT("Command labels cannot be empty") );
 

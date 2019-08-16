@@ -10,9 +10,11 @@
 #include "Devices/VRPN/Tracker/DisplayClusterVrpnTrackerInputDevice.h"
 #include "Devices/VRPN/Keyboard/DisplayClusterVrpnKeyboardInputDevice.h"
 
-#include "Misc/DisplayClusterLog.h"
 #include "DisplayClusterGameMode.h"
+
 #include "DisplayClusterGlobals.h"
+#include "DisplayClusterLog.h"
+#include "DisplayClusterStrings.h"
 
 
 FDisplayClusterInputManager::FDisplayClusterInputManager()

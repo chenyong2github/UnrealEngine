@@ -230,8 +230,9 @@ public:
 
 	EWidgetTickFrequency GetDesiredTickFrequency() const { return TickFrequency; }
 
-protected:
 	UWidgetBlueprintGeneratedClass* GetWidgetTreeOwningClass();
+
+protected:
 	virtual void TemplateInitInner();
 
 	bool VerifyTemplateIntegrity(UUserWidget* TemplateRoot, TArray<FText>& OutErrors);
@@ -1072,7 +1073,7 @@ public:
 	virtual const FText GetPaletteCategory() override;
 	//~ End UWidget Interface
 
-	virtual void SetDesignerFlags(EWidgetDesignFlags::Type NewFlags) override;
+	virtual void SetDesignerFlags(EWidgetDesignFlags NewFlags) override;
 	virtual void OnDesignerChanged(const FDesignerChangedEventArgs& EventArgs) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 

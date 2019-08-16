@@ -12,13 +12,22 @@ namespace UnrealBuildTool.Rules
                 new string[] {
                 "Core",
                 "CoreUObject",
-				"FieldSystemCore"
+				"ChaosCore",
+                "IntelISPC",
+                "Voronoi"
                 }
             );
 
             PublicDefinitions.Add("COMPILE_WITHOUT_UNREAL_SUPPORT=0");
 
-            SetupModulePhysicsSupport(Target);
+            if (Target.bCompileChaos == true || Target.bUseChaos == true)
+            {
+                PublicDefinitions.Add("INCLUDE_CHAOS=1");
+            }
+            else
+            {
+                PublicDefinitions.Add("INCLUDE_CHAOS=0");
+            }
         }
     }
 }

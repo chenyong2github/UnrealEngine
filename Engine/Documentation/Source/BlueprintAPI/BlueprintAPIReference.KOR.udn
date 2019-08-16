@@ -1,7 +1,7 @@
-﻿INTSourceChangelist:3108692
-Title: 블루프린트 노드 참고서
+INTSourceChangelist:3108692
+Title: 블루프린트 노드 레퍼런스
 Crumbs:
-Description:모든 함수 호출, 이벤트, 기타 블루프린트 노드에 대해 다루는 참고서 전집입니다.
+Description:모든 함수 호출, 이벤트, 기타 블루프린트 노드에 대해 다루는 레퍼런스 전집입니다.
 Availability:Public
 parent:Engine/Blueprints
 order:5

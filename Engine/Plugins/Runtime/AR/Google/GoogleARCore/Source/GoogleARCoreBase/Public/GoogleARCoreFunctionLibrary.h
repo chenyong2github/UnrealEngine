@@ -7,6 +7,8 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 
 #include "GoogleARCoreTypes.h"
+#include "GoogleARCoreAugmentedFace.h"
+#include "GoogleARCoreAugmentedImage.h"
 #include "GoogleARCoreSessionConfig.h"
 #include "GoogleARCoreFunctionLibrary.generated.h"
 
@@ -125,6 +127,7 @@ public:
 	 * @param InUV		The original UVs of on the quad. Should be an array with 8 floats.
 	 * @param OutUV		The orientated UVs that can be used to sample the passthrough camera texture and make sure it is displayed correctly.
 	 */
+	UE_DEPRECATED(4.21, "Use UGoogleARCoreFrameFunctionLibrary::TransformARCoordinates2D(EGoogleARCoreCoordinates2DType::Viewport, InUV, EGoogleARCoreCoordinates2DType::Texture, OutUV) instead.")
 	UFUNCTION(BlueprintPure, Category = "GoogleARCore|PassthroughCamera", meta = (Keywords = "googlear arcore passthrough camera uv"))
 	static void GetPassthroughCameraImageUV(const TArray<float>& InUV, TArray<float>& OutUV);
 
@@ -147,6 +150,24 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "GoogleARCore|TrackablePoint", meta = (Keywords = "googlear arcore pose transform"))
 	static void GetAllTrackablePoints(TArray<UARTrackedPoint*>& OutTrackablePointList);
+
+	/**
+	 * Gets a list of all valid UGoogleARCoreAugmentedImage objects that ARCore is currently tracking.
+	 * UGoogleARCoreAugmentedImage that have entered the EARTrackingState::StoppedTracking state will not be included.
+	 *
+	 * @param OutAugmentedImageList		An array that contains all the valid augmented images detected by ARCore.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GoogleARCore|AugmentedImage", meta = (Keywords = "googlear arcore all augmented image"))
+	static void GetAllAugmentedImages(TArray<UGoogleARCoreAugmentedImage*>& OutAugmentedImageList);
+
+	/**
+	 * Gets a list of all valid UGoogleARCoreAugmentedFace objects that ARCore is currently tracking.
+	 * UGoogleARCoreAugmentedFace that have entered the EARTrackingState::StoppedTracking state will not be included.
+	 *
+	 * @param OutAugmentedFaceList		An array that contains all the valid augmented faces detected by ARCore.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GoogleARCore|AugmentedFace", meta = (Keywords = "googlear arcore all augmented face"))
+	static void GetAllAugmentedFaces(TArray<UGoogleARCoreAugmentedFace*>& OutAugmentedFaceList);
 
 	/** Template function to get all trackables from a given type. */
 	template< class T > static void GetAllTrackable(TArray<T*>& OutTrackableList);
@@ -182,6 +203,17 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "GoogleARCore|MotionTracking", meta = (Keywords = "googlear arcore session"))
 	static EGoogleARCoreTrackingState GetTrackingState();
+
+	/**
+	 * Returns the reason when UARBlueprintLibrary::GetTrackingQuality() returns NotTracking, or UGoogleARCoreFrameFunctionLibrary::GetTrackingState
+	 * returns Paused.
+	 *
+	 * In scenarios when multiple causes result in tracking failures, this reports the most actionable failure reason.
+	 *
+	 * @return	A EGoogleARCoreTrackingFailureReason enum that describes the tracking failure reason.
+	 */
+	UFUNCTION(BlueprintPure, Category = "GoogleARCore|MotionTracking", meta = (Keywords = "googlear arcore session"))
+	static EGoogleARCoreTrackingFailureReason GetTrackingFailureReason();
 
 	/**
 	 * Gets the latest tracking pose of the ARCore device in Unreal AR Tracking Space
@@ -247,6 +279,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "GoogleARCore|TrackablePoint", meta = (Keywords = "googlear arcore pose transform"))
 	static void GetUpdatedTrackablePoints(TArray<UARTrackedPoint*>& OutTrackablePointList);
 
+	/**
+	 * Gets a list of UGoogleARCoreAugmentedImage objects that were changed in this frame.
+	 *
+	 * @param OutImageList	An array that contains the updated UGoogleARCoreAugmentedImage.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GoogleARCore|AugmentedImage", meta = (Keywords = "googlear arcore augmented image updated"))
+	static void GetUpdatedAugmentedImages(TArray<UGoogleARCoreAugmentedImage*>& OutImageList);
+
+	/**
+	* Gets a list of UGoogleARCoreAugmentedFace objects that were changed in this frame.
+	*
+	* @param OutFaceList	An array that contains the updated UGoogleARCoreAugmentedFace.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "GoogleARCore|AugmentedFace", meta = (Keywords = "googlear arcore augmented face updated"))
+	static void GetUpdatedAugmentedFaces(TArray<UGoogleARCoreAugmentedFace*>& OutFaceList);
+
 	/** Template function to get the updated trackables in this frame a given trackable type. */
 	template< class T > static void GetUpdatedTrackable(TArray<T*>& OutTrackableList);
 
@@ -308,6 +356,23 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "GoogleARCore|PassthroughCamera", meta = (Keywords = "googlear arcore passthroughcamera"))
 	static EGoogleARCoreFunctionStatus AcquireCameraImage(UGoogleARCoreCameraImage *&OutLatestCameraImage);
+
+	/**
+	 * Transforms an array of 2D coordinates into a different 2D coordinate system.  This will account for the display rotation,
+	 * and any additional required adjustment.
+	 *
+	 * Some examples of useful conversions:
+	 *   To transform screen space UVs for texture space UVs to rendering pass-through camera texture: Viewport -> Texture;
+	 *   To transform a point found by a computer vision algorithm in the pass-through camera image into a point on the viewport: Image -> Viewport;
+	 *
+	 * @param InputCoordinatesType		The coordinate system used by InputCoordinates.
+	 * @param InputCoordinates			The input 2d coordinates.
+	 * @param OutputCoordinatesType		The coordinate system to transform to.
+	 * @param OutputCoordinates			The output 2d coordinates.
+	 */
+	UFUNCTION(BlueprintPure, Category = "GoogleARCore|PassthroughCamera", meta = (Keywords = "googlear arcore passthrough camera uv"))
+	static void TransformARCoordinates2D(EGoogleARCoreCoordinates2DType InputCoordinatesType, const TArray<FVector2D>& InputCoordinates,
+		EGoogleARCoreCoordinates2DType OutputCoordinatesType, TArray<FVector2D>& OutputCoordinates);
 
 	/**
 	 * Get the camera intrinsics for the camera image (CPU image).

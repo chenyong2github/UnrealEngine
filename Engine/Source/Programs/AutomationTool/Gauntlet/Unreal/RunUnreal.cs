@@ -13,6 +13,7 @@ using System.IO;
 using Newtonsoft.Json;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using Tools.DotNETCommon;
 
 namespace Gauntlet
 {
@@ -118,9 +119,11 @@ namespace Gauntlet
 			// Default platform to the current os
 			UnrealTargetPlatform DefaultPlatform = BuildHostPlatform.Current.Platform;
 			UnrealTargetConfiguration DefaultConfiguration = UnrealTargetConfiguration.Development;
+
+			DirectoryReference UnrealPath = new DirectoryReference(Environment.CurrentDirectory);
 					
 			// todo, pass this in as a BuildSource and remove the COntextOption params specific to finding builds
-			UnrealBuildSource BuildInfo = (UnrealBuildSource)Activator.CreateInstance(ContextOptions.BuildSourceType, new object[] { ContextOptions.Project, ContextOptions.UsesSharedBuildType, Environment.CurrentDirectory, ContextOptions.Build, ContextOptions.SearchPaths });
+			UnrealBuildSource BuildInfo = (UnrealBuildSource)Activator.CreateInstance(ContextOptions.BuildSourceType, new object[] { ContextOptions.Project, ContextOptions.ProjectPath, UnrealPath, ContextOptions.UsesSharedBuildType, ContextOptions.Build, ContextOptions.SearchPaths });
 
 			// Setup accounts
 			SetupAccounts();
@@ -179,6 +182,14 @@ namespace Gauntlet
 
 					// look for -clientargs= and -editorclient etc
 					Role.ExtraArgs = Globals.Params.ParseValue(Type.ToString() + "Args", "");
+
+					// look for -clientexeccmds=, -editorexeccmds= etc, these are separate from clientargs for sanity
+					string ExecCmds = Globals.Params.ParseValue(Type.ToString() + "ExecCmds", "");
+					if (!string.IsNullOrEmpty(ExecCmds))
+					{
+						Role.ExtraArgs += string.Format(" -ExecCmds=\"{0}\"", ExecCmds);
+					}
+
 					bool UsesEditor = EditorForAllRoles || Globals.Params.ParseParam("Editor" + Type.ToString());
 
 					if (UsesEditor)

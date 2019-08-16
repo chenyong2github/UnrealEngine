@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3810467
+INTSourceChangelist:5336361
 Availability:Public
 Title:모바일 플랫폼에서의 포스트 프로세스 이펙트
 Crumbs:
@@ -26,7 +26,7 @@ reference-image:Mobile_PostProcessEffect.gif
 [/region]
 
 ## 모바일 디바이스용 톤매퍼 켜기
-모바일 디바이스에서 톤매퍼 포스트 프로세싱 옵션을 사용하려면, **r.tonemapperfilm** 기본값 **0** 을 **1** 로 설정해야 합니다. 언리얼 엔진 4 (UE4) 에디터 안에서 톤매퍼를 변경하거나 켜고 끄는 방법은 다음과 같습니다:
+모바일 디바이스에서 톤매퍼 포스트 프로세싱 옵션을 사용하려면, **r.mobile.tonemapperfilm** 기본값 **0** 을 **1** 로 설정해야 합니다. 언리얼 엔진 4 (UE4) 에디터 안에서 톤매퍼를 변경하거나 켜고 끄는 방법은 다음과 같습니다:
 
 [OBJECT:ComparisonSlider]
 	[PARAM:before]
@@ -58,7 +58,7 @@ UE4 에디터에서 톤매퍼를 켜는 방법은, 먼저 **물결표** (`) 키�
 [/REGION]
 
 ### .ini 파일을 통한 톤매퍼 켜기
-프로젝트 전반적으로 톤매퍼를 켜고 끄려면 프로젝트 **DefaultEngine.ini** 파일의 **Rendering Settings** 섹션에 **r.tonemapperfilm=1** 을 추가해야 합니다.
+프로젝트 전반적으로 톤매퍼를 켜고 끄려면 프로젝트 **DefaultEngine.ini** 파일의 **Rendering Settings** 섹션에 **r.mobile.tonemapperfilm=1** 을 추가해야 합니다.
 
 [REGION:lightbox]
 [![](TM_Default_Engine_INI.png)(w:422)](TM_Default_Engine_INI.png)
@@ -77,7 +77,7 @@ UE4 에디터에서 톤매퍼를 켜는 방법은, 먼저 **물결표** (`) 키�
 [/REGION]
 
 ### 모바일 디바이스에서 필름 톤매퍼 설정
-모바일 디바이스에서 톤 매퍼를 켜고 끄기 위해서는, 화면을 동시에 **네 손가락** 터치하여 **콘솔 창** 을 띄운 다음 **r.tonemapperfilm 1** 을 입력하면 톤매퍼가 켜지고, **r.tonemapperfilm 0** 을 입력하면 톤매퍼가 꺼집니다.
+모바일 디바이스에서 톤 매퍼를 켜고 끄기 위해서는, 화면을 동시에 **네 손가락** 터치하여 **콘솔 창** 을 띄운 다음 **r.mobile.tonemapperfilm 1** 을 입력하면 톤매퍼가 켜지고, **r.mobile.tonemapperfilm 0** 을 입력하면 톤매퍼가 꺼집니다.
 
 [REGION:lightbox]
 [![](TM_Phone_Console.png)(w:640)](TM_Phone_Console.png)
@@ -102,7 +102,7 @@ UE4 에디터에서 톤매퍼를 켜는 방법은, 먼저 **물결표** (`) 키�
 
 **Color Grading** 섹션에서는 이미지 색 보정을 가능하게 해주는 지원 프로퍼티를 찾을 수 있습니다.
 
-|포스트 프로세스 프로퍼티| 지원여부 |R.tonemapperfilm 값| 
+|포스트 프로세스 프로퍼티| 지원여부 |r.mobile.tonemapperfilm 값| 
 |---------------------|-----------|----------------------|
 | [REGION:tablesection] White Balance 화이트 밸런스 [/REGION] |||
 |**Temp**|예|1|
@@ -143,7 +143,7 @@ UE4 에디터에서 톤매퍼를 켜는 방법은, 먼저 **물결표** (`) 키�
 **Tonemapper** 섹션에서는 이미지 색 범위를 조정할 수 있도록 해주는 지원 프로퍼티를 찾을 수 있습니다.
 
 
-|포스트 프로세스 프로퍼티| 지원여부|R.tonemapperfilm 값| 
+|포스트 프로세스 프로퍼티| 지원여부|r.mobile.tonemapperfilm 값| 
 |--------------------|-----------|--------------|
 |**Slope**|예|1|
 |**Toe**|예|1|
@@ -155,7 +155,7 @@ UE4 에디터에서 톤매퍼를 켜는 방법은, 먼저 **물결표** (`) 키�
 
 **Mobile Tonemapper** 섹션에서는 이미지 색 범위를 조정할 수 있도록 해주는 모바일 전용 지원 프로퍼티를 찾을 수 있습니다.
 
-|포스트 프로세스 프로퍼티| 지원여부|R.tonemapperfilm 값| 
+|포스트 프로세스 프로퍼티| 지원여부|r.mobile.tonemapperfilm 값| 
 |--------------------|-----------|--------------|
 |**Tint**|예|0|
 |**Saturation**|예|0|
@@ -175,7 +175,7 @@ UE4 에디터에서 톤매퍼를 켜는 방법은, 먼저 **물결표** (`) 키�
 
 **Lens** 섹션에서는 이미지에 블룸이나 뎁스 오브 필드같은 여러 시각 효과를 줄 수 있도록 해주는 지원 프로퍼티를 찾을 수 있습니다.
 
-|포스트 프로세스 프로퍼티| 지원여부|R.tonemapperfilm 값| 
+|포스트 프로세스 프로퍼티| 지원여부|r.mobile.tonemapperfilm 값| 
 |--------------------|-----------|--------------|
 | [REGION:tablesection] Image Effects 이미지 이펙트 [/REGION] |||
 |**Chromatic Aberation**|예|0 & 1|
@@ -248,7 +248,7 @@ UE4 에디터에서 톤매퍼를 켜는 방법은, 먼저 **물결표** (`) 키�
 
 **Rendering Features** 섹션에서는 커스텀 뎁스나 커스텀 스텐실같은 특정 포스트 프로세스 머티리얼에 대한 이미지에 시각적인 조정을 가할 수 있도록 해주는 지원 프로퍼티를 찾을 수 있습니다.
 
-|포스트 프로세스 프로퍼티| 지원여부|R.tonemapperfilm 값| 
+|포스트 프로세스 프로퍼티| 지원여부|r.mobile.tonemapperfilm 값| 
 |--------------------|-----------|--------------|
 | [REGION:tablesection] Post Process Materials 포스트 프로세스 머티리얼 [/REGION] |||
 |**Array**|예|1|

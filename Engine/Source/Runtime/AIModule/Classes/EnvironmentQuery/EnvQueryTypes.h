@@ -150,6 +150,7 @@ namespace EEnvTestScoreOperator
 		AverageScore	UMETA(Tooltip = "Use average score from all contexts"),
 		MinScore		UMETA(Tooltip = "Use minimum score from all contexts"),
 		MaxScore		UMETA(Tooltip = "Use maximum score from all contexts"),
+		Multiply		UMETA(Tooltip = "Multiply scores from all contexts"),
 	};
 }
 
@@ -426,7 +427,8 @@ struct AIMODULE_API FEnvOverlapData
 		OverlapChannel(ECC_WorldStatic),
 		OverlapShape(EEnvOverlapShape::Box),
 		bOnlyBlockingHits(true),
-		bOverlapComplex(false)
+		bOverlapComplex(false),
+		bSkipOverlapQuerier(false)
 	{
 	}
 
@@ -461,6 +463,10 @@ struct AIMODULE_API FEnvOverlapData
 	/** if set, overlap will run on complex collisions */
 	UPROPERTY(EditDefaultsOnly, Category = Overlap, AdvancedDisplay)
 	uint32 bOverlapComplex : 1;
+
+	/** if set, overlap will skip querier context hits */
+	UPROPERTY(EditDefaultsOnly, Category = Overlap, AdvancedDisplay)
+	uint32 bSkipOverlapQuerier : 1;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -1197,6 +1203,9 @@ public:
 				{
 					ItemScore = Score;
 				}
+				break;
+			case EEnvTestScoreOperator::Multiply:
+				ItemScore *= Score;
 				break;
 			}
 		}

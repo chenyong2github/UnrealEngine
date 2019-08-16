@@ -183,7 +183,7 @@ void UExampleTextureCacheBuilder::SerializeAsset(FArchive& Ar)
 			}
 		}
 
-		uint32 LockFlags = Ar.IsSaving() ? LOCK_READ_ONLY : LOCK_READ_WRITE;
+		EBulkDataLockFlags LockFlags = Ar.IsSaving() ? LOCK_READ_ONLY : LOCK_READ_WRITE;
 		for (int32 MipIndex = FirstMip; MipIndex < LastMip; ++MipIndex)
 		{
 			FTexture2DMipMap& Mip = PlatformData->Mips[MipIndex];

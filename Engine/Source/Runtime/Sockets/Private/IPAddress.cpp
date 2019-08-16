@@ -2,6 +2,7 @@
 
 #include "IPAddress.h"
 #include "SocketSubsystem.h"
+#include "AddressInfoTypes.h"
 
 /**
  * Sets the address to return to the caller
@@ -34,12 +35,12 @@ void FResolveInfoAsync::DoWork()
 	int32 AttemptCount = 0;
 
 	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get();
-	Addr = SocketSubsystem->CreateInternetAddr(0,0);
 
 	// Make up to 3 attempts to resolve it
 	do 
 	{
-		ErrorCode = SocketSubsystem->GetHostByName(HostName, *Addr);
+		FAddressInfoResult GAIResults = SocketSubsystem->GetAddressInfo(ANSI_TO_TCHAR(HostName), nullptr, EAddressInfoFlags::Default, NAME_None);
+		ErrorCode = GAIResults.ReturnCode;
 		if (ErrorCode != SE_NO_ERROR)
 		{
 			if (ErrorCode == SE_HOST_NOT_FOUND || ErrorCode == SE_NO_DATA || ErrorCode == SE_ETIMEDOUT)
@@ -48,12 +49,19 @@ void FResolveInfoAsync::DoWork()
 				AttemptCount = 3;
 			}
 		}
+		else if(GAIResults.Results.Num() > 0)
+		{
+			
+			// Pull out the address
+			Addr = GAIResults.Results[0].Address;
+
+			// Cache for reuse
+			SocketSubsystem->AddHostNameToCache(HostName, Addr);
+
+			return;
+		}
+
 		AttemptCount++;
 	}
 	while (ErrorCode != SE_NO_ERROR && AttemptCount < 3 && bShouldAbandon == false);
-	if (ErrorCode == SE_NO_ERROR)
-	{
-		// Cache for reuse
-		SocketSubsystem->AddHostNameToCache(HostName, Addr);
-	}
 }

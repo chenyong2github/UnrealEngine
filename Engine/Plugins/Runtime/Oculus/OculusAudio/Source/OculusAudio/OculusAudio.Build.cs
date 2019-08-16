@@ -8,8 +8,8 @@ namespace UnrealBuildTool.Rules
 	{
 		public OculusAudio(ReadOnlyTargetRules Target) : base(Target)
 		{
-            PrivateIncludePathModuleNames.AddRange(
-                new string[]
+			PrivateIncludePathModuleNames.AddRange(
+				new string[]
 				{
 					"TargetPlatform"
 				}
@@ -18,11 +18,10 @@ namespace UnrealBuildTool.Rules
 			PrivateIncludePaths.AddRange(
 				new string[] {
 					// Relative to Engine\Plugins\Runtime\Oculus\OculusAudio\Source
-                    "../../../../../Source/ThirdParty/Oculus/LibOVRAudio/LibOVRAudio/include",
+					"OculusAudio/Private",
+					"../../../../../Source/Runtime/AudioMixer/Private",
 
-                    "OculusAudio/Private",
-                    "../../../../../Source/Runtime/AudioMixer/Private"
- 					// ... add other private include paths required here ...
+					// ... add other private include paths required here ...
 				}
 				);
 
@@ -32,29 +31,31 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Engine",
-                    "AudioMixer"
+					"AudioMixer",
+					"Landscape",
+					"LibOVRAudio",
 				}
 				);
 
-            if (Target.Platform == UnrealTargetPlatform.Win64)
-            {
+			if (Target.Platform == UnrealTargetPlatform.Win64)
+			{
+				PrivateIncludePathModuleNames.Add("XAudio2");
+				PrivateDependencyModuleNames.AddRange(new string[] { "XAudio2" });
 
-                PrivateIncludePathModuleNames.Add("XAudio2");
-                PrivateDependencyModuleNames.AddRange(new string[] { "XAudio2", "LibOVRAudio" });
+				// Automatically copy DLL to packaged builds
 				RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Oculus/Audio/Win64/ovraudio64.dll");
 
-                AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11Audio");
-            }
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11Audio");
+			}
 
-            if (Target.Platform == UnrealTargetPlatform.Android)
-            {
-                // AndroidPlugin
-                {
-                    string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);
-                    AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(PluginPath, "OculusAudio_APL.xml"));
-                    PublicAdditionalLibraries.Add("ThirdParty/Oculus/LibOVRAudio/LibOVRAudio/lib/armeabi-v7a/libovraudio32.so");
-                }
-            }
+			if (Target.Platform == UnrealTargetPlatform.Android)
+			{
+				// AndroidPlugin
+				{
+					string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);
+					AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(PluginPath, "OculusAudio_APL.xml"));
+				}
+			}
 		}
 	}
 }

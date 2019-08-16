@@ -1,297 +1,336 @@
-Availability:Public
-Title:Hardware & Software Specifications
-SEO-Title:Hardware & Software Specifications
-Crumbs: %ROOT%, GettingStarted
-Description:Minimum and recommended hardware specifications and necessary software for developing with Unreal Engine.
-version: 4.18
-Type:reference
-Parent:GettingStarted
-Order:
-Tags:Specifications
+Availability: Public
+Title: Hardware and Software Specifications
+Description: Minimum and recommended hardware specifications and necessary software for developing with Unreal Engine.
+Type: reference
+Version: 4.22
+Parent: GettingStarted
+Tags: Specifications
+Tags: Pre-requisites
+Order: 0
 
-%Globals:OSSelect_Linux%
+[TOC]
 
-[TOC(start:2)]
-
-[EXCERPT:Main]
-[INCLUDE:#Intro]
+Unreal Engine has some specific hardware and software requirements for running the Editor. This page covers these requirements, as well as describing what is installed by the pre-requisites installer included in the Unreal Engine installer.
 
 ## Recommended Hardware
 
 [OBJECT:ToggleButtonContent]
-	[PARAMLITERAL:category]
-	OS
-	[/PARAMLITERAL]
-	[PARAMLITERAL:id]
-	windows
-	[/PARAMLITERAL]
-	[PARAMLITERAL:active]
-	active_button_content
-	[/PARAMLITERAL]
-	[PARAM:content]
-	[INCLUDE:#windowsminhardware]
-	[/PARAM]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    windows
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_1]
+    [/PARAM]
 [/OBJECT]
-[OBJECT:ToggleButtonContent]
-	[PARAMLITERAL:category]
-	OS
-	[/PARAMLITERAL]
-	[PARAMLITERAL:id]
-	mac
-	[/PARAMLITERAL]
-	[PARAMLITERAL:active]
-	[/PARAMLITERAL]
-	[PARAM:content]
-	[INCLUDE:#macosminhardware]
-	[/PARAM]
-[/OBJECT]
-[OBJECT:ToggleButtonContent]
-	[PARAMLITERAL:category]
-	OS
-	[/PARAMLITERAL]
-	[PARAMLITERAL:id]
-	linux
-	[/PARAMLITERAL]
-	[PARAMLITERAL:active]
-	[/PARAMLITERAL]
-	[PARAM:content]
-	[INCLUDE:#linuxminhardware]
-	[/PARAM]
-[/OBJECT]
+<!--
+[EXCERPT:excerpt_1]
+  
+|||
+| --- | --- |
+| **Operating System** | Windows 10 64-bit |
+| **Processor** | Quad-core Intel or AMD, 2.5 GHz or faster |
+| **Memory** | 8 GB RAM |
+| **Video Card/DirectX Version** | DirectX 11 or DirectX 12 compatible graphics card |
 
+[/EXCERPT:excerpt_1]
+-->
 
-[PUBLISH:Licensee]
-[REGION:note]
-**Note:** Dual processor configurations are very useful if you are working on networking code, so you can run a server and client at a good speed on the same computer.
-[/REGION]
-[/PUBLISH:Licensee]
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    mac
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_2]
+    [/PARAM]
+[/OBJECT]
+<!--
+[EXCERPT:excerpt_2]
+  
+|||
+| --- | --- |
+| **Operating System** | macOS 10.14 Mojave |
+| **Processor** | Quad-core Intel, 2.5 GHz or faster |
+| **Memory** | 8 GB RAM |
+| **Video Card** | Metal 1.2 Compatible Graphics Card |
+
+[/EXCERPT:excerpt_2]
+-->
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    linux
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_3]
+    [/PARAM]
+[/OBJECT]
+<!--
+[EXCERPT:excerpt_3]
+
+  
+|||
+| --- | --- |
+| **Operating System** | Ubuntu 18.04 |
+| **Processor** | Quad-core Intel or AMD, 2.5 GHz or faster |
+| **Memory** | 32 GB RAM |
+| **Video Card** | NVIDIA GeForce 960 GTX or higher with latest NVIDIA binary drivers |
+
+[/EXCERPT:excerpt_3]
+-->
 
 ## Minimum Software Requirements
 
-Below are the requirements for running the engine or editor.
-
-(#MinSoftwareReqs)
+Minimum requirements for running the engine or editor are listed below.
 
 [OBJECT:ToggleButtonContent]
-	[PARAMLITERAL:category]
-	OS
-	[/PARAMLITERAL]
-	[PARAMLITERAL:id]
-	windows
-	[/PARAMLITERAL]
-	[PARAMLITERAL:active]
-	active_button_content
-	[/PARAMLITERAL]
-	[PARAM:content]
-	[INCLUDE:#windowsminsoftware]
-	[/PARAM]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    windows
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_4]
+    [/PARAM]
 [/OBJECT]
-[OBJECT:ToggleButtonContent]
-	[PARAMLITERAL:category]
-	OS
-	[/PARAMLITERAL]
-	[PARAMLITERAL:id]
-	mac
-	[/PARAMLITERAL]
-	[PARAMLITERAL:active]
-	[/PARAMLITERAL]
-	[PARAM:content]
-	[INCLUDE:#macosminsoftware]
-	[/PARAM]
-[/OBJECT]
-[OBJECT:ToggleButtonContent]
-	[PARAMLITERAL:category]
-	OS
-	[/PARAMLITERAL]
-	[PARAMLITERAL:id]
-	linux
-	[/PARAMLITERAL]
-	[PARAMLITERAL:active]
-	[/PARAMLITERAL]
-	[PARAM:content]
-	[INCLUDE:#linuxminsoftware]
-	[/PARAM]
-[/OBJECT]
+<!--
+[EXCERPT:excerpt_4]
 
-[PUBLISH:Licensee]
-[REGION:note]
-**Note:** Running the `UE4PrereqSetup.msi` found in `//depot/UE4/Engine/Extras/Redist/en-us` will install software necessary to run Unreal Engine, such as the DirectX and VC++ runtimes mentioned above.
-[/REGION]
-[/PUBLISH:Licensee]
+  
+| Running the Engine ||
+| --- | --- |
+| **Operating System** | Windows 7 |
+| **DirectX Runtime** | [DirectX End-User Runtimes (June 2010)](http://www.microsoft.com/en-us/download/details.aspx) |
 
+[/EXCERPT:excerpt_4]
+-->
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    mac
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_5]
+    [/PARAM]
+[/OBJECT]
+<!--
+[EXCERPT:excerpt_5]
+
+  
+| Running the Engine ||
+| --- | --- |
+| **Operating System** | macOS 10.14 Mojave |
+
+[/EXCERPT:excerpt_5]
+-->
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    linux
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_6]
+    [/PARAM]
+[/OBJECT]
+<!--
+[EXCERPT:excerpt_6]
+
+  
+| Running the Engine ||
+| --- | --- |
+| **Operating System** | Any reasonable new Linux distro from CentOS 7.x and up |
+| **Linux Kernel Version** | kernel 3.x or newer |
+| **Additional Dependencies** | glibc 2.17 or newer |
+
+[/EXCERPT:excerpt_6]
+-->
 
 The requirements for programmers developing with the engine are listed below.
 
 [OBJECT:ToggleButtonContent]
-	[PARAMLITERAL:category]
-	OS
-	[/PARAMLITERAL]
-	[PARAMLITERAL:id]
-	windows
-	[/PARAMLITERAL]
-	[PARAMLITERAL:active]
-	active_button_content
-	[/PARAMLITERAL]
-	[PARAM:content]
-	[INCLUDE:#windowsmindevelopment]
-	[/PARAM]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    windows
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_7]
+    [/PARAM]
 [/OBJECT]
+<!--
+[EXCERPT:excerpt_7]
+
+  
+| Developing with the Engine ||
+| --- | --- |
+| **All 'Running the Engine' requirements (automatically installed)** ||
+| **Visual Studio Version** | [INCLUDE:#excerpt_0] |
+| [REGION:tablesection]iOS Development[/REGION] ||
+| **iTunes Version** | [iTunes 11 or higher](http://www.apple.com/itunes/) |
+
+[/EXCERPT:excerpt_7]
+-->
+<!--
+[EXCERPT:excerpt_0]
+
+*   Visual Studio 2017 v15.6 or later (recommended)
+
+*   Visual Studio 2019
+
+[/EXCERPT:excerpt_0]
+-->
+
 [OBJECT:ToggleButtonContent]
-	[PARAMLITERAL:category]
-	OS
-	[/PARAMLITERAL]
-	[PARAMLITERAL:id]
-	mac
-	[/PARAMLITERAL]
-	[PARAMLITERAL:active]
-	[/PARAMLITERAL]
-	[PARAM:content]
-	[INCLUDE:#macosmindevelopment]
-	[/PARAM]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    mac
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_8]
+    [/PARAM]
 [/OBJECT]
+<!--
+[EXCERPT:excerpt_8]
+
+| Developing with the Engine ||
+| --- | --- |
+| **Xcode Version** | 9.4 |
+
+[/EXCERPT:excerpt_8]
+-->
+
 [OBJECT:ToggleButtonContent]
-	[PARAMLITERAL:category]
-	OS
-	[/PARAMLITERAL]
-	[PARAMLITERAL:id]
-	linux
-	[/PARAMLITERAL]
-	[PARAMLITERAL:active]
-	[/PARAMLITERAL]
-	[PARAM:content]
-	[INCLUDE:#linuxmindevelopment]
-	[/PARAM]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    linux
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_9]
+    [/PARAM]
 [/OBJECT]
+<!--
+[EXCERPT:excerpt_9]
 
+  
+| Developing with the Engine ||
+| --- | --- |
+| **Operating System** | Ubuntu 18.04 |
+| **Compiler** | clang 6.0.1 |
+| [REGION:tablesection]Optional[/REGION] ||
+| **IDE** | Visual Studio Code, CLion, QtCreator |
 
+[/EXCERPT:excerpt_9]
+-->
 
-[PUBLISH:Licensee]
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    windows
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_10]
+    [/PARAM]
+[/OBJECT]
+<!--
+[EXCERPT:excerpt_10]
+
+## Software Installed by the Prerequisite Installer
+
+The Unreal Engine includes a prerequisite installer, which installs several Direct X components as well as Visual C++ redists. The prerequisites installer can be found in Perforce under `Engine/Extras/Redist/en-us`, with versions for 32-bit and 64-bit Windows. This includes everything needed to run the editor, and is installed automatically by the launcher. The source for it is under `Engine/Source/Programs/PrereqInstaller`. The table below lists the software that is included in this prerequisite installer.
+
+   
+| Direct X Components | Visual C++ Redists |
+| :-- | :-- |
+| XInput 1.3 (April 2007) | Visual C++ 2010 CRT |
+| X3DAudio 1.7 (February 2010) | Visual C++ 2010 OpenMP library |
+| XAudio 2.7 (June 2010) | Visual C++ 2012 CRT |
+| D3D Compiler 4.3 (June 2010) | Visual C++ 2013 CRT |
+| D3DCSX 4.3 (June 2010) | Visual C++ 2015 CRT |
+| D3DX9 4.3 (June 2010) |  |
+| D3DX10 4.3 (June 2010) |  |
+| D3DX11 4.3 (June 2010) |  |
+
+[REGION:note]
+The most important Direct X components from that list are the XInput, X3DAudio, and XAudio dependencies. These aren't included in standard installations of DirectX (and aren't distributed with Windows by default), so they have to be installed manually or distributed with the application.
+[/REGION]
+[/EXCERPT:excerpt_10]
+-->
+
 ## Graphics Card Drivers
 
 We currently recommend using the latest stable releases from each card manufacturer:
 
-* [Download NVIDIA drivers here](http://www.nvidia.com/Download/index.aspx?lang=en-us)
-* [Download AMD drivers here](http://support.amd.com/us/gpudownload/Pages/index.aspx)
+*   [Download NVIDIA drivers here](http://www.nvidia.com/Download/index.aspx)
 
+*   [Download AMD drivers here](http://support.amd.com/us/gpudownload/Pages/index.aspx)
+
+[REGION:note]
+**Note:** To learn more, read about [Supported Graphics Drivers on Linux](Platforms/Linux/BeginnerLinuxDeveloper/SupportedGfxDrivers).
+[/REGION]
 
 ## Performance Notes
 
-VTune can be an extremely useful tool for finding performance problems, but only works on Intel CPUs.
+This list represents a typical system used at Epic, providing a reasonable guideline for developing games with Unreal Engine 4:
 
-Below are the typical systems used at Epic by programmers and artists. These should provide a good basis for developing games with Unreal Engine 4.
+*   Windows 10 64-bit
 
-**Programmer:**
+*   64GB RAM
 
-* Windows 7 64bit
-* Dual Processors - Six Core - Intel Xeon X5660 @ 2.8GHz
-* 24GB RAM
-* 300GB 10K SATA (OS)
-* 2X 300GB 10K SATA (RAID0 for DATA)
-* NVIDIA Geforce 470 - 580
+*   256GB SSD (OS Drive)
 
+*   2TB SSD (Data Drive)
 
-**Artist/LD:**
+*   NVIDIA GeForce GTX 970
 
-* Windows 7 64bit
-* Dual Processors - Quad Core - Intel Xeon X5472 @ 3.0GHz
-* 16GB RAM
-* 500GB SATA (OS)
-* 2X 500GB SATA (RAID0 for DATA)
-* NVIDIA Geforce 580
+*   Xoreax Incredibuild (Dev Tools Package)
 
-
+*   Six Core Xeon E5-2643 @ 3.4GHz  
 [REGION:note]
-	The bottleneck is often I/O so getting a RAID 0 and lots of RAM can help out a lot.
+If you don't have access Xoreax Incredibuild (Dev Tools Package), we recommend compiling with a machine having 12 to 16 cores; however, we encourage you to read the [Hardware Benchmarks (2017)](GettingStarted/RecommendedSpecifications/HardwareBenchmarks) reference to learn more about compiling with and without XGE.
 [/REGION]
-[/PUBLISH:Licensee]
-[/EXCERPT:Main]
-
-[COMMENT:none]
-[EXCERPT:Intro]
-Unreal Engine has some specific hardware and software requirements for running the game and editor or developing with the engine.
-[/EXCERPT:Intro]
-[EXCERPT:VS]
-Visual Studio 2015 Professional or Visual Studio 2015 Community:
-
-* [Pro](https://www.visualstudio.com/downloads/download-visual-studio-vs)
-* [Community](https://www.visualstudio.com/en-us/products/visual-studio-community-vs.aspx)
-
-[/EXCERPT:VS]
-[EXCERPT:WindowsMinDevelopment]
-| Developing with the Engine ||
-| -------- | --- |
-| **All 'Running the Engine' requirements (automatically installed)** ||
-| **Visual Studio Version** | [INCLUDE:#VS] |
-| [REGION:tablesection]iOS Development[/REGION] ||
-| **iTunes Version** | [iTunes 11 or higher](http://www.apple.com/itunes/) |
-[/EXCERPT:WindowsMinDevelopment]
-[EXCERPT:MacOSMinDevelopment]
-| Developing with the Engine ||
-| -------- | --- |
-| **Xcode Version** | 9.0 [REGION:note]If you need to verify that you're running the correct version of Xcode, run the following command from the terminal window: `sudo xcode-select -s /Applications/Xcode-beta.app/Contents/Developer`[/REGION] |
-[/EXCERPT:MacOSMinDevelopment]
-[EXCERPT:LinuxMinDevelopment]
-| Developing with the Engine ||
-| -------- | --- |
-| **Operating System** | Ubuntu 15.04  |
-| **Compiler** | clang 3.5.x or 3.6.x  |
-| [REGION:tablesection]Optional[/REGION] ||
-| **IDE** | QtCreator 3.1 or KDevelop 4.6|
-| **Build System** | CMake 2.8 |
-[/EXCERPT:LinuxMinDevelopment]
-[EXCERPT:WindowsMinSoftware]
-| Running the Engine ||
-| -------- | --- |
-| **Operating System** | Windows 7/8 64-bit |
-| **DirectX Runtime** | [DirectX End-User Runtimes (June 2010)](http://www.microsoft.com/en-us/download/details.aspx?id=8109) |
-
-[/EXCERPT:WindowsMinSoftware]
-
-[EXCERPT:MacOSMinSoftware]
-| Running the Engine ||
-| -------- | --- |
-| **Operating System** | macOS 10.12.6 Sierra  |
-[/EXCERPT:MacOSMinSoftware]
-
-[EXCERPT:LinuxMinSoftware]
-| Running the Engine ||
-| -------- | --- |
-| **Operating System** | Any reasonable new Linux distro (CentOS 6.x being the oldest tested)  |
-| **Linux Kernel Version** | kernel 2.6.32 or newer  |
-| **Additional Dependencies** | glibc 2.12.2 or newer  |
-[/EXCERPT:LinuxMinSoftware]
-
-[EXCERPT:WER]
-[REGION:note]
-UE4's crash reporting feature requires you to have **Windows Error Reporting** enabled, which is the default. If you have disabled this feature, please enable it.
-[/REGION]
-[/EXCERPT:WER]
-
-[EXCERPT:VCRuntime]
-[Visual Studio C++ 2015 Redist](https://www.microsoft.com/en-us/download/details.aspx?id=48145)
-[/EXCERPT:VCRuntime]
-[EXCERPT:WindowsMinHardware]
-|||
-| -------- | --- |
-| **Operating System** | Windows 7/8 64-bit |
-| **Processor** | Quad-core Intel or AMD, 2.5 GHz or faster |
-| **Memory** | 8 GB RAM |
-| **Video Card/DirectX Version** | DirectX 11 compatible graphics card |
-[/EXCERPT:WindowsMinHardware]
-[EXCERPT:MacOSMinHardware]
-|||
-| -------- | --- |
-| **Operating System** | macOS 10.13 High Sierra  |
-| **Processor** | Quad-core Intel, 2.5 GHz or faster |
-| **Memory** | 8 GB RAM |
-| **Video Card** | Metal 1.2 Compatible Graphics Card |
-[/EXCERPT:MacOSMinHardware]
-[EXCERPT:LinuxMinHardware]
-|||
-| -------- | --- |
-| **Operating System** | Ubuntu 15.04  |
-| **Processor** | Quad-core Intel or AMD, 2.5 GHz or faster |
-| **Memory** | 16 GB RAM |
-| **Video Card** | 	NVIDIA GeForce 470 GTX or higher with latest NVIDIA binary drivers |
-[/EXCERPT:LinuxMinHardware]
-[/COMMENT]

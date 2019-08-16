@@ -36,6 +36,7 @@ public:
 
 protected:
 	friend class SWidget;
+	friend class FCombinedChildren;
 	/** @return the const reference to the slot at the specified Index */
 	virtual const FSlotBase& GetSlotAt(int32 ChildIndex) const = 0;
 
@@ -44,6 +45,69 @@ protected:
 
 protected:
 	SWidget* Owner;
+};
+
+
+/**
+ * Occasionally you may need to keep multiple descrete sets of children with differing slot requirements.
+ * This datastructure can be used to link multiple FChildren under a single accessor so you can always return
+ * all children from GetChildren, but internally manage them in their own child lists.
+ */
+class FCombinedChildren : public FChildren
+{
+public:
+	FCombinedChildren(SWidget* InOwner)
+		: FChildren(InOwner)
+	{
+	}
+
+	void AddChildren(FChildren& InLinkedChildren)
+	{
+		LinkedChildren.Add(&InLinkedChildren);
+	}
+
+	/** @return the number of children */
+	virtual int32 Num() const override
+	{
+		int32 TotalNum = 0;
+		for (const FChildren* Children : LinkedChildren)
+		{
+			TotalNum += Children->Num();
+		}
+
+		return TotalNum;
+	}
+
+	virtual TSharedRef<SWidget> GetChildAt(int32 Index) override
+	{
+		return GetSlotAt(Index).GetWidget();
+	}
+
+	virtual TSharedRef<const SWidget> GetChildAt(int32 Index) const override
+	{
+		return GetSlotAt(Index).GetWidget();
+	}
+
+protected:
+	virtual const FSlotBase& GetSlotAt(int32 ChildIndex) const override
+	{
+		int32 TotalNum = 0;
+		for (const FChildren* Children : LinkedChildren)
+		{
+			const int32 NewTotal = TotalNum + Children->Num();
+			if (NewTotal > ChildIndex)
+			{
+				return Children->GetSlotAt(ChildIndex - TotalNum);
+			}
+			TotalNum = NewTotal;
+		}
+
+		// This result should never occur users should always access a valid index for child slots.
+		static FSlotBase NullSlot; check(false); return NullSlot;
+	}
+
+protected:
+	TArray<FChildren*> LinkedChildren;
 };
 
 
@@ -156,7 +220,7 @@ public:
 		WidgetPtr = InWidget;
 		if (Owner) 
 		{ 
-			Owner->InvalidatePrepass();
+			Owner->Invalidate(EInvalidateWidget::ChildOrder);
 
 			if (InWidget.IsValid() && InWidget != SNullWidget::NullWidget)
 			{
@@ -169,12 +233,14 @@ public:
 	{
 		if (WidgetPtr.IsValid())
 		{
-			WidgetPtr.Reset();
+			TSharedPtr<SWidget> Widget = WidgetPtr.Pin();
 
-			if (Owner)
+			if (Widget != SNullWidget::NullWidget)
 			{
-				Owner->InvalidatePrepass();
+				Widget->ConditionallyDetatchParentWidget(Owner);
 			}
+
+			WidgetPtr.Reset();
 		}
 	}
 
@@ -312,12 +378,14 @@ public:
 			return INDEX_NONE;
 		}
 
+		int32 Index = TIndirectArray< SlotType >::Add(Slot);
+
 		if (Owner)
 		{
 			Slot->AttachWidgetParent(Owner);
 		}
 
-		return TIndirectArray< SlotType >::Add(Slot);
+		return Index;
 	}
 
 	void RemoveAt( int32 Index )
@@ -347,18 +415,20 @@ public:
 	{
 		if (!bEmptying)
 		{
+			TIndirectArray< SlotType >::Insert(Slot, Index);
+
 			// Don't do parent manipulation if this panel has no owner.
 			if (Owner)
 			{
 				Slot->AttachWidgetParent(Owner);
 			}
-
-			TIndirectArray< SlotType >::Insert(Slot, Index);
 		}
 	}
 
 	void Move(int32 IndexToMove, int32 IndexToDestination)
 	{
+		// @todo this is going to cause a problem for draw ordering
+
 		// Since we're dealing with an Indirect Array, we can't move an item already in the array.
 		if (IndexToMove > IndexToDestination) // going up
 		{
@@ -371,6 +441,11 @@ public:
 			TIndirectArray< SlotType >::Insert(new SlotType(), IndexToDestination + 1);
 			TIndirectArray< SlotType >::Swap(IndexToMove, IndexToDestination + 1);
 			TIndirectArray< SlotType >::RemoveAt(IndexToMove);
+		}
+
+		if (Owner)
+		{
+			Owner->Invalidate(EInvalidateWidget::ChildOrder);
 		}
 	}
 
@@ -391,17 +466,29 @@ public:
 	void Sort( const PREDICATE_CLASS& Predicate )
 	{
 		::Sort(TIndirectArray< SlotType >::GetData(), TIndirectArray<SlotType>::Num(), Predicate);
+		if (Owner)
+		{
+			Owner->Invalidate(EInvalidateWidget::ChildOrder);
+		}
 	}
 
 	template <class PREDICATE_CLASS>
 	void StableSort(const PREDICATE_CLASS& Predicate)
 	{
 		::StableSort(TIndirectArray< SlotType >::GetData(), TIndirectArray< SlotType >::Num(), Predicate);
+		if (Owner)
+		{
+			Owner->Invalidate(EInvalidateWidget::ChildOrder);
+		}
 	}
 
 	void Swap( int32 IndexA, int32 IndexB )
 	{
 		TIndirectArray< SlotType >::Swap(IndexA, IndexB);
+		if (Owner)
+		{
+			Owner->Invalidate(EInvalidateWidget::ChildOrder);
+		}
 	}
 
 private:
@@ -565,20 +652,23 @@ public:
 
 	int32 Add( const TSharedRef<ChildType>& Child )
 	{
+		if (Owner && bChangesInvalidatePrepass)
+		{ 
+			Owner->Invalidate(EInvalidateWidget::ChildOrder);
+		}
+
+		int32 Index = TArray< TSharedRef<ChildType> >::Add(Child);
+
 		if (Owner)
 		{
-			if(bChangesInvalidatePrepass)
-			{
-				Owner->InvalidatePrepass();
-			}
-
 			if (Child != SNullWidget::NullWidget)
 			{
 				Child->AssignParentWidget(Owner->AsShared());
 			}
 		}
 
-		return TArray< TSharedRef<ChildType> >::Add(Child);
+		return Index;
+
 	}
 
 	void Reset(int32 NewSize = 0)
@@ -611,20 +701,20 @@ public:
 
 	void Insert(const TSharedRef<ChildType>& Child, int32 Index)
 	{
+		if (Owner && bChangesInvalidatePrepass) 
+		{
+			Owner->Invalidate(EInvalidateWidget::ChildOrder);
+		}
+
+		TArray< TSharedRef<ChildType> >::Insert(Child, Index);
+
 		if (Owner)
 		{
-			if(bChangesInvalidatePrepass)
-			{
-				Owner->InvalidatePrepass();
-			}
-		
 			if (Child != SNullWidget::NullWidget)
 			{
 				Child->AssignParentWidget(Owner->AsShared());
 			}
 		}
-
-		TArray< TSharedRef<ChildType> >::Insert(Child, Index);
 	}
 
 	int32 Remove( const TSharedRef<ChildType>& Child )
@@ -668,11 +758,19 @@ public:
 	void Sort( const PREDICATE_CLASS& Predicate )
 	{
 		TArray< TSharedRef<ChildType> >::Sort( Predicate );
+		if (Owner && bChangesInvalidatePrepass)
+		{
+			Owner->Invalidate(EInvalidateWidget::ChildOrder);
+		}
 	}
 
 	void Swap( int32 IndexA, int32 IndexB )
 	{
 		TIndirectArray< ChildType >::Swap(IndexA, IndexB);
+		if (Owner && bChangesInvalidatePrepass)
+		{
+			Owner->Invalidate(EInvalidateWidget::ChildOrder);
+		}
 	}
 
 private:

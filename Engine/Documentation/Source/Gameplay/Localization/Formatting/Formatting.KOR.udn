@@ -1,102 +1,333 @@
-﻿INTSourceChangelist:3124629
-Availability:Public
-Title:사용자에 맞는 텍스트 포맷
-Crumbs:%ROOT%, Gameplay, Gameplay/Localization
-Description:Format 함수를 사용하여 사용자에 맞게 현지화된 텍스트를 제공하는 방법입니다.
-Parent:Gameplay/Localization
-Order:3
-version: 4.13
-Related:Programming/UnrealArchitecture/StringHandling/FText
+INTSourceChangelist:6512637
+Availability: Public
+Crumbs: 
+Title: 텍스트 현지화
+Description: 텍스트 리터럴, 텍스트 포맷, 텍스트 생성, 스트링 테이블 등 텍스트 현지화 관련 필요한 모든 정보를 제공합니다.
+Type: 
+Version: 4.22
+Parent: Gameplay/Localization
+Order: 2
+Tags: Localization
+Tags: Text Formatting
+Related: Programming/UnrealArchitecture/StringHandling/FText
 
-FText 는 사용자에 맞는 텍스트를 만드는 데 사용되는데, 보통 현지화된 상태이기 마련입니다. 즉 게임플레이 진행에 따라 동적으로 변하는 사용자 인터페이스 텍스트 역시도 여러가지 언어의 문법 규칙에 따라 바뀔 수 있는 대상이 될 수 있다는 뜻입니다. `FText::Format` 와 그에 맞는 
-**Format Text** 블루프린트 노드를 사용하면 현지화 프로세스의 노고를 덜어주면서 희귀한 오류 상황에도 강한 재사용 가능 포맷 패턴을 만들 수 있습니다. 이 두 함수 모두 서수 및 이름 인수는 물론, 복수, 성별, 한글 조사에 따른 
-특수 인수 역시도 지원합니다.
 
-C++ 에서는 FText 포맷 패턴을 FTextFormat 으로 미리 컴파일해 넣고, 그 컴파일된 포맷 패턴을 재사용할 수 있습니다. 어떤 포맷 패턴의 사용 빈도가 높은 경우에 좋은 방식인데, 이는 컬처 변경에 따라 소스 포맷 패턴이 변하는 경우 자동으로 다시 컴파일되기도 합니다.
+언리얼 엔진 4 (UE4) 의 텍스트는 현지화를 위한 기본 구성 요소입니다. C++ 에서 [`FText`](Programming/UnrealArchitecture/StringHandling/FText) 유형으로 표현되는 특수 스트링입니다. 사용자가 보게 되는 현지화가 필요한 텍스트에 사용해야 합니다.
 
-블루프린트에서의 FText 포맷은 **Format Text** 노드를 사용해서도 정할 수 있습니다. **Format** 텍스트는 리터럴이 될 수도, 핀에 연결할 수도 있습니다. 리터럴로 사용할 경우, 포맷에 쓸 인수를 자동 생성합니다. 즉 "There are {number} days until {day}." 와 같은 리터럴을 사용할 경우, **Number** 핀과 **Day** 핀이 
-노드에 자동 추가됩니다. 이 핀들도 리터럴이나 변수로 채워넣을 수 있으며, 출력 **Text** 는 그 핀에 연결된 값에 따라 대체됩니다.
+내부적으로 `FText` 는 [`ITextData`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/ITextData/index.html) 로의 [`TSharedRef`](https://api.unrealengine.com/INT/API/Runtime/Core/Templates/TSharedRef/index.html) 로 구현됩니다. 그러면 매우 낮은 비용으로 복사할 수 있으며, [`FTextSnapshot`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FTextSnapshot/index.html) 유틸리티를 통해 캐시에 저장된 FText 값이 실제로 바뀌었는지 효율적으로 감지할 수 있습니다.
 
-**Format** 핀이 변수에 연결되면 해독이 불가능한데, **Format** 은 게임플레이에 따라 바뀔 수가 있기 때문입니다. 이 경우 핀을 직접 추가하여 가능한 인수 이름을 따서 지어주면 됩니다. 이런 식으로 **Format Text** 노드를 여러가지 가능성에 대비하여 구성할 수 있습니다. 어느 한 인수가 
-Format 변수의 인수에 일치할 때마다, 제공된 정보를 사용할 것입니다.
+`FText` 인스턴스 안에 저장된 데이터는 `FText` 생성 방식에 따라 다양합니다. 이 다양성은 내부 “텍스트 히스토리” (`FTextHistory`) 로 처리합니다. 텍스트 히스토리는 컬처에 맞는 텍스트 리빌드를 지원하며, 다음에 대한 핵심 구성 요소를 형성하기도 합니다.
 
-핀 이름은 **디테일** 패널에서 변경, 추가, 제거 가능합니다.
+*   컬처를 라이브로 전환합니다.
 
-[REGION:imagetable]
-|![](FormatNode.png)(h:400) | ![](FormatNodeDetails.png)(h:400)|
-|--- |---- |
-|**Format Text** 노드 | **디테일** 패널 | 
+*   네트워크를 통해 `FText` 를 전송합니다.
+
+*   컬처 무관 소스를 생성합니다.
+
+[REGION:note]
+`FText` 를 [`FString`](https://api.unrealengine.com/INT/API/Runtime/Core/Containers/FString/index.html) 으로 변환하는 것은 일반적으로 텍스트 히스토리를 잃어버리는 손실성 작업입니다. 현지화 데이터가 더이상 필요치 않은 경우에만 수행해야 합니다. 예를 들어, 하위 API 가 있는데 스트링에 작동하고, 그 스트링은 텍스트 변경을 감시하는 상위 API 에 관리받는 경우입니다 (예: [`STextBlock`](https://api.unrealengine.com/INT/API/Runtime/Slate/Widgets/Text/STextBlock/index.html)). 이 변환은 스트링만 받는 외부 API 로 데이터를 전달할 때도 사용할 수 있습니다.
 [/REGION]
-
-
 [REGION:tip]
-언리얼 엔진 소스 빌드를 사용하시는 경우, `TextTest.cpp` 를 통해 유효 컬처를 인식하는 포맷, 비교, 소팅 수행 방법 예제를 확인할 수 있습니다.
+현지화되지 않는 텍스트(, 예로 플레이어 이름을 외부 API 에서 UI 에 표시할 수 있는 형태로 변환한 텍스트)가 필요한 경우, [`FText::AsCultureInvariant`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/AsCultureInvariant/2/index.html) 를 사용하여 현지화 데이터가 없(고 현지화할 수도 없)는 `FText` 인스턴스를 만듭니다. `INVTEXT` 매크로는 리터럴 스트링에 대해서도 똑같이 할 수 있습니다.
 [/REGION]
 
-## 서수 인수
- 
- 서수 인수로 포맷 인수를 만들 때, 대괄호를 통해 포맷 인수의 시작과 끝을 알리고, 그 안의 수치를 통해 전달되는 파라미터를 나타냅니다.
- 인수는 {0} 에서 시작해서 ( {0}, {1}, {2}, 식으로) 순차 진행합니다. Format 함수와 **Format Text** 노드는 변수를 제공된 순서대로 포맷 인수에 
- 끼워 넣습니다.
+## 텍스트 리터럴
 
- 다음 C++ 및 블루프린트 조각은 플레이어의 현재 생명력과 최대 생명력 표시를 위한 서수 포맷 인수를 나타냅니다.
+현지화가능 텍스트는 세 가지 구성 요소로 이루어집니다. **namespace** (네임스페이스), (정체성을 형성하는) **key** (키), (번역되는 내용의 기초이자 "stale" (구버전) 번역에 대한 유효성 검사 역할을 하는) **source string** (소스 스트링)입니다. 가장 흔한 방법은 UE4 에서 현지화가능 텍스트를 텍스트 리터럴로 만드는 것입니다.
 
-### C++ 예
+### C++ 에서 텍스트 리터럴 생성
 
-	FText::Format( LOCTEXT( "HealthFormatStr",  "{0} / {1}" ), FText::AsNumber( CurrentHealth ), FText::AsNumber( MaxHealth )  ) 
-		
-### 블루프린트 예
+C++ 로 텍스트 리터럴을 만들려면 LOCTEXT 매크로 군을 사용합니다.
 
-![](OrderedArgs.png)
+**텍스트 리터럴 매크로**
+| 매크로 | 설명 |
+| --- | --- |
+| **NSLOCTEXT** | 네임스페이스, 키, 소스 스트링을 정의하는 텍스트 현지화 조각을 생성합니다. |
+| **LOCTEXT** | 키와 소스 스트링을 정의하고, 네임스페이스는 `LOCTEXT_NAMESPACE` 로 정의하는 현지화 텍스트 조각을 생성합니다. |
 
-## 이름 인수
+**예:**
 
-이름 인수로 포맷 인수를 만들 때는, 대괄호로 포맷 인수의 시작과 끝을, 그 안의 텍스트로 전달받을 인수의 인수 이름을 나타냅니다.
-흔한 인수 예제는 {Name}, {ID}, {Health} 정도입니다.
+    // LOCTEXT 에 사용할 네임스페이스 정의
+    // 단일 파일 안에서만 유효하며, 파일이 끝나기 전 정의해야 합니다.
+    #define LOCTEXT_NAMESPACE "MyNamespace"
+    // 텍스트 리터럴을 생성합니다.
+    constFTextHelloWorld= NSLOCTEXT("MyOtherNamespace","HelloWorld","Hello World!")
+    constFTextGoodbyeWorld= LOCTEXT("GoodbyeWorld","Goodbye World!")
+    // 파일이 끝나기 전 네임스페이스 정의를 해제합니다.
+    #undef LOCTEXT_NAMESPACE
 
-다음 C++ 및 블루프린트 조각은 플레이어의 현재 생명력 표시를 위한 이름 포맷 인수를 보여줍니다.
+### INI 파일에서 텍스트 리터럴 생성
 
-### C++ 예
+텍스트 리터럴은 [`NSLOCTEXT`](https://api.unrealengine.com/INT/API/Runtime/Engine/NSLOCTEXT/129/index.html) 매크로 문법을 사용하여 INI 파일에서 만들 수 있습니다.
 
-	FFormatNamedArguments Arguments;
-	Arguments.Add(TEXT("CurrentHealth"), FText::AsNumber( CurrentHealth ));
-	EditorErrors.Error(FText::Format(LOCTEXT("ExampleFText", "You currently have {CurrentHealth} health left."), Arguments ) );
+### 애셋에서 텍스트 리터럴 생성
 
-### 블루프린트 예
-			
-![](CurrentHealth.png)
+텍스트 리터럴은 `FText` 프로퍼티를 사용해서 만들 수 있습니다. 키는 자동 생성되지만, 텍스트 칸 옆 고급 콤보 박스로 텍스트에 커스텀 네임스페이스 또는 키를 정의할 수 있습니다. 기본 네임스페이스 또는 키를 사용해도 괜찮습니다.
 
-## 특수 인수
+## 텍스트 포맷
 
-복수/성별 형태 지원에 필요한 숫자/성별 값을 전달하기 위해, 모든 `FText::Format(...)` 군 함수는 이제 그 값을 FText 가 아닌 FFormatArgumentValue 값으로 받습니다. 이는 묵시적으로 어떠한 숫자 유형, ETextGender, FText 로 구성할 수 있습니다.
+텍스트 포맷에 제공되는 방법으로 텍스트를 조합하면 현지화가 쉬워집니다. 현지화가능 포맷 패턴을 사용해서 자리표시자에 실제 텍스트를 주입하는 식입니다.
 
-블루프린트에서 이와같은 값 유형을 설정하는 기능이, **Format Text** 노드의 와일드카드 핀으로 노출되어 있습니다.
+포맷 자리표시자는 한 짝의 중괄호 안에 포함되며, 그 이름은 (인덱스 기반 포맷의 경우) 숫자 또는 (이름 기반 포맷의 경우) 스트링이 될 수 있습니다. 예:
 
-위 예제에 이어 다음과 같은 포맷 패턴을 `FText::Format` 나 **Format Text** 에 인수로 제공할 수 있습니다. 
+`"생명력이 {0} 남았습니다."`  
+`"생명력이 {CurrentHealth} 남았습니다."`
 
-### 복수 형태
+포맷 자리표시자는 인수 데이터에 실행시킬 ("인수 수정자"라고도 하는) 함수를 지정할 수도 있습니다. 파이프(\|)에 함수 이름과 인수를 붙여 지정합니다. 예:
 
-복수(Plural) 형태는 텍스트 포맷에 주어진 수치 값에 따라 다양한 텍스트를 사용할 수 있습니다. 복수 형태는 "There is 1 cat" 이나 "There are 4 cats" 처럼 기수(cardinal)가 될 수도, "You came 1st!" 나 "You came 2nd!" 처럼 서수(ordinal)가 될 수도 있습니다.
+`"{NumCats} {NumCats}|plural(one=cat,other=cats)"`
 
-복수 형태는 키->값 짝으로 지정되며, (컬처 별로 [CLDR data](http://www.unicode.org/cldr/charts/29/supplemental/language_plural_rules.html) 에 지정된 대로) zero, one, two, few, many, other 와 같은 키워드를 지원합니다. 이 값은 선택적으로 따옴표에 묶인 스트링이 될 수 있으며, 여기에는 포맷 마커가 포함될 수도 있습니다.
+### C++ 의 텍스트 포맷
 
-기수 포맷 예제: `"There {NumCats}|plural(one=is,other=are) {NumCats} {NumCats}|plural(one=cat,other=cats)"`
+C++ 에서의 텍스트 포맷 처리는 [`FText::Format`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/Format/1/index.html) 함수 군으로 합니다. 각 함수는 [`FTextFormat`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FTextFormat/index.html) 패턴을 받는데, `FText` 인스턴스에서 묵시적으로 생성한 뒤, 아래 표에 정의된 것과 같은 추가 인수가 붙습니다.
 
-서수 포맷 예제: `"You came {Place}{Place}|ordinal(one=st,two=nd,few=rd,other=th)!"`
+| 인수 | 포맷 유형 | 설명 |
+| --- | --- | --- |
+| **FText::Format** | 일반 텍스트 포맷입니다. | ([`FFormatOrderedArguments`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FFormatOrderedArguments/index.html) 또는 가변 길이 인수를 사용하는) 인덱스 기반 인수를 받거나, ([`FFormatNamedArguments`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FFormatNamedArguments/index.html) 를 사용하는) 이름 기반 인수를 받습니다. |
+| [**FText::FormatOrdered**](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/FormatOrdered/index.html) | 가변 길이 인덱스 기반 포맷입니다. | [`FFormatArgumentValue`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FFormatArgumentValue/index.html) 가 생성할 수 있는 모든 인수를 받습니다. |
+| **[FText::FormatNamed](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/FormatNamed/index.html)** | 가변 길이 이름 기반 포맷입니다. | (`FString` 이 생성할 수 있는) 연속된 이름과 (`FFormatArgumentValue` 가 생성할 수 있는) 값 인수를 받습니다. |
 
+[REGION:note]
+자주 사용하는 포맷 패턴은 `FTextFormat` 로 미리 컴파일해 두어야 포맷 퍼포먼스가 빨라집니다. 컴파일된 패턴은 활성 컬처가 변경되면 자동 리컴파일합니다.
+[/REGION]
 
-### 성별 형태
+### 블루프린트의 텍스트 포맷
 
-성별(Gender) 형태는 텍스트 포맷에 주어진 ETextGender 값에 따라 다른 텍스트를 사용할 수 있도록 해줍니다. 예: "Le guerrier est fort" 또는 "La guerrière est forte".
-성별 형태는 값의 목록으로 지정되며, [남성, 여성, 중성] 순이고, 중성은 옵션입니다. 이 값은 선택적으로 따옴표에 묶인 스트링이 될 수 있으며, 여기에는 포맷 마커가 포함될 수도 있습니다.
+블루프린트의 텍스트 포맷은 **Format Text** 노드로 처리합니다. 이 노드는 리터럴 포맷 패턴을 받을 수도, 다른 텍스트 핀에 연결된 패턴을 가질 수도 있습니다.
 
-포맷 예제: `"{Gender}|gender(Le,La) {Gender}|gender(guerrier,guerrière) est {Gender}|gender(fort,forte)"`
+*   리터럴 포맷 패턴을 지정하면, 포맷 인수 핀은 자동 생성됩니다.  
+    ![](TextFormat-Blueprints-01.png)
+
+*   포맷 패턴을 다른 텍스트 핀에 연결하면, 그 노드의 디테일 패널에서 포맷의 인수를 수동 지정해야 합니다.  
+    
+    | --- | --- |
+    | ![](TextFormat-Blueprints-02.png) | ![](TextFormat-Blueprints-03.png) |
+    
+
+### 인수 수정자
+
+인수 수정자(argument modifier)는 인수를 포맷 스트링에 추가하기에 앞서 전처리하는 방법을 제공합니다. 인수 수정자는 확장 가능합니다. 인수 수정자를 만들려면 [`ITextFormatArgumentModifier`](http://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/ITextFormatArgumentModifier/index.html) 인터페이스를 구현하고, 지정한 키워드에 대한 팩토리 함수를 등록합니다 ([`FTextFormatter::RegisterTextArgumentModifier`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FTextFormatter/RegisterTextArgumentModifier/index.html) 참고).
+
+UE4 에는 복수, 성별, 한글 조사 처리와 같은 기본 인수 수정자를 제공합니다.
+
+#### 복수 형태
+
+Plural (복수) 형태는 텍스트 포맷에 지정한 숫자 변수에 따라 다른 텍스트를 사용할 수 있습니다. 복수 형태는 ("There is 1 cat" 또는 "There are 4 cats" 와 같은) 기수일 수도, ("You finished 1st!" 또는 "You finished 2nd!" 와 같은) 서수일 수도 있습니다. 복수 형태는 키-값 짝으로 지정하며, (CLDR 데이터로 컬처에 정의된) 다음과 같은 키워드를 지원합니다: zero, one, two, few, many, other. 옵션으로 값을 따옴표로 묶을 수 있으며, 포맷 마커를 포함할 수도 있습니다.
+
+**기수 포맷 예제:**  
+
+    "There {NumCats}|plural(one=is,other=are) {NumCats} {NumCats}|plural(one=cat,other=cats)"
+
+**서수 포맷 예제:**  
+
+    "You came {Place}{Place}|ordinal(one=st,two=nd,few=rd,other=th)!"
+
+#### 성별 형태
+
+성별 형태는 텍스트 포맷에 지정한 [`ETextGender`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/ETextGender/index.html) 값에 따라 다른 텍스트를 사용할 수 있습니다. 예: "Le guerrier est fort" 또는 "La guerrière est forte". 성별 형태는 값의 목록으로 지정되며, \[남성, 여성, 중성\] 순이고, 중성은 옵션입니다. 옵션으로 값을 따옴표로 묶을 수 있으며, 포맷 마커를 포함할 수도 있습니다.
+
+**예:**  
+
+    "{Gender}|gender(Le,La) {Gender}|gender(guerrier,guerrière) est {Gender}|gender(fort,forte)"
 
 ### 한글 조사
 
-hpp(Hangul Post-Positions)는 한국어에서 선행하는 낱말 끝 글자의 종성 유무에 따라 바뀌는 조사를 자동으로 처리해 줍니다.  
-문법: {변수}|hpp(은,는) - {변수}가 종성으로 끝나면 조사는 "은", 아니면 "는" 이 됩니다. 지원되는 조사 목록은 다음과 같습니다: (은,는) (이,가) (을,를) (과,와) (아,야) (이어,여) (이에,예) (이었,였) (으로,로)
+hpp(Hangul Post-Positions)는 한국어에서 선행하는 낱말 끝 글자의 종성 유무에 따라 바뀌는 조사를 자동으로 처리해 줍니다. 문법은 `{Arg}|hpp(자음,모음)` 이며, 값을 따옴표로 묶을 수도 있습니다. 예를 들어 (은,는) (이,가) (을,를) (과,와) (아,야) (이어,여) (이에,예) (이었,였) (으로,로) 같은 표준 조사는 물론, ('으로,'로) 도 가능하며, 공백이 포함되는 경우 따옴표로 묶어 주면 됩니다.
 
-포맷 예제: "{Arg}|hpp(은,는)"  
-{Arg}="사람" 이면 결과는 "사람은"  
-{Arg}="사자" 면 결과는 "사자는"
+**포맷 예제:**
+
+    노티파이 트랙 이름을 '{0}|hpp('으로,'로) 변경
+
+### 텍스트 포맷 모범 사례
+
+*   문장에 영향을 주는 숫자를 주입할 때는, 코드로 분기하기 보다는 plural(복수) 형태를 사용해서 변형을 처리합니다. 그러면 원본 언어의 복수형 규칙이 같지 않은 언어로도 올바르게 번역할 수 있습니다.
+
+*   개인 명사를 주입할 때는, 그 개인의 성별에 대한 인수를 포함시켜야 합니다. 성별 문법 규칙이 있는 언어에는 중요한 부분으로, 번역가가 성별에 따라 번역이 바뀌도록 할 수 있습니다 ([성별 형태](#성별형태) 참고).
+
+*   ("table", "door", "chair" 같은) 사물에 대한 명사 주입은 피하거나, 다른 현지화 방법을 준비해야 합니다. 이와 같은 명사는 언어마다 성별이 다를 수 있습니다. 그러면 컬처 별 메타데이터 없이는 포맷 패턴 스트링의 정확한 현지화가 불가능할 것입니다. 이상적으로는, 명사만이 아닌 전체 문장을 포함시켜야 합니다. 그러면 정확한 번역을 보장할 수 있습니다.
+
+[REGION:note]
+앞으로의 UE4 버전에는 번역가가 명사를 나타내는 텍스트에 메타데이터 태그를 붙여, 나중에 그 포맷 패턴에 따라 정확한 번역이 나오도록 하는 기능을 추가할 예정입니다.
+[/REGION]
+*   끊어진 문장을 연결하는 것은 피하세요. 문제가 생길 수 있습니다. 각 절이나 구의 정확한 번역이 불가능해 전체 번역이 올바르게 나오지 않을 수 있습니다. 텍스트를 전체 문장 단위로 다시 써서, 올바른 번역이 될 수 있도록 하는 것이 좋습니다.
+
+## 텍스트 생성
+
+텍스트 생성(generation)은 국제화 데이터를 사용하여 직접 현지화에 의존하지 않는 컬처에 맞는 텍스트를 만들 수 있습니다. 텍스트 생성 유형은 세 가지, 숫자(numerical), 연대(chronological), 변환(transformative)입니다.
+
+### 숫자 텍스트 생성
+
+숫자 생성은 숫자 유형을 사람이 읽기 좋은 텍스트 표현으로 변환하는 데 사용됩니다. 그 정확한 규칙은 컬처에 따라 다르며, 보다 구체적인 제어가 필요한 경우 생성 단위에 따라 조정할 수도 있습니다.
+
+예를 들어, 기본 생성 규칙에 따라 부동소수점 수치 "1234.5" 는 영어에서 "1,234.5" 로, 프랑스어에서 "1 234,5" 로, 아랍어에서 "١٬٢٣٤٫٥" 로 생성됩니다.
+
+#### C++ 에서 숫자 생성
+
+C++ 에서의 숫자 생성을 처리하는 함수는 다음과 같습니다.
+
+| 함수 | 설명 |
+| --- | --- |
+| **[FText::AsNumber](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/AsNumber/1/index.html)** |  UE4 에 지원되는 숫자 유형을 사용자가 읽기 좋은 텍스트 표현으로 변환합니다 ("1234.5" 는 "1,234.5" 가 됩니다). |
+| **[FText::AsPercent](http://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/AsPercent/1/index.html)** | float 또는 double 을 퍼센트 텍스트 표현으로 변환합니다 ("0.2" 는 20% 가 됩니다). |
+| **[FText::AsMemory](http://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/AsMemory/index.html)** | (바이트 단위) 값을 사용자가 읽기 좋은 메모리 표현으로 변환합니다 (“1234” 는 “1.2 KiB” 가 됩니다). |
+| **[FText::AsCurrencyBase](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/AsCurrencyBase/index.html)** | 통화의 기반 표현 단위 값을 사용자가 읽기 좋은 통화 표현으로 변환합니다 (“123450” “USD” 는 “$1,234.50” 가 됩니다). |
+
+위 표의 함수 대부분은 옵션인 [FNumberFormattingOptions](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FNumberFormattingOptions/index.html) 를 받아 (기본값을 활성 로케일에서 받는) 출력, 역시 옵션인 (기본값은 활성 로케일인) 컬처를 제어합니다.
+
+#### 블루프린트에서 숫자 생성
+
+블루프린트에서의 숫자 생성을 처리하는 노드는 다음과 같습니다.
+
+| 노드 | 설명 |
+| --- | --- |
+| **ToText (byte), ToText (integer), ToText (float)** | 지원되는 숫자 유형을 사용자가 읽기 좋은 텍스트 표현으로 변환합니다 (“1234.5” 는 “1,234.5” 가 됩니다). |
+| **AsPercent** | float 또는 double 을 퍼센트 텍스트 표현으로 변환합니다 (“0.2” 는 20% 가 됩니다). |
+| **AsCurrency** | 통화의 기반 표현 단위 값을 사용자가 읽기 좋은 통화 표현으로 변환합니다 (“123450” “USD” 는 “$1,234.50” 가 됩니다). |
+
+테이블의 노드 대부분은 출력을 제어하는 고급 인수를 받습니다.
+
+### 연대
+
+연대 생성은 날짜와 시간 유형을 사람이 읽기 좋은 텍스트 표현으로 변환하는 데 사용합니다. 그 정확한 규칙은 컬처에 따라 다르며, 보다 구체적인 제어가 필요한 경우 날짜/시간 스타일을 생성 단위 별로 조절할 수 있습니다.
+
+기본 생성 규칙에 따라, 1998 년도 5 번째 달 22 번째 날을 나타내는 연대는 미국 영어에서 "May 22, 1998", 영국 영어에서 "22 May 1998", 프랑스어에서 "22 mai 1998",  아랍어에서 "٢٢‏/٠٥‏/١٩٩٨" 이 됩니다.
+
+#### C++ 에서 연대 생성
+
+C++ 에서 연대 생성을 처리하는 함수는 다음과 같습니다.
+
+| 함수 | 설명 |
+| --- | --- |
+| **[FText::AsDate](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/AsDate/index.html)** | FDateTime 값을 사용자가 읽기 좋은 날짜 표현으로 변환합니다. |
+| **[FText::AsTime](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/AsTime/index.html)** | FDateTime 값을 사용자가 읽기 좋은 시간 표현으로 변환합니다. |
+| **[FText::AsDateTime](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/AsDateTime/index.html)** | FDateTime 값을 사용자가 읽기 좋은 날짜와 시간 표현으로 변환합니다. |
+| **[FText::AsTimespan](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/AsTimespan/index.html)** | FTimespan 값을 사용자가 읽기 좋은 델타(경과) 시간 표현으로 (시간, 분, 초 단위) 변환합니다. |
+
+위 대부분은 EDateTimeStyle 를 받아 출력을 제어합니다 (기본값은 활성 로케일에서 구하지만, “short”, “medium”, “long”, “full” 로 설정할 수도 있습니다).
+
+[REGION:note]
+시간 생성에서 기본으로 기대하는 값은 UTC 기반 시간입니다 (이것을 현지 시간대로 변환합니다). 지정한 시간이 UTC 기반이 아니면 (즉 이미 현지 시간이면), `[FText::GetInvariantTimeZone()](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/GetInvariantTimeZone/index.html)` 을 시간대 인수로 전달해야 합니다.
+[/REGION]
+
+#### 블루프린트에서 연대 생성
+
+블루프린트에서 연대 생성을 처리하는 노드는 다음과 같습니다.
+
+| 노드 | 설명 |
+| --- | --- |
+| **AsDate** | UTC 기반이 아닌 “DateTime” 값을 사용자가 읽기 좋은 날짜 표현 그대로 (현지 시간대로 조정하지 않고) 변환합니다. |
+| **AsDate (from UTC)** | UTC 기반 “DateTime” 값을 사용자가 읽기 좋은 날짜 표현으로 (현지 시간대로 조정해서) 변환합니다. |
+| **AsTime** | UTC 기반이 아닌 “DateTime” 값을 사용자가 읽기 좋은 시간 표현 그대로 (현지 시간대로 조정하지 않고) 변환합니다. |
+| **AsTime (from UTC)** | UTC 기반 “DateTime” 값을 사용자가 읽기 좋은 시간 표현으로 (현지 시간대로 조정해서) 반환합니다. |
+| **AsDateTime** | UTC 기반이 아닌 “DateTime” 값을 사용자가 읽기 좋은 날짜와 시간 표현 그대로 (현지 시간대로 조정하지 않고) 반환합니다. |
+| **AsDateTime (from UTC)** | UTC 기반 “DateTime” 값을 사용자가 읽기 좋은 날짜와 시간 표현으로 (현지 시간대로 조정해서) 반환합니다. |
+| **AsTimespan** | “Timespan” 값을 사용자가 읽기 좋은 델타(경과) 시간 표현으로 (시간, 분, 초 단위) 변환합니다. |
+
+### 변환
+
+변환 생성은 텍스트를 다른 표현으로 변환하는 데 사용합니다. 예를 들어 소문자 텍스트를 대문자로, 또는 대문자를 소문자로 변환할 수 있습니다.
+
+#### C++ 에서 변환 생성
+
+C++ 에서 변환 생성을 처리하는 함수는 다음과 같습니다.
+
+| 함수 | 설명 |
+| --- | --- |
+| **[FText::ToLower](http://api.unrealengine.com/INT/API/Runtime/Core/Containers/FString/ToLower/)** | FText 인스턴스를 유니코드 호환 소문자 형태로 변환합니다. |
+| **[FText::ToUpper](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/ToUpper/index.html)** | FText 인스턴스를 유니코드 호환 대문자 형태로 변환합니다. |
+
+#### 블루프린트에서 변환 생성
+
+블루프린트에서 변환 생성을 처리하는 노드는 다음과 같습니다.
+
+| 노드 | 설명 |
+| --- | --- |
+| **Text to Lower** | "Text" 인스턴스를 유니코드 호환 소문자 형태로 변환합니다. |
+| **Text to Upper** | "Text" 인스턴스를 유니코드 호환 대문자 형태로 변환합니다. |
+
+## 스트링 테이블
+
+String Table(스트링 테이블)은 현지화 텍스트를 하나( 또는 다수)의 알려진 위치로 집중시킨 뒤, 스트링 테이블 안의 항목을 다른 애셋이나 코드에서 참조하는 안전한 방식으로 현지화 텍스트를 쉽게 재사용할 수 있습니다.
+
+스트링 테이블은 C++ 에서 정의할 수 있으며, CSV 파일로 로드하거나 애셋으로 생성할 수 있습니다. 자세한 정보는 [스트링 테이블](Gameplay/Localization/StringTables) 문서를 참고하세요.
+
+## 텍스트 값 마셜링
+
+텍스트 값은 스트링으로 무손실 마셜링(marshall)할 수 있습니다 ([`FTextStringHelper`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FTextStringHelper/index.html), 또는 [`UTextProperty`](https://api.unrealengine.com/INT/API/Runtime/CoreUObject/UObject/UTextProperty/index.html) 의 [`ImportText`](https://api.unrealengine.com/INT/API/Runtime/CoreUObject/UObject/UScriptStruct/ImportText/index.html) 및 `ExportText` 함수 사용).
+
+지원 포맷은 다음과 같습니다.
+
+| 텍스트 리터럴 | 설명 |
+| --- | --- |
+| [`NSLOCTEXT`](https://api.unrealengine.com/INT/API/Runtime/Engine/NSLOCTEXT/129/index.html) | 네임스페이스, 키, 소스 스트링을 지정하는 텍스트 리터럴입니다. |
+| `LOCTEXT` | 키와 소스 스트링을 지정하는 텍스트 리터럴입니다. |
+| `LOCTABLE` | 스트링 테이블 레퍼런스입니다. |
+| `INVTEXT` | 컬처에 따라 바뀌지 않는 텍스트 조각입니다 ([`FText::AsCultureInvariant`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/AsCultureInvariant/2/index.html) 참고). |
+| `LOCGEN_NUMBER` | 숫자에서 생성되는 텍스트 조각입니다 ([`FText::AsNumber`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/AsNumber/1/index.html) 참고). |
+| `LOCGEN_NUMBER_GROUPED` | 그룹이 활성화된 숫자에서 생성되는 텍스트 조각입니다 (`FText::AsNumber` 및 [`FNumberFormattingOptions::DefaultWithGrouping`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FNumberFormattingOptions/DefaultWithGroup-/index.html) 참고). |
+| `LOCGEN_NUMBER_UNGROUPED` | 그룹이 비활성화된 숫자에서 생성되는 텍스트 조각입니다 (`FText::AsNumber` 및 [`FNumberFormattingOptions::DefaultNoGrouping`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FNumberFormattingOptions/DefaultNoGrouping/index.html) 참고). |
+| `LOCGEN_NUMBER_CUSTOM` | 커스텀 포맷 옵션이 있는 숫자에서 생성되는 텍스트 조각입니다 (`FText::AsNumber` 및 [`FNumberFormattingOptions`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FNumberFormattingOptions/index.html) 참고). |
+| `LOCGEN_PERCENT` | 퍼센트 숫자에서 생성되는 텍스트 조각입니다 ([`FText::AsPercent`](http://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/AsPercent/1/index.html) 참고). |
+| `LOCGEN_PERCENT_GROUPED` | 그룹이 활성화된 퍼센트 숫자에서 생성되는 텍스트 조각입니다 (`FText::AsPercent`, 및 `FNumberFormattingOptions::DefaultWithGrouping` 참고). |
+| `LOCGEN_PERCENT_UNGROUPED` | 그룹이 비활성화된 퍼센트 숫자에서 생성되는 텍스트 조각입니다 (`FText::AsPercent`, 및 `FNumberFormattingOptions::DefaultNoGrouping` 참고). |
+| `LOCGEN_PERCENT_CUSTOM` | 커스텀 포맷 옵션이 있는 퍼센트 숫자에서 생성되는 텍스트 조각입니다 (`FText::AsPercent`, 및 `FNumberFormattingOptions` 참고). |
+| `LOCGEN_CURRENCY` | 통화 숫자에서 생성되는 텍스트 조각입니다 ([`FText::AsCurrencyBase`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/AsCurrencyBase/index.html) 참고). |
+| `LOCGEN_DATE_UTC` | 지정 또는 현지 시간대로 조정한 UTC 날짜에서 생성되는 텍스트 조각입니다 ([`FText::AsDate`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/AsDate/index.html) 참고). |
+| `LOCGEN_DATE_LOCAL` | 시간대 조정 없이 UTC 가 아닌 날짜에서 생성된 텍스트 조각입니다 (`FText::AsDate` 참고). |
+| `LOCGEN_TIME_UTC` | 지정 또는 현지 시간대로 조정한 UTC 시간에서 생성된 텍스트 조각입니다 ([`FText::AsTime`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/AsTime/index.html) 참고). |
+| `LOCGEN_TIME_LOCAL` | 시간대 조정 없이 UTC 가 아닌 시간에서 생성된 텍스트 조각입니다 (`FText::AsTime` 참고). |
+| `LOCGEN_DATETIME_UTC` | 지정 또는 현지 시간대로 조정한 UTC 날짜와 시간에서 생성한 텍스트 조각입니다 (`FText::AsDateTime` 참고). |
+| `LOCGEN_DATETIME_LOCAL` | 시간대 조정 없이 UTC 가 아닌 날짜와 시간에서 생성된 텍스트 조각입니다 (`FText::AsDateTime` 참고). |
+| `LOCGEN_TOLOWER` | 유니코드 호환 방식으로 소문자 변환한 텍스트 조각입니다 (`FText::ToLower` 참고). |
+| `LOCGEN_TOUPPER` | 유니코드 호환 방식으로 대문자 변환한 텍스트 조각입니다 (`FText::ToUpper` 참고). |
+| `LOCGEN_FORMAT_ORDERED` | 인덱스 기반 인수를 사용한 포맷 패턴에서 생성된 텍스트 조각입니다 ([`FText::FormatOrdered`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/FormatOrdered/index.html) 참고). |
+| `LOCGEN_FORMAT_NAMED` | 이름 기반 인수를 사용한 포맷 패턴에서 생성된 텍스트 조각입니다 ([`FText::FormatNamed`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FText/FormatNamed/index.html) 참고). |
+
+[REGION:note]
+"Raw" (원시) 스트링 역시 임포트할 수 있지만, 임포트할 때마다 새 키가 생성됩니다. 현지화에 쓸 키가 불안정해 집니다.
+[/REGION]
+
+## 데이터 테이블
+
+현지화 키가 불안정해 지는 일반적인 원인 중 하나는, CSV 파일에서 원시 스트링을 데이터 테이블로 반복해서 임포트하는 것인데, 그 때마다 새 키가 생성되기 때문입니다. 그에 대한 해법은 임포트한 키를 임포트 이후 결정론적 키에 할당하면 되는데, 행 구조체에서 `OnPostDataImport` 함수를 오버라이드한 뒤 `FText::ChangeKey` 를 호출하여 새 키를 할당하면 됩니다.
+
+일반적으로 데이터 테이블 이름을 네임스페이스로, 행 이름과 프로퍼티 이름 조합을 키로 사용합니다. 예:
+
+    voidFMyTableRow::OnPostDataImport(constUDataTable*InDataTable,constFNameInRowName,TArray&OutCollectedImportProblems)
+    {
+    #if WITH_EDITOR
+        MyTextProperty = FText::ChangeKey(
+        InDataTable->GetName(),
+        FString::Printf(TEXT("%s_%s"),*InRowName.ToString(), GET_MEMBER_NAME_STRING_CHECKED(FMyTableRow,MyTextProperty)),
+        MyTextProperty
+        );
+    #endif// WITH_EDITOR
+    }
+
+[REGION:note]
+4.22 릴리즈에서 결정론적 키는 이미 데이터 테이블에 임포트하는 원시 키에 적용되지만, 키 설정 방식을 사용자 정의할 필요가 있는 경우 여전히 `OnPostDataImport` 를 오버라이드하면 됩니다.
+[/REGION]
+
+## 다언어 데이터
+
+Polyglot(다언어) 데이터는 런타임에 새로운 현지화 데이터를 추가할 수 있는데, 외부 시스템으로 인터페이스를 통할 수도 있고, 새로운 `LocRes` 파일을 만들지 않는 핫픽스 현지화를 사용할 수도 있습니다.
+
+다언어 데이터는 네임스페이스와 키(정체성), 네이티브 스트링, 다언어 데이터 사용 시점 제어를 위한 텍스트의 카테고리 (예: 게임, 엔진, 에디터), 옵션 네이티브 컬처 (카테고리가 설정되지 않은 경우 예비 전환할 네이티브 컬처), 일련의 컬처 별 번역으로 이루어집니다.
+
+[REGION:note]
+다언어 데이터를 사용하여 기존 번역을 오버라이드하려면, 다언어 데이터의 네임스페이스, 키, 네이티브 스트링이 대체하려는 소스 텍스트에 일치하는지 확인해야 합니다.
+[/REGION]
+
+### C++ 에서 다언어 데이터
+
+C++ 에서 다언어 데이터는 [`FPolyglotTextData`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FPolyglotTextData/index.html) 유형으로 나타나며, ([`FPolyglotTextData::GetText`](http://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FPolyglotTextData/GetText/index.html) 를 사용해서 다언어 데이터를 텍스트 인스턴스로 해석하여) 직접 사용할 수도 있고, [`FTextLocalizationManager::RegisterPolyglotTextData`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FTextLocalizationManager/RegisterPolyglot-/index.html) 로 전달(하여 기존 텍스트 항목을 패치)할 수도 있습니다.
+
+### 블루프린트에서 다언어 데이터
+
+블루프린트에서 다언어 데이터는 **Polyglot Text** 데이터 유형으로 나타나며, **Polyglot Data to Text** 함수와 함께 사용하여 다언어 데이터를 텍스트 인스턴스로 해석(resolve)할 수 있습니다.
+
+## 현지화 텍스트 소스
+
+현지화 텍스트 소스는 UE4 텍스트 현지화 매니저가 현지화 텍스트 데이터를 발견하고 처리하는 주요 방법입니다. UE4 는 기본적으로 두 가지를 제공합니다. (`LocRes` 지원을 호스팅하는) `FLocalizationResourceTextSource`, (다언어 데이터 지원을 호스팅하는) `FPolyglotTextSource` 입니다.
+
+현지화 텍스트 소스는 외부 시스템과의 인터페이스를 쉽게 할 수 있는 방법을 제공하며, [`ILocalizedTextSource`](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/ILocalizedTextSource/index.html) 에서 파생되는 유형을 생성 및 등록하여 프로젝트 단위로 추가할 수 있습니다.

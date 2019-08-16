@@ -45,7 +45,11 @@ void physx::PxSetPhysXCookingDelayLoadHook(const physx::PxDelayLoadHook* hook)
 
 using namespace physx;
 
+// @ATG_CHANGE : BEGIN HoloLens support
+#if !PX_HOLOLENS
 #pragma comment(lib, "delayimp")
+#endif
+// @ATG_CHANGE : END
 
 FARPROC WINAPI delayHook(unsigned dliNotify, PDelayLoadInfo pdli)
 {

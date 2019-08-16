@@ -1,14 +1,14 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6411923
 Availability:Public
 Title: 动画姿势资源
-Crumbs: %ROOT%, Engine, Engine/Animation
 Description:讲解动画姿势资源，其可通过加权曲线数据来驱动动画。 
 Parent: Engine/Animation
 Related: Engine\Animation\Persona\AnimCurves
 Related: Engine\Animation\AnimBlueprints
 Related: Engine\Animation\AnimHowTo\CurveDrivenAnimation
 version: 4.14
-tags:Assets
+tags:Animation Assets
+type:landing
 topic-image:AnimationPoseAssets_topic.png
 
 传统动画由一系列关键帧姿势构成。这些姿势在时间轴上进行混合，形成所需要的姿势。 
@@ -86,12 +86,10 @@ topic-image:AnimationPoseAssets_topic.png
 上例使用实验性的 **面部动画批导入器（Facial Animation Bulk Importer）** 插件来将面部动画曲线表（从FBX文件中）导入声波文件。
 [/REGION]
 
-(#topics)
 ## 要点
 
 [DIR(output:"topic" parent:"Engine/Animation/AnimPose")]
 
-(#guides)
 ## 指南
 
 [DIR(output:"fancy" parent:"Engine/Animation/AnimHowTo" tags:"Pose Assets")]

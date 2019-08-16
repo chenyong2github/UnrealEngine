@@ -170,7 +170,7 @@ DECLARE_DELEGATE_ThreeParams(FOnLowLevelSend, void* /*Data*/, int32 /*Count*/, b
 /**
  * An artificially lagged packet
  */
-struct DelayedPacket
+struct FDelayedPacket
 {
 	/** The packet data to send */
 	TArray<uint8> Data;
@@ -186,7 +186,7 @@ struct DelayedPacket
 
 public:
 	UE_DEPRECATED(4.21, "Use the constructor that takes PacketTraits for allowing for analytics and flags")
-	FORCEINLINE DelayedPacket(uint8* InData, int32 InSizeBytes, int32 InSizeBits)
+	FORCEINLINE FDelayedPacket(uint8* InData, int32 InSizeBytes, int32 InSizeBits)
 		: Data()
 		, SizeBits(InSizeBits)
 		, Traits()
@@ -196,7 +196,7 @@ public:
 		FMemory::Memcpy(Data.GetData(), InData, InSizeBytes);
 	}
 
-	FORCEINLINE DelayedPacket(uint8* InData, int32 InSizeBits, FOutPacketTraits& InTraits)
+	FORCEINLINE FDelayedPacket(uint8* InData, int32 InSizeBits, FOutPacketTraits& InTraits)
 		: Data()
 		, SizeBits(InSizeBits)
 		, Traits(InTraits)
@@ -213,7 +213,16 @@ public:
 		Data.CountBytes(Ar);
 	}
 };
-#endif
+
+struct FDelayedIncomingPacket
+{
+	TUniquePtr<FBitReader> PacketData;
+
+	/** Time at which the packet should be reinjected into the connection */
+	double ReinjectionTime = 0.0;
+};
+
+#endif //#if DO_ENABLE_NET_TEST
 
 /** Record of channels with data written into each outgoing packet. */
 struct FWrittenChannelsRecord
@@ -240,7 +249,7 @@ public:
 };
 
 UCLASS(customConstructor, Abstract, MinimalAPI, transient, config=Engine)
-class UNetConnection : public UPlayer
+class ENGINE_VTABLE UNetConnection : public UPlayer
 {
 	GENERATED_UCLASS_BODY()
 
@@ -283,6 +292,9 @@ class UNetConnection : public UPlayer
 	uint32 InternalAck:1;					// Internally ack all packets, for 100% reliable connections.
 
 	struct FURL			URL;				// URL of the other side.
+	
+	/** The remote address of this connection, typically generated from the URL. */
+	TSharedPtr<FInternetAddr>	RemoteAddr;
 
 	// Track each type of bit used per-packet for bandwidth profiling
 
@@ -365,6 +377,7 @@ public:
 	double			LastTickTime;			// Last time of polling.
 	int32			QueuedBits;			// Bits assumed to be queued up.
 	int32			TickCount;				// Count of ticks.
+	uint32			LastProcessedFrame;   // The last frame where we gathered and processed actors for this connection
 	/** The last time an ack was received */
 	float			LastRecvAckTime;
 	/** Time when connection request was first initiated */
@@ -603,19 +616,37 @@ public:
 	TSet<FName> ClientVisibleLevelNames;
 
 	/** Called by PlayerController to tell connection about client level visiblity change */
+	ENGINE_API void UpdateLevelVisibility(const struct FUpdateLevelVisibilityLevelInfo& LevelVisibility);
+	
+	UE_DEPRECATED(4.24, "This method will be removed. Use UpdateLevelVisibility that takes an FUpdateLevelVisibilityLevelInfo")
 	ENGINE_API void UpdateLevelVisibility(const FName& PackageName, bool bIsVisible);
 
 #if DO_ENABLE_NET_TEST
+
 	// For development.
 	/** Packet settings for testing lag, net errors, etc */
 	FPacketSimulationSettings PacketSimulationSettings;
 
-	/** delayed packet array */
-	TArray<DelayedPacket> Delayed;
-
 	/** Copies the settings from the net driver to our local copy */
-	void UpdatePacketSimulationSettings(void);
-#endif
+	void UpdatePacketSimulationSettings();
+
+private:
+
+	/** delayed outgoing packet array */
+	TArray<FDelayedPacket> Delayed;
+
+	/** delayed incoming packet array */
+	TArray<FDelayedIncomingPacket> DelayedIncomingPackets;
+
+	/** set to true when already delayed packets are reinjected */
+	bool bIsReinjectingDelayedPackets;
+
+	/** Process incoming packets that have been delayed for long enough */
+	void ReinjectDelayedPackets();
+
+#endif //#if DO_ENABLE_NET_TEST
+
+public:
 
 	/** 
 	 * If true, will resend everything this connection has ever sent, since the connection has been open.
@@ -754,14 +785,28 @@ public:
 	ENGINE_API virtual void HandleClientPlayer( class APlayerController* PC, class UNetConnection* NetConnection );
 
 	/** @return the address of the connection as an integer */
+	UE_DEPRECATED(4.23, "Use GetRemoteAddr as it allows direct access to the RemoteAddr and allows for dynamic address sizing.")
 	virtual int32 GetAddrAsInt(void)
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		if (RemoteAddr.IsValid())
+		{
+			uint32 OutAddr = 0;
+			// Get the host byte order ip addr
+			RemoteAddr->GetIp(OutAddr);
+			return (int32)OutAddr;
+		}
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return 0;
 	}
 
 	/** @return the port of the connection as an integer */
 	virtual int32 GetAddrPort(void)
 	{
+		if (RemoteAddr.IsValid())
+		{
+			return RemoteAddr->GetPort();
+		}
 		return 0;
 	}
 
@@ -771,7 +816,16 @@ public:
 	 *
 	 * @return	The platform specific FInternetAddr containing this connections address
 	 */
-	virtual TSharedPtr<FInternetAddr> GetInternetAddr() PURE_VIRTUAL(UNetConnection::GetInternetAddr,return TSharedPtr<FInternetAddr>(););
+	UE_DEPRECATED(4.23, "Use GetRemoteAddr to safely get the FInternetAddr tied to this connection")
+	virtual TSharedPtr<FInternetAddr> GetInternetAddr() { return ConstCastSharedPtr<FInternetAddr>(GetRemoteAddr()); }
+
+	/**
+	 * Return the platform specific FInternetAddr type, containing this connections address.
+	 * If nullptr is returned, connection is not added to MappedClientConnections, and can't receive net packets which depend on this.
+	 *
+	 * @return	The platform specific FInternetAddr containing this connections address
+	 */
+	virtual TSharedPtr<const FInternetAddr> GetRemoteAddr() { return RemoteAddr; }
 
 	/** closes the connection (including sending a close notify across the network) */
 	ENGINE_API void Close();
@@ -886,7 +940,14 @@ public:
 	* Gets a unique ID for the connection, this ID depends on the underlying connection
 	* For IP connections this is an IP Address and port, for steam this is a SteamID
 	*/
-	ENGINE_API virtual FString RemoteAddressToString() PURE_VIRTUAL(UNetConnection::RemoteAddressToString, return TEXT("Error"););
+	ENGINE_API virtual FString RemoteAddressToString()
+	{
+		if (RemoteAddr.IsValid())
+		{
+			return RemoteAddr->ToString(true);
+		}
+		return TEXT("Invalid");
+	}
 	
 	
 	/** Called by UActorChannel. Handles creating a new replicator for an actor */
@@ -899,7 +960,8 @@ public:
 	void PurgeAcks();
 
 	/** Send package map to the remote. */
-	void SendPackageMap();
+	UE_DEPRECATED(4.23, "This method will be removed.")
+	void SendPackageMap() {}
 
 	/** 
 	 * Appends the passed in data to the SendBuffer to be sent when FlushNet is called
@@ -1064,6 +1126,8 @@ public:
 	/** Removes stale entries from DormantReplicatorMap. */
 	void CleanupStaleDormantReplicators();
 
+	void PostTickDispatch();
+
 	/**
 	 * Flush the cache of sequenced packets waiting for a missing packet. Will flush only up to the next missing packet, unless bFlushWholeCache is set.
 	 *
@@ -1101,12 +1165,30 @@ public:
 	ENGINE_API void ResetSaturationAnalytics();
 
 	/**
+	 * Returns the current packet stability analytics and resets them.
+	 * This would be similar to calls to Get and Reset separately, except that the caller
+	 * will assume ownership of the data in this case.
+	 */
+	ENGINE_API void ConsumePacketAnalytics(FNetConnectionPacketAnalytics& Out);
+
+	/** Returns the current packet stability analytics. */
+	ENGINE_API const FNetConnectionPacketAnalytics& GetPacketAnalytics() const;
+
+	/** Resets the current packet stability analytics. */
+	ENGINE_API void ResetPacketAnalytics();
+
+	/**
 	 * Called to notify the connection that we attempted to replicate its actors this frame.
 	 * This is primarily for analytics book keeping.
 	 *
 	 * @param bWasSaturated		True if we failed to replicate all data because we were saturated.
 	 */
 	ENGINE_API void TrackReplicationForAnalytics(const bool bWasSaturated);
+
+	/**
+	 * Get the current number of sent packets for which we have received a delivery notification
+	 */
+	ENGINE_API uint32 GetOutTotalNotifiedPackets() const { return OutTotalNotifiedPackets; }
 	
 protected:
 
@@ -1144,6 +1226,14 @@ private:
 
 	/** Returns true if an outgoing packet should be dropped due to packet simulation settings, including loss burst simulation. */
 	bool ShouldDropOutgoingPacketForLossSimulation(int64 NumBits) const;
+
+	/**
+	*	Test the current emulation settings to delay, drop, etc the current packet
+	*	Returns true if the packet was emulated and false when the packet must be sent via the normal path
+	*/
+#if DO_ENABLE_NET_TEST
+	bool CheckOutgoingPacketEmulation(FOutPacketTraits& Traits);
+#endif
 
 	/** Write packetHeader */
 	void WritePacketHeader(FBitWriter& Writer);
@@ -1190,6 +1280,9 @@ private:
 	/** Full PacketId  of last sent packet that we have received notification for (i.e. we know if it was delivered or not). Related to OutAckPacketId which is tha last successfully delivered PacketId */
 	int32 LastNotifiedPacketId;
 
+	/** Count the number of notified packets, i.e. packets that we know if they are delivered or not. Used to reliably measure outgoing packet loss */
+	uint32 OutTotalNotifiedPackets;
+
 	/** Keep old behavior where we send a packet with only acks even if we have no other outgoing data if we got incoming data */
 	uint32 HasDirtyAcks;
 	
@@ -1216,6 +1309,7 @@ private:
 	int32 PacketOrderCacheCount;
 
 	FNetConnectionSaturationAnalytics SaturationAnalytics;
+	FNetConnectionPacketAnalytics PacketAnalytics;
 
 	/** Whether or not PacketOrderCache is presently being flushed */
 	bool bFlushingPacketOrderCache;
@@ -1289,7 +1383,6 @@ public:
 	virtual FString LowLevelGetRemoteAddress(bool bAppendPort=false) override { return FString(); }
 	virtual bool ClientHasInitializedLevelFor(const AActor* TestActor) const { return true; }
 
-
-	virtual TSharedPtr<FInternetAddr> GetInternetAddr() override { return TSharedPtr<FInternetAddr>(); }
+	virtual TSharedPtr<const FInternetAddr> GetRemoteAddr() override { return nullptr; }
 };
 

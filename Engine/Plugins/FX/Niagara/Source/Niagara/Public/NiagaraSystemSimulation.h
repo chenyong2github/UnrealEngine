@@ -147,6 +147,8 @@ public:
 	FNiagaraScriptExecutionContext& GetSpawnExecutionContext() { return SpawnExecContext; }
 	FNiagaraScriptExecutionContext& GetUpdateExecutionContext() { return UpdateExecContext; }
 
+	void TransitionToDeferredDeletionQueue(TUniquePtr< FNiagaraSystemInstance>& InPtr);
+
 protected:
 
 	/** System of instances being simulated.  We use a weak object ptr here because once the last referencing object goes away this system may be come invalid at runtime. */
@@ -182,6 +184,9 @@ protected:
 	TArray<TArray<FNiagaraParameterStoreToDataSetBinding>> DataSetToEmitterEventParameters;
 
 	/** Direct bindings for Engine variables in System Spawn and Update scripts. */
+	FNiagaraParameterDirectBinding<float> SpawnTimeParam;
+	FNiagaraParameterDirectBinding<float> UpdateTimeParam;
+
 	FNiagaraParameterDirectBinding<float> SpawnDeltaTimeParam;
 	FNiagaraParameterDirectBinding<float> UpdateDeltaTimeParam;
 
@@ -222,4 +227,6 @@ protected:
 	bool bIsSolo;
 
 	TOptional<float> MaxDeltaTime;
+
+	TArray<TUniquePtr< FNiagaraSystemInstance> > DeferredDeletionQueue;
 };

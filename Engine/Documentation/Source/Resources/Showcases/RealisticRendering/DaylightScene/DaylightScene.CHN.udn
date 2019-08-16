@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:2345306
+﻿INTSourceChangelist:3108692
 Availability: Public
 Title:日光场景的光照
 Crumbs:%ROOT%, Resources, Resources/Showcases/RealisticRendering
@@ -11,7 +11,7 @@ Related: Engine/Rendering/LightingAndShadows/LightMobility/StationaryLights
 Related: Engine/Rendering/LightingAndShadows/LightMobility/StaticLights
 Related: Engine/Rendering/LightingAndShadows/IESLightProfiles
 Related: Resources/ContentExamples/Lighting/4_2
-
+Version: 4.9
 
 
 
@@ -26,19 +26,24 @@ Related: Resources/ContentExamples/Lighting/4_2
 1. **Spot Light Stationary** （点光源固定）- 它们被放置在房间中的图片帧上方。
 
 
+(#SetupConsiderations)
 ## 设置注意事项
 
 对日光场景 (_Room.umap_)来说，固定的定向光提供了主要的日光。 我们添加了一个大气雾Actor并设置了固定的定向光，将它们作为大气日光来使用，并提供日轮的方向。 
 
 尽管太阳光由Lightmass四处反射，实际上存在四种模拟天空反射光的静态点光源。 它们取代了 **World Settings** （世界设置）中的 **Lightmass Environment Light** （Lightmass环境光照），使得能对穿过房间的反射进行更为准确的控制。
 
-[REGION:imagetable]
-| 反射光对比 ||
-| --- | --- |
-| ![](WithBounceSpots.png)(w:455) | ![](WithoutBounceLights.png)(w:455) |
-| **具有环境点光源** | **不具有环境点光源** |
-[/REGION]
+[OBJECT:ComparisonSlider]
+	[PARAM:before]
+	![具有环境点光源](WithBounceSpots.png)(w:600)
+	[/PARAM]
+	[PARAM:after]
+	![不具有环境点光源](WithoutBounceLights.png)(w:600)
+	[/PARAM]
+[/OBJECT]
+
 
 [INCLUDE:Resources/Showcases/RealisticRendering#IESProfiles]
 
 [INCLUDE:Resources/Showcases/RealisticRendering#InverseSquared]
+

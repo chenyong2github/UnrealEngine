@@ -41,15 +41,16 @@ struct FDetailLayoutCustomization
 	bool HasPropertyNode() const { return GetPropertyNode().IsValid(); }
 	/** @return true if this customization has a custom widget */
 	bool HasCustomWidget() const { return WidgetDecl.IsValid(); }
-	/** @return true if this customization has a custom builder (custom builders will set the custom widget */
+	/** @return true if this customization has a custom builder (custom builders will set the custom widget) */
 	bool HasCustomBuilder() const { return CustomBuilderRow.IsValid(); }
 	/** @return true if this customization has a group */
 	bool HasGroup() const { return DetailGroup.IsValid(); }
 	/** @return true if this has a customization for an external property row */
 	bool HasExternalPropertyRow() const;
-
 	/** @return true if this customization is valid */
 	bool IsValidCustomization() const { return HasPropertyNode() || HasCustomWidget() || HasCustomBuilder() || HasGroup(); }
+	/** @return true if the customized item is hidden */
+	bool IsHidden() const;
 	/** @return the property node for this customization (if any ) */
 	TSharedPtr<FPropertyNode> GetPropertyNode() const;
 	/** @return The row to display from this customization */

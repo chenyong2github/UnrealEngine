@@ -65,28 +65,33 @@ if [ "$(uname)" = "Linux" ]; then
 	source "$SCRIPT_DIR/Linux/SetupMono.sh" "$SCRIPT_DIR/Linux"
 fi
 
+
 if [ "$UATCompileArg" = "-compile" ]; then
   # see if the .csproj exists to be compiled
 	if [ ! -f Source/Programs/AutomationTool/AutomationTool.csproj ]; then
 		echo No project to compile, attempting to use precompiled AutomationTool
 		UATCompileArg=
 	else
-		echo Compiling AutomationTool with xbuild
 
 		# make sure the UBT project has references to auto-discovered platform extension source files
 		"${SCRIPT_DIR}/FindPlatformExtensionSources.sh"
 
-		ARGS="/p:Configuration=Development /p:Platform=AnyCPU /verbosity:quiet /nologo"
+		# mono 5.0 and up include msbuild
+		if [ "$IS_MS_BUILD_AVAILABLE" == "1" ]; then
+			BUILD_TOOL=msbuild
+		else
+			BUILD_TOOL=xbuild
+		fi
+
+		ARGS="/p:Configuration=Development /p:Platform=AnyCPU /verbosity:quiet /nologo /p:NoWarn=1591 /property:AutomationToolProjectOnly=true"
 		ARGS="${ARGS} /p:TargetFrameworkProfile="
 
-		echo "xbuild Source/Programs/AutomationTool/AutomationTool.csproj $ARGS"
-		xbuild Source/Programs/AutomationTool/AutomationTool.csproj $ARGS
+		echo "$BUILD_TOOL Source/Programs/AutomationTool/AutomationTool.csproj $ARGS"
+		$BUILD_TOOL Source/Programs/AutomationTool/AutomationTool.csproj $ARGS
 		# make sure it succeeded
 		if [ $? -ne 0 ]; then
 			echo RunUAT ERROR: AutomationTool failed to compile.
 			exit 1
-		else
-			echo Compilation Succeeded
 		fi
 	fi
 fi

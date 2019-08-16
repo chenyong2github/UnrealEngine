@@ -1,9 +1,10 @@
-﻿INTSourceChangelist:2750551
+﻿INTSourceChangelist:3782314
 Availability:Public
 Title:粒子发射器类
 Crumbs: %ROOT%, Engine, Engine/Rendering/ParticleSystems, Engine/Rendering/ParticleSystems/Reference
 Description:级联的发射器列表组件 - 粒子发射器的属性参考。
 Version:4.9
+tags:Particles
 
 粒子发射器（ParticleEmitter）是可以放置在粒子系统中的一个单独粒子特效。ParticleEmitter 类包含下列公共变量： 
 

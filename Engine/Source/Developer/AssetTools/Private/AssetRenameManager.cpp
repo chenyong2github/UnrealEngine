@@ -1043,7 +1043,7 @@ bool FAssetRenameManager::CheckPackageForSoftObjectReferences(UPackage* Package,
 		// Bind to dirty callback if we aren't already
 		if (!DirtyDelegateHandle.IsValid())
 		{
-			DirtyDelegateHandle = UPackage::PackageMarkedDirtyEvent.AddSP(this, &FAssetRenameManager::OnMarkPackageDirty);
+			DirtyDelegateHandle = UPackage::PackageMarkedDirtyEvent.AddSP(const_cast<FAssetRenameManager*>(this), &FAssetRenameManager::OnMarkPackageDirty);
 		}
 
 		CachedReferences = &CachedSoftReferences.Add(Package->GetFName());

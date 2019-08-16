@@ -14,7 +14,7 @@ namespace EditorScriptingUtils
 	bool CheckIfInEditorAndPIE();
 
 	/*
-	 * Have any flag that are not supported for Blutility (PIE, Map, MapData).
+	 * Have any flag that are not supported for Editor Utilities (PIE, Map, MapData).
 	 */
 	bool IsPackageFlagsSupportedForAssetLibrary(uint32 PackageFlags);
 

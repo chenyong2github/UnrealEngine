@@ -16,6 +16,7 @@
 #include "Editor/EditorEngine.h"
 #include "Animation/AnimBlueprint.h"
 #include "Engine/BlueprintGeneratedClass.h"
+#include "Engine/SimpleConstructionScript.h"
 #include "FileHelpers.h"
 #include "Kismet2/CompilerResultsLog.h"
 #include "Kismet2/KismetEditorUtilities.h"
@@ -1479,14 +1480,14 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClassEx(const FReplaceInsta
 	ReplaceInstancesOfClass_Inner(OldToNewClassMap, Parameters.OriginalCDO, Parameters.ObjectsThatShouldUseOldStuff, Parameters.bClassObjectReplaced, Parameters.bPreserveRootComponent, /*bArchetypesAreUpToDate=*/false, Parameters.InstancesThatShouldUseOldClass);
 }
 
-void FBlueprintCompileReinstancer::BatchReplaceInstancesOfClass(TMap<UClass*, UClass*>& InOldToNewClassMap, bool bArchetypesAreUpToDate)
+void FBlueprintCompileReinstancer::BatchReplaceInstancesOfClass(TMap<UClass*, UClass*>& InOldToNewClassMap, const FBatchReplaceInstancesOfClassParameters& Options )
 {
 	if (InOldToNewClassMap.Num() == 0)
 	{
 		return;
 	}
 
-	ReplaceInstancesOfClass_Inner(InOldToNewClassMap, nullptr, nullptr, false /*bClassObjectReplaced*/, true /*bPreserveRootComponent*/, bArchetypesAreUpToDate);
+	ReplaceInstancesOfClass_Inner(InOldToNewClassMap, nullptr, Options.ObjectsThatShouldUseOldStuff, false /*bClassObjectReplaced*/, true /*bPreserveRootComponent*/, Options.bArchetypesAreUpToDate, Options.InstancesThatShouldUseOldClass);
 }
 
 UClass* FBlueprintCompileReinstancer::MoveCDOToNewClass(UClass* OwnerClass, const TMap<UClass*, UClass*>& OldToNewMap, bool bAvoidCDODuplication)
@@ -1713,12 +1714,7 @@ static void ReplaceObjectHelper(UObject*& OldObject, UClass* OldClass, UObject*&
 			// we need to keep track of actor instances that need 
 			// their construction scripts re-ran (since we've just 
 			// replaced a component they own)
-
-			// Skipping CDOs as CSs are not allowed for them.
-			if (!OwningActor->HasAnyFlags(RF_ClassDefaultObject))
-			{
-				OwnersToRerunConstructionScript.Add(OwningActor);
-			}
+			OwnersToRerunConstructionScript.Add(OwningActor);
 		}
 
 		if (bWasRegistered)
@@ -1789,6 +1785,13 @@ static void ReplaceActorHelper(UObject* OldObject, UClass* OldClass, UObject*& N
 	SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	SpawnInfo.bDeferConstruction = true;
 	SpawnInfo.Name = OldActor->GetFName();
+
+#if WITH_EDITOR
+	if (!OldActor->IsListedInSceneOutliner())
+	{
+		SpawnInfo.bHideFromSceneOutliner = true;
+	}
+#endif
 
 	OldActor->UObject::Rename(nullptr, OldObject->GetOuter(), REN_DoNotDirty | REN_DontCreateRedirectors | (GBlueprintUseCompilationManager ? REN_ForceNoResetLoaders : 0));
 
@@ -1867,6 +1870,7 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(TMap<UClass*, U
 	USelection* SelectedActors = nullptr;
 	TArray<UObject*> ObjectsReplaced;
 	bool bSelectionChanged = false;
+	bool bFixupSCS = false;
 	const bool bLogConversions = false; // for debugging
 
 	// Map of old objects to new objects
@@ -1909,10 +1913,17 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(TMap<UClass*, U
 	{
 		if (UBlueprint* OldObjBlueprint = Cast<UBlueprint>(InOldObject->GetClass()->ClassGeneratedBy))
 		{
-			const UObject* DebugObj = OldObjBlueprint->GetObjectBeingDebugged(EGetObjectOrWorldBeingDebuggedFlags::IgnorePendingKill);
-			if (DebugObj == InOldObject)
+			// For now, don't update the object if the outer BP assets don't match (e.g. after a reload). Otherwise, it will
+			// trigger an ensure() in SetObjectBeginDebugged(). This will be replaced with a better solution in a future release.
+			if (OldObjBlueprint == Cast<UBlueprint>(InNewObject->GetClass()->ClassGeneratedBy))
 			{
-				OldObjBlueprint->SetObjectBeingDebugged(InNewObject);
+				// The old object may already be PendingKill, but we still want to check the current
+				// ptr value for a match. Otherwise, the selection will get cleared after every compile.
+				const UObject* DebugObj = OldObjBlueprint->GetObjectBeingDebugged(EGetObjectOrWorldBeingDebuggedFlags::IgnorePendingKill);
+				if (DebugObj == InOldObject)
+				{
+					OldObjBlueprint->SetObjectBeingDebugged(InNewObject);
+				}
 			}
 		}
 	};
@@ -1929,7 +1940,7 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(TMap<UClass*, U
 		}
 
 		// WARNING: for (TPair<UClass*, UClass*> OldToNewClass : InOldToNewClassMap) duplicated below 
-		// to handle reconstructing actors which need to be reinstanced aftertheir owned components 
+		// to handle reconstructing actors which need to be reinstanced after their owned components 
 		// have been updated:
 		for (TPair<UClass*, UClass*> OldToNewClass : InOldToNewClassMap)
 		{
@@ -1942,6 +1953,14 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(TMap<UClass*, U
 			check(OldClass != NewClass);
 #endif
 			{
+				const bool bIsComponent = NewClass->IsChildOf<UActorComponent>();
+
+				// If any of the class changes are of an actor component to scene component or reverse then we will fixup SCS of all actors affected
+				if (bIsComponent && !bFixupSCS)
+				{
+					bFixupSCS = (NewClass->IsChildOf<USceneComponent>() != OldClass->IsChildOf<USceneComponent>());
+				}
+
 				const bool bIncludeDerivedClasses = false;
 				ObjectsToReplace.Reset();
 				GetObjectsOfClass(OldClass, ObjectsToReplace, bIncludeDerivedClasses);
@@ -1953,7 +1972,6 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(TMap<UClass*, U
 					AActor* OldActor = Cast<AActor>(OldObject);
 
 					// Skip archetype instances, EXCEPT for component templates and child actor templates
-					const bool bIsComponent = NewClass->IsChildOf(UActorComponent::StaticClass());
 					const bool bIsChildActorTemplate = OldActor && OldActor->GetOuter()->IsA<UChildActorComponent>();
 					if (OldObject->IsPendingKill() || 
 						(!bIsComponent && !bIsChildActorTemplate && OldObject->IsTemplate()) ||
@@ -2144,6 +2162,35 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(TMap<UClass*, U
 		GEditor->NoteSelectionChange();
 	}
 
+	TSet<UBlueprintGeneratedClass*> FixedSCS;
+
+	// in the case where we're replacing component instances, we need to make 
+	// sure to re-run their owner's construction scripts
+	for (AActor* ActorInstance : OwnersToRerunConstructionScript)
+	{
+		// Before rerunning the construction script, first fix up the SCS if any component class has changed from actor to scene
+		if (bFixupSCS)
+		{
+			UBlueprintGeneratedClass* BPGC = Cast<UBlueprintGeneratedClass>(ActorInstance->GetClass());
+			while (BPGC && !FixedSCS.Contains(BPGC))
+			{
+				if (BPGC->SimpleConstructionScript)
+				{
+					BPGC->SimpleConstructionScript->FixupRootNodeParentReferences();
+					BPGC->SimpleConstructionScript->ValidateSceneRootNodes();
+				}
+				FixedSCS.Add(BPGC);
+				BPGC = Cast<UBlueprintGeneratedClass>(BPGC->GetSuperClass());
+			}
+		}
+
+		// Skipping CDOs as CSs are not allowed for them.
+		if (!ActorInstance->HasAnyFlags(RF_ClassDefaultObject))
+		{
+			ActorInstance->RerunConstructionScripts();
+		}
+	}
+
 	if (GEditor)
 	{
 		// Refresh any editors for objects that we've updated components for
@@ -2155,13 +2202,6 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(TMap<UClass*, U
 				BlueprintEditor->RefreshEditors();
 			}
 		}
-	}
-
-	// in the case where we're replacing component instances, we need to make 
-	// sure to re-run their owner's construction scripts
-	for (AActor* ActorInstance : OwnersToRerunConstructionScript)
-	{
-		ActorInstance->RerunConstructionScripts();
 	}
 }
 

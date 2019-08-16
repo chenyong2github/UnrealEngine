@@ -8,6 +8,9 @@
 #include "Misc/FrameRate.h"
 #include "FrameNumberTimeEvaluator.h"
 #include "Misc/Timecode.h"
+#include "Misc/ExpressionParserTypes.h"
+#include "Math/BasicMathExpressionEvaluator.h"
+#include "Internationalization/FastDecimalFormat.h"
 
 /**
 * A large portion of the Sequencer UI is built around using SpinBox and NumericBox because the framerate
@@ -78,7 +81,12 @@ struct FFrameNumberInterface : public INumericTypeInterface<double>
 		case EFrameNumberDisplayFormats::Seconds:
 		{
 			double TimeInSeconds = SourceFrameRate.AsSeconds(FFrameTime::FromDecimal(Value));
-			return FString::Printf(TEXT("%.2f s"), TimeInSeconds);
+
+			static const FNumberFormattingOptions NumberFormattingOptions = FNumberFormattingOptions()
+				.SetUseGrouping(false)
+				.SetMinimumFractionalDigits(2)
+				.SetMaximumFractionalDigits(ZeroPadFramesAttr.Get());
+			return FastDecimalFormat::NumberToString(TimeInSeconds, ExpressionParser::GetLocalizedNumberFormattingRules(), NumberFormattingOptions);
 		}
 		case EFrameNumberDisplayFormats::NonDropFrameTimecode:
 		case EFrameNumberDisplayFormats::DropFrameTimecode:

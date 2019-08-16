@@ -1,0 +1,44 @@
+Availability: Public
+Title: Windows Mixed Reality Development Requirements
+Description: Windows Mixed Reality development requirements including hardware, software, and SDK information. 
+Type: reference
+Version: 4.21
+Parent: Platforms/MR
+Tags: VR
+Tags: Specifications
+Tags: Windows Mixed Reality
+Tags: XR
+Order: 5
+
+
+[TOC (start:2 end:2)]
+
+In this page you'll find hardware and software development kit (SDK) requirements needed to start developing for the [Windows Mixed Reality](platforms/mr) platform. 
+
+## Unreal Engine 4.22
+
+| Hardware Requirements ||
+| --- | --- |
+| **Recommended Desktop Hardware** | See [Hardware and Software Specifications](GettingStarted/RecommendedSpecifications). |
+| **Supported Video Devices** | See [Supported Video Devices](Platforms/MR/MRSupportedVideoDevices). |
+| [REGION:tablesection]Software Requirements[/REGION] ||
+| **Desktop Operating System** | Windows 10 October 2018 Update (Version 1809) or later. |
+| **Recording Output Video** | Third-party software is required, such as [OBS](https://obsproject.com/) or [NVIDIA ShadowPlay](https://www.nvidia.com/en-us/geforce/geforce-experience/shadowplay/) to record a capture.[](https://www.mozilla.org/en-US/firefox/all/) |
+
+[REGION:note]
+The currently supported SDK version(s) can be found in `UEBuildTODO.cs`. You can find it in your `[UE4 Root Director]/Engine/Source/Programs/UnrealBuildTool/Platforms/TODO` folder.
+[/REGION]
+
+## Unreal Engine 4.21
+
+| Hardware Requirements ||
+| --- | --- |
+| **Recommended Desktop Hardware** | See [Hardware and Software Specifications](GettingStarted/RecommendedSpecifications). |
+| **Supported Video Devices** | See [Supported Video Devices](Platforms/MR/MRSupportedVideoDevices). |
+| [REGION:tablesection]Software Requirements[/REGION] ||
+| **Desktop Operating System** | Windows 10 Fall Creators Update or later. |
+| **Recording Output Video** | Third-party software is required, such as [OBS](https://obsproject.com/) or [NVIDIA ShadowPlay](https://www.nvidia.com/en-us/geforce/geforce-experience/shadowplay/) to record a capture.[](https://www.mozilla.org/en-US/firefox/all/) |
+
+[REGION:note]
+The currently supported SDK version(s) can be found in `UEBuildTODO.cs`. You can find it in your `[UE4 Root Director]/Engine/Source/Programs/UnrealBuildTool/Platforms/TODO` folder.
+[/REGION]

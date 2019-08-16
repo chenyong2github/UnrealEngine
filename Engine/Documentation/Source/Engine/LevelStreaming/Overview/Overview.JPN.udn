@@ -69,4 +69,4 @@ topic-image:streaming_topic.png
 これらのコピーにトランスフォームを適用し、パラメータを送れば、プロシージャルなワールドを作成することができます。 
 
 * [](Engine/LevelStreaming/HowTo/StreamWithBlueprints "%Engine/LevelStreaming/HowTo/StreamWithBlueprints:description%")
-* [](Engine/LevelStreaming/HowTo/StreamWithC++ "%Engine/LevelStreaming/HowTo/StreamWithC++:description%")
+* [](Engine/LevelStreaming/HowTo/StreamWithCPP "%Engine/LevelStreaming/HowTo/StreamWithCPP:description%")

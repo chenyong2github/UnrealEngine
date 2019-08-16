@@ -249,10 +249,18 @@ namespace UnrealBuildTool
 				Action.LogLines.Add(Action.Inner.StatusDescription);
 			}
 
-			using(ManagedProcess Process = new ManagedProcess(ProcessGroup, Action.Inner.CommandPath.FullName, Action.Inner.CommandArguments, Action.Inner.WorkingDirectory.FullName, null, null, ProcessPriorityClass.BelowNormal))
+			try
 			{
-				Action.LogLines.AddRange(Process.ReadAllLines());
-				Action.ExitCode = Process.ExitCode;
+				using (ManagedProcess Process = new ManagedProcess(ProcessGroup, Action.Inner.CommandPath.FullName, Action.Inner.CommandArguments, Action.Inner.WorkingDirectory.FullName, null, null, ProcessPriorityClass.BelowNormal))
+				{
+					Action.LogLines.AddRange(Process.ReadAllLines());
+					Action.ExitCode = Process.ExitCode;
+				}
+			}
+			catch(Exception Ex)
+			{
+				Log.WriteException(Ex, null);
+				Action.ExitCode = 1;
 			}
 
 			lock(CompletedActions)

@@ -1987,11 +1987,6 @@ FAutoConsoleCommandWithWorld AbilitySystemPrevDebugTargetCmd(
 	FConsoleCommandWithWorldDelegate::CreateStatic(AbilitySystemCycleDebugTarget, false)
 	);
 
-static void	AbilitySystemDebugNextCategory(UWorld* InWorld, bool Next)
-{
-	CycleDebugTarget( GetDebugTargetInfo(InWorld), Next );
-}
-
 FAutoConsoleCommandWithWorld AbilitySystemDebugNextCategoryCmd(
 	TEXT("AbilitySystem.Debug.NextCategory"),
 	TEXT("Targets previous AbilitySystemComponent in ShowDebug AbilitySystem"),
@@ -2156,7 +2151,19 @@ void UAbilitySystemComponent::Debug_Internal(FAbilitySystemComponentDebugInfo& I
 		Info.Canvas->SetDrawColor(FColor::White);
 	}
 
-	DebugLine(Info, FString::Printf(TEXT("Owned Tags: %s"), *OwnerTags.ToStringSimple()), 4.f, 0.f, 4);
+	FString TagsStrings;
+	int32 TagCount = 1;
+	const int32 NumTags = OwnerTags.Num();
+	for (FGameplayTag Tag : OwnerTags)
+	{
+		TagsStrings.Append(FString::Printf(TEXT("%s (%d)"), *Tag.ToString(), GetTagCount(Tag)));
+
+		if (TagCount++ < NumTags)
+		{
+			TagsStrings += TEXT(", ");
+		}
+	}
+	DebugLine(Info, FString::Printf(TEXT("Owned Tags: %s"), *TagsStrings), 4.f, 0.f, 4);
 
 	if (BlockedAbilityTags.GetExplicitGameplayTags().Num() > 0)
 	{

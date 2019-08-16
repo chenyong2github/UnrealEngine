@@ -70,18 +70,40 @@ namespace EHostType
 {
 	enum Type
 	{
+		// Loads on all targets, except programs.
 		Runtime,
+		
+		// Loads on all targets, except programs and the editor running commandlets.
 		RuntimeNoCommandlet,
+		
+		// Loads on all targets, including supported programs.
 		RuntimeAndProgram,
+		
+		// Loads only in cooked games.
 		CookedOnly,
+		
+		// Only loads in development runtime or editor builds. Does not load in shipping builds.
 		Developer,
+		
+		// Loads only when the editor is starting up.
 		Editor,
+		
+		// Loads only when the editor is starting up, but not in commandlet mode.
 		EditorNoCommandlet,
-		Program,		//!< Program-only plugin type
+		
+		// Only loads on program targets.
+		Program,
+		
+		// Loads on all targets except dedicated clients.
 		ServerOnly,
+		
+		// Loads on all targets except dedicated servers.
 		ClientOnly,
-		// NOTE: If you add a new value, make sure to update the ToString() method below!
 
+		// Loads in editor and client but not in commandlets.
+		ClientOnlyNoCommandlet,
+		
+		//~ NOTE: If you add a new value, make sure to update the ToString() method below!
 		Max
 	};
 

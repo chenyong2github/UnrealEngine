@@ -13,13 +13,6 @@
 
 class UTakeRecorderSource;
 
-enum class RecordPass
-{
-	PreRecord,
-	StartRecord,
-	StopRecord,
-	PostRecord
-};
 DECLARE_LOG_CATEGORY_EXTERN(SubSequenceSerialization, Verbose, All);
 
 struct FTakeRecorderSourcesSettings
@@ -82,9 +75,9 @@ public:
 	* use TArrayView.
 	* DO NOT MODIFY THIS ARRAY, modifications will be lost.
 	*/
- 	UFUNCTION(BlueprintPure, DisplayName = "Get Sources (Copy)", Category = "Take Recorder")
- 	TArray<UTakeRecorderSource*> GetSourcesCopy() const
- 	{
+	UFUNCTION(BlueprintPure, DisplayName = "Get Sources (Copy)", Category = "Take Recorder")
+	TArray<UTakeRecorderSource*> GetSourcesCopy() const
+	{
 		return TArray<UTakeRecorderSource*>(Sources);
 	}
 	/**
@@ -102,7 +95,7 @@ public:
 
 	/** Calls the recording initialization flows on each of the specified sources. */
 	UFUNCTION(BlueprintCallable, Category = "Take Recorder")
-	void StartRecordingSource(TArray<UTakeRecorderSource*> InSources,const FTimecode& CurrentTiimecode);
+	void StartRecordingSource(TArray<UTakeRecorderSource*> InSources, const FTimecode& CurrentTiimecode);
 public:
 
 	/**
@@ -121,19 +114,25 @@ public:
 	 */
 	void UnbindSourcesChanged(FDelegateHandle Handle);
 
-public: 
+public:
+
+	/*
+	 * Pre recording pass
+	*
+	*/
+	void PreRecording(class ULevelSequence* InSequence, FManifestSerializer* InManifestSerializer);
 
 	/*
 	 * Start recording pass
 	 *
 	 */
-	void StartRecording(class ULevelSequence* InSequence, FManifestSerializer* InManifestSerializer);
+	void StartRecording(class ULevelSequence* InSequence, const FTimecode& InTimecodeSource, FManifestSerializer* InManifestSerializer);
 
 	/*
 	* Tick recording pass
 	* @return Current Frame Number we are recording at.
 	*/
-	FFrameTime TickRecording(class ULevelSequence* InSequence, float DeltaTime);
+	FFrameTime TickRecording(class ULevelSequence* InSequence, const FTimecode& InTimecodeSource, float DeltaTime);
 
 	/*
 	* Stop recording pass
@@ -147,7 +146,7 @@ public:
 	*/
 
 	/** Creates a sub-sequence asset for the specified sub sequence name based on the given master sequence. */
-	static ULevelSequence* CreateSubSequenceForSource(ULevelSequence* InMasterSequence, const FString& SubSequenceName);
+	static ULevelSequence* CreateSubSequenceForSource(ULevelSequence* InMasterSequence, const FString& SubSequenceTrackName, const FString& SubSequenceAssetName);
 
 private:
 	/** Called at the end of each frame in both the Editor and in Game to update all Sources. */
@@ -163,6 +162,9 @@ private:
 	/** Calls PreRecording on sources recursively allowing them to create other sources which properly get PreRecording called on them as well. */
 	void StartRecordingRecursive(TArray<UTakeRecorderSource*> InSources, ULevelSequence* InSequence, const FTimecode& Timecode, FManifestSerializer* InManifestSerializer);
 
+	/** Calls PreRecording on sources recursively allowing them to create other sources which properly get PreRecording called on them as well. */
+	void PreRecordingRecursive(TArray<UTakeRecorderSource*> InSources, ULevelSequence* InMasterSequence, TArray<UTakeRecorderSource*>& NewSourcesOut, FManifestSerializer* InManifestSerializer);
+
 	/** Finds the folder that the given Source should be created in, creating it if necessary. */
 	class UMovieSceneFolder* AddFolderForSource(const UTakeRecorderSource* InSource, class UMovieScene* InMovieScene);
 
@@ -171,6 +173,12 @@ private:
 
 	/** Remove object bindings that don't have any tracks and are not bindings for attach/path tracks */
 	void RemoveRedundantTracks();
+
+	void StartRecordingPreRecordedSources(const FTimecode& CurrentTimecode);
+
+	void PreRecordSources(TArray<UTakeRecorderSource *> InSources);
+
+	void StartRecordingTheseSources(const TArray<UTakeRecorderSource *>& InSources, const FTimecode& CurrentTimecode);
 
 private:
 
@@ -194,7 +202,7 @@ private:
 
 	/** What Tick Resolution is the target level sequence we're recording into? Used to convert seconds into FrameNumbers. */
 	FFrameRate TargetLevelSequenceTickResolution;
-	
+
 	/** Non-serialized serial number that is used for updating UI when the source list changes */
 	uint32 SourcesSerialNumber;
 
@@ -212,5 +220,11 @@ private:
 
 	/** Timecode time at start of recording */
 	FTimecode StartRecordingTimecodeSource;
-};
 
+	/** Last Timecode Frame Number, used to avoid recording same time twice*/
+	TOptional<FFrameNumber> LastTimecodeFrameNumber;
+
+	/** All sources after PreRecord */
+	TArray<UTakeRecorderSource *> PreRecordedSources;
+
+};

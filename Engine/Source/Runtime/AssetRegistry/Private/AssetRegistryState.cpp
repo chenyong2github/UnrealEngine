@@ -1698,7 +1698,7 @@ void FAssetRegistryState::Dump(const TArray<FString>& Arguments, TArray<FString>
 
 		TArray<FName> Keys;
 		AssetMap.GenerateKeyArray(Keys);
-		Keys.Sort();
+		Keys.Sort(FNameLexicalLess());
 
 		TArray<FAssetData*> Items;
 		Items.Reserve(1024);
@@ -1775,7 +1775,7 @@ void FAssetRegistryState::Dump(const TArray<FString>& Arguments, TArray<FString>
 
 		TArray<FName> Keys;
 		CachedPackageData.GenerateKeyArray(Keys);
-		Keys.Sort();
+		Keys.Sort(FNameLexicalLess());
 
 		for (const FName& Key : Keys)
 		{

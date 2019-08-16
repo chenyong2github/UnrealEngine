@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3782314
-Availability: Public
+INTSourceChangelist:6077702
+Availability: docs
 Title:1. 필수 구성
 Crumbs:%ROOT%, GettingStarted, Engine/QuickStart
 Description:프로젝트 브라우저를 사용하여 새 프로젝트를 만듭니다.
@@ -36,7 +36,7 @@ checkpoint: editorqs
 
 1. [언리얼 엔진 설치](GettingStarted/Installation) 및 언리얼 에디터 실행 이후, **프로젝트 브라우저** 가 뜰 것입니다.
 
-1. **새 프로젝트** 탭을 클릭한 다음 **공백** 블루프린트 템플릿을 선택하고, 저장 위치와 이름을 입력한 뒤, **프로젝트 생성** 을 클릭합니다.
+1. **새 프로젝트** 탭을 클릭한 다음 **기본** 블루프린트 템플릿을 선택하고, 저장 위치와 이름을 입력한 뒤, **프로젝트 생성** 을 클릭합니다.
 
 	[OBJECT:ToggleButtonContent]
 	[PARAMLITERAL:category]

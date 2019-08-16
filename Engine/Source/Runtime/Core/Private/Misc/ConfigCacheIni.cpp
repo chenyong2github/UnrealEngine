@@ -3133,7 +3133,7 @@ static void ConditionalOverrideIniFilename(FString& IniFilename, const TCHAR* Ba
 
 const int Flag_Required = 1;
 const int Flag_AllowCommandLineOverride = 2;
-const int Flag_DedicatedServerOnly = 4; // replaces Default, Base, and (NOT {PLATFORM} yet) with DedicatedServer
+const int Flag_DedicatedServerOnly = 4; // replaces Default, Base, and (NOT {PLATFORM} yet) with an empty string
 const int Flag_GenerateCacheKey = 8;
 
 
@@ -3322,9 +3322,9 @@ static void GetSourceIniHierarchyFilenames(const TCHAR* InBaseIniName, const TCH
 					}
 					if (IsRunningDedicatedServer())
 					{
-						ExpansionPath = ExpansionPath.Replace(TEXT("Base"), TEXT("DedicatedServer"));
-						ExpansionPath = ExpansionPath.Replace(TEXT("Default"), TEXT("DedicatedServer"));
-						// ExpansionPath = ExpansionPath.Replace(TEXT("{PLATFORM}"), TEXT("DedicatedServer"));
+						ExpansionPath = ExpansionPath.Replace(TEXT("Base"), TEXT(""));
+						ExpansionPath = ExpansionPath.Replace(TEXT("Default"), TEXT(""));
+						// ExpansionPath = ExpansionPath.Replace(TEXT("{PLATFORM}"), TEXT(""));
 					}
 					else
 					{
@@ -3515,10 +3515,31 @@ bool FConfigCacheIni::LoadGlobalIniFile(FString& FinalIniFilename, const TCHAR* 
 		return true;
 	}
 
+	FString EngineConfigDir = FPaths::EngineConfigDir();
+	FString SourceConfigDir = FPaths::SourceConfigDir();
+
+	if (bForceReload) // If reloading we should preserve the existing config dirs
+	{
+		// If base ini, try to use an existing GConfig file to set the config directories instead of assuming defaults
+		FConfigFile* BaseConfig = GConfig->FindConfigFileWithBaseName(BaseIniName);
+		if (BaseConfig)
+		{
+			if (BaseConfig->SourceEngineConfigDir.Len())
+			{
+				EngineConfigDir = BaseConfig->SourceEngineConfigDir;
+			}
+
+			if (BaseConfig->SourceProjectConfigDir.Len())
+			{
+				SourceConfigDir = BaseConfig->SourceProjectConfigDir;
+			}
+		}
+	}
+
 	// make a new entry in GConfig (overwriting what's already there)
 	FConfigFile& NewConfigFile = GConfig->Add(FinalIniFilename, FConfigFile());
 
-	return LoadExternalIniFile(NewConfigFile, BaseIniName, *FPaths::EngineConfigDir(), *FPaths::SourceConfigDir(), true, Platform, bForceReload, true, bAllowGeneratedIniWhenCooked, GeneratedConfigDir);
+	return LoadExternalIniFile(NewConfigFile, BaseIniName, *EngineConfigDir, *SourceConfigDir, true, Platform, bForceReload, true, bAllowGeneratedIniWhenCooked, GeneratedConfigDir);
 }
 
 bool FConfigCacheIni::LoadLocalIniFile(FConfigFile& ConfigFile, const TCHAR* IniName, bool bIsBaseIniName, const TCHAR* Platform, bool bForceReload )
@@ -3530,9 +3551,8 @@ bool FConfigCacheIni::LoadLocalIniFile(FConfigFile& ConfigFile, const TCHAR* Ini
 
 	if (bIsBaseIniName)
 	{
-		FConfigFile* BaseConfig = GConfig->FindConfigFileWithBaseName(IniName);
 		// If base ini, try to use an existing GConfig file to set the config directories instead of assuming defaults
-
+		FConfigFile* BaseConfig = GConfig->FindConfigFileWithBaseName(IniName);
 		if (BaseConfig)
 		{
 			if (BaseConfig->SourceEngineConfigDir.Len())
@@ -4058,6 +4078,25 @@ void ApplyCVarSettingsFromIni(const TCHAR* InSectionName, const TCHAR* InIniFile
 	}
 }
 
+void ForEachCVarInSectionFromIni(const TCHAR* InSectionName, const TCHAR* InIniFilename, TFunction<void(IConsoleVariable* CVar, const FString& KeyString, const FString& ValueString)> InEvaluationFunction)
+{
+	if (FConfigSection* Section = GConfig->GetSectionPrivate(InSectionName, false, true, InIniFilename))
+	{
+		for (FConfigSectionMap::TConstIterator It(*Section); It; ++It)
+		{
+			const FString& KeyString = It.Key().GetPlainNameString();
+			const FString& ValueString = ConvertValueFromHumanFriendlyValue(*It.Value().GetValue());
+
+			IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*KeyString);
+			if (CVar)
+			{
+				InEvaluationFunction(CVar, KeyString, ValueString);
+			}
+		}
+	}
+}
+
+
 void ApplyCVarSettingsGroupFromIni(const TCHAR* InSectionBaseName, int32 InGroupNumber, const TCHAR* InIniFilename, uint32 SetBy)
 {
 	// Lookup the config section for this section and group number
@@ -4177,7 +4216,7 @@ public:
 		bRecurseCheck=false;
 	}
 };
-FCVarIniHistoryHelper *IniHistoryHelper = nullptr;
+TUniquePtr<FCVarIniHistoryHelper> IniHistoryHelper;
 
 #if !UE_BUILD_SHIPPING
 class FConfigHistoryHelper
@@ -4296,39 +4335,27 @@ public:
 		Writer = nullptr;
 	}
 };
-FConfigHistoryHelper* ConfigHistoryHelper = nullptr;
+TUniquePtr<FConfigHistoryHelper> ConfigHistoryHelper;
 #endif // !UE_BUILD_SHIPPING
 
 
 void RecordApplyCVarSettingsFromIni()
 {
 	check(IniHistoryHelper == nullptr);
-	IniHistoryHelper = new FCVarIniHistoryHelper();
+	IniHistoryHelper = MakeUnique<FCVarIniHistoryHelper>();
 }
 
 void ReapplyRecordedCVarSettingsFromIni()
 {
 	// first we need to reload the inis 
-	struct FIniToReload
+	for (TPair<FString, FConfigFile>& IniPair : *GConfig)
 	{
-		FIniToReload(const FString& InGlobalName, const FString& InIniBaseName) : IniBaseName(InIniBaseName), IniGlobalName(InGlobalName) { }
-		FString IniBaseName;
-		FString IniGlobalName;
-	};
-	TArray<FIniToReload> InisToReloadList;
-	InisToReloadList.Empty(GConfig->Num());
-	for (const auto& GlobalIni : *GConfig)
-	{
-		InisToReloadList.Add(FIniToReload(GlobalIni.Key, GlobalIni.Value.Name.ToString()));
-	}
-
-	for (const FIniToReload& IniToReload : InisToReloadList)
-	{
-		FString TempGlobalName = IniToReload.IniGlobalName;
-		GConfig->LoadGlobalIniFile(TempGlobalName, *IniToReload.IniBaseName, nullptr, true);
-		if (TempGlobalName.Compare(IniToReload.IniGlobalName, ESearchCase::IgnoreCase) != 0)
+		FConfigFile& ConfigFile = IniPair.Value;
+		if (ConfigFile.Num() > 0)
 		{
-			UE_LOG(LogConfig, Warning, TEXT("Tried to reload ini %s final name was %s"), *IniToReload.IniGlobalName, *TempGlobalName );
+			FName BaseName = ConfigFile.Name;
+			// Must call LoadLocalIniFile (NOT LoadGlobalIniFile) to preserve original enginedir/sourcedir for plugins
+			verify(FConfigCacheIni::LoadLocalIniFile(ConfigFile, *BaseName.ToString(), true, nullptr, true));
 		}
 	}
 
@@ -4339,7 +4366,6 @@ void ReapplyRecordedCVarSettingsFromIni()
 void DeleteRecordedCVarSettingsFromIni()
 {
 	check(IniHistoryHelper != nullptr);
-	delete IniHistoryHelper;
 	IniHistoryHelper = nullptr;
 }
 
@@ -4347,7 +4373,7 @@ void RecordConfigReadsFromIni()
 {
 #if !UE_BUILD_SHIPPING
 	check(ConfigHistoryHelper == nullptr);
-	ConfigHistoryHelper = new FConfigHistoryHelper();
+	ConfigHistoryHelper = MakeUnique<FConfigHistoryHelper>();
 #endif
 }
 
@@ -4363,7 +4389,6 @@ void DeleteRecordedConfigReadsFromIni()
 {
 #if !UE_BUILD_SHIPPING
 	check(ConfigHistoryHelper);
-	delete ConfigHistoryHelper;
 	ConfigHistoryHelper = nullptr;
 #endif
 }

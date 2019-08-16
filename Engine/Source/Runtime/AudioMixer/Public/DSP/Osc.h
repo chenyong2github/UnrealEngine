@@ -49,6 +49,8 @@ namespace Audio
 
 		FOscFrequencyMod(const FOscFrequencyMod& Other)
 			: Scale(Other.Scale)
+			, ExternalMod(Other.ExternalMod)
+			, Mod(Other.Mod)
 			, Detune(Other.Detune)
 			, PitchBend(Other.PitchBend)
 			, Octave(Other.Octave)
@@ -100,8 +102,12 @@ namespace Audio
 		// Returns the frequency of the oscillator
 		float GetFrequency() const { return BaseFreq; }
 
+		// Returns the frequency of the oscillator
+		float GetGain() const { return Gain; }
+
 		void SetCents(const float InCents);
 		void SetOctave(const float InOctave);
+		void SetSampleRate(const float InSampleRate);
 		void SetSemitones(const float InSemiTone);
 		void SetDetune(const float InDetune);
 		void SetPitchBend(const float InPitchBend);

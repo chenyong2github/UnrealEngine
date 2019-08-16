@@ -26,7 +26,7 @@ tags:Materials
 (#MaterialExpressionNodesandNetworks)
 ## 材质表达式节点与网络
 
-关于材质，您需要知道的第一件也是最重要的事情就是，它们并非通过代码，而是通过材质编辑器中的可视脚本节点（称为材质表达式）所组成的网络来构建。每一个节点都包含 [HLSL 代码](http://en.wikipedia.org/wiki/High_Level_Shader_Language) 片段，并用于执行特定的任务。这意味着当您构建材质时，您是在通过可视化脚本编程来创建 HLSL 代码。
+关于材质，您需要知道的第一件也是最重要的事情就是，它们并非通过代码，而是通过材质编辑器中的可视化脚本节点（称为材质表达式）所组成的网络来构建。每一个节点都包含 [HLSL 代码](http://en.wikipedia.org/wiki/High_Level_Shader_Language) 片段，并用于执行特定的任务。这意味着当您构建材质时，您是在通过可视化脚本编程来创建 HLSL 代码。
 
 [REGION:fullwidth]
 ![](WoodFloor.png)

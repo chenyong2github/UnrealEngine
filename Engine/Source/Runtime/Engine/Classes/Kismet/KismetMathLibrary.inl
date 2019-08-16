@@ -590,9 +590,9 @@ float UKismetMathLibrary::Atan(float A)
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::Atan2(float A, float B)
+float UKismetMathLibrary::Atan2(float Y, float X)
 {
-	return FMath::Atan2(A, B);
+	return FMath::Atan2(Y, X);
 }	
 
 KISMET_MATH_FORCEINLINE
@@ -632,9 +632,9 @@ float UKismetMathLibrary::DegAtan(float A)
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::DegAtan2(float A, float B)
+float UKismetMathLibrary::DegAtan2(float Y, float X)
 {
-	return (180.f)/PI * FMath::Atan2(A, B);
+	return (180.f)/PI * FMath::Atan2(Y, X);
 }
 
 KISMET_MATH_FORCEINLINE
@@ -2080,6 +2080,12 @@ KISMET_MATH_FORCEINLINE
 FTimespan UKismetMathLibrary::Subtract_DateTimeDateTime(FDateTime A, FDateTime B)
 {
 	return A - B;
+}
+
+KISMET_MATH_FORCEINLINE
+FDateTime UKismetMathLibrary::Add_DateTimeDateTime(FDateTime A, FDateTime B)
+{
+	return A + B;
 }
 
 KISMET_MATH_FORCEINLINE

@@ -41,11 +41,13 @@ static FAutoConsoleVariableRef CVarRayTracingStochasticRecLightIsTextureImportan
 	TEXT("Enable importance sampling for rect light evaluation (default = 1)")
 );
 
-bool ShouldRenderRayTracingStochasticRectLight(const FLightSceneInfo& LightSceneInfo)
+bool ShouldRenderRayTracingStochasticRectLight(const FLightSceneInfo& LightInfo)
 {
-	return IsRayTracingEnabled() && GRayTracingStochasticRectLight == 1
-		&& LightSceneInfo.Proxy->CastsRaytracedShadow()
-		&& LightSceneInfo.Proxy->GetLightType() == LightType_Rect;
+	return IsRayTracingEnabled() 
+		&& GRayTracingStochasticRectLight == 1 
+		&& GetForceRayTracingEffectsCVarValue() != 0
+		&& LightInfo.Proxy->CastsRaytracedShadow()
+		&& LightInfo.Proxy->GetLightType() == LightType_Rect;
 }
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FRectLightData, )
@@ -117,7 +119,7 @@ public:
 		FRWBuffer& MipTree
 	)
 	{
-		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 
 		SetShaderValue(RHICmdList, ShaderRHI, DimensionsParameter, Dimensions);
 		SetShaderValue(RHICmdList, ShaderRHI, MipLevelParameter, MipLevel);
@@ -132,9 +134,9 @@ public:
 		EResourceTransitionAccess TransitionAccess,
 		EResourceTransitionPipeline TransitionPipeline,
 		FRWBuffer& MipTree,
-		FComputeFenceRHIParamRef Fence)
+		FRHIComputeFence* Fence)
 	{
-		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 
 		MipTreeParameter.UnsetUAV(RHICmdList, ShaderRHI);
 		RHICmdList.TransitionResource(TransitionAccess, TransitionPipeline, MipTree.UAV, Fence);
@@ -257,20 +259,20 @@ public:
 	void Dispatch(
 		FRHICommandListImmediate& RHICmdList,
 		const FRayTracingScene& RayTracingScene,
-		FUniformBufferRHIParamRef ViewUniformBuffer,
-		FUniformBufferRHIParamRef SceneTexturesUniformBuffer,
-		FUniformBufferRHIParamRef RectLightUniformBuffer,
-		FUnorderedAccessViewRHIParamRef LuminanceUAV,
-		FUnorderedAccessViewRHIParamRef RayDistanceUAV,
+		FRHIUniformBuffer* ViewUniformBuffer,
+		FRHIUniformBuffer* SceneTexturesUniformBuffer,
+		FRHIUniformBuffer* RectLightUniformBuffer,
+		FRHIUnorderedAccessView* LuminanceUAV,
+		FRHIUnorderedAccessView* RayDistanceUAV,
 		uint32 Width, uint32 Height
 	)
 	{
 		FRayTracingPipelineStateInitializer Initializer;
 
-		FRayTracingShaderRHIParamRef RayGenShaderTable[] = { GetRayTracingShader() };
+		FRHIRayTracingShader* RayGenShaderTable[] = { GetRayTracingShader() };
 		Initializer.SetRayGenShaderTable(RayGenShaderTable);
 
-		FRHIRayTracingPipelineState* Pipeline = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(Initializer); // #dxr_todo: this should be done once at load-time and cached
+		FRayTracingPipelineState* Pipeline = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(RHICmdList, Initializer);
 
 		FRayTracingShaderBindingsWriter GlobalResources;
 		GlobalResources.Set(TLASParameter, RayTracingScene.RayTracingSceneRHI->GetShaderResourceView());
@@ -358,7 +360,7 @@ public:
 		const FRWBuffer& MipTree,
 		const FIntVector Dimensions)
 	{
-		const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = GetPixelShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
 		SetShaderValue(RHICmdList, ShaderRHI, DimensionsParameter, Dimensions);
@@ -398,18 +400,16 @@ void FDeferredShadingSceneRenderer::VisualizeRectLightMipTree(
 	const auto ShaderMap = GetGlobalShaderMap(View.FeatureLevel);
 	TShaderMapRef<FPostProcessVS> VertexShader(ShaderMap);
 	TShaderMapRef<FVisualizeRectLightMipTreePS> PixelShader(ShaderMap);
-	FTextureRHIParamRef RenderTargets[2] =
+	FRHITexture* RenderTargets[2] =
 	{
 		SceneContext.GetSceneColor()->GetRenderTargetItem().TargetableTexture,
 		RectLightMipTreeRT->GetRenderTargetItem().TargetableTexture
 	};
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	SetRenderTargets(RHICmdList, 2, RenderTargets, SceneContext.GetSceneDepthSurface(), ESimpleRenderTargetMode::EExistingColorAndDepth, FExclusiveDepthStencil::DepthRead_StencilNop);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	FRHIRenderPassInfo RenderPassInfo(2, RenderTargets, ERenderTargetActions::Load_Store);
+	RHICmdList.BeginRenderPass(RenderPassInfo, TEXT("RectLightMipTree Visualization"));
 
 	// PSO definition
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
-	SceneContext.BeginRenderingSceneColor(RHICmdList, ESimpleRenderTargetMode::EExistingColorAndDepth, FExclusiveDepthStencil::DepthRead_StencilWrite, true);
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 	GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_One>::GetRHI();
 	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
@@ -436,16 +436,14 @@ void FDeferredShadingSceneRenderer::VisualizeRectLightMipTree(
 		SceneContext.GetBufferSizeXY(),
 		*VertexShader);
 	ResolveSceneColor(RHICmdList);
+	RHICmdList.EndRenderPass();
 	GVisualizeTexture.SetCheckPoint(RHICmdList, RectLightMipTreeRT);
 
 	// Transition to compute
 	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, RectLightMipTree.UAV);
-
-	ResolveSceneColor(RHICmdList);
-	SceneContext.FinishRenderingSceneColor(RHICmdList);
 }
 
-void FDeferredShadingSceneRenderer::PrepareRayTracingRectLight(const FViewInfo& View, TArray<FRayTracingShaderRHIParamRef>& OutRayGenShaders)
+void FDeferredShadingSceneRenderer::PrepareRayTracingRectLight(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
 	// Declare all RayGen shaders that require material closest hit shaders to be bound
 
@@ -457,7 +455,7 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingRectLight(const FViewInfo& 
 }
 
 template <int TextureImportanceSampling>
-void RenderRayTracingRectLightInternal(
+void FDeferredShadingSceneRenderer::RenderRayTracingRectLightInternal(
 	FRHICommandListImmediate& RHICmdList,
 	const TArray<FViewInfo>& Views,
 	const FLightSceneInfo& RectLightSceneInfo,
@@ -484,6 +482,16 @@ void RenderRayTracingRectLightInternal(
 		}
 	}
 
+#if 0
+	// Debug visualization
+	if (RectLightSceneProxy->SourceTexture)
+	{
+		VisualizeRectLightMipTree(RHICmdList, Views[0],
+			RectLightSceneProxy->RayTracingData->RectLightMipTree,
+			RectLightSceneProxy->RayTracingData->RectLightMipTreeDimensions);
+	}
+#endif
+
 	FLightShaderParameters LightShaderParameters;
 	RectLightSceneProxy->GetLightShaderParameters(LightShaderParameters);
 
@@ -497,7 +505,7 @@ void RenderRayTracingRectLightInternal(
 	RectLightData.dPdv = FVector(WorldToLight.M[0][2], WorldToLight.M[1][2], WorldToLight.M[2][2]);
 	RectLightData.Color = LightShaderParameters.Color / 2.0;
 
-	// #dxr_todo: Ray traced textured area lights are 1.5X brighter than those in lit mode.
+	// #dxr_todo: JIRA Ray traced textured area lights are 1.5X brighter than those in lit mode.
 	if (RectLightSceneProxy->HasSourceTexture())
 	{
 		RectLightData.Color *= 2.0 / 3.0;

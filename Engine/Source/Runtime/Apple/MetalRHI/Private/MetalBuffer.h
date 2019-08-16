@@ -12,19 +12,21 @@
 struct FMetalPooledBufferArgs
 {
     FMetalPooledBufferArgs() : Device(nil), Size(0), Flags(0), Storage(mtlpp::StorageMode::Shared) {}
-    
-    FMetalPooledBufferArgs(mtlpp::Device InDevice, uint32 InSize, uint32 InFlags, mtlpp::StorageMode InStorage)
-    : Device(InDevice)
-    , Size(InSize)
+	
+    FMetalPooledBufferArgs(mtlpp::Device InDevice, uint32 InSize, uint32 InFlags, mtlpp::StorageMode InStorage, mtlpp::CpuCacheMode InCpuCacheMode = mtlpp::CpuCacheMode::DefaultCache)
+	: Device(InDevice)
+	, Size(InSize)
     , Flags(InFlags)
-    , Storage(InStorage)
-    {
-    }
-    
-    mtlpp::Device Device;
-    uint32 Size;
+	, Storage(InStorage)
+	, CpuCacheMode(InCpuCacheMode)
+	{
+	}
+	
+	mtlpp::Device Device;
+	uint32 Size;
     uint32 Flags;
-    mtlpp::StorageMode Storage;
+	mtlpp::StorageMode Storage;
+	mtlpp::CpuCacheMode CpuCacheMode;
 };
 
 class FMetalSubBufferHeap
@@ -42,7 +44,7 @@ public:
     NSUInteger     GetSize() const;
     NSUInteger     GetUsedSize() const;
 	NSUInteger	 MaxAvailableSize() const;
-    int64     NumCurrentAllocations() const;
+	int64     NumCurrentAllocations() const;
     bool     CanAllocateSize(NSUInteger Size) const;
 
     void SetLabel(const ns::String& label);
@@ -50,7 +52,7 @@ public:
     FMetalBuffer NewBuffer(NSUInteger length);
     mtlpp::PurgeableState SetPurgeableState(mtlpp::PurgeableState state);
 	void FreeRange(ns::Range const& Range);
-    
+
     void SetOwner(ns::Range const& Range, FMetalRHIBuffer* Owner);
 
 private:
@@ -62,7 +64,7 @@ private:
     };
     
 	FCriticalSection& PoolMutex;
-    int64 volatile OutstandingAllocs;
+	int64 volatile OutstandingAllocs;
 	NSUInteger MinAlign;
 	NSUInteger UsedSize;
 	mtlpp::Buffer ParentBuffer;
@@ -113,7 +115,7 @@ public:
     NSUInteger     GetSize() const;
     NSUInteger     GetUsedSize() const;
 	NSUInteger	 GetFreeSize() const;
-    int64     NumCurrentAllocations() const;
+	int64     NumCurrentAllocations() const;
     bool     CanAllocateSize(NSUInteger Size) const;
 
     void SetLabel(const ns::String& label);
@@ -125,7 +127,7 @@ public:
 private:
 	NSUInteger MinAlign;
     NSUInteger BlockSize;
-    int64 volatile OutstandingAllocs;
+	int64 volatile OutstandingAllocs;
 	int64 volatile UsedSize;
 	mtlpp::Buffer ParentBuffer;
 	mutable mtlpp::Heap ParentHeap;
@@ -404,7 +406,7 @@ class FMetalResourceHeap
 		/** Number of texture usage types */
 		EMetalHeapTextureUsageNum = 2
 	};
-
+    
     enum UsageTypes
     {
         UsageStatic,
@@ -443,13 +445,13 @@ private:
 	FCriticalSection Mutex;
 	FMetalCommandQueue* Queue;
 	
-    /** Small allocations (<= 4KB) are made from magazine allocators that use sub-ranges of a buffer */
+	/** Small allocations (<= 4KB) are made from magazine allocators that use sub-ranges of a buffer */
     TArray<FMetalSubBufferMagazine*> SmallBuffers[NumUsageTypes][NumAllocTypes][NumMagazineSizes];
-    
-    /** Typical allocations (4KB - 4MB) are made from heap allocators that use sub-ranges of a buffer */
-    /** There are two alignment categories for heaps - 16b for Vertes/Index data and 256b for constant data (macOS-only) */
-    TArray<FMetalSubBufferHeap*> BufferHeaps[NumUsageTypes][NumAllocTypes][NumHeapSizes];
 
+	/** Typical allocations (4KB - 4MB) are made from heap allocators that use sub-ranges of a buffer */
+	/** There are two alignment categories for heaps - 16b for Vertes/Index data and 256b for constant data (macOS-only) */
+    TArray<FMetalSubBufferHeap*> BufferHeaps[NumUsageTypes][NumAllocTypes][NumHeapSizes];
+	
 	/** Larger buffers (up-to 32MB) that are subject to bucketing & pooling rather than sub-allocation */
 	FMetalBufferPool Buffers[NumAllocTypes];
 #if PLATFORM_MAC // All managed buffers are bucketed & pooled rather than sub-allocated to avoid memory consistency complexities

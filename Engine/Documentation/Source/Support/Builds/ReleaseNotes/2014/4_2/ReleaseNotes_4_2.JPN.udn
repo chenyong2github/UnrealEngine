@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3810467
+INTSourceChangelist:3810467
 Title:アンリアル エンジン 4.2 リリースノート
 Crumbs:%ROOT%, Support/Builds
 Description:
@@ -50,8 +50,8 @@ QA_APPROVED_UE4_BUILD_MINIMUM
 ![](vehicleProps2.png)(w:935)
 
 * ドキュメントはこのページを開いてください。
-	* [車両コンテンツ ガイド](https://docs.unrealengine.com/latest/INT/Engine/Physics/Vehicles/VehcileContentCreation)
-	* [車両セットアップ ガイド](https://docs.unrealengine.com/latest/INT/Engine/Physics/Vehicles/VehicleUserGuide)
+	* [車両コンテンツ ガイド](Engine/Physics/Vehicles/VehicleContentCreation)
+	* [車両セットアップ ガイド](Engine/Physics/Vehicles/VehicleUserGuide)
 
 #### New:カメラ アニメーション システム
 **CameraAnim** がアンリアル・エンジン 4 にサポートされました！この機能は、アンリアル・エンジン 3 のカメラ アニメーションと非常によく似ていますが、ブループリントのためのサポートが拡張されています。
@@ -281,7 +281,7 @@ GitHub を仕事の拠点にしているデベロッパーが、Windows XP に�
 
 **オンライン マニュアル**
 * 新規:[ビークル設定ガイド](Engine/Physics/Vehicles/VehicleUserGuide) - アンリアル・エンジン 4 で車両をセットアップする方法について。
-* 新規:[ビークル コンテンツ ガイド](Engine/Physics/Vehicles/VehcileContentCreation) - 車両のためのアート コンテンツをセットアップします。
+* 新規:[ビークル コンテンツ ガイド](Engine/Physics/Vehicles/VehicleContentCreation) - 車両のためのアート コンテンツをセットアップします。
 * 新規:[パーティクル ユーザー ガイド](Engine/Rendering/ParticleSystems/UserGuide) - カスケードのユーザーガイドを更新したものです。
 * テクスチャ ペインティング - エディタ内でテクスチャと頂点をペイントします。
 * [オーディオに関するドキュメントの更新](Engine/Audio)

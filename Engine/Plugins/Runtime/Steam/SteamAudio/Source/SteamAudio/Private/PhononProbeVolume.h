@@ -38,14 +38,14 @@ struct FBakedDataInfo
 	int32 Size;
 };
 
-inline bool operator==(const FBakedDataInfo& lhs, const FBakedDataInfo& rhs)
+inline bool operator==(const FBakedDataInfo& Lhs, const FBakedDataInfo& Rhs)
 {
-	return lhs.Name == rhs.Name && lhs.Size == rhs.Size;
+	return Lhs.Name == Rhs.Name && Lhs.Size == Rhs.Size;
 }
 
-inline bool operator<(const FBakedDataInfo& lhs, const FBakedDataInfo& rhs)
+inline bool operator<(const FBakedDataInfo& Lhs, const FBakedDataInfo& Rhs)
 {
-	return lhs.Name < rhs.Name;
+	return Lhs.Name.LexicalLess(Rhs.Name);
 }
 
 /**

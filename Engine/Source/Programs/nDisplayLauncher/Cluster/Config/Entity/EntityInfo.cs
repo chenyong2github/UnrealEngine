@@ -29,7 +29,7 @@ namespace nDisplayLauncher.Cluster.Config.Entity
 
 		public override void InitializeFromText(string text)
 		{
-			string StrVersion = Parser.GetStringValue("version", text);
+			string StrVersion = Parser.GetStringValue(text, "version");
 			Version = ConfigurationVersionHelpers.FromString(StrVersion);
 		}
 	}

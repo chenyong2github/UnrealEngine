@@ -18,6 +18,11 @@
 
 #if CONTROLRIG_UNDO
 
+int32 FControlRigModelPair::ArgumentSize()
+{
+	return 2;
+}
+
 void FControlRigModelPair::AppendArgumentsForAction(TArray<FString>& InOutArguments, const UControlRigModel* InModel) const
 {
 	InOutArguments.Add(InModel->Nodes()[Node].Pins[Pin].Direction == EGPD_Input ? TEXT("true") : TEXT("false"));
@@ -26,7 +31,7 @@ void FControlRigModelPair::AppendArgumentsForAction(TArray<FString>& InOutArgume
 
 void FControlRigModelPair::ConfigureFromActionArguments(const TArray<FString>& InOutArguments, int32 ArgumentIndex, const UControlRigModel* InModel)
 {
-	ensure(InOutArguments.Num() >= ArgumentIndex + 2);
+	ensure(InOutArguments.Num() >= ArgumentIndex + FControlRigModelPair::ArgumentSize());
 	bool bIsInput = InOutArguments[ArgumentIndex++] == TEXT("true");
 	const FControlRigModelPin* ExistingPin = InModel->FindPinFromPath(InOutArguments[ArgumentIndex++], bIsInput);
 	if (ExistingPin)
@@ -34,6 +39,11 @@ void FControlRigModelPair::ConfigureFromActionArguments(const TArray<FString>& I
 		Node = ExistingPin->Node;
 		Pin = ExistingPin->Index;
 	}
+}
+
+int32 FControlRigModelLink::ArgumentSize()
+{
+	return FControlRigModelPair::ArgumentSize() * 2;
 }
 
 void FControlRigModelLink::AppendArgumentsForAction(TArray<FString>& InOutArguments, const UControlRigModel* InModel) const
@@ -45,7 +55,12 @@ void FControlRigModelLink::AppendArgumentsForAction(TArray<FString>& InOutArgume
 void FControlRigModelLink::ConfigureFromActionArguments(const TArray<FString>& InOutArguments, int32 ArgumentIndex, const UControlRigModel* InModel)
 {
 	Source.ConfigureFromActionArguments(InOutArguments, ArgumentIndex, InModel);
-	Target.ConfigureFromActionArguments(InOutArguments, ArgumentIndex + 2, InModel);
+	Target.ConfigureFromActionArguments(InOutArguments, ArgumentIndex + FControlRigModelPair::ArgumentSize(), InModel);
+}
+
+int32 FControlRigModelPin::ArgumentSize()
+{
+	return 4;
 }
 
 void FControlRigModelPin::AppendArgumentsForAction(TArray<FString>& InOutArguments) const
@@ -58,7 +73,7 @@ void FControlRigModelPin::AppendArgumentsForAction(TArray<FString>& InOutArgumen
 
 void FControlRigModelPin::ConfigureFromActionArguments(const TArray<FString>& InOutArguments, int32 ArgumentIndex)
 {
-	ensure(InOutArguments.Num() >= ArgumentIndex + 3);
+	ensure(InOutArguments.Num() >= ArgumentIndex + FControlRigModelPin::ArgumentSize());
 
 	Name = *InOutArguments[ArgumentIndex++];
 	DefaultValue = InOutArguments[ArgumentIndex++];
@@ -99,7 +114,7 @@ FString FControlRigModelNode::GetPinPath(int32 InPinIndex, bool bIncludeNodeName
 
 bool FControlRigModelNode::IsMutable() const
 {
-	if (IsParameter())
+	if (!IsFunction())
 	{
 		return false;
 	}
@@ -116,7 +131,7 @@ bool FControlRigModelNode::IsMutable() const
 
 bool FControlRigModelNode::IsBeginExecution() const
 {
-	if (IsParameter())
+	if (!IsFunction())
 	{
 		return false;
 	}
@@ -133,7 +148,6 @@ bool FControlRigModelNode::IsBeginExecution() const
 
 const UStruct* FControlRigModelNode::UnitStruct() const
 {
-	ensure(ParameterType == EControlRigModelParameterType::None);
 	ensure(FunctionName != NAME_None);
 	return FindObject<UStruct>(ANY_PACKAGE, *(FunctionName.ToString()));
 }
@@ -186,14 +200,24 @@ const FControlRigModelPin* FControlRigModelNode::FindPin(const FName& InName, bo
 
 #if CONTROLRIG_UNDO
 
+int32 FControlRigModelNode::ArgumentSize()
+{
+	return 9;
+}
+
 void FControlRigModelNode::AppendArgumentsForAction(TArray<FString>& InOutArguments) const
 {
 	InOutArguments.Add(Name.ToString());
+	InOutArguments.Add(FString::FormatAsNumber((int32)NodeType));
 	InOutArguments.Add(FunctionName.ToString());
 	InOutArguments.Add(FString::FormatAsNumber((int32)ParameterType));
-	FString PositionStr;
+	FString PositionStr, SizeStr, ColorStr;
 	TBaseStructure<FVector2D>::Get()->ExportText(PositionStr, &Position, nullptr, nullptr, PPF_None, nullptr);
+	TBaseStructure<FVector2D>::Get()->ExportText(SizeStr, &Size, nullptr, nullptr, PPF_None, nullptr);
+	TBaseStructure<FLinearColor>::Get()->ExportText(ColorStr, &Color, nullptr, nullptr, PPF_None, nullptr);
 	InOutArguments.Add(PositionStr);
+	InOutArguments.Add(SizeStr);
+	InOutArguments.Add(ColorStr);
 	if (IsParameter() && Pins.Num() > 0)
 	{
 		FString DataTypeStr;
@@ -204,13 +228,16 @@ void FControlRigModelNode::AppendArgumentsForAction(TArray<FString>& InOutArgume
 	{
 		InOutArguments.Add(FString() /* parameter data type */);
 	}
+	InOutArguments.Add(Text);
 }
 
 void FControlRigModelNode::ConfigureFromActionArguments(const TArray<FString>& InOutArguments, int32 ArgumentIndex)
 {
-	ensure(InOutArguments.Num() >= ArgumentIndex + 4);
+	ensure(InOutArguments.Num() >= ArgumentIndex + FControlRigModelPin::ArgumentSize());
 
 	Name = *InOutArguments[ArgumentIndex++];
+	NodeType = (EControlRigModelNodeType)FCString::Atoi(*InOutArguments[ArgumentIndex++]);
+
 	const FString& InFunctionName = InOutArguments[ArgumentIndex++];
 	if (InFunctionName == FName(NAME_None).ToString())
 	{
@@ -223,6 +250,10 @@ void FControlRigModelNode::ConfigureFromActionArguments(const TArray<FString>& I
 
 	ParameterType = (EControlRigModelParameterType)FCString::Atoi(*InOutArguments[ArgumentIndex++]);
 	TBaseStructure<FVector2D>::Get()->ImportText(*InOutArguments[ArgumentIndex++], &Position, nullptr, EPropertyPortFlags::PPF_None, nullptr, TEXT("Vector2D"), true);
+	TBaseStructure<FVector2D>::Get()->ImportText(*InOutArguments[ArgumentIndex++], &Size, nullptr, EPropertyPortFlags::PPF_None, nullptr, TEXT("Vector2D"), true);
+	TBaseStructure<FLinearColor>::Get()->ImportText(*InOutArguments[ArgumentIndex++], &Color, nullptr, EPropertyPortFlags::PPF_None, nullptr, TEXT("LinearColor"), true);
+	ArgumentIndex++; // skip pin type
+	Text = InOutArguments[ArgumentIndex++];
 }
 
 #endif
@@ -247,6 +278,8 @@ const TArray<FControlRigModelNode>& UControlRigModel::Nodes() const
 
 TArray<FControlRigModelNode> UControlRigModel::SelectedNodes() const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	TArray<FControlRigModelNode> Nodes;
 	for (const FName& Name : _SelectedNodes)
 	{
@@ -257,6 +290,13 @@ TArray<FControlRigModelNode> UControlRigModel::SelectedNodes() const
 	return Nodes;
 }
 
+bool UControlRigModel::IsNodeSelected(const FName& InName) const
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
+	return _SelectedNodes.Contains(InName);
+}
+
 const TArray<FControlRigModelLink>& UControlRigModel::Links() const
 {
 	return _Links;
@@ -264,6 +304,8 @@ const TArray<FControlRigModelLink>& UControlRigModel::Links() const
 
 TArray<FControlRigModelPin> UControlRigModel::LinkedPins(const FControlRigModelPair& InPin) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	ensure(InPin.Node >= 0 && InPin.Node < _Nodes.Num());
 	ensure(InPin.Pin >= 0 && InPin.Pin < _Nodes[InPin.Node].Pins.Num());
 
@@ -288,6 +330,8 @@ TArray<FControlRigModelPin> UControlRigModel::LinkedPins(const FControlRigModelP
 
 TArray<FControlRigModelPin> UControlRigModel::LinkedPins(const FName& InNodeName, const FName& InPinName, bool bLookForInput) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	TArray<FControlRigModelPin> Pins;
 	const FControlRigModelPin* Pin = FindPin(InNodeName, InPinName, bLookForInput);
 	if(Pin == nullptr)
@@ -306,6 +350,8 @@ TArray<FControlRigModelPin> UControlRigModel::LinkedPins(const FName& InNodeName
 
 TArray<FControlRigModelNode> UControlRigModel::Parameters() const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	TArray<FControlRigModelNode> ParameterNodes;
 
 	for (const FControlRigModelNode& Node : _Nodes)
@@ -326,6 +372,8 @@ UControlRigModel::FModifiedEvent& UControlRigModel::OnModified()
 
 bool UControlRigModel::Clear()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (_Nodes.Num() == 0)
 	{
 		return false;
@@ -339,23 +387,28 @@ bool UControlRigModel::Clear()
 	_Nodes.Reset();
 	_Links.Reset();
 	_SelectedNodes.Reset();
-	_LastNodePositions.Reset();
 
 	return true;
 }
 
 bool UControlRigModel::IsNodeNameAvailable(const FName& InName) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	return FindNode(InName) == nullptr;
 }
 
 FName UControlRigModel::GetUniqueNodeName(const FName& InName) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	return UtilityHelpers::CreateUniqueName(InName, [this](const FName& CurName) { return IsNodeNameAvailable(CurName); });
 }
 
 const FControlRigModelNode* UControlRigModel::FindNode(const FName& InName) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	for (const FControlRigModelNode& Node : _Nodes)
 	{
 		if (Node.Name == InName)
@@ -374,6 +427,8 @@ const FControlRigModelNode* UControlRigModel::FindNode(int32 InNodeIndex) const
 
 bool UControlRigModel::AddNode(const FControlRigModelNode& InNode, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	ensure(!InNode.IsParameter() && (InNode.FunctionName != NAME_None));
 
 	FName DesiredNodeName = InNode.Name == NAME_None ? InNode.FunctionName : InNode.Name;
@@ -394,7 +449,44 @@ bool UControlRigModel::AddNode(const FControlRigModelNode& InNode, bool bUndo)
 	}
 
 	FControlRigModelNode NodeToAdd = InNode;
+	NodeToAdd.NodeType = EControlRigModelNodeType::Function;
 	NodeToAdd.Name = GetUniqueNodeName(DesiredNodeName);
+
+	struct Local
+	{
+		static void SetColorFromMetadata(FString& Metadata, FLinearColor& Color)
+		{
+			Metadata.TrimStartAndEnd();
+			FString SplitString(TEXT(" "));
+			FString Red, Green, Blue, GreenAndBlue;
+			if (Metadata.Split(SplitString, &Red, &GreenAndBlue))
+			{
+				Red.TrimEnd();
+				GreenAndBlue.TrimStart();
+				if (GreenAndBlue.Split(SplitString, &Green, &Blue))
+				{
+					Green.TrimEnd();
+					Blue.TrimStart();
+
+					float RedValue = FCString::Atof(*Red);
+					float GreenValue = FCString::Atof(*Green);
+					float BlueValue = FCString::Atof(*Blue);
+					Color = FLinearColor(RedValue, GreenValue, BlueValue);
+				}
+			}
+		}
+	};
+
+	// get the node color from its metadata
+	if (const UScriptStruct* ScriptStruct = Cast<UScriptStruct>(NodeToAdd.UnitStruct()))
+	{
+		FString NodeColorMetadata;
+		ScriptStruct->GetStringMetaDataHierarchical(UControlRig::NodeColorMetaName, &NodeColorMetadata);
+		if (!NodeColorMetadata.IsEmpty())
+		{
+			Local::SetColorFromMetadata(NodeColorMetadata, NodeToAdd.Color);
+		}
+	}
 
 	AddNodePinsForFunction(NodeToAdd);
 
@@ -419,7 +511,7 @@ bool UControlRigModel::AddNode(const FControlRigModelNode& InNode, bool bUndo)
 	int32 PreviousExecutePin = INDEX_NONE;
 
 	// if this is a mutable node let's add the begin execution and / or wire it up
-	if (NodeToAdd.UnitStruct()->IsChildOf(FRigUnitMutable::StaticStruct()))
+	if (NodeToAdd.UnitStruct()->IsChildOf(FRigUnitMutable::StaticStruct()) && bUndo)
 	{
 		float ClosestDistance = FLT_MAX;
 
@@ -472,7 +564,6 @@ bool UControlRigModel::AddNode(const FControlRigModelNode& InNode, bool bUndo)
 
 	_Nodes.Add(NodeToAdd);
 	FControlRigModelNode& AddedNode = _Nodes[NodeToAdd.Index];
-	_LastNodePositions.Add(AddedNode.Name, AddedNode.Position);
 
 	SetNodePinDefaultsForFunction(AddedNode);
 
@@ -581,11 +672,15 @@ bool UControlRigModel::AddNode(const FControlRigModelNode& InNode, bool bUndo)
 
 bool UControlRigModel::AddParameter(const FName& InName, const FEdGraphPinType& InDataType, EControlRigModelParameterType InParameterType, const FVector2D& InPosition, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	FControlRigModelNode Parameter;
 	Parameter.Name = GetUniqueNodeName(InName);
 
+	Parameter.NodeType = EControlRigModelNodeType::Parameter;
 	Parameter.ParameterType = InParameterType;
 	Parameter.Position = InPosition;
+	Parameter.Color = FLinearColor::Blue;
 
 	AddNodePinsForParameter(Parameter, InDataType);
 
@@ -626,8 +721,56 @@ bool UControlRigModel::AddParameter(const FName& InName, const FEdGraphPinType& 
 	return true;
 }
 
+bool UControlRigModel::AddComment(const FName& InName, const FString& InText, const FVector2D& InPosition, const FVector2D& InSize, const FLinearColor& InColor, bool bUndo)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
+	FControlRigModelNode Comment;
+	Comment.Name = GetUniqueNodeName(InName);
+
+	Comment.NodeType = EControlRigModelNodeType::Comment;
+	Comment.Position = InPosition;
+	Comment.Size = InSize;
+	Comment.Index = _Nodes.Num();
+	Comment.Text = InText;
+	Comment.Color = InColor;
+
+#if CONTROLRIG_UNDO
+	FAction Action;
+	if (bUndo)
+	{
+		CurrentActions.Add(&Action);
+		Action.Type = EControlRigModelNotifType::NodeAdded;
+		Action.Title = FString::Printf(TEXT("Added Comment '%s'"), *Comment.Name.ToString());
+		Comment.AppendArgumentsForAction(Action.Arguments);
+	}
+#endif
+
+	_Nodes.Add(Comment);
+	FControlRigModelNode& AddedNode = _Nodes.Last();
+
+	ResetCycleCheck();
+
+	if (_ModifiedEvent.IsBound())
+	{
+		_ModifiedEvent.Broadcast(this, EControlRigModelNotifType::NodeAdded, &AddedNode);
+	}
+
+#if CONTROLRIG_UNDO
+	if (bUndo)
+	{
+		CurrentActions.Pop();
+		PushAction(Action);
+	}
+#endif
+
+	return true;
+}
+
 bool UControlRigModel::RemoveNode(const FName& InName, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	const FControlRigModelNode* Node = FindNode(InName);
 	if(Node != nullptr)
 	{
@@ -749,6 +892,8 @@ bool UControlRigModel::RemoveNode(const FName& InName, bool bUndo)
 
 bool UControlRigModel::SetNodePosition(const FName& InName, const FVector2D& InPosition, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	const FControlRigModelNode* Node = FindNode(InName);
 	if(Node != nullptr)
 	{
@@ -759,15 +904,20 @@ bool UControlRigModel::SetNodePosition(const FName& InName, const FVector2D& InP
 			CurrentActions.Add(&Action);
 			Action.Title = FString::Printf(TEXT("Moved Node '%s'"), *Node->Name.ToString());
 			Action.Type = EControlRigModelNotifType::NodeChanged;
-
-			const FVector2D* PreviousPosition = _LastNodePositions.Find(Node->Name);
-			if (PreviousPosition)
-			{
-				_Nodes[Node->Index].Position = *PreviousPosition;
-			}
 			Node->AppendArgumentsForAction(Action.Arguments);
 		}
 #endif
+
+		if ((InPosition - Node->Position).IsNearlyZero())
+		{
+#if CONTROLRIG_UNDO
+			if (bUndo)
+			{
+				CurrentActions.Pop();
+			}
+#endif
+			return false;
+		}
 
 		_Nodes[Node->Index].Position = InPosition;
 
@@ -775,7 +925,119 @@ bool UControlRigModel::SetNodePosition(const FName& InName, const FVector2D& InP
 		if (bUndo)
 		{
 			Node->AppendArgumentsForAction(Action.Arguments);
-			_LastNodePositions.Add(Node->Name, Node->Position);
+		}
+#endif
+
+		if (_ModifiedEvent.IsBound())
+		{
+			_ModifiedEvent.Broadcast(this, EControlRigModelNotifType::NodeChanged, Node);
+		}
+
+#if CONTROLRIG_UNDO
+		if (bUndo)
+		{
+			CurrentActions.Pop();
+			PushAction(Action);
+		}
+#endif
+
+		return true;
+	}
+	return false;
+}
+
+bool UControlRigModel::SetNodeSize(const FName& InName, const FVector2D& InSize, bool bUndo)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
+	const FControlRigModelNode* Node = FindNode(InName);
+	if (Node != nullptr)
+	{
+#if CONTROLRIG_UNDO
+		FAction Action;
+		if (bUndo)
+		{
+			CurrentActions.Add(&Action);
+			Action.Title = FString::Printf(TEXT("Resized Node '%s'"), *Node->Name.ToString());
+			Action.Type = EControlRigModelNotifType::NodeChanged;
+			Node->AppendArgumentsForAction(Action.Arguments);
+		}
+#endif
+
+		if ((InSize - Node->Size).IsNearlyZero())
+		{
+#if CONTROLRIG_UNDO
+			if (bUndo)
+			{
+				CurrentActions.Pop();
+			}
+#endif
+			return false;
+		}
+
+		_Nodes[Node->Index].Size = InSize;
+
+#if CONTROLRIG_UNDO
+		if (bUndo)
+		{
+			Node->AppendArgumentsForAction(Action.Arguments);
+		}
+#endif
+
+		if (_ModifiedEvent.IsBound())
+		{
+			_ModifiedEvent.Broadcast(this, EControlRigModelNotifType::NodeChanged, Node);
+		}
+
+#if CONTROLRIG_UNDO
+		if (bUndo)
+		{
+			CurrentActions.Pop();
+			PushAction(Action);
+		}
+#endif
+
+		return true;
+	}
+	return false;
+}
+
+bool UControlRigModel::SetNodeColor(const FName& InName, const FLinearColor& InColor, bool bUndo)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
+	const FControlRigModelNode* Node = FindNode(InName);
+	if (Node != nullptr)
+	{
+#if CONTROLRIG_UNDO
+		FAction Action;
+		if (bUndo)
+		{
+			CurrentActions.Add(&Action);
+			Action.Title = FString::Printf(TEXT("Changed Color of Node '%s'"), *Node->Name.ToString());
+			Action.Type = EControlRigModelNotifType::NodeChanged;
+
+			Node->AppendArgumentsForAction(Action.Arguments);
+		}
+#endif
+
+		if (FVector4(InColor - Node->Color).IsNearlyZero3())
+		{
+#if CONTROLRIG_UNDO
+			if (bUndo)
+			{
+				CurrentActions.Pop();
+			}
+#endif
+			return false;
+		}
+
+		_Nodes[Node->Index].Color = InColor;
+
+#if CONTROLRIG_UNDO
+		if (bUndo)
+		{
+			Node->AppendArgumentsForAction(Action.Arguments);
 		}
 #endif
 
@@ -799,6 +1061,8 @@ bool UControlRigModel::SetNodePosition(const FName& InName, const FVector2D& InP
 
 bool UControlRigModel::SetParameterType(const FName& InName, EControlRigModelParameterType InParameterType, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	ensure(InParameterType != EControlRigModelParameterType::None);
 
 	const FControlRigModelNode* Node = FindNode(InName);
@@ -847,8 +1111,60 @@ bool UControlRigModel::SetParameterType(const FName& InName, EControlRigModelPar
 	return false;
 }
 
+bool UControlRigModel::SetCommentText(const FName& InName, const FString& InText, bool bUndo)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
+	const FControlRigModelNode* Node = FindNode(InName);
+	if (Node != nullptr)
+	{
+		ensure(Node->IsComment());
+
+		if (_Nodes[Node->Index].Text != InText)
+		{
+#if CONTROLRIG_UNDO
+			FAction Action;
+			if (bUndo)
+			{
+				CurrentActions.Add(&Action);
+				Action.Title = FString::Printf(TEXT("Set Comment Text for Node '%s'"), *Node->Name.ToString());
+				Action.Type = EControlRigModelNotifType::NodeChanged;
+				Node->AppendArgumentsForAction(Action.Arguments);
+			}
+#endif
+
+			_Nodes[Node->Index].Text = InText;
+
+#if CONTROLRIG_UNDO
+			if (bUndo)
+			{
+				Node->AppendArgumentsForAction(Action.Arguments);
+			}
+#endif
+
+			if (_ModifiedEvent.IsBound())
+			{
+				_ModifiedEvent.Broadcast(this, EControlRigModelNotifType::NodeChanged, Node);
+			}
+
+#if CONTROLRIG_UNDO
+			if (bUndo)
+			{
+				CurrentActions.Pop();
+				PushAction(Action);
+			}
+#endif
+
+			return true;
+		}
+	}
+	return false;
+}
+
 bool UControlRigModel::RenameNode(const FName& InOldNodeName, const FName& InNewNodeName, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	FControlRigModelNode* Node = (FControlRigModelNode*)FindNode(InOldNodeName);
 	if (Node == nullptr)
 	{
@@ -922,6 +1238,8 @@ bool UControlRigModel::RenameNode(const FName& InOldNodeName, const FName& InNew
 
 bool UControlRigModel::SelectNode(const FName& InName, bool bInSelected)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (bIsSelecting)
 	{
 		return false;
@@ -937,7 +1255,6 @@ bool UControlRigModel::SelectNode(const FName& InName, bool bInSelected)
 			if(SelectedIndex == INDEX_NONE)
 			{
 				_SelectedNodes.Add(InName);
-				_LastNodePositions.Add(InName, Node->Position);
 				if (_ModifiedEvent.IsBound())
 				{
 					_ModifiedEvent.Broadcast(this, EControlRigModelNotifType::NodeSelected, Node);
@@ -969,6 +1286,8 @@ bool UControlRigModel::AreCompatibleTypes(const FEdGraphPinType& A, const FEdGra
 
 bool UControlRigModel::PrepareCycleCheckingForPin(int32 InNodeIndex, int32 InPinIndex)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	ensure(InNodeIndex >= 0 && InNodeIndex < _Nodes.Num());
 	ensure(InPinIndex >= 0 && InPinIndex < _Nodes[InNodeIndex].Pins.Num());
 
@@ -1022,6 +1341,8 @@ void UControlRigModel::ResetCycleCheck()
 
 bool UControlRigModel::CanLink(int32 InSourceNodeIndex, int32 InSourcePinIndex, int32 InTargetNodeIndex, int32 InTargetPinIndex, FString* OutFailureReason)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	ensure(InSourceNodeIndex >= 0 && InSourceNodeIndex < _Nodes.Num());
 	ensure(InTargetNodeIndex >= 0 && InTargetNodeIndex < _Nodes.Num());
 	ensure(InSourcePinIndex >= 0 && InSourcePinIndex < _Nodes[InSourceNodeIndex].Pins.Num());
@@ -1168,6 +1489,8 @@ bool UControlRigModel::CanLink(int32 InSourceNodeIndex, int32 InSourcePinIndex, 
 
 bool UControlRigModel::MakeLink(int32 InSourceNodeIndex, int32 InSourcePinIndex, int32 InTargetNodeIndex, int32 InTargetPinIndex, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	ensure(InSourceNodeIndex >= 0 && InSourceNodeIndex < _Nodes.Num());
 	ensure(InTargetNodeIndex >= 0 && InTargetNodeIndex < _Nodes.Num());
 	ensure(InSourcePinIndex >= 0 && InSourcePinIndex < _Nodes[InSourceNodeIndex].Pins.Num());
@@ -1242,6 +1565,8 @@ bool UControlRigModel::MakeLink(int32 InSourceNodeIndex, int32 InSourcePinIndex,
 
 bool UControlRigModel::BreakLink(int32 InSourceNodeIndex, int32 InSourcePinIndex, int32 InTargetNodeIndex, int32 InTargetPinIndex, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	for (int32 LinkIndex = 0; LinkIndex < _Links.Num(); LinkIndex++)
 	{
 		FControlRigModelLink Link = _Links[LinkIndex];
@@ -1301,6 +1626,8 @@ bool UControlRigModel::BreakLink(int32 InSourceNodeIndex, int32 InSourcePinIndex
 
 bool UControlRigModel::BreakLinks(int32 InNodeIndex, int32 InPinIndex, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 #if CONTROLRIG_UNDO
 	FAction MainAction;
 	if (bUndo)
@@ -1381,6 +1708,8 @@ bool UControlRigModel::BreakLinks(int32 InNodeIndex, int32 InPinIndex, bool bUnd
 
 const FControlRigModelPin* UControlRigModel::FindPin(const FName& InNodeName, const FName& InPinName, bool bLookForInput) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	const FControlRigModelNode* Node = FindNode(InNodeName);
 	if (Node != nullptr)
 	{
@@ -1398,6 +1727,8 @@ const FControlRigModelPin* UControlRigModel::FindPin(const FControlRigModelPair&
 
 const FControlRigModelPin* UControlRigModel::FindSubPin(const FControlRigModelPin* InParentPin, const FName& InSubPinName) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (InParentPin->SubPins.Num() == 0)
 	{
 		return nullptr;
@@ -1430,6 +1761,8 @@ const FControlRigModelPin* UControlRigModel::FindParentPin(const FControlRigMode
 
 const FControlRigModelPin* UControlRigModel::FindPinFromPath(const FString& InPinPath, bool bLookForInput) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	FString Left, Right;
 	if (!InPinPath.Split(TEXT("."), &Left, &Right))
 	{
@@ -1447,6 +1780,8 @@ const FControlRigModelLink* UControlRigModel::FindLink(int32 InLinkIndex) const
 
 void UControlRigModel::SplitPinPath(const FString& InPinPath, FString& OutLeft, FString& OutRight, bool bInSplitForNodeName)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	FString Left, Right;
 	int32 PeriodPos = INDEX_NONE;
 	int32 BracketPos = INDEX_NONE;
@@ -1499,6 +1834,8 @@ void UControlRigModel::SplitPinPath(const FString& InPinPath, FString& OutLeft, 
 
 const FControlRigModelPin* UControlRigModel::GetParentPin(const FControlRigModelPair& InPin) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	ensure(InPin.Node >= 0 && InPin.Node < _Nodes.Num());
 	ensure(InPin.Pin >= 0 && InPin.Pin < _Nodes[InPin.Node].Pins.Num());
 	const FControlRigModelNode& Node = _Nodes[InPin.Node];
@@ -1518,6 +1855,8 @@ const FControlRigModelPin* UControlRigModel::GetParentPin(const FControlRigModel
 
 FString UControlRigModel::GetPinPath(const FControlRigModelPair& InPin, bool bIncludeNodeName) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	ensure(InPin.Node >= 0 && InPin.Node < _Nodes.Num());
 	ensure(InPin.Pin >= 0 && InPin.Pin < _Nodes[InPin.Node].Pins.Num());
 	const FControlRigModelNode& Node = _Nodes[InPin.Node];
@@ -1526,6 +1865,8 @@ FString UControlRigModel::GetPinPath(const FControlRigModelPair& InPin, bool bIn
 
 bool UControlRigModel::GetPinDefaultValue(const FName& InNodeName, const FName& InPinName, FString& OutValue) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	const FControlRigModelPin* Pin = FindPin(InNodeName, InPinName, true);
 	if (Pin != nullptr)
 	{
@@ -1543,6 +1884,8 @@ bool UControlRigModel::GetPinDefaultValue(const FName& InNodeName, const FName& 
 
 bool UControlRigModel::GetPinDefaultValue(const FControlRigModelPair& InPin, FString& OutValue) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	ensure(InPin.Node >= 0 && InPin.Node < _Nodes.Num());
 	ensure(InPin.Pin >= 0 && InPin.Pin < _Nodes[InPin.Node].Pins.Num());
 	OutValue = _Nodes[InPin.Node].Pins[InPin.Pin].DefaultValue;
@@ -1551,6 +1894,8 @@ bool UControlRigModel::GetPinDefaultValue(const FControlRigModelPair& InPin, FSt
 
 bool UControlRigModel::SetPinDefaultValue(const FName& InNodeName, const FName& InPinName, const FString& InValue, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	const FControlRigModelPin* Pin = FindPin(InNodeName, InPinName, true);
 	if (Pin != nullptr)
 	{
@@ -1568,6 +1913,8 @@ bool UControlRigModel::SetPinDefaultValue(const FName& InNodeName, const FName& 
 
 bool UControlRigModel::SetPinDefaultValue(const FControlRigModelPair& InPin, const FString& InValue, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	ensure(InPin.Node >= 0 && InPin.Node < _Nodes.Num());
 	ensure(InPin.Pin >= 0 && InPin.Pin < _Nodes[InPin.Node].Pins.Num());
 
@@ -1607,6 +1954,8 @@ bool UControlRigModel::SetPinDefaultValue(const FControlRigModelPair& InPin, con
 
 bool UControlRigModel::SetPinArraySize(const FControlRigModelPair& InPin, int32 InArraySize, const FString& InDefaultValue, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	ensure(InPin.Node >= 0 && InPin.Node < _Nodes.Num());
 	ensure(InPin.Pin >= 0 && InPin.Pin < _Nodes[InPin.Node].Pins.Num());
 
@@ -1890,6 +2239,8 @@ bool UControlRigModel::SetPinArraySize(const FControlRigModelPair& InPin, int32 
 
 bool UControlRigModel::ExpandPin(const FName& InNodeName, const FName& InPinName, bool bIsInput, bool bInExpanded, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	const FControlRigModelPin* Pin = FindPin(InNodeName, InPinName, bIsInput);
 	if (Pin != nullptr)
 	{
@@ -1938,6 +2289,8 @@ bool UControlRigModel::ExpandPin(const FName& InNodeName, const FName& InPinName
 
 bool UControlRigModel::ResendAllNotifications()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (_ModifiedEvent.IsBound())
 	{
 		_ModifiedEvent.Broadcast(this, EControlRigModelNotifType::ModelCleared, nullptr);
@@ -1968,6 +2321,8 @@ bool UControlRigModel::ResendAllNotifications()
 
 bool UControlRigModel::ResendAllPinDefaultNotifications()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (_ModifiedEvent.IsBound())
 	{
 		for (FControlRigModelNode& Node : _Nodes)
@@ -2013,6 +2368,8 @@ bool UControlRigModel::ShouldStructBeUnfolded(const UStruct* Struct)
 
 FEdGraphPinType UControlRigModel::GetPinTypeFromField(UProperty* Property)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	FEdGraphPinType PinType;
 	GetDefault<UEdGraphSchema_K2>()->ConvertPropertyToPinType(Property, PinType);
 	return PinType;
@@ -2020,6 +2377,8 @@ FEdGraphPinType UControlRigModel::GetPinTypeFromField(UProperty* Property)
 
 void UControlRigModel::AddNodePinsForFunction(FControlRigModelNode& Node)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	Node.Pins.Reset();
 	int32 LastAddedIndex = -1;
 	const UStruct* Struct = Node.UnitStruct();
@@ -2056,6 +2415,8 @@ void UControlRigModel::AddNodePinsForFunction(FControlRigModelNode& Node)
 
 void UControlRigModel::SetNodePinDefaultsForFunction(FControlRigModelNode& Node)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	UScriptStruct* ScriptStruct = (UScriptStruct*)Cast<UScriptStruct>(Node.UnitStruct());
 	if (ScriptStruct)
 	{
@@ -2088,6 +2449,8 @@ void UControlRigModel::SetNodePinDefaultsForFunction(FControlRigModelNode& Node)
 
 void UControlRigModel::AddNodePinsForParameter(FControlRigModelNode& Node, const FEdGraphPinType& InDataType)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	int32 LastAddedIndex = Node.Pins.Num() - 1;
 
 	FControlRigModelPin InputPin;
@@ -2120,6 +2483,8 @@ void UControlRigModel::AddNodePinsForParameter(FControlRigModelNode& Node, const
 
 void UControlRigModel::SetNodePinDefaultsForParameter(FControlRigModelNode& Node, const FEdGraphPinType& InDataType)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	UScriptStruct* ScriptStruct = (UScriptStruct*)Cast<UScriptStruct>(InDataType.PinSubCategoryObject);
 	if (ScriptStruct)
 	{
@@ -2166,6 +2531,8 @@ void UControlRigModel::SetNodePinDefaultsForParameter(FControlRigModelNode& Node
 
 void UControlRigModel::ConfigurePinFromField(FControlRigModelPin& Pin, UProperty* Property, FControlRigModelNode& Node)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	Pin.Type = GetPinTypeFromField(Property);
 	Pin.Name = Property->GetFName();
 	Pin.DisplayNameText = Property->GetDisplayNameText();
@@ -2187,12 +2554,18 @@ void UControlRigModel::ConfigurePinFromField(FControlRigModelPin& Pin, UProperty
 	{
 		Pin.CustomWidgetName = UControlRig::BoneNameMetaName;
 	}
+	else if (Property->HasMetaData(UControlRig::CurveNameMetaName))
+	{
+		Pin.CustomWidgetName = UControlRig::CurveNameMetaName;
+	}
 
 	Pin.TooltipText = Property->GetToolTipText();
 }
 
  int32 UControlRigModel::AddPinsRecursive(FControlRigModelNode& Node, int32 ParentIndex, const UStruct* Struct, EEdGraphPinDirection PinDirection, int32& LastAddedIndex)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+	 
 	if (!ShouldStructBeUnfolded(Struct))
 	{
 		return 0;
@@ -2238,6 +2611,8 @@ void UControlRigModel::ConfigurePinFromField(FControlRigModelPin& Pin, UProperty
 
 int32 UControlRigModel::RemovePinsRecursive(FControlRigModelNode& Node, int32 PinIndex, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	int32 NumberOfPinsRemoved = 0;
 	while (Node.Pins[PinIndex].SubPins.Num() > 0)
 	{
@@ -2260,6 +2635,8 @@ int32 UControlRigModel::RemovePinsRecursive(FControlRigModelNode& Node, int32 Pi
 
 void UControlRigModel::ConfigurePinIndices(FControlRigModelNode& Node)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	for (int32 PinIndex = 0; PinIndex < Node.Pins.Num(); PinIndex++)
 	{
 		Node.Pins[PinIndex].SubPins.Reset();
@@ -2278,6 +2655,8 @@ void UControlRigModel::ConfigurePinIndices(FControlRigModelNode& Node)
 
 void UControlRigModel::GetParameterPinTypes(TArray<FEdGraphPinType>& PinTypes)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	PinTypes.Add(FEdGraphPinType(UEdGraphSchema_K2::PC_Boolean, FName(NAME_None), nullptr, EPinContainerType::None, false, FEdGraphTerminalType()));
 	PinTypes.Add(FEdGraphPinType(UEdGraphSchema_K2::PC_Float, FName(NAME_None), nullptr, EPinContainerType::None, false, FEdGraphTerminalType()));
 	PinTypes.Add(FEdGraphPinType(UEdGraphSchema_K2::PC_Int, FName(NAME_None), nullptr, EPinContainerType::None, false, FEdGraphTerminalType()));
@@ -2296,6 +2675,8 @@ void UControlRigModel::GetParameterPinTypes(TArray<FEdGraphPinType>& PinTypes)
 
 void UControlRigModel::PostTransacted(const FTransactionObjectEvent& TransactionEvent)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (TransactionEvent.GetEventType() == ETransactionObjectEventType::UndoRedo)
 	{
 		while (ActionCount < UndoActions.Num())
@@ -2325,6 +2706,8 @@ void UControlRigModel::PostTransacted(const FTransactionObjectEvent& Transaction
 
 bool UControlRigModel::Undo()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (UndoActions.Num() == 0)
 	{
 		return false;
@@ -2340,6 +2723,8 @@ bool UControlRigModel::Undo()
 
 bool UControlRigModel::Redo()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (RedoActions.Num() == 0)
 	{
 		return false;
@@ -2355,6 +2740,8 @@ bool UControlRigModel::Redo()
 
 void UControlRigModel::PushAction(const UControlRigModel::FAction& InAction)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	ensure(InAction.IsValid());
 
 	if (InAction.Type == EControlRigModelNotifType::Invalid && InAction.SubActions.Num() == 0)
@@ -2389,6 +2776,8 @@ void UControlRigModel::PushAction(const UControlRigModel::FAction& InAction)
 
 bool UControlRigModel::UndoAction(const UControlRigModel::FAction& InAction)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	for (int32 SubActionIndex = InAction.SubActions.Num() - 1; SubActionIndex >= 0; SubActionIndex--)
 	{
 		if (!UndoAction(InAction.SubActions[SubActionIndex]))
@@ -2428,11 +2817,13 @@ bool UControlRigModel::UndoAction(const UControlRigModel::FAction& InAction)
 			{
 				SetParameterType(Node.Name, Node.ParameterType, false /* undo */);
 			}
-			if (!SetNodePosition(Node.Name, Node.Position, false /* undo */))
+			SetNodePosition(Node.Name, Node.Position, false /* undo */);
+			SetNodeSize(Node.Name, Node.Size, false /* undo */);
+			SetNodeColor(Node.Name, Node.Color, false /* undo */);
+			if (Node.IsComment())
 			{
-				return false;
+				SetCommentText(Node.Name, Node.Text, false /* undo */);
 			}
-			_LastNodePositions.Add(Node.Name, Node.Position);
 			break;
 		}
 		case EControlRigModelNotifType::NodeRenamed:
@@ -2504,6 +2895,8 @@ bool UControlRigModel::UndoAction(const UControlRigModel::FAction& InAction)
 
 bool UControlRigModel::RedoAction(const UControlRigModel::FAction& InAction)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	ensure(InAction.IsValid());
 
 	switch (InAction.Type)
@@ -2513,17 +2906,32 @@ bool UControlRigModel::RedoAction(const UControlRigModel::FAction& InAction)
 			FControlRigModelNode Node;
 			Node.ConfigureFromActionArguments(InAction.Arguments);
 
-			if (Node.IsParameter())
+			switch (Node.NodeType)
 			{
-				FEdGraphPinType PinType;
-				FEdGraphPinType::StaticStruct()->ImportText(*InAction.Arguments[4], &PinType, nullptr, EPropertyPortFlags::PPF_None, nullptr, FEdGraphPinType::StaticStruct()->GetFName().ToString(), true);
-				return AddParameter(Node.Name, PinType, Node.ParameterType, Node.Position, false /* undo */);
-			}
-
-			Node.FunctionName = *InAction.Arguments[1];
-			if (!AddNode(Node, false /* undo */))
-			{
-				return false;
+				case EControlRigModelNodeType::Function:
+				{
+					Node.FunctionName = *InAction.Arguments[2];
+					if (!AddNode(Node, false /* undo */))
+					{
+						return false;
+					}
+					break;
+				}
+				case EControlRigModelNodeType::Parameter:
+				{
+					FEdGraphPinType PinType;
+					FEdGraphPinType::StaticStruct()->ImportText(*InAction.Arguments[7], &PinType, nullptr, EPropertyPortFlags::PPF_None, nullptr, FEdGraphPinType::StaticStruct()->GetFName().ToString(), true);
+					return AddParameter(Node.Name, PinType, Node.ParameterType, Node.Position, false /* undo */);
+				}
+				case EControlRigModelNodeType::Comment:
+				{
+					return AddComment(Node.Name, Node.Text, Node.Position, Node.Size, Node.Color, false /* undo */);
+				}
+				default:
+				{
+					ensure(false);
+					break;
+				}
 			}
 			break;
 		}
@@ -2540,16 +2948,18 @@ bool UControlRigModel::RedoAction(const UControlRigModel::FAction& InAction)
 		case EControlRigModelNotifType::NodeChanged:
 		{
 			FControlRigModelNode Node;
-			Node.ConfigureFromActionArguments(InAction.Arguments, 5 /* offset */);
+			Node.ConfigureFromActionArguments(InAction.Arguments, FControlRigModelNode::ArgumentSize());
 			if (Node.IsParameter())
 			{
 				SetParameterType(Node.Name, Node.ParameterType, false /* undo */);
 			}
-			if (!SetNodePosition(Node.Name, Node.Position, false /* undo */))
+			SetNodePosition(Node.Name, Node.Position, false /* undo */);
+			SetNodeSize(Node.Name, Node.Size, false /* undo */);
+			SetNodeColor(Node.Name, Node.Color, false /* undo */);
+			if (Node.IsComment())
 			{
-				return false;
+				SetCommentText(Node.Name, Node.Text, false /* undo */);
 			}
-			_LastNodePositions.Add(Node.Name, Node.Position);
 			break;
 		}
 		case EControlRigModelNotifType::NodeRenamed:
@@ -2594,7 +3004,7 @@ bool UControlRigModel::RedoAction(const UControlRigModel::FAction& InAction)
 			SplitPinPath(PinPath, Left, Right);
 
 			FControlRigModelPin Pin;
-			Pin.ConfigureFromActionArguments(InAction.Arguments, 5);
+			Pin.ConfigureFromActionArguments(InAction.Arguments, FControlRigModelPin::ArgumentSize() + 1);
 
 			SetPinDefaultValue(*Left, *Right, Pin.DefaultValue, false /* undo */);
 			ExpandPin(*Left, *Right, Pin.Direction == EGPD_Input, Pin.bExpanded, false /* undo */);

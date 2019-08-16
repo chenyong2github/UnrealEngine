@@ -23,18 +23,13 @@ namespace GeometryCollectionExample
 	bool RigidBodiesKinematic(ExampleResponse&& R);
 
 	template<class T>
-	bool RigidBodiesKinematicFieldActivation(ExampleResponse&& R);
-
-	template<class T>
 	bool RigidBodiesSleepingActivation(ExampleResponse&& R);
 
 	template<class T>
-	bool RigidBodiesInitialLinearVelocity(ExampleResponse&& R);
+	bool RigidBodies_CollisionGroup(ExampleResponse&& R);
 
 	template<class T>
-	bool RigidBodies_Field_StayDynamic(ExampleResponse&& R);
+	bool RigidBodies_Initialize_ParticleImplicitCollisionGeometry(ExampleResponse&& R);
 
-	template<class T>
-	bool RigidBodies_Field_LinearForce(ExampleResponse&& R);
 	
 }

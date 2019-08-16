@@ -1,4 +1,4 @@
-Availability: Public
+Availability: Docs
 Title:4. Triggering the Sequence Playback and Blend
 Crumbs: %ROOT%, Engine, Engine/Sequencer, Engine/Sequencer/HowTo
 Description:In this step we trigger the playback of our sequence and tell our Blueprints to start blending in our Slot animation.
@@ -13,7 +13,7 @@ Related: Engine\Blueprints
 Related: Engine\Animation\AnimBlueprints
 tags:Sequencer
 tags:Animation
-type:how-to
+type:multi-step
 
 [VAR:Steps]
 [OBJECT:Navigation]

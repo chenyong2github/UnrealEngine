@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/Attribute.h"
+#include "Widgets/InvalidateWidgetReason.h"
 
 class SWidget;
 
@@ -53,6 +55,35 @@ public:
 	 * If the null widget was being stored, an invalid shared ptr is returned instead.
 	 */
 	const TSharedPtr<SWidget> DetachWidget();
+
+protected:
+	void Invalidate(EInvalidateWidgetReason InvalidateReason);
+
+	/**
+	 * Performs the attribute assignment and invalidates the widget minimally based on what actually changed.  So if the boundness of the attribute didn't change
+	 * volatility won't need to be recalculated.  Returns true if the value changed.
+	 */
+	template<typename TargetValueType, typename SourceValueType>
+	bool SetAttribute(TAttribute<TargetValueType>& TargetValue, const TAttribute<SourceValueType>& SourceValue, EInvalidateWidgetReason BaseInvalidationReason)
+	{
+		if (!TargetValue.IdenticalTo(SourceValue))
+		{
+			const bool bWasBound = TargetValue.IsBound();
+			const bool bBoundnessChanged = bWasBound != SourceValue.IsBound();
+			TargetValue = SourceValue;
+
+			EInvalidateWidgetReason InvalidateReason = BaseInvalidationReason;
+			if (bBoundnessChanged)
+			{
+				InvalidateReason |= EInvalidateWidgetReason::Volatility;
+			}
+
+			Invalidate(InvalidateReason);
+			return true;
+		}
+
+		return false;
+	}
 
 protected:
 	/** The parent and owner of the slot. */

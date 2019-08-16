@@ -7,13 +7,13 @@
 #pragma once
 
 #ifndef XAUDIO_SUPPORTS_XMA2WAVEFORMATEX
-	#define XAUDIO_SUPPORTS_XMA2WAVEFORMATEX	1
+	#define XAUDIO_SUPPORTS_XMA2WAVEFORMATEX	0
 #endif	//XAUDIO_SUPPORTS_XMA2WAVEFORMATEX
 #ifndef XAUDIO_SUPPORTS_DEVICE_DETAILS
 	#define XAUDIO_SUPPORTS_DEVICE_DETAILS		1
 #endif	//XAUDIO_SUPPORTS_DEVICE_DETAILS
 #ifndef XAUDIO2_SUPPORTS_MUSIC
-	#define XAUDIO2_SUPPORTS_MUSIC				1
+	#define XAUDIO2_SUPPORTS_MUSIC				0
 #endif	//XAUDIO2_SUPPORTS_MUSIC
 #ifndef X3DAUDIO_VECTOR_IS_A_D3DVECTOR
 	#define X3DAUDIO_VECTOR_IS_A_D3DVECTOR		1
@@ -23,8 +23,10 @@
 /*------------------------------------------------------------------------------------
 	XAudio2 system headers
 ------------------------------------------------------------------------------------*/
+#include "XAudio2Device.h"
 #include "AudioDecompress.h"
 #include "AudioEffect.h"
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS || PLATFORM_XBOXONE
 #include "Windows/WindowsHWrapper.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "Windows/AllowWindowsPlatformAtomics.h"
@@ -32,7 +34,7 @@
 	#include <X3Daudio.h>
 #include "Windows/HideWindowsPlatformAtomics.h"
 #include "Windows/HideWindowsPlatformTypes.h"
-#include "XAudio2Device.h"
+#endif
 
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"

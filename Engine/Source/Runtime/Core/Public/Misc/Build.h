@@ -91,6 +91,13 @@
 	#error UBT should always define WITH_PLUGIN_SUPPORT to be 0 or 1
 #endif
 
+/**
+ * Whether we are compiling with Slate accessibility and automation support
+ */
+#ifndef WITH_ACCESSIBILITY
+	#define WITH_ACCESSIBILITY		1
+#endif
+
  /** Enable perf counters */
 #ifndef WITH_PERFCOUNTERS
 	#define WITH_PERFCOUNTERS		0

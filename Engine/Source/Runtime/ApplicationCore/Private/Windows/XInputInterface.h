@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "GenericPlatform/IInputInterface.h"
+#include "IInputDevice.h"
 #include "GenericPlatform/GenericApplicationMessageHandler.h"
 
 /** Max number of controllers. */
@@ -17,7 +18,7 @@ enum class FForceFeedbackChannelType;
 /**
  * Interface class for XInput devices (xbox 360 controller)                 
  */
-class XInputInterface
+class XInputInterface : public IInputDevice
 {
 public:
 
@@ -28,9 +29,9 @@ public:
 	 *
 	 * @param PathToJoystickCaptureWidget	The path to the joystick capture widget.  If invalid this function does not poll 
 	 */
-	void SendControllerEvents();
+	virtual void SendControllerEvents() override;
 
-	void SetMessageHandler( const TSharedRef< FGenericApplicationMessageHandler >& InMessageHandler );
+	virtual void SetMessageHandler( const TSharedRef< FGenericApplicationMessageHandler >& InMessageHandler ) override;
 
 	void SetNeedsControllerStateUpdate() { bNeedsControllerStateUpdate = true; }
 
@@ -42,7 +43,7 @@ public:
 	* @param ChannelType the type of channel whose value should be set
 	* @param Value strength or speed of feedback, 0.0f to 1.0f. 0.0f will disable
 	*/
-	void SetChannelValue( const int32 ControllerId, const FForceFeedbackChannelType ChannelType, const float Value );
+	virtual void SetChannelValue( int32 ControllerId, const FForceFeedbackChannelType ChannelType, const float Value ) override;
 
 	/**
 	* Sets the strength/speed of all the channels for the given controller id.
@@ -51,9 +52,11 @@ public:
 	* @param ControllerId the id of the controller whose value is to be set
 	* @param Values strength or speed of feedback for all channels
 	*/
-	void SetChannelValues( const int32 ControllerId, const FForceFeedbackValues& Values );
+	virtual void SetChannelValues( int32 ControllerId, const FForceFeedbackValues& Values ) override;
 
-	bool IsGamepadAttached() const { return bIsGamepadAttached; }
+	virtual bool IsGamepadAttached() const override { return bIsGamepadAttached; }
+	virtual void Tick( float DeltaTime ) override {};
+	virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) { return false; }
 
 private:
 

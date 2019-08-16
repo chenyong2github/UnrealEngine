@@ -1,9 +1,10 @@
-﻿INTSourceChangelist:3467293
+﻿INTSourceChangelist:6412342
 Availability:Public
 Title:비균등 스케일 애니메이션
-Crumbs: %ROOT%, Engine, Engine/Animation
 Description:비균등 스케일 애니메이션 사용법에 대한 개요입니다.
 version: 4.9
+tags:Animation
+tags:Animation Features
 topic-image:NonUniformScaleAnimation_topic.png
 
 

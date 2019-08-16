@@ -10,7 +10,7 @@
 #include "Serialization/ArrayWriter.h"
 #include "Sockets.h"
 
-#if WITH_EDITOR || IS_PROGRAM
+#if WITH_TARGETPLATFORM_SUPPORT
 #include "Misc/CoreMisc.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Interfaces/ITargetPlatform.h"
@@ -51,7 +51,7 @@ FUdpMessageBeacon::FUdpMessageBeacon(FSocket* InSocket, const FGuid& InSocketId,
 		StaticAddresses.Add(LocalEndpoint.ToInternetAddr());
 	}
 
-#if WITH_EDITOR || IS_PROGRAM
+#if WITH_TARGETPLATFORM_SUPPORT
 	if( ITargetPlatformManagerModule* TargetPlatformManager = GetTargetPlatformManager() )
 	{
 		TArray<ITargetPlatform*> Platforms = TargetPlatformManager->GetTargetPlatforms();
@@ -73,7 +73,7 @@ FUdpMessageBeacon::FUdpMessageBeacon(FSocket* InSocket, const FGuid& InSocketId,
 		}
 		ProcessPendingEndpoints();
 	}
-#endif //WITH_EDITOR || IS_PROGRAM
+#endif //WITH_TARGETPLATFORM_SUPPORT
 
 	Thread = FRunnableThread::Create(this, TEXT("FUdpMessageBeacon"), 128 * 1024, TPri_AboveNormal, FPlatformAffinity::GetPoolThreadMask());
 }
@@ -93,7 +93,7 @@ FUdpMessageBeacon::~FUdpMessageBeacon()
 	FPlatformProcess::ReturnSynchEventToPool(EndpointLeftEvent);
 	EndpointLeftEvent = nullptr;
 
-#if WITH_EDITOR || IS_PROGRAM
+#if WITH_TARGETPLATFORM_SUPPORT
 	if( ITargetPlatformManagerModule* TargetPlatformManager = GetTargetPlatformManager() )
 	{
 		TArray<ITargetPlatform*> Platforms = TargetPlatformManager->GetTargetPlatforms();
@@ -107,7 +107,7 @@ FUdpMessageBeacon::~FUdpMessageBeacon()
 
 		}
 	}
-#endif //WITH_EDITOR || IS_PROGRAM
+#endif //WITH_TARGETPLATFORM_SUPPORT
 }
 
 
@@ -243,7 +243,7 @@ bool FUdpMessageBeacon::SendPing(const FTimespan& SocketWaitTime)
 
 void FUdpMessageBeacon::Update(const FDateTime& CurrentTime, const FTimespan& SocketWaitTime)
 {
-#if WITH_EDITOR || IS_PROGRAM
+#if WITH_TARGETPLATFORM_SUPPORT
 	ProcessPendingEndpoints();
 #endif
 
@@ -263,7 +263,7 @@ void FUdpMessageBeacon::Update(const FDateTime& CurrentTime, const FTimespan& So
 }
 
 
-#if WITH_EDITOR || IS_PROGRAM
+#if WITH_TARGETPLATFORM_SUPPORT
 void FUdpMessageBeacon::HandleTargetPlatformDeviceDiscovered( TSharedRef<class ITargetDevice, ESPMode::ThreadSafe> DiscoveredDevice)
 {
 	TSharedPtr<const FInternetAddr> DeviceStaticEndpoint = DiscoveredDevice->GetMessagingEndpoint();
@@ -275,9 +275,9 @@ void FUdpMessageBeacon::HandleTargetPlatformDeviceDiscovered( TSharedRef<class I
 		PendingEndpoints.Enqueue(PendingEndpoint);
 	}
 }
-#endif //WITH_EDITOR || IS_PROGRAM
+#endif //WITH_TARGETPLATFORM_SUPPORT
 
-#if WITH_EDITOR || IS_PROGRAM
+#if WITH_TARGETPLATFORM_SUPPORT
 void FUdpMessageBeacon::HandleTargetPlatformDeviceLost( TSharedRef<class ITargetDevice, ESPMode::ThreadSafe> LostDevice)
 {
 	TSharedPtr<const FInternetAddr> DeviceStaticEndpoint = LostDevice->GetMessagingEndpoint();
@@ -289,9 +289,9 @@ void FUdpMessageBeacon::HandleTargetPlatformDeviceLost( TSharedRef<class ITarget
 		PendingEndpoints.Enqueue(PendingEndpoint);
 	}
 }
-#endif //WITH_EDITOR || IS_PROGRAM
+#endif //WITH_TARGETPLATFORM_SUPPORT
 
-#if WITH_EDITOR || IS_PROGRAM
+#if WITH_TARGETPLATFORM_SUPPORT
 void FUdpMessageBeacon::ProcessPendingEndpoints()
 {
 	// process any pending static endpoint changes from target platform device changes
@@ -316,7 +316,7 @@ void FUdpMessageBeacon::ProcessPendingEndpoints()
 		}
 	}
 }
-#endif //WITH_EDITOR || IS_PROGRAM
+#endif //WITH_TARGETPLATFORM_SUPPORT
 
 
 

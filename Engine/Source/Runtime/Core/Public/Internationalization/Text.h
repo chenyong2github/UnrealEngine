@@ -498,17 +498,17 @@ public:
 	FText ToUpper() const;
 
 	/**
-	 * Removes whitespace characters from the front of the string.
+	 * Removes any whitespace characters from the start of the text.
 	 */
 	static FText TrimPreceding( const FText& );
 
 	/**
-	 * Removes trailing whitespace characters
+	 * Removes any whitespace characters from the end of the text.
 	 */
 	static FText TrimTrailing( const FText& );
 
 	/**
-	 * Does both of the above without needing to create an additional FText in the interim.
+	 * Removes any whitespace characters from the start and end of the text.
 	 */
 	static FText TrimPrecedingAndTrailing( const FText& );
 
@@ -1030,6 +1030,13 @@ public:
 	bool IsDisplayStringEqualTo(const FText& InText) const;
 
 private:
+
+	/** Get adjusted global history revision used for comparison */
+	static uint16 GetGlobalHistoryRevisionForText(const FText& InText);
+
+	/** Get adjusted local history revision used for comparison */
+	static uint16 GetLocalHistoryRevisionForText(const FText& InText);
+
 	/** A pointer to the text data for the FText that we took a snapshot of (used for an efficient pointer compare) */
 	TSharedPtr<ITextData, ESPMode::ThreadSafe> TextDataPtr;
 

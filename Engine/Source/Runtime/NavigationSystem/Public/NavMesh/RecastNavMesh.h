@@ -41,9 +41,9 @@ class FRecastQueryFilter;
 class INavLinkCustomInterface;
 class UCanvas;
 class UNavArea;
-class UNavigationSystem;
 class UPrimitiveComponent;
 class URecastNavMeshDataChunk;
+class ARecastNavMesh;
 struct FRecastAreaNavModifierElement;
 class dtNavMesh;
 class dtQueryFilter;
@@ -207,6 +207,112 @@ namespace ERecastNamedFilter
 #endif //WITH_RECAST
 
 
+USTRUCT()
+struct NAVIGATIONSYSTEM_API FRecastNavMeshGenerationProperties
+{
+	GENERATED_BODY()
+
+	/** maximum number of tiles NavMesh can hold */
+	UPROPERTY(EditAnywhere, Category = Generation, meta = (editcondition = "bFixedTilePoolSize"))
+	int32 TilePoolSize;
+
+	/** size of single tile, expressed in uu */
+	UPROPERTY(EditAnywhere, Category = Generation, meta = (ClampMin = "300.0"))
+	float TileSizeUU;
+
+	/** horizontal size of voxelization cell */
+	UPROPERTY(EditAnywhere, Category = Generation, meta = (ClampMin = "1.0", ClampMax = "1024.0"))
+	float CellSize;
+
+	/** vertical size of voxelization cell */
+	UPROPERTY(EditAnywhere, Category = Generation, meta = (ClampMin = "1.0", ClampMax = "1024.0"))
+	float CellHeight;
+
+	/** Radius of largest agent that can freely traverse the generated navmesh */
+	UPROPERTY(EditAnywhere, Category = Generation, meta = (ClampMin = "0.0"))
+	float AgentRadius;
+
+	/** Size of the tallest agent that will path with this navmesh. */
+	UPROPERTY(EditAnywhere, Category = Generation, meta = (ClampMin = "0.0"))
+	float AgentHeight;
+
+	/* The maximum slope (angle) that the agent can move on. */
+	UPROPERTY(EditAnywhere, Category = Generation, meta = (ClampMin = "0.0", ClampMax = "89.0", UIMin = "0.0", UIMax = "89.0"))
+	float AgentMaxSlope;
+
+	/** Largest vertical step the agent can perform */
+	UPROPERTY(EditAnywhere, Category = Generation, meta = (ClampMin = "0.0"))
+	float AgentMaxStepHeight;
+
+	/* The minimum dimension of area. Areas smaller than this will be discarded */
+	UPROPERTY(EditAnywhere, Category = Generation, meta = (ClampMin = "0.0"))
+	float MinRegionArea;
+
+	/* The size limit of regions to be merged with bigger regions (watershed partitioning only) */
+	UPROPERTY(EditAnywhere, Category = Generation, meta = (ClampMin = "0.0"))
+	float MergeRegionSize;
+
+	/** How much navigable shapes can get simplified - the higher the value the more freedom */
+	UPROPERTY(EditAnywhere, Category = Generation, meta = (ClampMin = "0.0"))
+	float MaxSimplificationError;
+
+	/** Absolute hard limit to number of navmesh tiles. Be very, very careful while modifying it while
+	*	having big maps with navmesh. A single, empty tile takes 176 bytes and empty tiles are
+	*	allocated up front (subject to change, but that's where it's at now)
+	*	@note TileNumberHardLimit is always rounded up to the closest power of 2 */
+	UPROPERTY(EditAnywhere, Category = Generation, meta = (ClampMin = "1", UIMin = "1"), AdvancedDisplay)
+	int32 TileNumberHardLimit;
+
+	/** partitioning method for creating navmesh polys */
+	UPROPERTY(EditAnywhere, Category = Generation, AdvancedDisplay)
+	TEnumAsByte<ERecastPartitioning::Type> RegionPartitioning;
+
+	/** partitioning method for creating tile layers */
+	UPROPERTY(EditAnywhere, Category = Generation, AdvancedDisplay)
+	TEnumAsByte<ERecastPartitioning::Type> LayerPartitioning;
+
+	/** number of chunk splits (along single axis) used for region's partitioning: ChunkyMonotone */
+	UPROPERTY(EditAnywhere, Category = Generation, AdvancedDisplay)
+	int32 RegionChunkSplits;
+
+	/** number of chunk splits (along single axis) used for layer's partitioning: ChunkyMonotone */
+	UPROPERTY(EditAnywhere, Category = Generation, AdvancedDisplay)
+	int32 LayerChunkSplits;
+
+	/** Controls whether Navigation Areas will be sorted by cost before application
+	 *	to navmesh during navmesh generation. This is relevant when there are
+	 *	areas overlapping and we want to have area cost express area relevancy
+	 *	as well. Setting it to true will result in having area sorted by cost,
+	 *	but it will also increase navmesh generation cost a bit */
+	UPROPERTY(EditAnywhere, Category = Generation)
+	uint32 bSortNavigationAreasByCost : 1;
+
+	/** controls whether voxel filtering will be applied (via FRecastTileGenerator::ApplyVoxelFilter).
+	 *	Results in generated navmesh better fitting navigation bounds, but hits (a bit) generation performance */
+	UPROPERTY(EditAnywhere, Category = Generation, AdvancedDisplay)
+	uint32 bPerformVoxelFiltering : 1;
+
+	/** mark areas with insufficient free height above instead of cutting them out (accessible only for area modifiers using replace mode) */
+	UPROPERTY(EditAnywhere, Category = Generation, AdvancedDisplay)
+	uint32 bMarkLowHeightAreas : 1;
+
+	/** if set, only single low height span will be allowed under valid one */
+	UPROPERTY(EditAnywhere, Category = Generation, AdvancedDisplay)
+	uint32 bFilterLowSpanSequences : 1;
+
+	/** if set, only low height spans with corresponding area modifier will be stored in tile cache (reduces memory, can't modify without full tile rebuild) */
+	UPROPERTY(EditAnywhere, Category = Generation, AdvancedDisplay)
+	uint32 bFilterLowSpanFromTileCache : 1;
+
+	/** if true, the NavMesh will allocate fixed size pool for tiles, should be enabled to support streaming */
+	UPROPERTY(EditAnywhere, Category = Generation)
+	uint32 bFixedTilePoolSize : 1;
+
+	FRecastNavMeshGenerationProperties();
+	FRecastNavMeshGenerationProperties(const ARecastNavMesh& RecastNavMesh);
+};
+
+
 /**
  *	Structure to handle nav mesh tile's raw data persistence and releasing
  */
@@ -275,7 +381,7 @@ namespace FNavMeshConfig
 }
 
 
-UCLASS(config=Engine, defaultconfig, hidecategories=(Input,Rendering,Tags,Transform,"Utilities|Transformation",Actor,Layers,Replication), notplaceable)
+UCLASS(config=Engine, defaultconfig, hidecategories=(Input,Rendering,Tags,"Utilities|Transformation",Actor,Layers,Replication), notplaceable)
 class NAVIGATIONSYSTEM_API ARecastNavMesh : public ANavigationData
 {
 	GENERATED_UCLASS_BODY()
@@ -377,17 +483,19 @@ class NAVIGATIONSYSTEM_API ARecastNavMesh : public ANavigationData
 	UPROPERTY(EditAnywhere, Category = Generation, config, meta = (ClampMin = "0.0"))
 	float AgentRadius;
 
+	/** Size of the tallest agent that will path with this navmesh. */
 	UPROPERTY(EditAnywhere, Category = Generation, config, meta = (ClampMin = "0.0"))
 	float AgentHeight;
 
-	/** Size of the tallest agent that will path with this navmesh. */
-	UPROPERTY(EditAnywhere, Category=Generation, config, meta=(ClampMin = "0.0"))
+	UE_DEPRECATED(4.24, "ARecastNavMesh.AgentMaxHeight has been deprecated as it has no use. Use AgentHeight instead.")
+	UPROPERTY(VisibleAnywhere, Category=Generation, config, meta=(ClampMin = "0.0", DisplayName="DEPRECATED_AgentMaxHeight"))
 	float AgentMaxHeight;
 
 	/* The maximum slope (angle) that the agent can move on. */ 
 	UPROPERTY(EditAnywhere, Category=Generation, config, meta=(ClampMin = "0.0", ClampMax = "89.0", UIMin = "0.0", UIMax = "89.0" ))
 	float AgentMaxSlope;
 
+	/** Largest vertical step the agent can perform */
 	UPROPERTY(EditAnywhere, Category = Generation, config, meta = (ClampMin = "0.0"))
 	float AgentMaxStepHeight;
 
@@ -456,15 +564,15 @@ class NAVIGATIONSYSTEM_API ARecastNavMesh : public ANavigationData
 	int32 LayerChunkSplits;
 
 	/** Controls whether Navigation Areas will be sorted by cost before application 
-	 *	to navmesh during navmesh generation. This is relevant then there are
+	 *	to navmesh during navmesh generation. This is relevant when there are
 	 *	areas overlapping and we want to have area cost express area relevancy
 	 *	as well. Setting it to true will result in having area sorted by cost,
 	 *	but it will also increase navmesh generation cost a bit */
 	UPROPERTY(EditAnywhere, Category=Generation, config)
 	uint32 bSortNavigationAreasByCost:1;
 
-	/** controls whether voxel filterring will be applied (via FRecastTileGenerator::ApplyVoxelFilter). 
-	 *	Results in generated navemesh better fitting navigation bounds, but hits (a bit) generation performance */
+	/** controls whether voxel filtering will be applied (via FRecastTileGenerator::ApplyVoxelFilter). 
+	 *	Results in generated navmesh better fitting navigation bounds, but hits (a bit) generation performance */
 	UPROPERTY(EditAnywhere, Category=Generation, config, AdvancedDisplay)
 	uint32 bPerformVoxelFiltering:1;
 
@@ -514,6 +622,9 @@ private:
 	/** Squared draw distance */
 	static float DrawDistanceSq;
 
+	/** MinimumSizeForChaosNavMeshInfluence*/
+	static float MinimumSizeForChaosNavMeshInfluenceSq;
+
 public:
 
 	struct FRaycastResult
@@ -561,6 +672,10 @@ public:
 
 	FORCEINLINE static void SetDrawDistance(float NewDistance) { DrawDistanceSq = NewDistance * NewDistance; }
 	FORCEINLINE static float GetDrawDistanceSq() { return DrawDistanceSq; }
+
+	FORCEINLINE static void SetMinimumSizeForChaosNavMeshInfluence(float NewSize) { MinimumSizeForChaosNavMeshInfluenceSq = NewSize * NewSize; }
+	FORCEINLINE static float GetMinimumSizeForChaosNavMeshInfluenceSq() { return MinimumSizeForChaosNavMeshInfluenceSq; }
+	
 
 	//////////////////////////////////////////////////////////////////////////
 
@@ -895,6 +1010,7 @@ public:
 	virtual bool SupportsRuntimeGeneration() const override;
 	virtual bool SupportsStreaming() const override;
 	virtual void ConditionalConstructGenerator() override;
+	void UpdateGenerationProperties(const FRecastNavMeshGenerationProperties& GenerationProps);
 	bool ShouldGatherDataOnGameThread() const { return bDoFullyAsyncNavDataGathering == false; }
 	int32 GetTileNumberHardLimit() const { return TileNumberHardLimit; }
 
@@ -908,9 +1024,6 @@ protected:
 	
 	/** Invalidates active paths that go through changed tiles  */
 	void InvalidateAffectedPaths(const TArray<uint32>& ChangedTiles);
-
-	/** Spawns an ARecastNavMesh instance, and configures it if AgentProps != NULL */
-	static ARecastNavMesh* SpawnInstance(UNavigationSystem* NavSys, const FNavDataConfig* AgentProps = NULL);
 
 	/** created a new FRecastNavMeshGenerator instance. Overrider to supply your
 	 *	own extentions. Note: needs to derive from FRecastNavMeshGenerator */

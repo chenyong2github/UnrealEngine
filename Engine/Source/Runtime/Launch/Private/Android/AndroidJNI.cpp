@@ -41,6 +41,7 @@ extern FString GInternalFilePath;
 extern FString GExternalFilePath;
 extern FString GFontPathBase;
 extern bool GOBBinAPK;
+extern bool GOverrideAndroidLogDir;
 extern FString GOBBFilePathBase;
 extern FString GAPKFilename;
 
@@ -115,8 +116,8 @@ void FJavaWrapper::FindClassesAndMethods(JNIEnv* Env)
 	AndroidThunkJava_GetIntentExtrasString = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_GetIntentExtrasString", "(Ljava/lang/String;)Ljava/lang/String;", bIsOptional);
 	AndroidThunkJava_PushSensorEvents = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_PushSensorEvents", "()V", bIsOptional);
 
-	// this is optional - only inserted if Gear VR plugin enabled
-	AndroidThunkJava_IsGearVRApplication = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_IsGearVRApplication", "()Z", true);
+	// this is optional - only inserted if Oculus Mobile plugin enabled
+	AndroidThunkJava_IsOculusMobileApplication = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_IsOculusMobileApplication", "()Z", true);
 
 	// this is optional - only inserted if GCM plugin enabled
 	AndroidThunkJava_RegisterForRemoteNotifications = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_RegisterForRemoteNotifications", "()V", true);
@@ -372,7 +373,7 @@ jmethodID FJavaWrapper::AndroidThunkJava_GetMetaDataInt;
 jmethodID FJavaWrapper::AndroidThunkJava_GetMetaDataLong;
 jmethodID FJavaWrapper::AndroidThunkJava_GetMetaDataFloat;
 jmethodID FJavaWrapper::AndroidThunkJava_GetMetaDataString;
-jmethodID FJavaWrapper::AndroidThunkJava_IsGearVRApplication;
+jmethodID FJavaWrapper::AndroidThunkJava_IsOculusMobileApplication;
 jmethodID FJavaWrapper::AndroidThunkJava_RegisterForRemoteNotifications;
 jmethodID FJavaWrapper::AndroidThunkJava_UnregisterForRemoteNotifications;
 jmethodID FJavaWrapper::AndroidThunkJava_ShowHiddenAlertDialog;
@@ -756,23 +757,23 @@ void AndroidThunkCpp_ShowHiddenAlertDialog()
 	}
 }
 
-// call out to JNI to see if the application was packaged for Gear VR
-bool AndroidThunkCpp_IsGearVRApplication()
+// call out to JNI to see if the application was packaged for Oculus Mobile
+bool AndroidThunkCpp_IsOculusMobileApplication()
 {
-	static int32 IsGearVRApplication = -1;
+	static int32 IsOculusMobileApplication = -1;
 
-	if (IsGearVRApplication == -1)
+	if (IsOculusMobileApplication == -1)
 	{
-		IsGearVRApplication = 0;
-		if (FJavaWrapper::AndroidThunkJava_IsGearVRApplication)
+		IsOculusMobileApplication = 0;
+		if (FJavaWrapper::AndroidThunkJava_IsOculusMobileApplication)
 		{
 			if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
 			{
-				IsGearVRApplication = FJavaWrapper::CallBooleanMethod(Env, FJavaWrapper::GameActivityThis, FJavaWrapper::AndroidThunkJava_IsGearVRApplication) ? 1 : 0;
+				IsOculusMobileApplication = FJavaWrapper::CallBooleanMethod(Env, FJavaWrapper::GameActivityThis, FJavaWrapper::AndroidThunkJava_IsOculusMobileApplication) ? 1 : 0;
 			}
 		}
 	}
-	return IsGearVRApplication == 1;
+	return IsOculusMobileApplication == 1;
 }
 
 // call optional remote notification registration
@@ -1575,7 +1576,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* InJavaVM, void* InReserved)
 //Native-defined functions
 
 //This function is declared in the Java-defined class, GameActivity.java: "public native void nativeSetGlobalActivity();"
-JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeSetGlobalActivity(JNIEnv* jenv, jobject thiz, jboolean bUseExternalFilesDir, jstring internalFilePath, jstring externalFilePath, jboolean bOBBinAPK, jstring APKFilename /*, jobject googleServices*/)
+JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeSetGlobalActivity(JNIEnv* jenv, jobject thiz, jboolean bUseExternalFilesDir, jboolean bPublicLogFiles, jstring internalFilePath, jstring externalFilePath, jboolean bOBBinAPK, jstring APKFilename /*, jobject googleServices*/)
 {
 	if (!FJavaWrapper::GameActivityThis)
 	{
@@ -1601,11 +1602,12 @@ JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeSetGlobalActivity(JNIE
 		GAPKFilename = FJavaHelper::FStringFromParam(jenv, APKFilename);
 		GInternalFilePath = FJavaHelper::FStringFromParam(jenv, internalFilePath);
 		GExternalFilePath = FJavaHelper::FStringFromParam(jenv, externalFilePath);
-		
+
 		if (bUseExternalFilesDir)
 		{
 #if UE_BUILD_SHIPPING
 			GFilePathBase = GInternalFilePath;
+			GOverrideAndroidLogDir = bPublicLogFiles;
 #else
 			GFilePathBase = GExternalFilePath;
 #endif
@@ -1713,8 +1715,9 @@ void AndroidThunkCpp_OnNativeToEmbeddedReply(FString ID, const FEmbeddedCommunic
 	if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
 	{
 		// marshall some data
-
+#if !UE_BUILD_SHIPPING
 		UE_LOG(LogInit, Display, TEXT("Java call Id: %s, Routing Function: %s, Error %s, Params:"), *ID, *RoutingFunction, *InError);
+#endif
 
 		// create a string array for the pairs
 		static auto StringClass = FJavaWrapper::FindClassGlobalRef(Env, "java/lang/String", false);
@@ -1726,7 +1729,9 @@ void AndroidThunkCpp_OnNativeToEmbeddedReply(FString ID, const FEmbeddedCommunic
 			auto ValueString = FJavaHelper::ToJavaString(Env, It.Value);
 			Env->SetObjectArrayElement(*ReturnValues, Index++, *KeyString);
 			Env->SetObjectArrayElement(*ReturnValues, Index++, *ValueString);
+#if !UE_BUILD_SHIPPING
 			UE_LOG(LogInit, Display, TEXT("  %s : %s"), *It.Key, *It.Value);
+#endif
 		}
 		auto Error = FJavaHelper::ToJavaString(Env, InError);
 		
@@ -1757,7 +1762,9 @@ JNI_METHOD void Java_com_epicgames_ue4_NativeCalls_CallNativeToEmbedded(JNIEnv* 
 	// wake up UE
 	FEmbeddedCommunication::KeepAwake(CommandName, false);
 
+#if !UE_BUILD_SHIPPING
 	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("NativeToEmbeddedCall: Subsystem: %s, Command: %s, Params:"), *Subsystem, *Helper.Command);
+#endif
 
 	if (InParams != nullptr)
 	{
@@ -1769,7 +1776,9 @@ JNI_METHOD void Java_com_epicgames_ue4_NativeCalls_CallNativeToEmbedded(JNIEnv* 
 			auto javaValue = FJavaHelper::FStringFromLocalRef(jenv, (jstring)(jenv->GetObjectArrayElement(InParams, Index++)));
 
 			Helper.Parameters.Add(javaKey, javaValue);
+#if !UE_BUILD_SHIPPING
 			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("  %s : %s"), *javaKey, *javaValue);
+#endif
 		}
 	}
 	

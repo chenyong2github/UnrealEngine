@@ -1,84 +1,79 @@
-﻿INTSourceChangelist:1992863
-Availability: Licensee
-Title: Perforce 自动融合工具
+﻿INTSourceChangelist:6277736
+Availability: Docs
+Title:Perforce自动合并工具
 Crumbs:%ROOT%, GettingStarted, GettingStarted/DownloadingUnrealEngine, GettingStarted/DownloadingUnrealEngine/Perforce
-Description: 使用 Perforce 自动完成整合的脚本
+Description:使用Perforce自动执行集成过程的脚本。
+version: 4.9
 
 [TOC(start:2)]
 
-
-
-## 概述
-
-Perforce 的 AutoMerge(自动融合) 脚本用于自动地执行在进行一个Perforce集成中所包含的冗长的和/或容易出错的步骤。
-它合并了在 [Perforce 集成](GettingStarted/DownloadingUnrealEngine/Perforce/Integration) 页面所描述的用于融合的各种最佳实践，
-所以这是在虚幻引擎Perforce数据库中推荐的融合方法。
+Perforce自动合并脚本的存在是为了在执行集成（又名合并）的过程中自动执行相关繁琐和/或容易出错的步骤。它包含多个最佳合并实践，这些实践在[Perforce集成](GettingStarted/DownloadingUnrealEngine/Perforce/Integration)页面中有介绍，因此推荐使用它来在虚幻引擎Perforce数据库中进行合并。
 
 
 
-## 使用自动融合工具
+## 使用自动合并工具
 
-在P4V或P4Win中，该脚本是作为"custom tool(自定义工具)"操作的，它允许您融合两个分支间的一个单独的变更列表。
+该脚本在P4V或P4Win中作为一个“自定义工具”运行，允许您在两个分支之间合并单个变更列表。
 
-以下的屏幕截图显示了它在P4V中的样子：
+下面的截图显示它在P4V中的外观：
 
 ![P4AutoMergeCustomToolMenu.jpg](P4AutoMergeCustomToolMenu.jpg)
 
 
-* 对于任何分支，你可以选择 _Safe Merge(安全融合)_  或 _NULL Merge(空融合)_ （如下所示）。
-* 有一个 _General(通用)_ 工具允许你选择一个任意的分支(通过一个弹出的对话框)。
-* 通过匹配在P4V 或 P4Win中的自定义工具编辑器使用的格式，你可以增加你自己的自定义分支。
+* 对于任何分支，您可以选择 **安全合并（Safe Merge）**，也可以选择 **NULL合并（NULL Merge） **（如下所述）。 
+* 有一个通用工具允许您选择任意分支（通过弹出对话框）。 
+* 您可以通过匹配P4V或P4Win中的自定义工具编辑器中使用的格式来添加自己的自定义分支。
 
 
-当运行脚本时，将在单独的窗口中输出一个诊断 (在P4V, P4Win中，显示在状态面板中)。如以下所示：
+当该脚本运行时，它会将诊断信息输出到一个单独的窗口（在P4V、P4Win中于状态窗格内显示它们），如下所示：
 
 ![P4AutoMergeOutput.jpg](P4AutoMergeOutput.jpg)
 
-这个窗口将给出一个当前发生的事情的概要，并且可以用于解决问题。
+该窗口将提供正在执行的操作摘要，并可用于故障排除。
 
-最终，当您准备好迁入文件时，描述区域已经填入了我们的融合策略所要求的信息。
+最后，当您准备签入时，描述字段将已经填写了合并策略所需的信息：
 
 ![P4AutoMergeChangeDescription.jpg](P4AutoMergeChangeDescription.jpg)
 
-描述包括：
+描述包含以下内容：
 
 
-* [AUTOMERGE(自动融合)] 或 [SAFEMERGE(安全融合)]来说明融合是以何种方式进行的。
-* 一个原始变更列表描述的副本。
-* 一个说明了原始的分支、change(变更)#、提交者以及日期的脚注。
-
-
-
-### 安全融合
-
-_Safe Merge(安全融合)_ 工具融合一个变更列表并执行一个 _auto-safe(自动-安全)_ 冲突解决，它仅能自动解决在一个分支或另一个分支中的文件发生改变的冲突，但不能解决两个分支全部文件改变的冲突。这种类型的冲突解决保证会成功。当这个过程完成，你会看到一个已经填写好所要求的迁入描述的新的变更列表。如果有遗留了任何需要进行冲突解决的文件 (需要有执行一个融合的文件)，你必须在迁入前手动的处理它们。
-
-请查看 [Perforce 集成](GettingStarted/DownloadingUnrealEngine/Perforce/Integration) 页面获得更多的关于手动冲突解决的问题。
-
-
-### 空融合
-
- _空融合_ 工具融合一个变更列表并执行一个 _accept yours(接受您的)_ 冲突处理，这意味着文件将会被集成，但是不会被改变。这就明确说明将考虑集成一个变更列表，但是该变更列表不会合并这些变更。
-
-要获得关于空融合的更多信息，请查看 [Perforce 集成](GettingStarted/DownloadingUnrealEngine/Perforce/Integration#Resolve) 页面。
+* [自动合并]或[安全合并]，说明是如何执行合并的。
+* 一份原始变更类别描述。
+* 一个脚注，说明原始分支、变更号、提交用户和日期。
 
 
 
-## 应用
+### 安全合并
+
+安全合并工具合并一个变更列表并执行一个自动安全解析，它只解析在一个分支或另一个分支的变更文件，而不是同时解析两个分支中的文件。这种类型的解析一定会成功。当该过程完成时，您将获得一个新的变更列表，其中已经包含了所需的签入描述。如果还有任何文件需要解析（需要执行合并的文件），则必须在签入之前手动处理它们。
+
+请参阅[Perforce集成](GettingStarted/DownloadingUnrealEngine/Perforce/Integration#Resolve)页面获取有关手动解析的帮助。 
 
 
-* 安全融合(UT3仅仅是用作一个例子):
-    * 在UT3-PC中右击一个已提交的变更列表 
-    * AutoMerge | UT3 PC -> PS3:  SAFE Merge(安全融合) 
-    * 当完成时，将会生成关于这些文件的新的变更列表。
-    * 将为你处理可以进行安全地冲突解决的任何文件，输出窗口中会列出剩余的不能处理的文件。
-    * 处理不能安全地进行冲突解决的其它文件并迁入。
-* 空融合 (UT3仅仅是用作一个例子):
-    * 在UT3-PC中右击一个已提交的变更列表 
-    * MergeTo | UT3 PC -> PS3:  NULL Merge（空融合） 
-    * 当完成时，将会生成关于这些文件的新的变更列表。
-    * 所有文件都会进行空融合。
-    * 迁入NULL融合。
+### NULL合并
+
+NULL合并工具合并一个变更列表并执行接受您的解析，这意味着文件将进行集成，但不会进行更改。这将清楚地表明，已考虑变更列表进行集成，但决定不对这些变更进行合并。
+
+有关NULL合并的更多信息，请参阅[Perforce集成](GettingStarted/DownloadingUnrealEngine/Perforce/Integration#NullMerge)页面。
+
+
+
+## 用法
+
+
+* 安全合并（UT3仅用作示例）：
+    * 在UT3-PC中 **右键单击** 一个提交的变更列表。 
+    * 自动合并 | UT3 PC -> PS3：安全合并： 
+    * 完成后，将用这些文件创建一个新的变更列表。 
+    * 将为您完成所有可以安全解析的文件，输出窗口将列出其余的文件。
+    * 解析所有无法安全解析的文件并签入。
+* NULL合并（UT3仅用作示例）：
+    * 在UT3-PC中 **右键单击** 一个提交的变更列表。 
+    * 合并至 | UT3 PC -> PS3：NULL合并。 
+    * 完成后，将用这些文件创建一个新的变更列表。 
+    * 所有文件将进行NULL合并。
+    * 签入NULL合并。
 
 
 
@@ -88,80 +83,80 @@ _Safe Merge(安全融合)_ 工具融合一个变更列表并执行一个 _auto-s
 
 ### 安装Python
 
-该脚本是一个使用了P4Python API的Python脚本，所以你需要先安装P4Python。
+该脚本是一个使用P4Python API的Python脚本，因此您需要首先安装它。
 
-* 获得Python：
-    * 推荐使用[ActiveState ActivePython](http://www.activestate.com/activepython/)。
-    * 目前脚本是在版本为 **2.5.2**  的Python上进行测试的。
-* 获得P4Python:
-    * 你可以从Perforce 网站[Related Software(相关软件)](http://www.perforce.com/perforce/loadsupp.html)下载最新的P4Python。
-    * 你可以从Perforce 网站中获得[API documentation(API文档)](http://www.perforce.com/perforce/doc.current/manuals/p4script/p4script.pdf)。
-    * 目前脚本是在版本为*2008.2* 的 Python上进行测试的。
+* 对于Python：
+    * 推荐[ActiveState ActivePython](http://www.activestate.com/activepython/)发布。
+    * 该脚本目前已使用Python 2.5.2版本进行过测试。
+* 对于P4Python：
+    * 您可以从Perforce网站的[相关软件](http://www.perforce.com/perforce/loadsupp.html)页面下载最新的P4Python。 
+    * 您可以从Perforce网站获取[API文档](http://www.perforce.com/perforce/doc.current/manuals/p4script/p4script.pdf)。
+    * 该脚本目前已使用P4Python 2008.2版本进行过测试。
 
 
 
-###安装自定义工具
+### 安装自定义工具
 
-一旦安装了Python 和 P4Python:
+安装Python和P4Python之后：
 
-* 下载python 脚本 [](P4AutoMerge.py.txt) ，并把它放置到您的Python路径下。
-* 在P4V的 _Tools(工具)_ 菜单，选择_Manage custom tools(管理自定义工具)..._
-* 选择 _New|Tool(新建|工具)...(随意地创建一个用于分组管理您的工具的文件夹)_
-* 像以下图片这样设置选项。
-    * 替换显示的字符串为您自己的分支名称。
-    * 点击 _select(选择)..._ 按钮来获得关于P4V的自定义工具中可获得的选项更多详细资料。
+* 下载[](P4AutoMerge.py.txt)python脚本并将其放置在Python路径中。
+* 在P4V的 **工具（Tools）** 菜单中，选择 **管理自定义工具......（Manage custom tools...）**。
+* 选择 **新建（New） > 工具......（Tool...））**（可选地创建文件夹来对工具进行分组）。
+* 设置选项，如下图所示。
+    * 用分支名称替换指定字符串。
+    * 单击 **选择......（select...）** 了解P4V的自定义工具可用选项的更多信息。
 
 
 ![P4AutoMergeSetup.jpg](P4AutoMergeSetup.jpg)
 
 
-* 在那里，你应该可以右击一个已提交的变更列表并选择您的工具。
+* 从这时起，您应该能够 **右键单击** 提交的变更列表并选择工具。
 
 
 
-### 安装通用的分支工具
+### 安装通用分支工具
 
-您也可以设置P4V来为分支名称显示一个提示。这也是以几乎同样的方式设置的，但是要指定一个特殊的选项而不是分支名称：
+您还可以设置P4V来显示分支名称的提示。设置方法几乎完全相同，但指定了一个特殊选项，而不是分支名称。
 
-* **`P4AutoMerge.py -p $p -u $u -c $c -b $D -m SAFE %C`**
-* 在描述区域，输入以下文本： "Enter the branchspec you want to merge from (append -r to reverse it)(输入你要融合的分支说明(附加-r来反转它))"。
+* **“P4AutoMerge.py -p $p -u $u -c $c -b $D -m SAFE %C”**
+* 在描述中，键入以下文本：“Enter the branchspec you want to merge from (append -r to reverse it).”
 
 
 ![P4AutoMergeSetupGeneral.jpg](P4AutoMergeSetupGeneral.jpg)
 
 
 
-## 一次融合多个变更列表
+## 一次合并多个变更列表
 
-从技术上来讲，脚本支持一次融合一系列的变更列表。然而，这是不推荐的，而且这样很难在自定义工具的图形界面使用。但是你可以使用命令行选项自己来控制它。
+从技术上讲，该脚本支持一次合并一系列的变更列表。然而，不建议这样做，而且很难在自定义工具GUI中公开。不过，您可以使用命令行选项来自己控制它：
 
 
     
-    用法： P4AutoMerge.py [options]
+    用法：P4AutoMerge.py [选项]
     
-            描述: 支持从一个分支中自动融合一个变更列表的脚本。
+            说明：支持自动合并分支中变更列表的脚本。
     
-    Options(选项):
-      --version             显示程序版本并退出
-      -h, --help            显示帮助信息并退出
-      -p PORT, --port=PORT  要使用的P4端口。比如： p4-server:1666。
-                                默认使用P4环境搜索获得P4PORT(P4端口)。
-      -u USER, --user=USER  要使用的P4用户。使用p4环境搜索来获得P4USER(P4用户)
-    
+    选项：
+      --version             显示程序的版本号并退出
+      -h, --help            显示该帮助消息并退出
+      -p PORT, --port=PORT  要使用的P4端口。即p4-server:1666。使用p4
+                            环境搜索P4PORT（默认）。
+      -u USER, --user=USER  要使用的P4用户。使用p4环境搜索P4USER
+                            （默认）。
       -c CLIENT, --client=CLIENT
-                            要使用的P4客户端。默认使用p4环境搜索来获得P4CLIENT (p4客户端)
-    
-      -r, --reverse         如果指定了该项，则翻转分支说明。默认为False. Default = False
+                            要使用的P4客户端。使用p4环境搜索
+                            P4CLIENT（默认）。
+      -r, --reverse         反转分支规范（如已指定）。默认值 = False
       -b BRANCHSPEC, --branchspec=BRANCHSPEC
-                            <Required> 要使用的分支说明。
+                            <必填项> 要使用的分支规范。
       -m MERGETYPE, --mergetype=MERGETYPE
-                            执行的融合类型，有效选项为SAFE和NULL
-                            ， 默认为SAFE。
+                            要执行的合并类型，有效选项为安全（SAFE）和
+                            NULL。默认值 = 安全（SAFE）
     
 
 
 
-脚本权限没有额外的登陆界面，如果想成功地运行脚本，那么你必须已经在客户端登陆并被识别。
+不会对登录做任何调整，因此您必须已经对该客户端上的该用户进行了身份验证，以便该脚本能够成功运行。
 
  
 

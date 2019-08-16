@@ -194,7 +194,7 @@ class ENGINE_API UAnimBlueprintGeneratedClass : public UBlueprintGeneratedClass,
 	UPROPERTY()
 	TMap<FName, FCachedPoseIndices> OrderedSavedPoseIndicesMap;
 
-	// The various anim functions that this class holds (created during Link)
+	// The various anim functions that this class holds (created during GenerateAnimationBlueprintFunctions)
 	TArray<FAnimBlueprintFunction> AnimBlueprintFunctions;
 
 	// The arrays of anim nodes; this is transient generated data (created during Link)
@@ -210,6 +210,10 @@ class ENGINE_API UAnimBlueprintGeneratedClass : public UBlueprintGeneratedClass,
 	UPROPERTY()
 	TArray<FExposedValueHandler> EvaluateGraphExposedInputs;
 
+	// Indices for any Asset Player found within a specific (named) Anim Layer Graph, or implemented Anim Interface Graph
+	UPROPERTY()
+	TMap<FName, FGraphAssetPlayerInformation> GraphAssetPlayerInformation;
+
 public:
 
 	virtual const TArray<FBakedAnimationStateMachine>& GetBakedStateMachines() const override { return BakedStateMachines; }
@@ -223,7 +227,8 @@ public:
 	virtual int32 GetSyncGroupIndex(FName SyncGroupName) const override { return SyncGroupNames.IndexOfByKey(SyncGroupName); }
 	virtual const TArray<FExposedValueHandler>& GetExposedValueHandlers() const { return EvaluateGraphExposedInputs; }
 	virtual const TArray<FAnimBlueprintFunction>& GetAnimBlueprintFunctions() const override { return AnimBlueprintFunctions; }
-
+	virtual const TMap<FName, FGraphAssetPlayerInformation>& GetGraphAssetPlayerInformation() const override { return GraphAssetPlayerInformation; }
+	
 public:
 #if WITH_EDITORONLY_DATA
 	FAnimBlueprintDebugData AnimBlueprintDebugData;
@@ -332,8 +337,11 @@ public:
 	const int32* GetNodePropertyIndexFromGuid(FGuid Guid, EPropertySearchMode::Type SearchMode = EPropertySearchMode::OnlyThis);
 #endif
 
-	// Called after Link to patch up refereces to the nodes in the CDO
+	// Called after Link to patch up references to the nodes in the CDO
 	void LinkFunctionsToDefaultObjectNodes(UObject* DefaultObject);
+
+	// Populates AnimBlueprintFunctions according to the UFunction(s) on this class
+	void GenerateAnimationBlueprintFunctions();
 
 	// UObject interface
 	virtual void Serialize(FArchive& Ar) override;
@@ -347,6 +355,7 @@ public:
 	virtual void PurgeClass(bool bRecompilingOnLoad) override;
 	virtual uint8* GetPersistentUberGraphFrame(UObject* Obj, UFunction* FuncToCheck) const override;
 	virtual void PostLoadDefaultObject(UObject* Object) override;
+	virtual void PostLoad() override;
 	// End of UClass interface
 };
 

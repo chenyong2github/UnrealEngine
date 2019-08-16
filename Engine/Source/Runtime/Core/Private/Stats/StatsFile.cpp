@@ -330,37 +330,21 @@ void IStatsWriteFile::Finalize()
 	}
 
 	// Create a copy of names.
-	TSet<int32> FNamesToSent = FNamesSent;
+	TSet<FNameEntryId> FNamesToSent = FNamesSent;
 	FNamesSent.Empty( FNamesSent.Num() );
 
 	// Serialize FNames.
 	Header.FNameTableOffset = Ar.Tell();
 	Header.NumFNames = FNamesToSent.Num();
-	for (const int32 It : FNamesToSent)
+	for (FNameEntryId Id : FNamesToSent)
 	{
-		WriteFName( Ar, FStatNameAndInfo( FName( It, It, 0 ), false ) );
+		WriteFName( Ar, FStatNameAndInfo( FName( Id, Id, 0 ), false ) );
 	}
 
 	// Serialize metadata messages.
 	Header.MetadataMessagesOffset = Ar.Tell();
 	Header.NumMetadataMessages = Stats.ShortNameToLongName.Num();
 	WriteMetadata( Ar );
-
-	// Verify data.
-	TSet<int32> BMinA = FNamesSent.Difference( FNamesToSent );
-	struct FLocal
-	{
-		static TArray<FName> GetFNameArray( const TSet<int32>& NameIndices )
-		{
-			TArray<FName> Result;
-			for (const int32 NameIndex : NameIndices)
-			{
-				new(Result)FName( NameIndex, NameIndex, 0 );
-			}
-			return Result;
-		}
-	};
-	TArray<FName> BMinANames = FLocal::GetFNameArray( BMinA );
 
 	// Seek to the position just after a magic value of the file and write out proper header.
 	Ar.Seek( sizeof( uint32 ) );

@@ -137,8 +137,19 @@ FString FEmitterLocalContext::FindGloballyMappedObject(const UObject* Object, co
 	}
 
 	{
+		// Need special-case handling for UFunction-type fields (can't use GetOwnerStruct).
+		auto GetFieldOwnerStruct = [](const UField* InField) -> UStruct*
+		{
+			if (InField->IsA<UFunction>())
+			{
+				return InField->GetOwnerClass();
+			}
+
+			return InField->GetOwnerStruct();
+		};
+
 		const UField* Field = Cast<UField>(Object);
-		const UStruct* FieldOwnerStruct = Field ? Field->GetOwnerStruct() : nullptr;
+		const UStruct* FieldOwnerStruct = Field ? GetFieldOwnerStruct(Field) : nullptr;
 		if (FieldOwnerStruct && (Field != FieldOwnerStruct))
 		{
 			ensure(Field == FindField<UField>(FieldOwnerStruct, Field->GetFName()));
@@ -658,7 +669,7 @@ FString FEmitHelper::HandleMetaData(const UField* Field, bool AddCategory, const
 #endif
 #define HANDLE_CPF_TAG(TagName, CheckedFlags) if (HasAllFlags(Flags, (CheckedFlags))) { Tags.Emplace(TagName); }
 
-TArray<FString> FEmitHelper::ProperyFlagsToTags(uint64 Flags, bool bIsClassProperty)
+TArray<FString> FEmitHelper::PropertyFlagsToTags(uint64 Flags, bool bIsClassProperty)
 {
 	TArray<FString> Tags;
 

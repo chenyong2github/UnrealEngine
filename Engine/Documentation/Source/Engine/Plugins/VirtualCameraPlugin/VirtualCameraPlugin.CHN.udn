@@ -1,0 +1,392 @@
+﻿INTSourceChangelist:6055453
+Availability: Public
+Title: 虚拟摄像机插件
+Description: 介绍特性集以及如何使用虚拟摄像机插件进行虚拟制作。 
+Type: overview
+Version: 4.22
+Parent: Engine/Plugins
+Tags: Sequencer
+Tags: Plugin
+Tags: Virtual Camera
+Tags: Virtual Production
+topic-image: VirtualCameraPluginImage.png
+social-image: VirtualCameraPluginImage.png
+topic-icon: VirtualCameraPluginImage.png
+Order: 1
+
+
+[TOC (start:2 end:3)]
+
+虚拟摄像机插件允许用户在虚拟制作环境中使用iPad Pro驱动虚幻引擎4(UE4)中的 **过场动画摄像机（Cine Camera）**。通过ARKit或Vicon或Optitrack等光学运动捕捉系统，iPad的位置和旋转可以无线广播到PC上，PC将视频传回iPad。
+
+摄像机设置，如 **焦距（Focal Length）**、**光圈（Aperture）**、**焦点距离（Focus Distance）** 和 **稳定（Stabilization）** 可通过触摸输入进行调整。此外，虚拟摄像机还可用于拍摄[高分辨率屏幕截图](Engine/Basics/Screenshots)，设置航点、记录摄像机运动以及其他与虚拟制作相关的任务。
+
+下方视频概述了虚拟摄像机插件的功能，该插件镜像了本页面上的大部分文档：
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ y0lPeaFX4Vk
+ [/PARAMLITERAL]
+[/OBJECT]
+
+[REGION:note]
+本文档主要介绍一个支持ARKit的iPad Pro的设置。另请参阅有关使用[Live Link](#LiveLink设置)连接到Maya的一节。
+[/REGION]
+
+## 依赖关系
+
+虚拟摄像机依赖于一个名为 **远程会话（Remote Session）** 的独立UE4插件和相关联的 **Unreal Remote 2** 应用程序（您可以在[App Store](https://itunes.apple.com/us/app/unreal-remote-2/id1374517532)）上免费找到它。
+
+### 远程会话插件
+
+该插件通过IP将视频从PC上的在编辑器中运行（Play in Editor）(PIE)或独立游戏窗口传输到移动设备，接收触摸输入和ARKit追踪数据。该插件可以用于移动预览，而不需要部署到设备上，虚拟摄像机插件也可以使用该插件。
+
+### Unreal Remote 2应用程序
+
+该应用程序与远程会话插件一起使用，通过IP在设备和PC之间传输和接收数据。应用程序中唯一需要的用户输入是PC的IP地址。
+
+[REGION:note]
+您还需要一个满足[ARKit先决条件](Platforms/AR/HandheldAR/ARKitPrerequisites)的iOS设备，以便追踪设备的移动，并在UE4中启用 **Apple ARKit插件（Apple ARKit Plugin）**。
+[/REGION]
+
+## 启用必要的插件
+
+首先，启用以下插件：  
+
+1.  从主编辑器中的 **编辑（Edit）** 下，选择 **插件（Plugins）**。   
+    ![](PluginsMenu-1.png "PluginsMenu-1.png")
+
+1.  从 **虚拟制作（Virtual Production）** 选项卡中，启用 **虚拟摄像机（VirtualCamera）** 插件。  
+    ![](VirtualCameraPlugin.png "VirtualCameraPlugin.png")
+
+1.  重新启动要应用插件的编辑器。  
+    
+
+重新启动编辑器后，将启用 **虚拟摄像机（Virtual Camera）** 插件。启用插件时，将自动启用两个额外的插件：**远程会话（Remote Session）** 和 **Apple ARKit**，这是充分发挥虚拟摄像机的潜力和功能所需要的。
+
+![](AppleARKit.png "AppleARKit.png")
+
+![](RemoteSession.png "RemoteSession.png")
+
+## iOS设备设置
+
+从App Store下载[Unreal Remote 2](https://itunes.apple.com/us/app/unreal-remote-2/id1374517532)应用程序到支持ARKit的iOS设备上，并启动该应用程序，您将看到类似如下的画面。  
+  
+
+![](RemoteSessionApp.jpg "RemoteSessionApp.jpg")  
+  
+您将需要输入远程服务器的IP地址，并按 **连接（Connect）** 按钮尝试建立连接。IP地址可能不同，但是您可以在Windows机器上打开 **CMD** 提示符并键入 **IPCONFIG** 来检索IPv4地址。  
+
+[REGION:note]
+只有当UE4启动了一个运行会话（Play Session）时才会发生连接。**Unreal Remote 2** 应用程序将显示为“正在连接（connecting）”状态，直到按下取消按钮或UE4启动了一个运行会话（Play Session）。
+[/REGION]
+
+## UE4项目设置
+
+您需要做的第一件事是在您的UE4项目中分配 **虚拟摄像机游戏模式（VirtualCameraGameMode）**：   
+
+1.  在您的项目内，转到 **世界设置（World Settings）** 菜单：  
+    ![](WorldSettings1.png "WorldSettings1.png")
+
+1.  从 **世界场景设置（World Settings）** 菜单的 **游戏模式（Game Mode）** 下，分配 **虚拟摄像机游戏模式（VirtualCameraGameMode）**。   
+    ![](WorldSettings2.png "WorldSettings2.png")
+
+这将分配正确的 **游戏模式（Game Mode）** 和 **Pawn** 用于虚拟摄像机和虚拟制作。 
+
+要设置支持ARKit的iPad，要让 **Unreal Remote 2** 应用程序使用ARKit，它需要在项目中公开AR和XR通道。这可以通过在项目的 **DefaultEngine.ini** 中添加以下内容来实现（通过右键单击项目文件并选择 **属性（Properties）**，确保清除项目上的只读标志）：
+
+    [RemoteSession]
+    +Channels=(Name=FRemoteSessionFrameBufferChannel,Mode=Write)
+    +Channels=(Name=FRemoteSessionInputChannel,Mode=Read)
+    +Channels=(Name=FRemoteSessionXRTrackingChannel,Mode=Read)
+
+除了通过ARKit追踪移动之外，另一个用于移动的选项是使用虚拟操纵杆。但是，由于我们没有将项目部署到设备上，我们需要公开项目中的虚拟操纵杆，这可以从 **编辑（Edit）> 项目设置（Project Settings）> 输入（Input）** 部分完成，并在 **移动（Mobile）** 部分启用 **始终显示触摸界面（Always Show Touch Interface）**。  
+  
+[REGION:lightbox]
+[![](AlwaysDisplayJoysticks.png)(w:900)](AlwaysDisplayJoysticks.png)
+[/REGION]
+
+单击图像显示全视图。  
+  
+
+为了防止虚拟摄像机UI的拉伸或倾斜，您可能还需要更改 **游戏视口设置（Game Viewport Settings）** 以匹配设备的分辨率。这可以从 **编辑（Edit）> 编辑器首选项（Editor Preferences）> 运行（Play）** 菜单的 **游戏视口设置（Game Viewport Settings）** 下使用 **常见窗口大小（Common Window Size）** 选项来完成（该选项旁边的按钮还允许您将视图设置为横向或纵向）。  
+
+[REGION:lightbox]
+[![](iPadSettings.png)(w:900)](iPadSettings.png)
+[/REGION]
+
+单击图像显示全视图。  
+  
+
+[REGION:note]
+如果用本机窗口大小播放有点慢，可以在这里调整窗口的分辨率，保持纵横比不变。例如，1280x960适用于iPad Pro，它的纵横比为4:3。
+[/REGION]
+单击 **运行（Play）** 按钮旁的 **运行选项（Play Options）** 下拉菜单，并选择 **新编辑器窗口（PIE）（New Editor Window (PIE)）**。   
+
+![](NewEditorWindow.png "NewEditorWindow.png")  
+  
+项目将启动，您将看到虚拟摄像机UI覆盖在您的项目上：  
+
+![](PlayInEditorUI.png "PlayInEditorUI.png")  
+  
+
+[REGION:warning]
+确保您没有展开在编辑器中运行（Play in Editor）(PIE)窗口。根据显示器的分辨率，这可能会导致不必要的拉伸。
+[/REGION]
+运行 **Unreal Remote 2** 应用程序的iOS设备也将自动连接到运行会话（Play Session）。    
+
+![](LaunchedApp.jpg "LaunchedApp.jpg")
+
+您现在可以通过使用 **Unreal Remote 2** 应用程序通过iOS设备控制会话。  
+
+## 虚拟摄像机UI
+
+本节概述虚拟摄像机UI及其设置。 
+
+  
+![](VirtualCameraUIMain.png "VirtualCameraUIMain.png")
+
+### 1 - 可视性
+
+点击左上角的 **眼睛** 图标将隐藏/显示虚拟摄像机UI。您可以从 **设置（Settings）** 菜单定义要隐藏哪些元素。
+
+### 2 - Slate和FPS
+
+在UI的顶部中间部分是一个信息部分，显示了记录的 **Slate名称（Slate Name）** 和 **FPS**。这可以使用 **序列记录器（Sequence Recorder）** 定制，否则，它将默认为基本摄像机和场景/采取命名惯例。命名惯例将在录制取镜镜头时和播放期间使用。
+
+### 3 - 聚焦模式
+
+UI右上角的三个按钮（**M、T、A**）用于设置虚拟摄像机的 **聚焦模式（Focus Mode）**。
+
+*   **手动（Manual）** (M) - 默认设置，每次单击屏幕进行对焦时，将把焦点距离设置为一个常量值。
+
+*   **追踪（Tracking）** (T) - 此设置将不断更新焦点距离，以保持选中的3D点处于焦点中。
+
+*   **自动（Auto）** (A) - 此设置将显示一个准星，可以通过点击在屏幕上移动。焦点距离将不断更新，以保持聚焦于准星瞄准的东西。 
+
+### 4 - 设置
+
+点击右上角的 **齿轮（Gear）** 图标将弹出设置（Settings）菜单。
+
+#### 4.1 一般设置
+
+![](GeneralSettings-1.png "GeneralSettings-1.png")
+
+**一般设置（General Settings）** 选项卡包含设置输入摄像机追踪源（ARKit、自定义、LiveLink）、以秒或帧为单位显示播放以及在整个功能集中将全局吊杆更改为本地吊杆（不推荐）的功能。
+
+#### 4.2 影片格式/纵横比
+
+![FilmFormatAspectRatio.png](FilmFormatAspectRatio.png "FilmFormatAspectRatio.png")
+
+**影片格式/纵横比（Film Format / Aspect Ratio）** 选项卡允许用户从预先确定的影片格式和蒙版列表中进行选择（可在 **虚拟摄像机Pawn（Virtual Camera Pawn）** 的过场动画摄像机组件上的数组中定制），并设置 **蒙版不透明度（Matte Opacity）**。
+
+#### 4.3 聚焦
+
+![](Focus.png "Focus.png")
+
+  **聚焦（Focus）** 选项卡允许用户访问 **聚焦方法（Focus Method）**（这些选项与主UI中的 **M/T/A** 按钮相同），**焦点距离（Focus Distance）** 的显示格式，是否在使用触摸输入以聚焦时显示 **聚焦平面（Focus Plane）**，以及平面的 **颜色（Color）** 是什么。
+
+
+#### 4.4 稳定
+
+![](Stabilization.png "Stabilization.png")
+
+**稳定（Stabilization）** 选项卡用于抑制追踪输入的运动，使用户的摄像机移动更流畅。除了位置和旋转的不同稳定值，用户还能够调整每个通道的稳定。  
+
+[REGION:note]
+抑制追踪输入的运动会带来一些延迟。
+[/REGION]
+
+#### 4.5 轴锁定
+
+![](AxisLocking.png "AxisLocking.png")
+
+ **轴锁定（Axis Locking）** 将防止输入源影响该特定轴。它基于轴锁定时摄像机所面对的方向。例如，锁定平台车和吊杆将强制摄像机只能左右移动。这是快速创建线性摄像机移动轨道的好方法。
+
+默认情况下，锁定Dutch（@@@）将使摄像机上的滚动清零，保持水平。当一个轴解锁时，摄像机将再次从该轴的输入源继承位置/旋转。这将导致摄像机移动/旋转，这是预期的行为。
+
+#### 4.6 运动比例
+
+![](MotionScale.png "MotionScale.png")
+
+ **运动比例（Motion Scale）** 用于放大输入源的运动。这允许用户在场景中走动时夸大（或最小化）他们的动作。所有三个运动轴上的刻度均可独立调节。
+
+此外，可以链接平台车和移动式摄影车，使x-y平面上的移动统一。单击滚轮旁边的双箭头将使缩放值增加10倍。窗口底部的按钮可用于将比例重置为1。
+
+#### 4.7 视图冻结
+
+![](ViewFreeze.png "ViewFreeze.png")
+
+按下 **冻结视图（Freeze the View）** 按钮将暂时禁用输入源，这样平板电脑上的视图就会冻结，使用户可以将平板电脑移动到现实世界的其他地方。按 **解冻视图（Unfreeze the View）**，然后重新启用输入源，然保持视图偏移。
+
+如果用户想要根据真实世界重新定位场景，或者只是为了在侦察或射击时更舒适地握着平板电脑，这一点尤其有用。您还可以在视图冻结（View Freeze）窗口的较低部分定义要冻结的轴。
+
+#### 4.8 可视性
+
+![](Visibility.png "Visibility.png")
+
+**可视性（Visibility）** 选项卡使用户能够选择在单击主UI上的可视性（眼睛图标）按钮时哪些UI元素仍然可见。
+
+#### 4.9 预设置
+
+![](Presets.png "Presets.png")
+
+**预设置（Presets）** 使用户能够保存特定的设置，并在另一个会话期间将这些设置加载回来。默认情况下，当用户关闭PIE/游戏窗口时，插件将保存当前的摄像机设置。
+
+### 5 - 焦距
+
+ **焦距（Focal Length）** 显示在UI的左上区域。点击该区域会展开一个带可定制镜头工具包的轮子。  
+  
+
+![](FocalLength_02.png "FocalLength_02.png")
+
+滚动该轮子将逐个循环遍历这些镜头。此外，单击任何焦距都会立即切换到这些镜头。镜头工具包可以通过改变 **VirtualCameraPawn** 中过场动画摄像机组件上的 **焦距选项（Focal Length Options）** 数组来定制。
+
+### 6 - 焦点距离和光圈
+
+**焦点距离（Focus Distance）** 和 **光圈（Aperture）** 显示在UI的右上区域。它们一同用于设置聚焦。在该区域中点击会扩大两个轮子，一个用于焦点距离，另一个用于光圈。  
+  
+
+![](FocusAperture.png "FocusAperture.png")
+
+有多种方法可以更改 **焦点距离（Focus Distance）**（左轮）：用滚轮滚动，点击双箭头以3米为增量（约10英尺）增大，或者点击视口中的任何位置以聚焦于3D空间中的该点。双击轮子将折叠/展开它。
+
+[REGION:note]
+需要注意的是，触摸聚焦只有在打开 **聚焦（Focus）** 菜单时才处于活动状态（当轮子可见时）。当 **聚焦（Focus）** 菜单关闭时，触摸输入将不会影响聚焦。
+[/REGION]
+
+滚动 **光圈（Aperture）**（右轮）将使可定制 **光圈（Aperture）** 列表的值递增（默认情况下，列表基于句号）。此外，直接点击任何值都会将 **光圈（Aperture）** 更改为该值。
+
+ **光圈（Aperture）** 值影响景深(DoF)，值越小创建的DoF就越浅。双击轮子将折叠/展开它。光圈工具包可以通过改变 **VirtualCameraPawn** 中过场动画摄像机组件上的 **光圈选项（Aperture Options）** 数组来定制。
+
+### 7 - 记录和记录子菜单
+
+单击 **记录（Record）** 按钮启动新的录制，再次单击则停止录制。**记录（Record）** 按钮旁是一个箭头，用于访问 **记录子菜单（Record sub-menu）**。  
+  
+![](RecordSubMenu.png "RecordSubMenu.png")
+
+目前，这包含一个用于拍摄高分辨率屏幕截图的按钮（单摄像机图标），以及一个用于加载前一个屏幕截图的按钮（多摄像机图标）。加载屏幕截图的动作是将摄像机移动到屏幕截图拍摄的位置（仅定位，不旋转），并调整 **焦距（Focal Length）** 和 **光圈（Aperture）** 以匹配。  
+
+![](Screenshot.png "Screenshot.png")
+
+[REGION:tip]
+如果您点击并按住子菜单 **屏幕截图（Screenshot）** 按钮，它会将 **记录（Record）** 按钮替换为 **屏幕截图（Screenshot）** 按钮。当您侦察位置时，这个方法很有用，不必记录摄像机的运动。再次点击并按住子菜单 **屏幕截图（Screenshot）** 按钮，以切换回 **记录（Record）** 按钮。
+[/REGION]
+  
+
+### 8 - 模拟杆
+
+ **模拟杆（Analog Stick）** 对接在框架的底部，可以通过点击对接手柄来显示。  
+  
+
+![](thumbsticks.png "thumbsticks.png")
+
+左模拟杆根据摄像机所面对的方向前后左右移动摄像机，而右模拟杆则在全局范围内使摄像机上升/下降。  
+
+### 9 - 性能
+
+要加载之前记录的摄像机移动或带有动画的任何关卡序列，请单击 **性能（Performances）** 按钮，以打开一个包含任何已记录的性能的窗口。  
+  
+
+![](Performances_01.png "Performances_01.png")
+
+如果序列已记录，将显示在这里。单击一个序列将启动播放，并向您显示 **播放控件（Playback Controls）**。  
+[REGION:note]
+如果关卡序列包含一个摄像机剪切轨迹，那么序列器将接管摄像机视图，因此虚拟摄像机将不再追踪。在这种情况下，您也不能记录。
+[/REGION]
+
+![](Performances_02.png "Performances_02.png")
+
+一旦加载性能，就会显示时间轴和播放控件。时间轴使您能够清除序列。播放控件允许您快进、倒退、跳转到第一帧和跳转到最后一帧。此外，在主视图中进行触摸滑动可以很好地清除动画时间轴。 
+
+
+### 10 - 航点和航点子菜单
+
+点击右下角的蓝色按钮将创建一个 *航点（Waypoint）**，这是空间中的一个保存位置。这些对于在地图上传送很有用。**航点（Waypoint）** 按钮旁是一个箭头，用于访问 **航点子菜单（Waypoint sub-menu）**。
+
+![](WaypointSubMenu.png "WaypointSubMenu.png")  
+**航点（Waypoints）** 展开菜单中，有一个 **主（Home）** 按钮可用于移除所有偏移并将摄像机传送到指定主 **航点（Waypoint）**。如果没有 **航点（Waypoint）** 被指定为主航点，摄像机将传送回玩家出生点（如果使用ARKit），或使用mocap体积将摄像机重置为1:1（如果使用LiveLink追踪）。  
+
+**航点子菜单（Waypoint sub-menu）** 中的第二个按钮用于加载 **航点（Waypoint）**。这也是用户可以指定唯一 **主航点（Home Waypoint）** 的地方。
+
+## Live Link设置
+
+Live Link设置允许用户从运行的Maya实例控制虚拟摄像机。要使用带有Live Link的Maya进行测试，您需要确保在您的项目中启用了以下插件（以及 **虚拟摄像机插件（Virtual Camera Plugin）** 和 **远程会话插件（Remote Session Plugin）**）。
+
+  
+在 **编辑（Edit）> 插件（Plugins）** 下，启用以下插件：
+
+*   在 **动画（Animation）** 下，启用 **Live Link插件（Live Link Plugin）**，然后重启编辑器。  
+      
+    ![](LiveLinkPugin.png "LiveLinkPugin.png")
+
+您还需要遵循[使用Live Link将虚幻引擎4连接到Maya](Engine/Animation/LiveLinkPlugin/ConnectingUnrealEngine4toMayawithLiveLink)文档页面上的步骤，以获取Live Link设置，并建立Maya与虚幻编辑器之间的连接。
+
+[REGION:note]
+您只需要完成文档中的启用Live Link插件（Enabling the Live Link Plugin）和启用Maya Live Link（Enabling Maya Live Link）步骤，其余步骤对于虚拟制作和使用虚拟摄像机并无必要。
+[/REGION]
+
+一旦设置了Live Link，且Maya连接到UE4：  
+
+1.  为测试目的，将以下 [虚拟摄像机动画FBX](https://epicgames.box.com/s/r5aa7fs2lrxe48kkad1uxh3awohntl0d)资源导入到Maya。
+
+1.  公开 **大纲视图（Outliner）** (1)，选择 **根（Root）** (2)，然后在 **Maya Live Link UI** 窗口中，单击 **添加主题（Add Subject）** 按钮。  
+    ![](MayaRoot.png "MayaRoot.png")
+
+1.  在UE4中，转到 **Window > Live Link** 以打开Live Link连接（Live Link Connection）窗口。  
+    ![](LiveLinkWindow.png "LiveLinkWindow.png")
+
+1.  单击 **添加（Add）** 按钮，然后在 **消息总线源（Message Bus Source）** 下，选择与您的PC名称关联的源，并单击 **确定（Ok）**。  
+    ![](LiveLinkMayaSource.png "LiveLinkMayaSource.png")
+
+您还需要将 **输入源（Input Source）** 设置为 **VirtualCameraPlayerController** 蓝图中的Live Link，并分配 **Live Link目标名称（Live Link Target Name）**，该目标名指向来自Maya的 **主题（Subject）** 流送
+
+  
+为此，请执行以下操作：  
+
+1.  在项目的 **内容浏览器（Content Browser）** 中，在 **视图选项（View Options）** 下，启用 **显示引擎内容（Show Engine Content）** 和 **显示插件内容（Show Plugin Content）**。  
+    ![](ViewOptions-1.png "ViewOptions-1.png")
+
+1.  在 **VirtualCameraContent** 文件夹中，打开 **VirtualCameraPlayerController** 蓝图。  
+    ![](VirtualCameraContent-1.png "VirtualCameraContent-1.png")
+
+1.  在 **类默认值（Class Defaults）** 中的 **摄像机设置（Camera Settings）** 下，将 **输入源（Input Source）** 设置为 **Live Link**，将 **Live Link目标名称（Live Link Target Name）** 设置为 **Maya**（这是我们在主题在Maya中的名称）。  
+    ![](SetInputSourceToMaya.png "SetInputSourceToMaya.png")
+
+当启动一个播放会话时，虚拟摄像机将接收从Live Link流送的数据，根骨骼的任何移动都将应用于虚拟摄像机。
+
+## 虚拟摄像机样本项目
+
+在Epic Games Launcher的 **了解（Learn）** 选项卡的 **引擎功能样本（Engine Feature Samples）** 部分下，有一个 **虚拟摄像机（Virtual Camera）** 项目，其中包括一个样本场景和一个与虚拟摄像机插件配合使用的项目。
+
+![](VirtualCameraProject.png "VirtualCameraProject.png")
+
+默认情况下，需要的插件是启用的，虚拟摄像机游戏模式（Virtual Camera Game Mode）已经分配好，可以使用。通过支持ARKit的iPad或光学运动捕捉系统，您可以在拍摄场景的同时追踪您在虚拟环境中的移动。
+
+下面是一个使用虚拟摄像机插件从iPad上录制镜头的简单例子。
+
+[REGION:note]
+当我们停止录制镜头时，将显示 **处理录制（Processing Recording）** 消息。
+[/REGION]
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ gn0kJhIII5Y
+ [/PARAMLITERAL]
+[/OBJECT]
+
+[REGION:note]
+ **虚拟摄像机（Virtual Camera）** 项目仅用于虚幻编辑器中。您将无法将其打包，使其在虚幻引擎中在运行时可供使用。
+[/REGION]

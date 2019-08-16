@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6346190
 Availability:Public
 Title:关卡流送总览
 Crumbs:%ROOT%, Engine, Engine/UI/LevelEditor
@@ -13,12 +13,10 @@ topic-image:streaming_topic.png
 
 [INCLUDE:Engine/LevelStreaming#intro]
 
-(#ThePersistentLevel)
 ## 固定关卡
 
 实现关卡无缝混合的第一步是创建固定关卡。它可被视为一个主关卡，主要用于管理哪些关卡将流进和流出。 
 
-(#StreamingLevels)
 ## 流送关卡
 
 流送关卡通过 [**Levels** 窗口](Engine/Levels/LevelsWindow) 进行管理。它可与固定关卡重叠，或偏移创建更大的世界场景。使用流送关卡的流送类型可设为 **Always Loaded** 或 **Blueprint**。右键单击关卡分段即可在 **Levels** 窗口中开启此设置。
@@ -35,12 +33,10 @@ topic-image:streaming_topic.png
 	[/PARAM]
 [/OBJECT]
 
-(#DynamicStreamingMethods)
 ### 动态流送方法
 
 **Blueprint** 流送类型的流送关卡实际上会受到关卡流送体积域、蓝图或 C++ 代码的控制。这些关卡可被动态加载或卸载。 
 
-(#LevelStreamingVolumes)
 ### 关卡流送体积域
 
 通过 **关卡流送体积域** 可轻松控制关卡流送。原理十分简单：流送关卡的加载/卸载请求基于视点是否处于关卡相关的关卡流送体积域中而发出。
@@ -55,7 +51,6 @@ topic-image:streaming_topic.png
 * [](Engine/LevelStreaming/StreamingVolumes "%Engine/LevelStreaming/StreamingVolumes:description%")
 * [](Engine/LevelStreaming/HowTo/StreamWithVolumes "%Engine/LevelStreaming/HowTo/StreamWithVolumes:description%")
 
-(# Scripted Level Streaming)
 ### 基于脚本的关卡流送
 
 如需设置更复杂的关卡载入和卸载行为（与上例中的门解锁相似），也可设置关卡载入和卸载的蓝图或 C++ 逻辑。关键函数为 **Load Stream Level** 和 **Unload Stream Level**，并指定关卡按命名加载。 
@@ -63,4 +58,4 @@ topic-image:streaming_topic.png
 在 **Load Stream Level** 和 **Unload Stream Level** 之外，**Get Streaming Level** 函数可实现更为动态的流送行为。利用它访问实际的关卡流送对象后，即可修改和查询其状态。结合 **Create Instance** 使用此函数，也可创建并流入特定关卡分段的副本。对这些副本应用变形和发送参数，即可创建程序化的世界场景。 
 
 * [](Engine/LevelStreaming/HowTo/StreamWithBlueprints "%Engine/LevelStreaming/HowTo/StreamWithBlueprints:description%")
-* [](Engine/LevelStreaming/HowTo/StreamWithC++ "%Engine/LevelStreaming/HowTo/StreamWithC++:description%")
+* [](Engine/LevelStreaming/HowTo/StreamWithCPP "%Engine/LevelStreaming/HowTo/StreamWithCPP:description%")

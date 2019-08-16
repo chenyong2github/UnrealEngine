@@ -81,7 +81,7 @@ static TAutoConsoleVariable<int32> CVarMacPlatformDumpAllThreadsOnHang(
  FMacApplicationInfo - class to contain all state for crash reporting that is unsafe to acquire in a signal.
  ------------------------------------------------------------------------------*/
 
-FMacMallocCrashHandler* GCrashMalloc = nullptr;
+ CORE_API FMacMallocCrashHandler* GCrashMalloc = nullptr;
 
 /**
  * Information that cannot be obtained during a signal-handler is initialised here.
@@ -442,11 +442,7 @@ void FMacPlatformMisc::PlatformPreInit()
 	int32 Result = getrlimit(RLIMIT_NOFILE, &Limit);
 	if (Result == 0)
 	{
-		if(Limit.rlim_max != RLIM_INFINITY)
-		{
-			UE_LOG(LogInit, Warning, TEXT("Hard Max File Limit Too Small: %llu, should be RLIM_INFINITY, UE4 may be unstable."), Limit.rlim_max);
-		}
-		if(Limit.rlim_max == RLIM_INFINITY)
+		if (Limit.rlim_max == RLIM_INFINITY)
 		{
 			Limit.rlim_cur = MaxFilesPerProc;
 		}
@@ -455,12 +451,16 @@ void FMacPlatformMisc::PlatformPreInit()
 			Limit.rlim_cur = FMath::Min(Limit.rlim_max, (rlim_t)MaxFilesPerProc);
 		}
 	}
+	if (Limit.rlim_cur < OPEN_MAX)
+	{
+		UE_LOG(LogInit, Warning, TEXT("Open files limit too small: %llu, should be at least OPEN_MAX (%llu). rlim_max is %llu, kern.maxfilesperproc is %u. UE4 may be unstable."), Limit.rlim_cur, OPEN_MAX, Limit.rlim_max, MaxFilesPerProc);
+	}
 	Result = setrlimit(RLIMIT_NOFILE, &Limit);
 	if (Result != 0)
 	{
 		UE_LOG(LogInit, Warning, TEXT("Failed to change open file limit, UE4 may be unstable."));
 	}
-	
+
 	FApplePlatformSymbolication::EnableCoreSymbolication(!FPlatformProcess::IsSandboxedApplication() && IS_PROGRAM);
 }
 
@@ -1882,16 +1882,30 @@ void FMacCrashContext::GenerateCrashInfoAndLaunchReporter() const
 	// Prevent CrashReportClient from spawning another CrashReportClient.
 	bool bCanRunCrashReportClient = FCString::Stristr( *(GMacAppInfo.ExecutableName), TEXT( "CrashReportClient" ) ) == nullptr;
 
+	bool bImplicitSend = false;
+	if (!UE_EDITOR && GConfig)
+	{
+		// Only check if we are in a non-editor build
+		GConfig->GetBool(TEXT("CrashReportClient"), TEXT("bImplicitSend"), bImplicitSend, GEngineIni);
+	}
+
 	bool bSendUnattendedBugReports = true;
 	if (GConfig)
 	{
 		GConfig->GetBool(TEXT("/Script/UnrealEd.CrashReportsPrivacySettings"), TEXT("bSendUnattendedBugReports"), bSendUnattendedBugReports, GEditorSettingsIni);
 	}
 
+	bool bSendUsageData = true;
+	if (GConfig)
+	{
+		GConfig->GetBool(TEXT("/Script/UnrealEd.AnalyticsPrivacySettings"), TEXT("bSendUsageData"), bSendUsageData, GEditorSettingsIni);
+	}
+
 	if (BuildSettings::IsLicenseeVersion() && !UE_EDITOR)
 	{
 		// do not send unattended reports in licensees' builds except for the editor, where it is governed by the above setting
 		bSendUnattendedBugReports = false;
+		bSendUsageData = false;
 	}
 
 	const bool bUnattended = GMacAppInfo.bIsUnattended || IsRunningDedicatedServer();
@@ -1925,15 +1939,28 @@ void FMacCrashContext::GenerateCrashInfoAndLaunchReporter() const
 		if(ForkPID == 0)
 		{
 			// Child
-			if(GMacAppInfo.bIsUnattended)
+			if (bImplicitSend)
+			{
+				execl(GMacAppInfo.CrashReportClient, "CrashReportClient", CrashInfoFolder, "-Unattended", "-ImplicitSend", NULL);
+			}
+			else if(GMacAppInfo.bIsUnattended)
 			{
 				execl(GMacAppInfo.CrashReportClient, "CrashReportClient", CrashInfoFolder, "-Unattended", NULL);
 			}
 			else
 			{
-				execl(GMacAppInfo.CrashReportClient, "CrashReportClient", CrashInfoFolder, NULL);
+				if (bSendUsageData)
+				{
+					execl(GMacAppInfo.CrashReportClient, "CrashReportClient", CrashInfoFolder, NULL);
+				}
+				// If the editor setting has been disabled to not send analytics extend this to the CRC
+				else
+				{
+					execl(GMacAppInfo.CrashReportClient, "CrashReportClient", CrashInfoFolder, "-NoAnalytics", NULL);
+				}
 			}
 		}
+
 		// We no longer wait here because on return the OS will scribble & crash again due to the behaviour of the XPC function
 		// macOS uses internally to launch/wait on the CrashReportClient. It is simpler, easier & safer to just die here like a good little Mac.app.
 	}
@@ -1973,10 +2000,17 @@ void FMacCrashContext::GenerateEnsureInfoAndLaunchReporter() const
 		GConfig->GetBool(TEXT("/Script/UnrealEd.CrashReportsPrivacySettings"), TEXT("bSendUnattendedBugReports"), bSendUnattendedBugReports, GEditorSettingsIni);
 	}
 
+	bool bSendUsageData = true;
+	if (GConfig)
+	{
+		GConfig->GetBool(TEXT("/Script/UnrealEd.AnalyticsPrivacySettings"), TEXT("bSendUsageData"), bSendUsageData, GEditorSettingsIni);
+	}
+
 	if (BuildSettings::IsLicenseeVersion() && !UE_EDITOR)
 	{
 		// do not send unattended reports in licensees' builds except for the editor, where it is governed by the above setting
 		bSendUnattendedBugReports = false;
+		bSendUsageData = false;
 	}
 
 	const bool bUnattended = GMacAppInfo.bIsUnattended || !IsInteractiveEnsureMode() || IsRunningDedicatedServer();
@@ -2008,6 +2042,12 @@ void FMacCrashContext::GenerateEnsureInfoAndLaunchReporter() const
 		else
 		{
 			Arguments = FString::Printf(TEXT("\"%s/\" -Unattended"), *EnsureLogFolder);
+		}
+
+		// If the editor setting has been disabled to not send analytics extend this to the CRC
+		if (!bSendUsageData)
+		{
+			Arguments += TEXT(" -NoAnalytics");
 		}
 
 		FString ReportClient = FPaths::ConvertRelativePathToFull(FPlatformProcess::GenerateApplicationPath(TEXT("CrashReportClient"), EBuildConfigurations::Development));

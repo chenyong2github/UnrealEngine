@@ -18,6 +18,14 @@ namespace pointer
 	}
 
 
+	template <typename To, typename From>
+	To FromInteger(From integer)
+	{
+		// widen integer to width of pointer type first before converting to pointer
+		return reinterpret_cast<To>(static_cast<uintptr_t>(integer));
+	}
+
+
 	template <typename T>
 	T AlignBottom(void* anyPointer, size_t alignment)
 	{

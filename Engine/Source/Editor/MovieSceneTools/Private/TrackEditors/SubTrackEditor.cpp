@@ -26,6 +26,10 @@
 #include "MovieSceneToolHelpers.h"
 #include "Misc/QualifiedFrameTime.h"
 #include "MovieSceneTimeHelpers.h"
+#include "EngineAnalytics.h"
+#include "Interfaces/IAnalyticsProvider.h"
+
+#include "CommonMovieSceneTools.h"
 
 namespace SubTrackEditorConstants
 {
@@ -67,7 +71,6 @@ public:
 	{
 		return &SectionObject;
 	}
-
 	virtual FText GetSectionTitle() const override
 	{
 		if(SectionObject.GetSequence())
@@ -113,7 +116,8 @@ public:
 		int32 LayerId = InPainter.PaintSectionBackground();
 
 		ESlateDrawEffect DrawEffects = InPainter.bParentEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
-
+		
+		
 		TRange<FFrameNumber> SectionRange = SectionObject.GetRange();
 		if (SectionRange.GetLowerBound().IsOpen() || SectionRange.GetUpperBound().IsOpen())
 		{
@@ -233,6 +237,23 @@ public:
 				DrawEffects,
 				FColor(200, 200, 200)
 			);
+
+
+			TSharedPtr<ISequencer> SequencerPtr = Sequencer.Pin();
+			if (InPainter.bIsSelected && SequencerPtr.IsValid())
+			{
+				FFrameTime CurrentTime = SequencerPtr->GetLocalTime().Time;
+				if (SectionRange.Contains(CurrentTime.FrameNumber))
+				{
+					UMovieScene* SubSequenceMovieScene = SectionObject.GetSequence()->GetMovieScene();
+					const FFrameRate DisplayRate = SubSequenceMovieScene->GetDisplayRate();
+					const FFrameRate TickResolution = SubSequenceMovieScene->GetTickResolution();
+					const FFrameNumber CurrentFrameNumber = ConvertFrameTime(CurrentTime * SectionObject.OuterToInnerTransform(), TickResolution, DisplayRate).FloorToFrame();
+
+					DrawFrameNumberHint(InPainter, CurrentTime, CurrentFrameNumber.Value);
+				}
+			}
+
 		}
 		else if (UMovieSceneSubSection::GetRecordingSection() == &SectionObject)
 		{
@@ -296,6 +317,78 @@ public:
 			LOCTEXT("TakesMenu", "Takes"),
 			LOCTEXT("TakesMenuTooltip", "Sub section takes"),
 			FNewMenuDelegate::CreateLambda([=](FMenuBuilder& InMenuBuilder){ AddTakesMenu(InMenuBuilder); }));
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("PlayableDirectly_Label", "Playable Directly"),
+			LOCTEXT("PlayableDirectly_Tip", "When enabled, this sequence will also support being played directly outside of the master sequence. Disable this to save some memory on complex hierarchies of sequences."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateRaw(this, &FSubSection::TogglePlayableDirectly),
+				FCanExecuteAction::CreateLambda([]{ return true; }),
+				FGetActionCheckState::CreateRaw(this, &FSubSection::IsPlayableDirectly)
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+	}
+
+	void TogglePlayableDirectly()
+	{
+		TSharedPtr<ISequencer> SequencerPtr = Sequencer.Pin();
+		if (SequencerPtr)
+		{
+			FScopedTransaction Transaction(LOCTEXT("SetPlayableDirectly_Transaction", "Set Playable Directly"));
+
+			TArray<UMovieSceneSection*> SelectedSections;
+			SequencerPtr->GetSelectedSections(SelectedSections);
+
+			const bool bNewPlayableDirectly = IsPlayableDirectly() != ECheckBoxState::Checked;
+
+			for (UMovieSceneSection* Section : SelectedSections)
+			{
+				if (UMovieSceneSubSection* SubSection = Cast<UMovieSceneSubSection>(Section))
+				{
+					UMovieSceneSequence* Sequence = SubSection->GetSequence();
+					if (Sequence->IsPlayableDirectly() != bNewPlayableDirectly)
+					{
+						Sequence->SetPlayableDirectly(bNewPlayableDirectly);
+					}
+				}
+			}
+		}
+	}
+
+	ECheckBoxState IsPlayableDirectly() const
+	{
+		ECheckBoxState CheckboxState = ECheckBoxState::Undetermined;
+
+		TSharedPtr<ISequencer> SequencerPtr = Sequencer.Pin();
+		if (SequencerPtr)
+		{
+			TArray<UMovieSceneSection*> SelectedSections;
+			SequencerPtr->GetSelectedSections(SelectedSections);
+
+			for (UMovieSceneSection* Section : SelectedSections)
+			{
+				if (UMovieSceneSubSection* SubSection = Cast<UMovieSceneSubSection>(Section))
+				{
+					UMovieSceneSequence* Sequence = SubSection->GetSequence();
+					if (Sequence)
+					{
+						if (CheckboxState == ECheckBoxState::Undetermined)
+						{
+							CheckboxState = Sequence->IsPlayableDirectly() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+						}
+						else if (CheckboxState == ECheckBoxState::Checked != Sequence->IsPlayableDirectly())
+						{
+							return ECheckBoxState::Undetermined;
+						}
+					}
+				}
+			}
+		}
+
+		return CheckboxState;
 	}
 
 	void BeginResizeSection()
@@ -389,9 +482,7 @@ private:
 	/** Display name of the section */
 	FText DisplayName;
 
-	/** The section we are visualizing */
 	UMovieSceneSubSection& SectionObject;
-
 	/** Sequencer interface */
 	TWeakPtr<ISequencer> Sequencer;
 
@@ -636,9 +727,8 @@ void FSubTrackEditor::HandleAddSubTrackMenuEntryExecute()
 
 	if (GetSequencer().IsValid())
 	{
-		GetSequencer()->OnAddTrack(NewTrack);
+		GetSequencer()->OnAddTrack(NewTrack, FGuid());
 	}
-	GetSequencer()->NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::MovieSceneStructureItemAdded );
 }
 
 /** Helper function - get the first PIE world (or first PIE client world if there is more than one) */
@@ -820,6 +910,12 @@ bool FSubTrackEditor::CanRecordNewSequence() const
 
 void FSubTrackEditor::HandleRecordNewSequence(AActor* InActorToRecord, UMovieSceneTrack* InTrack)
 {
+	// Keep track of how many people actually used record new sequence
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Sequencer.RecordNewSequence"));
+	}
+
 	FSlateApplication::Get().DismissAllMenus();
 
 	const FScopedTransaction Transaction(LOCTEXT("AddRecordNewSequence_Transaction", "Add Record New Sequence"));

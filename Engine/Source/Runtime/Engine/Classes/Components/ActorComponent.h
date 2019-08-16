@@ -239,8 +239,8 @@ private:
 	/** During undo/redo it isn't safe to cache owner */
 	uint8 bCanUseCachedOwner:1;
 
-	/** Invalidates this component as an export once the linker is set. Used to clean up old native default subobjects that were removed from code */
-	uint8 bInvalidateExportWhenLinkerIsSet : 1;
+	/** Marks this component pending kill once PostLoad occurs. Used to clean up old native default subobjects that were removed from code */
+	uint8 bMarkPendingKillOnPostLoad : 1;
 #endif
 
 	/** True if this component was owned by a net startup actor during level load. */
@@ -453,6 +453,9 @@ public:
 
 	/** This should only be called by the engine in ULevel::InitializeNetworkActors to initialize bIsNetStartupComponent. */
 	void SetIsNetStartupComponent(const bool bInIsNetStartupComponent) { bIsNetStartupComponent = bInIsNetStartupComponent; }
+
+	/** Allows components to handle an EOF update happening mid tick. Can be used to block on in-flight async tasks etc. This should ensure the the component's tick is complete so that it's render update is correct. */
+	virtual void OnEndOfFrameUpdateDuringTick() {}
 
 private:
 	/** Cached pointer to owning actor */
@@ -792,7 +795,6 @@ public:
 	virtual void PostRename(UObject* OldOuter, const FName OldName) override;
 	virtual void Serialize(FArchive& Ar) override;
 #if WITH_EDITOR
-	virtual void PostLinkerChange() override;
 	virtual bool Modify( bool bAlwaysMarkDirty = true ) override;
 	virtual void PreEditChange(UProperty* PropertyThatWillChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;

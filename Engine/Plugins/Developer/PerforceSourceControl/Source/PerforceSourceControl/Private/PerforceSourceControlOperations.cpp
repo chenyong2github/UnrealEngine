@@ -1285,7 +1285,7 @@ bool FPerforceUpdateStatusWorker::Execute(FPerforceSourceControlCommand& InComma
 
 		if(Operation->ShouldGetOpenedOnly())
 		{
-			const FString ContentFolder = FPaths::ConvertRelativePathToFull(FPaths::RootDir());
+			const FString ContentFolder = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir());
 			const FString FileQuery = FString::Printf(TEXT("%s..."), *ContentFolder);
 			TArray<FString> Parameters = InCommand.Files;
 			Parameters.Add(FileQuery);

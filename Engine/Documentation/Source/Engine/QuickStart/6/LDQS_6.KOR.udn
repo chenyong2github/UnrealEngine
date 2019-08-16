@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3782314
-Availability: Public
+﻿INTSourceChangelist:6077702
+Availability: docs
 Title:6 - 빌드 프로세스 실행
 Crumbs:%ROOT%, GettingStarted, Engine/QuickStart
 Description:다수의 액터를 배치하고 편집한 후, 레벨 제작에 있어 최종 단계중 하나는 빌드 프로세스입니다.

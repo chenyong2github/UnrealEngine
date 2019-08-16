@@ -1,15 +1,15 @@
-﻿INTSourceChangelist:3429254
+INTSourceChangelist:3429254
 Availability: Public
 Title:블루프린트로 캐릭터 무브먼트 셋업
 Crumbs: %ROOT%, Gameplay, Gameplay\HowTo\CharacterMovement
-Description:블루프린트로 캐릭터 무브먼트를 셋업하는 비법 안내입니다.
+Description:블루프린트로 캐릭터 무브먼트를 셋업하는 하우투 안내입니다.
 Version: 4.9
 SkillLevel: Advanced
 type:how-to
 type:landing
 
  
-여기서는 **블루프린트** 를 통해 제대로 플레이가능한 캐릭터를 만드는 데 필요한 방법을 알아보겠습니다. 이 비법 시리즈 마지막에서는 걷기, 달리기, 웅크리기, 웅크려 걷기, 엎드리기, 정지 자세에서 점프, 이동중 점프가 가능한 캐릭터가 생길 것입니다.
+여기서는 **블루프린트** 를 통해 제대로 플레이가능한 캐릭터를 만드는 데 필요한 방법을 알아보겠습니다. 이 하우투 시리즈 마지막에서는 걷기, 달리기, 웅크리기, 웅크려 걷기, 엎드리기, 정지 자세에서 점프, 이동중 점프가 가능한 캐릭터가 생길 것입니다.
 
 완성된 제품 예제는 아래 비디오 샘플을 클릭하세요.
 

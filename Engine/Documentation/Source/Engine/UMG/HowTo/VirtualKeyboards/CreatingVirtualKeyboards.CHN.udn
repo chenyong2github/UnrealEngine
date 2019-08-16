@@ -1,18 +1,17 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
+﻿INTSourceChangelist:6533332
+Availability: Public
 Title:创建虚拟键盘交互
-Crumbs: %ROOT%, Engine, Engine/UMG, Engine/UMG/HowTo
-Description:说明如何通过 UMG 创建并与 3D 虚拟键盘形成交互。 
+Description:演示如何使用UMG创建3D虚拟键盘并与之交互。
+Type: how-to
 Version: 4.15
-SkillLevel: Advanced
-parent:Engine/UMG/HowTo
+parent: Engine/UMG/HowTo
 order:4
-checkpoint: editorqs
-tags:UMG UI Designer
+tags: UMG UI Designer
+SkillLevel: Advanced
 
-可结合 [Widget Interaction](Engine\UMG\UserGuide\WidgetInteraction) 组件和 [Widget](Engine/Components/Widget) 组件创建 3D 小键盘或虚拟键盘，以便玩家输入特定字符。控件交互组件将识别被点击的“按钮”，并将字符发送到 Actor 中执行显示的控件组件。
+如果您希望创建一个允许玩家输入指定字符的3D小键盘或虚拟键盘，可以通过组合[控件交互](Engine/UMG/UserGuide/WidgetInteraction)组件和[控件](Engine/Components/Widget)组件来实现。控件交互组件将有助于查看被按下的“按钮”有哪些，以及促进将字符发送到控件组件的过程，该控件组件位于处理显示的Actor内。
 
-在此指南中，我们将创建一个可进行交互并提供文本框输入的小键盘。 
+在本教程中，我们创建一个可以与输入交互的小键盘，并为文本框提供条目。
 
 [OBJECT:EmbeddedVideo]
 [PARAMLITERAL:width]
@@ -26,23 +25,187 @@ N2Fo4izRgh0
 [/PARAMLITERAL]
 [/OBJECT]
 
-_完成此指南后，您将设置好一个可在 3D 游戏中进行交互的小键盘和显示。_
+*在本指南的最后，将有一个小键盘和画面显示在3D游戏世界中，并可以与之交互。*
 
-进行此设置的一个重要方面是确定可聚焦（或不可聚焦）的控件。如显示玩家输入字符的文本框被设为可聚焦，玩家发送字符使用的按钮也为可聚焦，出现按钮（或其他控件）点击但未收到发出的命令时文本框会丢失玩家焦点。 
+进行此设置的一个重要方面是确定控件可（或不可）聚焦。如果显示玩家所进入的角色的文本框被设置为可聚焦，且玩家单击以发送角色的按钮也是可聚焦的，则当按下按钮（或任何其他控件）时，该文本框会失去玩家聚焦，并且不会收到发布的命令。
 
-第一步是使用控件交互组件设置角色，并创建资源显示 UI。 
-
-(#Steps)
-## 步骤
-
-[REGION:buttonlist]
-* [](Engine\UMG\HowTo\VirtualKeyboards\CharacterSetup)
-* [](Engine\UMG\HowTo\VirtualKeyboards\WidgetSetup)
-* [](Engine\UMG\HowTo\VirtualKeyboards\ActorSetup)
-[/REGION]
-
-[REGION:call_to_action]
-	[点击开始](Engine\UMG\HowTo\VirtualKeyboards\CharacterSetup "%Engine\UMG\HowTo\VirtualKeyboards\CharacterSetup:title%")
-[/REGION]
+然而，第一步是使用控件交互组件设置我们的角色，并创建资源以显示我们的UI。
 
 
+## 1 - 角色设置
+
+1.  在 **Content/FirstPersonBP/Blueprints** 文件夹内，打开 **第三人称角色（FirstPersonCharacter）** 蓝图。
+
+1.  添加一个附加到 **球体（Sphere）** 的 **WidgetInteraction** 组件，然后将 **细节（Details）** 面板中的 **位置（Location）** 和 **显示调试（Show Debug）** 归零。  
+
+    ![](Keypad01.jpg)
+
+    我们的控件交互组件现在指向的方向即玩家的枪在游戏中指向的方向，由调试标记指示。
+
+1.  在 **图表（Graph）** 中，添加一个 **鼠标右键（Right Mouse Button）** 事件，并拖入 **Widget Interaction** 组件。
+
+1.  离开 **Widget Interaction**，添加 **Press Pointer Key** 和 **Release Pointer Key** 并将两者都设置为 **鼠标左键（Left Mouse Button）**，然后连接如下。  
+
+    ![](Keypad02.jpg)
+
+    控件通过单击鼠标左键或触摸控件来响应鼠标/触摸交互，并且我们可以使用 **Press Pointer Key** 函数模拟该互动。在我们的示例中使用 **鼠标右键（Right Mouse Button）** 模拟鼠标左键（Left Mouse Button）单击，但是，您可以使用游戏手柄按钮甚至体感控制器扳机键来触发Press Pointer Key函数。
+
+1.  在 **内容浏览器（Content Browser）** 中，基于 **Actor** 和两个 **控件蓝图（Widget Blueprints）** 创建两个 **类蓝图（Class Blueprints）**。
+
+    ![](Keypad03.jpg)
+
+    对于这两个Actor蓝图，调用一个 **Keypad**（以表示小键盘输入）和另一个 **KeypadDisplay**（以表示和显示从小键盘中输入的值）。对于控件蓝图，使用与Actor蓝图相同的名称，但是，为了区分它们，（对控件蓝图）加上后缀 **WB**。
+
+**分段结果**
+
+我们的项目已经准备就绪，我们的角色可以与世界场景上的控件交互，接下来我们将设置我们的交互控件。
+
+## 2 - 控件蓝图设置
+
+在此步骤中，我们创建交互式UI控件的布局，并编写单击按钮时发生情况的脚本。
+
+1.  打开 **KeypadDisplayWB**，将层级（Hierarchy）中的 **画布面板（Canvas Panel）** 替换为包裹在 **盒体大小（Size Box）** 内的 **文本框（TextBox）**。
+    
+    ![](Keypad04a.png)
+
+1.  对于 **盒体大小（Size Box）**，设置为 **屏幕上所需（Desired on Screen）**，并将 **宽度（Width）** 和 **高度（Height）** 覆盖为 **100x50**。
+    
+    ![](Keypad04.png)
+
+1.  对于 **文本框（Text Box）**，将 **提示文本（Hint Text）** 设置为 **1212**，并将 **字体大小（Font Size）** 调整到 **28**。
+    
+    ![](Keypad05.png)
+    
+    例如，玩家必须使用小键盘输入文本1212来表示输入成功，但是您可以使用任何您希望的值。
+
+1.  打开 **KeypadWB**，设置 **层级（Hierarchy）** 以创建3个按钮，其上使用文本 **0**、**1** 和 **2**，如下所示。
+    
+    ![](Keypad06.png)
+    
+    您还可能想要在层级中的每个按钮上按 **F2** 来更改它们的名称，从而反映它们是哪个按钮。
+
+1.  添加第二个 **水平方框（Horizontal Box）**，其中包含两个其上有文本的 **按钮（Button）**，一个设置为 **Del**，另一个设置为 **Ent**。
+    
+    ![](Keypad07.png)
+    
+    我们的小键盘将只有三个数字按钮和两个用于删除（**Del**）或提交（**Ent**）条目的按钮。
+
+1.  按住 **Ctrl** 并选择各个按钮，然后为各个按钮将 **可聚焦（Is Focusable）** 选项设置为 **False**。
+    
+    ![](Keypad08.png)
+    
+    为了使我们的设置正常工作，我们需要确保与之交互的其他控件不会将小键盘显示控件的聚焦带走。如果我们将这些设置为true，当我们单击一个按钮时，聚焦将从小键盘显示转移到该按钮上，从而阻止我们将按键和值传递到小键盘显示上。
+
+1.  在 **图表（Graph）** 上，为各个按钮添加 **OnClicked** 事件。
+    
+    ![](Keypad09.png)
+
+1.  创建两个 **变量（Variable）**，一个是 **字符串（String）** 类型，变量名为 **CharToSend**，另一个是 **WidgetInteractionComponent** 类型，变量名为 **WidgetInteraction**。
+    
+    ![](Keypad10.png)
+
+1.  按住 **Alt** 并拖入 **CharToSend**，并连接到 **OnClicked** 事件，然后设置变量值，如下所示。
+    
+    ![](Keypad11.png)
+
+1.  按住 **Ctrl** 并拖入 **WidgetInteraction**，然后离开 **Send Key Char**，并连接 **CharToSend** 和 **OnClicked** 事件。
+    
+    ![](Keypad12.png)
+    
+    我们在这里使用 **Send Key Char** 函数，因为Slate中的文本框没有获取直接发送给它们的键，例如，它们未识别到A键已按下，从而发送A。相反，它们侦听Send Char，这样较低级别的系统操作代码就可以确定按下A键时是否按住Shift键，或者按下A键时是否打开大写锁定。
+
+1.  离开 **Del** OnClicked 事件，使用 **Press and Release Key** 并从 **WidgetInteraction** 变量将其设置为 **空格键（Backspace）**。
+    
+    ![](Keypad13.png)
+
+1.  创建一个名为 **EnterPressed** 的 **事件调度器（Event Dispatcher）**，并从 **OnClicked(Ent)** 调用它。
+    
+    ![](Keypad14.png)
+
+**分段结果**
+
+我们的控件蓝图被设置为显示我们的小键盘和小键盘显示，接下来我们将把它们作为控件组件添加到我们的Actor蓝图中，这样我们就可以让它们出现在关卡中。在下一步结束时，我们应该能够测试我们的系统并在游戏进程中与这两个元素进行交互。
+
+## 3 - Actor设置和测试
+
+在最后的部分中，我们将控件蓝图作为 **控件（Widget）** 组件添加到Actor中，并定义当玩家单击 **Enter** 按钮时会发生什么，检查输入的文本是否与我们的 **目标文本（GoalText）** 相同。一切就绪后，我们对其进行测试，以查看最终结果，如果代码正确，则将 **成功（Success）** 输出到屏幕上；如果代码不正确，则将 **错误代码（Wrong Code）** 输出到屏幕上。
+
+1.  打开 **KeypadDisplay** 蓝图，并添加一个 **控件（Widget）** 组件，同时将类设置为 **KeypadDisplayWB** 和 **按要求大小绘制（Draw at Desired Size）**。
+
+    
+    ![](Keypad15.png)
+    
+    按要求大小绘制（Draw at Desired Size）是使渲染目标自动匹配控件蓝图中所需大小的快速方法。
+
+
+1.  打开 **小键盘（Keypad）** 蓝图并添加一个 **控件（Widget）** 组件，同时将类设置为 **KeypadWB** 和 **按要求大小绘制（Draw at Desired Size）**。
+
+1.  对于该控件组件，取消勾选 **窗口可聚焦（Window Focusable）** 选项。
+    
+    ![](Keypad16.png)
+    
+    我们不希望该组件将聚焦从小键盘显示控件上移开，因此需要取消选中此选项。
+
+1.  另外在 **小键盘（Keypad）** 中，添加一个 **WidgetInteraction** 组件，并将 **启用命中测试（Enable Hit Testing）** 设置为false。
+    
+    ![](Keypad17.png)
+    
+    我们添加了该WidgetInteraction组件，这样我们就不必在玩家角色中获取对WidgetInteraction组件的引用，并且我们禁用了命中测试（Hit Testing），因为我们不想让它产生任何悬停效果。默认情况下，创建WidgetInteraction组件时将其设置为 **虚拟用户索引0（Virtual User Index 0）**，并且所有组件都使用该虚拟用户索引ID（Virtual User Index ID）进行通信。由于玩家角色中的WidgetInteraction组件也使用虚拟用户索引0（Virtual User Index 0），所以这与获取对它的引用是一样的。
+
+1.  在 **小键盘（Keypad）** 的图表（Graph）中，离开 **Event Begin Play** 节点，获取 **控件（Widget）** 组件，并 **获取用户控件对象（Get User Widget Object）** 以 **转换为KeypadWB（Cast to KeypadWB）**。
+    
+    ![](Keypad18.png)
+
+1.  离开 **作为小键盘WB（As Keypad WB）** 引脚，**设置控件交互（Set Widget Interaction）**，并传递步骤4中的 **WidgetInteraction** 组件。
+
+1.  另外，离开 **作为小键盘WB（As Keypad WB）** 引脚，调用 **Assign Enter Pressed**，这将创建一个 **按Enter（Enter Pressed）** 自定义事件。
+    
+    ![](Keypad19.png)
+    
+    现在，当我们单击Enter按钮时，该自定义事件将被调用，我们可以使用它来检查是否输入了正确的代码。
+
+1.  创建一个类型为 **小键盘显示（Keypad Display）** Actor的 **变量（Variable）**，名为 **TargetDisplay**，并将其设置为 **可编辑（Editable）**。
+    
+    ![](Keypad20.png)
+
+1.  创建一个类型为 **文本（Text）** 的 **变量（Variable）**，名为 **GoalText**，然后 **编译（Compile）** 并将 **默认值（Default Value）** 设置为 **1212**。
+    
+    ![](Keypad21.png)
+
+1.  按住 **Ctrl** 并拖入 **TargetDisplay**，以获取 **控件（Widget）** 和 **用户控件对象（User Widget Object）**，然后 **转换为KeypadDisplayWB（Cast to KeypadDisplayWB）**。
+    
+    ![](Keypad22.png)
+
+1.  离开 **作为小键盘显示WB（As Keypad Display WB）** 引脚，获取 **可编辑文本框（Editable Text Box）** 和 **GetText(Text Box)** 以查看是否它 **等于（Equals）** **目标文本（Goal Text）**。
+    
+    ![](Keypad23.png)
+
+1.  添加一个带两个 **输出字符串（Print Strings）** 的 **分支（Branch）**，并在其中拖走 **True**（使用成功（Success））和 **False**（使用错误代码（Wrong Code））。
+    
+    ![](Keypad24.png)
+
+1.  将 **小键盘（Keypad）** 和 **小键盘显示（KeypadDisplay）** 蓝图拖动到关卡中，并根据需要旋转/放置它们。
+
+1.  在 **键盘（Keypad）** Actor 的 **细节（Details）** 面板中，将 **Target Display** 变量设置为关卡中的 **小键盘显示（KeypadDisplay）**。
+    
+    ![](Keypad25.png)
+
+1.  在关卡中运行。
+
+### 最终结果
+
+靠近小键盘显示，并 **右键单击** 它以聚焦于它。您可以查看这些按钮，然后 **右键单击** 它们，以发出 **Send Key Char** 命令并将值传递给该显示。我们使用鼠标右键与关卡中的控件进行交互，但您也可以将其切换为使用游戏手柄或体感控制器（Motion Controller）按钮。
+
+[OBJECT:EmbeddedVideo]
+[PARAMLITERAL:width]
+640
+[/PARAMLITERAL]
+[PARAMLITERAL:height]
+360
+[/PARAMLITERAL]
+[PARAMLITERAL:videoid]
+N2Fo4izRgh0
+[/PARAMLITERAL]
+[/OBJECT]
+
+虽然本例仅在输入或未输入正确代码的情况下才会输出到屏幕上，但是您可以触发一些事件来打开一扇门，生成一个敌人或任何其他形式的游戏相关事件。

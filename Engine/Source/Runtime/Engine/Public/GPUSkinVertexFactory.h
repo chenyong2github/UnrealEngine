@@ -187,7 +187,7 @@ public:
 		}
 		
 		// if FeatureLevel <= ERHIFeatureLevel::ES3_1
-		FUniformBufferRHIParamRef GetUniformBuffer() const
+		FRHIUniformBuffer* GetUniformBuffer() const
 		{
 			return UniformBuffer;
 		}
@@ -487,6 +487,7 @@ public:
 
 	//TODO should be supported
 	bool SupportsPositionOnlyStream() const override { return false; }
+	bool SupportsPositionAndNormalOnlyStream() const override { return false; }
 
 	inline void InvalidateStreams()
 	{

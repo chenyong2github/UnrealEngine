@@ -1,0 +1,24 @@
+﻿INTSourceChangelist:4681606
+Availability: Public
+Crumbs: 
+Title: Android デバッグ用コードの作成と変更の保存
+Description: 以下のドキュメントでは、Android Studio と Visual Studio の両方で Android のコードを変更する方法について説明します。
+Type: 
+Version: 
+Parent: Platforms/Mobile/Android
+Order: 
+Tags: Android
+Tags: Reference
+
+
+Android プロジェクトのデバッグは、Android Studio と Visual Studio の両方で可能です。以下のドキュメントでは、そのやり方や、認識すべきワークフローの変更点について説明します。
+
+## Android Studio
+
+Android プロジェクトの CPP ファイルの編集やデバッグは Android Studio を使用して行うことができますが、プロジェクトの再コンパイルは Android Studio から行えません。
+
+## Visual Studio
+
+Visual Studio では、プロジェクトの CPP ファイルのコードに対してあらゆる変更が可能です。Visual Studio を使用する利点は、Unreal Build Tool を使用して Visual Studio でプロジェクトの APK を再コンパイルできることです。
+
+｢app.iml｣ファイルを削除した後、UBT (Unreal Build Tool) で Gradle にコールバックして APK を作成するか、｢Intermediate/Android/APK｣を空にしてください。ただし、こうすることでエディタが正しく起動しなくなるので、これを行う前にデバッグしたいコンテンツがデバイス上に既にあることを確認する必要があることに注意してください。

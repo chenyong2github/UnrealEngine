@@ -79,14 +79,7 @@ bool FJsonValue::TryGetNumber( int32& OutNumber ) const
 
 	if (TryGetNumber(Double) && (Double >= INT_MIN) && (Double <= INT_MAX))
 	{
-		if (Double >= 0.0)
-		{
-			OutNumber = (int32)(Double + 0.5);
-		}
-		else
-		{
-			OutNumber = (int32)(Double - 0.5);
-		}
+		OutNumber = static_cast<int32>(FMath::RoundHalfFromZero(Double));
 		
 		return true;
 	}
@@ -101,7 +94,7 @@ bool FJsonValue::TryGetNumber( uint32& OutNumber ) const
 
 	if (TryGetNumber(Double) && (Double >= 0.0) && (Double <= UINT_MAX))
 	{
-		OutNumber = (uint32)(Double + 0.5);
+		OutNumber = static_cast<uint32>(FMath::RoundHalfFromZero(Double));
 
 		return true;
 	}
@@ -116,14 +109,7 @@ bool FJsonValue::TryGetNumber( int64& OutNumber ) const
 
 	if (TryGetNumber(Double) && (Double >= INT64_MIN) && (Double <= INT64_MAX))
 	{
-		if (Double >= 0.0)
-		{
-			OutNumber = (int64)(Double + 0.5);
-		}
-		else
-		{
-			OutNumber = (int64)(Double - 0.5);
-		}
+		OutNumber = static_cast<int64>(FMath::RoundHalfFromZero(Double));
 		
 		return true;
 	}

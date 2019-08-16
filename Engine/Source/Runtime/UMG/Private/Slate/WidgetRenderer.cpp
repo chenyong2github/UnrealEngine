@@ -68,7 +68,7 @@ UTextureRenderTarget2D* FWidgetRenderer::DrawWidget(const TSharedRef<SWidget>& W
 	{
 		UTextureRenderTarget2D* RenderTarget = FWidgetRenderer::CreateTargetFor(DrawSize, TF_Bilinear, bUseGammaSpace);
 
-		DrawWidget(RenderTarget, Widget, DrawSize, 0);
+		DrawWidget(RenderTarget, Widget, DrawSize, 0, false);
 
 		return RenderTarget;
 	}
@@ -115,12 +115,12 @@ void FWidgetRenderer::DrawWidget(
 	bool bDeferRenderTargetUpdate)
 {
 	TSharedRef<SVirtualWindow> Window = SNew(SVirtualWindow).Size(DrawSize);
-	TSharedRef<FHittestGrid> HitTestGrid = MakeShareable(new FHittestGrid());
+	TUniquePtr<FHittestGrid> HitTestGrid = MakeUnique<FHittestGrid>();
 
 	Window->SetContent(Widget);
 	Window->Resize(DrawSize);
 
-	DrawWindow(RenderTarget, HitTestGrid, Window, Scale, DrawSize, DeltaTime, bDeferRenderTargetUpdate);
+	DrawWindow(RenderTarget, *HitTestGrid, Window, Scale, DrawSize, DeltaTime, bDeferRenderTargetUpdate);
 }
 
 void FWidgetRenderer::DrawWidget(
@@ -136,7 +136,7 @@ void FWidgetRenderer::DrawWidget(
 
 void FWidgetRenderer::DrawWindow(
 	FRenderTarget* RenderTarget,
-	TSharedRef<FHittestGrid> HitTestGrid,
+	FHittestGrid& HitTestGrid,
 	TSharedRef<SWindow> Window,
 	float Scale,
 	FVector2D DrawSize,
@@ -159,7 +159,7 @@ void FWidgetRenderer::DrawWindow(
 
 void FWidgetRenderer::DrawWindow(
 	UTextureRenderTarget2D* RenderTarget,
-	TSharedRef<FHittestGrid> HitTestGrid,
+	FHittestGrid& HitTestGrid,
 	TSharedRef<SWindow> Window,
 	float Scale,
 	FVector2D DrawSize,
@@ -171,20 +171,20 @@ void FWidgetRenderer::DrawWindow(
 
 void FWidgetRenderer::DrawWindow(
 	FRenderTarget* RenderTarget,
-	TSharedRef<FHittestGrid> HitTestGrid,
+	FHittestGrid& HitTestGrid,
 	TSharedRef<SWindow> Window,
 	FGeometry WindowGeometry,
 	FSlateRect WindowClipRect,
 	float DeltaTime,
 	bool bDeferRenderTargetUpdate)
 {
-	FPaintArgs PaintArgs(Window.Get(), HitTestGrid.Get(), FVector2D::ZeroVector, FApp::GetCurrentTime(), DeltaTime);
+	FPaintArgs PaintArgs(nullptr, HitTestGrid, FVector2D::ZeroVector, FApp::GetCurrentTime(), DeltaTime);
 	DrawWindow(PaintArgs, RenderTarget, Window, WindowGeometry, WindowClipRect, DeltaTime, bDeferRenderTargetUpdate);
 }
 
 void FWidgetRenderer::DrawWindow(
 	UTextureRenderTarget2D* RenderTarget,
-	TSharedRef<FHittestGrid> HitTestGrid,
+	FHittestGrid& HitTestGrid,
 	TSharedRef<SWindow> Window,
 	FGeometry WindowGeometry,
 	FSlateRect WindowClipRect,
@@ -214,17 +214,19 @@ void FWidgetRenderer::DrawWindow(
 		    // Ticking can cause geometry changes.  Recompute
 		    Window->SlatePrepass(WindowGeometry.Scale);
 	    }
-    
+	
+		PaintArgs.GetHittestGrid().SetHittestArea(WindowClipRect.GetTopLeft(), WindowClipRect.GetSize());
+
 		if ( bClearHitTestGrid )
 		{
 			// Prepare the test grid 
-			PaintArgs.GetGrid().ClearGridForNewFrame(WindowClipRect);
+			PaintArgs.GetHittestGrid().Clear();
 		}
     
 	    // Get the free buffer & add our virtual window
 	    FSlateDrawBuffer& DrawBuffer = Renderer->GetDrawBuffer();
 	    FSlateWindowElementList& WindowElementList = DrawBuffer.AddWindowElementList(Window);
-    
+
 	    int32 MaxLayerId = 0;
 	    {
 		    // Paint the window
@@ -244,7 +246,7 @@ void FWidgetRenderer::DrawWindow(
 
 		DrawBuffer.ViewOffset = ViewOffset;
 
-		FRenderThreadUpdateContext Context =
+		FRenderThreadUpdateContext RenderThreadUpdateContext =
 		{
 			&DrawBuffer,
 			static_cast<float>(FApp::GetCurrentTime() - GStartTime),
@@ -255,7 +257,7 @@ void FWidgetRenderer::DrawWindow(
 			bClearTarget
 		};
 
-		FSlateApplication::Get().GetRenderer()->AddWidgetRendererUpdate(Context, bDeferRenderTargetUpdate);
+		FSlateApplication::Get().GetRenderer()->AddWidgetRendererUpdate(RenderThreadUpdateContext, bDeferRenderTargetUpdate);
 	}
 #endif // !UE_SERVER
 }
@@ -271,3 +273,69 @@ void FWidgetRenderer::DrawWindow(
 {
 	DrawWindow(PaintArgs, RenderTarget->GameThread_GetRenderTargetResource(), Window, WindowGeometry, WindowClipRect, DeltaTime, bDeferRenderTargetUpdate);
 }
+
+bool FWidgetRenderer::DrawInvalidationRoot(TSharedRef<SVirtualWindow>& VirtualWindow, UTextureRenderTarget2D* RenderTarget, FSlateInvalidationRoot& Root, const FSlateInvalidationContext& Context, bool bDeferRenderTargetUpdate)
+{
+	bool bRepaintedWidgets = false;
+#if !UE_SERVER
+	FSlateRenderer* MainSlateRenderer = FSlateApplication::Get().GetRenderer();
+	FScopeLock ScopeLock(MainSlateRenderer->GetResourceCriticalSection());
+
+
+	if (LIKELY(FApp::CanEverRender()))
+	{
+		// Need to set a new window element list so make a copy
+		FSlateInvalidationContext ContextCopy = Context;
+		
+		// Get the free buffer & add our virtual window
+		FSlateDrawBuffer& DrawBuffer = Renderer->GetDrawBuffer();
+		FSlateWindowElementList& WindowElementList = DrawBuffer.AddWindowElementList(VirtualWindow);
+
+		ContextCopy.WindowElementList = &WindowElementList;
+		FSlateInvalidationResult Result = Root.PaintInvalidationRoot(ContextCopy);
+
+		const int32 MaxLayerId = Result.MaxLayerIdPainted;
+
+		if(Result.bRepaintedWidgets)
+		{
+			//MaxLayerId = WindowElementList.PaintDeferred(MaxLayerId);
+			DeferredPaints = WindowElementList.GetDeferredPaintList();
+
+			Renderer->DrawWindow_GameThread(DrawBuffer);
+
+			DrawBuffer.ViewOffset = ViewOffset;
+
+			FRenderThreadUpdateContext RenderThreadUpdateContext =
+			{
+				&DrawBuffer,
+				static_cast<float>(FApp::GetCurrentTime() - GStartTime),
+				static_cast<float>(FApp::GetDeltaTime()),
+				static_cast<float>(FPlatformTime::Seconds() - GStartTime),
+				(FRenderTarget*)RenderTarget->GameThread_GetRenderTargetResource(),
+				Renderer.Get(),
+				bClearTarget
+			};
+
+			bRepaintedWidgets = Result.bRepaintedWidgets;
+			FSlateApplication::Get().GetRenderer()->AddWidgetRendererUpdate(RenderThreadUpdateContext, bDeferRenderTargetUpdate);
+
+
+			// Any deferred painted elements of the retainer should be drawn directly by the main renderer, not rendered into the render target,
+			// as most of those sorts of things will break the rendering rect, things like tooltips, and popup menus.
+			for (auto& DeferredPaint : DeferredPaints)
+			{
+				Context.WindowElementList->QueueDeferredPainting(DeferredPaint->Copy(*Context.PaintArgs));
+			}
+		}
+		else
+		{
+			WindowElementList.ResetElementList();
+			DrawBuffer.Unlock();
+		}
+	}
+#endif // !UE_SERVER
+
+	return bRepaintedWidgets;
+}
+
+

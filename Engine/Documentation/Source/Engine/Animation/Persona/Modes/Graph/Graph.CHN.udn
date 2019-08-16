@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6409500
 Availability: Public
 Title:动画蓝图编辑器
 Crumbs: %ROOT%, Engine, Engine/Animation, Engine/Animation/Persona, Engine/Animation/Persona/Modes
@@ -14,11 +14,8 @@ topic-image:AnimGraphEditor_topic.png
 tags:Animation
 tags:Blueprints
 tags:Animation Tools
+hero-image:AnimBPEditor.png
 
-
-[REGION:fullwidth]
-![](AnimBPEditor.png)
-[/REGION]
 
 使用者可在 **动画蓝图编辑器** 中指定驱动角色动画的逻辑，从 **内容浏览器**（或 **编辑器工具栏**）打开任意 **动画蓝图** 即可进行访问。 
 此编辑器的使用方法与[蓝图编辑器](Engine/Blueprints)十分相似，其使用相同的、基于可视节点的脚本编辑系统，凸显动画功能，如管理动画[](Engine/Animation/StateMachines)、使用[](Engine/Animation/NodeReference/Blend)来控制[](Engine/Animation/AnimationBlending)、或通过脚本来直接进行[骨架控制](Engine/Animation/NodeReference/SkeletalControls)。 

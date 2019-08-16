@@ -116,7 +116,7 @@ protected:
 				else
 				{
 					DataOffset = FMath::Min(DataOffset, InOffset);
-					DataSize += InSize;
+					DataSize = FMath::Max(InOffset + InSize - DataOffset, DataSize);
 				}
 			}
 
@@ -267,6 +267,9 @@ protected:
 		/** @return True if this record contains a reference to a pie object */
 		bool ContainsPieObject() const;
 
+		/** @return true if the record has a delta change or a custom change */
+		bool HasChanges() const;
+
 		/** Transfers data from an array. */
 		class FReader : public FArchiveUObject
 		{
@@ -358,6 +361,11 @@ protected:
 					ObjectMap.Add(SerializedObject.ReferencedObjects[ObjIndex].Get(), ObjIndex);
 				}
 
+				for(int32 NameIndex = 0; NameIndex < SerializedObject.ReferencedNames.Num(); ++NameIndex)
+				{
+					NameMap.Add(SerializedObject.ReferencedNames[NameIndex], NameIndex);
+				}
+
 				this->SetWantBinaryPropertySerialization(bWantBinarySerialization);
 				this->SetIsSaving(true);
 				this->SetIsTransacting(true);
@@ -427,7 +435,17 @@ protected:
 			}
 			FArchive& operator<<( class FName& N ) override
 			{
-				int32 NameIndex = SerializedObject.ReferencedNames.AddUnique(N);
+				int32 NameIndex = INDEX_NONE;
+				const int32 * NameIndexPtr = NameMap.Find(N);
+				if (NameIndexPtr)
+				{
+					NameIndex = *NameIndexPtr;
+				}
+				else
+				{
+					NameIndex = SerializedObject.ReferencedNames.Add(N);
+					NameMap.Add(N, NameIndex);
+				}
 
 				// Track this name index in the serialized data
 				{
@@ -441,7 +459,7 @@ protected:
 			FArchive& operator<<( class UObject*& Res ) override
 			{
 				int32 ObjectIndex = INDEX_NONE;
-				int32* ObjIndexPtr = ObjectMap.Find(Res);
+				const int32* ObjIndexPtr = ObjectMap.Find(Res);
 				if(ObjIndexPtr)
 				{
 					ObjectIndex = *ObjIndexPtr;
@@ -463,6 +481,7 @@ protected:
 			}
 			FSerializedObject& SerializedObject;
 			TMap<UObject*, int32> ObjectMap;
+			TMap<FName, int32> NameMap;
 			FCachedPropertyKey CachedSerializedTaggedPropertyKey;
 			int64 Offset;
 		};
@@ -470,7 +489,7 @@ protected:
 
 	// Transaction variables.
 	/** List of object records in this transaction */
-	TArray<FObjectRecord>	Records;
+	TIndirectArray<FObjectRecord>	Records;
 	
 	/** Unique identifier for this transaction, used to track it during its lifetime */
 	FGuid		Id;
@@ -573,6 +592,13 @@ public:
 		return FTransactionContext(Id, OperationId, Title, *Context, PrimaryObject);
 	}
 
+	/** @return true if the transaction is transient. */
+	virtual bool IsTransient() const override;
+
+	/** @return True if this record contains a reference to a pie object */
+	virtual bool ContainsPieObjects() const override;
+
+
 	/** Returns a unique string to serve as a type ID for the FTranscationBase-derived type. */
 	virtual const TCHAR* GetTransactionType() const
 	{
@@ -624,9 +650,6 @@ public:
 	int32 GetRecordCount() const;
 
 	const UObject* GetPrimaryObject() const { return PrimaryObject; }
-
-	/** @return True if this record contains a reference to a pie object */
-	virtual bool ContainsPieObjects() const override;
 
 	/** Checks if a specific object is in the transaction currently underway */
 	bool IsObjectTransacting(const UObject* Object) const;

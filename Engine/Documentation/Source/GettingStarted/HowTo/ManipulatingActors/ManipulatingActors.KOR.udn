@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:Public
 Title:액터 조작하기
 Crumbs: %ROOT%, Gameplay, GettingStarted\HowTo
@@ -14,7 +14,7 @@ SkillLevel: Beginner
 [TOC(start:2 end:2)]
 
 [REGION:note]
-이 비법 안내에는 **시작용 콘텐츠** 포함 **블루프린트 삼인칭** 템플릿을 사용하여 새 프로젝트를 만들었습니다. 템플릿을 기반으로 프로젝트를 만들어 본 적이 없거나 시작용 콘텐츠를 포함시키는 법을 잘 모르겠는 경우, [](Engine/Basics/Projects/Browser) 문서에서 프로젝트 생성/열기, 템플릿 및 프로젝트 세팅 관련 정보를 참고하시기 바랍니다.
+이 하우투 안내에는 **시작용 콘텐츠** 포함 **블루프린트 삼인칭** 템플릿을 사용하여 새 프로젝트를 만들었습니다. 템플릿을 기반으로 프로젝트를 만들어 본 적이 없거나 시작용 콘텐츠를 포함시키는 법을 잘 모르겠는 경우, [](Engine/Basics/Projects/Browser) 문서에서 프로젝트 생성/열기, 템플릿 및 프로젝트 세팅 관련 정보를 참고하시기 바랍니다.
 [/REGION]
 
 ## 액터 이동

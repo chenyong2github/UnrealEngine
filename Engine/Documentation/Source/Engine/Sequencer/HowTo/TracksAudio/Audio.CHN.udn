@@ -1,112 +1,109 @@
-﻿INTSourceChangelist:3011129
-Availability:Public
-Title:添加音频	
-Crumbs:%ROOT%, Engine, Engine/Sequencer, Engine/Sequencer/HowTo
-Description:如何向场景添加音频的示例。
-Version:4.12
-SkillLevel:Beginner
+﻿INTSourceChangelist:3683933
+Availability: Public
+Title:使用音频轨迹
+Crumbs: %ROOT%, Engine, Engine/Sequencer, Engine/Sequencer/HowTo
+Description:演示如何通过关键帧添加音频轨迹和调整音量/音高值。 
+Version: 4.15
+SkillLevel: Beginner
 parent:Engine/Sequencer/HowTo
 order:1
 checkpoint: editorqs
-Related:Engine/Sequencer/Overview
-Related:Engine\Sequencer\ReferenceEditor\
+Related: Engine/Sequencer/Overview
+Related: Engine\Sequencer\ReferenceEditor\
+tags:Sequencer
+type:how-to
 
-无论是要为过场动画配上音乐，还是要添加撞击声、画外音等音效，您都需要在 Sequencer 中通过 **音频轨道** 来操作。 
 
-在本操作指南中，我们将向样本场景添加一段乐曲，并向您展示如何通过 **声音提示** 使音频轨道淡入/淡出。
+无论您是想要用音乐轨迹为您的过场动画配乐，还是想要添加音效（如碰撞声和画外音），您都需要使用 **Sequencer** 内的 **音频轨迹（Audio Track）** 来执行操作。 
+Sequencer的音频轨迹还允许您在过场动画期间的任何时刻通过更改关键帧值来调整音频资源的音量（Volume）或音高（Pitch）。 
 
-[REGION:warning]
-目前 **音频轨道** 的编辑功能有限。今后将在引擎更新中在线提供更多支持。 
-[/REGION]
+在本指南中，您将向一个示例场景添加一个音乐轨迹，并随着时间的推移逐渐淡入该轨迹（以及在过场动画期间调整音高）。 
 
+![](EndResultImage.png)
+
+(#steps)
 
 ## 步骤
 
 [REGION:note]
-在本操作指南中，我们使用 **Blueprint Third Person Template**，并启用了 **起步内容**。 
+对于本指南，我们将使用 **蓝图第三人称模板（Blueprint Third Person Template）** 并启用 **初学者内容包（Starter Content）**。 
 [/REGION]
 
-1. 	在主工具栏中单击 **过场动画（Cinematics）**，再选择 **添加关卡序列（Add Level Sequence）**。 
+1.	在主工具栏上，单击 **过场动画（Cinematics）** 和 **添加关卡序列（Add Level Sequence）**。 
 
 	![](Audio01.png)
 
-1. 	在该关卡序列中，单击 **添加（Add）**按钮并选择 **音频轨道（Audio Track）**。 
+1.	在 **资源另存为（Save Asset As）** 窗口中，选择保存位置和保存名称，然后单击 **保存（Save）**。 
 
-	![](Audio02.png)
+	![](Audio02.png)	
 
-1. 	单击 **添加音频（+ Audio）**按钮，然后选择 **Starter_Music_Cue** 资产。 
+1.	在 **关卡序列（Level Sequence）** 中，单击 **添加（Add）** 按钮，然后选择 **音频轨迹（Audio Track）**。 
 
 	![](Audio03.png)
 
-1. 	单击 **添加音频（+ Audio）**按钮，然后选择更多音频资产，根据需要在时间轴上排列。 
+1.	在 **音频轨迹（Audio Track）** 上，单击 **+** 按钮，然后搜索并添加 **Starter_Music_Cue** 资源。 
 
 	![](Audio04.png)
 
-	您可以将一个音频资产叠放在另一个音频资产上，使声音重叠。 
+	*	您可以单击 **展开（Expand）** 图标以展开查看音频子轨迹。 
 
-1. 	**右键单击** **Starter_Music_Cue** 资产以显示 **属性（Properties）**，然后单击放大镜图标。 
+		![](Audio05.png)
 
-	![](Audio05.png)
+	*	您可以单击 **+** 按钮来向音频轨迹添加更多的子轨迹。然后，您可以沿着时间轴拖动新增的子轨迹，将它们重新定位到序列中的所需位置。 
 
-	除了可以更改资产的属性外，您还可以在 **内容浏览器** 中单击 **浏览到（Browse To）**按钮，浏览并查找资产。 
+		![](Audio06.png)
 
-1. 	**双击** 打开 **Starter_Music_Cue** 声音提示资产。 
-
-1. 	在 **声音提示编辑器** 中，将一个 **包络器（Enveloper）**拖进图中。 
-
-	![](Audio06.png)
-
-	在声音提示编辑器中，我们可以更改和混合声音资产。在此示例中，我们希望声音淡入，可以通过 **包络器（Enveloper）**节点做到这一点。 
-
-	[REGION:note]
-	在今后的引擎发行版中，将在线提供在 Sequencer 中编辑音频轨道的功能，本指南也将更新。 
-	[/REGION]
-
-1. 	**左键单击** 并按下图所示连接节点。 
+1.	展开 **Starter_Music_Cue** 轨迹，然后将 **音量（Volume）** 和 **音高乘数（Pitch Multiplier）** 值更改为 **0.0**，并为两者添加键。 
 
 	![](Audio07.png)
 
-	Starter_Music01 资产将先经过包络器，然后输出最终声音。 
+	[REGION:note]
+	这将关闭音量（Volume），并设置较低的音高（Pitch）。 
+	[/REGION]
 
-1. 	在 **包络器** 的 **细节（Details）**面板中，单击 **音量曲线（Volume Curve）**中的键，将 **值（Value）**改为 **0.0**。 
+1.	将时间轴标志（向前）推移至帧 **50**，然后将 **音量（Volume）** 和 **音高乘数（Pitch Multiplier）** 值更改为 **1.0**，并为两者添加键。 
 
 	![](Audio08.png)
 
-	这意味着在时间 0.0（开头），音量的值将是 0.0（即关闭）。 
+	[REGION:note]
+	这将把音量（Volume）调高到默认值（开启），并将音高（Pitch）调高到默认值（不影响音效资源）。 
+	[/REGION]
 
-1. 	按住 **Shift**，在曲线窗口中 **左键单击** 以创建一个新键。 
-
-1. 	选择该键，然后将 **时间（Time）**改为 **4.0**，将 **值（Value）**改为 **1.0**。 
+1.	您可以通过在时间轴（Timeline）窗口中单击音频轨迹中的子轨迹，然后按下 **删除（Delete）**（或 **单击右键** 并按下 **删除（Delete）**），来删除这些子轨迹。 
 
 	![](Audio09.png)
 
-	此操作意味着在 4 秒时，音量的值应该是 1.0（即最大音量），从而得到淡入效果。你也可以单击 **时间（Time）**和 **值（Value）** 属性旁边的两个按钮来调整曲线窗口的大小以显示曲线。 
+1.	将时间轴（Timeline）返回到 **0**，然后单击Sequencer内的 **播放（Play）**，以播放序列。 
 
-	[REGION:tip]
-	如果您希望声音淡出，例如在 10 秒时淡出，应该添加一个键，将 **时间（Time）**设置为 **10.0**，**值（Value）**设置为 **1.0**。如果您希望淡出效果持续 5 秒，应该添加另一个键，将 **时间（Time）**设置为 **15.0**，**值（Value）**设置为 **0.0**。 
-	[/REGION]
+	![](Audio10.png)
 
-1. 	回到 **Sequencer**，单击 **预览播放（Preview Play）**按钮。 
-
+(#endresult)
 
 ## 最终结果
 
-现在您应该会听到您在 **音频轨道** 中放的所有声音，而且音乐应该会逐渐淡入。 
+当您播放关卡序列时，您会听到音频逐渐淡入，同时随着序列的开始，音高会进行调整。 
 
 [OBJECT:EmbeddedVideo]
-[PARAMLITERAL:width]
-640
-[/PARAMLITERAL]
-[PARAMLITERAL:height]
-360
-[/PARAMLITERAL]
-[PARAMLITERAL:videoid]
-1STSDGBc5KM
-[/PARAMLITERAL]
+	[PARAMLITERAL:videoid]
+	Tt_fKZnk8I4
+	[/PARAMLITERAL]
+	[PARAMLITERAL:width]
+	100
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	56.25
+	[/PARAMLITERAL]
+	[PARAMLITERAL:units]
+	%
+	[/PARAMLITERAL]
+	[PARAMLITERAL:type]
+	simple
+	[/PARAMLITERAL]
 [/OBJECT]
 
 
-音频轨道支持 **声音提示** 或 **音波** 资产，可以通过从 **内容浏览器** 拖放到关卡序列来添加，也可以通过音频轨道的 **添加（Add）**选项来添加。 
+虽然此示例非常简单，但您可以添加更多的关键帧来在序列期间的任何时刻淡入（或淡出）音频，还可以根据需要调整音频资源的音高。 
+音频轨迹支持 **声音提示（Sound Cue）** 或 **音波（Sound Wave）** 资源，您可以通过从 **内容浏览器（Content Browser）** 拖放到关卡序列中或通过音频轨迹的 **添加（Add）** 选项来添加这些资源。 
 
 
 

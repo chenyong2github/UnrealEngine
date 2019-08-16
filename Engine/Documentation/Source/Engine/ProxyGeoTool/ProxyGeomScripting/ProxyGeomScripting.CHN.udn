@@ -1,0 +1,88 @@
+﻿INTSourceChangelist:6650380
+Availability: Public
+Crumbs: 
+Title: 在蓝图和Python中使用代理几何体工具
+Description: 通过从在虚幻编辑器中运行的蓝图或Python脚本中调用代理几何体工具，自动化您的资源准备工作流程。
+Type: how-to
+SkillLevel:Intermediate
+Version: 4.21
+Parent: Engine/ProxyGeoTool
+Order: 
+Tags: 
+
+
+您可以从蓝图和Python脚本中调用代理几何体工具。这可以帮助您自动化您的资源创建和数据准备管道，组合和简化静态网格体Actor及其来自您在虚幻编辑器中运行的脚本的材质。这可以显著提高渲染性能，但要以一定的视觉精度为代价。
+
+例如，这个车轮组件包含147个单独的静态网格体Actor，总共包含90万个三角形，每个网格体都使用单独的材质。这就给GPU增加了数百次繁重的绘制调用。运行代理几何体工具后，Actor被合并到采用单一材质的单一模型中，可以通过一次绘制调用来渲染。
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![Before: 147 Static Meshes](proxygeom-wheel-before-1.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![After: 1 Static Mesh](proxygeom-wheel-after.png) 
+ [/PARAM]
+[/OBJECT]
+
+三角形数量也减少了97%。这导致了一些变形，但是您可以调整脚本中的设置，以在简化和视觉质量之间找到适当的平衡。
+
+因为代理几何体工具涉及对您的几何体进行一些相对复杂的转换，并且提供了许多用于控制其操作的设置，所以我们建议您通过编辑器中的UI来开始使用该工具。只有在确信理解了工具及其设置并对预期的效果有了很好的了解之后，才能从脚本中调用它。更多信息请参阅本节中的其他指南。
+
+[REGION:note]
+ **先决条件：**如果还没有这么做，则需要安装编辑器脚本工具插件。有关详情，请参阅[脚本化和自动化编辑器](Engine/Editor/ScriptingandAutomation)。
+[/REGION]
+
+选择您的语言
+
+蓝图
+
+Python
+
+代理几何体工具通过 **编辑器关卡库（Editor Level Library）> 创建代理网格体Actor（Create Proxy Mesh Actor）** 节点公开。
+
+![Create Proxy Mesh Actor](proxy-scripting-createproxymeshactor.png "Create Proxy Mesh Actor")
+
+您需要向这个节点提供以下输入：
+
+*   包含要合并的所有静态网格体Actor的数组。注意，这些必须是静态网格体Actor，不是包含静态网格体组件的Actor。
+*   **编辑器脚本创建代理网格体Actor选项（Editor Scripting Create Proxy Mesh Actor Options）** 对象，其中包含代理几何体工具使用的设置。此对象公开代理几何体工具的UI中显示的大多数设置。  
+    要获取其中一个对象，可以从 **合并选项（Merge Options）** 输入中拖到左边，然后选择 **让编辑器脚本创建代理网格体Actor选项（Make EditorScriptingCreateProxyMeshActorOptions）**。  
+    ![Make an options object](proxygeom-script-makeoptions.png "Make an options object")  
+    使用此对象为代理几何体工具提供设置。许多详细的设置是在另一个对象中提供的，您将该对象传递给 **网格体代理设置（Mesh Proxy Settings）** 输入。要获取其中一个对象，请重复上面的操作：从 **网格体代理设置（Mesh Proxy Settings）** 输入中向左拖动，然后选择 **进行网格体代理设置（Make MeshProxySettings）**。  
+    ![Make a mesh settings object](proxygeom-script-makemeshsettings.png "Make a mesh settings object")  
+    
+
+例如，以下代码片段捕获关卡视口和世界大纲视图中当前选中的所有Actor，将它们合并到代理网格体中，将结果保存到使用特定名称和位置的资源，并用新生成的代理资源的单个实例替代关卡中原来的静态网格体Actor。
+
+[REGION:lightbox]
+[![Proxy Geometry Blueprint example](proxygeom-scripting-example.png "Proxy Geometry Blueprint example")](proxygeom-scripting-example.png)
+
+*单击显示全图。*
+[/REGION]
+
+代理几何体工具通过“unreal.EditorLevelLibrary.create_proxy_mesh_actor()”函数公开。您需要将此函数传递到以下参数：
+
+*   包含要合并的所有静态网格体Actor的数组。注意，这些必须是静态网格体Actor，不是包含静态网格体组件的Actor。
+*   “unreal.EditorScriptingCreateProxyMeshActorOptions”对象，其中包含代理几何体工具使用的设置。此对象公开代理几何体工具的UI中显示的大多数设置。您需要创建其中一个对象并设置它的属性。
+
+例如，以下代码片段捕获关卡中的所有静态网格体Actor，将它们合并到代理网格体中，将结果保存到名为代理（Proxy）的资源，并用该代理资源的单个实例取代关卡中原来的静态网格体Actor。
+
+    import unreal
+    actors = unreal.EditorLevelLibrary.get_selected_level_actors()
+    merge_options = unreal.EditorScriptingCreateProxyMeshActorOptions()
+    merge_options.base_package_name = "/Game/Proxy"
+    merge_options.destroy_source_actors = False
+    merge_options.new_actor_label = "Proxy"
+    merge_options.spawn_merged_actor = True
+    merge_options.mesh_proxy_settings.set_editor_property("allow_adjacency", False)
+    merge_options.mesh_proxy_settings.set_editor_property("allow_distance_field", False)
+    merge_options.mesh_proxy_settings.set_editor_property("allow_vertex_colors", False)
+    merge_options.mesh_proxy_settings.set_editor_property("calculate_correct_lod_model", True)
+    merge_options.mesh_proxy_settings.set_editor_property("compute_light_map_resolution", True)
+    merge_options.mesh_proxy_settings.set_editor_property("create_collision", False)
+    merge_options.mesh_proxy_settings.set_editor_property("generate_lightmap_u_vs", True)
+    merge_options.mesh_proxy_settings.set_editor_property("merge_distance", 1.0)
+    merge_options.mesh_proxy_settings.set_editor_property("voxel_size", 0.1)
+    merged_actor = unreal.EditorLevelLibrary.create_proxy_mesh_actor(actors, merge_options)
+
+[](#)[](#)

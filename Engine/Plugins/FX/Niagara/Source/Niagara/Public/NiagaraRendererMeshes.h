@@ -16,12 +16,12 @@ class FNiagaraDataSet;
 class NIAGARA_API FNiagaraRendererMeshes : public FNiagaraRenderer
 {
 public:
-
 	FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter);
+	~FNiagaraRendererMeshes();
 	
 	//FNiagaraRenderer Interface
-	virtual void CreateRenderThreadResources() override;
-	virtual void ReleaseRenderThreadResources() override;
+	virtual void CreateRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher) override;
+	virtual void ReleaseRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher) override;
 
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector, const FNiagaraSceneProxy *SceneProxy) const override;
 	virtual FNiagaraDynamicDataBase* GenerateDynamicData(const FNiagaraSceneProxy* Proxy, const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter) const override;
@@ -58,4 +58,6 @@ private:
 	int32 NormalizedAgeOffset;
 	int32 MaterialRandomOffset;
 	int32 CustomSortingOffset;
+
+	int32 MeshMinimumLOD = 0;
 };

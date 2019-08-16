@@ -241,11 +241,27 @@ public:
 	 */
 	void Publish(void* Message, UScriptStruct* TypeInfo, EMessageScope Scope, const FTimespan& Delay, const FDateTime& Expiration)
 	{
+		Publish(Message, TypeInfo, Scope, TMap<FName, FString>(), Delay, Expiration);
+	}
+
+	/**
+	 * Publishes a message to all subscribed recipients within the specified scope.
+	 *
+	 * @param Message The message to publish.
+	 * @param TypeInfo The message's type information.
+	 * @param Scope The message scope.
+	 * @param Annotations An optional message annotations header.
+	 * @param Fields The message content.
+	 * @param Delay The delay after which to publish the message.
+	 * @param Expiration The time at which the message expires.
+	 */
+	void Publish(void* Message, UScriptStruct* TypeInfo, EMessageScope Scope, const TMap<FName, FString> Annotations, const FTimespan& Delay, const FDateTime& Expiration)
+	{
 		TSharedPtr<IMessageBus, ESPMode::ThreadSafe> Bus = GetBusIfEnabled();
 
 		if (Bus.IsValid())
 		{
-			Bus->Publish(Message, TypeInfo, Scope, Delay, Expiration, AsShared());
+			Bus->Publish(Message, TypeInfo, Scope, Annotations, Delay, Expiration, AsShared());
 		}
 	}
 
@@ -283,7 +299,29 @@ public:
 
 		if (Bus.IsValid())
 		{
-			Bus->Send(Message, TypeInfo, Flags, Attachment, Recipients, Delay, Expiration, AsShared());
+			Bus->Send(Message, TypeInfo, Flags, TMap<FName, FString>(), Attachment, Recipients, Delay, Expiration, AsShared());
+		}
+	}
+
+	/**
+	 * Sends a message to the specified list of recipients.
+	 *
+	 * @param Message The message to send.
+	 * @param TypeInfo The message's type information.
+	 * @param Flags The message's type information.
+	 * @param Annotations An optional message annotations header.
+	 * @param Attachment An optional binary data attachment.
+	 * @param Recipients The message recipients.
+	 * @param Delay The delay after which to send the message.
+	 * @param Expiration The time at which the message expires.
+	 */
+	void Send(void* Message, UScriptStruct* TypeInfo, EMessageFlags Flags, const TMap<FName, FString> Annotations, const TSharedPtr<IMessageAttachment, ESPMode::ThreadSafe>& Attachment, const TArray<FMessageAddress>& Recipients, const FTimespan& Delay, const FDateTime& Expiration)
+	{
+		TSharedPtr<IMessageBus, ESPMode::ThreadSafe> Bus = GetBusIfEnabled();
+
+		if (Bus.IsValid())
+		{
+			Bus->Send(Message, TypeInfo, Flags, Annotations, Attachment, Recipients, Delay, Expiration, AsShared());
 		}
 	}
 
@@ -543,6 +581,31 @@ public:
 	}
 
 	/**
+	 * Immediately publishes a message to all subscribed recipients.
+	 *
+	 * @param Message The message to publish.
+	 * @param Annotations An optional message annotations header.
+	 */
+	template<typename MessageType>
+	void Publish(MessageType* Message, const TMap<FName, FString> Annotations)
+	{
+		Publish(Message, MessageType::StaticStruct(), Annotations, EMessageScope::Network, FTimespan::Zero(), FDateTime::MaxValue());
+	}
+
+	/**
+	 * Immediately pa message to all subscribed recipients within the specified scope.
+	 *
+	 * @param Message The message to publish.
+	 * @param Annotations An optional message annotations header.
+	 * @param Scope The message scope.
+	 */
+	template<typename MessageType>
+	void Publish(MessageType* Message, const TMap<FName, FString> Annotations, EMessageScope Scope)
+	{
+		Publish(Message, MessageType::StaticStruct(), Annotations, Scope, FTimespan::Zero(), FDateTime::MaxValue());
+	}
+
+	/**
 	 * Publishes a message to all subscribed recipients after a given delay.
 	 *
 	 * @param Message The message to publish.
@@ -583,6 +646,22 @@ public:
 	}
 
 	/**
+	 * Publishes a message to all subscribed recipients within the specified scope.
+	 *
+	 * @param Message The message to publish.
+	 * @param Annotations An optional message annotations header.
+	 * @param Scope The message scope.
+	 * @param Fields The message content.
+	 * @param Delay The delay after which to publish the message.
+	 * @param Expiration The time at which the message expires.
+	 */
+	template<typename MessageType>
+	void Publish(MessageType* Message, const TMap<FName, FString> Annotations, EMessageScope Scope, const FTimespan& Delay, const FDateTime& Expiration)
+	{
+		Publish(Message, MessageType::StaticStruct(), Annotations, Scope, Delay, Expiration);
+	}
+
+	/**
 	 * Immediately sends a message to the specified recipient.
 	 *
 	 * @param MessageType The type of message to send.
@@ -593,6 +672,20 @@ public:
 	void Send(MessageType* Message, const FMessageAddress& Recipient)
 	{
 		Send(Message, MessageType::StaticStruct(), EMessageFlags::None, nullptr, TArrayBuilder<FMessageAddress>().Add(Recipient), FTimespan::Zero(), FDateTime::MaxValue());
+	}
+
+	/**
+	 * Immediately sends a message to the specified recipient.
+	 *
+	 * @param MessageType The type of message to send.
+	 * @param Message The message to send.
+	 * @param Annotations An optional message annotations header.
+	 * @param Recipient The message recipient.
+	 */
+	template<typename MessageType>
+	void Send(MessageType* Message, const TMap<FName, FString> Annotations, const FMessageAddress& Recipient)
+	{
+		Send(Message, MessageType::StaticStruct(), EMessageFlags::None, Annotations, nullptr, TArrayBuilder<FMessageAddress>().Add(Recipient), FTimespan::Zero(), FDateTime::MaxValue());
 	}
 
 	/**
@@ -652,6 +745,23 @@ public:
 	void Send(MessageType* Message, const TSharedPtr<IMessageAttachment, ESPMode::ThreadSafe>& Attachment, const FMessageAddress& Recipient, const FDateTime& Expiration, const FTimespan& Delay)
 	{
 		Send(Message, MessageType::StaticStruct(), EMessageFlags::None, Attachment, TArrayBuilder<FMessageAddress>().Add(Recipient), Delay, Expiration);
+	}
+
+	/**
+	 * Sends a message with fields, attachment and expiration to the specified recipient after a given delay.
+	 *
+	 * @param MessageType The type of message to send.
+	 * @param Message The message to send.
+	 * @param Annotations An optional message annotations header.
+	 * @param Attachment An optional binary data attachment.
+	 * @param Recipient The message recipient.
+	 * @param Expiration The time at which the message expires.
+	 * @param Delay The delay after which to send the message.
+	 */
+	template<typename MessageType>
+	void Send(MessageType* Message, const TMap<FName, FString> Annotations, const TSharedPtr<IMessageAttachment, ESPMode::ThreadSafe>& Attachment, const FMessageAddress& Recipient, const FDateTime& Expiration, const FTimespan& Delay)
+	{
+		Send(Message, MessageType::StaticStruct(), EMessageFlags::None, Annotations, Attachment, TArrayBuilder<FMessageAddress>().Add(Recipient), Delay, Expiration);
 	}
 
 	/**
@@ -728,6 +838,25 @@ public:
 	void Send(MessageType* Message, EMessageFlags Flags, const TSharedPtr<IMessageAttachment, ESPMode::ThreadSafe>& Attachment, const TArray<FMessageAddress>& Recipients, const FTimespan& Delay, const FDateTime& Expiration)
 	{
 		Send(Message, MessageType::StaticStruct(), Flags, Attachment, Recipients, Delay, Expiration);
+	}
+
+	/**
+	 * Sends a message to the specified list of recipients.
+	 * Allows to specify message flags
+	 *
+	 * @param Message The message to send.
+	 * @param TypeInfo The message's type information.
+	 * @param Flags The message's type information.
+	 * @param Annotations An optional message annotations header.
+	 * @param Attachment An optional binary data attachment.
+	 * @param Recipients The message recipients.
+	 * @param Delay The delay after which to send the message.
+	 * @param Expiration The time at which the message expires.
+	 */
+	template<typename MessageType>
+	void Send(MessageType* Message, EMessageFlags Flags, const TMap<FName, FString> Annotations, const TSharedPtr<IMessageAttachment, ESPMode::ThreadSafe>& Attachment, const TArray<FMessageAddress>& Recipients, const FTimespan& Delay, const FDateTime& Expiration)
+	{
+		Send(Message, MessageType::StaticStruct(), Flags, Annotations, Attachment, Recipients, Delay, Expiration);
 	}
 
 	/**

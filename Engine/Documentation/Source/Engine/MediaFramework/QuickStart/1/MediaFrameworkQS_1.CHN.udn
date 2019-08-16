@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3750348
-Availability:Public
+﻿INTSourceChangelist:6083686
+Availability:docs
 Crumbs: %ROOT%
 Title:1 - 必备设置
 Description:在本节中，我们将导入所需的内容并设置本指南中将要用到的资源。
@@ -11,6 +11,8 @@ type:quick start
 type:multi-step
 order:1
 tags:Media Framework
+
+## 页面已被合并，标记为Docs。 
  
 [NAV]
 

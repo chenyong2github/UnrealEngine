@@ -3,8 +3,11 @@ Description: Using in-app purchases to offer additional paid content for your ga
 Crumbs:
 Availability:Public
 parent:Platforms/Mobile
+skilllevel:Advanced
+version:4.9
 order:1
 type:how-to
+tags:in-app purchase
 tags:mobile
 topic-image:iap_topic.png
 
@@ -15,8 +18,8 @@ In-app purchases enable you to offer additional content and features to players.
 See the apropriate platform-specific page below for details on configuring in-app purchases for each platform:
 
 [REGION:buttonlist]
-* [](Platforms/Android/InAppPurchases)
-* [](Platforms/iOS/InAppPurchases)
+* [](Platforms/Mobile/Android/InAppPurchases)
+* [](Platforms/Mobile/iOS/InAppPurchases)
 [/REGION]
 
 [EXCERPT:usage]

@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3782314
-availability:Public
+﻿INTSourceChangelist:6111826
+availability:Docs
 title:2. 필수 애셋 생성 & 구성
 description:플루이드 서피스 블루프린트의 필수 애셋 생성과 구성에 대해 다룹니다.
 crumbs:%ROOT%, Engine, Engine\Rendering\RenderTargets

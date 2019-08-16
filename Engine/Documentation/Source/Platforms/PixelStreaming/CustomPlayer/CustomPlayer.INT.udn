@@ -5,7 +5,7 @@ Description: How to customize the web page that plays back streamed video and au
 Type: 
 Version: 4.21
 Parent: Platforms/PixelStreaming
-Order: 
+Order: 3
 topic-image:pixelstreaming-custom-topic.png
 Tags: Guide
 Tags: Early Access

@@ -1,7 +1,8 @@
-﻿Availability: Public
-Title:夜间无光场景的光源
+﻿INTSourceChangelist:3108692
+Availability: Public
+Title:无光夜晚场景灯光
 Crumbs:%ROOT%, Resources, Resources/Showcases/RealisticRendering
-Description:虚幻引擎4中包含的真实渲染演示的夜间场景概述。
+Description:UE4自带真实渲染demolet夜晚场景的概览。
 Related: Engine/Rendering/LightingAndShadows/LightTypes/Directional
 Related: Engine/Rendering/LightingAndShadows/LightTypes/Spot
 Related: Engine/Rendering/LightingAndShadows/Lightmass
@@ -10,26 +11,29 @@ Related: Engine/Rendering/LightingAndShadows/LightMobility/StationaryLights
 Related: Engine/Rendering/LightingAndShadows/LightMobility/StaticLights
 Related: Engine/Rendering/LightingAndShadows/IESLightProfiles
 Related: Resources/ContentExamples/Lighting/4_2
+Version: 4.9
 
 [REGION:fullwidth]
 ![](RoomNightNoLights.png)
 [/REGION]
 
-夜间无光场景中使用了四种类型的光源。
+无光夜晚场景中使用了4类灯光。
 
-1. **Directional Light Stationary** （定向光源固定）-提供场景中的月光，主要可在阳台上观察到。
-1. **Spot Light Static** （点光源静态）- 它们被放置在窗口外并模拟进入房间的来自环境的柔和光源。
-1. **Spot Light Stationary** （点光源固定）- 它们被放置在角落里的灯光处，模拟光照离开灯罩的顶部和底部的情况。 另一个被用来创建来自地面上的手电的光锥。
-1. **Point Light Movable** （点光源可移动）- 它们被分组到位于地面上的手电。 它们模拟从手电反射的光源。
+1. **静态定向光源（Directional Light Stationary）**——提供场景的月光，主要落在阳台上。
+1. **静态聚光源（Spot Light Static）**——放置在窗外，模拟周围进入房间的柔和光线。
+1. **静止聚光源（Spot Light Stationary）**——放置在角落的台灯中，模拟灯罩上下散发出的光线。另一个则用于模拟地面手电的光柱。
+1. **可移动点光源（Point Light Movable）**——这些光源被组合为地面上的手电。它们将模拟手电反射出的光线。
 
+
+(#setupconsiderations)
 
 ## 设置注意事项
 
-这个关卡和其它两个关卡略有不同。 它采用的不是过场动画序列，玩家使用悬浮的手电在房间中到处移动。 
+此关卡与另外两个有些许不同。玩家在房间中拿着手电四处移动。 
 
 
 [INCLUDE:Resources/Showcases/RealisticRendering#IESProfiles]
 
 [INCLUDE:Resources/Showcases/RealisticRendering#InverseSquared]
 
-上述的4个光源的限制在本关卡中尤为重要，因为玩家随身携带光源之一（手电）。 这表示关卡必须以在手电能照射到的任意位置处最多只能有 _三个_ 具有阴影的固定光源重叠的方式来创建。
+在此关卡中，四灯光的限制则体现得尤为明显，因为玩家手中就有一个这样的光源（手电）。这意味着创建关卡时应该考虑到手电发光之处不能出现 _3_ 个以上阴影投射静态光源发生重叠的情况。

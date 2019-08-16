@@ -1,13 +1,18 @@
-﻿Availability:Public
-Title:创建类的基础知识
+﻿INTSourceChangelist:3108692
+Availability:Public
+Title:类创建基础知识
 Crumbs: %ROOT%, Gameplay
-Description:一些示例，展示了如何单独使用蓝图、单独使用C++及同时使用二者来创建类。
+Description:多个示例，展示如何仅使用蓝图，仅使用C++以及同时使用C++和蓝图创建类。
+version: 4.9
 
 ![](LightSwitchActor.png)(w:500 convert:false) 
 
-这些示例展示了如何仅使用蓝图、仅使用C++及同时使用二者来创建一个新类。 目标是分别使用这三种流程来创建一个具有同样属性和行为的新LightSwitch类，然后把每个新类的实例添加到关卡中，这样就有三个全新的LightSwitch Actor了。 
+这些示例展示了如何仅使用蓝图、仅使用C++代码以及同时使用C++代码和蓝图创建新类。目标是分别使用这三种工作流程创建具有相同属性和行为的新LightSwitch类，
+然后将每个新类的一个实例添加到关卡中，这样关卡中就具有三个新LightSwitch Actor。 
 
-LightSwitch类直接基于Actor类，因为它们的主要需要就是可被放置在关卡中。  它们包含了一个PointLightComponent和SphereComponent来作为根组件，  SphereComponent是PointLightComponent的子项。 每个LightSwitch类都还包含一个名称为DesiredIntensity的变量，用于设置PointLightComponent的亮度。  最后，这些类的默认行为是：当玩家或离开SphereComponent时，切换PointLightComponent的可见性。  
+LightSwitch类直接基于Actor类，因为这些类的主要要求是它们可被放置在关卡中。它们各自包含一个 
+PointLightComponent（根组件）和一个SphereComponent（PointLightComponent的子项）。每个LightSwitch类都还包含一个名称为DesiredIntensity的变量，用于设置 
+PointLightComponent的强度。最后，这些类的默认行为是当玩家进入或离开SphereComponent时，PointLightComponent的可视性会切换。  
 
 
 ## 示例

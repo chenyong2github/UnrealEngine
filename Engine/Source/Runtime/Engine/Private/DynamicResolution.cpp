@@ -519,6 +519,12 @@ public:
 		bUseTimeQueriesThisFrame = false;
 	}
 
+	~FDefaultDynamicResolutionStateProxy()
+	{
+		check(IsInRenderingThread());
+		checkf(InFlightFrames.Num()==0, TEXT("Ensure the object is properly deinitialized by Finalize call"));
+	}
+
 	void Reset()
 	{
 		check(IsInRenderingThread());
@@ -544,6 +550,10 @@ public:
 
 		if (bUseTimeQueriesThisFrame)
 		{
+			// Create the query pool
+			if (!QueryPool.IsValid())
+				QueryPool = RHICreateRenderQueryPool(RQT_AbsoluteTime);
+
 			// Process to the in-flight frames that had their queries fully landed.
 			HandLandedQueriesToHeuristic(/* bWait = */ false);
 
@@ -556,10 +566,9 @@ public:
 			InFlightFrame.HeuristicHistoryEntry = Heuristic.CreateNewPreviousFrameTimings_RenderThread(
 				PrevGameThreadTimeMs, PrevRenderThreadTimeMs);
 
-			{
-				InFlightFrame.BeginFrameQuery = RHICreateRenderQuery(RQT_AbsoluteTime);
-				RHICmdList.EndRenderQuery(InFlightFrame.BeginFrameQuery);
-			}
+			check(QueryPool.IsValid());
+			InFlightFrame.BeginFrameQuery = QueryPool->AllocateQuery();
+			RHICmdList.EndRenderQuery(InFlightFrame.BeginFrameQuery.GetQuery());
 		}
 		else
 		{
@@ -589,7 +598,7 @@ public:
 		{
 			InFlightFrameQueries& InFlightFrame = InFlightFrames[CurrentFrameInFlightIndex];
 
-			FRenderQueryRHIRef* QueryPtr = nullptr;
+			FRHIPooledRenderQuery* QueryPtr = nullptr;
 			switch (Event)
 			{
 			case EDynamicResolutionStateEvent::BeginDynamicResolutionRendering:
@@ -601,8 +610,10 @@ public:
 			default: check(0);
 			}
 
-			*QueryPtr = RHICreateRenderQuery(RQT_AbsoluteTime);
-			RHICmdList.EndRenderQuery(*QueryPtr);
+			check(QueryPtr != nullptr);
+			check(QueryPool.IsValid());
+			*QueryPtr = QueryPool->AllocateQuery();
+			RHICmdList.EndRenderQuery(QueryPtr->GetQuery());
 		}
 
 		// Clobber CurrentFrameInFlightIndex for internal checks.
@@ -613,12 +624,17 @@ public:
 		}
 	}
 
-	void Finish()
+	/// Called before object is to be deleted
+	void Finalize()
 	{
 		check(IsInRenderingThread());
 
 		// Wait for all queries to land.
 		HandLandedQueriesToHeuristic(/* bWait = */ true);
+
+		// Reset the frame properties
+		InFlightFrames.Empty();
+		QueryPool = nullptr;
 	}
 
 
@@ -630,18 +646,32 @@ private:
 	struct InFlightFrameQueries
 	{
 		// GPU queries.
-		FRenderQueryRHIRef BeginFrameQuery;
-		FRenderQueryRHIRef BeginDynamicResolutionQuery;
-		FRenderQueryRHIRef EndDynamicResolutionQuery;
-		FRenderQueryRHIRef EndFrameQuery;
+		FRHIPooledRenderQuery BeginFrameQuery;
+		FRHIPooledRenderQuery BeginDynamicResolutionQuery;
+		FRHIPooledRenderQuery EndDynamicResolutionQuery;
+		FRHIPooledRenderQuery EndFrameQuery;
 
 		// Heuristic's history 
 		uint64 HeuristicHistoryEntry;
 
 		InFlightFrameQueries()
-			: HeuristicHistoryEntry(FDynamicResolutionHeuristicProxy::kInvalidEntryId)
-		{ }
+		{ 
+			ResetValues();
+		}
+
+		/// Reset values
+		void ResetValues()
+		{
+			HeuristicHistoryEntry = FDynamicResolutionHeuristicProxy::kInvalidEntryId;
+			BeginFrameQuery.ReleaseQuery();
+			BeginDynamicResolutionQuery.ReleaseQuery();
+			EndDynamicResolutionQuery.ReleaseQuery();
+			EndFrameQuery.ReleaseQuery();
+		}
 	};
+
+	// Shared query pool for the frames in flight
+	FRenderQueryPoolRHIRef QueryPool;
 
 	// List of frame queries in flight.
 	TArray<InFlightFrameQueries> InFlightFrames;
@@ -680,28 +710,28 @@ private:
 			if (InFlightFrame.BeginFrameQuery.IsValid())
 			{
 				LandingCount += RHIGetRenderQueryResult(
-					InFlightFrame.BeginFrameQuery, BeginFrameResult, bWait) ? 1 : 0;
+					InFlightFrame.BeginFrameQuery.GetQuery(), BeginFrameResult, bWait) ? 1 : 0;
 				QueryCount += 1;
 			}
 
 			if (InFlightFrame.BeginDynamicResolutionQuery.IsValid())
 			{
 				LandingCount += RHIGetRenderQueryResult(
-					InFlightFrame.BeginDynamicResolutionQuery, BeginDynamicResolutionResult, bWait) ? 1 : 0;
+					InFlightFrame.BeginDynamicResolutionQuery.GetQuery(), BeginDynamicResolutionResult, bWait) ? 1 : 0;
 				QueryCount += 1;
 			}
 
 			if (InFlightFrame.EndDynamicResolutionQuery.IsValid())
 			{
 				LandingCount += RHIGetRenderQueryResult(
-					InFlightFrame.EndDynamicResolutionQuery, EndDynamicResolutionResult, bWait) ? 1 : 0;
+					InFlightFrame.EndDynamicResolutionQuery.GetQuery(), EndDynamicResolutionResult, bWait) ? 1 : 0;
 				QueryCount += 1;
 			}
 
 			if (InFlightFrame.EndFrameQuery.IsValid())
 			{
 				LandingCount += RHIGetRenderQueryResult(
-					InFlightFrame.EndFrameQuery, EndFrameResult, bWait) ? 1 : 0;
+					InFlightFrame.EndFrameQuery.GetQuery(), EndFrameResult, bWait) ? 1 : 0;
 				QueryCount += 1;
 			}
 
@@ -717,7 +747,7 @@ private:
 					/* bGPUTimingsHaveCPUBubbles = */ !GRHISupportsGPUTimestampBubblesRemoval);
 
 				// Reset this in-flight frame queries to be reused.
-				InFlightFrame = InFlightFrameQueries();
+				InFlightFrame.ResetValues();
 
 				ShouldRefreshHeuristic = true;
 			}
@@ -748,8 +778,7 @@ private:
 		// Allocate a new in-flight frame in the unlikely event.
 		if (CurrentFrameInFlightIndex == -1)
 		{
-			CurrentFrameInFlightIndex = InFlightFrames.Num();
-			InFlightFrames.Add(InFlightFrameQueries());
+			CurrentFrameInFlightIndex = InFlightFrames.Add(InFlightFrameQueries());
 		}
 	}
 };
@@ -778,7 +807,7 @@ public:
 		ENQUEUE_RENDER_COMMAND(DeleteDynamicResolutionProxy)(
 			[P](class FRHICommandList&)
 			{
-				P->Finish();
+				P->Finalize();
 				delete P;
 			});
 	}

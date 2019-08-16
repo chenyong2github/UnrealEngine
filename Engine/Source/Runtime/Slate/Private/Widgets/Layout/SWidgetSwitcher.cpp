@@ -2,6 +2,10 @@
 
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Layout/LayoutUtils.h"
+#if WITH_ACCESSIBILITY
+#include "Framework/Application/SlateApplication.h"
+#include "Widgets/Accessibility/SlateAccessibleMessageHandler.h"
+#endif
 
 SWidgetSwitcher::SWidgetSwitcher()
 	: WidgetIndex()
@@ -93,7 +97,7 @@ int32 SWidgetSwitcher::RemoveSlot( TSharedRef<SWidget> WidgetToRemove )
 
 				if (SlotIndex == ActiveWidgetIndex)
 				{
-					Invalidate(EInvalidateWidget::LayoutAndVolatility);
+					Invalidate(EInvalidateWidget::ChildOrder);
 				}
 
 				if (ActiveWidgetIndex > 0 && ActiveWidgetIndex >= SlotIndex)
@@ -112,10 +116,24 @@ int32 SWidgetSwitcher::RemoveSlot( TSharedRef<SWidget> WidgetToRemove )
 
 void SWidgetSwitcher::SetActiveWidgetIndex( int32 Index )
 {
-	if(WidgetIndex.Get() != Index)
+	if (WidgetIndex.Get() != Index)
 	{
+		Invalidate(EInvalidateWidget::ChildOrder);
+
+		const FSlot* ActiveSlot = GetActiveSlot();
+
+		// Active slot can be null if the widget switcher was initialized to an invalid index.
+		if (ActiveSlot)
+		{
+			SWidget& OldActiveWidget = ActiveSlot->GetWidget().Get();
+			InvalidateChildRemovedFromTree(OldActiveWidget);
+		}
+
 		WidgetIndex = Index;
-		Invalidate(EInvalidateWidget::LayoutAndVolatility);
+
+#if WITH_SLATE_DEBUGGING
+		UE_LOG(LogSlate, Log, TEXT("WidgetSwitcher ('%s') active index changed to %d"), *GetTag().ToString(), Index);
+#endif
 	}
 }
 
@@ -131,6 +149,17 @@ void SWidgetSwitcher::OnArrangeChildren(const FGeometry& AllottedGeometry, FArra
 	if (const FSlot* ActiveSlotPtr = GetActiveSlot())
 	{
 		ArrangeSingleChild(GSlateFlowDirection, AllottedGeometry, ArrangedChildren, *ActiveSlotPtr, ContentScale);
+
+#if WITH_ACCESSIBILITY
+		// This would go in SetActiveWidgetIndex were this not a TAttribute. WidgetIndex changing does not affect
+		// parent or visibility assignments, so we need a special custom notification to tell the accessibility
+		// tree to update itself.
+		if (LastActiveWidget != ActiveSlotPtr->GetWidget())
+		{
+			const_cast<SWidgetSwitcher*>(this)->LastActiveWidget = ActiveSlotPtr->GetWidget();
+			FSlateApplication::Get().GetAccessibleMessageHandler()->MarkDirty();
+		}
+#endif
 	}
 }
 	

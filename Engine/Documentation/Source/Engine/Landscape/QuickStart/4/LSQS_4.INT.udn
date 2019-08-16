@@ -84,14 +84,7 @@ With our new Landscape Material created, open up the Material by **Double-clicki
 ![](T_Landscape_Blank_Material.png)
 [/REGION]
 
-Now before we begin laying down nodes in the Material Editor, we first need to make sure that we set this Material up so that it can be used with Landscapes. 
-To do this, navigate to the **Usage** section in the **Details** panel and check the **Used with Landscape** checkmark box. 
-This will enable this Material to be used with Landscapes and save you additional Material compile times.   
-[REGION:fullwidth] 
-![](T_Landscape_Materail_Usage.png)
-[/REGION]
-
-Now with the **Used with Landscape** Usage flag set, it is now time to start laying down nodes inside of the Material Editor. 
+It is now time to start laying down nodes inside of the Material Editor. 
 The first node that you are going to want to lay down is a **LandscapeLayerCoords** UV node. This node will help to generate UV cords that can be used to map the Material network to the Landscape Terrain.
 
 ![](T_Landscape_UVCords.png)

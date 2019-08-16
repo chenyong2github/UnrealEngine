@@ -1,0 +1,406 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Title: Real-Time Ray Tracing
+Description: An overview of Ray Tracing in Unreal Engine 4.
+Type: overview
+Version: 4.22
+Parent: Engine/Rendering
+Tags: Early Access
+Tags: Ray Tracing
+Order: 16
+
+
+[TOC (start:2 end:2)]
+
+![RayTracingBanner](RayTracingBanner.png "RayTracingBanner")
+
+  
+
+Ray tracing techniques have long been used in film, television, and visualization for rendering photo-realistic images for a long time but required powerful computers and time to render each image or frame. For film and television, it can take many hours or even days to render out high-quality image sequences, but the final result can create real-life 3D content that can blend seamlessly with real-life ones. For architectural visualization companies, ray tracing has meant creating beautiful renders for the automotive industry or showing what a densely-filled house or office complex could look like when complete all while achieving realistic-looking results.    
+
+With the power of Unreal Engine 4 (UE4) combined with **Real-Time Ray Tracing** (RTRT), it’s possible to create interactive experiences with subtle lighting effects comparable with many offline renderers. Real-time ray tracing makes things look more natural producing soft shadowing for area lights, accurate ambient occlusion, interactive global illumination, and more. 
+
+## Ray Tracing in Unreal Engine
+
+Ray tracing in UE4 is composed of two techniques:  
+
+*   A hybrid **Ray Tracer** that couples ray tracing capabilities with our existing raster effects.
+
+*   A **Path Tracer** for generating reference renders.
+
+### Ray Tracer
+
+The Ray Tracer enables raytraced results for shadows, ambient occlusion (AO), reflections, interactive global illumination, and translucency all in real-time. It does this by using a low number of samples couples with a denoising algorithm that is perceptually close to the ground truth results. For example, for shadows, this means they will soften based on distance from a receiving surface or light source size and have physically correct contact hardening.  
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![Undenoised Single Sample Per Pixel Shadow](UnDenoised.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![Denoised Single Sample Per Pixel Shadow](Denoised.png) 
+ [/PARAM]
+[/OBJECT]
+
+### Path Tracer
+
+The Path Tracer is an unbiased, physically based path tracer that is good for rendering reference images of your scene. It works similarly to offline renderers by gathering samples over time and, in its current state, is useful for generating ground truth renders of your scene rather than final pixels.
+
+For additional information, see the [Path Tracer](Engine/Rendering/RayTracing/PathTracer).
+
+## Enabling Ray Tracing in your Project
+
+Follow these steps to enable ray tracing support in your project. 
+
+| System Requirements |  |
+| --- | --- |
+| **Operating System** | [INCLUDE:#excerpt_0] |
+| **GPU** | NVIDIA RTX and some GTX series cards with DXR support using the latest device drivers. [REGION:note] For more informatin, see NVIDIA's site [here](https://www.nvidia.com/en-us/geforce/news/geforce-gtx-dxr-ray-tracing-available-now).[/REGION] |
+| **Unreal Engine Version** | 4.22 or Later |
+
+<!-- 
+[EXCERPT:excerpt_0]
+[Windows 10 RS5 (Build 1809) or later](https://support.microsoft.com/en-us/help/4028685/windows-10-get-the-update)  
+[REGION:note]
+Verify your Windows build by typing **winver** in the Windows search bar.
+[/REGION]
+[/EXCERPT:excerpt_0]
+-->
+
+### Launching the Editor with DirectX 12
+
+Currently, DirectX 12 (DX12) can only be enabled through command line. For this setup, you’ll be required to create a shortcut to the UE4Editor.exe that adds a command line argument to enable DX12.
+
+1.  Open the **Epic Games Launcher** and from the Engine’s drop-down, select **Create Shortcut**. This will place a shortcut to the Engine binary on your Desktop.  
+      
+    ![LauncherShortcut](LauncherShortcut.png "LauncherShortcut")  
+    
+
+1.  Go to your newly created UE4 engine binary shortcut. Right-click and select **Properties** from the context menu. Then, under the **Shortcut** tab add **-dx12** to the end of the **Target** file path.  
+      
+    ![RTRT_PropertiesShortcutCommandLineArgs636891472515688651](RTRT_PropertiesShortcutCommandLineArgs636891472515688651.png "RTRT_PropertiesShortcutCommandLineArgs636891472515688651")  
+    
+
+1.  Click **OK** to apply the settings and then double-click the shortcut to run the Editor in DX12 mode.
+
+Once Unreal Editor opens, you can verify the command line was used by opening and looking at the **Output Log**. You should see `LogInit: Command Line: -dx12`, along with some other useful information like the Windows 10 build version and GPU you're currently using:  
+
+![OutputLog636891472979936361](OutputLog636891472979936361.png "OutputLog636891472979936361")
+
+### Enabling Ray Tracing
+
+1.  Go to the main menu and use the **File** menu to open the **Project Settings**.  
+    
+
+1.  Under **Engine > Rendering**, enable **Ray Tracing**.  
+      
+    ![ProjectSetting_EnableRT](ProjectSetting_EnableRT.png "ProjectSetting_EnableRT")
+    [REGION:note]
+    To enable Ray Tracing, **Support Compute Skincache** must be enabled for the project. If it is not already enabled, you’ll receive a message dialogue asking if you would like to enable it now. If so, click **Yes**.  
+    ![](SupportSkinCache.png)
+    [/REGION]
+    
+
+1.  **Restart** the Editor to enable Ray Tracing for your project.
+
+
+## Real-Time Ray Tracing Features
+
+### Ray Traced Shadows
+
+**Ray Traced Shadows** simulate soft area lighting effects for objects in the environment. This means that based on the light’s source size or source angle, an object’s shadow will have sharper shadows near the contact surface than farther away where it softens and widens.
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![Raster Shadows using Shadowmaps](RT_Shadows_Disabled-3.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![Ray Traced Soft Shadows](RT_Shadows_Enabled-3.png) 
+ [/PARAM]
+[/OBJECT]
+
+For additional information, see [Ray Tracing Settings](Engine/Rendering/RayTracing/RayTracingSettings).
+
+### Ray Traced Reflections
+
+**Ray Traced Reflections** (RTR) simulate accurate environment reflections that can support multiple bounces to create inter-reflection for reflective surfaces.
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![Screen Space Reflections](RT_Reflections_Disabled.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![Ray Traced Reflections](RT_Reflections_Enabled-1.png) 
+ [/PARAM]
+[/OBJECT]
+
+When compared with Screen Space Reflections (SSR), Planar Reflections, or even reflection probes, Ray Traced Reflections captures the entire scene dynamically and is not limited to static captures or objects within the current camera view to be visible in the reflection.
+
+For additional information, see [Ray Tracing Settings](Engine/Rendering/RayTracing/RayTracingSettings).
+
+### Ray Traced Translucency
+
+**Ray Traced Translucency** (RTT) accurately represents glass and liquid materials with physically correct reflections, absorption, and refraction on transparent surfaces.
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![Raster Translucency](RT_Translucency_Disabled.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![Ray Traced Translucency](RT_Translucency_Enabled.png) 
+ [/PARAM]
+[/OBJECT]
+
+For additional information, see [Ray Tracing Settings](Engine/Rendering/RayTracing/RayTracingSettings).
+
+### Ray Traced Ambient Occlusion
+
+**Ray Traced Ambient Occlusion** (RTAO) accurately shadows areas blocking ambient lighting better grounding objects in the environment, such as shadowing the corners and edges where walls meet or adding depth to the crevices and wrinkles in skin.
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![Screen Space Ambient Occlusion (SSAO)](RT_AO_Disabled.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![Ray Traced Ambient Occlusion (RTAO)](RT_AO_Enabled.png) 
+ [/PARAM]
+[/OBJECT]
+
+When compared with Screen Space Ambient Occlusion (SSAO), RTAO grounds objects and adds depth to the scene to produce natural looking shadowing in indirectly lit areas.
+
+For additional information, see [Ray Tracing Settings](Engine/Rendering/RayTracing/RayTracingSettings).
+
+### Ray Traced Global Illumination
+
+**Ray Traced Global Illumination** (RTGI) adds real-time interactive bounce lighting to areas not directly lit by a given light source.
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![Sky Light Only](RT_GI_Disabled.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![Ray Traced Global Illumination ](RT_GI_Enabled.png) 
+ [/PARAM]
+[/OBJECT]
+
+[REGION:note]
+RTGI is disabled by default and is currently considered experimental. It can be enabled by adding a [Post Process Volume](#postprocessvolume) to the scene and enabling **Ray Traced Global Illumination** or by using the console variable `r.RayTracing.Globalillumination 1.`
+[/REGION]
+
+For additional information, see [Ray Tracing Settings](Engine/Rendering/RayTracing/RayTracingSettings).
+
+## Using Ray Tracing Features
+
+### Post Process Volume
+
+Use [Post Process Volumes](Engine/Rendering/PostProcessEffects) to in your scene to control Ray Tracing and Path Tracing features and properties. Volumes can be added to different areas for interiors and exteriors to enable you to apply the features and quality level you want. From these volumes, you can control Ray Traced Reflections, Translucency, Global Illumination, Ambient Occlusion, and the Path Tracer.
+
+1.  From the **Modes** panel, locate and drag a **Post Process Volume** into the **Level**.  
+    [REGION:lightbox]
+    [![RT_AddPPVToScene](RT_AddPPVToScene.png "RT_AddPPVToScene")(w:500)](RT_AddPPVToScene.png)
+    [/REGION]
+    [REGION:caption]
+    Click image for full size.
+    [/REGION]
+    
+
+1.  With the volume selected, look at the **Details **panel under **Rendering Features** to locate the available Ray Tracing and Path Tracing features and properties that can be adjusted.  
+    [REGION:lightbox]
+    [![PPV_Settings](PPV_Settings.png "PPV_Settings")(w:250)](PPV_Settings.png)
+    [/REGION]
+    [REGION:caption]
+    Click image for full size.
+    [/REGION]
+    
+
+For additional information, see [Ray Tracing Settings](Engine/Rendering/RayTracing/RayTracingSettings).
+
+### Lights
+
+The Ray Tracer supports soft area shadows for all types of lights available in UE4.
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![Ray Traced Shadows: Directional Light | Source Angle: 0.5357](RT_SoftShdows_0_537.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![Ray Traced Shadows: Directional Light | Source Angle: 2.0](RT_SoftShdows_2_5.png) 
+ [/PARAM]
+[/OBJECT]
+
+Control the softness of the shadow by adjusting the following: 
+
+*   On a **Directional Light, **set the **Source Angle**.
+
+*   On **Point** and **Spot Lights**, set the **Source Radius**. 
+
+*   On a **Rect Light**, set the **Barn Door Angle** and **Barn Door Length** to shape and soften the shadow softness.
+
+For additional information, see [Ray Tracing Settings](Engine/Rendering/RayTracing/RayTracingSettings).
+
+### Sky Lights
+
+On the **Sky Light**, use **SLS Captured Scene** or **SLS Specified Cubemap** with raytraced shadowing to capture the distance parts of the level and apply that to the scene as a light. Check the **Cast Raytraced Shadow** flag to enable sky lighting in your scene.  
+
+![RT_SkyLight](RT_SkyLight.png "RT_SkyLight")
+
+[REGION:caption]
+In this scene, a single HDRI is being used to light the scene along with RTGI.
+[/REGION]
+[REGION:note]
+For RTGI to work with the Sky Light, enable RTGI to evaluate the sky's lighting using the experimental console variable `r.RayTracing.GlobalIllumination.EvalSkylight`.
+[/REGION]
+For additional information, see [Ray Tracing Settings](Engine/Rendering/RayTracing/RayTracingSettings).  
+
+### Ray Tracing Ambient Occlusion
+
+Control **Ray Traced Ambient Occlusion **using a [Post Process Volume](#postprocessvolume) in your scene. Under **Ambient Occlusion**, you can set the **Intensity **and **Radius** of the effect to control its size and strength. 
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![Ray Traced Ambient Occlusion Intensity: 0.75](RTAO_75.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![Ray Traced Ambient Occlusion Intensity: 1.0](RTAO_100.png) 
+ [/PARAM]
+[/OBJECT]
+
+## Performance and Debugging
+
+### Stat GPU
+
+Check relevant Ray Tracing GPU performance by using the console command `GPU Stats`. You'll find relevant information about enabled Ray Tracing features and how much frame time is being spent to render them in the current view.   
+
+![GPUStats1](GPUStats1.png "GPUStats1")
+
+### Stat D3D12RayTracing
+
+Check relevant Ray Tracing resource usage using the console command `Stat D3D12RayTracing`.
+
+![StatD3D12RayTracing](StatD3D12RayTracing.png "StatD3D12RayTracing")
+
+### Ray Tracing Debug View Modes
+
+Under the Level Viewport, select the **View Mode** dropdown and select **Ray Tracing Debug** to select from the available debug view modes. 
+
+[REGION:lightbox]
+[![RT_DebugOptions](RT_DebugOptions.png "RT_DebugOptions")(w:300)](RT_DebugOptions.png)
+[/REGION]
+[REGION:caption]
+Click image for full size.
+[/REGION]
+
+### Evaluating Denoiser Quality
+
+Evaluate the quality of the Denoiser for different raytracing effects by doing the following: 
+
+*   Disable **Temporal Anti-Aliasing** and **Depth of Field**
+    *   Both of these are running in linear color space in Unreal Engine's renderer. They do some HDR color weighting tricks to avoid aliasing between shadows and highlights.
+
+*   Compare the Denoised single sample per pixel with an Undenoised single sample per pixel. 
+    *   The result will look incorrect due to the energy difference and that the denoiser is darkening the shadows too much. However, a single sample per pixel will look brighter due to the tonemapper's non-linear operation. 
+    
+    *   For a better comparison, the Denoised **single** sample per pixel should be tested against an Undenoised **multiple** samples per pixel.
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![Denoised Single Sample Per Pixel](RT_Denoiser_SingleSample.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![Undenoised Multiple Samples Per Pixel](RT_Denoiser_MultiSamples.png) 
+ [/PARAM]
+[/OBJECT]
+
+The denoised single sample per pixel will not be perfect due to information loss. However, when compared to undenoised multiple samples per pixel, the results are consistent. 
+
+Also, keep in mind that the Denoiser supports up to four samples per pixel, which improves the quality and more closely matches the undenoised multiple samples per pixel result.
+
+## Additional Notes
+
+### Materials 
+
+*   Testing Material Costs
+    *   Complex materials can affect performance of ray tracing features. Use the console command r.RayTracing.EnableMaterials to test performance impact.
+
+*   Ray Tracing Quality Switch Replace Node 
+    *   This node enables you to replace the material that affects features like RTGI, RT Reflections, and RT Translucency with less complex materials.   
+        [REGION:lightbox]
+        [![RT_MaterialSwitch](RT_MaterialSwitch.png "RT_MaterialSwitch")(w:500)](RT_MaterialSwitch.png)
+        [/REGION]
+        [REGION:caption]
+        Click image for full size.
+        [/REGION]
+        
+
+### Ray Tracing Features Optimization  
+
+*   Setting Reflections and Translucency Maximum Roughness
+    *   Use **Max Roughness** to set a threshold for raytraced reflections on Materials. This can be done within the Post Process Volume or using the console command r.RayTracing.Reflections.MaxRoughness. 
+
+*   Setting a Maximum Ray Distance for Global Illumination, Reflections, and Translucency
+    *   This sets a maximum ray distance for each of these features to lower their cost and contribution in the scene.
+    
+    *   Use the console to the **MaxRayDistance** console variable for each of these Ray Traced features. You can find them under r.RayTracing.*.
+
+### Geometry Considerations with Ray Tracing  
+
+*   Geometry with small holes or lots of little details can impact performance, such as foliage and fences. 
+
+*   Indoor environments are slower to render than outdoors ones.
+    *   For example, when light enters from outside, areas that are directly lit is faster than points that are indirectly lit. 
+    
+    *   Also, you have to consider that more ray tracing features are being used, such ass reflections and translucency
+
+## Ray Tracing Supported Features
+
+[REGION:note]
+This list is intended to give you an idea of what is currently supported and is not meant to be a comprehensive list of Ray Tracing feature support in **Unreal Engine 4.22**.
+[/REGION]
+
+| Feature | Supported (Y/N/Partially) | Additional Notes |
+| --- | :---: | --- |
+| [REGION:tablesection]Types of Lights[/REGION] |||
+| **Directional Light** | Y |  |
+| **Sky Light** | Y |  |
+| **Point Light** | Y |  |
+| **Spot Light** | Y |  |
+| **Rect Light** | Y |  |
+| [REGION:tablesection]Lighting Features[/REGION] |||
+| **Emissive Surfaces** | Partially | Supported for reflections on surfaces, but does not emit light or cast shadows. |
+| **Light Transmission** | N | The translucent shadow is treated as opaque, meaning no colored shadows or light transmission through the material. |
+| **Area Shadowing** | Y |  |
+| **IES Profiles** | Partially | Not supported in reflections or translucency. |
+| **Light Functions** | N |  |
+| **Volumetric Fog** | N |  |
+| **Image Based Lighting (IBL)** | Y | Support for HDRI with Sky Light. |
+| [REGION:tablesection]Materials: Blend Mode[/REGION] |||
+| **Opaque** | Y |  |
+| **Masked** | Y | With 4.22.1 Hotfix, Masked materials are now supported |
+| **Translucent** | Partially | Shadow is considered opaque. |
+| [REGION:tablesection]Materials: Shading Model [/REGION] |||
+| **Default Lit** | Y |  |
+| **Unlit** | Partially |  |
+| **SubSurface and SubSurface Profile** | Partially | Works but the result isn't correctly raytraced. It uses the raster pipeline. |
+| **Preintegrated Skin** | Partially | Works but the result isn't correctly raytraced. It uses the raster pipeline. |
+| **Clear Coat** | Partially | Secondary normal cannot be read in reflection and is only available at first intersection through GBuffer data.  |
+| **TwoSided Foliage** | Y |  |
+| **Hair** | Partially | Works but the result isn't correctly raytraced. It uses the raster pipeline. |
+| **Cloth** | Partially | Works but the result isn't correctly raytraced. It uses the raster pipeline. |
+| **Material Functions** | Y |  |
+| **Two-Sided** | Partially | Doesn't properly handle Translucent materials yet. |
+| **World Position Offset** | N |  |
+| [REGION:tablesection]Geometry Types[/REGION] |||
+| **Skeletal Mesh** | Y |  |
+| **Static Mesh** | Y |  |
+| **Geometry Cache (Alembic)** | Y |  |
+| **Landscape** | N |  |
+| **Hierarchical Instanced Static Mesh (HISM)** | N |  |
+| **Foliage** | N |  |
+| **Splines** | N |  |
+| **Procedural Mesh** | N |  |
+| **BSP Brushes** | N |  |
+| **Levels of Detail (LOD)** | Y | Dithered LOD transitions are not yet supported.     |
+| [REGION:tablesection]Visual Effects (VFX)[/REGION] |||
+| **Niagara** | Partially | Only supports Sprites. Ribbons and Meshes are not yet supported. |
+| **Cascade** | N |  |
+| [REGION:tablesection]Platform Support[/REGION] |||
+| **Virtual Reality (VR)** | N |  |

@@ -280,6 +280,13 @@ namespace
 				LC_ERROR_USER("Cannot load PDB file for module %S. Error: 0x%X", filename, hr);
 			}
 
+			// BEGIN EPIC MOD - Show a warning if we don't have a PDB for this module. Since we only enable Live++ for modules that we built, we should always have a PDB.
+			if (hr == E_PDB_NOT_FOUND)
+			{
+				LC_WARNING_USER("No PDB file found for module %S. If this is a packaged build, make sure that debug files are being staged. Live coding will be disabled for this module.", file::GetFilename(filename).c_str());
+			}
+			// END EPIC MOD
+
 			return nullptr;
 		}
 
@@ -547,35 +554,6 @@ namespace symbols
 
 		DiaCompilandDB* database = new DiaCompilandDB;
 		database->symbols = dia::GatherChildSymbols(provider->globalScope, SymTagCompiland);
-
-		return database;
-	}
-
-
-	ModuleDB* GatherModules(DiaCompilandDB* diaCompilandDb)
-	{
-		telemetry::Scope telemetryScope("Gathering modules");
-
-		const size_t count = diaCompilandDb->symbols.size();
-
-		ModuleDB* database = new ModuleDB;
-		database->modules.reserve(count);
-
-		for (size_t i = 0u; i < count; ++i)
-		{
-			IDiaSymbol* diaSymbol = diaCompilandDb->symbols[i];
-
-			const dia::SymbolName& compilandPath = dia::GetSymbolName(diaSymbol);
-			const std::wstring& uppercaseCompilandPath = string::ToUpper(compilandPath.GetString());
-
-			const bool isDllPath = string::Contains(uppercaseCompilandPath.c_str(), L".DLL");
-			const bool isImport = string::Contains(uppercaseCompilandPath.c_str(), L"IMPORT:");
-			if (isDllPath && !isImport)
-			{
-				// store the module for now
-				database->modules.emplace_back(compilandPath.GetString());
-			}
-		}
 
 		return database;
 	}

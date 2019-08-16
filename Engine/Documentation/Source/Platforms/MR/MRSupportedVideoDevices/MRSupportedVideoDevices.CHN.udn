@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4320499
+﻿INTSourceChangelist:6113924
 Availability: Public
 Crumbs: %ROOT%, Platforms, Platforms/MR
 Title: 支持的视频设备
@@ -23,6 +23,6 @@ topic-image:MR_Camera.jpg
 
 * [Magewell USB Capture HDMI Gen 2](http://www.magewell.com/usb-capture-hdmi)¹
 
-¹ 尽管未经过测试，但是其他Magewell USB采集产品也能够与MRC兼容，例如他们用于4K的[Plus型号](http://www.magewell.com/usb-capture-hdmi-4k-plus)和他们用于播放硬件的[SDI采集棒](http://www.magewell.com/usb-capture-sdi-4k-plus)。
+¹ 尽管未经过测试，但是其他Magewell USB采集产品也能够与MRC兼容，例如他们用于4K的[Plus型号](http://www.magewell.com/usb-capture-hdmi-4k-plus)和他们用于播放硬件的SDI采集棒。
 
 高级用户可以编写媒体框架插件来支持他们自己的视频捕捉设备。

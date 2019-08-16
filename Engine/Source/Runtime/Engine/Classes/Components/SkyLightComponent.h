@@ -12,10 +12,6 @@
 #include "Math/SHMath.h"
 #include "SkyLightComponent.generated.h"
 
-#ifndef ENVIRONMENT_TEXTURE_ARRAY_WORKAROUND // RHI_RAYTRACING
-#define ENVIRONMENT_TEXTURE_ARRAY_WORKAROUND	1
-#endif
-
 class FSkyLightSceneProxy;
 class UTextureCube;
 
@@ -175,12 +171,14 @@ class ENGINE_API USkyLightComponent : public ULightComponentBase
 	virtual void PostLoad() override;
 	virtual void PostInterpChange(UProperty* PropertyThatChanged) override;
 #if WITH_EDITOR
+	virtual void PreEditChange(UProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual bool CanEditChange(const UProperty* InProperty) const override;
 	virtual void CheckForErrors() override;
 #endif // WITH_EDITOR
 	virtual void BeginDestroy() override;
 	virtual bool IsReadyForFinishDestroy() override;
+	virtual bool IsDestructionThreadSafe() const override { return false; }
 	//~ End UObject Interface
 
 	virtual TStructOnScope<FActorComponentInstanceData> GetComponentInstanceData() const override;
@@ -263,6 +261,11 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 
 protected:
+
+#if WITH_EDITOR
+	/** shadow copy saved before effects of PostEditChange() to provide option to roll back edit. */
+	int32 PreEditCubemapResolution = 128;
+#endif
 
 	/** Indicates whether the cached data stored in GetComponentInstanceData is valid to be applied in ApplyComponentInstanceData. */
 	bool bSavedConstructionScriptValuesValid;

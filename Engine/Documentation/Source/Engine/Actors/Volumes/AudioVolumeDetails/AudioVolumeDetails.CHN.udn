@@ -1,13 +1,11 @@
-﻿INTSourceChangelist:3782314
-Availability: Docs
-Title:体积概述
-Crumbs:%ROOT%, Engine, Engine/Actors, Engine/Actors/Volumes
+﻿INTSourceChangelist:6535113
+Availability: Public
+Title:音频体积参数
+Parent: Engine/Actors/Volumes
 Description:音频体积参数详情
 version:4.16
 type:reference
 
-
-### 音频体积（Audio Volumes）
 
 可以从该体积的 **细节（Details）** 面板调整多个属性，来更好地控制其效果，如下所示。
 
@@ -35,6 +33,3 @@ type:reference
 | **内部LPF（Interior LPF）** | 当玩家在环境区域外部时，应用到内部声音的低通滤波器乘数（使用1.0来应用最大的LPF）。|
 | **内部LPFTime（Interior LPFTime）** | 淡入淡出到新的低通滤波器级别所需的时间，以秒为单位。|
 
-[COMMENT:none]
-有关“环境区域（Ambient Zones）”的更多信息，请参阅以下文档：[“环境区域（Ambient Zones）”文档](Engine/Audio/AmbientZones)。
-[/COMMENT]

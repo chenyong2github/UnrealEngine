@@ -644,9 +644,22 @@ void UPlayerInput::ForceRebuildingKeyMaps(const bool bRestoreDefaults)
 {
 	if (bRestoreDefaults)
 	{
-		AxisConfig = GetDefault<UInputSettings>()->AxisConfig;
-		AxisMappings = GetDefault<UInputSettings>()->AxisMappings;
-		ActionMappings = GetDefault<UInputSettings>()->ActionMappings;
+		const UInputSettings* InputSettings = GetDefault<UInputSettings>();
+		if (InputSettings)
+		{
+			AxisConfig = InputSettings->AxisConfig;
+			AxisMappings = InputSettings->GetAxisMappings();
+			ActionMappings = InputSettings->GetActionMappings();
+
+			//append on speech action mappings
+			const TArray<FInputActionSpeechMapping>& SpeechMappings = InputSettings->GetSpeechMappings();
+			for (const FInputActionSpeechMapping& SpeechMapping : SpeechMappings)
+			{
+				FInputActionKeyMapping& ConvertedSpeechToActionMap = ActionMappings.AddDefaulted_GetRef();
+				ConvertedSpeechToActionMap.ActionName = SpeechMapping.GetActionName();
+				ConvertedSpeechToActionMap.Key = SpeechMapping.GetKeyName();
+			}
+		}
 	}
 
 	ActionKeyMap.Reset();
@@ -1709,8 +1722,8 @@ FVector UPlayerInput::MassageVectorAxisInput(FKey Key, FVector RawValue)
 			};
 
 			NewVal.X = DeadZoneLambda(NewVal.X);
-			NewVal.X = DeadZoneLambda(NewVal.Y);
-			NewVal.X = DeadZoneLambda(NewVal.Z);
+			NewVal.Y = DeadZoneLambda(NewVal.Y);
+			NewVal.Z = DeadZoneLambda(NewVal.Z);
 		}
 
 		// apply any exponent curvature while we're in the [0..1] range

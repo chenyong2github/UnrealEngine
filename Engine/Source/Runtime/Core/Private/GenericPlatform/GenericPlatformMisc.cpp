@@ -26,7 +26,6 @@
 #include "HAL/ExceptionHandling.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 #include "GenericPlatform/GenericPlatformDriver.h"
-#include "GenericPlatform/GenericPlatformInstallBundleManager.h"
 #include "ProfilingDebugging/ExternalProfiler.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "Templates/Function.h"
@@ -825,36 +824,6 @@ IPlatformChunkInstall* FGenericPlatformMisc::GetPlatformChunkInstall()
 	return &Singleton;
 }
 
-IPlatformInstallBundleManager* FGenericPlatformMisc::GetPlatformInstallBundleManager()
-{
-	static IPlatformInstallBundleManager* Manager = nullptr;
-	static bool bCheckedIni = false;
-
-	if (Manager)
-		return Manager;
-
-	if (!bCheckedIni && !GEngineIni.IsEmpty())
-	{
-		FString ModuleName;
-		IPlatformInstallBundleManagerModule* Module = nullptr;
-		GConfig->GetString(TEXT("InstallBundleManager"), TEXT("ModuleName"), ModuleName, GEngineIni);
-
-		if (FModuleManager::Get().ModuleExists(*ModuleName))
-		{
-			FModuleStatus Status;
-			Module = FModuleManager::LoadModulePtr<IPlatformInstallBundleManagerModule>(*ModuleName);
-			if (Module)
-			{
-				Manager = Module->GetInstallBundleManager();
-			}
-		}
-
-		bCheckedIni = true;
-	}
-
-	return Manager;
-}
-
 void GenericPlatformMisc_GetProjectFilePathProjectDir(FString& OutGameDir)
 {
 	// Here we derive the game path from the project file location.
@@ -997,12 +966,12 @@ const TCHAR* FGenericPlatformMisc::GamePersistentDownloadDir()
 
 const TCHAR* FGenericPlatformMisc::GetUBTPlatform()
 {
-	return TEXT( PREPROCESSOR_TO_STRING(UBT_COMPILED_PLATFORM) );
+	return TEXT(PREPROCESSOR_TO_STRING(UBT_COMPILED_PLATFORM));
 }
 
 const TCHAR* FGenericPlatformMisc::GetUBTTarget()
 {
-    return TEXT(PREPROCESSOR_TO_STRING(UBT_COMPILED_TARGET));
+	return TEXT(PREPROCESSOR_TO_STRING(UBT_COMPILED_TARGET));
 }
 
 const TCHAR* FGenericPlatformMisc::GetDefaultDeviceProfileName()
@@ -1320,9 +1289,26 @@ bool FGenericPlatformMisc::RequestDeviceCheckToken(TFunction<void(const TArray<u
 	return false;
 }
 
-TArray<FChunkTagID> FGenericPlatformMisc::GetOnDemandChunkTagIDs()
+TArray<FCustomChunk> FGenericPlatformMisc::GetAllOnDemandChunks()
 {
-	return TArray<FChunkTagID>();
+	return TArray<FCustomChunk>();
+}
+
+TArray<FCustomChunk> FGenericPlatformMisc::GetAllLanguageChunks()
+{
+	return TArray<FCustomChunk>();
+}
+
+TArray<FCustomChunk> FGenericPlatformMisc::GetCustomChunksByType(ECustomChunkType DesiredChunkType)
+{
+	if (DesiredChunkType == ECustomChunkType::OnDemandChunk)
+	{
+		return GetAllOnDemandChunks();
+	}
+	else
+	{
+		return GetAllLanguageChunks();
+	}
 }
 
 FString FGenericPlatformMisc::LoadTextFileFromPlatformPackage(const FString& RelativePath)
@@ -1331,6 +1317,12 @@ FString FGenericPlatformMisc::LoadTextFileFromPlatformPackage(const FString& Rel
 	FString Result;
 	FFileHelper::LoadFileToString(Result, *Path);
 	return Result;
+}
+
+bool FGenericPlatformMisc::FileExitsInPlatformPackage(const FString& RelativePath)
+{
+	FString Path = RootDir() / RelativePath;
+	return IFileManager::Get().FileExists(*Path);
 }
 
 void FGenericPlatformMisc::ParseChunkIdPakchunkIndexMapping(TArray<FString> ChunkIndexMappingData, TMap<int32, int32>& OutMapping)

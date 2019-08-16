@@ -150,7 +150,7 @@ void FSpriteEditorViewportClient::UpdateSourceTextureSpriteFromSprite(UPaperSpri
 
 			FSpriteAssetInitParameters SpriteReinitParams;
 
-			SpriteReinitParams.SetTextureAndFill(SourceSprite->SourceTexture);
+			SpriteReinitParams.SetTextureAndFill(SourceSprite->GetSourceTexture());
 			SpriteReinitParams.DefaultMaterialOverride = SourceSprite->DefaultMaterial;
 			SpriteReinitParams.AlternateMaterialOverride = SourceSprite->AlternateMaterial;
 			SpriteReinitParams.SetPixelsPerUnrealUnit(SourceSprite->PixelsPerUnrealUnit);
@@ -365,6 +365,7 @@ void FSpriteEditorViewportClient::AnalyzeSpriteMaterialType(UPaperSprite* Sprite
 				case EBlendMode::BLEND_Additive:
 				case EBlendMode::BLEND_Modulate:
 				case EBlendMode::BLEND_AlphaComposite:
+				case EBlendMode::BLEND_AlphaHoldout:
 					NumTranslucentTriangles += NumTriangles;
 					break;
 				case EBlendMode::BLEND_Masked:
@@ -808,7 +809,7 @@ UPaperSprite* FSpriteEditorViewportClient::CreateNewSprite(const FIntPoint& TopL
 
 	// Create the factory used to generate the sprite
 	UPaperSpriteFactory* SpriteFactory = NewObject<UPaperSpriteFactory>();
-	SpriteFactory->InitialTexture = CurrentSprite->SourceTexture;
+	SpriteFactory->InitialTexture = CurrentSprite->GetSourceTexture();
 	SpriteFactory->bUseSourceRegion = true;
 	SpriteFactory->InitialSourceUV = TopLeft;
 	SpriteFactory->InitialSourceDimension = Dimensions;

@@ -12,6 +12,7 @@
 #include "Templates/UnrealTypeTraits.h"
 #include "Templates/RemoveReference.h"
 #include "Templates/TypeCompatibleBytes.h"
+#include "Templates/Identity.h"
 #include "Traits/IsContiguousContainer.h"
 
 /*-----------------------------------------------------------------------------
@@ -25,13 +26,7 @@
 template<typename ReferencedType>
 FORCEINLINE ReferencedType* IfAThenAElseB(ReferencedType* A,ReferencedType* B)
 {
-	const PTRINT IntA = reinterpret_cast<PTRINT>(A);
-	const PTRINT IntB = reinterpret_cast<PTRINT>(B);
-
-	// Compute a mask which has all bits set if IntA is zero, and no bits set if it's non-zero.
-	const PTRINT MaskB = -(!IntA);
-
-	return reinterpret_cast<ReferencedType*>(IntA | (MaskB & IntB));
+	return A ? A : B;
 }
 
 /** branchless pointer selection based on predicate
@@ -40,13 +35,7 @@ FORCEINLINE ReferencedType* IfAThenAElseB(ReferencedType* A,ReferencedType* B)
 template<typename PredicateType,typename ReferencedType>
 FORCEINLINE ReferencedType* IfPThenAElseB(PredicateType Predicate,ReferencedType* A,ReferencedType* B)
 {
-	const PTRINT IntA = reinterpret_cast<PTRINT>(A);
-	const PTRINT IntB = reinterpret_cast<PTRINT>(B);
-
-	// Compute a mask which has all bits set if Predicate is zero, and no bits set if it's non-zero.
-	const PTRINT MaskB = -(!PTRINT(Predicate));
-
-	return reinterpret_cast<ReferencedType*>((IntA & ~MaskB) | (IntB & MaskB));
+	return Predicate ? A : B;
 }
 
 /** A logical exclusive or function. */
@@ -581,21 +570,6 @@ template <typename From, typename To>
 struct TLosesQualifiersFromTo
 {
 	enum { Value = !TAreTypesEqual<typename TCopyQualifiersFromTo<From, To>::Type, To>::Value };
-};
-
-/**
- * Returns the same type passed to it.  This is useful in a few cases, but mainly for inhibiting template argument deduction in function arguments, e.g.:
- *
- * template <typename T>
- * void Func1(T Val); // Can be called like Func(123) or Func<int>(123);
- *
- * template <typename T>
- * void Func2(typename TIdentity<T>::Type Val); // Must be called like Func<int>(123)
- */
-template <typename T>
-struct TIdentity
-{
-	typedef T Type;
 };
 
 /**

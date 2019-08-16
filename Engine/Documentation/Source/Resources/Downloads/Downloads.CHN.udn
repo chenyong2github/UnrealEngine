@@ -1,21 +1,31 @@
+﻿INTSourceChangelist:3717116
 Availability: Epic
-Title:下载页面
+Title:资源下载
 Crumbs:%ROOT%, Resources
+Description:在UE4中开发游戏所用的可下载内容和范例材质元库。
+Version: 4.9
 
 [TOC]
 
+此页面是在UE4中开发游戏所用的可下载内容和范例材质元库。
 
-## 概述
+(#tutorialcontent)
 
-本页面是在使用UE4和UDK开发游戏过程中所使用的可下载内容及示例材质的资源库。
+## 教程内容
+
+需要数个资源才能完成编辑器内教程，可在此处查看：
+
+* [](TutorialShape.zip)
 
 
 
-## 示例角色
+(#examplecharacters)
 
-**UDK骨架**
+## 范例角色
 
-这个示例骨架可以用于创建新的角色，该角色利用了随同UDK发行的现有的动画设置。该骨架是作为FBX文件提供的，所以几乎可以轻松地将其导入到任何3D应用程序中。
+**范例骨架**
+
+此范例骨架可用于新建角色，利用UE4中自带的动画集。骨架是一个FBX文件，可以轻松导入到任何3D应用程序中。
 
 
 * [ExampleSkeleton.fbx](ExampleSkeleton.fbx)

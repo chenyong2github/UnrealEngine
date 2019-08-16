@@ -9,140 +9,277 @@
 #include "Field/FieldSystemTypes.h"
 #include "Math/Vector.h"
 
-#include "FieldSystem.generated.h"
-
-class FFieldSystem;
-class UFieldSystem;
+#include "Field/FieldSystem.h"
 
 /**
-* FieldNodeBase
+* MetaData
+*
+* Metadata is used to attach state based information to the field evaluation 
+* pipeline. Contexts and Commands can store metadata that can be used by
+* the Evaluate() of the field node, or during the processing of the command.
+*/
+
+
+class FIELDSYSTEMCORE_API FFieldSystemMetaData {
+public:
+
+	enum FIELDSYSTEMCORE_API EMetaType
+	{
+		ECommandData_None = 0,
+		ECommandData_ProcessingResolution,
+		ECommandData_Results,
+		ECommandData_Iteration
+	};
+
+
+	virtual ~FFieldSystemMetaData() {};
+	virtual EMetaType Type() const = 0;
+	virtual FFieldSystemMetaData* NewCopy() const = 0;
+};
+
+
+class FIELDSYSTEMCORE_API FFieldSystemMetaDataProcessingResolution : public FFieldSystemMetaData {
+public:
+	FFieldSystemMetaDataProcessingResolution(EFieldResolutionType ProcessingResolutionIn) : ProcessingResolution(ProcessingResolutionIn) {};
+	virtual ~FFieldSystemMetaDataProcessingResolution() {};
+	virtual EMetaType Type() const { return EMetaType::ECommandData_ProcessingResolution; }
+	virtual FFieldSystemMetaData* NewCopy() const { return new FFieldSystemMetaDataProcessingResolution(ProcessingResolution); }
+
+	EFieldResolutionType ProcessingResolution;
+};
+
+template<class T>
+class FIELDSYSTEMCORE_API FFieldSystemMetaDataResults : public FFieldSystemMetaData {
+public:
+	FFieldSystemMetaDataResults(const TArrayView<T>& ResultsIn) : Results(ResultsIn) {};
+	virtual ~FFieldSystemMetaDataResults() {};
+	virtual EMetaType Type() const { return EMetaType::ECommandData_Results; }
+	virtual FFieldSystemMetaData* NewCopy() const { return new FFieldSystemMetaDataResults(Results); }
+
+	const TArrayView<T>& Results;
+};
+
+class FIELDSYSTEMCORE_API FFieldSystemMetaDataIteration : public FFieldSystemMetaData {
+public:
+	FFieldSystemMetaDataIteration(int32 IterationsIn) : Iterations(IterationsIn) {};
+	virtual ~FFieldSystemMetaDataIteration() {};
+	virtual EMetaType Type() const { return EMetaType::ECommandData_Iteration; }
+	virtual FFieldSystemMetaData* NewCopy() const { return new FFieldSystemMetaDataIteration(Iterations); }
+
+	int32 Iterations;
+};
+
+
+/**
+* FFieldContext
+*   The Context is passed into the field evaluation pipeline during evaluation. The Nodes
+*   will have access to the samples and indices for evaluation. The MetaData is a optional
+*   data package that the nodes will use during evaluation, the context does not assume 
+*   ownership of the metadata but assumes it will remain in scope during evaluation. 
+*/
+struct FIELDSYSTEMCORE_API ContextIndex 
+{
+	ContextIndex(int32 InSample=INDEX_NONE, int32 InResult=INDEX_NONE)
+		: Sample(InSample)
+		, Result(InResult) {}
+
+
+	static void ContiguousIndices(TArray<ContextIndex>& Array, int NumParticles, bool bForce = true)
+	{
+		if (bForce)
+		{
+			Array.SetNum(NumParticles);
+			for (int32 i = 0; i < Array.Num(); ++i)
+			{
+				Array[i].Result = i;
+				Array[i].Sample = i;
+			}
+		}
+	}
+
+
+	int32 Sample;
+	int32 Result;
+};
+
+
+struct FIELDSYSTEMCORE_API FFieldContext
+{
+	typedef  TMap<FFieldSystemMetaData::EMetaType, TUniquePtr<FFieldSystemMetaData> > UniquePointerMap;
+	typedef  TMap<FFieldSystemMetaData::EMetaType, FFieldSystemMetaData * > PointerMap;
+
+	FFieldContext() = delete;
+	FFieldContext(const TArrayView< ContextIndex >& SampleIndicesIn, const TArrayView<FVector>& SamplesIn,
+		const UniquePointerMap & MetaDataIn )
+		: SampleIndices(SampleIndicesIn)
+		, Samples(SamplesIn)
+	{
+		for (const TPair<FFieldSystemMetaData::EMetaType, TUniquePtr<FFieldSystemMetaData>>& Meta : MetaDataIn)
+		{
+			MetaData.Add(Meta.Key) = Meta.Value.Get();
+		}
+	}
+	FFieldContext(const TArrayView< ContextIndex >& SampleIndicesIn, const TArrayView<FVector>& SamplesIn,
+		const PointerMap & MetaDataIn)
+		: SampleIndices(SampleIndicesIn)
+		, Samples(SamplesIn)
+		, MetaData(MetaDataIn)
+	{}
+
+	const TArrayView< ContextIndex >& SampleIndices;
+	const TArrayView<FVector>& Samples;
+	PointerMap MetaData;
+};
+
+
+/**
+* FFieldNodeBase
+*
+*  Abstract base class for the field node evaluation. 
+*
 */
 class FIELDSYSTEMCORE_API FFieldNodeBase
 {
+
 public:
-	static int32 Invalid;
 
 	enum EFieldType
 	{
 		EField_None = 0,
+		EField_Results,
 		EField_Int32,
 		EField_Float,
-		EField_FVector
+		EField_FVector,
 	};
 
-	virtual ~FFieldNodeBase() {}
-	virtual EFieldType Type() const { check(false); return EField_None; }
-	virtual FFieldNodeBase* Clone() const = 0;
+	enum ESerializationType
+	{
+		FieldNode_Null = 0,
+		FieldNode_FUniformInteger,
+		FieldNode_FRadialIntMask,
+		FieldNode_FUniformScalar,
+		FieldNode_FRadialFalloff,
+		FieldNode_FPlaneFalloff,
+		FieldNode_FBoxFalloff,
+		FieldNode_FNoiseField,
+		FieldNode_FUniformVector,
+		FieldNode_FRadialVector,
+		FieldNode_FRandomVector,
+		FieldNode_FSumScalar,
+		FieldNode_FSumVector,
+		FieldNode_FConversionField,
+		FieldNode_FCullingField,
+		FieldNode_FReturnResultsTerminal
+	};
 
-	int32 GetTerminalID() const { check(TerminalID != -1);  return TerminalID; }
-	void  SetTerminalID(int32 ID) { TerminalID = ID; }
+	FFieldNodeBase() : Name("") {}
+	virtual ~FFieldNodeBase() {}
+	virtual EFieldType Type() const { check(false); return EFieldType::EField_None; }
+	virtual ESerializationType SerializationType() const { check(false); return ESerializationType::FieldNode_Null; }
+	virtual FFieldNodeBase * NewCopy() const = 0;
+	virtual void Serialize(FArchive& Ar) { Ar << Name; }
+	virtual bool operator==(const FFieldNodeBase& Node) { return Name.IsEqual(Node.GetName()); }
 
 	FName GetName() const { return Name; }
 	void  SetName(const FName & NameIn) { Name = NameIn; }
 
-	const FFieldSystem * GetFieldSystem() const { return FieldSystem; }
-	void SetFieldSystem(const FFieldSystem* SystemIn) { FieldSystem = SystemIn; }
-
-protected:
-
-	FFieldNodeBase(FName NameIn) : TerminalID(-1), Name(NameIn) {};
-	int32 TerminalID;
-	FName Name;
-	const FFieldSystem * FieldSystem;
-
 private:
-
-	FFieldNodeBase() : TerminalID(Invalid), Name(""), FieldSystem(nullptr) {}
+	FName Name;
 };
 
 
 /**
 * FieldNode<T>
+*
+*  Typed field nodes are used for the evaluation of specific types of data arrays.
+*  For exampe, The FFieldNode<FVector>::Evaluate(...) will expect resutls 
+*  of type TArrayView<FVector>, and an example implementation is the UniformVectorField.
+*
 */
 template<class T>
-class FIELDSYSTEMCORE_API FFieldNode : public FFieldNodeBase
+class FFieldNode : public FFieldNodeBase
 {
-	typedef FFieldNodeBase Super;
-
 public:
 	
-	FFieldNode() = delete;
 	virtual ~FFieldNode() {}
 
-	virtual void Evaluate(const FFieldContext &, TArrayView<T> & Results) const { check(false); }
+	virtual void Evaluate(const FFieldContext &, TArrayView<T> & Results) const = 0;
 
 	static EFieldType StaticType();
 	virtual EFieldType Type() const { return StaticType(); }
 
-protected :
-	FFieldNode(FName Name) : Super(Name) {};
 };
+
+template<> inline FFieldNodeBase::EFieldType FFieldNode<int32>::StaticType() { return EFieldType::EField_Int32; }
+template<> inline FFieldNodeBase::EFieldType FFieldNode<float>::StaticType() { return EFieldType::EField_Float; }
+template<> inline FFieldNodeBase::EFieldType FFieldNode<FVector>::StaticType() { return EFieldType::EField_FVector; }
 
 /**
-* UFieldSystem (UObject)
+* FieldCommand
 *
-*  Engine for field evaluation
-*
-*/
-class FIELDSYSTEMCORE_API FFieldSystem
-{
-public:
-
-	FFieldSystem() {}
-
-	virtual ~FFieldSystem();
-
-	template<class NODE_T> NODE_T & NewNode(const FName & Name);
-
-	template<class T> void Evaluate(const FFieldContext &, TArrayView<T> & Results) const;
-
-	int32 TerminalIndex(const FName & FieldTerminalName) const;
-
-	void BuildFrom(const FFieldSystem& Other);
-
-	int32 Num() const { return Nodes.Num(); }
-
-	FFieldNodeBase * GetNode(int32 Index) { return (0 <= Index && Index < Nodes.Num()) ? Nodes[Index] : nullptr; }
-	const FFieldNodeBase * GetNode(int32 Index) const { return (0 <= Index && Index < Nodes.Num()) ? Nodes[Index] : nullptr;}
-
-	void Reset() { Nodes.Reset(0); }
-
-protected:
-
-	TArray<FFieldNodeBase*> Nodes;
-};
-
-/**
-* UFieldSystem (UObject)
-*
-*  Engine for field evaluation
+*   Field commands are issued on the game thread and trigger field
+*   evaluation during game play. The Commands will store the root
+*   node in the evaluation graph, and will trigger a full evaluation
+*   of all the nodes in the graph. The MetaData within the command
+*   will be passed to the evaluation of the field. 
 *
 */
-UCLASS(customconstructor)
-class FIELDSYSTEMCORE_API UFieldSystem : public UObject
+class FIELDSYSTEMCORE_API FFieldSystemCommand
 {
-	GENERATED_UCLASS_BODY()
-
 public:
+	FFieldSystemCommand()
+		: TargetAttribute("")
+		, RootNode(nullptr)
+	{}
+	FFieldSystemCommand(FName TargetAttributeIn, FFieldNodeBase * RootNodeIn)
+		: TargetAttribute(TargetAttributeIn)
+		, RootNode(RootNodeIn)
+	{}
 
-	UFieldSystem(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	bool IsVisible() { return true; }
+	// Commands are copied when moved from the one thread to 
+	// another. This requires a full copy of all associated data. 
+	FFieldSystemCommand(const FFieldSystemCommand & CommandIn)
+		: TargetAttribute(CommandIn.RootNode ? CommandIn.TargetAttribute:"")
+		, RootNode(CommandIn.RootNode?CommandIn.RootNode->NewCopy():nullptr)
+	{
+		for (const TPair<FFieldSystemMetaData::EMetaType, TUniquePtr<FFieldSystemMetaData>>& Meta : CommandIn.MetaData)
+		{
+			MetaData.Add(Meta.Key).Reset(Meta.Value->NewCopy());
+		}
+	}
 
-	template<class NODE_T> NODE_T & NewNode(const FName & Name) { return FieldSystem.NewNode<NODE_T>(Name); }
+	void Serialize(FArchive& Ar);
+	bool operator==(const FFieldSystemCommand&);
+	bool operator!=(const FFieldSystemCommand& Other) { return !this->operator==(Other); }
 
-	virtual void FinishDestroy() override;
-
-	template<class T> void Evaluate(const FFieldContext & Context, TArrayView<T> & Results) const;
-
-	void Reset() { FieldSystem = FFieldSystem(); }
-
-	int32 TerminalIndex(const FName & FieldTerminalName) const { return FieldSystem.TerminalIndex(FieldTerminalName); }
-
-	FFieldSystem& GetFieldData() { return FieldSystem; }
-	const FFieldSystem& GetFieldData() const { return FieldSystem; }
-
-protected:
-
-	FFieldSystem FieldSystem;
+	FName TargetAttribute;
+	TUniquePtr<FFieldNodeBase> RootNode;
+	TMap<FFieldSystemMetaData::EMetaType, TUniquePtr<FFieldSystemMetaData> > MetaData;
 };
+
+
+
+/*
+* Equality testing for pointer wrapped FieldNodes
+*/
+template<class T>
+bool FieldsEqual(const TUniquePtr<T>& NodeA, const TUniquePtr<T>& NodeB)
+{
+	if (NodeA.IsValid() == NodeB.IsValid())
+	{
+		if (NodeA.IsValid())
+		{
+			if (NodeA->SerializationType() == NodeB->SerializationType())
+			{
+				return NodeA->operator==(*NodeB);
+			}
+		}
+		else
+		{
+			return true;
+		}
+	}
+	return false;
+}
+

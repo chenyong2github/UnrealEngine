@@ -74,6 +74,7 @@ namespace UnrealBuildTool
 	{
 		public List<FileItem> ObjectFiles = new List<FileItem>();
 		public List<FileItem> DebugDataFiles = new List<FileItem>();
+		public List<FileItem> GeneratedHeaderFiles = new List<FileItem>();
 		public FileItem PrecompiledHeaderFile = null;
 	}
 
@@ -315,6 +316,11 @@ namespace UnrealBuildTool
 		public List<FileItem> ForceIncludeFiles = new List<FileItem>();
 
 		/// <summary>
+		/// List of files that need to be up to date before compile can proceed
+		/// </summary>
+		public List<FileItem> AdditionalPrerequisites = new List<FileItem>();
+
+		/// <summary>
 		/// The C++ preprocessor definitions to use.
 		/// </summary>
 		public List<string> Definitions = new List<string>();
@@ -342,7 +348,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Whether to hide symbols by default
 		/// </summary>
-		public bool bHideSymbolsByDefault;
+		public bool bHideSymbolsByDefault = true;
 
 		/// <summary>
 		/// Which C++ standard to support. May not be compatible with all platforms.
@@ -414,6 +420,7 @@ namespace UnrealBuildTool
 			SystemIncludePaths = new HashSet<DirectoryReference>(Other.SystemIncludePaths);
 			bCheckSystemHeadersForModification = Other.bCheckSystemHeadersForModification;
 			ForceIncludeFiles.AddRange(Other.ForceIncludeFiles);
+			AdditionalPrerequisites.AddRange(Other.AdditionalPrerequisites);
 			Definitions.AddRange(Other.Definitions);
 			AdditionalArguments = Other.AdditionalArguments;
 			AdditionalFrameworks.AddRange(Other.AdditionalFrameworks);

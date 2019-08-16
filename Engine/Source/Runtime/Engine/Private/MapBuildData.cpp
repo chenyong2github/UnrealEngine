@@ -740,6 +740,7 @@ FLightmapClusterResourceInput GetClusterInput(const FMeshMapBuildData& MeshBuild
 		ClusterInput.LightMapTextures[1] = LightMap2D->GetTexture(1);
 		ClusterInput.SkyOcclusionTexture = LightMap2D->GetSkyOcclusionTexture();
 		ClusterInput.AOMaterialMaskTexture = LightMap2D->GetAOMaterialMaskTexture();
+		ClusterInput.LightMapVirtualTexture = LightMap2D->GetVirtualTexture();
 	}
 
 	FShadowMap2D* ShadowMap2D = MeshBuildData.ShadowMap ? MeshBuildData.ShadowMap->GetShadowMap2D() : nullptr;

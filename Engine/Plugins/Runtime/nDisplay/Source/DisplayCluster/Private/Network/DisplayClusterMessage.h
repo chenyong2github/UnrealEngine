@@ -7,7 +7,7 @@
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
 
-#include "Misc/DisplayClusterTypesConverter.h"
+#include "DisplayClusterUtils/DisplayClusterTypesConverter.h"
 
 
 /**

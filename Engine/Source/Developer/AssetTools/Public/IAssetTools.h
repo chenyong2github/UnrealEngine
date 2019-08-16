@@ -236,15 +236,15 @@ public:
 
 	/** Renames assets using the specified names. */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset Tools")
-	virtual bool RenameAssets(const TArray<FAssetRenameData>& AssetsAndNames) const = 0;
+	virtual bool RenameAssets(const TArray<FAssetRenameData>& AssetsAndNames) = 0;
 
 	/** Renames assets using the specified names. */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset Tools")
-	virtual void RenameAssetsWithDialog(const TArray<FAssetRenameData>& AssetsAndNames, bool bAutoCheckout = false) const = 0;
+	virtual void RenameAssetsWithDialog(const TArray<FAssetRenameData>& AssetsAndNames, bool bAutoCheckout = false) = 0;
 
 	/** Returns list of objects that soft reference the given soft object path. This will load assets into memory to verify */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset Tools")
-	virtual void FindSoftReferencesToObject(FSoftObjectPath TargetObject, TArray<UObject*>& ReferencingObjects) const = 0;
+	virtual void FindSoftReferencesToObject(FSoftObjectPath TargetObject, TArray<UObject*>& ReferencingObjects) = 0;
 
 	/**
 	 * Function that renames all FSoftObjectPath object with the old asset path to the new one.
@@ -252,7 +252,8 @@ public:
 	 * @param PackagesToCheck Packages to check for referencing FSoftObjectPath.
 	 * @param AssetRedirectorMap Map from old asset path to new asset path
 	 */
-	virtual void RenameReferencingSoftObjectPaths(const TArray<UPackage *> PackagesToCheck, const TMap<FSoftObjectPath, FSoftObjectPath>& AssetRedirectorMap) const = 0;
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset Tools")
+	virtual void RenameReferencingSoftObjectPaths(const TArray<UPackage *> PackagesToCheck, const TMap<FSoftObjectPath, FSoftObjectPath>& AssetRedirectorMap) = 0;
 
 	/** Event issued at the end of the rename process */
 	virtual FAssetPostRenameEvent& OnAssetPostRename() = 0;
@@ -287,7 +288,7 @@ public:
 	 * @return list of successfully imported assets
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset Tools")
-	virtual TArray<UObject*> ImportAssetsAutomated( const UAutomatedAssetImportData* ImportData) const = 0;
+	virtual TArray<UObject*> ImportAssetsAutomated( const UAutomatedAssetImportData* ImportData) = 0;
 
 	/**
 	* Imports assets using tasks specified.
@@ -295,7 +296,7 @@ public:
 	* @param ImportTasks	Tasks that specify how to import each file
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset Tools")
-	virtual void ImportAssetTasks(const TArray<UAssetImportTask*>& ImportTasks) const = 0;
+	virtual void ImportAssetTasks(const TArray<UAssetImportTask*>& ImportTasks) = 0;
 
 	/**
 	 * Exports the specified objects to file.
@@ -304,7 +305,7 @@ public:
 	 * @param	ExportPath						The directory path to export to.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset Tools")
-	virtual void ExportAssets(const TArray<FString>& AssetsToExport, const FString& ExportPath) const = 0;
+	virtual void ExportAssets(const TArray<FString>& AssetsToExport, const FString& ExportPath) = 0;
 
 	/**
 	 * Exports the specified objects to file.
@@ -321,7 +322,7 @@ public:
 	 * @param	ExportPath						The directory path to export to.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset Tools")
-	virtual void ExportAssetsWithDialog(const TArray<FString>& AssetsToExport, bool bPromptForIndividualFilenames) const = 0;
+	virtual void ExportAssetsWithDialog(const TArray<FString>& AssetsToExport, bool bPromptForIndividualFilenames) = 0;
 	
 	/**
 	 * Exports the specified objects to file. First prompting the user to pick an export directory and optionally prompting the user to pick a unique directory per file
@@ -329,11 +330,11 @@ public:
 	 * @param	AssetsToExport					List of full asset names (e.g /Game/Path/Asset) to export
 	 * @param	ExportPath						The directory path to export to.
 	 */
-	virtual void ExportAssetsWithDialog(const TArray<UObject*>& AssetsToExport, bool bPromptForIndividualFilenames) const = 0;
+	virtual void ExportAssetsWithDialog(const TArray<UObject*>& AssetsToExport, bool bPromptForIndividualFilenames) = 0;
 
 	/** Creates a unique package and asset name taking the form InBasePackageName+InSuffix */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset Tools")
-	virtual void CreateUniqueAssetName(const FString& InBasePackageName, const FString& InSuffix, FString& OutPackageName, FString& OutAssetName) const = 0;
+	virtual void CreateUniqueAssetName(const FString& InBasePackageName, const FString& InSuffix, FString& OutPackageName, FString& OutAssetName) = 0;
 
 	/** Returns true if the specified asset uses a stock thumbnail resource */
 	virtual bool AssetUsesGenericThumbnail(const FAssetData& AssetData) const = 0;
@@ -399,7 +400,14 @@ public:
 
 	/** Opens editor for assets */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset Tools")
-	virtual void OpenEditorForAssets(const TArray<UObject*>& Assets) const = 0;
+	virtual void OpenEditorForAssets(const TArray<UObject*>& Assets) = 0;
+	
+	/** Converts the given UTexture2D to virtual textures or converts virtual textures back to standard textures and updates the related UMaterials 
+	 * @param Textures					The given textures to convert.
+	 * @param bConvertBackToNonVirtual	If true, virtual textures will be converted back to standard textures.
+	 * @param RelatedMaterials			An optional array of materials to update after the conversion, this is useful during import when not all dependencies and caches are up to date.
+	 */
+	virtual void ConvertVirtualTextures(const TArray<UTexture2D*>& Textures, bool bConvertBackToNonVirtual, const TArray<UMaterial*>* RelatedMaterials = nullptr) const = 0;
 };
 
 UCLASS(transient)

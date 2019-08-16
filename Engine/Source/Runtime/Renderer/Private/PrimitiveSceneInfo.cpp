@@ -13,6 +13,9 @@
 #include "ScenePrivate.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "RayTracing/RayTracingMaterialHitShaders.h"
+#include "VT/RuntimeVirtualTextureSceneProxy.h"
+#include "VT/VirtualTextureSystem.h"
+#include "GPUScene.h"
 
 /** An implementation of FStaticPrimitiveDrawInterface that stores the drawn elements for the rendering thread to use. */
 class FBatchingSPDI : public FStaticPrimitiveDrawInterface
@@ -43,22 +46,23 @@ public:
 
 	virtual void ReserveMemoryForMeshes(int32 MeshNum)
 	{
-		PrimitiveSceneInfo->StaticMeshRelevances.Reserve(PrimitiveSceneInfo->StaticMeshRelevances.Max() + MeshNum);
-		PrimitiveSceneInfo->StaticMeshes.Reserve(PrimitiveSceneInfo->StaticMeshes.Max() + MeshNum);
+		if (PrimitiveSceneInfo->StaticMeshRelevances.GetSlack() < MeshNum)
+		{
+			PrimitiveSceneInfo->StaticMeshRelevances.Reserve(PrimitiveSceneInfo->StaticMeshRelevances.Max() + MeshNum);
+		}
+		if (PrimitiveSceneInfo->StaticMeshes.GetSlack() < MeshNum)
+		{
+			PrimitiveSceneInfo->StaticMeshes.Reserve(PrimitiveSceneInfo->StaticMeshes.Max() + MeshNum);
+		}
 	}
 
 	virtual void DrawMesh(const FMeshBatch& Mesh, float ScreenSize) final override
 	{
-		if (Mesh.GetNumPrimitives() > 0)
+		if (Mesh.HasAnyDrawCalls())
 		{
 			check(Mesh.VertexFactory);
 			check(Mesh.VertexFactory->IsInitialized());
 			checkSlow(IsInRenderingThread());
-
-			for (const FMeshBatchElement& BatchElement : Mesh.Elements)
-			{
-				check(!BatchElement.IndexBuffer || (BatchElement.IndexBuffer && BatchElement.IndexBuffer->IsInitialized() && BatchElement.IndexBuffer->IndexBufferRHI));
-			}
 
 			FPrimitiveSceneProxy* PrimitiveSceneProxy = PrimitiveSceneInfo->Proxy;
 			PrimitiveSceneProxy->VerifyUsedMaterial(Mesh.MaterialRenderProxy);
@@ -72,7 +76,7 @@ public:
 			const ERHIFeatureLevel::Type FeatureLevel = PrimitiveSceneInfo->Scene->GetFeatureLevel();
 			StaticMesh->PreparePrimitiveUniformBuffer(PrimitiveSceneProxy, FeatureLevel);
 
-			const bool bSupportsCachingMeshDrawCommands = SupportsCachingMeshDrawCommands(StaticMesh->VertexFactory, PrimitiveSceneProxy, Mesh.MaterialRenderProxy, FeatureLevel);
+			const bool bSupportsCachingMeshDrawCommands = SupportsCachingMeshDrawCommands(PrimitiveSceneProxy, *StaticMesh, FeatureLevel);
 
 			FStaticMeshBatchRelevance* StaticMeshRelevance = new(PrimitiveSceneInfo->StaticMeshRelevances) FStaticMeshBatchRelevance(
 				*StaticMesh, 
@@ -133,6 +137,7 @@ FPrimitiveSceneInfo::FPrimitiveSceneInfo(UPrimitiveComponent* InComponent,FScene
 	bNeedsStaticMeshUpdateWithoutVisibilityCheck(false),
 	bNeedsUniformBufferUpdate(false),
 	bIndirectLightingCacheBufferDirty(false),
+	bRegisteredVirtualTextureProducerCallback(false),
 	LightmapDataOffset(INDEX_NONE),
 	NumLightmapDataEntries(0)
 {
@@ -140,7 +145,7 @@ FPrimitiveSceneInfo::FPrimitiveSceneInfo(UPrimitiveComponent* InComponent,FScene
 	check(PrimitiveComponentId.IsValid());
 	check(Proxy);
 
-	UPrimitiveComponent* SearchParentComponent = Cast<UPrimitiveComponent>(InComponent->GetAttachmentRoot());
+	const UPrimitiveComponent* SearchParentComponent = InComponent->GetLightingAttachmentRoot();
 
 	if (SearchParentComponent && SearchParentComponent != InComponent)
 	{
@@ -183,7 +188,7 @@ FRayTracingGeometryRHIRef FPrimitiveSceneInfo::GetStaticRayTracingGeometryInstan
 {
 	if (RayTracingGeometries.Num() > LodLevel)
 	{
-		return RayTracingGeometries[LodLevel];
+		return RayTracingGeometries[LodLevel]->RayTracingGeometryRHI;
 	}
 	else
 	{
@@ -200,7 +205,7 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 	for (int32 MeshIndex = 0; MeshIndex < StaticMeshes.Num(); MeshIndex++)
 	{
 		const FStaticMeshBatch& Mesh = StaticMeshes[MeshIndex];
-		if (SupportsCachingMeshDrawCommands(Mesh.VertexFactory, Proxy))
+		if (SupportsCachingMeshDrawCommands(Proxy, Mesh))
 		{
 			++MeshWithCachedCommandsNum;
 		}
@@ -247,7 +252,7 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 			check(MeshRelevance.CommandInfosMask.IsEmpty());
 			MeshRelevance.CommandInfosBase = StaticMeshCommandInfos.Num();
 
-			if (SupportsCachingMeshDrawCommands(Mesh.VertexFactory, Proxy))
+			if (SupportsCachingMeshDrawCommands(Proxy, Mesh))
 			{
 				for (int32 PassIndex = 0; PassIndex < EMeshPass::Num; PassIndex++)
 				{
@@ -430,6 +435,70 @@ void FPrimitiveSceneInfo::AddStaticMeshes(FRHICommandListImmediate& RHICmdList, 
 	}
 }
 
+static void OnVirtualTextureDestroyed(const FVirtualTextureProducerHandle& InHandle, void* Baton)
+{
+	FPrimitiveSceneInfo* PrimitiveSceneInfo = static_cast<FPrimitiveSceneInfo*>(Baton);
+
+	// Update the main uniform buffer
+	PrimitiveSceneInfo->UpdateStaticLightingBuffer();
+
+	// Also need to update lightmap data inside GPUScene, if that's enabled
+	AddPrimitiveToUpdateGPU(*PrimitiveSceneInfo->Scene, PrimitiveSceneInfo->GetIndex());
+}
+
+static void GetRuntimeVirtualTextureLODRange(TArray<class FStaticMeshBatchRelevance> const& MeshRelevances, int8& OutMinLOD, int8& OutMaxLOD)
+{
+	OutMinLOD = MAX_int8;
+	OutMaxLOD = 0;
+
+	for (int32 MeshIndex = 0; MeshIndex < MeshRelevances.Num(); ++MeshIndex)
+	{
+		const FStaticMeshBatchRelevance& MeshRelevance = MeshRelevances[MeshIndex];
+		if (MeshRelevance.bRenderToVirtualTexture)
+		{
+			OutMinLOD = FMath::Min(OutMinLOD, MeshRelevance.LODIndex);
+			OutMaxLOD = FMath::Max(OutMaxLOD, MeshRelevance.LODIndex);
+		}
+	}
+
+	check(OutMinLOD <= OutMaxLOD);
+}
+
+int32 FPrimitiveSceneInfo::UpdateStaticLightingBuffer()
+{
+	checkSlow(IsInRenderingThread());
+
+	if (bRegisteredVirtualTextureProducerCallback)
+	{
+		// Remove any previous VT callbacks
+		FVirtualTextureSystem::Get().RemoveAllProducerDestroyedCallbacks(this);
+		bRegisteredVirtualTextureProducerCallback = false;
+	}
+
+	FPrimitiveSceneProxy::FLCIArray LCIs;
+	Proxy->GetLCIs(LCIs);
+	for (int32 i = 0; i < LCIs.Num(); ++i)
+	{
+		FLightCacheInterface* LCI = LCIs[i];
+
+		if (LCI)
+		{
+			LCI->CreatePrecomputedLightingUniformBuffer_RenderingThread(Scene->GetFeatureLevel());
+
+			// If lightmap is using virtual texture, need to set a callback to update our uniform buffers if VT is destroyed,
+			// since we cache VT parameters inside these uniform buffers
+			FVirtualTextureProducerHandle VTProducerHandle;
+			if (LCI->GetVirtualTextureLightmapProducer(Scene->GetFeatureLevel(), VTProducerHandle))
+			{
+				FVirtualTextureSystem::Get().AddProducerDestroyedCallback(VTProducerHandle, &OnVirtualTextureDestroyed, this);
+				bRegisteredVirtualTextureProducerCallback = true;
+			}
+		}
+	}
+
+	return LCIs.Num();
+}
+
 void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, bool bUpdateStaticDrawLists, bool bAddToStaticDrawLists)
 {
 	check(IsInRenderingThread());
@@ -481,20 +550,7 @@ void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, bool 
 	const bool bAllowStaticLighting = FReadOnlyCVARCache::Get().bAllowStaticLighting;
 	if (bAllowStaticLighting)
 	{
-		FPrimitiveSceneProxy::FLCIArray LCIs;
-		Proxy->GetLCIs(LCIs);
-		for (int32 i = 0; i < LCIs.Num(); ++i)
-		{
-			FLightCacheInterface* LCI = LCIs[i];
-
-			if (LCI)
-			{
-				LCI->CreatePrecomputedLightingUniformBuffer_RenderingThread(Scene->GetFeatureLevel());
-			}
-		}
-
-		NumLightmapDataEntries = LCIs.Num();
-
+		NumLightmapDataEntries = UpdateStaticLightingBuffer();
 		if (NumLightmapDataEntries > 0 && UseGPUScene(GMaxRHIShaderPlatform, Scene->GetFeatureLevel()))
 		{
 			LightmapDataOffset = Scene->GPUScene.LightmapDataAllocator.Allocate(NumLightmapDataEntries);
@@ -537,7 +593,7 @@ void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, bool 
 	PrimitiveBounds.MaxCullDistance = PrimitiveBounds.MaxDrawDistance;
 
 	Scene->PrimitiveFlagsCompact[PackedIndex] = FPrimitiveFlagsCompact(Proxy);
-
+	
 	// Store precomputed visibility ID.
 	int32 VisibilityBitIndex = Proxy->GetVisibilityId();
 	FPrimitiveVisibilityId& VisibilityId = Scene->PrimitiveVisibilityIds[PackedIndex];
@@ -580,6 +636,24 @@ void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, bool 
 
 	// Store the component.
 	Scene->PrimitiveComponentIds[PackedIndex] = PrimitiveComponentId;
+
+	// Store the runtime virtual texture flags.
+	UpdateRuntimeVirtualTextureFlags();
+	Scene->PrimitiveVirtualTextureFlags[PackedIndex] = RuntimeVirtualTextureFlags;
+
+	// Store the runtime virtual texture Lod info.
+	if (RuntimeVirtualTextureFlags.bRenderToVirtualTexture)
+	{
+		int8 MinLod, MaxLod;
+		GetRuntimeVirtualTextureLODRange(StaticMeshRelevances, MinLod, MaxLod);
+
+		FPrimitiveVirtualTextureLodInfo& LodInfo = Scene->PrimitiveVirtualTextureLod[PackedIndex];
+		LodInfo.MinLod = MinLod;
+		LodInfo.MaxLod = MaxLod;
+		LodInfo.LodBias = Proxy->GetVirtualTextureLodBias();
+		LodInfo.CullMethod = Proxy->GetVirtualTextureMinCoverage() == 0 ? 0 : 1;
+		LodInfo.CullValue = LodInfo.CullMethod == 0 ? Proxy->GetVirtualTextureCullMips() : Proxy->GetVirtualTextureMinCoverage();
+	}
 
 	{
 		FMemMark MemStackMark(FMemStack::Get());
@@ -659,6 +733,37 @@ void FPrimitiveSceneInfo::RemoveFromScene(bool bUpdateStaticDrawLists)
 
 		RemoveStaticMeshes();
 	}
+
+	if (bRegisteredVirtualTextureProducerCallback)
+	{
+		FVirtualTextureSystem::Get().RemoveAllProducerDestroyedCallbacks(this);
+		bRegisteredVirtualTextureProducerCallback = false;
+	}
+}
+
+void FPrimitiveSceneInfo::UpdateRuntimeVirtualTextureFlags()
+{
+	const bool bRenderToVirtualTexture = Proxy->WritesVirtualTexture();
+
+	RuntimeVirtualTextureFlags.bRenderToVirtualTexture = bRenderToVirtualTexture;
+	RuntimeVirtualTextureFlags.RuntimeVirtualTextureMask = 0;
+
+	if (bRenderToVirtualTexture)
+	{
+		// Performance assumption: The arrays of runtime virtual textures are small (less that 5?) so that O(n^2) scan isn't expensive
+		for (TSparseArray<FRuntimeVirtualTextureSceneProxy*>::TConstIterator It(Scene->RuntimeVirtualTextures); It; ++It)
+		{
+			int32 SceneIndex = It.GetIndex();
+			if (SceneIndex < FPrimitiveVirtualTextureFlags::RuntimeVirtualTexture_BitCount)
+			{
+				URuntimeVirtualTexture* SceneVirtualTexture = (*It)->VirtualTexture;
+				if (Proxy->WritesVirtualTexture(SceneVirtualTexture))
+				{
+					RuntimeVirtualTextureFlags.RuntimeVirtualTextureMask |= 1 << SceneIndex;
+				}
+			}
+		}
+	}
 }
 
 bool FPrimitiveSceneInfo::NeedsUpdateStaticMeshes()
@@ -709,6 +814,24 @@ void FPrimitiveSceneInfo::BeginDeferredUpdateStaticMeshesWithoutVisibilityCheck(
 		bNeedsStaticMeshUpdateWithoutVisibilityCheck = true;
 
 		Scene->PrimitivesNeedingStaticMeshUpdateWithoutVisibilityCheck.Add(this);
+	}
+}
+
+void FPrimitiveSceneInfo::FlushRuntimeVirtualTexture()
+{
+	if (RuntimeVirtualTextureFlags.bRenderToVirtualTexture)
+	{
+		uint32 RuntimeVirtualTextureIndex = 0;
+		uint32 Mask = RuntimeVirtualTextureFlags.RuntimeVirtualTextureMask;
+		while (Mask != 0)
+		{
+			if (Mask & 1)
+			{
+				Scene->RuntimeVirtualTextures[RuntimeVirtualTextureIndex]->Dirty(Proxy->GetBounds());
+			}
+			Mask >>= 1;
+			RuntimeVirtualTextureIndex++;
+		}
 	}
 }
 
@@ -1008,6 +1131,14 @@ void FPrimitiveSceneInfo::CacheReflectionCaptures()
 	}
 	
 	bNeedsCachedReflectionCaptureUpdate = false;
+}
+
+void FPrimitiveSceneInfo::RemoveCachedReflectionCaptures()
+{
+	CachedReflectionCaptureProxy = nullptr;
+	CachedPlanarReflectionProxy = nullptr;
+	FMemory::Memzero(CachedReflectionCaptureProxies);
+	bNeedsCachedReflectionCaptureUpdate = true;
 }
 
 void FPrimitiveSceneInfo::UpdateComponentLastRenderTime(float CurrentWorldTime, bool bUpdateLastRenderTimeOnScreen) const

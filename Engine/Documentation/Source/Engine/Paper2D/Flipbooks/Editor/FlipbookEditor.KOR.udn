@@ -1,6 +1,6 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:Public
-Title:플립북 에디터 참고서
+Title:플립북 에디터 레퍼런스
 Crumbs: %ROOT%, Engine, Engine/Paper2D, Engine/Paper2D/Flipbooks
 Description:2D 애니메이션을 만들고 미리보는 플립북 에디터 안내서입니다.
 Related: Engine\Paper2D\Flipbooks\Components
@@ -84,7 +84,7 @@ SkillLevel: Beginner
 
 컨텍스트 메뉴에서 키 프레임을 **복제** 또는 **삭제** 하거나, 선택된 키 앞이나 뒤에 **키 프레임 삽입** 도 가능합니다.
 
-키의 앞이나 뒤에 키 프레임을 삽입할 때, 공백 키 프레임이 추가됩니다 (아래에서 검정으로 표시).
+키의 앞이나 뒤에 키 프레임을 삽입할 때, 빈 키 프레임이 추가됩니다 (아래에서 검정으로 표시).
 
 ![](Timeline5.png)
 
@@ -129,7 +129,7 @@ SkillLevel: Beginner
 
 ## 플립북 편집
 
-공백 플립북으로 작업중이라면, 플립북에 스프라이트를 추가하는 방법은 두 가지 정도 있습니다.
+빈 플립북으로 작업중이라면, 플립북에 스프라이트를 추가하는 방법은 두 가지 정도 있습니다.
 
 스프라이트 (또는 플립북) 애셋을 **콘텐츠 브라우저** 에서 끌어 타임라인 위에 놓습니다.
 
@@ -143,7 +143,7 @@ SkillLevel: Beginner
 
 ![](Adding3.png)
 
-그러면 플립북에 새로운 공백 키 프레임이 순서대로 추가됩니다.
+그러면 플립북에 빈 키 프레임이 새롭게 순서대로 추가됩니다.
 
 ![](Adding4.png)
 

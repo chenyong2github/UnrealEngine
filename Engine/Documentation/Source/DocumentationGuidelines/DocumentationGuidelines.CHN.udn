@@ -1,30 +1,36 @@
-﻿INTSourceChangelist:2330523
-Availability: Docs
-Title: 文档处理及引导
-Crumbs: 
-Description: 文档的风格和语法说明
+﻿INTSourceChangelist:3717059
+Availability:Docs
+Title: 文档处理和指南
+Crumbs:
+Description:编写文档的风格和语法指南。
+parent:%ROOT%
+order:500
 
-虚幻引擎 4 的文档采用了自定义扩展的 markdown 语法，并将文件和引擎一起保存在 P4 中，这样做希望能够比较方便的为文档进行添加/更新的操作。
+对于虚幻引擎4(UE4)文档，系统使用自定义扩展标记语法，且文件与引擎一起存储在P4中。这意味着插入和添加/更新文档有望变得更加简单。
 
-创建和编辑文档的基本工作流程是：
+创建或编辑文档时的基本工作流如下：
 
-* 编辑/添加一个 markdown 的文件(`.udn`)
-* 以 HTML 的格式预览页面
-* 重复以上步骤，直到没有错误
-* 上传 markdown 文件（重大更新改动请使用 #doc 的 P4 标记以便相关人员得到通知并能适当的跟进后续流程）
+* 编辑/添加标记文件（“.udn”）
+* 将页面作为HTML预览
+* 重复前两项操作，直至您满意且没有错误为止
+* 签入标记文件（对于重大更改/添加，使用“#doc”P4标记，以便我们收到提醒以用于跟踪目的）
 
 
-## Markdown 文件
+(#Markdown Files)
 
-The source markdown files are stored in P4 (at `//depot/UE4/Engine/Documentation/Source/`) and available directly in the UE4 solution in Visual Studio under the Documentation project. These files all use the .udn file extension so they are easily identified. They also contain the language code in the name, so all English markdown files are named `*.INT.udn`, Korean files are named `*.KOR.udn`, etc. You will only ever add or edit `*.INT.udn` files. The other languages are handled by the localization teams.
+## 标记文件
 
-Since the files are in the solution, it is really easy to find and edit existing files. New files can be added through VS or manually. Just make sure you update the Documentation project files when adding new files manually using the new project file generator.
+源标记文件存储在P4中（位于“//depot/UE4/Engine/Documentation/Source/”），您可以在Visual Studio中文档项目下的UE4解决方案中直接获取它们。这些文件都使用.udn文件扩展名，因此很容易识别。它们的名称中还包含语言代码，因此所有的英语标记文件命名为“*.INT.udn”，韩语文件命名为“*.KOR.udn”，诸如此类。您只需添加或编辑“*.INT.udn”文件即可。其他语言由本地化团队处理。
 
-The syntax is basic standard markdown with our own additions. An overview of the syntax can be found on the [](DocumentationGuidelines\Syntax) page.
+由于这些文件位于解决方案中，因此很容易找到和编辑现有文件。您可以通过VS或手动方式添加新文件。在使用新项目文件生成器手动添加新文件时，您只要确保更新文档项目文件即可。
 
-### Images and Attachments
+语法是我们自己添加的基本标准标记。您可以在[](DocumentationGuidelines\Syntax)页面上找到语法的概述。
 
-Images and attachments for a particular page should be placed in corresponding `Images` and `Attachments` folders within the folder for that page. So, for example, the Unreal Editor User Guide is located in `Editor/UserGuide`. Within this folder is the `UnrealEdUserGuide.INT.udn` file and any localized versions of it. Also within this folder is an `Images` folder that contains all of the images for that particular page, and there could also be an `Attachments` folder to hold any attachments that might be necessary:
+(#imagesandattachments)
+
+### 图像和附件
+
+特定页面的图像和附件应放在该页面文件夹中的相应“图像（Images）”和“附件（Attachments）”文件夹中。例如，虚幻编辑器用户指南位于“Editor/UserGuide”中。“UnrealEdUserGuide.INT.udn”文件及其所有本地化版本都位于该文件夹中。该文件夹中还有一个“图像（Images）”文件夹，其中包含该特定页面的所有图像，此外该文件夹中还可能有一个“附件（Attachments）”文件夹，用于保存可能需要的所有附件：
 
 	+Editor
 	 +UserGuide
@@ -36,52 +42,58 @@ Images and attachments for a particular page should be placed in corresponding `
 	  -UnreaEdUserGuide.INT.udn
 	  -UnreaEdUserGuide.KOR.udn
 
-Both the `Images` and `Attachments` folders are optional and only need to be present if the page contains images or attachments.
+“图像（Images）”和“附件（Attachments）”文件夹都是可选的，而且只有当页面包含图像或附件时才需要显示。
 
-## UnrealDocTool
+(#unrealdoctool)
 
-There is a plugin for Visual Studio that will highlight the .udn source files and also display a realtime preview of the page including notifying you of any errors. The plugin is available at:
+## 虚幻文档工具
+
+Visual Studio有一个插件，可以高亮显示.udn源文件，还可以显示页面的实时预览，包括向通知您任何错误。该插件可在以下位置找到：
 
 	/depot/UE4/Engine/Extras/MarkdownMode/EpicMarkdownMode.vsix
 
-Just run the .vsix installer and restart VS if it is running. When you open a .udn file, you will see something like this:
+如果它正在运行，则只需运行.vsix安装程序并重启VS即可。当您打开一个.udn文件时，您将看到类似这样的内容：
 
 ![](source_highlight.png)
 
-Click the **Show Preview Window** button to see the realtime preview of the page:
+单击 **显示预览窗口（Show Preview Window）** 按钮以查看页面的实时预览：
 
 [REGION:fullwidth]
 ![](markdown_preview.png)
 [/REGION]
 
-The preview will update as you modify the source. You can refresh at any time by saving the source file.
+当您修改源代码时，预览将会更新。您可以通过保存源文件来随时进行刷新。
 
-You can also drag images and .udn files directly into the text editor of VS to display the image or create a link to the page. The image can be dragged from any location and it will be added to the correct directory for the page.
+您还可以将图像和.udn文件直接拖放到VS的文本编辑器中，以显示图像或创建到页面的链接。图像可以从任何位置拖动，并将被添加到页面的正确目录中。
 
-**Images**
+ **图像**
 
 [REGION:fullwidth]
 ![](image_drag.png)(convert:false)
 [/REGION]
 
-**.UDN Files**
+ **.UDN文件**
 
 ![](doc_drag.png)(convert:false)
 
-### Manual Usage
+(#manualusage)
 
-There is a tool that converts the markdown to HTML. The only reason you ever need to use the tool is to preview the page you are working on. You will never have to actually generate and check-in an HTML page - this is done manually to the documentation as a whole periodically, and will eventually be handled by the builder. The tool is located at:
+### 手动使用
+
+有一个工具可以将标记转换成HTML。您需要使用该工具的唯一原因是为了预览您正在处理的页面。您永远不需要实际上生成和签入HTML页面，因为这项操作将定期通过手动方式对整个文档执行，并最终将由构建器来处理。该工具位于以下位置：
 
 	UE4\Engine\Binaries\DotNET\UnrealDocTool.exe
 
-You can simply run the .exe and use the GUI to generate the HTML version of the page in order to preview your work.
+您可以简单地运行.exe并使用GUI来生成页面的HTML版本，以便预览您的工作。
 
 [REGION:note]
-It is a command line program and instructions for using it in that manner can be found on the [](DocumentationGuidelines\UnrealDocTool) page.
+它是一个命令行程序，有关以该方式使用它的说明，可以在[](DocumentationGuidelines\UnrealDocTool)页面上找到。
 
-The single file preview example is probably what you will want to use 99.9% of the time. This builds a temp version of the page and displays it in your default browser. The preview displays any errors - broken links, missing images, bad syntax, etc. - on the page so you can easily tell if something is not right and fix it.
+在99.9%的情况下，您想要使用的可能是单个文件预览示例。它将构建页面的临时版本，并在默认浏览器中显示临时版本。预览会在页面上显示所有错误，例如断开的链接、丢失的图像、错误的语法等等，这样您就可以很容易判断出哪里存在问题并进行修复。
 [/REGION]
 
-## Documentation Style
+(#documentationstyle)
 
-There are some conventions that should be followed when writing documentation for UE4 in order to try and maintain some consistency and uniformity between pages written by different people. The [](DocumentationGuidelines\StyleGuide) details these conventions.
+## 文档风格
+
+在为UE4编写文档时，应该遵循一些约定，以便尽量在由不同人员编写的页面之间保持一定的连贯性和统一性。[](DocumentationGuidelines\StyleGuide)详细介绍了这些约定。

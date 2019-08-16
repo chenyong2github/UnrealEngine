@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "ImgMediaLoader.h"
+#include "ImgMediaGlobalCache.h"
 #include "ImgMediaPrivate.h"
 
 #include "Algo/Reverse.h"
@@ -35,17 +36,20 @@ DECLARE_CYCLE_STAT(TEXT("ImgMedia Loader Release Cache"), STAT_ImgMedia_LoaderRe
 /* FImgMediaLoader structors
  *****************************************************************************/
 
-FImgMediaLoader::FImgMediaLoader(const TSharedRef<FImgMediaScheduler, ESPMode::ThreadSafe>& InScheduler)
+FImgMediaLoader::FImgMediaLoader(const TSharedRef<FImgMediaScheduler, ESPMode::ThreadSafe>& InScheduler,
+	const TSharedRef<FImgMediaGlobalCache, ESPMode::ThreadSafe>& InGlobalCache)
 	: Frames(1)
 	, ImageWrapperModule(FModuleManager::LoadModuleChecked<IImageWrapperModule>("ImageWrapper"))
 	, Initialized(false)
 	, NumLoadAhead(0)
 	, NumLoadBehind(0)
 	, Scheduler(InScheduler)
+	, GlobalCache(InGlobalCache)
 	, SequenceDim(FIntPoint::ZeroValue)
 	, SequenceDuration(FTimespan::Zero())
 	, SequenceFrameRate(0, 0)
 	, LastRequestedFrame(INDEX_NONE)
+	, UseGlobalCache(false)
 {
 	UE_LOG(LogImgMedia, Verbose, TEXT("Loader %p: Created"), this);
 }
@@ -95,7 +99,14 @@ void FImgMediaLoader::GetCompletedTimeRanges(TRangeSet<FTimespan>& OutRangeSet) 
 	FScopeLock Lock(&CriticalSection);
 
 	TArray<int32> CompletedFrames;
-	Frames.GetKeys(CompletedFrames);
+	if (UseGlobalCache)
+	{
+		GlobalCache->GetIndices(SequenceName, CompletedFrames);
+	}
+	else
+	{
+		Frames.GetKeys(CompletedFrames);
+	}
 	FrameNumbersToTimeRanges(CompletedFrames, OutRangeSet);
 }
 
@@ -111,7 +122,16 @@ TSharedPtr<FImgMediaTextureSample, ESPMode::ThreadSafe> FImgMediaLoader::GetFram
 
 	FScopeLock ScopeLock(&CriticalSection);
 
-	const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>* Frame = Frames.FindAndTouch(FrameIndex);
+	const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>* Frame;
+	if (UseGlobalCache)
+	{
+		Frame = GlobalCache->FindAndTouch(SequenceName, FrameIndex);
+	}
+	else
+	{
+		Frame = Frames.FindAndTouch(FrameIndex);
+	}
+
 
 	if (Frame == nullptr)
 	{
@@ -307,6 +327,7 @@ void FImgMediaLoader::LoadSequence(const FString& SequencePath, const FFrameRate
 
 	// initialize loader
 	auto Settings = GetDefault<UImgMediaSettings>();
+	UseGlobalCache = Settings->UseGlobalCache;
 
 	const FPlatformMemoryStats Stats = FPlatformMemory::GetStats();
 	const SIZE_T DesiredCacheSize = Settings->CacheSizeGB * 1024 * 1024 * 1024;
@@ -320,6 +341,9 @@ void FImgMediaLoader::LoadSequence(const FString& SequencePath, const FFrameRate
 	NumLoadAhead = NumFramesToLoad - NumLoadBehind;
 
 	Frames.Empty(NumFramesToLoad);
+
+	SequenceName = FName(*SequencePath);
+
 	Update(0, 0.0f, Loop);
 
 	// update info
@@ -453,7 +477,17 @@ void FImgMediaLoader::Update(int32 PlayHeadFrame, float PlayRate, bool Loop)
 
 	for (int32 FrameNumber : FramesToLoad)
 	{
-		if ((Frames.FindAndTouch(FrameNumber) == nullptr) && !QueuedFrameNumbers.Contains(FrameNumber))
+		bool NeedFrame = false;
+		if (UseGlobalCache)
+		{
+			NeedFrame = GlobalCache->FindAndTouch(SequenceName, FrameNumber) == nullptr;
+		}
+		else
+		{
+			NeedFrame = Frames.FindAndTouch(FrameNumber) == nullptr;
+		}
+		
+		if ((NeedFrame) && !QueuedFrameNumbers.Contains(FrameNumber))
 		{
 			PendingFrameNumbers.Add(FrameNumber);
 		}
@@ -476,7 +510,14 @@ void FImgMediaLoader::NotifyWorkComplete(FImgMediaLoaderWork& CompletedWork, int
 		if (Frame.IsValid())
 		{
 			UE_LOG(LogImgMedia, VeryVerbose, TEXT("Loader %p: Loaded frame %i"), this, FrameNumber);
-			Frames.Add(FrameNumber, Frame);
+			if (UseGlobalCache)
+			{
+				GlobalCache->AddFrame(SequenceName, FrameNumber, Frame);
+			}
+			else
+			{
+				Frames.Add(FrameNumber, Frame);
+			}
 		}
 	}
 

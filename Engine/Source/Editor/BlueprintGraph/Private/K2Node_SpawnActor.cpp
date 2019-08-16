@@ -494,14 +494,16 @@ bool UK2Node_SpawnActor::IsDeprecated() const
 	return false;
 }
 
-bool UK2Node_SpawnActor::ShouldWarnOnDeprecation() const
+FEdGraphNodeDeprecationResponse UK2Node_SpawnActor::GetDeprecationResponse(EEdGraphNodeDeprecationType DeprecationType) const
 {
-	return false;
-}
+	FEdGraphNodeDeprecationResponse Response = Super::GetDeprecationResponse(DeprecationType);
+	if (DeprecationType == EEdGraphNodeDeprecationType::NodeTypeIsDeprecated)
+	{
+		Response.MessageType = EEdGraphNodeDeprecationMessageType::None;
+		Response.MessageText = LOCTEXT("SpawnActorNodeOnlyDefaultBlueprint_Deprecatio", "Spawn Actor @@ is DEPRECATED and should be replaced by SpawnActorFromClass");
+	}
 
-FString UK2Node_SpawnActor::GetDeprecationMessage() const
-{
-	return LOCTEXT("SpawnActorNodeOnlyDefaultBlueprint_Deprecatio", "Spawn Actor @@ is DEPRECATED and should be replaced by SpawnActorFromClass").ToString();
+	return Response;
 }
 
 FSlateIcon UK2Node_SpawnActor::GetIconAndTint(FLinearColor& OutColor) const

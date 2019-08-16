@@ -1,8 +1,7 @@
 Availability: Public
 Title: Sequencer - How To's
-Crumbs: %ROOT%, Engine, Engine\Sequencer
 Description:A How To Guide for creating cinematic sequences with the Sequencer Editor. 
-Related: Engine\Sequencer
+Related: Engine/Sequencer
 version: 4.17
 tags:Sequencer
 

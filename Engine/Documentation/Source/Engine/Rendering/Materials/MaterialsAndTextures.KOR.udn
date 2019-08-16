@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6572591
 Availability:Public
 Title:머티리얼 
 Crumbs: %ROOT%, Engine
@@ -10,12 +10,7 @@ order:2
 type:landing
 tags:Materials
 topic-image:materials_topic.png
-
-
-
-[REGION:banner]
-![Materials](materials.png)
-[/REGION]
+hero-image:materials.png
 
 **Material** (머티리얼)이란 메시에 적용하여 씬의 시각적인 모양을 조절할 수 있는 애셋입니다. 넓게 보면, 머티리얼이란 오브젝트에 적용할 수 있는 "페인트"라 보면 됩니다.  하지만 그것도 약간 오해의 소지가 있는데, 머티리얼이란 말 그대로 오브젝트가 어떤 재질로 만들어졌는지를 정의하는 것이기 때문입니다. 그 색이나 광택, 투과성 등을 정의할 수 있습니다.
 

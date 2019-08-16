@@ -110,8 +110,6 @@ FD3D12RootSignatureDesc::FD3D12RootSignatureDesc(const FD3D12QuantizedBoundShade
 		// -----------
 		// 32 bytes
 
-		// #dxr_todo: Root parameters for hit shaders should be added in the shader pipeline, so that regular root parameter generation code can be used without hard-coding anything.
-
 		check(RootParameterCount == 0 && RootParametersSize == 0); // We expect system RT parameters to come first
 
 		// Index buffer descriptor
@@ -258,9 +256,9 @@ FD3D12RootSignatureDesc::FD3D12RootSignatureDesc(const FD3D12QuantizedBoundShade
 	// Init the desc (warn about the size if necessary).
 #if !NO_LOGGING
 	const uint32 SizeWarningThreshold = 12;
-	if (RootParametersSize > SizeWarningThreshold)
+	if (RootParametersSize > SizeWarningThreshold && QBSS.RootSignatureType == RS_Raster)
 	{
-		UE_LOG(LogD3D12RHI, Display, TEXT("Root signature created where the root parameters take up %u DWORDS. Using more than %u DWORDs can negatively impact performance depending on the hardware and root parameter usage."), RootParametersSize, SizeWarningThreshold);
+		UE_LOG(LogD3D12RHI, Verbose, TEXT("Root signature created where the root parameters take up %u DWORDS. Using more than %u DWORDs can negatively impact performance depending on the hardware and root parameter usage."), RootParametersSize, SizeWarningThreshold);
 	}
 #endif
 	RootDesc.Init_1_1(RootParameterCount, TableSlots, 0, nullptr, Flags);

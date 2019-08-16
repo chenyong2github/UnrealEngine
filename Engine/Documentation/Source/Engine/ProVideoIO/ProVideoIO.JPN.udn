@@ -1,0 +1,35 @@
+﻿INTSourceChangelist:6259944
+Availability: Public
+Crumbs: 
+Title: Professional Video I/O
+Description: Unreal Engine でプロ品質のビデオを入出力するための情報が含まれます。
+Type: landing
+Version: 4.20
+Parent: Engine
+Order: 
+
+
+![](pro-video-banner.png "pro-video-banner.png")
+
+AR (拡張現実) エクスペリエンス — 従来の 2D ビデオとリアルタイム 3D 環境を合成 — はフィルムや放送メディア アプリケーションで需要の拡大が加速しています。 このセクションの各ページでは、次に示すとおり、Unreal Engine をビデオ制作パイプラインの一部としてシームレスに機能させる方法について説明します。
+
+* Unreal Engine でプロレベルのビデオおよびオーディオをライブ再生し、即座に仮想 3D ワールドに合成します。
+* インポートされたビデオに、Unreal Engine でクロマキー、レンズ歪みの除去、色補正などのエフェクトを直接適用します。
+* タイミングの問題が発生しないように Unreal Engine と入力ビデオのタイムコードおよびフレームレートを同期します。
+* Unreal Editor から、または実行中のゲーム プロジェクトからビデオ フィードをレンダリングして、スタジオのビデオ パイプラインに出力します。
+
+## 入門編
+
+[DIR(output:"topic" parent:"Engine/ProVideoIO" tags:"Getting Started" end:"1")]
+
+## ガイド
+
+[DIR(output:"topic" parent:"Engine/ProVideoIO" tags:"Guide" end:"1")]
+
+## リファレンス
+
+[DIR(output:"topic" parent:"Engine/ProVideoIO" tags:"Reference" end:"1")]
+
+## サンプル プロジェクト
+
+%Resources/Showcases/VirtualStudio:topic%

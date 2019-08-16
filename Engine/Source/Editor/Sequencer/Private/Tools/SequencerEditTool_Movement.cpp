@@ -16,6 +16,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Misc/Timecode.h"
+#include "MovieSceneTimeHelpers.h"
 
 const FName FSequencerEditTool_Movement::Identifier = "Movement";
 
@@ -76,9 +77,17 @@ FReply FSequencerEditTool_Movement::OnMouseMove(SWidget& OwnerWidget, const FGeo
 			{
 				DragPosition = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
 
+				if (Sequencer.GetSequencerSettings()->GetIsSnapEnabled() && Sequencer.GetSequencerSettings()->GetSnapKeysAndSectionsToPlayRange() && !Sequencer.GetSequencerSettings()->ShouldKeepPlayRangeInSectionBounds())
+				{
+					DragPosition.X = FMath::Max(DragPosition.X, 0.f);
+					FFrameTime CurrentTime = VirtualTrackArea.PixelToFrame(DragPosition.X);
+					CurrentTime = MovieScene::ClampToDiscreteRange(CurrentTime, Sequencer.GetPlaybackRange());
+					DragPosition.X = VirtualTrackArea.FrameToPixel(CurrentTime);
+				}
+					
 				double CurrentTime = VirtualTrackArea.PixelToSeconds(DragPosition.X);
 				Sequencer.UpdateAutoScroll(CurrentTime);
-				
+
 				DragOperation->OnDrag(MouseEvent, DragPosition, VirtualTrackArea);
 			}
 		}

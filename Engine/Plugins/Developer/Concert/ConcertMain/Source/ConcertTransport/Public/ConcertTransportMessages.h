@@ -16,6 +16,8 @@ enum class EConcertMessageFlags : uint8
 	None = 0,
 	/** Guarantee that this message is received by the client(s) and processed in the order they were sent */
 	ReliableOrdered = 1<<0,
+	/** Message sent with this flag should be uniquely identifiable across clients. */
+	UniqueId = 1<<1, 
 };
 ENUM_CLASS_FLAGS(EConcertMessageFlags);
 

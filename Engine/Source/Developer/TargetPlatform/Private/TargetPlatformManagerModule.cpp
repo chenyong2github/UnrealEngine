@@ -23,8 +23,8 @@
 #include "DesktopPlatformModule.h"
 
 #if WITH_PHYSX
-#include "Physics/IPhysXCooking.h"
-#include "Physics/IPhysXCookingModule.h"
+#include "IPhysXCooking.h"
+#include "IPhysXCookingModule.h"
 #endif // WITH_PHYSX
 
 DEFINE_LOG_CATEGORY_STATIC(LogTargetPlatformManager, Log, All);
@@ -1004,6 +1004,11 @@ RETRY_SETUPANDVALIDATE:
 				{
 					// since Desktop is just packaging, we don't need an SDK, and UBT will return INVALID, since it doesn't build for it
 					PlatformInfo::UpdatePlatformSDKStatus(PlatformName, PlatformInfo::EPlatformSDKStatus::Installed);
+				}
+				else if (PlatformName == TEXT("HoloLens"))
+				{
+					PlatformName = TEXT("HoloLens");
+					PlatformInfo::UpdatePlatformSDKStatus(PlatformName, Status);
 				}
 				else
 				{

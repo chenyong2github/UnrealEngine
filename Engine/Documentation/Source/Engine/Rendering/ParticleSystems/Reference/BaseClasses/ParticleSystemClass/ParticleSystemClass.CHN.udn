@@ -1,9 +1,10 @@
-﻿INTSourceChangelist:2750589
+﻿INTSourceChangelist:3782314
 Availability:Public
 Title:粒子系统类
 Crumbs: %ROOT%, Engine, Engine/Rendering/ParticleSystems, Engine/Rendering/ParticleSystems/Reference
 Description:说明基础 ParticleSystem 类属性的技术参考。
 Version:4.9
+tags:Particles
 
 ParticleSystem 是一个包含任何数量 ParticleEmitters 的完整粒子特效。在一个系统中应用多个发射器后，设计师可以创建出精美细致的粒子特效，并存放于单个系统中。使用级联完成创建后，即可将 ParticleSystem 置于关卡中或创建于脚本中。
 

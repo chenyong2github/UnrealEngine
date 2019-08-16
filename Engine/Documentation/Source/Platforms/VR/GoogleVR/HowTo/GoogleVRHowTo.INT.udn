@@ -1,0 +1,27 @@
+Availability:Public
+Crumbs:%ROOT%
+Title:Google VR How To
+Description: How-To guides providing step-by-step instructions working with the Google VR and UE4.
+Type:how-to
+Version:4.17
+Parent: Platforms/VR/GoogleVR
+Order:2
+Tags:GoogleVR
+Tags:VR
+Tags:Mobile
+
+The Google VR How-To's contain step-by-step guides that will walk you through how to use Unreal Engine and GoogleVR together.
+
+## Beginner
+
+The GoogleVR Beginner How-To's will walk you through setting up things like Cameras.
+
+[DIR(output:"fancy" type:"how-to" skilllevel:"Beginner" parent:"Platforms/VR/GoogleVR" org:"flat")]
+
+## Intermediate
+
+The GoogleVR Intermediate How-To's will walk you through setting up things like the Google Daydream VR Controller.
+
+[DIR(output:"fancy" type:"how-to" skilllevel:"Intermediate" parent:"Platforms/VR/GoogleVR" org:"flat")]
+
+

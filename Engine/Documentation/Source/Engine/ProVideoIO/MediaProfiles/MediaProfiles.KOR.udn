@@ -1,0 +1,149 @@
+INTSourceChangelist:6537140
+Availability: Public
+Crumbs: 
+Title: 다중 미디어 구성 지원
+Description: Media Profile, 미디어 프로파일은 입력, 출력, 타임코드, 젠록 세팅을 한 곳에 모아 쉽게 구성할 수 있습니다. 프록시는 입력과 출력 라우팅을 도와줍니다.
+Type: 
+Version: 4.21
+Parent: Engine/ProVideoIO
+Order: 3
+Tags: Guide
+Tags: professional video
+topic-image: profiles-topic.png
+
+
+[](Engine/ProVideoIO/AjaQuickStart) 또는 [](Engine/ProVideoIO/BlackmagicQuickStart) 하드웨어 사용법 퀵 스타트 가이드를 따라했다면, 프로젝트에서 SDI  비디오 피드를 입출력받도록 미디어 입력 및 미디어 캡처 애셋을 구성하는 방법을 한 가지 확인한 것입니다.
+
+그러나 한 프로젝트에 여러가지 다른 미디어 구성을 사용해야 하는 경우가 종종 있습니다. 예:
+
+*   프로젝트 작업을 하드웨어도 배선 구성도 다른 여러 컴퓨터에서 해야 할 수 있습니다. 예를 들어 한 컴퓨터는 AJA 카드고 다른 컴퓨터는 Blackmagic 카드거나, 비디오 피드가 한 컴퓨터는 포트 1 에 연결되었는데 다른 컴퓨터는 포트 2 에 연결되었을 수 있습니다.
+*   한 컴퓨터에서 다양한 종류의 소스와 출력간에 프로젝트 전환이 필요할 수도 있습니다. 예를 들어 SDI 연결을 통해 들어오는 라이브 피드 작업을 하다가, 피드가 오프라인이면 디스크에 미리 녹화된 파일을 입력으로 사용하도록 전환하고 싶을 수 있습니다.
+*   언리얼 엔진이 타임코드를 읽거나 프레임 속도를 젠록하는 방식을 변경해야 할 수도 있습니다. 특히 다른 소스나 입력으로 변경하는 경우입니다. 예를 들어, SDI 연결을 통해 들어오는 입력 피드를 사용할 때만 언리얼 엔진의 프레임 속도를 잠글 수 있습니다. 
+
+이러한 경우, 구성을 전환할 때마다 미디어 구성과 프로젝트 콘텐츠를 크게 변경하는 것은 좋지 않습니다. 그 대신, 미디어 입력, 출력, 타임코드 프로바이더, 젠록 프로바이더 관련 모든 구성 세팅을 하나로 묶어 주는 미디어 프로파일을 여러 개 구성하면 됩니다. 단순히 다른 미디어 프로파일로 전환하면, 전체 미디어 I/O 구성을 즉시 변경할 수 있습니다.
+
+## 미디어 프로파일 및 프록시 작동 방법
+
+미디어 프로파일은 *프록시* 애셋에 의존하여 서로 다른 두 지점을 연결합니다.
+
+*   한 쪽은 미디어 프로파일에 구성한 입력 및 출력 구성입니다.
+*   다른 쪽은 프로젝트 콘텐츠에서 그 입출력을 소모 또는 생성하는 곳입니다.
+
+[REGION:lightbox]
+[![Media](media_profile_overview.png "Media Profile Overview")](media_profile_overview.png)
+
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
+
+다음 목록은 위 이미지에서 번호를 붙인 섹션을 나타냅니다.
+
+1.  프로젝트에 지원해야 하는 사용 사례마다 하나씩 다수의 미디어 프로파일을 구성합니다. 각 프로파일에는 미디어 소스 목록과 미디어 출력 목록이 포함됩니다. 이 목록을 구성하여 프로젝트에서 비디오 입력을 가져오고 캡처를 전송할 위치를 결정합니다.  
+    예를 들어 AJA Media 카드에서 입력을 받도록 프로파일을 하나 구성하고, Blackmagic Design 카드에서도, 디스크의 파일에서도 받도록 구성할 수 있습니다.  
+    하나의 미디어 프로파일 안에 서로 혼합하고 일치시킬 수도 있습니다. 예를 들어 하나의 미디어 프로파일에 파일과 SDI 피드 둘 다 입력을 받도록 할 수 있습니다.
+2.  **Media Framework Utilities Plugin** (미디어 프레임워크 유틸리티 플러그인)을 설치하면, 프로젝트의 **프로젝트 세팅** 패널에 비슷한 입력과 출력이 포함됩니다. 미디어 프로파일의 입력 목록에 있는 각 번호 항목은 프로젝트 세팅의 입력 목록의 같은 번호와 일치하며, 출력 목록도 마찬가지입니다.  
+    프로젝트 세팅의 목록 항목 각각은 프로젝트의 프록시 미디어 소스 또는 프록시 미디어 애셋을 가리키도록 구성합니다.
+3.  그런 다음 프로젝트 콘텐츠에 미디어 소스 또는 미디어 출력을 구성해야 할 때마다 이 동일한 프록시 미디어 애셋을 가리킵니다. 예:
+    1.  미디어 번들 또는 미디어 플레이어를 구성할 때, 파일, 스트림, 또는 SDI 입력을 직접 나타내는 미디어 소스를 가리키기 보다는, 그 미디어 프록시 애셋 중 하나를 가리킵니다.
+    2.  마찬가지로 미디어 캡처를 구성할 때, 출력을 AJA 또는 Blackmagic 미디어 출력으로 직접 보내는 대신 프록시 미디어 출력으로 전송합니다. 위처럼 언리얼 에디터의 **미디어 캡처** 패널에서, 또는 런타임에 **Create Media Capture** 블루프린트 노드를 호출할 때 할 수 있습니다. 프로젝트 세팅의 출력 목록을 동일한 프록시 미디어 출력을 참조하도록 구성한 경우, 캡처는 미디어 프로파일에 구성한 인덱스와 일치하는 출력으로 전달됩니다.
+
+프록시 미디어 소스와 프록시 미디어 출력 애셋은 그 자체에 중요 구성 프로퍼티가 들어 있지 않습니다. 채널, 즉 미디어 프로파일에 설정된 입력 및 출력 구성을 그 입력과 출력이 실제 사용되거나 프로젝트 다른 곳의 다른 애셋이 생성한 곳으로 연결하는 수단 역할만 합니다.
+
+## 활성 미디어 프로파일 선택 및 저장
+
+언리얼 엔진 또는 언리얼 에디터에 프로젝트가 로드될 때마다, 활성 미디어 프로파일은 딱 하나만 있을 (또는 전혀 없을) 수 있습니다.
+
+언리얼 에디터에 프로젝트를 연 상태로, 메인 레벨 에디터의 툴바에서 미디어 프로파일 메뉴를 통해 활성 미디어 프로파일을 선택합니다.
+
+![Selecting the active Media Profile](profiles-12-selectfileprofile.png "Selecting the active Media Profile")
+
+미디어 프로파일은 항상 언리얼 엔진 프로젝트에 저장되는 애셋입니다. 그러나 어느 활성 미디어 프로파일 선택 사항은 프로젝트 안이 아닌 각 컴퓨터에 저장됩니다. 즉 주어진 컴퓨터에서 주어진 프로젝트에 대해 미디어 프로파일을 설정한 후에는 (미디어 하드웨어 또는 구성이 바뀌지 않았다면) 다시 바꿀 필요가 없다는 뜻입니다.
+
+반면 프로젝트 패키지 버전을 실행할 때, 활성 미이더 프로파일 선택 사항은 항상 **Startup Media Profile** 세팅으로 결정되는데, 이 세팅은 **프로젝트 세팅** 창에서 **플러그인 > Media Profile** 아래 찾을 수 있습니다.
+
+![](media-profile-setting.png "media-profile-setting.png")
+
+  
+
+## 미디어 프로파일 및 프록시 시작하기
+
+여기서는 미디어 프로파일을 둘 구성합니다. 하나는 로컬 무비 파일에서 입력을 재생하고, 다른 하나는 SDI 카드의 라이브 비디오 피드를 재생합니다. 별도의 미디어 번들을 둘 구성하여 레벨에서 비디오를 재생합니다. 마지막으로 프록시 미디어 소스를 사용해서 미디어 프로파일에 구성된 소스의 입력을 미디어 번들로 리디렉션합니다.
+
+[REGION:note]
+**선행 조건**:
+
+*   미디어 프로파일 및 프록시 애셋은 **Media Framework Utilities** (미디어 프레임워크 유틸리티) 플러그인에 제공됩니다. 이 플러그인이 설치되어 있어야 합니다.
+*   [](Engine/ProVideoIO/AjaQuickStart) 또는 [](Engine/ProVideoIO/BlackmagicQuickStart) 하드웨어에서 퀵 스타트 가이드를 따라한 상태여야 합니다.
+[/REGION]
+[REGION:tip]
+아래 설명과 매우 비슷한 구성의 작동 예제를 확인하려면 에픽게임즈 런처 **학습** 탭에서 받을 수 있는 [](Resources/Showcases/VirtualStudio) 쇼케이스를 확인하세요.
+[/REGION]
+
+1.  프록시 미디어 소스 애셋을 생성합니다. **콘텐츠 브라우저** 에 우클릭하고 컨텍스트 메뉴에서 **미디어 > 프록시 미디어 소스** 를 선택합니다.  
+    ![Create a Proxy Media Source](profiles-1-createproxy.png "Create a Proxy Media Source")  
+    새 애셋 이름은 **VideoProxyInA** 라 합니다.
+2.  이전 단계를 반복하여 프록시 미디어 소스 애셋을 하나 더 만들고, 이름은 **VideoProxyInB** 라 합니다.
+3.  새 미디어 번들 애셋을 생성합니다. **콘텐츠 브라우저** 에 우클릭하고 **미디어 > 미디어 번들** 을 선택합니다.  
+    ![Create a Media Bundle](profiles-3-createbundle.png "Create a Media Bundle")  
+    새 애셋 이름은 **MediaBundleA** 라 합니다.
+4.  새 미디어 번들 애셋을 더블클릭하여 편집합니다.
+5.  **디테일** 패널에서 **Media Source** (미디어 소스) 세팅을 찾아 드롭다운 목록에서 **Proxy Media Source** (프록시 미디어 소스)를 선택합니다.  
+    ![Select Proxy Media Source](profiles-5-setproxysource.png "Select Proxy Media Source")
+6.  **Source** 카테고리를 펼치고 **Proxy** 를 이전에 생성한 **VideoProxyInA** 애셋을 참조하도록 설정합니다.  
+    ![Set the Proxy Media Source Asset](profiles-6-setproxyasset.png "Set the Proxy Media Source Asset")
+7.  이전 단계를 반복하여 다른 미디어 번들 애셋을 만듭니다. 이번에는 이름을 **MediaBundleB** 라 하고, 그 소스 프록시를 **VideoProxyInB** 로 설정합니다.
+    [REGION:tip]
+    여기서 권장하는 VideoProxyInA 및 MediaProfileA 같은 애셋 이름은 다양한 애셋간의 관계를 명확히 하는 데 도움이 됩니다. 그러나 직접 만들 때는 미디어 프록시 및 미디어 번들이 처리해야 하는 콘텐츠 유형을 더욱 자세히 설명하는 이름을 짓는 것이 좋습니다. 이러한 애셋 이름은 구성 및 **미디어 캡처** 창 같은 곳에 보이므로, 프로젝트를 작업하는 전체 팀에 의미있게 짓는 것이 이상적입니다.
+    [/REGION]
+8.  메인 메뉴에서 **편집 > 프로젝트 세팅** 을 선택합니다. **플러그인 > Media Profile** 섹션의 고급 옵션을 펼칩니다.
+    ![Media Profile settings](profiles-8-profilesettings.png "Media Profile settings")
+9.  **Media Source Proxy** (미디어 소스 프록시) 목록에 두 항목을 추가합니다. 하나는 **VideoProxyInA** 를, 다른 하나는 **VideoProxyInB** 를 가리키도록 설정합니다.  
+    ![Add the Proxy Media Source Assets](profiles-9-sourceproxylist.png "Add the Proxy Media Source Assets")
+10.  이제 새 미디어 프로파일을 **FileProfile** 로 만들고 디스크에서 비디오 파일을 재생하도록 합니다. 그 방법은 두 가지입니다.
+    *   **콘텐츠 브라우저** 에 우클릭하고 컨텍스트 메뉴에서 **미디어 > 미디어 프로파일** 을 선택한 다음 애셋 이름을 변경합니다.  
+        ![Right-click to create the new Asset](profiles-10a-createasset.png "Right-click to create the new Asset")
+    *   툴바의 프로파일 선택 버튼에서 **새 미디어 프로파일 생성** 을 선택하고 새 애셋에 대한 경로와 이름을 설정합니다.  
+        ![Create the new Asset from the Toolbar](profiles-10b-toolbar.png "Create the new Asset from the Toolbar")
+11.  새 미디어 프로파일이 자동으로 열리지 않으면 더블클릭하여 편집합니다.  
+    **Media Sources** (미디어 소스) 세팅을 찾아 목록에 새 엘리먼트를 둘 추가합니다. 목록의 각 항목을 **파일 미디어 소스** 로, 각각에 대해 다른 **파일 경로** 를 설정합니다.   
+    ![File Media Source paths](profiles-11-filepaths.png "File Media Source paths")  
+    [REGION:tip]
+    테스트할 샘플 비디오가 필요한 경우 다음 비디오를 사용하세요: [Video1](Engine/MediaFramework/HowTo/FileMediaSource/SampleVideo.mp4) | [Video2](Engine/MediaFramework/HowTo/StreamMediaSource/Infiltrator Demo.mp4)
+    [/REGION]
+12.  이전 단계를 반복하여 두 번째 미디어 프로파일을 만들고, 이름을 **LiveFeedProfile** 라 합니다. 컴퓨터에 연결된 AJA 또는 Blackmagic 장치에서 비디오를 가져옵니다. 예:  
+    ![Media Profile for live feeds](profiles-14-livefeed.png "Media Profile for live feeds")  
+    각 미디어 프로파일에는 타임코드 프로바이더와 젠록 프로바이더를 설정할 수 있는 기능도 제공됩니다.  
+    ![Timecode and Genlock settings in the Media Profile](media-profile-timecode-genlock.png "Timecode and Genlock settings in the Media Profile")  
+    **프로젝트 세팅** 패널에 제공되는 **TimecodeProvider** 및 **Custom TimeStep** 세팅과 똑같습니다. 그러나 미디어 프로파일에서 이 값을 설정하면, 그 미디어 프로파일이 활성일 때만 **프로젝트 세팅** 을 오버라이드합니다. 자세한 정보는 [](Engine/ProVideoIO/TimecodeGenlock) 문서를 참고하세요.
+13.  툴바의 프로파일 선택 버튼을 사용하여 위에서 만든 **FileMediaProfile** 를 선택합니다.  
+    ![Activate the FileMediaProfile](profiles-12-selectfileprofile.png "Activate the FileMediaProfile")
+14.  두 미디어 번들을 레벨 뷰포트에 드래그합니다. 파일의 또는 SDI 연결의 입력 비디오가 표시되기 시작합니다.  
+    ![Drag and drop the Media Bundles](profiles-13-dropbundles.png "Drag and drop the Media Bundles")
+15.  이제 툴바의 미디어 프로파일 선택 툴을 사용해서 두 미디어 프로파일을 전환하면 클릭 한 번에 미디어 소스를 (옵션으로 타임코드 및 젠록 세팅도) 쉽게 변경할 수 있습니다.  
+    ![Switch Media Profiles](profiles-15-swap.png "Switch Media Profiles")
+
+### 프록시 미디어 출력 사용
+
+여기서는 이전 단계에서 만든 미디어 프로파일 구성을 확장합니다. 언리얼 에디터( 또는 언리얼 엔진 런타임)에서 비디오 피드를 캡처하여 그 피드를 프록시 미디어 출력을 거쳐 미디어 프로파일에 정의한 출력 구성으로 라우팅하겠습니다. 전체 프로세스는 미디어 세스 구성과 매우 유사합니다. 즉 프록시 애셋을 만들고, 프록시를 가리키도록 프로젝트 세팅을 업데이트한 후, 미디어 프로파일에 실제 출력 장치를 구성합니다.
+
+1.  먼저 프록시 미디어 출력 애셋을 생성합니다. **콘텐츠 브라우저** 에 우클릭하고 컨텍스트 메뉴에서 **미디어 > 프록시 미디어 출력** 을 선택합니다.  
+    ![Create a new Proxy Media Output](proxies-output-1-createproxy.png "Create a new Proxy Media Output")  
+    Name the new Asset **VideoProxyOut**.
+2.  메인 메뉴에서 **편집 > 프로젝트 세팅** 을 선택합니다. **플러그인 > Media Profile** 섹션을 찾아 고급 옵션을 펼칩니다.  
+    ![Project Settings for Media Profiles](proxies-output-2-projectsettings.png "Project Settings for Media Profiles")
+3.  **Media Output Proxy** (미디어 출력 프록시) 목록에 항목을 추가하고, 그 출력 프록시가 **VideoProxyOut** 를 가리키도록 설정합니다.  
+    ![Set the Media Output Proxy](proxies-output-3-proxyoutputasset.png "Set the Media Output Proxy")  
+4.  이전 단계에서 만든 **LiveFeedProfile** 을 더블클릭하고 **Media Outputs** (미디어 출력) 목록에 새 항목을 추가합니다. 비디오를 컴퓨터에 연결된 AJA 또는 Blackmagic 장치의 포트로 전송하도록 구성합니다.  
+    ![](proxies-output-4-profile.png "proxies-output-4-profile.png")
+5.  메인 메뉴에서 **Window > Media Capture** (창 > 미디어 캡처)를 선택합니다.
+6.  필요한 경우 **Viewport Captures** (비디오 캡처) 목록에 새 항목을 추가하고, 그 **Media Output** (미디어 출력) 세팅이 **VideoProxyOut** 애셋을 가리키도록 설정합니다.  
+    ![Set the Proxy in the Media Capture](proxies-output-6-mediacapture-1.png "Set the Proxy in the Media Capture")
+7.  **캡처** 를 클릭하여 피드 캡처를 시작하고 프록시를 통해 AJA 또는 Blackmagic 장치로 전송합니다.  
+    ![Start capturing from the Unreal Editor](aja-qs-3-8-capture.png "Start capturing from the Unreal Editor")   
+    이 시점에서 현재 미디어 프로파일을 **FileVideoProfile** 로 전환하면 캡처가 멈추는데, **FileVideoProfile** 은 그 **Media Outputs** (미디어 출력) 목록의 0 항목에 출력이 구성되어 있지 않기 때문입니다.
+8.  런타임에 비디오 피드를 캡처하고 프록시를 통해 전송하려면, [](Engine/ProVideoIO/AjaQuickStart) 또는 [](Engine/ProVideoIO/BlackmagicQuickStart) 하드웨어 퀵 스타트 가이드의 안내 그대로 하면 됩니다.  
+    유일한 차이점은 **AjaMediaOutput** 또는 **BlackmagicMediaOutput** 으로의 오브젝트 레퍼런스인 변수를 사용하는 대신, 캡처를 전송하려는 **ProxyMediaOutput** 로의 오브젝트 레퍼런스를 사용하면 됩니다. 그런 다음 이 **ProxyMediaOutput** 변수를 **Create Media Capture** 노드의 입력으로 사용하면 됩니다. 예:  
+    ![Create the Media Capture from the Proxy Media Output](proxies-output-8-runtime.png "Create the Media Capture from the Proxy Media Output")
+
+### 최종 결과
+
+이제 입력 및 출력 피드 구성이 각기 다른 두 개의 미디어 프로파일을 구성했습니다. 각각 미디어 프록시 애셋을 사용하여 그 입력과 출력 구성을 그 비디오 피드를 사용 또는 생성하는 다른 미디어 프레임워크 애셋으로 매핑합니다. 이 예제 구성이 사용하려는 상황에 꼭 맞지 않을 수 있습니다. 그러나 이 구성 단계를 익히고 나면, 똑같은 기본 기능을 요구에 맞도록 확장시킬 방법이 파악될 것입니다.

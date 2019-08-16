@@ -33,6 +33,16 @@ struct FAttachedActorInfo;
 struct FNetViewer;
 struct FNetworkObjectInfo;
 
+/** Chooses a method for actors to update overlap state (objects it is touching) on initialization, currently only used during level streaming. */
+UENUM(BlueprintType)
+enum class EActorUpdateOverlapsMethod : uint8
+{
+	UseConfigDefault,	// Use the default value specified by the native class or config value.
+	AlwaysUpdate,		// Always update overlap state on initialization.
+	OnlyUpdateMovable,	// Only update if root component has Movable mobility.
+	NeverUpdate			// Never update overlap state on initialization.
+};
+
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogActor, Log, Warning);
 
 // Delegate signatures
@@ -72,6 +82,7 @@ extern ENGINE_API FUObjectAnnotationSparseBool GSelectedActorAnnotation;
  * Actor is the base class for an Object that can be placed or spawned in a level.
  * Actors may contain a collection of ActorComponents, which can be used to control how actors move, how they are rendered, etc.
  * The other main function of an Actor is the replication of properties and function calls across the network during play.
+ * 
  * 
  * Actor initialization has multiple steps, here's the order of important virtual functions that get called:
  * - UObject::PostLoad: For actors statically placed in a level, the normal UObject PostLoad gets called both in the editor and during gameplay.
@@ -249,8 +260,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Actor, AdvancedDisplay)
 	uint8 bFindCameraComponentWhenViewTarget:1;
 	
-    /** If true, this actor will generate overlap events when spawned as part of level streaming. You might enable this is in the case where a streaming level loads around an actor and you want overlaps to trigger. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Actor)
+    /**
+	 * If true, this actor will generate overlap Begin/End events when spawned as part of level streaming.
+	 * You might enable this is in the case where a streaming level loads around an actor and you want Begin/End overlaps to trigger.
+	 * @see UpdateOverlapsMethodDuringLevelStreaming
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Collision)
 	uint8 bGenerateOverlapEventsDuringLevelStreaming:1;
 
 	/** Whether this actor should not be affected by world origin shifting. */
@@ -322,6 +337,9 @@ private:
 	 */
 	uint8 bActorInitialized:1;
 
+	/** Set when DispatchBeginPlay() triggers from level streaming, and cleared afterwards. @see IsActorBeginningPlayFromLevelStreaming(). */
+	uint8 bActorBeginningPlayFromLevelStreaming:1;
+
 	/** Whether we've tried to register tick functions. Reset when they are unregistered. */
 	uint8 bTickFunctionsRegistered:1;
 
@@ -361,9 +379,54 @@ private:
 
 	static uint32 BeginPlayCallDepth;
 
+protected:
+
+	/**
+	 * Condition for calling UpdateOverlaps() to initialize overlap state when loaded in during level streaming.
+	 * If set to 'UseConfigDefault', the default specified in ini (displayed in 'DefaultUpdateOverlapsMethodDuringLevelStreaming') will be used.
+	 * If overlaps are not initialized, this actor and attached components will not have an initial state of what objects are touching it,
+	 * and overlap events may only come in once one of those objects update overlaps themselves (for example when moving).
+	 * However if an object touching it *does* initialize state, both objects will know about their touching state with each other.
+	 * This can be a potentially large performance savings during level streaming, and is safe if the object and others initially
+	 * overlapping it do not need the overlap state because they will not trigger overlap notifications.
+	 * 
+	 * Note that if 'bGenerateOverlapEventsDuringLevelStreaming' is true, overlaps are always updated in this case, but that flag
+	 * determines whether the Begin/End overlap events are triggered.
+	 * 
+	 * @see bGenerateOverlapEventsDuringLevelStreaming, DefaultUpdateOverlapsMethodDuringLevelStreaming, GetUpdateOverlapsMethodDuringLevelStreaming()
+	 */
+	UPROPERTY(Category=Collision, EditAnywhere)
+	EActorUpdateOverlapsMethod UpdateOverlapsMethodDuringLevelStreaming;
+
+public:
+
+	/** Get the method used to UpdateOverlaps() when loaded via level streaming. Resolves the 'UseConfigDefault' option to the class default specified in config. */
+	EActorUpdateOverlapsMethod GetUpdateOverlapsMethodDuringLevelStreaming() const;
+
+private:
+
+	/**
+	 * Default value taken from config file for this class when 'UseConfigDefault' is chosen for
+	 * 'UpdateOverlapsMethodDuringLevelStreaming'. This allows a default to be chosen per class in the matching config.
+	 * For example, for Actor it could be specified in DefaultEngine.ini as:
+	 * 
+	 * [/Script/Engine.Actor]
+	 * DefaultUpdateOverlapsMethodDuringLevelStreaming = OnlyUpdateMovable
+	 *
+	 * Another subclass could set their default to something different, such as:
+	 *
+	 * [/Script/Engine.BlockingVolume]
+	 * DefaultUpdateOverlapsMethodDuringLevelStreaming = NeverUpdate
+	 * 
+	 * @see UpdateOverlapsMethodDuringLevelStreaming
+	 */
+	UPROPERTY(Config, Category = Collision, VisibleAnywhere)
+	EActorUpdateOverlapsMethod DefaultUpdateOverlapsMethodDuringLevelStreaming;
+
 	/** Describes how much control the remote machine has over the actor. */
 	UPROPERTY(Replicated, Transient)
-	TEnumAsByte<enum ENetRole> RemoteRole;
+	TEnumAsByte<enum ENetRole> RemoteRole;	
+
 
 public:
 	/**
@@ -470,7 +533,7 @@ public:
 	int32 InputPriority;
 
 	/** Component that handles input for this actor, if input is enabled. */
-	UPROPERTY()
+	UPROPERTY(DuplicateTransient)
 	class UInputComponent* InputComponent;
 
 	/** Square of the max distance from the client's viewpoint that this actor is relevant and will be replicated. */
@@ -627,11 +690,11 @@ public:
 	uint8 bHiddenEd:1;
 
 	/** True if this actor is the preview actor dragged out of the content browser */
-	UPROPERTY()
+	UPROPERTY(Transient)
 	uint8 bIsEditorPreviewActor:1;
 
 	/** Whether this actor is hidden by the layer browser. */
-	UPROPERTY()
+	UPROPERTY(Transient)
 	uint8 bHiddenEdLayer:1;
 
 	/** Whether this actor is hidden by the level browser. */
@@ -1286,7 +1349,7 @@ public:
 
 	/** The number of seconds (in game time) since this Actor was created, relative to Get Game Time In Seconds. */
 	UFUNCTION(BlueprintPure, Category=Actor)
-	float GetGameTimeSinceCreation();
+	float GetGameTimeSinceCreation() const;
 
 protected:
 	/** Event when play begins for this actor. */
@@ -1296,9 +1359,16 @@ protected:
 	/** Overridable native event for when play begins for this actor. */
 	virtual void BeginPlay();
 
+	/** Event to notify blueprints this actor is being deleted or removed from a level. */
+	UFUNCTION(BlueprintImplementableEvent, meta=(Keywords = "delete", DisplayName = "End Play"))
+	void ReceiveEndPlay(EEndPlayReason::Type EndPlayReason);
+
+	/** Overridable function called whenever this actor is being removed from a level */
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason);
+
 public:
 	/** Initiate a begin play call on this Actor, will handle calling in the correct order. */
-	void DispatchBeginPlay();
+	void DispatchBeginPlay(bool bFromLevelStreaming = false);
 
 	/** Returns whether an actor has been initialized for gameplay */
 	bool IsActorInitialized() const { return bActorInitialized; }
@@ -1308,6 +1378,9 @@ public:
 
 	/** Returns whether an actor has had BeginPlay called on it (and not subsequently had EndPlay called) */
 	bool HasActorBegunPlay() const { return ActorHasBegunPlay == EActorBeginPlayState::HasBegunPlay; }
+
+	/** Returns whether an actor has called BeginPlay(). */
+	bool IsActorBeginningPlayFromLevelStreaming() const { return bActorBeginningPlayFromLevelStreaming; }
 
 	/** Returns true if this actor is currently being destroyed, some gameplay events may be unsafe */
 	UFUNCTION(BlueprintCallable, Category="Game")
@@ -1482,10 +1555,6 @@ public:
 	/** Event triggered when the actor has been explicitly destroyed. */
 	UPROPERTY(BlueprintAssignable, Category="Game")
 	FActorDestroyedSignature OnDestroyed;
-
-	/** Event to notify blueprints this actor is being deleted or removed from a level. */
-	UFUNCTION(BlueprintImplementableEvent, meta=(Keywords = "delete", DisplayName = "End Play"))
-	void ReceiveEndPlay(EEndPlayReason::Type EndPlayReason);
 
 	/** Event triggered when the actor is being deleted or removed from a level. */
 	UPROPERTY(BlueprintAssignable, Category="Game")
@@ -2321,7 +2390,7 @@ public:
 	 * @param  Params          Additional parameters used for the trace
 	 * @return TRUE if a blocking hit is found
 	 */
-	bool ActorLineTraceSingle(struct FHitResult& OutHit, const FVector& Start, const FVector& End, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params);
+	bool ActorLineTraceSingle(struct FHitResult& OutHit, const FVector& Start, const FVector& End, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params) const;
 
 	/** 
 	 * returns Distance to closest Body Instance surface. 
@@ -2348,9 +2417,6 @@ public:
 	
 	/** Non-virtual function to evaluate which portions of the EndPlay process should be dispatched for each actor */
 	void RouteEndPlay(const EEndPlayReason::Type EndPlayReason);
-
-	/** Overridable function called whenever this actor is being removed from a level */
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason);
 
 	/**
 	 * Iterates up the movement base chain to see whether or not this Actor is based on the given Actor, defaults to checking attachment
@@ -2452,9 +2518,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Utilities")
 	FName GetAttachParentSocketName() const;
 
+	/** Call a functor for Actors which are attached directly to a component in this actor. Functor should return true to carry on, false to abort. */
+	void ForEachAttachedActors(TFunctionRef<bool(class AActor*)> Functor) const;
+	
 	/** Find all Actors which are attached directly to a component in this actor */
 	UFUNCTION(BlueprintPure, Category = "Utilities")
-	void GetAttachedActors(TArray<AActor*>& OutActors) const;
+	void GetAttachedActors(TArray<AActor*>& OutActors, bool bResetArray = true) const;
 
 	/**
 	 * Sets the ticking group for this actor.
