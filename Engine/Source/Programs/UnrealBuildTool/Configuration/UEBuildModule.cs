@@ -74,37 +74,37 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Set of all the public definitions
 		/// </summary>
-		protected readonly HashSet<string> PublicDefinitions;
+		public readonly HashSet<string> PublicDefinitions;
 
 		/// <summary>
 		/// Set of all public include paths
 		/// </summary>
-		protected readonly HashSet<DirectoryReference> PublicIncludePaths;
+		public readonly HashSet<DirectoryReference> PublicIncludePaths;
 
 		/// <summary>
 		/// Nested public include paths which used to be added automatically, but are now only added for modules with bNestedPublicIncludePaths set.
 		/// </summary>
-		protected readonly HashSet<DirectoryReference> LegacyPublicIncludePaths = new HashSet<DirectoryReference>();
+		public readonly HashSet<DirectoryReference> LegacyPublicIncludePaths = new HashSet<DirectoryReference>();
 
 		/// <summary>
 		/// Set of all private include paths
 		/// </summary>
-		protected readonly HashSet<DirectoryReference> PrivateIncludePaths;
+		public readonly HashSet<DirectoryReference> PrivateIncludePaths;
 
 		/// <summary>
 		/// Set of all system include paths
 		/// </summary>
-		protected readonly HashSet<DirectoryReference> PublicSystemIncludePaths;
+		public readonly HashSet<DirectoryReference> PublicSystemIncludePaths;
 
 		/// <summary>
 		/// Set of all public system library paths
 		/// </summary>
-		protected readonly HashSet<DirectoryReference> PublicSystemLibraryPaths;
+		public readonly HashSet<DirectoryReference> PublicSystemLibraryPaths;
 
 		/// <summary>
 		/// Set of all additional libraries
 		/// </summary>
-		protected readonly HashSet<string> PublicAdditionalLibraries;
+		public readonly HashSet<string> PublicAdditionalLibraries;
 
 		/// <summary>
 		/// Set of all system libraries
@@ -114,12 +114,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Set of additional frameworks
 		/// </summary>
-		protected readonly HashSet<string> PublicFrameworks;
+		public readonly HashSet<string> PublicFrameworks;
 
 		/// <summary>
 		/// 
 		/// </summary>
-		protected readonly HashSet<string> PublicWeakFrameworks;
+		public readonly HashSet<string> PublicWeakFrameworks;
 
 		/// <summary>
 		/// 
@@ -134,32 +134,32 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Names of modules with header files that this module's public interface needs access to.
 		/// </summary>
-		protected List<UEBuildModule> PublicIncludePathModules;
+		public List<UEBuildModule> PublicIncludePathModules;
 
 		/// <summary>
 		/// Names of modules that this module's public interface depends on.
 		/// </summary>
-		protected List<UEBuildModule> PublicDependencyModules;
+		public List<UEBuildModule> PublicDependencyModules;
 
 		/// <summary>
 		/// Names of DLLs that this module should delay load
 		/// </summary>
-		protected HashSet<string> PublicDelayLoadDLLs;
+		public HashSet<string> PublicDelayLoadDLLs;
 
 		/// <summary>
 		/// Names of modules with header files that this module's private implementation needs access to.
 		/// </summary>
-		protected List<UEBuildModule> PrivateIncludePathModules;
+		public List<UEBuildModule> PrivateIncludePathModules;
 
 		/// <summary>
 		/// Names of modules that this module's private implementation depends on.
 		/// </summary>
-		protected List<UEBuildModule> PrivateDependencyModules;
+		public List<UEBuildModule> PrivateDependencyModules;
 
 		/// <summary>
 		/// Extra modules this module may require at run time
 		/// </summary>
-		protected List<UEBuildModule> DynamicallyLoadedModules;
+		public List<UEBuildModule> DynamicallyLoadedModules;
 
 		/// <summary>
 		/// Set of all whitelisted restricted folder references
@@ -869,6 +869,19 @@ namespace UnrealBuildTool
 					Modules.Add(Module);
 				}
 			}
+		}
+
+		/// <summary>
+		/// Returns valueless API defines (like MODULE_API or MODULE_VTABLE)
+		/// </summary>
+		public IEnumerable<string> GetEmptyApiMacros()
+		{
+			if (Rules.Type == ModuleRules.ModuleType.CPlusPlus)
+			{
+				return new[] {ModuleVTableDefine + "=", ModuleApiDefine + "="};
+			}
+
+			return new string[0];
 		}
 
 		/// <summary>

@@ -138,7 +138,8 @@ namespace UnrealBuildTool
 		Eddie,
 		VisualStudioCode,
 		VisualStudioMac,
-		CLion
+		CLion,
+		Rider
 	}
 
 	/// <summary>
@@ -1167,7 +1168,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Adds all game project files, including target projects and config files
 		/// </summary>
-		private void AddAllGameProjects(List<ProjectFile> GameProjects, string SupportedPlatformNames, MasterProjectFolder ProjectsFolder)
+		protected void AddAllGameProjects(List<ProjectFile> GameProjects, string SupportedPlatformNames, MasterProjectFolder ProjectsFolder)
 		{
 			HashSet<DirectoryReference> UniqueGameProjectDirectories = new HashSet<DirectoryReference>();
 			foreach( ProjectFile GameProject in GameProjects )
@@ -2329,7 +2330,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="GameProjects">List of game project files</param>
 		/// <param name="ModProjects">Receives the list of mod projects on success</param>
-		void AddProjectsForMods(List<ProjectFile> GameProjects, out List<ProjectFile> ModProjects)
+		protected void AddProjectsForMods(List<ProjectFile> GameProjects, out List<ProjectFile> ModProjects)
 		{
 			// Find all the mods for game projects
 			ModProjects = new List<ProjectFile>();
@@ -2363,7 +2364,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="BaseName">The base name for the project file</param>
 		/// <returns>Full path to the project file</returns>
-		private FileReference GetProjectLocation(string BaseName)
+		protected FileReference GetProjectLocation(string BaseName)
 		{
 			return FileReference.Combine(IntermediateProjectFilesPath, BaseName + ProjectFileExtension);
 		}

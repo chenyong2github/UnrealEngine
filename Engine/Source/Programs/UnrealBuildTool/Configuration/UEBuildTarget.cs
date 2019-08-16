@@ -941,7 +941,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The name of the .Target.cs file, if the target was created with one
 		/// </summary>
-		readonly FileReference TargetRulesFile;
+		public readonly FileReference TargetRulesFile;
 
 		/// <summary>
 		/// Whether to deploy this target after compilation
@@ -1898,7 +1898,7 @@ namespace UnrealBuildTool
 		/// Gets the output directory for the main executable
 		/// </summary>
 		/// <returns>The executable directory</returns>
-		DirectoryReference GetExecutableDir()
+		public DirectoryReference GetExecutableDir()
 		{
 			DirectoryReference ExeDir = Binaries[0].OutputDir;
 			if (Platform == UnrealTargetPlatform.Mac && ExeDir.FullName.EndsWith(".app/Contents/MacOS"))
@@ -2675,7 +2675,7 @@ namespace UnrealBuildTool
 					}
 				}
 			}
-
+			
 			// Create rules for each remaining module, and check that it's set to be compiled
 			foreach(string FilteredModuleName in FilteredModuleNames)
 			{
@@ -2906,7 +2906,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Sets up the plugins for this target
 		/// </summary>
-		protected virtual void SetupPlugins()
+		public void SetupPlugins()
 		{
 			// Find all the valid plugins
 			Dictionary<string, PluginInfo> NameToInfo = RulesAssembly.EnumeratePlugins().ToDictionary(x => x.Name, x => x, StringComparer.InvariantCultureIgnoreCase);
