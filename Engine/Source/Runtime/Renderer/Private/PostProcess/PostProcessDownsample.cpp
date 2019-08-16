@@ -194,22 +194,25 @@ FRenderingCompositeOutputRef AddDownsamplePass(
 	FRenderingCompositionGraph& Graph,
 	const TCHAR *InName,
 	FRenderingCompositeOutputRef Input,
+	uint32 SceneColorDownsampleFactor,
 	EDownsampleQuality InQuality,
 	EDownsampleFlags InFlags,
 	EPixelFormat InFormatOverride)
 {
 	FRenderingCompositePass* DownsamplePass = Graph.RegisterPass(
 		new(FMemStack::Get()) TRCPassForRDG<1, 1>(
-			[InFormatOverride, InQuality, InFlags, InName] (FRenderingCompositePass* Pass, FRenderingCompositePassContext& InContext)
+			[InFormatOverride, InQuality, SceneColorDownsampleFactor, InFlags, InName] (FRenderingCompositePass* Pass, FRenderingCompositePassContext& InContext)
 	{
 		FRDGBuilder GraphBuilder(InContext.RHICmdList);
+
+		const FIntRect SceneColorViewRect = InContext.GetDownsampledSceneColorViewRect(SceneColorDownsampleFactor);
 
 		FRDGTextureRef InputTexture = Pass->CreateRDGTextureForRequiredInput(GraphBuilder, ePId_Input0, TEXT("DownsampleInput"));
 
 		FDownsamplePassInputs PassInputs;
 		PassInputs.Name = InName;
 		PassInputs.Texture = InputTexture;
-		PassInputs.Viewport = InContext.SceneColorViewRect;
+		PassInputs.Viewport = SceneColorViewRect;
 		PassInputs.FormatOverride = InFormatOverride;
 		PassInputs.Quality = InQuality;
 		PassInputs.Flags = InFlags;

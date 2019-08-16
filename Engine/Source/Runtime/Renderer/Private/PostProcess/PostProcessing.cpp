@@ -233,40 +233,27 @@ public:
 
 		const EDownsampleQuality DownsampleQuality = GetDownsampleQuality();
 
-		const auto DivideAndRoundUpClamped = [](const FIntRect Rect, uint32 DownsampleFactor)
-		{
-			FIntRect Out = FIntRect::DivideAndRoundUp(Rect, DownsampleFactor);
-			Out.Max.X = FMath::Max(1, Out.Max.X);
-			Out.Max.Y = FMath::Max(1, Out.Max.Y);
-			return Out;
-		};
-
-		FIntRect InputViewRect = DivideAndRoundUpClamped(InContext.View.ViewRect, 2);
-
 		// Queue the down samples. 
 		for (int i = 1; i < DownSampleStages; i++)
 		{
-			PostProcessDownsamples[i] = AddDownsamplePass(Context.Graph, PassLabels[i], PostProcessDownsamples[i - 1], DownsampleQuality);
+			uint32 DownsampleFactor = 1 << i;
 
-			InputViewRect = DivideAndRoundUpClamped(InputViewRect, 2);
+			PostProcessDownsamples[i] = AddDownsamplePass(Context.Graph, PassLabels[i], PostProcessDownsamples[i - 1], DownsampleFactor, DownsampleQuality);
 
 			// Add log2 data to the alpha channel after doing the 1st (i==1) down sample pass
 			if (bHasLog2Alpha && i == 1 )
 			{
-				PostProcessDownsamples[i] = AddBasicEyeAdaptationSetupPass(InContext, PostProcessDownsamples[i], InputViewRect);
+				DownsampleFactor <<= 1;
+
+				PostProcessDownsamples[i] = AddBasicEyeAdaptationSetupPass(InContext, PostProcessDownsamples[i], DownsampleFactor);
 			}
 		}
-
-		FinalViewRect = InputViewRect;
 	}
 
 	// The number of elements in the array.
 	inline static int32 Num() { return DownSampleStages; }
 
-	FIntRect GetFinalViewRect() const
-	{
-		return FinalViewRect;
-	}
+	inline static uint32 GetFinalDownsampleFactor() { return 1 << DownSampleStages; }
 
 	// Member data kept public for simplicity
 	bool bHasLog2Alpha;
@@ -276,8 +263,6 @@ public:
 private:
 	// no default constructor.
 	TBloomDownSampleArray() {};
-
-	FIntRect FinalViewRect;
 };
 
 // Standard DownsampleArray shared by Bloom, Tint, and Eye-Adaptation. 
@@ -414,9 +399,7 @@ static FRenderingCompositeOutputRef AddPostProcessBasicEyeAdaptation(const FView
 	static const int32 FinalDSIdx = FBloomDownSampleArray::Num() - 1;
 	FRenderingCompositeOutputRef PostProcessPriorReduction = BloomAndEyeDownSamples.PostProcessDownsamples[FinalDSIdx];
 
-	const FIntRect DownsampledViewRect = BloomAndEyeDownSamples.GetFinalViewRect();
-
-	return AddBasicEyeAdaptationPass(Context, PostProcessPriorReduction, DownsampledViewRect);
+	return AddBasicEyeAdaptationPass(Context, PostProcessPriorReduction, BloomAndEyeDownSamples.GetFinalDownsampleFactor());
 }
 
 static void AddVisualizeBloomOverlay(FPostprocessContext& Context, FRenderingCompositeOutputRef& HDRColor, FRenderingCompositeOutputRef& BloomOutputCombined)
@@ -454,7 +437,9 @@ static bool AddPostProcessDepthOfFieldGaussian(FPostprocessContext& Context, FDe
 		FRenderingCompositeOutputRef SetupInput(Context.FinalOutput);
 		if (bMobileQuality)
 		{
-			SetupInput = AddDownsamplePass(Context.Graph, TEXT("GaussianSetupHalfRes"), SetupInput, EDownsampleQuality::High, EDownsampleFlags::ForceRaster, PF_FloatRGBA);
+			const uint32 SetupInputDownsampleFactor = 1;
+
+			SetupInput = AddDownsamplePass(Context.Graph, TEXT("GaussianSetupHalfRes"), SetupInput, SetupInputDownsampleFactor, EDownsampleQuality::High, EDownsampleFlags::ForceRaster, PF_FloatRGBA);
 		}
 
 		FRenderingCompositePass* DOFSetupPass = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessDOFSetup(bFar, bNear));
@@ -778,10 +763,10 @@ static void AddGBufferVisualizationOverview(
 					if (bOverviewModeEnabled)
 					{
 						// Down-sample to 1/2 size
-						FRenderingCompositeOutputRef HalfSize = AddDownsamplePass(Context.Graph, TEXT("MaterialHalfSize"), MaterialPass, EDownsampleQuality::Low, EDownsampleFlags::ForceRaster);
+						FRenderingCompositeOutputRef HalfSize = AddDownsamplePass(Context.Graph, TEXT("MaterialHalfSize"), MaterialPass, 2, EDownsampleQuality::Low, EDownsampleFlags::ForceRaster);
 
 						// Down-sample to 1/4 size
-						FRenderingCompositeOutputRef QuarterSize = AddDownsamplePass(Context.Graph, TEXT("MaterialQuarterSize"), HalfSize, EDownsampleQuality::Low, EDownsampleFlags::ForceRaster);
+						FRenderingCompositeOutputRef QuarterSize = AddDownsamplePass(Context.Graph, TEXT("MaterialQuarterSize"), HalfSize, 4, EDownsampleQuality::Low, EDownsampleFlags::ForceRaster);
 
 						// Set whether current buffer is selected
 						bool bIsSelected = false;

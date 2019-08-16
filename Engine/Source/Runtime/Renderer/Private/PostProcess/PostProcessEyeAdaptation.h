@@ -62,11 +62,11 @@ float GetEyeAdaptationFixedExposure(const FViewInfo& View);
 FRenderingCompositeOutputRef AddBasicEyeAdaptationSetupPass(
 	FPostprocessContext& Context,
 	FRenderingCompositeOutputRef SceneColor,
-	FIntRect SceneColorViewRect);
+	uint32 SceneColorDownsampleFactor);
 
 FRenderingCompositeOutputRef AddBasicEyeAdaptationPass(
 	FPostprocessContext& Context,
 	FRenderingCompositeOutputRef SceneColor,
-	FIntRect SceneColorViewRect);
+	uint32 SceneColorDownsampleFactor);
 
 FRenderingCompositeOutputRef AddHistogramEyeAdaptationPass(FPostprocessContext& Context, FRenderingCompositeOutputRef Histogram);

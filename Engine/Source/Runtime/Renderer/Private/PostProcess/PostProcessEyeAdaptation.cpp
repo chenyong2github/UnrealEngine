@@ -472,17 +472,19 @@ FRDGTextureRef AddBasicEyeAdaptationSetupPass(
 FRenderingCompositeOutputRef AddBasicEyeAdaptationSetupPass(
 	FPostprocessContext& Context,
 	FRenderingCompositeOutputRef SceneColor,
-	FIntRect SceneColorViewRect)
+	uint32 SceneColorDownsampleFactor)
 {
 	const FViewInfo& View = Context.View;
 
 	FRenderingCompositePass* Pass = Context.Graph.RegisterPass(
 		new(FMemStack::Get()) TRCPassForRDG<1, 1>(
-			[&View, SceneColorViewRect](FRenderingCompositePass* InPass, FRenderingCompositePassContext& InContext)
+			[&View, SceneColorDownsampleFactor](FRenderingCompositePass* InPass, FRenderingCompositePassContext& InContext)
 	{
 		FRDGBuilder GraphBuilder(InContext.RHICmdList);
 
 		const FEyeAdaptationParameters EyeAdaptationParameters = GetEyeAdaptationParameters(View);
+
+		const FIntRect SceneColorViewRect = InContext.GetDownsampledSceneColorViewRect(SceneColorDownsampleFactor);
 
 		FRDGTextureRef SceneColorTexture = InPass->CreateRDGTextureForRequiredInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"));
 
@@ -628,17 +630,19 @@ FRDGTextureRef AddBasicEyeAdaptationPass(
 FRenderingCompositeOutputRef AddBasicEyeAdaptationPass(
 	FPostprocessContext& Context,
 	FRenderingCompositeOutputRef SceneColor,
-	FIntRect SceneColorViewRect)
+	uint32 SceneColorDownsampleFactor)
 {
 	const FViewInfo& View = Context.View;
 
 	FRenderingCompositePass* Pass = Context.Graph.RegisterPass(
 		new(FMemStack::Get()) TRCPassForRDG<1, 1>(
-			[&View, SceneColorViewRect](FRenderingCompositePass* InPass, FRenderingCompositePassContext& InContext)
+			[&View, SceneColorDownsampleFactor](FRenderingCompositePass* InPass, FRenderingCompositePassContext& InContext)
 	{
 		FRDGBuilder GraphBuilder(InContext.RHICmdList);
 
 		const FEyeAdaptationParameters EyeAdaptationParameters = GetEyeAdaptationParameters(View);
+
+		const FIntRect SceneColorViewRect = InContext.GetDownsampledSceneColorViewRect(SceneColorDownsampleFactor);
 
 		FRDGTextureRef SceneColorTexture = InPass->CreateRDGTextureForRequiredInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"));
 

@@ -73,6 +73,7 @@ FRenderingCompositeOutputRef AddDownsamplePass(
 	FRenderingCompositionGraph& Graph,
 	const TCHAR *Name,
 	FRenderingCompositeOutputRef Input,
+	uint32 SceneColorDownsampleFactor,
 	EDownsampleQuality Quality = EDownsampleQuality::Low,
 	EDownsampleFlags Flags = EDownsampleFlags::None,
 	EPixelFormat FormatOverride = PF_Unknown);

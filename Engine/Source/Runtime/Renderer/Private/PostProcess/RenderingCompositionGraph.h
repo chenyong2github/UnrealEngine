@@ -174,6 +174,14 @@ struct FRenderingCompositePassContext
 		return SceneColorViewRect;
 	}
 
+	FIntRect GetDownsampledSceneColorViewRect(uint32 DownsampleFactor) const
+	{
+		FIntRect Rect = FIntRect::DivideAndRoundUp(SceneColorViewRect, DownsampleFactor);
+		Rect.Max.X = FMath::Max(Rect.Max.X, 1);
+		Rect.Max.Y = FMath::Max(Rect.Max.Y, 1);
+		return Rect;
+	}
+
 	/** Returns the LoadAction that should be use for a given render target. */
 	ERenderTargetLoadAction GetLoadActionForRenderTarget(const FSceneRenderTargetItem& DestRenderTarget) const;
 
