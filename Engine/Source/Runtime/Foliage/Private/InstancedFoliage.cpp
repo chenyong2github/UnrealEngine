@@ -45,6 +45,7 @@ InstancedFoliage.cpp: Instanced foliage implementation.
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "PreviewScene.h"
 #include "FoliageActor.h"
+#include "LevelUtils.h"
 
 #define LOCTEXT_NAMESPACE "InstancedFoliage"
 
@@ -2315,6 +2316,13 @@ const FFoliageInfo* AInstancedFoliageActor::FindInfo(const UFoliageType* InType)
 #if WITH_EDITOR
 void AInstancedFoliageActor::MoveInstancesForMovedComponent(UActorComponent* InComponent)
 {
+	// We don't want to handle this case when applying level transform
+	// since it's already handled in AInstancedFoliageActor::OnApplyLevelTransform
+	if (FLevelUtils::IsApplyingLevelTransform())
+	{
+		return;
+	}
+
 	const auto BaseId = InstanceBaseCache.GetInstanceBaseId(InComponent);
 	if (BaseId == FFoliageInstanceBaseCache::InvalidBaseId)
 	{
@@ -3354,6 +3362,9 @@ void AInstancedFoliageActor::PostInitProperties()
 
 		FWorldDelegates::PostApplyLevelOffset.Remove(OnPostApplyLevelOffsetDelegateHandle);
 		OnPostApplyLevelOffsetDelegateHandle = FWorldDelegates::PostApplyLevelOffset.AddUObject(this, &AInstancedFoliageActor::OnPostApplyLevelOffset);
+
+		FWorldDelegates::OnPostWorldInitialization.Remove(OnPostWorldInitializationDelegateHandle);
+		OnPostWorldInitializationDelegateHandle = FWorldDelegates::OnPostWorldInitialization.AddUObject(this, &AInstancedFoliageActor::OnPostWorldInitialization);
 	}
 }
 
@@ -3372,6 +3383,8 @@ void AInstancedFoliageActor::BeginDestroy()
 		}
 
 		FWorldDelegates::PostApplyLevelOffset.Remove(OnPostApplyLevelOffsetDelegateHandle);
+
+		FWorldDelegates::OnPostWorldInitialization.Remove(OnPostWorldInitializationDelegateHandle);
 	}
 }
 #endif
@@ -3530,27 +3543,65 @@ void AInstancedFoliageActor::PostLoad()
 				}
 			}
 
-			// Update foliage component settings if the foliage settings object was changed while the level was not loaded.
-			if (Info.FoliageTypeUpdateGuid != FoliageType->UpdateGuid)
+			// Fixup FoliageInfo instances at load
+			// For Foliage meshes we compute the transforms based on its HISM instances transforms combined with IFA's transform
+			// For Foliage actors we compute the transforms using spawned actors  transform
+			if (GetLinkerCustomVersion(FFoliageCustomVersion::GUID) < FFoliageCustomVersion::FoliageRepairInstancesWithLevelTransform)
 			{
-				if (Info.FoliageTypeUpdateGuid.IsValid())
+				if (Info.Type == EFoliageImplType::StaticMesh)
 				{
-					if (Info.Type == EFoliageImplType::StaticMesh)
+					FFoliageStaticMesh* FoliageStaticMesh = StaticCast<FFoliageStaticMesh*>(Info.Implementation.Get());
+					if (FoliageStaticMesh->Component && (Info.Instances.Num() == FoliageStaticMesh->Component->PerInstanceSMData.Num()))
 					{
-						FFoliageStaticMesh* FoliageStaticMesh = StaticCast<FFoliageStaticMesh*>(Info.Implementation.Get());
-						UFoliageType_InstancedStaticMesh* FoliageType_InstancedStaticMesh = Cast<UFoliageType_InstancedStaticMesh>(FoliageType);
-						FoliageStaticMesh->CheckComponentClass(this, FoliageType_InstancedStaticMesh, Info.Instances, Info.SelectedIndices);
-						FoliageStaticMesh->UpdateComponentSettings(FoliageType_InstancedStaticMesh);
-					}
-					else if (Info.Type == EFoliageImplType::Actor)
-					{
-						FFoliageActor* FoliageActor = StaticCast<FFoliageActor*>(Info.Implementation.Get());
-						const bool bPostLoad = true;
-						FoliageActor->Reapply(this, FoliageType, Info.Instances, bPostLoad);
+						if (USceneComponent* IFARootComponent = this->GetRootComponent())
+						{
+							IFARootComponent->UpdateComponentToWorld();
+							FTransform IFATransform = this->GetActorTransform();
+							Info.InstanceHash->Empty();
+							for (int32 InstanceIdx = 0; InstanceIdx < Info.Instances.Num(); InstanceIdx++)
+							{
+								FFoliageInstance& Instance = Info.Instances[InstanceIdx];
+								FTransform Transform = FTransform(FoliageStaticMesh->Component->PerInstanceSMData[InstanceIdx].Transform)*IFATransform;
+								Instance.Location = Transform.GetTranslation();
+								Instance.Rotation = Transform.GetRotation().Rotator();
+								// Rehash instance location
+								Info.InstanceHash->InsertInstance(Instance.Location, InstanceIdx);
+							}
+						}
 					}
 				}
-				Info.FoliageTypeUpdateGuid = FoliageType->UpdateGuid;
+				else if (Info.Type == EFoliageImplType::Actor)
+				{
+					FFoliageActor* FoliageActor = StaticCast<FFoliageActor*>(Info.Implementation.Get());
+					if (Info.Instances.Num() == FoliageActor->ActorInstances.Num())
+					{
+						Info.InstanceHash->Empty();
+						for (int32 InstanceIdx = 0; InstanceIdx < Info.Instances.Num(); InstanceIdx++)
+						{
+							FFoliageInstance& Instance = Info.Instances[InstanceIdx];
+							if (AActor* Actor = FoliageActor->ActorInstances[InstanceIdx])
+							{
+								Actor->ConditionalPostLoad();
+								if (USceneComponent* ActorRootComponent = Actor->GetRootComponent())
+								{
+									ActorRootComponent->UpdateComponentToWorld();
+									FTransform Transform = Actor->GetActorTransform();
+									Instance.Location = Transform.GetTranslation();
+									Instance.Rotation = Transform.GetRotation().Rotator();
+								}
+							}
+							// Rehash instance location
+							Info.InstanceHash->InsertInstance(Instance.Location, InstanceIdx);
+						}
+					}
+				}
 			}
+		}
+
+		UWorld* World = GetWorld();
+		if (World && World->bIsWorldInitialized)
+		{
+			DetectFoliageTypeChangeAndUpdate();
 		}
 
 #if WITH_EDITORONLY_DATA
@@ -3744,16 +3795,73 @@ void AInstancedFoliageActor::OnLevelActorDeleted(AActor* InActor)
 	}
 }
 
-void AInstancedFoliageActor::OnApplyLevelTransform(const FTransform& InTransform)
+void AInstancedFoliageActor::OnPostWorldInitialization(UWorld* World, const UWorld::InitializationValues IVS)
+{
+	if (GetWorld() == World)
+	{
+		DetectFoliageTypeChangeAndUpdate();
+	}
+}
+
+// This logic was extracted from AInstancedFoliageActor::PostLoad to be called once the World is done initializing
+void AInstancedFoliageActor::DetectFoliageTypeChangeAndUpdate()
 {
 	for (auto& Pair : FoliageInfos)
 	{
+		// Find the per-mesh info matching the mesh.
 		FFoliageInfo& Info = *Pair.Value;
-		if (Info.Implementation)
+		UFoliageType* FoliageType = Pair.Key;
+
+		if (Info.FoliageTypeUpdateGuid != FoliageType->UpdateGuid)
 		{
-			Info.Implementation->PostApplyLevelTransform(InTransform, Info.Instances);
+			if (Info.FoliageTypeUpdateGuid.IsValid())
+			{
+				// Update foliage component settings if the foliage settings object was changed while the level was not loaded.
+				if (Info.Type == EFoliageImplType::StaticMesh)
+				{
+					FFoliageStaticMesh* FoliageStaticMesh = StaticCast<FFoliageStaticMesh*>(Info.Implementation.Get());
+					UFoliageType_InstancedStaticMesh* FoliageType_InstancedStaticMesh = Cast<UFoliageType_InstancedStaticMesh>(FoliageType);
+					FoliageStaticMesh->CheckComponentClass(this, FoliageType_InstancedStaticMesh, Info.Instances, Info.SelectedIndices);
+					FoliageStaticMesh->UpdateComponentSettings(FoliageType_InstancedStaticMesh);
+				}
+				// Respawn foliage actors
+				else if (Info.Type == EFoliageImplType::Actor)
+				{
+					// We can't spawn in postload because BeingPlay might call UnrealScript which is not supported.
+					UWorld* World = GetWorld();
+					if (World && !World->IsGameWorld())
+					{
+						FFoliageActor* FoliageActor = StaticCast<FFoliageActor*>(Info.Implementation.Get());
+						const bool bPostLoad = true;
+						FoliageActor->Reapply(this, FoliageType, Info.Instances, bPostLoad);
+					}
+				}
+			}
+			Info.FoliageTypeUpdateGuid = FoliageType->UpdateGuid;
 		}
 	}
+}
+
+void AInstancedFoliageActor::OnApplyLevelTransform(const FTransform& InTransform)
+{
+#if WITH_EDITORONLY_DATA
+	InstanceBaseCache.UpdateInstanceBaseCachedTransforms();
+	for (auto& Pair : FoliageInfos)
+	{
+		FFoliageInfo& Info = *Pair.Value;
+		Info.InstanceHash->Empty();
+		for (int32 InstanceIdx = 0; InstanceIdx < Info.Instances.Num(); InstanceIdx++)
+		{
+			FFoliageInstance& Instance = Info.Instances[InstanceIdx];
+			FTransform OldTransform(Instance.Rotation, Instance.Location);
+			FTransform NewTransform = OldTransform * InTransform;
+			Instance.Location = NewTransform.GetTranslation();
+			Instance.Rotation = NewTransform.Rotator();
+			// Rehash instance location
+			Info.InstanceHash->InsertInstance(Instance.Location, InstanceIdx);
+		}
+	}
+#endif
 }
 
 void AInstancedFoliageActor::OnPostApplyLevelOffset(ULevel* InLevel, UWorld* InWorld, const FVector& InOffset, bool bWorldShift)

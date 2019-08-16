@@ -46,6 +46,8 @@ struct FFoliageCustomVersion
 		FoliageActorSupport = 12,
 		// Foliage Actor (No weak ptr)
 		FoliageActorSupportNoWeakPtr = 13,
+		// Foliage Instances are now always saved local to Level
+		FoliageRepairInstancesWithLevelTransform = 14,
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
@@ -98,6 +100,7 @@ public:
 	virtual void BeginDestroy() override;
 	virtual void Destroyed() override;
 	FOLIAGE_API void CleanupDeletedFoliageType();
+	FOLIAGE_API void DetectFoliageTypeChangeAndUpdate();
 
 	// Delegate type for selection change events
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSelectionChanged, bool, const TArray<AActor*>&);
@@ -253,6 +256,7 @@ private:
 	void OnLevelActorDeleted(AActor* InActor);
 	void OnApplyLevelTransform(const FTransform& InTransform);
 	void OnPostApplyLevelOffset(ULevel* InLevel, UWorld* InWorld, const FVector& InOffset, bool bWorldShift);
+	void OnPostWorldInitialization(UWorld* World, const UWorld::InitializationValues IVS);
 
 	// Move instances to a foliage actor in target level
 	FOLIAGE_API void MoveInstancesToLevel(ULevel* InTargetLevel, TSet<int32>& InInstanceList, FFoliageInfo* InCurrentMeshInfo, UFoliageType* InFoliageType);
@@ -263,6 +267,7 @@ private:
 	FDelegateHandle OnLevelActorDeletedDelegateHandle;
 	FDelegateHandle OnPostApplyLevelOffsetDelegateHandle;
 	FDelegateHandle OnApplyLevelTransformDelegateHandle;
+	FDelegateHandle OnPostWorldInitializationDelegateHandle;
 
 	FOnFoliageTypeMeshChanged OnFoliageTypeMeshChangedEvent;
 #endif
