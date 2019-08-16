@@ -30,6 +30,8 @@ float DiffuseThreshold;
 bool EvalSkyLight;
 bool UseRussianRoulette;
 float MaxNormalBias;
+uint TileOffsetX;
+uint TileOffsetY;
 
 void GenerateCosineNormalRay(
 	float3 WorldPosition,
@@ -56,7 +58,7 @@ void GenerateCosineNormalRay(
 [shader("raygeneration")]
 void GlobalIlluminationRGS()
 {
-	uint2 DispatchThreadId = DispatchRaysIndex().xy + View.ViewRectMin;
+	uint2 DispatchThreadId = DispatchRaysIndex().xy + View.ViewRectMin + uint2(TileOffsetX, TileOffsetY);
 	RWGlobalIlluminationUAV[DispatchThreadId] = 0.0;
 	RWRayDistanceUAV[DispatchThreadId] = float2(-1.0, 0.0);
 
