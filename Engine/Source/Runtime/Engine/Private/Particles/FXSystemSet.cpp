@@ -87,12 +87,12 @@ void FFXSystemSet::UpdateVectorField(UVectorFieldComponent* VectorFieldComponent
 	}
 }
 
-void FFXSystemSet::PreInitViews(FRHICommandListImmediate& RHICmdList)
+void FFXSystemSet::PreInitViews(FRHICommandListImmediate& RHICmdList, bool bAllowGPUParticleUpdate)
 {
 	for (FFXSystemInterface* FXSystem : FXSystems)
 	{
 		check(FXSystem);
-		FXSystem->PreInitViews(RHICmdList);
+		FXSystem->PreInitViews(RHICmdList, bAllowGPUParticleUpdate);
 	}
 }
 
@@ -122,7 +122,8 @@ void FFXSystemSet::PostRenderOpaque(
 	FRHICommandListImmediate& RHICmdList,
 	FRHIUniformBuffer* ViewUniformBuffer,
 	const class FShaderParametersMetadata* SceneTexturesUniformBufferStruct,
-	FRHIUniformBuffer* SceneTexturesUniformBuffer)
+	FRHIUniformBuffer* SceneTexturesUniformBuffer,
+	bool bAllowGPUParticleUpdate)
 {
 	for (FFXSystemInterface* FXSystem : FXSystems)
 	{
@@ -131,7 +132,8 @@ void FFXSystemSet::PostRenderOpaque(
 			RHICmdList,
 			ViewUniformBuffer,
 			SceneTexturesUniformBufferStruct,
-			SceneTexturesUniformBuffer
+			SceneTexturesUniformBuffer,
+			bAllowGPUParticleUpdate
 		);
 	}
 }
