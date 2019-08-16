@@ -515,7 +515,7 @@ FPostProcessSettings::FPostProcessSettings()
 	ColorGradingIntensity = 1.0f;
 	RayTracingGI = 0;
 	RayTracingGIMaxBounces = 1;
-	RayTracingGISamplesPerPixel = 1;
+	RayTracingGISamplesPerPixel = 4;
 
 	DepthOfFieldFocalDistance = 0; // Intentionally invalid to disable DOF by default.
 	DepthOfFieldFstop = 4.0f; 
