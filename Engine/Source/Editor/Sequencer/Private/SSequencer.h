@@ -370,6 +370,8 @@ private:
 	/** Makes the key group menu for the toolbar. */
 	TSharedRef<SWidget> MakeKeyGroupMenu();
 
+	void PopulateExposeBindingsMenu(FMenuBuilder& InMenuBuilder);
+
 	/** Makes the playback speed menu for the toolbar. */
 	void FillPlaybackSpeedMenu(FMenuBuilder& InMenuBuilder);
 
