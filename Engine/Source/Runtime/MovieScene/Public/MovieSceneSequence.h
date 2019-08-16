@@ -179,6 +179,18 @@ public:
 	 */
 	virtual UObject* CreateDirectorInstance(IMovieScenePlayer& Player) { return nullptr; }
 
+	/**
+	 * Find the first object binding ID associated with the specified name (set up through RMB->Expose on Object bindings from within sequencer)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Game|Cinematic|Bindings")
+	MOVIESCENE_API FMovieSceneObjectBindingID FindNamedBinding(FName InBindingName) const;
+
+	/**
+	 * Find all object binding IDs associated with the specified name (set up through RMB->Expose on Object bindings from within sequencer)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Game|Cinematic|Bindings")
+	MOVIESCENE_API const TArray<FMovieSceneObjectBindingID>& FindNamedBindings(FName InBindingName) const;
+
 public:
 
 	MOVIESCENE_API virtual void PostLoad() override;
