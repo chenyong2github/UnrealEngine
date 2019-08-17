@@ -59,8 +59,8 @@ extern SLATECORE_API bool GSlateIsOnFastUpdatePath;
 extern SLATECORE_API bool GSlateIsInInvalidationSlowPath;
 
 #if WITH_SLATE_DEBUGGING
-extern SLATECORE_API int32 GSlateInvalidationDebugging;
-extern SLATECORE_API int32 GSlateHitTestGridDebugging;
+extern SLATECORE_API bool GSlateInvalidationDebugging;
+extern SLATECORE_API bool GSlateHitTestGridDebugging;
 #endif
 /* Forward declarations
 *****************************************************************************/
