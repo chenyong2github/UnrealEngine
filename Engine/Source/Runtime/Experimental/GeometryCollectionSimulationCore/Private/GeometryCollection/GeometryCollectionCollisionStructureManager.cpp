@@ -28,14 +28,15 @@ FAutoConsoleVariableRef CVarCollisionParticlesSpatialDivision(TEXT("p.CollisionP
 int32 CollisionParticlesMin = 10;
 FAutoConsoleVariableRef CVarCollisionParticlesMin(TEXT("p.CollisionParticlesMin"), CollisionParticlesMin, TEXT("Minimum number of particles after simplicial pruning (assuming it started with more)"));
 
-int32 CollisionParticlesMax = 60;
+int32 CollisionParticlesMax = 2000;
 FAutoConsoleVariableRef CVarCollisionParticlesMax(TEXT("p.CollisionParticlesMax"), CollisionParticlesMax, TEXT("Maximum number of particles after simplicial pruning"));
 
 FCollisionStructureManager::FSimplicial*
 FCollisionStructureManager::NewSimplicial(
 	const Chaos::TParticles<float, 3>& Vertices,
 	Chaos::TTriangleMesh<float>& TriMesh,
-	const Chaos::TImplicitObject<float, 3>* Implicit)
+	const Chaos::TImplicitObject<float, 3>* Implicit,
+	int32 CollisionParticlesMaxInput)
 {
 	FCollisionStructureManager::FSimplicial * Simplicial = new FCollisionStructureManager::FSimplicial();
 	if (Implicit || Vertices.Size())
@@ -47,7 +48,8 @@ FCollisionStructureManager::NewSimplicial(
 		TArray<Chaos::TVector<float, 3>> OutsideVertices;
 
 		bool bFullCopy = true;
-		if (bCollisionParticlesUseImplicitCulling!=0 && Implicit && Indices.Num()>CollisionParticlesMax)
+		int32 LocalCollisionParticlesMax = CollisionParticlesMaxInput > 0 ? FMath::Min(CollisionParticlesMaxInput, CollisionParticlesMax) : CollisionParticlesMax;
+		if (bCollisionParticlesUseImplicitCulling!=0 && Implicit && Indices.Num()>LocalCollisionParticlesMax)
 		{
 			Extent = Implicit->HasBoundingBox() ? Implicit->BoundingBox().Extents().Size() : 1.f;
 
@@ -68,7 +70,7 @@ FCollisionStructureManager::NewSimplicial(
 			}
 			OutsideVertices.SetNum(LSVCounter);
 
-			if (OutsideVertices.Num() > CollisionParticlesMax)
+			if (OutsideVertices.Num() > LocalCollisionParticlesMax)
 				bFullCopy = false;
 		}
 		
@@ -91,7 +93,7 @@ FCollisionStructureManager::NewSimplicial(
 
 		float SnapThreshold = Extent / float(CollisionParticlesSpatialDivision);
 		OutsideVertices = Chaos::CleanCollisionParticles(OutsideVertices, SnapThreshold);
-		int32 NumParticles = (OutsideVertices.Num() > CollisionParticlesMax) ? CollisionParticlesMax : OutsideVertices.Num();
+		int32 NumParticles = (OutsideVertices.Num() > LocalCollisionParticlesMax) ? LocalCollisionParticlesMax : OutsideVertices.Num();
 
 		if (NumParticles)
 		{

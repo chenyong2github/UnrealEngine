@@ -35,7 +35,8 @@ public:
 	static FSimplicial* NewSimplicial(
 		const Chaos::TParticles<float, 3>& Vertices,
 		Chaos::TTriangleMesh<float>& TriMesh,
-		const Chaos::TImplicitObject<float, 3>* Implicit
+		const Chaos::TImplicitObject<float, 3>* Implicit,
+		int32 CollisionParticlesMaxInput
 	);
 	
 	
