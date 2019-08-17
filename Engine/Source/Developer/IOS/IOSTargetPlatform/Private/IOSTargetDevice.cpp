@@ -208,7 +208,10 @@ void FTcpDSCommander::Stop()
     {
 		DSSocket->Shutdown(ESocketShutdownMode::ReadWrite);
         DSSocket->Close();
-        ISocketSubsystem::Get()->DestroySocket(DSSocket);
+		if (ISocketSubsystem::Get())
+		{
+			ISocketSubsystem::Get()->DestroySocket(DSSocket);
+		}
     }
     DSSocket = NULL;
     
