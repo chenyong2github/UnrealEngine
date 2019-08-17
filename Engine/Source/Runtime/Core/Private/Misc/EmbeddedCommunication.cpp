@@ -72,6 +72,8 @@ void FEmbeddedCommunication::Init()
  	FScopeLock Lock(&GEmbeddedLock);
  	GSleepEvent = FPlatformProcess::GetSynchEventFromPool(false);
 	GTickWithoutSleepCount = 0;
+
+	FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateStatic(&FEmbeddedCommunication::TickGameThread));
 #endif
 }
 
@@ -126,7 +128,6 @@ void FEmbeddedCommunication::ForceTick(int ID, float MinTimeSlice, float MaxTime
 		//We have to manually tick everything as we are looping the main thread here
 		FTicker::GetCoreTicker().Tick(Now - LastTime);
 		FThreadManager::Get().Tick();
-		TickGameThread(Now - LastTime);
 		
 		FPlatformProcess::Sleep(DeltaTime);
 
@@ -289,8 +290,10 @@ void FEmbeddedCommunication::RunOnGameThread(int Priority, TFunction<void()> Lam
 void FEmbeddedCommunication::WakeGameThread()
 {
 #if BUILD_EMBEDDED_APP
-	// Make sure we tick at least one full tick
-	GTickWithoutSleepCount = 1;
+	// Allow 2 ticks without a sleep
+	// Our sleep happens in the core ticker's tick, and that order gets reversed every tick,
+	// so the caller isn't guaranteed to get a tick before our next sleep
+	GTickWithoutSleepCount = 2;
 	// wake up the game thread!
 	if (GSleepEvent)
 	{
