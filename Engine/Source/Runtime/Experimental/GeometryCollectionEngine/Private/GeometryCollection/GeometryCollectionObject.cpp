@@ -37,6 +37,7 @@ UGeometryCollection::UGeometryCollection(const FObjectInitializer& ObjectInitial
 	, Mass(1.0f)
 	, MinimumMassClamp(0.1f)
 	, CollisionParticlesFraction(1.0f)
+	, MaximumCollisionParticles(60)
 	, EnableRemovePiecesOnFracture(false)
 	, GeometryCollection(new FGeometryCollection())
 {
@@ -54,6 +55,7 @@ FGeometryCollectionSizeSpecificData::FGeometryCollectionSizeSpecificData()
 	, MaxClusterLevelSetResolution(50)
 	, CollisionObjectReductionPercentage(0.0f)
 	, CollisionParticlesFraction(1.0f)
+	, MaximumCollisionParticles(60)
 {
 }
 
@@ -68,6 +70,7 @@ void FillSharedSimulationSizeSpecificData(FSharedSimulationSizeSpecificData& ToD
 	ToData.MaxClusterLevelSetResolution = FromData.MaxClusterLevelSetResolution;
 	ToData.CollisionObjectReductionPercentage = FromData.CollisionObjectReductionPercentage;
 	ToData.CollisionParticlesFraction = FromData.CollisionParticlesFraction;
+	ToData.MaximumCollisionParticles = FromData.MaximumCollisionParticles;
 }
 
 
@@ -86,6 +89,7 @@ void UGeometryCollection::GetSharedSimulationParams(FSharedSimulationParameters&
 	OutParams.bMassAsDensity = bMassAsDensity;
 	OutParams.Mass = bMassAsDensity ? KgM3ToKgCm3(Mass) : Mass;	//todo(ocohen): we still have the solver working in old units. This is mainly to fix ui issues. Long term need to normalize units for best precision
 	OutParams.MinimumMassClamp = MinimumMassClamp;
+	OutParams.MaximumCollisionParticleCount = MaximumCollisionParticles;
 
 	FGeometryCollectionSizeSpecificData InfSize;
 	InfSize.MaxSize = FLT_MAX;
@@ -97,6 +101,7 @@ void UGeometryCollection::GetSharedSimulationParams(FSharedSimulationParameters&
 	InfSize.MaxClusterLevelSetResolution = MaxClusterLevelSetResolution;
 	InfSize.CollisionObjectReductionPercentage = CollisionObjectReductionPercentage;
 	InfSize.CollisionParticlesFraction = CollisionParticlesFraction;
+	InfSize.MaximumCollisionParticles = MaximumCollisionParticles;
 
 	OutParams.SizeSpecificData.SetNum(SizeSpecificData.Num() + 1);
 	FillSharedSimulationSizeSpecificData(OutParams.SizeSpecificData[0], InfSize);
