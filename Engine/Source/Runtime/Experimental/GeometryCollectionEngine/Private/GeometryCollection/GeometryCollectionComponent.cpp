@@ -38,7 +38,18 @@
 #endif //!(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 #if INTEL_ISPC
+
+#if USING_CODE_ANALYSIS
+MSVC_PRAGMA(warning(push))
+MSVC_PRAGMA(warning(disable : ALL_CODE_ANALYSIS_WARNINGS))
+#endif    // USING_CODE_ANALYSIS
+
 #include "GeometryCollectionComponent.ispc.generated.h"
+
+#if USING_CODE_ANALYSIS
+MSVC_PRAGMA(warning(pop))
+#endif    // USING_CODE_ANALYSIS
+
 #endif
 
 DEFINE_LOG_CATEGORY_STATIC(UGCC_LOG, Error, All);
