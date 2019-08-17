@@ -73,6 +73,13 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionSizeSpecificData
 	 */
 	UPROPERTY(EditAnywhere, Category = "ChaosPhysics|Collisions")
 	float CollisionParticlesFraction;
+
+	/**
+	 * Max number of particles.
+	 */
+	UPROPERTY(EditAnywhere, Category = "ChaosPhysics|Collisions")
+	int32 MaximumCollisionParticles;
+
 };
 
 /**
@@ -209,6 +216,12 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|Collisions")
 	float CollisionParticlesFraction;
+
+	/**
+	 * Max number of particles.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|Collisions")
+	int32 MaximumCollisionParticles;
 
 	UPROPERTY(EditAnywhere, Category = "ChaosPhysics|Collisions")
 	TArray<FGeometryCollectionSizeSpecificData> SizeSpecificData;

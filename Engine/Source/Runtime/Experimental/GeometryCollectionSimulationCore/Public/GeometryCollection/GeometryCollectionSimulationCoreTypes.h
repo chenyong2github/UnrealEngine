@@ -23,6 +23,7 @@ struct FSharedSimulationSizeSpecificData
 		, MaxClusterLevelSetResolution(50)
 		, CollisionObjectReductionPercentage(0.f)
 		, CollisionParticlesFraction(1.f)
+		, MaximumCollisionParticles(60)
 	{
 	}
 
@@ -35,6 +36,7 @@ struct FSharedSimulationSizeSpecificData
 	int32 MaxClusterLevelSetResolution;
 	float CollisionObjectReductionPercentage;
 	float CollisionParticlesFraction;
+	int32 MaximumCollisionParticles;
 
 	bool operator<(const FSharedSimulationSizeSpecificData& Rhs) const { return MaxSize < Rhs.MaxSize; }
 };
@@ -55,6 +57,7 @@ struct FSharedSimulationParameters
 	: bMassAsDensity(false)
 	, Mass(1.0)
 	, MinimumMassClamp(0.1)
+	, MaximumCollisionParticleCount(60)
 	{
 		SizeSpecificData.AddDefaulted();
 	}
@@ -68,10 +71,12 @@ struct FSharedSimulationParameters
 		,bool InMassAsDensity
 		,float InMass
 		,float InMinimumMassClamp
-		,float InCollisionParticlesFraction)
+		,float InCollisionParticlesFraction
+		,int32 InMaximumCollisionParticleCount)
 	: bMassAsDensity(InMassAsDensity)
 	, Mass(InMass)
 	, MinimumMassClamp(InMinimumMassClamp)
+	, MaximumCollisionParticleCount(InMaximumCollisionParticleCount)
 	{
 		SizeSpecificData.AddDefaulted();
 		SizeSpecificData[0].CollisionType = InCollisionType;
@@ -81,6 +86,7 @@ struct FSharedSimulationParameters
 		SizeSpecificData[0].MinClusterLevelSetResolution = InMinClusterLevelSetResolution;
 		SizeSpecificData[0].MaxClusterLevelSetResolution = InMaxClusterLevelSetResolution;
 		SizeSpecificData[0].CollisionParticlesFraction = InCollisionParticlesFraction;
+		SizeSpecificData[0].MaximumCollisionParticles = InMaximumCollisionParticleCount;
 	}
 
 	bool bMassAsDensity;
@@ -88,6 +94,7 @@ struct FSharedSimulationParameters
 	float MinimumMassClamp;
 	TArray<FSharedSimulationSizeSpecificData> SizeSpecificData;
 	TArray<int32> RemoveOnFractureIndices;
+	int32 MaximumCollisionParticleCount;
 };
 
 struct FCollisionDataSimulationParameters
