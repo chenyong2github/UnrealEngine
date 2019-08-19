@@ -56,8 +56,6 @@ void FDataTableEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& 
 {
 	WorkspaceMenuCategory = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("WorkspaceMenu_Data Table Editor", "Data Table Editor"));
 
-	FAssetEditorToolkit::RegisterTabSpawners(InTabManager);
-
 	CreateAndRegisterDataTableTab(InTabManager);
 	CreateAndRegisterDataTableDetailsTab(InTabManager);
 	CreateAndRegisterRowEditorTab(InTabManager);
@@ -65,8 +63,6 @@ void FDataTableEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& 
 
 void FDataTableEditor::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
 {
-	FAssetEditorToolkit::UnregisterTabSpawners(InTabManager);
-
 	InTabManager->UnregisterTabSpawner(DataTableTabId);
 	InTabManager->UnregisterTabSpawner(DataTableDetailsTabId);
 	InTabManager->UnregisterTabSpawner(RowEditorTabId);
@@ -198,17 +194,10 @@ void FDataTableEditor::HandlePostChange()
 
 void FDataTableEditor::InitDataTableEditor( const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UDataTable* Table )
 {
-	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout( "Standalone_DataTableEditor_Layout_v3" )
+	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout( "Standalone_DataTableEditor_Layout_v4" )
 	->AddArea
 	(
 		FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
-		->Split
-		(
-			FTabManager::NewStack()
-			->SetSizeCoefficient(0.1f)
-			->SetHideTabWell(true)
-			->AddTab(GetToolbarTabId(), ETabState::OpenedTab)
-		)
 		->Split
 		(
 			FTabManager::NewStack()
@@ -224,9 +213,9 @@ void FDataTableEditor::InitDataTableEditor( const EToolkitMode::Type Mode, const
 	);
 
 	const bool bCreateDefaultStandaloneMenu = true;
-	const bool bCreateDefaultToolbar = true;
+	const bool bCreateDefaultToolbar = false;
 	FAssetEditorToolkit::InitAssetEditor( Mode, InitToolkitHost, FDataTableEditorModule::DataTableEditorAppIdentifier, StandaloneDefaultLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, Table );
-	
+
 	FDataTableEditorModule& DataTableEditorModule = FModuleManager::LoadModuleChecked<FDataTableEditorModule>( "DataTableEditor" );
 	AddMenuExtender(DataTableEditorModule.GetMenuExtensibilityManager()->GetAllExtenders(GetToolkitCommands(), GetEditingObjects()));
 
@@ -491,6 +480,20 @@ void FDataTableEditor::OnEditDataTableStructClicked()
 			FSourceCodeNavigation::NavigateToStruct(ScriptStruct);
 		}
 	}
+}
+
+FReply FDataTableEditor::SaveDataTable_Execute()
+{
+	FAssetEditorToolkit::SaveAsset_Execute();
+
+	return FReply::Handled();
+}
+
+FReply FDataTableEditor::BrowseForDataTable_Execute()
+{
+	FAssetEditorToolkit::FindInContentBrowser_Execute();
+
+	return FReply::Handled();
 }
 
 UDataTable* FDataTableEditor::GetEditableDataTable() const
@@ -894,7 +897,7 @@ void FDataTableEditor::PostRegenerateMenusAndToolbars()
 				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
 				.OnClicked(this, &FDataTableEditor::OnFindRowInContentBrowserClicked)
 				.Visibility(UDS ? EVisibility::Visible : EVisibility::Collapsed)
-				.ToolTipText(LOCTEXT("FindRowInCBToolTip", "Find row in Content Browser"))
+				.ToolTipText(LOCTEXT("FindRowInCBToolTip", "Find struct in Content Browser"))
 				.ContentPadding(4.0f)
 				.ForegroundColor(FSlateColor::UseForeground())
 				[
@@ -1182,11 +1185,43 @@ TSharedRef<SVerticalBox> FDataTableEditor::CreateContentBox()
 				.ForegroundColor(FSlateColor::UseForeground())
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
+				.OnClicked(this, &FDataTableEditor::SaveDataTable_Execute)
+				.ToolTipText(LOCTEXT("SaveDataTableTooltip", "Save data table"))
+				[
+					SNew(SImage)
+					.Image(FEditorStyle::Get().GetBrush("AssetEditor.SaveAsset.Small"))
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(2)
+			[
+				SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ForegroundColor(FSlateColor::UseForeground())
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked(this, &FDataTableEditor::BrowseForDataTable_Execute)
+				.ToolTipText(LOCTEXT("FindInContentBrowserTooltip", "Find data table in content browser"))
+				[
+					SNew(SImage)
+					.Image(FEditorStyle::Get().GetBrush("Sequencer.FindInContentBrowser.Small"))
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(2)
+			[
+				SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ForegroundColor(FSlateColor::UseForeground())
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
 				.OnClicked(this, &FDataTableEditor::OnAddClicked)
 				.ToolTipText(LOCTEXT("AddRowTooltip", "Add a new row to the data table"))
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::Get().GetBrush("Plus"))
+					.Image(FEditorStyle::Get().GetBrush("DataTableEditor.Add"))
 				]
 			]
 			+ SHorizontalBox::Slot()
@@ -1250,82 +1285,7 @@ TSharedRef<SVerticalBox> FDataTableEditor::CreateContentBox()
 				.ToolTipText(LOCTEXT("RemoveRowTooltip", "Remove the currently selected row from the data table"))
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::Get().GetBrush("Cross"))
-				]
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(2)
-			[
-				SNew(SSeparator)
-				.Orientation(Orient_Vertical)
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(2)
-			[
-				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-				.ForegroundColor(FSlateColor::UseForeground())
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.OnClicked(this, &FDataTableEditor::OnMoveRowClicked, FDataTableEditorUtils::ERowMoveDirection::Up)
-				.ToolTipText(LOCTEXT("MoveUpTooltip", "Move the currently selected row up by one in the data table sorted by row number"))
-				[
-					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
-					.Text(FText::FromString(FString(TEXT("\xf106"))) /*fa-angle-up*/)
-				]
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(2)
-			[
-				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-				.ForegroundColor(FSlateColor::UseForeground())
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.OnClicked(this, &FDataTableEditor::OnMoveRowClicked, FDataTableEditorUtils::ERowMoveDirection::Down)
-				.ToolTipText(LOCTEXT("MoveDownTooltip", "Move the currently selected row down by one in the data table sorted by row number"))
-				[
-					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
-					.Text(FText::FromString(FString(TEXT("\xf107"))) /*fa-angle-down*/)
-				]
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(2)
-			[
-				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-				.ForegroundColor(FSlateColor::UseForeground())
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.OnClicked(this, &FDataTableEditor::OnMoveToExtentClicked, FDataTableEditorUtils::ERowMoveDirection::Up)
-				.ToolTipText(LOCTEXT("MoveToTopTooltip", "Move the currently selected row to the top of the data table sorted by row number"))
-				[
-					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
-					.Text(FText::FromString(FString(TEXT("\xf102"))) /*fa-angle-double-up*/)
-				]
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(2)
-			[
-				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-				.ForegroundColor(FSlateColor::UseForeground())
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.OnClicked(this, &FDataTableEditor::OnMoveToExtentClicked, FDataTableEditorUtils::ERowMoveDirection::Down)
-				.ToolTipText(LOCTEXT("MoveToBottomTooltip", "Move the currently selected row to the bottom of the data table based on row number"))
-				[
-					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
-					.Text(FText::FromString(FString(TEXT("\xf103"))) /*fa-angle-double-down*/)
+					.Image(FEditorStyle::Get().GetBrush("DataTableEditor.Remove"))
 				]
 			]
 			+ SHorizontalBox::Slot()

@@ -20,9 +20,13 @@ void SDataTableListViewRow::Construct(const FArguments& InArgs, const TSharedRef
 	SMultiColumnTableRow<FDataTableEditorRowListViewDataPtr>::Construct(
 		FSuperRowType::FArguments()
 		.Style(FEditorStyle::Get(), "DataTableEditor.CellListViewRow")
-		.OnDrop(this, &SDataTableListViewRow::OnRowDrop),
+		.OnDrop(this, &SDataTableListViewRow::OnRowDrop)
+		.OnDragEnter(this, &SDataTableListViewRow::OnRowDragEnter)
+		.OnDragLeave(this, &SDataTableListViewRow::OnRowDragLeave),
 		InOwnerTableView
 	);
+
+	BorderImage = TAttribute<const FSlateBrush*>(this, &SDataTableListViewRow::GetBorder);
 
 }
 
@@ -35,7 +39,9 @@ FReply SDataTableListViewRow::OnMouseButtonUp(const FGeometry& MyGeometry, const
 			FExecuteAction::CreateSP(this, &SDataTableListViewRow::OnSearchForReferences),
 			FExecuteAction::CreateSP(this, &SDataTableListViewRow::OnInsertNewRow, ERowInsertionPosition::Bottom),
 			FExecuteAction::CreateSP(this, &SDataTableListViewRow::OnInsertNewRow, ERowInsertionPosition::Above),
-			FExecuteAction::CreateSP(this, &SDataTableListViewRow::OnInsertNewRow, ERowInsertionPosition::Below)
+			FExecuteAction::CreateSP(this, &SDataTableListViewRow::OnInsertNewRow, ERowInsertionPosition::Below),
+			FExecuteAction::CreateSP(this, &SDataTableListViewRow::OnMoveToExtentClicked, FDataTableEditorUtils::ERowMoveDirection::Down),
+			FExecuteAction::CreateSP(this, &SDataTableListViewRow::OnMoveToExtentClicked, FDataTableEditorUtils::ERowMoveDirection::Up)
 		);
 
 		FWidgetPath WidgetPath = MouseEvent.GetEventPath() != nullptr ? *MouseEvent.GetEventPath() : FWidgetPath();
@@ -120,7 +126,14 @@ FReply SDataTableListViewRow::OnRowDrop(const FDragDropEvent& DragDropEvent)
 
 		if (SourceDataTable)
 		{
-			FDataTableEditorUtils::MoveRow(SourceDataTable, (RowPtr->RowDataPtr)->RowId, Direction, FMath::Abs<int32>(JumpCount));
+			FName& RowId = (RowPtr->RowDataPtr)->RowId;
+
+			FDataTableEditorUtils::MoveRow(SourceDataTable, RowId, Direction, FMath::Abs<int32>(JumpCount));
+			
+			FDataTableEditorUtils::SelectRow(SourceDataTable, RowId);
+
+			DataTableEditorPtr->SortMode = EColumnSortMode::Ascending;
+			DataTableEditorPtr->SortByColumn = FDataTableEditor::RowNumberColumnId;
 
 			return FReply::Handled();
 		}
@@ -211,7 +224,7 @@ TSharedRef<SWidget> SDataTableListViewRow::MakeCellWidget(const int32 InRowIndex
 	if (InColumnId.IsEqual(RowDragDropColumnId))
 	{
 		return SNew(SDataTableRowHandle)
-		.Content()
+			.Content()
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
@@ -221,7 +234,7 @@ TSharedRef<SWidget> SDataTableListViewRow::MakeCellWidget(const int32 InRowIndex
 					.Image(FCoreStyle::Get().GetBrush("VerticalBoxDragIndicatorShort"))
 				]
 			]
-		.ParentRow(SharedThis(this));
+			.ParentRow(SharedThis(this));
 	}
 
 	const FName RowNumberColumnId("RowNumber");
@@ -302,6 +315,11 @@ void SDataTableListViewRow::SetRowForRename()
 	InlineEditableText->EnterEditingMode();
 }
 
+const FDataTableEditorRowListViewDataPtr& SDataTableListViewRow::GetRowDataPtr() const
+{
+	return RowDataPtr;
+}
+
 FText SDataTableListViewRow::GetCurrentNameAsText() const
 {
 	return FText::FromName(GetCurrentName());
@@ -339,9 +357,58 @@ TSharedPtr<FDataTableRowDragDropOp> SDataTableRowHandle::CreateDragDropOperation
 	return Operation;
 }
 
+void SDataTableListViewRow::SetIsDragDrop(bool bInIsDragDrop)
+{
+	bIsDragDropObject = bInIsDragDrop;
+}
+
+
+void SDataTableListViewRow::OnRowDragEnter(const FDragDropEvent& DragDropEvent)
+{
+	bIsHoveredDragTarget = true;
+}
+
+void SDataTableListViewRow::OnRowDragLeave(const FDragDropEvent& DragDropEvent)
+{
+	bIsHoveredDragTarget = false;
+}
+
+
+const FSlateBrush* SDataTableListViewRow::GetBorder() const
+{
+	if (bIsDragDropObject)
+	{
+		return FEditorStyle::GetBrush("DataTableEditor.DragDropObject");
+	}
+	else if (bIsHoveredDragTarget)
+	{
+		return FEditorStyle::GetBrush("DataTableEditor.DragDropHoveredTarget");
+	}
+	else
+	{
+		return STableRow::GetBorder();
+	}
+}
+
+void SDataTableListViewRow::OnMoveToExtentClicked(FDataTableEditorUtils::ERowMoveDirection MoveDirection)
+{
+	if (DataTableEditor.IsValid())
+	{
+		TSharedPtr<FDataTableEditor> DataTableEditorPtr = DataTableEditor.Pin();
+		DataTableEditorPtr->OnMoveToExtentClicked(MoveDirection);
+	}
+}
+
 FDataTableRowDragDropOp::FDataTableRowDragDropOp(TSharedPtr<SDataTableListViewRow> InRow)
 {
 	Row = InRow;
+
+	TSharedPtr<SDataTableListViewRow> RowPtr = nullptr;
+	if (Row.IsValid())
+	{
+		RowPtr = Row.Pin();
+		RowPtr->SetIsDragDrop(true);
+	}
 
 	DecoratorWidget = SNew(SBorder)
 		.Padding(8.f)
@@ -354,11 +421,23 @@ FDataTableRowDragDropOp::FDataTableRowDragDropOp(TSharedPtr<SDataTableListViewRo
 			.VAlign(VAlign_Center)
 			[
 				SNew(STextBlock)
-				.Text(LOCTEXT("PlaceRowHere", "Place Row Here"))
+				.Text(FText::Format(LOCTEXT("DragDropDecoratorText", "Place {0} Here"), FText::FromName(InRow->GetCurrentName())))
 			]
 		];
 
 	Construct();
+}
+
+void FDataTableRowDragDropOp::OnDrop(bool bDropWasHandled, const FPointerEvent& MouseEvent)
+{
+	FDecoratedDragDropOp::OnDrop(bDropWasHandled, MouseEvent);
+
+	TSharedPtr<SDataTableListViewRow> RowPtr = nullptr;
+	if (Row.IsValid())
+	{
+		RowPtr = Row.Pin();
+		RowPtr->SetIsDragDrop(false);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

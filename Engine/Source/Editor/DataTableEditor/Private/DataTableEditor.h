@@ -179,6 +179,10 @@ protected:
 
 	void OnEditDataTableStructClicked();
 
+	FReply SaveDataTable_Execute();
+	FReply BrowseForDataTable_Execute();
+
+
 private:
 	UDataTable* GetEditableDataTable() const;
 

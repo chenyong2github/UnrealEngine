@@ -72,6 +72,10 @@ public:
 
 	void SetRowForRename();
 
+	void SetIsDragDrop(bool bInIsDragDrop);
+
+	const FDataTableEditorRowListViewDataPtr& GetRowDataPtr() const;
+
 private:
 
 	void OnSearchForReferences();
@@ -81,6 +85,13 @@ private:
 
 	TSharedRef<SWidget> MakeCellWidget(const int32 InRowIndex, const FName& InColumnId);
 
+	void OnRowDragEnter(const FDragDropEvent& DragDropEvent);
+	void OnRowDragLeave(const FDragDropEvent& DragDropEvent);
+
+	virtual const FSlateBrush* GetBorder() const;
+
+	void OnMoveToExtentClicked(FDataTableEditorUtils::ERowMoveDirection MoveDirection);
+
 	TSharedPtr<SInlineEditableTextBlock> InlineEditableText;
 
 	TSharedPtr<FName> CurrentName;
@@ -88,6 +99,8 @@ private:
 	FDataTableEditorRowListViewDataPtr RowDataPtr;
 	TWeakPtr<FDataTableEditor> DataTableEditor;
 
+	bool bIsDragDropObject;
+	bool bIsHoveredDragTarget;
 };
 
 class FDataTableRowDragDropOp : public FDecoratedDragDropOp
@@ -95,7 +108,9 @@ class FDataTableRowDragDropOp : public FDecoratedDragDropOp
 public:
 	DRAG_DROP_OPERATOR_TYPE(FDataTableRowDragDropOp, FDecoratedDragDropOp)
 
-		FDataTableRowDragDropOp(TSharedPtr<SDataTableListViewRow> InRow);
+	FDataTableRowDragDropOp(TSharedPtr<SDataTableListViewRow> InRow);
+
+	void OnDrop(bool bDropWasHandled, const FPointerEvent& MouseEvent);
 
 	TSharedPtr<SWidget> DecoratorWidget;
 

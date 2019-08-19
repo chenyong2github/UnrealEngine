@@ -23,11 +23,18 @@ const FText FDataTableRowUtils::InsertNewRowAboveActionTooltip = LOCTEXT("FDataT
 const FText FDataTableRowUtils::InsertNewRowBelowActionName = LOCTEXT("FDataTableRowUtils_InsertNewRowBelow", "Insert New Row Below");
 const FText FDataTableRowUtils::InsertNewRowBelowActionTooltip = LOCTEXT("FDataTableRowUtils_InsertNewRowBelowTooltip", "Insert a new Row below the current selection");
 
+const FText FDataTableRowUtils::MoveToBottomActionName = LOCTEXT("FDataTableRowUtils_MoveToBottom", "Move Row To Bottom");
+const FText FDataTableRowUtils::MoveToBottomActionTooltip = LOCTEXT("FDataTableRowUtils_MoveToBottomTooltip", "Move selected Row to the bottom");
+
+const FText FDataTableRowUtils::MoveToTopActionName = LOCTEXT("FDataTableRowUtils_MoveToTopAction", "Move Row to Top");
+const FText FDataTableRowUtils::MoveToTopActionTooltip = LOCTEXT("FDataTableRowUtils_MoveToTopActionTooltip", "Move selected Row to the top");
+
 
 TSharedRef<SWidget> FDataTableRowUtils::MakeRowActionsMenu(TSharedPtr<IDataTableEditor> Editor, FExecuteAction SearchForReferencesAction, FExecuteAction InsertNewRowAction,
-	FExecuteAction InsertNewRowAboveAction, FExecuteAction InsertNewRowBelowAction)
+	FExecuteAction InsertNewRowAboveAction, FExecuteAction InsertNewRowBelowAction, FExecuteAction MoveToBottomAction, FExecuteAction MoveToTopAction)
 {
-	if (SearchForReferencesAction.IsBound() && InsertNewRowAction.IsBound() && InsertNewRowAboveAction.IsBound() && InsertNewRowBelowAction.IsBound() )
+	if (SearchForReferencesAction.IsBound() && InsertNewRowAction.IsBound() && InsertNewRowAboveAction.IsBound() 
+		&& InsertNewRowBelowAction.IsBound() )
 	{
 		FMenuBuilder MenuBuilder(true, Editor->GetToolkitCommands());
 		MenuBuilder.AddMenuEntry(InsertNewRowActionName, InsertNewRowActionTooltip,
@@ -43,6 +50,13 @@ TSharedRef<SWidget> FDataTableRowUtils::MakeRowActionsMenu(TSharedPtr<IDataTable
 		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Rename);
 		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Delete);
 		MenuBuilder.AddMenuSeparator();
+
+		MenuBuilder.AddMenuEntry(MoveToTopActionName, MoveToTopActionTooltip,
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Symbols.DoubleUpArrow"), FUIAction(MoveToTopAction));
+		MenuBuilder.AddMenuEntry(MoveToBottomActionName, MoveToBottomActionTooltip,
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Symbols.DoubleDownArrow"), FUIAction(MoveToBottomAction));
+		MenuBuilder.AddMenuSeparator();
+		
 		MenuBuilder.AddMenuEntry(SearchForReferencesActionName, SearchForReferencesActionTooltip, 
 			FSlateIcon(), FUIAction(SearchForReferencesAction));
 		return MenuBuilder.MakeWidget();
