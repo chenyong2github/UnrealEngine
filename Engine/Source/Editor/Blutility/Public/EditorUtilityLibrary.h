@@ -30,6 +30,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
 	static TArray<UObject*> GetSelectedAssets();
 
+	// Gets the set of currently selected classes
+	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
+	static TArray<UClass*> GetSelectedBlueprintClasses();
+
 	// Gets the set of currently selected asset data
 	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
 	static TArray<FAssetData> GetSelectedAssetData();

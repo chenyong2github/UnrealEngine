@@ -53,8 +53,30 @@ public:
 							{
 								if(UAssetActionUtility* DefaultObject = Cast<UAssetActionUtility>(BPClass->GetDefaultObject()))
 								{
+									bool bIsActionForBlueprints = DefaultObject->IsActionForBlueprints();
 									UClass* SupportedClass = DefaultObject->GetSupportedClass();
-									if(SupportedClass == nullptr || (SupportedClass && Asset.GetClass()->IsChildOf(SupportedClass)))
+									
+									bool bPassesClassFilter = false;
+									if(bIsActionForBlueprints)
+									{
+										if(UBlueprint* AssetAsBlueprint = Cast<UBlueprint>(Asset.GetAsset()))
+										{
+											// It's a blueprint, but is it the right kind?
+											bPassesClassFilter = (SupportedClass == nullptr || (SupportedClass && AssetAsBlueprint->ParentClass && AssetAsBlueprint->ParentClass->IsChildOf(SupportedClass)));
+										}
+										else
+										{
+											// Not a blueprint
+											bPassesClassFilter = false;
+										}
+									}
+									else
+									{
+										// Is the asset the right kind?
+										bPassesClassFilter = (SupportedClass == nullptr || (SupportedClass && Asset.GetClass()->IsChildOf(SupportedClass)));
+									}
+
+									if(bPassesClassFilter)
 									{
 										SupportedUtils.AddUnique(DefaultObject);
 									}
