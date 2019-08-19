@@ -364,7 +364,9 @@ void FVisualizeTexturePresent::PresentContent(FRHICommandListImmediate& RHICmdLi
 				}
 			}
 
-			Canvas.Flush_RenderThread(RHICmdList);
+			const bool bForce = false;
+			const bool bInsideRenderPass = true;
+			Canvas.Flush_RenderThread(RHICmdList, bForce, bInsideRenderPass);
 
 			GRenderTargetPool.CurrentEventRecordingTime = 0;
 			GRenderTargetPool.RenderTargetPoolEvents.Empty();
