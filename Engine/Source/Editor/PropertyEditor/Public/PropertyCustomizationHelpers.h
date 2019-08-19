@@ -169,6 +169,8 @@ public:
 
 	PROPERTYEDITOR_API void Construct( const FArguments& InArgs );
 
+	PROPERTYEDITOR_API void GetDesiredWidth(float& OutMinDesiredWidth, float &OutMaxDesiredWidth);
+
 private:
 	/**
 	 * Delegate function called when an object is changed

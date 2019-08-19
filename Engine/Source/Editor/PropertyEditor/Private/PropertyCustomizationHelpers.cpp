@@ -539,6 +539,12 @@ void SObjectPropertyEntryBox::Construct( const FArguments& InArgs )
 	];
 }
 
+void SObjectPropertyEntryBox::GetDesiredWidth(float& OutMinDesiredWidth, float &OutMaxDesiredWidth)
+{
+	checkf(PropertyEditorAsset.IsValid(), TEXT("SObjectPropertyEntryBox hasn't been constructed yet."));
+	PropertyEditorAsset->GetDesiredWidth(OutMinDesiredWidth, OutMaxDesiredWidth);
+}
+
 FString SObjectPropertyEntryBox::OnGetObjectPath() const
 {
 	FString StringReference;
