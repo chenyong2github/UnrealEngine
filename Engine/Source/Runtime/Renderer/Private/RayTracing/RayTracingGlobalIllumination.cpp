@@ -91,7 +91,7 @@ static FAutoConsoleVariableRef CVarRayTracingGlobalIlluminationUseRussianRoulett
 	TEXT("NOTE: This parameter is experimental")
 );
 
-static float GRayTracingGlobalIlluminationScreenPercentage = 100.0;
+static float GRayTracingGlobalIlluminationScreenPercentage = 50.0;
 static FAutoConsoleVariableRef CVarRayTracingGlobalIlluminationScreenPercentage(
 	TEXT("r.RayTracing.GlobalIllumination.ScreenPercentage"),
 	GRayTracingGlobalIlluminationScreenPercentage,
