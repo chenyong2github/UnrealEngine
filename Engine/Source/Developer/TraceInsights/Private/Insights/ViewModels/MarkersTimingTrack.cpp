@@ -2,7 +2,6 @@
 
 #include "MarkersTimingTrack.h"
 
-#include "Brushes/SlateColorBrush.h"
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Styling/CoreStyle.h"
@@ -11,6 +10,7 @@
 // Insights
 #include "Insights/Common/PaintUtils.h"
 #include "Insights/InsightsManager.h"
+#include "Insights/InsightsStyle.h"
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
 
@@ -33,7 +33,7 @@ FMarkersTimingTrack::FMarkersTimingTrack(uint64 InTrackId)
 	, NumLogMessages(0)
 	, NumDrawBoxes(0)
 	, NumDrawTexts(0)
-	, WhiteBrush(FCoreStyle::Get().GetBrush("WhiteBrush"))
+	, WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))
 	, Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
 {
 }
@@ -145,8 +145,8 @@ void FMarkersTimingTrack::Update(const FTimingTrackViewport& InViewport)
 		Builder.BeginLog(LogProvider);
 
 		LogProvider.EnumerateMessages(
-			Builder.GetViewport().StartTime,
-			Builder.GetViewport().EndTime,
+			Builder.GetViewport().GetStartTime(),
+			Builder.GetViewport().GetEndTime(),
 			[&Builder](const Trace::FLogMessage& Message) { Builder.AddLogMessage(Message); });
 
 		Builder.EndLog();
@@ -157,8 +157,10 @@ void FMarkersTimingTrack::Update(const FTimingTrackViewport& InViewport)
 
 void FMarkersTimingTrack::Draw(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport) const
 {
+	const FLinearColor BackgroundColor(0.04f, 0.04f, 0.04f, 1.0f);
+
 	// Draw background.
-	DrawContext.DrawBox(0.0f, GetPosY(), Viewport.Width, GetHeight(), WhiteBrush, FLinearColor(0.04f, 0.04f, 0.04f, 1.0f));
+	DrawContext.DrawBox(0.0f, GetPosY(), Viewport.GetWidth(), GetHeight(), WhiteBrush, BackgroundColor);
 	DrawContext.LayerId++;
 
 	// Draw the track's header, in background.
@@ -180,10 +182,10 @@ void FMarkersTimingTrack::Draw(FDrawContext& DrawContext, const FTimingTrackView
 	else
 	{
 		BoxY = 0.0f;
-		BoxH = Viewport.Height;
+		BoxH = Viewport.GetHeight();
 	}
 
-	int32 NumBoxes = TimeMarkerBoxes.Num();
+	const int32 NumBoxes = TimeMarkerBoxes.Num();
 	for (int32 BoxIndex = 0; BoxIndex < NumBoxes; BoxIndex++)
 	{
 		const FTimeMarkerBoxInfo& Box = TimeMarkerBoxes[BoxIndex];
@@ -198,7 +200,7 @@ void FMarkersTimingTrack::Draw(FDrawContext& DrawContext, const FTimingTrackView
 	const float CategoryY = GetPosY() + 2.0f;
 	const float MessageY = GetPosY() + (IsBookmarksTrack() ? 1.0f : 14.0f);
 
-	int32 NumTexts = TimeMarkerTexts.Num();
+	const int32 NumTexts = TimeMarkerTexts.Num();
 	for (int32 TextIndex = 0; TextIndex < NumTexts; TextIndex++)
 	{
 		const FTimeMarkerTextInfo& TextInfo = TimeMarkerTexts[TextIndex];
@@ -452,7 +454,7 @@ void FTimeMarkerTrackBuilder::Flush(float AvailableTextW)
 
 void FTimeMarkerTrackBuilder::AddTimeMarker(const float X, const uint64 LogIndex, const ELogVerbosity::Type Verbosity, const TCHAR* const Category, const TCHAR* Message)
 {
-	float W = X - LastX2;
+	const float W = X - LastX2;
 
 	if (W > 0.0f) // There is at least 1px from previous box?
 	{
@@ -516,7 +518,7 @@ void FTimeMarkerTrackBuilder::AddTimeMarker(const float X, const uint64 LogIndex
 
 void FTimeMarkerTrackBuilder::EndLog()
 {
-	Flush(Viewport.Width - LastX2);
+	Flush(Viewport.GetWidth() - LastX2);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

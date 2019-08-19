@@ -8,10 +8,12 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/SToolTip.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/SExpanderArrow.h"
 
 // Insights
+#include "Insights/InsightsStyle.h"
 #include "Insights/ViewModels/StatsViewColumn.h"
 #include "Insights/ViewModels/StatsViewColumnFactory.h"
 #include "Insights/Widgets/SStatsViewTooltip.h"
@@ -90,7 +92,7 @@ TSharedRef<SWidget> SStatsTableCell::GenerateWidgetForNameColumn(const FArgument
 			.HeightOverride(14.0f)
 			[
 				SNew(SBorder)
-				.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+				.BorderImage(FInsightsStyle::Get().GetBrush("WhiteBrush"))
 				.BorderBackgroundColor(this, &SStatsTableCell::GetStatsBoxColorAndOpacity)
 				.HAlign(HAlign_Fill)
 				.VAlign(VAlign_Fill)

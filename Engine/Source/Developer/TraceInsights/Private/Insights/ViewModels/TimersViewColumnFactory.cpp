@@ -122,7 +122,7 @@ FTimersViewColumnFactory::FTimersViewColumnFactory()
 		[](const FTimersViewColumn& Column, const FTimerNode& TimerNode) -> FText
 		{ return TimerNodeTypeHelper::ToName(TimerNode.GetType()); }
 	));
-		
+
 	//////////////////////////////////////////////////
 
 	const ETimersViewColumnFlags AggregatedStatsColumnFlags = ETimersViewColumnFlags::CanBeHidden |

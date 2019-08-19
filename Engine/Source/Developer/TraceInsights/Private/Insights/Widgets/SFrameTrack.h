@@ -71,7 +71,7 @@ struct FFrameTrackSampleRef
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
- * Widget used to present frames data in a track.
+ * Widget used to present frames data in a bar track.
  */
 class SFrameTrack : public SCompoundWidget
 {
@@ -165,19 +165,6 @@ protected:
 
 	void ZoomHorizontally(const float Delta, const float X);
 
-	//////////////////////////////////////////////////
-	// SelectionBoxChanged Event
-
-public:
-	/** The event to execute when the selection box has been changed. */
-	DECLARE_EVENT_TwoParams(SFrameTrack, FSelectionBoxChangedEvent, int32 /*FrameStart*/, int32 /*FrameEnd*/);
-	FSelectionBoxChangedEvent& OnSelectionBoxChanged() { return SelectionBoxChangedEvent; }
-protected:
-	/** The event to execute when the selection box has been changed. */
-	FSelectionBoxChangedEvent SelectionBoxChangedEvent;
-
-	//////////////////////////////////////////////////
-
 protected:
 	/** The track's viewport. Encapsulates info about position and scale. */
 	FFrameTrackViewport Viewport;
@@ -208,7 +195,6 @@ protected:
 	/** Mouse position during the call on mouse button down. */
 	FVector2D MousePositionOnButtonDown;
 	float ViewportPosXOnButtonDown;
-	float ViewportPosYOnButtonDown;
 
 	/** Mouse position during the call on mouse button up. */
 	FVector2D MousePositionOnButtonUp;
@@ -216,14 +202,11 @@ protected:
 	bool bIsLMB_Pressed;
 	bool bIsRMB_Pressed;
 
-	/** True, if the user is currently interactively scrolling the view by holding the right mouse button and dragging. */
+	/** True, if the user is currently interactively scrolling the view (ex.: by holding the left mouse button and dragging). */
 	bool bIsScrolling;
 
 	//////////////////////////////////////////////////
 	// Selection
-
-	int32 SelectionStartFrameIndex;
-	int32 SelectionEndFrameIndex;
 
 	FFrameTrackSampleRef HoveredSample;
 

@@ -12,7 +12,7 @@
 class FThreadTimingTrack : public FTimingEventsTrack
 {
 public:
-	FThreadTimingTrack(uint64 InTrackId, const FName& InSubType, const FString& InName, const TCHAR* InGroupName)
+	explicit FThreadTimingTrack(uint64 InTrackId, const FName& InSubType, const FString& InName, const TCHAR* InGroupName)
 		: FTimingEventsTrack(InTrackId, FName(TEXT("Thread")), InSubType, InName)
 		, GroupName(InGroupName)
 		, ThreadId(0)
@@ -28,7 +28,7 @@ public:
 
 	virtual void Draw(FTimingViewDrawHelper& Helper) const override;
 	virtual void DrawSelectedEventInfo(const FTimingEvent& SelectedTimingEvent, const FTimingTrackViewport& Viewport, const FDrawContext& DrawContext, const FSlateBrush* WhiteBrush, const FSlateFontInfo& Font) const override;
-	virtual void DrawTooltip(FTimingViewTooltip& Tooltip, const FVector2D& MousePosition, const FTimingEvent& HoveredTimingEvent, const FTimingTrackViewport& Viewport, const FDrawContext& DrawContext, const FSlateBrush* WhiteBrush, const FSlateFontInfo& Font) const override;
+	virtual void InitTooltip(FTooltipDrawState& Tooltip, const FTimingEvent& HoveredTimingEvent) const override;
 
 	virtual bool SearchTimingEvent(const double InStartTime, const double InEndTime, TFunctionRef<bool(double, double, uint32)> InPredicate, FTimingEvent& InOutTimingEvent, bool bInStopAtFirstMatch, bool bInSearchForLargestEvent) const override;
 
@@ -42,7 +42,7 @@ private:
 class FCpuTimingTrack : public FThreadTimingTrack
 {
 public:
-	FCpuTimingTrack(uint64 InTrackId, const FString& InName, const TCHAR* InGroupName)
+	explicit FCpuTimingTrack(uint64 InTrackId, const FString& InName, const TCHAR* InGroupName)
 		: FThreadTimingTrack(InTrackId, FName(TEXT("CPU")), InName, InGroupName)
 	{
 	}
@@ -53,7 +53,7 @@ public:
 class FGpuTimingTrack : public FThreadTimingTrack
 {
 public:
-	FGpuTimingTrack(uint64 InTrackId, const FString& InName, const TCHAR* InGroupName)
+	explicit FGpuTimingTrack(uint64 InTrackId, const FString& InName, const TCHAR* InGroupName)
 		: FThreadTimingTrack(InTrackId, FName(TEXT("GPU")), InName, InGroupName)
 	{
 	}

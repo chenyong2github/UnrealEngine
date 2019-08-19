@@ -14,6 +14,7 @@
 #include "Insights/ViewModels/TimingEvent.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
 #include "Insights/ViewModels/TimingViewDrawHelper.h"
+#include "Insights/ViewModels/TooltipDrawState.h"
 
 #define LOCTEXT_NAMESPACE "ThreadTimingTrack"
 
@@ -38,15 +39,15 @@ void FThreadTimingTrack::Draw(FTimingViewDrawHelper& Helper) const
 				{
 					if (FTimingEventsTrack::bUseDownSampling)
 					{
-						const double SecondsPerPixel = 1.0 / Helper.GetViewport().ScaleX;
-						Timeline.EnumerateEventsDownSampled(Helper.GetViewport().StartTime, Helper.GetViewport().EndTime, SecondsPerPixel, [this, &Helper, Timers](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
+						const double SecondsPerPixel = 1.0 / Helper.GetViewport().GetScaleX();
+						Timeline.EnumerateEventsDownSampled(Helper.GetViewport().GetStartTime(), Helper.GetViewport().GetEndTime(), SecondsPerPixel, [this, &Helper, Timers](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
 						{
 							Helper.AddEvent(StartTime, EndTime, Depth, Timers[Event.TimerIndex].Name);
 						});
 					}
 					else
 					{
-						Timeline.EnumerateEvents(Helper.GetViewport().StartTime, Helper.GetViewport().EndTime, [this, &Helper, Timers](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
+						Timeline.EnumerateEvents(Helper.GetViewport().GetStartTime(), Helper.GetViewport().GetEndTime(), [this, &Helper, Timers](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
 						{
 							Helper.AddEvent(StartTime, EndTime, Depth, Timers[Event.TimerIndex].Name);
 						});
@@ -72,8 +73,8 @@ void FThreadTimingTrack::DrawSelectedEventInfo(const FTimingEvent& SelectedTimin
 
 	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 	const FVector2D Size = FontMeasureService->Measure(Str, Font);
-	const float X = Viewport.Width - Size.X - 23.0f;
-	const float Y = Viewport.Height - Size.Y - 18.0f;
+	const float X = Viewport.GetWidth() - Size.X - 23.0f;
+	const float Y = Viewport.GetHeight() - Size.Y - 18.0f;
 
 	const FLinearColor BackgroundColor(0.05f, 0.05f, 0.05f, 1.0f);
 	const FLinearColor TextColor(0.7f, 0.7f, 0.7f, 1.0f);
@@ -87,61 +88,19 @@ void FThreadTimingTrack::DrawSelectedEventInfo(const FTimingEvent& SelectedTimin
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FThreadTimingTrack::DrawTooltip(FTimingViewTooltip& Tooltip,
-									 const FVector2D& MousePosition,
-									 const FTimingEvent& HoveredTimingEvent,
-									 const FTimingTrackViewport& Viewport,
-									 const FDrawContext& DrawContext,
-									 const FSlateBrush* WhiteBrush,
-									 const FSlateFontInfo& Font) const
+void FThreadTimingTrack::InitTooltip(FTooltipDrawState& Tooltip, const FTimingEvent& HoveredTimingEvent) const
 {
+	Tooltip.ResetContent();
+
 	const FTimerNodePtr TimerNodePtr = FTimingProfilerManager::Get()->GetTimerNode(HoveredTimingEvent.TypeId);
 	FString TimerName = TimerNodePtr ? TimerNodePtr->GetName().ToString() : TEXT("N/A");
+	Tooltip.AddTitle(TimerName);
 
-	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-	float DesiredTooltipWidth = FontMeasureService->Measure(TimerName, Font).X + 2 * FTimingViewTooltip::BorderX;
-	if (DesiredTooltipWidth < FTimingViewTooltip::MinWidth)
-	{
-		DesiredTooltipWidth = FTimingViewTooltip::MinWidth;
-	}
+	Tooltip.AddNameValueTextLine(TEXT("Incl. Time:"), TimeUtils::FormatTimeAuto(HoveredTimingEvent.Duration()));
+	Tooltip.AddNameValueTextLine(TEXT("Excl. Time:"), TimeUtils::FormatTimeAuto(HoveredTimingEvent.ExclusiveTime));
+	Tooltip.AddNameValueTextLine(TEXT("Depth:"), FString::Printf(TEXT("%d"), HoveredTimingEvent.Depth));
 
-	constexpr float LineH = 14.0f;
-	const float DesiredTooltipHeight = 4 * LineH + 2 * FTimingViewTooltip::BorderY;
-
-	Tooltip.Update(MousePosition, DesiredTooltipWidth, DesiredTooltipHeight, Viewport.Width, Viewport.Height);
-
-	const FLinearColor BackgroundColor(0.05f, 0.05f, 0.05f, Tooltip.Opacity);
-	const FLinearColor NameColor(0.9f, 0.9f, 0.5f, Tooltip.Opacity);
-	const FLinearColor TextColor(0.6f, 0.6f, 0.6f, Tooltip.Opacity);
-	const FLinearColor ValueColor(1.0f, 1.0f, 1.0f, Tooltip.Opacity);
-
-	DrawContext.DrawBox(Tooltip.PosX, Tooltip.PosY, Tooltip.Width, Tooltip.Height, WhiteBrush, BackgroundColor);
-	DrawContext.LayerId++;
-
-	float X = Tooltip.PosX + FTimingViewTooltip::BorderX;
-	float Y = Tooltip.PosY + FTimingViewTooltip::BorderY;
-
-	DrawContext.DrawText(X, Y, TimerName, Font, NameColor);
-	Y += LineH;
-
-	const float ValueX = X + 58.0f;
-
-	DrawContext.DrawText(X + 3.0f, Y, TEXT("Incl. Time:"), Font, TextColor);
-	FString InclStr = TimeUtils::FormatTimeAuto(HoveredTimingEvent.Duration());
-	DrawContext.DrawText(ValueX, Y, InclStr, Font, ValueColor);
-	Y += LineH;
-
-	DrawContext.DrawText(X, Y, TEXT("Excl. Time:"), Font, TextColor);
-	FString ExclStr = TimeUtils::FormatTimeAuto(HoveredTimingEvent.ExclusiveTime);
-	DrawContext.DrawText(ValueX, Y, ExclStr, Font, ValueColor);
-	Y += LineH;
-
-	DrawContext.DrawText(X + 24.0f, Y, TEXT("Depth:"), Font, TextColor);
-	FString DepthStr = FString::Printf(TEXT("%d"), HoveredTimingEvent.Depth);
-	DrawContext.DrawText(ValueX, Y, DepthStr, Font, ValueColor);
-	Y += LineH;
-
-	DrawContext.LayerId++;
+	Tooltip.UpdateLayout();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

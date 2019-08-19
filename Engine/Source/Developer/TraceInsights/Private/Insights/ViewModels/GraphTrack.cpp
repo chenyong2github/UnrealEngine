@@ -2,8 +2,6 @@
 
 #include "GraphTrack.h"
 
-#include "Brushes/SlateColorBrush.h"
-#include "Brushes/SlateBorderBrush.h"
 #include "EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Rendering/DrawElements.h"
@@ -12,6 +10,7 @@
 // Insights
 #include "Insights/Common/PaintUtils.h"
 #include "Insights/Common/TimeUtils.h"
+#include "Insights/InsightsStyle.h"
 #include "Insights/ViewModels/DrawHelpers.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
 
@@ -121,10 +120,9 @@ FString FGraphSeries::FormatValue(double Value) const
 FGraphTrack::FGraphTrack(uint64 InTrackId)
 	: FBaseTimingTrack(InTrackId)
 	//, AllSeries()
-	, WhiteBrush(FCoreStyle::Get().GetBrush("WhiteBrush"))
+	, WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))
 	, PointBrush(FEditorStyle::GetBrush("Graph.ExecutionBubble"))
-	, BorderBrush(new FSlateBorderBrush(NAME_None, FMargin(1.0f)))
-	//, BorderBrush(FEditorStyle::GetBrush("PlainBorder"))
+	, BorderBrush(FInsightsStyle::Get().GetBrush("SingleBorder"))
 	, Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
 	, bDrawPoints(true)
 	, bDrawPointsWithBorder(true)
@@ -132,6 +130,9 @@ FGraphTrack::FGraphTrack(uint64 InTrackId)
 	, bDrawPolygon(true)
 	, bUseEventDuration(true)
 	, bDrawBoxes(true)
+	, HoveredGraphEvent()
+	, Tooltip()
+	, TooltipMousePosition(0.0f, 0.0f)
 	, NumAddedEvents(0)
 	, NumDrawPoints(0)
 	, NumDrawLines(0)
@@ -143,13 +144,16 @@ FGraphTrack::FGraphTrack(uint64 InTrackId)
 
 FGraphTrack::~FGraphTrack()
 {
-	delete BorderBrush;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void FGraphTrack::Reset()
 {
+	HoveredGraphEvent.Reset();
+	Tooltip.Reset();
+	TooltipMousePosition.Set(0.0f, 0.0f);
+
 	AllSeries.Reset();
 }
 
@@ -160,7 +164,7 @@ void FGraphTrack::UpdateHoveredState(float MouseX, float MouseY, const FTimingTr
 	constexpr float HeaderWidth = 100.0f;
 	constexpr float HeaderHeight = 14.0f;
 
-	HoveredGraphEvent.Series = nullptr;
+	HoveredGraphEvent.Reset();
 
 	if (MouseY >= GetPosY() && MouseY < GetPosY() + GetHeight())
 	{
@@ -172,6 +176,29 @@ void FGraphTrack::UpdateHoveredState(float MouseX, float MouseY, const FTimingTr
 	else
 	{
 		SetHoveredState(false);
+	}
+
+	if (HoveredGraphEvent.IsValid())
+	{
+		InitTooltip();
+		Tooltip.SetDesiredOpacity(1.0f);
+	}
+	else
+	{
+		Tooltip.SetDesiredOpacity(0.0f);
+	}
+	TooltipMousePosition.Set(MouseX, MouseY);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FGraphTrack::Update(const FTimingTrackViewport& Viewport)
+{
+	Tooltip.Update();
+
+	if (!TooltipMousePosition.IsZero())
+	{
+		Tooltip.SetPosition(TooltipMousePosition, 0.0f, Viewport.GetWidth(), 0.0f, Viewport.GetHeight());
 	}
 }
 
@@ -198,18 +225,7 @@ void FGraphTrack::UpdateStats()
 
 void FGraphTrack::DrawBackground(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport) const
 {
-	const FLinearColor ValidAreaColor(0.07f, 0.07f, 0.07f, 1.0f);
-	const FLinearColor InvalidAreaColor(0.1f, 0.07f, 0.07f, 1.0f);
-	const FLinearColor EdgeColor(0.05f, 0.05f, 0.05f, 1.0f);
-
-	const float X = 0.0f;
-	const float W = FMath::CeilToFloat(Viewport.Width);
-	const float Y = GetPosY();
-	const float H = GetHeight();
-
-	float ValidAreaX, ValidAreaW;
-
-	FDrawHelpers::DrawBackground(DrawContext, Viewport, WhiteBrush, ValidAreaColor, InvalidAreaColor, EdgeColor, X, Y, W, H, ValidAreaX, ValidAreaW);
+	FDrawHelpers::DrawBackground(DrawContext, WhiteBrush, Viewport, GetPosY(), GetHeight());
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -221,7 +237,7 @@ void FGraphTrack::Draw(FDrawContext& DrawContext, const FTimingTrackViewport& Vi
 	{
 		FVector2D AbsPos = DrawContext.Geometry.GetAbsolutePosition();
 		const float L = AbsPos.X;
-		const float R = AbsPos.X + Viewport.Width;
+		const float R = AbsPos.X + Viewport.GetWidth();
 		const float T = AbsPos.Y + GetPosY();
 		const float B = AbsPos.Y + GetPosY() + GetHeight();
 		FSlateClippingZone ClipZone(FVector2D(L, T), FVector2D(R, T), FVector2D(L, B), FVector2D(R, B));
@@ -238,7 +254,7 @@ void FGraphTrack::Draw(FDrawContext& DrawContext, const FTimingTrackViewport& Vi
 		const float BaselineY = FMath::RoundToFloat(static_cast<float>(Series->GetBaselineY()));
 		if (BaselineY >= 0.0f && BaselineY < GetHeight())
 		{
-			DrawContext.DrawBox(0.0f, GetPosY() + BaselineY, Viewport.Width, 1.0f, WhiteBrush, FLinearColor(0.05f, 0.05f, 0.05f, 1.0f));
+			DrawContext.DrawBox(0.0f, GetPosY() + BaselineY, Viewport.GetWidth(), 1.0f, WhiteBrush, FLinearColor(0.05f, 0.05f, 0.05f, 1.0f));
 			DrawContext.LayerId++;
 		}
 	}
@@ -263,14 +279,7 @@ void FGraphTrack::Draw(FDrawContext& DrawContext, const FTimingTrackViewport& Vi
 
 void FGraphTrack::PostDraw(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport, const FVector2D& MousePosition) const
 {
-	if (HoveredGraphEvent.IsValid() && !MousePosition.IsZero())
-	{
-		DrawTooltip(DrawContext, Viewport, MousePosition, HoveredGraphEvent);
-	}
-	else
-	{
-		Tooltip.Reset();
-	}
+	Tooltip.Draw(DrawContext);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -562,62 +571,14 @@ void FGraphTrack::DrawHighlightedEvent(FDrawContext& DrawContext, const FTimingT
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FGraphTrack::DrawTooltip(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport, const FVector2D& MousePosition, const FGraphTrack::FEvent& GraphEvent) const
+void FGraphTrack::InitTooltip()
 {
-	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-
-	constexpr float ValueOffsetX = 48.0f;
-
-	float DesiredTooltipWidth = FTimingViewTooltip::MinWidth;
-
-	const float DesiredTooltipWidthByName = FontMeasureService->Measure(GraphEvent.Series->GetName(), Font).X + 2 * FTimingViewTooltip::BorderX;
-	if (DesiredTooltipWidth < DesiredTooltipWidthByName)
-	{
-		DesiredTooltipWidth = DesiredTooltipWidthByName;
-	}
-
-	FString ValueStr = GraphEvent.Series->FormatValue(GraphEvent.SeriesEvent.Value);
-	const float DesiredTooltipWidthByValue = ValueOffsetX + FontMeasureService->Measure(ValueStr, Font).X + 2 * FTimingViewTooltip::BorderX;
-	if (DesiredTooltipWidth < DesiredTooltipWidthByValue)
-	{
-		DesiredTooltipWidth = DesiredTooltipWidthByValue;
-	}
-
-	constexpr float LineH = 14.0f;
-	const float DesiredTooltipHeight = 4 * LineH + 2 * FTimingViewTooltip::BorderY;
-
-	Tooltip.Update(MousePosition, DesiredTooltipWidth, DesiredTooltipHeight, Viewport.Width, Viewport.Height);
-
-	const FLinearColor BackgroundColor(0.05f, 0.05f, 0.05f, Tooltip.Opacity);
-	const FLinearColor TextColor(0.6f, 0.6f, 0.6f, Tooltip.Opacity);
-	const FLinearColor ValueColor(1.0f, 1.0f, 1.0f, Tooltip.Opacity);
-
-	DrawContext.DrawBox(Tooltip.PosX, Tooltip.PosY, Tooltip.Width, Tooltip.Height, WhiteBrush, BackgroundColor);
-	DrawContext.LayerId++;
-
-	float X = Tooltip.PosX + FTimingViewTooltip::BorderX;
-	float Y = Tooltip.PosY + FTimingViewTooltip::BorderY;
-
-	DrawContext.DrawText(X, Y, GraphEvent.Series->GetName().ToString(), Font, GraphEvent.Series->GetColor());
-	Y += LineH;
-
-	const float ValueX = X + ValueOffsetX;
-
-	DrawContext.DrawTextAligned(HAlign_Right, ValueX - 4.0f, Y, TEXT("Time:"), Font, TextColor);
-	FString TimeStr = TimeUtils::FormatTimeAuto(GraphEvent.SeriesEvent.Time);
-	DrawContext.DrawText(ValueX, Y, TimeStr, Font, ValueColor);
-	Y += LineH;
-
-	DrawContext.DrawTextAligned(HAlign_Right, ValueX - 4.0f, Y, TEXT("Duration:"), Font, TextColor);
-	FString DurationStr = TimeUtils::FormatTimeAuto(GraphEvent.SeriesEvent.Duration);
-	DrawContext.DrawText(ValueX, Y, DurationStr, Font, ValueColor);
-	Y += LineH;
-
-	DrawContext.DrawTextAligned(HAlign_Right, ValueX - 4.0f, Y, TEXT("Value:"), Font, TextColor);
-	DrawContext.DrawText(ValueX, Y, ValueStr, Font, ValueColor);
-	Y += LineH;
-
-	DrawContext.LayerId++;
+	Tooltip.ResetContent();
+	Tooltip.AddTitle(HoveredGraphEvent.Series->GetName().ToString(), HoveredGraphEvent.Series->GetColor());
+	Tooltip.AddNameValueTextLine(TEXT("Time:"), TimeUtils::FormatTimeAuto(HoveredGraphEvent.SeriesEvent.Time));
+	Tooltip.AddNameValueTextLine(TEXT("Duration:"), TimeUtils::FormatTimeAuto(HoveredGraphEvent.SeriesEvent.Duration));
+	Tooltip.AddNameValueTextLine(TEXT("Value:"), HoveredGraphEvent.Series->FormatValue(HoveredGraphEvent.SeriesEvent.Value));
+	Tooltip.UpdateLayout();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -981,6 +942,8 @@ FRandomGraphTrack::~FRandomGraphTrack()
 
 void FRandomGraphTrack::Update(const FTimingTrackViewport& Viewport)
 {
+	FGraphTrack::Update(Viewport);
+
 	if (IsDirty())
 	{
 		ClearDirtyFlag();
@@ -1041,7 +1004,7 @@ void FRandomGraphTrack::GenerateSeries(FGraphSeries& Series, const FTimingTrackV
 		FGraphTrackBuilder Builder(*this, Series, Viewport);
 
 		int32 Index = 0;
-		while (Index < EventCount && Events[Index].Time < Viewport.StartTime)
+		while (Index < EventCount && Events[Index].Time < Viewport.GetStartTime())
 		{
 			++Index;
 		}
@@ -1054,7 +1017,7 @@ void FRandomGraphTrack::GenerateSeries(FGraphSeries& Series, const FTimingTrackV
 			const FGraphEvent& Ev = Events[Index];
 			Builder.AddEvent(Ev.Time, Ev.Duration, Ev.Value);
 
-			if (Ev.Time > Viewport.EndTime)
+			if (Ev.Time > Viewport.GetEndTime())
 			{
 				// one point outside screen (right side)
 				break;
@@ -1146,13 +1109,13 @@ void FGraphTrackBuilder::BeginPoints()
 bool FGraphTrackBuilder::AddPoint(double Time, double Value)
 {
 	const float X = Viewport.TimeToSlateUnitsRounded(Time);
-	if (X < -FGraphTrack::PointVisualSize / 2.0f || X >= Viewport.Width + FGraphTrack::PointVisualSize / 2.0f)
+	if (X < -FGraphTrack::PointVisualSize / 2.0f || X >= Viewport.GetWidth() + FGraphTrack::PointVisualSize / 2.0f)
 	{
 		return false;
 	}
 
 	// Align the X with a grid of GraphTrackPointDX pixels in size, in the global space (i.e. scroll independent).
-	const double AlignedX = FMath::RoundToDouble(Time * Viewport.ScaleX / FGraphTrack::PointSizeX) * FGraphTrack::PointSizeX;
+	const double AlignedX = FMath::RoundToDouble(Time * Viewport.GetScaleX() / FGraphTrack::PointSizeX) * FGraphTrack::PointSizeX;
 
 	if (AlignedX > PointsCurrentX + FGraphTrack::PointSizeX - 0.5)
 	{
@@ -1236,7 +1199,7 @@ void FGraphTrackBuilder::AddConnectedLine(double Time, double Value)
 		return;
 	}
 
-	if (X >= Viewport.Width)
+	if (X >= Viewport.GetWidth())
 	{
 		if (!bIsLastLineAdded)
 		{
@@ -1321,7 +1284,7 @@ void FGraphTrackBuilder::BeginBoxes()
 void FGraphTrackBuilder::AddBox(double Time, double Duration, double Value)
 {
 	float X1 = Viewport.TimeToSlateUnitsRounded(Time);
-	if (X1 > Viewport.Width)
+	if (X1 > Viewport.GetWidth())
 	{
 		return;
 	}

@@ -139,7 +139,7 @@ struct FNetworkPacketSeries
 class FNetworkPacketSeriesBuilder
 {
 public:
-	FNetworkPacketSeriesBuilder(FNetworkPacketSeries& InSeries, const FPacketSizesViewport& InViewport);
+	explicit FNetworkPacketSeriesBuilder(FNetworkPacketSeries& InSeries, const FPacketSizesViewport& InViewport);
 
 	/**
 	 * Non-copyable
@@ -177,7 +177,7 @@ public:
 	};
 
 public:
-	FPacketSizesViewDrawHelper(const FDrawContext& InDrawContext, const FPacketSizesViewport& InViewport);
+	explicit FPacketSizesViewDrawHelper(const FDrawContext& InDrawContext, const FPacketSizesViewport& InViewport);
 
 	/**
 	 * Non-copyable
@@ -199,9 +199,13 @@ private:
 	const FPacketSizesViewport& Viewport;
 
 	const FSlateBrush* WhiteBrush;
-	const FSlateBrush* BorderBrush;
+	//const FSlateBrush* EventBorderBrush;
+	const FSlateBrush* HoveredEventBorderBrush;
+	const FSlateBrush* SelectedEventBorderBrush;
 
 	// Debug stats.
 	mutable int32 NumPackets;
 	mutable int32 NumDrawSamples;
 };
+
+////////////////////////////////////////////////////////////////////////////////////////////////////

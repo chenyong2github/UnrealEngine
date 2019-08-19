@@ -10,6 +10,7 @@
 #include "HAL/FileManagerGeneric.h"
 #include "Input/Events.h"
 #include "SlateOptMacros.h"
+#include "Styling/CoreStyle.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBorder.h"

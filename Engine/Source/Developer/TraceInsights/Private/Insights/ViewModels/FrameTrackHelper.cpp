@@ -2,9 +2,6 @@
 
 #include "FrameTrackHelper.h"
 
-#include "Brushes/SlateBorderBrush.h"
-#include "Brushes/SlateColorBrush.h"
-#include "EditorStyleSet.h"
 #include "Fonts/FontMeasure.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Framework/Application/SlateApplication.h"
@@ -13,6 +10,8 @@
 
 // Insights
 #include "Insights/Common/PaintUtils.h"
+#include "Insights/InsightsStyle.h"
+#include "Insights/ViewModels/DrawHelpers.h"
 #include "Insights/ViewModels/FrameTrackViewport.h"
 
 #include <limits>
@@ -78,8 +77,8 @@ void FFrameTrackSeriesBuilder::AddFrame(const Trace::FFrame& Frame)
 FFrameTrackDrawHelper::FFrameTrackDrawHelper(const FDrawContext& InDrawContext, const FFrameTrackViewport& InViewport)
 	: DrawContext(InDrawContext)
 	, Viewport(InViewport)
-	, WhiteBrush(FCoreStyle::Get().GetBrush("WhiteBrush"))
-	, BorderBrush(FEditorStyle::GetBrush("PlainBorder"))
+	, WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))
+	, HoveredFrameBorderBrush(FInsightsStyle::Get().GetBrush("HoveredEventBorder"))
 	, NumFrames(0)
 	, NumDrawSamples(0)
 {
@@ -89,48 +88,17 @@ FFrameTrackDrawHelper::FFrameTrackDrawHelper(const FDrawContext& InDrawContext, 
 
 void FFrameTrackDrawHelper::DrawBackground() const
 {
-	const FSlateBrush* AreaBrush = WhiteBrush;
-	const FLinearColor ValidAreaColor(0.07f, 0.07f, 0.07f, 1.0f);
-	const FLinearColor InvalidAreaColor(0.1f, 0.07f, 0.07f, 1.0f);
+	const FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
 
-	const FIndexAxisViewport& ViewportX = Viewport.GetHorizontalAxisViewport();
+	const float X0 = 0.0f;
+	const float X1 = ViewportX.GetMinPos() - ViewportX.GetPos();
+	const float X2 = ViewportX.GetMaxPos() - ViewportX.GetPos();
+	const float X3 = FMath::CeilToFloat(Viewport.GetWidth());
 
-	const float X0 = ViewportX.GetMinPos() - ViewportX.GetPos();
-	const float X1 = ViewportX.GetMaxPos() - ViewportX.GetPos();
-
-	const float W = FMath::CeilToFloat(Viewport.GetWidth());
+	const float Y = 0.0f;
 	const float H = FMath::CeilToFloat(Viewport.GetHeight());
 
-	if (X0 >= W || X1 <= 0.0f)
-	{
-		// Draw invalid area (entire view).
-		DrawContext.DrawBox(0.0f, 0.0f, W, H, AreaBrush, InvalidAreaColor);
-	}
-	else // X0 < W && X1 > 0
-	{
-		if (X0 > 0.0f)
-		{
-			// Draw invalid area (left).
-			DrawContext.DrawBox(0.0f, 0.0f, X0, H, AreaBrush, InvalidAreaColor);
-		}
-
-		if (X1 < W)
-		{
-			// Draw invalid area (right).
-			DrawContext.DrawBox(X1, 0.0f, W - X1, H, AreaBrush, InvalidAreaColor);
-		}
-
-		const float ValidX0 = FMath::Max(X0, 0.0f);
-		const float ValidX1 = FMath::Min(X1, W);
-
-		if (ValidX1 > ValidX0)
-		{
-			// Draw valid area.
-			DrawContext.DrawBox(ValidX0, 0.0f, ValidX1 - ValidX0, H, AreaBrush, ValidAreaColor);
-		}
-	}
-
-	DrawContext.LayerId++;
+	FDrawHelpers::DrawBackground(DrawContext, WhiteBrush, X0, X1, X2, X3, Y, H);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -170,7 +138,7 @@ void FFrameTrackDrawHelper::DrawCached(const FFrameTrackSeries& Series) const
 	const float SampleW = Viewport.GetSampleWidth();
 	const int32 NumSamples = Series.Samples.Num();
 
-	const FValueAxisViewport& ViewportY = Viewport.GetVerticalAxisViewport();
+	const FAxisViewportDouble& ViewportY = Viewport.GetVerticalAxisViewport();
 
 	const float ViewHeight = FMath::RoundToFloat(Viewport.GetHeight());
 	const float BaselineY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(0.0));
@@ -245,7 +213,7 @@ void FFrameTrackDrawHelper::DrawHoveredSample(const FFrameTrackSample& Sample) c
 	const int32 SampleIndex = (Sample.LargestFrameIndex - FirstFrameIndex) / FramesPerSample;
 	const float X = SampleIndex * SampleW;
 
-	const FValueAxisViewport& ViewportY = Viewport.GetVerticalAxisViewport();
+	const FAxisViewportDouble& ViewportY = Viewport.GetVerticalAxisViewport();
 
 	const float ViewHeight = FMath::RoundToFloat(Viewport.GetHeight());
 	const float BaselineY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(0.0));
@@ -263,7 +231,7 @@ void FFrameTrackDrawHelper::DrawHoveredSample(const FFrameTrackSample& Sample) c
 	const float Y = ViewHeight - H;
 
 	const FLinearColor ColorBorder(1.0f, 1.0f, 0.0f, 1.0);
-	DrawContext.DrawBox(X - 1.0f, Y - 1.0f, SampleW + 2.0f, H + 2.0f, BorderBrush, ColorBorder);
+	DrawContext.DrawBox(X - 1.0f, Y - 1.0f, SampleW + 2.0f, H + 2.0f, HoveredFrameBorderBrush, ColorBorder);
 	DrawContext.LayerId++;
 }
 
@@ -289,7 +257,7 @@ void FFrameTrackDrawHelper::DrawHighlightedInterval(const FFrameTrackSeries& Ser
 	{
 		const float SampleW = Viewport.GetSampleWidth();
 		float X1 = Index1 * SampleW;
-		float X2 = Index2 * SampleW;
+		float X2 = (Index2 + 1) * SampleW;
 
 		constexpr float Y1 = 0.0f; // allows 12px for the horizontal scrollbar (one displayed on top of the track)
 		const float Y2 = Viewport.GetHeight();

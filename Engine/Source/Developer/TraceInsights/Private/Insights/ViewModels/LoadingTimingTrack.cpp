@@ -14,6 +14,7 @@
 #include "Insights/ViewModels/TimingEvent.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
 #include "Insights/ViewModels/TimingViewDrawHelper.h"
+#include "Insights/ViewModels/TooltipDrawState.h"
 
 #define LOCTEXT_NAMESPACE "LoadingTimingTrack"
 
@@ -136,110 +137,36 @@ void FLoadingSharedState::SetColorSchema(int32 Schema)
 // FLoadingTimingTrack
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FLoadingTimingTrack::DrawTooltip(FTimingViewTooltip& Tooltip, const FVector2D& MousePosition, const FTimingEvent& HoveredTimingEvent, const FTimingTrackViewport& Viewport, const FDrawContext& DrawContext, const FSlateBrush* WhiteBrush, const FSlateFontInfo& Font) const
+void FLoadingTimingTrack::InitTooltip(FTooltipDrawState& Tooltip, const FTimingEvent& HoveredTimingEvent) const
 {
-	FString EventName(State->GetEventNameEx(HoveredTimingEvent.Depth, HoveredTimingEvent.LoadingInfo));
+	Tooltip.ResetContent();
+
+	Tooltip.AddTitle(State->GetEventNameEx(HoveredTimingEvent.Depth, HoveredTimingEvent.LoadingInfo));
 
 	const Trace::FPackageInfo* Package = HoveredTimingEvent.LoadingInfo.Package;
 	const Trace::FPackageExportInfo* Export = HoveredTimingEvent.LoadingInfo.Export;
 
-	FString PackageName = Package ? Package->Name : TEXT("N/A");
-
-	constexpr float ValueOffsetX = 100.0f;
-	constexpr float MinValueTextWidth = 220.0f;
-
-	// Compute desired tooltip width.
-	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-	const float NameWidth = FontMeasureService->Measure(EventName, Font).X;
-	const float PackageNameWidth = FontMeasureService->Measure(PackageName, Font).X;
-	const float MinWidth1 = NameWidth + 2 * FTimingViewTooltip::BorderX;
-	const float MinWidth2 = ValueOffsetX + FMath::Max(PackageNameWidth, MinValueTextWidth) + 2 * FTimingViewTooltip::BorderX;
-	const float DesiredTooltipWidth = FMath::Max3(MinWidth1, MinWidth2, FTimingViewTooltip::MinWidth);
-
-	constexpr float LineH = 14.0f;
-
-	// Compute desired tooltip height.
-	int32 LineCount = 5;
-	if (Package)
-	{
-		LineCount += 3;
-	}
-	if (Export)
-	{
-		LineCount += 2;
-	}
-	const float MinHeight = LineCount * LineH + 2 * FTimingViewTooltip::BorderY;
-	const float DesiredTooltipHeight = FMath::Max(MinHeight, FTimingViewTooltip::MinHeight);
-
-	Tooltip.Update(MousePosition, DesiredTooltipWidth, DesiredTooltipHeight, Viewport.Width, Viewport.Height);
-
-	const FLinearColor BackgroundColor(0.05f, 0.05f, 0.05f, Tooltip.Opacity);
-	const FLinearColor NameColor(0.9f, 0.9f, 0.5f, Tooltip.Opacity);
-	const FLinearColor TextColor(0.6f, 0.6f, 0.6f, Tooltip.Opacity);
-	const FLinearColor ValueColor(1.0f, 1.0f, 1.0f, Tooltip.Opacity);
-
-	DrawContext.DrawBox(Tooltip.PosX, Tooltip.PosY, Tooltip.Width, Tooltip.Height, WhiteBrush, BackgroundColor);
-	DrawContext.LayerId++;
-
-	const float X = Tooltip.PosX + FTimingViewTooltip::BorderX;
-	const float ValueX = X + ValueOffsetX;
-	float Y = Tooltip.PosY + FTimingViewTooltip::BorderY;
-
-	DrawContext.DrawText(X, Y, EventName, Font, NameColor);
-	Y += LineH;
-
-	DrawContext.DrawText(X, Y, TEXT("Duration:"), Font, TextColor);
-	FString InclStr = TimeUtils::FormatTimeAuto(HoveredTimingEvent.Duration());
-	DrawContext.DrawText(ValueX, Y, InclStr, Font, ValueColor);
-	Y += LineH;
-
-	DrawContext.DrawText(X, Y, TEXT("Depth:"), Font, TextColor);
-	FString DepthStr = FString::Printf(TEXT("%d"), HoveredTimingEvent.Depth);
-	DrawContext.DrawText(ValueX, Y, DepthStr, Font, ValueColor);
-	Y += LineH;
-
-	DrawContext.DrawText(X, Y, TEXT("Package Event:"), Font, TextColor);
-	DrawContext.DrawText(ValueX, Y, ::GetName(HoveredTimingEvent.LoadingInfo.PackageEventType), Font, ValueColor);
-	Y += LineH;
+	Tooltip.AddNameValueTextLine(TEXT("Duration:"), TimeUtils::FormatTimeAuto(HoveredTimingEvent.Duration()));
+	Tooltip.AddNameValueTextLine(TEXT("Depth:"), FString::Printf(TEXT("%d"), HoveredTimingEvent.Depth));
+	Tooltip.AddNameValueTextLine(TEXT("Package Event:"), ::GetName(HoveredTimingEvent.LoadingInfo.PackageEventType));
 
 	if (Package)
 	{
-		DrawContext.DrawText(X, Y, TEXT("Package Name:"), Font, TextColor);
-		DrawContext.DrawText(ValueX, Y, PackageName, Font, ValueColor);
-		Y += LineH;
-
-		DrawContext.DrawText(X, Y, TEXT("Header Size:"), Font, TextColor);
-		FString HeaderSizeStr = FString::Printf(TEXT("%d bytes"), Package->Summary.TotalHeaderSize);
-		DrawContext.DrawText(ValueX, Y, HeaderSizeStr, Font, ValueColor);
-		Y += LineH;
-
-		DrawContext.DrawText(X, Y, TEXT("Package Summary:"), Font, TextColor);
-		FString SummaryStr = FString::Printf(TEXT("%d names, %d imports, %d exports"), Package->Summary.NameCount, Package->Summary.ImportCount, Package->Summary.ExportCount);
-		DrawContext.DrawText(ValueX, Y, SummaryStr, Font, ValueColor);
-		Y += LineH;
+		Tooltip.AddNameValueTextLine(TEXT("Package Name:"), Package->Name);
+		Tooltip.AddNameValueTextLine(TEXT("Header Size:"), FString::Printf(TEXT("%s bytes"), *FText::AsNumber(Package->Summary.TotalHeaderSize).ToString()));
+		Tooltip.AddNameValueTextLine(TEXT("Package Summary:"), FString::Printf(TEXT("%d names, %d imports, %d exports"), Package->Summary.NameCount, Package->Summary.ImportCount, Package->Summary.ExportCount));
 	}
 
-	{
-		DrawContext.DrawText(X, Y, TEXT("Export Event:"), Font, TextColor);
-		FString ExportTypeStr = FString::Printf(TEXT("%s%s"), ::GetName(HoveredTimingEvent.LoadingInfo.ExportEventType), Export && Export->IsAsset ? TEXT(" [asset]") : TEXT(""));
-		DrawContext.DrawText(ValueX, Y, ExportTypeStr, Font, ValueColor);
-		Y += LineH;
-	}
+	Tooltip.AddNameValueTextLine(TEXT("Export Event:"), FString::Printf(TEXT("%s%s"), ::GetName(HoveredTimingEvent.LoadingInfo.ExportEventType), Export && Export->IsAsset ? TEXT(" [asset]") : TEXT("")));
 
 	if (Export)
 	{
-		DrawContext.DrawText(X, Y, TEXT("Export Class:"), Font, TextColor);
-		FString ClassStr = FString::Printf(TEXT("%s"), Export->Class ? Export->Class->Name : TEXT("N/A"));
-		DrawContext.DrawText(ValueX, Y, ClassStr, Font, ValueColor);
-		Y += LineH;
-
-		DrawContext.DrawText(X, Y, TEXT("Serial:"), Font, TextColor);
-		FString SerialStr = FString::Printf(TEXT("Offset: %llu, Size: %llu%s"), Export->SerialOffset, Export->SerialSize);
-		DrawContext.DrawText(ValueX, Y, SerialStr, Font, ValueColor);
-		Y += LineH;
+		Tooltip.AddNameValueTextLine(TEXT("Export Class:"), Export->Class ? Export->Class->Name : TEXT("N/A"));
+		Tooltip.AddNameValueTextLine(TEXT("Serial Offset:"), FString::Printf(TEXT("%s bytes"), *FText::AsNumber(Export->SerialOffset).ToString()));
+		Tooltip.AddNameValueTextLine(TEXT("Serial Size:"), FString::Printf(TEXT("%s bytes"), *FText::AsNumber(Export->SerialSize).ToString()));
 	}
 
-	DrawContext.LayerId++;
+	Tooltip.UpdateLayout();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -314,8 +241,8 @@ void FLoadingMainThreadTimingTrack::Draw(FTimingViewDrawHelper& Helper) const
 			{
 				if (FTimingEventsTrack::bUseDownSampling)
 				{
-					const double SecondsPerPixel = 1.0 / Helper.GetViewport().ScaleX;
-					Timeline.EnumerateEventsDownSampled(Helper.GetViewport().StartTime, Helper.GetViewport().EndTime, SecondsPerPixel, [this, &Helper](double StartTime, double EndTime, uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event)
+					const double SecondsPerPixel = 1.0 / Helper.GetViewport().GetScaleX();
+					Timeline.EnumerateEventsDownSampled(Helper.GetViewport().GetStartTime(), Helper.GetViewport().GetEndTime(), SecondsPerPixel, [this, &Helper](double StartTime, double EndTime, uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event)
 					{
 						const TCHAR* Name = State->GetEventNameEx(Depth, Event);
 						Helper.AddEvent(StartTime, EndTime, Depth, Name);
@@ -323,7 +250,7 @@ void FLoadingMainThreadTimingTrack::Draw(FTimingViewDrawHelper& Helper) const
 				}
 				else
 				{
-					Timeline.EnumerateEvents(Helper.GetViewport().StartTime, Helper.GetViewport().EndTime, [this, &Helper](double StartTime, double EndTime, uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event)
+					Timeline.EnumerateEvents(Helper.GetViewport().GetStartTime(), Helper.GetViewport().GetEndTime(), [this, &Helper](double StartTime, double EndTime, uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event)
 					{
 						const TCHAR* Name = State->GetEventNameEx(Depth, Event);
 						Helper.AddEvent(StartTime, EndTime, Depth, Name);
@@ -392,8 +319,8 @@ void FLoadingAsyncThreadTimingTrack::Draw(FTimingViewDrawHelper& Helper) const
 			{
 				if (FTimingEventsTrack::bUseDownSampling)
 				{
-					const double SecondsPerPixel = 1.0 / Helper.GetViewport().ScaleX;
-					Timeline.EnumerateEventsDownSampled(Helper.GetViewport().StartTime, Helper.GetViewport().EndTime, SecondsPerPixel, [this, &Helper](double StartTime, double EndTime, uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event)
+					const double SecondsPerPixel = 1.0 / Helper.GetViewport().GetScaleX();
+					Timeline.EnumerateEventsDownSampled(Helper.GetViewport().GetStartTime(), Helper.GetViewport().GetEndTime(), SecondsPerPixel, [this, &Helper](double StartTime, double EndTime, uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event)
 					{
 						const TCHAR* Name = State->GetEventNameEx(Depth, Event);
 						Helper.AddEvent(StartTime, EndTime, Depth, Name);
@@ -401,7 +328,7 @@ void FLoadingAsyncThreadTimingTrack::Draw(FTimingViewDrawHelper& Helper) const
 				}
 				else
 				{
-					Timeline.EnumerateEvents(Helper.GetViewport().StartTime, Helper.GetViewport().EndTime, [this, &Helper](double StartTime, double EndTime, uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event)
+					Timeline.EnumerateEvents(Helper.GetViewport().GetStartTime(), Helper.GetViewport().GetEndTime(), [this, &Helper](double StartTime, double EndTime, uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event)
 					{
 						const TCHAR* Name = State->GetEventNameEx(Depth, Event);
 						Helper.AddEvent(StartTime, EndTime, Depth, Name);

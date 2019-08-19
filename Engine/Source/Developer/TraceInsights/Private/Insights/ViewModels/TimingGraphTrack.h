@@ -34,7 +34,7 @@ public:
 class FTimingGraphTrack : public FGraphTrack
 {
 public:
-	FTimingGraphTrack(uint64 InTrackId);
+	explicit FTimingGraphTrack(uint64 InTrackId);
 	virtual ~FTimingGraphTrack();
 
 	virtual void Update(const FTimingTrackViewport& Viewport) override;

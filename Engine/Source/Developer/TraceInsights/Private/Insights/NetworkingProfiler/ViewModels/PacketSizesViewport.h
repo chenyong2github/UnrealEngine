@@ -5,9 +5,8 @@
 #include "CoreMinimal.h"
 
 // Insights
-#include "Insights/ViewModels/FrameTrackViewport.h"
-//#include "Insights/ViewModels/IndexAxisViewport.h"
-//#include "Insights/ViewModels/ValueAxisViewport.h"
+#include "Insights/ViewModels/AxisViewportInt32.h"
+#include "Insights/ViewModels/AxisViewportDouble.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -28,11 +27,11 @@ public:
 		VerticalAxisViewport.Reset();
 	}
 
-	const FIndexAxisViewport& GetHorizontalAxisViewport() const { return HorizontalAxisViewport; }
-	FIndexAxisViewport& GetHorizontalAxisViewport() { return HorizontalAxisViewport; }
+	const FAxisViewportInt32& GetHorizontalAxisViewport() const { return HorizontalAxisViewport; }
+	FAxisViewportInt32& GetHorizontalAxisViewport() { return HorizontalAxisViewport; }
 
-	const FValueAxisViewport& GetVerticalAxisViewport() const { return VerticalAxisViewport; }
-	FValueAxisViewport& GetVerticalAxisViewport() { return VerticalAxisViewport; }
+	const FAxisViewportDouble& GetVerticalAxisViewport() const { return VerticalAxisViewport; }
+	FAxisViewportDouble& GetVerticalAxisViewport() { return VerticalAxisViewport; }
 
 	float GetWidth() const { return HorizontalAxisViewport.GetSize(); }
 	float GetHeight() const { return VerticalAxisViewport.GetSize(); }
@@ -50,8 +49,8 @@ public:
 	}
 
 	float GetSampleWidth() const { return HorizontalAxisViewport.GetSampleSize(); }
-	int32 GetNumPacketsPerSample() const { return HorizontalAxisViewport.GetNumIndicesPerSample(); }
-	int32 GetFirstFrameIndex() const { return HorizontalAxisViewport.GetIndexAtOffset(0.0f); }
+	int32 GetNumPacketsPerSample() const { return HorizontalAxisViewport.GetNumSamplesPerPixel(); }
+	int32 GetFirstFrameIndex() const { return HorizontalAxisViewport.GetValueAtOffset(0.0f); }
 
 private:
 	void OnSizeChanged()
@@ -59,8 +58,8 @@ private:
 	}
 
 private:
-	FIndexAxisViewport HorizontalAxisViewport;
-	FValueAxisViewport VerticalAxisViewport;
+	FAxisViewportInt32 HorizontalAxisViewport;
+	FAxisViewportDouble VerticalAxisViewport;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

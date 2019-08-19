@@ -44,7 +44,7 @@ class FMarkersTimingTrack : public FBaseTimingTrack
 	friend class FTimeMarkerTrackBuilder;
 
 public:
-	FMarkersTimingTrack(uint64 InTrackId);
+	explicit FMarkersTimingTrack(uint64 InTrackId);
 	virtual ~FMarkersTimingTrack();
 
 	virtual void Reset() override;
@@ -106,7 +106,7 @@ private:
 class FTimeMarkerTrackBuilder
 {
 public:
-	FTimeMarkerTrackBuilder(FMarkersTimingTrack& InTrack, const FTimingTrackViewport& InViewport);
+	explicit FTimeMarkerTrackBuilder(FMarkersTimingTrack& InTrack, const FTimingTrackViewport& InViewport);
 
 	/**
 	 * Non-copyable

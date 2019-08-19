@@ -3,14 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EditorStyleSet.h"
-#include "SlateOptMacros.h"
-#include "TraceServices/AnalysisService.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Layout/SGridPanel.h"
-#include "Widgets/Layout/SSeparator.h"
-#include "Widgets/SToolTip.h"
-#include "Widgets/Text/STextBlock.h"
+
+class SToolTip;
+class SGridPanel;
 
 namespace Insights
 {

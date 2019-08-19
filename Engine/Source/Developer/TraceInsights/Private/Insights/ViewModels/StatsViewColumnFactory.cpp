@@ -112,7 +112,7 @@ FStatsViewColumnFactory::FStatsViewColumnFactory()
 		[](const FStatsViewColumn& Column, const FStatsNode& StatsNode) -> FText
 		{ return StatsNodeTypeHelper::ToName(StatsNode.GetType()); }
 	));
-		
+
 	//////////////////////////////////////////////////
 
 	const EStatsViewColumnFlags AggregatedStatsColumnFlags = EStatsViewColumnFlags::CanBeHidden |

@@ -2,8 +2,6 @@
 
 #include "TreeNodeGrouping.h"
 
-#include "EditorStyleSet.h"
-
 #define LOCTEXT_NAMESPACE "Insights_TreeNode"
 
 namespace Insights

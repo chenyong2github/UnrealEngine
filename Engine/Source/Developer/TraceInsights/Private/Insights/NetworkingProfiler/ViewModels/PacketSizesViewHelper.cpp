@@ -2,18 +2,15 @@
 
 #include "PacketSizesViewHelper.h"
 
-#include "Brushes/SlateBorderBrush.h"
-#include "Brushes/SlateColorBrush.h"
-#include "EditorStyleSet.h"
-#include "Fonts/FontMeasure.h"
-#include "Fonts/SlateFontInfo.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Rendering/DrawElements.h"
 #include "TraceServices/AnalysisService.h"
 
 // Insights
 #include "Insights/Common/PaintUtils.h"
+#include "Insights/InsightsStyle.h"
 #include "Insights/NetworkingProfiler/ViewModels/PacketSizesViewport.h"
+#include "Insights/ViewModels/DrawHelpers.h"
 
 #include <limits>
 
@@ -83,8 +80,10 @@ void FNetworkPacketSeriesBuilder::AddPacket(int32 FrameIndex, int64 Size, double
 FPacketSizesViewDrawHelper::FPacketSizesViewDrawHelper(const FDrawContext& InDrawContext, const FPacketSizesViewport& InViewport)
 	: DrawContext(InDrawContext)
 	, Viewport(InViewport)
-	, WhiteBrush(FCoreStyle::Get().GetBrush("WhiteBrush"))
-	, BorderBrush(FEditorStyle::GetBrush("PlainBorder"))
+	, WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))
+	//, EventBorderBrush(FInsightsStyle::Get().GetBrush("EventBorder"))
+	, HoveredEventBorderBrush(FInsightsStyle::Get().GetBrush("HoveredEventBorder"))
+	, SelectedEventBorderBrush(FInsightsStyle::Get().GetBrush("SelectedEventBorder"))
 	, NumPackets(0)
 	, NumDrawSamples(0)
 {
@@ -94,48 +93,17 @@ FPacketSizesViewDrawHelper::FPacketSizesViewDrawHelper(const FDrawContext& InDra
 
 void FPacketSizesViewDrawHelper::DrawBackground() const
 {
-	const FSlateBrush* AreaBrush = WhiteBrush;
-	const FLinearColor ValidAreaColor(0.07f, 0.07f, 0.07f, 1.0f);
-	const FLinearColor InvalidAreaColor(0.1f, 0.07f, 0.07f, 1.0f);
+	const FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
 
-	const FIndexAxisViewport& ViewportX = Viewport.GetHorizontalAxisViewport();
+	const float X0 = 0.0f;
+	const float X1 = ViewportX.GetMinPos() - ViewportX.GetPos();
+	const float X2 = ViewportX.GetMaxPos() - ViewportX.GetPos();
+	const float X3 = FMath::CeilToFloat(Viewport.GetWidth());
 
-	const float X0 = ViewportX.GetMinPos() - ViewportX.GetPos();
-	const float X1 = ViewportX.GetMaxPos() - ViewportX.GetPos();
-
-	const float W = FMath::CeilToFloat(Viewport.GetWidth());
+	const float Y = 0.0f;
 	const float H = FMath::CeilToFloat(Viewport.GetHeight());
 
-	if (X0 >= W || X1 <= 0.0f)
-	{
-		// Draw invalid area (entire view).
-		DrawContext.DrawBox(0.0f, 0.0f, W, H, AreaBrush, InvalidAreaColor);
-	}
-	else // X0 < W && X1 > 0
-	{
-		if (X0 > 0.0f)
-		{
-			// Draw invalid area (left).
-			DrawContext.DrawBox(0.0f, 0.0f, X0, H, AreaBrush, InvalidAreaColor);
-		}
-
-		if (X1 < W)
-		{
-			// Draw invalid area (right).
-			DrawContext.DrawBox(X1, 0.0f, W - X1, H, AreaBrush, InvalidAreaColor);
-		}
-
-		const float ValidX0 = FMath::Max(X0, 0.0f);
-		const float ValidX1 = FMath::Min(X1, W);
-
-		if (ValidX1 > ValidX0)
-		{
-			// Draw valid area.
-			DrawContext.DrawBox(ValidX0, 0.0f, ValidX1 - ValidX0, H, AreaBrush, ValidAreaColor);
-		}
-	}
-
-	DrawContext.LayerId++;
+	FDrawHelpers::DrawBackground(DrawContext, WhiteBrush, X0, X1, X2, X3, Y, H);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -176,7 +144,7 @@ void FPacketSizesViewDrawHelper::DrawCached(const FNetworkPacketSeries& Series) 
 	const float SampleW = Viewport.GetSampleWidth();
 	const int32 NumSamples = Series.Samples.Num();
 
-	const FValueAxisViewport& ViewportY = Viewport.GetVerticalAxisViewport();
+	const FAxisViewportDouble& ViewportY = Viewport.GetVerticalAxisViewport();
 
 	const float ViewHeight = FMath::RoundToFloat(Viewport.GetHeight());
 	const float BaselineY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(0.0));
@@ -230,7 +198,7 @@ void FPacketSizesViewDrawHelper::DrawSampleHighlight(const FNetworkPacketAggrega
 	const int32 SampleIndex = (Sample.LargestPacket.FrameIndex - FirstFrameIndex) / PacketsPerSample;
 	const float X = SampleIndex * SampleW;
 
-	const FValueAxisViewport& ViewportY = Viewport.GetVerticalAxisViewport();
+	const FAxisViewportDouble& ViewportY = Viewport.GetVerticalAxisViewport();
 
 	const float ViewHeight = FMath::RoundToFloat(Viewport.GetHeight());
 	const float BaselineY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(0.0));
@@ -241,17 +209,13 @@ void FPacketSizesViewDrawHelper::DrawSampleHighlight(const FNetworkPacketAggrega
 
 	if (Mode == EHighlightMode::Hovered)
 	{
-		const FSlateBrush* HighlightBrush = BorderBrush;
-
 		const FLinearColor Color(1.0f, 1.0f, 0.0f, 1.0f); // yellow
 
 		// Draw border around the timing event box.
-		DrawContext.DrawBox(X - 1.0f, Y - 1.0f, SampleW + 2.0f, H + 2.0f, HighlightBrush, Color);
+		DrawContext.DrawBox(X - 1.0f, Y - 1.0f, SampleW + 2.0f, H + 2.0f, HoveredEventBorderBrush, Color);
 	}
 	else // EHighlightMode::Selected or EHighlightMode::SelectedAndHovered
 	{
-		const FSlateBrush* SelectedBrush = BorderBrush;
-
 		// Animate color from white (if selected and hovered) or yellow (if only selected) to black, using a squared sine function.
 		const double Time = static_cast<double>(FPlatformTime::Cycles64()) * FPlatformTime::GetSecondsPerCycle64();
 		float S = FMath::Sin(2.0 * Time);
@@ -260,7 +224,7 @@ void FPacketSizesViewDrawHelper::DrawSampleHighlight(const FNetworkPacketAggrega
 		const FLinearColor Color(S, S, Blue, 1.0f);
 
 		// Draw border around the timing event box.
-		DrawContext.DrawBox(X - 1.0f, Y - 1.0f, SampleW + 2.0f, H + 2.0f, SelectedBrush, Color);
+		DrawContext.DrawBox(X - 1.0f, Y - 1.0f, SampleW + 2.0f, H + 2.0f, SelectedEventBorderBrush, Color);
 	}
 	DrawContext.LayerId++;
 }

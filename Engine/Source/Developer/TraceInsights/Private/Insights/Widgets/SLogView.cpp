@@ -17,6 +17,7 @@
 // Insights
 #include "Insights/Common/TimeUtils.h"
 #include "Insights/InsightsManager.h"
+#include "Insights/InsightsStyle.h"
 #include "Insights/TimingProfilerCommon.h"
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/ViewModels/TimingViewDrawHelper.h"
@@ -26,7 +27,6 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #define LOCTEXT_NAMESPACE "SLogView"
-
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // SLogMessageRow
@@ -57,7 +57,7 @@ public:
 		ChildSlot
 		[
 			SNew(SBorder)
-				.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+				.BorderImage(FInsightsStyle::Get().GetBrush("WhiteBrush"))
 				.BorderBackgroundColor(this, &SLogMessageRow::GetBackgroundColor)
 				[
 					Row

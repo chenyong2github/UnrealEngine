@@ -230,22 +230,23 @@ void SNetworkingProfilerWindow::Construct(const FArguments& InArgs, const TShare
 			->Split
 			(
 				FTabManager::NewStack()
-				->SetSizeCoefficient(0.33f)
+				->SetSizeCoefficient(0.35f)
 				->SetHideTabWell(true)
 				->AddTab(FNetworkingProfilerTabs::PacketSizesViewID, NetworkingProfilerManager->IsPacketSizesViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
 			)
 			->Split
 			(
 				FTabManager::NewStack()
-				->SetSizeCoefficient(0.33f)
+				->SetSizeCoefficient(0.65f)
+				->SetHideTabWell(true)
 				->AddTab(FNetworkingProfilerTabs::PacketBreakdownViewID, NetworkingProfilerManager->IsPacketBreakdownViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
 			)
-			->Split
-			(
-				FTabManager::NewStack()
-				->SetSizeCoefficient(0.33f)
-				->AddTab(FNetworkingProfilerTabs::DataStreamBreakdownViewID, NetworkingProfilerManager->IsDataStreamBreakdownViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
-			)
+			//->Split
+			//(
+			//	FTabManager::NewStack()
+			//	->SetSizeCoefficient(0.33f)
+			//	->AddTab(FNetworkingProfilerTabs::DataStreamBreakdownViewID, NetworkingProfilerManager->IsDataStreamBreakdownViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
+			//)
 		);
 
 	// Create & initialize main menu.

@@ -174,6 +174,8 @@ FTimingGraphTrack::~FTimingGraphTrack()
 
 void FTimingGraphTrack::Update(const FTimingTrackViewport& Viewport)
 {
+	FGraphTrack::Update(Viewport);
+
 	const bool bIsEntireGraphTrackDirty = IsDirty();
 	bool bNeedsUpdate = bIsEntireGraphTrackDirty;
 
@@ -272,7 +274,7 @@ void FTimingGraphTrack::UpdateStatsCounterSeries(FTimingGraphSeries& Series, con
 
 				if (Counter.IsFloatingPoint())
 				{
-					Counter.EnumerateFloatValues(Viewport.StartTime, Viewport.EndTime, [&Builder, &MinValue, &MaxValue](double Time, double Value)
+					Counter.EnumerateFloatValues(Viewport.GetStartTime(), Viewport.GetEndTime(), [&Builder, &MinValue, &MaxValue](double Time, double Value)
 					{
 						if (Value < MinValue)
 						{
@@ -286,7 +288,7 @@ void FTimingGraphTrack::UpdateStatsCounterSeries(FTimingGraphSeries& Series, con
 				}
 				else
 				{
-					Counter.EnumerateValues(Viewport.StartTime, Viewport.EndTime, [&Builder, &MinValue, &MaxValue](double Time, int64 IntValue)
+					Counter.EnumerateValues(Viewport.GetStartTime(), Viewport.GetEndTime(), [&Builder, &MinValue, &MaxValue](double Time, int64 IntValue)
 					{
 						const double Value = static_cast<double>(IntValue);
 						if (Value < MinValue)
@@ -350,7 +352,7 @@ void FTimingGraphTrack::UpdateStatsCounterSeries(FTimingGraphSeries& Series, con
 
 			if (Counter.IsFloatingPoint())
 			{
-				Counter.EnumerateFloatValues(Viewport.StartTime, Viewport.EndTime, [&Builder](double Time, double Value)
+				Counter.EnumerateFloatValues(Viewport.GetStartTime(), Viewport.GetEndTime(), [&Builder](double Time, double Value)
 				{
 					//TODO: add a "value unit converter"
 					Builder.AddEvent(Time, 0.0, Value);
@@ -358,7 +360,7 @@ void FTimingGraphTrack::UpdateStatsCounterSeries(FTimingGraphSeries& Series, con
 			}
 			else
 			{
-				Counter.EnumerateValues(Viewport.StartTime, Viewport.EndTime, [&Builder](double Time, int64 IntValue)
+				Counter.EnumerateValues(Viewport.GetStartTime(), Viewport.GetEndTime(), [&Builder](double Time, int64 IntValue)
 				{
 					//TODO: add a "value unit converter"
 					Builder.AddEvent(Time, 0.0, static_cast<double>(IntValue));

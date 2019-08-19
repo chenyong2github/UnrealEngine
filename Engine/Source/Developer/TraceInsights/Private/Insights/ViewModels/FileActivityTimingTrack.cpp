@@ -16,6 +16,7 @@
 #include "Insights/ViewModels/TimingEvent.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
 #include "Insights/ViewModels/TimingViewDrawHelper.h"
+#include "Insights/ViewModels/TooltipDrawState.h"
 
 #include <limits>
 
@@ -393,43 +394,13 @@ void FFileActivitySharedState::Update()
 // FFileActivityTimingTrack
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FFileActivityTimingTrack::DrawTooltip(FTimingViewTooltip& Tooltip, const FVector2D& MousePosition, const FTimingEvent& HoveredTimingEvent, const FTimingTrackViewport& Viewport, const FDrawContext& DrawContext, const FSlateBrush* WhiteBrush, const FSlateFontInfo& Font) const
+void FFileActivityTimingTrack::InitTooltip(FTooltipDrawState& Tooltip, const FTimingEvent& HoveredTimingEvent) const
 {
+	Tooltip.ResetContent();
+
 	const Trace::EFileActivityType ActivityType = static_cast<Trace::EFileActivityType>(HoveredTimingEvent.TypeId & 0x0F);
 	const bool bHasFailed = ((HoveredTimingEvent.TypeId & 0xF0) != 0);
-
-	FString FilePath(HoveredTimingEvent.Path);
-
-	constexpr float ValueOffsetX = 50.0f;
-	constexpr float MinValueTextWidth = 220.0f;
-
-	// Compute desired tooltip width.
-	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-	const float MinWidth1 = FontMeasureService->Measure(FilePath, Font).X + 2 * FTimingViewTooltip::BorderX;
-	const float MinWidth2 = ValueOffsetX + MinValueTextWidth + 2 * FTimingViewTooltip::BorderX;
-	const float DesiredTooltipWidth = FMath::Max3(MinWidth1, MinWidth2, FTimingViewTooltip::MinWidth);
-
-	constexpr float LineH = 14.0f;
-
-	// Compute desired tooltip height.
-	const int32 LineCount = (ActivityType == Trace::FileActivityType_Read || ActivityType == Trace::FileActivityType_Write) ? 6 : 4;
-	const float MinHeight = LineCount * LineH + 2 * FTimingViewTooltip::BorderY;
-	const float DesiredTooltipHeight = FMath::Max(MinHeight, FTimingViewTooltip::MinHeight);
-
-	Tooltip.Update(MousePosition, DesiredTooltipWidth, DesiredTooltipHeight, Viewport.Width, Viewport.Height);
-
-	const FLinearColor BackgroundColor(0.05f, 0.05f, 0.05f, Tooltip.Opacity);
-	const FLinearColor NameColor(0.9f, 0.9f, 0.5f, Tooltip.Opacity);
-	const FLinearColor TextColor(0.6f, 0.6f, 0.6f, Tooltip.Opacity);
-	const FLinearColor ValueColor(1.0f, 1.0f, 1.0f, Tooltip.Opacity);
-
-	DrawContext.DrawBox(Tooltip.PosX, Tooltip.PosY, Tooltip.Width, Tooltip.Height, WhiteBrush, BackgroundColor);
-	DrawContext.LayerId++;
-
-	const float X = Tooltip.PosX + FTimingViewTooltip::BorderX;
-	const float ValueX = X + ValueOffsetX;
-	float Y = Tooltip.PosY + FTimingViewTooltip::BorderY;
-
+	
 	FString TypeStr;
 	uint32 TypeColor;
 	if (bHasFailed)
@@ -447,37 +418,20 @@ void FFileActivityTimingTrack::DrawTooltip(FTimingViewTooltip& Tooltip, const FV
 	TypeLinearColor.R *= 2.0f;
 	TypeLinearColor.G *= 2.0f;
 	TypeLinearColor.B *= 2.0f;
-	DrawContext.DrawText(X, Y, TypeStr, Font, TypeLinearColor);
-	Y += LineH;
+	Tooltip.AddTitle(TypeStr, TypeLinearColor);
 
-	DrawContext.DrawText(X, Y, FilePath, Font, NameColor);
-	Y += LineH;
+	Tooltip.AddTitle(HoveredTimingEvent.Path);
 
-	DrawContext.DrawText(X, Y, TEXT("Duration:"), Font, TextColor);
-	FString DurationStr = TimeUtils::FormatTimeAuto(HoveredTimingEvent.Duration());
-	DrawContext.DrawText(ValueX, Y, DurationStr, Font, ValueColor);
-	Y += LineH;
-
-	DrawContext.DrawText(X, Y, TEXT("Depth:"), Font, TextColor);
-	FString DepthStr = FString::Printf(TEXT("%d"), HoveredTimingEvent.Depth);
-	DrawContext.DrawText(ValueX, Y, DepthStr, Font, ValueColor);
-	Y += LineH;
+	Tooltip.AddNameValueTextLine(TEXT("Duration:"), TimeUtils::FormatTimeAuto(HoveredTimingEvent.Duration()));
+	Tooltip.AddNameValueTextLine(TEXT("Depth:"), FString::Printf(TEXT("%d"), HoveredTimingEvent.Depth));
 
 	if (ActivityType == Trace::FileActivityType_Read || ActivityType == Trace::FileActivityType_Write)
 	{
-		DrawContext.DrawText(X, Y, TEXT("Offset:"), Font, TextColor);
-		FString OffsetStr = FText::AsNumber(HoveredTimingEvent.Offset).ToString();
-		DrawContext.DrawText(ValueX, Y, OffsetStr, Font, ValueColor);
-		Y += LineH;
-
-		DrawContext.DrawText(X, Y, TEXT("Size:"), Font, TextColor);
-		FString SizeStr = FText::AsNumber(HoveredTimingEvent.Size).ToString();
-		SizeStr += TEXT(" bytes");
-		DrawContext.DrawText(ValueX, Y, SizeStr, Font, ValueColor);
-		Y += LineH;
+		Tooltip.AddNameValueTextLine(TEXT("Offset:"), FText::AsNumber(HoveredTimingEvent.Offset).ToString() + TEXT(" bytes"));
+		Tooltip.AddNameValueTextLine(TEXT("Size:"), FText::AsNumber(HoveredTimingEvent.Size).ToString() + TEXT(" bytes"));
 	}
 
-	DrawContext.LayerId++;
+	Tooltip.UpdateLayout();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -590,11 +544,11 @@ void FOverviewFileActivityTimingTrack::Draw(FTimingViewDrawHelper& Helper) const
 			//const double EventEndTime = Event.EndTime; // keep duration of events
 			const double EventEndTime = Event.StartTime; // make all 0 duration events
 
-			if (EventEndTime <= Helper.GetViewport().StartTime)
+			if (EventEndTime <= Helper.GetViewport().GetStartTime())
 			{
 				continue;
 			}
-			if (Event.StartTime >= Helper.GetViewport().EndTime)
+			if (Event.StartTime >= Helper.GetViewport().GetEndTime())
 			{
 				break;
 			}
@@ -636,11 +590,11 @@ void FDetailedFileActivityTimingTrack::Draw(FTimingViewDrawHelper& Helper) const
 		{
 			for (const TSharedPtr<FFileActivitySharedState::FIoFileActivity> Activity : State->FileActivities)
 			{
-				if (Activity->EndTime <= Helper.GetViewport().StartTime)
+				if (Activity->EndTime <= Helper.GetViewport().GetStartTime())
 				{
 					continue;
 				}
-				if (Activity->StartTime >= Helper.GetViewport().EndTime)
+				if (Activity->StartTime >= Helper.GetViewport().GetEndTime())
 				{
 					break;
 				}
@@ -654,11 +608,11 @@ void FDetailedFileActivityTimingTrack::Draw(FTimingViewDrawHelper& Helper) const
 		// Draw IO file activity foreground events.
 		for (const FFileActivitySharedState::FIoTimingEvent& Event : State->AllIoEvents)
 		{
-			if (Event.EndTime <= Helper.GetViewport().StartTime)
+			if (Event.EndTime <= Helper.GetViewport().GetStartTime())
 			{
 				continue;
 			}
-			if (Event.StartTime >= Helper.GetViewport().EndTime)
+			if (Event.StartTime >= Helper.GetViewport().GetEndTime())
 			{
 				break;
 			}

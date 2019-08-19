@@ -2,15 +2,17 @@
 
 #include "TimeRulerTrack.h"
 
-#include "Brushes/SlateColorBrush.h"
 #include "Fonts/FontMeasure.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Rendering/DrawElements.h"
+#include "Styling/CoreStyle.h"
 
 // Insights
 #include "Insights/Common/PaintUtils.h"
 #include "Insights/Common/TimeUtils.h"
+#include "Insights/InsightsStyle.h"
+#include "Insights/ViewModels/DrawHelpers.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
 
 #define LOCTEXT_NAMESPACE "TimeRulerTrack"
@@ -19,7 +21,7 @@
 
 FTimeRulerTrack::FTimeRulerTrack(uint64 InTrackId)
 	: FBaseTimingTrack(InTrackId)
-	, WhiteBrush(FCoreStyle::Get().GetBrush("WhiteBrush"))
+	, WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))
 	, Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
 {
 }
@@ -62,58 +64,7 @@ void FTimeRulerTrack::UpdateHoveredState(float MouseX, float MouseY, const FTimi
 
 void FTimeRulerTrack::DrawBackground(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport) const
 {
-	const FLinearColor ValidAreaColor(0.07f, 0.07f, 0.07f, 1.0f);
-	const FLinearColor InvalidAreaColor(0.1f, 0.07f, 0.07f, 1.0f);
-	const FLinearColor StartEndMarkerColor(0.05f, 0.05f, 0.05f, 1.0f);
-
-	const float X0 = Viewport.TimeToSlateUnitsRounded(0.0);
-	const float X1 = Viewport.TimeToSlateUnitsRounded(Viewport.MaxValidTime);
-	const float W = FMath::CeilToFloat(Viewport.Width);
-
-	const float Y = GetPosY();
-	const float H = GetHeight();
-
-	if (X0 >= W || X1 <= 0.0f)
-	{
-		// Draw invalid area (entire view).
-		DrawContext.DrawBox(0.0f, Y, W, H, WhiteBrush, InvalidAreaColor);
-	}
-	else // X0 < W && X1 > 0
-	{
-		if (X0 > 0.0f)
-		{
-			// Draw invalid area (left).
-			DrawContext.DrawBox(0.0f, Y, X0, H, WhiteBrush, InvalidAreaColor);
-		}
-
-		if (X1 < W)
-		{
-			// Draw invalid area (right).
-			DrawContext.DrawBox(X1 + 1.0f, Y, W - X1 - 1.0f, H, WhiteBrush, InvalidAreaColor);
-
-			// Draw the end time marker.
-			DrawContext.DrawBox(X1, Y, 1.0f, H, WhiteBrush, StartEndMarkerColor);
-		}
-
-		float ValidX0 = FMath::Max(X0, 0.0f);
-		float ValidX1 = FMath::Min(X1, W);
-
-		if (X0 >= 0.0f)
-		{
-			// Draw the start time marker.
-			DrawContext.DrawBox(X0, Y, 1.0f, H, WhiteBrush, StartEndMarkerColor);
-
-			ValidX0 += 1.0f; // to not overlap the start time marker
-		}
-
-		if (ValidX1 > ValidX0)
-		{
-			// Draw valid area.
-			DrawContext.DrawBox(ValidX0, Y, ValidX1 - ValidX0, H, WhiteBrush, ValidAreaColor);
-		}
-	}
-
-	DrawContext.LayerId++;
+	FDrawHelpers::DrawBackground(DrawContext, WhiteBrush, Viewport, GetPosY(), GetHeight());
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -131,7 +82,7 @@ void FTimeRulerTrack::Draw(FDrawContext& DrawContext, const FTimingTrackViewport
 	double MinorTickMarkTime = Viewport.GetDurationForViewportDX(MinorTickMark);
 	double MajorTickMarkTime = Viewport.GetDurationForViewportDX(MajorTickMark);
 
-	double VX = Viewport.StartTime * Viewport.ScaleX;
+	double VX = Viewport.GetStartTime() * Viewport.GetScaleX();
 	double MinorN = FMath::FloorToDouble(VX / static_cast<double>(MinorTickMark));
 	double MajorN = FMath::FloorToDouble(VX / static_cast<double>(MajorTickMark));
 	float MinorOX = static_cast<float>(FMath::RoundToDouble(MinorN * static_cast<double>(MinorTickMark) - VX));
@@ -141,7 +92,7 @@ void FTimeRulerTrack::Draw(FDrawContext& DrawContext, const FTimingTrackViewport
 	DrawBackground(DrawContext, Viewport);
 
 	// Draw the minor tick marks.
-	for (float X = MinorOX; X < Viewport.Width; X += MinorTickMark)
+	for (float X = MinorOX; X < Viewport.GetWidth(); X += MinorTickMark)
 	{
 		const bool bIsTenth = ((int32)(((X - MajorOX) / MinorTickMark) + 0.4f) % 2 == 0);
 		const float MinorTickH = bIsTenth ? MinorTickMarkHeight : MinorTickMarkHeight - 1.0f;
@@ -149,25 +100,25 @@ void FTimeRulerTrack::Draw(FDrawContext& DrawContext, const FTimingTrackViewport
 			bIsTenth ? FLinearColor(0.3f, 0.3f, 0.3f, 1.0f) : FLinearColor(0.25f, 0.25f, 0.25f, 1.0f));
 	}
 	// Draw the major tick marks.
-	for (float X = MajorOX; X < Viewport.Width; X += MajorTickMark)
+	for (float X = MajorOX; X < Viewport.GetWidth(); X += MajorTickMark)
 	{
 		DrawContext.DrawBox(X, GetPosY(), 1.0f, MajorTickMarkHeight, WhiteBrush, FLinearColor(0.4f, 0.4f, 0.4f, 1.0f));
 	}
 	DrawContext.LayerId++;
 
-	const double DT = static_cast<double>(MajorTickMark) / Viewport.ScaleX;
+	const double DT = static_cast<double>(MajorTickMark) / Viewport.GetScaleX();
 	const double Precision = FMath::Max(DT / 10.0, TimeUtils::Nanosecond);
 
 	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 
 	// Draw the time at major tick marks.
-	for (float X = MajorOX; X < Viewport.Width + MajorTickMark; X += MajorTickMark)
+	for (float X = MajorOX; X < Viewport.GetWidth() + MajorTickMark; X += MajorTickMark)
 	{
 		const double T = Viewport.SlateUnitsToTime(X);
 		FString Text = TimeUtils::FormatTime(T, Precision);
 		const float TextWidth = FontMeasureService->Measure(Text, Font).X;
 		DrawContext.DrawText(X - TextWidth / 2, TextY, Text, Font,
-			(T < 0 || T >= Viewport.MaxValidTime) ? FLinearColor(0.7f, 0.5f, 0.5f, 1.0f) : FLinearColor(0.8f, 0.8f, 0.8f, 1.0f));
+			(T < Viewport.GetMinValidTime() || T >= Viewport.GetMaxValidTime()) ? FLinearColor(0.7f, 0.5f, 0.5f, 1.0f) : FLinearColor(0.8f, 0.8f, 0.8f, 1.0f));
 	}
 	DrawContext.LayerId++;
 
@@ -226,7 +177,7 @@ void FTimeRulerTrack::Draw(FDrawContext& DrawContext, const FTimingTrackViewport
 			//DrawContext.DrawBox(0.0f, MousePosition.Y, Viewport.Width, 1.0f, WhiteBrush, MousePosLineColor);
 
 			// Draw vertical line at mouse position.
-			DrawContext.DrawBox(MousePosition.X, 0.0f, 1.0f, Viewport.Height, WhiteBrush, MousePosLineColor);
+			DrawContext.DrawBox(MousePosition.X, 0.0f, 1.0f, Viewport.GetHeight(), WhiteBrush, MousePosLineColor);
 
 			// Stroke the vertical line above current time box.
 			DrawContext.DrawBox(MousePosition.X, 0.0f, 1.0f, TextY, WhiteBrush, MousePosTextBackgroundColor);

@@ -17,61 +17,6 @@ class FTimingTrackViewport;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct FTimingViewTooltip
-{
-	static constexpr float BorderX = 6.0f;
-	static constexpr float BorderY = 3.0f;
-	static constexpr float MinWidth = 128.0f;
-	static constexpr float MinHeight = 0.0f;
-
-	FTimingViewTooltip() : PosX(0.0f), PosY(0.0f), Width(FTimingViewTooltip::MinWidth), Height(FTimingViewTooltip::MinHeight), Opacity(0.0f) {}
-
-	void Reset()
-	{
-		PosX = 0.0f;
-		PosY = 0.0f;
-		Width = MinWidth;
-		Height = MinHeight;
-		Opacity = 0.0f;
-	}
-
-	void Update(const FVector2D& MousePosition, const float DesiredWidth, const float DesiredHeight, const float ViewportWidth, const float ViewportHeight)
-	{
-		if (Width != DesiredWidth)
-		{
-			Width = Width * 0.75f + DesiredWidth * 0.25f;
-		}
-		
-		Height = DesiredHeight;
-
-		const float MaxX = FMath::Max(0.0f, ViewportWidth - Width - 12.0f); // -12.0f is to avoid overlapping the vertical scrollbar (one on the right side of the view)
-		const float X = FMath::Clamp<float>(MousePosition.X + 12.0f, 0.0f, MaxX);
-		PosX = X;
-
-		const float MaxY = FMath::Max(0.0f, ViewportHeight - Height - 12.0f); // -12.0f is to avoid overlapping the horizontal scrollbar (one on the bottom of the view)
-		float Y = FMath::Clamp<float>(MousePosition.Y + 15.0f, 0.0f, MaxY);
-		PosY = Y;
-
-		const float DesiredOpacity = 1.0f - FMath::Abs(Width - DesiredWidth) / DesiredWidth;
-		if (Opacity < DesiredOpacity)
-		{
-			Opacity = Opacity * 0.9f + DesiredOpacity * 0.1f;
-		}
-		else
-		{
-			Opacity = DesiredOpacity;
-		}
-	}
-
-	float PosX;
-	float PosY;
-	float Width;
-	float Height;
-	float Opacity;
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 class FTimingViewDrawHelper
 {
 public:
@@ -129,8 +74,6 @@ private:
 		int32 NumMergedBoxes;
 		int32 NumDrawBorders;
 		int32 NumDrawTexts;
-		int32 NumDrawTimeMarkerBoxes;
-		int32 NumDrawTimeMarkerTexts;
 
 		FStats()
 			: NumEvents(0)
@@ -138,13 +81,11 @@ private:
 			, NumMergedBoxes(0)
 			, NumDrawBorders(0)
 			, NumDrawTexts(0)
-			, NumDrawTimeMarkerBoxes(0)
-			, NumDrawTimeMarkerTexts(0)
 		{}
 	};
 
 public:
-	FTimingViewDrawHelper(const FDrawContext& InDrawContext, const FTimingTrackViewport& InViewport, const FTimingEventsTrackLayout& InLayout);
+	explicit FTimingViewDrawHelper(const FDrawContext& InDrawContext, const FTimingTrackViewport& InViewport, const FTimingEventsTrackLayout& InLayout);
 	~FTimingViewDrawHelper();
 
 	/**
@@ -158,17 +99,13 @@ public:
 	const FTimingEventsTrackLayout& GetLayout() const { return Layout; }
 
 	const FSlateBrush* GetWhiteBrush() const { return WhiteBrush; }
-	const FSlateBrush* GetBorderBrush() const { return BorderBrush; }
-	const FSlateBrush* GetEventsBorderBrush() const { return EventsBorderBrush; }
 	const FSlateFontInfo& GetEventFont() const { return EventFont; }
 
-	int32 GetNumEvents() const              { return Stats.NumEvents; }
-	int32 GetNumDrawBoxes() const           { return Stats.NumDrawBoxes; }
-	int32 GetNumMergedBoxes() const         { return Stats.NumMergedBoxes; }
-	int32 GetNumDrawBorders() const         { return Stats.NumDrawBorders; }
-	int32 GetNumDrawTexts() const           { return Stats.NumDrawTexts; }
-	int32 GetNumDrawTimeMarkerBoxes() const { return Stats.NumDrawTimeMarkerBoxes; }
-	int32 GetNumDrawTimeMarkerTexts() const { return Stats.NumDrawTimeMarkerTexts; }
+	int32 GetNumEvents() const      { return Stats.NumEvents; }
+	int32 GetNumDrawBoxes() const   { return Stats.NumDrawBoxes; }
+	int32 GetNumMergedBoxes() const { return Stats.NumMergedBoxes; }
+	int32 GetNumDrawBorders() const { return Stats.NumDrawBorders; }
+	int32 GetNumDrawTexts() const   { return Stats.NumDrawTexts; }
 
 	void DrawBackground() const;
 	void DrawTimingEventHighlight(double StartTime, double EndTime, float Y, EHighlightMode Mode);
@@ -189,8 +126,9 @@ private:
 	const FTimingEventsTrackLayout& Layout;
 
 	const FSlateBrush* WhiteBrush;
-	const FSlateBrush* BorderBrush;
-	const FSlateBrush* EventsBorderBrush;
+	const FSlateBrush* EventBorderBrush;
+	const FSlateBrush* HoveredEventBorderBrush;
+	const FSlateBrush* SelectedEventBorderBrush;
 	const FSlateBrush* BackgroundAreaBrush;
 	const FLinearColor ValidAreaColor;
 	const FLinearColor InvalidAreaColor;

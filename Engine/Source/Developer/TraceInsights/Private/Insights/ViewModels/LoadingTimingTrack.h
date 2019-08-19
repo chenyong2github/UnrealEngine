@@ -37,14 +37,14 @@ private:
 class FLoadingTimingTrack : public FTimingEventsTrack
 {
 public:
-	FLoadingTimingTrack(uint64 InTrackId, const FName& InSubType, const FString& InName, TSharedPtr<FLoadingSharedState> InState)
+	explicit FLoadingTimingTrack(uint64 InTrackId, const FName& InSubType, const FString& InName, TSharedPtr<FLoadingSharedState> InState)
 		: FTimingEventsTrack(InTrackId, FName(TEXT("Loading")), InSubType, InName)
 		, State(InState)
 	{
 	}
 	virtual ~FLoadingTimingTrack() {}
 
-	virtual void DrawTooltip(FTimingViewTooltip& Tooltip, const FVector2D& MousePosition, const FTimingEvent& HoveredTimingEvent, const FTimingTrackViewport& Viewport, const FDrawContext& DrawContext, const FSlateBrush* WhiteBrush, const FSlateFontInfo& Font) const override;
+	virtual void InitTooltip(FTooltipDrawState& Tooltip, const FTimingEvent& HoveredTimingEvent) const override;
 
 protected:
 	TSharedPtr<FLoadingSharedState> State;
@@ -55,7 +55,7 @@ protected:
 class FLoadingMainThreadTimingTrack : public FLoadingTimingTrack
 {
 public:
-	FLoadingMainThreadTimingTrack(uint64 InTrackId, TSharedPtr<FLoadingSharedState> InState)
+	explicit FLoadingMainThreadTimingTrack(uint64 InTrackId, TSharedPtr<FLoadingSharedState> InState)
 		: FLoadingTimingTrack(InTrackId, FName(TEXT("MainThread")), TEXT("Loading - Main Thread"), InState)
 	{
 	}
@@ -69,7 +69,7 @@ public:
 class FLoadingAsyncThreadTimingTrack : public FLoadingTimingTrack
 {
 public:
-	FLoadingAsyncThreadTimingTrack(uint64 InTrackId, TSharedPtr<FLoadingSharedState> InState)
+	explicit FLoadingAsyncThreadTimingTrack(uint64 InTrackId, TSharedPtr<FLoadingSharedState> InState)
 		: FLoadingTimingTrack(InTrackId, FName(TEXT("AsyncThread")), TEXT("Loading - Async Thread"), InState)
 	{
 	}

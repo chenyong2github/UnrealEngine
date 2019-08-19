@@ -2,12 +2,8 @@
 
 #include "SGraphTrack.h"
 
-#include "Brushes/SlateBorderBrush.h"
-#include "Brushes/SlateBoxBrush.h"
-#include "Brushes/SlateColorBrush.h"
 #include "Containers/ArrayBuilder.h"
 #include "Containers/MapBuilder.h"
-#include "EditorStyleSet.h"
 #include "Fonts/FontMeasure.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Framework/Application/MenuStack.h"
@@ -27,6 +23,7 @@
 // Insights
 #include "Insights/Common/PaintUtils.h"
 #include "Insights/Common/TimeUtils.h"
+#include "Insights/InsightsStyle.h"
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/ViewModels/DrawHelpers.h"
 
@@ -41,7 +38,7 @@
 SGraphTrack::SGraphTrack()
 	: TimeRulerTrack(MakeShareable(new FTimeRulerTrack(0)))
 	, GraphTrack(MakeShareable(new FRandomGraphTrack(1)))
-	, WhiteBrush(FCoreStyle::Get().GetBrush("WhiteBrush"))
+	, WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))
 	, MainFont(FCoreStyle::GetDefaultFontStyle("Regular", 8))
 {
 	Reset();
@@ -62,8 +59,8 @@ void SGraphTrack::Reset()
 	StaticCastSharedPtr<FRandomGraphTrack>(GraphTrack)->AddDefaultSeries();
 
 	Viewport.Reset();
-	Viewport.MaxValidTime = 84.0 * 60.0;
-	//Viewport.ScaleX = (5 * 20) / 0.1; // 100ms between major tick marks
+	Viewport.SetMaxValidTime(84.0 * 60.0);
+	//Viewport.SetScaleX((5 * 20) / 0.1); // 100ms between major tick marks
 
 	bIsViewportDirty = true;
 	bIsVerticalViewportDirty = true;
@@ -112,7 +109,7 @@ void SGraphTrack::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		GraphTrack->GetHeight() != TrackHeight)
 	{
 		GraphTrack->SetPosY(TimeRulerTrack->GetHeight());
-		GraphTrack->SetHeight(Viewport.Height - TimeRulerTrack->GetHeight());
+		GraphTrack->SetHeight(Viewport.GetHeight() - TimeRulerTrack->GetHeight());
 		GraphTrack->SetDirtyFlag();
 	}
 
@@ -130,7 +127,7 @@ int32 SGraphTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 	GraphTrack->Draw(DrawContext, Viewport, MousePosition);
 
 	TimeRulerTrack->Draw(DrawContext, Viewport, MousePosition, bIsSelecting, SelectionStartTime, SelectionEndTime);
-	DrawContext.DrawBox(0.0f, TimeRulerTrack->GetHeight(), Viewport.Width, 1.0f, WhiteBrush, FLinearColor(0.05f, 0.05f, 0.05f, 1.0f));
+	DrawContext.DrawBox(0.0f, TimeRulerTrack->GetHeight(), Viewport.GetWidth(), 1.0f, WhiteBrush, FLinearColor(0.05f, 0.05f, 0.05f, 1.0f));
 
 	FDrawHelpers::DrawTimeRangeSelection(DrawContext, Viewport, SelectionStartTime, SelectionEndTime, WhiteBrush, MainFont);
 
@@ -147,8 +144,8 @@ int32 SGraphTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 
 		const float DbgW = 320.0f;
 		const float DbgH = DbgDY * 2 + 3.0f;
-		const float DbgX = Viewport.Width - DbgW - 20.0f;
-		float DbgY = Viewport.TopOffset + 10.0f;
+		const float DbgX = Viewport.GetWidth() - DbgW - 20.0f;
+		float DbgY = Viewport.GetTopOffset() + 10.0f;
 
 		DrawContext.LayerId++;
 
@@ -163,7 +160,10 @@ int32 SGraphTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 		DrawContext.DrawText
 		(
 			DbgX, DbgY,
-			FString::Printf(TEXT("SX: %g, ST: %g, ET: %s"), Viewport.ScaleX, Viewport.StartTime, *TimeUtils::FormatTimeAuto(Viewport.MaxValidTime)),
+			FString::Printf(TEXT("SX: %g, ST: %g, ET: %s"),
+				Viewport.GetScaleX(),
+				Viewport.GetStartTime(),
+				*TimeUtils::FormatTimeAuto(Viewport.GetMaxValidTime())),
 			SummaryFont, DbgTextColor
 		);
 		DbgY += DbgDY;
@@ -174,7 +174,10 @@ int32 SGraphTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 		DrawContext.DrawText
 		(
 			DbgX, DbgY,
-			FString::Printf(TEXT("Y: %.2f, H: %g, VH: %g"), Viewport.ScrollPosY, Viewport.ScrollHeight, Viewport.Height),
+			FString::Printf(TEXT("Y: %.2f, H: %g, VH: %g"),
+				Viewport.GetScrollPosY(),
+				Viewport.GetScrollHeight(),
+				Viewport.GetHeight()),
 			SummaryFont, DbgTextColor
 		);
 		DbgY += DbgDY;
@@ -241,8 +244,8 @@ FReply SGraphTrack::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointe
 		bIsPanning = true;
 		bIsDragging = false;
 
-		ViewportStartTimeOnButtonDown = Viewport.StartTime;
-		ViewportScrollPosYOnButtonDown = Viewport.ScrollPosY;
+		ViewportStartTimeOnButtonDown = Viewport.GetStartTime();
+		ViewportScrollPosYOnButtonDown = Viewport.GetScrollPosY();
 
 		if (MouseEvent.GetModifierKeys().IsControlDown())
 		{
@@ -364,49 +367,50 @@ FReply SGraphTrack::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent
 
 	MousePosition = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
 
-	if (bIsPanning)
+	if (!MouseEvent.GetCursorDelta().IsZero())
 	{
-		if (HasMouseCapture() && !MouseEvent.GetCursorDelta().IsZero())
+		if (bIsPanning)
 		{
-			bIsDragging = true;
-
-			if ((int32)PanningMode & (int32)EPanningMode::Horizontal)
+			if (HasMouseCapture())
 			{
-				const double StartTime = ViewportStartTimeOnButtonDown + static_cast<double>(MousePositionOnButtonDown.X - MousePosition.X) / Viewport.ScaleX;
-				ScrollAtTime(StartTime);
-			}
+				bIsDragging = true;
 
-			if ((int32)PanningMode & (int32)EPanningMode::Vertical)
-			{
-				const float ScrollPosY = ViewportScrollPosYOnButtonDown + (MousePositionOnButtonDown.Y - MousePosition.Y);
-				ScrollAtPosY(ScrollPosY);
+				if ((int32)PanningMode & (int32)EPanningMode::Horizontal)
+				{
+					const double StartTime = ViewportStartTimeOnButtonDown + static_cast<double>(MousePositionOnButtonDown.X - MousePosition.X) / Viewport.GetScaleX();
+					ScrollAtTime(StartTime);
+				}
+
+				if ((int32)PanningMode & (int32)EPanningMode::Vertical)
+				{
+					const float ScrollPosY = ViewportScrollPosYOnButtonDown + (MousePositionOnButtonDown.Y - MousePosition.Y);
+					ScrollAtPosY(ScrollPosY);
+				}
 			}
+		}
+		else if (bIsSelecting)
+		{
+			if (HasMouseCapture())
+			{
+				bIsDragging = true;
+
+				SelectionStartTime = Viewport.SlateUnitsToTime(MousePositionOnButtonDown.X);
+				SelectionEndTime = Viewport.SlateUnitsToTime(MousePosition.X);
+				if (SelectionStartTime > SelectionEndTime)
+				{
+					double Temp = SelectionStartTime;
+					SelectionStartTime = SelectionEndTime;
+					SelectionEndTime = Temp;
+				}
+				//TODO: SelectionChangingEvent.Broadcast(SelectionStartTime, SelectionEndTime);
+			}
+		}
+		else
+		{
+			GraphTrack->UpdateHoveredState(MousePosition.X, MousePosition.Y, Viewport);
 		}
 
 		Reply = FReply::Handled();
-	}
-	else if (bIsSelecting)
-	{
-		if (HasMouseCapture() && !MouseEvent.GetCursorDelta().IsZero())
-		{
-			bIsDragging = true;
-
-			SelectionStartTime = Viewport.SlateUnitsToTime(MousePositionOnButtonDown.X);
-			SelectionEndTime = Viewport.SlateUnitsToTime(MousePosition.X);
-			if (SelectionStartTime > SelectionEndTime)
-			{
-				double Temp = SelectionStartTime;
-				SelectionStartTime = SelectionEndTime;
-				SelectionEndTime = Temp;
-			}
-			//TODO: SelectionChangingEvent.Broadcast(SelectionStartTime, SelectionEndTime);
-		}
-
-		Reply = FReply::Handled();
-	}
-	else
-	{
-		GraphTrack->UpdateHoveredState(MousePosition.X, MousePosition.Y, Viewport);
 	}
 
 	return Reply;
@@ -431,8 +435,10 @@ void SGraphTrack::OnMouseLeave(const FPointerEvent& MouseEvent)
 
 		bIsLMB_Pressed = false;
 		bIsRMB_Pressed = false;
-
+		
 		MousePosition = FVector2D::ZeroVector;
+
+		GraphTrack->UpdateHoveredState(MousePosition.X, MousePosition.Y, Viewport);
 	}
 }
 
@@ -444,35 +450,21 @@ FReply SGraphTrack::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEven
 	{
 		// Scroll vertically.
 		constexpr float ScrollSpeedY = 16.0f * 3;
-		const float ScrollPosY = Viewport.ScrollPosY - ScrollSpeedY * MouseEvent.GetWheelDelta();
+		const float ScrollPosY = Viewport.GetScrollPosY() - ScrollSpeedY * MouseEvent.GetWheelDelta();
 		ScrollAtPosY(ScrollPosY);
 	}
 	else if (MouseEvent.GetModifierKeys().IsControlDown())
 	{
 		// Scroll horizontally.
 		const double ScrollSpeedX = Viewport.GetDurationForViewportDX(16.0 * 3);
-		ScrollAtTime(Viewport.StartTime - ScrollSpeedX * MouseEvent.GetWheelDelta());
+		ScrollAtTime(Viewport.GetStartTime() - ScrollSpeedX * MouseEvent.GetWheelDelta());
 	}
 	else
 	{
 		// Zoom in/out horizontally.
 		const double Delta = MouseEvent.GetWheelDelta();
-		constexpr double ZoomStep = 0.25; // as percent
-		double ScaleX;
-
-		if (Delta > 0)
-		{
-			ScaleX = Viewport.ScaleX * FMath::Pow(1.0 + ZoomStep, Delta);
-		}
-		else
-		{
-			ScaleX = Viewport.ScaleX * FMath::Pow(1.0 / (1.0 + ZoomStep), -Delta);
-		}
-
-		//UE_LOG(TimingProfiler, Log, TEXT("%.2f, %.2f, %.2f"), Delta, Viewport.ScaleX, ScaleX);
 		MousePosition = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
-
-		if (Viewport.ZoomWithFixedX(ScaleX, MousePosition.X))
+		if (Viewport.RelativeZoomWithFixedX(Delta, MousePosition.X))
 		{
 			//UpdateHorizontalScrollBar();
 			bIsViewportDirty = true;
@@ -554,9 +546,9 @@ FCursorReply SGraphTrack::OnCursorQuery(const FGeometry& MyGeometry, const FPoin
 
 void SGraphTrack::ScrollAtPosY(float ScrollPosY)
 {
-	if (Viewport.ScrollPosY != ScrollPosY)
+	if (ScrollPosY != Viewport.GetScrollPosY())
 	{
-		Viewport.ScrollPosY = ScrollPosY;
+		Viewport.SetScrollPosY(ScrollPosY);
 
 		//UpdateVerticalScrollBar();
 		bIsVerticalViewportDirty = true;

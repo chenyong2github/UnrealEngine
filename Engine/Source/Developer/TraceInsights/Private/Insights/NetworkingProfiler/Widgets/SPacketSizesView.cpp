@@ -2,15 +2,13 @@
 
 #include "SPacketSizesView.h"
 
-#include "Brushes/SlateBorderBrush.h"
-#include "Brushes/SlateColorBrush.h"
-#include "EditorStyleSet.h"
 #include "Fonts/FontMeasure.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "HAL/PlatformTime.h"
 #include "Rendering/DrawElements.h"
+#include "Styling/CoreStyle.h"
 #include "Widgets/Layout/SScrollBar.h"
 
 // Insights
@@ -18,6 +16,10 @@
 #include "Insights/Common/Stopwatch.h"
 #include "Insights/Common/TimeUtils.h"
 #include "Insights/InsightsManager.h"
+#include "Insights/NetworkingProfiler/NetworkingProfilerManager.h"
+#include "Insights/NetworkingProfiler/Widgets/SNetworkingProfilerWindow.h"
+#include "Insights/NetworkingProfiler/Widgets/SPacketBreakdownView.h"
+#include "Insights/InsightsStyle.h"
 
 #include <limits>
 
@@ -44,8 +46,7 @@ SPacketSizesView::~SPacketSizesView()
 void SPacketSizesView::Reset()
 {
 	Viewport.Reset();
-
-	FValueAxisViewport& ViewportY = Viewport.GetVerticalAxisViewport();
+	FAxisViewportDouble& ViewportY = Viewport.GetVerticalAxisViewport();
 	ViewportY.SetScaleLimits(0.0001, 50.0);
 	ViewportY.SetScale(0.08);
 	bIsViewportDirty = true;
@@ -62,7 +63,6 @@ void SPacketSizesView::Reset()
 
 	MousePositionOnButtonDown = FVector2D::ZeroVector;
 	ViewportPosXOnButtonDown = 0.0f;
-	ViewportPosYOnButtonDown = 0.0f;
 
 	MousePositionOnButtonUp = FVector2D::ZeroVector;
 
@@ -133,7 +133,7 @@ void SPacketSizesView::Tick(const FGeometry& AllottedGeometry, const double InCu
 
 	ThisGeometry = AllottedGeometry;
 
-	FIndexAxisViewport& ViewportX = Viewport.GetHorizontalAxisViewport();
+	FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
 
 	if (!bIsScrolling)
 	{
@@ -173,16 +173,17 @@ void SPacketSizesView::UpdateState()
 
 	// Init series with mock data.
 	{
-		FIndexAxisViewport& ViewportX = Viewport.GetHorizontalAxisViewport();
+		FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
 
 		constexpr int32 NumPackets = 100000;
 
-		ViewportX.SetMinMaxIndexInterval(0, NumPackets);
-
-		const int32 StartIndex = FMath::Max(0, ViewportX.GetIndexAtOffset(0.0f));
-		const int32 EndIndex = FMath::Min(NumPackets, ViewportX.GetIndexAtOffset(ViewportX.GetSize()));
+		ViewportX.SetMinMaxInterval(0, NumPackets);
 
 		FNetworkPacketSeriesBuilder Builder(*PacketSeries, Viewport);
+
+		const int32 StartIndex = FMath::Max(0, ViewportX.GetValueAtOffset(0.0f));
+		const int32 EndIndex = FMath::Min(NumPackets, ViewportX.GetValueAtOffset(ViewportX.GetSize()));
+
 		for (int32 FrameIndex = StartIndex; FrameIndex < EndIndex; ++FrameIndex)
 		{
 			FRandomStream RandomStream((FrameIndex * FrameIndex * FrameIndex) ^ 0x2c2c57ed);
@@ -207,6 +208,7 @@ void SPacketSizesView::UpdateState()
 
 			Builder.AddPacket(FrameIndex, Size, TimeSent, TimeAck, Status);
 		}
+
 		NumUpdatedPackets += Builder.GetNumAddedPackets();
 	}
 
@@ -230,7 +232,7 @@ FNetworkPacketSampleRef SPacketSizesView::GetSampleAtMousePosition(float X, floa
 				const FNetworkPacketAggregatedSample& Sample = PacketSeries->Samples[SampleIndex];
 				if (Sample.NumPackets > 0)
 				{
-					const FValueAxisViewport& ViewportY = Viewport.GetVerticalAxisViewport();
+					const FAxisViewportDouble& ViewportY = Viewport.GetVerticalAxisViewport();
 
 					const float ViewHeight = FMath::RoundToFloat(Viewport.GetHeight());
 					const float BaselineY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(0.0));
@@ -269,6 +271,16 @@ void SPacketSizesView::SelectSampleAtMousePosition(float X, float Y)
 	if (SampleRef.IsValid())
 	{
 		SelectedSample = SampleRef;
+
+		TSharedPtr<SNetworkingProfilerWindow> Wnd = FNetworkingProfilerManager::Get()->GetProfilerWindow();
+		if (Wnd.IsValid())
+		{
+			TSharedPtr<SPacketBreakdownView> PacketBreakdownView = Wnd->GetPacketBreakdownView();
+			if (PacketBreakdownView.IsValid())
+			{
+				PacketBreakdownView->SetPacket(SampleRef.Sample->LargestPacket.FrameIndex, SampleRef.Sample->LargestPacket.Size);
+			}
+		}
 	}
 }
 
@@ -309,13 +321,14 @@ int32 SPacketSizesView::OnPaint(const FPaintArgs& Args, const FGeometry& Allotte
 	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 	FSlateFontInfo SummaryFont = FCoreStyle::GetDefaultFontStyle("Regular", 8);
 
-	const FSlateBrush* WhiteBrush = FCoreStyle::Get().GetBrush("WhiteBrush");
+	const FSlateBrush* WhiteBrush = FInsightsStyle::Get().GetBrush("WhiteBrush");
 
 	const float ViewWidth = AllottedGeometry.Size.X;
 	const float ViewHeight = AllottedGeometry.Size.Y;
 
 	int32 NumDrawSamples = 0;
 
+	//////////////////////////////////////////////////
 	{
 		FStopwatch Stopwatch;
 		Stopwatch.Start();
@@ -324,6 +337,7 @@ int32 SPacketSizesView::OnPaint(const FPaintArgs& Args, const FGeometry& Allotte
 
 		Helper.DrawBackground();
 
+		// Draw the horizontal axis grid.
 		DrawHorizontalAxisGrid(DrawContext, WhiteBrush, SummaryFont);
 
 		Helper.DrawCached(*PacketSeries);
@@ -341,6 +355,7 @@ int32 SPacketSizesView::OnPaint(const FPaintArgs& Args, const FGeometry& Allotte
 			Helper.DrawSampleHighlight(*HoveredSample.Sample, FPacketSizesViewDrawHelper::EHighlightMode::Hovered);
 		}
 
+		// Draw the vertical axis grid.
 		DrawVerticalAxisGrid(DrawContext, WhiteBrush, SummaryFont);
 
 		// Draw tooltip for hovered sample.
@@ -401,9 +416,9 @@ int32 SPacketSizesView::OnPaint(const FPaintArgs& Args, const FGeometry& Allotte
 			const float DX = 2.0f;
 			const float W2 = TextSize.X / 2 + DX;
 
-			const FIndexAxisViewport& ViewportX = Viewport.GetHorizontalAxisViewport();
+			const FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
 
-			float X1 = ViewportX.GetOffsetForIndex(HoveredSample.Sample->LargestPacket.FrameIndex);
+			float X1 = ViewportX.GetOffsetForValue(HoveredSample.Sample->LargestPacket.FrameIndex);
 			float CX = X1 + FMath::RoundToFloat(Viewport.GetSampleWidth() / 2);
 			if (CX + W2 > ViewportX.GetSize())
 			{
@@ -425,7 +440,6 @@ int32 SPacketSizesView::OnPaint(const FPaintArgs& Args, const FGeometry& Allotte
 		Stopwatch.Stop();
 		DrawDurationHistory.AddValue(Stopwatch.AccumulatedTime);
 	}
-
 	//////////////////////////////////////////////////
 
 	const bool bShouldDisplayDebugInfo = FInsightsManager::Get()->IsDebugInfoEnabled();
@@ -439,17 +453,11 @@ int32 SPacketSizesView::OnPaint(const FPaintArgs& Args, const FGeometry& Allotte
 		const float DbgX = ViewWidth - DbgW - 20.0f;
 		float DbgY = 7.0f;
 
-		++LayerId;
-		FSlateDrawElement::MakeBox(
-			OutDrawElements,
-			LayerId,
-			MAKE_PAINT_GEOMETRY_RC(AllottedGeometry, DbgX - 2.0f, DbgY - 2.0f, DbgW, DbgH),
-			WhiteBrush,
-			DrawEffects,
-			FLinearColor(1.0, 1.0, 1.0, 0.9)
-		);
+		DrawContext.LayerId++;
 
-		++LayerId;
+		DrawContext.DrawBox(DbgX - 2.0f, DbgY - 2.0f, DbgW, DbgH, WhiteBrush, FLinearColor(1.0, 1.0, 1.0, 0.9));
+		DrawContext.LayerId++;
+
 		FLinearColor DbgTextColor(0.0, 0.0, 0.0, 0.9);
 
 		// Time interval since last OnPaint call.
@@ -465,63 +473,45 @@ int32 SPacketSizesView::OnPaint(const FPaintArgs& Args, const FGeometry& Allotte
 		const uint64 AvgDrawDurationMs = FStopwatch::Cycles64ToMilliseconds(DrawDurationHistory.ComputeAverage());
 
 		// Draw performance info.
-		FSlateDrawElement::MakeText
+		DrawContext.DrawText
 		(
-			OutDrawElements,
-			LayerId,
-			MAKE_PAINT_GEOMETRY_PT(AllottedGeometry, DbgX, DbgY),
+			DbgX, DbgY,
 			FString::Printf(TEXT("U: %llu ms, D: %llu ms + %llu ms = %llu ms (%d fps)"),
 				AvgUpdateDurationMs, // caching time
 				AvgDrawDurationMs, // drawing time
 				AvgOnPaintDurationMs - AvgDrawDurationMs, // other overhead to OnPaint calls
 				AvgOnPaintDurationMs, // average time between two OnPaint calls
 				FMath::RoundToInt(AvgOnPaintFps)), // framerate of OnPaint calls
-			SummaryFont,
-			DrawEffects,
-			DbgTextColor
+			SummaryFont, DbgTextColor
 		);
 		DbgY += DbgDY;
 
 		// Draw number of draw calls.
-		FSlateDrawElement::MakeText
+		DrawContext.DrawText
 		(
-			OutDrawElements,
-			LayerId,
-			MAKE_PAINT_GEOMETRY_PT(AllottedGeometry, DbgX, DbgY),
-			FString::Format(TEXT("U: {0} packets, D: {1} samples"),
-				{
-					FText::AsNumber(NumUpdatedPackets).ToString(),
-					FText::AsNumber(NumDrawSamples).ToString()
-				}),
-			SummaryFont,
-			DrawEffects,
-			DbgTextColor
+			DbgX, DbgY,
+			FString::Printf(TEXT("U: %s packets, D: %s samples"),
+				*FText::AsNumber(NumUpdatedPackets).ToString(),
+				*FText::AsNumber(NumDrawSamples).ToString()),
+			SummaryFont, DbgTextColor
 		);
 		DbgY += DbgDY;
 
 		// Draw viewport's horizontal info.
-		FSlateDrawElement::MakeText
+		DrawContext.DrawText
 		(
-			OutDrawElements,
-			LayerId,
-			MAKE_PAINT_GEOMETRY_PT(AllottedGeometry, DbgX, DbgY),
-			Viewport.GetHorizontalAxisViewport().ToDebugString(TEXT("VX: "), TEXT("packet")),
-			SummaryFont,
-			DrawEffects,
-			DbgTextColor
+			DbgX, DbgY,
+			Viewport.GetHorizontalAxisViewport().ToDebugString(TEXT("X"), TEXT("packet")),
+			SummaryFont, DbgTextColor
 		);
 		DbgY += DbgDY;
 
 		// Draw viewport's vertical info.
-		FSlateDrawElement::MakeText
+		DrawContext.DrawText
 		(
-			OutDrawElements,
-			LayerId,
-			MAKE_PAINT_GEOMETRY_PT(AllottedGeometry, DbgX, DbgY),
-			Viewport.GetVerticalAxisViewport().ToDebugString(TEXT("VY: ")),
-			SummaryFont,
-			DrawEffects,
-			DbgTextColor
+			DbgX, DbgY,
+			Viewport.GetVerticalAxisViewport().ToDebugString(TEXT("Y")),
+			SummaryFont, DbgTextColor
 		);
 		DbgY += DbgDY;
 	}
@@ -533,15 +523,15 @@ int32 SPacketSizesView::OnPaint(const FPaintArgs& Args, const FGeometry& Allotte
 
 void SPacketSizesView::DrawVerticalAxisGrid(FDrawContext& DrawContext, const FSlateBrush* Brush, const FSlateFontInfo& Font) const
 {
-	const FValueAxisViewport& ViewportY = Viewport.GetVerticalAxisViewport();
+	const FAxisViewportDouble& ViewportY = Viewport.GetVerticalAxisViewport();
 
 	const float RoundedViewHeight = FMath::RoundToFloat(ViewportY.GetSize());
 
 	constexpr float MinDY = 32.0f; // min vertical distance between horizontal grid lines
 
-	const double TopValue = ViewportY.GetValueForOffset(RoundedViewHeight);
-	const double GridValue = ViewportY.GetValueForOffset(MinDY);
-	const double BottomValue = ViewportY.GetValueForOffset(0.0f);
+	const double TopValue = ViewportY.GetValueAtOffset(RoundedViewHeight);
+	const double GridValue = ViewportY.GetValueAtOffset(MinDY);
+	const double BottomValue = ViewportY.GetValueAtOffset(0.0f);
 	const double Delta = GridValue - BottomValue;
 
 	if (Delta > 0.0)
@@ -602,15 +592,15 @@ void SPacketSizesView::DrawVerticalAxisGrid(FDrawContext& DrawContext, const FSl
 
 void SPacketSizesView::DrawHorizontalAxisGrid(FDrawContext& DrawContext, const FSlateBrush* Brush, const FSlateFontInfo& Font) const
 {
-	const FIndexAxisViewport& ViewportX = Viewport.GetHorizontalAxisViewport();
+	const FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
 
 	const float RoundedViewWidth = FMath::RoundToFloat(ViewportX.GetSize());
 
 	constexpr float MinDX = 100.0f; // min horizontal distance between vertical grid lines
 
-	int32 LeftIndex = ViewportX.GetIndexAtOffset(0.0f);
-	int32 GridIndex = ViewportX.GetIndexAtOffset(MinDX);
-	int32 RightIndex = ViewportX.GetIndexAtOffset(RoundedViewWidth);
+	int32 LeftIndex = ViewportX.GetValueAtOffset(0.0f);
+	int32 GridIndex = ViewportX.GetValueAtOffset(MinDX);
+	int32 RightIndex = ViewportX.GetValueAtOffset(RoundedViewWidth);
 	int32 Delta = GridIndex - LeftIndex;
 
 	if (Delta > 0)
@@ -652,7 +642,7 @@ void SPacketSizesView::DrawHorizontalAxisGrid(FDrawContext& DrawContext, const F
 
 		for (int32 Index = StartIndex; Index < RightIndex; Index += Grid)
 		{
-			const float X = FMath::RoundToFloat(ViewportX.GetOffsetForIndex(Index));
+			const float X = FMath::RoundToFloat(ViewportX.GetOffsetForValue(Index));
 
 			// Draw vertical grid line.
 			DrawContext.DrawBox(X, 0, 1, ViewHeight, Brush, GridColor);
@@ -681,7 +671,6 @@ FReply SPacketSizesView::OnMouseButtonDown(const FGeometry& MyGeometry, const FP
 
 	MousePositionOnButtonDown = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
 	ViewportPosXOnButtonDown = Viewport.GetHorizontalAxisViewport().GetPos();
-	ViewportPosYOnButtonDown = Viewport.GetVerticalAxisViewport().GetPos();
 
 	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
@@ -763,63 +752,46 @@ FReply SPacketSizesView::OnMouseMove(const FGeometry& MyGeometry, const FPointer
 
 	MousePosition = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
 
-	if (MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))
+	if (!MouseEvent.GetCursorDelta().IsZero())
 	{
-		if (HasMouseCapture() && !MouseEvent.GetCursorDelta().IsZero())
+		if (MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton) ||
+			MouseEvent.IsMouseButtonDown(EKeys::RightMouseButton))
 		{
-			if (!bIsScrolling)
+			if (HasMouseCapture())
 			{
-				bIsScrolling = true;
-				CursorType = ECursorType::Hand;
+				if (!bIsScrolling)
+				{
+					bIsScrolling = true;
+					CursorType = ECursorType::Hand;
 
-				HoveredSample.Reset();
+					HoveredSample.Reset();
+				}
+
+				FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+				const float PosX = ViewportPosXOnButtonDown + (MousePositionOnButtonDown.X - MousePosition.X);
+				ViewportX.ScrollAtValue(ViewportX.GetValueAtPos(PosX)); // align viewport position with sample
+				UpdateHorizontalScrollBar();
+				bIsStateDirty = true;
 			}
-
-			FIndexAxisViewport& ViewportX = Viewport.GetHorizontalAxisViewport();
-			const float PosX = ViewportPosXOnButtonDown + (MousePositionOnButtonDown.X - MousePosition.X);
-			ViewportX.ScrollAtIndex(ViewportX.GetIndexAtPos(PosX)); // align pos with at index
-			UpdateHorizontalScrollBar();
-			bIsStateDirty = true;
-
-			Reply = FReply::Handled();
 		}
-	}
-	else if (MouseEvent.IsMouseButtonDown(EKeys::RightMouseButton))
-	{
-		if (HasMouseCapture() && !MouseEvent.GetCursorDelta().IsZero())
+		else
 		{
-			if (!bIsScrolling)
+			if (!HoveredSample.IsValid())
 			{
-				bIsScrolling = true;
-				CursorType = ECursorType::Hand;
-
-				HoveredSample.Reset();
+				TooltipOpacity = 0.0f;
 			}
+			HoveredSample = GetSampleAtMousePosition(MousePosition.X, MousePosition.Y);
+			if (!HoveredSample.IsValid())
+			{
+				HoveredSample = GetSampleAtMousePosition(MousePosition.X - 1.0f, MousePosition.Y);
+			}
+			if (!HoveredSample.IsValid())
+			{
+				HoveredSample = GetSampleAtMousePosition(MousePosition.X + 1.0f, MousePosition.Y);
+			}
+		}
 
-			FIndexAxisViewport& ViewportX = Viewport.GetHorizontalAxisViewport();
-			const float PosX = ViewportPosXOnButtonDown + (MousePositionOnButtonDown.X - MousePosition.X);
-			ViewportX.ScrollAtIndex(ViewportX.GetIndexAtPos(PosX)); // align pos with at index
-			UpdateHorizontalScrollBar();
-			bIsStateDirty = true;
-
-			Reply = FReply::Handled();
-		}
-	}
-	else
-	{
-		if (!HoveredSample.IsValid())
-		{
-			TooltipOpacity = 0.0f;
-		}
-		HoveredSample = GetSampleAtMousePosition(MousePosition.X, MousePosition.Y);
-		if (!HoveredSample.IsValid())
-		{
-			HoveredSample = GetSampleAtMousePosition(MousePosition.X - 1.0f, MousePosition.Y);
-		}
-		if (!HoveredSample.IsValid())
-		{
-			HoveredSample = GetSampleAtMousePosition(MousePosition.X + 1.0f, MousePosition.Y);
-		}
+		Reply = FReply::Handled();
 	}
 
 	return Reply;
@@ -854,7 +826,7 @@ FReply SPacketSizesView::OnMouseWheel(const FGeometry& MyGeometry, const FPointe
 
 	if (MouseEvent.GetModifierKeys().IsShiftDown())
 	{
-		FValueAxisViewport& ViewportY = Viewport.GetVerticalAxisViewport();
+		FAxisViewportDouble& ViewportY = Viewport.GetVerticalAxisViewport();
 
 		// Zoom in/out vertically.
 		const float Delta = MouseEvent.GetWheelDelta();
@@ -881,17 +853,6 @@ FReply SPacketSizesView::OnMouseWheel(const FGeometry& MyGeometry, const FPointe
 	}
 
 	return FReply::Handled();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SPacketSizesView::ZoomHorizontally(const float Delta, const float X)
-{
-	FIndexAxisViewport& ViewportX = Viewport.GetHorizontalAxisViewport();
-	ViewportX.RelativeZoomWithFixedOffset(Delta, X);
-	ViewportX.ScrollAtIndex(ViewportX.GetIndexAtPos(ViewportX.GetPos())); // align pos with at index
-	UpdateHorizontalScrollBar();
-	bIsStateDirty = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -957,7 +918,7 @@ void SPacketSizesView::ShowContextMenu(const FPointerEvent& MouseEvent)
 
 void SPacketSizesView::ContextMenu_AutoZoom_Execute()
 {
-	FIndexAxisViewport& ViewportX = Viewport.GetHorizontalAxisViewport();
+	FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
 
 	bIsAutoZoomEnabled = !(bIsAutoZoomEnabled && ViewportX.GetPos() == 0.0f);
 	if (bIsAutoZoomEnabled)
@@ -1007,7 +968,8 @@ void SPacketSizesView::BindCommands()
 
 void SPacketSizesView::HorizontalScrollBar_OnUserScrolled(float ScrollOffset)
 {
-	Viewport.GetHorizontalAxisViewport().OnUserScrolled(HorizontalScrollBar, ScrollOffset);
+	FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+	ViewportX.OnUserScrolled(HorizontalScrollBar, ScrollOffset);
 	bIsStateDirty = true;
 }
 
@@ -1015,7 +977,19 @@ void SPacketSizesView::HorizontalScrollBar_OnUserScrolled(float ScrollOffset)
 
 void SPacketSizesView::UpdateHorizontalScrollBar()
 {
-	Viewport.GetHorizontalAxisViewport().UpdateScrollBar(HorizontalScrollBar);
+	FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+	ViewportX.UpdateScrollBar(HorizontalScrollBar);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SPacketSizesView::ZoomHorizontally(const float Delta, const float X)
+{
+	FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+	ViewportX.RelativeZoomWithFixedOffset(Delta, X);
+	ViewportX.ScrollAtValue(ViewportX.GetValueAtPos(ViewportX.GetPos())); // align viewport position with sample
+	UpdateHorizontalScrollBar();
+	bIsStateDirty = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -68,14 +68,14 @@ private:
 class FFileActivityTimingTrack : public FTimingEventsTrack
 {
 public:
-	FFileActivityTimingTrack(uint64 InTrackId, const FName SubType, const FString& InName, TSharedPtr<FFileActivitySharedState> InState)
+	explicit FFileActivityTimingTrack(uint64 InTrackId, const FName SubType, const FString& InName, TSharedPtr<FFileActivitySharedState> InState)
 		: FTimingEventsTrack(InTrackId, FName(TEXT("FileActivity")), SubType, InName)
 		, State(InState)
 	{
 	}
 	virtual ~FFileActivityTimingTrack() {}
 
-	virtual void DrawTooltip(FTimingViewTooltip& Tooltip, const FVector2D& MousePosition, const FTimingEvent& HoveredTimingEvent, const FTimingTrackViewport& Viewport, const FDrawContext& DrawContext, const FSlateBrush* WhiteBrush, const FSlateFontInfo& Font) const override;
+	virtual void InitTooltip(FTooltipDrawState& Tooltip, const FTimingEvent& HoveredTimingEvent) const override;
 
 protected:
 	bool SearchEvent(const double InStartTime, const double InEndTime, TFunctionRef<bool(double, double, uint32)> InPredicate, FTimingEvent& InOutTimingEvent, bool bInStopAtFirstMatch, bool bInSearchForLargestEvent, bool bIgnoreEventDepth) const;
@@ -89,7 +89,7 @@ protected:
 class FOverviewFileActivityTimingTrack : public FFileActivityTimingTrack
 {
 public:
-	FOverviewFileActivityTimingTrack(uint64 InTrackId, TSharedPtr<FFileActivitySharedState> InState)
+	explicit FOverviewFileActivityTimingTrack(uint64 InTrackId, TSharedPtr<FFileActivitySharedState> InState)
 		: FFileActivityTimingTrack(InTrackId, FName(TEXT("Overview")), TEXT("I/O Overview"), InState)
 	{
 	}
@@ -107,7 +107,7 @@ public:
 class FDetailedFileActivityTimingTrack : public FFileActivityTimingTrack
 {
 public:
-	FDetailedFileActivityTimingTrack(uint64 InTrackId, TSharedPtr<FFileActivitySharedState> InState)
+	explicit FDetailedFileActivityTimingTrack(uint64 InTrackId, TSharedPtr<FFileActivitySharedState> InState)
 		: FFileActivityTimingTrack(InTrackId, FName(TEXT("Detailed")), TEXT("I/O Activity"), InState)
 	{
 	}

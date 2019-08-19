@@ -40,6 +40,16 @@ TSharedRef<FSlateStyleSet> FInsightsStyle::Create()
 	FSlateStyleSet& Style = StyleRef.Get();
 
 	//////////////////////////////////////////////////
+
+	Style.Set("WhiteBrush", new FSlateColorBrush(FLinearColor::White));
+	Style.Set("SingleBorder", new FSlateBorderBrush(NAME_None, FMargin(1.0f)));
+	Style.Set("DoubleBorder", new FSlateBorderBrush(NAME_None, FMargin(2.0f)));
+
+	Style.Set("EventBorder", new FSlateBorderBrush(NAME_None, FMargin(1.0f)));
+	Style.Set("HoveredEventBorder", new FSlateBorderBrush(NAME_None, FMargin(2.0f)));
+	Style.Set("SelectedEventBorder", new FSlateBorderBrush(NAME_None, FMargin(2.0f)));
+
+	//////////////////////////////////////////////////
 	// Icons for major components
 
 	Style.Set("StartPage.Icon.Large", new IMAGE_BRUSH("/Icons/icon_tab_Tools_16x", FVector2D(32.0f, 32.0f)));

@@ -70,10 +70,10 @@ struct FFrameTrackSeries
 {
 	int32 FrameType;
 	bool bIsVisible;
-	int32 NumAggregatedFrames; // total number of frames aggregated in samples; ie. sum of all Sample.NumFrames
-	TArray<FFrameTrackSample> Samples;
+	int32 NumAggregatedFrames; // total number of frames aggregated in samples; i.e. sum of all Sample.NumFrames
+	TArray<FFrameTrackSample> Samples; // the aggregated samples
 
-	FFrameTrackSeries(int32 InFrameType)
+	explicit FFrameTrackSeries(int32 InFrameType)
 		: FrameType(InFrameType)
 		, bIsVisible(true)
 		, NumAggregatedFrames(0)
@@ -93,7 +93,7 @@ struct FFrameTrackSeries
 class FFrameTrackSeriesBuilder
 {
 public:
-	FFrameTrackSeriesBuilder(FFrameTrackSeries& InSeries, const FFrameTrackViewport& InViewport);
+	explicit FFrameTrackSeriesBuilder(FFrameTrackSeries& InSeries, const FFrameTrackViewport& InViewport);
 
 	/**
 	 * Non-copyable
@@ -123,7 +123,7 @@ private:
 class FFrameTrackDrawHelper
 {
 public:
-	FFrameTrackDrawHelper(const FDrawContext& InDrawContext, const FFrameTrackViewport& InViewport);
+	explicit FFrameTrackDrawHelper(const FDrawContext& InDrawContext, const FFrameTrackViewport& InViewport);
 
 	/**
 	 * Non-copyable
@@ -146,7 +146,7 @@ private:
 	const FFrameTrackViewport& Viewport;
 
 	const FSlateBrush* WhiteBrush;
-	const FSlateBrush* BorderBrush;
+	const FSlateBrush* HoveredFrameBorderBrush;
 
 	// Debug stats.
 	mutable int32 NumFrames;

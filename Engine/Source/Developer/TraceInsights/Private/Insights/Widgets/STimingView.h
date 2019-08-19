@@ -21,6 +21,7 @@
 #include "Insights/ViewModels/TimingEventsTrack.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
 #include "Insights/ViewModels/TimingViewDrawHelper.h"
+#include "Insights/ViewModels/TooltipDrawState.h"
 
 class FFileActivitySharedState;
 class FLoadingSharedState;
@@ -488,10 +489,10 @@ protected:
 	double SelectionStartTime;
 	double SelectionEndTime;
 
-	mutable FTimingViewTooltip Tooltip;
-
 	FTimingEvent HoveredTimingEvent;
 	FTimingEvent SelectedTimingEvent;
+
+	FTooltipDrawState Tooltip;
 
 	enum class ESelectionType
 	{

@@ -31,7 +31,7 @@ class FBaseTimingTrack : public TSharedFromThis<FBaseTimingTrack>
 	friend class FTimingViewDrawHelper;
 
 protected:
-	FBaseTimingTrack(uint64 InId)
+	explicit FBaseTimingTrack(uint64 InId)
 		: Id(InId)
 		, PosY(0.0f)
 		, Height(0.0f)

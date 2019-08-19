@@ -12,8 +12,8 @@
 
 // Insights
 #include "Insights/Common/FixedCircularBuffer.h"
-#include "Insights/NetworkingProfiler/ViewModels/PacketSizesViewport.h"
 #include "Insights/NetworkingProfiler/ViewModels/PacketSizesViewHelper.h"
+#include "Insights/NetworkingProfiler/ViewModels/PacketSizesViewport.h"
 
 class SScrollBar;
 
@@ -71,7 +71,7 @@ struct FNetworkPacketSampleRef
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
- * Widget used to present frames data in a track.
+ * Widget used to present the network packets as a bar track.
  */
 class SPacketSizesView : public SCompoundWidget
 {
@@ -128,7 +128,7 @@ public:
 
 	virtual FCursorReply OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const override;
 
-protected:
+private:
 	void UpdateState();
 
 	void DrawHorizontalAxisGrid(FDrawContext& DrawContext, const FSlateBrush* Brush, const FSlateFontInfo& Font) const;
@@ -155,7 +155,7 @@ protected:
 
 	void ZoomHorizontally(const float Delta, const float X);
 
-protected:
+private:
 	/** The track's viewport. Encapsulates info about position and scale. */
 	FPacketSizesViewport Viewport;
 	bool bIsViewportDirty;
@@ -181,7 +181,6 @@ protected:
 	/** Mouse position during the call on mouse button down. */
 	FVector2D MousePositionOnButtonDown;
 	float ViewportPosXOnButtonDown;
-	float ViewportPosYOnButtonDown;
 
 	/** Mouse position during the call on mouse button up. */
 	FVector2D MousePositionOnButtonUp;
@@ -189,7 +188,7 @@ protected:
 	bool bIsLMB_Pressed;
 	bool bIsRMB_Pressed;
 
-	/** True, if the user is currently interactively scrolling the view by holding the right mouse button and dragging. */
+	/** True, if the user is currently interactively scrolling the view (ex.: by holding the left mouse button and dragging). */
 	bool bIsScrolling;
 
 	//////////////////////////////////////////////////

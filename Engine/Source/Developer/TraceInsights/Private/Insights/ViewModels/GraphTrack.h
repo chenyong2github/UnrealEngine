@@ -7,7 +7,7 @@
 
 // Insights
 #include "Insights/ViewModels/BaseTimingTrack.h"
-#include "Insights/ViewModels/TimingViewDrawHelper.h"
+#include "Insights/ViewModels/TooltipDrawState.h"
 
 struct FDrawContext;
 struct FSlateBrush;
@@ -183,6 +183,7 @@ public:
 		TSharedPtr<FGraphSeries> Series;
 		FGraphSeries::FEvent SeriesEvent;
 
+		void Reset() { Series.Reset(); }
 		bool IsValid() const { return Series.IsValid(); }
 	};
 
@@ -195,14 +196,14 @@ private:
 	static constexpr float PointSizeY = 3.0f;
 
 public:
-	FGraphTrack(uint64 InTrackId);
+	explicit FGraphTrack(uint64 InTrackId);
 	virtual ~FGraphTrack();
 
 	virtual void Reset() override;
 
 	virtual void UpdateHoveredState(float MouseX, float MouseY, const FTimingTrackViewport& Viewport) override;
 
-	virtual void Update(const FTimingTrackViewport& Viewport) override = 0;
+	virtual void Update(const FTimingTrackViewport& Viewport) override;
 
 	void Draw(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport, const FVector2D& MousePosition) const;
 	void PostDraw(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport, const FVector2D& MousePosition) const;
@@ -234,7 +235,8 @@ protected:
 	void DrawBackground(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport) const;
 	void DrawSeries(const FGraphSeries& Series, FDrawContext& DrawContext, const FTimingTrackViewport& Viewport) const;
 	void DrawHighlightedEvent(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport, const FGraphTrack::FEvent& GraphEvent) const;
-	void DrawTooltip(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport, const FVector2D& MousePosition, const FGraphTrack::FEvent& GraphEvent) const;
+
+	void InitTooltip();
 
 private:
 	void ContextMenu_ShowPoints_Execute();
@@ -282,7 +284,8 @@ protected:
 	bool bDrawBoxes;
 
 	mutable FGraphTrack::FEvent HoveredGraphEvent;
-	mutable FTimingViewTooltip Tooltip;
+	FTooltipDrawState Tooltip;
+	FVector2D TooltipMousePosition;
 
 	// Stats
 	int32 NumAddedEvents; // total event count
@@ -296,7 +299,7 @@ protected:
 class FRandomGraphTrack : public FGraphTrack
 {
 public:
-	FRandomGraphTrack(uint64 InTrackId);
+	explicit FRandomGraphTrack(uint64 InTrackId);
 	virtual ~FRandomGraphTrack();
 
 	virtual void Update(const FTimingTrackViewport& Viewport) override;
@@ -322,7 +325,7 @@ private:
 	};
 
 public:
-	FGraphTrackBuilder(FGraphTrack& InTrack, FGraphSeries& InSeries, const FTimingTrackViewport& InViewport);
+	explicit FGraphTrackBuilder(FGraphTrack& InTrack, FGraphSeries& InSeries, const FTimingTrackViewport& InViewport);
 	~FGraphTrackBuilder();
 
 	/**

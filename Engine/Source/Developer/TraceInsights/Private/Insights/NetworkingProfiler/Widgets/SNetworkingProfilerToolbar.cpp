@@ -47,7 +47,33 @@ void SNetworkingProfilerToolbar::Construct(const FArguments& InArgs)
 			{
 				ToolbarBuilder.AddToolBarButton(FNetworkingProfilerCommands::Get().TogglePacketSizesViewVisibility);
 				ToolbarBuilder.AddToolBarButton(FNetworkingProfilerCommands::Get().TogglePacketBreakdownViewVisibility);
-				ToolbarBuilder.AddToolBarButton(FNetworkingProfilerCommands::Get().ToggleDataStreamBreakdownViewVisibility);
+				//ToolbarBuilder.AddToolBarButton(FNetworkingProfilerCommands::Get().ToggleDataStreamBreakdownViewVisibility);
+			}
+			ToolbarBuilder.EndSection();
+			ToolbarBuilder.BeginSection("Connection");
+			{
+				//FUIAction Action_ChooseReplicationSystem
+				//(
+				//	FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_CopySelectedToClipboard_Execute),
+				//	FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_CopySelectedToClipboard_CanExecute)
+				//);
+				//const FOnGetContent MenuContentGenerator;
+				//ToolbarBuilder.AddComboButton(Action, MenuContentGenerator);
+				TSharedRef<SWidget> ReplicationWidget = SNew(STextBlock)
+					.Text(LOCTEXT("Replication", "Replication System"));
+				ToolbarBuilder.AddWidget(ReplicationWidget);
+
+				ToolbarBuilder.AddSeparator();
+
+				TSharedRef<SWidget> ConnectionWidget = SNew(STextBlock)
+					.Text(LOCTEXT("Connection", "Connection"));
+				ToolbarBuilder.AddWidget(ConnectionWidget);
+
+				ToolbarBuilder.AddSeparator();
+
+				TSharedRef<SWidget> TypeWidget = SNew(STextBlock)
+					.Text(LOCTEXT("Type", "Sent/Received"));
+				ToolbarBuilder.AddWidget(TypeWidget);
 			}
 			ToolbarBuilder.EndSection();
 		}
