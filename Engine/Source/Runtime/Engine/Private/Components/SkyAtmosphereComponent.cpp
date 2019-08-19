@@ -257,7 +257,7 @@ ASkyAtmosphere::ASkyAtmosphere(const FObjectInitializer& ObjectInitializer)
 			FName ID_SkyAtmosphere;
 			FText NAME_SkyAtmosphere;
 			FConstructorStatics()
-				: SkyAtmosphereTextureObject(TEXT("/Engine/EditorResources/S_ExpoHeightFog"))
+				: SkyAtmosphereTextureObject(TEXT("/Engine/EditorResources/S_SkyAtmosphere"))
 				, ID_SkyAtmosphere(TEXT("Fog"))
 				, NAME_SkyAtmosphere(NSLOCTEXT("SpriteCategory", "Fog", "Fog"))
 			{
