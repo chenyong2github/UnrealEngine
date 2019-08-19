@@ -97,7 +97,7 @@ public:
 	{
 		FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(TriangleID);
 		ModifiedBounds.Contain(Bounds);
-		RemoveObject(TriangleID);
+		return RemoveObject(TriangleID);
 	}
 
 	/**
