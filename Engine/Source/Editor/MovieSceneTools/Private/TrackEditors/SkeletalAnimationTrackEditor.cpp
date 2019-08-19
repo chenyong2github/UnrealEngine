@@ -47,6 +47,15 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor.h"
 
+#include "IDetailCustomization.h"
+#include "DetailLayoutBuilder.h"
+#include "PropertyEditorModule.h"
+#include "IDetailChildrenBuilder.h"
+#include "DetailWidgetRow.h"
+#include "PropertyCustomizationHelpers.h"
+#include "IPropertyUtilities.h"
+
+
 namespace SkeletalAnimationEditorConstants
 {
 	// @todo Sequencer Allow this to be customizable
@@ -155,6 +164,96 @@ USkeleton* AcquireSkeletonFromObjectGuid(const FGuid& Guid, TSharedPtr<ISequence
 
 	return nullptr;
 }
+
+
+class FMovieSceneSkeletalAnimationParamsDetailCustomization : public IPropertyTypeCustomization
+{
+public:
+	FMovieSceneSkeletalAnimationParamsDetailCustomization(const FSequencerSectionPropertyDetailsViewCustomizationParams& InParams)
+		: Params(InParams)
+	{
+	}
+
+	// IDetailCustomization interface
+	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils) override
+	{
+	}
+
+	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils) override
+	{
+		const FName AnimationPropertyName = GET_MEMBER_NAME_CHECKED(FMovieSceneSkeletalAnimationParams, Animation);
+
+		uint32 NumChildren;
+		PropertyHandle->GetNumChildren(NumChildren);
+		for (uint32 i = 0; i < NumChildren; ++i)
+		{
+			TSharedPtr<IPropertyHandle> ChildPropertyHandle = PropertyHandle->GetChildHandle(i);
+			IDetailPropertyRow& ChildPropertyRow = ChildBuilder.AddProperty(ChildPropertyHandle.ToSharedRef());
+
+			// Let most properties be whatever they want to be... we just want to customize the `Animation` property
+			// by making it look like a normal asset reference property, but with some custom filtering.
+			if (ChildPropertyHandle->GetProperty()->GetFName() == AnimationPropertyName)
+			{
+				FDetailWidgetRow& Row = ChildPropertyRow.CustomWidget();
+
+				if (Params.ParentObjectBindingGuid.IsValid())
+				{
+					// Store the compatible skeleton's name, and create a property widget with a filter that will check
+					// for animations that match that skeleton.
+					USkeleton* Skeleton = AcquireSkeletonFromObjectGuid(Params.ParentObjectBindingGuid, Params.Sequencer);
+					SkeletonName = FAssetData(Skeleton).GetExportTextName();
+
+					TSharedPtr<IPropertyUtilities> PropertyUtilities = CustomizationUtils.GetPropertyUtilities();
+
+					TSharedRef<SObjectPropertyEntryBox> ContentWidget = SNew(SObjectPropertyEntryBox)
+						.PropertyHandle(ChildPropertyHandle)
+						.DisplayThumbnail(true)
+						.ThumbnailPool(PropertyUtilities.IsValid() ? PropertyUtilities->GetThumbnailPool() : nullptr)
+						.OnShouldFilterAsset(FOnShouldFilterAsset::CreateRaw(this, &FMovieSceneSkeletalAnimationParamsDetailCustomization::ShouldFilterAsset));
+
+					Row.NameContent()[ChildPropertyHandle->CreatePropertyNameWidget()];
+					Row.ValueContent()[ContentWidget];
+
+					float MinDesiredWidth, MaxDesiredWidth;
+					ContentWidget->GetDesiredWidth(MinDesiredWidth, MaxDesiredWidth);
+					Row.ValueContent().MinWidth = MinDesiredWidth;
+					Row.ValueContent().MaxWidth = MaxDesiredWidth;
+
+					// The content widget already contains a "reset to default" button, so we don't want the details view row
+					// to make another one. We add this metadata on the property handle instance to suppress it.
+					ChildPropertyHandle->SetInstanceMetaData(TEXT("NoResetToDefault"), TEXT("true"));
+				}
+			}
+		}
+	}
+
+	bool ShouldFilterAsset(const FAssetData& AssetData)
+	{
+		// Since the `SObjectPropertyEntryBox` doesn't support passing some `Filter` properties for the asset picker, 
+		// we just combine the tag value filtering we want (i.e. checking the skeleton compatibility) along with the
+		// other filtering we already get from the track editor's filter callback.
+		FSkeletalAnimationTrackEditor& TrackEditor = static_cast<FSkeletalAnimationTrackEditor&>(Params.TrackEditor);
+		if (TrackEditor.ShouldFilterAsset(AssetData))
+		{
+			return true;
+		}
+
+		if (!SkeletonName.IsEmpty())
+		{
+			const FString& SkeletonTag = AssetData.GetTagValueRef<FString>(TEXT("Skeleton"));
+			if (SkeletonTag != SkeletonName)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+private:
+	const FSequencerSectionPropertyDetailsViewCustomizationParams& Params;
+	FString SkeletonName;
+};
 
 
 FSkeletalAnimationSection::FSkeletalAnimationSection( UMovieSceneSection& InSection, TWeakPtr<ISequencer> InSequencer)
@@ -390,6 +489,13 @@ void FSkeletalAnimationSection::BuildSectionContextMenu(FMenuBuilder& MenuBuilde
 		EUserInterfaceActionType::Button);
 
 	MenuBuilder.EndSection();
+}
+
+void FSkeletalAnimationSection::CustomizePropertiesDetailsView(TSharedRef<IDetailsView> DetailsView, const FSequencerSectionPropertyDetailsViewCustomizationParams& InParams) const
+{
+	DetailsView->RegisterInstancedCustomPropertyTypeLayout(
+		TEXT("MovieSceneSkeletalAnimationParams"),
+		FOnGetPropertyTypeCustomizationInstance::CreateLambda([=]() { return MakeShared<FMovieSceneSkeletalAnimationParamsDetailCustomization>(InParams); }));
 }
 
 

@@ -13,6 +13,10 @@
 
 class FMenuBuilder;
 class FSequencerSectionPainter;
+class IDetailsView;
+class ISequencer;
+class ISequencerSection;
+class ISequencerTrackEditor;
 struct FSlateBrush;
 
 /** Enumerates which edge is being resized */
@@ -39,6 +43,23 @@ namespace SequencerSectionConstants
 
 	const FName SelectionInactiveColorName("SelectionColorInactive");
 }
+
+/**
+ * Parameters for the callback used when a section wants to customize how its properties details context menu looks like.
+ */
+struct FSequencerSectionPropertyDetailsViewCustomizationParams
+{
+	FSequencerSectionPropertyDetailsViewCustomizationParams(TSharedRef<ISequencerSection> InSectionInterface, TSharedRef<ISequencer> InSequencer, ISequencerTrackEditor& InTrackEditor)
+		: SectionInterface(InSectionInterface)
+		, Sequencer(InSequencer)
+		, TrackEditor(InTrackEditor)
+	{}
+
+	FGuid ParentObjectBindingGuid;
+	TSharedRef<ISequencerSection> SectionInterface;
+	TSharedRef<ISequencer> Sequencer;
+	ISequencerTrackEditor& TrackEditor;
+};
 
 /**
  * Interface that should be implemented for the UI portion of a section
@@ -179,6 +200,14 @@ public:
 	 */
 	virtual void BeginSlipSection() {}
 	virtual void SlipSection(FFrameNumber SlipTime) {}
+
+	/**
+	 * Called when the properties context menu is being built, so this section can customize how the menu's details view looks like.
+	 *
+	 * @param DetailsView The details view widget
+	 * @param InParams Information about the current operation
+	 */
+	virtual void CustomizePropertiesDetailsView(TSharedRef<IDetailsView> DetailsView, const FSequencerSectionPropertyDetailsViewCustomizationParams& InParams) const {}
 };
 
 class SEQUENCER_VTABLE FSequencerSection : public ISequencerSection

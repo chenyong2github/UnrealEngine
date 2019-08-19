@@ -73,6 +73,8 @@ private:
 
 	/** Delegate for AnimatablePropertyChanged in AddKey */
 	FKeyPropertyResult AddKeyInternal(FFrameNumber KeyTime, UObject* Object, class UAnimSequenceBase* AnimSequence, UMovieSceneTrack* Track, int32 RowIndex);
+
+	friend class FMovieSceneSkeletalAnimationParamsDetailCustomization;
 };
 
 
@@ -103,6 +105,7 @@ public:
 	virtual void BeginSlipSection() override;
 	virtual void SlipSection(FFrameNumber SlipTime) override;
 	virtual void BuildSectionContextMenu(FMenuBuilder& MenuBuilder, const FGuid& InObjectBinding) override;
+	virtual void CustomizePropertiesDetailsView(TSharedRef<IDetailsView> DetailsView, const FSequencerSectionPropertyDetailsViewCustomizationParams& InParams) const override;
 
 private:
 

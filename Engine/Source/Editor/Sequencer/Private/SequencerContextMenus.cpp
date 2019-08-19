@@ -5,6 +5,7 @@
 #include "EditorStyleSet.h"
 #include "DisplayNodes/SequencerSectionKeyAreaNode.h"
 #include "DisplayNodes/SequencerTrackNode.h"
+#include "DisplayNodes/SequencerObjectBindingNode.h"
 #include "SequencerCommonHelpers.h"
 #include "SSequencer.h"
 #include "SectionLayout.h"
@@ -536,7 +537,7 @@ void FSectionContextMenu::AddPropertiesMenu(FMenuBuilder& MenuBuilder)
 
 	TArray<TWeakObjectPtr<UObject>> Sections;
 	{
-		for (auto Section : Sequencer->GetSelection().GetSelectedSections())
+		for (TWeakObjectPtr<UMovieSceneSection> Section : Sequencer->GetSelection().GetSelectedSections())
 		{
 			if (Section.IsValid())
 			{
@@ -554,6 +555,27 @@ void FSectionContextMenu::AddPropertiesMenu(FMenuBuilder& MenuBuilder)
 	DetailsView->RegisterInstancedCustomPropertyLayout(UMovieSceneSection::StaticClass(), FOnGetDetailCustomizationInstance::CreateLambda([=]() {
 		return MakeShared<FMovieSceneSectionDetailsCustomization>(Sequencer->GetNumericTypeInterface(), CurrentScene); }));
 
+	// Let section interfaces further customize the properties details view.
+	TSharedRef<FSequencerNodeTree> SequencerNodeTree = Sequencer->GetNodeTree();
+	for (TWeakObjectPtr<UObject> Section : Sections)
+	{
+		if (Section.IsValid())
+		{
+			TOptional<FSectionHandle> SectionHandle = SequencerNodeTree->GetSectionHandle(Cast<UMovieSceneSection>(Section));
+			if (SectionHandle)
+			{
+				TSharedRef<ISequencerSection> SectionInterface = SectionHandle->GetSectionInterface();
+				FSequencerSectionPropertyDetailsViewCustomizationParams CustomizationDetails(
+					SectionInterface, Sequencer, SectionHandle->GetTrackNode()->GetTrackEditor());
+				TSharedPtr<FSequencerObjectBindingNode> ParentObjectBindingNode = SectionHandle->GetTrackNode()->FindParentObjectBindingNode();
+				if (ParentObjectBindingNode.IsValid())
+				{
+					CustomizationDetails.ParentObjectBindingGuid = ParentObjectBindingNode->GetObjectBinding();
+				}
+				SectionInterface->CustomizePropertiesDetailsView(DetailsView, CustomizationDetails);
+			}
+		}
+	}
 
 	Sequencer->OnInitializeDetailsPanel().Broadcast(DetailsView, Sequencer);
 	DetailsView->SetObjects(Sections);
