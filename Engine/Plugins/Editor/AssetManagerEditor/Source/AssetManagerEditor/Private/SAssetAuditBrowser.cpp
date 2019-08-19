@@ -232,8 +232,6 @@ void SAssetAuditBrowser::Construct(const FArguments& InArgs)
 	AssetManager = &UAssetManager::Get();
 	EditorModule = &IAssetManagerEditorModule::Get();
 
-	AssetManager->UpdateManagementDatabase();
-
 	TArray<const FAssetManagerEditorRegistrySource*> AvailableSources;
 	ManagerEditorModule.GetAvailableRegistrySources(AvailableSources);
 
@@ -495,7 +493,9 @@ void SAssetAuditBrowser::Construct(const FArguments& InArgs)
 		]
 	];
 
-	RefreshAssetView();
+	// Refresh our data sources to make sure we are displaying up to date info otherwise the user will need to 
+	// hit "refresh" every time they open the dialog to be able to trust it
+	ManagerEditorModule.RefreshRegistryData();
 }
 
 FReply SAssetAuditBrowser::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
