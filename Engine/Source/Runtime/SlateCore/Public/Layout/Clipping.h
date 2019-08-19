@@ -331,25 +331,10 @@ class FSlateCachedClipState
 {
 public:
 	FSlateCachedClipState(const FSlateClippingState& InState)
-		: ClippingState(InState)
-		, UsageCount(1)
+		: ClippingState(MakeShared<FSlateClippingState, ESPMode::ThreadSafe>(InState))
 	{}
 
-	FSlateClippingState ClippingState;
-
-	int32 GetUsageCount() const { return UsageCount; }
-	void BeginUsingState()
-	{
-		FPlatformAtomics::InterlockedIncrement(&UsageCount);
-	}
-
-	void EndUsingState()
-	{
-		int32 NewCount = FPlatformAtomics::InterlockedDecrement(&UsageCount);
-		check(NewCount >= 0);
-	}
-private:
-	int32 UsageCount;
+	TSharedRef<FSlateClippingState, ESPMode::ThreadSafe> ClippingState;
 };
 
 
