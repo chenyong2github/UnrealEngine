@@ -390,7 +390,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 		else
 		{
 			GraphBuilder.AddPass(
-				RDG_EVENT_NAME("ReflectionRayTracing %dx%d", RayTracingResolution.X, RayTracingResolution.Y),
+				RDG_EVENT_NAME("ReflectionRayTracing(spp=%d) %dx%d", SamplePerPixel, RayTracingResolution.X, RayTracingResolution.Y),
 				PassParameters,
 				ERDGPassFlags::Compute,
 				[PassParameters, this, &View, RayGenShader, RayTracingResolution, DeferredMaterialBufferNumElements, DeferredMaterialMode](FRHICommandList& RHICmdList)
