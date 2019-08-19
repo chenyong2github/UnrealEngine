@@ -1230,7 +1230,10 @@ void FWindowsPlatformProcess::SleepNoStats(float Seconds)
 	{
 		::SwitchToThread();
 	}
-	::Sleep(Milliseconds);
+	else
+	{
+		::Sleep(Milliseconds);
+	}
 }
 
 void FWindowsPlatformProcess::SleepInfinite()
