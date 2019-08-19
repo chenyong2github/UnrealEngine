@@ -41,7 +41,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Paths to all potential module source directories (with platform extension directories added in)
 		/// </summary>
-		protected DirectoryReference[] ModuleDirectories;
+		public DirectoryReference[] ModuleDirectories;
 
 		/// <summary>
 		/// The name of the .Build.cs file this module was created from, if any
