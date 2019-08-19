@@ -417,6 +417,11 @@ public:
 	virtual void GetChildKeyAreaNodesRecursively(TArray<TSharedRef<class FSequencerSectionKeyAreaNode>>& OutNodes) const;
 
 	/**
+	 * @return The base node this node belongs to, for collections of tracks that are part of an object
+	 */
+	FSequencerDisplayNode* GetBaseNode() const;
+
+	/**
 	 * Set whether this node is expanded or not
 	 */
 	void SetExpansionState(bool bInExpanded);
@@ -521,11 +526,6 @@ public:
 	}
 
 private:
-
-	/**
-	 * @return The base node this node belongs to, for collections of tracks that are part of an object
-	 */
-	FSequencerDisplayNode* GetBaseNode() const;
 
 	/** Callback for executing a "Rename Node" context menu action. */
 	void HandleContextMenuRenameNodeExecute();

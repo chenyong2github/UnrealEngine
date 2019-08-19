@@ -346,9 +346,58 @@ void FSequencerNodeTree::Update()
 	// Ensure that the curve editor tree is up to date for our tree layout
 	UpdateCurveEditorTree();
 
+	bHasSoloNodes = false;
+	
+	TArray<FString>& SoloNodes = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->GetSoloNodes();
+
+	// Muting overrides soloing, so a solo node only counts if it's not muted.
+	for (const FString& NodePath : SoloNodes)
+	{
+		FSequencerDisplayNode* Node = GetNodeAtPath(NodePath);
+		if (Node)
+		{
+			if (!IsNodeMute(Node))
+			{
+				bHasSoloNodes = true;
+				break;
+			}
+		}
+	}
+
 	OnUpdatedDelegate.Broadcast();
 }
 
+FSequencerDisplayNode* FSequencerNodeTree::GetNodeAtPath(const FString& NodePath) const
+{
+	TArray<FString> NodePathParts;
+	int32 PathLen = NodePath.ParseIntoArray(NodePathParts, TEXT("."));
+
+	FSequencerDisplayNode* Node = &RootNode.Get();
+
+	int32 PathIdx = 0;
+	while (PathIdx < PathLen)
+	{
+		FString& PathPart = NodePathParts[PathIdx];
+		bool bChildFound = false;
+		for (auto ChildNode : Node->GetChildNodes())
+		{
+			if (ChildNode->GetNodeName().ToString().Equals(PathPart))
+			{
+				bChildFound = true;
+				++PathIdx;
+				Node = &ChildNode.Get();
+				break;
+			}
+		}
+		
+		if (!bChildFound)
+		{
+			return nullptr;
+		}
+	}
+
+	return Node;
+}
 
 TSharedRef<ISequencerTrackEditor> FSequencerNodeTree::FindOrAddTypeEditor( UMovieSceneTrack* InTrack )
 {
@@ -512,6 +561,196 @@ bool FSequencerNodeTree::IsTrackLevelFilterActive(const FString& LevelName) cons
 	return !TrackFilterLevelFilter->IsLevelHidden(LevelName);
 }
 
+bool FSequencerNodeTree::IsNodeSolo(const FSequencerDisplayNode* InNode) const
+{
+	const TArray<FString>& SoloNodes = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->GetSoloNodes();
+	const FString NodePath = InNode->GetBaseNode()->GetPathName();
+
+	if (SoloNodes.Contains(NodePath))
+	{
+		return true;
+	}
+
+	// Children should follow their parent's behavior unless told otherwise.
+	TSharedPtr<FSequencerDisplayNode> ParentNode = InNode->GetParent();
+	if (ParentNode.IsValid())
+	{
+		return IsNodeSolo(ParentNode.Get());
+	}
+
+	return false;
+}
+
+bool FSequencerNodeTree::HasSoloNodes() const
+{
+	return bHasSoloNodes;
+}
+
+bool FSequencerNodeTree::IsSelectedNodesSolo() const
+{
+	const TSet<TSharedRef<FSequencerDisplayNode> > SelectedNodes = Sequencer.GetSelection().GetSelectedOutlinerNodes();
+	
+	if (SelectedNodes.Num() == 0)
+	{
+		return false;
+	}
+
+	const TArray<FString>& SoloNodes = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->GetSoloNodes();
+
+	bool bIsSolo = true;
+	for (const TSharedRef<const FSequencerDisplayNode> Node : SelectedNodes)
+	{
+		if (!SoloNodes.Contains(Node->GetBaseNode()->GetPathName()))
+		{
+			bIsSolo = false;
+			break;
+		}
+	}
+
+	return bIsSolo;
+}
+
+void FSequencerNodeTree::ToggleSelectedNodesSolo()
+{
+	UMovieScene* MovieScene = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene();
+	
+	if (MovieScene->IsReadOnly())
+	{
+		return;
+	}
+	
+	TArray<FString>& SoloNodes = MovieScene->GetSoloNodes();
+
+	const TSet<TSharedRef<FSequencerDisplayNode> >& SelectedNodes = Sequencer.GetSelection().GetSelectedOutlinerNodes();
+	if (SelectedNodes.Num() == 0)
+	{
+		return;
+	}
+
+	// First, determine if any of the selected nodes are not marked as solo
+	// If we have a mix, we should default to setting them all as solo
+	bool bIsSolo = true;
+	for (const TSharedRef<const FSequencerDisplayNode> Node : Sequencer.GetSelection().GetSelectedOutlinerNodes())
+	{
+		if (!SoloNodes.Contains(Node->GetBaseNode()->GetPathName()))
+		{
+			bIsSolo = false;
+			break;
+		}
+	}
+
+	MovieScene->Modify();
+
+	for (const TSharedRef<const FSequencerDisplayNode> Node : Sequencer.GetSelection().GetSelectedOutlinerNodes())
+	{
+		FString NodePath = Node->GetBaseNode()->GetPathName();
+		if (bIsSolo)
+		{
+			// If we're currently solo, unsolo
+			SoloNodes.Remove(NodePath);
+		}
+		else
+		{
+			// Mark solo, being careful as we might be re-marking an already solo node
+			SoloNodes.AddUnique(NodePath);
+		}
+	}
+	
+	GetSequencer().RefreshTree();
+}
+
+bool FSequencerNodeTree::IsNodeMute(const FSequencerDisplayNode* InNode) const
+{
+	const TArray<FString>& MuteNodes = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->GetMuteNodes();
+	const FString NodePath = InNode->GetBaseNode()->GetPathName();
+
+	if (MuteNodes.Contains(NodePath))
+	{
+		return true;
+	}
+	
+	// Children should follow their parent's behavior unless told otherwise.
+	const TSharedPtr<FSequencerDisplayNode> ParentNode = InNode->GetParent();
+	if (ParentNode.IsValid())
+	{
+		return IsNodeMute(ParentNode.Get());
+	}
+	
+	return false;
+}
+
+bool FSequencerNodeTree::IsSelectedNodesMute() const
+{
+	const TSet<TSharedRef<FSequencerDisplayNode> > SelectedNodes = Sequencer.GetSelection().GetSelectedOutlinerNodes();
+
+	if (SelectedNodes.Num() == 0)
+	{
+		return false;
+	}
+
+	const TArray<FString>& MuteNodes = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->GetMuteNodes();
+
+	bool bIsMute = true;
+	for (const TSharedRef<const FSequencerDisplayNode> Node : SelectedNodes)
+	{
+		if (!MuteNodes.Contains(Node->GetBaseNode()->GetPathName()))
+		{
+			bIsMute = false;
+			break;
+		}
+	}
+
+	return bIsMute;
+}
+
+void FSequencerNodeTree::ToggleSelectedNodesMute()
+{
+	UMovieScene* MovieScene = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene();
+	
+	if (MovieScene->IsReadOnly())
+	{
+		return;
+	}
+
+	TArray<FString>& MuteNodes = MovieScene->GetMuteNodes();
+
+	const TSet<TSharedRef<FSequencerDisplayNode> >& SelectedNodes = Sequencer.GetSelection().GetSelectedOutlinerNodes();
+	if (SelectedNodes.Num() == 0)
+	{
+		return;
+	}
+
+	// First, determine if any of the selected nodes are not marked as Mute
+	// If we have a mix, we should default to setting them all as Mute
+	bool bIsMute = true;
+	for (const TSharedRef<const FSequencerDisplayNode> Node : SelectedNodes)
+	{
+		if (!MuteNodes.Contains(Node->GetBaseNode()->GetPathName()))
+		{
+			bIsMute = false;
+			break;
+		}
+	}
+
+	MovieScene->Modify();
+
+	for (const TSharedRef<const FSequencerDisplayNode> Node : SelectedNodes)
+	{
+		FString NodePath = Node->GetBaseNode()->GetPathName();
+		if (bIsMute)
+		{
+			// If we're currently Mute, unMute
+			MuteNodes.Remove(NodePath);
+		}
+		else
+		{
+			// Mark Mute, being careful as we might be re-marking an already Mute node
+			MuteNodes.AddUnique(NodePath);
+		}
+	}
+
+	GetSequencer().RefreshTree();
+}
 
 void FSequencerNodeTree::SaveExpansionState(const FSequencerDisplayNode& Node, bool bExpanded)
 {	

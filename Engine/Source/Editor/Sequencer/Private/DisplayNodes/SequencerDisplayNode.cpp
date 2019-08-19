@@ -703,10 +703,32 @@ FLinearColor FSequencerDisplayNode::GetDisplayNameColor() const
 	FSequencerDisplayNode *This = const_cast<FSequencerDisplayNode*>(this);
 	//if empty with no key areas or sections then it's active, otherwise
 	//find first child with active section, then it's active, else inactive.
-	const bool bFoundInActiveSection = ChildNodes.Num() > 0 ? This->Traverse_ParentFirst(FindInActiveSection) :
+	bool bDimLabel = ChildNodes.Num() > 0 ? This->Traverse_ParentFirst(FindInActiveSection) :
 		((this->GetType() == ESequencerNode::Track || this->GetType() == ESequencerNode::KeyArea) && FindInActiveSection(*(This), false))
 		||false;
-	return bFoundInActiveSection ? FLinearColor(0.6f, 0.6f, 0.6f, 0.6f) : FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+
+	if (!bDimLabel)
+	{
+		// If the node is a track node, we can use the cached value in UMovieSceneTrack
+		if (GetType() == ESequencerNode::Track)
+		{
+			UMovieSceneTrack* Track = static_cast<const FSequencerTrackNode*>(this)->GetTrack();
+			if (Track && Track->IsEvalDisabled())
+			{
+				bDimLabel = true;
+			}
+		}
+		else
+		{
+			if (ParentTree.IsNodeMute(this) || (ParentTree.HasSoloNodes() && !ParentTree.IsNodeSolo(this)))
+			{
+				bDimLabel = true;
+			}
+		}
+
+	}
+
+	return bDimLabel ? FLinearColor(0.6f, 0.6f, 0.6f, 0.6f) : FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
 FText FSequencerDisplayNode::GetDisplayNameToolTipText() const
@@ -935,25 +957,16 @@ namespace
 void FSequencerDisplayNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 {
 	TSharedRef<FSequencerDisplayNode> ThisNode = SharedThis(this);
+	FSequencerDisplayNode* BaseNode = GetBaseNode();
 
+	ESequencerNode::Type BaseNodeType = BaseNode->GetType();
+
+	bool bCanSolo = (BaseNodeType == ESequencerNode::Track || BaseNodeType == ESequencerNode::Object || BaseNodeType == ESequencerNode::Folder);
 	bool bIsReadOnly = !GetSequencer().IsReadOnly();
 	FCanExecuteAction CanExecute = FCanExecuteAction::CreateLambda([bIsReadOnly]{ return bIsReadOnly; });
 
 	MenuBuilder.BeginSection("Edit", LOCTEXT("EditContextMenuSectionName", "Edit"));
 	{
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ToggleNodeActive", "Active"),
-			LOCTEXT("ToggleNodeActiveTooltip", "Set this track or selected tracks active/inactive"),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateSP(&GetSequencer(), &FSequencer::ToggleNodeActive),
-				CanExecute,
-				FIsActionChecked::CreateSP(&GetSequencer(), &FSequencer::IsNodeActive)
-			),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
-
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("ToggleNodeLock", "Locked"),
 			LOCTEXT("ToggleNodeLockTooltip", "Lock or unlock this node or selected tracks"),
@@ -968,7 +981,7 @@ void FSequencerDisplayNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 		);
 
 		// Only support pinning root nodes
-		if (GetBaseNode()->IsRootNode())
+		if (BaseNode->IsRootNode())
 		{
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("ToggleNodePin", "Pinned"),
@@ -978,6 +991,35 @@ void FSequencerDisplayNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 					FExecuteAction::CreateSP(this, &FSequencerDisplayNode::TogglePinned),
 					FCanExecuteAction(),
 					FIsActionChecked::CreateSP(this, &FSequencerDisplayNode::IsPinned)
+				),
+				NAME_None,
+				EUserInterfaceActionType::ToggleButton
+			);
+		}
+
+		if (bCanSolo)
+		{
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("ToggleNodeSolo", "Solo"),
+				LOCTEXT("ToggleNodeLockTooltip", "Solo or unsolo this node or selected tracks"),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateRaw(&ParentTree, &FSequencerNodeTree::ToggleSelectedNodesSolo),
+					CanExecute,
+					FIsActionChecked::CreateSP(&ParentTree, &FSequencerNodeTree::IsSelectedNodesSolo)
+				),
+				NAME_None,
+				EUserInterfaceActionType::ToggleButton
+			);
+
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("ToggleNodeMute", "Mute"),
+				LOCTEXT("ToggleNodeLockTooltip", "Mute or unmute this node or selected tracks"),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateRaw(&ParentTree, &FSequencerNodeTree::ToggleSelectedNodesMute),
+					CanExecute,
+					FIsActionChecked::CreateSP(&ParentTree, &FSequencerNodeTree::IsSelectedNodesMute)
 				),
 				NAME_None,
 				EUserInterfaceActionType::ToggleButton

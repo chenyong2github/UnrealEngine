@@ -663,6 +663,17 @@ public:
 	 * Gets the root folders for this movie scene.
 	 */
 	TArray<UMovieSceneFolder*>& GetRootFolders();
+
+	/**
+	 * Gets the nodes marked as solo in the editor, as node tree paths
+	 */
+	TArray<FString>& GetSoloNodes() { return SoloNodes; }
+
+	/**
+	 * Gets the nodes marked as muted in the editor, as node tree paths
+	 */
+	TArray<FString>& GetMuteNodes() { return MuteNodes; }
+	
 #endif
 
 	/**
@@ -905,6 +916,14 @@ private:
 	/** The root folders for this movie scene. */
 	UPROPERTY()
 	TArray<UMovieSceneFolder*> RootFolders;
+
+	/** Nodes currently marked Solo, stored as node tree paths */
+	UPROPERTY()
+	TArray<FString> SoloNodes;
+	
+	/** Nodes currently marked Mute, stored as node tree paths */
+	UPROPERTY()
+	TArray<FString> MuteNodes;
 
 private:
 

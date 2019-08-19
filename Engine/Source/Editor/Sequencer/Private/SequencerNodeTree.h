@@ -153,6 +153,14 @@ public:
 	 */
 	FCurveEditorTreeItemID FindCurveEditorTreeItem(TSharedRef<FSequencerDisplayNode> DisplayNode) const;
 
+	/**
+	 * Attempt to get a node at the specified path
+	 *
+	 * @param NodePath The path of the node to search for
+	 * @return The node located at NodePath, or nullptr if not found
+	 */
+	FSequencerDisplayNode* GetNodeAtPath(const FString& NodePath) const;
+
 public:
 
 	/**
@@ -168,6 +176,21 @@ public:
 	void AddLevelFilter(const FString& LevelName);
 	void RemoveLevelFilter(const FString& LevelName);
 	bool IsTrackLevelFilterActive(const FString& LevelName) const;
+
+	void ToggleSelectedNodesSolo();
+	bool IsNodeSolo(const FSequencerDisplayNode* Node) const;
+	
+	/** Returns whether any of the nodes in this tree are marked solo */
+	bool HasSoloNodes() const;
+
+	void ToggleSelectedNodesMute();
+	bool IsNodeMute(const FSequencerDisplayNode* Node) const;
+
+	/** Returns whether any of the currently selected nodes are marked solo */
+	bool IsSelectedNodesSolo() const;
+	
+	/** Returns whether any of the currently selected nodes are muted */
+	bool IsSelectedNodesMute() const;
 
 private:
 
@@ -286,4 +309,7 @@ private:
 	TSharedPtr<FSequencerTrackFilter_LevelFilter> TrackFilterLevelFilter;
 
 	bool bFilterUpdateRequested;
+	
+	/** Cached value of whether we have any nodes that should be treated as soloing */
+	bool bHasSoloNodes;
 };

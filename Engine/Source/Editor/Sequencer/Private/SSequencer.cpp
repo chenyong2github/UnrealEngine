@@ -2341,6 +2341,33 @@ void SSequencer::UpdateLayoutTree()
 
 		AdditionalSelectionsToAdd.Empty();
 
+		if (Sequencer->GetFocusedMovieSceneSequence())
+		{
+			bool bAnyChanged = false;
+
+			TSharedPtr<FSequencerNodeTree> NodeTree = Sequencer->GetNodeTree();
+			const bool bHasSoloNodes = NodeTree->HasSoloNodes();
+			for (TSharedRef<FSequencerDisplayNode> Node : NodeTree->GetAllNodes())
+			{
+				if (Node->GetType() == ESequencerNode::Track)
+				{
+					UMovieSceneTrack* Track = static_cast<FSequencerTrackNode&>(Node.Get()).GetTrack();
+					bool bDisableEval = NodeTree->IsNodeMute(&Node.Get()) || (bHasSoloNodes && !NodeTree->IsNodeSolo(&Node.Get()));
+					if (bDisableEval != Track->IsEvalDisabled())
+					{
+						Track->Modify();
+						Track->SetEvalDisabled(bDisableEval);
+						bAnyChanged = true;
+					}
+					
+				}
+			}
+			if (bAnyChanged)
+			{
+				Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged);
+			}
+		}
+
 		// Continue broadcasting selection changes
 		Sequencer->GetSelection().ResumeBroadcast();
 	}

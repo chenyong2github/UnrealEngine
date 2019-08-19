@@ -688,13 +688,15 @@ FLinearColor FSequencerTrackNode::GetDisplayNameColor() const
 {
 	UMovieSceneTrack* Track = GetTrack();
 
+	const bool bIsEvalDisabled = Track->IsEvalDisabled();
+
 	// Display track node is red if the property track is not bound to valid property
 	if (UMovieScenePropertyTrack* PropertyTrack = Cast<UMovieScenePropertyTrack>(Track))
 	{
 		// 3D transform tracks don't map to property bindings as below
 		if (Track->IsA<UMovieScene3DTransformTrack>() || Track->IsA<UMovieScenePrimitiveMaterialTrack>())
 		{
-			return FLinearColor::White;
+			return bIsEvalDisabled ? FLinearColor(0.6f, 0.6f, 0.6f, 0.6f) : FLinearColor::White;
 		}
 
 		FGuid ObjectBinding;
@@ -713,15 +715,15 @@ FLinearColor FSequencerTrackNode::GetDisplayNameColor() const
 
 				if (PropertyBinding.GetProperty(*RuntimeObject))
 				{
-					return FLinearColor::White;
+					return bIsEvalDisabled ? FLinearColor(0.6f, 0.6f, 0.6f, 0.6f) : FLinearColor::White;
 				}
 			}
 
-			return FLinearColor::Red;
+			return bIsEvalDisabled ? FLinearColor(0.6f, 0.0f, 0.0f, 0.6f) : FLinearColor::Red;
 		}
 	}
 
-	return FLinearColor::White;
+	return bIsEvalDisabled ? FLinearColor(0.6f, 0.6f, 0.6f, 0.6f) : FLinearColor::White;
 }
 
 float FSequencerTrackNode::GetNodeHeight() const
