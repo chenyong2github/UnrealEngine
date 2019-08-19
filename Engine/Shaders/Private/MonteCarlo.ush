@@ -236,7 +236,7 @@ float4 ImportanceSampleGGX( float2 E, float a2 )
 // [ Heitz 2018, "Sampling the GGX Distribution of Visible Normals" ]
 // http://jcgt.org/published/0007/04/01/
 
-float4 ImportanceSampleVisibleGGX( float2 E, float a2, float3 V )
+float4 ImportanceSampleVisibleGGX( float2 DiskE, float a2, float3 V )
 {
 	// TODO float2 alpha for anisotropic
 	float a = sqrt(a2);
@@ -249,10 +249,7 @@ float4 ImportanceSampleVisibleGGX( float2 E, float a2, float3 V )
 	float3 Tangent0 = (Vh.z < 0.9999) ? normalize( cross( float3(0, 0, 1), Vh ) ) : float3(1, 0, 0);
 	float3 Tangent1 = cross( Vh, Tangent0 );
 
-	float Radius = sqrt( E.x );
-	float Phi = 2 * PI * E.y;
-
-	float2 p = Radius * float2( cos( Phi ), sin( Phi ) );
+	float2 p = DiskE;
 	float s = 0.5 + 0.5 * Vh.z;
 	p.y = (1 - s) * sqrt( 1 - p.x * p.x ) + s * p.y;
 

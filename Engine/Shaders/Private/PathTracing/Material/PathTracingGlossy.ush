@@ -98,7 +98,7 @@ void Glossy_SampleMaterial(
 	if ((RandSample.z <= ProbSpecular)) 
 	{	
 		bool Flip = V.z < 0.0f;
-		float4 ResGGX = ImportanceSampleVisibleGGX(RandSample.xy, Pow4(Roughness), Flip ? -V : V);
+		float4 ResGGX = ImportanceSampleVisibleGGX(UniformSampleDisk(RandSample.xy), Pow4(Roughness), Flip ? -V : V);
 		float3 H = ResGGX.xyz;
 		if (Flip)
 		{

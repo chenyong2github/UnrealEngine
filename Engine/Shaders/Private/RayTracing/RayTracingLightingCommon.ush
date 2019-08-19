@@ -62,7 +62,7 @@ float3 GenerateReflectedRayDirection(
 
 		float NoV = saturate(dot(V, WorldNormal));
 
-		float4 Sample = ImportanceSampleVisibleGGX(E, Pow4(Roughness), TangentV);
+		float4 Sample = ImportanceSampleVisibleGGX(UniformSampleDisk(E), Pow4(Roughness), TangentV);
 
 		float3 H = mul(Sample.xyz, TangentBasis);
 		float3 L = 2 * dot(V, H) * H - V;

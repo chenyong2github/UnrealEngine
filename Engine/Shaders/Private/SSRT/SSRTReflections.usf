@@ -188,7 +188,7 @@ void ScreenSpaceReflectionsPS(
 			float2 E = Hammersley16( i, NumRays, Random );
 
 #if 1
-			float3 H = mul( ImportanceSampleVisibleGGX(E, a2, TangentV ).xyz, TangentBasis );
+			float3 H = mul( ImportanceSampleVisibleGGX(UniformSampleDisk(E), a2, TangentV ).xyz, TangentBasis );
 			float3 L = 2 * dot( V, H ) * H - V;
 #elif 0
 			float3 H = mul( ImportanceSampleGGX( E, a2 ).xyz, TangentBasis );
@@ -299,14 +299,14 @@ void ScreenSpaceReflectionsPS(
 			
 			#if SSR_OUTPUT_FOR_DENOISER
 			{
-				E.x *= 1 - GGX_IMPORTANT_SAMPLE_BIAS;
+				E.y *= 1 - GGX_IMPORTANT_SAMPLE_BIAS;
 			}
 			#endif
 			
 			float3x3 TangentBasis = GetTangentBasis( N );
 			float3 TangentV = mul( TangentBasis, V );
 
-			float3 H = mul( ImportanceSampleVisibleGGX(E, a2, TangentV ).xyz, TangentBasis );
+			float3 H = mul( ImportanceSampleVisibleGGX(UniformSampleDisk(E), a2, TangentV ).xyz, TangentBasis );
 			L = 2 * dot( V, H ) * H - V;
 		}
 		else
