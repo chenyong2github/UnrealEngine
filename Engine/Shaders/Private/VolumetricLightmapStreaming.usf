@@ -44,9 +44,9 @@ Texture3D SkyBentNormal;
 Texture3D DirectionalLightShadowing;
 
 RWTexture3D<float3> OutAmbientVector;
-RWTexture3D<float4> OutSHCoefficients;
-RWTexture3D<float4> OutSkyBentNormal;
-RWTexture3D<float> OutDirectionalLightShadowing;
+RWTexture3D<UNORM float4> OutSHCoefficients;
+RWTexture3D<UNORM float4> OutSkyBentNormal;
+RWTexture3D<UNORM float> OutDirectionalLightShadowing;
 
 uint StartPosInOldVolume;
 uint StartPosInNewVolume;
