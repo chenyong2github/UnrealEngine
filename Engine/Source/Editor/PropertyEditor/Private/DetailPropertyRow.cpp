@@ -714,7 +714,7 @@ void FDetailPropertyRow::MakeValueWidget( FDetailWidgetRow& Row, const TSharedPt
 
 	TSharedPtr<SResetToDefaultPropertyEditor> ResetButton = nullptr;
 	TSharedPtr<SWidget> ResetWidget = nullptr;
-	if (!PropertyHandle->HasMetaData(TEXT("NoResetToDefault")))
+	if (!PropertyHandle->HasMetaData(TEXT("NoResetToDefault")) && !PropertyHandle->GetInstanceMetaData(TEXT("NoResetToDefault")))
 	{
 		if (PropertyHandle->IsResetToDefaultCustomized())
 		{
