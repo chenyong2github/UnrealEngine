@@ -1883,6 +1883,14 @@ namespace UnrealBuildTool
 					FileReference Location = FileReference.Combine(Module.RulesFile.Directory, ExternalDependency);
 					Makefile.AdditionalDependencies.Add(FileItem.GetItemByFileReference(Location));
 				}
+				if (Module.Rules.SubclassRules != null)
+				{
+					foreach (string SubclassRule in Module.Rules.SubclassRules)
+					{
+						FileItem SubclassRuleFileItem = FileItem.GetItemByFileReference(new FileReference(SubclassRule));
+						Makefile.AdditionalDependencies.Add(SubclassRuleFileItem);
+					}
+				}
 			}
 			Makefile.AdditionalDependencies.UnionWith(Makefile.PluginFiles);
 

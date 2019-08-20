@@ -431,12 +431,14 @@ namespace UnrealBuildTool
 					Type SubType = RulesObjectType;
 
 					RulesObject.DirectoriesForModuleSubClasses = new Dictionary<Type, DirectoryReference>();
+					RulesObject.SubclassRules = new List<string>();
 					while (SubType != BaseRulesObjectType)
 					{
 						FileReference SubTypeFileName;
 						if (TryGetFileNameFromType(SubType, out SubTypeFileName))
 						{
 							RulesObject.DirectoriesForModuleSubClasses.Add(SubType, SubTypeFileName.Directory);
+							RulesObject.SubclassRules.Add(SubTypeFileName.FullName);
 						}
 						SubType = SubType.BaseType;
 					}
