@@ -145,6 +145,7 @@
     <Compile Include="Modes\BuildMode.cs" />
     <Compile Include="Modes\CleanMode.cs" />
     <Compile Include="Modes\DeployMode.cs" />
+    <Compile Include="Modes\GenerateClangDatabase.cs" />
     <Compile Include="Modes\QueryTargetsMode.cs" />
     <Compile Include="Modes\ExecuteMode.cs" />
     <Compile Include="Modes\JsonExportMode.cs" />

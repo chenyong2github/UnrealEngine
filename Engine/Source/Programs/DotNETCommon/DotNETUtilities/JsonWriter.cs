@@ -105,6 +105,20 @@ namespace Tools.DotNETCommon
 		}
 
 		/// <summary>
+		/// Write the opening bracket for an unnamed array
+		/// </summary>
+		/// <param name="ArrayName">Name of the field</param>
+		public void WriteArrayStart()
+		{
+			WriteCommaNewline();
+
+			Writer.Write("{0}[", Indent);
+
+			Indent += "\t";
+			bRequiresComma = false;
+		}
+
+		/// <summary>
 		/// Write the name and opening bracket for an array
 		/// </summary>
 		/// <param name="ArrayName">Name of the field</param>
