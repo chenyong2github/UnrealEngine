@@ -1542,7 +1542,7 @@ namespace UnrealBuildTool
 			// Otherwise take the SupportedPlatformsAttribute from the first type in the inheritance chain that supports it
 			for (Type CurrentType = GetType(); CurrentType != null; CurrentType = CurrentType.BaseType)
 			{
-				object[] Attributes = GetType().GetCustomAttributes(typeof(SupportedPlatformsAttribute), false);
+				object[] Attributes = CurrentType.GetCustomAttributes(typeof(SupportedPlatformsAttribute), false);
 				if (Attributes.Length > 0)
 				{
 					return Attributes.OfType<SupportedPlatformsAttribute>().SelectMany(x => x.Platforms).Distinct().ToArray();
@@ -1561,6 +1561,33 @@ namespace UnrealBuildTool
 			else
 			{
 				return Utils.GetPlatformsInClass(UnrealPlatformClass.All);
+			}
+		}
+
+		/// <summary>
+		/// Gets a list of configurations that this target supports
+		/// </summary>
+		/// <returns>Array of configurations that the target supports</returns>
+		internal UnrealTargetConfiguration[] GetSupportedConfigurations()
+		{
+			// Otherwise take the SupportedConfigurationsAttribute from the first type in the inheritance chain that supports it
+			for (Type CurrentType = GetType(); CurrentType != null; CurrentType = CurrentType.BaseType)
+			{
+				object[] Attributes = CurrentType.GetCustomAttributes(typeof(SupportedConfigurationsAttribute), false);
+				if (Attributes.Length > 0)
+				{
+					return Attributes.OfType<SupportedConfigurationsAttribute>().SelectMany(x => x.Configurations).Distinct().ToArray();
+				}
+			}
+
+			// Otherwise, get the default for the target type
+			if (Type == TargetType.Editor)
+			{
+				return new[] { UnrealTargetConfiguration.Debug, UnrealTargetConfiguration.DebugGame, UnrealTargetConfiguration.Development };
+			}
+			else
+			{
+				return ((UnrealTargetConfiguration[])Enum.GetValues(typeof(UnrealTargetConfiguration))).Where(x => x != UnrealTargetConfiguration.Unknown).ToArray();
 			}
 		}
 

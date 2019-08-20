@@ -611,6 +611,12 @@ namespace UnrealBuildTool
 				throw new BuildException("{0} does not support the {1} platform.", Descriptor.Name, Descriptor.Platform.ToString());
 			}
 
+			// Make sure this configuration is supports
+			if(!RulesObject.GetSupportedConfigurations().Contains(Descriptor.Configuration))
+			{
+				throw new BuildException("{0} does not support the {1} configuration", Descriptor.Name, Descriptor.Configuration);
+			}
+
 			// Make sure this target type is supported
 			if (!InstalledPlatformInfo.IsValid(RulesObject.Type, Descriptor.Platform, Descriptor.Configuration, EProjectType.Code, InstalledPlatformState.Downloaded))
 			{
