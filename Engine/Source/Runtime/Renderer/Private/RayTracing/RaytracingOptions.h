@@ -13,6 +13,16 @@ class FViewInfo;
 class FLightSceneInfoCompact;
 class FLightSceneInfo;
 
+// be sure to also update the definition in the `RayTracingPrimaryVisibility.usf`
+enum class ERayTracingPrimaryVisibilityFlag: uint32 
+{
+	None                      =      0,
+	UseGBufferForMaxDistance  = 1 << 0,
+	ConsiderSurfaceScatter	  = 1 << 1,
+	AllowSkipSkySample		  = 1 << 2,
+};
+
+ENUM_CLASS_FLAGS(ERayTracingPrimaryVisibilityFlag);
 
 #if RHI_RAYTRACING
 extern int32 GetForceRayTracingEffectsCVarValue();
@@ -27,6 +37,7 @@ extern bool ShouldRenderRayTracingShadows(const FLightSceneInfoCompact& LightInf
 extern bool ShouldRenderRayTracingStochasticRectLight(const FLightSceneInfo& LightInfo);
 extern bool CanOverlayRayTracingOutput(const FViewInfo& View);
 
+extern bool EnableRayTracingShadowTwoSidedGeometry();
 extern float GetRaytracingMaxNormalBias();
 
 #else
