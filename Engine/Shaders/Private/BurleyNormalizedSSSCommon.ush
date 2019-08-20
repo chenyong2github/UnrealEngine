@@ -16,18 +16,18 @@
 #define SSS_TYPE_BURLEY	    0
 #define SSS_TYPE_SSSS		1
 
-//make sure UIMax|ClampMax of WorldScale * ENC_WORLDSCALE_TO_UNIT <= 1
-#define ENC_WORLDSCALE_IN_CM_TO_UNIT 0.02f
-#define DEC_UNIT_TO_WORLDSCALE_IN_CM 1/ENC_WORLDSCALE_IN_CM_TO_UNIT
+// Make sure UIMax|ClampMax of WorldUNitScale * ENC_WORLDUNITSCALE_IN_CM_TO_UNIT <= 1
+#define ENC_WORLDUNITSCALE_IN_CM_TO_UNIT 0.02f
+#define DEC_UNIT_TO_WORLDUNITSCALE_IN_CM 1/ENC_WORLDUNITSCALE_IN_CM_TO_UNIT
 
-//make sure UIMax|ClampMax of DiffuseMeanFreePath * ENC_DIFFUSEMEANFREEPATH_IN_MM_TO_UNIT <= 1
-#define ENC_DIFFUSEMEANFREEPATH_IN_MM_TO_UNIT 0.01f
+// Make sure UIMax|ClampMax of DiffuseMeanFreePath * ENC_DIFFUSEMEANFREEPATH_IN_MM_TO_UNIT <= 1
+#define ENC_DIFFUSEMEANFREEPATH_IN_MM_TO_UNIT (0.01f*0.2f)
 #define DEC_UNIT_TO_DIFFUSEMEANFREEPATH_IN_MM 1/ENC_DIFFUSEMEANFREEPATH_IN_MM_TO_UNIT
 //------------------------------------------------------------------------------------------
 
-float DecodeWorldScale(float EncodedWorldScale)
+float DecodeWorldUnitScale(float EncodedWorldUnitScale)
 {
-	return EncodedWorldScale * DEC_UNIT_TO_WORLDSCALE_IN_CM;
+	return EncodedWorldUnitScale * DEC_UNIT_TO_WORLDUNITSCALE_IN_CM;
 }
 
 float4 DecodeDiffuseMeanFreePath(float4 EncodedDiffuseMeanFreePath)

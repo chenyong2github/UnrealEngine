@@ -152,24 +152,25 @@ static float GetNextSmallerPositiveFloat(float x)
 #define SSS_TYPE_BURLEY	    0
 #define SSS_TYPE_SSSS		1
 
-//make sure UIMax|ClampMax of WorldScale * ENC_WORLDSCALE_TO_UNIT <= 1
-#define ENC_WORLDSCALE_IN_CM_TO_UNIT 0.02f
-#define DEC_UNIT_TO_WORLDSCALE_IN_CM 1/ENC_WORLDSCALE_IN_CM_TO_UNIT
+// Make sure UIMax|ClampMax of WorldUnitScale * ENC_WORLDUNITSCALE_IN_CM_TO_UNIT <= 1
+#define ENC_WORLDUNITSCALE_IN_CM_TO_UNIT 0.02f
+#define DEC_UNIT_TO_WORLDUNITSCALE_IN_CM 1/ENC_WORLDUNITSCALE_IN_CM_TO_UNIT
 
-//make sure UIMax|ClampMax of DiffuseMeanFreePath * ENC_DIFFUSEMEANFREEPATH_IN_MM_TO_UNIT <= 1
-#define ENC_DIFFUSEMEANFREEPATH_IN_MM_TO_UNIT 0.01f
+// Make sure UIMax|ClampMax of DiffuseMeanFreePath * 10(cm to mm) * ENC_DIFFUSEMEANFREEPATH_IN_MM_TO_UNIT <= 1
+//
+#define ENC_DIFFUSEMEANFREEPATH_IN_MM_TO_UNIT (0.01f*0.2f)
 #define DEC_UNIT_TO_DIFFUSEMEANFREEPATH_IN_MM 1/ENC_DIFFUSEMEANFREEPATH_IN_MM_TO_UNIT
 //------------------------------------------------------------------------------------------
 
 //in [0,1]
-float EncodeWorldScale(float WorldScale)
+float EncodeWorldUnitScale(float WorldUnitScale)
 {
-	return WorldScale * ENC_WORLDSCALE_IN_CM_TO_UNIT;
+	return WorldUnitScale * ENC_WORLDUNITSCALE_IN_CM_TO_UNIT;
 }
 
-float DecodeWorldScale(float EncodedWorldScale)
+float DecodeWorldUnitScale(float EncodedWorldUnitScale)
 {
-	return EncodedWorldScale * DEC_UNIT_TO_WORLDSCALE_IN_CM;
+	return EncodedWorldUnitScale * DEC_UNIT_TO_WORLDUNITSCALE_IN_CM;
 }
 
 //in [0,1]
@@ -251,7 +252,7 @@ void FSubsurfaceProfileTexture::CreateTexture(FRHICommandListImmediate& RHICmdLi
 		
 		// to allow blending of the Subsurface with fullres in the shader
 		TextureRow[SSSS_SUBSURFACE_COLOR_OFFSET] = Data.SubsurfaceColor;
-		TextureRow[SSSS_SUBSURFACE_COLOR_OFFSET].A = EncodeWorldScale(Data.WorldScale);
+		TextureRow[SSSS_SUBSURFACE_COLOR_OFFSET].A = EncodeWorldUnitScale(Data.WorldUnitScale);
 		
 		FLinearColor DifffuseMeanFreePath = Data.MeanFreePathColor*Data.MeanFreePathDistance*10.0f; // convert cm to mm.
 		SetupSurfaceAlbedoAndDiffuseMeanFreePath(Data.SurfaceAlbedo, DifffuseMeanFreePath);
@@ -372,7 +373,7 @@ bool FSubsurfaceProfileTexture::GetEntryString(uint32 Index, FString& Out) const
 
 
 	Out = FString::Printf(TEXT(" %c. %p ScatterRadius=%.1f, SubsurfaceColor=%.1f %.1f %.1f, FalloffColor=%.1f %.1f %.1f, \
-								SurfaceAlbedo=%.1f %.1f %.1f, MeanFreePathColor=%.1f %.1f %.1f, MeanFreePathDistance=%.1f, WorldScale=%.1f"), 
+								SurfaceAlbedo=%.1f %.1f %.1f, MeanFreePathColor=%.1f %.1f %.1f, MeanFreePathDistance=%.1f, WorldUnitScale=%.1f"), 
 		MiniFontCharFromIndex(Index), 
 		SubsurfaceProfileEntries[Index].Profile,
 		ref.ScatterRadius,
@@ -381,7 +382,7 @@ bool FSubsurfaceProfileTexture::GetEntryString(uint32 Index, FString& Out) const
 		ref.SurfaceAlbedo.R, ref.SurfaceAlbedo.G, ref.SurfaceAlbedo.B,
 		ref.MeanFreePathColor.R, ref.MeanFreePathColor.G, ref.MeanFreePathColor.B,
 		ref.MeanFreePathDistance,
-		ref.WorldScale);
+		ref.WorldUnitScale);
 
 	return true;
 }
@@ -424,8 +425,8 @@ void FSubsurfaceProfileTexture::Dump()
 				SubsurfaceProfileEntries[i].Settings.MeanFreePathColor.R, SubsurfaceProfileEntries[i].Settings.MeanFreePathColor.G, SubsurfaceProfileEntries[i].Settings.MeanFreePathColor.B);
 			UE_LOG(LogSubsurfaceProfile, Log, TEXT("     MeanFreePathDistance=%f"),
 				SubsurfaceProfileEntries[i].Settings.MeanFreePathDistance);
-			UE_LOG(LogSubsurfaceProfile, Log, TEXT("     WorldScale=%f"),
-				SubsurfaceProfileEntries[i].Settings.WorldScale);
+			UE_LOG(LogSubsurfaceProfile, Log, TEXT("     WorldUnitScale=%f"),
+				SubsurfaceProfileEntries[i].Settings.WorldUnitScale);
 		}
 	}
 
@@ -488,6 +489,5 @@ void USubsurfaceProfile::PostLoad()
 		MapFallOffColor2SurfaceAlbedoAndDiffuseMeanFreePath(Settings.FalloffColor.R, Settings.SurfaceAlbedo.R, Settings.MeanFreePathColor.R);
 		MapFallOffColor2SurfaceAlbedoAndDiffuseMeanFreePath(Settings.FalloffColor.G, Settings.SurfaceAlbedo.G, Settings.MeanFreePathColor.G);
 		MapFallOffColor2SurfaceAlbedoAndDiffuseMeanFreePath(Settings.FalloffColor.B, Settings.SurfaceAlbedo.B, Settings.MeanFreePathColor.B);
-		Settings.WorldScale = Settings.ScatterRadius * 0.63; // Experimental value
 	}
 }

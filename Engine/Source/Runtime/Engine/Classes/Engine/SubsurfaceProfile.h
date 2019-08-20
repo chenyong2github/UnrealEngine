@@ -28,14 +28,14 @@ struct FSubsurfaceProfileStruct
 	/**
 	* Subsurface mean free path distance in world/unreal units (cm)
 	*/
-	UPROPERTY(Category = "Burley Normalized", EditAnywhere, BluePrintReadOnly, meta = (ClampMin = "0.1", UIMax = "10.0", ClampMax = "10.0"))
+	UPROPERTY(Category = "Burley Normalized", EditAnywhere, BluePrintReadOnly, meta = (ClampMin = "0.1", UIMax = "50.0", ClampMax = "50.0"))
 		float MeanFreePathDistance;
 
 	/**
 	* Control the scale of world/unreal units (cm)
 	*/
 	UPROPERTY(Category = "Burley Normalized", EditAnywhere, BlueprintReadOnly, meta = (ClampMin = "0.1", UIMax = "50.0", ClampMax = "50.0"))
-		float WorldScale;
+		float WorldUnitScale;
 
 	/**
 	* Effective only when Burley subsurface scattering is enabled in cmd.
@@ -106,9 +106,8 @@ struct FSubsurfaceProfileStruct
 		//match FalloffColor exactly for the default setting
 		SurfaceAlbedo = FLinearColor(0.1447f,0.0535f,0.0432f);
 		MeanFreePathColor = FLinearColor(0.5963f,0.2679f,0.2253f);
-		MeanFreePathDistance = 0.1f;
-		//match ScatterRadius
-		WorldScale = 1.2f;
+		MeanFreePathDistance = 1.2f;
+		WorldUnitScale = 0.1f;
 	}
 
 	void Invalidate()
@@ -128,8 +127,8 @@ struct FSubsurfaceProfileStruct
 		bEnableBurley = false;
 		SurfaceAlbedo = FLinearColor(0, 0, 0);
 		MeanFreePathColor = FLinearColor(0, 0, 0);
-		MeanFreePathDistance = 0.1f;
-		WorldScale = 0.0f;
+		MeanFreePathDistance = 0.0f;
+		WorldUnitScale = 0.0f;
 	}
 };
 

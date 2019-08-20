@@ -590,7 +590,7 @@ void SetupIndirectCS(uint3 DT_ID : SV_DispatchThreadID,
 #endif
 	}
 
-	if (all(Pos < SubsurfaceInput0_ViewportMax))
+	if (all(Pos <= SubsurfaceInput0_ViewportMax))
 	{
 		SetupTexture[Pos] = OutColor;
 		//cache the edge mask, depth, and the original uv in the buffer.
@@ -642,7 +642,7 @@ void MainIndirectDispatchCS(
 	// second pass prepares the setup from the recombine pass which doesn't need depth but wants to reconstruct the color
 	OutColor.a = GetMaskFromDepthInAlpha(OutColor.a);
 #endif
-	if (all(Pos < SubsurfaceInput0_ViewportMax))
+	if (all(Pos <= SubsurfaceInput0_ViewportMax))
 	{
 		SSSColorUAV[Pos] = OutColor;
 	}
