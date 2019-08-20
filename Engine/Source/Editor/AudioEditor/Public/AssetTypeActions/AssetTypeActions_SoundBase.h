@@ -8,6 +8,7 @@
 struct FAssetData;
 class USoundBase;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 class AUDIOEDITOR_API FAssetTypeActions_SoundBase : public FAssetTypeActions_Base
 {
 public:
@@ -17,9 +18,7 @@ public:
 	virtual UClass* GetSupportedClass() const override;
 	virtual bool HasActions ( const TArray<UObject*>& InObjects ) const override { return true; }
 	virtual void GetActions(const TArray<UObject*>& InObjects, struct FToolMenuSection& Section) override;
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	virtual void AssetsActivated( const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType ) override;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual bool AssetsActivatedOverride(const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType) override;
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Sounds; }
 	virtual bool CanFilter() override { return false; }
@@ -48,3 +47,4 @@ private:
 	/** Returns true if only one sound is selected to play */
 	bool CanExecutePlayCommand(TArray<TWeakObjectPtr<USoundBase>> Objects) const;
 };
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
