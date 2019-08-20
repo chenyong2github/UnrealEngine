@@ -190,7 +190,7 @@ public:
 		static uint16 __CpuProfilerEventSpecId;
 		if (__CpuProfilerEventSpecId == 0)
 		{
-			__CpuProfilerEventSpecId = FCpuProfilerTrace::OutputEventType(TEXT("TRHILambdaCommand"), CpuProfilerGroup_Default);
+			__CpuProfilerEventSpecId = FCpuProfilerTrace::OutputEventType(TSTR::TStr(), CpuProfilerGroup_Default);
 		}
 		FCpuProfilerTrace::FEventScope __CpuProfilerEventScope(__CpuProfilerEventSpecId);
 #endif
