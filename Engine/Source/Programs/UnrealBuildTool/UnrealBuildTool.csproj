@@ -441,18 +441,20 @@
     <None Include="app.config" />
     <None Include="app.manifest" />
   </ItemGroup>
-
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
-
-  <!-- The following will glob all platform extensions' UnrealBuildTool source
-  files and include them in the build. They will also appear in VisualStudio -->
+  <!-- The next two sections allow for GenerateProjectFiles script to hunt down "platform extension" C# files
+       without them needing to be added to this project. If they were compiled in a separate assembly like
+	   rules files, we would need to make a huge amount of classes, etc public, which we definitely do not 
+	   want to do. However, this does require that GenerateProjectFiles is run to create the References file
+	   below. 
+       The PlatformExtensionCompile compile item compiles the files found in the References file. This indirection
+	   is used so that Visual Studio shows these files. (If the References file directly compiled files, the 
+	   files would not be visible in the Solution Explorer).
+  -->
+  <Import Project="..\..\..\Intermediate\ProjectFiles\UnrealBuildTool.csproj.References" Condition="Exists('..\..\..\Intermediate\ProjectFiles\UnrealBuildTool.csproj.References')" />
   <ItemGroup>
-    <PlatformExtensions Include="../../../Platforms/*/Source/Programs/UnrealBuildTool/**/*.cs" />
-    <Compile Include="@(PlatformExtensions)">
-      <Link>Platform/$([System.Text.RegularExpressions.Regex]::Split(`%(Identity)`, `[\\/]`)[4])/_</Link>
-    </Compile>
+    <Compile Include="@(PlatformExtensionCompile)" />
   </ItemGroup>
-
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">
