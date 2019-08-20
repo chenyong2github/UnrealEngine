@@ -136,9 +136,22 @@ public:
 	 * @param Loop1 first loop of sequential vertices
 	 * @param Loop2 second loop of sequential vertices
 	 * @param ResultOut lists of newly created triangles/vertices/etc
-	 * @return true if operation suceeded. If a failure occurs, any added triangles are removed via RemoveTriangles
+	 * @return true if operation succeeded. If a failure occurs, any added triangles are removed via RemoveTriangles
 	 */
 	bool StitchVertexLoopsMinimal(const TArray<int>& VertexLoop1, const TArray<int>& VertexLoop2, FDynamicMeshEditResult& ResultOut);
+
+
+
+	/**
+	 * Stitch together two loops of vertices where vertices are only sparsely corresponded
+	 * @param VertexIDs1 first array of sequential vertices
+	 * @param MatchedIndices1 indices into the VertexIDs1 array of vertices that have a corresponding match in the VertexIDs2 array; Must be ordered
+	 * @param VertexIDs2 second array of sequential vertices
+	 * @param MatchedIndices2 indices into the VertexIDs2 array of vertices that have a corresponding match in the VertexIDs1 array; Must be ordered
+	 * @param ResultOut lists of newly created triangles/vertices/etc
+	 * @return true if operation succeeded.  If a failure occurs, any added triangles are removed via RemoveTriangles
+	 */
+	bool StitchSparselyCorrespondedVertexLoops(const TArray<int>& VertexIDs1, const TArray<int>& MatchedIndices1, const TArray<int>& VertexIDs2, const TArray<int>& MatchedIndices2, FDynamicMeshEditResult& ResultOut);
 
 
 	/**

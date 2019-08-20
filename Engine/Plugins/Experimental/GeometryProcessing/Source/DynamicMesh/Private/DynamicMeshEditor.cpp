@@ -103,6 +103,98 @@ operation_failed:
 
 
 
+bool FDynamicMeshEditor::StitchSparselyCorrespondedVertexLoops(const TArray<int>& VertexIDs1, const TArray<int>& MatchedIndices1, const TArray<int>& VertexIDs2, const TArray<int>& MatchedIndices2, FDynamicMeshEditResult& ResultOut)
+{
+	int CorrespondN = MatchedIndices1.Num();
+	if (!ensureMsgf(CorrespondN == MatchedIndices2.Num(), TEXT("FDynamicMeshEditor::StitchSparselyCorrespondedVertices: correspondence arrays are not the same length!")))
+	{
+		return false;
+	}
+	// TODO: support case of only one corresponded vertex & a connecting a full loop around?
+	// this requires allowing start==end to not immediately stop the walk ...
+	if (!ensureMsgf(CorrespondN >= 2, TEXT("Must have at least two corresponded vertices")))
+	{
+		return false;
+	}
+	ResultOut.NewGroups.Reserve(CorrespondN);
+
+	int i = 0;
+	for (; i < CorrespondN; ++i) 
+	{
+		int Starts[2] { MatchedIndices1[i], MatchedIndices2[i] };
+		int Ends[2] { MatchedIndices1[(i + 1) % CorrespondN], MatchedIndices2[(i + 1) % CorrespondN] };
+
+		auto GetWrappedSpanLen = [](const FDynamicMesh3* Mesh, const TArray<int>& VertexIDs, int StartInd, int EndInd)
+		{
+			float LenTotal = 0;
+			FVector3d V = Mesh->GetVertex(VertexIDs[StartInd]);
+			for (int Ind = StartInd, IndNext; Ind != EndInd;)
+			{
+				IndNext = (Ind + 1) % VertexIDs.Num();
+				FVector3d VNext = Mesh->GetVertex(VertexIDs[IndNext]);
+				LenTotal += V.Distance(VNext);
+				Ind = IndNext;
+				V = VNext;
+			}
+			return LenTotal;
+		};
+		float LenTotal[2] { GetWrappedSpanLen(Mesh, VertexIDs1, Starts[0], Ends[0]), GetWrappedSpanLen(Mesh, VertexIDs2, Starts[1], Ends[1]) };
+		float LenAlong[2] { FMathf::Epsilon, FMathf::Epsilon };
+		LenTotal[0] += FMathf::Epsilon;
+		LenTotal[1] += FMathf::Epsilon;
+
+
+		int NewGroupID = Mesh->AllocateTriangleGroup();
+		ResultOut.NewGroups.Add(NewGroupID);
+		
+		int Walks[2]{ Starts[0], Starts[1] };
+		FVector3d Vertex[2]{ Mesh->GetVertex(VertexIDs1[Starts[0]]), Mesh->GetVertex(VertexIDs2[Starts[1]]) };
+		while (Walks[0] != Ends[0] || Walks[1] != Ends[1])
+		{
+			float PctAlong[2]{ LenAlong[0] / LenTotal[0], LenAlong[1] / LenTotal[1] };
+			bool bAdvanceSecond = (Walks[0] == Ends[0] || (Walks[1] != Ends[1] && PctAlong[0] > PctAlong[1]));
+			FIndex3i Tri(VertexIDs1[Walks[0]], VertexIDs2[Walks[1]], -1);
+			if (!bAdvanceSecond)
+			{
+				Walks[0] = (Walks[0] + 1) % VertexIDs1.Num();
+				
+				Tri.C = VertexIDs1[Walks[0]];
+				FVector3d NextV = Mesh->GetVertex(Tri.C);
+				LenAlong[0] += NextV.Distance(Vertex[0]);
+				Vertex[0] = NextV;
+			}
+			else
+			{
+				Walks[1] = (Walks[1] + 1) % VertexIDs2.Num();
+				Tri.C = VertexIDs2[Walks[1]];
+				FVector3d NextV = Mesh->GetVertex(Tri.C);
+				LenAlong[1] += NextV.Distance(Vertex[1]);
+				Vertex[1] = NextV;
+			}
+			int Tid = Mesh->AppendTriangle(Tri, NewGroupID);
+			ResultOut.NewTriangles.Add(Tid);
+
+			if (Tid < 0)
+			{
+				goto operation_failed;
+			}
+		}
+	}
+
+	return true;
+
+operation_failed:
+	// remove what we added so far
+	if (ResultOut.NewTriangles.Num()) 
+	{
+		if (!RemoveTriangles(ResultOut.NewTriangles, false))
+		{
+			checkf(false, TEXT("FDynamicMeshEditor::StitchSparselyCorrespondedVertexLoops: failed to add all triangles, and also failed to back out changes."));
+		}
+	}
+	return false;
+}
+
 bool FDynamicMeshEditor::AddTriangleFan_OrderedVertexLoop(int CenterVertex, const TArray<int>& VertexLoop, int GroupID, FDynamicMeshEditResult& ResultOut)
 {
 	if (GroupID == -1)

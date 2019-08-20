@@ -583,9 +583,10 @@ bool FMeshSurfacePath::AddViaPlanarWalk(int StartTri, FVector3d StartPt, int End
 * @param PathVertices Indices of the vertices on the path after embedding succeeds; NOTE these will not be 1:1 with the input Path
 * @return true if embedding succeeded.
 */
-bool FMeshSurfacePath::EmbedSimplePath(bool bUpdatePath, TArray<int>& PathVertices, double SnapElementThresholdSq)
+bool FMeshSurfacePath::EmbedSimplePath(bool bUpdatePath, TArray<int>& PathVertices, bool bDoNotDuplicateFirstVertexID, double SnapElementThresholdSq)
 {
-	int32 InitialPathIdx = PathVertices.Num(); // TODO: rm this variable (used for debugging)
+	// used to track where the new vertices for *this* path start; used for bDoNotDuplicateFirstVertexID
+	int32 InitialPathIdx = PathVertices.Num();
 	if (!Path.Num())
 	{
 		return true;
@@ -650,7 +651,11 @@ bool FMeshSurfacePath::EmbedSimplePath(bool bUpdatePath, TArray<int>& PathVertic
 		{
 			ensure(Pt.PointType == ESurfacePointType::Vertex);
 			ensure(Mesh->IsVertex(Pt.ElementID));
-			PathVertices.Add(Pt.ElementID);
+			// make sure we don't add a duplicate vertex for the very first vertex (occurs when appending paths sequentially)
+			if (!bDoNotDuplicateFirstVertexID || PathVertices.Num() != InitialPathIdx || 0 == PathVertices.Num() || PathVertices.Last() != Pt.ElementID)
+			{
+				PathVertices.Add(Pt.ElementID);
+			}
 		}
 	}
 
@@ -692,7 +697,7 @@ bool FMeshSurfacePath::EmbedSimplePath(bool bUpdatePath, TArray<int>& PathVertic
 	return true;
 }
 
-bool EmbedProjectedPath(FDynamicMesh3* Mesh, int StartTriID, FFrame3d Frame, const TArray<FVector2d>& Path2D, TArray<int>& OutPathVertices, bool bClosePath, FMeshFaceSelection* EnclosedFaces, double PtSnapVertexOrEdgeThresholdSq)
+bool EmbedProjectedPath(FDynamicMesh3* Mesh, int StartTriID, FFrame3d Frame, const TArray<FVector2d>& Path2D, TArray<int>& OutPathVertices, TArray<int>& OutVertexCorrespondence, bool bClosePath, FMeshFaceSelection* EnclosedFaces, double PtSnapVertexOrEdgeThresholdSq)
 {
 	int32 EndIdxA = Path2D.Num() - (bClosePath ? 1 : 2);
 	int CurrentSeedTriID = StartTriID;
@@ -704,23 +709,47 @@ bool EmbedProjectedPath(FDynamicMesh3* Mesh, int StartTriID, FFrame3d Frame, con
 		return FVector3d(ProjPt.X, ProjPt.Y, 0);
 	};
 
+	OutVertexCorrespondence.Add(0);
 	for (int32 IdxA = 0; IdxA <= EndIdxA; IdxA++)
 	{
+		
 		int32 IdxB = (IdxA + 1) % Path2D.Num();
 		FMeshSurfacePath SurfacePath(Mesh);
 		FVector2d WalkDir = Path2D[IdxB] - Path2D[IdxA];
+		int LastVert = -1;
+		// TODO: for final vertex & closed path, tell the planar walk to connect back to that vertex.  NOTE: cannot simply connect back to the original start triangle, as that will have been split up by the path embedding.
 		bool WalkSuccess = SurfacePath.AddViaPlanarWalk(CurrentSeedTriID, FVector3d(Path2D[IdxA].X, Path2D[IdxA].Y, 0), -1, FVector3d(Path2D[IdxB].X, Path2D[IdxB].Y, 0), FVector3d(-WalkDir.Y, WalkDir.X, 0), ProjectToFrame, false, 0, PtSnapVertexOrEdgeThresholdSq);
 		if (!WalkSuccess)
 		{
 			return false;
 		}
-		SurfacePath.EmbedSimplePath(false, OutPathVertices, PtSnapVertexOrEdgeThresholdSq);
+		SurfacePath.EmbedSimplePath(false, OutPathVertices, true, PtSnapVertexOrEdgeThresholdSq);
+		OutVertexCorrespondence.Add(OutPathVertices.Num() - 1);
 		TArray<int> TrianglesOut;
 		Mesh->GetVertexOneRingTriangles(OutPathVertices.Last(), TrianglesOut);
 		check(TrianglesOut.Num());
 		CurrentSeedTriID = TrianglesOut[0];
 	}
+	// special handling to remove redundant vertex + correspondence at the start and end of a looping path
+	if (bClosePath)
+	{
+		if (OutPathVertices[0] == OutPathVertices.Last())
+		{
+			OutPathVertices.Pop();
+		}
+		else
+		{
+			// TODO: we may consider worrying about the case where the start and end are 'almost' connected / separated by some degenerate triangles that are easily crossed, which would currently fail
+			// for now we only handle the case where the start and end vertices are on the same triangle, which could happen for a single degenerate triangle case, which is the most likely case ...
+			if (!Mesh->FindEdge(OutPathVertices[0], OutPathVertices.Last()))
+			{
+				return false; // failed to properly close path
+			}
+		}
+		OutVertexCorrespondence.Pop();
+	}
 
+	// If a selection was requested, flood fill to select the faces enclosed by the path
 	if (EnclosedFaces)
 	{
 		TSet<int> Edges;
@@ -731,7 +760,10 @@ bool EmbedProjectedPath(FDynamicMesh3* Mesh, int StartTriID, FFrame3d Frame, con
 			int32 IdxB = (IdxA + 1) % OutPathVertices.Num();
 			int32 IDA = OutPathVertices[IdxA];
 			int32 IDB = OutPathVertices[IdxB];
+
+			ensure(IDA != IDB);
 			int EID = Mesh->FindEdge(IDA, IDB);
+			ensure(EID != FDynamicMesh3::InvalidID);
 			Edges.Add(EID);
 
 			if (SeedTriID == -1)
