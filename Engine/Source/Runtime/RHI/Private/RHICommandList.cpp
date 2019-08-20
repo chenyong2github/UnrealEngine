@@ -158,7 +158,7 @@ RHI_API FAutoConsoleTaskPriority CPrio_SceneRenderingTask(
 	ENamedThreads::HighTaskPriority 
 	);
 
-struct FRHICommandStat final : public FRHICommand<FRHICommandStat>
+FRHICOMMAND_MACRO(FRHICommandStat)
 {
 	TStatId CurrentExecuteStat;
 	FORCEINLINE_DEBUGGABLE FRHICommandStat(TStatId InCurrentExecuteStat)
@@ -748,7 +748,7 @@ bool FRHICommandListExecutor::IsRHIThreadCompletelyFlushed()
 	return !RenderThreadSublistDispatchTask;
 }
 
-struct FRHICommandRHIThreadFence final : public FRHICommand<FRHICommandRHIThreadFence>
+FRHICOMMAND_MACRO(FRHICommandRHIThreadFence)
 {
 	FGraphEventRef Fence;
 	FORCEINLINE_DEBUGGABLE FRHICommandRHIThreadFence()
@@ -783,7 +783,7 @@ FGraphEventRef FRHICommandListImmediate::RHIThreadFence(bool bSetLockFence)
 }		
 
 DECLARE_CYCLE_STAT(TEXT("Async Compute CmdList Execute"), STAT_AsyncComputeExecute, STATGROUP_RHICMDLIST);
-struct FRHIAsyncComputeSubmitList final : public FRHICommand<FRHIAsyncComputeSubmitList>
+FRHICOMMAND_MACRO(FRHIAsyncComputeSubmitList)
 {
 	FRHIAsyncComputeCommandList* RHICmdList;
 	FORCEINLINE_DEBUGGABLE FRHIAsyncComputeSubmitList(FRHIAsyncComputeCommandList* InRHICmdList)
@@ -957,7 +957,7 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("Num Parallel Async Chains Links"), STAT_Paralle
 DECLARE_CYCLE_STAT(TEXT("Wait for Parallel Async CmdList"), STAT_ParallelChainWait, STATGROUP_RHICMDLIST);
 DECLARE_CYCLE_STAT(TEXT("Parallel Async Chain Execute"), STAT_ParallelChainExecute, STATGROUP_RHICMDLIST);
 
-struct FRHICommandWaitForAndSubmitSubListParallel final : public FRHICommand<FRHICommandWaitForAndSubmitSubListParallel>
+FRHICOMMAND_MACRO(FRHICommandWaitForAndSubmitSubListParallel)
 {
 	FGraphEventRef TranslateCompletionEvent;
 	IRHICommandContextContainer* ContextContainer;
@@ -1008,7 +1008,7 @@ DECLARE_CYCLE_STAT(TEXT("Async Chain Execute"), STAT_ChainExecute, STATGROUP_RHI
 
 FGraphEvent* GEventToWaitFor = nullptr;
 
-struct FRHICommandWaitForAndSubmitSubList final : public FRHICommand<FRHICommandWaitForAndSubmitSubList>
+FRHICOMMAND_MACRO(FRHICommandWaitForAndSubmitSubList)
 {
 	FGraphEventRef EventToWaitFor;
 	FRHICommandListBase* RHICmdList;
@@ -1373,7 +1373,7 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("Num RT Chains Links"), STAT_RTChainLinkCount, S
 DECLARE_CYCLE_STAT(TEXT("Wait for RT CmdList"), STAT_RTChainWait, STATGROUP_RHICMDLIST);
 DECLARE_CYCLE_STAT(TEXT("RT Chain Execute"), STAT_RTChainExecute, STATGROUP_RHICMDLIST);
 
-struct FRHICommandWaitForAndSubmitRTSubList final : public FRHICommand<FRHICommandWaitForAndSubmitRTSubList>
+FRHICOMMAND_MACRO(FRHICommandWaitForAndSubmitRTSubList)
 {
 	FGraphEventRef EventToWaitFor;
 	FRHICommandList* RHICmdList;
@@ -1434,7 +1434,7 @@ void FRHICommandListBase::AddDispatchPrerequisite(const FGraphEventRef& Prereq)
 	}
 }
 
-struct FRHICommandSubmitSubList final : public FRHICommand<FRHICommandSubmitSubList>
+FRHICOMMAND_MACRO(FRHICommandSubmitSubList)
 {
 	FRHICommandList* RHICmdList;
 

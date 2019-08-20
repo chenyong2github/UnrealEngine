@@ -20,7 +20,7 @@ class ISlateStyle;
 class SWindow;
 struct Rect;
 
-template<typename TCmd> struct FRHICommand;
+template<typename TCmd, typename NameType> struct FRHICommand;
 
 typedef TArray<FRenderThreadUpdateContext, TInlineAllocator<2>> FDeferredUpdateContextList;
 
@@ -289,7 +289,11 @@ private:
 	uint32 ResourceVersion;
 };
 
-struct FSlateEndDrawingWindowsCommand final : public FRHICommand < FSlateEndDrawingWindowsCommand >
+struct FSlateEndDrawingWindowsCommandString
+{
+	static const TCHAR* TStr() { return TEXT("FSlateEndDrawingWindowsCommand"); }
+};
+struct FSlateEndDrawingWindowsCommand final : public FRHICommand < FSlateEndDrawingWindowsCommand, FSlateEndDrawingWindowsCommandString >
 {
 	FSlateRHIRenderingPolicy& Policy;
 	FSlateDrawBuffer* DrawBuffer;

@@ -78,7 +78,7 @@ private:
 		FThreadSafeBool bEncoding = false;
 	};
 
-	struct FRHITransferRenderTargetToNvEnc final : public FRHICommand<FRHITransferRenderTargetToNvEnc>
+	FRHICOMMAND_MACRO(FRHITransferRenderTargetToNvEnc)
 	{
 		FPixelStreamingNvVideoEncoder::FPixelStreamingNvVideoEncoderImpl* Encoder;
 		FFrame* Frame;

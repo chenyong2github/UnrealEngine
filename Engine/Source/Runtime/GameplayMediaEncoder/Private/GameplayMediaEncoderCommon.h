@@ -286,7 +286,7 @@ inline void ExecuteRHICommand(F&& Functor)
 	}
 	else
 	{
-		struct FLocalRHICommand final : public FRHICommand<FLocalRHICommand>
+		FRHICOMMAND_MACRO(FLocalRHICommand)
 		{
 			F Functor;
 

@@ -211,7 +211,7 @@ FGeometryCacheSceneProxy::~FGeometryCacheSceneProxy()
 }
 
 #if 0
-struct FRHICommandUpdateGeometryCacheBuffer : public FRHICommand<FRHICommandUpdateGeometryCacheBuffer>
+FRHICOMMAND_MACRO(FRHICommandUpdateGeometryCacheBuffer)
 {
 	FGraphEventRef BufferGenerationCompleteFence;
 

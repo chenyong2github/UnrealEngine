@@ -1478,7 +1478,7 @@ void FSlateRHIRenderer::ClearScenes()
 }
 
 
-struct FClearCachedRenderingDataCommand final : public FRHICommand < FClearCachedRenderingDataCommand >
+FRHICOMMAND_MACRO(FClearCachedRenderingDataCommand)
 {
 public:
 	FClearCachedRenderingDataCommand(FSlateCachedFastPathRenderingData* InCachedRenderingData)
@@ -1496,7 +1496,7 @@ private:
 	FSlateCachedFastPathRenderingData* CachedRenderingData;
 };
 
-struct FClearCachedElementDataCommand final : public FRHICommand < FClearCachedElementDataCommand >
+FRHICOMMAND_MACRO(FClearCachedElementDataCommand)
 {
 public:
 	FClearCachedElementDataCommand(FSlateCachedElementData* InCachedElementData)
