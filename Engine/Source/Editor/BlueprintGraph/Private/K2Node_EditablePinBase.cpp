@@ -137,6 +137,14 @@ void UK2Node_EditablePinBase::RemoveUserDefinedPinByName(const FName PinName)
 	});
 }
 
+bool UK2Node_EditablePinBase::UserDefinedPinExists(const FName PinName) const
+{
+	return UserDefinedPins.ContainsByPredicate([&PinName](const TSharedPtr<FUserPinInfo>& UDPin)
+	{
+		return UDPin.IsValid() && (UDPin->PinName == PinName);
+	});
+}
+
 void UK2Node_EditablePinBase::ExportCustomProperties(FOutputDevice& Out, uint32 Indent)
 {
 	Super::ExportCustomProperties(Out, Indent);

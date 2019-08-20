@@ -145,6 +145,14 @@ class BLUEPRINTGRAPH_VTABLE UK2Node_EditablePinBase : public UK2Node
 	BLUEPRINTGRAPH_API void RemoveUserDefinedPinByName(const FName PinName);
 
 	/**
+	* Check if a pin with this name exists in the user defined pin set
+	* 
+	* @param	PinName name of pin check existence of
+	* @return	True if a user defined pin with this name exists
+	*/
+	bool UserDefinedPinExists(const FName PinName) const;
+
+	/**
 	 * Creates a new pin on the node from the specified user pin info.
 	 * Must be overridden so each type of node can ensure that the pin is created in the proper direction, etc
 	 * 
