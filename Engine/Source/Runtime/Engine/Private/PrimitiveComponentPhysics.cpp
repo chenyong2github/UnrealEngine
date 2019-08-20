@@ -942,10 +942,10 @@ FName UPrimitiveComponent::GetCollisionProfileName() const
 void UPrimitiveComponent::OnActorEnableCollisionChanged()
 {
 	BodyInstance.UpdatePhysicsFilterData();
-	OnComponentCollisionSettingsChanged();
+	OnComponentCollisionSettingsChanged(true);
 }
 
-void UPrimitiveComponent::OnComponentCollisionSettingsChanged()
+void UPrimitiveComponent::OnComponentCollisionSettingsChanged(bool bDeferUpdateOverlaps)
 {
 	if (IsRegistered() && !IsTemplate())			// not for CDOs
 	{
@@ -955,7 +955,10 @@ void UPrimitiveComponent::OnComponentCollisionSettingsChanged()
 			ClearSkipUpdateOverlaps();
 		}
 
-		UpdateOverlaps();
+		if (!bDeferUpdateOverlaps)
+		{
+			UpdateOverlaps();
+		}
 
 		// update navigation data if needed
 		const bool bNewNavRelevant = IsNavigationRelevant();
