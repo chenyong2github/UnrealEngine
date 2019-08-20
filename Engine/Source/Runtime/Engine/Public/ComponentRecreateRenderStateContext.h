@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Containers/IndirectArray.h"
 #include "Components/ActorComponent.h"
+#include "SceneInterface.h"
 
 /** Destroys render state for a component and then recreates it when this object is destroyed */
 class FComponentRecreateRenderStateContext
