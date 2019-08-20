@@ -97,7 +97,7 @@ void STimingProfilerToolbar::Construct(const FArguments& InArgs)
 		+SHorizontalBox::Slot()
 		.HAlign(HAlign_Right)
 		.VAlign(VAlign_Center)
-		.FillWidth(1.0)
+		.AutoWidth()
 		.Padding(0.0f)
 		[
 			SNew(SBorder)
