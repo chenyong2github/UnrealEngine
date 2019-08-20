@@ -12,8 +12,12 @@ class FComponentRecreateRenderStateContext
 private:
 	/** Pointer to component we are recreating render state for */
 	UActorComponent* Component;
+
+	TSet<FSceneInterface*>* ScenesToUpdateAllPrimitiveSceneInfos;
+
 public:
-	FComponentRecreateRenderStateContext(UActorComponent* InComponent)
+	FComponentRecreateRenderStateContext(UActorComponent* InComponent, TSet<FSceneInterface*>* InScenesToUpdateAllPrimitiveSceneInfos = nullptr)
+		: ScenesToUpdateAllPrimitiveSceneInfos(InScenesToUpdateAllPrimitiveSceneInfos)
 	{
 		check(InComponent);
 		checkf(!InComponent->IsUnreachable(), TEXT("%s"), *InComponent->GetFullName());
@@ -22,6 +26,23 @@ public:
 		{
 			InComponent->DestroyRenderState_Concurrent();
 			Component = InComponent;
+
+			if (ScenesToUpdateAllPrimitiveSceneInfos == nullptr)
+			{
+				// If no batching is available (this RecreateRenderStateContext is not created by a FGlobalComponentRecreateRenderStateContext), issue one update per component
+				ENQUEUE_RENDER_COMMAND(UpdateAllPrimitiveSceneInfosCmd)([InComponent](FRHICommandListImmediate& RHICmdList) {
+					if (InComponent->GetScene())
+						InComponent->GetScene()->UpdateAllPrimitiveSceneInfos(RHICmdList);
+					});
+			}
+			else
+			{
+				if (InComponent->GetScene())
+				{
+					// Try to batch the updates inside FGlobalComponentRecreateRenderStateContext
+					ScenesToUpdateAllPrimitiveSceneInfos->Add(InComponent->GetScene());
+				}
+			}
 		}
 		else
 		{
@@ -34,6 +55,23 @@ public:
 		if (Component && !Component->IsRenderStateCreated() && Component->IsRegistered())
 		{
 			Component->CreateRenderState_Concurrent();
+
+			if (ScenesToUpdateAllPrimitiveSceneInfos == nullptr)
+			{
+				UActorComponent* InComponent = Component;
+				ENQUEUE_RENDER_COMMAND(UpdateAllPrimitiveSceneInfosCmd)([InComponent](FRHICommandListImmediate& RHICmdList) {
+					if (InComponent->GetScene())
+						InComponent->GetScene()->UpdateAllPrimitiveSceneInfos(RHICmdList);
+					});
+			}
+			else
+			{
+				if (Component->GetScene())
+				{
+					// Try to batch the updates inside FGlobalComponentRecreateRenderStateContext
+					ScenesToUpdateAllPrimitiveSceneInfos->Add(Component->GetScene());
+				}
+			}
 		}
 	}
 };
@@ -53,4 +91,8 @@ public:
 private:
 	/** The recreate contexts for the individual components. */
 	TIndirectArray<FComponentRecreateRenderStateContext> ComponentContexts;
+
+	TSet<FSceneInterface*> ScenesToUpdateAllPrimitiveSceneInfos;
+
+	void UpdateAllPrimitiveSceneInfos();
 };
