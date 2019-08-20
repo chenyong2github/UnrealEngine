@@ -306,7 +306,7 @@ namespace VectorUtil
 		RealType fBary1 = (fM11 * fR0 - fM01 * fR1) * fInvDet;
 		RealType fBary2 = (fM00 * fR1 - fM01 * fR0) * fInvDet;
 		RealType fBary3 = 1.0 - fBary1 - fBary2;
-		return new FVector3<RealType>(fBary1, fBary2, fBary3);
+		return FVector3<RealType>(fBary1, fBary2, fBary3);
 	}
 
 	/**
@@ -331,7 +331,7 @@ namespace VectorUtil
 		RealType fBary1 = (fM11 * fR0 - fM01 * fR1) * fInvDet;
 		RealType fBary2 = (fM00 * fR1 - fM01 * fR0) * fInvDet;
 		RealType fBary3 = 1.0 - fBary1 - fBary2;
-		return new FVector3<RealType>(fBary1, fBary2, fBary3);
+		return FVector3<RealType>(fBary1, fBary2, fBary3);
 	}
 
 	/**

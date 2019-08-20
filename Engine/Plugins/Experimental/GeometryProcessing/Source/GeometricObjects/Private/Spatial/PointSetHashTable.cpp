@@ -44,9 +44,12 @@ bool FPointSetHashtable::FindPointsInBall(const FVector3d& QueryPt, double Query
 	{
 		for (int vid : *CenterCellList)
 		{
-			if (QueryPt.DistanceSquared(Points->GetPoint(vid)) < RadiusSqr)
+			if (Points->IsPoint(vid))		// handle case where points are removed from pointset
 			{
-				ResultOut.Add(vid);
+				if (QueryPt.DistanceSquared(Points->GetPoint(vid)) < RadiusSqr)
+				{
+					ResultOut.Add(vid);
+				}
 			}
 		}
 	}
@@ -75,9 +78,12 @@ bool FPointSetHashtable::FindPointsInBall(const FVector3d& QueryPt, double Query
 			{
 				for (int vid : *NbrCellList)
 				{
-					if (QueryPt.DistanceSquared(Points->GetPoint(vid)) < RadiusSqr)
+					if (Points->IsPoint(vid))		// handle case where points are removed from pointset
 					{
-						ResultOut.Add(vid);
+						if (QueryPt.DistanceSquared(Points->GetPoint(vid)) < RadiusSqr)
+						{
+							ResultOut.Add(vid);
+						}
 					}
 				}
 			}
