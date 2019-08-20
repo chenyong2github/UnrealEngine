@@ -2546,10 +2546,10 @@ class FGenerateVulkanVisitor : public ir_visitor
 			"imageAtomicCompSwap"
 		};
 		check(scope_depth > 0);
-		const bool is_image = ir->memory_ref->as_dereference_image() != NULL;
+		ir_dereference_image* image = ir->memory_ref->as_dereference_image();
 
 		ir->lhs->accept(this);
-		if (!is_image)
+		if (!image || (image->image->type && image->image->type->shader_storage_buffer))
 		{
 			ralloc_asprintf_append(buffer, " = %s(",
 				sharedAtomicFunctions[ir->operation]);
@@ -2565,7 +2565,6 @@ class FGenerateVulkanVisitor : public ir_visitor
 		}
 		else
 		{
-			ir_dereference_image *image = ir->memory_ref->as_dereference_image();
 			ralloc_asprintf_append(buffer, " = %s(",
 				imageAtomicFunctions[ir->operation]);
 			image->image->accept(this);
@@ -3549,7 +3548,7 @@ public:
 				ralloc_asprintf_append(buffer, "in gl_PerVertex\n"
 					"{\n"
 					"\tvec4 gl_Position;\n"
-					"\tfloat gl_ClipDistance[6];\n"
+					"\tfloat gl_ClipDistance[];\n"
 					"} gl_in[];\n"
 					);
 #endif
@@ -3559,7 +3558,7 @@ public:
 				ralloc_asprintf_append(buffer, "out gl_PerVertex\n"
 					"{\n"
 					"\tvec4 gl_Position;\n"
-					"\tfloat gl_ClipDistance[6];\n"
+					"\tfloat gl_ClipDistance[];\n"
 					"};\n"
 					);
 #endif
@@ -3568,13 +3567,13 @@ public:
 				ralloc_asprintf_append(buffer, "in gl_PerVertex\n"
 					"{\n"
 					"\tvec4 gl_Position;\n"
-					"\tfloat gl_ClipDistance[6];\n"
+					"\tfloat gl_ClipDistance[];\n"
 					"} gl_in[gl_MaxPatchVertices];\n"
 					);
 				ralloc_asprintf_append(buffer, "out gl_PerVertex\n"
 					"{\n"
 					"\tvec4 gl_Position;\n"
-					"\tfloat gl_ClipDistance[6];\n"
+					"\tfloat gl_ClipDistance[];\n"
 					"} gl_out[];\n"
 					);
 				break;
@@ -3582,13 +3581,13 @@ public:
 				ralloc_asprintf_append(buffer, "in gl_PerVertex\n"
 					"{\n"
 					"\tvec4 gl_Position;\n"
-					"\tfloat gl_ClipDistance[6];\n"
+					"\tfloat gl_ClipDistance[];\n"
 					"} gl_in[gl_MaxPatchVertices];\n"
 					);
 				ralloc_asprintf_append(buffer, "out gl_PerVertex\n"
 					"{\n"
 					"\tvec4 gl_Position;\n"
-					"\tfloat gl_ClipDistance[6];\n"
+					"\tfloat gl_ClipDistance[];\n"
 					"};\n"
 					);
 				break;
