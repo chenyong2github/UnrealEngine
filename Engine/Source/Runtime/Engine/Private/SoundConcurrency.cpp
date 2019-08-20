@@ -5,6 +5,7 @@
 #include "ActiveSound.h"
 #include "AudioDevice.h"
 #include "AudioVirtualLoop.h"
+#include "DSP/VolumeFader.h"
 #include "Sound/SoundBase.h"
 
 
@@ -826,8 +827,7 @@ void FSoundConcurrencyManager::StopDueToVoiceStealing(FActiveSound& ActiveSound)
 	if (bRequiresConcurrencyFade)
 	{
 		ActiveSound.FadeOut = FActiveSound::EFadeOut::Concurrency;
-		ActiveSound.TargetAdjustVolumeMultiplier = 0.0f;
-		ActiveSound.TargetAdjustVolumeStopTime = ActiveSound.PlaybackTime + FadeOutDuration;
+		ActiveSound.ComponentVolumeFader.StartFade(0.0f, FadeOutDuration, Audio::EFaderCurve::Logarithmic);
 	}
 }
 
