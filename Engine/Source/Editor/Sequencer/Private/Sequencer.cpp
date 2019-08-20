@@ -5059,7 +5059,7 @@ void FSequencer::SaveCurrentMovieSceneAs()
 	{
 		UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
 		AssetEditorSubsystem->CloseAllEditorsForAsset(AssetsToSave[0]);
-		AssetEditorSubsystem->OpenEditorForAssets(SavedAssets, EToolkitMode::Standalone, MyToolkitHost.ToSharedRef());
+		AssetEditorSubsystem->OpenEditorForAssets_Advanced(SavedAssets, EToolkitMode::Standalone, MyToolkitHost.ToSharedRef());
 	}
 }
 
@@ -9245,7 +9245,7 @@ void FSequencer::DiscardChanges()
 	TArray<UObject*> AssetsToReopen;
 	AssetsToReopen.Add(ReloadedSequence);
 
-	AssetEditorSubsystem->OpenEditorForAssets(AssetsToReopen, EToolkitMode::Standalone, MyToolkitHost.ToSharedRef());
+	AssetEditorSubsystem->OpenEditorForAssets_Advanced(AssetsToReopen, EToolkitMode::Standalone, MyToolkitHost.ToSharedRef());
 }
 
 

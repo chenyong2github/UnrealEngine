@@ -41,6 +41,11 @@
 #include "Widgets/Images/SImage.h"
 #include "Factories/FbxSkeletalMeshImportData.h"
 
+#if WITH_EDITOR
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "Editor.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
 /** 
@@ -541,11 +546,13 @@ void FAssetTypeActions_SkeletalMesh::OpenAssetEditor( const TArray<UObject*>& In
 			if ( Mesh->Skeleton != NULL )
 			{
 				const bool bBringToFrontIfOpen = true;
-				if (IAssetEditorInstance* EditorInstance = FAssetEditorManager::Get().FindEditorForAsset(Mesh, bBringToFrontIfOpen))
+#if WITH_EDITOR
+				if (IAssetEditorInstance* EditorInstance = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(Mesh, bBringToFrontIfOpen))
 				{
 					EditorInstance->FocusWindow(Mesh);
 				}
 				else
+#endif
 				{
 					ISkeletalMeshEditorModule& SkeletalMeshEditorModule = FModuleManager::LoadModuleChecked<ISkeletalMeshEditorModule>("SkeletalMeshEditor");
 					SkeletalMeshEditorModule.CreateSkeletalMeshEditor(Mode, EditWithinLevelEditor, Mesh);
@@ -710,7 +717,9 @@ void FAssetTypeActions_SkeletalMesh::ExecuteNewPhysicsAsset(TArray<TWeakObjectPt
 	{
 		FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
 		ContentBrowserModule.Get().SyncBrowserToAssets(CreatedObjects);
-		FAssetEditorManager::Get().OpenEditorForAssets(CreatedObjects);
+#if WITH_EDITOR
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAssets(CreatedObjects);
+#endif
 	}
 }
 

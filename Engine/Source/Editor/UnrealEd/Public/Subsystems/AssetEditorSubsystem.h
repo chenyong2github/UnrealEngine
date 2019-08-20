@@ -71,7 +71,9 @@ public:
 	 * If any of the assets are already open, it will not create a new editor for them.
 	 * If all assets are of the same type, the supporting AssetTypeAction (if it exists) is responsible for the details of how to handle opening multiple assets at once.
 	 */
-	bool OpenEditorForAssets(const TArray<UObject*>& Assets, const EToolkitMode::Type ToolkitMode = EToolkitMode::Standalone, TSharedPtr<IToolkitHost> OpenedFromLevelEditor = TSharedPtr<IToolkitHost>());
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset Tools")
+	bool OpenEditorForAssets(const TArray<UObject*>& Assets);
+	bool OpenEditorForAssets_Advanced(const TArray<UObject*>& Assets, const EToolkitMode::Type ToolkitMode = EToolkitMode::Standalone, TSharedPtr<IToolkitHost> OpenedFromLevelEditor = TSharedPtr<IToolkitHost>());
 
 	/** Opens editors for the supplied assets (via OpenEditorForAsset) */
 	void OpenEditorsForAssets(const TArray<FString>& AssetsToOpen);
@@ -86,6 +88,7 @@ public:
 	TArray<IAssetEditorInstance*> FindEditorsForAsset(UObject* Asset);
 
 	/** Close all active editors for the supplied asset and return the number of asset editors that were closed */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset Tools")
 	int32 CloseAllEditorsForAsset(UObject* Asset);
 
 	/** Close any editor which is not this one */

@@ -46,20 +46,28 @@ public:
 	{
 		FSimpleAssetEditor::CreateEditor(EToolkitMode::Standalone, EditWithinLevelEditor, InObjects);
 	}
-	
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+UE_DEPRECATED(4.24, "Use AssetsActivatedOverride instead to provide any non-default behavior. Using AssetsActivatedOverride, you no longer need a call to FAssetTypeActions_Base::AssetsActivated.")
 	virtual void AssetsActivated( const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType ) override
 	{
-		if ( ActivationType == EAssetTypeActivationMethod::DoubleClicked || ActivationType == EAssetTypeActivationMethod::Opened )
+		if (ActivationType == EAssetTypeActivationMethod::DoubleClicked || ActivationType == EAssetTypeActivationMethod::Opened)
 		{
-			if ( InObjects.Num() == 1 )
+			if (InObjects.Num() == 1)
 			{
 				FAssetEditorManager::Get().OpenEditorForAsset(InObjects[0]);
 			}
-			else if ( InObjects.Num() > 1 )
+			else if (InObjects.Num() > 1)
 			{
 				FAssetEditorManager::Get().OpenEditorForAssets(InObjects);
 			}
 		}
+	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	virtual bool AssetsActivatedOverride(const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType) override
+	{
+		return false;
 	}
 
 	virtual bool CanFilter() override

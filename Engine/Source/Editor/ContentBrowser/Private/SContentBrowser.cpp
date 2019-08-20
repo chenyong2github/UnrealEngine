@@ -55,6 +55,7 @@
 #include "AddToProjectConfig.h"
 #include "GameProjectGenerationModule.h"
 #include "Toolkits/GlobalEditorCommonCommands.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
@@ -2194,7 +2195,20 @@ void SContentBrowser::OnAssetsActivated(const TArray<FAssetData>& ActivatedAsset
 		const TSharedRef<IAssetTypeActions>& TypeActions = TypeActionsIt.Key();
 		const TArray<UObject*>& ObjList = TypeActionsIt.Value();
 
-		TypeActions->AssetsActivated(ObjList, ActivationMethod);
+		if (!TypeActions->AssetsActivatedOverride(ObjList, ActivationMethod))
+		{
+			if (ActivationMethod == EAssetTypeActivationMethod::DoubleClicked || ActivationMethod == EAssetTypeActivationMethod::Opened)
+			{
+				if (ObjList.Num() == 1)
+				{
+					GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ObjList[0]);
+				}
+				else if (ObjList.Num() > 1)
+				{
+					GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAssets(ObjList);
+				}
+			}
+		}
 	}
 
 	// Finally, open a simple asset editor for all assets which do not have asset type actions if activating with enter or double click

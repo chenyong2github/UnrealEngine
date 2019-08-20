@@ -43,7 +43,7 @@ void FAssetTypeActions_SoundBase::GetActions(const TArray<UObject*>& InObjects, 
 			)
 		);
 }
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void FAssetTypeActions_SoundBase::AssetsActivated( const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType )
 {
 	if (ActivationType == EAssetTypeActivationMethod::Previewed)
@@ -83,6 +83,46 @@ void FAssetTypeActions_SoundBase::AssetsActivated( const TArray<UObject*>& InObj
 	{
 		FAssetTypeActions_Base::AssetsActivated(InObjects, ActivationType);
 	}
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+bool FAssetTypeActions_SoundBase::AssetsActivatedOverride(const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType)
+{
+	if (ActivationType == EAssetTypeActivationMethod::Previewed)
+	{
+		USoundBase* TargetSound = NULL;
+
+		for (auto ObjIt = InObjects.CreateConstIterator(); ObjIt; ++ObjIt)
+		{
+			TargetSound = Cast<USoundBase>(*ObjIt);
+			if (TargetSound)
+			{
+				// Only target the first valid sound cue
+				break;
+			}
+		}
+
+		UAudioComponent* PreviewComp = GEditor->GetPreviewAudioComponent();
+		if (PreviewComp && PreviewComp->IsPlaying())
+		{
+			// Already previewing a sound, if it is the target cue then stop it, otherwise play the new one
+			if (!TargetSound || PreviewComp->Sound == TargetSound)
+			{
+				StopSound();
+			}
+			else
+			{
+				PlaySound(TargetSound);
+			}
+		}
+		else
+		{
+			// Not already playing, play the target sound cue if it exists
+			PlaySound(TargetSound);
+		}
+		return true;
+	}
+	return false;
 }
 
 void FAssetTypeActions_SoundBase::PlaySound(USoundBase* Sound) const

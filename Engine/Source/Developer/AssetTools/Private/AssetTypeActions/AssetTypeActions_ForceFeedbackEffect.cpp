@@ -87,7 +87,7 @@ bool FAssetTypeActions_ForceFeedbackEffect::CanExecutePlayCommand(TArray<TWeakOb
 	return Objects.Num() == 1;
 }
 
-void FAssetTypeActions_ForceFeedbackEffect::AssetsActivated( const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType )
+bool FAssetTypeActions_ForceFeedbackEffect::AssetsActivatedOverride( const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType )
 {
 	if (ActivationType == EAssetTypeActivationMethod::Previewed)
 	{
@@ -108,14 +108,11 @@ void FAssetTypeActions_ForceFeedbackEffect::AssetsActivated( const TArray<UObjec
 					ExecutePlayEffect(EffectList);
 				}
 
-				break;
+				return true;
 			}
 		}
 	}
-	else
-	{
-		FAssetTypeActions_Base::AssetsActivated(InObjects, ActivationType);
-	}
+	return false;
 }
 
 void FAssetTypeActions_ForceFeedbackEffect::ExecutePlayEffect(TArray<TWeakObjectPtr<UForceFeedbackEffect>> Objects)

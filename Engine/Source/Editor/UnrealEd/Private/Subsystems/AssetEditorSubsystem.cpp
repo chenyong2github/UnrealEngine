@@ -358,7 +358,7 @@ bool UAssetEditorSubsystem::OpenEditorForAsset(UObject* Asset, const EToolkitMod
 }
 
 
-bool UAssetEditorSubsystem::OpenEditorForAssets(const TArray <UObject* >& Assets, const EToolkitMode::Type ToolkitMode, TSharedPtr< IToolkitHost > OpenedFromLevelEditor)
+bool UAssetEditorSubsystem::OpenEditorForAssets_Advanced(const TArray <UObject* >& Assets, const EToolkitMode::Type ToolkitMode, TSharedPtr< IToolkitHost > OpenedFromLevelEditor)
 {
 	if (Assets.Num() == 1)
 	{
@@ -473,6 +473,11 @@ bool UAssetEditorSubsystem::OpenEditorForAssets(const TArray <UObject* >& Assets
 	}
 
 	return true;
+}
+
+bool UAssetEditorSubsystem::OpenEditorForAssets(const TArray<UObject*>& Assets)
+{
+	return OpenEditorForAssets_Advanced(Assets, EToolkitMode::Standalone, TSharedPtr<IToolkitHost>());
 }
 
 void UAssetEditorSubsystem::HandleRequestOpenAssetMessage(const FAssetEditorRequestOpenAsset& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)

@@ -16,6 +16,10 @@
 #include "Logging/MessageLog.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
+#if WITH_EDITOR
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "Editor.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
@@ -105,14 +109,16 @@ void FAssetTypeActions_Blueprint::Merge(UObject* InObject)
 {
 	UBlueprint* AsBlueprint = CastChecked<UBlueprint>(InObject);
 	// Kludge to get the merge panel in the blueprint editor to show up:
-	bool Success = FAssetEditorManager::Get().OpenEditorForAsset(InObject);
+#if WITH_EDITOR
+	bool Success = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(InObject);
 	if( Success )
 	{
 		FBlueprintEditorModule& BlueprintEditorModule = FModuleManager::LoadModuleChecked<FBlueprintEditorModule>( "Kismet" );
 
-		FBlueprintEditor* BlueprintEditor = static_cast<FBlueprintEditor*>(FAssetEditorManager::Get().FindEditorForAsset(AsBlueprint, false));
+		FBlueprintEditor* BlueprintEditor = static_cast<FBlueprintEditor*>(GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(AsBlueprint, false));
 		BlueprintEditor->CreateMergeToolTab();
 	}
+#endif
 }
 
 void FAssetTypeActions_Blueprint::Merge(UObject* BaseAsset, UObject* RemoteAsset, UObject* LocalAsset, const FOnMergeResolved& ResolutionCallback)
@@ -120,14 +126,15 @@ void FAssetTypeActions_Blueprint::Merge(UObject* BaseAsset, UObject* RemoteAsset
 	UBlueprint* AsBlueprint = CastChecked<UBlueprint>(LocalAsset);
 	check(LocalAsset->GetClass() == BaseAsset->GetClass());
 	check(LocalAsset->GetClass() == RemoteAsset->GetClass());
-	
-	if (FAssetEditorManager::Get().OpenEditorForAsset(AsBlueprint))
+#if WITH_EDITOR
+	if (GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(AsBlueprint))
 	{
 		FBlueprintEditorModule& BlueprintEditorModule = FModuleManager::LoadModuleChecked<FBlueprintEditorModule>("Kismet");
 
-		FBlueprintEditor* BlueprintEditor = static_cast<FBlueprintEditor*>(FAssetEditorManager::Get().FindEditorForAsset(AsBlueprint, /*bFocusIfOpen =*/false));
+		FBlueprintEditor* BlueprintEditor = static_cast<FBlueprintEditor*>(GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(AsBlueprint, /*bFocusIfOpen =*/false));
 		BlueprintEditor->CreateMergeToolTab(Cast<UBlueprint>(BaseAsset), Cast<UBlueprint>(RemoteAsset), ResolutionCallback);
 	}
+#endif
 }
 
 bool FAssetTypeActions_Blueprint::CanCreateNewDerivedBlueprint() const

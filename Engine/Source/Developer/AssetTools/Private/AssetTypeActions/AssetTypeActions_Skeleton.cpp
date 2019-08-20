@@ -43,6 +43,10 @@
 #include "Preferences/PersonaOptions.h"
 #include "Algo/Transform.h"
 #include "PhysicsEngine/PhysicsAsset.h"
+#if WITH_EDITOR
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "Editor.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
@@ -504,11 +508,13 @@ void FAssetTypeActions_Skeleton::OpenAssetEditor( const TArray<UObject*>& InObje
 		if (Skeleton != NULL)
 		{
 			const bool bBringToFrontIfOpen = true;
-			if (IAssetEditorInstance* EditorInstance = FAssetEditorManager::Get().FindEditorForAsset(Skeleton, bBringToFrontIfOpen))
+#if WITH_EDITOR
+			if (IAssetEditorInstance* EditorInstance = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(Skeleton, bBringToFrontIfOpen))
 			{
 				EditorInstance->FocusWindow(Skeleton);
 			}
 			else
+#endif
 			{
 				ISkeletonEditorModule& SkeletonEditorModule = FModuleManager::LoadModuleChecked<ISkeletonEditorModule>("SkeletonEditor");
 				SkeletonEditorModule.CreateSkeletonEditor(Mode, EditWithinLevelEditor, Skeleton);
@@ -599,7 +605,10 @@ void FAssetTypeActions_Skeleton::RetargetAnimationHandler(USkeleton* OldSkeleton
 }
 void FAssetTypeActions_Skeleton::ExecuteRetargetSkeleton(TArray<TWeakObjectPtr<USkeleton>> Skeletons)
 {
-	TArray<UObject*> AllEditedAssets = FAssetEditorManager::Get().GetAllEditedAssets();
+	TArray<UObject*> AllEditedAssets;
+#if WITH_EDITOR
+	AllEditedAssets = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->GetAllEditedAssets();
+#endif
 
 	for (auto SkelIt = Skeletons.CreateConstIterator(); SkelIt; ++SkelIt)
 	{	
@@ -636,7 +645,9 @@ void FAssetTypeActions_Skeleton::ExecuteRetargetSkeleton(TArray<TWeakObjectPtr<U
 
 			if(bCloseAssetEditor)
 			{
-				FAssetEditorManager::Get().CloseAllEditorsForAsset(EditedAsset);
+#if WITH_EDITOR
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(EditedAsset);
+#endif
 			}
 		}
 

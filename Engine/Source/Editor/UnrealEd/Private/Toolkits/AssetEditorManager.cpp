@@ -42,6 +42,7 @@ FAssetEditorManager& FAssetEditorManager::Get()
 	return *Instance;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FAssetEditorManager::FAssetEditorManager()
 	: bSavingOnShutdown(false)
 	, bRequestRestorePreviouslyOpenAssets(false)
@@ -843,5 +844,6 @@ void FAssetEditorManager::OpenEditorsForAssets(const TArray<FName>& AssetsToOpen
 		OpenEditorForAsset(AssetName.ToString());
 	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #undef LOCTEXT_NAMESPACE

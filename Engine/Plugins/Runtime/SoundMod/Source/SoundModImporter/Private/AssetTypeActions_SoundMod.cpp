@@ -45,7 +45,7 @@ bool FAssetTypeActions_SoundMod::CanExecutePlayCommand(TArray<TWeakObjectPtr<USo
 	return Objects.Num() == 1;
 }
 
-void FAssetTypeActions_SoundMod::AssetsActivated(const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType)
+bool FAssetTypeActions_SoundMod::AssetsActivatedOverride(const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType)
 {
 	if (ActivationType == EAssetTypeActivationMethod::Previewed)
 	{
@@ -79,11 +79,9 @@ void FAssetTypeActions_SoundMod::AssetsActivated(const TArray<UObject*>& InObjec
 			// Not already playing, play the target sound cue if it exists
 			PlaySound(TargetSound);
 		}
+		return true;
 	}
-	else
-	{
-		FAssetTypeActions_Base::AssetsActivated(InObjects, ActivationType);
-	}
+	return false;
 }
 
 void FAssetTypeActions_SoundMod::ExecutePlaySound(TArray<TWeakObjectPtr<USoundMod>> Objects)

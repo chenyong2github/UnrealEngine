@@ -16,6 +16,10 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Algo/Transform.h"
 #include "IPersonaToolkit.h"
+#if WITH_EDITOR
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "Editor.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
@@ -148,11 +152,13 @@ void FAssetTypeActions_AnimationAsset::OpenAnimAssetEditor(const TArray<UObject*
 		{
 			// First see if we already have it open
 			const bool bBringToFrontIfOpen = true;
-			if (IAssetEditorInstance* EditorInstance = FAssetEditorManager::Get().FindEditorForAsset(AnimAsset, bBringToFrontIfOpen))
+#if WITH_EDITOR
+			if (IAssetEditorInstance* EditorInstance = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(AnimAsset, bBringToFrontIfOpen))
 			{
 				EditorInstance->FocusWindow();
 			}
 			else
+#endif
 			{
 				// See if we are trying to open a single asset. If we are, we re-use a compatible anim editor.
 				bool bSingleAsset = AnimAssets.Num() == 1;
@@ -160,7 +166,10 @@ void FAssetTypeActions_AnimationAsset::OpenAnimAssetEditor(const TArray<UObject*
 				if (bSingleAsset && !bForceNewEditor)
 				{
 					// See if there is an animation asset with the same skeleton already being edited
-					TArray<UObject*> AllEditedAssets = FAssetEditorManager::Get().GetAllEditedAssets();
+					TArray<UObject*> AllEditedAssets;
+#if WITH_EDITOR
+					AllEditedAssets = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->GetAllEditedAssets();
+#endif
 					UAnimationAsset* CompatibleEditedAsset = nullptr;
 					for (UObject* EditedAsset : AllEditedAssets)
 					{
@@ -176,7 +185,10 @@ void FAssetTypeActions_AnimationAsset::OpenAnimAssetEditor(const TArray<UObject*
 					if(CompatibleEditedAsset)
 					{
 						// Find the anim editors that are doing it
-						TArray<IAssetEditorInstance*> AssetEditors = FAssetEditorManager::Get().FindEditorsForAsset(CompatibleEditedAsset);
+						TArray<IAssetEditorInstance*> AssetEditors;
+#if WITH_EDITOR
+						AssetEditors = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorsForAsset(CompatibleEditedAsset);
+#endif
 						for (IAssetEditorInstance* ExistingEditor : AssetEditors)
 						{
 							if (ExistingEditor->GetEditorName() == FName("AnimationEditor"))
@@ -269,6 +281,7 @@ void FAssetTypeActions_AnimationAsset::RetargetNonSkeletonAnimationHandler(USkel
 {
 	RetargetAnimationHandler(OldSkeleton, NewSkeleton, bRemapReferencedAssets, bAllowRemapToExisting, bConvertSpaces, NameRule, InAnimAssets);
 
+#if WITH_EDITOR
 	if(NewSkeleton)
 	{
 		for(auto Asset : InAnimAssets)
@@ -277,11 +290,12 @@ void FAssetTypeActions_AnimationAsset::RetargetNonSkeletonAnimationHandler(USkel
 			{
 				if (EditWithinLevelEditor.IsValid())
 				{
-					FAssetEditorManager::Get().OpenEditorForAsset(Asset.Get(), EToolkitMode::WorldCentric, EditWithinLevelEditor.Pin());
+
+					GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Asset.Get(), EToolkitMode::WorldCentric, EditWithinLevelEditor.Pin());
 				}
 				else
 				{
-					FAssetEditorManager::Get().OpenEditorForAsset(Asset.Get());
+					GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Asset.Get());
 				}
 			}
 		}
@@ -290,6 +304,8 @@ void FAssetTypeActions_AnimationAsset::RetargetNonSkeletonAnimationHandler(USkel
 	{
 		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("FailedToLoadSkeletonlessAnimAsset", "The Anim Asset could not be loaded because it's skeleton is missing."));
 	}
+#endif
+
 }
 
 

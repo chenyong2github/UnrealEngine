@@ -33,7 +33,7 @@ void FAssetTypeActions_Redirector::GetActions(const TArray<UObject*>& InObjects,
 		);
 }
 
-void FAssetTypeActions_Redirector::AssetsActivated( const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType )
+bool FAssetTypeActions_Redirector::AssetsActivatedOverride( const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType )
 {
 	if ( ActivationType == EAssetTypeActivationMethod::DoubleClicked || ActivationType == EAssetTypeActivationMethod::Opened )
 	{
@@ -51,12 +51,11 @@ void FAssetTypeActions_Redirector::AssetsActivated( const TArray<UObject*>& InOb
 		if ( Redirectors.Num() > 0 )
 		{
 			FindTargets(Redirectors);
+			return true;
 		}
 	}
-	else
-	{
-		FAssetTypeActions_Base::AssetsActivated(InObjects, ActivationType);
-	}
+
+	return false;
 }
 
 void FAssetTypeActions_Redirector::ExecuteFindTarget(TArray<TWeakObjectPtr<UObjectRedirector>> Objects)

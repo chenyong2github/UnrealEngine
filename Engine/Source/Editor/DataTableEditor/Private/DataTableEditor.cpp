@@ -40,6 +40,7 @@
 #include "Toolkits/AssetEditorManager.h"
 #include "DataTableRowUtlis.h"
 #include "Engine/DataTable.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 
 
@@ -476,7 +477,7 @@ void FDataTableEditor::OnEditDataTableStructClicked()
 
 		if (ScriptStruct)
 		{
-			FAssetEditorManager::Get().OpenEditorForAsset(ScriptStruct->GetPathName());
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ScriptStruct->GetPathName());
 			FSourceCodeNavigation::NavigateToStruct(ScriptStruct);
 		}
 	}

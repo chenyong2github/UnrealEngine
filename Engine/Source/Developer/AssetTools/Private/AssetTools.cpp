@@ -129,7 +129,9 @@
 #include "SAdvancedCopyReportDialog.h"
 #include "AssetToolsSettings.h"
 #include "AssetVtConversion.h"
-
+#if WITH_EDITOR
+#include "Subsystems/AssetEditorSubsystem.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "AssetTools"
 
@@ -2886,7 +2888,9 @@ void UAssetToolsImpl::FixupReferencers(const TArray<UObjectRedirector*>& Objects
 
 void UAssetToolsImpl::OpenEditorForAssets(const TArray<UObject*>& Assets)
 {
-	FAssetEditorManager::Get().OpenEditorForAssets(Assets);
+#if WITH_EDITOR
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAssets(Assets);
+#endif
 }
 
 void UAssetToolsImpl::ConvertVirtualTextures(const TArray<UTexture2D *>& Textures, bool bConvertBackToNonVirtual, const TArray<UMaterial *>* RelatedMaterials /* = nullptr */) const
