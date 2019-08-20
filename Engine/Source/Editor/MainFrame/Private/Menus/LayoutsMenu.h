@@ -1,8 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#if WITH_EDITOR
-
 #pragma once
+
+#if WITH_EDITOR
 
 #include "CoreMinimal.h"
 

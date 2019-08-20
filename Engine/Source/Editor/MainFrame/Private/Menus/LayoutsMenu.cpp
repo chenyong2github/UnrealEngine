@@ -11,7 +11,9 @@
 #include "Logging/MessageLog.h"
 #include "Templates/SharedPointer.h"
 // Runtime
+#include "CoreGlobals.h"
 #include "Framework/Commands/UICommandInfo.h"
+#include "Framework/Docking/LayoutService.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Misc/FileHelper.h"
 #include "Widgets/Notifications/SNotificationList.h"
