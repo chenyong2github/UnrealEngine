@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Net/UnrealNetwork.h" // For MakeRelative
-#include "NetworkSimulationModelCvars.h"
+#include "NetworkSimulationModelCVars.h"
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //	CVars and compile time constants

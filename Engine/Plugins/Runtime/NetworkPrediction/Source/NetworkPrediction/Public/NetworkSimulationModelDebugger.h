@@ -15,7 +15,7 @@
 #include "Containers/Array.h"
 #include "Templates/UniquePtr.h"
 #include "NetworkSimulationModel.h"
-#include "NetworkSimulationModelCvars.h"
+#include "NetworkSimulationModelCVars.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogNetworkSimDebug, Log, All);
 
