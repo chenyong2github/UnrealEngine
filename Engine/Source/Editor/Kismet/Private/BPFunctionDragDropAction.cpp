@@ -7,6 +7,7 @@
 #include "EdGraphSchema_K2_Actions.h"
 #include "K2Node_CustomEvent.h"
 #include "K2Node_MacroInstance.h"
+#include "Kismet2/KismetEditorUtilities.h"
 
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "BlueprintNodeBinder.h"
@@ -162,11 +163,18 @@ bool FKismetDragDropAction::ActionWillShowExistingNode() const
 			else if (SourceAction->GetTypeId() == FEdGraphSchemaAction_K2Event::StaticGetTypeId())
 			{
 				FEdGraphSchemaAction_K2Event* FuncAction = (FEdGraphSchemaAction_K2Event*)SourceAction.Get();
-				UK2Node_CustomEvent* CustomEvent = Cast<UK2Node_CustomEvent>(FuncAction->NodeTemplate);
-				// Drag and dropping custom event's will place a Call Function and will not focus the existing event
-				if (CustomEvent == nullptr)
+				// Drag and dropping custom events will place a Call Function and will not focus the existing event
+				if (UK2Node_Event* Event = CastChecked<UK2Node_Event>(FuncAction->NodeTemplate))
 				{
-					bWillFocusOnExistingNode = true;
+					UFunction* Function = FFunctionFromNodeHelper::FunctionFromNode(Event);
+					if (Function && (Function->FunctionFlags & (FUNC_BlueprintCallable | FUNC_BlueprintPure)))
+					{
+						bWillFocusOnExistingNode = false;
+					}
+					else
+					{
+						bWillFocusOnExistingNode = true;
+					}
 				}
 			}
 		}
@@ -235,7 +243,7 @@ FReply FKismetFunctionDragDropAction::DroppedOnPin(FVector2D ScreenPosition, FVe
 		if (!CanBeDroppedDelegate.IsBound() || CanBeDroppedDelegate.Execute(nullptr, Graph, CannotDropReason))
 		{
 			UFunction const* Function = GetFunctionProperty();
-			if ((Function != NULL) && UEdGraphSchema_K2::CanUserKismetCallFunction(Function))
+			if ((Function != nullptr) && UEdGraphSchema_K2::CanUserKismetCallFunction(Function))
 			{
 				AnalyticCallback.ExecuteIfBound();
 
@@ -255,6 +263,13 @@ FReply FKismetFunctionDragDropAction::DroppedOnPin(FVector2D ScreenPosition, FVe
 
 				Reply = FReply::Handled();
 			}
+		}
+	}
+	else if (SourceAction->GetTypeId() == FEdGraphSchemaAction_K2Event::StaticGetTypeId())
+	{
+		if (FEdGraphSchemaAction_K2Event* FuncAction = (FEdGraphSchemaAction_K2Event*)SourceAction.Get())
+		{
+			FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(FuncAction->NodeTemplate);
 		}
 	}
 
@@ -288,7 +303,10 @@ UBlueprintFunctionNodeSpawner* FKismetFunctionDragDropAction::GetDropAction(UEdG
 
 			if (UFunction const* Function = GetFunctionProperty())
 			{
-				return UBlueprintFunctionNodeSpawner::Create(Function);
+				if (Function->FunctionFlags & (FUNC_BlueprintCallable | FUNC_BlueprintPure))
+				{
+					return UBlueprintFunctionNodeSpawner::Create(Function);
+				}
 			}
 		}
 	}

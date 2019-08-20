@@ -1567,7 +1567,7 @@ FReply SMyBlueprint::OnActionDragged( const TArray< TSharedPtr<FEdGraphSchemaAct
 		return FReply::Unhandled();
 	}
 
-	TSharedPtr<FEdGraphSchemaAction> InAction( InActions.Num() > 0 ? InActions[0] : NULL );
+	TSharedPtr<FEdGraphSchemaAction> InAction( InActions.Num() > 0 ? InActions[0] : nullptr );
 	if(InAction.IsValid())
 	{
 		auto AnalyticsDelegate = FNodeCreationAnalytic::CreateSP( this, &SMyBlueprint::UpdateNodeCreation );
@@ -1655,17 +1655,32 @@ FReply SMyBlueprint::OnActionDragged( const TArray< TSharedPtr<FEdGraphSchemaAct
 		{	
 			// Check if it's a custom event, it is preferable to drop a call function for custom events than to focus on the node
 			FEdGraphSchemaAction_K2Event* FuncAction = (FEdGraphSchemaAction_K2Event*)InAction.Get();
-			if (UK2Node_CustomEvent* CustomEvent = Cast<UK2Node_CustomEvent>(FuncAction->NodeTemplate))
+			if (UK2Node_Event* Event = Cast<UK2Node_Event>(FuncAction->NodeTemplate))
 			{
-				return FReply::Handled().BeginDragDrop(FKismetFunctionDragDropAction::New(InAction, CustomEvent->GetFunctionName(), GetBlueprintObj()->SkeletonGeneratedClass, FMemberReference(), AnalyticsDelegate, FKismetDragDropAction::FCanBeDroppedDelegate()));
-			}
-			else
-			{
-				// don't need a valid FCanBeDroppedDelegate because this entry means we already have this 
-				// event placed (so this action will just focus it)
-				TSharedRef<FKismetDragDropAction> DragOperation = FKismetDragDropAction::New(InAction, AnalyticsDelegate, FKismetDragDropAction::FCanBeDroppedDelegate());
+				UFunction* const Function = FFunctionFromNodeHelper::FunctionFromNode(Event);
 
-				return FReply::Handled().BeginDragDrop(DragOperation);
+				// Callback function to report that the user cannot drop this function in the graph
+				auto CanDragDropAction = [](TSharedPtr<FEdGraphSchemaAction> /*DropAction*/, UEdGraph* /*HoveredGraphIn*/, FText& ImpededReasonOut, UFunction* Func)->bool
+				{
+					// If this function is not BP callable then don't let it be dropped
+					if (Func && !(Func->FunctionFlags & (FUNC_BlueprintCallable | FUNC_BlueprintPure)))
+					{
+						ImpededReasonOut = LOCTEXT("NonBlueprintCallableEvent", "This event was not marked as Blueprint Callable and cannot be placed in a graph!");
+						return false;
+					}
+
+					return true;
+				};
+
+				TSharedRef< FKismetFunctionDragDropAction> DragOperation =
+					FKismetFunctionDragDropAction::New(
+						InAction, Function->GetFName(),
+						GetBlueprintObj()->SkeletonGeneratedClass,
+						FMemberReference(),
+						AnalyticsDelegate,
+						FKismetDragDropAction::FCanBeDroppedDelegate::CreateLambda(CanDragDropAction, Function)
+					);
+				return FReply::Handled().BeginDragDrop(DragOperation);	
 			}
 		}
 	}
