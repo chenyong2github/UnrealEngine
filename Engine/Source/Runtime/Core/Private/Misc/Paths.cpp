@@ -202,6 +202,11 @@ FString FPaths::EngineConfigDir()
 	return FPaths::EngineDir() + TEXT("Config/");
 }
 
+FString FPaths::EngineEditorSettingsDir()
+{
+	return FPaths::GameAgnosticSavedDir() + TEXT("Config/");
+}
+
 FString FPaths::EngineIntermediateDir()
 {
 	return FPaths::EngineDir() + TEXT("Intermediate/");
@@ -215,6 +220,16 @@ FString FPaths::EngineSavedDir()
 FString FPaths::EnginePluginsDir()
 {
 	return FPaths::EngineDir() + TEXT("Plugins/");
+}
+
+FString FPaths::EngineDefaultLayoutDir()
+{
+	return FPaths::EngineConfigDir() + TEXT("Layouts/");
+}
+
+FString FPaths::EngineUserLayoutDir()
+{
+	return FPaths::EngineEditorSettingsDir() + TEXT("Layouts/");
 }
 
 FString FPaths::EnterpriseDir()

@@ -1092,7 +1092,7 @@ void FAssetEditorToolkit::RestoreFromLayout(const TSharedRef<FTabManager::FLayou
 	if (HostWidget.Get() != NULL)
 	{
 		// Save the old layout
-		FLayoutSaveRestore::SaveToConfig(GEditorIni, TabManager->PersistLayout());
+		FLayoutSaveRestore::SaveToConfig(GEditorLayoutIni, TabManager->PersistLayout());
 
 		// Load the potentially previously saved new layout
 		TSharedRef<FTabManager::FLayout> UserConfiguredNewLayout = FLayoutSaveRestore::LoadFromConfig(GEditorLayoutIni, NewLayout);

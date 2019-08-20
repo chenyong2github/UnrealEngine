@@ -233,6 +233,20 @@ void FMainFrameModule::CreateDefaultMainFrame( const bool bStartImmersive, const
 	}
 }
 
+void FMainFrameModule::RecreateDefaultMainFrame(const bool bStartImmersive, const bool bStartPIE)
+{
+	// Clean previous default main frame
+	if (IsWindowInitialized())
+	{
+		// Clean FSlateApplication
+		FSlateApplication::Get().CloseAllWindowsImmediately();
+		// Clean FGlobalTabmanager
+		FGlobalTabmanager::Get()->CloseAllAreas();
+	}
+	// (Re-)create default main frame
+	CreateDefaultMainFrame(bStartImmersive, bStartPIE);
+}
+
 
 TSharedRef<SWidget> FMainFrameModule::MakeMainMenu(const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FToolMenuContext& ToolMenuContext) const
 {

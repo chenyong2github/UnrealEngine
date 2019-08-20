@@ -802,8 +802,8 @@ TSharedRef<FTabManager::FLayout> FTabManager::PersistLayout() const
 
 void FTabManager::SavePersistentLayout()
 {
-	const TSharedRef<FLayout> MyLayout = this->PersistLayout();
-	OnPersistLayout_Handler.ExecuteIfBound( MyLayout );
+	const TSharedRef<FLayout> LayoutState = this->PersistLayout();
+	OnPersistLayout_Handler.ExecuteIfBound( LayoutState );
 }
 
 FTabSpawnerEntry& FTabManager::RegisterTabSpawner(const FName TabId, const FOnSpawnTab& OnSpawnTab, const FCanSpawnTab& CanSpawnTab)
@@ -1713,11 +1713,8 @@ void FTabManager::OnTabManagerClosing()
 {
 	CleanupPointerArray(DockAreas);
 
-	{
-		// Gather the persistent layout and allow a custom handler to persist it
-		const TSharedRef<FLayout> LayoutState = this->PersistLayout();
-		OnPersistLayout_Handler.ExecuteIfBound( LayoutState );
-	}
+	// Gather the persistent layout and allow a custom handler to persist it
+	SavePersistentLayout();
 
 	for (int32 DockAreaIndex=0; DockAreaIndex < DockAreas.Num(); ++DockAreaIndex)
 	{
@@ -1935,9 +1932,14 @@ void FGlobalTabmanager::SetActiveTab( const TSharedPtr<class SDockTab>& NewActiv
 
 FTabSpawnerEntry& FGlobalTabmanager::RegisterNomadTabSpawner(const FName TabId, const FOnSpawnTab& OnSpawnTab, const FCanSpawnTab& CanSpawnTab)
 {
-	ensure(!NomadTabSpawner->Contains(TabId));
+	// Sanity check
 	ensure(!IsLegacyTabType(TabId));
-
+	// Remove TabId if it was previously loaded. This allows re-loading the Editor UI layout without restarting the whole Editor (Window->Load Layout)
+	if (NomadTabSpawner->Contains(TabId))
+	{
+		UnregisterNomadTabSpawner(TabId);
+	}
+	// (Re)create and return NewSpawnerEntry
 	TSharedRef<FTabSpawnerEntry> NewSpawnerEntry = MakeShareable(new FTabSpawnerEntry(TabId, OnSpawnTab, CanSpawnTab));
 	NomadTabSpawner->Add(TabId, NewSpawnerEntry);
 	return NewSpawnerEntry.Get();

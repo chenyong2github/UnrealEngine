@@ -54,10 +54,6 @@ void FMainFrameHandler::ShutDownEditor()
 	{
 		GlobalTabManager->SaveAllVisualState();
 	}
-	else
-	{
-		GConfig->EmptySection(TEXT("EditorLayouts"), *GEditorLayoutIni);
-	}
 
 	// Clear the callback for destructionfrom the main tab; otherwise it will re-enter this shutdown function.
 	if (MainTabPtr.IsValid())

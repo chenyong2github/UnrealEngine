@@ -18,6 +18,7 @@
 #include "Settings/EditorExperimentalSettings.h"
 #include "UnrealEdGlobals.h"
 #include "Frame/MainFrameActions.h"
+#include "Menus/LayoutsMenu.h"
 #include "Menus/PackageProjectMenu.h"
 #include "Menus/RecentProjectsMenu.h"
 #include "Menus/SettingsMenu.h"
@@ -209,6 +210,7 @@ void FMainMenu::RegisterWindowMenu()
 {
 	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("MainFrame.MainMenu.Window");
 
+	// Level Editor, General, and Testing sections
 	// Automatically populate tab spawners from TabManager
 	Menu->AddDynamicSection("TabManagerSection", FNewToolMenuDelegateLegacy::CreateLambda([](FMenuBuilder& InBuilder, UToolMenu* InData)
 	{
@@ -227,6 +229,7 @@ void FMainMenu::RegisterWindowMenu()
 		}
 	}));
 
+	// Project Launcher section
 	{
 		FToolMenuSection& Section = Menu->AddSection("WindowGlobalTabSpawners");
 		Section.AddMenuEntry(
@@ -238,11 +241,12 @@ void FMainMenu::RegisterWindowMenu()
 			);
 	}
 
+	// Experimental section
 	{
 		// This is a temporary home for the spawners of experimental features that must be explicitly enabled.
 		// When the feature becomes permanent and need not check a flag, register a nomad spawner for it in the proper WorkspaceMenu category
-		bool bLocalizationDashboard = GetDefault<UEditorExperimentalSettings>()->bEnableLocalizationDashboard;
-		bool bTranslationPicker = GetDefault<UEditorExperimentalSettings>()->bEnableTranslationPicker;
+		const bool bLocalizationDashboard = GetDefault<UEditorExperimentalSettings>()->bEnableLocalizationDashboard;
+		const bool bTranslationPicker = GetDefault<UEditorExperimentalSettings>()->bEnableTranslationPicker;
 
 		// Make sure at least one is enabled before creating the section
 		if (bLocalizationDashboard || bTranslationPicker)
@@ -276,11 +280,45 @@ void FMainMenu::RegisterWindowMenu()
 		}
 	}
 
+	// Layout section
 	{
 		FToolMenuSection& Section = Menu->AddSection("WindowLayout", NSLOCTEXT("MainAppMenu", "LayoutManagementHeader", "Layout"));
-		Section.AddMenuEntry(FMainFrameCommands::Get().ResetLayout);
-		Section.AddMenuEntry(FMainFrameCommands::Get().SaveLayout);
+		// Load Layout
+		Section.AddEntry(FToolMenuEntry::InitSubMenu(
+			"LoadLayout",
+			NSLOCTEXT("LayoutMenu", "LayoutLoadHeader", "Load Layout"),
+			NSLOCTEXT("LayoutMenu", "LoadLayoutsSubMenu_ToolTip", "Load a layout configuration from disk. If PIE is running, most options will be disabled"),
+			FNewToolMenuDelegate::CreateStatic(&FLayoutsMenuLoad::MakeLoadLayoutsMenu)
+		));
+		// Save and Remove Layout
+		// Opposite to "Load Layout", Save and Remove are dynamic, i.e., they can be enabled/removed depending on the value of
+		// the variable GetDefault<UEditorStyleSettings>()->bEnableUserEditorLayoutManagement
+		Section.AddDynamicEntry("OverrideAndRemoveLayout", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+		{
+			if (GetDefault<UEditorStyleSettings>()->bEnableUserEditorLayoutManagement)
+			{
+				// Save Layout
+				InSection.AddEntry(FToolMenuEntry::InitSubMenu(
+					"OverrideLayout",
+					NSLOCTEXT("LayoutMenu", "OverrideLayoutsSubMenu", "Save Layout"),
+					NSLOCTEXT("LayoutMenu", "OverrideLayoutsSubMenu_ToolTip", "Save your current layout configuration on disk"),
+					FNewToolMenuDelegate::CreateStatic(&FLayoutsMenuSave::MakeSaveLayoutsMenu)
+				));
+				// Remove Layout
+				InSection.AddEntry(FToolMenuEntry::InitSubMenu(
+					"RemoveLayout",
+					NSLOCTEXT("LayoutMenu", "RemoveLayoutsSubMenu", "Remove Layout"),
+					NSLOCTEXT("LayoutMenu", "RemoveLayoutsSubMenu_ToolTip", "Remove a layout configuration from disk"),
+					FNewToolMenuDelegate::CreateStatic(&FLayoutsMenuRemove::MakeRemoveLayoutsMenu)
+				));
+			}
+		}));
+
+		// Enable Fullscreen section
 #if !PLATFORM_MAC && !PLATFORM_LINUX // On Mac/Linux windowed fullscreen mode in the editor is currently unavailable
+		// Separator
+		Section.AddMenuSeparator("FullscreenSeparator");
+		// Fullscreen
 		Section.AddMenuEntry(FMainFrameCommands::Get().ToggleFullscreen);
 #endif
 	}

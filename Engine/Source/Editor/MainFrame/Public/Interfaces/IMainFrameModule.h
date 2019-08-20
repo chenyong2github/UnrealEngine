@@ -44,6 +44,15 @@ public:
 	virtual void CreateDefaultMainFrame( const bool bStartImmersive, const bool bStartPIE ) = 0;
 
 	/**
+	 * Recreates the default editor main frame.
+	 * I.e., if CreateDefaultMainFrame or RecreateDefaultMainFrame were already called, it would clean the previous default main frame and create it again.
+	 *
+	 * @param bStartImmersive True to force a main frame viewport into immersive mode
+	 * @param bStartPIE True to start a PIE session right away
+	 */
+	virtual void RecreateDefaultMainFrame(const bool bStartImmersive, const bool bStartPIE) = 0;
+
+	/**
 	 * Generates a menu that includes application global commands, such as "Save All", "Exit", etc.  If you're building
 	 * a menu for your tab, you should call this function to create your menu, passing in an extender object to add your
 	 * tab-specific menu items!

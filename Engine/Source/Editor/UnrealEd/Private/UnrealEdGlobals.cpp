@@ -61,6 +61,22 @@ const FString GetEditorResourcesDir()
 	return FPaths::Combine( FPlatformProcess::BaseDir(), *FPaths::EngineContentDir(), TEXT("Editor/") );
 }
 
+void CheckAndMaybeGoToVRModeInternal(const bool bIsImmersive)
+{
+	// Go straight to VR mode if we were asked to
+	{
+		if (!bIsImmersive && FParse::Param(FCommandLine::Get(), TEXT("VREditor")))
+		{
+			IVREditorModule& VREditorModule = IVREditorModule::Get();
+			VREditorModule.EnableVREditor(true);
+		}
+		else if (FParse::Param(FCommandLine::Get(), TEXT("ForceVREditor")))
+		{
+			GEngine->DeferredCommands.Add(TEXT("VREd.ForceVRMode"));
+		}
+	}
+}
+
 int32 EditorInit( IEngineLoop& EngineLoop )
 {
 	// Create debug exec.	
@@ -125,19 +141,8 @@ int32 EditorInit( IEngineLoop& EngineLoop )
 		}
 	}
 
-
 	// Go straight to VR mode if we were asked to
-	{
-		if( !bIsImmersive && FParse::Param( FCommandLine::Get(), TEXT( "VREditor" ) ) )
-		{
-			IVREditorModule& VREditorModule = IVREditorModule::Get();
-			VREditorModule.EnableVREditor( true );
-		}
-		else if( FParse::Param( FCommandLine::Get(), TEXT( "ForceVREditor" ) ) )
-		{
-			GEngine->DeferredCommands.Add( TEXT( "VREd.ForceVRMode" ) );
-		}
-	}
+	CheckAndMaybeGoToVRModeInternal(bIsImmersive);
 
 	// Check for automated build/submit option
 	const bool bDoAutomatedMapBuild = FParse::Param( FCommandLine::Get(), TEXT("AutomatedMapBuild") );
@@ -157,15 +162,37 @@ int32 EditorInit( IEngineLoop& EngineLoop )
 
 		if( FEngineAnalytics::IsAvailable() )
 		{
-			FEngineAnalytics::GetProvider().RecordEvent( 
-				TEXT( "Editor.Performance.Startup" ), 
+			FEngineAnalytics::GetProvider().RecordEvent(
+				TEXT( "Editor.Performance.Startup" ),
 				TEXT( "Duration" ), FString::Printf( TEXT( "%.3f" ), StartupTime ) );
 		}
 	}
 
 	FModuleManager::LoadModuleChecked<IModuleInterface>(TEXT("HierarchicalLODOutliner"));
 
-	// this will be ultimately returned from main(), so no error should be 0.
+	// This will be ultimately returned from main(), so no error should be 0.
+	return 0;
+}
+
+int32 EditorReinit()
+{
+	// Are we in immersive mode?
+	const bool bIsImmersive = FPaths::IsProjectFilePathSet() && FParse::Param(FCommandLine::Get(), TEXT("immersive"));
+	// Do final set up on the editor frame and show it
+	{
+		const bool bStartImmersive = bIsImmersive;
+		const bool bStartPIE = bIsImmersive;
+
+		// Tear down rendering thread once instead of doing it for every window being resized.
+		SCOPED_SUSPEND_RENDERING_THREAD(true);
+
+		// Startup Slate main frame and other editor windows
+		IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>(TEXT("MainFrame"));
+		MainFrameModule.RecreateDefaultMainFrame(bStartImmersive, bStartPIE);
+	}
+	// Go straight to VR mode if we were asked to
+	CheckAndMaybeGoToVRModeInternal(bIsImmersive);
+	// No error should be 0
 	return 0;
 }
 

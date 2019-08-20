@@ -14,7 +14,7 @@ const FString& FLayoutSaveRestore::GetAdditionalLayoutConfigIni()
 }
 
 
-void FLayoutSaveRestore::SaveToConfig( FString ConfigFileName, const TSharedRef<FTabManager::FLayout>& LayoutToSave )
+void FLayoutSaveRestore::SaveToConfig( const FString& ConfigFileName, const TSharedRef<FTabManager::FLayout>& LayoutToSave )
 {
 	const FString LayoutAsString = FLayoutSaveRestore::PrepareLayoutStringForIni( LayoutToSave->ToString() );
 
@@ -36,6 +36,19 @@ TSharedRef<FTabManager::FLayout> FLayoutSaveRestore::LoadFromConfig( const FStri
 	}
 
 	return DefaultLayout;
+}
+
+
+void FLayoutSaveRestore::SaveSectionToConfig(const FString& InConfigFileName, const FString& InSectionName, const FText& InSectionValue)
+{
+	GConfig->SetText(EditorLayoutsSectionName, *InSectionName, InSectionValue, InConfigFileName);
+}
+
+FText FLayoutSaveRestore::LoadSectionFromConfig(const FString& InConfigFileName, const FString& InSectionName)
+{
+	FText LayoutString;
+	GConfig->GetText(EditorLayoutsSectionName, *InSectionName, LayoutString, InConfigFileName);
+	return LayoutString;
 }
 
 
@@ -69,6 +82,12 @@ void FLayoutSaveRestore::MigrateConfig( const FString& OldConfigFileName, const 
 	GConfig->EmptySection(EditorLayoutsSectionName, OldConfigFileName);
 	GConfig->Flush(false, OldConfigFileName);
 	GConfig->Flush(false, NewConfigFileName);
+}
+
+
+bool FLayoutSaveRestore::IsValidConfig(const FString& InConfigFileName)
+{
+	return GConfig->DoesSectionExist(EditorLayoutsSectionName, *InConfigFileName);
 }
 
 
