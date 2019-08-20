@@ -80,7 +80,7 @@ void UK2Node_EditablePinBase::AllocateDefaultPins()
 	for(int32 i = 0; i < UserDefinedPins.Num(); i++)
 	{
 		FText DummyErrorMsg;
-		if (!IsEditable() || CanCreateUserDefinedPin(UserDefinedPins[i]->PinType, UserDefinedPins[i]->DesiredPinDirection, DummyErrorMsg))
+		if ((!IsEditable() || CanCreateUserDefinedPin(UserDefinedPins[i]->PinType, UserDefinedPins[i]->DesiredPinDirection, DummyErrorMsg)) && !FindPin(UserDefinedPins[i]->PinName))
 		{
 			CreatePinFromUserDefinition(UserDefinedPins[i]);
 		}

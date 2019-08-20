@@ -271,6 +271,13 @@ bool UK2Node::CreatePinsForFunctionEntryExit(const UFunction* Function, bool bFo
 	{
 		UProperty* Param = *PropIt;
 
+		// Don't create a new pin if one exists already! 
+		// @see UE-79032, UE-58390
+		if (FindPin(Param->GetFName()))
+		{
+			continue;
+		}
+
 		const bool bIsFunctionInput = !Param->HasAnyPropertyFlags(CPF_OutParm) || Param->HasAnyPropertyFlags(CPF_ReferenceParm);
 
 		if (bIsFunctionInput == bForFunctionEntry)

@@ -6554,18 +6554,16 @@ UEdGraph* UEdGraphSchema_K2::DuplicateGraph(UEdGraph* GraphToDuplicate) const
 			for (int32 NodeIndex = 0; NodeIndex < NewGraph->Nodes.Num(); ++NodeIndex)
 			{
 				UEdGraphNode* Node = NewGraph->Nodes[NodeIndex];
-				if (UK2Node_FunctionEntry* EntryNode = Cast<UK2Node_FunctionEntry>(Node))
+				if (UK2Node_FunctionTerminator* TerminatorNode = Cast<UK2Node_FunctionTerminator>(Node))
 				{
-					if (EntryNode->FunctionReference.GetMemberName() == GraphToDuplicate->GetFName())
+					if (TerminatorNode->FunctionReference.GetMemberName() == GraphToDuplicate->GetFName())
 					{
-						EntryNode->Modify();
+						TerminatorNode->Modify();
 						
 						// We're duplicating the graph, so fully reset the member reference (including the GUID!)
 						FMemberReference NewRef;
 						NewRef.SetMemberName(NewGraph->GetFName());
-						EntryNode->FunctionReference = NewRef;
-
-						break;
+						TerminatorNode->FunctionReference = NewRef;
 					}
 				}
 				// Rename any custom events to be unique
