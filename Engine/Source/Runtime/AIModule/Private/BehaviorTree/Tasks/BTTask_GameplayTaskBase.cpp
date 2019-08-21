@@ -13,7 +13,7 @@ UBTTask_GameplayTaskBase::UBTTask_GameplayTaskBase(const FObjectInitializer& Obj
 
 EBTNodeResult::Type UBTTask_GameplayTaskBase::StartGameplayTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, UAITask& Task)
 {
-	FBTGameplayTaskMemory* MyMemory = reinterpret_cast<FBTGameplayTaskMemory*>(NodeMemory);
+	FBTGameplayTaskMemory* MyMemory = CastInstanceNodeMemory<FBTGameplayTaskMemory>(NodeMemory);
 	MyMemory->bObserverCanFinishTask = false;
 	MyMemory->Task = &Task;
 
@@ -35,7 +35,7 @@ EBTNodeResult::Type UBTTask_GameplayTaskBase::AbortTask(UBehaviorTreeComponent& 
 {
 	if (bWaitForGameplayTask)
 	{
-		FBTGameplayTaskMemory* MyMemory = reinterpret_cast<FBTGameplayTaskMemory*>(NodeMemory);
+		FBTGameplayTaskMemory* MyMemory = CastInstanceNodeMemory<FBTGameplayTaskMemory>(NodeMemory);
 		MyMemory->bObserverCanFinishTask = false;
 
 		UAITask* TaskOb = MyMemory->Task.Get();
@@ -50,7 +50,7 @@ EBTNodeResult::Type UBTTask_GameplayTaskBase::AbortTask(UBehaviorTreeComponent& 
 
 void UBTTask_GameplayTaskBase::OnTaskFinished(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTNodeResult::Type TaskResult)
 {
-	FBTGameplayTaskMemory* MyMemory = reinterpret_cast<FBTGameplayTaskMemory*>(NodeMemory);
+	FBTGameplayTaskMemory* MyMemory = CastInstanceNodeMemory<FBTGameplayTaskMemory>(NodeMemory);
 	MyMemory->Task.Reset();
 
 	Super::OnTaskFinished(OwnerComp, NodeMemory, TaskResult);
@@ -70,7 +70,7 @@ void UBTTask_GameplayTaskBase::OnGameplayTaskDeactivated(UGameplayTask& Task)
 		if (BehaviorComp)
 		{
 			uint8* RawMemory = BehaviorComp->GetNodeMemory(this, BehaviorComp->FindInstanceContainingNode(this));
-			FBTGameplayTaskMemory* MyMemory = reinterpret_cast<FBTGameplayTaskMemory*>(RawMemory);
+			FBTGameplayTaskMemory* MyMemory = CastInstanceNodeMemory<FBTGameplayTaskMemory>(RawMemory);
 
 			if (MyMemory->bObserverCanFinishTask && (AITask == MyMemory->Task))
 			{
