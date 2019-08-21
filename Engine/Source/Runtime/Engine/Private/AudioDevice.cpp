@@ -3480,6 +3480,17 @@ int32 FAudioDevice::GetSortedActiveWaveInstances(TArray<FWaveInstance*>& WaveIns
 		StopQuietSoundsDueToMaxConcurrency(WaveInstances, ActiveSoundsCopy);
 	}
 
+	// Must be completed after StopQuietSoundsDueToMaxConcurrency as it avoids an issue
+	// where quiet loops can wrongfully scale concurrency ducking improperly if they continue
+	// to attempt to be evaluated while being periodically realized to check volumes from virtualized.
+	for (int32 i = 0; i < ActiveSoundsCopy.Num(); ++i)
+	{
+		if (FActiveSound* ActiveSound = ActiveSoundsCopy[i])
+		{
+			ActiveSound->UpdateConcurrencyVolumeScalars(GetGameDeltaTime());
+		}
+	}
+
 	int32 FirstActiveIndex = 0;
 	// Only need to do the wave instance sort if we have any waves and if our wave instances are greater than our max channels.
 	if (WaveInstances.Num() >= 0)
