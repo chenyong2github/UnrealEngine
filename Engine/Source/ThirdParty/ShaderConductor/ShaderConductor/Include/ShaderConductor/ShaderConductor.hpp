@@ -169,6 +169,7 @@ namespace ShaderConductor
             const MacroDefine* options;
             uint32_t numOptions;
             /* UE Change End: Support reflection & overriding Metal options & resource bindings to generate correct code */
+			std::function<Blob*(const char* variableName, const char* typeName)> variableTypeRenameCallback;
         };
 
         struct ResultDesc
