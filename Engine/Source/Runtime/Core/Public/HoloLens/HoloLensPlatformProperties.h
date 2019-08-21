@@ -51,6 +51,18 @@ struct FHoloLensPlatformProperties : public FGenericPlatformProperties
 	{
 		return true;
 	}
+
+	static FORCEINLINE bool SupportsLowQualityLightmaps()
+	{
+		// HoloLens 2 is mobile renderer, thus only supports low quality light maps
+		return true;
+	}
+
+	static FORCEINLINE bool SupportsHighQualityLightmaps()
+	{
+		// HoloLens 2 is mobile renderer, thus only supports low quality light maps
+		return false; 
+	}
 };
 
 #ifdef PROPERTY_HEADER_SHOULD_DEFINE_TYPE
