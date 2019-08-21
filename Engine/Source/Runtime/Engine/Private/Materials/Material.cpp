@@ -874,6 +874,7 @@ UMaterial::UMaterial(const FObjectInitializer& ObjectInitializer)
 	bUseMaterialAttributes = false;
 	bCastRayTracedShadows = true;
 	bUseTranslucencyVertexFog = true;
+	bIsSky = false;
 	BlendableLocation = BL_AfterTonemapping;
 	BlendablePriority = 0;
 	BlendableOutputAlpha = false;
@@ -4170,6 +4171,11 @@ bool UMaterial::CanEditChange(const UProperty* InProperty) const
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bComputeFogPerPixel))
 		{
 			return MaterialDomain != MD_DeferredDecal && MaterialDomain != MD_RuntimeVirtualTexture && IsTranslucentBlendMode(BlendMode);
+		}
+
+		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bIsSky))
+		{
+			return MaterialDomain != MD_DeferredDecal && MaterialDomain != MD_RuntimeVirtualTexture && GetShadingModels().IsUnlit() && BlendMode==BLEND_Opaque;
 		}
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, TranslucencyLightingMode)

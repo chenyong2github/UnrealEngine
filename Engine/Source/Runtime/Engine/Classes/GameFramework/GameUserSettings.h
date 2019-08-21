@@ -138,6 +138,14 @@ public:
 	UFUNCTION(BlueprintPure, Category=Settings)
 	int32 GetAudioQualityLevel() const { return AudioQualityLevel; }
 
+	/** Enables or disables headphone mode (HRTF) **/
+	UFUNCTION(BlueprintCallable, Category=Settings)
+	void EnableHeadphoneMode(bool bEnabled);
+
+	/** Returns if we're using headphone mode (HRTF) **/
+	UFUNCTION(BlueprintPure, Category=Settings)
+	bool IsHeadphoneModeEnabled() const { return bUseHeadphoneMode; }
+
 	/** Sets the user's frame rate limit (0 will disable frame rate limiting) */
 	UFUNCTION(BlueprintCallable, Category=Settings)
 	void SetFrameRateLimit(float NewLimit);
@@ -390,6 +398,10 @@ protected:
 
 	UPROPERTY(config)
 	int32 AudioQualityLevel;
+
+	/** Whether to use headphone mode (HRTF) **/
+	UPROPERTY(config)
+	bool bUseHeadphoneMode;
 
 	UPROPERTY(config)
 	int32 LastConfirmedAudioQualityLevel;

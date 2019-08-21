@@ -116,6 +116,7 @@ namespace Audio
 		, NumSourceWorkers(4)
 		, bInitialized(false)
 		, bUsingSpatializationPlugin(false)
+		, MaxChannelsSupportedBySpatializationPlugin(1)
 	{
 		// Get a manual resetable event
 		const bool bIsManualReset = true;
@@ -275,6 +276,7 @@ namespace Audio
 		if (SpatializationPlugin.IsValid())
 		{
 			bUsingSpatializationPlugin = true;
+			MaxChannelsSupportedBySpatializationPlugin = MixerDevice->MaxChannelsSupportedBySpatializationPlugin;
 		}
 
 		bInitialized = true;
@@ -347,7 +349,10 @@ namespace Audio
 				const int32 NextIndex = !CurrentGameIndex;
 
 				// Make sure we've actually emptied the command queue from the render thread before writing to it
-				check(CommandBuffers[NextIndex].SourceCommandQueue.Num() == 0);
+				if (CommandBuffers[NextIndex].SourceCommandQueue.Num() != 0)
+				{
+					UE_LOG(LogAudioMixer, Warning, TEXT("Source command queue not empty: %d"), CommandBuffers[NextIndex].SourceCommandQueue.Num());
+				}
 				bPumpQueue = true;
 			}
 		}
@@ -1630,7 +1635,7 @@ namespace Audio
 			CSV_SCOPED_TIMING_STAT(Audio, HRTF);
 
 			AUDIO_MIXER_CHECK(SpatializationPlugin.IsValid());
-			AUDIO_MIXER_CHECK(SourceInfo.NumInputChannels == 1);
+			AUDIO_MIXER_CHECK(SourceInfo.NumInputChannels <= MaxChannelsSupportedBySpatializationPlugin);
 
 			FAudioPluginSourceInputData AudioPluginInputData;
 			AudioPluginInputData.AudioBuffer = &SourceInfo.SourceBuffer;
@@ -2566,37 +2571,6 @@ namespace Audio
 
 	void FMixerSourceManager::UpdatePendingReleaseData(bool bForceWait)
 	{
-		// Check for any pending delete procedural sound waves
-		for (int32 SourceId = 0; SourceId < NumTotalSources; ++SourceId)
-		{
-			FSourceInfo& SourceInfo = SourceInfos[SourceId];
-			if (SourceInfo.MixerSourceBuffer.IsValid())
-			{
-				// If we've been flagged to begin destroy
-				if (SourceInfo.MixerSourceBuffer->IsBeginDestroy())
-				{
-					SourceInfo.MixerSourceBuffer->ClearSoundWave();
-						
-					if (!SourceInfo.bIsDone)
-					{
-						SourceInfo.bIsDone = true;
-						SourceInfo.SourceListener->OnDone();
-					}
-
-					// Clear out the mixer source buffer
-					SourceInfo.MixerSourceBuffer.Reset();
-
-					// Set the sound to be done playing
-					// This will flag the sound to be released
-					SourceInfo.bIsPlaying = false;
-					SourceInfo.bIsPaused = false;
-					SourceInfo.bIsActive = false;
-					SourceInfo.bIsStopping = false;
-				}
-			}
-		}
-
-
 		// Don't block, but let tasks finish naturally
 		for (int32 i = PendingSourceBuffers.Num() - 1; i >= 0; --i)
 		{

@@ -37,11 +37,6 @@ namespace ResonanceAudio
 		IModularFeatures::Get().RegisterModularFeature(FSpatializationPluginFactory::GetModularFeatureName(), &SpatializationPluginFactory);
 		IModularFeatures::Get().RegisterModularFeature(FReverbPluginFactory::GetModularFeatureName(), &ReverbPluginFactory);
 
-		if (!ResonanceAudioDynamicLibraryHandle)
-		{
-			ResonanceAudioDynamicLibraryHandle = LoadResonanceAudioDynamicLibrary();
-		}
-
 		if (!IsRunningDedicatedServer() && !GlobalSpatializationSourceSettings)
 		{
 			// Load the global source preset settings:
@@ -65,12 +60,6 @@ namespace ResonanceAudio
 
 	void FResonanceAudioModule::ShutdownModule()
 	{
-		if (GlobalSpatializationSourceSettings)
-		{
-			GlobalSpatializationSourceSettings->RemoveFromRoot();
-			GlobalSpatializationSourceSettings = nullptr;
-		}
-
 		check(bModuleInitialized == true);
 		bModuleInitialized = false;
 	}

@@ -8,6 +8,7 @@
 #include "Templates/IsSigned.h"
 #include "Algo/Find.h"
 #include "UObject/LinkerLoad.h"
+#include "Misc/NetworkVersion.h"
 
 namespace UE4EnumProperty_Private
 {
@@ -141,7 +142,14 @@ void UEnumProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, v
 
 bool UEnumProperty::NetSerializeItem(FArchive& Ar, UPackageMap* Map, void* Data, TArray<uint8>* MetaData) const
 {
-	Ar.SerializeBits(Data, FMath::CeilLogTwo64(Enum->GetMaxEnumValue()));
+	if (Ar.EngineNetVer() < HISTORY_FIX_ENUM_SERIALIZATION)
+	{
+		Ar.SerializeBits(Data, FMath::CeilLogTwo64(Enum->GetMaxEnumValue()));
+	}
+	else
+	{
+		Ar.SerializeBits(Data, FMath::CeilLogTwo64(Enum->GetMaxEnumValue() + 1));
+	}
 	return 1;
 }
 

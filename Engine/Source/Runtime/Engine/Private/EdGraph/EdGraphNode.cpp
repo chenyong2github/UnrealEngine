@@ -215,6 +215,15 @@ void UEdGraphNode::Serialize(FArchive& Ar)
 #endif
 }
 
+bool UEdGraphNode::GetCanRenameNode() const
+{
+#if WITH_EDITORONLY_DATA
+	return bCanRenameNode;
+#else
+	return false;
+#endif
+}
+
 #if WITH_EDITOR
 
 FString UEdGraphNode::GetPropertyNameAndValueForDiff(const UProperty* Prop, const uint8* PropertyAddr) const
@@ -829,6 +838,15 @@ void UEdGraphNode::AddSearchMetaDataInfo(TArray<struct FSearchTagDataPair>& OutT
 	OutTaggedMetaData.Add(FSearchTagDataPair(FFindInBlueprintSearchTags::FiB_GlyphStyleSet, FText::FromName(Icon.GetStyleSetName())));
 	OutTaggedMetaData.Add(FSearchTagDataPair(FFindInBlueprintSearchTags::FiB_GlyphColor, FText::FromString(GlyphColor.ToString())));
 	OutTaggedMetaData.Add(FSearchTagDataPair(FFindInBlueprintSearchTags::FiB_Comment, FText::FromString(NodeComment)));
+}
+
+void UEdGraphNode::AddPinSearchMetaDataInfo(const UEdGraphPin* Pin, TArray<struct FSearchTagDataPair>& OutTaggedMetaData) const
+{
+	// Searchable - Primary label for the item in the search results
+	OutTaggedMetaData.Add(FSearchTagDataPair(FFindInBlueprintSearchTags::FiB_Name, Pin->GetSchema()->GetPinDisplayName(Pin)));
+
+	// Searchable - The pin's default value as a text string
+	OutTaggedMetaData.Add(FSearchTagDataPair(FFindInBlueprintSearchTags::FiB_DefaultValue, Pin->GetDefaultAsText()));
 }
 
 void UEdGraphNode::OnUpdateCommentText( const FString& NewComment )

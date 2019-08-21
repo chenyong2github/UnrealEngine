@@ -35,7 +35,7 @@ SObjectWidget::~SObjectWidget(void)
 #if SLATE_VERBOSE_NAMED_EVENTS
 	// This can happen during blueprint compiling, so just ignore it if it happens then, this is really only a concern
 	// in a running game.
-	if (!GCompilingBlueprint)
+	if (!GCompilingBlueprint && !GIsGCingAfterBlueprintCompile)
 	{
 		// This is only a concern during a running game - design-time instances can be destroyed from GC quite often when recompiling
 		if (!WidgetObject || !WidgetObject->IsDesignTime())

@@ -213,6 +213,9 @@
 #include "Materials/MaterialExpressionClearCoatNormalCustomOutput.h"
 #include "Materials/MaterialExpressionAtmosphericLightVector.h"
 #include "Materials/MaterialExpressionAtmosphericLightColor.h"
+#include "Materials/MaterialExpressionSkyAtmosphereLightIlluminance.h"
+#include "Materials/MaterialExpressionSkyAtmosphereLightDirection.h"
+#include "Materials/MaterialExpressionSkyAtmosphereViewLuminance.h"
 #include "Materials/MaterialExpressionMaterialLayerOutput.h"
 #include "Materials/MaterialExpressionCurveAtlasRowParameter.h"
 #include "Materials/MaterialExpressionMapARPassthroughCameraUV.h"
@@ -1999,6 +2002,10 @@ int32 UMaterialExpressionRuntimeVirtualTextureOutput::Compile(class FMaterialCom
 	}
 	else if (OutputIndex == 4)
 	{
+		CodeInput = WorldHeight.IsConnected() ? WorldHeight.Compile(Compiler) : Compiler->Constant(0.f);
+	}
+	else if (OutputIndex == 5)
+	{
 		CodeInput = Opacity.IsConnected() ? Opacity.Compile(Compiler) : Compiler->Constant(1.f);
 	}
 
@@ -2015,7 +2022,7 @@ void UMaterialExpressionRuntimeVirtualTextureOutput::GetCaption(TArray<FString>&
 
 int32 UMaterialExpressionRuntimeVirtualTextureOutput::GetNumOutputs() const
 {
-	return 5; 
+	return 6; 
 }
 
 FString UMaterialExpressionRuntimeVirtualTextureOutput::GetFunctionName() const
@@ -2070,6 +2077,7 @@ void UMaterialExpressionRuntimeVirtualTextureSample::InitOutputs()
 	Outputs.Add(FExpressionOutput(TEXT("Specular"), 1, 0, 0, 1, 0));
 	Outputs.Add(FExpressionOutput(TEXT("Roughness"), 1, 1, 0, 0, 0));
 	Outputs.Add(FExpressionOutput(TEXT("Normal")));
+	Outputs.Add(FExpressionOutput(TEXT("WorldHeight")));
 #endif // WITH_EDITORONLY_DATA
 }
 
@@ -2129,6 +2137,7 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 	const bool bIsSpecularValid = MaterialType == ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular;
 	const bool bIsNormalValid = MaterialType == ERuntimeVirtualTextureMaterialType::BaseColor_Normal || MaterialType == ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular;
 	const bool bIsNormalBC3 = MaterialType == ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular;
+	const bool bIsWorldHeightValid = MaterialType == ERuntimeVirtualTextureMaterialType::WorldHeight;
 
 	int32 LayerIndex = 0;
 	EMaterialSamplerType SamplerType = SAMPLERTYPE_VirtualMasks;
@@ -2166,6 +2175,17 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 		else
 		{
 			return Compiler->Constant3(0.f, 0.f, 1.f);
+		}
+		break;
+	case 4:
+		if (bIsVirtualTextureValid && bIsWorldHeightValid)
+		{
+			LayerIndex = 0;
+			UnpackType = EVirtualTextureUnpackType::HeightR16;
+		}
+		else
+		{
+			return Compiler->Constant(0.f);
 		}
 		break;
 	default:
@@ -2550,6 +2570,17 @@ UMaterialExpressionTextureObjectParameter::UMaterialExpressionTextureObjectParam
 #endif // WITH_EDITORONLY_DATA
 }
 
+bool UMaterialExpressionTextureObjectParameter::TextureIsValid(UTexture* InTexture, FString& OutMessage)
+{
+	if (!InTexture)
+	{
+		OutMessage = TEXT("Requires valid texture");
+		return false;
+	}
+
+	return true;
+}
+
 #if WITH_EDITOR
 void UMaterialExpressionTextureObjectParameter::GetCaption(TArray<FString>& OutCaptions) const
 {
@@ -2565,9 +2596,10 @@ const TArray<FExpressionInput*> UMaterialExpressionTextureObjectParameter::GetIn
 
 int32 UMaterialExpressionTextureObjectParameter::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	if (!Texture)
+	FString ErrorMessage;
+	if (!TextureIsValid(Texture, ErrorMessage))
 	{
-		return CompilerError(Compiler, TEXT("Requires valid texture"));
+		return CompilerError(Compiler, *ErrorMessage);
 	}
 
 	// It seems like this error should be checked here, but this can break existing materials, see https://jira.it.epicgames.net/browse/UE-68862
@@ -2581,9 +2613,10 @@ int32 UMaterialExpressionTextureObjectParameter::Compile(class FMaterialCompiler
 
 int32 UMaterialExpressionTextureObjectParameter::CompilePreview(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	if (!Texture)
+	FString ErrorMessage;
+	if (!TextureIsValid(Texture, ErrorMessage))
 	{
-		return CompilerError(Compiler, TEXT("Requires valid texture"));
+		return CompilerError(Compiler, *ErrorMessage);
 	}
 
 	// Preview the texture object by actually sampling it
@@ -15755,6 +15788,210 @@ int32 UMaterialExpressionAtmosphericLightColor::Compile(class FMaterialCompiler*
 void UMaterialExpressionAtmosphericLightColor::GetCaption(TArray<FString>& OutCaptions) const
 {
 	OutCaptions.Add(TEXT("AtmosphericLightColor"));
+}
+#endif // WITH_EDITOR
+
+///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionSkyAtmosphereLightIlluminance
+///////////////////////////////////////////////////////////////////////////////
+UMaterialExpressionSkyAtmosphereLightIlluminance::UMaterialExpressionSkyAtmosphereLightIlluminance(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Sky;
+		FConstructorStatics()
+			: NAME_Sky(LOCTEXT("Sky", "Sky"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Sky);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionSkyAtmosphereLightIlluminance::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	return Compiler->SkyAtmosphereLightIlluminance(LightIndex);
+}
+
+void UMaterialExpressionSkyAtmosphereLightIlluminance::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(FString::Printf(TEXT("SkyAtmosphereLightIlluminance[%i]"), LightIndex));
+}
+#endif // WITH_EDITOR
+
+///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionSkyAtmosphereLightDirection
+///////////////////////////////////////////////////////////////////////////////
+UMaterialExpressionSkyAtmosphereLightDirection::UMaterialExpressionSkyAtmosphereLightDirection(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Sky;
+		FConstructorStatics()
+			: NAME_Sky(LOCTEXT("Sky", "Sky"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Sky);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionSkyAtmosphereLightDirection::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	return Compiler->SkyAtmosphereLightDirection(LightIndex);
+}
+
+void UMaterialExpressionSkyAtmosphereLightDirection::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(FString::Printf(TEXT("SkyAtmosphereLightDirection[%i]"), LightIndex));
+}
+#endif // WITH_EDITOR
+
+///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionSkyAtmosphereLightDiskLuminance
+///////////////////////////////////////////////////////////////////////////////
+UMaterialExpressionSkyAtmosphereLightDiskLuminance::UMaterialExpressionSkyAtmosphereLightDiskLuminance(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Sky;
+		FConstructorStatics()
+			: NAME_Sky(LOCTEXT("Sky", "Sky"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Sky);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionSkyAtmosphereLightDiskLuminance::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	return Compiler->SkyAtmosphereLightDiskLuminance(LightIndex);
+}
+
+void UMaterialExpressionSkyAtmosphereLightDiskLuminance::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(FString::Printf(TEXT("SkyAtmosphereLightDiskLuminance[%i]"), LightIndex));
+}
+#endif // WITH_EDITOR
+
+///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionSkyAtmosphereViewLuminance
+///////////////////////////////////////////////////////////////////////////////
+UMaterialExpressionSkyAtmosphereViewLuminance::UMaterialExpressionSkyAtmosphereViewLuminance(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Sky;
+		FConstructorStatics()
+			: NAME_Sky(LOCTEXT("Sky", "Sky"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Sky);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionSkyAtmosphereViewLuminance::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	return Compiler->SkyAtmosphereViewLuminance();
+}
+
+void UMaterialExpressionSkyAtmosphereViewLuminance::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("SkyAtmosphereViewLuminance"));
+}
+#endif // WITH_EDITOR
+
+///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionSkyAtmosphereAerialPerpsective
+///////////////////////////////////////////////////////////////////////////////
+UMaterialExpressionSkyAtmosphereAerialPerspective::UMaterialExpressionSkyAtmosphereAerialPerspective(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Sky;
+		FConstructorStatics()
+			: NAME_Sky(LOCTEXT("Sky", "Sky"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Sky);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionSkyAtmosphereAerialPerspective::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	return Compiler->SkyAtmosphereAerialPerspective();
+}
+
+void UMaterialExpressionSkyAtmosphereAerialPerspective::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("SkyAtmosphereAerialPerspective"));
+}
+#endif // WITH_EDITOR
+
+///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionSkyAtmosphereAerialPerpsective
+///////////////////////////////////////////////////////////////////////////////
+UMaterialExpressionSkyAtmosphereDistantLightScatteredLuminance::UMaterialExpressionSkyAtmosphereDistantLightScatteredLuminance(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Sky;
+		FConstructorStatics()
+			: NAME_Sky(LOCTEXT("Sky", "Sky"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Sky);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionSkyAtmosphereDistantLightScatteredLuminance::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	return Compiler->SkyAtmosphereDistantLightScatteredLuminance();
+}
+
+void UMaterialExpressionSkyAtmosphereDistantLightScatteredLuminance::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("SkyAtmosphereDistantLightScatteredLuminance"));
 }
 #endif // WITH_EDITOR
 

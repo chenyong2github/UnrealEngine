@@ -373,6 +373,7 @@ void SMultiLineEditableText::OnTextCommitted(const FText& InText, const ETextCom
 void SMultiLineEditableText::OnCursorMoved(const FTextLocation& InLocation)
 {
 	OnCursorMovedCallback.ExecuteIfBound(InLocation);
+	Invalidate(EInvalidateWidget::Layout);
 }
 
 float SMultiLineEditableText::UpdateAndClampHorizontalScrollBar(const float InViewOffset, const float InViewFraction, const EVisibility InVisiblityOverride)

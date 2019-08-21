@@ -400,7 +400,7 @@ public:
 
 	void SetBackwards(bool bSetBackwards)
 	{
-		Worker.SetConversionDirection(bBackwards);
+		Worker.SetConversionDirection(bSetBackwards);
 		bBackwards = bSetBackwards;
 	}
 

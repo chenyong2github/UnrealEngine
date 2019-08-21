@@ -281,7 +281,9 @@ half3 GetImageBasedReflectionLighting(FMaterialPixelParameters MaterialParameter
 	}
 
 #endif
-	
+
+	SpecularIBL*= View.IndirectLightingColorScale;
+		
 #if WEBGL
 	// need a rgb swizzle instead of the existing rgba swizzle, we should add it if another use case comes up. 
 	return SpecularIBL.bgr;
@@ -646,6 +648,7 @@ void Main(
 	VertexFog = BasePassInterpolants.VertexFog;
 #endif
 #endif
+	// NEEDS_BASEPASS_PIXEL_FOGGING is not allowed on mobile for the sake of performance.
 
 #if !MATERIAL_SHADINGMODEL_UNLIT && MOBILE_EMULATION
 	Color = lerp(Color, DiffuseColor + SpecularColor, ResolvedView.UnlitViewmodeMask);

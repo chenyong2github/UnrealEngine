@@ -101,6 +101,10 @@ void UNiagaraSystemEditorData::PostLoadFromOwner(UObject* InOwner)
 	{
 		SystemOverviewGraph = NewObject<UEdGraph>(this, "NiagaraOverview", RF_Transactional);
 		SystemOverviewGraph->Schema = UEdGraphSchema_NiagaraSystemOverview::StaticClass();
+	}
+
+	if(SystemOverviewGraph->Nodes.Num() == 0)
+	{
 		SynchronizeOverviewGraphWithSystem(*OwningSystem);
 	}
 }
@@ -280,6 +284,10 @@ void UNiagaraSystemEditorData::SynchronizeOverviewGraphWithSystem(UNiagaraSystem
 	// If there are any nodes remaining in the list they're no longer being used so destroy them.
 	for (UNiagaraOverviewNode* OverviewNode : OverviewNodes)
 	{
+		OverviewNode->Modify();
 		OverviewNode->DestroyNode();
 	}
+
+	// Dispatch an empty graph changed message here so that any graph UIs which are visible refresh their node's widgets.
+	SystemOverviewGraph->NotifyGraphChanged();
 }

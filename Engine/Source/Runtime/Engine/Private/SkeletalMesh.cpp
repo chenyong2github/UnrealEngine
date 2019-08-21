@@ -2197,6 +2197,16 @@ void USkeletalMesh::InitMorphTargetsAndRebuildRenderData()
 	MarkPackageDirty();
 	// need to refresh the map
 	InitMorphTargets();
+
+	// reset all morphtarget for all components
+	for (TObjectIterator<USkeletalMeshComponent> It; It; ++It)
+	{
+		if (It->SkeletalMesh == this)
+		{
+			It->RefreshMorphTargets();
+		}
+	}
+
 	// invalidate render data
 	InvalidateRenderData();
 }
@@ -3746,14 +3756,14 @@ const FQuat SphylBasis(FVector(1.0f / FMath::Sqrt(2.0f), 0.0f, 1.0f / FMath::Sqr
  */
 FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Component, FSkeletalMeshRenderData* InSkelMeshRenderData)
 		:	FPrimitiveSceneProxy(Component, Component->SkeletalMesh->GetFName())
-#if RHI_RAYTRACING
-		,	bAnySegmentUsesWorldPositionOffset(false)
-#endif
 		,	Owner(Component->GetOwner())
 		,	MeshObject(Component->MeshObject)
 		,	SkeletalMeshRenderData(InSkelMeshRenderData)
 		,	SkeletalMeshForDebug(Component->SkeletalMesh)
 		,	PhysicsAssetForDebug(Component->GetPhysicsAsset())
+#if RHI_RAYTRACING
+		,	bAnySegmentUsesWorldPositionOffset(false)
+#endif
 		,	bForceWireframe(Component->bForceWireframe)
 		,	bCanHighlightSelectedSections(Component->bCanHighlightSelectedSections)
 		,	bRenderStatic(Component->bRenderStatic)

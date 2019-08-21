@@ -5,138 +5,13 @@
 #include "CoreTypes.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "Misc/ScopeLock.h"
-
+#include "HAL/DiskUtilizationTracker.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "Misc/ScopeLock.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/PlatformProcess.h"
 
-
 #define MANAGE_FILE_HANDLES (#) // this is not longer used, this will error on any attempt to use it
-
-#define SPEW_DISK_UTLIZATION (0)
-
-#if SPEW_DISK_UTLIZATION
-
-static const float DiskUtilizationTrackerPrintFrequency = 0.1f;
-
-struct FDiskUtilizationTracker
-{
-	FCriticalSection Crit;
-	int32 NumRequests;
-	double LastTime;
-	double LastPrint;
-	double WorkTime;
-	double IdleTime;
-	uint64 AmountRead;
-	uint64 NumSeeks;
-	uint64 TotalSeekDistance;
-	uint64 NumReads;
-
-	FDiskUtilizationTracker()
-		: NumRequests(0)
-		, LastTime(-1.0)
-		, LastPrint(-1.0)
-		, WorkTime(0.0)
-		, IdleTime(0.0)
-		, AmountRead(0)
-		, NumSeeks(0)
-		, TotalSeekDistance(0)
-		, NumReads(0)
-	{
-	}
-
-	void Start(uint64 Size, uint64 SeekDistance)
-	{
-		FScopeLock Lock(&Crit);
-		double Now = FPlatformTime::Seconds();
-		if (NumRequests++ == 0)
-		{
-			// was idle, no longer is
-			if (LastTime != -1.0)
-			{
-				IdleTime += (Now - LastTime);
-			}
-			LastTime = Now;
-			MaybePrint();
-		}
-		AmountRead += Size;
-		NumReads++;
-		if (SeekDistance > 0)
-		{
-			NumSeeks++;
-			TotalSeekDistance += SeekDistance;
-		}
-	}
-	void Stop()
-	{
-		FScopeLock Lock(&Crit);
-		double Now = FPlatformTime::Seconds();
-		if (--NumRequests == 0)
-		{
-			// was working, no longer is
-			check(LastTime > 0);
-			WorkTime += (Now - LastTime);
-			LastTime = Now;
-			MaybePrint();
-		}
-	}
-	void MaybePrint()
-	{
-		if (LastPrint < 0.0)
-		{
-			LastPrint = LastTime;
-			return;
-		}
-		float TimeInterval = float(LastTime - LastPrint);
-		if (TimeInterval > DiskUtilizationTrackerPrintFrequency && IdleTime + WorkTime > 0.0)
-		{
-			LastPrint = LastTime;
-			float Result = float(100.0 * WorkTime / (IdleTime + WorkTime));
-			double MBS = ((double)AmountRead / TimeInterval) / (1024 * 1024);
-			double KBPerSeek = 0.0;
-			if (NumSeeks)
-			{
-				KBPerSeek = ((double)AmountRead) / (1024 * NumSeeks);
-			}
-			double ActualMBS = MBS * Result / 100.0;
-			double AvgSeek = NumSeeks ? ((double)TotalSeekDistance / (double)NumSeeks) : 0;
-			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Disk: %5.2f%% utilization over %6.2fs\t%.2f MB/s\t%.2f Actual MB/s\t(%d Reads, %d Seeks, %.2f kbytes / seek, %.2f ave seek)\r\n"), Result, TimeInterval, MBS, ActualMBS, NumReads, NumSeeks, KBPerSeek, AvgSeek);
-			WorkTime = 0.0;
-			IdleTime = 0.0;
-			AmountRead = 0;
-			NumSeeks = 0;
-			TotalSeekDistance = 0;
-			NumReads = 0;
-		}
-	}
-} GDiskUtilizationTracker;
-
-
-struct FScopedDiskUtilizationTracker
-{
-	FScopedDiskUtilizationTracker(uint64 Size, uint64 SeekDistance)
-	{
-		GDiskUtilizationTracker.Start(Size, SeekDistance);
-	}
-	~FScopedDiskUtilizationTracker()
-	{
-		GDiskUtilizationTracker.Stop();
-	}
-
-};
-
-
-
-#else
-struct FScopedDiskUtilizationTracker
-{
-	FScopedDiskUtilizationTracker(uint64 Size, uint64 SeekDistance)
-	{
-	}
-};
-#endif
-
 
 class FRegisteredFileHandle : public IFileHandle
 {

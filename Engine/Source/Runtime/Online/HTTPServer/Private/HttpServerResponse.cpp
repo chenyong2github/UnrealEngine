@@ -48,9 +48,12 @@ TUniquePtr<FHttpServerResponse> FHttpServerResponse::Ok()
 	return Response;
 }
 
-TUniquePtr<FHttpServerResponse> FHttpServerResponse::Error(EHttpServerResponseCodes ResponseCode, const FString& ErrorCode)
+TUniquePtr<FHttpServerResponse> FHttpServerResponse::Error(EHttpServerResponseCodes ResponseCode, 
+	const FString& ErrorCode /*=TEXT("")*/, const FString& ErrorMessage /*=TEXT("")*/)
 {
-	const FString& ResponseBody = FString::Printf(TEXT("{\"errorCode\": \"%s\"}"), *ErrorCode);
+	const FString ErrorCodeEscaped = ErrorCode.ReplaceCharWithEscapedChar();
+	const FString ErrorMessageEscaped = ErrorMessage.ReplaceCharWithEscapedChar();
+	const FString ResponseBody = FString::Printf(TEXT("{\"errorCode\": \"%s\", \"errorMessage\": \"%s\"}"), *ErrorCodeEscaped, *ErrorMessageEscaped);
 	auto Response = Create(ResponseBody, TEXT("application/json"));
 	Response->Code = ResponseCode;
 	return Response;

@@ -37,7 +37,7 @@
 
 static TAutoConsoleVariable<int32> CVarVTCompressCrunch(
 	TEXT("r.VT.EnableCompressCrunch"),
-	1,
+	0,
 	TEXT("Enable Crunch compression for virtual textures, for supported formats")
 );
 
@@ -450,6 +450,9 @@ static void GetTextureBuildSettings(
 		OutBuildSettings.bVirtualTextureEnableCompressZlib = CVarVTCompressZlib.GetValueOnAnyThread() != 0;
 		OutBuildSettings.bVirtualTextureEnableCompressCrunch = CVarVTCompressCrunch.GetValueOnAnyThread() != 0;
 		OutBuildSettings.VirtualTextureTileSize = FMath::RoundUpToPowerOfTwo(CVarVTTileSize.GetValueOnAnyThread());
+
+		// don't all max resolution to be less than VT tile size
+		OutBuildSettings.MaxTextureResolution = FMath::Max<uint32>(OutBuildSettings.MaxTextureResolution, OutBuildSettings.VirtualTextureTileSize);
 		
 		// 0 is a valid value for border size
 		// 1 would be OK in some cases, but breaks BC compressed formats, since it will result in physical tiles that aren't divisible by block size (4)
@@ -1469,6 +1472,26 @@ void FTexturePlatformData::SerializeCooked(FArchive& Ar, UTexture* Owner, bool b
 ------------------------------------------------------------------------------*/
 
 void UTexture2D::GetMipData(int32 FirstMipToLoad, void** OutMipData)
+{
+	if (PlatformData->TryLoadMips(FirstMipToLoad, OutMipData) == false)
+	{
+		// Unable to load mips from the cache. Rebuild the texture and try again.
+		UE_LOG(LogTexture,Warning,TEXT("GetMipData failed for %s (%s)"),
+			*GetPathName(), GPixelFormats[GetPixelFormat()].Name);
+#if WITH_EDITOR
+		if (!GetOutermost()->bIsCookedForEditor)
+		{
+			ForceRebuildPlatformData();
+			if (PlatformData->TryLoadMips(FirstMipToLoad, OutMipData) == false)
+			{
+				UE_LOG(LogTexture, Error, TEXT("Failed to build texture %s."), *GetPathName());
+			}
+		}
+#endif // #if WITH_EDITOR
+	}
+}
+
+void UTextureCube::GetMipData(int32 FirstMipToLoad, void** OutMipData)
 {
 	if (PlatformData->TryLoadMips(FirstMipToLoad, OutMipData) == false)
 	{

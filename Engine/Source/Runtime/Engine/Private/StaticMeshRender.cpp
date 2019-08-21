@@ -746,7 +746,7 @@ uint32 FStaticMeshSceneProxy::SetMeshElementGeometrySource(
 	{
 		const bool bSupportsTessellation = RHISupportsTessellation(GetScene().GetShaderPlatform()) && VertexFactory->GetType()->SupportsTessellationShaders();
 
-		if (LODModel.AdditionalIndexBuffers->WireframeIndexBuffer.IsInitialized() && !bSupportsTessellation)
+		if (LODModel.AdditionalIndexBuffers && LODModel.AdditionalIndexBuffers->WireframeIndexBuffer.IsInitialized() && !bSupportsTessellation)
 		{
 			OutMeshBatch.Type = PT_LineList;
 			OutMeshBatchElement.FirstIndex = 0;
@@ -917,6 +917,7 @@ void FStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PD
 		//Never use the dynamic path in this path, because only unselected elements will use DrawStaticElements
 		bool bIsMeshElementSelected = false;
 		const auto FeatureLevel = GetScene().GetFeatureLevel();
+		const bool IsMobile = IsMobilePlatform(GetScene().GetShaderPlatform());
 
 		//check if a LOD is being forced
 		if (ForcedLodModel > 0) 

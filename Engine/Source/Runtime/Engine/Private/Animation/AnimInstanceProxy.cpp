@@ -23,6 +23,7 @@
 #define DO_ANIMSTAT_PROCESSING(StatName) DEFINE_STAT(STAT_ ## StatName ## _WorkerThread)
 #include "Animation/AnimMTStats.h"
 #include "Animation/AnimNode_Root.h"
+#include "Animation/AnimNode_Layer.h"
 #undef DO_ANIMSTAT_PROCESSING
 
 #define LOCTEXT_NAMESPACE "AnimInstance"
@@ -42,7 +43,12 @@ void FAnimInstanceProxy::UpdateAnimationNode_WithRoot(float DeltaSeconds, FAnimN
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	if(InRootNode != nullptr)
 	{
-		UpdateCounter.Increment();
+		if (FrameCounterForNodeUpdate != GFrameCounter)
+		{
+			FrameCounterForNodeUpdate = GFrameCounter;
+			UpdateCounter.Increment();
+		}
+		
 		InRootNode->Update_AnyThread(FAnimationUpdateContext(this, DeltaSeconds));
 
 		// We've updated the graph, now update the fractured saved pose sections
@@ -368,15 +374,14 @@ void FAnimInstanceProxy::PreUpdate(UAnimInstance* InAnimInstance, float DeltaSec
 	FMemory::Memset(MachineWeights.GetData(), 0, MachineWeights.Num() * sizeof(float));
 
 #if WITH_EDITORONLY_DATA
-	bIsBeingDebugged = false;
-	if (UAnimBlueprint* AnimBlueprint = GetAnimBlueprint())
+	UAnimBlueprint* AnimBP = GetAnimBlueprint();
+	bIsBeingDebugged = AnimBP ? AnimBP->IsObjectBeingDebugged(InAnimInstance) : false;
+	if (bIsBeingDebugged)
 	{
-		bIsBeingDebugged = (AnimBlueprint->GetObjectBeingDebugged() == InAnimInstance);
-		if(bIsBeingDebugged)
+		FAnimBlueprintDebugData* DebugData = AnimBP->GetDebugData();
+		if (DebugData)
 		{
-			UAnimBlueprintGeneratedClass* AnimBlueprintGeneratedClass = Cast<UAnimBlueprintGeneratedClass>(InAnimInstance->GetClass());
-			FAnimBlueprintDebugData& DebugData = AnimBlueprintGeneratedClass->GetAnimBlueprintDebugData();
-			PoseWatchEntriesForThisFrame = DebugData.AnimNodePoseWatch;
+			PoseWatchEntriesForThisFrame = DebugData->AnimNodePoseWatch;
 		}
 	}
 #endif
@@ -453,12 +458,10 @@ void FAnimInstanceProxy::PostUpdate(UAnimInstance* InAnimInstance) const
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 #if WITH_EDITORONLY_DATA
-	if(bIsBeingDebugged)
+	if (FAnimBlueprintDebugData* DebugData = GetAnimBlueprintDebugData())
 	{
-		UAnimBlueprintGeneratedClass* AnimBlueprintGeneratedClass = Cast<UAnimBlueprintGeneratedClass>(InAnimInstance->GetClass());
-		FAnimBlueprintDebugData& DebugData = AnimBlueprintGeneratedClass->GetAnimBlueprintDebugData();
-		DebugData.RecordNodeVisitArray(UpdatedNodesThisFrame);
-		DebugData.AnimNodePoseWatch = PoseWatchEntriesForThisFrame;
+		DebugData->RecordNodeVisitArray(UpdatedNodesThisFrame);
+		DebugData->AnimNodePoseWatch = PoseWatchEntriesForThisFrame;
 	}
 #endif
 
@@ -2315,6 +2318,29 @@ void FAnimInstanceProxy::ResetDynamics()
 	ResetDynamics(ETeleportType::ResetPhysics);
 }
 
+TArray<FAnimNode_AssetPlayerBase*> FAnimInstanceProxy::GetInstanceAssetPlayers(const FName& GraphName)
+{
+	TArray<FAnimNode_AssetPlayerBase*> Nodes;
+
+	// Retrieve all asset player nodes from the (named) Animation Layer Graph	
+	if (AnimClassInterface)
+	{
+		const TMap<FName, FGraphAssetPlayerInformation>& GrapInformationMap = AnimClassInterface->GetGraphAssetPlayerInformation();
+		if (const FGraphAssetPlayerInformation* Information = GrapInformationMap.Find(GraphName))
+		{
+			for (const int32& NodeIndex : Information->PlayerNodeIndices)
+			{
+				if (FAnimNode_AssetPlayerBase* Node = GetNodeFromIndex<FAnimNode_AssetPlayerBase>(NodeIndex))
+				{
+					Nodes.Add(Node);
+				}
+			}
+		}
+	}
+
+	return Nodes;
+}
+
 #if WITH_EDITOR
 void FAnimInstanceProxy::RegisterWatchedPose(const FCompactPose& Pose, int32 LinkID)
 {
@@ -2498,6 +2524,19 @@ void FAnimInstanceProxy::AddCurveValue(const FSmartNameMapping& Mapping, const F
 			}
 		}
 	}
+}
+
+FAnimBlueprintDebugData* FAnimInstanceProxy::GetAnimBlueprintDebugData() const
+{
+#if WITH_EDITORONLY_DATA
+	if (bIsBeingDebugged)
+	{
+		UAnimBlueprint* AnimBP = GetAnimBlueprint();
+		return AnimBP ? AnimBP->GetDebugData() : nullptr;
+	}
+#endif
+
+	return nullptr;
 }
 
 #undef LOCTEXT_NAMESPACE

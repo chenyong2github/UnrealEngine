@@ -5,6 +5,7 @@
 #include "ActiveSound.h"
 #include "AudioDevice.h"
 #include "AudioVirtualLoop.h"
+#include "DSP/VolumeFader.h"
 #include "Sound/SoundBase.h"
 
 
@@ -194,19 +195,25 @@ void FConcurrencyGroup::StopQuietSoundsDueToMaxConcurrency()
 		return;
 	}
 
-	// Helper function for sort this concurrency group's active sounds according to their "volume" concurrency
-	// Quieter sounds will be at the front of the array
+	// Comparator for sorting group's ActiveSounds according to their "volume" concurrency. Quieter sounds will be
+	//  at the front of the array. If they share the same volume, newer sounds will be sorted first to avoid loop
+	// realization ping-ponging 
 	struct FCompareActiveSounds
 	{
 		FORCEINLINE bool operator()(const FActiveSound& A, const FActiveSound& B) const
 		{
+			if (FMath::IsNearlyEqual(A.VolumeConcurrency, B.VolumeConcurrency, KINDA_SMALL_NUMBER))
+			{
+				return A.PlaybackTime > B.PlaybackTime;
+			}
 			return A.VolumeConcurrency < B.VolumeConcurrency;
 		}
 	};
 
 	ActiveSounds.Sort(FCompareActiveSounds());
 
-	const int32 NumSoundsToStop = ActiveSounds.Num() - Settings.MaxCount;
+	const int32 NumActiveSounds = ActiveSounds.Num();
+	const int32 NumSoundsToStop = NumActiveSounds - Settings.MaxCount;
 	check(NumSoundsToStop > 0);
 
 	// Need to make a new list when stopping the sounds since the process of stopping an active sound
@@ -216,16 +223,9 @@ void FConcurrencyGroup::StopQuietSoundsDueToMaxConcurrency()
 	{
 		FActiveSound* ActiveSound = ActiveSounds[i];
 		check(ActiveSound);
-
-		// Flag this active sound as needing to be stopped due to volume-based max concurrency.
-		// This will actually be stopped in the audio device update function.
-		if (ActiveSound->FadeOut != FActiveSound::EFadeOut::Concurrency)
-		{
-			ActiveSound->bShouldStopDueToMaxConcurrency = true;
-		}
+		ActiveSound->bShouldStopDueToMaxConcurrency = true;
 	}
 
-	const int32 NumActiveSounds = ActiveSounds.Num();
 	for (; i < NumActiveSounds; ++i)
 	{
 		ActiveSounds[i]->bShouldStopDueToMaxConcurrency = false;
@@ -343,6 +343,7 @@ FActiveSound* FSoundConcurrencyManager::CreateNewActiveSound(const FActiveSound&
 	if (!ConcurrencyHandles.Num())
 	{
 		FActiveSound* ActiveSound = new FActiveSound(NewActiveSound);
+		ActiveSound->PlaybackTimeNonVirtualized = 0.0f;
 		ActiveSound->SetAudioDevice(AudioDevice);
 		return ActiveSound;
 	}
@@ -716,22 +717,7 @@ FActiveSound* FSoundConcurrencyManager::CreateAndEvictActiveSounds(const FActive
 			continue;
 		}
 
-		FadeOutActiveSound(*SoundToEvict);
-
-		const bool bDoRangeCheck = false;
-		FAudioVirtualLoop VirtualLoop;
-		if (FAudioVirtualLoop::Virtualize(*SoundToEvict, bDoRangeCheck, VirtualLoop))
-		{
-			// Don't report that the sound is 'finished' by clearing the audio component of the evicted
-			// copy that is being virtualized and effectively stopped at the end of this frame.
-			SoundToEvict->ClearAudioComponent();
-
-			if (USoundBase* Sound = SoundToEvict->GetSound())
-			{
-				UE_LOG(LogAudio, Verbose, TEXT("Playing ActiveSound %s Virtualizing: Evicted due to concurrency rules."), *Sound->GetName());
-			}
-			AudioDevice->AddVirtualLoop(VirtualLoop);
-		}
+		StopDueToVoiceStealing(*SoundToEvict);
 	}
 
 	return ActiveSound;
@@ -810,20 +796,38 @@ void FSoundConcurrencyManager::RemoveActiveSound(FActiveSound& ActiveSound)
 	ActiveSound.ConcurrencyGroupData.Reset();
 }
 
-void FSoundConcurrencyManager::FadeOutActiveSound(FActiveSound& ActiveSound)
+void FSoundConcurrencyManager::StopDueToVoiceStealing(FActiveSound& ActiveSound)
 {
-	check(AudioDevice);
+	check(ActiveSound.AudioDevice);
 
 	float FadeOutDuration = 0.0f;
-	if (ActiveSound.GetConcurrencyFadeDuration(FadeOutDuration))
+	bool bRequiresConcurrencyFade = ActiveSound.GetConcurrencyFadeDuration(FadeOutDuration);
+	if (bRequiresConcurrencyFade)
 	{
-		ActiveSound.FadeOut = FActiveSound::EFadeOut::Concurrency;
-		ActiveSound.TargetAdjustVolumeMultiplier = 0.0f;
-		ActiveSound.TargetAdjustVolumeStopTime = ActiveSound.PlaybackTime + FadeOutDuration;
+		ActiveSound.AudioDevice->UnlinkActiveSoundFromComponent(ActiveSound);
 	}
 	else
 	{
-		AudioDevice->AddSoundToStop(&ActiveSound);
+		ActiveSound.AudioDevice->AddSoundToStop(&ActiveSound);
+	}
+
+	const bool bDoRangeCheck = false;
+	FAudioVirtualLoop VirtualLoop;
+	if (FAudioVirtualLoop::Virtualize(ActiveSound, bDoRangeCheck, VirtualLoop))
+	{
+		ActiveSound.ClearAudioComponent();
+		if (USoundBase* Sound = ActiveSound.GetSound())
+		{
+			UE_LOG(LogAudio, Verbose, TEXT("Playing ActiveSound %s Virtualizing: Sound's voice stollen due to concurrency group maximum met."), *Sound->GetName());
+		}
+		ActiveSound.AudioDevice->AddVirtualLoop(VirtualLoop);
+	}
+
+	// Apply concurrency fade after potentially virtualizing to avoid transferring undesired new concurrency fade state
+	if (bRequiresConcurrencyFade)
+	{
+		ActiveSound.FadeOut = FActiveSound::EFadeOut::Concurrency;
+		ActiveSound.ComponentVolumeFader.StartFade(0.0f, FadeOutDuration, Audio::EFaderCurve::Logarithmic);
 	}
 }
 

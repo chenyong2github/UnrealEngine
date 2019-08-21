@@ -403,7 +403,7 @@ UObject* UTexture2DFactoryNew::FactoryCreateNew( UClass* InClass, UObject* InPar
 	//Set the source art to be white as default.
 	if( Object->Source.IsValid() )
 	{
-		TArray<uint8> TexturePixels;
+		TArray64<uint8> TexturePixels;
 		Object->Source.GetMipData( TexturePixels, 0 );
 
 		uint8* DestData = Object->Source.LockMip(0);
@@ -2891,6 +2891,7 @@ bool DecompressTGA(
 }
 
 bool UTextureFactory::bSuppressImportOverwriteDialog = false;
+bool UTextureFactory::bForceOverwriteExistingSettings = false;
 
 UTextureFactory::UTextureFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -2955,9 +2956,10 @@ UTextureCube* UTextureFactory::CreateTextureCube( UObject* InParent, FName Name,
 	return NewObject ? CastChecked<UTextureCube>(NewObject) : nullptr;
 }
 
-void UTextureFactory::SuppressImportOverwriteDialog()
+void UTextureFactory::SuppressImportOverwriteDialog(bool bOverwriteExistingSettings)
 {
 	bSuppressImportOverwriteDialog = true;
+    bForceOverwriteExistingSettings = bOverwriteExistingSettings;
 }
 
 /**
@@ -3807,6 +3809,7 @@ UTexture* UTextureFactory::ImportTexture(UClass* Class, UObject* InParent, FName
 			if(Format == TSF_RGBA16F)
 			{
 				TextureCube->CompressionSettings = TC_HDR;
+				TextureCube->SRGB = false;
 			}
 
 			uint8* DestMipData[MAX_TEXTURE_MIP_COUNT] = {0};
@@ -4061,43 +4064,51 @@ UObject* UTextureFactory::FactoryCreateBinary
 	TextureMipGenSettings				ExistingMipGenSettings = TextureMipGenSettings(0);
 	bool								ExistingVirtualTextureStreaming = false;
 
-	bUsingExistingSettings = bSuppressImportOverwriteDialog;
-
-	if(ExistingTexture && !bSuppressImportOverwriteDialog)
+	if (bForceOverwriteExistingSettings)
 	{
-		DisplayOverwriteOptionsDialog(FText::Format(
-			NSLOCTEXT("TextureFactory", "ImportOverwriteWarning", "You are about to import '{0}' over an existing texture."),
-			FText::FromName(TextureName)));
+		bUsingExistingSettings = false;
+	}
+	else
+	{
+		bUsingExistingSettings = bSuppressImportOverwriteDialog;
 
-		switch( OverwriteYesOrNoToAllState )
+		if (ExistingTexture && !bSuppressImportOverwriteDialog)
 		{
+			DisplayOverwriteOptionsDialog(FText::Format(
+				NSLOCTEXT("TextureFactory", "ImportOverwriteWarning", "You are about to import '{0}' over an existing texture."),
+				FText::FromName(TextureName)));
 
-		case EAppReturnType::Yes:
-		case EAppReturnType::YesAll:
+			switch (OverwriteYesOrNoToAllState)
 			{
-				// Overwrite existing settings
-				bUsingExistingSettings = false;
-				break;
-			}
-		case EAppReturnType::No:
-		case EAppReturnType::NoAll:
-			{
-				// Preserve existing settings
-				bUsingExistingSettings = true;
-				break;
-			}
-		case EAppReturnType::Cancel:
-		default:
-			{
-				GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport( this, nullptr );
-				return nullptr;
+
+			case EAppReturnType::Yes:
+			case EAppReturnType::YesAll:
+				{
+					// Overwrite existing settings
+					bUsingExistingSettings = false;
+					break;
+				}
+				case EAppReturnType::No:
+				case EAppReturnType::NoAll:
+				{
+					// Preserve existing settings
+					bUsingExistingSettings = true;
+					break;
+				}
+				case EAppReturnType::Cancel:
+				default:
+				{
+					GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, nullptr);
+					return nullptr;
+				}
 			}
 		}
 	}
 
 	// Don't suppress future textures from checking for overwrites unless the calling code explicitly asks for it
 	bSuppressImportOverwriteDialog = false;
-	
+	bForceOverwriteExistingSettings = false;
+
 	if (ExistingTexture && bUsingExistingSettings)
 	{
 		// save settings
@@ -4283,20 +4294,24 @@ UObject* UTextureFactory::FactoryCreateBinary
 		// If the texture is larger than a certain threshold make it VT. This is explicitly done after the
 		// application of the existing settings above, so if a texture gets reimported at a larger size it will
 		// still be properly flagged as a VT (note: What about reimporting at a lower resolution?)
-
-		int virtualTextureAutoEnableThreshold = GetDefault<UTextureImportSettings>()->AutoVTSize;
-		int virtualTextureAutoEnableThresholdPixels = virtualTextureAutoEnableThreshold*virtualTextureAutoEnableThreshold;
+		static const auto CVarVirtualTexturesEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextures")); check(CVarVirtualTexturesEnabled);
 		
-		// We do this in pixels so a 8192 x 128 texture won't get VT enabled 
-		// We use the Source size instead of simple Texture2D->GetSizeX() as this uses the size of the platform data
-		// however for a new texture platform data may not be generated yet, and for an reimport of a texture this is the size of the
-		// old texture. 
-		// Using source size gives one small caveat. It looks at the size before mipmap power of two padding adjustment.
-		// Textures with more than 1 block (UDIM textures) must be imported as VT
-		if (Texture->Source.GetNumBlocks() > 1 ||
-			Texture2D->Source.GetSizeX()*Texture2D->Source.GetSizeY() >= virtualTextureAutoEnableThresholdPixels)
+		if (CVarVirtualTexturesEnabled->GetValueOnAnyThread())
 		{
-			Texture2D->VirtualTextureStreaming = true;
+			int virtualTextureAutoEnableThreshold = GetDefault<UTextureImportSettings>()->AutoVTSize;
+			int virtualTextureAutoEnableThresholdPixels = virtualTextureAutoEnableThreshold * virtualTextureAutoEnableThreshold;
+
+			// We do this in pixels so a 8192 x 128 texture won't get VT enabled 
+			// We use the Source size instead of simple Texture2D->GetSizeX() as this uses the size of the platform data
+			// however for a new texture platform data may not be generated yet, and for an reimport of a texture this is the size of the
+			// old texture. 
+			// Using source size gives one small caveat. It looks at the size before mipmap power of two padding adjustment.
+			// Textures with more than 1 block (UDIM textures) must be imported as VT
+			if (Texture->Source.GetNumBlocks() > 1 ||
+				Texture2D->Source.GetSizeX()*Texture2D->Source.GetSizeY() >= virtualTextureAutoEnableThresholdPixels)
+			{
+				Texture2D->VirtualTextureStreaming = true;
+			}
 		}
 	}
 
@@ -4459,9 +4474,14 @@ void UTextureFactory::ApplyAutoImportSettings(UTexture* Texture)
 
 bool UTextureFactory::IsImportResolutionValid(int32 Width, int32 Height, bool bAllowNonPowerOfTwo, FFeedbackContext* Warn)
 {
+	static const auto CVarVirtualTexturesEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextures")); check(CVarVirtualTexturesEnabled);
+
+	// In theory this value could be much higher, but various UE4 image code currently uses 32bit size/offset values
+	const int32 MaximumSupportedVirtualTextureResolution = 16 * 1024;
+
 	// Calculate the maximum supported resolution utilizing the global max texture mip count
 	// (Note, have to subtract 1 because 1x1 is a valid mip-size; this means a GMaxTextureMipCount of 4 means a max resolution of 8x8, not 2^4 = 16x16)
-	const int32 MaximumSupportedResolution = 1 << (GMaxTextureMipCount - 1);
+	const int32 MaximumSupportedResolution = CVarVirtualTexturesEnabled->GetValueOnAnyThread() ? MaximumSupportedVirtualTextureResolution : (1 << (GMaxTextureMipCount - 1));
 
 	bool bValid = true;
 
@@ -4472,6 +4492,12 @@ bool UTextureFactory::IsImportResolutionValid(int32 Width, int32 Height, bool bA
 				NSLOCTEXT("UnrealEd", "Warning_LargeTextureImport", "Attempting to import {0} x {1} texture, proceed?\nLargest supported texture size: {2} x {3}"),
 				FText::AsNumber(Width), FText::AsNumber(Height), FText::AsNumber(MaximumSupportedResolution), FText::AsNumber(MaximumSupportedResolution)) ) )
 		{
+			bValid = false;
+		}
+
+		if (bValid && (Width * Height) > FMath::Square(MaximumSupportedVirtualTextureResolution))
+		{
+			Warn->Log(ELogVerbosity::Error, *NSLOCTEXT("UnrealEd", "Warning_TextureSizeTooLarge", "Texture is too large to import").ToString());
 			bValid = false;
 		}
 	}
@@ -4540,7 +4566,7 @@ bool UTextureExporterPCX::ExportBinary( UObject* Object, const TCHAR* Type, FArc
 
 	int32 SizeX = Texture->Source.GetSizeX();
 	int32 SizeY = Texture->Source.GetSizeY();
-	TArray<uint8> RawData;
+	TArray64<uint8> RawData;
 	Texture->Source.GetMipData(RawData, 0);
 
 	// Set all PCX file header properties.
@@ -4635,7 +4661,7 @@ bool UTextureExporterBMP::ExportBinary( UObject* Object, const TCHAR* Type, FArc
 
 	int32 SizeX = Texture->Source.GetSizeX();
 	int32 SizeY = Texture->Source.GetSizeY();
-	TArray<uint8> RawData;
+	TArray64<uint8> RawData;
 	Texture->Source.GetMipData(RawData, 0);
 
 	FBitmapFileHeader bmf;
@@ -4835,7 +4861,7 @@ bool UTextureExporterTGA::ExportBinary( UObject* Object, const TCHAR* Type, FArc
 
 	int32 SizeX = Texture->Source.GetSizeX();
 	int32 SizeY = Texture->Source.GetSizeY();
-	TArray<uint8> RawData;
+	TArray64<uint8> RawData;
 	Texture->Source.GetMipData(RawData, 0);
 
 	// If we should export the file with no alpha info.  
@@ -5556,7 +5582,9 @@ bool UReimportFbxStaticMeshFactory::CanReimport( UObject* Obj, TArray<FString>& 
 				return false;
 			}
 
-			if (FPaths::GetExtension(Mesh->AssetImportData->GetFirstFilename()) == TEXT("abc"))
+			FString FileExtension = FPaths::GetExtension(Mesh->AssetImportData->GetFirstFilename());
+			const bool bIsValidFile = FileExtension.Equals(TEXT("fbx"), ESearchCase::IgnoreCase) || FileExtension.Equals("obj", ESearchCase::IgnoreCase);
+			if (!bIsValidFile)
 			{
 				return false;
 			}

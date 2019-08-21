@@ -29,6 +29,15 @@ DECLARE_GPU_STAT_NAMED(NiagaraGPUSorting, TEXT("Niagara GPU sorting"));
 
 uint32 FNiagaraComputeExecutionContext::TickCounter = 0;
 
+int32 GNiagaraAllowTickBeforeRender = 1;
+static FAutoConsoleVariableRef CVarNiagaraAllowTickBeforeRender(
+	TEXT("fx.NiagaraAllowTickBeforeRender"),
+	GNiagaraAllowTickBeforeRender,
+	TEXT("If 1, Niagara GPU systems that don't rely on view data will be rendered in sync\n")
+	TEXT("with the current frame simulation instead of the last frame one. (default=1)\n"),
+	ECVF_Default
+);
+
 int32 GNiagaraOverlapCompute = 1;
 static FAutoConsoleVariableRef CVarNiagaraUseAsyncCompute(
 	TEXT("fx.NiagaraOverlapCompute"),
@@ -496,12 +505,17 @@ void NiagaraEmitterInstanceBatcher::DispatchAllOnCompute(FOverlappableTicks& Ove
 	RHICmdList.SubmitCommandsHint();
 }
 
-void NiagaraEmitterInstanceBatcher::PostRenderOpaque(FRHICommandListImmediate& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, const class FShaderParametersMetadata* SceneTexturesUniformBufferStruct, FRHIUniformBuffer* SceneTexturesUniformBuffer)
+void NiagaraEmitterInstanceBatcher::PostRenderOpaque(FRHICommandListImmediate& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, const class FShaderParametersMetadata* SceneTexturesUniformBufferStruct, FRHIUniformBuffer* SceneTexturesUniformBuffer, bool bAllowGPUParticleUpdate)
 {
 	LLM_SCOPE(ELLMTag::Niagara);
 
-	// Setup new readback since if there is no pending request, there is no risk of having invalid data read (offset being allocated after the readback was sent).
-	ExecuteAll(RHICmdList, ViewUniformBuffer, !GPUInstanceCounterManager.HasPendingGPUReadback());
+	if (bAllowGPUParticleUpdate)
+	{
+		// Setup new readback since if there is no pending request, there is no risk of having invalid data read (offset being allocated after the readback was sent).
+		ExecuteAll(RHICmdList, ViewUniformBuffer, !GPUInstanceCounterManager.HasPendingGPUReadback());
+
+		FinishDispatches();
+	}
 
 	if (!GPUInstanceCounterManager.HasPendingGPUReadback())
 	{
@@ -511,9 +525,6 @@ void NiagaraEmitterInstanceBatcher::PostRenderOpaque(FRHICommandListImmediate& R
 
 void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList &RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, bool bSetReadback)
 {
-	// @todo REMOVE THIS HACK
-	LastFrameThatDrainedData = GFrameNumberRenderThread;
-
 	// This is always called by the renderer so early out if we have no work.
 	if (Ticks_RT.Num() == 0)
 	{
@@ -533,6 +544,18 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList &RHICmdList, FRHI
 			for (FNiagaraGPUSystemTick& Tick : Ticks_RT)
 			{
 				FNiagaraComputeInstanceData* Data = Tick.GetInstanceData();
+
+				// This assumes all emitters fallback to the same FNiagaraShaderScript*.
+				FNiagaraShader* ComputeShader = Data->Context->GPUScript_RT->GetShader();
+				if (!ComputeShader)
+				{
+					continue;
+				}
+				else if (GNiagaraAllowTickBeforeRender && ComputeShader->ViewUniformBufferParam.IsBound() != (ViewUniformBuffer != nullptr))
+				{   // When allowing tick before render, skip this emitter if it is not in the right pass.
+					continue;
+				}
+
 				ContextToTicks.FindOrAdd(Data->Context).Add(&Tick);
 			}
 
@@ -585,8 +608,6 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList &RHICmdList, FRHI
 			}
 		}
 	}
-
-	FinishDispatches();
 }
 
 void NiagaraEmitterInstanceBatcher::TickSingle(const FNiagaraGPUSystemTick& Tick, FNiagaraComputeInstanceData *Instance, FRHICommandList &RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, bool bSetReadback) const
@@ -601,6 +622,11 @@ void NiagaraEmitterInstanceBatcher::TickSingle(const FNiagaraGPUSystemTick& Tick
 
 	FNiagaraShader* ComputeShader = Context->GPUScript_RT->GetShader();
 	if (!ComputeShader)
+	{
+		return;
+	}
+	// When allowing tick before render, skip this emitter if it is not in the right pass.
+	else if (GNiagaraAllowTickBeforeRender && ComputeShader->ViewUniformBufferParam.IsBound() != (ViewUniformBuffer != nullptr))
 	{
 		return;
 	}
@@ -661,7 +687,7 @@ void NiagaraEmitterInstanceBatcher::TickSingle(const FNiagaraGPUSystemTick& Tick
 	}
 }
 
-void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICmdList)
+void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICmdList, bool bAllowGPUParticleUpdate)
 {
 	LLM_SCOPE(ELLMTag::Niagara);
 
@@ -674,63 +700,74 @@ void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICm
 	}
 
 	// Update draw indirect buffer to max possible size.
-	int32 TotalDispatchCount = 0;
-	for (FNiagaraGPUSystemTick& Tick : Ticks_RT)
+	if (bAllowGPUParticleUpdate)
 	{
-		TotalDispatchCount += (int32)Tick.Count;
-
-		// Cancel any pending readback if the emitter is resetting.
-		if (Tick.bNeedsReset)
+		int32 TotalDispatchCount = 0;
+		for (FNiagaraGPUSystemTick& Tick : Ticks_RT)
 		{
-			FNiagaraComputeInstanceData* Instances = Tick.GetInstanceData();
-			for (uint32 InstanceIndex = 0; InstanceIndex < Tick.Count; ++InstanceIndex)
-			{
-				FNiagaraComputeExecutionContext* Context = Instances[InstanceIndex].Context;
-				if (Context)
-				{
-					GPUInstanceCounterManager.FreeEntry(Context->EmitterInstanceReadback.GPUCountOffset);
-				}
-			}
-		}
-	}
-	GPUInstanceCounterManager.ResizeBuffers(TotalDispatchCount);
+			TotalDispatchCount += (int32)Tick.Count;
 
-	// Update the instance counts from the GPU readback.
-	{
-		SCOPE_CYCLE_COUNTER(STAT_NiagaraGPUReadback_RT);
-		const uint32* Counts = GPUInstanceCounterManager.GetGPUReadback();
-		if (Counts)
-		{
-			for (FNiagaraGPUSystemTick& Tick : Ticks_RT)
+			// Cancel any pending readback if the emitter is resetting.
+			if (Tick.bNeedsReset)
 			{
 				FNiagaraComputeInstanceData* Instances = Tick.GetInstanceData();
 				for (uint32 InstanceIndex = 0; InstanceIndex < Tick.Count; ++InstanceIndex)
 				{
 					FNiagaraComputeExecutionContext* Context = Instances[InstanceIndex].Context;
-					if (Context && Context->EmitterInstanceReadback.GPUCountOffset != INDEX_NONE)
+					if (Context)
 					{
-						check(Context->MainDataSet);
-						FNiagaraDataBuffer* CurrentData = Context->MainDataSet->GetCurrentData();
-						if (CurrentData)
-						{
-							const uint32 DeadInstanceCount = Context->EmitterInstanceReadback.CPUCount - Counts[Context->EmitterInstanceReadback.GPUCountOffset];
-
-							// This will communicate the particle counts to the game thread. If DeadInstanceCount equals CurrentData->GetNumInstances() the game thread will know that the emitter has completed.
-							if (DeadInstanceCount <= CurrentData->GetNumInstances())
-							{
-								CurrentData->SetNumInstances(CurrentData->GetNumInstances() - DeadInstanceCount); 
-							}
-						}
-
-						// Now release the readback since another one will be enqueued in the tick.
-						// Also prevents processing the same data again.
 						GPUInstanceCounterManager.FreeEntry(Context->EmitterInstanceReadback.GPUCountOffset);
 					}
 				}
 			}
-			// Readback is only valid for one frame, so that any newly allocated instance count
-			// are guarantied to be in the next valid readback data.
-			GPUInstanceCounterManager.ReleaseGPUReadback();
+		}
+		GPUInstanceCounterManager.ResizeBuffers(TotalDispatchCount);
+
+		// Update the instance counts from the GPU readback.
+		{
+			SCOPE_CYCLE_COUNTER(STAT_NiagaraGPUReadback_RT);
+			const uint32* Counts = GPUInstanceCounterManager.GetGPUReadback();
+			if (Counts)
+			{
+				for (FNiagaraGPUSystemTick& Tick : Ticks_RT)
+				{
+					FNiagaraComputeInstanceData* Instances = Tick.GetInstanceData();
+					for (uint32 InstanceIndex = 0; InstanceIndex < Tick.Count; ++InstanceIndex)
+					{
+						FNiagaraComputeExecutionContext* Context = Instances[InstanceIndex].Context;
+						if (Context && Context->EmitterInstanceReadback.GPUCountOffset != INDEX_NONE)
+						{
+							check(Context->MainDataSet);
+							FNiagaraDataBuffer* CurrentData = Context->MainDataSet->GetCurrentData();
+							if (CurrentData)
+							{
+								const uint32 DeadInstanceCount = Context->EmitterInstanceReadback.CPUCount - Counts[Context->EmitterInstanceReadback.GPUCountOffset];
+
+								// This will communicate the particle counts to the game thread. If DeadInstanceCount equals CurrentData->GetNumInstances() the game thread will know that the emitter has completed.
+								if (DeadInstanceCount <= CurrentData->GetNumInstances())
+								{
+									CurrentData->SetNumInstances(CurrentData->GetNumInstances() - DeadInstanceCount); 
+								}
+							}
+
+							// Now release the readback since another one will be enqueued in the tick.
+							// Also prevents processing the same data again.
+							GPUInstanceCounterManager.FreeEntry(Context->EmitterInstanceReadback.GPUCountOffset);
+						}
+					}
+				}
+				// Readback is only valid for one frame, so that any newly allocated instance count
+				// are guarantied to be in the next valid readback data.
+				GPUInstanceCounterManager.ReleaseGPUReadback();
+			}
+		}
+
+		// @todo REMOVE THIS HACK
+		LastFrameThatDrainedData = GFrameNumberRenderThread;
+
+		if (GNiagaraAllowTickBeforeRender)
+		{
+			ExecuteAll(RHICmdList, nullptr, !GPUInstanceCounterManager.HasPendingGPUReadback());
 		}
 	}
 }
@@ -748,7 +785,7 @@ bool NiagaraEmitterInstanceBatcher::UsesGlobalDistanceField() const
 	return false;
 }
 
-void NiagaraEmitterInstanceBatcher::PreRender(FRHICommandListImmediate& RHICmdList, const class FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData, bool bAllowGPUParticleSceneUpdate)
+void NiagaraEmitterInstanceBatcher::PreRender(FRHICommandListImmediate& RHICmdList, const class FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData, bool bAllowGPUParticleUpdate)
 {
 	LLM_SCOPE(ELLMTag::Niagara);
 

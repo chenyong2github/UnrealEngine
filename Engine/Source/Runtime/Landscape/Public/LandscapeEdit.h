@@ -62,7 +62,7 @@ struct FLandscapeTextureDataInfo
 		TArray<FUpdateTextureRegion2D> MipUpdateRegions;
 	};
 
-	FLandscapeTextureDataInfo(UTexture2D* InTexture);
+	FLandscapeTextureDataInfo(UTexture2D* InTexture, bool bShouldDirtyPackage);
 	virtual ~FLandscapeTextureDataInfo();
 
 	// returns true if we need to block on the render thread before unlocking the mip data
@@ -105,6 +105,9 @@ struct LANDSCAPE_API FLandscapeTextureDataInterface
 {
 	FLandscapeTextureDataInterface(bool bInUploadTextureChangesToGPU = true);
 	virtual ~FLandscapeTextureDataInterface();
+		
+	void SetShouldDirtyPackage(bool bValue) { bShouldDirtyPackage = bValue; }
+	bool GetShouldDirtyPackage() const { return bShouldDirtyPackage; }
 
 	// Texture data access
 	FLandscapeTextureDataInfo* GetTextureDataInfo(UTexture2D* Texture);
@@ -130,8 +133,8 @@ struct LANDSCAPE_API FLandscapeTextureDataInterface
 private:
 	TMap<UTexture2D*, FLandscapeTextureDataInfo*> TextureDataMap;
 	bool bUploadTextureChangesToGPU;
+	bool bShouldDirtyPackage;
 };
-
 
 struct LANDSCAPE_API FLandscapeEditDataInterface : public FLandscapeTextureDataInterface
 {
@@ -293,6 +296,31 @@ private:
 	const ULandscapeLayerInfoObject* ChooseReplacementLayer(const ULandscapeLayerInfoObject* LayerInfo, int32 ComponentIndexX, int32 SubIndexX, int32 SubX, int32 ComponentIndexY, int32 SubIndexY, int32 SubY, TMap<FIntPoint, TMap<const ULandscapeLayerInfoObject*, uint32>>& LayerInfluenceCache, TArrayView<const uint8* const> LayerDataPtrs);
 };
 
+struct LANDSCAPE_API FLandscapeDoNotDirtyScope
+{
+	FLandscapeDoNotDirtyScope(FLandscapeEditDataInterface& InEditInterface, bool bInScopeEnabled = true)
+		: EditInterface(InEditInterface), bScopeEnabled(bInScopeEnabled)
+	{
+		if (bScopeEnabled)
+		{
+			bPreviousValue = EditInterface.GetShouldDirtyPackage();
+			EditInterface.SetShouldDirtyPackage(false);
+		}
+	}
+
+	~FLandscapeDoNotDirtyScope()
+	{
+		if (bScopeEnabled)
+		{
+			EditInterface.SetShouldDirtyPackage(bPreviousValue);
+		}
+	}
+
+	FLandscapeEditDataInterface& EditInterface;
+	bool bPreviousValue;
+	bool bScopeEnabled;
+};
+
 template<typename T>
 void FLandscapeEditDataInterface::ShrinkData(TArray<T>& Data, int32 OldMinX, int32 OldMinY, int32 OldMaxX, int32 OldMaxY, int32 NewMinX, int32 NewMinY, int32 NewMaxX, int32 NewMaxY)
 {
@@ -367,11 +395,10 @@ struct FHeightmapAccessor
 			bool bUpdateFoliage = false;
 			bool bUpdateNormals = false;
 
-			ALandscapeProxy::InvalidateGeneratedComponentData(Components);
-
             // Landscape Layers are updates are delayed and done in  ALandscape::TickLayers
 			if (!LandscapeEdit->HasLandscapeLayersContent())
 			{
+				ALandscapeProxy::InvalidateGeneratedComponentData(Components);
 				bUpdateNormals = true;
 				for (ULandscapeComponent* Component : Components)
 				{
@@ -529,7 +556,6 @@ struct FAlphamapAccessor
 		TSet<ULandscapeComponent*> Components;
 		if (LandscapeEdit.GetComponentsInRegion(X1, Y1, X2, Y2, &Components))
 		{
-			ALandscapeProxy::InvalidateGeneratedComponentData(Components);
 			for (ULandscapeComponent* LandscapeComponent : Components)
 			{
 				// Flag both modes depending on client calling SetData
@@ -538,6 +564,7 @@ struct FAlphamapAccessor
 			
 			if (!LandscapeEdit.HasLandscapeLayersContent())
 			{
+				ALandscapeProxy::InvalidateGeneratedComponentData(Components);
 				ModifiedComponents.Append(Components);
 			}
 

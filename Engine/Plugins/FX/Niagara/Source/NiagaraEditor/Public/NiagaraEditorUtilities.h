@@ -197,4 +197,6 @@ namespace FNiagaraEditorUtilities
 	/** Kills all system instances using the referenced system. */
 	void KillSystemInstances(const UNiagaraSystem& System);
 
+
+	bool VerifyNameChangeForInputOrOutputNode(const UNiagaraNode& NodeBeingChanged, FName OldName, FName NewName, FText& OutErrorMessage);
 };

@@ -598,6 +598,7 @@ void SEditableText::OnTextCommitted(const FText& InText, const ETextCommit::Type
 
 void SEditableText::OnCursorMoved(const FTextLocation& InLocation)
 {
+	Invalidate(EInvalidateWidgetReason::Layout);
 }
 
 float SEditableText::UpdateAndClampHorizontalScrollBar(const float InViewOffset, const float InViewFraction, const EVisibility InVisiblityOverride)

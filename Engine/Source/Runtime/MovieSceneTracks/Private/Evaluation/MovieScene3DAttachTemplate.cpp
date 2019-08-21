@@ -211,8 +211,8 @@ struct F3DAttachExecutionToken
 			{
 				Player.SavePreAnimatedState(*SceneComponent, FMobilityTokenProducer::GetAnimTypeID(), FMobilityTokenProducer());
 
-				// Attachment can affect transform as well, so save transform state.
-				Player.SavePreAnimatedState(*SceneComponent, F3DTransformTokenProducer::GetAnimTypeID(), F3DTransformTokenProducer());
+				// Attachment can affect transform as well, so save global transform state.
+				Player.SaveGlobalPreAnimatedState(*SceneComponent, F3DTransformTokenProducer::GetAnimTypeID(), F3DTransformTokenProducer());
 
 				Player.SavePreAnimatedState(*SceneComponent, TMovieSceneAnimTypeID<F3DAttachExecutionToken>(), F3DAttachTokenProducer(AttachmentLocationRule, AttachmentRotationRule, AttachmentScaleRule, DetachmentLocationRule, DetachmentRotationRule, DetachmentScaleRule));
 

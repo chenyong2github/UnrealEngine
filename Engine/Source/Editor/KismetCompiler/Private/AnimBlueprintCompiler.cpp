@@ -53,6 +53,7 @@
 #include "AnimGraphNode_SubInput.h"
 #include "K2Node_FunctionEntry.h"
 #include "K2Node_FunctionResult.h"
+#include "AnimGraphNode_Layer.h"
 
 #define LOCTEXT_NAMESPACE "AnimBlueprintCompiler"
 
@@ -566,6 +567,51 @@ void FAnimBlueprintCompilerContext::ProcessAnimationNode(UAnimGraphNode_Base* Vi
 	{
 		// Process root nodes
 		ProcessRoot(RootNode);
+	}
+	else if (UAnimGraphNode_AssetPlayerBase* AssetPlayerBase = Cast<UAnimGraphNode_AssetPlayerBase>(VisualAnimNode))
+	{			
+		// Process Asset Player nodes to, if necessary cache off their node index for retrieval at runtime (used for evaluating Automatic Rule Transitions when using Layer nodes)
+		auto ProcessGraph = [this, GUID = AssetPlayerBase->NodeGuid](UEdGraph* Graph)
+		{
+			// Make sure we do not process the default AnimGraph
+			static const FName DefaultAnimGraphName("AnimGraph");
+			if (Graph->GetFName() != DefaultAnimGraphName)
+			{
+				FString GraphName = Graph->GetName();
+				// Also make sure we do not process any empty stub graphs
+				if (!GraphName.Contains(ANIM_FUNC_DECORATOR))
+				{
+					if (Graph->Nodes.ContainsByPredicate([GUID](UEdGraphNode* Node) { return Node->NodeGuid == GUID; }))
+					{
+						if (int32* IndexPtr = NewAnimBlueprintClass->AnimBlueprintDebugData.NodeGuidToIndexMap.Find(GUID))
+						{
+							FGraphAssetPlayerInformation& Info = NewAnimBlueprintClass->GraphAssetPlayerInformation.FindOrAdd(FName(*GraphName));
+							Info.PlayerNodeIndices.AddUnique(*IndexPtr);
+						}
+					}
+				}
+			}
+		};
+
+		// Check for any definition of a layer graph
+		for (UEdGraph* Graph : Blueprint->FunctionGraphs)
+		{
+			ProcessGraph(Graph);
+		}
+
+		// Check for any implemented AnimLayer interface graphs
+		for (FBPInterfaceDescription& InterfaceDesc : Blueprint->ImplementedInterfaces)
+		{
+			// Only process Anim Layer interfaces
+			if (InterfaceDesc.Interface->IsChildOf<UAnimLayerInterface>())
+			{
+				for (UEdGraph* Graph : InterfaceDesc.Graphs)
+				{
+					ProcessGraph(Graph);
+				}
+			}
+		}
+				
 	}
 
 	// should we do this earlier? @Tom should we split this to create anim instance vars vs linking to sub anim instance node?
@@ -1615,25 +1661,34 @@ void FAnimBlueprintCompilerContext::ProcessStateMachine(UAnimGraphNode_StateMach
 
 		FBakedAnimationState& BakedState = Oven.GetMachine().States[StateIndex];
 
-		// Add indices to all player nodes
+		// Add indices to all player and layer nodes
 		TArray<UEdGraph*> GraphsToCheck;
-		TArray<UAnimGraphNode_AssetPlayerBase*> AssetPlayerNodes;
 		GraphsToCheck.Add(StateNode->GetBoundGraph());
 		StateNode->GetBoundGraph()->GetAllChildrenGraphs(GraphsToCheck);
 
-		for(UEdGraph* ChildGraph : GraphsToCheck)
+		TArray<UAnimGraphNode_Layer*> LayerNodes;
+		TArray<UAnimGraphNode_AssetPlayerBase*> AssetPlayerNodes;
+		for (UEdGraph* ChildGraph : GraphsToCheck)
 		{
 			ChildGraph->GetNodesOfClass(AssetPlayerNodes);
+			ChildGraph->GetNodesOfClass(LayerNodes);
 		}
 
-		for(UAnimGraphNode_AssetPlayerBase* Node : AssetPlayerNodes)
+		for (UAnimGraphNode_AssetPlayerBase* Node : AssetPlayerNodes)
 		{
-			if(int32* IndexPtr = NewAnimBlueprintClass->AnimBlueprintDebugData.NodeGuidToIndexMap.Find(Node->NodeGuid))
+			if (int32* IndexPtr = NewAnimBlueprintClass->AnimBlueprintDebugData.NodeGuidToIndexMap.Find(Node->NodeGuid))
 			{
 				BakedState.PlayerNodeIndices.Add(*IndexPtr);
 			}
 		}
 
+		for (UAnimGraphNode_Layer* Node : LayerNodes)
+		{
+			if (int32* IndexPtr = NewAnimBlueprintClass->AnimBlueprintDebugData.NodeGuidToIndexMap.Find(Node->NodeGuid))
+			{
+				BakedState.LayerNodeIndices.Add(*IndexPtr);
+			}
+		}
 		// Handle all the transitions out of this node
 		TArray<class UAnimStateTransitionNode*> TransitionList;
 		StateNode->GetTransitionList(/*out*/ TransitionList, /*bWantSortedList=*/ true);
@@ -2225,6 +2280,7 @@ void FAnimBlueprintCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedCla
 	NewAnimBlueprintClass->SubInstanceNodeProperties.Empty();
 	NewAnimBlueprintClass->LayerNodeProperties.Empty();
 	NewAnimBlueprintClass->EvaluateGraphExposedInputs.Empty();
+	NewAnimBlueprintClass->GraphAssetPlayerInformation.Empty();
 
 	// Copy over runtime data from the blueprint to the class
 	NewAnimBlueprintClass->TargetSkeleton = AnimBlueprint->TargetSkeleton;

@@ -37,6 +37,7 @@
 #include "LightSceneInfo.h"
 #include "LightMapRendering.h"
 #include "AtmosphereRendering.h"
+#include "SkyAtmosphereRendering.h"
 #include "BasePassRendering.h"
 #include "MobileBasePassRendering.h"
 #include "LightPropagationVolume.h"
@@ -907,6 +908,9 @@ void FScene::AddPrimitiveSceneInfo_RenderThread(FRHICommandListImmediate& RHICmd
 
 	DistanceFieldSceneData.AddPrimitive(PrimitiveSceneInfo);
 
+	// Flush virtual textures touched by primitive
+	PrimitiveSceneInfo->FlushRuntimeVirtualTexture();
+
 	// LOD Parent, if this is LOD parent, we should update Proxy Scene Info
 	// LOD parent gets removed WHEN no children is accessing
 	// LOD parent can be recreated as scene updates
@@ -1060,12 +1064,12 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 ,	bPathTracingNeedsInvalidation(true)
 ,	SkyLight(NULL)
 ,	SimpleDirectionalLight(NULL)
-,	SunLight(NULL)
 ,	ReflectionSceneData(InFeatureLevel)
 ,	IndirectLightingCache(InFeatureLevel)
 ,	DistanceFieldSceneData(GShaderPlatformForFeatureLevel[InFeatureLevel])
 ,	PreshadowCacheLayout(0, 0, 0, 0, false)
 ,	AtmosphericFog(NULL)
+,	SkyAtmosphere(NULL)
 ,	PrecomputedVisibilityHandler(NULL)
 ,	LightOctree(FVector::ZeroVector,HALF_WORLD_MAX)
 ,	PrimitiveOctree(FVector::ZeroVector,HALF_WORLD_MAX)
@@ -1089,6 +1093,7 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 ,	SceneFrameNumber(0)
 {
 	FMemory::Memzero(MobileDirectionalLights);
+	FMemory::Memzero(AtmosphereLights);
 
 	check(World);
 	World->Scene = this;
@@ -1286,12 +1291,14 @@ static FAutoConsoleVariableRef CVarWarningOnRedundantTransformUpdate(
 
 void FScene::UpdatePrimitiveTransform_RenderThread(FRHICommandListImmediate& RHICmdList, FPrimitiveSceneProxy* PrimitiveSceneProxy, const FBoxSphereBounds& WorldBounds, const FBoxSphereBounds& LocalBounds, const FMatrix& LocalToWorld, const FVector& AttachmentRootPosition)
 {
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UpdatePrimitiveTransform);
 	SCOPE_CYCLE_COUNTER(STAT_UpdatePrimitiveTransformRenderThreadTime);
 
 	FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
 
-	const bool bUpdateStaticDrawLists = !PrimitiveSceneProxy->StaticElementsAlwaysUseProxyPrimitiveUniformBuffer() 
-		|| !UseGPUScene(GMaxRHIShaderPlatform, GetFeatureLevel());
+	const bool bUpdateStaticDrawLists = !PrimitiveSceneProxy->StaticElementsAlwaysUseProxyPrimitiveUniformBuffer();
+
+	PrimitiveSceneInfo->FlushRuntimeVirtualTexture();
 
 	// Remove the primitive from the scene at its old location
 	// (note that the octree update relies on the bounds not being modified yet).
@@ -1325,6 +1332,8 @@ void FScene::UpdatePrimitiveTransform_RenderThread(FRHICommandListImmediate& RHI
 
 	// Re-add the primitive to the scene with the new transform.
 	PrimitiveSceneInfo->AddToScene(RHICmdList, bUpdateStaticDrawLists);
+
+	PrimitiveSceneInfo->FlushRuntimeVirtualTexture();
 }
 
 void FScene::UpdatePrimitiveTransform(UPrimitiveComponent* Primitive)
@@ -1641,6 +1650,9 @@ void FScene::RemovePrimitiveSceneInfo_RenderThread(FPrimitiveSceneInfo* Primitiv
 	// Unlink the LOD parent info if valid
 	PrimitiveSceneInfo->UnlinkLODParentComponent();
 
+	// Flush virtual textures touched by primitive
+	PrimitiveSceneInfo->FlushRuntimeVirtualTexture();
+
 	// Remove the primitive from the scene.
 	PrimitiveSceneInfo->RemoveFromScene(true);
 
@@ -1806,11 +1818,7 @@ void FScene::AddLightSceneInfo_RenderThread(FLightSceneInfo* LightSceneInfo)
 		AssignAvailableShadowMapChannelForLight(LightSceneInfo);
 	}
 
-	if (LightSceneInfo->Proxy->IsUsedAsAtmosphereSunLight() &&
-		(!SunLight || LightSceneInfo->Proxy->GetColor().ComputeLuminance() > SunLight->Proxy->GetColor().ComputeLuminance()) ) // choose brightest sun light...
-	{
-		SunLight = LightSceneInfo;
-	}
+	ProcessAtmosphereLightAddition_RenderThread(LightSceneInfo);
 
 	// Add the light to the scene.
 	LightSceneInfo->AddToScene();
@@ -1940,6 +1948,21 @@ void FScene::DisableSkyLight(FSkyLightSceneProxy* LightProxy)
 			Scene->bScenesPrimitivesNeedStaticMeshElementUpdate = true;
 		}
 	});
+}
+
+bool FScene::HasSkyLightRequiringLightingBuild() const
+{
+	return SkyLight != nullptr && !SkyLight->IsMovable();
+}
+
+bool FScene::HasAtmosphereLightRequiringLightingBuild() const
+{
+	bool AnySunLightNotMovable = false;
+	for (uint8 Index = 0; Index < NUM_ATMOSPHERE_LIGHTS; ++Index)
+	{
+		AnySunLightNotMovable |= AtmosphereLights[Index] != nullptr && !AtmosphereLights[Index]->Proxy->IsMovable();
+	}
+	return AnySunLightNotMovable;
 }
 
 void FScene::AddOrRemoveDecal_RenderThread(FDeferredDecalProxy* Proxy, bool bAdd)
@@ -2534,7 +2557,8 @@ void FScene::UpdateRuntimeVirtualTextureForAllPrimitives_RenderThread()
 	{
 		if (PrimitiveVirtualTextureFlags[Index].bRenderToVirtualTexture)
 		{
-			PrimitiveVirtualTextureFlags[Index].RuntimeVirtualTextureMask = GetRuntimeVirtualTextureMask(PrimitiveSceneProxies[Index]);
+			Primitives[Index]->UpdateRuntimeVirtualTextureFlags();
+			PrimitiveVirtualTextureFlags[Index] = Primitives[Index]->GetRuntimeVirtualTextureFlags();
 		}
 	}
 }
@@ -2554,25 +2578,13 @@ uint32 FScene::GetRuntimeVirtualTextureSceneIndex(uint32 ProducerId)
 	return 0;
 }
 
-uint32 FScene::GetRuntimeVirtualTextureMask(FPrimitiveSceneProxy const* Proxy)
+void FScene::FlushDirtyRuntimeVirtualTextures()
 {
-	uint32 Mask = 0;
-	for (TSparseArray<FRuntimeVirtualTextureSceneProxy*>::TConstIterator It(RuntimeVirtualTextures); It; ++It)
+	checkSlow(IsInRenderingThread());
+	for (TSparseArray<FRuntimeVirtualTextureSceneProxy*>::TIterator It(RuntimeVirtualTextures); It; ++It)
 	{
-		int32 SceneIndex = It.GetIndex();
-		if (SceneIndex < FPrimitiveVirtualTextureFlags::RuntimeVirtualTexture_BitCount)
-		{
-			URuntimeVirtualTexture* SceneVirtualTexture = (*It)->VirtualTexture;
-			for (URuntimeVirtualTexture* PrimitiveVirtualTexture : Proxy->RuntimeVirtualTextures)
-			{
-				if (SceneVirtualTexture == PrimitiveVirtualTexture)
-				{
-					Mask |= 1 << SceneIndex;
-				}
-			}
-		}
+		(*It)->FlushDirtyPages();
 	}
-	return Mask;
 }
 
 bool FScene::GetPreviousLocalToWorld(const FPrimitiveSceneInfo* PrimitiveSceneInfo, FMatrix& OutPreviousLocalToWorld) const
@@ -2794,21 +2806,7 @@ void FScene::RemoveLightSceneInfo_RenderThread(FLightSceneInfo* LightSceneInfo)
 		    }
 		}
 
-		if (LightSceneInfo == SunLight)
-		{
-			SunLight = NULL;
-			// Search for new sun light...
-			for (TSparseArray<FLightSceneInfoCompact>::TConstIterator It(Lights); It; ++It)
-			{
-				const FLightSceneInfoCompact& LightInfo = *It;
-				if (LightInfo.LightSceneInfo != LightSceneInfo
-					&& LightInfo.LightSceneInfo->Proxy->bUsedAsAtmosphereSunLight
-					&& (!SunLight || SunLight->Proxy->GetColor().ComputeLuminance() < LightInfo.LightSceneInfo->Proxy->GetColor().ComputeLuminance()) )
-				{
-					SunLight = LightInfo.LightSceneInfo;
-				}
-			}
-		}
+		ProcessAtmosphereLightRemoval_RenderThread(LightSceneInfo);
 
 		// Remove the light from the scene.
 		LightSceneInfo->RemoveFromScene();
@@ -3586,6 +3584,44 @@ void FScene::OnLevelAddedToWorld_RenderThread(FName InLevelName)
 	}
 }
 
+void FScene::ProcessAtmosphereLightAddition_RenderThread(FLightSceneInfo* LightSceneInfo)
+{
+	if (LightSceneInfo->Proxy->IsUsedAsAtmosphereSunLight())
+	{
+		const uint8 Index = LightSceneInfo->Proxy->GetAtmosphereSunLightIndex();
+		if (!AtmosphereLights[Index] ||																								// Set it if null
+			LightSceneInfo->Proxy->GetColor().ComputeLuminance() > AtmosphereLights[Index]->Proxy->GetColor().ComputeLuminance())	// Or choose the brightest sun light
+		{
+			AtmosphereLights[Index] = LightSceneInfo;
+		}
+	}
+}
+
+void FScene::ProcessAtmosphereLightRemoval_RenderThread(FLightSceneInfo* LightSceneInfo)
+{
+	// When a light has its intensity or index changed, it will be removed first, then re-added. So we only need to check the index of the removed light.
+	const uint8 Index = LightSceneInfo->Proxy->GetAtmosphereSunLightIndex();
+	if (AtmosphereLights[Index] == LightSceneInfo)
+	{
+		AtmosphereLights[Index] = nullptr;
+		float SelectedLightLuminance = 0.0f;
+
+		for (TSparseArray<FLightSceneInfoCompact>::TConstIterator It(Lights); It; ++It)
+		{
+			const FLightSceneInfoCompact& LightInfo = *It;
+			float LightLuminance = LightInfo.LightSceneInfo->Proxy->GetColor().ComputeLuminance();
+
+			if (LightInfo.LightSceneInfo != LightSceneInfo
+				&& LightInfo.LightSceneInfo->Proxy->IsUsedAsAtmosphereSunLight() && LightInfo.LightSceneInfo->Proxy->GetAtmosphereSunLightIndex() == Index
+				&& (!AtmosphereLights[Index] || SelectedLightLuminance < LightLuminance))
+			{
+				AtmosphereLights[Index] = LightInfo.LightSceneInfo;
+				SelectedLightLuminance = LightLuminance;
+			}
+		}
+	}
+}
+
 void FScene::OnLevelRemovedFromWorld(UWorld* InWorld, bool bIsLightingScenario)
 {
 	if (bIsLightingScenario)
@@ -3648,6 +3684,8 @@ public:
 	virtual void AddInvisibleLight(ULightComponent* Light) override {}
 	virtual void SetSkyLight(FSkyLightSceneProxy* Light) override {}
 	virtual void DisableSkyLight(FSkyLightSceneProxy* Light) override {}
+	virtual bool HasSkyLightRequiringLightingBuild() const { return false; }
+	virtual bool HasAtmosphereLightRequiringLightingBuild() const { return false; }
 
 	virtual void AddDecal(UDecalComponent*) override {}
 	virtual void RemoveDecal(UDecalComponent*) override {}
@@ -3665,6 +3703,11 @@ public:
 	virtual void RemoveAtmosphericFog(class UAtmosphericFogComponent* FogComponent) override {}
 	virtual void RemoveAtmosphericFogResource_RenderThread(FRenderResource* FogResource) override {}
 	virtual FAtmosphericFogSceneInfo* GetAtmosphericFogSceneInfo() override { return NULL; }
+
+	virtual void AddSkyAtmosphere(const class USkyAtmosphereComponent* SkyAtmosphereComponent, bool bStaticLightingBuilt) override {}
+	virtual void RemoveSkyAtmosphere(const class USkyAtmosphereComponent* SkyAtmosphereComponent) override {}
+	virtual FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() override { return NULL; }
+
 	virtual void AddWindSource(class UWindDirectionalSourceComponent* WindComponent) override {}
 	virtual void RemoveWindSource(class UWindDirectionalSourceComponent* WindComponent) override {}
 	virtual const TArray<class FWindSourceSceneProxy*>& GetWindSources_RenderThread() const override

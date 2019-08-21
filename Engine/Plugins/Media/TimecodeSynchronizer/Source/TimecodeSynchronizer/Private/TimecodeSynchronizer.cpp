@@ -5,7 +5,6 @@
 
 #include "Engine/Engine.h"
 #include "FixedFrameRateCustomTimeStep.h"
-#include "IMediaModule.h"
 #include "ITimeManagementModule.h"
 #include "Misc/App.h"
 
@@ -197,6 +196,7 @@ UTimecodeSynchronizer::UTimecodeSynchronizer()
 	, MasterSynchronizationSourceIndex(INDEX_NONE)
 	, PreRollingTimecodeMarginOfErrors(4)
 	, PreRollingTimeout(30.f)
+	, bIsTickEnabled(false)
 	, State(ESynchronizationState::None)
 	, StartPreRollingTime(0.0)
 	, bRegistered(false)
@@ -479,22 +479,15 @@ void UTimecodeSynchronizer::Unregister()
 
 void UTimecodeSynchronizer::SetTickEnabled(bool bEnabled)
 {
-	IMediaModule* MediaModule = FModuleManager::LoadModulePtr<IMediaModule>("Media");
-	if (MediaModule == nullptr)
-	{
-		UE_LOG(LogTimecodeSynchronizer, Error, TEXT("The 'Media' module couldn't be loaded"));
-		SwitchState(ESynchronizationState::Error);
-		return;
-	}
-
-	MediaModule->GetOnTickPreEngineCompleted().RemoveAll(this);
-	if (bEnabled)
-	{
-		MediaModule->GetOnTickPreEngineCompleted().AddUObject(this, &UTimecodeSynchronizer::Tick);
-	}
+	bIsTickEnabled = bEnabled;
 }
 
-void UTimecodeSynchronizer::Tick()
+bool UTimecodeSynchronizer::IsTickable() const
+{
+	return bIsTickEnabled;
+}
+
+void UTimecodeSynchronizer::Tick(float DeltaTime)
 {
 	UpdateSourceStates();
 	CurrentProviderFrameTime = GetProviderFrameTime();

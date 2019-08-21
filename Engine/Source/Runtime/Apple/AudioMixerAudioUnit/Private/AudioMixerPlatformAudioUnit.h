@@ -3,7 +3,7 @@
 #pragma once
 
 #include "AudioMixer.h"
-#include "DSP/Dsp.h"
+
 #include <AudioToolbox/AudioToolbox.h>
 #include <AudioUnit/AudioUnit.h>
 
@@ -43,14 +43,7 @@ namespace Audio
         virtual int32 GetNumFrames(const int32 InNumReqestedFrames) override;
         virtual void ResumeContext() override;
         virtual void SuspendContext() override;
-		
-		/** Whether or not the platform supports realtime decompression. */
-		virtual bool SupportsRealtimeDecompression() const override { return true; }
-		
-		/** Whether or not the platform disables caching of decompressed PCM data (i.e. to save memory on fixed memory platforms) */
-		virtual bool DisablePCMAudioCaching() const override { return true; }
-		
-      //~ End IAudioMixerPlatformInterface
+        //~ End IAudioMixerPlatformInterface
         
 	private:
 		AudioStreamBasicDescription OutputFormat;
@@ -73,19 +66,6 @@ namespace Audio
         int32       BytesPerSubmittedBuffer;
         
         double GraphSampleRate;
-
-		// We may have to grow the circular buffer capacity since Audio Unit callback size is not guaranteed to be constant
-		// Currently, this just zero's-out and reallocates, so it will pop. (We always keep largest capacity)
-		void GrowCircularBufferIfNeeded(const int32 InNumSamplesPerRenderCallback, const int32 InNumSamplesPerDeviceCallback);
-
-		// This buffer is pushed to and popped from in the SubmitBuffer callback. 
-		// This is required for devices that require frame counts per callback that are not powers of two.
-		Audio::TCircularAudioBuffer<int8> CircularOutputBuffer;
-
-		int32 NumSamplesPerRenderCallback;
-		int32 NumSamplesPerDeviceCallback;
-        mutable bool bInternalPlatformSettingsInitialized{ false };
-        mutable FAudioPlatformSettings InternalPlatformSettings;
         
 		bool PerformCallback(AudioBufferList* OutputBufferData);
 		void HandleError(const TCHAR* InLogOutput, bool bTeardown = true);

@@ -508,13 +508,14 @@ FPostProcessSettings::FPostProcessSettings()
 	AmbientOcclusionMipScale = 1.7f;
 	AmbientOcclusionMipThreshold = 0.01f;
 	AmbientOcclusionRadiusInWS = false;
+	RayTracingAO = 1;
 	RayTracingAOSamplesPerPixel = 1;
 	IndirectLightingColor = FLinearColor(1.0f, 1.0f, 1.0f);
 	IndirectLightingIntensity = 1.0f;
 	ColorGradingIntensity = 1.0f;
 	RayTracingGI = 0;
 	RayTracingGIMaxBounces = 1;
-	RayTracingGISamplesPerPixel = 1;
+	RayTracingGISamplesPerPixel = 4;
 
 	DepthOfFieldFocalDistance = 0; // Intentionally invalid to disable DOF by default.
 	DepthOfFieldFstop = 4.0f; 
@@ -690,6 +691,7 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, bOverride_AmbientOcclusionMipBlend(Settings.bOverride_AmbientOcclusionMipBlend)
 	, bOverride_AmbientOcclusionMipScale(Settings.bOverride_AmbientOcclusionMipScale)
 	, bOverride_AmbientOcclusionMipThreshold(Settings.bOverride_AmbientOcclusionMipThreshold)
+	, bOverride_RayTracingAO(Settings.bOverride_RayTracingAO)
 	, bOverride_RayTracingAOSamplesPerPixel(Settings.bOverride_RayTracingAOSamplesPerPixel)
 	, bOverride_LPVIntensity(Settings.bOverride_LPVIntensity)
 	, bOverride_LPVDirectionalOcclusionIntensity(Settings.bOverride_LPVDirectionalOcclusionIntensity)
@@ -868,6 +870,7 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, AmbientOcclusionMipBlend(Settings.AmbientOcclusionMipBlend)
 	, AmbientOcclusionMipScale(Settings.AmbientOcclusionMipScale)
 	, AmbientOcclusionMipThreshold(Settings.AmbientOcclusionMipThreshold)
+	, RayTracingAO(Settings.RayTracingAO)
 	, RayTracingAOSamplesPerPixel(Settings.RayTracingAOSamplesPerPixel)
 	, IndirectLightingColor(Settings.IndirectLightingColor)
 	, IndirectLightingIntensity(Settings.IndirectLightingIntensity)
@@ -965,6 +968,12 @@ void FPostProcessSettings::PostSerialize(const FArchive& Ar)
 			if (DepthOfFieldFocalDistance == 0.0f && DepthOfFieldMethod_DEPRECATED == DOFM_CircleDOF)
 			{
 				DepthOfFieldFocalDistance = 1000.0f;
+			}
+			else if (DepthOfFieldMethod_DEPRECATED != DOFM_CircleDOF)
+			{
+				// Aggressively force disable DOF by setting default value on the focal distance to be invalid if the method was not CircleDOF, in case.
+				// it focal distance was modified if even if DOF was in the end disabled.
+				DepthOfFieldFocalDistance = 0.0f;
 			}
 
 			// Make sure gaussian DOF is disabled on mobile if the DOF method was set to something else.

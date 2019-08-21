@@ -2685,13 +2685,21 @@ bool FLevelEditorViewportClient::InputKey(FViewport* InViewport, int32 Controlle
 		return true;
 	}
 
-	if (InputState.IsCtrlButtonPressed() && Key == EKeys::L)
+	bool bCtrlLPressed = InputState.IsCtrlButtonPressed() && Key == EKeys::L;
+	if (bCtrlLPressed && InputState.IsShiftButtonPressed())
 	{
-		bUserIsControllingSunLight = true;
+		bUserIsControllingSunLight1 = true;
 		UserIsControllingSunLightTimer = 3.0f; // Keep the widget open for a few seconds even when not tweaking the sun light
 		return true;
 	}
-	bUserIsControllingSunLight = false;
+	if (bCtrlLPressed)
+	{
+		bUserIsControllingSunLight0 = true;
+		UserIsControllingSunLightTimer = 3.0f; // Keep the widget open for a few seconds even when not tweaking the sun light
+		return true;
+	}
+	bUserIsControllingSunLight0 = false;
+	bUserIsControllingSunLight1 = false;
 
 	bool bHandled = FEditorViewportClient::InputKey(InViewport,ControllerId,Key,Event,AmountDepressed,bGamepad);
 
@@ -4040,36 +4048,51 @@ EMouseCursor::Type FLevelEditorViewportClient::GetCursor(FViewport* InViewport,i
 
 void FLevelEditorViewportClient::MouseMove(FViewport* InViewport, int32 x, int32 y)
 {
-	if (bUserIsControllingSunLight)
+	if (bUserIsControllingSunLight0 || bUserIsControllingSunLight1)
 	{
 		UWorld* ViewportWorld = GetWorld();
+
+		UDirectionalLightComponent* SelectedSunLight = nullptr;
+		float SelectedLightLuminance = 0.0f;
+		const uint8 DesiredLightIndex = bUserIsControllingSunLight0 ? 0 : 1;
 		for (TObjectIterator<UDirectionalLightComponent> ComponentIt; ComponentIt; ++ComponentIt)
 		{
 			if (ComponentIt->GetWorld() == ViewportWorld)
 			{
 				UDirectionalLightComponent* SunLight = *ComponentIt;
 
-				int32 mouseDeltaX = x - CachedLastMouseX;
-				int32 mouseDeltaY = y - CachedLastMouseY;
-				if (!SunLight->IsUsedAsAtmosphereSunLight() || !SunLight->bVisible)
+				if (!SunLight->IsUsedAsAtmosphereSunLight() || SunLight->GetAtmosphereSunLightIndex()!= DesiredLightIndex || !SunLight->bVisible)
 					continue;
 
-				FTransform ComponentTransform = SunLight->GetComponentTransform();
-				FQuat SunRotation = ComponentTransform.GetRotation();
-				// Rotate around up axis (yaw)
-				FVector UpVector = FVector(0, 0, 1);
-				SunRotation = FQuat(UpVector, float(mouseDeltaX)*0.01f) * SunRotation;
-				// Sun Zenith rotation (pitch)
-				FVector PitchRotationAxis = FVector::CrossProduct(SunRotation.GetForwardVector(), UpVector);
-				PitchRotationAxis.Normalize();
-				SunRotation = FQuat(PitchRotationAxis, float(mouseDeltaY)*0.01f) * SunRotation;
-
-				ComponentTransform.SetRotation(SunRotation);
-				SunLight->SetWorldTransform(ComponentTransform);
-
-				// Only manipulate a single light, the first one.
-				UserControlledSunLightMatrix = ComponentTransform;
+				float LightLuminance = SunLight->GetColoredLightBrightness().ComputeLuminance();
+				if (!SelectedSunLight ||							// Set it if null
+					SelectedLightLuminance < LightLuminance)		// Or choose the brightest sun light
+				{
+					SelectedSunLight = SunLight;
+				}
 			}
+		}
+
+		if (SelectedSunLight)
+		{
+			int32 mouseDeltaX = x - CachedLastMouseX;
+			int32 mouseDeltaY = y - CachedLastMouseY;
+
+			FTransform ComponentTransform = SelectedSunLight->GetComponentTransform();
+			FQuat SunRotation = ComponentTransform.GetRotation();
+			// Rotate around up axis (yaw)
+			FVector UpVector = FVector(0, 0, 1);
+			SunRotation = FQuat(UpVector, float(mouseDeltaX)*0.01f) * SunRotation;
+			// Sun Zenith rotation (pitch)
+			FVector PitchRotationAxis = FVector::CrossProduct(SunRotation.GetForwardVector(), UpVector);
+			PitchRotationAxis.Normalize();
+			SunRotation = FQuat(PitchRotationAxis, float(mouseDeltaY)*0.01f) * SunRotation;
+
+			ComponentTransform.SetRotation(SunRotation);
+			SelectedSunLight->SetWorldTransform(ComponentTransform);
+
+			// Only manipulate a single light, the first one.
+			UserControlledSunLightMatrix = ComponentTransform;
 		}
 	}
 

@@ -3,14 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "VPEditorTickableActorBase.h"
+#include "VPTransientEditorTickableActorBase.h"
 #include "VRTool.generated.h"
 
 /**
  * Base class for virtual production VR tools
  */
 UCLASS()
-class AVRTool : public AVPEditorTickableActorBase
+class AVRTool : public AVPTransientEditorTickableActorBase
 {
 	GENERATED_BODY()
 

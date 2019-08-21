@@ -323,6 +323,42 @@ void FARSupportInterface ::AddReferencedObjects(FReferenceCollector& Collector)
 	}
 }
 
+bool FARSupportInterface::IsSessionTrackingFeatureSupported(EARSessionType SessionType, EARSessionTrackingFeature SessionTrackingFeature) const
+{
+	if (ARImplemention)
+	{
+		return ARImplemention->OnIsSessionTrackingFeatureSupported(SessionType, SessionTrackingFeature);
+	}
+	return false;
+}
+
+TArray<FARPose2D> FARSupportInterface::GetTracked2DPose() const
+{
+	if (ARImplemention)
+	{
+		return ARImplemention->OnGetTracked2DPose();
+	}
+	return {};
+}
+
+UARTextureCameraImage* FARSupportInterface::GetPersonSegmentationImage() const
+{
+	if (ARImplemention)
+	{
+		return ARImplemention->OnGetPersonSegmentationImage();
+	}
+	return nullptr;
+}
+
+UARTextureCameraImage* FARSupportInterface::GetPersonSegmentationDepthImage() const
+{
+	if (ARImplemention)
+	{
+		return ARImplemention->OnGetPersonSegmentationDepthImage();
+	}
+	return nullptr;
+}
+
 #define DEFINE_AR_SI_DELEGATE_FUNCS(DelegateName) \
 FDelegateHandle FARSupportInterface::Add##DelegateName##Delegate_Handle(const F##DelegateName##Delegate& Delegate) \
 { \

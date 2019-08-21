@@ -97,7 +97,9 @@ class BLUEPRINTGRAPH_VTABLE UK2Node_Event : public UK2Node_EditablePinBase, publ
 
 	/** Checks whether the parameters for this event node are compatible with the specified function entry node */
 	BLUEPRINTGRAPH_API virtual bool IsFunctionEntryCompatible(const class UK2Node_FunctionEntry* EntryNode) const;
-	
+	/** Checks if this event node is implementing an interface event */
+	BLUEPRINTGRAPH_API bool IsInterfaceEventNode() const;
+
 	BLUEPRINTGRAPH_API UFunction* FindEventSignatureFunction();
 	BLUEPRINTGRAPH_API void UpdateDelegatePin(bool bSilent = false);
 	BLUEPRINTGRAPH_API FName GetFunctionName() const;

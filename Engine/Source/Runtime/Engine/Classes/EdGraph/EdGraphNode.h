@@ -347,6 +347,9 @@ public:
 		return (EnabledState == ENodeEnabledState::Enabled)	|| ((EnabledState == ENodeEnabledState::DevelopmentOnly) && IsInDevelopmentMode());
 	}
 
+	/** If true, this node can be renamed in the editor */
+	virtual bool GetCanRenameNode() const;
+
 	/** Returns the specific sort of enable state this node wants */
 	ENodeEnabledState GetDesiredEnabledState() const
 	{
@@ -860,6 +863,14 @@ public:
 	 * @param OutTaggedMetaData		Built array of tagged meta data for the node
 	 */
 	virtual void AddSearchMetaDataInfo(TArray<struct FSearchTagDataPair>& OutTaggedMetaData) const;
+
+	/**
+	 * Adds node pin data to the search metadata, override to collect more data that may be desirable to search for
+	 *
+	 * @param Pin					The pin for which to gather search meta data
+	 * @param OutTaggedMetaData		Built array of tagged meta data for the given pin
+	 */
+	virtual void AddPinSearchMetaDataInfo(const UEdGraphPin* Pin, TArray<struct FSearchTagDataPair>& OutTaggedMetaData) const;
 
 	/** Return the requested metadata for the pin if there is any */
 	virtual FString GetPinMetaData(FName InPinName, FName InKey) { return FString(); }

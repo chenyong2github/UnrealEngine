@@ -914,8 +914,6 @@ void FNiagaraSystemInstance::BindParameters()
 	}
 
 	Component->GetOverrideParameters().Bind(&InstanceParameters);
-	InstanceParameters.Bind(&SystemSimulation->GetSpawnExecutionContext().Parameters);
-	InstanceParameters.Bind(&SystemSimulation->GetUpdateExecutionContext().Parameters);
 
 	if (SystemSimulation->GetIsSolo())
 	{
@@ -948,8 +946,6 @@ void FNiagaraSystemInstance::UnbindParameters()
 
 	if (SystemSimulation.IsValid())
 	{
-		InstanceParameters.Unbind(&SystemSimulation->GetSpawnExecutionContext().Parameters);
-		InstanceParameters.Unbind(&SystemSimulation->GetUpdateExecutionContext().Parameters);
 		if (SystemSimulation->GetIsSolo())
 		{
 			if (Component)

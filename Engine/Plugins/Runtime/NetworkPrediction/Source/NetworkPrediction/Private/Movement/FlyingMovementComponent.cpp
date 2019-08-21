@@ -75,7 +75,7 @@ IReplicationProxy* UFlyingMovementComponent::InstantiateNetworkSimulation()
 void UFlyingMovementComponent::InitializeForNetworkRole(ENetRole Role)
 {	
 	check(NetworkSim);
-	NetworkSim->InitializeForNetworkRole(Role, IsLocallyControlled(), GetSimulationInitParameters(Role));
+	NetworkSim->InitializeForNetworkRole(Role, GetSimulationInitParameters(Role));
 }
 
 void UFlyingMovementComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -104,6 +104,8 @@ void UFlyingMovementComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 	// -------------------------------------
 	if (NetworkSim)
 	{
+		PreTickSimulation(DeltaTime); // Fixme
+
 		// Check if we should trip a mispredict. (Note how its not possible to do this inside the Update function!)
 		if (OwnerRole == ROLE_Authority && FlyingMovementCVars::RequestMispredict)
 		{
@@ -111,9 +113,7 @@ void UFlyingMovementComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 			FlyingMovementCVars::RequestMispredict = 0;
 		}
 
-		FlyingMovement::FMovementSystem::FTickParameters Parameters;
-		Parameters.Role = OwnerRole;
-		Parameters.LocalDeltaTimeSeconds = DeltaTime;
+		FlyingMovement::FMovementSystem::FTickParameters Parameters(DeltaTime, GetOwner());;
 
 		// Tick the core network sim, this will consume input and generate new sync state
 		NetworkSim->Tick((IFlyingMovementDriver*)this, Parameters);
@@ -129,24 +129,6 @@ void UFlyingMovementComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 			ServerRecieveClientInput(ProxyParameter);
 		}
 	}
-}
-
-FlyingMovement::FInputCmd* UFlyingMovementComponent::GetNextClientInputCmdForWrite(float DeltaTime)
-{
-	// This is unfortunate but we must check here to initialize the InputCmdBuffer.
-	// -Tick alone is not appropriate since the PC may tick first and generate new user cmds (before our first tick)
-	// -Startup functions (BeginPlay, PostInitializeComponent etc) are not appropriate because Net Role is not known.
-	// -PostNetReceive could work but would be inefficient since we would be checking each simulated proxy too, ever PostNetReceive.
-	//
-	// This works out best because its only the locally controlled actor that will call into this.
-	// Its just unfortunate it will only pass the first time but we must keep checking.
-	CheckOwnerRoleChange();
-
-	if (NetworkSim.IsValid())
-	{
-		return NetworkSim->GetNextInputForWrite(DeltaTime);
-	}
-	return nullptr;
 }
 
 // ----------------------------------------------------------------------------------------------------------
@@ -166,7 +148,7 @@ void UFlyingMovementComponent::InitSyncState(FlyingMovement::FMoveState& OutSync
 	OutSyncState.Rotation = UpdatedComponent->GetComponentQuat().Rotator();	
 }
 
-void UFlyingMovementComponent::SyncTo(const FlyingMovement::FMoveState& SyncState)
+void UFlyingMovementComponent::PreSimSync(const FlyingMovement::FMoveState& SyncState)
 {
 	// Does checking equality make any sense here? This is unfortunate
 	if (UpdatedComponent->GetComponentLocation().Equals(SyncState.Location) == false || UpdatedComponent->GetComponentQuat().Rotator().Equals(SyncState.Rotation, FlyingMovement::ROTATOR_TOLERANCE) == false)
@@ -176,4 +158,20 @@ void UFlyingMovementComponent::SyncTo(const FlyingMovement::FMoveState& SyncStat
 
 		UpdatedComponent->ComponentVelocity = SyncState.Velocity;
 	}
+}
+
+void UFlyingMovementComponent::ProduceInput(const FlyingMovement::TSimTime& SimFrameTime, FlyingMovement::FInputCmd& Cmd)
+{
+	// This isn't ideal. It probably makes sense for the component to do all the input binding rather.
+	ProduceInputDelegate.ExecuteIfBound(SimFrameTime, Cmd);
+}
+
+void UFlyingMovementComponent::FinalizeFrame(const FlyingMovement::FMoveState& SyncState)
+{
+	PreSimSync(SyncState);
+}
+
+FString UFlyingMovementComponent::GetDebugName() const
+{
+	return FString::Printf(TEXT("FlyingMovement. %s. %s"), *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwnerRole()), *GetName());
 }

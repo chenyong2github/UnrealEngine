@@ -323,24 +323,55 @@ bool AFunctionalTest::IsReady_Implementation()
 
 void AFunctionalTest::FinishTest(EFunctionalTestResult TestResult, const FString& Message)
 {
-	const static UEnum* FTestResultTypeEnum = StaticEnum<EFunctionalTestResult>();
-
-	FFunctionalTestBase* FunctionalTest = static_cast<FFunctionalTestBase*>(FAutomationTestFramework::Get().GetCurrentTest());
-	if (FunctionalTest)
-	{
-		FunctionalTest->SetFunctionalTestRunning(false);
-	}
-	
 	if (bIsRunning == false)
 	{
 		// ignore
 		return;
 	}
-
-	//Force GC at the end of every test.
-	GEngine->ForceGarbageCollection();
-
+	
+	// Do reporting first. When we start cleaning things up internal states that capture results
+	// are reset.
+	
 	Result = TestResult;
+	
+	const static UEnum* FTestResultTypeEnum = StaticEnum<EFunctionalTestResult>();
+	
+	const FText ResultText = FTestResultTypeEnum->GetDisplayNameTextByValue( (int64)TestResult );
+	
+	//Output map and test name along with results
+	UWorld* World = GetWorld();
+	FString WorldName = (World ? UWorld::RemovePIEPrefix(World->GetMapName()) : "");
+	const FString OutMessage = FString::Printf(TEXT("%s %s %s: \"%s\"")
+											   , *WorldName
+											   , *GetName()
+											   , *ResultText.ToString()
+											   , Message.IsEmpty() == false ? *Message : TEXT("Test finished"));
+	
+	switch (TestResult)
+	{
+		case EFunctionalTestResult::Invalid:
+		case EFunctionalTestResult::Error:
+		case EFunctionalTestResult::Failed:
+			UE_VLOG(this, LogFunctionalTest, Error, TEXT("%s"), *OutMessage);
+			UE_LOG(LogFunctionalTest, Error, TEXT("%s"), *OutMessage);
+			break;
+			
+		case EFunctionalTestResult::Running:
+			UE_VLOG(this, LogFunctionalTest, Warning, TEXT("%s"), *OutMessage);
+			UE_LOG(LogFunctionalTest, Warning, TEXT("%s"), *OutMessage);
+			break;
+			
+		default:
+			UE_VLOG(this, LogFunctionalTest, Log, TEXT("%s"), *OutMessage);
+			UE_LOG(LogFunctionalTest, Log, TEXT("%s"), *OutMessage);
+			break;
+	}
+	
+	FFunctionalTestBase* FunctionalTest = static_cast<FFunctionalTestBase*>(FAutomationTestFramework::Get().GetCurrentTest());
+	if (FunctionalTest)
+	{
+		FunctionalTest->SetFunctionalTestRunning(false);
+	}
 
 	bIsRunning = false;
 	SetActorTickEnabled(false);
@@ -357,39 +388,11 @@ void AFunctionalTest::FinishTest(EFunctionalTestResult TestResult, const FString
 			(*ActorToDestroy)->SetLifeSpan( 0.01f );
 		}
 	}
-
-	const FText ResultText = FTestResultTypeEnum->GetDisplayNameTextByValue( (int64)TestResult );
-
-	//Output map and test name along with results
-	UWorld* World = GetWorld();
-	FString WorldName = (World ? UWorld::RemovePIEPrefix(World->GetMapName()) : "");
-	const FString OutMessage = FString::Printf(TEXT("%s %s %s: \"%s\"")
-		, *WorldName
-		, *GetName()
-		, *ResultText.ToString()
-		, Message.IsEmpty() == false ? *Message : TEXT("Test finished"));
-
+	
 	AutoDestroyActors.Reset();
-		
-	switch (TestResult)
-	{
-		case EFunctionalTestResult::Invalid:
-		case EFunctionalTestResult::Error:
-		case EFunctionalTestResult::Failed:
-			UE_VLOG(this, LogFunctionalTest, Error, TEXT("%s"), *OutMessage);
-			UE_LOG(LogFunctionalTest, Error, TEXT("%s"), *OutMessage);
-			break;
-
-		case EFunctionalTestResult::Running:
-			UE_VLOG(this, LogFunctionalTest, Warning, TEXT("%s"), *OutMessage);
-			UE_LOG(LogFunctionalTest, Warning, TEXT("%s"), *OutMessage);
-			break;
-		
-		default:
-			UE_VLOG(this, LogFunctionalTest, Log, TEXT("%s"), *OutMessage);
-			UE_LOG(LogFunctionalTest, Log, TEXT("%s"), *OutMessage);
-			break;
-	}
+	
+	//Force GC at the end of every test.
+	GEngine->ForceGarbageCollection();
 	
 	//if (AdditionalDetails.IsEmpty() == false)
 	//{

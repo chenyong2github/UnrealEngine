@@ -175,7 +175,7 @@ public:
 	*/
 	virtual bool RequiresAudioSyncAfterDropouts() const
 	{
-#if PLATFORM_PS4 || PLATFORM_SWITCH || PLATFORM_XBOXONE
+#if PLATFORM_PS4 || PLATFORM_XBOXONE
 		return true;
 #else
 		return false;

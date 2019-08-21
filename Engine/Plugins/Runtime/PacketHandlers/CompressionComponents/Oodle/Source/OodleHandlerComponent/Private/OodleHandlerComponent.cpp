@@ -493,6 +493,18 @@ void OodleHandlerComponent::InitializeDictionaries()
 	}
 }
 
+void OodleHandlerComponent::RemoteInitializeDictionaries()
+{
+	InitializeDictionaries();
+
+	if (bOodleAnalytics && NetAnalyticsData.IsValid())
+	{
+		FOodleAnalyticsVars* AnalyticsVars = NetAnalyticsData->GetLocalData();
+
+		AnalyticsVars->NumOodleHandlersCompressionEnabled++;
+	}
+}
+
 void OodleHandlerComponent::InitializeDictionary(FString FilePath, TSharedPtr<FOodleDictionary>& OutDictionary)
 {
 	TSharedPtr<FOodleDictionary>* DictionaryRef = DictionaryMap.Find(FilePath);
@@ -873,7 +885,7 @@ void OodleHandlerComponent::Incoming(FBitReader& Packet)
 			// Lazy-loading of dictionary when EOodleEnableMode::WhenCompressedPacketReceived is active
 			if (!bInitializedDictionaries && (bIsServer ? ServerEnableMode : ClientEnableMode) == EOodleEnableMode::WhenCompressedPacketReceived)
 			{
-				InitializeDictionaries();
+				RemoteInitializeDictionaries();
 			}
 
 			FOodleDictionary* CurDict = (bIsServer ? ClientDictionary.Get() : ServerDictionary.Get());
@@ -1276,6 +1288,21 @@ void OodleHandlerComponent::NotifyAnalyticsProvider()
 			else
 			{
 				NetAnalyticsData = REGISTER_NET_ANALYTICS(Aggregator, FClientOodleNetAnalyticsData, TEXT("Oodle.ClientStats"));
+			}
+		}
+
+		// This depends upon NetAnalyticsData only being initialized once, so that this component is not counted more than once
+		if (NetAnalyticsData.IsValid())
+		{
+			if (FOodleAnalyticsVars* AnalyticsVars = NetAnalyticsData->GetLocalData())
+			{
+				AnalyticsVars->NumOodleHandlers++;
+
+				// If compression's already enabled, count it here - as InitializeDictionaries may happen before NetAnalyticsData is set
+				if (IsCompressionActive())
+				{
+					AnalyticsVars->NumOodleHandlersCompressionEnabled++;
+				}
 			}
 		}
 	}

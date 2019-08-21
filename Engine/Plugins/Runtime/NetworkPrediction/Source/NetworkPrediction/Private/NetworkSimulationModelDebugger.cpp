@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "NetworkSimulationModelDebugger.h"
-#include "NetworkSimulationModel.h"
+#include "NetworkPredictionTypes.h"
 #include "Engine/World.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/Pawn.h"

@@ -197,8 +197,7 @@ public:
 						LightData.Normal[LightData.Count] = -LightParameters.Direction;
 						LightData.dPdu[LightData.Count] = FVector::CrossProduct(LightParameters.Tangent, LightParameters.Direction);
 						LightData.dPdv[LightData.Count] = LightParameters.Tangent;
-						// #dxr_todo: UE-72556  define these differences from Lit..
-						LightData.Color[LightData.Count] = LightParameters.Color / 4.0;
+						LightData.Color[LightData.Count] = LightParameters.Color;
 						LightData.Dimensions[LightData.Count] = FVector(2.0f * LightParameters.SourceRadius, 2.0f * LightParameters.SourceLength, 0.0f);
 						LightData.Attenuation[LightData.Count] = 1.0 / LightParameters.InvRadius;
 						LightData.RectLightBarnCosAngle[LightData.Count] = LightParameters.RectLightBarnCosAngle;

@@ -33,7 +33,7 @@ enum class EVirtualTextureUnpackType
 	None,
 	NormalBC3,
 	NormalBC5,
-	HeightR8G8,
+	HeightR16,
 };
 
 /** 
@@ -318,6 +318,12 @@ public:
 	virtual int32 EyeAdaptation() = 0;
 	virtual int32 AtmosphericLightVector() = 0;
 	virtual int32 AtmosphericLightColor() = 0;
+	virtual int32 SkyAtmosphereLightIlluminance(int32 LightIndex) = 0;
+	virtual int32 SkyAtmosphereLightDirection(int32 LightIndex) = 0;
+	virtual int32 SkyAtmosphereLightDiskLuminance(int32 LightIndex) = 0;
+	virtual int32 SkyAtmosphereViewLuminance() = 0;
+	virtual int32 SkyAtmosphereAerialPerspective() = 0;
+	virtual int32 SkyAtmosphereDistantLightScatteredLuminance() = 0;
 	virtual int32 CustomPrimitiveData(int32 OutputIndex, EMaterialValueType Type) = 0;
 	virtual int32 ShadingModel(EMaterialShadingModel InSelectedShadingModel) = 0;
 
@@ -587,6 +593,36 @@ public:
 	virtual int32 AtmosphericLightColor() override
 	{
 		return Compiler->AtmosphericLightColor();
+	}
+
+	virtual int32 SkyAtmosphereLightIlluminance(int32 LightIndex) override
+	{
+		return Compiler->SkyAtmosphereLightIlluminance(LightIndex);
+	}
+
+	virtual int32 SkyAtmosphereLightDirection(int32 LightIndex) override
+	{
+		return Compiler->SkyAtmosphereLightDirection(LightIndex);
+	}
+
+	virtual int32 SkyAtmosphereLightDiskLuminance(int32 LightIndex) override
+	{
+		return Compiler->SkyAtmosphereLightDiskLuminance(LightIndex);
+	}
+
+	virtual int32 SkyAtmosphereViewLuminance() override
+	{
+		return Compiler->SkyAtmosphereViewLuminance();
+	}
+
+	virtual int32 SkyAtmosphereAerialPerspective() override
+	{
+		return Compiler->SkyAtmosphereAerialPerspective();
+	}
+
+	virtual int32 SkyAtmosphereDistantLightScatteredLuminance() override
+	{
+		return Compiler->SkyAtmosphereDistantLightScatteredLuminance();
 	}
 	
 	virtual int32 CustomPrimitiveData(int32 OutputIndex, EMaterialValueType Type) override

@@ -54,14 +54,13 @@ void FTexturePagePool::EvictAllPages(FVirtualTextureSystem* System)
 
 	for (int32 i = 0; i < PagesToEvict.Num(); i++)
 	{
-		UnmapAllPages(System, PagesToEvict[i]);
+		UnmapAllPages(System, PagesToEvict[i], false);
 		FreeHeap.Add(0, PagesToEvict[i]);
 	}
 }
 
 void FTexturePagePool::UnmapAllPagesForSpace(FVirtualTextureSystem* System, uint8 SpaceID)
 {
-
 	// walk through all of our current mapping entries, and unmap any that belong to the current space
 	for (int32 MappingIndex = NumPages + 1; MappingIndex < PageMapping.Num(); ++MappingIndex)
 	{
@@ -82,15 +81,48 @@ void FTexturePagePool::EvictPages(FVirtualTextureSystem* System, const FVirtualT
 		const FPageEntry& PageEntry = Pages[pAddress];
 		if (PageEntry.PackedProducerHandle == ProducerHandle.PackedValue)
 		{
-			UnmapAllPages(System, pAddress);
+			UnmapAllPages(System, pAddress, false);
 			FreeHeap.Update(0, pAddress);
+		}
+	}
+}
+
+void FTexturePagePool::EvictPages(FVirtualTextureSystem* System, FVirtualTextureProducerHandle const& ProducerHandle, FVTProducerDescription const& Desc, FIntRect const& TextureRegion, TArray<union FVirtualTextureLocalTile>& OutLocked)
+{
+	//todo[vt]: 
+	// Simple linear iteration of all physical pages here. Can we do better?
+	// We should test if it's faster to store a physical page list sorted by Morton code and find upper and lower bounds in that.
+	for (uint32 i = 0; i < NumPages; ++i)
+	{
+		if (Pages[i].PackedProducerHandle == ProducerHandle.PackedValue)
+		{
+			const uint32 vAddress = Pages[i].Local_vAddress;
+			const uint32 vLevel = Pages[i].Local_vLevel;
+
+			const int32 TileSize = Desc.TileSize << vLevel;
+			const int32 X = FMath::ReverseMortonCode2(vAddress) * TileSize;
+			const int32 Y = FMath::ReverseMortonCode2(vAddress >> 1) * TileSize;
+			const int32 TileBorderSize = Desc.TileBorderSize << vLevel;
+			const FIntRect PageRect(X - TileBorderSize, Y - TileBorderSize, X + TileSize + TileBorderSize, Y + TileSize + TileBorderSize);
+
+			if (!(PageRect.Min.X > TextureRegion.Max.X) && !(TextureRegion.Min.X > PageRect.Max.X) && !(PageRect.Min.Y > TextureRegion.Max.Y) && !(TextureRegion.Min.Y > PageRect.Max.Y))
+			{
+				if (!FreeHeap.IsPresent(i))
+				{
+					OutLocked.Add(FVirtualTextureLocalTile(ProducerHandle, vAddress, vLevel));
+				}
+				else
+				{
+					UnmapAllPages(System, i, false);
+					FreeHeap.Update(0, i);
+				}
+			}
 		}
 	}
 }
 
 void FTexturePagePool::GetAllLockedPages(FVirtualTextureSystem* System, TSet<FVirtualTextureLocalTile>& OutPages)
 {
-
 	OutPages.Reserve(OutPages.Num() + GetNumLockedPages());
 
 	for (uint32 i = 0; i < NumPages; ++i)
@@ -189,7 +221,7 @@ uint32 FTexturePagePool::Alloc(FVirtualTextureSystem* System, uint32 Frame, cons
 	const uint16 pAddress = FreeHeap.Top();
 
 	// Unmap any previous usage
-	UnmapAllPages(System, pAddress);
+	UnmapAllPages(System, pAddress, true);
 
 	// Mark the page as used for the given producer
 	FPageEntry& PageEntry = Pages[pAddress];
@@ -213,7 +245,7 @@ uint32 FTexturePagePool::Alloc(FVirtualTextureSystem* System, uint32 Frame, cons
 
 void FTexturePagePool::Free(FVirtualTextureSystem* System, uint16 pAddress)
 {
-	UnmapAllPages(System, pAddress);
+	UnmapAllPages(System, pAddress, true);
 
 	if (FreeHeap.IsPresent(pAddress))
 	{
@@ -279,7 +311,7 @@ void FTexturePagePool::UnmapPageMapping(FVirtualTextureSystem* System, uint32 Ma
 	ReleaseMapping(MappingIndex);
 }
 
-void FTexturePagePool::UnmapAllPages(FVirtualTextureSystem* System, uint16 pAddress)
+void FTexturePagePool::UnmapAllPages(FVirtualTextureSystem* System, uint16 pAddress, bool bMapAncestorPages)
 {
 	FPageEntry& PageEntry = Pages[pAddress];
 	if (PageEntry.PackedProducerHandle != 0u)
@@ -294,7 +326,7 @@ void FTexturePagePool::UnmapAllPages(FVirtualTextureSystem* System, uint16 pAddr
 	{
 		FPageMapping& Mapping = PageMapping[MappingIndex];
 		const uint32 NextIndex = Mapping.NextIndex;
-		UnmapPageMapping(System, MappingIndex, true);
+		UnmapPageMapping(System, MappingIndex, bMapAncestorPages);
 
 		MappingIndex = NextIndex;
 	}

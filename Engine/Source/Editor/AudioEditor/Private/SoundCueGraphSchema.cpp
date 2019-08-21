@@ -393,6 +393,22 @@ void USoundCueGraphSchema::BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNode
 	}
 }
 
+void USoundCueGraphSchema::GetAssetsGraphHoverMessage(const TArray<FAssetData>& Assets, const UEdGraph* HoverGraph, FString& OutTooltipText, bool& OutOkIcon) const
+{
+	OutOkIcon = false;
+
+	for (int32 AssetIdx = 0; AssetIdx < Assets.Num(); ++AssetIdx)
+	{
+		// As soon as one of the items is a sound wave, say we can drag it on... we actually eat only the sound waves.
+		USoundWave* SoundWav = Cast<USoundWave>(Assets[AssetIdx].GetAsset());
+		if (SoundWav)
+		{
+			OutOkIcon = true;
+			break;
+		}
+	}
+}
+
 void USoundCueGraphSchema::DroppedAssetsOnGraph(const TArray<FAssetData>& Assets, const FVector2D& GraphPosition, UEdGraph* Graph) const
 {
 	//////////////////////////////////////////////////////////////////////////

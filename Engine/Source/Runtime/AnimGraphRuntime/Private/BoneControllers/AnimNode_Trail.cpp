@@ -28,7 +28,6 @@ FAnimNode_Trail::FAnimNode_Trail()
 	, TrailRelaxation_DEPRECATED(10.f)
 #endif// #if WITH_EDITORONLY_DATA
 	, MaxDeltaTime(0.f)
-	, UnwindingSize(3)
 	, RelaxationSpeedScale(1.f)
 	, StretchLimit(0)
 	, FakeVelocity(FVector::ZeroVector)

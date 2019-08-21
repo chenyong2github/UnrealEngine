@@ -106,6 +106,9 @@ extern CORE_API bool GAllowActorScriptExecutionInEditor;
 /** Forces use of template names for newly instanced components in a CDO. */
 extern CORE_API bool GCompilingBlueprint;
 
+/** True if we're garbage collecting after a blueprint compilation */
+extern CORE_API bool GIsGCingAfterBlueprintCompile;
+
 /** True if we're reconstructing blueprint instances. Should never be true on cooked builds */
 extern CORE_API bool GIsReconstructingBlueprintInstances;
 
@@ -404,6 +407,9 @@ extern CORE_API bool GIsAutomationTesting;
 /** Whether or not messages are being pumped outside of main loop */
 extern CORE_API bool GPumpingMessagesOutsideOfMainLoop;
 
+/** Whether or not messages are being pumped */
+extern CORE_API bool GPumpingMessages;
+ 
 /** Enables various editor and HMD hacks that allow the experimental VR editor feature to work, perhaps at the expense of other systems */
 extern CORE_API bool GEnableVREditorHacks;
 

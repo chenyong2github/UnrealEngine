@@ -224,9 +224,6 @@ public:
 
 	virtual void InitializeForWorld(UWorld& World, FNavigationSystemRunMode Mode) PURE_VIRTUAL(UNavigationSystemBase::InitializeForWorld, );
 
-	/** Called after a NavSystemConfigOverride has finished overriding the old NavSystem */
-	virtual void OnNavSystemOverriden(UNavigationSystemBase* PreviousNavSystem) { };
-
 	/** 
 	 *	If you're using NavigationSysstem module consider calling 
 	 *	FNavigationSystem::GetCurrent<UNavigationSystemV1>()->GetDefaultNavDataInstance 

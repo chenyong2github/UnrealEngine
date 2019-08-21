@@ -45,6 +45,7 @@ FAutoConsoleVariableRef CVarVirtualLoopsUpdateRateMax(
 
 FAudioVirtualLoop::FAudioVirtualLoop()
 	: TimeSinceLastUpdate(0.0f)
+	, TimeVirtualized(0.0f)
 	, UpdateInterval(0.0f)
 	, ActiveSound(nullptr)
 {
@@ -85,6 +86,7 @@ bool FAudioVirtualLoop::Virtualize(const FActiveSound& InActiveSound, FAudioDevi
 
 	FActiveSound* ActiveSound = FActiveSound::CreateVirtualCopy(InActiveSound, InAudioDevice);
 	OutVirtualLoop.ActiveSound = ActiveSound;
+	OutVirtualLoop.CalculateUpdateInterval();
 	return true;
 }
 
@@ -98,6 +100,16 @@ void FAudioVirtualLoop::CalculateUpdateInterval()
 	const float DistanceRatio = (DistanceToListener - ActiveSound->MaxDistance) / FMath::Max(VirtualLoopsPerfDistanceCVar, 1.0f);
 	const float DistanceRatioClamped = FMath::Clamp(DistanceRatio, 0.0f, 1.0f);
 	UpdateInterval = FMath::Lerp(VirtualLoopsUpdateRateMinCVar, VirtualLoopsUpdateRateMaxCVar, DistanceRatioClamped);
+}
+
+float FAudioVirtualLoop::GetTimeVirtualized() const
+{
+	return TimeVirtualized;
+}
+
+float FAudioVirtualLoop::GetUpdateInterval() const
+{
+	return UpdateInterval;
 }
 
 FActiveSound& FAudioVirtualLoop::GetActiveSound()
@@ -184,10 +196,16 @@ void FAudioVirtualLoop::UpdateFocusData(float DeltaTime)
 	ActiveSound->UpdateFocusData(DeltaTime, ListenerData);
 }
 
-bool FAudioVirtualLoop::CanRealize(float DeltaTime, bool bForceUpdate)
+bool FAudioVirtualLoop::Update(float DeltaTime, bool bForceUpdate)
 {
-	const float UpdateDelta = TimeSinceLastUpdate + DeltaTime;
+	// Keep playback time up-to-date as it may be used to evaluate whether or
+	// not virtual sound is eligible for playback when compared against
+	// actively playing sounds in concurrency checks.
+	const float DeltaTimePitchCorrected = DeltaTime * ActiveSound->MinCurrentPitch;
+	ActiveSound->PlaybackTime += DeltaTimePitchCorrected;
+	TimeVirtualized += DeltaTimePitchCorrected;
 
+	const float UpdateDelta = TimeSinceLastUpdate + DeltaTime;
 	if (bForceUpdate)
 	{
 		TimeSinceLastUpdate = 0.0f;

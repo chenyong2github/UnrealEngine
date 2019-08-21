@@ -153,6 +153,7 @@ FSlateRHIRenderer::FSlateRHIRenderer(TSharedRef<FSlateFontServices> InSlateFontS
 	: FSlateRenderer(InSlateFontServices)
 	, EnqueuedWindowDrawBuffer(NULL)
 	, FreeBufferIndex(0)
+	, FastPathRenderingDataCleanupList(nullptr)
 	, CurrentSceneIndex(-1)
 	, ResourceVersion(0)
 {
@@ -214,9 +215,13 @@ void FSlateRHIRenderer::Destroy()
 		BeginReleaseResource(It.Value());
 	}
 
+	if (FastPathRenderingDataCleanupList)
+	{
+		FastPathRenderingDataCleanupList->Cleanup();
+		FastPathRenderingDataCleanupList = nullptr;
+	}
 
 	FlushRenderingCommands();
-
 
 	ElementBatcher.Reset();
 	RenderingPolicy.Reset();
@@ -1189,12 +1194,18 @@ void FSlateRHIRenderer::DrawWindows_Private(FSlateDrawBuffer& WindowDrawBuffer)
 			{
 				for (const FRenderThreadUpdateContext& Context : Contexts)
 				{
-					static_cast<ISlate3DRenderer*>(Context.Renderer)->DrawWindowToTarget_RenderThread(RHICmdList, Context);
+					Context.Renderer->DrawWindowToTarget_RenderThread(RHICmdList, Context);
 				}
 			}
 		);
 
 		DeferredUpdateContexts.Empty();
+	}
+
+	if (FastPathRenderingDataCleanupList)
+	{
+		FastPathRenderingDataCleanupList->Cleanup();
+		FastPathRenderingDataCleanupList = nullptr;
 	}
 
 	// flush the cache if needed
@@ -1478,24 +1489,6 @@ void FSlateRHIRenderer::ClearScenes()
 }
 
 
-struct FClearCachedRenderingDataCommand final : public FRHICommand < FClearCachedRenderingDataCommand >
-{
-public:
-	FClearCachedRenderingDataCommand(FSlateCachedFastPathRenderingData* InCachedRenderingData)
-		: CachedRenderingData(InCachedRenderingData)
-	{
-		
-	}
-
-	void Execute(FRHICommandListBase& CmdList)
-	{
-		delete CachedRenderingData;
-	}
-
-private:
-	FSlateCachedFastPathRenderingData* CachedRenderingData;
-};
-
 struct FClearCachedElementDataCommand final : public FRHICommand < FClearCachedElementDataCommand >
 {
 public:
@@ -1518,21 +1511,13 @@ void FSlateRHIRenderer::DestroyCachedFastPathRenderingData(FSlateCachedFastPathR
 {
 	check(CachedRenderingData);
 
-	// Cached data should be destroyed in a thread safe way.  If there is an rhi thread it could be reading from the data to copy it into a vertex buffer
-	// so delete it on the rhi thread if necessary, otherwise delete it on the render thread
-	ENQUEUE_RENDER_COMMAND(ClearCachedRenderingData)(
-		[CachedRenderingData](FRHICommandListImmediate& RHICmdList)
+	if (!FastPathRenderingDataCleanupList)
 	{
-		if (!RHICmdList.Bypass())
-		{
-			new (RHICmdList.AllocCommand<FClearCachedRenderingDataCommand>()) FClearCachedRenderingDataCommand(CachedRenderingData);
-		}
-		else
-		{
-			FClearCachedRenderingDataCommand Cmd(CachedRenderingData);
-			Cmd.Execute(RHICmdList);
-		}
-	});
+		// This will be deleted later on the rendering thread
+		FastPathRenderingDataCleanupList = new FFastPathRenderingDataCleanupList;
+	}
+
+	FastPathRenderingDataCleanupList->FastPathRenderingDataToRemove.Add(CachedRenderingData);
 }
 
 void FSlateRHIRenderer::DestroyCachedFastPathElementData(FSlateCachedElementData* CachedElementData)
@@ -1631,7 +1616,7 @@ void FSlateRHIRenderer::AddWidgetRendererUpdate(const struct FRenderThreadUpdate
 		ENQUEUE_RENDER_COMMAND(DrawWidgetRendererImmediate)(
 			[InContext](FRHICommandListImmediate& RHICmdList)
 			{
-				static_cast<ISlate3DRenderer*>(InContext.Renderer)->DrawWindowToTarget_RenderThread(RHICmdList, InContext);
+				InContext.Renderer->DrawWindowToTarget_RenderThread(RHICmdList, InContext);
 			});
 	}
 }
@@ -1658,4 +1643,51 @@ void FSlateEndDrawingWindowsCommand::EndDrawingWindows(FRHICommandListImmediate&
 		FSlateEndDrawingWindowsCommand Cmd(Policy, DrawBuffer);
 		Cmd.Execute(RHICmdList);
 	}
+}
+
+
+struct FClearCachedRenderingDataCommand final : public FRHICommand < FClearCachedRenderingDataCommand >
+{
+public:
+	FClearCachedRenderingDataCommand(FFastPathRenderingDataCleanupList* InCleanupList)
+		: CleanupList(InCleanupList)
+	{
+
+	}
+
+	void Execute(FRHICommandListBase& CmdList)
+	{
+		delete CleanupList;
+	}
+
+private:
+	FFastPathRenderingDataCleanupList* CleanupList;
+};
+
+
+FFastPathRenderingDataCleanupList::~FFastPathRenderingDataCleanupList()
+{
+	for (FSlateCachedFastPathRenderingData* Data : FastPathRenderingDataToRemove)
+	{
+		delete Data;
+	}
+}
+
+void FFastPathRenderingDataCleanupList::Cleanup()
+{
+	// Cached data should be destroyed in a thread safe way.  If there is an rhi thread it could be reading from the data to copy it into a vertex buffer
+	// so delete it on the rhi thread if necessary, otherwise delete it on the render thread
+	ENQUEUE_RENDER_COMMAND(ClearCachedRenderingData)(
+		[CleanupList = this](FRHICommandListImmediate& RHICmdList)
+	{
+		if (!RHICmdList.Bypass())
+		{
+			new (RHICmdList.AllocCommand<FClearCachedRenderingDataCommand>()) FClearCachedRenderingDataCommand(CleanupList);
+		}
+		else
+		{
+			FClearCachedRenderingDataCommand Cmd(CleanupList);
+			Cmd.Execute(RHICmdList);
+		}
+	});
 }

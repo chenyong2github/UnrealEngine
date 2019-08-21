@@ -27,6 +27,7 @@ namespace UnrealBuildTool.Rules
 				PrivateDependencyModuleNames.Add("SDL2");
 
 				PrivateIncludePaths.Add("WebMMoviePlayer/Private/Audio/Unix");
+				PrivateIncludePaths.Add("WebMMoviePlayer/Private/Audio/" + Target.Platform);
 			}
 			else
 			{

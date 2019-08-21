@@ -2,9 +2,15 @@
 
 #pragma once
 #include "Components/ActorComponent.h"
-#include "NetworkSimulationModel.h"
+#include "NetworkPredictionTypes.h"
 
 #include "NetworkPredictionComponent.generated.h"
+
+class INetworkSimulationOwner
+{
+	virtual void Reconcile() = 0;
+	virtual void TickSimulation(float DeltaTimeSeconds) = 0;
+};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //	UNetworkPredictionComponent
@@ -29,16 +35,11 @@ public:
 	virtual void InitializeComponent() override;
 	virtual void PreReplication(IRepChangedPropertyTracker & ChangedPropertyTracker) override;
 	virtual void PreNetReceive() override;
+	
+	virtual void Reconcile() { }
+	virtual void TickSimulation(float DeltaTimeSeconds) { }
 
-	// TickComponent calls CheckOwnerRoleChange and invokes PreTickLocallyControlledSim. You should always call it at the top of your child's tick implementation.
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
-
-	// PreSimulationTick callback.
-	// Called right in ::TickComponent for autonomous proxies. This is optional and intended to be a convencience for generating local input.
-	// If you don't use this function, you should manually be submitting client input prior to simulation tick (via GetNextClientInputCmdForWrite).
-	// (It is important to submit input prior to ticking the sim. If you get it backwards, you introduce local latency and cause problems with variable time steps).
-	DECLARE_DELEGATE_OneParam(FPreSimTickDelegate, float /* DeltaSeconds */)
-	void SetLocallyControlledPreTick(const FPreSimTickDelegate& PreSimTick) { PreTickLocallyControlledSim = PreSimTick; }
+	void PreTickSimulation(float DeltaTime);
 
 protected:
 
@@ -68,8 +69,6 @@ protected:
 	FReplicationProxy ReplicationProxy_ServerRPC;
 
 private:
-
-	FPreSimTickDelegate PreTickLocallyControlledSim;
 
 	UPROPERTY(Replicated, transient)
 	FReplicationProxy ReplicationProxy_Autonomous;

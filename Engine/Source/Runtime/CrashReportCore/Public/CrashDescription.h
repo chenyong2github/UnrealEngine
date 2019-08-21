@@ -383,6 +383,21 @@ struct FPrimaryCrashProperties
 	 */
 	FString CrashType;
 
+	/**
+	 *	The cpu brand of the device, e.g. Intel, iPhone6, etc.
+	 */
+	FCrashProperty CPUBrand;
+
+	/**
+	 * Whether it was an OOM or not
+	 */
+	bool bIsOOM;
+	
+	/**
+	 * Whether we got a low memory warning or not
+	 */
+	bool bLowMemoryWarning;
+	
 protected:
 	/** Default constructor. */
 	FPrimaryCrashProperties();

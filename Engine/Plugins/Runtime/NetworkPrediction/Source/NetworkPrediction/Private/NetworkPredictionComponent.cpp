@@ -1,6 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-
 #include "NetworkPredictionComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/Actor.h"
@@ -63,7 +62,7 @@ FNetworkSimulationModelInitParameters UNetworkPredictionComponent::GetSimulation
 {
 	// These are reasonable defaults but may not be right for everyone
 	FNetworkSimulationModelInitParameters InitParams;
-	InitParams.InputBufferSize = Role != ROLE_SimulatedProxy ? 32 : 0;
+	InitParams.InputBufferSize = Role != ROLE_SimulatedProxy ? 32 : 2;
 	InitParams.SyncedBufferSize = Role != ROLE_AutonomousProxy ? 2 : 32;
 	InitParams.AuxBufferSize = Role != ROLE_AutonomousProxy ? 2 : 32;
 	InitParams.DebugBufferSize = 32;
@@ -93,13 +92,9 @@ bool UNetworkPredictionComponent::IsLocallyControlled()
 	return bIsLocallyControlled;
 }
 
-void UNetworkPredictionComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
+void UNetworkPredictionComponent::PreTickSimulation(float DeltaTime)
 {
 	CheckOwnerRoleChange();
-	if (PreTickLocallyControlledSim.IsBound() && IsLocallyControlled())
-	{
-		PreTickLocallyControlledSim.Execute(DeltaTime);
-	}
 }
 
 void UNetworkPredictionComponent::CheckOwnerRoleChange()

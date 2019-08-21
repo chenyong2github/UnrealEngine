@@ -288,7 +288,7 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 		for (const FNiagaraEmitterHandle& EmitterHandle: System->GetEmitterHandles())
 		{
 			UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(EmitterHandle.GetInstance());
-			if (Emitter)
+			if (Emitter && EmitterHandle.GetIsEnabled())
 			{
 				if (Emitter->bLocalSpace)
 				{
@@ -1124,10 +1124,39 @@ bool UNiagaraScript::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* Tar
 {
 	if (ShouldCacheShadersForCooking())
 	{
+		bool bHasOutstandingCompilationRequests = false;
 		if (UNiagaraSystem* SystemOwner = FindRootSystem())
 		{
-			return !SystemOwner->HasOutstandingCompilationRequests();
+			bHasOutstandingCompilationRequests = SystemOwner->HasOutstandingCompilationRequests();
 		}
+
+		if (!bHasOutstandingCompilationRequests)
+		{
+			TArray<FName> DesiredShaderFormats;
+			TargetPlatform->GetAllTargetedShaderFormats(DesiredShaderFormats);
+
+			const TArray<FNiagaraShaderScript*>* CachedScriptResourcesForPlatform = CachedScriptResourcesForCooking.Find(TargetPlatform);
+			if (CachedScriptResourcesForPlatform)
+			{
+				for (const auto& MaterialResource : *CachedScriptResourcesForPlatform)
+				{
+					if (MaterialResource->IsCompilationFinished() == false)
+					{
+						// For now, finish compilation here until we can make sure compilation is finished in the cook commandlet asyncronously before serialize
+						MaterialResource->FinishCompilation();
+
+						if (MaterialResource->IsCompilationFinished() == false)
+						{
+							return false;
+						}
+					}
+				}
+
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	return true;

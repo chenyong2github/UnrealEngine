@@ -87,6 +87,7 @@ public:
 	FORCEINLINE static int32 GetDetailLevel() { return EngineDetailLevel; }
 	FORCEINLINE static float GetGlobalSpawnCountScale() { return EngineGlobalSpawnCountScale; }
 	FORCEINLINE static float GetGlobalSystemCountScale() { return EngineGlobalSystemCountScale; }
+	static bool IsTargetPlatformIncludedInLevelRangeForCook(const ITargetPlatform* InTargetPlatform, const class UNiagaraEmitter* InEmitter);
 
 	static float EngineGlobalSpawnCountScale;
 	static float EngineGlobalSystemCountScale;

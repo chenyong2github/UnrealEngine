@@ -283,16 +283,13 @@ bool FHittestGrid::SetHittestArea(const FVector2D& HittestPositionInDesktop, con
 		NumCells = FIntPoint(FMath::CeilToInt(GridSize.X / CellSize.X), FMath::CeilToInt(GridSize.Y / CellSize.Y));
 		
 		const int32 NewTotalCells = NumCells.X * NumCells.Y;
-		if (NewTotalCells != Cells.Num())
-		{
-			Cells.Reset(NewTotalCells);
-			Cells.SetNum(NewTotalCells);
+		Cells.Reset(NewTotalCells);
+		Cells.SetNum(NewTotalCells);
 
-			WidgetMap.Reset();
-			WidgetArray.Reset();
+		WidgetMap.Reset();
+		WidgetArray.Reset();
 
-			bWasCleared = true;
-		}
+		bWasCleared = true;
 	}
 
 	GridOrigin = HittestPositionInDesktop;

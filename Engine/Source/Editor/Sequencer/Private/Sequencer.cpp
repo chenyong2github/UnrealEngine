@@ -3613,6 +3613,17 @@ FReply FSequencer::OnPlay(bool bTogglePlay)
 	}
 	else
 	{
+		TRange<FFrameNumber> TimeBounds = GetTimeBounds();
+
+		FFrameNumber MinInclusiveTime = MovieScene::DiscreteInclusiveLower(TimeBounds);
+		FFrameNumber MaxInclusiveTime = MovieScene::DiscreteExclusiveUpper(TimeBounds) - 1;
+
+		if (GetLocalTime().Time <= MinInclusiveTime || GetLocalTime().Time >= MaxInclusiveTime)
+		{
+			FFrameTime NewLocalTime = (PlaybackSpeed > 0 ? MinInclusiveTime : MaxInclusiveTime) * RootToLocalTransform.Inverse();
+			SetLocalTimeDirectly(NewLocalTime);
+		}
+
 		SetPlaybackStatus(EMovieScenePlayerStatus::Playing);
 
 		// Make sure Slate ticks during playback
@@ -5494,7 +5505,7 @@ void FSequencer::SynchronizeSequencerSelectionWithExternalSelection()
 		}
 	}
 
-	if (!bAllAlreadySelected || NodesToSelect.Num() == 0)
+	if (!bAllAlreadySelected || (NodesToSelect.Num() == 0 && Selection.GetSelectedOutlinerNodes().Num()))
 	{
 		Selection.SuspendBroadcast();
 		Selection.EmptySelectedOutlinerNodes();
@@ -7816,7 +7827,13 @@ TArray<FMovieSceneSpawnable*> FSequencer::ConvertToSpawnableInternal(FGuid Posse
 
 	TArray<FMovieSceneSpawnable*> CreatedSpawnables;
 
-	if (FoundObjects.Num() > 1)
+	if (FoundObjects.Num() == 0)
+	{
+		FMovieScenePossessable* Possessable = MovieScene->FindPossessable(PossessableGuid);
+
+		UE_LOG(LogSequencer, Error, TEXT("Failed to convert %s to spawnable because there are no objects bound to it"), Possessable ? *Possessable->GetName() : TEXT(""));
+	}
+	else if (FoundObjects.Num() > 1)
 	{
 		// Expand to individual possessables for each bound object, then convert each one individually
 		TArray<FGuid> ExpandedPossessableGuids = ExpandMultiplePossessableBindings(PossessableGuid);

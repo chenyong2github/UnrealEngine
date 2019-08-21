@@ -580,7 +580,7 @@ float UTexture2D::GetAverageBrightness(bool bIgnoreTrueBlack, bool bUseGrayscale
 {
 	float AvgBrightness = -1.0f;
 #if WITH_EDITOR
-	TArray<uint8> RawData;
+	TArray64<uint8> RawData;
 	// use the source art if it exists
 	if (Source.IsValid() && Source.GetFormat() == TSF_BGRA8)
 	{
@@ -740,7 +740,7 @@ void UTexture2D::UpdateResource()
 	// Note that using TF_FirstMip disables texture streaming, because the mip data becomes lost.
 	// Also, the cleanup of the platform data must go between UpdateCachedLODBias() and UpdateResource().
 	const bool bLoadOnlyFirstMip = UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetMipLoadOptions(this) == ETextureMipLoadOptions::OnlyFirstMip;
-	if (bLoadOnlyFirstMip && PlatformData && FPlatformProperties::RequiresCookedData())
+	if (bLoadOnlyFirstMip && PlatformData && PlatformData->Mips.Num() > 0 && FPlatformProperties::RequiresCookedData())
 	{
 		const int32 FirstMip = FMath::Clamp(0, GetCachedLODBias(), PlatformData->Mips.Num() - 1);
 		// Remove any mips after the first mip.
@@ -976,7 +976,7 @@ uint32 UTexture2D::CalcTextureMemorySizeEnum( ETextureMipCount Enum ) const
 bool UTexture2D::GetSourceArtCRC(uint32& OutSourceCRC)
 {
 	bool bResult = false;
-	TArray<uint8> RawData;
+	TArray64<uint8> RawData;
 #if WITH_EDITOR
 	// use the source art if it exists
 	if (Source.IsValid())
@@ -1002,8 +1002,8 @@ bool UTexture2D::HasSameSourceArt(UTexture2D* InTexture)
 {
 	bool bResult = false;
 #if WITH_EDITOR
-	TArray<uint8> RawData1;
-	TArray<uint8> RawData2;
+	TArray64<uint8> RawData1;
+	TArray64<uint8> RawData2;
 	int32 SizeX = 0;
 	int32 SizeY = 0;
 

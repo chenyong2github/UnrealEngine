@@ -30,6 +30,8 @@ namespace AutomationTool
 
 		public string Configurations { get; set; }
 
+		public bool	  Clean { get; set; }
+
 		protected Dictionary<string, string> TargetNames { get; set; }
 
 		public BuildTarget()
@@ -42,14 +44,18 @@ namespace AutomationTool
 
 		public override ExitCode Execute()
 		{
-			FileReference ProjectFile = null;
-
 			string[] Arguments = this.Params;
 
 			ProjectName = ParseParamValue("project", ProjectName);
 			Targets = ParseParamValue("target", Targets);
 			Platforms = ParseParamValue("platform", Platforms);
 			Configurations = ParseParamValue("configuration", Configurations);
+			Clean = ParseParam("clean") || Clean;
+
+			if (string.IsNullOrEmpty(Targets))
+			{
+				throw new AutomationException("No target specified with -target. Use -help to see all options");
+			}
 
 			bool NoTools = ParseParam("notools");
 
@@ -87,11 +93,9 @@ namespace AutomationTool
 				return ExitCode.Error_Arguments;
 			}
 
-			if (String.IsNullOrEmpty(ProjectName))
-			{
-				Log.TraceWarning("No project specified, will build vanilla UE4 binaries");
-			}
-			else
+			FileReference ProjectFile = null;
+
+			if (!string.IsNullOrEmpty(ProjectName))
 			{
 				ProjectFile = ProjectUtils.FindProjectFileFromName(ProjectName);
 
@@ -102,30 +106,46 @@ namespace AutomationTool
 
 				string SourceDirectoryName = Path.Combine(ProjectFile.Directory.FullName, "Source");
 
-				IEnumerable<string> TargetScripts = Directory.EnumerateFiles(SourceDirectoryName, "*.Target.cs");
+				if (Directory.Exists(SourceDirectoryName))
+				{
+					IEnumerable<string> TargetScripts = Directory.EnumerateFiles(SourceDirectoryName, "*.Target.cs");
 
+					foreach (string TargetName in TargetList)
+					{
+						string TargetScript = TargetScripts.Where(S => S.IndexOf(TargetName, StringComparison.OrdinalIgnoreCase) >= 0).FirstOrDefault();
+
+						if (TargetScript == null && (
+								TargetName.Equals("Client", StringComparison.OrdinalIgnoreCase) ||
+								TargetName.Equals("Game", StringComparison.OrdinalIgnoreCase)
+								)
+							)
+						{
+							// if there's no ProjectGame.Target.cs or ProjectClient.Target.cs then
+							// fallback to Project.Target.cs
+							TargetScript = TargetScripts.Where(S => S.IndexOf(ProjectName + ".", StringComparison.OrdinalIgnoreCase) >= 0).FirstOrDefault();
+						}
+
+						if (TargetScript == null)
+						{
+							throw new AutomationException("No Target.cs file for target {0} in project {1}", TargetName, ProjectName);
+						}
+
+						string FullName = Path.GetFileName(TargetScript);
+						TargetNames[TargetName] = Regex.Replace(FullName, ".Target.cs", "", RegexOptions.IgnoreCase);
+					}
+				}
+			}
+			else
+			{
+				Log.TraceWarning("No project specified, will build vanilla UE4 binaries");
+			}
+
+			// Handle content-only projects or when no project was specified
+			if (TargetNames.Keys.Count == 0)
+			{ 
 				foreach (string TargetName in TargetList)
 				{
-					string TargetScript = TargetScripts.Where(S => S.IndexOf(TargetName, StringComparison.OrdinalIgnoreCase) >= 0).FirstOrDefault();
-
-					if (TargetScript == null && (
-							!TargetName.Equals("Client", StringComparison.OrdinalIgnoreCase) ||
-							!TargetName.Equals("Game", StringComparison.OrdinalIgnoreCase)
-							)
-						)
-					{
-						// if there's no ProjectGame.Target.cs or ProjectClient.Target.cs then
-						// fallback to Project.Target.cs
-						TargetScript = TargetScripts.Where(S => S.IndexOf(ProjectName + ".", StringComparison.OrdinalIgnoreCase) >= 0).FirstOrDefault();
-					}
-
-					if (TargetScript == null)
-					{
-						throw new AutomationException("No Target.cs file for target {0} in project {1}", TargetName, ProjectName);
-					}
-
-					string FullName = Path.GetFileName(TargetScript);
-					TargetNames[TargetName] = Regex.Replace(FullName, ".Target.cs", "", RegexOptions.IgnoreCase);
+					TargetNames[TargetName] = string.Format("UE4{0}", TargetName);
 				}
 			}
 
@@ -176,9 +196,15 @@ namespace AutomationTool
 				}
 			}
 
+			// Set clean and log
 			foreach (var Target in Agenda.Targets)
 			{
-				Log.TraceInformation("Will build {0}", Target);
+				if (Clean)
+				{
+					Target.Clean = Clean;
+				}
+
+				Log.TraceInformation("Will {0}build {1}", Clean ? "clean and " : "", Target);
 			}
 
 			Build.Build(Agenda, InUpdateVersionFiles: false);

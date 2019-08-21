@@ -104,16 +104,25 @@ private:
 		// Amount of time spent loading the audio file.
 		double TimeToLoad;
 
-		// This allows every call to AddOrTouchChunk to report how far down the cache
-		// it was when it was needed, or INDEX_NONE if it wasn't in the cache when it was needed.
-		TArray<int32> PreviousLocationsBeforeBeingTouched;
+		// This is a cumulative moving average of a chunks location before it was 
+		float AverageLocationInCacheWhenNeeded;
 
 		FCacheElementDebugInfo()
 			: NumTotalChunks(0)
 			, NumTimesTouched(0)
 			, TimeLoadStarted(0.0)
 			, TimeToLoad(0.0)
+			, AverageLocationInCacheWhenNeeded(0.0f)
 		{
+		}
+
+		void Reset()
+		{
+			NumTotalChunks = 0;
+			NumTimesTouched = 0;
+			TimeLoadStarted = 0;
+
+			AverageLocationInCacheWhenNeeded = 0.0f;
 		}
 	};
 #endif
@@ -252,6 +261,7 @@ private:
 	FCacheElement* EvictLeastRecentChunk();
 
 	void KickOffAsyncLoad(FCacheElement* CacheElement, const FChunkKey& InKey, TFunction<void(EAudioChunkLoadResult)> OnLoadCompleted);
+	EAsyncIOPriorityAndFlags GetAsyncPriorityForChunk(const FChunkKey& InKey);
 };
 
 // This is used to sort the cache array from smallest chunk size to biggest.

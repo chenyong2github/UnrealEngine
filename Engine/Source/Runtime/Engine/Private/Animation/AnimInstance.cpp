@@ -1217,7 +1217,7 @@ void UAnimInstance::UpdateCurvesToComponents(USkeletalMeshComponent* Component /
 		// this is only any thread because EndOfFrameUpdate update can restart render state
 		// and this needs to restart from worker thread
 		// EndOfFrameUpdate is done after all tick is updated, so in theory you shouldn't have 
-		FAnimInstanceProxy& Proxy = GetProxyOnAnyThread<FAnimInstanceProxy>();
+		FAnimInstanceProxy& Proxy = GetProxyOnGameThread<FAnimInstanceProxy>();
 		Component->ApplyAnimationCurvesToComponent(&Proxy.GetAnimationCurves(EAnimCurveType::MaterialCurve), &Proxy.GetAnimationCurves(EAnimCurveType::MorphTargetCurve));
 	}
 }
@@ -2936,6 +2936,11 @@ const FBakedAnimationStateMachine* UAnimInstance::GetMachineDescription(IAnimCla
 int32 UAnimInstance::GetInstanceAssetPlayerIndex(FName MachineName, FName StateName, FName AssetName)
 {
 	return GetProxyOnGameThread<FAnimInstanceProxy>().GetInstanceAssetPlayerIndex(MachineName, StateName, AssetName);
+}
+
+TArray<FAnimNode_AssetPlayerBase*> UAnimInstance::GetInstanceAssetPlayers(const FName& GraphName)
+{
+	return GetProxyOnAnyThread<FAnimInstanceProxy>().GetInstanceAssetPlayers(GraphName);
 }
 
 FAnimNode_AssetPlayerBase* UAnimInstance::GetRelevantAssetPlayerFromState(int32 MachineIndex, int32 StateIndex)

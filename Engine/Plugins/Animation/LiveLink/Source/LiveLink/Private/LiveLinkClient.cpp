@@ -15,7 +15,9 @@
 #include "LiveLinkSourceFactory.h"
 #include "LiveLinkSourceSettings.h"
 #include "LiveLinkSubject.h"
+#include "IMediaModule.h"
 #include "Misc/CoreDelegates.h"
+#include "Modules/ModuleManager.h"
 #include "Roles/LiveLinkAnimationRole.h"
 #include "Roles/LiveLinkAnimationTypes.h"
 #include "Roles/LiveLinkBasicTypes.h"
@@ -42,6 +44,9 @@ FLiveLinkClient::FLiveLinkClient()
 {
 	Collection = MakeUnique<FLiveLinkSourceCollection>();
 	FCoreDelegates::OnPreExit.AddRaw(this, &FLiveLinkClient::Shutdown);
+
+	IMediaModule& MediaModule = FModuleManager::LoadModuleChecked<IMediaModule>("Media");
+	MediaModule.GetOnTickPreEngineCompleted().AddRaw(this, &FLiveLinkClient::Tick);
 }
 
 FLiveLinkClient::~FLiveLinkClient()
@@ -50,7 +55,7 @@ FLiveLinkClient::~FLiveLinkClient()
 	Shutdown();
 }
 
-void FLiveLinkClient::Tick(float DeltaTime)
+void FLiveLinkClient::Tick()
 {
 	SCOPE_CYCLE_COUNTER(STAT_LiveLink_Client_Tick);
 
@@ -88,6 +93,13 @@ void FLiveLinkClient::UpdateSources()
 {
 	for (FLiveLinkCollectionSourceItem& SourceItem : Collection->GetSources())
 	{
+#if WITH_EDITOR
+		if (SourceItem.Setting)
+		{
+			SourceItem.Setting->SourceDebugInfos.Reset();
+		}
+#endif
+
 		SourceItem.Source->Update();
 	}
 }
@@ -135,6 +147,11 @@ void FLiveLinkClient::BuildThisTicksSubjectSnapshot()
 
 void FLiveLinkClient::Shutdown()
 {
+	if(IMediaModule* MediaModule = FModuleManager::GetModulePtr<IMediaModule>("Media"))
+	{
+		MediaModule->GetOnTickPreEngineCompleted().RemoveAll(this);
+	}
+
 	if (Collection)
 	{
 		FScopeLock Lock(&CollectionAccessCriticalSection);
@@ -687,8 +704,16 @@ bool FLiveLinkClient::IsSubjectValid(FLiveLinkSubjectName InSubjectName) const
 	return false;
 }
 
-bool FLiveLinkClient::IsSubjectEnabled(const FLiveLinkSubjectKey& InSubjectKey) const
+bool FLiveLinkClient::IsSubjectEnabled(const FLiveLinkSubjectKey& InSubjectKey, bool bUseSnapshot) const
 {
+	if (bUseSnapshot)
+	{
+		if (const FLiveLinkSubjectKey* FoundSubjectKey = EnabledSubjects.Find(InSubjectKey.SubjectName))
+		{
+			return *FoundSubjectKey == InSubjectKey;
+		}
+		return false;
+	}
 	return Collection->IsSubjectEnabled(InSubjectKey);
 }
 
@@ -786,6 +811,10 @@ bool FLiveLinkClient::EvaluateFrame_AnyThread(FLiveLinkSubjectName InSubjectName
 			return SubjectItem->GetSubject()->EvaluateFrame(InDesiredRole, OutFrame);
 		}
 	}
+	else
+	{
+		UE_LOG(LogLiveLink, Verbose, TEXT("Subject '%s' is not enabled or doesn't exist"), *InSubjectName.ToString());
+	}
 
 	return false;
 }
@@ -811,6 +840,10 @@ bool FLiveLinkClient::EvaluateFrameAtWorldTime_AnyThread(FLiveLinkSubjectName In
 			}
 		}
 	}
+	else
+	{
+		UE_LOG(LogLiveLink, Verbose, TEXT("Subject '%s' is not enabled or doesn't exist"), *InSubjectName.ToString());
+	}
 
 	return false;
 }
@@ -835,6 +868,10 @@ bool FLiveLinkClient::EvaluateFrameAtSceneTime_AnyThread(FLiveLinkSubjectName In
 				return SubjectItem->GetSubject()->EvaluateFrame(InDesiredRole, OutFrame);
 			}
 		}
+	}
+	else
+	{
+		UE_LOG(LogLiveLink, Verbose, TEXT("Subject '%s' is not enabled or doesn't exist"), *InSubjectName.ToString());
 	}
 
 	return false;
@@ -974,45 +1011,6 @@ void FLiveLinkClient::UnregisterSubjectFramesHandle(FLiveLinkSubjectName InSubje
 	}
 }
 
-void FLiveLinkClient::OnStartSynchronization(FLiveLinkSubjectName InSubjectName, const struct FTimeSynchronizationOpenData& OpenData, const int32 FrameOffset)
-{
-	FScopeLock Lock(&CollectionAccessCriticalSection);
-
-	if (const FLiveLinkCollectionSubjectItem* SubjectItem = Collection->FindEnabledSubject(InSubjectName))
-	{
-		if (FLiveLinkSubject* LinkSubject = SubjectItem->GetLiveSubject())
-		{
-			return LinkSubject->OnStartSynchronization(OpenData, FrameOffset);
-		}
-	}
-}
-
-void FLiveLinkClient::OnSynchronizationEstablished(FLiveLinkSubjectName InSubjectName, const struct FTimeSynchronizationStartData& StartData)
-{
-	FScopeLock Lock(&CollectionAccessCriticalSection);
-
-	if (const FLiveLinkCollectionSubjectItem* SubjectItem = Collection->FindEnabledSubject(InSubjectName))
-	{
-		if (FLiveLinkSubject* LinkSubject = SubjectItem->GetLiveSubject())
-		{
-			return LinkSubject->OnSynchronizationEstablished(StartData);
-		}
-	}
-}
-
-void FLiveLinkClient::OnStopSynchronization(FLiveLinkSubjectName InSubjectName)
-{
-	FScopeLock Lock(&CollectionAccessCriticalSection);
-
-	if (const FLiveLinkCollectionSubjectItem* SubjectItem = Collection->FindEnabledSubject(InSubjectName))
-	{
-		if (FLiveLinkSubject* LinkSubject = SubjectItem->GetLiveSubject())
-		{
-			return LinkSubject->OnStopSynchronization();
-		}
-	}
-}
-
 FSimpleMulticastDelegate& FLiveLinkClient::OnLiveLinkSourcesChanged()
 {
 	return Collection->OnLiveLinkSourcesChanged();
@@ -1056,6 +1054,19 @@ void FLiveLinkClient::AquireLock_Deprecation()
 void FLiveLinkClient::ReleaseLock_Deprecation()
 {
 	CollectionAccessCriticalSection.Unlock();
+}
+
+void FLiveLinkClient::ClearFrames_Deprecation(const FLiveLinkSubjectKey& InSubjectKey)
+{
+	FScopeLock Lock(&CollectionAccessCriticalSection);
+
+	if (Collection)
+	{
+		if (FLiveLinkCollectionSubjectItem* SubjectItem = Collection->FindSubject(InSubjectKey))
+		{
+			SubjectItem->GetSubject()->ClearFrames();
+		}
+	}
 }
 
 FLiveLinkSkeletonStaticData* FLiveLinkClient::GetSubjectAnimationStaticData_Deprecation(const FLiveLinkSubjectKey& InSubjectKey)
@@ -1134,6 +1145,9 @@ void FLiveLinkClient_Base_DEPRECATED::PushSubjectData(FGuid InSourceGuid, FName 
 			NumberOfPropertyNames = AnimationStaticData->PropertyNames.Num();
 			if (NumberOfPropertyNames == 0 && InFrameData.CurveElements.Num() > 0)
 			{
+				UE_LOG(LogLiveLink, Warning, TEXT("Upgrade your code. Curve elements count has changed from the previous frame. That will clear the previous frames of that subject."));
+
+				ClearFrames_Deprecation(SubjectKey);
 				UpdateForAnimationStatic(AnimationStaticData->PropertyNames, InFrameData.CurveElements);
 				NumberOfPropertyNames = AnimationStaticData->PropertyNames.Num();
 			}
@@ -1154,6 +1168,10 @@ void FLiveLinkClient_Base_DEPRECATED::PushSubjectData(FGuid InSourceGuid, FName 
 	for (int32 i = 0; i < MaxNumberOfProperties; ++i)
 	{
 		NewData.PropertyValues[i] = InFrameData.CurveElements[i].CurveValue;
+	}
+	for (int32 i = MaxNumberOfProperties; i < NumberOfPropertyNames; ++i)
+	{
+		NewData.PropertyValues[i] = INFINITY;
 	}
 	PushSubjectFrameData_AnyThread(SubjectKey, MoveTemp(AnimationStruct));
 }

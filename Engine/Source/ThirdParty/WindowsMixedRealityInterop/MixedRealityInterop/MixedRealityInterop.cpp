@@ -60,6 +60,13 @@
 
 #include <sstream>
 
+#if !PLATFORM_HOLOLENS || (PLATFORM_HOLOLENS && _M_ARM64)
+#	define HOLOLENS_BLOCKING_PRESENT 0
+#else
+#	define HOLOLENS_BLOCKING_PRESENT 1
+#endif
+
+#define LOG_HOLOLENS_FRAME_COUNTER 0
 
 
 #pragma comment(lib, "OneCore")
@@ -406,6 +413,17 @@ namespace WindowsMixedReality
 		TrackingFrame(HolographicFrame frame)
 		{
 			Frame = HolographicFrame(frame);
+			Count = NextCount++;
+		}
+
+		void UpdatePrediction()
+		{
+			if (Frame == nullptr)
+			{
+				return;
+			}
+
+			Frame.UpdateCurrentPrediction();
 		}
 
 		bool CalculatePose(const winrt::Windows::Perception::Spatial::SpatialCoordinateSystem& CoordinateSystem)
@@ -519,7 +537,13 @@ namespace WindowsMixedReality
 
 		HolographicFrame Frame = nullptr;
 		HolographicCameraPose Pose = nullptr;
+		int Count = -1;
+
+	private:
+		static int NextCount;
 	};
+	
+	int TrackingFrame::NextCount = 0;
 
 	class HolographicFrameResources
 	{
@@ -1548,28 +1572,8 @@ namespace WindowsMixedReality
 		}
 	}
 
-	bool MixedRealityInterop::UpdateCurrentFrame()
+	bool MixedRealityInterop::IsActiveAndValid()
 	{
-		//TODO: Still experimenting with this.
-//		std::lock_guard<std::mutex> lock(poseLock);
-//
-//#if !PLATFORM_HOLOLENS || (PLATFORM_HOLOLENS && !_WIN64)
-//		// Wait for a frame to be ready before creating one.
-//		// Do not wait for a frame if we are running on the emulator.r
-//		holographicSpace.WaitForNextFrameReady();
-//#endif
-//			
-//		HolographicFrame frame = holographicSpace.CreateNextFrame();
-//		if (frame == nullptr) { return false; }
-//
-//		currentFrame = std::make_unique<TrackingFrame>(frame);
-		return true;
-	}
-
-	bool MixedRealityInterop::GetCurrentPose(DirectX::XMMATRIX& leftView, DirectX::XMMATRIX& rightView, HMDTrackingOrigin& trackingOrigin)
-	{
-		std::lock_guard<std::mutex> lock(poseLock);
-
 		if (!IsInitialized()
 			|| CameraResources == nullptr
 			// Do not update the frame after we generate rendering parameters for it.
@@ -1577,32 +1581,77 @@ namespace WindowsMixedReality
 		{
 			return false;
 		}
+		return true;
+	}
+
+
+	void MixedRealityInterop::BlockUntilNextFrame()
+	{
+#if HOLOLENS_BLOCKING_PRESENT
+		// do nothing, we already blocked in present
+#else
+		// Wait for a frame to be ready before using it
+		// Do not wait for a frame if we are running on the emulator or HL1 Remoting.
+		if (!m_isHL1Remoting)
+		{
+			if (!IsActiveAndValid())
+			{
+				return;
+			}
+
+#if	LOG_HOLOLENS_FRAME_COUNTER
+			{ std::wstringstream string; string << L"BlockUntilNextFrame() started"; Log(string); }
+			holographicSpace.WaitForNextFrameReady();
+			{ std::wstringstream string; string << L"BlockUntilNextFrame() ended"; Log(string); }
+#else
+			holographicSpace.WaitForNextFrameReady();
+#endif
+		}
+#endif
+	}
+
+	void MixedRealityInterop::UpdateRenderThreadFrame()
+	{
+		{
+			std::lock_guard<std::mutex> lock2(poseLock);
+
+			if (!IsActiveAndValid())
+			{
+				return;
+			}
+
+			HolographicFrame frame = holographicSpace.CreateNextFrame();
+			currentFrame = std::make_unique<TrackingFrame>(frame);
+			
+#if	LOG_HOLOLENS_FRAME_COUNTER
+			{ std::wstringstream string; string << L"UpdateRenderThreadFrame() created " << currentFrame->Count; Log(string); }
+#endif
+		}
+	}
+	
+	bool MixedRealityInterop::GetCurrentPoseRenderThread(DirectX::XMMATRIX& leftView, DirectX::XMMATRIX& rightView, HMDTrackingOrigin& trackingOrigin)
+	{
+		std::lock_guard<std::mutex> lock(poseLock);
+
+		if (!IsActiveAndValid())
+		{
+			return false;
+		}
 
 		auto CoordinateSystem = GetReferenceCoordinateSystem(trackingOrigin);
 		if (holographicSpace == nullptr || CoordinateSystem == nullptr) { return false; }
 
-		// We do not have a current frame, create a new one.
 		if (currentFrame == nullptr)
 		{
-#if !PLATFORM_HOLOLENS || (PLATFORM_HOLOLENS && !_WIN64)
-			// Wait for a frame to be ready before creating one.
-			// Do not wait for a frame if we are running on the emulator or HL1 Remoting.
-			if (!m_isHL1Remoting)
-			{
-				holographicSpace.WaitForNextFrameReady();
-			}
+#if	LOG_HOLOLENS_FRAME_COUNTER
+			{ std::wstringstream string; string << L"GetCurrentPoseRenderThread() frame is null!"; Log(string); }
 #endif
-			
-			HolographicFrame frame = holographicSpace.CreateNextFrame();
-			if (frame == nullptr) { return false; }
-
-			currentFrame = std::make_unique<TrackingFrame>(frame);
-		}
-
-		if (currentFrame == nullptr)
-		{
 			return false;
 		}
+
+#if	LOG_HOLOLENS_FRAME_COUNTER
+		{ std::wstringstream string; string << L"GetCurrentPoseRenderThread() getting with " << currentFrame->Count; Log(string); }
+#endif
 
 		if (!currentFrame->CalculatePose(CoordinateSystem))
 		{
@@ -1858,6 +1907,24 @@ namespace WindowsMixedReality
 			|| CurrentFrameResources->GetBackBufferTexture() == nullptr
 			|| viewportTexture == nullptr)
 		{
+#if	LOG_HOLOLENS_FRAME_COUNTER
+			if (currentFrame == nullptr)
+			{
+				{ std::wstringstream string; string << L"Present() currentFrame is null"; Log(string); }
+			}
+			else if (!CurrentFrameResources)
+			{
+				{ std::wstringstream string; string << L"Present() !CurrentFrameResources"; Log(string); }
+			}
+			else if (CurrentFrameResources->GetBackBufferTexture() == nullptr)
+			{
+				{ std::wstringstream string; string << L"Present() CurrentFrameResources->GetBackBufferTexture() == nullptr"; Log(string); }
+			}
+			else //(viewportTexture == nullptr)
+			{
+				{ std::wstringstream string; string << L"Present() viewportTexture == nullptr"; Log(string); }
+			}
+#endif
 			return true;
 		}
 
@@ -1868,7 +1935,7 @@ namespace WindowsMixedReality
 			CurrentFrameResources->GetBackBufferTexture());
 
 		// Quad Layers
-		uint32_t maxQuadLayers = m_isHL1Remoting ? 0 : CameraResources->GetCamera().MaxQuadLayerCount();
+		uint32_t maxQuadLayers = (m_isHL1Remoting || (CameraResources.get() == nullptr) || (CameraResources->GetCamera() == nullptr)) ? 0 : CameraResources->GetCamera().MaxQuadLayerCount();
 		if (maxQuadLayers > 0)
 		{
 			if (quadLayers.size() > CameraResources->GetCamera().QuadLayers().Size())
@@ -1928,13 +1995,22 @@ namespace WindowsMixedReality
 			}
 		}
 
-#if !PLATFORM_HOLOLENS || (PLATFORM_HOLOLENS && !_WIN64)
-		HolographicFramePresentResult presentResult = currentFrame->Frame.PresentUsingCurrentPrediction(HolographicFramePresentWaitBehavior::DoNotWaitForFrameToFinish);
+		if (m_isHL1Remoting || ((CameraResources.get() != nullptr) && (CameraResources->GetCamera() != nullptr)))
+		{
+#if HOLOLENS_BLOCKING_PRESENT
+			HolographicFramePresentResult presentResult = currentFrame->Frame.PresentUsingCurrentPrediction();
+#	if	LOG_HOLOLENS_FRAME_COUNTER
+			{ std::wstringstream string; string << L"Present() PresentUsingCurrentPrediction with " << currentFrame->Count; Log(string); }
+#	endif
 #else
-		HolographicFramePresentResult presentResult = currentFrame->Frame.PresentUsingCurrentPrediction();
+			HolographicFramePresentResult presentResult = currentFrame->Frame.PresentUsingCurrentPrediction(HolographicFramePresentWaitBehavior::DoNotWaitForFrameToFinish);
+#	if	LOG_HOLOLENS_FRAME_COUNTER
+			{ std::wstringstream string; string << L"Present() PresentUsingCurrentPrediction(donotwait) with " << currentFrame->Count; Log(string); }
+#	endif
 #endif
+		}
 
-		// Reset the frame pointer to allow for a new frame to be created.
+		// Null CurrentFrameResources for this frame now that we are done with them.
 		CurrentFrameResources = nullptr;
 		currentFrame = nullptr;
 

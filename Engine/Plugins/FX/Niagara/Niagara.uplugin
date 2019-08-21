@@ -44,7 +44,7 @@
 		{
 			"Name" : "NiagaraEditor",
 			"Type" : "Editor",
-			"LoadingPhase" : "Default"
+			"LoadingPhase" : "PreDefault"
 		},
 		{
 			"Name" : "NiagaraEditorWidgets",

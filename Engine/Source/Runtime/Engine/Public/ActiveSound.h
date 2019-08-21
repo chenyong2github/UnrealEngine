@@ -9,9 +9,10 @@
 #include "Audio.h"
 #include "Audio/AudioDebug.h"
 #include "AudioDynamicParameter.h"
-#include "Sound/SoundConcurrency.h"
 #include "Components/AudioComponent.h"
+#include "DSP/VolumeFader.h"
 #include "Sound/AudioVolume.h"
+#include "Sound/SoundConcurrency.h"
 #include "Sound/SoundSubmix.h"
 #include "Sound/SoundSourceBus.h"
 
@@ -462,19 +463,23 @@ public:
 	/** Whether or not there is an async occlusion trace pending */
 	FThreadSafeBool bAsyncOcclusionPending;
 
+	/** Duration between now and when the sound has been started. */
 	float PlaybackTime;
+
+	/** If virtualized, duration between last time virtualized and now. */
+	float PlaybackTimeNonVirtualized;
+
 	float MinCurrentPitch;
 	float RequestedStartTime;
-
-	float CurrentAdjustVolumeMultiplier;
-	float TargetAdjustVolumeMultiplier;
-	float TargetAdjustVolumeStopTime;
 
 	float VolumeMultiplier;
 	float PitchMultiplier;
 
 	/** The low-pass filter frequency to apply if bEnableLowPassFilter is true. */
 	float LowPassFilterFrequency;
+
+	/** Fader that tracks component volume */
+	Audio::FVolumeFader ComponentVolumeFader;
 
 	/** The interpolated parameter for the low-pass frequency due to occlusion. */
 	FDynamicParameter CurrentOcclusionFilterFrequency;
@@ -690,9 +695,6 @@ private:
 
 	/** Called when an active sound has been stopped but needs to update it's stopping sounds. Returns true when stopping sources have finished stopping. */
 	bool UpdateStoppingSources(uint64 CurrentTick, bool bEnsureStopped);
-
-	/** Sets the target volume multiplier to achieve over the specified time period */
-	void UpdateAdjustVolumeMultiplier(const float DeltaTime);
 
 	/** Updates ramping concurrency volume scalars */
 	void UpdateConcurrencyVolumeScalars(const float DeltaTime);

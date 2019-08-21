@@ -1052,8 +1052,7 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 		return;
 	}
 
-	//#dxr_todo: select the appropriate LOD depending on Context.View
-	uint32 LOD = 0;
+	uint32 LOD = GetCurrentFirstLODIdx_RenderThread();
 	const int32 InstanceCount = InstancedRenderData.Component->PerInstanceSMData.Num();
 
 	if (InstanceCount == 0)
@@ -2705,6 +2704,7 @@ void UInstancedStaticMeshComponent::GetNavigationData(FNavigationRelevantData& D
 		UNavCollisionBase* NavCollision = GetStaticMesh()->NavCollision;
 		if (NavCollision->IsDynamicObstacle())
 		{
+			Data.Modifiers.MarkAsPerInstanceModifier();
 			NavCollision->GetNavigationModifier(Data.Modifiers, FTransform::Identity);
 
 			// Hook per instance transform delegate

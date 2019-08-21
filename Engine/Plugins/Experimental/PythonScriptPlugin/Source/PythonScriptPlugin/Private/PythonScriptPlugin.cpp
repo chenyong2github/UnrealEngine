@@ -388,7 +388,7 @@ private:
 		{
 			bool bOpened = DesktopPlatform->OpenFileDialog(
 				FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr),
-				LOCTEXT("OpenPython", "Execute Python Script").ToString(),
+				LOCTEXT("ExecutePython", "Execute Python Script").ToString(),
 				DefaultDirectory,
 				TEXT(""),
 				TEXT("Python files|*.py|"),

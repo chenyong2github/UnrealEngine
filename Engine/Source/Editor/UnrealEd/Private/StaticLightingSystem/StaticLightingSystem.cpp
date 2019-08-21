@@ -41,6 +41,7 @@
 #include "Engine/GeneratedMeshAreaLight.h"
 #include "Components/SkyLightComponent.h"
 #include "Atmosphere/AtmosphericFogComponent.h"
+#include "Components/SkyAtmosphereComponent.h"
 #include "Components/ModelComponent.h"
 #include "Engine/LightMapTexture2D.h"
 #include "Editor.h"
@@ -774,6 +775,9 @@ void FStaticLightingSystem::InvalidateStaticLighting()
 			continue;
 		}
 
+		// Clear all the atmosphere guids from the MapBuildData when starting a new build.
+		Level->GetOrCreateMapBuildData()->ClearSkyAtmosphereBuildData();
+
 		const bool bBuildLightingForLevel = Options.ShouldBuildLightingForLevel( Level );
 		
 		if (bBuildLightingForLevel)
@@ -1261,18 +1265,33 @@ void FStaticLightingSystem::ApplyNewLightingData(bool bLightingSuccessful)
 
 				if (Actor && bLightingSuccessful && !Options.bOnlyBuildSelected)
 				{
-					TInlineComponentArray<ULightComponent*> Components;
-					Actor->GetComponents(Components);
+					TInlineComponentArray<ULightComponent*> LightComponents;
+					Actor->GetComponents(LightComponents);
 
-					for (int32 ComponentIndex = 0; ComponentIndex < Components.Num(); ComponentIndex++)
+					for (int32 ComponentIndex = 0; ComponentIndex < LightComponents.Num(); ComponentIndex++)
 					{
-						ULightComponent* LightComponent = Components[ComponentIndex];
+						ULightComponent* LightComponent = LightComponents[ComponentIndex];
 						if (LightComponent && (LightComponent->HasStaticShadowing() || LightComponent->HasStaticLighting()))
 						{
 							if (!Registry->GetLightBuildData(LightComponent->LightGuid))
 							{
 								// Add a dummy entry for ULightComponent::IsPrecomputedLightingValid()
 								Registry->FindOrAllocateLightBuildData(LightComponent->LightGuid, true);
+							}
+						}
+					}
+
+					// For each SkyAtmosphere which is a dependency of the build, add its guid to MapBuildData to track that it now has been built.
+					TInlineComponentArray<USkyAtmosphereComponent*> SkyAtmosphereComponents;
+					Actor->GetComponents(SkyAtmosphereComponents);
+					for (int32 ComponentIndex = 0; ComponentIndex < SkyAtmosphereComponents.Num(); ComponentIndex++)
+					{
+						USkyAtmosphereComponent* SkyAtmosphereComponent = SkyAtmosphereComponents[ComponentIndex];
+						if (SkyAtmosphereComponent)
+						{
+							if (!Registry->GetSkyAtmosphereBuildData(SkyAtmosphereComponent->GetStaticLightingBuiltGuid()))
+							{
+								Registry->FindOrAllocateSkyAtmosphereBuildData(SkyAtmosphereComponent->GetStaticLightingBuiltGuid());
 							}
 						}
 					}
@@ -2027,12 +2046,29 @@ void FStaticLightingSystem::GatherScene()
 		}
 	}
 
+	bool LegacyAtmosphericFogRegistered = false;
 	for (TObjectIterator<UAtmosphericFogComponent> It; It; ++It)
 	{
 		UAtmosphericFogComponent* AtmosphericFog = *It;
 		if (AtmosphericFog->GetOwner() && World->ContainsActor(AtmosphericFog->GetOwner()) && !AtmosphericFog->IsPendingKill() && ShouldOperateOnLevel(AtmosphericFog->GetOwner()->GetLevel()))
 		{
 			LightmassExporter->SetAtmosphericComponent(AtmosphericFog);
+			LegacyAtmosphericFogRegistered = true;
+			break;	// We only register the first we find
+		}
+	}
+
+	for (TObjectIterator<USkyAtmosphereComponent> It; It; ++It)
+	{
+		USkyAtmosphereComponent* SkyAtmosphere = *It;
+		if (SkyAtmosphere->GetOwner() && World->ContainsActor(SkyAtmosphere->GetOwner()) && !SkyAtmosphere->IsPendingKill() && ShouldOperateOnLevel(SkyAtmosphere->GetOwner()->GetLevel()))
+		{
+			if (LegacyAtmosphericFogRegistered)
+			{
+				FMessageLog("LightingResults").Warning(LOCTEXT("LightmassError_BuildSelected", "Both a legacy AtmosphericFog and a new SkyAtmosphere wants to register. Lightmass will not consider the legacy component."));
+			}
+			LightmassExporter->SetAtmosphericComponent(nullptr);
+			LightmassExporter->SetSkyAtmosphereComponent(SkyAtmosphere);
 			break;	// We only register the first we find
 		}
 	}

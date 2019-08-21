@@ -1742,7 +1742,7 @@ void FLevelCollectionModel::MoveActorsToSelected_Executed()
 
 		if (Actor != nullptr)
 		{
-			FFoliageEditUtility::MoveActorFoliageInstancesToLevel(GetWorld()->GetCurrentLevel());
+			FFoliageEditUtility::MoveActorFoliageInstancesToLevel(GetWorld()->GetCurrentLevel(), Actor);
 		}
 	}
 

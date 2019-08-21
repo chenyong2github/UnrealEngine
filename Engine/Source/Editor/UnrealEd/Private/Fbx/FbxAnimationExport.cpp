@@ -83,7 +83,6 @@ void FFbxExporter::ExportAnimSequenceToFbx(const UAnimSequence* AnimSeq,
 
 	//Prepare root anim curves data to be exported
 	TArray<FName> AnimCurveNames;
-	TArray<SmartName::UID_Type> AnimCurveUIDs;
 	TMap<FName, FbxAnimCurve*> CustomCurveMap;
 	if (BoneNodes.Num() > 0)
 	{
@@ -92,7 +91,6 @@ void FFbxExporter::ExportAnimSequenceToFbx(const UAnimSequence* AnimSeq,
 		if (AnimCurveMapping)
 		{
 			AnimCurveMapping->FillNameArray(AnimCurveNames);
-			AnimCurveMapping->FillUidArray(AnimCurveUIDs);
 
 			const UFbxExportOption* ExportOptions = GetExportOptions();
 			const bool bExportMorphTargetCurvesInMesh = ExportOptions && ExportOptions->bExportPreviewMesh && ExportOptions->bExportMorphTargets;
@@ -203,7 +201,16 @@ void FFbxExporter::ExportCustomAnimCurvesToFbx(const TMap<FName, FbxAnimCurve*>&
 	}
 
 	TArray<SmartName::UID_Type> AnimCurveUIDs;
-	SmartNameMapping->FillUidArray(AnimCurveUIDs);
+	{
+		//We need to recreate the UIDs array manually so that we keep the empty entries otherwise the BlendedCurve won't have the correct mapping.
+		TArray<FName> UID_ToNameArray;
+		SmartNameMapping->FillUIDToNameArray(UID_ToNameArray);
+		AnimCurveUIDs.Reserve(UID_ToNameArray.Num());
+		for (int32 NameIndex = 0; NameIndex < UID_ToNameArray.Num(); ++NameIndex)
+		{
+			AnimCurveUIDs.Add(NameIndex);
+		}
+	}
 
 	for (auto CustomCurve : CustomCurves)
 	{
@@ -547,9 +554,20 @@ void FFbxExporter::ExportAnimTrack(IAnimTrackAdapter& AnimTrackAdapter, AActor* 
 
 	if ( FindSkeleton(SkeletalMeshComponent, BoneNodes)==false )
 	{
-		// error
-		return;
+		UE_LOG(LogFbx, Warning, TEXT("Error FBX Animation Export, no root skeleton found."));
+		return;		
 	}
+	//if we have no allocated bone space transforms something wrong so try to recalc them
+	if (SkeletalMeshComponent->GetBoneSpaceTransforms().Num() <= 0 )
+	{
+		SkeletalMeshComponent->RecalcRequiredBones(0);
+		if (SkeletalMeshComponent->GetBoneSpaceTransforms().Num() <= 0)
+		{
+			UE_LOG(LogFbx, Warning, TEXT("Error FBX Animation Export, no bone transforms."));
+			return;
+		}
+	}
+	
 
 	FTransform InitialInvParentTransform;
 

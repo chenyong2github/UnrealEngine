@@ -127,7 +127,7 @@ float FMovieSceneGeometryCacheSectionTemplateParameters::MapTimeToAnimation(floa
 	FFrameTime AnimationLength = SequenceLength * InFrameRate;
 	int32 LengthInFrames = AnimationLength.FrameNumber.Value + (int)(AnimationLength.GetSubFrame() + 0.5f) + 1;
 	//we only play end if we are not looping, and assuming we are looping if Length is greater than default length;
-	bool bLooping = (SectionEndTime.Value - SectionStartTime.Value) > LengthInFrames;
+	bool bLooping = (SectionEndTime.Value - SectionStartTime.Value + StartFrameOffset + EndFrameOffset) > LengthInFrames;
 
 	InPosition = FMath::Clamp(InPosition, FFrameTime(SectionStartTime), FFrameTime(SectionEndTime - 1));
 
@@ -144,7 +144,7 @@ float FMovieSceneGeometryCacheSectionTemplateParameters::MapTimeToAnimation(floa
 	AnimPosition += InFrameRate.AsSeconds(StartFrameOffset);
 	if (bReverse)
 	{
-		AnimPosition = (SeqLength - (AnimPosition - InFrameRate.AsSeconds(StartFrameOffset))) + InFrameRate.AsSeconds(StartFrameOffset);
+		AnimPosition = SequenceLength - AnimPosition;
 	}
 
 	return AnimPosition;

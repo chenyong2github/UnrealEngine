@@ -1558,12 +1558,15 @@ void FAssetManagerEditorModule::RefreshRegistryData()
 	UAssetManager::Get().UpdateManagementDatabase(true);
 
 	// Rescan registry sources, try to restore the current one
-	FString OldSourceName = CurrentRegistrySource->SourceName;
+	const FString OldSourceName = CurrentRegistrySource ? CurrentRegistrySource->SourceName : FString();
 
 	CurrentRegistrySource = nullptr;
 	InitializeRegistrySources(false);
 
-	SetCurrentRegistrySource(OldSourceName);
+	if (!OldSourceName.IsEmpty())
+	{
+		SetCurrentRegistrySource(OldSourceName);
+	}
 }
 
 bool FAssetManagerEditorModule::IsPackageInCurrentRegistrySource(FName PackageName)

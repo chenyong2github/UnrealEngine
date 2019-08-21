@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "NetworkSimulationModelTemplates.h"
+#include "NetworkSimulationModel.h"
 #include "BaseMovementComponent.h"
 
 #include "ParametricMovement.generated.h"
@@ -14,16 +14,11 @@ namespace ParametricMovement
 	// State the client generates
 	struct FInputCmd
 	{
-		// Client's FrameTime. This is essential for a non-fixed step simulation. The server will run the movement simulation for this client at this rate.
-		float FrameDeltaTime = 0.f;
-
 		// Input Playrate. This being set can be thought of "telling the simulation what its new playrate should be"
 		TOptional<float> PlayRate;
 
 		void NetSerialize(const FNetSerializeParams& P)
 		{
-			// FIXME: quantization and effecient packing of this data needs to be looked at/generalized in a nice way
-			P.Ar << FrameDeltaTime;
 			P.Ar << PlayRate;
 		}
 
@@ -35,7 +30,6 @@ namespace ParametricMovement
 			}
 			else if (P.Context == EStandardLoggingContext::Full)
 			{
-				P.Ar->Logf(TEXT("FrameDeltaTime: %.4f"), FrameDeltaTime);
 				if (PlayRate.IsSet())
 				{
 					P.Ar->Logf(TEXT("PlayRate: %.2f"), PlayRate.GetValue());
@@ -91,8 +85,10 @@ namespace ParametricMovement
 		}
 	};
 
+	using TMovementBufferTypes = TNetworkSimBufferTypes<FInputCmd, FMoveState, FAuxState>;
+
 	// Actual definition of our network simulation.
-	class FMovementSystem : public TNetworkedSimulationModel<FMovementSystem, FInputCmd, FMoveState, FAuxState>
+	class FMovementSystem : public TNetworkedSimulationModel<FMovementSystem, TMovementBufferTypes, TNetworkSimTickSettings<0>>
 	{
 	public:
 
@@ -113,11 +109,13 @@ namespace ParametricMovement
 		};
 
 		/** Main update function */
-		static void Update(IMovementDriver* Driver, const FInputCmd& InputCmd, const FMoveState& InputState, FMoveState& OutputState, const FAuxState& AuxState);
+		static void Update(IMovementDriver* Driver, const TSimTime& SimeTimeDeltaMS, const FInputCmd& InputCmd, const FMoveState& InputState, FMoveState& OutputState, const FAuxState& AuxState);
 
 		/** Dev tool to force simple mispredict */
 		static bool ForceMispredict;
 	};
+
+	using TSimTime = FMovementSystem::TSimTime;
 
 } // End namespace
 
@@ -144,9 +142,14 @@ class NETWORKPREDICTION_API UParametricMovementComponent : public UBaseMovementC
 	virtual void BeginPlay() override;
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
+	virtual void Reconcile() override;
+	virtual void TickSimulation(float DeltaTimeSeconds) override;
+
 	// Base TNetworkModelSimulation driver
+	FString GetDebugName() const override;
 	void InitSyncState(ParametricMovement::FMoveState& OutSyncState) const override;
-	void SyncTo(const ParametricMovement::FMoveState& SyncState) override;
+	void FinalizeFrame(const ParametricMovement::FMoveState& SyncState) override;
+	void ProduceInput(const ParametricMovement::TSimTime& SimFrameTime, ParametricMovement::FInputCmd& Cmd);
 
 	// Base Movement Driver
 	IBaseMovementDriver& GetBaseMovementDriver() override final { return *static_cast<IBaseMovementDriver*>(this); }
@@ -163,9 +166,15 @@ protected:
 	void InitializeForNetworkRole(ENetRole Role) override;
 	FNetworkSimulationModelInitParameters GetSimulationInitParameters(ENetRole Role) override;
 
-	TUniquePtr<ParametricMovement::FMovementSystem> NetworkSim;
+	TUniquePtr<ParametricMovement::FMovementSystem> NetworkSim;	
 
-	// Temp....
+	// ------------------------------------------------------------------------
+	// Temp Parametric movement example
+	//	The essence of this movement simulation is to map some Time value to a transform. That is it.
+	//	(It could be mapped via a spline, a curve, a simple blueprint function, etc).
+	//	What is below is just a simple C++ implementation to stand things up. Most likely we would 
+	//	do additional subclasses to vary the way this is implemented)
+	// ------------------------------------------------------------------------
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ParametricMovement)
 	FVector ParametricDelta = FVector(0.f, 0.f, 500.f);
 

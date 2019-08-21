@@ -137,7 +137,7 @@ class FMaterialList
 	, public TSharedFromThis<FMaterialList>
 {
 public:
-	PROPERTYEDITOR_API FMaterialList( IDetailLayoutBuilder& InDetailLayoutBuilder, FMaterialListDelegates& MaterialListDelegates, bool bInAllowCollapse = false, bool bInShowUsedTextures = true, bool bInDisplayCompactSize = false);
+	PROPERTYEDITOR_API FMaterialList( IDetailLayoutBuilder& InDetailLayoutBuilder, FMaterialListDelegates& MaterialListDelegates, bool bInAllowCollapse = false, bool bInShowUsedTextures = true, bool bInDisplayCompactSize = false, TSharedPtr<class IPropertyHandle> InHandle = nullptr);
 
 	/**
 	 * @return true if materials are being displayed.                                                          
@@ -168,6 +168,7 @@ private:
 	virtual void GenerateChildContent( IDetailChildrenBuilder& ChildrenBuilder ) override;
 	virtual FName GetName() const override { return NAME_None; }
 	virtual bool InitiallyCollapsed() const override { return bAllowCollpase; }
+	virtual TSharedPtr<IPropertyHandle> GetPropertyHandle() const;
 
 	/**
 	 * Adds a new material item to the list
@@ -215,5 +216,7 @@ private:
 	bool bShowUsedTextures;
 	/** Whether or not to display a compact form of material entry*/
 	bool bDisplayCompactSize;
+	/** The property handle for a child property on the mesh that owns these materials */
+	TSharedPtr<class IPropertyHandle> MeshChildHandle;
 };
 

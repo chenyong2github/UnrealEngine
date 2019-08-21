@@ -864,6 +864,14 @@ bool UCharacterMovementComponent::DoJump(bool bReplayingMoves)
 	return false;
 }
 
+bool UCharacterMovementComponent::CanAttemptJump() const
+{
+	return IsJumpAllowed() &&
+		   !bWantsToCrouch &&
+		   (IsMovingOnGround() || IsFalling()); // Falling included for double-jump and non-zero jump hold time, but validated by character.
+}
+
+
 FVector UCharacterMovementComponent::GetImpartedMovementBaseVelocity() const
 {
 	FVector Result = FVector::ZeroVector;
@@ -6368,7 +6376,7 @@ float UCharacterMovementComponent::GetValidPerchRadius() const
 	if (CharacterOwner)
 	{
 		const float PawnRadius = CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleRadius();
-		return FMath::Clamp(PawnRadius - GetPerchRadiusThreshold(), 0.1f, PawnRadius);
+		return FMath::Clamp(PawnRadius - GetPerchRadiusThreshold(), 0.11f, PawnRadius);
 	}
 	return 0.f;
 }
@@ -6845,17 +6853,17 @@ void UCharacterMovementComponent::DisplayDebug(UCanvas* Canvas, const FDebugDisp
 	DisplayDebugManager.DrawString(T);
 }
 
-void UCharacterMovementComponent::VisualizeMovement() const
+float UCharacterMovementComponent::VisualizeMovement() const
 {
+	float HeightOffset = 0.f;
 	if (CharacterOwner == nullptr)
 	{
-		return;
+		return HeightOffset;
 	}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	const FVector TopOfCapsule = GetActorLocation() + FVector(0.f, 0.f, CharacterOwner->GetSimpleCollisionHalfHeight());
-	float HeightOffset = 0.f;
-
+	
 	// Position
 	{
 		const FColor DebugColor = FColor::White;
@@ -6937,6 +6945,8 @@ void UCharacterMovementComponent::VisualizeMovement() const
 		DrawDebugString(GetWorld(), DebugLocation, DebugText, nullptr, DebugColor, 0.f, true);
 	}
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+
+	return HeightOffset;
 }
 
 void UCharacterMovementComponent::ForceReplicationUpdate()

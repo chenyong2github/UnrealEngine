@@ -38,6 +38,7 @@ public:
 	virtual void ValidateNodeDuringCompilation(FCompilerResultsLog& MessageLog) const override;
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual FText GetTooltipText() const override;
+	virtual FText GetMenuCategory() const override;
 	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
 	virtual bool ShouldShowNodeProperties() const override { return true; }
 	virtual bool IsNodePure() const override { return true; }

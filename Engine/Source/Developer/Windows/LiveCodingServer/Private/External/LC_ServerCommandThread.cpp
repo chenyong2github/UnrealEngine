@@ -206,8 +206,16 @@ void ServerCommandThread::RestartTargets(void)
 	for (size_t i = 0u; i < count; ++i)
 	{
 		LiveProcess* liveProcess = m_liveProcesses[i];
-		liveProcess->Restart();
+		liveProcess->Restart(m_restartJob);
 	}
+
+	// BEGIN EPIC MOD - Prevent orphaned console instances if processes fail to restart. Job object will be duplicated into child process.
+	if (m_restartJob != nullptr)
+	{
+		CloseHandle(m_restartJob);
+		m_restartJob = nullptr;
+	}
+	// END EPIC MOD
 }
 
 
@@ -1614,6 +1622,13 @@ bool ServerCommandThread::actions::RegisterProcess::Execute(const CommandType* c
 						// EPIC REMOVED: g_theApp.GetMainFrame()->ResetStatusBarText();
 						// EPIC REMOVED: g_theApp.GetMainFrame()->SetBusy(false);
 					}
+					// BEGIN EPIC MOD - Prevent orphaned console instances if processes fail to restart. Job object will be duplicated into child process.
+					else
+					{
+						commandThread->m_restartCS.Leave();
+						LC_LOG_USER("---------- Restarting finished ----------");
+					}
+					// END EPIC MOD
 				}
 			}
 		}

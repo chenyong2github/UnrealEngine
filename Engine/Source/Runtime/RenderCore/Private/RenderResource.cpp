@@ -20,6 +20,12 @@ FAutoConsoleVariableRef CVarMaxVertexBytesAllocatedPerFrame(
 	GMaxVertexBytesAllocatedPerFrame,
 	TEXT("The maximum number of transient vertex buffer bytes to allocate before we start panic logging who is doing the allocations"));
 
+int32 GGlobalBufferNumFramesUnusedThresold = 30;
+FAutoConsoleVariableRef CVarReadBufferNumFramesUnusedThresold(
+	TEXT("r.NumFramesUnusedBeforeReleasingGlobalResourceBuffers"),
+	GGlobalBufferNumFramesUnusedThresold ,
+	TEXT("Number of frames after which unused global resource allocations will be discarded. Set 0 to ignore. (default=30)"));
+
 TLinkedList<FRenderResource*>*& FRenderResource::GetResourceList()
 {
 	static TLinkedList<FRenderResource*>* FirstResourceLink = NULL;
@@ -83,6 +89,7 @@ void FRenderResource::InitResource()
 #endif
 		if(GIsRHIInitialized)
 		{
+			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(InitRenderResource);
 			InitDynamicRHI();
 			InitRHI();
 		}
@@ -361,6 +368,8 @@ public:
 	uint32 BufferSize;
 	/** Number of bytes currently allocated from the buffer. */
 	uint32 AllocatedByteCount;
+	/** Number of successive frames for which AllocatedByteCount == 0. Used as a metric to decide when to free the allocation. */
+	int32 NumFramesUnused = 0;
 
 	/** Default constructor. */
 	explicit FDynamicVertexBuffer(uint32 InMinBufferSize)
@@ -391,6 +400,7 @@ public:
 		RHIUnlockVertexBuffer(VertexBufferRHI);
 		MappedBuffer = NULL;
 		AllocatedByteCount = 0;
+		NumFramesUnused = 0;
 	}
 
 	// FRenderResource interface.
@@ -522,6 +532,18 @@ void FGlobalDynamicVertexBuffer::Commit()
 		{
 			VertexBuffer.Unlock();
 		}
+		else if (GGlobalBufferNumFramesUnusedThresold && !VertexBuffer.AllocatedByteCount)
+		{
+			++VertexBuffer.NumFramesUnused;
+			if (VertexBuffer.NumFramesUnused >= GGlobalBufferNumFramesUnusedThresold)
+			{
+				// Remove the buffer, assumes they are unordered.
+				VertexBuffer.ReleaseResource();
+				Pool->VertexBuffers.RemoveAtSwap(BufferIndex);
+				--BufferIndex;
+				--NumBuffers;
+			}
+		}
 	}
 	Pool->CurrentVertexBuffer = NULL;
 	TotalAllocatedSinceLastCommit = 0;
@@ -550,6 +572,8 @@ public:
 	uint32 AllocatedByteCount;
 	/** Stride of the buffer in bytes. */
 	uint32 Stride;
+	/** Number of successive frames for which AllocatedByteCount == 0. Used as a metric to decide when to free the allocation. */
+	int32 NumFramesUnused = 0;
 
 	/** Initialization constructor. */
 	explicit FDynamicIndexBuffer(uint32 InMinBufferSize, uint32 InStride)
@@ -581,6 +605,7 @@ public:
 		RHIUnlockIndexBuffer(IndexBufferRHI);
 		MappedBuffer = NULL;
 		AllocatedByteCount = 0;
+		NumFramesUnused = 0;
 	}
 
 	// FRenderResource interface.
@@ -717,6 +742,18 @@ void FGlobalDynamicIndexBuffer::Commit()
 			if (IndexBuffer.MappedBuffer != NULL)
 			{
 				IndexBuffer.Unlock();
+			}
+			else if (GGlobalBufferNumFramesUnusedThresold && !IndexBuffer.AllocatedByteCount)
+			{
+				++IndexBuffer.NumFramesUnused;
+				if (IndexBuffer.NumFramesUnused >= GGlobalBufferNumFramesUnusedThresold)
+				{
+					// Remove the buffer, assumes they are unordered.
+					IndexBuffer.ReleaseResource();
+					Pool->IndexBuffers.RemoveAtSwap(BufferIndex);
+					--BufferIndex;
+					--NumBuffers;
+				}
 			}
 		}
 		Pool->CurrentIndexBuffer = NULL;

@@ -35,19 +35,19 @@ namespace Gauntlet
 
 		public int BuildCount { get { return DiscoveredBuilds.Count; } }
 
-		public UnrealBuildSource(FileReference InProjectPath, DirectoryReference InUnrealPath, bool InUsesSharedBuildType, string BuildReference) 
+		public UnrealBuildSource(string InProjectName, FileReference InProjectPath, DirectoryReference InUnrealPath, bool InUsesSharedBuildType, string BuildReference) 
 		{
-			InitBuildSource(InProjectPath, InUnrealPath, InUsesSharedBuildType, BuildReference, null);
+			InitBuildSource(InProjectName, InProjectPath, InUnrealPath, InUsesSharedBuildType, BuildReference, null);
 		}
 
-		public UnrealBuildSource(FileReference InProjectPath, DirectoryReference InUnrealPath, bool InUsesSharedBuildType, string BuildReference, Func<string, string> ResolutionDelegate)
+		public UnrealBuildSource(string InProjectName, FileReference InProjectPath, DirectoryReference InUnrealPath, bool InUsesSharedBuildType, string BuildReference, Func<string, string> ResolutionDelegate)
 		{
-			InitBuildSource(InProjectPath, InUnrealPath, InUsesSharedBuildType, BuildReference, ResolutionDelegate);
+			InitBuildSource(InProjectName, InProjectPath, InUnrealPath, InUsesSharedBuildType, BuildReference, ResolutionDelegate);
 		}
 
-		public UnrealBuildSource(FileReference InProjectPath, DirectoryReference InUnrealPath, bool InUsesSharedBuildType, string BuildReference, IEnumerable<string> InSearchPaths)
+		public UnrealBuildSource(string InProjectName, FileReference InProjectPath, DirectoryReference InUnrealPath, bool InUsesSharedBuildType, string BuildReference, IEnumerable<string> InSearchPaths)
 		{
-			InitBuildSource(InProjectPath, InUnrealPath, InUsesSharedBuildType, BuildReference, (string BuildRef) =>
+			InitBuildSource(InProjectName, InProjectPath, InUnrealPath, InUsesSharedBuildType, BuildReference, (string BuildRef) =>
 			{
 				foreach (string SearchPath in InSearchPaths)
 				{
@@ -74,13 +74,13 @@ namespace Gauntlet
 		}
 
 
-		protected void InitBuildSource(FileReference InProjectPath, DirectoryReference InUnrealPath, bool InUsesSharedBuildType, string InBuildArgument, Func<string, string> ResolutionDelegate)
+		protected void InitBuildSource(string InProjectName, FileReference InProjectPath, DirectoryReference InUnrealPath, bool InUsesSharedBuildType, string InBuildArgument, Func<string, string> ResolutionDelegate)
 		{
 			UnrealPath = InUnrealPath;
 			UsesSharedBuildType = InUsesSharedBuildType;
 
 			ProjectPath = InProjectPath;
-			ProjectName = InProjectPath.GetFileNameWithoutExtension();
+			ProjectName = InProjectName;
 
 			// Resolve the build argument into something meaningful
 			string ResolvedBuildName;
@@ -420,11 +420,25 @@ namespace Gauntlet
 				Config.CommandLine += " " + Role.CommandLine;
 			}
 
+			// Cleanup the commandline
+			Config.CommandLine = GenerateProcessedCommandLine(Config.CommandLine);
+
+			// Now add the project (the above code doesn't handle arguments without a leading - so do this last
 			bool IsContentOnlyProject = (Config.Build.Flags & BuildFlags.ContentOnlyProject) == BuildFlags.ContentOnlyProject;
 
 			// Add in editor - TODO, should this be in the editor build?
 			if (Role.RoleType.UsesEditor() || IsContentOnlyProject)
 			{
+				// add in -game or -server
+				if (Role.RoleType.IsClient())
+				{
+					Config.CommandLine = "-game " + Config.CommandLine;
+				}
+				else if (Role.RoleType.IsServer())
+				{
+					Config.CommandLine = "-server " + Config.CommandLine;
+				}
+
 				string ProjectParam = ProjectPath.FullName;
 
 				// if content only we need to provide a relative path to the uproject.
@@ -435,23 +449,13 @@ namespace Gauntlet
 
 				// project must be first
 				Config.CommandLine = ProjectParam + " " + Config.CommandLine;
-
-				// add in -game or -server
-				if (Role.RoleType.IsClient())
-				{
-					Config.CommandLine += " -game";
-				}
-				else if (Role.RoleType.IsServer())
-				{
-					Config.CommandLine += " -server";
-				}
 			}
 
             if (Role.FilesToCopy != null)
             {
                 Config.FilesToCopy = Role.FilesToCopy;
             }
-			Config.CommandLine = GenerateProcessedCommandLine(Config.CommandLine);
+			
 			return Config;
 		}
 
@@ -466,7 +470,7 @@ namespace Gauntlet
 			// Break down Commandline into individual tokens 
 			Dictionary<string, string> CommandlineTokens = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 			// turn Name(p1,etc) into a collection of Name|(p1,etc) groups
-			MatchCollection Matches = Regex.Matches(InCommandLine, "(?<option>-?[\\w\\d.:\\[\\]\\/\\\\]+)(=(?<value>(\"([^\"]*)\")|(\\S+)))?");
+			MatchCollection Matches = Regex.Matches(InCommandLine, "(?<option>\\-?[\\w\\d.:\\[\\]\\/\\\\]+)(=(?<value>(\"([^\"]*)\")|(\\S+)))?");
 
 			foreach (Match M in Matches)
 			{

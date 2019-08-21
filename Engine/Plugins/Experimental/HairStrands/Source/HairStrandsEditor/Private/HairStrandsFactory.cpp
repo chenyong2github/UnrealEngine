@@ -58,26 +58,26 @@ UObject* UHairStrandsFactory::FactoryCreateNew(UClass* InClass, UObject* InParen
 	}
 	UHairStrandsAsset* CurrentAsset = NewObject<UHairStrandsAsset>(InParent, InClass, InName, Flags);
 
-	const FString Filter(TEXT("Hair Strands Files (*.hair,*.fbx,*.abc)|*.hair;*.fbx;*.abc"));
-
-	TArray<FString> OpenFilenames;
-	int32 FilterIndex = -1;
-	if (FDesktopPlatformModule::Get()->OpenFileDialog(
-		nullptr,
-		FString(TEXT("Choose a hair strands file")),
-		FEditorDirectories::Get().GetLastDirectory(ELastDirectory::GENERIC_IMPORT),
-		TEXT(""),
-		Filter,
-		EFileDialogFlags::None,
-		OpenFilenames,
-		FilterIndex))
-	{
-		CurrentAsset->FilePath = OpenFilenames[0];
-		BuildHairStrands(CurrentAsset->FilePath, CurrentAsset->StrandsDatas);
-	}
-
 	if (CurrentAsset)
 	{
+		const FString Filter(TEXT("Hair Strands Files (*.hair,*.fbx,*.abc)|*.hair;*.fbx;*.abc"));
+
+		TArray<FString> OpenFilenames;
+		int32 FilterIndex = -1;
+		if (FDesktopPlatformModule::Get()->OpenFileDialog(
+			nullptr,
+			FString(TEXT("Choose a hair strands file")),
+			FEditorDirectories::Get().GetLastDirectory(ELastDirectory::GENERIC_IMPORT),
+			TEXT(""),
+			Filter,
+			EFileDialogFlags::None,
+			OpenFilenames,
+			FilterIndex))
+		{			
+			CurrentAsset->FilePath = OpenFilenames[0];
+			BuildHairStrands(CurrentAsset->FilePath, CurrentAsset->StrandsDatas);
+		}
+
 		CurrentAsset->InitResource();
 	}
 	return CurrentAsset;
@@ -92,13 +92,12 @@ UObject* UHairStrandsFactory::FactoryCreateFile(UClass * InClass, UObject * InPa
 		ExistingAsset->ReleaseResource();
 	}
 
-	UHairStrandsAsset* CurrentAsset = NewObject<UHairStrandsAsset>(InParent, InClass, InName, Flags);
-
-	CurrentAsset->FilePath = Filename;
-	BuildHairStrands(CurrentAsset->FilePath, CurrentAsset->StrandsDatas);
+	UHairStrandsAsset* CurrentAsset = NewObject<UHairStrandsAsset>(InParent, InClass, InName, Flags);	
 
 	if (CurrentAsset)
 	{
+		CurrentAsset->FilePath = Filename;
+		BuildHairStrands(CurrentAsset->FilePath, CurrentAsset->StrandsDatas);
 		CurrentAsset->InitResource();
 	}
 

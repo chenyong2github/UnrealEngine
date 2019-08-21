@@ -99,6 +99,9 @@ bool GAllowActorScriptExecutionInEditor = false;
 /** Forces use of template names for newly instanced components in a CDO */
 bool GCompilingBlueprint = false;
 
+/** True if we're garbage collecting after a blueprint compilation */
+bool GIsGCingAfterBlueprintCompile = false;
+
 /** True if we're reconstructing blueprint instances. Should never be true on cooked builds */
 bool GIsReconstructingBlueprintInstances = false;
 
@@ -301,6 +304,8 @@ bool					GIsDemoMode						= false;
 bool					GIsAutomationTesting					= false;
 /** Whether or not messages are being pumped outside of the main loop										*/
 bool					GPumpingMessagesOutsideOfMainLoop = false;
+/** Whether or not messages are being pumped */
+bool					GPumpingMessages = false;
 
 /** Enables various editor and HMD hacks that allow the experimental VR editor feature to work, perhaps at the expense of other systems */
 bool					GEnableVREditorHacks = false;

@@ -30,6 +30,11 @@ FNiagaraEmitterHandleViewModel::FNiagaraEmitterHandleViewModel()
 {
 }
 
+bool FNiagaraEmitterHandleViewModel::IsValid() const
+{
+	return EmitterHandle != nullptr;
+}
+
 void FNiagaraEmitterHandleViewModel::Cleanup()
 {
 	EmitterViewModel->Cleanup();
@@ -59,6 +64,10 @@ void FNiagaraEmitterHandleViewModel::Initialize(TSharedRef<FNiagaraSystemViewMod
 	EmitterHandle = InEmitterHandle;
 	UNiagaraEmitter* Emitter = EmitterHandle != nullptr ? EmitterHandle->GetInstance() : nullptr;
 	EmitterViewModel->Initialize(Emitter, InSimulation);
+	if (EmitterStackViewModel != nullptr)
+	{
+		EmitterStackViewModel->InitializeWithViewModels(InOwningSystemViewModel, this->AsShared(), FNiagaraStackViewModelOptions(false, true));
+	}
 }
 
 void FNiagaraEmitterHandleViewModel::Reset()
@@ -208,7 +217,7 @@ void FNiagaraEmitterHandleViewModel::SetIsEnabled(bool bInIsEnabled)
 	{
 		FScopedTransaction ScopedTransaction(NSLOCTEXT("NiagaraEmitterEditor", "EditEmitterEnabled", "Change emitter enabled state"));
 		GetOwningSystemViewModel()->GetSystem().Modify();
-		EmitterHandle->SetIsEnabled(bInIsEnabled);
+		EmitterHandle->SetIsEnabled(bInIsEnabled, GetOwningSystemViewModel()->GetSystem(), true);
 		OnPropertyChangedDelegate.Broadcast();
 	}
 }

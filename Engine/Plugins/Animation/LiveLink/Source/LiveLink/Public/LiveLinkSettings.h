@@ -67,15 +67,15 @@ public:
 	FDirectoryPath PresetSaveDir;
 
 	/** The refresh frequency of the list of message bus provider (when discovery is requested). */
-	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category="LiveLink", meta=(ConfigRestartRequired=true))
+	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category="LiveLink", meta=(ConfigRestartRequired=true, ForceUnits=s))
 	double MessageBusPingRequestFrequency;
 
 	/** The refresh frequency of the heartbeat when a provider didn't send us an updated. */
-	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category="LiveLink", meta=(ConfigRestartRequired = true))
+	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category="LiveLink", meta=(ConfigRestartRequired=true, ForceUnits=s))
 	double MessageBusHeartbeatFrequency;
 
 	/** How long we should wait before a provider become unresponsive. */
-	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category="LiveLink", meta=(ConfigRestartRequired = true))
+	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category="LiveLink", meta=(ConfigRestartRequired=true, ForceUnits=s))
 	double MessageBusHeartbeatTimeout;
 
 	/**
@@ -84,7 +84,7 @@ public:
 	 * The subject still exist and can still be evaluated.
 	 * An invalid subject is shown as yellow in the LiveLink UI.
 	 */
-	UPROPERTY(config, EditAnywhere, Category = "LiveLink|UI")
+	UPROPERTY(config, EditAnywhere, Category = "LiveLink|UI", meta=(ForceUnits=s))
 	double TimeWithoutFrameToBeConsiderAsInvalid;
 
 	UPROPERTY(config, EditAnywhere, Category = "LiveLink|UI")

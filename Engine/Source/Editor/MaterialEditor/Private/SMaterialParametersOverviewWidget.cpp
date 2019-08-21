@@ -888,7 +888,7 @@ void SMaterialParametersOverviewPanel::Construct(const FArguments& InArgs)
 		.InScrollbar(ExternalScrollbar);
 
 	MaterialEditorInstance = InArgs._InMaterialEditorInstance;
-	FEditorSupportDelegates::UpdateUI.AddSP(this, &SMaterialParametersOverviewPanel::Refresh);
+	Refresh();
 }
 
 void SMaterialParametersOverviewPanel::UpdateEditorInstance(UMaterialEditorPreviewParameters* InMaterialEditorInstance)

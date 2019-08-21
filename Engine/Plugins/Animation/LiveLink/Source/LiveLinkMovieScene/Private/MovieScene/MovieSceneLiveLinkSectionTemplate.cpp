@@ -31,10 +31,9 @@ static FQualifiedFrameTime ConvertFrameTimeToTimeCodeTime(const FFrameTime& Fram
 
 static FLiveLinkWorldTime ConvertFrameTimeToLiveLinkWorldTime(const FFrameTime& FrameTime, const FFrameRate& FrameRate, const FFrameTime& FrameTimeEqualToWorldFrameTime, const FLiveLinkWorldTime& LiveLinkWorldTime)
 {
-	FLiveLinkWorldTime WorldTime;
 	FFrameTime DiffFrameTime = FrameTime - FrameTimeEqualToWorldFrameTime;
 	double DiffSeconds = FrameRate.AsSeconds(DiffFrameTime);
-	return WorldTime.Time = DiffSeconds + (LiveLinkWorldTime.Time + LiveLinkWorldTime.Offset);
+	return FLiveLinkWorldTime(DiffSeconds + LiveLinkWorldTime.GetOffsettedTime(), 0.0);
 }
 
 struct FMovieSceneLiveLinkSectionTemplatePersistentData : IPersistentEvaluationData
@@ -256,7 +255,7 @@ void FMovieSceneLiveLinkSectionTemplate::FillFrameInterpolated(const FFrameTime&
 void FMovieSceneLiveLinkSectionTemplate::EvaluateSwept(const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const TRange<FFrameNumber>& SweptRange, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const
 {
 	FMovieSceneLiveLinkSectionTemplatePersistentData* Data = PersistentData.FindSectionData<FMovieSceneLiveLinkSectionTemplatePersistentData>();
-	if (Data && Data->LiveLinkSource.IsValid() && Data->LiveLinkSource->IsSourceStillValid())
+	if (Data && Data->LiveLinkSource.IsValid() && Data->LiveLinkSource->IsSourceStillValid() && SubjectPreset.Role)
 	{
 		TArray<FLiveLinkFrameDataStruct>  LiveLinkFrameDataArray;
 		GetLiveLinkFrameArray(Context.GetTime(), SweptRange.GetLowerBoundValue(), SweptRange.GetUpperBoundValue(), LiveLinkFrameDataArray, Context.GetFrameRate());
@@ -268,7 +267,7 @@ void FMovieSceneLiveLinkSectionTemplate::EvaluateSwept(const FMovieSceneEvaluati
 void FMovieSceneLiveLinkSectionTemplate::Evaluate(const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const
 {
 	FMovieSceneLiveLinkSectionTemplatePersistentData* Data = PersistentData.FindSectionData<FMovieSceneLiveLinkSectionTemplatePersistentData>();
-	if (Data && Data->LiveLinkSource.IsValid() && Data->LiveLinkSource->IsSourceStillValid())
+	if (Data && Data->LiveLinkSource.IsValid() && Data->LiveLinkSource->IsSourceStillValid() && SubjectPreset.Role)
 	{
 		TArray<FLiveLinkFrameDataStruct>  LiveLinkFrameDataArray;
 		FFrameTime FrameTime = Context.GetTime();
@@ -280,9 +279,12 @@ void FMovieSceneLiveLinkSectionTemplate::Evaluate(const FMovieSceneEvaluationOpe
 
 void FMovieSceneLiveLinkSectionTemplate::Setup(FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player) const
 {
-	FMovieSceneLiveLinkSectionTemplatePersistentData& Data = PersistentData.GetOrAddSectionData<FMovieSceneLiveLinkSectionTemplatePersistentData>();
-	Data.LiveLinkSource = FMovieSceneLiveLinkSource::CreateLiveLinkSource(SubjectPreset);
-	Data.LiveLinkSource->PublishLiveLinkStaticData(*StaticData);
+	if (StaticData)
+	{
+		FMovieSceneLiveLinkSectionTemplatePersistentData& Data = PersistentData.GetOrAddSectionData<FMovieSceneLiveLinkSectionTemplatePersistentData>();
+		Data.LiveLinkSource = FMovieSceneLiveLinkSource::CreateLiveLinkSource(SubjectPreset);
+		Data.LiveLinkSource->PublishLiveLinkStaticData(*StaticData);
+	}
 }
 
 void FMovieSceneLiveLinkSectionTemplate::TearDown(FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player) const

@@ -22,6 +22,7 @@ USoundSubmix::USoundSubmix(const FObjectInitializer& ObjectInitializer)
 {
 	EnvelopeFollowerAttackTime = 10;
 	EnvelopeFollowerReleaseTime = 500;
+	OutputVolume = 1.0f;
 }
 
 void USoundSubmix::StartRecordingOutput(const UObject* WorldContextObject, float ExpectedDuration)
@@ -186,6 +187,21 @@ void USoundSubmix::AddEnvelopeFollowerDelegate(const UObject* WorldContextObject
 	}
 }
 
+void USoundSubmix::SetSubmixOutputVolume(const UObject* WorldContextObject, float InOutputVolume)
+{
+	if (!GEngine)
+	{
+		return;
+	}
+
+	UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	FAudioDevice* AudioDevice = ThisWorld->GetAudioDevice();
+	if (AudioDevice)
+	{
+		AudioDevice->SetSubmixOutputVolume(this, InOutputVolume);
+	}
+}
+
 FString USoundSubmix::GetDesc()
 {
 	return FString(TEXT("Sound submix"));
@@ -240,6 +256,7 @@ void USoundSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& Property
 	{
 		static const FName NAME_ChildSubmixes(TEXT("ChildSubmixes"));
 		static const FName NAME_ParentSubmix(TEXT("ParentSubmix"));
+		static const FName NAME_OutputVolume(TEXT("OutputVolume"));
 
 		if (PropertyChangedEvent.Property->GetFName() == NAME_ChildSubmixes)
 		{
@@ -305,6 +322,14 @@ void USoundSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& Property
 
 			Modify();
 			RefreshAllGraphs(false);
+		}
+		else if (PropertyChangedEvent.Property->GetFName() == NAME_OutputVolume)
+		{
+			FAudioDeviceManager* AudioDeviceManager = (GEngine ? GEngine->GetAudioDeviceManager() : nullptr);
+			if (AudioDeviceManager)
+			{
+				AudioDeviceManager->UpdateSubmix(this);
+			}
 		}
 	}
 

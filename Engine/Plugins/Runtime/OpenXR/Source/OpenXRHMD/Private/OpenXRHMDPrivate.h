@@ -15,7 +15,7 @@
 #include <openxr/openxr_reflection.h>
 
 #define XR_ENUM_CASE_STR(name, val) case name: return TEXT(#name);
-constexpr const TCHAR* xrResultToString(XrResult e)
+constexpr const TCHAR* OpenXRResultToString(XrResult e)
 {
 	switch (e)
 	{
@@ -27,7 +27,7 @@ constexpr const TCHAR* xrResultToString(XrResult e)
 #if DO_CHECK
 #define XR_ENSURE(x) [] (XrResult Result) \
 	{ \
-		return ensureMsgf(XR_SUCCEEDED(Result), TEXT("OpenXR call failed with result %s"), xrResultToString(Result)); \
+		return ensureMsgf(XR_SUCCEEDED(Result), TEXT("OpenXR call failed with result %s"), OpenXRResultToString(Result)); \
 	} (x)
 #else
 #define XR_ENSURE(x) XR_SUCCEEDED(x)

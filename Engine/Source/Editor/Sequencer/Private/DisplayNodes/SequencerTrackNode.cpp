@@ -709,13 +709,15 @@ FLinearColor FSequencerTrackNode::GetDisplayNameColor() const
 
 		if (ObjectBinding.IsValid())
 		{
-			for (auto RuntimeObject : GetSequencer().FindBoundObjects(ObjectBinding, GetSequencer().GetFocusedTemplateID()))
+			for (TWeakObjectPtr<> WeakObject : GetSequencer().FindBoundObjects(ObjectBinding, GetSequencer().GetFocusedTemplateID()))
 			{
-				FTrackInstancePropertyBindings PropertyBinding(FName(*PropertyTrack->GetName()), PropertyTrack->GetPropertyPath());
-
-				if (PropertyBinding.GetProperty(*RuntimeObject))
+				if (UObject* Object = WeakObject.Get())
 				{
-					return bIsEvalDisabled ? FLinearColor(0.6f, 0.6f, 0.6f, 0.6f) : FLinearColor::White;
+					FTrackInstancePropertyBindings PropertyBinding(PropertyTrack->GetPropertyName(), PropertyTrack->GetPropertyPath());
+					if (PropertyBinding.GetProperty(*Object))
+					{
+						return bIsEvalDisabled ? FLinearColor(0.6f, 0.6f, 0.6f, 0.6f) : FLinearColor::White;
+					}
 				}
 			}
 

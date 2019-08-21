@@ -67,19 +67,6 @@ public:
 	 */
 	static bool IsLevelLoaded(ULevel* Level);
 
-	/**
-	 * Flags an unloaded level for loading.
-	 *
-	 * @param	Level		The level to modify.
-	 */
-	static void MarkLevelForLoading(ULevel* Level);
-
-	/**
-	 * Flags a loaded level for unloading.
-	 *
-	 * @param	Level		The level to modify.
-	 */
-	static void MarkLevelForUnloading(ULevel* Level);
 
 	///////////////////////////////////////////////////////////////////////////
 	// Level visibility.
@@ -153,11 +140,13 @@ public:
 	* Returns true if we are moving a level
 	*/
 	static bool IsMovingLevel();
+	static bool IsApplyingLevelTransform();
 
 private:
 
 	// Flag to mark if we are currently finalizing a level offset
 	static bool bMovingLevel;
+	static bool bApplyingLevelTransform;
 
 #endif // WITH_EDITOR
 };

@@ -46,6 +46,7 @@ static TMap<ULevel*, FLevelReadOnlyData> LevelReadOnlyCache;
 
 #if WITH_EDITOR
 bool FLevelUtils::bMovingLevel = false;
+bool FLevelUtils::bApplyingLevelTransform = false;
 #endif
 
 /**
@@ -222,44 +223,9 @@ bool FLevelUtils::IsLevelLoaded(ULevel* Level)
 	}
 
 	ULevelStreaming* StreamingLevel = FindStreamingLevel( Level );
-	checkf( StreamingLevel, TEXT("Couldn't find streaming level" ) );
-
-	// @todo: Dave, please come talk to me before implementing anything like this.
-	return true;
+	return (StreamingLevel != nullptr);
 }
 
-/**
- * Flags an unloaded level for loading.
- *
- * @param	Level		The level to modify.
- */
-void FLevelUtils::MarkLevelForLoading(ULevel* Level)
-{
-	// If the level is valid and not the persistent level (which is always loaded) . . .
-	if ( Level && !Level->IsPersistentLevel() )
-	{
-		// Mark the level's stream for load.
-		ULevelStreaming* StreamingLevel = FindStreamingLevel( Level );
-		checkf( StreamingLevel, TEXT("Couldn't find streaming level" ) );
-		// @todo: Dave, please come talk to me before implementing anything like this.
-	}
-}
-
-/**
- * Flags a loaded level for unloading.
- *
- * @param	Level		The level to modify.
- */
-void FLevelUtils::MarkLevelForUnloading(ULevel* Level)
-{
-	// If the level is valid and not the persistent level (which is always loaded) . . .
-	if ( Level && !Level->IsPersistentLevel() )
-	{
-		ULevelStreaming* StreamingLevel = FindStreamingLevel( Level );
-		checkf( StreamingLevel, TEXT("Couldn't find streaming level" ) );
-		// @todo: Dave, please come talk to me before implementing anything like this.
-	}
-}
 
 /////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -406,14 +372,22 @@ bool FLevelUtils::IsMovingLevel()
 	return bMovingLevel;
 }
 
-#endif // WITH_EDITOR
+bool FLevelUtils::IsApplyingLevelTransform()
+{
+	return bApplyingLevelTransform;
+}
 
+#endif // WITH_EDITOR
 
 void FLevelUtils::ApplyLevelTransform( ULevel* Level, const FTransform& LevelTransform, bool bDoPostEditMove )
 {
 	bool bTransformActors =  !LevelTransform.Equals(FTransform::Identity);
 	if (bTransformActors)
 	{
+#if WITH_EDITOR
+		bool bApplyingLevelTransformBackup = bApplyingLevelTransform;
+		bApplyingLevelTransform = true;
+#endif
 		if (!LevelTransform.GetRotation().IsIdentity())
 		{
 			// If there is a rotation applied, then the relative precomputed bounds become invalid.
@@ -445,6 +419,9 @@ void FLevelUtils::ApplyLevelTransform( ULevel* Level, const FTransform& LevelTra
 #endif // WITH_EDITOR
 
 		Level->OnApplyLevelTransform.Broadcast(LevelTransform);
+#if WITH_EDITOR
+		bApplyingLevelTransform = bApplyingLevelTransformBackup;
+#endif
 	}
 }
 

@@ -74,8 +74,9 @@ void FGameplayEffectExecutionDefinitionDetails::OnCalculationClassChanged()
 void FGameplayEffectExecutionDefinitionDetails::UpdateCalculationModifiers()
 {
 	TArray<FGameplayEffectAttributeCaptureDefinition> ValidCaptureDefinitions;
-	
-	// Try to extract the collection of valid capture definitions from the execution class CDO, if possible
+	FGameplayTagContainer ValidTransientAggregatorIdentifiers;
+
+	// Try to extract the collection of valid capture definitions & transient aggregator identifiers from the execution class CDO, if possible
 	if (CalculationClassPropHandle.IsValid())
 	{
 		UObject* ObjValue = nullptr;
@@ -88,6 +89,7 @@ void FGameplayEffectExecutionDefinitionDetails::UpdateCalculationModifiers()
 			if (ExecutionCDO)
 			{
 				ExecutionCDO->GetValidScopedModifierAttributeCaptureDefinitions(ValidCaptureDefinitions);
+				ValidTransientAggregatorIdentifiers = ExecutionCDO->GetValidTransientAggregatorIdentifiers();
 
 				// Grab this while we are at it so we know if we should show the 'Passed In Tags' property
 				bShowPassedInTags = ExecutionCDO->DoesRequirePassedInTags();
@@ -95,24 +97,21 @@ void FGameplayEffectExecutionDefinitionDetails::UpdateCalculationModifiers()
 		}
 	}
 
-	// Want to hide the calculation modifiers if there are no valid definitions
-	bShowCalculationModifiers = (ValidCaptureDefinitions.Num() > 0);
+	// Want to hide the calculation modifiers if there are no valid definitions or transient aggregator IDs
+	bShowCalculationModifiers = (ValidCaptureDefinitions.Num() > 0) || (ValidTransientAggregatorIdentifiers.Num() > 0);
 
-	// Need to prune out any modifiers that are specified for definitions that aren't specified by the execution class
+	// Need to prune out any modifiers that aren't supported by the execution class
 	if (CalculationModifiersArrayPropHandle.IsValid())
 	{
 		uint32 NumChildren = 0;
 		CalculationModifiersArrayPropHandle->GetNumElements(NumChildren);
 
-		// If there aren't any valid definitions, just dump the whole array
-		if (ValidCaptureDefinitions.Num() == 0)
+		// If there aren't any valid definitions or transient aggregator IDs, just dump the whole array
+		if (ValidCaptureDefinitions.Num() == 0 && ValidTransientAggregatorIdentifiers.Num() == 0 && NumChildren > 0)
 		{
-			if (NumChildren > 0)
-			{
-				CalculationModifiersArrayPropHandle->EmptyArray();
-			}
+			CalculationModifiersArrayPropHandle->EmptyArray();
 		}
-		// There are some valid definitions, so verify any existing ones to make sure they are in the valid array
+		// There are some valid definitions/IDs, so verify any existing ones to make sure they are in the valid array
 		else
 		{
 			for (int32 ChildIdx = NumChildren - 1; ChildIdx >= 0; --ChildIdx)
@@ -125,7 +124,10 @@ void FGameplayEffectExecutionDefinitionDetails::UpdateCalculationModifiers()
 				// @todo: For now, only allow single editing
 				ensure(RawScopedModInfoStructs.Num() == 1);
 				const FGameplayEffectExecutionScopedModifierInfo& CurModInfo = *reinterpret_cast<const FGameplayEffectExecutionScopedModifierInfo*>(RawScopedModInfoStructs[0]);
-				if (!ValidCaptureDefinitions.Contains(CurModInfo.CapturedAttribute))
+				
+				const bool bInvalidAttributeAggregator = (CurModInfo.AggregatorType == EGameplayEffectScopedModifierAggregatorType::CapturedAttributeBacked && !ValidCaptureDefinitions.Contains(CurModInfo.CapturedAttribute));
+				const bool bInvalidTransientAggregator = (CurModInfo.AggregatorType == EGameplayEffectScopedModifierAggregatorType::Transient && !ValidTransientAggregatorIdentifiers.HasTagExact(CurModInfo.TransientAggregatorIdentifier));
+				if (bInvalidAttributeAggregator || bInvalidTransientAggregator)
 				{
 					CalculationModifiersArrayPropHandle->DeleteItem(ChildIdx);
 				}

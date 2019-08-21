@@ -42,6 +42,39 @@ void UNavLinkCustomComponent::PostLoad()
 	INavLinkCustomInterface::UpdateUniqueId(NavLinkUserId);
 }
 
+TStructOnScope<FActorComponentInstanceData> UNavLinkCustomComponent::GetComponentInstanceData() const
+{
+	TStructOnScope<FActorComponentInstanceData> InstanceData = MakeStructOnScope<FActorComponentInstanceData, FNavLinkCustomInstanceData>(this);
+	FNavLinkCustomInstanceData* NavLinkCustomInstanceData = InstanceData.Cast<FNavLinkCustomInstanceData>();
+	NavLinkCustomInstanceData->NavLinkUserId = NavLinkUserId;
+
+	return InstanceData;
+}
+
+void UNavLinkCustomComponent::ApplyComponentInstanceData(FNavLinkCustomInstanceData* NavLinkData)
+{
+	check(NavLinkData);
+
+	if (NavLinkUserId != NavLinkData->NavLinkUserId)
+	{
+		// Registered component has its link registered in the navigation system. 
+		// In such case, we need to unregister current Id and register with the Id from the instance data.
+		const bool bIsLinkRegistrationUpdateRequired = IsRegistered();
+
+		if (bIsLinkRegistrationUpdateRequired)
+		{
+			UNavigationSystemV1::RequestCustomLinkUnregistering(*this, this);
+		}
+
+		NavLinkUserId = NavLinkData->NavLinkUserId;
+
+		if (bIsLinkRegistrationUpdateRequired)
+		{
+			UNavigationSystemV1::RequestCustomLinkRegistering(*this, this);
+		}
+	}
+}
+
 #if WITH_EDITOR
 void UNavLinkCustomComponent::PostEditImport()
 {

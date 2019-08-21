@@ -277,6 +277,7 @@ FLightSceneProxy::FLightSceneProxy(const ULightComponent* InLightComponent)
 	, bCastModulatedShadows(false)
 	, bUseWholeSceneCSMForMovableObjects(false)
 	, bTiledDeferredLightingSupported(false)
+	, AtmosphereSunLightIndex(InLightComponent->GetAtmosphereSunLightIndex())
 	, LightType(InLightComponent->GetLightType())	
 	, LightingChannelMask(GetLightingChannelMaskForStruct(InLightComponent->LightingChannels))
 	, StatId(InLightComponent->GetStatID(true))
@@ -376,6 +377,8 @@ ULightComponentBase::ULightComponentBase(const FObjectInitializer& ObjectInitial
 	bVisualizeComponent = true;
 #endif
 }
+
+ULightComponent::FOnUpdateColorAndBrightness ULightComponent::UpdateColorAndBrightnessEvent;
 
 /**
  * Updates/ resets light GUIDs.
@@ -822,6 +825,8 @@ void ULightComponent::SetIndirectLightingIntensity(float NewIntensity)
 			//@todo - remove from scene if brightness or color becomes 0
 			World->Scene->UpdateLightColorAndBrightness( this );
 		}
+
+		UpdateColorAndBrightnessEvent.Broadcast(*this);
 	}
 }
 
@@ -840,6 +845,8 @@ void ULightComponent::SetVolumetricScatteringIntensity(float NewIntensity)
 			//@todo - remove from scene if brightness or color becomes 0
 			World->Scene->UpdateLightColorAndBrightness( this );
 		}
+
+		UpdateColorAndBrightnessEvent.Broadcast(*this);
 	}
 }
 
@@ -861,6 +868,8 @@ void ULightComponent::SetLightColor(FLinearColor NewLightColor, bool bSRGB)
 			//@todo - remove from scene if brightness or color becomes 0
 			World->Scene->UpdateLightColorAndBrightness( this );
 		}
+
+		UpdateColorAndBrightnessEvent.Broadcast(*this);
 	}
 }
 
@@ -880,6 +889,8 @@ void ULightComponent::SetTemperature(float NewTemperature)
 			//@todo - remove from scene if brightness or color becomes 0
 			World->Scene->UpdateLightColorAndBrightness( this );
 		}
+
+		UpdateColorAndBrightnessEvent.Broadcast(*this);
 	}
 }
 
@@ -1090,6 +1101,8 @@ void ULightComponent::UpdateColorAndBrightness()
 			World->Scene->UpdateLightColorAndBrightness(this);
 		}
 	}
+
+	UpdateColorAndBrightnessEvent.Broadcast(*this);
 }
 
 //

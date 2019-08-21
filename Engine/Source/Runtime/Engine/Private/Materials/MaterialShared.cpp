@@ -1334,7 +1334,8 @@ FLinearColor FMaterialResource::GetTranslucentMultipleScatteringExtinction() con
 float FMaterialResource::GetTranslucentShadowStartOffset() const { return Material->TranslucentShadowStartOffset; }
 float FMaterialResource::GetRefractionDepthBiasValue() const { return Material->RefractionDepthBias; }
 float FMaterialResource::GetMaxDisplacement() const { return Material->MaxDisplacement; }
-bool FMaterialResource::ShouldApplyFogging() const {return Material->bUseTranslucencyVertexFog;}
+bool FMaterialResource::ShouldApplyFogging() const { return Material->bUseTranslucencyVertexFog; }
+bool FMaterialResource::IsSky() const { return Material->bIsSky; }
 bool FMaterialResource::ComputeFogPerPixel() const {return Material->bComputeFogPerPixel;}
 FString FMaterialResource::GetFriendlyName() const { return *GetNameSafe(Material); } //avoid using the material instance name here, we want materials that share a shadermap to also share a friendly name.
 
@@ -2339,7 +2340,12 @@ void FMaterialRenderProxy::EvaluateUniformExpressions(FUniformExpressionCache& O
 	OutUniformExpressionCache.ResetAllocatedVTs();
 	OutUniformExpressionCache.AllocatedVTs.Empty(UniformExpressionSet.VTStacks.Num());
 	OutUniformExpressionCache.OwnedAllocatedVTs.Empty(UniformExpressionSet.VTStacks.Num());
-	check(!HasVirtualTextureCallbacks);
+	
+	if (HasVirtualTextureCallbacks)
+	{
+		GetRendererModule().RemoveAllVirtualTextureProducerDestroyedCallbacks(this);
+		HasVirtualTextureCallbacks = false;
+	}
 
 	for (int32 i = 0; i < UniformExpressionSet.VTStacks.Num(); ++i)
 	{

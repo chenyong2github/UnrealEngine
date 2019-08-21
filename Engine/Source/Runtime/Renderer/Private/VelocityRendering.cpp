@@ -572,7 +572,8 @@ void FVelocityMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, 
 		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, *Material);
 		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, *Material);
 
-		if (BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked)
+		if ((BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked)
+			&& !Material->IsSky())
 		{
 			if (Material->WritesEveryPixel() && !Material->IsTwoSided() && !Material->MaterialModifiesMeshPosition_RenderThread())
 			{

@@ -3355,6 +3355,9 @@ void UEditorEngine::ConvertSelectedBrushesToVolumes( UClass* VolumeClass )
 				NewVolume->PostEditMove( true );
 				NewVolume->Modify();
 
+				// Make the actor visible as the brush is hidden by default
+				NewVolume->SetActorHiddenInGame(false);
+
 				// Destroy the old actor.
 				GetEditorSubsystem<ULayersSubsystem>()->DisassociateActorFromLayers( CurBrushActor );
 				World->EditorDestroyActor( CurBrushActor, true );

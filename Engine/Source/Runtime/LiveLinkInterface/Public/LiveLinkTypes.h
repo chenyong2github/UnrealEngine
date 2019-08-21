@@ -85,26 +85,35 @@ struct FLiveLinkWorldTime
 public:
 	GENERATED_BODY()
 
-	// Time for this frame. Used during interpolation. If this goes backwards we will dump already stored frames. 
+public:
+	FLiveLinkWorldTime()
+		: Offset(0.0)
+	{
+		Time = FPlatformTime::Seconds();
+	}
+
+	FLiveLinkWorldTime(const double InTime)
+		: Time(InTime)
+	{
+		Offset = FPlatformTime::Seconds() - InTime;
+	}
+
+	explicit FLiveLinkWorldTime(const double InTime, const double InOffset)
+		: Time(InTime)
+		, Offset(InOffset)
+	{
+	}
+
+	double GetOffsettedTime() const { return Time + Offset; }
+
+private:
+	// Time for this frame. Used during interpolation. If this goes backwards we will dump already stored frames.
 	UPROPERTY(meta = (IgnoreForMemberInitializationTest))
 	double Time;
 
 	// Value calculated on create to represent the different between the source time and client time
 	UPROPERTY()
 	double Offset;
-
-	FLiveLinkWorldTime()
-		: Offset(0.0)
-	{
-		Time = FPlatformTime::Seconds();
-	};
-
-	FLiveLinkWorldTime(const double InTime)
-		: Time(InTime)
-	{
-		Offset = FPlatformTime::Seconds() - InTime;
-	};
-
 };
 
 
@@ -130,13 +139,15 @@ struct LIVELINKINTERFACE_API FLiveLinkBaseFrameData
 {
 	GENERATED_BODY();
 
-	UPROPERTY()
+	/** Time in seconds the frame was created. */
+	UPROPERTY(VisibleAnywhere, Category="LiveLink")
 	FLiveLinkWorldTime WorldTime;
 
+	/** Frame's metadata. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="LiveLink")
 	FLiveLinkMetaData MetaData;
 
-	// Array of float values for each property data of the skeleton data
+	/** Values of the properties defined in the static structure. Use FLiveLinkBaseStaticData.FindPropertyValue to evaluate. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="LiveLink")
 	TArray<float> PropertyValues;
 };
@@ -152,7 +163,7 @@ struct LIVELINKINTERFACE_API FLiveLinkBaseStaticData
 {
 	GENERATED_BODY()
 
-	// Names for each curve values that will be sent for each frame
+	/** Names for each curve values that will be sent for each frame */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="LiveLink")
 	TArray<FName> PropertyNames;
 

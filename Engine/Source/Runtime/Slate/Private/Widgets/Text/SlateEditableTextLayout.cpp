@@ -147,9 +147,12 @@ FSlateEditableTextLayout::FSlateEditableTextLayout(ISlateEditableTextWidget& InO
 
 	auto ExecuteDeleteAction = [this]()
 	{
-		BeginEditTransation();
-		DeleteSelectedText();
-		EndEditTransaction();
+		if (CanExecuteDelete())
+		{
+			BeginEditTransation();
+			DeleteSelectedText();
+			EndEditTransaction();
+		}
 	};
 
 	UICommandList = MakeShareable(new FUICommandList());
@@ -745,6 +748,9 @@ bool FSlateEditableTextLayout::HandleFocusReceived(const FFocusEvent& InFocusEve
 
 	// Focus change affects volatility, so update that too
 	OwnerWidget->GetSlateWidget()->Invalidate(EInvalidateWidget::LayoutAndVolatility);
+
+	// Force update of last cursor interaction time to ensure the caret blinks at the correct frequency regardless of how focus is set.
+	CursorInfo.UpdateLastCursorInteractionTime();
 
 	return true;
 }
@@ -1369,11 +1375,13 @@ bool FSlateEditableTextLayout::HandleBackspace()
 		}
 		else
 		{
-			// Delete character to the left of the caret
-			if (TextLayout->RemoveAt(FTextLocation(CursorInteractionPosition, -1)))
+			// Delete grapheme to the left of the caret
+			const FTextSelection DeleteSelection = TextLayout->GetGraphemeAt(FTextLocation(CursorInteractionPosition, -1));
+			const int32 GraphemeSize = DeleteSelection.GetEnd().GetOffset() - DeleteSelection.GetBeginning().GetOffset();
+			if (TextLayout->RemoveAt(DeleteSelection.GetBeginning(), GraphemeSize))
 			{
-				// Adjust caret position one to the left
-				FinalCursorLocation = FTextLocation(CursorInteractionPosition, -1);
+				// Adjust caret to the left
+				FinalCursorLocation = FTextLocation(CursorInteractionPosition, -GraphemeSize);
 			}
 		}
 
@@ -1430,8 +1438,10 @@ bool FSlateEditableTextLayout::HandleDelete()
 		}
 		else
 		{
-			// Delete character to the right of the caret
-			TextLayout->RemoveAt(CursorInteractionPosition);
+			// Delete grapheme to the right of the caret
+			const FTextSelection DeleteSelection = TextLayout->GetGraphemeAt(CursorInteractionPosition);
+			const int32 GraphemeSize = DeleteSelection.GetEnd().GetOffset() - DeleteSelection.GetBeginning().GetOffset();
+			TextLayout->RemoveAt(DeleteSelection.GetBeginning(), GraphemeSize);
 			// do nothing to the cursor as the FinalCursorLocation is already correct
 		}
 
@@ -1664,7 +1674,27 @@ bool FSlateEditableTextLayout::IsTextSelectedAt(const FVector2D& InLocalPosition
 
 bool FSlateEditableTextLayout::CanExecuteSelectAll() const
 {
-	return true;
+	bool bCanExecute = true;
+
+	// Can't select all if string is empty
+	if (TextLayout->IsEmpty())
+	{
+		bCanExecute = false;
+	}
+
+	const TArray< FTextLayout::FLineModel >& Lines = TextLayout->GetLineModels();
+	const int32 NumberOfLines = Lines.Num();
+
+	// Can't select all if entire string is already selected
+	const FTextLocation CursorInteractionPosition = CursorInfo.GetCursorInteractionLocation();
+	if (SelectionStart.IsSet() &&
+		SelectionStart.GetValue() == FTextLocation(0, 0) &&
+		CursorInteractionPosition == FTextLocation(NumberOfLines - 1, Lines[NumberOfLines - 1].Text->Len()))
+	{
+		bCanExecute = false;
+	}
+
+	return bCanExecute;
 }
 
 void FSlateEditableTextLayout::SelectAllText()
@@ -2172,7 +2202,7 @@ void FSlateEditableTextLayout::GoTo(const FTextLocation& NewLocation)
 	}
 }
 
-void FSlateEditableTextLayout::GoTo(const ETextLocation NewLocation)
+void FSlateEditableTextLayout::GoTo(ETextLocation NewLocation)
 {
 	JumpTo(NewLocation, ECursorAction::MoveCursor);
 }
@@ -2596,20 +2626,10 @@ void FSlateEditableTextLayout::UpdateCursorHighlight()
 		const TArray< FTextLayout::FLineModel >& Lines = TextLayout->GetLineModels();
 		if (Lines.IsValidIndex(CursorPosition.GetLineIndex()))
 		{
-			const int32 LineTextLength = Lines[CursorPosition.GetLineIndex()].Text->Len();
-
-			if (LineTextLength == 0)
-			{
-				ActiveLineHighlights.Add(FTextLineHighlight(CursorPosition.GetLineIndex(), FTextRange(0, 0), CursorZOrder, CursorLineHighlighter.ToSharedRef()));
-			}
-			else if (CursorPosition.GetOffset() == LineTextLength)
-			{
-				ActiveLineHighlights.Add(FTextLineHighlight(CursorPosition.GetLineIndex(), FTextRange(LineTextLength - 1, LineTextLength), CursorZOrder, CursorLineHighlighter.ToSharedRef()));
-			}
-			else
-			{
-				ActiveLineHighlights.Add(FTextLineHighlight(CursorPosition.GetLineIndex(), FTextRange(CursorPosition.GetOffset(), CursorPosition.GetOffset() + 1), CursorZOrder, CursorLineHighlighter.ToSharedRef()));
-			}
+			// Ensure the cursor is sitting on a valid grapheme
+			// Right-aligned cursors naively subtract 1 from their real position, which may leave us in the middle of a codepoint or grapheme and break measuring
+			const FTextSelection CursorSelection = TextLayout->GetGraphemeAt(CursorPosition);
+			ActiveLineHighlights.Add(FTextLineHighlight(CursorPosition.GetLineIndex(), FTextRange(CursorSelection.GetBeginning().GetOffset(), CursorSelection.GetEnd().GetOffset()), CursorZOrder, CursorLineHighlighter.ToSharedRef()));
 		}
 	}
 
@@ -2828,7 +2848,7 @@ FTextLocation FSlateEditableTextLayout::TranslatedLocation(const FTextLocation& 
 	const TArray< FTextLayout::FLineModel >& Lines = TextLayout->GetLineModels();
 
 	// Move to the previous or next grapheme based upon the requested direction and current position
-	GraphemeBreakIterator->SetString(*Lines[Location.GetLineIndex()].Text);
+	GraphemeBreakIterator->SetStringRef(&Lines[Location.GetLineIndex()].Text.Get());
 	const int32 NewOffsetInLine = (Direction > 0) ? GraphemeBreakIterator->MoveToCandidateAfter(Location.GetOffset()) : GraphemeBreakIterator->MoveToCandidateBefore(Location.GetOffset());
 	GraphemeBreakIterator->ClearString();
 

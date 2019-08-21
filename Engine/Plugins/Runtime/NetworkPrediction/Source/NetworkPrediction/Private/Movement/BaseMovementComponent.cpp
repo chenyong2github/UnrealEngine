@@ -7,7 +7,7 @@
 #include "Components/CapsuleComponent.h"
 #include "DrawDebugHelpers.h"
 #include "VisualLogger/VisualLogger.h"
-#include "NetworkSimulationModel.h"
+#include "NetworkPredictionTypes.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogBaseMovement, Log, All);
@@ -41,10 +41,10 @@ static FAutoConsoleVariableRef CVarUseVLogger(TEXT("bm.Debug.UseUnrealVLogger"),
 
 static int32 UseDrawDebug = 1;
 static FAutoConsoleVariableRef CVarUseDrawDebug(TEXT("bm.Debug.UseDrawDebug"),
-	UseVLogger,	TEXT("Use built in DrawDebug* functions for visual logging\n"), ECVF_Default);
+	UseDrawDebug,	TEXT("Use built in DrawDebug* functions for visual logging\n"), ECVF_Default);
 
 static float DrawDebugDefaultLifeTime = 30.f;
-static FAutoConsoleVariableRef CVarDrawDebugDefaultLifeTime(TEXT("bm.Debug.UseDrawDebug.DefaultLifeTime"),
+static FAutoConsoleVariableRef CVarDrawDebugDefaultLifeTime(TEXT("bm.Debug.DrawDebugLifetime.DefaultLifeTime"),
 	DrawDebugDefaultLifeTime, TEXT("Use built in DrawDebug* functions for visual logging"), ECVF_Default);
 }
 

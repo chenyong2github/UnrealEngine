@@ -2150,6 +2150,12 @@ UUserWidget* UUserWidget::CreateInstanceInternal(UObject* Outer, TSubclassOf<UUs
 	{
 		return nullptr;
 	}
+#else
+	if (!UserWidgetClass)
+	{
+		UE_LOG(LogUMG, Error, TEXT("CreateWidget called with a null class."));
+		return nullptr;
+	}
 #endif
 
 #if !UE_BUILD_SHIPPING

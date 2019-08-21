@@ -1438,10 +1438,16 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 			Dest.RayTracingGISamplesPerPixel = Src.RayTracingGISamplesPerPixel;
 		}
 
+		if (Src.bOverride_RayTracingAO)
+		{
+			Dest.RayTracingAO = Src.RayTracingAO;
+		}
+
 		if (Src.bOverride_RayTracingAOSamplesPerPixel)
 		{
 			Dest.RayTracingAOSamplesPerPixel = Src.RayTracingAOSamplesPerPixel;
 		}
+
 		if (Src.bOverride_PathTracingMaxBounces)
 		{
 			Dest.PathTracingMaxBounces = Src.PathTracingMaxBounces;
@@ -1710,6 +1716,13 @@ void FSceneView::StartFinalPostprocessSettings(FVector InViewLocation)
 		}
 	}
 
+	{
+		if (GEngine->StereoRenderingDevice.IsValid())
+		{
+			GEngine->StereoRenderingDevice->StartFinalPostprocessSettings(&FinalPostProcessSettings, StereoPass);
+		}
+	}
+
 	if (State != nullptr)
 	{
 		State->OnStartPostProcessing(*this);
@@ -1902,7 +1915,7 @@ void FSceneView::EndFinalPostprocessSettings(const FSceneViewInitOptions& ViewIn
 	{
 		if (GEngine->StereoRenderingDevice.IsValid())
 		{
-			GEngine->StereoRenderingDevice->UpdatePostProcessSettings(&FinalPostProcessSettings, StereoPass);
+			GEngine->StereoRenderingDevice->EndFinalPostprocessSettings(&FinalPostProcessSettings, StereoPass);
 		}
 	}
 

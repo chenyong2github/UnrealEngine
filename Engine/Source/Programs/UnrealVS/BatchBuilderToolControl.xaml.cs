@@ -1,8 +1,9 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -14,6 +15,7 @@ using EnvDTE80;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
+using Constants = EnvDTE.Constants;
 
 namespace UnrealVS
 {
@@ -22,6 +24,7 @@ namespace UnrealVS
 	/// </summary>
 	public partial class BatchBuilderToolControl : UserControl
 	{
+		private readonly BatchBuilderToolState _state;
 		////////////// Types ///////////////////////
 
 		public class BuildJob : DependencyObject
@@ -230,6 +233,100 @@ namespace UnrealVS
 				return "<None>";
 			}
 		}
+		
+		public class BatchBuilderToolState
+		{
+			public readonly ObservableCollection<BuildJobSet> _BuildJobSetsCollection = new ObservableCollection<BuildJobSet>();
+
+			/// <summary>
+			/// Called from the package class when there are options to be read out of the solution file.
+			/// </summary>
+			/// <param name="Stream">The stream to load the option data from.</param>
+			public void LoadOptions(Stream Stream)
+			{
+				try
+				{
+					_BuildJobSetsCollection.Clear();
+
+					using (BinaryReader Reader = new BinaryReader(Stream))
+					{
+						int SetCount = Reader.ReadInt32();
+
+						for (int SetIdx = 0; SetIdx < SetCount; SetIdx++)
+						{
+							BuildJobSet LoadedSet = new BuildJobSet();
+							LoadedSet.Name = Reader.ReadString();
+							int JobCount = Reader.ReadInt32();
+							for (int JobIdx = 0; JobIdx < JobCount; JobIdx++)
+							{
+								Utils.SafeProjectReference ProjectRef = new Utils.SafeProjectReference { FullName = Reader.ReadString(), Name = Reader.ReadString() };
+
+								string Config = Reader.ReadString();
+								string Platform = Reader.ReadString();
+								BuildJob.BuildJobType JobType;
+
+								if (Enum.TryParse(Reader.ReadString(), out JobType))
+								{
+									LoadedSet.BuildJobs.Add(new BuildJob(ProjectRef, Config, Platform, JobType));
+								}
+							}
+							_BuildJobSetsCollection.Add(LoadedSet);
+						}
+					}
+
+					if (_BuildJobSetsCollection.Count == 0)
+					{
+						BuildJobSet DefaultItem = new BuildJobSet { Name = "UntitledSet" };
+						_BuildJobSetsCollection.Add(DefaultItem);
+					}
+
+					StateLoaded?.Invoke(this, null);
+				}
+				catch (Exception ex)
+				{
+					Exception AppEx = new ApplicationException("BatchBuilder failed to load options from .suo", ex);
+					Logging.WriteLine(AppEx.ToString());
+					throw AppEx;
+				}
+			}
+
+			/// <summary>
+			/// Called from the package class when there are options to be written to the solution file.
+			/// </summary>
+			/// <param name="Stream">The stream to save the option data to.</param>
+			public void SaveOptions(Stream Stream)
+			{
+				try
+				{
+					using (BinaryWriter Writer = new BinaryWriter(Stream))
+					{
+						Writer.Write(_BuildJobSetsCollection.Count);
+						foreach (var Set in _BuildJobSetsCollection)
+						{
+							Writer.Write(Set.Name);
+							Writer.Write(Set.BuildJobs.Count);
+							foreach (var Job in Set.BuildJobs)
+							{
+								Writer.Write(Job.Project.FullName);
+								Writer.Write(Job.Project.Name);
+								Writer.Write(Job.Config);
+								Writer.Write(Job.Platform);
+								Writer.Write(Enum.GetName(typeof(BuildJob.BuildJobType), Job.JobType) ?? "INVALIDJOBTYPE");
+							}
+						}
+					}
+				}
+				catch (Exception ex)
+				{
+					Exception AppEx = new ApplicationException("BatchBuilder failed to save options to .suo", ex);
+					Logging.WriteLine(AppEx.ToString());
+					throw AppEx;
+				}
+			}
+
+			// we are using a custom even instead of listening to the observable collection as we just want a even when the entire collection has been modified
+			public event EventHandler StateLoaded;
+		}
 
 		////////////// Dependency properties ///////////////////////
 
@@ -317,7 +414,7 @@ namespace UnrealVS
 
 		public ObservableCollection<BuildJobSet> BuildJobSets
 		{
-			get { return _BuildJobSetsCollection; }
+			get { return _state._BuildJobSetsCollection; }
 		}
 
 		public string SelectedBuildJobSetName
@@ -327,14 +424,14 @@ namespace UnrealVS
 				if (String.IsNullOrEmpty(value)) return;
 
 				BuildJobSet SelectedSet =
-					_BuildJobSetsCollection.FirstOrDefault(
+					_state._BuildJobSetsCollection.FirstOrDefault(
 						Set => String.Compare(Set.Name, value, StringComparison.InvariantCultureIgnoreCase) == 0);
 
 				if (SelectedSet == null)
 				{
 					SelectedSet = new BuildJobSet { Name = value };
 					SelectedSet.DeepCopyJobsFrom(BuildJobs);
-					_BuildJobSetsCollection.Add(SelectedSet);
+					_state._BuildJobSetsCollection.Add(SelectedSet);
 				}
 
 				SetCombo.SelectedItem = SelectedSet;
@@ -407,8 +504,9 @@ namespace UnrealVS
 		/// <summary>
 		/// Default constructor
 		/// </summary>
-		public BatchBuilderToolControl()
+		public BatchBuilderToolControl(BatchBuilderToolState state)
 		{
+			_state = state;
 			IsSolutionOpen = UnrealVSPackage.Instance.DTE.Solution.IsOpen;
 
 			InitializeComponent();
@@ -435,89 +533,17 @@ namespace UnrealVS
 			BuildRadioButton.IsChecked = true;
 
 			EnsureDefaultBuildJobSet();
+
+			state.StateLoaded += BuildJobSetsCollectionOnCollectionChanged;
 		}
 
-		/// <summary>
-		/// Called from the package class when there are options to be read out of the solution file.
-		/// </summary>
-		/// <param name="Stream">The stream to load the option data from.</param>
-		public void LoadOptions(Stream Stream)
+		private void BuildJobSetsCollectionOnCollectionChanged(object sender, EventArgs eventArgs)
 		{
-			try
+			Logging.WriteLine("BuildJobSet Collection changed");
+
+			if (SetCombo.SelectedItem == null)
 			{
-				_BuildJobSetsCollection.Clear();
-
-				using (BinaryReader Reader = new BinaryReader(Stream))
-				{
-					int SetCount = Reader.ReadInt32();
-
-					for (int SetIdx = 0; SetIdx < SetCount; SetIdx++)
-					{
-						BuildJobSet LoadedSet = new BuildJobSet();
-						LoadedSet.Name = Reader.ReadString();
-						int JobCount = Reader.ReadInt32();
-						for (int JobIdx = 0; JobIdx < JobCount; JobIdx++)
-						{
-							Utils.SafeProjectReference ProjectRef = new Utils.SafeProjectReference { FullName = Reader.ReadString(), Name = Reader.ReadString() };
-
-							string Config = Reader.ReadString();
-							string Platform = Reader.ReadString();
-							BuildJob.BuildJobType JobType;
-
-							if (Enum.TryParse(Reader.ReadString(), out JobType))
-							{
-								LoadedSet.BuildJobs.Add(new BuildJob(ProjectRef, Config, Platform, JobType));
-							}
-						}
-						_BuildJobSetsCollection.Add(LoadedSet);
-					}
-				}
-
-				EnsureDefaultBuildJobSet();
-				if (SetCombo.SelectedItem == null)
-				{
-					SetCombo.SelectedItem = _BuildJobSetsCollection[0];
-				}
-			}
-			catch (Exception ex)
-			{
-				Exception AppEx = new ApplicationException("BatchBuilder failed to load options from .suo", ex);
-				Logging.WriteLine(AppEx.ToString());
-				throw AppEx;
-			}
-		}
-
-		/// <summary>
-		/// Called from the package class when there are options to be written to the solution file.
-		/// </summary>
-		/// <param name="Stream">The stream to save the option data to.</param>
-		public void SaveOptions(Stream Stream)
-		{
-			try
-			{
-				using (BinaryWriter Writer = new BinaryWriter(Stream))
-				{
-					Writer.Write(_BuildJobSetsCollection.Count);
-					foreach (var Set in _BuildJobSetsCollection)
-					{
-						Writer.Write(Set.Name);
-						Writer.Write(Set.BuildJobs.Count);
-						foreach (var Job in Set.BuildJobs)
-						{
-							Writer.Write(Job.Project.FullName);
-							Writer.Write(Job.Project.Name);
-							Writer.Write(Job.Config);
-							Writer.Write(Job.Platform);
-							Writer.Write(Enum.GetName(typeof(BuildJob.BuildJobType), Job.JobType) ?? "INVALIDJOBTYPE");
-						}
-					}
-				}
-			}
-			catch (Exception ex)
-			{
-				Exception AppEx = new ApplicationException("BatchBuilder failed to save options to .suo", ex);
-				Logging.WriteLine(AppEx.ToString());
-				throw AppEx;
+				SetCombo.SelectedItem = _state._BuildJobSetsCollection[0];
 			}
 		}
 
@@ -533,10 +559,10 @@ namespace UnrealVS
 
 		private void EnsureDefaultBuildJobSet()
 		{
-			if (_BuildJobSetsCollection.Count == 0)
+			if (_state._BuildJobSetsCollection.Count == 0)
 			{
 				BuildJobSet DefaultItem = new BuildJobSet {Name = "UntitledSet"};
-				_BuildJobSetsCollection.Add(DefaultItem);
+				_state._BuildJobSetsCollection.Add(DefaultItem);
 				if (SetCombo != null)
 				{
 					SetCombo.SelectedItem = DefaultItem;
@@ -566,7 +592,7 @@ namespace UnrealVS
 
 			if (!IsSolutionOpen)
 			{
-				_BuildJobSetsCollection.Clear();
+				_state._BuildJobSetsCollection.Clear();
 			}
 
 			string[] RefreshConfigs;
@@ -737,10 +763,10 @@ namespace UnrealVS
 			{
 				_LastSelectedBuildJobSet = (BuildJobSet) SetCombo.SelectedItem;
 				BuildJobs = _LastSelectedBuildJobSet.BuildJobs;
-				IsDeletableSetSelected = _BuildJobSetsCollection.Count > 1;
+				IsDeletableSetSelected = _state._BuildJobSetsCollection.Count > 1;
 				BuildJobsPanelTitle = String.Format("{0} ({1})", BuildJobsPanelPrefix, _LastSelectedBuildJobSet.Name);
 			}
-			if (!_BuildJobSetsCollection.Contains(_LastSelectedBuildJobSet))
+			if (!_state._BuildJobSetsCollection.Contains(_LastSelectedBuildJobSet))
 			{
 				_LastSelectedBuildJobSet = null;
 				BuildJobs = new ObservableCollection<BuildJob>();
@@ -761,12 +787,12 @@ namespace UnrealVS
 		{
 			if (_LastSelectedBuildJobSet != null)
 			{
-				int SelectionIdx = _BuildJobSetsCollection.IndexOf(_LastSelectedBuildJobSet);
-				if (SelectionIdx >= 0 && SelectionIdx < _BuildJobSetsCollection.Count)
+				int SelectionIdx = _state._BuildJobSetsCollection.IndexOf(_LastSelectedBuildJobSet);
+				if (SelectionIdx >= 0 && SelectionIdx < _state._BuildJobSetsCollection.Count)
 				{
 					SetCombo.SelectedItem = null;
-					_BuildJobSetsCollection.RemoveAt(SelectionIdx);
-					if (!(SelectionIdx < _BuildJobSetsCollection.Count))
+					_state._BuildJobSetsCollection.RemoveAt(SelectionIdx);
+					if (!(SelectionIdx < _state._BuildJobSetsCollection.Count))
 					{
 						SelectionIdx--;
 					}
@@ -807,8 +833,15 @@ namespace UnrealVS
 
 		private void RunBuildJobs()
 		{
+			if (BuildJobs == null)
+				throw new ArgumentNullException(nameof(BuildJobs));
+
+			if (_LastBuildJobsQueued == null)
+				throw new ArgumentNullException(nameof(_LastBuildJobsQueued));
+
 			int BuildJobCount = BuildJobs.Count;
 			SanityCheckBuildJobs();
+
 			if (BuildJobCount > BuildJobs.Count)
 			{
 				if (VSConstants.S_OK != VsShellUtilities.ShowMessageBox(ServiceProvider.GlobalProvider,
@@ -830,8 +863,11 @@ namespace UnrealVS
 				_BuildQueue.Enqueue(Job);
 			}
 
-			OutputPanelTitle = String.Format("{0} ({1})", OutputPanelTitlePrefix, _LastSelectedBuildJobSet.Name);
 			HasOutput = _BuildQueue.Count > 0;
+			if (_LastSelectedBuildJobSet != null)
+			{
+				OutputPanelTitle = String.Format("{0} ({1})", OutputPanelTitlePrefix, _LastSelectedBuildJobSet.Name);
+			}
 			OutputTab.IsSelected = HasOutput;
 
 			UpdateBusyState();
@@ -850,7 +886,7 @@ namespace UnrealVS
 			string[] SolutionPlatforms;
 			Utils.GetSolutionConfigsAndPlatforms(out SolutionConfigs, out SolutionPlatforms);
 
-			foreach (var JobSet in _BuildJobSetsCollection)
+			foreach (var JobSet in _state._BuildJobSetsCollection)
 			{
 				for (int JobIdx = JobSet.BuildJobs.Count - 1; JobIdx >= 0; JobIdx--)
 				{
@@ -912,7 +948,7 @@ namespace UnrealVS
 		{
 			var OutputText = new StringBuilder();
 
-			var Window = UnrealVSPackage.Instance.DTE.Windows.Item(EnvDTE.Constants.vsWindowKindOutput);
+			var Window = UnrealVSPackage.Instance.DTE.Windows.Item(Constants.vsWindowKindOutput);
 			if (Window != null)
 			{
 				var OutputWindow = Window.Object as OutputWindow;
@@ -1019,7 +1055,5 @@ namespace UnrealVS
 		private readonly ObservableCollection<ProjectListItem> _ProjectCollection = new ObservableCollection<ProjectListItem>();
 		private readonly ObservableCollection<string> _ConfigCollection = new ObservableCollection<string>();
 		private readonly ObservableCollection<string> _PlatformCollection = new ObservableCollection<string>();
-
-		private readonly ObservableCollection<BuildJobSet> _BuildJobSetsCollection = new ObservableCollection<BuildJobSet>();
 	}
 }

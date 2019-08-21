@@ -173,70 +173,55 @@ public:
 
 public:
 
-	/** Overrides the specified binding with the specified actors, optionally still allowing the bindings defined in the Level Sequence asset
+	/**
+	 * Overrides the specified binding with the specified actors, optionally still allowing the bindings defined in the Level Sequence asset
 	 *
 	 * @param Binding Binding to modify
 	 * @param Actors Actors to bind
 	 * @param bAllowBindingsFromAsset Allow bindings from the level sequence asset
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game|Cinematic|Bindings")
-	void SetBinding(FMovieSceneObjectBindingID Binding, const TArray<AActor*>& Actors, bool bAllowBindingsFromAsset = false)
-	{
-		BindingOverrides->SetBinding(Binding, TArray<UObject*>(Actors), bAllowBindingsFromAsset);
-		if (SequencePlayer)
-		{
-			SequencePlayer->State.Invalidate(Binding.GetGuid(), Binding.GetSequenceID());
-		}
-	}
+	void SetBinding(FMovieSceneObjectBindingID Binding, const TArray<AActor*>& Actors, bool bAllowBindingsFromAsset = false);
 
-	/** Adds the specified actor to the overridden bindings for the specified binding ID, optionally still allowing the bindings defined in the Level Sequence asset
+	/**
+	 * Adds the specified actor to the overridden bindings for the specified binding ID, optionally still allowing the bindings defined in the Level Sequence asset
 	 *
 	 * @param Binding Binding to modify
 	 * @param Actor Actor to bind
 	 * @param bAllowBindingsFromAsset Allow bindings from the level sequence asset
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game|Cinematic|Bindings")
-	void AddBinding(FMovieSceneObjectBindingID Binding, AActor* Actor, bool bAllowBindingsFromAsset = false)
-	{
-		BindingOverrides->AddBinding(Binding, Actor, bAllowBindingsFromAsset);
-		if (SequencePlayer)
-		{
-			SequencePlayer->State.Invalidate(Binding.GetGuid(), Binding.GetSequenceID());
-		}
-	}
+	void AddBinding(FMovieSceneObjectBindingID Binding, AActor* Actor, bool bAllowBindingsFromAsset = false);
 
-	/** Removes the specified actor from the specified binding's actor array */
+	/**
+	 * Removes the specified actor from the specified binding's actor array
+	 */
 	UFUNCTION(BlueprintCallable, Category="Game|Cinematic|Bindings")
-	void RemoveBinding(FMovieSceneObjectBindingID Binding, AActor* Actor)
-	{
-		BindingOverrides->RemoveBinding(Binding, Actor);
-		if (SequencePlayer)
-		{
-			SequencePlayer->State.Invalidate(Binding.GetGuid(), Binding.GetSequenceID());
-		}
-	}
+	void RemoveBinding(FMovieSceneObjectBindingID Binding, AActor* Actor);
 
-	/** Resets the specified binding back to the defaults defined by the Level Sequence asset */
+	/**
+	 * Resets the specified binding back to the defaults defined by the Level Sequence asset
+	 */
 	UFUNCTION(BlueprintCallable, Category="Game|Cinematic|Bindings")
-	void ResetBinding(FMovieSceneObjectBindingID Binding)
-	{
-		BindingOverrides->ResetBinding(Binding);
-		if (SequencePlayer)
-		{
-			SequencePlayer->State.Invalidate(Binding.GetGuid(), Binding.GetSequenceID());
-		}
-	}
+	void ResetBinding(FMovieSceneObjectBindingID Binding);
 
-	/** Resets all overridden bindings back to the defaults defined by the Level Sequence asset */
+	/**
+	 * Resets all overridden bindings back to the defaults defined by the Level Sequence asset
+	 */
 	UFUNCTION(BlueprintCallable, Category="Game|Cinematic|Bindings")
-	void ResetBindings()
-	{
-		BindingOverrides->ResetBindings();
-		if (SequencePlayer)
-		{
-			SequencePlayer->State.ClearObjectCaches(*SequencePlayer);
-		}
-	}
+	void ResetBindings();
+
+	/**
+	 * Find the first object binding ID associated with the specified name (set up through RMB->Expose on Object bindings from within sequencer)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Game|Cinematic|Bindings")
+	FMovieSceneObjectBindingID FindNamedBinding(FName InBindingName) const;
+
+	/**
+	 * Find all object binding IDs associated with the specified name (set up through RMB->Expose on Object bindings from within sequencer)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Game|Cinematic|Bindings")
+	const TArray<FMovieSceneObjectBindingID>& FindNamedBindings(FName InBindingName) const;
 
 protected:
 

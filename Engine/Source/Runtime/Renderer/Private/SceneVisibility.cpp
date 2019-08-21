@@ -1887,6 +1887,7 @@ struct FRelevancePacket
 	bool bUsesLightingChannels;
 	bool bTranslucentSurfaceLighting;
 	bool bUsesSceneDepth;
+	bool bSceneHasSkyMaterial;
 
 	FRelevancePacket(
 		FRHICommandListImmediate& InRHICmdList,
@@ -1923,6 +1924,7 @@ struct FRelevancePacket
 		, bUsesLightingChannels(false)
 		, bTranslucentSurfaceLighting(false)
 		, bUsesSceneDepth(false)
+		, bSceneHasSkyMaterial(false)
 	{
 	}
 
@@ -1935,6 +1937,7 @@ struct FRelevancePacket
 	void ComputeRelevance()
 	{
 		CombinedShadingModelMask = 0;
+		bSceneHasSkyMaterial = 0;
 		bUsesGlobalDistanceField = false;
 		bUsesLightingChannels = false;
 		bTranslucentSurfaceLighting = false;
@@ -2032,6 +2035,7 @@ struct FRelevancePacket
 			bUsesLightingChannels |= ViewRelevance.bUsesLightingChannels;
 			bTranslucentSurfaceLighting |= ViewRelevance.bTranslucentSurfaceLighting;
 			bUsesSceneDepth |= ViewRelevance.bUsesSceneDepth;
+			bSceneHasSkyMaterial |= ViewRelevance.bUsesSkyMaterial;
 
 			if (ViewRelevance.bRenderCustomDepth)
 			{
@@ -2206,7 +2210,7 @@ struct FRelevancePacket
 
 					if (ViewRelevance.bDrawRelevance)
 					{
-						if ((StaticMeshRelevance.bUseForMaterial || StaticMeshRelevance.bUseAsOccluder) 
+						if ((StaticMeshRelevance.bUseForMaterial || StaticMeshRelevance.bUseAsOccluder)
 							&& (ViewRelevance.bRenderInMainPass || ViewRelevance.bRenderCustomDepth) 
 							&& !bHiddenByHLODFade)
 						{
@@ -2224,6 +2228,11 @@ struct FRelevancePacket
 								if (ShadingPath == EShadingPath::Mobile)
 								{
 									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::MobileBasePassCSM);
+								}
+								else if(StaticMeshRelevance.bUseSkyMaterial)
+								{
+									// Not needed on Mobile path as in this case everything goes into the regular base pass
+									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::SkyPass);
 								}
 
 								if (ViewRelevance.bRenderCustomDepth)
@@ -2361,6 +2370,7 @@ struct FRelevancePacket
 		WriteView.bUsesLightingChannels |= bUsesLightingChannels;
 		WriteView.bTranslucentSurfaceLighting |= bTranslucentSurfaceLighting;
 		WriteView.bUsesSceneDepth |= bUsesSceneDepth;
+		WriteView.bSceneHasSkyMaterial |= bSceneHasSkyMaterial;
 		VisibleDynamicPrimitivesWithSimpleLights.AppendTo(WriteView.VisibleDynamicPrimitivesWithSimpleLights);
 		WriteView.NumVisibleDynamicPrimitives += NumVisibleDynamicPrimitives;
 		WriteView.NumVisibleDynamicEditorPrimitives += NumVisibleDynamicEditorPrimitives;
@@ -2935,9 +2945,10 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 	}
 
 	// Notify the FX system that the scene is about to perform visibility checks.
-	if (Scene->FXSystem && !Views[0].bIsPlanarReflection)
+
+	if (Scene->FXSystem && Views.IsValidIndex(0))
 	{
-		Scene->FXSystem->PreInitViews(RHICmdList);
+		Scene->FXSystem->PreInitViews(RHICmdList, Views[0].AllowGPUParticleUpdate());
 	}
 
 	// Draw lines to lights affecting this mesh if its selected.
@@ -3001,7 +3012,9 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 		// HighResScreenshot should get best results so we don't do the occlusion optimization based on the former frame
 		extern bool GIsHighResScreenshot;
 		const bool bIsHitTesting = ViewFamily.EngineShowFlags.HitProxies;
-		if (GIsHighResScreenshot || !DoOcclusionQueries(FeatureLevel) || bIsHitTesting)
+		// Don't test occlusion queries in collision viewmode as they can be bigger then the rendering bounds.
+		const bool bCollisionView = ViewFamily.EngineShowFlags.CollisionVisibility || ViewFamily.EngineShowFlags.CollisionPawn;
+		if (GIsHighResScreenshot || !DoOcclusionQueries(FeatureLevel) || bIsHitTesting || bCollisionView)
 		{
 			View.bDisableQuerySubmissions = true;
 			View.bIgnoreExistingQueries = true;
@@ -4155,6 +4168,12 @@ bool FDeferredShadingSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdLi
 	CreateIndirectCapsuleShadows();
 	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 
+	// Initialise Sky/View resources before the view global uniform buffer is built.
+	if (Scene && ShouldRenderSkyAtmosphere(Scene->GetSkyAtmosphereSceneInfo(), Scene->GetShaderPlatform()))
+	{
+		InitSkyAtmosphereForViews(RHICmdList);
+	}
+
 	PostVisibilityFrameSetup(ILCTaskData);
 	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 
@@ -4470,7 +4489,9 @@ void FLODSceneTree::UpdateVisibilityStates(FViewInfo& View)
 
 			// Update visibility states of this node and owned children
 			const float DistanceSquared = Bounds.BoxSphereBounds.ComputeSquaredDistanceFromBoxToPoint(View.ViewMatrices.GetViewOrigin());
-			const bool bIsInDrawRange = DistanceSquared >= Bounds.MinDrawDistanceSq * HLODState.FOVDistanceScaleSq;
+			const bool bNearCulled = DistanceSquared < Bounds.MinDrawDistanceSq * HLODState.FOVDistanceScaleSq;
+			const bool bFarCulled = DistanceSquared > Bounds.MaxDrawDistance * Bounds.MaxDrawDistance * HLODState.FOVDistanceScaleSq;
+			const bool bIsInDrawRange = !bNearCulled && !bFarCulled;
 
 			const bool bWasFadingPreUpdate = !!NodeVisibility.bIsFading;
 			const bool bIsDitheredTransition = NodeMeshRelevances[0].bDitheredLODTransition;
@@ -4550,6 +4571,12 @@ void FLODSceneTree::UpdateVisibilityStates(FViewInfo& View)
 			{
 				// Not visible and waiting for a transition to fade, keep HLOD hidden
 				HLODState.ForcedHiddenPrimitiveMap[NodeIndex] = true;
+
+				// Also hide children when performing far culling
+				if (bFarCulled)
+				{
+					HideNodeChildren(ViewState, Node);
+				}
 			}
 		}
 	}	

@@ -166,6 +166,28 @@ void UMovieSceneLiveLinkSection::PostLoad()
 	UpdateChannelProxy();
 }
 
+bool UMovieSceneLiveLinkSection::Modify(bool bAlwaysMarkDirty /*= true*/)
+{
+	bool bWasModified = Super::Modify(bAlwaysMarkDirty);
+
+	for (UMovieSceneLiveLinkSubSection* SubSection : SubSections)
+	{
+		bWasModified |= SubSection->Modify(bAlwaysMarkDirty);
+	}
+
+	return bWasModified;
+}
+
+#if WITH_EDITOR
+void UMovieSceneLiveLinkSection::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);	
+
+	//Make sure the channel proxy is always in sync with subsections data. They are recreated whenever we undo / redo.
+	UpdateChannelProxy();
+}
+#endif
+
 TArray<TSubclassOf<UMovieSceneLiveLinkSection>> UMovieSceneLiveLinkSection::GetMovieSectionForRole(const TSubclassOf<ULiveLinkRole>& InRoleToSupport)
 {
 	TArray<TSubclassOf<UMovieSceneLiveLinkSection>> Results;

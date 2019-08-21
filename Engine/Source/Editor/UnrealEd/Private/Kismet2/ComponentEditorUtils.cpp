@@ -855,23 +855,10 @@ FName FComponentEditorUtils::FindVariableNameGivenComponentInstance(const UActor
 {
 	check(ComponentInstance != nullptr);
 
-	// First see if the name just works
-	if (AActor* OwnerActor = ComponentInstance->GetOwner())
+	// When names mismatch, try finding a differently named variable pointing to the the component (the mismatch should only be possible for native components)
+	auto FindPropertyReferencingComponent = [](const UActorComponent* Component) -> UProperty*
 	{
-		UClass* OwnerActorClass = OwnerActor->GetClass();
-		if (UObjectProperty* TestProperty = FindField<UObjectProperty>(OwnerActorClass, ComponentInstance->GetFName()))
-		{
-			if (ComponentInstance->GetClass()->IsChildOf(TestProperty->PropertyClass))
-			{
-				return TestProperty->GetFName();
-			}
-		}
-	}
-
-	// Name mismatch, try finding a differently named variable pointing to the the component (the mismatch should only be possible for native components)
-	if (UActorComponent* Archetype = Cast<UActorComponent>(ComponentInstance->GetArchetype()))
-	{
-		if (AActor* OwnerActor = Archetype->GetOwner())
+		if (AActor* OwnerActor = Component->GetOwner())
 		{
 			UClass* OwnerClass = OwnerActor->GetClass();
 			AActor* OwnerCDO = CastChecked<AActor>(OwnerClass->GetDefaultObject());
@@ -880,14 +867,14 @@ FName FComponentEditorUtils::FindVariableNameGivenComponentInstance(const UActor
 			for (TFieldIterator<UObjectProperty> PropIt(OwnerClass, EFieldIteratorFlags::IncludeSuper); PropIt; ++PropIt)
 			{
 				UObjectProperty* TestProperty = *PropIt;
-				if (Archetype->GetClass()->IsChildOf(TestProperty->PropertyClass))
+				if (Component->GetClass()->IsChildOf(TestProperty->PropertyClass))
 				{
 					void* TestPropertyInstanceAddress = TestProperty->ContainerPtrToValuePtr<void>(OwnerCDO);
 					UObject* ObjectPointedToByProperty = TestProperty->GetObjectPropertyValue(TestPropertyInstanceAddress);
-					if (ObjectPointedToByProperty == Archetype)
+					if (ObjectPointedToByProperty == Component)
 					{
 						// This property points to the component archetype, so it's an anchor even if it was named wrong
-						return TestProperty->GetFName();
+						return TestProperty;
 					}
 				}
 			}
@@ -907,12 +894,40 @@ FName FComponentEditorUtils::FindVariableNameGivenComponentInstance(const UActor
 				for (int32 ComponentIndex = 0; ComponentIndex < ArrayHelper.Num(); ++ComponentIndex)
 				{
 					UObject* ArrayElement = ArrayEntryProp->GetObjectPropertyValue(ArrayHelper.GetRawPtr(ComponentIndex));
-					if (ArrayElement == Archetype)
+					if (ArrayElement == Component)
 					{
-						return TestProperty->GetFName();
+						return TestProperty;
 					}
 				}
 			}
+		}
+
+		return nullptr;
+	};
+
+	// First see if the name just works
+	if (AActor* OwnerActor = ComponentInstance->GetOwner())
+	{
+		UClass* OwnerActorClass = OwnerActor->GetClass();
+		if (UObjectProperty* TestProperty = FindField<UObjectProperty>(OwnerActorClass, ComponentInstance->GetFName()))
+		{
+			if (ComponentInstance->GetClass()->IsChildOf(TestProperty->PropertyClass))
+			{
+				return TestProperty->GetFName();
+			}
+		}
+
+		if (UProperty* ReferencingProp = FindPropertyReferencingComponent(ComponentInstance))
+		{
+			return ReferencingProp->GetFName();
+		}
+	}
+
+	if (UActorComponent* Archetype = Cast<UActorComponent>(ComponentInstance->GetArchetype()))
+	{
+		if (UProperty* ReferencingProp = FindPropertyReferencingComponent(Archetype))
+		{
+			return ReferencingProp->GetFName();
 		}
 	}
 

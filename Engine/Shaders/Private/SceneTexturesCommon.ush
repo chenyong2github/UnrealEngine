@@ -139,7 +139,9 @@ float CalcSceneDepth(float2 ScreenUV)
 /** Returns DeviceZ which is the z value stored in the depth buffer. */
 float LookupDeviceZ( float2 ScreenUV )
 {
-#if	MOBILE_FORCE_DEPTH_TEXTURE_READS
+#if	SCENE_TEXTURES_DISABLED
+	return SCENE_TEXTURES_DISABLED_SCENE_DEPTH_VALUE;
+#elif MOBILE_FORCE_DEPTH_TEXTURE_READS
 	// native Depth buffer lookup
 	return Texture2DSampleLevel(MobileSceneTextures.SceneDepthTexture, MobileSceneTextures.SceneDepthTextureSampler, ScreenUV, 0).r;
 #elif POST_PROCESS_MATERIAL

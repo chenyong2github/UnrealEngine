@@ -291,6 +291,9 @@ public:
 	/** Gets the a view model representing the selected entries in the overview. */
 	NIAGARAEDITOR_API UNiagaraSystemSelectionViewModel* GetSelectionViewModel();
 
+	/** Duplicates a set of emitters and refreshes everything.*/
+	void DuplicateEmitters(TArray<FEmitterHandleToDuplicate> EmitterHandlesToDuplicate);
+
 private:
 
 	/** Sends message jobs to FNiagaraMessageManager for all compile events from the last compile. */
@@ -298,6 +301,9 @@ private:
 
 	/** Sets up the preview component and System instance. */
 	void SetupPreviewComponentAndInstance();
+
+	/** Resets the emitter handle view models and tracks to remove data from them.  This must be called before modifying the emitter handle collection to prevent accessing invalid data. */
+	void ResetEmitterHandleViewModelsAndTracks();
 
 	/** Rebuilds the emitter handle view models. */
 	void RefreshEmitterHandleViewModels();
@@ -390,9 +396,6 @@ private:
 
 	/** Called whenever the System instance is reset.*/
 	void SystemInstanceReset();
-
-	/** Duplicates a set of emitters and refreshes everything.*/
-	void DuplicateEmitters(TArray<FEmitterHandleToDuplicate> EmitterHandlesToDuplicate);
 
 	/** Adds event handler for the system's scripts. */
 	void AddSystemEventHandlers();

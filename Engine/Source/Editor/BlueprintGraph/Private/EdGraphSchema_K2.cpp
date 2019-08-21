@@ -1665,6 +1665,16 @@ void UEdGraphSchema_K2::GetContextMenuActions(UToolMenu* Menu, UGraphNodeContext
 					Section.AddMenuEntry( FGraphEditorCommands::Get().CollapseSelectionToMacro );
 					Section.AddMenuEntry( FGraphEditorCommands::Get().ExpandNodes );
 
+					if (InGraphNode->IsA(UK2Node_FunctionEntry::StaticClass()))
+					{
+						Section.AddMenuEntry(FGraphEditorCommands::Get().ConvertFunctionToEvent);
+					}
+
+					if (InGraphNode->IsA(UK2Node_Event::StaticClass()))
+					{
+						Section.AddMenuEntry(FGraphEditorCommands::Get().ConvertEventToFunction);
+					}
+
 					if(InGraphNode->IsA(UK2Node_Composite::StaticClass()))
 					{
 						Section.AddMenuEntry( FGraphEditorCommands::Get().PromoteSelectionToFunction );

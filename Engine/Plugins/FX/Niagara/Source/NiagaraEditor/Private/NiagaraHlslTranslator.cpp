@@ -3729,6 +3729,24 @@ void FHlslNiagaraTranslator::Emitter(class UNiagaraNodeEmitter* EmitterNode, TAr
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_Module_NiagaraHLSLTranslator_Emitter);
 
+	// Just pass through the input parameter map pin if the node isn't enabled...
+	if (!EmitterNode->IsNodeEnabled())
+	{
+		TArray<UEdGraphPin*> OutputPins;
+		EmitterNode->GetOutputPins(OutputPins);
+
+		Outputs.SetNum(OutputPins.Num());
+		for (int32 i = 0; i < OutputPins.Num(); i++)
+		{
+			Outputs[i] = INDEX_NONE;
+		}
+		if (Inputs.Num() >= 1)
+		{
+			Outputs[0] = Inputs[0];
+		}
+		return;
+	}
+
 	FNiagaraFunctionSignature Signature;
 	UNiagaraScriptSource* Source = EmitterNode->GetScriptSource();
 	if (Source == nullptr)
@@ -3743,6 +3761,9 @@ void FHlslNiagaraTranslator::Emitter(class UNiagaraNodeEmitter* EmitterNode, TAr
 	ENiagaraScriptUsage ScriptUsage = EmitterNode->GetUsage();
 	FString Name = EmitterNode->GetName();
 	FString FullName = EmitterNode->GetFullName();
+
+	FName StatName = *EmitterUniqueName;
+	EnterStatsScope(FNiagaraStatScope(StatName, StatName));
 
 	TArray<UEdGraphPin*> CallOutputs;
 	TArray<UEdGraphPin*> CallInputs;
@@ -3781,7 +3802,7 @@ void FHlslNiagaraTranslator::Emitter(class UNiagaraNodeEmitter* EmitterNode, TAr
 
 	// We act like a function call here as the semantics are identical.
 	RegisterFunctionCall(ScriptUsage, Name, FullName, EmitterNode->NodeGuid, Source, Signature, false, FString(), Inputs, CallInputs, CallOutputs, Signature);
-	GenerateFunctionCall(Signature, Inputs, Outputs);
+	GenerateFunctionCall(ScriptUsage, Signature, Inputs, Outputs);
 
 	// Clear out the parameter map writes to emitter module parameters as they should not be shared across emitters.
 	if (ParamMapHistoryIdx != -1 && ParamMapHistoryIdx < ParamMapHistories.Num())
@@ -3797,6 +3818,8 @@ void FHlslNiagaraTranslator::Emitter(class UNiagaraNodeEmitter* EmitterNode, TAr
 		}
 	}
 	ActiveHistoryForFunctionCalls.ExitEmitter(EmitterUniqueName, EmitterNode);
+
+	ExitStatsScope();
 }
 
 void FHlslNiagaraTranslator::ParameterMapGet(UNiagaraNodeParameterMapGet* GetNode, TArray<int32>& Inputs, TArray<int32>& Outputs)
@@ -4530,7 +4553,7 @@ void FHlslNiagaraTranslator::FunctionCall(UNiagaraNodeFunctionCall* FunctionNode
 		return;
 	}
 
-	GenerateFunctionCall(OutputSignature, Inputs, Outputs);
+	GenerateFunctionCall(ScriptUsage, OutputSignature, Inputs, Outputs);
 
 	if (bCustomHlsl)
 	{
@@ -4948,7 +4971,7 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 				{
 					if (UseShaderStages)
 					{
-						if (bStageMaxFilter && bStageMaxFilter)
+						if (bStageMinFilter && bStageMaxFilter)
 						{
 							FunctionDefStr += TEXT("if ((GCurrentPhase == 1 && ShaderStageIndex >= ") + MinParam + TEXT(" && ShaderStageIndex <= ") + MaxParam + TEXT(") || ") +
 								TEXT("(GCurrentPhase == 0 && ShaderStageIndex >= ") + MinParamSpawn + TEXT(" && ShaderStageIndex <= ") + MaxParamSpawn + TEXT(")") +
@@ -5100,11 +5123,16 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 	}
 }
 
-void FHlslNiagaraTranslator::GenerateFunctionCall(FNiagaraFunctionSignature& FunctionSignature, TArray<int32>& Inputs, TArray<int32>& Outputs)
+void FHlslNiagaraTranslator::GenerateFunctionCall(ENiagaraScriptUsage ScriptUsage, FNiagaraFunctionSignature& FunctionSignature, TArray<int32>& Inputs, TArray<int32>& Outputs)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_Module_NiagaraHLSLTranslator_GenerateFunctionCall);
 
-	EnterStatsScope(FNiagaraStatScope(*GetFunctionSignatureSymbol(FunctionSignature), *(FunctionSignature.GetName())));
+	bool bEnteredStatScope = false;   
+	if (ScriptUsage == ENiagaraScriptUsage::Module)
+	{
+		bEnteredStatScope = true;
+		EnterStatsScope(FNiagaraStatScope(*GetFunctionSignatureSymbol(FunctionSignature), *(FunctionSignature.GetName())));
+	}
 
 	TArray<FString> MissingParameters;
 	int32 ParamIdx = 0;
@@ -5230,7 +5258,10 @@ void FHlslNiagaraTranslator::GenerateFunctionCall(FNiagaraFunctionSignature& Fun
 
 	AddBodyChunk(TEXT(""), DefStr, FNiagaraTypeDefinition::GetFloatDef(), Params);
 
-	ExitStatsScope();
+	if (bEnteredStatScope)
+	{
+		ExitStatsScope();
+	}
 }
 
 FString FHlslNiagaraTranslator::GetFunctionSignatureSymbol(const FNiagaraFunctionSignature& Sig)

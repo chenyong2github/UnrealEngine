@@ -168,6 +168,18 @@ struct FMovieSceneTrackLabels
 
 
 /**
+ * Structure that comprises a list of object binding IDs
+ */
+USTRUCT()
+struct FMovieSceneObjectBindingIDs
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TArray<FMovieSceneObjectBindingID> IDs;
+};
+
+/**
  * Implements a movie scene asset.
  */
 UCLASS(DefaultToInstanced)
@@ -812,6 +824,34 @@ public:
 	 */
 	int32 FindNextMarkedFrame(FFrameNumber InFrameNumber, bool bForward);
 
+	/*
+	 * Retrieve all the exposed binding groups for this movie scene
+	 */
+	const TMap<FName, FMovieSceneObjectBindingIDs>& AllBindingGroups() const
+	{
+		return BindingGroups;
+	}
+
+	/*
+	 * Add a new binding group for the specified name
+	 */
+	void ExposeBinding(FName ExposeAs);
+
+	/*
+	 * Expose the specified binding ID using the specified name
+	 */
+	void ExposeBinding(FName ExposeAs, FMovieSceneObjectBindingID BindingToExpose);
+
+	/*
+	 * Remove the specified binding ID from the specified expose group name
+	 */
+	void RemoveExposedBinding(FName ExposedAs, FMovieSceneObjectBindingID BindingToExpose);
+
+	/*
+	 * Remove the entire group with the specified name
+	 */
+	void RemoveExposedBinding(FName ExposedAs);
+
 protected:
 
 	/**
@@ -855,6 +895,10 @@ private:
 	/** Tracks bound to possessed or spawned objects */
 	UPROPERTY()
 	TArray<FMovieSceneBinding> ObjectBindings;
+
+	/** Map of persistent named bindings for this sequence */
+	UPROPERTY()
+	TMap<FName, FMovieSceneObjectBindingIDs> BindingGroups;
 
 	/** Master tracks which are not bound to spawned or possessed objects */
 	UPROPERTY(Instanced)

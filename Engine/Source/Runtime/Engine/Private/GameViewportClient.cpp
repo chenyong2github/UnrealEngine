@@ -2423,8 +2423,9 @@ void UGameViewportClient::DrawTitleSafeArea( UCanvas* Canvas )
 	FMargin SafeZone;
 	const ULevelEditorPlaySettings* PlayInSettings = GetDefault<ULevelEditorPlaySettings>();
 
-	const float Width = Canvas->UnsafeSizeX;
-	const float Height = Canvas->UnsafeSizeY;
+	float Width, Height;
+	GetPixelSizeOfScreen(Width, Height, Canvas, 0);
+
 	const FLinearColor UnsafeZoneColor(1.0f, 0.0f, 0.0f, 0.25f);
 	FCanvasTileItem TileItem(FVector2D::ZeroVector, GWhiteTexture, UnsafeZoneColor);
 	TileItem.BlendMode = SE_BLEND_Translucent;
@@ -3446,14 +3447,12 @@ bool UGameViewportClient::HandleDisplayCommand( const TCHAR* Cmd, FOutputDevice&
 		FParse::Token(Cmd, PropStr, ARRAY_COUNT(PropStr), true) )
 	{
 		UObject* Obj = FindObject<UObject>(ANY_PACKAGE, ObjectName);
-		if (Obj != NULL)
+		if (Obj != nullptr)
 		{
 			FName PropertyName(PropStr, FNAME_Find);
-			if (PropertyName != NAME_None && FindField<UProperty>(Obj->GetClass(), PropertyName) != NULL)
+			if (PropertyName != NAME_None && FindField<UProperty>(Obj->GetClass(), PropertyName) != nullptr)
 			{
-				FDebugDisplayProperty& NewProp = DebugProperties[DebugProperties.AddZeroed()];
-				NewProp.Obj = Obj;
-				NewProp.PropertyName = PropertyName;
+				AddDebugDisplayProperty(Obj, nullptr, PropertyName);
 			}
 			else
 			{
@@ -3476,7 +3475,7 @@ bool UGameViewportClient::HandleDisplayAllCommand( const TCHAR* Cmd, FOutputDevi
 	if (FParse::Token(Cmd, ClassName, ARRAY_COUNT(ClassName), true))
 	{
 		bool bValidClassToken = true;
-		UClass* WithinClass = NULL;
+		UClass* WithinClass = nullptr;
 		{
 			FString ClassStr(ClassName);
 			int32 DotIndex = ClassStr.Find(TEXT("."));
@@ -3484,7 +3483,7 @@ bool UGameViewportClient::HandleDisplayAllCommand( const TCHAR* Cmd, FOutputDevi
 			{
 				// first part is within class
 				WithinClass = FindObject<UClass>(ANY_PACKAGE, *ClassStr.Left(DotIndex));
-				if (WithinClass == NULL)
+				if (WithinClass == nullptr)
 				{
 					Ar.Logf(TEXT("Within class not found"));
 					bValidClassToken = false;
@@ -3500,10 +3499,10 @@ bool UGameViewportClient::HandleDisplayAllCommand( const TCHAR* Cmd, FOutputDevi
 		{
 			FParse::Token(Cmd, PropStr, ARRAY_COUNT(PropStr), true);
 			UClass* Cls = FindObject<UClass>(ANY_PACKAGE, ClassName);
-			if (Cls != NULL)
+			if (Cls != nullptr)
 			{
 				FName PropertyName(PropStr, FNAME_Find);
-				UProperty* Prop = PropertyName != NAME_None ? FindField<UProperty>(Cls, PropertyName) : NULL;
+				UProperty* Prop = PropertyName != NAME_None ? FindField<UProperty>(Cls, PropertyName) : nullptr;
 				{
 					// add all un-GCable things immediately as that list is static
 					// so then we only have to iterate over dynamic things each frame
@@ -3513,25 +3512,12 @@ bool UGameViewportClient::HandleDisplayAllCommand( const TCHAR* Cmd, FOutputDevi
 						{
 							break;
 						}
-						else if (It->IsA(Cls) && !It->IsTemplate() && (WithinClass == NULL || (It->GetOuter() != NULL && It->GetOuter()->GetClass()->IsChildOf(WithinClass))))
+						else if (It->IsA(Cls) && !It->IsTemplate() && (WithinClass == nullptr || (It->GetOuter() != nullptr && It->GetOuter()->GetClass()->IsChildOf(WithinClass))))
 						{
-							FDebugDisplayProperty& NewProp = DebugProperties[DebugProperties.AddZeroed()];
-							NewProp.Obj = *It;
-							NewProp.PropertyName = PropertyName;
-							if (!Prop)
-							{
-								NewProp.bSpecialProperty = true;
-							}
+							AddDebugDisplayProperty(*It, nullptr, PropertyName, !Prop);
 						}
 					}
-					FDebugDisplayProperty& NewProp = DebugProperties[DebugProperties.AddZeroed()];
-					NewProp.Obj = Cls;
-					NewProp.WithinClass = WithinClass;
-					NewProp.PropertyName = PropertyName;
-					if (!Prop)
-					{
-						NewProp.bSpecialProperty = true;
-					}
+					AddDebugDisplayProperty(Cls, WithinClass, PropertyName, !Prop);
 				}
 			}
 			else
@@ -3550,7 +3536,7 @@ bool UGameViewportClient::HandleDisplayAllLocationCommand( const TCHAR* Cmd, FOu
 	if (FParse::Token(Cmd, ClassName, ARRAY_COUNT(ClassName), true))
 	{
 		UClass* Cls = FindObject<UClass>(ANY_PACKAGE, ClassName);
-		if (Cls != NULL)
+		if (Cls != nullptr)
 		{
 			// add all un-GCable things immediately as that list is static
 			// so then we only have to iterate over dynamic things each frame
@@ -3562,16 +3548,10 @@ bool UGameViewportClient::HandleDisplayAllLocationCommand( const TCHAR* Cmd, FOu
 				}
 				else if (It->IsA(Cls))
 				{
-					FDebugDisplayProperty& NewProp = DebugProperties[DebugProperties.AddZeroed()];
-					NewProp.Obj = *It;
-					NewProp.PropertyName = NAME_Location;
-					NewProp.bSpecialProperty = true;
+					AddDebugDisplayProperty(*It, nullptr, NAME_Location, true);
 				}
 			}
-			FDebugDisplayProperty& NewProp = DebugProperties[DebugProperties.AddZeroed()];
-			NewProp.Obj = Cls;
-			NewProp.PropertyName = NAME_Location;
-			NewProp.bSpecialProperty = true;
+			AddDebugDisplayProperty(Cls, nullptr, NAME_Location, true);
 		}
 		else
 		{
@@ -3588,7 +3568,7 @@ bool UGameViewportClient::HandleDisplayAllRotationCommand( const TCHAR* Cmd, FOu
 	if (FParse::Token(Cmd, ClassName, ARRAY_COUNT(ClassName), true))
 	{
 		UClass* Cls = FindObject<UClass>(ANY_PACKAGE, ClassName);
-		if (Cls != NULL)
+		if (Cls != nullptr)
 		{
 			// add all un-GCable things immediately as that list is static
 			// so then we only have to iterate over dynamic things each frame
@@ -3600,16 +3580,10 @@ bool UGameViewportClient::HandleDisplayAllRotationCommand( const TCHAR* Cmd, FOu
 				}
 				else if (It->IsA(Cls))
 				{
-					FDebugDisplayProperty& NewProp = DebugProperties[DebugProperties.AddZeroed()];
-					NewProp.Obj = *It;
-					NewProp.PropertyName = NAME_Rotation;
-					NewProp.bSpecialProperty = true;
+					AddDebugDisplayProperty(*It, nullptr, NAME_Rotation, true);
 				}
 			}
-			FDebugDisplayProperty& NewProp = DebugProperties[DebugProperties.AddZeroed()];
-			NewProp.Obj = Cls;
-			NewProp.PropertyName = NAME_Rotation;
-			NewProp.bSpecialProperty = true;
+			AddDebugDisplayProperty(Cls, nullptr, NAME_Rotation, true);
 		}
 		else
 		{
@@ -3875,6 +3849,24 @@ void* UGameViewportClient::LoadCursorFromPngs(ICursor& PlatformCursor, const FSt
 	}
 
 	return nullptr;
+}
+
+void UGameViewportClient::AddDebugDisplayProperty(class UObject* Obj, TSubclassOf<class UObject> WithinClass, const FName& PropertyName, bool bSpecialProperty /*= false*/)
+{
+	// If this property already exists than don't add a new one
+	for (const FDebugDisplayProperty& Prop : DebugProperties)
+	{
+		if (Prop.Obj == Obj && Prop.PropertyName == PropertyName)
+		{
+			return;
+		}
+	}
+
+	FDebugDisplayProperty& NewProp = DebugProperties.AddDefaulted_GetRef();
+	NewProp.Obj = Obj;
+	NewProp.WithinClass = WithinClass;
+	NewProp.PropertyName = PropertyName;
+	NewProp.bSpecialProperty = bSpecialProperty;
 }
 
 bool UGameViewportClient::LoadAvailableCursorPngs(TArray< TSharedPtr<FPngFileData> >& Results, const FString& InPathToCursorWithoutExtension)

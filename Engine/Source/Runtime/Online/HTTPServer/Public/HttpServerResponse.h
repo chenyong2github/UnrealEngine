@@ -76,9 +76,10 @@ public:
 	*
 	* @param ResponseCode The HTTP response code
 	* @param ErrorCode    The machine-readable error code
+	* @param ErrorMessage The contextually descriptive error message
     * @return A unique pointer to an initialized response object
     */
-	HTTPSERVER_API static TUniquePtr<FHttpServerResponse> Error(EHttpServerResponseCodes ResponseCode, const FString& ErrorCode = TEXT(""));
+	HTTPSERVER_API static TUniquePtr<FHttpServerResponse> Error(EHttpServerResponseCodes ResponseCode, const FString& ErrorCode = TEXT(""), const FString& ErrorMessage = TEXT(""));
 };
 
 

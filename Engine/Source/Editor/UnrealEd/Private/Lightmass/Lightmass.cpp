@@ -29,6 +29,7 @@
 #include "Components/DirectionalLightComponent.h"
 #include "Renderer/Private/AtmosphereRendering.h"
 #include "Components/SkyLightComponent.h"
+#include "Rendering/SkyAtmosphereCommonData.h"
 #include "Components/ModelComponent.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "EngineUtils.h"
@@ -241,7 +242,7 @@ void CopyLightProfile( const ULightComponent* In, Lightmass::FLightData& Out, TA
 		{
 			Out.LightFlags |= Lightmass::GI_LIGHT_USE_LIGHTPROFILE;
 
-			TArray<uint8> MipData;
+			TArray64<uint8> MipData;
 
 			Source.GetMipData(MipData, 0);
 
@@ -488,6 +489,7 @@ void FLightmassProcessor::SwarmCallback( NSwarm::FMessage* CallbackMessage, void
 FLightmassExporter::FLightmassExporter( UWorld* InWorld )
 	: Swarm( NSwarm::FSwarmInterface::Get() ) 
 	, AtmosphericFogComponent(nullptr)
+	, SkyAtmosphereComponent(nullptr)
 	, ExportStage(NotRunning)
 	, CurrentAmortizationIndex(0)
 	, OpenedMaterialExportChannels()
@@ -1025,24 +1027,45 @@ void FLightmassExporter::WriteLights( int32 Channel )
 {
 	// Search for the sun light component the same way as in FScene::RemoveLightSceneInfo_RenderThread.
 	// If found, we keep the pointer to apply atmosphere transmittance to it in the light loop.
-	const UDirectionalLightComponent* SunLight = nullptr;
-	FLinearColor SunLightAtmosphereTransmittance(FLinearColor::White);
-	if (AtmosphericFogComponent && AtmosphericFogComponent->bAtmosphereAffectsSunIlluminance)
+	const UDirectionalLightComponent* AtmosphereLights[NUM_ATMOSPHERE_LIGHTS];
+	float AtmosphereLightsBrightness[NUM_ATMOSPHERE_LIGHTS];
+	FLinearColor SunLightAtmosphereTransmittance[NUM_ATMOSPHERE_LIGHTS];
+	for (uint8 Index = 0; Index < NUM_ATMOSPHERE_LIGHTS; ++Index)
 	{
-		float SunLightEnergy = 0.0f;
+		AtmosphereLights[Index] = nullptr;
+		AtmosphereLightsBrightness[Index] = 0.0f;
+		SunLightAtmosphereTransmittance[Index] = FLinearColor::White;
+	}
+
+	// Compute a mapping between directional light and trnasmittance to apply. For each AtmosphereSunLightIndex, the brightest lights is kept.
+	if ((AtmosphericFogComponent && AtmosphericFogComponent->bAtmosphereAffectsSunIlluminance) || SkyAtmosphereComponent)
+	{
 		for (int32 LightIndex = 0; LightIndex < DirectionalLights.Num(); ++LightIndex)
 		{
 			const UDirectionalLightComponent* Light = DirectionalLights[LightIndex];
-			if (Light->IsUsedAsAtmosphereSunLight() && Light->GetColoredLightBrightness().ComputeLuminance() > SunLightEnergy)
+			if (Light->IsUsedAsAtmosphereSunLight() && Light->GetColoredLightBrightness().ComputeLuminance() > AtmosphereLightsBrightness[Light->GetAtmosphereSunLightIndex()])
 			{
-				SunLight = Light;
-				SunLightEnergy = SunLight->GetColoredLightBrightness().ComputeLuminance();
+				AtmosphereLights[Light->GetAtmosphereSunLightIndex()] = Light;
+				AtmosphereLightsBrightness[Light->GetAtmosphereSunLightIndex()] = Light->GetColoredLightBrightness().ComputeLuminance();
 			}
 		}
 
-		if (SunLight)
+		for (uint8 Index = 0; Index < NUM_ATMOSPHERE_LIGHTS; ++Index)
 		{
-			SunLightAtmosphereTransmittance = AtmosphericFogComponent->GetTransmittance(-SunLight->GetDirection()); 
+			if (AtmosphereLights[Index])
+			{
+				const FVector SunDirection = -AtmosphereLights[Index]->GetDirection();
+				if (SkyAtmosphereComponent)
+				{
+					FAtmosphereSetup AtmosphereSetup(*SkyAtmosphereComponent);
+					SunLightAtmosphereTransmittance[Index] = AtmosphereSetup.GetTransmittanceAtGroundLevel(SunDirection);
+				}
+				else if (AtmosphericFogComponent && Index==0)	// Legacy AtmosphericFogComponent only takes into account Index 0
+				{
+					SunLightAtmosphereTransmittance[Index] = AtmosphericFogComponent->GetTransmittance(SunDirection);
+				}
+				break;
+			}
 		}
 	}
 
@@ -1059,9 +1082,14 @@ void FLightmassExporter::WriteLights( int32 Channel )
 		LightData.LightSourceRadius = 0;
 		LightData.LightSourceLength = 0;
 
-		if (Light == SunLight)
+		// Apply atmosphere transmittance if needed.
+		for (uint8 Index = 0; Index < NUM_ATMOSPHERE_LIGHTS; ++Index)
 		{
-			LightData.Color *= SunLightAtmosphereTransmittance;
+			if (AtmosphereLights[Index] && AtmosphereLights[Index] == Light)
+			{
+				LightData.Color *= SunLightAtmosphereTransmittance[Index];
+				break;
+			}
 		}
 
 		TArray< uint8 > LightProfileTextureData;
@@ -1174,7 +1202,7 @@ void FLightmassExporter::WriteLights( int32 Channel )
 				{
 					//int32 i = SourceTexture.AddUninitialized( SizeX * SizeY );
 					
-					TArray< uint8 > MipData;
+					TArray64< uint8 > MipData;
 					Source.GetMipData( MipData, MipLevel );
 
 					uint8* Pixel = MipData.GetData();

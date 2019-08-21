@@ -43,13 +43,13 @@ static FAutoConsoleVariableRef CVarCullingSlackFillPercent(TEXT("Slate.CullingSl
 
 #if WITH_SLATE_DEBUGGING
 
-int32 GShowClipping = 0;
+bool GShowClipping = false;
 static FAutoConsoleVariableRef CVarSlateShowClipRects(TEXT("Slate.ShowClipping"), GShowClipping, TEXT("Controls whether we should render a clipping zone outline.  Yellow = Axis Scissor Rect Clipping (cheap).  Red = Stencil Clipping (expensive)."), ECVF_Default);
 
-int32 GDebugCulling = 0;
+bool GDebugCulling = false;
 static FAutoConsoleVariableRef CVarSlateDebugCulling(TEXT("Slate.DebugCulling"), GDebugCulling, TEXT("Controls whether we should ignore clip rects, and just use culling."), ECVF_Default);
 
-int32 GSlateEnsureAllVisibleWidgetsPaint = 0;
+bool GSlateEnsureAllVisibleWidgetsPaint = false;
 static FAutoConsoleVariableRef CVarSlateEnsureAllVisibleWidgetsPaint(TEXT("Slate.EnsureAllVisibleWidgetsPaint"), GSlateEnsureAllVisibleWidgetsPaint, TEXT("Ensures that if a child widget is visible before OnPaint, that it was painted this frame after OnPaint, if still marked as visible.  Only works if we're on the FastPaintPath."), ECVF_Default);
 
 #endif
@@ -574,11 +574,12 @@ void SWidget::SlatePrepass(float InLayoutScaleMultiplier)
 
 		Prepass_Internal(InLayoutScaleMultiplier);
 	}
-
 }
 
 void SWidget::InvalidatePrepass()
 {
+	SLATE_CROSS_THREAD_CHECK();
+
 	bNeedsPrepass = true;
 }
 
@@ -595,7 +596,6 @@ FVector2D SWidget::GetDesiredSize() const
 {
 	return DesiredSize.Get(FVector2D::ZeroVector);
 }
-
 
 void SWidget::AssignParentWidget(TSharedPtr<SWidget> InParent)
 {
@@ -651,6 +651,11 @@ bool SWidget::ConditionallyDetatchParentWidget(SWidget* InExpectedParent)
 
 void SWidget::AssignIndicesToChildren(FSlateInvalidationRoot& Root, int32 ParentIndex, TArray<FWidgetProxy, TMemStackAllocator<>>& FastPathList, bool bParentVisible, bool bParentVolatile)
 {
+	if (FastPathProxyHandle.IsValid())
+	{
+		ensureAlwaysMsgf(!FastPathProxyHandle.IsValid(), TEXT("Widget %s was already assigned a proxy handle. If this is being hit this widget is in the active slate tree more than once.  This is illegal and at best will result in UI corruption."), *FReflectionMetaData::GetWidgetDebugInfo(*this));
+		return;
+	}
 	FWidgetProxy MyProxy(this);
 	MyProxy.Index = FastPathList.Num();
 	MyProxy.ParentIndex = ParentIndex;
@@ -669,7 +674,6 @@ void SWidget::AssignIndicesToChildren(FSlateInvalidationRoot& Root, int32 Parent
 	bInheritedVolatility = bParentVolatile;
 
 	FastPathProxyHandle = FWidgetProxyHandle(Root, MyProxy.Index);
-
 
 	if (bInvisibleDueToParentOrSelfVisibility&& PersistentState.CachedElementListNode != nullptr)
 	{
@@ -1013,7 +1017,7 @@ void SWidget::SetVisibility(TAttribute<EVisibility> InVisibility)
 	SetAttribute(Visibility, InVisibility, EInvalidateWidgetReason::Visibility);
 }
 
-void SWidget::Invalidate(EInvalidateWidget InvalidateReason)
+void SWidget::Invalidate(EInvalidateWidgetReason InvalidateReason)
 {
 	SLATE_CROSS_THREAD_CHECK();
 

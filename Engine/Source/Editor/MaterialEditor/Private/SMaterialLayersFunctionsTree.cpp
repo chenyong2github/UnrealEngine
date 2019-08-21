@@ -1664,7 +1664,7 @@ void SMaterialLayersFunctionsInstanceWrapper::Construct(const FArguments& InArgs
 	LayerParameter = NestedTree->FunctionParameter;
 
 	MaterialEditorInstance = InArgs._InMaterialEditorInstance;
-	FEditorSupportDelegates::UpdateUI.AddSP(this, &SMaterialLayersFunctionsInstanceWrapper::Refresh);
+	Refresh();
 
 }
 
@@ -2281,7 +2281,7 @@ void SMaterialLayersFunctionsMaterialWrapper::Construct(const FArguments& InArgs
 
 	LayerParameter = NestedTree->FunctionParameter;
 	MaterialEditorInstance = InArgs._InMaterialEditorInstance;
-	FEditorSupportDelegates::UpdateUI.AddSP(this, &SMaterialLayersFunctionsMaterialWrapper::Refresh);
+	Refresh();
 
 }
 

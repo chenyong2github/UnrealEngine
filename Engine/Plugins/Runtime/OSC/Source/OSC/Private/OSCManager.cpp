@@ -57,13 +57,13 @@ namespace
 
 UOSCServer* UOSCManager::CreateOSCServer(FString ReceiveIPAddress, int32 Port, bool bMulticastLoopback, bool bStartListening)
 {
-	UOSCServer* NewOSCServer = NewObject<UOSCServer>();
-
 	if (GetLocalHostAddress(ReceiveIPAddress))
 	{
 		UE_LOG(LogOSC, Display, TEXT("OSCServer ReceiveAddress not specified. Using LocalHost IP: '%s'"), *ReceiveIPAddress);
 	}
 
+	UOSCServer* NewOSCServer = NewObject<UOSCServer>();
+	NewOSCServer->Connect();
 	NewOSCServer->SetMulticastLoopback(bMulticastLoopback);
 	if (NewOSCServer->SetAddress(ReceiveIPAddress, Port))
 	{
@@ -82,13 +82,13 @@ UOSCServer* UOSCManager::CreateOSCServer(FString ReceiveIPAddress, int32 Port, b
 
 UOSCClient* UOSCManager::CreateOSCClient(FString SendIPAddress, int32 Port)
 {
-	UOSCClient* NewOSCClient = NewObject<UOSCClient>();
-
 	if (GetLocalHostAddress(SendIPAddress))
 	{
 		UE_LOG(LogOSC, Display, TEXT("OSCClient SendAddress not specified. Using LocalHost IP: '%s'"), *SendIPAddress);
 	}
 
+	UOSCClient* NewOSCClient = NewObject<UOSCClient>();
+	NewOSCClient->Connect();
 	if (!NewOSCClient->SetSendIPAddress(SendIPAddress, Port))
 	{
 		UE_LOG(LogOSC, Warning, TEXT("Failed to parse SendAddress '%s' for OSCClient. Client unable to send new messages."), *SendIPAddress);
@@ -97,22 +97,26 @@ UOSCClient* UOSCManager::CreateOSCClient(FString SendIPAddress, int32 Port)
 	return NewOSCClient;
 }
 
-void UOSCManager::ClearMessage(FOSCMessage& Message)
+FOSCMessage& UOSCManager::ClearMessage(FOSCMessage& Message)
 {
 	const TSharedPtr<FOSCMessagePacket>& Packet = StaticCastSharedPtr<FOSCMessagePacket>(Message.GetPacket());
 	if (Packet.IsValid())
 	{
 		Packet->GetArguments().Reset();
 	}
+
+	return Message;
 }
 
-void UOSCManager::ClearBundle(FOSCBundle& Bundle)
+FOSCBundle& UOSCManager::ClearBundle(FOSCBundle& Bundle)
 {
 	const TSharedPtr<FOSCBundlePacket>& Packet = StaticCastSharedPtr<FOSCBundlePacket>(Bundle.GetPacket());
 	if (Packet.IsValid())
 	{
 		Packet->GetPackets().Reset();
 	}
+
+	return Bundle;
 }
 
 FOSCBundle& UOSCManager::AddMessageToBundle(const FOSCMessage& Message, FOSCBundle& Bundle)
@@ -350,30 +354,30 @@ void UOSCManager::GetBlob(const FOSCMessage& Message, const int32 Index, TArray<
 	}
 }
 
-bool UOSCManager::OSCAddressIsBundle(const FOSCAddress& Address)
+bool UOSCManager::OSCAddressIsValidPath(const FOSCAddress& Address)
 {
-	return Address.IsBundle();
+	return Address.IsValidPath();
 }
 
-bool UOSCManager::OSCAddressIsMessage(const FOSCAddress& Address)
+bool UOSCManager::OSCAddressIsValidPattern(const FOSCAddress& Address)
 {
-	return Address.IsBundle();
+	return Address.IsValidPattern();
 }
 
-bool UOSCManager::OSCAddressIsValid(const FOSCAddress& Address)
-{
-	return Address.IsValid();
-}
-
-FOSCAddress UOSCManager::StringToOSCAddress(const FString& String)
+FOSCAddress UOSCManager::ConvertStringToOSCAddress(const FString& String)
 {
 	return FOSCAddress(String);
 }
 
-FOSCAddress& UOSCManager::OSCAddressAppend(FOSCAddress& Address, const FString& ToAppend)
+FOSCAddress& UOSCManager::OSCAddressPushContainer(FOSCAddress& Address, const FString& ToAppend)
 {
-	Address.Append(ToAppend);
+	Address.PushContainer(ToAppend);
 	return Address;
+}
+
+FString UOSCManager::OSCAddressPopContainer(FOSCAddress& Address)
+{
+	return Address.PopContainer();
 }
 
 FOSCAddress UOSCManager::GetOSCMessageAddress(const FOSCMessage& Message)
@@ -387,9 +391,35 @@ FOSCMessage& UOSCManager::SetOSCMessageAddress(FOSCMessage& Message, const FOSCA
 	return Message;
 }
 
-TArray<FString> UOSCManager::SplitOSCAddress(const FOSCAddress& Address)
+FString UOSCManager::GetOSCAddressContainer(const FOSCAddress& Address, int32 Index)
 {
-	TArray<FString> OutArray;
-	Address.Split(OutArray);
-	return MoveTemp(OutArray);
+	return Address.GetContainer(Index);
+}
+
+TArray<FString> UOSCManager::GetOSCAddressContainers(const FOSCAddress& Address)
+{
+	TArray<FString> Containers;
+	Address.GetContainers(Containers);
+	return MoveTemp(Containers);
+}
+
+FString UOSCManager::GetOSCAddressContainerPath(const FOSCAddress& Address)
+{
+	return Address.GetContainerPath();
+}
+
+FString UOSCManager::GetOSCAddressFullPath(const FOSCAddress& Address)
+{
+	return Address.GetFullPath();
+}
+
+FString UOSCManager::GetOSCAddressMethod(const FOSCAddress& Address)
+{
+	return Address.GetMethod();
+}
+
+FOSCAddress& UOSCManager::SetOSCAddressMethod(FOSCAddress& Address, const FString& Method)
+{
+	Address.SetMethod(Method);
+	return Address;
 }

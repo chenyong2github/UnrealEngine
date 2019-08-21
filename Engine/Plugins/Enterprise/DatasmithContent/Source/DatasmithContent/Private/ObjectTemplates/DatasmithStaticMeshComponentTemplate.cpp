@@ -45,7 +45,8 @@ UObject* UDatasmithStaticMeshComponentTemplate::UpdateObject( UObject* Destinati
 	{
 		for ( int32 MaterialIndexToRemove = PreviousStaticMeshTemplate->OverrideMaterials.Num() - 1; MaterialIndexToRemove >= OverrideMaterials.Num(); --MaterialIndexToRemove )
 		{
-			if ( StaticMeshComponent->OverrideMaterials.IsValidIndex( MaterialIndexToRemove ) )
+			if ( StaticMeshComponent->OverrideMaterials.IsValidIndex( MaterialIndexToRemove ) &&
+				StaticMeshComponent->OverrideMaterials[MaterialIndexToRemove] == PreviousStaticMeshTemplate->OverrideMaterials[MaterialIndexToRemove] )
 			{
 				StaticMeshComponent->OverrideMaterials.RemoveAt( MaterialIndexToRemove );
 			}

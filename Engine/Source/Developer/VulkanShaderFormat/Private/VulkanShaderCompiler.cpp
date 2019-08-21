@@ -1781,8 +1781,11 @@ static bool CallHlslcc(const FString& PreprocessedShader, FVulkanBindingTable& B
 		// Call hlslcc
 		FVulkanCodeBackend VulkanBackend(CompilerInfo.CCFlags, BindingTable, HlslCompilerTarget);
 		FHlslCrossCompilerContext CrossCompilerContext(CompilerInfo.CCFlags, CompilerInfo.Frequency, HlslCompilerTarget);
-		const bool bShareSamplers = false;
-		FVulkanLanguageSpec VulkanLanguageSpec(true);
+
+		const bool bShareSamplers = true;
+		const bool bRequiresOESExtensions = (CompilerInfo.Input.Target.Platform == SP_VULKAN_ES3_1_LUMIN);
+
+		FVulkanLanguageSpec VulkanLanguageSpec(bShareSamplers, bRequiresOESExtensions);
 		int32 Result = 0;
 		if (CrossCompilerContext.Init(TCHAR_TO_ANSI(*CompilerInfo.Input.VirtualSourceFilePath), &VulkanLanguageSpec))
 		{

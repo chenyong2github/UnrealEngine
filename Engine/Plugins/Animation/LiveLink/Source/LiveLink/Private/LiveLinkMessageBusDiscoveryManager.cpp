@@ -13,10 +13,9 @@
 
 #define LL_HEARTBEAT_SLEEP_TIME 1.0f
 
-FLiveLinkMessageBusDiscoveryManager* FLiveLinkMessageBusDiscoveryManager::Instance = nullptr;
-
 FLiveLinkMessageBusDiscoveryManager::FLiveLinkMessageBusDiscoveryManager()
 	: bRunning(true)
+	, Thread(nullptr)
 {
 	PingRequestCounter = 0;
 	PingRequestFrequency = GetDefault<ULiveLinkSettings>()->GetMessageBusPingRequestFrequency();
@@ -24,7 +23,11 @@ FLiveLinkMessageBusDiscoveryManager::FLiveLinkMessageBusDiscoveryManager()
 	MessageEndpoint = FMessageEndpoint::Builder(TEXT("LiveLinkMessageHeartbeatManager"))
 		.Handling<FLiveLinkPongMessage>(this, &FLiveLinkMessageBusDiscoveryManager::HandlePongMessage);
 
-	Thread = FRunnableThread::Create(this, TEXT("MessageBusHeartbeatManager"));
+	bRunning = MessageEndpoint.IsValid();
+	if (bRunning)
+	{
+		Thread = FRunnableThread::Create(this, TEXT("MessageBusHeartbeatManager"));
+	}
 }
 
 FLiveLinkMessageBusDiscoveryManager::~FLiveLinkMessageBusDiscoveryManager()
@@ -33,25 +36,20 @@ FLiveLinkMessageBusDiscoveryManager::~FLiveLinkMessageBusDiscoveryManager()
 		FScopeLock Lock(&SourcesCriticalSection);
 		
 		// Disable the Endpoint message handling since the message could keep it alive a bit.
-		MessageEndpoint->Disable();
-		MessageEndpoint.Reset();
+		if (MessageEndpoint)
+		{
+			MessageEndpoint->Disable();
+			MessageEndpoint.Reset();
+		}
 	}
 
 	Stop();
+
 	if (Thread)
 	{
 		Thread->Kill(true);
 		Thread = nullptr;
 	}
-};
-
-FLiveLinkMessageBusDiscoveryManager* FLiveLinkMessageBusDiscoveryManager::Get()
-{
-	if (Instance == nullptr)
-	{
-		Instance = new FLiveLinkMessageBusDiscoveryManager();
-	}
-	return Instance;
 }
 
 uint32 FLiveLinkMessageBusDiscoveryManager::Run()
@@ -72,7 +70,7 @@ uint32 FLiveLinkMessageBusDiscoveryManager::Run()
 		FPlatformProcess::Sleep(PingRequestFrequency);
 	}
 	return 0;
-};
+}
 
 void FLiveLinkMessageBusDiscoveryManager::Stop()
 {
@@ -96,6 +94,7 @@ void FLiveLinkMessageBusDiscoveryManager::RemoveDiscoveryMessageRequest()
 TArray<FProviderPollResultPtr> FLiveLinkMessageBusDiscoveryManager::GetDiscoveryResults() const
 {
 	FScopeLock Lock(&SourcesCriticalSection);
+
 	return LastProviderPoolResults;
 }
 

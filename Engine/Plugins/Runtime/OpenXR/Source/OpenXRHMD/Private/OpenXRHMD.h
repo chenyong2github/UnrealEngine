@@ -51,6 +51,9 @@ public:
 	private:
 		XrInstance Instance;
 		XrSystemId System;
+
+		TArray<char> Extensions;
+		TArray<char> DeviceExtensions;
 	};
 
 	/** IXRTrackingSystem interface */
@@ -104,6 +107,7 @@ protected:
 	bool OnStereoStartup();
 	bool OnStereoTeardown();
 	bool ReadNextEvent(XrEventDataBuffer* buffer);
+	void CloseSession();
 
 public:
 	/** IHeadMountedDisplay interface */
@@ -149,10 +153,8 @@ public:
 	/** IStereoRenderTargetManager */
 	virtual bool ShouldUseSeparateRenderTarget() const override { return true; }
 	virtual bool AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 Flags, uint32 TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples = 1) override;
-#if 0
-	virtual bool NeedReAllocateDepthTexture(const TRefCountPtr<IPooledRenderTarget>& DepthTarget) override final { return false; }
+	virtual bool NeedReAllocateDepthTexture(const TRefCountPtr<IPooledRenderTarget>& DepthTarget) override final { return bNeedReAllocatedDepth; }
 	virtual bool AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 InTexFlags, uint32 TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples = 1) override final;
-#endif
 
 	virtual FXRRenderBridge* GetActiveRenderBridge_GameThread(bool bUseSeparateRenderTarget) override;
 
@@ -162,7 +164,7 @@ public:
 
 public:
 	/** Constructor */
-	FOpenXRHMD(const FAutoRegister&, XrInstance InInstance, XrSystemId InSystem, TRefCountPtr<FOpenXRRenderBridge>& InRenderBridge);
+	FOpenXRHMD(const FAutoRegister&, XrInstance InInstance, XrSystemId InSystem, TRefCountPtr<FOpenXRRenderBridge>& InRenderBridge, bool InDepthExtensionSupported);
 
 	/** Destructor */
 	virtual ~FOpenXRHMD();
@@ -176,9 +178,8 @@ public:
 	OPENXRHMD_API int32 AddActionDevice(XrAction Action);
 
 	FXRSwapChain* GetSwapchain() { return Swapchain.Get(); }
-#if 0
 	FXRSwapChain* GetDepthSwapchain() { return DepthSwapchain.Get(); }
-#endif
+
 	XrInstance GetInstance() { return Instance; }
 	XrSystemId GetSystem() { return System; }
 	XrSession GetSession() { return Session; }
@@ -193,6 +194,8 @@ private:
 	bool					bIsReady;
 	bool					bIsRendering;
 	bool					bRunRequested;
+	bool					bDepthExtensionSupported;
+	bool					bNeedReAllocatedDepth;
 	
 	XrSessionState			CurrentSessionState;
 
@@ -223,7 +226,5 @@ private:
 	IRendererModule*		RendererModule;
 
 	FXRSwapChainPtr			Swapchain;
-#if 0
 	FXRSwapChainPtr			DepthSwapchain;
-#endif
 };

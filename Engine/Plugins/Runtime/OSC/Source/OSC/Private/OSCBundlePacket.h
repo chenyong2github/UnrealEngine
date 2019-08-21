@@ -34,10 +34,6 @@ public:
 	  * adding packet data to internal packet bundle. */
 	virtual void ReadData(FOSCStream& Stream) override;
 
-	virtual const FOSCAddress& GetAddress() const override;
-
-	virtual void SetAddress(const FOSCAddress& Address) override;
-
 private:
 	/** Bundle of OSC packets. */
 	FPacketBundle Packets;

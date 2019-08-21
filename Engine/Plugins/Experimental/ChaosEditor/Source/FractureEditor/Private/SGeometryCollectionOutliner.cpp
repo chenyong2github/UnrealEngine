@@ -10,6 +10,8 @@
 #include "LevelEditor.h"
 #include "Modules/ModuleManager.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
+#include "FractureEditorMode.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "ChaosEditor"
 
@@ -103,13 +105,18 @@ void SGeometryCollectionOutliner::UpdateGeometryCollection()
 
 void SGeometryCollectionOutliner::SetComponents(const TArray<UGeometryCollectionComponent*>& InNewComponents)
 {
+	// Clear the cached Tree ItemSelection without affecting the SelectedBones as 
+	// we want to refresh the tree selection using selected bones
+	TGuardValue<bool> ExternalSelectionGuard(bPerformingSelection, true);
+	TreeView->ClearSelection();
+
 	RootNodes.Empty();
 
 	for (UGeometryCollectionComponent* Component : InNewComponents)
 	{
 		RootNodes.Add(MakeShared<FGeometryCollectionTreeItemComponent>(Component));
 		TArray<int32> SelectedBones = Component->GetSelectedBones();
-		SetBoneSelection(Component, SelectedBones, !SelectedBones.Num());
+		SetBoneSelection(Component, SelectedBones, false);
 	}
 
 	TreeView->RequestTreeRefresh();
@@ -186,12 +193,14 @@ void SGeometryCollectionOutliner::OnSelectionChanged(FGeometryCollectionTreeItem
 		FGeometryCollectionTreeItemList SelectedItems;
 		TreeView->GetSelectedItems(SelectedItems);
 		
+		FScopedTransaction Transaction(FractureTransactionContexts::SelectBoneContext, LOCTEXT("SelectGeometryCollectionBoneTransaction", "Select Bone"), Item->GetComponent());
 		for(auto& SelectedItem : SelectedItems)
 		{
 			if (SelectedItem->GetBoneIndex() != INDEX_NONE)
 			{
 				TArray<int32>& SelectedBones = ComponentToBoneSelectionMap.FindChecked(Item->GetComponent());
 				SelectedBones.Add(SelectedItem->GetBoneIndex());
+				Item->GetComponent()->Modify();
 			}
 		}
 		// Fire off the delegate for each component

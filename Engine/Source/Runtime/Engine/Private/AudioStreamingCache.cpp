@@ -43,6 +43,14 @@ FAutoConsoleVariableRef CVarTrimCacheWhenOverBudget(
 	TEXT("n: Number of elements to display on screen."),
 	ECVF_Default);
 
+static int32 ReadRequestPriorityCVar = 2;
+FAutoConsoleVariableRef CVarReadRequestPriority(
+	TEXT("au.streamcaching.ReadRequestPriority"),
+	ReadRequestPriorityCVar,
+	TEXT("This cvar sets the default request priority for audio chunks when Stream Caching is turned on.\n")
+	TEXT("0: High, 1: Normal, 2: Below Normal, 3: Low, 4: Min"),
+	ECVF_Default);
+
 FCachedAudioStreamingManager::FCachedAudioStreamingManager(const FCachedAudioStreamingManagerParams& InitParams)
 {
 	check(FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching());
@@ -507,7 +515,7 @@ uint64 FAudioChunkCache::TrimMemory(uint64 BytesToFree)
 
 #if DEBUG_STREAM_CACHE
 			// Reset debug info:
-			CurrentElement->DebugInfo = FCacheElementDebugInfo();
+			CurrentElement->DebugInfo.Reset();
 #endif
 		}
 
@@ -605,7 +613,8 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::FindElementForKey(const FChun
 		{
 			
 #if DEBUG_STREAM_CACHE
-			CurrentElement->DebugInfo.PreviousLocationsBeforeBeingTouched.Add(ElementPosition);
+			float& CMA = CurrentElement->DebugInfo.AverageLocationInCacheWhenNeeded;
+			CMA += ((ElementPosition - CMA) / (CurrentElement->DebugInfo.NumTimesTouched + 1));
 #endif
 
 			return CurrentElement;
@@ -791,8 +800,7 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::EvictLeastRecentChunk()
 
 #if DEBUG_STREAM_CACHE
 	// Reset debug information:
-	CacheElement->DebugInfo.PreviousLocationsBeforeBeingTouched.Reset();
-	CacheElement->DebugInfo.NumTimesTouched = 0;
+	CacheElement->DebugInfo.Reset();
 #endif
 
 	return CacheElement;
@@ -806,7 +814,7 @@ void FAudioChunkCache::KickOffAsyncLoad(FCacheElement* CacheElement, const FChun
 	const FStreamedAudioChunk& Chunk = InKey.SoundWave->RunningPlatformData->Chunks[InKey.ChunkIndex];
 	int32 ChunkDataSize = Chunk.AudioDataSize;
 
-	EAsyncIOPriorityAndFlags AsyncIOPriority = AIOP_High;
+	EAsyncIOPriorityAndFlags AsyncIOPriority = GetAsyncPriorityForChunk(InKey);
 
 	MemoryCounterBytes -= CacheElement->ChunkData.Num();
 	// Reallocate our chunk data This allows us to shrink if possible.
@@ -908,6 +916,37 @@ void FAudioChunkCache::KickOffAsyncLoad(FCacheElement* CacheElement, const FChun
 			UE_LOG(LogAudio, Error, TEXT("Chunk load in audio LRU cache failed."));
 			OnLoadCompleted(EAudioChunkLoadResult::ChunkOutOfBounds);
 			NumberOfLoadsInFlight.Decrement();
+		}
+	}
+}
+
+EAsyncIOPriorityAndFlags FAudioChunkCache::GetAsyncPriorityForChunk(const FChunkKey& InKey)
+{
+
+	// TODO: In the future we can add an enum to USoundWaves to tweak load priority of individual assets.
+
+	switch (ReadRequestPriorityCVar)
+	{
+		case 4:
+		{
+			return AIOP_MIN;
+		}
+		case 3:
+		{
+			return AIOP_Low;
+		}
+		case 2:
+		{
+			return AIOP_BelowNormal;
+		}
+		case 1:
+		{
+			return AIOP_Normal;
+		}
+		case 0:
+		default:
+		{
+			return AIOP_High;
 		}
 	}
 }
@@ -1027,21 +1066,24 @@ TPair<int, int> FAudioChunkCache::DebugDisplay(UWorld* World, FViewport* Viewpor
 		int32 NumTotalChunks = -1;
 		int32 NumTimesTouched = -1;
 		double TimeToLoad = -1.0;
+		float AveragePlaceInCache = -1.0f;
 
 #if DEBUG_STREAM_CACHE
 		NumTotalChunks = CurrentElement->DebugInfo.NumTotalChunks;
 		NumTimesTouched = CurrentElement->DebugInfo.NumTimesTouched;
 		TimeToLoad = CurrentElement->DebugInfo.TimeToLoad;
+		AveragePlaceInCache = CurrentElement->DebugInfo.AverageLocationInCacheWhenNeeded;
 #endif
 
 		const bool bWasTrimmed = CurrentElement->ChunkData.Num() == 0;
 
-		FString ElementInfo = *FString::Printf(TEXT("%4i. Size: %6.2f KB   Chunk: %d of %d   Request Count: %d    Number of Decoders Using Chunk: %d     Chunk Load Time: %6.4fms      Name: %s "),
+		FString ElementInfo = *FString::Printf(TEXT("%4i. Size: %6.2f KB   Chunk: %d of %d   Request Count: %d    Average Index: %6.2f  Number of Decoders Using Chunk: %d     Chunk Load Time: %6.4fms      Name: %s "),
 			Index,
 			CurrentElement->ChunkData.Num() / 1024.0f,
 			CurrentElement->Key.ChunkIndex,
 			NumTotalChunks,
 			NumTimesTouched,
+			AveragePlaceInCache,
 			CurrentElement->NumConsumers.GetValue(),
 			TimeToLoad,
 			bWasTrimmed ? TEXT("TRIMMED CHUNK") : *CurrentElement->Key.SoundWaveName.ToString()
