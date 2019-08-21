@@ -1134,6 +1134,7 @@ public:
 
 		// We rely on the widgets desired size in order to determine how many will fit on screen.
 		const TSharedRef<SWidget> NewlyGeneratedWidget = WidgetForItem->AsWidget();
+		NewlyGeneratedWidget->InvalidatePrepass();
 		NewlyGeneratedWidget->SlatePrepass(LayoutScaleMultiplier);
 
 		// We have a widget for this item; add it to the panel so that it is part of the UI.
