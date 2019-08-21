@@ -4507,6 +4507,9 @@ void FEngineLoop::Tick()
 
 			FTicker::GetCoreTicker().Tick(FApp::GetDeltaTime());
 			FThreadManager::Get().Tick();
+#if BUILD_EMBEDDED_APP
+			FEmbeddedCommunication::TickGameThread(FApp::GetDeltaTime());
+#endif
 			GEngine->TickDeferredCommands();		
 		}
 
