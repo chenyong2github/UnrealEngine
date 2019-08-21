@@ -645,6 +645,7 @@ USocialToolkit& USocialManager::CreateSocialToolkit(ULocalPlayer& OwningLocalPla
 	SocialToolkits.Add(NewToolkit);
 	NewToolkit->InitializeToolkit(OwningLocalPlayer);
 	OnToolkitCreatedInternal(*NewToolkit);
+	NewToolkit->OnToolkitReset().AddUObject(this, &USocialManager::HandleToolkitReset, NewToolkit->GetLocalUserNum());
 	return *NewToolkit;
 }
 
@@ -668,7 +669,7 @@ void USocialManager::JoinPartyInternal(FJoinPartyAttempt& JoinAttempt)
 {
 	IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
 	FUniqueNetIdRepl LocalUserId = GetFirstLocalUserId(ESocialSubsystem::Primary);
-	ensureMsgf(LocalUserId.IsValid(), TEXT("USocialManager::JoinPartyInternal: Invalid LocalUserId!"));
+	checkf(LocalUserId.IsValid(), TEXT("USocialManager::JoinPartyInternal: Invalid LocalUserId!"));
 
 	JoinAttempt.ActionTimeTracker.BeginStep(FJoinPartyAttempt::Step_JoinParty);
 
@@ -677,7 +678,7 @@ void USocialManager::JoinPartyInternal(FJoinPartyAttempt& JoinAttempt)
 		UE_LOG(LogParty, Verbose, TEXT("Attempting to rejoin party [%s] now."), *JoinAttempt.RejoinInfo->PartyId->ToDebugString());
 
 		// Rejoin attempts are initiated differently, but the handler/follow-up is identical to a normal join
-		PartyInterface->RejoinParty(*GetFirstLocalUserId(ESocialSubsystem::Primary), *JoinAttempt.RejoinInfo->PartyId, IOnlinePartySystem::GetPrimaryPartyTypeId(), JoinAttempt.RejoinInfo->MemberIds, FOnJoinPartyComplete::CreateUObject(this, &USocialManager::HandleJoinPartyComplete, IOnlinePartySystem::GetPrimaryPartyTypeId()));
+		PartyInterface->RejoinParty(*LocalUserId, *JoinAttempt.RejoinInfo->PartyId, IOnlinePartySystem::GetPrimaryPartyTypeId(), JoinAttempt.RejoinInfo->MemberIds, FOnJoinPartyComplete::CreateUObject(this, &USocialManager::HandleJoinPartyComplete, IOnlinePartySystem::GetPrimaryPartyTypeId()));
 	}
 	else
 	{
@@ -849,6 +850,11 @@ void USocialManager::HandleLocalPlayerRemoved(int32 LocalUserNum)
 		SocialToolkits.Remove(Toolkit);
 		Toolkit->MarkPendingKill();
 	}
+}
+
+void USocialManager::HandleToolkitReset(int32 LocalUserNum)
+{
+	JoinAttemptsByTypeId.Reset();
 }
 
 void USocialManager::RestorePartyStateFromPartySystem(const FOnRestorePartyStateFromPartySystemComplete& OnRestoreComplete)
