@@ -112,21 +112,39 @@ protected:
 	bool TransformSelectedTangent(const FVector& DeltaTranslate);
 
 	/** Transforms selected tangent by given translate, rotate and scale */
-	bool TransformSelectedKeys(const FVector& DeltaTranslate, const FRotator& DeltaRotate = FRotator::ZeroRotator, const FVector& DeltaScale = FVector::ZeroVector, bool bDuplicateKey = false);
-
-	/** Snaps edited point and rot point to given world location, up vector, and tangent */
-	void SnapTo(USplineComponent *SplineComp, int32 KeyIdx,
-		const FVector& InLocation, const FVector& InUpVector = FVector::ZeroVector, bool bInAlignUpVector = false, const FVector& InTangentVector = FVector::ZeroVector, bool bInAlignTangentVector = false);
+	bool TransformSelectedKeys(const FVector& DeltaTranslate, const FRotator& DeltaRotate = FRotator::ZeroRotator, const FVector& DeltaScale = FVector::ZeroVector);
 
 	/** Update the key selection state of the visualizer */
 	void ChangeSelectionState(int32 Index, bool bIsCtrlHeld);
 
-	/** Duplicates the selected spline key(s) */
-	void DuplicateKey();
+	/** Alt-drag: duplicates the selected spline key */
+	virtual bool DuplicateKeyForAltDrag(const FVector& InDrag);
+
+	/** Alt-drag: updates duplicated selected spline key */
+	virtual bool UpdateDuplicateKeyForAltDrag(const FVector& InDrag);
+
+	/** Return spline data for point on spline closest to input point */
+	virtual float FindNearest(const FVector& InLocalPos, int32 InSegmentStartIndex, FVector& OutSplinePos, FVector& OutSplineTangent) const;
+
+	/** Split segment using given world position */
+	virtual void SplitSegment(const FVector& InWorldPos, int32 InSegmentIndex);
+
+	/** Update split segment based on drag offset */
+	virtual void UpdateSplitSegment(const FVector& InDrag);
+
+	/** Add segment to beginning or end of spline */
+	virtual void AddSegment(const FVector& InWorldPos, bool bAppend);
+
+	/** Add segment to beginning or end of spline */
+	virtual void UpdateAddSegment(const FVector& InWorldPos);
+
+	/** Alt-drag: duplicates the selected spline key */
+	virtual void ResetAllowDuplication();
 
 	void OnDeleteKey();
 	bool CanDeleteKey() const;
 
+	/** Duplicates selected spline keys in place */
 	void OnDuplicateKey();
 	bool IsKeySelectionValid() const;
 
@@ -214,6 +232,21 @@ protected:
 
 	/** Whether we currently allow duplication when dragging */
 	bool bAllowDuplication;
+
+	/** Alt-drag: True when in process of duplicating a spline key. */
+	bool bDuplicatingSplineKey;
+
+	/** Alt-drag: True when in process of adding end segment. */
+	bool bUpdatingAddSegment;
+
+	/** Alt-drag: Delays duplicating control point to accumulate sufficient drag input offset. */
+	uint32 DuplicateDelay;
+
+	/** Alt-drag: Accumulates delayed drag offset. */
+	FVector DuplicateDelayAccumulatedDrag;
+
+	/** Alt-drag: Cached segment parameter for split segment at new control point */
+	float DuplicateCacheSplitSegmentParam;
 
 	/** Axis to fix when adding new spline points. Uses the value of the currently 
 	    selected spline point's X, Y, or Z value when fix is not equal to none. */
