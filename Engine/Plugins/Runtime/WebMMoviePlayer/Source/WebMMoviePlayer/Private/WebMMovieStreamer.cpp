@@ -27,6 +27,7 @@ FWebMMovieStreamer::FWebMMovieStreamer()
 	, VideoFramesCurrentlyProcessing(0)
 	, StartTime(0)
 	, bPlaying(false)
+	, bPaused(false)
 	, TicksLeftToWaitPostCompletion(0)
 {
 }
@@ -39,6 +40,22 @@ FWebMMovieStreamer::~FWebMMovieStreamer()
 void FWebMMovieStreamer::Cleanup()
 {
 	bPlaying = false;
+	bPaused = false;
+	VideoFramesCurrentlyProcessing = 0;
+	TicksLeftToWaitPostCompletion = 0;
+
+	// remove delegates if registered
+	if (ResumeHandle.IsValid())
+	{
+		FCoreDelegates::ApplicationHasEnteredForegroundDelegate.Remove(ResumeHandle);
+		ResumeHandle.Reset();
+	}
+
+	if (PauseHandle.IsValid())
+	{
+		FCoreDelegates::ApplicationWillEnterBackgroundDelegate.Remove(PauseHandle);
+		PauseHandle.Reset();
+	}
 
 	ReleaseAcquiredResources();
 	AudioBackend->ShutdownPlatform();
@@ -58,12 +75,24 @@ bool FWebMMovieStreamer::Init(const TArray<FString>& InMoviePaths, TEnumAsByte<E
 	// Add the given paths to the movie queue
 	MovieQueue.Append(InMoviePaths);
 
+	// register delegate if not registered
+	if (!ResumeHandle.IsValid())
+	{
+		ResumeHandle = FCoreDelegates::ApplicationHasEnteredForegroundDelegate.AddRaw(this, &FWebMMovieStreamer::HandleApplicationHasEnteredForeground);
+	}
+	if (!PauseHandle.IsValid())
+	{
+		PauseHandle = FCoreDelegates::ApplicationWillEnterBackgroundDelegate.AddRaw(this, &FWebMMovieStreamer::HandleApplicationWillEnterBackground);
+	}
+
 	// start our first movie playing
 	return StartNextMovie();
 }
 
 bool FWebMMovieStreamer::StartNextMovie()
 {
+	checkf(!bPaused, TEXT("Should not start next movie when paused!"));
+
 	if (MovieQueue.Num() > 0)
 	{
 		ReleaseAcquiredResources();
@@ -86,7 +115,7 @@ bool FWebMMovieStreamer::StartNextMovie()
 			return false;
 		}
 
-		UE_LOG(LogWebMMoviePlayer, Verbose, TEXT("Starting '%s'"), *MoviePath);
+		UE_LOG(LogWebMMoviePlayer, Log, TEXT("Starting '%s'"), *MoviePath);
 
 		if (!Container->Open(MoviePath))
 		{
@@ -107,7 +136,7 @@ bool FWebMMovieStreamer::StartNextMovie()
 		AudioDecoder->Initialize(DefaultAudioTrack.CodecName, DefaultAudioTrack.SampleRate, DefaultAudioTrack.NumOfChannels, DefaultAudioTrack.CodecPrivateData, DefaultAudioTrack.CodecPrivateDataSize);
 		VideoDecoder->Initialize(DefaultVideoTrack.CodecName);
 
-		AudioBackend->StartStreaming(DefaultAudioTrack.SampleRate, DefaultAudioTrack.NumOfChannels);
+		AudioBackend->StartStreaming(DefaultAudioTrack.SampleRate, DefaultAudioTrack.NumOfChannels, FWebMAudioBackendSDL::EStreamState::NewMovie);
 
 		StartTime = FPlatformTime::Seconds();
 		bPlaying = true;
@@ -116,7 +145,7 @@ bool FWebMMovieStreamer::StartNextMovie()
 	}
 	else
 	{
-		UE_LOG(LogWebMMoviePlayer, Verbose, TEXT("No Movie to start."));
+		UE_LOG(LogWebMMoviePlayer, Log, TEXT("No Movie to start."));
 		return false;
 	}
 }
@@ -133,7 +162,9 @@ bool FWebMMovieStreamer::IsLastMovieInPlaylist()
 
 bool FWebMMovieStreamer::Tick(float InDeltaTime)
 {
-	if (bPlaying)
+	AudioBackend->Tick(InDeltaTime);
+
+	if (LIKELY(bPlaying && !bPaused))
 	{
 		if (TicksLeftToWaitPostCompletion)
 		{
@@ -159,6 +190,11 @@ bool FWebMMovieStreamer::Tick(float InDeltaTime)
 			TicksLeftToWaitPostCompletion = 1;
 			Viewport->SetTexture(nullptr);
 		}
+		return false;
+	}
+	else if (bPaused)
+	{
+		// continue ticking
 		return false;
 	}
 	else
@@ -245,7 +281,7 @@ bool FWebMMovieStreamer::SendAudio(float InDeltaTime)
 	while (bFoundSample && AudioSample)
 	{
 		FWebMMediaAudioSample* WebMSample = StaticCast<FWebMMediaAudioSample*>(AudioSample.Get());
-		AudioBackend->SendAudio(WebMSample->GetDataBuffer().GetData(), WebMSample->GetDataBuffer().Num());
+		AudioBackend->SendAudio(WebMSample->GetTime(), WebMSample->GetDataBuffer().GetData(), WebMSample->GetDataBuffer().Num());
 
 		bFoundSample = Samples->FetchAudio(TimeRange, AudioSample);
 	}
@@ -291,6 +327,33 @@ void FWebMMovieStreamer::AddVideoSampleFromDecodingThread(TSharedRef<FWebMMediaT
 void FWebMMovieStreamer::AddAudioSampleFromDecodingThread(TSharedRef<FWebMMediaAudioSample, ESPMode::ThreadSafe> Sample)
 {
 	Samples->AddAudio(Sample);
+}
+
+void FWebMMovieStreamer::HandleApplicationWillEnterBackground()
+{
+	UE_LOG(LogWebMMoviePlayer, Log, TEXT("FWebMMovieStreamer::HandleApplicationWillEnterBackground, pausing - we were %s"), bPaused ? TEXT("paused") : TEXT("not paused"));
+
+	if (!bPaused)
+	{
+		TimeAtEnteringBackground = FPlatformTime::Seconds();
+		AudioBackend->Pause(true);
+		bPaused = true;
+	}
+}
+
+void FWebMMovieStreamer::HandleApplicationHasEnteredForeground()
+{
+	UE_LOG(LogWebMMoviePlayer, Log, TEXT("FWebMMovieStreamer::HandleApplicationHasEnteredForeground, unpausing - we were %s"), bPaused ? TEXT("paused") : TEXT("not paused"));
+
+	if (bPaused)
+	{
+		double PrevStartTimeForLog = StartTime;
+		double TimeSpentInBackground = FPlatformTime::Seconds() - TimeAtEnteringBackground;
+		StartTime += TimeSpentInBackground;
+		AudioBackend->Pause(false);
+		bPaused = false;
+		UE_LOG(LogWebMMoviePlayer, Log, TEXT("Spent %f seconds in background, adjusting start time from %f to %f"), TimeSpentInBackground, PrevStartTimeForLog, StartTime);
+	}
 }
 
 #endif // WITH_WEBM_LIBS
