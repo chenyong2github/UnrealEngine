@@ -22,6 +22,7 @@
 #define NUM_SAFE_FRAMES 4
 
 class FMetalRHICommandContext;
+class FMetalPipelineStateCacheManager;
 
 class FMetalContext
 {
@@ -303,4 +304,7 @@ private:
 	
 	/** Whether we presented this frame - only used to track when to introduce debug markers */
 	bool bPresented;
+	
+	/** PSO cache manager */
+	FMetalPipelineStateCacheManager* PSOManager;
 };
