@@ -1161,7 +1161,7 @@ int32 FNameEntry::GetSize(const TCHAR* Name)
 
 int32 FNameEntry::GetSize(int32 Length, bool bIsPureAnsi)
 {
-	int32 Bytes = GetDataOffset() + (Length + 1) * (bIsPureAnsi ? sizeof(ANSICHAR) : sizeof(TCHAR));
+	int32 Bytes = GetDataOffset() + Length * (bIsPureAnsi ? sizeof(ANSICHAR) : sizeof(WIDECHAR));
 	return Align(Bytes, alignof(FNameEntry));
 }
 
