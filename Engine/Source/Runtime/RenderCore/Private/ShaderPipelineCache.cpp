@@ -99,6 +99,13 @@ static TAutoConsoleVariable<int32> CVarPSOFileCacheAutoSaveTime(
 															ECVF_Default | ECVF_RenderThreadSafe
 														);
 
+static TAutoConsoleVariable<int32> CVarPSOFileCachePreCompileMask(
+																TEXT("r.ShaderPipelineCache.PreCompileMask"),
+																-1,
+																TEXT("Mask used to precompile the cache. Defaults to all PSOs (-1)"),
+																ECVF_Default | ECVF_RenderThreadSafe
+																);
+
 static TAutoConsoleVariable<int32> CVarPSOFileCacheAutoSaveTimeBoundPSO(
 	TEXT("r.ShaderPipelineCache.AutoSaveTimeBoundPSO"),
 	10,
@@ -1181,6 +1188,8 @@ void FShaderPipelineCache::Tick( float DeltaTime )
         {
             OnPrecompilationComplete.Broadcast((uint32)TotalCompleteTasks, FPlatformTime::ToSeconds64(TotalPrecompileTime), ShaderCachePrecompileContext);
         }
+		FPipelineFileCache::PreCompileComplete();
+		
         FPlatformAtomics::InterlockedExchange(&TotalCompleteTasks, 0);
         FPlatformAtomics::InterlockedExchange(&TotalPrecompileTime, 0);
     }
@@ -1359,6 +1368,16 @@ TStatId FShaderPipelineCache::GetStatId() const
 	RETURN_QUICK_DECLARE_CYCLE_STAT(FShaderPipelineBatchCompiler, STATGROUP_Tickables);
 }
 
+// Not sure where the define is for this but most seem to be low, medium, high, epic, cinema, auto, except material quality but that's less anyway
+static const int32 MaxQualityCount = 6;
+static const int32 MaxPlaylistCount = 3;
+
+static bool PreCompileMaskComparison(uint64 ReferenceGameMask, uint64 PSOMask)
+{
+	uint64 UsageMask = (ReferenceGameMask & PSOMask);
+	return (UsageMask & (7 << (MaxQualityCount*2+MaxPlaylistCount))) && (UsageMask & (63 << MaxQualityCount*2)) && (UsageMask & (63 << MaxQualityCount)) && (UsageMask & 63);
+}
+
 bool FShaderPipelineCache::Open(FString const& Name, EShaderPlatform Platform)
 {
 	FileName = Name;
@@ -1373,6 +1392,9 @@ bool FShaderPipelineCache::Open(FString const& Name, EShaderPlatform Platform)
 		
 		if(bReady)
 		{
+			uint64 PreCompileMask = (uint64)CVarPSOFileCachePreCompileMask.GetValueOnAnyThread();
+			FPipelineFileCache::SetGameUsageMaskWithComparison(PreCompileMask, PreCompileMaskComparison);
+
 			int32 Order = (int32)FPipelineFileCache::PSOOrder::Default;
 			
 			if(!GConfig->GetInt(FShaderPipelineCacheConstants::SectionHeading, FShaderPipelineCacheConstants::SortOrderKey, Order, *GGameUserSettingsIni))
