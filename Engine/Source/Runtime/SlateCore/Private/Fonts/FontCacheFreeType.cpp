@@ -5,8 +5,12 @@
 #include "HAL/PlatformFile.h"
 #include "HAL/PlatformFilemanager.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "HAL/IConsoleManager.h"
 
 #if WITH_FREETYPE
+
+static int32 GSlateEnableLegacyFontHinting = 0;
+static FAutoConsoleVariableRef CVarSlateEnableLegacyFontHinting(TEXT("Slate.EnableLegacyFontHinting"), GSlateEnableLegacyFontHinting, TEXT("Enable the legacy font hinting? (0/1)."), ECVF_Default);
 
 // The total amount of memory freetype allocates internally
 DECLARE_MEMORY_STAT(TEXT("FreeType Total Allocated Memory"), STAT_SlateFreetypeAllocatedMemory, STATGROUP_SlateMemory);
@@ -64,25 +68,104 @@ namespace FreeTypeUtils
 
 void ApplySizeAndScale(FT_Face InFace, const int32 InFontSize, const float InFontScale)
 {
-	FT_Error Error = FT_Set_Char_Size(InFace, 0, ConvertPixelTo26Dot6<FT_F26Dot6>(InFontSize), FreeTypeConstants::HorizontalDPI, FreeTypeConstants::VerticalDPI);
+	// Convert to fixed scale for maximum precision
+	const FT_F26Dot6 FixedFontSize = ConvertPixelTo26Dot6<FT_F26Dot6>(InFontSize);
+	const FT_Long FixedFontScale = ConvertPixelTo16Dot16<FT_Long>(InFontScale);
 
-	check(Error == 0);
+	// Convert the requested font size to a pixel size based on our render DPI and the requested scale
+	// This result is left in 26.6 space as it is the common format used by both FT_IS_SCALABLE and FT_HAS_FIXED_SIZES fonts
+	FT_F26Dot6 RequiredFixedFontPixelSize = 0;
+	{
+		// Convert the 26.6 character size to the unscaled 26.6 pixel size
+		// Note: The logic here mirrors what FT_REQUEST_WIDTH and FT_REQUEST_HEIGHT do internally when using FT_Set_Char_Size
+		RequiredFixedFontPixelSize = ((FixedFontSize * (FT_Pos)FreeTypeConstants::RenderDPI) + 36) / 72;
 
-	if (InFontScale != 1.0f)
-	{
-		FT_Matrix ScaleMatrix;
-		ScaleMatrix.xy = 0;
-		ScaleMatrix.xx = ConvertPixelTo16Dot16<FT_Fixed>(InFontScale);
-		ScaleMatrix.yy = ConvertPixelTo16Dot16<FT_Fixed>(InFontScale);
-		ScaleMatrix.yx = 0;
-		FT_Set_Transform(InFace, &ScaleMatrix, nullptr);
-	}
-	else
-	{
-		FT_Set_Transform(InFace, nullptr, nullptr);
+		// Scale the 26.6 pixel size by the desired 16.16 fractional scaling value
+		RequiredFixedFontPixelSize = FT_MulFix(RequiredFixedFontPixelSize, FixedFontScale);
 	}
 
-	check(Error == 0);
+	if (FT_IS_SCALABLE(InFace))
+	{
+		// Convert the 26.6 scaled pixel size back into pixel space
+		const uint32 RequiredFontPixelSize = Convert26Dot6ToRoundedPixel<uint32>(RequiredFixedFontPixelSize);
+
+		// Set the pixel size
+		FT_Error Error = FT_Set_Pixel_Sizes(InFace, RequiredFontPixelSize, RequiredFontPixelSize);
+		check(Error == 0);
+	}
+	else if (FT_HAS_FIXED_SIZES(InFace))
+	{
+		// Find the best bitmap strike for our required pixel size
+		// Height is the most important metric, so that is the one we search for
+		int32 BestStrikeIndex = INDEX_NONE;
+		{
+			FT_F26Dot6 RunningBestFixedStrikeHeight = 0;
+			for (int32 PotentialStrikeIndex = 0; PotentialStrikeIndex < InFace->num_fixed_sizes; ++PotentialStrikeIndex)
+			{
+				const FT_F26Dot6 PotentialFixedStrikeHeight = InFace->available_sizes[PotentialStrikeIndex].y_ppem;
+
+				// An exact match always wins
+				if (PotentialFixedStrikeHeight == RequiredFixedFontPixelSize)
+				{
+					BestStrikeIndex = PotentialStrikeIndex;
+					break;
+				}
+
+				// First loop?
+				if (BestStrikeIndex == INDEX_NONE)
+				{
+					BestStrikeIndex = PotentialStrikeIndex;
+					RunningBestFixedStrikeHeight = PotentialFixedStrikeHeight;
+					continue;
+				}
+
+				// Our running strike is smaller than our required size, so choose this as our running strike... 
+				if (RunningBestFixedStrikeHeight < RequiredFixedFontPixelSize)
+				{
+					// ... but only if it grows the size of our running strike
+					if (PotentialFixedStrikeHeight > RunningBestFixedStrikeHeight)
+					{
+						BestStrikeIndex = PotentialStrikeIndex;
+						RunningBestFixedStrikeHeight = PotentialFixedStrikeHeight;
+					}
+					continue;
+				}
+				
+				// Our running strike is larger than our required size, so choose this as our running strike... 
+				if (RunningBestFixedStrikeHeight > RequiredFixedFontPixelSize)
+				{
+					// ... but only if it shrinks the size of our running strike to no less than the required size
+					if (PotentialFixedStrikeHeight < RunningBestFixedStrikeHeight && PotentialFixedStrikeHeight > RequiredFixedFontPixelSize)
+					{
+						BestStrikeIndex = PotentialStrikeIndex;
+						RunningBestFixedStrikeHeight = PotentialFixedStrikeHeight;
+					}
+					continue;
+				}
+			}
+		}
+
+		// Set the strike index
+		check(BestStrikeIndex != INDEX_NONE);
+		FT_Error Error = FT_Select_Size(InFace, BestStrikeIndex);
+		check(Error == 0);
+
+		// Work out the scale required to convert from the chosen strike to the desired pixel size
+		FT_Long FixedStrikeScale = 0;
+		{
+			// Convert the 26.6 values to 16.16 space so that we can use FT_DivFix
+			const FT_Long RequiredFixedFontPixelSize16Dot16 = RequiredFixedFontPixelSize << 10;
+			const FT_Long BestFixedStrikeHeight16Dot16 = InFace->available_sizes[BestStrikeIndex].y_ppem << 10;
+			FixedStrikeScale = FT_DivFix(RequiredFixedFontPixelSize16Dot16, BestFixedStrikeHeight16Dot16);
+		}
+
+		// Fixed size fonts don't use the x_scale/y_scale values so we use them to store the scaling adjustment we 
+		// need to apply to the bitmap (as a 16.16 fractional scaling value) to scale it to our desired pixel size
+		// Note: Technically metrics are supposed to be read-only, so if this causes issues then we'll have to add
+		// the information to FFreeTypeFace instead and pass it through to everything that calls ApplySizeAndScale
+		InFace->size->metrics.x_scale = FixedStrikeScale;
+		InFace->size->metrics.y_scale = FixedStrikeScale;
+	}
 }
 
 FT_Error LoadGlyph(FT_Face InFace, const uint32 InGlyphIndex, const int32 InLoadFlags, const int32 InFontSize, const float InFontScale)
@@ -94,22 +177,92 @@ FT_Error LoadGlyph(FT_Face InFace, const uint32 InGlyphIndex, const int32 InLoad
 
 FT_Pos GetHeight(FT_Face InFace, const EFontLayoutMethod InLayoutMethod)
 {
-	return (InLayoutMethod == EFontLayoutMethod::Metrics) ? (FT_Pos)InFace->height : (InFace->bbox.yMax - InFace->bbox.yMin);
+	if (FT_IS_SCALABLE(InFace))
+	{
+		// Scalable fonts use the unscaled value, as the metrics have had scaling and rounding applied to them
+		return (InLayoutMethod == EFontLayoutMethod::Metrics) ? (FT_Pos)InFace->height : (InFace->bbox.yMax - InFace->bbox.yMin);
+	}
+	else if (FT_HAS_FIXED_SIZES(InFace))
+	{
+		// Fixed size fonts don't support scaling, so the metrics value is already unscaled
+		return InFace->size->metrics.height;
+	}
+	return 0;
 }
 
 FT_Pos GetScaledHeight(FT_Face InFace, const EFontLayoutMethod InLayoutMethod)
 {
-	return (InLayoutMethod == EFontLayoutMethod::Metrics) ? InFace->size->metrics.height : FT_MulFix(InFace->bbox.yMax - InFace->bbox.yMin, InFace->size->metrics.y_scale);
+	if (FT_IS_SCALABLE(InFace))
+	{
+		// Scalable fonts use the unscaled value (and apply the scale manually), as the metrics have had rounding applied to them
+		return FT_MulFix((InLayoutMethod == EFontLayoutMethod::Metrics) ? InFace->height : (InFace->bbox.yMax - InFace->bbox.yMin), InFace->size->metrics.y_scale);
+	}
+	else if (FT_HAS_FIXED_SIZES(InFace))
+	{
+		// Fixed size fonts don't support scaling, but we calculated the scale to use for the glyph in ApplySizeAndScale
+		return FT_MulFix(InFace->size->metrics.height, InFace->size->metrics.y_scale);
+	}
+	return 0;
 }
 
 FT_Pos GetAscender(FT_Face InFace, const EFontLayoutMethod InLayoutMethod)
 {
-	return (InLayoutMethod == EFontLayoutMethod::Metrics) ? InFace->size->metrics.ascender : FT_MulFix(InFace->bbox.yMax, InFace->size->metrics.y_scale);
+	if (FT_IS_SCALABLE(InFace))
+	{
+		// Scalable fonts use the unscaled value (and apply the scale manually), as the metrics have had rounding applied to them
+		return FT_MulFix((InLayoutMethod == EFontLayoutMethod::Metrics) ? InFace->ascender : InFace->bbox.yMax, InFace->size->metrics.y_scale);
+	}
+	else if (FT_HAS_FIXED_SIZES(InFace))
+	{
+		// Fixed size fonts don't support scaling, but we calculated the scale to use for the glyph in ApplySizeAndScale
+		return FT_MulFix(InFace->size->metrics.ascender, InFace->size->metrics.y_scale);
+	}
+	return 0;
 }
 
 FT_Pos GetDescender(FT_Face InFace, const EFontLayoutMethod InLayoutMethod)
 {
-	return (InLayoutMethod == EFontLayoutMethod::Metrics) ? InFace->size->metrics.descender : FT_MulFix(InFace->bbox.yMin, InFace->size->metrics.y_scale);
+	if (FT_IS_SCALABLE(InFace))
+	{
+		// Scalable fonts use the unscaled value (and apply the scale manually), as the metrics have had rounding applied to them
+		return FT_MulFix((InLayoutMethod == EFontLayoutMethod::Metrics) ? InFace->descender : InFace->bbox.yMin, InFace->size->metrics.y_scale);
+	}
+	else if (FT_HAS_FIXED_SIZES(InFace))
+	{
+		// Fixed size fonts don't support scaling, but we calculated the scale to use for the glyph in ApplySizeAndScale
+		return FT_MulFix(InFace->size->metrics.descender, InFace->size->metrics.y_scale);
+	}
+	return 0;
+}
+
+float GetBitmapAtlasScale(FT_Face InFace)
+{
+	if (!FT_IS_SCALABLE(InFace) && FT_HAS_FIXED_SIZES(InFace))
+	{
+		// We only scale images down to fit into the atlas
+		// If they're smaller than our desired size we just let them be scaled on the GPU when rendering (see GetBitmapRenderScale)
+		if (InFace->size->metrics.x_scale < ConvertPixelTo16Dot16<FT_Fixed>(1))
+		{
+			// Fixed size fonts don't support scaling, but we calculated the scale to use for the glyph in ApplySizeAndScale
+			return InFace->size->metrics.x_scale / 65536.0f; // 16.16 to pixel scale
+		}
+	}
+	return 1.0f;
+}
+
+float GetBitmapRenderScale(FT_Face InFace)
+{
+	if (!FT_IS_SCALABLE(InFace) && FT_HAS_FIXED_SIZES(InFace))
+	{
+		// We only scale images up when rendering
+		// If they're larger than our desired size we scale them before they go into the atlas (see GetBitmapAtlasScale)
+		if (InFace->size->metrics.x_scale > ConvertPixelTo16Dot16<FT_Fixed>(1))
+		{
+			// Fixed size fonts don't support scaling, but we calculated the scale to use for the glyph in ApplySizeAndScale
+			return InFace->size->metrics.x_scale / 65536.0f; // 16.16 to pixel scale
+		}
+	}
+	return 1.0f;
 }
 
 #endif // WITH_FREETYPE
@@ -136,6 +289,14 @@ FFreeTypeLibrary::FFreeTypeLibrary()
 	}
 		
 	FT_Add_Default_Modules(FTLibrary);
+
+#if WITH_FREETYPE_V210
+	// Set the interpreter version based on the hinting method we'd like
+	{
+		FT_UInt FTInterpreterVersion = GSlateEnableLegacyFontHinting ? TT_INTERPRETER_VERSION_35 : TT_INTERPRETER_VERSION_40;
+		FT_Property_Set(FTLibrary, "truetype", "interpreter-version", &FTInterpreterVersion);
+	}
+#endif	// WITH_FREETYPE_V210
 
 	static bool bLoggedVersion = false;
 
@@ -175,7 +336,7 @@ FFreeTypeFace::FFreeTypeFace(const FFreeTypeLibrary* InFTLibrary, FFontFaceDataC
 	if (Error)
 	{
 		// You can look these error codes up in the FreeType docs: https://www.freetype.org/freetype2/docs/reference/ft2-error_code_values.html
-		ensureAlwaysMsgf(0, TEXT("FT_New_Memory_Face failed with error code %i"), Error);
+		//ensureAlwaysMsgf(0, TEXT("FT_New_Memory_Face failed with error code %i"), Error);
 
 		// We assume the face is null if the function errored
 		ensureAlwaysMsgf(FTFace == nullptr, TEXT("FT_New_Memory_Face failed but also returned a non-null FT_Face. This is unexpected and may leak memory!"));
@@ -467,15 +628,17 @@ bool FFreeTypeAdvanceCache::FindOrCache(FT_Face InFace, const uint32 InGlyphInde
 		}
 	}
 
-	FreeTypeUtils::ApplySizeAndScale(InFace, InFontSize, 1.0f);
+	FreeTypeUtils::ApplySizeAndScale(InFace, InFontSize, InFontScale);
 
 	// No cached data, go ahead and add an entry for it...
 	FT_Error Error = FT_Get_Advance(InFace, InGlyphIndex, InLoadFlags, &OutCachedAdvance);
 	if (Error == 0)
 	{
-		// We apply our own scaling as FreeType doesn't always produce the correct results for all fonts when applying the scale via the transform matrix
-		const FT_Long FixedFontScale = FreeTypeUtils::ConvertPixelTo16Dot16<FT_Long>(InFontScale);
-		OutCachedAdvance = FT_MulFix(OutCachedAdvance, FixedFontScale);
+		if (FT_HAS_FIXED_SIZES(InFace))
+		{
+			// Fixed size fonts don't support scaling, but we calculated the scale to use for the glyph in ApplySizeAndScale
+			OutCachedAdvance = FT_MulFix(OutCachedAdvance, ((InLoadFlags & FT_LOAD_VERTICAL_LAYOUT) ? InFace->size->metrics.y_scale : InFace->size->metrics.x_scale));
+		}
 
 		CachedAdvanceMap.Add(CachedAdvanceKey, OutCachedAdvance);
 		return true;
@@ -518,7 +681,7 @@ bool FFreeTypeKerningPairCache::FindOrCache(FT_Face InFace, const FKerningPair& 
 		}
 	}
 
-	FreeTypeUtils::ApplySizeAndScale(InFace, InFontSize, 1.0f);
+	FreeTypeUtils::ApplySizeAndScale(InFace, InFontSize, InFontScale);
 
 	// No cached data, go ahead and add an entry for it...
 	FT_Error Error = FT_Get_Kerning(InFace, InKerningPair.FirstGlyphIndex, InKerningPair.SecondGlyphIndex, InKerningFlags, &OutKerning);
@@ -526,10 +689,12 @@ bool FFreeTypeKerningPairCache::FindOrCache(FT_Face InFace, const FKerningPair& 
 	{
 		if (InKerningFlags != FT_KERNING_UNSCALED)
 		{
-			// We apply our own scaling as FreeType doesn't always produce the correct results for all fonts when applying the scale via the transform matrix
-			const FT_Long FixedFontScale = FreeTypeUtils::ConvertPixelTo16Dot16<FT_Long>(InFontScale);
-			OutKerning.x = FT_MulFix(OutKerning.x, FixedFontScale);
-			OutKerning.y = FT_MulFix(OutKerning.y, FixedFontScale);
+			if (FT_HAS_FIXED_SIZES(InFace))
+			{
+				// Fixed size fonts don't support scaling, but we calculated the scale to use for the glyph in ApplySizeAndScale
+				OutKerning.x = FT_MulFix(OutKerning.x, InFace->size->metrics.x_scale);
+				OutKerning.y = FT_MulFix(OutKerning.y, InFace->size->metrics.y_scale);
+			}
 		}
 
 		CachedKerningPairMap.Add(CachedKerningPairKey, OutKerning);

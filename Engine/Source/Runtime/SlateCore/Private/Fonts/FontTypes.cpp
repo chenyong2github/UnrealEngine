@@ -3,24 +3,24 @@
 #include "Fonts/FontTypes.h"
 
 
-FSlateFontAtlas::FSlateFontAtlas( uint32 InWidth, uint32 InHeight )
-	: FSlateTextureAtlas( InWidth, InHeight, sizeof(uint8), ESlateTextureAtlasPaddingStyle::PadWithZero, true )
+FSlateFontAtlas::FSlateFontAtlas(uint32 InWidth, uint32 InHeight, const bool InIsGrayscale)
+	: FSlateTextureAtlas(InWidth, InHeight, InIsGrayscale ? 1 : 4, ESlateTextureAtlasPaddingStyle::PadWithZero, true)
 {
 }
 
 FSlateFontAtlas::~FSlateFontAtlas()
 {
-
 }	
 
-/** 
- * Adds a character to the texture.
- *
- * @param CharInfo	Information about the size of the character
- */
+bool FSlateFontAtlas::IsGrayscale() const
+{
+	return BytesPerPixel == 1;
+}
+
 const FAtlasedTextureSlot* FSlateFontAtlas::AddCharacter( const FCharacterRenderData& RenderData )
 {
-	return AddTexture( RenderData.MeasureInfo.SizeX, RenderData.MeasureInfo.SizeY, RenderData.RawPixels );
+	check(RenderData.bIsGrayscale == IsGrayscale());
+	return AddTexture( RenderData.SizeX, RenderData.SizeY, RenderData.RawPixels );
 }
 
 void FSlateFontAtlas::Flush()
