@@ -144,6 +144,14 @@ struct FViewportInfo : public FRenderResource
 	}	
 };
 
+struct FFastPathRenderingDataCleanupList
+{
+	TArray<FSlateCachedFastPathRenderingData*, TInlineAllocator<20>> FastPathRenderingDataToRemove;
+
+	~FFastPathRenderingDataCleanupList();
+	void Cleanup();
+};
+
 /** A Slate rendering implementation for Unreal engine */
 class FSlateRHIRenderer : public FSlateRenderer
 {
@@ -273,7 +281,9 @@ private:
 	/** Drawing policy */
 	TSharedPtr<FSlateRHIRenderingPolicy> RenderingPolicy;
 
-	TArray< TSharedPtr<FSlateDynamicImageBrush> > DynamicBrushesToRemove[NumDrawBuffers];
+	TArray<TSharedPtr<FSlateDynamicImageBrush>> DynamicBrushesToRemove[NumDrawBuffers];
+
+	FFastPathRenderingDataCleanupList* FastPathRenderingDataCleanupList;
 
 	FDeferredUpdateContextList DeferredUpdateContexts;
 
