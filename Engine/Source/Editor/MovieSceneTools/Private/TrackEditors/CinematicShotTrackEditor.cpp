@@ -152,6 +152,14 @@ bool FCinematicShotTrackEditor::HandleAssetAdded(UObject* Asset, const FGuid& Ta
 		return false;
 	}
 
+	if (Sequence->GetMovieScene()->GetPlaybackRange().IsEmpty())
+	{
+		FNotificationInfo Info(FText::Format(LOCTEXT("InvalidSequenceDuration", "Invalid level sequence {0}. The sequence has no duration."), Sequence->GetDisplayName()));
+		Info.bUseLargeFont = false;
+		FSlateNotificationManager::Get().AddNotification(Info);
+		return false;
+	}
+
 	if (CanAddSubSequence(*Sequence))
 	{
 		const FScopedTransaction Transaction(LOCTEXT("AddShot_Transaction", "Add Shot"));
@@ -653,6 +661,14 @@ void FCinematicShotTrackEditor::HandleAddCinematicShotComboButtonMenuEntryEnterP
 FKeyPropertyResult FCinematicShotTrackEditor::AddKeyInternal(FFrameNumber KeyTime, UMovieSceneSequence* InMovieSceneSequence, int32 RowIndex)
 {	
 	FKeyPropertyResult KeyPropertyResult;
+
+	if (InMovieSceneSequence->GetMovieScene()->GetPlaybackRange().IsEmpty())
+	{
+		FNotificationInfo Info(FText::Format(LOCTEXT("InvalidSequenceDuration", "Invalid level sequence {0}. The sequence has no duration."), InMovieSceneSequence->GetDisplayName()));
+		Info.bUseLargeFont = false;
+		FSlateNotificationManager::Get().AddNotification(Info);
+		return KeyPropertyResult;
+	}
 
 	if (CanAddSubSequence(*InMovieSceneSequence))
 	{
