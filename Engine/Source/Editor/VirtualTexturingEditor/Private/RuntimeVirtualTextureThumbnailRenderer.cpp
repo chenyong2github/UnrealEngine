@@ -3,8 +3,12 @@
 #include "RuntimeVirtualTextureThumbnailRenderer.h"
 
 #include "Components/RuntimeVirtualTextureComponent.h"
+#include "RenderingThread.h"
+#include "SceneInterface.h"
 #include "VT/RuntimeVirtualTexture.h"
 #include "VT/RuntimeVirtualTextureRender.h"
+#include "UnrealClient.h"
+#include "UObject/UObjectIterator.h"
 
 namespace
 {
