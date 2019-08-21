@@ -306,7 +306,7 @@ static const int32 LQ_LIGHTMAP_COEF_INDEX = 2;
 
 /** Compile out low quality lightmaps to save memory */
 // @todo-mobile: Need to fix this!
-#define ALLOW_LQ_LIGHTMAPS (PLATFORM_DESKTOP || PLATFORM_IOS || PLATFORM_ANDROID || PLATFORM_HTML5 || PLATFORM_SWITCH || PLATFORM_LUMIN)
+#define ALLOW_LQ_LIGHTMAPS (PLATFORM_DESKTOP || PLATFORM_IOS || PLATFORM_ANDROID || PLATFORM_HTML5 || PLATFORM_SWITCH || PLATFORM_LUMIN || PLATFORM_HOLOLENS)
 
 /** Compile out high quality lightmaps to save memory */
 #define ALLOW_HQ_LIGHTMAPS 1
