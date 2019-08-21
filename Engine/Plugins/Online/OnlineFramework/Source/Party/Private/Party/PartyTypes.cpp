@@ -82,6 +82,19 @@ FJoinPartyResult::FJoinPartyResult(EJoinPartyCompletionResult InResult, FPartyJo
 	}
 }
 
+FJoinPartyResult::FJoinPartyResult(EJoinPartyCompletionResult InResult, int32 InResultSubCode)
+{
+	SetResult(InResult);
+	if (InResult == EJoinPartyCompletionResult::NotApproved)
+	{
+		SetDenialReason(InResultSubCode);
+	}
+	else
+	{
+		ResultSubCode = InResultSubCode;
+	}
+}
+
 void FJoinPartyResult::SetDenialReason(FPartyJoinDenialReason InDenialReason)
 {
 	DenialReason = InDenialReason;
