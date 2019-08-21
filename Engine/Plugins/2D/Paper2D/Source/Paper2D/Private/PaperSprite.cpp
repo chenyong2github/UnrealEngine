@@ -1900,6 +1900,12 @@ void UPaperSprite::PostLoad()
 	{
 		RebuildRenderData();
 	}
+
+	/** If we don't have an atlas group make sure we assign the source texture to our baked texture. */
+	if (AtlasGroup == nullptr)
+	{
+		BakedSourceTexture = GetSourceTexture();
+	}
 #endif
 }
 
