@@ -1366,7 +1366,11 @@ FReply STimingView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 			else if (bIsSelecting)
 			{
 				//TODO: SelectionChangedEvent.Broadcast(SelectionStartTime, SelectionEndTime);
-				UpdateAggregatedStats();
+
+				if (SelectionEndTime > SelectionStartTime)
+				{
+					UpdateAggregatedStats();
+				}
 
 				bIsSelecting = false;
 			}
@@ -1410,7 +1414,11 @@ FReply STimingView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 			else if (bIsSelecting)
 			{
 				//TODO: SelectionChangedEvent.Broadcast(SelectionStartTime, SelectionEndTime);
-				UpdateAggregatedStats();
+
+				if (SelectionEndTime > SelectionStartTime)
+				{
+					UpdateAggregatedStats();
+				}
 
 				bIsSelecting = false;
 			}
@@ -2385,8 +2393,7 @@ void STimingView::SetDrawOnlyBookmarks(bool bIsBookmarksTrack)
 
 void STimingView::UpdateHoveredTimingEvent(float MX, float MY)
 {
-	HoveredTimingEvent.Track = nullptr;
-	HoveredTimingEvent.TypeId = FTimerNode::InvalidId;
+	FTimingEvent TimingEvent;
 
 	if (MY >= Viewport.GetTopOffset() && MY < Viewport.GetHeight())
 	{
@@ -2398,18 +2405,18 @@ void STimingView::UpdateHoveredTimingEvent(float MX, float MY)
 				const float Y = Viewport.GetTopOffset() + Track.GetPosY() - Viewport.GetScrollPosY();
 				if (MY >= Y && MY < Y + Track.GetHeight())
 				{
-					HoveredTimingEvent.Track = &Track;
+					TimingEvent.Track = &Track;
 					break;
 				}
 			}
 		}
 
-		if (HoveredTimingEvent.Track)
+		if (TimingEvent.Track)
 		{
-			const float Y0 = Viewport.GetTopOffset() + HoveredTimingEvent.Track->GetPosY() - Viewport.GetScrollPosY() + 1.0f + Layout.TimelineDY;
+			const float Y0 = Viewport.GetTopOffset() + TimingEvent.Track->GetPosY() - Viewport.GetScrollPosY() + 1.0f + Layout.TimelineDY;
 
 			// If mouse is not above first sub-track or below last sub-track...
-			if (MY >= Y0 && MY < Y0 + HoveredTimingEvent.Track->GetHeight() + Layout.TimelineDY)
+			if (MY >= Y0 && MY < Y0 + TimingEvent.Track->GetHeight() + Layout.TimelineDY)
 			{
 				int32 Depth = (MY - Y0) / (Layout.EventDY + Layout.EventH);
 				float EventMY = (MY - Y0) - Depth * (Layout.EventDY + Layout.EventH);
@@ -2418,25 +2425,29 @@ void STimingView::UpdateHoveredTimingEvent(float MX, float MY)
 				const double EndTime = StartTime + 2.0 / Viewport.GetScaleX(); // +2px
 				constexpr bool bStopAtFirstMatch = true; // get first one matching
 				constexpr bool bSearchForLargestEvent = false;
-				HoveredTimingEvent.Track->SearchTimingEvent(StartTime, EndTime,
+				TimingEvent.Track->SearchTimingEvent(StartTime, EndTime,
 					[Depth](double, double, uint32 EventDepth)
 					{
 						return EventDepth == Depth;
 					},
-					HoveredTimingEvent, bStopAtFirstMatch, bSearchForLargestEvent);
-
-				//TODO: ComputeSingleTimingEventStats(HoveredTimingEvent) --> compute ExclusiveTime
+					TimingEvent, bStopAtFirstMatch, bSearchForLargestEvent);
 			}
 		}
 	}
 
-	if (HoveredTimingEvent.IsValid())
+	if (TimingEvent.IsValid())
 	{
-		HoveredTimingEvent.Track->InitTooltip(Tooltip, HoveredTimingEvent);
+		if (!TimingEvent.Equals(HoveredTimingEvent))
+		{
+			HoveredTimingEvent = TimingEvent;
+			HoveredTimingEvent.Track->ComputeTimingEventStats(HoveredTimingEvent);
+			HoveredTimingEvent.Track->InitTooltip(Tooltip, HoveredTimingEvent);
+		}
 		Tooltip.SetDesiredOpacity(1.0f);
 	}
 	else
 	{
+		HoveredTimingEvent.Reset();
 		Tooltip.SetDesiredOpacity(0.0f);
 	}
 }
@@ -2495,6 +2506,7 @@ void STimingView::SelectLeftTimingEvent()
 			},
 			SelectedTimingEvent, bStopAtFirstMatch, bSearchForLargestEvent))
 		{
+			SelectedTimingEvent.Track->ComputeTimingEventStats(SelectedTimingEvent);
 			BringIntoView(SelectedTimingEvent.StartTime, SelectedTimingEvent.EndTime);
 			OnSelectedTimingEventChanged();
 		}
@@ -2520,6 +2532,7 @@ void STimingView::SelectRightTimingEvent()
 			},
 			SelectedTimingEvent, bStopAtFirstMatch, bSearchForLargestEvent))
 		{
+			SelectedTimingEvent.Track->ComputeTimingEventStats(SelectedTimingEvent);
 			BringIntoView(SelectedTimingEvent.StartTime, SelectedTimingEvent.EndTime);
 			OnSelectedTimingEventChanged();
 		}
@@ -2547,6 +2560,7 @@ void STimingView::SelectUpTimingEvent()
 			},
 			SelectedTimingEvent, bStopAtFirstMatch, bSearchForLargestEvent))
 		{
+			SelectedTimingEvent.Track->ComputeTimingEventStats(SelectedTimingEvent);
 			BringIntoView(SelectedTimingEvent.StartTime, SelectedTimingEvent.EndTime);
 			OnSelectedTimingEventChanged();
 		}
@@ -2573,6 +2587,7 @@ void STimingView::SelectDownTimingEvent()
 			},
 			SelectedTimingEvent, bStopAtFirstMatch, bSearchForLargestEvent))
 		{
+			SelectedTimingEvent.Track->ComputeTimingEventStats(SelectedTimingEvent);
 			BringIntoView(SelectedTimingEvent.StartTime, SelectedTimingEvent.EndTime);
 			OnSelectedTimingEventChanged();
 		}
@@ -2844,11 +2859,7 @@ void STimingView::ShowHideAllCpuTracks_Execute()
 		KV.Value.bIsVisible = bShowHideAllCpuTracks;
 	}
 
-	HoveredTimingEvent.Reset();
-	SelectedTimingEvent.Reset();
-	Tooltip.SetDesiredOpacity(0.0f);
-
-	bAreTimingEventsTracksDirty = true;
+	OnTimingEventsTrackVisibilityChanged();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2873,11 +2884,7 @@ void STimingView::ShowHideAllGpuTracks_Execute()
 		}
 	}
 
-	HoveredTimingEvent.Reset();
-	SelectedTimingEvent.Reset();
-	Tooltip.SetDesiredOpacity(0.0f);
-
-	bAreTimingEventsTracksDirty = true;
+	OnTimingEventsTrackVisibilityChanged();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2902,7 +2909,7 @@ void STimingView::ShowHideAllLoadingTracks_Execute()
 		}
 	}
 
-	bAreTimingEventsTracksDirty = true;
+	OnTimingEventsTrackVisibilityChanged();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2927,7 +2934,7 @@ void STimingView::ShowHideAllIoTracks_Execute()
 		}
 	}
 
-	bAreTimingEventsTracksDirty = true;
+	OnTimingEventsTrackVisibilityChanged();
 
 	if (bShowHideAllIoTracks)
 	{
@@ -2986,9 +2993,7 @@ void STimingView::ToggleTrackVisibility_Execute(uint64 InTrackId)
 		FTimingEventsTrack* Track = CachedTimelines[InTrackId];
 		Track->ToggleVisibility();
 
-		HoveredTimingEvent.Reset();
-		SelectedTimingEvent.Reset();
-		Tooltip.SetDesiredOpacity(0.0f);
+		OnTimingEventsTrackVisibilityChanged();
 	}
 }
 
@@ -3023,10 +3028,21 @@ void STimingView::ToggleTrackVisibilityByGroup_Execute(const TCHAR* InGroupName)
 			}
 		}
 
-		HoveredTimingEvent.Reset();
-		SelectedTimingEvent.Reset();
-		Tooltip.SetDesiredOpacity(0.0f);
+		OnTimingEventsTrackVisibilityChanged();
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::OnTimingEventsTrackVisibilityChanged()
+{
+	HoveredTimingEvent.Reset();
+	SelectedTimingEvent.Reset();
+	Tooltip.SetDesiredOpacity(0.0f);
+
+	UpdateAggregatedStats();
+
+	bAreTimingEventsTracksDirty = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

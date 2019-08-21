@@ -126,6 +126,28 @@ void FDrawHelpers::DrawBackground(const FDrawContext& DrawContext,
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void FDrawHelpers::DrawBackground(const FDrawContext& DrawContext,
+								  const FSlateBrush* BackgroundAreaBrush,
+								  const FTimingTrackViewport& Viewport,
+								  const float Y,
+								  const float H,
+								  float& OutValidAreaX,
+								  float& OutValidAreaW)
+{
+	const FLinearColor ValidAreaColor(0.07f, 0.07f, 0.07f, 1.0f);
+	const FLinearColor InvalidAreaColor(0.1f, 0.07f, 0.07f, 1.0f);
+	const FLinearColor EdgeColor(0.05f, 0.05f, 0.05f, 1.0f);
+
+	const float X0 = 0.0f;
+	const float X1 = Viewport.TimeToSlateUnitsRounded(Viewport.GetMinValidTime());
+	const float X2 = Viewport.TimeToSlateUnitsRounded(Viewport.GetMaxValidTime());
+	const float X3 = FMath::CeilToFloat(Viewport.GetWidth());
+
+	FDrawHelpers::DrawBackground(DrawContext, BackgroundAreaBrush, ValidAreaColor, InvalidAreaColor, EdgeColor, X0, X1, X2, X3, Y, H, OutValidAreaX, OutValidAreaW);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FDrawHelpers::DrawTimeRangeSelection(
 	const FDrawContext& DrawContext,
 	const FTimingTrackViewport& Viewport,

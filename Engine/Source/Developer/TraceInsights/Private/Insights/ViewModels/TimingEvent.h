@@ -26,6 +26,26 @@ struct FTimingEvent
 	uint64 Size;
 	const TCHAR* Path;
 
+	FTimingEvent()
+		: Track(nullptr)
+		, TypeId(InvalidTypeId)
+		, Depth(0)
+		, StartTime(0.0)
+		, EndTime(0.0)
+		, ExclusiveTime(0.0)
+		, LoadingInfo()
+		, Offset(0)
+		, Size(0)
+		, Path(nullptr)
+	{
+	}
+
+	FTimingEvent(const FTimingEvent&) = default;
+	FTimingEvent& operator=(const FTimingEvent&) = default;
+
+	FTimingEvent(FTimingEvent&&) = default;
+	FTimingEvent& operator=(FTimingEvent&&) = default;
+
 	void Reset()
 	{
 		Track = nullptr;

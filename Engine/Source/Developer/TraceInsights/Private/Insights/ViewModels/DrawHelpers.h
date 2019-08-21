@@ -56,6 +56,14 @@ public:
 							   const float Y,
 							   const float H);
 
+	static void DrawBackground(const FDrawContext& DrawContext,
+							   const FSlateBrush* BackgroundAreaBrush,
+							   const FTimingTrackViewport& Viewport,
+							   const float Y,
+							   const float H,
+							   float& OutValidAreaX,
+							   float& OutValidAreaW);
+
 	/**
 	 * Draw time range selection.
 	 */

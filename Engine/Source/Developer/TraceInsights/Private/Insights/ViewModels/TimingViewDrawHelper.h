@@ -135,9 +135,6 @@ private:
 	const FLinearColor EdgeColor;
 	const FSlateFontInfo EventFont;
 
-	//static const FSlateColorBrush SolidWhiteBrush = FSlateColorBrush(FColorList::White);
-	//static const FSlateBrush BorderBrush = FSlateBorderBrush(NAME_None, FMargin(1.0f));
-
 	mutable float ValidAreaX;
 	mutable float ValidAreaW;
 

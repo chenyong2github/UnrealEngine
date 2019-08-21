@@ -400,7 +400,7 @@ void FFileActivityTimingTrack::InitTooltip(FTooltipDrawState& Tooltip, const FTi
 
 	const Trace::EFileActivityType ActivityType = static_cast<Trace::EFileActivityType>(HoveredTimingEvent.TypeId & 0x0F);
 	const bool bHasFailed = ((HoveredTimingEvent.TypeId & 0xF0) != 0);
-	
+
 	FString TypeStr;
 	uint32 TypeColor;
 	if (bHasFailed)
@@ -520,6 +520,7 @@ bool FFileActivityTimingTrack::SearchEvent(const double InStartTime,
 
 	return Ctx.bFound;
 }
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FOverviewFileActivityTimingTrack
 ////////////////////////////////////////////////////////////////////////////////////////////////////

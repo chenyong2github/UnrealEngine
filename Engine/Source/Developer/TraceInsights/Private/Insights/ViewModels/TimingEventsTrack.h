@@ -79,6 +79,7 @@ public:
 	virtual void InitTooltip(FTooltipDrawState& Tooltip, const FTimingEvent& HoveredTimingEvent) const {}
 
 	virtual bool SearchTimingEvent(const double InStartTime, const double InEndTime, TFunctionRef<bool(double, double, uint32)> InPredicate, FTimingEvent& InOutTimingEvent, bool bInStopAtFirstMatch, bool bInSearchForLargestEvent) const { return false; }
+	virtual void ComputeTimingEventStats(FTimingEvent& InOutTimingEvent) const {}
 
 private:
 	FName Type; // Thread, Loading, FileActivity

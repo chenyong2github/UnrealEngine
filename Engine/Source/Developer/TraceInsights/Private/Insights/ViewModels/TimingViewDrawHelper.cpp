@@ -33,6 +33,14 @@ FTimingViewDrawHelper::FTimingViewDrawHelper(const FDrawContext& InDC, const FTi
 	, InvalidAreaColor(0.1f, 0.07f, 0.07f, 1.0f)
 	, EdgeColor(0.05f, 0.05f, 0.05f, 1.0f)
 	, EventFont(FCoreStyle::GetDefaultFontStyle("Regular", 8))
+	, ValidAreaX(0.0f)
+	, ValidAreaW(0.0f)
+	, TimelineTopY(0.0f)
+	, TimelineY(0.0f)
+	, MaxDepth(0)
+	, TimelineIndex(0)
+	, LastEventX2()
+	, LastBox()
 	, Stats()
 {
 }
@@ -49,7 +57,7 @@ void FTimingViewDrawHelper::DrawBackground() const
 {
 	const float Y = 0.0f;
 	const float H = FMath::CeilToFloat(Viewport.GetHeight());
-	FDrawHelpers::DrawBackground(DrawContext, BackgroundAreaBrush, Viewport, Y, H);
+	FDrawHelpers::DrawBackground(DrawContext, BackgroundAreaBrush, Viewport, Y, H, ValidAreaX, ValidAreaW);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
