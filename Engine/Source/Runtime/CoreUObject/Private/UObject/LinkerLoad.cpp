@@ -2891,8 +2891,8 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 						const bool bIsImportPublic = !!(SourceExport.ObjectFlags & RF_Public);
 						const FPackageFileSummary& ImportSummary = Import.SourceLinker->Summary;
 #if WITH_EDITORONLY_DATA
-						const bool bIsImportOwned = (ImportSummary.OwnerPersistentGuid.IsValid() && ((ImportSummary.OwnerPersistentGuid == Summary.PersistentGuid) || (ImportSummary.OwnerPersistentGuid == Summary.OwnerPersistentGuid)) ||
-							                        (Summary.OwnerPersistentGuid.IsValid() && ((Summary.OwnerPersistentGuid == ImportSummary.PersistentGuid) || (Summary.OwnerPersistentGuid == ImportSummary.OwnerPersistentGuid))));
+						const bool bIsImportOwned = (ImportSummary.OwnerPersistentGuid.IsValid() && ((ImportSummary.OwnerPersistentGuid == Summary.PersistentGuid) || (ImportSummary.OwnerPersistentGuid == Summary.OwnerPersistentGuid))) ||
+							                        (Summary.OwnerPersistentGuid.IsValid() && ((Summary.OwnerPersistentGuid == ImportSummary.PersistentGuid) || (Summary.OwnerPersistentGuid == ImportSummary.OwnerPersistentGuid)));
 #else
 						const bool bIsImportOwned = false;
 #endif
