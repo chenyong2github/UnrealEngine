@@ -6,6 +6,7 @@
 FWebMAudioBackendSDL::FWebMAudioBackendSDL()
 	: AudioDevice(0)
 	, bSDLInitialized(false)
+	, bPaused(false)
 {
 }
 
@@ -42,7 +43,7 @@ void FWebMAudioBackendSDL::ShutdownPlatform()
 	}
 }
 
-bool FWebMAudioBackendSDL::StartStreaming(int32 SampleRate, int32 NumOfChannels)
+bool FWebMAudioBackendSDL::StartStreaming(int32 SampleRate, int32 NumOfChannels, EStreamState StreamState)
 {
 	if (!bSDLInitialized)
 	{
@@ -86,7 +87,7 @@ void FWebMAudioBackendSDL::StopStreaming()
 	}
 }
 
-bool FWebMAudioBackendSDL::SendAudio(const uint8* Buffer, size_t BufferSize)
+bool FWebMAudioBackendSDL::SendAudio(const FTimespan& Timespan, const uint8* Buffer, size_t BufferSize)
 {
 	int32 Result = SDL_QueueAudio(AudioDevice, Buffer, BufferSize);
 	if (Result < 0)
@@ -96,14 +97,23 @@ bool FWebMAudioBackendSDL::SendAudio(const uint8* Buffer, size_t BufferSize)
 	}
 	else
 	{
-		SDL_PauseAudioDevice(AudioDevice, 0);
+		if (!bPaused)
+		{
+			SDL_PauseAudioDevice(AudioDevice, 0);
+		}
 		return true;
 	}
 }
 
+void FWebMAudioBackendSDL::Pause(bool bPause)
+{
+	bPaused = bPause;
+	SDL_PauseAudioDevice(AudioDevice, bPaused ? 1 : 0);
+}
+
 bool FWebMAudioBackendSDL::IsPaused() const
 {
-	return false;
+	return bPaused;
 }
 
 void FWebMAudioBackendSDL::Tick(float DeltaTime)
