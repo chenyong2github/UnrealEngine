@@ -22,6 +22,11 @@ namespace WindowsMixedReality
 
 		void StopSpeechRecognizer()
 		{
+			if (m_compileConstraintsAsyncOperation && m_compileConstraintsAsyncOperation.Status() != winrt::Windows::Foundation::AsyncStatus::Completed)
+			{
+				m_compileConstraintsAsyncOperation.Cancel();
+			}
+
 			if (resultsGeneratedToken.value != 0)
 			{
 				m_SpeechRecognizer.ContinuousRecognitionSession().ResultGenerated(resultsGeneratedToken);
@@ -61,20 +66,35 @@ namespace WindowsMixedReality
 			m_SpeechRecognizer.Constraints().Clear();
 			m_SpeechRecognizer.Constraints().Append(constraint);
 
-			//TODO: Will this lock if the microphone capability is not enabled?
-			SpeechRecognitionCompilationResult result = m_SpeechRecognizer.CompileConstraintsAsync().get();
-			if (result.Status() == SpeechRecognitionResultStatus::Success)
+			m_compileConstraintsAsyncOperation = m_SpeechRecognizer.CompileConstraintsAsync();
+			
+			m_compileConstraintsAsyncOperation.Completed([this](winrt::Windows::Foundation::IAsyncOperation<SpeechRecognitionCompilationResult> asyncOperation, winrt::Windows::Foundation::AsyncStatus status)
 			{
-				try
+				if (asyncOperation.Status() == winrt::Windows::Foundation::AsyncStatus::Completed)
 				{
-					m_SpeechRecognizer.ContinuousRecognitionSession().StartAsync();
+					SpeechRecognitionCompilationResult result = asyncOperation.GetResults();
+					if (result.Status() == SpeechRecognitionResultStatus::Success)
+					{
+						try
+						{
+							m_SpeechRecognizer.ContinuousRecognitionSession().StartAsync();
+						}
+						catch (...)
+						{
+							// We may see an exception if the microphone capability is not enabled.
+							StopSpeechRecognizer();
+						}
+					}
+					else
+					{
+						StopSpeechRecognizer();
+					}
 				}
-				catch (...) 
+				else if (asyncOperation.Status() != winrt::Windows::Foundation::AsyncStatus::Canceled)
 				{
-					// We may see an exception if the microphone capability is not enabled.
 					StopSpeechRecognizer();
 				}
-			}
+			});
 		}
 
 		std::map<winrt::hstring, std::function<void()>> KeywordMap()
@@ -84,6 +104,7 @@ namespace WindowsMixedReality
 
 	private:
 		winrt::Windows::Media::SpeechRecognition::SpeechRecognizer m_SpeechRecognizer;
+		winrt::Windows::Foundation::IAsyncOperation<SpeechRecognitionCompilationResult>		m_compileConstraintsAsyncOperation;
 		winrt::event_token resultsGeneratedToken;
 		std::map<winrt::hstring, std::function<void()>> keywordMap;
 
