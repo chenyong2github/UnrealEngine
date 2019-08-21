@@ -13,6 +13,7 @@
 #elif PLATFORM_MAC
 #include "Mac/MacApplication.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "HAL/PlatformFilemanager.h"
 #endif
 #include "MetalProfiler.h"
 #include "GenericPlatform/GenericPlatformDriver.h"
