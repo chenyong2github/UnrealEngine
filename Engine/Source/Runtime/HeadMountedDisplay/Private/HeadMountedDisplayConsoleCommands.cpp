@@ -57,9 +57,10 @@ static void DrawDebugTrackingSensorLocations(UCanvas* Canvas, APlayerController*
 		return;
 	}
 
+	UWorld* World = (PlayerController ? PlayerController->GetWorld() : World);
 	if (!PlayerController)
 	{
-		PlayerController = GWorld->GetFirstPlayerController();
+		PlayerController = World->GetFirstPlayerController();
 		if (!PlayerController)
 		{
 			return;
@@ -133,30 +134,30 @@ static void DrawDebugTrackingSensorLocations(UCanvas* Canvas, APlayerController*
 		FVector NearBR = Matrix.TransformPosition(EdgeBR * SensorProperties.NearPlane);
 
 		// Draw a point at the sensor position
-		DrawDebugPoint(GWorld, Tip, 5, FrustrumColor);
+		DrawDebugPoint(World, Tip, 5, FrustrumColor);
 
 		// Draw the four edges of the pyramid
-		DrawDebugLine(GWorld, Tip, BaseTR, FrustrumColor);
-		DrawDebugLine(GWorld, Tip, BaseTL, FrustrumColor);
-		DrawDebugLine(GWorld, Tip, BaseBL, FrustrumColor);
-		DrawDebugLine(GWorld, Tip, BaseBR, FrustrumColor);
+		DrawDebugLine(World, Tip, BaseTR, FrustrumColor);
+		DrawDebugLine(World, Tip, BaseTL, FrustrumColor);
+		DrawDebugLine(World, Tip, BaseBL, FrustrumColor);
+		DrawDebugLine(World, Tip, BaseBR, FrustrumColor);
 
 		// Draw the base (far plane)
-		DrawDebugLine(GWorld, BaseTR, BaseTL, FrustrumColor);
-		DrawDebugLine(GWorld, BaseTL, BaseBL, FrustrumColor);
-		DrawDebugLine(GWorld, BaseBL, BaseBR, FrustrumColor);
-		DrawDebugLine(GWorld, BaseBR, BaseTR, FrustrumColor);
+		DrawDebugLine(World, BaseTR, BaseTL, FrustrumColor);
+		DrawDebugLine(World, BaseTL, BaseBL, FrustrumColor);
+		DrawDebugLine(World, BaseBL, BaseBR, FrustrumColor);
+		DrawDebugLine(World, BaseBR, BaseTR, FrustrumColor);
 
 		// Draw the near plane
-		DrawDebugLine(GWorld, NearTR, NearTL, FrustrumColor);
-		DrawDebugLine(GWorld, NearTL, NearBL, FrustrumColor);
-		DrawDebugLine(GWorld, NearBL, NearBR, FrustrumColor);
-		DrawDebugLine(GWorld, NearBR, NearTR, FrustrumColor);
+		DrawDebugLine(World, NearTR, NearTL, FrustrumColor);
+		DrawDebugLine(World, NearTL, NearBL, FrustrumColor);
+		DrawDebugLine(World, NearBL, NearBR, FrustrumColor);
+		DrawDebugLine(World, NearBR, NearTR, FrustrumColor);
 
 		// Draw a center line from the sensor to the focal point
 		FVector CenterLine = Matrix.TransformPosition(FVector(SensorProperties.CameraDistance, 0, 0));
-		DrawDebugLine(GWorld, Tip, CenterLine, CenterLineColor);
-		DrawDebugPoint(GWorld, CenterLine, 5, CenterLineColor);
+		DrawDebugLine(World, Tip, CenterLine, CenterLineColor);
+		DrawDebugPoint(World, CenterLine, 5, CenterLineColor);
 	}
 }
 

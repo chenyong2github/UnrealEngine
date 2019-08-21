@@ -288,17 +288,18 @@ void FStaticLightingManager::CreateStaticLightingSystem(const FLightingBuildOpti
 
 		bBuildReflectionCapturesOnFinish = !Options.bOnlyBuildVisibility;
 
-		for (ULevel* Level : GWorld->GetLevels())
+		UWorld* World = GWorld;
+		for (ULevel* Level : World->GetLevels())
 		{
 			if (Level->bIsLightingScenario && Level->bIsVisible)
 			{
-				StaticLightingSystems.Emplace(new FStaticLightingSystem(Options, GWorld, Level));
+				StaticLightingSystems.Emplace(new FStaticLightingSystem(Options, World, Level));
 			}
 		}
 
 		if (StaticLightingSystems.Num() == 0)
 		{
-			StaticLightingSystems.Emplace(new FStaticLightingSystem(Options, GWorld, nullptr));
+			StaticLightingSystems.Emplace(new FStaticLightingSystem(Options, World, nullptr));
 		}
 
 		ActiveStaticLightingSystem = StaticLightingSystems[0].Get();
@@ -314,7 +315,7 @@ void FStaticLightingManager::CreateStaticLightingSystem(const FLightingBuildOpti
 			// BeginLightmassProcess returns false if there are errors or no precomputed lighting is allowed. Handle both cases.
 			static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
 			const bool bAllowStaticLighting = (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnGameThread() != 0);
-			const bool bForceNoPrecomputedLighting = GWorld->GetWorldSettings()->bForceNoPrecomputedLighting || !bAllowStaticLighting;
+			const bool bForceNoPrecomputedLighting = World->GetWorldSettings()->bForceNoPrecomputedLighting || !bAllowStaticLighting;
 
 
 			if (bForceNoPrecomputedLighting)
