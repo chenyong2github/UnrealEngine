@@ -2276,6 +2276,7 @@ namespace VulkanRHI
 	{
 		for (int32 Index = 0; Index < NUM_BUFFERS; ++Index)
 		{
+			INC_MEMORY_STAT_BY(STAT_VulkanTempFrameAllocationBuffer, ALLOCATION_SIZE);
 			Entries[Index].InitBuffer(Device, ALLOCATION_SIZE);
 		}
 	}
@@ -2291,7 +2292,7 @@ namespace VulkanRHI
 		Size = InSize;
 		PeakUsed = 0;
 		BufferSuballocation = InDevice->GetResourceHeapManager().AllocateBuffer(InSize,
-			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT,
+			VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 			__FILE__, __LINE__);
 		MappedData = (uint8*)BufferSuballocation->GetMappedPointer();
@@ -2333,6 +2334,8 @@ namespace VulkanRHI
 		
 		// Couldn't fit in the current buffers; allocate a new bigger one and schedule the current one for deletion
 		uint32 NewSize = Align(ALLOCATION_SIZE + InSize + InAlignment, ALLOCATION_SIZE);
+		DEC_MEMORY_STAT_BY(STAT_VulkanTempFrameAllocationBuffer, Entries[BufferIndex].BufferSuballocation->GetSize());
+		INC_MEMORY_STAT_BY(STAT_VulkanTempFrameAllocationBuffer, NewSize);
 		Entries[BufferIndex].PendingDeletionList.Add(Entries[BufferIndex].BufferSuballocation);
 		Entries[BufferIndex].InitBuffer(Device, NewSize);
 		if (!Entries[BufferIndex].TryAlloc(InSize, InAlignment, OutInfo))

@@ -8,6 +8,16 @@
 #include "VulkanContext.h"
 #include "VulkanLLM.h"
 
+static int32 GVulkanAllowUniformUpload = 1;
+static FAutoConsoleVariableRef CVarVulkanSubmitOnCopyToResolve(
+	TEXT("r.Vulkan.AllowUniformUpload"),
+	GVulkanAllowUniformUpload,
+	TEXT("Allow Uniform Buffer uploads outside of renderpasses\n")
+	TEXT(" 0: Disabled, buffers are always reallocated\n")
+	TEXT(" 1: Enabled, buffers are uploaded outside renderpasses"),
+	ECVF_Default
+);
+
 enum
 {
 #if PLATFORM_DESKTOP
@@ -184,6 +194,7 @@ FUniformBufferRHIRef FVulkanDynamicRHI::RHICreateUniformBuffer(const void* Conte
 template <bool bRealUBs>
 inline void FVulkanDynamicRHI::UpdateUniformBuffer(FVulkanUniformBuffer* UniformBuffer, const void* Contents)
 {
+	SCOPE_CYCLE_COUNTER(STAT_VulkanUpdateUniformBuffers);
 	const FRHIUniformBufferLayout& Layout = UniformBuffer->GetLayout();
 
 	const int32 ConstantBufferSize = Layout.ConstantBufferSize;
@@ -195,14 +206,33 @@ inline void FVulkanDynamicRHI::UpdateUniformBuffer(FVulkanUniformBuffer* Uniform
 	FVulkanEmulatedUniformBuffer* EmulatedUniformBuffer = bRealUBs ? nullptr : (FVulkanEmulatedUniformBuffer*)UniformBuffer;
 
 	FBufferSuballocation* NewUBAlloc = nullptr;
-	if (bRealUBs)
+	bool bIsInRenderPass = RHICmdList.IsInsideRenderPass();
+	bool bUseUpload = GVulkanAllowUniformUpload && !bIsInRenderPass; //inside renderpasses, a rename is enforced.
+
+	if (bRealUBs && !bUseUpload)
 	{
 		NewUBAlloc = nullptr;
 		if (ConstantBufferSize > 0)
 		{
+			SCOPE_CYCLE_COUNTER(STAT_VulkanUpdateUniformBuffersRename);
 			NewUBAlloc = Device->GetResourceHeapManager().AllocUniformBuffer(ConstantBufferSize, Contents);
 		}
 	}
+
+	auto UpdateUniformBufferHelper = [](FVulkanCommandListContext& Context, FVulkanRealUniformBuffer* UniformBuffer, int32 DataSize, const void* Data)
+	{
+		FVulkanCmdBuffer* CmdBuffer = Context.GetCommandBufferManager()->GetActiveCmdBufferDirect();
+		ensure(CmdBuffer->IsOutsideRenderPass());
+		VulkanRHI::FTempFrameAllocationBuffer::FTempAllocInfo LockInfo;
+		Context.GetTempFrameAllocationBuffer().Alloc(DataSize, 16, LockInfo);
+		FMemory::Memcpy(LockInfo.Data, Data, DataSize);
+		VkBufferCopy Region;
+		Region.size = DataSize;
+		Region.srcOffset = LockInfo.GetBindOffset();
+		Region.dstOffset = UniformBuffer->GetOffset();
+		VkBuffer UBBuffer = UniformBuffer->GetBufferAllocation()->GetHandle();
+		VulkanRHI::vkCmdCopyBuffer(CmdBuffer->GetHandle(), LockInfo.GetHandle(), UBBuffer, 1, &Region);
+	};
 
 	bool bRHIBypass = RHICmdList.Bypass();
 	if (bRHIBypass)
@@ -211,8 +241,16 @@ inline void FVulkanDynamicRHI::UpdateUniformBuffer(FVulkanUniformBuffer* Uniform
 		{
 			if (ConstantBufferSize > 0)
 			{
-				FBufferSuballocation* PrevAlloc = RealUniformBuffer->UpdateUBAllocation(NewUBAlloc);
-				Device->GetResourceHeapManager().ReleaseUniformBuffer(PrevAlloc);
+				if(bUseUpload)
+				{			
+					FVulkanCommandListContext& Context = (FVulkanCommandListContext&)*Device->ImmediateContext;
+					UpdateUniformBufferHelper(Context, RealUniformBuffer, ConstantBufferSize, Contents);
+				}
+				else
+				{
+					FBufferSuballocation* PrevAlloc = RealUniformBuffer->UpdateUBAllocation(NewUBAlloc);
+					Device->GetResourceHeapManager().ReleaseUniformBuffer(PrevAlloc);
+				}
 			}
 		}
 		else
@@ -238,12 +276,27 @@ inline void FVulkanDynamicRHI::UpdateUniformBuffer(FVulkanUniformBuffer* Uniform
 
 		if (bRealUBs)
 		{
-			RHICmdList.EnqueueLambda([RealUniformBuffer, NewUBAlloc, CmdListResources, NumResources, ConstantBufferSize](FRHICommandList&)
+			if(bUseUpload)
 			{
-				FBufferSuballocation* PrevAlloc = RealUniformBuffer->UpdateUBAllocation(NewUBAlloc);
-				RealUniformBuffer->Device->GetResourceHeapManager().ReleaseUniformBuffer(PrevAlloc);
-				RealUniformBuffer->UpdateResourceTable(CmdListResources, NumResources);
-			});
+				void* CmdListConstantBufferData = RHICmdList.Alloc(ConstantBufferSize, 16);
+				FMemory::Memcpy(CmdListConstantBufferData, Contents, ConstantBufferSize);
+
+				RHICmdList.EnqueueLambda([UpdateUniformBufferHelper, RealUniformBuffer, CmdListResources, NumResources, ConstantBufferSize, CmdListConstantBufferData](FRHICommandList& CmdList)
+				{
+					FVulkanCommandListContext& Context = (FVulkanCommandListContext&)CmdList.GetContext();
+					UpdateUniformBufferHelper(Context, RealUniformBuffer, ConstantBufferSize, CmdListConstantBufferData);
+					RealUniformBuffer->UpdateResourceTable(CmdListResources, NumResources);
+				});
+			}
+			else
+			{
+				RHICmdList.EnqueueLambda([RealUniformBuffer, NewUBAlloc, CmdListResources, NumResources](FRHICommandList& CmdList)
+				{
+					FBufferSuballocation* PrevAlloc = RealUniformBuffer->UpdateUBAllocation(NewUBAlloc);
+					RealUniformBuffer->Device->GetResourceHeapManager().ReleaseUniformBuffer(PrevAlloc);
+					RealUniformBuffer->UpdateResourceTable(CmdListResources, NumResources);
+				});
+			}
 		}
 		else
 		{
@@ -307,7 +360,7 @@ namespace VulkanRHI
 {
 	VulkanRHI::FBufferSuballocation* FResourceHeapManager::AllocUniformBuffer(uint32 Size, const void* Contents)
 	{
-		VulkanRHI::FBufferSuballocation* OutAlloc = Device->GetResourceHeapManager().AllocateBuffer(Size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, __FILE__, __LINE__);
+		VulkanRHI::FBufferSuballocation* OutAlloc = Device->GetResourceHeapManager().AllocateBuffer(Size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, __FILE__, __LINE__);
 		FMemory::Memcpy(OutAlloc->GetMappedPointer(), Contents, Size);
 		OutAlloc->Flush();
 
