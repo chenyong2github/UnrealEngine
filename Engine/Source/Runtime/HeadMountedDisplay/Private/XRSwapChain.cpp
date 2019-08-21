@@ -61,7 +61,8 @@ FORCEINLINE void CheckInRHIThread()
 }
 
 FXRSwapChain::FXRSwapChain(TArray<FTextureRHIRef>&& InRHITextureSwapChain, const FTextureRHIRef& AliasedTexture)
-	: RHITextureSwapChain(InRHITextureSwapChain)
+	: RHITexture(AliasedTexture)
+	, RHITextureSwapChain(InRHITextureSwapChain)
 	, SwapChainIndex_RHIThread(0)
 {
 	check(RHITexture);
