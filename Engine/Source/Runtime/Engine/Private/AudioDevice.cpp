@@ -743,6 +743,9 @@ void FAudioDevice::AddReferencedObjects(FReferenceCollector& Collector)
 		Pair.Key->AddReferencedObjects(Collector);
 	}
 
+	// Make sure our referenced sound waves are up-to-date
+	UpdateReferencedSoundWaves();
+
 	// Make sure we don't try to delete any sound waves which may have in-flight decodes
 	Collector.AddReferencedObjects(ReferencedSoundWaves);
 
@@ -3838,18 +3841,27 @@ void FAudioDevice::StartSources(TArray<FWaveInstance*>& WaveInstances, int32 Fir
 	// Run a command to make sure we add the starting sounds to the referenced sound waves list
 	if (StartingSoundWaves.Num() > 0)
 	{
-		FAudioThread::RunCommandOnGameThread([this, StartingSoundWaves]()
+		FScopeLock ReferencedSoundWaveLock(&ReferencedSoundWaveCritSec);
+
+		for (USoundWave* SoundWave : StartingSoundWaves)
 		{
-			if (GEngine)
-			{
-				for (USoundWave* SoundWave : StartingSoundWaves)
-				{
-					ReferencedSoundWaves.AddUnique(SoundWave);
-				}
-			}
-		}, GET_STATID(STAT_AudioAddReferencedSoundWaves));
+			ReferencedSoundWaves_AudioThread.AddUnique(SoundWave);
+		}
 	}
 }
+
+void FAudioDevice::UpdateReferencedSoundWaves()
+{
+	FScopeLock ReferencedSoundWaveLock(&ReferencedSoundWaveCritSec);
+
+	for (USoundWave* SoundWave : ReferencedSoundWaves_AudioThread)
+	{
+		ReferencedSoundWaves.AddUnique(SoundWave);
+	}
+
+	ReferencedSoundWaves_AudioThread.Reset();
+}
+
 
 void FAudioDevice::Update(bool bGameTicking)
 {
@@ -3857,6 +3869,9 @@ void FAudioDevice::Update(bool bGameTicking)
 
 	if (IsInGameThread())
 	{
+		// Make sure our referenced sound waves is up-to-date
+		UpdateReferencedSoundWaves();
+
 		// On game thread, look through registered sound waves and remove if we finished precaching (and audio decompressor is cleaned up)
 		// ReferencedSoundWaves is used to make sure GC doesn't run on any sound waves that are actively pre-caching within an async task.
 		// Sounds may be loaded, kick off an async task to decompress, but never actually try to play, so GC can reclaim these while precaches are in-flight.
