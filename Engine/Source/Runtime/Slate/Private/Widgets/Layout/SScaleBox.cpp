@@ -81,6 +81,7 @@ bool SScaleBox::CustomPrepass(float LayoutScaleMultiplier)
 
 	if (bNeedsNormalizingPrepassOrLocalGeometry)
 	{
+		ChildSlotWidget.Invalidate(EInvalidateWidgetReason::Layout);
 		ChildSlotWidget.InvalidatePrepass();
 	}
 
@@ -322,6 +323,7 @@ void SScaleBox::SetStretchDirection(EStretchDirection::Type InStretchDirection)
 {
 	if (SetAttribute(StretchDirection, TAttribute<EStretchDirection::Type>(InStretchDirection), EInvalidateWidgetReason::Layout))
 	{
+		Invalidate(EInvalidateWidgetReason::Layout);
 		InvalidatePrepass();
 	}
 }
@@ -340,6 +342,7 @@ void SScaleBox::SetUserSpecifiedScale(float InUserSpecifiedScale)
 {
 	if (SetAttribute(UserSpecifiedScale, TAttribute<float>(InUserSpecifiedScale), EInvalidateWidgetReason::Layout))
 	{
+		Invalidate(EInvalidateWidgetReason::Layout);
 		InvalidatePrepass();
 	}
 }
