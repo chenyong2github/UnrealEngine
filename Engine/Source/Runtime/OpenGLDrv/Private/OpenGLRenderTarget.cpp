@@ -1185,7 +1185,7 @@ void FOpenGLDynamicRHI::RHIEndRenderPass()
 	if (RenderPassInfo.DepthStencilRenderTarget.DepthStencilTarget)
 	{
 		ERenderTargetActions DepthActions = GetDepthActions(RenderPassInfo.DepthStencilRenderTarget.Action);
-		ERenderTargetActions StencilActions = GetDepthActions(RenderPassInfo.DepthStencilRenderTarget.Action);
+		ERenderTargetActions StencilActions = GetStencilActions(RenderPassInfo.DepthStencilRenderTarget.Action);
 		bool bDiscardDepth = GetStoreAction(DepthActions) == ERenderTargetStoreAction::ENoAction;
 		bool bDiscardStencil = GetStoreAction(StencilActions) == ERenderTargetStoreAction::ENoAction;
 		if (bDiscardDepth || bDiscardStencil)
