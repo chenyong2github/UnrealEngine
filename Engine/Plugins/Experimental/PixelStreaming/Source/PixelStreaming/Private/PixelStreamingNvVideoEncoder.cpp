@@ -776,11 +776,19 @@ void FPixelStreamingNvVideoEncoder::FPixelStreamingNvVideoEncoderImpl::Unregiste
 
 bool FPixelStreamingNvVideoEncoder::CheckPlatformCompatibility()
 {
-	if (FPlatformProcess::GetDllHandle(GetDllName()) == nullptr)
+	FText TitleText = FText::FromString(TEXT("Pixel Streaming Plugin"));
+	if (!IsRHIDeviceNVIDIA())
+	{
+		FString ErrorString(TEXT("Failed to initialize Pixel Streaming plugin because platform does not have Nvidia device"));
+		FText ErrorText = FText::FromString(ErrorString);
+		FMessageDialog::Open(EAppMsgType::Ok, ErrorText, &TitleText);
+		UE_LOG(PixelStreaming, Error, TEXT("%s"), *ErrorString);
+		return false;
+	}
+	else if (FPlatformProcess::GetDllHandle(GetDllName()) == nullptr)
 	{
 		FString ErrorString(TEXT("Failed to initialize Pixel Streaming plugin because Nvidia NVENC was not installed"));
 		FText ErrorText = FText::FromString(ErrorString);
-		FText TitleText = FText::FromString(TEXT("Pixel Streaming Plugin"));
 		FMessageDialog::Open(EAppMsgType::Ok, ErrorText, &TitleText);
 		UE_LOG(PixelStreaming, Error, TEXT("%s"), *ErrorString);
 		return false;
