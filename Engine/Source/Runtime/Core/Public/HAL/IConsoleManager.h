@@ -26,8 +26,7 @@ template <class T> class TConsoleVariableData;
  *
  * The variable should be creates early in the initialization but not before (not in global variable construction).
  * Choose the right variable type, consider using a console command if more functionality is needed (see Exec()).
- * Available types: int, float, int&, float&, string
- * There is no bool type as the int type provides enough functionality (0=false, 1=true) and can be extended easily (e.g. 2=auto, -1=debug)
+ * Available types: bool, int, float, bool&, int&, float&, string
  * Always provide a good help text, other should be able to understand the function of the console variable by reading this help.
  * The help length should be limited to a reasonable width in order to work well for low res screen resolutions.
  *
