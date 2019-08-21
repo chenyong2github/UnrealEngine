@@ -12,6 +12,7 @@
 
 // Kilometers as unit for computations related to the sky and its atmosphere
 #define CM_TO_SKY_UNIT 0.00001f
+#define SKY_UNIT_TO_CM (1.0f/CM_TO_SKY_UNIT)
 
 
 
