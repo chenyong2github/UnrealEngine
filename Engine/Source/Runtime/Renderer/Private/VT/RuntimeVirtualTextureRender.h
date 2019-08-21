@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-enum class ERuntimeVirtualTextureMaterialType;
+enum class ERuntimeVirtualTextureMaterialType : uint8;
 class FRHICommandListImmediate;
 class FRHITexture2D;
 class FScene;
