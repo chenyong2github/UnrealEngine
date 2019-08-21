@@ -9,11 +9,12 @@
 #define D_SKY_ATMOSPHERE_COMMON
 
 
-
+// The constants below should match the one in SceneRendering.cpp
 // Kilometers as unit for computations related to the sky and its atmosphere
 #define CM_TO_SKY_UNIT 0.00001f
 #define SKY_UNIT_TO_CM (1.0f/CM_TO_SKY_UNIT)
-
+// Float accuracy offset in Sky unit (km, so this is 1m)
+#define PLANET_RADIUS_OFFSET 0.001f
 
 
 // The number of killometer per slice in the aerial pespective camera volume texture. (assuming a uniform depth distribution)
