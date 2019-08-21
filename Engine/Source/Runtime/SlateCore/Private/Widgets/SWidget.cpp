@@ -43,13 +43,13 @@ static FAutoConsoleVariableRef CVarCullingSlackFillPercent(TEXT("Slate.CullingSl
 
 #if WITH_SLATE_DEBUGGING
 
-int32 GShowClipping = 0;
+bool GShowClipping = false;
 static FAutoConsoleVariableRef CVarSlateShowClipRects(TEXT("Slate.ShowClipping"), GShowClipping, TEXT("Controls whether we should render a clipping zone outline.  Yellow = Axis Scissor Rect Clipping (cheap).  Red = Stencil Clipping (expensive)."), ECVF_Default);
 
-int32 GDebugCulling = 0;
+bool GDebugCulling = false;
 static FAutoConsoleVariableRef CVarSlateDebugCulling(TEXT("Slate.DebugCulling"), GDebugCulling, TEXT("Controls whether we should ignore clip rects, and just use culling."), ECVF_Default);
 
-int32 GSlateEnsureAllVisibleWidgetsPaint = 0;
+bool GSlateEnsureAllVisibleWidgetsPaint = false;
 static FAutoConsoleVariableRef CVarSlateEnsureAllVisibleWidgetsPaint(TEXT("Slate.EnsureAllVisibleWidgetsPaint"), GSlateEnsureAllVisibleWidgetsPaint, TEXT("Ensures that if a child widget is visible before OnPaint, that it was painted this frame after OnPaint, if still marked as visible.  Only works if we're on the FastPaintPath."), ECVF_Default);
 
 #endif
