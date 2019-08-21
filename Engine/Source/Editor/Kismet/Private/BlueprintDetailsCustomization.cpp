@@ -3493,6 +3493,27 @@ void FBlueprintGraphActionDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 										FSlateIcon(),
 										FUIAction(FExecuteAction::CreateStatic( &FBlueprintGraphActionDetails::SetNetFlags, FunctionEntryNodePtr, static_cast<uint32>(FUNC_NetClient) ), CanExecuteDelegate));
 
+			const FString DocLink = TEXT("Shared/Editors/BlueprintEditor/GraphDetails");
+			TSharedPtr<SToolTip> KeywordsTooltip = IDocumentation::Get()->CreateToolTip(LOCTEXT("EditEventKeywords_Tooltip", "Keywords for searching for the event."), nullptr, DocLink, TEXT("Keywords"));
+			Category.AddCustomRow(LOCTEXT("EventsKeywordsLabel", "Keywords"))
+			.NameContent()
+			[
+				SNew(STextBlock)
+					.Text(LOCTEXT("KeywordsLabel", "Keywords"))
+					.ToolTip(KeywordsTooltip)
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+			]
+			.ValueContent()
+			[
+				SNew(SEditableTextBox)
+					.Text(this, &FBlueprintGraphActionDetails::OnGetKeywordsText)
+					.OnTextCommitted(this, &FBlueprintGraphActionDetails::OnKeywordsTextCommitted)
+					.ToolTip(KeywordsTooltip)
+					.RevertTextOnEscape(true)
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+			];
+
+
 			Category.AddCustomRow( LOCTEXT( "FunctionReplicate", "Replicates" ) )
 			.NameContent()
 			[
@@ -4460,10 +4481,13 @@ UK2Node_EditablePinBase* FBlueprintGraphActionDetails::GetEditableNode() const
 
 UFunction* FBlueprintGraphActionDetails::FindFunction() const
 {
-	UEdGraph* Graph = GetGraph();
-	if(Graph)
+	if (UK2Node_CustomEvent* EventNode = Cast<UK2Node_CustomEvent>(FunctionEntryNodePtr.Get()))
 	{
-		if(UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraph(Graph))
+		return FFunctionFromNodeHelper::FunctionFromNode(EventNode);
+	}
+	else if (UEdGraph* Graph = GetGraph())
+	{
+		if (UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraph(Graph))
 		{
 			UClass* Class = Blueprint->SkeletonGeneratedClass;
 
@@ -4477,7 +4501,7 @@ UFunction* FBlueprintGraphActionDetails::FindFunction() const
 			}
 		}
 	}
-	return NULL;
+	return nullptr;
 }
 
 FKismetUserDeclaredFunctionMetadata* FBlueprintGraphActionDetails::GetMetadataBlock() const
@@ -4492,8 +4516,12 @@ FKismetUserDeclaredFunctionMetadata* FBlueprintGraphActionDetails::GetMetadataBl
 		// Must be exactly a tunnel, not a macro instance
 		return &(TunnelNode->MetaData);
 	}
+	else if (UK2Node_CustomEvent* EventNode = Cast<UK2Node_CustomEvent>(FunctionEntryNode))
+	{
+		return &(EventNode->GetUserDefinedMetaData());
+	}
 
-	return NULL;
+	return nullptr;
 }
 
 FText FBlueprintGraphActionDetails::OnGetTooltipText() const

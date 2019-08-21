@@ -2389,7 +2389,7 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 	UField** CurrentFieldStorageLocation = &Ret->Children;
 	
 	// Helper function for making UFunctions generated for 'event' nodes, e.g. custom event and timelines
-	const auto MakeEventFunction = [&CurrentFieldStorageLocation, MakeFunction, Schema]( FName InName, EFunctionFlags ExtraFnFlags, const TArray<UEdGraphPin*>& InputPins, const TArray< TSharedPtr<FUserPinInfo> >& UserPins, UFunction* InSourceFN, bool bInCallInEditor, bool bIsDeprecated, const FString& DeprecationMessage )
+	const auto MakeEventFunction = [&CurrentFieldStorageLocation, MakeFunction, Schema]( FName InName, EFunctionFlags ExtraFnFlags, const TArray<UEdGraphPin*>& InputPins, const TArray< TSharedPtr<FUserPinInfo> >& UserPins, UFunction* InSourceFN, bool bInCallInEditor, bool bIsDeprecated, const FString& DeprecationMessage, FKismetUserDeclaredFunctionMetadata* UserDefinedMetaData = nullptr)
 	{
 		UField** CurrentParamStorageLocation = nullptr;
 
@@ -2421,6 +2421,11 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 			if(bInCallInEditor)
 			{
 				NewFunction->SetMetaData(FBlueprintMetadata::MD_CallInEditor, TEXT( "true" ));
+			}
+
+			if (UserDefinedMetaData)
+			{
+				NewFunction->SetMetaData(FBlueprintMetadata::MD_FunctionKeywords, *(UserDefinedMetaData->Keywords).ToString());
 			}
 
 			NewFunction->Bind();
@@ -2460,6 +2465,7 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 			FString DeprecationMessage;
 			bool bIsDeprecated = false;
 			bool bCallInEditor = false;
+			FKismetUserDeclaredFunctionMetadata* UserMetaData = nullptr;
 			if(UK2Node_CustomEvent* CustomEvent = Cast<UK2Node_CustomEvent>(Event))
 			{
 				bCallInEditor = CustomEvent->bCallInEditor;
@@ -2468,6 +2474,7 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 				{
 					DeprecationMessage = CustomEvent->DeprecationMessage;
 				}
+				UserMetaData = &(CustomEvent->GetUserDefinedMetaData());
 			}
 			MakeEventFunction(
 				CompilerContext.GetEventStubFunctionName(Event), 
@@ -2477,7 +2484,8 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 				Event->FindEventSignatureFunction(),
 				bCallInEditor,
 				bIsDeprecated,
-				DeprecationMessage
+				DeprecationMessage,
+				UserMetaData
 			);
 		}
 	}

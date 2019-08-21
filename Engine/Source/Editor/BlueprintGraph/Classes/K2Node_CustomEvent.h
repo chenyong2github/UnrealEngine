@@ -13,6 +13,7 @@
 class FBlueprintActionDatabaseRegistrar;
 class INameValidatorInterface;
 class UEdGraph;
+struct FKismetUserDeclaredFunctionMetadata;
 
 UCLASS(MinimalAPI)
 class UK2Node_CustomEvent : public UK2Node_Event
@@ -103,7 +104,15 @@ class UK2Node_CustomEvent : public UK2Node_Event
 private:
 	/** Constructing FText strings can be costly, so we cache the node's title */
 	FNodeTextCache CachedNodeTitle;
+
+	/** Custom event metadata that can be used for adding custom keywords */
+	UPROPERTY()
+	FKismetUserDeclaredFunctionMetadata MetaData;
+
+public:
+
+	FKismetUserDeclaredFunctionMetadata& GetUserDefinedMetaData()
+	{
+		return MetaData;
+	}
 };
-
-
-
