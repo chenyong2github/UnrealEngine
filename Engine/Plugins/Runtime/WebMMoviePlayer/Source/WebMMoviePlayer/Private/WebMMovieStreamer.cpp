@@ -16,6 +16,7 @@
 #include "WebMContainer.h"
 #include "WebMMediaAudioSample.h"
 #include "WebMMediaTextureSample.h"
+#include "Misc/CoreDelegates.h"
 #endif // WITH_WEBM_LIBS
 
 DEFINE_LOG_CATEGORY(LogWebMMoviePlayer);
