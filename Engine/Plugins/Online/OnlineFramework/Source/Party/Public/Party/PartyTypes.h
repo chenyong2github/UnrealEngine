@@ -371,6 +371,7 @@ public:
 	FJoinPartyResult(FPartyJoinDenialReason InDenialReason);
 	FJoinPartyResult(EJoinPartyCompletionResult InResult);
 	FJoinPartyResult(EJoinPartyCompletionResult InResult, FPartyJoinDenialReason InDenialReason);
+	FJoinPartyResult(EJoinPartyCompletionResult InResult, int32 InResultSubCode);
 	
 	void SetDenialReason(FPartyJoinDenialReason InDenialReason);
 	void SetResult(EJoinPartyCompletionResult InResult);
@@ -379,10 +380,14 @@ public:
 
 	EJoinPartyCompletionResult GetResult() const { return Result; }
 	FPartyJoinDenialReason GetDenialReason() const { return DenialReason; }
+	int32 GetResultSubCode() const { return ResultSubCode; }
 
 private:
 	EJoinPartyCompletionResult Result;
+	/** Denial reason - used if Result is NotApproved */
 	FPartyJoinDenialReason DenialReason;
+	/** Result sub code - used for any other Result type */
+	int32 ResultSubCode = 0;
 };
 
 /** Base for all rep data structs */
