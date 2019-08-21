@@ -237,7 +237,7 @@ class ONLINESUBSYSTEMUTILS_API UPartyBeaconState : public UObject
 	 *
 	 * @return true if successful created, false otherwise
 	 */
-	virtual bool InitState(int32 InTeamCount, int32 InTeamSize, int32 InMaxReservations, FName InSessionName, int32 InForceTeamNum);
+	virtual bool InitState(int32 InTeamCount, int32 InTeamSize, int32 InMaxReservations, FName InSessionName, int32 InForceTeamNum, bool bEnableRemovalRequests);
 
 	/**
 	 * Reconfigures the beacon for a different team/player count configuration
@@ -558,6 +558,9 @@ protected:
 	/** Are multiple consoles types allowed to play together */
 	UPROPERTY(Config)
 	bool bRestrictCrossConsole;
+	/** Process requests from clients to remove players from beacon */
+	UPROPERTY(Transient)
+	bool bEnableRemovalRequests;
 
 	/** Current reservations in the system */
 	UPROPERTY(Transient)

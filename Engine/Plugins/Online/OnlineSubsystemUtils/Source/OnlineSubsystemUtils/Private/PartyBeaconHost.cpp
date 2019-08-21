@@ -30,13 +30,13 @@ void APartyBeaconHost::PostInitProperties()
 #endif
 }
 
-bool APartyBeaconHost::InitHostBeacon(int32 InTeamCount, int32 InTeamSize, int32 InMaxReservations, FName InSessionName, int32 InForceTeamNum)
+bool APartyBeaconHost::InitHostBeacon(int32 InTeamCount, int32 InTeamSize, int32 InMaxReservations, FName InSessionName, int32 InForceTeamNum, bool bInEnableRemovalRequests)
 {
 	UE_LOG(LogPartyBeacon, Verbose, TEXT("InitHostBeacon TeamCount:%d TeamSize:%d MaxSize:%d"), InTeamCount, InTeamSize, InMaxReservations);
 	if (InMaxReservations > 0)
 	{
 		State = NewObject<UPartyBeaconState>(GetTransientPackage(), GetPartyBeaconHostClass());
-		if (State->InitState(InTeamCount, InTeamSize, InMaxReservations, InSessionName, InForceTeamNum))
+		if (State->InitState(InTeamCount, InTeamSize, InMaxReservations, InSessionName, InForceTeamNum, bInEnableRemovalRequests))
 		{
 			return true;
 		}
@@ -734,6 +734,12 @@ EPartyReservationResult::Type APartyBeaconHost::UpdatePartyReservation(const FPa
 
 	if (!State || GetBeaconState() == EBeaconState::DenyRequests)
 	{
+		return EPartyReservationResult::ReservationDenied;
+	}
+
+	if (bIsRemovingMembers && !State->bEnableRemovalRequests)
+	{
+		// We are told not to accept removal requests.
 		return EPartyReservationResult::ReservationDenied;
 	}
 

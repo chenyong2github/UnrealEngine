@@ -1433,6 +1433,10 @@ void USocialParty::HandleReservationRequestComplete(EPartyReservationResult::Typ
 				// This player is already in our party. ApproveJIPRequest
 				PartyInterface->ApproveJIPRequest(*PendingApproval.RecipientId, GetPartyId(), *PendingApproval.SenderId, bReservationApproved, DenialReason);
 			}
+			else if (PendingApproval.bIsPlayerRemoval)
+			{
+				// We don't care about calling back the player when they are requesting a removal.
+			}
 			else
 			{
 				PartyInterface->ApproveJoinRequest(*PendingApproval.RecipientId, GetPartyId(), *PendingApproval.SenderId, bReservationApproved, DenialReason);
