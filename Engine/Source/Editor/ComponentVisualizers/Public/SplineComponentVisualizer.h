@@ -71,6 +71,17 @@ struct HSplineTangentHandleProxy : public HSplineVisProxy
 	bool bArriveTangent;
 };
 
+/** Accepted modes for snapping points. */
+namespace ESplineComponentSnapMode 
+{
+	enum Type
+	{
+		Snap,
+		AlignToTangent,
+		AlignPerpendicularToTangent
+	};
+}
+
 /** SplineComponent visualizer/edit functionality */
 class COMPONENTVISUALIZERS_API FSplineComponentVisualizer : public FComponentVisualizer
 {
@@ -151,7 +162,7 @@ protected:
 	void OnAddKeyToSegment();
 	bool CanAddKeyToSegment() const;
 
-	void OnSnapToNearestSplinePoint(bool bAlign);
+	void OnSnapToNearestSplinePoint(ESplineComponentSnapMode::Type InSnapMode);
 	bool CanSnapToNearestSplinePoint() const;
 
 	void OnSnapAll(EAxis::Type InAxis);
