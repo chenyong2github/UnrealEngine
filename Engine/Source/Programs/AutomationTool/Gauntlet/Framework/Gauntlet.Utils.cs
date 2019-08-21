@@ -17,7 +17,7 @@ using System.Text;
 
 namespace Gauntlet
 {
-	public class Globals
+	public static class Globals
 	{
 		static Params InnerParams = new Params(Environment.GetCommandLineArgs());
 
