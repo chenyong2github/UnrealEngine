@@ -123,7 +123,7 @@ UPartyBeaconState::UPartyBeaconState(const FObjectInitializer& ObjectInitializer
 {
 }
 
-bool UPartyBeaconState::InitState(int32 InTeamCount, int32 InTeamSize, int32 InMaxReservations, FName InSessionName, int32 InForceTeamNum)
+bool UPartyBeaconState::InitState(int32 InTeamCount, int32 InTeamSize, int32 InMaxReservations, FName InSessionName, int32 InForceTeamNum, bool bInEnableRemovalRequests)
 {
 	if (InMaxReservations > 0)
 	{
@@ -133,7 +133,7 @@ bool UPartyBeaconState::InitState(int32 InTeamCount, int32 InTeamSize, int32 InM
 		MaxReservations = InMaxReservations;
 		ForceTeamNum = InForceTeamNum;
 		Reservations.Empty(MaxReservations);
-
+		bEnableRemovalRequests = bInEnableRemovalRequests;
 		InitTeamArray();
 		return true;
 	}
