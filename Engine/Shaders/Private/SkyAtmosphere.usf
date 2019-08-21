@@ -61,6 +61,8 @@
 #define MULTISCATTERING_STORE_SCALE (4.0f * PI * 5.0f)
 #define MULTISCATTERING_STORE_SCALE_INV 1.0f/MULTISCATTERING_STORE_SCALE
 
+// Only available for shaders ran per view, so this constant should not be accessed in common code such as IntegrateSingleScatteredLuminance for instance.
+float AerialPerspectiveStartDepth;
 
 
 // - RayOrigin: ray origin
@@ -783,7 +785,7 @@ void RenderSkyAtmosphereRayMarchingPS(
 		CameraAerialPerspectiveVolumeTexture, CameraAerialPerspectiveVolumeTextureSampler,
 		SkyAtmosphere.CameraAerialPerspectiveVolumeDepthResolutionInv,
 		SkyAtmosphere.CameraAerialPerspectiveVolumeDepthResolution,
-		SkyAtmosphere.AerialPerspectiveStartDepth,
+		AerialPerspectiveStartDepth,
 		SkyAtmosphere.CameraAerialPerspectiveVolumeDepthSliceLength,
 		SkyAtmosphere.CameraAerialPerspectiveVolumeDepthSliceLengthInv,
 		OneOverPreExposure);
@@ -797,7 +799,7 @@ void RenderSkyAtmosphereRayMarchingPS(
 
 #else // FASTAERIALPERSPECTIVE_ENABLED
 
-	WorldPos += WorldDir * SkyAtmosphere.AerialPerspectiveStartDepth; // Offset according to start depth
+	WorldPos += WorldDir * AerialPerspectiveStartDepth; // Offset according to start depth
 
 	// Move to top atmosphere as the starting point for ray marching.
 	// This is critical to be after the above to not disrupt above atmosphere tests and voxel selection.
@@ -1166,7 +1168,7 @@ void RenderCameraAerialPerspectiveVolumeCS(uint3 ThreadId : SV_DispatchThreadID)
 	Slice *= Slice;	// squared distribution
 	Slice *= SkyAtmosphere.CameraAerialPerspectiveVolumeDepthResolution;
 
-	float3 RayStartWorldPos = CamPos + SkyAtmosphere.AerialPerspectiveStartDepth * WorldDir; // Offset according to start depth
+	float3 RayStartWorldPos = CamPos + AerialPerspectiveStartDepth * WorldDir; // Offset according to start depth
 	float ViewHeight;
 
 
@@ -1219,7 +1221,7 @@ void RenderCameraAerialPerspectiveVolumeCS(uint3 ThreadId : SV_DispatchThreadID)
 		}
 		 
 		WorldDir = normalize(VoxelWorldPos - CamPos);
-		RayStartWorldPos = CamPos + SkyAtmosphere.AerialPerspectiveStartDepth * WorldDir; // Offset according to start depth
+		RayStartWorldPos = CamPos + AerialPerspectiveStartDepth * WorldDir; // Offset according to start depth
 		tMax = length(VoxelWorldPos - RayStartWorldPos);
 	}
 	float tMaxMax = tMax;
