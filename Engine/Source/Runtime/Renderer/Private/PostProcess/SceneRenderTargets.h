@@ -295,6 +295,9 @@ public:
 	/** Separate translucency buffer can be downsampled or not (as it is used to store the AfterDOF translucency) */
 	TRefCountPtr<IPooledRenderTarget>& GetSeparateTranslucency(FRHICommandList& RHICmdList, FIntPoint Size);
 
+	/** Returns a dummy texture that can be used for shader resource binding when separate translucency render target is not available */
+	TRefCountPtr<IPooledRenderTarget>& GetSeparateTranslucencyDummy();
+
 	bool IsDownsampledTranslucencyDepthValid()
 	{
 		return DownsampledTranslucencyDepthRT != nullptr;
