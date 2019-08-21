@@ -716,82 +716,97 @@ void UPartyBeaconState::UpdatePartyLeader(const FUniqueNetIdRepl& InPartyMemberI
 		// PartyMemberReservationIdx may be invalid if we had just started kicking this player
 		if (PartyMemberReservationIdx != INDEX_NONE)
 		{
-			// Get the reservation that has NewPartyLeaderId as the leader
-			// May be INDEX_NONE if the target is not the leader of a reservation and is instead just a member
+			int32 PartLeaderAsMemberReservationIdx = GetExistingReservationContainingMember(NewPartyLeaderId);	
 			int32 NewPartyLeaderReservationIdx = GetExistingReservation(NewPartyLeaderId);
-			if (NewPartyLeaderReservationIdx != PartyMemberReservationIdx)
+			bool Promotion = false;
+			// if the leader we want to be under is in the same party as us, and we are the current leader then promote them to the leader of the existing party. Excluding cases where we are asking to be out own leader
+			if (PartyMemberReservationIdx == PartLeaderAsMemberReservationIdx && (InPartyMemberId != NewPartyLeaderId))
 			{
-				FPartyReservation* PriorReservation = &Reservations[PartyMemberReservationIdx];
-				FPartyReservation* DestinationReservation = (NewPartyLeaderReservationIdx != INDEX_NONE) ? &Reservations[NewPartyLeaderReservationIdx] : nullptr;
-
-				// Verify that a migration between existing reservations can occur
-				if (!DestinationReservation || DestinationReservation->CanPlayerMigrateFromReservation(*PriorReservation))
+				FPartyReservation* SharedReservation = &Reservations[PartLeaderAsMemberReservationIdx];
+				if (SharedReservation->PartyLeader == InPartyMemberId)
 				{
-					// Make a copy of their player reservation so we can move it to the new reservation
-					int32 PriorPlayerReservationIdx = PriorReservation->PartyMembers.IndexOfByPredicate([&InPartyMemberId](const FPlayerReservation& ExistingPlayerRes)
-					{
-						return InPartyMemberId == ExistingPlayerRes.UniqueId;
-					});
-					if (ensure(PriorPlayerReservationIdx != INDEX_NONE))
-					{
-						// Make a copy of the player reservation to be inserted into a new reservation after being removed from the prior reservation
-						FPlayerReservation PlayerReservation = PriorReservation->PartyMembers[PriorPlayerReservationIdx];
+					SharedReservation->PartyLeader = NewPartyLeaderId;
+					Promotion = true;
+				}								
+			}
+			if (Promotion == false)
+			{
+				// Get the reservation that has NewPartyLeaderId as the leader
+				// May be INDEX_NONE if the target is not the leader of a reservation and is instead just a member
+				if (NewPartyLeaderReservationIdx != PartyMemberReservationIdx)
+				{
+					FPartyReservation* PriorReservation = &Reservations[PartyMemberReservationIdx];
+					FPartyReservation* DestinationReservation = (NewPartyLeaderReservationIdx != INDEX_NONE) ? &Reservations[NewPartyLeaderReservationIdx] : nullptr;
 
-						// Remove player from their previous reservation and find a new place for them
-						PriorReservation->RemovePartyMemberAtIndex(PriorPlayerReservationIdx);
-
-						// If there is already a reservation that has the new party leader as a leader, join it
-						// If not, create one
-						if (DestinationReservation)
+					// Verify that a migration between existing reservations can occur
+					if (!DestinationReservation || DestinationReservation->CanPlayerMigrateFromReservation(*PriorReservation))
+					{
+						// Make a copy of their player reservation so we can move it to the new reservation
+						int32 PriorPlayerReservationIdx = PriorReservation->PartyMembers.IndexOfByPredicate([&InPartyMemberId](const FPlayerReservation& ExistingPlayerRes)
 						{
-							UE_LOG(LogPartyBeacon, Verbose, TEXT("UpdatePartyLeader:  Moving player %s from reservation under party leader %s, to reservation under party leader %s"),
-								*InPartyMemberId.ToString(), *PriorReservation->PartyLeader.ToString(), *NewPartyLeaderId.ToString());
-							DestinationReservation->PartyMembers.Add(MoveTemp(PlayerReservation));
+							return InPartyMemberId == ExistingPlayerRes.UniqueId;
+						});
+						if (ensure(PriorPlayerReservationIdx != INDEX_NONE))
+						{
+							// Make a copy of the player reservation to be inserted into a new reservation after being removed from the prior reservation
+							FPlayerReservation PlayerReservation = PriorReservation->PartyMembers[PriorPlayerReservationIdx];
+
+							// Remove player from their previous reservation and find a new place for them
+							PriorReservation->RemovePartyMemberAtIndex(PriorPlayerReservationIdx);
+
+							// If there is already a reservation that has the new party leader as a leader, join it
+							// If not, create one
+							if (DestinationReservation)
+							{
+								UE_LOG(LogPartyBeacon, Verbose, TEXT("UpdatePartyLeader:  Moving player %s from reservation under party leader %s, to reservation under party leader %s"),
+									*InPartyMemberId.ToString(), *PriorReservation->PartyLeader.ToString(), *NewPartyLeaderId.ToString());
+								DestinationReservation->PartyMembers.Add(MoveTemp(PlayerReservation));
+							}
+							else
+							{
+								UE_LOG(LogPartyBeacon, Verbose, TEXT("UpdatePartyLeader:  Moving player %s from reservation under party leader %s, to new reservation with leader %s"),
+									*InPartyMemberId.ToString(), *PriorReservation->PartyLeader.ToString(), *NewPartyLeaderId.ToString());
+
+								{
+									FPartyReservation NewReservation;
+									NewReservation.TeamNum = PriorReservation->TeamNum;
+									NewReservation.PartyLeader = NewPartyLeaderId;
+									NewReservation.PartyMembers.Add(MoveTemp(PlayerReservation));
+
+									Reservations.Add(MoveTemp(NewReservation));
+								}
+								// While the index doesn't change, the Add() call above could invalidate our memory address
+								PriorReservation = &Reservations[PartyMemberReservationIdx];
+							}
+
+							// If the former reservation is now empty, remove the reservation
+							if (PriorReservation->PartyMembers.Num() == 0)
+							{
+								UE_LOG(LogPartyBeacon, Verbose, TEXT("UpdatePartyLeader:  Removing now empty reservation that had party leader %s"), *PriorReservation->PartyLeader.ToString());
+								Reservations.RemoveAtSwap(PartyMemberReservationIdx);
+								PriorReservation = nullptr;
+							}
+
+							// At this point both PriorReservation and DestinationReservation are possibly invalid, don't use them below here
+
+							SanityCheckReservations(false);
 						}
 						else
 						{
-							UE_LOG(LogPartyBeacon, Verbose, TEXT("UpdatePartyLeader:  Moving player %s from reservation under party leader %s, to new reservation with leader %s"),
-								*InPartyMemberId.ToString(), *PriorReservation->PartyLeader.ToString(), *NewPartyLeaderId.ToString());
-
-							{
-								FPartyReservation NewReservation;
-								NewReservation.TeamNum = PriorReservation->TeamNum;
-								NewReservation.PartyLeader = NewPartyLeaderId;
-								NewReservation.PartyMembers.Add(MoveTemp(PlayerReservation));
-
-								Reservations.Add(MoveTemp(NewReservation));
-							}
-							// While the index doesn't change, the Add() call above could invalidate our memory address
-							PriorReservation = &Reservations[PartyMemberReservationIdx];
+							UE_LOG(LogPartyBeacon, Warning, TEXT("UpdatePartyLeader:  Member %s not found in their own reservation!"), *InPartyMemberId.ToDebugString());
 						}
-
-						// If the former reservation is now empty, remove the reservation
-						if (PriorReservation->PartyMembers.Num() == 0)
-						{
-							UE_LOG(LogPartyBeacon, Verbose, TEXT("UpdatePartyLeader:  Removing now empty reservation that had party leader %s"), *PriorReservation->PartyLeader.ToString());
-							Reservations.RemoveAtSwap(PartyMemberReservationIdx);
-							PriorReservation = nullptr;
-						}
-
-						// At this point both PriorReservation and DestinationReservation are possibly invalid, don't use them below here
-
-						SanityCheckReservations(false);
 					}
 					else
 					{
-						UE_LOG(LogPartyBeacon, Warning, TEXT("UpdatePartyLeader:  Member %s not found in their own reservation!"), *InPartyMemberId.ToDebugString());
+						UE_LOG(LogPartyBeacon, Warning, TEXT("UpdatePartyLeader:  Unable to migrate player %s from reservation under leader %s to existing reservation with leader %s"),
+							*InPartyMemberId.ToString(), *PriorReservation->PartyLeader.ToString(), *NewPartyLeaderId.ToString());
 					}
 				}
 				else
 				{
-					UE_LOG(LogPartyBeacon, Warning, TEXT("UpdatePartyLeader:  Unable to migrate player %s from reservation under leader %s to existing reservation with leader %s"),
-						*InPartyMemberId.ToString(), *PriorReservation->PartyLeader.ToString(), *NewPartyLeaderId.ToString());
+					UE_LOG(LogPartyBeacon, VeryVerbose, TEXT("UpdatePartyLeader:  Player %s already under party leader %s, no action taken"),
+						*InPartyMemberId.ToString(), *NewPartyLeaderId.ToString());
 				}
-			}
-			else
-			{
-				UE_LOG(LogPartyBeacon, VeryVerbose, TEXT("UpdatePartyLeader:  Player %s already under party leader %s, no action taken"),
-					*InPartyMemberId.ToString(), *NewPartyLeaderId.ToString());
 			}
 		}
 		else
