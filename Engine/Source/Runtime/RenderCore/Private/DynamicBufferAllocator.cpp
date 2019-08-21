@@ -223,14 +223,39 @@ void FGlobalDynamicReadBuffer::Commit()
 		{
 			Buffer.Unlock();
 		}
+		else if (GGlobalBufferNumFramesUnusedThresold && !Buffer.AllocatedByteCount)
+		{
+			++Buffer.NumFramesUnused;
+			if (Buffer.NumFramesUnused >= GGlobalBufferNumFramesUnusedThresold )
+			{
+				// Remove the buffer, assumes they are unordered.
+				Buffer.Release();
+				FloatBufferPool->Buffers.RemoveAtSwap(BufferIndex);
+				--BufferIndex;
+				--NumBuffers;
+			}
+		}
 	}
 	FloatBufferPool->CurrentBuffer = NULL;
+
 	for (int32 BufferIndex = 0, NumBuffers = Int32BufferPool->Buffers.Num(); BufferIndex < NumBuffers; ++BufferIndex)
 	{
 		FDynamicAllocReadBuffer& Buffer = Int32BufferPool->Buffers[BufferIndex];
 		if (Buffer.MappedBuffer != NULL)
 		{
 			Buffer.Unlock();
+		}
+		else if (GGlobalBufferNumFramesUnusedThresold  && !Buffer.AllocatedByteCount)
+		{
+			++Buffer.NumFramesUnused;
+			if (Buffer.NumFramesUnused >= GGlobalBufferNumFramesUnusedThresold )
+			{
+				// Remove the buffer, assumes they are unordered.
+				Buffer.Release();
+				Int32BufferPool->Buffers.RemoveAtSwap(BufferIndex);
+				--BufferIndex;
+				--NumBuffers;
+			}
 		}
 	}
 	Int32BufferPool->CurrentBuffer = NULL;

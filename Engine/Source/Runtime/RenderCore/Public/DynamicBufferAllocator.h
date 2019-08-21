@@ -12,12 +12,9 @@ struct FDynamicReadBufferPool;
 
 struct FDynamicAllocReadBuffer : public FDynamicReadBuffer
 {
-	FDynamicAllocReadBuffer()
-		: FDynamicReadBuffer()
-		, AllocatedByteCount(0)
-	{}
-
-	int32 AllocatedByteCount;
+	int32 AllocatedByteCount = 0;
+	/** Number of successive frames for which AllocatedByteCount == 0. Used as a metric to decide when to free the allocation. */
+	int32 NumFramesUnused = 0;
 
 	/**
 	* Unocks the buffer so the GPU may read from it.
@@ -26,6 +23,7 @@ struct FDynamicAllocReadBuffer : public FDynamicReadBuffer
 	{
 		FDynamicReadBuffer::Unlock();
 		AllocatedByteCount = 0;
+		NumFramesUnused = 0;
 	}
 };
 
