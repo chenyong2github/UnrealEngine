@@ -8,8 +8,8 @@
 #include "VulkanContext.h"
 #include "VulkanLLM.h"
 
-static int32 GVulkanAllowUniformUpload = 1;
-static FAutoConsoleVariableRef CVarVulkanSubmitOnCopyToResolve(
+static int32 GVulkanAllowUniformUpload = 0;
+static FAutoConsoleVariableRef CVarVulkanAllowUniformUpload(
 	TEXT("r.Vulkan.AllowUniformUpload"),
 	GVulkanAllowUniformUpload,
 	TEXT("Allow Uniform Buffer uploads outside of renderpasses\n")
