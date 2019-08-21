@@ -987,7 +987,6 @@ void FOpenXRHMD::CloseSession()
 		{
 			ActionSpace.DestroySpace();
 		}
-		ActionSpaces.Empty();
 
 		// Close the session now we're allowed to.
 		ENQUEUE_RENDER_COMMAND(OpenXRDestroySession)([this](FRHICommandListImmediate& RHICmdList)
