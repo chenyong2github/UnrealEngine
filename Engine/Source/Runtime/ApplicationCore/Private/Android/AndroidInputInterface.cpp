@@ -196,11 +196,38 @@ void FAndroidInputInterface::Tick(float DeltaTime)
 	}
 }
 
-void FAndroidInputInterface::SetForceFeedbackChannelValue(int32 ControllerId, FForceFeedbackChannelType ChannelType, float Value)
+void FAndroidInputInterface::SetLightColor(int32 ControllerId, FColor Color)
 {
 	for (auto DeviceIt = ExternalInputDevices.CreateIterator(); DeviceIt; ++DeviceIt)
 	{
-		(*DeviceIt)->SetChannelValue(ControllerId, ChannelType, Value);
+		(*DeviceIt)->SetLightColor(ControllerId, Color);
+	}
+}
+
+void FAndroidInputInterface::ResetLightColor(int32 ControllerId)
+{
+	for (auto DeviceIt = ExternalInputDevices.CreateIterator(); DeviceIt; ++DeviceIt)
+	{
+		(*DeviceIt)->ResetLightColor(ControllerId);
+	}
+}
+
+void FAndroidInputInterface::SetForceFeedbackChannelValue(int32 ControllerId, FForceFeedbackChannelType ChannelType, float Value)
+{
+	bool bDidFeedback = false;
+	for (auto DeviceIt = ExternalInputDevices.CreateIterator(); DeviceIt; ++DeviceIt)
+	{
+		if ((*DeviceIt)->SupportsForceFeedback(ControllerId))
+		{
+			bDidFeedback = true;
+			(*DeviceIt)->SetChannelValue(ControllerId, ChannelType, Value);
+		}
+	}
+
+	// If controller handled force feedback don't do it on the phone
+	if (bDidFeedback)
+	{
+		return;
 	}
 
 	// Note: only one motor on Android at the moment, but remember all the settings
@@ -236,9 +263,20 @@ void FAndroidInputInterface::SetForceFeedbackChannelValue(int32 ControllerId, FF
 
 void FAndroidInputInterface::SetForceFeedbackChannelValues(int32 ControllerId, const FForceFeedbackValues &Values)
 {
+	bool bDidFeedback = false;
 	for (auto DeviceIt = ExternalInputDevices.CreateIterator(); DeviceIt; ++DeviceIt)
 	{
-		(*DeviceIt)->SetChannelValues(ControllerId, Values);
+		if ((*DeviceIt)->SupportsForceFeedback(ControllerId))
+		{
+			bDidFeedback = true;
+			(*DeviceIt)->SetChannelValues(ControllerId, Values);
+		}
+	}
+
+	// If controller handled force feedback don't do it on the phone
+	if (bDidFeedback)
+	{
+		return;
 	}
 
 	// Note: only one motor on Android at the moment, but remember all the settings
@@ -812,6 +850,7 @@ void FAndroidInputInterface::SendControllerEvents()
 						CurrentDevice.DeviceState = MappingState::Valid;
 
 						// Generic mappings
+						CurrentDevice.ControllerClass = ControllerClassType::Generic;
 						CurrentDevice.ButtonRemapping = ButtonRemapType::Normal;
 						CurrentDevice.LTAnalogRangeMinimum = 0.0f;
 						CurrentDevice.RTAnalogRangeMinimum = 0.0f;
@@ -854,16 +893,18 @@ void FAndroidInputInterface::SendControllerEvents()
 						}
 						else if (CurrentDevice.DeviceInfo.Name.StartsWith(TEXT("Xbox Wired Controller")))
 						{
+							CurrentDevice.ControllerClass = ControllerClassType::XBoxWired;
 							CurrentDevice.bSupportsHat = true;
 						}
 						else if (CurrentDevice.DeviceInfo.Name.StartsWith(TEXT("Xbox Wireless Controller")))
 						{
+							CurrentDevice.ControllerClass = ControllerClassType::XBoxWireless;
 							CurrentDevice.bSupportsHat = true;
 
 							if (GAndroidOldXBoxWirelessFirmware == 1)
 							{
 								// Apply mappings for older firmware before 3.1.1221.0
-								CurrentDevice.ButtonRemapping = ButtonRemapType::XBoxWireless;
+								CurrentDevice.ButtonRemapping = ButtonRemapType::XBox;
 								CurrentDevice.bMapL1R1ToTriggers = false;
 								CurrentDevice.bMapZRZToTriggers = true;
 								CurrentDevice.bRightStickZRZ = false;
@@ -882,6 +923,7 @@ void FAndroidInputInterface::SendControllerEvents()
 						// comparison. Instead we check the product and vendor IDs to ensure it's the correct one.
 						else if (CurrentDevice.DeviceInfo.Name.StartsWith(TEXT("PS4 Wireless Controller")))
 						{
+							CurrentDevice.ControllerClass = ControllerClassType::PS4Wireless;
 							if (CurrentDevice.DeviceInfo.Name.EndsWith(TEXT(" (v2)")))
 							{
 								CurrentDevice.ButtonRemapping = ButtonRemapType::PS4;
@@ -1170,6 +1212,15 @@ int32 FAndroidInputInterface::FindExistingDevice(int32 deviceId)
 	return -1;
 }
 
+FAndroidGamepadDeviceMapping* FAndroidInputInterface::GetDeviceMapping(int32 ControllerId)
+{
+	if (ControllerId < 0 || ControllerId >= MAX_NUM_CONTROLLERS)
+	{
+		return nullptr;
+	}
+	return &DeviceMapping[ControllerId];
+}
+
 int32 FAndroidInputInterface::GetControllerIndex(int32 deviceId)
 {
 	if (!bAllowControllers)
@@ -1336,6 +1387,17 @@ void FAndroidInputInterface::JoystickButtonEvent(int32 deviceId, int32 buttonId,
 	if (deviceId == -1)
 		return;
 
+	//FPlatformMisc::LowLevelOutputDebugStringf(TEXT("JoystickButtonEvent[%d]: %d"), (int)DeviceMapping[deviceId].ButtonRemapping, buttonId);
+
+	if (DeviceMapping[deviceId].ControllerClass == ControllerClassType::PS4Wireless)
+	{
+		if (buttonId == 3002)
+		{
+			NewControllerData[deviceId].ButtonStates[7] = buttonDown;  // Touchpad = Special Left
+			return;
+		}
+	}
+
 	// Deal with button remapping
 	switch (DeviceMapping[deviceId].ButtonRemapping)
 	{
@@ -1384,7 +1446,7 @@ void FAndroidInputInterface::JoystickButtonEvent(int32 deviceId, int32 buttonId,
 			}
 			break;
 
-		case ButtonRemapType::XBoxWireless:
+		case ButtonRemapType::XBox:
 			switch (buttonId)
 			{
 				case AKEYCODE_BUTTON_A:      NewControllerData[deviceId].ButtonStates[0] = buttonDown; break; // A
