@@ -167,8 +167,10 @@ static const FString TextureFormatToString(ovrAvatarTextureFormat format)
 
 void UOvrAvatarManager::Tick(float DeltaTime)
 {
-	if (!IsInitialized)
+	if (!bIsInitialized)
+	{
 		return;
+	}
 
 	while (ovrAvatarMessage* message = ovrAvatarMessage_Pop())
 	{
@@ -198,7 +200,7 @@ void UOvrAvatarManager::InitializeSDK()
 {
 	UE_LOG(LogAvatars, Display, TEXT("UOvrAvatarManager::InitializeSDK()"));
 
-	if (!IsInitialized)
+	if (!bIsInitialized)
 	{
 #if WITH_EDITORONLY_DATA
 		for (int32 AssetIndex = 0; AssetIndex < ARRAY_COUNT(AssetList); ++AssetIndex)
@@ -242,7 +244,7 @@ void UOvrAvatarManager::InitializeSDK()
 		ovrAvatar_Initialize(TCHAR_TO_ANSI(*AVATAR_APP_ID));
 #endif
 
-		IsInitialized = true;
+		bIsInitialized = true;
 
 		ovrAvatar_SetLoggingLevel(LogLevel);
 
@@ -258,18 +260,19 @@ void UOvrAvatarManager::InitializeSDK()
 
 void UOvrAvatarManager::ShutdownSDK()
 {
-	if (IsInitialized)
+	if (bIsInitialized)
 	{
 #if WITH_EDITORONLY_DATA
 		AssetObjects.Empty();
 #endif
+		ShutdownEvent.Broadcast();
 
 		// This is crashing when cooking content, and not sure why...
 #if !WITH_EDITORONLY_DATA
 		ovrAvatar_RegisterLoggingCallback(nullptr);
 #endif
 
-		IsInitialized = false;
+		bIsInitialized = false;
 		ovrAvatar_Shutdown();
 	}
 }
