@@ -999,7 +999,7 @@ float3 MaterialExpressionSkyAtmosphereLightDiskLuminance(FMaterialPixelParameter
 {
 #if MATERIAL_SKY_ATMOSPHERE && PROJECT_SUPPORT_SKY_ATMOSPHERE
 	const float3 PlanetCenter = float3(0, 0, -ResolvedView.SkyAtmosphereBottomRadius);
-	const float3 PlanetCenterToWorldCameraPos = ResolvedView.WorldCameraOrigin * CM_TO_SKY_UNIT - PlanetCenter;
+	const float3 PlanetCenterToWorldCameraPos = ResolvedView.SkyWorldCameraOrigin * CM_TO_SKY_UNIT - PlanetCenter;
 	const float3 ViewDir = -Parameters.CameraVector;
 
 	return GetLightDiskLuminance(PlanetCenterToWorldCameraPos, ViewDir, ResolvedView.SkyAtmosphereBottomRadius, ResolvedView.SkyAtmosphereTopRadius,
@@ -1014,7 +1014,7 @@ float3 MaterialExpressionSkyAtmosphereViewLuminance(FMaterialPixelParameters Par
 {
 #if MATERIAL_SKY_ATMOSPHERE && PROJECT_SUPPORT_SKY_ATMOSPHERE
 	const float3 PlanetCenter = float3(0, 0, -ResolvedView.SkyAtmosphereBottomRadius);
-	const float3 PlanetCenterToWorldCameraPos = ResolvedView.WorldCameraOrigin * CM_TO_SKY_UNIT - PlanetCenter;
+	const float3 PlanetCenterToWorldCameraPos = ResolvedView.SkyWorldCameraOrigin * CM_TO_SKY_UNIT - PlanetCenter;
 	const float ViewHeight = length(PlanetCenterToWorldCameraPos);
 	const float3 ViewDir = -Parameters.CameraVector;
 
@@ -1048,7 +1048,7 @@ float4 MaterialExpressionSkyAtmosphereAerialPerspective(FMaterialPixelParameters
 
 	const float3 PlanetCenter = float3(0, 0, -ResolvedView.SkyAtmosphereBottomRadius);
 	const float3 WorldPos = Parameters.AbsoluteWorldPosition.xyz*CM_TO_SKY_UNIT;
-	const float3 CameraPos = ResolvedView.WorldCameraOrigin.xyz*CM_TO_SKY_UNIT;
+	const float3 CameraPos = ResolvedView.SkyWorldCameraOrigin.xyz*CM_TO_SKY_UNIT;
 
 	float4 NDCPosition = mul(float4(Parameters.AbsoluteWorldPosition.xyz, 1), ResolvedView.WorldToClip); // Because SvPosition seems different...
 
