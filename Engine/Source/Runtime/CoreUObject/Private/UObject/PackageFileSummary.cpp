@@ -211,8 +211,31 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 
 		Record << SA_VALUE(TEXT("ThumbnailTableOffset"), Sum.ThumbnailTableOffset);
 
+		Record << SA_VALUE(TEXT("Guid"), Sum.Guid);
+
+		if (BaseArchive.IsSaving() || Sum.FileVersionUE4 >= VER_UE4_ADDED_PACKAGE_OWNER)
+		{
+			if (!BaseArchive.IsFilterEditorOnly())
+			{
+#if WITH_EDITORONLY_DATA
+				Record << SA_VALUE(TEXT("PersistentGuid"), Sum.PersistentGuid) << SA_VALUE(TEXT("OwnerPersistentGuid"), Sum.OwnerPersistentGuid);
+#else
+				FGuid PersistentGuid;
+				FGuid OwnerPersistentGuid;
+				Record << SA_VALUE(TEXT("PersistentGuid"), PersistentGuid) << SA_VALUE(TEXT("OwnerPersistentGuid"), OwnerPersistentGuid);
+#endif
+			}
+		}
+#if WITH_EDITORONLY_DATA
+		else
+		{
+			// By assigning the current package guid, we maintain a stable persistent guid, so we can reference this package even if it wasn't resaved.
+			Sum.PersistentGuid = Sum.Guid;
+		}
+#endif
+
 		int32 GenerationCount = Sum.Generations.Num();
-		Record << SA_VALUE(TEXT("Guid"), Sum.Guid) << SA_VALUE(TEXT("GenerationCount"), GenerationCount);
+		Record << SA_VALUE(TEXT("GenerationCount"), GenerationCount);
 		if (BaseArchive.IsLoading() && GenerationCount > 0)
 		{
 			Sum.Generations.Reset(GenerationCount);

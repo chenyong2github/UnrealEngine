@@ -1344,8 +1344,13 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummary()
 			// Propagate package file size
 			LinkerRootPackage->FileSize = TotalSize();
 
-			// Propagate package Guid
+			// Propagate package Guids
 			LinkerRootPackage->SetGuid( Summary.Guid );
+
+#if WITH_EDITORONLY_DATA
+			LinkerRootPackage->SetPersistentGuid( Summary.PersistentGuid );
+			LinkerRootPackage->SetOwnerPersistentGuid( Summary.OwnerPersistentGuid );
+#endif
 
 			// Remember the linker versions
 			LinkerRootPackage->LinkerPackageVersion = this->UE4Ver();
@@ -2882,7 +2887,16 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 								}
 							}
 						}
-						if( !(SourceExport.ObjectFlags & RF_Public) )
+
+						const bool bIsImportPublic = !!(SourceExport.ObjectFlags & RF_Public);
+						const FPackageFileSummary& ImportSummary = Import.SourceLinker->Summary;
+#if WITH_EDITORONLY_DATA
+						const bool bIsImportOwned = (ImportSummary.OwnerPersistentGuid.IsValid() && ((ImportSummary.OwnerPersistentGuid == Summary.PersistentGuid) || (ImportSummary.OwnerPersistentGuid == Summary.OwnerPersistentGuid)) ||
+							                        (Summary.OwnerPersistentGuid.IsValid() && ((Summary.OwnerPersistentGuid == ImportSummary.PersistentGuid) || (Summary.OwnerPersistentGuid == ImportSummary.OwnerPersistentGuid))));
+#else
+						const bool bIsImportOwned = false;
+#endif
+						if( !bIsImportPublic && !bIsImportOwned)
 						{
 							SafeReplace = SafeReplace || (GIsEditor && !IsRunningCommandlet());
 
