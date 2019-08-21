@@ -2446,8 +2446,10 @@ void FPipelineFileCache::ClearOSPipelineCache()
 {
 	if (CVarClearOSPSOFileCache.GetValueOnAnyThread() > 0)
 	{
-#if PLATFORM_IOS
+		SCOPED_AUTORELEASE_POOL;
+
 		// clear the PSO cache on IOS if the executable is newer
+#if PLATFORM_IOS
 		static FString ExecutablePath = FString([[NSBundle mainBundle] bundlePath]) + TEXT("/") + FPlatformProcess::ExecutableName();
 		struct stat FileInfo;
 		if(stat(TCHAR_TO_UTF8(*ExecutablePath), &FileInfo) != -1)
@@ -2470,6 +2472,38 @@ void FPipelineFileCache::ClearOSPipelineCache()
 				if (ExecutableTime > MapsTime)
 				{
 					unlink(TCHAR_TO_UTF8(*Result));
+				}
+			}
+		}
+#elif PLATFORM_MAC && (UE_BUILD_TEST || UE_BUILD_SHIPPING)
+		if (!FPlatformProcess::IsSandboxedApplication())
+		{
+			static FString ExecutablePath = FString([[NSBundle mainBundle] executablePath]);
+			struct stat FileInfo;
+			if (stat(TCHAR_TO_UTF8(*ExecutablePath), &FileInfo) != -1)
+			{
+				FTimespan ExecutableTime(0, 0, FileInfo.st_atime);
+				FString CacheDir = FString([NSString stringWithFormat:@"%@/../C/%@/com.apple.metal", NSTemporaryDirectory(), [NSBundle mainBundle].bundleIdentifier]);
+				TArray<FString> FoundFiles;
+				IPlatformFile::GetPlatformPhysical().FindFilesRecursively(FoundFiles, *CacheDir, TEXT(".data"));
+
+				// Find functions.data file in cache subfolders. If it's older than the executable, delete the whole cache.
+				bool bIsCacheOutdated = false;
+				for (FString& DataFile : FoundFiles)
+				{
+					if (FPaths::GetCleanFilename(DataFile) == TEXT("functions.data") && stat(TCHAR_TO_UTF8(*DataFile), &FileInfo) != -1)
+					{
+						FTimespan DataTime(0, 0, FileInfo.st_atime);
+						if (ExecutableTime > DataTime)
+						{
+							bIsCacheOutdated = true;
+						}
+					}
+				}
+
+				if (bIsCacheOutdated)
+				{
+					IPlatformFile::GetPlatformPhysical().DeleteDirectoryRecursively(*CacheDir);
 				}
 			}
 		}
