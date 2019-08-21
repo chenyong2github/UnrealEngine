@@ -39,6 +39,9 @@ void FOculusEditorModule::StartupModule()
 		return;
 	}
 
+	FPlatformProcess::FreeDllHandle(ModuleCheck);
+	ModuleCheck = nullptr;
+
 	bModuleValid = true;
 	RegisterSettings();
 	FOculusAssetDirectory::LoadForCook();
