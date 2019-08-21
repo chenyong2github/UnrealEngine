@@ -54,7 +54,7 @@ public class Voice : ModuleRules
 		{
 			PublicFrameworks.AddRange(new string[] { "CoreAudio", "AudioUnit", "AudioToolbox" });
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Linux && !bDontNeedCapture)
+		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux) && !bDontNeedCapture)
 		{
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "SDL2");
 		}

@@ -21,7 +21,7 @@ namespace UnrealBuildTool
 		/// <param name="TargetFile"></param>
 		public static void StripSymbols(FileReference SourceFile, FileReference TargetFile)
 		{
-			LinuxToolChain ToolChain = new LinuxToolChain(LinuxPlatform.DefaultArchitecture, new LinuxPlatformSDK());
+			LinuxToolChain ToolChain = new LinuxToolChain(LinuxPlatform.DefaultHostArchitecture, new LinuxPlatformSDK());
 			ToolChain.StripSymbols(SourceFile, TargetFile);
 		}
 	}

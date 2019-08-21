@@ -24,10 +24,13 @@ namespace UnrealBuildTool.Rules
 
 			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 			{
+				string PlatformName = Target.IsInPlatformGroup(UnrealPlatformGroup.Linux) ?
+					"Linux" : Target.Platform.ToString();
+
 				PrivateDependencyModuleNames.Add("SDL2");
 
 				PrivateIncludePaths.Add("WebMMoviePlayer/Private/Audio/Unix");
-				PrivateIncludePaths.Add("WebMMoviePlayer/Private/Audio/" + Target.Platform);
+				PrivateIncludePaths.Add("WebMMoviePlayer/Private/Audio/" + PlatformName);
 			}
 			else
 			{

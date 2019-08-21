@@ -235,7 +235,7 @@ public class AndroidPlatform : Platform
 	private static string GetFinalBatchName(string ApkName, DeploymentContext SC, string Architecture, string GPUArchitecture, bool bNoOBBInstall, EBatchType BatchType, UnrealTargetPlatform Target)
 	{
 		string Extension = ".bat";
-		if (Target == UnrealTargetPlatform.Linux)
+		if (Target == UnrealTargetPlatform.Linux || Target == UnrealTargetPlatform.LinuxAArch64)
 		{
 			Extension = ".sh";
 		}

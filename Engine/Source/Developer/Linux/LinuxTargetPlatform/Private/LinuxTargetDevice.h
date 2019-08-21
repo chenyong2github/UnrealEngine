@@ -62,7 +62,7 @@ public:
 #if PLATFORM_LINUX	// if running natively, support simplified, local deployment
 		OutAppId = TEXT("");
 
-		FString PlatformName = TEXT("Linux");
+		FString PlatformName = FPlatformProcess::GetBinariesSubdirectory();
 		FString DeploymentDir = FPaths::EngineIntermediateDir() / TEXT("Devices") / PlatformName;
 
 		// delete previous build
@@ -147,7 +147,8 @@ public:
 	{
 #if PLATFORM_LINUX	// if running natively, support launching in place
 		// build executable path
-		FString PlatformName = TEXT("Linux");
+
+		FString PlatformName = FPlatformProcess::GetBinariesSubdirectory();
 		FString ExecutablePath = FPaths::EngineIntermediateDir() / TEXT("Devices") / PlatformName / TEXT("Engine") / TEXT("Binaries") / PlatformName;
 
 		if (BuildTarget == EBuildTargets::Game)

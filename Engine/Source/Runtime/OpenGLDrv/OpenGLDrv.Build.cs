@@ -28,13 +28,13 @@ public class OpenGLDrv : ModuleRules
 		    AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenGL");
 		}
 
-		if (Target.Platform == UnrealTargetPlatform.Linux)
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
 		{
 			string GLPath = Target.UEThirdPartySourceDirectory + "OpenGL/";
 			PublicIncludePaths.Add(GLPath);
 		}
 
-		if (Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.HTML5)
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux) || Target.Platform == UnrealTargetPlatform.HTML5)
 		{
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "SDL2");
 		}
@@ -56,7 +56,7 @@ public class OpenGLDrv : ModuleRules
 
 		if(Target.Platform != UnrealTargetPlatform.Win32 && Target.Platform != UnrealTargetPlatform.Win64 
 			&& Target.Platform != UnrealTargetPlatform.IOS && Target.Platform != UnrealTargetPlatform.Android
-			&& Target.Platform != UnrealTargetPlatform.HTML5 && Target.Platform != UnrealTargetPlatform.Linux
+			&& Target.Platform != UnrealTargetPlatform.HTML5 && !Target.IsInPlatformGroup(UnrealPlatformGroup.Linux)
 			&& Target.Platform != UnrealTargetPlatform.TVOS && Target.Platform != UnrealTargetPlatform.Lumin)
 		{
 			PrecompileForTargets = PrecompileTargetsType.None;

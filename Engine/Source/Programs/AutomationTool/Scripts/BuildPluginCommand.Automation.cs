@@ -287,9 +287,13 @@ class BuildPlugin : BuildCommand
 				TargetPlatforms.Remove(UnrealTargetPlatform.Win32);
 			}
 			// build Linux on Windows and Linux
-			if (HostPlatform != UnrealTargetPlatform.Win64 && HostPlatform != UnrealTargetPlatform.Linux && TargetPlatforms.Contains(UnrealTargetPlatform.Linux))
+			if (HostPlatform != UnrealTargetPlatform.Win64 && HostPlatform != UnrealTargetPlatform.Linux)
 			{
-				TargetPlatforms.Remove(UnrealTargetPlatform.Linux);
+				if (TargetPlatforms.Contains(UnrealTargetPlatform.Linux))
+					TargetPlatforms.Remove(UnrealTargetPlatform.Linux);
+
+				if (TargetPlatforms.Contains(UnrealTargetPlatform.LinuxAArch64))
+					TargetPlatforms.Remove(UnrealTargetPlatform.LinuxAArch64);
 			}
 
 			// Remove any platforms that aren't enabled on the command line

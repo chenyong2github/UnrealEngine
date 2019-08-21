@@ -69,8 +69,13 @@ namespace UnrealBuildTool
 		LinuxToolChainOptions Options;
 
 		public LinuxToolChain(string InArchitecture, LinuxPlatformSDK InSDK, bool InPreservePSYM = false, LinuxToolChainOptions InOptions = LinuxToolChainOptions.None)
-			: this(UnrealTargetPlatform.Linux, InArchitecture, InSDK, InPreservePSYM, InOptions)
+			: base()
 		{
+			Architecture = InArchitecture;
+			PlatformSDK = InSDK;
+			Options = InOptions;
+			bPreservePSYM = InPreservePSYM;
+
 			MultiArchRoot = PlatformSDK.GetSDKLocation();
 			BaseLinuxPath = PlatformSDK.GetBaseLinuxPathForArchitecture(InArchitecture);
 
@@ -187,15 +192,6 @@ namespace UnrealBuildTool
 			// trust lld only for clang 5.x and above (FIXME: also find if present on the system?)
 			// NOTE: with early version you can run into errors like "failed to compute relocation:" and others
 			bUseLld = (CompilerVersionMajor >= 5);
-		}
-
-		public LinuxToolChain(UnrealTargetPlatform InPlatform, string InArchitecture, LinuxPlatformSDK InSDK, bool InPreservePSYM = false, LinuxToolChainOptions InOptions = LinuxToolChainOptions.None)
-			: base()
-		{
-			Architecture = InArchitecture;
-			PlatformSDK = InSDK;
-			Options = InOptions;
-			bPreservePSYM = InPreservePSYM;
 		}
 
 		protected virtual bool CrossCompiling()
@@ -958,7 +954,14 @@ namespace UnrealBuildTool
 
 				if (bSuppressPIE)
 				{
-					Result += " -Wl,-nopie";
+					if (CompilerVersionGreaterOrEqual(7, 0, 0))
+					{
+						Result += " -Wl,-no-pie";
+					}
+					else
+					{
+						Result += " -Wl,-nopie";
+					}
 				}
 			}
 

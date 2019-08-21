@@ -17,7 +17,7 @@ public class TextureFormatASTC : ModuleRules
 		{
 			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/ARM/Mac/astcenc");
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Linux)
+		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
 		{
 			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/ARM/Linux32/astcenc");
 		}

@@ -291,6 +291,7 @@ public class Engine : ModuleRules
 					new string[] {
 						"LinuxTargetPlatform",
 						"LinuxNoEditorTargetPlatform",
+						"LinuxAArch64NoEditorTargetPlatform",
 						"LinuxServerTargetPlatform",
 						"LinuxClientTargetPlatform",
 						"AllDesktopTargetPlatform",

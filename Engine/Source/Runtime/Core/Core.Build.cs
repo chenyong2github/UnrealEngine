@@ -128,7 +128,10 @@ public class Core : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
         {
-			PublicIncludePaths.Add(string.Format("Runtime/Core/Public/{0}", Target.Platform.ToString()));
+			string PlatformName = Target.IsInPlatformGroup(UnrealPlatformGroup.Linux) ?
+				"Linux" : Target.Platform.ToString();
+
+			PublicIncludePaths.Add(string.Format("Runtime/Core/Public/{0}", PlatformName));
 			AddEngineThirdPartyPrivateStaticDependencies(Target,
 				"zlib",
 				"jemalloc"
@@ -216,7 +219,10 @@ public class Core : ModuleRules
         bool bWithMallocStomp = false;
         if (Target.Configuration != UnrealTargetConfiguration.Shipping)
         {
-			if (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.Win64)
+			if (Target.Platform == UnrealTargetPlatform.Mac ||
+				Target.Platform == UnrealTargetPlatform.Linux ||
+				Target.Platform == UnrealTargetPlatform.LinuxAArch64 ||
+				Target.Platform == UnrealTargetPlatform.Win64)
 			// Target.Platform == UnrealTargetPlatform.Win32: // 32-bit windows can technically be supported, but will likely run out of virtual memory space quickly
 			// Target.Platform == UnrealTargetPlatform.XboxOne: // XboxOne could be supported, as it's similar enough to Win64
 			{

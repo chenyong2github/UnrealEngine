@@ -2,9 +2,9 @@
 
 using UnrealBuildTool;
 
-public class LinuxClientTargetPlatform : ModuleRules
+public class LinuxAArch64NoEditorTargetPlatform : ModuleRules
 {
-    public LinuxClientTargetPlatform(ReadOnlyTargetRules Target) : base(Target)
+    public LinuxAArch64NoEditorTargetPlatform(ReadOnlyTargetRules Target) : base(Target)
     {
         BinariesSubFolder = "Linux";
 		if (Target.Platform == UnrealTargetPlatform.LinuxAArch64)

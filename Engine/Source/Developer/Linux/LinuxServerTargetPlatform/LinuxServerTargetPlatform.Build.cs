@@ -7,6 +7,10 @@ public class LinuxServerTargetPlatform : ModuleRules
     public LinuxServerTargetPlatform(ReadOnlyTargetRules Target) : base(Target)
     {
         BinariesSubFolder = "Linux";
+		if (Target.Platform == UnrealTargetPlatform.LinuxAArch64)
+		{
+			BinariesSubFolder += "AArch64";
+		}
 
         PrivateDependencyModuleNames.AddRange(
             new string[] {

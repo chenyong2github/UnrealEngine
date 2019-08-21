@@ -203,7 +203,9 @@ namespace UnrealBuildTool
 				// Mark the link environment as cross-referenced.
 				BinaryLinkEnvironment.bIsCrossReferenced = true;
 
-				if (BinaryLinkEnvironment.Platform != UnrealTargetPlatform.Mac && BinaryLinkEnvironment.Platform != UnrealTargetPlatform.Linux)
+				if (BinaryLinkEnvironment.Platform != UnrealTargetPlatform.Mac &&
+					BinaryLinkEnvironment.Platform != UnrealTargetPlatform.Linux &&
+					BinaryLinkEnvironment.Platform != UnrealTargetPlatform.LinuxAArch64)
 				{
 					// Create the import library.
 					OutputFiles.AddRange(ToolChain.LinkAllFiles(BinaryLinkEnvironment, true, Makefile.Actions));
@@ -323,7 +325,10 @@ namespace UnrealBuildTool
 				foreach (FileReference OutputFilePath in OutputFilePaths)
 				{
 					FileReference LibraryFileName;
-					if (Type == UEBuildBinaryType.StaticLibrary || DependentLinkEnvironment.Platform == UnrealTargetPlatform.Mac || DependentLinkEnvironment.Platform == UnrealTargetPlatform.Linux)
+					if (Type == UEBuildBinaryType.StaticLibrary ||
+						DependentLinkEnvironment.Platform == UnrealTargetPlatform.Mac ||
+						DependentLinkEnvironment.Platform == UnrealTargetPlatform.Linux ||
+						DependentLinkEnvironment.Platform == UnrealTargetPlatform.LinuxAArch64)
 					{
 						LibraryFileName = OutputFilePath;
 					}

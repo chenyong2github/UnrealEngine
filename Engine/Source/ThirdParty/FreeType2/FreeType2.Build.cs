@@ -14,7 +14,7 @@ public class FreeType2 : ModuleRules
 		string FreeType2LibPath;
 
 		if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.XboxOne ||
-			Target.Platform == UnrealTargetPlatform.Switch || Target.Platform == UnrealTargetPlatform.PS4 || Target.Platform == UnrealTargetPlatform.Linux ||
+			Target.Platform == UnrealTargetPlatform.Switch || Target.Platform == UnrealTargetPlatform.PS4 || Target.IsInPlatformGroup(UnrealPlatformGroup.Linux) ||
 			Target.Platform == UnrealTargetPlatform.HTML5 || Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
 			FreeType2Path = Target.UEThirdPartySourceDirectory + "FreeType2/FreeType2-2.6/";

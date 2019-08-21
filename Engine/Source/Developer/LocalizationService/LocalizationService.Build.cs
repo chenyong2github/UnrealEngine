@@ -17,7 +17,7 @@ public class LocalizationService : ModuleRules
 			}
 		);
 
-        if (Target.Platform != UnrealTargetPlatform.Linux)
+        if (!Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
         {
             PrivateDependencyModuleNames.AddRange(
                 new string[] {
