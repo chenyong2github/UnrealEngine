@@ -1140,12 +1140,15 @@ bool UNiagaraScript::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* Tar
 			{
 				for (const auto& MaterialResource : *CachedScriptResourcesForPlatform)
 				{
-					// For now, finish compilation here until we can make sure compilation is finished in the cook commandlet asyncronously before serialize
-					MaterialResource->FinishCompilation();
-
 					if (MaterialResource->IsCompilationFinished() == false)
 					{
-						return false;
+						// For now, finish compilation here until we can make sure compilation is finished in the cook commandlet asyncronously before serialize
+						MaterialResource->FinishCompilation();
+
+						if (MaterialResource->IsCompilationFinished() == false)
+						{
+							return false;
+						}
 					}
 				}
 
