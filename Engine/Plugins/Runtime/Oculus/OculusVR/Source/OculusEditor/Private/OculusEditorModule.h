@@ -17,7 +17,7 @@ class FMenuBuilder;
 class FOculusEditorModule : public IOculusEditorModule
 {
 public:
-	FOculusEditorModule() {};
+	FOculusEditorModule() : bModuleValid(false) {};
 
 	/** IModuleInterface implementation */
 	virtual void StartupModule() override;
@@ -44,6 +44,7 @@ private:
 
 private:
 	TSharedPtr<class FUICommandList> PluginCommands;
+	bool bModuleValid;
 };
 
 class IDetailLayoutBuilder;
