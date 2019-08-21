@@ -23,14 +23,14 @@ void UBTDecorator_Cooldown::PostLoad()
 
 bool UBTDecorator_Cooldown::CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const
 {
-	FBTCooldownDecoratorMemory* DecoratorMemory = reinterpret_cast<FBTCooldownDecoratorMemory*>(NodeMemory);
+	FBTCooldownDecoratorMemory* DecoratorMemory = CastInstanceNodeMemory<FBTCooldownDecoratorMemory>(NodeMemory);
 	const float TimePassed = (OwnerComp.GetWorld()->GetTimeSeconds() - DecoratorMemory->LastUseTimestamp);
 	return TimePassed >= CoolDownTime;
 }
 
 void UBTDecorator_Cooldown::InitializeMemory(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTMemoryInit::Type InitType) const
 {
-	FBTCooldownDecoratorMemory* DecoratorMemory = reinterpret_cast<FBTCooldownDecoratorMemory*>(NodeMemory);
+	FBTCooldownDecoratorMemory* DecoratorMemory = CastInstanceNodeMemory<FBTCooldownDecoratorMemory>(NodeMemory);
 	if (InitType == EBTMemoryInit::Initialize)
 	{
 		DecoratorMemory->LastUseTimestamp = -FLT_MAX;
@@ -48,7 +48,7 @@ void UBTDecorator_Cooldown::OnNodeDeactivation(FBehaviorTreeSearchData& SearchDa
 
 void UBTDecorator_Cooldown::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
 {
-	FBTCooldownDecoratorMemory* DecoratorMemory = reinterpret_cast<FBTCooldownDecoratorMemory*>(NodeMemory);
+	FBTCooldownDecoratorMemory* DecoratorMemory = CastInstanceNodeMemory<FBTCooldownDecoratorMemory>(NodeMemory);
 	if (!DecoratorMemory->bRequestedRestart)
 	{
 		const float TimePassed = (OwnerComp.GetWorld()->GetTimeSeconds() - DecoratorMemory->LastUseTimestamp);
@@ -71,7 +71,7 @@ void UBTDecorator_Cooldown::DescribeRuntimeValues(const UBehaviorTreeComponent& 
 {
 	Super::DescribeRuntimeValues(OwnerComp, NodeMemory, Verbosity, Values);
 
-	FBTCooldownDecoratorMemory* DecoratorMemory = reinterpret_cast<FBTCooldownDecoratorMemory*>(NodeMemory);
+	FBTCooldownDecoratorMemory* DecoratorMemory = CastInstanceNodeMemory<FBTCooldownDecoratorMemory>(NodeMemory);
 	const float TimePassed = OwnerComp.GetWorld()->GetTimeSeconds() - DecoratorMemory->LastUseTimestamp;
 	
 	if (TimePassed < CoolDownTime)
