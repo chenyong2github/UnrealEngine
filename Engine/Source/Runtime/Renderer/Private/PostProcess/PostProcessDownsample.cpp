@@ -367,7 +367,7 @@ void FRCPassPostProcessDownsample::Process(FRenderingCompositePassContext& Conte
 	else
 	{
 		// #todo-renderpasses only clear dest rectangle if it's been computed
-		FRHIRenderPassInfo RPInfo(DestRenderTarget.TargetableTexture, ERenderTargetActions::Clear_Store);
+		FRHIRenderPassInfo RPInfo(DestRenderTarget.TargetableTexture, ERenderTargetActions::DontLoad_Store);
 		Context.RHICmdList.BeginRenderPass(RPInfo, TEXT("PostProcessDownsample"));
 		{
 			Context.SetViewportAndCallRHI(0, 0, 0.0f, DestSize.X, DestSize.Y, 1.0f);
