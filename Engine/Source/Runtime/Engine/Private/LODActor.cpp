@@ -1025,7 +1025,7 @@ void ALODActor::SetupImposters(UMaterialInterface* InMaterial, UStaticMesh* InSt
 
 	UInstancedStaticMeshComponent* Component = GetOrCreateLODComponentForMaterial(InMaterial);
 	Component->SetStaticMesh(InStaticMesh);
-	Component->PerInstanceSMData.Empty();
+	Component->ClearInstances();
 	
 	for (const FTransform& Transform : InTransforms)
 	{
