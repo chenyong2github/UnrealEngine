@@ -15,8 +15,7 @@ public class NVAftermath : ModuleRules
             PublicSystemIncludePaths.Add(NVAftermathPath);
             
             String NVAftermathLibPath = NVAftermathPath + "amd64/";
-            PublicLibraryPaths.Add(NVAftermathLibPath);
-            PublicAdditionalLibraries.Add("GFSDK_Aftermath_Lib.x64.lib");
+            PublicAdditionalLibraries.Add(NVAftermathLibPath + "GFSDK_Aftermath_Lib.x64.lib");
 
             String AftermathDllName = "GFSDK_Aftermath_Lib.x64.dll";                  
             String nvDLLPath = "$(EngineDir)/Binaries/ThirdParty/NVIDIA/NVaftermath/Win64/" + AftermathDllName;

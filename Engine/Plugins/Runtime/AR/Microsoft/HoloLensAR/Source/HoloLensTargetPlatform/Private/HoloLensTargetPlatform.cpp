@@ -158,9 +158,9 @@ void FHoloLensTargetPlatform::OnDeviceDetected(const FHoloLensDeviceInfo& Info)
 	}
 }
 
-bool FHoloLensTargetPlatform::SupportsBuildTarget(EBuildTargets::Type BuildTarget) const
+bool FHoloLensTargetPlatform::SupportsBuildTarget(EBuildTargetType TargetType) const
 {
-	return BuildTarget == EBuildTargets::Game;
+	return TargetType == EBuildTargetType::Game;
 }
 
 bool FHoloLensTargetPlatform::IsSdkInstalled(bool bProjectHasCode, FString& OutDocumentationPath) const

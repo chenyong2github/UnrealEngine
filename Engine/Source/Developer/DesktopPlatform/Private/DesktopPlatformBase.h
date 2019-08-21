@@ -49,6 +49,9 @@ public:
 	virtual bool InvokeUnrealBuildToolSync(const FString& InCmdLineParams, FOutputDevice &Ar, bool bSkipBuildUBT, int32& OutReturnCode, FString& OutProcOutput) override;
 	virtual FProcHandle InvokeUnrealBuildToolAsync(const FString& InCmdLineParams, FOutputDevice &Ar, void*& OutReadPipe, void*& OutWritePipe, bool bSkipBuildUBT = false) override;
 
+	virtual const TArray<FTargetInfo>& GetTargetsForProject(const FString& ProjectFile) const override;
+	virtual const TArray<FTargetInfo>& GetTargetsForCurrentProject() const override;
+
 	virtual bool GetSolutionPath(FString& OutSolutionPath) override;
 
 	virtual bool EnumerateProjectsKnownByEngine(const FString &Identifier, bool bIncludeNativeProjects, TArray<FString> &OutProjectFileNames) override;
@@ -59,6 +62,7 @@ private:
 	FDateTime LauncherInstallationTimestamp;
 	TMap<FString, FString> LauncherInstallationList;
 	TMap<FString, FUProjectDictionary> CachedProjectDictionaries;
+	mutable TMap<FString, TArray<FTargetInfo>> ProjectFileToTargets;
 
 	void ReadLauncherInstallationList();
 	void CheckForLauncherEngineInstallation(const FString &AppId, const FString &Identifier, TMap<FString, FString> &OutInstallations);
@@ -71,6 +75,8 @@ private:
 
 	void GetProjectBuildProducts(const FString& ProjectFileName, TArray<FString> &OutFileNames, TArray<FString> &OutDirectoryNames);
 	bool BuildUnrealBuildTool(const FString& RootDir, FOutputDevice &Ar);
+
+	static bool ReadTargetInfo(const FString& FileName, TArray<FTargetInfo>& Targets);
 
 protected:
 

@@ -2,12 +2,16 @@
 
 #pragma once
 
-#if __cplusplus_cli && !PLATFORM_HOLOLENS
+#if defined __cplusplus_cli && !PLATFORM_HOLOLENS
 // there are compile issues with this file in managed mode, so use the FPU version
 #include "Math/UnrealMathFPU.h"
 #else
 
+#pragma warning( push )
+// We're in non-managed mode, ignore warnings about _M_CEE and _MANAGED for DirectXMath.h
+#pragma warning ( disable : 4668 )
 #include <DirectXMath.h>
+#pragma warning( pop )
 #include <DirectXPackedVector.h>
 
 /*=============================================================================
@@ -631,6 +635,21 @@ FORCEINLINE VectorRegister VectorCombineLow(const VectorRegister& Vec1, const Ve
 {
 	return VectorShuffle(Vec1, Vec2, 0, 1, 0, 1);
 }
+
+/**
+ * These functions return a vector mask to indicate which components pass the comparison.
+ * Each component is 0xffffffff if it passes, 0x00000000 if it fails.
+ *
+ * @param Vec1			1st source vector
+ * @param Vec2			2nd source vector
+ * @return				Vector with a mask for each component.
+ */
+#define VectorMask_LT( Vec1, Vec2 )	_mm_cmplt_ps( Vec1, Vec2 )
+#define VectorMask_LE( Vec1, Vec2 )	_mm_cmple_ps( Vec1, Vec2 )
+#define VectorMask_GT( Vec1, Vec2 )	DirectX::XMVectorGreater( Vec1, Vec2 )
+#define VectorMask_GE( Vec1, Vec2 )	DirectX::XMVectorGreaterOrEqual( Vec1, Vec2 )
+#define VectorMask_EQ( Vec1, Vec2 )	DirectX::XMVectorEqual( Vec1, Vec2 )
+#define VectorMask_NE( Vec1, Vec2 )	DirectX::XMVectorNotEqual( Vec1, Vec2 )
 
 /**
  * Merges the XYZ components of one vector with the W component of another vector and returns the result.

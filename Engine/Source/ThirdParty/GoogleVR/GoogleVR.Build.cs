@@ -39,23 +39,15 @@ public class GoogleVR : ModuleRules
 
 		else if (Target.Platform == UnrealTargetPlatform.Android)
 		{
-			string GoogleVRArmLibPath = GoogleVRBaseLibPath + "android/armv7";
-			string GoogleVRArm64LibPath = GoogleVRBaseLibPath + "android/arm64";
-			string GoogleVRx86LibPath = GoogleVRBaseLibPath + "android/x86";
-			string GoogleVRx86_64LibPath = GoogleVRBaseLibPath + "android/x86_64";
-
 			// toolchain will filter properly
-			PublicLibraryPaths.Add(GoogleVRArmLibPath);
-			PublicLibraryPaths.Add(GoogleVRArm64LibPath);
-			PublicLibraryPaths.Add(GoogleVRx86LibPath);
-			PublicLibraryPaths.Add(GoogleVRx86_64LibPath);
-
-			PublicAdditionalLibraries.Add("gvr");
+			PublicAdditionalLibraries.Add( GoogleVRBaseLibPath + "android/armv7/libgvr.so");
+			PublicAdditionalLibraries.Add( GoogleVRBaseLibPath + "android/arm64/libgvr.so");
+			PublicAdditionalLibraries.Add( GoogleVRBaseLibPath + "android/x86/libgvr.so");
+			PublicAdditionalLibraries.Add( GoogleVRBaseLibPath + "android/x86_64/libgvr.so");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.IOS)
 		{
 			string GoogleVRIOSLibPath = GoogleVRBaseLibPath + "ios/";
-			PublicLibraryPaths.Add(GoogleVRIOSLibPath);
 
 			// Libraries that the GVR SDK depend on.
 			PublicAdditionalLibraries.Add(GoogleVRIOSLibPath+"libGTMSessionFetcher.a");

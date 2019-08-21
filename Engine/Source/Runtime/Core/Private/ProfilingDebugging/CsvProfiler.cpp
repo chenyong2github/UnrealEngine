@@ -2784,7 +2784,7 @@ void FCsvProfiler::FinalizeCsvFile()
 
 	// Add metadata
 	FString PlatformStr = FString::Printf(TEXT("%s"), ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName()));
-	FString BuildConfigurationStr = EBuildConfigurations::ToString(FApp::GetBuildConfiguration());
+	FString BuildConfigurationStr = LexToString(FApp::GetBuildConfiguration());
 	FString CommandlineStr = FString("\"") + FCommandLine::Get() + FString("\"");
 	// Strip newlines
 	CommandlineStr.ReplaceInline(TEXT("\n"), TEXT(""));

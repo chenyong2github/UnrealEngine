@@ -13,7 +13,7 @@ FModuleManifest::FModuleManifest()
 FString FModuleManifest::GetFileName(const FString& DirectoryName, bool bIsGameFolder)
 {
 #if UE_BUILD_DEVELOPMENT
-	return DirectoryName / ((FApp::GetBuildConfiguration() == EBuildConfigurations::DebugGame && bIsGameFolder)? TEXT(UBT_MODULE_MANIFEST_DEBUGGAME) : TEXT(UBT_MODULE_MANIFEST));
+	return DirectoryName / ((FApp::GetBuildConfiguration() == EBuildConfiguration::DebugGame && bIsGameFolder)? TEXT(UBT_MODULE_MANIFEST_DEBUGGAME) : TEXT(UBT_MODULE_MANIFEST));
 #else
 	return DirectoryName / TEXT(UBT_MODULE_MANIFEST);
 #endif

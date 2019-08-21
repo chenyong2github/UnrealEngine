@@ -142,10 +142,10 @@ struct FGenericPlatformProperties
 	/**
 	 * Checks whether the specified build target is supported.
 	 *
-	 * @param BuildTarget The build target to check.
+	 * @param TargetType The build target to check.
 	 * @return true if the build target is supported, false otherwise.
 	 */
-	static FORCEINLINE bool SupportsBuildTarget( EBuildTargets::Type BuildTarget )
+	static FORCEINLINE bool SupportsBuildTarget( EBuildTargetType TargetType )
 	{
 		return true;
 	}

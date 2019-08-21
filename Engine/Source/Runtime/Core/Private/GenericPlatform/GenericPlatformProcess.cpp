@@ -172,7 +172,7 @@ const TCHAR* FGenericPlatformProcess::ExecutableName(bool bRemoveExtension)
 	return NULL;
 }
 
-FString FGenericPlatformProcess::GenerateApplicationPath( const FString& AppName, EBuildConfigurations::Type BuildConfiguration)
+FString FGenericPlatformProcess::GenerateApplicationPath( const FString& AppName, EBuildConfiguration BuildConfiguration)
 {
 	UE_LOG(LogHAL, Fatal, TEXT("FGenericPlatformProcess::GenerateApplicationPath not implemented on this platform"));
 	return FString();

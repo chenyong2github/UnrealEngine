@@ -15,10 +15,22 @@ UENUM()
 enum EProjectPackagingBuildConfigurations
 {
 	/** Debug configuration. */
-	PPBC_DebugGame UMETA(DisplayName="DebugGame"),
+	PPBC_Debug UMETA(DisplayName="Debug"),
 
 	/** Debug Client configuration. */
+	PPBC_DebugClient UMETA(DisplayName = "Debug Client"),
+
+	/** Debug Server configuration. */
+	PPBC_DebugServer UMETA(DisplayName = "Debug Server"),
+
+	/** DebugGame configuration. */
+	PPBC_DebugGame UMETA(DisplayName="DebugGame"),
+
+	/** DebugGame Client configuration. */
 	PPBC_DebugGameClient UMETA(DisplayName = "DebugGame Client"),
+
+	/** DebugGame Server configuration. */
+	PPBC_DebugGameServer UMETA(DisplayName = "DebugGame Server"),
 
 	/** Development configuration. */
 	PPBC_Development UMETA(DisplayName="Development"),
@@ -26,11 +38,29 @@ enum EProjectPackagingBuildConfigurations
 	/** Development Client configuration. */
 	PPBC_DevelopmentClient UMETA(DisplayName = "Development Client"),
 
+	/** Development Server configuration. */
+	PPBC_DevelopmentServer UMETA(DisplayName = "Development Server"),
+
+	/** Test configuration. */
+	PPBC_Test UMETA(DisplayName="Test"),
+
+	/** Test Client configuration. */
+	PPBC_TestClient UMETA(DisplayName = "Test Client"),
+
+	/** Test Server configuration. */
+	PPBC_TestServer UMETA(DisplayName = "Test Server"),
+
 	/** Shipping configuration. */
 	PPBC_Shipping UMETA(DisplayName="Shipping"),
 
 	/** Shipping Client configuration. */
-	PPBC_ShippingClient UMETA(DisplayName = "Shipping Client")
+	PPBC_ShippingClient UMETA(DisplayName = "Shipping Client"),
+
+	/** Shipping Server configuration. */
+	PPBC_ShippingServer UMETA(DisplayName = "Shipping Server"),
+
+	/** Number of entries in the enum. */
+	PPBC_Max
 };
 
 /**
@@ -100,6 +130,21 @@ class UNREALED_API UProjectPackagingSettings
 	GENERATED_UCLASS_BODY()
 
 public:
+	/**
+	 * Information about each packaging configuration
+	 */
+	struct FConfigurationInfo
+	{
+		EBuildConfiguration Configuration;
+		EBuildTargetType TargetType;
+		FText Name;
+		FText ToolTip;
+	};
+
+	/**
+	 * Static array of information about each configuration
+	 */
+	static const FConfigurationInfo ConfigurationInfo[PPBC_Max];
 
 	/** Specifies whether to build the game executable during packaging. */
 	UPROPERTY(config, EditAnywhere, Category=Project)

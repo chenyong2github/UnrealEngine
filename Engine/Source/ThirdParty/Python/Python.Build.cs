@@ -70,7 +70,7 @@ public class Python : ModuleRules
 								},
 								Path.Combine(PythonSourceTPSDir, PlatformDir, "lib"), "libpython2.7.a"),
 					});
-					PublicAdditionalLibraries.Add("util");	// part of libc
+					PublicSystemLibraries.Add("util");	// part of libc
 				}
 			}
 
@@ -137,7 +137,6 @@ public class Python : ModuleRules
 			PublicSystemIncludePaths.AddRange(PythonSDK.PythonIncludePath);
 			if (Target.Platform == UnrealTargetPlatform.Mac)
 			{
-				// Mac doesn't understand PublicLibraryPaths
 				PublicAdditionalLibraries.Add(Path.Combine(PythonSDK.PythonLibPath, PythonSDK.PythonLibName));
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Linux)
@@ -147,8 +146,7 @@ public class Python : ModuleRules
 			}
 			else
 			{
-				PublicLibraryPaths.Add(PythonSDK.PythonLibPath);
-				PublicAdditionalLibraries.Add(PythonSDK.PythonLibName);
+				PublicAdditionalLibraries.Add(Path.Combine(PythonSDK.PythonLibPath, PythonSDK.PythonLibName));
 			}
 		}
 	}

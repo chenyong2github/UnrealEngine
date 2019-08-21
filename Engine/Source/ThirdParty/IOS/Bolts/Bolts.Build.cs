@@ -17,10 +17,9 @@ public class Bolts : ModuleRules
 
 			PublicIncludePaths.Add(BoltsPath + "Bolts/Include");
 
-			string LibDir = BoltsPath + "Lib/Release" + Target.Architecture;
+			string LibDir = BoltsPath + "Lib/Release" + Target.Architecture + "/";
 
-            PublicLibraryPaths.Add(LibDir);
-            PublicAdditionalLibraries.Add("Bolts");
+            PublicAdditionalLibraries.Add(LibDir + "Bolts");
         }
     }
 }

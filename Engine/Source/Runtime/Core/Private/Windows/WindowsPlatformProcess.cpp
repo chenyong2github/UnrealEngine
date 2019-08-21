@@ -105,15 +105,15 @@ void FWindowsPlatformProcess::FreeDllHandle( void* DllHandle )
 	::FreeLibrary((HMODULE)DllHandle);
 }
 
-FString FWindowsPlatformProcess::GenerateApplicationPath( const FString& AppName, EBuildConfigurations::Type BuildConfiguration)
+FString FWindowsPlatformProcess::GenerateApplicationPath( const FString& AppName, EBuildConfiguration BuildConfiguration)
 {
 	FString PlatformName = GetBinariesSubdirectory();
 	FString ExecutablePath = FPaths::EngineDir() / FString::Printf(TEXT("Binaries/%s/%s"), *PlatformName, *AppName);
 	FPaths::MakePlatformFilename(ExecutablePath);
 
-	if (BuildConfiguration != EBuildConfigurations::Development)
+	if (BuildConfiguration != EBuildConfiguration::Development)
 	{
-		ExecutablePath += FString::Printf(TEXT("-%s-%s"), *PlatformName, EBuildConfigurations::ToString(BuildConfiguration));
+		ExecutablePath += FString::Printf(TEXT("-%s-%s"), *PlatformName, LexToString(BuildConfiguration));
 	}
 
 	ExecutablePath += TEXT(".exe");
@@ -725,7 +725,15 @@ bool FWindowsPlatformProcess::ExecProcess(const TCHAR* URL, const TCHAR* Params,
 
 	bool bSuccess = false;
 
-	FString CommandLine = FString::Printf(TEXT("%s %s"), URL, Params);
+	FString CommandLine;
+	if (URL[0] != '\"') // Don't quote executable name if it's already quoted
+	{
+		CommandLine = FString::Printf(TEXT("\"%s\" %s"), URL, Params); 
+	}
+	else
+	{
+		CommandLine = FString::Printf(TEXT("%s %s"), URL, Params);
+	}
 
 	PROCESS_INFORMATION ProcInfo;
 	if (CreateProcess(NULL, CommandLine.GetCharArray().GetData(), NULL, NULL, TRUE, NORMAL_PRIORITY_CLASS | DETACHED_PROCESS | EXTENDED_STARTUPINFO_PRESENT, NULL, OptionalWorkingDirectory, &StartupInfoEx.StartupInfo, &ProcInfo))

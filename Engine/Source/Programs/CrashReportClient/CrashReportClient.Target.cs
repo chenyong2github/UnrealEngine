@@ -20,7 +20,7 @@ public class CrashReportClientTarget : TargetRules
 			ExtraModuleNames.Add("EditorStyle");
 		}
 
-        bOutputPubliclyDistributable = true;
+        bLegalToDistributeBinary = true;
 
 		bBuildDeveloperTools = false;
 

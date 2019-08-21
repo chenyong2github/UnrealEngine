@@ -58,14 +58,10 @@ public class Steamworks : ModuleRules
 		{
 			if(Target.Platform == UnrealTargetPlatform.Win64)
             {
-                PublicLibraryPaths.Add(LibraryPath + "win64");
-            }
-			else
-            {
-                PublicLibraryPaths.Add(LibraryPath);
+				LibraryPath += "win64/";
             }
 			
-            PublicAdditionalLibraries.Add(String.Format("steam_api{0}.lib", ArchPlatformPrefix));
+            PublicAdditionalLibraries.Add(LibraryPath + String.Format("steam_api{0}.lib", ArchPlatformPrefix));
 			PublicDelayLoadDLLs.Add(String.Format("steam_api{0}.dll", ArchPlatformPrefix));
 
 			RuntimeDependencies.Add(SteamBinariesDir + String.Format("steam_api{0}.dll", ArchPlatformPrefix));
@@ -81,9 +77,8 @@ public class Steamworks : ModuleRules
 		{
 			if (Target.LinkType == TargetLinkType.Monolithic)
 			{
-				LibraryPath += "linux64";
-				PublicLibraryPaths.Add(LibraryPath);
-				PublicAdditionalLibraries.Add("steam_api");
+				LibraryPath += "linux64/";
+				PublicAdditionalLibraries.Add(LibraryPath + "libsteam_api.so");
 			}
 			else
 			{
