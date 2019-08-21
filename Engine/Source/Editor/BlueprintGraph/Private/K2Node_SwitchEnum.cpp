@@ -5,6 +5,7 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "BlueprintFieldNodeSpawner.h"
 #include "BlueprintActionDatabaseRegistrar.h"
+#include "FindInBlueprintManager.h"
 
 #define LOCTEXT_NAMESPACE "K2Node"
 
@@ -72,6 +73,18 @@ FText UK2Node_SwitchEnum::GetNodeTitle(ENodeTitleType::Type TitleType) const
 FText UK2Node_SwitchEnum::GetTooltipText() const
 {
 	return NSLOCTEXT("K2Node", "SwitchEnum_ToolTip", "Selects an output that matches the input value");
+}
+
+void UK2Node_SwitchEnum::AddPinSearchMetaDataInfo(const UEdGraphPin* Pin, TArray<struct FSearchTagDataPair>& OutTaggedMetaData) const
+{
+	Super::AddPinSearchMetaDataInfo(Pin, OutTaggedMetaData);
+
+	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
+	if (K2Schema->IsExecPin(*Pin) && Pin->Direction == EGPD_Output && Enum->IsNative() && EnumEntries.Contains(Pin->GetFName()))
+	{
+		// Allow native enum switch pins to be searchable by C++ enum name
+		OutTaggedMetaData.Add(FSearchTagDataPair(FFindInBlueprintSearchTags::FiB_NativeName, FText::FromString(Pin->GetName())));
+	}
 }
 
 bool UK2Node_SwitchEnum::IsConnectionDisallowed(const UEdGraphPin* MyPin, const UEdGraphPin* OtherPin, FString& OutReason) const
