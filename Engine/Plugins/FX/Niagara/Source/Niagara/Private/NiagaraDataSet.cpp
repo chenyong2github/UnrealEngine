@@ -49,19 +49,20 @@ void FNiagaraSharedObject::FlushDeletionList()
 }
 
 //////////////////////////////////////////////////////////////////////////
-static int32 GRenderDataBlockSize = 4096;
+static int32 GNiagaraDataBufferMinSize = 512;
 static FAutoConsoleVariableRef CVarRenderDataBlockSize(
-	TEXT("fx.RenderDataBlockSize"),
-	GRenderDataBlockSize,
-	TEXT("Size of alloaction blocks for Niagara render data. \n"),
+	TEXT("fx.NiagaraDataBufferMinSize"),
+	GNiagaraDataBufferMinSize,
+	TEXT("Niagara data buffer minimum allocation size in bytes (Default=512). \n"),
 	ECVF_Default
 );
 
-static float GGPUBufferShrinkFactor = .5f;
+static int32 GNiagaraDataBufferShrinkFactor = 3;
 static FAutoConsoleVariableRef CVarNiagaraRenderBufferShrinkFactor(
-	TEXT("fx.RenderBufferShrinkFactor"),
-	GGPUBufferShrinkFactor,
-	TEXT("What factor should the render buffers grow by when they need to grow. \n"),
+	TEXT("fx.NiagaraDataBufferShrinkFactor"),
+	GNiagaraDataBufferShrinkFactor,
+	TEXT("Niagara data buffer size threshold for shrinking. (Default=3) \n")
+	TEXT("The buffer will be reallocated when the used size becomes 1/F of the allocated size. \n"),
 	ECVF_Default
 );
 
@@ -570,10 +571,18 @@ void FNiagaraDataBuffer::Allocate(uint32 InNumInstances, bool bMaintainExisting)
 	}
 
 	FloatStride = GetSafeComponentBufferSize(NumInstancesAllocated * sizeof(float));
-	FloatData.SetNum(FloatStride * Owner->GetNumFloatComponents(), false);
+	{
+		const int32 NewNum = FloatStride * Owner->GetNumFloatComponents();
+		const bool bAllowShrink = GNiagaraDataBufferShrinkFactor * FMath::Max(GNiagaraDataBufferMinSize, NewNum) < FloatData.Max() || !NewNum;
+		FloatData.SetNum(NewNum, bAllowShrink);
+	}
 
 	Int32Stride = GetSafeComponentBufferSize(NumInstancesAllocated * sizeof(int32));
-	Int32Data.SetNum(Int32Stride * Owner->GetNumInt32Components(), false);
+	{
+		const int32 NewNum = Int32Stride * Owner->GetNumInt32Components();
+		const bool bAllowShrink = GNiagaraDataBufferShrinkFactor * FMath::Max(GNiagaraDataBufferMinSize, NewNum) < Int32Data.Max() || !NewNum;
+		Int32Data.SetNum(NewNum, bAllowShrink);
+	}
 
 	INC_MEMORY_STAT_BY(STAT_NiagaraParticleMemory, FloatData.GetAllocatedSize() + Int32Data.GetAllocatedSize());
 
