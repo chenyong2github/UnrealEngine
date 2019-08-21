@@ -64,6 +64,8 @@ FWidgetBlueprintEditor::FWidgetBlueprintEditor()
 	, bIsSimulateEnabled(false)
 	, bIsRealTime(true)
 	, bRefreshGeneratedClassAnimations(false)
+	, bUpdatingSequencerSelection(false)
+	, bUpdatingExternalSelection(false)
 {
 	PreviewScene.GetWorld()->bBegunPlay = false;
 
@@ -1701,6 +1703,13 @@ void FWidgetBlueprintEditor::OnMovieSceneBindingsPasted(const TArray<FMovieScene
 
 void FWidgetBlueprintEditor::SyncSelectedWidgetsWithSequencerSelection(TArray<FGuid> ObjectGuids)
 {
+	if (bUpdatingSequencerSelection)
+	{
+		return;
+	}
+
+	TGuardValue<bool> Guard(bUpdatingExternalSelection, true);
+
 	UMovieSceneSequence* AnimationSequence = GetSequencer().Get()->GetFocusedMovieSceneSequence();
 	UObject* BindingContext = GetAnimationPlaybackContext();
 	TSet<FWidgetReference> SequencerSelectedWidgets;
@@ -1729,6 +1738,13 @@ void FWidgetBlueprintEditor::SyncSelectedWidgetsWithSequencerSelection(TArray<FG
 
 void FWidgetBlueprintEditor::SyncSequencerSelectionToSelectedWidgets()
 {
+	if (bUpdatingExternalSelection)
+	{
+		return;
+	}
+
+	TGuardValue<bool> Guard(bUpdatingSequencerSelection, true);
+
 	GetSequencer()->ExternalSelectionHasChanged();
 }
 
