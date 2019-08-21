@@ -33,8 +33,9 @@ void FPixelStreamingPlugin::StartupModule()
 {
 	// Check to see if we can use the Pixel Streaming plugin on this platform.
 	// If not then we avoid setting up our delegates to prevent access to the
-	// plugin.
-	if (!CheckPlatformCompatibility())
+	// plugin. Note that Pixel Streaming is not currently performed in the
+	// Editor.
+	if (!GIsEditor && !CheckPlatformCompatibility())
 	{
 		return;
 	}
