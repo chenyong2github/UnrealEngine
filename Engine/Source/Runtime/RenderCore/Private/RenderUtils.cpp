@@ -1171,11 +1171,9 @@ RENDERCORE_API bool UseVirtualTexturing(ERHIFeatureLevel::Type InFeatureLevel, c
 #endif
 
 		// does the project has it enabled ?
-		static const auto CVarVirtualTextureLightmaps = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTexturedLightmaps"));
 		static const auto CVarVirtualTexture = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextures"));
-		check(CVarVirtualTextureLightmaps);
 		check(CVarVirtualTexture);
-		if (CVarVirtualTexture->GetValueOnAnyThread() == 0 && CVarVirtualTextureLightmaps->GetValueOnAnyThread() == 0)
+		if (CVarVirtualTexture->GetValueOnAnyThread() == 0)
 		{
 			return false;
 		}		
