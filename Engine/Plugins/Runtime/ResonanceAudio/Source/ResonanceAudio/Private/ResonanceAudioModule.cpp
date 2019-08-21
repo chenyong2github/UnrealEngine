@@ -60,12 +60,6 @@ namespace ResonanceAudio
 
 	void FResonanceAudioModule::ShutdownModule()
 	{
-		if (GlobalSpatializationSourceSettings)
-		{
-			GlobalSpatializationSourceSettings->RemoveFromRoot();
-			GlobalSpatializationSourceSettings = nullptr;
-		}
-
 		check(bModuleInitialized == true);
 		bModuleInitialized = false;
 	}
