@@ -57,7 +57,7 @@ static void DrawDebugTrackingSensorLocations(UCanvas* Canvas, APlayerController*
 		return;
 	}
 
-	UWorld* World = (PlayerController ? PlayerController->GetWorld() : World);
+	UWorld* World = (PlayerController ? PlayerController->GetWorld() : GWorld);
 	if (!PlayerController)
 	{
 		PlayerController = World->GetFirstPlayerController();
