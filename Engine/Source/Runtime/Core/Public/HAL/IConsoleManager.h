@@ -213,9 +213,16 @@ public:
 		return 0; 
 	}
 
+	virtual bool IsVariableBool() const { return false; }
 	virtual bool IsVariableInt() const { return false; }
 	virtual bool IsVariableFloat() const { return false; }
 	virtual bool IsVariableString() const { return false; }
+
+	virtual class TConsoleVariableData<bool>* AsVariableBool()
+	{
+		ensureMsgf(false, TEXT("Attempted to access variable data of a console variable type that doesn't support it.  For example FindTConsoleVariableData* on a FAutoConsoleVariableRef."));
+		return 0;
+	}
 
 	virtual class TConsoleVariableData<int32>* AsVariableInt()
 	{
@@ -271,6 +278,11 @@ public:
 	 * @param SetBy anything in ECVF_LastSetMask e.g. ECVF_SetByScalability
 	 **/
 	virtual void Set(const TCHAR* InValue, EConsoleVariableFlags SetBy = ECVF_SetByCode) = 0;
+
+	/**
+	 * Get the internal value as a bool, works on bools, ints and floats.
+	 */
+	virtual bool GetBool() const = 0;
 	/**
 	 * Get the internal value as int (should not be used on strings).
 	 * @return value is not rounded (simple cast)
@@ -295,6 +307,12 @@ public:
 
 	// convenience methods
 
+	/** Set the internal value from the specified bool. */
+	void Set(bool InValue, EConsoleVariableFlags SetBy = ECVF_SetByCode)
+	{
+		// inefficient but no common code path
+		Set(InValue ? TEXT("true") : TEXT("false"), SetBy);
+	}
 	/** Set the internal value from the specified int. */
 	void Set(int32 InValue, EConsoleVariableFlags SetBy = ECVF_SetByCode)
 	{
@@ -306,6 +324,12 @@ public:
 	{
 		// inefficient but no common code path
 		Set(*FString::Printf(TEXT("%g"), InValue), SetBy);
+	}
+
+	void SetWithCurrentPriority(bool InValue)
+	{
+		EConsoleVariableFlags CurFlags = (EConsoleVariableFlags)(GetFlags() & ECVF_SetByMask);
+		Set(InValue, CurFlags);
 	}
 	void SetWithCurrentPriority(int32 InValue)
 	{
@@ -469,6 +493,13 @@ public:
 struct CORE_API IConsoleManager
 {
 	/**
+	 * Create a bool console variable
+	 * @param Name must not be 0
+	 * @param Help must not be 0
+	 * @param Flags bitmask combined from EConsoleVariableFlags
+	 */
+	virtual IConsoleVariable* RegisterConsoleVariable(const TCHAR* Name, bool DefaultValue, const TCHAR* Help, uint32 Flags = ECVF_Default) = 0;
+	/**
 	 * Create a int console variable
 	 * @param Name must not be 0
 	 * @param Help must not be 0
@@ -488,7 +519,21 @@ struct CORE_API IConsoleManager
 	 * @param Help must not be 0
 	 * @param Flags bitmask combined from EConsoleVariableFlags
 	 */
+	virtual IConsoleVariable* RegisterConsoleVariable(const TCHAR* Name, const TCHAR* DefaultValue, const TCHAR* Help, uint32 Flags = ECVF_Default) = 0;
+	/**
+	 * Create a string console variable
+	 * @param Name must not be 0
+	 * @param Help must not be 0
+	 * @param Flags bitmask combined from EConsoleVariableFlags
+	 */
 	virtual IConsoleVariable* RegisterConsoleVariable(const TCHAR* Name, const FString& DefaultValue, const TCHAR* Help, uint32 Flags = ECVF_Default) = 0;
+	/**
+	 * Create a reference to a bool console variable
+	 * @param Name must not be 0
+	 * @param Help must not be 0
+	 * @param Flags bitmask combined from EConsoleVariableFlags
+	 */
+	virtual IConsoleVariable* RegisterConsoleVariableRef(const TCHAR* Name, bool& RefValue, const TCHAR* Help, uint32 Flags = ECVF_Default) = 0;
 	/**
 	 * Create a reference to a int console variable
 	 * @param Name must not be 0
@@ -503,13 +548,6 @@ struct CORE_API IConsoleManager
 	 * @param Flags bitmask combined from EConsoleVariableFlags
 	 */
 	virtual IConsoleVariable* RegisterConsoleVariableRef(const TCHAR* Name, float& RefValue, const TCHAR* Help, uint32 Flags = ECVF_Default) = 0;
-	/**
-	* Create a reference to a bool console variable
-	* @param Name must not be 0
-	* @param Help must not be 0
-	* @param Flags bitmask combined from EConsoleVariableFlags
-	*/
-	virtual IConsoleVariable* RegisterConsoleVariableRef(const TCHAR* Name, bool& RefValue, const TCHAR* Help, uint32 Flags = ECVF_Default) = 0;
 	/**
 	* Create a reference to a string console variable
 	* @param Name must not be 0
@@ -814,6 +852,16 @@ private:
 class CORE_API FAutoConsoleVariable : private FAutoConsoleObject
 {
 public:
+	/**
+	 * Create a bool console variable
+	 * @param Name must not be 0
+	 * @param Help must not be 0
+	 * @param Flags bitmask combined from EConsoleVariableFlags
+	 */
+	FAutoConsoleVariable(const TCHAR* Name, bool DefaultValue, const TCHAR* Help, uint32 Flags = ECVF_Default)
+		: FAutoConsoleObject(IConsoleManager::Get().RegisterConsoleVariable(Name, DefaultValue, Help, Flags))
+	{
+	}
 	/**
 	 * Create a int console variable
 	 * @param Name must not be 0
@@ -1145,6 +1193,13 @@ public:
 private:
 	TConsoleVariableData<T>* Ref;
 };
+
+template <>
+inline TAutoConsoleVariable<bool>::TAutoConsoleVariable(const TCHAR* Name, const bool& DefaultValue, const TCHAR* Help, uint32 Flags)
+	: FAutoConsoleObject(IConsoleManager::Get().RegisterConsoleVariable(Name, DefaultValue, Help, Flags))
+{
+	Ref = AsVariable()->AsVariableBool();
+}
 
 template <>
 inline TAutoConsoleVariable<int32>::TAutoConsoleVariable(const TCHAR* Name, const int32& DefaultValue, const TCHAR* Help, uint32 Flags)
