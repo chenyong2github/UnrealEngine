@@ -249,6 +249,7 @@ class UTimelineTemplate : public UObject
 	virtual void PostLoad() override;
 	virtual bool Rename(const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags) override;
 	virtual void Serialize(FArchive& Ar) override;
+	virtual void PostInitProperties() override;
 	//~ End UObject Interface
 
 private:
