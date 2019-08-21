@@ -21,19 +21,34 @@ struct FGenericMemoryStats;
 * Platform-dependent "bucket" for memory size, where Default is the normal, or possibly the largest.
 * This is generally used for texture LOD settings for how to fit in smaller memory devices
 */
+#define PLATFORM_MEMORY_SIZE_BUCKET_LIST(XBUCKET) \
+	/* not used with texture LODs (you can't use bigger textures than what is cooked out, which is what Default should map to) */ \
+	XBUCKET(Largest)	\
+	XBUCKET(Larger)		\
+	/* these are used by texture LODs */ \
+	XBUCKET(Default)	\
+	XBUCKET(Smaller)	\
+	XBUCKET(Smallest)	\
+	XBUCKET(Tiniest)	\
+
+#define PLATFORM_MEMORY_SIZE_BUCKET_ENUM(Name) Name,
 enum class EPlatformMemorySizeBucket
 {
-	// not used with texture LODs (you can't use bigger textures than what is cooked out, which is what Default should map to)
-	Largest,
-	Larger,
-
-	// these are used by texture LODs
-	Default,
-	Smaller,
-	Smallest,
-    Tiniest
+	PLATFORM_MEMORY_SIZE_BUCKET_LIST(PLATFORM_MEMORY_SIZE_BUCKET_ENUM)
 };
+#undef PLATFORM_MEMORY_SIZE_BUCKET_ENUM
 
+inline const TCHAR* LexToString(EPlatformMemorySizeBucket Bucket)
+{
+#define PLATFORM_MEMORY_SIZE_BUCKET_LEXTOSTRING(Name) case EPlatformMemorySizeBucket::Name: return TEXT(#Name);
+	switch (Bucket)
+	{
+		PLATFORM_MEMORY_SIZE_BUCKET_LIST(PLATFORM_MEMORY_SIZE_BUCKET_LEXTOSTRING)
+	}
+#undef PLATFORM_MEMORY_SIZE_BUCKET_LEXTOSTRING
+
+	return TEXT("Unknown");
+}
 
 /** 
  * Struct used to hold common memory constants for all platforms.
