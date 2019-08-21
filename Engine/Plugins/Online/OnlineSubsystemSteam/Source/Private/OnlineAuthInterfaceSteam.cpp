@@ -20,10 +20,11 @@
 // Steam tells us this number in documentation, however there's no define within the SDK
 #define STEAM_AUTH_MAX_TICKET_LENGTH_IN_BYTES 1024
 
-FOnlineAuthSteam::FOnlineAuthSteam(FOnlineSubsystemSteam* InSubsystem) :
+FOnlineAuthSteam::FOnlineAuthSteam(FOnlineSubsystemSteam* InSubsystem, FOnlineAuthSteamUtilsPtr InAuthUtils) :
 	SteamUserPtr(SteamUser()),
 	SteamServerPtr(SteamGameServer()),
 	SteamSubsystem(InSubsystem),
+	AuthUtils(InAuthUtils),
 	bEnabled(false),
 	bBadKey(false),
 	bReuseKey(false),
@@ -65,6 +66,7 @@ FOnlineAuthSteam::FOnlineAuthSteam() :
 	SteamUserPtr(nullptr),
 	SteamServerPtr(nullptr),
 	SteamSubsystem(nullptr),
+	AuthUtils(nullptr),
 	bEnabled(false),
 	bBadKey(false),
 	bReuseKey(false),
@@ -78,8 +80,6 @@ FOnlineAuthSteam::FOnlineAuthSteam() :
 
 FOnlineAuthSteam::~FOnlineAuthSteam()
 {
-	OverrideFailureDelegate.Unbind();
-	OnAuthenticationResultDelegate.Unbind();
 	RevokeAllTickets();
 }
 
@@ -319,9 +319,9 @@ bool FOnlineAuthSteam::KickPlayer(const FUniqueNetId& InUserId, bool bSuppressFa
 	}
 
 	// If we are overridden, respect that.
-	if (OverrideFailureDelegate.IsBound())
+	if (AuthUtils.IsValid() && AuthUtils->OverrideFailureDelegate.IsBound())
 	{
-		OverrideFailureDelegate.Execute(InUserId);
+		AuthUtils->OverrideFailureDelegate.Execute(InUserId);
 		RemoveUser(InUserId);
 		return true;
 	}
@@ -528,14 +528,16 @@ void FOnlineAuthSteam::OnAuthResult(const FUniqueNetId& TargetId, int32 Response
 	{
 		TargetUser->Status |= ESteamAuthStatus::AuthFail;
 	}
-	ExecuteResultDelegate(SteamId, bDidAuthSucceed);
+	ExecuteResultDelegate(SteamId, bDidAuthSucceed, (ESteamAuthResponseCode)Response);
 }
 
-void FOnlineAuthSteam::ExecuteResultDelegate(const FUniqueNetId& TargetId, bool bWasSuccessful)
+void FOnlineAuthSteam::ExecuteResultDelegate(const FUniqueNetId& TargetId, bool bWasSuccessful, ESteamAuthResponseCode ResponseCode)
 {
-	if (OnAuthenticationResultDelegate.IsBound())
+	if (AuthUtils.IsValid())
 	{
-		OnAuthenticationResultDelegate.Execute(TargetId, bWasSuccessful);
+		// Fire both of these delegates.
+		AuthUtils->OnAuthenticationResultDelegate.ExecuteIfBound(TargetId, bWasSuccessful);
+		AuthUtils->OnAuthenticationResultWithCodeDelegate.ExecuteIfBound(TargetId, bWasSuccessful, ResponseCode);
 	}
 }
 
@@ -546,3 +548,11 @@ void FOnlineAuthSteam::FSteamAuthUser::SetKey(const FString& NewKey)
 		RecvTicket = NewKey;
 	}
 }
+
+// Implementation of the public helper to determine if the Auth interface is enabled.
+bool FOnlineAuthUtilsSteam::IsSteamAuthEnabled() const
+{
+	const FOnlineSubsystemSteam* SteamSub = static_cast<const FOnlineSubsystemSteam*>(IOnlineSubsystem::Get(STEAM_SUBSYSTEM));
+	return (SteamSub && SteamSub->GetAuthInterface().IsValid() && SteamSub->GetAuthInterface()->IsSessionAuthEnabled());
+}
+

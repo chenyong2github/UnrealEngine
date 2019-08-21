@@ -27,6 +27,7 @@
 #include "OnlineExternalUIInterfaceSteam.h"
 #include "OnlineAchievementsInterfaceSteam.h"
 #include "OnlineAuthInterfaceSteam.h"
+#include "OnlineAuthInterfaceUtilsSteam.h"
 #include "VoiceInterfaceSteam.h"
 
 #include "SteamSharedModule.h"
@@ -223,6 +224,11 @@ bool ConfigureSteamInitDevOptions(bool& RequireRelaunch, int32& RelaunchAppId)
 FOnlineAuthSteamPtr FOnlineSubsystemSteam::GetAuthInterface() const
 {
 	return AuthInterface;
+}
+
+FOnlineAuthSteamUtilsPtr FOnlineSubsystemSteam::GetAuthInterfaceUtils() const
+{
+	return AuthInterfaceUtils;
 }
 
 IOnlineSessionPtr FOnlineSubsystemSteam::GetSessionInterface() const
@@ -442,7 +448,8 @@ bool FOnlineSubsystemSteam::Init()
 
 		PresenceInterface = MakeShareable(new FOnlinePresenceSteam(this));
 		
-		AuthInterface = MakeShareable(new FOnlineAuthSteam(this));
+		AuthInterfaceUtils = MakeShareable(new FOnlineAuthUtilsSteam());
+		AuthInterface = MakeShareable(new FOnlineAuthSteam(this, AuthInterfaceUtils));
 
 		if (!bIsServer)
 		{
@@ -516,6 +523,7 @@ bool FOnlineSubsystemSteam::Shutdown()
 	DESTRUCT_INTERFACE(FriendInterface);
 	DESTRUCT_INTERFACE(IdentityInterface);
 	DESTRUCT_INTERFACE(AuthInterface);
+	DESTRUCT_INTERFACE(AuthInterfaceUtils);
 	DESTRUCT_INTERFACE(SessionInterface);
 	DESTRUCT_INTERFACE(PresenceInterface);
 

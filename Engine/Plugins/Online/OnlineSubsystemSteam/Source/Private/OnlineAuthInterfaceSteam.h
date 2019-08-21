@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "OnlineSubsystemSteam.h"
+#include "OnlineAuthInterfaceUtilsSteam.h"
 #include "OnlineSubsystemSteamTypes.h"
 #include "OnlineSubsystemSteamPackage.h"
 
@@ -11,23 +12,9 @@
  *
  *  For the most part, this is fully automated. You simply just need to add the packet handler and your server will now
  *  require Steam Authentication for any incoming users. If a player fails to respond correctly, they will be kicked.
+ *
+ *  For projects that want to interface with SteamAuth and listen to callbacks, check out the OnlineAuthInterfaceUtils header.
  */
-
-/** When authentication has failed and we are about to take action on the user, this delegate is fired. 
- *	For the auth interface, overriding the delegate exposed in the class allows a game to override the default
- *	behavior, which is to kick anyone who fails authentication.
- *	
- *	If you would like to receive analytics as to the success/failure for users we can identify
- *	(have their unique net id), use the result delegate instead.
- */
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnSteamAuthFailure, const class FUniqueNetId& /*FailedUserId*/);
-typedef FOnSteamAuthFailure::FDelegate FOnSteamAuthFailureDelegate;
-
-/** This delegate dictates the success or failure of an authentication result. 
- *  This means we got a result, but we won't be taking action yet.
- */
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSteamAuthResult, const class FUniqueNetId& /*UserId*/, bool /*bWasSuccess*/);
-typedef FOnSteamAuthResult::FDelegate FOnSteamAuthResultDelegate;
 
 enum class ESteamAuthStatus : uint8
 {
@@ -45,7 +32,7 @@ ENUM_CLASS_FLAGS(ESteamAuthStatus);
 class FOnlineAuthSteam
 {
 PACKAGE_SCOPE:
-	FOnlineAuthSteam(FOnlineSubsystemSteam* InSubsystem);
+	FOnlineAuthSteam(FOnlineSubsystemSteam* InSubsystem, FOnlineAuthSteamUtilsPtr InAuthUtils);
 
 	/** Data pertaining the current authentication state of the users in the game */
 	struct FSteamAuthUser
@@ -78,7 +65,7 @@ PACKAGE_SCOPE:
 	/** Callback from Steam messaging */
 	void OnAuthResult(const FUniqueNetId& TargetId, int32 Response);
 
-	void ExecuteResultDelegate(const FUniqueNetId& TargetId, bool bWasSuccessful);
+	void ExecuteResultDelegate(const FUniqueNetId& TargetId, bool bWasSuccessful, ESteamAuthResponseCode ResponseCode);
 
 private:
 	typedef TMap<FUniqueNetIdSteam, SharedAuthUserSteamPtr> SteamAuthentications;
@@ -99,7 +86,8 @@ private:
 	class ISteamGameServer* SteamServerPtr;
 
 	/** Cached pointer to owning subsystem */
-	class FOnlineSubsystemSteam* SteamSubsystem;
+	FOnlineSubsystemSteam* SteamSubsystem;
+	FOnlineAuthSteamUtilsPtr AuthUtils;
 
 	/** Settings */
 	bool bEnabled;
@@ -114,17 +102,11 @@ PACKAGE_SCOPE:
 	bool bNeverSendKey;	// Client never sends their key.
 	bool bSendBadId;	// Always send invalid steam ids.
 
-public:
-	virtual ~FOnlineAuthSteam();
-
 	/** Setting Getters */
 	bool IsSessionAuthEnabled() const { return bEnabled; }
 
-	static uint32 GetMaxTicketSizeInBytes();
+public:
+	virtual ~FOnlineAuthSteam();
 
-	/** Attach to this delegate to control the behavior of authentication failure. 
-	 *  This overrides the default behavior (kick). 
-	 */
-	FOnSteamAuthFailureDelegate OverrideFailureDelegate;
-	FOnSteamAuthResultDelegate OnAuthenticationResultDelegate;
+	static uint32 GetMaxTicketSizeInBytes();
 };

@@ -17,6 +17,7 @@ class FOnlineUserCloudSteam;
 class FOnlineVoiceSteam;
 class FOnlinePresenceSteam;
 class FOnlineAuthSteam;
+class FOnlineAuthUtilsSteam;
 
 /** Forward declarations of all interface classes */
 typedef TSharedPtr<class FOnlineSessionSteam, ESPMode::ThreadSafe> FOnlineSessionSteamPtr;
@@ -30,6 +31,7 @@ typedef TSharedPtr<class FOnlineExternalUISteam, ESPMode::ThreadSafe> FOnlineExt
 typedef TSharedPtr<class FOnlineAchievementsSteam, ESPMode::ThreadSafe> FOnlineAchievementsSteamPtr;
 typedef TSharedPtr<class FOnlinePresenceSteam, ESPMode::ThreadSafe> FOnlinePresenceSteamPtr;
 typedef TSharedPtr<class FOnlineAuthSteam, ESPMode::ThreadSafe> FOnlineAuthSteamPtr;
+typedef TSharedPtr<class FOnlineAuthUtilsSteam, ESPMode::ThreadSafe> FOnlineAuthSteamUtilsPtr;
 
 /**
  *	OnlineSubsystemSteam - Implementation of the online subsystem for STEAM services
@@ -95,6 +97,7 @@ protected:
 
 	/** Interface for Steam Session Auth */
 	FOnlineAuthSteamPtr AuthInterface;
+	FOnlineAuthSteamUtilsPtr AuthInterfaceUtils;
 
 	/** Online async task runnable */
 	class FOnlineAsyncTaskManagerSteam* OnlineAsyncTaskThreadRunnable;
@@ -128,6 +131,7 @@ PACKAGE_SCOPE:
 		ExternalUIInterface(nullptr),
 		PresenceInterface(nullptr),
 		AuthInterface(nullptr),
+		AuthInterfaceUtils(nullptr),
 		OnlineAsyncTaskThreadRunnable(nullptr),
 		OnlineAsyncTaskThread(nullptr),
 		SteamAPIClientHandle(nullptr)
@@ -209,6 +213,7 @@ public:
 	}
 
 	virtual FOnlineAuthSteamPtr GetAuthInterface() const;
+	virtual FOnlineAuthSteamUtilsPtr GetAuthInterfaceUtils() const;
 
 	// IOnlineSubsystem
 
