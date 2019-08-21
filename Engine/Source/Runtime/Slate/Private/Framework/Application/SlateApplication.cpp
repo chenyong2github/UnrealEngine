@@ -6995,8 +6995,17 @@ bool FSlateApplication::BeginReshapingWindow( const TSharedRef< FGenericWindow >
 	return false;
 }
 
-void FSlateApplication::FinishedReshapingWindow( const TSharedRef< FGenericWindow >& PlatformWindow )
+void FSlateApplication::FinishedReshapingWindow(const TSharedRef< FGenericWindow >& PlatformWindow)
 {
+#if WITH_EDITOR
+	TSharedPtr< SWindow > Window = FSlateWindowHelper::FindWindowByPlatformWindow(SlateWindows, PlatformWindow);
+
+	if (Window.IsValid())
+	{
+		Renderer->OnWindowFinishReshaped(Window);
+	}
+#endif
+
 	if (ThrottleHandle.IsValid())
 	{
 		FSlateThrottleManager::Get().LeaveResponsiveMode(ThrottleHandle);

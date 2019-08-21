@@ -10,6 +10,7 @@
 #include "GlobalShader.h"
 #include "ShaderParameterUtils.h"
 #include "Rendering/RenderingCommon.h"
+#include "RHIStaticStates.h"
 
 extern EColorVisionDeficiency GSlateColorDeficiencyType;
 extern int32 GSlateColorDeficiencySeverity;
@@ -523,6 +524,66 @@ public:
 	}
 };
 
+
+#if WITH_EDITOR
+// Pixel shader to convert UI from linear rec709 to PQ 2020 for HDR monitors
+class FHDREditorConvertPS : public FGlobalShader
+{
+	DECLARE_SHADER_TYPE(FHDREditorConvertPS, Global);
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+
+	FHDREditorConvertPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
+		FGlobalShader(Initializer)
+	{
+		SceneTexture.Bind(Initializer.ParameterMap, TEXT("SceneTexture"));
+		SceneSampler.Bind(Initializer.ParameterMap, TEXT("SceneSampler"));
+		UILevel.Bind(Initializer.ParameterMap, TEXT("UILevel"));
+	}
+	FHDREditorConvertPS() {}
+
+	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* SceneTextureRHI)
+	{
+		static const auto CVarOutputDevice = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.Display.OutputDevice"));
+
+		SetTextureParameter(RHICmdList, GetPixelShader(), SceneTexture, SceneSampler, TStaticSamplerState<SF_Point>::GetRHI(), SceneTextureRHI);
+		
+		static auto CVarHDRNITLevel = IConsoleManager::Get().FindConsoleVariable(TEXT("Editor.HDRNITLevel"));
+		SetShaderValue(RHICmdList, GetPixelShader(), UILevel, CVarHDRNITLevel->GetFloat());
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+
+	virtual bool Serialize(FArchive& Ar) override
+	{
+		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
+		Ar << SceneTexture << SceneSampler << UILevel;
+		return bShaderHasOutdatedParameters;
+	}
+
+	static const TCHAR* GetSourceFilename()
+	{
+		return TEXT("/Engine/Private/CompositeUIPixelShader.usf");
+	}
+
+	static const TCHAR* GetFunctionName()
+	{
+		return TEXT("HDREditorConvert");
+	}
+
+private:
+	FShaderResourceParameter SceneTexture;
+	FShaderResourceParameter SceneSampler;
+	FShaderParameter UILevel;
+};
+#endif
 
 /** The simple element vertex declaration. */
 extern TGlobalResource<FSlateVertexDeclaration> GSlateVertexDeclaration;
