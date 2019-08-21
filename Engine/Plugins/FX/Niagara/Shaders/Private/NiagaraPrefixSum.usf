@@ -1,0 +1,71 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+/*------------------------------------------------------------------------------
+	Compile time parameters:
+		THREAD_COUNT - The number of threads to launch per workgroup.
+------------------------------------------------------------------------------*/
+
+Buffer<int> InScan; // Input data to scan
+RWBuffer<int> OutScan; // Intermediate scan result (each block scanned)
+
+RWBuffer<int> BlockScans;
+Buffer<int> InBlockScans;
+
+/** Temporary thread group shared buffer for storing intermediate block scan results */
+groupshared int BlockRes[THREAD_COUNT];
+
+[numthreads(THREAD_COUNT,1,1)]
+void ScanInBlock(uint BlockIndex : SV_GroupID, uint InBlockIndex : SV_GroupThreadID, uint InScanIndex : SV_DispatchThreadID)
+{
+	// Copy the data into shared memory
+    BlockRes[InBlockIndex] = InScan[InScanIndex];
+
+	// UPSWEEP 
+	// n = THREAD_COUNT
+    int d;
+    for (d = 2; d < THREAD_COUNT; d <<= 1)
+    {
+        GroupMemoryBarrierWithGroupSync();
+        if (InBlockIndex % d == 0)
+        {
+			// k = InBlockIndex
+            int a = InBlockIndex + d - 1;
+            int b = InBlockIndex + (d >> 1) - 1;
+            BlockRes[a] += BlockRes[b];
+        }
+    }
+
+	// Zero last element
+    if (InBlockIndex == 0)
+    {
+        BlockRes[THREAD_COUNT - 1] = 0;
+    }
+	// DOWNSWEEP
+    for (d = THREAD_COUNT; d >= 2; d >>= 1)
+    {
+        GroupMemoryBarrierWithGroupSync();
+        if (InBlockIndex % d == 0)
+        {
+            int a = InBlockIndex + (d >> 1) - 1;
+            int b = InBlockIndex + d - 1;
+            int t = BlockRes[a];
+            BlockRes[a] = BlockRes[b];
+            BlockRes[b] += t;
+        }
+    }
+	
+	// Write scan to PrefixSum
+    OutScan[InScanIndex] = BlockRes[InBlockIndex];
+    //OutScan[InScanIndex] = InScan[InScanIndex];
+	// Write block scan result to auxiliary array
+    if (InBlockIndex == THREAD_COUNT - 1)
+    {
+        BlockScans[BlockIndex] = BlockRes[THREAD_COUNT - 1] + InScan[InScanIndex];
+    }
+}
+
+[numthreads(THREAD_COUNT,1,1)]
+void AddBlockScansToFinalScan(uint BlockIndex : SV_GroupID, uint InScanIndex : SV_DispatchThreadID)
+{
+    OutScan[InScanIndex] = InScan[InScanIndex] + InBlockScans[BlockIndex];
+}
