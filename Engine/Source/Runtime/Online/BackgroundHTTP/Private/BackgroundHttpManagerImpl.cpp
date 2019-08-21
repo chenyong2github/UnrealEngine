@@ -17,6 +17,7 @@ FBackgroundHttpManagerImpl::FBackgroundHttpManagerImpl()
 	, ActiveRequests()
 	, ActiveRequestLock()
 	, NumCurrentlyActiveRequests(0)
+	, MaxActiveDownloads(4)
 {
 }
 
@@ -27,6 +28,11 @@ FBackgroundHttpManagerImpl::~FBackgroundHttpManagerImpl()
 void FBackgroundHttpManagerImpl::Initialize()
 {
 	ClearAnyTempFilesFromTimeOut();
+
+	// Can't read into an atomic int directly
+	int MaxActiveDownloadsConfig = 4;
+	ensureAlwaysMsgf(GConfig->GetInt(TEXT("BackgroundHttp"), TEXT("BackgroundHttp.MaxActiveDownloads"), MaxActiveDownloadsConfig, GEngineIni), TEXT("No value found for MaxActiveDownloads! Defaulting to 4!"));
+	MaxActiveDownloads = MaxActiveDownloadsConfig;
 }
 
 void FBackgroundHttpManagerImpl::Shutdown()
@@ -111,6 +117,16 @@ void FBackgroundHttpManagerImpl::CleanUpTemporaryFiles()
 			UE_LOG(LogBackgroundHttpManager, Warning, TEXT("Failure to Delete Temp File:%s"), *File);
 		}
 	}
+}
+
+int FBackgroundHttpManagerImpl::GetMaxActiveDownloads() const
+{
+	return MaxActiveDownloads;
+}
+
+void FBackgroundHttpManagerImpl::SetMaxActiveDownloads(int InMaxActiveDownloads)
+{
+	MaxActiveDownloads = InMaxActiveDownloads;
 }
 
 void FBackgroundHttpManagerImpl::AddRequest(const FBackgroundHttpRequestPtr Request)
@@ -219,10 +235,10 @@ void FBackgroundHttpManagerImpl::ActivatePendingRequests()
 
 		if (PendingStartRequests.Num() > 0)
 		{
-			UE_LOG(LogBackgroundHttpManager, Verbose, TEXT("Populating Requests to Start from PendingStartRequests - PlatformMaxActiveDownloads:%d | NumCurrentlyActiveRequests:%d | NumPendingStartRequests:%d"), FPlatformBackgroundHttp::GetPlatformMaxActiveDownloads(), NumCurrentlyActiveRequests, PendingStartRequests.Num());
+			UE_LOG(LogBackgroundHttpManager, Verbose, TEXT("Populating Requests to Start from PendingStartRequests - MaxActiveDownloads:%d | NumCurrentlyActiveRequests:%d | NumPendingStartRequests:%d"), MaxActiveDownloads.Load(), NumCurrentlyActiveRequests, PendingStartRequests.Num());
 
 			//See how many more requests we can process and only do anything if we can still process more
-			const int NumRequestsWeCanProcess = (FPlatformBackgroundHttp::GetPlatformMaxActiveDownloads() - NumCurrentlyActiveRequests);
+			const int NumRequestsWeCanProcess = (MaxActiveDownloads - NumCurrentlyActiveRequests);
 			if (NumRequestsWeCanProcess > 0)
 			{
 				TArray<FBackgroundHttpRequestPtr> RemainingRequests;

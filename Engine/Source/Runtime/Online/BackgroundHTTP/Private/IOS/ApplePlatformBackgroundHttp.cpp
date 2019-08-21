@@ -43,8 +43,3 @@ const FString& FApplePlatformBackgroundHttp::GetTemporaryRootPath()
 {
     return FBackgroundURLSessionHandler::GetBackgroundSessionWorkingDirectoryPath();
 }
-
-int FApplePlatformBackgroundHttp::GetPlatformMaxActiveDownloads()
-{
-	return 4;
-}

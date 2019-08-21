@@ -64,11 +64,4 @@ public:
 	* @return FString File path that is the root path of our temp files for background http work on this platform.
 	*/
 	static const FString& GetTemporaryRootPath();
-
-	/**
-	* Function that returns how many active BackgroundHttpRequests we should have actively downloading at once. 
-	*
-	* @return int Number of downloads we should have active at once.
-	*/
-	static int GetPlatformMaxActiveDownloads();
 };

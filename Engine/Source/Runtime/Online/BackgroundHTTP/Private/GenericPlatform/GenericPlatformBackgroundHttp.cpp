@@ -42,9 +42,3 @@ const FString& FGenericPlatformBackgroundHttp::GetTemporaryRootPath()
 	static FString BackgroundHttpDir = FPaths::Combine(FPlatformMisc::GamePersistentDownloadDir(), TEXT("BackgroundHttpTemp"));
 	return BackgroundHttpDir;
 }
-
-int FGenericPlatformBackgroundHttp::GetPlatformMaxActiveDownloads()
-{
-	//In general, lets just use 4 active downloads at once
-	return 4;
-}
