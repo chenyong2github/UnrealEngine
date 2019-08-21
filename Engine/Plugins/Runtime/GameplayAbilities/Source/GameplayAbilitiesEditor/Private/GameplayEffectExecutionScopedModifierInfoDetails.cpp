@@ -4,14 +4,62 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SGridPanel.h"
+#include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Widgets/Input/SComboBox.h"
 #include "DetailWidgetRow.h"
 #include "GameplayEffect.h"
 #include "GameplayEffectExecutionCalculation.h"
 #include "DetailLayoutBuilder.h"
 #include "SlateOptMacros.h"
+#include "GameplayEffectTypes.h"
 
 #define LOCTEXT_NAMESPACE "GameplayEffectExecutionScopedModifierInfoDetailsCustomization"
+
+/** Simple struct tracking scoped mod backing data from the scoped mod info */
+struct FAggregatorDetailsBackingData
+{
+	// Constructors
+	FAggregatorDetailsBackingData()
+		: AggregatorType(EGameplayEffectScopedModifierAggregatorType::CapturedAttributeBacked)
+		, CaptureDefinition()
+		, TransientAggregatorIdentifier()
+	{
+	}
+
+	FAggregatorDetailsBackingData(const FGameplayEffectAttributeCaptureDefinition& InCaptureDef)
+		: AggregatorType(EGameplayEffectScopedModifierAggregatorType::CapturedAttributeBacked)
+		, CaptureDefinition(InCaptureDef)
+		, TransientAggregatorIdentifier()
+	{
+	}
+
+	FAggregatorDetailsBackingData(const FGameplayTag& InIdentifier)
+		: AggregatorType(EGameplayEffectScopedModifierAggregatorType::Transient)
+		, CaptureDefinition()
+		, TransientAggregatorIdentifier(InIdentifier)
+	{
+	}
+
+	// Equality operators
+	bool operator==(const FAggregatorDetailsBackingData& Other) const
+	{
+		return (AggregatorType == Other.AggregatorType) && (CaptureDefinition == Other.CaptureDefinition) && (TransientAggregatorIdentifier == Other.TransientAggregatorIdentifier);
+	}
+
+	bool operator!=(const FAggregatorDetailsBackingData& Other) const
+	{
+		return (AggregatorType != Other.AggregatorType) || (CaptureDefinition != Other.CaptureDefinition) || (TransientAggregatorIdentifier != Other.TransientAggregatorIdentifier);
+	}
+
+	/** Aggregator type for the backing data */
+	EGameplayEffectScopedModifierAggregatorType AggregatorType;
+
+	/** Capture definition used if attribute-backed aggregator type */
+	FGameplayEffectAttributeCaptureDefinition CaptureDefinition;
+
+	/** Identifier used if transient/"temporary variable" aggregator type */
+	FGameplayTag TransientAggregatorIdentifier;
+};
 
 TSharedRef<IPropertyTypeCustomization> FGameplayEffectExecutionScopedModifierInfoDetails::MakeInstance()
 {
@@ -29,12 +77,12 @@ void FGameplayEffectExecutionScopedModifierInfoDetails::CustomizeHeader(TSharedR
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
-/** Custom widget class to cleanly represent a capture definition in a combo box */
-class SCaptureDefWidget : public SCompoundWidget
+/** Custom widget class to cleanly represent mod backing data in a combo box */
+class SScopedModBackingDataWidget : public SCompoundWidget
 {
 public:
 
-	SLATE_BEGIN_ARGS(SCaptureDefWidget) {}
+	SLATE_BEGIN_ARGS(SScopedModBackingDataWidget) {}
 	SLATE_END_ARGS()
 
 	/** Construct the widget from a grid panel wrapped with a border */
@@ -42,78 +90,125 @@ public:
 	{
 		this->ChildSlot
 		[
-			SNew(SBorder)
-			.HAlign(HAlign_Fill)
+			SNew(SWidgetSwitcher)
+			.WidgetIndex(this, &SScopedModBackingDataWidget::GetWidgetSwitcherIdx)
+			+SWidgetSwitcher::Slot()
 			[
-				SNew(SGridPanel)
-				+SGridPanel::Slot(0, 0)
-				.HAlign(HAlign_Right)
-				.Padding(FMargin(2.f))
+				SNew(SBorder)
+				.HAlign(HAlign_Fill)
 				[
-					SNew(STextBlock)
-					.Text(NSLOCTEXT("ScopedModifierDetails", "CapturedAttributeLabel", "Captured Attribute:"))
-					.Font(IDetailLayoutBuilder::GetDetailFontBold())
+					SNew(SGridPanel)
+					+SGridPanel::Slot(0, 0)
+					.HAlign(HAlign_Right)
+					.Padding(FMargin(2.f))
+					[
+						SNew(STextBlock)
+						.Text(NSLOCTEXT("ScopedModifierDetails", "CapturedAttributeLabel", "Captured Attribute:"))
+						.Font(IDetailLayoutBuilder::GetDetailFontBold())
+					]
+					+SGridPanel::Slot(1, 0)
+					.HAlign(HAlign_Left)
+					.Padding(FMargin(2.f))
+					[
+						SNew(STextBlock)
+						.Text(this, &SScopedModBackingDataWidget::GetCapturedAttributeText)
+						.Font(IDetailLayoutBuilder::GetDetailFont())
+					]
+					+SGridPanel::Slot(0, 1)
+					.HAlign(HAlign_Right)
+					.Padding(FMargin(2.f))
+					[
+						SNew(STextBlock)
+						.Text(NSLOCTEXT("ScopedModifierDetails", "CapturedAttributeSourceLabel", "Captured Source:"))
+						.Font(IDetailLayoutBuilder::GetDetailFontBold())
+					]
+					+SGridPanel::Slot(1, 1)
+					.HAlign(HAlign_Left)
+					.Padding(FMargin(2.f))
+					[
+						SNew(STextBlock)
+						.Text(this, &SScopedModBackingDataWidget::GetCapturedAttributeSourceText)
+						.Font(IDetailLayoutBuilder::GetDetailFont())
+					]
+					+SGridPanel::Slot(0, 2)
+					.HAlign(HAlign_Right)
+					.Padding(FMargin(2.f))
+					[
+						SNew(STextBlock)
+						.Text(NSLOCTEXT("ScopedModifierDetails", "CapturedAttributeSnapshotLabel", "Captured Status:"))
+						.Font(IDetailLayoutBuilder::GetDetailFontBold())
+					]
+					+SGridPanel::Slot(1, 2)
+					.HAlign(HAlign_Left)
+					.Padding(FMargin(2.f))
+					[
+						SNew(STextBlock)
+						.Text(this, &SScopedModBackingDataWidget::GetCapturedAttributeSnapshotText)
+						.Font(IDetailLayoutBuilder::GetDetailFont())
+					]
 				]
-				+SGridPanel::Slot(1, 0)
-				.HAlign(HAlign_Left)
-				.Padding(FMargin(2.f))
+			]
+			+SWidgetSwitcher::Slot()
+			[
+				SNew(SBorder)
+				.HAlign(HAlign_Fill)
 				[
-					SNew(STextBlock)
-					.Text(this, &SCaptureDefWidget::GetCapturedAttributeText)
-					.Font(IDetailLayoutBuilder::GetDetailFont())
-				]
-				+SGridPanel::Slot(0, 1)
-				.HAlign(HAlign_Right)
-				.Padding(FMargin(2.f))
-				[
-					SNew(STextBlock)
-					.Text(NSLOCTEXT("ScopedModifierDetails", "CapturedAttributeSourceLabel", "Captured Source:"))
-					.Font(IDetailLayoutBuilder::GetDetailFontBold())
-				]
-				+SGridPanel::Slot(1, 1)
-				.HAlign(HAlign_Left)
-				.Padding(FMargin(2.f))
-				[
-					SNew(STextBlock)
-					.Text(this, &SCaptureDefWidget::GetCapturedAttributeSourceText)
-					.Font(IDetailLayoutBuilder::GetDetailFont())
-				]
-				+SGridPanel::Slot(0, 2)
-				.HAlign(HAlign_Right)
-				.Padding(FMargin(2.f))
-				[
-					SNew(STextBlock)
-					.Text(NSLOCTEXT("ScopedModifierDetails", "CapturedAttributeSnapshotLabel", "Captured Status:"))
-					.Font(IDetailLayoutBuilder::GetDetailFontBold())
-				]
-				+SGridPanel::Slot(1, 2)
-				.HAlign(HAlign_Left)
-				.Padding(FMargin(2.f))
-				[
-					SNew(STextBlock)
-					.Text(this, &SCaptureDefWidget::GetCapturedAttributeSnapshotText)
-					.Font(IDetailLayoutBuilder::GetDetailFont())
+					SNew(SGridPanel)
+					+SGridPanel::Slot(0, 0)
+					.HAlign(HAlign_Right)
+					.Padding(FMargin(2.f))
+					[
+						SNew(STextBlock)
+						.Text(NSLOCTEXT("ScopedModifierDetails", "TempVariableLabel", "Temporary Variable:"))
+						.Font(IDetailLayoutBuilder::GetDetailFontBold())
+					]
+					+SGridPanel::Slot(1, 0)
+					.HAlign(HAlign_Left)
+					.Padding(FMargin(2.f))
+					[
+						SNew(STextBlock)
+						.Text(this, &SScopedModBackingDataWidget::GetTemporaryVariableText)
+						.Font(IDetailLayoutBuilder::GetDetailFont())
+					]
+					+SGridPanel::Slot(0, 1)
+					.HAlign(HAlign_Center)
+					.Padding(FMargin(2.f))
+					.ColumnSpan(2)
+					[
+						SNew(STextBlock)
+						.Text(NSLOCTEXT("ScopedModifierDetails", "TempVariableDesc", "Temporary value exposed by calculation."))
+						.Font(IDetailLayoutBuilder::GetDetailFont())
+					]
 				]
 			]
 		];
 	}
 
-	/** Set the definition that backs the widget; This is used as a way to reduce expensive FText creations constantly */
-	void SetBackingDefinition(const FGameplayEffectAttributeCaptureDefinition& InDefinition)
+	/** Set the data that backs the widget; This is used as a way to reduce expensive FText creations constantly */
+	void SetBackingData(const FAggregatorDetailsBackingData& InBackingData)
 	{
 		static const FText SnapshotText(NSLOCTEXT("ScopedModifierDetails", "CapturedAttributeSnapshotted", "Snapshotted"));
 		static const FText NotSnapshotText(NSLOCTEXT("ScopedModifierDetails", "CapturedAttributeNotSnapshotted", "Not Snapshotted"));
 
-		if (InDefinition != BackingDefinition)
+		if (InBackingData != BackingData)
 		{
-			BackingDefinition = InDefinition;
-			CapturedAttributeText = FText::FromString(BackingDefinition.AttributeToCapture.GetName());
-			UEnum::GetDisplayValueAsText(TEXT("GameplayAbilities.EGameplayEffectAttributeCaptureSource"), BackingDefinition.AttributeSource, CapturedAttributeSourceText);
-			CapturedAttributeSnapshotText = BackingDefinition.bSnapshot ? SnapshotText : NotSnapshotText;
+			BackingData = InBackingData;
+			CapturedAttributeText = FText::FromString(BackingData.CaptureDefinition.AttributeToCapture.GetName());
+			UEnum::GetDisplayValueAsText(TEXT("GameplayAbilities.EGameplayEffectAttributeCaptureSource"), BackingData.CaptureDefinition.AttributeSource, CapturedAttributeSourceText);
+			CapturedAttributeSnapshotText = BackingData.CaptureDefinition.bSnapshot ? SnapshotText : NotSnapshotText;
+			TemporaryVariableText = FText::FromString(BackingData.TransientAggregatorIdentifier.ToString());
+
+			WidgetSwitcherIdx = (BackingData.AggregatorType == EGameplayEffectScopedModifierAggregatorType::CapturedAttributeBacked) ? 0 : 1;
 		}
 	}
 
 private:
+
+	/** Simple accessor to cached widget switcher index */
+	int32 GetWidgetSwitcherIdx() const
+	{
+		return WidgetSwitcherIdx;
+	}
 
 	/** Simple accessor to cached captured attribute text */
 	FText GetCapturedAttributeText() const
@@ -133,8 +228,14 @@ private:
 		return CapturedAttributeSnapshotText;
 	}
 
-	/** Capture definition backing the widget */
-	FGameplayEffectAttributeCaptureDefinition BackingDefinition;
+	/** Simple accessor to cached temporary variable text */
+	FText GetTemporaryVariableText() const
+	{
+		return TemporaryVariableText;
+	}
+
+	/** Aggregator data backing the widget */
+	FAggregatorDetailsBackingData BackingData;
 
 	/** Cached attribute text */
 	FText CapturedAttributeText;
@@ -144,14 +245,21 @@ private:
 
 	/** Cached attribute snapshot status text */
 	FText CapturedAttributeSnapshotText;
+
+	/** Cached temporary variable status text */
+	FText TemporaryVariableText;
+
+	/** Cached widget switcher index */
+	int32 WidgetSwitcherIdx;
 };
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 void FGameplayEffectExecutionScopedModifierInfoDetails::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
-	AvailableCaptureDefs.Empty();
-	CaptureDefPropertyHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FGameplayEffectExecutionScopedModifierInfo, CapturedAttribute));
+	AvailableBackingData.Empty();
+
+	ScopedModifierStructPropertyHandle = StructPropertyHandle;
 
 	TSharedPtr<IPropertyHandle> ParentArrayHandle = StructPropertyHandle->GetParentHandle();
 	const bool bIsExecutionDefAttribute = (ParentArrayHandle.IsValid() && ParentArrayHandle->GetProperty()->GetOuter() == FGameplayEffectExecutionDefinition::StaticStruct());
@@ -184,7 +292,13 @@ void FGameplayEffectExecutionScopedModifierInfoDetails::CustomizeChildren(TShare
 
 							for (const FGameplayEffectAttributeCaptureDefinition& CurDef : CaptureDefs)
 							{
-								AvailableCaptureDefs.Add(MakeShareable(new FGameplayEffectAttributeCaptureDefinition(CurDef)));
+								AvailableBackingData.Add(MakeShareable(new FAggregatorDetailsBackingData(CurDef)));
+							}
+
+							FGameplayTagContainer ValidTransientAggregatorIdentifiers = ExecCalcCDO->GetValidTransientAggregatorIdentifiers();
+							for (const FGameplayTag& CurIdentifier : ValidTransientAggregatorIdentifiers)
+							{
+								AvailableBackingData.Add(MakeShareable(new FAggregatorDetailsBackingData(CurIdentifier)));
 							}
 						}
 					}
@@ -192,36 +306,36 @@ void FGameplayEffectExecutionScopedModifierInfoDetails::CustomizeChildren(TShare
 			}
 		}
 
-		// Construct a custom combo box widget outlining possible capture definition choices
-		if (AvailableCaptureDefs.Num() > 0)
+		// Construct a custom combo box widget outlining possible backing data choices
+		if (AvailableBackingData.Num() > 0)
 		{
-			TSharedPtr< SComboBox< TSharedPtr<FGameplayEffectAttributeCaptureDefinition> > > BackingComboBox;
+			TSharedPtr< SComboBox< TSharedPtr<FAggregatorDetailsBackingData> > > BackingComboBox;
 
-			StructBuilder.AddCustomRow(NSLOCTEXT("ScopedModifierDetails", "CaptureDefLabel", "Backing Capture Definition"))
+			StructBuilder.AddCustomRow(NSLOCTEXT("ScopedModifierDetails", "BackingDataLabel", "Backing Data"))
 			.NameContent()
 			[
 				SNew(STextBlock)
-				.Text(NSLOCTEXT("ScopedModifierDetails", "CaptureDefLabel", "Backing Capture Definition"))
-				.ToolTipText(NSLOCTEXT("ScopedModifierDetails", "CaptureDefTooltip", "The capture definition to use to populate the scoped modifier. Only options specified by the execution class are presented here."))
+				.Text(NSLOCTEXT("ScopedModifierDetails", "BackingDataLabel", "Backing Data"))
+				.ToolTipText(NSLOCTEXT("ScopedModifierDetails", "BackingDataTooltip", "The backing data to use to populate the scoped modifier. Only options specified by the execution class are presented here."))
 				.Font(StructCustomizationUtils.GetRegularFont())
 			]
 			.ValueContent()
 			.MinDesiredWidth(350.f)
 			[
-				SAssignNew(BackingComboBox, SComboBox< TSharedPtr<FGameplayEffectAttributeCaptureDefinition> >)
-				.OptionsSource(&AvailableCaptureDefs)
-				.OnSelectionChanged(this, &FGameplayEffectExecutionScopedModifierInfoDetails::OnCaptureDefComboBoxSelectionChanged)
-				.OnGenerateWidget(this, &FGameplayEffectExecutionScopedModifierInfoDetails::OnGenerateCaptureDefComboWidget)
+				SAssignNew(BackingComboBox, SComboBox< TSharedPtr<FAggregatorDetailsBackingData> >)
+				.OptionsSource(&AvailableBackingData)
+				.OnSelectionChanged(this, &FGameplayEffectExecutionScopedModifierInfoDetails::OnBackingDataComboBoxSelectionChanged)
+				.OnGenerateWidget(this, &FGameplayEffectExecutionScopedModifierInfoDetails::OnGenerateBackingDataComboWidget)
 				.Content()
 				[
-					SAssignNew(PrimaryCaptureDefWidget, SCaptureDefWidget)
+					SAssignNew(PrimaryBackingDataWidget, SScopedModBackingDataWidget)
 				]
 			];
 
 			// Set the initial value on the combo box; done this way to intentionally cause a change delegate
 			if (BackingComboBox.IsValid())
 			{
-				BackingComboBox->SetSelectedItem(GetCurrentCaptureDef());
+				BackingComboBox->SetSelectedItem(GetCurrentBackingData());
 			}
 		}
 	}
@@ -236,69 +350,100 @@ void FGameplayEffectExecutionScopedModifierInfoDetails::CustomizeChildren(TShare
 		const TSharedRef<IPropertyHandle> ChildHandle = StructPropertyHandle->GetChildHandle(ChildIndex).ToSharedRef();
 		const FName ChildPropName = ChildHandle->GetProperty()->GetFName();
 
-		if (!bIsExecutionDefAttribute || (ChildPropName != GET_MEMBER_NAME_CHECKED(FGameplayEffectExecutionScopedModifierInfo, CapturedAttribute)))
+		const bool bAlwaysShowableProperty = ((ChildPropName != GET_MEMBER_NAME_CHECKED(FGameplayEffectExecutionScopedModifierInfo, CapturedAttribute))
+			&& (ChildPropName != GET_MEMBER_NAME_CHECKED(FGameplayEffectExecutionScopedModifierInfo, TransientAggregatorIdentifier))
+			&& (ChildPropName != GET_MEMBER_NAME_CHECKED(FGameplayEffectExecutionScopedModifierInfo, AggregatorType)));
+
+		if (!bIsExecutionDefAttribute || bAlwaysShowableProperty)
 		{
 			StructBuilder.AddProperty(ChildHandle);
 		}
 	}
 }
 
-void FGameplayEffectExecutionScopedModifierInfoDetails::OnCaptureDefComboBoxSelectionChanged(TSharedPtr<FGameplayEffectAttributeCaptureDefinition> InSelectedItem, ESelectInfo::Type InSelectInfo)
+void FGameplayEffectExecutionScopedModifierInfoDetails::OnBackingDataComboBoxSelectionChanged(TSharedPtr<FAggregatorDetailsBackingData> InSelectedItem, ESelectInfo::Type InSelectInfo)
 {
-	SetCurrentCaptureDef(InSelectedItem);
+	SetCurrentBackingData(InSelectedItem);
 
-	// Need to update the base capture widget in the combo box manually due to caching strategy
-	if (PrimaryCaptureDefWidget.IsValid())
+	// Need to update the base backing data widget in the combo box manually due to caching strategy
+	if (PrimaryBackingDataWidget.IsValid())
 	{
-		PrimaryCaptureDefWidget->SetBackingDefinition(*InSelectedItem.Get());
+		PrimaryBackingDataWidget->SetBackingData(*InSelectedItem.Get());
 	}
 }
 
-TSharedRef<SWidget> FGameplayEffectExecutionScopedModifierInfoDetails::OnGenerateCaptureDefComboWidget(TSharedPtr<FGameplayEffectAttributeCaptureDefinition> InItem)
+TSharedRef<SWidget> FGameplayEffectExecutionScopedModifierInfoDetails::OnGenerateBackingDataComboWidget(TSharedPtr<FAggregatorDetailsBackingData> InItem)
 {
-	TSharedPtr<SCaptureDefWidget> NewCapDefWidget;
-	SAssignNew(NewCapDefWidget, SCaptureDefWidget);
-	NewCapDefWidget->SetBackingDefinition(*InItem.Get());
+	TSharedPtr<SScopedModBackingDataWidget> NewBackingDataWidget;
+	SAssignNew(NewBackingDataWidget, SScopedModBackingDataWidget);
+	NewBackingDataWidget->SetBackingData(*InItem.Get());
 
-	return NewCapDefWidget.ToSharedRef();
+	return NewBackingDataWidget.ToSharedRef();
 }
 
-TSharedPtr<FGameplayEffectAttributeCaptureDefinition> FGameplayEffectExecutionScopedModifierInfoDetails::GetCurrentCaptureDef() const
+TSharedPtr<FAggregatorDetailsBackingData> FGameplayEffectExecutionScopedModifierInfoDetails::GetCurrentBackingData() const
 {
-	if (CaptureDefPropertyHandle.IsValid() && CaptureDefPropertyHandle->GetProperty())
+	if (ScopedModifierStructPropertyHandle.IsValid() && ScopedModifierStructPropertyHandle->GetProperty())
 	{
 		TArray<const void*> RawStructPtrs;
-		CaptureDefPropertyHandle->AccessRawData(RawStructPtrs);
+		ScopedModifierStructPropertyHandle->AccessRawData(RawStructPtrs);
 
 		// Only showing the combo box for single-editing
-		const FGameplayEffectAttributeCaptureDefinition& BackingDef = *reinterpret_cast<const FGameplayEffectAttributeCaptureDefinition*>(RawStructPtrs[0]);
+		const FGameplayEffectExecutionScopedModifierInfo& ScopedModifierInfo = *reinterpret_cast<const FGameplayEffectExecutionScopedModifierInfo*>(RawStructPtrs[0]);
 
-		for (TSharedPtr<FGameplayEffectAttributeCaptureDefinition> CurCaptureDef : AvailableCaptureDefs)
+		for (TSharedPtr<FAggregatorDetailsBackingData> CurBackingData : AvailableBackingData)
 		{
-			if (CurCaptureDef.IsValid() && (*CurCaptureDef.Get() == BackingDef))
+			if (CurBackingData.IsValid() && (CurBackingData->AggregatorType == ScopedModifierInfo.AggregatorType))
 			{
-				return CurCaptureDef;
+				if (ScopedModifierInfo.AggregatorType == EGameplayEffectScopedModifierAggregatorType::CapturedAttributeBacked)
+				{
+					if (ScopedModifierInfo.CapturedAttribute == CurBackingData->CaptureDefinition)
+					{
+						return CurBackingData;
+					}
+				}
+				else
+				{
+					if (ScopedModifierInfo.TransientAggregatorIdentifier == CurBackingData->TransientAggregatorIdentifier)
+					{
+						return CurBackingData;
+					}
+				}
 			}
 		}
 	}
 
-	return AvailableCaptureDefs[0];
+	return AvailableBackingData[0];
 }
 
-void FGameplayEffectExecutionScopedModifierInfoDetails::SetCurrentCaptureDef(TSharedPtr<FGameplayEffectAttributeCaptureDefinition> InDef)
+void FGameplayEffectExecutionScopedModifierInfoDetails::SetCurrentBackingData(TSharedPtr<FAggregatorDetailsBackingData> InBackingData)
 {
-	if (CaptureDefPropertyHandle.IsValid() && CaptureDefPropertyHandle->GetProperty() && InDef.IsValid())
+	if (ScopedModifierStructPropertyHandle.IsValid() && ScopedModifierStructPropertyHandle->GetProperty() && InBackingData.IsValid())
 	{
 		TArray<void*> RawStructPtrs;
-		CaptureDefPropertyHandle->AccessRawData(RawStructPtrs);
+		ScopedModifierStructPropertyHandle->AccessRawData(RawStructPtrs);
 
-		FGameplayEffectAttributeCaptureDefinition& BackingDef = *reinterpret_cast<FGameplayEffectAttributeCaptureDefinition*>(RawStructPtrs[0]);
-		const FGameplayEffectAttributeCaptureDefinition& InDefRef = *InDef.Get();
-		if (BackingDef != InDefRef)
+		FGameplayEffectExecutionScopedModifierInfo& ScopedModifierInfo = *reinterpret_cast<FGameplayEffectExecutionScopedModifierInfo*>(RawStructPtrs[0]);
+		
+		const bool bSameData = (ScopedModifierInfo.AggregatorType == InBackingData->AggregatorType)
+			&& (ScopedModifierInfo.CapturedAttribute == InBackingData->CaptureDefinition)
+			&& (ScopedModifierInfo.TransientAggregatorIdentifier == InBackingData->TransientAggregatorIdentifier);
+
+		if (!bSameData)
 		{
-			CaptureDefPropertyHandle->NotifyPreChange();
-			BackingDef = InDefRef;
-			CaptureDefPropertyHandle->NotifyPostChange();
+			ScopedModifierStructPropertyHandle->NotifyPreChange();
+			ScopedModifierInfo.AggregatorType = InBackingData->AggregatorType;
+			if (ScopedModifierInfo.AggregatorType == EGameplayEffectScopedModifierAggregatorType::CapturedAttributeBacked)
+			{
+				ScopedModifierInfo.CapturedAttribute = InBackingData->CaptureDefinition;
+				ScopedModifierInfo.TransientAggregatorIdentifier = FGameplayTag::EmptyTag;
+			}
+			else
+			{
+				ScopedModifierInfo.CapturedAttribute = FGameplayEffectAttributeCaptureDefinition();
+				ScopedModifierInfo.TransientAggregatorIdentifier = InBackingData->TransientAggregatorIdentifier;
+			}
+			ScopedModifierStructPropertyHandle->NotifyPostChange();
 		}
 	}
 }
