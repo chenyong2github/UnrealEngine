@@ -323,14 +323,15 @@ public:
 	virtual float GetFloat() const override;
 	virtual FString GetString() const override;
 
-	virtual bool IsVariableBool() const { return false; }
-	virtual bool IsVariableFloat() const { return false; }
-	virtual bool IsVariableString() const { return false; }
+virtual bool IsVariableBool() const override { return false; }
+	virtual bool IsVariableInt() const override { return false; }
+	virtual bool IsVariableFloat() const override { return false; }
+	virtual bool IsVariableString() const override { return false; }
 
-	virtual class TConsoleVariableData<bool>* AsVariableBool() { return nullptr; }
-	virtual class TConsoleVariableData<int32>* AsVariableInt() { return nullptr; }
-	virtual class TConsoleVariableData<float>* AsVariableFloat() { return nullptr; }
-	virtual class TConsoleVariableData<FString>* AsVariableString() { return nullptr; }
+	virtual class TConsoleVariableData<bool>* AsVariableBool() override { return nullptr; }
+	virtual class TConsoleVariableData<int32>* AsVariableInt() override { return nullptr; }
+	virtual class TConsoleVariableData<float>* AsVariableFloat() override { return nullptr; }
+	virtual class TConsoleVariableData<FString>* AsVariableString() override { return nullptr; }
 
 private: // ----------------------------------------------------
 
@@ -473,10 +474,6 @@ template<> FString FConsoleVariable<FString>::GetString() const
 {
 	return Value();
 }
-template<> bool FConsoleVariable<FString>::IsVariableString() const
-{
-	return true;
-}
 template<> TConsoleVariableData<FString>* FConsoleVariable<FString>::AsVariableString()
 {
 	return &Data;
@@ -509,10 +506,10 @@ public:
 		}
 	}
 
-	virtual bool IsVariableBool() const { return false; }
-	virtual bool IsVariableInt() const { return false; }
-	virtual bool IsVariableFloat() const { return false; }
-	virtual bool IsVariableString() const { return false; }
+	virtual bool IsVariableBool() const override { return false; }
+	virtual bool IsVariableInt() const override { return false; }
+	virtual bool IsVariableFloat() const override { return false; }
+	virtual bool IsVariableString() const override { return false; }
 
 	virtual bool GetBool() const
 	{
@@ -530,9 +527,6 @@ public:
 	{
 		return TTypeToString<T>::ToString(MainValue);
 	}
-	virtual bool IsVariableInt() const override { return false; }
-	virtual bool IsVariableFloat() const override { return false; }
-	virtual bool IsVariableString() const override { return false; }
 
 private: // ----------------------------------------------------
 
