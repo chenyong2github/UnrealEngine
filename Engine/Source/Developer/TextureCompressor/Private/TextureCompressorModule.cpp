@@ -692,18 +692,11 @@ static void GenerateTopMip(const FImage& SrcImage, FImage& DestImage, const FTex
 	}
 }
 
-/**
- * Generate a full mip chain. The input mip chain must have one or more mips.
- * @param Settings - Preprocess settings.
- * @param BaseImage - An image that will serve as the source for the generation of the mip chain.
- * @param OutMipChain - An array that will contain the resultant mip images. Generated mip levels are appended to the array.
- * @param MipChainDepth - number of mip images to produce. Mips chain is finished when either a 1x1 mip is produced or 'MipChainDepth' images have been produced.
- */
-static void GenerateMipChain(
+void ITextureCompressorModule::GenerateMipChain(
 	const FTextureBuildSettings& Settings,
 	const FImage& BaseImage,
 	TArray<FImage> &OutMipChain,
-	uint32 MipChainDepth = MAX_uint32
+	uint32 MipChainDepth 
 	)
 {
 	check(BaseImage.Format == ERawImageFormat::RGBA32F);
@@ -1380,17 +1373,7 @@ static void GenerateAngularFilteredMips(TArray<FImage>& InOutMipChain, int32 Num
 	}
 }
 
-/*------------------------------------------------------------------------------
-	Image Processing.
-------------------------------------------------------------------------------*/
-
-/**
- * Adjusts the colors of the image using the specified settings
- *
- * @param	Image			Image to adjust
- * @param	InBuildSettings	Image build settings
- */
-static void AdjustImageColors( FImage& Image, const FTextureBuildSettings& InBuildSettings )
+void ITextureCompressorModule::AdjustImageColors(FImage& Image, const FTextureBuildSettings& InBuildSettings)
 {
 	const FColorAdjustmentParameters& InParams = InBuildSettings.ColorAdjustment;
 	check( Image.SizeX > 0 && Image.SizeY > 0 );
@@ -2027,6 +2010,11 @@ private:
 		NumOutputMips = FMath::Min(NumOutputMips, MaxDestMipCount);
 
 		int32 NumSourceMips = InSourceMips.Num();
+
+		if (BuildSettings.MipGenSettings == TMGS_LeaveExistingMips)
+		{
+			NumOutputMips = InSourceMips.Num();
+		}
 
 		if (BuildSettings.MipGenSettings != TMGS_LeaveExistingMips || bLongLatCubemap)
 		{
