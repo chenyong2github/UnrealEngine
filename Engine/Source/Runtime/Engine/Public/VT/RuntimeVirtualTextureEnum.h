@@ -11,7 +11,7 @@
  * This "fixed function" approach will probably break down if we end up needing to support some complex set of attribute combinations but it is OK to begin with.
  */
 UENUM()
-enum class ERuntimeVirtualTextureMaterialType
+enum class ERuntimeVirtualTextureMaterialType : uint8
 {
 	BaseColor UMETA(DisplayName = "Base Color"),
 	BaseColor_Normal UMETA(DisplayName = "Base Color, Normal"),
@@ -26,7 +26,7 @@ static_assert((uint32)ERuntimeVirtualTextureMaterialType::Count <= (1 << (uint32
 
 /** Enumeration of main pass behaviors when rendering to a runtime virtual texture. */
 UENUM()
-enum class ERuntimeVirtualTextureMainPassType
+enum class ERuntimeVirtualTextureMainPassType : uint8
 {
 	/** If there is no valid virtual texture target we will not render at all. Use this for items that we don't mind removing if there is no virtual texture support. */
 	Never UMETA(DisplayName = "Virtual Texture Only"),
