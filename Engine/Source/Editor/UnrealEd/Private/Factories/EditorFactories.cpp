@@ -2891,6 +2891,7 @@ bool DecompressTGA(
 }
 
 bool UTextureFactory::bSuppressImportOverwriteDialog = false;
+bool UTextureFactory::bForceOverwriteExistingSettings = false;
 
 UTextureFactory::UTextureFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -2955,9 +2956,10 @@ UTextureCube* UTextureFactory::CreateTextureCube( UObject* InParent, FName Name,
 	return NewObject ? CastChecked<UTextureCube>(NewObject) : nullptr;
 }
 
-void UTextureFactory::SuppressImportOverwriteDialog()
+void UTextureFactory::SuppressImportOverwriteDialog(bool bOverwriteExistingSettings)
 {
 	bSuppressImportOverwriteDialog = true;
+    bForceOverwriteExistingSettings = bOverwriteExistingSettings;
 }
 
 /**
@@ -3807,6 +3809,7 @@ UTexture* UTextureFactory::ImportTexture(UClass* Class, UObject* InParent, FName
 			if(Format == TSF_RGBA16F)
 			{
 				TextureCube->CompressionSettings = TC_HDR;
+				TextureCube->SRGB = false;
 			}
 
 			uint8* DestMipData[MAX_TEXTURE_MIP_COUNT] = {0};
@@ -4061,43 +4064,51 @@ UObject* UTextureFactory::FactoryCreateBinary
 	TextureMipGenSettings				ExistingMipGenSettings = TextureMipGenSettings(0);
 	bool								ExistingVirtualTextureStreaming = false;
 
-	bUsingExistingSettings = bSuppressImportOverwriteDialog;
-
-	if(ExistingTexture && !bSuppressImportOverwriteDialog)
+	if (bForceOverwriteExistingSettings)
 	{
-		DisplayOverwriteOptionsDialog(FText::Format(
-			NSLOCTEXT("TextureFactory", "ImportOverwriteWarning", "You are about to import '{0}' over an existing texture."),
-			FText::FromName(TextureName)));
+		bUsingExistingSettings = false;
+	}
+	else
+	{
+		bUsingExistingSettings = bSuppressImportOverwriteDialog;
 
-		switch( OverwriteYesOrNoToAllState )
+		if (ExistingTexture && !bSuppressImportOverwriteDialog)
 		{
+			DisplayOverwriteOptionsDialog(FText::Format(
+				NSLOCTEXT("TextureFactory", "ImportOverwriteWarning", "You are about to import '{0}' over an existing texture."),
+				FText::FromName(TextureName)));
 
-		case EAppReturnType::Yes:
-		case EAppReturnType::YesAll:
+			switch (OverwriteYesOrNoToAllState)
 			{
-				// Overwrite existing settings
-				bUsingExistingSettings = false;
-				break;
-			}
-		case EAppReturnType::No:
-		case EAppReturnType::NoAll:
-			{
-				// Preserve existing settings
-				bUsingExistingSettings = true;
-				break;
-			}
-		case EAppReturnType::Cancel:
-		default:
-			{
-				GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport( this, nullptr );
-				return nullptr;
+
+			case EAppReturnType::Yes:
+			case EAppReturnType::YesAll:
+				{
+					// Overwrite existing settings
+					bUsingExistingSettings = false;
+					break;
+				}
+				case EAppReturnType::No:
+				case EAppReturnType::NoAll:
+				{
+					// Preserve existing settings
+					bUsingExistingSettings = true;
+					break;
+				}
+				case EAppReturnType::Cancel:
+				default:
+				{
+					GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, nullptr);
+					return nullptr;
+				}
 			}
 		}
 	}
 
 	// Don't suppress future textures from checking for overwrites unless the calling code explicitly asks for it
 	bSuppressImportOverwriteDialog = false;
-	
+	bForceOverwriteExistingSettings = false;
+
 	if (ExistingTexture && bUsingExistingSettings)
 	{
 		// save settings
