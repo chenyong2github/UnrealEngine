@@ -473,6 +473,10 @@ int32 SRetainerWidget::OnPaint(const FPaintArgs& Args, const FGeometry& Allotted
 
 		// Copy hit test grid settings from the root
 		const bool bHittestCleared = HittestGrid.SetHittestArea(Args.RootGrid.GetGridOrigin(), Args.RootGrid.GetGridSize(), Args.RootGrid.GetGridWindowOrigin());
+		if (bHittestCleared)
+		{
+			MutableThis->RequestRender();
+		}
 		FPaintArgs NewArgs = Args.WithNewHitTestGrid(HittestGrid);
 
 		FSlateInvalidationContext Context(OutDrawElements, InWidgetStyle);
