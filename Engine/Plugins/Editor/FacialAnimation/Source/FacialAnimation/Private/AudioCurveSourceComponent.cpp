@@ -21,6 +21,7 @@ UAudioCurveSourceComponent::UAudioCurveSourceComponent()
 	CachedFadeVolumeLevel = 1.0f;
 	CachedDuration = 0.0f;
 	bCachedLooping = false;
+	CachedFadeType = EAudioFaderCurve::Linear;
 
 #if WITH_EDITORONLY_DATA
 	bVisualizeComponent = false;
@@ -54,24 +55,25 @@ void UAudioCurveSourceComponent::CacheCurveData()
 	}
 }
 
-void UAudioCurveSourceComponent::FadeIn(float FadeInDuration, float FadeVolumeLevel, float StartTime)
+void UAudioCurveSourceComponent::FadeIn(float FadeInDuration, float FadeVolumeLevel, float StartTime, EAudioFaderCurve FadeType)
 {
 	CacheCurveData();
 
 	if (CachedSyncPreRoll <= 0.0f)
 	{
-		PlayInternal(StartTime, FadeInDuration, FadeVolumeLevel);
+		PlayInternal(StartTime, FadeInDuration, FadeVolumeLevel, FadeType);
 	}
 	else
 	{
 		CachedFadeInDuration = FadeInDuration;
 		CachedFadeVolumeLevel = FadeVolumeLevel;
 		CachedStartTime = StartTime;
+		CachedFadeType = FadeType;
 		Delay = 0.0f;
 	}
 }
 
-void UAudioCurveSourceComponent::FadeOut(float FadeOutDuration, float FadeVolumeLevel)
+void UAudioCurveSourceComponent::FadeOut(float FadeOutDuration, float FadeVolumeLevel, EAudioFaderCurve FadeType)
 {
 	if (Delay < CachedSyncPreRoll)
 	{
@@ -82,7 +84,7 @@ void UAudioCurveSourceComponent::FadeOut(float FadeOutDuration, float FadeVolume
 	}
 	else
 	{
-		Super::FadeOut(FadeOutDuration, FadeVolumeLevel);
+		Super::FadeOut(FadeOutDuration, FadeVolumeLevel, FadeType);
 	}
 }
 
@@ -129,7 +131,7 @@ void UAudioCurveSourceComponent::TickComponent(float DeltaTime, enum ELevelTick 
 	Delay = FMath::Min(Delay + DeltaTime, CachedSyncPreRoll);
 	if (OldDelay < CachedSyncPreRoll && Delay >= CachedSyncPreRoll)
 	{
-		PlayInternal(CachedStartTime, CachedFadeInDuration, CachedFadeVolumeLevel);
+		PlayInternal(CachedStartTime, CachedFadeInDuration, CachedFadeVolumeLevel, CachedFadeType);
 	}
 	else if(Delay < CachedSyncPreRoll)
 	{
