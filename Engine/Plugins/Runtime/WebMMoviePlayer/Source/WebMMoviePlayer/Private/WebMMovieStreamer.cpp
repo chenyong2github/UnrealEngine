@@ -136,7 +136,7 @@ bool FWebMMovieStreamer::StartNextMovie()
 		AudioDecoder->Initialize(DefaultAudioTrack.CodecName, DefaultAudioTrack.SampleRate, DefaultAudioTrack.NumOfChannels, DefaultAudioTrack.CodecPrivateData, DefaultAudioTrack.CodecPrivateDataSize);
 		VideoDecoder->Initialize(DefaultVideoTrack.CodecName);
 
-		AudioBackend->StartStreaming(DefaultAudioTrack.SampleRate, DefaultAudioTrack.NumOfChannels, FWebMAudioBackendSDL::EStreamState::NewMovie);
+		AudioBackend->StartStreaming(DefaultAudioTrack.SampleRate, DefaultAudioTrack.NumOfChannels, FWebMAudioBackend::EStreamState::NewMovie);
 
 		StartTime = FPlatformTime::Seconds();
 		bPlaying = true;
