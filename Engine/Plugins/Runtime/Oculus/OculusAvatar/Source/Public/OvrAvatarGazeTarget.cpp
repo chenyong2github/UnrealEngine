@@ -38,10 +38,12 @@ static const FString GazeTargetToString(ovrAvatarGazeTargetType targetType)
 
 UOvrAvatarGazeTarget::UOvrAvatarGazeTarget()
 : GazeTransform(nullptr)
+, bShuttingDown(false)
 {
 	PrimaryComponentTick.bCanEverTick = true;
+	UOvrAvatarManager::Get().OnShutdown().AddUObject(this, UOvrAvatarGazeTarget::HandleShutdownEvent);
 
-	IsEnabled = true;
+	bIsEnabled = true;
 
 	NativeTarget.targetCount = 1;
 	NativeTarget.targets[0].type = ovrAvatarGazeTargetType_Object;
@@ -49,9 +51,18 @@ UOvrAvatarGazeTarget::UOvrAvatarGazeTarget()
 	OvrAvatarHelpers::OvrAvatarVec3Zero(NativeTarget.targets[0].worldPosition);
 }
 
+void UOvrAvatarGazeTarget::HandleShutdownEvent()
+{
+	bShuttingDown = true;
+}
+
 void UOvrAvatarGazeTarget::BeginPlay() 
 { 
 	Super::BeginPlay(); 
+	if (bShuttingDown)
+	{
+		return;
+	}
 
 	NativeTarget.targets[0].type = ConvertEditorTypeToNativeType();
 	ovrAvatar_UpdateGazeTargets(&NativeTarget);
@@ -71,8 +82,10 @@ void UOvrAvatarGazeTarget::TickComponent(float DeltaTime, enum ELevelTick TickTy
 { 
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction); 
 
-	if (!IsEnabled)
+	if (!bIsEnabled || bShuttingDown)
+	{
 		return;
+	}
 
 	const FTransform& GazeTrans = GetGazeTransform();
 	const FVector worldPosition = GazeTrans.GetLocation();
@@ -105,12 +118,12 @@ const FTransform& UOvrAvatarGazeTarget::GetGazeTransform() const
 
 void UOvrAvatarGazeTarget::EnableGazeTarget(bool DoEnable)
 {
-	if (!DoEnable && IsEnabled)
+	if (!DoEnable && bIsEnabled && !bShuttingDown)
 	{
 		ovrAvatar_RemoveGazeTargets(1, &NativeTarget.targets[0].id);
 	}
 
-	IsEnabled = DoEnable;
+	bIsEnabled = DoEnable;
 }
 
 ovrAvatarGazeTargetType UOvrAvatarGazeTarget::ConvertEditorTypeToNativeType() const
