@@ -385,4 +385,10 @@ private:
 
 	/** ViewModel used by the Palette and Palette Favorite Views */
 	TSharedPtr<FPaletteViewModel> PaletteViewModel;
+
+	/** When true the sequencer selection is being updated from changes to the external selection. */
+	bool bUpdatingSequencerSelection;
+
+	/** When true the external selection is being updated from changes to the sequencer selection. */
+	bool bUpdatingExternalSelection;
 };
