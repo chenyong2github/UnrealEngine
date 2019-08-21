@@ -2571,37 +2571,6 @@ namespace Audio
 
 	void FMixerSourceManager::UpdatePendingReleaseData(bool bForceWait)
 	{
-		// Check for any pending delete procedural sound waves
-		for (int32 SourceId = 0; SourceId < NumTotalSources; ++SourceId)
-		{
-			FSourceInfo& SourceInfo = SourceInfos[SourceId];
-			if (SourceInfo.MixerSourceBuffer.IsValid())
-			{
-				// If we've been flagged to begin destroy
-				if (SourceInfo.MixerSourceBuffer->IsBeginDestroy())
-				{
-					SourceInfo.MixerSourceBuffer->ClearSoundWave();
-						
-					if (!SourceInfo.bIsDone)
-					{
-						SourceInfo.bIsDone = true;
-						SourceInfo.SourceListener->OnDone();
-					}
-
-					// Clear out the mixer source buffer
-					SourceInfo.MixerSourceBuffer.Reset();
-
-					// Set the sound to be done playing
-					// This will flag the sound to be released
-					SourceInfo.bIsPlaying = false;
-					SourceInfo.bIsPaused = false;
-					SourceInfo.bIsActive = false;
-					SourceInfo.bIsStopping = false;
-				}
-			}
-		}
-
-
 		// Don't block, but let tasks finish naturally
 		for (int32 i = PendingSourceBuffers.Num() - 1; i >= 0; --i)
 		{

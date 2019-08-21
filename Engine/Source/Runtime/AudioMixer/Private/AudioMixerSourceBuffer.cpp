@@ -488,12 +488,6 @@ namespace Audio
 		}
 	}
 
-	bool FMixerSourceBuffer::IsBeginDestroy()
-	{
-		check(SoundWave);
-		return SoundWave->bIsBeginDestroy;
-	}
-
 	void FMixerSourceBuffer::ClearSoundWave()
 	{
 		// Call on end generate right now, before destructor

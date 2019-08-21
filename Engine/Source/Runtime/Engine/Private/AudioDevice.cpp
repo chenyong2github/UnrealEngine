@@ -3697,6 +3697,8 @@ void FAudioDevice::StartSources(TArray<FWaveInstance*>& WaveInstances, int32 Fir
 
 	SCOPE_CYCLE_COUNTER(STAT_AudioStartSources);
 
+	TArray<USoundWave*> StartingSoundWaves;
+
 	// Start sources as needed.
 	for (int32 InstanceIndex = FirstActiveIndex; InstanceIndex < WaveInstances.Num(); InstanceIndex++)
 	{
@@ -3727,6 +3729,11 @@ void FAudioDevice::StartSources(TArray<FWaveInstance*>& WaveInstances, int32 Fir
 				check(FreeSources.Num());
 				Source = FreeSources.Pop();
 				check(Source);
+
+				if (WaveInstance->WaveData)
+				{
+					StartingSoundWaves.AddUnique(WaveInstance->WaveData);
+				}
 
 				// Prepare for initialization...
 				bool bSuccess = false;
@@ -3814,6 +3821,23 @@ void FAudioDevice::StartSources(TArray<FWaveInstance*>& WaveInstances, int32 Fir
 			}
 		}
 	}
+
+	DECLARE_CYCLE_STAT(TEXT("FGameThreadAudioTask.AudioSendResults"), STAT_AudioAddReferencedSoundWaves, STATGROUP_TaskGraphTasks);
+	
+	// Run a command to make sure we add the starting sounds to the referenced sound waves list
+	if (StartingSoundWaves.Num() > 0)
+	{
+		FAudioThread::RunCommandOnGameThread([this, StartingSoundWaves]()
+		{
+			if (GEngine)
+			{
+				for (USoundWave* SoundWave : StartingSoundWaves)
+				{
+					ReferencedSoundWaves.AddUnique(SoundWave);
+				}
+			}
+		}, GET_STATID(STAT_AudioAddReferencedSoundWaves));
+	}
 }
 
 void FAudioDevice::Update(bool bGameTicking)
@@ -3825,10 +3849,11 @@ void FAudioDevice::Update(bool bGameTicking)
 		// On game thread, look through registered sound waves and remove if we finished precaching (and audio decompressor is cleaned up)
 		// ReferencedSoundWaves is used to make sure GC doesn't run on any sound waves that are actively pre-caching within an async task.
 		// Sounds may be loaded, kick off an async task to decompress, but never actually try to play, so GC can reclaim these while precaches are in-flight.
+		// We are also tracking when a sound wave is actively being used to generate audio in the audio render to prevent GC from happening to sounds till being used in the audio renderer.
 		for (int32 i = ReferencedSoundWaves.Num() - 1; i >= 0; --i)
 		{
 			USoundWave* Wave = ReferencedSoundWaves[i];
-			if (Wave->GetPrecacheState() == ESoundWavePrecacheState::Done)
+			if (Wave->GetPrecacheState() == ESoundWavePrecacheState::Done && !Wave->IsGeneratingAudio())
 			{
 				ReferencedSoundWaves.RemoveAtSwap(i, 1, false);
 			}
@@ -5344,7 +5369,7 @@ void FAudioDevice::Precache(USoundWave* SoundWave, bool bSynchronous, bool bTrac
 		{
 			// On the game thread, add this sound wave to the referenced sound wave nodes so that it doesn't get GC'd
 			SoundWave->SetPrecacheState(ESoundWavePrecacheState::InProgress);
-			ReferencedSoundWaves.Add(SoundWave);
+			ReferencedSoundWaves.AddUnique(SoundWave);
 		}
 
 		// Precache is called from USoundWave::PostLoad, from the game thread, and thus function needs to be called from the audio thread
