@@ -3845,6 +3845,9 @@ void AActor::SetActorEnableCollision(bool bNewActorEnableCollision)
 		{
 			Components[CompIdx]->OnActorEnableCollisionChanged();
 		}
+
+		// update overlaps once after all components have been updated
+		UpdateOverlaps();
 	}
 }
 
