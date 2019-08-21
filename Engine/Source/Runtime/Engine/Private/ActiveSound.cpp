@@ -129,10 +129,16 @@ FActiveSound* FActiveSound::CreateVirtualCopy(const FActiveSound& InActiveSoundT
 	ActiveSound->bAsyncOcclusionPending = false;
 	ActiveSound->bHasVirtualized = true;
 	ActiveSound->bIsPlayingAudio = false;
-
+	ActiveSound->bShouldStopDueToMaxConcurrency = false;
 	ActiveSound->AudioDevice = &InAudioDevice;
 	ActiveSound->PlaybackTimeNonVirtualized = 0.0f;
-	ActiveSound->VolumeConcurrency = 1.0f;
+
+	// If volume concurrency tracking is enabled, reset the value,
+	// otherwise keep disabled
+	if (InActiveSoundToCopy.VolumeConcurrency >= 0.0f)
+	{
+		ActiveSound->VolumeConcurrency = 1.0f;
+	}
 
 	ActiveSound->ConcurrencyGroupData.Reset();
 	ActiveSound->WaveInstances.Reset();
@@ -528,10 +534,6 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 	// final value that is correct
 	UpdateAdjustVolumeMultiplier(DeltaTime);
 
-	// Update concurrency volume scalars. Must be done prior to getting collective volume and applying below
-	// in parse params.
-	UpdateConcurrencyVolumeScalars(DeltaTime);
-
 	ParseParams.VolumeMultiplier = GetVolume();
 
 	ParseParams.Priority = Priority;
@@ -645,6 +647,18 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 				{
 					VolumeConcurrency = WaveInstanceVolume;
 				}
+			}
+
+			// Remove concurrency volume scalars as this can cause ping-ponging to occur with virtualization and loops
+			// utilizing concurrency with StopQuietest.
+			const float VolumeScale = GetTotalConcurrencyVolumeScale();
+			if (VolumeScale > SMALL_NUMBER)
+			{
+				VolumeConcurrency /= VolumeScale;
+			}
+			else
+			{
+				VolumeConcurrency = 0.0f;
 			}
 		}
 
