@@ -507,9 +507,9 @@ EPartyReservationResult::Type APartyBeaconHost::AddPartyReservation(const FParty
 		if (ExistingReservationIdx != INDEX_NONE)
 		{
 			FPartyReservation& ExistingReservation = Reservations[ExistingReservationIdx];
-			if (ReservationRequest.PartyMembers.Num() == ExistingReservation.PartyMembers.Num())
+			if (ReservationRequest.PartyMembers.Num() <= ExistingReservation.PartyMembers.Num())
 			{
-				// Verify the reservations are the same
+				// Verify the reservations are either the same, or that the incoming reservation is a subset of the existing one
 				int32 NumMatchingReservations = 0;
 				for (const FPlayerReservation& NewPlayerRes : ReservationRequest.PartyMembers)
 				{
@@ -525,7 +525,7 @@ EPartyReservationResult::Type APartyBeaconHost::AddPartyReservation(const FParty
 					}
 				}
 
-				if (NumMatchingReservations == ExistingReservation.PartyMembers.Num())
+				if (NumMatchingReservations == ReservationRequest.PartyMembers.Num())
 				{
 					for (const FPlayerReservation& NewPlayerRes : ReservationRequest.PartyMembers)
 					{
@@ -574,7 +574,7 @@ EPartyReservationResult::Type APartyBeaconHost::AddPartyReservation(const FParty
 			}
 			else
 			{
-				// Existing reservation doesn't match incoming duplicate reservation
+				// Existing reservation holds less players than the incoming duplicate reservation
 				Result = EPartyReservationResult::IncorrectPlayerCount;
 			}
 		}
@@ -582,18 +582,34 @@ EPartyReservationResult::Type APartyBeaconHost::AddPartyReservation(const FParty
 		{
 			// Check for players we already have reservations for
 			// Keep track of team index for existing members - if we have members on opposing teams, reject this reservation
-			bool bContainsExistingMembers = false;
+			bool bContainsIncompatibleExistingMembers = false;
 			int32 ExistingMemberReservationTeamNum = INDEX_NONE;
+			int32 TeamIdx = -1;
+			int32 NumTeamPlayersWithExistingReservation = 0;
+			TArray<FPlayerReservation> ExistingPartyMemberReservations;
 			for (const FPlayerReservation& PartyMember : ReservationRequest.PartyMembers)
 			{
 				int32 MemberExistingPartyReservationIdx = State->GetExistingReservationContainingMember(PartyMember.UniqueId);
+				
 				if (MemberExistingPartyReservationIdx != INDEX_NONE)
 				{
-					const FPartyReservation& MemberExistingPartyReservation = Reservations[MemberExistingPartyReservationIdx];
-					UE_LOG(LogPartyBeacon, Display, TEXT("APartyBeaconHost::AddPartyReservation: Found existing reservation for party member %s"), *PartyMember.UniqueId.ToDebugString());
-					ReservationRequest.Dump();
-					MemberExistingPartyReservation.Dump();
-					bContainsExistingMembers = true;
+					ExistingPartyMemberReservations.Add(PartyMember);
+					const FPartyReservation& MemberExistingPartyReservation = Reservations[MemberExistingPartyReservationIdx];		
+					// is the member on a suitable team (same as previous members/we the part doesn't have a team yet)
+					if (TeamIdx == -1 || TeamIdx == MemberExistingPartyReservation.TeamNum) 
+					{
+						TeamIdx = MemberExistingPartyReservation.TeamNum;
+						NumTeamPlayersWithExistingReservation++;
+					}
+					else
+					{
+						UE_LOG(LogPartyBeacon, Display, TEXT("APartyBeaconHost::AddPartyReservation: Found existing reservation with missmatched team for party member %s"), *PartyMember.UniqueId.ToDebugString());
+						ReservationRequest.Dump();
+						MemberExistingPartyReservation.Dump();
+						bContainsIncompatibleExistingMembers = true;
+					}
+				
+					
 				}
 				else
 				{
@@ -604,12 +620,30 @@ EPartyReservationResult::Type APartyBeaconHost::AddPartyReservation(const FParty
 					{
 						UE_LOG(LogPartyBeacon, Display, TEXT("APartyBeaconHost::AddPartyReservation: Found party member %s in the pending player list"), *PartyMember.UniqueId.ToDebugString());
 						ReservationRequest.Dump();
-						bContainsExistingMembers = true;
+						bContainsIncompatibleExistingMembers = true;
 					}
+				}
+			}	
+			if (TeamIdx != -1)
+			{	
+				// Will the part members not currently on the team fit in it, and fit within the server
+				const int32 NumTeamMembers = GetNumPlayersOnTeam(TeamIdx);
+				const int32 NumAvailableSlotsOnTeam = FMath::Max<int32>(0, (GetMaxPlayersPerTeam() - NumTeamMembers) + NumTeamPlayersWithExistingReservation);
+				if ((NumAvailableSlotsOnTeam < ReservationRequest.PartyMembers.Num()) || (State->GetRemainingReservations() < (ReservationRequest.PartyMembers.Num() - NumTeamPlayersWithExistingReservation)))
+				{
+					bContainsIncompatibleExistingMembers = true;
+				}
+			}
+			// if this party reservation included players who already had reservations, but is not incompatible based on teams then remove those players previous reservations
+			if (!bContainsIncompatibleExistingMembers)
+			{
+				for (const FPlayerReservation& MemberReservation : ExistingPartyMemberReservations)
+				{					
+					State->RemovePlayer(MemberReservation.UniqueId);
 				}
 			}
 
-			if (!bContainsExistingMembers)
+			if (!bContainsIncompatibleExistingMembers)
 			{
 				if (State->DoesReservationFit(ReservationRequest))
 				{
@@ -776,8 +810,7 @@ EPartyReservationResult::Type APartyBeaconHost::UpdatePartyReservation(const FPa
 		}
 		else
 		{
-			UE_LOG(LogPartyBeacon, Verbose, TEXT("Adding Member"));
-			
+			UE_LOG(LogPartyBeacon, Verbose, TEXT("Adding Member"));			
 			const int32 ExistingReservationIdx = State->GetExistingReservation(ReservationUpdateRequest.PartyLeader);
 			if (ExistingReservationIdx != INDEX_NONE)
 			{
@@ -946,6 +979,7 @@ EPartyReservationResult::Type APartyBeaconHost::UpdatePartyReservation(const FPa
 				// Send a not found reservation response
 				Result = EPartyReservationResult::ReservationNotFound;
 			}
+
 		}
 	}
 	else
