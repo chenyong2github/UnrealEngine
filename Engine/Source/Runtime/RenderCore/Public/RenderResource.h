@@ -11,6 +11,9 @@
 #include "RHI.h"
 #include "RenderCore.h"
 
+/** Number of frames after which unused global resource allocations will be discarded. */
+extern int32 GGlobalBufferNumFramesUnusedThresold;
+
 /**
  * A rendering resource which is owned by the rendering thread.
  */
