@@ -117,10 +117,68 @@ public:
 	/** Runs given TFunction on every qualifier mod for a given AttributeCaptureDefinition */
 	bool ForEachQualifiedAttributeMod(const FGameplayEffectAttributeCaptureDefinition& InCaptureDef, const FAggregatorEvaluateParameters& InEvalParams, TFunction< void(EGameplayModEvaluationChannel, EGameplayModOp::Type, const FAggregatorMod&) >) const;
 
+	/**
+	 * Attempts to calculate the magnitude of a transient aggregator given the specified parameters.
+	 * 
+	 * @param InAggregatorIdentifier	Tag identifying the transient aggregator to attempt to calculate the magnitude of
+	 * @param InEvalParams				Parameters to evaluate the aggregator under
+	 * @param OutMagnitude				[OUT] Computed magnitude
+	 * 
+	 * @return True if the magnitude was successfully calculated, false if it was not
+	 */
+	bool AttemptCalculateTransientAggregatorMagnitude(const FGameplayTag& InAggregatorIdentifier, const FAggregatorEvaluateParameters& InEvalParams, OUT float& OutMagnitude) const;
+	
+	/**
+	 * Attempts to calculate the magnitude of a transient aggregator given the specified parameters, including a starting base value.
+	 * 
+	 * @param InAggregatorIdentifier	Tag identifying the transient aggregator to attempt to calculate the magnitude of
+	 * @param InEvalParams				Parameters to evaluate the attribute under
+	 * @param InBaseValue				Base value to evaluate the attribute under
+	 * @param OutMagnitude				[OUT] Computed magnitude
+	 * 
+	 * @return True if the magnitude was successfully calculated, false if it was not
+	 */
+	bool AttemptCalculateTransientAggregatorMagnitudeWithBase(const FGameplayTag& InAggregatorIdentifier, const FAggregatorEvaluateParameters& InEvalParams, float InBaseValue, OUT float& OutMagnitude) const;
+
+	/**
+	 * Attempts to calculate the base value of a transient aggregator given the specified parameters.
+	 * 
+	 * @param InAggregatorIdentifier	Tag identifying the transient aggregator to attempt to calculate the base value of
+	 * @param OutBaseValue				[OUT] Computed base value
+	 * 
+	 * @return True if the base value was successfully calculated, false if it was not
+	 */
+	bool AttemptCalculateTransientAggregatorBaseValue(const FGameplayTag& InAggregatorIdentifier, OUT float& OutBaseValue) const;
+
+	/**
+	 * Attempts to calculate the bonus magnitude of a transient aggregator given the specified parameters.
+	 * 
+	 * @param InAggregatorIdentifier		Tag identifying the transient aggregator to attempt to calculate the bonus magnitude of
+	 * @param InEvalParams					Parameters to evaluate the attribute under
+	 * @param OutBonusMagnitude				[OUT] Computed bonus magnitude
+	 * 
+	 * @return True if the bonus magnitude was successfully calculated, false if it was not
+	 */
+	bool AttemptCalculateTransientAggregatorBonusMagnitude(const FGameplayTag& InAggregatorIdentifier, const FAggregatorEvaluateParameters& InEvalParams, OUT float& OutBonusMagnitude) const;
+	
+	/**
+	 * Attempts to populate the specified aggregator with a snapshot of a backing transient aggregator. Can fail if the transient aggregator doesn't exist as a result
+	 * of no scoped mods targeting it.
+	 * 
+	 * @param InAggregatorIdentifier	Tag identifying the transient aggregator to attempt to snapshot
+	 * @param OutSnapshottedAggregator	[OUT] Snapshotted aggregator, if possible
+	 * 
+	 * @return True if the aggregator was successfully snapshotted, false if it was not
+	 */
+	bool AttemptGetCapturedAttributeAggregatorSnapshot(const FGameplayTag& InAggregatorIdentifier, OUT FAggregator& OutSnapshottedAggregator) const;
+
 private:
 
 	/** Mapping of capture definition to aggregator with scoped modifiers added in; Used to process scoped modifiers w/o modifying underlying aggregators in the capture */
 	TMap<FGameplayEffectAttributeCaptureDefinition, FAggregator> ScopedModifierAggregators;
+
+	/** Mapping of tag identifier to aggregators with scoped modifiers added in; Used to process "temporary variable" support w/o requiring backed attribute capture definitions in scoped modifiers */
+	TMap<FGameplayTag, FAggregator> ScopedTransientAggregators;
 
 	/** Owning gameplay effect spec */
 	FGameplayEffectSpec* OwningSpec;
@@ -215,6 +273,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category=Attributes)
 	TArray<FGameplayEffectAttributeCaptureDefinition> InvalidScopedModifierAttributes;
 
+	/** Any tag in this container will show up as a valid "temporary variable" for scoped modifiers; Used to allow for data-driven variable support that doesn't rely on scoped modifiers */
+	UPROPERTY(EditDefaultsOnly, Category=NonAttributeCalculation)
+	FGameplayTagContainer ValidTransientAggregatorIdentifiers;
+
 public:
 	/**
 	 * Gets the collection of capture attribute definitions that the calculation class will accept as valid scoped modifiers
@@ -222,6 +284,13 @@ public:
 	 * @param OutScopableModifiers	[OUT] Array to populate with definitions valid as scoped modifiers
 	 */
 	virtual void GetValidScopedModifierAttributeCaptureDefinitions(OUT TArray<FGameplayEffectAttributeCaptureDefinition>& OutScopableModifiers) const;
+
+	/**
+	 * Gets the collection of identifiers of valid transient aggregators ("temporary variable aggregators")
+	 * 
+	 * @return Array of valid transient aggregator identifiers
+	 */
+	virtual const FGameplayTagContainer& GetValidTransientAggregatorIdentifiers() const;
 
 	/** Returns if this execution requires passed in tags */
 	virtual bool DoesRequirePassedInTags() const;
