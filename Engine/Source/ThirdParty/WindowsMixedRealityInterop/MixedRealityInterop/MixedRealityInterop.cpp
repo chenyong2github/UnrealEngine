@@ -1572,6 +1572,19 @@ namespace WindowsMixedReality
 		}
 	}
 
+	bool MixedRealityInterop::IsActiveAndValid()
+	{
+		if (!IsInitialized()
+			|| CameraResources == nullptr
+			// Do not update the frame after we generate rendering parameters for it.
+			|| CurrentFrameResources != nullptr)
+		{
+			return false;
+		}
+		return true;
+	}
+
+
 	void MixedRealityInterop::BlockUntilNextFrame()
 	{
 #if HOLOLENS_BLOCKING_PRESENT
@@ -1581,6 +1594,11 @@ namespace WindowsMixedReality
 		// Do not wait for a frame if we are running on the emulator or HL1 Remoting.
 		if (!m_isHL1Remoting)
 		{
+			if (!IsActiveAndValid())
+			{
+				return;
+			}
+
 #if	LOG_HOLOLENS_FRAME_COUNTER
 			{ std::wstringstream string; string << L"BlockUntilNextFrame() started"; Log(string); }
 			holographicSpace.WaitForNextFrameReady();
@@ -1597,6 +1615,11 @@ namespace WindowsMixedReality
 		{
 			std::lock_guard<std::mutex> lock2(poseLock);
 
+			if (!IsActiveAndValid())
+			{
+				return;
+			}
+
 			HolographicFrame frame = holographicSpace.CreateNextFrame();
 			currentFrame = std::make_unique<TrackingFrame>(frame);
 			
@@ -1610,10 +1633,7 @@ namespace WindowsMixedReality
 	{
 		std::lock_guard<std::mutex> lock(poseLock);
 
-		if (!IsInitialized()
-			|| CameraResources == nullptr
-			// Do not update the frame after we generate rendering parameters for it.
-			|| CurrentFrameResources != nullptr)
+		if (!IsActiveAndValid())
 		{
 			return false;
 		}
