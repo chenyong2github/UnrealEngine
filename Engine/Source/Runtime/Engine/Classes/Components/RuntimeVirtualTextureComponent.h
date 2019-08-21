@@ -19,13 +19,23 @@ private:
 	UPROPERTY(EditAnywhere, DuplicateTransient, Category = VirtualTexture)
 	URuntimeVirtualTexture* VirtualTexture = nullptr;
 
+	/** Use any streaming low mips when rendering in editor. Set true to view and debug the baked streaming low mips. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = VirtualTexture)
+	bool bUseStreamingLowMipsInEditor = false;
+
 	/** Actor to copy the bounds from to set up the transform. */
 	UPROPERTY(EditAnywhere, DuplicateTransient, Category = TransformFromBounds, meta = (DisplayName = "Source Actor"))
 	AActor* BoundsSourceActor = nullptr;
 
 public:
-	/** Get the runtime virtual texture object set on this component */
+	/** Get the runtime virtual texture object on this component. */
 	URuntimeVirtualTexture* GetVirtualTexture() const { return VirtualTexture; }
+
+	/** Get the runtime virtual texture UV to World transform on this component. */
+	FTransform GetVirtualTextureTransform() const;
+
+	/** Get if we want use any streaming low mips in the runtime virtual texture set on this component. */
+	bool IsStreamingLowMips() const;
 
 #if WITH_EDITOR
 	/** Copy the rotation from BoundsSourceActor to this component. Called by our UI details customization. */

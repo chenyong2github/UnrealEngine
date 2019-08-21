@@ -1767,17 +1767,18 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 			else
 			{
 				StaticMeshComponentsToMerge.Add(MeshComponent);
+			}
 
-				// Save the pivot and asset package name of the first mesh, will later be used for creating merged mesh asset 
-				if (bFirstMesh)
-				{
-					// Mesh component pivot point
-					MergedAssetPivot = InSettings.bPivotPointAtZero ? FVector::ZeroVector : MeshComponent->GetComponentTransform().GetLocation();
-					// Source mesh asset package name
-					MergedAssetPackageName = MeshComponent->GetStaticMesh()->GetOutermost()->GetName();
+			// Save the pivot and asset package name of the first mesh, will later be used for creating merged mesh asset 
+			if (bFirstMesh)
+			{
+				// Mesh component pivot point
+				MergedAssetPivot = InSettings.bPivotPointAtZero ? FVector::ZeroVector : MeshComponent->GetComponentTransform().GetLocation();
 
-					bFirstMesh = false;
-				}
+				// Source mesh asset package name
+				MergedAssetPackageName = MeshComponent->GetStaticMesh()->GetOutermost()->GetName();
+
+				bFirstMesh = false;
 			}
 		}
 	}
@@ -1949,7 +1950,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 	UMaterialInterface* MergedMaterial = nullptr;
 
 	// If the user wants to merge materials into a single one
-	if (bMergeMaterialData)
+	if (bMergeMaterialData && UniqueMaterials.Num() != 0)
 	{
 		UMaterialOptions* MaterialOptions = PopulateMaterialOptions(InSettings.MaterialSettings);
 		// Check each material to see if the shader actually uses vertex data and collect flags
@@ -2497,12 +2498,13 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 			StaticMesh->LightMapCoordinateIndex = LightMapUVChannel;
 		}
 
+		const bool bContainsImposters = ImposterComponents.Num() > 0;
 		TArray<UMaterialInterface*> ImposterMaterials;
 		FBox ImposterBounds(EForceInit::ForceInit);
 		for (int32 LODIndex = 0; LODIndex < MergedRawMeshes.Num(); ++LODIndex)
 		{
 			FMeshDescription& MergedMeshLOD = MergedRawMeshes[LODIndex];
-			if (MergedMeshLOD.Vertices().Num() > 0)
+			if (MergedMeshLOD.Vertices().Num() > 0 || bContainsImposters)
 			{
 				FStaticMeshSourceModel& SrcModel = StaticMesh->AddSourceModel();
 				// Don't allow the engine to recalculate normals
@@ -2520,7 +2522,6 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 					SrcModel.BuildSettings.DistanceFieldResolutionScale = 0.0f;
 				}
 
-				const bool bContainsImposters = ImposterComponents.Num() > 0;
 				if (bContainsImposters)
 				{
 					// Merge imposter meshes to rawmesh

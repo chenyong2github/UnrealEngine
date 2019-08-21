@@ -64,6 +64,18 @@ void FNavDataConfig::SetNavDataClass(TSoftClassPtr<AActor> InNavDataClass)
 {
 	NavDataClass = InNavDataClass;
 }
+
+void FNavDataConfig::Invalidate()
+{
+	new(this) FNavAgentProperties();
+	SetNavDataClass(nullptr);
+}
+
+FString FNavDataConfig::GetDescription() const
+{
+	return FString::Printf(TEXT("Name %s class %s agent radius %.1f")
+		, *Name.ToString(), *NavDataClass.ToString(), AgentRadius);
+}
 //----------------------------------------------------------------------//
 // FNavigationRelevantData
 //----------------------------------------------------------------------//
@@ -210,7 +222,8 @@ uint16 FNavigationQueryFilter::GetExcludeFlags() const
 //----------------------------------------------------------------------//
 // FNavAgentSelector
 //----------------------------------------------------------------------//
-FNavAgentSelector::FNavAgentSelector() : PackedBits(0x7fffffff)
+FNavAgentSelector::FNavAgentSelector(const uint32 InBits)
+	: PackedBits(InBits)
 {
 }
 

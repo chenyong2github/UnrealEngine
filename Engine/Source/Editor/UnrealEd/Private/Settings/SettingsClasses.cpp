@@ -131,12 +131,33 @@ USkeletalMeshEditorSettings::USkeletalMeshEditorSettings(const FObjectInitialize
 /* UEditorExperimentalSettings interface
  *****************************************************************************/
 
+static TAutoConsoleVariable<int32> CVarEditorHDRSupport(
+	TEXT("Editor.HDRSupport"),
+	0,
+	TEXT("Sets whether or not we should allow the editor to run on HDR monitors"),
+	ECVF_Default);
+
+static TAutoConsoleVariable<float> CVarEditorHDRNITLevel(
+	TEXT("Editor.HDRNITLevel"),
+	160.0f,
+	TEXT("Sets The desired NIT level of the editor when running on HDR"),
+	ECVF_Default);
+
 UEditorExperimentalSettings::UEditorExperimentalSettings( const FObjectInitializer& ObjectInitializer )
 	: Super(ObjectInitializer)
+	, bHDREditor(false)
+	, HDREditorNITLevel(160.0f)
 	, bEnableLocalizationDashboard(true)
 	, bUseOpenCLForConvexHullDecomp(false)
 	, bAllowPotentiallyUnsafePropertyEditing(false)
 {
+}
+
+void UEditorExperimentalSettings::PostInitProperties()
+{
+	CVarEditorHDRSupport->Set(bHDREditor ? 1 : 0, ECVF_SetByProjectSetting);
+	CVarEditorHDRNITLevel->Set(HDREditorNITLevel, ECVF_SetByProjectSetting);
+	Super::PostInitProperties();
 }
 
 void UEditorExperimentalSettings::PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent )
@@ -158,7 +179,14 @@ void UEditorExperimentalSettings::PostEditChangeProperty( struct FPropertyChange
 			FModuleManager::Get().LoadModule(TEXT("EnvironmentQueryEditor"));
 		}
 	}
-
+	else if (Name == FName(TEXT("bHDREditor")))
+	{
+		CVarEditorHDRSupport->Set(bHDREditor ? 1 : 0, ECVF_SetByProjectSetting);
+	}
+	else if (Name == FName(TEXT("HDREditorNITLevel")))
+	{
+		CVarEditorHDRNITLevel->Set(HDREditorNITLevel, ECVF_SetByProjectSetting);
+	}
 	if (!FUnrealEdMisc::Get().IsDeletePreferences())
 	{
 		SaveConfig();

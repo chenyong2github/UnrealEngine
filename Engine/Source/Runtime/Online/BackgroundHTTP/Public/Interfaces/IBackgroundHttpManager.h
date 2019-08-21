@@ -47,6 +47,20 @@ public:
 	/** Returns whether or not this is a platform specific implementation */
 	virtual bool IsGenericImplementation() const = 0;
 
+	/**
+	* Function that returns how many active BackgroundHttpRequests we should have actively downloading at once.
+	*
+	* @return int Number of downloads we should have active at once.
+	*/
+	virtual int GetMaxActiveDownloads() const = 0;
+
+	/**
+	* Function that sets how many active BackgroundHttpRequests we should have actively downloading at once.
+	*
+	* @param MaxActiveDownloads the maximum number of downloads that should be active at once
+	*/
+	virtual void SetMaxActiveDownloads(int MaxActiveDownloads) = 0;
+
 protected:
 	/**
 	* Designed to be called internally by AddRequest to associate our incoming request with any 

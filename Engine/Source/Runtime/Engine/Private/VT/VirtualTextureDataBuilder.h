@@ -3,15 +3,14 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "Engine/Texture.h"
-#include "TextureCompressorModule.h"
-#include "VirtualTextureBuiltData.h"
-#include "TextureDerivedDataTask.h"
 #include "ImageCore.h"
+#include "VT/VirtualTextureBuiltData.h"
 
 struct FImage;
 class ITextureCompressorModule;
 class IImageWrapperModule;
 struct FTextureSourceData;
+struct FTextureSourceBlockData;
 
 struct FVTSourceTileEntry
 {

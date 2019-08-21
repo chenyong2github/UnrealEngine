@@ -44,6 +44,21 @@ void URuntimeVirtualTextureComponent::DestroyRenderState_Concurrent()
 	Super::DestroyRenderState_Concurrent();
 }
 
+FTransform URuntimeVirtualTextureComponent::GetVirtualTextureTransform() const
+{
+	// Transform is based on bottom left of the URuntimeVirtualTextureComponent unit box (which is centered on the origin)
+	return FTransform(FVector(-0.5f, -0.5f, 0.f)) * GetComponentTransform();
+}
+
+bool URuntimeVirtualTextureComponent::IsStreamingLowMips() const
+{
+#if WITH_EDITOR
+	return bUseStreamingLowMipsInEditor;
+#else
+	return true;
+#endif
+}
+
 #if WITH_EDITOR
 
 void URuntimeVirtualTextureComponent::SetRotation()

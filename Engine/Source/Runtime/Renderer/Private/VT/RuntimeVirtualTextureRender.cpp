@@ -1,7 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "RuntimeVirtualTextureRender.h"
+#include "VT/RuntimeVirtualTextureRender.h"
 
+#include "Components/RuntimeVirtualTextureComponent.h"
 #include "GlobalShader.h"
 #include "GPUScene.h"
 #include "MaterialShader.h"
@@ -13,6 +14,7 @@
 #include "SceneRenderTargets.h"
 #include "ShaderBaseClasses.h"
 #include "VT/RuntimeVirtualTexture.h"
+#include "VT/RuntimeVirtualTextureSceneProxy.h"
 #include "MeshPassProcessor.inl"
 
 
@@ -612,7 +614,8 @@ namespace RuntimeVirtualTexture
 		FTransform const& UVToWorld,
 		FBox2D const& UVRange,
 		uint8 vLevel,
-		uint8 MaxLevel)
+		uint8 MaxLevel,
+		ERuntimeVirtualTextureDebugType DebugType)
 	{
 		SCOPED_DRAW_EVENT(RHICmdList, VirtualTextureDynamicCache);
 
@@ -662,7 +665,7 @@ namespace RuntimeVirtualTexture
 		View->CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>();
 		View->SetupUniformBufferParameters(SceneContext, nullptr, 0, *View->CachedViewUniformShaderParameters);
 		View->CachedViewUniformShaderParameters->WorldToVirtualTexture = WorldToUVRotate.ToMatrixNoScale();
-		View->CachedViewUniformShaderParameters->VirtualTextureParams = FVector4((float)vLevel, (float)MaxLevel, OrthoWidth/(float)TextureSize.X, OrthoHeight / (float)TextureSize.Y);
+		View->CachedViewUniformShaderParameters->VirtualTextureParams = FVector4((float)vLevel, DebugType == ERuntimeVirtualTextureDebugType::Debug ? 1.f : 0.f, OrthoWidth / (float)TextureSize.X, OrthoHeight / (float)TextureSize.Y);
 		View->ViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*View->CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
 		UploadDynamicPrimitiveShaderDataForView(RHICmdList, *(const_cast<FScene*>(Scene)), *View);
 		Scene->UniformBuffers.VirtualTextureViewUniformBuffer.UpdateUniformBufferImmediate(*View->CachedViewUniformShaderParameters);
@@ -760,5 +763,25 @@ namespace RuntimeVirtualTexture
 
 			RHICmdList.CopyTexture(GraphOutputTexture1->GetRenderTargetItem().ShaderResourceTexture->GetTexture2D(), OutputTexture1->GetTexture2D(), Info);
 		}
+	}
+
+
+	uint32 GetRuntimeVirtualTextureSceneIndex_GameThread(class URuntimeVirtualTextureComponent* InComponent)
+	{
+		int32 SceneIndex = 0;
+		ENQUEUE_RENDER_COMMAND(GetSceneIndexCommand)(
+			[&SceneIndex, InComponent](FRHICommandListImmediate& RHICmdList)
+		{
+			if (InComponent->GetScene() != nullptr)
+			{
+				FScene* Scene = InComponent->GetScene()->GetRenderScene();
+				if (Scene != nullptr && InComponent->SceneProxy != nullptr)
+				{
+					SceneIndex = Scene->GetRuntimeVirtualTextureSceneIndex(InComponent->SceneProxy->ProducerId);
+				}
+			}
+		});
+		FlushRenderingCommands();
+		return SceneIndex;
 	}
 }

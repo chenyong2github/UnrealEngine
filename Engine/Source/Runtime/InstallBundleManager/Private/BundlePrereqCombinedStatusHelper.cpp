@@ -98,7 +98,7 @@ void FBundlePrereqCombinedStatusHelper::CleanUpDelegates()
 	}
 }
 
-void FBundlePrereqCombinedStatusHelper::SetBundlesToTrackFromContentState(FInstallBundleContentState& BundleContentState)
+void FBundlePrereqCombinedStatusHelper::SetBundlesToTrackFromContentState(const FInstallBundleContentState& BundleContentState)
 {
 	RequiredBundleNames.Empty();
 	CachedBundleWeights.Empty();
@@ -113,7 +113,7 @@ void FBundlePrereqCombinedStatusHelper::SetBundlesToTrackFromContentState(FInsta
 	CurrentCombinedStatus.bBundleRequiresUpdate = bBundleNeedsUpdate;
 	
 	//Save required bundles and their weights
-	for (TPair<FName, float>& BundleStatePair : BundleContentState.IndividualBundleWeights)
+	for (const TPair<FName, float>& BundleStatePair : BundleContentState.IndividualBundleWeights)
 	{
 		RequiredBundleNames.Add(BundleStatePair.Key);
 		CachedBundleWeights.FindOrAdd(BundleStatePair.Key) = BundleStatePair.Value;

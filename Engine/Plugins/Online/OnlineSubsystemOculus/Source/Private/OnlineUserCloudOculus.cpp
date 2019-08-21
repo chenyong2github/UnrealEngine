@@ -135,7 +135,7 @@ void FOnlineUserCloudOculus::GetUserFileList(const FUniqueNetId& UserId, TArray<
 	UserFiles = MoveTemp(EnumerateCache);
 }
 
-bool FOnlineUserCloudOculus::WriteUserFile(const FUniqueNetId& UserId, const FString& FileName, TArray<uint8>& FileContents)
+bool FOnlineUserCloudOculus::WriteUserFile(const FUniqueNetId& UserId, const FString& FileName, TArray<uint8>& FileContents, bool bCompressBeforeUpload)
 {
 	auto LoggedInPlayerId = OculusSubsystem.GetIdentityInterface()->GetUniquePlayerId(0);
 	if (!LoggedInPlayerId.IsValid() || UserId != *LoggedInPlayerId)

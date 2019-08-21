@@ -45,7 +45,7 @@ class FNullInstallBundleManager : public IInstallBundleManager
 		return RetInfo;
 	}
 
-	virtual FInstallBundleRequestInfo RequestRemoveBundle(FName BundleName) override
+	virtual FInstallBundleRequestInfo RequestRemoveContent(FName BundleName) override
 	{
 		FInstallBundleRequestInfo RetInfo;
 		return RetInfo;
@@ -65,19 +65,23 @@ class FNullInstallBundleManager : public IInstallBundleManager
 		Callback.ExecuteIfBound(State);
 	}
 
-    virtual void CancelAllGetContentStateRequestsForTag(FName RequestTag) override
-    {
-        
-    }
-    
-	virtual void RequestRemoveBundleOnNextInit(FName BundleName) override
+	virtual void CancelAllGetContentStateRequestsForTag(FName RequestTag) override
+	{
+	}
+
+	virtual void RequestRemoveContentOnNextInit(FName BundleName) override
+	{
+	}
+	virtual void RequestRemoveContentOnNextInit(TArrayView<FName> BundleNames) override
+	{
+	}
+
+	virtual void CancelRequestRemoveContentOnNextInit(FName BundleName) override
 	{
 
 	}
-
-	virtual void CancelRequestRemoveBundleOnNextInit(FName BundleName) override
+	virtual void CancelRequestRemoveContentOnNextInit(TArrayView<FName> BundleNames) override
 	{
-
 	}
 
 	virtual void CancelBundle(FName BundleName, EInstallBundleCancelFlags Flags) override

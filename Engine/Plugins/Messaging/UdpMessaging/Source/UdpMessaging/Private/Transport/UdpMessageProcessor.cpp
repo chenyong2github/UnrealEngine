@@ -120,6 +120,11 @@ TMap<uint8, TArray<FGuid>> FUdpMessageProcessor::GetRecipientsPerProtocolVersion
 
 bool FUdpMessageProcessor::EnqueueInboundSegment(const TSharedPtr<FArrayReader, ESPMode::ThreadSafe>& Data, const FIPv4Endpoint& InSender)
 {
+	if (Stopping)
+	{
+		return false;
+	}
+
 	if (!InboundSegments.Enqueue(FInboundSegment(Data, InSender)))
 	{
 		return false;
@@ -132,6 +137,11 @@ bool FUdpMessageProcessor::EnqueueInboundSegment(const TSharedPtr<FArrayReader, 
 
 bool FUdpMessageProcessor::EnqueueOutboundMessage(const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& MessageContext, const TArray<FGuid>& Recipients)
 {
+	if (Stopping)
+	{
+		return false;
+	}
+	
 	TMap<uint8, TArray<FGuid>> RecipientPerVersions = GetRecipientsPerProtocolVersion(Recipients);
 	for (const auto& RecipientVersion : RecipientPerVersions)
 	{
@@ -192,7 +202,7 @@ uint32 FUdpMessageProcessor::Run()
 		UpdateKnownNodes();
 		UpdateStaticNodes();
 	}
-	
+
 	delete Beacon;
 	Beacon = nullptr;
 
@@ -209,6 +219,44 @@ void FUdpMessageProcessor::Stop()
 	WorkEvent->Trigger();
 }
 
+
+void FUdpMessageProcessor::WaitAsyncTaskCompletion()
+{
+	// Check if processor has in-flight serialization task(s).
+	auto HasIncompleteSerializationTasks = [this]()
+	{
+		for (const TPair<FGuid, FNodeInfo>& GuidNodeInfoPair : KnownNodes)
+		{
+			for (const TPair<int32, TSharedPtr<FUdpMessageSegmenter>>& SegmenterPair: GuidNodeInfoPair.Value.Segmenters)
+			{
+				if (!SegmenterPair.Value->IsMessageSerializationDone())
+				{
+					return true;
+				}
+			}
+		}
+
+		for (const TPair<FIPv4Endpoint, FNodeInfo>& Ipv4NodeInfoPair : StaticNodes)
+		{
+			for (const TPair<int32, TSharedPtr<FUdpMessageSegmenter>>& SegmenterPair: Ipv4NodeInfoPair.Value.Segmenters)
+			{
+				if (!SegmenterPair.Value->IsMessageSerializationDone())
+				{
+					return true;
+				}
+			}
+		}
+
+		return false;
+	};
+
+	// Ensures the task graph doesn't contain any pending/running serialization tasks after the processor exit. If the engine is shutting down, the serialization (UStruct) might
+	// not be available anymore when the task is run (The task graph shuts down after the UStruct stuff).
+	while (HasIncompleteSerializationTasks())
+	{
+		FPlatformProcess::Sleep(0); // Yield.
+	}
+}
 
 /* FSingleThreadRunnable interface
 *****************************************************************************/
