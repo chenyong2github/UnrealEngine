@@ -3,8 +3,8 @@
 #include "RuntimeVirtualTextureProducer.h"
 
 #include "RendererInterface.h"
-#include "RuntimeVirtualTextureRender.h"
 #include "ScenePrivate.h"
+#include "VT/RuntimeVirtualTextureRender.h"
 #include "VT/RuntimeVirtualTextureSceneProxy.h"
 
 
@@ -90,7 +90,8 @@ void FRuntimeVirtualTextureFinalizer::Finalize(FRHICommandListImmediate& RHICmdL
 			UVToWorld,
 			UVRange, 
 			Entry.vLevel,
-			Desc.MaxLevel);
+			Desc.MaxLevel,
+			ERuntimeVirtualTextureDebugType::None);
 	}
 
 	Tiles.SetNumUnsafeInternal(0);
