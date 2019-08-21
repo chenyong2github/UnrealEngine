@@ -217,7 +217,7 @@ void URuntimeVirtualTexture::GetProducerDescription(FVTProducerDescription& OutD
 
 	OutDesc.BlockWidthInTiles = Width / GetTileSize();
 	OutDesc.BlockHeightInTiles = Height / GetTileSize();
-	OutDesc.MaxLevel = FMath::Max((int32)FMath::CeilLogTwo(FMath::Max(OutDesc.BlockWidthInTiles, OutDesc.BlockHeightInTiles)) - RemoveLowMips, 1);
+	OutDesc.MaxLevel = FMath::Max((int32)FMath::CeilLogTwo(FMath::Max(OutDesc.BlockWidthInTiles, OutDesc.BlockHeightInTiles)) - GetRemoveLowMips(), 0);
 
 	// Set layer description based on material type
 	switch (MaterialType)
@@ -399,7 +399,6 @@ uint32 URuntimeVirtualTexture::GetStreamingTextureBuildHash() const
 			uint32 Size : 4;
 			uint32 TileSize : 4;
 			uint32 TileBorderSize : 4;
-			uint32 RemoveLowMips : 4;
 			uint32 StreamLowMips : 4;
 		};
 	};
@@ -410,8 +409,7 @@ uint32 URuntimeVirtualTexture::GetStreamingTextureBuildHash() const
 	Settings.CompressTextures = (uint32)bCompressTextures;
 	Settings.Size = (uint32)Size;
 	Settings.TileSize = (uint32)TileSize;
-	Settings.RemoveLowMips = (uint32)RemoveLowMips;
-	Settings.StreamLowMips = (uint32)StreamLowMips;
+	Settings.StreamLowMips = (uint32)GetStreamLowMips();
 
 	return Settings.PackedValue;
 }
@@ -457,7 +455,7 @@ IVirtualTexture* URuntimeVirtualTexture::CreateStreamingTextureProducer(IVirtual
 		FTexturePlatformData** StreamingTextureData = StreamingTexture->GetRunningPlatformData();
 		if (StreamingTextureData != nullptr && *StreamingTextureData != nullptr)
 		{
-			OutTransitionLevel = InMaxLevel - StreamLowMips;
+			OutTransitionLevel = FMath::Max(InMaxLevel - GetStreamLowMips() + 1, 0);
 			IVirtualTexture* StreamingProducer = new FUploadingVirtualTexture((*StreamingTextureData)->VTData, 0);
 			return new FVirtualTextureLevelRedirector(InProducer, StreamingProducer, OutTransitionLevel);
 		}
