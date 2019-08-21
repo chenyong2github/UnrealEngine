@@ -1465,7 +1465,11 @@ namespace WindowsMixedReality
 			stereoWindowHandle = CreateWindow(L"STATIC", L"UE4Game_WindowsMR", 0, 0, 0, 100, 100, nullptr, nullptr, nullptr, nullptr);
 
 			// Go immersive on this window handle before it has been shown.
-			CreateHolographicSpace(stereoWindowHandle);
+			bool Success = CreateHolographicSpace(stereoWindowHandle);
+			if (!Success)
+			{
+				{ std::wstringstream string; string << L"EnableStereo(true) CreateHolographicSpace() failed!"; Log(string); }
+			}
 
 			// Show the window to go immersive.
 			ShowWindow(stereoWindowHandle, SW_SHOWNORMAL);
