@@ -357,6 +357,8 @@ namespace WindowsMixedReality
 		bool GetDisplayDimensions(int& width, int& height);
 		const wchar_t* GetDisplayName();
 
+		bool IsActiveAndValid();
+
 		void BlockUntilNextFrame();
 		void UpdateRenderThreadFrame();
 
