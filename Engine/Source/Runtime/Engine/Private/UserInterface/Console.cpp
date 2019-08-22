@@ -96,6 +96,16 @@ public:
 		FAutoCompleteCommand& Cmd = Sink[NewIdx];
 		Cmd.Command = Name;
 
+		if (ConsoleSettings->bDisplayHelpInAutoComplete)
+		{
+			TArray<FString> Lines;
+			FString(CVar->GetHelp()).ParseIntoArrayLines(Lines, true);
+			if (Lines.Num())
+			{
+				Cmd.Desc = Lines[0];
+			}
+		}
+
 		IConsoleVariable* CVariable = CVar->AsVariable();
 		if (CVariable)
 		{
