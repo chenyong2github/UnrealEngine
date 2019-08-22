@@ -292,11 +292,13 @@ public class IOSPlatform : Platform
 	{
 		LogInformation("Package {0}", Params.RawProjectPath);
 
+		bool bIsBuiltAsFramework = IsBuiltAsFramework(Params, SC);
+
 		// ensure the ue4game binary exists, if applicable
 #if !PLATFORM_MAC
 		string ProjectGameExeFilename = Params.GetProjectExeForPlatform(Platform).ToString();
 		string FullExePath = CombinePaths(Path.GetDirectoryName(ProjectGameExeFilename), SC.StageExecutables[0] + (UnrealBuildTool.BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Mac ? ".stub" : ""));
-		if (!SC.IsCodeBasedProject && !FileExists_NoExceptions(FullExePath))
+		if (!SC.IsCodeBasedProject && !FileExists_NoExceptions(FullExePath) && !bIsBuiltAsFramework)
 		{
 			LogError("Failed to find game binary " + FullExePath);
 			throw new AutomationException(ExitCode.Error_MissingExecutable, "Stage Failed. Could not find binary {0}. You may need to build the UE4 project with your target configuration and platform.", FullExePath);
@@ -324,14 +326,14 @@ public class IOSPlatform : Platform
 		//   - Code here probably needs to be updated to write 0 byte files as 1 byte (difference with IPP, was required at one point when using Ionic.Zip to prevent issues on device, maybe not needed anymore?)
 		if (UnrealBuildTool.BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
 		{
-            Console.WriteLine("RYRY - IsBuiltAsFramework: " + IsBuiltAsFramework(Params, SC));
 			// If we're building as a framework, then we already have everything we need in the .app
 			// so simply package it up as an ipa
-			if (IsBuiltAsFramework(Params, SC))
-			{
-				PackageIPA(Params, ProjectGameExeFilename, SC);
-				return;
-			}
+            if (bIsBuiltAsFramework)
+            {
+                PackageIPA(Params, ProjectGameExeFilename, SC);
+                return;
+            }
+
 
 			// copy in all of the artwork and plist
 			PrepForUATPackageOrDeploy(TargetConfiguration, Params.RawProjectPath,

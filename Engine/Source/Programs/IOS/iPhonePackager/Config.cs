@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
  */
 
@@ -334,11 +334,6 @@ namespace iPhonePackager
 		/// Whether the cooked data will be cooked on the fly or was already cooked by the books.
 		/// </summary>
 		public static bool bCookOnTheFly = false;
-
-		/// <summary>
-		/// Whether to build the project as an IOS framework.
-		/// </summary>
-		public static bool bBuildAsFramework = false;
 
 		/// <summary>
 		/// Whether the install should be performed on a provision

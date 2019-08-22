@@ -248,10 +248,6 @@ public:
     UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (DisplayName = "Build project as a framework"))
     bool bBuildAsFramework;
 
-    // Whether to generate a native Xcode project as a wrapper for the framework.
-    UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (DisplayName = "Generate a native Xcode wrapper project for the framework"))
-    bool bGenerateFrameworkWrapperProject;
-
 	// Remotely compile shaders offline
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Build)
 	bool EnableRemoteShaderCompile;

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
  */
 
@@ -256,9 +256,6 @@ namespace iPhonePackager
 								break;
 							case "-autosigning":
 								Config.bAutomaticSigning = true;
-								break;
-							case "-buildasframework":
-								Config.bBuildAsFramework = true;
 								break;
 						}
 

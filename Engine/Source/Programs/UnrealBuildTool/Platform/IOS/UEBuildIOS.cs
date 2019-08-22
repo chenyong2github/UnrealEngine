@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -787,7 +787,10 @@ namespace UnrealBuildTool
 				Target.GlobalDefinitions.Add("HAS_METAL=0");
 			}
 
-			if (Target.IOSPlatform.bBuildAsFramework)
+
+			bool bBuildAsFramework = IOSToolChain.GetBuildAsFramework(Target.ProjectFile);
+
+			if (bBuildAsFramework)
 			{
 				Target.bShouldCompileAsDLL = true;
 				int PreviousDefinition = Target.GlobalDefinitions.FindIndex(s => s.Contains("BUILD_EMBEDDED_APP"));

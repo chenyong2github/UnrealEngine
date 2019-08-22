@@ -17,6 +17,8 @@ namespace UnrealBuildTool.ProjectFiles.Xcode
 		private readonly static string PROJECT_FILE_SEARCH_EXPRESSION = "*.pbxproj";
 		private readonly static string TEMPLATE_NAME = "FrameworkWrapper";
 		private readonly static string FRAMEWORK_WRAPPER_TEMPLATE_DIRECTORY = Path.Combine(UnrealBuildTool.EngineDirectory.ToNormalizedPath(), "Build", "IOS", "Resources", TEMPLATE_NAME);
+		private readonly static string TEMPLATE_PROJECT_NAME = "PROJECT_NAME";
+		private readonly static string COMMANDLINE_FILENAME = "ue4commandline.txt";
 
 		/// <summary>
 		/// Recursively copies all of the files and directories that are inside <paramref name="SourceDirectory"/> into <paramref name="DestinationDirectory"/>.
@@ -117,11 +119,12 @@ namespace UnrealBuildTool.ProjectFiles.Xcode
 		/// with <paramref name="NewValue"/>.
 		/// </summary>
 		/// <param name="RootDirectory">The directory in which all files should be subject to replacements.</param>
+        /// <param name="SearchPattern">Only replace text in files that match this pattern. Default is all files.</param>
 		/// <param name="OldValue">The value that should be replaced in all files.</param>
 		/// <param name="NewValue">The replacement value.</param>
-		private static void ReplaceTextInFiles(string RootDirectory, string OldValue, string NewValue)
+		private static void ReplaceTextInFiles(string RootDirectory, string OldValue, string NewValue, string SearchPattern = "*")
 		{
-			IEnumerable<string> Files = Directory.EnumerateFiles(RootDirectory, "*", SearchOption.AllDirectories);
+			IEnumerable<string> Files = Directory.EnumerateFiles(RootDirectory, SearchPattern, SearchOption.AllDirectories);
 			foreach (string SrcFile in Files)
 			{
 				string FileContents = File.ReadAllText(SrcFile);
@@ -169,10 +172,23 @@ namespace UnrealBuildTool.ProjectFiles.Xcode
 					ProjectContents = ChangeProjectSetting(ProjectContents, Setting.Key, Setting.Value);
 				}
 
-				File.WriteAllText(ProjectFiles[0], ProjectContents);
+                File.WriteAllText(ProjectFiles[0], ProjectContents);
 			}
 		}
-		
+
+        /// <summary>
+        /// Removes the readonly attribute from all files in a directory file while retaining all other attributes, thus making them writeable.
+        /// </summary>
+        /// <param name="RootDirectory">The path to the directory that will be make writeable.</param>
+        private static void MakeAllFilesWriteable(string RootDirectory)
+		{
+			IEnumerable<string> FileNames = Directory.EnumerateFiles(RootDirectory, "*", SearchOption.AllDirectories);
+			foreach (string FileName in FileNames)
+			{
+				File.SetAttributes(FileName, File.GetAttributes(FileName) & ~FileAttributes.ReadOnly);
+			}
+		}
+
 		/// <summary>
 		/// Changes the value of a setting in a project file. 
 		/// </summary>
@@ -229,7 +245,7 @@ namespace UnrealBuildTool.ProjectFiles.Xcode
 		/// <param name="CookedDataPath">The path to the 'cookeddata' folder that accompanies the framework.</param>
 		/// <param name="ProvisionName"></param>
 		/// <param name="TeamUUID"></param>
-		public static void GenerateXcodeFrameworkWrapper(string OutputDirectory, string FrameworkName, string BundleId, string SrcFrameworkPath, string EnginePath, string CookedDataPath,string ProvisionName, string TeamUUID)
+		public static void GenerateXcodeFrameworkWrapper(string OutputDirectory, string ProjectName, string FrameworkName, string BundleId, string SrcFrameworkPath, string EnginePath, string CookedDataPath,string ProvisionName, string TeamUUID)
 		{
 			string OutputDir = Path.Combine(OutputDirectory, FrameworkName);
 
@@ -237,20 +253,31 @@ namespace UnrealBuildTool.ProjectFiles.Xcode
 
 			DeleteUnwantedDirectories(OutputDir);
 
+			MakeAllFilesWriteable(OutputDir);
+
 			RenameFilesAndDirectories(OutputDir, TEMPLATE_NAME, FrameworkName);
 
 			SetProjectFileSettings(OutputDir, FrameworkName, BundleId, SrcFrameworkPath, EnginePath, CookedDataPath, ProvisionName, TeamUUID);
 
 			ReplaceTextInFiles(OutputDir, TEMPLATE_NAME, FrameworkName);
+
+			ReplaceTextInFiles(OutputDir, TEMPLATE_PROJECT_NAME, ProjectName, COMMANDLINE_FILENAME);
+
 		}
 
 	}
 	
 	class XcodeFrameworkWrapperUtils
 	{
-		public static string GetBundleID(FileReference ProjectFile)
+        private static ConfigHierarchy GetIni(DirectoryReference ProjectDirectory)
 		{
-			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(ProjectFile), UnrealTargetPlatform.IOS);
+			return ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ProjectDirectory, UnrealTargetPlatform.IOS);
+			//return ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(ProjectFile), UnrealTargetPlatform.IOS);
+		}
+
+		public static string GetBundleID(DirectoryReference ProjectDirectory, FileReference ProjectFile)
+		{
+			ConfigHierarchy Ini = GetIni(ProjectDirectory);
 			string BundleId;
 			Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "BundleIdentifier", out BundleId);
 
@@ -258,9 +285,9 @@ namespace UnrealBuildTool.ProjectFiles.Xcode
 			return BundleId;
 		}
 
-		public static string GetBundleName(FileReference ProjectFile)
+		public static string GetBundleName(DirectoryReference ProjectDirectory, FileReference ProjectFile)
 		{
-			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(ProjectFile), UnrealTargetPlatform.IOS);
+			ConfigHierarchy Ini = GetIni(ProjectDirectory);
 			string BundleName;
 			Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "BundleName", out BundleName);
 
@@ -268,17 +295,17 @@ namespace UnrealBuildTool.ProjectFiles.Xcode
 			return BundleName;
 		}
 
-		public static bool GetBuildAsFramework(FileReference ProjectFile)
+		public static bool GetBuildAsFramework(DirectoryReference ProjectDirectory)
 		{
-			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(ProjectFile), UnrealTargetPlatform.IOS);
+			ConfigHierarchy Ini = GetIni(ProjectDirectory);
 			bool bBuildAsFramework;
 			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bBuildAsFramework", out bBuildAsFramework);
 			return bBuildAsFramework;
 		}
 		
-		public static bool GetGenerateFrameworkWrapperProject(FileReference ProjectFile)
+		public static bool GetGenerateFrameworkWrapperProject(DirectoryReference ProjectDirectory)
 		{
-		ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(ProjectFile), UnrealTargetPlatform.IOS);
+			ConfigHierarchy Ini = GetIni(ProjectDirectory);
 			bool bGenerateFrameworkWrapperProject;
 			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bGenerateFrameworkWrapperProject", out bGenerateFrameworkWrapperProject);
 			return bGenerateFrameworkWrapperProject;

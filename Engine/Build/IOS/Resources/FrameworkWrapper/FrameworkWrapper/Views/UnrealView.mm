@@ -89,21 +89,6 @@ static UnrealContainerView* DelayedCreateContainer = nil;
     if (sharedUnrealView == nil)
 	{
 #if CAN_USE_UE4
-		extern FString GSavedCommandLine;
-
-		NSString* Path = [[NSBundle mainBundle] pathForResource:@"ue4commandline" ofType:@"txt"];
-		NSError* Error = nil;
-		NSString* CommandLineFileContents = [[NSString stringWithContentsOfFile:Path encoding:NSUTF8StringEncoding error:&Error]
-											 stringByTrimmingCharactersInSet: [NSCharacterSet whitespaceAndNewlineCharacterSet]];
-		if (Error == nil && [CommandLineFileContents length] > 0)
-		{
-			GSavedCommandLine = CommandLineFileContents;
-		}
-		else
-		{
-			GSavedCommandLine = self.CommandLine;
-		}
-
 		
 //       [self SetupEmbeddedToNativeCallback];
 

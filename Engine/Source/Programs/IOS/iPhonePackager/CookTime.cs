@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
  */
 
@@ -26,7 +26,7 @@ namespace iPhonePackager
 		/// List of files being inserted or updated in the Zip
 		/// </summary>
 		static private HashSet<string> FilesBeingModifiedToPrintOut = new HashSet<string>();
-		
+
 		/**
 		 * Create and open a work IPA file
 		 */
@@ -36,7 +36,7 @@ namespace iPhonePackager
 			string WorkIPA = Config.GetIPAPath(".ipa");
 			return CreateWorkingIPA(ReferenceZipPath, WorkIPA);
 		}
-		
+
 		/// <summary>
 		/// Creates a copy of a source IPA to a working path and opens it up as a Zip for further modifications
 		/// </summary>
@@ -76,9 +76,9 @@ namespace iPhonePackager
 				Program.ReturnCode = (int)ErrorCodes.Error_StubNotSignedCorrectly;
 			}
 
-            // Set encoding to support unicode filenames
-            Stub.AlternateEncodingUsage = ZipOption.Always;
-            Stub.AlternateEncoding = Encoding.UTF8;
+			// Set encoding to support unicode filenames
+			Stub.AlternateEncodingUsage = ZipOption.Always;
+			Stub.AlternateEncoding = Encoding.UTF8;
 
 			return Stub;
 		}
@@ -133,7 +133,7 @@ namespace iPhonePackager
 					FileOperations.CopyRequiredFile(GameFilename, DestFilename);
 				}
 			}
-			
+
 			// look for matching engine files that weren't in game
 			foreach (string EngineFilename in EngineFiles)
 			{
@@ -172,7 +172,7 @@ namespace iPhonePackager
 		/**
 		 * Callback for setting progress when saving zip file
 		 */
-		static private void UpdateSaveProgress( object Sender, SaveProgressEventArgs Event )
+		static private void UpdateSaveProgress(object Sender, SaveProgressEventArgs Event)
 		{
 			if (Event.EventType == ZipProgressEventType.Saving_BeforeWriteEntry)
 			{
@@ -306,10 +306,6 @@ namespace iPhonePackager
 			{
 				string SourceDir = Path.GetFullPath(ZipSourceDir);
 				string[] PayloadFiles = Directory.GetFiles(SourceDir, "*.*", Config.bIterate ? SearchOption.TopDirectoryOnly : SearchOption.AllDirectories);
-				HashSet<string> ExistingFiles = new HashSet<string>(FileSystem.GetAllPayloadFiles());
-				// We don't want to replace ue4commandline if we're building as a framework, since the wrapper project has its own ue4commandline file.
-				HashSet<string> FilesToNotReplace = new HashSet<string>()
-					{ "ue4commandline.txt" };
 
 				foreach (string Filename in PayloadFiles)
 				{
@@ -317,29 +313,26 @@ namespace iPhonePackager
 					// deeper than the base dir, since they were generated from a search)
 					string AbsoluteFilename = Path.GetFullPath(Filename);
 					string RelativeFilename = AbsoluteFilename.Substring(SourceDir.Length + 1).Replace('\\', '/');
-					
-					if (!Config.bBuildAsFramework || (!(FilesToNotReplace.Contains(RelativeFilename) && ExistingFiles.Contains(RelativeFilename))))
+
+					string ZipAbsolutePath = String.Format("Payload/{0}{1}.app/{2}",
+						Program.GameName + (Program.IsClient ? "Client" : ""),
+						Program.Architecture,
+						RelativeFilename);
+
+					byte[] FileContents = File.ReadAllBytes(AbsoluteFilename);
+					if (FileContents.Length == 0)
 					{
-						string ZipAbsolutePath = String.Format("Payload/{0}{1}.app/{2}",
-							Program.GameName + (Program.IsClient ? "Client" : ""),
-							Program.Architecture,
-							RelativeFilename);
+						// Zero-length files added by Ionic cause installation/upgrade to fail on device with error 0xE8000050
+						// We store a single byte in the files as a workaround for now
+						FileContents = new byte[1];
+						FileContents[0] = 0;
+					}
 
-						byte[] FileContents = File.ReadAllBytes(AbsoluteFilename);
-						if (FileContents.Length == 0)
-						{
-							// Zero-length files added by Ionic cause installation/upgrade to fail on device with error 0xE8000050
-							// We store a single byte in the files as a workaround for now
-							FileContents = new byte[1];
-							FileContents[0] = 0;
-						}
+					FileSystem.WriteAllBytes(RelativeFilename, FileContents);
 
-						FileSystem.WriteAllBytes(RelativeFilename, FileContents);
-
-						if ((FileContents.Length >= 1024 * 1024) || (Config.bVerbose))
-						{
-							FilesBeingModifiedToPrintOut.Add(ZipAbsolutePath);
-						}
+					if ((FileContents.Length >= 1024 * 1024) || (Config.bVerbose))
+					{
+						FilesBeingModifiedToPrintOut.Add(ZipAbsolutePath);
 					}
 				}
 			}

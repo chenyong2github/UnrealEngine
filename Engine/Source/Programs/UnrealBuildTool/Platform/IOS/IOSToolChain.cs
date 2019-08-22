@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 
 using System;
@@ -131,11 +131,16 @@ namespace UnrealBuildTool
 
 		public override void ModifyBuildProducts(ReadOnlyTargetRules Target, UEBuildBinary Binary, List<string> Libraries, List<UEBuildBundleResource> BundleResources, Dictionary<FileReference, BuildProductType> BuildProducts)
 		{
-			if (Target.IOSPlatform.bBuildAsFramework)
+			bool bBuildAsFramework = IOSToolChain.GetBuildAsFramework(Target.ProjectFile);
+			if (bBuildAsFramework)
 			{
 				int Index = Binary.OutputFilePath.GetFileNameWithoutExtension().IndexOf("-");
 				string OutputFile = Binary.OutputFilePath.GetFileNameWithoutExtension().Substring(0, Index > 0 ? Index : Binary.OutputFilePath.GetFileNameWithoutExtension().Length);
-				FileReference StubFile = FileReference.Combine(Binary.OutputDir.ParentDirectory.ParentDirectory, Binary.OutputFilePath.GetFileNameWithoutExtension() + ".stub");
+
+				DirectoryReference OutputDir = Binary.OutputDir;
+				if (OutputDir.ToString().Contains(".framework"))
+					OutputDir = OutputDir.ParentDirectory.ParentDirectory;
+				FileReference StubFile = FileReference.Combine(OutputDir, Binary.OutputFilePath.GetFileNameWithoutExtension() + ".stub");
 				BuildProducts.Add(StubFile, BuildProductType.Package);
 			}
 			else if (Target.IOSPlatform.bCreateStubIPA && Binary.Type != UEBuildBinaryType.StaticLibrary)
@@ -1501,7 +1506,7 @@ namespace UnrealBuildTool
 				FileReference PostBuildSyncFile = FileReference.Combine(BinaryLinkEnvironment.IntermediateDirectory, "PostBuildSync.dat");
 				BinaryFormatterUtils.Save(PostBuildSyncFile, PostBuildSyncTarget);
 
-				string PostBuildSyncArguments = String.Format("-Input=\"{0}\" -XmlConfigCache=\"{1}\" -remoteini={2}", PostBuildSyncFile, XmlConfig.CacheFile, UnrealBuildTool.GetRemoteIniPath());
+				string PostBuildSyncArguments = String.Format("-Input=\"{0}\" -XmlConfigCache=\"{1}\" -remoteini=\"{2}\"", PostBuildSyncFile, XmlConfig.CacheFile, UnrealBuildTool.GetRemoteIniPath());
 
 				Action PostBuildSyncAction = Action.CreateRecursiveAction<IOSPostBuildSyncMode>(ActionType.CreateAppBundle, PostBuildSyncArguments);
 				PostBuildSyncAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
@@ -1671,7 +1676,7 @@ namespace UnrealBuildTool
 			IOSExports.WriteEntitlements(Target.Platform, Ini, AppName, MobileProvisionFile, Target.bForDistribution, IntermediateDir);
 		}
 
-		private static void WriteMissingEmbeddedPlist(FileReference MissingPlistPath, FileReference ProjectFile)
+		private static void WriteMissingEmbeddedPlist(FileReference MissingPlistPath, DirectoryReference ProjectDirectory, FileReference ProjectFile)
 		{
 			FileReference PlistTemplatePath = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Build", "IOS", "Resources", "FrameworkPlist", "Embedded.plist");
 			if (!DirectoryReference.Exists(MissingPlistPath.Directory))
@@ -1679,8 +1684,8 @@ namespace UnrealBuildTool
 				DirectoryReference.CreateDirectory(MissingPlistPath.Directory);
 			}
 
-			string BundleID = ProjectFiles.Xcode.XcodeFrameworkWrapperUtils.GetBundleID(ProjectFile);
-			string BundleName = ProjectFiles.Xcode.XcodeFrameworkWrapperUtils.GetBundleName(ProjectFile);
+			string BundleID = ProjectFiles.Xcode.XcodeFrameworkWrapperUtils.GetBundleID(ProjectDirectory, ProjectFile);
+			string BundleName = ProjectFiles.Xcode.XcodeFrameworkWrapperUtils.GetBundleName(ProjectDirectory, ProjectFile);
 
 			BundleID += ".embedded"; // This is necessary because the wrapper that contains this framework cannot have the same BundleID.
 
@@ -1691,43 +1696,67 @@ namespace UnrealBuildTool
 			FileReference.WriteAllText(MissingPlistPath, Plist);
 		}
 
+        /// <summary>
+        /// If the project is a UE4Game project, Target.ProjectDirectory refers to the engine dir, not the actual dir of the project. So this method gets the 
+        /// actual directory of the project whether it is a UE4Game project or not.
+        /// </summary>
+        /// <returns>The actual project directory.</returns>
+        /// <param name="ProjectFile">The path to the project file</param>
+        private static DirectoryReference GetActualProjectDirectory(FileReference ProjectFile)
+		{
+			DirectoryReference ProjectDirectory = (ProjectFile == null ? DirectoryReference.FromString(UnrealBuildTool.GetRemoteIniPath()) : DirectoryReference.FromFile(ProjectFile)); 
+			return ProjectDirectory;
+		}
+
+        /// <summary>
+        /// Gets whether to build the project as a framework. Since it uses GetActualProjectDirectory internally, it ensures that the correct value is retrieved whether we're building a code-based project or blueprint-only project.
+        /// </summary>
+        /// <returns><c>true</c>, if the project should be built as a framework, <c>false</c> otherwise.</returns>
+        /// <param name="ProjectFile">A reference to the project file of the project being built.</param>
+        public static bool GetBuildAsFramework(FileReference ProjectFile)
+		{
+
+			DirectoryReference ProjectDirectory = GetActualProjectDirectory(ProjectFile);
+			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ProjectDirectory, UnrealTargetPlatform.IOS);
+			bool bBuildAsFramework;
+			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bBuildAsFramework", out bBuildAsFramework);
+			return bBuildAsFramework;
+		}
+
 		private static void GenerateFrameworkWrapperIfNonexistent(IOSPostBuildSyncTarget Target)
 		{
-			if (Target?.ProjectFile != null)
+			DirectoryReference ProjectDirectory = GetActualProjectDirectory(Target.ProjectFile);
+			DirectoryReference WrapperDirectory = DirectoryReference.Combine(ProjectDirectory, "Wrapper");
+
+			string ProjectName = ProjectDirectory.GetDirectoryName();
+			string FrameworkName = Target.TargetName;
+			string BundleId = ProjectFiles.Xcode.XcodeFrameworkWrapperUtils.GetBundleID(Target.ProjectDirectory, Target.ProjectFile);
+			string EnginePath = UnrealBuildTool.EngineDirectory.ToString();
+			string SrcFrameworkPath = DirectoryReference.Combine(Target.ProjectDirectory , "Binaries", "IOS", Target.Configuration.ToString()).ToString(); // We use Target.ProjectDirectory because if it is a UE4Game we want the engine dir and not the actual project dir.
+			string CookedDataPath = DirectoryReference.Combine(ProjectDirectory, "Saved", "StagedBuilds", "IOS", "cookeddata").ToString();
+			bool GenerateFrameworkWrapperProject = ProjectFiles.Xcode.XcodeFrameworkWrapperUtils.GetGenerateFrameworkWrapperProject(Target.ProjectDirectory);
+
+			string ProvisionName = string.Empty;
+			string TeamUUID = string.Empty;
+			IOSProjectSettings ProjectSettings = ((IOSPlatform)UEBuildPlatform.GetBuildPlatform(UnrealTargetPlatform.IOS)).ReadProjectSettings(Target.ProjectFile);
+
+			IOSProvisioningData Data = ((IOSPlatform)UEBuildPlatform.GetBuildPlatform(UnrealTargetPlatform.IOS)).ReadProvisioningData(ProjectSettings, Target.bForDistribution);
+			if (Data != null)
 			{
-				DirectoryReference FrameworkProjectDirectory = DirectoryReference.FromFile(Target.ProjectFile);
-				DirectoryReference WrapperDirectory = DirectoryReference.Combine(FrameworkProjectDirectory, "Wrapper");
-				string FrameworkName = Target.TargetName;
-				string BundleId = ProjectFiles.Xcode.XcodeFrameworkWrapperUtils.GetBundleID(Target.ProjectFile);
-				string EnginePath = UnrealBuildTool.EngineDirectory.ToString();
-				string SrcFrameworkPath = DirectoryReference.Combine(FrameworkProjectDirectory, "Binaries", "IOS", Target.Configuration.ToString()).ToString();
-				string CookedDataPath = DirectoryReference.Combine(FrameworkProjectDirectory, "Saved", "StagedBuilds", "IOS", "cookeddata").ToString();
-				bool GenerateFrameworkWrapperProject = ProjectFiles.Xcode.XcodeFrameworkWrapperUtils.GetGenerateFrameworkWrapperProject(Target.ProjectFile);
+				ProvisionName = Data.MobileProvisionName;
+				TeamUUID = Data.TeamUUID;
+			}
 
-				string ProvisionName = string.Empty;
-				string TeamUUID = string.Empty;
-				IOSProjectSettings ProjectSettings = ((IOSPlatform)UEBuildPlatform.GetBuildPlatform(UnrealTargetPlatform.IOS)).ReadProjectSettings(Target.ProjectFile);
-				if (ProjectSettings != null)
-				{
-					IOSProvisioningData Data = ((IOSPlatform)UEBuildPlatform.GetBuildPlatform(UnrealTargetPlatform.IOS)).ReadProvisioningData(ProjectSettings, Target.bForDistribution);
-					if (Data != null)
-					{
-						ProvisionName = Data.MobileProvisionName;
-						TeamUUID = Data.TeamUUID;
-					}
-				}
-
-				// Create the framework wrapper project, only if it doesn't exist and only if the user wants to generate the wrapper.
-				if (!DirectoryReference.Exists(DirectoryReference.Combine(WrapperDirectory, FrameworkName)) && GenerateFrameworkWrapperProject)
-				{
-					ProjectFiles.Xcode.XcodeFrameworkWrapperProject.GenerateXcodeFrameworkWrapper(WrapperDirectory.ToString(), FrameworkName, BundleId, SrcFrameworkPath, EnginePath, CookedDataPath, ProvisionName, TeamUUID);
-				}
+			// Create the framework wrapper project, only if it doesn't exist and only if the user wants to generate the wrapper.
+			if (!DirectoryReference.Exists(DirectoryReference.Combine(WrapperDirectory, FrameworkName)) && GenerateFrameworkWrapperProject)
+			{
+				ProjectFiles.Xcode.XcodeFrameworkWrapperProject.GenerateXcodeFrameworkWrapper(WrapperDirectory.ToString(), ProjectName, FrameworkName, BundleId, SrcFrameworkPath, EnginePath, CookedDataPath, ProvisionName, TeamUUID);
 			}
 		}
 
 		public static void PostBuildSync(IOSPostBuildSyncTarget Target)
 		{
-			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, Target.ProjectFile == null ? DirectoryReference.FromString(UnrealBuildTool.GetRemoteIniPath()) : DirectoryReference.FromFile(Target.ProjectFile), UnrealTargetPlatform.IOS);
+			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, GetActualProjectDirectory(Target.ProjectFile), UnrealTargetPlatform.IOS);
 			string BundleID;
 			Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "BundleIdentifier", out BundleID);
 
@@ -1737,14 +1766,14 @@ namespace UnrealBuildTool
 			string PathToDsymZip = Target.OutputPath.FullName + ".dSYM.zip";
 			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
 			{
-				if (IsCompiledAsFramework(Target.OutputPath.FullName))
+				if (GetBuildAsFramework(Target.ProjectFile))
 				{
 					// make sure the framework has a plist
-					FileReference PlistSrcLocation = FileReference.Combine(Target.ProjectFile.Directory, "Build", "IOS", "Embedded.plist");
+					FileReference PlistSrcLocation = FileReference.Combine(Target.ProjectDirectory, "Build", "IOS", "Embedded.plist");
 					if (!FileReference.Exists(PlistSrcLocation))
 					{
 
-						WriteMissingEmbeddedPlist(PlistSrcLocation, Target.ProjectFile);
+						WriteMissingEmbeddedPlist(PlistSrcLocation, Target.ProjectDirectory, Target.ProjectFile);
 						if (!FileReference.Exists(PlistSrcLocation))
 							throw new BuildException("Unable to find plist for output framework ({0})", PlistSrcLocation);
 					}
@@ -1784,8 +1813,8 @@ namespace UnrealBuildTool
 
 				// generate the dummy project so signing works
 				DirectoryReference XcodeWorkspaceDir = null;
-				if (!bBuildAsFramework)
-				{
+                if (!bBuildAsFramework)
+                {
 					if (AppName == "UE4Game" || AppName == "UE4Client" || Target.ProjectFile == null || Target.ProjectFile.IsUnderDirectory(UnrealBuildTool.EngineDirectory))
 					{
 						XcodeWorkspaceDir = DirectoryReference.Combine(UnrealBuildTool.RootDirectory, String.Format("UE4_{0}.xcworkspace", (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS")));
@@ -1794,7 +1823,7 @@ namespace UnrealBuildTool
 					{
 						XcodeWorkspaceDir = DirectoryReference.Combine(Target.ProjectDirectory, String.Format("{0}_{1}.xcworkspace", Target.ProjectFile.GetFileNameWithoutExtension(), (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS")));
 					}
-				}
+                }
 
 				// Path to the temporary keychain. When -ImportCertificate is specified, we will temporarily add this to the list of keychains to search, and remove it later.
 				FileReference TempKeychain = FileReference.Combine(Target.ProjectIntermediateDirectory, "TempKeychain.keychain");
@@ -1892,7 +1921,14 @@ namespace UnrealBuildTool
 					string SchemeName;
 					if (AppName == "UE4Game" || AppName == "UE4Client")
 					{
-						SchemeName = "UE4";
+						if (bBuildAsFramework)
+						{
+							SchemeName = "UE4Game";
+						}
+						else
+						{
+							SchemeName = "UE4";
+						}
 					}
 					else
 					{
@@ -1904,9 +1940,9 @@ namespace UnrealBuildTool
 					string CmdLine;
 					if (bBuildAsFramework)
 					{
-						DirectoryReference FrameworkProjectDirectory = DirectoryReference.FromFile(Target.ProjectFile);
+						DirectoryReference FrameworkProjectDirectory = GetActualProjectDirectory(Target.ProjectFile);
 						DirectoryReference WrapperDirectory = DirectoryReference.Combine(FrameworkProjectDirectory, "Wrapper");
-                        string FrameworkName = Target.TargetName;
+						string FrameworkName = Target.TargetName;
 						DirectoryReference WrapperProject = DirectoryReference.Combine(WrapperDirectory, FrameworkName, FrameworkName + ".xcodeproj");
 
 						// Delete everything in payload directory before building
@@ -1936,7 +1972,7 @@ namespace UnrealBuildTool
 					}
 
 					CmdLine += String.Format(" CODE_SIGN_IDENTITY='{0}'", SigningCertificate);
-					
+
 					if (!ProjectSettings.bAutomaticSigning)
 					{
 						CmdLine += (!string.IsNullOrEmpty(MobileProvisionUUID) ? (" PROVISIONING_PROFILE_SPECIFIER=" + MobileProvisionUUID) : "");
@@ -2016,7 +2052,8 @@ namespace UnrealBuildTool
 				{
 					CleanIntermediateDirectory(FrameworkDerivedDataDir);
 				}
-				else
+
+				if (XcodeWorkspaceDir != null)
 				{
 					// delete the temp project
 					DirectoryReference.Delete(XcodeWorkspaceDir, true);
@@ -2036,7 +2073,6 @@ namespace UnrealBuildTool
 				{
 					PackageStub(RemoteShadowDirectoryMac, AppName, Target.OutputPath.GetFileNameWithoutExtension());
 				}
-
 			}
 			else
 			{
