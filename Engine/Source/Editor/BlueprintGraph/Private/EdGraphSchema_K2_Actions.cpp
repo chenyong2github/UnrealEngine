@@ -57,16 +57,16 @@ int32 FEdGraphSchemaAction_BlueprintVariableBase::GetReorderIndexInContainer() c
 
 bool FEdGraphSchemaAction_BlueprintVariableBase::ReorderToBeforeAction(TSharedRef<FEdGraphSchemaAction> OtherAction)
 {
-	if ((OtherAction->GetTypeId() == StaticGetTypeId()) && (OtherAction->GetPersistentItemDefiningObject() == GetPersistentItemDefiningObject()))
+	if (OtherAction->GetPersistentItemDefiningObject() == GetPersistentItemDefiningObject())
 	{
 		FEdGraphSchemaAction_BlueprintVariableBase* VarAction = (FEdGraphSchemaAction_BlueprintVariableBase*)&OtherAction.Get();
 
 		// Only let you drag and drop if variables are from same BP class, and not onto itself
 		UBlueprint* BP = GetSourceBlueprint();
 		FName TargetVarName = VarAction->GetVariableName();
-		if ((BP != nullptr) && (VarName != TargetVarName) && (VariableSource == VarAction->GetVariableClass()))
+		if ((BP != nullptr) && (VarName != TargetVarName) && (VariableSource == VarAction->GetVariableScope()))
 		{
-			if (FBlueprintEditorUtils::MoveVariableBeforeVariable(BP, VarName, TargetVarName, true))
+			if (FBlueprintEditorUtils::MoveVariableBeforeVariable(BP, VarAction->GetVariableScope(), VarName, TargetVarName, true))
 			{
 				// Change category of var to match the one we dragged on to as well
 				FText TargetVarCategory = FBlueprintEditorUtils::GetBlueprintVariableCategory(BP, TargetVarName, GetVariableScope());
@@ -108,6 +108,14 @@ UBlueprint* FEdGraphSchemaAction_BlueprintVariableBase::GetSourceBlueprint() con
 }
 
 /////////////////////////////////////////////////////
+// FEdGraphSchemaAction_K2LocalVar
+
+int32 FEdGraphSchemaAction_K2LocalVar::GetReorderIndexInContainer() const
+{
+	return FBlueprintEditorUtils::FindLocalVariableIndex(GetSourceBlueprint(), GetVariableScope(), GetVariableName());
+}
+
+/////////////////////////////////////////////////////
 // FEdGraphSchemaAction_K2Graph
 
 void FEdGraphSchemaAction_K2Graph::MovePersistentItemToCategory(const FText& NewCategoryName)
@@ -132,7 +140,7 @@ int32 FEdGraphSchemaAction_K2Graph::GetReorderIndexInContainer() const
 
 bool FEdGraphSchemaAction_K2Graph::ReorderToBeforeAction(TSharedRef<FEdGraphSchemaAction> OtherAction)
 {
-	if ((OtherAction->GetTypeId() == GetTypeId()) && (OtherAction->GetPersistentItemDefiningObject() == GetPersistentItemDefiningObject()))
+	if (OtherAction->GetTypeId() == GetTypeId())
 	{
 		const int32 OldIndex = GetReorderIndexInContainer();
 		const int32 NewIndexToGoBefore = OtherAction->GetReorderIndexInContainer();
@@ -707,4 +715,5 @@ UEdGraphNode* FEdGraphSchemaAction_K2PasteHere::PerformAction( class UEdGraph* P
 	FKismetEditorUtilities::PasteNodesHere(ParentGraph, Location);
 	return nullptr;
 }
+
 

@@ -1152,8 +1152,19 @@ public:
 	 */
 	static int32 FindNewVariableIndex(const UBlueprint* Blueprint, const FName& InName);
 
+	/**
+	 * Find the index of a local variable declared in this blueprint. Returns INDEX_NONE if not found.
+	 *
+	 * @param	VariableScope	Struct of owning function.
+	 *
+	 * @param	InVariableName	Name of the variable to find.
+	 *
+	 * @return	The index of the variable, or INDEX_NONE if it wasn't introduced in this blueprint.
+	 */
+	static int32 FindLocalVariableIndex(const UBlueprint* Blueprint, UStruct* VariableScope, const FName& InVariableName);
+
 	/** Change the order of variables in the Blueprint */
-	static bool MoveVariableBeforeVariable(UBlueprint* Blueprint, FName VarNameToMove, FName TargetVarName, bool bDontRecompile);
+	static bool MoveVariableBeforeVariable(UBlueprint* Blueprint, UStruct* VariableScope, FName VarNameToMove, FName TargetVarName, bool bDontRecompile);
 
 	/**
 	 * Find the index of a timeline first declared in this blueprint. Returns INDEX_NONE if not found.

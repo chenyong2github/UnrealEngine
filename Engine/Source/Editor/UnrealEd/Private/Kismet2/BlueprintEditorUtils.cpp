@@ -3466,26 +3466,81 @@ int32 FBlueprintEditorUtils::FindNewVariableIndex(const UBlueprint* Blueprint, c
 	return INDEX_NONE;
 }
 
-bool FBlueprintEditorUtils::MoveVariableBeforeVariable(UBlueprint* Blueprint, FName VarNameToMove, FName TargetVarName, bool bDontRecompile)
+int32 FBlueprintEditorUtils::FindLocalVariableIndex(const UBlueprint* Blueprint, UStruct* VariableScope, const FName& InVariableName)
 {
-	bool bMoved = false;
-	int32 VarIndexToMove = FindNewVariableIndex(Blueprint, VarNameToMove);
-	int32 TargetVarIndex = FindNewVariableIndex(Blueprint, TargetVarName);
-	if(VarIndexToMove != INDEX_NONE && TargetVarIndex != INDEX_NONE)
+	UK2Node_FunctionEntry* FunctionEntryNode = nullptr;
+	FindLocalVariable(Blueprint, VariableScope, InVariableName, &FunctionEntryNode);
+
+	if (FunctionEntryNode != nullptr)
 	{
-		// Copy var we want to move
-		FBPVariableDescription MoveVar = Blueprint->NewVariables[VarIndexToMove];
+		for (int32 i = 0; i < FunctionEntryNode->LocalVariables.Num(); i++)
+		{
+			if (FunctionEntryNode->LocalVariables[i].VarName == InVariableName)
+			{
+				return i;
+			}
+		}
+	}
+	return INDEX_NONE;
+}
+
+bool FBlueprintEditorUtils::MoveVariableBeforeVariable(UBlueprint* Blueprint, UStruct* VariableScope, FName VarNameToMove, FName TargetVarName, bool bDontRecompile)
+{
+	check(Blueprint && VariableScope);
+
+	bool bMoved = false;
+	int32 VarIndexToMove = INDEX_NONE;
+	int32 TargetVarIndex = INDEX_NONE;
+
+	//Get the indices of the variables to be re-ordered
+	if (VariableScope->IsA(UFunction::StaticClass()))
+	{
+		VarIndexToMove = FindLocalVariableIndex(Blueprint, VariableScope, VarNameToMove);
+		TargetVarIndex = FindLocalVariableIndex(Blueprint, VariableScope, TargetVarName);
+	}
+	else
+	{
+		VarIndexToMove = FindNewVariableIndex(Blueprint, VarNameToMove);
+		TargetVarIndex = FindNewVariableIndex(Blueprint, TargetVarName);
+	}
+
+	if (VarIndexToMove != INDEX_NONE && TargetVarIndex != INDEX_NONE)
+	{
 		// When we remove item, will back all items after it. If your target is after it, need to adjust
-		if(TargetVarIndex > VarIndexToMove)
+		if (TargetVarIndex > VarIndexToMove)
 		{
 			TargetVarIndex--;
 		}
-		// Remove var we are moving
-		Blueprint->NewVariables.RemoveAt(VarIndexToMove);
-		// Add in before target variable
-		Blueprint->NewVariables.Insert(MoveVar, TargetVarIndex);
 
-		if(!bDontRecompile)
+		//Handle Local vs Class scope 
+		if (VariableScope->IsA(UFunction::StaticClass()))
+		{
+			UK2Node_FunctionEntry* FunctionEntryNode = nullptr;
+			FindLocalVariable(Blueprint, VariableScope, VarNameToMove, &FunctionEntryNode);
+
+			if (FunctionEntryNode != nullptr)
+			{
+				// Copy var we want to move
+				FBPVariableDescription MoveVar = FunctionEntryNode->LocalVariables[VarIndexToMove];
+
+				// Remove var we are moving
+				FunctionEntryNode->LocalVariables.RemoveAt(VarIndexToMove);
+				// Add in before target variable
+				FunctionEntryNode->LocalVariables.Insert(MoveVar, TargetVarIndex);				
+			}
+		}
+		else
+		{			
+			// Copy var we want to move
+			FBPVariableDescription MoveVar = Blueprint->NewVariables[VarIndexToMove];
+			
+			// Remove var we are moving
+			Blueprint->NewVariables.RemoveAt(VarIndexToMove);
+			// Add in before target variable
+			Blueprint->NewVariables.Insert(MoveVar, TargetVarIndex);
+		}
+
+		if (!bDontRecompile)
 		{
 			FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
 		}
