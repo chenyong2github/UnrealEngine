@@ -155,7 +155,7 @@ FString FTargetReceipt::GetDefaultPath(const TCHAR* BaseDir, const TCHAR* Target
 	}
 	else
 	{
-		return FPaths::Combine(BaseDir, FString::Printf(TEXT("Binaries/%s/%s-%s-%s%s.target"), Platform, TargetName, Platform, Configuration, ArchitectureSuffix));
+		return FPaths::Combine(BaseDir, FString::Printf(TEXT("Binaries/%s/%s-%s-%s%s.target"), Platform, TargetName, Platform, LexToString(Configuration), ArchitectureSuffix));
 	}
 }
 
