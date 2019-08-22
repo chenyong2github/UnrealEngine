@@ -58,7 +58,7 @@ void FSoundWaveAssetActionExtender::ExecuteCreateSimpleSound(const FToolMenuCont
 		// Create the factory used to generate the asset
 		USoundSimpleFactory* Factory = NewObject<USoundSimpleFactory>();
 		Factory->SoundWaves.Reset();
-		for (UObject* Object : Context->SelectedObjects)
+		for (const TWeakObjectPtr<UObject>& Object : Context->SelectedObjects)
 		{
 			if (USoundWave* Wave = Cast<USoundWave>(Object))
 			{

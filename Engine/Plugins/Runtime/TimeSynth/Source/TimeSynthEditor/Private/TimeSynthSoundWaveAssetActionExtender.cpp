@@ -66,7 +66,7 @@ void FTimeSynthSoundWaveAssetActionExtender::ExecuteCreateTimeSyncClip(const FTo
 	FAssetToolsModule& AssetToolsModule = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools");
 
 	UTimeSynthClipFactory* Factory = NewObject<UTimeSynthClipFactory>();
-	for (UObject* Object : Context->SelectedObjects)
+	for (const TWeakObjectPtr<UObject>& Object : Context->SelectedObjects)
 	{
 		USoundWave* SoundWave = Cast<USoundWave>(Object);
 
@@ -103,7 +103,7 @@ void FTimeSynthSoundWaveAssetActionExtender::ExecuteCreateTimeSyncClipSet(const 
 	AssetToolsModule.Get().CreateUniqueAssetName(SoundWave->GetOutermost()->GetName(), DefaultSuffix, PackagePath, Name);
 
 	UTimeSynthClipFactory* Factory = NewObject<UTimeSynthClipFactory>();
-	Factory->SoundWaves = FObjectEditorUtils::GetTypedWeakObjectPtrs<USoundWave>(Context->SelectedObjects);
+	Factory->SoundWaves = FObjectEditorUtils::GetTypedWeakObjectPtrs<USoundWave>(Context->GetSelectedObjects());
 
 	AssetToolsModule.Get().CreateAsset(Name, FPackageName::GetLongPackagePath(PackagePath), UTimeSynthClip::StaticClass(), Factory);
 }

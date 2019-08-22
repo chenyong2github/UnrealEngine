@@ -23,8 +23,21 @@ public:
 	TWeakPtr<IAssetTypeActions> CommonAssetTypeActions;
 	
 	UPROPERTY()
-	TArray<UObject*> SelectedObjects;
+	TArray<TWeakObjectPtr<UObject>> SelectedObjects;
 
 	UPROPERTY()
 	UClass* CommonClass;
+
+	UFUNCTION(BlueprintCallable, Category="Tool Menus")
+	TArray<UObject*> GetSelectedObjects() const
+	{
+		TArray<UObject*> Result;
+		Result.Reserve(SelectedObjects.Num());
+		for (const TWeakObjectPtr<UObject>& Object : SelectedObjects)
+		{
+			Result.Add(Object.Get());
+		}
+		return Result;
+	}
 };
+
