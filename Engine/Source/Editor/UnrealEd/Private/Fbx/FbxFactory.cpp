@@ -1223,13 +1223,13 @@ namespace ImportCompareHelper
 		}
 	}
 
-	void FillRecursivelySkeletonCompareData(const FbxNode *ParentNode, FSkeletonTreeNode& SkeletonTreeNode)
+	void FillRecursivelySkeletonCompareData(const FbxNode *ParentNode, FSkeletonTreeNode& SkeletonTreeNode, const UnFbx::FFbxImporter* FFbxImporter)
 	{
-		SkeletonTreeNode.JointName = FName(UTF8_TO_TCHAR(ParentNode->GetName()));
+		SkeletonTreeNode.JointName = FName(UTF8_TO_TCHAR(FFbxImporter->MakeName(ParentNode->GetName())));
 		for (int32 ChildIndex = 0; ChildIndex < ParentNode->GetChildCount(); ChildIndex++)
 		{
 			FSkeletonTreeNode& ChildNode = SkeletonTreeNode.Childrens.AddDefaulted_GetRef();
-			FillRecursivelySkeletonCompareData(ParentNode->GetChild(ChildIndex), ChildNode);
+			FillRecursivelySkeletonCompareData(ParentNode->GetChild(ChildIndex), ChildNode, FFbxImporter);
 		}
 	}
 
@@ -1281,7 +1281,7 @@ namespace ImportCompareHelper
 			}
 			
 			//Fill the Result skeleton data
-			FillRecursivelySkeletonCompareData(JointLinks[0], SkeletonCompareData.ResultAssetRoot);
+			FillRecursivelySkeletonCompareData(JointLinks[0], SkeletonCompareData.ResultAssetRoot, FFbxImporter);
 		}
 	}
 

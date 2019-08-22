@@ -947,8 +947,8 @@ public:
 	bool ImportCollisionModels(UStaticMesh* StaticMesh, const FbxString& NodeName);
 
 	//help
-	ANSICHAR* MakeName(const ANSICHAR* name);
-	FString MakeString(const ANSICHAR* Name);
+	ANSICHAR* MakeName(const ANSICHAR* name) const;
+	FString MakeString(const ANSICHAR* Name) const;
 	FName MakeNameForMesh(FString InName, FbxObject* FbxObject);
 
 	// meshes

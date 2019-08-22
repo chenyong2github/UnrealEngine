@@ -1620,7 +1620,7 @@ bool FFbxImporter::ImportFromFile(const FString& Filename, const FString& Type, 
 	return Result;
 }
 
-ANSICHAR* FFbxImporter::MakeName(const ANSICHAR* Name)
+ANSICHAR* FFbxImporter::MakeName(const ANSICHAR* Name) const
 {
 	const int SpecialChars[] = {'.', ',', '/', '`', '%'};
 
@@ -1656,7 +1656,7 @@ ANSICHAR* FFbxImporter::MakeName(const ANSICHAR* Name)
 	return TmpName;
 }
 
-FString FFbxImporter::MakeString(const ANSICHAR* Name)
+FString FFbxImporter::MakeString(const ANSICHAR* Name) const
 {
 	return FString(ANSI_TO_TCHAR(Name));
 }
