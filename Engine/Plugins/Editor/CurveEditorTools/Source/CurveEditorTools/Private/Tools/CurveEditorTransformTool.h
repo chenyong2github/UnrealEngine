@@ -28,7 +28,7 @@ enum class ECurveEditorAnchorFlags : uint16
 	FalloffLeft = 0x80,
 	FalloffRight = 0x100,
 	FalloffAll = FalloffTopLeft | FalloffTopRight | FalloffLeft | FalloffRight,
-	CenterScale = 0x200
+	ScaleCenter = 0x200
 };
 
 UENUM()
@@ -55,20 +55,21 @@ struct FCurveEditorTransformWidget
 
 public:
 	ECurveEditorAnchorFlags SelectedAnchorFlags;
+	ECurveEditorAnchorFlags DisplayAnchorFlags;
 
 	FGeometry MakeGeometry(const FGeometry& InWidgetGeometry) const
 	{
 		return InWidgetGeometry.MakeChild(Size, FSlateLayoutTransform(Position));
 	}
 
-	ECurveEditorAnchorFlags GetAnchorFlagsForMousePosition(const FGeometry& InWidgetGeometry, float  FalloffHeight, float FalloffWidth, const FVector2D& RelativeCenterScale, const FVector2D& InMouseScreenPosition) const;
+	ECurveEditorAnchorFlags GetAnchorFlagsForMousePosition(const FGeometry& InWidgetGeometry, float  FalloffHeight, float FalloffWidth, const FVector2D& RelativeScaleCenter, const FVector2D& InMouseScreenPosition) const;
 
 	void GetCenterGeometry(const FGeometry& InWidgetGeometry, FGeometry& OutCenter) const;
 	void GetSidebarGeometry(const FGeometry& InWidgetGeometry, FGeometry& OutLeft, FGeometry& OutRight, FGeometry& OutTop, FGeometry& OutBottom) const;
 	void GetCornerGeometry(const FGeometry& InWidgetGeometry, FGeometry& OutTopLeft, FGeometry& OutTopRight, FGeometry& OutBottomLeft, FGeometry& OutBottomRight) const;
 	void GetFalloffGeometry(const FGeometry& InWidgetGeometry, float FalloffHeight, float FalloffWidth, FGeometry& OutTopLeft, FGeometry& OutTopRight, FGeometry& OutLeft, FGeometry& OutRight) const;
 	void GetScaleCenterGeometry(const FGeometry& InWidgetGeometry, FVector2D ScaleCenter, FGeometry& OutInputBoxGeometry) const;
-
+	void GetCenterIndicatorGeometry(const FGeometry& InWidgetGeometry, FGeometry& OutCenterIndicatorGeometry) const;
 
 	FVector2D Size;
 	FVector2D Position;
@@ -98,6 +99,12 @@ struct FTransformToolOptions
 
 	UPROPERTY(Transient, EditAnywhere, Category = ToolOptions)
 	float RightBound;
+
+	UPROPERTY(Transient, EditAnywhere, Category = ToolOptions)
+	float ScaleCenterX;
+
+	UPROPERTY(Transient, EditAnywhere, Category = ToolOptions)
+	float ScaleCenterY;
 
 	/** specifies the falloff type applied to curve selection */
 	UPROPERTY(Transient, EditAnywhere, Category = ToolOptions)
@@ -192,6 +199,9 @@ private:
 
 	/** point to scale from, relative to current bounds */
 	FVector2D RelativeScaleCenter;
+
+	/** Same as the above, but flipped when the scale amount is inverted for display */
+	FVector2D DisplayRelativeScaleCenter;
 
 	/** Get Soft Select Change Based upon Input Value and internal soft selection weight values*/
 	double GetFalloffWeight(double InputValue) const;

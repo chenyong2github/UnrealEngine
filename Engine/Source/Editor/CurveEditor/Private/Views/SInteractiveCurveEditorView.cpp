@@ -1063,7 +1063,7 @@ FReply SInteractiveCurveEditorView::OnMouseButtonUp(const FGeometry& MyGeometry,
 	{
 		// Curve Selection Testing.
 		TOptional<FCurveModelID> HitCurve = GetHoveredCurve();
-		if (!HitPoint(MousePosition).IsSet() && HitCurve.IsSet() && !MouseEvent.IsShiftDown() && !MouseEvent.IsAltDown() && !MouseEvent.IsControlDown())
+		if (!HitPoint(MousePosition).IsSet() && HitCurve.IsSet() && !MouseEvent.IsAltDown())
 		{
 			FCurveModel* CurveModel = CurveEditor->FindCurve(HitCurve.GetValue());
 
