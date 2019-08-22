@@ -11,6 +11,8 @@
 #include "CurveEditorSelection.h"
 #include "Misc/EnumClassFlags.h"
 #include "CurveEditorSnapMetrics.h"
+#include "ScopedTransaction.h"
+#include "UObject/StructOnScope.h"
 
 #include "CurveEditorMultiScaleTool.generated.h"
 
