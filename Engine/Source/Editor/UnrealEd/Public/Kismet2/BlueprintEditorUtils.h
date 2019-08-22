@@ -556,6 +556,13 @@ public:
 	static bool IsInterfaceBlueprint(const UBlueprint* Blueprint);
 
 	/**
+	* Whether or not this graph is an interface graph (i.e. is from an interface blueprint)
+	* 
+	* @return	Whether or not this is an interface graph
+	*/
+	static bool IsInterfaceGraph(const UEdGraph* Graph);
+
+	/**
 	 * Whether or not this blueprint is an interface, used only for defining functions to implement
 	 *
 	 * @return	Whether or not this is a level script blueprint

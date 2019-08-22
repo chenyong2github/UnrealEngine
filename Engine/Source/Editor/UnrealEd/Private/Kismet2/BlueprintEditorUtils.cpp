@@ -3238,6 +3238,11 @@ bool FBlueprintEditorUtils::IsInterfaceBlueprint(const UBlueprint* Blueprint)
 	return (Blueprint && Blueprint->BlueprintType == BPTYPE_Interface);
 }
 
+bool FBlueprintEditorUtils::IsInterfaceGraph(const UEdGraph* Graph)
+{
+	return IsInterfaceBlueprint(FindBlueprintForGraph(Graph));
+}
+
 bool FBlueprintEditorUtils::IsLevelScriptBlueprint(const UBlueprint* Blueprint)
 {
 	return (Blueprint && Blueprint->BlueprintType == BPTYPE_LevelScript);
