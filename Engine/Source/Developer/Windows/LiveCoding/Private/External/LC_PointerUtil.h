@@ -9,6 +9,12 @@
 namespace pointer
 {
 	template <typename T>
+	T As(void* anyPointer);
+
+	template <typename T>
+	T As(const void* anyPointer);
+
+	template <typename T>
 	T AsInteger(const void* anyPointer)
 	{
 		// unfortunately, conversion from pointers to integers is implementation-defined, which is sign-extended in MSVC and GCC.
