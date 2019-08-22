@@ -38,6 +38,7 @@ namespace UnrealBuildTool.Rules
 						"LevelEditor",
 						"UnrealEd",
 						"EditorSubsystem",
+						"BlueprintGraph",
 					}
 				);
 			}

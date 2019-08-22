@@ -17,6 +17,7 @@
 #include "UObject/PropertyPortFlags.h"
 #include "Engine/World.h"
 #include "Templates/Casts.h"
+#include "BlueprintActionDatabase.h"
 
 #if WITH_PYTHON
 
@@ -1102,8 +1103,8 @@ public:
 		// Create a new class with a temporary name; we will rename it as part of Finalize
 		const FString NewClassName = MakeUniqueObjectName(ClassOuter, UPythonGeneratedClass::StaticClass(), *FString::Printf(TEXT("%s_NEWINST"), *ClassName)).ToString();
 		NewClass = NewObject<UPythonGeneratedClass>(ClassOuter, *NewClassName, RF_Public | RF_Standalone | RF_Transient);
-		NewClass->SetMetaData(TEXT("BlueprintType"), TEXT("true"));
 		NewClass->SetSuperStruct(InSuperClass);
+		NewClass->ClassFlags |= CLASS_Native;
 	}
 
 	FPythonGeneratedClassBuilder(UPythonGeneratedClass* InOldClass, UClass* InSuperClass)
@@ -1117,8 +1118,8 @@ public:
 		// Create a new class with a temporary name; we will rename it as part of Finalize
 		const FString NewClassName = MakeUniqueObjectName(ClassOuter, UPythonGeneratedClass::StaticClass(), *FString::Printf(TEXT("%s_NEWINST"), *ClassName)).ToString();
 		NewClass = NewObject<UPythonGeneratedClass>(ClassOuter, *NewClassName, RF_Public | RF_Standalone | RF_Transient);
-		NewClass->SetMetaData(TEXT("BlueprintType"), TEXT("true"));
 		NewClass->SetSuperStruct(InSuperClass);
+		NewClass->ClassFlags |= CLASS_Native;
 	}
 
 	~FPythonGeneratedClassBuilder()
@@ -1180,6 +1181,12 @@ public:
 			FPyWrapperTypeReinstancer::Get().AddPendingClass(OldClass, NewClass);
 			UPythonGeneratedClass::ReparentDerivedClasses(OldClass, NewClass);
 		}	
+
+		if (FBlueprintActionDatabase* ActionDB = FBlueprintActionDatabase::TryGet())
+		{
+			// Notify Blueprints that there is a new class to add to the action list
+			ActionDB->RefreshClassActions(NewClass);
+		}
 
 		// Null the NewClass pointer so the destructor doesn't kill it
 		UPythonGeneratedClass* FinalizedClass = NewClass;
@@ -1366,9 +1373,18 @@ public:
 		}
 		if (!Func->HasAnyFunctionFlags(FUNC_Static))
 		{
-			// Strip the zero'th 'self' argument when processing a non-static function
-			FuncArgNames.RemoveAt(0, 1, /*bAllowShrinking*/false);
-			FuncArgDefaults.RemoveAt(0, 1, /*bAllowShrinking*/false);
+			// Check for a malformed function rather than assert in the remove
+			if (FuncArgNames.Num() > 0 && FuncArgDefaults.Num() > 0)
+			{
+				// Strip the zero'th 'self' argument when processing a non-static function
+				FuncArgNames.RemoveAt(0, 1, /*bAllowShrinking*/false);
+				FuncArgDefaults.RemoveAt(0, 1, /*bAllowShrinking*/false);
+			}
+			else
+			{
+				PyUtil::SetPythonError(PyExc_Exception, PyType, *FString::Printf(TEXT("Incorrect number of arguments specified for '%s' (missing self?)"), *InFieldName));
+				return false;
+			}
 		}
 		if (!SuperFunc)
 		{
