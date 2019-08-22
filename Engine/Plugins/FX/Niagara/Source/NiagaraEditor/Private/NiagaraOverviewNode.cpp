@@ -29,6 +29,11 @@ const FGuid UNiagaraOverviewNode::GetEmitterHandleGuid() const
 
 FText UNiagaraOverviewNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
+	if (OwningSystem == nullptr)
+	{
+		return FText::GetEmpty();
+	}
+
 	if (EmitterHandleGuid.IsValid())
 	{
 		for (const FNiagaraEmitterHandle& Handle : OwningSystem->GetEmitterHandles())
