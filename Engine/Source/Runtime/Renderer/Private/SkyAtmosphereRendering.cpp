@@ -31,6 +31,13 @@ static TAutoConsoleVariable<int32> CVarSupportSkyAtmosphere(
 	TEXT("Enables SkyAtmosphere rendering and shader code."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
+// The project settings for the sky atmosphere component to affect the height fog (disable runtime and shader code)
+static TAutoConsoleVariable<int32> CVarSupportSkyAtmosphereAffectsHeightFog(
+	TEXT("r.SupportSkyAtmosphereAffectsHeightFog"),
+	0,
+	TEXT("Enables SkyAtmosphere affecting height fog. It requires r.SupportSkyAtmosphere to be true."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
 ////////////////////////////////////////////////////////////////////////// Regular sky 
 
 static TAutoConsoleVariable<float> CVarSkyAtmosphereSampleCountMin(
