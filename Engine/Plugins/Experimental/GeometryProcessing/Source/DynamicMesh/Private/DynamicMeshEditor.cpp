@@ -187,10 +187,7 @@ operation_failed:
 	// remove what we added so far
 	if (ResultOut.NewTriangles.Num()) 
 	{
-		if (!RemoveTriangles(ResultOut.NewTriangles, false))
-		{
-			checkf(false, TEXT("FDynamicMeshEditor::StitchSparselyCorrespondedVertexLoops: failed to add all triangles, and also failed to back out changes."));
-		}
+		ensureMsgf(RemoveTriangles(ResultOut.NewTriangles, false), TEXT("FDynamicMeshEditor::StitchSparselyCorrespondedVertexLoops: failed to add all triangles, and also failed to back out changes."));
 	}
 	return false;
 }

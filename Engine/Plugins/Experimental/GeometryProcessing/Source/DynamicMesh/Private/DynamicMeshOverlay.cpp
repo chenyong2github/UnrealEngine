@@ -293,6 +293,12 @@ template<typename RealType, int ElementSize>
 void TDynamicMeshOverlay<RealType, ElementSize>::OnRemoveTriangle(int TriangleID, bool bRemoveIsolatedVertices)
 {
 	FIndex3i Triangle = GetTriangle(TriangleID);
+	if (Triangle.A < 0 && Triangle.B < 0 && Triangle.C < 0)
+	{
+		// if whole triangle has no overlay vertices set, that's OK, just remove nothing
+		// (if only *some* of the triangle vertices were < 0, that would be a bug / invalid overlay triangle)
+		return;
+	}
 	InitializeNewTriangle(TriangleID);
 
 	// decrement element refcounts, and free element if it is now unreferenced

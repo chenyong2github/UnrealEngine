@@ -170,9 +170,8 @@ int FDynamicMesh3::AppendTriangle(const FIndex3i& tv, int gid)
 		check(false);
 		return InvalidID;
 	}
-	if (tv[0] == tv[1] || tv[0] == tv[2] || tv[1] == tv[2])
+	if (!ensure(tv[0] != tv[1] && tv[0] != tv[2] && tv[1] != tv[2]))
 	{
-		check(false);
 		return InvalidID;
 	}
 

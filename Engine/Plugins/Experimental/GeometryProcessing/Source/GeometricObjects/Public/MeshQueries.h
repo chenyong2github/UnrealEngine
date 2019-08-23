@@ -139,6 +139,28 @@ public:
 		return tNearestID;
 	}
 
+	// brute force search for all triangle intersections, sorted
+	static void FindHitTriangles_LinearSearch(const TriangleMeshType& Mesh, const FRay3d& Ray, TArray<TPair<float, int>>& SortedHitTriangles)
+	{
+		FTriangle3d Triangle;
+		SortedHitTriangles.Empty();
+
+		for (int TriIdx : Mesh.TriangleIndicesItr())
+		{
+			Mesh.GetTriVertices(TriIdx, Triangle.V[0], Triangle.V[1], Triangle.V[2]);
+			FIntrRay3Triangle3d Query(Ray, Triangle);
+			if (Query.Find())
+			{
+				SortedHitTriangles.Emplace(Query.RayParameter, TriIdx);
+			}
+		}
+
+		SortedHitTriangles.Sort([](const TPair<float, int>& A, const TPair<float, int>& B)
+		{
+			return A.Key < B.Key;
+		});
+	}
+
 	/**
 	 * convenience function to construct a IntrRay3Triangle3 object for a Mesh triangle
 	 */

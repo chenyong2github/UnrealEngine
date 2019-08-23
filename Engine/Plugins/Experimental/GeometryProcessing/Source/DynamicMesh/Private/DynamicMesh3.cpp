@@ -1048,6 +1048,12 @@ int FDynamicMesh3::FindEdge(int vA, int vB) const
 {
 	check(IsVertex(vA));
 	check(IsVertex(vB));
+	if (vA == vB)
+	{
+		// self-edges are not allowed, and if we fall through to the search below on a self edge we will incorrectly
+		// sometimes return an arbitrary edge if queried for a self-edge, due to the optimization of only checking one side of the edge
+		return InvalidID;
+	}
 
 	// [RMS] edge vertices must be sorted (min,max),
 	//   that means we only need one index-check in inner loop.
