@@ -4,7 +4,7 @@
 #include "AudioDevice.h"
 #include "AudioModulation.h"
 #include "AudioModulationInternal.h"
-#include "AudioModulationUtils.h"
+#include "AudioModulationStatics.h"
 #include "SoundModulationTransform.h"
 
 
@@ -29,7 +29,7 @@ void USoundModulationSettings::PostEditChangeProperty(FPropertyChangedEvent& Pro
 		return;
 	}
 
-	if (AudioModulation::FAudioModulationImpl* Impl = AudioModulation::GetModulationImpl(GetWorld()))
+	if (AudioModulation::FAudioModulationImpl* Impl = UAudioModulationStatics::GetModulationImpl(GetWorld()))
 	{
 		Impl->OnEditSource(*this);
 	}
@@ -42,7 +42,7 @@ void USoundModulationSettings::PostEditChangeChainProperty(FPropertyChangedChain
 		return;
 	}
 
-	if (AudioModulation::FAudioModulationImpl* Impl = AudioModulation::GetModulationImpl(GetWorld()))
+	if (AudioModulation::FAudioModulationImpl* Impl = UAudioModulationStatics::GetModulationImpl(GetWorld()))
 	{
 		Impl->OnEditSource(*this);
 	}
