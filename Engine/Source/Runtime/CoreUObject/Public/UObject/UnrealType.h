@@ -1284,19 +1284,26 @@ public:
 
 protected:
 	template <typename OldNumericType>
-	void ConvertFromArithmeticValue(FStructuredArchive::FSlot Slot, void* Obj, const FPropertyTag& Tag)
+	FORCEINLINE void ConvertFromArithmeticValue(FStructuredArchive::FSlot Slot, void* Obj, const FPropertyTag& Tag)
+	{
+		ConvertFromArithmeticValueImpl<OldNumericType>(*this, Slot, Obj, Tag);
+	}
+
+private:
+	template <typename OldNumericType>
+	static void ConvertFromArithmeticValueImpl(const TProperty_Numeric& This, FStructuredArchive::FSlot Slot, void* Obj, const FPropertyTag& Tag)
 	{
 		OldNumericType OldValue;
 		Slot << OldValue;
 		TCppType NewValue = (TCppType)OldValue;
-		this->SetPropertyValue_InContainer(Obj, NewValue, Tag.ArrayIndex);
+		This.SetPropertyValue_InContainer(Obj, NewValue, Tag.ArrayIndex);
 
 		UE_CLOG(
 			((TIsSigned<OldNumericType>::Value || TIsFloatingPoint<OldNumericType>::Value) && (!TIsSigned<TCppType>::Value && !TIsFloatingPoint<TCppType>::Value) && OldValue < 0) || ((OldNumericType)NewValue != OldValue),
 			LogClass,
 			Warning,
 			TEXT("Potential data loss during conversion of integer property %s of %s - was (%s) now (%s) - for package: %s"),
-			*this->GetName(),
+			*This.GetName(),
 			*Slot.GetUnderlyingArchive().GetArchiveName(),
 			*LexToString(OldValue),
 			*LexToString(NewValue),
@@ -1304,69 +1311,82 @@ protected:
 			);
 	}
 
+	template <>
+	FORCEINLINE static void ConvertFromArithmeticValueImpl<TCppType>(const TProperty_Numeric& This, FStructuredArchive::FSlot Slot, void* Obj, const FPropertyTag& Tag)
+	{
+		TCppType Value;
+		Slot << Value;
+		This.SetPropertyValue_InContainer(Obj, Value, Tag.ArrayIndex);
+	}
 public:
 	virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override
 	{
-		if (Tag.Type == NAME_Int8Property)
+		if (const EName * TagType = Tag.Type.ToEName())
 		{
-			ConvertFromArithmeticValue<int8>(Slot, Data, Tag);
-		}
-		else if (Tag.Type == NAME_Int16Property)
-		{
-			ConvertFromArithmeticValue<int16>(Slot, Data, Tag);
-		}
-		else if (Tag.Type == NAME_IntProperty)
-		{
-			ConvertFromArithmeticValue<int32>(Slot, Data, Tag);
-		}
-		else if (Tag.Type == NAME_Int64Property)
-		{
-			ConvertFromArithmeticValue<int64>(Slot, Data, Tag);
-		}
-		else if (Tag.Type == NAME_ByteProperty)
-		{
-			if (Tag.EnumName != NAME_None)
+			switch (*TagType)
+			{
+			case NAME_Int8Property:
+				ConvertFromArithmeticValue<int8>(Slot, Data, Tag);
+				return EConvertFromTypeResult::Converted;
+
+			case NAME_Int16Property:
+				ConvertFromArithmeticValue<int16>(Slot, Data, Tag);
+				return EConvertFromTypeResult::Converted;
+
+			case NAME_IntProperty:
+				ConvertFromArithmeticValue<int32>(Slot, Data, Tag);
+				return EConvertFromTypeResult::Converted;
+
+			case NAME_Int64Property:
+				ConvertFromArithmeticValue<int64>(Slot, Data, Tag);
+				return EConvertFromTypeResult::Converted;
+
+			case NAME_ByteProperty:
+				if (!Tag.EnumName.IsNone())
+				{
+					int64 PreviousValue = this->ReadEnumAsInt64(Slot, DefaultsStruct, Tag);
+					this->SetPropertyValue_InContainer(Data, PreviousValue, Tag.ArrayIndex);
+				}
+				else
+				{
+					ConvertFromArithmeticValue<int8>(Slot, Data, Tag);
+				}
+				return EConvertFromTypeResult::Converted;
+
+			case NAME_EnumProperty:
 			{
 				int64 PreviousValue = this->ReadEnumAsInt64(Slot, DefaultsStruct, Tag);
-				this->SetPropertyValue_InContainer(Data, PreviousValue, Tag.ArrayIndex);
+				this->SetPropertyValue_InContainer(Data, (TCppType)PreviousValue, Tag.ArrayIndex);
+				return EConvertFromTypeResult::Converted;
 			}
-			else
-			{
-				ConvertFromArithmeticValue<int8>(Slot, Data, Tag);
+
+			case NAME_UInt16Property:
+				ConvertFromArithmeticValue<uint16>(Slot, Data, Tag);
+				return EConvertFromTypeResult::Converted;
+
+			case NAME_UInt32Property:
+				ConvertFromArithmeticValue<uint32>(Slot, Data, Tag);
+				return EConvertFromTypeResult::Converted;
+
+			case NAME_UInt64Property:
+				ConvertFromArithmeticValue<uint64>(Slot, Data, Tag);
+				return EConvertFromTypeResult::Converted;
+
+			case NAME_FloatProperty:
+				ConvertFromArithmeticValue<float>(Slot, Data, Tag);
+				return EConvertFromTypeResult::Converted;
+
+			case NAME_DoubleProperty:
+				ConvertFromArithmeticValue<double>(Slot, Data, Tag);
+				return EConvertFromTypeResult::Converted;
+
+			default:
+				// We didn't convert it
+				break;
 			}
-		}
-		else if (Tag.Type == NAME_EnumProperty)
-		{
-			int64 PreviousValue = this->ReadEnumAsInt64(Slot, DefaultsStruct, Tag);
-			this->SetPropertyValue_InContainer(Data, (TCppType)PreviousValue, Tag.ArrayIndex);
-		}
-		else if (Tag.Type == NAME_UInt16Property)
-		{
-			ConvertFromArithmeticValue<uint16>(Slot, Data, Tag);
-		}
-		else if (Tag.Type == NAME_UInt32Property)
-		{
-			ConvertFromArithmeticValue<uint32>(Slot, Data, Tag);
-		}
-		else if (Tag.Type == NAME_UInt64Property)
-		{
-			ConvertFromArithmeticValue<uint64>(Slot, Data, Tag);
-		}
-		else if (Tag.Type == NAME_FloatProperty)
-		{
-			ConvertFromArithmeticValue<float>(Slot, Data, Tag);
-		}
-		else if (Tag.Type == NAME_DoubleProperty)
-		{
-			ConvertFromArithmeticValue<double>(Slot, Data, Tag);
-		}
-		else
-		{
-			// We didn't convert it
-			return EConvertFromTypeResult::UseSerializeItem;
 		}
 
-		return EConvertFromTypeResult::Converted;
+		return EConvertFromTypeResult::UseSerializeItem;
 	}
 	// End of UProperty interface
 

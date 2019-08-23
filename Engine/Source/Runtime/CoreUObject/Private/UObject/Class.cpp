@@ -977,6 +977,7 @@ void UStruct::SerializeTaggedProperties(FStructuredArchive::FSlot Slot, uint8* D
 
 	// Determine if this struct supports optional property guid's (UBlueprintGeneratedClasses Only)
 	const bool bArePropertyGuidsAvailable = (UnderlyingArchive.UE4Ver() >= VER_UE4_PROPERTY_GUID_IN_PROPERTY_TAG) && !FPlatformProperties::RequiresCookedData() && ArePropertyGuidsAvailable();
+	const bool bUseRedirects = !FPlatformProperties::RequiresCookedData() || UnderlyingArchive.IsSaveGame();
 
 	if( UnderlyingArchive.IsLoading() )
 	{
@@ -998,13 +999,8 @@ void UStruct::SerializeTaggedProperties(FStructuredArchive::FSlot Slot, uint8* D
 			FPropertyTag Tag;
 			PropertyRecord << SA_VALUE(TEXT("Tag"), Tag);
 
-			if( Tag.Name == NAME_None )
+			if (Tag.Name.IsNone())
 			{
-				break;
-			}
-			if (!Tag.Name.IsValid())
-			{
-				UE_LOG(LogClass, Warning, TEXT("Invalid tag name: struct '%s', archive '%s'"), *GetName(), *UnderlyingArchive.GetArchiveName());
 				break;
 			}
 
@@ -1035,26 +1031,15 @@ void UStruct::SerializeTaggedProperties(FStructuredArchive::FSlot Slot, uint8* D
 			if( Property == nullptr || Property->GetFName() != Tag.Name )
 			{
 				// No need to check redirects on platforms where everything is cooked. Always check for save games
-				if ((!FPlatformProperties::RequiresCookedData() || UnderlyingArchive.IsSaveGame()) && !UnderlyingArchive.HasAnyPortFlags(PPF_DuplicateForPIE|PPF_Duplicate))
+				if (bUseRedirects && !UnderlyingArchive.HasAnyPortFlags(PPF_DuplicateForPIE|PPF_Duplicate))
 				{
-					FName EachName = GetFName();
-					FName PackageName = GetOutermost()->GetFName();
-					// Search the current class first, then work up the class hierarchy to see if theres a match for our fixup.
-					UStruct* Owner = GetOwnerStruct();
-					if( Owner )
+					for (UStruct* CheckStruct = GetOwnerStruct(); CheckStruct; CheckStruct = CheckStruct->GetSuperStruct())
 					{
-						UStruct* CheckStruct = Owner;
-						while(CheckStruct)
+						FName NewTagName = UProperty::FindRedirectedPropertyName(CheckStruct, Tag.Name);
+						if (!NewTagName.IsNone())
 						{
-							FName NewTagName = UProperty::FindRedirectedPropertyName(CheckStruct, Tag.Name);
-
-							if (NewTagName != NAME_None)
-							{
-								Tag.Name = NewTagName;
-								break;
-							}
-
-							CheckStruct = CheckStruct->GetSuperStruct();
+							Tag.Name = NewTagName;
+							break;
 						}
 					}
 				}
@@ -1089,93 +1074,92 @@ void UStruct::SerializeTaggedProperties(FStructuredArchive::FSlot Slot, uint8* D
 				RemainingArrayDim = Property ? Property->ArrayDim : 0;
 			}
 
+			const int64 StartOfProperty = UnderlyingArchive.Tell();
+
 			if (!Property)
 			{
 				Property = CustomFindProperty(Tag.Name);
 			}
 
-			FName PropID = Property ? Property->GetID() : NAME_None;
-			FName ArrayInnerID = NAME_None;
-
-			// Check if this is a struct property and we have a redirector
-			// No need to check redirects on platforms where everything is cooked. Always check for save games
-			if (!FPlatformProperties::RequiresCookedData() || UnderlyingArchive.IsSaveGame())
+			if (Property)
 			{
-				if (Tag.Type == NAME_StructProperty && PropID == NAME_StructProperty)
+				FName PropID = Property->GetID();
+
+				// Check if this is a struct property and we have a redirector
+				// No need to check redirects on platforms where everything is cooked. Always check for save games
+				if (bUseRedirects)
 				{
-					const FName NewName = FLinkerLoad::FindNewNameForStruct(Tag.StructName);
-					const FName StructName = CastChecked<UStructProperty>(Property)->Struct->GetFName();
-					if (NewName == StructName)
+					if (Tag.Type == NAME_StructProperty && PropID == NAME_StructProperty)
 					{
-						Tag.StructName = NewName;
+						const FName NewName = FLinkerLoad::FindNewNameForStruct(Tag.StructName);
+						const FName StructName = CastChecked<UStructProperty>(Property)->Struct->GetFName();
+						if (NewName == StructName)
+						{
+							Tag.StructName = NewName;
+						}
+					}
+					else if ((PropID == NAME_EnumProperty) && ((Tag.Type == NAME_EnumProperty) || (Tag.Type == NAME_ByteProperty)))
+					{
+						const FName NewName = FLinkerLoad::FindNewNameForEnum(Tag.EnumName);
+						if (!NewName.IsNone())
+						{
+							Tag.EnumName = NewName;
+						}
 					}
 				}
-				else if ((PropID == NAME_EnumProperty) && ((Tag.Type == NAME_EnumProperty) || (Tag.Type == NAME_ByteProperty)))
-				{
-					const FName NewName = FLinkerLoad::FindNewNameForEnum(Tag.EnumName);
-					if (!NewName.IsNone())
-					{
-						Tag.EnumName = NewName;
-					}
-				}
-			}
 
-			const int64 StartOfProperty = UnderlyingArchive.Tell();
-			if( !Property )
-			{
-				//UE_LOG(LogClass, Warning, TEXT("Property %s of %s not found for package:  %s"), *Tag.Name.ToString(), *GetFullName(), *UnderlyingArchive.GetArchiveName() );
-			}
 #if WITH_EDITOR
-			else if (BreakRecursionIfFullyLoad && BreakRecursionIfFullyLoad->HasAllFlags(RF_LoadCompleted))
-			{
-			}
-#endif // WITH_EDITOR
-			// editoronly properties should be skipped if we are NOT the editor, or we are 
-			// the editor but are cooking for console (editoronly implies notforconsole)
-			else if ((Property->PropertyFlags & CPF_EditorOnly) && !FPlatformProperties::HasEditorOnlyData() && !GForceLoadEditorOnly)
-			{
-			}
-			// check for valid array index
-			else if( Tag.ArrayIndex >= Property->ArrayDim || Tag.ArrayIndex < 0 )
-			{
-				UE_LOG(LogClass, Warning, TEXT("Array bound exceeded (var %s=%d, exceeds %s [0-%d] in package:  %s"),
-					*Tag.Name.ToString(), Tag.ArrayIndex, *GetName(), Property->ArrayDim-1, *UnderlyingArchive.GetArchiveName());
-			}
-			else if( !Property->ShouldSerializeValue(UnderlyingArchive) )
-			{
-				UE_CLOG((UnderlyingArchive.IsPersistent() && FPlatformProperties::RequiresCookedData()), LogClass, Warning, TEXT("Skipping saved property %s of %s since it is no longer serializable for asset:  %s. (Maybe resave asset?)"), *Tag.Name.ToString(), *GetName(), *UnderlyingArchive.GetArchiveName() );
-			}
-			else
-			{
-				FStructuredArchive::FSlot ValueSlot = PropertyRecord.EnterField(SA_FIELD_NAME(TEXT("Value")));
-
-				switch (Property->ConvertFromType(Tag, ValueSlot, Data, DefaultsStruct))
+				if (BreakRecursionIfFullyLoad && BreakRecursionIfFullyLoad->HasAllFlags(RF_LoadCompleted))
 				{
-					case EConvertFromTypeResult::Converted:
-						bAdvanceProperty = true;
-						break;
+				}
+#endif // WITH_EDITOR
+				// editoronly properties should be skipped if we are NOT the editor, or we are 
+				// the editor but are cooking for console (editoronly implies notforconsole)
+				else if ((Property->PropertyFlags & CPF_EditorOnly) && !FPlatformProperties::HasEditorOnlyData() && !GForceLoadEditorOnly)
+				{
+				}
+				// check for valid array index
+				else if (Tag.ArrayIndex >= Property->ArrayDim || Tag.ArrayIndex < 0)
+				{
+					UE_LOG(LogClass, Warning, TEXT("Array bound exceeded (var %s=%d, exceeds %s [0-%d] in package:  %s"),
+						*Tag.Name.ToString(), Tag.ArrayIndex, *GetName(), Property->ArrayDim - 1, *UnderlyingArchive.GetArchiveName());
+				}
+				else if (!Property->ShouldSerializeValue(UnderlyingArchive))
+				{
+					UE_CLOG((UnderlyingArchive.IsPersistent() && FPlatformProperties::RequiresCookedData()), LogClass, Warning, TEXT("Skipping saved property %s of %s since it is no longer serializable for asset:  %s. (Maybe resave asset?)"), *Tag.Name.ToString(), *GetName(), *UnderlyingArchive.GetArchiveName());
+				}
+				else
+				{
+					FStructuredArchive::FSlot ValueSlot = PropertyRecord.EnterField(SA_FIELD_NAME(TEXT("Value")));
 
-					case EConvertFromTypeResult::UseSerializeItem:
-						if (Tag.Type != PropID)
+					if (Tag.Type == PropID)
+					{
+						uint8* DestAddress = Property->ContainerPtrToValuePtr<uint8>(Data, Tag.ArrayIndex);
+						uint8* DefaultsFromParent = Property->ContainerPtrToValuePtrForDefaults<uint8>(DefaultsStruct, Defaults, Tag.ArrayIndex);
+
+						// This property is ok.
+						Tag.SerializeTaggedProperty(ValueSlot, Property, DestAddress, DefaultsFromParent);
+						bAdvanceProperty = !UnderlyingArchive.IsCriticalError();
+					}
+					else
+					{
+						switch (Property->ConvertFromType(Tag, ValueSlot, Data, DefaultsStruct))
 						{
-							UE_LOG(LogClass, Warning, TEXT("Type mismatch in %s of %s - Previous (%s) Current(%s) for package:  %s"), *Tag.Name.ToString(), *GetName(), *Tag.Type.ToString(), *PropID.ToString(), *UnderlyingArchive.GetArchiveName() );
+						case EConvertFromTypeResult::Converted:
+							bAdvanceProperty = true;
+							break;
+
+						case EConvertFromTypeResult::UseSerializeItem:
+							UE_LOG(LogClass, Warning, TEXT("Type mismatch in %s of %s - Previous (%s) Current(%s) for package:  %s"), *Tag.Name.ToString(), *GetName(), *Tag.Type.ToString(), *PropID.ToString(), *UnderlyingArchive.GetArchiveName());
+							break;
+
+						case EConvertFromTypeResult::CannotConvert:
+							break;
+
+						default:
+							check(false);
 						}
-						else
-						{
-							uint8* DestAddress = Property->ContainerPtrToValuePtr<uint8>(Data, Tag.ArrayIndex);
-							uint8* DefaultsFromParent = Property->ContainerPtrToValuePtrForDefaults<uint8>(DefaultsStruct, Defaults, Tag.ArrayIndex);
-
-							// This property is ok.
-							Tag.SerializeTaggedProperty(ValueSlot, Property, DestAddress, DefaultsFromParent);
-							bAdvanceProperty = !UnderlyingArchive.IsCriticalError();
-						}
-						break;
-
-					case EConvertFromTypeResult::CannotConvert:
-						break;
-
-					default:
-						check(false);
+					}
 				}
 			}
 

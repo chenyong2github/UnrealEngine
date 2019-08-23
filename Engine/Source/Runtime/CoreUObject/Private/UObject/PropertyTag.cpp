@@ -12,36 +12,11 @@
 FPropertyTag
 -----------------------------------------------------------------------------*/
 
-// Constructors.
-FPropertyTag::FPropertyTag()
-	: Prop      (nullptr)
-	, Type      (NAME_None)
-	, BoolVal   (0)
-	, Name      (NAME_None)
-	, StructName(NAME_None)
-	, EnumName  (NAME_None)
-	, InnerType (NAME_None)
-	, ValueType	(NAME_None)
-	, Size      (0)
-	, ArrayIndex(INDEX_NONE)
-	, SizeOffset(INDEX_NONE)
-	, HasPropertyGuid(0)
-{
-}
-
 FPropertyTag::FPropertyTag( FArchive& InSaveAr, UProperty* Property, int32 InIndex, uint8* Value, uint8* Defaults )
 	: Prop      (Property)
 	, Type      (Property->GetID())
-	, BoolVal   (0)
 	, Name      (Property->GetFName())
-	, StructName(NAME_None)
-	, EnumName	(NAME_None)
-	, InnerType	(NAME_None)
-	, ValueType	(NAME_None)
-	, Size		(0)
 	, ArrayIndex(InIndex)
-	, SizeOffset(INDEX_NONE)
-	, HasPropertyGuid(0)
 {
 	if (Property)
 	{
