@@ -4330,7 +4330,6 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 		return;
 	}
 
-	check(ActiveSound->Sound);
 	check(ActiveSound->Sound == Sound);
 
 	if (GIsEditor)
@@ -4342,7 +4341,14 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 		}
 	}
 
-	++ActiveSound->Sound->CurrentPlayCount;
+	++Sound->CurrentPlayCount;
+	if (ModulationInterface && Sound->CurrentPlayCount == 1)
+	{
+		if (USoundModulationPluginSourceSettingsBase* ModulationSettings = ActiveSound->FindModulationSettings())
+		{
+			ModulationInterface->OnInitSound(static_cast<ModulationSoundId>(Sound->GetUniqueID()), *ModulationSettings);
+		}
+	}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	UE_LOG(LogAudio, VeryVerbose, TEXT("New ActiveSound %s Comp: %s Loc: %s"), *Sound->GetName(), *NewActiveSound.GetAudioComponentName(), *NewActiveSound.Transform.GetTranslation().ToString());

@@ -38,9 +38,19 @@ namespace AudioModulation
 	}
 #endif // WITH_EDITOR
 
-	void FAudioModulation::OnInitSource(const uint32 SourceId, const FName& AudioComponentUserId, const uint32 NumChannels, USoundModulationPluginSourceSettingsBase* Settings)
+	void FAudioModulation::OnInitSound(const ModulationSoundId SoundId, const USoundModulationPluginSourceSettingsBase& Settings)
+	{
+		Impl->OnInitSound(SoundId, Settings);
+	}
+
+	void FAudioModulation::OnInitSource(const uint32 SourceId, const FName& AudioComponentUserId, const uint32 NumChannels, const USoundModulationPluginSourceSettingsBase& Settings)
 	{
 		Impl->OnInitSource(SourceId, AudioComponentUserId, NumChannels, Settings);
+	}
+
+	void FAudioModulation::OnReleaseSound(const ModulationSoundId SoundId, const USoundModulationPluginSourceSettingsBase& Settings)
+	{
+		Impl->OnReleaseSound(SoundId, Settings);
 	}
 
 	void FAudioModulation::OnReleaseSource(const uint32 SourceId)
