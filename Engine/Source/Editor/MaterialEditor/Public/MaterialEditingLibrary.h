@@ -135,6 +135,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "MaterialEditing")
 	static bool GetMaterialDefaultStaticSwitchParameterValue(UMaterial* Material, FName ParameterName);
 
+	/** Get the set of selected nodes from an active material editor */
+	UFUNCTION(BlueprintPure, Category = "MaterialEditing")
+	static TSet<UObject*> GetMaterialSelectedNodes(UMaterial* Material);
+
 	//////// MATERIAL FUNCTION EDITING
 
 	/** Returns number of material expressions in the supplied material */

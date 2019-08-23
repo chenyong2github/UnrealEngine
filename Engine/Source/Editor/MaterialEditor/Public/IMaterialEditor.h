@@ -80,6 +80,9 @@ public:
 	/** Gets the number of selected nodes */
 	virtual int32 GetNumberOfSelectedNodes() const {return 0;}
 
+	/** Get the currently selected set of nodes */
+	virtual TSet<UObject*> GetSelectedNodes() const {return TSet<UObject*>();}
+
 	/**
 	 * Gets the preview for an expression
 	 *

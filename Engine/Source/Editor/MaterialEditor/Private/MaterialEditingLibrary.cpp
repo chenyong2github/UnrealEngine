@@ -702,6 +702,17 @@ bool UMaterialEditingLibrary::GetMaterialDefaultStaticSwitchParameterValue(UMate
 	return bResult;
 }
 
+TSet<UObject*> UMaterialEditingLibrary::GetMaterialSelectedNodes(UMaterial* Material)
+{
+	auto* MaterialEditor = (IMaterialEditor*)GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(Material, false);
+	if (MaterialEditor)
+	{
+		return MaterialEditor->GetSelectedNodes();
+	}
+
+	return TSet<UObject*>();
+}
+
 //////////////////////////////////////////////////////////////////////////
 
 int32 UMaterialEditingLibrary::GetNumMaterialExpressionsInFunction(const UMaterialFunction* MaterialFunction)
