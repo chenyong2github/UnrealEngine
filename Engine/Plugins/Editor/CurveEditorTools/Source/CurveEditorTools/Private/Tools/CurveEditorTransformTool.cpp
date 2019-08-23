@@ -708,13 +708,15 @@ void FCurveEditorTransformTool::DrawMarqueeWidget(const FCurveEditorTransformWid
 
 void FCurveEditorTransformTool::OnDragStart()
 {
-	ActiveTransaction = MakeUnique<FScopedTransaction>(TEXT("CurveEditorTransformTool"), LOCTEXT("CurveEditorTransformToolTransaction", "Transform Key(s)"), nullptr);
-
 	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
 	if (!CurveEditor)
 	{
 		return;
 	}
+
+	ActiveTransaction = MakeUnique<FScopedTransaction>(TEXT("CurveEditorTransformTool"), LOCTEXT("CurveEditorTransformToolTransaction", "Transform Key(s)"), nullptr);
+
+	CurveEditor->SuppressBoundTransformUpdates(true);
 
 	// We need to cache our key data because all of our calculations have to be relative to the starting data and not the current per-frame data.
 	KeysByCurve.Reset();
@@ -971,6 +973,14 @@ void FCurveEditorTransformTool::OnDrag(const FPointerEvent& InMouseEvent, const 
 
 void FCurveEditorTransformTool::OnDragEnd()
 {
+	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
+	if (!CurveEditor.IsValid())
+	{
+		return;
+	}
+
+	CurveEditor->SuppressBoundTransformUpdates(false);
+
 	// This finalizes the transaction
 	ActiveTransaction.Reset();
 
