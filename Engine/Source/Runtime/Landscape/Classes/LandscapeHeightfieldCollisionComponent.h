@@ -75,6 +75,10 @@ class ULandscapeHeightfieldCollisionComponent : public UPrimitiveComponent
 	UPROPERTY()
 	TLazyObjectPtr<ULandscapeComponent> RenderComponent;
 
+	/** Returns associated landscape component */
+	UFUNCTION(BlueprintCallable, Category = "Landscape")
+	ULandscapeComponent* GetRenderComponent() const;
+
 	struct FPhysXHeightfieldRef : public FRefCountedObject
 	{
 		FGuid Guid;
