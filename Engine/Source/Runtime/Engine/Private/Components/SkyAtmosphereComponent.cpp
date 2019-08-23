@@ -244,6 +244,31 @@ void USkyAtmosphereComponent::OverrideAtmosphereLightDirection(int32 AtmosphereL
 	}
 }
 
+#define SKY_DECLARE_BLUEPRINT_SETFUNCTION(MemberType, MemberName) void USkyAtmosphereComponent::Set##MemberName(MemberType NewValue)\
+{\
+	if (AreDynamicDataChangesAllowed() && MemberName != NewValue)\
+	{\
+		MemberName = NewValue;\
+		MarkRenderStateDirty();\
+	}\
+}\
+
+SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, RayleighScatteringScale);
+SKY_DECLARE_BLUEPRINT_SETFUNCTION(FColor, RayleighScattering);
+SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, RayleighExponentialDistribution);
+
+SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, MieScatteringScale);
+SKY_DECLARE_BLUEPRINT_SETFUNCTION(FColor, MieScattering);
+SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, MieAbsorptionScale);
+SKY_DECLARE_BLUEPRINT_SETFUNCTION(FColor, MieAbsorption);
+SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, MieAnisotropy);
+SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, MieExponentialDistribution);
+
+SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, OtherAbsorptionScale);
+SKY_DECLARE_BLUEPRINT_SETFUNCTION(FColor, OtherAbsorption);
+
+SKY_DECLARE_BLUEPRINT_SETFUNCTION(FLinearColor, SkyLuminanceFactor);
+SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, AerialPespectiveViewDistanceScale);
 
 /*=============================================================================
 	ASkyAtmosphere implementation.
