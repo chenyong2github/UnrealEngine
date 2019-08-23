@@ -77,6 +77,7 @@ public:
 		SLATE_NAMED_SLOT( FArguments, CustomContentSlot )
 		SLATE_NAMED_SLOT( FArguments, ResetToDefaultSlot )
 		SLATE_ARGUMENT( TSharedPtr<IPropertyHandle>, PropertyHandle )
+		SLATE_ARGUMENT( TArray<FAssetData>, OwnerAssetDataArray)
 
 	SLATE_END_ARGS()
 
@@ -364,4 +365,10 @@ private:
 
 	/** The property handle, if any */
 	TSharedPtr<class IPropertyHandle> PropertyHandle;
+
+	/*
+	 * The reference object on which the picker will assign the picked asset, if any.
+	 * The system will test first the PropertyHandle follow by the PropertyEditor and if nothing this array of assets
+	 */
+	TArray<FAssetData> OwnerAssetDataArray;
 };

@@ -21,6 +21,7 @@ void SPropertyMenuAssetPicker::Construct( const FArguments& InArgs )
 {
 	CurrentObject = InArgs._InitialObject;
 	PropertyHandle = InArgs._PropertyHandle;
+	const TArray<FAssetData>& OwnerAssetArray = InArgs._OwnerAssetArray;
 	bAllowClear = InArgs._AllowClear;
 	bAllowCopyPaste = InArgs._AllowCopyPaste;
 	AllowedClasses = InArgs._AllowedClasses;
@@ -146,6 +147,8 @@ void SPropertyMenuAssetPicker::Construct( const FArguments& InArgs )
 		AssetPickerConfig.SaveSettingsName = TEXT("AssetPropertyPicker");
 		// Populate the referencing assets via property handle
 		AssetPickerConfig.PropertyHandle = PropertyHandle;
+		// Populate the additional referencing assets with the Owner asset data
+		AssetPickerConfig.AdditionalReferencingAssets = OwnerAssetArray;
 
 		MenuContent =
 			SNew(SBox)
