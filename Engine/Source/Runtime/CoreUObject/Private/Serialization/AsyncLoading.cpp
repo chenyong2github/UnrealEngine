@@ -7106,7 +7106,7 @@ EAsyncPackageState::Type FAsyncPackage::FinishObjects()
 		FScopeLock ReferencedObjectsLock(&ReferencedObjectsCritical);
 		for (UObject* Obj : ReferencedObjects)
 		{
-			if (Obj)
+			if (Obj && !Obj->HasAnyFlags(RF_NeedPostLoad | RF_NeedPostLoadSubobjects))
 			{
 				Obj->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading);
 			}
