@@ -37,6 +37,7 @@ namespace ESimulationQuery
 {
 	enum Type
 	{
+		None = 0 UMETA(Hidden),
 		/*Instances overlap with collision*/
 		CollisionOverlap = 1,
 		/*Instances overlap with shade*/
