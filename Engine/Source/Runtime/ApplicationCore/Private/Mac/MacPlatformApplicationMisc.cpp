@@ -329,7 +329,7 @@ void FMacPlatformApplicationMisc::TearDown()
 void FMacPlatformApplicationMisc::LoadPreInitModules()
 {
 	FModuleManager::Get().LoadModule(TEXT("CoreAudio"));
-	FModuleManager::Get().LoadModule(TEXT("AudioMixerAudioUnit"));
+	FModuleManager::Get().LoadModule(TEXT("AudioMixerCoreAudio"));
 }
 
 class FOutputDeviceConsole* FMacPlatformApplicationMisc::CreateConsoleOutputDevice()
