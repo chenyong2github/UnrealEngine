@@ -235,6 +235,15 @@ void USkyAtmosphereComponent::Serialize(FArchive& Ar)
 	Ar << bStaticLightingBuiltGUID;
 }
 
+void USkyAtmosphereComponent::OverrideAtmosphereLightDirection(int32 AtmosphereLightIndex, const FVector& LightDirection)
+{
+	if (AreDynamicDataChangesAllowed())
+	{
+		FSceneInterface* Scene = GetWorld()->Scene;
+		Scene->OverrideSkyAtmosphereLightDirection(this, AtmosphereLightIndex, LightDirection);
+	}
+}
+
 
 /*=============================================================================
 	ASkyAtmosphere implementation.
