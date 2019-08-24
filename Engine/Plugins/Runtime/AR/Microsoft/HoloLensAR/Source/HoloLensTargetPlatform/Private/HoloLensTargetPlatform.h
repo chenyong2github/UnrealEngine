@@ -63,7 +63,7 @@ public:
 
 	virtual bool SupportsFeature(ETargetPlatformFeatures Feature) const override;
 
-	virtual bool SupportsBuildTarget(EBuildTargets::Type BuildTarget) const override;
+	virtual bool SupportsBuildTarget(EBuildTargetType TargetType) const override;
 
 #if WITH_ENGINE
 	virtual void GetReflectionCaptureFormats(TArray<FName>& OutFormats) const override;

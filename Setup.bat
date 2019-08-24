@@ -1,6 +1,6 @@
 @echo off
 setlocal
-pushd %~dp0
+pushd "%~dp0"
 
 rem Figure out if we should append the -prompt argument
 set PROMPT_ARGUMENT=

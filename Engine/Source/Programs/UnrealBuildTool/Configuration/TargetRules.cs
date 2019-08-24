@@ -216,7 +216,17 @@ namespace UnrealBuildTool
 		/// Whether the output from this target can be publicly distributed, even if it has dependencies on modules that are in folders 
 		/// with special restrictions (eg. CarefullyRedist, NotForLicensees, NoRedist).
 		/// </summary>
-		public bool bOutputPubliclyDistributable = false;
+		public bool bLegalToDistributeBinary = false;
+
+		/// <summary>
+		/// Obsolete. Use bLegalToDistributeBinary instead.
+		/// </summary>
+		[Obsolete("bOutputPubliclyDistributable has been deprecated in 4.24. Use bLegalToDistributeBinary instead.")]
+		public bool bOutputPubliclyDistributable
+		{
+			get { return bLegalToDistributeBinary; }
+			set { bLegalToDistributeBinary = value; }
+		}
 
 		/// <summary>
 		/// Specifies the configuration whose binaries do not require a "-Platform-Configuration" suffix.
@@ -554,6 +564,12 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		[XmlConfigFile(Category = "BuildConfiguration")]
 		public bool bUseDebugLiveCodingConsole = false;
+
+		/// <summary>
+		/// Whether to enable support for DirectX Math
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public bool bWithDirectXMath = false;
 
 		/// <summary>
 		/// Whether to turn on logging for test/shipping builds.
@@ -1214,6 +1230,25 @@ namespace UnrealBuildTool
 		[CommandLine("-LinkerArguments=")]
 		public string AdditionalLinkerArguments;
 
+
+		/// <summary>
+		/// List of modules to disable unity builds for
+		/// </summary>
+		[XmlConfigFile(Category = "ModuleConfiguration", Name = "DisableUnityBuild")]
+		public string[] DisableUnityBuildForModules = null;
+
+		/// <summary>
+		///  List of modules to enable optimizations for
+		/// </summary>
+		[XmlConfigFile(Category = "ModuleConfiguration", Name = "EnableOptimizeCode")]
+		public string[] EnableOptimizeCodeForModules = null;
+
+		/// <summary>
+		/// List of modules to disable optimizations for
+		/// </summary>
+		[XmlConfigFile(Category = "ModuleConfiguration", Name = "DisableOptimizeCode")]
+		public string[] DisableOptimizeCodeForModules = null;
+
 		/// <summary>
 		/// When generating project files, specifies the name of the project file to use when there are multiple targets of the same type.
 		/// </summary>
@@ -1507,7 +1542,7 @@ namespace UnrealBuildTool
 			// Otherwise take the SupportedPlatformsAttribute from the first type in the inheritance chain that supports it
 			for (Type CurrentType = GetType(); CurrentType != null; CurrentType = CurrentType.BaseType)
 			{
-				object[] Attributes = GetType().GetCustomAttributes(typeof(SupportedPlatformsAttribute), false);
+				object[] Attributes = CurrentType.GetCustomAttributes(typeof(SupportedPlatformsAttribute), false);
 				if (Attributes.Length > 0)
 				{
 					return Attributes.OfType<SupportedPlatformsAttribute>().SelectMany(x => x.Platforms).Distinct().ToArray();
@@ -1526,6 +1561,33 @@ namespace UnrealBuildTool
 			else
 			{
 				return Utils.GetPlatformsInClass(UnrealPlatformClass.All);
+			}
+		}
+
+		/// <summary>
+		/// Gets a list of configurations that this target supports
+		/// </summary>
+		/// <returns>Array of configurations that the target supports</returns>
+		internal UnrealTargetConfiguration[] GetSupportedConfigurations()
+		{
+			// Otherwise take the SupportedConfigurationsAttribute from the first type in the inheritance chain that supports it
+			for (Type CurrentType = GetType(); CurrentType != null; CurrentType = CurrentType.BaseType)
+			{
+				object[] Attributes = CurrentType.GetCustomAttributes(typeof(SupportedConfigurationsAttribute), false);
+				if (Attributes.Length > 0)
+				{
+					return Attributes.OfType<SupportedConfigurationsAttribute>().SelectMany(x => x.Configurations).Distinct().ToArray();
+				}
+			}
+
+			// Otherwise, get the default for the target type
+			if (Type == TargetType.Editor)
+			{
+				return new[] { UnrealTargetConfiguration.Debug, UnrealTargetConfiguration.DebugGame, UnrealTargetConfiguration.Development };
+			}
+			else
+			{
+				return ((UnrealTargetConfiguration[])Enum.GetValues(typeof(UnrealTargetConfiguration))).Where(x => x != UnrealTargetConfiguration.Unknown).ToArray();
 			}
 		}
 
@@ -1680,9 +1742,9 @@ namespace UnrealBuildTool
 			get { return Inner.bDebugBuildsActuallyUseDebugCRT; }
 		}
 
-		public bool bOutputPubliclyDistributable
+		public bool bLegalToDistributeBinary
 		{
-			get { return Inner.bOutputPubliclyDistributable; }
+			get { return Inner.bLegalToDistributeBinary; }
 		}
 
 		public UnrealTargetConfiguration UndecoratedConfiguration
@@ -1919,6 +1981,11 @@ namespace UnrealBuildTool
 		public bool bUseDebugLiveCodingConsole
 		{
 			get { return Inner.bUseDebugLiveCodingConsole; }
+		}
+
+		public bool bWithDirectXMath
+		{
+			get { return Inner.bWithDirectXMath; }
 		}
 
 		public bool bUseLoggingInShipping
@@ -2448,9 +2515,25 @@ namespace UnrealBuildTool
 			get { return Inner.bIsEngineInstalled; }
 		}
 
-		#if !__MonoCS__
-		#pragma warning restore C1591
-		#endif
+
+		public IReadOnlyList<string> DisableUnityBuildForModules
+		{
+			get { return Inner.DisableUnityBuildForModules; }
+		}
+
+		public IReadOnlyList<string> EnableOptimizeCodeForModules
+		{
+			get { return Inner.EnableOptimizeCodeForModules; }
+		}
+
+		public IReadOnlyList<string> DisableOptimizeCodeForModules
+		{
+			get { return Inner.DisableOptimizeCodeForModules; }
+		}
+
+#if !__MonoCS__
+#pragma warning restore C1591
+#endif
 		#endregion
 
 		/// <summary>

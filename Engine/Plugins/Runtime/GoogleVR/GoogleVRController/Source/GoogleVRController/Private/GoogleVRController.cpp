@@ -30,6 +30,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogGoogleVRController, Log, All);
 #include "GoogleVRInstantPreviewGetServer.h"
 #endif  // GOOGLEVRCONTROLLER_SUPPORTED_INSTANT_PREVIEW_PLATFORMS
 
+DEFINE_LOG_CATEGORY(LogGoogleVRMotionController);
+
 #if GOOGLEVRCONTROLLER_SUPPORTED_EMULATOR_PLATFORMS
 #define CONTROLLER_EVENT_FORWARDED_PORT 7003 //Change this port number if it is already taken.
 #define ADB_FORWARD_RETRY_TIME 5.0 //5 seconds

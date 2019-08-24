@@ -8,7 +8,7 @@ public class VulkanRHI : ModuleRules
 {
 	public VulkanRHI(ReadOnlyTargetRules Target) : base(Target)
 	{
-		bOutputPubliclyDistributable = true;
+		bLegalToDistributeObjectCode = true;
 
 		PrivateIncludePaths.Add("Runtime/VulkanRHI/Private");
 		if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
@@ -58,8 +58,7 @@ public class VulkanRHI : ModuleRules
 				{
 					PrivateIncludePaths.Add(VulkanSDKPath + "/include");
 					PrivateIncludePaths.Add(VulkanSDKPath + "/include/vulkan");
-					PublicLibraryPaths.Add(VulkanSDKPath + "/lib");
-					PublicAdditionalLibraries.Add("vulkan");
+					PublicAdditionalLibraries.Add(Path.Combine(VulkanSDKPath, "lib", "vulkan"));
 				}
 			}
 			else

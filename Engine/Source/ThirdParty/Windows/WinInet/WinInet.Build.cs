@@ -11,7 +11,7 @@ public class WinInet : ModuleRules
 		if (Target.Platform == UnrealTargetPlatform.Win32 ||
 			Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			PublicAdditionalLibraries.Add("wininet.lib");
+			PublicSystemLibraries.Add("wininet.lib");
 		}
 	}
 }

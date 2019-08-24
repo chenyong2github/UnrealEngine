@@ -9,6 +9,8 @@
 #include "ISourceControlModule.h"
 #include "EditorStyleSet.h"
 #include "Interfaces/IEditorStyleModule.h"
+#include "Widgets/SWindow.h"
+#include "Framework/Application/SlateApplication.h"
 
 IMPLEMENT_APPLICATION(SymbolDebugger, "SymbolDebugger");
 

@@ -57,12 +57,8 @@ void FInstalledPlatformInfo::ParsePlatformConfiguration(FString PlatformConfigur
 	bool bCanCreateEntry = true;
 
 	FString ConfigurationName;
-	EBuildConfigurations::Type Configuration = EBuildConfigurations::Unknown;
-	if (FParse::Value(*PlatformConfiguration, TEXT("Configuration="), ConfigurationName))
-	{
-		Configuration = EBuildConfigurations::FromString(ConfigurationName);
-	}
-	if (Configuration == EBuildConfigurations::Unknown)
+	EBuildConfiguration Configuration = EBuildConfiguration::Unknown;
+	if (!FParse::Value(*PlatformConfiguration, TEXT("Configuration="), ConfigurationName) || !LexTryParseString(Configuration, *ConfigurationName) || Configuration == EBuildConfiguration::Unknown)
 	{
 		UE_LOG(LogInstalledPlatforms, Warning, TEXT("Unable to read configuration from %s"), *PlatformConfiguration);
 		bCanCreateEntry = false;
@@ -76,10 +72,10 @@ void FInstalledPlatformInfo::ParsePlatformConfiguration(FString PlatformConfigur
 	}
 
 	FString PlatformTypeName;
-	PlatformInfo::EPlatformType PlatformType = PlatformInfo::EPlatformType::Game;
-	if (FParse::Value(*PlatformConfiguration, TEXT("PlatformType="), PlatformTypeName))
+	EBuildTargetType PlatformType;
+	if (!FParse::Value(*PlatformConfiguration, TEXT("PlatformType="), PlatformTypeName) || !LexTryParseString(PlatformType, *PlatformTypeName))
 	{
-		PlatformType = PlatformInfo::EPlatformTypeFromString(PlatformTypeName);
+		PlatformType = EBuildTargetType::Game;
 	}
 
 	FString Architecture;
@@ -113,7 +109,7 @@ void FInstalledPlatformInfo::ParsePlatformConfiguration(FString PlatformConfigur
 	}
 }
 
-bool FInstalledPlatformInfo::IsValidConfiguration(const EBuildConfigurations::Type Configuration, EProjectType ProjectType) const
+bool FInstalledPlatformInfo::IsValidConfiguration(const EBuildConfiguration Configuration, EProjectType ProjectType) const
 {
 	return ContainsValidConfiguration(
 		[Configuration, ProjectType](const FInstalledPlatformConfiguration& CurConfig)
@@ -137,7 +133,7 @@ bool FInstalledPlatformInfo::IsValidPlatform(const FString& PlatformName, EProje
 	);
 }
 
-bool FInstalledPlatformInfo::IsValidPlatformAndConfiguration(const EBuildConfigurations::Type Configuration, const FString& PlatformName, EProjectType ProjectType) const
+bool FInstalledPlatformInfo::IsValidPlatformAndConfiguration(const EBuildConfiguration Configuration, const FString& PlatformName, EProjectType ProjectType) const
 {
 	return ContainsValidConfiguration(
 		[Configuration, PlatformName, ProjectType](const FInstalledPlatformConfiguration& CurConfig)
@@ -162,14 +158,52 @@ bool FInstalledPlatformInfo::CanDisplayPlatform(const FString& PlatformName, EPr
 	);
 }
 
-bool FInstalledPlatformInfo::IsValidPlatformType(PlatformInfo::EPlatformType PlatformType) const
+bool FInstalledPlatformInfo::IsValidTargetType(EBuildTargetType TargetType) const
 {
 	return ContainsValidConfiguration(
-		[PlatformType](const FInstalledPlatformConfiguration& CurConfig)
+		[TargetType](const FInstalledPlatformConfiguration& CurConfig)
 		{
-			return CurConfig.PlatformType == PlatformType;
+			return CurConfig.PlatformType == TargetType;
 		}
 	);
+}
+
+bool FInstalledPlatformInfo::IsValid(TOptional<EBuildTargetType> TargetType, TOptional<FString> Platform, TOptional<EBuildConfiguration> Configuration, EProjectType ProjectType, EInstalledPlatformState State) const
+{
+	if (!FApp::IsEngineInstalled())
+	{
+		return true;
+	}
+
+	for (const FInstalledPlatformConfiguration& Config : InstalledPlatformConfigurations)
+	{
+		// Check whether this configuration matches all the criteria
+		if(TargetType.IsSet() && Config.PlatformType != TargetType.GetValue())
+		{
+			continue;
+		}
+		if(Platform.IsSet() && Config.PlatformName != Platform.GetValue())
+		{
+			continue;
+		}
+		if(Configuration.IsSet() && Config.Configuration != Configuration.GetValue())
+		{
+			continue;
+		}
+		if(ProjectType != EProjectType::Any && Config.ProjectType != EProjectType::Any && Config.ProjectType != ProjectType)
+		{
+			continue;
+		}
+		if(State == EInstalledPlatformState::Downloaded && !Config.RequiredFile.IsEmpty() && !FPaths::FileExists(Config.RequiredFile))
+		{
+			continue;
+		}
+
+		// Success!
+		return true;
+	}
+
+	return false;
 }
 
 bool FInstalledPlatformInfo::IsValidPlatformArchitecture(const FString& PlatformName, const FString& Architecture) const

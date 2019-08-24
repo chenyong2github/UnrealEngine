@@ -85,9 +85,9 @@ namespace UnrealBuildTool
 		public static readonly DirectoryReference EngineSourceThirdPartyDirectory = DirectoryReference.Combine(EngineSourceDirectory, "ThirdParty");
 
 		/// <summary>
-		/// The full name of the Engine directory
+		/// The full name of the Engine's PlatformExtensions directory
 		/// </summary>
-		public static readonly DirectoryReference PlatformExtensionsDirectory = DirectoryReference.Combine(RootDirectory, "Platforms");
+		public static readonly DirectoryReference EnginePlatformExtensionsDirectory = DirectoryReference.Combine(EngineDirectory, "Platforms");
 
 		/// <summary>
 		/// The full name of the Enterprise directory
@@ -110,16 +110,36 @@ namespace UnrealBuildTool
 		public static readonly DirectoryReference EnterpriseIntermediateDirectory = DirectoryReference.Combine(EnterpriseDirectory, "Intermediate");
 
 		/// <summary>
+		/// Returns the root location of platform extensions within the given project
+		/// </summary>
+		/// <param name="ProjectDirectory">Location of the project on disk</param>
+		/// <returns>the root location of platform extensions within the given project</returns>
+		public static DirectoryReference ProjectPlatformExtensionsDirectory(DirectoryReference ProjectDirectory)
+		{
+			return DirectoryReference.Combine(ProjectDirectory, "Platforms");
+		}
+
+		/// <summary>
+		/// Returns the root location of platform extensions within the given project
+		/// </summary>
+		/// <param name="ProjectFile">Location of the .uproject file on disk</param>
+		/// <returns>the root location of platform extensions within the given project</returns>
+		public static DirectoryReference ProjectPlatformExtensionsDirectory(FileReference ProjectFile)
+		{
+			return ProjectPlatformExtensionsDirectory(ProjectFile.Directory);
+		}
+
+		/// <summary>
 		/// The main engine directory and all found platform extension engine directories
 		/// </summary>
 		public static DirectoryReference[] GetAllEngineDirectories(string Suffix="")
 		{
 			List<DirectoryReference> EngineDirectories = new List<DirectoryReference>() { DirectoryReference.Combine(EngineDirectory, Suffix) };
-			if (DirectoryReference.Exists(PlatformExtensionsDirectory))
+			if (DirectoryReference.Exists(EnginePlatformExtensionsDirectory))
 			{
-				foreach (DirectoryReference PlatformDirectory in DirectoryReference.EnumerateDirectories(PlatformExtensionsDirectory))
+				foreach (DirectoryReference PlatformDirectory in DirectoryReference.EnumerateDirectories(EnginePlatformExtensionsDirectory))
 				{
-					DirectoryReference PlatformEngineDirectory = DirectoryReference.Combine(PlatformDirectory, "Engine", Suffix);
+					DirectoryReference PlatformEngineDirectory = DirectoryReference.Combine(PlatformDirectory, Suffix);
 					if (DirectoryReference.Exists(PlatformEngineDirectory))
 					{
 						EngineDirectories.Add(PlatformEngineDirectory);
@@ -130,19 +150,20 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// The main project directory and all found platform extension project directories
+		/// Returns the main project directory and all found platform extension project directories, with
+		/// an optional subdirectory to look for within each location (ie, "Config" or "Source/Runtime")
 		/// </summary>
-		public static DirectoryReference[] GetAllProjectDirectories(FileReference ProjectFile, string Suffix = "")
+		/// <param name="ProjectDirectory">Location of the project on disk</param>
+		/// <param name="Suffix">Optional subdirectory to look in for each location</param>
+		/// <returns>the main project directory and all found platform extension project directories</returns>
+		public static DirectoryReference[] GetAllProjectDirectories(DirectoryReference ProjectDirectory, string Suffix = "")
 		{
-			// project name may not match the directory name, so use the ProjectFile's name as ProjectName
-			string ProjectName = ProjectFile.GetFileNameWithoutAnyExtensions();
-
-			List<DirectoryReference> ProjectDirectories = new List<DirectoryReference>() { DirectoryReference.Combine(ProjectFile.Directory, Suffix) };
-			if (DirectoryReference.Exists(PlatformExtensionsDirectory))
+			List<DirectoryReference> ProjectDirectories = new List<DirectoryReference>() { DirectoryReference.Combine(ProjectDirectory, Suffix) };
+			if (DirectoryReference.Exists(ProjectPlatformExtensionsDirectory(ProjectDirectory)))
 			{
-				foreach (DirectoryReference PlatformDirectory in DirectoryReference.EnumerateDirectories(PlatformExtensionsDirectory))
+				foreach (DirectoryReference PlatformDirectory in DirectoryReference.EnumerateDirectories(ProjectPlatformExtensionsDirectory(ProjectDirectory), "*", SearchOption.TopDirectoryOnly))
 				{
-					DirectoryReference PlatformEngineDirectory = DirectoryReference.Combine(PlatformDirectory, ProjectName, Suffix);
+					DirectoryReference PlatformEngineDirectory = DirectoryReference.Combine(PlatformDirectory, Suffix);
 					if (DirectoryReference.Exists(PlatformEngineDirectory))
 					{
 						ProjectDirectories.Add(PlatformEngineDirectory);
@@ -150,6 +171,18 @@ namespace UnrealBuildTool
 				}
 			}
 			return ProjectDirectories.ToArray();
+		}
+
+		/// <summary>
+		/// Returns the main project directory and all found platform extension project directories, with
+		/// an optional subdirectory to look for within each location (ie, "Config" or "Source/Runtime")
+		/// </summary>
+		/// <param name="ProjectFile">Location of the .uproject file on disk</param>
+		/// <param name="Suffix">Optional subdirectory to look in for each location</param>
+		/// <returns>the main project directory and all found platform extension project directories</returns>
+		public static DirectoryReference[] GetAllProjectDirectories(FileReference ProjectFile, string Suffix = "")
+		{
+			return GetAllProjectDirectories(ProjectFile.Directory, Suffix);
 		}
 
 		/// <summary>
@@ -462,14 +495,21 @@ namespace UnrealBuildTool
 				{
 					using(Timeline.ScopeEvent("UEBuildPlatform.RegisterPlatforms()"))
 					{
-						UEBuildPlatform.RegisterPlatforms(false);
+						UEBuildPlatform.RegisterPlatforms(false, false);
 					}
 				}
-				if((ModeOptions & ToolModeOptions.BuildPlatformsForValidation) != 0)
+				if ((ModeOptions & ToolModeOptions.BuildPlatformsHostOnly) != 0)
+				{
+					using (Timeline.ScopeEvent("UEBuildPlatform.RegisterPlatforms()"))
+					{
+						UEBuildPlatform.RegisterPlatforms(false, true);
+					}
+				}
+				if ((ModeOptions & ToolModeOptions.BuildPlatformsForValidation) != 0)
 				{
 					using(Timeline.ScopeEvent("UEBuildPlatform.RegisterPlatforms()"))
 					{
-						UEBuildPlatform.RegisterPlatforms(true);
+						UEBuildPlatform.RegisterPlatforms(true, false);
 					}
 				}
 

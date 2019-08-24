@@ -836,16 +836,11 @@ bool FUnrealEdMisc::EnableWorldComposition(UWorld* InWorld, bool bEnable)
 	return true;
 }
 
-
 /** Build and return the path to the current project (used for relaunching the editor.)	 */
 FString CreateProjectPath()
 {
 #if PLATFORM_WINDOWS
-	// If we are running in 64 bit, launch the 64 bit process
-	const TCHAR* PlatformConfig = FPlatformMisc::GetUBTPlatform();
-	// Executable filename does not depend on the selected project. Simply create full path to the current executable.
-	FString ExeFileName = FPaths::EngineDir() / TEXT("Binaries") / PlatformConfig / FString( FPlatformProcess::ExecutableName() ) + TEXT(".exe");
-	return ExeFileName;
+	return FPlatformProcess::ExecutablePath();
 #elif PLATFORM_MAC
 	@autoreleasepool
 	{

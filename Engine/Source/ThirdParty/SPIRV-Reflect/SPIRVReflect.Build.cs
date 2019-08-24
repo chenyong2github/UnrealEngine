@@ -25,16 +25,15 @@ public class SPIRVReflect : ModuleRules
         else if (Target.Platform == UnrealTargetPlatform.Win64)
         {
 			LibPath = LibPath + (Target.Platform == UnrealTargetPlatform.Win32 ? "Win32/" : "Win64/");
-            LibPath = LibPath + "VS2017";
-            PublicLibraryPaths.Add(LibPath);
+            LibPath = LibPath + "VS2017/";
 
             if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
             {
-                PublicAdditionalLibraries.Add("SPIRV-Reflectd.lib");
+                PublicAdditionalLibraries.Add(LibPath + "SPIRV-Reflectd.lib");
             }
             else
             {
-                PublicAdditionalLibraries.Add("SPIRV-Reflect.lib");
+                PublicAdditionalLibraries.Add(LibPath + "SPIRV-Reflect.lib");
             }
         }
         else

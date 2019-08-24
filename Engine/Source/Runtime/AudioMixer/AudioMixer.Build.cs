@@ -95,10 +95,9 @@ namespace UnrealBuildTool.Rules
                 LibSndFilePath += PlatformName;
 
 
-                PublicAdditionalLibraries.Add("libsndfile-1.lib");
+                PublicAdditionalLibraries.Add(LibSndFilePath + "/libsndfile-1.lib");
 				PublicDelayLoadDLLs.Add("libsndfile-1.dll");
 				PublicIncludePathModuleNames.Add("UELibSampleRate");
-				PublicLibraryPaths.Add(LibSndFilePath);
 
                 RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/libsndfile/" + PlatformName + "/libsndfile-1.dll");
             }

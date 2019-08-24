@@ -402,7 +402,7 @@ bool FModuleDescriptor::IsCompiledInCurrentConfiguration() const
 	// Cache the string for the current platform
 	static const FString UBTPlatform = FPlatformMisc::GetUBTPlatform();
 	static const FString UBTTarget = FPlatformMisc::GetUBTTarget();
-	static const FString UBTTargetConfiguration = EBuildConfigurations::ToString(FApp::GetBuildConfiguration());
+	static const FString UBTTargetConfiguration = LexToString(FApp::GetBuildConfiguration());
 
 	// Check the platform is whitelisted
 	if(WhitelistPlatforms.Num() > 0 && !WhitelistPlatforms.Contains(UBTPlatform))

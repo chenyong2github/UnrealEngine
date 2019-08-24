@@ -17,7 +17,7 @@ public class VivoxTokenGen : ModuleRules
 			|| Target.Platform == UnrealTargetPlatform.Win32)
 		{
 			PlatformSubdir = Path.Combine(PlatformSubdir, "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), PlatformSubdir);
-			PublicAdditionalLibraries.Add("tokengen.lib");
+			PublicAdditionalLibraries.Add(Path.Combine(PlatformSubdir, "tokengen.lib"));
 			PrivateDependencyModuleNames.Add("OpenSSL");
 		}
 	}

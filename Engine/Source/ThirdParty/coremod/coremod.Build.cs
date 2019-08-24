@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
+using System.IO;
 
 public class coremod: ModuleRules
 {
@@ -15,13 +16,11 @@ public class coremod: ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			PublicLibraryPaths.Add(LibraryPath + "/lib/Win64/VS2013");
-			PublicAdditionalLibraries.Add("coremod.lib");
+			PublicAdditionalLibraries.Add(LibraryPath + "/lib/Win64/VS2013/" + "coremod.lib");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win32)
 		{
-			PublicLibraryPaths.Add(LibraryPath + "/lib/Win32/VS2013");
-			PublicAdditionalLibraries.Add("coremod.lib");
+			PublicAdditionalLibraries.Add(LibraryPath + "/lib/Win32/VS2013/" + "coremod.lib");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
@@ -29,7 +28,8 @@ public class coremod: ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.IOS)
 		{
-			PublicLibraryPaths.Add(LibraryPath + "/lib/IOS");
+			// TODO: Do we still need this?
+			// PublicLibraryPaths.Add(LibraryPath + "/lib/IOS");
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
         {
@@ -37,12 +37,9 @@ public class coremod: ModuleRules
         }
 		else if (Target.Platform == UnrealTargetPlatform.Android)
 		{
-			string AndroidPath = LibraryPath + "/lib/Android/";
-			// No 64bit support for Android yet
-			PublicLibraryPaths.Add(AndroidPath + "armeabi-v7a");
-			PublicLibraryPaths.Add(AndroidPath + "x86");
-			PublicLibraryPaths.Add(AndroidPath + "x64");
-			PublicAdditionalLibraries.Add("xmp-coremod");			
+			PublicAdditionalLibraries.Add(LibraryPath + "/lib/Android/x86/libxmp-coremod.a");
+			PublicAdditionalLibraries.Add(LibraryPath + "/lib/Android/x64/libxmp-coremod.a");
+			PublicAdditionalLibraries.Add(LibraryPath + "/lib/Android/armeabi-v7a/libxmp-coremod.a");
 		}
 	}
 }

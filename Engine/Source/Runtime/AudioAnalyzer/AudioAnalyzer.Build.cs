@@ -6,7 +6,7 @@ namespace UnrealBuildTool.Rules
 	{
 		public AudioAnalyzer(ReadOnlyTargetRules Target) : base(Target)
 		{
-			bFasterWithoutUnity = true;
+			bUseUnity = true;
 
             PrivateDependencyModuleNames.AddRange(
 				new string[]
