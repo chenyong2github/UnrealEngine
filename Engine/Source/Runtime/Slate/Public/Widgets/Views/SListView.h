@@ -1068,15 +1068,12 @@ public:
 					? ItemLength * ItemsInView	// For the first item, ItemsInView <= 1.0f
 					: ItemLength;
 
-				if (ItemIndex >= ItemsSource->Num() - 1)
-				{
-					bAtEndOfList = true;
-				}
+				bAtEndOfList = ItemIndex >= ItemsSource->Num() - 1;
 
-				if (ViewLengthUsedSoFar >= MyDimensions.ScrollAxis)
-				{
-					bHasFilledAvailableArea = true;
-				}
+				// Note: To account for accrued error from floating point truncation and addition in our sum of dimensions used, 
+				//	we pad the allotted axis just a little to be sure we have filled the available space.
+				static const float FloatingPointPrecisionOffset = 0.001f;
+				bHasFilledAvailableArea = ViewLengthUsedSoFar >= MyDimensions.ScrollAxis + FloatingPointPrecisionOffset;
 			}
 
 			// Handle scenario b.
