@@ -23,20 +23,12 @@ public:
 			,Finished
 		};
 		
-		float ProgressPercent;
-		ECombinedBundleStateEnum CombinedState;
-		bool bIsPaused;
-		bool bDoesCurrentStateSupportPausing;
-		bool bBundleRequiresUpdate;
-		
-		FCombinedBundleStatus()
-		: ProgressPercent(0.f)
-		, CombinedState(ECombinedBundleStateEnum::Unknown)
-		, bIsPaused(false)
-		, bDoesCurrentStateSupportPausing(false)
-		, bBundleRequiresUpdate(false)
-		{
-		}
+		float ProgressPercent = 0.0f;
+		ECombinedBundleStateEnum CombinedState = ECombinedBundleStateEnum::Unknown;
+		EInstallBundlePauseFlags CombinedPauseFlags = EInstallBundlePauseFlags::None;
+		bool bIsPaused = false;
+		bool bDoesCurrentStateSupportPausing = false;
+		bool bBundleRequiresUpdate = false;
 	};
 	
 public:
