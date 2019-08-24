@@ -12,8 +12,6 @@
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 
-#include "DatasmithPlacement.h"
-
 #define LOCTEXT_NAMESPACE "DatasmithContentEditorModule"
 
 EAssetTypeCategories::Type IDatasmithContentEditorModule::DatasmithAssetCategoryBit;
@@ -39,15 +37,7 @@ public:
 		AssetTools.RegisterAssetTypeActions(DatasmithSceneAssetTypeAction.ToSharedRef());
 		AssetTypeActionsArray.Add(DatasmithSceneAssetTypeAction);
 
-		FCoreDelegates::OnPostEngineInit.AddRaw(this, &FDatasmithContentEditorModule::OnPostEngineInit);
-
 		FDatasmithContentEditorStyle::Initialize();
-	}
-
-	// Register classes in placement mode
-	void OnPostEngineInit()
-	{
-		FDatasmithPlacement::RegisterPlacement();
 	}
 
 	virtual void ShutdownModule() override
@@ -73,8 +63,6 @@ public:
 
 		// Shutdown style set associated with datasmith content
 		FDatasmithContentEditorStyle::Shutdown();
-
-		FCoreDelegates::OnPostEngineInit.RemoveAll(this);
 	}
 
 	virtual void RegisterSpawnDatasmithSceneActorsHandler( FOnSpawnDatasmithSceneActors InSpawnActorsDelegate ) override
