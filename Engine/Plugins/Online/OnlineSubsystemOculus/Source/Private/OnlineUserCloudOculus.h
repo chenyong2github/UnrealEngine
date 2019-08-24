@@ -35,7 +35,7 @@ public:
 
 	virtual bool ClearFile(const FUniqueNetId& UserId, const FString& FileName) override;
 
-	virtual bool WriteUserFile(const FUniqueNetId& UserId, const FString& FileName, TArray<uint8>& FileContents) override;
+	virtual bool WriteUserFile(const FUniqueNetId& UserId, const FString& FileName, TArray<uint8>& FileContents, bool bCompressBeforeUpload = false) override;
 
 	virtual void CancelWriteUserFile(const FUniqueNetId& UserId, const FString& FileName) override;
 
