@@ -411,9 +411,9 @@ namespace coff
 	template <typename RawCoffType, coffDetail::CoffType::Enum Type>
 	static RawCoffType* ReadRaw(ObjFile* file, uint32_t uniqueId, coff::ReadFlags::Enum readFlags)
 	{
-		using CoffHeader = coffDetail::CoffType::TypeMap<Type>::HeaderType;
-		using CoffSymbol = coffDetail::CoffType::TypeMap<Type>::SymbolType;
-		using CoffAuxSymbol = coffDetail::CoffType::TypeMap<Type>::AuxSymbolType;
+		using CoffHeader = typename coffDetail::CoffType::TypeMap<Type>::HeaderType;
+		using CoffSymbol = typename coffDetail::CoffType::TypeMap<Type>::SymbolType;
+		using CoffAuxSymbol = typename coffDetail::CoffType::TypeMap<Type>::AuxSymbolType;
 
 		RawCoffType* rawCoff = new RawCoffType;
 		{
@@ -612,9 +612,9 @@ namespace coff
 	template <coffDetail::CoffType::Enum Type, typename RawCoffType>
 	static void WriteRaw(const wchar_t* filename, const RawCoffType* rawCoff, SymbolRemovalStrategy::Enum removalStrategy)
 	{
-		using CoffHeader = coffDetail::CoffType::TypeMap<Type>::HeaderType;
-		using CoffSymbol = coffDetail::CoffType::TypeMap<Type>::SymbolType;
-		using CoffAuxSymbol = coffDetail::CoffType::TypeMap<Type>::AuxSymbolType;
+		using CoffHeader = typename coffDetail::CoffType::TypeMap<Type>::HeaderType;
+		using CoffSymbol = typename coffDetail::CoffType::TypeMap<Type>::SymbolType;
+		using CoffAuxSymbol = typename coffDetail::CoffType::TypeMap<Type>::AuxSymbolType;
 
 		// the file structure is as follows:
 		//	- COFF file header
@@ -1009,7 +1009,7 @@ namespace coff
 	template <coffDetail::CoffType::Enum Type>
 	static types::vector<std::string> ExtractLinkerDirectives(const ObjFile* file)
 	{
-		using CoffHeader = coffDetail::CoffType::TypeMap<Type>::HeaderType;
+		using CoffHeader = typename coffDetail::CoffType::TypeMap<Type>::HeaderType;
 
 		const uint32_t sectionCount = coffDetail::GetNumberOfSections<CoffHeader>(file->memoryFile->base);
 		const IMAGE_SECTION_HEADER* sectionHeader = coffDetail::GetSectionHeader<CoffHeader>(file->memoryFile->base);
@@ -1195,9 +1195,9 @@ namespace coff
 	template <coffDetail::CoffType::Enum Type>
 	static CoffDB* GatherDatabase(ObjFile* file, uint32_t uniqueId, coff::ReadFlags::Enum readFlags)
 	{
-		using CoffHeader = coffDetail::CoffType::TypeMap<Type>::HeaderType;
-		using CoffSymbol = coffDetail::CoffType::TypeMap<Type>::SymbolType;
-		using CoffAuxSymbol = coffDetail::CoffType::TypeMap<Type>::AuxSymbolType;
+		using CoffHeader = typename coffDetail::CoffType::TypeMap<Type>::HeaderType;
+		using CoffSymbol = typename coffDetail::CoffType::TypeMap<Type>::SymbolType;
+		using CoffAuxSymbol = typename coffDetail::CoffType::TypeMap<Type>::AuxSymbolType;
 
 		CoffDB* coffDb = new CoffDB;
 		coffDb->symbolAllocator = new PoolAllocator<PoolAllocatorSingleThreadPolicy>("COFF symbols", sizeof(coff::Symbol), alignof(coff::Symbol), 8192u);
@@ -1733,9 +1733,9 @@ namespace coff
 	template <coffDetail::CoffType::Enum Type>
 	static UnresolvedSymbolDB* GatherUnresolvedSymbolDatabase(ObjFile* file, uint32_t uniqueId, coff::ReadFlags::Enum readFlags)
 	{
-		using CoffHeader = coffDetail::CoffType::TypeMap<Type>::HeaderType;
-		using CoffSymbol = coffDetail::CoffType::TypeMap<Type>::SymbolType;
-		using CoffAuxSymbol = coffDetail::CoffType::TypeMap<Type>::AuxSymbolType;
+		using CoffHeader = typename coffDetail::CoffType::TypeMap<Type>::HeaderType;
+		using CoffSymbol = typename coffDetail::CoffType::TypeMap<Type>::SymbolType;
+		using CoffAuxSymbol = typename coffDetail::CoffType::TypeMap<Type>::AuxSymbolType;
 
 		UnresolvedSymbolDB* symbolDb = new UnresolvedSymbolDB;
 
@@ -1804,9 +1804,9 @@ namespace coff
 	template <coffDetail::CoffType::Enum Type>
 	static ExternalSymbolDB* GatherExternalSymbolDatabase(ObjFile* file, uint32_t uniqueId, coff::ReadFlags::Enum readFlags)
 	{
-		using CoffHeader = coffDetail::CoffType::TypeMap<Type>::HeaderType;
-		using CoffSymbol = coffDetail::CoffType::TypeMap<Type>::SymbolType;
-		using CoffAuxSymbol = coffDetail::CoffType::TypeMap<Type>::AuxSymbolType;
+		using CoffHeader = typename coffDetail::CoffType::TypeMap<Type>::HeaderType;
+		using CoffSymbol = typename coffDetail::CoffType::TypeMap<Type>::SymbolType;
+		using CoffAuxSymbol = typename coffDetail::CoffType::TypeMap<Type>::AuxSymbolType;
 
 		ExternalSymbolDB* symbolDb = new ExternalSymbolDB;
 
