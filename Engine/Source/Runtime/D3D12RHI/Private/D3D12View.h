@@ -687,28 +687,9 @@ public:
 	inline uint32 GetIndex() const { return Index; }
 
 private:
-	void AllocateDescriptorSlot()
-	{
-		if (Parent)
-		{
-			FD3D12Device* Device = GetParentDevice();
-			FD3D12OfflineDescriptorManager& DescriptorAllocator = Device->template GetViewDescriptorAllocator<TDesc>();
-			Handle = DescriptorAllocator.AllocateHeapSlot(Index);
-			check(Handle.ptr != 0);
-		}
-	}
-
-	void FreeDescriptorSlot()
-	{
-		if (Parent)
-		{
-			FD3D12Device* Device = GetParentDevice();
-			FD3D12OfflineDescriptorManager& DescriptorAllocator = Device->template GetViewDescriptorAllocator<TDesc>();
-			DescriptorAllocator.FreeHeapSlot(Handle, Index);
-			Handle.ptr = 0;
-		}
-		check(!Handle.ptr);
-	}
+	// Implemented in D3D12Device.h due to dependencies on FD3D12Device
+	inline void AllocateDescriptorSlot();
+	inline void FreeDescriptorSlot();
 };
 
 typedef TD3D12ViewDescriptorHandle<D3D12_SHADER_RESOURCE_VIEW_DESC>		FD3D12DescriptorHandleSRV;
