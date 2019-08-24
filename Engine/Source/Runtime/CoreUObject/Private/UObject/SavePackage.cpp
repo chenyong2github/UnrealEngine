@@ -4335,7 +4335,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 #if WITH_EDITORONLY_DATA
 							// Allow referencing private objects into/from/between owned packages
-							if (ObjPackage->IsOwnedBy(InOuter) || InOuter->IsOwnedBy(ObjPackage) || InOuter->HasSameOwner(ObjPackage))
+							if (ObjPackage && (ObjPackage->IsOwnedBy(InOuter) || InOuter->IsOwnedBy(ObjPackage) || InOuter->HasSameOwner(ObjPackage)))
 							{
 								continue;
 							}
