@@ -80,10 +80,18 @@ public:
 	/** Requests the the simulation be reset on the next tick. */
 	void Reset(EResetMode Mode);
 
-	void ComponentTick(float DeltaSeconds);
-	void PreSimulateTick(float DeltaSeconds);
-	void PostSimulateTick(float DeltaSeconds);
-	void FinalizeTick(float DeltaSeconds);
+	void ComponentTick(float DeltaSeconds, const FGraphEventRef& MyCompletionGraphEvent);
+
+	/** Initial phase of system instance tick. Must be executed on the game thread. */
+	void Tick_GameThread(float DeltaSeconds);
+	/** Secondary phase of the system instance tick that can be executed on any thread. */
+	void Tick_Concurrent();
+	/** Final phase of system instance tick. Must be executed on the game thread. */
+	void FinalizeTick_GameThread();
+
+	/** Blocks until any async work for this system instance has completed. Must be called on the game thread. */
+	void WaitForAsyncTick(bool bEnsureComplete=false);
+
 	/** Handles completion of the system and returns true if the system is complete. */
 	bool HandleCompletion();
 
@@ -150,8 +158,6 @@ public:
 		return nullptr;
 	}
 
-	void DestroyDataInterfaceInstanceData();
-
 	bool UsesEmitter(const UNiagaraEmitter* Emitter)const;
 	bool UsesScript(const UNiagaraScript* Script)const;
 	//bool UsesDataInterface(UNiagaraDataInterface* Interface);
@@ -172,6 +178,8 @@ public:
 
 	/** Index of this instance in the system simulation. */
 	int32 SystemInstanceIndex;
+
+	TSharedPtr<class FNiagaraSystemSimulation, ESPMode::ThreadSafe> SystemSimulation;
 
 	FORCEINLINE bool HasTickingEmitters()const { return bHasTickingEmitters; }
 
@@ -217,7 +225,18 @@ public:
 	bool HasGPUEmitters() { return bHasGPUEmitters;  }
 
 	int32 GetDetailLevel()const;
+
+	FORCEINLINE void BeginAsyncWork()
+	{
+		bAsyncWorkInProgress = true;
+		bNeedsFinalize = true;
+	}
+
+	void TickInstanceParameters(float DeltaSeconds);
+
 private:
+
+	void DestroyDataInterfaceInstanceData();
 
 	/** Builds the emitter simulations. */
 	void InitEmitters();
@@ -230,7 +249,6 @@ private:
 	/** Call PrepareForSImulation on each data source from the simulations and determine which need per-tick updates.*/
 	void InitDataInterfaces();	
 
-	void TickInstanceParameters(float DeltaSeconds);
 
 	void BindParameterCollections(FNiagaraScriptExecutionContext& ExecContext);
 	
@@ -238,7 +256,6 @@ private:
 	float GetLODDistance();
 
 	UNiagaraComponent* Component;
-	TSharedPtr<class FNiagaraSystemSimulation, ESPMode::ThreadSafe> SystemSimulation;
 	FBox SystemBounds;
 
 	/** The age of the System instance. */
@@ -337,8 +354,15 @@ private:
 
 	NiagaraEmitterInstanceBatcher* Batcher = nullptr;
 public:
+	/** True if we have async work in flight. */
+	volatile bool bAsyncWorkInProgress;
+	/** True if we require a call to FinalizeTick_GameThread(). Typically this is called from a GT task but can be called in WaitForAsync. */
+	volatile bool bNeedsFinalize;
+
 	// Transient data that is accumulated during tick.
 	uint32 TotalParamSize = 0;
 	uint32 ActiveGPUEmitterCount = 0;
 	int32 GPUDataInterfaceInstanceDataSize = 0;
+
+	float CachedDeltaSeconds;
 };
