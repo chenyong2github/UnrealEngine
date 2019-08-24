@@ -11,6 +11,14 @@
 
 class UNavigationSystemConfig;
 
+UENUM()
+enum class ENavSystemOverridePolicy : uint8
+{
+	Override, // the pre-exising nav system instance will be destroyed.
+	Append, // config information will be added to pre-existing nav system instance
+	Skip	// if there's already a NavigationSystem in the world then the overriding config will be ignored
+};
+
 
 UCLASS(hidecategories = (Input, Rendering, Actor, LOD, Cooking))
 class NAVIGATIONSYSTEM_API ANavSystemConfigOverride : public AActor
@@ -26,6 +34,10 @@ private:
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Navigation, Instanced,  meta = (NoResetToDefault))
 	UNavigationSystemConfig* NavigationSystemConfig;
+
+	/** If there's already a NavigationSystem instance in the world how should this nav override behave */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Navigation)
+	ENavSystemOverridePolicy OverridePolicy;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Navigation, AdvancedDisplay)
 	uint8 bLoadOnClient : 1;
@@ -49,6 +61,14 @@ public:
 #endif
 
 protected:
+	/** Creates a new navigation system and plugs it into the world. If there's a
+	 *	nav system instance already in place it gets destroyed. */
+	virtual void OverrideNavSystem();
+
+	/** Appends non-conflicting information (like supported agents) to a pre-existing 
+	 *	nav system instance */
+	virtual void AppendToNavSystem(UNavigationSystemBase& PrevNavSys);
+
 #if WITH_EDITOR
 	/** Called only in the editor mode*/
 	void InitializeForWorld(UNavigationSystemBase* NewNavSys, UWorld* World, const FNavigationSystemRunMode RunMode);

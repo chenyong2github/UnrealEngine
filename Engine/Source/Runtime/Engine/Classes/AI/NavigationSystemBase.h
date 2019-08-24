@@ -95,7 +95,7 @@ namespace FNavigationSystem
 	 *	@param NavigationSystemConfig is used to pick the navigation system's class and set it up. If null
 	 *		then WorldOwner.WorldSettings.NavigationSystemConfig will be used
 	 */
-	ENGINE_API void AddNavigationSystemToWorld(UWorld& WorldOwner, const FNavigationSystemRunMode RunMode = FNavigationSystemRunMode::InvalidMode, UNavigationSystemConfig* NavigationSystemConfig = nullptr, const bool bInitializeForWorld = true);
+	ENGINE_API void AddNavigationSystemToWorld(UWorld& WorldOwner, const FNavigationSystemRunMode RunMode = FNavigationSystemRunMode::InvalidMode, UNavigationSystemConfig* NavigationSystemConfig = nullptr, const bool bInitializeForWorld = true, const bool bOverridePreviousNavSys = false);
 
 	/** Discards all navigation data chunks in all sub-levels */
 	ENGINE_API void DiscardNavigationDataChunks(UWorld& InWorld);
@@ -212,6 +212,8 @@ public:
 	virtual void Tick(float DeltaSeconds) PURE_VIRTUAL(UNavigationSystemBase::Tick, );
 	virtual void CleanUp(const FNavigationSystem::ECleanupMode Mode) PURE_VIRTUAL(UNavigationSystemBase::CleanUp, );
 	virtual void Configure(const UNavigationSystemConfig& Config) PURE_VIRTUAL(UNavigationSystemBase::Configure, );
+	/** Called when there's a need to extend current navigation system's config with information in NewConfig */
+	virtual void AppendConfig(const UNavigationSystemConfig& NewConfig) PURE_VIRTUAL(UNavigationSystemBase::AppendConfig, );
 
 	/**
 	*	Called when owner-UWorld initializes actors
