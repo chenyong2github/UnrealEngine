@@ -1362,6 +1362,11 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 					check(!FSceneRenderTargets::Get(RHICmdList).SeparateTranslucencyRT);
 				}
 			}
+			else
+			{
+				FRenderingCompositePass* NodeSeparateTranslucency = Context.Graph.RegisterPass(new (FMemStack::Get()) FRCPassPostProcessInput(FSceneRenderTargets::Get(RHICmdList).GetSeparateTranslucencyDummy()));
+				SeparateTranslucency = FRenderingCompositeOutputRef(NodeSeparateTranslucency);
+			}
 		}
 
 		bool bVisualizeHDR = View.Family->EngineShowFlags.VisualizeHDR && FeatureLevel >= ERHIFeatureLevel::SM5;
