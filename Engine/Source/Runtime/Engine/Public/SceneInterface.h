@@ -261,6 +261,13 @@ public:
 	 * Returns the scene's unique FSkyAtmosphereRenderSceneInfo if it exists
 	 */
 	virtual FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() = 0;
+	/**
+	 * Override a sky atmosphere light direction
+	 * @param SkyAtmosphereComponent - component to verify it is the actual unique SkyAtmosphere
+	 * @param AtmosphereLightIndex - the atmosphere light index to consider
+	 * @param LightDirection - the new light direction to override the atmosphere light with
+	 */
+	virtual void OverrideSkyAtmosphereLightDirection(const class USkyAtmosphereComponent* SkyAtmosphereComponent, int32 AtmosphereLightIndex, const FVector& LightDirection) = 0;
 
 	/**
 	 * Adds a wind source component to the scene.
