@@ -5,12 +5,13 @@
 #include "Components/RuntimeVirtualTextureComponent.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Misc/ScopedSlowTask.h"
+#include "SceneInterface.h"
 #include "VT/RuntimeVirtualTexture.h"
 #include "VT/RuntimeVirtualTextureRender.h"
 
 namespace RuntimeVirtualTexture
 {
-	bool HasStreamedMips(class URuntimeVirtualTextureComponent* InComponent)
+	bool HasStreamedMips(URuntimeVirtualTextureComponent* InComponent)
 	{
 		if (InComponent == nullptr)
 		{
@@ -31,7 +32,7 @@ namespace RuntimeVirtualTexture
 		return true;
 	}
 
-	bool BuildStreamedMips(class URuntimeVirtualTextureComponent* InComponent, ERuntimeVirtualTextureDebugType DebugType)
+	bool BuildStreamedMips(URuntimeVirtualTextureComponent* InComponent, ERuntimeVirtualTextureDebugType DebugType)
 	{
 		if (!HasStreamedMips(InComponent))
 		{
