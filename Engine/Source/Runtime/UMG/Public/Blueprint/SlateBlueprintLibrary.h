@@ -43,6 +43,10 @@ public:
 	UFUNCTION(BlueprintPure, Category="User Interface|Geometry")
 	static FVector2D LocalToAbsolute(const FGeometry& Geometry, FVector2D LocalCoordinate);
 
+	/** Returns the local top/left of the geometry in local space. */
+	UFUNCTION(BlueprintPure, Category = "User Interface|Geometry")
+	static FVector2D GetLocalTopLeft(const FGeometry& Geometry);
+
 	/** Returns the size of the geometry in local space. */
 	UFUNCTION(BlueprintPure, Category="User Interface|Geometry")
 	static FVector2D GetLocalSize(const FGeometry& Geometry);
