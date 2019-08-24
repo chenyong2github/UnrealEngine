@@ -197,14 +197,13 @@ void FNiagaraParameterStore::Tick()
 		{
 			Binding.Value.Tick(Binding.Key, this);
 		}
-
 		Dump();
-
-		//We have to have ticked all our source stores before now.
-		bParametersDirty = false;
-		bInterfacesDirty = false;
-		bUObjectsDirty = false;
 	}
+
+	//We have to have ticked all our source stores before now.
+	bParametersDirty = false;
+	bInterfacesDirty = false;
+	bUObjectsDirty = false;
 }
 
 void FNiagaraParameterStore::UnbindFromSourceStores()
