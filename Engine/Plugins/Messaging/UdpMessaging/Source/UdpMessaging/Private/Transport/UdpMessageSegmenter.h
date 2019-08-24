@@ -177,6 +177,16 @@ public:
 	 */
 	void UpdateSentTime(const FDateTime& CurrentTime);
 
+	/**
+	 * Checks whether the serialization of the message to segment and send completed. The serialization may be performing asynchronously and can may succeed or fail. The message cannot be segmented
+	 * and sent until it was serialized sucessfully.
+	 * @return true if the message is serialization is done, false if it still serializing.
+	 * @see Initialize()
+	 * @see IsInvalid()
+	 * @see IsInitialized()
+	 */
+	bool IsMessageSerializationDone() const;
+
 private:
 	/** Defines the time interval for sending. */
 	static const FTimespan SendInterval;
