@@ -42,7 +42,6 @@ public:
 
 	virtual void* Malloc(SIZE_T Size, uint32 Alignment) override
 	{
-		IncrementTotalMallocCalls();
 		void* Result=UsedMalloc->Malloc(Size, Alignment);
 		if (LIKELY(Result != nullptr && Size > 0))
 		{
@@ -56,7 +55,6 @@ public:
 		// NOTE: case when Realloc returns completely new pointer is not handled properly (we would like to have previous memory poisoned completely).
 		// This can be done by avoiding calling Realloc() of the nested allocator and Malloc()/Free()'ing directly, but this is deemed unacceptable
 		// from a performance/fragmentation standpoint.
-		IncrementTotalReallocCalls();
 		SIZE_T OldSize = 0;
 		if (Ptr != nullptr && GetAllocationSize(Ptr, OldSize) && OldSize > 0 && OldSize > NewSize)
 		{
@@ -77,7 +75,6 @@ public:
 	{
 		if (LIKELY(Ptr))
 		{
-			IncrementTotalFreeCalls();
 			SIZE_T AllocSize;
 			if (LIKELY(GetAllocationSize(Ptr, AllocSize) && AllocSize > 0))
 			{

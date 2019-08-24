@@ -33,8 +33,6 @@ FMallocAnsi::FMallocAnsi()
 
 void* FMallocAnsi::Malloc( SIZE_T Size, uint32 Alignment )
 {
-	IncrementTotalMallocCalls();
-
 #if !UE_BUILD_SHIPPING
 	uint64 LocalMaxSingleAlloc = MaxSingleAlloc.Load(EMemoryOrder::Relaxed);
 	if (LocalMaxSingleAlloc != 0 && Size > LocalMaxSingleAlloc)
@@ -73,8 +71,6 @@ void* FMallocAnsi::Malloc( SIZE_T Size, uint32 Alignment )
 
 void* FMallocAnsi::Realloc( void* Ptr, SIZE_T NewSize, uint32 Alignment )
 {
-	IncrementTotalReallocCalls();
-
 #if !UE_BUILD_SHIPPING
 	uint64 LocalMaxSingleAlloc = MaxSingleAlloc.Load(EMemoryOrder::Relaxed);
 	if (LocalMaxSingleAlloc != 0 && NewSize > LocalMaxSingleAlloc)
@@ -159,7 +155,6 @@ void* FMallocAnsi::Realloc( void* Ptr, SIZE_T NewSize, uint32 Alignment )
 
 void FMallocAnsi::Free( void* Ptr )
 {
-	IncrementTotalFreeCalls();
 #if USE_ALIGNED_MALLOC
 	_aligned_free( Ptr );
 #elif PLATFORM_USE_ANSI_POSIX_MALLOC || PLATFORM_USE_ANSI_MEMALIGN

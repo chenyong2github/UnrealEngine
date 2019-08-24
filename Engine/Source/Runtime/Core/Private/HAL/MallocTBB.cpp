@@ -30,13 +30,8 @@ THIRD_PARTY_INCLUDES_START
 #include <tbb/scalable_allocator.h>
 THIRD_PARTY_INCLUDES_END
 
-#define MEM_TIME(st)
-
-
 void* FMallocTBB::Malloc( SIZE_T Size, uint32 Alignment )
 {
-	IncrementTotalMallocCalls();
-
 #if !UE_BUILD_SHIPPING
 	uint64 LocalMaxSingleAlloc = MaxSingleAlloc.Load(EMemoryOrder::Relaxed);
 	if (LocalMaxSingleAlloc != 0 && Size > LocalMaxSingleAlloc)
@@ -45,8 +40,6 @@ void* FMallocTBB::Malloc( SIZE_T Size, uint32 Alignment )
 		return nullptr;
 	}
 #endif
-
-	MEM_TIME(MemTime -= FPlatformTime::Seconds());
 
 	void* NewPtr = NULL;
 #if PLATFORM_MAC
@@ -80,14 +73,11 @@ void* FMallocTBB::Malloc( SIZE_T Size, uint32 Alignment )
 		FMemory::Memset(NewPtr, DEBUG_FILL_NEW, scalable_msize(NewPtr));
 	}
 #endif
-	MEM_TIME(MemTime += FPlatformTime::Seconds());
 	return NewPtr;
 }
 
 void* FMallocTBB::Realloc( void* Ptr, SIZE_T NewSize, uint32 Alignment )
 {
-	IncrementTotalReallocCalls();
-
 #if !UE_BUILD_SHIPPING
 	uint64 LocalMaxSingleAlloc = MaxSingleAlloc.Load(EMemoryOrder::Relaxed);
 	if (LocalMaxSingleAlloc != 0 && NewSize > LocalMaxSingleAlloc)
@@ -97,7 +87,6 @@ void* FMallocTBB::Realloc( void* Ptr, SIZE_T NewSize, uint32 Alignment )
 	}
 #endif
 
-	MEM_TIME(MemTime -= FPlatformTime::Seconds())
 #if UE_BUILD_DEBUG
 	SIZE_T OldSize = 0;
 	if (Ptr)
@@ -135,7 +124,6 @@ void* FMallocTBB::Realloc( void* Ptr, SIZE_T NewSize, uint32 Alignment )
 	{
 		OutOfMemory(NewSize, Alignment);
 	}
-	MEM_TIME(MemTime += FPlatformTime::Seconds())
 	return NewPtr;
 }
 
@@ -145,14 +133,11 @@ void FMallocTBB::Free( void* Ptr )
 	{
 		return;
 	}
-	MEM_TIME(MemTime -= FPlatformTime::Seconds())
 #if UE_BUILD_DEBUG
 	FMemory::Memset(Ptr, DEBUG_FILL_FREED, scalable_msize(Ptr)); 
 #endif
-	IncrementTotalFreeCalls();
 	scalable_free(Ptr);
 
-	MEM_TIME(MemTime += FPlatformTime::Seconds())
 }
 
 bool FMallocTBB::GetAllocationSize(void *Original, SIZE_T &SizeOut)
@@ -160,7 +145,5 @@ bool FMallocTBB::GetAllocationSize(void *Original, SIZE_T &SizeOut)
 	SizeOut = scalable_msize(Original);
 	return true;
 }
-
-#undef MEM_TIME
 
 #endif // PLATFORM_SUPPORTS_TBB && TBB_ALLOCATOR_ALLOWED
