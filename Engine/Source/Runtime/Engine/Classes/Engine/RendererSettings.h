@@ -446,6 +446,12 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 	uint32 bUsePreExposure : 1;
 
 	UPROPERTY(config, EditAnywhere, Category = DefaultSettings, meta = (
+		EditCondition = "bUsePreExposure", ConsoleVariable = "r.EyeAdaptation.EditorOnly", DisplayName = "Enable pre-exposure only in the editor",
+		ToolTip = "Whether pre-exposure should be an editor only feature. This is to because it currently has an impact on the renderthread performance.",
+		ConfigRestartRequired=false))
+	uint32 bEnablePreExposureOnlyInTheEditor : 1;
+
+	UPROPERTY(config, EditAnywhere, Category = DefaultSettings, meta = (
 		ConsoleVariable = "r.DefaultFeature.MotionBlur", DisplayName = "Motion Blur",
 		ToolTip = "Whether the default for MotionBlur is enabled or not (postprocess volume/camera/game setting can still override and enable or disable it independently)"))
 	uint32 bDefaultFeatureMotionBlur : 1;
