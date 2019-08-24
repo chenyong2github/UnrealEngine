@@ -2392,6 +2392,12 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		if (CVar && CVar->GetValueOnAnyThread() > 0)
 		{
 			KeyString += TEXT("_SKYATM");
+
+			static const auto CVarHeightFog = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SupportSkyAtmosphereAffectsHeightFog"));
+			if (CVarHeightFog && CVarHeightFog->GetValueOnAnyThread() > 0)
+			{
+				KeyString += TEXT("_SKYHF");
+			}
 		}
 	}
 
