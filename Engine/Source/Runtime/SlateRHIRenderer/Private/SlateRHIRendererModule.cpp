@@ -23,41 +23,46 @@ public:
 	{
 		if (GIsEditor)
 		{
-			AtlasSize = 2048;
+			GrayscaleAtlasSize = 2048;
 		}
 		else
 		{
-			AtlasSize = 1024;
+			GrayscaleAtlasSize = 1024;
 			if (GConfig)
 			{
-				GConfig->GetInt(TEXT("SlateRenderer"), TEXT("FontAtlasSize"), AtlasSize, GEngineIni);
-				AtlasSize = FMath::Clamp(AtlasSize, 0, 2048);
+				GConfig->GetInt(TEXT("SlateRenderer"), TEXT("FontAtlasSize"), GrayscaleAtlasSize, GEngineIni);
+				GrayscaleAtlasSize = FMath::Clamp(GrayscaleAtlasSize, 0, 2048);
 			}
 		}
+		ColorAtlasSize = GrayscaleAtlasSize / 4;
 	}
 
 	virtual ~FSlateRHIFontAtlasFactory()
 	{
 	}
 
-	virtual FIntPoint GetAtlasSize() const override
+	virtual FIntPoint GetAtlasSize(const bool InIsGrayscale) const override
 	{
-		return FIntPoint(AtlasSize, AtlasSize);
+		return InIsGrayscale
+			? FIntPoint(GrayscaleAtlasSize, GrayscaleAtlasSize)
+			: FIntPoint(ColorAtlasSize, ColorAtlasSize);
 	}
 
-	virtual TSharedRef<FSlateFontAtlas> CreateFontAtlas() const override
+	virtual TSharedRef<FSlateFontAtlas> CreateFontAtlas(const bool InIsGrayscale) const override
 	{
-		return MakeShareable(new FSlateFontAtlasRHI(AtlasSize, AtlasSize));
+		const FIntPoint AtlasSize = GetAtlasSize(InIsGrayscale);
+		return MakeShareable(new FSlateFontAtlasRHI(AtlasSize.X, AtlasSize.Y, InIsGrayscale));
 	}
 
-	virtual TSharedPtr<ISlateFontTexture> CreateNonAtlasedTexture(const uint32 InWidth, const uint32 InHeight, const TArray<uint8>& InRawData) const override
+	virtual TSharedPtr<ISlateFontTexture> CreateNonAtlasedTexture(const uint32 InWidth, const uint32 InHeight, const bool InIsGrayscale, const TArray<uint8>& InRawData) const override
 	{
 		if (GIsEditor)
 		{
-			const uint32 MaxFontTextureDimension = FMath::Min(AtlasSize * 4u, GetMax2DTextureDimension()); // Don't allow textures greater than 4x our atlas size, but still honor the platform limit
+			const FIntPoint AtlasSize = GetAtlasSize(InIsGrayscale);
+			const uint32 MaxFontTextureDimension = FMath::Min(AtlasSize.Y * 4u, GetMax2DTextureDimension()); // Don't allow textures greater than 4x our atlas size, but still honor the platform limit
 			if (InWidth <= MaxFontTextureDimension && InHeight <= MaxFontTextureDimension)
 			{
-				return MakeShareable(new FSlateFontTextureRHI(InWidth, InHeight, InRawData));
+				return MakeShareable(new FSlateFontTextureRHI(InWidth, InHeight, InIsGrayscale, InRawData));
 			}
 		}
 		return nullptr;
@@ -65,7 +70,8 @@ public:
 
 private:
 	/** Size of each font texture, width and height */
-	int32 AtlasSize;
+	int32 GrayscaleAtlasSize;
+	int32 ColorAtlasSize;
 };
 
 

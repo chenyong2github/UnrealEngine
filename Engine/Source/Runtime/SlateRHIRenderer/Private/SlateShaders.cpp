@@ -42,9 +42,13 @@ IMPLEMENT_SLATE_PIXELSHADER_TYPE(Border, false, false);
 IMPLEMENT_SLATE_PIXELSHADER_TYPE(Default, true, false);
 IMPLEMENT_SLATE_PIXELSHADER_TYPE(Border, true, false);
 
-IMPLEMENT_SLATE_PIXELSHADER_TYPE(Font, false, true);
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(GrayscaleFont, false, true);
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(GrayscaleFont, true, true);
+
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(ColorFont, false, true);
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(ColorFont, true, true);
+
 IMPLEMENT_SLATE_PIXELSHADER_TYPE(LineSegment, false, true);
-IMPLEMENT_SLATE_PIXELSHADER_TYPE(Font, true, true);
 IMPLEMENT_SLATE_PIXELSHADER_TYPE(LineSegment, true, true);
 
 /** The Slate vertex declaration. */

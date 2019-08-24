@@ -128,9 +128,8 @@ public:
 
 	/** ISlateAtlasProvider interface */
 	virtual int32 GetNumAtlasPages() const override;
-	virtual FIntPoint GetAtlasPageSize() const override;
 	virtual FSlateShaderResource* GetAtlasPageResource(const int32 InIndex) const override;
-	virtual bool IsAtlasPageResourceAlphaOnly() const override;
+	virtual bool IsAtlasPageResourceAlphaOnly(const int32 InIndex) const override;
 
 	/** FTickableGameObject interface */
 	virtual ETickableTickType GetTickableTickType() const override { return ETickableTickType::Always; }
