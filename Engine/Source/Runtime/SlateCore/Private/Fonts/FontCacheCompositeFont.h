@@ -129,8 +129,8 @@ public:
 		return CachedTypefaces[CachedTypeface_FallbackIndex].Get();
 	}
 
-	/** Get the typeface that should be used for the given character */
-	const FCachedTypefaceData* GetTypefaceForCharacter(const TCHAR InChar) const;
+	/** Get the typeface that should be used for the given codepoint */
+	const FCachedTypefaceData* GetTypefaceForCodepoint(const UTF32CHAR InCodepoint) const;
 
 	/** Get all the font data cached by this entry */
 	void GetCachedFontData(TArray<const FFontData*>& OutFontData) const;
@@ -210,8 +210,8 @@ public:
 	/** Get the default font data to use for the given font info */
 	const FFontData& GetDefaultFontData(const FSlateFontInfo& InFontInfo);
 
-	/** Get the font data to use for the given font info and character */
-	const FFontData& GetFontDataForCharacter(const FSlateFontInfo& InFontInfo, const TCHAR InChar, float& OutScalingFactor);
+	/** Get the font data to use for the given font info and codepoint */
+	const FFontData& GetFontDataForCodepoint(const FSlateFontInfo& InFontInfo, const UTF32CHAR InCodepoint, float& OutScalingFactor);
 
 	/** Gets or loads a FreeType font face */
 	TSharedPtr<FFreeTypeFace> GetFontFace(const FFontData& InFontData);
@@ -248,18 +248,18 @@ private:
 		return (CachedCompositeFont) ? CachedCompositeFont->GetFallbackTypeface() : nullptr;
 	}
 
-	/** Get the typeface that should be used for the given character */
-	FORCEINLINE const FCachedTypefaceData* GetCachedTypefaceForCharacter(const FCompositeFont* const InCompositeFont, const TCHAR InChar)
+	/** Get the typeface that should be used for the given codepoint */
+	FORCEINLINE const FCachedTypefaceData* GetCachedTypefaceForCodepoint(const FCompositeFont* const InCompositeFont, const UTF32CHAR InCodepoint)
 	{
 		const FCachedCompositeFontData* const CachedCompositeFont = GetCachedCompositeFont(InCompositeFont);
-		return (CachedCompositeFont) ? CachedCompositeFont->GetTypefaceForCharacter(InChar) : nullptr;
+		return (CachedCompositeFont) ? CachedCompositeFont->GetTypefaceForCodepoint(InCodepoint) : nullptr;
 	}
 
 	/** Try and find some font data that best matches the given attributes */
 	const FFontData* GetBestMatchFontForAttributes(const FCachedTypefaceData* const InCachedTypefaceData, const TSet<FName>& InFontAttributes);
 
-	/** Check to see whether the given font data supports rendering the given character */
-	bool DoesFontDataSupportCharacter(const FFontData& InFontData, const TCHAR InChar);
+	/** Check to see whether the given font data supports rendering the given codepoint */
+	bool DoesFontDataSupportCodepoint(const FFontData& InFontData, const UTF32CHAR InCodepoint);
 
 	/** Called after the active culture has changed */
 	void HandleCultureChanged();

@@ -20,9 +20,9 @@ public:
 	public:
 		FFallbackContext() = default;
 
-		FFallbackContext(const FFontData* InFontData, const TCHAR InChar)
+		FFallbackContext(const FFontData* InFontData, const UTF32CHAR InCodepoint)
 			: FontData(InFontData)
-			, Char(InChar)
+			, Codepoint(InCodepoint)
 		{
 		}
 
@@ -30,7 +30,7 @@ public:
 
 	private:
 		const FFontData* FontData = nullptr;
-		TCHAR Char = 0;
+		UTF32CHAR Codepoint = 0;
 	};
 
 	/**
