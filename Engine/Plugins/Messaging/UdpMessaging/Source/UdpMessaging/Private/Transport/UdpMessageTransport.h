@@ -46,6 +46,9 @@ public:
 	/** Virtual destructor. */
 	virtual ~FUdpMessageTransport();
 
+	/** Notifies the transport that the application is about to exit. */
+	void OnAppPreExit();
+
 public:
 
 	//~ IMessageTransport interface
