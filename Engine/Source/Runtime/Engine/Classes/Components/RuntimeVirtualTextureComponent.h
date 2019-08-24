@@ -27,6 +27,9 @@ public:
 	/** Get the runtime virtual texture object set on this component */
 	URuntimeVirtualTexture* GetVirtualTexture() const { return VirtualTexture; }
 
+	/** Get the runtime virtual texture UV to World transform on this component. */
+	FTransform GetVirtualTextureTransform() const;
+
 #if WITH_EDITOR
 	/** Copy the rotation from BoundsSourceActor to this component. Called by our UI details customization. */
 	void SetRotation();

@@ -2,6 +2,7 @@
 
 #include "VT/RuntimeVirtualTextureRender.h"
 
+#include "Components/RuntimeVirtualTextureComponent.h"
 #include "GlobalShader.h"
 #include "GPUScene.h"
 #include "MaterialShader.h"
@@ -13,6 +14,7 @@
 #include "SceneRenderTargets.h"
 #include "ShaderBaseClasses.h"
 #include "VT/RuntimeVirtualTexture.h"
+#include "VT/RuntimeVirtualTextureSceneProxy.h"
 #include "MeshPassProcessor.inl"
 
 
@@ -761,5 +763,25 @@ namespace RuntimeVirtualTexture
 
 			RHICmdList.CopyTexture(GraphOutputTexture1->GetRenderTargetItem().ShaderResourceTexture->GetTexture2D(), OutputTexture1->GetTexture2D(), Info);
 		}
+	}
+
+
+	uint32 GetRuntimeVirtualTextureSceneIndex_GameThread(class URuntimeVirtualTextureComponent* InComponent)
+	{
+		int32 SceneIndex = 0;
+		ENQUEUE_RENDER_COMMAND(GetSceneIndexCommand)(
+			[&SceneIndex, InComponent](FRHICommandListImmediate& RHICmdList)
+		{
+			if (InComponent->GetScene() != nullptr)
+			{
+				FScene* Scene = InComponent->GetScene()->GetRenderScene();
+				if (Scene != nullptr && InComponent->SceneProxy != nullptr)
+				{
+					SceneIndex = Scene->GetRuntimeVirtualTextureSceneIndex(InComponent->SceneProxy->ProducerId);
+				}
+			}
+		});
+		FlushRenderingCommands();
+		return SceneIndex;
 	}
 }
