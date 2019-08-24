@@ -3549,7 +3549,7 @@ public:
 				ralloc_asprintf_append(buffer, "in gl_PerVertex\n"
 					"{\n"
 					"\tvec4 gl_Position;\n"
-					"\tfloat gl_ClipDistance[6];\n"
+					"\tfloat gl_ClipDistance[];\n"
 					"} gl_in[];\n"
 					);
 #endif
@@ -3559,7 +3559,7 @@ public:
 				ralloc_asprintf_append(buffer, "out gl_PerVertex\n"
 					"{\n"
 					"\tvec4 gl_Position;\n"
-					"\tfloat gl_ClipDistance[6];\n"
+					"\tfloat gl_ClipDistance[];\n"
 					"};\n"
 					);
 #endif
@@ -3568,13 +3568,13 @@ public:
 				ralloc_asprintf_append(buffer, "in gl_PerVertex\n"
 					"{\n"
 					"\tvec4 gl_Position;\n"
-					"\tfloat gl_ClipDistance[6];\n"
+					"\tfloat gl_ClipDistance[];\n"
 					"} gl_in[gl_MaxPatchVertices];\n"
 					);
 				ralloc_asprintf_append(buffer, "out gl_PerVertex\n"
 					"{\n"
 					"\tvec4 gl_Position;\n"
-					"\tfloat gl_ClipDistance[6];\n"
+					"\tfloat gl_ClipDistance[];\n"
 					"} gl_out[];\n"
 					);
 				break;
@@ -3582,13 +3582,13 @@ public:
 				ralloc_asprintf_append(buffer, "in gl_PerVertex\n"
 					"{\n"
 					"\tvec4 gl_Position;\n"
-					"\tfloat gl_ClipDistance[6];\n"
+					"\tfloat gl_ClipDistance[];\n"
 					"} gl_in[gl_MaxPatchVertices];\n"
 					);
 				ralloc_asprintf_append(buffer, "out gl_PerVertex\n"
 					"{\n"
 					"\tvec4 gl_Position;\n"
-					"\tfloat gl_ClipDistance[6];\n"
+					"\tfloat gl_ClipDistance[];\n"
 					"};\n"
 					);
 				break;
