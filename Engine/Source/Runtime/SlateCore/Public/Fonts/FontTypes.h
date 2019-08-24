@@ -83,44 +83,23 @@ struct FSlateFontKeyFuncs : BaseKeyFuncs<TPair<FSlateFontKey, ValueType>, FSlate
 };
 
 
-/** Measurement details for a specific character */
-struct FCharacterMeasureInfo
-{
-	/** Width of the character in pixels */
-	int16 SizeX;
-	/** Height of the character in pixels */
-	int16 SizeY;
-	/** How many pixels to advance in X after drawing this character (when its part of a string)*/
-	int16 XAdvance;
-	/** The largest vertical distance above the baseline for any character in the font */
-	int16 GlobalAscender;
-	/** The largest vertical distance below the baseline for any character in the font */
-	int16 GlobalDescender;
-	/** The vertical distance from the baseline to the topmost border of the glyph bitmap */
-	int16 VerticalOffset;
-	/** The horizontal distance from the origin to the leftmost border of the character */
-	int16 HorizontalOffset;
-	FCharacterMeasureInfo( int16 InSizeX = 0, int16 InSizeY = 0, int16 InXAdvance = 0, int16 InVerticalOffset = 0, int16 InHorizontalOffset = 0 )
-		: SizeX(InSizeX),SizeY(InSizeY),XAdvance(InXAdvance),VerticalOffset(InVerticalOffset), HorizontalOffset(InHorizontalOffset)
-	{
-	}
-};
-
 /** Contains pixel data for a character rendered from freetype as well as measurement info */
 struct FCharacterRenderData
 {
-	FCharacterMeasureInfo MeasureInfo;
-	/** Measurement data for this character */
-	/** Raw pixels created by freetype */
+	/** Raw pixels of the rendered character */
 	TArray<uint8> RawPixels;
-	/** @todo Doesnt belong here. */
-	uint16 MaxHeight;
-	/** The character that was rendered */
-	TCHAR Char;
-	/** The index of the glyph from the FreeType face that was rendered */
-	uint32 GlyphIndex;
-	/** Whether or not the character has kerning */
-	bool HasKerning;
+	/** Width of the character in pixels */
+	int16 SizeX = 0;
+	/** Height of the character in pixels */
+	int16 SizeY = 0;
+	/** The vertical distance from the baseline to the topmost border of the glyph bitmap */
+	int16 VerticalOffset = 0;
+	/** The horizontal distance from the origin to the leftmost border of the character */
+	int16 HorizontalOffset = 0;
+	/** True if the rendered character is 8-bit grayscale, or false if it's 8-bit per-channel BGRA color */
+	bool bIsGrayscale = true;
+	/** True if the rendered character supports outlines, false otherwise */
+	bool bSupportsOutline = false;
 };
 
 /**
@@ -142,6 +121,11 @@ public:
 	virtual class FTextureResource* GetEngineTexture() = 0;
 
 	/**
+	 * Returns whether the texture resource is 8-bit grayscale or 8-bit per-channel BGRA color
+	 */
+	virtual bool IsGrayscale() const = 0;
+
+	/**
 	 * Releases rendering resources of this texture
 	 */
 	virtual void ReleaseResources() {}
@@ -153,8 +137,11 @@ public:
 class SLATECORE_API FSlateFontAtlas : public ISlateFontTexture, public FSlateTextureAtlas
 {
 public:
-	FSlateFontAtlas( uint32 InWidth, uint32 InHeight );
+	FSlateFontAtlas(uint32 InWidth, uint32 InHeight, const bool InIsGrayscale);
 	virtual ~FSlateFontAtlas();
+
+	//~ ISlateFontTexture interface
+	virtual bool IsGrayscale() const override final;
 
 	/**
 	 * Flushes all cached data.
@@ -172,7 +159,7 @@ public:
 class ISlateFontAtlasFactory
 {
 public:
-	virtual FIntPoint GetAtlasSize() const = 0;
-	virtual TSharedRef<FSlateFontAtlas> CreateFontAtlas() const = 0;
-	virtual TSharedPtr<ISlateFontTexture> CreateNonAtlasedTexture(const uint32 InWidth, const uint32 InHeight, const TArray<uint8>& InRawData) const = 0;
+	virtual FIntPoint GetAtlasSize(const bool InIsGrayscale) const = 0;
+	virtual TSharedRef<FSlateFontAtlas> CreateFontAtlas(const bool InIsGrayscale) const = 0;
+	virtual TSharedPtr<ISlateFontTexture> CreateNonAtlasedTexture(const uint32 InWidth, const uint32 InHeight, const bool InIsGrayscale, const TArray<uint8>& InRawData) const = 0;
 };

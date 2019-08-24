@@ -195,11 +195,11 @@ void FSlateTextureAtlasD3D::ConditionalUpdateTexture()
 	// Not yet supported
 }
 
-FSlateFontAtlasD3D::FSlateFontAtlasD3D( uint32 Width, uint32 Height )
-	: FSlateFontAtlas( Width, Height ) 
+FSlateFontAtlasD3D::FSlateFontAtlasD3D(uint32 Width, uint32 Height, const bool InIsGrayscale)
+	: FSlateFontAtlas(Width, Height, InIsGrayscale)
 {
-	FontTexture = new FSlateD3DTexture( Width, Height );
-	FontTexture->Init(DXGI_FORMAT_A8_UNORM, NULL, true, false);
+	FontTexture = new FSlateD3DTexture(Width, Height);
+	FontTexture->Init(InIsGrayscale ? DXGI_FORMAT_A8_UNORM : DXGI_FORMAT_B8G8R8A8_UNORM_SRGB, NULL, true, false);
 }
 
 FSlateFontAtlasD3D::~FSlateFontAtlasD3D()

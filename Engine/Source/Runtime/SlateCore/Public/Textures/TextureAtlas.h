@@ -225,12 +225,9 @@ public:
 	/** Get the number of atlas pages this atlas provider has available when calling GetAtlasPageResource */
 	virtual int32 GetNumAtlasPages() const = 0;
 
-	/** Get the size of each atlas page */
-	virtual FIntPoint GetAtlasPageSize() const = 0;
-
 	/** Get the page resource for the given index (verify with GetNumAtlasPages) */ 
 	virtual class FSlateShaderResource* GetAtlasPageResource(const int32 InIndex) const = 0;
 
-	/** Do the atlas page resources only contain alpha information? This affects how the atlas visualizer will sample them */
-	virtual bool IsAtlasPageResourceAlphaOnly() const = 0;
+	/** Does the page resources for the given index only contain alpha information? This affects how the atlas visualizer will sample them (verify with GetNumAtlasPages) */
+	virtual bool IsAtlasPageResourceAlphaOnly(const int32 InIndex) const = 0;
 };

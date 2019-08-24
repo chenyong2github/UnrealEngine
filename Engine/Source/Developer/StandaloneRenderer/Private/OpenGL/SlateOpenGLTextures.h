@@ -62,7 +62,7 @@ private:
 class FSlateFontTextureOpenGL : public FSlateFontAtlas
 {
 public:
-	FSlateFontTextureOpenGL( uint32 Width, uint32 Height );
+	FSlateFontTextureOpenGL(uint32 Width, uint32 Height, const bool InIsGrayscale);
 	~FSlateFontTextureOpenGL();
 
 	void CreateFontTexture();
@@ -72,6 +72,10 @@ public:
 	virtual class FSlateShaderResource* GetSlateTexture() override { return FontTexture; }
 	virtual class FTextureResource* GetEngineTexture() override { return nullptr; }
 private:
+	GLint GetGLTextureInternalFormat() const;
+	GLint GetGLTextureFormat() const;
+	GLint GetGLTextureType() const;
+
 	FSlateOpenGLTexture* FontTexture;
 };
 

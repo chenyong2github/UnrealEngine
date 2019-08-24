@@ -54,14 +54,16 @@ enum class ESlateShader : uint8
 	Default = 0,
 	/** Border shader */
 	Border = 1,
-	/** Font shader, same as default except uses an alpha only texture */
-	Font = 2,
+	/** Grayscale font shader. Uses an alpha only texture */
+	GrayscaleFont = 2,
+	/** Grayscale font shader. Uses an color texture */
+	ColorFont = 3,
 	/** Line segment shader. For drawing anti-aliased lines */
-	LineSegment = 3,
+	LineSegment = 4,
 	/** For completely customized materials.  Makes no assumptions on use*/
-	Custom = 4,
+	Custom = 5,
 	/** For post processing passes */
-	PostProcess = 5,
+	PostProcess = 6,
 };
 
 /**

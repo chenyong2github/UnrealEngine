@@ -19,9 +19,8 @@ public:
 
 	/** ISlateAtlasProvider */
 	virtual int32 GetNumAtlasPages() const override;
-	virtual FIntPoint GetAtlasPageSize() const override;
 	virtual FSlateShaderResource* GetAtlasPageResource(const int32 InIndex) const override;
-	virtual bool IsAtlasPageResourceAlphaOnly() const override;
+	virtual bool IsAtlasPageResourceAlphaOnly(const int32 InIndex) const override;
 
 	/**
 	 * Loads and creates rendering resources for all used textures.  
