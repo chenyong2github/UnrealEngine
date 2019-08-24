@@ -364,7 +364,11 @@ void FStaticMeshInstanceBuffer::CreateVertexBuffer(FResourceArrayInterface* InRe
 	// TODO: possibility over allocated the vertex buffer when we support partial update for when working in the editor
 	FRHIResourceCreateInfo CreateInfo(InResourceArray);
 	OutVertexBufferRHI = RHICreateVertexBuffer(InResourceArray->GetResourceDataSize(), InUsage, CreateInfo);
-	OutInstanceSRV = RHICreateShaderResourceView(OutVertexBufferRHI, InStride, InFormat);
+	
+	if (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
+	{
+		OutInstanceSRV = RHICreateShaderResourceView(OutVertexBufferRHI, InStride, InFormat);
+	}
 }
 
 void FStaticMeshInstanceBuffer::BindInstanceVertexBuffer(const class FVertexFactory* VertexFactory, FInstancedStaticMeshDataType& InstancedStaticMeshData) const

@@ -419,7 +419,8 @@ FVertexBufferRHIRef FColorVertexBuffer::CreateRHIBuffer_Async()
 void FColorVertexBuffer::InitRHI()
 {
 	VertexBufferRHI = CreateRHIBuffer_RenderThread();
-	if (VertexBufferRHI)
+
+	if (VertexBufferRHI && RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
 	{
 		ColorComponentsSRV = RHICreateShaderResourceView(VertexData ? VertexBufferRHI : nullptr, 4, PF_R8G8B8A8);
 	}
