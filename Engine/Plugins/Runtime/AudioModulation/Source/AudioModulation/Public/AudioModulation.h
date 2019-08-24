@@ -33,7 +33,8 @@ namespace AudioModulation
 		virtual void OnEditSource(const USoundModulationPluginSourceSettingsBase& Settings) override;
 #endif // WITH_EDITOR
 
-		virtual void OnInitSource(const uint32 SourceId, const FName& AudioComponentUserId, const uint32 NumChannels, USoundModulationPluginSourceSettingsBase* Settings) override;
+		virtual void OnInitSound(const ModulationSoundId SoundId, const USoundModulationPluginSourceSettingsBase& Settings) override;
+		virtual void OnInitSource(const uint32 SourceId, const FName& AudioComponentUserId, const uint32 NumChannels, const USoundModulationPluginSourceSettingsBase& Settings) override;
 
 #if !UE_BUILD_SHIPPING
 		virtual bool OnPostHelp(FCommonViewportClient* ViewportClient, const TCHAR* Stream) override;
@@ -41,6 +42,7 @@ namespace AudioModulation
 		virtual bool OnToggleStat(FCommonViewportClient* ViewportClient, const TCHAR* Stream) override;
 #endif // !UE_BUILD_SHIPPING
 
+		virtual void OnReleaseSound(const ModulationSoundId SoundId, const USoundModulationPluginSourceSettingsBase& Settings) override;
 		virtual void OnReleaseSource(const uint32 SourceId) override;
 		virtual void ProcessControls(const uint32 SourceId, FSoundModulationControls& Controls) override;
 		virtual void ProcessModulators(const float Elapsed) override;
