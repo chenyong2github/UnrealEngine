@@ -141,11 +141,15 @@ half4 GetExponentialHeightFog(float3 WorldPositionRelativeToCamera, float Exclud
 		half3 DirectionalInscatteringColor;
 		half3 DirectionalLightInscattering;
 
+		// No need to test View.AtmosphereLightColorGlobalPostTransmittance[0].a because InscatteringLightDirection.w above is doing the same test already.
 		DirectionalInscatteringColor = FogStruct.DirectionalInscatteringColor.xyz + View.AtmosphereLightColorGlobalPostTransmittance[0].rgb * UniformPhaseFunction;
 		DirectionalLightInscattering = DirectionalInscatteringColor * pow(saturate(dot(CameraToReceiverNormalized, View.AtmosphereLightDirection[0].xyz)), FogStruct.DirectionalInscatteringColor.w);
 
-		DirectionalInscatteringColor = FogStruct.DirectionalInscatteringColor.xyz + View.AtmosphereLightColorGlobalPostTransmittance[1].rgb * UniformPhaseFunction;
-		DirectionalLightInscattering += DirectionalInscatteringColor * pow(saturate(dot(CameraToReceiverNormalized, View.AtmosphereLightDirection[1].xyz)), FogStruct.DirectionalInscatteringColor.w);
+		if (View.AtmosphereLightColorGlobalPostTransmittance[1].a > 0.0f) // Skip DirectionalInscatteringColor on the second light when disabled.
+		{
+			DirectionalInscatteringColor = FogStruct.DirectionalInscatteringColor.xyz + View.AtmosphereLightColorGlobalPostTransmittance[1].rgb * UniformPhaseFunction;
+			DirectionalLightInscattering += DirectionalInscatteringColor * pow(saturate(dot(CameraToReceiverNormalized, View.AtmosphereLightDirection[1].xyz)), FogStruct.DirectionalInscatteringColor.w);
+		}
 #else
 		// Setup a cosine lobe around the light direction to approximate inscattering from the directional light off of the ambient haze;
 		half3 DirectionalLightInscattering = FogStruct.DirectionalInscatteringColor.xyz * pow(saturate(dot(CameraToReceiverNormalized, FogStruct.InscatteringLightDirection.xyz)), FogStruct.DirectionalInscatteringColor.w);
