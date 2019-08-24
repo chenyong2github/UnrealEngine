@@ -42,10 +42,8 @@ const TCHAR InvalidSubChar = TEXT('\uFFFD');
 
 #if WITH_FREETYPE
 
-const uint32 GlobalGlyphFlags = FT_LOAD_NO_BITMAP;
-
 /** Append the flags needed by the given font data to the given flags variable */
-void AppendGlyphFlags(const FFontData& InFontData, uint32& InOutGlyphFlags);
+void AppendGlyphFlags(const FFreeTypeFace& InFace, const FFontData& InFontData, uint32& InOutGlyphFlags);
 
 #endif // WITH_FREETYPE
 

@@ -4,10 +4,17 @@
 
 #include "CoreMinimal.h"
 #include "Fonts/FontCache.h"
+#include "Templates/IsIntegral.h"
+#include "Templates/IsFloatingPoint.h"
 
 #ifndef WITH_FREETYPE
 	#define WITH_FREETYPE	0
 #endif // WITH_FREETYPE
+
+
+#ifndef WITH_FREETYPE_V210
+	#define WITH_FREETYPE_V210	0
+#endif // WITH_FREETYPE_V210
 
 
 #if PLATFORM_COMPILER_HAS_GENERIC_KEYWORD
@@ -21,6 +28,9 @@
 
 	// FreeType style include
 	#include FT_FREETYPE_H
+#if WITH_FREETYPE_V210
+	#include FT_DRIVER_H
+#endif	// WITH_FREETYPE_V210
 	#include FT_GLYPH_H
 	#include FT_MODULE_H
 	#include FT_BITMAP_H
@@ -37,10 +47,8 @@
 
 namespace FreeTypeConstants
 {
-	/** The horizontal DPI we render at */
-	const uint32 HorizontalDPI = 96;
-	/** The vertical DPI we render at */
-	const uint32 VerticalDPI = 96;
+	/** The horizontal DPI we render at (horizontal and vertical) */
+	const uint32 RenderDPI = 96;
 } // namespace FreeTypeConstants
 
 
@@ -83,25 +91,58 @@ FT_Pos GetAscender(FT_Face InFace, const EFontLayoutMethod InLayoutMethod);
  */
 FT_Pos GetDescender(FT_Face InFace, const EFontLayoutMethod InLayoutMethod);
 
+/**
+ * Get any additional scale that should be applied when producing the atlas glyphs from this face.
+ * @note ApplySizeAndScale must have been called prior to this function to prepare the face.
+ */
+float GetBitmapAtlasScale(FT_Face InFace);
+
+/**
+ * Get any additional scale that should be applied when rendering glyphs from this face.
+ * @note ApplySizeAndScale must have been called prior to this function to prepare the face.
+ */
+float GetBitmapRenderScale(FT_Face InFace);
+
 #endif // WITH_FREETYPE
 
 /** Convert the given value from 26.6 space into rounded pixel space */
 template <typename TRetType, typename TParamType>
-FORCEINLINE TRetType Convert26Dot6ToRoundedPixel(TParamType InValue)
+FORCEINLINE typename TEnableIf<TIsIntegral<TParamType>::Value, TRetType>::Type Convert26Dot6ToRoundedPixel(TParamType InValue)
+{
+	return static_cast<TRetType>((InValue + (1<<5)) >> 6);
+}
+
+/** Convert the given value from 26.6 space into rounded pixel space */
+template <typename TRetType, typename TParamType>
+FORCEINLINE typename TEnableIf<TIsFloatingPoint<TParamType>::Value, TRetType>::Type Convert26Dot6ToRoundedPixel(TParamType InValue)
 {
 	return static_cast<TRetType>(FMath::RoundToInt(InValue / 64.0f));
 }
 
 /** Convert the given value from pixel space into 26.6 space */
 template <typename TRetType, typename TParamType>
-FORCEINLINE TRetType ConvertPixelTo26Dot6(TParamType InValue)
+FORCEINLINE typename TEnableIf<TIsIntegral<TParamType>::Value, TRetType>::Type ConvertPixelTo26Dot6(TParamType InValue)
+{
+	return static_cast<TRetType>(InValue << 6);
+}
+
+/** Convert the given value from pixel space into 26.6 space */
+template <typename TRetType, typename TParamType>
+FORCEINLINE typename TEnableIf<TIsFloatingPoint<TParamType>::Value, TRetType>::Type ConvertPixelTo26Dot6(TParamType InValue)
 {
 	return static_cast<TRetType>(InValue * 64);
 }
 
 /** Convert the given value from pixel space into 16.16 space */
 template <typename TRetType, typename TParamType>
-FORCEINLINE TRetType ConvertPixelTo16Dot16(TParamType InValue)
+FORCEINLINE typename TEnableIf<TIsIntegral<TParamType>::Value, TRetType>::Type ConvertPixelTo16Dot16(TParamType InValue)
+{
+	return static_cast<TRetType>(InValue << 16);
+}
+
+/** Convert the given value from pixel space into 16.16 space */
+template <typename TRetType, typename TParamType>
+FORCEINLINE typename TEnableIf<TIsFloatingPoint<TParamType>::Value, TRetType>::Type ConvertPixelTo16Dot16(TParamType InValue)
 {
 	return static_cast<TRetType>(InValue * 65536);
 }
@@ -182,6 +223,16 @@ public:
 	FORCEINLINE FT_Pos GetDescender() const
 	{
 		return FreeTypeUtils::GetDescender(FTFace, LayoutMethod);
+	}
+
+	FORCEINLINE float GetBitmapAtlasScale() const
+	{
+		return FreeTypeUtils::GetBitmapAtlasScale(FTFace);
+	}
+
+	FORCEINLINE float GetBitmapRenderScale() const
+	{
+		return FreeTypeUtils::GetBitmapRenderScale(FTFace);
 	}
 #endif // WITH_FREETYPE
 

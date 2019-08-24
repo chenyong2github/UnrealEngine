@@ -5,8 +5,9 @@
 // Shader types
 #define ESlateShader::Default		0
 #define ESlateShader::Border		1
-#define ESlateShader::Font			2
-#define ESlateShader::LineSegment	3
+#define ESlateShader::GrayscaleFont	2
+#define ESlateShader::ColorFont		3
+#define ESlateShader::LineSegment	4
 
 Texture2D ElementTexture;
 SamplerState ElementTextureSampler;
@@ -53,12 +54,21 @@ float3 GammaCorrect(float3 InColor)
 	return CorrectedColor;
 }
 
-float4 GetFontElementColor( VertexOut InVertex )
+float4 GetGrayscaleFontElementColor( VertexOut InVertex )
 {
 	float4 OutColor = InVertex.Color;
 
 	OutColor.a *= ElementTexture.Sample(ElementTextureSampler, InVertex.TextureCoordinates.xy).a;
 	
+	return OutColor;
+}
+
+float4 GetColorFontElementColor(VertexOut InVertex)
+{
+	float4 OutColor = InVertex.Color;
+
+	OutColor *= ElementTexture.Sample(ElementTextureSampler, InVertex.TextureCoordinates.xy);
+
 	return OutColor;
 }
 
@@ -150,9 +160,13 @@ float4 Main( VertexOut InVertex ) : SV_Target
 	{
 		OutColor = GetBorderElementColor( InVertex );
 	}
-	else if( ShaderType == ESlateShader::Font )
+	else if( ShaderType == ESlateShader::GrayscaleFont )
 	{
-		OutColor = GetFontElementColor( InVertex );
+		OutColor = GetGrayscaleFontElementColor( InVertex );
+	}
+	else if (ShaderType == ESlateShader::ColorFont)
+	{
+		OutColor = GetColorFontElementColor(InVertex);
 	}
 	else
 	{
