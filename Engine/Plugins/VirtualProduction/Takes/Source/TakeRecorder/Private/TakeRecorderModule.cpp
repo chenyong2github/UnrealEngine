@@ -218,53 +218,6 @@ void FTakeRecorderModule::RegisterMenus()
 					}
 				)
 			);
-
-			// if this LevelSequence has an associated map, offer to load the map
-
-			bool bHasMapTag = false;
-			FString LSOriginMapPath;
-			TArray<UObject::FAssetRegistryTag> ObjectTags;
-			LevelSequence->GetAssetRegistryTags(ObjectTags);
-			for (UObject::FAssetRegistryTag& AssetRegistryTag : ObjectTags)
-			{
-				if (AssetRegistryTag.Name == UTakeMetaData::AssetRegistryTag_LevelPath && !AssetRegistryTag.Value.IsEmpty())
-				{
-					LSOriginMapPath = AssetRegistryTag.Value;
-					FString MapFilePath;
-					if (FEditorFileUtils::IsMapPackageAsset(LSOriginMapPath, MapFilePath))
-					{
-						bHasMapTag = true;
-					}
-					break;
-				}
-			}
-
-			if (bHasMapTag) {
-				InSection.AddMenuEntry(
-					"TakeRecorderOpenMap_Label",
-					LOCTEXT("TakeRecorderOpenMap_Label", "Open Map"),
-					LOCTEXT("TakeRecorderOpenMap_Tooltip", "Opens the map used to create this Level Sequence Asset"),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Levels" ),
-					FExecuteAction::CreateLambda(
-						[LSOriginMapPath]
-						{
-							// If there are any unsaved changes to the current level, see if the user wants to save those first.
-							if (!GIsDemoMode)
-							{
-								bool bPromptUserToSave = true;
-								bool bSaveMapPackages = true;
-								bool bSaveContentPackages = true;
-								if (FEditorFileUtils::SaveDirtyPackages(bPromptUserToSave, bSaveMapPackages, bSaveContentPackages) == false)
-								{
-									return;
-								}
-							}
-
-							FEditorFileUtils::LoadMap(LSOriginMapPath);
-						}
-					)
-				);
-			}
 		}
 	}));
 #endif // WITH_EDITOR
