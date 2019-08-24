@@ -12,6 +12,7 @@
 #include "UObject/Class.h"
 #include "UObject/Package.h"
 #include "Modules/ModuleManager.h"
+#include "NiagaraWorldManager.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara - Utilities - PrepareRapidIterationParameters"), STAT_Niagara_Utilities_PrepareRapidIterationParameters, STATGROUP_Niagara);
 
@@ -70,10 +71,9 @@ FString FNiagaraTypeHelper::ToString(const uint8* ValueData, const UScriptStruct
 
 FNiagaraSystemUpdateContext::~FNiagaraSystemUpdateContext()
 {
-	INiagaraModule& NiagaraModule = FModuleManager::LoadModuleChecked<INiagaraModule>("Niagara");
 	for (UNiagaraSystem* Sys : SystemSimsToDestroy)
 	{
-		NiagaraModule.DestroyAllSystemSimulations(Sys);
+		FNiagaraWorldManager::DestroyAllSystemSimulations(Sys);
 	}
 
 	for (UNiagaraComponent* Comp : ComponentsToReInit)
