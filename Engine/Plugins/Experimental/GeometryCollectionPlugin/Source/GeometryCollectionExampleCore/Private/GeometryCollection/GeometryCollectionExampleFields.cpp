@@ -20,7 +20,6 @@ DEFINE_LOG_CATEGORY_STATIC(GCTF_Log, Verbose, All);
 
 namespace GeometryCollectionExample
 {
-	template<class T>
 	bool Fields_NoiseSample(ExampleResponse&& R)
 	{
 		int Bounds = 100;
@@ -78,9 +77,7 @@ namespace GeometryCollectionExample
 		return !R.HasError();
 
 	}
-	template bool Fields_NoiseSample<float>(ExampleResponse&& R);
 
-	template<class T>
 	bool Fields_RadialIntMask(ExampleResponse&& R)
 	{
 		TArray<ContextIndex> IndicesArray;
@@ -128,9 +125,7 @@ namespace GeometryCollectionExample
 
 		return !R.HasError();
 	}
-	template bool Fields_RadialIntMask<float>(ExampleResponse&& R);
 
-	template<class T>
 	bool Fields_RadialFalloff(ExampleResponse&& R)
 	{
 		TArray<ContextIndex> IndicesArray;
@@ -183,9 +178,7 @@ namespace GeometryCollectionExample
 
 		return !R.HasError();
 	}
-	template bool Fields_RadialFalloff<float>(ExampleResponse&& R);
 
-	template<class T>
 	bool Fields_PlaneFalloff(ExampleResponse&& R)
 	{
 		TArray<ContextIndex> IndicesArray;
@@ -233,10 +226,7 @@ namespace GeometryCollectionExample
 
 		return !R.HasError();
 	}
-	template bool Fields_PlaneFalloff<float>(ExampleResponse&& R);
 
-
-	template<class T>
 	bool Fields_UniformVector(ExampleResponse&& R)
 	{
 		TArray<ContextIndex> IndicesArray;
@@ -280,10 +270,7 @@ namespace GeometryCollectionExample
 
 		return !R.HasError();
 	}
-	template bool Fields_UniformVector<float>(ExampleResponse&& R);
 
-
-	template<class T>
 	bool Fields_RaidalVector(ExampleResponse&& R)
 	{
 		TArray<ContextIndex> IndicesArray;
@@ -327,10 +314,7 @@ namespace GeometryCollectionExample
 
 		return !R.HasError();
 	}
-	template bool Fields_RaidalVector<float>(ExampleResponse&& R);
 
-
-	template<class T>
 	bool Fields_SumVectorFullMult(ExampleResponse&& R)
 	{
 		TArray<ContextIndex> IndicesArray;
@@ -403,9 +387,7 @@ namespace GeometryCollectionExample
 
 		return !R.HasError();
 	}
-	template bool Fields_SumVectorFullMult<float>(ExampleResponse&& R);
 
-	template<class T>
 	bool Fields_SumVectorFullDiv(ExampleResponse&& R)
 	{
 		TArray<ContextIndex> IndicesArray;
@@ -478,10 +460,8 @@ namespace GeometryCollectionExample
 
 		return !R.HasError();
 	}
-	template bool Fields_SumVectorFullDiv<float>(ExampleResponse&& R);
 
 
-	template<class T>
 	bool Fields_SumVectorFullAdd(ExampleResponse&& R)
 	{
 		TArray<ContextIndex> IndicesArray;
@@ -555,10 +535,8 @@ namespace GeometryCollectionExample
 
 		return !R.HasError();
 	}
-	template bool Fields_SumVectorFullAdd<float>(ExampleResponse&& R);
 
 
-	template<class T>
 	bool Fields_SumVectorFullSub(ExampleResponse&& R)
 	{
 		TArray<ContextIndex> IndicesArray;
@@ -632,10 +610,8 @@ namespace GeometryCollectionExample
 
 		return !R.HasError();
 	}
-	template bool Fields_SumVectorFullSub<float>(ExampleResponse&& R);
 
 
-	template<class T>
 	bool Fields_SumVectorLeftSide(ExampleResponse&& R)
 	{
 		TArray<ContextIndex> IndicesArray;
@@ -709,9 +685,7 @@ namespace GeometryCollectionExample
 
 		return !R.HasError();
 	}
-	template bool Fields_SumVectorLeftSide<float>(ExampleResponse&& R);
 
-	template<class T>
 	bool Fields_SumVectorRightSide(ExampleResponse&& R)
 	{
 		TArray<ContextIndex> IndicesArray;
@@ -787,10 +761,8 @@ namespace GeometryCollectionExample
 
 		return !R.HasError();
 	}
-	template bool Fields_SumVectorRightSide<float>(ExampleResponse&& R);
 
 
-	template<class T>
 	bool Fields_SumScalar(ExampleResponse&& R)
 	{
 		int32 NumPoints = 20;
@@ -867,10 +839,8 @@ namespace GeometryCollectionExample
 
 		return !R.HasError();
 	}
-	template bool Fields_SumScalar<float>(ExampleResponse&& R);
 
 
-	template<class T>
 	bool Fields_SumScalarRightSide(ExampleResponse&& R)
 	{
 		int32 NumPoints = 20;
@@ -939,10 +909,8 @@ namespace GeometryCollectionExample
 
 		return !R.HasError();
 	}
-	template bool Fields_SumScalarRightSide<float>(ExampleResponse&& R);
 
 
-	template<class T>
 	bool Fields_SumScalarLeftSide(ExampleResponse&& R)
 	{
 		int32 NumPoints = 20;
@@ -1012,12 +980,10 @@ namespace GeometryCollectionExample
 
 		return !R.HasError();
 	}
-	template bool Fields_SumScalarLeftSide<float>(ExampleResponse&& R);
 
 
 
 
-	template<class T>
 	bool Fields_Culling(ExampleResponse&& R)
 	{
 		int32 NumPoints = 20;
@@ -1087,7 +1053,6 @@ namespace GeometryCollectionExample
 
 		return !R.HasError();
 	}
-	template bool Fields_Culling<float>(ExampleResponse&& R);
 
 
 	FFieldSystemCommand SaveAndLoad(FFieldSystemCommand & CommandOut)

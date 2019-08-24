@@ -13,6 +13,7 @@
 
 #include "IMPCDI.h"
 #include "IPicpMPCDI.h"
+#include "MPCDIRegion.h"
 
 #include "Overlay/PicpProjectionOverlayRender.h"
 
