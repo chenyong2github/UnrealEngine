@@ -29,16 +29,17 @@ namespace AudioModulation
 		void OnEditSource(const USoundModulationPluginSourceSettingsBase& Settings);
 #endif // WITH_EDITOR
 
-		void OnInitSource(const uint32 SourceId, const FName& AudioComponentUserId, const uint32 NumChannels, USoundModulationPluginSourceSettingsBase* Settings);
+		void OnInitSound(const ModulationSoundId SoundId, const USoundModulationPluginSourceSettingsBase& Settings);
+		void OnInitSource(const uint32 SourceId, const FName& AudioComponentUserId, const uint32 NumChannels, const USoundModulationPluginSourceSettingsBase& Settings);
+		void OnReleaseSound(const ModulationSoundId SoundId, const USoundModulationPluginSourceSettingsBase& Settings);
 		void OnReleaseSource(const uint32 SourceId);
 
-		void ActivateBus(const USoundModulatorBusBase& Bus);
-		void ActivateBus(const FModulatorBusProxy& BusProxy);
-		void ActivateBusMix(const USoundModulatorBusMix& BusMix, bool bReset);
-		void ActivateLFO(const USoundModulatorLFO& LFO);
-		void DeactivateBusMix(const BusMixId BusMixId);
-		void DeactivateBus(const BusId BusId);
-		void DeactivateLFO(const LFOId LFOId);
+		void ActivateBus(const USoundModulatorBusBase& Bus, const ModulationSoundId SoundId = INDEX_NONE);
+		void ActivateBusMix(const USoundModulatorBusMix& BusMix, bool bReset, const ModulationSoundId SoundId = INDEX_NONE);
+		void ActivateLFO(const USoundModulatorLFO& LFO, const ModulationSoundId SoundId = INDEX_NONE);
+		void DeactivateBusMix(const BusMixId BusMixId, const ModulationSoundId SoundId = INDEX_NONE);
+		void DeactivateBus(const BusId BusId, const ModulationSoundId SoundId = INDEX_NONE);
+		void DeactivateLFO(const LFOId LFOId, const ModulationSoundId SoundId = INDEX_NONE);
 
 		bool IsBusActive(const BusId BusId) const;
 
@@ -53,7 +54,6 @@ namespace AudioModulation
 
 	private:
 		float CalculateModulationValue(FModulationPatchProxy& Proxy) const;
-		TSet<BusId> GetReferencedBusIds() const;
 
 		BusMixProxyMap ActiveBusMixes;
 		BusProxyMap    ActiveBuses;
@@ -87,7 +87,9 @@ namespace AudioModulation
 		void OnEditSource(const USoundModulationPluginSourceSettingsBase& Settings) { }
 #endif // WITH_EDITOR
 
-		void OnInitSource(const uint32 SourceId, const FName& AudioComponentUserId, const uint32 NumChannels, USoundModulationPluginSourceSettingsBase* Settings) { }
+		void OnInitSound(const ModulationSoundId SoundId, const USoundModulationPluginSourceSettingsBase& Settings) { }
+		void OnInitSource(const uint32 SourceId, const FName& AudioComponentUserId, const uint32 NumChannels, const USoundModulationPluginSourceSettingsBase& Settings) { }
+		void OnReleaseSound(const ModulationSoundId SoundId, const USoundModulationPluginSourceSettingsBase& Settings) { }
 		void OnReleaseSource(const uint32 SourceId) { }
 
 #if !UE_BUILD_SHIPPING
@@ -96,12 +98,12 @@ namespace AudioModulation
 		bool OnToggleStat(FCommonViewportClient* ViewportClient, const TCHAR* Stream) { return false; }
 #endif // !UE_BUILD_SHIPPING
 
-		void ActivateBus(const USoundModulatorBusBase& Bus) { }
-		void ActivateBusMix(const USoundModulatorBusMix& BusMix, bool bReset) { }
-		void ActivateLFO(const USoundModulatorLFO& LFO) { }
-		void DeactivateBusMix(const BusMixId BusMixId) { }
-		void DeactivateBus(const BusId BusId) { }
-		void DeactivateLFO(const LFOId LFOId) { }
+		void ActivateBus(const USoundModulatorBusBase& Bus, const ModulationSoundId SoundId = INDEX_NONE) { }
+		void ActivateBusMix(const USoundModulatorBusMix& BusMix, bool bReset, const ModulationSoundId SoundId = INDEX_NONE) { }
+		void ActivateLFO(const USoundModulatorLFO& LFO, const ModulationSoundId SoundId = INDEX_NONE) { }
+		void DeactivateBusMix(const BusMixId BusMixId, const ModulationSoundId SoundId = INDEX_NONE) { }
+		void DeactivateBus(const BusId BusId, const ModulationSoundId SoundId = INDEX_NONE) { }
+		void DeactivateLFO(const LFOId LFOId, const ModulationSoundId SoundId = INDEX_NONE) { }
 
 		void ProcessAudio(const FAudioPluginSourceInputData& InputData, FAudioPluginSourceOutputData& OutputData) { }
 		void ProcessControls(const uint32 SourceId, FSoundModulationControls& Controls) { }
