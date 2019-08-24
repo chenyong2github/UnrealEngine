@@ -476,7 +476,7 @@ public:
 /* IAudioModulationFactory                                              */
 /*                                                                      */
 /************************************************************************/
-class IAudioModulationFactory : public IAudioPluginFactory, public IModularFeature
+class IAudioModulationFactory : public IModularFeature
 {
 public:
 	/** Virtual destructor */
@@ -491,13 +491,7 @@ public:
 		return AudioExtFeatureName;
 	}
 
-	/* Begin IAudioPluginWithMetadata implementation */
-	virtual FString GetDisplayName() override
-	{
-		static FString DisplayName = FString(TEXT("Generic Audio Modulation Plugin"));
-		return DisplayName;
-	}
-	/* End IAudioPluginWithMetadata implementation */
+	virtual const FName& GetDisplayName() const = 0;
 
 	virtual TAudioModulationPtr CreateNewModulationPlugin(FAudioDevice* OwningDevice) = 0;
 
@@ -536,6 +530,11 @@ public:
 	/** Initialize the modulation plugin with the same rate and number of sources. */
 	virtual void Initialize(const FAudioPluginInitializationParams& InitializationParams) { }
 
+#if WITH_EDITOR
+	/** Allows modulation plugin to respond to settings updates when client is editing settings. */
+	virtual void OnEditSource(const USoundModulationPluginSourceSettingsBase& Settings) { }
+#endif // WITH_EDITOR
+
 	/** Called when a source is assigned to a voice. */
 	virtual void OnInitSource(const uint32 SourceId, const FName& AudioComponentUserId, const uint32 NumChannels, USoundModulationPluginSourceSettingsBase* Settings) { }
 
@@ -544,7 +543,7 @@ public:
 
 #if !UE_BUILD_SHIPPING
 	/** Request to post help from active plugin (non-shipping builds only) */
-	virtual bool OnPostHelp(FCommonViewportClient* ViewportClient, const TCHAR* Stream) { return false;  };
+	virtual bool OnPostHelp(FCommonViewportClient* ViewportClient, const TCHAR* Stream) { return false; };
 
 	/** Render stats pertaining to modulation (non-shipping builds only) */
 	virtual int32 OnRenderStat(FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const UFont& Font, const FVector* ViewLocation, const FRotator* ViewRotation) { return Y; }
