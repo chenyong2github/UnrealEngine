@@ -28,6 +28,9 @@ public:
 
 	virtual void CleanUpTemporaryFiles() override;
 
+	virtual int GetMaxActiveDownloads() const override;
+	virtual void SetMaxActiveDownloads(int MaxActiveDownloads) override;
+
 	//FTickerObjectBase implementation
 	virtual bool Tick(float DeltaTime) override;
 
@@ -50,4 +53,5 @@ protected:
 
 	/** Count of how many requests we have active **/
 	volatile int NumCurrentlyActiveRequests;
+	TAtomic<int> MaxActiveDownloads;
 };
