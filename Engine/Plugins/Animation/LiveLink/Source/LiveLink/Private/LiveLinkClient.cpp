@@ -1163,8 +1163,11 @@ void FLiveLinkClient_Base_DEPRECATED::PushSubjectData(FGuid InSourceGuid, FName 
 	NewData.WorldTime = InFrameData.WorldTime;
 	NewData.Transforms = InFrameData.Transforms;
 
+	//Always match FrameData property count to StaticData property count.
+	//If StaticData has more properties than current FrameData, set non existent properties to Infinity
+	//If StaticData has less properties than current FrameData, only use a subset of the incoming properties
 	int32 MaxNumberOfProperties = FMath::Min(NumberOfPropertyNames, InFrameData.CurveElements.Num());
-	NewData.PropertyValues.SetNumZeroed(MaxNumberOfProperties);
+	NewData.PropertyValues.SetNumZeroed(NumberOfPropertyNames);
 	for (int32 i = 0; i < MaxNumberOfProperties; ++i)
 	{
 		NewData.PropertyValues[i] = InFrameData.CurveElements[i].CurveValue;
