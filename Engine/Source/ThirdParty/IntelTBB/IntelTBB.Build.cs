@@ -16,14 +16,16 @@ public class IntelTBB : ModuleRules
             PublicSystemIncludePaths.Add(IntelTBBPath + "Include");
 
             string PlatformSubpath = Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.x86 ? "Win32" : "Win64";
+            string LibDir;
             if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
             {
-                PublicLibraryPaths.Add(System.String.Format("{0}lib/{1}/vc14/{2}/", IntelTBBPath, PlatformSubpath, Target.WindowsPlatform.GetArchitectureSubpath()));
+                LibDir = System.String.Format("{0}lib/{1}/vc14/{2}/", IntelTBBPath, PlatformSubpath, Target.WindowsPlatform.GetArchitectureSubpath());
             }
             else
             {
-                PublicLibraryPaths.Add(System.String.Format("{0}lib/{1}/vc14/", IntelTBBPath, PlatformSubpath));
+                LibDir = System.String.Format("{0}lib/{1}/vc14/", IntelTBBPath, PlatformSubpath);
             }
+            PublicSystemLibraryPaths.Add(LibDir);
 
             // Disable the #pragma comment(lib, ...) used by default in MallocTBB...
             // We want to explicitly include the library.
@@ -35,7 +37,7 @@ public class IntelTBB : ModuleRules
                 LibName += "_debug";
             }
             LibName += ".lib";
-            PublicAdditionalLibraries.Add(LibName);
+            PublicAdditionalLibraries.Add(LibDir + LibName);
         }
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
         {

@@ -39,7 +39,7 @@ public:
 	 *
 	 * @return The build configuration.
 	 */
-	static EBuildConfigurations::Type GetBuildConfiguration();
+	static EBuildConfiguration GetBuildConfiguration();
 
 #if UE_BUILD_DEVELOPMENT
 	/**

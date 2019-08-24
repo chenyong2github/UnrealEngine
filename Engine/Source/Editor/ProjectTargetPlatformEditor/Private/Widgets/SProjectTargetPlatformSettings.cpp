@@ -24,7 +24,7 @@ void SProjectTargetPlatformSettings::Construct(const FArguments& InArgs)
 	// We show all of the platforms regardless of whether we have an SDK installed for them or not
 	for(const PlatformInfo::FPlatformInfo& PlatformInfo : PlatformInfo::GetPlatformInfoArray())
 	{
-		if(PlatformInfo.IsVanilla() && PlatformInfo.PlatformType == PlatformInfo::EPlatformType::Game)
+		if(PlatformInfo.IsVanilla() && PlatformInfo.PlatformType == EBuildTargetType::Game)
 		{
 #if !PLATFORM_WINDOWS
 			// @todo AllDesktop now only works on Windows (it can compile D3D shaders, and it can remote compile Metal shaders)

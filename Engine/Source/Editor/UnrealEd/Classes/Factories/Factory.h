@@ -9,6 +9,7 @@
 #include "Misc/SecureHash.h"
 #include "Factory.generated.h"
 
+class UAssetImportTask;
 struct FUntypedBulkData;
 
 /**

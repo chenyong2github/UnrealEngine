@@ -121,9 +121,8 @@ namespace UnrealBuildTool.Rules
 				else if (Target.Platform == UnrealTargetPlatform.HoloLens)
 				{
 					PrivateIncludePaths.Add("../../../../Source/Runtime/Windows/D3D11RHI/Private/HoloLens");
- 				}
-
-				bFasterWithoutUnity = true;
+                    PrivateDependencyModuleNames.Add("HoloLensAR");
+				}
 
 				PCHUsage = PCHUsageMode.NoSharedPCHs;
 				PrivatePCHHeaderFile = "Private/WindowsMixedRealityPrecompiled.h";

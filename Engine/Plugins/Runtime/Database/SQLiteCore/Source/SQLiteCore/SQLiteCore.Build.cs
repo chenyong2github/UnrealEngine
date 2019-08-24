@@ -50,7 +50,7 @@ namespace UnrealBuildTool.Rules
 			}
 
 			bEnableUndefinedIdentifierWarnings = false; // The embedded SQLite implementation generates a lot of these warnings
-			bFasterWithoutUnity = true; // Ensure the embedded SQLite implementation is always compiled in isolation
+			bUseUnity = false; // Ensure the embedded SQLite implementation is always compiled in isolation
 		}
 	}
 }

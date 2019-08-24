@@ -1008,6 +1008,12 @@ namespace UnrealBuildTool
 				}
 			}
 
+			// apply the same directory filtering to libraries as we do to additional library paths
+			if (!IsDirectoryForArch(Path.GetDirectoryName(Lib), Arch))
+			{
+				return true;
+			}
+
 			// if another architecture is in the filename, reject it
 			foreach (string ComboName in AllComboNames)
 			{

@@ -56,9 +56,9 @@ public class GoogleTest : ModuleRules
             //}
             //else
             //{
-                PublicAdditionalLibraries.Add("gtest.lib");
-                PublicAdditionalLibraries.Add("gmock.lib");
-                PublicAdditionalLibraries.Add("gmock_main.lib");
+                PublicAdditionalLibraries.Add(LibraryPath + "gtest.lib");
+                PublicAdditionalLibraries.Add(LibraryPath + "gmock.lib");
+                PublicAdditionalLibraries.Add(LibraryPath + "gmock_main.lib");
             //}
         }
         else if (Target.Platform == UnrealTargetPlatform.Mac)
@@ -99,8 +99,6 @@ public class GoogleTest : ModuleRules
             PublicAdditionalLibraries.Add(LibraryPath + "libgmock.a");
             PublicAdditionalLibraries.Add(LibraryPath + "libgmock_main.a");
         }
-
-        PublicLibraryPaths.Add(LibraryPath);
 
         // The including module will also need these enabled
         PublicDefinitions.Add("WITH_GOOGLE_MOCK=1");

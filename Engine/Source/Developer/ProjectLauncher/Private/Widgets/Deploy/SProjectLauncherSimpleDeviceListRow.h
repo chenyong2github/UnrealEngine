@@ -291,7 +291,7 @@ private:
 		return FText::GetEmpty();
 	}
 
-	void HandleBuildConfigurationSelectorConfigurationSelected(EBuildConfigurations::Type Configuration)
+	void HandleBuildConfigurationSelectorConfigurationSelected(EBuildConfiguration Configuration)
 	{
 		if (SimpleProfile.IsValid())
 		{

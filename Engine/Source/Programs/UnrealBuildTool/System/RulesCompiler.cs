@@ -84,7 +84,7 @@ namespace UnrealBuildTool
 			}
 			if (bIncludePlatformExtensions)
 			{
-				Folders.Add(UnrealBuildTool.PlatformExtensionsDirectory);
+				Folders.Add(UnrealBuildTool.EnginePlatformExtensionsDirectory);
 			}
 
 			// @todo plugin: Disallow modules from including plugin modules as dependency modules? (except when the module is part of that plugin)
@@ -101,7 +101,17 @@ namespace UnrealBuildTool
 			}
 			if (GameFolders != null)
 			{
-				RootFolders.AddRange(GameFolders);
+				if (bIncludePlatformExtensions)
+				{
+					foreach (DirectoryReference GameFolder in GameFolders)
+					{
+						RootFolders.AddRange(UnrealBuildTool.GetAllProjectDirectories(GameFolder));
+					}
+				}
+				else
+				{
+					RootFolders.AddRange(GameFolders);
+				}
 			}
 
 			// Find all the plugin source directories
@@ -128,9 +138,16 @@ namespace UnrealBuildTool
 			{
 				foreach (DirectoryReference GameFolder in GameFolders)
 				{
-					DirectoryReference GameSourceFolder = DirectoryReference.Combine(GameFolder, "Source");
-					Folders.Add(GameSourceFolder);
-					if(bIncludeTempTargets)
+					if (bIncludePlatformExtensions)
+					{
+						Folders.AddRange(UnrealBuildTool.GetAllProjectDirectories(GameFolder, "Source"));
+					}
+					else
+					{
+						Folders.Add(DirectoryReference.Combine(GameFolder, "Source"));
+					}
+
+					if (bIncludeTempTargets)
 					{
 						DirectoryReference GameIntermediateSourceFolder = DirectoryReference.Combine(GameFolder, "Intermediate", "Source");
 						Folders.Add(GameIntermediateSourceFolder);
@@ -369,19 +386,12 @@ namespace UnrealBuildTool
 			{
 				List<PluginInfo> IncludedPlugins = new List<PluginInfo>();
 
-				// look in the platform extensions engine directories for plugins
-				List<DirectoryReference> RootDirectories = new List<DirectoryReference>();
-				RootDirectories.AddRange(UnrealBuildTool.GetAllEngineDirectories());
-
 				// search for all engine plugins
-				foreach (DirectoryReference RootDir in RootDirectories) 
-				{
-					IncludedPlugins.AddRange(Plugins.ReadEnginePlugins(RootDir));
-				}
+				IncludedPlugins.AddRange(Plugins.ReadEnginePlugins(UnrealBuildTool.EngineDirectory));
 
 				RulesScope EngineScope = new RulesScope("Engine", null);
 
-				EngineRulesAssembly = CreateEngineOrEnterpriseRulesAssembly(EngineScope, RootDirectories, ProjectFileGenerator.EngineProjectFileNameBase, IncludedPlugins, UnrealBuildTool.IsEngineInstalled() || bUsePrecompiled, bSkipCompile, null);
+				EngineRulesAssembly = CreateEngineOrEnterpriseRulesAssembly(EngineScope, UnrealBuildTool.GetAllEngineDirectories().ToList(), ProjectFileGenerator.EngineProjectFileNameBase, IncludedPlugins, UnrealBuildTool.IsEngineInstalled() || bUsePrecompiled, bSkipCompile, null);
 			}
 			return EngineRulesAssembly;
 		}
@@ -401,10 +411,11 @@ namespace UnrealBuildTool
 				{
 					RulesScope EnterpriseScope = new RulesScope("Enterprise", EngineAssembly.Scope);
 
-					List<DirectoryReference> RootDirectories = new List<DirectoryReference>() { UnrealBuildTool.EnterpriseDirectory };
+					List<DirectoryReference> EnterpriseDirectories = new List<DirectoryReference>() { UnrealBuildTool.EnterpriseDirectory };
 
 					IReadOnlyList<PluginInfo> IncludedPlugins = Plugins.ReadEnterprisePlugins(UnrealBuildTool.EnterpriseDirectory);
-					EnterpriseRulesAssembly = CreateEngineOrEnterpriseRulesAssembly(EnterpriseScope, RootDirectories, ProjectFileGenerator.EnterpriseProjectFileNameBase, IncludedPlugins, UnrealBuildTool.IsEnterpriseInstalled() || bUsePrecompiled, bSkipCompile, EngineAssembly);
+					EnterpriseRulesAssembly = CreateEngineOrEnterpriseRulesAssembly(EnterpriseScope, new List<DirectoryReference>() { UnrealBuildTool.EnterpriseDirectory }, 
+						ProjectFileGenerator.EnterpriseProjectFileNameBase, IncludedPlugins, UnrealBuildTool.IsEnterpriseInstalled() || bUsePrecompiled, bSkipCompile, EngineAssembly);
 				}
 				else
 				{
@@ -536,9 +547,6 @@ namespace UnrealBuildTool
 				Dictionary<FileReference, ModuleRulesContext> ModuleFiles = new Dictionary<FileReference, ModuleRulesContext>();
 				List<FileReference> TargetFiles = new List<FileReference>();
 
-				// Find all the project plugins
-				List<PluginInfo> ProjectPlugins = new List<PluginInfo>();
-
 				// Find all the rules/plugins under the project source directories
 				foreach (DirectoryReference ProjectDirectory in UnrealBuildTool.GetAllProjectDirectories(ProjectFileName))
 				{
@@ -546,16 +554,18 @@ namespace UnrealBuildTool
 
 					AddModuleRulesWithContext(ProjectSourceDirectory, DefaultModuleContext, ModuleFiles);
 					TargetFiles.AddRange(FindAllRulesFiles(ProjectSourceDirectory, RulesFileType.Target));
+				}
 
-					ProjectPlugins.AddRange(Plugins.ReadProjectPlugins(ProjectDirectory));
+				// Find all the project plugins
+				List<PluginInfo> ProjectPlugins = new List<PluginInfo>();
+				ProjectPlugins.AddRange(Plugins.ReadProjectPlugins(MainProjectDirectory));
 
-					// Add the project's additional plugin directories plugins too
-					if (Project.AdditionalPluginDirectories != null)
+				// Add the project's additional plugin directories plugins too
+				if (Project.AdditionalPluginDirectories != null)
+				{
+					foreach (string AdditionalPluginDirectory in Project.AdditionalPluginDirectories)
 					{
-						foreach (string AdditionalPluginDirectory in Project.AdditionalPluginDirectories)
-						{
-							ProjectPlugins.AddRange(Plugins.ReadAdditionalPlugins(DirectoryReference.Combine(ProjectDirectory, AdditionalPluginDirectory)));
-						}
+						ProjectPlugins.AddRange(Plugins.ReadAdditionalPlugins(MainProjectDirectory, AdditionalPluginDirectory));
 					}
 				}
 
@@ -672,7 +682,12 @@ namespace UnrealBuildTool
 
 			foreach (PluginInfo Plugin in Plugins)
 			{
-				IReadOnlyList<FileReference> PluginModuleFiles = FindAllRulesFiles(DirectoryReference.Combine(Plugin.Directory, "Source"), RulesFileType.Module);
+				List<FileReference> PluginModuleFiles = FindAllRulesFiles(DirectoryReference.Combine(Plugin.Directory, "Source"), RulesFileType.Module).ToList();
+				foreach (FileReference ChildFile in Plugin.ChildFiles)
+				{
+					PluginModuleFiles.AddRange(FindAllRulesFiles(DirectoryReference.Combine(ChildFile.Directory, "Source"), RulesFileType.Module));
+				}
+
 				foreach (FileReference ModuleFile in PluginModuleFiles)
 				{
 					ModuleRulesContext PluginContext = new ModuleRulesContext(DefaultContext);

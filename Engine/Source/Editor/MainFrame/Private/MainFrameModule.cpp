@@ -44,9 +44,9 @@ const FText StaticGetApplicationTitle( const bool bIncludeGameName )
 		Args.Add(TEXT("GameName"), FText::FromString( FString( FApp::GetProjectName())));
 		Args.Add(TEXT("AppTitle"), ApplicationTitle);
 
-		const EBuildConfigurations::Type BuildConfig = FApp::GetBuildConfiguration();
+		const EBuildConfiguration BuildConfig = FApp::GetBuildConfiguration();
 
-		if (BuildConfig != EBuildConfigurations::Shipping && BuildConfig != EBuildConfigurations::Development && BuildConfig != EBuildConfigurations::Unknown)
+		if (BuildConfig != EBuildConfiguration::Shipping && BuildConfig != EBuildConfiguration::Development && BuildConfig != EBuildConfiguration::Unknown)
 		{
 			Args.Add( TEXT("Config"), EBuildConfigurations::ToText(BuildConfig));
 

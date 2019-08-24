@@ -20,33 +20,35 @@ public class DX11Audio : ModuleRules
 		}
 		PublicSystemIncludePaths.Add(DirectXSDKDir + "/include");
 
+		string LibDir = null;
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			PublicLibraryPaths.Add(DirectXSDKDir + "/Lib/x64");
+			LibDir = DirectXSDKDir + "/Lib/x64/";
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win32)
 		{
-			PublicLibraryPaths.Add(DirectXSDKDir + "/Lib/x86");
+			LibDir = DirectXSDKDir + "/Lib/x86/";
 		}
 
 		if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			PublicAdditionalLibraries.AddRange(
-				new string[] {
-				"dxguid.lib",
-				"X3DAudio.lib",
-				"xapobase.lib",
-				"XAPOFX.lib"
-				}
-				);
+			new string[] 
+			{
+				LibDir + "dxguid.lib",
+				LibDir + "X3DAudio.lib",
+				LibDir + "xapobase.lib",
+				LibDir + "XAPOFX.lib"
+			}
+			);
 		}
 		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
 			PublicAdditionalLibraries.AddRange(
 			new string[]
 			{
-				"dxguid.lib",
-				"xapobase.lib"
+				LibDir + "dxguid.lib",
+				LibDir + "xapobase.lib"
 			}
 			);
 		}

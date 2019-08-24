@@ -5,11 +5,6 @@
 #include "CoreMinimal.h"
 
 // Forward declaration
-namespace PlatformInfo
-{
-	enum class EPlatformType : uint8;
-}
-
 enum class EProjectType : uint8
 {
 	Unknown,
@@ -20,19 +15,28 @@ enum class EProjectType : uint8
 
 EProjectType EProjectTypeFromString(const FString& ProjectTypeName);
 
+enum class EInstalledPlatformState
+{
+	/** Query whether the platform is supported */
+	Supported,
+
+	/** Query whether the platform has been downloaded */
+	Downloaded,
+};
+
 /**
  * Information about a single installed platform configuration
  */
 struct FInstalledPlatformConfiguration
 {
 	/** Build Configuration of this combination */
-	EBuildConfigurations::Type Configuration;
+	EBuildConfiguration Configuration;
 
 	/** Name of the Platform for this combination */
 	FString PlatformName;
 
 	/** Type of Platform for this combination */
-	PlatformInfo::EPlatformType PlatformType;
+	EBuildTargetType PlatformType;
 
 	/** Name of the Architecture for this combination */
 	FString Architecture;
@@ -65,7 +69,7 @@ public:
 	/**
 	 * Queries whether a configuration is valid for any available platform
 	 */
-	bool IsValidConfiguration(const EBuildConfigurations::Type Configuration, EProjectType ProjectType = EProjectType::Any) const;
+	bool IsValidConfiguration(const EBuildConfiguration Configuration, EProjectType ProjectType = EProjectType::Any) const;
 
 	/**
 	 * Queries whether a platform has any valid configurations
@@ -75,7 +79,7 @@ public:
 	/**
 	 * Queries whether a platform and configuration combination is valid
 	 */
-	bool IsValidPlatformAndConfiguration(const EBuildConfigurations::Type Configuration, const FString& PlatformName, EProjectType ProjectType = EProjectType::Any) const;
+	bool IsValidPlatformAndConfiguration(const EBuildConfiguration Configuration, const FString& PlatformName, EProjectType ProjectType = EProjectType::Any) const;
 
 	/**
 	 * Queries whether a platform can be displayed as an option, even if it's not supported for the specified project type
@@ -83,9 +87,19 @@ public:
 	bool CanDisplayPlatform(const FString& PlatformName, EProjectType ProjectType) const;
 
 	/**
-	 * Queries whether a platform type is valid for any configuration
+	 * Queries whether a target type is valid for any configuration
 	 */
-	bool IsValidPlatformType(PlatformInfo::EPlatformType PlatformType) const;
+	bool IsValidTargetType(EBuildTargetType TargetType) const;
+
+	/** Determines whether the given target type is supported
+	 * @param TargetType The target type being built
+	 * @param Platform The platform being built
+	 * @param Configuration The configuration being built
+	 * @param ProjectType The project type required
+	 * @param State State of the given platform support
+	 * @return True if the target can be built
+	 */
+	bool IsValid(TOptional<EBuildTargetType> TargetType, TOptional<FString> Platform, TOptional<EBuildConfiguration> Configuration, EProjectType ProjectType, EInstalledPlatformState State) const;
 
 	/**
 	 * Queries whether a platform architecture is valid for any configuration

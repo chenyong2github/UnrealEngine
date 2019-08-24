@@ -146,7 +146,7 @@ public:
 
 
 private:
-	TRingBuffer(){};
+	TRingBuffer() = delete;
 
 	// Buffer size
 	const uint32 BufferDataSize;

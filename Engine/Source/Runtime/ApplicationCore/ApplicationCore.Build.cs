@@ -34,7 +34,7 @@ public class ApplicationCore : ModuleRules
 				);
             if (Target.bCompileWithAccessibilitySupport && !Target.bIsBuildingConsoleApplication)
             {
-                PublicAdditionalLibraries.Add("uiautomationcore.lib");
+                PublicSystemLibraries.Add("uiautomationcore.lib");
             }
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)

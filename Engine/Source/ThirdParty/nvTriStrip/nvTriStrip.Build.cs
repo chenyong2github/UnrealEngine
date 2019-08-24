@@ -16,28 +16,26 @@ public class nvTriStrip : ModuleRules
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			NvTriStripLibPath += "Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-			PublicLibraryPaths.Add(NvTriStripLibPath);
 
 			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
 			{
-				PublicAdditionalLibraries.Add("nvTriStripD_64.lib");
+				PublicAdditionalLibraries.Add(NvTriStripLibPath + "/nvTriStripD_64.lib");
 			}
 			else
 			{
-				PublicAdditionalLibraries.Add("nvTriStrip_64.lib");
+				PublicAdditionalLibraries.Add(NvTriStripLibPath + "/nvTriStrip_64.lib");
 			}
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win32)
 		{
 			NvTriStripLibPath += "Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-			PublicLibraryPaths.Add(NvTriStripLibPath);
 			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
 			{
-				PublicAdditionalLibraries.Add("nvTriStripD.lib");
+				PublicAdditionalLibraries.Add(NvTriStripLibPath + "/nvTriStripD.lib");
 			}
 			else
 			{
-				PublicAdditionalLibraries.Add("nvTriStrip.lib");
+				PublicAdditionalLibraries.Add(NvTriStripLibPath + "/nvTriStrip.lib");
 			}
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)

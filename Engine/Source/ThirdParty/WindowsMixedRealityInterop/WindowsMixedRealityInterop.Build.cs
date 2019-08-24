@@ -58,8 +58,6 @@ public class WindowsMixedRealityInterop : ModuleRules
             PublicDefinitions.Add("WITH_SCENE_UNDERSTANDING=0");
         }
 
-        PublicLibraryPaths.Add(LibrariesPath);
-
         if (bAddLibraries)
         {
             // Win10 support

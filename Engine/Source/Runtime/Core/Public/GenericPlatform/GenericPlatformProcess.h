@@ -268,14 +268,14 @@ struct CORE_API FGenericPlatformProcess
 	 * Generates the path to the specified application or game.
 	 *
 	 * The application must reside in the Engine's binaries directory. The returned path is relative to this
-	 * executable's directory.For example, calling this method with "UE4" and EBuildConfigurations::Debug
+	 * executable's directory.For example, calling this method with "UE4" and EBuildConfiguration::Debug
 	 * on Windows 64-bit will generate the path "../Win64/UE4Editor-Win64-Debug.exe"
 	 *
 	 * @param AppName The name of the application or game.
 	 * @param BuildConfiguration The build configuration of the game.
 	 * @return The generated application path.
 	 */
-	static FString GenerateApplicationPath( const FString& AppName, EBuildConfigurations::Type BuildConfiguration);
+	static FString GenerateApplicationPath( const FString& AppName, EBuildConfiguration BuildConfiguration);
 
 	/**
 	 * Return the prefix of dynamic library (e.g. lib)

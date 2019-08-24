@@ -15,6 +15,9 @@ namespace Tools.DotNETCommon
 	/// </summary>
 	public class ContentHash : IEquatable<ContentHash>
 	{
+		public const int LengthMD5 = 16;
+		public const int LengthSHA1 = 20;
+
 		/// <summary>
 		/// The bytes compromising this hash
 		/// </summary>
@@ -208,6 +211,41 @@ namespace Tools.DotNETCommon
 			using(SHA1 Algorithm = System.Security.Cryptography.SHA1.Create())
 			{
 				return Compute(Location, Algorithm);
+			}
+		}
+
+		/// <summary>
+		/// Parse a hash from a string
+		/// </summary>
+		/// <param name="Text">Text to parse</param>
+		/// <returns>Value of the hash</returns>
+		public static ContentHash Parse(string Text)
+		{
+			ContentHash Hash;
+			if(!TryParse(Text, out Hash))
+			{
+				throw new ArgumentException(String.Format("'{0}' is not a valid content hash", Text));
+			}
+			return Hash;
+		}
+
+		/// <summary>
+		/// Parse a hash from a string
+		/// </summary>
+		/// <param name="Text">Text to parse</param>
+		/// <returns>Value of the hash</returns>
+		public static bool TryParse(string Text, out ContentHash Hash)
+		{
+			byte[] Bytes;
+			if(StringUtils.TryParseHexString(Text, out Bytes))
+			{
+				Hash = new ContentHash(Bytes);
+				return true;
+			}
+			else
+			{
+				Hash = null;
+				return false;
 			}
 		}
 
