@@ -24,14 +24,34 @@ public:
 
 protected:
 
+	void CycleNavData();
+	void CycleActorReference();
+
 	struct FRepData
 	{
-		int32 NumDirtyAreas = 0;
 		void Serialize(FArchive& Ar);
+
+		FString NavDataName;
+		int32 NumDirtyAreas = 0;
+		bool bCanChangeReference = false;
+		bool bIsUsingPlayerActor = false;
+		bool bReferenceTooFarFromNavData = false;
 	};
 
 	FNavMeshSceneProxyData NavmeshRenderData;
 	FRepData DataPack;
+	
+	enum class EActorReferenceMode : uint8
+	{
+		PlayerActorOnly,
+		PlayerActor,
+		DebugActor
+	};
+	EActorReferenceMode ActorReferenceMode = EActorReferenceMode::DebugActor;
+
+	int32 NavDataIndexToDisplay = INDEX_NONE;
+	bool bSwitchToNextNavigationData = false;
+	TWeakObjectPtr<const APawn> PrevDebugActorReference;
 };
 
 #endif // WITH_GAMEPLAY_DEBUGGER

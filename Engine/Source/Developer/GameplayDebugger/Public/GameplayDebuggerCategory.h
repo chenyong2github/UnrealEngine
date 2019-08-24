@@ -130,6 +130,9 @@ protected:
 		return NewDataPack.PackId;
 	}
 
+	/** [AUTH] force data collection on next update */
+	void ForceImmediateCollect() { LastCollectDataTime = -FLT_MAX; }
+
 	/** update interval, 0 = each tick */
 	float CollectDataInterval;
 
