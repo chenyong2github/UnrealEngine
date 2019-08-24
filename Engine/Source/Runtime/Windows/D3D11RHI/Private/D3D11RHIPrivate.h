@@ -486,6 +486,8 @@ public:
 	virtual FViewportRHIRef RHICreateViewport(void* WindowHandle, uint32 SizeX, uint32 SizeY, bool bIsFullscreen, EPixelFormat PreferredPixelFormat) override;
 	virtual void RHIResizeViewport(FRHIViewport* Viewport, uint32 SizeX, uint32 SizeY, bool bIsFullscreen) final override;
 	virtual void RHIResizeViewport(FRHIViewport* Viewport, uint32 SizeX, uint32 SizeY, bool bIsFullscreen, EPixelFormat PreferredPixelFormat) final override;
+	virtual EColorSpaceAndEOTF RHIGetColorSpace(FRHIViewport* Viewport) final override;
+	virtual void RHICheckViewportHDRStatus(FRHIViewport* ViewportRHI) final override;
 	virtual void RHITick(float DeltaTime) final override;
 	virtual void RHISetStreamOutTargets(uint32 NumTargets, FRHIVertexBuffer* const* VertexBuffers,const uint32* Offsets) final override;
 	virtual void RHIBlockUntilGPUIdle() final override;
@@ -780,6 +782,9 @@ public:
 protected:
 	/** The global D3D interface. */
 	TRefCountPtr<IDXGIFactory1> DXGIFactory1;
+
+	// Whether HDR is available from the particular DXGI factories available
+	bool bDXGISupportsHDR;
 
 	/** The global D3D device's immediate context */
 	TRefCountPtr<FD3D11DeviceContext> Direct3DDeviceIMContext;

@@ -20,6 +20,14 @@ class UNREALED_API UEditorExperimentalSettings
 
 public:
 
+	/** Allows the editor to run on HDR monitors on Windows 10 */
+	UPROPERTY(EditAnywhere, config, Category = HDR, meta = (ConfigRestartRequired = true, DisplayName = "Enable Editor Support for HDR Monitors"))
+	bool bHDREditor;
+
+	/** The brightness of the slate UI on HDR monitors */
+	UPROPERTY(EditAnywhere, config, Category = HDR, meta = (ClampMin = "100.0", ClampMax = "300.0", UIMin = "100.0", UIMax = "300.0"))
+	float HDREditorNITLevel;
+
 	/** Allows usage of the procedural foliage system */
 	UPROPERTY(EditAnywhere, config, Category = Foliage, meta = (DisplayName = "Procedural Foliage"))
 	bool bProceduralFoliage;
@@ -134,8 +142,8 @@ public:
 protected:
 
 	// UObject overrides
-
-	virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent ) override;
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostInitProperties() override;
 
 private:
 

@@ -15,6 +15,8 @@
 	#endif
 #include "Windows/HideWindowsPlatformTypes.h"
 
+#include "dxgi1_5.h"
+
 
 bool D3D11RHI_ShouldCreateWithD3DDebug()
 {
@@ -94,6 +96,18 @@ FD3D11DynamicRHI::FD3D11DynamicRHI(IDXGIFactory1* InDXGIFactory1,D3D_FEATURE_LEV
 	if(FeatureLevel == D3D_FEATURE_LEVEL_10_0)
 	{
 		GSupportsDepthFetchDuringDepthTest = false;
+	}
+
+   	
+	TRefCountPtr<IDXGIFactory5> Factory5;
+	HRESULT HResult = DXGIFactory1->QueryInterface(IID_PPV_ARGS(Factory5.GetInitReference()));
+	if (SUCCEEDED(HResult))
+	{
+		bDXGISupportsHDR = true;
+	}
+	else
+	{
+		bDXGISupportsHDR = false;
 	}
 
 	ERHIFeatureLevel::Type PreviewFeatureLevel;

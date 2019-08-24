@@ -72,6 +72,28 @@ float3 ColorLookupTable(float3 LinearColor)
 	return ColorSpaceLUT.SampleLevel(ColorSpaceLUTSampler, UVW, 0).rgb * LUT_SCALING;
 }
 
+// Given an input using Rec709 primaries and a sRGB tranfer function where
+// 1.0 maps to paperwhitenits defined in editor. Remap to Rec2020 with PQ transfer function.
+void HDREditorConvert(
+	FScreenVertexOutput Input,
+	out float4 OutColor : SV_Target0
+	)
+{
+	OutColor = 0;
+	float3 SceneColor = Texture2DSample(SceneTexture, SceneSampler, Input.UV).xyz ;
+
+	// Get color into Rec2020 space
+	SceneColor = sRGBToLinear( SceneColor) ;
+	SceneColor = SceneColor * UILevel ; 
+
+	SceneColor = mul(sRGB_2_XYZ_MAT, SceneColor);
+	SceneColor = mul(XYZ_2_Rec2020_MAT, SceneColor);
+
+	// Do PQ Curve
+	SceneColor = LinearToST2084( SceneColor ); 
+	OutColor.rgb = SceneColor;
+}
+
 void Main(
 	FScreenVertexOutput Input,
 	out float4 OutColor : SV_Target0
