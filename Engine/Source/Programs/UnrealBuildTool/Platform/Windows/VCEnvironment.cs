@@ -128,10 +128,6 @@ namespace UnrealBuildTool
             // Compile using 64 bit tools for 64 bit targets, and 32 for 32.
 			CompilerPath = GetCompilerToolPath(Platform, Compiler, Architecture, CompilerDir);
 
-			// Add the compiler path and directory as environment variables for the process so they may be used elsewhere.
-			Environment.SetEnvironmentVariable("VC_COMPILER_PATH", CompilerPath.FullName, EnvironmentVariableTarget.Process);
-			Environment.SetEnvironmentVariable("VC_COMPILER_DIR", CompilerPath.Directory.FullName, EnvironmentVariableTarget.Process);
-
 			// Regardless of the target, if we're linking on a 64 bit machine, we want to use the 64 bit linker (it's faster than the 32 bit linker and can handle large linking jobs)
 			DirectoryReference DefaultLinkerDir = VCToolPath;
 			LinkerPath = GetLinkerToolPath(Platform, Compiler, DefaultLinkerDir);
@@ -140,7 +136,21 @@ namespace UnrealBuildTool
 			// Get the resource compiler path from the Windows SDK
 			ResourceCompilerPath = GetResourceCompilerToolPath(Platform, WindowsSdkDir, WindowsSdkVersion);
 
+			// Get the ISPC compiler bundled with the engine
 			ISPCCompilerPath = GetISPCCompilerToolPath(Platform);
+
+			// Get all the system include paths
+			SetupEnvironment(Platform);
+		}
+
+		/// <summary>
+		/// Updates environment variables needed for running with this toolchain
+		/// </summary>
+		public void SetEnvironmentVariables()
+		{
+			// Add the compiler path and directory as environment variables for the process so they may be used elsewhere.
+			Environment.SetEnvironmentVariable("VC_COMPILER_PATH", CompilerPath.FullName, EnvironmentVariableTarget.Process);
+			Environment.SetEnvironmentVariable("VC_COMPILER_DIR", CompilerPath.Directory.FullName, EnvironmentVariableTarget.Process);
 
 			// Add both toolchain paths to the PATH environment variable. There are some support DLLs which are only added to one of the paths, but which the toolchain in the other directory
 			// needs to run (eg. mspdbcore.dll).
@@ -160,10 +170,6 @@ namespace UnrealBuildTool
 				AddDirectoryToPath(GetVCToolPath(ToolChain, ToolChainDir, WindowsArchitecture.x86));
 				AddDirectoryToPath(GetVCToolPath(ToolChain, ToolChainDir, WindowsArchitecture.x64));
 			}
-
-
-			// Get all the system include paths
-			SetupEnvironment(Platform);
 		}
 
 		/// <summary>
