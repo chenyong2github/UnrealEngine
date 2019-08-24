@@ -263,7 +263,7 @@ void FD3D11Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 			// Resize all existing buffers, don't change count
 			VERIFYD3D11RESIZEVIEWPORTRESULT(SwapChain->ResizeBuffers(0, SizeX, SizeY, RenderTargetFormat, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH), SizeX, SizeY, RenderTargetFormat, D3DRHI->GetDevice());
 #else
-			VERIFYD3D11RESIZEVIEWPORTRESULT(SwapChain->ResizeBuffers(1, SizeX, SizeY, RenderTargetFormat, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH), SizeX, SizeY, RenderTargetFormat, D3DRHI->GetDevice());
+			VERIFYD3D11RESIZEVIEWPORTRESULT(SwapChain->ResizeBuffers(BackBufferCount, SizeX, SizeY, RenderTargetFormat, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH), SizeX, SizeY, RenderTargetFormat, D3DRHI->GetDevice());
 #endif
 
 			if (bInIsFullscreen)
@@ -301,6 +301,9 @@ void FD3D11Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 		D3DRHI->ShutdownHDR();
 	}
 
+	// If the window has been moved or resized it may have moved focus to and from a HDR monitor
+	CheckHDRMonitorStatus();
+	
 	// Create a RHI surface to represent the viewport's back buffer.
 	BackBuffer = GetSwapChainSurface(D3DRHI, PixelFormat, SizeX, SizeY, SwapChain);
 }
@@ -547,6 +550,18 @@ bool FD3D11Viewport::Present(bool bLockToVsync)
 		bNativelyPresented = PresentChecked(bLockToVsync ? RHIGetSyncInterval() : 0);
 	}
 	return bNativelyPresented;
+}
+
+EColorSpaceAndEOTF FD3D11DynamicRHI::RHIGetColorSpace(FRHIViewport* ViewportRHI)
+{
+	FD3D11Viewport* Viewport = ResourceCast(ViewportRHI);
+	return Viewport->GetPixelColorSpace();
+}
+
+void  FD3D11DynamicRHI::RHICheckViewportHDRStatus(FRHIViewport* ViewportRHI)
+{
+	FD3D11Viewport* Viewport = ResourceCast(ViewportRHI);
+	return Viewport->CheckHDRMonitorStatus();
 }
 
 /*=============================================================================
