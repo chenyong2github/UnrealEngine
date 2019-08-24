@@ -33,7 +33,7 @@ public:
 
 	FORCEINLINE void AddDynamicParam(TArray<FNiagaraRibbonVertexDynamicParameter>& ParamData, const FVector4& DynamicParam);
 protected:
-	static void GenerateIndexBuffer(uint16* OutIndices, const TArray<int32>& SegmentData, int32 MaxTessellation, bool bInvertOrder, bool bCullTwistedStrips);
+	static void GenerateIndexBuffer(uint16* OutIndices, const TArray<int32>& SegmentData, int32 MaxTessellation, bool bInvertOrder);
 
 private:
 	class FNiagaraRibbonVertexFactory *VertexFactory;
@@ -72,10 +72,12 @@ private:
 
 	// Average curvature of the segments.
 	mutable float TessellationAngle = 0;
-	// Average angle of the curvature of the segments (in radian).
+	// Average curvature of the segments (computed from the segment angle in radian).
 	mutable float TessellationCurvature = 0;
 	// Average twist of the segments.
 	mutable float TessellationTwistAngle = 0;
 	// Average twist curvature of the segments.
 	mutable float TessellationTwistCurvature = 0;
+	// Average twist curvature of the segments.
+	mutable float TessellationTotalSegmentLength = 0;
 };
