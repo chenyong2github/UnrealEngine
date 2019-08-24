@@ -32,6 +32,7 @@ FRuntimeVirtualTextureSceneProxy::FRuntimeVirtualTextureSceneProxy(URuntimeVirtu
 		FVTProducerDescription Desc;
 		VirtualTexture->GetProducerDescription(Desc, Transform);
 		VirtualTextureSize = FIntPoint(Desc.WidthInBlocks * Desc.BlockWidthInTiles * Desc.TileSize, Desc.HeightInBlocks * Desc.BlockHeightInTiles * Desc.TileSize);
+		MaxDirtyLevel = Desc.MaxLevel;
 
 		// The Producer object created here will be passed into the virtual texture system which will take ownership.
 		// The Initialize() call will allocate the virtual texture by spawning work on the render thread.
@@ -103,13 +104,13 @@ void FRuntimeVirtualTextureSceneProxy::FlushDirtyPages()
 
 		if (bCombinedFlush)
 		{
-			FVirtualTextureSystem::Get().FlushCache(ProducerHandle, CombinedDirtyRect);
+			FVirtualTextureSystem::Get().FlushCache(ProducerHandle, CombinedDirtyRect, MaxDirtyLevel);
 		}
 		else
 		{
 			for (FIntRect Rect : DirtyRects)
 			{
-				FVirtualTextureSystem::Get().FlushCache(ProducerHandle, Rect);
+				FVirtualTextureSystem::Get().FlushCache(ProducerHandle, Rect, MaxDirtyLevel);
 			}
 		}
 	}
