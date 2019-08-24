@@ -1841,7 +1841,7 @@ void VectorVM::Exec(
 
 	auto ExecChunkBatch = [&](int32 BatchIdx)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_VVMExecChunk);
+		//SCOPE_CYCLE_COUNTER(STAT_VVMExecChunk);
 
 		FVectorVMContext& Context = FVectorVMContext::Get();
 		Context.PrepareForExec(InputRegisters, OutputRegisters, NumInputRegisters, NumOutputRegisters, ConstantTable, DataSetIndexTable.GetData(), DataSetOffsetTable.GetData(), DataSetOffsetTable.Num(),

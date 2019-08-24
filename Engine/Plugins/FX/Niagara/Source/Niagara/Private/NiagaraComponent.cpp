@@ -487,7 +487,7 @@ void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickTy
 
 		if (AgeUpdateMode == ENiagaraAgeUpdateMode::TickDeltaTime)
 		{
-			SystemInstance->ComponentTick(DeltaSeconds);
+			SystemInstance->ComponentTick(DeltaSeconds, ThisTickFunction->GetCompletionHandle());
 		}
 		else
 		{
@@ -516,7 +516,9 @@ void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickTy
 						TicksToProcess = FMath::FloorToInt(AgeDiff / SeekDelta);
 						for (; TicksToProcess > 0 && CurrentTime - StartTime < MaxSimTime; --TicksToProcess)
 						{
-							SystemInstance->ComponentTick(SeekDelta);
+							//Cannot do multiple tick off the game thread here without additional work. So we pass in null for the completion event which will force GT execution.
+							//If this becomes a perf problem I can add a new path for the tick code to handle multiple ticks.
+							SystemInstance->ComponentTick(SeekDelta, nullptr);
 							CurrentTime = FPlatformTime::Seconds();
 						}
 					}

@@ -335,6 +335,7 @@ void NiagaraEmitterInstanceBatcher::ResizeBuffersAndGatherResources(FOverlappabl
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraGPUDispatchSetup_RT);
 
+	//UE_LOG(LogNiagara, Warning, TEXT("NiagaraEmitterInstanceBatcher::ResizeBuffersAndGatherResources:  %0xP"), this);
 	for (FNiagaraGPUSystemTick* Tick : OverlappableTick)
 	{
 		const uint32 DispatchCount = Tick->Count;
@@ -407,6 +408,7 @@ void NiagaraEmitterInstanceBatcher::DispatchAllOnCompute(FOverlappableTicks& Ove
 {
 	FRHICommandListImmediate& RHICmdListImmediate = FRHICommandListExecutor::GetImmediateCommandList();
 
+	//UE_LOG(LogNiagara, Warning, TEXT("NiagaraEmitterInstanceBatcher::DispatchAllOnCompute:  %0xP"), this);
 	// Disable automatic cache flush so that we can have our compute work overlapping. Barrier will be used as a sync mechanism.
 	RHICmdList.AutomaticCacheFlushAfterComputeShader(false);
 
@@ -801,7 +803,7 @@ void NiagaraEmitterInstanceBatcher::PreRender(FRHICommandListImmediate& RHICmdLi
 
 void NiagaraEmitterInstanceBatcher::OnDestroy()
 {
-	INiagaraModule::OnBatcherDestroyed(this);
+	FNiagaraWorldManager::OnBatcherDestroyed(this);
 	FFXSystemInterface::OnDestroy();
 }
 
@@ -834,6 +836,8 @@ void NiagaraEmitterInstanceBatcher::SortGPUParticles(FRHICommandListImmediate& R
 	if (SortedParticleCount > 0 && SortedVertexBuffers.Num() > 0 && SimulationsToSort.Num() && GNiagaraGPUSortingBufferSlack > 1.f)
 	{
 		SCOPED_GPU_STAT(RHICmdList, NiagaraGPUSorting);
+
+		//UE_LOG(LogNiagara, Warning, TEXT("NiagaraEmitterInstanceBatcher::SortGPUParticles:  %0xP"), this);
 
 		ensure(SortedVertexBuffers.Last().IndexCount >= SortedParticleCount);
 
