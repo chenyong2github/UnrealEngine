@@ -52,7 +52,7 @@ namespace RuntimeVirtualTexture
 		const int32 TextureSizeX = VTDesc.WidthInBlocks * VTDesc.BlockWidthInTiles * TileSize;
 		const int32 TextureSizeY = VTDesc.HeightInBlocks * VTDesc.BlockHeightInTiles * TileSize;
 		const int32 MaxLevel = (int32)FMath::CeilLogTwo(FMath::Max(VTDesc.BlockWidthInTiles, VTDesc.BlockHeightInTiles));
-		const int32 RenderLevel = FMath::Max(MaxLevel - RuntimeVirtualTexture->GetStreamLowMips() + 1, 1);
+		const int32 RenderLevel = FMath::Max(MaxLevel - RuntimeVirtualTexture->GetStreamLowMips() + 1, 0);
 		const int32 StreamingTextureSizeX = FMath::Max(TileSize, TextureSizeX >> RenderLevel);
 		const int32 StreamingTextureSizeY = FMath::Max(TileSize, TextureSizeY >> RenderLevel);
 		const int32 NumTilesX = StreamingTextureSizeX / TileSize;
