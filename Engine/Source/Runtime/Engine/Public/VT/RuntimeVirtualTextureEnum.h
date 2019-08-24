@@ -35,3 +35,11 @@ enum class ERuntimeVirtualTextureMainPassType : uint8
 	/** We will render to any valid virtual texture target AND the main pass. Use this for items that need to both read and write the virtual texture. For example, some landscape setups need this. */
 	Always UMETA(DisplayName = "Virtual Texture AND Main Pass"),
 };
+
+/** Enumeration of runtime virtual texture debug modes. */
+UENUM()
+enum class ERuntimeVirtualTextureDebugType
+{
+	None,
+	Debug
+};

@@ -85,6 +85,9 @@ void FPixelShaderInOut_MainPS(
 	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
 #endif
 
+	// Apply debug shading
+	BaseColor = lerp(BaseColor, half3(In.SvPosition.xy * ResolvedView.ViewSizeAndInvSize.zw, 0), ResolvedView.VirtualTextureParams.y * 0.25);
+
 #if defined(OUT_BASECOLOR)
 	Out.MRT[0] = float4(BaseColor, 1.f) * Opacity;
 #elif defined(OUT_BASECOLOR_NORMAL)
