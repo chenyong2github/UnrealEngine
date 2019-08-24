@@ -107,22 +107,22 @@ public:
 	 * Whether or not the specified character, within the specified font, can be loaded with the specified maximum font fallback level
 	 *
 	 * @param InFontData		Information about the font to load
-	 * @param Char				The character being loaded
+	 * @param InCodepoint		The codepoint being loaded
 	 * @param MaxFallbackLevel	The maximum fallback level to try for the font
 	 * @return					Whether or not the character can be loaded
 	 */
-	bool CanLoadCharacter(const FFontData& InFontData, TCHAR Char, EFontFallback MaxFallbackLevel) const;
+	bool CanLoadCodepoint(const FFontData& InFontData, const UTF32CHAR InCodepoint, EFontFallback MaxFallbackLevel) const;
 
 #if WITH_FREETYPE
 	/**
 	 * Wrapper for GetFontFace, which reverts to fallback or last resort fonts if the face could not be loaded
 	 *
 	 * @param InFontData		Information about the font to load
-	 * @param Char				The character being loaded (required for checking if a fallback font is needed)
+	 * @param InCodepoint		The codepoint being loaded (required for checking if a fallback font is needed)
 	 * @param MaxFallbackLevel	The maximum fallback level to try for the font
 	 * @return					Returns the character font face data
 	 */
-	FFreeTypeFaceGlyphData GetFontFaceForCharacter(const FFontData& InFontData, TCHAR Char, EFontFallback MaxFallbackLevel) const;
+	FFreeTypeFaceGlyphData GetFontFaceForCodepoint(const FFontData& InFontData, const UTF32CHAR InCodepoint, EFontFallback MaxFallbackLevel) const;
 #endif // WITH_FREETYPE
 
 	/** 

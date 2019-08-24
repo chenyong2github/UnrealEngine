@@ -568,9 +568,9 @@ bool FCharacterList::CanCacheCharacter(TCHAR Character, const EFontFallback MaxF
 	else
 	{
 		float SubFontScalingFactor = 1.0f;
-		const FFontData& FontData = FontCache.CompositeFontCache->GetFontDataForCharacter(FontKey.GetFontInfo(), Character, SubFontScalingFactor);
+		const FFontData& FontData = FontCache.CompositeFontCache->GetFontDataForCodepoint(FontKey.GetFontInfo(), Character, SubFontScalingFactor);
 
-		bReturnVal = FontCache.FontRenderer->CanLoadCharacter(FontData, Character, MaxFontFallback);
+		bReturnVal = FontCache.FontRenderer->CanLoadCodepoint(FontData, Character, MaxFontFallback);
 	}
 
 	return bReturnVal;
@@ -660,8 +660,8 @@ FCharacterList::FCharacterListEntry FCharacterList::CacheCharacter(TCHAR Charact
 
 		// Get the data needed to render this character
 		float SubFontScalingFactor = 1.0f;
-		const FFontData* FontDataPtr = &FontCache.CompositeFontCache->GetFontDataForCharacter(FontInfo, Character, SubFontScalingFactor);
-		FFreeTypeFaceGlyphData FaceGlyphData = FontCache.FontRenderer->GetFontFaceForCharacter(*FontDataPtr, Character, FontInfo.FontFallback);
+		const FFontData* FontDataPtr = &FontCache.CompositeFontCache->GetFontDataForCodepoint(FontInfo, Character, SubFontScalingFactor);
+		FFreeTypeFaceGlyphData FaceGlyphData = FontCache.FontRenderer->GetFontFaceForCodepoint(*FontDataPtr, Character, FontInfo.FontFallback);
 
 		// Found a valid font face?
 		if (FaceGlyphData.FaceAndMemory.IsValid())
@@ -1031,9 +1031,9 @@ const FFontData& FSlateFontCache::GetDefaultFontData( const FSlateFontInfo& InFo
 	return CompositeFontCache->GetDefaultFontData(InFontInfo);
 }
 
-const FFontData& FSlateFontCache::GetFontDataForCharacter( const FSlateFontInfo& InFontInfo, const TCHAR InChar, float& OutScalingFactor ) const
+const FFontData& FSlateFontCache::GetFontDataForCodepoint( const FSlateFontInfo& InFontInfo, const UTF32CHAR InCodepoint, float& OutScalingFactor ) const
 {
-	return CompositeFontCache->GetFontDataForCharacter(InFontInfo, InChar, OutScalingFactor);
+	return CompositeFontCache->GetFontDataForCodepoint(InFontInfo, InCodepoint, OutScalingFactor);
 }
 
 uint16 FSlateFontCache::GetMaxCharacterHeight( const FSlateFontInfo& InFontInfo, float FontScale ) const
