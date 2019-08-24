@@ -586,13 +586,13 @@ const bool ALODActor::IsBuilt(bool bInForce/*=false*/) const
 		}
 
 		// No proxy mesh
-		if (Proxy == nullptr)
+		if (StaticMeshComponent->GetStaticMesh() && Proxy == nullptr)
 		{
 			return false;
 		}
 
 		// Mismatched key
-		if (!Proxy->ContainsDataForActor(this))
+		if (Proxy != nullptr && !Proxy->ContainsDataForActor(this))
 		{
 			return false;
 		}
@@ -875,11 +875,14 @@ void ALODActor::DetermineShadowingFlags()
 
 	for (const TPair<const UMaterialInterface*, UInstancedStaticMeshComponent*>& Component : ImpostersStaticMeshComponents)
 	{
-		Component.Value->CastShadow = false;
-		Component.Value->bCastStaticShadow = false;
-		Component.Value->bCastDynamicShadow = false;
-		Component.Value->bCastFarShadow = false;
-		Component.Value->MarkRenderStateDirty();
+		if (Component.Value)
+		{
+			Component.Value->CastShadow = false;
+			Component.Value->bCastStaticShadow = false;
+			Component.Value->bCastDynamicShadow = false;
+			Component.Value->bCastFarShadow = false;
+			Component.Value->MarkRenderStateDirty();
+		}
 	}
 
 	for (AActor* Actor : SubActors)
