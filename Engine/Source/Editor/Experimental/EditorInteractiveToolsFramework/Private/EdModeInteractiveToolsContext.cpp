@@ -53,8 +53,8 @@ public:
 		StateOut.ToolManager = ToolsContext->ToolManager;
 		StateOut.GizmoManager = ToolsContext->GizmoManager;
 		StateOut.World = EditorMode->GetWorld();
-		StateOut.SelectedActors = EditorMode->GetModeManager()->GetSelectedActors();
-		StateOut.SelectedComponents = EditorMode->GetModeManager()->GetSelectedComponents();
+		EditorMode->GetModeManager()->GetSelectedActors()->GetSelectedObjects(StateOut.SelectedActors);
+		EditorMode->GetModeManager()->GetSelectedComponents()->GetSelectedObjects(StateOut.SelectedComponents);
 	}
 
 
