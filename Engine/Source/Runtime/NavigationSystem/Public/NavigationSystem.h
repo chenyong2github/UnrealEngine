@@ -38,10 +38,6 @@ class UNavigationSystemModuleConfig;
 struct FNavigationRelevantData;
 struct FNavigationOctreeElement;
 
-#if WITH_EDITOR
-class FEdMode;
-#endif // WITH_EDITOR
-
 /** delegate to let interested parties know that new nav area class has been registered */
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnNavAreaChanged, const UClass* /*AreaClass*/);
 
@@ -117,6 +113,13 @@ public:
 	ANavigationData* AbstractNavData;
 
 protected:
+	/** If not None indicates which of navigation datas and supported agents are
+	 * going to be used as the default ones. If navigation agent of this type does
+	 * not exist or is not enabled then the first available nav data will be used
+	 * as the default one */
+	UPROPERTY(config, EditAnywhere, BlueprintReadOnly, Category = Navigation)
+	FName DefaultAgentName;
+
 	UPROPERTY(config, EditAnywhere, BlueprintReadOnly, Category = Navigation)
 	TSoftClassPtr<UCrowdManagerBase> CrowdManagerClass;
 
@@ -142,13 +145,6 @@ protected:
 	UPROPERTY()
 	uint32 bSupportRebuilding : 1; 
 
-	/** When set to TRUE, navigation data will be generated only when at least one navigation bounds is compatible for building it */
-	UPROPERTY(EditAnywhere, Category = Navigation)
-	uint32 bShouldGenerateNavDataOnlyWhenCompatibleNavBound : 1;
-
-	/** When set to TRUE, equivalent navigation data will override the existing one in the system */
-	UPROPERTY(EditAnywhere, Category = Navigation)
-	uint32 bAllowEquivalentNavDataOverride  : 1;
 public:
 	/** if set to true will result navigation system not rebuild navigation until 
 	 *	a call to ReleaseInitialBuildingLock() is called. Does not influence 
@@ -191,6 +187,12 @@ protected:
 
 	UPROPERTY(config, EditAnywhere, Category = Agents)
 	TArray<FNavDataConfig> SupportedAgents;
+
+	/** NavigationSystem's properties in Project Settings define all possible supported agents,
+	 *	but a specific navigation system can choose to support only a subset of agents. Set via 
+	 *	NavigationSystemConfig */
+	UPROPERTY(config, EditAnywhere, Category = Agents)
+	FNavAgentSelector SupportedAgentsMask;
 
 public:
 
@@ -324,7 +326,7 @@ public:
 		RegistrationFailed_DataPendingKill,			// means navigation data being registered is marked as pending kill
 		RegistrationFailed_AgentAlreadySupported,	// this means that navigation agent supported by given nav data is already handled by some other, previously registered instance
 		RegistrationFailed_AgentNotValid,			// given instance contains navmesh that doesn't support any of expected agent types, or instance doesn't specify any agent
-		RegistrationFailed_NotSuitable,				// given instance had been considered unsuitable by current navigation system instance itself
+		RegistrationFailed_NotSuitable,				// given instance had been considered unsuitable by current navigation system instance itself. NOTE: this value is not currently being used by the engine-supplied navigation system classes
 		RegistrationSuccessful,
 	};
 
@@ -494,8 +496,6 @@ public:
 	bool ShouldAllowClientSideNavigation() const { return bAllowClientSideNavigation; }
 	virtual bool ShouldLoadNavigationOnClient(ANavigationData* NavData = nullptr) const { return bAllowClientSideNavigation; }
 	virtual bool ShouldDiscardSubLevelNavData(ANavigationData* NavData = nullptr) const { return bShouldDiscardSubLevelNavData; }
-	bool ShouldGenerateNavDataOnlyWhenCompatibleNavBound() const { return bShouldGenerateNavDataOnlyWhenCompatibleNavBound; }
-	bool ShouldAllowEquivalentNavDataOverride() const { return bAllowEquivalentNavDataOverride ; }
 
 	FBox GetWorldBounds() const;
 	
@@ -506,9 +506,10 @@ public:
 	const TSet<FNavigationBounds>& GetNavigationBounds() const;
 
 	static const FNavDataConfig& GetDefaultSupportedAgent();
-	FORCEINLINE const FNavDataConfig& GetDefaultSupportedAgentConfig() const { check(SupportedAgents.Num() > 0);  return SupportedAgents[0]; }
+	const FNavDataConfig& GetDefaultSupportedAgentConfig() const;
 	FORCEINLINE const TArray<FNavDataConfig>& GetSupportedAgents() const { return SupportedAgents; }
 	void OverrideSupportedAgents(const TArray<FNavDataConfig>& NewSupportedAgents);
+	void SetSupportedAgentsMask(const FNavAgentSelector& InSupportedAgentsMask);
 
 	virtual void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift) override;
 
@@ -547,6 +548,7 @@ public:
 	virtual void RequestRegistration(ANavigationData* NavData, bool bTriggerRegistrationProcessing = true);
 
 protected:
+	void ApplySupportedAgentsFilter();
 
 	/** Processes all NavigationData instances in UWorld owning navigation system instance, and registers
 	 *	all previously unregistered */
@@ -800,9 +802,6 @@ public:
 	
 	virtual void InitializeForWorld(UWorld& World, FNavigationSystemRunMode Mode) override;
 
-	/** Called after a NavSystemConfigOverride has finished overriding the old NavSystem */
-	virtual void FinalizeOverridingNavSystem(UNavigationSystemV1& PreviousNavSystem);
-
 	// Fetch the array of all nav-agent properties.
 	void GetNavAgentPropertiesArray(TArray<FNavAgentProperties>& OutNavAgentProperties) const;
 
@@ -1001,7 +1000,8 @@ public:
 	/** @param if InLevel is given then only navigation bounds from that level will be considered*/
 	virtual int GetNavigationBoundsForNavData(const ANavigationData& NavData, TArray<FBox>& OutBounds, ULevel* InLevel = nullptr) const;
 	static INavigationDataInterface* GetNavDataForActor(const AActor& Actor);
-	virtual void Configure(const UNavigationSystemConfig& Config);
+	virtual void Configure(const UNavigationSystemConfig& Config) override;
+	virtual void AppendConfig(const UNavigationSystemConfig& NewConfig) override;
 	
 #if !UE_BUILD_SHIPPING
 	void GetOnScreenMessages(TMultiMap<FCoreDelegates::EOnScreenMessageSeverity, FText>& OutMessages);
@@ -1087,13 +1087,6 @@ protected:
 	UPROPERTY(EditAnywhere, Category = Navigation)
 	uint32 bSpawnNavDataInNavBoundsLevel : 1;
 
-	/** When set to TRUE, navigation data will be generated only when at least one navigation bounds is compatible for building it */
-	UPROPERTY(EditAnywhere, Category = Navigation)
-	uint32 bShouldGenerateNavDataOnlyWhenCompatibleNavBound : 1;
-
-	/** When set to TRUE, equivalent navigation data will override the existing one in the system */
-	UPROPERTY(EditAnywhere, Category = Navigation)
-	uint32 bAllowEquivalentNavDataOverride : 1;
 public:
 	UNavigationSystemModuleConfig(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
