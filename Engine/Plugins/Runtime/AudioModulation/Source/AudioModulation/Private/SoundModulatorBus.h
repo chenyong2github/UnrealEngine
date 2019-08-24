@@ -33,13 +33,9 @@ class USoundModulatorBusBase : public UObject
 	GENERATED_UCLASS_BODY()
 
 public:
-	/** Automatically activates bus when no sounds are being updated by it. */
+	/** Automatically activates/deactivates bus when sounds referencing asset are playing. */
 	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadOnly)
 	uint8 bAutoActivate : 1;
-
-	/** Automatically deactivates bus when no sounds are being updated by it. */
-	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadOnly)
-	uint8 bAutoDeactivate : 1;
 
 	/** Default value of modulator (when no mix is applied). */
 	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite, meta = (UIMin = "0", UIMax = "1"))
@@ -103,8 +99,7 @@ namespace AudioModulation
 		FModulatorBusProxy();
 		FModulatorBusProxy(const USoundModulatorBusBase& Bus);
 
-		bool CanDeactivate() const;
-
+		bool GetAutoActivate() const;
 		AudioModulation::BusId GetBusId() const;
 		float GetDefaultValue() const;
 		float GetLFOValue() const;
@@ -117,6 +112,9 @@ namespace AudioModulation
 
 		void SetDefaultValue(const float Value);
 		void SetRange(const FVector2D& Range);
+
+		int32 IncRefSound();
+		int32 DecRefSound();
 
 #if !UE_BUILD_SHIPPING
 		const FString& GetName() const;
@@ -142,7 +140,8 @@ namespace AudioModulation
 		ESoundModulatorOperator Operator;
 		FVector2D Range;
 
-		uint8 bAutoDeactivate : 1;
+		uint8 bAutoActivate : 1;
+		int32 SoundRefCount;
 	};
 	using BusProxyMap = TMap<BusId, FModulatorBusProxy>;
 } // namespace AudioModulation
