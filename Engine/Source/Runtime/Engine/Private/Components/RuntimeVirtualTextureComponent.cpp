@@ -50,6 +50,15 @@ FTransform URuntimeVirtualTextureComponent::GetVirtualTextureTransform() const
 	return FTransform(FVector(-0.5f, -0.5f, 0.f)) * GetComponentTransform();
 }
 
+bool URuntimeVirtualTextureComponent::IsStreamingLowMips() const
+{
+#if WITH_EDITOR
+	return bUseStreamingLowMipsInEditor;
+#else
+	return true;
+#endif
+}
+
 #if WITH_EDITOR
 
 void URuntimeVirtualTextureComponent::SetRotation()
