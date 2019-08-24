@@ -500,8 +500,9 @@ void UAudioComponent::PlayInternal(const float StartTime, const float FadeInDura
 			NewActiveSound.MaxDistance = MaxDistance;
 			NewActiveSound.InstanceParameters = InstanceParameters;
 
-			NewActiveSound.ComponentVolumeFader.SetVolume(0.0f); // Init to 0.0f to fade as default is 1.0f
-			NewActiveSound.ComponentVolumeFader.StartFade(FadeVolumeLevel, FadeInDuration, static_cast<Audio::EFaderCurve>(FadeCurve));
+			Audio::FVolumeFader& Fader = NewActiveSound.ComponentVolumeFader;
+			Fader.SetVolume(0.0f); // Init to 0.0f to fade as default is 1.0f
+			Fader.StartFade(FadeVolumeLevel, FadeInDuration, static_cast<Audio::EFaderCurve>(FadeCurve));
 
 			// Bump ActiveCount... this is used to determine if an audio component is still active after a sound reports back as completed
 			++ActiveCount;
@@ -585,7 +586,8 @@ void UAudioComponent::AdjustVolumeInternal(float AdjustVolumeDuration, float Adj
 			return;
 		}
 
-		const float InitialTargetVolume = ActiveSound->ComponentVolumeFader.GetTargetVolume();
+		Audio::FVolumeFader& Fader = ActiveSound->ComponentVolumeFader;
+		const float InitialTargetVolume = Fader.GetTargetVolume();
 
 		// Ignore fade out request if requested volume is higher than current target.
 		if (bIsFadeOut && AdjustVolumeLevel >= InitialTargetVolume)
@@ -593,6 +595,7 @@ void UAudioComponent::AdjustVolumeInternal(float AdjustVolumeDuration, float Adj
 			return;
 		}
 
+		const bool ToZeroVolume = FMath::IsNearlyZero(AdjustVolumeLevel);
 		if (ActiveSound->FadeOut == FActiveSound::EFadeOut::Concurrency)
 		{
 			// Ignore adjust volume request if non-zero and currently voice stealing.
@@ -602,17 +605,27 @@ void UAudioComponent::AdjustVolumeInternal(float AdjustVolumeDuration, float Adj
 			}
 
 			// Ignore request of longer fade out than active target if active is concurrency (voice stealing) fade.
-			if (AdjustVolumeDuration > ActiveSound->ComponentVolumeFader.GetFadeDuration())
+			if (AdjustVolumeDuration > Fader.GetFadeDuration())
 			{
 				return;
 			}
 		}
 		else
 		{
-			ActiveSound->FadeOut = FMath::IsNearlyZero(AdjustVolumeLevel) ? FActiveSound::EFadeOut::User : FActiveSound::EFadeOut::None;
+			ActiveSound->FadeOut = bIsFadeOut || ToZeroVolume ? FActiveSound::EFadeOut::User : FActiveSound::EFadeOut::None;
 		}
 
-		ActiveSound->ComponentVolumeFader.StartFade(AdjustVolumeLevel, AdjustVolumeDuration, static_cast<Audio::EFaderCurve>(FadeCurve));
+		if (bIsFadeOut || ToZeroVolume)
+		{
+			// If negative, active indefinitely, so always make sure set to minimum positive value for active fade.
+			const float OldActiveDuration = Fader.GetActiveDuration();
+			const float NewActiveDuration = OldActiveDuration < 0.0f
+				? AdjustVolumeDuration
+				: FMath::Min(OldActiveDuration, AdjustVolumeDuration);
+			Fader.SetActiveDuration(NewActiveDuration);
+		}
+
+		Fader.StartFade(AdjustVolumeLevel, AdjustVolumeDuration, static_cast<Audio::EFaderCurve>(FadeCurve));
 	}, GET_STATID(STAT_AudioAdjustVolume));
 }
 
@@ -677,14 +690,15 @@ void UAudioComponent::StopDelayed(float DelayTime)
 				*StoppingSound->GetName());
 		}
 
+		Audio::FVolumeFader& Fader = ActiveSound->ComponentVolumeFader;
 		switch (ActiveSound->FadeOut)
 		{
 			case FActiveSound::EFadeOut::Concurrency:
 			{
 				// Ignore request of longer fade out than active target if active is concurrency (voice stealing) fade.
-				if (DelayTime < ActiveSound->ComponentVolumeFader.GetFadeDuration())
+				if (DelayTime < Fader.GetFadeDuration())
 				{
-					ActiveSound->ComponentVolumeFader.SetActiveDuration(DelayTime);
+					Fader.SetActiveDuration(DelayTime);
 				}
 			}
 			break;
@@ -694,7 +708,7 @@ void UAudioComponent::StopDelayed(float DelayTime)
 			default:
 			{
 				ActiveSound->FadeOut = FActiveSound::EFadeOut::User;
-				ActiveSound->ComponentVolumeFader.SetActiveDuration(DelayTime);
+				Fader.SetActiveDuration(DelayTime);
 			}
 			break;
 		}
