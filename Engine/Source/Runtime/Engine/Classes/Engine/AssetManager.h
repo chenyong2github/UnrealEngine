@@ -367,6 +367,9 @@ public:
 	/** Dumps out list of loaded asset bundles to log */
 	static void DumpLoadedAssetState();
 
+	/** Shows a list of all bundles for the specified primary asset by primary asset id (i.e. Map:Entry) */
+	static void DumpBundlesForAsset(const TArray<FString>& Args);
+
 	/** Dumps information about the Asset Registry to log */
 	static void DumpAssetRegistryInfo();
 
