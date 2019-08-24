@@ -155,6 +155,12 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 	**/
 	UPROPERTY(BlueprintReadOnly, interp, Category = Light, meta = (HideAlphaChannel), AdvancedDisplay)
 	FColor ModulatedShadowColor;
+	
+	/**
+	 * Control the amount of shadow occlusion. A value of 0 means no occlusion, thus no shadow.
+	 */
+	UPROPERTY(BlueprintReadOnly, interp, Category = Light, meta = (HideAlphaChannel, UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"), AdvancedDisplay)
+	float ShadowAmount;
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Light, meta=(DisplayName = "Atmosphere / Fog Sun Light"))
 	uint32 bUsedAsAtmosphereSunLight : 1;
@@ -188,6 +194,9 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
 	void SetLightShaftOverrideDirection(FVector NewValue);
+
+	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
+	void SetShadowAmount(float NewValue);
 
 	//~ Begin ULightComponent Interface
 	virtual FVector4 GetLightPosition() const override;
