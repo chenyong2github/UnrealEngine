@@ -217,7 +217,10 @@ void FLevelEditorGenericDetails::AddSurfaceDetails( IDetailLayoutBuilder& Detail
 		MaterialListDelegates.OnGetMaterials.BindSP(this, &FLevelEditorGenericDetails::GetSelectedSurfaceMaterials);
 		MaterialListDelegates.OnMaterialChanged.BindSP(this, &FLevelEditorGenericDetails::OnMaterialChanged);
 
-		TSharedRef<FMaterialList> MaterialList = MakeShareable(new FMaterialList(DetailBuilder, MaterialListDelegates));
+		//Pass an empty material list owner (owner can be use by the asset picker filter. In this case we do not need it)
+		TArray<FAssetData> MaterialListOwner;
+
+		TSharedRef<FMaterialList> MaterialList = MakeShareable(new FMaterialList(DetailBuilder, MaterialListDelegates, MaterialListOwner));
 
 		MaterialsCategory.AddCustomBuilder( MaterialList );
 	}
