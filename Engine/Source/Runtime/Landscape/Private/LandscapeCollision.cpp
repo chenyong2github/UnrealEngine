@@ -2184,3 +2184,8 @@ ULandscapeHeightfieldCollisionComponent::ULandscapeHeightfieldCollisionComponent
 	// landscape collision components should be deterministically created and therefor are addressable over the network
 	SetNetAddressable();
 }
+
+ULandscapeComponent* ULandscapeHeightfieldCollisionComponent::GetRenderComponent() const
+{
+	return RenderComponent.Get();
+}
