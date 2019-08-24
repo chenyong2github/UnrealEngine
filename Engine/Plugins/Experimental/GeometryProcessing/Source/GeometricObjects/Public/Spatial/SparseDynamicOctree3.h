@@ -292,7 +292,7 @@ protected:
 	// calculate the base width of a cell at a given level
 	inline double GetCellWidth(uint32 Level) const
 	{
-		double Divisor = (double)(1U << Level);
+		double Divisor = (double)( (uint64)1 << (Level & 0x1F) );
 		double CellWidth = RootDimension / Divisor;
 		return CellWidth;
 	}
