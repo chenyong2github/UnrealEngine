@@ -433,7 +433,7 @@ public:
 
 	virtual ~FMeshMaterialsLayout();
 
-	void AddToCategory(IDetailCategoryBuilder& CategoryBuilder, TSharedPtr<class IPropertyHandle> InHandle);
+	void AddToCategory(IDetailCategoryBuilder& CategoryBuilder, const TArray<FAssetData>& AssetDataArray);
 
 private:
 	UStaticMesh& GetStaticMesh() const;
