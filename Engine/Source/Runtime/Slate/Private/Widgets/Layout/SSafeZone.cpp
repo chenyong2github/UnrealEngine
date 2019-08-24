@@ -7,23 +7,37 @@
 #include "Widgets/SViewport.h"
 
 float GSafeZoneScale = 1.0f;
-static FAutoConsoleVariableRef CVarDumpVMIR(
+static FAutoConsoleVariableRef CVarSafeZoneScale(
 	TEXT("SafeZone.Scale"),
 	GSafeZoneScale,
 	TEXT("The safezone scale."),
 	ECVF_Default
 );
 
-void SSafeZone::SetGlobalSafeZoneScale(float InScale)
+bool bEnableSafeZoneScale = false;
+static FAutoConsoleVariableRef CVarEnableSafeZoneScale(
+	TEXT("SafeZone.EnableScale"),
+	bEnableSafeZoneScale,
+	TEXT("IS the safe zone scale enabled?"),
+	ECVF_Default
+);
+
+
+void SSafeZone::SetGlobalSafeZoneScale(TOptional<float> InScale)
 {
-	GSafeZoneScale = InScale;
+	bEnableSafeZoneScale = InScale.IsSet();
+	GSafeZoneScale = InScale.Get(0.f);
 
 	FCoreDelegates::OnSafeFrameChangedEvent.Broadcast();
 }
 
-float SSafeZone::GetGlobalSafeZoneScale()
+TOptional<float> SSafeZone::GetGlobalSafeZoneScale()
 {
-	return GSafeZoneScale;
+	if (bEnableSafeZoneScale)
+	{
+		return GSafeZoneScale;
+	}
+	return TOptional<float>();
 }
 
 void SSafeZone::Construct( const FArguments& InArgs )
@@ -100,9 +114,11 @@ void SSafeZone::UpdateSafeMargin() const
 		}
 	}
 
-#if PLATFORM_XBOXONE
-	SafeMargin = SafeMargin * GSafeZoneScale;
-#endif
+	TOptional<float> SafeZoneScale = GetGlobalSafeZoneScale();
+	if (SafeZoneScale.IsSet())
+	{
+		SafeMargin = SafeMargin * GSafeZoneScale;
+	}
 
 	SafeMargin = FMargin(bPadLeft ? SafeMargin.Left : 0.0f, bPadTop ? SafeMargin.Top : 0.0f, bPadRight ? SafeMargin.Right : 0.0f, bPadBottom ? SafeMargin.Bottom : 0.0f);
 
