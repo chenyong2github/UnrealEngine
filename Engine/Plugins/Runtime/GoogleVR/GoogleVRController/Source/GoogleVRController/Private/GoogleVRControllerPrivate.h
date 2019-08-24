@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
+#include "Templates/ValueOrError.h"
 #include "IGoogleVRControllerPlugin.h"
 
 #if GOOGLEVRCONTROLLER_SUPPORTED_PLATFORMS

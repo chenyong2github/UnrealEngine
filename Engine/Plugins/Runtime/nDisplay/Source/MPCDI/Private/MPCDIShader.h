@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "RHI.h"
 #include "RHICommandList.h"
+#include "RHIStaticStates.h"
 #include "RenderResource.h"
 #include "ShaderParameters.h"
 #include "Shader.h"
