@@ -3,8 +3,6 @@
 #include "ToolBuilderUtil.h"
 #include "CoreMinimal.h"
 #include "Algo/Accumulate.h"
-#include "Algo/Count.h"
-#include "Algo/Find.h"
 #include "GameFramework/Actor.h"
 #include "Engine/Selection.h"
 #include "Components/StaticMeshComponent.h"
