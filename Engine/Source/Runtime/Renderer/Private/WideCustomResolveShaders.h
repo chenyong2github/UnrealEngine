@@ -6,6 +6,7 @@
 #include "ShaderParameters.h"
 #include "Shader.h"
 #include "GlobalShader.h"
+#include "ShaderParameterUtils.h"
 
 class FWideCustomResolveVS : public FGlobalShader
 {
