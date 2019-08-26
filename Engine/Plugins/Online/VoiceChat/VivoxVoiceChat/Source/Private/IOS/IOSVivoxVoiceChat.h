@@ -57,6 +57,8 @@ private:
 	bool IsHardwareAECEnabled() const;
 	bool bEnableHardwareAEC = false;
 	TOptional<bool> OverrideEnableHardwareAEC;
+	bool bVoiceChatModeEnabled = false;
+	uint VoiceChatEnableCount = 0;
 
 	void EnableVoiceChat(bool bEnable);
 	void UpdateVoiceChatSettings();
