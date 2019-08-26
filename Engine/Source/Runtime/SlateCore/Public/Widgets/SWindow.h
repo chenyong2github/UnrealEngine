@@ -753,6 +753,13 @@ public:
 		bIsMirrorWindow = bSetMirrorWindow;
 	}
 	
+	void SetIsHDR(bool bHDR)
+	{
+		bIsHDR = bHDR;
+	}
+
+	bool GetIsHDR() const { return bIsHDR; }
+
 	bool IsVirtualWindow() const { return bVirtualWindow; }
 
 	bool IsMirrorWindow()
@@ -1014,6 +1021,9 @@ protected:
 
 	/** True if the window should preserve its aspect ratio when resized by user */
 	bool bShouldPreserveAspectRatio : 1;
+
+	/** True if the window is being displayed on a HDR capable monitor */
+	bool bIsHDR : 1;
 
 	bool bManualManageDPI : 1;
 

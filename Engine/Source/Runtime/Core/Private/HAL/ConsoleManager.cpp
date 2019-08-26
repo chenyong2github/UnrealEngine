@@ -293,7 +293,7 @@ void OnCVarChange(T& Dst, const T& Src, EConsoleVariableFlags Flags, EConsoleVar
 	}
 }
 
-// T: int32, float, FString
+// T: bool, int32, float, FString
 template <class T>
 class FConsoleVariable : public FConsoleVariableBase
 {
@@ -308,25 +308,31 @@ public:
 	virtual void Release()
 	{
 		delete this; 
-	} 
+	}
+
 	virtual void Set(const TCHAR* InValue, EConsoleVariableFlags SetBy)
 	{
-		if(CanChange(SetBy))
+		if (CanChange(SetBy))
 		{
 			TTypeFromString<T>::FromString(Data.ShadowedValue[0], InValue);
 			OnChanged(SetBy);
 		}
 	}
 
-	virtual int32 GetInt() const;
-	virtual float GetFloat() const;
-	virtual FString GetString() const;
+	virtual bool GetBool() const override;
+	virtual int32 GetInt() const override;
+	virtual float GetFloat() const override;
+	virtual FString GetString() const override;
+
+virtual bool IsVariableBool() const override { return false; }
 	virtual bool IsVariableInt() const override { return false; }
 	virtual bool IsVariableFloat() const override { return false; }
 	virtual bool IsVariableString() const override { return false; }
-	virtual class TConsoleVariableData<int32>* AsVariableInt() { return 0; }
-	virtual class TConsoleVariableData<float>* AsVariableFloat() { return 0; }
-	virtual class TConsoleVariableData<FString>* AsVariableString() { return 0; }
+
+	virtual class TConsoleVariableData<bool>* AsVariableBool() override { return nullptr; }
+	virtual class TConsoleVariableData<int32>* AsVariableInt() override { return nullptr; }
+	virtual class TConsoleVariableData<float>* AsVariableFloat() override { return nullptr; }
+	virtual class TConsoleVariableData<FString>* AsVariableString() override { return nullptr; }
 
 private: // ----------------------------------------------------
 
@@ -347,9 +353,55 @@ private: // ----------------------------------------------------
 	}
 };
 
+// specialization for all
+
+template<> bool FConsoleVariable<bool>::IsVariableBool() const
+{
+	return true;
+}
+template<> bool FConsoleVariable<int32>::IsVariableInt() const
+{
+	return true;
+}
+template<> bool FConsoleVariable<float>::IsVariableFloat() const
+{
+	return true;
+}
+template<> bool FConsoleVariable<FString>::IsVariableString() const
+{
+	return true;
+}
+
+
+// specialization for bool
+
+template<> bool FConsoleVariable<bool>::GetBool() const
+{
+	return Value();
+}
+template<> int32 FConsoleVariable<bool>::GetInt() const
+{
+	return Value() ? 1 : 0;
+}
+template<> float FConsoleVariable<bool>::GetFloat() const
+{
+	return Value() ? 1.0f : 0.0f;
+}
+template<> FString FConsoleVariable<bool>::GetString() const
+{
+	return Value() ? TEXT("true") : TEXT("false");
+}
+template<> TConsoleVariableData<bool>* FConsoleVariable<bool>::AsVariableBool()
+{
+	return &Data;
+}
 
 // specialization for int32
 
+template<> bool FConsoleVariable<int32>::GetBool() const
+{
+	return Value() != 0;
+}
 template<> int32 FConsoleVariable<int32>::GetInt() const
 {
 	return Value();
@@ -363,11 +415,6 @@ template<> FString FConsoleVariable<int32>::GetString() const
 	return FString::Printf(TEXT("%d"), Value());
 }
 
-template<> bool FConsoleVariable<int32>::IsVariableInt() const
-{
-	return true; 
-}
-
 template<> TConsoleVariableData<int32>* FConsoleVariable<int32>::AsVariableInt()
 {
 	return &Data; 
@@ -375,6 +422,10 @@ template<> TConsoleVariableData<int32>* FConsoleVariable<int32>::AsVariableInt()
 
 // specialization for float
 
+template<> bool FConsoleVariable<float>::GetBool() const
+{
+	return Value() != 0;
+}
 template<> int32 FConsoleVariable<float>::GetInt() const
 {
 	return (int32)Value();
@@ -386,10 +437,6 @@ template<> float FConsoleVariable<float>::GetFloat() const
 template<> FString FConsoleVariable<float>::GetString() const
 {
 	return FString::Printf(TEXT("%g"), Value());
-}
-template<> bool FConsoleVariable<float>::IsVariableFloat() const
-{
-	return true;
 }
 template<> TConsoleVariableData<float>* FConsoleVariable<float>::AsVariableFloat()
 {
@@ -406,21 +453,27 @@ template<> void FConsoleVariable<FString>::Set(const TCHAR* InValue, EConsoleVar
 		OnChanged(SetBy);
 	}
 }
+template<> bool FConsoleVariable<FString>::GetBool() const
+{
+	bool OutValue = false;
+	TTypeFromString<bool>::FromString(OutValue, *Value());
+	return OutValue;
+}
 template<> int32 FConsoleVariable<FString>::GetInt() const
 {
-	return FCString::Atoi(*Value());
+	int32 OutValue = 0;
+	TTypeFromString<int32>::FromString(OutValue, *Value());
+	return OutValue;
 }
 template<> float FConsoleVariable<FString>::GetFloat() const
 {
-	return FCString::Atof(*Value());
+	float OutValue = 0.0f;
+	TTypeFromString<float>::FromString(OutValue, *Value());
+	return OutValue;
 }
 template<> FString FConsoleVariable<FString>::GetString() const
 {
 	return Value();
-}
-template<> bool FConsoleVariable<FString>::IsVariableString() const
-{
-	return true;
 }
 template<> TConsoleVariableData<FString>* FConsoleVariable<FString>::AsVariableString()
 {
@@ -444,7 +497,8 @@ public:
 	virtual void Release()
 	{
 		delete this; 
-	} 
+	}
+
 	virtual void Set(const TCHAR* InValue, EConsoleVariableFlags SetBy)
 	{
 		if(CanChange(SetBy))
@@ -452,6 +506,16 @@ public:
 			TTypeFromString<T>::FromString(MainValue, InValue);
 			OnChanged(SetBy);
 		}
+	}
+
+	virtual bool IsVariableBool() const override { return false; }
+	virtual bool IsVariableInt() const override { return false; }
+	virtual bool IsVariableFloat() const override { return false; }
+	virtual bool IsVariableString() const override { return false; }
+
+	virtual bool GetBool() const
+	{
+		return (bool)MainValue;
 	}
 	virtual int32 GetInt() const
 	{
@@ -465,9 +529,6 @@ public:
 	{
 		return TTypeToString<T>::ToString(MainValue);
 	}
-	virtual bool IsVariableInt() const override { return false; }
-	virtual bool IsVariableFloat() const override { return false; }
-	virtual bool IsVariableString() const override { return false; }
 
 private: // ----------------------------------------------------
 
@@ -494,6 +555,24 @@ private: // ----------------------------------------------------
 	}
 };
 
+template <>
+bool FConsoleVariableRef<bool>::IsVariableBool() const
+{
+	return true;
+}
+
+template <>
+bool FConsoleVariableRef<int32>::IsVariableInt() const
+{
+	return true;
+}
+
+template <>
+bool FConsoleVariableRef<float>::IsVariableFloat() const
+{
+	return true;
+}
+
 // specialization for float
 
 template <>
@@ -501,18 +580,6 @@ FString FConsoleVariableRef<float>::GetString() const
 {
 	// otherwise we get 2.1f would become "2.100000"
 	return FString::SanitizeFloat(RefValue);
-}
-template<> bool FConsoleVariableRef<bool>::IsVariableInt() const
-{
-	return true;
-}
-template<> bool FConsoleVariableRef<int32>::IsVariableInt() const
-{
-	return true;
-}
-template<> bool FConsoleVariableRef<float>::IsVariableFloat() const
-{
-	return true;
 }
 
 // string version
@@ -541,9 +608,15 @@ public:
 			OnChanged(SetBy);
 		}
 	}
+	virtual bool GetBool() const
+	{
+		bool Result = false;
+		TTypeFromString<bool>::FromString(Result, *MainValue);
+		return Result;
+	}
 	virtual int32 GetInt() const
 	{
-		int32 Result;
+		int32 Result = 0;
 		TTypeFromString<int32>::FromString(Result, *MainValue);
 		return Result;
 	}
@@ -614,6 +687,10 @@ public:
 
 			OnChanged(SetBy);
 		}
+	}
+	virtual bool GetBool() const
+	{
+		return GetInt() != 0;
 	}
 	virtual int32 GetInt() const
 	{
@@ -926,6 +1003,11 @@ public:
 	}
 };
 
+IConsoleVariable* FConsoleManager::RegisterConsoleVariable(const TCHAR* Name, bool DefaultValue, const TCHAR* Help, uint32 Flags)
+{
+	return AddConsoleObject(Name, new FConsoleVariable<bool>(DefaultValue, Help, (EConsoleVariableFlags)Flags))->AsVariable();
+}
+
 IConsoleVariable* FConsoleManager::RegisterConsoleVariable(const TCHAR* Name, int32 DefaultValue, const TCHAR* Help, uint32 Flags)
 {
 	return AddConsoleObject(Name, new FConsoleVariable<int32>(DefaultValue, Help, (EConsoleVariableFlags)Flags))->AsVariable();
@@ -936,11 +1018,21 @@ IConsoleVariable* FConsoleManager::RegisterConsoleVariable(const TCHAR* Name, fl
 	return AddConsoleObject(Name, new FConsoleVariable<float>(DefaultValue, Help, (EConsoleVariableFlags)Flags))->AsVariable();
 }
 
+IConsoleVariable* FConsoleManager::RegisterConsoleVariable(const TCHAR* Name, const TCHAR* DefaultValue, const TCHAR* Help, uint32 Flags)
+{
+	return RegisterConsoleVariable(Name, FString(DefaultValue), Help, Flags);
+}
+
 IConsoleVariable* FConsoleManager::RegisterConsoleVariable(const TCHAR* Name, const FString& DefaultValue, const TCHAR* Help, uint32 Flags)
 {
 	// not supported
 	check((Flags & (uint32)ECVF_RenderThreadSafe) == 0);
 	return AddConsoleObject(Name, new FConsoleVariable<FString>(DefaultValue, Help, (EConsoleVariableFlags)Flags))->AsVariable();
+}
+
+IConsoleVariable* FConsoleManager::RegisterConsoleVariableRef(const TCHAR* Name, bool& RefValue, const TCHAR* Help, uint32 Flags)
+{
+	return AddConsoleObject(Name, new FConsoleVariableRef<bool>(RefValue, Help, (EConsoleVariableFlags)Flags))->AsVariable();
 }
 
 IConsoleVariable* FConsoleManager::RegisterConsoleVariableRef(const TCHAR* Name, int32& RefValue, const TCHAR* Help, uint32 Flags)
@@ -951,11 +1043,6 @@ IConsoleVariable* FConsoleManager::RegisterConsoleVariableRef(const TCHAR* Name,
 IConsoleVariable* FConsoleManager::RegisterConsoleVariableRef(const TCHAR* Name, float& RefValue, const TCHAR* Help, uint32 Flags)
 {
 	return AddConsoleObject(Name, new FConsoleVariableRef<float>(RefValue, Help, (EConsoleVariableFlags)Flags))->AsVariable();
-}
-
-IConsoleVariable* FConsoleManager::RegisterConsoleVariableRef(const TCHAR* Name, bool& RefValue, const TCHAR* Help, uint32 Flags)
-{
-	return AddConsoleObject(Name, new FConsoleVariableRef<bool>(RefValue, Help, (EConsoleVariableFlags)Flags))->AsVariable();
 }
 
 IConsoleVariable* FConsoleManager::RegisterConsoleVariableRef(const TCHAR* Name, FString& RefValue, const TCHAR* Help, uint32 Flags)

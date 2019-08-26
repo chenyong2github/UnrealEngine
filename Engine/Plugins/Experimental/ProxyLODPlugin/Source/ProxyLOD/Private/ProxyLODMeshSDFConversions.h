@@ -5,6 +5,7 @@
 
 #include "ProxyLODMeshTypes.h"
 #include "ProxyLODMeshConvertUtils.h"
+#include "ProxyLODMeshUtilities.h"
 
 THIRD_PARTY_INCLUDES_START
 #include <openvdb/openvdb.h>

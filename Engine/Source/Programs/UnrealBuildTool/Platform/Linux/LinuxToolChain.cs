@@ -176,10 +176,10 @@ namespace UnrealBuildTool
 				throw new BuildException("Unable to build: no compatible clang version found. Please run Setup.sh");
 			}
 			// prevent unknown clangs since the build is likely to fail on too old or too new compilers
-			else if ((CompilerVersionMajor * 10 + CompilerVersionMinor) > 70 || (CompilerVersionMajor * 10 + CompilerVersionMinor) < 60)
+			else if ((CompilerVersionMajor * 10 + CompilerVersionMinor) > 80 || (CompilerVersionMajor * 10 + CompilerVersionMinor) < 60)
 			{
 				throw new BuildException(
-					string.Format("This version of the Unreal Engine can only be compiled with clang 7.0 and 6.0. clang {0} may not build it - please use a different version.",
+					string.Format("This version of the Unreal Engine can only be compiled with clang 8.0, 7.0 and 6.0. clang {0} may not build it - please use a different version.",
 						CompilerVersionString)
 					);
 			}
@@ -605,6 +605,13 @@ namespace UnrealBuildTool
 						Result += " -fcolor-diagnostics";
 					}
 				}
+
+				// output full paths to the files when the build fails, required 4.0+ of clang
+				if (CompilerVersionGreaterOrEqual(4, 0, 0))
+				{
+					Result += " -fdiagnostics-absolute-paths";
+				}
+
 				Result += " -Wno-unused-private-field";     // MultichannelTcpSocket.h triggers this, possibly more
 				// this hides the "warning : comparison of unsigned expression < 0 is always false" type warnings due to constant comparisons, which are possible with template arguments
 				Result += " -Wno-tautological-compare";
@@ -958,7 +965,14 @@ namespace UnrealBuildTool
 
 				if (bSuppressPIE)
 				{
-					Result += " -Wl,-nopie";
+					if (CompilerVersionGreaterOrEqual(7, 0, 0))
+					{
+						Result += " -Wl,-no-pie";
+					}
+					else
+					{
+						Result += " -Wl,-nopie";
+					}
 				}
 			}
 

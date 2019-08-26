@@ -50,7 +50,12 @@ UE4 Networking info (How this plugs into UE4 networking)
 -"Replication Proxy" (FReplicationProxy): struct that points to the network simulation and has policies about how it replicates and to who. Custom NetSerialize.
 -E.g, there is a replication proxy for owner, non owners, replays, and debug. All point to the same underlying data.
 -Still using actor replication to determine when to replicate.
- 
+
+Simulated Proxy behavior / "modes"
+-Interpolate: Sync buffer is replicated but there is no ticking of the net sim. Literally do not have to Tick the simulation.
+	-Actual interpolation will happen in some class outside of TNetworkSimulationModel (doesn't exist yet). It will look at sync buffer and interpolate over it.
+-(Sim) Extrapolation: by default if the netsim is ticked, we synthesize command and extrapolate the simulation. With basic reconciliation to absorb fluctuations in latency.
+-Forward Predict (not implemented yet): must be explicitly enabled by outside call, ties simulated proxy sim to an autonomous proxy sim. Sims will be reconciled together in step.
  
  
 TODO: Major missing elements
@@ -94,6 +99,19 @@ Smoothing: Taking the output of the simulation and applying an additional layer 
 // ----------------------------------------------------------------------------------------------------------
 // Release notes
 // ----------------------------------------------------------------------------------------------------------
+
+
+Update (8-14-19)
+-Some more cleanup. Cvar fixes and other consolidation. Now time for vacation (2 weeks). 
+TODO still:
+-Improve debugger (has rotted a bit due to refactors)
+-Network fault handling, disable/enable local prediction causes some bad transitions
+-Initialization of system, specifically InitializeForNetworkRole can be much better now.
+	-Consider using templates to inline allocate all memory. Maybe make auto proxy buffers allocated on demant.
+
+Update (8-13-19)
+-Refactor really feeling good, things are falling into place. Still a few things to do and bugs to chase down.
+-Added simulated proxy notes above to detail current plan
 
 Update
 -Refactor on ticking state is taking shape and feeling much better. Some thing may have broke but will get smoothed out.

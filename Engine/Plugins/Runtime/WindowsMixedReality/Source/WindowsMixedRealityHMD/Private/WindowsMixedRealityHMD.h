@@ -65,6 +65,9 @@ namespace WindowsMixedReality
 		virtual void ResetOrientation(float yaw = 0.f) override { }
 		virtual void ResetPosition() override { }
 
+		virtual void OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& ViewFamily) override;
+		virtual void OnBeginRendering_GameThread() override;
+
 		virtual bool GetCurrentPose(
 			int32 DeviceId,
 			FQuat& CurrentOrientation,
@@ -107,8 +110,6 @@ namespace WindowsMixedReality
 			EStereoscopicPass StereoPass,
 			int32& X, int32& Y,
 			uint32& SizeX, uint32& SizeY) const override;
-		virtual void CalculateStereoViewOffset(const EStereoscopicPass StereoPassType, FRotator& ViewRotation,
-			const float MetersToWorld, FVector& ViewLocation) override;
 		virtual FMatrix GetStereoProjectionMatrix(const enum EStereoscopicPass StereoPassType) const override;
 		virtual IStereoRenderTargetManager* GetRenderTargetManager() override { return this; }
 		virtual class IStereoLayers* GetStereoLayers() override;
@@ -179,12 +180,24 @@ namespace WindowsMixedReality
 		EHMDTrackingOrigin::Type HMDTrackingOrigin;
 		FIntRect EyeRenderViewport;
 
-		FQuat CurrOrientation = FQuat::Identity;
-		FVector CurrPosition = FVector::ZeroVector;
-		FQuat RotationL = FQuat::Identity;
-		FQuat RotationR = FQuat::Identity;
-		FVector PositionL = FVector::ZeroVector;
-		FVector PositionR = FVector::ZeroVector;
+		struct Frame
+		{
+			FQuat HeadOrientation = FQuat::Identity;
+			FVector HeadPosition = FVector::ZeroVector;
+			FQuat RotationL = FQuat::Identity;
+			FQuat RotationR = FQuat::Identity;
+			FVector PositionL = FVector::ZeroVector;
+			FVector PositionR = FVector::ZeroVector;
+			FTransform LeftTransform = FTransform::Identity;
+			FTransform RightTransform = FTransform::Identity;
+			FTransform HeadTransform = FTransform::Identity;
+		};
+		Frame Frame_NextGameThread;
+		FCriticalSection Frame_NextGameThreadLock;
+		Frame Frame_GameThread;
+		Frame Frame_RenderThread;
+		Frame& GetFrame() { return IsInRenderingThread() ? Frame_RenderThread : Frame_GameThread; }
+		const Frame& GetFrame() const { return IsInRenderingThread() ? Frame_RenderThread : Frame_GameThread; }
 
 		float ipd = 0;
 

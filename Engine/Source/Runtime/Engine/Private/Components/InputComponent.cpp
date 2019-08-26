@@ -5,6 +5,13 @@
 #include "GameFramework/PlayerInput.h"
 
 
+void FInputActionBinding::GenerateNewHandle()
+{
+	// Must be in C++ to avoid duplicate statics accross execution units
+	static int32 GHandle = 1;
+	Handle = GHandle++;
+}
+
 /* UInputComponent interface
  *****************************************************************************/
 
@@ -200,6 +207,7 @@ FInputActionBinding& UInputComponent::AddActionBinding( FInputActionBinding InBi
 {
 	ActionBindings.Add(MakeShared<FInputActionBinding>(MoveTemp(InBinding)));
 	FInputActionBinding& Binding = *ActionBindings.Last().Get();
+	Binding.GenerateNewHandle();
 
 	if (Binding.KeyEvent == IE_Pressed || Binding.KeyEvent == IE_Released)
 	{
@@ -249,46 +257,63 @@ void UInputComponent::RemoveActionBinding( const int32 BindingIndex )
 	if (BindingIndex >= 0 && BindingIndex < ActionBindings.Num())
 	{
 		const FInputActionBinding& BindingToRemove = *ActionBindings[BindingIndex].Get();
+		RemoveActionBinding(BindingToRemove, BindingIndex);
+	}
+}
 
-		// Potentially need to clear some pairings
-		if (BindingToRemove.bPaired)
+void UInputComponent::RemoveActionBindingForHandle(const int32 Handle)
+{
+	for (int32 ActionIndex = 0; ActionIndex < ActionBindings.Num(); ++ActionIndex)
+	{
+		const FInputActionBinding& BindingToRemove = *ActionBindings[ActionIndex].Get();
+		if (BindingToRemove.GetHandle() == Handle)
 		{
-			TArray<int32> IndicesToClear;
-			const EInputEvent PairedEvent = (BindingToRemove.KeyEvent == IE_Pressed ? IE_Released : IE_Pressed);
+			RemoveActionBinding(BindingToRemove, ActionIndex);
+			return;
+		}
+	}
+}
 
-			for (int32 ActionIndex = 0; ActionIndex < ActionBindings.Num(); ++ActionIndex)
+void UInputComponent::RemoveActionBinding(const FInputActionBinding &BindingToRemove, const int32 BindingIndex)
+{
+	// Potentially need to clear some pairings
+	if (BindingToRemove.bPaired)
+	{
+		TArray<int32> IndicesToClear;
+		const EInputEvent PairedEvent = (BindingToRemove.KeyEvent == IE_Pressed ? IE_Released : IE_Pressed);
+
+		for (int32 ActionIndex = 0; ActionIndex < ActionBindings.Num(); ++ActionIndex)
+		{
+			if (ActionIndex != BindingIndex)
 			{
-				if (ActionIndex != BindingIndex)
+				const FInputActionBinding& ActionBinding = *ActionBindings[ActionIndex].Get();
+				if (ActionBinding.ActionName == BindingToRemove.ActionName)
 				{
-					const FInputActionBinding& ActionBinding = *ActionBindings[ActionIndex].Get();
-					if (ActionBinding.ActionName == BindingToRemove.ActionName)
+					// If we find another of the same key event then the pairing is intact so we're done
+					if (ActionBinding.KeyEvent == BindingToRemove.KeyEvent)
 					{
-						// If we find another of the same key event then the pairing is intact so we're done
-						if (ActionBinding.KeyEvent == BindingToRemove.KeyEvent)
-						{
-							IndicesToClear.Empty();
-							break;
-						}
-						// Otherwise we may need to clear the pairing so track the index
-						else if (ActionBinding.KeyEvent == PairedEvent)
-						{
-							IndicesToClear.Add(ActionIndex);
-						}
+						IndicesToClear.Empty();
+						break;
+					}
+					// Otherwise we may need to clear the pairing so track the index
+					else if (ActionBinding.KeyEvent == PairedEvent)
+					{
+						IndicesToClear.Add(ActionIndex);
 					}
 				}
 			}
-
-			for (int32 ClearIndex = 0; ClearIndex < IndicesToClear.Num(); ++ClearIndex)
-			{
-				ActionBindings[IndicesToClear[ClearIndex]]->bPaired = false;
-			}
 		}
 
-		ActionBindings.RemoveAt(BindingIndex, 1, false);
-		for (FCachedKeyToActionInfo& CachedInfo : CachedKeyToActionInfo)
+		for (int32 ClearIndex = 0; ClearIndex < IndicesToClear.Num(); ++ClearIndex)
 		{
-			CachedInfo.KeyMapBuiltForIndex = 0;
+			ActionBindings[IndicesToClear[ClearIndex]]->bPaired = false;
 		}
+	}
+
+	ActionBindings.RemoveAt(BindingIndex, 1, false);
+	for (FCachedKeyToActionInfo& CachedInfo : CachedKeyToActionInfo)
+	{
+		CachedInfo.KeyMapBuiltForIndex = 0;
 	}
 }
 

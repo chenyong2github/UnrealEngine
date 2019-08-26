@@ -219,7 +219,6 @@ namespace Audio
 			SourceInfo.bUseHRTFSpatializer = false;
 			SourceInfo.bUseOcclusionPlugin = false;
 			SourceInfo.bUseReverbPlugin = false;
-			SourceInfo.bUseModulationPlugin = false;
 			SourceInfo.bHasStarted = false;
 			SourceInfo.bOutputToBusOnly = false;
 			SourceInfo.bIsVorbis = false;
@@ -449,11 +448,6 @@ namespace Audio
 			MixerDevice->ReverbPluginInterface->OnReleaseSource(SourceId);
 		}
 
-		if (SourceInfo.bUseModulationPlugin)
-		{
-			MixerDevice->ModulationInterface->OnReleaseSource(SourceId);
-		}
-
 		// Delete the source effects
 		SourceInfo.SourceEffectChainId = INDEX_NONE;
 		ResetSourceEffectChain(SourceId);
@@ -504,7 +498,6 @@ namespace Audio
 		SourceInfo.bIsExternalSend = false;
 		SourceInfo.bUseOcclusionPlugin = false;
 		SourceInfo.bUseReverbPlugin = false;
-		SourceInfo.bUseModulationPlugin = false;
 		SourceInfo.bHasStarted = false;
 		SourceInfo.bOutputToBusOnly = false;
 		SourceInfo.bIsBypassingLPF = false;
@@ -617,6 +610,12 @@ namespace Audio
 		// Make sure we flag that this source needs a speaker map to at least get one
 		GameThreadInfo.bNeedsSpeakerMap[SourceId] = true;
 
+		// Create the modulation plugin source effect
+		if (InitParams.ModulationPluginSettings != nullptr)
+		{
+			MixerDevice->ModulationInterface->OnInitSource(SourceId, InitParams.AudioComponentUserID, InitParams.NumInputChannels, *InitParams.ModulationPluginSettings);
+		}
+
 		AudioMixerThreadCommand([this, SourceId, InitParams]()
 		{
 			AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
@@ -673,13 +672,6 @@ namespace Audio
 			{
 				MixerDevice->ReverbPluginInterface->OnInitSource(SourceId, InitParams.AudioComponentUserID, InitParams.NumInputChannels, InitParams.ReverbPluginSettings);
 				SourceInfo.bUseReverbPlugin = true;
-			}
-
-			// Create the modulation plugin source effect
-			if (InitParams.ModulationPluginSettings != nullptr)
-			{
-				MixerDevice->ModulationInterface->OnInitSource(SourceId, InitParams.AudioComponentUserID, InitParams.NumInputChannels, InitParams.ModulationPluginSettings);
-				SourceInfo.bUseModulationPlugin = true;
 			}
 
 			// Default all sounds to not consider effect chain tails when playing
@@ -833,6 +825,11 @@ namespace Audio
 		GameThreadInfo.FreeSourceIndices.Push(SourceId);
 
 		AUDIO_MIXER_CHECK(GameThreadInfo.FreeSourceIndices.Contains(SourceId));
+
+		if (MixerDevice->ModulationInterface)
+		{
+			MixerDevice->ModulationInterface->OnReleaseSource(SourceId);
+		}
 
 		AudioMixerThreadCommand([this, SourceId]()
 		{
@@ -2571,37 +2568,6 @@ namespace Audio
 
 	void FMixerSourceManager::UpdatePendingReleaseData(bool bForceWait)
 	{
-		// Check for any pending delete procedural sound waves
-		for (int32 SourceId = 0; SourceId < NumTotalSources; ++SourceId)
-		{
-			FSourceInfo& SourceInfo = SourceInfos[SourceId];
-			if (SourceInfo.MixerSourceBuffer.IsValid())
-			{
-				// If we've been flagged to begin destroy
-				if (SourceInfo.MixerSourceBuffer->IsBeginDestroy())
-				{
-					SourceInfo.MixerSourceBuffer->ClearSoundWave();
-						
-					if (!SourceInfo.bIsDone)
-					{
-						SourceInfo.bIsDone = true;
-						SourceInfo.SourceListener->OnDone();
-					}
-
-					// Clear out the mixer source buffer
-					SourceInfo.MixerSourceBuffer.Reset();
-
-					// Set the sound to be done playing
-					// This will flag the sound to be released
-					SourceInfo.bIsPlaying = false;
-					SourceInfo.bIsPaused = false;
-					SourceInfo.bIsActive = false;
-					SourceInfo.bIsStopping = false;
-				}
-			}
-		}
-
-
 		// Don't block, but let tasks finish naturally
 		for (int32 i = PendingSourceBuffers.Num() - 1; i >= 0; --i)
 		{

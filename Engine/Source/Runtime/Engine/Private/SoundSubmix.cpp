@@ -252,6 +252,9 @@ void USoundSubmix::PreEditChange(UProperty* PropertyAboutToChange)
 
 void USoundSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
+	// Whether or not we need to reinit the submix. Not all properties require reinitialization.
+	bool bReinitSubmix = true;
+
 	if (PropertyChangedEvent.Property != nullptr)
 	{
 		static const FName NAME_ChildSubmixes(TEXT("ChildSubmixes"));
@@ -330,16 +333,20 @@ void USoundSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& Property
 			{
 				AudioDeviceManager->UpdateSubmix(this);
 			}
+			bReinitSubmix = false;
 		}
 	}
 
-	// Use the main/default audio device for storing and retrieving sound class properties
-	FAudioDeviceManager* AudioDeviceManager = (GEngine ? GEngine->GetAudioDeviceManager() : nullptr);
-
-	// Force the properties to be initialized for this SoundSubmix on all active audio devices
-	if (AudioDeviceManager)
+	if (bReinitSubmix)
 	{
-		AudioDeviceManager->RegisterSoundSubmix(this);
+		// Use the main/default audio device for storing and retrieving sound class properties
+		FAudioDeviceManager* AudioDeviceManager = (GEngine ? GEngine->GetAudioDeviceManager() : nullptr);
+
+		// Force the properties to be initialized for this SoundSubmix on all active audio devices
+		if (AudioDeviceManager)
+		{
+			AudioDeviceManager->RegisterSoundSubmix(this);
+		}
 	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);

@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
+using System.IO;
 
 public class LibVpx : ModuleRules
 {
@@ -13,10 +14,9 @@ public class LibVpx : ModuleRules
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			string LibPath = RootPath + "/lib/Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-			PublicLibraryPaths.Add(LibPath);
 
 			string LibFileName = "vpxmd.lib";
-			PublicAdditionalLibraries.Add(LibFileName);
+			PublicAdditionalLibraries.Add(Path.Combine(LibPath, LibFileName));
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{

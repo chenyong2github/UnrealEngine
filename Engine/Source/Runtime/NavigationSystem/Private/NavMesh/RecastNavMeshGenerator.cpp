@@ -3213,6 +3213,7 @@ FRecastNavMeshGenerator::FRecastNavMeshGenerator(ARecastNavMesh& InDestNavMesh)
 	, DestNavMesh(&InDestNavMesh)
 	, bInitialized(false)
 	, bRestrictBuildingToActiveTiles(false)
+	, bSortTilesWithSeedLocations(true)
 	, Version(0)
 {
 #if TIME_SLICE_NAV_REGEN
@@ -3220,79 +3221,6 @@ FRecastNavMeshGenerator::FRecastNavMeshGenerator(ARecastNavMesh& InDestNavMesh)
 #endif
 
 	INC_DWORD_STAT_BY(STAT_NavigationMemory, sizeof(*this));
-
-	Init();
-
-	int32 MaxTiles = 0;
-	int32 MaxPolysPerTile = 0;
-
-	// recreate navmesh if no data was loaded, or when loaded data doesn't match current grid layout
-	bool bRecreateNavmesh = true;
-	if (DestNavMesh->HasValidNavmesh())
-	{
-		const bool bGameStaticNavMesh = IsGameStaticNavMesh(DestNavMesh);
-		const dtNavMeshParams* SavedNavParams = DestNavMesh->GetRecastNavMeshImpl()->DetourNavMesh->getParams();
-		if (SavedNavParams)
-		{
-			if (bGameStaticNavMesh)
-			{
-				bRecreateNavmesh = false;
-				MaxTiles = SavedNavParams->maxTiles;
-				MaxPolysPerTile = SavedNavParams->maxPolys;
-			}
-			else
-			{
-				const float TileDim = Config.tileSize * Config.cs;
-				if (SavedNavParams->tileHeight == TileDim && SavedNavParams->tileWidth == TileDim)
-				{
-					const FVector Orig = Recast2UnrealPoint(SavedNavParams->orig);
-					const FVector OrigError(FMath::Fmod(Orig.X, TileDim), FMath::Fmod(Orig.Y, TileDim), FMath::Fmod(Orig.Z, TileDim));
-					if (OrigError.IsNearlyZero())
-					{
-						bRecreateNavmesh = false;
-					}
-					else
-					{
-						UE_LOG(LogNavigation, Warning, TEXT("Recreating dtNavMesh instance due to saved navmesh origin (%s, usually the RecastNavMesh location) not being aligned with tile size (%d uu) ")
-							, *Orig.ToString(), int(TileDim));
-					}
-				}
-
-				// if new navmesh needs more tiles, force recreating
-				if (!bRecreateNavmesh)
-				{
-					CalcNavMeshProperties(MaxTiles, MaxPolysPerTile);
-					if (FMath::Log2(MaxTiles) != FMath::Log2(SavedNavParams->maxTiles))
-					{
-						bRecreateNavmesh = true;
-						UE_LOG(LogNavigation, Warning, TEXT("Recreating dtNavMesh instance due mismatch in number of bytes required to store serialized maxTiles (%d, %d bits) vs calculated maxtiles (%d, %d bits)")
-							, SavedNavParams->maxTiles, FMath::CeilToInt(FMath::Log2(SavedNavParams->maxTiles))
-							, MaxTiles, FMath::CeilToInt(FMath::Log2(MaxTiles)));
-					}
-				}
-			}
-		};
-	}
-
-	if (bRecreateNavmesh)
-	{
-		// recreate navmesh from scratch if no data was loaded
-		ConstructTiledNavMesh();
-
-		// mark all the areas we need to update, which is the whole (known) navigable space if not restricted to active tiles
-		const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
-		if (NavSys)
-		{
-			bRestrictBuildingToActiveTiles = NavSys->IsActiveTilesGenerationEnabled();
-		}
-		MarkNavBoundsDirty();
-	}
-	else
-	{
-		// otherwise just update generator params
-		Config.MaxPolysPerTile = MaxPolysPerTile;
-		NumActiveTiles = GetTilesCountHelper(DestNavMesh->GetRecastNavMeshImpl()->DetourNavMesh);
-	}
 }
 
 FRecastNavMeshGenerator::~FRecastNavMeshGenerator()
@@ -3393,6 +3321,78 @@ void FRecastNavMeshGenerator::Init()
 	}
 
 	bInitialized = true;
+
+
+	int32 MaxTiles = 0;
+	int32 MaxPolysPerTile = 0;
+
+	// recreate navmesh if no data was loaded, or when loaded data doesn't match current grid layout
+	bool bRecreateNavmesh = true;
+	if (DestNavMesh->HasValidNavmesh())
+	{
+		const bool bGameStaticNavMesh = IsGameStaticNavMesh(DestNavMesh);
+		const dtNavMeshParams* SavedNavParams = DestNavMesh->GetRecastNavMeshImpl()->DetourNavMesh->getParams();
+		if (SavedNavParams)
+		{
+			if (bGameStaticNavMesh)
+			{
+				bRecreateNavmesh = false;
+				MaxTiles = SavedNavParams->maxTiles;
+				MaxPolysPerTile = SavedNavParams->maxPolys;
+			}
+			else
+			{
+				const float TileDim = Config.tileSize * Config.cs;
+				if (SavedNavParams->tileHeight == TileDim && SavedNavParams->tileWidth == TileDim)
+				{
+					const FVector Orig = Recast2UnrealPoint(SavedNavParams->orig);
+					const FVector OrigError(FMath::Fmod(Orig.X, TileDim), FMath::Fmod(Orig.Y, TileDim), FMath::Fmod(Orig.Z, TileDim));
+					if (OrigError.IsNearlyZero())
+					{
+						bRecreateNavmesh = false;
+					}
+					else
+					{
+						UE_LOG(LogNavigation, Warning, TEXT("Recreating dtNavMesh instance due to saved navmesh origin (%s, usually the RecastNavMesh location) not being aligned with tile size (%d uu) ")
+							, *Orig.ToString(), int(TileDim));
+					}
+				}
+
+				// if new navmesh needs more tiles, force recreating
+				if (!bRecreateNavmesh)
+				{
+					CalcNavMeshProperties(MaxTiles, MaxPolysPerTile);
+					if (FMath::Log2(MaxTiles) != FMath::Log2(SavedNavParams->maxTiles))
+					{
+						bRecreateNavmesh = true;
+						UE_LOG(LogNavigation, Warning, TEXT("Recreating dtNavMesh instance due mismatch in number of bytes required to store serialized maxTiles (%d, %d bits) vs calculated maxtiles (%d, %d bits)")
+							, SavedNavParams->maxTiles, FMath::CeilToInt(FMath::Log2(SavedNavParams->maxTiles))
+							, MaxTiles, FMath::CeilToInt(FMath::Log2(MaxTiles)));
+					}
+				}
+			}
+		};
+	}
+
+	if (bRecreateNavmesh)
+	{
+		// recreate navmesh from scratch if no data was loaded
+		ConstructTiledNavMesh();
+
+		// mark all the areas we need to update, which is the whole (known) navigable space if not restricted to active tiles
+		const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+		if (NavSys)
+		{
+			bRestrictBuildingToActiveTiles = NavSys->IsActiveTilesGenerationEnabled();
+		}
+		MarkNavBoundsDirty();
+	}
+	else
+	{
+		// otherwise just update generator params
+		Config.MaxPolysPerTile = MaxPolysPerTile;
+		NumActiveTiles = GetTilesCountHelper(DestNavMesh->GetRecastNavMeshImpl()->DetourNavMesh);
+	}
 }
 
 void FRecastNavMeshGenerator::UpdateNavigationBounds()
@@ -4297,6 +4297,11 @@ void FRecastNavMeshGenerator::MarkDirtyTiles(const TArray<FNavigationDirtyArea>&
 
 void FRecastNavMeshGenerator::SortPendingBuildTiles()
 {
+	if (bSortTilesWithSeedLocations == false)
+	{
+		return;
+	}
+
 	TArray<FVector2D> SeedLocations;
 	UWorld* CurWorld = GetWorld();
 	if (CurWorld == nullptr)
@@ -4318,7 +4323,7 @@ void FRecastNavMeshGenerator::SortPendingBuildTiles()
 	if (SeedLocations.Num() == 0)
 	{
 		// Use navmesh origin for sorting
-		SeedLocations.Add(FVector2D::ZeroVector);
+		SeedLocations.Add(FVector2D(TotalNavBounds.GetCenter()));
 	}
 
 	if (SeedLocations.Num() > 0)
@@ -4332,11 +4337,7 @@ void FRecastNavMeshGenerator::SortPendingBuildTiles()
 			FVector2D TileCenter2D = FVector2D(TileBox.GetCenter());
 			for (FVector2D SeedLocation : SeedLocations)
 			{
-				const float DistSq = FVector2D::DistSquared(TileCenter2D, SeedLocation);
-				if (DistSq < Element.SeedDistance)
-				{
-					Element.SeedDistance = DistSq;
-				}
+				Element.SeedDistance = FMath::Min(Element.SeedDistance, FVector2D::DistSquared(TileCenter2D, SeedLocation));
 			}
 		}
 

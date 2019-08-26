@@ -15,18 +15,14 @@
 #include "Containers/Array.h"
 #include "Templates/UniquePtr.h"
 #include "NetworkSimulationModel.h"
+#include "NetworkSimulationModelCVars.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogNetworkSimDebug, Log, All);
 
 namespace NetworkSimulationModelDebugCVars
 {
-static int32 DrawKeyframes = 1;
-static FAutoConsoleVariableRef CVarDrawKeyframes(TEXT("nsm.debug.DrawKeyFrames"),
-	DrawKeyframes, TEXT("Draws keyframe data (text) in debug graphs"), ECVF_Default);
-
-static int32 GatherServerSidePIE = 1;
-static FAutoConsoleVariableRef CVarGatherServerSidePIE(TEXT("nsm.debug.GatherServerSide"),
-	GatherServerSidePIE, TEXT("Whenever we gather debug info from a client side actor, also gather server side equivelent. Only works in PIE."), ECVF_Default);
+	NETSIM_DEVCVAR_SHIPCONST_INT(DrawKeyframes, 1, "nsm.debug.DrawKeyFrames", "Draws keyframe data (text) in debug graphs");
+	NETSIM_DEVCVAR_SHIPCONST_INT(GatherServerSidePIE, 1, "nsm.debug.GatherServerSide", "Whenever we gather debug info from a client side actor, also gather server side equivelent. Only works in PIE.");
 }
 
 struct FNetworkSimulationModelDebuggerManager;
@@ -148,7 +144,7 @@ struct NETWORKPREDICTION_API FNetworkSimulationModelDebuggerManager: public FTic
 			C->DrawItem(*Item.Get());
 		}
 
-		if (NetworkSimulationModelDebugCVars::DrawKeyframes > 0)
+		if (NetworkSimulationModelDebugCVars::DrawKeyframes() > 0)
 		{
 			for (auto& Item : CanvasItems[1])
 			{
@@ -285,7 +281,7 @@ private:
 			if (It.Value()->IsActive())
 			{
 				It.Value()->GatherCurrent(*this, C);
-				if (NetworkSimulationModelDebugCVars::GatherServerSidePIE > 0)
+				if (NetworkSimulationModelDebugCVars::GatherServerSidePIE() > 0)
 				{
 					if (AActor* ServerSideActor = Cast<AActor>(FindReplicatedObjectOnPIEServer(Owner)))
 					{

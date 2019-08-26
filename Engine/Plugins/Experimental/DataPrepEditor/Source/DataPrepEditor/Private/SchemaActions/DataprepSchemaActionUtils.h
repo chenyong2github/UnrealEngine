@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "EdGraph/EdGraph.h"
+
 namespace DataprepSchemaActionUtils
 {
 	template<class GraphNodeClass>

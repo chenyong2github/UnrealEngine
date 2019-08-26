@@ -76,7 +76,18 @@ namespace CSVStats
             return CommandLineArgs.ContainsKey(key.ToLower());
         }
 
-        protected string GetArg(string key, bool mandatory = false)
+		protected string GetArg(string key, string defaultValue)
+		{
+			string lowerKey = key.ToLower();
+
+			if (CommandLineArgs.ContainsKey(lowerKey))
+			{
+				return CommandLineArgs[lowerKey];
+			}
+			return defaultValue;
+		}
+
+		protected string GetArg(string key, bool mandatory = false)
         {
             string lowerKey = key.ToLower();
 
@@ -92,7 +103,7 @@ namespace CSVStats
             return "";
         }
 
-        protected void WriteLine(String message, params object[] args)
+		protected void WriteLine(String message, params object[] args)
         {
             String formatted = String.Format(message, args);
             Console.WriteLine(formatted);

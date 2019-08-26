@@ -22,9 +22,11 @@ FName UCollisionProfile::CustomCollisionProfileName = FName(TEXT("Custom"));
 FCollisionResponseTemplate::FCollisionResponseTemplate()
 	: CollisionEnabled(ECollisionEnabled::NoCollision)
 	, ObjectType(ECollisionChannel::ECC_WorldStatic)
-	, HelpMessage(TEXT("Needs description"))
 	, bCanModify(true)
 	, ResponseToChannels()
+#if WITH_EDITORONLY_DATA
+	, HelpMessage(TEXT("Needs description"))
+#endif
 {
 }
 
@@ -754,7 +756,7 @@ FName UCollisionProfile::ReturnChannelNameFromContainerIndex(int32 ContainerInde
 		return ChannelDisplayNames[ContainerIndex];
 	}
 
-	return TEXT("");
+	return NAME_None;
 }
 
 ECollisionChannel UCollisionProfile::ConvertToCollisionChannel(bool TraceType, int32 Index) const

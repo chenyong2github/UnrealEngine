@@ -37,11 +37,19 @@ protected:
 	int32 TileBorderSize = 2; // 4
 
 	/** Number of low mips to cut from the virtual texture. This can reduce peak virtual texture update cost but will also increase the probability of mip shimmering. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Size, meta = (UIMin = "0", UIMax = "5", DisplayName = "Number of low mips to remove from the virtual texture"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = LowMips, meta = (UIMin = "0", UIMax = "6", DisplayName = "Number of low mips to remove from the virtual texture"))
 	int32 RemoveLowMips = 0;
 
-	/** Enable usage of the virtual texture. This option is intended only for debugging and visualization of the scene without virtual textures. It isn't serialized. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Transient, Category = Debug, meta = (DisplayName = "Enable virtual texture"))
+	/** Number of low mips to serialize and stream for the virtual texture. This can reduce rendering update cost. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = LowMips, meta = (UIMin = "0", UIMax = "6", DisplayName = "Number of low mips to stream to the virtual texture"))
+	int32 StreamLowMips = 0;
+
+	/** Texture object containing streamed low mips. */
+	UPROPERTY(VisibleAnywhere, Category = LowMips, meta = (DisplayName = "Streaming low mip texture"))
+	class URuntimeVirtualTextureStreamingProxy* StreamingTexture;
+
+	/** Enable usage of the virtual texture. When disabled there is no rendering into the virtual texture, and sampling will return zero values. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Layout, meta = (DisplayName = "Enable virtual texture"))
 	bool bEnable = true;
 
 public:
@@ -57,8 +65,10 @@ public:
 	int32 GetTileSize() const { return 1 << FMath::Clamp(TileSize + 6, 6, 10); }
 	/** Public getter for virtual texture tile border size */
 	int32 GetTileBorderSize() const { return 2 * FMath::Clamp(TileBorderSize, 0, 4); }
-	/** Public getter for virtual texture tile border size */
-	int32 GetRemoveLowMips() const { return RemoveLowMips; }
+	/** Public getter for virtual texture removed low mips */
+	int32 GetRemoveLowMips() const { return FMath::Clamp(RemoveLowMips, 0, 5); }
+	/** Public getter for virtual texture streaming low mips */
+	int32 GetStreamLowMips() const { return FMath::Clamp(StreamLowMips, 0, 6); }
 
 	/** Returns an approximate estimated value for the memory used by the page table texture. */
 	int32 GetEstimatedPageTableTextureMemoryKb() const;
@@ -67,6 +77,11 @@ public:
 
 	/** Get virtual texture description based on the properties of this object and the passed in volume transform. */
 	void GetProducerDescription(FVTProducerDescription& OutDesc, FTransform const& VolumeToWorld) const;
+
+	/** Returns number of texture layers in the virtual texture */
+	int32 GetLayerCount() const;
+	/** Returns the texture format for the virtual texture layer */
+	EPixelFormat GetLayerFormat(int32 LayerIndex) const;
 	/** Return true if the virtual texture layer should be sampled as sRGB */
 	bool IsLayerSRGB(int32 LayerIndex) const;
 
@@ -83,6 +98,16 @@ public:
 
 	/** Getter for the shader uniform parameters. */
 	FVector4 GetUniformParameter(int32 Index);
+
+#if WITH_EDITOR
+	/** Get a hash of the current state to use for streaming texture invalidation. */
+	uint32 GetStreamingTextureBuildHash() const;
+	/** Initialize the low mip streaming texture with the passed in size and data. */
+	void InitializeStreamingTexture(uint32 InSizeX, uint32 InSizeY, uint8* InData);
+#endif
+
+	/** Create the streaming texture producer to wrap an existing producer. */
+	IVirtualTexture* CreateStreamingTextureProducer(IVirtualTexture* InProducer, int32 InMaxLevel, int32& OutTransitionLevel) const;
 
 protected:
 	/** Initialize the render resources. This kicks off render thread work. */

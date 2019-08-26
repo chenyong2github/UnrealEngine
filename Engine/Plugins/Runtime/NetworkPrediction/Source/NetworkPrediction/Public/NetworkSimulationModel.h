@@ -21,14 +21,18 @@
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 template <
-	typename T,
-	typename TUserBufferTypes,
-	typename InTTickSettings=TNetworkSimTickSettings<>,
-	typename TRepProxyServerRPC =	TReplicator_DynamicSequence	<TInternalBufferTypes<TUserBufferTypes, InTTickSettings>,	InTTickSettings, ENetworkSimBufferTypeId::Input>,
-	typename TRepProxyAutonomous =	TReplicator_BasicReconciliar <TInternalBufferTypes<TUserBufferTypes, InTTickSettings>,	InTTickSettings>,
-	typename TRepProxySimulated =	TReplicator_SimulatedExtrapolatedReconciliar <TInternalBufferTypes<TUserBufferTypes, InTTickSettings>, InTTickSettings>,
-	typename TRepProxyReplay =		TReplicator_DynamicSequence	<TInternalBufferTypes<TUserBufferTypes, InTTickSettings>,	InTTickSettings, ENetworkSimBufferTypeId::Sync>,
-	typename TRepProxyDebug =		TReplicator_DynamicSequence	<TInternalBufferTypes<TUserBufferTypes, InTTickSettings>,	InTTickSettings, ENetworkSimBufferTypeId::Debug>
+	typename T,											// Final Driver class
+	typename TUserBufferTypes,							// The user types (input, sync, aux, debug). Note this gets wrapped in TInternalBufferTypes internally.
+	typename InTTickSettings=TNetworkSimTickSettings<>, // Defines global rules about time keeping and ticking
+
+	// Core proxies that dictate how data replicates and how the simulation evolves for the three main roles
+	typename TRepProxyServerRPC =	TReplicator_Server		<TInternalBufferTypes<TUserBufferTypes, InTTickSettings>,	InTTickSettings >,
+	typename TRepProxyAutonomous =	TReplicator_Autonomous	<TInternalBufferTypes<TUserBufferTypes, InTTickSettings>,	InTTickSettings>,
+	typename TRepProxySimulated =	TReplicator_Simulated	<TInternalBufferTypes<TUserBufferTypes, InTTickSettings>,	InTTickSettings>,
+
+	// Defines how replication happens on these special channels, but doesn't dictate how simulation evolves
+	typename TRepProxyReplay =		TReplicator_Sequence	<TInternalBufferTypes<TUserBufferTypes, InTTickSettings>,	InTTickSettings, ENetworkSimBufferTypeId::Sync,  3>,
+	typename TRepProxyDebug =		TReplicator_Sequence	<TInternalBufferTypes<TUserBufferTypes, InTTickSettings>,	InTTickSettings, ENetworkSimBufferTypeId::Debug, 3>
 >
 class TNetworkedSimulationModel : public IReplicationProxy
 {
@@ -48,18 +52,17 @@ public:
 	class IDriver
 	{
 	public:
+		virtual FString GetDebugName() const = 0; // Used for debugging. Recommended to emit the simulation name and the actor name/role.
+
 		virtual void InitSyncState(TSyncState& OutSyncState) const = 0;	// Called to create initial value of the sync state.
 		virtual void ProduceInput(const TSimTime&, typename TUserBufferTypes::TInputCmd&) = 0; // Called when the sim is ready to process new local input
 		virtual void FinalizeFrame(const TSyncState& SyncState) = 0; // Called from the Network Sim at the end of the sim frame when there is new sync data.
 	};
 
-	struct FTickParameters
+	struct FTickParameters : public FNetSimTickParametersBase
 	{
-		// Owner's role. Necessary to know which proxy we should be forwarding functions in tick to
-		ENetRole Role = ROLE_None;
-
-		// (Only used when ROLE_Authorty: Whether we are expecting a remote client to control. e.g, there is an autoproxy client driving this)
-		bool bIsRemotelyControlled = false;
+		FTickParameters() { }
+		FTickParameters(typename TTickSettings::TRealTime InRealTime, class AActor* Actor=nullptr) : FNetSimTickParametersBase(Actor), LocalDeltaTimeSeconds(InRealTime) {}
 
 		// Local fraem delta time seconds. Just passed in from ::Tick
 		typename TTickSettings::TRealTime LocalDeltaTimeSeconds = 0.f;
@@ -104,58 +107,17 @@ public:
 		switch (Parameters.Role)
 		{
 			case ROLE_Authority:
-				RepProxy_ServerRPC.template PreSimTick<T, TDriver>(Driver, Buffers, TickInfo, Parameters.LocalDeltaTimeSeconds);
+				RepProxy_ServerRPC.template PreSimTick<T, TDriver, FTickParameters>(Driver, Buffers, TickInfo, Parameters);
 			break;
 
 			case ROLE_AutonomousProxy:
-				RepProxy_Autonomous.template PreSimTick<T, TDriver>(Driver, Buffers, TickInfo, Parameters.LocalDeltaTimeSeconds);
+				RepProxy_Autonomous.template PreSimTick<T, TDriver, FTickParameters>(Driver, Buffers, TickInfo, Parameters);
 			break;
 
 			case ROLE_SimulatedProxy:
-				RepProxy_Simulated.template PreSimTick<T, TDriver>(Driver, Buffers, TickInfo, Parameters.LocalDeltaTimeSeconds);
+				RepProxy_Simulated.template PreSimTick<T, TDriver, FTickParameters>(Driver, Buffers, TickInfo, Parameters);
 			break;
 		}
-
-
-		if (Parameters.Role == ROLE_Authority)
-		{
-			// Always give simulation time on the authority
-			TickInfo.GiveSimulationTime(Parameters.LocalDeltaTimeSeconds);
-
-			TNetworkSimTime<TTickSettings> DeltaSimTime = TickInfo.GetRemaningAllowedSimulationTime();
-			if (DeltaSimTime.ToRealTimeSeconds() > 0)
-			{
-				if (Parameters.bIsRemotelyControlled)
-				{
-					TickInfo.MaxAllowedInputKeyframe = Buffers.Input.GetHeadKeyframe();
-				}
-				else
-				{
-					if (TInputCmd* InputCmd = Buffers.Input.GetWriteNext())
-					{
-						*InputCmd = TInputCmd();
-						InputCmd->SetFrameDeltaTime(DeltaSimTime);
-						Driver->ProduceInput(DeltaSimTime, *InputCmd);
-						TickInfo.MaxAllowedInputKeyframe++;
-					}
-				}
-			}
-		}
-
-		switch (Parameters.Role) {
-
-		case ROLE_Authority:
-		{
-			if ( TickInfo.LastProcessedInputKeyframe+1 < Buffers.Input.GetTailKeyframe() )
-			{
-				// We've missed commands
-				UE_LOG(LogNetworkSim, Warning, TEXT("::Tick missing inputcmds. LastProcessedInputKeyframe: %d. %s"), TickInfo.LastProcessedInputKeyframe, *Buffers.Input.GetBasicDebugStr());
-				TickInfo.LastProcessedInputKeyframe = Buffers.Input.GetTailKeyframe()+1;
-			}
-			break;
-		}
-
-		} // end switch
 
 		// -------------------------------------------------------------------------------------------------------------------------------------------------
 		//	PreInput processing
@@ -170,14 +132,14 @@ public:
 		// (E.g, InputCmd @ keyframe=X is used to generate MotionState @ keyframe=X)
 		// This means that SyncedState @ keyframe=0 is always created here via InitSyncState.
 		// This also means that we never actually process InputCmd @ keyframe=0. Which is why LastProcessedInputKeyframe is initialized to 0 ("already processed")
-		// and the buffer has an empty element inserted in InitLocalInputBuffer.
+		// and the buffer has an empty element inserted in InitializeForNetworkRole.
 
 		if (Buffers.Sync.GetHeadKeyframe() != TickInfo.LastProcessedInputKeyframe)
 		{
 			if (TickInfo.LastProcessedInputKeyframe != 0)
 			{
 				// This shouldn't happen, but is not fatal. We are reseting the sync state buffer.
-				UE_LOG(LogNetworkSim, Warning, TEXT("Break in SyncState continuity. LastProcessedInputKeyframe: %d. SyncBuffer.GetHeadKeyframe(): %d. Role=%d"), TickInfo.LastProcessedInputKeyframe, Buffers.Sync.GetHeadKeyframe(), (int32)Parameters.Role);
+				UE_LOG(LogNetworkSim, Warning, TEXT("%s. Break in SyncState continuity. LastProcessedInputKeyframe: %d. SyncBuffer.GetHeadKeyframe(): %d."), *Driver->GetDebugName() , TickInfo.LastProcessedInputKeyframe, Buffers.Sync.GetHeadKeyframe());
 			}
 
 			// We need an initial/current state. Get this from the sim driver
@@ -236,7 +198,6 @@ public:
 			}
 		}
 
-
 		// FIXME: this needs to be sorted out. We really want to check if there is new sync state and then call this here.
 		// Call into the driver to sync to the latest state if we processed any input
 		//if (NumProcessed > 0)
@@ -268,7 +229,7 @@ public:
 		}
 	}	
 	
-	void InitializeForNetworkRole(const ENetRole Role, const bool IsLocallyControlled, const FNetworkSimulationModelInitParameters& Parameters)
+	void InitializeForNetworkRole(const ENetRole Role, const FNetworkSimulationModelInitParameters& Parameters)
 	{
 		Buffers.Input.SetBufferSize(Parameters.InputBufferSize);
 		Buffers.Sync.SetBufferSize(Parameters.SyncedBufferSize);
@@ -284,13 +245,10 @@ public:
 			MyHistoricBuffers->Input.SetBufferSize(Parameters.HistoricBufferSize);
 			MyHistoricBuffers->Sync.SetBufferSize(Parameters.HistoricBufferSize);
 			MyHistoricBuffers->Aux.SetBufferSize(Parameters.HistoricBufferSize);
-		}
+		}		
 
-		if (IsLocallyControlled)
-		{
-			check(Parameters.InputBufferSize > 0); // If you tell me this is locally controlled, you need to have an input buffer.
-			InitLocalInputBuffer();
-		}
+		// We want to start with an empty command in the input buffer. The sync buffer will be populated @ frame 0 with the "current" state when we actually sim. This keeps them in sync
+		*Buffers.Input.GetWriteNext() = TInputCmd();
 	}
 
 	void NetSerializeProxy(EReplicationProxyTarget Target, const FNetSerializeParams& Params)
@@ -344,16 +302,6 @@ public:
 			return 0;
 		};
 	}
-
-	void InitLocalInputBuffer()
-	{
-		// Buffer should also be empty before calling this
-		check(Buffers.Input.GetHeadKeyframe() == INDEX_NONE);
-
-		// We want to start with an empty command in the input buffer. See notes in input buffer processing function.
-		*Buffers.Input.GetWriteNext() = TInputCmd();
-		TickInfo.LastLocalInputGFrameNumber = 0;
-	}	
 	
 	TSimulationTickState<TTickSettings> TickInfo;	// Manages simulation time and what inputs we are processed
 

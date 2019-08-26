@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "RHI.h"
 #include "RHICommandList.h"
+#include "RHIStaticStates.h"
 #include "RenderResource.h"
 #include "ShaderParameters.h"
 #include "Shader.h"
@@ -13,6 +14,7 @@
 
 #include "IMPCDI.h"
 #include "IPicpMPCDI.h"
+#include "MPCDIRegion.h"
 
 #include "Overlay/PicpProjectionOverlayRender.h"
 

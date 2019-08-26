@@ -140,7 +140,7 @@ public:
 			];
 	}
 
-	TSharedRef<SWidget> CreateValueContent( const TSharedPtr<FAssetThumbnailPool>& ThumbnailPool, TSharedPtr<IPropertyHandle> InHandle)
+	TSharedRef<SWidget> CreateValueContent( const TSharedPtr<FAssetThumbnailPool>& ThumbnailPool, const TArray<FAssetData>& OwnerAssetDataArray)
 	{
 		FIntPoint ThumbnailSize(64, 64);
 
@@ -171,7 +171,7 @@ public:
 						.ThumbnailPool(ThumbnailPool)
 						.DisplayCompactSize(bDisplayCompactSize)
 						.CustomResetToDefault(ResetToDefaultOverride)
-						.PropertyHandle(InHandle)
+						.OwnerAssetDataArray(OwnerAssetDataArray)
 						.CustomContentSlot()
 						[
 							SNew( SBox )
@@ -355,14 +355,14 @@ private:
 };
 
 
-FMaterialList::FMaterialList(IDetailLayoutBuilder& InDetailLayoutBuilder, FMaterialListDelegates& InMaterialListDelegates, bool bInAllowCollapse, bool bInShowUsedTextures, bool bInDisplayCompactSize, TSharedPtr<class IPropertyHandle> InHandle)
+FMaterialList::FMaterialList(IDetailLayoutBuilder& InDetailLayoutBuilder, FMaterialListDelegates& InMaterialListDelegates, const TArray<FAssetData>& InOwnerAssetDataArray, bool bInAllowCollapse, bool bInShowUsedTextures, bool bInDisplayCompactSize)
 	: MaterialListDelegates( InMaterialListDelegates )
 	, DetailLayoutBuilder( InDetailLayoutBuilder )
 	, MaterialListBuilder( new FMaterialListBuilder )
 	, bAllowCollpase(bInAllowCollapse)
 	, bShowUsedTextures(bInShowUsedTextures)
 	, bDisplayCompactSize(bInDisplayCompactSize)
-	, MeshChildHandle(InHandle)
+	, OwnerAssetDataArray(InOwnerAssetDataArray)
 {
 }
 
@@ -568,11 +568,6 @@ void FMaterialList::OnPasteMaterialList()
 	}
 }
 
-TSharedPtr<IPropertyHandle> FMaterialList::GetPropertyHandle() const
-{
-	return MeshChildHandle.IsValid() ? MeshChildHandle : nullptr;
-}
-
 bool FMaterialList::OnCanCopyMaterialItem(int32 CurrentSlot) const
 {
 	if (MaterialListDelegates.OnCanCopyMaterialItem.IsBound())
@@ -625,7 +620,7 @@ void FMaterialList::AddMaterialItem( FDetailWidgetRow& Row, int32 CurrentSlot, c
 	}
 	else
 	{
-		RightSideContent = NewView->CreateValueContent( DetailLayoutBuilder.GetThumbnailPool(), GetPropertyHandle() );
+		RightSideContent = NewView->CreateValueContent( DetailLayoutBuilder.GetThumbnailPool(), OwnerAssetDataArray );
 		ViewedMaterials.Add( NewView );
 	}
 

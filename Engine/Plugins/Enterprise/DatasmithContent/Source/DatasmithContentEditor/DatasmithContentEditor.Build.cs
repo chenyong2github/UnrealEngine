@@ -27,7 +27,6 @@ namespace UnrealBuildTool.Rules
 					"PropertyEditor",
 					"SlateCore",
 					"Slate",
-                    "PlacementMode",
                 }
 			);
 		}

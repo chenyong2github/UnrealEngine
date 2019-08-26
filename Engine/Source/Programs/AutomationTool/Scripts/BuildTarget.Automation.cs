@@ -44,8 +44,6 @@ namespace AutomationTool
 
 		public override ExitCode Execute()
 		{
-			FileReference ProjectFile = null;
-
 			string[] Arguments = this.Params;
 
 			ProjectName = ParseParamValue("project", ProjectName);
@@ -95,11 +93,9 @@ namespace AutomationTool
 				return ExitCode.Error_Arguments;
 			}
 
-			if (String.IsNullOrEmpty(ProjectName))
-			{
-				Log.TraceWarning("No project specified, will build vanilla UE4 binaries");
-			}
-			else
+			FileReference ProjectFile = null;
+
+			if (!string.IsNullOrEmpty(ProjectName))
 			{
 				ProjectFile = ProjectUtils.FindProjectFileFromName(ProjectName);
 
@@ -110,30 +106,46 @@ namespace AutomationTool
 
 				string SourceDirectoryName = Path.Combine(ProjectFile.Directory.FullName, "Source");
 
-				IEnumerable<string> TargetScripts = Directory.EnumerateFiles(SourceDirectoryName, "*.Target.cs");
+				if (Directory.Exists(SourceDirectoryName))
+				{
+					IEnumerable<string> TargetScripts = Directory.EnumerateFiles(SourceDirectoryName, "*.Target.cs");
 
+					foreach (string TargetName in TargetList)
+					{
+						string TargetScript = TargetScripts.Where(S => S.IndexOf(TargetName, StringComparison.OrdinalIgnoreCase) >= 0).FirstOrDefault();
+
+						if (TargetScript == null && (
+								TargetName.Equals("Client", StringComparison.OrdinalIgnoreCase) ||
+								TargetName.Equals("Game", StringComparison.OrdinalIgnoreCase)
+								)
+							)
+						{
+							// if there's no ProjectGame.Target.cs or ProjectClient.Target.cs then
+							// fallback to Project.Target.cs
+							TargetScript = TargetScripts.Where(S => S.IndexOf(ProjectName + ".", StringComparison.OrdinalIgnoreCase) >= 0).FirstOrDefault();
+						}
+
+						if (TargetScript == null)
+						{
+							throw new AutomationException("No Target.cs file for target {0} in project {1}", TargetName, ProjectName);
+						}
+
+						string FullName = Path.GetFileName(TargetScript);
+						TargetNames[TargetName] = Regex.Replace(FullName, ".Target.cs", "", RegexOptions.IgnoreCase);
+					}
+				}
+			}
+			else
+			{
+				Log.TraceWarning("No project specified, will build vanilla UE4 binaries");
+			}
+
+			// Handle content-only projects or when no project was specified
+			if (TargetNames.Keys.Count == 0)
+			{ 
 				foreach (string TargetName in TargetList)
 				{
-					string TargetScript = TargetScripts.Where(S => S.IndexOf(TargetName, StringComparison.OrdinalIgnoreCase) >= 0).FirstOrDefault();
-
-					if (TargetScript == null && (
-							TargetName.Equals("Client", StringComparison.OrdinalIgnoreCase) ||
-							TargetName.Equals("Game", StringComparison.OrdinalIgnoreCase)
-							)
-						)
-					{
-						// if there's no ProjectGame.Target.cs or ProjectClient.Target.cs then
-						// fallback to Project.Target.cs
-						TargetScript = TargetScripts.Where(S => S.IndexOf(ProjectName + ".", StringComparison.OrdinalIgnoreCase) >= 0).FirstOrDefault();
-					}
-
-					if (TargetScript == null)
-					{
-						throw new AutomationException("No Target.cs file for target {0} in project {1}", TargetName, ProjectName);
-					}
-
-					string FullName = Path.GetFileName(TargetScript);
-					TargetNames[TargetName] = Regex.Replace(FullName, ".Target.cs", "", RegexOptions.IgnoreCase);
+					TargetNames[TargetName] = string.Format("UE4{0}", TargetName);
 				}
 			}
 
@@ -149,7 +161,7 @@ namespace AutomationTool
 
 			if (!NoTools)
 			{
-				Agenda.AddTarget("UnrealHeaderTool", CurrentPlatform, UnrealTargetConfiguration.Development);
+				Agenda.AddTarget("UnrealHeaderTool", CurrentPlatform, UnrealTargetConfiguration.Development, ProjectFile);
 			}
 
 			if (string.IsNullOrEmpty(EditorTarget) == false)
@@ -160,9 +172,9 @@ namespace AutomationTool
 
 				if (!NoTools)
 				{
+					Agenda.AddTarget("UnrealPak", CurrentPlatform, UnrealTargetConfiguration.Development, ProjectFile);
 					Agenda.AddTarget("ShaderCompileWorker", CurrentPlatform, UnrealTargetConfiguration.Development);
 					Agenda.AddTarget("UnrealLightmass", CurrentPlatform, UnrealTargetConfiguration.Development);
-					Agenda.AddTarget("UnrealPak", CurrentPlatform, UnrealTargetConfiguration.Development);
 					Agenda.AddTarget("CrashReportClient", CurrentPlatform, UnrealTargetConfiguration.Shipping);
 				}
 			}

@@ -101,8 +101,23 @@ void UMotionControllerComponent::CreateRenderState_Concurrent()
 
 void UMotionControllerComponent::SendRenderTransform_Concurrent()
 {
-	RenderThreadRelativeTransform = GetRelativeTransform();
-	RenderThreadComponentScale = GetComponentScale();
+	struct FPrimitiveUpdateRenderThreadRelativeTransformParams
+	{
+		FTransform RenderThreadRelativeTransform;
+		FVector RenderThreadComponentScale;
+	};
+
+	FPrimitiveUpdateRenderThreadRelativeTransformParams UpdateParams;
+	UpdateParams.RenderThreadRelativeTransform = GetRelativeTransform();
+	UpdateParams.RenderThreadComponentScale = GetComponentScale();
+
+	ENQUEUE_RENDER_COMMAND(UpdateRTRelativeTransformCommand)(
+		[UpdateParams, this](FRHICommandListImmediate& RHICmdList)
+	{
+		RenderThreadRelativeTransform = UpdateParams.RenderThreadRelativeTransform;
+		RenderThreadComponentScale = UpdateParams.RenderThreadComponentScale;
+	});
+
 	Super::SendRenderTransform_Concurrent();
 }
 

@@ -81,6 +81,15 @@ static FAutoConsoleVariableRef CVarParallelVVMChunksPerBatch(
 	ECVF_Default
 );
 
+//These are possibly too granular to enable for everyone.
+static int32 GbDetailedVMScriptStats = 0;
+static FAutoConsoleVariableRef CVarDetailedVMScriptStats(
+	TEXT("vm.DetailedVMScriptStats"),
+	GbDetailedVMScriptStats,
+	TEXT("If > 0 the vector VM will emit stats for it's internal module calls. \n"),
+	ECVF_Default
+);
+
 //////////////////////////////////////////////////////////////////////////
 //  Constant Handlers
 
@@ -781,8 +790,11 @@ struct FVectorKernelEnterStatScope
 	{
 		FConstantHandler<int32> ScopeIdx(Context);
 #if STATS
-		//int32 CounterIdx = Context.StatCounterStack.AddDefaulted(1);
-		//Context.StatCounterStack[CounterIdx].Start((*Context.StatScopes)[ScopeIdx.Get()]);
+		if (GbDetailedVMScriptStats)
+		{
+			int32 CounterIdx = Context.StatCounterStack.AddDefaulted(1);
+			Context.StatCounterStack[CounterIdx].Start((*Context.StatScopes)[ScopeIdx.Get()]);
+		}
 #endif
 	}
 };
@@ -791,9 +803,13 @@ struct FVectorKernelExitStatScope
 {
 	static VM_FORCEINLINE void Exec(FVectorVMContext& Context)
 	{
+
 #if STATS
-		//Context.StatCounterStack.Last().Stop();
-		//Context.StatCounterStack.Pop(false);
+		if (GbDetailedVMScriptStats)
+		{
+			Context.StatCounterStack.Last().Stop();
+			Context.StatCounterStack.Pop(false);
+		}
 #endif
 	}
 };
@@ -1825,7 +1841,7 @@ void VectorVM::Exec(
 
 	auto ExecChunkBatch = [&](int32 BatchIdx)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_VVMExecChunk);
+		//SCOPE_CYCLE_COUNTER(STAT_VVMExecChunk);
 
 		FVectorVMContext& Context = FVectorVMContext::Get();
 		Context.PrepareForExec(InputRegisters, OutputRegisters, NumInputRegisters, NumOutputRegisters, ConstantTable, DataSetIndexTable.GetData(), DataSetOffsetTable.GetData(), DataSetOffsetTable.Num(),

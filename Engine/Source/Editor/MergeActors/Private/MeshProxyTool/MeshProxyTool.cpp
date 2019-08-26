@@ -9,6 +9,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "GameFramework/Actor.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SplineMeshComponent.h"
 #include "Engine/Selection.h"
 #include "Editor.h"
@@ -150,7 +151,12 @@ bool FMeshProxyTool::RunMerge(const FString& PackageName)
 					StaticMeshComponentsToMerge.Add(StaticMeshComponent);
 			}
 		}
-		StaticMeshComponentsToMerge.RemoveAll([](UStaticMeshComponent* Val) { return !((Val->GetClass() == UStaticMeshComponent::StaticClass() && Val->GetStaticMesh()) || Val->IsA(USplineMeshComponent::StaticClass())); });
+		StaticMeshComponentsToMerge.RemoveAll([](UStaticMeshComponent* Val)
+		{
+			bool bValidClass = Val->GetClass() == UStaticMeshComponent::StaticClass() || Val->IsA<UInstancedStaticMeshComponent>() || Val->IsA<USplineMeshComponent>();
+			bool bValidMesh = Val->GetStaticMesh() != nullptr;
+			return !bValidClass || !bValidMesh;
+		});
 		
 		if ( StaticMeshComponentsToMerge.Num())
 		{

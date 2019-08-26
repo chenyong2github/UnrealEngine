@@ -10,15 +10,15 @@
 // Any platform defines
 namespace Audio
 {
-
+	
 	class FMixerPlatformAudioUnit : public IAudioMixerPlatformInterface
 	{
-
+		
 	public:
-
+		
 		FMixerPlatformAudioUnit();
 		~FMixerPlatformAudioUnit();
-
+		
 		//~ Begin IAudioMixerPlatformInterface
 		virtual EAudioMixerPlatformApi::Type GetPlatformApi() const override { return EAudioMixerPlatformApi::AudioUnit; }
 		virtual bool InitializeHardware() override;
@@ -50,7 +50,7 @@ namespace Audio
 		/** Whether or not the platform disables caching of decompressed PCM data (i.e. to save memory on fixed memory platforms) */
 		virtual bool DisablePCMAudioCaching() const override { return true; }
 		
-	  //~ End IAudioMixerPlatformInterface
+		//~ End IAudioMixerPlatformInterface
 		
 	private:
 		AudioStreamBasicDescription OutputFormat;
@@ -65,23 +65,23 @@ namespace Audio
 
 		AUGraph     AudioUnitGraph;
 		AUNode      OutputNode;
-		AudioUnit	OutputUnit;
+		AudioUnit    OutputUnit;
 		uint8*      SubmittedBufferPtr;
 		int32 SubmittedBytes = 0;
-
+		
 		int32       RemainingBytesInCurrentSubmittedBuffer;
 		int32       BytesPerSubmittedBuffer;
 		
 		double GraphSampleRate;
-
+		
 		// We may have to grow the circular buffer capacity since Audio Unit callback size is not guaranteed to be constant
 		// Currently, this just zero's-out and reallocates, so it will pop. (We always keep largest capacity)
 		void GrowCircularBufferIfNeeded(const int32 InNumSamplesPerRenderCallback, const int32 InNumSamplesPerDeviceCallback);
-
-		// This buffer is pushed to and popped from in the SubmitBuffer callback. 
+		
+		// This buffer is pushed to and popped from in the SubmitBuffer callback.
 		// This is required for devices that require frame counts per callback that are not powers of two.
 		Audio::TCircularAudioBuffer<int8> CircularOutputBuffer;
-
+		
 		int32 NumSamplesPerRenderCallback;
 		int32 NumSamplesPerDeviceCallback;
 		mutable bool bInternalPlatformSettingsInitialized{ false };

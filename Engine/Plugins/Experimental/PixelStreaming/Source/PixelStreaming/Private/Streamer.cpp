@@ -138,6 +138,11 @@ void FStreamer::SendSpsPpsHeader()
 	Stream(FPlatformTime::Seconds(), PixelStreamingProtocol::EToProxyMsg::SpsPps, SpsPps.GetData(), SpsPps.Num());
 }
 
+bool FStreamer::CheckPlatformCompatibility()
+{
+	return FPixelStreamingNvVideoEncoder::CheckPlatformCompatibility();
+}
+
 void FStreamer::OnFrameBufferReady(const FTexture2DRHIRef& FrameBuffer)
 {
 	if (!bStreamingStarted)

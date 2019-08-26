@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Containers/ContainersFwd.h"
+#include "Math/Box.h"
 
 template<typename InElementType, typename InAllocator = FDefaultAllocator>
 struct TBVTree

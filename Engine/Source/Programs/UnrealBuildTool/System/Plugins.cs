@@ -78,6 +78,11 @@ namespace UnrealBuildTool
 		public readonly DirectoryReference Directory;
 
 		/// <summary>
+		/// Children plugin files that can be added to this plugin (platform extensions)
+		/// </summary>
+		public List<FileReference> ChildFiles = new List<FileReference>();
+
+		/// <summary>
 		/// The plugin descriptor
 		/// </summary>
 		public PluginDescriptor Descriptor;
@@ -207,11 +212,11 @@ namespace UnrealBuildTool
 				foreach (string AdditionalDirectory in AdditionalDirectories)
 				{
 					DirectoryReference DirRef = DirectoryReference.Combine(ProjectFileName.Directory, AdditionalDirectory);
-					Plugins.AddRange(ReadPluginsFromDirectory(DirRef, PluginType.External));
+					Plugins.AddRange(ReadPluginsFromDirectory(DirRef, "", PluginType.External));
 				}
 			}
 
-            return Plugins;
+			return Plugins;
 		}
 
 		/// <summary>
@@ -256,8 +261,7 @@ namespace UnrealBuildTool
 		/// <returns>Sequence of the found PluginInfo object.</returns>
 		public static IReadOnlyList<PluginInfo> ReadEnginePlugins(DirectoryReference EngineDirectory)
 		{
-			DirectoryReference PluginsDir = DirectoryReference.Combine(EngineDirectory, "Plugins");
-			return ReadPluginsFromDirectory(PluginsDir, PluginType.Engine);
+			return ReadPluginsFromDirectory(EngineDirectory, "Plugins", PluginType.Engine);
 		}
 
 		/// <summary>
@@ -267,8 +271,7 @@ namespace UnrealBuildTool
 		/// <returns>Sequence of the found PluginInfo object.</returns>
 		public static IReadOnlyList<PluginInfo> ReadEnterprisePlugins(DirectoryReference EnterpriseDirectory)
 		{
-			DirectoryReference PluginsDir = DirectoryReference.Combine(EnterpriseDirectory, "Plugins");
-			return ReadPluginsFromDirectory(PluginsDir, PluginType.Enterprise);
+			return ReadPluginsFromDirectory(EnterpriseDirectory, "Plugins", PluginType.Enterprise);
 		}
 
 		/// <summary>
@@ -279,41 +282,170 @@ namespace UnrealBuildTool
 		public static IReadOnlyList<PluginInfo> ReadProjectPlugins(DirectoryReference ProjectDirectory)
 		{
 			List<PluginInfo> Plugins = new List<PluginInfo>();
-			Plugins.AddRange(ReadPluginsFromDirectory(DirectoryReference.Combine(ProjectDirectory, "Plugins"), PluginType.Project));
-			Plugins.AddRange(ReadPluginsFromDirectory(DirectoryReference.Combine(ProjectDirectory, "Mods"), PluginType.Mod));
+			Plugins.AddRange(ReadPluginsFromDirectory(ProjectDirectory, "Plugins", PluginType.Project));
+			Plugins.AddRange(ReadPluginsFromDirectory(ProjectDirectory, "Mods", PluginType.Mod));
 			return Plugins.AsReadOnly();
 		}
 
-        /// <summary>
-        /// Read all of the plugins found in the project specified additional plugin directories
-        /// </summary>
-        /// <param name="AdditionalDirectory">The list of additional directories to scan</param>
-        /// <returns>List of the found PluginInfo objects</returns>
-        public static IReadOnlyList<PluginInfo> ReadAdditionalPlugins(DirectoryReference AdditionalDirectory)
-        {
-			return ReadPluginsFromDirectory(AdditionalDirectory, PluginType.External);
-        }
-
-        /// <summary>
-        /// Read all the plugin descriptors under the given directory
-        /// </summary>
-        /// <param name="ParentDirectory">The parent directory to look in.</param>
-        /// <param name="Type">The plugin type</param>
-        /// <returns>Sequence of the found PluginInfo object.</returns>
-        public static IReadOnlyList<PluginInfo> ReadPluginsFromDirectory(DirectoryReference ParentDirectory, PluginType Type)
+		/// <summary>
+		/// Read all of the plugins found in the project specified additional plugin directories
+		/// </summary>
+		/// <param name="AdditionalDirectory">The additional directory to scan</param>
+		/// <param name="Subdirectory">A subdirectory to look under for AdditionalDirectory </param>
+		/// <returns>List of the found PluginInfo objects</returns>
+		public static IReadOnlyList<PluginInfo> ReadAdditionalPlugins(DirectoryReference AdditionalDirectory, string Subdirectory)
 		{
-			List<PluginInfo> Plugins;
-			if (!PluginInfoCache.TryGetValue(ParentDirectory, out Plugins))
+			return ReadPluginsFromDirectory(AdditionalDirectory, Subdirectory, PluginType.External);
+		}
+
+		/// <summary>
+		///  Attempt to merge a child plugin up into a parent plugin (via file naming scheme). Very little merging happens
+		///  but it does allow for platform extensions to extend a plugin with module files
+		/// </summary>
+		/// <param name="Child">Child plugin that needs to merge to a main, parent plugin</param>
+		/// <param name="Filename">Child plugin's filename, used to determine the parent's name</param>
+		private static void TryMergeWithParent(PluginInfo Child, FileReference Filename)
+		{
+			// find the parent
+			PluginInfo Parent = null;
+
+			string[] Tokens = Filename.GetFileNameWithoutAnyExtensions().Split("_".ToCharArray());
+			if (Tokens.Length == 2)
 			{
-				Plugins = new List<PluginInfo>();
-				foreach (FileReference PluginFileName in EnumeratePlugins(ParentDirectory))
+				string ParentPluginName = Tokens[0];
+				foreach (KeyValuePair<DirectoryReference, List<PluginInfo>> Pair in PluginInfoCache)
 				{
-					PluginInfo Plugin = new PluginInfo(PluginFileName, Type);
-					Plugins.Add(Plugin);
+					Parent = Pair.Value.FirstOrDefault(x => x.Name.Equals(ParentPluginName, StringComparison.InvariantCultureIgnoreCase));
+					if (Parent != null)
+					{
+						break;
+					}
 				}
-				PluginInfoCache.Add(ParentDirectory, Plugins);
 			}
-			return Plugins;
+
+
+			// did we find a parent plugin?
+			if (Parent == null)
+			{
+				throw new BuildException("Child plugin {0} was not named properly. It should be in the form <ParentPlugin>_<Platform>.uplugin", Filename);
+			}
+
+			// add our uplugin file to the existing plugin to be used to search for modules later
+			Parent.ChildFiles.Add(Child.File);
+
+			// make sure we are whitelisted for any modules we list, if the parent had a whitelist
+			if (Child.Descriptor.Modules != null)
+			{
+				// get the part after last underscore, which is the platform name
+				string DirectoryName = Child.File.GetFileNameWithoutExtension();
+				string PlatformName = DirectoryName.Split("_".ToCharArray()).LastOrDefault();
+
+				// this should cause an error if it's invalid platform name
+				UnrealTargetPlatform Platform = UnrealTargetPlatform.Parse(PlatformName);
+
+				foreach (ModuleDescriptor ChildModule in Child.Descriptor.Modules)
+				{
+					ModuleDescriptor ParentModule = Parent.Descriptor.Modules.FirstOrDefault(x => x.Name.Equals(ChildModule.Name) && x.Type == ChildModule.Type);
+					if (ParentModule != null)
+					{
+						// merge white/blacklists (if the parent had a list, and child didn't specify a list, just add the child platform to the parent list - for white and black!)
+						if (ParentModule.WhitelistPlatforms != null && ParentModule.WhitelistPlatforms.Length > 0)
+						{
+							List<UnrealTargetPlatform> Whitelist = ParentModule.WhitelistPlatforms.ToList();
+							if (ChildModule.WhitelistPlatforms != null && ChildModule.WhitelistPlatforms.Length > 0)
+							{
+								Whitelist.AddRange(ChildModule.WhitelistPlatforms);
+							}
+							else
+							{
+								Whitelist.Add(Platform);
+							}
+							ParentModule.WhitelistPlatforms = Whitelist.ToArray();
+						}
+						if (ParentModule.BlacklistPlatforms != null && ParentModule.BlacklistPlatforms.Length > 0)
+						{
+							List<UnrealTargetPlatform> Blacklist = ParentModule.BlacklistPlatforms.ToList();
+							if (ChildModule.BlacklistPlatforms != null && ChildModule.BlacklistPlatforms.Length > 0)
+							{
+								Blacklist.AddRange(ChildModule.BlacklistPlatforms);
+							}
+							else
+							{
+								Blacklist.Add(Platform);
+							}
+							ParentModule.BlacklistPlatforms = Blacklist.ToArray();
+						}
+					}
+				}
+			}
+			// @todo platplug: what else do we want to support merging?!?
+		}
+
+
+		/// <summary>
+		/// Read all the plugin descriptors under the given directory
+		/// </summary>
+		/// <param name="RootDirectory">The directory to look in.</param>
+		/// <param name="Subdirectory">A subdirectory to look in in RootDirectory and any other Platform directories under Root</param>
+		/// <param name="Type">The plugin type</param>
+		/// <returns>Sequence of the found PluginInfo object.</returns>
+		public static IReadOnlyList<PluginInfo> ReadPluginsFromDirectory(DirectoryReference RootDirectory, string Subdirectory, PluginType Type)
+		{
+			// look for directories in RootDirectory and and Platform directories under RootDirectory
+			List<DirectoryReference> RootDirectories = new List<DirectoryReference>() { DirectoryReference.Combine(RootDirectory, Subdirectory) };
+
+			// now look for platform subdirectories with the Subdirectory
+			DirectoryReference PlatformDirectory = DirectoryReference.Combine(RootDirectory, "Platforms");
+			if (DirectoryReference.Exists(PlatformDirectory))
+			{
+				foreach (DirectoryReference Dir in DirectoryReference.EnumerateDirectories(PlatformDirectory))
+				{
+					RootDirectories.Add(DirectoryReference.Combine(Dir, Subdirectory));
+				}
+			}
+
+			Dictionary<PluginInfo, FileReference> ChildPlugins = new Dictionary<PluginInfo, FileReference>();
+			List<PluginInfo> AllParentPlugins = new List<PluginInfo>();
+
+			foreach (DirectoryReference Dir in RootDirectories)
+			{
+				if (!DirectoryReference.Exists(Dir))
+				{
+					continue;
+				}
+
+				List<PluginInfo> Plugins;
+				if (!PluginInfoCache.TryGetValue(Dir, out Plugins))
+				{
+					Plugins = new List<PluginInfo>();
+					foreach (FileReference PluginFileName in EnumeratePlugins(Dir))
+					{
+						PluginInfo Plugin = new PluginInfo(PluginFileName, Type);
+
+						// is there a parent to merge up into?
+						if (Plugin.Descriptor.bIsPluginExtension)
+						{
+							ChildPlugins.Add(Plugin, PluginFileName);
+						}
+						else
+						{
+							Plugins.Add(Plugin);
+						}
+					}
+					PluginInfoCache.Add(Dir, Plugins);
+				}
+
+				// gather all of the plugins into one list
+				AllParentPlugins.AddRange(Plugins);
+			}
+
+			// now that all parent plugins are read in, we can let the children look up the parents
+			foreach (KeyValuePair<PluginInfo, FileReference> Pair in ChildPlugins)
+			{
+				TryMergeWithParent(Pair.Key, Pair.Value);
+			}
+
+			return AllParentPlugins;
 		}
 
 		/// <summary>

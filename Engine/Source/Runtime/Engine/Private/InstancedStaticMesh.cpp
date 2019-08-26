@@ -364,7 +364,11 @@ void FStaticMeshInstanceBuffer::CreateVertexBuffer(FResourceArrayInterface* InRe
 	// TODO: possibility over allocated the vertex buffer when we support partial update for when working in the editor
 	FRHIResourceCreateInfo CreateInfo(InResourceArray);
 	OutVertexBufferRHI = RHICreateVertexBuffer(InResourceArray->GetResourceDataSize(), InUsage, CreateInfo);
-	OutInstanceSRV = RHICreateShaderResourceView(OutVertexBufferRHI, InStride, InFormat);
+	
+	if (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
+	{
+		OutInstanceSRV = RHICreateShaderResourceView(OutVertexBufferRHI, InStride, InFormat);
+	}
 }
 
 void FStaticMeshInstanceBuffer::BindInstanceVertexBuffer(const class FVertexFactory* VertexFactory, FInstancedStaticMeshDataType& InstancedStaticMeshData) const
@@ -1052,8 +1056,7 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 		return;
 	}
 
-	//#dxr_todo: select the appropriate LOD depending on Context.View
-	uint32 LOD = 0;
+	uint32 LOD = GetCurrentFirstLODIdx_RenderThread();
 	const int32 InstanceCount = InstancedRenderData.Component->PerInstanceSMData.Num();
 
 	if (InstanceCount == 0)

@@ -302,6 +302,9 @@ private:
 	/** Friendly name of action, e.g "jump" */
 	FName ActionName;
 
+	/** The handle for this binding action */
+	int32 Handle;
+
 public:
 	/** The delegate bound to the action */
 	FInputActionUnifiedDelegate ActionDelegate;
@@ -311,6 +314,7 @@ public:
 		, bPaired(false)
 		, KeyEvent(EInputEvent::IE_Pressed)
 		, ActionName(NAME_None)
+		, Handle(INDEX_NONE)
 	{ }
 
 	FInputActionBinding(const FName InActionName, const  EInputEvent InKeyEvent)
@@ -318,10 +322,22 @@ public:
 		, bPaired(false)
 		, KeyEvent(InKeyEvent)
 		, ActionName(InActionName)
+		, Handle(INDEX_NONE)
 	{ }
 
 	FName GetActionName() const { return ActionName; }
 	bool IsPaired() const { return bPaired; }
+	int32 GetHandle() const { return Handle; }
+
+	bool operator==(const FInputActionBinding& Rhs)
+	{
+		return (IsValid() && GetHandle() == Rhs.GetHandle());
+	}
+
+	/** Indicates GenerateNewHandle was called */
+	bool IsValid() { return (Handle != INDEX_NONE); }
+
+	void GenerateNewHandle();
 
 	friend class UInputComponent;
 };
@@ -785,6 +801,23 @@ public:
 	 * @see AddActionBinding, ClearActionBindings, GetActionBinding, GetNumActionBindings
 	 */
 	void RemoveActionBinding( const int32 BindingIndex );
+
+	/**
+	 * Removes the action binding at the specified handle.
+	 *
+	 * @param Handle The handle of the binding to remove.
+	 * @see AddActionBinding, ClearActionBindings, GetActionBinding, GetNumActionBindings
+	 */
+	void RemoveActionBindingForHandle(const int32 Handle);
+
+	/**
+	 * Removes the action binding (index need for multi-name fixups).
+	 *
+	 * @param BindingToRemove The binding to remove.
+	 * @param BindingIndex The binding's index for actions with the same name to fixup their data.
+	 * @see AddActionBinding, ClearActionBindings, GetActionBinding, GetNumActionBindings
+	 */
+	void RemoveActionBinding(const FInputActionBinding &BindingToRemove, const int32 BindingIndex);
 
 	/** Clears all cached binding values. */
 	void ClearBindingValues();

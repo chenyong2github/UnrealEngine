@@ -4,13 +4,14 @@
 
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Materials/MaterialInterface.h"
+#include "Materials/MaterialExpression.h"
 #include "SceneTypes.h"
 
 #include "MaterialEditingLibrary.generated.h"
 
 class UMaterialFunction;
 class UMaterialInstance;
-
+class UMaterialInstanceConstant;
 
 /** Blueprint library for creating/editing Materials */
 UCLASS()

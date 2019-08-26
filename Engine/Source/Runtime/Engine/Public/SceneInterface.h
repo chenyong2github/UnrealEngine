@@ -10,6 +10,7 @@
 
 class AWorldSettings;
 class FAtmosphericFogSceneInfo;
+class FSkyAtmosphereRenderSceneInfo;
 class FMaterial;
 class FMaterialShaderMap;
 class FPrimitiveSceneInfo;
@@ -103,6 +104,10 @@ public:
 	virtual void AddInvisibleLight(ULightComponent* Light) = 0;
 	virtual void SetSkyLight(FSkyLightSceneProxy* Light) = 0;
 	virtual void DisableSkyLight(FSkyLightSceneProxy* Light) = 0;
+
+	virtual bool HasSkyLightRequiringLightingBuild() const = 0;
+	virtual bool HasAtmosphereLightRequiringLightingBuild() const = 0;
+
 	/** 
 	 * Adds a new decal component to the scene
 	 * 
@@ -239,6 +244,31 @@ public:
 	 * Returns the scene's FAtmosphericFogSceneInfo if it exists
 	 */
 	virtual FAtmosphericFogSceneInfo* GetAtmosphericFogSceneInfo() = 0;
+
+	/**
+	 * Adds the unique sky atmosphere component to the scene
+	 *
+	 * @param SkyAtmosphereComponent - component to add
+	 */
+	virtual void AddSkyAtmosphere(const class USkyAtmosphereComponent* SkyAtmosphereComponent, bool bStaticLightingBuilt) = 0;
+	/**
+	 * Removes the unique sky atmosphere component to the scene
+	 *
+	 * @param SkyAtmosphereComponent - component to remove
+	 */
+	virtual void RemoveSkyAtmosphere(const class USkyAtmosphereComponent* SkyAtmosphereComponent) = 0;
+	/**
+	 * Returns the scene's unique FSkyAtmosphereRenderSceneInfo if it exists
+	 */
+	virtual FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() = 0;
+	virtual const FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() const = 0;
+	/**
+	 * Override a sky atmosphere light direction
+	 * @param SkyAtmosphereComponent - component to verify it is the actual unique SkyAtmosphere
+	 * @param AtmosphereLightIndex - the atmosphere light index to consider
+	 * @param LightDirection - the new light direction to override the atmosphere light with
+	 */
+	virtual void OverrideSkyAtmosphereLightDirection(const class USkyAtmosphereComponent* SkyAtmosphereComponent, int32 AtmosphereLightIndex, const FVector& LightDirection) = 0;
 
 	/**
 	 * Adds a wind source component to the scene.

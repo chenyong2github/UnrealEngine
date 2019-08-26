@@ -2062,7 +2062,7 @@ namespace Tools.DotNETCommon.Perforce
 			{
 				Arguments.AppendFormat(" -m {0}", MaxFiles);
 			}
-			if(NumThreads != -1)
+/*			if(NumThreads != -1)
 			{
 				Arguments.AppendFormat(" --parallel-threads={0}", NumThreads);
 				if(Batch != -1)
@@ -2081,7 +2081,7 @@ namespace Tools.DotNETCommon.Perforce
 				{
 					Arguments.AppendFormat(",minsize={0}", MinSize);
 				}
-			}
+			}*/
 			foreach (string FileSpec in FileSpecs)
 			{
 				Arguments.AppendFormat(" \"{0}\"", FileSpec);

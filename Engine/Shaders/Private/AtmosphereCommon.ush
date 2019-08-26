@@ -543,8 +543,8 @@ float3 GetSunColor(float3 X, float T, float3 V, float3 S, float Radius, float Mu
     }
 	else 
 	{
-		float SunDiskMask = step(cos(View.AtmosphericFogSunDiscHalfApexAngleRadian), dot(V, S));
-        return TransmittanceValue * SunDiskMask * View.AtmosphericFogSunDiscLuminance; // Eq (9)
+		float SunDiskMask = step(View.AtmosphereLightDiscCosHalfApexAngle[0].x, dot(V, S));
+        return TransmittanceValue * SunDiskMask * View.AtmosphereLightDiscLuminance[0].rgb; // Eq (9)
     }
 }
 
@@ -578,19 +578,19 @@ float4 GetAtmosphericFog(float3 ViewPosition, float3 ViewVector, float SceneDept
 
 	float3 Attenuation;
 
-	float3 InscatterColor = GetInscatterColor(FogDepth, ViewPosition, T, V, View.AtmosphericFogSunDirection, Radius, Mu, Attenuation, bIsSceneGeometry); //S[L]-T(ViewPosition,xs)S[l]|xs
+	float3 InscatterColor = GetInscatterColor(FogDepth, ViewPosition, T, V, View.AtmosphereLightDirection[0].xyz, Radius, Mu, Attenuation, bIsSceneGeometry); //S[L]-T(ViewPosition,xs)S[l]|xs
 #if BASEPASS_ATMOSPHERIC_FOG // Transluceny rendering just follows normal render flag
 	float3 GroundColor = 0.f;
 	BRANCH
 	if ((View.AtmosphericFogRenderMask & RENDERFLAG_DISABLE_GROUND_SCATTERING) == 0)
 	{
-		GroundColor = GetGroundColor(float4(SceneColor.xyz, 1.f), ViewPosition, T, V, View.AtmosphericFogSunDirection, Radius, Attenuation, bIsSceneGeometry); //R[L0]+R[L*]
+		GroundColor = GetGroundColor(float4(SceneColor.xyz, 1.f), ViewPosition, T, V, View.AtmosphereLightDirection[0].xyz, Radius, Attenuation, bIsSceneGeometry); //R[L0]+R[L*]
 	}
 #else
 	#if MATERIAL_ATMOSPHERIC_FOG || ATMOSPHERIC_NO_GROUND_SCATTERING // Material doesn't need this ground scattering for now 
 		float3 GroundColor = 0.f;
 	#else
-		float3 GroundColor = GetGroundColor(float4(SceneColor.xyz, 1.f), ViewPosition, T, V, View.AtmosphericFogSunDirection, Radius, Attenuation, bIsSceneGeometry); //R[L0]+R[L*]
+		float3 GroundColor = GetGroundColor(float4(SceneColor.xyz, 1.f), ViewPosition, T, V, View.AtmosphereLightDirection[0].xyz, Radius, Attenuation, bIsSceneGeometry); //R[L0]+R[L*]
 	#endif
 #endif
 
@@ -599,19 +599,19 @@ float4 GetAtmosphericFog(float3 ViewPosition, float3 ViewVector, float SceneDept
 	BRANCH
 	if ((View.AtmosphericFogRenderMask & RENDERFLAG_DISABLE_SUN_DISK) == 0)
 	{
-		Sun = GetSunColor(ViewPosition, T, V, View.AtmosphericFogSunDirection, Radius, Mu); //L0
+		Sun = GetSunColor(ViewPosition, T, V, View.AtmosphereLightDirection[0].xyz, Radius, Mu); //L0
 	}
 #else
 	#if MATERIAL_ATMOSPHERIC_FOG || ATMOSPHERIC_NO_SUN_DISK // Material doesn't need to render the sun disk
 		float3 Sun = 0.f;
 	#else
-		float3 Sun = GetSunColor(ViewPosition, T, V, View.AtmosphericFogSunDirection, Radius, Mu); //L0
+		float3 Sun = GetSunColor(ViewPosition, T, V, View.AtmosphereLightDirection[0].xyz, Radius, Mu); //L0
 	#endif
 #endif
 
 	// Decay color
 	float3 OriginalColor = Sun + GroundColor + InscatterColor;
-	OriginalColor = View.AtmosphericFogSunPower * ShadowFactor * View.AtmosphericFogSunColor.rgb * OriginalColor;
+	OriginalColor = View.AtmosphericFogSunPower * ShadowFactor * View.AtmosphereLightColor[0].rgb * OriginalColor;
 	float4 OutColor = float4(OriginalColor, lerp(saturate(Attenuation.r * View.AtmosphericFogDensityScale - View.AtmosphericFogDensityOffset), 1.f, (1.f - DistanceRatio)) );
 	return OutColor;
 }

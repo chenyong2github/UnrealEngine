@@ -4605,10 +4605,13 @@ int32 FFXSystem::AddSortedGPUSimulation(FParticleSimulationGPU* Simulation, cons
 	return BufferOffset;
 }
 
-void FFXSystem::AdvanceGPUParticleFrame()
+void FFXSystem::AdvanceGPUParticleFrame(bool bAllowGPUParticleUpdate)
 {
-	// We double buffer, so swap the current and previous textures.
-	ParticleSimulationResources->FrameIndex ^= 0x1;
+	if (bAllowGPUParticleUpdate)
+	{
+		// We double buffer, so swap the current and previous textures.
+		ParticleSimulationResources->FrameIndex ^= 0x1;
+	}
 
 	// Reset the list of sorted simulations. As PreRenderView is called on GPU simulations we'll
 	// allocate space for them in the sorted index buffer.

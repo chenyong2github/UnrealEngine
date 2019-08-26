@@ -551,6 +551,9 @@ namespace WindowsMixedReality
 #endif
 #endif
 
+#if WITH_WINDOWS_MIXED_REALITY
+		InitTrackingFrame();
+#endif
 		CachedWorldToMetersScale = WorldContext.World()->GetWorldSettings()->WorldToMeters;
 
 		// Only refresh this based on the game world.  When remoting there is also an editor world, which we do not want to have affect the transform.
@@ -597,6 +600,21 @@ namespace WindowsMixedReality
 		return ipd;
 	}
 
+	void FWindowsMixedRealityHMD::OnBeginRendering_GameThread()
+	{
+#if WITH_WINDOWS_MIXED_REALITY
+#endif
+	}
+
+	void FWindowsMixedRealityHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& ViewFamily)
+	{
+#if WITH_WINDOWS_MIXED_REALITY
+		HMD->UpdateRenderThreadFrame();
+		InitTrackingFrame();
+		HMD->BlockUntilNextFrame();
+#endif
+	}
+
 	bool FWindowsMixedRealityHMD::GetCurrentPose(
 		int32 DeviceId,
 		FQuat& CurrentOrientation,
@@ -608,10 +626,9 @@ namespace WindowsMixedReality
 		}
 
 		// Get most recently available tracking data.
-		InitTrackingFrame();
-
-		CurrentOrientation = CurrOrientation;
-		CurrentPosition = CurrPosition;
+		Frame& TheFrame = GetFrame();
+		CurrentOrientation = TheFrame.HeadOrientation;
+		CurrentPosition = TheFrame.HeadPosition;
 
 		return true;
 	}
@@ -620,15 +637,16 @@ namespace WindowsMixedReality
 	{
 		OutOrientation = FQuat::Identity;
 		OutPosition = FVector::ZeroVector;
-		if (DeviceId == IXRTrackingSystem::HMDDeviceId && (Eye == eSSP_LEFT_EYE || Eye == eSSP_RIGHT_EYE))
-		{
-			OutPosition = FVector(0, (Eye == EStereoscopicPass::eSSP_LEFT_EYE ? -0.5f : 0.5f) * GetInterpupillaryDistance() * GetWorldToMetersScale(), 0);
-			return true;
-		}
-		else
+		if (Eye != eSSP_LEFT_EYE && Eye != eSSP_RIGHT_EYE)
 		{
 			return false;
 		}
+		Frame& TheFrame = GetFrame();
+		const FTransform relativeTransform = Eye == eSSP_LEFT_EYE ? TheFrame.LeftTransform * TheFrame.HeadTransform.Inverse() : TheFrame.RightTransform * TheFrame.HeadTransform.Inverse();
+		OutPosition = relativeTransform.GetTranslation();
+		OutOrientation = relativeTransform.GetRotation();
+
+		return true;
 	}
 
 	void FWindowsMixedRealityHMD::ResetOrientationAndPosition(float yaw)
@@ -644,43 +662,68 @@ namespace WindowsMixedReality
 		DirectX::XMMATRIX leftPose;
 		DirectX::XMMATRIX rightPose;
 		WindowsMixedReality::HMDTrackingOrigin trackingOrigin;
-		if (HMD->GetCurrentPose(leftPose, rightPose, trackingOrigin))
+
+		bool GotPose = false;
+		if (IsInRenderingThread())
 		{
-			trackingOrigin == WindowsMixedReality::HMDTrackingOrigin::Eye ?
-				SetTrackingOrigin(EHMDTrackingOrigin::Eye) :
-				SetTrackingOrigin(EHMDTrackingOrigin::Floor);
+			GotPose = HMD->GetCurrentPoseRenderThread(leftPose, rightPose, trackingOrigin);
 
-			// Convert to unreal space
-			FMatrix UPoseL = WMRUtility::ToFMatrix(leftPose);
-			FMatrix UPoseR = WMRUtility::ToFMatrix(rightPose);
-			RotationL = FQuat(UPoseL);
-			RotationR = FQuat(UPoseR);
-
-			RotationL = FQuat(-1 * RotationL.Z, RotationL.X, RotationL.Y, -1 * RotationL.W);
-			RotationR = FQuat(-1 * RotationR.Z, RotationR.X, RotationR.Y, -1 * RotationR.W);
-
-			RotationL.Normalize();
-			RotationR.Normalize();
-
-			FQuat HeadRotation = FMath::Lerp(RotationL, RotationR, 0.5f);
-			HeadRotation.Normalize();
-
-			// Position = forward/ backwards, left/ right, up/ down.
-			PositionL = ((FVector(UPoseL.M[2][3], -1 * UPoseL.M[0][3], -1 * UPoseL.M[1][3]) * GetWorldToMetersScale()));
-			PositionR = ((FVector(UPoseR.M[2][3], -1 * UPoseR.M[0][3], -1 * UPoseR.M[1][3]) * GetWorldToMetersScale()));
-
-			PositionL = RotationL.RotateVector(PositionL);
-			PositionR = RotationR.RotateVector(PositionR);
-
-			if (ipd == 0)
+			if (GotPose)
 			{
-				ipd = FVector::Dist(PositionL, PositionR) / GetWorldToMetersScale();
+				trackingOrigin == WindowsMixedReality::HMDTrackingOrigin::Eye ?
+					SetTrackingOrigin(EHMDTrackingOrigin::Eye) :
+					SetTrackingOrigin(EHMDTrackingOrigin::Floor);
+
+				// Convert to unreal space
+				FMatrix UPoseL = WMRUtility::ToFMatrix(leftPose);
+				FMatrix UPoseR = WMRUtility::ToFMatrix(rightPose);
+				FQuat RotationL = FQuat(UPoseL);
+				FQuat RotationR = FQuat(UPoseR);
+
+				RotationL = FQuat(-1 * RotationL.Z, RotationL.X, RotationL.Y, -1 * RotationL.W);
+				RotationR = FQuat(-1 * RotationR.Z, RotationR.X, RotationR.Y, -1 * RotationR.W);
+
+				RotationL.Normalize();
+				RotationR.Normalize();
+
+				FQuat HeadRotation = FMath::Lerp(RotationL, RotationR, 0.5f);
+				HeadRotation.Normalize();
+
+				// Position = forward/ backwards, left/ right, up/ down.
+				FVector PositionL = ((FVector(UPoseL.M[2][3], -1 * UPoseL.M[0][3], -1 * UPoseL.M[1][3]) * GetWorldToMetersScale()));
+				FVector PositionR = ((FVector(UPoseR.M[2][3], -1 * UPoseR.M[0][3], -1 * UPoseR.M[1][3]) * GetWorldToMetersScale()));
+
+				PositionL = RotationL.RotateVector(PositionL);
+				PositionR = RotationR.RotateVector(PositionR);
+
+				if (ipd == 0)
+				{
+					ipd = FVector::Dist(PositionL, PositionR) / GetWorldToMetersScale();
+				}
+
+				FVector HeadPosition = FMath::Lerp(PositionL, PositionR, 0.5f);
+
+				Frame_RenderThread.RotationL = RotationL;
+				Frame_RenderThread.RotationR = RotationR;
+				Frame_RenderThread.PositionL = PositionL;
+				Frame_RenderThread.PositionR = PositionR;
+				Frame_RenderThread.HeadOrientation = HeadRotation;
+				Frame_RenderThread.HeadPosition = HeadPosition;
+				Frame_RenderThread.LeftTransform = FTransform(RotationL, PositionL, FVector::OneVector);
+				Frame_RenderThread.RightTransform = FTransform(RotationR, PositionR, FVector::OneVector);
+				Frame_RenderThread.HeadTransform = FTransform(HeadRotation, HeadPosition, FVector::OneVector);
+			
+				{
+					FScopeLock Lock(&Frame_NextGameThreadLock);
+					Frame_NextGameThread = Frame_RenderThread;
+				}
 			}
-
-			FVector HeadPosition = FMath::Lerp(PositionL, PositionR, 0.5f);
-
-			CurrOrientation = HeadRotation;
-			CurrPosition = HeadPosition;
+		}
+		else
+		{
+			// We are using the previous render thread frame for the game thread.
+			FScopeLock Lock(&Frame_NextGameThreadLock);
+			Frame_GameThread = Frame_NextGameThread;
 		}
 #endif
 	}
@@ -843,34 +886,6 @@ namespace WindowsMixedReality
 		{
 			X += SizeX;
 		}
-	}
-
-	void FWindowsMixedRealityHMD::CalculateStereoViewOffset(const enum EStereoscopicPass StereoPassType, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation)
-	{
-		if (StereoPassType != eSSP_LEFT_EYE &&
-			StereoPassType != eSSP_RIGHT_EYE)
-		{
-			return;
-		}
-
-		FVector HmdToEyeOffset = FVector::ZeroVector;
-
-		FQuat CurEyeOrient;
-		if (StereoPassType == eSSP_LEFT_EYE)
-		{
-			HmdToEyeOffset = PositionL - CurrPosition;
-			CurEyeOrient = RotationL;
-		}
-		else if (StereoPassType == eSSP_RIGHT_EYE)
-		{
-			HmdToEyeOffset = PositionR - CurrPosition;
-			CurEyeOrient = RotationR;
-		}
-
-		const FQuat ViewOrient = ViewRotation.Quaternion();
-		const FQuat deltaControlOrientation = ViewOrient * CurEyeOrient.Inverse();
-		const FVector vEyePosition = deltaControlOrientation.RotateVector(HmdToEyeOffset);
-		ViewLocation += vEyePosition;
 	}
 
 	FMatrix FWindowsMixedRealityHMD::GetStereoProjectionMatrix(const enum EStereoscopicPass StereoPassType) const
@@ -1285,9 +1300,6 @@ namespace WindowsMixedReality
 			return;
 		}
 
-		// Update currentFrame in the interop
-		HMD->UpdateCurrentFrame();
-
 		CreateHMDDepthTexture(RHICmdList);
 		if (!HMD->CreateRenderingParameters(stereoDepthTexture))
 		{
@@ -1311,8 +1323,6 @@ namespace WindowsMixedReality
 		, ScreenScalePercentage(1.0f)
 		, mCustomPresent(nullptr)
 		, HMDTrackingOrigin(EHMDTrackingOrigin::Floor)
-		, CurrOrientation(FQuat::Identity)
-		, CurrPosition(FVector::ZeroVector)
 	{
 		static const FName RendererModuleName("Renderer");
 		RendererModule = FModuleManager::GetModulePtr<IRendererModule>(RendererModuleName);
@@ -1430,10 +1440,23 @@ namespace WindowsMixedReality
 	{
 		AsyncTask(ENamedThreads::GameThread, [InKey, InActionName]()
 		{
-			APlayerController* PlayerController = GEngine->GetFirstLocalPlayerController(GWorld);
-			if (PlayerController)
+			// Have to find the game world, not the editor world, if we are in vr preview
+			UWorld* World = nullptr;
+			for (const FWorldContext& Context : GEngine->GetWorldContexts())
 			{
-				PlayerController->InputKey(InKey, IE_Pressed, 1.0f, false);
+				if (Context.WorldType == EWorldType::Game || Context.WorldType == EWorldType::PIE)
+				{
+					World = Context.World();
+				}
+			}
+
+			if (World && World->GetGameInstance())
+			{
+				APlayerController* PlayerController = World->GetGameInstance()->GetFirstLocalPlayerController();
+				if (PlayerController)
+				{
+					PlayerController->InputKey(InKey, IE_Pressed, 1.0f, false);
+				}
 			}
 		});
 	}
@@ -1550,7 +1573,7 @@ namespace WindowsMixedReality
 			// If the device does not support full hand tracking, set the orientation manually
 			if (!FWindowsMixedRealityStatics::SupportsHandedness())
 			{
-				OutOrientation = FRotator(CurrOrientation);
+				OutOrientation = FRotator(GetFrame().HeadOrientation);
 				OutOrientation.Roll = 0;
 				OutOrientation.Pitch = 0;
 			}

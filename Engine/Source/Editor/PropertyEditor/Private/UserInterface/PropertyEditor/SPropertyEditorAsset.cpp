@@ -78,6 +78,7 @@ void SPropertyEditorAsset::Construct( const FArguments& InArgs, const TSharedPtr
 {
 	PropertyEditor = InPropertyEditor;
 	PropertyHandle = InArgs._PropertyHandle;
+	OwnerAssetDataArray = InArgs._OwnerAssetDataArray;
 	OnSetObject = InArgs._OnSetObject;
 	OnShouldFilterAsset = InArgs._OnShouldFilterAsset;
 	bool DisplayCompactedSize = InArgs._DisplayCompactSize;
@@ -671,7 +672,8 @@ TSharedRef<SWidget> SPropertyEditorAsset::OnGetMenuContent()
 																	 OnShouldFilterAsset,
 																	 FOnAssetSelected::CreateSP(this, &SPropertyEditorAsset::OnAssetSelected),
 																	 FSimpleDelegate::CreateSP(this, &SPropertyEditorAsset::CloseComboButton),
-																	 GetMostSpecificPropertyHandle());
+																	 GetMostSpecificPropertyHandle(),
+																	 OwnerAssetDataArray);
 	}
 }
 
@@ -1311,6 +1313,19 @@ bool SPropertyEditorAsset::CanSetBasedOnAssetReferenceFilter( const FAssetData& 
 				AssetReferenceFilterContext.ReferencingAssets.Add(FAssetData(ReferencingObject));
 			}
 		}
+		
+		if(OwnerAssetDataArray.Num() > 0)
+		{
+			for (const FAssetData& AssetData : OwnerAssetDataArray)
+			{
+				if (AssetData.IsValid())
+				{
+					//Use add unique in case the PropertyHandle as already add the referencing asset
+					AssetReferenceFilterContext.ReferencingAssets.AddUnique(AssetData);
+				}
+			}
+		}
+
 		TSharedPtr<IAssetReferenceFilter> AssetReferenceFilter = GUnrealEd->MakeAssetReferenceFilter(AssetReferenceFilterContext);
 		if (AssetReferenceFilter.IsValid() && !AssetReferenceFilter->PassesFilter(InAssetData, OutOptionalFailureReason))
 		{

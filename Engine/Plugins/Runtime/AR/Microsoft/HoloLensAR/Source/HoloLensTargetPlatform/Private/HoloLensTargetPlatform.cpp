@@ -79,12 +79,22 @@ ITargetDevicePtr FHoloLensTargetPlatform::GetDefaultDevice() const
 
 bool FHoloLensTargetPlatform::SupportsFeature(ETargetPlatformFeatures Feature) const
 {
-	if (Feature == ETargetPlatformFeatures::Packaging)
+	switch (Feature)
 	{
-		return true;
-	}
+		case ETargetPlatformFeatures::Packaging:
+			return true;
 
-	return TTargetPlatformBase<FHoloLensPlatformProperties>::SupportsFeature(Feature);
+		case ETargetPlatformFeatures::LowQualityLightmaps:
+			// HoloLens 2 is mobile renderer, thus only supports low quality light maps
+			return true;
+
+		case ETargetPlatformFeatures::HighQualityLightmaps:
+			// HoloLens 2 is mobile renderer, thus only supports low quality light maps
+			return false;
+
+		default:
+			return TTargetPlatformBase<FHoloLensPlatformProperties>::SupportsFeature(Feature);
+	}
 }
 
 #if WITH_ENGINE
@@ -148,9 +158,9 @@ void FHoloLensTargetPlatform::OnDeviceDetected(const FHoloLensDeviceInfo& Info)
 	}
 }
 
-bool FHoloLensTargetPlatform::SupportsBuildTarget(EBuildTargets::Type BuildTarget) const
+bool FHoloLensTargetPlatform::SupportsBuildTarget(EBuildTargetType TargetType) const
 {
-	return BuildTarget == EBuildTargets::Game;
+	return TargetType == EBuildTargetType::Game;
 }
 
 bool FHoloLensTargetPlatform::IsSdkInstalled(bool bProjectHasCode, FString& OutDocumentationPath) const

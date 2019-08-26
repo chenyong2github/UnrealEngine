@@ -2502,8 +2502,8 @@ public:
 	/** For the mobile renderer, the first directional light in each lighting channel. */
 	FLightSceneInfo* MobileDirectionalLights[NUM_LIGHTING_CHANNELS];
 
-	/** The sun light for atmospheric effect, if any. */
-	FLightSceneInfo* SunLight;
+	/** The light sources for atmospheric effects, if any. */
+	FLightSceneInfo* AtmosphereLights[NUM_ATMOSPHERE_LIGHTS];
 
 	/** The decals in the scene. */
 	TSparseArray<FDeferredDecalProxy*> Decals;
@@ -2555,6 +2555,9 @@ public:
 
 	/** The atmospheric fog components in the scene. */
 	FAtmosphericFogSceneInfo* AtmosphericFog;
+
+	/** The sky/atmosphere components of the scene. */
+	FSkyAtmosphereRenderSceneInfo* SkyAtmosphere;
 
 	/** The wind sources in the scene. */
 	TArray<class FWindSourceSceneProxy*> WindSources;
@@ -2646,6 +2649,8 @@ public:
 	virtual void AddInvisibleLight(ULightComponent* Light) override;
 	virtual void SetSkyLight(FSkyLightSceneProxy* Light) override;
 	virtual void DisableSkyLight(FSkyLightSceneProxy* Light) override;
+	virtual bool HasSkyLightRequiringLightingBuild() const override;
+	virtual bool HasAtmosphereLightRequiringLightingBuild() const override;
 	virtual void AddDecal(UDecalComponent* Component) override;
 	virtual void RemoveDecal(UDecalComponent* Component) override;
 	virtual void UpdateDecalTransform(UDecalComponent* Decal) override;
@@ -2680,6 +2685,13 @@ public:
 	virtual void RemoveAtmosphericFog(UAtmosphericFogComponent* FogComponent) override;
 	virtual void RemoveAtmosphericFogResource_RenderThread(FRenderResource* FogResource) override;
 	virtual FAtmosphericFogSceneInfo* GetAtmosphericFogSceneInfo() override { return AtmosphericFog; }
+
+	virtual void AddSkyAtmosphere(const class USkyAtmosphereComponent* SkyAtmosphereComponent, bool bStaticLightingBuilt) override;
+	virtual void RemoveSkyAtmosphere(const class USkyAtmosphereComponent* SkyAtmosphereComponent) override;
+	virtual FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() override { return SkyAtmosphere; }
+	virtual const FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() const override { return SkyAtmosphere; }
+	virtual void OverrideSkyAtmosphereLightDirection(const class USkyAtmosphereComponent* SkyAtmosphereComponent, int32 AtmosphereLightIndex, const FVector& LightDirection) override;
+
 	virtual void AddWindSource(UWindDirectionalSourceComponent* WindComponent) override;
 	virtual void RemoveWindSource(UWindDirectionalSourceComponent* WindComponent) override;
 	virtual const TArray<FWindSourceSceneProxy*>& GetWindSources_RenderThread() const override;
@@ -2698,6 +2710,13 @@ public:
 	{
 		return (AtmosphericFog != NULL); // Use default value when Sun Light is not existing
 	}
+	bool HasSkyAtmosphere() const
+	{
+		return (SkyAtmosphere != NULL);
+	}
+
+	// Reset all the light to default state "not being affected by atmosphere". Should only be called from render side.
+	void ResetAtmosphereLightsProperties();
 
 	/**
 	 * Retrieves the lights interacting with the passed in primitive and adds them to the out array.
@@ -2921,6 +2940,11 @@ private:
 
 	void UpdateLightTransform_RenderThread(FLightSceneInfo* LightSceneInfo, const struct FUpdateLightTransformParameters& Parameters);
 
+	/**
+	 * Deletes the internal AtmosphericFog scene info and operates required operations.
+	 */
+	void DeleteAtmosphericFogSceneInfo();
+
 	/** 
 	* Updates the contents of the given reflection capture by rendering the scene. 
 	* This must be called on the game thread.
@@ -2956,6 +2980,9 @@ private:
 	 * @param	InLevelName		Level name
 	 */
 	void OnLevelAddedToWorld_RenderThread(FName InLevelName);
+
+	void ProcessAtmosphereLightRemoval_RenderThread(FLightSceneInfo* LightSceneInfo);
+	void ProcessAtmosphereLightAddition_RenderThread(FLightSceneInfo* LightSceneInfo);
 
 private:
 	/** 

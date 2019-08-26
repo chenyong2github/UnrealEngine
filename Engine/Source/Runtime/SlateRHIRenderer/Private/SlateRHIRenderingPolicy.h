@@ -29,6 +29,7 @@ struct FSlateRenderingParams
 	float CurrentRealTime;
 	bool bAllowSwitchVerticalAxis;
 	bool bWireFrame;
+	bool bIsHDR;
 
 	FSlateRenderingParams(const FMatrix& InViewProjectionMatrix, float InCurrentWorldTime, float InDeltaTimeSeconds, float InCurrentRealTime)
 		: ViewProjectionMatrix(InViewProjectionMatrix)
@@ -38,6 +39,7 @@ struct FSlateRenderingParams
 		, CurrentRealTime(InCurrentRealTime)
 		, bAllowSwitchVerticalAxis(true)
 		, bWireFrame(false)
+		, bIsHDR(false)
 	{
 	}
 };

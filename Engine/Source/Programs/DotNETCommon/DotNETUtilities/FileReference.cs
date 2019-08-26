@@ -464,6 +464,26 @@ namespace Tools.DotNETCommon
 		}
 
 		/// <summary>
+		/// Sets the time that the file was last accessed.
+		/// </summary>
+		/// <param name="Location">Location of the file.</param>
+		/// <param name="LastWriteTime">Last access time, in local time.</param>
+		public static void SetLastAccessTime(FileReference Location, DateTime LastWriteTime)
+		{
+			File.SetLastWriteTime(Location.FullName, LastWriteTime);
+		}
+
+		/// <summary>
+		/// Sets the time that the file was last accessed.
+		/// </summary>
+		/// <param name="Location">Location of the file.</param>
+		/// <param name="LastWriteTime">Last access time, in UTC time.</param>
+		public static void SetLastAccessTimeUtc(FileReference Location, DateTime LastWriteTimeUtc)
+		{
+			File.SetLastWriteTimeUtc(Location.FullName, LastWriteTimeUtc);
+		}
+
+		/// <summary>
 		/// Writes the contents of a file
 		/// </summary>
 		/// <param name="Location">Location of the file</param>

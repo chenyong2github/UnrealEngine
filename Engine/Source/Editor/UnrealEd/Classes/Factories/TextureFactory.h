@@ -148,7 +148,7 @@ public:
 	 * Suppresses the dialog box that, when importing over an existing texture, asks if the users wishes to overwrite its settings.
 	 * This is primarily for reimporting textures.
 	 */
-	static void SuppressImportOverwriteDialog();
+	static void SuppressImportOverwriteDialog(bool bOverwriteExistingSettings = false);
 
 	/**
 	 *	Initializes the given texture from the TextureData text block supplied.
@@ -174,6 +174,9 @@ public:
 private:
 	/** This variable is static because in StaticImportObject() the type of the factory is not known. */
 	static bool bSuppressImportOverwriteDialog;
+
+    /** force overwriting the existing texture without the dialog box */
+	static bool bForceOverwriteExistingSettings;
 
 	/**
 	*	Tests if the given height and width specify a supported texture resolution to import; Can optionally check if the height/width are powers of two

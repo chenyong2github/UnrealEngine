@@ -116,6 +116,9 @@ bool UNiagaraNode::ReallocatePins(bool bMarkNeedsResynchronizeOnChange)
 	}
 	else
 	{
+		// Even if we're not marking the graph as needing sychronization we still need to let other listeners,
+		// such as the UI, know that the graph has changed.
+		GetNiagaraGraph()->NotifyGraphNeedsRecompile();
 		VisualsChangedDelegate.Broadcast(this);
 	}
 	return bAllSame;

@@ -14,9 +14,6 @@ public class NvAnselSDK : ModuleRules
 		string NvCameraSDKIncPath = NvCameraSDKSourcePath + "include/";
 		PublicSystemIncludePaths.Add(NvCameraSDKIncPath);
 
-		string NvCameraSDKLibPath = NvCameraSDKSourcePath + "lib/";
-		PublicLibraryPaths.Add(NvCameraSDKLibPath);
-
 		bool FoundAnselDirs = true;
 		if (!Directory.Exists(NvCameraSDKSourcePath))
 		{
@@ -47,7 +44,7 @@ public class NvAnselSDK : ModuleRules
 					LibName += "d";
 			}
 			
-			PublicAdditionalLibraries.Add(LibName + ".lib");
+			PublicAdditionalLibraries.Add(Path.Combine(NvCameraSDKLibPath, LibName + ".lib"));
 			string DLLName = LibName + ".dll";
 			PublicDelayLoadDLLs.Add(DLLName);
 			RuntimeDependencies.Add(new RuntimeDependency("$(EngineDir)/Binaries/ThirdParty/NVAnselSDK/redist/" + DLLName

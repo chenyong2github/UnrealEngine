@@ -18,8 +18,6 @@
 #include "Modules/ModuleManager.h"
 #include "Engine/StaticMesh.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogGoogleVRMotionController, Log, All);
-
 // Sets default values for this component's properties
 UGoogleVRLaserVisualComponent::UGoogleVRLaserVisualComponent()
 : LaserPlaneMesh(nullptr)

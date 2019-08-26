@@ -889,6 +889,11 @@ public:
 	/** Prefix used to identify template component instances */
 	static const FString ComponentTemplateNameSuffix;
 
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnMarkRenderStateDirty, UActorComponent&);
+
+	/** Called When render state is marked dirty */
+	static FOnMarkRenderStateDirty MarkRenderStateDirtyEvent;
+
 protected:
 	/** Makes sure navigation system has up to date information regarding component's navigation relevancy 
 	 *	and if it can affect navigation at all 

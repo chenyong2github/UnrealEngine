@@ -80,7 +80,7 @@ namespace ParametricMovement
 		DrawParams.Lifetime = Parameters.Lifetime;
 		DrawParams.DrawColor = Parameters.GetDebugColor();
 		DrawParams.InWorldText = LexToString(Parameters.Keyframe);
-		DrawParams.LogText = FString::Printf(TEXT("[%d] %s. Location: %s. Rotation: %s"), Parameters.Keyframe, *LexToString(Parameters.Context), *Transform.GetLocation().ToString(), *Transform.GetRotation().Rotator().ToString());
+		DrawParams.LogText = FString::Printf(TEXT("[%d] %s. Position: %.4f. Location: %s. Rotation: %s"), Parameters.Keyframe, *LexToString(Parameters.Context), Position, *Transform.GetLocation().ToString(), *Transform.GetRotation().Rotator().ToString());
 
 		BaseMovementDriver.DrawDebug(DrawParams);
 	}
@@ -109,7 +109,7 @@ IReplicationProxy* UParametricMovementComponent::InstantiateNetworkSimulation()
 void UParametricMovementComponent::InitializeForNetworkRole(ENetRole Role)
 {	
 	check(NetworkSim);
-	NetworkSim->InitializeForNetworkRole(Role, true /* fixme IsLocallyControlled() */, GetSimulationInitParameters(Role));
+	NetworkSim->InitializeForNetworkRole(Role, GetSimulationInitParameters(Role));
 }
 
 FNetworkSimulationModelInitParameters UParametricMovementComponent::GetSimulationInitParameters(ENetRole Role)
@@ -152,6 +152,11 @@ void UParametricMovementComponent::FinalizeFrame(const ParametricMovement::FMove
 
 	check(UpdatedComponent);
 	UpdatedComponent->SetWorldTransform(NewTransform, false, nullptr, ETeleportType::TeleportPhysics);
+}
+
+FString UParametricMovementComponent::GetDebugName() const
+{
+	return FString::Printf(TEXT("ParametricMovement. %s. %s"), *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwnerRole()), *GetName());
 }
 
 void UParametricMovementComponent::AdvanceParametricTime(const float InPosition, const float InPlayRate, float &OutPosition, float& OutPlayRate, const float DeltaTimeSeconds) const
@@ -205,10 +210,7 @@ void UParametricMovementComponent::TickSimulation(float DeltaTimeSeconds)
 
 	if (NetworkSim && OwnerRole != ROLE_None)
 	{
-		ParametricMovement::FMovementSystem::FTickParameters Parameters;
-		Parameters.LocalDeltaTimeSeconds = DeltaTimeSeconds;
-		Parameters.Role = OwnerRole;
-		Parameters.bIsRemotelyControlled = (OwnerRole == ROLE_Authority && GetOwner()->GetNetConnection() != nullptr);
+		ParametricMovement::FMovementSystem::FTickParameters Parameters(DeltaTimeSeconds, GetOwner());
 
 		// Tick the core network sim, this will consume input and generate new sync state
 		NetworkSim->Tick((IParametricMovementDriver*)this, Parameters);

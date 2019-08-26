@@ -554,10 +554,16 @@ float3 VirtualTextureUnpackNormalBC3(in float4 PackedValue)
 	return VirtualTextureUnpackNormal(PackedValue.ag);
 }
 
+/** Unpack normal from two BC3 textures. */
+float3 VirtualTextureUnpackNormalBC3BC3(in float4 PackedValue0, in float4 PackedValue1)
+{
+	return VirtualTextureUnpackNormal(float2(PackedValue0.a, PackedValue1.a));
+}
+
 /** Unpack normal from BC5. */
 float3 VirtualTextureUnpackNormalBC5(in float4 PackedValue)
 {
-	return VirtualTextureUnpackNormal(PackedValue.rb);
+	return VirtualTextureUnpackNormal(PackedValue.rg);
 }
 
 /** Unpack 16 bit height (with some hardcoded range scale/bias). */

@@ -19,11 +19,13 @@
 #include "PostProcess/PostProcessing.h"
 #include "PostProcess/SceneFilterRendering.h"
 
-static int32 GRayTracingAmbientOcclusion = 1;
+static int32 GRayTracingAmbientOcclusion = -1;
 static FAutoConsoleVariableRef CVarRayTracingAmbientOcclusion(
 	TEXT("r.RayTracing.AmbientOcclusion"),
 	GRayTracingAmbientOcclusion,
-	TEXT("Enables ray tracing ambient occlusion (default = 1)")
+	TEXT("-1: Value driven by postprocess volume (default) \n")
+	TEXT(" 0: ray tracing ambient occlusion off \n")
+	TEXT(" 1: ray tracing ambient occlusion enabled")
 );
 
 static TAutoConsoleVariable<int32> CVarUseAODenoiser(
@@ -58,11 +60,22 @@ static TAutoConsoleVariable<int32> CVarRayTracingAmbientOcclusionEnableMaterials
 
 bool ShouldRenderRayTracingAmbientOcclusion(const FViewInfo& View)
 {
-	const int32 ForceAllRayTracingEffects = GetForceRayTracingEffectsCVarValue();
-	const bool bRTAOEnabled = (ForceAllRayTracingEffects > 0 || (GRayTracingAmbientOcclusion > 0 && ForceAllRayTracingEffects < 0));
-
-	//#dxr_todo: add option to enable RTAO in View.FinalPostProcessSettings
-	return IsRayTracingEnabled() && !ShouldRenderRayTracingGlobalIllumination(View) && bRTAOEnabled;
+	if (!IsRayTracingEnabled())
+	{
+		return (false);
+	}
+	else if (GetForceRayTracingEffectsCVarValue() >= 0)
+	{
+		return GetForceRayTracingEffectsCVarValue() > 0;
+	}
+	else if (GRayTracingAmbientOcclusion >= 0)
+	{
+		return (GRayTracingAmbientOcclusion > 0);
+	}
+	else
+	{
+		return View.FinalPostProcessSettings.RayTracingAO > 0;
+	}
 }
 
 DECLARE_GPU_STAT_NAMED(RayTracingAmbientOcclusion, TEXT("Ray Tracing Ambient Occlusion"));

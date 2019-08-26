@@ -25,6 +25,7 @@
 #include "SourceCodeNavigation.h"
 #include "SourceControlWindows.h"
 #include "ISettingsModule.h"
+#include "Interfaces/IProjectManager.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "PlatformInfo.h"
@@ -733,12 +734,14 @@ void FMainFrameActionCallbacks::PackageProject( const FName InPlatformInfoName )
 		OptionalParams += FString::Printf(TEXT(" -NumCookersToSpawn=%d"), NumCookers); 
 	}
 
-	FString Configuration = StaticEnum<EProjectPackagingBuildConfigurations>()->GetNameStringByValue(PackagingSettings->BuildConfiguration);
-	Configuration = Configuration.Replace(TEXT("PPBC_"), TEXT(""));
-	if (Configuration.Right(6) == TEXT("Client"))
+	const UProjectPackagingSettings::FConfigurationInfo& Info = UProjectPackagingSettings::ConfigurationInfo[PackagingSettings->BuildConfiguration];
+	if (Info.TargetType == EBuildTargetType::Client)
 	{
 		OptionalParams += TEXT(" -client");
-		Configuration = Configuration.LeftChop(6);
+	}
+	else if (Info.TargetType == EBuildTargetType::Server)
+	{
+		OptionalParams += TEXT(" -server");
 	}
 
 	FString ProjectPath = FPaths::IsProjectFilePathSet() ? FPaths::ConvertRelativePathToFull(FPaths::GetProjectFilePath()) : FPaths::RootDir() / FApp::GetProjectName() / FApp::GetProjectName() + TEXT(".uproject");
@@ -748,7 +751,7 @@ void FMainFrameActionCallbacks::PackageProject( const FName InPlatformInfoName )
 		FApp::IsEngineInstalled() ? TEXT(" -installed") : TEXT(""),
 		*ProjectPath,
 		*PackagingSettings->StagingDirectory.Path,
-		*Configuration,
+		LexToString(Info.Configuration),
 		*FUnrealEdMisc::Get().GetExecutableForCommandlets(),
 		*OptionalParams
 	);

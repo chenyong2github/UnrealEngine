@@ -38,6 +38,10 @@
 	#include "/Engine/Private/AtmosphereCommon.ush"
 #endif
 
+#if MATERIAL_SKY_ATMOSPHERE && PROJECT_SUPPORT_SKY_ATMOSPHERE
+#include "/Engine/Private/SkyAtmosphereCommon.ush"
+#endif
+
 #include "/Engine/Private/PaniniProjection.ush"
 
 #if POST_PROCESS_MATERIAL
@@ -949,7 +953,7 @@ float4 MaterialExpressionAtmosphericFog(FMaterialPixelParameters Parameters, flo
 float3 MaterialExpressionAtmosphericLightVector(FMaterialPixelParameters Parameters)
 {
 #if MATERIAL_ATMOSPHERIC_FOG
-	return ResolvedView.AtmosphericFogSunDirection;
+	return ResolvedView.AtmosphereLightDirection[0].xyz;
 #else
 	return float3(0.f, 0.f, 0.f);
 #endif
@@ -958,9 +962,119 @@ float3 MaterialExpressionAtmosphericLightVector(FMaterialPixelParameters Paramet
 float3 MaterialExpressionAtmosphericLightColor(FMaterialPixelParameters Parameters)
 {
 #if MATERIAL_ATMOSPHERIC_FOG
-	return ResolvedView.AtmosphericFogSunColor;
+	return ResolvedView.AtmosphereLightColor[0].rgb;
 #else
 	return float3(0.f, 0.f, 0.f);
+#endif
+}
+
+float3 MaterialExpressionSkyAtmosphereLightIlluminance(FMaterialPixelParameters Parameters, uint LightIndex)
+{
+#if MATERIAL_SKY_ATMOSPHERE && PROJECT_SUPPORT_SKY_ATMOSPHERE
+	const float3 PlanetCenter = float3(0, 0, -ResolvedView.SkyAtmosphereBottomRadius);
+	const float3 WorldPos = GetWorldPosition(Parameters)*CM_TO_SKY_UNIT;
+	const float3 PlanetCenterToWorldPos = WorldPos - PlanetCenter;
+	const float WorldPosHeight = length(PlanetCenterToWorldPos);
+	const float3 UpVector = PlanetCenterToWorldPos / WorldPosHeight;
+	const float SunZenithCosAngle = dot(ResolvedView.AtmosphereLightDirection[LightIndex].xyz, UpVector);
+
+	float2 TransmittanceLutUv;
+	getTransmittanceLutUvs(WorldPosHeight, SunZenithCosAngle, ResolvedView.SkyAtmosphereBottomRadius, ResolvedView.SkyAtmosphereTopRadius, TransmittanceLutUv);
+	return ResolvedView.AtmosphereLightColor[LightIndex].rgb * Texture2DSampleLevel(View.TransmittanceLutTexture, View.TransmittanceLutTextureSampler, TransmittanceLutUv, 0.0f).rgb;
+#else
+	return float3(0.0f, 0.0f, 0.0f);
+#endif
+}
+
+float3 MaterialExpressionSkyAtmosphereLightDirection(FMaterialPixelParameters Parameters, uint LightIndex)
+{
+#if MATERIAL_SKY_ATMOSPHERE && PROJECT_SUPPORT_SKY_ATMOSPHERE
+	return ResolvedView.AtmosphereLightDirection[LightIndex].xyz;
+#else
+	return float3(0.0f, 0.0f, 0.0f);
+#endif
+}
+
+float3 MaterialExpressionSkyAtmosphereLightDiskLuminance(FMaterialPixelParameters Parameters, uint LightIndex)
+{
+#if MATERIAL_SKY_ATMOSPHERE && PROJECT_SUPPORT_SKY_ATMOSPHERE
+	const float3 PlanetCenter = float3(0, 0, -ResolvedView.SkyAtmosphereBottomRadius);
+	const float3 PlanetCenterToWorldCameraPos = ResolvedView.SkyWorldCameraOrigin * CM_TO_SKY_UNIT - PlanetCenter;
+	const float3 ViewDir = -Parameters.CameraVector;
+
+	return GetLightDiskLuminance(PlanetCenterToWorldCameraPos, ViewDir, ResolvedView.SkyAtmosphereBottomRadius, ResolvedView.SkyAtmosphereTopRadius,
+		View.TransmittanceLutTexture, View.TransmittanceLutTextureSampler,
+		ResolvedView.AtmosphereLightDirection[LightIndex].xyz, ResolvedView.AtmosphereLightDiscCosHalfApexAngle[LightIndex].x, ResolvedView.AtmosphereLightDiscLuminance[LightIndex].xyz);
+#else
+	return float3(0.0f, 0.0f, 0.0f);
+#endif
+}
+
+float3 MaterialExpressionSkyAtmosphereViewLuminance(FMaterialPixelParameters Parameters)
+{
+#if MATERIAL_SKY_ATMOSPHERE && PROJECT_SUPPORT_SKY_ATMOSPHERE
+	const float3 PlanetCenter = float3(0, 0, -ResolvedView.SkyAtmosphereBottomRadius);
+	const float3 PlanetCenterToWorldCameraPos = ResolvedView.SkyWorldCameraOrigin * CM_TO_SKY_UNIT - PlanetCenter;
+	const float ViewHeight = length(PlanetCenterToWorldCameraPos);
+	const float3 ViewDir = -Parameters.CameraVector;
+
+	// The referencial used to build the Sky View lut
+	float3x3 LocalReferencial = GetSkyViewLutReferential(PlanetCenterToWorldCameraPos, ResolvedView.ViewForward);
+	// Compute inputs in this referential
+	float3 WorldPosLocal = float3(0.0, 0.0, ViewHeight);
+	float3 UpVectorLocal = float3(0.0, 0.0, 1.0);
+	float3 WorldDirLocal = mul(ViewDir, LocalReferencial);
+	float ViewZenithCosAngle = dot(WorldDirLocal, UpVectorLocal);
+
+	float2 Sol = RayIntersectSphere(WorldPosLocal, WorldDirLocal, float4(0.0f, 0.0f, 0.0f, ResolvedView.SkyAtmosphereBottomRadius));
+	const bool IntersectGround = any(Sol > 0.0f);
+
+	float2 SkyViewLutUv;
+	SkyViewLutParamsToUv(IntersectGround, ViewZenithCosAngle, WorldDirLocal, ViewHeight, ResolvedView.SkyAtmosphereBottomRadius, ResolvedView.SkyViewLutSizeAndInvSize, SkyViewLutUv);
+	float3 SkyAtmosphereViewLuminance = Texture2DSampleLevel(View.SkyViewLutTexture, View.SkyViewLutTextureSampler, SkyViewLutUv, 0.0f).rgb;
+#if USE_PREEXPOSURE
+	SkyAtmosphereViewLuminance *= ResolvedView.OneOverPreExposure;
+#endif
+	return SkyAtmosphereViewLuminance;
+#else
+	return float3(0.0f, 0.0f, 0.0f);
+#endif
+}
+
+float4 MaterialExpressionSkyAtmosphereAerialPerspective(FMaterialPixelParameters Parameters)
+{
+#if MATERIAL_SKY_ATMOSPHERE && PROJECT_SUPPORT_SKY_ATMOSPHERE
+	const float OneOverPreExposure = USE_PREEXPOSURE ? ResolvedView.OneOverPreExposure : 1.0f;
+
+	const float3 PlanetCenter = float3(0, 0, -ResolvedView.SkyAtmosphereBottomRadius);
+	const float3 WorldPos = Parameters.AbsoluteWorldPosition.xyz*CM_TO_SKY_UNIT;
+	const float3 CameraPos = ResolvedView.SkyWorldCameraOrigin.xyz*CM_TO_SKY_UNIT;
+
+	float4 NDCPosition = mul(float4(Parameters.AbsoluteWorldPosition.xyz, 1), ResolvedView.WorldToClip); // Because SvPosition seems different...
+
+	float4 FogToApplyOver = 1.0f;
+	float4 AerialPerspective = GetAerialPerspectiveLuminanceTransmittance(
+		NDCPosition, WorldPos, CameraPos,
+		View.CameraAerialPerspectiveVolume, View.CameraAerialPerspectiveVolumeSampler,
+		ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolutionInv,
+		ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolution,
+		ResolvedView.SkyAtmosphereAerialPerspectiveStartDepth,
+		ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLength,
+		ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthInv,
+		OneOverPreExposure);
+	return AerialPerspective;
+#else
+	return float4(0.0f, 0.0f, 0.0f, 1.0f); // RGB= null scattering, A= null transmittance
+#endif
+}
+
+float3 MaterialExpressionSkyAtmosphereDistantLightScatteredLuminance(FMaterialPixelParameters Parameters)
+{
+#if MATERIAL_SKY_ATMOSPHERE && PROJECT_SUPPORT_SKY_ATMOSPHERE
+	// TODO load on platforms supporting it
+	return Texture2DSampleLevel(View.DistantSkyLightLutTexture, View.DistantSkyLightLutTextureSampler, float2(0.5f, 0.5f), 0.0f).rgb;
+#else
+	return float3(0.0f, 0.0f, 0.0f);
 #endif
 }
 

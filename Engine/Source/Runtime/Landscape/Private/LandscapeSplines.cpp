@@ -1694,6 +1694,8 @@ void ULandscapeSplineControlPoint::UpdateSplinePoints(bool bUpdateCollision, boo
 	{
 		MeshComponent = nullptr;
 		ForeignWorld = nullptr;
+
+		AutoSetConnections(false);
 	}
 
 	// Destroy any unused components

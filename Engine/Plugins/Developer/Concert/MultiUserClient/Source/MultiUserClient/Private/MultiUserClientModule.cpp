@@ -844,9 +844,9 @@ private:
 		FString ServerPath = FPlatformProcess::GenerateApplicationPath(MultiUserServerName, FApp::GetBuildConfiguration());
 
 		// Validate it exists and fall back to development if it doesn't.
-		if (!IFileManager::Get().FileExists(*ServerPath) && FApp::GetBuildConfiguration() != EBuildConfigurations::Development)
+		if (!IFileManager::Get().FileExists(*ServerPath) && FApp::GetBuildConfiguration() != EBuildConfiguration::Development)
 		{
-			ServerPath = FPlatformProcess::GenerateApplicationPath(MultiUserServerName, EBuildConfigurations::Development);
+			ServerPath = FPlatformProcess::GenerateApplicationPath(MultiUserServerName, EBuildConfiguration::Development);
 		}
 
 		return FPlatformProcess::IsApplicationRunning(*FPaths::GetCleanFilename(ServerPath));
@@ -876,9 +876,9 @@ private:
 		FString ServerPath = FPlatformProcess::GenerateApplicationPath(MultiUserServerName, FApp::GetBuildConfiguration());
 
 		// Validate it exists and fall back to development if it doesn't
-		if (!IFileManager::Get().FileExists(*ServerPath) && FApp::GetBuildConfiguration() != EBuildConfigurations::Development)
+		if (!IFileManager::Get().FileExists(*ServerPath) && FApp::GetBuildConfiguration() != EBuildConfiguration::Development)
 		{
-			ServerPath = FPlatformProcess::GenerateApplicationPath(MultiUserServerName, EBuildConfigurations::Development);
+			ServerPath = FPlatformProcess::GenerateApplicationPath(MultiUserServerName, EBuildConfiguration::Development);
 		}
 		
 		FText LaunchMultiUserErrorTitle = LOCTEXT("LaunchUnrealMultiUserServerErrorTitle", "Failed to Launch the Unreal Multi-User Server");

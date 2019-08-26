@@ -576,6 +576,15 @@ FTimeSynthClipHandle UTimeSynthComponent::PlayClip(UTimeSynthClip* InClip, UTime
 		return FTimeSynthClipHandle();
 	}
 
+	const bool bNoFadeIn = InClip->FadeInTime.IsZeroDuration();
+	const bool bNoDuration = InClip->ClipDuration.IsZeroDuration();
+	const bool bNoFadeOut = !InClip->bApplyFadeOut || InClip->FadeOutTime.IsZeroDuration();
+	if (bNoFadeIn && bNoDuration && bNoFadeOut)
+	{
+		UE_LOG(LogTimeSynth, Warning, TEXT("Failed to play clip: no duration or fade in/out set."));
+		return FTimeSynthClipHandle();
+	}
+
 	if (!bIsActive)
 	{
 		SetActive(true);

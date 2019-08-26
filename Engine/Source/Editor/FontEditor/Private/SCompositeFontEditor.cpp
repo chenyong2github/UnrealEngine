@@ -1761,7 +1761,7 @@ void SFontScalingFactorEditor::Construct(const FArguments& InArgs)
 		.AutoWidth()
 		[
 			SNew(SNumericEntryBox<float>)
-			.ToolTipText(LOCTEXT("ScalingFactorTooltip", "The scaling factor will adjust the size of the rendered glyphs so that you can tweak their size to match that of the default font family"))
+			.ToolTipText(LOCTEXT("ScalingFactorTooltip", "The scaling factor will adjust the size of the rendered glyphs so that you can tweak their size to match that of the default font family\nNote: Only applies to scalable font formats (ie, not to bitmap fonts)"))
 			.Value(this, &SFontScalingFactorEditor::GetScalingFactorAsOptional)
 			.OnValueCommitted(this, &SFontScalingFactorEditor::OnScalingFactorCommittedAsNumeric)
 		]

@@ -16,6 +16,7 @@ ActorFactory.cpp:
 #include "Model.h"
 #include "ActorFactories/ActorFactoryAmbientSound.h"
 #include "ActorFactories/ActorFactoryAtmosphericFog.h"
+#include "ActorFactories/ActorFactorySkyAtmosphere.h"
 #include "ActorFactories/ActorFactoryBlueprint.h"
 #include "ActorFactories/ActorFactoryBoxReflectionCapture.h"
 #include "ActorFactories/ActorFactoryBoxVolume.h"
@@ -92,6 +93,7 @@ ActorFactory.cpp:
 #include "VectorField/VectorFieldVolume.h"
 #include "Components/DecalComponent.h"
 #include "Components/BillboardComponent.h"
+#include "Components/SkyAtmosphereComponent.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
 #include "Engine/Polys.h"
@@ -1600,6 +1602,16 @@ UActorFactoryAtmosphericFog::UActorFactoryAtmosphericFog(const FObjectInitialize
 }
 
 /*-----------------------------------------------------------------------------
+UActorFactorySkyAtmosphere
+-----------------------------------------------------------------------------*/
+UActorFactorySkyAtmosphere::UActorFactorySkyAtmosphere(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	DisplayName = LOCTEXT("SkyAtmosphereDisplayName", "Sky Atmosphere");
+	NewActorClass = ASkyAtmosphere::StaticClass();
+}
+
+/*-----------------------------------------------------------------------------
 UActorFactoryExponentialHeightFog
 -----------------------------------------------------------------------------*/
 UActorFactoryExponentialHeightFog::UActorFactoryExponentialHeightFog(const FObjectInitializer& ObjectInitializer)
@@ -1895,14 +1907,14 @@ UActorFactoryRuntimeVirtualTextureVolume
 UActorFactoryRuntimeVirtualTextureVolume::UActorFactoryRuntimeVirtualTextureVolume(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	DisplayName = LOCTEXT("VirtualTextureVolume_DisplayName", "Virtual Texture Volume");
+	DisplayName = LOCTEXT("VirtualTextureVolume_DisplayName", "Runtime Virtual Texture Volume");
 	NewActorClass = ARuntimeVirtualTextureVolume::StaticClass();
 	bShowInEditorQuickMenu = 1;
 }
 
 void UActorFactoryRuntimeVirtualTextureVolume::PostSpawnActor(UObject* Asset, AActor* NewActor)
 {
-	FText ActorName = LOCTEXT("VirtualTextureVolume_DefaultActorName", "Virtual Texture Volume");
+	FText ActorName = LOCTEXT("VirtualTextureVolume_DefaultActorName", "Runtime Virtual Texture Volume");
 	NewActor->SetActorLabel(ActorName.ToString());
 
 	// Good default size to see object in editor

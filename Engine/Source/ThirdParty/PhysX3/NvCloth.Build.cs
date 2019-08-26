@@ -111,8 +111,7 @@ public class NvCloth : ModuleRules
 		// Libraries and DLLs for windows platform
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			NvClothLibDir += "/Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-			PublicLibraryPaths.Add(NvClothLibDir);
+			NvClothLibDir += "/Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
             
             string[] StaticLibrariesX64 = new string[]
             {
@@ -131,7 +130,7 @@ public class NvCloth : ModuleRules
 
             foreach(string Lib in StaticLibrariesX64)
             {
-                PublicAdditionalLibraries.Add(String.Format(Lib, LibrarySuffix));
+                PublicAdditionalLibraries.Add(NvClothLibDir + String.Format(Lib, LibrarySuffix));
             }
 
             foreach(string DLL in DelayLoadDLLsX64)
@@ -154,8 +153,7 @@ public class NvCloth : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win32)
 		{
-            NvClothLibDir += "/Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-            PublicLibraryPaths.Add(NvClothLibDir);
+            NvClothLibDir += "/Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
 
             string[] StaticLibrariesX64 = new string[]
             {
@@ -174,7 +172,7 @@ public class NvCloth : ModuleRules
 
             foreach (string Lib in StaticLibrariesX64)
             {
-                PublicAdditionalLibraries.Add(String.Format(Lib, LibrarySuffix));
+                PublicAdditionalLibraries.Add(NvClothLibDir + String.Format(Lib, LibrarySuffix));
             }
 
             foreach (string DLL in DelayLoadDLLsX64)
@@ -226,30 +224,28 @@ public class NvCloth : ModuleRules
 		{
             if (Target.Architecture != "arm-unknown-linux-gnueabihf")
             {
-                NvClothLibDir += "/Linux/" + Target.Architecture;
+                NvClothLibDir += "/Linux/" + Target.Architecture + "/";
 
                 NvClothLibraries.Add("NvCloth{0}");
 
-                LibraryFormatString = NvClothLibDir + "/lib{0}" + ".a";
+                LibraryFormatString = "lib{0}" + ".a";
             }
         }
 		else if (Target.Platform == UnrealTargetPlatform.PS4)
 		{
-			NvClothLibDir += "/PS4";
-			PublicLibraryPaths.Add(NvClothLibDir);
+			NvClothLibDir += "/PS4/";
 
             NvClothLibraries.Add("NvCloth{0}");
 
-			LibraryFormatString = "{0}";
+			LibraryFormatString = "lib{0}.a";
 		}
         else if (Target.Platform == UnrealTargetPlatform.Switch)
         {
-            NvClothLibDir += "/Switch";
-            PublicLibraryPaths.Add(NvClothLibDir);
+            NvClothLibDir += "/Switch/";
 
             NvClothLibraries.Add("NvCloth{0}");
 
-            LibraryFormatString = "{0}";
+            LibraryFormatString = "lib{0}.a";
         }
         else if (Target.Platform == UnrealTargetPlatform.XboxOne)
 		{
@@ -258,9 +254,7 @@ public class NvCloth : ModuleRules
 			// This MUST be defined for XboxOne!
 			PublicDefinitions.Add("PX_HAS_SECURE_STRCPY=1");
 
-			NvClothLibDir += "/XboxOne/VS2015";
-			PublicLibraryPaths.Add(NvClothLibDir);
-
+			NvClothLibDir += "/XboxOne/VS2015/";
             NvClothLibraries.Add("NvCloth{0}");
 
 			LibraryFormatString = "{0}.lib";
@@ -273,7 +267,7 @@ public class NvCloth : ModuleRules
 			{
 				string ConfiguredLib = String.Format(Lib, LibrarySuffix);
 				string FinalLib = String.Format(LibraryFormatString, ConfiguredLib);
-				PublicAdditionalLibraries.Add(FinalLib);
+				PublicAdditionalLibraries.Add(NvClothLibDir + FinalLib);
 			}
 		}
 	}

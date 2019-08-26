@@ -446,6 +446,12 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 	uint32 bUsePreExposure : 1;
 
 	UPROPERTY(config, EditAnywhere, Category = DefaultSettings, meta = (
+		EditCondition = "bUsePreExposure", ConsoleVariable = "r.EyeAdaptation.EditorOnly", DisplayName = "Enable pre-exposure only in the editor",
+		ToolTip = "Whether pre-exposure should be an editor only feature. This is to because it currently has an impact on the renderthread performance.",
+		ConfigRestartRequired=false))
+	uint32 bEnablePreExposureOnlyInTheEditor : 1;
+
+	UPROPERTY(config, EditAnywhere, Category = DefaultSettings, meta = (
 		ConsoleVariable = "r.DefaultFeature.MotionBlur", DisplayName = "Motion Blur",
 		ToolTip = "Whether the default for MotionBlur is enabled or not (postprocess volume/camera/game setting can still override and enable or disable it independently)"))
 	uint32 bDefaultFeatureMotionBlur : 1;
@@ -647,6 +653,25 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConsoleVariable = "r.SupportAtmosphericFog", DisplayName = "Support Atmospheric Fog",	
 		ConfigRestartRequired = true))
 		uint32 bSupportAtmosphericFog : 1;
+
+	/**
+	"The sky atmosphere component requires extra samplers/textures to be bound to apply aerial perspective on transparent surfaces (and all surfaces on mobile via per vertex evaluation)." 
+	*/
+	UPROPERTY(config, EditAnywhere, Category = ShaderPermutationReduction, meta = (
+		ConsoleVariable = "r.SupportSkyAtmosphere", DisplayName = "Support Sky Atmosphere",
+		ToolTip = "The sky atmosphere component requires extra samplers/textures to be bound to apply aerial perspective on transparent surfaces (and all surfaces on mobile via per vertex evaluation).",
+		ConfigRestartRequired = true))
+		uint32 bSupportSkyAtmosphere : 1;
+
+	/**
+	"The sky atmosphere component can light up the height fog but it requires extra samplers/textures to be bound to apply aerial perspective on transparent surfaces (and all surfaces on mobile via per vertex evaluation)."
+	"It requires r.SupportSkyAtmosphere to be true."
+	*/
+	UPROPERTY(config, EditAnywhere, Category = ShaderPermutationReduction, meta = (
+		ConsoleVariable = "r.SupportSkyAtmosphereAffectsHeightFog", DisplayName = "Support Sky Atmosphere Affecting Height Fog",
+		ToolTip = "The sky atmosphere component can light up the height fog but it requires extra samplers/textures to be bound to apply aerial perspective on transparent surfaces (and all surfaces on mobile via per vertex evaluation). It requires r.SupportSkyAtmosphere to be true.",
+		ConfigRestartRequired = true))
+		uint32 bSupportSkyAtmosphereAffectsHeightFog : 1;
 
 	/**
 	"Skincache allows a compute shader to skin once each vertex, save those results into a new buffer and reuse those calculations when later running the depth, base and velocity passes. This also allows opting into the 'recompute tangents' for skinned mesh instance feature. Disabling will reduce the number of shader permutations required per material. Changing this setting requires restarting the editor."

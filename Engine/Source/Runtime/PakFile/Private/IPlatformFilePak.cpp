@@ -348,6 +348,13 @@ static_assert((PAK_CACHE_GRANULARITY % FPakInfo::MaxChunkDataSize) == 0, "PAK_CA
 DECLARE_MEMORY_STAT(TEXT("PakCache Current"), STAT_PakCacheMem, STATGROUP_Memory);
 DECLARE_MEMORY_STAT(TEXT("PakCache High Water"), STAT_PakCacheHighWater, STATGROUP_Memory);
 
+#if CSV_PROFILER
+volatile int64 GPreCacheHotBlocksCount = 0;
+volatile int64 GPreCacheColdBlocksCount = 0;
+volatile int64 GPreCacheTotalLoaded = 0;
+int64 GPreCacheTotalLoadedLastTick = 0;
+#endif
+
 DECLARE_FLOAT_ACCUMULATOR_STAT(TEXT("PakCache Signing Chunk Hash Time"), STAT_PakCache_SigningChunkHashTime, STATGROUP_PakFile);
 DECLARE_MEMORY_STAT(TEXT("PakCache Signing Chunk Hash Size"), STAT_PakCache_SigningChunkHashSize, STATGROUP_PakFile);
 
@@ -2290,6 +2297,10 @@ private: // below here we assume CachedFilesScopeLock until we get to the next s
 		RequestsToLower[IndexToFill].Memory = nullptr;
 		check(&CacheBlockAllocator.Get(RequestsToLower[IndexToFill].BlockIndex) == &Block);
 
+#if USE_PAK_PRECACHE && CSV_PROFILER
+		FPlatformAtomics::InterlockedAdd(&GPreCacheTotalLoaded, Block.Size);
+#endif
+
         // FORT HACK
         // DO NOT BRING BACK
         // FORT HACK
@@ -2565,14 +2576,22 @@ public:
 		check(!OutstandingRequests.Contains(Request.UniqueID));
 		OutstandingRequests.Add(Request.UniqueID, RequestIndex);
 		RequestCounter.Increment();
+
 		if (AddRequest(RequestIndex))
 		{
+#if USE_PAK_PRECACHE && CSV_PROFILER
+			FPlatformAtomics::InterlockedIncrement(&GPreCacheHotBlocksCount);
+#endif
 			UE_LOG(LogPakFile, Verbose, TEXT("FPakReadRequest[%016llX, %016llX) QueueRequest HOT"), RequestOffsetAndPakIndex, RequestOffsetAndPakIndex + Request.Size);
 		}
 		else
 		{
+#if USE_PAK_PRECACHE && CSV_PROFILER
+			FPlatformAtomics::InterlockedIncrement(&GPreCacheColdBlocksCount);
+#endif
 			UE_LOG(LogPakFile, Verbose, TEXT("FPakReadRequest[%016llX, %016llX) QueueRequest COLD"), RequestOffsetAndPakIndex, RequestOffsetAndPakIndex + Request.Size);
 		}
+
 		TrimCache();
 		return true;
 	}
@@ -4080,7 +4099,18 @@ void FPakPlatformFile::Tick()
 	if (PakPrecacherSingleton != nullptr)
 	{
 		CSV_CUSTOM_STAT(FileIO, PakPrecacherRequests, FPakPrecacher::Get().GetRequestCount(), ECsvCustomStatOp::Set);
-	}
+		CSV_CUSTOM_STAT(FileIO, PakPrecacherHotBlocksCount, (int32)GPreCacheHotBlocksCount, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(FileIO, PakPrecacherColdBlocksCount, (int32)GPreCacheColdBlocksCount, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(FileIO, PakPrecacherTotalLoadedMB, (int32)(GPreCacheTotalLoaded/(1024*1024)), ECsvCustomStatOp::Set);
+
+		if (GPreCacheTotalLoadedLastTick != 0)
+		{
+			int64 diff = GPreCacheTotalLoaded - GPreCacheTotalLoadedLastTick;
+			diff /= 1024;
+			CSV_CUSTOM_STAT(FileIO, PakPrecacherPerFrameKB, (int32)diff, ECsvCustomStatOp::Set);
+		}
+		GPreCacheTotalLoadedLastTick = GPreCacheTotalLoaded;
+}
 #endif
 }
 

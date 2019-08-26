@@ -46,6 +46,10 @@ public:
 	/** INTERNAL - check if a push notification payload passes all registered filters */
 	static bool PassesPushNotificationFilters(NSDictionary* Payload);
 
+	/** INTERNAL - called when entering the background - this is not thread-safe with the game thread or render thread as it is called from the app's Main thread */
+	DECLARE_MULTICAST_DELEGATE(FOnWillResignActive);
+	static FOnWillResignActive OnWillResignActive;
+
 private:
 	struct FFilterDelegateAndHandle
 	{

@@ -305,6 +305,14 @@ bool FD3D11DynamicRHI::GetQueryData(ID3D11Query* Query, void* Data, SIZE_T DataS
 		do
 		{
 			SAFE_GET_QUERY_DATA
+
+			if(Result == S_OK)
+			{
+				return true;
+			}
+
+
+
 			float DeltaTime = FPlatformTime::Seconds() - StartTime;
 			if(DeltaTime > TimeoutWarningLimit)
 			{
@@ -314,7 +322,11 @@ bool FD3D11DynamicRHI::GetQueryData(ID3D11Query* Query, void* Data, SIZE_T DataS
 
 			if(DeltaTime > TimeoutValue)
 			{
-				UE_LOG(LogD3D11RHI, Log, TEXT("Timed out while waiting for GPU to catch up. (%.1f s)"), TimeoutValue);
+				UE_LOG(LogD3D11RHI, Log, TEXT("Timed out while waiting for GPU to catch up. (%.1f s) (ErrorCode %08x)"), TimeoutValue, (uint32)Result);
+				if(FAILED(Result))
+				{
+					VERIFYD3D11RESULT_EX(Result, Direct3DDevice);
+				}
 				return false;
 			}
 		} while ( Result == S_FALSE );

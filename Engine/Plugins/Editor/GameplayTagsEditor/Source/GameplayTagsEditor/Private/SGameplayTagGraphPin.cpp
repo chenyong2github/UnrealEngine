@@ -2,10 +2,9 @@
 
 #include "SGameplayTagGraphPin.h"
 #include "Widgets/Input/SComboButton.h"
-#include "K2Node_CallFunction.h"
 #include "GameplayTagsModule.h"
 #include "Widgets/Layout/SScaleBox.h"
-#include "K2Node_VariableSet.h"
+#include "GameplayTagPinUtilities.h"
 
 #define LOCTEXT_NAMESPACE "GameplayTagGraphPin"
 
@@ -46,26 +45,7 @@ void SGameplayTagGraphPin::ParseDefaultValueData()
 {
 	FString TagString = GraphPinObj->GetDefaultAsString();
 
-	FilterString.Empty();
-	if (UScriptStruct* PinStructType = Cast<UScriptStruct>(GraphPinObj->PinType.PinSubCategoryObject.Get()))
-	{
-		FilterString = UGameplayTagsManager::Get().GetCategoriesMetaFromField(PinStructType);
-	}
-
-	if (FilterString.IsEmpty())
-	{
-		if (UK2Node_CallFunction* CallFuncNode = Cast<UK2Node_CallFunction>(GraphPinObj->GetOwningNode()))
-		{
-			if (UFunction* ThisFunction = CallFuncNode->GetTargetFunction())
-			{
-				FilterString = UGameplayTagsManager::Get().GetCategoriesMetaFromFunction(ThisFunction);
-			}
-		}
-		else if (UK2Node_VariableSet* ThisVariable = Cast<UK2Node_VariableSet>(GraphPinObj->GetOwningNode()))
-		{
-			FilterString = UGameplayTagsManager::Get().GetCategoriesMetaFromField(ThisVariable->GetPropertyForVariable());
-		}
-	}
+	FilterString = GameplayTagPinUtilities::ExtractTagFilterStringFromGraphPin(GraphPinObj);
 
 	if (TagString.StartsWith(TEXT("(")) && TagString.EndsWith(TEXT(")")))
 	{

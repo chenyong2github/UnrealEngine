@@ -23,7 +23,7 @@
  *
  * The first parameter is the selected build configuration.
  */
-DECLARE_DELEGATE_OneParam(FOnSessionSProjectLauncherBuildConfigurationSelected, EBuildConfigurations::Type)
+DECLARE_DELEGATE_OneParam(FOnSessionSProjectLauncherBuildConfigurationSelected, EBuildConfiguration)
 
 
 /**
@@ -55,16 +55,16 @@ public:
 		struct FConfigInfo
 		{
 			FText ToolTip;
-			EBuildConfigurations::Type Configuration;
+			EBuildConfiguration Configuration;
 		};
 
 		const FConfigInfo Configurations[] =
 		{
-			{LOCTEXT("DebugActionHint", "Debug configuration."), EBuildConfigurations::Debug},
-			{LOCTEXT("DebugGameActionHint", "DebugGame configuration."), EBuildConfigurations::DebugGame},
-			{LOCTEXT("DevelopmentActionHint", "Development configuration."), EBuildConfigurations::Development},
-			{LOCTEXT("ShippingActionHint", "Shipping configuration."), EBuildConfigurations::Shipping},
-			{LOCTEXT("TestActionHint", "Test configuration."), EBuildConfigurations::Test}
+			{LOCTEXT("DebugActionHint", "Debug configuration."), EBuildConfiguration::Debug},
+			{LOCTEXT("DebugGameActionHint", "DebugGame configuration."), EBuildConfiguration::DebugGame},
+			{LOCTEXT("DevelopmentActionHint", "Development configuration."), EBuildConfiguration::Development},
+			{LOCTEXT("ShippingActionHint", "Shipping configuration."), EBuildConfiguration::Shipping},
+			{LOCTEXT("TestActionHint", "Test configuration."), EBuildConfiguration::Test}
 		};
 
 		// create build configurations menu
@@ -104,7 +104,7 @@ public:
 private:
 
 	// Callback for clicking a menu entry.
-	void HandleMenuEntryClicked( EBuildConfigurations::Type Configuration )
+	void HandleMenuEntryClicked( EBuildConfiguration Configuration )
 	{
 		OnConfigurationSelected.ExecuteIfBound(Configuration);
 	}

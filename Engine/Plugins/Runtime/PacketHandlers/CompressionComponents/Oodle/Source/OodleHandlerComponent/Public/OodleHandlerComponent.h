@@ -304,6 +304,11 @@ public:
 	void InitializeDictionaries();
 
 	/**
+	 * Lazy dictionary initialization, triggered by receiving a compressed packet from the remote connection
+	 */
+	void RemoteInitializeDictionaries();
+
+	/**
 	 * Initializes FOodleDictionary data, from the specified dictionary file
 	 *
 	 * @param FilePath			The dictionary file path

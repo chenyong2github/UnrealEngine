@@ -327,9 +327,6 @@ class ENGINE_API USoundWave : public USoundBase
 	/** Set to true for programmatically-generated, streamed audio. */
 	uint8 bProcedural:1;
 
-	/** Whether this sound wave is beginning to be destroyed by GC. */
-	uint8 bIsBeginDestroy:1;
-
 	/** Set to true of this is a bus sound source. This will result in the sound wave not generating audio for itself, but generate audio through instances. Used only in audio mixer. */
 	uint8 bIsBus:1;
 

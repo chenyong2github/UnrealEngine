@@ -2727,7 +2727,7 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeSessionViewOptionsBar()
 		FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, nullptr);
 
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ActiveSessions", "Active Sessions"),
+			LOCTEXT("ActiveSessions_Label", "Active Sessions"),
 			LOCTEXT("ActiveSessions_Tooltip", "Displays Active Sessions"),
 			FSlateIcon(),
 			FUIAction(
@@ -2739,7 +2739,7 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeSessionViewOptionsBar()
 		);
 
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ArchivedSessions", "Archived Sessions"),
+			LOCTEXT("ArchivedSessions_Label", "Archived Sessions"),
 			LOCTEXT("ArchivedSessions_Tooltip", "Displays Archived Sessions"),
 			FSlateIcon(),
 			FUIAction(
@@ -2751,7 +2751,7 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeSessionViewOptionsBar()
 		);
 
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("DefaultServer", "Default Server Sessions"),
+			LOCTEXT("DefaultServer_Label", "Default Server Sessions"),
 			LOCTEXT("DefaultServer_Tooltip", "Displays Sessions Hosted By the Default Server"),
 			FSlateIcon(),
 			FUIAction(

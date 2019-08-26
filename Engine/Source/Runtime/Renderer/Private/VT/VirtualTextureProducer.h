@@ -6,6 +6,7 @@
 #include "VirtualTextureShared.h"
 #include "RendererInterface.h"
 #include "VirtualTexturing.h"
+#include "VirtualTexturePhysicalSpace.h"
 
 class FVirtualTextureSystem;
 class FVirtualTexturePhysicalSpace;
@@ -13,7 +14,7 @@ class FVirtualTexturePhysicalSpace;
 class FVirtualTextureProducer
 {
 public:
-	FVirtualTextureProducer() : VirtualTexture(nullptr) { FMemory::Memzero(PhysicalSpace); }
+	FVirtualTextureProducer() : VirtualTexture(nullptr) {}
 
 	void Release(FVirtualTextureSystem* System, const FVirtualTextureProducerHandle& HandleToSelf);
 
@@ -30,10 +31,10 @@ public:
 
 private:
 	friend class FVirtualTextureProducerCollection;
-	~FVirtualTextureProducer() {}
+	~FVirtualTextureProducer();
 
 	IVirtualTexture* VirtualTexture;
-	FVirtualTexturePhysicalSpace* PhysicalSpace[VIRTUALTEXTURE_SPACE_MAXLAYERS];
+	TRefCountPtr<FVirtualTexturePhysicalSpace> PhysicalSpace[VIRTUALTEXTURE_SPACE_MAXLAYERS];
 	FVTProducerDescription Description;
 };
 
