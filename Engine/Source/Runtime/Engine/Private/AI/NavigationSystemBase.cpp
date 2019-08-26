@@ -36,10 +36,9 @@ namespace FNavigationSystem
 		}
 	}
 
-
-	void AddNavigationSystemToWorld(UWorld& WorldOwner, const FNavigationSystemRunMode RunMode, UNavigationSystemConfig* NavigationSystemConfig, const bool bInitializeForWorld)
+	void AddNavigationSystemToWorld(UWorld& WorldOwner, const FNavigationSystemRunMode RunMode, UNavigationSystemConfig* NavigationSystemConfig, const bool bInitializeForWorld, const bool bOverridePreviousNavSys)
 	{
-		if (WorldOwner.GetNavigationSystem() == nullptr)
+		if (WorldOwner.GetNavigationSystem() == nullptr || bOverridePreviousNavSys)
 		{
 			if (NavigationSystemConfig == nullptr)
 			{
@@ -50,11 +49,11 @@ namespace FNavigationSystem
 				}
 			}
 
-			if (NavigationSystemConfig)
-			{
-				UNavigationSystemBase* NavSysInstance = NavigationSystemConfig->CreateAndConfigureNavigationSystem(WorldOwner);
-				WorldOwner.SetNavigationSystem(NavSysInstance);
-			}
+			UNavigationSystemBase* NavSysInstance = NavigationSystemConfig 
+				? NavigationSystemConfig->CreateAndConfigureNavigationSystem(WorldOwner)
+				: nullptr;
+			// we're setting to an instance or null, both are correct
+			WorldOwner.SetNavigationSystem(NavSysInstance);			
 		}
 
 		if (bInitializeForWorld)
