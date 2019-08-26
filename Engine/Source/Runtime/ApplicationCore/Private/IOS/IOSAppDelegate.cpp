@@ -62,7 +62,7 @@ FIOSCoreDelegates::FOnOpenURL FIOSCoreDelegates::OnOpenURL;
 FIOSCoreDelegates::FOnWillResignActive FIOSCoreDelegates::OnWillResignActive;
 TArray<FIOSCoreDelegates::FFilterDelegateAndHandle> FIOSCoreDelegates::PushNotificationFilters;
 
-static bool GEnabledAudioFeatures[(uint8)EAudioFeature::NumFeatures];
+static uint GEnabledAudioFeatures[(uint8)EAudioFeature::NumFeatures];
 
 /*
 	From: https://developer.apple.com/library/ios/documentation/UIKit/Reference/UIApplicationDelegate_Protocol/#//apple_ref/occ/intfm/UIApplicationDelegate/applicationDidEnterBackground:
@@ -114,6 +114,59 @@ void InstallSignalHandlers()
 	sigaction(SIGBUS, &Action, NULL);
 	sigaction(SIGSEGV, &Action, NULL);
 	sigaction(SIGSYS, &Action, NULL);
+}
+
+void LexFromString(EAudioFeature& OutFeature, const TCHAR* String)
+{
+	OutFeature = EAudioFeature::NumFeatures;
+	if (FCString::Stricmp(String, TEXT("Playback")) == 0)
+	{
+		OutFeature = EAudioFeature::Playback;
+	}
+	else if (FCString::Stricmp(String, TEXT("Record")) == 0)
+	{
+		OutFeature = EAudioFeature::Record;
+	}
+	else if (FCString::Stricmp(String, TEXT("DoNotMixWithOthers")) == 0)
+	{
+		OutFeature = EAudioFeature::DoNotMixWithOthers;
+	}
+	else if (FCString::Stricmp(String, TEXT("VoiceChat")) == 0)
+	{
+		OutFeature = EAudioFeature::VoiceChat;
+	}
+	else if (FCString::Stricmp(String, TEXT("UseReceiver")) == 0)
+	{
+		OutFeature = EAudioFeature::UseReceiver;
+	}
+	else if (FCString::Stricmp(String, TEXT("DisableBluetoothSpeaker")) == 0)
+	{
+		OutFeature = EAudioFeature::DisableBluetoothSpeaker;
+	}
+	else if (FCString::Stricmp(String, TEXT("BluetoothMicrophone")) == 0)
+	{
+		OutFeature = EAudioFeature::BluetoothMicrophone;
+	}
+	else if (FCString::Stricmp(String, TEXT("BackgroundAudio")) == 0)
+	{
+		OutFeature = EAudioFeature::BackgroundAudio;
+	}
+}
+
+FString LexToString(EAudioFeature Feature)
+{
+	switch (Feature)
+	{
+	case EAudioFeature::Playback: return TEXT("Playback");
+	case EAudioFeature::Record: return TEXT("Record");
+	case EAudioFeature::DoNotMixWithOthers: return TEXT("DoNotMixWithOthers");
+	case EAudioFeature::VoiceChat: return TEXT("VoiceChat");
+	case EAudioFeature::UseReceiver: return TEXT("UseReceiver");
+	case EAudioFeature::DisableBluetoothSpeaker: return TEXT("DisableBluetoothSpeaker");
+	case EAudioFeature::BluetoothMicrophone: return TEXT("BluetoothMicrophone");
+	case EAudioFeature::BackgroundAudio: return TEXT("BackgroundAudio");
+	default: return FString();
+	}
 }
 
 FDelegateHandle FIOSCoreDelegates::AddPushNotificationFilter(const FPushNotificationFilter& FilterDel)
@@ -209,9 +262,7 @@ static IOSAppDelegate* CachedDelegate = nil;
 {
 	self = [super init];
 	CachedDelegate = self;
-	// default to old style
 	memset(GEnabledAudioFeatures, 0, sizeof(GEnabledAudioFeatures));
-	self.bHighQualityVoiceChatEnabled = false;
 	return self;
 }
 
@@ -261,7 +312,21 @@ static IOSAppDelegate* CachedDelegate = nil;
 	}
 
 	FAppEntry::Init();
-	
+
+	// now that GConfig has been loaded, load the EnabledAudioFeatures from ini
+	TArray<FString> EnabledAudioFeatures;
+	GConfig->GetArray(TEXT("Audio"), TEXT("EnabledAudioFeatures"), EnabledAudioFeatures, GEngineIni);
+	for (const FString& EnabledAudioFeature : EnabledAudioFeatures)
+	{
+		EAudioFeature Feature = EAudioFeature::NumFeatures;
+		LexFromString(Feature, *EnabledAudioFeature);
+		if (Feature != EAudioFeature::NumFeatures)
+		{
+			GEnabledAudioFeatures[static_cast<uint8>(Feature)] = 1;
+		}
+	}
+	[self ToggleAudioSession:true];
+
 	[self InitIdleTimerSettings];
 
 	bEngineInit = true;
@@ -485,7 +550,7 @@ static IOSAppDelegate* CachedDelegate = nil;
 				}
 
 				FAppEntry::Resume(true);
-				[self ToggleAudioSession:true force:true];
+				[self ToggleAudioSession:true];
 				break;
 		}
 	}];
@@ -538,269 +603,105 @@ static IOSAppDelegate* CachedDelegate = nil;
 			self.bForceEmitVolume = true;
 		});
 	
-	[self ToggleAudioSession:true force:true];
+	[self ToggleAudioSession:true];
 }
 
-- (void)ToggleAudioSession:(bool)bActive force:(bool)bForce
+- (void)ToggleAudioSession:(bool)bActive
 {
 	if(!self.bAudioSessionInitialized)
 	{
 		return;
 	}
 	
-	// @todo kairos: resolve old vs new before we go to main
-	if (false)
+	// set the AVAudioSession active if necessary
+	NSError* ActiveError = nil;
+	if (bActive)
 	{
-		// we can actually override bActive based on backgrounding behavior, as that's the only time we actually deactivate the session
-		// @todo kairos: is this a valid check?
-		bool bIsBackground = GIsSuspended;
-		bActive = !bIsBackground || [self IsFeatureActive:EAudioFeature::BackgroundAudio];
-		
-		NSError* ActiveError = nil;
-
-		// @todo maybe check the active states, not bForce?
-		if (self.bAudioActive != bActive || bForce)
+		[[AVAudioSession sharedInstance] setActive:bActive error:&ActiveError];
+		if (ActiveError)
 		{
-			if (bActive || bForce)
-			{
-				// get the category and settings to use
-				/*AVAudioSessionCategory*/NSString* Category = self.bAllowExternalAudio ? AVAudioSessionCategoryAmbient : AVAudioSessionCategorySoloAmbient;
-				/*AVAudioSessionMode*/NSString* Mode = AVAudioSessionModeDefault;
-				AVAudioSessionCategoryOptions Options = 0;
-
-				// attempt to mix with other apps if desired
-				if ([self IsFeatureActive:EAudioFeature::BackgroundAudio] || [self IsFeatureActive:EAudioFeature::ExternalAudio])
-				{
-					Options |= AVAudioSessionCategoryOptionMixWithOthers;
-				}
-
-				if ([self IsFeatureActive:EAudioFeature::VoiceChat] || ([self IsFeatureActive:EAudioFeature::Playback] && [self IsFeatureActive:EAudioFeature::Record]))
-				{
-					Category = AVAudioSessionCategoryPlayAndRecord;
-					
-					if ([self IsFeatureActive:EAudioFeature::VoiceChat])
-					{
-						Mode = self.bHighQualityVoiceChatEnabled ? AVAudioSessionModeVoiceChat : AVAudioSessionModeDefault;
-#if !PLATFORM_TVOS
-						// allow bluetooth for chatting and such
-						Options |= AVAudioSessionCategoryOptionDefaultToSpeaker | AVAudioSessionCategoryOptionAllowBluetooth | AVAudioSessionCategoryOptionAllowBluetoothA2DP;
-#endif
-					}
-				}
-				else if ([self IsFeatureActive:EAudioFeature::Playback])
-				{
-					Category = AVAudioSessionCategoryPlayback;
-				}
-				else if ([self IsFeatureActive:EAudioFeature::Record])
-				{
-					Category = AVAudioSessionCategoryRecord;
-				}
-				else if ([self IsFeatureActive:EAudioFeature::BackgroundAudio])
-				{
-					Category = AVAudioSessionCategoryRecord;
-				}
-				
-				// set the category (the most important part here)
-				[[AVAudioSession sharedInstance] setCategory:Category mode:Mode options:Options error:&ActiveError];
-				if (ActiveError)
-				{
-					UE_LOG(LogIOSAudioSession, Error, TEXT("Failed to set audio session category to %s! [Error = %s]"), *FString(Category), *FString([ActiveError description]));
-				}
-			}
-			
-			// enable or disable audio
-			[[AVAudioSession sharedInstance] setActive:bActive error:&ActiveError];
-			if (ActiveError)
-			{
-				UE_LOG(LogIOSAudioSession, Error, TEXT("Failed to set audio session to active = %d [Error = %s]"), bActive, *FString([ActiveError description]));
-			}
-			else
-			{
-				self.bAudioActive = bActive;
-			}
+			UE_LOG(LogIOSAudioSession, Error, TEXT("Failed to set audio session to active = %d [Error = %s]"), bActive, *FString([ActiveError description]));
 		}
 	}
-	// old style below
-	else if (bActive)
-	{
-        if (bForce || !self.bAudioActive)
-        {
-			bool bWasUsingBackgroundMusic = self.bUsingBackgroundMusic;
-			self.bUsingBackgroundMusic = [self IsBackgroundAudioPlaying];
-	
-			if (bWasUsingBackgroundMusic != self.bUsingBackgroundMusic || GAudio_ForceAmbientCategory)
-			{
-				if (!self.bUsingBackgroundMusic || GAudio_ForceAmbientCategory)
-				{
-					NSError* ActiveError = nil;
-					[[AVAudioSession sharedInstance] setActive:YES error:&ActiveError];
-					if (ActiveError)
-					{
-						UE_LOG(LogIOSAudioSession, Error, TEXT("Failed to set audio session as active! [Error = %s]"), *FString([ActiveError description]));
-					}
-					ActiveError = nil;
-	
-                    if (!self.bVoiceChatEnabled)
-                    {
-						if (!GAudio_ForceAmbientCategory)
-						{
-        					[[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategorySoloAmbient error:&ActiveError];
-        					if (ActiveError)
-        					{
-        						UE_LOG(LogIOSAudioSession, Error, TEXT("Failed to set audio session category to AVAudioSessionCategorySoloAmbient! [Error = %s]"), *FString([ActiveError description]));
-        					}
-						}
-						else
-						{
-							[[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryAmbient error:&ActiveError];
-							if (ActiveError)
-							{
-								UE_LOG(LogIOSAudioSession, Error, TEXT("Failed to set audio session category to AVAudioSessionCategoryAmbient! [Error = %s]"), *FString([ActiveError description]));
-							}
-						}
-    					ActiveError = nil;
-                    }
-					else
-					{
-						AVAudioSessionCategoryOptions opts =
-							AVAudioSessionCategoryOptionAllowBluetoothA2DP |
-#if !PLATFORM_TVOS
-							AVAudioSessionCategoryOptionDefaultToSpeaker |
-#endif
-							AVAudioSessionCategoryOptionMixWithOthers;
-						
-						if (@available(iOS 10, *))
-						{
-							NSString* VoiceChatMode = self.bHighQualityVoiceChatEnabled ? AVAudioSessionModeVoiceChat : AVAudioSessionModeDefault;
-							[[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayAndRecord mode:VoiceChatMode options:opts error:&ActiveError];
-						}
-						else
-						{
-							[[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayAndRecord withOptions:opts error:&ActiveError];
-						}
-						if (ActiveError)
-						{
-							UE_LOG(LogIOSAudioSession, Error, TEXT("Failed to set audio session category!"));
-						}
-						ActiveError = nil;
-					}
 
-					/* TODO::JTM - Jan 16, 2013 05:05PM - Music player support */
-				}
-				else
-				{
-					/* TODO::JTM - Jan 16, 2013 05:05PM - Music player support */
+	self.bAudioActive = bActive;
 	
-                    if (!self.bVoiceChatEnabled)
-                    {
-    					// Allow iPod music to continue playing in the background
-    					NSError* ActiveError = nil;
-    					[[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryAmbient error:&ActiveError];
-    					if (ActiveError)
-    					{
-    						UE_LOG(LogIOSAudioSession, Error, TEXT("Failed to set audio session category to AVAudioSessionCategoryAmbient! [Error = %s]"), *FString([ActiveError description]));
-    					}
-    					ActiveError = nil;
-                    }
-				}
-			}
-			else if (!self.bUsingBackgroundMusic)
-			{
-				NSError* ActiveError = nil;
-				[[AVAudioSession sharedInstance] setActive:YES error:&ActiveError];
-				if (ActiveError)
-				{
-					UE_LOG(LogIOSAudioSession, Error, TEXT("Failed to set audio session as active! [Error = %s]"), *FString([ActiveError description]));
-				}
-				ActiveError = nil;
-                
-                if (!self.bVoiceChatEnabled)
-                {
-					if (!GAudio_ForceAmbientCategory)
-					{
-						[[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategorySoloAmbient error:&ActiveError];
-						if (ActiveError)
-						{
-							UE_LOG(LogIOSAudioSession, Error, TEXT("Failed to set audio session category to AVAudioSessionCategorySoloAmbient! [Error = %s]"), *FString([ActiveError description]));
-						}
-					}
-					else
-					{
-						[[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryAmbient error:&ActiveError];
-						if (ActiveError)
-						{
-							UE_LOG(LogIOSAudioSession, Error, TEXT("Failed to set audio session category to AVAudioSessionCategoryAmbient! [Error = %s]"), *FString([ActiveError description]));
-						}
-					}
-    				ActiveError = nil;
-                }
-				else
-				{
-					AVAudioSessionCategoryOptions opts =
-						AVAudioSessionCategoryOptionAllowBluetoothA2DP |
-#if !PLATFORM_TVOS
-						AVAudioSessionCategoryOptionDefaultToSpeaker |
-#endif
-						AVAudioSessionCategoryOptionMixWithOthers;
-					
-					if (@available(iOS 10, *))
-					{
-						NSString* VoiceChatMode = self.bHighQualityVoiceChatEnabled ? AVAudioSessionModeVoiceChat : AVAudioSessionModeDefault;
-						[[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayAndRecord mode:VoiceChatMode options:opts error:&ActiveError];
-					}
-					else
-					{
-						[[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayAndRecord withOptions:opts error:&ActiveError];
-					}
-					if (ActiveError)
-					{
-						UE_LOG(LogIOSAudioSession, Error, TEXT("Failed to set audio session category!"));
-					}
-					ActiveError = nil;
-				}
-			}
-        }
-	}
-	else if ((bForce || self.bAudioActive) && !self.bUsingBackgroundMusic)
+	// get the category and settings to use
+	AVAudioSessionCategory Category = [self IsFeatureActive:EAudioFeature::DoNotMixWithOthers] ? AVAudioSessionCategorySoloAmbient : AVAudioSessionCategoryAmbient;
+	NSString* Mode = AVAudioSessionModeDefault;
+	AVAudioSessionCategoryOptions Options = 0;
+	if (self.bAudioActive || [self IsBackgroundAudioPlaying] || [self IsFeatureActive:EAudioFeature::BackgroundAudio])
 	{
-		NSError* ActiveError = nil;
-        if (self.bVoiceChatEnabled)
+		// if we are running unattended, do not enable record as this would bring up a mic dialog
+		const bool bRecordActive = [self IsFeatureActive:EAudioFeature::Record] && !FApp::IsUnattended();
+		if ([self IsFeatureActive:EAudioFeature::Playback] && bRecordActive)
 		{
-			AVAudioSessionCategoryOptions opts =
-				AVAudioSessionCategoryOptionAllowBluetoothA2DP |
+			Category = AVAudioSessionCategoryPlayAndRecord;
+
+			if ([self IsFeatureActive:EAudioFeature::VoiceChat])
+			{
+				Mode = AVAudioSessionModeVoiceChat;
+			}
+
+			if (![self IsFeatureActive:EAudioFeature::DoNotMixWithOthers])
+			{
+				Options |= AVAudioSessionCategoryOptionMixWithOthers;
+			}
+
 #if !PLATFORM_TVOS
-				AVAudioSessionCategoryOptionDefaultToSpeaker |
+			if (![self IsFeatureActive:EAudioFeature::UseReceiver])
+			{
+				Options |= AVAudioSessionCategoryOptionDefaultToSpeaker;
+			}
+
+			if ([self IsFeatureActive:EAudioFeature::BluetoothMicrophone])
+			{
+				Options |= AVAudioSessionCategoryOptionAllowBluetooth;
+			}
 #endif
-				AVAudioSessionCategoryOptionMixWithOthers;
-			
-			// Necessary for voice chat if audio is not active
-			if (@available(iOS 10, *))
+
+			if (![self IsFeatureActive:EAudioFeature::DisableBluetoothSpeaker])
 			{
-				NSString* VoiceChatMode = self.bHighQualityVoiceChatEnabled ? AVAudioSessionModeVoiceChat : AVAudioSessionModeDefault;
-				[[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayAndRecord mode:VoiceChatMode options:opts error:&ActiveError];
+				Options |= AVAudioSessionCategoryOptionAllowBluetoothA2DP;
 			}
-			else
-			{
-				[[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayAndRecord withOptions:opts error:&ActiveError];
-			}
-			if (ActiveError)
-			{
-				UE_LOG(LogIOSAudioSession, Error, TEXT("Failed to set audio session category!"));
-			}
-			ActiveError = nil;
 		}
-		else
-        {
-    		// Necessary to prevent audio from getting killing when setup for background iPod audio playback
-    		[[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryAmbient error:&ActiveError];
-    		if (ActiveError)
-    		{
-    			UE_LOG(LogIOSAudioSession, Error, TEXT("Failed to set audio session category to AVAudioSessionCategoryAmbient! [Error = %s]"), *FString([ActiveError description]));
-    		}
-    		ActiveError = nil;
-        }
- 	}
-    self.bAudioActive = bActive;
+		else if ([self IsFeatureActive:EAudioFeature::Playback])
+		{
+			Category = AVAudioSessionCategoryPlayback;
+			
+			if (![self IsFeatureActive:EAudioFeature::DoNotMixWithOthers])
+			{
+				Options |= AVAudioSessionCategoryOptionMixWithOthers;
+			}
+		}
+		else if (bRecordActive)
+		{
+			Category = AVAudioSessionCategoryRecord;
+
+#if !PLATFORM_TVOS
+			if ([self IsFeatureActive:EAudioFeature::BluetoothMicrophone])
+			{
+				Options |= AVAudioSessionCategoryOptionAllowBluetooth;
+			}
+#endif
+		}
+	}
+	else
+	{
+		Category = AVAudioSessionCategoryAmbient;
+	}
+
+	// set the category if anything has changed
+	if ([[[AVAudioSession sharedInstance] category] compare:Category] != NSOrderedSame ||
+		[[[AVAudioSession sharedInstance] mode] compare:Mode] != NSOrderedSame ||
+		[[AVAudioSession sharedInstance] categoryOptions] != Options)
+	{
+		[[AVAudioSession sharedInstance] setCategory:Category mode:Mode options:Options error:&ActiveError];
+		if (ActiveError)
+		{
+			UE_LOG(LogIOSAudioSession, Error, TEXT("Failed to set audio session category to Category:%s Mode:%s Options:%x! [Error = %s]"), *FString(Category), *FString(Mode), Options, *FString([ActiveError description]));
+		}
+	}
 }
 
 - (bool)IsBackgroundAudioPlaying
@@ -821,44 +722,62 @@ static IOSAppDelegate* CachedDelegate = nil;
 
 -(void)EnableHighQualityVoiceChat:(bool)bEnable
 {
-	self.bHighQualityVoiceChatEnabled = bEnable;
+	[self SetFeature:EAudioFeature::VoiceChat Active:bEnable];
 }
 
 - (void)EnableVoiceChat:(bool)bEnable
 {
-	self.bVoiceChatEnabled = false;
-	
     // mobile will prompt for microphone access
     if (FApp::IsUnattended())
 	{
 		return;
 	}
-	self.bVoiceChatEnabled = bEnable;
-	[self ToggleAudioSession:self.bAudioActive force:true];
-	//[self SetFeature:EAudioFeature::VoiceChat Active:bEnable];
+	if (bEnable != self.bVoiceChatEnabled)
+	{
+		[self SetFeature:EAudioFeature::Playback Active:bEnable];
+		[self SetFeature:EAudioFeature::Record Active:bEnable];
+		self.bVoiceChatEnabled = bEnable;
+	}
 }
 
 - (bool)IsVoiceChatEnabled
 {
 	return self.bVoiceChatEnabled;
-	//return [self IsFeatureActive:EAudioFeature::VoiceChat];
 }
 
 
 - (void)SetFeature:(EAudioFeature)Feature Active:(bool)bIsActive
 {
-	if (GEnabledAudioFeatures[(uint8)Feature] != bIsActive)
+	if (bIsActive)
 	{
-		GEnabledAudioFeatures[(uint8)Feature] = bIsActive;
-		
-		// actually set the session
-		[self ToggleAudioSession:self.bAudioActive force:true];
+		++GEnabledAudioFeatures[static_cast<uint8>(Feature)];
+		if (GEnabledAudioFeatures[static_cast<uint8>(Feature)] == 1)
+		{
+			// Setting changed from disabled to enabled, apply the change
+			[self ToggleAudioSession:self.bAudioActive];
+		}
+	}
+	else
+	{
+		if (GEnabledAudioFeatures[static_cast<uint8>(Feature)] == 0)
+		{
+			UE_LOG(LogIOSAudioSession, Warning, TEXT("Attempted to disable audio feature that is already disabled"));
+		}
+		else
+		{
+			--GEnabledAudioFeatures[static_cast<uint8>(Feature)];
+			if (GEnabledAudioFeatures[static_cast<uint8>(Feature)] == 0)
+			{
+				// Setting changed from enabled to disabled, apply the change
+				[self ToggleAudioSession:self.bAudioActive];
+			}
+		}
 	}
 }
 
 - (bool)IsFeatureActive:(EAudioFeature)Feature
 {
-	return GEnabledAudioFeatures[(uint8)Feature];
+	return GEnabledAudioFeatures[static_cast<uint8>(Feature)] > 0;
 }
 
 
@@ -1520,7 +1439,7 @@ FCriticalSection RenderSuspend;
 		UE_LOG(LogTemp, Display, TEXT("Done with entering background tasks time."));
     }
 	[self ToggleSuspend:true];
-	[self ToggleAudioSession:false force:true];
+	[self ToggleAudioSession:false];
     
     RenderSuspend.TryLock();
     if (FTaskGraphInterface::IsRunning())
@@ -1599,7 +1518,7 @@ extern double GCStartTime;
 	 */
 	RenderSuspend.Unlock();
 	[self ToggleSuspend : false];
-    [self ToggleAudioSession:true force:true];
+    [self ToggleAudioSession:true];
 
     if (bEngineInit)
     {
