@@ -186,6 +186,9 @@ public:
 	void ClearValue(const FName& KeyName);
 	void ClearValue(FBlackboard::FKey KeyID);
 
+	/** Copy content from SourceKeyID to DestinationID and return true if it worked */
+	bool CopyKeyValue(FBlackboard::FKey SourceKeyID, FBlackboard::FKey DestinationID);
+
 	template<class TDataClass>
 	bool IsKeyOfType(FBlackboard::FKey KeyID) const;
 
