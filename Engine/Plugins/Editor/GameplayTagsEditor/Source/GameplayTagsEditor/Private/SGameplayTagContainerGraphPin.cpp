@@ -4,6 +4,7 @@
 #include "Widgets/Input/SComboButton.h"
 #include "GameplayTagsModule.h"
 #include "Widgets/Layout/SScaleBox.h"
+#include "GameplayTagPinUtilities.h"
 
 #define LOCTEXT_NAMESPACE "GameplayTagGraphPin"
 
@@ -42,6 +43,8 @@ TSharedRef<SWidget>	SGameplayTagContainerGraphPin::GetDefaultValueWidget()
 void SGameplayTagContainerGraphPin::ParseDefaultValueData()
 {
 	FString TagString = GraphPinObj->GetDefaultAsString();
+
+	FilterString = GameplayTagPinUtilities::ExtractTagFilterStringFromGraphPin(GraphPinObj);
 
 	if (TagString.StartsWith(TEXT("(")) && TagString.EndsWith(TEXT(")")))
 	{
@@ -108,6 +111,7 @@ TSharedRef<SWidget> SGameplayTagContainerGraphPin::GetListContent()
 			.OnTagChanged(this, &SGameplayTagContainerGraphPin::RefreshTagList)
 			.TagContainerName( TEXT("SGameplayTagContainerGraphPin") )
 			.Visibility( this, &SGraphPin::GetDefaultValueVisibility )
+			.Filter(FilterString)
 		];
 }
 
