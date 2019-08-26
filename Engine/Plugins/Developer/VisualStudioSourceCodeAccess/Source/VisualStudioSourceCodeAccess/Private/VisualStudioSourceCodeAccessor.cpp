@@ -374,7 +374,8 @@ bool FVisualStudioSourceCodeAccessor::OpenVisualStudioFilesInternalViaDTE(const 
 						}
 
 						// Open File
-						auto ANSIPath = StringCast<ANSICHAR>(*Request.FullPath);
+						FString OSFriendlyPath = Request.FullPath.Replace(TEXT("/"), TEXT("\\"), ESearchCase::CaseSensitive);
+						auto ANSIPath = StringCast<ANSICHAR>(*OSFriendlyPath);
 						FComBSTR COMStrFileName(ANSIPath.Get());
 						FComBSTR COMStrKind(EnvDTE::vsViewKindTextView);
 						TComPtr<EnvDTE::Window> Window;
@@ -1322,7 +1323,7 @@ bool FVisualStudioSourceCodeAccessor::RunVisualStudioAndOpenSolutionAndFiles(con
 			if (FPaths::FileExists(Request.FullPath))
 			{
 				Params += TEXT(" \"");
-				Params += Request.FullPath;
+				Params += Request.FullPath.Replace(TEXT("/"), TEXT("\\"), ESearchCase::CaseSensitive);
 				Params += TEXT("\"");
 
 				GoToLine = Request.LineNumber;
