@@ -4534,7 +4534,7 @@ void GetParentTrackNodeAndNamePath(TSharedRef<const FSequencerDisplayNode> Displ
 }
 
 
-bool FSequencer::OnRequestNodeDeleted( TSharedRef<const FSequencerDisplayNode> NodeToBeDeleted )
+bool FSequencer::OnRequestNodeDeleted( TSharedRef<const FSequencerDisplayNode> NodeToBeDeleted, const bool bKeepState )
 {
 	bool bAnythingRemoved = false;
 	
@@ -4557,7 +4557,7 @@ bool FSequencer::OnRequestNodeDeleted( TSharedRef<const FSequencerDisplayNode> N
 		// Delete Children
 		for ( const TSharedRef<FSequencerDisplayNode>& ChildNode : NodeToBeDeleted->GetChildNodes() )
 		{
-			OnRequestNodeDeleted( ChildNode );
+			OnRequestNodeDeleted( ChildNode, bKeepState );
 		}
 
 		// Delete from parent, or root.
@@ -4583,7 +4583,7 @@ bool FSequencer::OnRequestNodeDeleted( TSharedRef<const FSequencerDisplayNode> N
 		{
 			if (ChildNode->GetType() == ESequencerNode::Object)
 			{
-				OnRequestNodeDeleted(ChildNode);
+				OnRequestNodeDeleted(ChildNode, bKeepState);
 			}
 		}
 
@@ -4596,6 +4596,23 @@ bool FSequencer::OnRequestNodeDeleted( TSharedRef<const FSequencerDisplayNode> N
 			ParentFolder->GetFolder().RemoveChildObjectBinding( BindingToRemove );
 		}
 		
+		if (bKeepState)
+		{
+			for (TWeakObjectPtr<> WeakObject : FindBoundObjects(BindingToRemove, ActiveTemplateIDs.Top()))
+			{
+				TArray<UObject*> SubObjects;
+				GetObjectsWithOuter(WeakObject.Get(), SubObjects);
+				PreAnimatedState.DiscardAndRemoveEntityTokensForObject(*WeakObject.Get());
+				for (UObject* SubObject : SubObjects)
+				{
+					if (SubObject)
+					{
+						PreAnimatedState.DiscardAndRemoveEntityTokensForObject(*SubObject);
+					}
+				}
+			}
+		}
+				
 		// Try to remove as a spawnable first
 		if (OwnerMovieScene->RemoveSpawnable(BindingToRemove))
 		{
@@ -5789,7 +5806,7 @@ void FSequencer::DeleteSelectedItems()
 	}
 	else if (Selection.GetSelectedOutlinerNodes().Num())
 	{
-		DeleteSelectedNodes();
+		DeleteSelectedNodes(false);
 	}
 }
 
@@ -6247,17 +6264,17 @@ void FSequencer::RemoveInvalidBindings(FGuid InObjectBinding)
 	NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
 }
 
-void FSequencer::DeleteNode(TSharedRef<FSequencerDisplayNode> NodeToBeDeleted)
+void FSequencer::DeleteNode(TSharedRef<FSequencerDisplayNode> NodeToBeDeleted, const bool bKeepState)
 {
 	// If this node is selected, delete all selected nodes
 	if (GetSelection().IsSelected(NodeToBeDeleted))
 	{
-		DeleteSelectedNodes();
+		DeleteSelectedNodes(bKeepState);
 	}
 	else
 	{
 		const FScopedTransaction Transaction( NSLOCTEXT("Sequencer", "UndoDeletingObject", "Delete Node") );
-		bool bAnythingDeleted = OnRequestNodeDeleted(NodeToBeDeleted);
+		bool bAnythingDeleted = OnRequestNodeDeleted(NodeToBeDeleted, bKeepState);
 		if ( bAnythingDeleted )
 		{
 			NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::MovieSceneStructureItemRemoved );
@@ -6266,7 +6283,7 @@ void FSequencer::DeleteNode(TSharedRef<FSequencerDisplayNode> NodeToBeDeleted)
 }
 
 
-void FSequencer::DeleteSelectedNodes()
+void FSequencer::DeleteSelectedNodes(const bool bKeepState)
 {
 	TSet< TSharedRef<FSequencerDisplayNode> > SelectedNodesCopy = GetSelection().GetSelectedOutlinerNodes();
 
@@ -6285,7 +6302,7 @@ void FSequencer::DeleteSelectedNodes()
 		{
 			// Delete everything in the entire node
 			TSharedRef<const FSequencerDisplayNode> NodeToBeDeleted = StaticCastSharedRef<const FSequencerDisplayNode>(SelectedNode);
-			bAnythingDeleted |= OnRequestNodeDeleted( NodeToBeDeleted );
+			bAnythingDeleted |= OnRequestNodeDeleted( NodeToBeDeleted, bKeepState );
 		}
 	}
 

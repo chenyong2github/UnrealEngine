@@ -1039,8 +1039,18 @@ void FSequencerDisplayNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			LOCTEXT("DeleteNode", "Delete"),
 			LOCTEXT("DeleteNodeTooltip", "Delete this or selected tracks"),
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.Delete"),
-			FUIAction(FExecuteAction::CreateSP(&GetSequencer(), &FSequencer::DeleteNode, ThisNode), CanExecute)
+			FUIAction(FExecuteAction::CreateSP(&GetSequencer(), &FSequencer::DeleteNode, ThisNode, false), CanExecute)
 		);
+
+		if (ThisNode->GetType() == ESequencerNode::Object)
+		{
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("DeleteNodeAndKeepState", "Delete and Keep State"),
+				LOCTEXT("DeleteNodeAndKeepStateTooltip", "Delete this object's tracks and keep its current animated state"),
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.Delete"),
+				FUIAction(FExecuteAction::CreateSP(&GetSequencer(), &FSequencer::DeleteNode, ThisNode, true), CanExecute)
+			);
+		}
 
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("RenameNode", "Rename"),

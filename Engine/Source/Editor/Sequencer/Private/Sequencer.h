@@ -369,7 +369,7 @@ public:
 	 * @param NodeToBeDeleted	Node with data that should be deleted
 	 * @return true if anything was deleted, otherwise false.
 	 */
-	virtual bool OnRequestNodeDeleted( TSharedRef<const FSequencerDisplayNode> NodeToBeDeleted );
+	virtual bool OnRequestNodeDeleted( TSharedRef<const FSequencerDisplayNode> NodeToBeDeleted, const bool bKeepState );
 
 	/** Zooms to the edges of all currently selected sections. */
 	void ZoomToSelectedSections();
@@ -488,8 +488,8 @@ public:
 	void RemoveInvalidBindings(FGuid ObjectBinding);
 
 	/** Called when a user executes the delete node menu item */
-	void DeleteNode(TSharedRef<FSequencerDisplayNode> NodeToBeDeleted);
-	void DeleteSelectedNodes();
+	void DeleteNode(TSharedRef<FSequencerDisplayNode> NodeToBeDeleted, const bool bKeepState);
+	void DeleteSelectedNodes(const bool bKeepState);
 
 	/** @return The list of nodes which must be moved to move the current selected nodes */
 	TArray<TSharedRef<FSequencerDisplayNode> > GetSelectedNodesToMove();
