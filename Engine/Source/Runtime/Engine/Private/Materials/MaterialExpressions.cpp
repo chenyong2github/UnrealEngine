@@ -2192,8 +2192,23 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 		CoordinateIndex = Coordinates.Compile(Compiler);
 	}
 	
+	// Compile the mip level for the current mip value mode
+	ETextureMipValueMode TextureMipLevelMode = TMVM_None;
+	int32 MipValueIndex = INDEX_NONE;
+	if (MipValue.GetTracedInput().Expression != nullptr)
+	{
+		switch (MipValueMode)
+		{
+		case RVTMVM_MipLevel: TextureMipLevelMode = TMVM_MipLevel; break;
+		case RVTMVM_MipBias: TextureMipLevelMode = TMVM_MipBias; break;
+		}
+		if (TextureMipLevelMode != RVTMVM_None)
+		{
+			MipValueIndex = MipValue.Compile(Compiler);
+		}
+	}
+
 	// Compile the texture sample code
-	//todo[vt]: Expose support for mip settings in this expression
 	int32 SampleCodeIndex[MAX_RVT_LAYERS] = { INDEX_NONE };
 	for (int32 Layer = 0; Layer < LayerCount; Layer++)
 	{
@@ -2201,7 +2216,7 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 			TextureCodeIndex[Layer],
 			CoordinateIndex, 
 			SAMPLERTYPE_VirtualMasks,
-			INDEX_NONE, INDEX_NONE, TMVM_None, SSM_Wrap_WorldGroupSettings,
+			MipValueIndex, INDEX_NONE, TextureMipLevelMode, SSM_Wrap_WorldGroupSettings,
 			TextureReferenceIndex[Layer], 
 			false);
 	}
