@@ -125,6 +125,36 @@ class USkyAtmosphereComponent : public USceneComponent
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	void OverrideAtmosphereLightDirection(int32 AtmosphereLightIndex, const FVector& LightDirection);
+	
+	UFUNCTION(BlueprintCallable, Category = "Rendering")
+	void SetRayleighScatteringScale(float NewValue);
+	UFUNCTION(BlueprintCallable, Category = "Rendering")
+	void SetRayleighScattering(FColor NewValue);
+	UFUNCTION(BlueprintCallable, Category = "Rendering")
+	void SetRayleighExponentialDistribution(float NewValue);
+
+	UFUNCTION(BlueprintCallable, Category = "Rendering")
+	void SetMieScatteringScale(float NewValue);
+	UFUNCTION(BlueprintCallable, Category = "Rendering")
+	void SetMieScattering(FColor NewValue);
+	UFUNCTION(BlueprintCallable, Category = "Rendering")
+	void SetMieAbsorptionScale(float NewValue);
+	UFUNCTION(BlueprintCallable, Category = "Rendering")
+	void SetMieAbsorption(FColor NewValue);
+	UFUNCTION(BlueprintCallable, Category = "Rendering")
+	void SetMieAnisotropy(float NewValue);
+	UFUNCTION(BlueprintCallable, Category = "Rendering")
+	void SetMieExponentialDistribution(float NewValue);
+
+	UFUNCTION(BlueprintCallable, Category = "Rendering", meta = (DisplayName = "Set Absorption Scale"))
+	void SetOtherAbsorptionScale(float NewValue);
+	UFUNCTION(BlueprintCallable, Category = "Rendering", meta = (DisplayName = "Set Absorption"))
+	void SetOtherAbsorption(FColor NewValue);
+
+	UFUNCTION(BlueprintCallable, Category = "Rendering")
+	void SetSkyLuminanceFactor(FLinearColor NewValue);
+	UFUNCTION(BlueprintCallable, Category = "Rendering")
+	void SetAerialPespectiveViewDistanceScale(float NewValue);
 
 
 
