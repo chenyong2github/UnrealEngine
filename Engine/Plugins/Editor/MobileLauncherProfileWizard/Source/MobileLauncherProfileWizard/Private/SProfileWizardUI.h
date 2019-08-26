@@ -37,7 +37,7 @@ namespace EProfilePlatform
 
 struct FProfileParameters
 {
-	EBuildConfigurations::Type BuildConfiguration;
+	EBuildConfiguration BuildConfiguration;
 	FString	ArchiveDirectory;
 	TArray<FString>	AppMaps;
 	TArray<FString>	DLCMaps;
@@ -73,7 +73,7 @@ private:
 	TSharedRef<SWidget> MakeBuildConfigurationMenuContent();
 	
 	/** Handle build configuration selection */
-	void HandleBuildConfigurationMenuEntryClicked(EBuildConfigurations::Type Configuration);
+	void HandleBuildConfigurationMenuEntryClicked(EBuildConfiguration Configuration);
 	
 	/** Get a text for a selected build configuration */
 	FText GetBuildConfigurationSelectorText() const;
@@ -180,7 +180,7 @@ private:
 	FString ProjectPath;
 
 	/** Selected project build configuration */
-	EBuildConfigurations::Type BuildConfiguration;
+	EBuildConfiguration BuildConfiguration;
 
 	/** Cached list of project maps */
 	TArray<TSharedPtr<FString>> ProjectMapList;

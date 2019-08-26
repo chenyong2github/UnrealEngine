@@ -30,6 +30,6 @@ public class HoloLensPlatformEditor : ModuleRules
 			}
 		);
 
-		PublicAdditionalLibraries.Add("crypt32.lib");
+		PublicSystemLibraries.Add("crypt32.lib");
 	}
 }

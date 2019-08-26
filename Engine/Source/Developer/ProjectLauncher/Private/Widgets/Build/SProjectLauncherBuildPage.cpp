@@ -261,9 +261,9 @@ FReply SProjectLauncherBuildPage::HandleGenDSYMClicked()
         if (!SelectedProfile->HasValidationError(ELauncherProfileValidationErrors::NoProjectSelected))
         {
             FString ProjectName = SelectedProfile->GetProjectName();
-            EBuildConfigurations::Type ProjectConfig = SelectedProfile->GetBuildConfiguration();
+            EBuildConfiguration ProjectConfig = SelectedProfile->GetBuildConfiguration();
 
-            GenerateDSYMForProject(ProjectName, EBuildConfigurations::ToString(ProjectConfig));
+            GenerateDSYMForProject(ProjectName, LexToString(ProjectConfig));
         }
     }
 
@@ -302,7 +302,7 @@ EVisibility SProjectLauncherBuildPage::ShowBuildConfiguration() const
 }
 
 
-void SProjectLauncherBuildPage::HandleBuildConfigurationSelectorConfigurationSelected(EBuildConfigurations::Type Configuration)
+void SProjectLauncherBuildPage::HandleBuildConfigurationSelectorConfigurationSelected(EBuildConfiguration Configuration)
 {
 	ILauncherProfilePtr SelectedProfile = Model->GetSelectedProfile();
 
@@ -319,7 +319,7 @@ FText SProjectLauncherBuildPage::HandleBuildConfigurationSelectorText() const
 
 	if (SelectedProfile.IsValid())
 	{
-		return FText::FromString(EBuildConfigurations::ToString(SelectedProfile->GetBuildConfiguration()));
+		return FText::FromString(LexToString(SelectedProfile->GetBuildConfiguration()));
 	}
 
 	return FText::GetEmpty();

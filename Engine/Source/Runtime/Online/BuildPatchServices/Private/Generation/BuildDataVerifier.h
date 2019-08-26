@@ -1,6 +1,15 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Core/BlockRange.h"
+#include "Core/BlockStructure.h"
+#include "Common/FileSystem.h"
+#include "Generation/ChunkSearch.h"
+#include "Generation/ChunkWriter.h"
+#include "Generation/DeltaEnumeration.h"
+#include "Generation/DataScanner.h"
+#include "BuildPatchUtil.h"
+
 namespace BuildPatchServices
 {
 	/**

@@ -44,9 +44,9 @@ struct FHTML5PlatformProperties
 		return true;
 	}
 
-	static FORCEINLINE bool SupportsBuildTarget( EBuildTargets::Type BuildTarget )
+	static FORCEINLINE bool SupportsBuildTarget( EBuildTargetType TargetType )
 	{
-		return (BuildTarget == EBuildTargets::Game);
+		return (TargetType == EBuildTargetType::Game);
 	}
 
 	static FORCEINLINE bool SupportsHighQualityLightmaps()

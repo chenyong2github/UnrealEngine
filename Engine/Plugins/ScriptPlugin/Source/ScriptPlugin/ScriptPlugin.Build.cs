@@ -65,7 +65,6 @@ namespace UnrealBuildTool.Rules
 				PrivateIncludePaths.Add(IncludePath);
 
 				// Lib file
-				PublicLibraryPaths.Add(LuaLibDirectory);
 				PublicAdditionalLibraries.Add(LuaLibPath);
 
 //				Log.TraceVerbose("LUA Integration enabled: {0}", IncludePath);

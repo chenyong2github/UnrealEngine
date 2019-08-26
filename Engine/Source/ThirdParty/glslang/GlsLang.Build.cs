@@ -17,28 +17,26 @@ public class GlsLang : ModuleRules
 			LibPath = LibPath + (Target.Platform == UnrealTargetPlatform.Win32 ? "Win32/" : "Win64/");
 			LibPath = LibPath + "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
 			
-			PublicLibraryPaths.Add(LibPath);
-
 			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
 			{
 				if (Target.Platform == UnrealTargetPlatform.Win64)
 				{
-					PublicAdditionalLibraries.Add("glslangd_64.lib");
+					PublicAdditionalLibraries.Add(LibPath + "/glslangd_64.lib");
 				}
 				else if (Target.Platform == UnrealTargetPlatform.Win32)
 				{
-					PublicAdditionalLibraries.Add("glslangd.lib");
+					PublicAdditionalLibraries.Add(LibPath + "/glslangd.lib");
 				}
 			}
 			else
 			{
 				if (Target.Platform == UnrealTargetPlatform.Win64)
 				{
-					PublicAdditionalLibraries.Add("glslang_64.lib");
+					PublicAdditionalLibraries.Add(LibPath + "/glslang_64.lib");
 				}
 				else if (Target.Platform == UnrealTargetPlatform.Win32)
 				{
-					PublicAdditionalLibraries.Add("glslang.lib");
+					PublicAdditionalLibraries.Add(LibPath + "/glslang.lib");
 				}
 			}
 		}

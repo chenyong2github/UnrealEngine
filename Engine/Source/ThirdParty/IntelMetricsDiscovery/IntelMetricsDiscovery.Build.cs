@@ -17,9 +17,8 @@ public class IntelMetricsDiscovery : ModuleRules
 
 			PublicSystemIncludePaths.Add(IntelMetricsDiscoveryPath + "build/include/metrics_discovery/");
 
-			PublicLibraryPaths.Add(IntelMetricsDiscoveryPath + "build/lib/" + PlatformName + BuildType);
-
-			PublicAdditionalLibraries.Add("metrics_discovery_helper.lib");
+			string LibDir = IntelMetricsDiscoveryPath + "build/lib/" + PlatformName + BuildType + "/";
+			PublicAdditionalLibraries.Add(LibDir + "metrics_discovery_helper.lib");
 
             PublicDefinitions.Add("INTEL_METRICSDISCOVERY=1");
         }

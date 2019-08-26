@@ -21,22 +21,21 @@ public class XInput : ModuleRules
 
 		// Ensure correct include and link paths for xinput so the correct dll is loaded (xinput1_3.dll)
 		PublicSystemIncludePaths.Add(DirectXSDKDir + "/include");
-		if (Target.Platform == UnrealTargetPlatform.Win64)
-		{
-			PublicLibraryPaths.Add(DirectXSDKDir + "/Lib/x64");
-		}
-		else if (Target.Platform == UnrealTargetPlatform.Win32)
-		{
-			PublicLibraryPaths.Add(DirectXSDKDir + "/Lib/x86");
-		}
 		
 		if (Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
-			PublicAdditionalLibraries.Add("xinputuap.lib");
+			PublicSystemLibraries.Add("xinputuap.lib");
 		}
 		else
 		{
-			PublicAdditionalLibraries.Add("XInput.lib");
+			if (Target.Platform == UnrealTargetPlatform.Win64)
+			{
+				PublicAdditionalLibraries.Add(DirectXSDKDir + "/Lib/x64/XInput.lib");
+			}
+			else if (Target.Platform == UnrealTargetPlatform.Win32)
+			{
+				PublicAdditionalLibraries.Add(DirectXSDKDir + "/Lib/x86/XInput.lib");
+			}
 		}
 	}
 }

@@ -15,8 +15,7 @@ public class ProResToolbox : ModuleRules
 			PublicSystemIncludePaths.Add(IncPath);
 
 			string LibPath = Path.Combine(ModuleDirectory, "lib");
-			PublicLibraryPaths.Add(LibPath);
-			PublicAdditionalLibraries.Add("ProResToolbox.lib");
+			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "ProResToolbox.lib"));
 
 			string LibraryName = "ProResToolbox";
 			PublicDelayLoadDLLs.Add(LibraryName + ".dll");

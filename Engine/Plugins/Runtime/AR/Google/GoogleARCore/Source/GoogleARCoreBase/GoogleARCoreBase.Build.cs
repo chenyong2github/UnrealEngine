@@ -85,8 +85,6 @@ namespace UnrealBuildTool.Rules
 					RuntimeDependencies.Add("$(EngineDir)/Plugins/Runtime/AR/Google/GoogleARCore/Binaries/ThirdParty/Google/ARCoreImg/" + ExecName);
 				}
 			}
-			
-			bFasterWithoutUnity = false;
         }
     }
 }

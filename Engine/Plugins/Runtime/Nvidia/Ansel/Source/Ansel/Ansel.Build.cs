@@ -32,9 +32,6 @@ public class Ansel : ModuleRules
         string NvCameraSDKIncPath = NvCameraSDKSourcePath + "include/";
         PublicSystemIncludePaths.Add(NvCameraSDKIncPath);
 
-        string NvCameraSDKLibPath = NvCameraSDKSourcePath + "lib/";
-        PublicLibraryPaths.Add(NvCameraSDKLibPath);
-
         bool FoundAnselDirs = true;
         if (!Directory.Exists(NvCameraSDKSourcePath))
         {

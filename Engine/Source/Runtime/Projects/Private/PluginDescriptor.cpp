@@ -33,7 +33,8 @@ FPluginDescriptor::FPluginDescriptor()
 	, bInstalled(false)
 	, bRequiresBuildPlatform(false)
 	, bIsHidden(false)
-{ 
+	, bIsPluginExtension(false)
+{
 }
 
 
@@ -116,6 +117,7 @@ bool FPluginDescriptor::Read(const FJsonObject& Object, FText& OutFailReason)
 	Object.TryGetStringField(TEXT("EngineVersion"), EngineVersion);
 	Object.TryGetStringArrayField(TEXT("SupportedTargetPlatforms"), SupportedTargetPlatforms);
 	Object.TryGetStringArrayField(TEXT("SupportedPrograms"), SupportedPrograms);
+	Object.TryGetBoolField(TEXT("bIsPluginExtension"), bIsPluginExtension);
 
 	if (!FModuleDescriptor::ReadArray(Object, TEXT("Modules"), Modules, OutFailReason))
 	{
@@ -215,7 +217,10 @@ void FPluginDescriptor::Write(TJsonWriter<>& Writer) const
 	{
 		Writer.WriteValue(TEXT("SupportedPrograms"), SupportedPrograms);
 	}
-
+	if (bIsPluginExtension)
+	{
+		Writer.WriteValue(TEXT("bIsPluginExtension"), bIsPluginExtension);
+	}
 	FModuleDescriptor::WriteArray(Writer, TEXT("Modules"), Modules);
 
 	FLocalizationTargetDescriptor::WriteArray(Writer, TEXT("LocalizationTargets"), LocalizationTargets);

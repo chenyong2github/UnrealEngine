@@ -15,8 +15,7 @@ public class ProResLib : ModuleRules
 			PublicSystemIncludePaths.Add(IncPath);
 
 			string LibPath = Path.Combine(ModuleDirectory, "lib", "windows");
-			PublicLibraryPaths.Add(LibPath);
-			PublicAdditionalLibraries.Add("ProRes64_VS2017.lib");
+			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "ProRes64_VS2017.lib"));
 		}
 	}
 }

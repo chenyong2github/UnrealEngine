@@ -21,6 +21,3 @@ MONOLITHIC_HEADER_BOILERPLATE()
 #include "GraphEditorDragDropAction.h"
 #include "DragConnection.h"
 #include "DragNode.h"
-
-#include "AnimGraphDefinitions.h"
-

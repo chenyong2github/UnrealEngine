@@ -21,7 +21,7 @@ public class QualcommTextureConverter : ModuleRules
 
 			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
-				LibraryPath += "vs" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/x64";
+				LibraryPath += "vs" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/x64/";
 				PublicDelayLoadDLLs.Add("TextureConverter.dll");
 
 				RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Qualcomm/Win64/TextureConverter.dll");
@@ -36,7 +36,7 @@ public class QualcommTextureConverter : ModuleRules
 			{
 				LibraryPath += "linux_x64";	// FIXME: change to proper architecture
 				LibraryExtension = ".so";
-				LibraryName = LibraryPath + "/lib" + LibraryName;
+				LibraryName = "/lib" + LibraryName;
 
 				PrivateRuntimeLibraryPaths.Add("$(EngineDir)/Binaries/ThirdParty/Qualcomm/Linux");
 				RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Qualcomm/Linux/libTextureConverter.so");
@@ -44,8 +44,7 @@ public class QualcommTextureConverter : ModuleRules
 
 			if (Target.Platform != UnrealTargetPlatform.Mac)
 			{
-				PublicLibraryPaths.Add(LibraryPath);
-				PublicAdditionalLibraries.Add(LibraryName + LibraryExtension);
+				PublicAdditionalLibraries.Add(LibraryPath + LibraryName + LibraryExtension);
 			}
 		}
 	}

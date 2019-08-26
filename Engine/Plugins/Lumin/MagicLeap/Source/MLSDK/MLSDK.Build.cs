@@ -62,12 +62,6 @@ public class MLSDK : ModuleRules
 				string MLSDKLibraryPath = "";
 				Ini.TryGetValue("MLSDK", "LibraryPath", out MLSDKLibraryPath);
 
-				PublicLibraryPaths.Add(LibraryPath);
-				if (!string.IsNullOrEmpty(MLSDKLibraryPath))
-				{
-					PublicLibraryPaths.Add(MLSDKLibraryPath);
-				}
-
 				string[] MLSDKLibraryList = new string[] {
 					"ml_audio",
 					"ml_camera_metadata",
@@ -96,16 +90,17 @@ public class MLSDK : ModuleRules
 					"ml_secure_storage",
 					"ml_sharedfile",
 				};
+				string LibDir = MLSDKLibraryPath ?? LibraryPath;
 
 				if (Target.Platform == UnrealTargetPlatform.Win64)
 				{
 					foreach (string libname in MLSDKLibraryList)
 					{
-						PublicAdditionalLibraries.Add(string.Format("{0}.lib", libname));
+						PublicAdditionalLibraries.Add(Path.Combine(LibDir, string.Format("{0}.lib", libname)));
 						PublicDelayLoadDLLs.Add(string.Format("{0}.dll", libname));
 					}
 
-					PublicAdditionalLibraries.Add("ml_remote.lib");
+					PublicAdditionalLibraries.Add(Path.Combine(LibDir, "ml_remote.lib"));
 					PublicDelayLoadDLLs.Add("ml_remote.dll");
 				}
 				else if (Target.Platform == UnrealTargetPlatform.Mac)
@@ -154,8 +149,9 @@ public class MLSDK : ModuleRules
 				{
 					foreach (string libname in MLSDKLibraryList)
 					{
-						PublicAdditionalLibraries.Add(libname);
-						PublicDelayLoadDLLs.Add(string.Format("lib{0}.so", libname));
+						string lib = string.Format("lib{0}.so", libname);
+						PublicAdditionalLibraries.Add(Path.Combine(LibDir, lib));
+						PublicDelayLoadDLLs.Add(lib);
 					}
 				}
 			}

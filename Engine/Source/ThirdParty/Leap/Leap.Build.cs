@@ -22,15 +22,14 @@ public class Leap : ModuleRules
 
 			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
-				LibraryPath += "/x64";
+				LibraryPath += "/x64/";
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Win32)
 			{
-				LibraryPath += "/x86";
+				LibraryPath += "/x86/";
 			}
 
-			PublicLibraryPaths.Add(LibraryPath);
-			PublicAdditionalLibraries.Add(LibraryName + ".lib");
+			PublicAdditionalLibraries.Add(LibraryPath + LibraryName + ".lib");
 			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Leap/" + Target.Platform.ToString() + "/" + LibraryName + ".dll");
 		}
 	}

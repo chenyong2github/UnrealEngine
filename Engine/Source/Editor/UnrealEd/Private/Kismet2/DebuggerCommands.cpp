@@ -975,7 +975,7 @@ static void MakeAllDevicesSubMenu(FMenuBuilder& InMenuBuilder, const PlatformInf
 		// for an aggregate (All_<platform>_devices_on_<host>) proxy, allow only the "Android_<texture_compression>" variants
 		const PlatformInfo::FPlatformInfo* platformInfo = PlatformInfo::FindPlatformInfo(Variant);
 		if (DeviceProxy->IsAggregated() && platformInfo != NULL &&
-			(Variant == platformInfo->VanillaPlatformName || platformInfo->PlatformType != PlatformInfo::EPlatformType::Game))
+			(Variant == platformInfo->VanillaPlatformName || platformInfo->PlatformType != EBuildTargetType::Game))
 		{
 			continue;
 		}
@@ -1063,7 +1063,7 @@ TSharedRef< SWidget > FPlayWorldCommands::GenerateLaunchMenuContent( TSharedRef<
 		for (const PlatformInfo::FVanillaPlatformEntry& VanillaPlatform : VanillaPlatforms)
 		{
 			// for the Editor we are only interested in launching standalone games
-			if (VanillaPlatform.PlatformInfo->PlatformType != PlatformInfo::EPlatformType::Game || !VanillaPlatform.PlatformInfo->bEnabledForUse || !FInstalledPlatformInfo::Get().CanDisplayPlatform(VanillaPlatform.PlatformInfo->BinaryFolderName, ProjectType))
+			if (VanillaPlatform.PlatformInfo->PlatformType != EBuildTargetType::Game || !VanillaPlatform.PlatformInfo->bEnabledForUse || !FInstalledPlatformInfo::Get().CanDisplayPlatform(VanillaPlatform.PlatformInfo->BinaryFolderName, ProjectType))
 			{
 				continue;
 			}

@@ -72,6 +72,18 @@ namespace UnrealBuildTool
 				}
 			}
 
+			if (Arguments.HasValue("-CompileTimingFile="))
+			{
+				FileReference CompileTimingFile = Arguments.GetFileReference("-CompileTimingFile=");
+				Dictionary<string, double> CompileTimes = new Dictionary<string, double>();
+				foreach (KeyValuePair<string, TimingData> TimingData in FileTimingData.Children)
+				{
+					CompileTimes.Add(Json.EscapeString(TimingData.Key), TimingData.Value.InclusiveDuration);
+				}
+				string JsonCompileTimes = Json.Serialize(CompileTimes);
+				FileReference.WriteAllText(CompileTimingFile, JsonCompileTimes);
+			}
+
 			return 0;
 		}
 
