@@ -73,6 +73,7 @@ struct FPreallocationInfo
 	GENERATED_USTRUCT_BODY()
 
 	/** Raw list of pooled instances. This relies on NotifyGameplayCueActorEndPlay always being called when actor is destroyed */
+	UPROPERTY(transient)
 	TMap<UClass*, TArray<AGameplayCueNotify_Actor*> >	PreallocatedInstances;
 
 	/** List of calsses that will be pooled */
