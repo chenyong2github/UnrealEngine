@@ -90,3 +90,25 @@ void ALandscapeProxy::EditorSetLandscapeMaterial(UMaterialInterface* NewLandscap
 	}
 #endif
 }
+
+float ULandscapeComponent::EditorGetPaintLayerWeightByNameAtLocation(const FVector& InLocation, const FName InPaintLayerName)
+{
+#if WITH_EDITOR
+	ULandscapeInfo* LandscapeInfo = GetLandscapeInfo();
+	ULandscapeLayerInfoObject* PaintLayer = LandscapeInfo ? LandscapeInfo->GetLayerInfoByName(InPaintLayerName) : nullptr;
+	return GetLayerWeightAtLocation(InLocation, PaintLayer);
+#else
+	return 0.f;
+#endif
+}
+
+float ULandscapeComponent::EditorGetPaintLayerWeightAtLocation(const FVector& InLocation, ULandscapeLayerInfoObject* PaintLayer)
+{
+#if WITH_EDITOR
+	if (PaintLayer)
+	{
+		return GetLayerWeightAtLocation(InLocation, PaintLayer);
+	}
+#endif
+	return 0.f;
+}
