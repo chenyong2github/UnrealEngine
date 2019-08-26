@@ -4,5 +4,3 @@
 
 #include "Math/Range.h"
 #include "Containers/UnrealString.h"
-
-MOVIESCENE_API FString LexToString(const TRange<FFrameNumber>& InRange);
