@@ -324,8 +324,8 @@ public:
     
 	virtual FInstallBundleRequestInfo RequestRemoveContent(FName BundleName) = 0;
 
-	virtual void RequestRemoveContentOnNextInit(FName BundleName) = 0;
-	virtual void RequestRemoveContentOnNextInit(TArrayView<FName> BundleNames) = 0;
+	virtual void RequestRemoveContentOnNextInit(FName RemoveName, TArrayView<FName> KeepNames = TArrayView<FName>()) = 0;
+	virtual void RequestRemoveContentOnNextInit(TArrayView<FName> RemoveNames, TArrayView<FName> KeepNames = TArrayView<FName>()) = 0;
 
 	virtual void CancelRequestRemoveContentOnNextInit(FName BundleName) = 0;
 	virtual void CancelRequestRemoveContentOnNextInit(TArrayView<FName> BundleName) = 0;
