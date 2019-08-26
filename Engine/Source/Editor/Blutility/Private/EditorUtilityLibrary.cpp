@@ -75,6 +75,25 @@ TArray<UObject*> UEditorUtilityLibrary::GetSelectedAssets()
 	return Result;
 }
 
+TArray<UClass*> UEditorUtilityLibrary::GetSelectedBlueprintClasses()
+{
+	//@TODO: Blocking load, no slow dialog
+	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+	TArray<FAssetData> SelectedAssets;
+	ContentBrowserModule.Get().GetSelectedAssets(SelectedAssets);
+
+	TArray<UClass*> Result;
+	for (FAssetData& AssetData : SelectedAssets)
+	{
+		if (UBlueprint* Blueprint = Cast<UBlueprint>(AssetData.GetAsset()))
+		{
+			Result.Add(Blueprint->GeneratedClass);
+		}
+	}
+
+	return Result;
+}
+
 TArray<FAssetData> UEditorUtilityLibrary::GetSelectedAssetData()
 {
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");

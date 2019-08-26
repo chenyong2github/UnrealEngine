@@ -108,6 +108,18 @@ public:
 
 	void* GetARSessionRawPointer();
 	void* GetGameThreadARFrameRawPointer();
+	
+	/** \see UARBlueprintLibrary::IsSessionTrackingFeatureSupported() */
+	bool IsSessionTrackingFeatureSupported(EARSessionType SessionType, EARSessionTrackingFeature SessionTrackingFeature) const;
+	
+	/** \see UARBlueprintLibrary::GetTracked2DPose() */
+	TArray<FARPose2D> GetTracked2DPose() const;
+	
+	/** \see UARBlueprintLibrary::GetPersonSegmentationImage() */
+	UARTextureCameraImage* GetPersonSegmentationImage() const;
+	
+	/** \see UARBlueprintLibrary::GetPersonSegmentationDepthImage() */
+	UARTextureCameraImage* GetPersonSegmentationDepthImage() const;
 
 	//~ FGCObject
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;

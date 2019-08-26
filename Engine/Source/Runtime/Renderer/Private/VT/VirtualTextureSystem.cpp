@@ -223,7 +223,7 @@ FVirtualTextureSystem::~FVirtualTextureSystem()
 	}
 	for(int i = 0; i < PhysicalSpaces.Num(); ++i)
 	{
-		FVirtualTexturePhysicalSpace* PhysicalSpace = PhysicalSpaces[i].Get();
+		FVirtualTexturePhysicalSpace* PhysicalSpace = PhysicalSpaces[i];
 		if (PhysicalSpace)
 		{
 			check(PhysicalSpace->GetRefCount() == 0u);
@@ -293,7 +293,7 @@ void FVirtualTextureSystem::ListPhysicalPoolsFromConsole()
 {
 	for(int i = 0; i < PhysicalSpaces.Num(); ++i)
 	{
-		if (PhysicalSpaces[i].IsValid())
+		if (PhysicalSpaces[i])
 		{
 			const FVirtualTexturePhysicalSpace& PhysicalSpace = *PhysicalSpaces[i];
 			const FVTPhysicalSpaceDescription& Desc = PhysicalSpace.GetDescription();
@@ -586,10 +586,9 @@ FVirtualTexturePhysicalSpace* FVirtualTextureSystem::AcquirePhysicalSpace(const 
 {
 	for (int i = 0; i < PhysicalSpaces.Num(); ++i)
 	{
-		FVirtualTexturePhysicalSpace* PhysicalSpace = PhysicalSpaces[i].Get();
+		FVirtualTexturePhysicalSpace* PhysicalSpace = PhysicalSpaces[i];
 		if (PhysicalSpace && PhysicalSpace->GetDescription() == InDesc)
 		{
-			PhysicalSpace->AddRef();
 			return PhysicalSpace;
 		}
 	}
@@ -599,7 +598,7 @@ FVirtualTexturePhysicalSpace* FVirtualTextureSystem::AcquirePhysicalSpace(const 
 
 	for (int i = 0; i < PhysicalSpaces.Num(); ++i)
 	{
-		if (!PhysicalSpaces[i].IsValid())
+		if (!PhysicalSpaces[i])
 		{
 			ID = i;
 			break;
@@ -608,27 +607,37 @@ FVirtualTexturePhysicalSpace* FVirtualTextureSystem::AcquirePhysicalSpace(const 
 
 	if (ID == PhysicalSpaces.Num())
 	{
-		PhysicalSpaces.AddDefaulted_GetRef();
+		PhysicalSpaces.AddZeroed();
 	}
 
-	TUniquePtr<FVirtualTexturePhysicalSpace>& PhysicalSpace = PhysicalSpaces[ID];
-	PhysicalSpace.Reset(new FVirtualTexturePhysicalSpace(InDesc, ID));
+	FVirtualTexturePhysicalSpace* PhysicalSpace = new FVirtualTexturePhysicalSpace(InDesc, ID);
+	PhysicalSpaces[ID] = PhysicalSpace;
+
 	INC_MEMORY_STAT_BY(STAT_TotalPhysicalMemory, PhysicalSpace->GetSizeInBytes());
-	BeginInitResource(PhysicalSpace.Get());
-	PhysicalSpace->AddRef();
-	return PhysicalSpace.Get();
+	BeginInitResource(PhysicalSpace);
+	return PhysicalSpace;
 }
 
-void FVirtualTextureSystem::ReleasePhysicalSpace(FVirtualTexturePhysicalSpace* Space)
+void FVirtualTextureSystem::ReleasePendingSpaces()
 {
-	const uint32 NumRefs = Space->Release();
-	// Physical space is released when ref count hits 0
-	// Might need to have some mechanism to hold an extra reference if we know we will be recycling very soon (such when doing level reload)
-	if (NumRefs == 0)
+	check(IsInRenderingThread());
+	for (int32 Id = 0; Id < PhysicalSpaces.Num(); ++Id)
 	{
-		DEC_MEMORY_STAT_BY(STAT_TotalPhysicalMemory, Space->GetSizeInBytes());
-		Space->ReleaseResource();
-		PhysicalSpaces[Space->GetID()] = nullptr;
+		// Physical space is released when ref count hits 0
+		// Might need to have some mechanism to hold an extra reference if we know we will be recycling very soon (such when doing level reload)
+		FVirtualTexturePhysicalSpace* PhysicalSpace = PhysicalSpaces[Id];
+		if ((bool)PhysicalSpace && PhysicalSpace->GetRefCount() == 0u)
+		{
+			DEC_MEMORY_STAT_BY(STAT_TotalPhysicalMemory, PhysicalSpace->GetSizeInBytes());
+
+			const FTexturePagePool& PagePool = PhysicalSpace->GetPagePool();
+			check(PagePool.GetNumMappedPages() == 0u);
+			check(PagePool.GetNumLockedPages() == 0u);
+
+			PhysicalSpace->ReleaseResource();
+			delete PhysicalSpace;
+			PhysicalSpaces[Id] = nullptr;
+		}
 	}
 }
 
@@ -836,6 +845,7 @@ void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFea
 {
 	check(IsInRenderingThread());
 
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(VirtualTextureSystem_Update);
 	SCOPE_CYCLE_COUNTER(STAT_VirtualTextureSystem_Update);
 	SCOPED_GPU_STAT(RHICmdList, VirtualTexture);
 
@@ -846,7 +856,7 @@ void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFea
 
 		for (int i = 0; i < PhysicalSpaces.Num(); ++i)
 		{
-			FVirtualTexturePhysicalSpace* PhysicalSpace = PhysicalSpaces[i].Get();
+			FVirtualTexturePhysicalSpace* PhysicalSpace = PhysicalSpaces[i];
 			if (PhysicalSpace)
 			{
 				// Collect locked pages to be produced again
@@ -860,6 +870,13 @@ void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFea
 	}
 
 	DestroyPendingVirtualTextures();
+
+	// Early out when no allocated VTs
+	if (AllocatedVTs.Num() == 0)
+	{
+		MappedTilesToProduce.Reset();
+		return;
+	}
 
 	FMemStack& MemStack = FMemStack::Get();
 	FMemMark Mark(MemStack);
@@ -1048,6 +1065,8 @@ void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFea
 	SubmitPreMappedRequests(RHICmdList, FeatureLevel);
 	// Submit the merged requests
 	SubmitRequests(RHICmdList, FeatureLevel, MemStack, MergedRequestList, true);
+
+	ReleasePendingSpaces();
 }
 
 void FVirtualTextureSystem::GatherRequests(FUniqueRequestList* MergedRequestList, const FUniquePageList* UniquePageList, uint32 FrameRequested, FMemStack& MemStack)
@@ -1535,7 +1554,7 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 
 	for (uint32 PhysicalSpaceID = 0u; PhysicalSpaceID < (uint32)PhysicalSpaces.Num(); ++PhysicalSpaceID)
 	{
-		if (PhysicalSpaces[PhysicalSpaceID].Get() == nullptr)
+		if (PhysicalSpaces[PhysicalSpaceID] == nullptr)
 		{
 			continue;
 		}

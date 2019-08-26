@@ -1104,7 +1104,7 @@ void FOpenGLDynamicRHI::RHISetShaderSampler(FRHIGeometryShader* GeometryShaderRH
 
 void FOpenGLDynamicRHI::RHISetShaderTexture(FRHIComputeShader* ComputeShaderRHI,uint32 TextureIndex, FRHITexture* NewTextureRHI)
 {
-	check(GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5);
+	check(FOpenGL::SupportsComputeShaders());
 	VERIFY_GL_SCOPE();
 	FOpenGLTextureBase* NewTexture = GetOpenGLTextureFromRHITexture(NewTextureRHI);
 	ensureMsgf((int32)TextureIndex < FOpenGL::GetMaxComputeTextureImageUnits(), TEXT("Using more compute texture units (%d) than allowed (%d)!"), TextureIndex, FOpenGL::GetMaxComputeTextureImageUnits());
@@ -1192,7 +1192,7 @@ void FOpenGLDynamicRHI::RHISetShaderUniformBuffer(FRHIPixelShader* PixelShaderRH
 void FOpenGLDynamicRHI::RHISetShaderUniformBuffer(FRHIComputeShader* ComputeShaderRHI,uint32 BufferIndex, FRHIUniformBuffer* BufferRHI)
 {
 	VERIFY_GL_SCOPE();
-	check(GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5);
+	check(FOpenGL::SupportsComputeShaders());
 	PendingState.BoundUniformBuffers[SF_Compute][BufferIndex] = BufferRHI;
 	PendingState.DirtyUniformBuffers[SF_Compute] |= 1 << BufferIndex;
 }
@@ -1770,34 +1770,47 @@ void FOpenGLDynamicRHI::RHIDiscardRenderTargets(bool Depth, bool Stencil, uint32
 	if (FOpenGL::SupportsDiscardFrameBuffer())
 	{
 		VERIFY_GL_SCOPE();
+		const bool bDefaultFramebuffer = (PendingState.Framebuffer == 0);
 		uint32 ColorBitMask = ColorBitMaskIn;
 		// 8 Color + Depth + Stencil = 10
 		GLenum Attachments[MaxSimultaneousRenderTargets + 2];
 		uint32 I = 0;
 		if (Depth)
 		{
-			Attachments[I] = GL_DEPTH_ATTACHMENT;
+			Attachments[I] = bDefaultFramebuffer ? GL_DEPTH : GL_DEPTH_ATTACHMENT;
 			I++;
 		}
 		if (Stencil)
 		{
-			Attachments[I] = GL_STENCIL_ATTACHMENT;
+			Attachments[I] = bDefaultFramebuffer ? GL_STENCIL : GL_STENCIL_ATTACHMENT;
 			I++;
 		}
 
-		ColorBitMask &= (1 << MaxSimultaneousRenderTargets) - 1;
-		uint32 J = 0;
-		while (ColorBitMask)
+		if (bDefaultFramebuffer)
 		{
-			if (ColorBitMask & 1)
+			if (ColorBitMask)
 			{
-				Attachments[I] = GL_COLOR_ATTACHMENT0 + J;
+				Attachments[I] = GL_COLOR;
 				I++;
 			}
-
-			ColorBitMask >>= 1;
-			++J;
 		}
+		else
+		{
+			ColorBitMask &= (1 << MaxSimultaneousRenderTargets) - 1;
+			uint32 J = 0;
+			while (ColorBitMask)
+			{
+				if (ColorBitMask & 1)
+				{
+					Attachments[I] = GL_COLOR_ATTACHMENT0 + J;
+					I++;
+				}
+
+				ColorBitMask >>= 1;
+				++J;
+			}
+		}
+
 		FOpenGL::DiscardFramebufferEXT(GL_FRAMEBUFFER, I, Attachments);
 	}
 }

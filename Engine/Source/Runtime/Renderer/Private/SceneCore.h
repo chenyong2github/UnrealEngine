@@ -168,7 +168,7 @@ private:
 class FStaticMeshBatchRelevance
 {
 public:
-	FStaticMeshBatchRelevance(const FStaticMeshBatch& StaticMesh, float InScreenSize, bool InbSupportsCachingMeshDrawCommands)
+	FStaticMeshBatchRelevance(const FStaticMeshBatch& StaticMesh, float InScreenSize, bool InbSupportsCachingMeshDrawCommands, bool InbUseSkyMaterial)
 		: Id(StaticMesh.Id)
 		, ScreenSize(InScreenSize)
 		, CommandInfosBase(0)
@@ -181,6 +181,7 @@ public:
 		, bUseForMaterial(StaticMesh.bUseForMaterial)
 		, bUseForDepthPass(StaticMesh.bUseForDepthPass)
 		, bUseAsOccluder(StaticMesh.bUseAsOccluder)
+		, bUseSkyMaterial(InbUseSkyMaterial)
 		, bRenderToVirtualTexture(StaticMesh.bRenderToVirtualTexture)
 		, RuntimeVirtualTextureMaterialType(StaticMesh.RuntimeVirtualTextureMaterialType)
 		, bSupportsCachingMeshDrawCommands(InbSupportsCachingMeshDrawCommands)
@@ -218,6 +219,7 @@ public:
 	uint8 bUseForMaterial	: 1; // Whether it can be used in renderpasses requiring material outputs.
 	uint8 bUseForDepthPass	: 1; // Whether it can be used in depth pass.
 	uint8 bUseAsOccluder	: 1; // User hint whether it's a good occluder.
+	uint8 bUseSkyMaterial	: 1; // Whether this batch uses a Sky material or not.
 
 	/** Whether the mesh batch can be used for rendering to a virtual texture. */
 	uint8 bRenderToVirtualTexture : 1;

@@ -287,4 +287,7 @@ void UNiagaraSystemEditorData::SynchronizeOverviewGraphWithSystem(UNiagaraSystem
 		OverviewNode->Modify();
 		OverviewNode->DestroyNode();
 	}
+
+	// Dispatch an empty graph changed message here so that any graph UIs which are visible refresh their node's widgets.
+	SystemOverviewGraph->NotifyGraphChanged();
 }

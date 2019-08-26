@@ -7,6 +7,8 @@
 #include "LevelSequenceBurnIn.h"
 #include "DefaultLevelSequenceInstanceData.h"
 #include "Engine/ActorChannel.h"
+#include "Logging/MessageLog.h"
+#include "Misc/UObjectToken.h"
 #include "Net/UnrealNetwork.h"
 #include "LevelSequenceModule.h"
 
@@ -307,7 +309,106 @@ void ALevelSequenceActor::RefreshBurnIn()
 	}
 }
 
+void ALevelSequenceActor::SetBinding(FMovieSceneObjectBindingID Binding, const TArray<AActor*>& Actors, bool bAllowBindingsFromAsset)
+{
+	if (!Binding.IsValid())
+	{
+		FMessageLog("PIE")
+			.Warning(NSLOCTEXT("LevelSequenceActor", "SetBinding_Warning", "The specified binding ID is not valid"))
+			->AddToken(FUObjectToken::Create(this));
+	}
+	else
+	{
+		BindingOverrides->SetBinding(Binding, TArray<UObject*>(Actors), bAllowBindingsFromAsset);
+		if (SequencePlayer)
+		{
+			SequencePlayer->State.Invalidate(Binding.GetGuid(), Binding.GetSequenceID());
+		}
+	}
+}
 
+void ALevelSequenceActor::AddBinding(FMovieSceneObjectBindingID Binding, AActor* Actor, bool bAllowBindingsFromAsset)
+{
+	if (!Binding.IsValid())
+	{
+		FMessageLog("PIE")
+			.Warning(NSLOCTEXT("LevelSequenceActor", "AddBinding_Warning", "The specified binding ID is not valid"))
+			->AddToken(FUObjectToken::Create(this));
+	}
+	else
+	{
+		BindingOverrides->AddBinding(Binding, Actor, bAllowBindingsFromAsset);
+		if (SequencePlayer)
+		{
+			SequencePlayer->State.Invalidate(Binding.GetGuid(), Binding.GetSequenceID());
+		}
+	}
+}
+
+void ALevelSequenceActor::RemoveBinding(FMovieSceneObjectBindingID Binding, AActor* Actor)
+{
+	if (!Binding.IsValid())
+	{
+		FMessageLog("PIE")
+			.Warning(NSLOCTEXT("LevelSequenceActor", "RemoveBinding_Warning", "The specified binding ID is not valid"))
+			->AddToken(FUObjectToken::Create(this));
+	}
+	else
+	{
+		BindingOverrides->RemoveBinding(Binding, Actor);
+		if (SequencePlayer)
+		{
+			SequencePlayer->State.Invalidate(Binding.GetGuid(), Binding.GetSequenceID());
+		}
+	}
+}
+
+void ALevelSequenceActor::ResetBinding(FMovieSceneObjectBindingID Binding)
+{
+	if (!Binding.IsValid())
+	{
+		FMessageLog("PIE")
+			.Warning(NSLOCTEXT("LevelSequenceActor", "ResetBinding_Warning", "The specified binding ID is not valid"))
+			->AddToken(FUObjectToken::Create(this));
+	}
+	else
+	{
+		BindingOverrides->ResetBinding(Binding);
+		if (SequencePlayer)
+		{
+			SequencePlayer->State.Invalidate(Binding.GetGuid(), Binding.GetSequenceID());
+		}
+	}
+}
+
+void ALevelSequenceActor::ResetBindings()
+{
+	BindingOverrides->ResetBindings();
+	if (SequencePlayer)
+	{
+		SequencePlayer->State.ClearObjectCaches(*SequencePlayer);
+	}
+}
+
+FMovieSceneObjectBindingID ALevelSequenceActor::FindNamedBinding(FName InBindingName) const
+{
+	if (ensureAlways(SequencePlayer))
+	{
+		return SequencePlayer->GetSequence()->FindNamedBinding(InBindingName);
+	}
+	return FMovieSceneObjectBindingID();
+}
+
+const TArray<FMovieSceneObjectBindingID>& ALevelSequenceActor::FindNamedBindings(FName InBindingName) const
+{
+	if (ensureAlways(SequencePlayer))
+	{
+		return SequencePlayer->GetSequence()->FindNamedBindings(InBindingName);
+	}
+
+	static TArray<FMovieSceneObjectBindingID> EmptyBindings;
+	return EmptyBindings;
+}
 
 #if WITH_EDITOR
 

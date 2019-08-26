@@ -66,10 +66,6 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Level Sequence Editor")
 	static bool IsPlaying();
 
-	/** Check whether the sequence is paused. */
-	UFUNCTION(BlueprintPure, Category = "Level Sequence Editor")
-	static bool IsPaused();
-
 public:
 
 	/*

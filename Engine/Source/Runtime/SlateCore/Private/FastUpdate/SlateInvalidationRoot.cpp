@@ -535,13 +535,10 @@ bool FSlateInvalidationRoot::ProcessInvalidation()
 			{
 				if (!GSlateEnableGlobalInvalidation && !InvalidationRootWidget->NeedsPrepass() && WidgetProxy.Widget->Advanced_IsInvalidationRoot())
 				{
-					// Prepass on child invalidation panels to give them a chance to process their invalidations since our panel is not going to prepass down all the children
-					WidgetProxy.Widget->SlatePrepass(WidgetProxy.Widget->GetPrepassLayoutScaleMultiplier());
+					WidgetProxy.CurrentInvalidateReason |= EInvalidateWidget::Layout;
 				}
-				else
-				{
-					bWidgetsNeedRepaint |= WidgetProxy.ProcessInvalidation(WidgetsNeedingUpdate, FastWidgetPathList, *this);
-				}
+			
+				bWidgetsNeedRepaint |= WidgetProxy.ProcessInvalidation(WidgetsNeedingUpdate, FastWidgetPathList, *this);
 
 #if WITH_SLATE_DEBUGGING
 				if (GSlateInvalidationDebugging)

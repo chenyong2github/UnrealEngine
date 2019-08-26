@@ -338,8 +338,6 @@ void FIOSAudioSoundSource::Stop(void)
 	// Call parent class version regardless of if there's a wave instance
 	FSoundSource::Stop();
 
-	CleanupAudioBuffer();
-
 	// It's now safe to unlock the callback
 	UnlockCallback(&CallbackLock);
 }

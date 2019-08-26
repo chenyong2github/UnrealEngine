@@ -823,6 +823,10 @@ public:
 		ContextRedirect(RHISetRayTracingCallableShader(Scene, ShaderSlotInScene, Pipeline, ShaderIndexInPipeline, NumUniformBuffers, UniformBuffers, UserData));
 	}
 
+	virtual void RHIClearRayTracingBindings(FRHIRayTracingScene* Scene) final override
+	{
+		ContextRedirect(RHIClearRayTracingBindings(Scene));
+	}
 
 	FORCEINLINE void SetPhysicalContext(FD3D12CommandContext* Context)
 	{

@@ -37,6 +37,7 @@
 #include "LightSceneInfo.h"
 #include "LightMapRendering.h"
 #include "AtmosphereRendering.h"
+#include "SkyAtmosphereRendering.h"
 #include "BasePassRendering.h"
 #include "MobileBasePassRendering.h"
 #include "LightPropagationVolume.h"
@@ -1063,12 +1064,12 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 ,	bPathTracingNeedsInvalidation(true)
 ,	SkyLight(NULL)
 ,	SimpleDirectionalLight(NULL)
-,	SunLight(NULL)
 ,	ReflectionSceneData(InFeatureLevel)
 ,	IndirectLightingCache(InFeatureLevel)
 ,	DistanceFieldSceneData(GShaderPlatformForFeatureLevel[InFeatureLevel])
 ,	PreshadowCacheLayout(0, 0, 0, 0, false)
 ,	AtmosphericFog(NULL)
+,	SkyAtmosphere(NULL)
 ,	PrecomputedVisibilityHandler(NULL)
 ,	LightOctree(FVector::ZeroVector,HALF_WORLD_MAX)
 ,	PrimitiveOctree(FVector::ZeroVector,HALF_WORLD_MAX)
@@ -1092,6 +1093,7 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 ,	SceneFrameNumber(0)
 {
 	FMemory::Memzero(MobileDirectionalLights);
+	FMemory::Memzero(AtmosphereLights);
 
 	check(World);
 	World->Scene = this;
@@ -1289,6 +1291,7 @@ static FAutoConsoleVariableRef CVarWarningOnRedundantTransformUpdate(
 
 void FScene::UpdatePrimitiveTransform_RenderThread(FRHICommandListImmediate& RHICmdList, FPrimitiveSceneProxy* PrimitiveSceneProxy, const FBoxSphereBounds& WorldBounds, const FBoxSphereBounds& LocalBounds, const FMatrix& LocalToWorld, const FVector& AttachmentRootPosition)
 {
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UpdatePrimitiveTransform);
 	SCOPE_CYCLE_COUNTER(STAT_UpdatePrimitiveTransformRenderThreadTime);
 
 	FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
@@ -1815,11 +1818,7 @@ void FScene::AddLightSceneInfo_RenderThread(FLightSceneInfo* LightSceneInfo)
 		AssignAvailableShadowMapChannelForLight(LightSceneInfo);
 	}
 
-	if (LightSceneInfo->Proxy->IsUsedAsAtmosphereSunLight() &&
-		(!SunLight || LightSceneInfo->Proxy->GetColor().ComputeLuminance() > SunLight->Proxy->GetColor().ComputeLuminance()) ) // choose brightest sun light...
-	{
-		SunLight = LightSceneInfo;
-	}
+	ProcessAtmosphereLightAddition_RenderThread(LightSceneInfo);
 
 	// Add the light to the scene.
 	LightSceneInfo->AddToScene();
@@ -1949,6 +1948,21 @@ void FScene::DisableSkyLight(FSkyLightSceneProxy* LightProxy)
 			Scene->bScenesPrimitivesNeedStaticMeshElementUpdate = true;
 		}
 	});
+}
+
+bool FScene::HasSkyLightRequiringLightingBuild() const
+{
+	return SkyLight != nullptr && !SkyLight->IsMovable();
+}
+
+bool FScene::HasAtmosphereLightRequiringLightingBuild() const
+{
+	bool AnySunLightNotMovable = false;
+	for (uint8 Index = 0; Index < NUM_ATMOSPHERE_LIGHTS; ++Index)
+	{
+		AnySunLightNotMovable |= AtmosphereLights[Index] != nullptr && !AtmosphereLights[Index]->Proxy->IsMovable();
+	}
+	return AnySunLightNotMovable;
 }
 
 void FScene::AddOrRemoveDecal_RenderThread(FDeferredDecalProxy* Proxy, bool bAdd)
@@ -2792,21 +2806,7 @@ void FScene::RemoveLightSceneInfo_RenderThread(FLightSceneInfo* LightSceneInfo)
 		    }
 		}
 
-		if (LightSceneInfo == SunLight)
-		{
-			SunLight = NULL;
-			// Search for new sun light...
-			for (TSparseArray<FLightSceneInfoCompact>::TConstIterator It(Lights); It; ++It)
-			{
-				const FLightSceneInfoCompact& LightInfo = *It;
-				if (LightInfo.LightSceneInfo != LightSceneInfo
-					&& LightInfo.LightSceneInfo->Proxy->bUsedAsAtmosphereSunLight
-					&& (!SunLight || SunLight->Proxy->GetColor().ComputeLuminance() < LightInfo.LightSceneInfo->Proxy->GetColor().ComputeLuminance()) )
-				{
-					SunLight = LightInfo.LightSceneInfo;
-				}
-			}
-		}
+		ProcessAtmosphereLightRemoval_RenderThread(LightSceneInfo);
 
 		// Remove the light from the scene.
 		LightSceneInfo->RemoveFromScene();
@@ -3584,6 +3584,44 @@ void FScene::OnLevelAddedToWorld_RenderThread(FName InLevelName)
 	}
 }
 
+void FScene::ProcessAtmosphereLightAddition_RenderThread(FLightSceneInfo* LightSceneInfo)
+{
+	if (LightSceneInfo->Proxy->IsUsedAsAtmosphereSunLight())
+	{
+		const uint8 Index = LightSceneInfo->Proxy->GetAtmosphereSunLightIndex();
+		if (!AtmosphereLights[Index] ||																								// Set it if null
+			LightSceneInfo->Proxy->GetColor().ComputeLuminance() > AtmosphereLights[Index]->Proxy->GetColor().ComputeLuminance())	// Or choose the brightest sun light
+		{
+			AtmosphereLights[Index] = LightSceneInfo;
+		}
+	}
+}
+
+void FScene::ProcessAtmosphereLightRemoval_RenderThread(FLightSceneInfo* LightSceneInfo)
+{
+	// When a light has its intensity or index changed, it will be removed first, then re-added. So we only need to check the index of the removed light.
+	const uint8 Index = LightSceneInfo->Proxy->GetAtmosphereSunLightIndex();
+	if (AtmosphereLights[Index] == LightSceneInfo)
+	{
+		AtmosphereLights[Index] = nullptr;
+		float SelectedLightLuminance = 0.0f;
+
+		for (TSparseArray<FLightSceneInfoCompact>::TConstIterator It(Lights); It; ++It)
+		{
+			const FLightSceneInfoCompact& LightInfo = *It;
+			float LightLuminance = LightInfo.LightSceneInfo->Proxy->GetColor().ComputeLuminance();
+
+			if (LightInfo.LightSceneInfo != LightSceneInfo
+				&& LightInfo.LightSceneInfo->Proxy->IsUsedAsAtmosphereSunLight() && LightInfo.LightSceneInfo->Proxy->GetAtmosphereSunLightIndex() == Index
+				&& (!AtmosphereLights[Index] || SelectedLightLuminance < LightLuminance))
+			{
+				AtmosphereLights[Index] = LightInfo.LightSceneInfo;
+				SelectedLightLuminance = LightLuminance;
+			}
+		}
+	}
+}
+
 void FScene::OnLevelRemovedFromWorld(UWorld* InWorld, bool bIsLightingScenario)
 {
 	if (bIsLightingScenario)
@@ -3646,6 +3684,8 @@ public:
 	virtual void AddInvisibleLight(ULightComponent* Light) override {}
 	virtual void SetSkyLight(FSkyLightSceneProxy* Light) override {}
 	virtual void DisableSkyLight(FSkyLightSceneProxy* Light) override {}
+	virtual bool HasSkyLightRequiringLightingBuild() const { return false; }
+	virtual bool HasAtmosphereLightRequiringLightingBuild() const { return false; }
 
 	virtual void AddDecal(UDecalComponent*) override {}
 	virtual void RemoveDecal(UDecalComponent*) override {}
@@ -3663,6 +3703,11 @@ public:
 	virtual void RemoveAtmosphericFog(class UAtmosphericFogComponent* FogComponent) override {}
 	virtual void RemoveAtmosphericFogResource_RenderThread(FRenderResource* FogResource) override {}
 	virtual FAtmosphericFogSceneInfo* GetAtmosphericFogSceneInfo() override { return NULL; }
+
+	virtual void AddSkyAtmosphere(const class USkyAtmosphereComponent* SkyAtmosphereComponent, bool bStaticLightingBuilt) override {}
+	virtual void RemoveSkyAtmosphere(const class USkyAtmosphereComponent* SkyAtmosphereComponent) override {}
+	virtual FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() override { return NULL; }
+
 	virtual void AddWindSource(class UWindDirectionalSourceComponent* WindComponent) override {}
 	virtual void RemoveWindSource(class UWindDirectionalSourceComponent* WindComponent) override {}
 	virtual const TArray<class FWindSourceSceneProxy*>& GetWindSources_RenderThread() const override

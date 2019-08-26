@@ -10,7 +10,6 @@
 #include "Sound/SoundWave.h"
 #include "Sound/SoundNodeAttenuation.h"
 #include "SubtitleManager.h"
-#include "DSP/Dsp.h"
 
 static int32 AudioOcclusionDisabledCvar = 0;
 FAutoConsoleVariableRef CVarAudioOcclusionEnabled(
@@ -80,9 +79,6 @@ FActiveSound::FActiveSound()
 	, PlaybackTimeNonVirtualized(0.0f)
 	, MinCurrentPitch(1.0f)
 	, RequestedStartTime(0.0f)
-	, CurrentAdjustVolumeMultiplier(1.0f)
-	, TargetAdjustVolumeMultiplier(1.0f)
-	, TargetAdjustVolumeStopTime(-1.0f)
 	, VolumeMultiplier(1.0f)
 	, PitchMultiplier(1.0f)
 	, LowPassFilterFrequency(MAX_FILTER_FREQUENCY)
@@ -129,10 +125,16 @@ FActiveSound* FActiveSound::CreateVirtualCopy(const FActiveSound& InActiveSoundT
 	ActiveSound->bAsyncOcclusionPending = false;
 	ActiveSound->bHasVirtualized = true;
 	ActiveSound->bIsPlayingAudio = false;
-
+	ActiveSound->bShouldStopDueToMaxConcurrency = false;
 	ActiveSound->AudioDevice = &InAudioDevice;
 	ActiveSound->PlaybackTimeNonVirtualized = 0.0f;
-	ActiveSound->VolumeConcurrency = 1.0f;
+
+	// If volume concurrency tracking is enabled, reset the value,
+	// otherwise keep disabled
+	if (InActiveSoundToCopy.VolumeConcurrency >= 0.0f)
+	{
+		ActiveSound->VolumeConcurrency = 1.0f;
+	}
 
 	ActiveSound->ConcurrencyGroupData.Reset();
 	ActiveSound->WaveInstances.Reset();
@@ -522,15 +524,7 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 	ParseParams.Transform = Transform;
 	ParseParams.StartTime = RequestedStartTime;
 
-	// Default values.
-	// It's all Multiplicative!  So now people are all modifying the multiplier values via various means
-	// (even after the Sound has started playing, and this line takes them all into account and gives us
-	// final value that is correct
-	UpdateAdjustVolumeMultiplier(DeltaTime);
-
-	// Update concurrency volume scalars. Must be done prior to getting collective volume and applying below
-	// in parse params.
-	UpdateConcurrencyVolumeScalars(DeltaTime);
+	ComponentVolumeFader.Update(DeltaTime);
 
 	ParseParams.VolumeMultiplier = GetVolume();
 
@@ -576,7 +570,7 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 
 	// Recurse nodes, have SoundWave's create new wave instances and update bFinished unless we finished fading out.
 	bFinished = true;
-	if (FadeOut == EFadeOut::None || (PlaybackTime <= TargetAdjustVolumeStopTime))
+	if (FadeOut == EFadeOut::None || ComponentVolumeFader.IsActive())
 	{
 		bool bReverbSendLevelWasSet = false;
 		if (bHasAttenuationSettings)
@@ -645,6 +639,18 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 				{
 					VolumeConcurrency = WaveInstanceVolume;
 				}
+			}
+
+			// Remove concurrency volume scalars as this can cause ping-ponging to occur with virtualization and loops
+			// utilizing concurrency with StopQuietest.
+			const float VolumeScale = GetTotalConcurrencyVolumeScale();
+			if (VolumeScale > SMALL_NUMBER)
+			{
+				VolumeConcurrency /= VolumeScale;
+			}
+			else
+			{
+				VolumeConcurrency = 0.0f;
 			}
 		}
 
@@ -921,38 +927,6 @@ void FActiveSound::RemoveWaveInstance(const UPTRINT WaveInstanceHash)
 	}
 }
 
-void FActiveSound::UpdateAdjustVolumeMultiplier(const float DeltaTime)
-{
-	// Choose min/max bound and clamp dt to prevent unwanted spikes in volume
-	float MinValue = 0.0f;
-	float MaxValue = 0.0f;
-	if (CurrentAdjustVolumeMultiplier < TargetAdjustVolumeMultiplier)
-	{
-		MinValue = CurrentAdjustVolumeMultiplier;
-		MaxValue = TargetAdjustVolumeMultiplier;
-	}
-	else
-	{
-		MinValue = TargetAdjustVolumeMultiplier;
-		MaxValue = CurrentAdjustVolumeMultiplier;
-	}
-
-	float DeltaTimeValue = FMath::Min(DeltaTime, 0.5f);
-
-	// keep stepping towards our target until we hit our stop time
-	if (PlaybackTime < TargetAdjustVolumeStopTime)
-	{
-		CurrentAdjustVolumeMultiplier += (TargetAdjustVolumeMultiplier - CurrentAdjustVolumeMultiplier) * DeltaTimeValue / (TargetAdjustVolumeStopTime - PlaybackTime);
-	}
-	else
-	{
-		CurrentAdjustVolumeMultiplier = TargetAdjustVolumeMultiplier;
-	}
-
-	// Apply final clamp
-	CurrentAdjustVolumeMultiplier = FMath::Clamp(CurrentAdjustVolumeMultiplier, MinValue, MaxValue);
-}
-
 void FActiveSound::OcclusionTraceDone(const FTraceHandle& TraceHandle, FTraceDatum& TraceDatum)
 {
 	// Look for any results that resulted in a blocking hit
@@ -1197,7 +1171,7 @@ bool FActiveSound::GetFloatParameter( const FName InName, float& OutFloat ) cons
 
 float FActiveSound::GetVolume() const
 {
-	const float Volume = VolumeMultiplier * CurrentAdjustVolumeMultiplier * GetTotalConcurrencyVolumeScale();
+	const float Volume = VolumeMultiplier * ComponentVolumeFader.GetVolume() * GetTotalConcurrencyVolumeScale();
 	return Sound ? Volume * Sound->GetVolumeMultiplier() : Volume;
 }
 

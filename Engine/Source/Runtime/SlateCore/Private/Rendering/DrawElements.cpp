@@ -954,7 +954,7 @@ FSlateDrawElement& FSlateCachedElementData::AddCachedElement(FSlateCachedElement
 		// We need to cache this clip state for the next time the element draws
 		FSlateCachedClipState& CachedClipState = FindOrAddCachedClipState(ExistingClipState);
 		List.AddCachedClipState(CachedClipState);
-		NewElement.SetCachedClippingState(&CachedClipState.ClippingState);
+		NewElement.SetCachedClippingState(&CachedClipState.ClippingState.Get());
 	}
 
 	return NewElement;
@@ -972,22 +972,21 @@ FSlateCachedClipState& FSlateCachedElementData::FindOrAddCachedClipState(const F
 {
 	for (auto& CachedState : CachedClipStates)
 	{
-		if (CachedState->ClippingState == *RefClipState)
+		if (*CachedState.ClippingState == *RefClipState)
 		{
-			CachedState->BeginUsingState();
-			return *CachedState;
+			return CachedState;
 		}
 	}
 
-	return *CachedClipStates.Emplace_GetRef(MakeUnique<FSlateCachedClipState>(*RefClipState));
+	return CachedClipStates.Emplace_GetRef(FSlateCachedClipState(*RefClipState));
 }
 
 void FSlateCachedElementData::CleanupUnusedClipStates()
 {
 	for(int32 CachedStateIdx = 0; CachedStateIdx < CachedClipStates.Num();)
 	{
-		const TUniquePtr<FSlateCachedClipState>& CachedState = CachedClipStates[CachedStateIdx];
-		if (CachedState->GetUsageCount() == 0)
+		const FSlateCachedClipState& CachedState = CachedClipStates[CachedStateIdx];
+		if (CachedState.ClippingState.IsUnique())
 		{
 			CachedClipStates.RemoveAtSwap(CachedStateIdx);
 		}
@@ -1033,7 +1032,7 @@ FSlateRenderBatch& FSlateCachedElementList::AddRenderBatch(int32 InLayer, const 
 
 void FSlateCachedElementList::AddCachedClipState(FSlateCachedClipState& ClipStateToCache)
 {
-	CachedRenderingData->CachedClipStates.Add(&ClipStateToCache);
+	CachedRenderingData->CachedClipStates.Add(ClipStateToCache);
 }
 
 void FSlateCachedElementList::AddReferencedObjects(FReferenceCollector& Collector)

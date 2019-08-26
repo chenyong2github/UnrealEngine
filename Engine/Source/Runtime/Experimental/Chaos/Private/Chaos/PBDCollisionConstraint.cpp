@@ -19,8 +19,19 @@
 #include "Chaos/PBDRigidsSOAs.h"
 
 #if INTEL_ISPC
+
+#if USING_CODE_ANALYSIS
+MSVC_PRAGMA(warning(push))
+MSVC_PRAGMA(warning(disable : ALL_CODE_ANALYSIS_WARNINGS))
+#endif    // USING_CODE_ANALYSIS
+
 #include "PBDCollisionConstraint.ispc.generated.h"
-#endif
+
+#if USING_CODE_ANALYSIS
+MSVC_PRAGMA(warning(pop))
+#endif    // USING_CODE_ANALYSIS
+
+#endif    // INTEL_ISPC
 
 int32 CollisionParticlesBVHDepth = 4;
 FAutoConsoleVariableRef CVarCollisionParticlesBVHDepth(TEXT("p.CollisionParticlesBVHDepth"), CollisionParticlesBVHDepth, TEXT("The maximum depth for collision particles bvh"));

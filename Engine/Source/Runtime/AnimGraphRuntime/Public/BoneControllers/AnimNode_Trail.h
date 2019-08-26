@@ -122,13 +122,6 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_Trail : public FAnimNode_SkeletalControlBa
 	UPROPERTY(EditAnywhere, Category = Limit)
 	float MaxDeltaTime;
 
-	/** If you want to avoid loop, how many you want to unwind at once. 
-	 * Bigger value can cause jitter as it becomes more unstable in the ordering
-	 * Defaulted to 3. It will use this length to unwind at once 
-	 */
-	UPROPERTY(EditAnywhere, Category = Trail, meta = (EditCondition = "!bAllowLoop", ClampMin = "3", UIMin = "3"))
-	uint32 UnwindingSize;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Trail, meta = (PinHiddenByDefault))
 	float RelaxationSpeedScale;
 

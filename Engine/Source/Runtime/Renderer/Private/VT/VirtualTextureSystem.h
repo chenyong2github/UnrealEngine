@@ -52,10 +52,9 @@ public:
 	void ReleaseSpace(FVirtualTextureSpace* Space);
 
 	FVirtualTexturePhysicalSpace* AcquirePhysicalSpace(const FVTPhysicalSpaceDescription& InDesc);
-	void ReleasePhysicalSpace(FVirtualTexturePhysicalSpace* Space);
 
 	FVirtualTextureSpace* GetSpace(uint8 ID) const { check(ID < MaxSpaces); return Spaces[ID].Get(); }
-	FVirtualTexturePhysicalSpace* GetPhysicalSpace(uint16 ID) const { check(PhysicalSpaces[ID].IsValid());  return PhysicalSpaces[ID].Get(); }
+	FVirtualTexturePhysicalSpace* GetPhysicalSpace(uint16 ID) const { check(PhysicalSpaces[ID]);  return PhysicalSpaces[ID]; }
 
 	void LockTile(const FVirtualTextureLocalTile& Tile);
 	void UnlockTile(const FVirtualTextureLocalTile& Tile, const FVirtualTextureProducer* Producer);
@@ -75,6 +74,7 @@ private:
 	~FVirtualTextureSystem();
 
 	void DestroyPendingVirtualTextures();
+	void ReleasePendingSpaces();
 
 	void RequestTilesForRegionInternal(const IAllocatedVirtualTexture* AllocatedVT, const FIntRect& InTextureRegion, uint32 vLevel);
 	
@@ -95,7 +95,7 @@ private:
 
 	static const uint32 MaxSpaces = 16;
 	TUniquePtr<FVirtualTextureSpace> Spaces[MaxSpaces];
-	TArray< TUniquePtr<FVirtualTexturePhysicalSpace> > PhysicalSpaces;
+	TArray<FVirtualTexturePhysicalSpace*> PhysicalSpaces;
 	FVirtualTextureProducerCollection Producers;
 
 	FCriticalSection PendingDeleteLock;

@@ -631,6 +631,8 @@ enum EUnrealEngineObjectUE4Version
 	VER_UE4_ADDED_PACKAGE_SUMMARY_LOCALIZATION_ID,
 	// Fixed case insensitive hashes of wide strings containing character values from 128-255
 	VER_UE4_FIX_WIDE_STRING_CRC,
+	// Added package owner to allow private references
+	VER_UE4_ADDED_PACKAGE_OWNER,
 
 	// -----<new versions can be added before this line>-------------------------------------------------
 	// - this needs to be the last line (see note below)

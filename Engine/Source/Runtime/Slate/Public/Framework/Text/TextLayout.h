@@ -529,6 +529,8 @@ public:
 
 	void GetSelectionAsText(FString& DisplayText, const FTextSelection& Selection) const;
 
+	FTextSelection GetGraphemeAt(const FTextLocation& Location) const;
+
 	FTextSelection GetWordAt(const FTextLocation& Location) const;
 
 protected:

@@ -89,7 +89,7 @@ namespace Gauntlet
 				string[] ExecutablePaths = new string[]
 				{
 					Path.Combine(InPath, InProjectName, "Binaries", InPlatform.ToString()),
-					Path.Combine(InPath),
+					//Path.Combine(InPath),
 					Path.Combine(InPath, "Engine", "Binaries", InPlatform.ToString()),
 				};
 

@@ -45,10 +45,16 @@ private:
 	/** Creates a slate brush from raw binary PNG formatted image data and the supplied prefix. */
 	TSharedPtr<FSlateDynamicImageBrush> CreateBrushFromRawData(FString ResourceNamePrefix, const TArray<uint8>& RawData) const;
 
-	/** Selects an FLocalizedText from an array which matches either the supplied language code, or the default language code. */
-	FLocalizedText ChooseLocalizedText(TArray<FLocalizedText> Choices, FString LanguageCode);
+	/** Selects the text from an array which matches the given language. */
+	FText ChooseLocalizedText(const TArray<FLocalizedText>& Choices, const FString& InCurrentLanguage);
 
 private:
+	struct FCachedContentText
+	{
+		FString Language;
+		FText Text;
+	};
+
 	/** The content source represented by this view model. */
 	TSharedPtr<IContentSource> ContentSource;
 
@@ -61,17 +67,14 @@ private:
 	/** The view model for the category for this content source. */
 	FCategoryViewModel Category;
 
-	/** The FLocalizedText representing the name of the content source, in the language which was active the
-		last time it was requested, or the default language if a translation was not available. */
-	FLocalizedText NameText;
+	/** The information used/returned the last time the name of the content source was requested. */
+	FCachedContentText CachedNameText;
 
-	/** The FLocalizedText representing the description of the content source, in the language which was active
-		the last time it was requested, or the default language if a translation was not available. */
-	FLocalizedText DescriptionText;
+	/** The information used/returned the last time the description of the content source was requested. */
+	FCachedContentText CachedDescriptionText;
 
-	/** The FLocalizedText representing the asset types used by the content source, in the language which was active
-		the last time it was requested, or the default language if a translation was not available. */
-	FLocalizedText AssetTypeText;
+	/** The information used/returned the last time the asset types of the content source was requested. */
+	FCachedContentText CachedAssetTypeText;
 
 	/** Keeps track of a unique increasing id which is appended to each brush name.  This avoids an issue
 		where two brushes are created with the same name, and then both brushes texture data gets deleted

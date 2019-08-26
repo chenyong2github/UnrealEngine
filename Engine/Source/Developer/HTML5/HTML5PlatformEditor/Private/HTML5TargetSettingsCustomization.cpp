@@ -71,8 +71,7 @@ class HTML5DeprecationBanner : public SCompoundWidget
 					.ColorAndOpacity(FLinearColor::White)
 					.ShadowColorAndOpacity(FLinearColor::Black)
 					.ShadowOffset(FVector2D::UnitVector)
-					.Text(LOCTEXT("HTML5DeprecatedPlatformMessageText",
-						"HTML5 platform support will be migrated to GitHub as a community-supported Platform Extension and no longer officially supported by Epic in upcoming releases."))
+					.Text(LOCTEXT("HTML5DeprecatedPlatformMessageText", "HTML5 platform support will be migrated to GitHub as a community-supported Platform Extension and no longer officially supported by Epic in upcoming releases."))
 					.AutoWrapText(true)
 				]
 			]

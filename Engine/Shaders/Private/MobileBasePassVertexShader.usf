@@ -21,6 +21,10 @@
 #include "/Engine/Generated/VertexFactory.ush"
 #include "HeightFogCommon.ush"
 
+#if USE_VERTEX_FOG && PROJECT_SUPPORT_SKY_ATMOSPHERE
+#include "SkyAtmosphereCommon.ush"
+#endif
+
 struct FMobileShadingBasePassVSToPS
 {
 	FVertexFactoryInterpolantsVSToPS FactoryInterpolants;
@@ -86,10 +90,29 @@ void Main(
 #endif
 
 #if USE_VERTEX_FOG
+	float4 VertexFog = CalculateHeightFog(WorldPosition.xyz - ResolvedView.TranslatedWorldCameraOrigin);
+
+#if PROJECT_SUPPORT_SKY_ATMOSPHERE && MATERIAL_FORCE_SKIP_AERIAL_PERSPECTIVE==0
+	if (ResolvedView.SkyAtmosphereApplyCameraAerialPerspectiveVolume > 0.0f)
+	{
+		const float OneOverPreExposure = USE_PREEXPOSURE ? ResolvedView.OneOverPreExposure : 1.0f;
+		// Sample the aerial perspective (AP). It is also blended under the VertexFog parameter.
+		VertexFog = GetAerialPerspectiveLuminanceTransmittanceWithFogOver(
+			Output.Position, WorldPosition.xyz*CM_TO_SKY_UNIT, ResolvedView.TranslatedWorldCameraOrigin*CM_TO_SKY_UNIT,
+			View.CameraAerialPerspectiveVolume, View.CameraAerialPerspectiveVolumeSampler,
+			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolutionInv,
+			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolution,
+			ResolvedView.SkyAtmosphereAerialPerspectiveStartDepth,
+			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLength,
+			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthInv,
+			OneOverPreExposure, VertexFog);
+	}
+#endif
+
 #if PACK_INTERPOLANTS
-	PackedInterps[0] = CalculateHeightFog(WorldPosition.xyz - ResolvedView.TranslatedWorldCameraOrigin);
+	PackedInterps[0] = VertexFog;
 #else
-	Output.BasePassInterpolants.VertexFog = CalculateHeightFog(WorldPosition.xyz - ResolvedView.TranslatedWorldCameraOrigin);
+	Output.BasePassInterpolants.VertexFog = VertexFog;
 #endif // PACK_INTERPOLANTS
 #endif
 
