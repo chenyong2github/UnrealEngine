@@ -4809,6 +4809,7 @@ void FSlateEditorStyle::FStyle::SetupLevelEditorStyle()
 #if WITH_EDITOR || (IS_PROGRAM && WITH_UNREAL_DEVELOPER_TOOLS)
 		{
 			Set( "LevelEditor.Tabs.Details", new IMAGE_BRUSH( "/Icons/icon_tab_SelectionDetails_16x", Icon16x16 ) );
+			Set( "LevelEditor.Tabs.Cinematics", new IMAGE_BRUSH("/Icons/icon_tab_Cinematics_16x", Icon16x16));
 			Set( "LevelEditor.Tabs.EditorModes", new IMAGE_BRUSH( "/Icons/icon_Editor_Modes_16x", Icon16x16 ) );
 			Set( "LevelEditor.Tabs.Modes", new IMAGE_BRUSH( "/Icons/icon_Editor_Modes_16x", Icon16x16 ) );
 			Set( "LevelEditor.Tabs.Properties", new IMAGE_BRUSH( "/Icons/properties_16x", Icon16x16 ) );

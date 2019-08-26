@@ -41,6 +41,11 @@ public:
 		return LevelEditorModesCategory.ToSharedRef();
 	}
 
+	virtual TSharedRef<FWorkspaceItem> GetLevelEditorCinematicsCategory() const override
+	{
+		return LevelEditorCinematicsCategory.ToSharedRef();
+	}
+
 	virtual TSharedRef<FWorkspaceItem> GetToolsCategory() const override
 	{
 		return ToolsCategory.ToSharedRef();
@@ -76,6 +81,7 @@ public:
 		LevelEditorCategory->ClearItems();
 		LevelEditorViewportsCategory = LevelEditorCategory->AddGroup(LOCTEXT( "WorkspaceMenu_LevelEditorViewportCategory", "Viewports" ), LOCTEXT( "WorkspaceMenu_LevelEditorViewportCategoryTooltip", "Open a Viewport tab." ), FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Viewports"), true);
 		LevelEditorDetailsCategory = LevelEditorCategory->AddGroup(LOCTEXT("WorkspaceMenu_LevelEditorDetailCategory", "Details" ), LOCTEXT("WorkspaceMenu_LevelEditorDetailCategoryTooltip", "Open a Details tab." ), FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"), true );
+		LevelEditorCinematicsCategory = LevelEditorCategory->AddGroup(LOCTEXT("WorkspaceMenu_LevelEditorCinematicsCategory", "Cinematics"), LOCTEXT("WorkspaceMenu_LevelEditorCinematicsCategoryTooltip", "Open a Cinematics tab."), FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Cinematics"), true);
 		LevelEditorModesCategory = LevelEditorCategory->AddGroup(LOCTEXT("WorkspaceMenu_LevelEditorToolsCategory", "Editor Modes" ), FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.EditorModes"), true );
 	}
 
@@ -114,6 +120,7 @@ private:
 	TSharedPtr<FWorkspaceItem> LevelEditorCategory;
 	TSharedPtr<FWorkspaceItem> LevelEditorViewportsCategory;
 	TSharedPtr<FWorkspaceItem> LevelEditorDetailsCategory;
+	TSharedPtr<FWorkspaceItem> LevelEditorCinematicsCategory;
 	TSharedPtr<FWorkspaceItem> LevelEditorModesCategory;
 
 	TSharedPtr<FWorkspaceItem> ToolsCategory;
