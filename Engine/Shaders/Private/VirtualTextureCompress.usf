@@ -149,55 +149,9 @@ void CompressBaseColorNormalCS(
 	OutCompressTexture1[ThreadId.xy + DestRect.xy] = CompressBC5Block(BlockNormalX, BlockNormalY);
 }
 
-/** Compress base color, normal, roughness and specular to BC3 target pair. */
-[numthreads(8,8,1)]
-void CompressBaseColorNormalSpecularCS(
-	uint3 ThreadId : SV_DispatchThreadID 
-	)
-{
-	uint2 SamplePos = ThreadId.xy * 4;
-	if (any(SamplePos >= DestRect.zw))
-		return;
-
-	float2 TexelUVSize = 1.f / float2(DestRect.zw);
-	float2 SampleUV = (float2(SamplePos) + 0.5f) * TexelUVSize;
-
-	float3 BlockBaseColor[16];
-	ReadBlockRGB(RenderTexture0, TextureSampler0, SampleUV, TexelUVSize, BlockBaseColor);
-
-	float BlockNormalX[16];
-	float BlockNormalY[16];
-	ReadBlockRG(RenderTexture1, TextureSampler1, SampleUV, TexelUVSize, BlockNormalX, BlockNormalY);
-
-	float3 BlockSpecular[16];
-	ReadBlockRGB(RenderTexture2, TextureSampler2, SampleUV, TexelUVSize, BlockSpecular);
-
-	OutCompressTexture0_u4[ThreadId.xy + DestRect.xy] = CompressBC3Block_SRGB(BlockBaseColor, BlockNormalX);
-	OutCompressTexture1[ThreadId.xy + DestRect.xy] = CompressBC3Block(BlockSpecular, BlockNormalY);
-}
-
-/** Copy normal X and Y to the alpha channels of the final target textures (without compression)
-  * This path is used when we disable texture compression, because we need to keep the same final channel layout. */
-[numthreads(8,8,1)]
-void CopyNormalSpecularCS(
-	uint3 ThreadId : SV_DispatchThreadID 
-	)
-{
-	uint2 SamplePos = ThreadId.xy;
-	if (any(ThreadId.xy >= DestRect.zw))
-		return;
-
-	float3 BaseColor = LinearToSrgb(RenderTexture0[SamplePos].xyz);
-	float2 NormalXY = RenderTexture1[SamplePos].xy;
-	float2 RoughnessSpecular = RenderTexture2[SamplePos].xy;
-	
-	OutCopyTexture0[ThreadId.xy + DestRect.xy] = float4(BaseColor, NormalXY.x);
-	OutCopyTexture1[ThreadId.xy + DestRect.xy] = float4(RoughnessSpecular.x, RoughnessSpecular.y, 0.0f, NormalXY.y);
-}
-
 /** Compress base color, normal, roughness and specular to BC1/BC3 target pair. */
 [numthreads(8,8,1)]
-void CompressBaseColorNormalSpecularDeprecatedCS(
+void CompressBaseColorNormalSpecularCS(
 	uint3 ThreadId : SV_DispatchThreadID 
 	)
 {
@@ -230,7 +184,7 @@ void CompressBaseColorNormalSpecularDeprecatedCS(
 /** Combine and copy normal, roughness and specular to a single packed target (without compression).
   * This path is used when we disable texture compression, because we need to keep the same final channel layout. */
 [numthreads(8,8,1)]
-void CopyNormalSpecularDeprecatedCS(
+void CopyNormalSpecularCS(
 	uint3 ThreadId : SV_DispatchThreadID 
 	)
 {
@@ -242,4 +196,50 @@ void CopyNormalSpecularDeprecatedCS(
 	float2 RoughnessSpecular = RenderTexture2[SamplePos].xy;
 	
 	OutCopyTexture0[ThreadId.xy + DestRect.xy] = float4(RoughnessSpecular.x, NormalXY.y, RoughnessSpecular.y, NormalXY.x);
+}
+
+/** Compress base color, normal, roughness and specular to BC3 target pair. */
+[numthreads(8,8,1)]
+void CompressBaseColorNormalSpecularExCS(
+	uint3 ThreadId : SV_DispatchThreadID 
+	)
+{
+	uint2 SamplePos = ThreadId.xy * 4;
+	if (any(SamplePos >= DestRect.zw))
+		return;
+
+	float2 TexelUVSize = 1.f / float2(DestRect.zw);
+	float2 SampleUV = (float2(SamplePos) + 0.5f) * TexelUVSize;
+
+	float3 BlockBaseColor[16];
+	ReadBlockRGB(RenderTexture0, TextureSampler0, SampleUV, TexelUVSize, BlockBaseColor);
+
+	float BlockNormalX[16];
+	float BlockNormalY[16];
+	ReadBlockRG(RenderTexture1, TextureSampler1, SampleUV, TexelUVSize, BlockNormalX, BlockNormalY);
+
+	float3 BlockSpecular[16];
+	ReadBlockRGB(RenderTexture2, TextureSampler2, SampleUV, TexelUVSize, BlockSpecular);
+
+	OutCompressTexture0_u4[ThreadId.xy + DestRect.xy] = CompressBC3Block_SRGB(BlockBaseColor, BlockNormalX);
+	OutCompressTexture1[ThreadId.xy + DestRect.xy] = CompressBC3Block(BlockSpecular, BlockNormalY);
+}
+
+/** Copy normal X and Y to the alpha channels of the final target textures (without compression)
+  * This path is used when we disable texture compression, because we need to keep the same final channel layout. */
+[numthreads(8,8,1)]
+void CopyNormalSpecularExCS(
+	uint3 ThreadId : SV_DispatchThreadID 
+	)
+{
+	uint2 SamplePos = ThreadId.xy;
+	if (any(ThreadId.xy >= DestRect.zw))
+		return;
+
+	float3 BaseColor = LinearToSrgb(RenderTexture0[SamplePos].xyz);
+	float2 NormalXY = RenderTexture1[SamplePos].xy;
+	float2 RoughnessSpecular = RenderTexture2[SamplePos].xy;
+	
+	OutCopyTexture0[ThreadId.xy + DestRect.xy] = float4(BaseColor, NormalXY.x);
+	OutCopyTexture1[ThreadId.xy + DestRect.xy] = float4(RoughnessSpecular.x, RoughnessSpecular.y, 0.0f, NormalXY.y);
 }
