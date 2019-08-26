@@ -2060,6 +2060,15 @@ protected:
 		// Can only create temporaries for certain types
 		else if ((Type & (MCT_Float | MCT_VTPageTableResult)) || Type == MCT_ShadingModel)
 		{
+			// Check for existing
+			for (int32 i = 0; i < CurrentScopeChunks->Num(); ++i)
+			{
+				if ((*CurrentScopeChunks)[i].Hash == Hash)
+				{
+					return i;
+				}
+			}
+
 			const int32 CodeIndex = CurrentScopeChunks->Num();
 			// Allocate a local variable name
 			const FString SymbolName = CreateSymbolName(TEXT("Local"));
@@ -5070,28 +5079,46 @@ protected:
 		return AddInlinedCodeChunk(MCT_Float2, *SampleCode, *GetParameterCode(WorldPositionIndex), *GetParameterCode(P0), *GetParameterCode(P1), *GetParameterCode(P2));
 	}
 
-	virtual int32 VirtualTextureUnpack(int32 CodeIndex, EVirtualTextureUnpackType UnpackType) override
+	virtual int32 VirtualTextureUnpack(int32 CodeIndex0, int32 CodeIndex1, EVirtualTextureUnpackType UnpackType) override
 	{
-		if (CodeIndex != INDEX_NONE)
+		if (UnpackType == EVirtualTextureUnpackType::BaseColor)
 		{
-			if (UnpackType == EVirtualTextureUnpackType::NormalBC3)
-			{
-				FString	SampleCode(TEXT("VirtualTextureUnpackNormalBC3(%s)"));
-				return AddCodeChunk(MCT_Float3, *SampleCode, *GetParameterCode(CodeIndex));
-			}
-			if (UnpackType == EVirtualTextureUnpackType::NormalBC5)
-			{
-				FString	SampleCode(TEXT("VirtualTextureUnpackNormalBC5(%s)"));
-				return AddCodeChunk(MCT_Float3, *SampleCode, *GetParameterCode(CodeIndex));
-			}
-			else if (UnpackType == EVirtualTextureUnpackType::HeightR16)
-			{
-				FString	SampleCode(TEXT("VirtualTextureUnpackHeightR16(%s)"));
-				return AddCodeChunk(MCT_Float, *SampleCode, *GetParameterCode(CodeIndex));
-			}
+			return CodeIndex0 == INDEX_NONE ? INDEX_NONE : ComponentMask(CodeIndex0, 1, 1, 1, 0);
+		}
+		else if (UnpackType == EVirtualTextureUnpackType::NormalBC3)
+		{
+			FString	SampleCode(TEXT("VirtualTextureUnpackNormalBC3(%s)"));
+			return CodeIndex1 == INDEX_NONE ? INDEX_NONE : AddCodeChunk(MCT_Float3, *SampleCode, *GetParameterCode(CodeIndex1));
+		}
+		else if (UnpackType == EVirtualTextureUnpackType::NormalBC5)
+		{
+			FString	SampleCode(TEXT("VirtualTextureUnpackNormalBC5(%s)"));
+			return CodeIndex1 == INDEX_NONE ? INDEX_NONE : AddCodeChunk(MCT_Float3, *SampleCode, *GetParameterCode(CodeIndex1));
+		}
+		else if (UnpackType == EVirtualTextureUnpackType::NormalBC3BC3)
+		{
+			FString	SampleCode(TEXT("VirtualTextureUnpackNormalBC3BC3(%s, %s)"));
+			return CodeIndex0 == INDEX_NONE || CodeIndex1 == INDEX_NONE ? INDEX_NONE : AddCodeChunk(MCT_Float3, *SampleCode, *GetParameterCode(CodeIndex0), *GetParameterCode(CodeIndex1));
+		}
+		else if (UnpackType == EVirtualTextureUnpackType::SpecularR8)
+		{
+			return CodeIndex1 == INDEX_NONE ? INDEX_NONE : ComponentMask(CodeIndex1, 1, 0, 0, 0);
+		}
+		else if (UnpackType == EVirtualTextureUnpackType::RoughnessG8)
+		{
+			return CodeIndex1 == INDEX_NONE ? INDEX_NONE : ComponentMask(CodeIndex1, 0, 1, 0, 0);
+		}
+		else if (UnpackType == EVirtualTextureUnpackType::RoughnessB8)
+		{
+			return CodeIndex1 == INDEX_NONE ? INDEX_NONE : ComponentMask(CodeIndex1, 0, 0, 1, 0);
+		}
+		else if (UnpackType == EVirtualTextureUnpackType::HeightR16)
+		{
+			FString	SampleCode(TEXT("VirtualTextureUnpackHeightR16(%s)"));
+			return CodeIndex0 == INDEX_NONE ? INDEX_NONE : AddCodeChunk(MCT_Float, *SampleCode, *GetParameterCode(CodeIndex0));
 		}
 
-		return CodeIndex;
+		return CodeIndex0;
 	}
 
 	virtual int32 ExternalTexture(const FGuid& ExternalTextureGuid) override

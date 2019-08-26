@@ -17,11 +17,12 @@ enum class ERuntimeVirtualTextureMaterialType : uint8
 	BaseColor_Normal UMETA(DisplayName = "Base Color, Normal"),
 	BaseColor_Normal_Specular UMETA(DisplayName = "Base Color, Normal, Roughness, Specular"),
 	WorldHeight UMETA(DisplayName = "World Height"),
-	
+	BaseColor_Normal_Specular_Deprecated UMETA(DisplayName = "[OLD] Base Color, Normal, Roughness, Specular"),
+
 	Count UMETA(Hidden),
 };
 
-enum { ERuntimeVirtualTextureMaterialType_NumBits = 2 };
+enum { ERuntimeVirtualTextureMaterialType_NumBits = 3 };
 static_assert((uint32)ERuntimeVirtualTextureMaterialType::Count <= (1 << (uint32)ERuntimeVirtualTextureMaterialType_NumBits), "NumBits is too small");
 
 /** Enumeration of main pass behaviors when rendering to a runtime virtual texture. */
