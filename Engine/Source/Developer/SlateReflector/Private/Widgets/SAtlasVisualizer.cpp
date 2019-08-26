@@ -241,14 +241,10 @@ void SAtlasVisualizer::Construct( const FArguments& InArgs )
 	AtlasProvider = InArgs._AtlasProvider;
 	check(AtlasProvider);
 
-	const bool IsAlphaOnly = AtlasProvider->IsAtlasPageResourceAlphaOnly();
-
 	SelectedAtlasPage = 0;
 	bDisplayCheckerboard = false;
 
-	const FIntPoint DesiredViewportSize = GetSize();
 	TSharedPtr<SViewport> Viewport;
-
 	ChildSlot
 	[
 		SNew(SBorder)
@@ -290,7 +286,7 @@ void SAtlasVisualizer::Construct( const FArguments& InArgs )
 				.Padding(0.0,2.0f,2.0f,2.0f)
 				[
 					SNew( STextBlock )
-					.Text( FText::Format( LOCTEXT("PageSizeXY", "({0} x {1})"), FText::AsNumber(DesiredViewportSize.X), FText::AsNumber(DesiredViewportSize.Y) ) )
+					.Text( this, &SAtlasVisualizer::GetViewportSizeText )
 				]
 				+ SHorizontalBox::Slot()
 				.Padding(20.0f,2.0f)
@@ -298,7 +294,7 @@ void SAtlasVisualizer::Construct( const FArguments& InArgs )
 				.VAlign( VAlign_Center )
 				[
 					SNew( SCheckBox )
-					.Visibility( (IsAlphaOnly) ? EVisibility::Collapsed : EVisibility::Visible )
+					.Visibility( this, &SAtlasVisualizer::OnGetDisplayCheckerboardVisibility )
 					.OnCheckStateChanged( this, &SAtlasVisualizer::OnDisplayCheckerboardStateChanged )
 					.IsChecked( this, &SAtlasVisualizer::OnGetCheckerboardState )
 					.Content()
@@ -362,7 +358,7 @@ void SAtlasVisualizer::Construct( const FArguments& InArgs )
 					+ SOverlay::Slot()
 					[
 						SAssignNew( Viewport, SViewport )
-						.ViewportSize(FVector2D(DesiredViewportSize.X, DesiredViewportSize.Y))
+						.ViewportSize(this, &SAtlasVisualizer::GetViewportWidgetSize)
 						.IgnoreTextureAlpha(false)
 						.EnableBlending(true)
 						.PreMultipliedAlpha(false)
@@ -377,7 +373,12 @@ void SAtlasVisualizer::Construct( const FArguments& InArgs )
 
 FIntPoint SAtlasVisualizer::GetSize() const
 {
-	return AtlasProvider->GetAtlasPageSize();
+	if (FSlateShaderResource* TargetTexture = GetViewportRenderTargetTexture())
+	{
+		return FIntPoint(TargetTexture->GetWidth(), TargetTexture->GetHeight());
+	}
+
+	return FIntPoint(0, 0);
 }
 
 bool SAtlasVisualizer::RequiresVsync() const
@@ -397,7 +398,24 @@ FSlateShaderResource* SAtlasVisualizer::GetViewportRenderTargetTexture() const
 
 bool SAtlasVisualizer::IsViewportTextureAlphaOnly() const
 {
-	return AtlasProvider->IsAtlasPageResourceAlphaOnly();
+	if (SelectedAtlasPage < AtlasProvider->GetNumAtlasPages())
+	{
+		return AtlasProvider->IsAtlasPageResourceAlphaOnly(SelectedAtlasPage);
+	}
+
+	return false;
+}
+
+FText SAtlasVisualizer::GetViewportSizeText() const
+{
+	const FIntPoint ViewportSize = GetSize();
+	return FText::Format(LOCTEXT("PageSizeXY", "({0} x {1})"), ViewportSize.X, ViewportSize.Y);
+}
+
+FVector2D SAtlasVisualizer::GetViewportWidgetSize() const
+{
+	const FIntPoint ViewportSize = GetSize();
+	return FVector2D(ViewportSize.X, ViewportSize.Y);
 }
 
 FText SAtlasVisualizer::GetZoomLevelPercentText() const
@@ -445,6 +463,11 @@ FReply SAtlasVisualizer::OnActualSizeClicked()
 	return FReply::Handled();
 }
 
+EVisibility SAtlasVisualizer::OnGetDisplayCheckerboardVisibility() const
+{
+	return IsViewportTextureAlphaOnly() ? EVisibility::Collapsed : EVisibility::Visible;
+}
+
 void SAtlasVisualizer::OnDisplayCheckerboardStateChanged( ECheckBoxState NewState )
 {
 	bDisplayCheckerboard = NewState == ECheckBoxState::Checked;
@@ -457,7 +480,7 @@ ECheckBoxState SAtlasVisualizer::OnGetCheckerboardState() const
 
 EVisibility SAtlasVisualizer::OnGetCheckerboardVisibility() const
 {
-	return bDisplayCheckerboard ? EVisibility::Visible : EVisibility::Collapsed;
+	return bDisplayCheckerboard && !IsViewportTextureAlphaOnly() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 void SAtlasVisualizer::OnComboOpening()

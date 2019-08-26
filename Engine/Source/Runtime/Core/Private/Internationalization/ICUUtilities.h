@@ -11,6 +11,10 @@ THIRD_PARTY_INCLUDES_START
 	#include <unicode/unistr.h>
 THIRD_PARTY_INCLUDES_END
 
+#ifndef WITH_ICU_V64
+	#define WITH_ICU_V64 0
+#endif
+
 namespace ICUUtilities
 {
 	/**

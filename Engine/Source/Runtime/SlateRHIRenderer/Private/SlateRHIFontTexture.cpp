@@ -5,9 +5,10 @@
 #include "RenderingThread.h"
 #include "RenderUtils.h"
 
-FSlateFontTextureRHIResource::FSlateFontTextureRHIResource(uint32 InWidth, uint32 InHeight)
-	: Width( InWidth )
-	, Height( InHeight )
+FSlateFontTextureRHIResource::FSlateFontTextureRHIResource(uint32 InWidth, uint32 InHeight, const bool InIsGrayscale)
+	: Width(InWidth)
+	, Height(InHeight)
+	, bIsGrayscale(InIsGrayscale)
 {
 }
 
@@ -18,9 +19,12 @@ void FSlateFontTextureRHIResource::InitDynamicRHI()
 	// Create the texture
 	if( Width > 0 && Height > 0 )
 	{
+		const EPixelFormat PixelFormat = GetRHIPixelFormat();
+		const uint32 TextCreateFlags = TexCreate_Dynamic | (bIsGrayscale ? TexCreate_None : TexCreate_SRGB);
+
 		check( !IsValidRef( ShaderResource) );
 		FRHIResourceCreateInfo CreateInfo;
-		ShaderResource = RHICreateTexture2D( Width, Height, PF_A8, 1, 1, TexCreate_Dynamic, CreateInfo );
+		ShaderResource = RHICreateTexture2D( Width, Height, PixelFormat, 1, 1, TextCreateFlags, CreateInfo );
 		check( IsValidRef( ShaderResource ) );
 
 		// Also assign the reference to the FTextureResource variable so that the Engine can access it
@@ -54,7 +58,7 @@ void FSlateFontTextureRHIResource::InitDynamicRHI()
 		);
 		DeferredPassSamplerStateRHI = RHICreateSamplerState(DeferredPassSamplerStateInitializer);
 
-		INC_MEMORY_STAT_BY(STAT_SlateTextureGPUMemory, Width*Height*GPixelFormats[PF_A8].BlockBytes);
+		INC_MEMORY_STAT_BY(STAT_SlateTextureGPUMemory, Width*Height*GPixelFormats[PixelFormat].BlockBytes);
 	}
 }
 
@@ -65,15 +69,24 @@ void FSlateFontTextureRHIResource::ReleaseDynamicRHI()
 	// Release the texture
 	if( IsValidRef(ShaderResource) )
 	{
-		DEC_MEMORY_STAT_BY(STAT_SlateTextureGPUMemory, Width*Height*GPixelFormats[PF_A8].BlockBytes);
+		const EPixelFormat PixelFormat = GetRHIPixelFormat();
+
+		DEC_MEMORY_STAT_BY(STAT_SlateTextureGPUMemory, Width*Height*GPixelFormats[PixelFormat].BlockBytes);
 	}
 
 	ShaderResource.SafeRelease();
 }
 
-FSlateFontAtlasRHI::FSlateFontAtlasRHI( uint32 Width, uint32 Height )
-	: FSlateFontAtlas( Width, Height ) 
-	, FontTexture( new FSlateFontTextureRHIResource( Width, Height ) )
+EPixelFormat FSlateFontTextureRHIResource::GetRHIPixelFormat() const
+{
+	return bIsGrayscale
+		? PF_A8
+		: PF_B8G8R8A8;
+}
+
+FSlateFontAtlasRHI::FSlateFontAtlasRHI(uint32 Width, uint32 Height, const bool InIsGrayscale)
+	: FSlateFontAtlas(Width, Height, InIsGrayscale) 
+	, FontTexture(new FSlateFontTextureRHIResource(Width, Height, InIsGrayscale))
 {
 }
 
@@ -124,8 +137,8 @@ void FSlateFontAtlasRHI::ConditionalUpdateTexture()
 	}
 }
 
-FSlateFontTextureRHI::FSlateFontTextureRHI(const uint32 InWidth, const uint32 InHeight, const TArray<uint8>& InRawData)
-	: FontTexture(new FSlateFontTextureRHIResource(InWidth, InHeight))
+FSlateFontTextureRHI::FSlateFontTextureRHI(const uint32 InWidth, const uint32 InHeight, const bool InIsGrayscale, const TArray<uint8>& InRawData)
+	: FontTexture(new FSlateFontTextureRHIResource(InWidth, InHeight, InIsGrayscale))
 {
 	if (IsInRenderingThread())
 	{
@@ -163,7 +176,7 @@ void FSlateFontTextureRHI::ReleaseResources()
 
 void FSlateFontTextureRHI::UpdateTextureFromSource(const uint32 SourceWidth, const uint32 SourceHeight, const TArray<uint8>& SourceData)
 {
-	static const uint32 BytesPerPixel = sizeof(uint8);
+	const uint32 BytesPerPixel = FontTexture->IsGrayscale() ? 1 : 4;
 
 	uint32 DestStride;
 	uint8* LockedTextureData = static_cast<uint8*>(RHILockTexture2D(FontTexture->GetTypedResource(), 0, RLM_WriteOnly, /*out*/ DestStride, false));

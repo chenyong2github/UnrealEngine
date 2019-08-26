@@ -24,11 +24,12 @@
 
 
 /** Shader types (mirrored from ESlateShader::Type in RenderingCommon.h */
-#define ST_Default		0
-#define ST_Border		1
-#define ST_Font			2
-#define ST_LineSegment	3
-#define ST_Custom		4
+#define ST_Default			0
+#define ST_Border			1
+#define ST_GrayscaleFont	2
+#define ST_ColorFont		3
+#define ST_LineSegment		4
+#define ST_Custom			5
 
 struct VertexToPixelInterpolants
 {
