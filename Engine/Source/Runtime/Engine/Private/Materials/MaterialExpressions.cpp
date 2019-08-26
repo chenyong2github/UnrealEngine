@@ -2209,7 +2209,7 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 		case RVTMVM_MipLevel: TextureMipLevelMode = TMVM_MipLevel; break;
 		case RVTMVM_MipBias: TextureMipLevelMode = TMVM_MipBias; break;
 		}
-		if (TextureMipLevelMode != RVTMVM_None)
+		if (TextureMipLevelMode != TMVM_None)
 		{
 			MipValueIndex = MipValue.Compile(Compiler);
 		}
