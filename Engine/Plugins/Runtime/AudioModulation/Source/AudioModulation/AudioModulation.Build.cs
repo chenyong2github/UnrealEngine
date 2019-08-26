@@ -6,8 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public AudioModulation(ReadOnlyTargetRules Target) : base(Target)
 		{
-			OptimizeCode = CodeOptimization.Never;
-
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
