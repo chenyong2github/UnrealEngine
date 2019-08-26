@@ -5,7 +5,6 @@
 #include "Evaluation/MovieSceneSectionParameters.h"
 #include "Containers/ArrayView.h"
 #include "Misc/AutomationTest.h"
-#include "MovieSceneTestsCommon.h"
 #include "MovieSceneTimeHelpers.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneTransformTests"
