@@ -29,6 +29,9 @@ FIOSVivoxVoiceChat::~FIOSVivoxVoiceChat()
 
 bool FIOSVivoxVoiceChat::Initialize()
 {
+	// Vivox sdk opens the microphone if we are in one of the Ambient modes and the user backgrounds the application. Set the mode to Playback to work around this
+	[[IOSAppDelegate GetDelegate] SetFeature:EAudioFeature::Playback Active:true];
+
 	bool bResult = FVivoxVoiceChat::Initialize();
 
 	if (bResult)
@@ -76,7 +79,16 @@ bool FIOSVivoxVoiceChat::Uninitialize()
 		AudioRouteChangedHandle.Reset();
 	}
 
-	return FVivoxVoiceChat::Uninitialize();
+	bool bReturn = FVivoxVoiceChat::Uninitialize();
+
+	while (VoiceChatEnableCount > 0)
+	{
+		EnableVoiceChat(false);
+	}
+
+	[[IOSAppDelegate GetDelegate] SetFeature:EAudioFeature::Playback Active:false];
+
+	return bReturn;
 }
 
 void FIOSVivoxVoiceChat::SetSetting(const FString& Name, const FString& Value)
@@ -103,6 +115,7 @@ FString FIOSVivoxVoiceChat::GetSetting(const FString& Name)
 
 FDelegateHandle FIOSVivoxVoiceChat::StartRecording(const FOnVoiceChatRecordSamplesAvailableDelegate::FDelegate& Delegate)
 {
+	bIsRecording = true;
 	EnableVoiceChat(true);
 	return FVivoxVoiceChat::StartRecording(Delegate);
 }
@@ -110,10 +123,8 @@ FDelegateHandle FIOSVivoxVoiceChat::StartRecording(const FOnVoiceChatRecordSampl
 void FIOSVivoxVoiceChat::StopRecording(FDelegateHandle Handle)
 {
 	FVivoxVoiceChat::StopRecording(Handle);
-	if (ConnectionState < EConnectionState::Connecting)
-	{
-		EnableVoiceChat(false);
-	}
+	EnableVoiceChat(false);
+	bIsRecording = false;
 }
 
 void FIOSVivoxVoiceChat::InvokeOnUIThread(void (Func)(void* Arg0), void* Arg0)
@@ -138,29 +149,18 @@ void FIOSVivoxVoiceChat::onChannelJoined(const VivoxClientApi::AccountName& Acco
 
 void FIOSVivoxVoiceChat::onChannelExited(const VivoxClientApi::AccountName& AccountName, const VivoxClientApi::Uri& ChannelUri, const VivoxClientApi::VCSStatus& Status)
 {
+	EnableVoiceChat(false);
 	FVivoxVoiceChat::onChannelExited(AccountName, ChannelUri, Status);
-	
-	bool bIsInChannel = false;
-	for (const TPair<FString,FChannelSession>& ChannelSession : LoginSession.ChannelSessions)
-	{
-		if (ChannelSession.Value.State == FChannelSession::EState::Connected)
-		{
-			bIsInChannel = true;
-		}
-	}
-	if (!bIsRecording && !bIsInChannel)
-	{
-		EnableVoiceChat(false);
-	}
 }
 
 void FIOSVivoxVoiceChat::onDisconnected(const VivoxClientApi::Uri& Server, const VivoxClientApi::VCSStatus& Status)
 {
-	FVivoxVoiceChat::onDisconnected(Server, Status);
-	if (!bIsRecording)
+	while (VoiceChatEnableCount > (bIsRecording ? 1 : 0))
 	{
+		// call once for every channel we were in
 		EnableVoiceChat(false);
 	}
+	FVivoxVoiceChat::onDisconnected(Server, Status);
 }
 
 void FIOSVivoxVoiceChat::OnVoiceChatConnectComplete(const FVoiceChatResult& Result)
@@ -297,28 +297,46 @@ bool FIOSVivoxVoiceChat::IsHardwareAECEnabled() const
 
 void FIOSVivoxVoiceChat::EnableVoiceChat(bool bEnable)
 {
-	if (FPlatformMisc::IsVoiceChatEnabled() != bEnable)
+	if (bEnable)
 	{
-		if (IsHardwareAECEnabled() && !IsBluetoothA2DPInUse())
+		++VoiceChatEnableCount;
+		if (VoiceChatEnableCount == 1)
 		{
-			[[IOSAppDelegate GetDelegate] EnableHighQualityVoiceChat:bEnable];
-			vx_set_platform_aec_enabled(bEnable ? 1 : 0);
+			const bool bEnableAEC = IsHardwareAECEnabled() && !IsBluetoothA2DPInUse();
+			[[IOSAppDelegate GetDelegate] SetFeature:EAudioFeature::Playback Active:true];
+			[[IOSAppDelegate GetDelegate] SetFeature:EAudioFeature::Record Active:true];
+			vx_set_platform_aec_enabled(bEnableAEC ? 1 : 0);
 		}
-		FPlatformMisc::EnableVoiceChat(bEnable);
+	}
+	else
+	{
+		if (ensureMsgf(VoiceChatEnableCount > 0, TEXT("Attempted to disable voice chat when it was already disabled")))
+		{
+			--VoiceChatEnableCount;
+			if (VoiceChatEnableCount == 0)
+			{
+				vx_set_platform_aec_enabled(0);
+				[[IOSAppDelegate GetDelegate] SetFeature:EAudioFeature::Record Active:false];
+				[[IOSAppDelegate GetDelegate] SetFeature:EAudioFeature::Playback Active:false];
+			}
+		}
 	}
 }
 
 void FIOSVivoxVoiceChat::UpdateVoiceChatSettings()
 {
-	if (FPlatformMisc::IsVoiceChatEnabled())
+	const bool bEnableAEC = IsHardwareAECEnabled() && !IsBluetoothA2DPInUse();
+
+	if (bVoiceChatModeEnabled != bEnableAEC)
 	{
-		// update the aec settings
-		const bool bEnableAEC = IsHardwareAECEnabled() && !IsBluetoothA2DPInUse();
+		[[IOSAppDelegate GetDelegate] SetFeature:EAudioFeature::VoiceChat Active:bEnableAEC];
+		bVoiceChatModeEnabled = bEnableAEC;
+	}
+
+	if (VoiceChatEnableCount > 0)
+	{
 		UE_LOG(LogVivoxVoiceChat, Verbose, TEXT("%s AEC"), bEnableAEC ? TEXT("Enabling") : TEXT("Disabling"))
-		[[IOSAppDelegate GetDelegate] EnableHighQualityVoiceChat:bEnableAEC];
 		vx_set_platform_aec_enabled(bEnableAEC ? 1 : 0);
-		// reenable voice chat to apply the changes
-		FPlatformMisc::EnableVoiceChat(true);
 	}
 }
 
