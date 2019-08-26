@@ -235,7 +235,7 @@ int32 URuntimeVirtualTexture::GetLayerCount() const
 		return 1;
 	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal:
 	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular:
-	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Deprecated:
+	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Ex:
 		return 2;
 	default:
 		break;
@@ -254,9 +254,9 @@ EPixelFormat URuntimeVirtualTexture::GetLayerFormat(int32 LayerIndex) const
 		{
 		case ERuntimeVirtualTextureMaterialType::BaseColor:
 		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal:
-		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Deprecated:
-			return bCompressTextures ? PF_DXT1 : PF_B8G8R8A8;
 		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular:
+			return bCompressTextures ? PF_DXT1 : PF_B8G8R8A8;
+		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Ex:
 			return bCompressTextures ? PF_DXT5 : PF_B8G8R8A8;
 		case ERuntimeVirtualTextureMaterialType::WorldHeight:
 			return PF_G16;
@@ -271,7 +271,7 @@ EPixelFormat URuntimeVirtualTexture::GetLayerFormat(int32 LayerIndex) const
 		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal:
 			return bCompressTextures ? PF_BC5 : PF_B8G8R8A8;
 		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular:
-		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Deprecated:
+		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Ex:
 			return bCompressTextures ? PF_DXT5 : PF_B8G8R8A8;
 		case ERuntimeVirtualTextureMaterialType::BaseColor:
 		case ERuntimeVirtualTextureMaterialType::WorldHeight:
@@ -292,7 +292,7 @@ bool URuntimeVirtualTexture::IsLayerSRGB(int32 LayerIndex) const
 	case ERuntimeVirtualTextureMaterialType::BaseColor:
 	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal:
 	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular:
-	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Deprecated:
+	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Ex:
 		// Only BaseColor layer is sRGB
 		return LayerIndex == 0;
 	case ERuntimeVirtualTextureMaterialType::WorldHeight:
