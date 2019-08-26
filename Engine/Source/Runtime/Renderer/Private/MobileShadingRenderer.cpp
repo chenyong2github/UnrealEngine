@@ -643,6 +643,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	if (bSubmitOffscreenRendering)
 	{
 		RHICmdList.SubmitCommandsHint();
+		RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 	}
 	
 	if (!bGammaSpace || bRenderToSceneColor)
