@@ -2507,6 +2507,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 			if (MergedMeshLOD.Vertices().Num() > 0 || bContainsImposters)
 			{
 				FStaticMeshSourceModel& SrcModel = StaticMesh->AddSourceModel();
+
 				// Don't allow the engine to recalculate normals
 				SrcModel.BuildSettings.bRecomputeNormals = false;
 				SrcModel.BuildSettings.bRecomputeTangents = false;
@@ -2536,6 +2537,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 						}
 					}
 				}
+
 				FMeshDescription* MeshDescription = StaticMesh->CreateMeshDescription(LODIndex);
 				*MeshDescription = MergedMeshLOD;
 				StaticMesh->CommitMeshDescription(LODIndex);
