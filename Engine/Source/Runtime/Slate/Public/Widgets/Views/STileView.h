@@ -489,7 +489,13 @@ protected:
 			TListTypeTraits<ItemType>::ResetPtr(this->ItemToScrollIntoView);
 		}
 
-		return SListView<ItemType>::EScrollIntoViewResult::Success;
+		if (this->bEnableAnimatedScrolling && TListTypeTraits<ItemType>::IsPtrValid(this->ItemToNotifyWhenInView))
+		{
+			// When we have a target item we're shooting for, we haven't succeeded with the scroll until a widget for it exists
+			const bool bHasWidgetForItem = WidgetFromItem(TListTypeTraits<ItemType>::NullableItemTypeConvertToItemType(this->ItemToNotifyWhenInView)).IsValid();
+			return bHasWidgetForItem ? EScrollIntoViewResult::Success : EScrollIntoViewResult::Deferred;
+		}
+		return EScrollIntoViewResult::Success;
 	}
 
 	/** Should the left and right navigations be handled as a wrap when hitting the bounds. (you'll move to the previous / next row when appropriate) */
