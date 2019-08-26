@@ -42,8 +42,6 @@
 #include "Engine/DataTable.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
-
-
 #define LOCTEXT_NAMESPACE "DataTableEditor"
 
 const FName FDataTableEditor::DataTableTabId("DataTableEditor_DataTable");
@@ -53,9 +51,37 @@ const FName FDataTableEditor::RowNameColumnId("RowName");
 const FName FDataTableEditor::RowNumberColumnId("RowNumber");
 const FName FDataTableEditor::RowDragDropColumnId("RowDragDrop");
 
+class SDataTableModeSeparator : public SBorder
+{
+public:
+	SLATE_BEGIN_ARGS(SDataTableModeSeparator) {}
+	SLATE_END_ARGS()
+
+		void Construct(const FArguments& InArg)
+	{
+		SBorder::Construct(
+			SBorder::FArguments()
+			.BorderImage(FEditorStyle::GetBrush("BlueprintEditor.PipelineSeparator"))
+			.Padding(0.0f)
+		);
+	}
+
+	// SWidget interface
+	virtual FVector2D ComputeDesiredSize(float) const override
+	{
+		const float Height = 20.0f;
+		const float Thickness = 16.0f;
+		return FVector2D(Thickness, Height);
+	}
+	// End of SWidget interface
+};
+
+
 void FDataTableEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
 {
 	WorkspaceMenuCategory = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("WorkspaceMenu_Data Table Editor", "Data Table Editor"));
+
+	FAssetEditorToolkit::RegisterTabSpawners(InTabManager);
 
 	CreateAndRegisterDataTableTab(InTabManager);
 	CreateAndRegisterDataTableDetailsTab(InTabManager);
@@ -64,6 +90,8 @@ void FDataTableEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& 
 
 void FDataTableEditor::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
 {
+	FAssetEditorToolkit::UnregisterTabSpawners(InTabManager);
+
 	InTabManager->UnregisterTabSpawner(DataTableTabId);
 	InTabManager->UnregisterTabSpawner(DataTableDetailsTabId);
 	InTabManager->UnregisterTabSpawner(RowEditorTabId);
@@ -195,10 +223,17 @@ void FDataTableEditor::HandlePostChange()
 
 void FDataTableEditor::InitDataTableEditor( const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UDataTable* Table )
 {
-	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout( "Standalone_DataTableEditor_Layout_v4" )
+	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout( "Standalone_DataTableEditor_Layout_v5" )
 	->AddArea
 	(
 		FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
+		->Split
+		(
+			FTabManager::NewStack()
+			->SetSizeCoefficient(0.1f)
+			->SetHideTabWell(true)
+			->AddTab(GetToolbarTabId(), ETabState::OpenedTab)
+		)
 		->Split
 		(
 			FTabManager::NewStack()
@@ -214,11 +249,16 @@ void FDataTableEditor::InitDataTableEditor( const EToolkitMode::Type Mode, const
 	);
 
 	const bool bCreateDefaultStandaloneMenu = true;
-	const bool bCreateDefaultToolbar = false;
+	const bool bCreateDefaultToolbar = true;
 	FAssetEditorToolkit::InitAssetEditor( Mode, InitToolkitHost, FDataTableEditorModule::DataTableEditorAppIdentifier, StandaloneDefaultLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, Table );
 
 	FDataTableEditorModule& DataTableEditorModule = FModuleManager::LoadModuleChecked<FDataTableEditorModule>( "DataTableEditor" );
 	AddMenuExtender(DataTableEditorModule.GetMenuExtensibilityManager()->GetAllExtenders(GetToolkitCommands(), GetEditingObjects()));
+	
+	TSharedPtr<FExtender> ToolbarExtender = DataTableEditorModule.GetToolBarExtensibilityManager()->GetAllExtenders(GetToolkitCommands(), GetEditingObjects());
+	ExtendToolbar(ToolbarExtender);
+	
+	AddToolbarExtender(ToolbarExtender);
 
 	RegenerateMenusAndToolbars();
 
@@ -261,7 +301,7 @@ FString FDataTableEditor::GetDocumentationLink() const
 	return FString(TEXT("Gameplay/DataDriven"));
 }
 
-FReply FDataTableEditor::OnAddClicked()
+void FDataTableEditor::OnAddClicked()
 {
 	UDataTable* Table = GetEditableDataTable();
 
@@ -276,11 +316,9 @@ FReply FDataTableEditor::OnAddClicked()
 		FDataTableEditorUtils::AddRow(Table, NewName);
 		FDataTableEditorUtils::SelectRow(Table, NewName);
 	}
-
-	return FReply::Handled();
 }
 
-FReply FDataTableEditor::OnRemoveClicked()
+void FDataTableEditor::OnRemoveClicked()
 {
 	UDataTable* Table = GetEditableDataTable();
 
@@ -303,7 +341,6 @@ FReply FDataTableEditor::OnRemoveClicked()
 		}
 
 	}
-	return FReply::Handled();
 }
 
 FReply FDataTableEditor::OnMoveRowClicked(FDataTableEditorUtils::ERowMoveDirection MoveDirection)
@@ -329,34 +366,31 @@ FReply FDataTableEditor::OnMoveToExtentClicked(FDataTableEditorUtils::ERowMoveDi
 	return FReply::Handled();
 }
 
-FReply FDataTableEditor::OnCopyClicked()
+void FDataTableEditor::OnCopyClicked()
 {
 	UDataTable* Table = GetEditableDataTable();
 	if (Table)
 	{
 		CopySelectedRow();
 	}
-	return FReply::Handled();
 }
 
-FReply FDataTableEditor::OnPasteClicked()
+void FDataTableEditor::OnPasteClicked()
 {
 	UDataTable* Table = GetEditableDataTable();
 	if (Table)
 	{
 		PasteOnSelectedRow();
 	}
-	return FReply::Handled();
 }
 
-FReply FDataTableEditor::OnDuplicateClicked()
+void FDataTableEditor::OnDuplicateClicked()
 {
 	UDataTable* Table = GetEditableDataTable();
 	if (Table)
 	{
 		DuplicateSelectedRow();
 	}
-	return FReply::Handled();
 }
 
 EColumnSortMode::Type FDataTableEditor::GetColumnSortMode(const FName ColumnId) const
@@ -495,6 +529,56 @@ FReply FDataTableEditor::BrowseForDataTable_Execute()
 	FAssetEditorToolkit::FindInContentBrowser_Execute();
 
 	return FReply::Handled();
+}
+
+void FDataTableEditor::ExtendToolbar(TSharedPtr<FExtender> Extender)
+{
+	Extender->AddToolBarExtension(
+		"Asset",
+		EExtensionHook::After,
+		GetToolkitCommands(),
+		FToolBarExtensionDelegate::CreateSP(this, &FDataTableEditor::FillToolbar)
+	);
+
+}
+
+void FDataTableEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
+{
+	ToolbarBuilder.BeginSection("DataTableCommands");
+	{
+		ToolbarBuilder.AddToolBarButton(
+			FUIAction(FExecuteAction::CreateSP(this, &FDataTableEditor::OnAddClicked)),
+			NAME_None,
+			LOCTEXT("AddIconText", "Add"),
+			LOCTEXT("AddRowToolTip", "Add a new row to the Data Table"),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "DataTableEditor.Add"));
+		ToolbarBuilder.AddToolBarButton(
+			FUIAction(FExecuteAction::CreateSP(this, &FDataTableEditor::OnCopyClicked)),
+			NAME_None,
+			LOCTEXT("CopyIconText", "Copy"),
+			LOCTEXT("CopyToolTip", "Copy the currently selected row"),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "DataTableEditor.Copy"));
+		ToolbarBuilder.AddToolBarButton(
+			FUIAction(FExecuteAction::CreateSP(this, &FDataTableEditor::OnPasteClicked)),
+			NAME_None,
+			LOCTEXT("PasteIconText", "Paste"),
+			LOCTEXT("PasteToolTip", "Paste on the currently selected row"),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "DataTableEditor.Paste"));
+		ToolbarBuilder.AddToolBarButton(
+			FUIAction(FExecuteAction::CreateSP(this, &FDataTableEditor::OnDuplicateClicked)),
+			NAME_None,
+			LOCTEXT("DuplicateIconText", "Duplicate"),
+			LOCTEXT("DuplicateToolTip", "Duplicate the currently selected row"),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "DataTableEditor.Duplicate"));
+		ToolbarBuilder.AddToolBarButton(
+			FUIAction(FExecuteAction::CreateSP(this, &FDataTableEditor::OnRemoveClicked)),
+			NAME_None,
+			LOCTEXT("RemoveRowIconText", "Remove"),
+			LOCTEXT("RemoveRowToolTip", "Remove the currently selected row from the Data Table"),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "DataTableEditor.Remove"));
+	}
+	ToolbarBuilder.EndSection();
+
 }
 
 UDataTable* FDataTableEditor::GetEditableDataTable() const
@@ -1177,125 +1261,6 @@ TSharedRef<SVerticalBox> FDataTableEditor::CreateContentBox()
 		.AutoHeight()
 		[
 			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(2)
-			[
-				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-				.ForegroundColor(FSlateColor::UseForeground())
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.OnClicked(this, &FDataTableEditor::SaveDataTable_Execute)
-				.ToolTipText(LOCTEXT("SaveDataTableTooltip", "Save data table"))
-				[
-					SNew(SImage)
-					.Image(FEditorStyle::Get().GetBrush("AssetEditor.SaveAsset.Small"))
-				]
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(2)
-			[
-				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-				.ForegroundColor(FSlateColor::UseForeground())
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.OnClicked(this, &FDataTableEditor::BrowseForDataTable_Execute)
-				.ToolTipText(LOCTEXT("FindInContentBrowserTooltip", "Find data table in content browser"))
-				[
-					SNew(SImage)
-					.Image(FEditorStyle::Get().GetBrush("Sequencer.FindInContentBrowser.Small"))
-				]
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(2)
-			[
-				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-				.ForegroundColor(FSlateColor::UseForeground())
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.OnClicked(this, &FDataTableEditor::OnAddClicked)
-				.ToolTipText(LOCTEXT("AddRowTooltip", "Add a new row to the data table"))
-				[
-					SNew(SImage)
-					.Image(FEditorStyle::Get().GetBrush("DataTableEditor.Add"))
-				]
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(2)
-			[
-				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-				.ForegroundColor(FSlateColor::UseForeground())
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.OnClicked(this, &FDataTableEditor::OnCopyClicked)
-				.ToolTipText(LOCTEXT("CopyTooltip", "Copy the currently selected row"))
-				[
-					SNew(SImage)
-					.Image(FEditorStyle::Get().GetBrush("DataTableEditor.Copy"))
-				]
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(2)
-			[
-				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-				.ForegroundColor(FSlateColor::UseForeground())
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.OnClicked(this, &FDataTableEditor::OnPasteClicked)
-				.ToolTipText(LOCTEXT("PasteTooltip", "Paste on the currently selected row"))
-				[
-					SNew(SImage)
-					.Image(FEditorStyle::Get().GetBrush("DataTableEditor.Paste"))
-				]
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(2)
-			[
-				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-				.ForegroundColor(FSlateColor::UseForeground())
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.OnClicked(this, &FDataTableEditor::OnDuplicateClicked)
-				.ToolTipText(LOCTEXT("DuplicateTooltip", "Duplicate the currently selected row"))
-				[
-					SNew(SImage)
-					.Image(FEditorStyle::Get().GetBrush("DataTableEditor.Duplicate"))
-				]
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(2)
-			[
-				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-				.ForegroundColor(FSlateColor::UseForeground())
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.OnClicked(this, &FDataTableEditor::OnRemoveClicked)
-				.ToolTipText(LOCTEXT("RemoveRowTooltip", "Remove the currently selected row from the data table"))
-				[
-					SNew(SImage)
-					.Image(FEditorStyle::Get().GetBrush("DataTableEditor.Remove"))
-				]
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(2)
-			[
-				SNew(SSeparator)
-				.Orientation(Orient_Vertical)
-			]
 			+ SHorizontalBox::Slot()
 			[
 				SAssignNew(SearchBoxWidget, SSearchBox)

@@ -164,13 +164,13 @@ protected:
 
 	virtual FString GetDocumentationLink() const override;
 	
-	FReply OnAddClicked();
-	FReply OnRemoveClicked();
+	void OnAddClicked();
+	void OnRemoveClicked();
 	FReply OnMoveRowClicked(FDataTableEditorUtils::ERowMoveDirection MoveDirection);
 	FReply OnMoveToExtentClicked(FDataTableEditorUtils::ERowMoveDirection MoveDirection);
-	FReply OnCopyClicked();
-	FReply OnPasteClicked();
-	FReply OnDuplicateClicked();
+	void OnCopyClicked();
+	void OnPasteClicked();
+	void OnDuplicateClicked();
 
 	EColumnSortMode::Type GetColumnSortMode(const FName ColumnId) const;
 	void OnColumnSortModeChanged(const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type InSortMode);
@@ -181,7 +181,9 @@ protected:
 
 	FReply SaveDataTable_Execute();
 	FReply BrowseForDataTable_Execute();
-
+	
+	void ExtendToolbar(TSharedPtr<FExtender> Extender);
+	void FillToolbar(FToolBarBuilder& ToolbarBuilder);
 
 private:
 	UDataTable* GetEditableDataTable() const;

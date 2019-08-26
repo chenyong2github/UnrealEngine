@@ -38,7 +38,7 @@ TSharedRef<SWidget> FDataTableRowUtils::MakeRowActionsMenu(TSharedPtr<IDataTable
 	{
 		FMenuBuilder MenuBuilder(true, Editor->GetToolkitCommands());
 		MenuBuilder.AddMenuEntry(InsertNewRowActionName, InsertNewRowActionTooltip,
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Plus"), FUIAction(InsertNewRowAction));
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "DataTableEditor.Add"), FUIAction(InsertNewRowAction));
 		MenuBuilder.AddMenuEntry(InsertNewRowAboveActionName, InsertNewRowAboveActionTooltip,
 			FSlateIcon(), FUIAction(InsertNewRowAboveAction));
 		MenuBuilder.AddMenuEntry(InsertNewRowBelowActionName, InsertNewRowBelowActionTooltip,

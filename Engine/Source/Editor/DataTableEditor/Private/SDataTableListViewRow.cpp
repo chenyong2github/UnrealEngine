@@ -100,6 +100,8 @@ void SDataTableListViewRow::OnInsertNewRow(ERowInsertionPosition InsertPosition)
 
 FReply SDataTableListViewRow::OnRowDrop(const FDragDropEvent& DragDropEvent)
 {
+	bIsHoveredDragTarget = false;
+
 	TSharedPtr<FDataTableRowDragDropOp> DataTableDropOp = DragDropEvent.GetOperationAs< FDataTableRowDragDropOp >();
 	TSharedPtr<SDataTableListViewRow> RowPtr = nullptr;
 	if (DataTableDropOp.IsValid() && DataTableDropOp->Row.IsValid())
@@ -300,6 +302,17 @@ FName SDataTableListViewRow::GetCurrentName() const
 
 }
 
+uint32 SDataTableListViewRow::GetCurrentIndex() const
+{
+	return RowDataPtr.IsValid() ? RowDataPtr->RowNum : -1;
+}
+
+const TArray<FText>& SDataTableListViewRow::GetCellValues() const
+{
+	check(RowDataPtr)
+	return RowDataPtr->CellData;
+}
+
 FReply SDataTableListViewRow::OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
 {
 	if (InlineEditableText->IsHovered())
@@ -408,24 +421,24 @@ FDataTableRowDragDropOp::FDataTableRowDragDropOp(TSharedPtr<SDataTableListViewRo
 	{
 		RowPtr = Row.Pin();
 		RowPtr->SetIsDragDrop(true);
-	}
 
-	DecoratorWidget = SNew(SBorder)
-		.Padding(8.f)
-		.BorderImage(FEditorStyle::GetBrush("Graph.ConnectorFeedback.Border"))
-		.Content()
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
+		DecoratorWidget = SNew(SBorder)
+			.Padding(8.f)
+			.BorderImage(FEditorStyle::GetBrush("Graph.ConnectorFeedback.Border"))
+			.Content()
 			[
-				SNew(STextBlock)
-				.Text(FText::Format(LOCTEXT("DragDropDecoratorText", "Place {0} Here"), FText::FromName(InRow->GetCurrentName())))
-			]
-		];
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text(FText::Format(NSLOCTEXT("DataTableDragDrop", "PlaceRowHere", "Place Row {0} Here"), FText::AsNumber(InRow->GetCurrentIndex())))
+				]
+			];
 
-	Construct();
+		Construct();
+	}
 }
 
 void FDataTableRowDragDropOp::OnDrop(bool bDropWasHandled, const FPointerEvent& MouseEvent)

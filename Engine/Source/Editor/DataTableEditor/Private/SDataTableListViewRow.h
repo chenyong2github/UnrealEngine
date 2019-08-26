@@ -67,6 +67,9 @@ public:
 
 	FText GetCurrentNameAsText() const;
 	FName GetCurrentName() const;
+	uint32 GetCurrentIndex() const;
+
+	const TArray<FText>& GetCellValues() const;
 
 	virtual FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent);
 
@@ -120,4 +123,5 @@ public:
 	}
 
 	TWeakPtr<class SDataTableListViewRow> Row;
+
 };
