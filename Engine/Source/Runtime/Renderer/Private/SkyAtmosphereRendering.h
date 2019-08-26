@@ -13,6 +13,7 @@
 #include "Rendering/SkyAtmosphereCommonData.h"
 
 
+class FScene;
 class FLightSceneInfo;
 class USkyAtmosphereComponent;
 
