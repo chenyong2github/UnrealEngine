@@ -892,15 +892,9 @@ FReply SScrollBox::OnTouchEnded(const FGeometry& MyGeometry, const FPointerEvent
 
 	if ( HasMouseCaptureByUser(InTouchEvent.GetUserIndex(), InTouchEvent.GetPointerIndex()) )
 	{
-		AmountScrolledWhileRightMouseDown = 0;
-		PendingScrollTriggerAmount = 0;
-		bFingerOwningTouchInteraction.Reset();
-		bTouchPanningCapture = false;
-
 		ScrollBar->EndScrolling();
-
 		Invalidate(EInvalidateWidget::Layout);
-
+		
 		BeginInertialScrolling();
 
 		return FReply::Handled().ReleaseMouseCapture();
@@ -912,6 +906,11 @@ FReply SScrollBox::OnTouchEnded(const FGeometry& MyGeometry, const FPointerEvent
 void SScrollBox::OnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent)
 {
 	SCompoundWidget::OnMouseCaptureLost(CaptureLostEvent);
+	AmountScrolledWhileRightMouseDown = 0;
+	PendingScrollTriggerAmount = 0;
+	bFingerOwningTouchInteraction.Reset();
+	bTouchPanningCapture = false;
+
 }
 
 FNavigationReply SScrollBox::OnNavigation(const FGeometry& MyGeometry, const FNavigationEvent& InNavigationEvent)
