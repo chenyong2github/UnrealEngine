@@ -102,7 +102,10 @@ private:
 	FVector OverrideAtmosphericLightDirection[NUM_ATMOSPHERE_LIGHTS];
 };
 
-bool ShouldRenderSkyAtmosphere(const FSkyAtmosphereRenderSceneInfo* SkyAtmosphere, EShaderPlatform ShaderPlatform);
+bool ShouldRenderSkyAtmosphere(const FScene* Scene);
+
+void InitSkyAtmosphereForScene(FRHICommandListImmediate& RHICmdList, FScene* Scene);
+void InitSkyAtmosphereForView(FRHICommandListImmediate& RHICmdList, const FScene* Scene, FViewInfo& View);
 
 extern void SetupSkyAtmosphereViewSharedUniformShaderParameters(const class FViewInfo& View, FSkyAtmosphereViewSharedUniformShaderParameters& OutParameters);
 
