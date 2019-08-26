@@ -14,6 +14,7 @@
 UENUM()
 enum class ESplineBoneAxis : uint8
 {
+	None = 0 UMETA(Hidden),
 	X = 1,
 	Y = 2,
 	Z = 3,
