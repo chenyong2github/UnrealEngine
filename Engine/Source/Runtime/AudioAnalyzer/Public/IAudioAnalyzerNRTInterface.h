@@ -5,7 +5,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Sound/SampleBuffer.h"
+#include "SampleBuffer.h"
 #include "Features/IModularFeature.h"
 
 

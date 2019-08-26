@@ -207,7 +207,6 @@ private:
 	static void EndMeasurement();
 
 	static bool bEnabled;
-	static FStatsTreeElement LastMeasurement;
 	static TArray<FHierarchicalStatEntry> Entries;
 
 	friend struct FStatsHierarchical::FScope;

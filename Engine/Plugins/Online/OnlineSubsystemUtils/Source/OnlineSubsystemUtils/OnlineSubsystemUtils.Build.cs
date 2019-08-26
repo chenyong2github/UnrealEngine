@@ -32,7 +32,8 @@ public class OnlineSubsystemUtils : ModuleRules
 				"Voice",
 				"PacketHandler",
 				"Json",
-				"AudioMixer"
+				"AudioMixer",
+				"SignalProcessing"
 			}
 		);
 

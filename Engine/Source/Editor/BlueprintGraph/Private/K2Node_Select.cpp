@@ -203,7 +203,8 @@ void UK2Node_Select::AllocateDefaultPins()
 			NewPin->bDisplayAsMutableRef = true;
 			if (IndexPinType.PinCategory == UEdGraphSchema_K2::PC_Boolean)
 			{
-				NewPin->PinFriendlyName = (Idx == 0 ? GFalse : GTrue);
+				const FCoreTexts& CoreTexts = FCoreTexts::Get();
+				NewPin->PinFriendlyName = (Idx == 0 ? CoreTexts.False : CoreTexts.True);
 			}
 			else if (Idx < EnumEntryFriendlyNames.Num())
 			{

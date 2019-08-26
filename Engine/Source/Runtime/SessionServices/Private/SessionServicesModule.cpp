@@ -54,12 +54,14 @@ public:
 		}
 		else if (FParse::Command(&Cmd, TEXT("STATUS")))
 		{
+			const FCoreTexts& CoreTexts = FCoreTexts::Get();
+
 			Ar.Logf(TEXT("Instance ID: %s"), *FApp::GetInstanceId().ToString());
 			Ar.Logf(TEXT("Instance Name: %s"), *FApp::GetInstanceName());
 			Ar.Logf(TEXT("Session ID: %s"), *FApp::GetSessionId().ToString());
 			Ar.Logf(TEXT("Session Name: %s"), *FApp::GetSessionName());
 			Ar.Logf(TEXT("Session Owner: %s"), *FApp::GetSessionOwner());
-			Ar.Logf(TEXT("Standalone: %s"), FApp::IsStandalone() ? *GYes.ToString() : *GNo.ToString());
+			Ar.Logf(TEXT("Standalone: %s"), FApp::IsStandalone() ? *CoreTexts.Yes.ToString() : *CoreTexts.No.ToString());
 		}
 		else if (FParse::Command(&Cmd, TEXT("SETNAME")))
 		{

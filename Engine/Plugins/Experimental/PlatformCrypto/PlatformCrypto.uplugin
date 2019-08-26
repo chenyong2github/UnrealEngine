@@ -37,6 +37,25 @@
 			"WhitelistPrograms": [ "UnrealPak" ]
 		},
 		{
+			"Name": "PlatformCryptoTypes",
+			"Type": "RuntimeAndProgram",
+			"LoadingPhase": "EarliestPossible",
+			"WhitelistPlatforms": [
+				"Android",
+				"IOS",
+				"Mac",
+				"Win32",
+				"Win64",
+				"Linux",
+				"PS4",
+				"XboxOne",
+				"Switch"
+			],
+			"BlacklistPlatforms": [
+				"TVOS"
+			]
+		},
+		{
 			"Name": "PlatformCryptoOpenSSL",
 			"Type": "RuntimeAndProgram",
 			"LoadingPhase": "EarliestPossible",

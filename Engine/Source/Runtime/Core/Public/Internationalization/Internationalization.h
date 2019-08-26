@@ -192,6 +192,8 @@ public:
 
 private:
 	FInternationalization();
+	~FInternationalization();
+	friend class FLazySingleton;
 
 	void BroadcastCultureChanged() { CultureChangedEvent.Broadcast(); }
 
@@ -199,8 +201,7 @@ private:
 	void Terminate();
 
 private:
-	static FInternationalization* Instance;
-	bool bIsInitialized;
+	bool bIsInitialized = false;
 
 	FCultureChangedEvent CultureChangedEvent;
 

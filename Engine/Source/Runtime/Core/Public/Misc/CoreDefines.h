@@ -35,14 +35,33 @@ Macros for enabling heap storage instead of inline storage on delegate types.
 Can be overridden by setting to 1 or 0 in the project's .Target.cs files.
 -----------------------------------------------------------------------------*/
 
-#ifndef USE_SMALL_DELEGATES
-	#define USE_SMALL_DELEGATES 1
+#ifdef USE_SMALL_DELEGATES
+	// UE_DEPRECATED(4.22, "USE_SMALL_DELEGATES has been removed")
+	#error USE_SMALL_DELEGATES has been removed - please use NUM_DELEGATE_INLINE_BYTES instead
+#else
+	#ifndef NUM_DELEGATE_INLINE_BYTES
+		#define NUM_DELEGATE_INLINE_BYTES 0
+	#endif
 #endif
 
-#ifndef USE_SMALL_MULTICAST_DELEGATES
-	#define USE_SMALL_MULTICAST_DELEGATES 1
+#ifdef USE_SMALL_MULTICAST_DELEGATES
+	// UE_DEPRECATED(4.22, "USE_SMALL_MULTICAST_DELEGATES has been removed")
+	#error USE_SMALL_MULTICAST_DELEGATES has been removed - please use NUM_MULTICAST_DELEGATE_INLINE_ENTRIES instead
+#else
+	#ifndef NUM_MULTICAST_DELEGATE_INLINE_ENTRIES
+		#define NUM_MULTICAST_DELEGATE_INLINE_ENTRIES 0
+	#endif
 #endif
 
-#ifndef USE_SMALL_TFUNCTIONS
-	#define USE_SMALL_TFUNCTIONS 0
+#ifdef USE_SMALL_TFUNCTIONS
+	// UE_DEPRECATED(4.22, "USE_SMALL_TFUNCTIONS has been removed")
+	#error USE_SMALL_TFUNCTIONS has been removed - please use NUM_TFUNCTION_INLINE_BYTES instead
+#else
+	#ifndef NUM_TFUNCTION_INLINE_BYTES
+		#define NUM_TFUNCTION_INLINE_BYTES 32
+	#endif
+#endif
+
+#ifndef NO_CVARS
+	#define NO_CVARS 0
 #endif

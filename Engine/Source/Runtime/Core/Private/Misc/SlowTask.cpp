@@ -41,7 +41,7 @@ void FSlowTask::Initialize()
 {
 	if (bEnabled)
 	{
-		Context.ScopeStack->Push(this);
+		Context.ScopeStack.Push(this);
 	}
 }
 
@@ -55,7 +55,7 @@ void FSlowTask::Destroy()
 			Context.FinalizeSlowTask();
 		}
 
-		FSlowTaskStack& Stack = *Context.ScopeStack;
+		FSlowTaskStack& Stack = Context.ScopeStack;
 		checkSlow(Stack.Num() != 0 && Stack.Last() == this);
 
 		auto* Task = Stack.Last();
@@ -107,7 +107,7 @@ void FSlowTask::EnterProgressFrame(float ExpectedWorkThisFrame, FText Text)
 
 	if (bEnabled)
 	{
-		Context.RequestUpdateUI(bCreatedDialog || (*Context.ScopeStack)[0] == this);
+		Context.RequestUpdateUI(bCreatedDialog || Context.ScopeStack[0] == this);
 	}
 }
 

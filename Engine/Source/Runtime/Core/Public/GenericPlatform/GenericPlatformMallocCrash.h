@@ -148,8 +148,6 @@ protected:
 
 	/** Previously used malloc. */
 	FMalloc* PreviousMalloc;
-
-	FMallocCrashPool* Pools[NUM_POOLS];
 };
 
 

@@ -33,6 +33,9 @@
 #define JSON_SERIALIZE_SIMPLECOPY(JsonMap) \
 		Serializer.SerializeSimpleMap(JsonMap)
 
+#define JSON_SERIALIZE_MAP_SAFE(JsonName, JsonMap) \
+		Serializer.SerializeMapSafe(TEXT(JsonName), JsonMap)
+
 #define JSON_SERIALIZE_SERIALIZABLE(JsonName, JsonValue) \
 		JsonValue.Serialize(Serializer, false)
 
@@ -183,6 +186,7 @@ struct FJsonSerializerBase
 	virtual void SerializeMap(const TCHAR* Name, FJsonSerializableKeyValueMapInt& Map) = 0;
 	virtual void SerializeMap(const TCHAR* Name, FJsonSerializableKeyValueMapInt64& Map) = 0;
 	virtual void SerializeSimpleMap(FJsonSerializableKeyValueMap& Map) = 0;
+	virtual void SerializeMapSafe(const TCHAR* Name, FJsonSerializableKeyValueMap& Map) = 0;
 	virtual TSharedPtr<FJsonObject> GetObject() = 0;
 	virtual void WriteIdentifierPrefix(const TCHAR* Name) = 0;
 	virtual void WriteRawJSONValue(const TCHAR* Value) = 0;
@@ -439,6 +443,17 @@ public:
 	{
 		// writing does nothing here, this is meant to read in all data from a json object 
 		// writing is explicitly handled per key/type
+	}
+
+	/**
+	 * Serializes keys and values from an object into a map.
+	 *
+	 * @param Name Name of property to serialize
+	 * @param Map The Map to copy String values from
+	 */
+	virtual void SerializeMapSafe(const TCHAR* Name, FJsonSerializableKeyValueMap& Map)
+	{
+		SerializeMap(Name, Map);
 	}
 
 	virtual void WriteIdentifierPrefix(const TCHAR* Name)
@@ -727,6 +742,29 @@ public:
 			if (KeyValueIt.Value()->TryGetString(Value))
 			{
 				Map.Add(KeyValueIt.Key(), MoveTemp(Value));
+			}
+		}
+	}
+
+	/**
+	 * Deserializes keys and values from an object into a map, but only if the value is trivially convertable to string.
+	 *
+	 * @param Name Name of property to deserialize
+	 * @param Map The Map to fill with String values found
+	 */
+	virtual void SerializeMapSafe(const TCHAR* Name, FJsonSerializableKeyValueMap& Map) override
+	{
+		if (JsonObject->HasTypedField<EJson::Object>(Name))
+		{
+			// Iterate all of the keys and their values, only taking simple types (not array/object), all in string form
+			TSharedPtr<FJsonObject> JsonMap = JsonObject->GetObjectField(Name);
+			for (const TPair<FString, TSharedPtr<FJsonValue>>& Pair : JsonMap->Values)
+			{
+				FString Value;
+				if (Pair.Value->TryGetString(Value))
+				{
+					Map.Add(Pair.Key, MoveTemp(Value));
+				}
 			}
 		}
 	}

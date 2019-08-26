@@ -11,7 +11,6 @@ public class Sockets : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
-				"SandboxFile"
 			});
 
 		PublicDefinitions.Add("SOCKETS_PACKAGE=1");

@@ -347,6 +347,10 @@ namespace UnrealBuildTool
 			{
 				Options |= MacToolChainOptions.EnableUndefinedBehaviorSanitizer;
 			}
+			if(Target.bShouldCompileAsDLL)
+			{
+				Options |= MacToolChainOptions.OutputDylib;
+			}
 			return new MacToolChain(Target.ProjectFile, Options);
 		}
 

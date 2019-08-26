@@ -5,7 +5,6 @@
 
 FFeedbackContext::FFeedbackContext()
 	: TreatWarningsAsErrors(0)
-	, ScopeStack(MakeShareable(new FSlowTaskStack))
 {
 }
 
@@ -33,9 +32,9 @@ void FFeedbackContext::UpdateUI()
 {
 	ensure(IsInGameThread());
 
-	if (ScopeStack->Num() != 0)
+	if (ScopeStack.Num() != 0)
 	{
-		ProgressReported(ScopeStack->GetProgressFraction(0), (*ScopeStack)[0]->GetCurrentMessage());
+		ProgressReported(ScopeStack.GetProgressFraction(0), ScopeStack[0]->GetCurrentMessage());
 	}
 }
 

@@ -74,7 +74,7 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 	const static bool bVerbose = FParse::Param(*CmdLine,TEXT("VERBOSE"));
 	if (bVerbose)
 	{
-		LogCompile.SetVerbosity(ELogVerbosity::Verbose);
+		UE_SET_LOG_VERBOSITY(LogCompile, Verbose);
 	}
 #endif
 

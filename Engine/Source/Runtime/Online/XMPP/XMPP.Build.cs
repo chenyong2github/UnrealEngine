@@ -26,13 +26,7 @@ public class XMPP : ModuleRules
 		bool TargetPlatformSupportsJingle = false;
 		bool TargetPlatformSupportsStrophe = false;
 
-		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
-		{
-			TargetPlatformSupportsJingle = true;
-			TargetPlatformSupportsStrophe = true;
-		}
-		else if (Target.Platform == UnrealTargetPlatform.PS4 ||
-			Target.Platform == UnrealTargetPlatform.Mac)
+		if (Target.Platform == UnrealTargetPlatform.PS4)
 		{
 			TargetPlatformSupportsJingle = true;
 			TargetPlatformSupportsStrophe = true;
@@ -42,7 +36,9 @@ public class XMPP : ModuleRules
 			Target.Platform == UnrealTargetPlatform.XboxOne ||
 			Target.Platform == UnrealTargetPlatform.Android ||
 			Target.Platform == UnrealTargetPlatform.IOS ||
-			Target.Platform == UnrealTargetPlatform.Switch)
+			Target.Platform == UnrealTargetPlatform.Switch||
+			Target.Platform == UnrealTargetPlatform.Mac ||
+			Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
 			TargetPlatformSupportsStrophe = true;
 		}
