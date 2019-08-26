@@ -261,6 +261,7 @@ public:
 	 * Returns the scene's unique FSkyAtmosphereRenderSceneInfo if it exists
 	 */
 	virtual FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() = 0;
+	virtual const FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() const = 0;
 	/**
 	 * Override a sky atmosphere light direction
 	 * @param SkyAtmosphereComponent - component to verify it is the actual unique SkyAtmosphere
