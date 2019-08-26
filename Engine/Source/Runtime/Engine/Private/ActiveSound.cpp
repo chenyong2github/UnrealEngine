@@ -773,6 +773,17 @@ void FActiveSound::Stop(bool bStopNow)
 	if (Sound && !bIsStopping)
 	{
 		Sound->CurrentPlayCount = FMath::Max(Sound->CurrentPlayCount - 1, 0);
+		if (Sound->CurrentPlayCount == 0)
+		{
+			if (AudioDevice->ModulationInterface)
+			{
+				if (USoundModulationPluginSourceSettingsBase* ModulationSettings = FindModulationSettings())
+				{
+					const ModulationSoundId SoundId = static_cast<ModulationSoundId>(Sound->GetUniqueID());
+ 					AudioDevice->ModulationInterface->OnReleaseSound(SoundId, *ModulationSettings);
+				}
+			}
+		}
 	}
 
 	TArray<FWaveInstance*> ToDelete;
