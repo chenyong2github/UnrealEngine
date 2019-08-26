@@ -575,17 +575,7 @@ static IOSAppDelegate* CachedDelegate = nil;
 
 	self.bUsingBackgroundMusic = [self IsBackgroundAudioPlaying];
 	self.bForceEmitOtherAudioPlaying = true;
-	
-	self.bAllowExternalAudio = false;
-	bool bAllowExternalAudio = false;
-	GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bAudioAllowExternalAudio"), bAllowExternalAudio, GEngineIni);
-	self.bAllowExternalAudio = bAllowExternalAudio;
 
-	if(bAllowExternalAudio)
-	{
-		[self SetFeature:EAudioFeature::ExternalAudio Active:true];
-	}
-	
 #if USE_MUTE_SWITCH_DETECTION
 	// Initialize the mute switch detector.
 	[SharkfoodMuteSwitchDetector shared];

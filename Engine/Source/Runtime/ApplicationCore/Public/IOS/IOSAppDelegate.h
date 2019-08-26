@@ -210,9 +210,6 @@ APPLICATIONCORE_API
 @property (assign) bool bLastOtherAudioPlaying;
 @property (assign) bool bForceEmitOtherAudioPlaying;
 
-/** TRUE if audio from other apps will be allowed to play while this app is active */
-@property (assign) bool bAllowExternalAudio;
-
 #if USE_MUTE_SWITCH_DETECTION
 @property (assign) bool bLastMutedState;
 @property (assign) bool bForceEmitMutedState;
