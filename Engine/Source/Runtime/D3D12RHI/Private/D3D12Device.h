@@ -195,3 +195,28 @@ protected:
 	void DestroyRayTracingDescriptorCache();
 #endif
 };
+
+template <typename TDesc> 
+void TD3D12ViewDescriptorHandle<TDesc>::AllocateDescriptorSlot()
+{
+	if (Parent)
+	{
+		FD3D12Device* Device = GetParentDevice();
+		FD3D12OfflineDescriptorManager& DescriptorAllocator = Device->template GetViewDescriptorAllocator<TDesc>();
+		Handle = DescriptorAllocator.AllocateHeapSlot(Index);
+		check(Handle.ptr != 0);
+	}
+}
+
+template <typename TDesc> 
+void TD3D12ViewDescriptorHandle<TDesc>::FreeDescriptorSlot()
+{
+	if (Parent)
+	{
+		FD3D12Device* Device = GetParentDevice();
+		FD3D12OfflineDescriptorManager& DescriptorAllocator = Device->template GetViewDescriptorAllocator<TDesc>();
+		DescriptorAllocator.FreeHeapSlot(Handle, Index);
+		Handle.ptr = 0;
+	}
+	check(!Handle.ptr);
+}
