@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Object.h"
-#include "UObject/SoftObjectPath.h"
+#include "AI/Navigation/NavigationTypes.h"
 #include "NavigationSystemConfig.generated.h"
 
 class UNavigationSystemBase;
