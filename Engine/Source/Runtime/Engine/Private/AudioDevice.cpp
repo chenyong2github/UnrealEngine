@@ -445,7 +445,7 @@ bool FAudioDevice::Init(int32 InMaxSources)
 		ModulationInterface->Initialize(PluginInitializationParams);
 
 		bModulationInterfaceEnabled = true;
-		UE_LOG(LogAudio, Display, TEXT("Audio Modulation Plugin: %s"), *(ModulationPluginFactory->GetDisplayName()));
+		UE_LOG(LogAudio, Display, TEXT("Audio Modulation Plugin: %s"), *(ModulationPluginFactory->GetDisplayName().ToString()));
 	}
 
 	// allow the platform to startup
