@@ -77,10 +77,10 @@ class FNullInstallBundleManager : public IInstallBundleManager
 	{
 	}
 
-	virtual void RequestRemoveContentOnNextInit(FName BundleName) override
+	virtual void RequestRemoveContentOnNextInit(FName RemoveName, TArrayView<FName> KeepNames = TArrayView<FName>()) override
 	{
 	}
-	virtual void RequestRemoveContentOnNextInit(TArrayView<FName> BundleNames) override
+	virtual void RequestRemoveContentOnNextInit(TArrayView<FName> RemoveNames, TArrayView<FName> KeepNames = TArrayView<FName>()) override
 	{
 	}
 
