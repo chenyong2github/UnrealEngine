@@ -12,8 +12,8 @@
 FApplePlatformCrashContext::FApplePlatformCrashContext(ECrashContextType InType, const TCHAR* InErrorMessage)
 :	FGenericCrashContext(InType, InErrorMessage)
 ,	Signal(0)
-,	Info(NULL)
-,	Context(NULL)
+,	Info(nullptr)
+,	Context(nullptr)
 ,	IgnoreDepth(6)
 {
 	SignalDescription[ 0 ] = 0;
@@ -123,7 +123,7 @@ void FApplePlatformCrashContext::CreateExceptionInfoString(int32 Signal, siginfo
 
 void FApplePlatformCrashContext::WriteLine(int ReportFile, const ANSICHAR* Line)
 {
-	if( Line != NULL )
+	if( Line != nullptr )
 	{
 		int64 StringBytes = FCStringAnsi::Strlen(Line);
 		write(ReportFile, Line, StringBytes);
@@ -160,7 +160,7 @@ void FApplePlatformCrashContext::WriteUTF16String(int ReportFile, const TCHAR* U
 
 void FApplePlatformCrashContext::WriteLine(int ReportFile, const TCHAR* Line)
 {
-	if( Line != NULL )
+	if( Line != nullptr )
 	{
 		int64 NumChars = FCString::Strlen(Line);
 		WriteUTF16String(ReportFile, Line, NumChars);
