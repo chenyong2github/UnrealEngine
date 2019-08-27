@@ -316,7 +316,7 @@ bool FOnlineUserCloudSteam::ReadUserFile(const FUniqueNetId& UserId, const FStri
 	return false;
 }
 
-bool FOnlineUserCloudSteam::WriteUserFile(const FUniqueNetId& UserId, const FString& FileName, TArray<uint8>& FileContents)
+bool FOnlineUserCloudSteam::WriteUserFile(const FUniqueNetId& UserId, const FString& FileName, TArray<uint8>& FileContents, bool bCompressBeforeUpload)
 {
 	FScopeLock ScopeLock(&SteamSubsystem->UserCloudDataLock);
 	// Create or get the current entry for this file
