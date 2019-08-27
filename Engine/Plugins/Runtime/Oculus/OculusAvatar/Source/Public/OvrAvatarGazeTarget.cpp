@@ -41,7 +41,7 @@ UOvrAvatarGazeTarget::UOvrAvatarGazeTarget()
 , bShuttingDown(false)
 {
 	PrimaryComponentTick.bCanEverTick = true;
-	UOvrAvatarManager::Get().OnShutdown().AddUObject(this, UOvrAvatarGazeTarget::HandleShutdownEvent);
+	UOvrAvatarManager::Get().OnShutdown().AddUObject(this, &UOvrAvatarGazeTarget::HandleShutdownEvent);
 
 	bIsEnabled = true;
 
