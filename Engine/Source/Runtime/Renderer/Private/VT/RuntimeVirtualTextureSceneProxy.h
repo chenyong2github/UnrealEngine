@@ -45,6 +45,8 @@ private:
 	/** Virtual texture size of the URuntimeVirtualTexture object. */
 	FIntPoint VirtualTextureSize;
 
+	/** Maxmimum mip level to mark dirty. Can be less than the virtual texture's MaxLevel if we have streaming mips. */
+	uint32 MaxDirtyLevel;
 	/** Array of dirty rectangles to process at the next flush. */
 	TArray<FIntRect> DirtyRects;
 	/** Combined dirty rectangle to process at the next flush. */

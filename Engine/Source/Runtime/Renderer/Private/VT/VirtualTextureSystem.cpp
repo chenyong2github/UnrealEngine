@@ -244,7 +244,7 @@ void FVirtualTextureSystem::FlushCache()
 	bFlushCaches = true;
 }
 
-void FVirtualTextureSystem::FlushCache(FVirtualTextureProducerHandle const& ProducerHandle, FIntRect const& TextureRegion)
+void FVirtualTextureSystem::FlushCache(FVirtualTextureProducerHandle const& ProducerHandle, FIntRect const& TextureRegion, uint32 MaxLevel)
 {
 	checkSlow(IsInRenderingThread());
 
@@ -267,7 +267,7 @@ void FVirtualTextureSystem::FlushCache(FVirtualTextureProducerHandle const& Prod
 	for (int32 i = 0; i < PhysicalSpacesForProducer.Num(); ++i)
 	{
 		FTexturePagePool& Pool = PhysicalSpacesForProducer[i]->GetPagePool();
-		Pool.EvictPages(this, ProducerHandle, ProducerDescription, TextureRegion, TransientCollectedPages);
+		Pool.EvictPages(this, ProducerHandle, ProducerDescription, TextureRegion, MaxLevel, TransientCollectedPages);
 	}
 
 	for (auto& Page : TransientCollectedPages)
