@@ -178,6 +178,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Interaction")
 	void SetCustomHitResult(const FHitResult& HitResult);
 
+	/**
+	 * Set the focus target of the virtual user managed by this component
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interaction")
+	void SetFocus(UWidget* FocusWidget);
+
 private:
 	/**
 	 * Represents the virtual user in slate.  When this component is registered, it gets a handle to the 
