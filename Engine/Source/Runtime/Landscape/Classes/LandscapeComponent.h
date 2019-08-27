@@ -723,6 +723,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Landscape|Runtime|Material")
 	class UMaterialInstanceDynamic* GetMaterialInstanceDynamic(int32 InIndex) const;
 
+	/** Gets the landscape paint layer weight value at the given position using LandscapeLayerInfo . Returns 0 in case it fails. */
+	UFUNCTION(BlueprintCallable, Category = "Landscape|Editor")
+	LANDSCAPE_API float EditorGetPaintLayerWeightAtLocation(const FVector& InLocation, ULandscapeLayerInfoObject* PaintLayer);
+
+	/** Gets the landscape paint layer weight value at the given position using layer name. Returns 0 in case it fails. */
+	UFUNCTION(BlueprintCallable, Category = "Landscape|Editor")
+	LANDSCAPE_API float EditorGetPaintLayerWeightByNameAtLocation(const FVector& InLocation, const FName InPaintLayerName);
+		
 	/** Get the landscape actor associated with this component. */
 	ALandscape* GetLandscapeActor() const;
 
