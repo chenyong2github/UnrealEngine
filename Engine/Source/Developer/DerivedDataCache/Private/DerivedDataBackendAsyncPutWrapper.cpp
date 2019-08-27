@@ -43,14 +43,15 @@ public:
 	{
 		COOK_STAT(auto Timer = UsageStats.TimePut());
 		bool bOk = true;
-		const bool bAlreadyExists = InnerBackend->CachedDataProbablyExists(*CacheKey);
-		if (!bAlreadyExists || bPutEvenIfExists)
+		bool bDidTry = false;
+		if (bPutEvenIfExists || !InnerBackend->CachedDataProbablyExists(*CacheKey))
 		{
+			bDidTry = true;
 			InnerBackend->PutCachedData(*CacheKey, Data, bPutEvenIfExists);
 			COOK_STAT(Timer.AddHit(Data.Num()));
 		}
-		// if it already existed, don't bother checking if we need to retry. We don't.
-		if (InflightCache && !bAlreadyExists && !InnerBackend->CachedDataProbablyExists(*CacheKey))
+		// if we tried to put it up there but it isn't there now, retry
+		if (InflightCache && bDidTry && !InnerBackend->CachedDataProbablyExists(*CacheKey))
 		{
 			// retry
 			InnerBackend->PutCachedData(*CacheKey, Data, false);
