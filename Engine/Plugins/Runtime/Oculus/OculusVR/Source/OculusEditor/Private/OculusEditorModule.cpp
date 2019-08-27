@@ -33,6 +33,13 @@ void FOculusEditorModule::PostLoadCallback()
 
 void FOculusEditorModule::StartupModule()
 {
+	void* ModuleCheck = FPlatformProcess::GetDllHandle(TEXT("OVRPlugin.dll"));
+	if (!ModuleCheck)
+	{
+		return;
+	}
+
+	bModuleValid = true;
 	RegisterSettings();
 	FOculusAssetDirectory::LoadForCook();
 
@@ -76,6 +83,11 @@ void FOculusEditorModule::StartupModule()
 
 void FOculusEditorModule::ShutdownModule()
 {
+	if (!bModuleValid)
+	{
+		return;
+	}
+
 	if(!IsRunningCommandlet())
 	{
 		FOculusToolStyle::Shutdown();
