@@ -262,6 +262,13 @@ struct FInstallBundleRequestInfo
 	TArray<FName> BundlesQueuedForRemoval;
 };
 
+struct FInstallBundleTestInfo
+{
+	EInstallBundleRequestInfoFlags InfoFlags = EInstallBundleRequestInfoFlags::None;
+	TArray<FName> BundlesQueuedForInstall;
+	TArray<FName> BundlesNeededForInstall;
+};
+
 enum class EInstallBundleCancelFlags : int32
 {
 	None		= 0,
@@ -303,6 +310,9 @@ public:
 	virtual bool IsInitializing() const = 0;
 
 	virtual bool IsActive() const = 0;
+
+	virtual FInstallBundleTestInfo TestUpdateContent(FName BundleName) = 0;
+	virtual FInstallBundleTestInfo TestUpdateContent(TArrayView<FName> BundleNames) = 0;
 
 	virtual FInstallBundleRequestInfo RequestUpdateContent(FName BundleName, EInstallBundleRequestFlags Flags) = 0;
 	virtual FInstallBundleRequestInfo RequestUpdateContent(TArrayView<FName> BundleNames, EInstallBundleRequestFlags Flags) = 0;

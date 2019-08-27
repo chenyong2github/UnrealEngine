@@ -33,12 +33,20 @@ class FNullInstallBundleManager : public IInstallBundleManager
 		return false;
 	}
 
+	virtual FInstallBundleTestInfo TestUpdateContent(FName BundleName) override
+	{
+		return FInstallBundleTestInfo();
+	}
+	virtual FInstallBundleTestInfo TestUpdateContent(TArrayView<FName> BundleNames) override
+	{
+		return FInstallBundleTestInfo();
+	}
+
 	virtual FInstallBundleRequestInfo RequestUpdateContent(FName BundleName, EInstallBundleRequestFlags Flags) override
 	{
 		FInstallBundleRequestInfo RetInfo;
 		return RetInfo;
 	}
-
 	virtual FInstallBundleRequestInfo RequestUpdateContent(TArrayView<FName> BundleNames, EInstallBundleRequestFlags Flags) override
 	{
 		FInstallBundleRequestInfo RetInfo;
