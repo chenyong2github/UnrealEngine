@@ -59,88 +59,97 @@ namespace Audio
 
 	void FMixerSubmix::Init(USoundSubmix* InSoundSubmix)
 	{
+		check(IsInAudioThread());
 		if (InSoundSubmix != nullptr)
 		{
 			OwningSubmixObject = InSoundSubmix;
-
-			// Set the initialized output volume
-			InitializedOutputVolume = FMath::Clamp(InSoundSubmix->OutputVolume, 0.0f, 1.0f);
-
-			if (!FMath::IsNearlyEqual(InitializedOutputVolume, 1.0f))
+	
+			SubmixCommand([this]()
 			{
-				bApplyOutputVolumeScale = true;
+				InitInternal();
+			});
+		}
+	}
+
+	void FMixerSubmix::InitInternal()
+	{
+		// Set the initialized output volume
+		InitializedOutputVolume = FMath::Clamp(OwningSubmixObject->OutputVolume, 0.0f, 1.0f);
+
+		if (!FMath::IsNearlyEqual(InitializedOutputVolume, 1.0f))
+		{
+			bApplyOutputVolumeScale = true;
+		}
+
+		// Loop through the submix's presets and make new instances of effects in the same order as the presets
+		ClearSoundEffectSubmixes();
+
+		for (USoundEffectSubmixPreset* EffectPreset : OwningSubmixObject->SubmixEffectChain)
+		{
+			if (EffectPreset)
+			{
+				// Create a new effect instance using the preset
+				FSoundEffectSubmix* SubmixEffect = static_cast<FSoundEffectSubmix*>(EffectPreset->CreateNewEffect());
+
+				FSoundEffectSubmixInitData InitData;
+				InitData.SampleRate = MixerDevice->GetSampleRate();
+				InitData.PresetSettings = nullptr;
+
+				// Now set the preset
+				SubmixEffect->Init(InitData);
+				SubmixEffect->SetPreset(EffectPreset);
+				SubmixEffect->SetEnabled(true);
+
+				FSubmixEffectInfo EffectInfo;
+				EffectInfo.PresetId = EffectPreset->GetUniqueID();
+				EffectInfo.EffectInstance = SubmixEffect;
+
+				// Add the effect to this submix's chain
+				EffectSubmixChain.Add(EffectInfo);
 			}
+		}
 
-			// Loop through the submix's presets and make new instances of effects in the same order as the presets
-			ClearSoundEffectSubmixes();
+		ChannelFormat = OwningSubmixObject->ChannelFormat;
 
-			for (USoundEffectSubmixPreset* EffectPreset : InSoundSubmix->SubmixEffectChain)
+		if (ChannelFormat == ESubmixChannelFormat::Ambisonics)
+		{
+			//Get the ambisonics mixer.
+			AmbisonicsMixer = MixerDevice->GetAmbisonicsMixer();
+
+			//If we do have a valid ambisonics decoder, lets use it. Otherwise, treat this submix like a device submix.
+			if (AmbisonicsMixer.IsValid())
 			{
-				if (EffectPreset)
+				if (!OwningSubmixObject->AmbisonicsPluginSettings)
 				{
-					// Create a new effect instance using the preset
-					FSoundEffectSubmix* SubmixEffect = static_cast<FSoundEffectSubmix*>(EffectPreset->CreateNewEffect());
-
-					FSoundEffectSubmixInitData InitData;
-					InitData.SampleRate = MixerDevice->GetSampleRate();
-					InitData.PresetSettings = nullptr;
-
-					// Now set the preset
-					SubmixEffect->Init(InitData);
-					SubmixEffect->SetPreset(EffectPreset);
-					SubmixEffect->SetEnabled(true);
-
-					FSubmixEffectInfo EffectInfo;
-					EffectInfo.PresetId = EffectPreset->GetUniqueID();
-					EffectInfo.EffectInstance = SubmixEffect;
-
-					// Add the effect to this submix's chain
-					EffectSubmixChain.Add(EffectInfo);
+					OwningSubmixObject->AmbisonicsPluginSettings = AmbisonicsMixer->GetDefaultSettings();
 				}
-			}
 
-			ChannelFormat = InSoundSubmix->ChannelFormat;
-			
-			if (ChannelFormat == ESubmixChannelFormat::Ambisonics)
-			{
-				//Get the ambisonics mixer.
-				AmbisonicsMixer = MixerDevice->GetAmbisonicsMixer();
-
-				//If we do have a valid ambisonics decoder, lets use it. Otherwise, treat this submix like a device submix.
-				if (AmbisonicsMixer.IsValid())
+				if (OwningSubmixObject->AmbisonicsPluginSettings != nullptr)
 				{
-					if (!InSoundSubmix->AmbisonicsPluginSettings)
-					{
-						InSoundSubmix->AmbisonicsPluginSettings = AmbisonicsMixer->GetDefaultSettings();
-					}
-
-					if (InSoundSubmix->AmbisonicsPluginSettings != nullptr)
-					{
-						OnAmbisonicsSettingsChanged(InSoundSubmix->AmbisonicsPluginSettings);
-					}
-					else
-					{
-						//Default to first order ambisonics.
-						NumChannels = 4;
-						const int32 NumOutputFrames = MixerDevice->GetNumOutputFrames();
-						NumSamples = NumChannels * NumOutputFrames;
-					}
+					OnAmbisonicsSettingsChanged(OwningSubmixObject->AmbisonicsPluginSettings);
 				}
 				else
 				{
-					// There is no valid ambisonics decoder, so fall back to standard downmixing.
-					ChannelFormat = ESubmixChannelFormat::Device;
-					NumChannels = MixerDevice->GetNumChannelsForSubmixFormat(ChannelFormat);
+					//Default to first order ambisonics.
+					NumChannels = 4;
 					const int32 NumOutputFrames = MixerDevice->GetNumOutputFrames();
 					NumSamples = NumChannels * NumOutputFrames;
 				}
 			}
 			else
 			{
+				// There is no valid ambisonics decoder, so fall back to standard downmixing.
+				ChannelFormat = ESubmixChannelFormat::Device;
 				NumChannels = MixerDevice->GetNumChannelsForSubmixFormat(ChannelFormat);
 				const int32 NumOutputFrames = MixerDevice->GetNumOutputFrames();
 				NumSamples = NumChannels * NumOutputFrames;
 			}
+		}
+		else
+		{
+			NumChannels = MixerDevice->GetNumChannelsForSubmixFormat(ChannelFormat);
+			const int32 NumOutputFrames = MixerDevice->GetNumOutputFrames();
+			NumSamples = NumChannels * NumOutputFrames;
 		}
 	}
 
@@ -1001,7 +1010,7 @@ namespace Audio
 	void FMixerSubmix::SetOutputVolume(float InVolume)
 	{
 		InVolume = FMath::Clamp(InVolume, 0.0f, 1.0f);
-		if (FMath::IsNearlyEqual(InitializedOutputVolume, InVolume))
+		if (!FMath::IsNearlyEqual(InitializedOutputVolume, InVolume))
 		{
 			InitializedOutputVolume = InVolume;
 			bApplyOutputVolumeScale = true;
