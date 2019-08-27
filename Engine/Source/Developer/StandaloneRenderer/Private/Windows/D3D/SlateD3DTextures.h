@@ -76,7 +76,7 @@ private:
 class FSlateFontAtlasD3D : public FSlateFontAtlas
 {
 public:
-	FSlateFontAtlasD3D( uint32 Width, uint32 Height );
+	FSlateFontAtlasD3D(uint32 Width, uint32 Height, const bool InIsGrayscale);
 	~FSlateFontAtlasD3D();
 
 	/** FSlateFontAtlas interface */

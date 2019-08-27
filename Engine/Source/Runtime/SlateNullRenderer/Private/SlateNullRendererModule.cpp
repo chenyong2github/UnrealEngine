@@ -18,9 +18,8 @@ class FSlateNullShaderResourceManager : public ISlateAtlasProvider, public FSlat
 public:
 	// ISlateAtlasProvider interface
 	virtual int32 GetNumAtlasPages() const override { return 0; }
-	virtual FIntPoint GetAtlasPageSize() const override { return FIntPoint(0, 0); }
 	virtual class FSlateShaderResource* GetAtlasPageResource(const int32 InIndex) const override { return nullptr; }
-	virtual bool IsAtlasPageResourceAlphaOnly() const override { return false; }
+	virtual bool IsAtlasPageResourceAlphaOnly(const int32 InIndex) const override { return false; }
 
 	// FSlateShaderResourceManager interface
 	virtual FSlateShaderResourceProxy* GetShaderResource( const FSlateBrush& InBrush ) override { return nullptr; }
@@ -62,7 +61,7 @@ class FSlateFontAtlasNull : public FSlateFontAtlas
 {
 public:
 	FSlateFontAtlasNull(float AtlasSize)
-		: FSlateFontAtlas(AtlasSize, AtlasSize)
+		: FSlateFontAtlas(AtlasSize, AtlasSize, true)
 	{}
 
 	virtual class FSlateShaderResource* GetSlateTexture() override { return &NullFontTexture; }
@@ -91,17 +90,17 @@ public:
 
 	virtual ~FSlateNullFontAtlasFactory() {}
 
-	virtual FIntPoint GetAtlasSize() const override
+	virtual FIntPoint GetAtlasSize(const bool InIsGrayscale) const override
 	{
 		return FIntPoint(AtlasSize, AtlasSize);
 	}
 
-	virtual TSharedRef<FSlateFontAtlas> CreateFontAtlas() const override
+	virtual TSharedRef<FSlateFontAtlas> CreateFontAtlas(const bool InIsGrayscale) const override
 	{
 		return MakeShareable(new FSlateFontAtlasNull(AtlasSize));
 	}
 
-	virtual TSharedPtr<ISlateFontTexture> CreateNonAtlasedTexture(const uint32 InWidth, const uint32 InHeight, const TArray<uint8>& InRawData) const override
+	virtual TSharedPtr<ISlateFontTexture> CreateNonAtlasedTexture(const uint32 InWidth, const uint32 InHeight, const bool InIsGrayscale, const TArray<uint8>& InRawData) const override
 	{
 		return nullptr;
 	}

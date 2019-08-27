@@ -20,7 +20,7 @@ public:
 	 * @param InWidth The width of the texture
 	 * @param InHeight The height of the texture
 	 */
-	FSlateFontTextureRHIResource(uint32 InWidth, uint32 InHeight);
+	FSlateFontTextureRHIResource(uint32 InWidth, uint32 InHeight, const bool InIsGrayscale);
 
 	/** FSlateShaderResource interface */
 	virtual uint32 GetWidth() const override { return Width; }
@@ -34,11 +34,19 @@ public:
 	/** FRenderResource interface */
 	virtual void InitDynamicRHI() override;
 	virtual void ReleaseDynamicRHI() override;
+	
+	/** Returns whether the texture resource is 8-bit grayscale or 8-bit per-channel BGRA color */
+	bool IsGrayscale() const { return bIsGrayscale; }
+
 private:
+	EPixelFormat GetRHIPixelFormat() const;
+
 	/** Width of this texture */
 	uint32 Width;
 	/** Height of this texture */
 	uint32 Height;
+	/** Whether this texture is 8-bit grayscale or 8-bit per-channel BGRA color */
+	bool bIsGrayscale;
 	/** Temporary data stored between Release and InitDynamicRHI */
 	TArray<uint8> TempData;
 };
@@ -49,7 +57,7 @@ private:
 class FSlateFontAtlasRHI : public FSlateFontAtlas
 {
 public:
-	FSlateFontAtlasRHI( uint32 Width, uint32 Height );
+	FSlateFontAtlasRHI(uint32 Width, uint32 Height, const bool InIsGrayscale);
 	~FSlateFontAtlasRHI();
 
 	/**
@@ -69,7 +77,7 @@ private:
 class FSlateFontTextureRHI : public ISlateFontTexture
 {
 public:
-	FSlateFontTextureRHI(const uint32 InWidth, const uint32 InHeight, const TArray<uint8>& InRawData);
+	FSlateFontTextureRHI(const uint32 InWidth, const uint32 InHeight, const bool InIsGrayscale, const TArray<uint8>& InRawData);
 	~FSlateFontTextureRHI();
 
 	/**
@@ -77,6 +85,7 @@ public:
 	 */
 	virtual class FSlateShaderResource* GetSlateTexture() override { return FontTexture.Get(); }
 	virtual class FTextureResource* GetEngineTexture() override { return FontTexture.Get(); }
+	virtual bool IsGrayscale() const override { return FontTexture->IsGrayscale(); }
 	virtual void ReleaseResources() override;
 private:
 	void UpdateTextureFromSource(const uint32 SourceWidth, const uint32 SourceHeight, const TArray<uint8>& SourceData);
