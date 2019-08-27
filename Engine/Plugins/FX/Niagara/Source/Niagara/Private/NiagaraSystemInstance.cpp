@@ -448,22 +448,16 @@ void FNiagaraSystemInstance::Complete()
 
 	if (bNeedToNotifyOthers)
 	{
-		//UE_LOG(LogNiagara, Log, TEXT("FNiagaraSystemInstance::BroadCast OnCompleteDelegate { %p"), this);
+		// We've already notified once, no need to do so again.
+		bNotifyOnCompletion = false;
+
 		OnCompleteDelegate.Broadcast(this);
-		//UE_LOG(LogNiagara, Log, TEXT("FNiagaraSystemInstance::BroadCast OnCompleteDelegate } %p"), this);
 
 		if (Component)
 		{
-			//UE_LOG(LogNiagara, Log, TEXT("FNiagaraSystemInstance::Component->OnSystemComplete { %p"), this);
+			// Note: This call may destroy this instance of FNiagaraSystemInstance, so don't use bNotifyOnCompletion after it!
 			Component->OnSystemComplete();
-			//UE_LOG(LogNiagara, Log, TEXT("FNiagaraSystemInstance::Component->OnSystemComplete } %p"), this);
 		}
-
-		//UE_LOG(LogNiagara, Log, TEXT("FNiagaraSystemInstance::Complete } %p"), this);
-
-		
-		// We've already notified once, no need to do so again.
-		bNotifyOnCompletion = false;
 	}
 }
 
