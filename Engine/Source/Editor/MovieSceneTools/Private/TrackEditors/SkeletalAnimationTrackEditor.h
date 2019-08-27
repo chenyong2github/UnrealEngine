@@ -120,9 +120,9 @@ private:
 	/** Used to draw animation frame, need selection state and local time*/
 	TWeakPtr<ISequencer> Sequencer;
 
-	/** Cached start offset value valid only during resize */
-	FFrameNumber InitialStartOffsetDuringResize;
-	
+	/** Cached first loop start offset value valid only during resize */
+	FFrameNumber InitialFirstLoopStartOffsetDuringResize;
+
 	/** Cached start time valid only during resize */
 	FFrameNumber InitialStartTimeDuringResize;
 };

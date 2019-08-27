@@ -26,6 +26,10 @@ struct FMovieSceneSkeletalAnimationParams
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Animation", meta=(AllowedClasses = "AnimSequence,AnimComposite,AnimStreamable"))
 	UAnimSequenceBase* Animation;
 
+	/** The offset into the beginning of the animation clip for the first loop of play. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Animation")
+	FFrameNumber FirstLoopStartFrameOffset;
+
 	/** The offset into the beginning of the animation clip */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Animation")
 	FFrameNumber StartFrameOffset;

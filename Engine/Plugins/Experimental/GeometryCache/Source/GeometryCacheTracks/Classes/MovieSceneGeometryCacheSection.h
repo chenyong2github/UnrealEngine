@@ -24,6 +24,10 @@ USTRUCT()
 	UPROPERTY(EditAnywhere, Category = "GeometryCache", DisplayName = "Geometry Cache")
 	UGeometryCache* GeometryCacheAsset;
 
+	/** The offset for the first loop of the animation clip */
+	UPROPERTY(EditAnywhere, Category = "GeometryCache")
+	FFrameNumber FirstLoopStartFrameOffset;
+
 	/** The offset into the beginning of the animation clip */
 	UPROPERTY(EditAnywhere, Category = "GeometryCache")
 	FFrameNumber StartFrameOffset;
