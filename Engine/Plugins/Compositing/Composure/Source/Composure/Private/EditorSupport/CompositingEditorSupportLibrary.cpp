@@ -7,6 +7,7 @@
 
 #include "EditorSupport/ICompositingEditor.h"
 #include "EditorSupport/WeakUInterfacePtr.h"
+#include "UObject/Script.h" // for FEditorScriptExecutionGuard
 
 UCompositingPickerAsyncTask* UCompositingPickerAsyncTask::OpenCompositingPicker(UTextureRenderTarget2D* PickerTarget, UTexture* DisplayImage, FText WindowTitle, const bool bAverageColorOnDrag, const bool bUseImplicitGamma)
 {
@@ -67,6 +68,8 @@ void UCompositingPickerAsyncTask::Open(UTextureRenderTarget2D* InPickerTarget, U
 
 void UCompositingPickerAsyncTask::InternalOnPick(const FVector2D& PickedUV, const FLinearColor& PickedColor, bool bInteractive)
 {
+	FEditorScriptExecutionGuard EdScriptGuard;
+
 	if (bInteractive)
 	{
 		OnPick.Broadcast(PickedUV, PickedColor);
@@ -80,6 +83,8 @@ void UCompositingPickerAsyncTask::InternalOnPick(const FVector2D& PickedUV, cons
 
 void UCompositingPickerAsyncTask::InternalOnCancel()
 {
+	FEditorScriptExecutionGuard EdScriptGuard;
+
 	OnCancel.Broadcast(FVector2D(-1.f, -1.f), FLinearColor::Black);
 	SetReadyToDestroy();
 }
