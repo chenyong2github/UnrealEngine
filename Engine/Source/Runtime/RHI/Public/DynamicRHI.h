@@ -991,6 +991,12 @@ public:
 		RHIResizeViewport(Viewport, SizeX, SizeY, bIsFullscreen);
 	}
 
+	// Return what colour space the viewport is in. Used for HDR displays
+	virtual EColorSpaceAndEOTF RHIGetColorSpace(FRHIViewport* Viewport);
+
+	// Tests the viewport to see if its HDR status has changed. This is usually tested after a window has been moved
+	virtual void RHICheckViewportHDRStatus(FRHIViewport* Viewport);
+
 	//  must be called from the main thread.
 	// FlushType: Thread safe
 	virtual void RHITick(float DeltaTime) = 0;
@@ -1387,6 +1393,16 @@ FORCEINLINE FViewportRHIRef RHICreateViewport(void* WindowHandle, uint32 SizeX, 
 FORCEINLINE void RHIResizeViewport(FRHIViewport* Viewport, uint32 SizeX, uint32 SizeY, bool bIsFullscreen, EPixelFormat PreferredPixelFormat)
 {
 	GDynamicRHI->RHIResizeViewport(Viewport, SizeX, SizeY, bIsFullscreen, PreferredPixelFormat);
+}
+
+FORCEINLINE EColorSpaceAndEOTF RHIGetColorSpace(FRHIViewport* Viewport)
+{
+	return GDynamicRHI->RHIGetColorSpace(Viewport);
+}
+
+FORCEINLINE void RHICheckViewportHDRStatus(FRHIViewport* Viewport)
+{
+	GDynamicRHI->RHICheckViewportHDRStatus(Viewport);
 }
 
 FORCEINLINE void RHITick(float DeltaTime)

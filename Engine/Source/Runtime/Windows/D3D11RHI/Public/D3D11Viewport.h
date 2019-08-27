@@ -74,6 +74,12 @@ public:
      */
 	void ConditionalResetSwapChain(bool bIgnoreFocus);
 
+	/**
+	 * Called whenever the Viewport is moved to see if it has moved between HDR or LDR monitors
+	 */
+	void CheckHDRMonitorStatus();
+
+
 	/** Presents the swap chain. 
 	 * Returns true if Present was done by Engine.
  	 */
@@ -82,6 +88,7 @@ public:
 	// Accessors.
 	FIntPoint GetSizeXY() const { return FIntPoint(SizeX, SizeY); }
 	FD3D11Texture2D* GetBackBuffer() const { return BackBuffer; }
+	EColorSpaceAndEOTF GetPixelColorSpace() const { return PixelColorSpace; }
 
 	void WaitForFrameEventCompletion()
 	{
@@ -133,8 +140,10 @@ protected:
 	uint32 MaximumFrameLatency;
 	uint32 SizeX;
 	uint32 SizeY;
+	uint32 BackBufferCount;
 	bool bIsFullscreen;
 	EPixelFormat PixelFormat;
+	EColorSpaceAndEOTF PixelColorSpace;
 	bool bIsValid;
 #if PLATFORM_HOLOLENS
 	TRefCountPtr<IDXGISwapChain1> SwapChain;

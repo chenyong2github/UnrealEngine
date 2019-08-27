@@ -1072,6 +1072,33 @@ enum class EClearBinding
 	EDepthStencilBound, //target has a depthstencil value bound.  Clears will use the bound values and do hardware clears.
 };
 
+
+enum class EColorSpaceAndEOTF
+{
+	EUnknown = 0,
+
+	EColorSpace_Rec709  = 1,		// Color Space Uses Rec 709  Primaries
+	EColorSpace_Rec2020 = 2,		// Color Space Uses Rec 2020 Primaries
+	EColorSpace_DCIP3   = 3,		// Color Space Uses DCI-P3   Primaries
+	EEColorSpace_MASK   = 0xf,
+
+	EEOTF_Linear		= 1 << 4,   // Transfer Function Uses Linear Encoding
+	EEOTF_sRGB			= 2 << 4,	// Transfer Function Uses sRGB Encoding
+	EEOTF_PQ			= 3 << 4,	// Transfer Function Uses PQ Encoding
+	EEOTF_MASK			= 0xf << 4,
+
+	ERec709_sRGB		= EColorSpace_Rec709  | EEOTF_sRGB,
+	ERec709_Linear		= EColorSpace_Rec709  | EEOTF_Linear,
+	
+	ERec2020_PQ			= EColorSpace_Rec2020 | EEOTF_PQ,
+	ERec2020_Linear		= EColorSpace_Rec2020 | EEOTF_Linear,
+	
+	EDCIP3_PQ			= EColorSpace_DCIP3 | EEOTF_PQ,
+	EDCIP3_Linear		= EColorSpace_DCIP3 | EEOTF_Linear,
+	
+};
+
+
 struct FClearValueBinding
 {
 	struct DSVAlue
