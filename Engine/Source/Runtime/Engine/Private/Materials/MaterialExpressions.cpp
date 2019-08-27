@@ -2023,8 +2023,8 @@ void UMaterialExpressionRuntimeVirtualTextureSample::InitOutputs()
 	Outputs.Reset();
 	
 	Outputs.Add(FExpressionOutput(TEXT("BaseColor"), 1, 1, 1, 1, 0));
-	Outputs.Add(FExpressionOutput(TEXT("Specular"), 1, 0, 0, 1, 0));
-	Outputs.Add(FExpressionOutput(TEXT("Roughness"), 1, 1, 0, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT("Specular")));
+	Outputs.Add(FExpressionOutput(TEXT("Roughness")));
 	Outputs.Add(FExpressionOutput(TEXT("Normal")));
 	Outputs.Add(FExpressionOutput(TEXT("WorldHeight")));
 #endif // WITH_EDITORONLY_DATA
@@ -2082,22 +2082,28 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 
 	// Calculate the virtual texture layer and sampling/unpacking functions for this output
 	// Fallback to a sensible default value if the output isn't valid for the bound virtual texture
-	const bool bIsBaseColorValid = MaterialType == ERuntimeVirtualTextureMaterialType::BaseColor || MaterialType == ERuntimeVirtualTextureMaterialType::BaseColor_Normal || MaterialType == ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular;
-	const bool bIsSpecularValid = MaterialType == ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular;
-	const bool bIsNormalValid = MaterialType == ERuntimeVirtualTextureMaterialType::BaseColor_Normal || MaterialType == ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular;
-	const bool bIsNormalBC3 = MaterialType == ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular;
-	const bool bIsWorldHeightValid = MaterialType == ERuntimeVirtualTextureMaterialType::WorldHeight;
-
-	int32 LayerIndex = 0;
-	EMaterialSamplerType SamplerType = SAMPLERTYPE_VirtualMasks;
 	EVirtualTextureUnpackType UnpackType = EVirtualTextureUnpackType::None;
+
+	bool bIsBaseColorValid = false;
+	bool bIsSpecularValid = false;
+	bool bIsNormalValid = false;
+	bool bIsWorldHeightValid = false;
+
+	switch (MaterialType)
+	{
+	case ERuntimeVirtualTextureMaterialType::BaseColor: bIsBaseColorValid = true; break;
+	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal: bIsBaseColorValid = bIsNormalValid = true; break;
+	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular: bIsBaseColorValid = bIsNormalValid = bIsSpecularValid = true; break;
+	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Deprecated: bIsBaseColorValid = bIsNormalValid = bIsSpecularValid = true; break;
+	case ERuntimeVirtualTextureMaterialType::WorldHeight: bIsWorldHeightValid = true; break;
+	}
 
 	switch (OutputIndex)
 	{
 	case 0: 
 		if (bIsVirtualTextureValid && bIsBaseColorValid)
 		{
-			SamplerType = SAMPLERTYPE_VirtualColor;
+			UnpackType = EVirtualTextureUnpackType::BaseColor;
 		}
 		else
 		{
@@ -2105,10 +2111,23 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 		}
 		break;
 	case 1:
+		if (bIsVirtualTextureValid && bIsSpecularValid)
+		{
+			UnpackType = EVirtualTextureUnpackType::SpecularR8;
+		}
+		else
+		{
+			return Compiler->Constant(0.5f);
+		}
+		break;
 	case 2:
 		if (bIsVirtualTextureValid && bIsSpecularValid)
 		{
-			LayerIndex = 1;
+			switch (MaterialType)
+			{
+			case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular: UnpackType = EVirtualTextureUnpackType::RoughnessG8; break;
+			case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Deprecated: UnpackType = EVirtualTextureUnpackType::RoughnessB8; break;
+			}
 		}
 		else
 		{
@@ -2118,8 +2137,12 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 	case 3:
 		if (bIsVirtualTextureValid && bIsNormalValid)
 		{
-			LayerIndex = 1;
-			UnpackType = bIsNormalBC3 ? EVirtualTextureUnpackType::NormalBC3 : EVirtualTextureUnpackType::NormalBC5;
+			switch (MaterialType)
+			{
+			case ERuntimeVirtualTextureMaterialType::BaseColor_Normal: UnpackType = EVirtualTextureUnpackType::NormalBC5; break;
+			case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular: UnpackType = EVirtualTextureUnpackType::NormalBC3BC3; break;
+			case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Deprecated: UnpackType = EVirtualTextureUnpackType::NormalBC3; break;
+			}
 		}
 		else
 		{
@@ -2129,7 +2152,6 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 	case 4:
 		if (bIsVirtualTextureValid && bIsWorldHeightValid)
 		{
-			LayerIndex = 0;
 			UnpackType = EVirtualTextureUnpackType::HeightR16;
 		}
 		else
@@ -2141,9 +2163,18 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 		return INDEX_NONE;
 	}
 	
-	// Compile the texture object reference
-	int32 TextureReferenceIndex = INDEX_NONE;
-	const int32 TextureCodeIndex = Compiler->VirtualTexture(VirtualTexture, LayerIndex, TextureReferenceIndex, SamplerType);
+	// Compile the texture object references
+	enum { MAX_RVT_LAYERS = 2 };
+	const int32 LayerCount = VirtualTexture->GetLayerCount();
+	check(LayerCount <= MAX_RVT_LAYERS);
+
+	int32 TextureCodeIndex[MAX_RVT_LAYERS] = { INDEX_NONE };
+	int32 TextureReferenceIndex[MAX_RVT_LAYERS] = { INDEX_NONE };
+	for (int32 Layer = 0; Layer < LayerCount; Layer++)
+	{
+		TextureCodeIndex[Layer] = Compiler->VirtualTexture(VirtualTexture, Layer, TextureReferenceIndex[Layer], SAMPLERTYPE_VirtualMasks);
+		check(TextureReferenceIndex[Layer] == TextureReferenceIndex[0]);
+	}
 
 	// Compile the coordinates
 	// We use the virtual texture world space transform by default
@@ -2151,9 +2182,9 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 	if (Coordinates.GetTracedInput().Expression == nullptr)
 	{
 		int32 WorldPositionIndex = Compiler->WorldPosition(WPT_Default);
-		int32 P0 = Compiler->VirtualTextureParam(TextureReferenceIndex, 0);
-		int32 P1 = Compiler->VirtualTextureParam(TextureReferenceIndex, 1);
-		int32 P2 = Compiler->VirtualTextureParam(TextureReferenceIndex, 2);
+		int32 P0 = Compiler->VirtualTextureParam(TextureReferenceIndex[0], 0);
+		int32 P1 = Compiler->VirtualTextureParam(TextureReferenceIndex[0], 1);
+		int32 P2 = Compiler->VirtualTextureParam(TextureReferenceIndex[0], 2);
 		CoordinateIndex = Compiler->VirtualTextureWorldToUV(WorldPositionIndex, P0, P1, P2);
 	}
 	else
@@ -2162,12 +2193,21 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 	}
 	
 	// Compile the texture sample code
-	//todo[vt]: Expose support for mip sample settings through the URuntimeVirtualTexture object
-	const int32 SampleCodeIndex = Compiler->TextureSample(TextureCodeIndex, CoordinateIndex, SamplerType, INDEX_NONE, INDEX_NONE, TMVM_None, SSM_Wrap_WorldGroupSettings, TextureReferenceIndex, false);
+	//todo[vt]: Expose support for mip settings in this expression
+	int32 SampleCodeIndex[MAX_RVT_LAYERS] = { INDEX_NONE };
+	for (int32 Layer = 0; Layer < LayerCount; Layer++)
+	{
+		SampleCodeIndex[Layer] = Compiler->TextureSample(
+			TextureCodeIndex[Layer],
+			CoordinateIndex, 
+			SAMPLERTYPE_VirtualMasks,
+			INDEX_NONE, INDEX_NONE, TMVM_None, SSM_Wrap_WorldGroupSettings,
+			TextureReferenceIndex[Layer], 
+			false);
+	}
 
 	// Compile any unpacking code
-	const int32 UnpackCodeIndex = Compiler->VirtualTextureUnpack(SampleCodeIndex, UnpackType);
-	
+	const int32 UnpackCodeIndex = Compiler->VirtualTextureUnpack(SampleCodeIndex[0], SampleCodeIndex[1], UnpackType);
 	return UnpackCodeIndex;
 }
 
