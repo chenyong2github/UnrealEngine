@@ -82,7 +82,7 @@ uint16 FSlateFontRenderer::GetMaxHeight(const FSlateFontInfo& InFontInfo, const 
 	// Just get info for the null character 
 	TCHAR Char = 0;
 	const FFontData& FontData = CompositeFontCache->GetDefaultFontData(InFontInfo);
-	const FFreeTypeFaceGlyphData FaceGlyphData = GetFontFaceForCharacter(FontData, Char, InFontInfo.FontFallback);
+	const FFreeTypeFaceGlyphData FaceGlyphData = GetFontFaceForCodepoint(FontData, Char, InFontInfo.FontFallback);
 
 	if (FaceGlyphData.FaceAndMemory.IsValid())
 	{
@@ -105,7 +105,7 @@ int16 FSlateFontRenderer::GetBaseline(const FSlateFontInfo& InFontInfo, const fl
 	// Just get info for the null character 
 	TCHAR Char = 0;
 	const FFontData& FontData = CompositeFontCache->GetDefaultFontData(InFontInfo);
-	const FFreeTypeFaceGlyphData FaceGlyphData = GetFontFaceForCharacter(FontData, Char, InFontInfo.FontFallback);
+	const FFreeTypeFaceGlyphData FaceGlyphData = GetFontFaceForCodepoint(FontData, Char, InFontInfo.FontFallback);
 
 	if (FaceGlyphData.FaceAndMemory.IsValid())
 	{
@@ -207,12 +207,12 @@ int8 FSlateFontRenderer::GetKerning(const FFontData& InFontData, const int32 InS
 #endif // WITH_FREETYPE
 }
 
-bool FSlateFontRenderer::CanLoadCharacter(const FFontData& InFontData, TCHAR Char, EFontFallback MaxFallbackLevel) const
+bool FSlateFontRenderer::CanLoadCodepoint(const FFontData& InFontData, const UTF32CHAR InCodepoint, EFontFallback MaxFallbackLevel) const
 {
 	bool bReturnVal = false;
 
 #if WITH_FREETYPE
-	const FFreeTypeFaceGlyphData FaceGlyphData = GetFontFaceForCharacter(InFontData, Char, MaxFallbackLevel);
+	const FFreeTypeFaceGlyphData FaceGlyphData = GetFontFaceForCodepoint(InFontData, InCodepoint, MaxFallbackLevel);
 	bReturnVal = FaceGlyphData.FaceAndMemory.IsValid() && FaceGlyphData.GlyphIndex != 0;
 #endif // WITH_FREETYPE
 
@@ -221,10 +221,10 @@ bool FSlateFontRenderer::CanLoadCharacter(const FFontData& InFontData, TCHAR Cha
 
 #if WITH_FREETYPE
 
-FFreeTypeFaceGlyphData FSlateFontRenderer::GetFontFaceForCharacter(const FFontData& InFontData, TCHAR Char, EFontFallback MaxFallbackLevel) const 
+FFreeTypeFaceGlyphData FSlateFontRenderer::GetFontFaceForCodepoint(const FFontData& InFontData, const UTF32CHAR InCodepoint, EFontFallback MaxFallbackLevel) const
 {
 	FFreeTypeFaceGlyphData ReturnVal;
-	const bool bOverrideFallback = Char == SlateFontRendererUtils::InvalidSubChar;
+	const bool bOverrideFallback = InCodepoint == SlateFontRendererUtils::InvalidSubChar;
 
 	// Try the requested font first
 	{
@@ -232,23 +232,23 @@ FFreeTypeFaceGlyphData FSlateFontRenderer::GetFontFaceForCharacter(const FFontDa
 
 		if (ReturnVal.FaceAndMemory.IsValid())
 		{
-			ReturnVal.GlyphIndex = FT_Get_Char_Index(ReturnVal.FaceAndMemory->GetFace(), Char);
+			ReturnVal.GlyphIndex = FT_Get_Char_Index(ReturnVal.FaceAndMemory->GetFace(), InCodepoint);
 			ReturnVal.CharFallbackLevel = EFontFallback::FF_NoFallback;
 		}
 	}
 
 	// If the requested glyph doesn't exist, use the localization fallback font
-	if (!ReturnVal.FaceAndMemory.IsValid() || (Char != 0 && ReturnVal.GlyphIndex == 0))
+	if (!ReturnVal.FaceAndMemory.IsValid() || (InCodepoint != 0 && ReturnVal.GlyphIndex == 0))
 	{
 		const bool bCanFallback = bOverrideFallback || MaxFallbackLevel >= EFontFallback::FF_LocalizedFallback;
 
 		if (bCanFallback && FLegacySlateFontInfoCache::Get().IsLocalizedFallbackFontAvailable())
 		{
-			ReturnVal.FaceAndMemory = CompositeFontCache->GetFontFace(FLegacySlateFontInfoCache::Get().GetLocalizedFallbackFontData(FLegacySlateFontInfoCache::FFallbackContext(&InFontData, Char)));
+			ReturnVal.FaceAndMemory = CompositeFontCache->GetFontFace(FLegacySlateFontInfoCache::Get().GetLocalizedFallbackFontData(FLegacySlateFontInfoCache::FFallbackContext(&InFontData, InCodepoint)));
 
 			if (ReturnVal.FaceAndMemory.IsValid())
 			{	
-				ReturnVal.GlyphIndex = FT_Get_Char_Index(ReturnVal.FaceAndMemory->GetFace(), Char);
+				ReturnVal.GlyphIndex = FT_Get_Char_Index(ReturnVal.FaceAndMemory->GetFace(), InCodepoint);
 
 				if (ReturnVal.GlyphIndex != 0)
 				{
@@ -260,17 +260,17 @@ FFreeTypeFaceGlyphData FSlateFontRenderer::GetFontFaceForCharacter(const FFontDa
 	}
 
 	// If the requested glyph doesn't exist, use the last resort fallback font
-	if (!ReturnVal.FaceAndMemory.IsValid() || (Char != 0 && ReturnVal.GlyphIndex == 0))
+	if (!ReturnVal.FaceAndMemory.IsValid() || (InCodepoint != 0 && ReturnVal.GlyphIndex == 0))
 	{
 		const bool bCanFallback = bOverrideFallback || MaxFallbackLevel >= EFontFallback::FF_LastResortFallback;
 
 		if (bCanFallback && FLegacySlateFontInfoCache::Get().IsLastResortFontAvailable())
 		{
-			ReturnVal.FaceAndMemory = CompositeFontCache->GetFontFace(FLegacySlateFontInfoCache::Get().GetLastResortFontData(FLegacySlateFontInfoCache::FFallbackContext(&InFontData, Char)));
+			ReturnVal.FaceAndMemory = CompositeFontCache->GetFontFace(FLegacySlateFontInfoCache::Get().GetLastResortFontData(FLegacySlateFontInfoCache::FFallbackContext(&InFontData, InCodepoint)));
 
 			if (ReturnVal.FaceAndMemory.IsValid())
 			{
-				ReturnVal.GlyphIndex = FT_Get_Char_Index(ReturnVal.FaceAndMemory->GetFace(), Char);
+				ReturnVal.GlyphIndex = FT_Get_Char_Index(ReturnVal.FaceAndMemory->GetFace(), InCodepoint);
 
 				if (ReturnVal.GlyphIndex != 0)
 				{
@@ -282,7 +282,7 @@ FFreeTypeFaceGlyphData FSlateFontRenderer::GetFontFaceForCharacter(const FFontDa
 	}
 
 	// Found an invalid glyph?
-	if (Char != 0 && ReturnVal.GlyphIndex == 0)
+	if (InCodepoint != 0 && ReturnVal.GlyphIndex == 0)
 	{
 		ReturnVal.FaceAndMemory.Reset();
 	}

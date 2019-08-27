@@ -762,15 +762,15 @@ public:
 	const FFontData& GetDefaultFontData( const FSlateFontInfo& InFontInfo ) const;
 
 	/**
-	 * Returns the font to use from the typeface associated with the given character
+	 * Returns the font to use from the typeface associated with the given codepoint
 	 *
 	 * @param InFontInfo		A descriptor of the font to get the typeface for
-	 * @param InChar			The character to get the typeface associated with
+	 * @param InCodepoint		The codepoint to get the typeface associated with
 	 * @param OutScalingFactor	The scaling factor applied to characters rendered with the given font
 	 * 
 	 * @return The raw font data
 	 */
-	const FFontData& GetFontDataForCharacter( const FSlateFontInfo& InFontInfo, const TCHAR InChar, float& OutScalingFactor ) const;
+	const FFontData& GetFontDataForCodepoint( const FSlateFontInfo& InFontInfo, const UTF32CHAR InCodepoint, float& OutScalingFactor ) const;
 
 	/**
 	 * Returns the height of the largest character in the font. 
