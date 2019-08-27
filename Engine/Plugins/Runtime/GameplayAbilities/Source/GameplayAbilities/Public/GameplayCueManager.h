@@ -259,6 +259,7 @@ protected:
 	TSharedPtr<FStreamableHandle> GameplayCueAssetHandle;
 
 public:		
+	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
 	/** Called before loading any gameplay cue notifies from object libraries. Allows subclasses to skip notifies. */
 	virtual bool ShouldLoadGameplayCueAssetData(const FAssetData& Data) const { return true; }

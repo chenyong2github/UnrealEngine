@@ -1635,6 +1635,22 @@ void UGameplayCueManager::OnWorldCleanup(UWorld* World, bool bSessionEnded, bool
 	IGameplayCueInterface::ClearTagToFunctionMap();
 }
 
+void UGameplayCueManager::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+{
+	Super::AddReferencedObjects(InThis, Collector);
+
+	UGameplayCueManager* GCManager = Cast<UGameplayCueManager>(InThis);
+	for (int32 idx = 0; idx < GCManager->PreallocationInfoList_Internal.Num(); ++idx)
+	{
+		FPreallocationInfo& Info = GCManager->PreallocationInfoList_Internal[idx];
+		for (auto &It : Info.PreallocatedInstances)
+		{
+			TArray<AGameplayCueNotify_Actor*>& GameplayCueArray = It.Value;
+			Collector.AddReferencedObjects(GameplayCueArray);
+		}
+	}
+}
+
 void UGameplayCueManager::DumpPreallocationStats(UWorld* World)
 {
 	if (World == nullptr)
