@@ -1312,7 +1312,7 @@ private:
 	}
 
 	template <>
-	FORCEINLINE static void ConvertFromArithmeticValueImpl<TCppType>(const TProperty_Numeric& This, FStructuredArchive::FSlot Slot, void* Obj, const FPropertyTag& Tag)
+	inline static void ConvertFromArithmeticValueImpl<TCppType>(const TProperty_Numeric& This, FStructuredArchive::FSlot Slot, void* Obj, const FPropertyTag& Tag)
 	{
 		TCppType Value;
 		Slot << Value;
