@@ -899,6 +899,7 @@ public:
 
 		const FString& Filename() const		{ return CachedFilename; }
 		const FPakEntry& Info() const	{ return PakFile.Files[DirectoryIt.Value()]; }
+		const int32 GetIndexInPakFile() const { return DirectoryIt.Value(); }
 
 	private:
 		FORCEINLINE void AdvanceToValid()
