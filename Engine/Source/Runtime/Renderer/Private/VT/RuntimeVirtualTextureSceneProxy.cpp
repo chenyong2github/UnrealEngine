@@ -17,16 +17,12 @@ FRuntimeVirtualTextureSceneProxy::FRuntimeVirtualTextureSceneProxy(URuntimeVirtu
 {
 	if (InComponent->GetVirtualTexture() != nullptr && InComponent->GetVirtualTexture()->GetEnabled())
 	{
-		VirtualTexture = InComponent->GetVirtualTexture();
-
 		// We store a ProducerId here so that we will be able to find our SceneIndex from the Producer during rendering.
 		// We will need the SceneIndex to determine which primitives should render to this Producer.
 		ProducerId = ProducerIdGenerator++;
 
-		const ERuntimeVirtualTextureMaterialType MaterialType = VirtualTexture->GetMaterialType();
-
-		// Transform is based on bottom left of the URuntimeVirtualTextureComponent unit box (which is centered on the origin)
-		Transform = FTransform(FVector(-0.5f, -0.5f, 0.f)) * InComponent->GetComponentTransform();
+		VirtualTexture = InComponent->GetVirtualTexture();
+		Transform = InComponent->GetVirtualTextureTransform();
 
 		// The producer description is calculated using the transform to determine the aspect ratio
 		FVTProducerDescription Desc;
@@ -34,9 +30,21 @@ FRuntimeVirtualTextureSceneProxy::FRuntimeVirtualTextureSceneProxy(URuntimeVirtu
 		VirtualTextureSize = FIntPoint(Desc.WidthInBlocks * Desc.BlockWidthInTiles * Desc.TileSize, Desc.HeightInBlocks * Desc.BlockHeightInTiles * Desc.TileSize);
 		MaxDirtyLevel = Desc.MaxLevel;
 
+		const ERuntimeVirtualTextureMaterialType MaterialType = VirtualTexture->GetMaterialType();
+
 		// The Producer object created here will be passed into the virtual texture system which will take ownership.
+		IVirtualTexture* Producer = new FRuntimeVirtualTextureProducer(Desc, ProducerId, MaterialType, InComponent->GetScene(), Transform);
+
+		if (InComponent->IsStreamingLowMips() && VirtualTexture->GetStreamLowMips() > 0)
+		{
+			// Wrap our producer to use a streaming producer for low mips
+			int32 StreamingTransitionLevel;
+			Producer = VirtualTexture->CreateStreamingTextureProducer(Producer, Desc.MaxLevel, StreamingTransitionLevel);
+			// Any dirty flushes don't need to flush the streaming mips (they only change with a build step).
+			MaxDirtyLevel = StreamingTransitionLevel;
+		}
+
 		// The Initialize() call will allocate the virtual texture by spawning work on the render thread.
-		FRuntimeVirtualTextureProducer* Producer = new FRuntimeVirtualTextureProducer(Desc, ProducerId, MaterialType, InComponent->GetScene(), Transform);
 		VirtualTexture->Initialize(Producer, Transform);
 	}
 }
