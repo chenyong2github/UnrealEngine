@@ -80,10 +80,10 @@ public:
 
 	/** Returns number of texture layers in the virtual texture */
 	int32 GetLayerCount() const;
+	/** Returns the texture format for the virtual texture layer */
+	EPixelFormat GetLayerFormat(int32 LayerIndex) const;
 	/** Return true if the virtual texture layer should be sampled as sRGB */
 	bool IsLayerSRGB(int32 LayerIndex) const;
-	/** Return true if the virtual texture layer contains an alpha channel */
-	bool IsLayerAlpha(int32 LayerIndex) const;
 
 	/** (Re)Initialize this object. Call this whenever we modify the producer or transform. */
 	void Initialize(IVirtualTexture* InProducer, FTransform const& VolumeToWorld);
