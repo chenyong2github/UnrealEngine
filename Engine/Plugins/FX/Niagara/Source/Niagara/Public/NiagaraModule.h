@@ -42,25 +42,6 @@ public:
 	void ResetOnProcessShaderCompilationQueue(FDelegateHandle DelegateHandle);
 	void ProcessShaderCompilationQueue();
 
-
-	static FNiagaraWorldManager* GetWorldManager(UWorld* World);
-
-	// Gamethread callback to cleanup references to the given batcher before it gets deleted on the renderthread.
-	static void OnBatcherDestroyed(class NiagaraEmitterInstanceBatcher* InBatcher);
-
-	void DestroyAllSystemSimulations(class UNiagaraSystem* System);
-
-	// Callback function registered with global world delegates to instantiate world manager when a game world is created
-	void OnWorldInit(UWorld* World, const UWorld::InitializationValues IVS);
-
-	// Callback function registered with global world delegates to cleanup world manager contents
-	void OnWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources);
-
-	// Callback function registered with global world delegates to cleanup world manager when a game world is destroyed
-	void OnPreWorldFinishDestroy(UWorld* World);
-
-	void TickWorld(UWorld* World, ELevelTick TickType, float DeltaSeconds);
-
 #if WITH_EDITOR
 	const INiagaraMergeManager& GetMergeManager() const;
 
@@ -184,8 +165,6 @@ private:
 	FScriptCompiler ScriptCompilerDelegate;
 	FOnPrecompile ObjectPrecompilerDelegate;
 #endif
-
-	static TMap<class UWorld*, class FNiagaraWorldManager*> WorldManagers;
 
 	void OnChangeDetailLevel(class IConsoleVariable* CVar);
 	static int32 EngineDetailLevel;

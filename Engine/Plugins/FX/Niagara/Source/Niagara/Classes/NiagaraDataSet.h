@@ -99,7 +99,7 @@ public:
 	void AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceCountManager& GPUInstanceCountManager, FRHICommandList &RHICmdList);
 	void SwapInstances(uint32 OldIndex, uint32 NewIndex);
 	void KillInstance(uint32 InstanceIdx);
-	void CopyTo(FNiagaraDataBuffer& DestBuffer, int32 StartIdx, int32 NumInstances)const;
+	void CopyTo(FNiagaraDataBuffer& DestBuffer, int32 SrcStartIdx, int32 DestStartIdx, int32 NumInstances)const;
 	void CopyTo(FNiagaraDataBuffer& DestBuffer)const;
 	void GPUCopyFrom(float* GPUReadBackFloat, int* GPUReadBackInt, int32 StartIdx, int32 NumInstances, uint32 InSrcFloatStride, uint32 InSrcIntStride);
 	void Dump(int32 StartIndex, int32 NumInstances, const FString& Label)const;
@@ -140,7 +140,7 @@ public:
 
 	FORCEINLINE FNiagaraDataSet* GetOwner()const { return Owner; }
 
-	int32 TransferInstance(FNiagaraDataBuffer& SourceBuffer, int32 InstanceIndex);
+	int32 TransferInstance(FNiagaraDataBuffer& SourceBuffer, int32 InstanceIndex, bool bRemoveFromSource=true);
 
 	bool CheckForNaNs()const;
 
@@ -260,7 +260,7 @@ public:
 	const FNiagaraVariableLayoutInfo* GetVariableLayout(const FNiagaraVariable& Var)const;
 	bool GetVariableComponentOffsets(const FNiagaraVariable& Var, int32 &FloatStart, int32 &IntStart) const;
 
-	void CopyTo(FNiagaraDataSet& Other, int32 StartIdx = 0, int32 NumInstances = INDEX_NONE)const;
+	void CopyTo(FNiagaraDataSet& Other, int32 StartIdx = 0, int32 NumInstances = INDEX_NONE, bool bResetOther=true)const;
 
 	void CopyFromGPUReadback(float* GPUReadBackFloat, int* GPUReadBackInt, int32 StartIdx = 0, int32 NumInstances = INDEX_NONE, uint32 FloatStride = 0, uint32 IntStride = 0);
 
@@ -300,10 +300,10 @@ private:
 	{
 		// In some rare occasions, the render thread might be null, like when offloading work to Lightmass 
 		// The final GRenderingThread check keeps us from inadvertently failing when that happens.
-#if DO_CHECK
+#if DO_GUARD_SLOW
 		bool CPUSimOK = (SimTarget == ENiagaraSimTarget::CPUSim && !IsInRenderingThread());
 		bool GPUSimOK = (SimTarget == ENiagaraSimTarget::GPUComputeSim && IsInRenderingThread());
-		checkf(!GRenderingThread || CPUSimOK || GPUSimOK, TEXT("NiagaraDataSet function being called on incorrect thread."));
+		checkfSlow(!GRenderingThread || CPUSimOK || GPUSimOK, TEXT("NiagaraDataSet function being called on incorrect thread."));
 #endif
 	}
 
@@ -370,13 +370,22 @@ struct FNiagaraDataSetAccessorBase
 	FNiagaraDataSetAccessorBase(FNiagaraDataSet* InDataSet, FNiagaraVariable InVar)
 		: DataSet(InDataSet)
 	{
+		Var = InVar;
 		VarLayout = DataSet->GetVariableLayout(InVar);
 	}
 
 	void Create(FNiagaraDataSet* InDataSet, FNiagaraVariable InVar)
 	{
 		DataSet = InDataSet;
+		Var = InVar;
 		VarLayout = DataSet->GetVariableLayout(InVar);
+	}
+
+	void SetDataSet(FNiagaraDataSet& InDataSet)
+	{
+		ensure(Var.IsValid());
+		DataSet = &InDataSet;
+		VarLayout = InDataSet.GetVariableLayout(Var);
 	}
 
 	FORCEINLINE bool IsValid()const { return DataSet && VarLayout != nullptr; }
@@ -384,6 +393,7 @@ protected:
 
 	FNiagaraDataSet* DataSet;
 	const FNiagaraVariableLayoutInfo* VarLayout;
+	FNiagaraVariable Var;
 };
 
 template<typename T>

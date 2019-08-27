@@ -778,6 +778,11 @@ void FNiagaraEmitterInstance::PostTick()
 
 bool FNiagaraEmitterInstance::HandleCompletion(bool bForce)
 {
+	if (IsDisabled())
+	{
+		return true;
+	}
+
 	if (bForce)
 	{
 		SetExecutionState(ENiagaraExecutionState::Complete);

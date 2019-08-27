@@ -187,12 +187,12 @@ void FNiagaraParameterStore::CheckForNaNs()const
 
 void FNiagaraParameterStore::Tick()
 {
-	SCOPE_CYCLE_COUNTER(STAT_NiagaraParameterStoreTick);
 #if NIAGARA_NAN_CHECKING
 	CheckForNaNs();
 #endif
-	if (bParametersDirty || bInterfacesDirty || bUObjectsDirty)
+	if (Bindings.Num() > 0 && (bParametersDirty || bInterfacesDirty || bUObjectsDirty))
 	{
+		SCOPE_CYCLE_COUNTER(STAT_NiagaraParameterStoreTick);
 		for (TPair<FNiagaraParameterStore*, FNiagaraParameterStoreBinding>& Binding : Bindings)
 		{
 			Binding.Value.Tick(Binding.Key, this);
