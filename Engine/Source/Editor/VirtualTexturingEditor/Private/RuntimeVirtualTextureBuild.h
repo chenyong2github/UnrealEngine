@@ -4,11 +4,14 @@
 
 #include "CoreMinimal.h"
 
+enum class ERuntimeVirtualTextureDebugType;
+class URuntimeVirtualTextureComponent;
+
 namespace RuntimeVirtualTexture
 {
 	/** Returns true if the component describes a runtime virtual texture that has streaming mips. */
-	bool HasStreamedMips(class URuntimeVirtualTextureComponent* InComponent);
+	bool HasStreamedMips(URuntimeVirtualTextureComponent* InComponent);
 
 	/** Build the streaming mips and store in the component's associated URuntimeVirtualTexture object. */
-	bool BuildStreamedMips(class URuntimeVirtualTextureComponent* InComponent, enum class ERuntimeVirtualTextureDebugType DebugType);
+	bool BuildStreamedMips(URuntimeVirtualTextureComponent* InComponent, ERuntimeVirtualTextureDebugType DebugType);
 };
