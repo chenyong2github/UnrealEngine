@@ -8,9 +8,9 @@
 
 #include "AudioModulationStatics.generated.h"
 
-
 class USoundModulatorBus;
 class USoundModulatorBusMix;
+
 
 UCLASS()
 class UAudioModulationStatics : public UBlueprintFunctionLibrary
@@ -85,6 +85,16 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Create Sound Modulation Bus Mix", meta = (WorldContext = "WorldContextObject", Keywords = "create bus mix modulation modulator"))
 	static USoundModulatorBusMix* CreateBusMix(const UObject* WorldContextObject, FName Name, TArray<USoundModulatorBusBase*> Buses, float TargetValue, bool Activate);
+
+	/**
+	 * Returns world associated with provided context object
+	 */
+	static UWorld* GetAudioWorld(const UObject* WorldContextObject);
+
+	/**
+	 * Returns modulation implementation associated with the provided world
+	 */
+	static AudioModulation::FAudioModulationImpl* GetModulationImpl(UWorld* World);
 
 	/** Deactivates a bus. Does nothing if an instance of the provided bus is already inactive
 	 * @param Bus - Scope of modulator
