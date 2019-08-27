@@ -2707,27 +2707,6 @@ void FLevelEditorActionCallbacks::OnAddVolume( UClass* VolumeClass )
 	GEditor->RedrawAllViewports();
 }
 
-void FLevelEditorActionCallbacks::OnAddMatinee()
-{
-	// Warn the user prior to creating our actor
-	if ( GEditor->ShouldOpenMatinee( NULL ) )
-	{
-		// Spawn a matinee actor at the origin, and either move infront of the camera or focus camera on it (depending on the viewport) and open for edit
-		UActorFactory* ActorFactory = GEditor->FindActorFactoryForActorClass( AMatineeActor::StaticClass() );
-		check( ActorFactory );
-		AMatineeActor* MatineeActor = CastChecked<AMatineeActor>( FLevelEditorActionCallbacks::AddActor( ActorFactory, FAssetData(), &FTransform::Identity ) );
-		if( GCurrentLevelEditingViewportClient->IsPerspective() )
-		{
-			GEditor->MoveActorInFrontOfCamera( *MatineeActor, GCurrentLevelEditingViewportClient->GetViewLocation(), GCurrentLevelEditingViewportClient->GetViewRotation().Vector() );
-		}
-		else
-		{
-			GEditor->MoveViewportCamerasToActor( *MatineeActor, false );
-		}
-		GEditor->OpenMatinee( MatineeActor, false );
-	}
-}
-
 void FLevelEditorActionCallbacks::SelectActorsInLayers()
 {
 	// Iterate over selected actors and make a list of all layers the selected actors belong to.
@@ -3357,8 +3336,6 @@ void FLevelEditorCommands::RegisterCommands()
 	UI_COMMAND( WorldProperties, "World Settings", "Displays the world settings", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( OpenContentBrowser, "Open Content Browser", "Opens the Content Browser", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control|EModifierKey::Shift, EKeys::F) );
 	UI_COMMAND( OpenMarketplace, "Open Marketplace", "Opens the Marketplace", EUserInterfaceActionType::Button, FInputChord() );
-	UI_COMMAND( AddMatinee, "Add Matinee [Legacy]", "Creates a new matinee actor to edit", EUserInterfaceActionType::Button, FInputChord() );
-	UI_COMMAND( EditMatinee, "Edit Matinee", "Selects a Matinee to edit", EUserInterfaceActionType::Button, FInputChord() );
 
 	UI_COMMAND( ToggleVR, "Toggle VR", "Toggles VR (Virtual Reality) mode", EUserInterfaceActionType::ToggleButton, FInputChord( EModifierKey::Alt, EKeys::V ) );
 

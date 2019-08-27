@@ -1741,10 +1741,6 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 		FCanExecuteAction(),
 		FIsActionChecked::CreateStatic( &FLevelEditorActionCallbacks::IsViewportUIHidden ) 
 		);
-	ActionList.MapAction(
-		Commands.AddMatinee,
-		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::OnAddMatinee )
-		);
 
 	ActionList.MapAction( 
 		Commands.MaterialQualityLevel_Low, 

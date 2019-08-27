@@ -36,7 +36,6 @@
 #include "SScalabilitySettings.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
-#include "Matinee/MatineeActor.h"
 #include "LevelSequenceActor.h"
 #include "Engine/LevelScriptBlueprint.h"
 #include "ISettingsCategory.h"
@@ -1430,7 +1429,7 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 			FUIAction(),
 			FOnGetContent::CreateStatic( &FLevelEditorToolBar::GenerateCinematicsMenuContent, InCommandList, TWeakPtr<SLevelEditor>( InLevelEditor ) ),
 			LOCTEXT( "EditCinematics_Label", "Cinematics" ),
-			LOCTEXT( "EditCinematics_Tooltip", "Displays a list of Matinee and Level Sequence objects to open in their respective editors"),
+			LOCTEXT( "EditCinematics_Tooltip", "Displays a list of Level Sequence objects to open in their respective editors"),
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.EditMatinee") 
 			));
 
@@ -2295,10 +2294,7 @@ void FLevelEditorToolBar::RegisterCinematicsMenu()
 	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.Cinematics");
 	Menu->bShouldCloseWindowAfterMenuSelection = true;
 
-	{
-		FToolMenuSection& Section = Menu->AddSection("LevelEditorNewMatinee", LOCTEXT("MatineeMenuCombo_NewHeading", "New"));
-		Section.AddMenuEntry( FLevelEditorCommands::Get().AddMatinee, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.MatineeActor") );
-	}
+	Menu->AddSection("LevelEditorNewCinematics", LOCTEXT("CinematicsMenuCombo_NewHeading", "New"));
 
 	//Add a heading to separate the existing cinematics from the 'Add New Cinematic Actor' button
 	FToolMenuSection& ExistingCinematicSection = Menu->AddSection("LevelEditorExistingCinematic", LOCTEXT("CinematicMenuCombo_ExistingHeading", "Edit Existing Cinematic"));
@@ -2311,7 +2307,7 @@ void FLevelEditorToolBar::RegisterCinematicsMenu()
 		}
 
 		UWorld* World = FoundContext->LevelEditor.IsValid() ? FoundContext->LevelEditor.Pin()->GetWorld() : nullptr;
-		const bool bHasAnyCinematicsActors = !!TActorIterator<AMatineeActor>(World) || !!TActorIterator<ALevelSequenceActor>(World);
+		const bool bHasAnyCinematicsActors = !!TActorIterator<ALevelSequenceActor>(World);
 		if (!bHasAnyCinematicsActors)
 		{
 			return;
@@ -2319,7 +2315,7 @@ void FLevelEditorToolBar::RegisterCinematicsMenu()
 
 		using namespace SceneOutliner;
 
-		// We can't build a list of Matinees and LevelSequenceActors while the current World is a PIE world.
+		// We can't build a list of LevelSequenceActors while the current World is a PIE world.
 		FInitializationOptions InitOptions;
 		{
 			InitOptions.Mode = ESceneOutlinerMode::ActorPicker;
@@ -2333,9 +2329,9 @@ void FLevelEditorToolBar::RegisterCinematicsMenu()
 			InitOptions.ColumnMap.Add(FBuiltInColumnTypes::Label(), FColumnInfo(EColumnVisibility::Visible, 0));
 			InitOptions.ColumnMap.Add(FBuiltInColumnTypes::ActorInfo(), FColumnInfo(EColumnVisibility::Visible, 10));
 
-			// Only display Matinee and MovieScene actors
+			// Only display MovieScene actors
 			auto ActorFilter = [](const AActor* Actor) {
-				return Actor->IsA(AMatineeActor::StaticClass()) || Actor->IsA(ALevelSequenceActor::StaticClass());
+				return Actor->IsA(ALevelSequenceActor::StaticClass());
 			};
 			InitOptions.Filters->AddFilterPredicate(FActorFilterPredicate::CreateLambda(ActorFilter));
 		}
@@ -2366,12 +2362,7 @@ void FLevelEditorToolBar::OnCinematicsActorPicked( AActor* Actor )
 	FSlateApplication::Get().DismissAllMenus();
 
 	// Make sure we dismiss the menus before we open this
-	if (AMatineeActor* MatineeActor = Cast<AMatineeActor>(Actor))
-	{
-		// Open Matinee for editing!
-		GEditor->OpenMatinee( MatineeActor );
-	}
-	else if (ALevelSequenceActor* LevelSequenceActor = Cast<ALevelSequenceActor>(Actor))
+	if (ALevelSequenceActor* LevelSequenceActor = Cast<ALevelSequenceActor>(Actor))
 	{
 		FScopedSlowTask SlowTask(1.f, NSLOCTEXT("LevelToolBarCinematicsMenu", "LoadSequenceSlowTask", "Loading Level Sequence..."));
 		SlowTask.MakeDialog();
