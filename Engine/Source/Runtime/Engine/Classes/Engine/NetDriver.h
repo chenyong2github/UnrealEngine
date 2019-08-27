@@ -491,11 +491,6 @@ struct ENGINE_API FPacketSimulationSettings
 	void ApplySettings(const FPacketSimulationSettings& NewSettings);
 
 	/**
-	 * Registers commands for auto-completion, etc.
-	 */
-	void RegisterCommands();
-
-	/**
 	 * Ensure that settings have proper values
 	 */
 	void ValidateSettings();
