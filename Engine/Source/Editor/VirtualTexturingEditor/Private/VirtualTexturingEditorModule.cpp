@@ -6,6 +6,9 @@
 #include "PropertyEditorModule.h"
 #include "RuntimeVirtualTextureAssetTypeActions.h"
 #include "RuntimeVirtualTextureDetailsCustomization.h"
+#include "RuntimeVirtualTextureThumbnailRenderer.h"
+#include "ThumbnailRendering/ThumbnailManager.h"
+#include "VT/RuntimeVirtualTexture.h"
 #include "VT/RuntimeVirtualTextureVolume.h"
 
 #define LOCTEXT_NAMESPACE "VirtualTexturingEditorModule"
@@ -23,6 +26,8 @@ void FVirtualTexturingEditorModule::StartupModule()
 
 	IPlacementModeModule& PlacementModeModule = IPlacementModeModule::Get();
 	PlacementModeModule.OnPlacementModeCategoryRefreshed().AddRaw(this, &FVirtualTexturingEditorModule::OnPlacementModeRefresh);
+
+	UThumbnailManager::Get().RegisterCustomRenderer(URuntimeVirtualTexture::StaticClass(), URuntimeVirtualTextureThumbnailRenderer::StaticClass());
 }
 
 void FVirtualTexturingEditorModule::ShutdownModule()
