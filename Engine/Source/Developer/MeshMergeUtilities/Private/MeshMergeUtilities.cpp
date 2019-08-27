@@ -1119,7 +1119,7 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 	// Remove anything non-regular or non-spline static mesh components
 	ComponentsToMerge.RemoveAll([](UStaticMeshComponent* Val)
 	{
-		if (Val->GetClass() != UStaticMeshComponent::StaticClass() && Val->GetClass() != UInstancedStaticMeshComponent::StaticClass() && !Val->IsA(USplineMeshComponent::StaticClass()))
+		if (Val->GetClass() != UStaticMeshComponent::StaticClass() && !Val->IsA<UInstancedStaticMeshComponent>() && !Val->IsA<USplineMeshComponent>())
 		{
 			return true;
 		}
@@ -1224,7 +1224,7 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 			}
 
 			// If the component is an ISMC then we need to duplicate the vertex data
-			if(StaticMeshComponent->GetClass() == UInstancedStaticMeshComponent::StaticClass())
+			if(StaticMeshComponent->IsA<UInstancedStaticMeshComponent>())
 			{
 				const UInstancedStaticMeshComponent* InstancedStaticMeshComponent = Cast<UInstancedStaticMeshComponent>(StaticMeshComponent);
 				FMeshMergeHelpers::ExpandInstances(InstancedStaticMeshComponent, *RawMesh, Sections);
@@ -1720,7 +1720,7 @@ bool RetrieveRawMeshData(FMeshMergeDataTracker& DataTracker
 	RawMesh.Compact(RemapInformation);
 
 	// If the component is an ISMC then we need to duplicate the vertex data
-	if (Component->GetClass() == UInstancedStaticMeshComponent::StaticClass())
+	if (Component->IsA<UInstancedStaticMeshComponent>())
 	{
 		const UInstancedStaticMeshComponent* InstancedStaticMeshComponent = Cast<UInstancedStaticMeshComponent>(Component);
 		FMeshMergeHelpers::ExpandInstances(InstancedStaticMeshComponent, RawMesh, Sections);
