@@ -309,8 +309,11 @@ public:
 	/** Set the internal value from the specified bool. */
 	void Set(bool InValue, EConsoleVariableFlags SetBy = ECVF_SetByCode)
 	{
+		// NOTE: Bool needs to use 1 and 0 here rather than true/false, as this may be a int32 or something
+		// and eventually this code calls, TTypeFromString<T>::FromString which won't handle the true/false,
+		// but 1 and 0 will work for whatever.
 		// inefficient but no common code path
-		Set(InValue ? TEXT("true") : TEXT("false"), SetBy);
+		Set(InValue ? TEXT("1") : TEXT("0"), SetBy);
 	}
 	/** Set the internal value from the specified int. */
 	void Set(int32 InValue, EConsoleVariableFlags SetBy = ECVF_SetByCode)

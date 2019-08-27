@@ -293,7 +293,7 @@ void OnCVarChange(T& Dst, const T& Src, EConsoleVariableFlags Flags, EConsoleVar
 	}
 }
 
-// T: int32, float, FString
+// T: bool, int32, float, FString
 template <class T>
 class FConsoleVariable : public FConsoleVariableBase
 {
@@ -308,10 +308,11 @@ public:
 	virtual void Release()
 	{
 		delete this; 
-	} 
+	}
+
 	virtual void Set(const TCHAR* InValue, EConsoleVariableFlags SetBy)
 	{
-		if(CanChange(SetBy))
+		if (CanChange(SetBy))
 		{
 			TTypeFromString<T>::FromString(Data.ShadowedValue[0], InValue);
 			OnChanged(SetBy);
@@ -496,7 +497,8 @@ public:
 	virtual void Release()
 	{
 		delete this; 
-	} 
+	}
+
 	virtual void Set(const TCHAR* InValue, EConsoleVariableFlags SetBy)
 	{
 		if(CanChange(SetBy))
