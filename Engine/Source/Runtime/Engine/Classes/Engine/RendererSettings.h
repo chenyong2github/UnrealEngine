@@ -659,8 +659,19 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 	*/
 	UPROPERTY(config, EditAnywhere, Category = ShaderPermutationReduction, meta = (
 		ConsoleVariable = "r.SupportSkyAtmosphere", DisplayName = "Support Sky Atmosphere",
+		ToolTip = "The sky atmosphere component requires extra samplers/textures to be bound to apply aerial perspective on transparent surfaces (and all surfaces on mobile via per vertex evaluation).",
 		ConfigRestartRequired = true))
 		uint32 bSupportSkyAtmosphere : 1;
+
+	/**
+	"The sky atmosphere component can light up the height fog but it requires extra samplers/textures to be bound to apply aerial perspective on transparent surfaces (and all surfaces on mobile via per vertex evaluation)."
+	"It requires r.SupportSkyAtmosphere to be true."
+	*/
+	UPROPERTY(config, EditAnywhere, Category = ShaderPermutationReduction, meta = (
+		ConsoleVariable = "r.SupportSkyAtmosphereAffectsHeightFog", DisplayName = "Support Sky Atmosphere Affecting Height Fog",
+		ToolTip = "The sky atmosphere component can light up the height fog but it requires extra samplers/textures to be bound to apply aerial perspective on transparent surfaces (and all surfaces on mobile via per vertex evaluation). It requires r.SupportSkyAtmosphere to be true.",
+		ConfigRestartRequired = true))
+		uint32 bSupportSkyAtmosphereAffectsHeightFog : 1;
 
 	/**
 	"Skincache allows a compute shader to skin once each vertex, save those results into a new buffer and reuse those calculations when later running the depth, base and velocity passes. This also allows opting into the 'recompute tangents' for skinned mesh instance feature. Disabling will reduce the number of shader permutations required per material. Changing this setting requires restarting the editor."
