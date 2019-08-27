@@ -50,7 +50,7 @@ public:
 	FBundlePrereqCombinedStatusHelper& operator=(FBundlePrereqCombinedStatusHelper&& Other);
 	
 	//Setup tracking for all bundles required in the supplied BundleContentState
-	void SetBundlesToTrackFromContentState(FInstallBundleContentState& BundleContentState);
+	void SetBundlesToTrackFromContentState(const FInstallBundleContentState& BundleContentState);
 	
 	//Get current CombinedBundleStatus for everything setup to track
 	const FCombinedBundleStatus& GetCurrentCombinedState() const;

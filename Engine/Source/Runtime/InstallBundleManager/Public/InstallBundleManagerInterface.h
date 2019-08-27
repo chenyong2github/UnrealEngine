@@ -231,6 +231,7 @@ struct FInstallBundleContentState
 	TMap<FName, float> IndividualBundleWeights;
 	uint64 DownloadSize = 0;
 	uint64 InstallSize = 0;
+	uint64 InstallOverheadSize = 0;
 	uint64 FreeSpace = 0;
 };
 
@@ -311,11 +312,13 @@ public:
 
     virtual void CancelAllGetContentStateRequestsForTag(FName RequestTag) = 0;
     
-	virtual FInstallBundleRequestInfo RequestRemoveBundle(FName BundleName) = 0;
+	virtual FInstallBundleRequestInfo RequestRemoveContent(FName BundleName) = 0;
 
-	virtual void RequestRemoveBundleOnNextInit(FName BundleName) = 0;
+	virtual void RequestRemoveContentOnNextInit(FName BundleName) = 0;
+	virtual void RequestRemoveContentOnNextInit(TArrayView<FName> BundleNames) = 0;
 
-	virtual void CancelRequestRemoveBundleOnNextInit(FName BundleName) = 0;
+	virtual void CancelRequestRemoveContentOnNextInit(FName BundleName) = 0;
+	virtual void CancelRequestRemoveContentOnNextInit(TArrayView<FName> BundleName) = 0;
 
 	virtual void CancelBundle(FName BundleName, EInstallBundleCancelFlags Flags) = 0;
 
