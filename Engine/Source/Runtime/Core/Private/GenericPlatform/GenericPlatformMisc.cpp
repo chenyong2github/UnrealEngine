@@ -52,75 +52,95 @@ CORE_API void (*ClipboardPasteShim)(FString& Dest) = nullptr;
 /* EBuildConfigurations interface
  *****************************************************************************/
 
+bool LexTryParseString(EBuildConfiguration& OutConfiguration, const TCHAR* Configuration)
+{
+	if (FCString::Stricmp(Configuration, TEXT("Debug")) == 0)
+	{
+		OutConfiguration = EBuildConfiguration::Debug;
+		return true;
+	}
+	else if (FCString::Stricmp(Configuration, TEXT("DebugGame")) == 0)
+	{
+		OutConfiguration = EBuildConfiguration::DebugGame;
+		return true;
+	}
+	else if (FCString::Stricmp(Configuration, TEXT("Development")) == 0)
+	{
+		OutConfiguration = EBuildConfiguration::Development;
+		return true;
+	}
+	else if (FCString::Stricmp(Configuration, TEXT("Shipping")) == 0)
+	{
+		OutConfiguration = EBuildConfiguration::Shipping;
+		return true;
+	}
+	else if(FCString::Stricmp(Configuration, TEXT("Test")) == 0)
+	{
+		OutConfiguration = EBuildConfiguration::Test;
+		return true;
+	}
+	else if(FCString::Stricmp(Configuration, TEXT("Unknown")) == 0)
+	{
+		OutConfiguration = EBuildConfiguration::Unknown;
+		return true;
+	}
+	else
+	{
+		OutConfiguration = EBuildConfiguration::Unknown;
+		return false;
+	}
+}
+
+const TCHAR* LexToString( EBuildConfiguration Configuration )
+{
+	switch (Configuration)
+	{
+	case EBuildConfiguration::Debug:
+		return TEXT("Debug");
+	case EBuildConfiguration::DebugGame:
+		return TEXT("DebugGame");
+	case EBuildConfiguration::Development:
+		return TEXT("Development");
+	case EBuildConfiguration::Shipping:
+		return TEXT("Shipping");
+	case EBuildConfiguration::Test:
+		return TEXT("Test");
+	default:
+		return TEXT("Unknown");
+	}
+}
+
 namespace EBuildConfigurations
 {
-	EBuildConfigurations::Type FromString( const FString& Configuration )
+	EBuildConfiguration FromString( const FString& Configuration )
 	{
-		if (FCString::Strcmp(*Configuration, TEXT("Debug")) == 0)
-		{
-			return Debug;
-		}
-		else if (FCString::Strcmp(*Configuration, TEXT("DebugGame")) == 0)
-		{
-			return DebugGame;
-		}
-		else if (FCString::Strcmp(*Configuration, TEXT("Development")) == 0)
-		{
-			return Development;
-		}
-		else if (FCString::Strcmp(*Configuration, TEXT("Shipping")) == 0)
-		{
-			return Shipping;
-		}
-		else if(FCString::Strcmp(*Configuration, TEXT("Test")) == 0)
-		{
-			return Test;
-		}
-
-		return Unknown;
+		EBuildConfiguration Result;
+		LexTryParseString(Result, *Configuration);
+		return Result;
 	}
 
-	const TCHAR* ToString( EBuildConfigurations::Type Configuration )
+	const TCHAR* ToString( EBuildConfiguration Configuration )
+	{
+		return LexToString(Configuration);
+	}
+
+	FText ToText( EBuildConfiguration Configuration )
 	{
 		switch (Configuration)
 		{
-			case Debug:
-				return TEXT("Debug");
-
-			case DebugGame:
-				return TEXT("DebugGame");
-
-			case Development:
-				return TEXT("Development");
-
-			case Shipping:
-				return TEXT("Shipping");
-
-			case Test:
-				return TEXT("Test");
-
-			default:
-				return TEXT("Unknown");
-		}
-	}
-
-	FText ToText( EBuildConfigurations::Type Configuration )
-	{
-		switch (Configuration)
-		{
-		case Debug:
+		case EBuildConfiguration::Debug:
 			return NSLOCTEXT("UnrealBuildConfigurations", "DebugName", "Debug");
 
-		case DebugGame:
+		case EBuildConfiguration::DebugGame:
 			return NSLOCTEXT("UnrealBuildConfigurations", "DebugGameName", "DebugGame");
 
-		case Development:
+		case EBuildConfiguration::Development:
 			return NSLOCTEXT("UnrealBuildConfigurations", "DevelopmentName", "Development");
 
-		case Shipping:
+		case EBuildConfiguration::Shipping:
 			return NSLOCTEXT("UnrealBuildConfigurations", "ShippingName", "Shipping");
 
-		case Test:
+		case EBuildConfiguration::Test:
 			return NSLOCTEXT("UnrealBuildConfigurations", "TestName", "Test");
 
 		default:
@@ -130,46 +150,77 @@ namespace EBuildConfigurations
 }
 
 
-/* EBuildConfigurations interface
+/* EBuildTargetType functions
  *****************************************************************************/
 
-namespace EBuildTargets
+bool LexTryParseString(EBuildTargetType& OutType, const TCHAR* Type)
 {
-	EBuildTargets::Type FromString( const FString& Target )
+	if (FCString::Strcmp(Type, TEXT("Editor")) == 0)
 	{
-		if (FCString::Strcmp(*Target, TEXT("Editor")) == 0)
-		{
-			return Editor;
-		}
-		else if (FCString::Strcmp(*Target, TEXT("Game")) == 0)
-		{
-			return Game;
-		}
-		else if (FCString::Strcmp(*Target, TEXT("Server")) == 0)
-		{
-			return Server;
-		}
-
-		return Unknown;
+		OutType = EBuildTargetType::Editor;
+		return true;
 	}
-
-	const TCHAR* ToString( EBuildTargets::Type Target )
+	else if (FCString::Strcmp(Type, TEXT("Game")) == 0)
 	{
-		switch (Target)
-		{
-			case Editor:
-				return TEXT("Editor");
-
-			case Game:
-				return TEXT("Game");
-
-			case Server:
-				return TEXT("Server");
-
-			default:
-				return TEXT("Unknown");
-		}
+		OutType = EBuildTargetType::Game;
+		return true;
 	}
+	else if (FCString::Strcmp(Type, TEXT("Server")) == 0)
+	{
+		OutType = EBuildTargetType::Server;
+		return true;
+	}
+	else if (FCString::Strcmp(Type, TEXT("Client")) == 0)
+	{
+		OutType = EBuildTargetType::Client;
+		return true;
+	}
+	else if (FCString::Strcmp(Type, TEXT("Program")) == 0)
+	{
+		OutType = EBuildTargetType::Program;
+		return true;
+	}
+	else if (FCString::Strcmp(Type, TEXT("Unknown")) == 0)
+	{
+		OutType = EBuildTargetType::Unknown;
+		return true;
+	}
+	else
+	{
+		OutType = EBuildTargetType::Unknown;
+		return false;
+	}
+}
+
+const TCHAR* LexToString(EBuildTargetType Type)
+{
+	switch (Type)
+	{
+	case EBuildTargetType::Editor:
+		return TEXT("Editor");
+	case EBuildTargetType::Game:
+		return TEXT("Game");
+	case EBuildTargetType::Server:
+		return TEXT("Server");
+	case EBuildTargetType::Client:
+		return TEXT("Client");
+	case EBuildTargetType::Program:
+		return TEXT("Program");
+	default:
+		return TEXT("Unknown");
+	}
+}
+
+EBuildTargetType EBuildTargets::FromString(const FString& Target)
+{
+	EBuildTargetType Type;
+	LexTryParseString(Type, *Target);
+	return Type;
+}
+
+const TCHAR* EBuildTargets::ToString(EBuildTargetType Target)
+{
+	return LexToString(Target);
 }
 
 FString FSHA256Signature::ToString() const

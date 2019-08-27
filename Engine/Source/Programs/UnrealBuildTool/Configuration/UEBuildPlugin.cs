@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -62,6 +62,14 @@ namespace UnrealBuildTool
 		public FileReference File
 		{
 			get { return Info.File; }
+		}
+
+		/// <summary>
+		/// Accessor for the child files for this plugin
+		/// </summary>
+		public List<FileReference> ChildFiles
+		{
+			get { return Info.ChildFiles; }
 		}
 
 		/// <summary>

@@ -51,7 +51,8 @@ namespace UnrealBuildTool
 		/// Finds all the UEBuildPlatformFactory types in this assembly and uses them to register all the available platforms
 		/// </summary>
 		/// <param name="bIncludeNonInstalledPlatforms">Whether to register platforms that are not installed</param>
-		public static void RegisterPlatforms(bool bIncludeNonInstalledPlatforms)
+		/// <param name="bHostPlatformOnly">Only register the host platform</param>
+		public static void RegisterPlatforms(bool bIncludeNonInstalledPlatforms, bool bHostPlatformOnly)
 		{
 			// Initialize the installed platform info
 			using(Timeline.ScopeEvent("Initializing InstalledPlatformInfo"))
@@ -78,6 +79,12 @@ namespace UnrealBuildTool
 						{
 							UEBuildPlatformFactory TempInst = (UEBuildPlatformFactory)Activator.CreateInstance(CheckType);
 							
+							if(bHostPlatformOnly && TempInst.TargetPlatform != BuildHostPlatform.Current.Platform)
+							{
+								continue;
+							}
+
+
 							// We need all platforms to be registered when we run -validateplatform command to check SDK status of each
 							if (bIncludeNonInstalledPlatforms || InstalledPlatformInfo.IsValidPlatform(TempInst.TargetPlatform))
 							{

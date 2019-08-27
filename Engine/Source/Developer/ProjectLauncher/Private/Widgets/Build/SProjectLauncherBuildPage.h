@@ -73,7 +73,7 @@ private:
 	EVisibility ShowBuildConfiguration() const;
 
 	/** Callback for selecting a build configuration. */
-	void HandleBuildConfigurationSelectorConfigurationSelected(EBuildConfigurations::Type Configuration);
+	void HandleBuildConfigurationSelectorConfigurationSelected(EBuildConfiguration Configuration);
 
 	/** Callback for getting the content text of the build configuration selector. */
 	FText HandleBuildConfigurationSelectorText() const;

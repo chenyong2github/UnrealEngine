@@ -31,7 +31,7 @@ namespace UnrealBuildTool.Rules
 
 			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 			{
-				PublicAdditionalLibraries.Add("stdc++");	// can be fixed, see UE-70769
+				PublicSystemLibraries.Add("stdc++");	// can be fixed, see UE-70769
 			}
        }
 	}

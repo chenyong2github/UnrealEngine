@@ -22,10 +22,9 @@ public class OpenSSL : ModuleRules
 			PublicIncludePaths.Add(Path.Combine(OpenSSL102Path, "include", PlatformSubdir));
 
 			string LibPath = Path.Combine(OpenSSL102Path, "lib", PlatformSubdir, ConfigFolder);
-			//PublicLibraryPaths.Add(LibPath);
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libssl.a"));
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libcrypto.a"));
-			PublicAdditionalLibraries.Add("z");
+			PublicSystemLibraries.Add("z");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.PS4)
 		{
@@ -48,11 +47,10 @@ public class OpenSSL : ModuleRules
 
 			// Add Libs
 			string LibPath = Path.Combine(OpenSSL111Path, "lib", PlatformSubdir, VSVersion, ConfigFolder);
-			PublicLibraryPaths.Add(LibPath);
 
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libssl.lib"));
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libcrypto.lib"));
-			PublicAdditionalLibraries.Add("crypt32.lib");
+			PublicSystemLibraries.Add("crypt32.lib");
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
@@ -61,7 +59,6 @@ public class OpenSSL : ModuleRules
 			string LibraryPath = OpenSSL102hPath + "/lib" + platform;
 
 			PublicIncludePaths.Add(IncludePath);
-			PublicLibraryPaths.Add(LibraryPath);
 			PublicAdditionalLibraries.Add(LibraryPath + "/libssl.a");
 			PublicAdditionalLibraries.Add(LibraryPath + "/libcrypto.a");
 

@@ -12,6 +12,7 @@
 class AActor;
 class UWidgetComponent;
 class UStaticMeshSocket;
+class AVREditorTeleporter;
 
 UENUM( BlueprintType )
 enum class EControllerType : uint8

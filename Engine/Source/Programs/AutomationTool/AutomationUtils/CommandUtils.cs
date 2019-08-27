@@ -1976,6 +1976,36 @@ namespace AutomationTool
 		public static readonly DirectoryReference EngineDirectory = DirectoryReference.Combine(RootDirectory, "Engine");
 
 		/// <summary>
+		/// Return the main engine directory and any platform extension engine directories
+		/// </summary>
+ 		public static DirectoryReference[] GetAllEngineDirectories()
+		{
+			List<DirectoryReference> EngineDirectories = new List<DirectoryReference>() { EngineDirectory };
+			DirectoryReference EnginePlatformsDirectory = DirectoryReference.Combine(EngineDirectory, "Platforms");
+			if (DirectoryReference.Exists(EnginePlatformsDirectory))
+			{
+				EngineDirectories.AddRange(DirectoryReference.EnumerateDirectories(EnginePlatformsDirectory).ToList());
+			}
+
+			return EngineDirectories.ToArray();
+		}
+
+		/// <summary>
+		/// Return the main project directory and any platform extension project directories
+		/// </summary>
+		public static DirectoryReference[] GetAllProjectDirectories(FileReference ProjectFile)
+		{
+			List<DirectoryReference> ProjectDirectories = new List<DirectoryReference>() { ProjectFile.Directory };
+			DirectoryReference ProjectPlatformsDirectory = DirectoryReference.Combine(ProjectFile.Directory, "Platforms");
+			if (DirectoryReference.Exists(ProjectPlatformsDirectory))
+			{
+				ProjectDirectories.AddRange(DirectoryReference.EnumerateDirectories(ProjectPlatformsDirectory).ToList());
+			}
+
+			return ProjectDirectories.ToArray();
+		}
+
+		/// <summary>
 		/// Telemetry data for the current run. Add -WriteTelemetry=<Path> to the command line to export to disk.
 		/// </summary>
 		public static TelemetryData Telemetry = new TelemetryData();

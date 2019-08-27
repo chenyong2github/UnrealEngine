@@ -43,7 +43,7 @@ namespace ProfileWizardUI
 
 SProfileWizardUI::SProfileWizardUI()
 	: ProfilePlatform(EProfilePlatform::Android)
-	, BuildConfiguration(EBuildConfigurations::Development)
+	, BuildConfiguration(EBuildConfiguration::Development)
 {
 }
 
@@ -489,16 +489,16 @@ TSharedRef<SWidget> SProfileWizardUI::MakeBuildConfigurationMenuContent()
 	struct FConfigInfo
 	{
 		FText ToolTip;
-		EBuildConfigurations::Type Configuration;
+		EBuildConfiguration Configuration;
 	};
 
 	const static FConfigInfo Configurations[] =
 	{
-		{ LOCTEXT("DebugActionHint", "Debug configuration."), EBuildConfigurations::Debug },
-		{ LOCTEXT("DebugGameActionHint", "DebugGame configuration."), EBuildConfigurations::DebugGame },
-		{ LOCTEXT("DevelopmentActionHint", "Development configuration."), EBuildConfigurations::Development },
-		{ LOCTEXT("ShippingActionHint", "Shipping configuration."), EBuildConfigurations::Shipping },
-		{ LOCTEXT("TestActionHint", "Test configuration."), EBuildConfigurations::Test }
+		{ LOCTEXT("DebugActionHint", "Debug configuration."), EBuildConfiguration::Debug },
+		{ LOCTEXT("DebugGameActionHint", "DebugGame configuration."), EBuildConfiguration::DebugGame },
+		{ LOCTEXT("DevelopmentActionHint", "Development configuration."), EBuildConfiguration::Development },
+		{ LOCTEXT("ShippingActionHint", "Shipping configuration."), EBuildConfiguration::Shipping },
+		{ LOCTEXT("TestActionHint", "Test configuration."), EBuildConfiguration::Test }
 	};
 
 	// create build configurations menu
@@ -517,7 +517,7 @@ TSharedRef<SWidget> SProfileWizardUI::MakeBuildConfigurationMenuContent()
 	return MenuBuilder.MakeWidget();
 }
 
-void SProfileWizardUI::HandleBuildConfigurationMenuEntryClicked(EBuildConfigurations::Type InConfiguration)
+void SProfileWizardUI::HandleBuildConfigurationMenuEntryClicked(EBuildConfiguration InConfiguration)
 {
 	BuildConfiguration = InConfiguration;
 }

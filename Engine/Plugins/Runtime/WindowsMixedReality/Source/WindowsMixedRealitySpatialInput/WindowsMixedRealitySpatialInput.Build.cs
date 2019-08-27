@@ -63,7 +63,6 @@ namespace UnrealBuildTool.Rules
                 Target.Platform == UnrealTargetPlatform.Win64 ||
                 Target.Platform == UnrealTargetPlatform.HoloLens)
             {	
-                bFasterWithoutUnity = true;
                 bEnableExceptions = true;
 
                 PCHUsage = PCHUsageMode.NoSharedPCHs;

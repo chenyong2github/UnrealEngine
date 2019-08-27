@@ -15,8 +15,7 @@ public class HAPLib : ModuleRules
             PublicSystemIncludePaths.Add(IncPath);
 
             string LibPath = Path.Combine(ModuleDirectory, "lib");
-            PublicLibraryPaths.Add(LibPath);
-            PublicAdditionalLibraries.Add("HAP.lib");
+            PublicAdditionalLibraries.Add(Path.Combine(LibPath, "HAP.lib"));
         }
     }
 }

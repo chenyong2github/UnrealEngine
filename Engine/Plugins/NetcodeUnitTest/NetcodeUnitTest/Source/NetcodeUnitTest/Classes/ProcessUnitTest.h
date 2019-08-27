@@ -243,7 +243,7 @@ protected:
 	 * @return					Returns a pointer to the new processes handling struct
 	 */
 	virtual TWeakPtr<FUnitTestProcess> StartUE4UnitTestProcess(FString InCommandline, bool bMinimized=true,
-																EBuildTargets::Type Type=EBuildTargets::Game);
+																EBuildTargetType Type=EBuildTargetType::Game);
 
 	/**
 	 * Shuts-down/cleans-up a child process tied to the unit test

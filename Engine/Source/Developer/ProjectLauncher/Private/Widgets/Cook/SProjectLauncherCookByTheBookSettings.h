@@ -74,7 +74,7 @@ private:
 	void HandleAllMapsHyperlinkNavigate(bool AllPlatforms);
 
 	/** Handles selecting a build configuration for the cooker. */
-	void HandleCookConfigurationSelectorConfigurationSelected(EBuildConfigurations::Type);
+	void HandleCookConfigurationSelectorConfigurationSelected(EBuildConfiguration);
 
 	/** Handles getting the content text of the cooker build configuration selector. */
 	FText HandleCookConfigurationSelectorText() const;

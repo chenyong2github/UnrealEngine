@@ -34,11 +34,11 @@ namespace UnrealBuildTool.Rules
                 PublicDelayLoadDLLs.Add("mfplay.dll");
                 PublicDelayLoadDLLs.Add("shlwapi.dll");
 
-                PublicAdditionalLibraries.Add("mf.lib");
-                PublicAdditionalLibraries.Add("mfplat.lib");
-                PublicAdditionalLibraries.Add("mfuuid.lib");
-                PublicAdditionalLibraries.Add("shlwapi.lib");
-                PublicAdditionalLibraries.Add("d3d11.lib");
+                PublicSystemLibraries.Add("mf.lib");
+                PublicSystemLibraries.Add("mfplat.lib");
+                PublicSystemLibraries.Add("mfuuid.lib");
+                PublicSystemLibraries.Add("shlwapi.lib");
+                PublicSystemLibraries.Add("d3d11.lib");
             }
         }
     }

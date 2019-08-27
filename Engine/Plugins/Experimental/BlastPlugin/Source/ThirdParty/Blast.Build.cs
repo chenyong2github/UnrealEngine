@@ -104,15 +104,14 @@ public class Blast : ModuleRules
 
         string LibSuffix = null;
         string DllSuffix = null;
+        string BlastLibDirFullPath = null;
 
         // Libraries for windows platform
         if (Target.Platform == UnrealTargetPlatform.Win64)
         {
             LibSuffix = "_x64.lib";
             DllSuffix = "_x64.dll";
-
-            string BlastLibDirFullPath = BlastDir + "/Lib/Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-            PublicLibraryPaths.Add(BlastLibDirFullPath);
+            BlastLibDirFullPath = BlastDir + "/Lib/Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
         }
         // TODO: Other configurations?
 
@@ -121,7 +120,7 @@ public class Blast : ModuleRules
             foreach (string Lib in BlastLibraries)
             {
                 string LibName = String.Format("{0}{1}{2}", Lib, LibConfiguration, LibSuffix);
-                PublicAdditionalLibraries.Add(LibName);
+                PublicAdditionalLibraries.Add(Path.Combine(BlastLibDirFullPath, LibName));
 				string BlastDllDirFullPath = PluginDirectory + "/Binaries/Win64/";
                 string DllName = String.Format("{0}{1}{2}", Lib, LibConfiguration, DllSuffix);
                 RuntimeDependencies.Add(Path.Combine(BlastDllDirFullPath, DllName));

@@ -31,8 +31,8 @@ namespace UnrealBuildTool.Rules
 				}
 				);
 
-			PublicLibraryPaths.Add(ModuleDirectory + "/../ThirdParty/jni/libs");
-			PublicAdditionalLibraries.Add("AmazonGamesJni");
+			string LibDir = ModuleDirectory + "/../ThirdParty/jni/libs";
+			PublicAdditionalLibraries.Add(Path.Combine(LibDir, "libAmazonGamesJni.so"));
 
 			// Additional Frameworks and Libraries for Android
 			if (Target.Platform == UnrealTargetPlatform.Android)

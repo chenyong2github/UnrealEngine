@@ -23,11 +23,10 @@ public class FBX : ModuleRules
 			string FBxLibPath = FBXSDKDir + "lib/vs" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
 
 			FBxLibPath += "x64/release/";
-			PublicLibraryPaths.Add(FBxLibPath);
 
 			if (Target.LinkType != TargetLinkType.Monolithic)
 			{
-				PublicAdditionalLibraries.Add("libfbxsdk.lib");
+				PublicAdditionalLibraries.Add(FBxLibPath + "libfbxsdk.lib");
 
 				// We are using DLL versions of the FBX libraries
 				PublicDefinitions.Add("FBXSDK_SHARED");
@@ -38,11 +37,11 @@ public class FBX : ModuleRules
 			{
 				if (Target.bUseStaticCRT)
 				{
-					PublicAdditionalLibraries.Add("libfbxsdk-mt.lib");
+					PublicAdditionalLibraries.Add(FBxLibPath + "libfbxsdk-mt.lib");
 				}
 				else
 				{
-					PublicAdditionalLibraries.Add("libfbxsdk-md.lib");
+					PublicAdditionalLibraries.Add(FBxLibPath + "libfbxsdk-md.lib");
 				}
 			}
 		}
@@ -68,7 +67,7 @@ public class FBX : ModuleRules
 			PublicDefinitions.Add("FBXSDK_COMPILER_CLANG");
 
 			// libfbxsdk has been built against libstdc++ and as such needs this library
-			PublicAdditionalLibraries.Add("stdc++");
+			PublicSystemLibraries.Add("stdc++");
 		}
 	}
 }

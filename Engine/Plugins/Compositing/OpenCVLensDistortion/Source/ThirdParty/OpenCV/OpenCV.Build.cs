@@ -17,8 +17,6 @@ public class OpenCV : ModuleRules
 			PublicSystemIncludePaths.Add(IncPath);
 
 			string LibPath = Path.Combine(ModuleDirectory, "lib", PlatformDir);
-			PublicLibraryPaths.Add(LibPath);
-
             string BinaryPath = Path.GetFullPath(Path.Combine(ModuleDirectory, "../../../Binaries/ThirdParty", PlatformDir));
 
 			string LibName = "opencv_world331";
@@ -29,7 +27,7 @@ public class OpenCV : ModuleRules
 					LibName += "d";
 			}
 
-			PublicAdditionalLibraries.Add(LibName + ".lib");
+			PublicAdditionalLibraries.Add(Path.Combine(LibPath, LibName + ".lib"));
 			string DLLName = LibName + ".dll";
 			PublicDelayLoadDLLs.Add(DLLName);
 			RuntimeDependencies.Add(Path.Combine(BinaryPath, DLLName));

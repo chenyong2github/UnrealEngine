@@ -131,15 +131,15 @@ const TCHAR* FIOSPlatformProcess::ExecutableName(bool bRemoveExtension)
 	return Result;
 }
 
-FString FIOSPlatformProcess::GenerateApplicationPath( const FString& AppName, EBuildConfigurations::Type BuildConfiguration)
+FString FIOSPlatformProcess::GenerateApplicationPath( const FString& AppName, EBuildConfiguration BuildConfiguration)
 {
     SCOPED_AUTORELEASE_POOL;
     
     FString PlatformName = TEXT("IOS");
     FString ExecutableName = AppName;
-    if (BuildConfiguration != EBuildConfigurations::Development && BuildConfiguration != EBuildConfigurations::DebugGame)
+    if (BuildConfiguration != EBuildConfiguration::Development && BuildConfiguration != EBuildConfiguration::DebugGame)
     {
-        ExecutableName += FString::Printf(TEXT("-%s-%s"), *PlatformName, EBuildConfigurations::ToString(BuildConfiguration));
+        ExecutableName += FString::Printf(TEXT("-%s-%s"), *PlatformName, LexToString(BuildConfiguration));
     }
     
     NSURL* CurrentBundleURL = [[NSBundle mainBundle] bundleURL];

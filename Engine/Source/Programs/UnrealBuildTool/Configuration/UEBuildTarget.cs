@@ -611,6 +611,12 @@ namespace UnrealBuildTool
 				throw new BuildException("{0} does not support the {1} platform.", Descriptor.Name, Descriptor.Platform.ToString());
 			}
 
+			// Make sure this configuration is supports
+			if(!RulesObject.GetSupportedConfigurations().Contains(Descriptor.Configuration))
+			{
+				throw new BuildException("{0} does not support the {1} configuration", Descriptor.Name, Descriptor.Configuration);
+			}
+
 			// Make sure this target type is supported
 			if (!InstalledPlatformInfo.IsValid(RulesObject.Type, Descriptor.Platform, Descriptor.Configuration, EProjectType.Code, InstalledPlatformState.Downloaded))
 			{
@@ -941,7 +947,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The name of the .Target.cs file, if the target was created with one
 		/// </summary>
-		readonly FileReference TargetRulesFile;
+		public readonly FileReference TargetRulesFile;
 
 		/// <summary>
 		/// Whether to deploy this target after compilation
@@ -1157,7 +1163,10 @@ namespace UnrealBuildTool
 				// Get a list of all the library paths
 				List<string> LibraryPaths = new List<string>();
 				LibraryPaths.Add(Directory.GetCurrentDirectory());
-				LibraryPaths.AddRange(Rules.PublicLibraryPaths.Where(x => !x.StartsWith("$(")).Select(x => Path.GetFullPath(x.Replace('/', Path.DirectorySeparatorChar))));
+
+				List<string> SystemLibraryPaths = new List<string>();
+				SystemLibraryPaths.Add(Directory.GetCurrentDirectory());
+				SystemLibraryPaths.AddRange(Rules.PublicSystemLibraryPaths.Where(x => !x.StartsWith("$(")).Select(x => Path.GetFullPath(x.Replace('/', Path.DirectorySeparatorChar))));
 
 				// Get all the extensions to look for
 				List<string> LibraryExtensions = new List<string>();
@@ -1171,20 +1180,15 @@ namespace UnrealBuildTool
 					{
 						foreach (string LibraryPath in LibraryPaths)
 						{
-							string LibraryFileName = Path.Combine(LibraryPath, LibraryName);
-							if (File.Exists(LibraryFileName))
-							{
-								Files.Add(new FileReference(LibraryFileName));
-							}
+							ResolveLibraryName(LibraryPath, LibraryName, LibraryExtension, Files);
+						}
+					}
 
-							if(LibraryName.IndexOfAny(new char[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }) == -1)
-							{
-								string UnixLibraryFileName = Path.Combine(LibraryPath, "lib" + LibraryName + LibraryExtension);
-								if (File.Exists(UnixLibraryFileName))
-								{
-									Files.Add(new FileReference(UnixLibraryFileName));
-								}
-							}
+					foreach (string LibraryName in Rules.PublicSystemLibraryPaths)
+					{
+						foreach (string LibraryPath in SystemLibraryPaths)
+						{
+							ResolveLibraryName(LibraryPath, LibraryName, LibraryExtension, Files);
 						}
 					}
 				}
@@ -1217,6 +1221,23 @@ namespace UnrealBuildTool
 			FileReference.WriteAllLines(Location, Files.Where(x => x.IsUnderDirectory(UnrealBuildTool.RootDirectory)).Select(x => x.MakeRelativeTo(UnrealBuildTool.RootDirectory).Replace(Path.DirectorySeparatorChar, '/')).OrderBy(x => x));
 		}
 
+		private void ResolveLibraryName(string LibraryPath, string LibraryName, string LibraryExtension, HashSet<FileReference> Files)
+		{
+			string LibraryFileName = Path.Combine(LibraryPath, LibraryName);
+			if (File.Exists(LibraryFileName))
+			{
+				Files.Add(new FileReference(LibraryFileName));
+			}
+
+			if (LibraryName.IndexOfAny(new char[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }) == -1)
+			{
+				string UnixLibraryFileName = Path.Combine(LibraryPath, "lib" + LibraryName + LibraryExtension);
+				if (File.Exists(UnixLibraryFileName))
+				{
+					Files.Add(new FileReference(UnixLibraryFileName));
+				}
+			}
+		}
 		/// <summary>
 		/// Generates a public manifest file for writing out
 		/// </summary>
@@ -1363,6 +1384,15 @@ namespace UnrealBuildTool
 				if(EnabledPlugin.bDescriptorNeededAtRuntime || EnabledPlugin.bDescriptorReferencedExplicitly)
 				{
 					Receipt.RuntimeDependencies.Add(EnabledPlugin.File, StagedFileType.UFS);
+					foreach (FileReference ChildFile in EnabledPlugin.ChildFiles)
+					{
+						// only want to stage plugin extensions for the running platform, not host type platforms as well
+						// we have a naming convention that can assume this is the suffix of the filename
+						if (ChildFile.GetFileNameWithoutAnyExtensions().EndsWith("_" + Receipt.Platform.ToString()))
+						{
+							Receipt.RuntimeDependencies.Add(ChildFile, StagedFileType.UFS);
+						}
+					}
 				}
 			}
 
@@ -1812,7 +1842,7 @@ namespace UnrealBuildTool
 			if(!Rules.bDisableLinking)
 			{
 				// Check the distribution level of all binaries based on the dependencies they have
-				if(ProjectFile == null && !Rules.bOutputPubliclyDistributable)
+				if(ProjectFile == null && !Rules.bLegalToDistributeBinary)
 				{
 					Dictionary<UEBuildModule, Dictionary<RestrictedFolder, DirectoryReference>> ModuleRestrictedFolderCache = new Dictionary<UEBuildModule, Dictionary<RestrictedFolder, DirectoryReference>>();
 
@@ -1853,6 +1883,14 @@ namespace UnrealBuildTool
 					FileReference Location = FileReference.Combine(Module.RulesFile.Directory, ExternalDependency);
 					Makefile.AdditionalDependencies.Add(FileItem.GetItemByFileReference(Location));
 				}
+				if (Module.Rules.SubclassRules != null)
+				{
+					foreach (string SubclassRule in Module.Rules.SubclassRules)
+					{
+						FileItem SubclassRuleFileItem = FileItem.GetItemByFileReference(new FileReference(SubclassRule));
+						Makefile.AdditionalDependencies.Add(SubclassRuleFileItem);
+					}
+				}
 			}
 			Makefile.AdditionalDependencies.UnionWith(Makefile.PluginFiles);
 
@@ -1874,7 +1912,7 @@ namespace UnrealBuildTool
 		/// Gets the output directory for the main executable
 		/// </summary>
 		/// <returns>The executable directory</returns>
-		DirectoryReference GetExecutableDir()
+		public DirectoryReference GetExecutableDir()
 		{
 			DirectoryReference ExeDir = Binaries[0].OutputDir;
 			if (Platform == UnrealTargetPlatform.Mac && ExeDir.FullName.EndsWith(".app/Contents/MacOS"))
@@ -2651,7 +2689,7 @@ namespace UnrealBuildTool
 					}
 				}
 			}
-
+			
 			// Create rules for each remaining module, and check that it's set to be compiled
 			foreach(string FilteredModuleName in FilteredModuleNames)
 			{
@@ -2882,7 +2920,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Sets up the plugins for this target
 		/// </summary>
-		protected virtual void SetupPlugins()
+		public void SetupPlugins()
 		{
 			// Find all the valid plugins
 			Dictionary<string, PluginInfo> NameToInfo = RulesAssembly.EnumeratePlugins().ToDictionary(x => x.Name, x => x, StringComparer.InvariantCultureIgnoreCase);
@@ -3597,7 +3635,7 @@ namespace UnrealBuildTool
 			RemoveTrailingSlashes(RulesObject.PublicIncludePaths);
 			RemoveTrailingSlashes(RulesObject.PublicSystemIncludePaths);
 			RemoveTrailingSlashes(RulesObject.PrivateIncludePaths);
-			RemoveTrailingSlashes(RulesObject.PublicLibraryPaths);
+			RemoveTrailingSlashes(RulesObject.PublicSystemLibraryPaths);
 
 			// Validate rules object
 			if (RulesObject.Type == ModuleRules.ModuleType.CPlusPlus)
@@ -3714,7 +3752,7 @@ namespace UnrealBuildTool
 					{
 						RulesObject.PublicIncludePaths = CombinePathList(ProjectSourceDirectoryName, RulesObject.PublicIncludePaths);
 						RulesObject.PrivateIncludePaths = CombinePathList(ProjectSourceDirectoryName, RulesObject.PrivateIncludePaths);
-						RulesObject.PublicLibraryPaths = CombinePathList(ProjectSourceDirectoryName, RulesObject.PublicLibraryPaths);
+						RulesObject.PublicSystemLibraryPaths = CombinePathList(ProjectSourceDirectoryName, RulesObject.PublicSystemLibraryPaths);
 					}
 				}
 
@@ -3778,19 +3816,6 @@ namespace UnrealBuildTool
 							PrivateIncludePath = DirectoryReference.Combine(BaseSourceDirectory, PrivateIncludePath).FullName;
 						}
 						RulesObject.PrivateIncludePaths[Idx] = PrivateIncludePath;
-					}
-				}
-
-				// Override the default for whether the module requires nested include paths
-				if(RulesObject.bLegacyPublicIncludePaths == null)
-				{
-					if(RulesObject.bUseBackwardsCompatibleDefaults)
-					{
-						RulesObject.bLegacyPublicIncludePaths = Rules.bLegacyPublicIncludePaths;
-					}
-					else
-					{
-						RulesObject.bLegacyPublicIncludePaths = false;
 					}
 				}
 

@@ -21,34 +21,34 @@ public class libcurl : ModuleRules
 			string LibraryPath = LinuxLibCurlPath + "lib" + platform;
 
 			PublicIncludePaths.Add(IncludePath);
-			PublicLibraryPaths.Add(LibraryPath);
 			PublicAdditionalLibraries.Add(LibraryPath + "/libcurl.a");
 
 			PrivateDependencyModuleNames.Add("SSL");
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
 		{
-			// toolchain will filter properly
-			PublicIncludePaths.Add(AndroidLibCurlPath + "include/Android/ARMv7");
-			PublicLibraryPaths.Add(AndroidLibCurlPath + "lib/Android/ARMv7");
-			PublicIncludePaths.Add(AndroidLibCurlPath + "include/Android/ARM64");
-			PublicLibraryPaths.Add(AndroidLibCurlPath + "lib/Android/ARM64");
-			PublicIncludePaths.Add(AndroidLibCurlPath + "include/Android/x86");
-			PublicLibraryPaths.Add(AndroidLibCurlPath + "lib/Android/x86");
-			PublicIncludePaths.Add(AndroidLibCurlPath + "include/Android/x64");
-			PublicLibraryPaths.Add(AndroidLibCurlPath + "lib/Android/x64");
+			string[] Architectures = new string[] {
+				"ARMv7",
+				"ARM64",
+				"x86",
+				"x64",
+			};
+ 
+			foreach(var Architecture in Architectures)
+			{
+				PublicIncludePaths.Add(AndroidLibCurlPath + "include/Android/" + Architecture);
 
-			PublicAdditionalLibraries.Add("curl");
-//			PublicAdditionalLibraries.Add("crypto");
-//			PublicAdditionalLibraries.Add("ssl");
-//			PublicAdditionalLibraries.Add("dl");
+				PublicAdditionalLibraries.Add(AndroidLibCurlPath + "lib/Android/" + Architecture + "/libcurl.a");
+//				PublicAdditionalLibraries.Add(AndroidLibCurlPath + "lib/Android/" + Architecture + "/libcrypto.a");
+//				PublicAdditionalLibraries.Add(AndroidLibCurlPath + "lib/Android/" + Architecture + "/libssl.a");
+//				PublicAdditionalLibraries.Add(AndroidLibCurlPath + "lib/Android/" + Architecture + "/libdl.a");
+			}
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
 			PublicIncludePaths.Add(WinLibCurlPath + "include/" + Target.Platform.ToString() +  "/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
-			PublicLibraryPaths.Add(WinLibCurlPath + "lib/" + Target.Platform.ToString() +  "/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
-
-			PublicAdditionalLibraries.Add("libcurl_a.lib");
+			string LibDir = WinLibCurlPath + "lib/" + Target.Platform.ToString() +  "/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
+			PublicAdditionalLibraries.Add(LibDir + "libcurl_a.lib");
 			PublicDefinitions.Add("CURL_STATICLIB=1");
 
 			// Our build requires OpenSSL and zlib, so ensure thye're linked in

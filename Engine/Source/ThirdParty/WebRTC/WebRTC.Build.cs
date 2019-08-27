@@ -56,7 +56,7 @@ public class WebRTC : ModuleRules
 				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "webrtc.lib"));
 
 				// Additional System library
-				PublicAdditionalLibraries.Add("Secur32.lib");
+				PublicSystemLibraries.Add("Secur32.lib");
 
 				// The version of webrtc we depend on, depends on an openssl that depends on zlib
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "zlib");

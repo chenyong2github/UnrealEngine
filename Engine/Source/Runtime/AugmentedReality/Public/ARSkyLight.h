@@ -7,6 +7,8 @@
 
 #include "ARSkyLight.generated.h"
 
+class UAREnvironmentCaptureProbe;
+
 /** This sky light class forces a refresh of the cube map data when an AR environment probe changes */
 UCLASS()
 class AUGMENTEDREALITY_API AARSkyLight :

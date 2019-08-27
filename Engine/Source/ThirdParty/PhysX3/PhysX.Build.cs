@@ -116,8 +116,6 @@ public class PhysX : ModuleRules
 		{
 			PhysXLibDir += "Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
 			PxSharedLibDir += "Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-			PublicLibraryPaths.Add(PhysXLibDir);
-			PublicLibraryPaths.Add(PxSharedLibDir);
 
 			string[] StaticLibrariesX64 = new string[] {
 				"PhysX3{0}_x64.lib",
@@ -145,7 +143,7 @@ public class PhysX : ModuleRules
 
 			foreach (string Lib in StaticLibrariesX64)
 			{
-				PublicAdditionalLibraries.Add(String.Format(Lib, LibrarySuffix));
+				PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, String.Format(Lib, LibrarySuffix)));
 			}
 
 			foreach (string DLL in DelayLoadDLLsX64)
@@ -176,8 +174,6 @@ public class PhysX : ModuleRules
 		{
 			PhysXLibDir += "Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
 			PxSharedLibDir += "Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-			PublicLibraryPaths.Add(PhysXLibDir);
-			PublicLibraryPaths.Add(PxSharedLibDir);
 
 			string[] StaticLibrariesX86 = new string[] {
 				"PhysX3{0}_x86.lib",
@@ -200,7 +196,7 @@ public class PhysX : ModuleRules
 
 			foreach (string Lib in StaticLibrariesX86)
 			{
-				PublicAdditionalLibraries.Add(String.Format(Lib, LibrarySuffix));
+				PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, String.Format(Lib, LibrarySuffix)));
 			}
 
 			foreach (string DLL in DelayLoadDLLsX86)
@@ -228,8 +224,6 @@ public class PhysX : ModuleRules
 
             PhysXLibDir += Target.Platform.ToString() + "/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
 			PxSharedLibDir += Target.Platform.ToString() + "/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-			PublicLibraryPaths.Add(PhysXLibDir);
-			PublicLibraryPaths.Add(PxSharedLibDir);
 
 			string[] StaticLibraries = new string[] {
 				"PhysX3{0}_{1}.lib",
@@ -257,7 +251,7 @@ public class PhysX : ModuleRules
 
 			foreach (string Lib in StaticLibraries)
 			{
-				PublicAdditionalLibraries.Add(String.Format(Lib, LibrarySuffix, Arch));
+				PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, String.Format(Lib, LibrarySuffix, Arch)));
 			}
 
 			foreach (string DLL in DelayLoadDLLs)
@@ -287,8 +281,6 @@ public class PhysX : ModuleRules
 		{
 			PhysXLibDir += "Mac";
 			PxSharedLibDir += "Mac";
-			PublicLibraryPaths.Add(PhysXLibDir);
-			PublicLibraryPaths.Add(PxSharedLibDir);
 
 			string[] StaticLibrariesMac = new string[] {
 				PhysXLibDir + "/libLowLevel{0}.a",
@@ -328,15 +320,12 @@ public class PhysX : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
 		{
-			PublicLibraryPaths.Add(PhysXLibDir + "Android/ARMv7");
-			PublicLibraryPaths.Add(PhysXLibDir + "Android/x86");
-			PublicLibraryPaths.Add(PhysXLibDir + "Android/ARM64");
-			PublicLibraryPaths.Add(PhysXLibDir + "Android/x64");
-
-			PublicLibraryPaths.Add(PxSharedLibDir + "Android/ARMv7");
-			PublicLibraryPaths.Add(PxSharedLibDir + "Android/x86");
-			PublicLibraryPaths.Add(PxSharedLibDir + "Android/arm64");
-			PublicLibraryPaths.Add(PxSharedLibDir + "Android/x64");
+			string[] Architectures = new string[] {
+				"ARMv7",
+				"ARM64",
+				"x86",
+				"x64",
+			};
 
 			string[] StaticLibrariesAndroid = new string[] {
 				"PhysX3{0}",
@@ -355,9 +344,12 @@ public class PhysX : ModuleRules
 //				PublicAdditionalLibraries.Add("nvToolsExt");
 			}
 
-			foreach (string Lib in StaticLibrariesAndroid)
+			foreach (string Architecture in Architectures)
 			{
-				PublicAdditionalLibraries.Add(String.Format(Lib, LibrarySuffix));
+				foreach (string Lib in StaticLibrariesAndroid)
+				{
+					PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "Android", Architecture,  "lib" + String.Format(Lib, LibrarySuffix) + ".a"));
+				}
 			}
 		}
 		else if(Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
@@ -365,11 +357,9 @@ public class PhysX : ModuleRules
 			PhysXLibDir += "/Linux/" + Target.Architecture;
 			PxSharedLibDir += "/Linux/" + Target.Architecture;
 
-			PublicLibraryPaths.Add(PhysXLibDir);
-			PublicLibraryPaths.Add(PxSharedLibDir);
+			PublicSystemLibraries.Add("rt");
 
 			string[] StaticLibrariesPhysXLinux = new string[] {
-				"rt",
 				"PhysX3{0}",
 				"PhysX3Extensions{0}",
 				"PhysX3Cooking{0}",
@@ -381,15 +371,13 @@ public class PhysX : ModuleRules
 
 			foreach (string Lib in StaticLibrariesPhysXLinux)
 			{
-				PublicAdditionalLibraries.Add(String.Format(Lib, LibrarySuffix));
+				PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "lib" + String.Format(Lib, LibrarySuffix) + ".a"));
 			}
 		}
 		else if (Target.Platform == UnrealTargetPlatform.IOS)
 		{
 			PhysXLibDir = Path.Combine(PhysXLibDir, "IOS/");
 			PxSharedLibDir = Path.Combine(PxSharedLibDir, "IOS/");
-			PublicLibraryPaths.Add(PhysXLibDir);
-			PublicLibraryPaths.Add(PxSharedLibDir);
 
 			string[] PhysXLibs = new string[]
 				{
@@ -412,15 +400,13 @@ public class PhysX : ModuleRules
 
 			foreach (string PhysXLib in PhysXLibs)
 			{
-				PublicAdditionalLibraries.Add(PhysXLib + LibrarySuffix);
+				PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "lib" + String.Format(PhysXLib, LibrarySuffix) + ".a"));
 			}
 		}
 		else if (Target.Platform == UnrealTargetPlatform.TVOS)
 		{
 			PhysXLibDir = Path.Combine(PhysXLibDir, "TVOS/");
 			PxSharedLibDir = Path.Combine(PxSharedLibDir, "TVOS/");
-			PublicLibraryPaths.Add(PhysXLibDir);
-			PublicLibraryPaths.Add(PxSharedLibDir);
 
 			string[] PhysXLibs = new string[]
 				{
@@ -443,13 +429,12 @@ public class PhysX : ModuleRules
 
 			foreach (string PhysXLib in PhysXLibs)
 			{
-				PublicAdditionalLibraries.Add(PhysXLib + LibrarySuffix);
+				PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "lib" + String.Format(PhysXLib, LibrarySuffix) + ".a"));
 			}
 		}
 		else if (Target.Platform == UnrealTargetPlatform.HTML5)
 		{
 			PhysXLibDir = Path.Combine(PhysXLibDir, "HTML5/");
-			PxSharedLibDir = Path.Combine(PxSharedLibDir, "HTML5/");
 
 			string[] PhysXLibs = new string[]
 				{
@@ -496,7 +481,7 @@ public class PhysX : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.PS4)
 		{
-			PublicLibraryPaths.Add(PhysXLibDir + "PS4");
+			PhysXLibDir = Path.Combine(PhysXLibDir, "PS4/");
 
 			string[] StaticLibrariesPS4 = new string[] {
 				"PhysX3{0}",
@@ -518,7 +503,7 @@ public class PhysX : ModuleRules
 
 			foreach (string Lib in StaticLibrariesPS4)
 			{
-				PublicAdditionalLibraries.Add(String.Format(Lib, LibrarySuffix));
+				PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "lib" + String.Format(Lib, LibrarySuffix) + ".a"));
 			}
 		}
 		else if (Target.Platform == UnrealTargetPlatform.XboxOne)
@@ -526,7 +511,7 @@ public class PhysX : ModuleRules
 			PublicDefinitions.Add("PX_PHYSX_STATIC_LIB=1");
 			PublicDefinitions.Add("_XBOX_ONE=1");
 
-			PublicLibraryPaths.Add(Path.Combine(PhysXLibDir,"XboxOne\\VS2015"));
+			PhysXLibDir = Path.Combine(PhysXLibDir, "XboxOne\\VS2015");
 
 			string[] StaticLibrariesXB1 = new string[] {
 				"PhysX3{0}.lib",
@@ -548,13 +533,12 @@ public class PhysX : ModuleRules
 
 			foreach (string Lib in StaticLibrariesXB1)
 			{
-				PublicAdditionalLibraries.Add(String.Format(Lib, LibrarySuffix));
+				PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, String.Format(Lib, LibrarySuffix)));
 			}
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Switch)
 		{
-			PublicLibraryPaths.Add(PhysXLibDir + "Switch");
-			PublicLibraryPaths.Add(PxSharedLibDir + "Switch");
+			PhysXLibDir = Path.Combine(PhysXLibDir, "Switch");
 
 			string[] StaticLibrariesSwitch = new string[] {
 					"LowLevel",
@@ -576,7 +560,7 @@ public class PhysX : ModuleRules
 
 			foreach (string Lib in StaticLibrariesSwitch)
 			{
-				PublicAdditionalLibraries.Add(Lib + LibrarySuffix);
+				PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "lib" + String.Format(Lib, LibrarySuffix) + ".a"));
 			}
 		}
 	}

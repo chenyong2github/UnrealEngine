@@ -22,6 +22,7 @@
 #include "UnrealEngine.h"
 #include "UnrealEdMisc.h"
 #include "EditorModes.h"
+#include "DesktopPlatformModule.h"
 
 #include "DebugToolExec.h"
 #include "Modules/ModuleManager.h"
@@ -101,6 +102,9 @@ int32 EditorInit( IEngineLoop& EngineLoop )
 
 	// Set up the actor folders singleton
 	FActorFolders::Init();
+
+	// Cache the available targets for the current project, so we can display the appropriate options in the package project menu
+	FDesktopPlatformModule::Get()->GetTargetsForCurrentProject();
 
 	// =================== CORE EDITOR INIT FINISHED ===================
 

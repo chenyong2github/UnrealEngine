@@ -39,15 +39,13 @@ public class UnrealAudio : ModuleRules
 			if (Target.Platform == UnrealTargetPlatform.Win32)
 			{
 				LibSndFilePath += "Win32";
-				PublicLibraryPaths.Add(LibSndFilePath);
-				PublicAdditionalLibraries.Add("libsndfile-1.lib");
+				PublicAdditionalLibraries.Add(LibSndFilePath + "/libsndfile-1.lib");
 				PublicDelayLoadDLLs.Add("libsndfile-1.dll");
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				LibSndFilePath += "Win64";
-				PublicLibraryPaths.Add(LibSndFilePath);
-				PublicAdditionalLibraries.Add("libsndfile-1.lib");
+				PublicAdditionalLibraries.Add(LibSndFilePath + "/libsndfile-1.lib");
 				PublicDelayLoadDLLs.Add("libsndfile-1.dll");
 			}
 // 			else if (Target.Platform == UnrealTargetPlatform.Mac)

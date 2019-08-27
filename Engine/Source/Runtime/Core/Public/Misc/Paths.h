@@ -104,11 +104,18 @@ public:
 	static FString EnterpriseFeaturePackDir();
 
 	/**
-	 * Returns the directory where platform extensions reside
+	 * Returns the directory where engine platform extensions reside
 	 *
-	 * @return root config directory
+	 * @return engine platform extensions directory
 	 */
-	static FString PlatformExtensionsDir();
+	static FString EnginePlatformExtensionsDir();
+
+	/**
+	 * Returns the directory where the project's platform extensions reside
+	 *
+	 * @return project platform extensions directory
+	 */
+	static FString ProjectPlatformExtensionsDir();
 
 	/**
 	 * Returns the root directory of the engine directory tree

@@ -68,22 +68,22 @@ FString FApp::GetEpicProductIdentifier()
 	return FString(TEXT(EPIC_PRODUCT_IDENTIFIER));
 }
 
-EBuildConfigurations::Type FApp::GetBuildConfiguration()
+EBuildConfiguration FApp::GetBuildConfiguration()
 {
 #if UE_BUILD_DEBUG
-	return EBuildConfigurations::Debug;
+	return EBuildConfiguration::Debug;
 
 #elif UE_BUILD_DEVELOPMENT
-	return bIsDebugGame ? EBuildConfigurations::DebugGame : EBuildConfigurations::Development;
+	return bIsDebugGame ? EBuildConfiguration::DebugGame : EBuildConfiguration::Development;
 
 #elif UE_BUILD_SHIPPING
-	return EBuildConfigurations::Shipping;
+	return EBuildConfiguration::Shipping;
 
 #elif UE_BUILD_TEST
-	return EBuildConfigurations::Test;
+	return EBuildConfiguration::Test;
 
 #else
-	return EBuildConfigurations::Unknown;
+	return EBuildConfiguration::Unknown;
 #endif
 }
 
@@ -339,7 +339,7 @@ void FApp::PrintStartupLogMessages()
 	UE_LOG(LogInit, Log, TEXT("Compiled with unrecognized C++ compiler"));
 #endif
 
-	UE_LOG(LogInit, Log, TEXT("Build Configuration: %s"), EBuildConfigurations::ToString(FApp::GetBuildConfiguration()));
+	UE_LOG(LogInit, Log, TEXT("Build Configuration: %s"), LexToString(FApp::GetBuildConfiguration()));
 	UE_LOG(LogInit, Log, TEXT("Branch Name: %s"), *FApp::GetBranchName());
 	FString FilteredString = FCommandLine::IsCommandLineLoggingFiltered() ? TEXT("Filtered ") : TEXT("");
 	UE_LOG(LogInit, Log, TEXT("%sCommand Line: %s"), *FilteredString, FCommandLine::GetForLogging());

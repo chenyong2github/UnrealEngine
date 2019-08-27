@@ -22,8 +22,7 @@ public class GoogleInstantPreview : ModuleRules
             {
                 string IpSharedPlatform = Target.Platform == UnrealTargetPlatform.Win64 ? "x64" : "Win32";
                 string IpSharedLibSourceDir = Path.Combine(GoogleInstantPreviewSourceDir, IpSharedPlatform, "Release");
-                PublicLibraryPaths.Add(IpSharedLibSourceDir);
-                PublicAdditionalLibraries.Add("ip_shared.lib");
+                PublicAdditionalLibraries.Add(Path.Combine(IpSharedLibSourceDir, "ip_shared.lib"));
                 string[] dllDeps = {
                     "ip_shared.dll",
                     "libeay32.dll",

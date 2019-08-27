@@ -106,9 +106,8 @@ public class ApexDestructionLib : ModuleRules
         if (Target.Platform == UnrealTargetPlatform.Win64)
         {
             APEXLibDir += "/Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-            PublicLibraryPaths.Add(APEXLibDir);
 
-            PublicAdditionalLibraries.Add(String.Format("APEXFramework{0}_x64.lib", LibrarySuffix));
+            PublicAdditionalLibraries.Add(Path.Combine(APEXLibDir, String.Format("APEXFramework{0}_x64.lib", LibrarySuffix)));
             PublicDelayLoadDLLs.Add(String.Format("APEXFramework{0}_x64.dll", LibrarySuffix));
 
             string[] RuntimeDependenciesX64 =
@@ -128,9 +127,8 @@ public class ApexDestructionLib : ModuleRules
         else if (Target.Platform == UnrealTargetPlatform.Win32)
         {
             APEXLibDir += "/Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-            PublicLibraryPaths.Add(APEXLibDir);
 
-            PublicAdditionalLibraries.Add(String.Format("APEXFramework{0}_x86.lib", LibrarySuffix));
+            PublicAdditionalLibraries.Add(Path.Combine(APEXLibDir, String.Format("APEXFramework{0}_x86.lib", LibrarySuffix)));
             PublicDelayLoadDLLs.Add(String.Format("APEXFramework{0}_x86.dll", LibrarySuffix));
 
             string[] RuntimeDependenciesX86 =
@@ -150,9 +148,8 @@ public class ApexDestructionLib : ModuleRules
         {
             string Arch = Target.WindowsPlatform.GetArchitectureSubpath();
             APEXLibDir += "/HoloLens/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-            PublicLibraryPaths.Add(APEXLibDir);
 
-            PublicAdditionalLibraries.Add(String.Format("APEXFramework{0}_{1}.lib", LibrarySuffix, Arch));
+            PublicAdditionalLibraries.Add(Path.Combine(APEXLibDir, String.Format("APEXFramework{0}_{1}.lib", LibrarySuffix, Arch)));
             PublicDelayLoadDLLs.Add(String.Format("APEXFramework{0}_{1}.dll", LibrarySuffix, Arch));
 
             string[] RuntimeDependenciesT =
@@ -198,23 +195,20 @@ public class ApexDestructionLib : ModuleRules
         else if (Target.Platform == UnrealTargetPlatform.PS4)
         {
             APEXLibDir += "/PS4";
-            PublicLibraryPaths.Add(APEXLibDir);
 
-            LibraryFormatString = "{0}";
+            LibraryFormatString = "lib{0}.a";
         }
         else if (Target.Platform == UnrealTargetPlatform.XboxOne)
         {
             APEXLibDir += "/XboxOne/VS2015";
-            PublicLibraryPaths.Add(APEXLibDir);
 
             LibraryFormatString = "{0}.lib";
         }
         else if (Target.Platform == UnrealTargetPlatform.Switch)
         {
             APEXLibDir += "/Switch";
-            PublicLibraryPaths.Add(APEXLibDir);
 
-            LibraryFormatString = "{0}";
+            LibraryFormatString = "lib{0}.a";
         }
 
         // Add the libraries needed (used for all platforms except Windows and Mac)
@@ -224,7 +218,7 @@ public class ApexDestructionLib : ModuleRules
             {
                 string ConfiguredLib = String.Format(Lib, LibrarySuffix);
                 string FinalLib = String.Format(LibraryFormatString, ConfiguredLib);
-                PublicAdditionalLibraries.Add(FinalLib);
+                PublicAdditionalLibraries.Add(Path.Combine(APEXLibDir, FinalLib));
             }
         }
     }

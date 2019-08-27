@@ -2,6 +2,19 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+#include "SceneTypes.h"
+
+class USoundWave;
+class USoundCue;
+class AStaticMeshActor;
+class UAnimSequence;
+class UParticleSystem;
+class UTexture;
+class UModel;
+class USkeletalMesh;
+class UStaticMesh;
+
 class FAnalyzeReferencedContentStat
 {
 public:

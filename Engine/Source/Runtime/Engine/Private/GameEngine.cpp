@@ -457,7 +457,7 @@ TSharedRef<SWindow> UGameEngine::CreateGameWindow()
 	Args.Add( TEXT("GameName"), FText::FromString( FApp::GetProjectName() ) );
 	Args.Add( TEXT("PlatformArchitecture"), PlatformBits );
 	Args.Add( TEXT("RHIName"), FText::FromName( LegacyShaderPlatformToShaderFormat( GMaxRHIShaderPlatform ) ) );
-	Args.Add( TEXT("BuildConfiguration"), FText::FromString(EBuildConfigurations::ToString(FApp::GetBuildConfiguration()) ) );
+	Args.Add( TEXT("BuildConfiguration"), FText::FromString(LexToString(FApp::GetBuildConfiguration()) ) );
 
 	/************************************************************************/
 	/************************ Add device name to window title****************/

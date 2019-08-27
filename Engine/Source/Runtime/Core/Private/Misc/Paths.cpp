@@ -232,9 +232,14 @@ FString FPaths::EnterpriseFeaturePackDir()
 	return FPaths::EnterpriseDir() + TEXT("FeaturePacks/");
 }
 
-FString FPaths::PlatformExtensionsDir()
+FString FPaths::EnginePlatformExtensionsDir()
 {
-	return FPaths::RootDir() + TEXT("Platforms/");
+	return FPaths::EngineDir() + TEXT("Platforms/");
+}
+
+FString FPaths::ProjectPlatformExtensionsDir()
+{
+	return FPaths::ProjectDir() + TEXT("Platforms/");
 }
 
 FString FPaths::RootDir()

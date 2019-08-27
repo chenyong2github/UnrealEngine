@@ -1299,7 +1299,7 @@ EVisibility SProjectLauncherCookByTheBookSettings::HandleMapSelectionHyperlinkVi
 }
 
 
-void SProjectLauncherCookByTheBookSettings::HandleCookConfigurationSelectorConfigurationSelected(EBuildConfigurations::Type Configuration)
+void SProjectLauncherCookByTheBookSettings::HandleCookConfigurationSelectorConfigurationSelected(EBuildConfiguration Configuration)
 {
 	ILauncherProfilePtr SelectedProfile = Model->GetSelectedProfile();
 
@@ -1316,7 +1316,7 @@ FText SProjectLauncherCookByTheBookSettings::HandleCookConfigurationSelectorText
 
 	if (SelectedProfile.IsValid())
 	{
-		return FText::FromString(EBuildConfigurations::ToString(SelectedProfile->GetCookConfiguration()));
+		return FText::FromString(LexToString(SelectedProfile->GetCookConfiguration()));
 	}
 
 	return FText::GetEmpty();

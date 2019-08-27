@@ -845,7 +845,7 @@ FText SProjectLauncherPreviewPage::HandleBuildConfigurationTextBlockText( ) cons
 
 	if (SelectedProfile.IsValid())
 	{
-		return FText::FromString(EBuildConfigurations::ToString(SelectedProfile->GetBuildConfiguration()));
+		return FText::FromString(LexToString(SelectedProfile->GetBuildConfiguration()));
 	}
 
 	return LOCTEXT("NotAvailableText", "n/a");

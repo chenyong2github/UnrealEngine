@@ -25,15 +25,16 @@ public class zlib : ModuleRules
         {
             string PlatformSubpath = Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.x86 ? "Win32" : "Win64";
             PublicIncludePaths.Add(System.String.Format("{0}/include/Win32/VS{1}", zlibPath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName()));
-            if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
+            string LibDir;
+			if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
             {
-                PublicLibraryPaths.Add(System.String.Format("{0}/lib/{1}/VS{2}/{3}/", zlibPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.WindowsPlatform.GetArchitectureSubpath()));
+                LibDir = System.String.Format("{0}/lib/{1}/VS{2}/{3}/", zlibPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.WindowsPlatform.GetArchitectureSubpath());
             }
             else
             {
-                PublicLibraryPaths.Add(System.String.Format("{0}/lib/{1}/VS{2}/{3}/", zlibPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.Configuration == UnrealTargetConfiguration.Debug ? "Debug" : "Release"));
+                LibDir = System.String.Format("{0}/lib/{1}/VS{2}/{3}/", zlibPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.Configuration == UnrealTargetConfiguration.Debug ? "Debug" : "Release");
             }
-            PublicAdditionalLibraries.Add("zlibstatic.lib");
+            PublicAdditionalLibraries.Add(LibDir + "zlibstatic.lib");
         }
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
@@ -46,12 +47,12 @@ public class zlib : ModuleRules
 				 Target.Platform == UnrealTargetPlatform.TVOS)
 		{
 			PublicIncludePaths.Add(OldzlibPath + "/Inc");
-			PublicAdditionalLibraries.Add("z");
+			PublicSystemLibraries.Add("z");
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
 		{
 			PublicIncludePaths.Add(OldzlibPath + "/Inc");
-			PublicAdditionalLibraries.Add("z");
+			PublicSystemLibraries.Add("z");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.HTML5)
 		{
@@ -83,8 +84,7 @@ public class zlib : ModuleRules
 		else if (Target.Platform == UnrealTargetPlatform.PS4)
 		{
 			PublicIncludePaths.Add(OldzlibPath + "/Inc");
-			PublicLibraryPaths.Add(OldzlibPath + "/Lib/PS4");
-			PublicAdditionalLibraries.Add("z");
+			PublicAdditionalLibraries.Add(OldzlibPath + "/Lib/PS4/libz.a");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.XboxOne)
 		{
@@ -94,8 +94,7 @@ public class zlib : ModuleRules
 			{
 				System.Object VersionName = XboxOnePlatformType.GetMethod("GetVisualStudioCompilerVersionName").Invoke(null, null);
 				PublicIncludePaths.Add(OldzlibPath + "/Inc");
-				PublicLibraryPaths.Add(OldzlibPath + "/Lib/XboxOne/VS" + VersionName.ToString());
-				PublicAdditionalLibraries.Add("zlib125_XboxOne.lib");
+				PublicAdditionalLibraries.Add(OldzlibPath + "/Lib/XboxOne/VS" + VersionName.ToString() + "/zlib125_XboxOne.lib");
 			}
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Switch)

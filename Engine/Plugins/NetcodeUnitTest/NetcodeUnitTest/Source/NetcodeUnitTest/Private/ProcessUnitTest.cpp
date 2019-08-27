@@ -98,14 +98,14 @@ TWeakPtr<FUnitTestProcess> UProcessUnitTest::StartUnitTestProcess(FString Path, 
 }
 
 TWeakPtr<FUnitTestProcess> UProcessUnitTest::StartUE4UnitTestProcess(FString InCommandline, bool bMinimized/*=true*/,
-																		EBuildTargets::Type Type/*=EBuildTargets::Game*/)
+																		EBuildTargetType Type/*=EBuildTargetType::Game*/)
 {
 	TWeakPtr<FUnitTestProcess> ReturnVal = nullptr;
 	FString TargetExecutable = FApp::GetName();
 
 #if UE_BUILD_DEVELOPMENT && !WITH_EDITOR
 	// Development modes other than Dev Editor, must target the separate Server process
-	if (Type == EBuildTargets::Server)
+	if (Type == EBuildTargetType::Server)
 	{
 		TargetExecutable = TargetExecutable.Replace(TEXT("Game"), TEXT("Server"));
 

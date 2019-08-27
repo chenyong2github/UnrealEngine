@@ -65,9 +65,7 @@ public class DirectXMesh : ModuleRules
                     throw new BuildException(Err);
                 }
             }
-            PublicLibraryPaths.Add(LibDirName);
-            PublicAdditionalLibraries.Add("DirectXMesh.lib");
-
+            PublicAdditionalLibraries.Add(LibDirName + "DirectXMesh.lib");
         }
         else
         {

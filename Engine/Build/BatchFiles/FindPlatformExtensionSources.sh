@@ -18,9 +18,11 @@ echo "<?xml version=\"1.0\" encoding=\"utf-8\"?>" > $REFERENCE_FILE
 echo "<Project ToolsVersion=\"15.0\" DefaultTargets=\"Build\" xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">" >> $REFERENCE_FILE
 echo "<ItemGroup>" >> $REFERENCE_FILE
 
-for PLATFORM in ../../Platforms/*; do
-	for SOURCE_FILE in ${PLATFORM}/Engine/Source/Programs/UnrealBuildTool/*; do
-		echo "<PlatformExtensionCompile Include=\"..\\..\\${SOURCE_FILE//\//\\}\" />" >> $REFERENCE_FILE
+for PLATFORM in ../../Engine/Platforms/*; do
+	for SOURCE_FILE in ${PLATFORM}/Source/Programs/UnrealBuildTool/*; do
+		echo "<PlatformExtensionCompile Include=\"..\\..\\${SOURCE_FILE//\//\\}\">" >> $REFERENCE_FILE
+		echo "    <Link>Platform\${PLATFORM##*/}\${SOURCE_FILE##*/}</Link>" >> $REFERENCE_FILE
+		echo "</PlatformExtensionCompile>" >> $REFERENCE_FILE
 	done
 done
 

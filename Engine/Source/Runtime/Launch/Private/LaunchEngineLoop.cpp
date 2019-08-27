@@ -183,6 +183,7 @@ class FFeedbackContext;
 
 #if UE_EDITOR
 	#include "DesktopPlatformModule.h"
+	#include "TargetReceipt.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "LaunchEngineLoop"
@@ -4660,6 +4661,28 @@ static void CheckForPrintTimesOverride()
 	}
 }
 
+#if UE_EDITOR
+bool LaunchCorrectEditorExecutable(const FString& EditorTargetFileName)
+{
+	FTargetReceipt Receipt;
+	if(!FApp::IsUnattended() && FPaths::FileExists(EditorTargetFileName) && Receipt.Read(EditorTargetFileName))
+	{
+		FString CurrentExecutableName = FPlatformProcess::ExecutablePath();
+		FPaths::MakeStandardFilename(CurrentExecutableName);
+
+		FString LaunchExecutableName = Receipt.Launch;
+		FPaths::MakeStandardFilename(LaunchExecutableName);
+
+		if(LaunchExecutableName != CurrentExecutableName)
+		{
+			UE_LOG(LogInit, Display, TEXT("Running incorrect executable for target. Launching %s..."), *LaunchExecutableName);
+			FPlatformProcess::CreateProc(*IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*LaunchExecutableName), FCommandLine::GetOriginal(), true, false, false, nullptr, 0, nullptr, nullptr, nullptr);
+			return true;
+		}
+	}
+	return false;
+}
+#endif
 
 /* FEngineLoop static interface
  *****************************************************************************/
@@ -4826,8 +4849,41 @@ bool FEngineLoop::AppInit( )
 
 	// Check whether the project or any of its plugins are missing or are out of date
 #if UE_EDITOR && !IS_MONOLITHIC
-	if(!GIsBuildMachine && FPaths::IsProjectFilePathSet() && PluginManager.AreRequiredPluginsAvailable())
+	if(!GIsBuildMachine && FPaths::IsProjectFilePathSet())
 	{
+		// Check all the plugins are present
+		if(!PluginManager.AreRequiredPluginsAvailable())
+		{
+			return false;
+		}
+
+		// Find the editor target
+		FString EditorTargetFileName;
+		for (const FTargetInfo& Target : FDesktopPlatformModule::Get()->GetTargetsForProject(FPaths::GetProjectFilePath()))
+		{
+			if (Target.Type == EBuildTargetType::Editor)
+			{
+				// Read the editor target receipt
+				EditorTargetFileName = FTargetReceipt::GetDefaultPath(FPlatformMisc::ProjectDir(), *Target.Name, FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
+				break;
+			}
+		}
+
+		// If there was no editor target, use the default UE4Editor target
+		FString CompileProject = FPaths::GetProjectFilePath();
+		if(EditorTargetFileName.Len() == 0)
+		{
+			CompileProject.Empty();
+			EditorTargetFileName = FTargetReceipt::GetDefaultPath(FPlatformMisc::EngineDir(), TEXT("UE4Editor"), FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr);
+		}
+
+		// If we're not running the correct executable for the current target, and the listed executable exists, run that instead
+		if(LaunchCorrectEditorExecutable(EditorTargetFileName))
+		{
+			return false;
+		}
+
+		// Check if we need to compile
 		bool bNeedCompile = false;
 		GConfig->GetBool(TEXT("/Script/UnrealEd.EditorLoadingSavingSettings"), TEXT("bForceCompilationAtStartup"), bNeedCompile, GEditorPerProjectIni);
 		if(FParse::Param(FCommandLine::Get(), TEXT("SKIPCOMPILE")) || FParse::Param(FCommandLine::Get(), TEXT("MULTIPROCESS")))
@@ -4878,6 +4934,14 @@ bool FEngineLoop::AppInit( )
 
 				bNeedCompile = true;
 			}
+			else if(!FPaths::FileExists(EditorTargetFileName))
+			{
+				// Prompt to compile. The target file isn't essential, but we 
+				if (FPlatformMisc::MessageBoxExt(EAppMsgType::YesNo, *FString::Printf(TEXT("The %s file does not exist. Would you like to build the editor?"), *FPaths::GetCleanFilename(EditorTargetFileName)), TEXT("Missing target file")) == EAppReturnType::Yes)
+				{
+					bNeedCompile = true;
+				}
+			}
 		}
 
 		FEmbeddedCommunication::ForceTick(16);
@@ -4887,8 +4951,14 @@ bool FEngineLoop::AppInit( )
 			// Try to compile it
 			FFeedbackContext *Context = (FFeedbackContext*)FDesktopPlatformModule::Get()->GetNativeFeedbackContext();
 			Context->BeginSlowTask(FText::FromString(TEXT("Starting build...")), true, true);
-			bool bCompileResult = FDesktopPlatformModule::Get()->CompileGameProject(FPaths::RootDir(), FPaths::GetProjectFilePath(), Context);
+			bool bCompileResult = FDesktopPlatformModule::Get()->CompileGameProject(FPaths::RootDir(), CompileProject, Context);
 			Context->EndSlowTask();
+
+			// Check if we're running the wrong executable now
+			if(bCompileResult && LaunchCorrectEditorExecutable(EditorTargetFileName))
+			{
+				return false;
+			}
 
 			// Get a list of modules which are still incompatible
 			TArray<FString> StillIncompatibleFiles;

@@ -138,7 +138,8 @@ namespace UnrealBuildTool
 		Eddie,
 		VisualStudioCode,
 		VisualStudioMac,
-		CLion
+		CLion,
+		Rider
 	}
 
 	/// <summary>
@@ -972,10 +973,17 @@ namespace UnrealBuildTool
 				// Generate IntelliSense data if we need to.  This involves having UBT simulate the action compilation of
 				// the targets so that we can extra the compiler defines, include paths, etc.
 				GenerateIntelliSenseData(Arguments, IntelliSenseTargetFiles);
-
+				
 				// Write the project files
 				WriteProjectFiles(PlatformProjectGenerators);
 				Log.TraceVerbose( "Project generation complete ({0} generated, {1} imported)", GeneratedProjectFiles.Count, OtherProjectFiles.Count );
+
+				// Generate all the target info files for the editor
+				foreach(FileReference ProjectFile in AllGameProjects)
+				{
+					RulesAssembly RulesAssembly = RulesCompiler.CreateProjectRulesAssembly(ProjectFile, false, false);
+					QueryTargetsMode.WriteTargetInfo(ProjectFile, RulesAssembly, QueryTargetsMode.GetDefaultOutputFile(ProjectFile));
+				}
 			}
 
 			return bSuccess;
@@ -1160,7 +1168,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Adds all game project files, including target projects and config files
 		/// </summary>
-		private void AddAllGameProjects(List<ProjectFile> GameProjects, string SupportedPlatformNames, MasterProjectFolder ProjectsFolder)
+		protected void AddAllGameProjects(List<ProjectFile> GameProjects, string SupportedPlatformNames, MasterProjectFolder ProjectsFolder)
 		{
 			HashSet<DirectoryReference> UniqueGameProjectDirectories = new HashSet<DirectoryReference>();
 			foreach( ProjectFile GameProject in GameProjects )
@@ -1172,8 +1180,14 @@ namespace UnrealBuildTool
 
 					GameProject.AddFilesToProject( SourceFileSearch.FindFiles( GameProjectDirectory, SearchSubdirectories: false ), GameProjectDirectory );
 
+					DirectoryReference GamePlatformsDirectory = UnrealBuildTool.ProjectPlatformExtensionsDirectory(GameProjectDirectory);
+					if (DirectoryReference.Exists(GamePlatformsDirectory))
+					{
+						GameProject.AddFilesToProject(SourceFileSearch.FindFiles(GamePlatformsDirectory), GameProjectDirectory);
+					}
+
 					// Game config files
-					if( bIncludeConfigFiles )
+					if ( bIncludeConfigFiles )
 					{
 						DirectoryReference GameConfigDirectory = DirectoryReference.Combine(GameProjectDirectory, "Config");
 						if( DirectoryReference.Exists(GameConfigDirectory) )
@@ -1927,6 +1941,8 @@ namespace UnrealBuildTool
 
 					// Find all of the source files (and other files) and add them to the project
 					List<FileReference> FoundFiles = SourceFileSearch.FindModuleSourceFiles( CurModuleFile, SearchSubdirectories:SearchSubdirectories );
+					// remove any target files, they are technically not part of the module and are explicitly added when the project is created
+					FoundFiles.RemoveAll(f => f.FullName.EndsWith(".Target.cs"));
 					ProjectFile.AddFilesToProject( FoundFiles, BaseFolder );
 
 					// Check if there's a plugin directory here
@@ -1991,65 +2007,64 @@ namespace UnrealBuildTool
 
 		private ProjectFile FindProjectForModule(FileReference CurModuleFile, List<FileReference> AllGames, Dictionary<FileReference, ProjectFile> ProgramProjects, List<ProjectFile> ModProjects, out DirectoryReference BaseFolder)
 		{
-
-			string ProjectFileNameBase = null;
+			// Starting at the base directory of the module find a project which has the same directory as base, walking up the directory hierarchy until a match is found
 			BaseFolder = null;
 
-			// Figure out which game project this target belongs to
-			FileReference ProjectInfo = FindGameContainingFile(AllGames, CurModuleFile);
-			if (ProjectInfo != null)
+			DirectoryReference Path = CurModuleFile.Directory;
+			while (!Path.IsRootDirectory())
 			{
-				BaseFolder = ProjectInfo.Directory;
-				return FindOrAddProjectHelper(ProjectInfo.GetFileNameWithoutExtension(), BaseFolder);
-			}
-
-			// Check if it's a mod
-			foreach (ProjectFile ModProject in ModProjects)
-			{
-				if (CurModuleFile.IsUnderDirectory(ModProject.BaseDir))
+				// Figure out which game project this target belongs to
+				foreach (FileReference Game in AllGames)
 				{
-					BaseFolder = ModProject.BaseDir;
-					return ModProject;
-				}
-			}
-
-			// Check if this module is under any program project base folder
-			if (ProgramProjects != null)
-			{
-				foreach (ProjectFile ProgramProject in ProgramProjects.Values)
-				{
-					if (CurModuleFile.IsUnderDirectory(ProgramProject.BaseDir))
+					// the source and the actual game directory are conceptually the same
+					if (Path == Game.Directory || Path == DirectoryReference.Combine(Game.Directory, "Source"))
 					{
-						BaseFolder = ProgramProject.BaseDir;
-						return ProgramProject;
+						FileReference ProjectInfo = Game;
+						BaseFolder = ProjectInfo.Directory;
+						return FindOrAddProjectHelper(ProjectInfo.GetFileNameWithoutExtension(), BaseFolder);
 					}
 				}
+				// Check if it's a mod
+				foreach (ProjectFile ModProject in ModProjects)
+				{
+					if (Path == ModProject.BaseDir)
+					{
+						BaseFolder = ModProject.BaseDir;
+						return ModProject;
+					}
+				}
+
+				// Check if this module is under any program project base folder
+				if (ProgramProjects != null)
+				{
+					foreach (ProjectFile ProgramProject in ProgramProjects.Values)
+					{
+						if (Path == ProgramProject.BaseDir)
+						{
+							BaseFolder = ProgramProject.BaseDir;
+							return ProgramProject;
+						}
+					}
+				}
+
+				// check for engine, or platform extension engine folders
+				if (Path == UnrealBuildTool.EngineDirectory)
+				{
+					BaseFolder = UnrealBuildTool.EngineDirectory;
+					return FindOrAddProjectHelper(EngineProjectFileNameBase, BaseFolder);
+				}
+
+				if (Path == UnrealBuildTool.EnterpriseDirectory)
+				{
+					BaseFolder = UnrealBuildTool.EnterpriseDirectory;
+					return FindOrAddProjectHelper(EnterpriseProjectFileNameBase, BaseFolder);
+				}
+
+				// no match found, lets search the parent directory
+				Path = Path.ParentDirectory;
 			}
 
-			// check for engine, or platform extension engine folders
-			if ( CurModuleFile.IsUnderDirectory(UnrealBuildTool.EngineDirectory))
-			{
-				ProjectFileNameBase = EngineProjectFileNameBase;
-				BaseFolder = UnrealBuildTool.EngineDirectory;
-			}
-			else if (CurModuleFile.IsUnderDirectory(UnrealBuildTool.PlatformExtensionsDirectory))
-			{
-				ProjectFileNameBase = EngineProjectFileNameBase;
-				BaseFolder = UnrealBuildTool.RootDirectory;
-			}
-			else if( CurModuleFile.IsUnderDirectory(UnrealBuildTool.EnterpriseSourceDirectory) ||
-				CurModuleFile.IsUnderDirectory(DirectoryReference.Combine(UnrealBuildTool.EnterpriseDirectory, "Plugins")) )
-			{
-				ProjectFileNameBase = EnterpriseProjectFileNameBase;
-				BaseFolder = UnrealBuildTool.EnterpriseDirectory;
-			}
-
-			if (ProjectInfo == null && ProjectFileNameBase == null)
-			{
-				throw new BuildException("Found a non-engine module file (" + CurModuleFile + ") that did not exist within any of the known game folders");
-			}
-
-			return FindOrAddProjectHelper(ProjectFileNameBase, BaseFolder);
+			throw new BuildException("Found a module file (" + CurModuleFile + ") that did not exist within any of the known game folders or other source locations");
 		}
 
 		/// <summary>
@@ -2315,7 +2330,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="GameProjects">List of game project files</param>
 		/// <param name="ModProjects">Receives the list of mod projects on success</param>
-		void AddProjectsForMods(List<ProjectFile> GameProjects, out List<ProjectFile> ModProjects)
+		protected void AddProjectsForMods(List<ProjectFile> GameProjects, out List<ProjectFile> ModProjects)
 		{
 			// Find all the mods for game projects
 			ModProjects = new List<ProjectFile>();
@@ -2324,7 +2339,7 @@ namespace UnrealBuildTool
 				ProjectFile GameProject = GameProjects.First();
 				foreach(PluginInfo PluginInfo in Plugins.ReadProjectPlugins(GameProject.BaseDir))
 				{
-					if(PluginInfo.Descriptor.Modules != null && PluginInfo.Descriptor.Modules.Length > 0 && PluginInfo.Type == PluginType.Mod)
+					if (PluginInfo.Descriptor.Modules != null && PluginInfo.Descriptor.Modules.Length > 0 && PluginInfo.Type == PluginType.Mod)
 					{
 						FileReference ModProjectFilePath = FileReference.Combine(PluginInfo.Directory, "Mods", PluginInfo.Name + ProjectFileExtension);
 
@@ -2349,7 +2364,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="BaseName">The base name for the project file</param>
 		/// <returns>Full path to the project file</returns>
-		private FileReference GetProjectLocation(string BaseName)
+		protected FileReference GetProjectLocation(string BaseName)
 		{
 			return FileReference.Combine(IntermediateProjectFilesPath, BaseName + ProjectFileExtension);
 		}

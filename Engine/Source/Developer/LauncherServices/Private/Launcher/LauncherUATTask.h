@@ -58,8 +58,8 @@ protected:
 		UATCommandLine = FString::Printf(TEXT("-ScriptsForProject=\"%s\" BuildCookRun -project=\"%s\" -noP4 -clientconfig=%s -serverconfig=%s"),
 			*ProjectPath,
 			*ProjectPath,
-			*ConfigStrings[ChainState.Profile->GetBuildConfiguration()],
-			*ConfigStrings[ChainState.Profile->GetBuildConfiguration()]);
+			LexToString(ChainState.Profile->GetBuildConfiguration()),
+			LexToString(ChainState.Profile->GetBuildConfiguration()));
 
 		// we expect to pass -nocompile to UAT here as we generally expect UAT to be fully compiled. Besides, installed builds don't even have the source to compile UAT scripts.
 		// Only allow UAT to compile scripts dynamically if we pass -development or we have the IsBuildingUAT property set, the latter of which should not allow itself to be set in installed situations.

@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "AssetData.h"
 #include "ARFilter.h"
+#include "IAssetRegistry.h"
 #include "AssetRegistryHelpers.generated.h"
-
 
 USTRUCT(BlueprintType)
 struct FTagAndValue

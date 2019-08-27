@@ -17,28 +17,26 @@ public class HLSLCC : ModuleRules
 			LibPath = LibPath + (Target.Platform == UnrealTargetPlatform.Win32 ? "Win32/" : "Win64/");
 			LibPath = LibPath + "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
 			
-			PublicLibraryPaths.Add(LibPath);
-
 			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
 			{
 				if (Target.Platform == UnrealTargetPlatform.Win64)
 				{
-					PublicAdditionalLibraries.Add("hlslccd_64.lib");
+					PublicAdditionalLibraries.Add(LibPath + "/hlslccd_64.lib");
 				}
 				else if (Target.Platform == UnrealTargetPlatform.Win32)
 				{
-					PublicAdditionalLibraries.Add("hlslccd.lib");
+					PublicAdditionalLibraries.Add(LibPath + "/hlslccd.lib");
 				}
 			}
 			else
 			{
 				if (Target.Platform == UnrealTargetPlatform.Win64)
 				{
-					PublicAdditionalLibraries.Add("hlslcc_64.lib");
+					PublicAdditionalLibraries.Add(LibPath + "/hlslcc_64.lib");
 				}
 				else if (Target.Platform == UnrealTargetPlatform.Win32)
 				{
-					PublicAdditionalLibraries.Add("hlslcc.lib");
+					PublicAdditionalLibraries.Add(LibPath + "/hlslcc.lib");
 				}
 			}
 		}

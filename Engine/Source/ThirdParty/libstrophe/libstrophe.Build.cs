@@ -51,26 +51,23 @@ public class libstrophe : ModuleRules
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Android)
 			{
-				string LibraryPath = Path.Combine(StrophePackagePath, "Android", ConfigName);
-				PublicLibraryPaths.Add(Path.Combine(LibraryPath, "armv7"));
-				PublicLibraryPaths.Add(Path.Combine(LibraryPath, "arm64"));
-
-				PublicAdditionalLibraries.Add("strophe");
+				PublicAdditionalLibraries.Add(Path.Combine(StrophePackagePath, "Android", ConfigName, "arm64", "libstrophe.a"));
+				PublicAdditionalLibraries.Add(Path.Combine(StrophePackagePath, "Android", ConfigName, "armv7", "libstrophe.a"));
 			}
 			else if (Target.Platform == UnrealTargetPlatform.IOS || Target.Platform == UnrealTargetPlatform.Mac)
 			{
 				PublicAdditionalLibraries.Add(Path.Combine(StrophePackagePath, Target.Platform.ToString(), ConfigName, "libstrophe.a"));
-				PublicAdditionalLibraries.Add("resolv");
+				PublicSystemLibraries.Add("resolv");
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
 			{
-				PublicLibraryPaths.Add(Path.Combine(StrophePackagePath, Target.Platform.ToString(), "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), ConfigName));
-				PublicAdditionalLibraries.Add("strophe.lib");
+				string LibrayPath = Path.Combine(StrophePackagePath, Target.Platform.ToString(), "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), ConfigName) + "/";
+				PublicAdditionalLibraries.Add(LibrayPath + "strophe.lib");
 			}
 			else if (Target.Platform == UnrealTargetPlatform.PS4)
 			{
-				PublicLibraryPaths.Add(Path.Combine(StrophePackagePath, Target.Platform.ToString(), ConfigName));
-				PublicAdditionalLibraries.Add("strophe");
+				string LibrayPath = Path.Combine(StrophePackagePath, Target.Platform.ToString(), ConfigName) + "/";
+				PublicSystemLibraries.Add(LibrayPath + "libstrophe.a");
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Switch)
 			{
@@ -79,7 +76,7 @@ public class libstrophe : ModuleRules
 			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 			{
 				PublicAdditionalLibraries.Add(Path.Combine(StrophePackagePath, "Linux", Target.Architecture.ToString(), ConfigName, "libstrophe" + ((Target.LinkType != TargetLinkType.Monolithic) ? "_fPIC" : "") + ".a"));
-				PublicAdditionalLibraries.Add("resolv");
+				PublicSystemLibraries.Add("resolv");
 			}
 		}
 	}
