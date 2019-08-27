@@ -548,7 +548,7 @@ class GAMEPLAYTAGS_API UGameplayTagsManager : public UObject
 	FString GetCategoriesMetaFromStruct(UScriptStruct* Struct) const { return GetCategoriesMetaFromField(Struct); }
 
 	/** Returns "GameplayTagFilter" meta property from given function, used for filtering by tag widget for any parameters of the function that end up as BP pins */
-	FString GetCategoriesMetaFromFunction(UFunction* Func) const;
+	FString GetCategoriesMetaFromFunction(UFunction* Func, FName ParamName = NAME_None) const;
 
 	/** Gets a list of all gameplay tag nodes added by the specific source */
 	void GetAllTagsFromSource(FName TagSource, TArray< TSharedPtr<FGameplayTagNode> >& OutTagArray) const;
