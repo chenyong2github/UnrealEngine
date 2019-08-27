@@ -60,6 +60,7 @@ struct NAVIGATIONSYSTEM_API FNavMeshSceneProxyData : public TSharedFromThis<FNav
 	TArray<FDebugRenderSceneProxy::FDebugLine> NavMeshEdgeLines;
 	TArray<FDebugRenderSceneProxy::FDebugLine> NavLinkLines;
 	TArray<FDebugRenderSceneProxy::FDebugLine> ClusterLinkLines;
+	TArray<FDebugRenderSceneProxy::FDebugBox> AuxBoxes;
 
 	struct FDebugText
 	{
@@ -97,7 +98,7 @@ class NAVIGATIONSYSTEM_API FNavMeshSceneProxy final : public FDebugRenderScenePr
 {
 	friend class FNavMeshDebugDrawDelegateHelper;
 public:
-	SIZE_T GetTypeHash() const override;
+	virtual SIZE_T GetTypeHash() const override;
 
 	FNavMeshSceneProxy(const UPrimitiveComponent* InComponent, FNavMeshSceneProxyData* InProxyData, bool ForceToRender = false);
 	virtual ~FNavMeshSceneProxy();
@@ -198,6 +199,10 @@ public:
 	static bool IsNavigationShowFlagSet(const UWorld* World);
 
 protected:
+	/** Gathers drawable information from NavMesh and puts it in OutProxyData. 
+	 *	Override to add additional information to OutProxyData.*/
+	virtual void GatherData(const ARecastNavMesh& NavMesh, FNavMeshSceneProxyData& OutProxyData) const;
+
 	void TimerFunction();
 
 protected:
