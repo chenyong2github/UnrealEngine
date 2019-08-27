@@ -38,6 +38,10 @@ public:
 	void DuplicateNodes();
 	bool CanDuplicateNodes() const;
 
+	bool CanCreateComment() const;
+	void OnCreateComment();
+
+
 	virtual void OnClassListUpdated();
 
 protected:
