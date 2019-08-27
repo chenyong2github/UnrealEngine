@@ -38,14 +38,11 @@ public class AudioMixerAudioUnit : ModuleRules
 		{
 			PublicFrameworks.Add("AVFoundation");
 		}
-        else if (Target.Platform == UnrealTargetPlatform.Mac)
-        {
-            PublicFrameworks.Add("AudioUnit");
-        }
+
 
 		PublicDefinitions.Add("WITH_OGGVORBIS=1");
 
-		if (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.IOS || Target.Platform == UnrealTargetPlatform.TVOS)
+		if (Target.Platform == UnrealTargetPlatform.IOS || Target.Platform == UnrealTargetPlatform.TVOS)
 		{
 			PrecompileForTargets = PrecompileTargetsType.Any;
 		}
