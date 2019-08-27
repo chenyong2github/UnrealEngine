@@ -22,6 +22,7 @@ public:
 	virtual void AddRequest(const FBackgroundHttpRequestPtr Request) override;
 	virtual void RemoveRequest(const FBackgroundHttpRequestPtr Request) override;
 	virtual bool IsGenericImplementation() const override { return false;  }
+	virtual void SetMaxActiveDownloads(int MaxActiveDownloads) override;
 
 	/**
 	* Constructor
@@ -116,4 +117,5 @@ private:
     
     /** On iOS we need to track how many Tasks we have active. This is to replace the default implementations NumCurrentlyActiveRequests **/
     volatile int NumCurrentlyActiveTasks;
+	int MaxNumActualTasks;
 };

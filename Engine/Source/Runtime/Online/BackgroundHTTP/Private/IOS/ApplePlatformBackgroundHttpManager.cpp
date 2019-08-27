@@ -31,6 +31,7 @@ FApplePlatformBackgroundHttpManager::FApplePlatformBackgroundHttpManager()
     , bIsIteratingThroughSessionTasks(false)
     , RequestsPendingRemove()
     , NumCurrentlyActiveTasks(0)
+	, MaxNumActualTasks(MaxActiveDownloads)
 {
 }
 
@@ -231,6 +232,14 @@ void FApplePlatformBackgroundHttpManager::RemoveSessionTasksForRequest(FAppleBac
     
     //Now cancel our active task
     Request->CancelActiveTask();
+}
+
+void FApplePlatformBackgroundHttpManager::SetMaxActiveDownloads(int InMaxActiveDownloads)
+{
+	FBackgroundHttpManagerImpl::SetMaxActiveDownloads(InMaxActiveDownloads);
+
+	// It's possible we have more than the new maximum active right now, so we gracefully reduce MaxNumActualTasks down to MaxActiveDownloads as the extra tasks finish.
+	MaxNumActualTasks = FMath::Max(MaxActiveDownloads.Load(), FPlatformAtomics::AtomicRead(&NumCurrentlyActiveTasks));
 }
 
 bool FApplePlatformBackgroundHttpManager::AssociateWithAnyExistingUnAssociatedTasks(const FBackgroundHttpRequestPtr Request)
@@ -491,8 +500,11 @@ void FApplePlatformBackgroundHttpManager::FinishRequest(FAppleBackgroundHttpRequ
                 {
                     int NumActualTasks = FPlatformAtomics::InterlockedDecrement(&NumCurrentlyActiveTasks);
 
+					// Handle the case that SetMaxActiveDownloads reduced the MaxActiveDownloads while we had more than the new maximum in progress.
+					MaxNumActualTasks = FMath::Max(MaxNumActualTasks - 1, MaxActiveDownloads.Load());
+
                     //Sanity check that our data is valid. Shouldn't ever trip if everything is working as intended.
-                    const bool bNumActualTasksIsValid = ((NumActualTasks >= 0) && (NumActualTasks <= FPlatformBackgroundHttp::GetPlatformMaxActiveDownloads()));
+                    const bool bNumActualTasksIsValid = ((NumActualTasks >= 0) && (NumActualTasks <= MaxNumActualTasks));
                     
                     UE_LOG(LogBackgroundHttpManager,Display, TEXT("Finishing Request lowering Task Count: %d"), NumActualTasks);
                     
@@ -769,7 +781,7 @@ void FApplePlatformBackgroundHttpManager::TickTasks(float DeltaTime)
              {
                  //Check to make sure we have room for more tasks to be active first
                  int CurrentCount = FPlatformAtomics::AtomicRead(&NumCurrentlyActiveTasks);
-                 if (CurrentCount < FPlatformBackgroundHttp::GetPlatformMaxActiveDownloads())
+                 if (CurrentCount < MaxActiveDownloads)
                  {
                      //Go through our tasks and try and activate as many as possible
                      for (NSURLSessionTask* task in tasks)
@@ -781,7 +793,7 @@ void FApplePlatformBackgroundHttpManager::TickTasks(float DeltaTime)
                              int NewRequestCount = FPlatformAtomics::InterlockedIncrement(&NumCurrentlyActiveTasks);
                              UE_LOG(LogBackgroundHttpManager,Verbose, TEXT("Incrementing Task Count: %d"), NewRequestCount);
                              
-                             if (NewRequestCount <= FPlatformBackgroundHttp::GetPlatformMaxActiveDownloads())
+                             if (NewRequestCount <= MaxActiveDownloads)
                              {
                                  FString TaskURL = [[[task currentRequest] URL] absoluteString];
                                  int TaskIdentifier = (int)[task taskIdentifier];
@@ -827,7 +839,7 @@ void FApplePlatformBackgroundHttpManager::TickTasks(float DeltaTime)
                              }
                              
                              //We now have enough requests queued up that we can stop looking for more
-                             if (NewRequestCount >= FPlatformBackgroundHttp::GetPlatformMaxActiveDownloads())
+                             if (NewRequestCount >= MaxActiveDownloads)
                              {
                                  break;
                              }
