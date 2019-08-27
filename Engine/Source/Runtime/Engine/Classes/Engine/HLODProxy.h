@@ -92,6 +92,12 @@ public:
 
 	/** Build a unique key for the LOD actor, used to determine if the actor needs rebuilding */
 	static FName GenerateKeyForActor(const ALODActor* LODActor);
+
+	static uint32 GetCRC(UMaterialInterface* InMaterialInterface, uint32 InCRC = 0);
+	static uint32 GetCRC(UTexture* InTexture, uint32 InCRC = 0);
+	static uint32 GetCRC(UStaticMesh* InStaticMesh, uint32 InCRC = 0);
+	static uint32 GetCRC(UStaticMeshComponent* InComponent, uint32 InCRC = 0);
+
 #endif
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
