@@ -47,6 +47,14 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Prepares the environment for building
+		/// </summary>
+		public override void SetEnvironmentVariables()
+		{
+			EnvVars.SetEnvironmentVariables();
+		}
+
+		/// <summary>
 		/// Returns the version info for the toolchain. This will be output before building.
 		/// </summary>
 		/// <returns>String describing the current toolchain</returns>
