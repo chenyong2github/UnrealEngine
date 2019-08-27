@@ -123,6 +123,11 @@ class USkyAtmosphereComponent : public USceneComponent
 
 
 
+	UFUNCTION(BlueprintCallable, Category = "Rendering")
+	void OverrideAtmosphereLightDirection(int32 AtmosphereLightIndex, const FVector& LightDirection);
+
+
+
 protected:
 	//~ Begin UActorComponent Interface.
 	virtual void CreateRenderState_Concurrent() override;

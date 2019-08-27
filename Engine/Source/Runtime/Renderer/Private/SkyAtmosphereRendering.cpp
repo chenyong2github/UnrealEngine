@@ -328,11 +328,13 @@ static FLinearColor GetLightDiskLuminance(FLightSceneInfo& Light, FLinearColor L
 
 FSkyAtmosphereRenderSceneInfo::FSkyAtmosphereRenderSceneInfo(const USkyAtmosphereComponent* InComponent)
 	: bStaticLightingBuilt(false)
+	, Component_DoNotDereference(InComponent)
 	, AtmosphereSetup(*InComponent)
 	, TransmittanceAtZenith(AtmosphereSetup.GetTransmittanceAtGroundLevel(FVector(0.0f, 0.0f, 1.0f)))
 {
 	SkyLuminanceFactor = InComponent->SkyLuminanceFactor;
 	AerialPespectiveViewDistanceScale = InComponent->AerialPespectiveViewDistanceScale;
+	memset(OverrideAtmosphericLight, 0, sizeof(OverrideAtmosphericLight));
 
 	// Create a multiframe uniform buffer. A render command is used because FSkyAtmosphereRenderSceneInfo ctor is called on the Game thread.
 	TUniformBufferRef<FAtmosphereUniformShaderParameters>* AtmosphereUniformBufferPtr = &AtmosphereUniformBuffer;
@@ -349,18 +351,19 @@ FSkyAtmosphereRenderSceneInfo::~FSkyAtmosphereRenderSceneInfo()
 {
 }
 
-void FSkyAtmosphereRenderSceneInfo::PrepareSunLightProxy(FLightSceneInfo& SunLight) const
+void FSkyAtmosphereRenderSceneInfo::PrepareSunLightProxy(uint32 AtmosphereLightIndex, FLightSceneInfo& AtmosphereLight) const
 {
 	// See explanation in https://media.contentapi.ea.com/content/dam/eacom/frostbite/files/s2016-pbs-frostbite-sky-clouds-new.pdf page 26
 	const bool bAtmosphereAffectsSunIlluminance = true;
-	FLinearColor TransmittanceTowardSun = bAtmosphereAffectsSunIlluminance ? AtmosphereSetup.GetTransmittanceAtGroundLevel(-SunLight.Proxy->GetDirection()) : FLinearColor(FLinearColor::White);
+	const FVector AtmosphereLightDirection = GetAtmosphereLightDirection(AtmosphereLightIndex, -AtmosphereLight.Proxy->GetDirection());
+	FLinearColor TransmittanceTowardSun = bAtmosphereAffectsSunIlluminance ? AtmosphereSetup.GetTransmittanceAtGroundLevel(AtmosphereLightDirection) : FLinearColor(FLinearColor::White);
 	FLinearColor TransmittanceAtZenithFinal = bAtmosphereAffectsSunIlluminance ? TransmittanceAtZenith : FLinearColor(FLinearColor::White);
 
-	FLinearColor SunZenithIlluminance = SunLight.Proxy->GetColor();
+	FLinearColor SunZenithIlluminance = AtmosphereLight.Proxy->GetColor();
 	FLinearColor SunOuterSpaceIlluminance = SunZenithIlluminance / TransmittanceAtZenithFinal;
-	FLinearColor SunDiskOuterSpaceLuminance = GetLightDiskLuminance(SunLight, SunOuterSpaceIlluminance);
+	FLinearColor SunDiskOuterSpaceLuminance = GetLightDiskLuminance(AtmosphereLight, SunOuterSpaceIlluminance);
 
-	SunLight.Proxy->SetAtmosphereRelatedProperties(TransmittanceTowardSun / TransmittanceAtZenithFinal, SunDiskOuterSpaceLuminance);
+	AtmosphereLight.Proxy->SetAtmosphereRelatedProperties(TransmittanceTowardSun / TransmittanceAtZenithFinal, SunDiskOuterSpaceLuminance);
 }
 
 FTextureRHIRef FSkyAtmosphereRenderSceneInfo::GetDistantSkyLightLutTextureRHI()
@@ -372,7 +375,25 @@ FTextureRHIRef FSkyAtmosphereRenderSceneInfo::GetDistantSkyLightLutTextureRHI()
 	return GBlackTexture->TextureRHI;
 }
 
+void FSkyAtmosphereRenderSceneInfo::OverrideAtmosphereLightDirection(const class USkyAtmosphereComponent* SkyAtmosphereComponent, int32 AtmosphereLightIndex, const FVector& LightDirection)
+{
+	if (SkyAtmosphereComponent == Component_DoNotDereference)
+	{
+		check(AtmosphereLightIndex >= 0 && AtmosphereLightIndex < NUM_ATMOSPHERE_LIGHTS);
+		AtmosphereLightIndex = FMath::Clamp(AtmosphereLightIndex, 0, NUM_ATMOSPHERE_LIGHTS - 1);	// To make sure we do not crash, blueprint function cannot enforce input ranges
+		OverrideAtmosphericLight[AtmosphereLightIndex] = true;
+		OverrideAtmosphericLightDirection[AtmosphereLightIndex] = LightDirection;
+	}
+}
 
+FVector FSkyAtmosphereRenderSceneInfo::GetAtmosphereLightDirection(int32 AtmosphereLightIndex, const FVector& DefaultDirection) const
+{
+	if (OverrideAtmosphericLight[AtmosphereLightIndex])
+	{
+		return OverrideAtmosphericLightDirection[AtmosphereLightIndex];
+	}
+	return DefaultDirection;
+}
 
 /*=============================================================================
 	FScene functions
@@ -418,6 +439,22 @@ void FScene::RemoveSkyAtmosphere(const USkyAtmosphereComponent* SkyAtmosphereCom
 				Scene->SkyAtmosphere = NULL;
 			}
 		} );
+}
+
+void FScene::OverrideSkyAtmosphereLightDirection(const class USkyAtmosphereComponent* SkyAtmosphereComponent, int32 AtmosphereLightIndex, const FVector& InLightDirection)
+{
+	FScene* Scene = this;
+	FVector LightDirection = InLightDirection;
+	LightDirection.Normalize();
+	ENQUEUE_RENDER_COMMAND(FOverrideSkyAtmosphereLightDirection)(
+		[Scene, SkyAtmosphereComponent, AtmosphereLightIndex, LightDirection](FRHICommandListImmediate& RHICmdList)
+	{
+		FSkyAtmosphereRenderSceneInfo* SkyInfo = Scene->GetSkyAtmosphereSceneInfo();
+		if (SkyInfo)
+		{
+			SkyInfo->OverrideAtmosphereLightDirection(SkyAtmosphereComponent, AtmosphereLightIndex, LightDirection);
+		}
+	});
 }
 
 void FScene::ResetAtmosphereLightsProperties()
