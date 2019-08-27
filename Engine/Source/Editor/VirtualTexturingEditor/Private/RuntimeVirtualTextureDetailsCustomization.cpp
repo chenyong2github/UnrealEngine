@@ -8,6 +8,7 @@
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "RuntimeVirtualTextureBuild.h"
+#include "ScopedTransaction.h"
 #include "SResetToDefaultMenu.h"
 #include "VT/RuntimeVirtualTexture.h"
 #include "Widgets/Input/SButton.h"

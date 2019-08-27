@@ -2,6 +2,8 @@
 
 #include "VT/VirtualTextureBuildSettings.h"
 
+#include "HAL/IConsoleManager.h"
+
 static TAutoConsoleVariable<int32> CVarVTCompressCrunch(
 	TEXT("r.VT.EnableCompressCrunch"),
 	0,
