@@ -83,6 +83,9 @@ public:
 	/** Get the currently selected set of nodes */
 	virtual TSet<UObject*> GetSelectedNodes() const {return TSet<UObject*>();}
 
+	/** Get the visible bounds of the given graph node */
+	virtual void GetBoundsForNode(const UEdGraphNode* InNode, class FSlateRect& OutRect, float InPadding) const {};
+
 	/**
 	 * Gets the preview for an expression
 	 *

@@ -4329,6 +4329,15 @@ FGraphPanelSelectionSet FMaterialEditor::GetSelectedNodes() const
 	return CurrentSelection;
 }
 
+void FMaterialEditor::GetBoundsForNode(const UEdGraphNode* InNode, class FSlateRect& OutRect, float InPadding) const
+{
+	if (GraphEditor.IsValid())
+	{
+		GraphEditor->GetBoundsForNode(InNode, OutRect, InPadding);
+	}
+}
+
+
 FMatExpressionPreview* FMaterialEditor::GetExpressionPreview(UMaterialExpression* InExpression)
 {
 	bool bNewlyCreated;
