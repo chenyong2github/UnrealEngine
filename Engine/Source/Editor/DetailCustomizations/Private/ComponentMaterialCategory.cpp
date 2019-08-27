@@ -165,7 +165,11 @@ void FComponentMaterialCategory::Create( IDetailLayoutBuilder& DetailBuilder )
 	FMaterialListDelegates MaterialListDelegates;
 	MaterialListDelegates.OnGetMaterials.BindSP( this, &FComponentMaterialCategory::OnGetMaterialsForView );
 	MaterialListDelegates.OnMaterialChanged.BindSP( this, &FComponentMaterialCategory::OnMaterialChanged );
-	TSharedRef<FMaterialList> MaterialList = MakeShareable( new FMaterialList( DetailBuilder, MaterialListDelegates ) );
+	
+	//Pass an empty material list owner (owner can be use by the asset picker filter. In this case we do not need it)
+	TArray<FAssetData> MaterialListOwner;
+
+	TSharedRef<FMaterialList> MaterialList = MakeShareable( new FMaterialList( DetailBuilder, MaterialListDelegates, MaterialListOwner) );
 
 	bool bAnyMaterialsToDisplay = false;
 
