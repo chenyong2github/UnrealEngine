@@ -2907,8 +2907,14 @@ void FAudioDevice::SetListenerAttenuationOverride(const FVector AttenuationPosit
 	FAudioDevice* AudioDevice = this;
 	FAudioThread::RunCommandOnAudioThread([AudioDevice, AttenuationPosition]()
 	{
+		const bool bPrevAttenuationOverride = AudioDevice->bUseListenerAttenuationOverride;
 		AudioDevice->bUseListenerAttenuationOverride = true;
 		AudioDevice->ListenerAttenuationOverride = AttenuationPosition;
+
+		if (!bPrevAttenuationOverride)
+		{
+			AudioDevice->UpdateVirtualLoops(true);
+		}
 	}, GET_STATID(STAT_AudioSetListenerAttenuationOverride));
 }
 
@@ -2927,6 +2933,7 @@ void FAudioDevice::ClearListenerAttenuationOverride()
 	FAudioThread::RunCommandOnAudioThread([AudioDevice]()
 	{
 		AudioDevice->bUseListenerAttenuationOverride = false;
+		AudioDevice->UpdateVirtualLoops(true);
 	}, GET_STATID(STAT_AudioClearListenerAttenuationOverride));
 }
 
