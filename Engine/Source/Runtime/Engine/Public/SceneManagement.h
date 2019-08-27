@@ -1325,6 +1325,7 @@ public:
 	inline bool CastsShadowsFromCinematicObjectsOnly() const { return bCastShadowsFromCinematicObjectsOnly; }
 	inline bool CastsModulatedShadows() const { return bCastModulatedShadows; }
 	inline const FLinearColor& GetModulatedShadowColor() const { return ModulatedShadowColor; }
+	inline const float GetShadowAmount() const { return ShadowAmount; }
 	inline bool AffectsTranslucentLighting() const { return bAffectTranslucentLighting; }
 	inline bool Transmission() const { return bTransmission; }
 	inline bool UseRayTracedDistanceFieldShadows() const { return bUseRayTracedDistanceFieldShadows; }
@@ -1542,6 +1543,9 @@ protected:
 	
 	/** Modulated shadow color. */
 	FLinearColor ModulatedShadowColor;
+
+	/** Control the amount of shadow occlusion. */
+	float ShadowAmount;
 
 	/** Samples per pixel for ray tracing */
 	uint32 SamplesPerPixel;

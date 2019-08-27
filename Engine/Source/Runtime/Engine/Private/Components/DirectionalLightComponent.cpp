@@ -175,6 +175,7 @@ public:
 		}
 		bCastModulatedShadows = Component->bCastModulatedShadows;
 		ModulatedShadowColor = FLinearColor(Component->ModulatedShadowColor);
+		ShadowAmount = Component->ShadowAmount;
 	}
 
 	void UpdateLightShaftOverrideDirection_GameThread(const UDirectionalLightComponent* Component)
@@ -819,6 +820,7 @@ UDirectionalLightComponent::UDirectionalLightComponent(const FObjectInitializer&
 	bCastVolumetricShadow = true;
 
 	ModulatedShadowColor = FColor(128, 128, 128);
+	ShadowAmount = 1.0f;
 }
 
 #if WITH_EDITOR
@@ -845,6 +847,7 @@ void UDirectionalLightComponent::PostEditChangeProperty(FPropertyChangedEvent& P
 	// max range is larger than UI
 	ShadowBias = FMath::Clamp(ShadowBias, 0.0f, 10.0f);
 	ShadowSlopeBias = FMath::Clamp(ShadowSlopeBias, 0.0f, 10.0f);
+	ShadowAmount = FMath::Clamp(ShadowAmount, 0.0f, 1.0f);
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
@@ -1033,6 +1036,16 @@ void UDirectionalLightComponent::SetLightShaftOverrideDirection(FVector NewValue
 			FDirectionalLightSceneProxy* DirectionalLightSceneProxy = (FDirectionalLightSceneProxy*)SceneProxy;
 			DirectionalLightSceneProxy->UpdateLightShaftOverrideDirection_GameThread(this);
 		}
+	}
+}
+
+void UDirectionalLightComponent::SetShadowAmount(float NewValue)
+{
+	if (AreDynamicDataChangesAllowed()
+		&& ShadowAmount != NewValue)
+	{
+		ShadowAmount = NewValue;
+		MarkRenderStateDirty();
 	}
 }
 
