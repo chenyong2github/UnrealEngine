@@ -32,8 +32,10 @@ struct FBuildOptions
 	UNREALED_API static const FName BuildAllOnlySelectedPaths;
 	/** Build Hierarchical LOD system - need WorldSetting setup*/
 	UNREALED_API static const FName BuildHierarchicalLOD;
-	/** Build Hierarchical LOD system - need WorldSetting setup*/
+	/** Build texture streaming */
 	UNREALED_API static const FName BuildTextureStreaming;
+	/** Build virtual textures */
+	UNREALED_API static const FName BuildVirtualTexture;
 };
 /**
  * Result of a custom editor build.
@@ -150,6 +152,15 @@ public:
 	* @return	true if any packages were dirtied in the process.
 	*/
 	static UNREALED_API bool EditorBuildMaterialTextureStreamingData(UPackage* Package);
+
+	/**
+	 * Perform an editor build for virtual textures
+	 *
+	 * @param	InWorld				WorldContext
+	 *
+	 * @return	true if the build completed successfully; false if it did not (or was manually canceled)
+	 */
+	static UNREALED_API bool EditorBuildVirtualTexture(UWorld* InWorld);
 
 	/** 
 	* check if navigation build was was triggered from editor as user request

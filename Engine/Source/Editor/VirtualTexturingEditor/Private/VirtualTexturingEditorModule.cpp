@@ -5,6 +5,7 @@
 #include "IPlacementModeModule.h"
 #include "PropertyEditorModule.h"
 #include "RuntimeVirtualTextureAssetTypeActions.h"
+#include "RuntimeVirtualTextureBuild.h"
 #include "RuntimeVirtualTextureDetailsCustomization.h"
 #include "RuntimeVirtualTextureThumbnailRenderer.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
@@ -12,6 +13,25 @@
 #include "VT/RuntimeVirtualTextureVolume.h"
 
 #define LOCTEXT_NAMESPACE "VirtualTexturingEditorModule"
+
+/** Concrete implementation of the IVirtualTexturingEditorModule interface. */
+class FVirtualTexturingEditorModule : public IVirtualTexturingEditorModule
+{
+public:
+	//~ Begin IModuleInterface Interface.
+	virtual void StartupModule() override;
+	virtual void ShutdownModule() override;
+	virtual bool SupportsDynamicReloading() override;
+	//~ End IModuleInterface Interface.
+
+	//~ Begin IVirtualTexturingEditorModule Interface.
+	virtual bool HasStreamedMips(URuntimeVirtualTextureComponent* InComponent) const override;
+	virtual bool BuildStreamedMips(URuntimeVirtualTextureComponent* InComponent) const override;
+	//~ End IVirtualTexturingEditorModule Interface.
+
+private:
+	void OnPlacementModeRefresh(FName CategoryName);
+};
 
 IMPLEMENT_MODULE(FVirtualTexturingEditorModule, VirtualTexturingEditor);
 
@@ -51,6 +71,16 @@ void FVirtualTexturingEditorModule::OnPlacementModeRefresh(FName CategoryName)
 		IPlacementModeModule& PlacementModeModule = IPlacementModeModule::Get();
 		PlacementModeModule.RegisterPlaceableItem(CategoryName, MakeShareable(new FPlaceableItem(nullptr, FAssetData(ARuntimeVirtualTextureVolume::StaticClass()))));
 	}
+}
+
+bool FVirtualTexturingEditorModule::HasStreamedMips(URuntimeVirtualTextureComponent* InComponent) const
+{
+	return RuntimeVirtualTexture::HasStreamedMips(InComponent);
+}
+
+bool FVirtualTexturingEditorModule::BuildStreamedMips(URuntimeVirtualTextureComponent* InComponent) const
+{
+	return RuntimeVirtualTexture::BuildStreamedMips(InComponent, ERuntimeVirtualTextureDebugType::None);
 }
 
 #undef LOCTEXT_NAMESPACE
