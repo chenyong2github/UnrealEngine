@@ -56,39 +56,134 @@ namespace UnrealBuildTool
 			}
 
 			// Generate the documentation file
-			using (StreamWriter Writer = new StreamWriter(OutputFile.FullName))
+			if (OutputFile.HasExtension(".udn"))
 			{
-				Writer.WriteLine("<html>");
-				Writer.WriteLine("  <body>");
-				if(ReadOnlyFields.Count > 0)
-				{
-					Writer.WriteLine("    <h2>Read-Only Properties</h2>");
-					Writer.WriteLine("    <dl>");
-					foreach(FieldInfo Field in ReadOnlyFields)
-					{
-						OutputField(InputDocumentation, Field, Writer);
-					}
-					Writer.WriteLine("    </dl>");
-				}
-				if(ReadWriteFields.Count > 0)
-				{
-					Writer.WriteLine("    <h2>Read/Write Properties</h2>");
-					Writer.WriteLine("    <dl>");
-					foreach(FieldInfo Field in ReadWriteFields)
-					{
-						OutputField(InputDocumentation, Field, Writer);
-					}
-					Writer.WriteLine("    </dl>");
-				}
-				Writer.WriteLine("  </body>");
-				Writer.WriteLine("</html>");
+				WriteDocumentationUDN(OutputFile, ReadOnlyFields, ReadWriteFields, InputDocumentation);
+			}
+			else if (OutputFile.HasExtension(".html"))
+			{
+				WriteDocumentationHTML(OutputFile, ReadOnlyFields, ReadWriteFields, InputDocumentation);
+			}
+			else
+			{
+				throw new BuildException("Unable to detect format from extension of output file ({0})", OutputFile);
 			}
 
 			// Success!
 			Log.TraceInformation("Written documentation to {0}.", OutputFile);
 		}
 
-		static void OutputField(XmlDocument InputDocumentation, FieldInfo Field, TextWriter Writer)
+		static void WriteDocumentationUDN(FileReference OutputFile, List<FieldInfo> ReadOnlyFields, List<FieldInfo> ReadWriteFields, XmlDocument InputDocumentation)
+		{
+			// Generate the UDN documentation file
+			using (StreamWriter Writer = new StreamWriter(OutputFile.FullName))
+			{
+				Writer.WriteLine("Availability: NoPublish");
+				Writer.WriteLine("Title: Build Configuration Properties Page");
+				Writer.WriteLine("Crumbs:");
+				Writer.WriteLine("Description: This is a procedurally generated markdown page.");
+				Writer.WriteLine("Version: {0}.{1}", ReadOnlyBuildVersion.Current.MajorVersion, ReadOnlyBuildVersion.Current.MinorVersion);
+				Writer.WriteLine("");
+				if (ReadOnlyFields.Count > 0)
+				{
+					Writer.WriteLine("### Read-Only Properties");
+					Writer.WriteLine();
+					foreach (FieldInfo Field in ReadOnlyFields)
+					{
+						WriteFieldUDN(InputDocumentation, Field, Writer);
+					}
+					Writer.WriteLine();
+				}
+				if (ReadWriteFields.Count > 0)
+				{
+					Writer.WriteLine("### Read/Write Properties");
+					foreach (FieldInfo Field in ReadWriteFields)
+					{
+						WriteFieldUDN(InputDocumentation, Field, Writer);
+					}
+					Writer.WriteLine("");
+				}
+			}
+		}
+
+		static void WriteFieldUDN(XmlDocument InputDocumentation, FieldInfo Field, TextWriter Writer)
+		{
+			XmlNode Node = InputDocumentation.SelectSingleNode(String.Format("//member[@name='F:{0}.{1}']/summary", Field.DeclaringType.FullName, Field.Name));
+			if (Node != null)
+			{
+				// Reflow the comments into paragraphs, assuming that each paragraph will be separated by a blank line
+				List<string> Lines = new List<string>(Node.InnerText.Trim().Split('\n').Select(x => x.Trim()));
+				for (int Idx = Lines.Count - 1; Idx > 0; Idx--)
+				{
+					if (Lines[Idx - 1].Length > 0 && !Lines[Idx].StartsWith("*") && !Lines[Idx].StartsWith("-"))
+					{
+						Lines[Idx - 1] += " " + Lines[Idx];
+						Lines.RemoveAt(Idx);
+					}
+				}
+
+				// Write the values of the enum
+				/*				if(Field.FieldType.IsEnum)
+								{
+									Lines.Add("Valid values are:");
+									foreach(string Value in Enum.GetNames(Field.FieldType))
+									{
+										Lines.Add(String.Format("* {0}.{1}", Field.FieldType.Name, Value));
+									}
+								}
+				*/
+				// Write the result to the .udn file
+				if (Lines.Count > 0)
+				{
+					Writer.WriteLine("$ {0} ({1}): {2}", Field.Name, GetPrettyTypeName(Field.FieldType), Lines[0]);
+					for (int Idx = 1; Idx < Lines.Count; Idx++)
+					{
+						if (Lines[Idx].StartsWith("*") || Lines[Idx].StartsWith("-"))
+						{
+							Writer.WriteLine("        * {0}", Lines[Idx].Substring(1).TrimStart());
+						}
+						else
+						{
+							Writer.WriteLine("    * {0}", Lines[Idx]);
+						}
+					}
+					Writer.WriteLine();
+				}
+			}
+		}
+
+		static void WriteDocumentationHTML(FileReference OutputFile, List<FieldInfo> ReadOnlyFields, List<FieldInfo> ReadWriteFields, XmlDocument InputDocumentation)
+		{
+			using (StreamWriter Writer = new StreamWriter(OutputFile.FullName))
+			{
+				Writer.WriteLine("<html>");
+				Writer.WriteLine("  <body>");
+				if (ReadOnlyFields.Count > 0)
+				{
+					Writer.WriteLine("    <h2>Read-Only Properties</h2>");
+					Writer.WriteLine("    <dl>");
+					foreach (FieldInfo Field in ReadOnlyFields)
+					{
+						WriteFieldHTML(InputDocumentation, Field, Writer);
+					}
+					Writer.WriteLine("    </dl>");
+				}
+				if (ReadWriteFields.Count > 0)
+				{
+					Writer.WriteLine("    <h2>Read/Write Properties</h2>");
+					Writer.WriteLine("    <dl>");
+					foreach (FieldInfo Field in ReadWriteFields)
+					{
+						WriteFieldHTML(InputDocumentation, Field, Writer);
+					}
+					Writer.WriteLine("    </dl>");
+				}
+				Writer.WriteLine("  </body>");
+				Writer.WriteLine("</html>");
+			}
+		}
+
+		static void WriteFieldHTML(XmlDocument InputDocumentation, FieldInfo Field, TextWriter Writer)
 		{
 			XmlNode Node = InputDocumentation.SelectSingleNode(String.Format("//member[@name='F:{0}.{1}']/summary", Field.DeclaringType.FullName, Field.Name));
 			if(Node != null)
