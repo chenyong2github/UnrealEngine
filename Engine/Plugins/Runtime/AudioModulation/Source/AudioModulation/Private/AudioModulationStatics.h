@@ -11,6 +11,11 @@
 class USoundModulatorBus;
 class USoundModulatorBusMix;
 
+namespace AudioModulation
+{
+	class FAudioModulationImpl;
+} // namespace AudioModulation
+
 
 UCLASS()
 class UAudioModulationStatics : public UBlueprintFunctionLibrary

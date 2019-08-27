@@ -16,7 +16,6 @@ USoundModulatorLFO::USoundModulatorLFO(const FObjectInitializer& ObjectInitializ
 	, Offset(0.5f)
 	, bLooping(1)
 	, bAutoActivate(0)
-	, bAutoDeactivate(0)
 {
 }
 
@@ -53,8 +52,8 @@ namespace AudioModulation
 		: Id(0)
 		, Offset(0.0f)
 		, Value(0.0f)
-		, bIsActive(false)
-		, bAutoDeactivate(false)
+		, bAutoActivate(false)
+		, SoundRefCount(0)
 	{
 	}
 
@@ -65,8 +64,8 @@ namespace AudioModulation
 #endif // !UE_BUILD_SHIPPING
 		, Offset(InLFO.Offset)
 		, Value(0.0f)
-		, bIsActive(false)
-		, bAutoDeactivate(InLFO.bAutoDeactivate)
+		, bAutoActivate(InLFO.bAutoActivate)
+		, SoundRefCount(0)
 	{
 		LFO.SetGain(InLFO.Amplitude);
 		LFO.SetFrequency(InLFO.Frequency);
@@ -78,19 +77,14 @@ namespace AudioModulation
 		LFO.Start();
 	}
 
-	bool FModulatorLFOProxy::CanDeactivate() const
-	{
-		return !bIsActive && bAutoDeactivate;
-	}
-
-	void FModulatorLFOProxy::ClearIsActive()
-	{
-		bIsActive = false;
-	}
-
 	float FModulatorLFOProxy::GetAmplitude() const
 	{
 		return LFO.GetGain();
+	}
+
+	bool FModulatorLFOProxy::GetAutoActivate() const
+	{
+		return bAutoActivate;
 	}
 
 	float FModulatorLFOProxy::GetFreq() const
@@ -125,11 +119,6 @@ namespace AudioModulation
 		LFO.SetFrequency(InFreq);
 	}
 
-	void FModulatorLFOProxy::SetIsActive()
-	{
-		bIsActive = true;
-	}
-
 	void FModulatorLFOProxy::Update(float InElapsed)
 	{
 		if (InElapsed > 0.0f && LFO.GetFrequency() > 0.0f)
@@ -139,5 +128,19 @@ namespace AudioModulation
 			LFO.Update();
 			Value = LFO.Generate() + Offset;
 		}
+	}
+
+	int32 FModulatorLFOProxy::DecRefSound()
+	{
+		check(SoundRefCount > 0);
+		SoundRefCount--;
+
+		return SoundRefCount;
+	}
+
+	int32 FModulatorLFOProxy::IncRefSound()
+	{
+		SoundRefCount++;
+		return SoundRefCount;
 	}
 } // namespace AudioModulation

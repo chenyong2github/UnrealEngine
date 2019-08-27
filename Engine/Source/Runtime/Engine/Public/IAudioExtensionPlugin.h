@@ -521,25 +521,34 @@ struct FSoundModulationControls
 	}
 };
 
+/** Identifier active sound types currently playing (or virtualized) */
+using ModulationSoundId = uint32;
+
 class IAudioModulation
 {
 public:
 	/** Virtual destructor */
 	virtual ~IAudioModulation() { }
 
-	/** Initialize the modulation plugin with the same rate and number of sources. */
+	/** Initialize the modulation plugin with the same rate and number of sources */
 	virtual void Initialize(const FAudioPluginInitializationParams& InitializationParams) { }
 
 #if WITH_EDITOR
-	/** Allows modulation plugin to respond to settings updates when client is editing settings. */
+	/** Allows modulation plugin to respond to settings updates when client is editing settings */
 	virtual void OnEditSource(const USoundModulationPluginSourceSettingsBase& Settings) { }
 #endif // WITH_EDITOR
 
-	/** Called when a source is assigned to a voice. */
-	virtual void OnInitSource(const uint32 SourceId, const FName& AudioComponentUserId, const uint32 NumChannels, USoundModulationPluginSourceSettingsBase* Settings) { }
+	/** Called when a USoundBase type begins playing a sound */
+	virtual void OnInitSound(const ModulationSoundId SoundId, const USoundModulationPluginSourceSettingsBase& Settings) { }
 
-	/** Called when a source is done playing and is released. */
+	/** Called when a source is assigned to a voice */
+	virtual void OnInitSource(const uint32 SourceId, const FName& AudioComponentUserId, const uint32 NumChannels, const USoundModulationPluginSourceSettingsBase& Settings) { }
+
+	/** Called when a source is done playing and is released */
 	virtual void OnReleaseSource(const uint32 SourceId) { }
+
+	/** Called when a USoundBase type stops playing any sounds */
+	virtual void OnReleaseSound(const ModulationSoundId SoundId, const USoundModulationPluginSourceSettingsBase& Settings) { }
 
 #if !UE_BUILD_SHIPPING
 	/** Request to post help from active plugin (non-shipping builds only) */

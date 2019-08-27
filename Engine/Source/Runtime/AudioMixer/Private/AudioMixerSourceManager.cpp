@@ -613,7 +613,7 @@ namespace Audio
 		// Create the modulation plugin source effect
 		if (InitParams.ModulationPluginSettings != nullptr)
 		{
-			MixerDevice->ModulationInterface->OnInitSource(SourceId, InitParams.AudioComponentUserID, InitParams.NumInputChannels, InitParams.ModulationPluginSettings);
+			MixerDevice->ModulationInterface->OnInitSource(SourceId, InitParams.AudioComponentUserID, InitParams.NumInputChannels, *InitParams.ModulationPluginSettings);
 		}
 
 		AudioMixerThreadCommand([this, SourceId, InitParams]()

@@ -53,13 +53,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite)
 	uint8 bLooping : 1;
 
-	/** Automatically activates LFO when sounds are referencing it */
+	/** Automatically activates/deactivates LFO when sounds referencing LFO asset are playing */
 	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite)
 	uint8 bAutoActivate : 1;
-
-	/** Automatically deactivates LFO when no sounds are referencing it */
-	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite)
-	uint8 bAutoDeactivate : 1;
 };
 
 namespace AudioModulation
@@ -70,9 +66,8 @@ namespace AudioModulation
 		FModulatorLFOProxy();
 		FModulatorLFOProxy(const USoundModulatorLFO& InLFO);
 
-		bool CanDeactivate() const;
-		void ClearIsActive();
 		float GetAmplitude() const;
+		bool GetAutoActivate() const;
 		float GetFreq() const;
 		LFOId GetId() const;
 #if !UE_BUILD_SHIPPING
@@ -81,8 +76,10 @@ namespace AudioModulation
 		float GetOffset() const;
 		float GetValue() const;
 		void SetFreq(float InFreq);
-		void SetIsActive();
 		void Update(float InElapsed);
+
+		int32 DecRefSound();
+		int32 IncRefSound();
 
 	private:
 		LFOId Id;
@@ -95,9 +92,8 @@ namespace AudioModulation
 		float Offset;
 		float Value;
 
-		uint8 bLimitedLifetime : 1;
-		uint8 bIsActive : 1;
-		uint8 bAutoDeactivate : 1;
+		uint8 bAutoActivate : 1;
+		int32 SoundRefCount;
 	};
 	using LFOProxyMap = TMap<BusId, FModulatorLFOProxy>;
 } // namespace AudioModulation

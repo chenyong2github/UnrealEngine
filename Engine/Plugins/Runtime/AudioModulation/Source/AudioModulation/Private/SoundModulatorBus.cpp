@@ -13,7 +13,6 @@
 USoundModulatorBusBase::USoundModulatorBusBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bAutoActivate(0)
-	, bAutoDeactivate(0)
 	, DefaultValue(1.0f)
 	, Min(0.0f)
 	, Max(1.0f)
@@ -119,7 +118,8 @@ namespace AudioModulation
 		, MixValue(NAN)
 		, Operator(ESoundModulatorOperator::Multiply)
 		, Range(0.0f, 1.0f)
-		, bAutoDeactivate(false) 
+		, bAutoActivate(false)
+		, SoundRefCount(0)
 	{
 	}
 
@@ -133,7 +133,8 @@ namespace AudioModulation
 		, MixValue(NAN)
 		, Operator(Bus.GetOperator())
 		, Range(Bus.Min, Bus.Max)
-		, bAutoDeactivate(Bus.bAutoDeactivate)
+		, bAutoActivate(Bus.bAutoActivate)
+		, SoundRefCount(0)
 	{
 		if (Bus.Min > Bus.Max)
 		{
@@ -153,9 +154,9 @@ namespace AudioModulation
 		}
 	}
 
-	bool FModulatorBusProxy::CanDeactivate() const
+	bool FModulatorBusProxy::GetAutoActivate() const
 	{
-		return bAutoDeactivate;
+		return bAutoActivate;
 	}
 
 	AudioModulation::BusId FModulatorBusProxy::GetBusId() const
@@ -251,7 +252,6 @@ namespace AudioModulation
 		{
 			if (FModulatorLFOProxy* LFOProxy = LFOMap.Find(LFOId))
 			{
-				LFOProxy->SetIsActive();
 				LFOValue *= LFOProxy->GetValue();
 			}
 		}
@@ -271,5 +271,16 @@ namespace AudioModulation
 	void FModulatorBusProxy::SetRange(const FVector2D& InRange)
 	{
 		Range = InRange;
+	}
+
+	int32 FModulatorBusProxy::DecRefSound()
+	{
+		check(SoundRefCount > 0);
+		return SoundRefCount--;
+	}
+
+	int32 FModulatorBusProxy::IncRefSound()
+	{
+		return SoundRefCount++;
 	}
 } // namespace AudioModulation

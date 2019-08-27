@@ -60,15 +60,16 @@ namespace AudioModulation
 	{
 		enum class BusMixStatus : uint8
 		{
-			Active,
+			Enabled,
 			Stopping,
 			Stopped
 		};
 
 		FModulatorBusMixProxy(const USoundModulatorBusMix& Mix);
 
-		bool CanDeactivate() const;
-		void SetActive();
+		bool CanDestroy() const;
+		bool GetAutoActivate() const;
+		void SetEnabled();
 		void SetStopping();
 		void Update(const float Elapsed, BusProxyMap& ProxyMap);
 
@@ -76,14 +77,19 @@ namespace AudioModulation
 		const FString& GetName() const;
 #endif // !UE_BUILD_SHIPPING
 
+		int32 IncRefSound();
+		int32 DecRefSound();
+
 		TMap<BusId, FModulatorBusMixChannelProxy> Channels;
 
 	private:
+		BusMixStatus Status;
+		int32 SoundRefCount;
+		uint8 bAutoActivate : 1;
+
 #if !UE_BUILD_SHIPPING
 		FString Name;
 #endif // !UE_BUILD_SHIPPING
-
-		BusMixStatus Status;
 	};
 	using BusMixProxyMap = TMap<BusMixId, FModulatorBusMixProxy>;
 } // namespace AudioModulation

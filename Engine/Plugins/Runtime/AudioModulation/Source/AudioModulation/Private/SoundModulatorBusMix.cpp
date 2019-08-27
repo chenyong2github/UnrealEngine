@@ -65,12 +65,12 @@ namespace AudioModulation
 	}
 
 	FModulatorBusMixProxy::FModulatorBusMixProxy(const USoundModulatorBusMix& Mix)
+		: Status(BusMixStatus::Enabled)
+		, SoundRefCount(0)
+		, bAutoActivate(0)
 #if UE_BUILD_SHIPPING
-		: Status(BusMixStatus::Active)
-#else
-		: Name(Mix.GetName())
-		, Status(BusMixStatus::Active)
-#endif // !UE_BUILD_SHIPPING
+		, Name(Mix.GetName())
+#endif // UE_BUILD_SHIPPING
 	{
 		for (const FSoundModulatorBusMixChannel& Channel : Mix.Channels)
 		{
@@ -84,7 +84,7 @@ namespace AudioModulation
 						TEXT("USoundModulatorBusMix '%s' already contains bus '%s'. Only one representative channel for this bus added."),
 						*Mix.GetFullName(), *Channel.Bus->GetFullName());
 				}
-#endif // !UE_BUILD_SHIPPING
+#endif // UE_BUILD_SHIPPING
 				Channels.Emplace(BusMixId, FModulatorBusMixChannelProxy(Channel));
 			}
 			else
@@ -97,19 +97,29 @@ namespace AudioModulation
 		}
 	}
 
-	bool FModulatorBusMixProxy::CanDeactivate() const
+	bool FModulatorBusMixProxy::CanDestroy() const
 	{
-		return Status == BusMixStatus::Stopped;
+		if (Status != BusMixStatus::Stopped)
+		{
+			return false;
+		}
+
+		return !bAutoActivate || (bAutoActivate && SoundRefCount == 0);
 	}
 
-	void FModulatorBusMixProxy::SetActive()
+	bool FModulatorBusMixProxy::GetAutoActivate() const
 	{
-		Status = BusMixStatus::Active;
+		return bAutoActivate;
+	}
+
+	void FModulatorBusMixProxy::SetEnabled()
+	{
+		Status = BusMixStatus::Enabled;
 	}
 
 	void FModulatorBusMixProxy::SetStopping()
 	{
-		if (Status == BusMixStatus::Active)
+		if (Status == BusMixStatus::Enabled)
 		{
 			Status = BusMixStatus::Stopping;
 		}
@@ -156,4 +166,15 @@ namespace AudioModulation
 		return Name;
 	}
 #endif // !UE_BUILD_SHIPPING
+
+	int32 FModulatorBusMixProxy::DecRefSound()
+	{
+		check(SoundRefCount > 0);
+		return SoundRefCount--;
+	}
+
+	int32 FModulatorBusMixProxy::IncRefSound()
+	{
+		return SoundRefCount++;
+	}
 } // namespace AudioModulation
