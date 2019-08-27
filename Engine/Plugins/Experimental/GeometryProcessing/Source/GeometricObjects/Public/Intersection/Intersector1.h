@@ -69,7 +69,7 @@ public:
 	 */
 	bool Find()
 	{
-		if (U.Max < V.Min || U.Min > V.Max) 
+		if ((U.Max < V.Min) || (U.Min > V.Max))
 		{
 			NumIntersections = 0;
 		}
