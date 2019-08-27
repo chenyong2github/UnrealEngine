@@ -40,11 +40,13 @@ public:
 	void SetGazeTargetType(OculusAvatarGazeTargetType type) { TargetType = type; }
 	void SetAvatarHeadTransform(const FTransform& trans) { AvatarHeadTransform = trans; }
 private:
+	void HandleShutdownEvent();
 	const FTransform& GetGazeTransform() const;
 	ovrAvatarGazeTargetType ConvertEditorTypeToNativeType() const;
 
 	TWeakObjectPtr<USceneComponent> GazeTransform = nullptr;
 	ovrAvatarGazeTargetSet NativeTarget;
 	FTransform AvatarHeadTransform = FTransform::Identity;
-	bool IsEnabled = false;
+	bool bIsEnabled = false;
+	bool bShuttingDown = false;
 };
