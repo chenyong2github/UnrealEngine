@@ -2141,7 +2141,7 @@ void FGlobalTabmanager::OnTabRelocated( const TSharedRef<SDockTab>& RelocatedTab
 			for (int32 DockAreaIndex=0; DockAreaIndex < LiveDockAreas.Num(); ++DockAreaIndex)
 			{
 				const TSharedRef<SDockingArea>& ChildDockArea = LiveDockAreas[ DockAreaIndex ].Pin().ToSharedRef();
-				const TSharedPtr<SWindow>& OldChildWindow = ChildDockArea->GetParentWindow();
+				const TSharedPtr<SWindow> OldChildWindow = ChildDockArea->GetParentWindow();
 				if ( OldChildWindow.IsValid() )
 				{
 					TSharedRef<SWindow> NewChildWindow = SNew(SWindow)
