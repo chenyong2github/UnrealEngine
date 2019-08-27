@@ -2763,21 +2763,6 @@ void ULandscapeSplineSegment::FindNearest( const FVector& InLocation, float& t, 
 	OutTangent = SplineInfo.EvalDerivative(t, FVector::ZeroVector);
 }
 
-bool ULandscapeSplineSegment::Modify(bool bAlwaysMarkDirty /*= true*/)
-{
-	bool bSavedToTransactionBuffer = Super::Modify(bAlwaysMarkDirty);
-
-	//for (auto MeshComponent : MeshComponents)
-	//{
-	//	if (MeshComponent)
-	//	{
-	//		bSavedToTransactionBuffer = MeshComponent->Modify(bAlwaysMarkDirty) || bSavedToTransactionBuffer;
-	//	}
-	//}
-
-	return bSavedToTransactionBuffer;
-}
-
 #if WITH_EDITOR
 void ULandscapeSplineSegment::PostEditUndo()
 {
