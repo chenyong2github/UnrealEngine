@@ -710,7 +710,7 @@ protected:
 
 private:
 
-	void UpdateFastPathVisibility(bool bParentVisible, bool bWidgetRemoved);
+	void UpdateFastPathVisibility(bool bParentVisible, bool bWidgetRemoved, FHittestGrid* ParentHittestGrid);
 
 	void UpdateFastPathVolatility(bool bParentVolatile);
 
