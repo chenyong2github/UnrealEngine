@@ -7296,6 +7296,7 @@ bool FSequencer::PasteSections(const FString& TextToImport, TArray<FNotification
 				Section->Rename(nullptr, Track);
 				Track->AddSection(*Section);
 				Section->SetRowIndex(MovieSceneToolHelpers::FindAvailableRowIndex(Track, Section));
+				TrackNode->SetExpansionState(true);
 
 				if (Section->HasStartFrame())
 				{
