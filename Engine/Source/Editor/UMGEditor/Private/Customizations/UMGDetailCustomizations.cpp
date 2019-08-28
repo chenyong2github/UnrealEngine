@@ -285,11 +285,6 @@ void FBlueprintWidgetCustomization::CustomizeDetails( IDetailLayoutBuilder& Deta
 	static const FName LayoutCategoryKey(TEXT("Layout"));
 	static const FName LocalizationCategoryKey(TEXT("Localization"));
 
-	static const FName AccessibleBehaviorKey(TEXT("AccessibleBehavior"));
-	static const FName AccessibleTextKey(TEXT("AccessibleText"));
-	static const FName AccessibleSummaryBehaviorKey(TEXT("AccessibleSummaryBehavior"));
-	static const FName AccessibleSummaryTextKey(TEXT("AccessibleSummaryText"));
-
 	DetailLayout.EditCategory(LocalizationCategoryKey, FText::GetEmpty(), ECategoryPriority::Uncommon);
 
 	TArray< TWeakObjectPtr<UObject> > OutObjects;
@@ -314,9 +309,7 @@ void FBlueprintWidgetCustomization::CustomizeDetails( IDetailLayoutBuilder& Deta
 		}
 	}
 
-	CustomizeAccessibilityProperty(DetailLayout, AccessibleBehaviorKey, AccessibleTextKey);
-	CustomizeAccessibilityProperty(DetailLayout, AccessibleSummaryBehaviorKey, AccessibleSummaryTextKey);
-
+	PerformAccessibilityCustomization(DetailLayout);
 	PerformBindingCustomization(DetailLayout);
 }
 
@@ -352,24 +345,28 @@ void FBlueprintWidgetCustomization::PerformBindingCustomization(IDetailLayoutBui
 	}
 }
 
+void FBlueprintWidgetCustomization::PerformAccessibilityCustomization(IDetailLayoutBuilder& DetailLayout)
+{
+	// We have to add these properties even though we're not customizing to preserve UI ordering
+	DetailLayout.EditCategory("Accessibility").AddProperty("bOverrideAccessibleDefaults");
+	DetailLayout.EditCategory("Accessibility").AddProperty("bCanChildrenBeAccessible");
+	CustomizeAccessibilityProperty(DetailLayout, "AccessibleBehavior", "AccessibleText");
+	CustomizeAccessibilityProperty(DetailLayout, "AccessibleSummaryBehavior", "AccessibleSummaryText");
+}
+
 void FBlueprintWidgetCustomization::CustomizeAccessibilityProperty(IDetailLayoutBuilder& DetailLayout, const FName& BehaviorPropertyName, const FName& TextPropertyName)
 {
-	static const FName AccessibilityCategoryKey(TEXT("Accessibility"));
-
-	// Treat the *Behavior property as the "base" property for the row, and then add the *Text properties to the end of it.
-	IDetailCategoryBuilder& AccessibilityCategory = DetailLayout.EditCategory(AccessibilityCategoryKey);
+	// Treat AccessibleBehavior as the "base" property for the row, and then add the AccessibleText binding to the end of it.
 	TSharedRef<IPropertyHandle> AccessibleBehaviorPropertyHandle = DetailLayout.GetProperty(BehaviorPropertyName);
-	IDetailPropertyRow& AccessibilityRow = AccessibilityCategory.AddProperty(AccessibleBehaviorPropertyHandle);
+	IDetailPropertyRow& AccessibilityRow = DetailLayout.EditCategory("Accessibility").AddProperty(AccessibleBehaviorPropertyHandle);
 
 	TSharedRef<IPropertyHandle> AccessibleTextPropertyHandle = DetailLayout.GetProperty(TextPropertyName);
-	// Make sure the old *Text properties are hidden so we don't get duplicate widgets
+	// Make sure the old AccessibleText properties are hidden so we don't get duplicate widgets
 	DetailLayout.HideProperty(AccessibleTextPropertyHandle);
-	// The *Text properties are put into an HBox which will consist of the text box and the delegate's combo box.
-	// The combo box may not always be valid for the current selection, as its creation is determined by the ExtensionHandler.
+
 	TSharedRef<SHorizontalBox> CustomTextLayout = SNew(SHorizontalBox)
 	.Visibility(TAttribute<EVisibility>::Create([AccessibleBehaviorPropertyHandle]() -> EVisibility
 	{
-		// Toggle the visibility of the *Text properties on only if the *Behavior property is set to Custom
 		uint8 Behavior = 0;
 		AccessibleBehaviorPropertyHandle->GetValue(Behavior);
 		return (ESlateAccessibleBehavior)Behavior == ESlateAccessibleBehavior::Custom ? EVisibility::Visible : EVisibility::Hidden;
@@ -381,14 +378,12 @@ void FBlueprintWidgetCustomization::CustomizeAccessibilityProperty(IDetailLayout
 	];
 
 	TSharedRef<SWidget> ExtensionWidget = const_cast<IDetailsView*>(DetailLayout.GetDetailsView())->GetExtensionHandler()->GenerateExtensionWidget(UWidget::StaticClass(), AccessibleTextPropertyHandle);
-	if (ExtensionWidget != SNullWidget::NullWidget)
-	{
-		CustomTextLayout->AddSlot()
-		.AutoWidth()
-		[
-			ExtensionWidget
-		];
-	}
+	ensure(ExtensionWidget != SNullWidget::NullWidget);
+	CustomTextLayout->AddSlot()
+	.AutoWidth()
+	[
+		ExtensionWidget
+	];
 
 	TSharedPtr<SWidget> AccessibleBehaviorNameWidget, AccessibleBehaviorValueWidget;
 	AccessibilityRow.GetDefaultWidgets(AccessibleBehaviorNameWidget, AccessibleBehaviorValueWidget);
