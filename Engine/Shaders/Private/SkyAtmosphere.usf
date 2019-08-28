@@ -1099,7 +1099,7 @@ void RenderDistantSkyLightLutCS(uint3 ThreadId : SV_DispatchThreadID)
 		AtmosphereLightDirection0.xyz, AtmosphereLightDirection1.xyz, AtmosphereLightColor0.rgb, AtmosphereLightColor1.rgb,
 		AerialPespectiveViewDistanceScale);
 
-	GroupSkyLuminanceSamples[LinearIndex] = ss.L;
+	GroupSkyLuminanceSamples[LinearIndex] = ss.L * SkyAtmosphere.SkyLuminanceFactor;
 
 	// Wait for all group threads to be done
 	GroupMemoryBarrierWithGroupSync();
