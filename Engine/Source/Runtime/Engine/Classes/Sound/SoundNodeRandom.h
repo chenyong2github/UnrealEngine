@@ -24,6 +24,17 @@ class USoundNodeRandom : public USoundNode
 	UPROPERTY(EditAnywhere, editfixedsize, Category=Random)
 	TArray<float> Weights;
 
+	/**
+	 * Internal state of which sounds have been played.  This is only used at runtime
+	 * to keep track of which sounds have been played
+	 */
+	UPROPERTY(transient)
+	TArray<bool> HasBeenUsed;
+
+	/** Counter var so we don't have to count all of the used sounds each time we choose a sound **/
+	UPROPERTY(transient)
+	int32 NumRandomUsed;
+
 	/** If greater than 0, then upon each level load such a number of inputs will be randomly selected
 	 *  and the rest will be removed. This can be used to cut down the memory usage of large randomizing
 	 *  cues.
@@ -53,18 +64,7 @@ class USoundNodeRandom : public USoundNode
 	 * So one could play the same sound over and over if the probabilities don't go your way :-)
 	 */
 	UPROPERTY(EditAnywhere, Category=Random)
-	uint32 bRandomizeWithoutReplacement:1;
-
-	/**
-	 * Internal state of which sounds have been played.  This is only used at runtime
-	 * to keep track of which sounds have been played
-	 */
-	UPROPERTY(transient)
-	TArray<bool> HasBeenUsed;
-
-	/** Counter var so we don't have to count all of the used sounds each time we choose a sound **/
-	UPROPERTY(transient)
-	int32 NumRandomUsed;
+	uint8 bRandomizeWithoutReplacement : 1;
 
 #if WITH_EDITORONLY_DATA
 	/** Editor only list of nodes hidden to duplicate behavior of PreselectAtLevelLoad */
@@ -79,7 +79,7 @@ public:
 
 	//~ Begin USoundNode Interface.
 	virtual void ParseNodes( FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound, const FSoundParseParameters& ParseParams, TArray<FWaveInstance*>& WaveInstances ) override;
-	virtual int32 GetNumSounds(const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound) const;
+	virtual int32 GetNumSounds(const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound) const override;
 	virtual int32 GetMaxChildNodes() const override 
 	{ 
 		return MAX_ALLOWED_CHILD_NODES; 
