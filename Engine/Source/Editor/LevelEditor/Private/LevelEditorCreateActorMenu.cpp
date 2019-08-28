@@ -345,6 +345,7 @@ static void BuildSingleAssetAddReplaceActorMenu(FToolMenuSection& Section, const
 	else
 	{
 		FToolMenuEntry Entry = FToolMenuEntry::InitWidget(NAME_None, SNew( SAssetMenuEntry, Asset, AssetMenuOptions ).LabelOverride( LabelOverride ), FText());
+		Entry.Type = EMultiBlockType::MenuEntry;
 		Entry.SubMenuData.bIsSubMenu = true;
 		Entry.SubMenuData.ConstructMenu = FNewToolMenuDelegate::CreateStatic(&FillAssetAddReplaceActorMenu, Asset, AssetMenuOptions, CreateMode);
 		Section.AddEntry(Entry);
