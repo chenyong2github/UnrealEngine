@@ -26,6 +26,15 @@ USTRUCT(noexport)
 struct FDistributionLookupTable
 {
 	UPROPERTY()
+	float TimeScale;
+
+	UPROPERTY()
+	float TimeBias;
+
+	UPROPERTY()
+	TArray<float> Values;
+
+	UPROPERTY()
 	uint8 Op;
 
 	UPROPERTY()
@@ -36,15 +45,6 @@ struct FDistributionLookupTable
 
 	UPROPERTY()
 	uint8 SubEntryStride;
-
-	UPROPERTY()
-	float TimeScale;
-
-	UPROPERTY()
-	float TimeBias;
-
-	UPROPERTY()
-	TArray<float> Values;
 
 	UPROPERTY()
 	uint8 LockFlag;
