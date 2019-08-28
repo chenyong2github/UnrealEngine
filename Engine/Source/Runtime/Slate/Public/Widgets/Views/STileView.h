@@ -30,6 +30,7 @@ public:
 	typedef typename TSlateDelegates< ItemType >::FOnMouseButtonClick FOnMouseButtonClick;
 	typedef typename TSlateDelegates< ItemType >::FOnMouseButtonDoubleClick FOnMouseButtonDoubleClick;
 	typedef typename TSlateDelegates< NullableItemType >::FOnSelectionChanged FOnSelectionChanged;
+	typedef typename TSlateDelegates< ItemType >::FIsSelectableOrNavigable FIsSelectableOrNavigable;
 
 	typedef typename TSlateDelegates< ItemType >::FOnItemToString_Debug FOnItemToString_Debug; 
 
@@ -48,6 +49,7 @@ public:
 		, _OnMouseButtonClick()
 		, _OnMouseButtonDoubleClick()
 		, _OnSelectionChanged()
+		, _OnIsSelectableOrNavigable()
 		, _SelectionMode(ESelectionMode::Multi)
 		, _ClearSelectionOnClick(true)
 		, _ExternalScrollbar()
@@ -90,6 +92,8 @@ public:
 		SLATE_EVENT( FOnMouseButtonDoubleClick, OnMouseButtonDoubleClick )
 
 		SLATE_EVENT( FOnSelectionChanged, OnSelectionChanged )
+
+		SLATE_EVENT( FIsSelectableOrNavigable, OnIsSelectableOrNavigable)
 
 		SLATE_ATTRIBUTE( ESelectionMode::Type, SelectionMode )
 
@@ -144,6 +148,7 @@ public:
 		this->OnClick = InArgs._OnMouseButtonClick;
 		this->OnDoubleClick = InArgs._OnMouseButtonDoubleClick;
 		this->OnSelectionChanged = InArgs._OnSelectionChanged;
+		this->OnIsSelectableOrNavigable = InArgs._OnIsSelectableOrNavigable;
 		this->SelectionMode = InArgs._SelectionMode;
 
 		this->bClearSelectionOnClick = InArgs._ClearSelectionOnClick;

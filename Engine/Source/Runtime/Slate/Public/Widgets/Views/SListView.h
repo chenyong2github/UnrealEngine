@@ -58,8 +58,9 @@ public:
 	using FOnGenerateRow            = typename TSlateDelegates< ItemType >::FOnGenerateRow;
 	using FOnItemScrolledIntoView   = typename TSlateDelegates< ItemType >::FOnItemScrolledIntoView;
 	using FOnSelectionChanged       = typename TSlateDelegates< NullableItemType >::FOnSelectionChanged;
-	using FOnMouseButtonClick       = typename TSlateDelegates< ItemType >::FOnMouseButtonClick ;
-	using FOnMouseButtonDoubleClick = typename TSlateDelegates< ItemType >::FOnMouseButtonDoubleClick ;
+	using FIsSelectableOrNavigable	= typename TSlateDelegates< ItemType >::FIsSelectableOrNavigable;
+	using FOnMouseButtonClick       = typename TSlateDelegates< ItemType >::FOnMouseButtonClick;
+	using FOnMouseButtonDoubleClick = typename TSlateDelegates< ItemType >::FOnMouseButtonDoubleClick;
 
 	typedef typename TSlateDelegates< ItemType >::FOnItemToString_Debug FOnItemToString_Debug;
 
@@ -78,6 +79,7 @@ public:
 		, _OnMouseButtonClick()
 		, _OnMouseButtonDoubleClick()
 		, _OnSelectionChanged()
+		, _OnIsSelectableOrNavigable()
 		, _SelectionMode(ESelectionMode::Multi)
 		, _ClearSelectionOnClick(true)
 		, _ExternalScrollbar()
@@ -118,6 +120,8 @@ public:
 		SLATE_EVENT( FOnMouseButtonDoubleClick, OnMouseButtonDoubleClick )
 
 		SLATE_EVENT( FOnSelectionChanged, OnSelectionChanged )
+
+		SLATE_EVENT( FIsSelectableOrNavigable, OnIsSelectableOrNavigable)
 
 		SLATE_ATTRIBUTE( ESelectionMode::Type, SelectionMode )
 
@@ -177,6 +181,7 @@ public:
 		this->OnClick = InArgs._OnMouseButtonClick;
 		this->OnDoubleClick = InArgs._OnMouseButtonDoubleClick;
 		this->OnSelectionChanged = InArgs._OnSelectionChanged;
+		this->OnIsSelectableOrNavigable = InArgs._OnIsSelectableOrNavigable;
 		this->SelectionMode = InArgs._SelectionMode;
 
 		this->bClearSelectionOnClick = InArgs._ClearSelectionOnClick;
@@ -1244,7 +1249,7 @@ public:
 			return;
 		}
 
-		Private_SetItemSelection( InItem, bSelected, SelectInfo != ESelectInfo::Direct);
+		Private_SetItemSelection(InItem, bSelected, SelectInfo != ESelectInfo::Direct);
 		Private_SignalSelectionChanged(SelectInfo);
 	}
 
@@ -1398,9 +1403,18 @@ public:
 	 */
 	void RequestNavigateToItem(ItemType Item, const uint32 UserIndex = 0)
 	{
+		Item = Private_FindNextSelectableOrNavigable(Item);
+		Private_RequestNavigateToItem(Item, UserIndex);
+	}
+
+private:
+	void Private_RequestNavigateToItem(ItemType Item, const uint32 UserIndex = 0)
+	{
 		bNavigateOnScrollIntoView = true;
 		RequestScrollIntoView(Item, UserIndex);
 	}
+
+public:
 
 	/**
 	 * Cancels a previous request to scroll an item into view (cancels navigation requests as well).
@@ -1418,11 +1432,20 @@ public:
 	 * @param SoleSelectedItem   Sole item that should be selected.
 	 * @param SelectInfo Provides context on how the selection changed
 	 */
-	void SetSelection( ItemType SoleSelectedItem, ESelectInfo::Type SelectInfo = ESelectInfo::Direct  )
+	void SetSelection(ItemType SoleSelectedItem, ESelectInfo::Type SelectInfo = ESelectInfo::Direct)
+	{
+		SoleSelectedItem = Private_FindNextSelectableOrNavigable(SoleSelectedItem);
+		Private_SetSelection(SoleSelectedItem);
+	}
+
+private:
+	void Private_SetSelection(ItemType SoleSelectedItem, ESelectInfo::Type SelectInfo = ESelectInfo::Direct)
 	{
 		SelectedItems.Empty();
 		SetItemSelection( SoleSelectedItem, true, SelectInfo );
 	}
+
+public:
 
 	/** 
 	 * Set the current selection mode of the list.
@@ -1801,14 +1824,58 @@ protected:
 
 protected:
 
+	ItemType Private_FindNextSelectableOrNavigable(const ItemType& InItemToSelect)
+	{
+		ItemType ItemToSelect = InItemToSelect;
+
+		if (OnIsSelectableOrNavigable.IsBound())
+		{
+			const int32 PendingItemIndex = ItemsSource->Find(ItemToSelect);
+
+			NullableItemType LastSelectedItem = nullptr;
+			if (SelectedItems.Num() == 1)
+			{
+				LastSelectedItem = *SelectedItems.CreateIterator();
+			}
+
+			bool bSelectNextItem = true;
+			while (!OnIsSelectableOrNavigable.Execute(ItemToSelect))
+			{
+				if (TListTypeTraits<ItemType>::IsPtrValid(LastSelectedItem) && PendingItemIndex > 0)
+				{
+					ItemType NonNullLastSelectedItem = TListTypeTraits<ItemType>::NullableItemTypeConvertToItemType(LastSelectedItem);
+					const int32 LastSelectedItemIdx = ItemsSource->Find(NonNullLastSelectedItem);
+
+					// If the previously selected item was before the header, assume we're navigating down and want to select the next item
+					// Otherwise, assume the opposite and navigate to the previous item
+					bSelectNextItem = LastSelectedItemIdx < PendingItemIndex;
+				}
+
+				const int32 NewSelectionIdx = PendingItemIndex + (bSelectNextItem ? 1 : -1);
+				if (ItemsSource->IsValidIndex(NewSelectionIdx))
+				{
+					ItemToSelect = (*ItemsSource)[NewSelectionIdx];
+				}
+				else
+				{
+					break;
+				}
+			}
+		}
+
+		return ItemToSelect;
+	}
+
 	/**
 	 * Selects the specified item and scrolls it into view. If shift is held, it will be a range select.
 	 * 
 	 * @param ItemToSelect		The item that was selected by a keystroke
 	 * @param InInputEvent	The key event that caused this selection
 	 */
-	virtual void NavigationSelect(const ItemType& ItemToSelect, const FInputEvent& InInputEvent)
+	virtual void NavigationSelect(const ItemType& InItemToSelect, const FInputEvent& InInputEvent)
 	{
+		ItemType ItemToSelect = Private_FindNextSelectableOrNavigable(InItemToSelect);
+
 		const ESelectionMode::Type CurrentSelectionMode = SelectionMode.Get();
 
 		if (CurrentSelectionMode != ESelectionMode::None)
@@ -1817,7 +1884,7 @@ protected:
 			SelectorItem = ItemToSelect;
 
 			// Always request scroll into view, otherwise partially visible items will be selected - also do this before signaling selection for similar stomp-allowing reasons
-			RequestNavigateToItem(ItemToSelect, InInputEvent.GetUserIndex());
+			Private_RequestNavigateToItem(ItemToSelect, InInputEvent.GetUserIndex());
 
 			if (CurrentSelectionMode == ESelectionMode::Multi && (InInputEvent.IsShiftDown() || InInputEvent.IsControlDown()))
 			{
@@ -1838,7 +1905,7 @@ protected:
 			else
 			{
 				// Single select.
-				this->SetSelection(ItemToSelect, ESelectInfo::OnNavigation);;
+				this->Private_SetSelection(ItemToSelect, ESelectInfo::OnNavigation);
 			}
 		}
 	}
@@ -1891,6 +1958,9 @@ protected:
 
 	/** Delegate to invoke when selection changes. */
 	FOnSelectionChanged OnSelectionChanged;
+
+	/** Delegate to invoke to see if we can navigate or select item. */
+	FIsSelectableOrNavigable OnIsSelectableOrNavigable;
 
 	/** Called when the user clicks on an element int he list view with the left mouse button */
 	FOnMouseButtonClick OnClick;
