@@ -131,7 +131,8 @@ FLateReflectionsPlate::FLateReflectionsPlate(
 			-Density,
 			PlateDelays.NumSamplesModulatedBase - PlateDelays.NumSamplesModulatedDelta,
 			PlateDelays.NumSamplesModulatedBase + PlateDelays.NumSamplesModulatedDelta,
-			NumInternalBufferSamples);
+			NumInternalBufferSamples,
+			SampleRate);
 	DelayA = MakeUnique<FIntegerDelay>(PlateDelays.NumSamplesDelayA, PlateDelays.NumSamplesDelayA);
 	DelayB = MakeUnique<FIntegerDelay>(PlateDelays.NumSamplesDelayB, PlateDelays.NumSamplesDelayB);
 	DelayC = MakeUnique<FIntegerDelay>(PlateDelays.NumSamplesDelayC, PlateDelays.NumSamplesDelayC);
