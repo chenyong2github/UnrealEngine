@@ -178,6 +178,10 @@ public:
 		, _ShowPageList(true)
 		, _ShowCancelButton(true)
 		, _ShowBreadcrumbs(false)
+		, _BreadcrumbButtonStyle(&FCoreStyle::Get().GetWidgetStyle< FButtonStyle >("BreadcrumbButton"))
+		, _BreadcrumbTextStyle(&FCoreStyle::Get().GetWidgetStyle< FTextBlockStyle >("NormalText"))
+		, _ShowPageTitle(false)
+		, _PageTitleTextStyle(&FCoreStyle::Get().GetWidgetStyle< FTextBlockStyle >("Wizard.PageTitle"))
 		, _PageFooter()
 	{ }
 
@@ -228,7 +232,7 @@ public:
 		/** Exposes a delegate to be invoked when the wizard's 'Previous' button is clicked. */
 		SLATE_EVENT(FOnClicked, OnPrevClicked)
 
-		/** 
+		/**
 		 * Exposes a delegate to be invoked when the wizard's 'Next' button is clicked.
 		 * Passes in the current page index and expects the next page index to be returned.
 		 */
@@ -242,6 +246,18 @@ public:
 
 		/** Holds a flag indicating whether a breadcrumb trail should be shown (default = false) */
 		SLATE_ARGUMENT(bool, ShowBreadcrumbs)
+
+		/** The button style to use for each breadcrumb if ShowBreadcrumbs is set to true. */
+		SLATE_STYLE_ARGUMENT(FButtonStyle, BreadcrumbButtonStyle);
+
+		/** The text style to use for breadcrumbs if ShowBreadcrumbs is set to true. */
+		SLATE_STYLE_ARGUMENT(FTextBlockStyle, BreadcrumbTextStyle);
+
+		/** Holds a flag indicating whether a page title should be shown for each page (default = false) */
+		SLATE_ARGUMENT(bool, ShowPageTitle)
+
+		/** The text style to use for showing the page title if ShowPageTitle is set to true. */
+		SLATE_STYLE_ARGUMENT(FTextBlockStyle, PageTitleTextStyle);
 
 		/** Holds an optional widget containing the contents to place above the buttons for all wizard pages */
 		SLATE_NAMED_SLOT(FArguments, PageFooter)
@@ -359,6 +375,9 @@ private:
 
 	// Get the previous page index to display.
 	int32 GetPrevPageIndex() const;
+
+	// Get the page title to display for the current page.
+	FText HandleGetPageTitle() const;
 
 private:
 

@@ -47,7 +47,15 @@ void SWizard::Construct( const FArguments& InArgs )
 			.OnCrumbClicked(this, &SWizard::HandleBreadcrumbClicked)
 			.Visibility(InArgs._ShowBreadcrumbs ? EVisibility::Visible : EVisibility::Collapsed)
 		]
-
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(0, 10, 0, 0)
+		[
+			SNew(STextBlock)
+			.TextStyle(InArgs._PageTitleTextStyle)
+			.Text(this, &SWizard::HandleGetPageTitle)
+			.Visibility(InArgs._ShowPageTitle ? EVisibility::Visible : EVisibility::Collapsed)
+		]
 		+ SVerticalBox::Slot()
 		.FillHeight(1.0)
 		[
@@ -450,6 +458,16 @@ void SWizard::HandleBreadcrumbClicked(const int32& PageIndex)
 
 	BreadcrumbTrail->PopCrumb();
 	ShowPage(PageIndex);
+}
+
+FText SWizard::HandleGetPageTitle() const
+{
+	int32 PageIndex = GetCurrentPageIndex();
+	if (Pages.IsValidIndex(PageIndex))
+	{
+		return Pages[PageIndex].GetName();
+	}
+	return FText::GetEmpty();
 }
 
 #undef LOCTEXT_NAMESPACE
