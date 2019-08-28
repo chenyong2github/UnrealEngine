@@ -138,6 +138,7 @@ struct FBXImportOptions
 	float ImportUniformScale;
 	EFBXNormalImportMethod NormalImportMethod;
 	EFBXNormalGenerationMethod::Type NormalGenerationMethod;
+	bool bComputeWeightedNormals;
 	bool bTransformVertexToAbsolute;
 	bool bBakePivotInVertex;
 	EFBXImportType ImportType;

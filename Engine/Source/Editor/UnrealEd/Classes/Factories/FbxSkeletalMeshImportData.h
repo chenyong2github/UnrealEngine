@@ -29,6 +29,8 @@ class UFbxSkeletalMeshImportData : public UFbxMeshImportData
 {
 	GENERATED_UCLASS_BODY()
 public:
+	virtual void Serialize(FArchive& Ar) override;
+
 	/** Filter the content we want to import from the incoming FBX skeletal mesh.*/
 	UPROPERTY(EditAnywhere, Category = Mesh, meta = (ImportType = "SkeletalMesh", DisplayName = "Import Content Type", OBJRestrict = "true"))
 	TEnumAsByte<enum EFBXImportContentType> ImportContentType;

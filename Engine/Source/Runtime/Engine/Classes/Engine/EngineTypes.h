@@ -2555,6 +2555,10 @@ struct FMeshBuildSettings
 	UPROPERTY(EditAnywhere, Category=BuildSettings)
 	uint8 bRecomputeTangents:1;
 
+	/** If true, we will use the surface area and the corner angle of the triangle as a ratio when computing the normals. */
+	UPROPERTY(EditAnywhere, Category = BuildSettings)
+	uint8 bComputeWeightedNormals : 1;
+
 	/** If true, degenerate triangles will be removed. */
 	UPROPERTY(EditAnywhere, Category=BuildSettings)
 	uint8 bRemoveDegenerates:1;
@@ -2621,6 +2625,7 @@ struct FMeshBuildSettings
 		: bUseMikkTSpace(true)
 		, bRecomputeNormals(true)
 		, bRecomputeTangents(true)
+		, bComputeWeightedNormals(false)
 		, bRemoveDegenerates(true)
 		, bBuildAdjacencyBuffer(true)
 		, bBuildReversedIndexBuffer(true)
@@ -2645,6 +2650,7 @@ struct FMeshBuildSettings
 	{
 		return bRecomputeNormals == Other.bRecomputeNormals
 			&& bRecomputeTangents == Other.bRecomputeTangents
+			&& bComputeWeightedNormals == Other.bComputeWeightedNormals
 			&& bUseMikkTSpace == Other.bUseMikkTSpace
 			&& bRemoveDegenerates == Other.bRemoveDegenerates
 			&& bBuildAdjacencyBuffer == Other.bBuildAdjacencyBuffer

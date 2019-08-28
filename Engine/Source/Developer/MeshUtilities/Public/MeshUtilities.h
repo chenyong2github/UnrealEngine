@@ -218,6 +218,7 @@ public:
 		, bComputeNormals(true)
 		, bComputeTangents(true)
 		, bUseMikkTSpace(false)
+		, bComputeWeightedNormals(false)
 		{
 		}
 
@@ -225,6 +226,7 @@ public:
 		bool bComputeNormals;
 		bool bComputeTangents;
 		bool bUseMikkTSpace;
+		bool bComputeWeightedNormals;
 		FOverlappingThresholds OverlappingThresholds;
 	};
 	

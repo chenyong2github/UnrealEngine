@@ -505,6 +505,22 @@ void FMeshBuildSettingsLayout::GenerateChildContent( IDetailChildrenBuilder& Chi
 	}
 
 	{
+		ChildrenBuilder.AddCustomRow( LOCTEXT("ComputeWeightedNormals", "Compute Weighted Normals") )
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Font( IDetailLayoutBuilder::GetDetailFont() )
+			.Text(LOCTEXT("ComputeWeightedNormals", "Compute Weighted Normals"))
+		]
+		.ValueContent()
+		[
+			SNew(SCheckBox)
+			.IsChecked(this, &FMeshBuildSettingsLayout::ShouldComputeWeightedNormals)
+			.OnCheckStateChanged(this, &FMeshBuildSettingsLayout::OnComputeWeightedNormalsChanged)
+		];
+	}
+
+	{
 		ChildrenBuilder.AddCustomRow( LOCTEXT("RemoveDegenerates", "Remove Degenerates") )
 		.NameContent()
 		[
@@ -786,6 +802,11 @@ ECheckBoxState FMeshBuildSettingsLayout::ShouldUseMikkTSpace() const
 	return BuildSettings.bUseMikkTSpace ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
+ECheckBoxState FMeshBuildSettingsLayout::ShouldComputeWeightedNormals() const
+{
+	return BuildSettings.bComputeWeightedNormals ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
 ECheckBoxState FMeshBuildSettingsLayout::ShouldRemoveDegenerates() const
 {
 	return BuildSettings.bRemoveDegenerates ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
@@ -888,6 +909,19 @@ void FMeshBuildSettingsLayout::OnUseMikkTSpaceChanged(ECheckBoxState NewState)
 	if (BuildSettings.bUseMikkTSpace != bUseMikkTSpace)
 	{
 		BuildSettings.bUseMikkTSpace = bUseMikkTSpace;
+	}
+}
+
+void FMeshBuildSettingsLayout::OnComputeWeightedNormalsChanged(ECheckBoxState NewState)
+{
+	const bool bComputeWeightedNormals = (NewState == ECheckBoxState::Checked) ? true : false;
+	if (BuildSettings.bComputeWeightedNormals != bComputeWeightedNormals)
+	{
+		if (FEngineAnalytics::IsAvailable())
+		{
+			FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.BuildSettings"), TEXT("bComputeWeightedNormals"), bComputeWeightedNormals ? TEXT("True") : TEXT("False"));
+		}
+		BuildSettings.bComputeWeightedNormals = bComputeWeightedNormals;
 	}
 }
 

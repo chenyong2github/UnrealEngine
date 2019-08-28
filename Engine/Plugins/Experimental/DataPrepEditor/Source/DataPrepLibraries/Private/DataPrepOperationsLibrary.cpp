@@ -157,6 +157,7 @@ namespace DataprepOperationsLibraryUtil
 				SourceModel.BuildSettings.bRecomputeTangents = false;
 				SourceModel.BuildSettings.bBuildAdjacencyBuffer = false;
 				SourceModel.BuildSettings.bBuildReversedIndexBuffer = false;
+				SourceModel.BuildSettings.bComputeWeightedNormals = false;
 			}
 
 			return BuildSettingsBackup;
@@ -184,6 +185,7 @@ namespace DataprepOperationsLibraryUtil
 					BuildSettings.bRecomputeTangents = CachedBuildSettings.bRecomputeTangents;
 					BuildSettings.bBuildAdjacencyBuffer = CachedBuildSettings.bBuildAdjacencyBuffer;
 					BuildSettings.bBuildReversedIndexBuffer = CachedBuildSettings.bBuildReversedIndexBuffer;
+					BuildSettings.bComputeWeightedNormals = CachedBuildSettings.bComputeWeightedNormals;
 				}
 			}
 		}
@@ -237,6 +239,7 @@ namespace DataprepOperationsLibraryUtil
 		SourceModel.BuildSettings.bRecomputeTangents = false;
 		SourceModel.BuildSettings.bBuildAdjacencyBuffer = false;
 		SourceModel.BuildSettings.bBuildReversedIndexBuffer = false;
+		SourceModel.BuildSettings.bComputeWeightedNormals = false;
 
 		FMeshDescription* StaticMeshDescription = SourceModel.MeshDescription.Get();
 		check( StaticMeshDescription );
