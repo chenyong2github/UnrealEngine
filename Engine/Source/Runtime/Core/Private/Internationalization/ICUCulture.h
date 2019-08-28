@@ -9,6 +9,7 @@
 #include "Templates/SharedPointer.h"
 #include "Internationalization/Text.h"
 #include "Internationalization/Culture.h"
+#include "Internationalization/CultureImplementation.h"
 
 struct FDecimalNumberFormattingRules;
 
@@ -157,44 +158,40 @@ enum class EBreakIteratorType
 	Title
 };
 
-class FCulture::FICUCultureImplementation
+class FICUCultureImplementation : public ICultureImplementation
 {
 	friend class FCulture;
 	friend class FText;
 	friend class FTextChronoFormatter;
 	friend class FICUBreakIteratorManager;
 
-	FICUCultureImplementation(const FString& LocaleName);
+public:
+	explicit FICUCultureImplementation(const FString& LocaleName);
+	virtual ~FICUCultureImplementation() = default;
 
-	FString GetDisplayName() const;
-
-	FString GetEnglishName() const;
-
-	int GetKeyboardLayoutId() const;
-
-	int GetLCID() const;
+	//~ ICultureImplementation interface
+	virtual FString GetDisplayName() const override;
+	virtual FString GetEnglishName() const override;
+	virtual int GetKeyboardLayoutId() const override;
+	virtual int GetLCID() const override;
+	virtual FString GetName() const override;
+	virtual FString GetNativeName() const override;
+	virtual FString GetUnrealLegacyThreeLetterISOLanguageName() const override;
+	virtual FString GetThreeLetterISOLanguageName() const override;
+	virtual FString GetTwoLetterISOLanguageName() const override;
+	virtual FString GetNativeLanguage() const override;
+	virtual FString GetNativeRegion() const override;
+	virtual FString GetRegion() const override;
+	virtual FString GetScript() const override;
+	virtual FString GetVariant() const override;
+	virtual const FDecimalNumberFormattingRules& GetDecimalNumberFormattingRules() override;
+	virtual const FDecimalNumberFormattingRules& GetPercentFormattingRules() override;
+	virtual const FDecimalNumberFormattingRules& GetCurrencyFormattingRules(const FString& InCurrencyCode) override;
+	virtual ETextPluralForm GetPluralForm(int32 Val, const ETextPluralType PluralType) const override;
+	virtual ETextPluralForm GetPluralForm(double Val, const ETextPluralType PluralType) const override;
+	virtual const TArray<ETextPluralForm>& GetValidPluralForms(const ETextPluralType PluralType) const override;
 
 	static FString GetCanonicalName(const FString& Name);
-	
-	FString GetName() const;
-
-	FString GetNativeName() const;
-
-	FString GetUnrealLegacyThreeLetterISOLanguageName() const;
-
-	FString GetThreeLetterISOLanguageName() const;
-
-	FString GetTwoLetterISOLanguageName() const;
-
-	FString GetNativeLanguage() const;
-
-	FString GetRegion() const;
-
-	FString GetNativeRegion() const;
-
-	FString GetScript() const;
-
-	FString GetVariant() const;
 
 	TSharedRef<const icu::BreakIterator> GetBreakIterator(const EBreakIteratorType Type);
 	TSharedRef<const icu::Collator, ESPMode::ThreadSafe> GetCollator(const ETextComparisonLevel::Type ComparisonLevel);
@@ -202,15 +199,7 @@ class FCulture::FICUCultureImplementation
 	TSharedRef<const icu::DateFormat, ESPMode::ThreadSafe> GetTimeFormatter(const EDateTimeStyle::Type TimeStyle, const FString& TimeZone);
 	TSharedRef<const icu::DateFormat, ESPMode::ThreadSafe> GetDateTimeFormatter(const EDateTimeStyle::Type DateStyle, const EDateTimeStyle::Type TimeStyle, const FString& TimeZone);
 
-	const FDecimalNumberFormattingRules& GetDecimalNumberFormattingRules();
-	const FDecimalNumberFormattingRules& GetPercentFormattingRules();
-	const FDecimalNumberFormattingRules& GetCurrencyFormattingRules(const FString& InCurrencyCode);
-
-	ETextPluralForm GetPluralForm(int32 Val, const ETextPluralType PluralType) const;
-	ETextPluralForm GetPluralForm(double Val, const ETextPluralType PluralType) const;
-
-	const TArray<ETextPluralForm>& GetValidPluralForms(const ETextPluralType PluralType) const;
-
+private:
 	icu::Locale ICULocale;
 	TSharedPtr<const icu::BreakIterator> ICUGraphemeBreakIterator;
 	TSharedPtr<const icu::BreakIterator> ICUWordBreakIterator;
