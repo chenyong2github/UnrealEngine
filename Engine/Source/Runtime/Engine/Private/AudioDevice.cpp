@@ -743,6 +743,8 @@ void FAudioDevice::AddReferencedObjects(FReferenceCollector& Collector)
 		Pair.Key->AddReferencedObjects(Collector);
 	}
 
+	UpdateReferencedSoundWaves();
+
 	// Make sure we don't try to delete any sound waves which may have in-flight decodes
 	Collector.AddReferencedObjects(ReferencedSoundWaves);
 
@@ -5358,6 +5360,11 @@ void FAudioDevice::Flush(UWorld* WorldToFlush, bool bClearActivatedReverb)
 
 			WaveInstanceSourceMap.Reset();
 		}
+	}
+
+	if (WorldToFlush == nullptr)
+	{
+		ReferencedSoundWaves.Reset();
 	}
 
 	// Make sure we update any hardware changes that need to happen after flushing
