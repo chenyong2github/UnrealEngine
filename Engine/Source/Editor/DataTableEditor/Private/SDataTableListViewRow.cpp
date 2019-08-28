@@ -9,6 +9,8 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Misc/MessageDialog.h"
+#include "Framework/Commands/GenericCommands.h"
+#include "DetailWidgetRow.h"
 
 #define LOCTEXT_NAMESPACE "SDataTableListViewRowName"
 
@@ -35,14 +37,8 @@ FReply SDataTableListViewRow::OnMouseButtonUp(const FGeometry& MyGeometry, const
 	if (MouseEvent.GetEffectingButton() == EKeys::RightMouseButton && RowDataPtr.IsValid() && FEditorDelegates::OnOpenReferenceViewer.IsBound() && DataTableEditor.IsValid())
 	{
 		FDataTableEditorUtils::SelectRow(DataTableEditor.Pin()->GetDataTable(), RowDataPtr->RowId);
-		TSharedRef<SWidget> MenuWidget = FDataTableRowUtils::MakeRowActionsMenu(DataTableEditor.Pin(),
-			FExecuteAction::CreateSP(this, &SDataTableListViewRow::OnSearchForReferences),
-			FExecuteAction::CreateSP(this, &SDataTableListViewRow::OnInsertNewRow, ERowInsertionPosition::Bottom),
-			FExecuteAction::CreateSP(this, &SDataTableListViewRow::OnInsertNewRow, ERowInsertionPosition::Above),
-			FExecuteAction::CreateSP(this, &SDataTableListViewRow::OnInsertNewRow, ERowInsertionPosition::Below),
-			FExecuteAction::CreateSP(this, &SDataTableListViewRow::OnMoveToExtentClicked, FDataTableEditorUtils::ERowMoveDirection::Down),
-			FExecuteAction::CreateSP(this, &SDataTableListViewRow::OnMoveToExtentClicked, FDataTableEditorUtils::ERowMoveDirection::Up)
-		);
+
+		TSharedRef<SWidget> MenuWidget = MakeRowActionsMenu();
 
 		FWidgetPath WidgetPath = MouseEvent.GetEventPath() != nullptr ? *MouseEvent.GetEventPath() : FWidgetPath();
 		FSlateApplication::Get().PushMenu(AsShared(), WidgetPath, MenuWidget, MouseEvent.GetScreenSpacePosition(), FPopupTransitionEffect::ContextMenu);
@@ -410,6 +406,66 @@ void SDataTableListViewRow::OnMoveToExtentClicked(FDataTableEditorUtils::ERowMov
 		TSharedPtr<FDataTableEditor> DataTableEditorPtr = DataTableEditor.Pin();
 		DataTableEditorPtr->OnMoveToExtentClicked(MoveDirection);
 	}
+}
+
+
+TSharedRef<SWidget> SDataTableListViewRow::MakeRowActionsMenu()
+{
+	FMenuBuilder MenuBuilder(true, DataTableEditor.Pin()->GetToolkitCommands());
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("DataTableRowMenuActions_InsertNewRow", "Insert New Row"),
+		LOCTEXT("DataTableRowMenuActions_InsertNewRowTooltip", "Insert a new row"),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "DataTableEditor.Add"), 
+		FUIAction(FExecuteAction::CreateSP(this, &SDataTableListViewRow::OnInsertNewRow, ERowInsertionPosition::Bottom))
+	);
+	
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("DataTableRowMenuActions_InsertNewRowAbove", "Insert New Row Above"),
+		LOCTEXT("DataTableRowMenuActions_InsertNewRowAboveTooltip", "Insert a new Row above the current selection"),
+		FSlateIcon(), 
+		FUIAction(FExecuteAction::CreateSP(this, &SDataTableListViewRow::OnInsertNewRow, ERowInsertionPosition::Above))
+	);
+	
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("DataTableRowMenuActions_InsertNewRowBelow", "Insert New Row Below"),
+		LOCTEXT("DataTableRowMenuActions_InsertNewRowBelowTooltip", "Insert a new Row below the current selection"),
+		FSlateIcon(), 
+		FUIAction(FExecuteAction::CreateSP(this, &SDataTableListViewRow::OnInsertNewRow, ERowInsertionPosition::Below))
+	);
+
+	MenuBuilder.AddMenuEntry(FGenericCommands::Get().Copy);
+	MenuBuilder.AddMenuEntry(FGenericCommands::Get().Paste);
+	MenuBuilder.AddMenuEntry(FGenericCommands::Get().Duplicate);
+	MenuBuilder.AddMenuEntry(FGenericCommands::Get().Rename);
+	MenuBuilder.AddMenuEntry(FGenericCommands::Get().Delete);
+
+	MenuBuilder.AddMenuSeparator();
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("DataTableRowMenuActions_MoveToTopAction", "Move Row to Top"),
+		LOCTEXT("DataTableRowMenuActions_MoveToTopActionTooltip", "Move selected Row to the top"),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "Symbols.DoubleUpArrow"), 
+		FUIAction(FExecuteAction::CreateSP(this, &SDataTableListViewRow::OnMoveToExtentClicked, FDataTableEditorUtils::ERowMoveDirection::Up))
+	);
+	
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("DataTableRowMenuActions_MoveToBottom", "Move Row To Bottom"),
+		LOCTEXT("DataTableRowMenuActions_MoveToBottomTooltip", "Move selected Row to the bottom"),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "Symbols.DoubleDownArrow"), 
+		FUIAction(FExecuteAction::CreateSP(this, &SDataTableListViewRow::OnMoveToExtentClicked, FDataTableEditorUtils::ERowMoveDirection::Down))
+	);
+	
+	MenuBuilder.AddMenuSeparator();
+
+	MenuBuilder.AddMenuEntry(
+		NSLOCTEXT("FDataTableRowUtils", "FDataTableRowUtils_SearchForReferences", "Find Row References"),
+		NSLOCTEXT("FDataTableRowUtils", "FDataTableRowUtils_SearchForReferencesTooltip", "Find assets that reference this Row"),
+		FSlateIcon(), 
+		FUIAction(FExecuteAction::CreateSP(this, &SDataTableListViewRow::OnSearchForReferences))
+	);
+
+	return MenuBuilder.MakeWidget();
 }
 
 FDataTableRowDragDropOp::FDataTableRowDragDropOp(TSharedPtr<SDataTableListViewRow> InRow)

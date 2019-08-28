@@ -198,6 +198,7 @@ void SRowEditor::Restore()
 	CurrentRow = MakeShareable(new FStructFromDataTable(DataTable.Get(), FinalName));
 	if (StructureDetailsView.IsValid())
 	{
+		StructureDetailsView->SetCustomName(FText::FromName(FinalName));
 		StructureDetailsView->SetStructureData(CurrentRow);
 	}
 

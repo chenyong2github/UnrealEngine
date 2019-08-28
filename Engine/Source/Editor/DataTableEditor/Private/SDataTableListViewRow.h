@@ -95,6 +95,8 @@ private:
 
 	void OnMoveToExtentClicked(FDataTableEditorUtils::ERowMoveDirection MoveDirection);
 
+	TSharedRef<SWidget> MakeRowActionsMenu();
+
 	TSharedPtr<SInlineEditableTextBlock> InlineEditableText;
 
 	TSharedPtr<FName> CurrentName;

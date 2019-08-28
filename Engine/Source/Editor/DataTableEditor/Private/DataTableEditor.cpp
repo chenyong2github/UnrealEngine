@@ -649,7 +649,7 @@ void FDataTableEditor::RefreshRowNumberColumnWidth()
 	TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 	const FTextBlockStyle& CellTextStyle = FEditorStyle::GetWidgetStyle<FTextBlockStyle>("DataTableEditor.CellText");
 	const float CellPadding = 10.0f;
-	RowNumberColumnWidth = 10.0f;
+
 	for (const FDataTableEditorRowListViewDataPtr& RowData : AvailableRows)
 	{
 		const float RowNumberWidth = FontMeasure->Measure(FString::FromInt(RowData->RowNum), CellTextStyle.Font).X + CellPadding;
@@ -675,7 +675,6 @@ void FDataTableEditor::RefreshRowNameColumnWidth()
 	const FTextBlockStyle& CellTextStyle = FEditorStyle::GetWidgetStyle<FTextBlockStyle>("DataTableEditor.CellText");
 	static const float CellPadding = 10.0f;
 
-	RowNameColumnWidth = 10.0f;
 	for (const FDataTableEditorRowListViewDataPtr& RowData : AvailableRows)
 	{
 		const float RowNameWidth = FontMeasure->Measure(RowData->DisplayName, CellTextStyle.Font).X + CellPadding;

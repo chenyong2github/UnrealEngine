@@ -12,29 +12,9 @@ class FDetailWidgetRow;
 class DATATABLEEDITOR_API FDataTableRowUtils
 {
 public:
-	static TSharedRef<SWidget> MakeRowActionsMenu(TSharedPtr<class IDataTableEditor> Editor, FExecuteAction SearchForReferencesAction, FExecuteAction InsertNewRowAction,
-													FExecuteAction InsertNewRowAboveAction, FExecuteAction InsertNewRowBelowAction,
-												    FExecuteAction MoveToBottomAction, FExecuteAction MoveToTopAction);
 	static void AddSearchForReferencesContextMenu(FDetailWidgetRow& RowNameDetailWidget, FExecuteAction SearchForReferencesAction);
 
 private:
-	static const FText SearchForReferencesActionName;
-	static const FText SearchForReferencesActionTooltip;
-
-	static const FText InsertNewRowActionName;
-	static const FText InsertNewRowActionTooltip;
-
-	static const FText InsertNewRowAboveActionName;
-	static const FText InsertNewRowAboveActionTooltip;
-
-	static const FText InsertNewRowBelowActionName;
-	static const FText InsertNewRowBelowActionTooltip;
-
-	static const FText MoveToBottomActionName;
-	static const FText MoveToBottomActionTooltip;
-
-	static const FText MoveToTopActionName;
-	static const FText MoveToTopActionTooltip;
 
 };
 
