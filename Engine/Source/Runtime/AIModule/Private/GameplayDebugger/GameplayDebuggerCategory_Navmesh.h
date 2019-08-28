@@ -34,6 +34,7 @@ protected:
 		FString NavDataName;
 		int32 NumDirtyAreas = 0;
 		bool bCanChangeReference = false;
+		bool bCanCycleNavigationData = false;
 		bool bIsUsingPlayerActor = false;
 		bool bReferenceTooFarFromNavData = false;
 	};
