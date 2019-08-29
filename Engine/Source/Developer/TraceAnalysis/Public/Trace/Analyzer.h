@@ -54,7 +54,7 @@ public:
 		FInterfaceBuilder&		InterfaceBuilder;
 	};
 
-	struct FEventData
+	struct TRACEANALYSIS_API FEventData
 	{
 		/** Queries the value of a field of the event. */
 		template <typename ValueType> ValueType GetValue(const ANSICHAR* FieldName) const;
@@ -62,13 +62,13 @@ public:
 		/** Returns the event's attachment. Not that this will always return an
 		 * address but if the event has no attachment then reading from that
 		 * address if undefined. */
-		virtual const uint8* GetAttachment() const = 0;
+		const uint8* GetAttachment() const;
 
 		/** Returns the size of the events attachment, or 0 if none. */
-		virtual uint16 GetAttachmentSize() const = 0;
+		uint32 GetAttachmentSize() const;
 
 	private:
-		virtual const void* GetValueImpl(const ANSICHAR* FieldName, uint16& Type) const = 0;
+		const void* GetValueImpl(const ANSICHAR* FieldName, uint16& Type) const;
 	};
 
 	struct FOnEventContext

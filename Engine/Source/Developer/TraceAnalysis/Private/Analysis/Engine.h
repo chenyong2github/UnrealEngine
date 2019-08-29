@@ -21,12 +21,13 @@ class FAnalysisEngine
 	: public IAnalyzer
 {
 public:
+	struct				FDispatch;
+	struct				FEventDataInfo;
 						FAnalysisEngine(TArray<IAnalyzer*>&& InAnalyzers);
 						~FAnalysisEngine();
 	bool				OnData(FStreamReader::FData& Data);
 
 private:
-	struct				FDispatch;
 	struct FRoute
 	{
 		uint32			Hash;
@@ -35,8 +36,6 @@ private:
 		uint16			AnalyzerIndex;
 		uint16			_Unused0;
 	};
-
-	struct				FEventDataImpl;
 
 	virtual void		OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual void		OnAnalysisEnd() override;
@@ -54,7 +53,6 @@ private:
 	TArray<IAnalyzer*>	Analyzers;
 	TArray<FDispatch*>	Dispatches;
 	FTransportReader*	Transport = nullptr;
-	FEventDataImpl*		EventDataImpl;
 };
 
 } // namespace Trace

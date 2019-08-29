@@ -235,32 +235,29 @@ struct FAnalysisEngine::FDispatch
 
 
 ////////////////////////////////////////////////////////////////////////////////
-struct FAnalysisEngine::FEventDataImpl
-	: public FEventData
+struct FAnalysisEngine::FEventDataInfo
 {
-	virtual					~FEventDataImpl() = default;
-	virtual const void*		GetValueImpl(const ANSICHAR* FieldName, uint16& Type) const override;
-	virtual const uint8*	GetAttachment() const override;
-	virtual uint16			GetAttachmentSize() const override;
-	const FDispatch*		Dispatch;
-	const uint8*			Ptr;
-	uint16					Size;
+	const FDispatch&	Dispatch;
+	const uint8*		Ptr;
+	uint16				Size;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-const void* FAnalysisEngine::FEventDataImpl::GetValueImpl(const ANSICHAR* FieldName, uint16& Type) const
+const void* IAnalyzer::FEventData::GetValueImpl(const ANSICHAR* FieldName, uint16& Type) const
 {
+	const auto& Info = *(const FAnalysisEngine::FEventDataInfo*)this;
+
 	FFnv1aHash Hash;
 	Hash.Add(FieldName);
 	uint32 NameHash = Hash.Get();
 
-	for (int i = 0, n = Dispatch->FieldCount; i < n; ++i)
+	for (int i = 0, n = Info.Dispatch.FieldCount; i < n; ++i)
 	{
-		const auto& Field = Dispatch->Fields[i];
+		const auto& Field = Info.Dispatch.Fields[i];
 		if (Field.Hash == NameHash)
 		{
 			Type = Field.TypeInfo;
-			return (Ptr + Field.Offset);
+			return (Info.Ptr + Field.Offset);
 		}
 	}
 
@@ -268,15 +265,17 @@ const void* FAnalysisEngine::FEventDataImpl::GetValueImpl(const ANSICHAR* FieldN
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-const uint8* FAnalysisEngine::FEventDataImpl::GetAttachment() const
+const uint8* IAnalyzer::FEventData::GetAttachment() const
 {
-	return Ptr + Dispatch->EventSize;
+	const auto& Info = *(const FAnalysisEngine::FEventDataInfo*)this;
+	return Info.Ptr + Info.Dispatch.EventSize;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-uint16 FAnalysisEngine::FEventDataImpl::GetAttachmentSize() const
+uint32 IAnalyzer::FEventData::GetAttachmentSize() const
 {
-	return Size - Dispatch->EventSize;
+	const auto& Info = *(const FAnalysisEngine::FEventDataInfo*)this;
+	return Info.Size - Info.Dispatch.EventSize;
 }
 
 
@@ -300,8 +299,6 @@ enum EKnownRouteHashes : uint32
 FAnalysisEngine::FAnalysisEngine(TArray<IAnalyzer*>&& InAnalyzers)
 : Analyzers(MoveTemp(InAnalyzers))
 {
-	EventDataImpl = new FEventDataImpl();
-
 	uint16 SelfIndex = Analyzers.Num();
 	Analyzers.Add(this);
 
@@ -326,8 +323,6 @@ FAnalysisEngine::~FAnalysisEngine()
 	{
 		FMemory::Free(Dispatch);
 	}
-
-	delete EventDataImpl;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -456,7 +451,7 @@ FAnalysisEngine::FDispatch& FAnalysisEngine::AddDispatch(uint16 Uid, uint16 Fiel
 ////////////////////////////////////////////////////////////////////////////////
 void FAnalysisEngine::OnNewEvent(const FOnEventContext& Context)
 {
-	const FEventDataImpl& EventData = (const FEventDataImpl&)(Context.EventData);
+	const FEventDataInfo& EventData = (const FEventDataInfo&)(Context.EventData);
 	const auto& NewEvent = *(FNewEventEvent*)(EventData.Ptr);
 
 	FDispatch& Dispatch = AddDispatch(NewEvent.EventUid, NewEvent.FieldCount);
@@ -603,15 +598,14 @@ bool FAnalysisEngine::OnData(FStreamReader::FData& Data)
 
 		const FDispatch* Dispatch = Dispatches[Uid];
 
-		EventDataImpl->Dispatch = Dispatch;
-		EventDataImpl->Ptr = Header->EventData;
-		EventDataImpl->Size = Header->Size;
+		FEventDataInfo EventDataInfo = { *Dispatch, Header->EventData, Header->Size };
+		const FEventData& EventData = (FEventData&)EventDataInfo;
 
 		const FRoute* Route = Routes.GetData() + Dispatch->FirstRoute;
 		for (uint32 n = Route->Count; n--; ++Route)
 		{
 			IAnalyzer* Analyzer = Analyzers[Route->AnalyzerIndex];
-			Analyzer->OnEvent(Route->Id, { SessionContext, *EventDataImpl });
+			Analyzer->OnEvent(Route->Id, { SessionContext, EventData });
 		}
 	}
 
