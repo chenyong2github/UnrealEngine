@@ -876,9 +876,9 @@ void F3DAttachTrackEditor::TrimAndPreserve(FGuid InObjectBinding, UMovieSceneSec
 	TArrayView<TWeakObjectPtr<>> BoundObjects = GetSequencer()->FindBoundObjects(InObjectBinding, GetSequencer()->GetFocusedTemplateID());
 
 	FQualifiedFrameTime QualifiedNewDetachTime = GetSequencer()->GetLocalTime();
-	TRange<FFrameNumber> BeforeTrimRange = InSection->GetRange();
 	if (InSection && EvalTrack && BoundObjects.Num() == 1 && BoundObjects[0].IsValid())
 	{
+		TRange<FFrameNumber> BeforeTrimRange = InSection->GetRange();
 		const FScopedTransaction Transaction(LOCTEXT("TrimAttach", "Trim Attach"));
 
 		UObject* Object = BoundObjects[0].Get();
