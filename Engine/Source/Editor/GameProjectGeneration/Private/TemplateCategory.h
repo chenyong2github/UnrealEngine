@@ -8,10 +8,8 @@ struct FSlateBrush;
 
 struct FTemplateCategory
 {
-	static FName BlueprintCategoryName, CodeCategoryName, EnterpriseCategoryName;
-
 	/** Localised name of this category */
-	FText Name;
+	FText DisplayName;
 	
 	/** A description of the templates contained within this category */
 	FText Description;
@@ -22,6 +20,9 @@ struct FTemplateCategory
 	/** A thumbnail to help identify this category (on the screenshot)*/
 	const FSlateBrush* Image;
 
-	/** A unique name for this category */
-	FName Type;
+	/** A unique key for this category */
+	FName Key;
+
+	/** Is this a major or minor category? Controls where in the UI it will show up. */
+	bool IsMajor;
 };

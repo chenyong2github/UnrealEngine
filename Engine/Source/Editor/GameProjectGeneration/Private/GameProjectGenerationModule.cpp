@@ -10,57 +10,42 @@
 #include "SGameProjectDialog.h"
 #include "SNewClassDialog.h"
 #include "TemplateCategory.h"
-#include "SourceCodeNavigation.h"
-
+#include "HAL/FileManager.h"
+#include "Interfaces/IPluginManager.h"
+#include "TemplateProjectDefs.h"
+#include "Internationalization/Culture.h"
 
 IMPLEMENT_MODULE( FGameProjectGenerationModule, GameProjectGeneration );
 DEFINE_LOG_CATEGORY(LogGameProjectGeneration);
 
 #define LOCTEXT_NAMESPACE "GameProjectGeneration"
 
-FName FTemplateCategory::BlueprintCategoryName = "Blueprint";
-FName FTemplateCategory::CodeCategoryName = "C++";
-FName FTemplateCategory::EnterpriseCategoryName = "Unreal Studio";
-
 void FGameProjectGenerationModule::StartupModule()
 {
-	RegisterTemplateCategory(
-		FTemplateCategory::BlueprintCategoryName,
-		LOCTEXT("BlueprintCategory_Name", "Blueprint"),
-		LOCTEXT("BlueprintCategory_Description", "Blueprint templates require no programming knowledge.\nAll game mechanics can be implemented using Blueprint visual scripting.\nEach template includes a basic set of blueprints to use as a starting point for your game."),
-		FEditorStyle::GetBrush("GameProjectDialog.BlueprintIcon"),
-		FEditorStyle::GetBrush("GameProjectDialog.BlueprintImage"));
-
-	RegisterTemplateCategory(
-		FTemplateCategory::CodeCategoryName,
-		LOCTEXT("CodeCategory_Name", "C++"),
-		FText::Format(
-			LOCTEXT("CodeCategory_Description", "C++ templates offer a good example of how to work with some of the core concepts of the Engine from code.\nYou still have the option of adding your own blueprints to the project at a later date if you want.\nChoosing this template type requires you to have {0} installed."),
-			FSourceCodeNavigation::GetSuggestedSourceCodeIDE()
-		),
-		FEditorStyle::GetBrush("GameProjectDialog.CodeIcon"),
-		FEditorStyle::GetBrush("GameProjectDialog.CodeImage"));
-
-	RegisterTemplateCategory(
-		FTemplateCategory::EnterpriseCategoryName,
-		LOCTEXT("EnterpriseCategory_Name", "Unreal Studio"),
-		LOCTEXT("EnterpriseCategory_Description", "Unreal Studio blueprint templates require no programming knowledge.\nEach template include a basic set of blueprints to use as a starting point for your Unreal Studio project."),
-		FEditorStyle::GetBrush("GameProjectDialog.BlueprintIcon"),
-		FEditorStyle::GetBrush("GameProjectDialog.BlueprintImage"));
+	LoadTemplateCategories();
 }
-
 
 void FGameProjectGenerationModule::ShutdownModule()
 {
 	
 }
 
-
 TSharedRef<class SWidget> FGameProjectGenerationModule::CreateGameProjectDialog(bool bAllowProjectOpening, bool bAllowProjectCreate)
 {
-	return SNew(SGameProjectDialog)
-		.AllowProjectOpening(bAllowProjectOpening)
-		.AllowProjectCreate(bAllowProjectCreate);
+	ensure(bAllowProjectOpening || bAllowProjectCreate);
+
+	SGameProjectDialog::EMode Mode = SGameProjectDialog::EMode::Both;
+	
+	if (bAllowProjectOpening && !bAllowProjectCreate)
+	{
+		Mode = SGameProjectDialog::EMode::Open;
+	}
+	else if (bAllowProjectCreate && !bAllowProjectOpening)
+	{
+		Mode = SGameProjectDialog::EMode::New;
+	}
+
+	return SNew(SGameProjectDialog, Mode);
 }
 
 
@@ -161,21 +146,61 @@ void FGameProjectGenerationModule::ClearSupportedTargetPlatforms()
 	GameProjectUtils::ClearSupportedTargetPlatforms();
 }
 
-bool FGameProjectGenerationModule::RegisterTemplateCategory(FName Type, FText Name, FText Description, const FSlateBrush* Icon, const FSlateBrush* Image)
+void FGameProjectGenerationModule::LoadTemplateCategories()
 {
-	if (TemplateCategories.Contains(Type))
+	// Now discover and all data driven templates
+	TArray<FString> TemplateRootFolders;
+
+	// @todo rocket make template folder locations extensible.
+	TemplateRootFolders.Add(FPaths::RootDir() / TEXT("Templates"));
+
+	// Add the Enterprise templates
+	TemplateRootFolders.Add(FPaths::EnterpriseDir() / TEXT("Templates"));
+
+	// allow plugins to define templates
+	TArray<TSharedRef<IPlugin>> Plugins = IPluginManager::Get().GetEnabledPlugins();
+	for (const TSharedRef<IPlugin>& Plugin : Plugins)
 	{
-		return false;
+		FString PluginDirectory = Plugin->GetBaseDir();
+		if (!PluginDirectory.IsEmpty())
+		{
+			const FString PluginTemplatesDirectory = PluginDirectory / TEXT("Templates");
+
+			if (IFileManager::Get().DirectoryExists(*PluginTemplatesDirectory))
+			{
+				TemplateRootFolders.Add(PluginTemplatesDirectory);
+			}
+		}
 	}
 
-	FTemplateCategory Category = { Name, Description, Icon, Image, Type };
-	TemplateCategories.Add(Type, MakeShareable(new FTemplateCategory(Category)));
-	return true;
-}
+	for (const FString& Root : TemplateRootFolders)
+	{
+		UTemplateCategories* CategoryDefs = GameProjectUtils::LoadTemplateCategories(Root);
+		if (CategoryDefs != nullptr)
+		{
+			for (const FTemplateCategoryDef& Category : CategoryDefs->Categories)
+			{
+				TSharedPtr<FTemplateCategory> TemplateCategory;
 
-void FGameProjectGenerationModule::UnRegisterTemplateCategory(FName Type)
-{
-	TemplateCategories.Remove(Type);
+				TSharedPtr<FTemplateCategory>* Existing = TemplateCategories.Find(Category.Key);
+				if (Existing == nullptr)
+				{
+					TemplateCategory = TemplateCategories.Add(Category.Key, MakeShareable(new FTemplateCategory));
+				}
+				else
+				{
+					TemplateCategory = *Existing;
+				}
+
+				TemplateCategory->Key = Category.Key;
+				TemplateCategory->DisplayName = FLocalizedTemplateString::GetLocalizedText(Category.LocalizedDisplayNames);
+				TemplateCategory->Description = FLocalizedTemplateString::GetLocalizedText(Category.LocalizedDescriptions);
+				TemplateCategory->Icon = FEditorStyle::GetBrush(Category.Icon);
+				TemplateCategory->Image = FEditorStyle::GetBrush(Category.Image);
+				TemplateCategory->IsMajor = Category.IsMajorCategory;
+			}
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

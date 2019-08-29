@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "FeaturePackContentSource.h"
+#include "Internationalization/PolyglotTextData.h"
 #include "TemplateProjectDefs.generated.h"
 
 // does not require reflection exposure
@@ -23,7 +24,7 @@ struct FTemplateConfigValue
 USTRUCT()
 struct FTemplateReplacement
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
 	UPROPERTY()
 	TArray<FString> Extensions;
@@ -41,7 +42,7 @@ struct FTemplateReplacement
 USTRUCT()
 struct FTemplateFolderRename
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
 	UPROPERTY()
 	FString From;
@@ -53,18 +54,32 @@ struct FTemplateFolderRename
 USTRUCT()
 struct FLocalizedTemplateString
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
 	UPROPERTY()
 	FString Language;
 
 	UPROPERTY()
 	FString Text;
+
+	/** Find a text value for the current locale (or fallback to English) from the given array of localized strings. */
+	static FText GetLocalizedText(const TArray<FLocalizedTemplateString>& LocalizedStrings);
+};
+
+UENUM()
+enum class ETemplateSetting
+{
+	Languages,
+	HardwareTarget,
+	GraphicsPreset,
+	StarterContent,
+	VR
 };
 
 UCLASS(abstract,config=TemplateDefs,MinimalAPI)
 class UTemplateProjectDefs : public UObject
 {
+public:
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY(config)
@@ -92,7 +107,7 @@ class UTemplateProjectDefs : public UObject
 	FString SortKey;
 
 	UPROPERTY(config)
-	FName Category;
+	TArray<FName> Categories;
 
 	UPROPERTY(config)
 	FString ClassTypes;
@@ -103,6 +118,14 @@ class UTemplateProjectDefs : public UObject
 	/* Should we allow creation of a project from this template */
 	UPROPERTY(config)
 	bool bAllowProjectCreation;
+
+	/* Should we skip the project settings page when creating a project from this template */
+	UPROPERTY(config)
+	bool bSkipProjectSettings;
+
+	/* Optional list of settings to hide. If none are specified, then all settings are shown. */
+	UPROPERTY(config)
+	TArray<ETemplateSetting> HiddenSettings;
 	
 	/* Optional list of feature packs to include */
 	UPROPERTY(config)
@@ -144,3 +167,40 @@ private:
 	void FixString(FString& InOutStringToFix, const FString& TemplateName, const FString& ProjectName);
 };
 
+USTRUCT()
+struct FTemplateCategoryDef
+{
+	GENERATED_BODY()
+	
+	/** Key to use for identifying what category a template is in. */
+	UPROPERTY()
+	FName Key;
+
+	/** Localized name for this template category. */
+	UPROPERTY()
+	TArray<FLocalizedTemplateString> LocalizedDisplayNames;
+
+	/** Localized description for this template category. */
+	UPROPERTY()
+	TArray<FLocalizedTemplateString> LocalizedDescriptions;
+
+	UPROPERTY()
+	FName Icon;
+
+	UPROPERTY()
+	FName Image;
+
+	UPROPERTY()
+	bool IsMajorCategory;
+};
+
+UCLASS(config=TemplateCategories)
+class UTemplateCategories : public UObject
+{
+public:
+	GENERATED_BODY()
+
+	/** Array of all categories specified in this location. */
+	UPROPERTY(config)
+	TArray<FTemplateCategoryDef> Categories;
+};

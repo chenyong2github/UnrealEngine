@@ -799,6 +799,7 @@ bool GameProjectUtils::CreateProject(const FProjectInformation& InProjectInfo, F
 	{
 		TArray<FAnalyticsEventAttribute> EventAttributes;
 		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("Template"), TemplateName));
+		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("Category"), InProjectInfo.TemplateCategory.ToString()));
 		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("ProjectType"), InProjectInfo.bShouldGenerateCode ? TEXT("C++ Code") : TEXT("Content Only")));
 		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("Outcome"), bProjectCreationSuccessful ? TEXT("Successful") : TEXT("Failed")));
 
@@ -807,8 +808,7 @@ bool GameProjectUtils::CreateProject(const FProjectInformation& InProjectInfo, F
 		Enum = StaticEnum<EGraphicsPreset::Type>();
 		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("GraphicsPreset"), Enum ? Enum->GetNameStringByValue(InProjectInfo.DefaultGraphicsPerformance) : FString()));
 		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("StarterContent"), InProjectInfo.bCopyStarterContent ? TEXT("Yes") : TEXT("No")));
-		EventAttributes.Emplace(TEXT("Enterprise"), InProjectInfo.bIsEnterpriseProject);
-
+		
 		FEngineAnalytics::GetProvider().RecordEvent( TEXT( "Editor.NewProject.ProjectCreated" ), EventAttributes );
 	}
 
@@ -1217,9 +1217,23 @@ GameProjectUtils::EAddCodeToProjectResult GameProjectUtils::AddCodeToProject(con
 	return Result;
 }
 
+UTemplateCategories* GameProjectUtils::LoadTemplateCategories(const FString& RootDir)
+{
+	UTemplateCategories* TemplateCategories = nullptr;
+
+	FString TemplateCategoriesIniFilename = RootDir / TEXT("TemplateCategories.ini");
+	if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*TemplateCategoriesIniFilename))
+	{
+		TemplateCategories = NewObject<UTemplateCategories>();
+		TemplateCategories->LoadConfig(UTemplateCategories::StaticClass(), *TemplateCategoriesIniFilename);
+	}
+
+	return TemplateCategories;
+}
+
 UTemplateProjectDefs* GameProjectUtils::LoadTemplateDefs(const FString& ProjectDirectory)
 {
-	UTemplateProjectDefs* TemplateDefs = NULL;
+	UTemplateProjectDefs* TemplateDefs = nullptr;
 
 	const FString TemplateDefsIniFilename = ProjectDirectory / TEXT("Config") / GetTemplateDefsFilename();
 	if ( FPlatformFileManager::Get().GetPlatformFile().FileExists(*TemplateDefsIniFilename) )
