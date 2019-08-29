@@ -1254,6 +1254,7 @@ TSharedRef<SVerticalBox> FDataTableEditor::CreateContentBox()
 		.SelectionMode(ESelectionMode::Single)
 		.AllowOverscroll(EAllowOverscroll::No);
 
+	LoadLayoutData();
 	RefreshCachedDataTable();
 
 	return SNew(SVerticalBox)
@@ -1353,8 +1354,6 @@ TSharedRef<SDockTab> FDataTableEditor::SpawnTab_DataTable( const FSpawnTabArgs& 
 	{
 		Table->SetFlags(RF_Transactional);
 	}
-
-	LoadLayoutData();
 
 	return SNew(SDockTab)
 		.Icon( FEditorStyle::GetBrush("DataTableEditor.Tabs.Properties") )
