@@ -50,9 +50,9 @@ public:
 	/**
 	 * Compute standard per-vertex normals by averaging one-ring face normals
 	 */
-	void ComputeVertexNormals()
+	void ComputeVertexNormals(bool bWeightByArea = true, bool bWeightByAngle = true)
 	{
-		Compute_FaceAvg_AreaWeighted();
+		Compute_FaceAvg(bWeightByArea, bWeightByAngle);
 	}
 
 	/**
@@ -67,11 +67,10 @@ public:
 	 * Recompute the per-element normals of the given overlay by averaging one-ring face normals
 	 * @warning NormalOverlay must be attached to ParentMesh or an exact copy
 	 */
-	void RecomputeOverlayNormals(FDynamicMeshNormalOverlay* NormalOverlay)
+	void RecomputeOverlayNormals(FDynamicMeshNormalOverlay* NormalOverlay, bool bWeightByArea = true, bool bWeightByAngle = true)
 	{
-		Compute_Overlay_FaceAvg_AreaWeighted(NormalOverlay);
+		Compute_Overlay_FaceAvg(NormalOverlay, bWeightByArea, bWeightByAngle);
 	}
-
 
 
 	/**
@@ -111,11 +110,31 @@ public:
 
 
 protected:
-	/** Compute per-vertex normals using area-weighted averaging of one-ring triangles */
+	/** Compute per-vertex normals using area-weighted averaging of one-ring triangle normals */
 	void Compute_FaceAvg_AreaWeighted();
+	/** Compute per-vertex normals using a custom combination of area-weighted and angle-weighted averaging of one-ring triangle normals */
+	void Compute_FaceAvg(bool bWeightByArea, bool bWeightByAngle);
+
 	/** Compute per-triangle normals */
 	void Compute_Triangle();
-	/** Recompute the element Normals of the given attribute overlay using area-weighted averaging of one-ring triangles */
+
+	/** Recompute the element Normals of the given attribute overlay using area-weighted averaging of one-ring triangle normals */
 	void Compute_Overlay_FaceAvg_AreaWeighted(const FDynamicMeshNormalOverlay* NormalOverlay);
+	/** Recompute the element Normals of the given attribute overlay using a custom combination of area-weighted and angle-weighted averaging of one-ring triangle normals */
+	void Compute_Overlay_FaceAvg(const FDynamicMeshNormalOverlay* NormalOverlay, bool bWeightByArea, bool bWeightByAngle);
+
+	inline FVector3d GetVertexWeightsOnTriangle(int TriID, double TriArea, bool bWeightByArea, bool bWeightByAngle) const
+	{
+		FVector3d TriNormalWeights = FVector3d::One();
+		if (bWeightByArea)
+		{
+			TriNormalWeights = Mesh->GetTriInternalAnglesR(TriID); // component-wise multiply by per-vertex internal angles
+		}
+		if (bWeightByArea)
+		{
+			TriNormalWeights *= TriArea;
+		}
+		return TriNormalWeights;
+	}
 
 };

@@ -104,6 +104,20 @@ public:
 
 
 
+	/**
+	 * Build overlay topology from a predicate function, e.g. to build topology for sharp normals
+	 * 
+	 * @param TrisCanShareVertexPredicate Indicator function returns true if the given vertex can be shared for the given pair of triangles
+	 * @param bNonTransitiveShare If false, sharing is transitive so if Tris A and B can share a vertex, and B and C can share the vertex, then A, B and C will all use the same vertex, even if A and C could not share.
+	 *							  Otherwise, for a sequence of tris A, B, C, D, E that would all possibly share the same vertex, we require that BOTH:
+	 *									1. each adjacent pair (A,B), (B,C), etc pass the the TrisCanShareVertexPredicate and
+	 *									2. the first triangle in the sequence, A, passes the predicate with all other grouped triangles (A,C), (A,D), etc
+	 *								For a contiguous section that passes the adjacent pair tests but not the second test, we give each triangle in the section a separate normal for that vertex
+	 *								(doing anything 'smarter' like trying to find contiguous subgroups ends up just looking weird)
+	 */
+	void CreateFromPredicate(TFunctionRef<bool(int ParentVertexIdx, int TriIDA, int TriIDB)> TrisCanShareVertexPredicate, RealType InitElementValue, bool bNonTransitiveShare);
+
+
 	//
 	// Support for inserting element at specific ID. This is a bit tricky
 	// because we likely will need to update the free list in the RefCountVector, which

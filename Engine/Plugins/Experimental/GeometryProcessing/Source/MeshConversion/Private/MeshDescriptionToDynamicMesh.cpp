@@ -167,6 +167,8 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 	FUVWelder UVWelder(UVOverlay);
 	FNormalWelder NormalWelder(NormalOverlay);
 
+	// NOTE: If you change the iteration order here, please update the corresponding iteration in FDynamicMeshToMeshDescription::UpdateAttributes, 
+	//	which assumes the iteration order here is polygons -> triangles, to correspond the triangles when writing updated attributes back!
 	const FPolygonArray& Polygons = MeshIn->Polygons();
 	for (const FPolygonID PolygonID : Polygons.GetElementIDs())
 	{

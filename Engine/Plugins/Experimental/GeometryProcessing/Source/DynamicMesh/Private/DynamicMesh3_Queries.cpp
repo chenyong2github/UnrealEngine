@@ -174,6 +174,116 @@ EMeshResult FDynamicMesh3::GetVtxTriangles(int vID, TArray<int>& TrianglesOut, b
 
 
 
+EMeshResult FDynamicMesh3::GetVtxContiguousTriangles(int VertexID, TArray<int>& TrianglesOut, TArray<int>& SpanLengths, TArray<bool>& IsLoop) const
+{
+	if (!ensure(IsVertex(VertexID)))
+	{
+		return EMeshResult::Failed_NotAVertex;
+	}
+
+	TrianglesOut.Reset();
+	SpanLengths.Reset();
+	IsLoop.Reset();
+
+	int NumEdges = VertexEdgeLists.GetCount(VertexID);
+	if (NumEdges == 0)
+	{
+		return EMeshResult::Ok;
+	}
+
+	TArray<int> StartEdgeIDs;
+	// initial starting edge candidates == boundary edges
+	for (int EID : VertexEdgeLists.Values(VertexID))
+	{
+		if (Edges[EID * 4 + 3] == InvalidID)
+		{
+			StartEdgeIDs.Push(EID);
+		}
+	}
+	bool bHasBoundaries = StartEdgeIDs.Num();
+	
+	if (!bHasBoundaries)
+	{
+		for (int EID : VertexEdgeLists.Values(VertexID))
+		{
+			StartEdgeIDs.Push(EID);
+			break;
+		}
+	}
+
+	int WalkedEdges = 0;
+	bool bHasRemainingBoundaries = bHasBoundaries;
+	while (StartEdgeIDs.Num() || WalkedEdges < NumEdges)
+	{
+		if (!StartEdgeIDs.Num())
+		{
+			bHasRemainingBoundaries = false;
+			// fallback for (hopefully very rare) case of a non-manifold vertex where there are separate one-rings w/ no boundary edges --
+			//  brute force search for an edge that hasn't already been walked
+			for (int EID : VertexEdgeLists.Values(VertexID))
+			{
+				int AttachedTriID = Edges[EID * 4 + 2];
+				bool UsedEdge = TrianglesOut.Contains(AttachedTriID);
+				if (!UsedEdge)
+				{
+					StartEdgeIDs.Push(EID);
+					break;
+				}
+			}
+		}
+
+		// walk starting from this edge, add the found span
+		
+		int StartEID = StartEdgeIDs.Pop();
+		int PrevEID = StartEID;
+		WalkedEdges++;
+		int WalkTri = Edges[StartEID * 4 + 2];
+		int32 SpanStart = TrianglesOut.Num();
+		IsLoop.Add(!bHasRemainingBoundaries);
+		while (true)
+		{
+			TrianglesOut.Add(WalkTri);
+
+			int TriIdx = 3 * WalkTri;
+			FIndex3i TriVIDs(Triangles[TriIdx], Triangles[TriIdx + 1], Triangles[TriIdx + 2]);
+			FIndex3i TriEIDs(TriangleEdges[TriIdx], TriangleEdges[TriIdx + 1], TriangleEdges[TriIdx + 2]);
+			int VertSubIdx = IndexUtil::FindTriIndex(VertexID, TriVIDs);
+			int NextEID = TriEIDs[VertSubIdx];
+			if (NextEID == PrevEID)
+			{
+				NextEID = TriEIDs[(VertSubIdx + 2) % 3];
+			}
+			if (NextEID == StartEID)
+			{
+				break;
+			}
+
+			WalkedEdges++;
+
+			int NextEdgeIdx = NextEID * 4;
+			int NextTriID = Edges[NextEdgeIdx + 2];
+			if (NextTriID == WalkTri)
+			{
+				NextTriID = Edges[NextEdgeIdx + 3];
+			}
+			if (NextTriID == InvalidID)
+			{
+				// remove the corresponding boundary
+				check(StartEdgeIDs.Num() > 0);
+				StartEdgeIDs.RemoveSingleSwap(NextEID);
+				break;
+			}
+			WalkTri = NextTriID;
+			PrevEID = NextEID;
+		}
+		SpanLengths.Add(TrianglesOut.Num() - SpanStart);
+	}
+
+	check(SpanLengths.Num() == IsLoop.Num());
+
+	return EMeshResult::Ok;
+}
+
 
 
 bool FDynamicMesh3::IsBoundaryVertex(int vID) const 
@@ -801,7 +911,7 @@ double FDynamicMesh3::GetTriSolidAngle(int tID, const FVector3d& p) const
 
 
 
-double FDynamicMesh3::GetTriInternalAngleR(int tID, int i)
+double FDynamicMesh3::GetTriInternalAngleR(int tID, int i) const
 {
 	int ti = 3 * tID;
 	int ta = 3 * Triangles[ti];
@@ -823,6 +933,27 @@ double FDynamicMesh3::GetTriInternalAngleR(int tID, int i)
 		return (a - c).Normalized().AngleR((b - c).Normalized());
 	}
 }
+
+
+FVector3d FDynamicMesh3::GetTriInternalAnglesR(int TID) const
+{
+	int ti = 3 * TID;
+	int ta = 3 * Triangles[ti];
+	FVector3d a(Vertices[ta], Vertices[ta + 1], Vertices[ta + 2]);
+	int tb = 3 * Triangles[ti + 1];
+	FVector3d b(Vertices[tb], Vertices[tb + 1], Vertices[tb + 2]);
+	int tc = 3 * Triangles[ti + 2];
+	FVector3d c(Vertices[tc], Vertices[tc + 1], Vertices[tc + 2]);
+	FVector3d ABhat = (b - a).Normalized();
+	FVector3d BChat = (c - b).Normalized();
+	FVector3d AChat = (c - a).Normalized();
+	return FVector3d(
+		ABhat.AngleR(AChat),	// AB vs AC angle
+		(-ABhat).AngleR(BChat), // BA vs BC angle
+		(AChat).AngleR(BChat) // AC vs BC angle (same as CA vs CB, so don't need to negate both)
+		);
+}
+
 
 
 double FDynamicMesh3::CalculateWindingNumber(const FVector3d& QueryPoint) const

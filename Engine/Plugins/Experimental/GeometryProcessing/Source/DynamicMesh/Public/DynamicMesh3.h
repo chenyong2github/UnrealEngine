@@ -827,6 +827,15 @@ public:
 	 */
 	EMeshResult GetVtxTriangles(int VertexID, TArray<int>& TrianglesOut, bool bUseOrientation) const;
 
+	/**
+	* Get triangles connected to vertex in contiguous order, with multiple groups if vertex is a bowtie.
+	* @param VertexID Vertex ID to search around
+	* @param TrianglesOut All triangles connected to the vertex, in contiguous order; if there are multiple contiguous groups they are packed one after another
+	* @param ContiguousGroupLengths Lengths of contiguous groups packed into TrianglesOut (if not a bowtie, this will just be a length-one array w/ {TrianglesOut.Num()})
+	* @param GroupIsLoop Indicates whether each contiguous group is a loop (first triangle connected to last) or not
+	*/
+	EMeshResult GetVtxContiguousTriangles(int VertexID, TArray<int>& TrianglesOut, TArray<int>& ContiguousGroupLengths, TArray<bool>& GroupIsLoop) const;
+
 	/** Returns true if the two triangles connected to edge have different group IDs */
 	bool IsGroupBoundaryEdge(int EdgeID) const;
 
@@ -948,7 +957,10 @@ public:
 	double GetTriSolidAngle(int TriangleID, const FVector3d& p) const;
 
 	/** Compute internal angle at vertex i of triangle (where i is 0,1,2); */
-	double GetTriInternalAngleR(int TriangleID, int i);
+	double GetTriInternalAngleR(int TriangleID, int i) const;
+
+	/** Compute internal angles at all vertices of triangle */
+	FVector3d GetTriInternalAnglesR(int TriangleID) const;
 
 	/** Returns average normal of connected face normals */
 	FVector3d GetEdgeNormal(int EdgeID) const;

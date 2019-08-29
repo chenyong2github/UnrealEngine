@@ -74,7 +74,34 @@ void FMeshNormals::Compute_FaceAvg_AreaWeighted()
 	}
 }
 
+void FMeshNormals::Compute_FaceAvg(bool bWeightByArea, bool bWeightByAngle)
+{
+	if (!bWeightByAngle && bWeightByArea)
+	{
+		Compute_FaceAvg_AreaWeighted(); // faster case
+		return;
+	}
 
+	// most general case
+	SetCount(Mesh->MaxVertexID(), true);
+
+	for (int TriIdx : Mesh->TriangleIndicesItr())
+	{
+		FVector3d TriNormal, TriCentroid; double TriArea;
+		Mesh->GetTriInfo(TriIdx, TriNormal, TriArea, TriCentroid);
+		FVector3d TriNormalWeights = GetVertexWeightsOnTriangle(TriIdx, TriArea, bWeightByArea, bWeightByAngle);
+
+		FIndex3i Triangle = Mesh->GetTriangle(TriIdx);
+		Normals[Triangle.A] += TriNormal * TriNormalWeights[0];
+		Normals[Triangle.B] += TriNormal * TriNormalWeights[1];
+		Normals[Triangle.C] += TriNormal * TriNormalWeights[2];
+	}
+
+	for (int VertIdx : Mesh->VertexIndicesItr())
+	{
+		Normals[VertIdx].Normalize();
+	}
+}
 
 void FMeshNormals::Compute_Triangle()
 {
@@ -88,6 +115,39 @@ void FMeshNormals::Compute_Triangle()
 
 
 
+
+void FMeshNormals::Compute_Overlay_FaceAvg(const FDynamicMeshNormalOverlay* NormalOverlay, bool bWeightByArea, bool bWeightByAngle)
+{
+	if (!bWeightByAngle && bWeightByArea)
+	{
+		Compute_Overlay_FaceAvg_AreaWeighted(NormalOverlay); // faster case
+		return;
+	}
+
+	// most general case
+	SetCount(NormalOverlay->MaxElementID(), true);
+
+	for (int TriIdx : Mesh->TriangleIndicesItr())
+	{
+		FVector3d TriNormal, TriCentroid; double TriArea;
+		Mesh->GetTriInfo(TriIdx, TriNormal, TriArea, TriCentroid);
+		FVector3d TriNormalWeights = GetVertexWeightsOnTriangle(TriIdx, TriArea, bWeightByArea, bWeightByAngle);
+
+		FIndex3i Tri = NormalOverlay->GetTriangle(TriIdx);
+		for (int j = 0; j < 3; ++j) 
+		{
+			if (Tri[j] != FDynamicMesh3::InvalidID)
+			{
+				Normals[Tri[j]] += TriNormal * TriNormalWeights[j];
+			}
+		}
+	}
+
+	for (int ElemIdx : NormalOverlay->ElementIndicesItr())
+	{
+		Normals[ElemIdx].Normalize();
+	}
+}
 
 void FMeshNormals::Compute_Overlay_FaceAvg_AreaWeighted(const FDynamicMeshNormalOverlay* NormalOverlay)
 {
@@ -114,7 +174,6 @@ void FMeshNormals::Compute_Overlay_FaceAvg_AreaWeighted(const FDynamicMeshNormal
 		Normals[ElemIdx].Normalize();
 	}
 }
-
 
 
 void FMeshNormals::QuickComputeVertexNormals(FDynamicMesh3& Mesh, bool bInvert)
