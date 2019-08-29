@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "AudioCaptureDeviceInterface.h"
 #include "AudioCaptureMagicLeap.h"
+#include "Modules/ModuleManager.h"
 #include "Features/IModularFeatures.h"
 
 namespace Audio
