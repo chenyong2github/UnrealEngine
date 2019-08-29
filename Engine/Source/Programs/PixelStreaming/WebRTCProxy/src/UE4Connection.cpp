@@ -75,22 +75,25 @@ void FUE4Connection::Send(const void* Data, uint32_t Size)
 
 uint32_t FUE4Connection::OnRead(const uint8_t* Data, uint32_t Size)
 {
-	if (!bStreamingStarted)
-		return Size; // drop data as there's no clients to receive it
-
-	using FTimestamp = uint64_t;
-	using FPayloadSize = uint32_t;
-
-	if (Size < sizeof(FTimestamp) + sizeof(EToProxyMsg) + sizeof(FPayloadSize))
+	if (Size < sizeof(EToProxyMsg))
 		return 0;
 
 	const uint8_t* Ptr = Data;  // pointer to current read pos in the buffer
 
-	auto CaptureTimeMs = *reinterpret_cast<const FTimestamp*>(Ptr);
-	Ptr += sizeof(CaptureTimeMs);
-
 	auto PktType = *reinterpret_cast<const EToProxyMsg*>(Ptr);
 	Ptr += sizeof(PktType);
+
+	if (DropPacket(PktType))
+		return Size; // drop data
+
+	using FTimestamp = uint64_t;
+	using FPayloadSize = uint32_t;
+
+	if (Size < sizeof(EToProxyMsg) + sizeof(FTimestamp) + sizeof(FPayloadSize))
+		return 0;
+
+	auto CaptureTimeMs = *reinterpret_cast<const FTimestamp*>(Ptr);
+	Ptr += sizeof(CaptureTimeMs);
 
 	auto PayloadSize = *reinterpret_cast<const FPayloadSize*>(Ptr);
 	Ptr += sizeof(PayloadSize);
@@ -103,4 +106,16 @@ uint32_t FUE4Connection::OnRead(const uint8_t* Data, uint32_t Size)
 	Ptr += PayloadSize;
 
 	return static_cast<uint32_t>(Ptr - Data);
+}
+
+bool FUE4Connection::DropPacket(EToProxyMsg PktType) const
+{
+	if (PktType == EToProxyMsg::FreezeFrame || PktType == EToProxyMsg::UnfreezeFrame)
+	{
+		return false; // We never drop freeze frame data as it's used when the video isn't streaming.
+	}
+	else
+	{
+		return !bStreamingStarted; // drop data as there's no clients to receive it
+	}
 }
