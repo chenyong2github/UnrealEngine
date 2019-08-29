@@ -200,7 +200,7 @@ EMeshResult FDynamicMesh3::GetVtxContiguousTriangles(int VertexID, TArray<int>& 
 			StartEdgeIDs.Push(EID);
 		}
 	}
-	bool bHasBoundaries = StartEdgeIDs.Num();
+	bool bHasBoundaries = StartEdgeIDs.Num() != 0;
 	
 	if (!bHasBoundaries)
 	{
