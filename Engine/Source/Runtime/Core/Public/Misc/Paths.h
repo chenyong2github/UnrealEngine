@@ -544,7 +544,7 @@ public:
 	/**
 	* Returns a string containing all invalid characters as dictated by the operating system
 	*/
-	static const FString& GetInvalidFileSystemChars();
+	static FString GetInvalidFileSystemChars();
 
 	/**
 	*	Returns a string that is safe to use as a filename because all items in
@@ -583,11 +583,18 @@ public:
 		return Out;
 	}
 
+	/**
+	 * Frees any memory retained by FPaths.
+	 */
+	static void TearDown();
+
 protected:
 
 	static void CombineInternal(FString& OutPath, const TCHAR** Paths, int32 NumPaths);
 
 private:
+	struct FStaticData;
+
 	FORCEINLINE static const TCHAR* GetTCharPtr(const TCHAR* Ptr)
 	{
 		return Ptr;
@@ -598,13 +605,9 @@ private:
 		return *Str;
 	}
 
-	/** Holds the path to the currently loaded game project file. */
-	static FString GameProjectFilePath;
+	/** Returns, if any, the value of the -userdir command line argument. This can be used to sandbox artifacts to a desired location */
+	static const FString& CustomUserDirArgument();
 
-	/** Thread protection for above path */
-	FORCEINLINE static FCriticalSection* GameProjectFilePathLock() 
-	{
-		static FCriticalSection Lock;
-		return &Lock; 
-	}
+	/** Returns, if any, the value of the -shaderworkingdir command line argument. This can be used to sandbox shader working files to a desired location */
+	static const FString& CustomShaderDirArgument();
 };

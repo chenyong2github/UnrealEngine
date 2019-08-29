@@ -657,5 +657,4 @@ protected:
 
 	/** Updates platform specific stats. This method is called through FGenericStatsUpdater from the task graph thread. */
 	static void InternalUpdateStats( const FPlatformMemoryStats& MemoryStats );
-
 };

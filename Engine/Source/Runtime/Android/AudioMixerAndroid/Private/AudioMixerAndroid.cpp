@@ -1,16 +1,15 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AudioMixer.h"
-#include "AudioMixerDevice.h"
 #include "AudioMixerPlatformAndroid.h"
-
+#include "Modules/ModuleManager.h"
 
 class FAudioMixerModuleAndroid : public IAudioDeviceModule
 {
 public:
-	virtual FAudioDevice* CreateAudioDevice() override
+	virtual Audio::IAudioMixerPlatformInterface* CreateAudioMixerPlatformInterface() override
 	{
-		return new Audio::FMixerDevice(new Audio::FMixerPlatformAndroid());
+		return new Audio::FMixerPlatformAndroid();
 	}
 };
 

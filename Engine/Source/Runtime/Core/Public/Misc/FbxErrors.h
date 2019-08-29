@@ -15,166 +15,166 @@
 struct CORE_API FFbxErrors
 {
 	/** Generic */
-	static FName Generic_ImportingNewObjectFailed;
+	static FLazyName Generic_ImportingNewObjectFailed;
 
-	static FName Generic_ReimportingObjectFailed;
+	static FLazyName Generic_ReimportingObjectFailed;
 
-	static FName Generic_LoadingSceneFailed;
+	static FLazyName Generic_LoadingSceneFailed;
 
-	static FName Generic_InvalidCharacterInName;
+	static FLazyName Generic_InvalidCharacterInName;
 
-	static FName Generic_SameNameAssetExists;
+	static FLazyName Generic_SameNameAssetExists;
 
-	static FName Generic_SameNameAssetOverriding;
+	static FLazyName Generic_SameNameAssetOverriding;
 
-	static FName Generic_CannotDeleteReferenced;
+	static FLazyName Generic_CannotDeleteReferenced;
 
-	static FName Generic_FBXFileParseFailed;
+	static FLazyName Generic_FBXFileParseFailed;
 
-	static FName Generic_MeshNotFound;
+	static FLazyName Generic_MeshNotFound;
 
-	static FName Generic_CannotDetectImportType;
+	static FLazyName Generic_CannotDetectImportType;
 
 	/** Mesh Generic **/
 
-	static FName Generic_Mesh_NoGeometry;
+	static FLazyName Generic_Mesh_NoGeometry;
 
-	static FName Generic_Mesh_SmallGeometry;
+	static FLazyName Generic_Mesh_SmallGeometry;
 
-	static FName Generic_Mesh_TriangulationFailed;
+	static FLazyName Generic_Mesh_TriangulationFailed;
 
-	static FName Generic_Mesh_ConvertSmoothingGroupFailed;
+	static FLazyName Generic_Mesh_ConvertSmoothingGroupFailed;
 
-	static FName Generic_Mesh_UnsupportingSmoothingGroup;
+	static FLazyName Generic_Mesh_UnsupportingSmoothingGroup;
 
-	static FName Generic_Mesh_MaterialIndexInconsistency;
+	static FLazyName Generic_Mesh_MaterialIndexInconsistency;
 
-	static FName Generic_Mesh_MeshNotFound;
+	static FLazyName Generic_Mesh_MeshNotFound;
 
-	static FName Generic_Mesh_NoSmoothingGroup;
+	static FLazyName Generic_Mesh_NoSmoothingGroup;
 
-	static FName Generic_Mesh_LOD_InvalidIndex;
+	static FLazyName Generic_Mesh_LOD_InvalidIndex;
 
-	static FName Generic_Mesh_LOD_NoFileSelected;
+	static FLazyName Generic_Mesh_LOD_NoFileSelected;
 
-	static FName Generic_Mesh_LOD_MultipleFilesSelected;
+	static FLazyName Generic_Mesh_LOD_MultipleFilesSelected;
 
-	static FName Generic_Mesh_SkinxxNameError;
+	static FLazyName Generic_Mesh_SkinxxNameError;
 
-	static FName Generic_Mesh_TooManyLODs;
+	static FLazyName Generic_Mesh_TooManyLODs;
 
-	static FName Generic_Mesh_TangentsComputeError;
+	static FLazyName Generic_Mesh_TangentsComputeError;
 
-	static FName Generic_Mesh_NoReductionModuleAvailable;
+	static FLazyName Generic_Mesh_NoReductionModuleAvailable;
 
-	static FName Generic_Mesh_TooMuchUVChannels;
+	static FLazyName Generic_Mesh_TooMuchUVChannels;
 
 	/** Static Mesh **/
-	static FName StaticMesh_TooManyMaterials;
+	static FLazyName StaticMesh_TooManyMaterials;
 
-	static FName StaticMesh_UVSetLayoutProblem;
+	static FLazyName StaticMesh_UVSetLayoutProblem;
 
-	static FName StaticMesh_NoTriangles;
+	static FLazyName StaticMesh_NoTriangles;
 
-	static FName StaticMesh_BuildError;
+	static FLazyName StaticMesh_BuildError;
 
-	static FName StaticMesh_AllTrianglesDegenerate;
+	static FLazyName StaticMesh_AllTrianglesDegenerate;
 
-	static FName StaticMesh_AdjacencyOptionForced;
+	static FLazyName StaticMesh_AdjacencyOptionForced;
 
 	/** SkeletalMesh **/
-	static FName SkeletalMesh_DifferentRoots;
+	static FLazyName SkeletalMesh_DifferentRoots;
 
-	static FName SkeletalMesh_DuplicateBones;
+	static FLazyName SkeletalMesh_DuplicateBones;
 
-	static FName SkeletalMesh_NoInfluences;
+	static FLazyName SkeletalMesh_NoInfluences;
 
-	static FName SkeletalMesh_TooManyInfluences;
+	static FLazyName SkeletalMesh_TooManyInfluences;
 
-	static FName SkeletalMesh_RestoreSortingMismatchedStrips;
+	static FLazyName SkeletalMesh_RestoreSortingMismatchedStrips;
 
-	static FName SkeletalMesh_RestoreSortingNoSectionMatch;
+	static FLazyName SkeletalMesh_RestoreSortingNoSectionMatch;
 
-	static FName SkeletalMesh_RestoreSortingForSectionNumber;
+	static FLazyName SkeletalMesh_RestoreSortingForSectionNumber;
 
-	static FName SkeletalMesh_NoMeshFoundOnRoot;
+	static FLazyName SkeletalMesh_NoMeshFoundOnRoot;
 	
-	static FName SkeletalMesh_InvalidRoot;
+	static FLazyName SkeletalMesh_InvalidRoot;
 
-	static FName SkeletalMesh_InvalidBone;
+	static FLazyName SkeletalMesh_InvalidBone;
 
-	static FName SkeletalMesh_InvalidNode;
+	static FLazyName SkeletalMesh_InvalidNode;
 
-	static FName SkeletalMesh_NoWeightsOnDeformer;
+	static FLazyName SkeletalMesh_NoWeightsOnDeformer;
 
-	static FName SkeletalMesh_NoBindPoseInScene;
+	static FLazyName SkeletalMesh_NoBindPoseInScene;
 
-	static FName SkeletalMesh_NoAssociatedCluster;
+	static FLazyName SkeletalMesh_NoAssociatedCluster;
 
-	static FName SkeletalMesh_NoBoneFound;
+	static FLazyName SkeletalMesh_NoBoneFound;
 
-	static FName SkeletalMesh_InvalidBindPose;
+	static FLazyName SkeletalMesh_InvalidBindPose;
 
-	static FName SkeletalMesh_MultipleRoots;
+	static FLazyName SkeletalMesh_MultipleRoots;
 
-	static FName SkeletalMesh_BonesAreMissingFromBindPose;
+	static FLazyName SkeletalMesh_BonesAreMissingFromBindPose;
 
-	static FName SkeletalMesh_VertMissingInfluences;
+	static FLazyName SkeletalMesh_VertMissingInfluences;
 
-	static FName SkeletalMesh_SectionWithNoTriangle;
+	static FLazyName SkeletalMesh_SectionWithNoTriangle;
 
-	static FName SkeletalMesh_TooManyVertices;
+	static FLazyName SkeletalMesh_TooManyVertices;
 
-	static FName SkeletalMesh_FailedToCreatePhyscisAsset;
+	static FLazyName SkeletalMesh_FailedToCreatePhyscisAsset;
 
-	static FName SkeletalMesh_SkeletonRecreateError;
+	static FLazyName SkeletalMesh_SkeletonRecreateError;
 
-	static FName SkeletalMesh_ExceedsMaxBoneCount;
+	static FLazyName SkeletalMesh_ExceedsMaxBoneCount;
 
-	static FName SkeletalMesh_NoUVSet;
+	static FLazyName SkeletalMesh_NoUVSet;
 
-	static FName SkeletalMesh_LOD_MissingBone;
+	static FLazyName SkeletalMesh_LOD_MissingBone;
 
-	static FName SkeletalMesh_LOD_FailedToImport;
+	static FLazyName SkeletalMesh_LOD_FailedToImport;
 
-	static FName SkeletalMesh_LOD_RootNameIncorrect;
+	static FLazyName SkeletalMesh_LOD_RootNameIncorrect;
 
-	static FName SkeletalMesh_LOD_BonesDoNotMatch;
+	static FLazyName SkeletalMesh_LOD_BonesDoNotMatch;
 
-	static FName SkeletalMesh_LOD_IncorrectParent;
+	static FLazyName SkeletalMesh_LOD_IncorrectParent;
 
-	static FName SkeletalMesh_LOD_HasSoftVerts;
+	static FLazyName SkeletalMesh_LOD_HasSoftVerts;
 
-	static FName SkeletalMesh_LOD_MissingSocketBone;
+	static FLazyName SkeletalMesh_LOD_MissingSocketBone;
 
-	static FName SkeletalMesh_LOD_MissingMorphTarget;
+	static FLazyName SkeletalMesh_LOD_MissingMorphTarget;
 
-	static FName SkeletalMesh_FillImportDataFailed;
+	static FLazyName SkeletalMesh_FillImportDataFailed;
 
-	static FName SkeletalMesh_InvalidPosition;
+	static FLazyName SkeletalMesh_InvalidPosition;
 
 	/** Animation **/
-	static FName Animation_CouldNotFindRootTrack;
+	static FLazyName Animation_CouldNotFindRootTrack;
 
-	static FName Animation_CouldNotBuildSkeleton;
+	static FLazyName Animation_CouldNotBuildSkeleton;
 
-	static FName Animation_CouldNotFindTrack;
+	static FLazyName Animation_CouldNotFindTrack;
 
-	static FName Animation_ZeroLength;
+	static FLazyName Animation_ZeroLength;
 
-	static FName Animation_RootTrackMismatch;
+	static FLazyName Animation_RootTrackMismatch;
 
-	static FName Animation_DuplicatedBone;
+	static FLazyName Animation_DuplicatedBone;
 
-	static FName Animation_MissingBones;
+	static FLazyName Animation_MissingBones;
 
-	static FName Animation_InvalidData;
+	static FLazyName Animation_InvalidData;
 
-	static FName Animation_TransformError;
+	static FLazyName Animation_TransformError;
 
-	static FName Animation_DifferentLength;
+	static FLazyName Animation_DifferentLength;
 
-	static FName Animation_CurveNotFound;
+	static FLazyName Animation_CurveNotFound;
 };
 
 /**

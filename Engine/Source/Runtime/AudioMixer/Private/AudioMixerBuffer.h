@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "AudioMixer.h"
+#include "Audio.h"
 
 namespace Audio
 {

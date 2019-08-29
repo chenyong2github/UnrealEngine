@@ -126,7 +126,7 @@ FString FBasicToken::GetConstantValue() const
 		case CPT_Int:
 			return FString::Printf(TEXT("%i"), Int);
 		case CPT_Bool:
-			// Don't use GTrue/GFalse here because they can be localized
+			// Don't use FCoreTexts::True/FCoreTexts::False here because they can be localized
 			return FString::Printf(TEXT("%s"), NativeBool ? *(FName::GetEntry(NAME_TRUE)->GetPlainNameString()) : *(FName::GetEntry(NAME_FALSE)->GetPlainNameString()));
 		case CPT_Float:
 			return FString::Printf(TEXT("%f"), Float);

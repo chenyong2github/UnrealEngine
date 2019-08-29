@@ -223,10 +223,15 @@ public:
 	 *								currently recording an active undo/redo transaction
 	 * @return true if the object was saved to the transaction buffer
 	 */
+#if WITH_EDITOR
 	virtual bool Modify( bool bAlwaysMarkDirty=true );
 
 	/** Utility to allow overrides of Modify to avoid doing work if this object cannot be safely modified */
 	bool CanModify() const;
+#else
+	UE_DEPRECATED(4.24,"How many things call this?")
+	FORCEINLINE bool Modify(bool bAlwaysMarkDirty = true) { return false; }
+#endif
 
 #if WITH_EDITOR
 	/** 

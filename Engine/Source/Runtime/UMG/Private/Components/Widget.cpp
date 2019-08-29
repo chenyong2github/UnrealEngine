@@ -1102,6 +1102,7 @@ void UWidget::DeselectByDesigner()
 #define LOCTEXT_NAMESPACE "UMG"
 #endif
 
+#if WITH_EDITOR
 bool UWidget::Modify(bool bAlwaysMarkDirty)
 {
 	bool Modified = Super::Modify(bAlwaysMarkDirty);
@@ -1114,6 +1115,7 @@ bool UWidget::Modify(bool bAlwaysMarkDirty)
 
 	return Modified;
 }
+#endif
 
 bool UWidget::IsChildOf(UWidget* PossibleParent)
 {

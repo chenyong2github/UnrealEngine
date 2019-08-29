@@ -28,7 +28,7 @@ public:
 	/**
 	 * Destructor
 	 */
-	~FHttpManager();
+	virtual ~FHttpManager();
 
 	/**
 	 * Initialize
@@ -159,27 +159,6 @@ protected:
 	/** List of Http requests that are actively being processed */
 	TArray<TSharedRef<IHttpRequest>> Requests;
 
-	/** Keep track of a request that should be deleted later */
-	class FRequestPendingDestroy
-	{
-	public:
-		FRequestPendingDestroy(float InTimeLeft, const TSharedPtr<IHttpRequest>& InHttpRequest)
-			: TimeLeft(InTimeLeft)
-			, HttpRequest(InHttpRequest)
-		{}
-
-		FORCEINLINE bool operator==(const FRequestPendingDestroy& Other) const
-		{
-			return Other.HttpRequest == HttpRequest;
-		}
-
-		float TimeLeft;
-		TSharedPtr<IHttpRequest> HttpRequest;
-	};
-
-	/** Dead requests that need to be destroyed */
-	TArray<FRequestPendingDestroy> PendingDestroyRequests;
-
 	FHttpThread* Thread;
 
 	/** This method will be called to generate a CorrelationId on all requests being sent if one is not already set */
@@ -189,6 +168,4 @@ PACKAGE_SCOPE:
 
 	/** Used to lock access to add/remove/find requests */
 	static FCriticalSection RequestLock;
-	/** Delay in seconds to defer deletion of requests */
-	float DeferredDestroyDelay;
 };

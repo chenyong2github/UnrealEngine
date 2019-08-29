@@ -11,10 +11,17 @@ namespace UnrealBuildTool.Rules
             PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-                    "Core",
                     "InputCore",
                     "CoreUObject",
                     "Engine"
+                }
+			);
+
+			PublicDependencyModuleNames.AddRange(
+				new string[]
+				{
+                    "Core",
+					"SignalProcessing"
                 }
 			);
 

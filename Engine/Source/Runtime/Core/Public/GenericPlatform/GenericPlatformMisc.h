@@ -1351,6 +1351,11 @@ public:
 
 	static bool FileExitsInPlatformPackage(const FString& RelativePath);
 
+	/**
+	 * Frees any memory retained by FGenericPlatformMisc.
+	 */
+	static void TearDown();
+
 	static void ParseChunkIdPakchunkIndexMapping(TArray<FString> ChunkIndexRedirects, TMap<int32, int32>& OutMapping);
 
 	static void PumpMessagesOutsideMainLoop()
@@ -1374,7 +1379,7 @@ protected:
 #endif	//#if !UE_BUILD_SHIPPING
 
 private:
-	static TArray<FString>& Internal_GetAdditionalRootDirectories();
+	struct FStaticData;
 };
 
 

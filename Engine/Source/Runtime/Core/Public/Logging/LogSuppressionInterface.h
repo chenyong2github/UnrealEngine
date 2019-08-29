@@ -14,6 +14,10 @@ class FLogSuppressionInterface
 public:
 	/** Singleton, returns a reference the global log suppression implementation. **/
 	static CORE_API FLogSuppressionInterface& Get();
+	/** Returns null after TearDown() has been called */
+	static CORE_API FLogSuppressionInterface* TryGet();
+	static CORE_API void TearDown();
+
 	/** Used by FLogCategoryBase to register itself with the global category table **/
 	virtual void AssociateSuppress(struct FLogCategoryBase* Destination) = 0;
 	/** Used by FLogCategoryBase to unregister itself from the global category table **/

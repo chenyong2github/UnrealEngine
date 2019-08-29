@@ -18,7 +18,8 @@ public class Expat : ModuleRules
 			Target.Platform != UnrealTargetPlatform.Win32 &&
 			Target.Platform != UnrealTargetPlatform.PS4 &&
 			Target.Platform != UnrealTargetPlatform.Mac &&
-			Target.Platform != UnrealTargetPlatform.Switch)
+			Target.Platform != UnrealTargetPlatform.Switch &&
+			!Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
 			throw new BuildException("Unexpectedly pulled in Expat module. You may need to update Expat.build.cs for platform support");
 		}
@@ -68,6 +69,10 @@ public class Expat : ModuleRules
 		else if (Target.Platform == UnrealTargetPlatform.PS4 || Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Switch)
 		{
 			PublicAdditionalLibraries.Add(Path.Combine(ExpatPackagePath, Target.Platform.ToString(), ConfigName, "libexpat.a"));
+		}
+		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
+		{
+			PublicAdditionalLibraries.Add(Path.Combine(ExpatPackagePath, "Linux/" + Target.Architecture, ConfigName, "libexpat.a"));
 		}
 	}
 }

@@ -449,7 +449,7 @@ void FFeedbackContextEditor::StartSlowTask( const FText& Task, bool bShowCancelB
 
 			SlowTaskWindowRef->SetContent(
 				SNew(SSlowTaskWidget)
-				.ScopeStack(ScopeStack)
+				.ScopeStack(GetScopeStackSharedPtr())
 				.OnCancelClickedDelegate( OnCancelClicked )
 			);
 
@@ -527,7 +527,7 @@ void FFeedbackContextEditor::ProgressReported( const float TotalProgressInterp, 
 	else if (FPlatformSplash::IsShown())
 	{
 		// Always show the top-most message
-		for (auto& Scope : *ScopeStack)
+		for (auto& Scope : ScopeStack)
 		{
 			const FText ThisMessage = Scope->GetCurrentMessage();
 			if (!ThisMessage.IsEmpty())

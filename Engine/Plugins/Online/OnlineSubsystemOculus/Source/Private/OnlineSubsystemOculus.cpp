@@ -21,7 +21,7 @@ OVRPL_PUBLIC_FUNCTION(void) ovr_ResetInitAndContext();
 
 namespace FNetworkProtocolTypes
 {
-	const FName Oculus(TEXT("Oculus"));
+	const FLazyName Oculus(TEXT("Oculus"));
 }
 
 IOnlineSessionPtr FOnlineSubsystemOculus::GetSessionInterface() const

@@ -379,7 +379,6 @@ void UGeometryCollection::PostEditChangeProperty(struct FPropertyChangedEvent& P
 		CreateSimulationData();
 	}
 }
-#endif
 
 bool UGeometryCollection::Modify(bool bAlwaysMarkDirty /*= true*/)
 {
@@ -394,12 +393,6 @@ bool UGeometryCollection::Modify(bool bAlwaysMarkDirty /*= true*/)
 	return bSuperResult;
 }
 
-void UGeometryCollection::PostLoad()
-{
-	Super::PostLoad();
-}
-
-#if WITH_EDITOR
 void UGeometryCollection::EnsureDataIsCooked()
 {
 	if (StateGuid != LastBuiltGuid)
