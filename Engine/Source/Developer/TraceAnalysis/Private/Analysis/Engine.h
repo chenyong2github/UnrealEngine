@@ -29,10 +29,11 @@ private:
 	struct				FDispatch;
 	struct FRoute
 	{
-		uint16			HashIndex;
+		uint32			Hash;
 		int16			Count;
 		uint16			Id;
 		uint16			AnalyzerIndex;
+		uint16			_Unused0;
 	};
 
 	struct				FEventDataImpl;
@@ -49,7 +50,6 @@ private:
 	void				OnTiming(const FOnEventContext& Context);
 	void				OnNewEvent(const FOnEventContext& Context);
 	FSessionContext		SessionContext;
-	TArray<uint32>		Hashes;
 	TArray<FRoute>		Routes;
 	TArray<IAnalyzer*>	Analyzers;
 	TArray<FDispatch*>	Dispatches;

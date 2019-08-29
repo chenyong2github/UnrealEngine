@@ -365,23 +365,9 @@ void FAnalysisEngine::AddRoute(
 {
 	check(AnalyzerIndex < Analyzers.Num());
 
-	uint16 HashIndex = 0;
-	for (uint16 n = Hashes.Num(); HashIndex < n; ++HashIndex)
-	{
-		if (Hashes[HashIndex] == Hash)
-		{
-			break;
-		}
-	}
-
-	if (HashIndex == Hashes.Num())
-	{
-		Hashes.Add(Hash);
-	}
-
 	FRoute& Route = Routes.Emplace_GetRef();
 	Route.Id = Id;
-	Route.HashIndex = HashIndex;
+	Route.Hash = Hash;
 	Route.Count = 1;
 	Route.AnalyzerIndex = AnalyzerIndex;
 }
@@ -408,14 +394,14 @@ void FAnalysisEngine::OnNewTrace(const FOnEventContext& Context)
 		Analyzers[i]->OnAnalysisBegin(OnAnalysisContext);
 	}
 
-	Algo::SortBy(Routes, [] (const FRoute& Route) { return Route.HashIndex; });
+	Algo::SortBy(Routes, [] (const FRoute& Route) { return Route.Hash; });
 
 	FRoute* Cursor = Routes.GetData();
 	Cursor->Count = 1;
 
 	for (uint16 i = 1, n = Routes.Num(); i < n; ++i)
 	{
-		if (Routes[i].HashIndex == Cursor->HashIndex)
+		if (Routes[i].Hash == Cursor->Hash)
 		{
 			Cursor->Count++;
 		}
@@ -428,7 +414,7 @@ void FAnalysisEngine::OnNewTrace(const FOnEventContext& Context)
 
 	// Add a terminal route for events that aren't subscribed to
 	FRoute& Route = Routes.Emplace_GetRef();
-	Route.HashIndex = Hashes.Num();
+	Route.Hash = ~0u;
 	Route.Count = 0;
 }
 
@@ -500,26 +486,16 @@ void FAnalysisEngine::OnNewEvent(const FOnEventContext& Context)
 	Algo::SortBy(Fields, [] (const auto& Field) { return Field.Hash; });
 
 	// Find routes that have subscribed to this event.
-	uint16 HashIndex = 0;
-	for (uint16 n = Hashes.Num(); HashIndex < n; ++HashIndex)
+	Dispatch.FirstRoute = Routes.Num() - 1;
+	for (uint16 i = 0, n = Routes.Num(); i < n; ++i)
 	{
-		if (Hashes[HashIndex] == DispatchHash.Get())
+		if (Routes[i].Hash == DispatchHash.Get())
 		{
+			Dispatch.FirstRoute = i;
 			break;
 		}
 	}
 
-	uint16 RouteIndex = 0;
-	for (uint16 n = Routes.Num(); RouteIndex < n; ++RouteIndex)
-	{
-		if (Routes[RouteIndex].HashIndex == HashIndex)
-		{
-			break;
-		}
-	}
-
-	check(RouteIndex < Routes.Num());
-	Dispatch.FirstRoute = RouteIndex;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
