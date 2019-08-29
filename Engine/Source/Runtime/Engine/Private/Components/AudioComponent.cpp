@@ -363,6 +363,9 @@ void UAudioComponent::PlayInternal(const float StartTime, const float FadeInDura
 
 	UE_LOG(LogAudio, Verbose, TEXT("%g: Playing AudioComponent : '%s' with Sound: '%s'"), World ? World->GetAudioTimeSeconds() : 0.0f, *GetFullName(), Sound ? *Sound->GetName() : TEXT("nullptr"));
 
+	// Reset our fading out flag in case this is a reused audio component and we are replaying after previously fading out
+	bIsFadingOut = false;
+
 	if (bIsActive)
 	{
 		// If this is an auto destroy component we need to prevent it from being auto-destroyed since we're really just restarting it
@@ -377,6 +380,17 @@ void UAudioComponent::PlayInternal(const float StartTime, const float FadeInDura
 	{
 		if (FAudioDevice* AudioDevice = GetAudioDevice())
 		{
+			// Store the time that this audio component played
+			if (World)
+			{
+				TimeAudioComponentPlayed = World->GetAudioTimeSeconds();
+			}
+			else
+			{
+				TimeAudioComponentPlayed = 0.0f;
+			}
+			FadeInTimeDuration = FadeInDuration;
+
 			// Auto attach if requested
 			const bool bWasAutoAttached = bDidAutoAttach;
 			bDidAutoAttach = false;
@@ -575,6 +589,8 @@ void UAudioComponent::AdjustVolumeInternal(float AdjustVolumeDuration, float Adj
 		Stop();
 		return;
 	}
+
+	bIsFadingOut = bIsFadeOut || FMath::IsNearlyZero(AdjustVolumeLevel);
 
 	const uint64 InAudioComponentID = AudioComponentID;
 	DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.AdjustVolume"), STAT_AudioAdjustVolume, STATGROUP_AudioThreadCommands);
@@ -792,6 +808,35 @@ void UAudioComponent::PlaybackCompleted(bool bFailedToStart)
 bool UAudioComponent::IsPlaying() const
 {
 	return bIsActive;
+}
+
+EAudioComponentPlayState UAudioComponent::GetPlayState() const
+{
+	UWorld* World = GetWorld();
+	if (!bIsActive || !World)
+	{
+		return EAudioComponentPlayState::Stopped;
+	}
+
+	if (bIsPaused)
+	{
+		return EAudioComponentPlayState::Paused;
+	}
+
+	if (bIsFadingOut)
+	{
+		return EAudioComponentPlayState::FadingOut;
+	}
+
+	// Get the current audio time seconds and compare when it started and the fade in duration 
+	float CurrentAudioTimeSeconds = World->GetAudioTimeSeconds();
+	if (CurrentAudioTimeSeconds - TimeAudioComponentPlayed < FadeInTimeDuration)
+	{
+		return EAudioComponentPlayState::FadingIn;
+	}
+
+	// If we are not in any of the above states we are "playing"
+	return EAudioComponentPlayState::Playing;
 }
 
 #if WITH_EDITORONLY_DATA

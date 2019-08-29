@@ -17,6 +17,28 @@ class USoundBase;
 class USoundClass;
 class USoundConcurrency;
 
+// Enum describing the audio component play state
+UENUM(BlueprintType)
+enum class EAudioComponentPlayState : uint8
+{
+	// If the sound is playing (i.e. not fading in, not fading out, not paused)
+	Playing,
+
+	// If the sound is not playing
+	Stopped, 
+
+	// If the sound is playing but paused
+	Paused,
+
+	// If the sound is playing and fading in
+	FadingIn,
+
+	// If the sound is playing and fading out
+	FadingOut,
+
+	Count UMETA(Hidden)
+};
+
 
 /** called when we finish playing audio, either because it played to completion or because a Stop() call turned it off early */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE( FOnAudioFinished );
@@ -212,6 +234,9 @@ class ENGINE_API UAudioComponent : public USceneComponent
 	/** Whether or not this audio component has been paused */
 	uint8 bIsPaused:1;
 
+	/** Whether or not fade out was triggered. */
+	uint8 bIsFadingOut:1;
+
 	/**
 	* True if we should automatically attach to AutoAttachParent when Played, and detach from our parent when playback is completed.
 	* This overrides any current attachment that may be present at the time of activation (deferring initial attachment until activation, if AutoAttachParent is null).
@@ -311,6 +336,12 @@ public:
 
 	/** while playing, this component will check for occlusion from its closest listener every this many seconds */
 	float OcclusionCheckInterval;
+
+	/** What time the audio component was told to play. Used to compute audio component state. */
+	float TimeAudioComponentPlayed;
+
+	/** How much time the audio component was told to fade in. */
+	float FadeInTimeDuration;
 
 	/**
 	 * Options for how we handle our location when we attach to the AutoAttachParent, if bAutoManageAttachment is true.
@@ -415,9 +446,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
 	void SetPaused(bool bPause);
 
-	/** Returns true if this component is currently playing a SoundCue. */
-	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
+	/** Returns if the sound playing any audio. Doesn't indicate the play state. Use GetPlayState() to get the actual play state. */
+	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio", meta=(DeprecatedFunction))
 	virtual bool IsPlaying() const;
+
+	/** Returns the enumerated play states of the audio component. */
+	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
+	EAudioComponentPlayState GetPlayState() const;
 
 	/** This will allow one to adjust the volume of an AudioComponent on the fly */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
