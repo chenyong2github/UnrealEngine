@@ -539,10 +539,6 @@ struct ENGINE_API FBlueprintCookedComponentInstancingData
 {
 	GENERATED_USTRUCT_BODY()
 
-	/** Flag indicating whether or not this contains valid cooked data. Note that an empty changed property list can also be a valid template data context. */
-	UPROPERTY()
-	bool bHasValidCookedData;
-
 	/** List of property info records with values that differ between the template and the component class CDO. This list will be generated at cook time. */
 	UPROPERTY()
 	TArray<struct FBlueprintComponentChangedPropertyInfo> ChangedPropertyList;
@@ -554,7 +550,11 @@ struct ENGINE_API FBlueprintCookedComponentInstancingData
 	UClass* ComponentTemplateClass;
 
 	/** Source template object flags (recorded at load time and used for instancing). */
-	EObjectFlags ComponentTemplateFlags;
+	TEnumAsByte<EObjectFlags> ComponentTemplateFlags;
+
+	/** Flag indicating whether or not this contains valid cooked data. Note that an empty changed property list can also be a valid template data context. */
+	UPROPERTY()
+	uint8 bHasValidCookedData : 1;
 
 	/** Default constructor. */
 	FBlueprintCookedComponentInstancingData()
