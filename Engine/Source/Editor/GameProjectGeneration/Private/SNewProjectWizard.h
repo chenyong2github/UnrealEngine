@@ -12,6 +12,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "HardwareTargetingSettings.h"
 #include "Widgets/Views/STileView.h"
+#include "TemplateCategory.h"
 
 class SWizard;
 struct FTemplateItem;
@@ -24,7 +25,7 @@ class SNewProjectWizard : public SCompoundWidget
 public:
 	SLATE_BEGIN_ARGS( SNewProjectWizard ){}
 
-		SLATE_EVENT( FOnClicked, OnBackRequested )
+		SLATE_EVENT( FSimpleDelegate, OnTemplateDoubleClick )
 
 	SLATE_END_ARGS()
 
@@ -36,10 +37,22 @@ public:
 	/** Populates TemplateItemsSource with templates found on disk */
 	TMap<FName, TArray<TSharedPtr<FTemplateItem>> >& FindTemplateProjects();
 
-private:
+	/** Create the page of project settings. */
+	TSharedRef<SWidget> CreateProjectSettingsPage();
 
-	/** Build the set of template category tabs */
-	TSharedRef<SWidget> BuildCategoryTabs();
+	/** Handle choosing a different category tab */
+	void SetCurrentCategory(FName Category);
+
+	/** Returns true if the user is allowed to specify a project with the supplied name and path */
+	bool CanCreateProject() const;
+
+	/** Begins the creation process for the configured project */
+	void CreateAndOpenProject();
+
+	/** Should we show the project settings page? */
+	bool ShouldShowProjectSettingsPage() const;
+
+private:
 
 	/** Accessor for the currently selected template item */
 	TSharedPtr<FTemplateItem> GetSelectedTemplateItem() const;
@@ -79,18 +92,17 @@ private:
 	/** Accessor for the label to preview the current filename with path */
 	FString GetProjectFilenameWithPathLabelText() const;
 
-	/** Accessor for the label to show the currently selected template */
-	FText GetSelectedTemplateName() const;
-
 	/** Get the images for the selected template preview and category */
 	const FSlateBrush* GetSelectedTemplatePreviewImage() const;
-	const FSlateBrush* GetSelectedTemplateTypeImage() const;
 
 	/** Get the visibility for the selected template preview image */
 	EVisibility GetSelectedTemplatePreviewVisibility() const;
 
 	/** Get a string that details the class types referenced in the selected template */
 	FText GetSelectedTemplateClassTypes() const;
+
+	/** Get a string that details the class types referenced in the selected template */
+	FText GetSelectedTemplateLanguages() const;
 	
 	/** Get a visiblity of the class types display. If the string is empty this return Collapsed otherwise it will return Visible */
 	EVisibility GetSelectedTemplateClassVisibility() const;
@@ -104,26 +116,17 @@ private:
 	/** Gets the assembled project filename with path */
 	FString GetProjectFilenameWithPath() const;
 
-	/** Opens a web browser to the specified IDE url */
-	void OnDownloadIDEClicked(FString URL);
-
-	/** Returns true if the user is allowed to specify a project with the supplied name and path */
-	bool IsCreateProjectEnabled() const;
-
-	// Handles checking whether the specified page can be shown.
-	bool HandlePageCanShow( FName PageName ) const;
-
-	/** Fired when the page changes in the wizard */
-	void OnPageVisited(FName NewPageName);
-
 	/** Gets the visibility of the error label */
 	EVisibility GetGlobalErrorLabelVisibility() const;
 
 	/** Gets the visibility of the error label close button. Only visible when displaying a persistent error */
 	EVisibility GetGlobalErrorLabelCloseButtonVisibility() const;
 
-	/** Gets the visibility of the IDE link in the error label */
-	EVisibility GetGlobalErrorLabelIDELinkVisibility() const;
+	/** 
+	 * Gets the visibility of the location box on the template list page. 
+	 * Only visible if the selected template doesn't want to show settings.
+	 */
+	EVisibility GetTemplateListLocationBoxVisibility() const;
 
 	/** Gets the text to display in the error label */
 	FText GetGlobalErrorLabelText() const;
@@ -149,6 +152,14 @@ private:
 	/** Returns the tooltip text (actual warning) of the starter content warning */
 	FText GetStarterContentWarningTooltip() const;
 
+	int32 OnGetVREnabled() const { return bEnableVR ? 1 : 0; }
+	void OnSetVREnabled(int32 InVREnabledIndex) { bEnableVR = InVREnabledIndex == 1; }
+
+	int32 OnGetBlueprintOrCppIndex() const;
+	void OnSetBlueprintOrCppIndex(int32 Index);
+
+	/** Create the project location widget. */
+	TSharedRef<SWidget> MakeProjectLocationWidget();
 
 private:
 
@@ -169,9 +180,6 @@ private:
 	/** Returns true if we have a code template selected */
 	bool IsCompilerRequired() const;
 
-	/** Begins the creation process for the configured project */
-	void CreateAndOpenProject();
-
 	/** Opens the specified project file */
 	bool OpenProject(const FString& ProjectFile);
 
@@ -187,16 +195,8 @@ private:
 	/** Displays an error to the user */
 	void DisplayError(const FText& ErrorText);
 
-private:
-
 	/** Handler for when the Browse button is clicked */
 	FReply HandleBrowseButtonClicked( );
-
-	/** Checks whether the 'Create Project' wizard can finish. */
-	bool HandleCreateProjectWizardCanFinish( ) const;
-
-	/** Handler for when the Create button is clicked */
-	void HandleCreateProjectWizardFinished( );
 
 	/** Called when a user double-clicks a template item in the template project list. */
 	void HandleTemplateListViewDoubleClick( TSharedPtr<FTemplateItem> TemplateItem );
@@ -204,24 +204,17 @@ private:
 	/** Handler for when the selection changes in the template list */
 	void HandleTemplateListViewSelectionChanged( TSharedPtr<FTemplateItem> TemplateItem, ESelectInfo::Type SelectInfo );
 
-	/** Handle choosing a different category tab */
-	void HandleCategoryChanged(ECheckBoxState Checked, FName Category);
-
-	/** Get the check state for the specified categories tab */
-	ECheckBoxState GetCategoryTabCheckState(FName Category) const;
-
-	TSharedRef<SRichTextBlock> MakeProjectSettingsDescriptionBox();
-	TSharedRef<SHorizontalBox> MakeProjectSettingsOptionsBox();
+	TSharedRef<SRichTextBlock> MakeProjectSettingsDescriptionBox() const;
+	TSharedRef<SWidget> MakeProjectSettingsOptionsBox() const;
 
 private:
-
-	/** The wizard widget */
-	TSharedPtr<class SWizard> MainWizard;
 
 	FString LastBrowsePath;
 	FString CurrentProjectFileName;
 	FString CurrentProjectFilePath;
 	FText PersistentGlobalErrorLabelText;
+
+	FSimpleDelegate OnTemplateDoubleClick;
 
 	/** The last time that the selected project file path was checked for validity. This is used to throttle I/O requests to a reasonable frequency */
 	double LastValidityCheckTime;
@@ -244,11 +237,14 @@ private:
 	/** True if the last NameAndLocation validity check returned that the project path is valid for creation */
 	bool bLastNameAndLocationValidityCheckSuccessful;
 
-	/** The name of the page that is currently in view */
-	FName CurrentPageName;
-
 	/** True if user has selected to copy starter content. */
 	bool bCopyStarterContent;
+
+	/** Whether or not to enable VR in the created project. */
+	bool bEnableVR;
+
+	/** Whether or not we should use the blueprint or C++ version of this template. */
+	bool bShouldGenerateCode;
 
 	/** Name of the currently selected category */
 	FName ActiveCategory;
@@ -260,14 +256,14 @@ private:
 	TArray<TSharedPtr<FTemplateItem> > FilteredTemplateList;
 
 	/** The slate widget representing the list of templates */
-	TSharedPtr<STileView<TSharedPtr<FTemplateItem> > > TemplateListView;
+	TSharedPtr<STileView<TSharedPtr<FTemplateItem>>> TemplateListView;
 
 	/** Names for pages */
 	static FName TemplatePageName;
 	static FName NameAndLocationPageName;
 
 	TSharedPtr<SRichTextBlock> ProjectSettingsDescriptionBox;
-	TSharedPtr<SHorizontalBox> ProjectSettingsOptionsBox;
+	TSharedPtr<SWidget> ProjectSettingsOptionsBox;
 
 	bool bProjectSettingsHidden;
 };

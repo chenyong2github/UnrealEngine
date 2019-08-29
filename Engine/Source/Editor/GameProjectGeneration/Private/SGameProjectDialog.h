@@ -8,11 +8,17 @@
 #include "Input/Reply.h"
 #include "Animation/CurveSequence.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/Navigation/SBreadcrumbTrail.h"
+#include "Widgets/Views/STileView.h"
+#include "Widgets/Workflow/SWizard.h"
 
 class SButton;
 class SNewProjectWizard;
 class SProjectBrowser;
 struct FSlateBrush;
+class STableViewBase;
+struct FTemplateCategory;
+class SRecentProjectBrowser;
 
 /**
  * A dialog to create a new project or open an existing one
@@ -20,73 +26,61 @@ struct FSlateBrush;
 class SGameProjectDialog
 	: public SCompoundWidget
 {
-	// Enumerates available tabs.
-	enum ETab
-	{
-		ProjectsTab,
-		NewProjectTab
-	};
-
 public:
 
-	SLATE_BEGIN_ARGS(SGameProjectDialog) { }
-		SLATE_ARGUMENT(bool, AllowProjectOpening)
-		SLATE_ARGUMENT(bool, AllowProjectCreate)
+	SLATE_BEGIN_ARGS(SGameProjectDialog) {}
 	SLATE_END_ARGS()
 
 public:
 
+	enum class EMode
+	{
+		Open,
+		New,
+		Both
+	};
+
 	/** Constructs this widget with InArgs */
-	void Construct( const FArguments& InArgs );
-
-protected:
-	/**
-	 * Opens the specified project.
-	 *
-	 * @param ProjectFile - The project file to open.
-	 *
-	 * @return true if the project was opened, false otherwise.
-	 */
-	bool OpenProject( const FString& ProjectFile );
-
-	/**
-	 * Shows the 'New Project' tab.
-	 */
-	void ShowNewProjectTab( );
-
-	/**
-	 * Shows the project browser tab.
-	 */
-	FReply ShowProjectBrowser( );
+	void Construct( const FArguments& InArgs, EMode Mode );
 
 private:
-	/** Ensures the fade-in animation is played post-construct */
-	EActiveTimerReturnType TriggerFadeInPostConstruct( double InCurrentTime, float InDeltaTime );
+	EMode DialogMode;
 
-	// Callback for getting the color of the custom content area.
-	FLinearColor HandleCustomContentColorAndOpacity() const;
-
-	// Callback for clicking the 'New Project' button.
-	FReply HandleNewProjectTabButtonClicked( );
-
-	// Callback for clicking the 'Projects' button.
-	FReply HandleProjectsTabButtonClicked( );
-
-	// Callback for getting the border image of the specified tab.
-	const FSlateBrush* OnGetTabBorderImage( ETab InTab ) const;
-
-	// Callback for getting the header stripe image for the specified tab.
-	const FSlateBrush* OnGetTabHeaderImage( ETab InTab, TSharedRef<SButton> TabButton ) const;
-
-private:
-
-	// Holds the fading animation.
-	FCurveSequence FadeAnimation;
-
-	/** The switcher widget to control which screen is in view */
-	TSharedPtr<SWidgetSwitcher> ContentAreaSwitcher;
-	TSharedPtr<SProjectBrowser> ProjectBrowser;
+	TSharedPtr<SWizard> RootWizard;
+	TSharedPtr<SProjectBrowser> ProjectBrowserPage;
 	TSharedPtr<SNewProjectWizard> NewProjectWizard;
+	TSharedPtr<SRecentProjectBrowser> RecentProjectBrowser;
+	TSharedPtr<SWidget> LandingPage;
+	TSharedPtr<SWidget> ProjectSettingsPage;
 
-	ETab ActiveTab;
+	TSharedPtr<STileView<TSharedPtr<FTemplateCategory>>> MajorCategoryTileView;
+	TSharedPtr<STileView<TSharedPtr<FTemplateCategory>>> MinorCategoryTileView;
+
+	TArray<TSharedPtr<FTemplateCategory>> MajorTemplateCategories;
+	TArray<TSharedPtr<FTemplateCategory>> MinorTemplateCategories;
+
+private:
+
+	TSharedRef<SWidget> CreateLandingPage();
+
+	TSharedRef<ITableRow> ConstructTile(TSharedPtr<FTemplateCategory> Item, const TSharedRef<STableViewBase>& TableView);
+
+	FReply OnMoreProjectsClicked();
+
+	void OnTemplateCategoryDoubleClick(TSharedPtr<FTemplateCategory> Item) const;
+	void OnTemplateDoubleClick() const;
+
+	void OnMajorTemplateCategorySelectionChanged(TSharedPtr<FTemplateCategory> Item, ESelectInfo::Type SelectType);
+	void OnMinorTemplateCategorySelectionChanged(TSharedPtr<FTemplateCategory> Item, ESelectInfo::Type SelectType);
+	void OnRecentProjectSelectionChanged(FString Item);
+
+	int32 GetInitialPageIndex() const;
+	int32 GetNextPageIndex(int32 Current) const;
+
+	void OnCancelClicked() const;
+	bool OnCanFinish() const;
+	void OnFinishClicked();
+	FText GetFinishText() const;
+	FText GetFinishTooltip() const;
+	FText GetPageTitle(int32 Index) const;
 };

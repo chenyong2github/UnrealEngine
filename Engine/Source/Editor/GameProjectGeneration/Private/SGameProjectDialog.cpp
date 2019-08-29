@@ -6,17 +6,24 @@
 #include "Widgets/SOverlay.h"
 #include "Styling/CoreStyle.h"
 #include "SlateOptMacros.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SHyperlink.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SSeparator.h"
+#include "Widgets/Layout/SUniformGridPanel.h"
+#include "Widgets/Layout/SWidgetSwitcher.h"
 #include "EditorStyleSet.h"
 #include "GameProjectUtils.h"
 #include "SProjectBrowser.h"
 #include "SNewProjectWizard.h"
 #include "Widgets/SToolTip.h"
 #include "IDocumentation.h"
-#include "Widgets/Layout/SWidgetSwitcher.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Internationalization/BreakIterator.h"
+#include "TemplateCategory.h"
+#include "Framework/Application/SlateApplication.h"
 
 #define LOCTEXT_NAMESPACE "GameProjectGeneration"
 
@@ -24,280 +31,486 @@
 /* SGameProjectDialog interface
 *****************************************************************************/
 
-BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
-void SGameProjectDialog::Construct( const FArguments& InArgs )
+namespace GameProjectDialogDefs
 {
-	bool bAtLeastOneVisibleRecentProject = false;
+	constexpr float Padding = 5;
+	constexpr float TextWidth = 420;
+	constexpr float TextHeight = 16;
 
-	if (InArgs._AllowProjectCreate)
-	{
-		NewProjectWizard = SNew(SNewProjectWizard);
-	}
+	constexpr float ThumbnailSize = 64;
+	constexpr float MinorItemWidth = ThumbnailSize + TextWidth + Padding * 2;
+	constexpr float MinorItemHeight = ThumbnailSize + Padding * 3;
 
-	if (InArgs._AllowProjectOpening)
-	{
-		ProjectBrowser = SNew(SProjectBrowser);
-	}
+	constexpr float MajorItemWidth = MinorItemWidth * 2;
+	constexpr float MajorItemHeight = MinorItemHeight;
 
-	FadeAnimation.AddCurve( 0.f, 0.5f, ECurveEaseFunction::QuadOut );
-	RegisterActiveTimer( 0.f, FWidgetActiveTimerDelegate::CreateSP( this, &SGameProjectDialog::TriggerFadeInPostConstruct ) );
+	constexpr int32 LandingPageIndex = 0;
+	constexpr int32 ProjectBrowserPageIndex = 1;
+	constexpr int32 TemplateListPageIndex = 2;
+	constexpr int32 ProjectSettingsPageIndex = 3;
+	
+	static const FText LandingPageTitle = LOCTEXT("ProjectDialog_SelectProject", "Select Project");
+	static const FText SelectCategoryTitle = LOCTEXT("ProjectDialog_SelectCategory", "Select Category");
+	static const FText ProjectBrowserTitle = LOCTEXT("ProjectDialog_ProjectBrowser", "Project Browser");
+	static const FText TemplateListTitle = LOCTEXT("ProjectDialog_SelectTemplate", "Select Template");
+	static const FText ProjectSettingsTitle = LOCTEXT("ProjectDialog_ProjectSettings", "Project Settings");
+}
 
-	TSharedPtr<SWidget> Content;
+BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
+void SGameProjectDialog::Construct(const FArguments& InArgs, EMode InMode)
+{
+	DialogMode = InMode;
 
-	if (InArgs._AllowProjectCreate && InArgs._AllowProjectOpening)
-	{
-		// Create the Open Project tab button
-		TSharedRef<SButton> ProjectsTabButton = SNew(SButton)
-			.ForegroundColor(FCoreStyle::Get().GetSlateColor("Foreground"))
-			.ButtonStyle(FEditorStyle::Get(), TEXT("NoBorder"))
-			.OnClicked(this, &SGameProjectDialog::HandleProjectsTabButtonClicked)
-			.ContentPadding(FMargin(40, 5))
-			.Text(LOCTEXT("ProjectsTabTitle", "Projects"))
-			.TextStyle(FEditorStyle::Get(), TEXT("ProjectBrowser.Tab.Text"));
+	NewProjectWizard = SNew(SNewProjectWizard)
+		.OnTemplateDoubleClick(this, &SGameProjectDialog::OnTemplateDoubleClick);
+	ProjectSettingsPage = NewProjectWizard->CreateProjectSettingsPage();
+	ProjectBrowserPage = SNew(SProjectBrowser);
+	LandingPage = CreateLandingPage();
 
-		// Create the New Project tab button
-		TSharedRef<SButton> NewProjectTabButton = SNew(SButton)
-			.ForegroundColor(FCoreStyle::Get().GetSlateColor("Foreground"))
-			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
-			.OnClicked(this, &SGameProjectDialog::HandleNewProjectTabButtonClicked)
-			.ContentPadding(FMargin(20, 5))
-			.TextStyle(FEditorStyle::Get(), "ProjectBrowser.Tab.Text")
-			.Text(LOCTEXT("NewProjectTabTitle", "New Project"))
-			.ToolTip(IDocumentation::Get()->CreateToolTip(LOCTEXT("NewProjectTabTitle", "New Project"), nullptr, "Shared/LevelEditor", "NewProjectTab"));
+	const float UniformPadding = 16.0f;
 
-		// Allow creation and opening, so we need tabs here
-		ChildSlot
+	ChildSlot
+	[
+		SNew(SBorder)
+		.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+		.Padding(8)
 		[
-		
-			SNew(SBorder)
-			.ColorAndOpacity(this, &SGameProjectDialog::HandleCustomContentColorAndOpacity)
-			.BorderImage(FEditorStyle::GetBrush("Docking.Tab.ContentAreaBrush"))
-			.Padding(0)
+			SAssignNew(RootWizard, SWizard)
+			.ShowBreadcrumbs(false)
+			.ShowPageList(false)
+			.ShowPageTitle(true)
+			.ButtonStyle(FEditorStyle::Get(), "FlatButton.Default")
+			.CancelButtonStyle(FEditorStyle::Get(), "FlatButton.Default")
+			.FinishButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+			.ButtonTextStyle(FEditorStyle::Get(), "LargeText")
+			.ForegroundColor(FEditorStyle::Get().GetSlateColor("WhiteBrush"))
+			.FinishButtonText(this, &SGameProjectDialog::GetFinishText)
+			.FinishButtonToolTip(this, &SGameProjectDialog::GetFinishTooltip)
+			.CanFinish(this, &SGameProjectDialog::OnCanFinish)
+			.OnFinished(this, &SGameProjectDialog::OnFinishClicked)
+			.OnCanceled(this, &SGameProjectDialog::OnCancelClicked)
+			.InitialPageIndex(this, &SGameProjectDialog::GetInitialPageIndex)
+			.OnGetNextPageIndex(this, &SGameProjectDialog::GetNextPageIndex)
+
+			+ SWizard::Page()
+			.Name(GetPageTitle(GameProjectDialogDefs::LandingPageIndex))
+			.CanShow(DialogMode != EMode::Open)
 			[
-				SNew(SVerticalBox)
-
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(FMargin(6.f, 0, 0, 0))
-				[
-					SNew(SHorizontalBox)
-
-					// Open Project Tab
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					[
-						SNew( SBorder )
-						.BorderImage(this, &SGameProjectDialog::OnGetTabBorderImage, ProjectsTab)
-						.Padding(0)
-						[
-							SNew(SOverlay)
-
-							+ SOverlay::Slot()
-							.VAlign(VAlign_Top)
-							[
-								SNew(SBox)
-								.HeightOverride(2.0f)
-								[
-									SNew(SImage)
-									.Image(this, &SGameProjectDialog::OnGetTabHeaderImage, ProjectsTab, ProjectsTabButton)
-									.Visibility(EVisibility::HitTestInvisible)
-								]
-							]
-
-							+ SOverlay::Slot()
-							[
-								ProjectsTabButton
-							]
-						]
-					]
-
-					+ SHorizontalBox::Slot()
-					.Padding(FMargin(6.f, 0, 0, 0))
-					.AutoWidth()
-					[
-						SNew(SBorder)
-						.BorderImage(this, &SGameProjectDialog::OnGetTabBorderImage, NewProjectTab)
-						.Padding(0)
-						[
-							SNew(SOverlay)
-
-							+ SOverlay::Slot()
-							.VAlign(VAlign_Top)
-							[
-								SNew(SBox)
-								.HeightOverride(2.0f)
-								[
-									SNew(SImage)
-									.Image(this, &SGameProjectDialog::OnGetTabHeaderImage, NewProjectTab, NewProjectTabButton)
-									.Visibility(EVisibility::HitTestInvisible)
-								]
-							]
-
-							+ SOverlay::Slot()
-							[
-								NewProjectTabButton
-							]
-						]
-					]
-				]
-
-				+ SVerticalBox::Slot()
-				[
-					SAssignNew(ContentAreaSwitcher, SWidgetSwitcher)
-					.WidgetIndex(0)
-
-					+ SWidgetSwitcher::Slot()
-					[
-						ProjectBrowser.ToSharedRef()
-					]
-
-					+ SWidgetSwitcher::Slot()
-					[
-						NewProjectWizard.ToSharedRef()
-					]
-				]
+				LandingPage.ToSharedRef()
 			]
-		];
-	}
-	else
+
+			+ SWizard::Page()
+			.Name(GetPageTitle(GameProjectDialogDefs::ProjectBrowserPageIndex))
+			.CanShow(DialogMode != EMode::New)
+			[
+				ProjectBrowserPage.ToSharedRef()
+			]
+		
+			+ SWizard::Page()
+			.Name(GetPageTitle(GameProjectDialogDefs::TemplateListPageIndex))
+			.CanShow(DialogMode != EMode::Open)
+			[
+				NewProjectWizard.ToSharedRef()
+			]
+
+			+ SWizard::Page()
+			.Name(GetPageTitle(GameProjectDialogDefs::ProjectSettingsPageIndex))
+			.CanShow(DialogMode != EMode::Open)
+			[
+				ProjectSettingsPage.ToSharedRef()
+			]
+		]
+	];
+}
+
+TSharedRef<SWidget> SGameProjectDialog::CreateLandingPage()
+{
+	TArray<TSharedPtr<FTemplateCategory>> AllTemplateCategories;
+	FGameProjectGenerationModule::Get().GetAllTemplateCategories(AllTemplateCategories);
+
+	for (const TSharedPtr<FTemplateCategory>& Category : AllTemplateCategories)
 	{
-		TSharedPtr<SWidget> BorderContent;
-		if (NewProjectWizard.IsValid())
+		if (Category->IsMajor)
 		{
-			BorderContent = NewProjectWizard;
+			MajorTemplateCategories.Add(Category);
 		}
 		else
 		{
-			BorderContent = ProjectBrowser;
+			MinorTemplateCategories.Add(Category);
 		}
+	}
 
-		ChildSlot
+	FText Description;
+
+	if (DialogMode == EMode::New)
+	{
+		Description = LOCTEXT("LandingPageDesc_New", "Choose a template <RichTextBlock.BoldHighlight>category</> for your new project.");
+	}
+	else if (DialogMode == EMode::Open)
+	{
+		Description = LOCTEXT("LandingPageDesc_Open", "Choose a recent <RichTextBlock.BoldHighlight>project</> to load, or press <RichTextBlock.BoldHighlight>More</> to see all projects on your computer.");
+	}
+	else if (DialogMode == EMode::Both)
+	{
+		Description = LOCTEXT("LandingPageDesc_Open", "Choose a recent <RichTextBlock.BoldHighlight>project</> to load, press <RichTextBlock.BoldHighlight>More</> to see all projects on your computer, or choose a template <RichTextBlock.BoldHighlight>category</> to create a new project.");
+	}
+
+	TSharedRef<SWidget> Widget = SNew(SVerticalBox)
+	+ SVerticalBox::Slot()
+	.AutoHeight()
+	.Padding(0, 9, 0, 8)
+	[
+		SNew(SRichTextBlock)
+		.Text(Description)
+		.AutoWrapText(true)
+		.DecoratorStyleSet(&FEditorStyle::Get())
+	]
+	+ SVerticalBox::Slot()
+	.FillHeight(1)
+	[
+		SNew(SBorder)
+		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
-			BorderContent.ToSharedRef()
-		];
-	}
+			SNew(SScrollBox)
+			+ SScrollBox::Slot()
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew(SOverlay)
+					.Visibility(DialogMode != EMode::New ? EVisibility::Visible : EVisibility::Collapsed )
+					+ SOverlay::Slot()
+					[
+						SAssignNew(RecentProjectBrowser, SRecentProjectBrowser)
+						.OnSelectionChanged(this, &SGameProjectDialog::OnRecentProjectSelectionChanged)
+					]
+					+ SOverlay::Slot()
+					.HAlign(HAlign_Right)
+					.VAlign(VAlign_Bottom)
+					[
+						SNew(SButton)
+						.Text(LOCTEXT("ProjectDialog_More", "More"))
+						.TextStyle(FEditorStyle::Get(), "LargeText")
+						.ButtonStyle(FEditorStyle::Get(), "FlatButton.Default")
+						.ForegroundColor(FEditorStyle::Get().GetSlateColor("WhiteBrush"))
+						.HAlign(HAlign_Center)
+						.VAlign(VAlign_Center)
+						.ContentPadding(FCoreStyle::Get().GetMargin("StandardDialog.ContentPadding"))
+						.OnClicked(this, &SGameProjectDialog::OnMoreProjectsClicked)
+					]
+				]
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0, 4, 0, 2)
+				[
+					SNew(SSeparator)
+					.Visibility(DialogMode == EMode::Both ? EVisibility::Visible : EVisibility::Collapsed)
+				]
+				+ SVerticalBox::Slot()
+				.Padding(8)
+				.AutoHeight()
+				[
+					SNew(STextBlock)
+					.TextStyle(FEditorStyle::Get(), "GameProjectDialog.ProjectNamePathLabels")
+					.Text(LOCTEXT("ProjectDialog_Categories", "Categories"))
+				]
 
-	ActiveTab = InArgs._AllowProjectOpening ? ProjectsTab : NewProjectTab;
-	if (ProjectBrowser.IsValid())
-	{
-		ActiveTab = !ProjectBrowser->HasProjects() && InArgs._AllowProjectCreate ? NewProjectTab : ActiveTab;
-	}
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(8, 8, 8, 0)
+				[
+					SAssignNew(MajorCategoryTileView, STileView< TSharedPtr<FTemplateCategory> >)
+					.ListItemsSource(&MajorTemplateCategories)
+					.SelectionMode(ESelectionMode::Single)
+					.ClearSelectionOnClick(true)
+					.OnGenerateTile(this, &SGameProjectDialog::ConstructTile)
+					.ItemHeight(GameProjectDialogDefs::MajorItemHeight)
+					.ItemWidth(GameProjectDialogDefs::MajorItemWidth)
+					.OnMouseButtonDoubleClick(this, &SGameProjectDialog::OnTemplateCategoryDoubleClick)
+					.OnSelectionChanged(this, &SGameProjectDialog::OnMajorTemplateCategorySelectionChanged)
+				]
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(8, 0, 8, 8)
+				[
+					SAssignNew(MinorCategoryTileView, STileView< TSharedPtr<FTemplateCategory> >)
+					.ListItemsSource(&MinorTemplateCategories)
+					.SelectionMode(ESelectionMode::Single)
+					.ClearSelectionOnClick(true)
+					.OnGenerateTile(this, &SGameProjectDialog::ConstructTile)
+					.ItemHeight(GameProjectDialogDefs::MinorItemHeight)
+					.ItemWidth(GameProjectDialogDefs::MinorItemWidth)
+					.OnMouseButtonDoubleClick(this, &SGameProjectDialog::OnTemplateCategoryDoubleClick)
+					.OnSelectionChanged(this, &SGameProjectDialog::OnMinorTemplateCategorySelectionChanged)
+				]
+			]
+		]
+	];
 
-	if (ActiveTab == ProjectsTab)
-	{
-		ShowProjectBrowser();
-	}
-	else if (ActiveTab == NewProjectTab) //-V547
-	{
-		ShowNewProjectTab();
-	}
-	else
-	{
-		check(false);
-	}
+	return Widget;
 }
+
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
-
-
-EActiveTimerReturnType SGameProjectDialog::TriggerFadeInPostConstruct(double InCurrentTime, float InDeltaTime)
-{
-	// Play the intro fade in the first frame after the widget is created.
-	// We start it now instead of Construct because there is a lot of elapsed time between Construct and when we
-	// see the dialog and the beginning of the animation is cut off.
-	FadeAnimation.Play(this->AsShared());
-
-	return EActiveTimerReturnType::Stop;
-}
-
-/* SGameProjectDialog implementation
-*****************************************************************************/
-
-bool SGameProjectDialog::OpenProject( const FString& ProjectFile )
-{
-	FText FailReason;
-
-	if (GameProjectUtils::OpenProject(ProjectFile, FailReason))
-	{
-		return true;
-	}
-
-	FMessageDialog::Open(EAppMsgType::Ok, FailReason);
-
-	return false;
-}
-
-
-void SGameProjectDialog::ShowNewProjectTab( )
-{
-	if (ContentAreaSwitcher.IsValid() && NewProjectWizard.IsValid())
-	{
-		ContentAreaSwitcher->SetActiveWidget( NewProjectWizard.ToSharedRef());
-		ActiveTab = NewProjectTab;
-	}
-}
-
-
-FReply SGameProjectDialog::ShowProjectBrowser( )
-{
-	if (ContentAreaSwitcher.IsValid() && ProjectBrowser.IsValid())
-	{
-		ContentAreaSwitcher->SetActiveWidget(ProjectBrowser.ToSharedRef());
-		ActiveTab = ProjectsTab;
-	}
-
-	return FReply::Handled();
-}
-
 
 /* SGameProjectDialog callbacks
 *****************************************************************************/
 
-FLinearColor SGameProjectDialog::HandleCustomContentColorAndOpacity( ) const
+TSharedRef<ITableRow> SGameProjectDialog::ConstructTile(TSharedPtr<FTemplateCategory> Item, const TSharedRef<STableViewBase>& TableView)
 {
-	return FLinearColor(1,1,1, FadeAnimation.GetLerp());
+	const float TextWidth = (Item->IsMajor ? GameProjectDialogDefs::TextWidth * 2 : GameProjectDialogDefs::TextWidth)/* - GameProjectDialogDefs::Padding * 2*/;
+
+	TSharedRef<STableRow<TSharedPtr<FTemplateCategory>>> Row = SNew(STableRow<TSharedPtr<FTemplateCategory>>, TableView)
+	.Style(FEditorStyle::Get(), "GameProjectDialog.TemplateListView.TableRow")
+	[
+		SNew(SScrollBox)
+		+ SScrollBox::Slot()
+		.Padding(0)
+		[
+			SNew(SHorizontalBox)
+
+			// Icon
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.Padding(GameProjectDialogDefs::Padding)
+			[
+				SNew(SBox)
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Center)
+				.WidthOverride(GameProjectDialogDefs::ThumbnailSize)
+				.HeightOverride(GameProjectDialogDefs::ThumbnailSize)
+				.Padding(0)
+				[
+					SNew(SImage)
+					.Image(Item->Image)
+				]
+			]
+
+			+ SHorizontalBox::Slot()
+			.Padding(GameProjectDialogDefs::Padding)
+			.VAlign(VAlign_Fill)
+			[
+				SNew(SVerticalBox)
+				// Name
+				+ SVerticalBox::Slot()
+				.MaxHeight(GameProjectDialogDefs::TextHeight)
+				.Padding(0, 0, 0, GameProjectDialogDefs::Padding)
+				[
+					SNew(STextBlock)
+					.Text(Item->DisplayName)
+					.Justification(ETextJustify::Left)
+					.TextStyle(FEditorStyle::Get(), "LargeText")
+				]
+
+				// Description
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0)
+				[
+					SNew(STextBlock)
+					.WrapTextAt(TextWidth)
+					.LineBreakPolicy(FBreakIterator::CreateWordBreakIterator())
+					.Justification(ETextJustify::Left)
+					.Text(Item->Description)
+				]
+			]
+		]
+	];
+
+	Row->SetToolTipText(FText::Format(FText::FromString("{0}\n{1}"), Item->DisplayName, Item->Description));
+
+	return Row;
 }
 
-
-FReply SGameProjectDialog::HandleNewProjectTabButtonClicked( )
+FReply SGameProjectDialog::OnMoreProjectsClicked()
 {
-	ShowNewProjectTab();
-
+	int32 Index = GameProjectDialogDefs::ProjectBrowserPageIndex;
+	RootWizard->AdvanceToPage(Index);
 	return FReply::Handled();
 }
 
-
-const FSlateBrush* SGameProjectDialog::OnGetTabHeaderImage( ETab InTab, TSharedRef<SButton> TabButton ) const
+void SGameProjectDialog::OnTemplateCategoryDoubleClick(TSharedPtr<FTemplateCategory> Item) const
 {
-	if (TabButton->IsPressed())
-	{
-		return FEditorStyle::GetBrush("ProjectBrowser.Tab.PressedHighlight");
-	}
-
-	if ((ActiveTab == InTab) || TabButton->IsHovered())
-	{
-		return FEditorStyle::GetBrush("ProjectBrowser.Tab.ActiveHighlight");
-	}
-	
-	return FEditorStyle::GetBrush("ProjectBrowser.Tab.Highlight");
+	RootWizard->AdvanceToPage(GameProjectDialogDefs::TemplateListPageIndex);
 }
 
-
-FReply SGameProjectDialog::HandleProjectsTabButtonClicked( )
+void SGameProjectDialog::OnTemplateDoubleClick() const
 {
-	ShowProjectBrowser();
-
-	return FReply::Handled();
+	RootWizard->AdvanceToPage(GameProjectDialogDefs::ProjectSettingsPageIndex);
 }
 
-const FSlateBrush* SGameProjectDialog::OnGetTabBorderImage( ETab InTab ) const
+void SGameProjectDialog::OnMajorTemplateCategorySelectionChanged(TSharedPtr<FTemplateCategory> Item, ESelectInfo::Type SelectType)
 {
-	if (ActiveTab == InTab)
+	if (Item.IsValid())
 	{
-		return FEditorStyle::GetBrush("ProjectBrowser.Tab.ActiveBackground");
+		RecentProjectBrowser->ClearSelection();
+		MinorCategoryTileView->ClearSelection();
+
+		NewProjectWizard->SetCurrentCategory(Item->Key);
 	}
-	
-	return FEditorStyle::GetBrush("ProjectBrowser.Tab.Background");
+
 }
 
+void SGameProjectDialog::OnMinorTemplateCategorySelectionChanged(TSharedPtr<FTemplateCategory> Item, ESelectInfo::Type SelectType)
+{
+	if (Item.IsValid())
+	{
+		RecentProjectBrowser->ClearSelection();
+		MajorCategoryTileView->ClearSelection();
+
+		NewProjectWizard->SetCurrentCategory(Item->Key);
+	}
+}
+
+void SGameProjectDialog::OnRecentProjectSelectionChanged(FString Item)
+{
+	if (!Item.IsEmpty())
+	{
+		MajorCategoryTileView->ClearSelection();
+		MinorCategoryTileView->ClearSelection();
+	}
+}
+
+int32 SGameProjectDialog::GetInitialPageIndex() const
+{
+	if (DialogMode == EMode::Open)
+	{
+		return GameProjectDialogDefs::ProjectBrowserPageIndex;
+	}
+	return GameProjectDialogDefs::LandingPageIndex;
+}
+
+int32 SGameProjectDialog::GetNextPageIndex(int32 Current) const
+{
+	int32 CurrentPage = RootWizard->GetCurrentPageIndex();
+	if (CurrentPage == GameProjectDialogDefs::LandingPageIndex)
+	{
+		FString SelectedProjectFile = RecentProjectBrowser->GetSelectedProjectFile();
+		if (!SelectedProjectFile.IsEmpty())
+		{
+			return INDEX_NONE;
+		}
+
+		TArray<TSharedPtr<FTemplateCategory>> SelectedMajorCategories = MajorCategoryTileView->GetSelectedItems();
+		TArray<TSharedPtr<FTemplateCategory>> SelectedMinorCategories = MinorCategoryTileView->GetSelectedItems();
+
+		if (SelectedMajorCategories.Num() > 0 || SelectedMinorCategories.Num() > 0)
+		{
+			return GameProjectDialogDefs::TemplateListPageIndex;
+		}
+	}
+	else if (CurrentPage == GameProjectDialogDefs::TemplateListPageIndex)
+	{
+		if (NewProjectWizard->ShouldShowProjectSettingsPage())
+		{
+			return GameProjectDialogDefs::ProjectSettingsPageIndex;
+		}
+	}
+
+	return INDEX_NONE;
+}
+
+bool SGameProjectDialog::OnCanFinish() const
+{
+	int32 CurrentPage = RootWizard->GetCurrentPageIndex();
+	if (CurrentPage == GameProjectDialogDefs::ProjectSettingsPageIndex)
+	{
+		return NewProjectWizard->CanCreateProject();
+	}
+
+	if (CurrentPage == GameProjectDialogDefs::TemplateListPageIndex)
+	{
+		if (!NewProjectWizard->ShouldShowProjectSettingsPage()) 
+		{
+			return NewProjectWizard->CanCreateProject();
+		}
+	}
+
+	if (CurrentPage == GameProjectDialogDefs::ProjectBrowserPageIndex)
+	{
+		return !ProjectBrowserPage->GetSelectedProjectFile().IsEmpty();
+	}
+
+	if (CurrentPage == GameProjectDialogDefs::LandingPageIndex)
+	{
+		if (DialogMode == EMode::New)
+		{
+			return false;
+		}
+		else
+		{
+			return !RecentProjectBrowser->GetSelectedProjectFile().IsEmpty();
+		}
+	}
+
+	return false;
+}
+
+void SGameProjectDialog::OnFinishClicked()
+{
+	int32 CurrentPage = RootWizard->GetCurrentPageIndex();
+	if (CurrentPage == GameProjectDialogDefs::LandingPageIndex)
+	{
+		RecentProjectBrowser->OpenSelectedProject();
+	}
+	else if (CurrentPage == GameProjectDialogDefs::ProjectBrowserPageIndex)
+	{
+		ProjectBrowserPage->OpenSelectedProject();
+	}
+	else
+	{
+		NewProjectWizard->CreateAndOpenProject();
+	}
+
+	TSharedPtr<SWindow> Window = FSlateApplication::Get().FindWidgetWindow(AsShared());
+	Window->RequestDestroyWindow();
+}
+
+void SGameProjectDialog::OnCancelClicked() const
+{
+	TSharedPtr<SWindow> Window = FSlateApplication::Get().FindWidgetWindow(AsShared());
+	Window->RequestDestroyWindow();
+}
+
+FText SGameProjectDialog::GetFinishText() const
+{
+	int32 CurrentPage = RootWizard->GetCurrentPageIndex();
+	if ((DialogMode == EMode::Open || DialogMode == EMode::Both) &&
+		(CurrentPage == GameProjectDialogDefs::ProjectBrowserPageIndex ||
+		CurrentPage == GameProjectDialogDefs::LandingPageIndex))
+	{
+		return NSLOCTEXT("ProjectBrowser", "OpenProjectBrowseTitle", "Open Project");
+	}
+
+	return NSLOCTEXT("NewProjectWizard", "Create Project", "Create Project");
+}
+
+FText SGameProjectDialog::GetFinishTooltip() const
+{
+	int32 CurrentPage = RootWizard->GetCurrentPageIndex();
+	if (CurrentPage == GameProjectDialogDefs::TemplateListPageIndex ||
+		CurrentPage == GameProjectDialogDefs::ProjectSettingsPageIndex)
+	{
+		return NSLOCTEXT("NewProjectWizard", "FinishButtonToolTip", "Creates your new project in the specified location with the specified template and name.");
+	}
+
+	return FText::GetEmpty();
+}
+
+FText SGameProjectDialog::GetPageTitle(int32 PageIndex) const
+{
+	switch (PageIndex)
+	{
+		case GameProjectDialogDefs::LandingPageIndex:
+			return DialogMode == EMode::New ? GameProjectDialogDefs::SelectCategoryTitle : GameProjectDialogDefs::LandingPageTitle;
+		case GameProjectDialogDefs::ProjectBrowserPageIndex: return GameProjectDialogDefs::ProjectBrowserTitle;
+		case GameProjectDialogDefs::TemplateListPageIndex: return GameProjectDialogDefs::TemplateListTitle;
+		case GameProjectDialogDefs::ProjectSettingsPageIndex: return GameProjectDialogDefs::ProjectSettingsTitle;
+	}
+
+	return FText::GetEmpty();
+}
 
 #undef LOCTEXT_NAMESPACE
