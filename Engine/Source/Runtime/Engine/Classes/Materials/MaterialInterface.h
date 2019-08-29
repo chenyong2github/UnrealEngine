@@ -117,10 +117,6 @@ struct FLightmassMaterialInterfaceSettings
 {
 	GENERATED_USTRUCT_BODY()
 
-	/** If true, forces translucency to cast static shadows as if the material were masked. */
-	UPROPERTY(EditAnywhere, Category=Material)
-	uint32 bCastShadowAsMasked:1;
-
 	/** Scales the emissive contribution of this material to static lighting. */
 	UPROPERTY()
 	float EmissiveBoost;
@@ -136,28 +132,32 @@ struct FLightmassMaterialInterfaceSettings
 	UPROPERTY(EditAnywhere, Category=Material)
 	float ExportResolutionScale;
 
+	/** If true, forces translucency to cast static shadows as if the material were masked. */
+	UPROPERTY(EditAnywhere, Category = Material)
+	uint8 bCastShadowAsMasked : 1;
+
 	/** Boolean override flags - only used in MaterialInstance* cases. */
 	/** If true, override the bCastShadowAsMasked setting of the parent material. */
 	UPROPERTY()
-	uint32 bOverrideCastShadowAsMasked:1;
+	uint8 bOverrideCastShadowAsMasked:1;
 
 	/** If true, override the emissive boost setting of the parent material. */
 	UPROPERTY()
-	uint32 bOverrideEmissiveBoost:1;
+	uint8 bOverrideEmissiveBoost:1;
 
 	/** If true, override the diffuse boost setting of the parent material. */
 	UPROPERTY()
-	uint32 bOverrideDiffuseBoost:1;
+	uint8 bOverrideDiffuseBoost:1;
 
 	/** If true, override the export resolution scale setting of the parent material. */
 	UPROPERTY()
-	uint32 bOverrideExportResolutionScale:1;
+	uint8 bOverrideExportResolutionScale:1;
 
 	FLightmassMaterialInterfaceSettings()
-		: bCastShadowAsMasked(false)
-		, EmissiveBoost(1.0f)
+		: EmissiveBoost(1.0f)
 		, DiffuseBoost(1.0f)
 		, ExportResolutionScale(1.0f)
+		, bCastShadowAsMasked(false)
 		, bOverrideCastShadowAsMasked(false)
 		, bOverrideEmissiveBoost(false)
 		, bOverrideDiffuseBoost(false)
@@ -230,10 +230,6 @@ protected:
 	UPROPERTY(EditAnywhere, Category=Lightmass)
 	struct FLightmassMaterialInterfaceSettings LightmassSettings;
 
-private:
-	/** Feature levels to force to compile. */
-	uint32 FeatureLevelsToForceCompile;
-
 protected:
 #if WITH_EDITORONLY_DATA
 	/** Because of redirector, the texture names need to be resorted at each load in case they changed. */
@@ -250,6 +246,10 @@ protected:
 	/** Array of user data stored with the asset */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Instanced, Category = Material)
 	TArray<UAssetUserData*> AssetUserData;
+
+private:
+	/** Feature levels to force to compile. */
+	uint32 FeatureLevelsToForceCompile;
 
 public:
 
