@@ -26,25 +26,7 @@ public:
 	bool				OnData(FStreamReader::FData& Data);
 
 private:
-	struct FDispatch
-	{
-		struct FField
-		{
-			uint32		Hash;
-			uint16		Offset;
-			uint16		Size;
-			uint16		_Unused0;
-			uint8		TypeInfo;
-			uint8		_Unused1;
-		};
-
-		uint16			FirstRoute;
-		uint16			FieldCount;
-		uint16			EventSize;
-		uint16			_Unused0;
-		FField			Fields[];
-	};
-
+	struct				FDispatch;
 	struct FRoute
 	{
 		uint16			HashIndex;
