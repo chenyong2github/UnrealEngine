@@ -5120,7 +5120,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					UPackage::SaveAssetRegistryData(InOuter, Linker.Get(), StructuredArchiveRoot.EnterField(SA_FIELD_NAME(TEXT("AssetRegistry"))));
 
 					// Save level information used by World browser
-					UPackage::SaveWorldLevelInfo(InOuter, Linker.Get(), StructuredArchiveRoot.EnterField(SA_FIELD_NAME(TEXT("WorldLevelInfo"))));
+					UPackage::SaveWorldLevelInfo(InOuter, Linker.Get(), StructuredArchiveRoot);
 				}
 
 
@@ -6492,19 +6492,14 @@ void UPackage::SaveAssetRegistryData(UPackage* InOuter, FLinkerSave* Linker, FSt
 	}
 }
 
-void UPackage::SaveWorldLevelInfo(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::FSlot Slot)
+void UPackage::SaveWorldLevelInfo(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::FRecord Record)
 {
 	Linker->Summary.WorldTileInfoDataOffset = 0;
 	
 	if(InOuter->WorldTileInfo.IsValid())
 	{
 		Linker->Summary.WorldTileInfoDataOffset = Linker->Tell();
-		Slot << *(InOuter->WorldTileInfo);
-	}
-	else
-	{
-		// Make empty record, because structured archive API doesn't allow us to leave a slot empty
-		Slot.EnterRecord();
+		Record << SA_VALUE(TEXT("WorldLevelInfo"), *(InOuter->WorldTileInfo));
 	}
 }
 

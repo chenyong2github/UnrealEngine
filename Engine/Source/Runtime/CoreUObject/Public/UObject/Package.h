@@ -592,8 +592,9 @@ public:
 	*
 	* @param	InOuter							the outer to use for the new package
 	* @param	Linker							linker we're currently saving with
+	* @param	Record							the structured archive record we should add the world level info to
 	*/
-	static void SaveWorldLevelInfo(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::FSlot Slot);
+	static void SaveWorldLevelInfo(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::FRecord Record);
 
 	/**
 	* Determines if a package contains no more assets.
