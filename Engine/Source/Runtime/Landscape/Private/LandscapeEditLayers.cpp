@@ -5116,7 +5116,7 @@ void ALandscape::FinishDestroy()
 bool ALandscape::IsUpToDate() const
 {
 #if WITH_EDITORONLY_DATA
-	if (CanHaveLayersContent())
+	if (CanHaveLayersContent() && GetWorld() != nullptr && !GetWorld()->IsGameWorld())
 	{
 		return LayerContentUpdateModes == 0;
 	}
