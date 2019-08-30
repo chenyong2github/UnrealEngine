@@ -415,17 +415,6 @@ TOptional<FStructuredArchive::FSlot> FStructuredArchive::FSlot::TryEnterAttribut
 	}
 }
 
-void FStructuredArchive::FSlot::operator<< (char& Value)
-{
-	Ar.EnterSlot(Depth, ElementId);
-
-	int8 AsInt = Value;
-	Ar.Formatter.Serialize(AsInt);
-	Value = AsInt;
-
-	Ar.LeaveSlot();
-}
-
 void FStructuredArchive::FSlot::operator<< (uint8& Value)
 {
 	Ar.EnterSlot(Depth, ElementId);

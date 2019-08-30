@@ -208,7 +208,6 @@ public:
 		TOptional<FSlot> TryEnterAttribute(FArchiveFieldName AttributeName, bool bEnterWhenWriting);
 
 		// We don't support chaining writes to a single slot, so this returns void.
-		void operator << (char& Value);
 		void operator << (uint8& Value);
 		void operator << (uint16& Value);
 		void operator << (uint32& Value);
@@ -726,13 +725,6 @@ typename TEnableIf<
 		{
 			return TOptional<FSlot>();
 		}
-	}
-
-	FORCEINLINE void FStructuredArchive::FSlot::operator<< (char& Value)
-	{
-		int8 AsInt = Value;
-		Ar.Formatter.Serialize(AsInt);
-		Value = AsInt;
 	}
 
 	FORCEINLINE void FStructuredArchive::FSlot::operator<< (uint8& Value)
