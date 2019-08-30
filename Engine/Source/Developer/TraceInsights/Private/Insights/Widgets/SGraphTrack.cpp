@@ -435,7 +435,7 @@ void SGraphTrack::OnMouseLeave(const FPointerEvent& MouseEvent)
 
 		bIsLMB_Pressed = false;
 		bIsRMB_Pressed = false;
-		
+
 		MousePosition = FVector2D::ZeroVector;
 
 		GraphTrack->UpdateHoveredState(MousePosition.X, MousePosition.Y, Viewport);

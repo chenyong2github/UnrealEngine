@@ -21,14 +21,14 @@ namespace Trace
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
- * This class manages the Timing Profiler state and settings.
+ * This class manages the Asset Loading Profiler state and settings.
  */
 class FLoadingProfilerManager : public TSharedFromThis<FLoadingProfilerManager>
 {
 	friend class FLoadingProfilerActionManager;
 
 public:
-	/** Creates the Timing Profiler manager, only one instance can exist. */
+	/** Creates the Loading Profiler (Asset Loading Insights) manager, only one instance can exist. */
 	FLoadingProfilerManager(TSharedRef<FUICommandList> InCommandList);
 
 	/** Virtual destructor. */
@@ -48,7 +48,7 @@ public:
 		return FLoadingProfilerManager::Instance;
 	}
 
-	/** Shutdowns the Timing Profiler manager. */
+	/** Shutdowns the profiler manager. */
 	void Shutdown()
 	{
 		FLoadingProfilerManager::Instance.Reset();
@@ -71,13 +71,13 @@ public:
 	 */
 	static TSharedPtr<FLoadingProfilerManager> Get();
 
-	/** @returns UI command list for the Timing Profiler manager. */
+	/** @returns UI command list for the Loading Profiler manager. */
 	const TSharedRef<FUICommandList> GetCommandList() const;
 
-	/** @return an instance of the Timing Profiler commands. */
+	/** @return an instance of the Loading Profiler commands. */
 	static const FLoadingProfilerCommands& GetCommands();
 
-	/** @return an instance of the Timing Profiler action manager. */
+	/** @return an instance of the Loading Profiler action manager. */
 	static FLoadingProfilerActionManager& GetActionManager();
 
 	void AssignProfilerWindow(const TSharedRef<SLoadingProfilerWindow>& InProfilerWindow)

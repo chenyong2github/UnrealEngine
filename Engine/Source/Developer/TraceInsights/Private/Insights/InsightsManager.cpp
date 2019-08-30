@@ -180,7 +180,7 @@ void FInsightsManager::SpawnAndActivateTabs()
 	}
 	if (FGlobalTabmanager::Get()->HasTabSpawner(FInsightsManagerTabs::NetworkingProfilerTabId))
 	{
-		FGlobalTabmanager::Get()->InvokeTab(FInsightsManagerTabs::NetworkingProfilerTabId);
+		//FGlobalTabmanager::Get()->InvokeTab(FInsightsManagerTabs::NetworkingProfilerTabId);
 	}
 
 	// Ensure Timing Insights / Timing View is the active tab / view.
