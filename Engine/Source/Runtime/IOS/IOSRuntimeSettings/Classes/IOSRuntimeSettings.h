@@ -244,6 +244,10 @@ public:
 	UPROPERTY(GlobalConfig)
 	bool bSupportsOpenGLES2;
 	
+    // Whether to build the iOS project as a framework.
+    UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (DisplayName = "Build project as a framework"))
+    bool bBuildAsFramework;
+
 	// Remotely compile shaders offline
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Build)
 	bool EnableRemoteShaderCompile;
