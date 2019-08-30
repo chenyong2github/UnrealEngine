@@ -428,12 +428,16 @@ class FD3D12BaseTextureCube : public FRHITextureCube, public FD3D12FastClearReso
 public:
 	FD3D12BaseTextureCube(uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ, uint32 InNumMips, uint32 InNumSamples, EPixelFormat InFormat, uint32 InFlags, const FClearValueBinding& InClearValue)
 		: FRHITextureCube(InSizeX, InNumMips, InFormat, InFlags, InClearValue)
+		, SliceCount(InSizeZ)
 	{
 		check(InNumSamples == 1);
 	}
 	uint32 GetSizeX() const { return GetSize(); }
 	uint32 GetSizeY() const { return GetSize(); }
-	uint32 GetSizeZ() const { return 0; }
+	uint32 GetSizeZ() const { return SliceCount; }
+
+private:
+	uint32 SliceCount;
 };
 
 typedef TD3D12Texture2D<FD3D12BaseTexture2D>      FD3D12Texture2D;
