@@ -2087,6 +2087,7 @@ UParticleSystem::UParticleSystem(const FObjectInitializer& ObjectInitializer)
 	, OcclusionBoundsMethod(EPSOBM_ParticleBounds)
 	, HighestSignificance(EParticleSignificanceLevel::Critical)
 	, LowestSignificance(EParticleSignificanceLevel::Low)
+	, bShouldManageSignificance(false)
 	, bAnyEmitterLoopsForever(false)
 	, bIsImmortal(false)
 	, bWillBecomeZombie(false)
@@ -2127,7 +2128,6 @@ UParticleSystem::UParticleSystem(const FObjectInitializer& ObjectInitializer)
 	InsignificanceDelay = 0.0f;
 	MaxSignificanceLevel = EParticleSignificanceLevel::Critical;
 	MaxPoolSize = 32;
-	bShouldManageSignificance = false;
 
 
 	bAllowManagedTicking = true;
