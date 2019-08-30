@@ -237,12 +237,103 @@ struct FAnalysisEngine::FDispatch
 
 
 ////////////////////////////////////////////////////////////////////////////////
+uint32 IAnalyzer::FEventTypeInfo::GetId() const
+{
+	const auto& Inner = *(const FAnalysisEngine::FDispatch*)this;
+	return Inner.Uid;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+uint32 IAnalyzer::FEventTypeInfo::GetSize() const
+{
+	const auto& Inner = *(const FAnalysisEngine::FDispatch*)this;
+	return Inner.EventSize;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+const ANSICHAR* IAnalyzer::FEventTypeInfo::GetName() const
+{
+	const auto& Inner = *(const FAnalysisEngine::FDispatch*)this;
+	return (const ANSICHAR*)(UPTRINT(&Inner) + Inner.EventNameOffset);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+const ANSICHAR* IAnalyzer::FEventTypeInfo::GetLoggerName() const
+{
+	const auto& Inner = *(const FAnalysisEngine::FDispatch*)this;
+	return (const ANSICHAR*)(Inner.Fields + Inner.FieldCount);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+uint32 IAnalyzer::FEventTypeInfo::GetFieldCount() const
+{
+	const auto& Inner = *(const FAnalysisEngine::FDispatch*)this;
+	return Inner.FieldCount;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+const IAnalyzer::FEventFieldInfo* IAnalyzer::FEventTypeInfo::GetFieldInfo(uint32 Index) const
+{
+	if (Index >= GetFieldCount())
+	{
+		return nullptr;
+	}
+
+	const auto& Inner = *(const FAnalysisEngine::FDispatch*)this;
+	return (const IAnalyzer::FEventFieldInfo*)(Inner.Fields + Index);
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+const ANSICHAR* IAnalyzer::FEventFieldInfo::GetName() const
+{
+	const auto* Inner = (const FAnalysisEngine::FDispatch::FField*)this;
+	return (const ANSICHAR*)(UPTRINT(Inner) + Inner->NameOffset);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+uint32 IAnalyzer::FEventFieldInfo::GetOffset() const
+{
+	const auto* Inner = (const FAnalysisEngine::FDispatch::FField*)this;
+	return Inner->Offset;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+uint32 IAnalyzer::FEventFieldInfo::GetSize() const
+{
+	const auto* Inner = (const FAnalysisEngine::FDispatch::FField*)this;
+	return 1 << (Inner->TypeInfo & _Field_Pow2SizeMask);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+IAnalyzer::FEventFieldInfo::EType IAnalyzer::FEventFieldInfo::GetType() const
+{
+	const auto* Inner = (const FAnalysisEngine::FDispatch::FField*)this;
+	switch (Inner->TypeInfo & _Field_CategoryMask)
+	{
+	case _Field_Integer:	return EType::Integer;
+	case _Field_Float:		return EType::Float;
+	}
+	return EType::None;
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
 struct FAnalysisEngine::FEventDataInfo
 {
 	const FDispatch&	Dispatch;
 	const uint8*		Ptr;
 	uint16				Size;
 };
+
+////////////////////////////////////////////////////////////////////////////////
+const IAnalyzer::FEventTypeInfo& IAnalyzer::FEventData::GetTypeInfo() const
+{
+	const auto& Info = *(const FAnalysisEngine::FEventDataInfo*)this;
+	return (const FEventTypeInfo&)(Info.Dispatch);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 const void* IAnalyzer::FEventData::GetValueImpl(const ANSICHAR* FieldName, uint16& Type) const
@@ -428,6 +519,7 @@ FAnalysisEngine::FDispatch& FAnalysisEngine::AddDispatch(
 	// Allocate a block of memory to hold the dispatch
 	uint32 Size = sizeof(FDispatch) + (sizeof(FDispatch::FField) * FieldCount) + ExtraData;
 	auto* Dispatch = (FDispatch*)FMemory::Malloc(Size);
+	Dispatch->Uid = Uid;
 	Dispatch->FieldCount = FieldCount;
 	Dispatch->EventSize = 0;
 	Dispatch->FirstRoute = -1;
