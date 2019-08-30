@@ -24,22 +24,22 @@
 	[
 		{
 			"Name" : "TakesCore",
-			"Type" : "Developer",
+			"Type" : "UncookedOnly",
 			"LoadingPhase" : "PostEngineInit"
 		},
 		{
 			"Name" : "TakeTrackRecorders",
-			"Type" : "Developer",
+			"Type" : "UncookedOnly",
 			"LoadingPhase" : "PostEngineInit"
 		},
 		{
 			"Name" : "TakeRecorderSources",
-			"Type" : "Developer",
+			"Type" : "UncookedOnly",
 			"LoadingPhase" : "PostEngineInit"
 		},
 		{
 			"Name" : "TakeRecorder",
-			"Type" : "Developer",
+			"Type" : "UncookedOnly",
 			"LoadingPhase" : "PostEngineInit"
 		},
 	]

@@ -23,7 +23,7 @@
 		},
 		{
 			"Name" : "GameplayAbilitiesEditor",
-			"Type" : "Developer",
+			"Type" : "UncookedOnly",
 			"LoadingPhase" : "PreDefault"
 		}
 	],

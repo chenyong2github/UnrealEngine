@@ -16,7 +16,7 @@
 	"Modules": [
 		{
 			"Name": "BlueprintMaterialTextureNodes",
-			"Type": "Developer",
+			"Type": "UncookedOnly",
 			"LoadingPhase": "PreLoadingScreen"
 		}
 	]

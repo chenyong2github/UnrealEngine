@@ -38,7 +38,7 @@
 		},
 		{
 			"Name": "LiveLinkGraphNode",
-			"Type": "Developer",
+			"Type": "UncookedOnly",
 			"LoadingPhase": "Default"
 		},
 		{
@@ -48,7 +48,7 @@
 		},
 		{
 			"Name": "LiveLinkSequencer",
-			"Type": "Developer",
+			"Type": "UncookedOnly",
 			"LoadingPhase": "Default"
 		}
 	]

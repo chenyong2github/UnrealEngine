@@ -18,7 +18,7 @@
         },
         {
             "Name": "OnlineBlueprintSupport",
-            "Type": "Developer",
+            "Type": "UncookedOnly",
             "LoadingPhase": "PostConfigInit"
         }
     ],
