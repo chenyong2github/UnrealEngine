@@ -591,7 +591,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// This is the SDK version we support
 		/// </summary>
-		static string ExpectedSDKVersion = "v13_clang-7.0.1-centos7";	// now unified for all the architectures
+		static string ExpectedSDKVersion = "v14_clang-8.0.1-centos7";	// now unified for all the architectures
 
 		/// <summary>
 		/// Platform name (embeds architecture for now)

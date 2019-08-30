@@ -653,33 +653,69 @@ namespace AutomationTool
 		/// <returns></returns>
 		public static FileReference FindProjectFileFromName(string GameName)
 		{
+			// if they passed in a path then easy.
+			if (File.Exists(GameName))
+			{
+				return new FileReference(GameName);
+			}
+
+			// Start with the gamename regardless of what they passed in
+			GameName = Path.GetFileNameWithoutExtension(GameName);
+
+			// Turn Foo into Foo.uproject
 			string ProjectFile = GameName;
 
-			// Look for GameName.uproject
 			if (string.IsNullOrEmpty(Path.GetExtension(ProjectFile)))
 			{
 				// if project was specified but had no extension then just add it.
 				ProjectFile = Path.ChangeExtension(GameName, ".uproject");
 			}
 
-			// easy!
+			// Turn Foo.uproject into Foo/Foo.uproject
+			ProjectFile = Path.Combine(GameName, ProjectFile);
+
+			GameName = Path.GetFileNameWithoutExtension(GameName);
+
+			// check for sibling to engine
 			if (File.Exists(ProjectFile))
 			{
 				return new FileReference(ProjectFile);
 			}
 
-			// check for sibling to engine
-			string SiblingPath = Path.Combine(Environment.CurrentDirectory, GameName, ProjectFile);
-
-			if (File.Exists(SiblingPath))
-			{
-				return new FileReference(SiblingPath);
-			}
-
-			// check projectfiles paths.
+			// Search NativeProjects (sibling folders).
 			IEnumerable<FileReference> Projects = NativeProjects.EnumerateProjectFiles();
 
 			FileReference ProjectPath = Projects.Where(R => string.Equals(R.GetFileName(), ProjectFile, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+
+			if (ProjectPath == null)
+			{
+				// read .uprojectdirs
+				List<string> SearchPaths = new List<string>();
+				SearchPaths.Add("");
+				string ProjectDirsFile = Directory.EnumerateFiles(Environment.CurrentDirectory, "*.uprojectdirs").FirstOrDefault();
+				if (ProjectDirsFile != null)
+				{
+					foreach (string FilePath in File.ReadAllLines(ProjectDirsFile))
+					{
+						string Trimmed = FilePath.Trim();
+						if (!Trimmed.StartsWith("./", StringComparison.OrdinalIgnoreCase) &&
+							!Trimmed.StartsWith(";", StringComparison.OrdinalIgnoreCase) &&
+							Trimmed.IndexOfAny(Path.GetInvalidPathChars()) < 0)
+						{
+							SearchPaths.Add(Trimmed);
+						}
+					}
+
+					string ResolvedFile = SearchPaths.Select(P => Path.Combine(P, ProjectFile))
+											.Where(P => File.Exists(P))
+											.FirstOrDefault();
+
+					if (ResolvedFile != null)
+					{
+						ProjectPath = new FileReference(ResolvedFile);
+					}
+				}
+			}
 						
 			// either valid or we're out of ideas...
 			return ProjectPath;

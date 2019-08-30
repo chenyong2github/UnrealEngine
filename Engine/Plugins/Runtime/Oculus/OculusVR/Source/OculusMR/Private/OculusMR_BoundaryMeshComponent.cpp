@@ -189,6 +189,7 @@ public:
 		MaterialRelevance.SetPrimitiveViewRelevance(Result);
 		Result.bOpaqueRelevance = true;
 		Result.bUsesSceneDepth = false;
+		Result.bUsesSkyMaterial = false;
 		Result.bRenderCustomDepth = false;
 		return Result;
 	}

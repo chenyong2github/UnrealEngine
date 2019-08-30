@@ -587,7 +587,7 @@ Done:
 		if((Desc.TargetableFlags & TexCreate_UAV) && !bDeferTextureAllocation)
 		{
 			// The render target desc is invalid if a UAV is requested with an RHI that doesn't support the high-end feature level.
-			check(GMaxRHIFeatureLevel == ERHIFeatureLevel::SM5);
+			check(GMaxRHIFeatureLevel == ERHIFeatureLevel::SM5 || GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1);
 			Found->RenderTargetItem.MipUAVs.Reserve(Desc.NumMips);
 			for (uint32 MipLevel = 0; MipLevel < Desc.NumMips; MipLevel++)
 			{

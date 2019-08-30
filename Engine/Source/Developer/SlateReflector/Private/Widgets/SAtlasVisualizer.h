@@ -29,15 +29,18 @@ public:
 	virtual FIntPoint GetSize() const override;
 	virtual bool RequiresVsync() const override;
 	virtual FSlateShaderResource* GetViewportRenderTargetTexture() const override;
-	bool IsViewportTextureAlphaOnly() const override;
+	virtual bool IsViewportTextureAlphaOnly() const override;
 
 	void Construct( const FArguments& InArgs );
 
 protected:
+	FText GetViewportSizeText() const;
+	FVector2D GetViewportWidgetSize() const;
 	FText GetZoomLevelPercentText() const;
 	void OnFitToWindowStateChanged( ECheckBoxState NewState );
 	ECheckBoxState OnGetFitToWindowState() const;
 	FReply OnActualSizeClicked();
+	EVisibility OnGetDisplayCheckerboardVisibility() const;
 	void OnDisplayCheckerboardStateChanged( ECheckBoxState NewState );
 	ECheckBoxState OnGetCheckerboardState() const;
 	EVisibility OnGetCheckerboardVisibility() const;

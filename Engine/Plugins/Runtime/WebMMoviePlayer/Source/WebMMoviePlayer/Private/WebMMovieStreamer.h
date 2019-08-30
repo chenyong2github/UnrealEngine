@@ -51,9 +51,18 @@ private:
 	TSharedPtr<FMediaSamples, ESPMode::ThreadSafe> Samples;
 	TSharedPtr<FMovieViewport> Viewport;
 	TSharedPtr<FSlateTexture2DRHIRef, ESPMode::ThreadSafe> SlateVideoTexture;
+
+	/** Limits amount of frames being processed to save video memory used by the player */
 	int32 VideoFramesCurrentlyProcessing;
+
+	/** Movie start time */
 	double StartTime;
+	/** Timestamp when we entered background */
+	double TimeAtEnteringBackground;
+	/** Whether a movie is being played */
 	bool bPlaying;
+	/** We can be paused e.g. while in background */
+	bool bPaused;
 
 	/** 
 	 * Number of ticks to wait after the movie is complete before moving on to the next one. 
@@ -67,6 +76,19 @@ private:
 	bool DisplayFrames(float InDeltaTime);
 	bool SendAudio(float InDeltaTime);
 	bool ReadMoreFrames();
+
+	/** Callback for when the application resumed in the foreground. */
+	void HandleApplicationHasEnteredForeground();
+
+	/** Callback for when the application is being paused in the background. */
+	void HandleApplicationWillEnterBackground();
+
+	/** Foreground/background delegate for pause. */
+	FDelegateHandle PauseHandle;
+
+	/** Foreground/background delegate for resume. */
+	FDelegateHandle ResumeHandle;
+
 };
 
 #endif // WITH_WEBM_LIBS

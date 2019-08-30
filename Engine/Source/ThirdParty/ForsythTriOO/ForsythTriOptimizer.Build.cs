@@ -16,28 +16,26 @@ public class ForsythTriOptimizer : ModuleRules
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
             ForsythTriOptimizerLibPath += "Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-			PublicLibraryPaths.Add(ForsythTriOptimizerLibPath);
 
 			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
 			{
-				PublicAdditionalLibraries.Add("ForsythTriOptimizerD_64.lib");
+				PublicAdditionalLibraries.Add(ForsythTriOptimizerLibPath + "/ForsythTriOptimizerD_64.lib");
 			}
 			else
 			{
-				PublicAdditionalLibraries.Add("ForsythTriOptimizer_64.lib");
+				PublicAdditionalLibraries.Add(ForsythTriOptimizerLibPath + "/ForsythTriOptimizer_64.lib");
 			}
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win32)
 		{
             ForsythTriOptimizerLibPath += "Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-			PublicLibraryPaths.Add(ForsythTriOptimizerLibPath);
 			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
 			{
-				PublicAdditionalLibraries.Add("ForsythTriOptimizerD.lib");
+				PublicAdditionalLibraries.Add(ForsythTriOptimizerLibPath + "/ForsythTriOptimizerD.lib");
 			}
 			else
 			{
-				PublicAdditionalLibraries.Add("ForsythTriOptimizer.lib");
+				PublicAdditionalLibraries.Add(ForsythTriOptimizerLibPath + "/ForsythTriOptimizer.lib");
 			}
 		}
         else if (Target.Platform == UnrealTargetPlatform.Mac)

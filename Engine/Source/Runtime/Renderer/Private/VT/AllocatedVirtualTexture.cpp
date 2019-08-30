@@ -22,7 +22,6 @@ FAllocatedVirtualTexture::FAllocatedVirtualTexture(FVirtualTextureSystem* InSyst
 	, NumUniqueProducers(0u)
 {
 	check(IsInRenderingThread());
-	FMemory::Memzero(PhysicalSpace);
 	FMemory::Memzero(UniqueProducerHandles);
 	FMemory::Memzero(UniqueProducerMipBias);
 
@@ -130,6 +129,7 @@ void FAllocatedVirtualTexture::Release(FVirtualTextureSystem* System)
 			FTexturePageMap& PageMap = Space->GetPageMap(LayerIndex);
 			PhysicalSpace[LayerIndex]->GetPagePool().UnmapAllPagesForSpace(System, Space->GetID());
 			PageMap.VerifyPhysicalSpaceUnmapped(PhysicalSpace[LayerIndex]->GetID());
+			PhysicalSpace[LayerIndex].SafeRelease();
 		}
 	}
 

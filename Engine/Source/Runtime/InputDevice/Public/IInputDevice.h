@@ -34,6 +34,13 @@ public:
 	 */
 	virtual void SetChannelValue (int32 ControllerId, FForceFeedbackChannelType ChannelType, float Value) = 0;
 	virtual void SetChannelValues (int32 ControllerId, const FForceFeedbackValues &values) = 0;
+	virtual bool SupportsForceFeedback(int32 ControllerId) { return true; }
+
+	/**
+	 * Pass though functions for light color
+	 */
+	virtual void SetLightColor(int32 ControllerId, FColor Color) { };
+	virtual void ResetLightColor(int32 ControllerId) { };
 
 	/** If this device supports a haptic interface, implement this, and inherit the IHapticDevice interface */
 	virtual class IHapticDevice* GetHapticDevice()

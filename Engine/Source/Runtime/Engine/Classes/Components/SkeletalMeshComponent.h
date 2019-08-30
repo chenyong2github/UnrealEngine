@@ -1452,7 +1452,7 @@ public:
 	virtual bool IsAnyRigidBodyAwake() override;
 	virtual void SetEnableGravity(bool bGravityEnabled);
 	virtual bool IsGravityEnabled() const override;
-	virtual void OnComponentCollisionSettingsChanged() override;
+	virtual void OnComponentCollisionSettingsChanged(bool bDeferUpdateOverlaps = false) override;
 	virtual void SetPhysMaterialOverride(UPhysicalMaterial* NewPhysMaterial) override;
 	virtual bool GetSquaredDistanceToCollision(const FVector& Point, float& OutSquaredDistance, FVector& OutClosestPointOnCollision) const override;
 

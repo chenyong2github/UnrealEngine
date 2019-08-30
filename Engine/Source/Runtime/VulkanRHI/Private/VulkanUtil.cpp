@@ -706,6 +706,7 @@ DEFINE_STAT(STAT_VulkanNumFrameBuffers);
 DEFINE_STAT(STAT_VulkanNumBufferViews);
 DEFINE_STAT(STAT_VulkanNumImageViews);
 DEFINE_STAT(STAT_VulkanNumPhysicalMemAllocations);
+DEFINE_STAT(STAT_VulkanTempFrameAllocationBuffer);
 DEFINE_STAT(STAT_VulkanDynamicVBSize);
 DEFINE_STAT(STAT_VulkanDynamicIBSize);
 DEFINE_STAT(STAT_VulkanDynamicVBLockTime);
@@ -729,6 +730,8 @@ DEFINE_STAT(STAT_VulkanAcquireBackBuffer);
 DEFINE_STAT(STAT_VulkanStagingBuffer);
 DEFINE_STAT(STAT_VulkanVkCreateDescriptorPool);
 DEFINE_STAT(STAT_VulkanNumDescPools);
+DEFINE_STAT(STAT_VulkanUpdateUniformBuffers);
+DEFINE_STAT(STAT_VulkanUpdateUniformBuffersRename);
 #if VULKAN_ENABLE_AGGRESSIVE_STATS
 DEFINE_STAT(STAT_VulkanUpdateDescriptorSets);
 DEFINE_STAT(STAT_VulkanNumUpdateDescriptors);

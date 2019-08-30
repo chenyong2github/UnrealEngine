@@ -195,7 +195,7 @@ TSharedRef<SWidget> SDataprepConsumerWidget::BuildNullWidget()
 			[
 				SNew(STextBlock)
 				.Font( IDetailLayoutBuilder::GetDetailFont() )
-				.Text(LOCTEXT("DataprepSlateHelper_ContentFolderLabel", "Error: Not a valid consumer"))
+				.Text(LOCTEXT("DataprepSlateHelper_Error_InvalidConsumer", "Error: Not a valid consumer"))
 				.Margin(FMargin( 5.0f, 5.0f, 0.0f, 0.0f ) )
 				.ColorAndOpacity( FLinearColor(1,0,0,1) )
 			]

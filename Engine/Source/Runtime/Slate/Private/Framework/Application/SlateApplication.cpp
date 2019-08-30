@@ -1444,7 +1444,7 @@ void FSlateApplication::DrawWindowAndChildren( const TSharedRef<SWindow>& Window
 	if (bDrawChildWindows)
 	{
 		// Draw the child windows
-		const TArray< TSharedRef<SWindow> >& WindowChildren = WindowToDraw->GetChildWindows();
+		const TArray< TSharedRef<SWindow> > WindowChildren = WindowToDraw->GetChildWindows();
 		for (int32 ChildIndex=0; ChildIndex < WindowChildren.Num(); ++ChildIndex)
 		{
 			DrawWindowAndChildren( WindowChildren[ChildIndex], DrawWindowArgs );
@@ -6995,8 +6995,17 @@ bool FSlateApplication::BeginReshapingWindow( const TSharedRef< FGenericWindow >
 	return false;
 }
 
-void FSlateApplication::FinishedReshapingWindow( const TSharedRef< FGenericWindow >& PlatformWindow )
+void FSlateApplication::FinishedReshapingWindow(const TSharedRef< FGenericWindow >& PlatformWindow)
 {
+#if WITH_EDITOR
+	TSharedPtr< SWindow > Window = FSlateWindowHelper::FindWindowByPlatformWindow(SlateWindows, PlatformWindow);
+
+	if (Window.IsValid())
+	{
+		Renderer->OnWindowFinishReshaped(Window);
+	}
+#endif
+
 	if (ThrottleHandle.IsValid())
 	{
 		FSlateThrottleManager::Get().LeaveResponsiveMode(ThrottleHandle);

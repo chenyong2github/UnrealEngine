@@ -51,13 +51,14 @@ public:
 	}
 
 	/**
-	* Quick test for seeing if the lock is already being used.
+	 * Attempt to take a lock and returns whether or not a lock was taken.
+	 *
+	 * @return true if a lock was taken, false otherwise.
 	*/
 	FORCEINLINE bool TryLock()
 	{
 		if (Windows::TryEnterCriticalSection(&CriticalSection))
 		{
-			Windows::LeaveCriticalSection(&CriticalSection);
 			return true;
 		};
 		return false;

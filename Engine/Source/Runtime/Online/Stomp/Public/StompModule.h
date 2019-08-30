@@ -19,10 +19,10 @@ public:
 	// FStompModule
 
 	/**
-	 * Singleton-like access to this module's interface.  This is just for convenience!
-	 * Beware of calling this during the shutdown phase, though.  Your module might have been unloaded already.
+	 * Singleton-like access to this module's interface - this is just for convenience!
+	 * Beware of calling this during the shutdown phase, since yuor module might have been unloaded already.
 	 *
-	 * @return Returns singleton instance, loading the module on demand if needed
+	 * @return Returns singleton instance
 	 */
 	static FStompModule& Get();
 
@@ -33,7 +33,7 @@ public:
 	 * @param Url The URL to which to connect; this should be the URL to which the WebSocket server will respond with Stomp protocol data.
 	 * @return new IStompClient instance
 	 */
-	virtual TSharedRef<IStompClient> CreateClient(const FString& Url);
+	TSharedRef<IStompClient> CreateClient(const FString& Url, const FString& OptAuthToken = FString());
 #endif // #if WITH_STOMP
 
 private:

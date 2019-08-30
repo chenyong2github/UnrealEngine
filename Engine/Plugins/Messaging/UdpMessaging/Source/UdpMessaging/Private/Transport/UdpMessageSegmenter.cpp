@@ -114,6 +114,12 @@ void FUdpMessageSegmenter::Initialize()
 }
 
 
+bool FUdpMessageSegmenter::IsMessageSerializationDone() const
+{
+	return SerializedMessage == nullptr || SerializedMessage->GetState() != EUdpSerializedMessageState::Incomplete;
+}
+
+
 bool FUdpMessageSegmenter::IsInvalid() const
 {
 	return (SerializedMessage->GetState() == EUdpSerializedMessageState::Invalid);

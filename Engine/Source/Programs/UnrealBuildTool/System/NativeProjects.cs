@@ -36,6 +36,16 @@ namespace UnrealBuildTool
 		static Dictionary<string, FileReference> CachedTargetNameToProjectFile;
 
 		/// <summary>
+		/// Clear our cached properties. Generally only needed if your script has modified local files...
+		/// </summary>
+		public static void ClearCache()
+		{
+			CachedBaseDirectories = null;
+			CachedProjectFiles = null;
+			CachedTargetNameToProjectFile = null;
+		}
+
+		/// <summary>
 		/// Retrieve the list of base directories for native projects
 		/// </summary>
 		public static IEnumerable<DirectoryReference> EnumerateBaseDirectories()

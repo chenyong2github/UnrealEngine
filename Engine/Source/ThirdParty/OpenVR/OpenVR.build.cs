@@ -26,8 +26,8 @@ public class OpenVR : ModuleRules
 
 		if(Target.Platform == UnrealTargetPlatform.Win32)
 		{
-			PublicLibraryPaths.Add(LibraryPath + "win32");
-			PublicAdditionalLibraries.Add("openvr_api.lib");
+			LibraryPath += "win32/";
+			PublicAdditionalLibraries.Add(LibraryPath + "openvr_api.lib");
 			PublicDelayLoadDLLs.Add("openvr_api.dll");
 
 			string OpenVRBinariesDir = String.Format("$(EngineDir)/Binaries/ThirdParty/OpenVR/OpenVR{0}/Win32/", OpenVRVersion);
@@ -35,8 +35,8 @@ public class OpenVR : ModuleRules
 		}
 		else if(Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			PublicLibraryPaths.Add(LibraryPath + "win64");
-			PublicAdditionalLibraries.Add("openvr_api.lib");
+			LibraryPath += "win64/";
+			PublicAdditionalLibraries.Add(LibraryPath + "openvr_api.lib");
 			PublicDelayLoadDLLs.Add("openvr_api.dll");
 
 			string OpenVRBinariesDir = String.Format("$(EngineDir)/Binaries/ThirdParty/OpenVR/OpenVR{0}/Win64/", OpenVRVersion);
@@ -50,8 +50,9 @@ public class OpenVR : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Linux && Target.Architecture.StartsWith("x86_64"))
 		{
-			PublicLibraryPaths.Add(LibraryPath + "linux64");
-			PublicAdditionalLibraries.Add("openvr_api");
+			LibraryPath += "linux64/";
+			//PublicLibraryPaths.Add(LibraryPath);
+			PublicAdditionalLibraries.Add(LibraryPath + "libopenvr_api.so");
 
 			string DylibDir = Target.UEThirdPartyBinariesDirectory + "OpenVR/OpenVR" + OpenVRVersion + "/linux64";
 			PrivateRuntimeLibraryPaths.Add(DylibDir);

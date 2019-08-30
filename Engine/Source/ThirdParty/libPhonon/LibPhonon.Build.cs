@@ -16,8 +16,8 @@ public class libPhonon : ModuleRules
 
         if (Target.Platform == UnrealTargetPlatform.Win64)
         {
-            PublicLibraryPaths.Add(LibraryPath + "/lib/Win64");
-            PublicAdditionalLibraries.Add("phonon.lib");
+            LibraryPath = LibraryPath + "/lib/Win64/";
+            PublicAdditionalLibraries.Add(LibraryPath + "phonon.lib");
 
             string DllName = "phonon.dll";
 
@@ -37,8 +37,8 @@ public class libPhonon : ModuleRules
         }
         else if (Target.Platform == UnrealTargetPlatform.Win32)
         {
-            PublicLibraryPaths.Add(LibraryPath + "/lib/Win32");
-            PublicAdditionalLibraries.Add("phonon.lib");
+            LibraryPath = LibraryPath + "/lib/Win32/";
+            PublicAdditionalLibraries.Add(LibraryPath + "phonon.lib");
 
             string DllName = "phonon.dll";
 
@@ -50,8 +50,7 @@ public class libPhonon : ModuleRules
         }
         else if (Target.Platform == UnrealTargetPlatform.Android)
         {
-            PublicLibraryPaths.Add(LibraryPath + "/lib/Android");
-            PublicAdditionalLibraries.Add("phonon");
+            PublicAdditionalLibraries.Add(LibraryPath + "/lib/Android/libphonon.so");
         }
     }
 }

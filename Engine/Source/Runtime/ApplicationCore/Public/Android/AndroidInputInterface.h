@@ -96,10 +96,18 @@ enum MappingState
 	Valid
 };
 
+enum ControllerClassType
+{
+	Generic,
+	XBoxWired,
+	XBoxWireless,
+	PS4Wireless
+};
+
 enum ButtonRemapType
 {
 	Normal,
-	XBoxWireless,
+	XBox,
 	PS4
 };
 
@@ -119,6 +127,9 @@ struct FAndroidGamepadDeviceMapping
 
 	// State of mapping
 	MappingState DeviceState;
+
+	// Type of controller
+	ControllerClassType ControllerClass;
 
 	// Type of button remapping to use
 	ButtonRemapType ButtonRemapping;
@@ -249,8 +260,8 @@ public:
 	virtual void SetForceFeedbackChannelValue(int32 ControllerId, FForceFeedbackChannelType ChannelType, float Value) override;
 	virtual void SetForceFeedbackChannelValues(int32 ControllerId, const FForceFeedbackValues &values) override;
 	virtual void SetHapticFeedbackValues(int32 ControllerId, int32 Hand, const FHapticFeedbackValues& Values) override;
-	virtual void SetLightColor(int32 ControllerId, FColor Color) override {}
-	virtual void ResetLightColor(int32 ControllerId) override {}
+	virtual void SetLightColor(int32 ControllerId, FColor Color) override;
+	virtual void ResetLightColor(int32 ControllerId) override;
 
 	void SetGamepadsAllowed(bool bAllowed) { bAllowControllers = bAllowed; }
 	virtual bool IsGamepadAttached() const;
@@ -264,6 +275,9 @@ private:
 
 	FAndroidInputInterface( const TSharedRef< FGenericApplicationMessageHandler >& InMessageHandler, const TSharedPtr< ICursor >& InCursor);
 
+public:
+
+	FAndroidGamepadDeviceMapping* GetDeviceMapping(int32 ControllerId);
 
 private:
 

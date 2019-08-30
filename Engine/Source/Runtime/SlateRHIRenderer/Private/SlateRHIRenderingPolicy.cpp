@@ -614,7 +614,9 @@ void FSlateRHIRenderingPolicy::DrawElements(
 	// Note that the final editor rendering won't compare 1:1 with 8/10 bit RGBA since blending
 	// of "manually" gammatized values is wrong as there is no de-gammatization of the destination buffer
 	// and re-gammatization of the resulting blending operation in the 8/10 bit RGBA path.
-	const float EngineGamma = (BackBuffer.GetRenderTargetTexture()->GetFormat() == PF_FloatRGBA) ? 1.0 : GEngine ? GEngine->GetDisplayGamma() : 2.2f;
+	// For Editor running in HDR then the gamma needs to be 2.2 and have a float back buffer format.
+
+	const float EngineGamma = ((BackBuffer.GetRenderTargetTexture()->GetFormat() == PF_FloatRGBA)&&(Params.bIsHDR==false)) ? 1.0 : GEngine ? GEngine->GetDisplayGamma() : 2.2f;
 	const float DisplayGamma = bGammaCorrect ? EngineGamma : 1.0f;
 	const float DisplayContrast = GSlateContrast;
 
@@ -1364,8 +1366,11 @@ FSlateElementPS* FSlateRHIRenderingPolicy::GetTexturePixelShader( TShaderMap<FGl
 				PixelShader = *TShaderMapRef<TSlateElementPS<ESlateShader::Border, true, false> >(ShaderMap);
 			}
 			break;
-		case ESlateShader::Font:
-			PixelShader = *TShaderMapRef<TSlateElementPS<ESlateShader::Font, true> >(ShaderMap);
+		case ESlateShader::GrayscaleFont:
+			PixelShader = *TShaderMapRef<TSlateElementPS<ESlateShader::GrayscaleFont, true> >(ShaderMap);
+			break;
+		case ESlateShader::ColorFont:
+			PixelShader = *TShaderMapRef<TSlateElementPS<ESlateShader::ColorFont, true> >(ShaderMap);
 			break;
 		case ESlateShader::LineSegment:
 			PixelShader = *TShaderMapRef<TSlateElementPS<ESlateShader::LineSegment, true> >(ShaderMap);
@@ -1397,8 +1402,11 @@ FSlateElementPS* FSlateRHIRenderingPolicy::GetTexturePixelShader( TShaderMap<FGl
 				PixelShader = *TShaderMapRef<TSlateElementPS<ESlateShader::Border, false, false> >(ShaderMap);
 			}
 			break;
-		case ESlateShader::Font:
-			PixelShader = *TShaderMapRef<TSlateElementPS<ESlateShader::Font, false> >(ShaderMap);
+		case ESlateShader::GrayscaleFont:
+			PixelShader = *TShaderMapRef<TSlateElementPS<ESlateShader::GrayscaleFont, false> >(ShaderMap);
+			break;
+		case ESlateShader::ColorFont:
+			PixelShader = *TShaderMapRef<TSlateElementPS<ESlateShader::ColorFont, false> >(ShaderMap);
 			break;
 		case ESlateShader::LineSegment:
 			PixelShader = *TShaderMapRef<TSlateElementPS<ESlateShader::LineSegment, false> >(ShaderMap);
@@ -1442,14 +1450,24 @@ FSlateMaterialShaderPS* FSlateRHIRenderingPolicy::GetMaterialPixelShader( const 
 			FoundShader = MaterialShaderMap->GetShader(&TSlateMaterialShaderPS<ESlateShader::Border, false>::StaticType);
 		}
 		break;
-	case ESlateShader::Font:
+	case ESlateShader::GrayscaleFont:
 		if(bDrawDisabled)
 		{
-			FoundShader = MaterialShaderMap->GetShader(&TSlateMaterialShaderPS<ESlateShader::Font, true>::StaticType);
+			FoundShader = MaterialShaderMap->GetShader(&TSlateMaterialShaderPS<ESlateShader::GrayscaleFont, true>::StaticType);
 		}
 		else
 		{
-			FoundShader = MaterialShaderMap->GetShader(&TSlateMaterialShaderPS<ESlateShader::Font, false>::StaticType);
+			FoundShader = MaterialShaderMap->GetShader(&TSlateMaterialShaderPS<ESlateShader::GrayscaleFont, false>::StaticType);
+		}
+		break;
+	case ESlateShader::ColorFont:
+		if (bDrawDisabled)
+		{
+			FoundShader = MaterialShaderMap->GetShader(&TSlateMaterialShaderPS<ESlateShader::ColorFont, true>::StaticType);
+		}
+		else
+		{
+			FoundShader = MaterialShaderMap->GetShader(&TSlateMaterialShaderPS<ESlateShader::ColorFont, false>::StaticType);
 		}
 		break;
 	case ESlateShader::Custom:

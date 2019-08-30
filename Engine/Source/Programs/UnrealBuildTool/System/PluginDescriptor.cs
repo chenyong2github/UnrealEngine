@@ -114,6 +114,11 @@ namespace UnrealBuildTool
 		/// </summary>
 		public string EngineVersion;
 
+		/// <summary>4
+		/// If true, this plugin from a platform extension extending another plugin */
+		/// </summary>
+		public bool bIsPluginExtension;
+
 		/// <summary>
 		/// List of platforms supported by this plugin. This list will be copied to any plugin reference from a project file, to allow filtering entire plugins from staged builds.
 		/// </summary>
@@ -230,6 +235,7 @@ namespace UnrealBuildTool
 			RawObject.TryGetStringField("SupportURL", out SupportURL);
 			RawObject.TryGetStringField("EngineVersion", out EngineVersion);
 			RawObject.TryGetStringArrayField("SupportedPrograms", out SupportedPrograms);
+			RawObject.TryGetBoolField("bIsPluginExtension", out bIsPluginExtension);
 
 			try
 			{
@@ -367,6 +373,10 @@ namespace UnrealBuildTool
 			if (SupportedPrograms != null && SupportedPrograms.Length > 0)
 			{
 				Writer.WriteStringArrayField("SupportedPrograms", SupportedPrograms);
+			}
+			if (bIsPluginExtension)
+			{
+				Writer.WriteValue("bIsPluginExtension", bIsPluginExtension);
 			}
 
 			ModuleDescriptor.WriteArray(Writer, "Modules", Modules);

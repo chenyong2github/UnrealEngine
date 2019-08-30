@@ -34,34 +34,34 @@ extern CORE_API bool GIsGPUCrashed;
 	FGenericCrashContext
 -----------------------------------------------------------------------------*/
 
-const ANSICHAR* FGenericCrashContext::CrashContextRuntimeXMLNameA = "CrashContext.runtime-xml";
-const TCHAR* FGenericCrashContext::CrashContextRuntimeXMLNameW = TEXT( "CrashContext.runtime-xml" );
+const ANSICHAR* const FGenericCrashContext::CrashContextRuntimeXMLNameA = "CrashContext.runtime-xml";
+const TCHAR* const FGenericCrashContext::CrashContextRuntimeXMLNameW = TEXT( "CrashContext.runtime-xml" );
 
-const ANSICHAR* FGenericCrashContext::CrashConfigFileNameA = "CrashReportClient.ini";
-const TCHAR* FGenericCrashContext::CrashConfigFileNameW = TEXT("CrashReportClient.ini");
-const FString FGenericCrashContext::CrashConfigExtension = TEXT(".ini");
-const FString FGenericCrashContext::ConfigSectionName = TEXT("CrashReportClient");
-const FString FGenericCrashContext::CrashConfigPurgeDays = TEXT("CrashConfigPurgeDays");
-const FString FGenericCrashContext::CrashGUIDRootPrefix = TEXT("UE4CC-");
+const ANSICHAR* const FGenericCrashContext::CrashConfigFileNameA = "CrashReportClient.ini";
+const TCHAR* const FGenericCrashContext::CrashConfigFileNameW = TEXT("CrashReportClient.ini");
+const TCHAR* const FGenericCrashContext::CrashConfigExtension = TEXT(".ini");
+const TCHAR* const FGenericCrashContext::ConfigSectionName = TEXT("CrashReportClient");
+const TCHAR* const FGenericCrashContext::CrashConfigPurgeDays = TEXT("CrashConfigPurgeDays");
+const TCHAR* const FGenericCrashContext::CrashGUIDRootPrefix = TEXT("UE4CC-");
 
-const FString FGenericCrashContext::CrashContextExtension = TEXT(".runtime-xml");
-const FString FGenericCrashContext::RuntimePropertiesTag = TEXT( "RuntimeProperties" );
-const FString FGenericCrashContext::PlatformPropertiesTag = TEXT( "PlatformProperties" );
-const FString FGenericCrashContext::EngineDataTag = TEXT( "EngineData" );
-const FString FGenericCrashContext::GameDataTag = TEXT( "GameData" );
-const FString FGenericCrashContext::EnabledPluginsTag = TEXT("EnabledPlugins");
-const FString FGenericCrashContext::UE4MinidumpName = TEXT( "UE4Minidump.dmp" );
-const FString FGenericCrashContext::NewLineTag = TEXT( "&nl;" );
+const TCHAR* const FGenericCrashContext::CrashContextExtension = TEXT(".runtime-xml");
+const TCHAR* const FGenericCrashContext::RuntimePropertiesTag = TEXT( "RuntimeProperties" );
+const TCHAR* const FGenericCrashContext::PlatformPropertiesTag = TEXT( "PlatformProperties" );
+const TCHAR* const FGenericCrashContext::EngineDataTag = TEXT( "EngineData" );
+const TCHAR* const FGenericCrashContext::GameDataTag = TEXT( "GameData" );
+const TCHAR* const FGenericCrashContext::EnabledPluginsTag = TEXT("EnabledPlugins");
+const TCHAR* const FGenericCrashContext::UE4MinidumpName = TEXT( "UE4Minidump.dmp" );
+const TCHAR* const FGenericCrashContext::NewLineTag = TEXT( "&nl;" );
 
-const FString FGenericCrashContext::CrashTypeCrash = TEXT("Crash");
-const FString FGenericCrashContext::CrashTypeAssert = TEXT("Assert");
-const FString FGenericCrashContext::CrashTypeEnsure = TEXT("Ensure");
-const FString FGenericCrashContext::CrashTypeGPU = TEXT("GPUCrash");
-const FString FGenericCrashContext::CrashTypeHang = TEXT("Hang");
+const TCHAR* const FGenericCrashContext::CrashTypeCrash = TEXT("Crash");
+const TCHAR* const FGenericCrashContext::CrashTypeAssert = TEXT("Assert");
+const TCHAR* const FGenericCrashContext::CrashTypeEnsure = TEXT("Ensure");
+const TCHAR* const FGenericCrashContext::CrashTypeGPU = TEXT("GPUCrash");
+const TCHAR* const FGenericCrashContext::CrashTypeHang = TEXT("Hang");
 
-const FString FGenericCrashContext::EngineModeExUnknown = TEXT("Unset");
-const FString FGenericCrashContext::EngineModeExDirty = TEXT("Dirty");
-const FString FGenericCrashContext::EngineModeExVanilla = TEXT("Vanilla");
+const TCHAR* const FGenericCrashContext::EngineModeExUnknown = TEXT("Unset");
+const TCHAR* const FGenericCrashContext::EngineModeExDirty = TEXT("Dirty");
+const TCHAR* const FGenericCrashContext::EngineModeExVanilla = TEXT("Vanilla");
 
 bool FGenericCrashContext::bIsInitialized = false;
 FPlatformMemoryStats FGenericCrashContext::CrashMemoryStats = FPlatformMemoryStats();
@@ -169,7 +169,7 @@ void FGenericCrashContext::Initialize()
 
 	const FGuid Guid = FGuid::NewGuid();
 	const FString IniPlatformName(FPlatformProperties::IniPlatformName());
-	NCachedCrashContextProperties::CrashGUIDRoot = FString::Printf(TEXT("%s%s-%s"), *CrashGUIDRootPrefix, *IniPlatformName, *Guid.ToString(EGuidFormats::Digits));
+	NCachedCrashContextProperties::CrashGUIDRoot = FString::Printf(TEXT("%s%s-%s"), CrashGUIDRootPrefix, *IniPlatformName, *Guid.ToString(EGuidFormats::Digits));
 
 	// Initialize delegate for updating SecondsSinceStart, because FPlatformTime::Seconds() is not POSIX safe.
 	const float PollingInterval = 1.0f;
@@ -228,7 +228,7 @@ void FGenericCrashContext::InitializeFromConfig()
 
 	const bool bForceGetSection = false;
 	const bool bConstSection = true;
-	FConfigSection* CRCConfigSection = GConfig->GetSectionPrivate(*ConfigSectionName, bForceGetSection, bConstSection, GEngineIni);
+	FConfigSection* CRCConfigSection = GConfig->GetSectionPrivate(ConfigSectionName, bForceGetSection, bConstSection, GEngineIni);
 
 	if (CRCConfigSection != nullptr)
 	{
@@ -281,7 +281,7 @@ void FGenericCrashContext::SerializeContentToBuffer() const
 	// https://www.securecoding.cert.org/confluence/display/seccode/SIG30-C.+Call+only+asynchronous-safe+functions+within+signal+handlers
 	AddHeader();
 
-	BeginSection( *RuntimePropertiesTag );
+	BeginSection( RuntimePropertiesTag );
 	AddCrashProperty( TEXT( "CrashVersion" ), (int32)ECrashDescVersions::VER_3_CrashContext );
 	AddCrashProperty( TEXT( "ExecutionGuid" ), *ExecutionGuid.ToString() );
 	AddCrashProperty( TEXT( "CrashGUID" ), (const TCHAR*)CrashGUID);
@@ -313,11 +313,11 @@ void FGenericCrashContext::SerializeContentToBuffer() const
 		}
 	}
 	AddCrashProperty( TEXT( "ExecutableName" ), *NCachedCrashContextProperties::ExecutableName );
-	AddCrashProperty( TEXT( "BuildConfiguration" ), EBuildConfigurations::ToString( FApp::GetBuildConfiguration() ) );
+	AddCrashProperty( TEXT( "BuildConfiguration" ), LexToString( FApp::GetBuildConfiguration() ) );
 	AddCrashProperty( TEXT( "GameSessionID" ), *NCachedCrashContextProperties::GameSessionID );
 	
 	// Unique string specifying the symbols to be used by CrashReporter
-	FString Symbols = FString::Printf( TEXT( "%s-%s-%s" ), FApp::GetBuildVersion(), FPlatformMisc::GetUBTPlatform(), EBuildConfigurations::ToString(FApp::GetBuildConfiguration())).Replace( TEXT( "+" ), TEXT( "*" ));
+	FString Symbols = FString::Printf( TEXT( "%s-%s-%s" ), FApp::GetBuildVersion(), FPlatformMisc::GetUBTPlatform(), LexToString(FApp::GetBuildConfiguration())).Replace( TEXT( "+" ), TEXT( "*" ));
 #ifdef UE_BUILD_FLAVOR
 	Symbols = FString::Printf(TEXT( "%s-%s" ), *Symbols, *FString(UE_BUILD_FLAVOR));
 #endif
@@ -418,42 +418,42 @@ void FGenericCrashContext::SerializeContentToBuffer() const
 		}
 	}
 
-	EndSection( *RuntimePropertiesTag );
+	EndSection( RuntimePropertiesTag );
 
 	// Add platform specific properties.
-	BeginSection( *PlatformPropertiesTag );
+	BeginSection( PlatformPropertiesTag );
 	AddPlatformSpecificProperties();
-	EndSection( *PlatformPropertiesTag );
+	EndSection( PlatformPropertiesTag );
 
 	// Add the engine data
-	BeginSection( *EngineDataTag );
+	BeginSection( EngineDataTag );
 	for (const TPair<FString, FString>& Pair : NCachedCrashContextProperties::EngineData)
 	{
 		AddCrashProperty(*Pair.Key, *Pair.Value);
 	}
-	EndSection( *EngineDataTag );
+	EndSection( EngineDataTag );
 
 	// Add the game data
-	BeginSection( *GameDataTag );
+	BeginSection( GameDataTag );
 	for (const TPair<FString, FString>& Pair : NCachedCrashContextProperties::GameData)
 	{
 		AddCrashProperty(*Pair.Key, *Pair.Value);
 	}
-	EndSection( *GameDataTag );
+	EndSection( GameDataTag );
 
 	// Writing out the list of plugin JSON descriptors causes us to run out of memory
 	// in GMallocCrash on console, so enable this only for desktop platforms.
 #if PLATFORM_DESKTOP
 	if(NCachedCrashContextProperties::EnabledPluginsList.Num() > 0)
 	{
-		BeginSection(*EnabledPluginsTag);
+		BeginSection(EnabledPluginsTag);
 
 		for (const FString& Str : NCachedCrashContextProperties::EnabledPluginsList)
 		{
 			AddCrashProperty(TEXT("Plugin"), *Str);
 		}
 
-		EndSection(*EnabledPluginsTag);
+		EndSection(EnabledPluginsTag);
 	}
 #endif // PLATFORM_DESKTOP
 
@@ -668,22 +668,22 @@ const TCHAR* FGenericCrashContext::GetCrashTypeString(ECrashContextType Type)
 	switch (Type)
 	{
 	case ECrashContextType::Hang:
-		return *CrashTypeHang;
+		return CrashTypeHang;
 	case ECrashContextType::GPUCrash:
-		return *CrashTypeGPU;
+		return CrashTypeGPU;
 	case ECrashContextType::Ensure:
-		return *CrashTypeEnsure;
+		return CrashTypeEnsure;
 	case ECrashContextType::Assert:
-		return *CrashTypeAssert;
+		return CrashTypeAssert;
 	default:
-		return *CrashTypeCrash;
+		return CrashTypeCrash;
 	}
 }
 
 const TCHAR* FGenericCrashContext::EngineModeExString()
 {
-	return !NCachedCrashContextProperties::bIsVanilla.IsSet() ? *FGenericCrashContext::EngineModeExUnknown :
-		(NCachedCrashContextProperties::bIsVanilla.GetValue() ? *FGenericCrashContext::EngineModeExVanilla : *FGenericCrashContext::EngineModeExDirty);
+	return !NCachedCrashContextProperties::bIsVanilla.IsSet() ? FGenericCrashContext::EngineModeExUnknown :
+		(NCachedCrashContextProperties::bIsVanilla.GetValue() ? FGenericCrashContext::EngineModeExVanilla : FGenericCrashContext::EngineModeExDirty);
 }
 
 const TCHAR* FGenericCrashContext::GetCrashConfigFilePath()
@@ -709,7 +709,7 @@ const TCHAR* FGenericCrashContext::GetCrashConfigFolder()
 void FGenericCrashContext::PurgeOldCrashConfig()
 {
 	int32 PurgeDays = 2;
-	GConfig->GetInt(*ConfigSectionName, *CrashConfigPurgeDays, PurgeDays, GEngineIni);
+	GConfig->GetInt(ConfigSectionName, CrashConfigPurgeDays, PurgeDays, GEngineIni);
 
 	if (PurgeDays > 0)
 	{
@@ -717,7 +717,7 @@ void FGenericCrashContext::PurgeOldCrashConfig()
 
 		// Delete items older than PurgeDays
 		TArray<FString> Directories;
-		FileManager.FindFiles(Directories, *(FPaths::Combine(GetCrashConfigFolder(), *CrashGUIDRootPrefix) + TEXT("*")), false, true);
+		FileManager.FindFiles(Directories, *(FPaths::Combine(GetCrashConfigFolder(), CrashGUIDRootPrefix) + TEXT("*")), false, true);
 
 		for (const FString& Dir : Directories)
 		{

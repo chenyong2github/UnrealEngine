@@ -31,8 +31,13 @@ enum EMaterialForceCastFlags
 enum class EVirtualTextureUnpackType
 {
 	None,
+	BaseColor,
 	NormalBC3,
 	NormalBC5,
+	NormalBC3BC3,
+	SpecularR8,
+	RoughnessG8,
+	RoughnessB8,
 	HeightR16,
 };
 
@@ -185,7 +190,7 @@ public:
 	virtual int32 VirtualTexture(URuntimeVirtualTexture* InTexture, int32 LayerIndex, int32& TextureReferenceIndex, EMaterialSamplerType SamplerType) = 0;
 	virtual int32 VirtualTextureParam(int32 TextureIndex, int32 ParamIndex) = 0;
 	virtual int32 VirtualTextureWorldToUV(int32 WorldPositionIndex, int32 P0, int32 P1, int32 P2) = 0;
-	virtual int32 VirtualTextureUnpack(int32 CodeIndex, EVirtualTextureUnpackType UnpackType) = 0;
+	virtual int32 VirtualTextureUnpack(int32 CodeIndex0, int32 CodeIndex1, EVirtualTextureUnpackType UnpackType) = 0;
 
 	virtual int32 ExternalTexture(const FGuid& ExternalTextureGuid) = 0;
 	virtual int32 ExternalTexture(UTexture* InTexture, int32& TextureReferenceIndex) = 0;
@@ -318,6 +323,12 @@ public:
 	virtual int32 EyeAdaptation() = 0;
 	virtual int32 AtmosphericLightVector() = 0;
 	virtual int32 AtmosphericLightColor() = 0;
+	virtual int32 SkyAtmosphereLightIlluminance(int32 LightIndex) = 0;
+	virtual int32 SkyAtmosphereLightDirection(int32 LightIndex) = 0;
+	virtual int32 SkyAtmosphereLightDiskLuminance(int32 LightIndex) = 0;
+	virtual int32 SkyAtmosphereViewLuminance() = 0;
+	virtual int32 SkyAtmosphereAerialPerspective() = 0;
+	virtual int32 SkyAtmosphereDistantLightScatteredLuminance() = 0;
 	virtual int32 CustomPrimitiveData(int32 OutputIndex, EMaterialValueType Type) = 0;
 	virtual int32 ShadingModel(EMaterialShadingModel InSelectedShadingModel) = 0;
 
@@ -453,7 +464,7 @@ public:
 	virtual int32 VirtualTexture(URuntimeVirtualTexture* InTexture, int32 LayerIndex, int32& TextureReferenceIndex, EMaterialSamplerType SamplerType) override { return Compiler->VirtualTexture(InTexture, LayerIndex, TextureReferenceIndex, SamplerType); }
 	virtual int32 VirtualTextureParam(int32 TextureIndex, int32 ParamIndex) override { return Compiler->VirtualTextureParam(TextureIndex, ParamIndex); }
 	virtual int32 VirtualTextureWorldToUV(int32 WorldPositionIndex, int32 P0, int32 P1, int32 P2) override { return Compiler->VirtualTextureWorldToUV(WorldPositionIndex, P0, P1, P2); }
-	virtual int32 VirtualTextureUnpack(int32 CodeIndex, EVirtualTextureUnpackType UnpackType) override { return Compiler->VirtualTextureUnpack(CodeIndex, UnpackType); }
+	virtual int32 VirtualTextureUnpack(int32 CodeIndex0, int32 CodeIndex1, EVirtualTextureUnpackType UnpackType) override { return Compiler->VirtualTextureUnpack(CodeIndex0, CodeIndex1, UnpackType); }
 
 	virtual int32 ExternalTexture(const FGuid& ExternalTextureGuid) override { return Compiler->ExternalTexture(ExternalTextureGuid); }
 	virtual int32 ExternalTexture(UTexture* InTexture, int32& TextureReferenceIndex) override { return Compiler->ExternalTexture(InTexture, TextureReferenceIndex); }
@@ -587,6 +598,36 @@ public:
 	virtual int32 AtmosphericLightColor() override
 	{
 		return Compiler->AtmosphericLightColor();
+	}
+
+	virtual int32 SkyAtmosphereLightIlluminance(int32 LightIndex) override
+	{
+		return Compiler->SkyAtmosphereLightIlluminance(LightIndex);
+	}
+
+	virtual int32 SkyAtmosphereLightDirection(int32 LightIndex) override
+	{
+		return Compiler->SkyAtmosphereLightDirection(LightIndex);
+	}
+
+	virtual int32 SkyAtmosphereLightDiskLuminance(int32 LightIndex) override
+	{
+		return Compiler->SkyAtmosphereLightDiskLuminance(LightIndex);
+	}
+
+	virtual int32 SkyAtmosphereViewLuminance() override
+	{
+		return Compiler->SkyAtmosphereViewLuminance();
+	}
+
+	virtual int32 SkyAtmosphereAerialPerspective() override
+	{
+		return Compiler->SkyAtmosphereAerialPerspective();
+	}
+
+	virtual int32 SkyAtmosphereDistantLightScatteredLuminance() override
+	{
+		return Compiler->SkyAtmosphereDistantLightScatteredLuminance();
 	}
 	
 	virtual int32 CustomPrimitiveData(int32 OutputIndex, EMaterialValueType Type) override

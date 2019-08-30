@@ -24,7 +24,7 @@ class FStaticPrimitiveDrawInterface;
 class UPrimitiveComponent;
 class URuntimeVirtualTexture;
 class UTexture2D;
-enum class ERuntimeVirtualTextureMaterialType;
+enum class ERuntimeVirtualTextureMaterialType : uint8;
 struct FMeshBatch;
 class FColorVertexBuffer;
 

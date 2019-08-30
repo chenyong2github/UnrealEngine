@@ -37,9 +37,9 @@ public:
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 
 	/** UAudioComponent interface */
-	virtual void FadeIn(float FadeInDuration, float FadeVolumeLevel = 1.f, float StartTime = 0.f) override;
-	virtual	void FadeOut(float FadeOutDuration, float FadeVolumeLevel) override;
-	virtual void Play(float StartTime = 0.f) override;
+	virtual void FadeIn(float FadeInDuration, float FadeVolumeLevel = 1.0f, float StartTime = 0.0f, EAudioFaderCurve FadeType = EAudioFaderCurve::Linear) override;
+	virtual	void FadeOut(float FadeOutDuration, float FadeVolumeLevel, EAudioFaderCurve FadeType = EAudioFaderCurve::Linear) override;
+	virtual void Play(float StartTime = 0.0f) override;
 	virtual void Stop() override;
 	virtual bool IsPlaying() const override;
 
@@ -82,4 +82,7 @@ private:
 
 	/** Cache looping flag */
 	bool bCachedLooping;
+
+	/** Cached param for PlayInternal */
+	EAudioFaderCurve CachedFadeType;
 };

@@ -8202,7 +8202,7 @@ void UInterpTrackSound::PreviewUpdateTrack(float NewPosition, UInterpTrackInst* 
 			Component->Play(NewPosition - SoundTrackKey.Time);
 
 			const float ScrubDuration = 0.1f;
-			Component->FadeOut(ScrubDuration, 1.0f);
+			Component->FadeOut(ScrubDuration, 1.0f, EAudioFaderCurve::Logarithmic);
 		}
 	}
 #endif

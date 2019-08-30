@@ -34,7 +34,7 @@ FString FBuildVersion::GetFileNameForCurrentExecutable()
 #endif
 #if UE_BUILD_DEVELOPMENT
 	// For DebugGame builds we want to read the development version file because it's in an engine folder
-	if (FApp::GetBuildConfiguration() == EBuildConfigurations::DebugGame)
+	if (FApp::GetBuildConfiguration() == EBuildConfiguration::DebugGame)
 	{
 		for (int32 Idx = 0; Idx < 2; Idx++)
 		{

@@ -43,7 +43,8 @@ bool GSlateIsOnFastUpdatePath = false;
 bool GSlateIsInInvalidationSlowPath = false;
 
 #if WITH_SLATE_DEBUGGING
-int32 GSlateInvalidationDebugging = 0;
+
+bool GSlateInvalidationDebugging = false;
 /** True if we should allow widgets to be cached in the UI at all. */
 FAutoConsoleVariableRef CVarInvalidationDebugging(
 	TEXT("Slate.InvalidationDebugging"),
@@ -51,7 +52,7 @@ FAutoConsoleVariableRef CVarInvalidationDebugging(
 	TEXT("Whether to show invalidation debugging visualization"));
 
 
-int32 GSlateHitTestGridDebugging = 0;
+bool GSlateHitTestGridDebugging = false;
 /** True if we should allow widgets to be cached in the UI at all. */
 FAutoConsoleVariableRef CVarHitTestGridDebugging(
 	TEXT("Slate.HitTestGridDebugging"),

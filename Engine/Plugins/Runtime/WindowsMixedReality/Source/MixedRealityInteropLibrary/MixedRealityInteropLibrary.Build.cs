@@ -20,9 +20,8 @@ public class MixedRealityInteropLibrary : ModuleRules
 			LibName += ".lib";
 
 			string InteropLibPath = EngineDirectory + "/Source/ThirdParty/WindowsMixedRealityInterop/Lib/x64/";
-			PublicLibraryPaths.Add(InteropLibPath);
+			PublicAdditionalLibraries.Add(InteropLibPath + LibName);
 
-			PublicAdditionalLibraries.Add(LibName);
 			// Delay-load the DLL, so we can load it from the right place first
 			PublicDelayLoadDLLs.Add(DLLName);
 			RuntimeDependencies.Add(EngineDirectory + "/Binaries/ThirdParty/MixedRealityInteropLibrary/" + Target.Platform.ToString() + "/" + DLLName);
@@ -49,7 +48,7 @@ public class MixedRealityInteropLibrary : ModuleRules
 		}
 		else if(Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
-			PublicAdditionalLibraries.Add("MixedRealityInteropHoloLens.lib");
+			PublicSystemLibraries.Add("MixedRealityInteropHoloLens.lib");
 		}
 	}
 }

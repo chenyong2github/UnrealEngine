@@ -28,8 +28,6 @@ IMPLEMENT_MODULE(INiagaraModule, Niagara);
 
 #define LOCTEXT_NAMESPACE "NiagaraModule"
 
-TMap<class UWorld*, class FNiagaraWorldManager*> INiagaraModule::WorldManagers;
-
 float INiagaraModule::EngineGlobalSpawnCountScale = 1.0f;
 float INiagaraModule::EngineGlobalSystemCountScale = 1.0f;
 int32 INiagaraModule::EngineDetailLevel = 4;
@@ -175,9 +173,7 @@ void INiagaraModule::StartupModule()
 	FNiagaraTypeDefinition::Init();
 	FNiagaraViewDataMgr::Init();
 
-	FWorldDelegates::OnPreWorldInitialization.AddRaw(this, &INiagaraModule::OnWorldInit);
-	FWorldDelegates::OnWorldCleanup.AddRaw(this, &INiagaraModule::OnWorldCleanup);
-	FWorldDelegates::OnPreWorldFinishDestroy.AddRaw(this, &INiagaraModule::OnPreWorldFinishDestroy);
+	FNiagaraWorldManager::OnStartup();
 
 #if WITH_EDITOR	
 	if (!GIsEditor)
@@ -189,7 +185,6 @@ void INiagaraModule::StartupModule()
 	}
 #endif
 
-	FWorldDelegates::OnWorldPostActorTick.AddRaw(this, &INiagaraModule::TickWorld);
 	CVarDetailLevel.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateRaw(this, &INiagaraModule::OnChangeDetailLevel));
 	OnChangeDetailLevel(CVarDetailLevel.AsVariable());
 
@@ -307,13 +302,7 @@ void INiagaraModule::ShutdownRenderingResources()
 
 void INiagaraModule::ShutdownModule()
 {
-	//Should have cleared up all world managers by now.
-	check(WorldManagers.Num() == 0);
-	for (TPair<UWorld*, FNiagaraWorldManager*> Pair : WorldManagers)
-	{
-		delete Pair.Value;
-		Pair.Value = nullptr;
-	}
+	FNiagaraWorldManager::OnShutdown();
 
 	// Clear out the handler when shutting down..
 	INiagaraShaderModule& NiagaraShaderModule = FModuleManager::LoadModuleChecked<INiagaraShaderModule>("NiagaraShader");
@@ -321,66 +310,6 @@ void INiagaraModule::ShutdownModule()
 
 	CVarDetailLevel.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate());
 	ShutdownRenderingResources();
-}
-
-FNiagaraWorldManager* INiagaraModule::GetWorldManager(UWorld* World)
-{
-	FNiagaraWorldManager** OutWorld = WorldManagers.Find(World);
-	if (OutWorld == nullptr)
-	{
-		UE_LOG(LogNiagara, Warning, TEXT("Calling INiagaraModule::GetWorldManager \"%s\", but Niagara has never encountered this world before. "
-			" This means that WorldInit never happened. This may happen in some edge cases in the editor, like saving invisible child levels, "
-			"in which case the calling context needs to be safe against this returning nullptr."), World ? *World->GetName() : TEXT("nullptr"));
-		return nullptr;
-	}
-	return *OutWorld;
-}
-
-void INiagaraModule::OnBatcherDestroyed(NiagaraEmitterInstanceBatcher* InBatcher)
-{
-	for (TPair<UWorld*, FNiagaraWorldManager*>& Pair : WorldManagers)
-	{
-		Pair.Value->OnBatcherDestroyed(InBatcher);
-	}
-}
-
-void INiagaraModule::DestroyAllSystemSimulations(class UNiagaraSystem* System)
-{
-	for (TPair<UWorld*, FNiagaraWorldManager*>& Pair : WorldManagers)
-	{
-		Pair.Value->DestroySystemSimulation(System);
-	}
-}
-
-void INiagaraModule::OnWorldInit(UWorld* World, const UWorld::InitializationValues IVS)
-{
-	check(WorldManagers.Find(World) == nullptr);
-	WorldManagers.Add(World) = new FNiagaraWorldManager(World);
-}
-
-void INiagaraModule::OnWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources)
-{
-	//Cleanup world manager contents but not the manager itself.
-	FNiagaraWorldManager** Manager = WorldManagers.Find(World);
-	if (Manager)
-	{
-		(*Manager)->OnWorldCleanup(bSessionEnded, bCleanupResources);
-	}
-}
-
-void INiagaraModule::OnPreWorldFinishDestroy(UWorld* World)
-{
-	FNiagaraWorldManager** Manager = WorldManagers.Find(World);
-	if (Manager)
-	{
-		delete (*Manager);
-		WorldManagers.Remove(World);
-	}
-}
-
-void INiagaraModule::TickWorld(UWorld* World, ELevelTick TickType, float DeltaSeconds)
-{
-	GetWorldManager(World)->Tick(DeltaSeconds);
 }
 
 #if WITH_EDITOR

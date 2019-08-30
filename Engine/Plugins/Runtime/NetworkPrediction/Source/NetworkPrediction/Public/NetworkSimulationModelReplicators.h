@@ -2,19 +2,19 @@
 
 #pragma once
 
+#include "Net/UnrealNetwork.h" // For MakeRelative
+#include "NetworkSimulationModelCVars.h"
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //	CVars and compile time constants
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 namespace NetworkSimulationModelCVars
 {
-static int32 EnableLocalPrediction = 1;
-static FAutoConsoleVariableRef CVarEnableLocalPrediction(TEXT("ns.EnableLocalPrediction"),
-	EnableLocalPrediction, TEXT("Toggle local prediction. Meant for debugging."), ECVF_Default);
-
-static int32 ForceReconcile = 0;
-static FAutoConsoleVariableRef CVarForceReconcile(TEXT("ns.ForceReconcile"),
-	ForceReconcile, TEXT("Forces reconcile even if state does not differ. E.g, force resimulation after every netupdate."), ECVF_Default);
+	NETSIM_DEVCVAR_SHIPCONST_INT(EnableLocalPrediction, 1, "ns.EnableLocalPrediction", "Toggle local prediction.");
+	NETSIM_DEVCVAR_SHIPCONST_INT(EnableSimulatedReconcile, 1, "ns.EnableSimulatedReconcile", "Toggle simulated proxy reconciliation.");
+	NETSIM_DEVCVAR_SHIPCONST_INT(EnableSimulatedExtrapolation, 1, "ns.EnableSimulatedExtrapolation", "Toggle simulated proxy extrapolation.");
+	NETSIM_DEVCVAR_SHIPCONST_INT(ForceReconcile, 0, "ns.ForceReconcile", "Forces reconcile even if state does not differ. E.g, force resimulation after every netupdate.");
 }
 
 #ifndef NETSIM_NETCONSTANT_NUM_BITS_KEYFRAME
@@ -50,7 +50,10 @@ struct FNetworkSimulationSerialization
 };
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
-//	Templated Replicators/Reconciliars
+//	Templated Replicators
+//
+//	
+//
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 template<typename TBufferTypes, typename TTickSettings>
@@ -109,7 +112,7 @@ struct TReplicatorBase
 			}
 			else
 			{
-				// Allowed to process all remove commands (we will still check for frame time in the core input processing loop to prevent speed hacks)
+				// Allowed to process all remaining commands (we will still check for frame time in the core input processing loop to prevent speed hacks)
 				TickInfo.MaxAllowedInputKeyframe = Buffers.Input.GetHeadKeyframe();
 
 				// Check for gaps in commands
@@ -127,7 +130,8 @@ struct TReplicatorBase
 //	"Reusable" pieces: mainly for replicating data on specified buffers
 // -------------------------------------------------------------------------------------------------------
 
-template<typename TBufferTypes, typename TTickSettings, typename TBase=TReplicatorEmpty<TBufferTypes, TTickSettings>, bool Enabled=true>
+// Just serializes simulation time. Can be disabled by Enabled templated parameter. Used as base class in other classes below.
+template<typename TBufferTypes, typename TTickSettings, typename TBase=TReplicatorBase<TBufferTypes, TTickSettings>, bool Enabled=true>
 struct TReplicator_SimTime : public TBase
 {
 	void NetSerialize(const FNetSerializeParams& P, TNetworkSimBufferContainer<TBufferTypes>& Buffers, const TSimulationTickState<TTickSettings>& TickInfo)
@@ -140,72 +144,25 @@ struct TReplicator_SimTime : public TBase
 	TNetworkSimTime<TTickSettings> SerializedTime;
 };
 
+// Enabled=false specialization: do nothing
 template<typename TBufferTypes, typename TTickSettings, typename TBase>
 struct TReplicator_SimTime<TBufferTypes, TTickSettings, TBase, false> : public TBase { };
 
-template<typename TBufferTypes, typename TTickSettings, ENetworkSimBufferTypeId BufferId, typename TBase=TReplicatorEmpty<TBufferTypes, TTickSettings>, bool Enabled=true>
-struct TReplicator_HeadKeyframe : public TBase
-{
-	void NetSerialize(const FNetSerializeParams& P, TNetworkSimBufferContainer<TBufferTypes>& Buffers, const TSimulationTickState<TTickSettings>& TickInfo)
-	{
-		TBase::NetSerialize(P, Buffers, TickInfo);
-
-		auto& Buffer = Buffers.template Get<BufferId>();
-		SerializedHeadKeyframe = FNetworkSimulationSerialization::SerializeKeyframe(P.Ar, Buffer.GetHeadKeyframe());
-	}
-
-	int32 SerializedHeadKeyframe;
-};
-
-template<typename TBufferTypes, typename TTickSettings, ENetworkSimBufferTypeId BufferId, typename TBase>
-struct TReplicator_HeadKeyframe<TBufferTypes, TTickSettings, BufferId, TBase, false> : public TBase { };
-
-
-// Helper to make using the above serializers less gross. Selects the appropriate base class depending on SerializeKeyframeNumber and SerializeSimTime
-template<typename TBufferTypes, typename TTickSettings, ENetworkSimBufferTypeId BufferId, bool SerializeKeyframeNumber=false, bool SerializeSimTime=true, typename TRoot=TReplicatorBase<TBufferTypes, TTickSettings>,
-	typename TBase=
-		TReplicator_SimTime<TBufferTypes, TTickSettings,						// Replicates sim time....
-			TReplicator_HeadKeyframe<TBufferTypes, TTickSettings, BufferId,		// Replicates buffer keyframe number...
-				TRoot,						// "final" parent class
-			SerializeKeyframeNumber>,		// ... only if SerializeKeyframeNumber=true
-		SerializeSimTime>>					// ... only if SerializeSimTime=true
-struct TSelectBase
-{
-	using type = TBase;
-};
-
 // -------------------------------------------------------------------------------------------------------
-//
+//	
 // -------------------------------------------------------------------------------------------------------
 
-template<typename TBufferTypes, typename TTickSettings, ENetworkSimBufferTypeId BufferId, int32 NumElements=1, bool SerializeKeyframeNumber=false, bool SerializeSimTime=true, typename TRoot=TReplicatorBase<TBufferTypes, TTickSettings>,
-	typename TBase=TSelectBase<TBufferTypes, TTickSettings, BufferId, SerializeKeyframeNumber, SerializeSimTime, TRoot>>
-struct TReplicator_StaticSequence : public TBase
+// Replicates a sequence of elements. i.e., "the last MaxNumElements".
+// On the receiving side, we merge the sequence into whatever we have locally
+// Keyframes are synchronized. SimTime is also serialized by default (change by changing TBase)
+template<typename TBufferTypes, typename TTickSettings, ENetworkSimBufferTypeId BufferId, int32 MaxNumElements=3, typename TBase=TReplicator_SimTime<TBufferTypes, TTickSettings>>
+struct TReplicator_Sequence : public TBase
 {
 	int32 GetProxyDirtyCount(TNetworkSimBufferContainer<TBufferTypes>& Buffers) const 
 	{
 		return Buffers.template Get<BufferId>().GetDirtyCount() ^ (TBase::GetProxyDirtyCount(Buffers) << 2); 
 	}
 
-	void NetSerialize(const FNetSerializeParams& P, TNetworkSimBufferContainer<TBufferTypes>& Buffers, const TSimulationTickState<TTickSettings>& TickInfo)
-	{
-		TBase::NetSerialize(P, Buffers, TickInfo);
-
-		auto& Buffer = Buffers.template Get<BufferId>();
-		unimplemented();
-	}
-};
-
-/** Replicates the latest sequence of N elements. N is dynamic, not compiled in. */
-template<typename TBufferTypes, typename TTickSettings, ENetworkSimBufferTypeId BufferId, int32 MaxNumElements, bool SerializeKeyframeNumber=false, bool SerializeSimTime=true, typename TRoot=TReplicatorBase<TBufferTypes, TTickSettings>,
-	typename TBase=typename TSelectBase<TBufferTypes, TTickSettings, BufferId, SerializeKeyframeNumber, SerializeSimTime, TRoot>::type>
-struct TReplicator_DynamicSequence : public TBase
-{
-	int32 GetProxyDirtyCount(TNetworkSimBufferContainer<TBufferTypes>& Buffers) const 
-	{
-		return Buffers.template Get<BufferId>().GetDirtyCount() ^ (TBase::GetProxyDirtyCount(Buffers) << 2); 
-	}
-	
 	void NetSerialize(const FNetSerializeParams& P, TNetworkSimBufferContainer<TBufferTypes>& Buffers, const TSimulationTickState<TTickSettings>& TickInfo)
 	{
 		TBase::NetSerialize(P, Buffers, TickInfo);
@@ -240,9 +197,11 @@ struct TReplicator_DynamicSequence : public TBase
 	}
 };
 
-/** Replicates only the latest element. Does not synchronize keyframe or simulation time */
-template<typename TBufferTypes, typename TTickSettings, ENetworkSimBufferTypeId BufferId, typename TBase=TReplicatorBase<TBufferTypes, TTickSettings>>
-struct TReplicator_LatestOnly : public TBase
+// Replicates only the latest single element in the selected buffer.
+// Keyframe is not synchronized: the new element is just added to head.
+// SimTime is serialized by default (change by changing TBase)
+template<typename TBufferTypes, typename TTickSettings, ENetworkSimBufferTypeId BufferId, typename TBase=TReplicator_SimTime<TBufferTypes, TTickSettings>>
+struct TReplicator_Single : public TBase
 {
 	using TState = typename TBufferTypes::template select_type<BufferId>::type;
 
@@ -253,6 +212,8 @@ struct TReplicator_LatestOnly : public TBase
 
 	void NetSerialize(const FNetSerializeParams& P, TNetworkSimBufferContainer<TBufferTypes>& Buffers, const TSimulationTickState<TTickSettings>& TickInfo)
 	{
+		TBase::NetSerialize(P, Buffers, TickInfo);
+
 		FArchive& Ar = P.Ar;
 
 		auto& Buffer = Buffers.template Get<BufferId>();
@@ -278,51 +239,13 @@ struct TReplicator_LatestOnly : public TBase
 
 // Default Replicator for the Server
 //	-Replicates the InputBuffer client->server
-template<typename TBufferTypes, typename TTickSettings, ENetworkSimBufferTypeId BufferId=ENetworkSimBufferTypeId::Input, typename TBase=TReplicator_DynamicSequence<TBufferTypes, TTickSettings, BufferId, 3>>
+template<typename TBufferTypes, typename TTickSettings, ENetworkSimBufferTypeId BufferId=ENetworkSimBufferTypeId::Input, typename TBase=TReplicator_Sequence<TBufferTypes, TTickSettings, BufferId, 3>>
 struct TReplicator_Server : public TBase
 {
 
 };
 
-/*
-template<typename TBufferTypes, typename TTickSettings, typename TBase=TReplicator_DynamicSequence<TBufferTypes, TTickSettings, ENetworkSimBufferTypeId::Sync, 1>>
-struct TReplicator_Simulated : public TBase
-{
-	using TInputCmd = typename TBufferTypes::TInputCmd;
-	using TSyncState = typename TBufferTypes::TSyncState;
-
-	void NetSerialize(const FNetSerializeParams& P, TNetworkSimBufferContainer<TBufferTypes>& Buffers, const TSimulationTickState<TTickSettings>& TickInfo)
-	{
-		TBase::NetSerialize(P, Buffers, TickInfo);
-		bPendingReconcile = true;
-	}
-
-	template<typename T, typename TDriver>
-	void Reconcile(TDriver* Driver, TNetworkSimBufferContainer<TBufferTypes>& Buffers, TSimulationTickState<TTickSettings>& TickInfo)
-	{
-		// Fixme
-		if (bPendingReconcile==false)
-		{
-			return;
-		}
-		bPendingReconcile = false;
-
-		// Generate a new, fake, command since we just added a new sync state to head
-		Buffers.Input.GetWriteNext();
-			
-		// Set our LastProcessedInputKeyframe to fake that we handled it
-		TickInfo.LastProcessedInputKeyframe = Buffers.Input.GetHeadKeyframe();
-		TickInfo.MaxAllowedInputKeyframe = FMath::Max(TickInfo.MaxAllowedInputKeyframe, TickInfo.LastProcessedInputKeyframe);
-	}
-
-private:
-
-	bool bPendingReconcile = false;
-	
-};
-*/
-
-template<typename TBufferTypes, typename TTickSettings, typename TBase=TReplicatorBase<TBufferTypes, TTickSettings>>
+template<typename TBufferTypes, typename TTickSettings, typename TBase=TReplicator_Single<TBufferTypes, TTickSettings, ENetworkSimBufferTypeId::Sync>>
 struct TReplicator_Simulated : public TBase
 {
 	using TInputCmd = typename TBufferTypes::TInputCmd;
@@ -336,22 +259,13 @@ struct TReplicator_Simulated : public TBase
 
 	void NetSerialize(const FNetSerializeParams& P, TNetworkSimBufferContainer<TBufferTypes>& Buffers, const TSimulationTickState<TTickSettings>& TickInfo)
 	{
-		FArchive& Ar = P.Ar;
-		TSyncState* State = nullptr;
-		if (Ar.IsSaving())
-		{
-			State = Buffers.Sync.GetElementFromHead(0);
-			check(State); // We should not be here if the buffer is empty. Want to avoid serializing an "empty" flag at the top here.
-			SerializedTime = TickInfo.TotalProcessedSimulationTime;
-		}
-		else
-		{
-			State = Buffers.Sync.GetWriteNext();
+		TBase::NetSerialize(P, Buffers, TickInfo);
+
+		// Temp: can go away once reconcile is called only after receiving packet
+		if (P.Ar.IsLoading())
+		{		
 			bPendingReconciliation = true;
 		}
-
-		SerializedTime.NetSerialize(Ar);
-		State->NetSerialize(Ar);
 	}
 
 	template<typename T, typename TDriver>
@@ -363,13 +277,29 @@ struct TReplicator_Simulated : public TBase
 		bPendingReconciliation = false;
 		TInputCmd* LastCmd = Buffers.Input.GetElementFromHead(0);
 		
-		// Generate a new, fake, command since we just added a new sync state to head
-		Buffers.Input.GetWriteNext();
-
-		TNetworkSimTime<TTickSettings> DeltaSimTime = TickInfo.TotalProcessedSimulationTime - SerializedTime;
-		if (DeltaSimTime > TNetworkSimTime<TTickSettings>::FromMSec(0))
 		{
-			// We are extrapolating ahead of the server. We will make up the difference here
+			// Right now NetSerialize can be called multiple times before Reconcile can get called. Eventually we'd like to make it 1:1.
+			// Until then, lets handle multiple serializes.
+			int32 DeltaKeyframes = Buffers.Sync.GetHeadKeyframe() - Buffers.Input.GetHeadKeyframe();
+			if (!ensure(DeltaKeyframes >= 0 && DeltaKeyframes < 1000))
+			{
+				// We way out of sync if this gets hit but this will reset things
+				Buffers.Input.ResetNextHeadKeyframe( Buffers.Sync.GetHeadKeyframe() );
+			}
+		}
+		
+		// Generate a new, fake, command since we just added a new sync state to head
+		while (Buffers.Input.GetHeadKeyframe() < Buffers.Sync.GetHeadKeyframe())
+		{
+			Buffers.Input.GetWriteNext();
+		}
+
+		TNetworkSimTime<TTickSettings> DeltaSimTime = TickInfo.TotalProcessedSimulationTime - this->SerializedTime;
+		if (DeltaSimTime > TNetworkSimTime<TTickSettings>::FromMSec(0) && NetworkSimulationModelCVars::EnableSimulatedReconcile())
+		{
+			// This is the "Simulated Reconcile" part:
+			// We have extrapolated ahead of the server. The latest network update is now "in the past" from what we rendered last frame.
+			// To avoid popping or visual artifact, we will make up the difference here since we know the extra simulation time of the server.
 			// (this can easily happen: variance in latency may delay a packet and we may get ahead)
 			TInputCmd* NewCmd = Buffers.Input.GetWriteNext();
 			*NewCmd = LastCmd ? *LastCmd : TInputCmd();
@@ -388,8 +318,9 @@ struct TReplicator_Simulated : public TBase
 		}
 		else
 		{
-			TickInfo.TotalProcessedSimulationTime = SerializedTime;
-			TickInfo.TotalAllowedSimulationTime = SerializedTime;
+			// We are taking the latest server update as head. So set our clocks to it.
+			TickInfo.TotalProcessedSimulationTime = this->SerializedTime;
+			TickInfo.TotalAllowedSimulationTime = this->SerializedTime;
 		}
 
 		// Set our LastProcessedInputKeyframe to fake that we handled it
@@ -397,32 +328,19 @@ struct TReplicator_Simulated : public TBase
 		TickInfo.MaxAllowedInputKeyframe = FMath::Max(TickInfo.MaxAllowedInputKeyframe, TickInfo.LastProcessedInputKeyframe);
 	}
 
-private:
-	
-	TNetworkSimTime<TTickSettings> SerializedTime;
-	bool bPendingReconciliation = false;
-};
-
-/*
-template<typename TBufferTypes, typename TTickSettings, typename TBase>
-struct TReplicator_Simulated<TBufferTypes, TTickSettings, TBase, true> : TReplicator_Simulated<TBufferTypes, TTickSettings, TBase, false>
-{
-	using TInputCmd = typename TBufferTypes::TInputCmd;
-	using TSyncState = typename TBufferTypes::TSyncState;
-
 	template<typename T, typename TDriver, typename TTickParameters>
 	void PreSimTick(TDriver* Driver, TNetworkSimBufferContainer<TBufferTypes>& Buffers, TSimulationTickState<TTickSettings>& TickInfo, const TTickParameters& TickParameters)
 	{
-		// Extrapolation: still needs to be a setting/state somewhere that we can change from actor code
-		if (TInputCmd* SynthesizedCmd = TickInfo.GetNextInputForWrite(Buffers))
+		if (NetworkSimulationModelCVars::EnableSimulatedExtrapolation())
 		{
-			// We will create a single cmd to simulate the remaining time
-			auto TimeToSimulate = TickInfo.GetRemaningAllowedSimulationTime();
-			SynthesizedCmd->GetFrameDeltaTime();
+			TBase::template PreSimTick<T, TDriver, TTickParameters>(Driver, Buffers, TickInfo, TickParameters);
 		}
 	}
+
+private:
+	
+	bool bPendingReconciliation = false;
 };
-*/
 
 
 /** Replicates TSyncState and does basic reconciliation. */
@@ -440,40 +358,6 @@ struct TReplicator_Autonomous : public TBase
 	int32 GetProxyDirtyCount(TNetworkSimBufferContainer<TBufferTypes>& Buffers) const
 	{
 		return Buffers.Sync.GetDirtyCount() ^ (TBase::GetProxyDirtyCount(Buffers) << 2); ;
-	}
-
-	// --------------------------------------------------------------------
-	//	PreSimTick
-	// --------------------------------------------------------------------
-	template<typename T, typename TDriver, typename TTickParameters>
-	void PreSimTick(TDriver* Driver, TNetworkSimBufferContainer<TBufferTypes>& Buffers, TSimulationTickState<TTickSettings>& TickInfo, const TTickParameters& TickParameters)
-	{
-		// If we have a reconcile fault, we cannot continue on with the simulation until it clears itself out. This effectively drops the input time and does not sample new inputs
-		if (bReconcileFaultDetected)
-		{
-			return;
-		}
-
-		// Accumulate real time into the simulation. This will results in more Allowed Simulation Time (or will accumulate internally until we are ready for the next tick)
-		TickInfo.GiveSimulationTime(TickParameters.LocalDeltaTimeSeconds);
-
-		TNetworkSimTime<TTickSettings> DeltaSimTime = TickInfo.GetRemaningAllowedSimulationTime();
-		if (DeltaSimTime.ToRealTimeSeconds() > 0)
-		{
-			// Get next input in buffer, clear it, set delta time, then send it to driver to sample local input
-			if (auto* InputCmd = Buffers.Input.GetWriteNext())
-			{
-				*InputCmd = typename TBufferTypes::TInputCmd();
-				InputCmd->SetFrameDeltaTime(DeltaSimTime);
-				Driver->ProduceInput(DeltaSimTime, *InputCmd);
-			}
-
-			// If we are predicting, then we are allowed to process the new command
-			if (NetworkSimulationModelCVars::EnableLocalPrediction)
-			{
-				TickInfo.MaxAllowedInputKeyframe = Buffers.Input.GetHeadKeyframe();
-			}
-		}
 	}
 
 	// --------------------------------------------------------------------
@@ -524,7 +408,7 @@ struct TReplicator_Autonomous : public TBase
 			// The state the client predicted that corresponds to the state the server just serialized to us
 			if (TSyncState* ClientExistingState = Buffers.Sync.FindElementByKeyframe(SerializedHeadKeyframe))
 			{
-				if (ClientExistingState->ShouldReconcile(*SerializedState) || (NetworkSimulationModelCVars::ForceReconcile > 0))
+				if (ClientExistingState->ShouldReconcile(*SerializedState) || (NetworkSimulationModelCVars::ForceReconcile() > 0))
 				{
 					UE_CLOG(!Buffers.Input.IsValidKeyframe(SerializedHeadKeyframe), LogNetworkSim, Error, TEXT("::NetSerialize: Client InputBuffer does not contain data for frame %d. {%s} {%s}"), SerializedHeadKeyframe, *Buffers.Input.GetBasicDebugStr(), *Buffers.Sync.GetBasicDebugStr());
 					bPendingReconciliation =  true;
@@ -637,6 +521,29 @@ struct TReplicator_Autonomous : public TBase
 
 			// Log out the newly predicted state that we got.
 			NextMotionState->VisualLog( FVisualLoggingParameters(Keyframe == LastKeyframeToProcess ? EVisualLoggingContext::LastPredicted : EVisualLoggingContext::OtherPredicted, Keyframe, EVisualLoggingLifetime::Persistent), Driver, Driver);
+		}
+	}
+
+	// --------------------------------------------------------------------
+	//	PreSimTick
+	// --------------------------------------------------------------------
+	template<typename T, typename TDriver, typename TTickParameters>
+	void PreSimTick(TDriver* Driver, TNetworkSimBufferContainer<TBufferTypes>& Buffers, TSimulationTickState<TTickSettings>& TickInfo, const TTickParameters& TickParameters)
+	{
+		// If we have a reconcile fault, we cannot continue on with the simulation until it clears itself out. This effectively drops the input time and does not sample new inputs
+		if (bReconcileFaultDetected)
+		{
+			return;
+		}
+
+		const int32 StartingMaxAllowedInputKeyframe = TickInfo.MaxAllowedInputKeyframe;
+
+		TBase::template PreSimTick<T, TDriver, TTickParameters>(Driver, Buffers, TickInfo, TickParameters);
+
+		// If prediction is disabled we need to reset our MaxAllowedInputKeyframe so we don't process the command(s) generated above
+		if (NetworkSimulationModelCVars::EnableLocalPrediction() == 0)
+		{
+			TickInfo.MaxAllowedInputKeyframe = StartingMaxAllowedInputKeyframe;
 		}
 	}
 

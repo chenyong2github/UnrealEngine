@@ -9,6 +9,7 @@
 #include "StringUtils.h"
 #include "ScopeGuard.h"
 #include "CrashDetection.h"
+#include "Modules/ModuleManager.h"
 
 const char* Help =
     "\

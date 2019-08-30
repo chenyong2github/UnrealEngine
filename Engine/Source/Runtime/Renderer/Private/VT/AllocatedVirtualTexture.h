@@ -6,6 +6,7 @@
 #include "VirtualTextureShared.h"
 #include "RendererInterface.h"
 #include "VirtualTexturing.h"
+#include "VirtualTexturePhysicalSpace.h"
 #include "HAL/ThreadSafeCounter.h"
 
 class FVirtualTextureSpace;
@@ -56,7 +57,7 @@ private:
 	uint32 AddUniqueProducer(const FVirtualTextureProducerHandle& InHandle, FVirtualTextureProducer* InProducer);
 
 	FVirtualTextureSpace* Space;
-	FVirtualTexturePhysicalSpace* PhysicalSpace[VIRTUALTEXTURE_SPACE_MAXLAYERS];
+	TRefCountPtr<FVirtualTexturePhysicalSpace> PhysicalSpace[VIRTUALTEXTURE_SPACE_MAXLAYERS];
 	FVirtualTextureProducerHandle UniqueProducerHandles[VIRTUALTEXTURE_SPACE_MAXLAYERS];
 	uint8 UniqueProducerIndexForLayer[VIRTUALTEXTURE_SPACE_MAXLAYERS];
 	uint8 UniqueProducerMipBias[VIRTUALTEXTURE_SPACE_MAXLAYERS];

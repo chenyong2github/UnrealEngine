@@ -209,6 +209,7 @@ private:	// Handlers
 	void HandleWorldEstablished(UWorld* World);
 	void HandleLocalPlayerAdded(int32 LocalUserNum);
 	void HandleLocalPlayerRemoved(int32 LocalUserNum);
+	void HandleToolkitReset(int32 LocalUserNum);
 	
 	void OnRestorePartiesComplete(const FUniqueNetId& LocalUserId, const FOnlineError& Result, const FOnRestorePartyStateFromPartySystemComplete OnRestoreComplete);
 	void HandleQueryJoinabilityComplete(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, EJoinPartyCompletionResult Result, int32 NotApprovedReasonCode, FOnlinePartyTypeId PartyTypeId);

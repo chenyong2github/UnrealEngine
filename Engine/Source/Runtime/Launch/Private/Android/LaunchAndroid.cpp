@@ -109,7 +109,8 @@ static const uint32 ValidGamepadKeyCodesList[] =
 	AKEYCODE_DPAD_UP,
 	AKEYCODE_DPAD_DOWN,
 	AKEYCODE_DPAD_LEFT,
-	AKEYCODE_DPAD_RIGHT
+	AKEYCODE_DPAD_RIGHT,
+	3002  // touchpad
 };
 
 // map of gamepad keycodes that should be passed forward

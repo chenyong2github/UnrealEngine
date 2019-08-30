@@ -18,6 +18,7 @@ public:
 	virtual void SetString(const FText& InText) override;
 	virtual void SetString(const FString& InString) override;
 	virtual void SetString(const TCHAR* const InString, const int32 InStringLength) override;
+	virtual void SetStringRef(const FString* InString) override;
 	virtual void ClearString() override;
 
 	virtual int32 GetCurrentPosition() const override;
@@ -55,8 +56,14 @@ void FLegacyWordBreakIterator::SetString(const FString& InString)
 
 void FLegacyWordBreakIterator::SetString(const TCHAR* const InString, const int32 InStringLength) 
 {
-	String = FString(InString, InStringLength);
+	String = FString(InStringLength, InString);
 	ResetToBeginning();
+}
+
+void FLegacyWordBreakIterator::SetStringRef(const FString* InString)
+{
+	// TODO: Support external string references as an optimization
+	SetString(*InString);
 }
 
 void FLegacyWordBreakIterator::ClearString()

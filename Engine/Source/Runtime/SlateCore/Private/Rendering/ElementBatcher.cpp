@@ -1084,6 +1084,7 @@ void FSlateElementBatcher::AddTextElement(const FSlateDrawElement& DrawElement)
 		uint32 FontTextureIndex = 0;
 		FSlateShaderResource* FontAtlasTexture = nullptr;
 		FSlateShaderResource* FontShaderResource = nullptr;
+		FColor FontTint = InTint;
 
 		FSlateRenderBatch* RenderBatch = nullptr;
 		FSlateVertexArray* BatchVertices = nullptr;
@@ -1109,6 +1110,7 @@ void FSlateElementBatcher::AddTextElement(const FSlateDrawElement& DrawElement)
 		LineX = PosX;
 
 		const bool bIsFontMaterial = FontMaterial != nullptr;
+		const bool bEnableOutline = InOutlineSettings.OutlineSize > 0.0f;
 
 		uint32 NumChars = Len;
 
@@ -1140,17 +1142,22 @@ void FSlateElementBatcher::AddTextElement(const FSlateDrawElement& DrawElement)
 					// Font has a new texture for this glyph. Refresh the batch we use and the index we are currently using
 					FontTextureIndex = Entry.TextureIndex;
 
-					FontAtlasTexture = FontCache.GetSlateTextureResource( FontTextureIndex );
+					ISlateFontTexture* SlateFontTexture = FontCache.GetFontTexture(FontTextureIndex);
+					check(SlateFontTexture);
+
+					FontAtlasTexture = SlateFontTexture->GetSlateTexture();
 					check(FontAtlasTexture);
 
 					FontShaderResource = ResourceManager.GetFontShaderResource( FontTextureIndex, FontAtlasTexture, DrawElementPayload.GetFontInfo().FontMaterial );
 					check(FontShaderResource);
 
-					RenderBatch = &CreateRenderBatch(InLayer, FShaderParams(), FontShaderResource, ESlateDrawPrimitive::TriangleList, ESlateShader::Font, InDrawEffects, ESlateBatchDrawFlag::None, DrawElement);
+					const bool bIsGrayscale = SlateFontTexture->IsGrayscale();
+					FontTint = bIsGrayscale ? InTint : FColor::White;
 
-					const int32 GlyphsLeft = NumChars - CharIndex;
+					RenderBatch = &CreateRenderBatch(InLayer, FShaderParams(), FontShaderResource, ESlateDrawPrimitive::TriangleList, bIsGrayscale ? ESlateShader::GrayscaleFont : ESlateShader::ColorFont, InDrawEffects, ESlateBatchDrawFlag::None, DrawElement);
 
 					// Reserve memory for the glyphs.  This isn't perfect as the text could contain spaces and we might not render the rest of the text in this batch but its better than resizing constantly
+					const int32 GlyphsLeft = NumChars - CharIndex;
 					RenderBatch->ReserveVertices(GlyphsLeft * 4);
 					RenderBatch->ReserveIndices(GlyphsLeft * 6);
 
@@ -1158,7 +1165,7 @@ void FSlateElementBatcher::AddTextElement(const FSlateDrawElement& DrawElement)
 					InvTextureSizeY = 1.0f / FontAtlasTexture->GetHeight();
 				}
 
-				const bool bIsWhitespace = !Entry.Valid || FChar::IsWhitespace(CurrentChar);
+				const bool bIsWhitespace = !Entry.Valid || (bEnableOutline && !Entry.SupportsOutline) || FChar::IsWhitespace(CurrentChar);
 
 				if( !bIsWhitespace && PreviousCharEntry.Valid )
 				{
@@ -1174,14 +1181,16 @@ void FSlateElementBatcher::AddTextElement(const FSlateDrawElement& DrawElement)
 
 				if( !bIsWhitespace )
 				{
+					const float InvBitmapRenderScale = 1.0f / Entry.BitmapRenderScale;
+
 					const float X = LineX + Entry.HorizontalOffset+InOutlineHorizontalOffset;
 					// Note PosX,PosY is the upper left corner of the bounding box representing the string.  This computes the Y position of the baseline where text will sit
 
-					const float Y = PosY - Entry.VerticalOffset+MaxHeight+Entry.GlobalDescender;
+					const float Y = PosY - Entry.VerticalOffset + ((MaxHeight + Entry.GlobalDescender) * InvBitmapRenderScale);
 					const float U = Entry.StartU * InvTextureSizeX;
 					const float V = Entry.StartV * InvTextureSizeY;
-					const float SizeX = Entry.USize;
-					const float SizeY = Entry.VSize;
+					const float SizeX = Entry.USize * Entry.BitmapRenderScale;
+					const float SizeY = Entry.VSize * Entry.BitmapRenderScale;
 					const float SizeU = Entry.USize * InvTextureSizeX;
 					const float SizeV = Entry.VSize * InvTextureSizeY;
 
@@ -1209,10 +1218,10 @@ void FSlateElementBatcher::AddTextElement(const FSlateDrawElement& DrawElement)
 						}
 
 						// Add four vertices to the list of verts to be added to the vertex buffer
-						RenderBatch->AddVertex(FSlateVertex::Make<Rounding>( RenderTransform, UpperLeft,								FVector4(U,V,Ut,Vt),						FVector2D(0.0f,0.0f), InTint ));
-						RenderBatch->AddVertex(FSlateVertex::Make<Rounding>( RenderTransform, FVector2D(LowerRight.X,UpperLeft.Y),	FVector4(U+SizeU, V, UtMax,Vt),				FVector2D(1.0f,0.0f), InTint ));
-						RenderBatch->AddVertex(FSlateVertex::Make<Rounding>( RenderTransform, FVector2D(UpperLeft.X,LowerRight.Y),	FVector4(U, V+SizeV, Ut,VtMax),				FVector2D(0.0f,1.0f), InTint ));
-						RenderBatch->AddVertex(FSlateVertex::Make<Rounding>( RenderTransform, LowerRight,							FVector4(U+SizeU, V+SizeV, UtMax,VtMax),	FVector2D(1.0f,1.0f), InTint ));
+						RenderBatch->AddVertex(FSlateVertex::Make<Rounding>( RenderTransform, UpperLeft,								FVector4(U,V,Ut,Vt),						FVector2D(0.0f,0.0f), FontTint ));
+						RenderBatch->AddVertex(FSlateVertex::Make<Rounding>( RenderTransform, FVector2D(LowerRight.X,UpperLeft.Y),	FVector4(U+SizeU, V, UtMax,Vt),				FVector2D(1.0f,0.0f), FontTint ));
+						RenderBatch->AddVertex(FSlateVertex::Make<Rounding>( RenderTransform, FVector2D(UpperLeft.X,LowerRight.Y),	FVector4(U, V+SizeV, Ut,VtMax),				FVector2D(0.0f,1.0f), FontTint ));
+						RenderBatch->AddVertex(FSlateVertex::Make<Rounding>( RenderTransform, LowerRight,							FVector4(U+SizeU, V+SizeV, UtMax,VtMax),	FVector2D(1.0f,1.0f), FontTint ));
 
 						RenderBatch->AddIndex(IndexStart + 0);
 						RenderBatch->AddIndex(IndexStart + 1);
@@ -1306,6 +1315,7 @@ void FSlateElementBatcher::AddShapedTextElement( const FSlateDrawElement& DrawEl
 		int32 FontTextureIndex = -1;
 		FSlateShaderResource* FontAtlasTexture = nullptr;
 		FSlateShaderResource* FontShaderResource = nullptr;
+		FColor FontTint = InTint;
 
 		FSlateRenderBatch* RenderBatch = nullptr;
 
@@ -1316,6 +1326,7 @@ void FSlateElementBatcher::AddShapedTextElement( const FSlateDrawElement& DrawEl
 		float InvTextureSizeY = 0;
 
 		const bool bIsFontMaterial = FontMaterial != nullptr;
+		const bool bEnableOutline = InOutlineSettings.OutlineSize > 0.0f;
 
 		// Optimize by culling
 		// Todo: this doesnt work with cached clipping
@@ -1344,7 +1355,7 @@ void FSlateElementBatcher::AddShapedTextElement( const FSlateDrawElement& DrawEl
 			{
 				const FShapedGlyphFontAtlasData GlyphAtlasData = FontCache.GetShapedGlyphFontAtlasData(GlyphToRender, InOutlineSettings);
 				 
-				if (GlyphAtlasData.Valid)
+				if (GlyphAtlasData.Valid && (!bEnableOutline || GlyphAtlasData.SupportsOutline))
 				{
 					const float X = LineX + GlyphAtlasData.HorizontalOffset + GlyphToRender.XOffset;
 					// Note PosX,PosY is the upper left corner of the bounding box representing the string.  This computes the Y position of the baseline where text will sit
@@ -1368,17 +1379,22 @@ void FSlateElementBatcher::AddShapedTextElement( const FSlateDrawElement& DrawEl
 						// Font has a new texture for this glyph. Refresh the batch we use and the index we are currently using
 						FontTextureIndex = GlyphAtlasData.TextureIndex;
 
-						FontAtlasTexture = FontCache.GetSlateTextureResource(FontTextureIndex);
+						ISlateFontTexture* SlateFontTexture = FontCache.GetFontTexture(FontTextureIndex);
+						check(SlateFontTexture);
+
+						FontAtlasTexture = SlateFontTexture->GetSlateTexture();
 						check(FontAtlasTexture);
 
 						FontShaderResource = ResourceManager.GetFontShaderResource(FontTextureIndex, FontAtlasTexture, FontMaterial);
 						check(FontShaderResource);
 
-						RenderBatch = &CreateRenderBatch(InLayer, FShaderParams(), FontShaderResource, ESlateDrawPrimitive::TriangleList, ESlateShader::Font, InDrawEffects, ESlateBatchDrawFlag::None, DrawElement);
+						const bool bIsGrayscale = SlateFontTexture->IsGrayscale();
+						FontTint = bIsGrayscale ? InTint : FColor::White;
 
-						const int32 GlyphsLeft = NumGlyphs - GlyphIndex;
+						RenderBatch = &CreateRenderBatch(InLayer, FShaderParams(), FontShaderResource, ESlateDrawPrimitive::TriangleList, bIsGrayscale ? ESlateShader::GrayscaleFont : ESlateShader::ColorFont, InDrawEffects, ESlateBatchDrawFlag::None, DrawElement);
 
 						// Reserve memory for the glyphs.  This isn't perfect as the text could contain spaces and we might not render the rest of the text in this batch but its better than resizing constantly
+						const int32 GlyphsLeft = NumGlyphs - GlyphIndex;
 						RenderBatch->ReserveVertices(GlyphsLeft*4);
 						RenderBatch->ReserveIndices(GlyphsLeft*6);
 
@@ -1386,12 +1402,14 @@ void FSlateElementBatcher::AddShapedTextElement( const FSlateDrawElement& DrawEl
 						InvTextureSizeY = 1.0f / FontAtlasTexture->GetHeight();
 					}
 
+					const float BitmapRenderScale = GlyphToRender.GetBitmapRenderScale();
+					const float InvBitmapRenderScale = 1.0f / BitmapRenderScale;
 
-					const float Y = LineY - GlyphAtlasData.VerticalOffset + GlyphToRender.YOffset + MaxHeight + TextBaseline;
+					const float Y = LineY - GlyphAtlasData.VerticalOffset + GlyphToRender.YOffset + ((MaxHeight + TextBaseline) * InvBitmapRenderScale);
 					const float U = GlyphAtlasData.StartU * InvTextureSizeX;
 					const float V = GlyphAtlasData.StartV * InvTextureSizeY;
-					const float SizeX = GlyphAtlasData.USize;
-					const float SizeY = GlyphAtlasData.VSize;
+					const float SizeX = GlyphAtlasData.USize * BitmapRenderScale;
+					const float SizeY = GlyphAtlasData.VSize * BitmapRenderScale;
 					const float SizeU = GlyphAtlasData.USize * InvTextureSizeX;
 					const float SizeV = GlyphAtlasData.VSize * InvTextureSizeY;
 
@@ -1421,10 +1439,10 @@ void FSlateElementBatcher::AddShapedTextElement( const FSlateDrawElement& DrawEl
 						}
 
 						// Add four vertices to the list of verts to be added to the vertex buffer
-						RenderBatch->AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, UpperLeft,								FVector4(U, V, Ut, Vt),							FVector2D(0.0f, 0.0f), InTint ));
-						RenderBatch->AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, FVector2D(LowerRight.X, UpperLeft.Y),	FVector4(U + SizeU, V, UtMax, Vt),				FVector2D(1.0f, 0.0f), InTint ));
-						RenderBatch->AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, FVector2D(UpperLeft.X, LowerRight.Y),	FVector4(U, V + SizeV, Ut, VtMax),				FVector2D(0.0f, 1.0f), InTint ));
-						RenderBatch->AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, LowerRight,								FVector4(U + SizeU, V + SizeV, UtMax, VtMax),	FVector2D(1.0f, 1.0f), InTint ));
+						RenderBatch->AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, UpperLeft,								FVector4(U, V, Ut, Vt),							FVector2D(0.0f, 0.0f), FontTint ));
+						RenderBatch->AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, FVector2D(LowerRight.X, UpperLeft.Y),	FVector4(U + SizeU, V, UtMax, Vt),				FVector2D(1.0f, 0.0f), FontTint ));
+						RenderBatch->AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, FVector2D(UpperLeft.X, LowerRight.Y),	FVector4(U, V + SizeV, Ut, VtMax),				FVector2D(0.0f, 1.0f), FontTint ));
+						RenderBatch->AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, LowerRight,								FVector4(U + SizeU, V + SizeV, UtMax, VtMax),	FVector2D(1.0f, 1.0f), FontTint ));
 
 						RenderBatch->AddIndex(IndexStart + 0);
 						RenderBatch->AddIndex(IndexStart + 1);
@@ -2220,8 +2238,8 @@ void FSlateElementBatcher::AddViewportElement( const FSlateDrawElement& DrawElem
 
 	if(DrawElementPayload.bViewportTextureAlphaOnly )
 	{
-		// This is a slight hack, but the font shader is the same as the general shader except it reads alpha only textures
-		ShaderType = ESlateShader::Font;
+		// This is a slight hack, but the grayscale font shader is the same as the general shader except it reads alpha only textures and doesn't support tiling
+		ShaderType = ESlateShader::GrayscaleFont;
 	}
 
 	FSlateRenderBatch& RenderBatch = CreateRenderBatch( Layer, FShaderParams(), ViewportResource, ESlateDrawPrimitive::TriangleList, ShaderType, InDrawEffects, DrawFlags, DrawElement);

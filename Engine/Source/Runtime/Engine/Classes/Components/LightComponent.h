@@ -360,6 +360,10 @@ public:
 	{
 		return false;
 	}
+	virtual uint8 GetAtmosphereSunLightIndex() const
+	{
+		return 0;
+	}
 
 	/** Compute current light brightness based on whether there is a valid IES profile texture attached, and whether IES brightness is enabled */
 	virtual float ComputeLightBrightness() const;
@@ -439,6 +443,10 @@ public:
 	 */
 	static void ReassignStationaryLightChannels(UWorld* TargetWorld, bool bAssignForLightingBuild, ULevel* LightingScenario);
 
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnUpdateColorAndBrightness, ULightComponent&);
+
+	/** Called When light color or brightness needs update */
+	static FOnUpdateColorAndBrightness UpdateColorAndBrightnessEvent;
 };
 
 

@@ -5,6 +5,7 @@
 #include "ActiveSound.h"
 #include "AudioDevice.h"
 #include "AudioVirtualLoop.h"
+#include "DSP/VolumeFader.h"
 #include "Sound/SoundBase.h"
 
 
@@ -194,19 +195,25 @@ void FConcurrencyGroup::StopQuietSoundsDueToMaxConcurrency()
 		return;
 	}
 
-	// Helper function for sort this concurrency group's active sounds according to their "volume" concurrency
-	// Quieter sounds will be at the front of the array
+	// Comparator for sorting group's ActiveSounds according to their "volume" concurrency. Quieter sounds will be
+	//  at the front of the array. If they share the same volume, newer sounds will be sorted first to avoid loop
+	// realization ping-ponging 
 	struct FCompareActiveSounds
 	{
 		FORCEINLINE bool operator()(const FActiveSound& A, const FActiveSound& B) const
 		{
+			if (FMath::IsNearlyEqual(A.VolumeConcurrency, B.VolumeConcurrency, KINDA_SMALL_NUMBER))
+			{
+				return A.PlaybackTime > B.PlaybackTime;
+			}
 			return A.VolumeConcurrency < B.VolumeConcurrency;
 		}
 	};
 
 	ActiveSounds.Sort(FCompareActiveSounds());
 
-	const int32 NumSoundsToStop = ActiveSounds.Num() - Settings.MaxCount;
+	const int32 NumActiveSounds = ActiveSounds.Num();
+	const int32 NumSoundsToStop = NumActiveSounds - Settings.MaxCount;
 	check(NumSoundsToStop > 0);
 
 	// Need to make a new list when stopping the sounds since the process of stopping an active sound
@@ -216,16 +223,9 @@ void FConcurrencyGroup::StopQuietSoundsDueToMaxConcurrency()
 	{
 		FActiveSound* ActiveSound = ActiveSounds[i];
 		check(ActiveSound);
-
-		// Flag this active sound as needing to be stopped due to volume-based max concurrency.
-		// This will actually be stopped in the audio device update function.
-		if (ActiveSound->FadeOut != FActiveSound::EFadeOut::Concurrency)
-		{
-			ActiveSound->bShouldStopDueToMaxConcurrency = true;
-		}
+		ActiveSound->bShouldStopDueToMaxConcurrency = true;
 	}
 
-	const int32 NumActiveSounds = ActiveSounds.Num();
 	for (; i < NumActiveSounds; ++i)
 	{
 		ActiveSounds[i]->bShouldStopDueToMaxConcurrency = false;
@@ -827,8 +827,7 @@ void FSoundConcurrencyManager::StopDueToVoiceStealing(FActiveSound& ActiveSound)
 	if (bRequiresConcurrencyFade)
 	{
 		ActiveSound.FadeOut = FActiveSound::EFadeOut::Concurrency;
-		ActiveSound.TargetAdjustVolumeMultiplier = 0.0f;
-		ActiveSound.TargetAdjustVolumeStopTime = ActiveSound.PlaybackTime + FadeOutDuration;
+		ActiveSound.ComponentVolumeFader.StartFade(0.0f, FadeOutDuration, Audio::EFaderCurve::Logarithmic);
 	}
 }
 

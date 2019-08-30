@@ -86,7 +86,36 @@ extern CORE_API TCHAR GErrorHist[16384];
 // #crashReport: 2014-08-19 Combine into one, refactor.
 extern CORE_API TCHAR GErrorExceptionDescription[4096];
 
-extern CORE_API const FText GTrue, GFalse, GYes, GNo, GNone;
+struct CORE_API FCoreTexts
+{
+	const FText& True;
+	const FText& False;
+	const FText& Yes;
+	const FText& No;
+	const FText& None;
+
+	static const FCoreTexts& Get();
+
+	/** Invalidates existing references. Do not use FCoreTexts after calling. */
+	static void TearDown();
+
+	// Non-copyable
+	FCoreTexts(const FCoreTexts&) = delete;
+	FCoreTexts& operator=(const FCoreTexts&) = delete;
+};
+
+#if !defined(DISABLE_LEGACY_CORE_TEXTS) || DISABLE_LEGACY_CORE_TEXTS == 0
+UE_DEPRECATED(4.23, "GTrue has been deprecated in favor of FCoreTexts::Get().True.")
+extern CORE_API const FText GTrue;
+UE_DEPRECATED(4.23, "GFalse has been deprecated in favor of FCoreTexts::Get().False.")
+extern CORE_API const FText GFalse;
+UE_DEPRECATED(4.23, "GYes has been deprecated in favor of FCoreTexts::Get().Yes.")
+extern CORE_API const FText GYes;
+UE_DEPRECATED(4.23, "GNo has been deprecated in favor of FCoreTexts::Get().No.")
+extern CORE_API const FText GNo;
+UE_DEPRECATED(4.23, "GNone has been deprecated in favor of FCoreTexts::Get().None.")
+extern CORE_API const FText GNone;
+#endif
 
 /** If true, this executable is able to run all games (which are loaded as DLL's). */
 extern CORE_API bool GIsGameAgnosticExe;
@@ -105,6 +134,9 @@ extern CORE_API bool GAllowActorScriptExecutionInEditor;
 
 /** Forces use of template names for newly instanced components in a CDO. */
 extern CORE_API bool GCompilingBlueprint;
+
+/** True if we're garbage collecting after a blueprint compilation */
+extern CORE_API bool GIsGCingAfterBlueprintCompile;
 
 /** True if we're reconstructing blueprint instances. Should never be true on cooked builds */
 extern CORE_API bool GIsReconstructingBlueprintInstances;
@@ -370,7 +402,7 @@ extern CORE_API bool GIsGameThreadIdInitialized;
 extern CORE_API bool GShouldSuspendRenderingThread;
 
 /** Determines what kind of trace should occur, NAME_None for none. */
-extern CORE_API FName GCurrentTraceName;
+extern CORE_API FLazyName GCurrentTraceName;
 
 /** How to print the time in log output. */
 extern CORE_API ELogTimes::Type GPrintLogTimes;
@@ -394,9 +426,9 @@ extern CORE_API bool GIsDemoMode;
 
 /** Name of the core package. */
 //@Package name transition, remove the double checks 
-extern CORE_API FName GLongCorePackageName;
+extern CORE_API FLazyName GLongCorePackageName;
 //@Package name transition, remove the double checks 
-extern CORE_API FName GLongCoreUObjectPackageName;
+extern CORE_API FLazyName GLongCoreUObjectPackageName;
 
 /** Whether or not a unit test is currently being run. */
 extern CORE_API bool GIsAutomationTesting;
@@ -404,6 +436,9 @@ extern CORE_API bool GIsAutomationTesting;
 /** Whether or not messages are being pumped outside of main loop */
 extern CORE_API bool GPumpingMessagesOutsideOfMainLoop;
 
+/** Whether or not messages are being pumped */
+extern CORE_API bool GPumpingMessages;
+ 
 /** Enables various editor and HMD hacks that allow the experimental VR editor feature to work, perhaps at the expense of other systems */
 extern CORE_API bool GEnableVREditorHacks;
 

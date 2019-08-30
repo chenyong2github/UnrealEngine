@@ -3,11 +3,11 @@
 #pragma once
  
 #include "Modules/ModuleManager.h"
- 
+
 class OculusAvatarModule : public IModuleInterface
 {
 public:
 	/** IModuleInterface implementation */
-	void StartupModule();
-	void ShutdownModule();
+	virtual void StartupModule() override;
+	virtual void ShutdownModule() override;
 };

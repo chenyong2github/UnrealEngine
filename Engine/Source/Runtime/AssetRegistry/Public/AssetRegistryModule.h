@@ -33,7 +33,8 @@ public:
 	/** Gets the asset registry singleton */
 	static IAssetRegistry& GetRegistry()
 	{
-		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(AssetRegistryConstants::ModuleName);
+		static FName ModuleName("AssetRegistry");
+		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(ModuleName);
 		return AssetRegistryModule.Get();
 	}
 

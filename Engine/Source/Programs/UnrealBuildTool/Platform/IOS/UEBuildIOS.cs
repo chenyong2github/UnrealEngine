@@ -409,7 +409,7 @@ namespace UnrealBuildTool
 					case "IOS_12":
 						return "12.0";
 					default:
-						return "10.0";
+						return "11.0";
 				}
 			}
 		}
@@ -1148,7 +1148,10 @@ namespace UnrealBuildTool
 		/// <param name="ExtraModuleNames"></param>
 		public override void AddExtraModules(ReadOnlyTargetRules Target, List<string> ExtraModuleNames)
 		{
-			ExtraModuleNames.Add("IOSPlatformFeatures");
+			if (Target.Type != TargetType.Program)
+			{
+				ExtraModuleNames.Add("IOSPlatformFeatures");
+			}
 		}
 
 		/// <summary>

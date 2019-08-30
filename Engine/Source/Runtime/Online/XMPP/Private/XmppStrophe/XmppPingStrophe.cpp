@@ -10,7 +10,7 @@
 
 #if WITH_XMPP_STROPHE
 
-const FName FXmppPingStrophe::TickRequesterId = FName("StrophePing");
+#define TickRequesterId FName("StrophePing")
 
 FXmppPingStrophe::FXmppPingStrophe(FXmppConnectionStrophe& InConnectionManager)
 	: ConnectionManager(InConnectionManager)
@@ -227,5 +227,7 @@ void FXmppPingStrophe::CleanupMessages()
 		FEmbeddedCommunication::AllowSleep(TickRequesterId);
 	}
 }
+
+#undef TickRequesterId
 
 #endif

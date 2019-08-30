@@ -142,7 +142,7 @@ IReplicationProxy* UMockNetworkSimulationComponent::InstantiateNetworkSimulation
 // Child classes should override this an initialize their NetworkSim here
 void UMockNetworkSimulationComponent::InitializeForNetworkRole(ENetRole Role)
 {	
-	NetworkSim->InitializeForNetworkRole(Role, IsLocallyControlled(), GetSimulationInitParameters(Role));
+	NetworkSim->InitializeForNetworkRole(Role, GetSimulationInitParameters(Role));
 }
 
 void UMockNetworkSimulationComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
@@ -202,6 +202,11 @@ void UMockNetworkSimulationComponent::InitSyncState(FMockSyncState& OutSyncState
 void UMockNetworkSimulationComponent::FinalizeFrame(const FMockSyncState& SyncState)
 {
 	MockValue = SyncState.Total;
+}
+
+FString UMockNetworkSimulationComponent::GetDebugName() const
+{
+	return FString::Printf(TEXT("MockSim. %s. %s"), *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwnerRole()), *GetName());
 }
 
 FTransform UMockNetworkSimulationComponent::GetDebugWorldTransform() const

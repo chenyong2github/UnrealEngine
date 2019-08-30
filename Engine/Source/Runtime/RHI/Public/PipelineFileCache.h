@@ -322,10 +322,12 @@ public:
 	static uint64 SetGameUsageMaskWithComparison(uint64 GameUsageMask, FPSOMaskComparisonFn InComparisonFnPtr);
 	static uint64 GetGameUsageMask()	{ return GameUsageMask;}
 	
+	static void PreCompileComplete();
 private:
 	
 	static void RegisterPSOUsageDataUpdateForNextSave(FPSOUsageData& UsageData);
 	static void ClearOSPipelineCache();
+	static bool ShouldEnableFileCache();
 	
 private:
 	static FRWLock FileCacheLock;

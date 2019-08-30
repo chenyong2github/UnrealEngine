@@ -8,7 +8,6 @@
 #include "Templates/UnrealTemplate.h"
 #include "Serialization/Archive.h"
 
-
 /**
  * When we have an optional value IsSet() returns true, and GetValue() is meaningful.
  * Otherwise GetValue() is not meaningful.
@@ -26,6 +25,12 @@ public:
 	TOptional(OptionalType&& InValue)
 	{
 		new(&Value) OptionalType(MoveTempIfPossible(InValue));
+		bIsSet = true;
+	}
+	template <typename... ArgTypes>
+	explicit TOptional(EInPlace, ArgTypes&&... Args)
+	{
+		new(&Value) OptionalType(Forward<ArgTypes>(Args)...);
 		bIsSet = true;
 	}
 
@@ -121,11 +126,12 @@ public:
 	}
 
 	template <typename... ArgsType>
-	void Emplace(ArgsType&&... Args)
+	OptionalType& Emplace(ArgsType&&... Args)
 	{
 		Reset();
-		new(&Value) OptionalType(Forward<ArgsType>(Args)...);
+		OptionalType* Result = new(&Value) OptionalType(Forward<ArgsType>(Args)...);
 		bIsSet = true;
+		return *Result;
 	}
 
 	friend bool operator==(const TOptional& lhs, const TOptional& rhs)

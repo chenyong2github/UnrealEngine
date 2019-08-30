@@ -9,6 +9,8 @@ namespace UnrealBuildTool.Rules
 			PrivateIncludePathModuleNames.Add("TargetPlatform");
             PublicIncludePathModuleNames.Add("TargetPlatform");
 
+            PublicIncludePathModuleNames.Add("Engine");
+
             PrivateIncludePaths.AddRange(
 				new string[]
 				{
@@ -16,11 +18,14 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
+            PublicIncludePaths.Add("Runtime/AudioMixer/Private");
+
+
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
 					"Core",
-					"CoreUObject",
+					"CoreUObject"
 				}
 			);
 
@@ -29,7 +34,9 @@ namespace UnrealBuildTool.Rules
 				{
 					"CoreUObject",
 					"Engine",
-                    "NonRealtimeAudioRenderer"
+                    "NonRealtimeAudioRenderer",
+                    "AudioMixerCore",
+                    "SignalProcessing"
                 }
 			);
 
@@ -41,52 +48,6 @@ namespace UnrealBuildTool.Rules
 					"UELibSampleRate"
 					);
 
-			// TODO test this for HTML5 !
-			//if (Target.Platform == UnrealTargetPlatform.HTML5)
-			//{
-			//	AddEngineThirdPartyPrivateStaticDependencies(Target,
-			//		"UEOgg",
-			//		"Vorbis",
-			//		"VorbisFile"
-			//		);
-			//}
-
-			if (Target.Platform == UnrealTargetPlatform.Mac)
-			{
-				AddEngineThirdPartyPrivateStaticDependencies(Target,
-					"UEOgg",
-					"Vorbis",
-					"libOpus"
-					);
-				PublicFrameworks.AddRange(new string[] { "AVFoundation", "CoreVideo", "CoreMedia" });
-			}
-
-			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
-			{
-				AddEngineThirdPartyPrivateStaticDependencies(Target,
-					"UEOgg",
-					"Vorbis",
-					"VorbisFile"
-					);
-			}
-
-			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
-			{
-				AddEngineThirdPartyPrivateStaticDependencies(Target,
-					"UEOgg",
-					"Vorbis",
-					"VorbisFile",
-					"libOpus"
-					);
-			}
-
-			if (Target.Platform == UnrealTargetPlatform.XboxOne)
-			{
-				AddEngineThirdPartyPrivateStaticDependencies(Target,
-					"libOpus"
-					);
-			}
-
 			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 			{
 				string PlatformName = Target.Platform == UnrealTargetPlatform.Win32 ? "Win32" : "Win64";
@@ -95,10 +56,9 @@ namespace UnrealBuildTool.Rules
                 LibSndFilePath += PlatformName;
 
 
-                PublicAdditionalLibraries.Add("libsndfile-1.lib");
+                PublicAdditionalLibraries.Add(LibSndFilePath + "/libsndfile-1.lib");
 				PublicDelayLoadDLLs.Add("libsndfile-1.dll");
 				PublicIncludePathModuleNames.Add("UELibSampleRate");
-				PublicLibraryPaths.Add(LibSndFilePath);
 
                 RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/libsndfile/" + PlatformName + "/libsndfile-1.dll");
             }

@@ -38,6 +38,12 @@ FVector2D USlateBlueprintLibrary::LocalToAbsolute(const FGeometry& Geometry, FVe
 	return Geometry.LocalToAbsolute(LocalCoordinate);
 }
 
+FVector2D USlateBlueprintLibrary::GetLocalTopLeft(const FGeometry& Geometry)
+{
+	const FVector2D TopLeft(0.0f, 0.0f);
+	return Geometry.GetLocalPositionAtCoordinates(TopLeft);
+}
+
 FVector2D USlateBlueprintLibrary::GetLocalSize(const FGeometry& Geometry)
 {
 	return Geometry.GetLocalSize();

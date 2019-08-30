@@ -62,7 +62,7 @@ FNetworkSimulationModelInitParameters UNetworkPredictionComponent::GetSimulation
 {
 	// These are reasonable defaults but may not be right for everyone
 	FNetworkSimulationModelInitParameters InitParams;
-	InitParams.InputBufferSize = Role != ROLE_SimulatedProxy ? 32 : 0;
+	InitParams.InputBufferSize = Role != ROLE_SimulatedProxy ? 32 : 2;
 	InitParams.SyncedBufferSize = Role != ROLE_AutonomousProxy ? 2 : 32;
 	InitParams.AuxBufferSize = Role != ROLE_AutonomousProxy ? 2 : 32;
 	InitParams.DebugBufferSize = 32;

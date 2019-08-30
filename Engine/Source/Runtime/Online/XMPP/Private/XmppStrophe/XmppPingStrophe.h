@@ -72,9 +72,6 @@ protected:
 	/** Remove pending messages and engine KeepAwake calls */
 	void CleanupMessages();
 
-	/* Engine Tick Requester name */
-	const static FName TickRequesterId;
-
 private:
 	/** Connection manager controls sending data to XMPP thread */
 	FXmppConnectionStrophe& ConnectionManager;

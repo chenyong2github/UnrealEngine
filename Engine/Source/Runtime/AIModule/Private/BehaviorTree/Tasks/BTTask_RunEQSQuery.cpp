@@ -47,7 +47,7 @@ EBTNodeResult::Type UBTTask_RunEQSQuery::ExecuteTask(UBehaviorTreeComponent& Own
 	if (QueryOwner && EQSRequest.IsValid())
 	{
 		const UBlackboardComponent* BlackboardComponent = OwnerComp.GetBlackboardComponent();
-		FBTEnvQueryTaskMemory* MyMemory = reinterpret_cast<FBTEnvQueryTaskMemory*>(NodeMemory);
+		FBTEnvQueryTaskMemory* MyMemory = CastInstanceNodeMemory<FBTEnvQueryTaskMemory>(NodeMemory);
 
 		MyMemory->RequestID = EQSRequest.Execute(*QueryOwner, BlackboardComponent, QueryFinishedDelegate);
 		

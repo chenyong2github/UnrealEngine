@@ -124,6 +124,23 @@ void UPackage::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collec
 	Super::AddReferencedObjects(This, Collector);
 }
 
+#if WITH_EDITORONLY_DATA
+bool UPackage::IsOwned() const
+{
+	return OwnerPersistentGuid.IsValid();
+}
+
+bool UPackage::IsOwnedBy(const UPackage* Package) const
+{
+	return OwnerPersistentGuid.IsValid() && (OwnerPersistentGuid == Package->GetPersistentGuid());
+}
+
+bool UPackage::HasSameOwner(const UPackage* Package) const
+{
+	return OwnerPersistentGuid.IsValid() && (OwnerPersistentGuid == Package->OwnerPersistentGuid);
+}
+#endif
+
 /**
  * Gets (after possibly creating) a metadata object for this package
  *

@@ -36,6 +36,7 @@
 #include "MovieSceneSequence.h"
 #include "MovieScene.h"
 #include "MovieSceneFolder.h"
+#include "SExposeBindingWidget.h"
 #include "ISequencerTrackEditor.h"
 
 #include "Tracks/MovieSceneSpawnTrack.h"
@@ -155,6 +156,12 @@ void FSequencerObjectBindingNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 	{
 		MenuBuilder.PushExtender(Extender.ToSharedRef());
 	}
+
+	MenuBuilder.AddSubMenu(
+		LOCTEXT("ExposeBindingLabel", "Expose"),
+		LOCTEXT("ExposeBindingTooltip", "Specifies options for exposing this binding to external systems as a persistent name."),
+		FNewMenuDelegate::CreateSP(this, &FSequencerObjectBindingNode::AddExposeMenu)
+	);
 
 	if (GetSequencer().IsLevelEditorSequencer())
 	{
@@ -458,6 +465,10 @@ void FSequencerObjectBindingNode::AddAssignActorMenu(FMenuBuilder& MenuBuilder)
 	GetSequencer().AssignActor(MenuBuilder, ObjectBinding);
 }
 
+void FSequencerObjectBindingNode::AddExposeMenu(FMenuBuilder& MenuBuilder)
+{
+	MenuBuilder.AddWidget(SNew(SExposeBindingWidget, GetSequencer().AsShared()), FText(), true, false);
+}
 
 bool FSequencerObjectBindingNode::CanRenameNode() const
 {

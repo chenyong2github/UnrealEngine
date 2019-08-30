@@ -997,15 +997,20 @@ namespace BlueprintSearchMetaDataHelpers
 					{
 						// Find all the pins and extract their metadata
 						InWriter->WriteArrayStart(FFindInBlueprintSearchTags::FiB_Pins);
-						for (UEdGraphPin* Pin : Node->Pins)
+						for (const UEdGraphPin* Pin : Node->Pins)
 						{
 							// Hidden pins are not searchable
 							if (Pin->bHidden == false)
 							{
 								InWriter->WriteObjectStart();
 								{
-									InWriter->WriteValue(FFindInBlueprintSearchTags::FiB_Name, Pin->GetSchema()->GetPinDisplayName(Pin));
-									InWriter->WriteValue(FFindInBlueprintSearchTags::FiB_DefaultValue, Pin->GetDefaultAsText());
+									TArray<struct FSearchTagDataPair> Tags;
+									Node->AddPinSearchMetaDataInfo(Pin, Tags);
+
+									for (const FSearchTagDataPair& SearchData : Tags)
+									{
+										InWriter->WriteValue(SearchData.Key, SearchData.Value);
+									}
 								}
 								SavePinTypeToJson(InWriter, Pin->PinType);
 								InWriter->WriteObjectEnd();

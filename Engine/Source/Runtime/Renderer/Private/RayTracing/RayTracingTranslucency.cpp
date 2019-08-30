@@ -27,7 +27,7 @@
 
 static TAutoConsoleVariable<int32> CVarRayTracingTranslucency(
 	TEXT("r.RayTracing.Translucency"),
-	0,
+	-1,
 	TEXT("-1: Value driven by postprocess volume (default) \n")
 	TEXT(" 0: ray tracing translucency off (use raster) \n")
 	TEXT(" 1: ray tracing translucency enabled"),
@@ -150,6 +150,7 @@ class FRayTracingTranslucencyRGS : public FGlobalShader
 
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
 		SHADER_PARAMETER_SRV(StructuredBuffer<FRTLightingData>, LightDataBuffer)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SSProfilesTexture)
 
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_STRUCT_REF(FRaytracingLightDataPacked, LightDataPacked)
@@ -410,6 +411,14 @@ void FDeferredShadingSceneRenderer::RenderRayTracingTranslucencyView(
 
 	PassParameters->ColorOutput = GraphBuilder.CreateUAV(*OutColorTexture);
 	PassParameters->RayHitDistanceOutput = GraphBuilder.CreateUAV(*OutRayHitDistanceTexture);
+
+	// TODO: should be converted to RDG
+	TRefCountPtr<IPooledRenderTarget> SubsurfaceProfileRT((IPooledRenderTarget*)GetSubsufaceProfileTexture_RT(GraphBuilder.RHICmdList));
+	if (!SubsurfaceProfileRT)
+	{
+		SubsurfaceProfileRT = GSystemTextures.BlackDummy;
+	}
+	PassParameters->SSProfilesTexture = GraphBuilder.RegisterExternalTexture(SubsurfaceProfileRT);
 
 	auto RayGenShader = View.ShaderMap->GetShader<FRayTracingTranslucencyRGS>();
 	ClearUnusedGraphResources(RayGenShader, PassParameters);

@@ -244,8 +244,8 @@ class FBlackVolumeTextureResourceBulkDataInterface : public FResourceBulkDataInt
 public:
 
 	/** Default constructor. */
-	FBlackVolumeTextureResourceBulkDataInterface()
-		: Color(0)
+	FBlackVolumeTextureResourceBulkDataInterface(uint8 Alpha)
+		: Color(0, 0, 0, Alpha)
 	{
 	}
 
@@ -281,7 +281,7 @@ private:
 /**
  * A class representing a 1x1x1 black volume texture.
  */
-template <EPixelFormat PixelFormat>
+template <EPixelFormat PixelFormat, uint8 Alpha>
 class FBlackVolumeTexture : public FTexture
 {
 public:
@@ -294,7 +294,7 @@ public:
 		if (GSupportsTexture3D)
 		{
 			// Create the texture.
-			FBlackVolumeTextureResourceBulkDataInterface BlackTextureBulkData;
+			FBlackVolumeTextureResourceBulkDataInterface BlackTextureBulkData(Alpha);
 			FRHIResourceCreateInfo CreateInfo(&BlackTextureBulkData);
 			CreateInfo.DebugName = TEXT("BlackVolumeTexture");
 			FTexture3DRHIRef Texture3D = RHICreateTexture3D(1,1,1,PixelFormat,1,TexCreate_ShaderResource,CreateInfo);
@@ -303,7 +303,7 @@ public:
 		else
 		{
 			// Create a texture, even though it's not a volume texture
-			FBlackVolumeTextureResourceBulkDataInterface BlackTextureBulkData;
+			FBlackVolumeTextureResourceBulkDataInterface BlackTextureBulkData(Alpha);
 			FRHIResourceCreateInfo CreateInfo(&BlackTextureBulkData);
 			FTexture2DRHIRef Texture2D = RHICreateTexture2D(1, 1, PixelFormat, 1, 1, TexCreate_ShaderResource, CreateInfo);
 			TextureRHI = Texture2D;
@@ -332,10 +332,11 @@ public:
 };
 
 /** Global black volume texture resource. */
-FTexture* GBlackVolumeTexture = new TGlobalResource<FBlackVolumeTexture<PF_B8G8R8A8>>();
+FTexture* GBlackVolumeTexture = new TGlobalResource<FBlackVolumeTexture<PF_B8G8R8A8, 0>>();
+FTexture* GBlackAlpha1VolumeTexture = new TGlobalResource<FBlackVolumeTexture<PF_B8G8R8A8, 255>>();
 
 /** Global black volume texture resource. */
-FTexture* GBlackUintVolumeTexture = new TGlobalResource<FBlackVolumeTexture<PF_R8G8B8A8_UINT>>();
+FTexture* GBlackUintVolumeTexture = new TGlobalResource<FBlackVolumeTexture<PF_R8G8B8A8_UINT, 0>>();
 
 class FBlackArrayTexture : public FTexture
 {
@@ -346,7 +347,7 @@ public:
 		if (GetFeatureLevel() >= ERHIFeatureLevel::SM4)
 		{
 			// Create the texture RHI.
-			FBlackVolumeTextureResourceBulkDataInterface BlackTextureBulkData;
+			FBlackVolumeTextureResourceBulkDataInterface BlackTextureBulkData(0);
 			FRHIResourceCreateInfo CreateInfo(&BlackTextureBulkData);
 			CreateInfo.DebugName = TEXT("BlackArrayTexture");
 			FTexture2DArrayRHIRef TextureArray = RHICreateTexture2DArray(1, 1, 1, PF_B8G8R8A8, 1, 1, TexCreate_ShaderResource, CreateInfo);
@@ -1170,11 +1171,9 @@ RENDERCORE_API bool UseVirtualTexturing(ERHIFeatureLevel::Type InFeatureLevel, c
 #endif
 
 		// does the project has it enabled ?
-		static const auto CVarVirtualTextureLightmaps = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTexturedLightmaps"));
 		static const auto CVarVirtualTexture = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextures"));
-		check(CVarVirtualTextureLightmaps);
 		check(CVarVirtualTexture);
-		if (CVarVirtualTexture->GetValueOnAnyThread() == 0 && CVarVirtualTextureLightmaps->GetValueOnAnyThread() == 0)
+		if (CVarVirtualTexture->GetValueOnAnyThread() == 0)
 		{
 			return false;
 		}		

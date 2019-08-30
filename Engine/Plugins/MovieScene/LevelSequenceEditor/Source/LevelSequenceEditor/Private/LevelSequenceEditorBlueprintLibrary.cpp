@@ -84,15 +84,6 @@ bool ULevelSequenceEditorBlueprintLibrary::IsPlaying()
 	return false;
 }
 
-bool ULevelSequenceEditorBlueprintLibrary::IsPaused()
-{
-	if (CurrentSequencer.IsValid())
-	{
-		return CurrentSequencer.Pin()->GetPlaybackStatus() == EMovieScenePlayerStatus::Paused;
-	}
-	return false;
-}
-
 void ULevelSequenceEditorBlueprintLibrary::SetSequencer(TSharedRef<ISequencer> InSequencer)
 {
 	CurrentSequencer = TWeakPtr<ISequencer>(InSequencer);

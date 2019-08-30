@@ -32,6 +32,8 @@ FOodleAnalyticsVars::FOodleAnalyticsVars()
 	, OutBeforeCompressedLengthTotal(0)
 	, OutNotCompressedFailedLengthTotal(0)
 	, OutNotCompressedSkippedLengthTotal(0)
+	, NumOodleHandlers(0)
+	, NumOodleHandlersCompressionEnabled(0)
 {
 }
 
@@ -55,7 +57,9 @@ bool FOodleAnalyticsVars::operator == (const FOodleAnalyticsVars& A) const
 		A.OutCompressedLengthTotal == OutCompressedLengthTotal &&
 		A.OutBeforeCompressedLengthTotal == OutBeforeCompressedLengthTotal &&
 		A.OutNotCompressedFailedLengthTotal == OutNotCompressedFailedLengthTotal &&
-		A.OutNotCompressedSkippedLengthTotal == OutNotCompressedSkippedLengthTotal;
+		A.OutNotCompressedSkippedLengthTotal == OutNotCompressedSkippedLengthTotal &&
+		A.NumOodleHandlers == NumOodleHandlers &&
+		A.NumOodleHandlersCompressionEnabled == NumOodleHandlersCompressionEnabled;
 }
 
 void FOodleAnalyticsVars::CommitAnalytics(FOodleAnalyticsVars& AggregatedData)
@@ -79,6 +83,8 @@ void FOodleAnalyticsVars::CommitAnalytics(FOodleAnalyticsVars& AggregatedData)
 	AggregatedData.OutBeforeCompressedLengthTotal += OutBeforeCompressedLengthTotal;
 	AggregatedData.OutNotCompressedFailedLengthTotal += OutNotCompressedFailedLengthTotal;
 	AggregatedData.OutNotCompressedSkippedLengthTotal += OutNotCompressedSkippedLengthTotal;
+	AggregatedData.NumOodleHandlers += NumOodleHandlers;
+	AggregatedData.NumOodleHandlersCompressionEnabled += NumOodleHandlersCompressionEnabled;
 }
 
 
@@ -157,6 +163,9 @@ void FOodleNetAnalyticsData::SendAnalytics()
 			int8 OutAttemptedSavingsWithOverheadPercentTotal = (1.0 - ((double)OutPostAttemptedWithOverheadLengthTotal / (double)OutPreAttemptedLengthTotal)) * 100.0;
 
 
+		uint32 NumOodleHandlersCompressionDisabled = NumOodleHandlers - NumOodleHandlersCompressionEnabled;
+
+
 		UE_LOG(OodleHandlerComponentLog, Log, TEXT("Oodle Analytics:"));
 		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - InCompressedNum: %llu"), InCompressedNum);
 		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - InNotCompressedNum: %llu"), InNotCompressedNum);
@@ -189,6 +198,9 @@ void FOodleNetAnalyticsData::SendAnalytics()
 		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - OutSavingsWithOverheadBytesTotal: %lli"), OutSavingsWithOverheadBytesTotal);
 		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - InAttemptedSavingsWithOverheadPercentTotal: %i"), InAttemptedSavingsWithOverheadPercentTotal);
 		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - OutAttemptedSavingsWithOverheadPercentTotal: %i"), OutAttemptedSavingsWithOverheadPercentTotal);
+		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - NumOodleHandlers: %i"), NumOodleHandlers);
+		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - NumOodleHandlersCompressionEnabled: %i"), NumOodleHandlersCompressionEnabled);
+		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - NumOodleHandlersCompressionDisabled: %i"), NumOodleHandlersCompressionDisabled);
 
 
 		static const FString EZAttrib_InCompressedNum = TEXT("InCompressedNum");
@@ -222,6 +234,9 @@ void FOodleNetAnalyticsData::SendAnalytics()
 		static const FString EZAttrib_OutSavingsWithOverheadBytesTotal = TEXT("OutSavingsWithOverheadBytesTotal");
 		static const FString EZAttrib_InAttemptedSavingsWithOverheadPercentTotal = TEXT("InAttemptedSavingsWithOverheadPercentTotal");
 		static const FString EZAttrib_OutAttemptedSavingsWithOverheadPercentTotal = TEXT("OutAttemptedSavingsWithOverheadPercentTotal");
+		static const FString EZAttrib_NumOodleHandlers = TEXT("NumOodleHandlers");
+		static const FString EZAttrib_NumOodleHandlersCompressionEnabled = TEXT("NumOodleHandlersCompressionEnabled");
+		static const FString EZAttrib_NumOodleHandlersCompressionDisabled = TEXT("NumOodleHandlersCompressionDisabled");
 
 		const TArray<FAnalyticsEventAttribute> EventAttributes = MakeAnalyticsEventAttributeArray(
 			EZAttrib_InCompressedNum, InCompressedNum,
@@ -254,7 +269,10 @@ void FOodleNetAnalyticsData::SendAnalytics()
 			EZAttrib_InSavingsWithOverheadBytesTotal, InSavingsWithOverheadBytesTotal,
 			EZAttrib_OutSavingsWithOverheadBytesTotal, OutSavingsWithOverheadBytesTotal,
 			EZAttrib_InAttemptedSavingsWithOverheadPercentTotal, InAttemptedSavingsWithOverheadPercentTotal,
-			EZAttrib_OutAttemptedSavingsWithOverheadPercentTotal, OutAttemptedSavingsWithOverheadPercentTotal
+			EZAttrib_OutAttemptedSavingsWithOverheadPercentTotal, OutAttemptedSavingsWithOverheadPercentTotal,
+			EZAttrib_NumOodleHandlers, NumOodleHandlers,
+			EZAttrib_NumOodleHandlersCompressionEnabled, NumOodleHandlersCompressionEnabled,
+			EZAttrib_NumOodleHandlersCompressionDisabled, NumOodleHandlersCompressionDisabled
 		);
 
 		AnalyticsProvider->RecordEvent(GetAnalyticsEventName(), EventAttributes);

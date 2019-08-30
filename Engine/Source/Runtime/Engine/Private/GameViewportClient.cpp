@@ -1505,6 +1505,9 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 		}
 	}
 
+	
+	ViewFamily.bIsHDR = GetWindow().IsValid() ? GetWindow().Get()->GetIsHDR() : false;
+
 	// Draw the player views.
 	if (!bDisableWorldRendering && PlayerViewMap.Num() > 0 && FSlateApplication::Get().GetPlatformApplication()->IsAllowedToRender()) //-V560
 	{
@@ -2423,8 +2426,9 @@ void UGameViewportClient::DrawTitleSafeArea( UCanvas* Canvas )
 	FMargin SafeZone;
 	const ULevelEditorPlaySettings* PlayInSettings = GetDefault<ULevelEditorPlaySettings>();
 
-	const float Width = Canvas->UnsafeSizeX;
-	const float Height = Canvas->UnsafeSizeY;
+	float Width, Height;
+	GetPixelSizeOfScreen(Width, Height, Canvas, 0);
+
 	const FLinearColor UnsafeZoneColor(1.0f, 0.0f, 0.0f, 0.25f);
 	FCanvasTileItem TileItem(FVector2D::ZeroVector, GWhiteTexture, UnsafeZoneColor);
 	TileItem.BlendMode = SE_BLEND_Translucent;

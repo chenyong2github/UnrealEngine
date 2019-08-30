@@ -22,6 +22,7 @@
 #include "MaterialEditorSettings.h"
 
 #include "ISettingsModule.h"
+#include "Interfaces/IMainFrameModule.h"
 
 const FName MaterialEditorAppIdentifier = FName(TEXT("MaterialEditorApp"));
 const FName MaterialInstanceEditorAppIdentifier = FName(TEXT("MaterialInstanceEditorApp"));
@@ -198,13 +199,8 @@ public:
 
 	void OpenSubstancePluginGetter()
 	{
-		TSharedPtr<SWindow> Window = nullptr;
-		TSharedPtr<SWidget> Widget = FSlateApplication::Get().GetKeyboardFocusedWidget();
-		if (Widget.IsValid())
-		{
-			Window = FSlateApplication::Get().FindWidgetWindow(Widget.ToSharedRef());
-		}
-
+		IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>(TEXT("MainFrame"));
+		TSharedPtr<SWindow> Window = MainFrameModule.GetParentWindow();
 		IIntroTutorials::Get().LaunchTutorial(TEXT("/Engine/Tutorial/SubEditors/GettingSubstance"), Window);
 	}
 

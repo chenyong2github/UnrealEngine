@@ -7,6 +7,7 @@
 #include "Modules/ModuleManager.h"
 
 class FLiveLinkHeartbeatEmitter;
+class FLiveLinkMessageBusDiscoveryManager;
 
 /**
  * Interface for messaging modules.
@@ -32,6 +33,7 @@ public:
 	}
 
 	virtual FLiveLinkHeartbeatEmitter& GetHeartbeatEmitter() = 0;
+	virtual FLiveLinkMessageBusDiscoveryManager& GetMessageBusDiscoveryManager() = 0;
 
 public:
 

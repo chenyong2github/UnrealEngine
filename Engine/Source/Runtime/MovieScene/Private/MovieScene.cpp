@@ -409,6 +409,28 @@ FText UMovieScene::GetObjectDisplayName(const FGuid& ObjectId)
 }
 
 
+void UMovieScene::ExposeBinding(FName ExposeAs)
+{
+	BindingGroups.Add(ExposeAs);
+}
+
+void UMovieScene::ExposeBinding(FName ExposeAs, FMovieSceneObjectBindingID BindingToExpose)
+{
+	BindingGroups.FindOrAdd(ExposeAs).IDs.AddUnique(BindingToExpose);
+}
+
+void UMovieScene::RemoveExposedBinding(FName ExposedAs, FMovieSceneObjectBindingID BindingToExpose)
+{
+	if (FMovieSceneObjectBindingIDs* Array = BindingGroups.Find(ExposedAs))
+	{
+		Array->IDs.Remove(BindingToExpose);
+	}
+}
+
+void UMovieScene::RemoveExposedBinding(FName ExposedAs)
+{
+	BindingGroups.Remove(ExposedAs);
+}
 
 #if WITH_EDITORONLY_DATA
 void UMovieScene::SetObjectDisplayName(const FGuid& ObjectId, const FText& DisplayName)

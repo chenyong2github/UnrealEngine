@@ -180,6 +180,18 @@ public:
 
 	virtual void* GetARSessionRawPointer() = 0;
 	virtual void* GetGameThreadARFrameRawPointer() = 0;
+	
+	/** @return if a particular session feature is supported on this device */
+	virtual bool OnIsSessionTrackingFeatureSupported(EARSessionType SessionType, EARSessionTrackingFeature SessionTrackingFeature) const { return false; }
+	
+	/** @return all the tracked 2D poses in AR */
+	virtual TArray<FARPose2D> OnGetTracked2DPose() const { return {}; }
+	
+	/** @return the person segmentation image */
+	virtual UARTextureCameraImage* OnGetPersonSegmentationImage() const { return nullptr; }
+	
+	/** @return the person segmentation depth image */
+	virtual UARTextureCameraImage* OnGetPersonSegmentationDepthImage() const { return nullptr; }
 
 	virtual ~IARSystemSupport(){}
 

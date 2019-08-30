@@ -42,7 +42,7 @@ void FLiveLinkMessageBusSource::ReceiveClient(ILiveLinkClient* InClient, FGuid I
 	}
 	else
 	{
-		FLiveLinkMessageBusDiscoveryManager::Get()->AddDiscoveryMessageRequest();
+		ILiveLinkModule::Get().GetMessageBusDiscoveryManager().AddDiscoveryMessageRequest();
 		bIsValid = false;
 	}
 
@@ -53,13 +53,14 @@ void FLiveLinkMessageBusSource::Update()
 {
 	if (!ConnectionAddress.IsValid())
 	{
-		for (const FProviderPollResultPtr Result : FLiveLinkMessageBusDiscoveryManager::Get()->GetDiscoveryResults())
+		FLiveLinkMessageBusDiscoveryManager& DiscoveryManager = ILiveLinkModule::Get().GetMessageBusDiscoveryManager();
+		for (const FProviderPollResultPtr Result : DiscoveryManager.GetDiscoveryResults())
 		{
 			if (Client->GetSourceType(SourceGuid).ToString() == Result->Name)
 			{
 				ConnectionAddress = Result->Address;
 				SourceMachineName = FText::FromString(Result->MachineName);
-				FLiveLinkMessageBusDiscoveryManager::Get()->RemoveDiscoveryMessageRequest();
+				DiscoveryManager.RemoveDiscoveryMessageRequest();
 				SendConnectMessage();
 				UpdateConnectionLastActive();
 				break;
@@ -238,10 +239,10 @@ void FLiveLinkMessageBusSource::SendConnectMessage()
 
 bool FLiveLinkMessageBusSource::RequestSourceShutdown()
 {
-	FLiveLinkMessageBusDiscoveryManager* DiscoveryManager = FLiveLinkMessageBusDiscoveryManager::Get();
-	if (DiscoveryManager->IsRunning() && !ConnectionAddress.IsValid())
+	FLiveLinkMessageBusDiscoveryManager& DiscoveryManager = ILiveLinkModule::Get().GetMessageBusDiscoveryManager();
+	if (DiscoveryManager.IsRunning() && !ConnectionAddress.IsValid())
 	{
-		DiscoveryManager->RemoveDiscoveryMessageRequest();
+		DiscoveryManager.RemoveDiscoveryMessageRequest();
 	}
 
 	FLiveLinkHeartbeatEmitter& HeartbeatEmitter = ILiveLinkModule::Get().GetHeartbeatEmitter();

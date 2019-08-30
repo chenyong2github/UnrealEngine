@@ -9,7 +9,9 @@
 #include "CrunchCompression.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "Async/ParallelFor.h"
+#include "Misc/ScopedSlowTask.h"
 #include "TextureCompressorModule.h"
+#include "TextureDerivedDataTask.h"
 
 // Debugging aid to dump tiles to disc as png files
 #define SAVE_TILES 0
@@ -394,6 +396,8 @@ void FVirtualTextureDataBuilder::BuildPagesMacroBlocks(bool bAllowAsync)
 		MipHeightInTiles = FMath::DivideAndRoundUp(MipHeightInTiles, 2u);
 	}
 
+	FScopedSlowTask BuildTask(NumTiles);
+
 	//
 	TArray<FVTSourceTileEntry> TilesInChunk;
 	TilesInChunk.Reserve(NumTiles);
@@ -431,6 +435,8 @@ void FVirtualTextureDataBuilder::BuildPagesMacroBlocks(bool bAllowAsync)
 					const int32 BlockIndex = FindSourceBlockIndex(Mip, BlockX, BlockY);
 					if (BlockIndex != INDEX_NONE)
 					{
+						BuildTask.EnterProgressFrame();
+
 						const FTextureSourceBlockData& Block = SourceBlocks[BlockIndex];
 						FVTSourceTileEntry* TileEntry = new(TilesInChunk) FVTSourceTileEntry;
 						TileEntry->BlockIndex = BlockIndex;

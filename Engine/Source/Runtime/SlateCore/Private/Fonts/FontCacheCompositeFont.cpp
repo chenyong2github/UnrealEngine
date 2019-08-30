@@ -81,9 +81,9 @@ FCachedCompositeFontData::FCachedCompositeFontData(const FCompositeFont& InCompo
 	RefreshFontRanges();
 }
 
-const FCachedTypefaceData* FCachedCompositeFontData::GetTypefaceForCharacter(const TCHAR InChar) const
+const FCachedTypefaceData* FCachedCompositeFontData::GetTypefaceForCodepoint(const UTF32CHAR InCodepoint) const
 {
-	const int32 CharIndex = static_cast<int32>(InChar);
+	const int32 CharIndex = static_cast<int32>(InCodepoint);
 
 	auto GetTypefaceFromRange = [CharIndex](const TArray<FCachedFontRange>& InFontRanges) -> const FCachedTypefaceData*
 	{
@@ -256,15 +256,15 @@ const FFontData& FCompositeFontCache::GetDefaultFontData(const FSlateFontInfo& I
 	return DummyFontData;
 }
 
-const FFontData& FCompositeFontCache::GetFontDataForCharacter(const FSlateFontInfo& InFontInfo, const TCHAR InChar, float& OutScalingFactor)
+const FFontData& FCompositeFontCache::GetFontDataForCodepoint(const FSlateFontInfo& InFontInfo, const UTF32CHAR InCodepoint, float& OutScalingFactor)
 {
 	static const FFontData DummyFontData;
 
-	auto GetFontDataForCharacterInTypeface = [this, InChar, &InFontInfo](const FCachedTypefaceData* InCachedTypefaceData, const FCachedTypefaceData* InCachedDefaultTypefaceData, const bool InSkipCharacterCheck) -> const FFontData*
+	auto GetFontDataForCharacterInTypeface = [this, InCodepoint, &InFontInfo](const FCachedTypefaceData* InCachedTypefaceData, const FCachedTypefaceData* InCachedDefaultTypefaceData, const bool InSkipCharacterCheck) -> const FFontData*
 	{
 		// Try to find the correct font from the typeface
 		const FFontData* FoundFontData = InCachedTypefaceData->GetFontData(InFontInfo.TypefaceFontName);
-		if (FoundFontData && (InSkipCharacterCheck || DoesFontDataSupportCharacter(*FoundFontData, InChar)))
+		if (FoundFontData && (InSkipCharacterCheck || DoesFontDataSupportCodepoint(*FoundFontData, InCodepoint)))
 		{
 			return FoundFontData;
 		}
@@ -278,7 +278,7 @@ const FFontData& FCompositeFontCache::GetFontDataForCharacter(const FSlateFontIn
 			{
 				const TSet<FName>& DefaultFontAttributes = GetFontAttributes(*FoundDefaultFontData);
 				FoundFontData = GetBestMatchFontForAttributes(InCachedTypefaceData, DefaultFontAttributes);
-				if (FoundFontData && (InSkipCharacterCheck || DoesFontDataSupportCharacter(*FoundFontData, InChar)))
+				if (FoundFontData && (InSkipCharacterCheck || DoesFontDataSupportCodepoint(*FoundFontData, InCodepoint)))
 				{
 					return FoundFontData;
 				}
@@ -287,7 +287,7 @@ const FFontData& FCompositeFontCache::GetFontDataForCharacter(const FSlateFontIn
 
 		// Failing that, try the primary font
 		FoundFontData = InCachedTypefaceData->GetPrimaryFontData();
-		if (FoundFontData && (InSkipCharacterCheck || DoesFontDataSupportCharacter(*FoundFontData, InChar)))
+		if (FoundFontData && (InSkipCharacterCheck || DoesFontDataSupportCodepoint(*FoundFontData, InCodepoint)))
 		{
 			return FoundFontData;
 		}
@@ -296,7 +296,7 @@ const FFontData& FCompositeFontCache::GetFontDataForCharacter(const FSlateFontIn
 	};
 
 	const FCompositeFont* const ResolvedCompositeFont = InFontInfo.GetCompositeFont();
-	const FCachedTypefaceData* const CachedTypefaceData = GetCachedTypefaceForCharacter(ResolvedCompositeFont, InChar);
+	const FCachedTypefaceData* const CachedTypefaceData = GetCachedTypefaceForCodepoint(ResolvedCompositeFont, InCodepoint);
 	if (CachedTypefaceData)
 	{
 		const FCachedTypefaceData* const CachedDefaultTypefaceData = GetDefaultCachedTypeface(ResolvedCompositeFont);
@@ -487,11 +487,11 @@ const FFontData* FCompositeFontCache::GetBestMatchFontForAttributes(const FCache
 	return BestMatchFont;
 }
 
-bool FCompositeFontCache::DoesFontDataSupportCharacter(const FFontData& InFontData, const TCHAR InChar)
+bool FCompositeFontCache::DoesFontDataSupportCodepoint(const FFontData& InFontData, const UTF32CHAR InCodepoint)
 {
 #if WITH_FREETYPE
 	TSharedPtr<FFreeTypeFace> FaceAndMemory = GetFontFace(InFontData);
-	return FaceAndMemory.IsValid() && FT_Get_Char_Index(FaceAndMemory->GetFace(), InChar) != 0;
+	return FaceAndMemory.IsValid() && FT_Get_Char_Index(FaceAndMemory->GetFace(), InCodepoint) != 0;
 #else  // WITH_FREETYPE
 	return false;
 #endif // WITH_FREETYPE

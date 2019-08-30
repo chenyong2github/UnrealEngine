@@ -184,7 +184,7 @@ public:
 	void Update(float InElapsed);
 
 	float GetVolume(bool bInDecibels = false) const;
-	float GetTargetVolume(bool bInDecibles = false) const;
+	float GetTargetVolume(bool bInDecibels = false) const;
 
 	void SetTarget(float InTargetVolume, float InLerpTime);
 };
@@ -284,7 +284,7 @@ public:
 	/** Removes the active sound from concurrency tracking when active sound is stopped. */
 	void RemoveActiveSound(FActiveSound& ActiveSound);
 
-	/** Stops sound, applying concurrency rules for how to stop */
+	/** Stops sound, applying concurrency rules for how to stop. */
 	void StopDueToVoiceStealing(FActiveSound& ActiveSound);
 
 	/** Stops any active sounds due to max concurrency quietest sound resolution rule */

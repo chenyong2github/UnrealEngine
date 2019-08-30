@@ -288,6 +288,17 @@ void UStaticMeshComponent::Serialize(FArchive& Ar)
 	}
 #endif
 
+#if WITH_EDITORONLY_DATA
+	if (Ar.IsCooking())
+	{
+		// LODData's OwningComponent can be NULL for a component created via SpawnActor off of a blueprint default (LODData will be created without a call to SetLODDataCount)
+		for (int32 LODIndex = 0; LODIndex < LODData.Num(); LODIndex++)
+		{
+			LODData[LODIndex].OwningComponent = this;
+		}
+	}
+#endif
+
 	Ar << LODData;
 
 #if WITH_EDITOR
@@ -378,9 +389,11 @@ void UStaticMeshComponent::CheckForErrors()
 {
 	Super::CheckForErrors();
 
+	const FCoreTexts& CoreTexts = FCoreTexts::Get();
+
 	// Get the mesh owner's name.
 	AActor* Owner = GetOwner();
-	FString OwnerName(*(GNone.ToString()));
+	FString OwnerName(*(CoreTexts.None.ToString()));
 	if ( Owner )
 	{
 		OwnerName = Owner->GetName();

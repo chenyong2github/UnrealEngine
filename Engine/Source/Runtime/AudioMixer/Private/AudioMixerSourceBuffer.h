@@ -88,9 +88,6 @@ namespace Audio
 		// Ensures the async task finishes
 		void EnsureAsyncTaskFinishes();
 
-		// Checks if sound wave is flagged begin destroy
-		bool IsBeginDestroy();
-
 		// Clear the sound wave reference
 		void ClearSoundWave();
 

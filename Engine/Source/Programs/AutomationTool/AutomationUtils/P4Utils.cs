@@ -3059,6 +3059,7 @@ namespace AutomationTool
 
 			string Output;
 			if(!LogP4Output(out Output, CommandLine, AllowSpew: false) || !Output.Contains("headRev"))
+
 			{
 				return false;
 			}
@@ -3206,6 +3207,25 @@ namespace AutomationTool
 				}
 			}
 			return Tags;
+		}
+
+		/// <summary>
+		/// Formats a tagged record as a string
+		/// </summary>
+		/// <param name="Record">The record to format</param>
+		/// <returns>Single string containing the record</returns>
+		public static string FormatTaggedOutput(Dictionary<string, string> Record)
+		{
+			StringBuilder Result = new StringBuilder();
+			foreach (KeyValuePair<string, string> Pair in Record)
+			{
+				if (Result.Length > 0)
+				{
+					Result.Append('\n');
+				}
+				Result.AppendFormat("{0}: {1}", Pair.Key, Pair.Value);
+			}
+			return Result.ToString();
 		}
 
 		/// <summary>

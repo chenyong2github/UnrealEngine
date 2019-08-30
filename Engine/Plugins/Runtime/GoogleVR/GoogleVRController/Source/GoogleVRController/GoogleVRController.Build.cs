@@ -8,8 +8,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public GoogleVRController(ReadOnlyTargetRules Target) : base(Target)
 		{
-			bFasterWithoutUnity = true;
-
 //			string GoogleVRSDKDir = Target.UEThirdPartySourceDirectory + "GoogleVR/";
 			PrivateIncludePaths.AddRange(
 				new string[] {

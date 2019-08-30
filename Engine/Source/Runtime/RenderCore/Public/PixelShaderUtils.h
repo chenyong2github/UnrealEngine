@@ -37,13 +37,20 @@ struct RENDERCORE_API FPixelShaderUtils
 		const TShaderMap<FGlobalShaderType>* GlobalShaderMap,
 		const TShaderClass* PixelShader,
 		const typename TShaderClass::FParameters& Parameters,
-		const FIntRect& Viewport)
+		const FIntRect& Viewport,
+		FRHIBlendState* BlendState = nullptr,
+		FRHIRasterizerState* RasterizerState = nullptr,
+		FRHIDepthStencilState* DepthStencilState = nullptr)
 	{
 		check(PixelShader);
 		RHICmdList.SetViewport(Viewport.Min.X, Viewport.Min.Y, 0.0f, Viewport.Max.X, Viewport.Max.Y, 1.0f);
 		
 		FGraphicsPipelineStateInitializer GraphicsPSOInit;
 		InitFullscreenPipelineState(RHICmdList, GlobalShaderMap, PixelShader, /* out */ GraphicsPSOInit);
+		GraphicsPSOInit.BlendState = BlendState ? BlendState : GraphicsPSOInit.BlendState;
+		GraphicsPSOInit.RasterizerState = RasterizerState ? RasterizerState : GraphicsPSOInit.RasterizerState;
+		GraphicsPSOInit.DepthStencilState = DepthStencilState ? DepthStencilState : GraphicsPSOInit.DepthStencilState;
+
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
 		SetShaderParameters(RHICmdList, PixelShader, PixelShader->GetPixelShader(), Parameters);
@@ -59,7 +66,10 @@ struct RENDERCORE_API FPixelShaderUtils
 		FRDGEventName&& PassName,
 		const TShaderClass* PixelShader,
 		typename TShaderClass::FParameters* Parameters,
-		const FIntRect& Viewport)
+		const FIntRect& Viewport,
+		FRHIBlendState* BlendState = nullptr,
+		FRHIRasterizerState* RasterizerState = nullptr,
+		FRHIDepthStencilState* DepthStencilState = nullptr)
 	{
 		check(PixelShader);
 		ClearUnusedGraphResources(PixelShader, Parameters);
@@ -68,9 +78,10 @@ struct RENDERCORE_API FPixelShaderUtils
 			Forward<FRDGEventName>(PassName),
 			Parameters,
 			ERDGPassFlags::Raster,
-			[Parameters, GlobalShaderMap, PixelShader, Viewport](FRHICommandList& RHICmdList)
+			[Parameters, GlobalShaderMap, PixelShader, Viewport, BlendState, RasterizerState, DepthStencilState](FRHICommandList& RHICmdList)
 		{
-			FPixelShaderUtils::DrawFullscreenPixelShader(RHICmdList, GlobalShaderMap, PixelShader, *Parameters, Viewport);
+			FPixelShaderUtils::DrawFullscreenPixelShader(RHICmdList, GlobalShaderMap, PixelShader, *Parameters, Viewport, 
+				BlendState, RasterizerState, DepthStencilState);
 		});
 	}
 };

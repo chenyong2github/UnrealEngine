@@ -125,9 +125,11 @@ void SMediaPlayerEditorInfo::HandleMediaPlayerMediaEvent(EMediaEvent Event)
 
 			FFormatNamedArguments Arguments;
 			{
+				const FCoreTexts& CoreTexts = FCoreTexts::Get();
+
 				Arguments.Add(TEXT("PlayerName"), FText::FromName(PlayerFacade->GetPlayerName()));
-				Arguments.Add(TEXT("SupportsScrubbing"), PlayerFacade->CanScrub() ? GYes : GNo);
-				Arguments.Add(TEXT("SupportsSeeking"), PlayerFacade->CanSeek() ? GYes : GNo);
+				Arguments.Add(TEXT("SupportsScrubbing"), PlayerFacade->CanScrub() ? CoreTexts.Yes : CoreTexts.No);
+				Arguments.Add(TEXT("SupportsSeeking"), PlayerFacade->CanSeek() ? CoreTexts.Yes : CoreTexts.No);
 				Arguments.Add(TEXT("PlayerInfo"), FText::FromString(PlayerFacade->GetInfo()));
 
 				Arguments.Add(TEXT("ThinnedRates"), ThinnedRatesText.IsEmpty()

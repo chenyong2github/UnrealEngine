@@ -8,6 +8,7 @@
 #include "Modules/ModuleManager.h"
 #include "Misc/CoreStats.h"
 #include "Misc/Compression.h"
+#include "Misc/LazySingleton.h"
 
 
 #ifndef FAST_PATH_UNIQUE_NAME_GENERATION
@@ -36,7 +37,7 @@ IMPLEMENT_MODULE( FCoreModule, Core );
 -----------------------------------------------------------------------------*/
 
 CORE_API FFeedbackContext*	GWarn						= nullptr;		/* User interaction and non critical warnings */
-FConfigCacheIni*				GConfig						= nullptr;		/* Configuration database cache */
+FConfigCacheIni*			GConfig						= nullptr;		/* Configuration database cache */
 ITransaction*				GUndo						= nullptr;		/* Transaction tracker, non-NULL when a transaction is in progress */
 FOutputDeviceConsole*		GLogConsole					= nullptr;		/* Console log hook */
 CORE_API FMalloc*			GMalloc						= nullptr;		/* Memory allocator */
@@ -50,12 +51,54 @@ TCHAR GErrorHist[16384]	= TEXT("");
 /** For building exception description text dump in guard/unguard mechanism. */
 TCHAR GErrorExceptionDescription[4096] = TEXT( "" );
 
+// We define our texts like this so that the header only needs to refer to references to FTexts,
+// as FText is only forward-declared there.
+struct FCoreTextsSingleton
+{
+	FCoreTextsSingleton()
+		: True (LOCTEXT("True",  "True"))
+		, False(LOCTEXT("False", "False"))
+		, Yes  (LOCTEXT("Yes",   "Yes"))
+		, No   (LOCTEXT("No",    "No"))
+		, None (LOCTEXT("None",  "None"))
+		, Texts{
+			True,
+			False,
+			Yes,
+			No,
+			None
+		}
+	{
+	}
 
+	FText True;
+	FText False;
+	FText Yes;
+	FText No;
+	FText None;
+
+	FCoreTexts Texts;
+};
+
+const FCoreTexts& FCoreTexts::Get()
+{
+	return TLazySingleton<FCoreTextsSingleton>::Get().Texts;
+}
+
+void FCoreTexts::TearDown()
+{
+	TLazySingleton<FCoreTextsSingleton>::TearDown();
+}
+
+#if !defined(DISABLE_LEGACY_CORE_TEXTS) || DISABLE_LEGACY_CORE_TEXTS == 0
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 CORE_API const FText GYes	= LOCTEXT("Yes",	"Yes");
 CORE_API const FText GNo	= LOCTEXT("No",		"No");
 CORE_API const FText GTrue	= LOCTEXT("True",	"True");
 CORE_API const FText GFalse	= LOCTEXT("False",	"False");
 CORE_API const FText GNone	= LOCTEXT("None",	"None");
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
 
 /** If true, this executable is able to run all games (which are loaded as DLL's) **/
 #if UE_GAME || UE_SERVER
@@ -79,9 +122,9 @@ CORE_API const FText GNone	= LOCTEXT("None",	"None");
 bool GForceLoadEditorOnly = false;
 
 /** Name of the core package					**/
-FName GLongCorePackageName(TEXT("/Script/Core"));
+FLazyName GLongCorePackageName(TEXT("/Script/Core"));
 /** Name of the core package					**/
-FName GLongCoreUObjectPackageName(TEXT("/Script/CoreUObject"));
+FLazyName GLongCoreUObjectPackageName(TEXT("/Script/CoreUObject"));
 
 /** Disable loading of objects not contained within script files; used during script compilation */
 bool GVerifyObjectReferencesOnly = false;
@@ -98,6 +141,9 @@ bool GAllowActorScriptExecutionInEditor = false;
 
 /** Forces use of template names for newly instanced components in a CDO */
 bool GCompilingBlueprint = false;
+
+/** True if we're garbage collecting after a blueprint compilation */
+bool GIsGCingAfterBlueprintCompile = false;
 
 /** True if we're reconstructing blueprint instances. Should never be true on cooked builds */
 bool GIsReconstructingBlueprintInstances = false;
@@ -281,7 +327,7 @@ bool					GCommandListOnlyDrawEvents		= false;
 /** Whether we want the rendering thread to be suspended, used e.g. for tracing.							*/
 bool					GShouldSuspendRenderingThread	= false;
 /** Determines what kind of trace should occur, NAME_None for none.											*/
-FName					GCurrentTraceName				= NAME_None;
+FLazyName				GCurrentTraceName;
 /** How to print the time in log output																		*/
 ELogTimes::Type			GPrintLogTimes					= ELogTimes::None;
 /** How to print the category in log output. */
@@ -301,6 +347,8 @@ bool					GIsDemoMode						= false;
 bool					GIsAutomationTesting					= false;
 /** Whether or not messages are being pumped outside of the main loop										*/
 bool					GPumpingMessagesOutsideOfMainLoop = false;
+/** Whether or not messages are being pumped */
+bool					GPumpingMessages = false;
 
 /** Enables various editor and HMD hacks that allow the experimental VR editor feature to work, perhaps at the expense of other systems */
 bool					GEnableVREditorHacks = false;

@@ -215,7 +215,7 @@ private:
 		ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
 		if (SettingsModule != nullptr)
 		{
-			SettingsModule->UnregisterSettings("Project", "Media", "MediaProfile");
+			SettingsModule->UnregisterSettings("Project", "Plugins", "LiveLink");
 		}
 	}
 

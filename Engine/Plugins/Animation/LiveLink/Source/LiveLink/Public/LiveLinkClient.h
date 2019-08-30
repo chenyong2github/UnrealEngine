@@ -57,6 +57,7 @@ public:
 protected:
 	virtual void AquireLock_Deprecation() = 0;
 	virtual void ReleaseLock_Deprecation() = 0;
+	virtual void ClearFrames_Deprecation(const FLiveLinkSubjectKey& SubjectKey) = 0;
 	virtual FLiveLinkSkeletonStaticData* GetSubjectAnimationStaticData_Deprecation(const FLiveLinkSubjectKey& SubjectKey) = 0;
 };
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -164,6 +165,7 @@ protected:
 	//~ Begin FLiveLinkClient_Base_DEPRECATED implementation
 	virtual void AquireLock_Deprecation() override;
 	virtual void ReleaseLock_Deprecation() override;
+	virtual void ClearFrames_Deprecation(const FLiveLinkSubjectKey& SubjectKey) override;
 	virtual FLiveLinkSkeletonStaticData* GetSubjectAnimationStaticData_Deprecation(const FLiveLinkSubjectKey& SubjectKey) override;
 	//~ End FLiveLinkClient_Base_DEPRECATED implementation
 

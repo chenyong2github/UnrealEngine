@@ -260,6 +260,26 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Session", meta = (Keywords = "ar augmentedreality augmented reality candidate image"))
 	static UARCandidateImage* AddRuntimeCandidateImage(UARSessionConfig* SessionConfig, UTexture2D* CandidateTexture, FString FriendlyName, float PhysicalWidth);
 
+	/** @return if a particular session feature is supported with the specified session type on the current platform */
+	UFUNCTION(BlueprintPure, Category = "AR AugmentedReality|Session", meta = (DisplayName="Is AR Session Tracking Feature Supported", Keywords = "ar augmentedreality augmented reality session tracking feature"))
+	static bool IsSessionTrackingFeatureSupported(EARSessionType SessionType, EARSessionTrackingFeature SessionTrackingFeature);
+	
+	/** @return all the 2D poses tracked by the AR system */
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Pose Tracking", meta = (DisplayName="Get All AR Tracked 2D Poses", Keywords = "ar augmentedreality augmented reality pose tracking"))
+	static TArray<FARPose2D> GetAllTracked2DPoses();
+	
+	/** @return all the 3D poses tracked by the AR system */
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Pose Tracking", meta = (DisplayName="Get All AR Tracked 3D Poses", Keywords = "ar augmentedreality augmented reality pose tracking"))
+	static TArray<UARTrackedPose*> GetAllTrackedPoses();
+	
+	/** @return the segmentation image if the person segmentation session feature is used */
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Person Segmentation", meta = (DisplayName="Get AR Person Segmentation Image", Keywords = "ar augmentedreality augmented reality person segmentation image"))
+	static UARTextureCameraImage* GetPersonSegmentationImage();
+
+	/** @return the segmentation depth image if the person segmentation with depth session feature is used */
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Person Segmentation", meta = (DisplayName="Get AR Person Segmentation Depth Image", Keywords = "ar augmentedreality augmented reality person segmentation depth image"))
+	static UARTextureCameraImage* GetPersonSegmentationDepthImage();
+	
 	// Static helpers to create the methods needed to add/remove delegates from the AR system
 	DEFINE_AR_BPLIB_DELEGATE_FUNCS(OnTrackableAdded)
 	DEFINE_AR_BPLIB_DELEGATE_FUNCS(OnTrackableUpdated)

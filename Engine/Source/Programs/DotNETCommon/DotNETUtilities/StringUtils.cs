@@ -75,6 +75,57 @@ namespace Tools.DotNETCommon
 		}
 
 		/// <summary>
+		/// Parses a hexadecimal digit
+		/// </summary>
+		/// <param name="Character">Character to parse</param>
+		/// <returns>Value of this digit</returns>
+		public static bool TryParseHexDigit(char Character, out int Value)
+		{
+			if(Character >= '0' && Character <= '9')
+			{
+				Value = Character - '0';
+				return true;
+			}
+			else if(Character >= 'a' && Character <= 'f')
+			{
+				Value = 10 + (Character - 'a');
+				return true;
+			}
+			else if(Character >= 'A' && Character <= 'F')
+			{
+				Value = 10 + (Character - 'A');
+				return true;
+			}
+			else
+			{
+				Value = 0;
+				return false;
+			}
+		}
+
+		/// <summary>
+		/// Parses a hexadecimal string into an array of bytes
+		/// </summary>
+		/// <param name="Text">Text to parse</param>
+		/// <returns></returns>
+		public static bool TryParseHexString(string Text, out byte[] OutBytes)
+		{
+			byte[] Bytes = new byte[Text.Length / 2];
+			for(int Idx = 0; Idx < Text.Length; Idx++)
+			{
+				int A, B;
+				if(!TryParseHexDigit(Text[Idx], out A) || !TryParseHexDigit(Text[Idx + 1], out B))
+				{
+					OutBytes = null;
+					return false;
+				}
+				Bytes[Idx / 2] = (byte)((A << 4) | B);
+			}
+			OutBytes = Bytes;
+			return true;
+		}
+
+		/// <summary>
 		/// Formats an array of bytes as a hexadecimal string
 		/// </summary>
 		/// <param name="Bytes">An array of bytes</param>

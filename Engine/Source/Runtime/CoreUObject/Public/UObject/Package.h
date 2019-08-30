@@ -151,8 +151,17 @@ private:
 	FName	FolderName;
 #endif
 
-	/** GUID of package if it was loaded from disk; used by netcode to make sure packages match between client and server */
+	/** GUID of package if it was loaded from disk; used by netcode to make sure packages match between client and server. Changes at every save. */
 	FGuid Guid;
+
+#if WITH_EDITORONLY_DATA
+	/** Persistent GUID of package if it was loaded from disk. Persistent across saves. */
+	FGuid PersistentGuid;
+
+	/** Persistent GUID of owning package, to allow private references when saving */
+	FGuid OwnerPersistentGuid;
+#endif
+
 	/** Chunk IDs for the streaming install chunks this package will be placed in.  Empty for no chunk */
 	TArray<int32> ChunkIDs;
 
@@ -453,6 +462,34 @@ public:
 	{
 		Guid = NewGuid;
 	}
+
+#if WITH_EDITORONLY_DATA
+	/** returns our persistent Guid */
+	FORCEINLINE FGuid GetPersistentGuid() const
+	{
+		return PersistentGuid;
+	}
+	/** sets a specific persistent Guid */
+	FORCEINLINE void SetPersistentGuid(FGuid NewPersistentGuid)
+	{
+		PersistentGuid = NewPersistentGuid;
+	}
+
+	/** returns our owner persistent Guid */
+	FORCEINLINE FGuid GetOwnerPersistentGuid() const
+	{
+		return OwnerPersistentGuid;
+	}
+	/** sets a specific owner persistent Guid */
+	FORCEINLINE void SetOwnerPersistentGuid(FGuid NewOwnerPersistentGuid)
+	{
+		OwnerPersistentGuid = NewOwnerPersistentGuid;
+	}
+
+	bool IsOwned() const;
+	bool IsOwnedBy(const UPackage* Package) const;
+	bool HasSameOwner(const UPackage* Package) const;
+#endif
 
 	/** returns our FileSize */
 	FORCEINLINE int64 GetFileSize()

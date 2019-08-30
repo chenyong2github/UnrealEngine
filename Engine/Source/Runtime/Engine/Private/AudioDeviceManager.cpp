@@ -3,6 +3,7 @@
 
 #include "Audio/AudioDebug.h"
 #include "AudioDevice.h"
+#include "AudioMixerDevice.h"
 #include "Sound/AudioSettings.h"
 #include "Sound/SoundWave.h"
 #include "GameFramework/GameUserSettings.h"
@@ -184,6 +185,15 @@ void FAudioDeviceManager::ToggleAudioMixer()
 
 					// Make a new audio device using the new audio device module
 					AudioDevice = AudioDeviceModule->CreateAudioDevice();
+
+					// Some AudioDeviceModules override CreteAudioMixerPlatformInterface, which means we can create a Audio::FMixerDevice.
+					if (AudioDevice == nullptr)
+					{
+						checkf(AudioDeviceModule->IsAudioMixerModule(), TEXT("Please override AudioDeviceModule->CreateAudioDevice()"))
+						AudioDevice = new Audio::FMixerDevice(AudioDeviceModule->CreateAudioMixerPlatformInterface());
+					}
+
+					check(AudioDevice);
 
 					// Set the new audio device into the slot of the old audio device in the manager
 					Devices[DeviceIndex] = AudioDevice;
@@ -405,6 +415,14 @@ bool FAudioDeviceManager::CreateAudioDevice(bool bCreateNewDevice, FCreateAudioD
 		{
 			// Create the new audio device and make sure it succeeded
 			OutResults.AudioDevice = AudioDeviceModule->CreateAudioDevice();
+
+			// Some AudioDeviceModules override CreteAudioMixerPlatformInterface, which means we can create a Audio::FMixerDevice.
+			if (OutResults.AudioDevice == nullptr)
+			{
+				checkf(AudioDeviceModule->IsAudioMixerModule(), TEXT("Please override AudioDeviceModule->CreateAudioDevice()"))
+					OutResults.AudioDevice = new Audio::FMixerDevice(AudioDeviceModule->CreateAudioMixerPlatformInterface());
+			}
+
 			if (OutResults.AudioDevice == nullptr)
 			{
 				return false;

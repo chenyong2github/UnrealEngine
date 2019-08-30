@@ -6,12 +6,13 @@ namespace UnrealBuildTool.Rules
 	{
         public TimeSynth(ReadOnlyTargetRules Target) : base(Target)
 		{
-            PublicDependencyModuleNames.AddRange(
+            PrivateDependencyModuleNames.AddRange(
 				new string[] {
                     "Core",
 					"CoreUObject",
 					"Engine",
 					"AudioMixer",
+					"SignalProcessing",
                     "UMG",
                     "Slate",
                     "SlateCore",

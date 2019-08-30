@@ -29,6 +29,7 @@ public:
 		: LiveLinkClient()
 		, LiveLinkMotionController(LiveLinkClient)
 		, HeartbeatEmitter(MakeUnique<FLiveLinkHeartbeatEmitter>())
+		, DiscoveryManager(MakeUnique<FLiveLinkMessageBusDiscoveryManager>())
 	{}
 
 	// IModuleInterface interface
@@ -37,16 +38,14 @@ public:
 	{
 		IModularFeatures::Get().RegisterModularFeature(FLiveLinkClient::ModularFeatureName, &LiveLinkClient);
 		LiveLinkMotionController.RegisterController();
-		// Create a HeartbeatManager Instance
-		FLiveLinkMessageBusDiscoveryManager::Get();
 	}
 
 	virtual void ShutdownModule() override
 	{
 		HeartbeatEmitter->Exit();
+		DiscoveryManager->Stop();
 		LiveLinkMotionController.UnregisterController();
 		IModularFeatures::Get().UnregisterModularFeature(FLiveLinkClient::ModularFeatureName, &LiveLinkClient);
-		delete FLiveLinkMessageBusDiscoveryManager::Get();
 	}
 
 	virtual bool SupportsDynamicReloading() override
@@ -59,8 +58,14 @@ public:
 		return *HeartbeatEmitter;
 	}
 
+	virtual FLiveLinkMessageBusDiscoveryManager& GetMessageBusDiscoveryManager() override
+	{
+		return *DiscoveryManager;
+	}
+
 private:
 	TUniquePtr<FLiveLinkHeartbeatEmitter> HeartbeatEmitter;
+	TUniquePtr<FLiveLinkMessageBusDiscoveryManager> DiscoveryManager;
 };
 
 IMPLEMENT_MODULE(FLiveLinkModule, LiveLink);

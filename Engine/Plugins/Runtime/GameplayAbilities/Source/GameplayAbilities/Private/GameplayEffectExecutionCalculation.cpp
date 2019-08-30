@@ -22,16 +22,27 @@ FGameplayEffectCustomExecutionParameters::FGameplayEffectCustomExecutionParamete
 
 	for (const FGameplayEffectExecutionScopedModifierInfo& CurScopedMod : InScopedMods)
 	{
-		FAggregator* ScopedAggregator = ScopedModifierAggregators.Find(CurScopedMod.CapturedAttribute);
-		if (!ScopedAggregator)
-		{
-			const FGameplayEffectAttributeCaptureSpec* CaptureSpec = InOwningSpec.CapturedRelevantAttributes.FindCaptureSpecByDefinition(CurScopedMod.CapturedAttribute, true);
+		FAggregator* ScopedAggregator = nullptr;
 
-			FAggregator SnapshotAgg;
-			if (CaptureSpec && CaptureSpec->AttemptGetAttributeAggregatorSnapshot(SnapshotAgg))
+		// Scoped mod is a traditional, attribute-backed aggregator; Try to find an existing one or fetch one from a capture spec
+		if (CurScopedMod.AggregatorType == EGameplayEffectScopedModifierAggregatorType::CapturedAttributeBacked)
+		{
+			ScopedAggregator = ScopedModifierAggregators.Find(CurScopedMod.CapturedAttribute);
+			if (!ScopedAggregator)
 			{
-				ScopedAggregator = &(ScopedModifierAggregators.Add(CurScopedMod.CapturedAttribute, SnapshotAgg));
+				const FGameplayEffectAttributeCaptureSpec* CaptureSpec = InOwningSpec.CapturedRelevantAttributes.FindCaptureSpecByDefinition(CurScopedMod.CapturedAttribute, true);
+
+				FAggregator SnapshotAgg;
+				if (CaptureSpec && CaptureSpec->AttemptGetAttributeAggregatorSnapshot(SnapshotAgg))
+				{
+					ScopedAggregator = &(ScopedModifierAggregators.Add(CurScopedMod.CapturedAttribute, SnapshotAgg));
+				}
 			}
+		}
+		// Scoped mod is acting on a "temporary variable," find/create the appropriate transient aggregator
+		else
+		{
+			ScopedAggregator = &ScopedTransientAggregators.FindOrAdd(CurScopedMod.TransientAggregatorIdentifier);
 		}
 
 		float ModEvalValue = 0.f;
@@ -247,6 +258,66 @@ bool FGameplayEffectCustomExecutionParameters::ForEachQualifiedAttributeMod(cons
 	return false;
 }
 
+bool FGameplayEffectCustomExecutionParameters::AttemptCalculateTransientAggregatorMagnitude(const FGameplayTag& InAggregatorIdentifier, const FAggregatorEvaluateParameters& InEvalParams, OUT float& OutMagnitude) const
+{
+	const FAggregator* CalcAgg = ScopedTransientAggregators.Find(InAggregatorIdentifier);
+	if (CalcAgg)
+	{
+		OutMagnitude = CalcAgg->Evaluate(InEvalParams);
+		return true;
+	}
+	
+	return false;
+}
+
+bool FGameplayEffectCustomExecutionParameters::AttemptCalculateTransientAggregatorMagnitudeWithBase(const FGameplayTag& InAggregatorIdentifier, const FAggregatorEvaluateParameters& InEvalParams, float InBaseValue, OUT float& OutMagnitude) const
+{
+	const FAggregator* CalcAgg = ScopedTransientAggregators.Find(InAggregatorIdentifier);
+	if (CalcAgg)
+	{
+		OutMagnitude = CalcAgg->EvaluateWithBase(InBaseValue, InEvalParams);
+		return true;
+	}
+
+	return false;
+}
+
+bool FGameplayEffectCustomExecutionParameters::AttemptCalculateTransientAggregatorBaseValue(const FGameplayTag& InAggregatorIdentifier, OUT float& OutBaseValue) const
+{
+	const FAggregator* CalcAgg = ScopedTransientAggregators.Find(InAggregatorIdentifier);
+	if (CalcAgg)
+	{
+		OutBaseValue = CalcAgg->GetBaseValue();
+		return true;
+	}
+
+	return false;
+}
+
+bool FGameplayEffectCustomExecutionParameters::AttemptCalculateTransientAggregatorBonusMagnitude(const FGameplayTag& InAggregatorIdentifier, const FAggregatorEvaluateParameters& InEvalParams, OUT float& OutBonusMagnitude) const
+{
+	const FAggregator* CalcAgg = ScopedTransientAggregators.Find(InAggregatorIdentifier);
+	if (CalcAgg)
+	{
+		OutBonusMagnitude = CalcAgg->EvaluateBonus(InEvalParams);
+		return true;
+	}
+
+	return false;
+}
+
+bool FGameplayEffectCustomExecutionParameters::AttemptGetCapturedAttributeAggregatorSnapshot(const FGameplayTag& InAggregatorIdentifier, OUT FAggregator& OutSnapshottedAggregator) const
+{
+	const FAggregator* CalcAgg = ScopedTransientAggregators.Find(InAggregatorIdentifier);
+	if (CalcAgg)
+	{
+		OutSnapshottedAggregator.TakeSnapshotOf(*CalcAgg);
+		return true;
+	}
+
+	return false;
+}
+
 FGameplayEffectCustomExecutionOutput::FGameplayEffectCustomExecutionOutput()
 	: bTriggerConditionalGameplayEffects(false)
 	, bHandledStackCountManually(false)
@@ -318,6 +389,11 @@ void UGameplayEffectExecutionCalculation::GetValidScopedModifierAttributeCapture
 			OutScopableModifiers.Add(CurDef);
 		}
 	}
+}
+
+const FGameplayTagContainer& UGameplayEffectExecutionCalculation::GetValidTransientAggregatorIdentifiers() const
+{
+	return ValidTransientAggregatorIdentifiers;
 }
 
 bool UGameplayEffectExecutionCalculation::DoesRequirePassedInTags() const

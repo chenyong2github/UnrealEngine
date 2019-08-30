@@ -92,7 +92,7 @@ public class Launch : ModuleRules
 			else if (Target.Platform == UnrealTargetPlatform.Mac)
 			{
 				DynamicallyLoadedModuleNames.AddRange(new string[] {
-					"AudioMixerAudioUnit",
+					"AudioMixerCoreAudio",
 					"CoreAudio",
 				});
 			}
@@ -283,7 +283,7 @@ public class Launch : ModuleRules
 		// @todo ps4 clang bug: this works around a PS4/clang compiler bug (optimizations)
 		if (Target.Platform == UnrealTargetPlatform.PS4)
 		{
-			bFasterWithoutUnity = true;
+			bUseUnity = true;
 		}
 
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))

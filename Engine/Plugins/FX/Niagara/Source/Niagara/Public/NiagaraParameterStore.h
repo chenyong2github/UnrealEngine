@@ -400,6 +400,16 @@ public:
 		OnParameterChange();
 	}
 
+	template<typename T>
+	FORCEINLINE_DEBUGGABLE void SetParameterDataTyped(const uint8* Data, int32 Offset)
+	{
+		checkSlow(Data != nullptr);
+		checkSlow((Offset + sizeof(T)) <= ParameterData.Num());
+		uint8* Dest = GetParameterData_Internal(Offset);
+		*((T*)Dest) = *((T*)Data);
+		OnParameterChange();
+	}
+
 	FORCEINLINE_DEBUGGABLE bool SetParameterData(const uint8* Data, const FNiagaraVariable& Param, bool bAdd = false)
 	{
 		checkSlow(Data != nullptr);
@@ -816,8 +826,8 @@ struct FNiagaraParameterDirectBinding
 
 	FORCEINLINE void SetValue(const T& InValue)
 	{
-		check(BoundVariable.GetSizeInBytes() == sizeof(T));
-		checkf(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
+		checkSlow(BoundVariable.GetSizeInBytes() == sizeof(T));
+		checkfSlow(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
 
 		if (ValuePtr)
 		{
@@ -827,8 +837,8 @@ struct FNiagaraParameterDirectBinding
 
 	FORCEINLINE T GetValue()const 
 	{
-		check(BoundVariable.GetSizeInBytes() == sizeof(T));
-		checkf(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
+		checkSlow(BoundVariable.GetSizeInBytes() == sizeof(T));
+		checkfSlow(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
 
 		if (ValuePtr)
 		{
@@ -861,8 +871,8 @@ struct FNiagaraParameterDirectBinding<FMatrix>
 
 	FORCEINLINE void SetValue(const FMatrix& InValue)
 	{
-		check(BoundVariable.GetSizeInBytes() == sizeof(FMatrix));
-		checkf(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
+		checkSlow(BoundVariable.GetSizeInBytes() == sizeof(FMatrix));
+		checkfSlow(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
 
 		if (ValuePtr)
 		{
@@ -872,8 +882,8 @@ struct FNiagaraParameterDirectBinding<FMatrix>
 
 	FORCEINLINE FMatrix GetValue()const
 	{
-		check(BoundVariable.GetSizeInBytes() == sizeof(FMatrix));
-		checkf(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
+		checkSlow(BoundVariable.GetSizeInBytes() == sizeof(FMatrix));
+		checkfSlow(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
 
 		FMatrix Ret;
 		if (ValuePtr)
@@ -907,8 +917,8 @@ struct FNiagaraParameterDirectBinding<FVector4>
 
 	FORCEINLINE void SetValue(const FVector4& InValue)
 	{
-		check(BoundVariable.GetSizeInBytes() == sizeof(FVector4));
-		checkf(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
+		checkSlow(BoundVariable.GetSizeInBytes() == sizeof(FVector4));
+		checkfSlow(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
 
 		if (ValuePtr)
 		{
@@ -919,7 +929,7 @@ struct FNiagaraParameterDirectBinding<FVector4>
 	FORCEINLINE FVector4 GetValue()const
 	{
 		check(BoundVariable.GetSizeInBytes() == sizeof(FVector4));
-		checkf(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
+		checkfSlow(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
 
 		FVector4 Ret;
 		if (ValuePtr)
@@ -953,8 +963,8 @@ struct FNiagaraParameterDirectBinding<FQuat>
 
 	FORCEINLINE void SetValue(const FQuat& InValue)
 	{
-		check(BoundVariable.GetSizeInBytes() == sizeof(FQuat));
-		checkf(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
+		checkSlow(BoundVariable.GetSizeInBytes() == sizeof(FQuat));
+		checkfSlow(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
 
 		if (ValuePtr)
 		{
@@ -964,8 +974,8 @@ struct FNiagaraParameterDirectBinding<FQuat>
 
 	FORCEINLINE FQuat GetValue()const
 	{
-		check(BoundVariable.GetSizeInBytes() == sizeof(FQuat));
-		checkf(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
+		checkSlow(BoundVariable.GetSizeInBytes() == sizeof(FQuat));
+		checkfSlow(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
 
 		FQuat Ret;
 		if (ValuePtr)
@@ -1000,9 +1010,9 @@ struct FNiagaraParameterDirectBinding<FNiagaraBool>
 
 	FORCEINLINE void SetValue(const FNiagaraBool& InValue)
 	{
-		check(BoundVariable.GetSizeInBytes() == sizeof(FNiagaraBool));
-		check(sizeof(uint32) == sizeof(FNiagaraBool));
-		checkf(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
+		checkSlow(BoundVariable.GetSizeInBytes() == sizeof(FNiagaraBool));
+		checkSlow(sizeof(uint32) == sizeof(FNiagaraBool));
+		checkfSlow(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
 
 		if (ValuePtr)
 		{
@@ -1012,8 +1022,8 @@ struct FNiagaraParameterDirectBinding<FNiagaraBool>
 
 	FORCEINLINE void SetValue(const bool& InValue)
 	{
-		check(BoundVariable.GetSizeInBytes() == sizeof(FNiagaraBool));
-		checkf(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
+		checkSlow(BoundVariable.GetSizeInBytes() == sizeof(FNiagaraBool));
+		checkfSlow(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
 
 		if (ValuePtr)
 		{
@@ -1030,8 +1040,8 @@ struct FNiagaraParameterDirectBinding<FNiagaraBool>
 
 	FORCEINLINE FNiagaraBool GetValue()const
 	{
-		check(BoundVariable.GetSizeInBytes() == sizeof(FNiagaraBool));
-		checkf(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
+		checkSlow(BoundVariable.GetSizeInBytes() == sizeof(FNiagaraBool));
+		checkfSlow(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
 
 		FNiagaraBool Ret(false);
 		if (ValuePtr)
@@ -1081,8 +1091,8 @@ struct FNiagaraParameterDirectBinding<UObject*>
 	{
 		if (UObjectOffset != INDEX_NONE)
 		{
-			check(BoundVariable.GetType() == FNiagaraTypeDefinition::GetUObjectDef());
-			checkf(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
+			checkSlow(BoundVariable.GetType() == FNiagaraTypeDefinition::GetUObjectDef());
+			checkfSlow(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
 
 			BoundStore->SetUObject(InValue, UObjectOffset);
 		}
@@ -1092,8 +1102,8 @@ struct FNiagaraParameterDirectBinding<UObject*>
 	{
 		if (UObjectOffset != INDEX_NONE)
 		{
-			check(BoundVariable.GetType() == FNiagaraTypeDefinition::GetUObjectDef());
-			checkf(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
+			checkSlow(BoundVariable.GetType() == FNiagaraTypeDefinition::GetUObjectDef());
+			checkfSlow(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
 
 			return BoundStore->GetUObject(UObjectOffset);
 		}

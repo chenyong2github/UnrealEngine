@@ -2,6 +2,7 @@
 
 using UnrealBuildTool;
 using System.IO;
+using System;
 
 public class WebRTC : ModuleRules
 {
@@ -29,9 +30,8 @@ public class WebRTC : ModuleRules
 
 		if (bShouldUseWebRTC)
 		{
-			string Windows_WebRtcSdkPath = Target.UEThirdPartySourceDirectory + "WebRTC/rev.24472"; // Revision 24472 is Release 70
+			string WebRtcSdkPath = Target.UEThirdPartySourceDirectory + "WebRTC/rev.24472"; // Revision 24472 is Release 70
 			string VS2013Friendly_WebRtcSdkPath = Target.UEThirdPartySourceDirectory + "WebRTC/VS2013_friendly";
-			string LinuxTrunk_WebRtcSdkPath = Target.UEThirdPartySourceDirectory + "WebRTC/sdk_trunk_linux";
 
 			string PlatformSubdir = Target.Platform.ToString();
 			string ConfigPath = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT) ? "Debug" :"Release";
@@ -42,12 +42,12 @@ public class WebRTC : ModuleRules
 
 				string VisualStudioVersionFolder = "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
 
-				string IncludePath = Path.Combine(Windows_WebRtcSdkPath, "Include", PlatformSubdir, VisualStudioVersionFolder);
+				string IncludePath = Path.Combine(WebRtcSdkPath, "Include", PlatformSubdir, VisualStudioVersionFolder);
 				PublicSystemIncludePaths.Add(IncludePath);
-				string AbslthirdPartyIncludePath = Path.Combine(Windows_WebRtcSdkPath, "Include", PlatformSubdir, VisualStudioVersionFolder, "third_party", "abseil-cpp");
+				string AbslthirdPartyIncludePath = Path.Combine(WebRtcSdkPath, "Include", PlatformSubdir, VisualStudioVersionFolder, "third_party", "abseil-cpp");
 				PublicSystemIncludePaths.Add(AbslthirdPartyIncludePath);
 
-				string LibraryPath = Path.Combine(Windows_WebRtcSdkPath, "Lib", PlatformSubdir, VisualStudioVersionFolder, ConfigPath);
+				string LibraryPath = Path.Combine(WebRtcSdkPath, "Lib", PlatformSubdir, VisualStudioVersionFolder, ConfigPath);
 
 				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "protobuf_full.lib"));
 				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "protobuf_lite.lib"));
@@ -56,7 +56,7 @@ public class WebRTC : ModuleRules
 				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "webrtc.lib"));
 
 				// Additional System library
-				PublicAdditionalLibraries.Add("Secur32.lib");
+				PublicSystemLibraries.Add("Secur32.lib");
 
 				// The version of webrtc we depend on, depends on an openssl that depends on zlib
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "zlib");
@@ -66,33 +66,37 @@ public class WebRTC : ModuleRules
 				PublicDefinitions.Add("WEBRTC_MAC=1");
 				PublicDefinitions.Add("WEBRTC_POSIX=1");
 
-				string IncludePath = Path.Combine(VS2013Friendly_WebRtcSdkPath, "include", PlatformSubdir);
+				string IncludePath = Path.Combine(WebRtcSdkPath, "Include", PlatformSubdir);
 				PublicSystemIncludePaths.Add(IncludePath);
+				string AbslthirdPartyIncludePath = Path.Combine(WebRtcSdkPath, "Include", PlatformSubdir, "third_party", "abseil-cpp");
+				PublicSystemIncludePaths.Add(AbslthirdPartyIncludePath);
 
-				string LibraryPath = Path.Combine(VS2013Friendly_WebRtcSdkPath, "lib", PlatformSubdir, ConfigPath);
+				string LibraryPath = Path.Combine(WebRtcSdkPath, "Lib", PlatformSubdir, ConfigPath);
 
-				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "librtc_base.a"));
-				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "librtc_base_approved.a"));
-				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "librtc_xmllite.a"));
-				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "librtc_xmpp.a"));
-				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "libexpat.a"));
+				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "libprotobuf_full.a"));
+				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "libprotobuf_lite.a"));
+				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "libprotoc_lib.a"));
+				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "libsystem_wrappers.a"));
+				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "libwebrtc.a"));
 			}
 			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 			{
 				PublicDefinitions.Add("WEBRTC_LINUX=1");
 				PublicDefinitions.Add("WEBRTC_POSIX=1");
 
-				string IncludePath = Path.Combine(LinuxTrunk_WebRtcSdkPath, "include");
+				string IncludePath = Path.Combine(WebRtcSdkPath, "Include/Linux");
 				PublicSystemIncludePaths.Add(IncludePath);
+				string AbslthirdPartyIncludePath = Path.Combine(WebRtcSdkPath, "Include", PlatformSubdir, "third_party", "abseil-cpp");
+				PublicSystemIncludePaths.Add(AbslthirdPartyIncludePath);
 
 				// This is slightly different than the other platforms
-				string LibraryPath = Path.Combine(LinuxTrunk_WebRtcSdkPath, "lib", Target.Architecture, ConfigPath);
+				string LibraryPath = Path.Combine(WebRtcSdkPath, "Lib/Linux", Target.Architecture, ConfigPath);
 
-				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "librtc_base.a"));
-				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "librtc_base_approved.a"));
-				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "librtc_xmllite.a"));
-				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "librtc_xmpp.a"));
-				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "libexpat.a"));
+				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "libprotobuf_full.a"));
+				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "libprotobuf_lite.a"));
+				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "libprotoc_lib.a"));
+				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "libsystem_wrappers.a"));
+				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "libwebrtc.a"));
 			}
 			else if (Target.Platform == UnrealTargetPlatform.PS4)
 			{

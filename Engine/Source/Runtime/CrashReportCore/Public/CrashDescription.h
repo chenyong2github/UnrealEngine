@@ -388,6 +388,16 @@ struct FPrimaryCrashProperties
 	 */
 	FCrashProperty CPUBrand;
 
+	/**
+	 * Whether it was an OOM or not
+	 */
+	bool bIsOOM;
+	
+	/**
+	 * Whether we got a low memory warning or not
+	 */
+	bool bLowMemoryWarning;
+	
 protected:
 	/** Default constructor. */
 	FPrimaryCrashProperties();

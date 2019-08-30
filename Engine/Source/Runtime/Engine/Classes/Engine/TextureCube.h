@@ -62,6 +62,15 @@ public:
 		return PF_Unknown;
 	}
 
+	/**
+	 * Get mip data starting with the specified mip index.
+	 * @param FirstMipToLoad - The first mip index to cache.
+	 * @param OutMipData -	Must point to an array of pointers with at least
+	 *						Mips.Num() - FirstMipToLoad + 1 entries. Upon
+	 *						return those pointers will contain mip data.
+	 */
+	ENGINE_API void GetMipData(int32 FirstMipToLoad, void** OutMipData);
+	
 	//~ Begin UTexture Interface
 	virtual float GetSurfaceWidth() const override { return GetSizeX(); }
 	virtual float GetSurfaceHeight() const override { return GetSizeY(); }

@@ -86,7 +86,7 @@ struct TReplicationBuffer
 		const int32 Offset = (Position % Data.Num());
 		return &Data[Offset];
 	}
-
+	
 	const T* FindElementByKeyframe(int32 Key) const
 	{
 		return FindElementByKeyframeImpl(Key);
@@ -168,7 +168,8 @@ struct TReplicationBuffer
 	int32 GetDirtyCount() const { return DirtyCount; }
 
 	// Create an iterator from tail->head. Note that no matter what template class is, this WILL iterate correctly across the element. The templated type
-	// is just for casting the return element type. E.g, it is fine to use <uint8> in generic code, this will still step by 'StructSize'.
+	// is just for casting the return element type. E.g, it is fine to use <uint8> in generic code, this will always step by 'StructSize'.
+	// FIXME: this is slow using FindElementByKeyframe. In general this entire class needs to be optimized
 	struct TGenericIterator
 	{
 		TGenericIterator(TReplicationBuffer<T>& InBuffer) : Buffer(InBuffer)

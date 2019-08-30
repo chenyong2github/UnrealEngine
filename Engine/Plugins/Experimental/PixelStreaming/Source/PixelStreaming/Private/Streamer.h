@@ -27,6 +27,8 @@ public:
 	FStreamer(const TCHAR* IP, uint16 Port, const FTexture2DRHIRef& FrameBuffer);
 	virtual ~FStreamer();
 
+	static bool CheckPlatformCompatibility();
+
 	void OnFrameBufferReady(const FTexture2DRHIRef& FrameBuffer);
 	void OnPreResizeWindowBackbuffer();
 	void OnAudioPCMPacketReady(const uint8* Data, int Size);

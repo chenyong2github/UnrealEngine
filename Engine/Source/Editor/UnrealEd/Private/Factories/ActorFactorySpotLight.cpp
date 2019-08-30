@@ -7,6 +7,7 @@
 #include "ActorFactories/ActorFactorySpotLight.h"
 #include "GameFramework/Actor.h"
 #include "Components/SpotLightComponent.h"
+#include "Components/RectLightComponent.h"
 
 void UActorFactorySpotLight::PostSpawnActor(UObject* Asset, AActor* NewActor)
 {

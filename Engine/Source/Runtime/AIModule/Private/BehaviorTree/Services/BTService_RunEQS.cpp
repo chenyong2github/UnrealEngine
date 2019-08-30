@@ -43,7 +43,7 @@ void UBTService_RunEQS::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeM
 	if (QueryOwner && EQSRequest.IsValid())
 	{
 		const UBlackboardComponent* BlackboardComponent = OwnerComp.GetBlackboardComponent();
-		FBTEQSServiceMemory* MyMemory = reinterpret_cast<FBTEQSServiceMemory*>(NodeMemory);
+		FBTEQSServiceMemory* MyMemory = CastInstanceNodeMemory<FBTEQSServiceMemory>(NodeMemory);
 
 		// Trigger new query only if the previous one has already finished
 		if (MyMemory->RequestID == INDEX_NONE)
@@ -81,7 +81,7 @@ void UBTService_RunEQS::OnQueryFinished(TSharedPtr<FEnvQueryResult> Result)
 		return;
 	}
 
-	FBTEQSServiceMemory* MyMemory = reinterpret_cast<FBTEQSServiceMemory*>(BTComp->GetNodeMemory(this, BTComp->FindInstanceContainingNode(this)));
+	FBTEQSServiceMemory* MyMemory = CastInstanceNodeMemory<FBTEQSServiceMemory>(BTComp->GetNodeMemory(this, BTComp->FindInstanceContainingNode(this)));
 	check(MyMemory);
 	ensure(MyMemory->RequestID != INDEX_NONE);
 
@@ -105,7 +105,7 @@ void UBTService_RunEQS::OnQueryFinished(TSharedPtr<FEnvQueryResult> Result)
 
 void UBTService_RunEQS::OnCeaseRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
-	FBTEQSServiceMemory* MyMemory = reinterpret_cast<FBTEQSServiceMemory*>(NodeMemory);
+	FBTEQSServiceMemory* MyMemory = CastInstanceNodeMemory<FBTEQSServiceMemory>(NodeMemory);
 	check(MyMemory);
 
 	if (MyMemory->RequestID != INDEX_NONE)
@@ -127,7 +127,7 @@ void UBTService_RunEQS::OnCeaseRelevant(UBehaviorTreeComponent& OwnerComp, uint8
 
 void UBTService_RunEQS::InitializeMemory(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTMemoryInit::Type InitType) const
 {
-	FBTEQSServiceMemory* MyMemory = reinterpret_cast<FBTEQSServiceMemory*>(NodeMemory);
+	FBTEQSServiceMemory* MyMemory = CastInstanceNodeMemory<FBTEQSServiceMemory>(NodeMemory);
 	check(MyMemory);
 	MyMemory->RequestID = INDEX_NONE;
 }
@@ -136,7 +136,7 @@ void UBTService_RunEQS::InitializeMemory(UBehaviorTreeComponent& OwnerComp, uint
 
 void UBTService_RunEQS::CleanupMemory(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTMemoryClear::Type CleanupType) const
 {
-	const FBTEQSServiceMemory* MyMemory = reinterpret_cast<FBTEQSServiceMemory*>(NodeMemory);
+	const FBTEQSServiceMemory* MyMemory = CastInstanceNodeMemory<FBTEQSServiceMemory>(NodeMemory);
 	check(MyMemory);
 	ensure(MyMemory->RequestID == INDEX_NONE);
 }

@@ -15,8 +15,7 @@ public class SnappyLib : ModuleRules
 			PublicSystemIncludePaths.Add(IncPath);
 
 			string LibPath = Path.Combine(ModuleDirectory, "lib");
-			PublicLibraryPaths.Add(LibPath);
-			PublicAdditionalLibraries.Add("snappy.lib");
+			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "snappy.lib"));
 		}
 	}
 }

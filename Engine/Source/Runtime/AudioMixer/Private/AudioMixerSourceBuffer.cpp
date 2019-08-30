@@ -3,6 +3,7 @@
 #include "AudioMixerSourceBuffer.h"
 #include "AudioMixerSourceDecode.h"
 #include "ContentStreaming.h"
+#include "AudioDecompress.h"
 
 namespace Audio
 {
@@ -486,12 +487,6 @@ namespace Audio
 			delete AsyncRealtimeAudioTask;
 			AsyncRealtimeAudioTask = nullptr;
 		}
-	}
-
-	bool FMixerSourceBuffer::IsBeginDestroy()
-	{
-		check(SoundWave);
-		return SoundWave->bIsBeginDestroy;
 	}
 
 	void FMixerSourceBuffer::ClearSoundWave()

@@ -44,9 +44,15 @@
 		{
 			"Name" : "MagicLeapAudio",
 			"Type" : "Runtime",
-			"WhitelistPlatforms" :
-			[
+			"WhitelistPlatforms": [
 				"Win64",
+				"Lumin"
+			]
+		},
+		{
+			"Name": "MagicLeapAudioCapture",
+			"Type": "Runtime",
+			"WhitelistPlatforms": [
 				"Lumin"
 			]
 		},

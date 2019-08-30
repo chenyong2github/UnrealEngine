@@ -1,9 +1,20 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AudioPluginUtilities.h"
+
+#include "CoreGlobals.h"
+#include "CoreMinimal.h"
 #include "Features/IModularFeatures.h"
 #include "Misc/ConfigCacheIni.h"
-#include "CoreGlobals.h"
+
+
+static FString DefaultModulationPluginCVar = TEXT("");
+FAutoConsoleVariableRef CVarActiveModulationPlugin(
+	TEXT("au.DefaultModulationPlugin"),
+	DefaultModulationPluginCVar,
+	TEXT("Name of default modulation plugin to load and use (overridden "
+	"by platform-specific implementation name in config.\n"),
+	ECVF_Default);
 
 
 /************************************************************************/
@@ -179,18 +190,17 @@ IAudioOcclusionFactory* AudioPluginUtilities::GetDesiredOcclusionPlugin(EAudioPl
 
 IAudioModulationFactory* AudioPluginUtilities::GetDesiredModulationPlugin(EAudioPlatform AudioPlatform)
 {
-	//Get the name of the desired spatialization plugin:
-	FString DesiredModulationPlugin = GetDesiredPluginName(EAudioPlugin::MODULATION, AudioPlatform);
+	const FName& PlatformPluginName = FName(*GetDesiredPluginName(EAudioPlugin::MODULATION, AudioPlatform));
+	const FName& PluginName = PlatformPluginName == NAME_None ? GetDefaultModulationPluginName() : PlatformPluginName;
+	const FName& FeatureName = IAudioModulationFactory::GetModularFeatureName();
 
-	TArray<IAudioModulationFactory *> ModulationPluginFactories = IModularFeatures::Get().GetModularFeatureImplementations<IAudioModulationFactory>(IAudioModulationFactory::GetModularFeatureName());
-
-	//Iterate through all of the plugins we've discovered:
-	for (IAudioModulationFactory* PluginFactory : ModulationPluginFactories)
+	TArray<IAudioModulationFactory*> Factories = IModularFeatures::Get().GetModularFeatureImplementations<IAudioModulationFactory>(FeatureName);
+	for (IAudioModulationFactory* Factory : Factories)
 	{
 		//if this plugin's name matches the name found in the platform settings, use it:
-		if (PluginFactory->GetDisplayName().Equals(DesiredModulationPlugin))
+		if (Factory->GetDisplayName() == PluginName)
 		{
-			return PluginFactory;
+			return Factory;
 		}
 	}
 
@@ -202,4 +212,16 @@ FString AudioPluginUtilities::GetDesiredPluginName(EAudioPlugin PluginType, EAud
 	FString PluginName;
 	GConfig->GetString(GetPlatformConfigSection(AudioPlatform), GetPluginConfigName(PluginType), PluginName, GEngineIni);
 	return PluginName;
+}
+
+const FName& AudioPluginUtilities::GetDefaultModulationPluginName()
+{
+	static FName DefaultModulationPluginName(TEXT("DefaultModulationPlugin"));
+
+	if (!DefaultModulationPluginCVar.IsEmpty())
+	{
+		DefaultModulationPluginName = FName(*DefaultModulationPluginCVar);
+	}
+
+	return DefaultModulationPluginName;
 }

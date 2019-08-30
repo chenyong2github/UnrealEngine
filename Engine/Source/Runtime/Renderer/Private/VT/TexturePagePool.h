@@ -48,7 +48,7 @@ public:
 	 * Unmap/remove any pages that were allocated by the given producer and are inside the TextureRegion.
 	 * Outputs the locked pages that can't be unmapped to the OutLocked array.
 	 */
-	void EvictPages(FVirtualTextureSystem* System, FVirtualTextureProducerHandle const& ProducerHandle, FVTProducerDescription const& Desc, FIntRect const& TextureRegion, TArray<union FVirtualTextureLocalTile>& OutLocked);
+	void EvictPages(FVirtualTextureSystem* System, FVirtualTextureProducerHandle const& ProducerHandle, FVTProducerDescription const& Desc, FIntRect const& TextureRegion, uint32 MaxLevel, TArray<union FVirtualTextureLocalTile>& OutLocked);
 
 	/**
 	* Unmap all pages from the given space...pages will remain resident in the pool, but no longer by mapped to any page table
@@ -161,7 +161,7 @@ private:
 	static uint16 GetPageHash(const FPageEntry& Entry);
 
 	void UnmapPageMapping(FVirtualTextureSystem* System, uint32 MappingIndex, bool bMapAncestorPage);
-	void UnmapAllPages(FVirtualTextureSystem* System, uint16 pAddress);
+	void UnmapAllPages(FVirtualTextureSystem* System, uint16 pAddress, bool bMapAncestorPages);
 
 	void RemoveMappingFromList(uint32 Index)
 	{

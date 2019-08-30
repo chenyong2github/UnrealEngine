@@ -5,17 +5,18 @@
 #include "CoreMinimal.h"
 #include "Widgets/SWidget.h"
 #include "IPropertyTypeCustomization.h"
-#include "GameplayEffectTypes.h"
 #include "PropertyHandle.h"
 #include "IDetailChildrenBuilder.h"
 
 class FDetailWidgetRow;
-class SCaptureDefWidget;
+class SScopedModBackingDataWidget;
+struct FAggregatorDetailsBackingData;
 
 /** Details customization for FGameplayEffectExecutionScopedModifierInfo */
 class FGameplayEffectExecutionScopedModifierInfoDetails : public IPropertyTypeCustomization
 {
 public:
+	
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
 
 	/** Overridden to provide the property name */
@@ -27,23 +28,23 @@ public:
 private:
 
 	/** Delegate called when combo box selection is changed */
-	void OnCaptureDefComboBoxSelectionChanged(TSharedPtr<FGameplayEffectAttributeCaptureDefinition> InSelectedItem, ESelectInfo::Type InSelectInfo);
+	void OnBackingDataComboBoxSelectionChanged(TSharedPtr<FAggregatorDetailsBackingData> InSelectedItem, ESelectInfo::Type InSelectInfo);
 	
 	/* Called to generate the widgets for custom combo box entries */
-	TSharedRef<SWidget> OnGenerateCaptureDefComboWidget(TSharedPtr<FGameplayEffectAttributeCaptureDefinition> InItem);
+	TSharedRef<SWidget> OnGenerateBackingDataComboWidget(TSharedPtr<FAggregatorDetailsBackingData> InItem);
 	
-	/** Get the current capture definition as specified by the backing property, if possible; Otherwise falls back to first available definition from execution class */
-	TSharedPtr<FGameplayEffectAttributeCaptureDefinition> GetCurrentCaptureDef() const;
+	/** Get the current aggregator backing data, if possible; Otherwise falls back to first available definition from execution class */
+	TSharedPtr<FAggregatorDetailsBackingData> GetCurrentBackingData() const;
 
 	/** Set the current capture definition */
-	void SetCurrentCaptureDef(TSharedPtr<FGameplayEffectAttributeCaptureDefinition> InDef);
+	void SetCurrentBackingData(TSharedPtr<FAggregatorDetailsBackingData> InBackingData);
 
-	/** Cached property handle for the capture definition property */
-	TSharedPtr<IPropertyHandle> CaptureDefPropertyHandle;
+	/** Cached property handle for the overall scoped modifier info struct */
+	TSharedPtr<IPropertyHandle> ScopedModifierStructPropertyHandle;
 
-	/** Primary capture definition widget shown for the custom combo box */
-	TSharedPtr<SCaptureDefWidget> PrimaryCaptureDefWidget;
+	/** Primary backing data widget shown for the custom combo box */
+	TSharedPtr<SScopedModBackingDataWidget> PrimaryBackingDataWidget;
 
-	/** Backing source for the custom combo box; Populated by all valid definitions from the execution class */
-	TArray< TSharedPtr<FGameplayEffectAttributeCaptureDefinition> > AvailableCaptureDefs;
+	/** Backing source for the custom combo box; Populated by all valid backing data from the execution class */
+	TArray< TSharedPtr<FAggregatorDetailsBackingData> > AvailableBackingData;
 };

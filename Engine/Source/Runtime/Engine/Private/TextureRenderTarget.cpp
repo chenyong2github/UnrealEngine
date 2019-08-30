@@ -128,6 +128,7 @@ void FDeferredUpdateResource::UpdateResources(FRHICommandListImmediate& RHICmdLi
 
 			if( RTResource )
 			{
+				CSV_SCOPED_TIMING_STAT_EXCLUSIVE(FlushDeferredResourceUpdate);
 				RTResource->FlushDeferredResourceUpdate(RHICmdList);
 			}
 		}

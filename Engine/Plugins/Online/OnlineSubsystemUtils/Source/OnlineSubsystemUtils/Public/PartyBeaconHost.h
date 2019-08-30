@@ -73,10 +73,11 @@ class ONLINESUBSYSTEMUTILS_API APartyBeaconHost : public AOnlineBeaconHostObject
 	 * @param InMaxReservation max number of reservations allowed
 	 * @param InSessionName name of session related to the beacon
 	 * @param InForceTeamNum team to force players on if applicable (usually only 1 team games)
+	 * @param bInEnableRemovalRequests allow clients to remove players from beacon.
 	 *
 	 * @return true if successful created, false otherwise
 	 */
-	virtual bool InitHostBeacon(int32 InTeamCount, int32 InTeamSize, int32 InMaxReservations, FName InSessionName, int32 InForceTeamNum = 0);
+	virtual bool InitHostBeacon(int32 InTeamCount, int32 InTeamSize, int32 InMaxReservations, FName InSessionName, int32 InForceTeamNum = 0, bool bInEnableRemovalRequests = true);
 
 	/**
 	 * Initialize the party host beacon from a previous state/configuration

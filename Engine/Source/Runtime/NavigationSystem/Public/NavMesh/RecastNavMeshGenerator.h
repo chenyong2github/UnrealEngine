@@ -631,6 +631,8 @@ protected:
 
 	uint32 bRestrictBuildingToActiveTiles:1;
 
+	uint32 bSortTilesWithSeedLocations:1;
+
 	/** Runtime generator's version, increased every time all tile generators get invalidated
 	 *	like when navmesh size changes */
 	uint32 Version;

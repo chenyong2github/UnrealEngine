@@ -107,6 +107,7 @@ protected:
 	bool OnStereoStartup();
 	bool OnStereoTeardown();
 	bool ReadNextEvent(XrEventDataBuffer* buffer);
+	void CloseSession();
 
 public:
 	/** IHeadMountedDisplay interface */

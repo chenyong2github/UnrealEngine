@@ -1,16 +1,16 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 
 /** Module for virtual texturing editor extensions. */
-class FVirtualTexturingEditorModule	: public IModuleInterface
+class IVirtualTexturingEditorModule : public IModuleInterface
 {
 public:
-	virtual void StartupModule() override;
-	virtual void ShutdownModule() override;
-	virtual bool SupportsDynamicReloading() override;
-
-private:
-	void OnPlacementModeRefresh(FName CategoryName);
+	/** Returns true if the component describes a runtime virtual texture that has streaming low mips. */
+	virtual bool HasStreamedMips(class URuntimeVirtualTextureComponent* InComponent) const = 0;
+	/** Build the low mips and store in the component's associated URuntimeVirtualTexture object. */
+	virtual bool BuildStreamedMips(class URuntimeVirtualTextureComponent* InComponent) const = 0;
 };

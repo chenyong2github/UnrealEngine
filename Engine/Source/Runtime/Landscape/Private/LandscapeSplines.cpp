@@ -1694,6 +1694,8 @@ void ULandscapeSplineControlPoint::UpdateSplinePoints(bool bUpdateCollision, boo
 	{
 		MeshComponent = nullptr;
 		ForeignWorld = nullptr;
+
+		AutoSetConnections(false);
 	}
 
 	// Destroy any unused components
@@ -2759,21 +2761,6 @@ void ULandscapeSplineSegment::FindNearest( const FVector& InLocation, float& t, 
 	t = SplineInfo.InaccurateFindNearest(InLocation, TempOutDistanceSq);
 	OutLocation = SplineInfo.Eval(t, FVector::ZeroVector);
 	OutTangent = SplineInfo.EvalDerivative(t, FVector::ZeroVector);
-}
-
-bool ULandscapeSplineSegment::Modify(bool bAlwaysMarkDirty /*= true*/)
-{
-	bool bSavedToTransactionBuffer = Super::Modify(bAlwaysMarkDirty);
-
-	//for (auto MeshComponent : MeshComponents)
-	//{
-	//	if (MeshComponent)
-	//	{
-	//		bSavedToTransactionBuffer = MeshComponent->Modify(bAlwaysMarkDirty) || bSavedToTransactionBuffer;
-	//	}
-	//}
-
-	return bSavedToTransactionBuffer;
 }
 
 #if WITH_EDITOR

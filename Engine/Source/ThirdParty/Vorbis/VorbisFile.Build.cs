@@ -12,22 +12,19 @@ public class VorbisFile : ModuleRules
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			string VorbisLibPath = VorbisPath + "Lib/win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
-			PublicLibraryPaths.Add(VorbisLibPath);
-			PublicAdditionalLibraries.Add("libvorbisfile_64.lib");
+			PublicAdditionalLibraries.Add(VorbisLibPath + "libvorbisfile_64.lib");
 			PublicDelayLoadDLLs.Add("libvorbisfile_64.dll");
 			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Vorbis/Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/libvorbisfile_64.dll");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win32 )
 		{
 			string VorbisLibPath = VorbisPath + "Lib/win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
-			PublicLibraryPaths.Add(VorbisLibPath);
-			PublicAdditionalLibraries.Add("libvorbisfile.lib");
+			PublicAdditionalLibraries.Add(VorbisLibPath + "libvorbisfile.lib");
 			PublicDelayLoadDLLs.Add("libvorbisfile.dll");
 			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Vorbis/Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/libvorbisfile.dll");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
         {
-			string PlatformSubpath = Target.Platform.ToString();
             string LibFileName = "libvorbisfile";
             if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64 || Target.WindowsPlatform.Architecture == WindowsArchitecture.x64)
             {
@@ -36,7 +33,6 @@ public class VorbisFile : ModuleRules
 
             if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
             {
-                PublicLibraryPaths.Add(System.String.Format("{0}lib/{1}/VS{2}/{3}/", VorbisPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.WindowsPlatform.GetArchitectureSubpath()));
                 RuntimeDependencies.Add(
                     System.String.Format("$(EngineDir)/Binaries/ThirdParty/Vorbis/{0}/VS{1}/{2}/{3}.dll",
                         Target.Platform,
@@ -46,7 +42,6 @@ public class VorbisFile : ModuleRules
             }
             else
             {
-                PublicLibraryPaths.Add(System.String.Format("{0}lib/{1}/VS{2}/", VorbisPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName()));
                 RuntimeDependencies.Add(
                     System.String.Format("$(EngineDir)/Binaries/ThirdParty/Vorbis/{0}/VS{1}/{2}.dll",
                         Target.Platform,
@@ -60,8 +55,6 @@ public class VorbisFile : ModuleRules
 		else if (Target.Platform == UnrealTargetPlatform.HTML5)
 		{
 			string VorbisLibPath = VorbisPath + "lib/HTML5/";
-			PublicLibraryPaths.Add(VorbisLibPath);
-
 			string OpimizationSuffix = "";
 			if (Target.bCompileForSize)
 			{
@@ -82,13 +75,10 @@ public class VorbisFile : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
 		{
-			// filtered in toolchain
-			PublicLibraryPaths.Add(VorbisPath + "Lib/Android/ARMv7");
-			PublicLibraryPaths.Add(VorbisPath + "Lib/Android/ARM64");
-			PublicLibraryPaths.Add(VorbisPath + "Lib/Android/x86");
-			PublicLibraryPaths.Add(VorbisPath + "Lib/Android/x64");
-
-			PublicAdditionalLibraries.Add("vorbisfile");
+			PublicAdditionalLibraries.Add(VorbisPath + "Lib/Android/ARM64/libvorbisfile.a");
+			PublicAdditionalLibraries.Add(VorbisPath + "Lib/Android/ARMv7/libvorbisfile.a");
+			PublicAdditionalLibraries.Add(VorbisPath + "Lib/Android/x64/libvorbisfile.a");
+			PublicAdditionalLibraries.Add(VorbisPath + "Lib/Android/x86/libvorbisfile.a");
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
@@ -114,8 +104,8 @@ public class VorbisFile : ModuleRules
 			if (XboxOnePlatformType != null)
 			{
 				System.Object VersionName = XboxOnePlatformType.GetMethod("GetVisualStudioCompilerVersionName").Invoke(null, null);
-				PublicLibraryPaths.Add(VorbisPath + "lib/XboxOne/VS" + VersionName.ToString());
-				PublicAdditionalLibraries.Add("libvorbisfile_static.lib");
+				string VorbisLibPath = VorbisPath + "lib/XboxOne/VS" + VersionName.ToString();
+				PublicAdditionalLibraries.Add(VorbisLibPath + "/libvorbisfile_static.lib");
 			}
 		}
 	}

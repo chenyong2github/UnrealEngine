@@ -279,6 +279,8 @@ protected:
 	uint32 bNeedsSceneTexturePostProcessInputs : 1;
 	/** true if any atmospheric fog expressions are used */
 	uint32 bUsesAtmosphericFog : 1;
+	/** true if any SkyAtmosphere expressions are used */
+	uint32 bUsesSkyAtmosphere : 1;
 	/** true if the material reads vertex color in the pixel shader. */
 	uint32 bUsesVertexColor : 1;
 	/** true if the material reads particle color in the pixel shader. */
@@ -359,6 +361,7 @@ public:
 	,	bNeedsParticleSize(false)
 	,	bNeedsSceneTexturePostProcessInputs(false)
 	,	bUsesAtmosphericFog(false)
+	,	bUsesSkyAtmosphere(false)
 	,	bUsesVertexColor(false)
 	,	bUsesParticleColor(false)
 	,	bUsesParticleTransform(false)
@@ -1142,6 +1145,11 @@ ResourcesString = TEXT("");
 				Errorf(TEXT("Only unlit materials can output negative emissive color."));
 			}
 
+			if (Material->IsSky() && (!MaterialShadingModels.IsUnlit() || BlendMode!=BLEND_Opaque))
+			{
+				Errorf(TEXT("Sky materials must be opaque and unlit. They are expected to completely replace the background."));
+			}
+
 			bool bDBufferAllowed = IsUsingDBuffers(Platform);
 			bool bDBufferBlendMode = IsDBufferDecalBlendMode((EDecalBlendMode)Material->GetDecalBlendMode());
 
@@ -1386,6 +1394,7 @@ ResourcesString = TEXT("");
 		
 		// @todo MetalMRT: Remove this hack and implement proper atmospheric-fog solution for Metal MRT...
 		OutEnvironment.SetDefine(TEXT("MATERIAL_ATMOSPHERIC_FOG"), !IsMetalMRTPlatform(InPlatform) ? bUsesAtmosphericFog : 0);
+		OutEnvironment.SetDefine(TEXT("MATERIAL_SKY_ATMOSPHERE"), bUsesSkyAtmosphere);
 		OutEnvironment.SetDefine(TEXT("INTERPOLATE_VERTEX_COLOR"), bUsesVertexColor);
 		OutEnvironment.SetDefine(TEXT("NEEDS_PARTICLE_COLOR"), bUsesParticleColor); 
 		OutEnvironment.SetDefine(TEXT("NEEDS_PARTICLE_TRANSFORM"), bUsesParticleTransform);
@@ -1400,6 +1409,7 @@ ResourcesString = TEXT("");
 		OutEnvironment.SetDefine(TEXT("USES_DISTORTION"), Material->IsDistorted()); 
 
 		OutEnvironment.SetDefine(TEXT("MATERIAL_ENABLE_TRANSLUCENCY_FOGGING"), Material->ShouldApplyFogging());
+		OutEnvironment.SetDefine(TEXT("MATERIAL_FORCE_SKIP_AERIAL_PERSPECTIVE"), Material->IsSky());
 		OutEnvironment.SetDefine(TEXT("MATERIAL_COMPUTE_FOG_PER_PIXEL"), Material->ComputeFogPerPixel());
 		OutEnvironment.SetDefine(TEXT("MATERIAL_FULLY_ROUGH"), bIsFullyRough || Material->IsFullyRough());
 
@@ -2050,6 +2060,15 @@ protected:
 		// Can only create temporaries for certain types
 		else if ((Type & (MCT_Float | MCT_VTPageTableResult)) || Type == MCT_ShadingModel)
 		{
+			// Check for existing
+			for (int32 i = 0; i < CurrentScopeChunks->Num(); ++i)
+			{
+				if ((*CurrentScopeChunks)[i].Hash == Hash)
+				{
+					return i;
+				}
+			}
+
 			const int32 CodeIndex = CurrentScopeChunks->Num();
 			// Allocate a local variable name
 			const FString SymbolName = CreateSymbolName(TEXT("Local"));
@@ -5060,28 +5079,46 @@ protected:
 		return AddInlinedCodeChunk(MCT_Float2, *SampleCode, *GetParameterCode(WorldPositionIndex), *GetParameterCode(P0), *GetParameterCode(P1), *GetParameterCode(P2));
 	}
 
-	virtual int32 VirtualTextureUnpack(int32 CodeIndex, EVirtualTextureUnpackType UnpackType) override
+	virtual int32 VirtualTextureUnpack(int32 CodeIndex0, int32 CodeIndex1, EVirtualTextureUnpackType UnpackType) override
 	{
-		if (CodeIndex != INDEX_NONE)
+		if (UnpackType == EVirtualTextureUnpackType::BaseColor)
 		{
-			if (UnpackType == EVirtualTextureUnpackType::NormalBC3)
-			{
-				FString	SampleCode(TEXT("VirtualTextureUnpackNormalBC3(%s)"));
-				return AddCodeChunk(MCT_Float3, *SampleCode, *GetParameterCode(CodeIndex));
-			}
-			if (UnpackType == EVirtualTextureUnpackType::NormalBC5)
-			{
-				FString	SampleCode(TEXT("VirtualTextureUnpackNormalBC5(%s)"));
-				return AddCodeChunk(MCT_Float3, *SampleCode, *GetParameterCode(CodeIndex));
-			}
-			else if (UnpackType == EVirtualTextureUnpackType::HeightR16)
-			{
-				FString	SampleCode(TEXT("VirtualTextureUnpackHeightR16(%s)"));
-				return AddCodeChunk(MCT_Float, *SampleCode, *GetParameterCode(CodeIndex));
-			}
+			return CodeIndex0 == INDEX_NONE ? INDEX_NONE : ComponentMask(CodeIndex0, 1, 1, 1, 0);
+		}
+		else if (UnpackType == EVirtualTextureUnpackType::NormalBC3)
+		{
+			FString	SampleCode(TEXT("VirtualTextureUnpackNormalBC3(%s)"));
+			return CodeIndex1 == INDEX_NONE ? INDEX_NONE : AddCodeChunk(MCT_Float3, *SampleCode, *GetParameterCode(CodeIndex1));
+		}
+		else if (UnpackType == EVirtualTextureUnpackType::NormalBC5)
+		{
+			FString	SampleCode(TEXT("VirtualTextureUnpackNormalBC5(%s)"));
+			return CodeIndex1 == INDEX_NONE ? INDEX_NONE : AddCodeChunk(MCT_Float3, *SampleCode, *GetParameterCode(CodeIndex1));
+		}
+		else if (UnpackType == EVirtualTextureUnpackType::NormalBC3BC3)
+		{
+			FString	SampleCode(TEXT("VirtualTextureUnpackNormalBC3BC3(%s, %s)"));
+			return CodeIndex0 == INDEX_NONE || CodeIndex1 == INDEX_NONE ? INDEX_NONE : AddCodeChunk(MCT_Float3, *SampleCode, *GetParameterCode(CodeIndex0), *GetParameterCode(CodeIndex1));
+		}
+		else if (UnpackType == EVirtualTextureUnpackType::SpecularR8)
+		{
+			return CodeIndex1 == INDEX_NONE ? INDEX_NONE : ComponentMask(CodeIndex1, 1, 0, 0, 0);
+		}
+		else if (UnpackType == EVirtualTextureUnpackType::RoughnessG8)
+		{
+			return CodeIndex1 == INDEX_NONE ? INDEX_NONE : ComponentMask(CodeIndex1, 0, 1, 0, 0);
+		}
+		else if (UnpackType == EVirtualTextureUnpackType::RoughnessB8)
+		{
+			return CodeIndex1 == INDEX_NONE ? INDEX_NONE : ComponentMask(CodeIndex1, 0, 0, 1, 0);
+		}
+		else if (UnpackType == EVirtualTextureUnpackType::HeightR16)
+		{
+			FString	SampleCode(TEXT("VirtualTextureUnpackHeightR16(%s)"));
+			return CodeIndex0 == INDEX_NONE ? INDEX_NONE : AddCodeChunk(MCT_Float, *SampleCode, *GetParameterCode(CodeIndex0));
 		}
 
-		return CodeIndex;
+		return CodeIndex0;
 	}
 
 	virtual int32 ExternalTexture(const FGuid& ExternalTextureGuid) override
@@ -6541,6 +6578,42 @@ protected:
 
 		return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionAtmosphericLightColor(Parameters)"));
 
+	}
+
+	virtual int32 SkyAtmosphereLightIlluminance(int32 LightIndex) override
+	{
+		bUsesSkyAtmosphere = true;
+		return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionSkyAtmosphereLightIlluminance(Parameters, %d)"), LightIndex);
+	}
+
+	virtual int32 SkyAtmosphereLightDirection(int32 LightIndex) override
+	{
+		bUsesSkyAtmosphere = true;
+		return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionSkyAtmosphereLightDirection(Parameters, %d)"), LightIndex);
+	}
+
+	virtual int32 SkyAtmosphereLightDiskLuminance(int32 LightIndex) override
+	{
+		bUsesSkyAtmosphere = true;
+		return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionSkyAtmosphereLightDiskLuminance(Parameters, %d)"), LightIndex);
+	}
+
+	virtual int32 SkyAtmosphereViewLuminance() override
+	{
+		bUsesSkyAtmosphere = true;
+		return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionSkyAtmosphereViewLuminance(Parameters)"));
+	}
+
+	virtual int32 SkyAtmosphereAerialPerspective() override
+	{
+		bUsesSkyAtmosphere = true;
+		return AddCodeChunk(MCT_Float4, TEXT("MaterialExpressionSkyAtmosphereAerialPerspective(Parameters)"));
+	}
+
+	virtual int32 SkyAtmosphereDistantLightScatteredLuminance() override
+	{
+		bUsesSkyAtmosphere = true;
+		return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionSkyAtmosphereDistantLightScatteredLuminance(Parameters)"));
 	}
 
 	virtual int32 CustomPrimitiveData(int32 OutputIndex, EMaterialValueType Type) override

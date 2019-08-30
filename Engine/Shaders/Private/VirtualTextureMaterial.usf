@@ -85,6 +85,9 @@ void FPixelShaderInOut_MainPS(
 	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
 #endif
 
+	// Apply debug shading
+	BaseColor = lerp(BaseColor, half3(In.SvPosition.xy * ResolvedView.ViewSizeAndInvSize.zw, 0), ResolvedView.VirtualTextureParams.y * 0.25);
+
 #if defined(OUT_BASECOLOR)
 	Out.MRT[0] = float4(BaseColor, 1.f) * Opacity;
 #elif defined(OUT_BASECOLOR_NORMAL)
@@ -93,7 +96,7 @@ void FPixelShaderInOut_MainPS(
 #elif defined(OUT_BASECOLOR_NORMAL_SPECULAR)
 	Out.MRT[0] = float4(BaseColor, 1.f) * Opacity;
 	Out.MRT[1] = float4(PackNormal(Normal), 0.f, 1.f) * Opacity;
-	Out.MRT[2] = float4(Roughness, Specular, 0.f, 1.f) * Opacity;
+	Out.MRT[2] = float4(Specular, Roughness, 0.f, 1.f) * Opacity;
 #elif defined(OUT_WORLDHEIGHT)
 	Out.MRT[0] = float4(PackWorldHeight(WorldHeight), 0, 0, 1);
 #endif

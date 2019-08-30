@@ -86,8 +86,8 @@ public:
 		FText RightContentText;
 		FText RightContentTooltip;
 
-		const EBuildConfigurations::Type BuildConfig = FApp::GetBuildConfiguration();
-		if (BuildConfig != EBuildConfigurations::Shipping && BuildConfig != EBuildConfigurations::Development && BuildConfig != EBuildConfigurations::Unknown)
+		const EBuildConfiguration BuildConfig = FApp::GetBuildConfiguration();
+		if (BuildConfig != EBuildConfiguration::Shipping && BuildConfig != EBuildConfiguration::Development && BuildConfig != EBuildConfiguration::Unknown)
 		{
 			Args.Add(TEXT("Config"), EBuildConfigurations::ToText(BuildConfig));
 			RightContentText = FText::Format(NSLOCTEXT("UnrealEditor", "TitleBarRightContentAndConfig", "{ProjectNameWatermarkPrefix} {GameName} [{Config}] {Branch} {EngineVersion}"), Args);
@@ -1477,6 +1477,9 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 	
 	ActionList.MapAction(Commands.BuildTextureStreamingOnly,
 		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::BuildTextureStreamingOnly_Execute));
+
+	ActionList.MapAction(Commands.BuildVirtualTextureOnly,
+		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::BuildVirtualTextureOnly_Execute));
 
 	ActionList.MapAction( 
 		Commands.LightingQuality_Production, 

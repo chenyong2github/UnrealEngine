@@ -24,7 +24,7 @@ FICUTextCharacterIterator_NativeUTF16::FICUTextCharacterIterator_NativeUTF16(con
 }
 
 FICUTextCharacterIterator_NativeUTF16::FICUTextCharacterIterator_NativeUTF16(const TCHAR* const InString, const int32 InStringLength)
-	: InternalString(InString, InStringLength)
+	: InternalString(InStringLength, InString)
 	, StringPtr(&InternalString)
 {
 	setText(reinterpret_cast<const UChar*>(**StringPtr), StringPtr->Len()); // scary cast from TCHAR* to UChar* so that this builds on platforms where TCHAR isn't UTF-16 (but we won't use it!)
@@ -129,7 +129,7 @@ FICUTextCharacterIterator_ConvertToUnicodeString::FICUTextCharacterIterator_Conv
 }
 
 FICUTextCharacterIterator_ConvertToUnicodeString::FICUTextCharacterIterator_ConvertToUnicodeString(const TCHAR* const InString, const int32 InStringLength)
-	: FICUTextCharacterIterator_ConvertToUnicodeStringPrivate(FString(InString, InStringLength))
+	: FICUTextCharacterIterator_ConvertToUnicodeStringPrivate(FString(InStringLength, InString))
 	, icu::StringCharacterIterator(InternalString)
 {
 }

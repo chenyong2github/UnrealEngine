@@ -228,7 +228,7 @@ private:
 
 	static FString GetDisasterRecoveryServicePath()
 	{
-		auto GetDisasterRecoveryServicePathForBuildConfiguration = [](const EBuildConfigurations::Type InBuildConfiguration) -> FString
+		auto GetDisasterRecoveryServicePathForBuildConfiguration = [](const EBuildConfiguration InBuildConfiguration) -> FString
 		{
 			FString ServicePath = FPlatformProcess::GenerateApplicationPath(TEXT("UnrealDisasterRecoveryService"), InBuildConfiguration);
 			return FPaths::FileExists(ServicePath) ? ServicePath : FString();
@@ -238,9 +238,9 @@ private:
 		FString ServicePath = GetDisasterRecoveryServicePathForBuildConfiguration(FApp::GetBuildConfiguration());
 
 		// Fall back to Development if the app doesn't exist for our build configuration, as installed builds only build it for Development
-		if (ServicePath.IsEmpty() && FApp::GetBuildConfiguration() != EBuildConfigurations::Development)
+		if (ServicePath.IsEmpty() && FApp::GetBuildConfiguration() != EBuildConfiguration::Development)
 		{
-			ServicePath = GetDisasterRecoveryServicePathForBuildConfiguration(EBuildConfigurations::Development);
+			ServicePath = GetDisasterRecoveryServicePathForBuildConfiguration(EBuildConfiguration::Development);
 		}
 
 		return ServicePath;

@@ -107,6 +107,12 @@ void FICUBreakIterator::SetString(const TCHAR* const InString, const int32 InStr
 	ResetToBeginning();
 }
 
+void FICUBreakIterator::SetStringRef(const FString* InString)
+{
+	GetInternalBreakIterator()->adoptText(new FICUTextCharacterIterator(InString)); // ICUBreakIterator takes ownership of this instance
+	ResetToBeginning();
+}
+
 void FICUBreakIterator::ClearString()
 {
 	GetInternalBreakIterator()->adoptText(new FICUTextCharacterIterator(FString())); // ICUBreakIterator takes ownership of this instance

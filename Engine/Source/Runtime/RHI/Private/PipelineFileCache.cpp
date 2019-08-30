@@ -122,6 +122,13 @@ static TAutoConsoleVariable<int32> CVarClearOSPSOFileCache(
 														   ECVF_Default | ECVF_RenderThreadSafe
 														   );
 
+static TAutoConsoleVariable<int32> CVarAlwaysGeneratePOSSOFileCache(
+														   TEXT("r.ShaderPipelineCache.AlwaysGenerateOSCache"),
+														   1,
+														   TEXT("1 generates the cache every run, 0 generates it only when it is missing."),
+														   ECVF_Default | ECVF_RenderThreadSafe
+														   );
+
 
 FRWLock FPipelineFileCache::FileCacheLock;
 FPipelineCacheFile* FPipelineFileCache::FileCache = nullptr;
@@ -2430,7 +2437,7 @@ void FPipelineFileCache::Initialize(uint32 InGameVersion)
 	ClearOSPipelineCache();
 	
 	// Make enabled explicit on a flag not the existence of "FileCache" object as we are using that behind a lock and in Open / Close operations
-	FileCacheEnabled = true;
+	FileCacheEnabled = ShouldEnableFileCache();
 	FPipelineCacheFile::GameVersion = InGameVersion;
 	if (FPipelineCacheFile::GameVersion == 0)
 	{
@@ -2442,12 +2449,45 @@ void FPipelineFileCache::Initialize(uint32 InGameVersion)
 	SET_MEMORY_STAT(STAT_PSOStatMemory, 0);
 }
 
+bool FPipelineFileCache::ShouldEnableFileCache()
+{
+#if PLATFORM_IOS
+	if (CVarAlwaysGeneratePOSSOFileCache.GetValueOnAnyThread() == 0)
+	{
+		struct stat FileInfo;
+		static FString PrivateWritePathBase = FString([NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) objectAtIndex:0]) + TEXT("/");
+		FString Result = PrivateWritePathBase + TEXT("/Caches/com.chairentertainment.Fortnite/com.apple.metal/functions.data");
+		FString Result2 = PrivateWritePathBase + TEXT("Caches/com.chairentertainment.Fortnite/com.apple.metal/usecache.txt");
+		if (stat(TCHAR_TO_UTF8(*Result), &FileInfo) != -1 && stat(TCHAR_TO_UTF8(*Result2), &FileInfo) != -1)
+		{
+			return false;
+		}
+	}
+#endif
+	return true;
+}
+
+void FPipelineFileCache::PreCompileComplete()
+{
+#if PLATFORM_IOS
+	if (CVarAlwaysGeneratePOSSOFileCache.GetValueOnAnyThread() == 0)
+	{
+		static FString PrivateWritePathBase = FString([NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) objectAtIndex:0]) + TEXT("/");
+		FString Result = PrivateWritePathBase + TEXT("Caches/com.chairentertainment.Fortnite/com.apple.metal/usecache.txt");
+		int32 Handle = open(TCHAR_TO_UTF8(*Result), O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+		close(Handle);
+	}
+#endif
+}
+
 void FPipelineFileCache::ClearOSPipelineCache()
 {
 	if (CVarClearOSPSOFileCache.GetValueOnAnyThread() > 0)
 	{
-#if PLATFORM_IOS
 		// clear the PSO cache on IOS if the executable is newer
+#if PLATFORM_IOS
+		SCOPED_AUTORELEASE_POOL;
+
 		static FString ExecutablePath = FString([[NSBundle mainBundle] bundlePath]) + TEXT("/") + FPlatformProcess::ExecutableName();
 		struct stat FileInfo;
 		if(stat(TCHAR_TO_UTF8(*ExecutablePath), &FileInfo) != -1)
@@ -2470,6 +2510,40 @@ void FPipelineFileCache::ClearOSPipelineCache()
 				if (ExecutableTime > MapsTime)
 				{
 					unlink(TCHAR_TO_UTF8(*Result));
+				}
+			}
+		}
+#elif PLATFORM_MAC && (UE_BUILD_TEST || UE_BUILD_SHIPPING)
+		if (!FPlatformProcess::IsSandboxedApplication())
+		{
+			SCOPED_AUTORELEASE_POOL;
+
+			static FString ExecutablePath = FString([[NSBundle mainBundle] executablePath]);
+			struct stat FileInfo;
+			if (stat(TCHAR_TO_UTF8(*ExecutablePath), &FileInfo) != -1)
+			{
+				FTimespan ExecutableTime(0, 0, FileInfo.st_atime);
+				FString CacheDir = FString([NSString stringWithFormat:@"%@/../C/%@/com.apple.metal", NSTemporaryDirectory(), [NSBundle mainBundle].bundleIdentifier]);
+				TArray<FString> FoundFiles;
+				IPlatformFile::GetPlatformPhysical().FindFilesRecursively(FoundFiles, *CacheDir, TEXT(".data"));
+
+				// Find functions.data file in cache subfolders. If it's older than the executable, delete the whole cache.
+				bool bIsCacheOutdated = false;
+				for (FString& DataFile : FoundFiles)
+				{
+					if (FPaths::GetCleanFilename(DataFile) == TEXT("functions.data") && stat(TCHAR_TO_UTF8(*DataFile), &FileInfo) != -1)
+					{
+						FTimespan DataTime(0, 0, FileInfo.st_atime);
+						if (ExecutableTime > DataTime)
+						{
+							bIsCacheOutdated = true;
+						}
+					}
+				}
+
+				if (bIsCacheOutdated)
+				{
+					IPlatformFile::GetPlatformPhysical().DeleteDirectoryRecursively(*CacheDir);
 				}
 			}
 		}

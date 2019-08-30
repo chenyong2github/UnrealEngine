@@ -268,6 +268,14 @@ public:
 		Blocks[0] = (uint8*)FMemory::Malloc(BlockSizeBytes, FPlatformMemory::GetConstants().PageSize);
 	}
 
+	~FNameEntryAllocator()
+	{
+		for (uint32 Index = 0; Index <= CurrentBlock; ++Index)
+		{
+			FMemory::Free(Blocks[Index]);
+		}
+	}
+
 	/**
 	 * Allocates the requested amount of bytes and returns an id that can be used to access them
 	 *
@@ -545,6 +553,16 @@ public:
 		Slots = (FNameSlot*)FMemory::Malloc(FNamePoolInitialSlotsPerShard * sizeof(FNameSlot), alignof(FNameSlot));
 		memset(Slots, 0, FNamePoolInitialSlotsPerShard * sizeof(FNameSlot));
 		CapacityMask = FNamePoolInitialSlotsPerShard - 1;
+	}
+
+	// This and ~FNamePool() is not called during normal shutdown
+	// but only via explicit FName::TearDown() call
+	~FNamePoolShardBase()
+	{
+		FMemory::Free(Slots);
+		UsedSlots = 0;
+		CapacityMask = 0;
+		Slots = nullptr;
 	}
 
 	uint32 Capacity() const { return CapacityMask + 1; }
@@ -1162,7 +1180,7 @@ int32 FNameEntry::GetSize(const TCHAR* Name)
 
 int32 FNameEntry::GetSize(int32 Length, bool bIsPureAnsi)
 {
-	int32 Bytes = GetDataOffset() + (Length + 1) * (bIsPureAnsi ? sizeof(ANSICHAR) : sizeof(TCHAR));
+	int32 Bytes = GetDataOffset() + Length * (bIsPureAnsi ? sizeof(ANSICHAR) : sizeof(WIDECHAR));
 	return Align(Bytes, alignof(FNameEntry));
 }
 
@@ -2221,6 +2239,17 @@ void operator<<(FStructuredArchive::FSlot Slot, FNameEntrySerialized& E)
 	}
 }
 
+void FName::TearDown()
+{
+	check(IsInGameThread());
+
+	if (bNamePoolInitialized)
+	{
+		GetNamePoolPostInit().~FNamePool();
+		bNamePoolInitialized = false;
+	
+	}
+}
 
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 

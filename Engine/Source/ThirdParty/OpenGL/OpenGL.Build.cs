@@ -12,7 +12,7 @@ public class OpenGL : ModuleRules
 		if ((Target.Platform == UnrealTargetPlatform.Win64) ||
 			(Target.Platform == UnrealTargetPlatform.Win32))
 		{
-			PublicAdditionalLibraries.Add("opengl32.lib");
+			PublicSystemLibraries.Add("opengl32.lib");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{

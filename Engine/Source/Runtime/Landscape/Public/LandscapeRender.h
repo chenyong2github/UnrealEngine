@@ -34,7 +34,7 @@ LandscapeRender.h: New terrain rendering
 #define LANDSCAPE_MAX_SUBSECTION_NUM 2
 
 class FLandscapeComponentSceneProxy;
-enum class ERuntimeVirtualTextureMaterialType;
+enum class ERuntimeVirtualTextureMaterialType : uint8;
 
 #if WITH_EDITOR
 namespace ELandscapeViewMode

@@ -231,6 +231,7 @@ struct FInstallBundleContentState
 	TMap<FName, float> IndividualBundleWeights;
 	uint64 DownloadSize = 0;
 	uint64 InstallSize = 0;
+	uint64 InstallOverheadSize = 0;
 	uint64 FreeSpace = 0;
 };
 
@@ -259,6 +260,13 @@ struct FInstallBundleRequestInfo
 	EInstallBundleRequestInfoFlags InfoFlags = EInstallBundleRequestInfoFlags::None;
 	TArray<FName> BundlesQueuedForInstall;
 	TArray<FName> BundlesQueuedForRemoval;
+};
+
+struct FInstallBundleTestInfo
+{
+	EInstallBundleRequestInfoFlags InfoFlags = EInstallBundleRequestInfoFlags::None;
+	TArray<FName> BundlesQueuedForInstall;
+	TArray<FName> BundlesNeededForInstall;
 };
 
 enum class EInstallBundleCancelFlags : int32
@@ -303,6 +311,9 @@ public:
 
 	virtual bool IsActive() const = 0;
 
+	virtual FInstallBundleTestInfo TestUpdateContent(FName BundleName) = 0;
+	virtual FInstallBundleTestInfo TestUpdateContent(TArrayView<FName> BundleNames) = 0;
+
 	virtual FInstallBundleRequestInfo RequestUpdateContent(FName BundleName, EInstallBundleRequestFlags Flags) = 0;
 	virtual FInstallBundleRequestInfo RequestUpdateContent(TArrayView<FName> BundleNames, EInstallBundleRequestFlags Flags) = 0;
 
@@ -311,11 +322,13 @@ public:
 
     virtual void CancelAllGetContentStateRequestsForTag(FName RequestTag) = 0;
     
-	virtual FInstallBundleRequestInfo RequestRemoveBundle(FName BundleName) = 0;
+	virtual FInstallBundleRequestInfo RequestRemoveContent(FName BundleName) = 0;
 
-	virtual void RequestRemoveBundleOnNextInit(FName BundleName) = 0;
+	virtual void RequestRemoveContentOnNextInit(FName RemoveName, TArrayView<FName> KeepNames = TArrayView<FName>()) = 0;
+	virtual void RequestRemoveContentOnNextInit(TArrayView<FName> RemoveNames, TArrayView<FName> KeepNames = TArrayView<FName>()) = 0;
 
-	virtual void CancelRequestRemoveBundleOnNextInit(FName BundleName) = 0;
+	virtual void CancelRequestRemoveContentOnNextInit(FName BundleName) = 0;
+	virtual void CancelRequestRemoveContentOnNextInit(TArrayView<FName> BundleName) = 0;
 
 	virtual void CancelBundle(FName BundleName, EInstallBundleCancelFlags Flags) = 0;
 

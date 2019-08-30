@@ -31,6 +31,6 @@ public:
 	/**
 	 * Get all the actors in this layer
 	 */
-	UFUNCTION(BlueprintCallable, Category=Layer, meta=(WorldContext=WorldContextObject))
+	UFUNCTION(BlueprintCallable, Category=Layer, meta=(WorldContext=WorldContextObject,DevelopmentOnly))
 	static TArray<AActor*> GetActors(UObject* WorldContextObject, const FActorLayer& ActorLayer);
 };

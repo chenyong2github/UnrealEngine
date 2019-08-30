@@ -64,8 +64,8 @@ static CURLcode sslctx_function(CURL * curl, void * sslctx, void * parm)
 #endif //#if WITH_SSL
 
 FCurlHttpRequest::FCurlHttpRequest()
-	:	EasyHandle(NULL)
-	,	HeaderList(NULL)
+	:	EasyHandle(nullptr)
+	,	HeaderList(nullptr)
 	,	bCanceled(false)
 	,	bCurlRequestCompleted(false)
 	,	bRedirected(false)
@@ -178,12 +178,14 @@ FCurlHttpRequest::~FCurlHttpRequest()
 
 		// cleanup the handle first (that order is used in howtos)
 		curl_easy_cleanup(EasyHandle);
+		EasyHandle = nullptr;
+	}
 
-		// destroy headers list
-		if (HeaderList)
-		{
-			curl_slist_free_all(HeaderList);
-		}
+	// destroy headers list
+	if (HeaderList)
+	{
+		curl_slist_free_all(HeaderList);
+		HeaderList = nullptr;
 	}
 }
 
@@ -455,16 +457,10 @@ size_t FCurlHttpRequest::ReceiveResponseHeaderCallback(void* Ptr, size_t SizeInB
 			}
 			else
 			{
-				const FRegexPattern StatusPattern(TEXT("HTTP/\\d+\\.\\d+ 30\\d")); // \d+ is jic http status version ever goes double digits...
-				FRegexMatcher StatusMatcher(StatusPattern, *Header);
-
-				if (StatusMatcher.FindNext())
+				long HttpCode = 0;
+				if (CURLE_OK == curl_easy_getinfo(EasyHandle, CURLINFO_RESPONSE_CODE, &HttpCode))
 				{
-					bRedirected = true;
-				}
-				else if (Header.IsEmpty()) // an empty line notes the end of the headers
-				{
-					bRedirected = false;
+					bRedirected = (HttpCode >= 300 && HttpCode < 400);
 				}
 			}
 			return HeaderSize;
@@ -565,7 +561,7 @@ size_t FCurlHttpRequest::DebugCallback(CURL * Handle, curl_infotype DebugInfoTyp
 				UE_LOG(LogHttp, VeryVerbose, TEXT("%p: '%s'"), this, *DebugText);
 				if (InfoMessageCache.Num() > 0)
 				{
-					InfoMessageCache[LeastRecentlyCachedInfoMessageIndex] = DebugText;
+					InfoMessageCache[LeastRecentlyCachedInfoMessageIndex] = MoveTemp(DebugText);
 					LeastRecentlyCachedInfoMessageIndex = (LeastRecentlyCachedInfoMessageIndex + 1) % InfoMessageCache.Num();
 				}
 			}
@@ -814,11 +810,28 @@ bool FCurlHttpRequest::SetupRequest()
 	const int32 NumAllHeaders = AllHeaders.Num();
 	for (int32 Idx = 0; Idx < NumAllHeaders; ++Idx)
 	{
-		if (!AllHeaders[Idx].Contains(TEXT("Authorization")))
+		const bool bCanLogHeaderValue = !AllHeaders[Idx].Contains(TEXT("Authorization"));
+		if (bCanLogHeaderValue)
 		{
 			UE_LOG(LogHttp, Verbose, TEXT("%p: Adding header '%s'"), this, *AllHeaders[Idx]);
 		}
-		HeaderList = curl_slist_append(HeaderList, TCHAR_TO_UTF8(*AllHeaders[Idx]));
+
+		curl_slist* NewHeaderList = curl_slist_append(HeaderList, TCHAR_TO_UTF8(*AllHeaders[Idx]));
+		if (!NewHeaderList)
+		{
+			if (bCanLogHeaderValue)
+			{
+				UE_LOG(LogHttp, Warning, TEXT("Failed to append header '%s'"), *AllHeaders[Idx]);
+			}
+			else
+			{
+				UE_LOG(LogHttp, Warning, TEXT("Failed to append header 'Authorization'"));
+			}
+		}
+		else
+		{
+			HeaderList = NewHeaderList;
+		}
 	}
 
 	if (HeaderList)
@@ -1043,9 +1056,14 @@ void FCurlHttpRequest::FinishedRequest()
 			}
 
 			double ContentLengthDownload = 0.0;
-			if (CURLE_OK == curl_easy_getinfo(EasyHandle, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &ContentLengthDownload))
+			if (CURLE_OK == curl_easy_getinfo(EasyHandle, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &ContentLengthDownload) && ContentLengthDownload >= 0.0)
 			{
 				Response->ContentLength = static_cast< int32 >(ContentLengthDownload);
+			}
+			else
+			{
+				// If curl did not know how much we downloaded, or we were missing a Content-Length header (Chunked request), set our ContentLength as the amount we downloaded
+				Response->ContentLength = Response->TotalBytesRead.GetValue();
 			}
 
 			if (Response->HttpCode <= 0)
@@ -1111,7 +1129,11 @@ void FCurlHttpRequest::FinishedRequest()
 	}
 	else
 	{
-		if (CurlAddToMultiResult != CURLM_OK)
+		if (bCanceled)
+		{
+			UE_LOG(LogHttp, Warning, TEXT("%p: request was cancelled"), this);
+		}
+		else if (CurlAddToMultiResult != CURLM_OK)
 		{
 			UE_LOG(LogHttp, Warning, TEXT("%p: request failed, libcurl multi error: %d (%s)"), this, (int32)CurlAddToMultiResult, ANSI_TO_TCHAR(curl_multi_strerror(CurlAddToMultiResult)));
 		}
@@ -1120,16 +1142,23 @@ void FCurlHttpRequest::FinishedRequest()
 			UE_LOG(LogHttp, Warning, TEXT("%p: request failed, libcurl error: %d (%s)"), this, (int32)CurlCompletionResult, ANSI_TO_TCHAR(curl_easy_strerror(CurlCompletionResult)));
 		}
 
-		for (int32 i = 0; i < InfoMessageCache.Num(); ++i)
+		if (!bCanceled)
 		{
-			if (InfoMessageCache[(LeastRecentlyCachedInfoMessageIndex + i) % InfoMessageCache.Num()].Len() > 0)
+			for (int32 i = 0; i < InfoMessageCache.Num(); ++i)
 			{
-				UE_LOG(LogHttp, Warning, TEXT("%p: libcurl info message cache %d (%s)"), this, (LeastRecentlyCachedInfoMessageIndex + i) % InfoMessageCache.Num(), *(InfoMessageCache[(LeastRecentlyCachedInfoMessageIndex + i) % NumberOfInfoMessagesToCache]));
+				if (InfoMessageCache[(LeastRecentlyCachedInfoMessageIndex + i) % InfoMessageCache.Num()].Len() > 0)
+				{
+					UE_LOG(LogHttp, Warning, TEXT("%p: libcurl info message cache %d (%s)"), this, (LeastRecentlyCachedInfoMessageIndex + i) % InfoMessageCache.Num(), *(InfoMessageCache[(LeastRecentlyCachedInfoMessageIndex + i) % NumberOfInfoMessagesToCache]));
+				}
 			}
 		}
 
 		// Mark last request attempt as completed but failed
-		if (bCurlRequestCompleted)
+		if (bCanceled)
+		{
+			CompletionStatus = EHttpRequestStatus::Failed;
+		}
+		else if (bCurlRequestCompleted)
 		{
 			switch (CurlCompletionResult)
 			{
@@ -1154,11 +1183,11 @@ void FCurlHttpRequest::FinishedRequest()
 				CompletionStatus = EHttpRequestStatus::Failed_ConnectionError;
 			}
 		}
-		// No response since connection failed
-		Response = NULL;
-
 		// Call delegate with failure
-		OnProcessRequestComplete().ExecuteIfBound(SharedThis(this),NULL,false);
+		OnProcessRequestComplete().ExecuteIfBound(SharedThis(this), Response, false);
+
+		//Delegate needs to know about the errors -- so nuke Response (since connection failed) afterwards...
+		Response = NULL;
 	}
 }
 
@@ -1257,9 +1286,9 @@ int32 FCurlHttpResponse::GetResponseCode() const
 
 FString FCurlHttpResponse::GetContentAsString() const
 {
-	TArray<uint8> ZeroTerminatedPayload(GetContent());
-	ZeroTerminatedPayload.Add(0);
-	return UTF8_TO_TCHAR(ZeroTerminatedPayload.GetData());
+	// Content is NOT null-terminated; we need to specify lengths here
+	FUTF8ToTCHAR TCHARData(reinterpret_cast<const ANSICHAR*>(Payload.GetData()), Payload.Num());
+	return FString(TCHARData.Length(), TCHARData.Get());
 }
 
 #endif //WITH_LIBCURL

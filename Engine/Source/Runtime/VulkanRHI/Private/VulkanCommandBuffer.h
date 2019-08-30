@@ -290,6 +290,12 @@ public:
 		return ActiveCmdBuffer;
 	}
 
+	inline FVulkanCmdBuffer* GetActiveCmdBufferDirect()
+	{
+		return ActiveCmdBuffer;
+	}
+
+
 	inline bool HasPendingUploadCmdBuffer() const
 	{
 		return UploadCmdBuffer != nullptr;

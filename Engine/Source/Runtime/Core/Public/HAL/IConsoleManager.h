@@ -10,6 +10,7 @@
 #include "Delegates/IDelegateInstance.h"
 #include "Delegates/Delegate.h"
 #include "Features/IModularFeature.h"
+#include "Templates/EnableIf.h"
 
 #define TRACK_CONSOLE_FIND_COUNT !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
@@ -26,8 +27,7 @@ template <class T> class TConsoleVariableData;
  *
  * The variable should be creates early in the initialization but not before (not in global variable construction).
  * Choose the right variable type, consider using a console command if more functionality is needed (see Exec()).
- * Available types: int, float, int&, float&, string
- * There is no bool type as the int type provides enough functionality (0=false, 1=true) and can be extended easily (e.g. 2=auto, -1=debug)
+ * Available types: bool, int, float, bool&, int&, float&, string
  * Always provide a good help text, other should be able to understand the function of the console variable by reading this help.
  * The help length should be limited to a reasonable width in order to work well for low res screen resolutions.
  *
@@ -130,6 +130,8 @@ enum EConsoleVariableFlags
 
 class IConsoleVariable;
 
+#if !NO_CVARS
+
 /** Console variable delegate type  This is a void callback function. */
 DECLARE_DELEGATE_OneParam( FConsoleVariableDelegate, IConsoleVariable* );
 
@@ -150,6 +152,125 @@ DECLARE_DELEGATE_ThreeParams(FConsoleCommandWithWorldArgsAndOutputDeviceDelegate
 
 /** Console command delegate type with the output device passed through. */
 DECLARE_DELEGATE_OneParam( FConsoleCommandWithOutputDeviceDelegate, FOutputDevice& );
+
+#else
+
+template <typename DerivedType, typename... ParamTypes>
+struct FNullConsoleVariableDelegate
+{
+	/**
+	 * Static: Creates a raw C++ pointer global function delegate
+	 */
+	template <typename... VarTypes>
+	inline static DerivedType CreateStatic(typename TIdentity<void (*)(ParamTypes..., VarTypes...)>::Type, VarTypes...)
+	{
+		return {};
+	}
+
+	template<typename FunctorType, typename... VarTypes>
+	inline static DerivedType CreateLambda(FunctorType&&, VarTypes...)
+	{
+		return {};
+	}
+
+	template<typename UserClass, typename FunctorType, typename... VarTypes>
+	inline static DerivedType CreateWeakLambda(UserClass*, FunctorType&&, VarTypes...)
+	{
+		return {};
+	}
+
+	template <typename UserClass, typename... VarTypes>
+	inline static DerivedType CreateRaw(UserClass*, typename TMemFunPtrType<false, UserClass, void (ParamTypes..., VarTypes...)>::Type, VarTypes...)
+	{
+		return {};
+	}
+	template <typename UserClass, typename... VarTypes>
+	inline static DerivedType CreateRaw(UserClass*, typename TMemFunPtrType<true, UserClass, void (ParamTypes..., VarTypes...)>::Type, VarTypes...)
+	{
+		return {};
+	}
+
+	template <typename UserClass, typename... VarTypes>
+	inline static DerivedType CreateSP(const TSharedRef<UserClass, ESPMode::Fast>&, typename TMemFunPtrType<false, UserClass, void (ParamTypes..., VarTypes...)>::Type, VarTypes...)
+	{
+		return {};
+	}
+	template <typename UserClass, typename... VarTypes>
+	inline static DerivedType CreateSP(const TSharedRef<UserClass, ESPMode::Fast>&, typename TMemFunPtrType<true, UserClass, void (ParamTypes..., VarTypes...)>::Type, VarTypes...)
+	{
+		return {};
+	}
+
+	template <typename UserClass, typename... VarTypes>
+	inline static DerivedType CreateSP(UserClass*, typename TMemFunPtrType<false, UserClass, void (ParamTypes..., VarTypes...)>::Type, VarTypes...)
+	{
+		return {};
+	}
+	template <typename UserClass, typename... VarTypes>
+	inline static DerivedType CreateSP(UserClass*, typename TMemFunPtrType<true, UserClass, void (ParamTypes..., VarTypes...)>::Type, VarTypes...)
+	{
+		return {};
+	}
+	
+	template <typename UserClass, typename... VarTypes>
+	inline static DerivedType CreateThreadSafeSP(const TSharedRef<UserClass, ESPMode::ThreadSafe>&, typename TMemFunPtrType<false, UserClass, void (ParamTypes..., VarTypes...)>::Type, VarTypes...)
+	{
+		return {};
+	}
+	template <typename UserClass, typename... VarTypes>
+	inline static DerivedType CreateThreadSafeSP(const TSharedRef<UserClass, ESPMode::ThreadSafe>&, typename TMemFunPtrType<true, UserClass, void (ParamTypes..., VarTypes...)>::Type, VarTypes...)
+	{
+		return {};
+	}
+
+	template <typename UserClass, typename... VarTypes>
+	inline static DerivedType CreateThreadSafeSP(UserClass*, typename TMemFunPtrType<false, UserClass, void (ParamTypes..., VarTypes...)>::Type, VarTypes...)
+	{
+		return {};
+	}
+	template <typename UserClass, typename... VarTypes>
+	inline static DerivedType CreateThreadSafeSP(UserClass*, typename TMemFunPtrType<true, UserClass, void (ParamTypes..., VarTypes...)>::Type, VarTypes...)
+	{
+		return {};
+	}
+
+	template <typename UObjectTemplate, typename... VarTypes>
+	inline static DerivedType CreateUFunction(UObjectTemplate*, const FName&, VarTypes...)
+	{
+		return {};
+	}
+
+	template <typename UserClass, typename... VarTypes>
+	inline static DerivedType CreateUObject(UserClass*, typename TMemFunPtrType<false, UserClass, void (ParamTypes..., VarTypes...)>::Type, VarTypes...)
+	{
+		return {};
+	}
+	template <typename UserClass, typename... VarTypes>
+	inline static DerivedType CreateUObject(UserClass*, typename TMemFunPtrType<true, UserClass, void (ParamTypes..., VarTypes...)>::Type, VarTypes...)
+	{
+		return {};
+	}
+
+	FDelegateHandle GetHandle() const
+	{
+		return {};
+	}
+
+	bool ExecuteIfBound(ParamTypes...)
+	{
+		return false;
+	}
+};
+
+struct FConsoleVariableDelegate                            : FNullConsoleVariableDelegate<FConsoleVariableDelegate, IConsoleVariable*> {};
+struct FConsoleCommandDelegate                             : FNullConsoleVariableDelegate<FConsoleCommandDelegate> {};
+struct FConsoleCommandWithArgsDelegate                     : FNullConsoleVariableDelegate<FConsoleCommandWithArgsDelegate, const TArray<FString>&> {};
+struct FConsoleCommandWithWorldDelegate                    : FNullConsoleVariableDelegate<FConsoleCommandWithWorldDelegate, UWorld*> {};
+struct FConsoleCommandWithWorldAndArgsDelegate             : FNullConsoleVariableDelegate<FConsoleCommandWithWorldAndArgsDelegate, const TArray<FString>&, UWorld*> {};
+struct FConsoleCommandWithWorldArgsAndOutputDeviceDelegate : FNullConsoleVariableDelegate<FConsoleCommandWithWorldArgsAndOutputDeviceDelegate, const TArray<FString>&, UWorld*, FOutputDevice&> {};
+struct FConsoleCommandWithOutputDeviceDelegate             : FNullConsoleVariableDelegate<FConsoleCommandWithOutputDeviceDelegate, FOutputDevice&> {};
+
+#endif
 
 template <class T> class TConsoleVariableData;
 
@@ -213,9 +334,16 @@ public:
 		return 0; 
 	}
 
+	virtual bool IsVariableBool() const { return false; }
 	virtual bool IsVariableInt() const { return false; }
 	virtual bool IsVariableFloat() const { return false; }
 	virtual bool IsVariableString() const { return false; }
+
+	virtual class TConsoleVariableData<bool>* AsVariableBool()
+	{
+		ensureMsgf(false, TEXT("Attempted to access variable data of a console variable type that doesn't support it.  For example FindTConsoleVariableData* on a FAutoConsoleVariableRef."));
+		return 0;
+	}
 
 	virtual class TConsoleVariableData<int32>* AsVariableInt()
 	{
@@ -271,6 +399,11 @@ public:
 	 * @param SetBy anything in ECVF_LastSetMask e.g. ECVF_SetByScalability
 	 **/
 	virtual void Set(const TCHAR* InValue, EConsoleVariableFlags SetBy = ECVF_SetByCode) = 0;
+
+	/**
+	 * Get the internal value as a bool, works on bools, ints and floats.
+	 */
+	virtual bool GetBool() const = 0;
 	/**
 	 * Get the internal value as int (should not be used on strings).
 	 * @return value is not rounded (simple cast)
@@ -295,6 +428,15 @@ public:
 
 	// convenience methods
 
+	/** Set the internal value from the specified bool. */
+	void Set(bool InValue, EConsoleVariableFlags SetBy = ECVF_SetByCode)
+	{
+		// NOTE: Bool needs to use 1 and 0 here rather than true/false, as this may be a int32 or something
+		// and eventually this code calls, TTypeFromString<T>::FromString which won't handle the true/false,
+		// but 1 and 0 will work for whatever.
+		// inefficient but no common code path
+		Set(InValue ? TEXT("1") : TEXT("0"), SetBy);
+	}
 	/** Set the internal value from the specified int. */
 	void Set(int32 InValue, EConsoleVariableFlags SetBy = ECVF_SetByCode)
 	{
@@ -306,6 +448,12 @@ public:
 	{
 		// inefficient but no common code path
 		Set(*FString::Printf(TEXT("%g"), InValue), SetBy);
+	}
+
+	void SetWithCurrentPriority(bool InValue)
+	{
+		EConsoleVariableFlags CurFlags = (EConsoleVariableFlags)(GetFlags() & ECVF_SetByMask);
+		Set(InValue, CurFlags);
 	}
 	void SetWithCurrentPriority(int32 InValue)
 	{
@@ -469,6 +617,13 @@ public:
 struct CORE_API IConsoleManager
 {
 	/**
+	 * Create a bool console variable
+	 * @param Name must not be 0
+	 * @param Help must not be 0
+	 * @param Flags bitmask combined from EConsoleVariableFlags
+	 */
+	virtual IConsoleVariable* RegisterConsoleVariable(const TCHAR* Name, bool DefaultValue, const TCHAR* Help, uint32 Flags = ECVF_Default) = 0;
+	/**
 	 * Create a int console variable
 	 * @param Name must not be 0
 	 * @param Help must not be 0
@@ -488,7 +643,21 @@ struct CORE_API IConsoleManager
 	 * @param Help must not be 0
 	 * @param Flags bitmask combined from EConsoleVariableFlags
 	 */
+	virtual IConsoleVariable* RegisterConsoleVariable(const TCHAR* Name, const TCHAR* DefaultValue, const TCHAR* Help, uint32 Flags = ECVF_Default) = 0;
+	/**
+	 * Create a string console variable
+	 * @param Name must not be 0
+	 * @param Help must not be 0
+	 * @param Flags bitmask combined from EConsoleVariableFlags
+	 */
 	virtual IConsoleVariable* RegisterConsoleVariable(const TCHAR* Name, const FString& DefaultValue, const TCHAR* Help, uint32 Flags = ECVF_Default) = 0;
+	/**
+	 * Create a reference to a bool console variable
+	 * @param Name must not be 0
+	 * @param Help must not be 0
+	 * @param Flags bitmask combined from EConsoleVariableFlags
+	 */
+	virtual IConsoleVariable* RegisterConsoleVariableRef(const TCHAR* Name, bool& RefValue, const TCHAR* Help, uint32 Flags = ECVF_Default) = 0;
 	/**
 	 * Create a reference to a int console variable
 	 * @param Name must not be 0
@@ -503,13 +672,6 @@ struct CORE_API IConsoleManager
 	 * @param Flags bitmask combined from EConsoleVariableFlags
 	 */
 	virtual IConsoleVariable* RegisterConsoleVariableRef(const TCHAR* Name, float& RefValue, const TCHAR* Help, uint32 Flags = ECVF_Default) = 0;
-	/**
-	* Create a reference to a bool console variable
-	* @param Name must not be 0
-	* @param Help must not be 0
-	* @param Flags bitmask combined from EConsoleVariableFlags
-	*/
-	virtual IConsoleVariable* RegisterConsoleVariableRef(const TCHAR* Name, bool& RefValue, const TCHAR* Help, uint32 Flags = ECVF_Default) = 0;
 	/**
 	* Create a reference to a string console variable
 	* @param Name must not be 0
@@ -808,12 +970,23 @@ private:
 	IConsoleObject* Target;
 };
 
+#if !NO_CVARS
 /**
  * Autoregistering float, int or string console variable
  */
 class CORE_API FAutoConsoleVariable : private FAutoConsoleObject
 {
 public:
+	/**
+	 * Create a bool console variable
+	 * @param Name must not be 0
+	 * @param Help must not be 0
+	 * @param Flags bitmask combined from EConsoleVariableFlags
+	 */
+	FAutoConsoleVariable(const TCHAR* Name, bool DefaultValue, const TCHAR* Help, uint32 Flags = ECVF_Default)
+		: FAutoConsoleObject(IConsoleManager::Get().RegisterConsoleVariable(Name, DefaultValue, Help, Flags))
+	{
+	}
 	/**
 	 * Create a int console variable
 	 * @param Name must not be 0
@@ -844,6 +1017,46 @@ public:
 		: FAutoConsoleObject(IConsoleManager::Get().RegisterConsoleVariable(Name, DefaultValue, Help, Flags))
 	{
 	}
+
+	/**
+	 * Create a int console variable
+	 * @param Name must not be 0
+	 * @param Help must not be 0
+	 * @param Callback Delegate called when the variable changes. @see IConsoleVariable::SetOnChangedCallback
+	 * @param Flags bitmask combined from EConsoleVariableFlags
+	 */
+	FAutoConsoleVariable(const TCHAR* Name, int32 DefaultValue, const TCHAR* Help, const FConsoleVariableDelegate& Callback, uint32 Flags = ECVF_Default)
+		: FAutoConsoleObject(IConsoleManager::Get().RegisterConsoleVariable(Name, DefaultValue, Help, Flags))
+	{
+		AsVariable()->SetOnChangedCallback(Callback);
+	}
+
+	/**
+	 * Create a float console variable
+	 * @param Name must not be 0
+	 * @param Help must not be 0
+	 * @param Callback Delegate called when the variable changes. @see IConsoleVariable::SetOnChangedCallback
+	 * @param Flags bitmask combined from EConsoleVariableFlags
+	 */
+	FAutoConsoleVariable(const TCHAR* Name, float DefaultValue, const TCHAR* Help, const FConsoleVariableDelegate& Callback, uint32 Flags = ECVF_Default)
+		: FAutoConsoleObject(IConsoleManager::Get().RegisterConsoleVariable(Name, DefaultValue, Help, Flags))
+	{
+		AsVariable()->SetOnChangedCallback(Callback);
+	}
+
+	/**
+	 * Create a string console variable
+	 * @param Name must not be 0
+	 * @param Help must not be 0
+	 * @param Callback Delegate called when the variable changes. @see IConsoleVariable::SetOnChangedCallback
+	 * @param Flags bitmask combined from EConsoleVariableFlags
+	 */
+	FAutoConsoleVariable(const TCHAR* Name, const TCHAR* DefaultValue, const TCHAR* Help, const FConsoleVariableDelegate& Callback, uint32 Flags = ECVF_Default)
+		: FAutoConsoleObject(IConsoleManager::Get().RegisterConsoleVariable(Name, DefaultValue, Help, Flags))
+	{
+		AsVariable()->SetOnChangedCallback(Callback);
+	}
+
 	/** Dereference back to a console variable**/
 	FORCEINLINE IConsoleVariable& operator*()
 	{
@@ -863,7 +1076,25 @@ public:
 		return AsVariable();
 	}
 };
+#else
+class CORE_API FAutoConsoleVariable
+{
+public:
+	FAutoConsoleVariable(const TCHAR* Name, int32 DefaultValue, const TCHAR* Help, uint32 Flags = ECVF_Default)
+	{
+	}
 
+	FAutoConsoleVariable(const TCHAR* Name, float DefaultValue, const TCHAR* Help, uint32 Flags = ECVF_Default)
+	{
+	}
+
+	FAutoConsoleVariable(const TCHAR* Name, const TCHAR* DefaultValue, const TCHAR* Help, uint32 Flags = ECVF_Default)
+	{
+	}
+};
+#endif
+
+#if !NO_CVARS
 /**
  * Autoregistering float, int, bool, FString REF variable class...this changes that value when the console variable is changed. 
  */
@@ -985,7 +1216,27 @@ public:
 		return AsVariable();
 	}
 };
+#else
+class CORE_API FAutoConsoleVariableRef
+{
+public:
+	FAutoConsoleVariableRef(const TCHAR* Name, int32& RefValue, const TCHAR* Help, uint32 Flags = ECVF_Default)
+	{
+	}
 
+	FAutoConsoleVariableRef(const TCHAR* Name, float& RefValue, const TCHAR* Help, uint32 Flags = ECVF_Default)
+	{
+	}
+
+	FAutoConsoleVariableRef(const TCHAR* Name, int32& RefValue, const TCHAR* Help, const FConsoleVariableDelegate& Callback, uint32 Flags = ECVF_Default)
+	{
+	}
+
+	FAutoConsoleVariableRef(const TCHAR* Name, float& RefValue, const TCHAR* Help, const FConsoleVariableDelegate& Callback, uint32 Flags = ECVF_Default)
+	{
+	}
+};
+#endif // NO_CVARS
 
 
 // currently only supports main and render thread
@@ -1051,9 +1302,10 @@ private: // ----------------------------------------------------
 	}
 
 	template<class T2> friend class FConsoleVariable;
+	template<class T2> friend class TAutoConsoleVariable;
 };
 
-
+#if !NO_CVARS
 /**
  * Autoregistering float, int variable class...this changes that value when the console variable is changed. 
  */
@@ -1107,6 +1359,13 @@ private:
 };
 
 template <>
+inline TAutoConsoleVariable<bool>::TAutoConsoleVariable(const TCHAR* Name, const bool& DefaultValue, const TCHAR* Help, uint32 Flags)
+	: FAutoConsoleObject(IConsoleManager::Get().RegisterConsoleVariable(Name, DefaultValue, Help, Flags))
+{
+	Ref = AsVariable()->AsVariableBool();
+}
+
+template <>
 inline TAutoConsoleVariable<int32>::TAutoConsoleVariable(const TCHAR* Name, const int32& DefaultValue, const TCHAR* Help, uint32 Flags)
 	: FAutoConsoleObject(IConsoleManager::Get().RegisterConsoleVariable(Name, DefaultValue, Help, Flags))
 {
@@ -1126,7 +1385,133 @@ inline TAutoConsoleVariable<FString>::TAutoConsoleVariable(const TCHAR* Name, co
 {
 	Ref = AsVariable()->AsVariableString();
 }
+#else
+template <class T>
+class TAutoConsoleVariable : public IConsoleVariable
+{
+public:
+	TAutoConsoleVariable(const TCHAR* Name, const T& DefaultValue, const TCHAR* InHelp, uint32 InFlags = ECVF_Default)
+		: Value(DefaultValue), Flags((EConsoleVariableFlags)InFlags)
+	{
+	}
 
+	T GetValueOnGameThread() const
+	{
+		return Value.GetValueOnGameThread();
+	}
+
+	T GetValueOnRenderThread() const
+	{
+		return Value.GetValueOnRenderThread();
+	}
+
+	T GetValueOnAnyThread(bool bForceGameThread = false) const
+	{
+		return Value.GetValueOnAnyThread(bForceGameThread);
+	}
+	
+	IConsoleVariable& operator*()
+	{
+		return *AsVariable();
+	}
+
+	const IConsoleVariable& operator*() const
+	{
+		return *AsVariable();
+	}
+
+	IConsoleVariable* operator->()
+	{
+		return AsVariable();
+	}
+
+	const IConsoleVariable* operator->() const
+	{
+		return AsVariable();
+	}
+
+	IConsoleVariable*		AsVariable()		{ return this; }
+	const IConsoleVariable* AsVariable() const	{ return this; }
+
+	virtual class TConsoleVariableData<int32>*		AsVariableInt()		override { return AsImpl<int32>(); }
+	virtual class TConsoleVariableData<float>*		AsVariableFloat()	override { return AsImpl<float>(); }
+	virtual class TConsoleVariableData<FString>*	AsVariableString()	override { return AsImpl<FString>(); }
+
+	virtual bool		IsVariableInt() const override	{ return TIsSame<int32, T>::Value; }
+	virtual int32		GetInt()		const override	{ return GetImpl<int32>(); }
+	virtual float		GetFloat()		const override	{ return GetImpl<float>(); }
+	virtual FString		GetString()		const override	{ return GetImpl<FString>(); }
+	virtual bool		GetBool()		const override { return GetImpl<bool>(); }
+
+	virtual const TCHAR* GetHelp() const override
+	{
+		return TEXT("NO_CVARS, no help");
+	}
+
+	virtual void SetHelp(const TCHAR* InHelp) override
+	{
+		check(false);
+	}
+
+	virtual void Release() override
+	{
+		check(false);
+	}
+
+	virtual void SetOnChangedCallback(const FConsoleVariableDelegate &) override
+	{
+		check(false);
+	}
+
+	virtual EConsoleVariableFlags GetFlags() const override
+	{
+		return Flags;
+	}
+
+	virtual void SetFlags(const EConsoleVariableFlags InFlags) override
+	{
+		Flags = InFlags;
+	}
+
+	virtual void Set(const TCHAR* InValue, EConsoleVariableFlags SetBy) override
+	{
+		LexFromString(Value.ShadowedValue[0], InValue);
+	}
+
+private:
+	TConsoleVariableData<T> Value;
+	FString Help;
+	EConsoleVariableFlags Flags = EConsoleVariableFlags::ECVF_Default;
+
+	template<class Y>
+	typename TEnableIf<!TIsSame<T, Y>::Value, Y>::Type GetImpl() const
+	{
+		check(false);
+		return Y();
+	}
+
+	template<class Y>
+	typename TEnableIf<TIsSame<T, Y>::Value, Y>::Type GetImpl() const
+	{
+		return GetValueOnAnyThread();
+	}
+
+	template<class Y>
+	typename TEnableIf<!TIsSame<T, Y>::Value, TConsoleVariableData<Y>*>::Type AsImpl()
+	{
+		check(false);
+		return nullptr;
+	}
+
+	template<class Y>
+	typename TEnableIf<TIsSame<T, Y>::Value, TConsoleVariableData<T>*>::Type AsImpl()
+	{
+		return &Value;
+	}
+};
+#endif // NO_CVARS
+
+#if !NO_CVARS
 /**
  * Autoregistering console command
  */
@@ -1172,8 +1557,26 @@ public:
 	{
 	}
 };
+#else
+class CORE_API FAutoConsoleCommand
+{
+public:
+	FAutoConsoleCommand(const TCHAR* Name, const TCHAR* Help, const FConsoleCommandDelegate& Command, uint32 Flags = ECVF_Default)
+	{
+	}
+
+	FAutoConsoleCommand(const TCHAR* Name, const TCHAR* Help, const FConsoleCommandWithArgsDelegate& Command, uint32 Flags = ECVF_Default)
+	{
+	}
+
+	FAutoConsoleCommand(const TCHAR* Name, const TCHAR* Help, const FConsoleCommandWithWorldArgsAndOutputDeviceDelegate& Command, uint32 Flags = ECVF_Default)
+	{
+	}
+};
+#endif
 
 
+#if !NO_CVARS
 /**
  * Autoregistering console command with a world
  */
@@ -1236,7 +1639,6 @@ public:
 	}
 };
 
-
 /**
  * Autoregistering console command with world, args, an output device
  */
@@ -1256,6 +1658,34 @@ public:
 	{
 	}
 };
+
+#else
+
+class FAutoConsoleCommandWithWorld
+{
+public:
+	template<class... Args> FAutoConsoleCommandWithWorld(const Args&...) {}
+};
+
+class FAutoConsoleCommandWithWorldAndArgs
+{
+public:
+	template<class... Args> FAutoConsoleCommandWithWorldAndArgs(const Args&...) {}
+};
+
+class FAutoConsoleCommandWithOutputDevice
+{
+public:
+	template<class... Args> FAutoConsoleCommandWithOutputDevice(const Args&...) {}
+};
+
+class FAutoConsoleCommandWithWorldArgsAndOutputDevice
+{
+public:
+	template<class... Args> FAutoConsoleCommandWithWorldArgsAndOutputDevice(const Args&...) {}
+};
+
+#endif
 
 CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogConsoleResponse, Log, All);
 

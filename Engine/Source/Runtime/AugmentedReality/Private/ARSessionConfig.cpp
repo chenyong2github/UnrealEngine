@@ -200,3 +200,13 @@ void UARSessionConfig::Serialize(FArchive& Ar)
 		}
 	}
 }
+
+EARSessionTrackingFeature UARSessionConfig::GetEnabledSessionTrackingFeature() const
+{
+	return EnabledSessionTrackingFeature;
+}
+
+void UARSessionConfig::SetSessionTrackingFeatureToEnable(EARSessionTrackingFeature InSessionTrackingFeature)
+{
+	EnabledSessionTrackingFeature = InSessionTrackingFeature;
+}

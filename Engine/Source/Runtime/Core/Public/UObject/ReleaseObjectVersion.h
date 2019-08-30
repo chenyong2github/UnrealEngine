@@ -80,8 +80,8 @@ struct CORE_API FReleaseObjectVersion
 		// DepthOfFieldFocalDistance at 0 now disables DOF instead of DepthOfFieldFstop at 0.
 		FocalDistanceDisablesDOF,
 
-		// SoundClass 2D Reverb Send
-		SoundClass2DReverbSend,
+		// Removed versioning, but version entry must still exist to keep assets saved with this version loadable
+		Unused_SoundClass2DReverbSend,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

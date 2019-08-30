@@ -16,10 +16,9 @@ public class UEOgg : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			OggLibPath += "Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-			PublicLibraryPaths.Add( OggLibPath );
+			OggLibPath += "Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
 
-			PublicAdditionalLibraries.Add("libogg_64.lib");
+			PublicAdditionalLibraries.Add(OggLibPath + "libogg_64.lib");
 
 			PublicDelayLoadDLLs.Add("libogg_64.dll");
 
@@ -27,10 +26,9 @@ public class UEOgg : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win32 )
 		{
-			OggLibPath += "Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-			PublicLibraryPaths.Add( OggLibPath );
+			OggLibPath += "Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
 
-			PublicAdditionalLibraries.Add("libogg.lib");
+			PublicAdditionalLibraries.Add(OggLibPath + "libogg.lib");
 
 			PublicDelayLoadDLLs.Add("libogg.dll");
 
@@ -45,9 +43,10 @@ public class UEOgg : ModuleRules
                 LibFileName += "_64";
             }
 
+			string LibDir;
             if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
             {
-                PublicLibraryPaths.Add(System.String.Format("{0}lib/{1}/VS{2}/{3}/", OggPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.WindowsPlatform.GetArchitectureSubpath()));
+                LibDir = System.String.Format("{0}lib/{1}/VS{2}/{3}/", OggPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.WindowsPlatform.GetArchitectureSubpath());
                 RuntimeDependencies.Add(
 					System.String.Format("$(EngineDir)/Binaries/ThirdParty/Ogg/{0}/VS{1}/{2}/{3}.dll",
                         Target.Platform,
@@ -57,7 +56,7 @@ public class UEOgg : ModuleRules
             }
             else
             {
-                PublicLibraryPaths.Add(System.String.Format("{0}lib/{1}/VS{2}/", OggPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName()));
+                LibDir = System.String.Format("{0}lib/{1}/VS{2}/", OggPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
                 RuntimeDependencies.Add(
                     System.String.Format("$(EngineDir)/Binaries/ThirdParty/Ogg/{0}/VS{1}/{2}.dll",
                         Target.Platform,
@@ -65,7 +64,7 @@ public class UEOgg : ModuleRules
                         LibFileName));
             }
 
-            PublicAdditionalLibraries.Add(LibFileName + ".lib");
+            PublicAdditionalLibraries.Add(LibDir + LibFileName + ".lib");
 			PublicDelayLoadDLLs.Add(LibFileName + ".dll");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
@@ -96,13 +95,10 @@ public class UEOgg : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
 		{
-			// Filtered in the toolchain.
-			PublicLibraryPaths.Add(OggLibPath + "Android/ARMv7");
-			PublicLibraryPaths.Add(OggLibPath + "Android/ARM64");
-			PublicLibraryPaths.Add(OggLibPath + "Android/x86");
-			PublicLibraryPaths.Add(OggLibPath + "Android/x64");
-
-			PublicAdditionalLibraries.Add("ogg");
+			PublicAdditionalLibraries.Add(OggLibPath + "Android/ARMv7/libogg.a");
+			PublicAdditionalLibraries.Add(OggLibPath + "Android/ARM64/libogg.a");
+			PublicAdditionalLibraries.Add(OggLibPath + "Android/x86/libogg.a");
+			PublicAdditionalLibraries.Add(OggLibPath + "Android/x64/libogg.a");
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
@@ -122,8 +118,7 @@ public class UEOgg : ModuleRules
 			if (XboxOnePlatformType != null)
 			{
 				System.Object VersionName = XboxOnePlatformType.GetMethod("GetVisualStudioCompilerVersionName").Invoke(null, null);
-				PublicLibraryPaths.Add(OggLibPath + "XboxOne/VS" + VersionName.ToString());
-				PublicAdditionalLibraries.Add("libogg_static.lib");
+				PublicAdditionalLibraries.Add(OggLibPath + "XboxOne/VS" + VersionName.ToString() + "/libogg_static.lib");
 			}
 		}
 		else if (Target.Platform == UnrealTargetPlatform.IOS)

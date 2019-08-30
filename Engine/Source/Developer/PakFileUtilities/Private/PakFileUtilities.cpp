@@ -20,12 +20,44 @@
 #include "Async/ParallelFor.h"
 #include "Async/AsyncWork.h"
 #include "Modules/ModuleManager.h"
+#include "DerivedDataCacheInterface.h"
+#include "Serialization/MemoryReader.h"
+#include "Serialization/MemoryWriter.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, PakFileUtilities);
 
 #define GUARANTEE_UASSET_AND_UEXP_IN_SAME_PAK 0
 
+#define USE_DDC_FOR_COMPRESSED_FILES 0
+#define PAKCOMPRESS_DERIVEDDATA_VER TEXT("9493D2AB515048658AF7BE1342EC21FC")
+
+
 #define SEEK_OPT_VERBOSITY Display
+
+#define DETAILED_UNREALPAK_TIMING 0
+#if DETAILED_UNREALPAK_TIMING
+struct FUnrealPakScopeCycleCounter
+{
+	volatile int64& Counter;
+	uint32 StartTime;
+	FUnrealPakScopeCycleCounter(volatile int64& InCounter) : Counter(InCounter) { StartTime = FPlatformTime::Cycles(); }
+	~FUnrealPakScopeCycleCounter() 
+	{
+		uint32 EndTime = FPlatformTime::Cycles();
+		volatile int64 DeltaTime = EndTime;
+		if (EndTime > StartTime)
+		{
+			DeltaTime = EndTime - StartTime;
+		}
+		FPlatformAtomics::InterlockedAdd(&Counter, DeltaTime);
+	}
+};
+volatile int64 GCompressionTime = 0;
+volatile int64 GDDCSyncReadTime = 0;
+volatile int64 GDDCSyncWriteTime = 0;
+int64 GDDCHits = 0;
+int64 GDDCMisses = 0;
+#endif
 
 struct FNamedAESKey
 {
@@ -45,6 +77,80 @@ struct FKeyChain
 	TMap<FGuid, FNamedAESKey> EncryptionKeys;
 	const FNamedAESKey* MasterEncryptionKey = nullptr;
 };
+
+
+class FThreadLocalScratchSpace
+{
+public:
+#define MAX_SCRATCHSPACE_THREADS 64
+#define ALLOC_BUFFER_SIZE (256 * 1024 * 1024)
+	static FThreadLocalScratchSpace& Get()
+	{
+		static FThreadLocalScratchSpace Result;
+		return Result;
+	}
+	struct FScratchSpace
+	{
+	public:
+		FScratchSpace()
+		{
+			Size = 0;
+			Buffer = nullptr;
+		}
+		int64 Size;
+		uint8* Buffer;
+		TArray<uint8> Array;
+
+		void Embiggen(int64 NewSize)
+		{
+			if (NewSize > Size)
+			{
+				Buffer = (uint8*)FMemory::Realloc(Buffer, NewSize);
+				Size = NewSize;
+			}
+		}
+		void CleanUp()
+		{
+			FMemory::Free(Buffer);
+			Buffer = nullptr;
+			Size = 0;
+			Array.Empty();
+		}
+	};
+
+	void GetScratchSpace(FScratchSpace*& ScratchSpace)
+	{
+		ScratchSpace = (FScratchSpace*)FPlatformTLS::GetTlsValue(TLSSlot);
+		if (ScratchSpace == nullptr)
+		{
+			int32 MyScratchSpace = FPlatformAtomics::InterlockedIncrement(&ThreadCounter);
+			check(MyScratchSpace < (MAX_SCRATCHSPACE_THREADS - 1));
+			ScratchSpace = &ScratchSpaces[MyScratchSpace];
+			FPlatformTLS::SetTlsValue(TLSSlot, (void*)ScratchSpace);
+		}
+	}
+
+	void CleanUp()
+	{
+		for (int32 I = 0; I < MAX_SCRATCHSPACE_THREADS; ++I)
+		{
+			ScratchSpaces[I].CleanUp();
+		}
+		ThreadCounter = 0;
+	}
+private:
+
+	FThreadLocalScratchSpace()
+	{
+		TLSSlot = FPlatformTLS::AllocTlsSlot();
+		ThreadCounter = 0;
+	}
+
+	uint32 TLSSlot;
+	volatile int32 ThreadCounter;
+	FScratchSpace ScratchSpaces[MAX_SCRATCHSPACE_THREADS];
+};
+
 
 class FMemoryCompressor;
 
@@ -81,6 +187,7 @@ public:
 		// Actual size will be stored to CompressedSize.
 		Result = FCompression::CompressMemory(Format, CompressedBuffer, CompressedSize, UncompressedBuffer, UncompressedSize);
 	}
+
 	
 	FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(ExampleAsyncTask, STATGROUP_ThreadPoolAsyncTasks); }
 		
@@ -127,19 +234,19 @@ public:
 	~FMemoryCompressor()
 	{
 		for (auto* AsyncTask : BlockCompressAsyncTasks)
-			{
+		{
 			if (!AsyncTask->Cancel())
-				{
+			{
 				AsyncTask->EnsureCompletion();
-				}
-			delete AsyncTask;
 			}
+			delete AsyncTask;
 		}
+	}
 
 
-/** Fetch compressed result. Returns true and store CompressedSize if succeeded */
-bool CompressMemory(FName Format, void* CompressedBuffer, int32& CompressedSize, const void* UncompressedBuffer, int32 UncompressedSize)
-{
+	/** Fetch compressed result. Returns true and store CompressedSize if succeeded */
+	bool CompressMemory(FName Format, void* CompressedBuffer, int32& CompressedSize, const void* UncompressedBuffer, int32 UncompressedSize)
+	{
 		// Fetch compressed result from task.
 		// We assume this is called only once, same order, same parameters for
 		// each task.
@@ -152,7 +259,7 @@ bool CompressMemory(FName Format, void* CompressedBuffer, int32& CompressedSize,
 		check(Task.UncompressedSize == UncompressedSize);
 		check(CompressedSize >= Task.CompressedSize);
 		if (!Task.Result)
-	{
+		{
 			return false;
 		}
 		FMemory::Memcpy(CompressedBuffer, Task.CompressedBuffer, Task.CompressedSize);
@@ -296,6 +403,15 @@ public:
 #endif
 		return ReturnOrder;
 	}
+
+	void WriteOpenOrder(FArchive* Ar)
+	{
+		for (const auto& It : OrderMap)
+		{
+			Ar->Logf(TEXT("\"%s\" %d"), *It.Key, It.Value);
+		}
+	}
+
 private:
 	FString RemapLocalizationPathIfNeeded(const FString& PathLower, FString& OutRegion) const
 	{
@@ -354,7 +470,7 @@ struct FPatchSeekOptParams
 struct FPakCommandLineParameters
 {
 	FPakCommandLineParameters()
-		: CompressionBlockSize(64*1024)
+		: CompressionBlockSize(64 * 1024)
 		, FileSystemBlockSize(0)
 		, PatchFilePadAlign(0)
 		, AlignForMemoryMapping(0)
@@ -364,6 +480,7 @@ struct FPakCommandLineParameters
 		, bSign(false)
 		, bPatchCompatibilityMode421(false)
 		, bFallbackOrderForNonUassetFiles(false)
+		, bAsyncCompression(false)
 	{
 	}
 
@@ -384,6 +501,7 @@ struct FPakCommandLineParameters
 	bool bSign;
 	bool bPatchCompatibilityMode421;
 	bool bFallbackOrderForNonUassetFiles;
+	bool bAsyncCompression;
 };
 
 struct FPakEntryPair
@@ -468,6 +586,17 @@ struct FCompressedFileBuffer
 		CompressedBlocks.AddUninitialized((OriginalSize+CompressionBlockSize-1)/CompressionBlockSize);
 	}
 
+	void Empty()
+	{
+		OriginalSize = 0;
+		TotalCompressedSize = 0;
+		FileCompressionBlockSize = 0;
+		FileCompressionMethod = NAME_None;
+		CompressedBuffer = nullptr;
+		CompressedBufferSize = 0; 
+		CompressedBlocks.Empty();
+	}
+
 	void EnsureBufferSpace(int64 RequiredSpace)
 	{
 		if(RequiredSpace > CompressedBufferSize)
@@ -479,7 +608,32 @@ struct FCompressedFileBuffer
 		}
 	}
 
-	bool CompressFileToWorkingBuffer(const FPakInputPair& InFile, uint8*& InOutPersistentBuffer, int64& InOutBufferSize, FName CompressionMethod, const int32 CompressionBlockSize);
+	bool CompressFileToWorkingBuffer(const FPakInputPair& InFile, FName CompressionMethod, const int32 CompressionBlockSize);
+
+	void SerializeDDCData(FArchive &Ar)
+	{
+		Ar << OriginalSize;
+		Ar << TotalCompressedSize;
+		Ar << FileCompressionBlockSize;
+		Ar << FileCompressionMethod;
+		Ar << CompressedBlocks;
+		if (Ar.IsLoading())
+		{
+			EnsureBufferSpace(TotalCompressedSize);
+		}
+		Ar.Serialize(CompressedBuffer.Get(), TotalCompressedSize);
+	}
+
+	int64 GetSerializedSizeEstimate() const
+	{
+		int64 Size = 0;
+		Size += sizeof(*this);
+		Size += CompressedBlocks.Num() * sizeof(FPakCompressedBlock);
+		Size += CompressedBufferSize;
+		return Size;
+	}
+
+	FString GetDDCKeyString(const uint8* UncompressedFile, const int64& UncompressedFileSize, FName CompressionFormat, const int64& BlockSize);
 
 	int64				OriginalSize;
 	int64				TotalCompressedSize;
@@ -576,8 +730,32 @@ FString GetCommonRootPath(TArray<FPakInputPair>& FilesToAdd)
 	return Root;
 }
 
-bool FCompressedFileBuffer::CompressFileToWorkingBuffer(const FPakInputPair& InFile, uint8*& InOutPersistentBuffer, int64& InOutBufferSize, FName CompressionMethod, const int32 CompressionBlockSize)
+
+FString FCompressedFileBuffer::GetDDCKeyString(const uint8* UncompressedFile, const int64& UncompressedFileSize, FName CompressionFormat, const int64& BlockSize)
 {
+	FString KeyString;
+
+	KeyString += FString::Printf(TEXT("_F:%s_C:%s_B:%d_"), *CompressionFormat.ToString(), *FCompression::GetCompressorDDCSuffix(CompressionFormat), BlockSize);
+	
+	FSHA1 HashState;
+	HashState.Update(UncompressedFile, UncompressedFileSize);
+	HashState.Final();
+	FSHAHash FinalHash;
+	HashState.GetHash(FinalHash.Hash);
+	KeyString += FinalHash.ToString();;
+
+	return FDerivedDataCacheInterface::BuildCacheKey(TEXT("PAKCOMPRESS_"), PAKCOMPRESS_DERIVEDDATA_VER, *KeyString);
+}
+
+bool FCompressedFileBuffer::CompressFileToWorkingBuffer(const FPakInputPair& InFile, FName CompressionMethod, const int32 CompressionBlockSize)
+{
+
+	FThreadLocalScratchSpace::FScratchSpace* ScratchSpace = nullptr;
+	FThreadLocalScratchSpace::Get().GetScratchSpace(ScratchSpace);
+	check(ScratchSpace);
+
+
+
 	TUniquePtr<FArchive> FileHandle(IFileManager::Get().CreateFileReader(*InFile.Source));
 	if(!FileHandle)
 	{
@@ -588,59 +766,108 @@ bool FCompressedFileBuffer::CompressFileToWorkingBuffer(const FPakInputPair& InF
 	Reinitialize(FileHandle.Get(), CompressionMethod, CompressionBlockSize);
 	const int64 FileSize = OriginalSize;
 	const int64 PaddedEncryptedFileSize = Align(FileSize,FAES::AESBlockSize);
-	if(InOutBufferSize < PaddedEncryptedFileSize)
+	check(PaddedEncryptedFileSize >= FileSize);
+	if(ScratchSpace->Size < PaddedEncryptedFileSize)
 	{
-		InOutPersistentBuffer = (uint8*)FMemory::Realloc(InOutPersistentBuffer,PaddedEncryptedFileSize);
-		InOutBufferSize = FileSize;
+		ScratchSpace->Embiggen(PaddedEncryptedFileSize);
 	}
+
+
+	uint8*& InOutPersistentBuffer = ScratchSpace->Buffer;
+	int64& InOutBufferSize = ScratchSpace->Size;
 
 	// Load to buffer
 	FileHandle->Serialize(InOutPersistentBuffer,FileSize);
 
-	// Start parallel compress
-	FMemoryCompressor MemoryCompressor(InOutPersistentBuffer, FileSize, CompressionMethod, CompressionBlockSize);
 
-	// Build buffers for working
-	int64 UncompressedSize = FileSize;
-	int32 CompressionBufferSize = Align(FCompression::CompressMemoryBound(CompressionMethod, CompressionBlockSize, COMPRESS_NoFlags), FAES::AESBlockSize);
- 	EnsureBufferSpace(Align(FCompression::CompressMemoryBound(CompressionMethod, FileSize, COMPRESS_NoFlags), FAES::AESBlockSize));
-
-
-	TotalCompressedSize = 0;
-	int64 UncompressedBytes = 0;
-	int32 CurrentBlock = 0;
-	while(UncompressedSize)
+	FString DDCKey;
+	TArray<uint8>& GetData = ScratchSpace->Array;
+	const bool bShouldUseDDC = USE_DDC_FOR_COMPRESSED_FILES; // && (FileSize > 20 * 1024 ? true : false);
+	if (bShouldUseDDC)
 	{
-		int32 BlockSize = (int32)FMath::Min<int64>(UncompressedSize,CompressionBlockSize);
-		int32 MaxCompressedBlockSize = FCompression::CompressMemoryBound(CompressionMethod, BlockSize, COMPRESS_NoFlags);
-		int32 CompressedBlockSize = FMath::Max<int32>(CompressionBufferSize, MaxCompressedBlockSize);
-		FileCompressionBlockSize = FMath::Max<uint32>(BlockSize, FileCompressionBlockSize);
-		EnsureBufferSpace(Align(TotalCompressedSize+CompressedBlockSize,FAES::AESBlockSize));
-		if (!MemoryCompressor.CompressMemory(CompressionMethod, CompressedBuffer.Get() + TotalCompressedSize, CompressedBlockSize, InOutPersistentBuffer + UncompressedBytes, BlockSize))
+#if DETAILED_UNREALPAK_TIMING
+		FUnrealPakScopeCycleCounter Scope(GDDCSyncReadTime);
+#endif
+		DDCKey = GetDDCKeyString(InOutPersistentBuffer, FileSize, CompressionMethod, CompressionBlockSize);
+
+		if (GetDerivedDataCacheRef().CachedDataProbablyExists(*DDCKey))
 		{
-			return false;
-		}
-		UncompressedSize -= BlockSize;
-		UncompressedBytes += BlockSize;
-
-		CompressedBlocks[CurrentBlock].CompressedStart = TotalCompressedSize;
-		CompressedBlocks[CurrentBlock].CompressedEnd = TotalCompressedSize+CompressedBlockSize;
-		++CurrentBlock;
-
-		TotalCompressedSize += CompressedBlockSize;
-
-		if(InFile.bNeedEncryption)
-		{
-			int32 EncryptionBlockPadding = Align(TotalCompressedSize,FAES::AESBlockSize);
-			for(int64 FillIndex=TotalCompressedSize; FillIndex < EncryptionBlockPadding; ++FillIndex)
+			int32 AsyncHandle = GetDerivedDataCacheRef().GetAsynchronous(*DDCKey);
+			GetDerivedDataCacheRef().WaitAsynchronousCompletion(AsyncHandle);
+			GetData.Empty(GetData.Max());
+			bool Result = false;
+			GetDerivedDataCacheRef().GetAsynchronousResults(AsyncHandle, GetData, &Result);
+			if (Result)
 			{
-				// Fill the trailing buffer with bytes from file. Note that this is now from a fixed location
-				// rather than a random one so that we produce deterministic results
-				CompressedBuffer.Get()[FillIndex] = CompressedBuffer.Get()[FillIndex % TotalCompressedSize];
+				FMemoryReader Ar(GetData, true);
+				SerializeDDCData(Ar);
+				return true;
 			}
-			TotalCompressedSize += EncryptionBlockPadding - TotalCompressedSize;
 		}
 	}
+
+	{
+#if DETAILED_UNREALPAK_TIMING
+		FUnrealPakScopeCycleCounter Scope(GCompressionTime);
+#endif
+		// Start parallel compress
+		FMemoryCompressor MemoryCompressor(InOutPersistentBuffer, FileSize, CompressionMethod, CompressionBlockSize);
+
+		// Build buffers for working
+		int64 UncompressedSize = FileSize;
+		int32 CompressionBufferSize = Align(FCompression::CompressMemoryBound(CompressionMethod, CompressionBlockSize, COMPRESS_NoFlags), FAES::AESBlockSize);
+		EnsureBufferSpace(Align(FCompression::CompressMemoryBound(CompressionMethod, FileSize, COMPRESS_NoFlags), FAES::AESBlockSize));
+
+
+		TotalCompressedSize = 0;
+		int64 UncompressedBytes = 0;
+		int32 CurrentBlock = 0;
+		while (UncompressedSize)
+		{
+			int32 BlockSize = (int32)FMath::Min<int64>(UncompressedSize, CompressionBlockSize);
+			int32 MaxCompressedBlockSize = FCompression::CompressMemoryBound(CompressionMethod, BlockSize, COMPRESS_NoFlags);
+			int32 CompressedBlockSize = FMath::Max<int32>(CompressionBufferSize, MaxCompressedBlockSize);
+			FileCompressionBlockSize = FMath::Max<uint32>(BlockSize, FileCompressionBlockSize);
+			EnsureBufferSpace(Align(TotalCompressedSize + CompressedBlockSize, FAES::AESBlockSize));
+			if (!MemoryCompressor.CompressMemory(CompressionMethod, CompressedBuffer.Get() + TotalCompressedSize, CompressedBlockSize, InOutPersistentBuffer + UncompressedBytes, BlockSize))
+			{
+				return false;
+			}
+			UncompressedSize -= BlockSize;
+			UncompressedBytes += BlockSize;
+
+			CompressedBlocks[CurrentBlock].CompressedStart = TotalCompressedSize;
+			CompressedBlocks[CurrentBlock].CompressedEnd = TotalCompressedSize + CompressedBlockSize;
+			++CurrentBlock;
+
+			TotalCompressedSize += CompressedBlockSize;
+
+			if (InFile.bNeedEncryption)
+			{
+				int32 EncryptionBlockPadding = Align(TotalCompressedSize, FAES::AESBlockSize);
+				for (int64 FillIndex = TotalCompressedSize; FillIndex < EncryptionBlockPadding; ++FillIndex)
+				{
+					// Fill the trailing buffer with bytes from file. Note that this is now from a fixed location
+					// rather than a random one so that we produce deterministic results
+					CompressedBuffer.Get()[FillIndex] = CompressedBuffer.Get()[FillIndex % TotalCompressedSize];
+				}
+				TotalCompressedSize += EncryptionBlockPadding - TotalCompressedSize;
+			}
+		}
+
+	}
+	if (bShouldUseDDC)
+	{
+#if DETAILED_UNREALPAK_TIMING
+		FUnrealPakScopeCycleCounter Scope(GDDCSyncWriteTime);
+		++GDDCMisses;
+#endif
+		GetData.Empty(GetData.Max());
+		FMemoryWriter Ar(GetData, true);
+		SerializeDDCData(Ar);
+		GetDerivedDataCacheRef().Put(*DDCKey, GetData);
+	}
+
 
 	return true;
 }
@@ -785,6 +1012,11 @@ void ProcessCommandLine(const TCHAR* CmdLine, const TArray<FString>& NonOptionAr
 	if (FParse::Param(CmdLine, TEXT("patchcompatibilitymode421")))
 	{
 		CmdLineParameters.bPatchCompatibilityMode421 = true;
+	}
+
+	if (FParse::Param(CmdLine, TEXT("asynccompression")))
+	{
+		CmdLineParameters.bAsyncCompression = true;
 	}
 
 	if (FParse::Param(CmdLine, TEXT("fallbackOrderForNonUassetFiles")))
@@ -1570,6 +1802,7 @@ FArchive* CreatePakWriter(const TCHAR* Filename, const FKeyChain& InKeyChain, bo
 	return Writer;
 }
 
+
 bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, const FPakCommandLineParameters& CmdLineParameters, const FKeyChain& InKeyChain)
 {
 	const double StartTime = FPlatformTime::Seconds();
@@ -1609,7 +1842,6 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 	FString MountPoint = GetCommonRootPath(FilesToAdd);
 	uint8* ReadBuffer = NULL;
 	int64 BufferSize = 0;
-	FCompressedFileBuffer CompressedFileBuffer;
 
 	uint8* PaddingBuffer = nullptr;
 	int64 PaddingBufferSize = 0;
@@ -1644,6 +1876,172 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 		NoPluginCompressionExtensions.Add(Ext);
 	}
 
+	struct FAsyncCompressor
+	{
+		
+		// input
+		const FPakInputPair* FileToAdd; 
+		FPakEntryPair Entry;
+		const TArray<FName>* CompressionFormats;
+		const TSet<FString>* NoPluginCompressionExtensions;
+
+		// output
+		FCompressedFileBuffer CompressedFileBuffer;
+		FName CompressionMethod; 
+		int32 CompressionBlockSize;
+		int64 RealFileSize;
+		int64 OriginalFileSize;
+		volatile bool bIsComplete;
+		
+		void Init(FPakInputPair* InFileToAdd, const TArray<FName>* InCompressionFormats, int32 InCompressionBlockSize, const TSet<FString>* InNoPluginCompressionExtensions) 
+		{
+			CompressionMethod = NAME_None;
+			if (InFileToAdd->bIsDeleteRecord)
+			{
+				// don't need to do anything for delete records
+				bIsComplete = true;
+				return;
+			}
+			FileToAdd = InFileToAdd;
+			NoPluginCompressionExtensions = InNoPluginCompressionExtensions;
+			CompressionFormats= InCompressionFormats;
+			CompressionBlockSize = InCompressionBlockSize;	
+			bIsComplete = false;
+		}
+		
+		bool IsComplete() const
+		{
+			return bIsComplete;
+		}
+		void Complete()
+		{
+			bIsComplete = true;
+		}
+
+		void Compress()
+		{
+			if (bIsComplete == true)
+			{
+				return;
+			}
+
+			//check if this file requested to be compression
+			OriginalFileSize = IFileManager::Get().FileSize(*FileToAdd->Source);
+			RealFileSize = OriginalFileSize + Entry.Info.GetSerializedSize(FPakInfo::PakFile_Version_Latest);
+
+			if (OriginalFileSize <= 0 || (FileToAdd->bNeedsCompression == false))
+			{
+				// done, don't need to do anything else
+				Complete();
+				return;
+			}
+
+			bool bSomeCompressionSucceeded = false;
+			for (int32 MethodIndex = 0; MethodIndex < CompressionFormats->Num(); MethodIndex++)
+			{
+				CompressionMethod = (*CompressionFormats)[MethodIndex];
+
+				// because compression is a plugin, certain files need to be loadable out of pak files before plugins are loadable
+				// (like .uplugin files). for these, we enforce a non-plugin compression - zlib
+				bool bForceCompressionFormat = false;
+				if (NoPluginCompressionExtensions->Find(FPaths::GetExtension(FileToAdd->Source)) != nullptr)
+				{
+					CompressionMethod = NAME_Zlib;
+					bForceCompressionFormat = true;
+				}
+
+				// attempt to compress the data
+				if (CompressedFileBuffer.CompressFileToWorkingBuffer(*FileToAdd, CompressionMethod, CompressionBlockSize))
+				{
+					// Check the compression ratio, if it's too low just store uncompressed. Also take into account read size
+					// if we still save 64KB it's probably worthwhile compressing, as that saves a file read operation in the runtime.
+								// TODO: drive this threshold from the command line
+					float PercentLess = ((float)CompressedFileBuffer.TotalCompressedSize / (OriginalFileSize / 100.f));
+					if (PercentLess > 90.f && (OriginalFileSize - CompressedFileBuffer.TotalCompressedSize) < 65536)
+					{
+						// compression did not succeed, we can try the next format, so do nothing here
+					}
+					else
+					{
+						Entry.Info.CompressionBlocks.AddUninitialized(CompressedFileBuffer.CompressedBlocks.Num());
+						RealFileSize = CompressedFileBuffer.TotalCompressedSize + Entry.Info.GetSerializedSize(FPakInfo::PakFile_Version_Latest);
+						Entry.Info.CompressionBlocks.Reset();
+
+						// at this point, we have successfully compressed the file, no need to continue
+						bSomeCompressionSucceeded = true;
+					}
+				}
+
+				// if we successfully compressed it, or we only wanted a single format, then we are done!
+				if (bSomeCompressionSucceeded || bForceCompressionFormat)
+				{
+					break;
+				}
+			}
+
+			// If no compression was able to make it small enough, or compress at all, don't compress it
+			if (!bSomeCompressionSucceeded)
+			{
+				UE_LOG(LogPakFile, Log, TEXT("File \"%s\" did not get small enough from compression, or compression failed."), *FileToAdd->Source);
+				CompressionMethod = NAME_None;
+			}
+			Complete();
+		}
+
+		void CleanUp()
+		{
+			CompressedFileBuffer.Empty();
+		}
+	};
+
+
+
+	FThreadSafeCounter CompletionCounter;
+
+	TArray<FAsyncCompressor> AsyncCompressors;
+	AsyncCompressors.AddZeroed(FilesToAdd.Num());
+	
+	FThreadLocalScratchSpace::Get();
+
+	class FRunCompressionTask : public FNonAbandonableTask
+	{
+		FAsyncCompressor* AsyncCompressor;
+	public:
+		FRunCompressionTask(FAsyncCompressor* InAsyncCompressor)
+		{
+			AsyncCompressor = InAsyncCompressor;
+		}
+
+		void DoWork()
+		{
+			AsyncCompressor->Compress();
+		}
+
+		FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(ExampleAsyncTask, STATGROUP_ThreadPoolAsyncTasks); }
+	};
+
+	const bool bRunAsync = CmdLineParameters.bAsyncCompression;
+
+	GetDerivedDataCacheRef();
+
+	for (int32 FileIndex = 0; FileIndex < FilesToAdd.Num(); FileIndex++)
+	{
+		AsyncCompressors[FileIndex].Init(&FilesToAdd[FileIndex], &CmdLineParameters.CompressionFormats, CmdLineParameters.CompressionBlockSize, &NoPluginCompressionExtensions);
+		if (bRunAsync)
+		{
+			if (FilesToAdd[FileIndex].bNeedsCompression)
+			{
+				(new FAutoDeleteAsyncTask<FRunCompressionTask>(&AsyncCompressors[FileIndex]))->StartBackgroundTask();
+			}
+			else
+			{
+				// call compress function inline 
+				// it won't do anything except for initialize some internal variables used in the non compressed path
+				// we don't want to pass these to a different thread as they may cause congestion with legitimate tasks
+				AsyncCompressors[FileIndex].Compress();
+			}
+		}
+	}
 
 	for (int32 FileIndex = 0; FileIndex < FilesToAdd.Num(); FileIndex++)
 	{
@@ -1651,6 +2049,7 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 		bool bIsUAssetUExpPairUAsset = false;
 		bool bIsUAssetUExpPairUExp = false;
 		bool bIsMappedBulk = FilesToAdd[FileIndex].Source.EndsWith(TEXT(".m.ubulk"));
+
 
 		if (FileIndex)
 		{
@@ -1675,72 +2074,29 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 
 		//  Remember the offset but don't serialize it with the entry header.
 		int64 NewEntryOffset = PakFileHandle->Tell();
-		FPakEntryPair NewEntry;
-		FName CompressionMethod = NAME_None;
+		FPakEntryPair &NewEntry = AsyncCompressors[FileIndex].Entry;
+		
+		if (bRunAsync)
+		{
+			while (AsyncCompressors[FileIndex].IsComplete() != true)
+			{
+				FPlatformProcess::Sleep(0.001f);
+			}
+		}
+		else
+		{
+			AsyncCompressors[FileIndex].Compress();
+		}
+
+		const FName& CompressionMethod = AsyncCompressors[FileIndex].CompressionMethod;
+		FCompressedFileBuffer& CompressedFileBuffer = AsyncCompressors[FileIndex].CompressedFileBuffer;
 
 		if (!bDeleted)
 		{
-			//check if this file requested to be compression
-			int64 OriginalFileSize = IFileManager::Get().FileSize(*FilesToAdd[FileIndex].Source);
-			int64 RealFileSize = OriginalFileSize + NewEntry.Info.GetSerializedSize(FPakInfo::PakFile_Version_Latest);
-
-			if (FilesToAdd[FileIndex].bNeedsCompression && OriginalFileSize > 0)
-			{
-				bool bSomeCompressionSucceeded = false;
-				for (int32 MethodIndex = 0; MethodIndex < CmdLineParameters.CompressionFormats.Num(); MethodIndex++)
-				{
-					CompressionMethod = CmdLineParameters.CompressionFormats[MethodIndex];
-
-					// because compression is a plugin, certain files need to be loadable out of pak files before plugins are loadable
-					// (like .uplugin files). for these, we enforce a non-plugin compression - zlib
-					bool bForceCompressionFormat = false;
-					if (NoPluginCompressionExtensions.Find(FPaths::GetExtension(FilesToAdd[FileIndex].Source)) != nullptr)
-					{
-						CompressionMethod = NAME_Zlib;
-						bForceCompressionFormat = true;
-					}
-
-					// attempt to compress the data
-					if (CompressedFileBuffer.CompressFileToWorkingBuffer(FilesToAdd[FileIndex], ReadBuffer, BufferSize, CompressionMethod, CmdLineParameters.CompressionBlockSize))
-					{
-						// Check the compression ratio, if it's too low just store uncompressed. Also take into account read size
-						// if we still save 64KB it's probably worthwhile compressing, as that saves a file read operation in the runtime.
-									// TODO: drive this threshold from the command line
-						float PercentLess = ((float)CompressedFileBuffer.TotalCompressedSize / (OriginalFileSize / 100.f));
-						if (PercentLess > 90.f && (OriginalFileSize - CompressedFileBuffer.TotalCompressedSize) < 65536)
-						{
-							// compression did not succeed, we can try the next format, so do nothing here
-						}
-						else
-						{
-							NewEntry.Info.CompressionMethodIndex = Info.GetCompressionMethodIndex(CompressionMethod);
-							NewEntry.Info.CompressionBlocks.AddUninitialized(CompressedFileBuffer.CompressedBlocks.Num());
-							RealFileSize = CompressedFileBuffer.TotalCompressedSize + NewEntry.Info.GetSerializedSize(FPakInfo::PakFile_Version_Latest);
-							NewEntry.Info.CompressionBlocks.Reset();
-
-							// at this point, we have successfully compressed the file, no need to continue
-							bSomeCompressionSucceeded = true;
-						}
-					}
-
-					// if we successfully compressed it, or we only wanted a single format, then we are done!
-					if (bSomeCompressionSucceeded || bForceCompressionFormat)
-					{
-						break;
-					}
-				}
-
-				// If no compression was able to make it small enough, or compress at all, don't compress it
-				if (!bSomeCompressionSucceeded)
-				{
-					UE_LOG(LogPakFile, Log, TEXT("File \"%s\" did not get small enough from compression, or compression failed."), *FilesToAdd[FileIndex].Source);
-					CompressionMethod = NAME_None;
-				}
-			}
-			else
-			{
-				CompressionMethod = NAME_None;
-			}
+			const int64 &RealFileSize = AsyncCompressors[FileIndex].RealFileSize;
+			const int64 &OriginalFileSize = AsyncCompressors[FileIndex].OriginalFileSize;
+			const int32 CompressionBlockSize = AsyncCompressors[FileIndex].CompressionBlockSize;
+			NewEntry.Info.CompressionMethodIndex = Info.GetCompressionMethodIndex(CompressionMethod);
 
 			// Account for file system block size, which is a boundary we want to avoid crossing.
 			if (!bIsUAssetUExpPairUExp && // don't split uexp / uasset pairs
@@ -1947,11 +2303,14 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 				UE_LOG(LogPakFile, Warning, TEXT("Missing file \"%s\" will not be added to PAK file."), *FilesToAdd[FileIndex].Source);
 			}
 		}
+		AsyncCompressors[FileIndex].CleanUp();
 	}
 
 	FMemory::Free(PaddingBuffer);
 	FMemory::Free(ReadBuffer);
 	ReadBuffer = NULL;
+
+	FThreadLocalScratchSpace::Get().CleanUp();
 
 	// Remember IndexOffset
 	Info.IndexOffset = PakFileHandle->Tell();
@@ -2059,6 +2418,14 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 	PakFileHandle->Close();
 	PakFileHandle.Reset();
 
+#if DETAILED_UNREALPAK_TIMING
+	UE_LOG(LogPakFile, Display, TEXT("Detailed timing stats"));
+	UE_LOG(LogPakFile, Display, TEXT("Compression time: %lf"), ((double)GCompressionTime) * FPlatformTime::GetSecondsPerCycle());
+	UE_LOG(LogPakFile, Display, TEXT("DDC Hits: %d"), GDDCHits);
+	UE_LOG(LogPakFile, Display, TEXT("DDC Misses: %d"), GDDCMisses);
+	UE_LOG(LogPakFile, Display, TEXT("DDC Sync Read Time: %lf"), ((double)GDDCSyncReadTime) * FPlatformTime::GetSecondsPerCycle());
+	UE_LOG(LogPakFile, Display, TEXT("DDC Sync Write Time: %lf"), ((double)GDDCSyncWriteTime) * FPlatformTime::GetSecondsPerCycle());
+#endif
 	return true;
 }
 
@@ -2878,12 +3245,12 @@ bool ExtractFilesFromPak(const TCHAR* InPakFilename, TMap<FString, FFileInfo>& I
 							{
 								UncompressCopyFile(*FileHandle, PakReader, Entry, PersistantCompressionBuffer, CompressionBufferSize, InKeyChain, PakFile);
 							}
-							UE_LOG(LogPakFile, Display, TEXT("Extracted \"%s\" to \"%s\"."), *It.Filename(), *DestFilename);
+							UE_LOG(LogPakFile, Display, TEXT("Extracted \"%s\" to \"%s\" Offset %d."), *It.Filename(), *DestFilename, Entry.Offset);
 							ExtractedCount++;
 
 							if (OutOrderMap != nullptr)
 							{
-								OutOrderMap->Add(DestFilename, OutOrderMap->Num());
+								OutOrderMap->Add(PakFile.GetMountPoint() / It.Filename(), It.GetIndexInPakFile());
 							}
 
 							if (OutEntries != nullptr)
@@ -3987,6 +4354,38 @@ bool Repack(const FString& InputPakFile, const FString& OutputPakFile, const FPa
 	return bResult;
 }
 
+
+
+int32 NumberOfWorkerThreadsDesired()
+{
+	const int32 MaxThreads = 64;
+	const int32 NumberOfCores = FPlatformMisc::NumberOfCoresIncludingHyperthreads();
+	// need to spawn at least one worker thread (see FTaskGraphImplementation)
+	return FMath::Max(FMath::Min(NumberOfCores - 1, MaxThreads), 1);
+}
+
+void CheckAndReallocThreadPool()
+{
+	if (FPlatformProcess::SupportsMultithreading())
+	{
+		const int32 ThreadsSpawned = GThreadPool->GetNumThreads();
+		const int32 DesiredThreadCount = NumberOfWorkerThreadsDesired();
+		if (ThreadsSpawned < DesiredThreadCount)
+		{
+			UE_LOG(LogPakFile, Log, TEXT("Engine only spawned %d worker threads, bumping up to %d!"), ThreadsSpawned, DesiredThreadCount);
+			GThreadPool->Destroy();
+			GThreadPool = FQueuedThreadPool::Allocate();
+			verify(GThreadPool->Create(DesiredThreadCount, 128 * 1024));
+		}
+		else
+		{
+			UE_LOG(LogPakFile, Log, TEXT("Continuing with %d spawned worker threads."), ThreadsSpawned);
+		}
+	}
+}
+
+
+
 /**
  * Application entry point
  * Params:
@@ -4150,15 +4549,16 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 	
 		if (NonOptionArguments.Num() != 2)
 		{
-			UE_LOG(LogPakFile, Error, TEXT("Incorrect arguments. Expected: -Extract <PakFile> <OutputPath> [-responsefile=<filename>]"));
+			UE_LOG(LogPakFile, Error, TEXT("Incorrect arguments. Expected: -Extract <PakFile> <OutputPath> [-responsefile=<outputresponsefilename> -order=<outputordermap>]"));
 			return false;
 		}
 
 		FString PakFilename = GetPakPath(*NonOptionArguments[0], false);
 
 		FString ResponseFileName;
+		FString OrderMapFileName;
 		bool bGenerateResponseFile = FParse::Value(CmdLine, TEXT("responseFile="), ResponseFileName);
-
+		bool bGenerateOrderMap = FParse::Value(CmdLine, TEXT("outorder="), OrderMapFileName);
 		bool bUseFilter = false;
 		FString Filter;
 		FString DestPath = NonOptionArguments[1];
@@ -4168,7 +4568,8 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 		TMap<FString, FFileInfo> EmptyMap;
 		TArray<FPakInputPair> ResponseContent;
 		TArray<FPakInputPair> DeletedContent;
-		if (ExtractFilesFromPak(*PakFilename, EmptyMap, *DestPath, bExtractToMountPoint, KeyChain, bUseFilter ? &Filter : nullptr, &ResponseContent, &DeletedContent) == false)
+		FPakOrderMap OrderMap;
+		if (ExtractFilesFromPak(*PakFilename, EmptyMap, *DestPath, bExtractToMountPoint, KeyChain, bUseFilter ? &Filter : nullptr, &ResponseContent, &DeletedContent, &OrderMap) == false)
 		{
 			return false;
 		}
@@ -4202,6 +4603,14 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 			}
 			ResponseArchive->Close();
 			delete ResponseArchive;
+		}
+		if (bGenerateOrderMap)
+		{
+			FArchive* OutputFile = IFileManager::Get().CreateFileWriter(*OrderMapFileName);
+			OutputFile->SetIsTextFormat(true);
+			OrderMap.WriteOpenOrder(OutputFile);
+			OutputFile->Close();
+			delete OutputFile;
 		}
 
 		return true;
@@ -4389,6 +4798,11 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 
 	if(NonOptionArguments.Num() > 0)
 	{
+
+		CheckAndReallocThreadPool();
+
+
+
 		// since this is for creation, we pass true to make it not look in LaunchDir
 		FString PakFilename = GetPakPath(*NonOptionArguments[0], true);
 
@@ -4493,6 +4907,10 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 			// delete the temporary directory
 			IFileManager::Get().DeleteDirectory(*OutputPath, false, true);
 		}
+
+		GetDerivedDataCacheRef().WaitForQuiescence(true);
+
+		
 
 		return bResult;
 	}

@@ -7,6 +7,8 @@
 #include "MetalDebugCommandEncoder.h"
 #endif
 
+#include "ShaderPipelineCache.h"
+
 enum EMetalPipelineHashBits
 {
 	NumBits_RenderTargetFormat = 5, //(x8=40),
@@ -45,6 +47,21 @@ enum EMetalPipelineHashOffsets
 	Offset_StencilFormat = Offset_DepthFormat + NumBits_DepthFormat,
 	Offset_SampleCount = Offset_StencilFormat + NumBits_StencilFormat,
 	Offset_End = Offset_SampleCount + NumBits_SampleCount
+};
+
+class FMetalPipelineStateCacheManager
+{
+public:
+	FMetalPipelineStateCacheManager();
+	~FMetalPipelineStateCacheManager();
+	
+private:
+	FDelegateHandle OnShaderPipelineCacheOpenedDelegate;
+	FDelegateHandle OnShaderPipelineCachePrecompilationCompleteDelegate;
+	
+	/** Delegate handlers to track the ShaderPipelineCache precompile. */
+	void OnShaderPipelineCacheOpened(FString const& Name, EShaderPlatform Platform, uint32 Count, const FGuid& VersionGuid, FShaderPipelineCache::FShaderCachePrecompileContext& ShaderCachePrecompileContext);
+	void OnShaderPipelineCachePrecompilationComplete(uint32 Count, double Seconds, const FShaderPipelineCache::FShaderCachePrecompileContext& ShaderCachePrecompileContext);
 };
 
 struct FMetalTessellationPipelineDesc

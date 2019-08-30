@@ -82,7 +82,7 @@ public:
 		return Variant;
 	}
 
-	virtual EBuildConfigurations::Type GetBuildConfiguration() const override
+	virtual EBuildConfiguration GetBuildConfiguration() const override
 	{
 		return BuildConfiguration;
 	}
@@ -105,7 +105,7 @@ public:
 		Variant = InVariant;
 	}
 
-	virtual void SetBuildConfiguration(EBuildConfigurations::Type InConfiguration) override
+	virtual void SetBuildConfiguration(EBuildConfiguration InConfiguration) override
 	{
 		BuildConfiguration = InConfiguration;
 	}
@@ -143,7 +143,7 @@ public:
 		Writer.WriteValue("Version", Version);
 		Writer.WriteValue("DeviceName", DeviceName);
 		Writer.WriteValue("Variant", Variant.ToString());
-		Writer.WriteValue("BuildConfiguration", BuildConfiguration);
+		Writer.WriteValue("BuildConfiguration", (int32)BuildConfiguration);
 		Writer.WriteValue("CookMode", CookMode);
 		Writer.WriteObjectEnd();
 	}
@@ -158,7 +158,7 @@ public:
 
 		DeviceName = Object.GetStringField("DeviceName");
 		Variant = *(Object.GetStringField("Variant"));
-		BuildConfiguration = (TEnumAsByte<EBuildConfigurations::Type>)((int32)Object.GetNumberField("BuildConfiguration"));
+		BuildConfiguration = (EBuildConfiguration)((int32)Object.GetNumberField("BuildConfiguration"));
 		CookMode = (TEnumAsByte<ELauncherProfileCookModes::Type>)((int32)Object.GetNumberField("CookMode"));
 
 		return true;
@@ -171,7 +171,7 @@ public:
 		
 		// I don't use FApp::GetBuildConfiguration() because i don't want the act of running in debug the first time to cause the simple
 		// profiles created for your persistent devices to be in debug. The user might not see this if they don't expand the Advanced options.
-		BuildConfiguration = EBuildConfigurations::Development;
+		BuildConfiguration = EBuildConfiguration::Development;
 		
 		CookMode = ELauncherProfileCookModes::OnTheFly;		
 	}
@@ -185,7 +185,7 @@ private:
 	FName Variant;
 
 	// Holds the desired build configuration (only used if creating new builds).
-	TEnumAsByte<EBuildConfigurations::Type> BuildConfiguration;
+	EBuildConfiguration BuildConfiguration;
 
 	// Holds the cooking mode.
 	TEnumAsByte<ELauncherProfileCookModes::Type> CookMode;
@@ -363,12 +363,12 @@ public:
 		return Role;
 	}
 
-	virtual EBuildConfigurations::Type GetBuildConfiguration( ) const override
+	virtual EBuildConfiguration GetBuildConfiguration( ) const override
 	{
 		return BuildConfiguration;
 	}
 
-	virtual EBuildConfigurations::Type GetCookConfiguration( ) const override
+	virtual EBuildConfiguration GetCookConfiguration( ) const override
 	{
 		return CookConfiguration;
 	}
@@ -988,10 +988,10 @@ public:
 		Writer.WriteValue("Id", Id.ToString());
 		Writer.WriteValue("Name", Name);
 		Writer.WriteValue("Description", Description);
-		Writer.WriteValue("BuildConfiguration", BuildConfiguration);
+		Writer.WriteValue("BuildConfiguration", (int32)BuildConfiguration);
 		Writer.WriteValue("ProjectSpecified", ProjectSpecified);
 		Writer.WriteValue("ShareableProjectPath", ShareableProjectPath);
-		Writer.WriteValue("CookConfiguration", CookConfiguration);
+		Writer.WriteValue("CookConfiguration", (int32)CookConfiguration);
 		Writer.WriteValue("CookIncremental", CookIncremental);
 		Writer.WriteValue("CookOptions", CookOptions);
 		Writer.WriteValue("CookMode", CookMode);
@@ -1106,14 +1106,13 @@ public:
 		Writer.WriteValue("utf8output", true);
 
 		// client configurations
-		static const FString ConfigStrings[] = { TEXT("Unknown"), TEXT("Debug"), TEXT("DebugGame"), TEXT("Development"), TEXT("Shipping"), TEXT("Test") };
 		Writer.WriteArrayStart("clientconfig");
-		Writer.WriteValue(ConfigStrings[BuildConfiguration]);
+		Writer.WriteValue(LexToString(BuildConfiguration));
 		Writer.WriteArrayEnd();
 
 		// server configurations
 		Writer.WriteArrayStart("serverconfig");
-		Writer.WriteValue(ConfigStrings[BuildConfiguration]);
+		Writer.WriteValue(LexToString(BuildConfiguration));
 		Writer.WriteArrayEnd();
 
 		// platforms
@@ -1614,10 +1613,10 @@ public:
 		FGuid::Parse(Object.GetStringField("Id"), Id);
 		Name = Object.GetStringField("Name");
 		Description = Object.GetStringField("Description");
-		BuildConfiguration = (TEnumAsByte<EBuildConfigurations::Type>)((int32)Object.GetNumberField("BuildConfiguration"));
+		BuildConfiguration = (EBuildConfiguration)((int32)Object.GetNumberField("BuildConfiguration"));
 		ProjectSpecified = Object.GetBoolField("ProjectSpecified");
 		ShareableProjectPath = Object.GetStringField("ShareableProjectPath");
-		CookConfiguration = (TEnumAsByte<EBuildConfigurations::Type>)((int32)Object.GetNumberField("CookConfiguration"));
+		CookConfiguration = (EBuildConfiguration)((int32)Object.GetNumberField("CookConfiguration"));
 		CookIncremental = Object.GetBoolField("CookIncremental");
 		CookOptions = Object.GetStringField("CookOptions");
 		CookMode = (TEnumAsByte<ELauncherProfileCookModes::Type>)((int32)Object.GetNumberField("CookMode"));
@@ -1785,7 +1784,7 @@ public:
 		
 		// I don't use FApp::GetBuildConfiguration() because i don't want the act of running in debug the first time to cause 
 		// profiles the user creates to be in debug. This will keep consistency.
-		BuildConfiguration = EBuildConfigurations::Development;
+		BuildConfiguration = EBuildConfiguration::Development;
 
 		FInternationalization& I18N = FInternationalization::Get();
 
@@ -1895,7 +1894,7 @@ public:
 		}
 	}
 
-	virtual void SetBuildConfiguration( EBuildConfigurations::Type Configuration ) override
+	virtual void SetBuildConfiguration( EBuildConfiguration Configuration ) override
 	{
 		if (BuildConfiguration != Configuration)
 		{
@@ -1905,7 +1904,7 @@ public:
 		}
 	}
 
-	virtual void SetCookConfiguration( EBuildConfigurations::Type Configuration ) override
+	virtual void SetCookConfiguration( EBuildConfiguration Configuration ) override
 	{
 		if (CookConfiguration != Configuration)
 		{
@@ -2341,7 +2340,7 @@ protected:
 		ValidationErrors.Reset();
 
 		// Build: a build configuration must be selected
-		if (BuildConfiguration == EBuildConfigurations::Unknown)
+		if (BuildConfiguration == EBuildConfiguration::Unknown)
 		{
 			ValidationErrors.Add(ELauncherProfileValidationErrors::NoBuildConfigurationSelected);
 		}
@@ -2451,7 +2450,7 @@ protected:
 		
 		if ((CookMode == ELauncherProfileCookModes::OnTheFly) || (CookMode == ELauncherProfileCookModes::OnTheFlyInEditor))
 		{
-			if (BuildConfiguration == EBuildConfigurations::Shipping)
+			if (BuildConfiguration == EBuildConfiguration::Shipping)
 			{
 				// shipping doesn't support commandline options
 				ValidationErrors.Add(ELauncherProfileValidationErrors::ShippingDoesntSupportCommandlineOptionsCantUseCookOnTheFly);
@@ -2594,11 +2593,11 @@ private:
 	ILauncherProfileManagerRef LauncherProfileManager;
 
 	// Holds the desired build configuration (only used if creating new builds).
-	TEnumAsByte<EBuildConfigurations::Type> BuildConfiguration;
+	EBuildConfiguration BuildConfiguration;
 
 	// Holds the build mode.
 	// Holds the build configuration name of the cooker.
-	TEnumAsByte<EBuildConfigurations::Type> CookConfiguration;
+	EBuildConfiguration CookConfiguration;
 
 	// Holds additional cooker command line options.
 	FString CookOptions;

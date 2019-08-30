@@ -15,6 +15,7 @@
 #include "Lightmass/LightmassImportanceVolume.h"
 #include "Components/LightmassPortalComponent.h"
 #include "Atmosphere/AtmosphericFogComponent.h"
+#include "Components/SkyAtmosphereComponent.h"
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
 #endif
@@ -120,6 +121,11 @@ public:
 		AtmosphericFogComponent = AtmosphericFog;
 	}
 
+	void SetSkyAtmosphereComponent(const USkyAtmosphereComponent* SkyAtmosphere)
+	{
+		SkyAtmosphereComponent = SkyAtmosphere;
+	}
+
 	// if provided, InStaticLightingMesh is used to UV unwrap the material into the static lighting textures
 	void AddMaterial(UMaterialInterface* InMaterialInterface, const FStaticLightingMesh* InStaticLightingMesh = nullptr);
 
@@ -206,6 +212,7 @@ private:
 	TArray<FMatrix>				Portals;
 
 	const UAtmosphericFogComponent*	AtmosphericFogComponent;
+	const USkyAtmosphereComponent*	SkyAtmosphereComponent;
 
 	FLightmassWorldInfoSettings LevelSettings;
 	/** The number of local cores to leave unused */

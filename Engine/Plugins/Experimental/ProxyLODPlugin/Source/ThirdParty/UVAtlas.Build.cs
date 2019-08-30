@@ -65,9 +65,7 @@ public class UVAtlas : ModuleRules
                     throw new BuildException(Err);
                 }
             }
-            PublicLibraryPaths.Add(LibDirName);
-            PublicAdditionalLibraries.Add("UVAtlas.lib");
-            
+            PublicAdditionalLibraries.Add(Path.Combine(LibDirName, "UVAtlas.lib"));
         }
         else
         {

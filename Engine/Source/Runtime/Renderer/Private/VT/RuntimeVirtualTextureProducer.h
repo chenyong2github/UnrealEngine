@@ -6,7 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "VirtualTexturing.h"
 
-enum class ERuntimeVirtualTextureMaterialType;
+enum class ERuntimeVirtualTextureMaterialType : uint8;
 class FRHITexture2D;
 class FSceneInterface;
 

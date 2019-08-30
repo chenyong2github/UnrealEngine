@@ -54,6 +54,28 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnAudioMultiEnvelopeValue, const
 /** shadow delegate declaration for above */
 DECLARE_MULTICAST_DELEGATE_FourParams(FOnAudioMultiEnvelopeValueNative, const class UAudioComponent*, const float, const float, const int32);
 
+
+
+/** Type of fade to use when adjusting the audio component's volume. */
+UENUM(BlueprintType)
+enum class EAudioFaderCurve : uint8
+{
+	// Linear Fade
+	Linear,
+
+	// Logarithmic Fade
+	Logarithmic,
+
+	// S-Curve, Sinusoidal Fade
+	SCurve UMETA(DisplayName = "Sin (S-Curve)"),
+
+	// Equal Power, Sinusoidal Fade
+	Sin UMETA(DisplayName = "Sin (Equal Power)"),
+
+	Count UMETA(Hidden)
+};
+
+
 /**
  *	Struct used for storing one per-instance named parameter for this AudioComponent.
  *	Certain nodes in the SoundCue may reference parameters by name so they can be adjusted per-instance.
@@ -362,7 +384,7 @@ public:
 	 * @param FadeVolumeLevel the percentage of the AudioComponents's calculated volume to fade to
 	 */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
-	virtual void FadeIn(float FadeInDuration, float FadeVolumeLevel = 1.f, float StartTime = 0.f);
+	virtual void FadeIn(float FadeInDuration, float FadeVolumeLevel = 1.0f, float StartTime = 0.0f, const EAudioFaderCurve FadeCurve = EAudioFaderCurve::Linear);
 
 	/**
 	 * This is used in place of "stop" when it is desired to fade the volume of the sound before stopping.
@@ -375,7 +397,7 @@ public:
 	 * @param FadeVolumeLevel the percentage of the AudioComponents's calculated volume in which to fade to
 	 */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
-	virtual	void FadeOut(float FadeOutDuration, float FadeVolumeLevel);
+	virtual	void FadeOut(float FadeOutDuration, float FadeVolumeLevel, const EAudioFaderCurve FadeCurve = EAudioFaderCurve::Linear);
 
 	/** Start a sound playing on an audio component */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
@@ -399,7 +421,7 @@ public:
 
 	/** This will allow one to adjust the volume of an AudioComponent on the fly */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
-	void AdjustVolume(float AdjustVolumeDuration, float AdjustVolumeLevel);
+	void AdjustVolume(float AdjustVolumeDuration, float AdjustVolumeLevel, const EAudioFaderCurve FadeCurve = EAudioFaderCurve::Linear);
 
 	/**  Set a float instance parameter for use in sound cues played by this audio component */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
@@ -533,7 +555,7 @@ public:
 	virtual bool IsReadyForOwnerToAutoDestroy() const override;
 	//~ End ActorComponent Interface.
 
-	void AdjustVolumeInternal(float AdjustVolumeDuration, float AdjustVolumeLevel, bool bIsFadeOut);
+	void AdjustVolumeInternal(float AdjustVolumeDuration, float AdjustVolumeLevel, bool bIsFadeOut, EAudioFaderCurve FadeCurve);
 
 	/** Returns a pointer to the attenuation settings to be used (if any) for this audio component dependent on the SoundAttenuation asset or overrides set. */
 	const FSoundAttenuationSettings* GetAttenuationSettingsToApply() const;
@@ -618,7 +640,7 @@ private:
 
 protected:
 	/** Utility function called by Play and FadeIn to start a sound playing. */
-	void PlayInternal(const float StartTime = 0.f, const float FadeInDuration = 0.f, const float FadeVolumeLevel = 1.f);
+	void PlayInternal(const float StartTime = 0.0f, const float FadeInDuration = 0.0f, const float FadeVolumeLevel = 1.0f, const EAudioFaderCurve FadeCurve = EAudioFaderCurve::Linear);
 
 #if WITH_EDITORONLY_DATA
 	/** Utility function that updates which texture is displayed on the sprite dependent on the properties of the Audio Component. */
@@ -631,6 +653,3 @@ protected:
 	static TMap<uint64, UAudioComponent*> AudioIDToComponentMap;
 	static FCriticalSection AudioIDToComponentMapLock;
 };
-
-
-

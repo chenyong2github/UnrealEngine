@@ -86,6 +86,13 @@ public:
 
 	/** The length of all outgoing packets, where compression was skipped. */
 	uint64 OutNotCompressedSkippedLengthTotal;
+
+
+	/** The number of OodleHandlerComponent's running during the lifetime of the analytics aggregator (i.e. NetDriver lifetime). */
+	uint32 NumOodleHandlers;
+
+	/** The number of OodleHandlerComponent's that had packet compression enabled. */
+	uint32 NumOodleHandlersCompressionEnabled;
 };
 
 /**

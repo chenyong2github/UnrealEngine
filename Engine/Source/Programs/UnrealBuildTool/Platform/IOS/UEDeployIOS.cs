@@ -341,6 +341,7 @@ namespace UnrealBuildTool
 					MinVersion = "9.0";
 					break;
 				case "IOS_10":
+					Log.TraceWarning("IOS 10 is no longer supported in UE4 as of 4.23");
 					MinVersion = "10.0";
 					break;
 				case "IOS_11":
@@ -353,7 +354,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				MinVersion = "9.0";
+				MinVersion = "11.0";
 			}
 
 			// Get Facebook Support details

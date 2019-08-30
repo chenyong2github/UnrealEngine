@@ -19,9 +19,7 @@ class FLiveLinkMessageBusSource;
 class FLiveLinkMessageBusDiscoveryManager : FRunnable
 {
 public:
-	// Singleton access to the Heartbeat Manager
-	static FLiveLinkMessageBusDiscoveryManager* Get();
-
+	FLiveLinkMessageBusDiscoveryManager();
 	~FLiveLinkMessageBusDiscoveryManager();
 
 	//~ Begin FRunnable interface
@@ -39,13 +37,9 @@ public:
 	bool IsRunning() const;
 
 private:
-	FLiveLinkMessageBusDiscoveryManager();
 	void HandlePongMessage(const FLiveLinkPongMessage& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
 
 private:
-	// Singleton instance
-	static FLiveLinkMessageBusDiscoveryManager* Instance;
-
 	// Counter of item that request discovery message
 	TAtomic<int32> PingRequestCounter;
 

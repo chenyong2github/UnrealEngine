@@ -43,8 +43,6 @@ public class WindowsMixedRealityInterop : ModuleRules
             bAddLibraries = false;
         }
 
-        PublicLibraryPaths.Add(LibrariesPath);
-
         if (bAddLibraries)
         {
             // Win10 support

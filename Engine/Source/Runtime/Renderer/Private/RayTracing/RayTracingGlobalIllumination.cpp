@@ -27,7 +27,7 @@ static FAutoConsoleVariableRef CVarRayTracingGlobalIllumination(
 	TEXT("r.RayTracing.GlobalIllumination"),
 	GRayTracingGlobalIllumination,
 	TEXT("-1: Value driven by postprocess volume (default) \n")
-	TEXT(" 0: ray tracing ray tracing global illumination off \n")
+	TEXT(" 0: ray tracing global illumination off \n")
 	TEXT(" 1: ray tracing global illumination enabled")
 );
 
@@ -91,11 +91,11 @@ static FAutoConsoleVariableRef CVarRayTracingGlobalIlluminationUseRussianRoulett
 	TEXT("NOTE: This parameter is experimental")
 );
 
-static float GRayTracingGlobalIlluminationScreenPercentage = 100.0;
+static float GRayTracingGlobalIlluminationScreenPercentage = 50.0;
 static FAutoConsoleVariableRef CVarRayTracingGlobalIlluminationScreenPercentage(
 	TEXT("r.RayTracing.GlobalIllumination.ScreenPercentage"),
 	GRayTracingGlobalIlluminationScreenPercentage,
-	TEXT("Screen percentage for ray tracing global illumination (default = 100)")
+	TEXT("Screen percentage for ray tracing global illumination (default = 50)")
 );
 
 static TAutoConsoleVariable<int32> CVarRayTracingGlobalIlluminationEnableTwoSidedGeometry(
@@ -103,6 +103,13 @@ static TAutoConsoleVariable<int32> CVarRayTracingGlobalIlluminationEnableTwoSide
 	1,
 	TEXT("Enables two-sided geometry when tracing GI rays (default = 1)"),
 	ECVF_RenderThreadSafe
+);
+
+static int32 GRayTracingGlobalIlluminationTileSize = 0;
+static FAutoConsoleVariableRef CVarRayTracingGlobalIlluminationTileSize(
+	TEXT("r.RayTracing.GlobalIllumination.TileSize"),
+	GRayTracingGlobalIlluminationTileSize,
+	TEXT("Render ray traced global illumination in NxN piel tiles, where each tile is submitted as separate GPU command buffer, allowing high quality rendering without triggering timeout detection. (default = 0, tiling disabled)")
 );
 
 static const int32 GLightCountMax = 64;
@@ -150,8 +157,7 @@ void SetupLightParameters(
 			LightParameters->Normal[LightParameters->Count] = -LightShaderParameters.Direction;
 			LightParameters->dPdu[LightParameters->Count] = FVector::CrossProduct(LightShaderParameters.Direction, LightShaderParameters.Tangent);
 			LightParameters->dPdv[LightParameters->Count] = LightShaderParameters.Tangent;
-			// #dxr_todo: UE-72556 define these differences from Lit..
-			LightParameters->Color[LightParameters->Count] = LightShaderParameters.Color / 4.0;
+			LightParameters->Color[LightParameters->Count] = LightShaderParameters.Color;
 			LightParameters->Dimensions[LightParameters->Count] = FVector(2.0f * LightShaderParameters.SourceRadius, 2.0f * LightShaderParameters.SourceLength, 0.0f);
 			LightParameters->Attenuation[LightParameters->Count] = 1.0 / LightShaderParameters.InvRadius;
 			break;
@@ -188,7 +194,11 @@ void SetupLightParameters(
 
 bool ShouldRenderRayTracingGlobalIllumination(const FViewInfo& View)
 {
-	if (GetForceRayTracingEffectsCVarValue() >= 0)
+	if (!IsRayTracingEnabled())
+	{
+		return (false);
+	}
+	else if (GetForceRayTracingEffectsCVarValue() >= 0)
 	{
 		return GetForceRayTracingEffectsCVarValue() > 0;
 	}
@@ -228,6 +238,8 @@ class FGlobalIlluminationRGS : public FGlobalShader
 		SHADER_PARAMETER(bool, EvalSkyLight)
 		SHADER_PARAMETER(bool, UseRussianRoulette)
 		SHADER_PARAMETER(float, MaxNormalBias)
+		SHADER_PARAMETER(uint32, TileOffsetX)
+		SHADER_PARAMETER(uint32, TileOffsetY)
 
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWGlobalIlluminationUAV)
@@ -421,6 +433,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
 	RDG_EVENT_SCOPE(GraphBuilder, "RTGI");
 
 	int32 RayTracingGISamplesPerPixel = GRayTracingGlobalIlluminationSamplesPerPixel > -1 ? GRayTracingGlobalIlluminationSamplesPerPixel : View.FinalPostProcessSettings.RayTracingGISamplesPerPixel;
+	RayTracingGISamplesPerPixel = FMath::Max(RayTracingGISamplesPerPixel, 0);
 	RayTracingConfig.RayCountPerPixel = RayTracingGISamplesPerPixel;
 
 	FSceneTextureParameters SceneTextures;
@@ -428,7 +441,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
 
 	// Ray generation
 	{
-		uint32 IterationCount = RayTracingGISamplesPerPixel;
+		uint32 IterationCount = FMath::Max(RayTracingGISamplesPerPixel, 1);
 		uint32 SequenceCount = 1;
 		uint32 DimensionCount = 24;
 		FHaltonSequenceIteration HaltonSequenceIteration(Scene->HaltonSequence, IterationCount, SequenceCount, DimensionCount, View.ViewState ? (View.ViewState->FrameIndex % 1024) : 0);
@@ -485,7 +498,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
 		PassParameters->TransmissionProfilesLinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		PassParameters->RWGlobalIlluminationUAV = GlobalIlluminationUAV;
 		PassParameters->RWRayDistanceUAV = RayDistanceUAV;
-
+		PassParameters->TileOffsetX = 0;
+		PassParameters->TileOffsetY = 0;
 
 		FGlobalIlluminationRGS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FGlobalIlluminationRGS::FUseAttenuationTermDim>(true);
@@ -494,25 +508,70 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
 		ClearUnusedGraphResources(*RayGenerationShader, PassParameters);
 
 		FIntPoint RayTracingResolution = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), UpscaleFactor);
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("GlobalIlluminationRayTracing %dx%d", RayTracingResolution.X, RayTracingResolution.Y),
-			PassParameters,
-			ERDGPassFlags::Compute,
-			[PassParameters, this, &View, RayGenerationShader, RayTracingResolution](FRHICommandList& RHICmdList)
-		{
-			FRayTracingShaderBindingsWriter GlobalResources;
-			SetShaderParameters(GlobalResources, *RayGenerationShader, *PassParameters);
 
-			FRHIRayTracingScene* RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
-			RHICmdList.RayTraceDispatch(View.RayTracingMaterialPipeline, RayGenerationShader->GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, RayTracingResolution.X, RayTracingResolution.Y);
-		});
+		if (GRayTracingGlobalIlluminationTileSize <= 0)
+		{
+			GraphBuilder.AddPass(
+				RDG_EVENT_NAME("GlobalIlluminationRayTracing %dx%d", RayTracingResolution.X, RayTracingResolution.Y),
+				PassParameters,
+				ERDGPassFlags::Compute,
+				[PassParameters, this, &View, RayGenerationShader, RayTracingResolution](FRHICommandList& RHICmdList)
+			{
+				FRayTracingShaderBindingsWriter GlobalResources;
+				SetShaderParameters(GlobalResources, *RayGenerationShader, *PassParameters);
+
+				FRHIRayTracingScene* RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
+				RHICmdList.RayTraceDispatch(View.RayTracingMaterialPipeline, RayGenerationShader->GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, RayTracingResolution.X, RayTracingResolution.Y);
+			});
+		}
+		else
+		{
+			int32 TileSize = FMath::Max(32, GRayTracingGlobalIlluminationTileSize);
+			int32 NumTilesX = FMath::DivideAndRoundUp(RayTracingResolution.X, TileSize);
+			int32 NumTilesY = FMath::DivideAndRoundUp(RayTracingResolution.Y, TileSize);
+			for (int32 Y = 0; Y < NumTilesY; ++Y)
+			{
+				for (int32 X = 0; X < NumTilesX; ++X)
+				{
+					FGlobalIlluminationRGS::FParameters* TilePassParameters = PassParameters;
+
+					if (X > 0 || Y > 0)
+					{
+						TilePassParameters = GraphBuilder.AllocParameters<FGlobalIlluminationRGS::FParameters>();
+						*TilePassParameters = *PassParameters;
+
+						TilePassParameters->TileOffsetX = X * TileSize;
+						TilePassParameters->TileOffsetY = Y * TileSize;
+					}
+
+					int32 DispatchSizeX = FMath::Min<int32>(TileSize, RayTracingResolution.X - TilePassParameters->TileOffsetX);
+					int32 DispatchSizeY = FMath::Min<int32>(TileSize, RayTracingResolution.Y - TilePassParameters->TileOffsetY);
+
+					GraphBuilder.AddPass(
+						RDG_EVENT_NAME("GlobalIlluminationRayTracing %dx%d (tile %dx%d)", DispatchSizeX, DispatchSizeY, X, Y),
+						TilePassParameters,
+						ERDGPassFlags::Compute,
+						[TilePassParameters, this, &View, RayGenerationShader, DispatchSizeX, DispatchSizeY](FRHICommandList& RHICmdList)
+					{
+						FRHIRayTracingScene* RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
+
+						FRayTracingShaderBindingsWriter GlobalResources;
+						SetShaderParameters(GlobalResources, *RayGenerationShader, *TilePassParameters);
+						RHICmdList.RayTraceDispatch(View.RayTracingMaterialPipeline, RayGenerationShader->GetRayTracingShader(), RayTracingSceneRHI, 
+							GlobalResources, DispatchSizeX, DispatchSizeY);
+						RHICmdList.SubmitCommandsHint();
+					});
+				}
+			}
+		}
+
 	}
 
 	// Denoising
 
 	FRDGTextureRef ResultTexture; //#dxr_todo review
 
-	if (GRayTracingGlobalIlluminationDenoiser != 0)
+	if (GRayTracingGlobalIlluminationDenoiser != 0 && RayTracingGISamplesPerPixel > 0)
 	{
 		const IScreenSpaceDenoiser* DefaultDenoiser = IScreenSpaceDenoiser::GetDefaultDenoiser();
 		const IScreenSpaceDenoiser* DenoiserToUse = GRayTracingGlobalIlluminationDenoiser == 1 ? DefaultDenoiser : GScreenSpaceDenoiser;

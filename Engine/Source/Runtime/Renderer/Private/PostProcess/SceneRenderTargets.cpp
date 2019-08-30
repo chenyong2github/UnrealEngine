@@ -1550,6 +1550,12 @@ TRefCountPtr<IPooledRenderTarget>& FSceneRenderTargets::GetSeparateTranslucency(
 	return SeparateTranslucencyRT;
 }
 
+TRefCountPtr<IPooledRenderTarget>& FSceneRenderTargets::GetSeparateTranslucencyDummy()
+{
+	// Make sure the dummy is consistent with the clear color of separate translucnecy render target
+	return GSystemTextures.BlackAlphaOneDummy;
+}
+
 TRefCountPtr<IPooledRenderTarget>& FSceneRenderTargets::GetDownsampledTranslucencyDepth(FRHICommandList& RHICmdList, FIntPoint Size)
 {
 	if (!DownsampledTranslucencyDepthRT || DownsampledTranslucencyDepthRT->GetDesc().Extent != Size)

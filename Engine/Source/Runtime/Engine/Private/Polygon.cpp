@@ -978,12 +978,14 @@ int32 FPoly::Faces( const FPoly &Test ) const
 	return 0;
 }
 
+#if WITH_EDITOR
 bool UPolys::Modify(bool bAlwaysMarkDirty)
 {
 	Super::Modify(bAlwaysMarkDirty);
 
 	return !!GUndo; // we will make a broad assumption that if we have an undo buffer, we were saved in it
 }
+#endif
 
 void UPolys::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {

@@ -73,6 +73,13 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionSizeSpecificData
 	 */
 	UPROPERTY(EditAnywhere, Category = "ChaosPhysics|Collisions")
 	float CollisionParticlesFraction;
+
+	/**
+	 * Max number of particles.
+	 */
+	UPROPERTY(EditAnywhere, Category = "ChaosPhysics|Collisions")
+	int32 MaximumCollisionParticles;
+
 };
 
 /**
@@ -91,11 +98,10 @@ public:
 	UGeometryCollection(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	/** UObject Interface */
-	virtual void PostLoad() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
 	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
+#endif
 	/** End UObject Interface */
 
 	void Serialize(FArchive& Ar);
@@ -209,6 +215,12 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|Collisions")
 	float CollisionParticlesFraction;
+
+	/**
+	 * Max number of particles.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|Collisions")
+	int32 MaximumCollisionParticles;
 
 	UPROPERTY(EditAnywhere, Category = "ChaosPhysics|Collisions")
 	TArray<FGeometryCollectionSizeSpecificData> SizeSpecificData;

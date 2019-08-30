@@ -123,13 +123,13 @@ void UDataprepAsset::RunProducers(const UDataprepContentProducer::ProducerContex
 
 	OutAssets.Empty();
 
-	FDataprepProgressTask Task( *InContext.ProgressReporterPtr, NSLOCTEXT( "DataprepAsset", "RunProducers", "Importing ..." ), (float)Producers.Num(), 1.0f );
+	FDataprepProgressTask Task( *InContext.ProgressReporterPtr, NSLOCTEXT( "DataprepAsset", "ProducerReport_Importing", "Importing ..." ), (float)Producers.Num(), 1.0f );
 
 	for ( FDataprepAssetProducer& AssetProducer : Producers )
 	{
 		if( UDataprepContentProducer* Producer = AssetProducer.Producer )
 		{
-			Task.ReportNextStep( FText::Format( NSLOCTEXT( "DataprepAsset", "ProducerReport", "Importing {0} ..."), FText::FromString( Producer->GetName() ) ) );
+			Task.ReportNextStep( FText::Format( NSLOCTEXT( "DataprepAsset", "ProducerReport_ImportingX", "Importing {0} ..."), FText::FromString( Producer->GetName() ) ) );
 
 			// Run producer if enabled and, if superseded, superseder is disabled
 			const bool bIsOkToRun = AssetProducer.bIsEnabled &&	( AssetProducer.SupersededBy == INDEX_NONE || !Producers[AssetProducer.SupersededBy].bIsEnabled );
@@ -149,7 +149,7 @@ void UDataprepAsset::RunProducers(const UDataprepContentProducer::ProducerContex
 					}
 					else
 					{
-						OutReason = FText::Format(NSLOCTEXT("DataprepAsset", "ProducerRunFailed", "{0} failed to run."), FText::FromString( Producer->GetName() ) ).ToString();
+						OutReason = FText::Format(NSLOCTEXT("DataprepAsset", "ProducerReport_Failed", "{0} failed to run."), FText::FromString( Producer->GetName() ) ).ToString();
 					}
 				}
 
@@ -163,7 +163,7 @@ void UDataprepAsset::RunProducers(const UDataprepContentProducer::ProducerContex
 		}
 		else
 		{
-			Task.ReportNextStep( NSLOCTEXT( "DataprepAsset", "ProducerReport", "Skipped invalid producer ...") );
+			Task.ReportNextStep( NSLOCTEXT( "DataprepAsset", "ProducerReport_Skipped", "Skipped invalid producer ...") );
 		}
 	}
 }

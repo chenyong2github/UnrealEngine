@@ -339,13 +339,10 @@ struct FSlateCachedFastPathRenderingData
 {
 	~FSlateCachedFastPathRenderingData()
 	{
-		for (FSlateCachedClipState* State : CachedClipStates)
-		{
-			State->EndUsingState();
-		}
+		CachedClipStates.Reset();
 	}
 
-	TArray<class FSlateCachedClipState*, TInlineAllocator<1>> CachedClipStates;
+	TArray<FSlateCachedClipState, TInlineAllocator<1>> CachedClipStates;
 	FSlateVertexArray Vertices;
 	FSlateIndexArray Indices;
 };
@@ -427,7 +424,7 @@ public:
 	TDoubleLinkedList<FSlateCachedElementList> CachedElementLists;
 private:
 
-	TArray<TUniquePtr<FSlateCachedClipState>> CachedClipStates;
+	TArray<FSlateCachedClipState> CachedClipStates;
 };
 
 /**

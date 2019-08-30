@@ -1068,15 +1068,12 @@ public:
 					? ItemLength * ItemsInView	// For the first item, ItemsInView <= 1.0f
 					: ItemLength;
 
-				if (ItemIndex >= ItemsSource->Num() - 1)
-				{
-					bAtEndOfList = true;
-				}
+				bAtEndOfList = ItemIndex >= ItemsSource->Num() - 1;
 
-				if (ViewLengthUsedSoFar >= MyDimensions.ScrollAxis)
-				{
-					bHasFilledAvailableArea = true;
-				}
+				// Note: To account for accrued error from floating point truncation and addition in our sum of dimensions used, 
+				//	we pad the allotted axis just a little to be sure we have filled the available space.
+				static const float FloatingPointPrecisionOffset = 0.001f;
+				bHasFilledAvailableArea = ViewLengthUsedSoFar >= MyDimensions.ScrollAxis + FloatingPointPrecisionOffset;
 			}
 
 			// Handle scenario b.
@@ -1134,6 +1131,7 @@ public:
 
 		// We rely on the widgets desired size in order to determine how many will fit on screen.
 		const TSharedRef<SWidget> NewlyGeneratedWidget = WidgetForItem->AsWidget();
+		NewlyGeneratedWidget->InvalidatePrepass();
 		NewlyGeneratedWidget->SlatePrepass(LayoutScaleMultiplier);
 
 		// We have a widget for this item; add it to the panel so that it is part of the UI.
@@ -1624,6 +1622,12 @@ protected:
 			TListTypeTraits<ItemType>::ResetPtr(ItemToScrollIntoView);
 		}
 
+		if (this->bEnableAnimatedScrolling && TListTypeTraits<ItemType>::IsPtrValid(ItemToNotifyWhenInView))
+		{
+			// When we have a target item we're shooting for, we haven't succeeded with the scroll until a widget for it exists
+			const bool bHasWidgetForItem = WidgetFromItem(TListTypeTraits<ItemType>::NullableItemTypeConvertToItemType(ItemToNotifyWhenInView)).IsValid();
+			return bHasWidgetForItem ? EScrollIntoViewResult::Success : EScrollIntoViewResult::Deferred;
+		}
 		return EScrollIntoViewResult::Success;
 	}
 

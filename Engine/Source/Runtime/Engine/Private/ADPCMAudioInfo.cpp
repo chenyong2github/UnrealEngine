@@ -26,6 +26,7 @@ FAutoConsoleVariableRef CVarDisableADPCMSeeking(
 #define WAVE_FORMAT_LPCM  1
 #define WAVE_FORMAT_ADPCM 2
 
+
 namespace ADPCM
 {
 	void DecodeBlock(const uint8* EncodedADPCMBlock, int32 BlockSize, int16* DecodedPCMData);
@@ -367,28 +368,33 @@ bool FADPCMAudioInfo::ReadCompressedData(uint8* Destination, bool bLooping, uint
 	}
 	else
 	{
-		uint32 DecompressedSamplesToCopy = BufferSize / ChannelSampleSize;
-
-		// Ensure we don't go over the number of samples left in the audio data
-		if(DecompressedSamplesToCopy > TotalSamplesPerChannel - TotalSamplesStreamed)
+		uint32 OutDataOffset = 0;
+		while (BufferSize > 0)
 		{
-			DecompressedSamplesToCopy = TotalSamplesPerChannel - TotalSamplesStreamed;
-		}
+			uint32 DecompressedSamplesToCopy = BufferSize / ChannelSampleSize;
 
-		FMemory::Memcpy(OutData, WaveInfo.SampleDataStart + (TotalSamplesStreamed * ChannelSampleSize), DecompressedSamplesToCopy * ChannelSampleSize);
-		TotalSamplesStreamed += DecompressedSamplesToCopy;
-		BufferSize -= DecompressedSamplesToCopy * ChannelSampleSize;
-
-		// Check for the end of the audio samples and loop if needed
-		if(TotalSamplesStreamed >= TotalSamplesPerChannel)
-		{
-			ReachedEndOfSamples = true;
-			TotalSamplesStreamed = 0;
-			if(!bLooping)
+			// Ensure we don't go over the number of samples left in the audio data
+			if (DecompressedSamplesToCopy > TotalSamplesPerChannel - TotalSamplesStreamed)
 			{
-				// Zero remaining buffer
-				FMemory::Memzero(OutData, BufferSize);
-				return true;
+				DecompressedSamplesToCopy = TotalSamplesPerChannel - TotalSamplesStreamed;
+			}
+
+			FMemory::Memcpy(OutData + OutDataOffset, WaveInfo.SampleDataStart + (TotalSamplesStreamed * ChannelSampleSize), DecompressedSamplesToCopy * ChannelSampleSize);
+			TotalSamplesStreamed += DecompressedSamplesToCopy;
+			BufferSize -= DecompressedSamplesToCopy * ChannelSampleSize;
+			OutDataOffset += DecompressedSamplesToCopy * NumChannels;
+
+			// Check for the end of the audio samples and loop if needed
+			if (TotalSamplesStreamed >= TotalSamplesPerChannel)
+			{
+				ReachedEndOfSamples = true;
+				TotalSamplesStreamed = 0;
+				if (!bLooping)
+				{
+					// Zero remaining buffer
+					FMemory::Memzero(OutData, BufferSize);
+					return true;
+				}
 			}
 		}
 	}
@@ -606,7 +612,7 @@ bool FADPCMAudioInfo::StreamCompressedData(uint8* Destination, bool bLooping, ui
 					// Set the current buffer offset accounting for the header in the first chunk
 					if (!bSeekPending)
 					{
-						CurrentChunkBufferOffset = CurrentChunkIndex == FirstChunkSampleDataOffset ? FirstChunkSampleDataOffset : 0;
+						CurrentChunkBufferOffset = CurrentChunkIndex == FirstChunkSampleDataIndex ? FirstChunkSampleDataOffset : 0;
 					}
 
 					bSeekPending = false;

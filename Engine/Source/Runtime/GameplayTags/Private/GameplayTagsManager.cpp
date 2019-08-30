@@ -1345,13 +1345,28 @@ FString UGameplayTagsManager::StaticGetCategoriesMetaFromPropertyHandle(TSharedP
 	return Categories;
 }
 
-FString UGameplayTagsManager::GetCategoriesMetaFromFunction(UFunction* ThisFunction) const
+FString UGameplayTagsManager::GetCategoriesMetaFromFunction(UFunction* ThisFunction, FName ParamName /** = NAME_None */) const
 {
 	FString FilterString;
-	if (ThisFunction->HasMetaData(NAME_GameplayTagFilter))
+	if (ThisFunction)
 	{
-		FilterString = ThisFunction->GetMetaData(NAME_GameplayTagFilter);
+		// If a param name was specified, check it first for UPARAM metadata
+		if (!ParamName.IsNone())
+		{
+			UProperty* ParamProp = FindField<UProperty>(ThisFunction, ParamName);
+			if (ParamProp)
+			{
+				FilterString = UGameplayTagsManager::Get().GetCategoriesMetaFromField(ParamProp);
+			}
+		}
+
+		// No filter found so far, fall back to UFUNCTION-level
+		if (FilterString.IsEmpty() && ThisFunction->HasMetaData(NAME_GameplayTagFilter))
+		{
+			FilterString = ThisFunction->GetMetaData(NAME_GameplayTagFilter);
+		}
 	}
+
 	return FilterString;
 }
 

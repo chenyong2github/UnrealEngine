@@ -272,17 +272,12 @@ int32 FSlateRHIResourceManager::GetNumAtlasPages() const
 	return TextureAtlases.Num();
 }
 
-FIntPoint FSlateRHIResourceManager::GetAtlasPageSize() const
-{
-	return FIntPoint(1024, 1024);
-}
-
 FSlateShaderResource* FSlateRHIResourceManager::GetAtlasPageResource(const int32 InIndex) const
 {
 	return TextureAtlases[InIndex]->GetAtlasTexture();
 }
 
-bool FSlateRHIResourceManager::IsAtlasPageResourceAlphaOnly() const
+bool FSlateRHIResourceManager::IsAtlasPageResourceAlphaOnly(const int32 InIndex) const
 {
 	return false;
 }

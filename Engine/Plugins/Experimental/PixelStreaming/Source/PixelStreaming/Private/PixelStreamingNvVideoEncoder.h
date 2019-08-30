@@ -15,6 +15,12 @@ public:
 	~FPixelStreamingNvVideoEncoder();
 
 	/**
+	 * Check to see if the Nvidia NVENC Video Encoder is available on the
+	 * platform we are running on.
+	 */
+	static bool CheckPlatformCompatibility();
+
+	/**
 	* Return name of the encoder.
 	*/
 	virtual FString GetName() const override
@@ -49,5 +55,10 @@ private:
 	class FPixelStreamingNvVideoEncoderImpl;
 	FPixelStreamingNvVideoEncoderImpl* NvVideoEncoderImpl;
 	void* DllHandle;
+
+	/**
+	 * Get the name of the Nvidia NVENC Video Encoder DLL.
+	 */
+	static const TCHAR* GetDllName();
 };
 

@@ -174,6 +174,12 @@ public:
 		return WorkEvent;
 	}
 
+	/**
+	 * Waits for all serialization tasks fired by this processor to complete. Expected to be called when the application exit
+	 * to prevent serialized (UStruct) object to being use after the UObject system is shutdown.
+	 */
+	void WaitAsyncTaskCompletion();
+
 public:
 
 	// @todo gmp: remove the need for this typedef

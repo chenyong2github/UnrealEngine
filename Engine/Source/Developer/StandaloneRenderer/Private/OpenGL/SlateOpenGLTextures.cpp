@@ -110,11 +110,10 @@ void FSlateOpenGLTexture::UpdateTextureRaw(const void* Buffer, const FIntRect& D
 }
 
 
-FSlateFontTextureOpenGL::FSlateFontTextureOpenGL( uint32 Width, uint32 Height )
-	: FSlateFontAtlas( Width, Height ) 
+FSlateFontTextureOpenGL::FSlateFontTextureOpenGL(uint32 Width, uint32 Height, const bool InIsGrayscale)
+	: FSlateFontAtlas(Width, Height, InIsGrayscale) 
 	, FontTexture(nullptr)
 {
-
 }
 
 FSlateFontTextureOpenGL::~FSlateFontTextureOpenGL()
@@ -133,23 +132,16 @@ void FSlateFontTextureOpenGL::CreateFontTexture()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-	// Font textures use an alpha texture only
-	GLint Format =
-#if USE_DEPRECATED_OPENGL_FUNCTIONALITY
-		GL_ALPHA
-#else
-		GL_RED
-#endif // USE_DEPRECATED_OPENGL_FUNCTIONALITY
-	;
+	GLint InternalFormat = GetGLTextureInternalFormat();
+	GLint Format = GetGLTextureFormat();
+	GLint Type = GetGLTextureType();
 
 	// Upload the data to the texture
-	glTexImage2D( GL_TEXTURE_2D, 0, Format, AtlasWidth, AtlasHeight, 0, Format, GL_UNSIGNED_BYTE, NULL );
+	glTexImage2D( GL_TEXTURE_2D, 0, InternalFormat, AtlasWidth, AtlasHeight, 0, Format, Type, NULL );
 
 	// Create a new slate texture for use in rendering
 	FontTexture = new FSlateOpenGLTexture( AtlasWidth, AtlasHeight );
 	FontTexture->Init( TextureID );
-
-
 }
 
 void FSlateFontTextureOpenGL::ConditionalUpdateTexture()
@@ -161,13 +153,6 @@ void FSlateFontTextureOpenGL::ConditionalUpdateTexture()
 
 		// Completely the texture data each time characters are added
 		glBindTexture(GL_TEXTURE_2D, FontTexture->GetTypedResource() );
-		GLint Format =
-#if USE_DEPRECATED_OPENGL_FUNCTIONALITY
-			GL_ALPHA
-#else
-			GL_RED
-#endif // USE_DEPRECATED_OPENGL_FUNCTIONALITY
-		;
 
 #if PLATFORM_MAC // Make this texture use a DMA'd client storage backing store on OS X, where these extensions always exist
 				 // This avoids a problem on Intel & Nvidia cards that makes characters disappear as well as making the texture updates
@@ -176,11 +161,53 @@ void FSlateFontTextureOpenGL::ConditionalUpdateTexture()
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_STORAGE_HINT_APPLE, GL_STORAGE_CACHED_APPLE);
 		glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_TRUE);
 #endif
-		glTexImage2D( GL_TEXTURE_2D, 0, Format, AtlasWidth, AtlasHeight, 0, Format, GL_UNSIGNED_BYTE, AtlasData.GetData() );
+		GLint InternalFormat = GetGLTextureInternalFormat();
+		GLint Format = GetGLTextureFormat();
+		GLint Type = GetGLTextureType();
+		glTexImage2D( GL_TEXTURE_2D, 0, InternalFormat, AtlasWidth, AtlasHeight, 0, Format, Type, AtlasData.GetData() );
 #if PLATFORM_MAC
 		glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_FALSE);
 #endif
 		
 		bNeedsUpdate = false;
 	}
+}
+
+GLint FSlateFontTextureOpenGL::GetGLTextureInternalFormat() const
+{
+	if (IsGrayscale())
+	{
+#if USE_DEPRECATED_OPENGL_FUNCTIONALITY
+		return GL_ALPHA;
+#else
+		return GL_RED;
+#endif // USE_DEPRECATED_OPENGL_FUNCTIONALITY
+	}
+#if !PLATFORM_USES_ES2
+	return GL_SRGB8_ALPHA8;
+#else
+	return GL_SRGB8_ALPHA8_EXT;
+#endif
+}
+
+GLint FSlateFontTextureOpenGL::GetGLTextureFormat() const
+{
+	if (IsGrayscale())
+	{
+#if USE_DEPRECATED_OPENGL_FUNCTIONALITY
+		return GL_ALPHA;
+#else
+		return GL_RED;
+#endif // USE_DEPRECATED_OPENGL_FUNCTIONALITY
+	}
+	return GL_RGBA;
+}
+
+GLint FSlateFontTextureOpenGL::GetGLTextureType() const
+{
+	if (IsGrayscale())
+	{
+		return GL_UNSIGNED_BYTE;
+	}
+	return GL_UNSIGNED_INT_8_8_8_8_REV;
 }

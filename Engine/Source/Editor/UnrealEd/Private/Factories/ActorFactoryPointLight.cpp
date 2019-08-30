@@ -7,6 +7,7 @@
 #include "ActorFactories/ActorFactoryPointLight.h"
 #include "GameFramework/Actor.h"
 #include "Components/PointLightComponent.h"
+#include "Components/RectLightComponent.h"
 
 void UActorFactoryPointLight::PostSpawnActor(UObject* Asset, AActor* NewActor)
 {

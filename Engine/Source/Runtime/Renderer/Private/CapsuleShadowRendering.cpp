@@ -1303,6 +1303,7 @@ void FDeferredShadingSceneRenderer::RenderIndirectCapsuleShadows(
 		&& ViewFamily.EngineShowFlags.CapsuleShadows
 		&& FSceneRenderTargets::Get(RHICmdList).IsStaticLightingAllowed())
 	{
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderIndirectCapsuleShadows);
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_RenderIndirectCapsuleShadows);
 
 		bool bAnyViewsUseCapsuleShadows = false;

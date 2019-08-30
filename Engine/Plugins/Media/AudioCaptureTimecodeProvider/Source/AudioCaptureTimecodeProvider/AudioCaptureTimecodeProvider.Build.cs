@@ -12,7 +12,8 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"AudioCapture",
-					"Core",
+                    "AudioCaptureCore",
+                    "Core",
 					"CoreUObject",
 					"Engine",
 					"LinearTimecode",

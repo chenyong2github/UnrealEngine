@@ -234,4 +234,27 @@ public:
 		const FTextureBuildSettings& BuildSettings,
 		TArray<FCompressedImage2D>& OutTextureMips
 		) = 0;
+
+	
+	/**
+	 * Generate a full mip chain. The input mip chain must have one or more mips.
+	 * @param Settings - Preprocess settings.
+	 * @param BaseImage - An image that will serve as the source for the generation of the mip chain.
+	 * @param OutMipChain - An array that will contain the resultant mip images. Generated mip levels are appended to the array.
+	 * @param MipChainDepth - number of mip images to produce. Mips chain is finished when either a 1x1 mip is produced or 'MipChainDepth' images have been produced.
+	 */
+	TEXTURECOMPRESSOR_API static void GenerateMipChain(
+		const FTextureBuildSettings& Settings,
+		const FImage& BaseImage,
+		TArray<FImage> &OutMipChain,
+		uint32 MipChainDepth = MAX_uint32
+		);
+
+	/**
+     * Adjusts the colors of the image using the specified settings
+     *
+     * @param	Image			Image to adjust
+     * @param	InBuildSettings	Image build settings
+     */
+	TEXTURECOMPRESSOR_API static void AdjustImageColors(FImage& Image, const FTextureBuildSettings& InBuildSettings);
 };

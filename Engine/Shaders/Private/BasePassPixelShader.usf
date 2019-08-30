@@ -33,6 +33,9 @@
 
 #if NEEDS_BASEPASS_PIXEL_FOGGING || NEEDS_BASEPASS_PIXEL_VOLUMETRIC_FOGGING
 	#include "HeightFogCommon.ush"
+#if PROJECT_SUPPORT_SKY_ATMOSPHERE
+	#include "SkyAtmosphereCommon.ush"
+#endif
 #endif
 
 #include "ReflectionEnvironmentShared.ush"
@@ -1030,7 +1033,8 @@ ShadingModel);
 			float3 V = MaterialParameters.CameraVector;
 			float3 L = normalize( V - N * dot(V,N) );
 			DiffuseDir = L;
-			DiffuseColorForIndirect = 2*PI * HairShading( GBuffer, L, V, N, 1, 0, 0.2, uint2(0,0) );
+			bool bEvalMultiScatter = true;
+			DiffuseColorForIndirect = 2*PI * HairShading( GBuffer, L, V, N, 1, 0, 0.2, uint2(0,0), bEvalMultiScatter );
 		}
 		#endif
 
@@ -1125,6 +1129,26 @@ ShadingModel);
 	{
 		float3 VolumeUV = ComputeVolumeUV(MaterialParameters.AbsoluteWorldPosition, ResolvedView.WorldToClip);
 		Fogging = CombineVolumetricFog(HeightFogging, VolumeUV);
+	}
+#endif
+
+#if NEEDS_BASEPASS_PIXEL_FOGGING && PROJECT_SUPPORT_SKY_ATMOSPHERE && MATERIAL_FORCE_SKIP_AERIAL_PERSPECTIVE==0
+	if (ResolvedView.SkyAtmosphereApplyCameraAerialPerspectiveVolume > 0.0f)
+	{
+		const float OneOverPreExposure = USE_PREEXPOSURE ? ResolvedView.OneOverPreExposure : 1.0f;
+
+		float4 NDCPosition = mul(float4(MaterialParameters.AbsoluteWorldPosition.xyz, 1), ResolvedView.WorldToClip);
+
+		// Sample the aerial perspective (AP).
+		Fogging = GetAerialPerspectiveLuminanceTransmittanceWithFogOver(
+			NDCPosition, MaterialParameters.AbsoluteWorldPosition.xyz*CM_TO_SKY_UNIT, ResolvedView.WorldCameraOrigin.xyz*CM_TO_SKY_UNIT,
+			View.CameraAerialPerspectiveVolume, View.CameraAerialPerspectiveVolumeSampler,
+			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolutionInv,
+			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolution,
+			ResolvedView.SkyAtmosphereAerialPerspectiveStartDepth,
+			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLength,
+			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthInv, 
+			OneOverPreExposure, Fogging);
 	}
 #endif
 

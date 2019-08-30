@@ -16,6 +16,10 @@ namespace UnrealBuildTool
 		{
 		}
 
+		public virtual void SetEnvironmentVariables()
+		{
+		}
+
 		public virtual string GetVersionInfo()
 		{
 			return null;

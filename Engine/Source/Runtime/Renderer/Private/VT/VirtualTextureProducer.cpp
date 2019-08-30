@@ -4,6 +4,10 @@
 #include "VirtualTextureSystem.h"
 #include "VirtualTexturePhysicalSpace.h"
 
+FVirtualTextureProducer::~FVirtualTextureProducer()
+{
+}
+
 void FVirtualTextureProducer::Release(FVirtualTextureSystem* System, const FVirtualTextureProducerHandle& HandleToSelf)
 {
 	if (Description.bPersistentHighestMip)
@@ -14,9 +18,8 @@ void FVirtualTextureProducer::Release(FVirtualTextureSystem* System, const FVirt
 	for (uint32 LayerIndex = 0u; LayerIndex < Description.NumLayers; ++LayerIndex)
 	{
 		FVirtualTexturePhysicalSpace* Space = PhysicalSpace[LayerIndex];
-		PhysicalSpace[LayerIndex] = nullptr;
 		Space->GetPagePool().EvictPages(System, HandleToSelf);
-		System->ReleasePhysicalSpace(Space);
+		PhysicalSpace[LayerIndex].SafeRelease();
 	}
 
 	delete VirtualTexture;

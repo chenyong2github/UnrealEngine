@@ -131,12 +131,33 @@ USkeletalMeshEditorSettings::USkeletalMeshEditorSettings(const FObjectInitialize
 /* UEditorExperimentalSettings interface
  *****************************************************************************/
 
+static TAutoConsoleVariable<int32> CVarEditorHDRSupport(
+	TEXT("Editor.HDRSupport"),
+	0,
+	TEXT("Sets whether or not we should allow the editor to run on HDR monitors"),
+	ECVF_Default);
+
+static TAutoConsoleVariable<float> CVarEditorHDRNITLevel(
+	TEXT("Editor.HDRNITLevel"),
+	160.0f,
+	TEXT("Sets The desired NIT level of the editor when running on HDR"),
+	ECVF_Default);
+
 UEditorExperimentalSettings::UEditorExperimentalSettings( const FObjectInitializer& ObjectInitializer )
 	: Super(ObjectInitializer)
+	, bHDREditor(false)
+	, HDREditorNITLevel(160.0f)
 	, bEnableLocalizationDashboard(true)
 	, bUseOpenCLForConvexHullDecomp(false)
 	, bAllowPotentiallyUnsafePropertyEditing(false)
 {
+}
+
+void UEditorExperimentalSettings::PostInitProperties()
+{
+	CVarEditorHDRSupport->Set(bHDREditor ? 1 : 0, ECVF_SetByProjectSetting);
+	CVarEditorHDRNITLevel->Set(HDREditorNITLevel, ECVF_SetByProjectSetting);
+	Super::PostInitProperties();
 }
 
 void UEditorExperimentalSettings::PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent )
@@ -158,7 +179,14 @@ void UEditorExperimentalSettings::PostEditChangeProperty( struct FPropertyChange
 			FModuleManager::Get().LoadModule(TEXT("EnvironmentQueryEditor"));
 		}
 	}
-
+	else if (Name == FName(TEXT("bHDREditor")))
+	{
+		CVarEditorHDRSupport->Set(bHDREditor ? 1 : 0, ECVF_SetByProjectSetting);
+	}
+	else if (Name == FName(TEXT("HDREditorNITLevel")))
+	{
+		CVarEditorHDRNITLevel->Set(HDREditorNITLevel, ECVF_SetByProjectSetting);
+	}
 	if (!FUnrealEdMisc::Get().IsDeletePreferences())
 	{
 		SaveConfig();
@@ -673,8 +701,8 @@ ULevelEditorViewportSettings::ULevelEditorViewportSettings( const FObjectInitial
 	BillboardScale = 1.0f;
 	TransformWidgetSizeAdjustment = 0.0f;
 	MeasuringToolUnits = MeasureUnits_Centimeters;
-	bAllowArcballRotate = true;
-	bAllowScreenRotate = true;
+	bAllowArcballRotate = false;
+	bAllowScreenRotate = false;
 	// Set a default preview mesh
 	PreviewMeshes.Add(FSoftObjectPath("/Engine/EditorMeshes/ColorCalibrator/SM_ColorCalibrator.SM_ColorCalibrator"));
 }
@@ -780,6 +808,29 @@ void ULevelEditorViewportSettings::PostEditChangeProperty( struct FPropertyChang
 
 /* UProjectPackagingSettings interface
  *****************************************************************************/
+
+const UProjectPackagingSettings::FConfigurationInfo UProjectPackagingSettings::ConfigurationInfo[PPBC_Max] = 
+{
+	/* PPBC_Debug */             { EBuildConfiguration::Debug, EBuildTargetType::Game, LOCTEXT("DebugConfiguration", "Debug"), LOCTEXT("DebugConfigurationTooltip", "Package the game in Debug configuration") },
+	/* PPBC_DebugClient */       { EBuildConfiguration::Debug, EBuildTargetType::Client, LOCTEXT("DebugClientConfiguration", "Debug Client"), LOCTEXT("DebugClientConfigurationTooltip", "Package the client in Debug configuration") },
+	/* PPBC_DebugServer */       { EBuildConfiguration::Debug, EBuildTargetType::Server, LOCTEXT("DebugServerConfiguration", "Debug Server"), LOCTEXT("DebugServerConfigurationTooltip", "Package the server in Debug configuration") },
+
+	/* PPBC_DebugGame */         { EBuildConfiguration::DebugGame, EBuildTargetType::Game, LOCTEXT("DebugGameConfiguration", "DebugGame"), LOCTEXT("DebugGameConfigurationTooltip", "Package the game in DebugGame configuration") },
+	/* PPBC_DebugGameClient */   { EBuildConfiguration::DebugGame, EBuildTargetType::Client, LOCTEXT("DebugGameClientConfiguration", "DebugGame Client"), LOCTEXT("DebugGameClientConfigurationTooltip", "Package the client in DebugGame configuration") },
+	/* PPBC_DebugGameServer */   { EBuildConfiguration::DebugGame, EBuildTargetType::Server, LOCTEXT("DebugGameServerConfiguration", "DebugGame Server"), LOCTEXT("DebugGameServerConfigurationTooltip", "Package the server in DebugGame configuration") },
+
+	/* PPBC_Development */       { EBuildConfiguration::Development, EBuildTargetType::Game, LOCTEXT("DevelopmentConfiguration", "Development"), LOCTEXT("DevelopmentConfigurationTooltip", "Package the game in Development configuration") },
+	/* PPBC_DevelopmentClient */ { EBuildConfiguration::Development, EBuildTargetType::Client, LOCTEXT("DevelopmentClientConfiguration", "Development Client"), LOCTEXT("DevelopmentClientConfigurationTooltip", "Package the client in Development configuration") },
+	/* PPBC_DevelopmentServer */ { EBuildConfiguration::Development, EBuildTargetType::Server, LOCTEXT("DevelopmentServerConfiguration", "Development Server"), LOCTEXT("DevelopmentServerConfigurationTooltip", "Package the server in Development configuration") },
+
+	/* PPBC_Test */              { EBuildConfiguration::Test, EBuildTargetType::Game, LOCTEXT("TestConfiguration", "Test"), LOCTEXT("TestConfigurationTooltip", "Package the game in Test configuration") },
+	/* PPBC_TestClient */        { EBuildConfiguration::Test, EBuildTargetType::Client, LOCTEXT("TestClientConfiguration", "Test Client"), LOCTEXT("TestClientConfigurationTooltip", "Package the client in Test configuration") },
+	/* PPBC_TestServer */        { EBuildConfiguration::Test, EBuildTargetType::Server, LOCTEXT("TestServerConfiguration", "Test Server"), LOCTEXT("TestServerConfigurationTooltip", "Package the server in Test configuration") },
+
+	/* PPBC_Shipping */          { EBuildConfiguration::Shipping, EBuildTargetType::Game, LOCTEXT("ShippingConfiguration", "Shipping"), LOCTEXT("ShippingConfigurationTooltip", "Package the game in Shipping configuration") },
+	/* PPBC_ShippingClient */    { EBuildConfiguration::Shipping, EBuildTargetType::Client, LOCTEXT("ShippingClientConfiguration", "Shipping Client"), LOCTEXT("ShippingClientConfigurationTooltip", "Package the client in Shipping configuration") },
+	/* PPBC_ShippingServer */    { EBuildConfiguration::Shipping, EBuildTargetType::Server, LOCTEXT("ShippingServerConfiguration", "Shipping Server"), LOCTEXT("ShippingServerConfigurationTooltip", "Package the server in Shipping configuration") }
+};
 
 UProjectPackagingSettings::UProjectPackagingSettings( const FObjectInitializer& ObjectInitializer )
 	: Super(ObjectInitializer)

@@ -57,9 +57,6 @@ protected:
 
 	/** Delegate for game to listen to Chat Messages */
 	FOnXmppChatReceived OnChatReceivedDelegate;
-
-	/* Engine Tick Requester name */
-	const static FName TickRequesterId;
 };
 
 #endif

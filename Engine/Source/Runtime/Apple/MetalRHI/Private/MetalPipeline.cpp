@@ -1366,3 +1366,38 @@ TRefCountPtr<FRHIComputePipelineState> FMetalDynamicRHI::RHICreateComputePipelin
 	return new FMetalComputePipelineState(ResourceCast(ComputeShader));
 	}
 }
+
+FMetalPipelineStateCacheManager::FMetalPipelineStateCacheManager()
+{
+#if PLATFORM_IOS
+	OnShaderPipelineCacheOpenedDelegate = FShaderPipelineCache::GetCacheOpenedDelegate().AddRaw(this, &FMetalPipelineStateCacheManager::OnShaderPipelineCacheOpened);
+	OnShaderPipelineCachePrecompilationCompleteDelegate = FShaderPipelineCache::GetPrecompilationCompleteDelegate().AddRaw(this, &FMetalPipelineStateCacheManager::OnShaderPipelineCachePrecompilationComplete);
+#endif
+}
+
+FMetalPipelineStateCacheManager::~FMetalPipelineStateCacheManager()
+{
+	if (OnShaderPipelineCacheOpenedDelegate.IsValid())
+	{
+		FShaderPipelineCache::GetCacheOpenedDelegate().Remove(OnShaderPipelineCacheOpenedDelegate);
+	}
+	
+	if (OnShaderPipelineCachePrecompilationCompleteDelegate.IsValid())
+	{
+		FShaderPipelineCache::GetPrecompilationCompleteDelegate().Remove(OnShaderPipelineCachePrecompilationCompleteDelegate);
+	}
+}
+
+void FMetalPipelineStateCacheManager::OnShaderPipelineCacheOpened(FString const& Name, EShaderPlatform Platform, uint32 Count, const FGuid& VersionGuid, FShaderPipelineCache::FShaderCachePrecompileContext& ShaderCachePrecompileContext)
+{
+	ShaderCachePrecompileContext.SetPrecompilationIsSlowTask();
+}
+
+void FMetalPipelineStateCacheManager::OnShaderPipelineCachePrecompilationComplete(uint32 Count, double Seconds, const FShaderPipelineCache::FShaderCachePrecompileContext& ShaderCachePrecompileContext)
+{
+	// Want to ignore any subsequent Shader Pipeline Cache opening/closing, eg when loading modules
+	FShaderPipelineCache::GetCacheOpenedDelegate().Remove(OnShaderPipelineCacheOpenedDelegate);
+	FShaderPipelineCache::GetPrecompilationCompleteDelegate().Remove(OnShaderPipelineCachePrecompilationCompleteDelegate);
+	OnShaderPipelineCacheOpenedDelegate.Reset();
+	OnShaderPipelineCachePrecompilationCompleteDelegate.Reset();
+}

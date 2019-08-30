@@ -43,7 +43,10 @@ class ENGINE_API USplineMetadata : public UObject
 	GENERATED_UCLASS_BODY()
 
 public:
-	virtual void InsertPoint(float InputKey, int32 Index) PURE_VIRTUAL(USplineMetadata::InsertPoint, );
+	/** Insert point before index, lerping metadata between previous and next key values */
+	virtual void InsertPoint(int32 Index, float t) PURE_VIRTUAL(USplineMetadata::InsertPoint, );
+	/** Update point at index by lerping metadata between previous and next key values */
+	virtual void UpdatePoint(int32 Index, float t) PURE_VIRTUAL(USplineMetadata::UpdatePoint, );
 	virtual void AddPoint(float InputKey) PURE_VIRTUAL(USplineMetadata::AddPoint, );
 	virtual void RemovePoint(int32 Index) PURE_VIRTUAL(USplineMetadata::RemovePoint, );
 	virtual void DuplicatePoint(int32 Index) PURE_VIRTUAL(USplineMetadata::DuplicatePoint, );

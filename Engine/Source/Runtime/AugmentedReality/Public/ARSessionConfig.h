@@ -44,7 +44,10 @@ enum class EARSessionType : uint8
     Image,
 
 	/** A session used to scan objects for object detection in a world tracking session */
-	ObjectScanning
+	ObjectScanning,
+	
+	/** A session used to track human pose in 3D */
+	PoseTracking
 };
 
 UENUM(BlueprintType, Category = "AR AugmentedReality", meta = (Experimental, Bitflags))
@@ -107,6 +110,25 @@ enum class EARFaceTrackingUpdate : uint8
 	CurvesAndGeo,
 	/** Only the curve data is updated */
 	CurvesOnly
+};
+
+/**
+ * Tells the AR system how much of the face work to perform
+ */
+UENUM(BlueprintType)
+enum class EARSessionTrackingFeature : uint8
+{
+	/** None of the session feature is enabled */
+	None,
+	
+	/** 2D pose detection is enabled */
+	PoseDetection2D,
+	
+	/** Person segmentation is enabled */
+	PersonSegmentation,
+	
+	/** Person segmentation with depth info is enabled */
+	PersonSegmentationWithDepth,
 };
 
 UCLASS(BlueprintType, Category="AR Settings")
@@ -225,6 +247,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "AR Settings")
 	void SetFaceTrackingUpdate(EARFaceTrackingUpdate InUpdate);
 
+	/** @see EnabledSessionTrackingFeatures */
+	UFUNCTION(BlueprintCallable, Category = "AR Settings")
+	EARSessionTrackingFeature GetEnabledSessionTrackingFeature() const;
+	
+	/** @see EnabledSessionTrackingFeatures */
+	UFUNCTION(BlueprintCallable, Category = "AR Settings")
+	void SetSessionTrackingFeatureToEnable(EARSessionTrackingFeature InSessionTrackingFeature);
 
 	bool ShouldDoHorizontalPlaneDetection() const { return bHorizontalPlaneDetection; }
 	bool ShouldDoVerticalPlaneDetection() const { return bVerticalPlaneDetection; }
@@ -255,6 +284,10 @@ public:
 	/** Whether the AR system should report scene objects (@see EARObjectClassification::SceneObject) */
 	UPROPERTY(EditAnywhere, Category = "AR Settings | World Mapping")
 	bool bTrackSceneObjects;
+	
+	/** Whether to occlude the virtual content with the result from person segmentation */
+	UPROPERTY(EditAnywhere, Category = "AR Settings | Occlusion")
+	bool bUsePersonSegmentationForOcclusion = true;
 
 private:
 	//~ UObject interface
@@ -347,5 +380,9 @@ protected:
 	
 	/** Data array for storing the cooked image database */
 	UPROPERTY()
-	TArray<uint8> SerializedARCandidateImageDatabase;	
+	TArray<uint8> SerializedARCandidateImageDatabase;
+	
+	/** A list of session features  to enable */
+	UPROPERTY(EditAnywhere, Category="AR Settings")
+	EARSessionTrackingFeature EnabledSessionTrackingFeature = EARSessionTrackingFeature::None;
 };

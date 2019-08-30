@@ -221,7 +221,7 @@ void ALODActor::SetupComponent(UStaticMeshComponent* Component)
 	Component->bAllowCullDistanceVolume = false;
 	Component->bNeverDistanceCull = true;
 
-	Component->MinDrawDistance = LODDrawDistance;
+	Component->MinDrawDistance = GetLODDrawDistanceWithOverride();
 }
 
 FString ALODActor::GetDetailedInfoInternal() const
@@ -563,7 +563,7 @@ void ALODActor::UnregisterMeshComponents()
 void ALODActor::SetDrawDistance(float InDistance)
 {
 	LODDrawDistance = InDistance;
-	SetComponentsMinDrawDistance(LODDrawDistance, false);
+	SetComponentsMinDrawDistance(GetLODDrawDistanceWithOverride(), false);
 }
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -586,13 +586,13 @@ const bool ALODActor::IsBuilt(bool bInForce/*=false*/) const
 		}
 
 		// No proxy mesh
-		if (Proxy == nullptr)
+		if (StaticMeshComponent->GetStaticMesh() && Proxy == nullptr)
 		{
 			return false;
 		}
 
 		// Mismatched key
-		if (!Proxy->ContainsDataForActor(this))
+		if (Proxy != nullptr && !Proxy->ContainsDataForActor(this))
 		{
 			return false;
 		}
@@ -791,7 +791,7 @@ void ALODActor::AddSubActor(AActor* InActor)
 	SubActors.Add(InActor);
 
 	UStaticMeshComponent* LODComponent = GetOrCreateLODComponentForActor(InActor);
-	InActor->SetLODParent(LODComponent, LODDrawDistance);
+	InActor->SetLODParent(LODComponent, GetLODDrawDistanceWithOverride());
 
 	// Adding number of triangles
 	if (!InActor->IsA<ALODActor>())
@@ -875,11 +875,14 @@ void ALODActor::DetermineShadowingFlags()
 
 	for (const TPair<const UMaterialInterface*, UInstancedStaticMeshComponent*>& Component : ImpostersStaticMeshComponents)
 	{
-		Component.Value->CastShadow = false;
-		Component.Value->bCastStaticShadow = false;
-		Component.Value->bCastDynamicShadow = false;
-		Component.Value->bCastFarShadow = false;
-		Component.Value->MarkRenderStateDirty();
+		if (Component.Value)
+		{
+			Component.Value->CastShadow = false;
+			Component.Value->bCastStaticShadow = false;
+			Component.Value->bCastDynamicShadow = false;
+			Component.Value->bCastFarShadow = false;
+			Component.Value->MarkRenderStateDirty();
+		}
 	}
 
 	for (AActor* Actor : SubActors)
@@ -1022,7 +1025,7 @@ void ALODActor::SetupImposters(UMaterialInterface* InMaterial, UStaticMesh* InSt
 
 	UInstancedStaticMeshComponent* Component = GetOrCreateLODComponentForMaterial(InMaterial);
 	Component->SetStaticMesh(InStaticMesh);
-	Component->PerInstanceSMData.Empty();
+	Component->ClearInstances();
 	
 	for (const FTransform& Transform : InTransforms)
 	{

@@ -14,7 +14,7 @@ set UATDirectory=Binaries\DotNET\
 set UATCompileArg=-compile
 
 rem ## Change the CWD to /Engine. 
-pushd %~dp0..\..\
+pushd "%~dp0..\..\"
 if not exist Build\BatchFiles\RunUAT.bat goto Error_BatchFileInWrongLocation
 
 rem ## Use the pre-compiled UAT scripts if -nocompile is specified in the command line

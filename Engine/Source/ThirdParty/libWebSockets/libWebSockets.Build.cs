@@ -19,7 +19,7 @@ public class libWebSockets : ModuleRules
 		else if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
 		{
 			PlatformSubdir = Path.Combine(PlatformSubdir, "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
-			PublicAdditionalLibraries.Add("websockets_static.lib");
+			PublicAdditionalLibraries.Add(Path.Combine(WebsocketPath, "lib", PlatformSubdir, ConfigurationSubdir, "websockets_static.lib"));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.IOS ||
 			Target.Platform == UnrealTargetPlatform.PS4 || Target.Platform == UnrealTargetPlatform.Switch)
@@ -29,14 +29,13 @@ public class libWebSockets : ModuleRules
 		else if (Target.Platform == UnrealTargetPlatform.Android)
 		{
 			PublicIncludePaths.Add(Path.Combine(WebsocketPath, "include", PlatformSubdir, "ARMv7"));
-			PublicLibraryPaths.Add(Path.Combine(WebsocketPath, "lib", Target.Platform.ToString(), "ARMv7", ConfigurationSubdir));
+			PublicAdditionalLibraries.Add(Path.Combine(WebsocketPath, "lib", Target.Platform.ToString(), "ARMv7", ConfigurationSubdir, "libwebsockets.a"));
 			PublicIncludePaths.Add(Path.Combine(WebsocketPath, "include", PlatformSubdir, "ARM64"));
-			PublicLibraryPaths.Add(Path.Combine(WebsocketPath, "lib", Target.Platform.ToString(), "ARM64", ConfigurationSubdir));
+			PublicAdditionalLibraries.Add(Path.Combine(WebsocketPath, "lib", Target.Platform.ToString(), "ARM64", ConfigurationSubdir, "libwebsockets.a"));
 			PublicIncludePaths.Add(Path.Combine(WebsocketPath, "include", PlatformSubdir, "x86"));
-			PublicLibraryPaths.Add(Path.Combine(WebsocketPath, "lib", Target.Platform.ToString(), "x86", ConfigurationSubdir));
+			PublicAdditionalLibraries.Add(Path.Combine(WebsocketPath, "lib", Target.Platform.ToString(), "x86", ConfigurationSubdir, "libwebsockets.a"));
 			PublicIncludePaths.Add(Path.Combine(WebsocketPath, "include", PlatformSubdir, "x64"));
-			PublicLibraryPaths.Add(Path.Combine(WebsocketPath, "lib", Target.Platform.ToString(), "x64", ConfigurationSubdir));
-			PublicAdditionalLibraries.Add("websockets");
+			PublicAdditionalLibraries.Add(Path.Combine(WebsocketPath, "lib", Target.Platform.ToString(), "x64", ConfigurationSubdir, "libwebsockets.a"));
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
@@ -49,10 +48,6 @@ public class libWebSockets : ModuleRules
 			return;
 		}
 
-		if(Target.Platform != UnrealTargetPlatform.Android)
-		{
-			PublicLibraryPaths.Add(Path.Combine(WebsocketPath, "lib", PlatformSubdir, ConfigurationSubdir));
-		}
 		PublicIncludePaths.Add(Path.Combine(WebsocketPath, "include", PlatformSubdir));
 
 		if (Target.Platform != UnrealTargetPlatform.Switch)

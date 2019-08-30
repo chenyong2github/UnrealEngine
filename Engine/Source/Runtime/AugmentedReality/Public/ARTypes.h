@@ -172,6 +172,23 @@ enum class EARObjectClassification : uint8
 	// Add other types here...
 };
 
+/** Describes the potential spaces in which the join transform can be defined with AR pose tracking */
+UENUM(BlueprintType)
+enum class EARJointTransformSpace : uint8
+{
+	/**
+	 * Joint transform is relative to the origin of the model space
+	 * which is usually attached to a particular joint
+	 * such as the hip
+	 */
+	Model,
+	
+	/**
+	* Joint transform is relative to its parent
+	*/
+	ParentJoint,
+};
+
 /** The current state of the AR subsystem including an optional explanation string. */
 USTRUCT(BlueprintType)
 struct AUGMENTEDREALITY_API FARSessionStatus
@@ -448,3 +465,65 @@ public:
 	}
 };
 
+/** Represents a hierarchy of a human pose skeleton tracked by the AR system */
+USTRUCT(BlueprintType)
+struct AUGMENTEDREALITY_API FARSkeletonDefinition
+{
+	GENERATED_BODY()
+
+public:
+	/** How many joints this skeleton has */
+	UPROPERTY(BlueprintReadOnly, Category="AR AugmentedReality|Pose Tracking")
+	int32 NumJoints = 0;
+	
+	/** The name of each joint in this skeleton */
+	UPROPERTY(BlueprintReadOnly, Category = "AR AugmentedReality|Pose Tracking")
+	TArray<FName> JointNames;
+
+	/** The parent index of each joint in this skeleton */
+	UPROPERTY(BlueprintReadOnly, Category = "AR AugmentedReality|Pose Tracking")
+	TArray<int32> ParentIndices;
+};
+
+/** Represents a human pose tracked in the 2D space */
+USTRUCT(BlueprintType)
+struct AUGMENTEDREALITY_API FARPose2D
+{
+	GENERATED_BODY()
+
+public:
+	/** The definition of this skeleton */
+	UPROPERTY(BlueprintReadOnly, Category="AR AugmentedReality|Pose Tracking")
+	FARSkeletonDefinition SkeletonDefinition;
+	
+	/** The location of each joint in 2D normalized space */
+	UPROPERTY(BlueprintReadOnly, Category = "AR AugmentedReality|Pose Tracking")
+	TArray<FVector2D> JointLocations;
+
+	/** Flags indicating if each joint is tracked */
+	UPROPERTY(BlueprintReadOnly, Category = "AR AugmentedReality|Pose Tracking")
+	TArray<bool> IsJointTracked;
+};
+
+/** Represents a human pose tracked in the 3D space */
+USTRUCT(BlueprintType)
+struct AUGMENTEDREALITY_API FARPose3D
+{
+	GENERATED_BODY()
+
+public:
+	/** The definition of this skeleton */
+	UPROPERTY(BlueprintReadOnly, Category="AR AugmentedReality|Pose Tracking")
+	FARSkeletonDefinition SkeletonDefinition;
+	
+	/** The transform of each join in the model space */
+	UPROPERTY(BlueprintReadOnly, Category = "AR AugmentedReality|Pose Tracking")
+	TArray<FTransform> JointTransforms;
+	
+	/** Flags indicating if each joint is tracked */
+	UPROPERTY(BlueprintReadOnly, Category = "AR AugmentedReality|Pose Tracking")
+	TArray<bool> IsJointTracked;
+	
+	UPROPERTY(BlueprintReadOnly, Category = "AR AugmentedReality|Pose Tracking")
+	EARJointTransformSpace JointTransformSpace = EARJointTransformSpace::Model;
+};

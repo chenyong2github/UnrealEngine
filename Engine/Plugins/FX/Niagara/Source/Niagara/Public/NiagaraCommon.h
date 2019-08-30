@@ -99,6 +99,12 @@ enum class ENiagaraScriptCompileStatus : uint8
 	NCS_MAX,
 };
 
+FORCEINLINE bool NiagaraSupportsComputeShaders(EShaderPlatform ShaderPlatform)
+{
+	// Change to RHISupportsComputeShaders(ShaderPlatform) to support ES3_1
+	return IsFeatureLevelSupported(ShaderPlatform, ERHIFeatureLevel::SM5);
+}
+
 USTRUCT()
 struct FNiagaraDataSetID
 {
@@ -591,12 +597,12 @@ namespace FNiagaraUtilities
 	inline bool SupportsGPUParticles(ERHIFeatureLevel::Type FeatureLevel)
 	{
 		EShaderPlatform ShaderPlatform = GShaderPlatformForFeatureLevel[FeatureLevel];
-		return RHISupportsComputeShaders(ShaderPlatform);
+		return NiagaraSupportsComputeShaders(ShaderPlatform);
 	}
 
 	inline bool SupportsGPUParticles(EShaderPlatform ShaderPlatform)
 	{
-		return RHISupportsComputeShaders(ShaderPlatform);
+		return NiagaraSupportsComputeShaders(ShaderPlatform);
 	}
 
 #if WITH_EDITORONLY_DATA

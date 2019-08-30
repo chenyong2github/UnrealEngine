@@ -205,7 +205,7 @@ void USkeletalMeshComponent::SetSimulatePhysics(bool bSimulate)
  	UpdateClothTickRegisteredState();
 }
 
-void USkeletalMeshComponent::OnComponentCollisionSettingsChanged()
+void USkeletalMeshComponent::OnComponentCollisionSettingsChanged(bool bDeferUpdateOverlaps)
 {
 	for(int32 i=0; i<Bodies.Num(); i++)
 	{
@@ -220,7 +220,7 @@ void USkeletalMeshComponent::OnComponentCollisionSettingsChanged()
 		((FSkeletalMeshSceneProxy*)SceneProxy)->SetCollisionEnabled_GameThread(IsCollisionEnabled());
 	}
 
-	Super::OnComponentCollisionSettingsChanged();
+	Super::OnComponentCollisionSettingsChanged(bDeferUpdateOverlaps);
 }
 
 void USkeletalMeshComponent::AddRadialImpulse(FVector Origin, float Radius, float Strength, ERadialImpulseFalloff Falloff, bool bVelChange)

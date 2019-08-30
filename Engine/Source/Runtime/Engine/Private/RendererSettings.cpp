@@ -67,6 +67,7 @@ URendererSettings::URendererSettings(const FObjectInitializer& ObjectInitializer
 	bSupportStationarySkylight = true;
 	bSupportPointLightWholeSceneShadows = true;
 	bSupportAtmosphericFog = true;
+	bSupportSkyAtmosphere = true;
 	bSupportSkinCacheShaders = false;
 	bSupportMaterialLayers = false;
 	GPUSimulationTextureSizeX = 1024;
@@ -149,6 +150,14 @@ void URendererSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 			}
 		}
 
+		if ((PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, bSupportSkyAtmosphere)))
+		{
+			if (!bSupportSkyAtmosphere)
+			{
+				bSupportSkyAtmosphereAffectsHeightFog = 0; // Always disable sky affecting height fog if sky is disabled.
+			}
+		}
+
 		ExportValuesToConsoleVariables(PropertyChangedEvent.Property);
 
 		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, ReflectionCaptureResolution) && 
@@ -167,6 +176,11 @@ bool URendererSettings::CanEditChange(const UProperty* InProperty) const
 	{
 		//only allow DISABLE of skincache shaders if raytracing is also disabled as skincache is a dependency of raytracing.
 		return ParentVal && (!bSupportSkinCacheShaders || !bEnableRayTracing);
+	}
+
+	if ((InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, bSupportSkyAtmosphereAffectsHeightFog)))
+	{
+		return ParentVal && bSupportSkyAtmosphere;
 	}
 
 	return ParentVal;

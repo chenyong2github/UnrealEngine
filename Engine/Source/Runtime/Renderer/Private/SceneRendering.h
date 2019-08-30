@@ -27,6 +27,7 @@
 #include "DistortionRendering.h"
 #include "HeightfieldLighting.h"
 #include "GlobalDistanceFieldParameters.h"
+#include "SkyAtmosphereRendering.h"
 #include "Templates/UniquePtr.h"
 #include "RenderGraph.h"
 #include "MeshDrawCommands.h"
@@ -1013,6 +1014,11 @@ public:
 	 * TODO: Right now decal visibility is computed right before rendering them. Ideally it should be done in InitViews and this flag should be replaced with list of visible decals  
 	 */
 	uint32 bSceneHasDecals : 1;
+	/**
+	 * true if the scene has at least one mesh with a material tagged as sky. 
+	 * This is used to skip the sky rendering part during the SkyAtmosphere pass on non mobile platforms.
+	 */
+	uint32 bSceneHasSkyMaterial : 1;
 	/** Bitmask of all shading models used by primitives in this view */
 	uint16 ShadingModelMaskInView;
 
@@ -1044,6 +1050,11 @@ public:
 	int32 NumSphereReflectionCaptures;
 	float FurthestReflectionCaptureDistance;
 	TUniformBufferRef<FReflectionCaptureShaderData> ReflectionCaptureUniformBuffer;
+
+	// Sky / Atmosphere textures (transient owned by this view info) and pointer to constants owned by SkyAtmosphere proxy.
+	TRefCountPtr<IPooledRenderTarget> SkyAtmosphereCameraAerialPerspectiveVolume;
+	TRefCountPtr<IPooledRenderTarget> SkyAtmosphereViewLutTexture;
+	const FAtmosphereUniformShaderParameters* SkyAtmosphereUniformShaderParameters;
 
 	/** Used when there is no view state, buffers reallocate every frame. */
 	TUniquePtr<FForwardLightingViewResources> ForwardLightingResourcesStorage;
@@ -1669,6 +1680,18 @@ protected:
 
 	void RenderPlanarReflection(class FPlanarReflectionSceneProxy* ReflectionSceneProxy);
 
+	/** Initialise sky atmosphere resources.*/
+	void InitSkyAtmosphereForViews(FRHICommandListImmediate& RHICmdList);
+	/** Render the sky atmosphere look up table needed for this frame.*/
+	void RenderSkyAtmosphereLookUpTables(FRHICommandListImmediate& RHICmdList);
+	/** Render the sky atmosphere over the scene.*/
+	void RenderSkyAtmosphere(FRHICommandListImmediate& RHICmdList);
+
+	/** Render notification to artist when a sky material is used but it might comtains the camera (and then the sky/background would look black).*/
+	void RenderSkyAtmosphereEditorNotifications(FRHICommandListImmediate& RHICmdList);
+	/** We should render on screen notification only if any of the scene contains a mesh using a sky material.*/
+	bool ShouldRenderSkyAtmosphereEditorNotifications();
+
 	void ResolveSceneColor(FRHICommandList& RHICmdList);
 
 private:
@@ -1765,6 +1788,13 @@ private:
 // The noise textures need to be set in Slate too.
 RENDERER_API void UpdateNoiseTextureParameters(FViewUniformShaderParameters& ViewUniformShaderParameters);
 
+inline FRHITexture* OrWhite2DIfNull(FRHITexture* Tex)
+{
+	FRHITexture* Result = Tex ? Tex : GWhiteTexture->TextureRHI.GetReference();
+	check(Result);
+	return Result;
+}
+
 inline FRHITexture* OrBlack2DIfNull(FRHITexture* Tex)
 {
 	FRHITexture* Result = Tex ? Tex : GBlackTexture->TextureRHI.GetReference();
@@ -1776,6 +1806,12 @@ inline FRHITexture* OrBlack3DIfNull(FRHITexture* Tex)
 {
 	// we fall back to 2D which are unbound es2 parameters
 	return OrBlack2DIfNull(Tex ? Tex : GBlackVolumeTexture->TextureRHI.GetReference());
+}
+
+inline FRHITexture* OrBlack3DAlpha1IfNull(FRHITexture* Tex)
+{
+	// we fall back to 2D which are unbound es2 parameters
+	return OrBlack2DIfNull(Tex ? Tex : GBlackAlpha1VolumeTexture->TextureRHI.GetReference());
 }
 
 inline FRHITexture* OrBlack3DUintIfNull(FRHITexture* Tex)
@@ -1800,6 +1836,16 @@ inline void SetBlack3DIfNull(FRHITexture*& Tex)
 		Tex = GBlackVolumeTexture->TextureRHI.GetReference();
 		// we fall back to 2D which are unbound es2 parameters
 		SetBlack2DIfNull(Tex);
+	}
+}
+
+inline void SetBlackAlpha13DIfNull(FRHITexture*& Tex)
+{
+	if (!Tex)
+	{
+		Tex = GBlackAlpha1VolumeTexture->TextureRHI.GetReference();
+		// we fall back to 2D which are unbound es2 parameters
+		SetBlack2DIfNull(Tex); // This is actually a rgb=0, a=1 texture
 	}
 }
 

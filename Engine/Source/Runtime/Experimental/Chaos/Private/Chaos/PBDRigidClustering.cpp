@@ -9,6 +9,8 @@
 #include "Chaos/MassProperties.h"
 #include "Chaos/PBDRigidsEvolution.h"
 #include "Chaos/PBDRigidsEvolutionPGS.h"
+#include "Chaos/PBDCollisionConstraint.h"
+#include "Chaos/PBDCollisionConstraintPGS.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/UniformGrid.h"
 #include "ChaosStats.h"
@@ -1910,9 +1912,9 @@ namespace Chaos
 }
 
 using namespace Chaos;
-template class Chaos::TPBDRigidClustering<TPBDRigidsEvolutionGBF<float, 3>, TPBDCollisionConstraint<float, 3>, float, 3>;
+template class CHAOS_API Chaos::TPBDRigidClustering<TPBDRigidsEvolutionGBF<float, 3>, TPBDCollisionConstraint<float, 3>, float, 3>;
 #if CHAOS_PARTICLEHANDLE_TODO
-template class Chaos::TPBDRigidClustering<TPBDRigidsEvolutionPGS<float, 3>, TPBDCollisionConstraintPGS<float, 3>, float, 3>;
+template class CHAOS_API Chaos::TPBDRigidClustering<TPBDRigidsEvolutionPGS<float, 3>, TPBDCollisionConstraintPGS<float, 3>, float, 3>;
 #endif
 template CHAOS_API void Chaos::UpdateClusterMassProperties<float, 3>(TPBDRigidClusteredParticles<float, 3>& Particles, const TArray<uint32>& Children, const uint32 ClusterIndex, const TRigidTransform<float, 3>* ForceMassOrientation,
 	const TArrayCollectionArray<TUniquePtr<TMultiChildProxyData<float, 3>>>* MMultiChildProxyData,

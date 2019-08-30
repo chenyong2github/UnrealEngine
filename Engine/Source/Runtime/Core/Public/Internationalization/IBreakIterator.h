@@ -12,6 +12,7 @@ public:
 	virtual void SetString(const FText& InText) = 0;
 	virtual void SetString(const FString& InString) = 0;
 	virtual void SetString(const TCHAR* const InString, const int32 InStringLength) = 0;
+	virtual void SetStringRef(const FString* InString) = 0;
 	virtual void ClearString() = 0;
 
 	virtual int32 GetCurrentPosition() const = 0;

@@ -16,6 +16,7 @@
 #include "Interfaces/IProjectManager.h"
 #include "InstalledPlatformInfo.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
+#include "DesktopPlatformModule.h"
 
 #define LOCTEXT_NAMESPACE "FPackageProjectMenu"
 
@@ -55,7 +56,7 @@ public:
 			check(VanillaPlatform.PlatformInfo->IsVanilla());
 
 			// Only care about game targets
-			if (VanillaPlatform.PlatformInfo->PlatformType != PlatformInfo::EPlatformType::Game || !VanillaPlatform.PlatformInfo->bEnabledForUse || !FInstalledPlatformInfo::Get().CanDisplayPlatform(VanillaPlatform.PlatformInfo->BinaryFolderName, ProjectType))
+			if (VanillaPlatform.PlatformInfo->PlatformType != EBuildTargetType::Game || !VanillaPlatform.PlatformInfo->bEnabledForUse || !FInstalledPlatformInfo::Get().CanDisplayPlatform(VanillaPlatform.PlatformInfo->BinaryFolderName, ProjectType))
 			{
 				continue;
 			}
@@ -153,7 +154,7 @@ protected:
 	{
 		for (const PlatformInfo::FPlatformInfo* SubPlatformInfo : SubPlatformInfos)
 		{
-			if (SubPlatformInfo->PlatformType != PlatformInfo::EPlatformType::Game)
+			if (SubPlatformInfo->PlatformType != EBuildTargetType::Game)
 			{
 				continue;
 			}
@@ -168,107 +169,61 @@ protected:
 	 */
 	static void MakeBuildConfigurationsMenu(FMenuBuilder& MenuBuilder)
 	{
-		// Only show the debug game configurations if the game has source code. 
-		TArray<FString> TargetFileNames;
-		IFileManager::Get().FindFiles(TargetFileNames, *(FPaths::GameSourceDir() / TEXT("*.target.cs")), true, false);
-		
-		if (TargetFileNames.Num() > 0)
+		// Check if the project has code
+		FProjectStatus ProjectStatus;
+		bool bHasCode = IProjectManager::Get().QueryStatusForCurrentProject(ProjectStatus) && ProjectStatus.bCodeBasedProject;
+
+		// If if does, find all the targets
+		const TArray<FTargetInfo>* Targets = nullptr;
+		if (bHasCode)
 		{
+			Targets = &(FDesktopPlatformModule::Get()->GetTargetsForCurrentProject());
+		}
+
+		// Set up all the configurations
+		for (int32 Idx = 0; Idx < PPBC_Max; Idx++)
+		{
+			EProjectPackagingBuildConfigurations PackagingConfiguration = (EProjectPackagingBuildConfigurations)Idx;
+			const UProjectPackagingSettings::FConfigurationInfo& Info = UProjectPackagingSettings::ConfigurationInfo[Idx];
+
+			// Make sure the selected configuration is supported
+			EProjectType ProjectType = bHasCode? EProjectType::Code : EProjectType::Content;
+			if(!FInstalledPlatformInfo::Get().IsValid(Info.TargetType, TOptional<FString>(), Info.Configuration, ProjectType, EInstalledPlatformState::Downloaded))
+			{
+				continue;
+			}
+
+			// Check the target type is valid
+			if(bHasCode)
+			{
+				EBuildTargetType TargetType = Info.TargetType;
+				if(!Targets->ContainsByPredicate([TargetType](const FTargetInfo& Target) -> bool { return Target.Type == TargetType; }))
+				{
+					continue;
+				}
+			}
+			else
+			{
+				if(Info.Configuration == EBuildConfiguration::DebugGame)
+				{
+					continue;
+				}
+			}
+
+			// Add the menu item
 			MenuBuilder.AddMenuEntry(
-				LOCTEXT("DebugConfiguration", "DebugGame"),
-				LOCTEXT("DebugConfigurationTooltip", "Package the project for debugging"),
+				Info.Name, 
+				Info.ToolTip,
 				FSlateIcon(),
 				FUIAction(
-					FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::PackageBuildConfiguration, PPBC_DebugGame),
-					FCanExecuteAction::CreateStatic(&FMainFrameActionCallbacks::CanPackageBuildConfiguration, PPBC_DebugGame),
-					FIsActionChecked::CreateStatic(&FMainFrameActionCallbacks::PackageBuildConfigurationIsChecked, PPBC_DebugGame)
+					FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::PackageBuildConfiguration, PackagingConfiguration),
+					FCanExecuteAction::CreateStatic(&FMainFrameActionCallbacks::CanPackageBuildConfiguration, PackagingConfiguration),
+					FIsActionChecked::CreateStatic(&FMainFrameActionCallbacks::PackageBuildConfigurationIsChecked, PackagingConfiguration)
 				),
 				NAME_None,
 				EUserInterfaceActionType::RadioButton
 			);
 		}
-
-		// Add the Client configurations if there is a {ProjectName}Client.Target.cs file.
-		TArray<FString> ClientTargetFileNames;
-		if (FInstalledPlatformInfo::Get().IsValidPlatformType(PlatformInfo::EPlatformType::Client))
-		{
-			IFileManager::Get().FindFiles(ClientTargetFileNames, *(FPaths::GameSourceDir() / TEXT("*client.target.cs")), true, false);
-		}
-
-		if (ClientTargetFileNames.Num() > 0)
-		{
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("DebugClientConfiguration", "DebugGame Client"),
-				LOCTEXT("DebugClientConfigurationTooltip", "Package the project for debugging as a client"),
-				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::PackageBuildConfiguration, PPBC_DebugGameClient),
-					FCanExecuteAction::CreateStatic(&FMainFrameActionCallbacks::CanPackageBuildConfiguration, PPBC_DebugGameClient),
-					FIsActionChecked::CreateStatic(&FMainFrameActionCallbacks::PackageBuildConfigurationIsChecked, PPBC_DebugGameClient)
-				),
-				NAME_None,
-				EUserInterfaceActionType::RadioButton
-			);
-		}
-
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("DevelopmentConfiguration", "Development"),
-			LOCTEXT("DevelopmentConfigurationTooltip", "Package the project for development"),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::PackageBuildConfiguration, PPBC_Development),
-				FCanExecuteAction::CreateStatic(&FMainFrameActionCallbacks::CanPackageBuildConfiguration, PPBC_Development),
-				FIsActionChecked::CreateStatic(&FMainFrameActionCallbacks::PackageBuildConfigurationIsChecked, PPBC_Development)
-			),
-			NAME_None,
-			EUserInterfaceActionType::RadioButton
-		);
-
-		if (ClientTargetFileNames.Num() > 0)
-		{
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("DevelopmentClientConfiguration", "Development Client"),
-				LOCTEXT("DevelopmentClientConfigurationTooltip", "Package the project for development as a client"),
-				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::PackageBuildConfiguration, PPBC_DevelopmentClient),
-					FCanExecuteAction::CreateStatic(&FMainFrameActionCallbacks::CanPackageBuildConfiguration, PPBC_DevelopmentClient),
-					FIsActionChecked::CreateStatic(&FMainFrameActionCallbacks::PackageBuildConfigurationIsChecked, PPBC_DevelopmentClient)
-				),
-				NAME_None,
-				EUserInterfaceActionType::RadioButton
-			);
-		}
-
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ShippingConfiguration", "Shipping"),
-			LOCTEXT("ShippingConfigurationTooltip", "Package the project for shipping"),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::PackageBuildConfiguration, PPBC_Shipping),
-				FCanExecuteAction(),
-				FIsActionChecked::CreateStatic(&FMainFrameActionCallbacks::PackageBuildConfigurationIsChecked, PPBC_Shipping)
-			),
-			NAME_None,
-			EUserInterfaceActionType::RadioButton
-		);
-
-		if (ClientTargetFileNames.Num() > 0)
-		{
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("ShippingClientConfiguration", "Shipping Client"),
-				LOCTEXT("ShippingClientConfigurationTooltip", "Package the project for shipping as a client"),
-				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::PackageBuildConfiguration, PPBC_ShippingClient),
-					FCanExecuteAction(),
-					FIsActionChecked::CreateStatic(&FMainFrameActionCallbacks::PackageBuildConfigurationIsChecked, PPBC_ShippingClient)
-				),
-				NAME_None,
-				EUserInterfaceActionType::RadioButton
-			);
-		}
-
 	}
 };
 

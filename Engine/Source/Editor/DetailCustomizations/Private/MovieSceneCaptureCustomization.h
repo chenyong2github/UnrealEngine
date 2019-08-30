@@ -12,6 +12,7 @@ struct FPropertyChangedEvent;
 class FMovieSceneCaptureCustomization : public IDetailCustomization
 {
 public:
+	FMovieSceneCaptureCustomization();
 	~FMovieSceneCaptureCustomization();
 
 	static TSharedRef<IDetailCustomization> MakeInstance();

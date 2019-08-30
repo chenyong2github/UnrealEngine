@@ -461,7 +461,9 @@ static void UpdateSceneCaptureContent_RenderThread(
 		default:
 			checkNoEntry();
 			break;
-		}
+	}
+	// Unbind everything in case FX has to read.
+	UnbindRenderTargets(RHICmdList);
 }
 
 void BuildProjectionMatrix(FIntPoint RenderTargetSize, ECameraProjectionMode::Type ProjectionType, float FOV, float InOrthoWidth, float InNearClippingPlane, FMatrix& ProjectionMatrix)

@@ -1790,7 +1790,7 @@ void FIOSTargetSettingsCustomization::SetShaderStandard(int32 Value)
 	{
 		FText Message;
 		
-		uint8 EnumValue = (uint8)EIOSVersion::IOS_10;
+		uint8 EnumValue = (uint8)EIOSVersion::IOS_11;
 		if (MinOSPropertyHandle.IsValid())
 		{
 			MinOSPropertyHandle->GetValue(EnumValue);
@@ -1827,9 +1827,9 @@ void FIOSTargetSettingsCustomization::SetShaderStandard(int32 Value)
         }
 
 		// make sure we never set the min version to less than current supported
-		if (((EIOSVersion)EnumValue < EIOSVersion::IOS_10))
+		if (((EIOSVersion)EnumValue < EIOSVersion::IOS_11))
 		{
-			SetMinVersion((int32)EIOSVersion::IOS_10);
+			SetMinVersion((int32)EIOSVersion::IOS_11);
 		}
 
 		

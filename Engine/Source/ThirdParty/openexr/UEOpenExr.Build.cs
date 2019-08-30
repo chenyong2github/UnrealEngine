@@ -34,17 +34,16 @@ public class UEOpenExr : ModuleRules
             }
             LibDir = LibDir + "/" + Platform;
             LibDir = LibDir + "/Static" + (bDebug ? "Debug" : "Release");
-            PublicLibraryPaths.Add(LibDir);
 
 			if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
 			{
 				PublicAdditionalLibraries.AddRange(
 					new string[] {
-						"Half.lib",
-						"Iex.lib",
-						"IlmImf.lib",
-						"IlmThread.lib",
-						"Imath.lib",
+						LibDir + "/Half.lib",
+						LibDir + "/Iex.lib",
+						LibDir + "/IlmImf.lib",
+						LibDir + "/IlmThread.lib",
+						LibDir + "/Imath.lib",
 					}
 				);
 			}

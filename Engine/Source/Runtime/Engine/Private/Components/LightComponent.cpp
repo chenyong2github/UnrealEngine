@@ -277,6 +277,7 @@ FLightSceneProxy::FLightSceneProxy(const ULightComponent* InLightComponent)
 	, bCastModulatedShadows(false)
 	, bUseWholeSceneCSMForMovableObjects(false)
 	, bTiledDeferredLightingSupported(false)
+	, AtmosphereSunLightIndex(InLightComponent->GetAtmosphereSunLightIndex())
 	, LightType(InLightComponent->GetLightType())	
 	, LightingChannelMask(GetLightingChannelMaskForStruct(InLightComponent->LightingChannels))
 	, StatId(InLightComponent->GetStatID(true))
@@ -284,6 +285,7 @@ FLightSceneProxy::FLightSceneProxy(const ULightComponent* InLightComponent)
 	, LevelName(InLightComponent->GetOutermost()->GetFName())
 	, FarShadowDistance(0)
 	, FarShadowCascadeCount(0)
+	, ShadowAmount(1.0f)
 	, SamplesPerPixel(1)
 {
 	check(SceneInterface);
@@ -376,6 +378,8 @@ ULightComponentBase::ULightComponentBase(const FObjectInitializer& ObjectInitial
 	bVisualizeComponent = true;
 #endif
 }
+
+ULightComponent::FOnUpdateColorAndBrightness ULightComponent::UpdateColorAndBrightnessEvent;
 
 /**
  * Updates/ resets light GUIDs.
@@ -681,6 +685,7 @@ void ULightComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, LightShaftOverrideDirection) &&
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, bCastModulatedShadows) &&
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, ModulatedShadowColor) &&
+		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, ShadowAmount) &&
 		// Properties that should only unbuild lighting for a Static light (can be changed dynamically on a Stationary light)
 		(PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, Intensity) || Mobility == EComponentMobility::Static) &&
 		(PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, LightColor) || Mobility == EComponentMobility::Static) &&
@@ -822,6 +827,8 @@ void ULightComponent::SetIndirectLightingIntensity(float NewIntensity)
 			//@todo - remove from scene if brightness or color becomes 0
 			World->Scene->UpdateLightColorAndBrightness( this );
 		}
+
+		UpdateColorAndBrightnessEvent.Broadcast(*this);
 	}
 }
 
@@ -840,6 +847,8 @@ void ULightComponent::SetVolumetricScatteringIntensity(float NewIntensity)
 			//@todo - remove from scene if brightness or color becomes 0
 			World->Scene->UpdateLightColorAndBrightness( this );
 		}
+
+		UpdateColorAndBrightnessEvent.Broadcast(*this);
 	}
 }
 
@@ -861,6 +870,8 @@ void ULightComponent::SetLightColor(FLinearColor NewLightColor, bool bSRGB)
 			//@todo - remove from scene if brightness or color becomes 0
 			World->Scene->UpdateLightColorAndBrightness( this );
 		}
+
+		UpdateColorAndBrightnessEvent.Broadcast(*this);
 	}
 }
 
@@ -880,6 +891,8 @@ void ULightComponent::SetTemperature(float NewTemperature)
 			//@todo - remove from scene if brightness or color becomes 0
 			World->Scene->UpdateLightColorAndBrightness( this );
 		}
+
+		UpdateColorAndBrightnessEvent.Broadcast(*this);
 	}
 }
 
@@ -1090,6 +1103,8 @@ void ULightComponent::UpdateColorAndBrightness()
 			World->Scene->UpdateLightColorAndBrightness(this);
 		}
 	}
+
+	UpdateColorAndBrightnessEvent.Broadcast(*this);
 }
 
 //

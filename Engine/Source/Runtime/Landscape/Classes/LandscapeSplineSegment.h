@@ -321,7 +321,6 @@ public:
 	//~ Begin UObject Interface
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
-	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
 #if WITH_EDITOR
 	virtual void PostEditUndo() override;
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;

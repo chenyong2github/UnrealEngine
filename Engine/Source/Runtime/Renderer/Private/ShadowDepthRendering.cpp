@@ -1839,7 +1839,8 @@ void FShadowDepthPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT Mesh
 		}
 
 		if ((bShouldCastShadow || (bReflectiveShadowmap && (Material.ShouldInjectEmissiveIntoLPV() || Material.ShouldBlockGI())))
-			&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain()))
+			&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain())
+			&& !Material.IsSky())
 		{
 			const FMaterialRenderProxy* EffectiveMaterialRenderProxy = &MaterialRenderProxy;
 			const FMaterial* EffectiveMaterial = &Material;

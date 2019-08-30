@@ -348,6 +348,7 @@ FMetalDeviceContext::FMetalDeviceContext(mtlpp::Device MetalDevice, uint32 InDev
 , FrameCounter(0)
 , ActiveContexts(1)
 , ActiveParallelContexts(0)
+, PSOManager(0)
 {
 	CommandQueue.SetRuntimeDebuggingLevel(GMetalRuntimeDebugLevel);
 	
@@ -382,6 +383,8 @@ FMetalDeviceContext::FMetalDeviceContext(mtlpp::Device MetalDevice, uint32 InDev
 		GMetalSupportsIntermediateBackBuffer = 1;
 	}
 	
+	PSOManager = new FMetalPipelineStateCacheManager();
+	
 	METAL_GPUPROFILE(FMetalProfiler::CreateProfiler(this));
 	
 	InitFrame(true, 0, 0);
@@ -391,6 +394,8 @@ FMetalDeviceContext::~FMetalDeviceContext()
 {
 	SubmitCommandsHint(EMetalSubmitFlagsWaitOnCommandBuffer);
 	delete &(GetCommandQueue());
+	
+	delete PSOManager;
 	
 #if PLATFORM_MAC
 	if (FPlatformMisc::MacOSXVersionCompare(10, 13, 4) >= 0)

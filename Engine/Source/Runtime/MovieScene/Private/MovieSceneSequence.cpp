@@ -8,6 +8,8 @@
 #include "Tracks/MovieSceneSubTrack.h"
 #include "Sections/MovieSceneSubSection.h"
 #include "Compilation/MovieSceneCompiler.h"
+#include "Logging/MessageLog.h"
+#include "Misc/UObjectToken.h"
 #include "Interfaces/ITargetPlatform.h"
 
 UMovieSceneSequence::UMovieSceneSequence(const FObjectInitializer& Init)
@@ -92,4 +94,30 @@ FGuid UMovieSceneSequence::FindPossessableObjectId(UObject& Object, UObject* Con
 		}
 	}
 	return FGuid();
+}
+
+FMovieSceneObjectBindingID UMovieSceneSequence::FindNamedBinding(FName InBindingName) const
+{
+	for (FMovieSceneObjectBindingID ID : FindNamedBindings(InBindingName))
+	{
+		return ID;
+	}
+
+	FMessageLog("PIE")
+		.Warning(NSLOCTEXT("UMovieSceneSequence", "FindNamedBinding_Warning", "Attempted to find a named binding that did not exist"))
+		->AddToken(FUObjectToken::Create(this));
+
+	return FMovieSceneObjectBindingID();
+}
+
+const TArray<FMovieSceneObjectBindingID>& UMovieSceneSequence::FindNamedBindings(FName InBindingName) const
+{
+	const FMovieSceneObjectBindingIDs* BindingIDs = GetMovieScene()->AllBindingGroups().Find(InBindingName);
+	if (BindingIDs)
+	{
+		return BindingIDs->IDs;
+	}
+
+	static TArray<FMovieSceneObjectBindingID> EmptyBindings;
+	return EmptyBindings;
 }

@@ -265,7 +265,16 @@ void FStatsTreeElement::UpdatePostMeasurement(double InCyclesPerTimerToRemove)
 }
 
 bool FStatsHierarchical::bEnabled = false;
-FStatsTreeElement FStatsHierarchical::LastMeasurement;
+
+namespace
+{
+FStatsTreeElement& GetStatsHierarchicalLastMeasurement()
+{
+	static FStatsTreeElement LastMeasurement;
+	return LastMeasurement;
+}
+}
+
 TArray<FStatsHierarchical::FHierarchicalStatEntry> FStatsHierarchical::Entries;
 
 void FStatsHierarchical::BeginMeasurements()
@@ -448,7 +457,7 @@ FStatsTreeElement FStatsHierarchical::EndMeasurements(FStatsTreeElement Measurem
 		CurrentMeasurement.UpdatePostMeasurement();
 	}
 
-	LastMeasurement = CurrentMeasurement;
+	GetStatsHierarchicalLastMeasurement() = CurrentMeasurement;
 #endif
 	return GetLastMeasurements();
 }
@@ -461,7 +470,7 @@ FStatsTreeElement FStatsHierarchical::GetLastMeasurements()
 
 #endif
 
-	return LastMeasurement;
+	return GetStatsHierarchicalLastMeasurement();
 }
 
 void FStatsHierarchical::DumpMeasurements(FMessageLog& Log, bool bSortByDuration)
@@ -507,7 +516,7 @@ void FStatsHierarchical::DumpMeasurements(FMessageLog& Log, bool bSortByDuration
 	};
 
 	Log.Info(FText::FromString(TEXT("----------------------------------------------")));
-	Local::DumpEntry(&LastMeasurement, Log, bSortByDuration);
+	Local::DumpEntry(&(GetStatsHierarchicalLastMeasurement()), Log, bSortByDuration);
 
 #endif
 }

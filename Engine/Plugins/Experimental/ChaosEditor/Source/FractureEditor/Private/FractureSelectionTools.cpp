@@ -52,6 +52,7 @@ void FFractureSelectionTools::ClearSelectedBones(UGeometryCollectionComponent* G
 {
 	FScopedColorEdit EditBoneColor = GeometryCollectionComponent->EditBoneSelection();
 	EditBoneColor.ResetBoneSelection();
+	EditBoneColor.ResetHighlightedBones();
 }
 
 

@@ -18,7 +18,7 @@ bool FHoloLensTargetDevice::Deploy(const FString& SourceFolder, FString& OutAppI
 	return Info.bCanDeployTo;
 }
 
-bool FHoloLensTargetDevice::Launch(const FString& AppId, EBuildConfigurations::Type BuildConfiguration, EBuildTargets::Type BuildTarget, const FString& Params, uint32* OutProcessId)
+bool FHoloLensTargetDevice::Launch(const FString& AppId, EBuildConfiguration BuildConfiguration, EBuildTargetType BuildTarget, const FString& Params, uint32* OutProcessId)
 {
 	return false;
 }

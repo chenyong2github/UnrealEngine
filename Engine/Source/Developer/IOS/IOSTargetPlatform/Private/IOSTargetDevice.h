@@ -118,7 +118,7 @@ public:
 	virtual const class ITargetPlatform& GetTargetPlatform() const override;
 	virtual bool IsConnected() override;
 	virtual bool IsDefault() const override;
-	virtual bool Launch(const FString& InAppId, EBuildConfigurations::Type InBuildConfiguration, EBuildTargets::Type BuildTarget, const FString& Params, uint32* OutProcessId) override;
+	virtual bool Launch(const FString& InAppId, EBuildConfiguration InBuildConfiguration, EBuildTargetType TargetType, const FString& Params, uint32* OutProcessId) override;
 	virtual bool PowerOff(bool Force) override;
 	virtual bool PowerOn() override;
 	virtual bool Reboot(bool bReconnect = false) override;
@@ -154,7 +154,7 @@ private:
 	FString AppId;
 
 	/** Contains the build configuration of the app to deploy */
-	EBuildConfigurations::Type BuildConfiguration;
+	EBuildConfiguration BuildConfiguration;
 
 	/** Lets us know whether the thing is a sim device or a physical device. */
 	bool bIsSimulated;
@@ -244,7 +244,7 @@ public:
 		AppId = GameName;
 	}
 
-	void SetAppConfiguration(EBuildConfigurations::Type Configuration)
+	void SetAppConfiguration(EBuildConfiguration Configuration)
 	{
 		BuildConfiguration = Configuration;
 	}

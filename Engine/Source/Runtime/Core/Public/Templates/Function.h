@@ -27,14 +27,14 @@
 	#define ENABLE_TFUNCTIONREF_VISUALIZATION 0
 #endif
 
-#if defined(_WIN32) && !defined(_WIN64)
+#if defined(_WIN32) && !defined(_WIN64) && (!defined(ALLOW_TFUNCTION_INLINE_ALLOCATORS_ON_WIN32) || !ALLOW_TFUNCTION_INLINE_ALLOCATORS_ON_WIN32)
 	// Don't use inline storage on Win32, because that will affect the alignment of TFunction, and we can't pass extra-aligned types by value on Win32.
 	#define TFUNCTION_USES_INLINE_STORAGE 0
-#elif USE_SMALL_TFUNCTIONS
+#elif !defined(NUM_TFUNCTION_INLINE_BYTES) || NUM_TFUNCTION_INLINE_BYTES == 0
 	#define TFUNCTION_USES_INLINE_STORAGE 0
 #else
 	#define TFUNCTION_USES_INLINE_STORAGE 1
-	#define TFUNCTION_INLINE_SIZE         32
+	#define TFUNCTION_INLINE_SIZE         NUM_TFUNCTION_INLINE_BYTES
 	#define TFUNCTION_INLINE_ALIGNMENT    16
 #endif
 

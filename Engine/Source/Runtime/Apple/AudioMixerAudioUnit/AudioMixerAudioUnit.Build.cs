@@ -14,19 +14,23 @@ public class AudioMixerAudioUnit : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
-				"Engine",
+				"AudioMixerCore"
 			}
 			);
 
 		PrecompileForTargets = PrecompileTargetsType.None;
 
-		PrivateDependencyModuleNames.Add("AudioMixer");
+        if (Target.bCompileAgainstEngine)
+        {
+            // Engine module is required for CompressedAudioInfo implementations.
+            PrivateDependencyModuleNames.Add("Engine");
 
-		AddEngineThirdPartyPrivateStaticDependencies(Target, 
-			"UEOgg",
-			"Vorbis",
-			"VorbisFile"
-			);
+            AddEngineThirdPartyPrivateStaticDependencies(Target,
+                "UEOgg",
+                "Vorbis",
+                "VorbisFile"
+            );
+        }
 
 		PublicFrameworks.AddRange(new string[]
 		{
@@ -38,14 +42,11 @@ public class AudioMixerAudioUnit : ModuleRules
 		{
 			PublicFrameworks.Add("AVFoundation");
 		}
-        else if (Target.Platform == UnrealTargetPlatform.Mac)
-        {
-            PublicFrameworks.Add("AudioUnit");
-        }
+
 
 		PublicDefinitions.Add("WITH_OGGVORBIS=1");
 
-		if (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.IOS || Target.Platform == UnrealTargetPlatform.TVOS)
+		if (Target.Platform == UnrealTargetPlatform.IOS || Target.Platform == UnrealTargetPlatform.TVOS)
 		{
 			PrecompileForTargets = PrecompileTargetsType.Any;
 		}

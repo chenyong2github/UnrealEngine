@@ -162,6 +162,7 @@ private:
 	
 public:
 
+	FString GetDebugName() const override;
 	void InitSyncState(FMockSyncState& OutSyncState) const override;
 	void FinalizeFrame(const FMockSyncState& SyncState) override;
 	void ProduceInput(const FMockNetworkSimulation::TSimTime& SimFrameTime, FMockInputCmd& Cmd);

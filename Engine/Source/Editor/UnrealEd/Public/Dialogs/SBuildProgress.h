@@ -44,6 +44,8 @@ public:
 		BUILDTYPE_LODs, 
 		/** Texture streaming data is being built */
 		BUILDTYPE_TextureStreaming, 
+		/** Virtual texture data is being built */
+		BUILDTYPE_VirtualTexture,
 	};
 
 	/** The various issues that can occur. */

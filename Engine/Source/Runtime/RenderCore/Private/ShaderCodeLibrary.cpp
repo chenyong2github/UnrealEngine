@@ -23,6 +23,7 @@ ShaderCodeLibrary.cpp: Bound shader state cache implementation.
 #include "ShaderPipelineCache.h"
 #include "Misc/FileHelper.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/CommandLine.h"
 
 #if WITH_EDITORONLY_DATA
 #include "Modules/ModuleManager.h"
@@ -51,6 +52,14 @@ static FAutoConsoleVariableRef CVarShaderCodeLibraryAsyncLoadingPriority(
 	TEXT("r.ShaderCodeLibrary.DefaultAsyncIOPriority"),
 	GShaderCodeLibraryAsyncLoadingPriority,
 	TEXT(""),
+	ECVF_Default
+);
+
+int32 GShaderCodeLibrarySeperateLoadingCache = 0;
+static FAutoConsoleVariableRef CVarShaderCodeLibrarySeperateLoadingCache(
+	TEXT("r.ShaderCodeLibrary.SeperateLoadingCache"),
+	GShaderCodeLibraryAsyncLoadingPriority,
+	TEXT("if > 0, each shader code library has it's own loading cache."),
 	ECVF_Default
 );
 
@@ -432,6 +441,17 @@ public:
 			}
 			Ar->Close();
 			delete Ar;
+
+
+			bool ShaderCodeLibrarySeperateLoadingCacheCommandLineOverride = FParse::Param(FCommandLine::Get(), TEXT("ShaderCodeLibrarySeperateLoadingCache"));;
+			if (GShaderCodeLibrarySeperateLoadingCache || ShaderCodeLibrarySeperateLoadingCacheCommandLineOverride)
+			{
+
+				TArray<TArray<FString>> FilesToMakeUnique;
+				FilesToMakeUnique.AddDefaulted(1);
+				FilesToMakeUnique[0].Add(DestFilePath);
+				FPlatformFileManager::Get().GetPlatformFile().MakeUniquePakFilesForTheseFiles(FilesToMakeUnique);
+			}
 
 			// Open library for async reads
 			LibraryAsyncFileHandle = FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*DestFilePath);

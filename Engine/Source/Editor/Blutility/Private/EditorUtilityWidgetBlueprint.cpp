@@ -101,11 +101,15 @@ void UEditorUtilityWidgetBlueprint::ChangeTabWorld(UWorld* World, EMapChangeType
 {
 	if (MapChangeType == EMapChangeType::TearDownWorld)
 	{
-		CreatedUMGWidget = nullptr;
 		if (CreatedTab.IsValid())
 		{
 			CreatedTab.Pin()->SetContent(SNullWidget::NullWidget);
 		}
+		if (CreatedUMGWidget)
+		{
+			CreatedUMGWidget->Rename(nullptr, GetTransientPackage());
+		}
+		CreatedUMGWidget = nullptr;
 	}
 	else if (MapChangeType != EMapChangeType::SaveMap)
 	{

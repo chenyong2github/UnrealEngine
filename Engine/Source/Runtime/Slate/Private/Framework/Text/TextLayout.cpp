@@ -602,7 +602,7 @@ void FTextLayout::FlowLineLayout(const int32 LineModelIndex, const float Wrappin
 				// This is a single word that's too long to fit onto a line, so we'll fallback to wrapping this word at grapheme cluster boundaries - this may require more than a single split
 				const int32 NonBreakingStringIndexOffset = PreviousBlockEnd;
 				const FString NonBreakingString = FString(Break.TrimmedRange.EndIndex - NonBreakingStringIndexOffset, **LineModel.Text + NonBreakingStringIndexOffset);
-				GraphemeBreakIterator->SetString(NonBreakingString);
+				GraphemeBreakIterator->SetStringRef(&NonBreakingString);
 
 				CurrentWidth = 0.0f;
 				for (int32 PreviousBreak = 0, CurrentBreak = GraphemeBreakIterator->MoveToNext(); CurrentBreak != INDEX_NONE;)
@@ -1073,7 +1073,7 @@ void FTextLayout::CreateLineWrappingCache(FLineModel& LineModel)
 		LineBreakIterator = FBreakIterator::CreateLineBreakIterator();
 	}
 
-	LineBreakIterator->SetString( **LineModel.Text );
+	LineBreakIterator->SetStringRef(&LineModel.Text.Get());
 
 	int32 PreviousBreak = 0;
 	int32 CurrentBreak = 0;
@@ -2349,6 +2349,33 @@ void FTextLayout::GetSelectionAsText(FString& DisplayText, const FTextSelection&
 	}
 }
 
+FTextSelection FTextLayout::GetGraphemeAt(const FTextLocation& Location) const
+{
+	const int32 LineIndex = Location.GetLineIndex();
+	const int32 Offset = Location.GetOffset();
+
+	if (!LineModels.IsValidIndex(LineIndex))
+	{
+		return FTextSelection();
+	}
+
+	const FLineModel& LineModel = LineModels[LineIndex];
+
+	GraphemeBreakIterator->SetStringRef(&LineModel.Text.Get());
+
+	const int32 PreviousBreak = (Offset < LineModel.Text->Len()) ? GraphemeBreakIterator->MoveToCandidateAfter(Offset) : GraphemeBreakIterator->ResetToEnd();
+	const int32 CurrentBreak = GraphemeBreakIterator->MoveToPrevious();
+
+	GraphemeBreakIterator->ClearString();
+
+	if (PreviousBreak == CurrentBreak || CurrentBreak == INDEX_NONE)
+	{
+		return FTextSelection();
+	}
+
+	return FTextSelection(FTextLocation(LineIndex, CurrentBreak), FTextLocation(LineIndex, PreviousBreak));
+}
+
 FTextSelection FTextLayout::GetWordAt(const FTextLocation& Location) const
 {
 	const int32 LineIndex = Location.GetLineIndex();
@@ -2361,7 +2388,7 @@ FTextSelection FTextLayout::GetWordAt(const FTextLocation& Location) const
 
 	const FLineModel& LineModel = LineModels[LineIndex];
 
-	WordBreakIterator->SetString(**LineModel.Text);
+	WordBreakIterator->SetStringRef(&LineModel.Text.Get());
 
 	int32 PreviousBreak = (Offset < LineModel.Text->Len()) ? WordBreakIterator->MoveToCandidateAfter(Offset) : WordBreakIterator->ResetToEnd();
 	int32 CurrentBreak = 0;

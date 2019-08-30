@@ -399,12 +399,14 @@ const TCHAR* UByteProperty::ImportText_Internal( const TCHAR* InBuffer, void* Da
 		FString Temp;
 		if (const TCHAR* Buffer = UPropertyHelpers::ReadToken(InBuffer, Temp))
 		{
-			if (Temp == TEXT("True") || Temp == *(GTrue.ToString()))
+			const FCoreTexts& CoreTexts = FCoreTexts::Get();
+
+			if (Temp == TEXT("True") || Temp == *(CoreTexts.True.ToString()))
 			{
 				SetIntPropertyValue(Data, 1ull);
 				return Buffer;
 			}
-			else if (Temp == TEXT("False") || Temp == *(GFalse.ToString()))
+			else if (Temp == TEXT("False") || Temp == *(CoreTexts.False.ToString()))
 			{
 				SetIntPropertyValue(Data, 0ull);
 				return Buffer;

@@ -6,8 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public MfMedia(ReadOnlyTargetRules Target) : base(Target)
 		{
-			bOutputPubliclyDistributable = true;
-
 			DynamicallyLoadedModuleNames.AddRange(
 				new string[] {
 					"Media",
@@ -46,9 +44,9 @@ namespace UnrealBuildTool.Rules
 				}
 				else
 				{
-					PublicAdditionalLibraries.Add("mfplat.lib");
-					PublicAdditionalLibraries.Add("mfreadwrite.lib");
-					PublicAdditionalLibraries.Add("mfuuid.lib");
+					PublicSystemLibraries.Add("mfplat.lib");
+					PublicSystemLibraries.Add("mfreadwrite.lib");
+					PublicSystemLibraries.Add("mfuuid.lib");
 				}
 			}
 		}

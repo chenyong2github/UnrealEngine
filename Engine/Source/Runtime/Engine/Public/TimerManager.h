@@ -263,8 +263,8 @@ public:
 		if (const FTimerData* TimerData = FindTimer(InHandle))
 		{
 			InternalClearTimer(InHandle);
-			InHandle.Invalidate();
 		}
+		InHandle.Invalidate();
 	}
 
 	/** Clears all timers that are bound to functions on the given object. */

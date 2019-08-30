@@ -27,11 +27,7 @@ public:
 		, HeartbeatTimeElapsed(0.0f)
 	{
 		CurrentSession.Mode = EEngineSessionManagerMode::Editor;
-		CurrentSession.Timestamp = FDateTime::MinValue();
-		CurrentSession.StartupTimestamp = FDateTime::MinValue();
-		CurrentSession.Idle1Min = 0;
-		CurrentSession.Idle5Min = 0;
-		CurrentSession.Idle30Min = 0;
+		CurrentSession.Timestamp = FDateTime::MinValue();		
 		CurrentSession.bCrashed = false;
 		CurrentSession.bGPUCrashed = false;
 		CurrentSession.bIsDebugger = false;
@@ -40,10 +36,6 @@ public:
 		CurrentSession.bIsInBackground = false;
 		CurrentSession.bIsVanilla = false;
 		CurrentSession.bIsTerminating = false;
-		CurrentSession.bWasShutdown = false;
-		CurrentSession.bIsInPIE = false;
-		CurrentSession.bIsInEnterprise = false;
-		CurrentSession.bIsInVRMode = false;
 	}
 
 	void Initialize();
@@ -55,31 +47,20 @@ public:
 private:
 	struct FSessionRecord
 	{
-		EEngineSessionManagerMode Mode;
 		FString SessionId;
+		EEngineSessionManagerMode Mode;
 		FString ProjectName;
 		FString EngineVersion;
-		FDateTime StartupTimestamp;
 		FDateTime Timestamp;
-		int32 Idle1Min;
-		int32 Idle5Min;
-		int32 Idle30Min;
+		bool bCrashed;
+		bool bGPUCrashed;
+		bool bIsDebugger;
+		bool bWasEverDebugger;
+		bool bIsDeactivated;
+		bool bIsInBackground;
 		FString CurrentUserActivity;
-		TArray<FString> Plugins;
-		float AverageFPS;
-
-		bool bCrashed : 1;
-		bool bGPUCrashed : 1;
-		bool bIsDebugger : 1;
-		bool bWasEverDebugger : 1;
-		bool bIsDeactivated : 1;
-		bool bIsInBackground : 1;
-		bool bIsVanilla : 1;
-		bool bIsTerminating : 1;
-		bool bWasShutdown : 1;
-		bool bIsInPIE : 1;
-		bool bIsInEnterprise : 1;
-		bool bIsInVRMode : 1;
+		bool bIsVanilla;
+		bool bIsTerminating;
 	};
 
 private:
@@ -89,7 +70,6 @@ private:
 	void DeleteStoredRecord(const FSessionRecord& Record);
 	void DeleteStoredRecordValues(const FString& SectionName) const;
 	void SendAbnormalShutdownReport(const FSessionRecord& Record);
-	void SendSessionRecordEvent(const FString& EventName, const FSessionRecord& Record, bool bSendHardwareDetails);
 	void CreateAndWriteRecordForSession();
 	void OnCrashing();
 	void OnAppReactivate();

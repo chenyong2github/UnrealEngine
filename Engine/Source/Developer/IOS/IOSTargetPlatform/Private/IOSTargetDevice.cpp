@@ -208,7 +208,10 @@ void FTcpDSCommander::Stop()
     {
 		DSSocket->Shutdown(ESocketShutdownMode::ReadWrite);
         DSSocket->Close();
-        ISocketSubsystem::Get()->DestroySocket(DSSocket);
+		if (ISocketSubsystem::Get())
+		{
+			ISocketSubsystem::Get()->DestroySocket(DSSocket);
+		}
     }
     DSSocket = NULL;
     
@@ -329,7 +332,7 @@ bool FIOSTargetDevice::IsDefault() const
 	return true;
 }
 	
-bool FIOSTargetDevice::Launch(const FString& InAppId, EBuildConfigurations::Type InBuildConfiguration, EBuildTargets::Type BuildTarget, const FString& Params, uint32* OutProcessId)
+bool FIOSTargetDevice::Launch(const FString& InAppId, EBuildConfiguration InBuildConfiguration, EBuildTargetType TargetType, const FString& Params, uint32* OutProcessId)
 {
 #if !PLATFORM_MAC
 	MessageEndpoint->Send(new FIOSLaunchDaemonLaunchApp(InAppId, Params), DeviceEndpoint);

@@ -19,16 +19,14 @@ public class OpenXR : ModuleRules
 
 		if(Target.Platform == UnrealTargetPlatform.Win32)
 		{
-            PublicLibraryPaths.Add(LoaderPath + "/win32");
-            PublicAdditionalLibraries.Add(String.Format("openxr_loader-{0}.lib", OpenXRVersion));
+			PublicAdditionalLibraries.Add(LoaderPath + "/win32/" + String.Format("openxr_loader-{0}.lib", OpenXRVersion));
 
 			PublicDelayLoadDLLs.Add(String.Format("openxr_loader-{0}.dll", OpenXRVersion));
 			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/OpenXR/win32/" + String.Format("openxr_loader-{0}.dll", OpenXRVersion));	
 		}
         else if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-            PublicLibraryPaths.Add(LoaderPath + "/win64");
-            PublicAdditionalLibraries.Add(String.Format("openxr_loader-{0}.lib", OpenXRVersion));
+			PublicAdditionalLibraries.Add(LoaderPath + "/win64/" + String.Format("openxr_loader-{0}.lib", OpenXRVersion));
 
 			PublicDelayLoadDLLs.Add(String.Format("openxr_loader-{0}.dll", OpenXRVersion));
 			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/OpenXR/win64/" + String.Format("openxr_loader-{0}.dll", OpenXRVersion));			

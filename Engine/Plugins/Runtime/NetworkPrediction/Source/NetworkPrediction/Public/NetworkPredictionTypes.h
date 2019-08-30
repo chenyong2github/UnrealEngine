@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Engine/EngineTypes.h"
-#include "Net/UnrealNetwork.h" // For MakeRelative
 #include "NetworkPredictionTypes.generated.h"
 
 // -------------------------------------------------------------------------------------------------------------------------------

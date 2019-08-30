@@ -20,8 +20,8 @@ extern void DestroySocketSubsystem( FSocketSubsystemModule& SocketSubsystemModul
 
 namespace FNetworkProtocolTypes
 {
-	const FName IPv4(TEXT("IPv4"));
-	const FName IPv6(TEXT("IPv6"));
+	const FLazyName IPv4(TEXT("IPv4"));
+	const FLazyName IPv6(TEXT("IPv6"));
 }
 
 /** Helper function to turn the friendly subsystem name into the module name */

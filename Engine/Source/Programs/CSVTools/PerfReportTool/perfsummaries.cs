@@ -734,7 +734,12 @@ namespace PerfSummaries
                 {
                     if (CsvStats.DoesSearchStringMatch(ev.Name, eventName))
                     {
-                        string eventContent = ev.Name.Substring(eventName.Length);
+						int len = eventName.Length;
+						if ( eventName.EndsWith("*"))
+						{
+							len--;
+						}
+						string eventContent = ev.Name.Substring(len).Trim();
                         if ( eventCountsDict.ContainsKey(eventContent))
                         {
                             eventCountsDict[eventContent]++;

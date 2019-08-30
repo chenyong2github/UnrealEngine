@@ -27,6 +27,7 @@ public:
 
 	/** Singleton used for the ticker in Core / Launch. If you add a new ticker for a different subsystem, do not put that singleton here! **/
 	CORE_API static FTicker& GetCoreTicker();
+	CORE_API static void TearDownCoreTicker();
 
 	CORE_API FTicker();
 	CORE_API ~FTicker();
@@ -96,9 +97,9 @@ private:
 	/** Current time of the ticker **/
 	double CurrentTime;
 	/** Future delegates to fire **/
-	TArray<FElement> Elements;
+	TArray<FElement, TInlineAllocator<1>> Elements;
 	/** List of delegates that have been considered during Tick. Either they been fired or are not yet ready.*/
-	TArray<FElement> TickedElements;
+	TArray<FElement, TInlineAllocator<1>> TickedElements;
 	/** Current element being ticked (only valid during tick). */
 	FElement CurrentElement;
 	/** State to track whether CurrentElement is valid. */

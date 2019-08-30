@@ -12,6 +12,11 @@ class UWorld;
 class UNiagaraParameterCollection;
 class UNiagaraParameterCollectionInstance;
 
+//TODO: It would be good to have the batch size be variable per system to try to keep a good work/overhead ratio.
+//Can possibly adjust in future based on average batch execution time.
+#define NiagaraSystemTickBatchSize 4
+typedef TArray<FNiagaraSystemInstance*, TInlineAllocator<NiagaraSystemTickBatchSize>> FNiagaraSystemTickBatch;
+
 //TODO: Pull all the layout information here, in the data set and in parameter stores out into a single layout structure that's shared between all instances of it.
 //Currently there's tons of extra data and work done setting these up.
 struct FNiagaraParameterStoreToDataSetBinding
@@ -43,19 +48,21 @@ struct FNiagaraParameterStoreToDataSetBinding
 		{
 			const FNiagaraVariableLayoutInfo* Layout = DataSet.GetVariableLayout(Var);
 			const int32* ParameterOffsetPtr = ParameterStore.FindParameterOffset(Var);
+			int32 NumFloats = 0;
+			int32 NumInts = 0;
 			if (ParameterOffsetPtr && Layout)
 			{
 				int32 ParameterOffset = *ParameterOffsetPtr;
 				for (uint32 CompIdx = 0; CompIdx < Layout->GetNumFloatComponents(); ++CompIdx)
 				{
 					int32 ParamOffset = ParameterOffset + Layout->LayoutInfo.FloatComponentByteOffsets[CompIdx];
-					int32 DataSetOffset = Layout->FloatComponentStart + Layout->LayoutInfo.FloatComponentRegisterOffsets[CompIdx];
+					int32 DataSetOffset = Layout->FloatComponentStart + NumFloats++;
 					FloatOffsets.Emplace(ParamOffset, DataSetOffset);
 				}
 				for (uint32 CompIdx = 0; CompIdx < Layout->GetNumInt32Components(); ++CompIdx)
 				{
 					int32 ParamOffset = ParameterOffset + Layout->LayoutInfo.Int32ComponentByteOffsets[CompIdx];
-					int32 DataSetOffset = Layout->Int32ComponentStart + Layout->LayoutInfo.Int32ComponentRegisterOffsets[CompIdx];
+					int32 DataSetOffset = Layout->Int32ComponentStart + NumInts++;
 					Int32Offsets.Emplace(ParamOffset, DataSetOffset);
 				}
 			}
@@ -116,14 +123,49 @@ struct FNiagaraParameterStoreToDataSetBinding
 	}
 };
 
-/** Simulation performing all system and emitter scripts for a instances of a UNiagaraSystem in a world. */
-class FNiagaraSystemSimulation
+struct FNiagaraSystemSimulationTickContext
 {
+	class FNiagaraSystemSimulation* Owner;
+	UNiagaraSystem* System;
+	float DeltaSeconds;
+	/** If true, this is a pending spawn pass where we spawn and do an initial tick on newly spawned instances. Then transfer them over to the correct tick group. */
+	bool bPendingSpawnPass;
+	FGraphEventRef MyCompletionGraphEvent;
+
+	bool bTickAsync;
+	bool bTickInstancesAsync;
+
+	FNiagaraSystemSimulationTickContext(FNiagaraSystemSimulation* InOwner, float InDeltaSeconds, bool bInPendingSpawnPass, const FGraphEventRef& InMyCompletionGraphEvent);
+
+	TArray<FNiagaraSystemInstance*>& GetInstances();
+	FNiagaraDataSet& GetDataSet();
+};
+
+/** Simulation performing all system and emitter scripts for a instances of a UNiagaraSystem in a world. */
+class FNiagaraSystemSimulation : public TSharedFromThis<FNiagaraSystemSimulation, ESPMode::ThreadSafe>
+{
+	friend FNiagaraSystemSimulationTickContext;
 public:
 	~FNiagaraSystemSimulation();
 	bool Init(UNiagaraSystem* InSystem, UWorld* InWorld, bool bInIsSolo);
 	void Destroy();
 	bool Tick(float DeltaSeconds);
+
+	bool IsValid()const { return WeakSystem.Get() != nullptr && bCanExecute && World != nullptr; }
+
+	/** At the end of the frame, we do a separate tick pass for newly spawned systems which are then pushed into the correct simulations for next frame. */
+	void SpawnNew_GameThread(float DeltaSeconds, const FGraphEventRef& MyCompletionGraphEvent);
+	
+	/** First phase of system sim tick. Must run on GameThread. */
+	void Tick_GameThread(float DeltaSeconds, const FGraphEventRef& MyCompletionGraphEvent);
+
+	/** Second phase of system sim tick that can run on any thread. */
+	void Tick_Concurrent(FNiagaraSystemSimulationTickContext& Context);
+
+	void WaitForTickComplete();
+
+	/** Old tick for AB Testing.*/
+	bool Tick_Old(float DeltaSeconds);
 
 	void RemoveInstance(FNiagaraSystemInstance* Instance);
 	void AddInstance(FNiagaraSystemInstance* Instance);
@@ -151,6 +193,23 @@ public:
 
 protected:
 
+	/** Does any prep work for system simulation such as pulling instance parameters into a dataset. */
+	void PrepareForSystemSimulate(FNiagaraSystemSimulationTickContext& Context);
+	/** Runs the system spawn script for new system instances. */
+	void SpawnSystemInstances(FNiagaraSystemSimulationTickContext& Context);
+	/** Runs the system update script. */
+	void UpdateSystemInstances(FNiagaraSystemSimulationTickContext& Context);
+	/** Transfers the results of the system simulation into the emitter instances. */
+	void TransferSystemSimResults(FNiagaraSystemSimulationTickContext& Context);
+
+	/** Should we push the system sim tick off the game thread. */
+	FORCEINLINE bool ShouldTickAsync(const FNiagaraSystemSimulationTickContext& Context);
+	/** Should we push the system instance ticks off the game thread. */
+	FORCEINLINE bool ShouldTickInstancesAsync(const FNiagaraSystemSimulationTickContext& Context);
+
+	void AddSystemToTickBatch(FNiagaraSystemInstance* Instance, FNiagaraSystemSimulationTickContext& Context);
+	void FlushTickBatch(FNiagaraSystemSimulationTickContext& Context);
+
 	/** System of instances being simulated.  We use a weak object ptr here because once the last referencing object goes away this system may be come invalid at runtime. */
 	TWeakObjectPtr<UNiagaraSystem> WeakSystem;
 
@@ -159,6 +218,9 @@ protected:
 
 	/** Main dataset containing system instance attribute data. */
 	FNiagaraDataSet DataSet;
+
+	/** Dataset containing system instance data for newly spawned systems. */
+	FNiagaraDataSet PendingSpawnDataSet;
 	
 	/**
 	As there's a 1 to 1 relationship between system instance and their execution in this simulation we must pull all that instances parameters into a dataset for simulation.
@@ -202,11 +264,12 @@ protected:
 	FNiagaraParameterDirectBinding<float> SpawnGlobalSystemCountScaleParam;
 	FNiagaraParameterDirectBinding<float> UpdateGlobalSystemCountScaleParam;
 
-
 	/** System instances that have been spawned and are now simulating. */
 	TArray<FNiagaraSystemInstance*> SystemInstances;
 	/** System instances that are pending to be spawned. */
 	TArray<FNiagaraSystemInstance*> PendingSystemInstances;
+	/** System instances that we are spawning this tick. Instances are moved here from PendingSystemInstances if they are not paused. */
+	TArray<FNiagaraSystemInstance*> SpawningSystemInstances;
 
 	/** System instances that are paused. */
 	TArray<FNiagaraSystemInstance*> PausedSystemInstances;
@@ -220,6 +283,8 @@ protected:
 	TArray<FNiagaraDataSetAccessor<int32>> EmitterExecutionStateAccessors;
 
 	uint32 bCanExecute : 1;
+	uint32 bBindingsInitialized : 1;
+	uint32 bInSpawnPhase : 1;
 
 	/** A parameter store which contains the data interfaces parameters which were defined by the scripts. */
 	FNiagaraParameterStore ScriptDefinedDataInterfaceParameters;
@@ -227,6 +292,9 @@ protected:
 	bool bIsSolo;
 
 	TOptional<float> MaxDeltaTime;
+
+	/** Current tick batch we're filling ready for processing, potentially in an async task. */
+	FNiagaraSystemTickBatch TickBatch;
 
 	TArray<TUniquePtr< FNiagaraSystemInstance> > DeferredDeletionQueue;
 };

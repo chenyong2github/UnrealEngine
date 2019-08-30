@@ -20,17 +20,18 @@ public class DX12 : ModuleRules
 		}
 		PublicSystemIncludePaths.Add(DirectXSDKDir + "/include");
 
+		string LibDir = null;
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			PublicLibraryPaths.Add(DirectXSDKDir + "/Lib/x64");
+			LibDir = DirectXSDKDir + "/Lib/x64/";
 
             PublicDelayLoadDLLs.Add("WinPixEventRuntime.dll");
-            PublicAdditionalLibraries.Add("WinPixEventRuntime.lib");
+            PublicAdditionalLibraries.Add(LibDir + "WinPixEventRuntime.lib");
             RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Windows/DirectX/x64/WinPixEventRuntime.dll");
         }
 		else if (Target.Platform == UnrealTargetPlatform.Win32)
 		{
-			PublicLibraryPaths.Add(DirectXSDKDir + "/Lib/x86");
+			LibDir = DirectXSDKDir + "/Lib/x86/";
 		}
 		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
@@ -43,9 +44,9 @@ public class DX12 : ModuleRules
 			{
 				string Arch = Target.WindowsPlatform.GetArchitectureSubpath();
 				PublicSystemIncludePaths.Add(Target.UEThirdPartySourceDirectory + "/Windows/Pix/Include");
-				PublicLibraryPaths.Add(Target.UEThirdPartySourceDirectory + "/Windows/Pix/Lib/" + Arch);
+				LibDir = Target.UEThirdPartySourceDirectory + "/Windows/Pix/Lib/" + Arch + "/";
 				PublicDelayLoadDLLs.Add("WinPixEventRuntime.dll");
-				PublicAdditionalLibraries.Add("WinPixEventRuntime.lib");
+				PublicAdditionalLibraries.Add(LibDir + "WinPixEventRuntime.lib");
 				RuntimeDependencies.Add(System.String.Format("$(EngineDir)/Binaries/ThirdParty/Windows/DirectX/{0}/WinPixEventRuntime.dll", Arch));
 				PublicDefinitions.Add("D3D12_PROFILING_ENABLED=1");
 				PublicDefinitions.Add("PROFILE");
@@ -63,7 +64,7 @@ public class DX12 : ModuleRules
 
 		PublicAdditionalLibraries.AddRange(
 			new string[] {
-                "d3d12.lib"
+                LibDir + "d3d12.lib"
 			}
 			);
 	}

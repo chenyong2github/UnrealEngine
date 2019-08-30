@@ -960,8 +960,12 @@ void FPkgInfoReporter_Log::GeneratePackageReport( FLinkerLoad* InLinker /*=nullp
 	Out.Logf(ELogVerbosity::Display, TEXT("\t  Custom Versions:\n%s"), *Linker->Summary.GetCustomVersionContainer().ToString("\t\t"));
 	
 
-	FString szGUID = Linker->Summary.Guid.ToString();
-	Out.Logf(ELogVerbosity::Display, TEXT("\t             Guid: %s"), *szGUID );
+	Out.Logf(ELogVerbosity::Display, TEXT("\t             Guid: %s"), *Linker->Summary.Guid.ToString() );
+	Out.Logf(ELogVerbosity::Display, TEXT("\t   PersistentGuid: %s"), *Linker->Summary.PersistentGuid.ToString() );
+	if (Linker->Summary.OwnerPersistentGuid.IsValid())
+	{
+		Out.Logf(ELogVerbosity::Display, TEXT("\t    OwnerGuid: %s"), *Linker->Summary.OwnerPersistentGuid.ToString() );
+	}
 	Out.Logf(ELogVerbosity::Display, TEXT("\t      Generations:"));
 	for( int32 i = 0; i < Linker->Summary.Generations.Num(); ++i )
 	{

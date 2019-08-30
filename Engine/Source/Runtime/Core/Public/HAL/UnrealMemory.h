@@ -208,6 +208,12 @@ struct CORE_API FMemory
 	* This uses the purgatory malloc proxy to check if things are writing to stale pointers.
 	*/
 	static void EnablePoisonTests();
+
+	/**
+	* Set global allocator instead of creating it lazily on first allocation.
+	* Must only be called once and only if lazy init is disabled via a macro.
+	*/
+	static void ExplicitInit(FMalloc& Allocator);
 private:
 	static void GCreateMalloc();
 	// These versions are called either at startup or in the event of a crash

@@ -436,16 +436,16 @@ void FICUInternationalization::ConditionalInitializeAllowedCultures()
 	// Get our current build config string so we can compare it against the config entries
 	FString BuildConfigString;
 	{
-		EBuildConfigurations::Type BuildConfig = FApp::GetBuildConfiguration();
-		if (BuildConfig == EBuildConfigurations::DebugGame)
+		EBuildConfiguration BuildConfig = FApp::GetBuildConfiguration();
+		if (BuildConfig == EBuildConfiguration::DebugGame)
 		{
 			// Treat DebugGame and Debug as the same for loc purposes
-			BuildConfig = EBuildConfigurations::Debug;
+			BuildConfig = EBuildConfiguration::Debug;
 		}
 
-		if (BuildConfig != EBuildConfigurations::Unknown)
+		if (BuildConfig != EBuildConfiguration::Unknown)
 		{
-			BuildConfigString = EBuildConfigurations::ToString(BuildConfig);
+			BuildConfigString = LexToString(BuildConfig);
 		}
 	}
 

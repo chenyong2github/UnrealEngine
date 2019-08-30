@@ -66,5 +66,6 @@ private:
 	/** Whether the module has been initialized. */
 };
 
+#undef LOCTEXT_NAMESPACE
 
 IMPLEMENT_MODULE(FHAPMediaModule, HAPMedia);

@@ -1168,6 +1168,7 @@ void UObject::PreSave(const class ITargetPlatform* TargetPlatform)
 #endif
 }
 
+#if WITH_EDITOR
 bool UObject::CanModify() const
 {
 	return (!HasAnyFlags(RF_NeedInitialization) && !IsGarbageCollecting() && !GExitPurge && !IsUnreachable());
@@ -1196,13 +1197,12 @@ bool UObject::Modify( bool bAlwaysMarkDirty/*=true*/ )
 				MarkPackageDirty();
 			}
 		}
-#if WITH_EDITOR
 		FCoreUObjectDelegates::BroadcastOnObjectModified(this);
-#endif
 	}
 
 	return bSavedToTransactionBuffer;
 }
+#endif
 
 bool UObject::IsSelected() const
 {
@@ -2538,7 +2538,7 @@ FString UObject::GetDefaultConfigFilename() const
 	if (OverridePlatform.Len())
 	{
 		// use platform extension path if it exists
-		FString PlatformExtPath = FString::Printf(TEXT("%s%s/Config/%s%s.ini"), *FPaths::PlatformExtensionsDir(), FApp::GetProjectName(), *OverridePlatform, *GetClass()->ClassConfigName.ToString());
+		FString PlatformExtPath = FString::Printf(TEXT("%s%s/Config/%s%s.ini"), *FPaths::ProjectPlatformExtensionsDir(), *OverridePlatform, *OverridePlatform, *GetClass()->ClassConfigName.ToString());
 		return FPaths::FileExists(*PlatformExtPath) ? PlatformExtPath : 
 			FString::Printf(TEXT("%s%s/%s%s.ini"), *FPaths::SourceConfigDir(), *OverridePlatform, *OverridePlatform, *GetClass()->ClassConfigName.ToString());
 	}

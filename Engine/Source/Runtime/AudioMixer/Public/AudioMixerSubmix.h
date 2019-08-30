@@ -3,8 +3,8 @@
 #pragma once
 
 #include "AudioMixer.h"
+#include "SampleBuffer.h"
 #include "Sound/SoundSubmix.h"
-#include "Sound/SampleBuffer.h"
 #include "DSP/EnvelopeFollower.h"
 #include "DSP/SpectrumAnalyzer.h"
 
@@ -159,6 +159,9 @@ namespace Audio
 		void BroadcastEnvelope();
 
 	protected:
+		// Initialize the submix internal 
+		void InitInternal();
+
 		// Down mix the given buffer to the desired down mix channel count
 		void FormatChangeBuffer(const ESubmixChannelFormat NewChannelType, AlignedFloatBuffer& InBuffer, AlignedFloatBuffer& OutNewBuffer);
 
