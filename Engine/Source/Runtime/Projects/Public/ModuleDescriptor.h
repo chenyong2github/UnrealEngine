@@ -81,7 +81,10 @@ namespace EHostType
 		
 		// Loads only in cooked games.
 		CookedOnly,
-		
+
+		// Only loads in uncooked games.
+		UncookedOnly,
+
 		// Only loads in development runtime or editor builds. Does not load in shipping builds.
 		Developer,
 		

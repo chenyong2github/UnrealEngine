@@ -89,6 +89,9 @@ const TCHAR* EHostType::ToString( const EHostType::Type Value )
 		case CookedOnly:
 			return TEXT("CookedOnly");
 
+		case UncookedOnly:
+			return TEXT("UncookedOnly");
+
 		case Developer:
 			return TEXT( "Developer" );
 
@@ -470,6 +473,9 @@ bool FModuleDescriptor::IsCompiledInCurrentConfiguration() const
 	case EHostType::CookedOnly:
 		return FPlatformProperties::RequiresCookedData();
 
+	case EHostType::UncookedOnly:
+		return !FPlatformProperties::RequiresCookedData();
+
 	case EHostType::Developer:
 		#if WITH_UNREAL_DEVELOPER_TOOLS
 			return true;
@@ -539,6 +545,9 @@ bool FModuleDescriptor::IsLoadedInCurrentConfiguration() const
 
 	case EHostType::CookedOnly:
 		return FPlatformProperties::RequiresCookedData();
+
+	case EHostType::UncookedOnly:
+		return !FPlatformProperties::RequiresCookedData();
 
 	case EHostType::Developer:
 		#if WITH_UNREAL_DEVELOPER_TOOLS

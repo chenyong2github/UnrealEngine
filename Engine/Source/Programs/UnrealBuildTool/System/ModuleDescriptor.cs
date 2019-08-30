@@ -34,15 +34,20 @@ namespace UnrealBuildTool
         /// </summary>
         RuntimeAndProgram,
 
-        /// <summary>
+		/// <summary>
 		/// Loaded only in cooked builds
 		/// </summary>
 		CookedOnly,
 
-        /// <summary>
-        /// Loaded only when the engine has support for developer tools enabled
-        /// </summary>
-        Developer,
+		/// <summary>
+		/// Loaded only in uncooked builds
+		/// </summary>
+		UncookedOnly,
+
+		/// <summary>
+		/// Loaded only when the engine has support for developer tools enabled
+		/// </summary>
+		Developer,
 
 		/// <summary>
 		/// Loaded only by the editor
@@ -458,7 +463,9 @@ namespace UnrealBuildTool
                     return TargetType != TargetType.Program;
                 case ModuleHostType.CookedOnly:
                     return bBuildRequiresCookedData;
-                case ModuleHostType.RuntimeAndProgram:
+				case ModuleHostType.UncookedOnly:
+					return !bBuildRequiresCookedData;
+				case ModuleHostType.RuntimeAndProgram:
 					return true;
                 case ModuleHostType.Developer:
 					return bBuildDeveloperTools;
