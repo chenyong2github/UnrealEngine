@@ -307,7 +307,7 @@ public:
 	TMap<ULandscapeSplinesComponent*, TArray<USplineMeshComponent*>> GetForeignMeshComponents();
 	TArray<USplineMeshComponent*> GetLocalMeshComponents() const;
 	
-	virtual void UpdateSplinePoints(bool bUpdateCollision = true);
+	virtual void UpdateSplinePoints(bool bUpdateCollision = true, bool bUpdateMeshLevel = false);
 
 	void UpdateSplineEditorMesh();
 	virtual void DeleteSplinePoints();
