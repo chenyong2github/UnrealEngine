@@ -406,7 +406,7 @@ namespace UnrealBuildTool
 		public bool bBuildDeveloperTools
 		{
 			set { bBuildDeveloperToolsOverride = value; }
-			get { return bBuildDeveloperToolsOverride ?? (bCompileAgainstEngine && (Type == TargetType.Editor || Type == TargetType.Program)); }
+			get { return bBuildDeveloperToolsOverride ?? (bCompileAgainstEngine && (Type == TargetType.Editor || Type == TargetType.Program || (Configuration != UnrealTargetConfiguration.Test && Configuration != UnrealTargetConfiguration.Shipping))); }
 		}
 
 		/// <summary>
