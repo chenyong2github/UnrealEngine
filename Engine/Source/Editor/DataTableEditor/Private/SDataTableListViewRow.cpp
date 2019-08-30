@@ -89,6 +89,8 @@ void SDataTableListViewRow::OnInsertNewRow(ERowInsertionPosition InsertPosition)
 					FDataTableEditorUtils::AddRowAboveOrBelowSelection(SourceDataTable, *CurrentName, NewName, InsertPosition);
 				}
 				FDataTableEditorUtils::SelectRow(SourceDataTable, NewName);
+
+				DataTableEditorPtr->SetDefaultSort();
 			}
 		}
 	}
@@ -159,46 +161,52 @@ void SDataTableListViewRow::OnRowRenamed(const FText& Text, ETextCommit::Type Co
 
 	if (!GetCurrentNameAsText().EqualTo(Text) && DataTable)
 	{
-		const TArray<FName> RowNames = DataTable->GetRowNames();
-
-		if (Text.IsEmptyOrWhitespace() || !FName::IsValidXName(Text.ToString(), INVALID_NAME_CHARACTERS))
+		if (FDataTableEditor* DataTableEditorPtr = DataTableEditor.Pin().Get())
 		{
-			// Only pop up the error dialog if the rename was caused by the user's action
-			if ((CommitType == ETextCommit::OnEnter) || (CommitType == ETextCommit::OnUserMovedFocus))
+
+			const TArray<FName> RowNames = DataTable->GetRowNames();
+
+			if (Text.IsEmptyOrWhitespace() || !FName::IsValidXName(Text.ToString(), INVALID_NAME_CHARACTERS))
+			{
+				// Only pop up the error dialog if the rename was caused by the user's action
+				if ((CommitType == ETextCommit::OnEnter) || (CommitType == ETextCommit::OnUserMovedFocus))
+				{
+					// popup an error dialog here
+					const FText Message = FText::Format(LOCTEXT("InvalidRowName", "'{0}' is not a valid row name"), Text);
+					FMessageDialog::Open(EAppMsgType::Ok, Message);
+				}
+				return;
+			}
+			const FName NewName = DataTableUtils::MakeValidName(Text.ToString());
+			if (NewName == NAME_None)
 			{
 				// popup an error dialog here
 				const FText Message = FText::Format(LOCTEXT("InvalidRowName", "'{0}' is not a valid row name"), Text);
 				FMessageDialog::Open(EAppMsgType::Ok, Message);
-			}
-			return;
-		}
-		const FName NewName = DataTableUtils::MakeValidName(Text.ToString());
-		if (NewName == NAME_None)
-		{
-			// popup an error dialog here
-			const FText Message = FText::Format(LOCTEXT("InvalidRowName", "'{0}' is not a valid row name"), Text);
-			FMessageDialog::Open(EAppMsgType::Ok, Message);
 
-			return;
-		}
-		for (const FName& Name : RowNames)
-		{
-			if (Name.IsValid() && (Name == NewName))
-			{
-				//the name already exists
-				// popup an error dialog here
-				const FText Message = FText::Format(LOCTEXT("DuplicateRowName", "'{0}' is already used as a row name in this table"), Text);
-				FMessageDialog::Open(EAppMsgType::Ok, Message);
 				return;
-
 			}
+			for (const FName& Name : RowNames)
+			{
+				if (Name.IsValid() && (Name == NewName))
+				{
+					//the name already exists
+					// popup an error dialog here
+					const FText Message = FText::Format(LOCTEXT("DuplicateRowName", "'{0}' is already used as a row name in this table"), Text);
+					FMessageDialog::Open(EAppMsgType::Ok, Message);
+					return;
+
+				}
+			}
+
+			const FName OldName = GetCurrentName();
+			FDataTableEditorUtils::RenameRow(DataTable, OldName, NewName);
+			FDataTableEditorUtils::SelectRow(DataTable, NewName);
+
+			DataTableEditorPtr->SetDefaultSort();
+
+			*CurrentName = NewName;
 		}
-
-		const FName OldName = GetCurrentName();
-		FDataTableEditorUtils::RenameRow(DataTable, OldName, NewName);
-		FDataTableEditorUtils::SelectRow(DataTable, NewName);
-
-		*CurrentName = NewName;
 	}
 }
 

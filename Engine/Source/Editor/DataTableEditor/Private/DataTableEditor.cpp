@@ -315,6 +315,8 @@ void FDataTableEditor::OnAddClicked()
 
 		FDataTableEditorUtils::AddRow(Table, NewName);
 		FDataTableEditorUtils::SelectRow(Table, NewName);
+
+		SetDefaultSort();
 	}
 }
 
@@ -340,6 +342,7 @@ void FDataTableEditor::OnRemoveClicked()
 			}
 		}
 
+		SetDefaultSort();
 	}
 }
 
@@ -363,6 +366,8 @@ FReply FDataTableEditor::OnMoveToExtentClicked(FDataTableEditorUtils::ERowMoveDi
 		// We move by the row map size, as FDataTableEditorUtils::MoveRow will automatically clamp this as appropriate
 		FDataTableEditorUtils::MoveRow(Table, HighlightedRowName, MoveDirection, Table->GetRowMap().Num());
 		FDataTableEditorUtils::SelectRow(Table, HighlightedRowName);
+
+		SetDefaultSort();
 	}
 	return FReply::Handled();
 }
@@ -392,6 +397,12 @@ void FDataTableEditor::OnDuplicateClicked()
 	{
 		DuplicateSelectedRow();
 	}
+}
+
+void FDataTableEditor::SetDefaultSort()
+{
+	SortMode = EColumnSortMode::Ascending;
+	SortByColumn = FDataTableEditor::RowNumberColumnId;
 }
 
 EColumnSortMode::Type FDataTableEditor::GetColumnSortMode(const FName ColumnId) const
