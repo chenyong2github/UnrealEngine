@@ -19,10 +19,6 @@ void FStatsAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_EventBatch, "Stats", "EventBatch");
 }
 
-void FStatsAnalyzer::OnAnalysisEnd()
-{
-}
-
 void FStatsAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 {
 	Trace::FAnalysisSessionEditScope _(Session);

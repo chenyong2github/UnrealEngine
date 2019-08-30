@@ -171,7 +171,3 @@ void FPlatformFileTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 	}
 	}
 }
-
-void FPlatformFileTraceAnalyzer::OnAnalysisEnd()
-{
-}

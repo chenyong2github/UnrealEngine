@@ -89,11 +89,6 @@ void FAsyncLoadingTraceAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Conte
 	Builder.RouteEvent(RouteId_ClassInfo, "LoadTime", "ClassInfo");
 }
 
-void FAsyncLoadingTraceAnalyzer::OnAnalysisEnd()
-{
-	
-}
-
 void FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 {
 	const auto& EventData = Context.EventData;

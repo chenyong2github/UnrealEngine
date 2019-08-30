@@ -19,10 +19,6 @@ void FCountersAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_SetValueFloat, "Counters", "SetValueFloat");
 }
 
-void FCountersAnalyzer::OnAnalysisEnd()
-{
-}
-
 void FCountersAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 {
 	Trace::FAnalysisSessionEditScope _(Session);

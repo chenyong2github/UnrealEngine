@@ -82,17 +82,17 @@ public:
 	/** Called when analysis of a trace is beginning. Analyzer implementers can
 	 * subscribe to the events that they are interested in at this point
 	 * @param Context Contextual information and interface for subscribing to events. */
-	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) = 0;
+	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) {}
 
 	/** Indicates that the analysis of a trace log has completed and there are no
 	 * further events */
-	virtual void OnAnalysisEnd() = 0;
+	virtual void OnAnalysisEnd() {}
 
 	/** For each event subscribed to in OnAnalysisBegin(), the analysis engine
 	 * will call this method when those events are encountered in a trace log
 	 * @param RouteId User-provided identifier given when subscribing to a particular event
 	 * @param Context Access to the instance of the subscribed event */
-	virtual void OnEvent(uint16 RouteId, const FOnEventContext& Context) = 0;
+	virtual void OnEvent(uint16 RouteId, const FOnEventContext& Context) {}
 };
 
 ////////////////////////////////////////////////////////////////////////////////

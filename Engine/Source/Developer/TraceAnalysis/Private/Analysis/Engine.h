@@ -37,8 +37,6 @@ private:
 		uint16			_Unused0;
 	};
 
-	virtual void		OnAnalysisBegin(const FOnAnalysisContext& Context) override;
-	virtual void		OnAnalysisEnd() override;
 	virtual void		OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
 
 	bool				EstablishTransport(FStreamReader::FData& Data);
