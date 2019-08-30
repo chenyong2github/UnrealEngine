@@ -40,7 +40,7 @@ private:
 	virtual void		OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
 
 	bool				EstablishTransport(FStreamReader::FData& Data);
-	FDispatch&			AddDispatch(uint16 Uid, uint16 FieldCount);
+	FDispatch&			AddDispatch(uint16 Uid, uint16 FieldCount=0, uint16 ExtraData=0);
 	void				AddRoute(uint16 AnalyzerIndex, uint16 Id, const ANSICHAR* Logger, const ANSICHAR* Event);
 	void				AddRoute(uint16 AnalyzerIndex, uint16 Id, uint32 Hash);
 	void				OnNewTrace(const FOnEventContext& Context);
