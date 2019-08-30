@@ -918,6 +918,7 @@ private:
 		FString Map;
 		FString Test;
 		FString Reason;
+		TArray<FString> RHIs;
 		bool bWarn;
 	};
 
