@@ -549,7 +549,6 @@ protected:
 	virtual IMovieScenePlaybackClient* GetPlaybackClient() override { return PlaybackClient ? &*PlaybackClient : nullptr; }
 
 	/*~ Begin UObject interface */
-	virtual void BeginDestroy() override;
 	virtual bool IsSupportedForNetworking() const { return true; }
 	virtual bool IsDestructionThreadSafe() const override { return false; }
 	virtual int32 GetFunctionCallspace(UFunction* Function, FFrame* Stack) override;

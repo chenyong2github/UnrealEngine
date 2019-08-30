@@ -142,7 +142,15 @@ void ALevelSequenceActor::BeginPlay()
 
 void ALevelSequenceActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	GetWorld()->LevelSequenceActors.Remove(this);
+	if (SequencePlayer)
+	{
+		// Stop may modify a lot of actor state so it needs to be called
+		// during EndPlay (when Actors + World are still valid) instead
+		// of waiting for the UObject to be destroyed by GC.
+		SequencePlayer->Stop();
+	}
+
+ 	GetWorld()->LevelSequenceActors.Remove(this);
 
 	Super::EndPlay(EndPlayReason);
 }
