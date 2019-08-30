@@ -22,7 +22,7 @@ void FComposureUtils::SetEngineShowFlagsForPostprocessingOnly(FEngineShowFlags& 
 	EngineShowFlags.Bloom = false;
 	EngineShowFlags.EyeAdaptation = false;
 	EngineShowFlags.VolumetricFog = false;
-	EngineShowFlags.AtmosphericFog = false;
+	EngineShowFlags.Atmosphere = false;
 	EngineShowFlags.Fog = false;
 
 #if !UE_BUILD_OPTIMIZED_SHOWFLAGS
