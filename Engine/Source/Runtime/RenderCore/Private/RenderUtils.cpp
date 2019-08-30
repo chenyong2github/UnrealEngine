@@ -961,31 +961,31 @@ RENDERCORE_API void RenderUtilsInit()
 {
 	if (GUseForwardShading)
 	{
-		GForwardShadingPlatformMask = ~0u;
+		GForwardShadingPlatformMask = ~0ull;
 	}
 
 	static IConsoleVariable* DBufferVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DBuffer"));
 	if (DBufferVar && DBufferVar->GetInt())
 	{
-		GDBufferPlatformMask = ~0u;
+		GDBufferPlatformMask = ~0ull;
 	}
 
 	static IConsoleVariable* BasePassVelocityCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.BasePassOutputsVelocity"));
 	if (BasePassVelocityCVar && BasePassVelocityCVar->GetInt())
 	{
-		GBasePassVelocityPlatformMask = ~0u;
+		GBasePassVelocityPlatformMask = ~0ull;
 	}
 
 	static IConsoleVariable* SelectiveBasePassOutputsCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SelectiveBasePassOutputs"));
 	if (SelectiveBasePassOutputsCVar && SelectiveBasePassOutputsCVar->GetInt())
 	{
-		GSelectiveBasePassOutputsPlatformMask = ~0u;
+		GSelectiveBasePassOutputsPlatformMask = ~0ull;
 	}
 
 	static IConsoleVariable* DistanceFieldsCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DistanceFields")); 
 	if (DistanceFieldsCVar && DistanceFieldsCVar->GetInt())
 	{
-		GDistanceFieldsPlatformMask = ~0u;
+		GDistanceFieldsPlatformMask = ~0ull;
 	}
 
 #if WITH_EDITOR

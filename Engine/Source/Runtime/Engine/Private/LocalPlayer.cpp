@@ -257,7 +257,7 @@ void ULocalPlayer::PostInitProperties()
 void ULocalPlayer::PlayerAdded(UGameViewportClient* InViewportClient, int32 InControllerID)
 {
 	ViewportClient = InViewportClient;
-	SetControllerId(InControllerID);
+	ControllerId = InControllerID;
 
 	SubsystemCollection.Initialize();
 }

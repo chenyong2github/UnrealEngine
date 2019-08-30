@@ -37,12 +37,6 @@ This structure allows a single RHI to control several different hardware setups.
 
 class FD3D12DynamicRHI;
 
-/// @cond DOXYGEN_WARNINGS
-
-template<> __declspec(thread) void* FD3D12ThreadLocalObject<FD3D12FastConstantAllocator>::ThisThreadObject = nullptr;
-
-/// @endcond
-
 struct FD3D12AdapterDesc
 {
 	FD3D12AdapterDesc()
@@ -363,8 +357,6 @@ protected:
 	FD3DGPUProfiler GPUProfilingData;
 
 	TMap<FName, FD3D12TemporalEffect> TemporalEffectMap;
-
-	FD3D12ThreadLocalObject<FD3D12FastConstantAllocator> TransientUniformBufferAllocator;
 
 	// Each of these devices represents a physical GPU 'Node'
 	FD3D12Device* Devices[MAX_NUM_GPUS];

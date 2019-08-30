@@ -22,7 +22,7 @@ public:
 	static CORE_API FTlsAutoCleanup* Get( TFunctionRef<FTlsAutoCleanup*()> CreateInstance, uint32& TlsSlot );
 
 	/**
-	 * @return True if an instance of the singleton exists on the current thread.
+	 * @return an instance of the singleton if it exists on the current thread.
 	 */
 	static CORE_API FTlsAutoCleanup* TryGet(uint32& TlsSlot);
 };
@@ -81,6 +81,15 @@ public:
 	FORCEINLINE static T& Get()
 	{
 		return *(T*)FThreadSingletonInitializer::Get( [](){ return (FTlsAutoCleanup*)new T(); }, T::GetTlsSlot() ); //-V572
+	}
+
+	/**
+	 *	@param CreateInstance Function to call when a new instance must be created.
+	 *	@return an instance of a singleton for the current thread.
+	 */
+	FORCEINLINE static T& Get(TFunctionRef<FTlsAutoCleanup*()> CreateInstance)
+	{
+		return *(T*)FThreadSingletonInitializer::Get(CreateInstance, T::GetTlsSlot()); //-V572
 	}
 
 	/**

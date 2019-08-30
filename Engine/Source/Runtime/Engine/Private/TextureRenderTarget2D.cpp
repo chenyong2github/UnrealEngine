@@ -462,7 +462,7 @@ void FTextureRenderTarget2DResource::InitDynamicRHI()
 
 		if (Owner->bAutoGenerateMips)
 		{
-			TexCreateFlags |= TexCreate_GenerateMipCapable;
+			TexCreateFlags |= (TexCreate_GenerateMipCapable | TexCreate_UAV);
 		}
 
 		if (Owner->bCanCreateUAV)
