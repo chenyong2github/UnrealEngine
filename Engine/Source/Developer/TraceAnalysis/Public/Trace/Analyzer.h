@@ -108,6 +108,9 @@ public:
 		/** Returns the size of the events attachment, or 0 if none. */
 		uint32 GetAttachmentSize() const;
 
+		/** Provides a pointer to the raw event data. */
+		const uint8* GetRawPointer() const;
+
 	private:
 		const void* GetValueImpl(const ANSICHAR* FieldName, uint16& Type) const;
 	};

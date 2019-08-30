@@ -371,6 +371,13 @@ uint32 IAnalyzer::FEventData::GetAttachmentSize() const
 	return Info.Size - Info.Dispatch.EventSize;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+const uint8* IAnalyzer::FEventData::GetRawPointer() const
+{
+	const auto& Info = *(const FAnalysisEngine::FEventDataInfo*)this;
+	return Info.Ptr;
+}
+
 
 
 ////////////////////////////////////////////////////////////////////////////////
