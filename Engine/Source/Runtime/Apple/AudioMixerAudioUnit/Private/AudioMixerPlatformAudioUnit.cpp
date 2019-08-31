@@ -332,11 +332,8 @@ namespace Audio
 			return false;
 		}
 		
-		AudioStreamInfo.StreamState = EAudioOutputStreamState::Stopping;
-		
+        StopGeneratingAudio();
 		AUGraphStop(AudioUnitGraph);
-		
-		AudioStreamInfo.StreamState = EAudioOutputStreamState::Stopped;
 		
 		return true;
 	}
