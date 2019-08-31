@@ -426,7 +426,7 @@ void UMovieSceneSection::InitialPlacementOnRow(const TArray<UMovieSceneSection*>
 	}
 }
 
-UMovieSceneSection* UMovieSceneSection::SplitSection(FQualifiedFrameTime SplitTime)
+UMovieSceneSection* UMovieSceneSection::SplitSection(FQualifiedFrameTime SplitTime, bool bDeleteKeys)
 {
 	if (!SectionRange.Value.Contains(SplitTime.Time.GetFrame()))
 	{
@@ -437,22 +437,17 @@ UMovieSceneSection* UMovieSceneSection::SplitSection(FQualifiedFrameTime SplitTi
 
 	if (TryModify())
 	{
-		TRange<FFrameNumber> StartingRange  = SectionRange.Value;
-		TRange<FFrameNumber> LeftHandRange  = TRange<FFrameNumber>(StartingRange.GetLowerBound(), TRangeBound<FFrameNumber>::Exclusive(SplitTime.Time.GetFrame()));
-		TRange<FFrameNumber> RightHandRange = TRange<FFrameNumber>(TRangeBound<FFrameNumber>::Inclusive(SplitTime.Time.GetFrame()), StartingRange.GetUpperBound());
-
-		// Trim off the right
-		SectionRange = LeftHandRange;
-
-		// Create a new section
+		// Duplicate the current section to be the section on the right side of the trim point
 		UMovieSceneTrack* Track = CastChecked<UMovieSceneTrack>(GetOuter());
 		Track->Modify();
 
 		UMovieSceneSection* NewSection = DuplicateObject<UMovieSceneSection>(this, Track);
 		check(NewSection);
 
-		NewSection->SetRange(RightHandRange);
 		Track->AddSection(*NewSection);
+
+		NewSection->TrimSection(SplitTime, false, bDeleteKeys);
+		TrimSection(SplitTime, true, bDeleteKeys);
 
 		return NewSection;
 	}
@@ -461,7 +456,7 @@ UMovieSceneSection* UMovieSceneSection::SplitSection(FQualifiedFrameTime SplitTi
 }
 
 
-void UMovieSceneSection::TrimSection(FQualifiedFrameTime TrimTime, bool bTrimLeft)
+void UMovieSceneSection::TrimSection(FQualifiedFrameTime TrimTime, bool bTrimLeft, bool bDeleteKeys)
 {
 	if (SectionRange.Value.Contains(TrimTime.Time.GetFrame()))
 	{
@@ -475,6 +470,20 @@ void UMovieSceneSection::TrimSection(FQualifiedFrameTime TrimTime, bool bTrimLef
 			else
 			{
 				SectionRange.Value.SetUpperBound(TRangeBound<FFrameNumber>::Exclusive(TrimTime.Time.GetFrame()));
+			}
+
+			if (bDeleteKeys)
+			{
+				if (ChannelProxy.IsValid())
+				{
+					for (const FMovieSceneChannelEntry& Entry : ChannelProxy->GetAllEntries())
+					{
+						for (FMovieSceneChannel* Channel : Entry.GetChannels())
+						{
+							Channel->DeleteKeysFrom(TrimTime.Time.GetFrame(), bTrimLeft);
+						}
+					}
+				}
 			}
 		}
 	}

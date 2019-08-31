@@ -284,6 +284,11 @@ public:
 	/** Set whether to show channel colors */
 	void SetShowChannelColors(bool bInShowChannelColors);
 
+	/** @return true if deleting keys that fall beyond the section range when trimming */
+	bool GetDeleteKeysWhenTrimming() const;
+	/** Set whether to delete keys that fall beyond the section range when trimming */
+	void SetDeleteKeysWhenTrimming(bool bInDeleteKeysWhenTrimming);
+
 	/** @return Whether to activate realtime viewports when in sequencer */
 	bool ShouldActivateRealtimeViewports() const;
 	/** Toggle whether to allow possession of PIE viewports */
@@ -486,8 +491,12 @@ protected:
 	bool bInfiniteKeyAreas;
 
 	/** Enable or disable displaying channel bar colors for vector properties. */
-	UPROPERTY( config, EditAnywhere, Category=Timeline )
+	UPROPERTY(config, EditAnywhere, Category = Timeline)
 	bool bShowChannelColors;
+
+	/** Enable or disable deleting keys that fall beyond the section range when trimming. */
+	UPROPERTY(config, EditAnywhere, Category = Timeline)
+	bool bDeleteKeysWhenTrimming;
 
 	/** When enabled, sequencer will activate 'Realtime' in viewports */
 	UPROPERTY(config, EditAnywhere, Category=General)

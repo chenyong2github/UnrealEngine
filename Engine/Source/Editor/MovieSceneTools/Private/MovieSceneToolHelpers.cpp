@@ -63,25 +63,25 @@
 /* MovieSceneToolHelpers
  *****************************************************************************/
 
-void MovieSceneToolHelpers::TrimSection(const TSet<TWeakObjectPtr<UMovieSceneSection>>& Sections, FQualifiedFrameTime Time, bool bTrimLeft)
+void MovieSceneToolHelpers::TrimSection(const TSet<TWeakObjectPtr<UMovieSceneSection>>& Sections, FQualifiedFrameTime Time, bool bTrimLeft, bool bDeleteKeys)
 {
 	for (auto Section : Sections)
 	{
 		if (Section.IsValid())
 		{
-			Section->TrimSection(Time, bTrimLeft);
+			Section->TrimSection(Time, bTrimLeft, bDeleteKeys);
 		}
 	}
 }
 
 
-void MovieSceneToolHelpers::SplitSection(const TSet<TWeakObjectPtr<UMovieSceneSection>>& Sections, FQualifiedFrameTime Time)
+void MovieSceneToolHelpers::SplitSection(const TSet<TWeakObjectPtr<UMovieSceneSection>>& Sections, FQualifiedFrameTime Time, bool bDeleteKeys)
 {
 	for (auto Section : Sections)
 	{
 		if (Section.IsValid())
 		{
-			Section->SplitSection(Time);
+			Section->SplitSection(Time, bDeleteKeys);
 		}
 	}
 }

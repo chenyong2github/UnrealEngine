@@ -884,7 +884,7 @@ void F3DAttachTrackEditor::TrimAndPreserve(FGuid InObjectBinding, UMovieSceneSec
 		UObject* Object = BoundObjects[0].Get();
 
 		// Trim the section and find the range of the cut
-		InSection->TrimSection(QualifiedNewDetachTime, bInTrimLeft);
+		InSection->TrimSection(QualifiedNewDetachTime, bInTrimLeft, true);
 		TArray<TRange<FFrameNumber>> ExcludedRanges = TRange<FFrameNumber>::Difference(BeforeTrimRange, InSection->GetRange());
 		if (ExcludedRanges.Num() == 0)
 		{

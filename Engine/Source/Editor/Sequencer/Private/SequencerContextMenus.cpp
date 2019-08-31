@@ -415,6 +415,8 @@ void FSectionContextMenu::AddEditMenu(FMenuBuilder& MenuBuilder)
 	// Copy a reference to the context menu by value into each lambda handler to ensure the type stays alive until the menu is closed
 	TSharedRef<FSectionContextMenu> Shared = AsShared();
 
+	MenuBuilder.BeginSection("Trimming", LOCTEXT("TrimmingSectionMenu", "Trimming"));
+
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("TrimSectionLeft", "Trim Left"),
 		LOCTEXT("TrimSectionLeftTooltip", "Trim section at current MouseDownTime to the left"),
@@ -438,10 +440,26 @@ void FSectionContextMenu::AddEditMenu(FMenuBuilder& MenuBuilder)
 		LOCTEXT("SplitSectionTooltip", "Split section at current MouseDownTime"),
 		FSlateIcon(),
 		FUIAction(
-			FExecuteAction::CreateLambda([=]{ Shared->SplitSection(); }),
-			FCanExecuteAction::CreateLambda([=]{ return Shared->IsTrimmable(); }))
+			FExecuteAction::CreateLambda([=] { Shared->SplitSection(); }),
+			FCanExecuteAction::CreateLambda([=] { return Shared->IsTrimmable(); }))
 	);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("DeleteKeysWhenTrimming", "Delete Keys"),
+		LOCTEXT("DeleteKeysWhenTrimmingTooltip", "Delete keys outside of the trimmed range"),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateLambda([=] { Sequencer->GetSequencerSettings()->SetDeleteKeysWhenTrimming(!Sequencer->GetSequencerSettings()->GetDeleteKeysWhenTrimming()); }),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateLambda([=] { return Sequencer->GetSequencerSettings()->GetDeleteKeysWhenTrimming(); })),
+		NAME_None,
+		EUserInterfaceActionType::ToggleButton
+	);
+
+	MenuBuilder.EndSection();
 		
+	MenuBuilder.AddMenuSeparator();
+
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("AutoSizeSection", "Auto Size"),
 		LOCTEXT("AutoSizeSectionTooltip", "Auto size the section length to the duration of the source of this section (ie. audio, animation or shot length)"),
@@ -763,7 +781,7 @@ void FSectionContextMenu::TrimSection(bool bTrimLeft)
 {
 	FScopedTransaction TrimSectionTransaction(LOCTEXT("TrimSection_Transaction", "Trim Section"));
 
-	MovieSceneToolHelpers::TrimSection(Sequencer->GetSelection().GetSelectedSections(), Sequencer->GetLocalTime(), bTrimLeft);
+	MovieSceneToolHelpers::TrimSection(Sequencer->GetSelection().GetSelectedSections(), Sequencer->GetLocalTime(), bTrimLeft, Sequencer->GetSequencerSettings()->GetDeleteKeysWhenTrimming());
 	Sequencer->NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::TrackValueChanged );
 }
 
@@ -775,7 +793,7 @@ void FSectionContextMenu::SplitSection()
 	FFrameNumber CurrentFrame = Sequencer->GetLocalTime().Time.FrameNumber;
 	FQualifiedFrameTime SplitFrame = FQualifiedFrameTime(CurrentFrame, Sequencer->GetFocusedTickResolution());
 
-	MovieSceneToolHelpers::SplitSection(Sequencer->GetSelection().GetSelectedSections(), SplitFrame);
+	MovieSceneToolHelpers::SplitSection(Sequencer->GetSelection().GetSelectedSections(), SplitFrame, Sequencer->GetSequencerSettings()->GetDeleteKeysWhenTrimming());
 	Sequencer->NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::RefreshAllImmediately );
 }
 

@@ -46,6 +46,7 @@ USequencerSettings::USequencerSettings( const FObjectInitializer& ObjectInitiali
 	bShowCombinedKeyframes = true;
 	bInfiniteKeyAreas = false;
 	bShowChannelColors = false;
+	bDeleteKeysWhenTrimming = true;
 	bActivateRealtimeViewports = true;
 	bEvaluateSubSequencesInIsolation = false;
 	bRerunConstructionScripts = true;
@@ -572,6 +573,20 @@ void USequencerSettings::SetShowChannelColors(bool InbShowChannelColors)
 	if (bShowChannelColors != InbShowChannelColors)
 	{
 		bShowChannelColors = InbShowChannelColors;
+		SaveConfig();
+	}
+}
+
+bool USequencerSettings::GetDeleteKeysWhenTrimming() const
+{
+	return bDeleteKeysWhenTrimming;
+}
+
+void USequencerSettings::SetDeleteKeysWhenTrimming(bool bInDeleteKeysWhenTrimming)
+{
+	if (bDeleteKeysWhenTrimming != bInDeleteKeysWhenTrimming)
+	{
+		bDeleteKeysWhenTrimming = bInDeleteKeysWhenTrimming;
 		SaveConfig();
 	}
 }
