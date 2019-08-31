@@ -154,6 +154,7 @@ namespace FHttpRetrySystem
 			const FRetryDomainsPtr& InRetryDomains = FRetryDomainsPtr()
 			);
 
+		HTTP_API virtual ~FManager() = default;
 
         /**
          * Updates the entries in the list of retry requests. Optional parameters are for future connection health assessment

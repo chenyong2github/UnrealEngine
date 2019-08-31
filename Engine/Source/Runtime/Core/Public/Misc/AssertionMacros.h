@@ -26,7 +26,7 @@ namespace ELogVerbosity
  * C Exposed function to print the callstack to ease debugging needs.  In an 
  * editor build you can call this in the Immediate Window by doing, {,,UE4Editor-Core}::PrintScriptCallstack()
  */
-extern "C" DLLEXPORT void PrintScriptCallstack();
+extern "C" CORE_API void PrintScriptCallstack();
 
 /**
  * FDebug

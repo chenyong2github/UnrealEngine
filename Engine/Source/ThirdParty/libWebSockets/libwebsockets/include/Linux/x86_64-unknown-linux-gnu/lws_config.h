@@ -6,7 +6,7 @@
 	#endif
 #endif
 
-#define LWS_INSTALL_DATADIR "C:/Program Files/libwebsockets/share"
+#define LWS_INSTALL_DATADIR "/home/work/libWebSockets/v3.0-stable/INSTALL.v3.0-stable/Linux/x86_64-unknown-linux-gnu/share"
 
 #define LWS_ROLE_H1
 #define LWS_ROLE_WS
@@ -31,16 +31,16 @@
 /* #undef LWS_WITH_NO_LOGS */
 
 /* The Libwebsocket version */
-#define LWS_LIBRARY_VERSION "3.0.0"
+#define LWS_LIBRARY_VERSION "3.0.1"
 
 #define LWS_LIBRARY_VERSION_MAJOR 3
 #define LWS_LIBRARY_VERSION_MINOR 0
-#define LWS_LIBRARY_VERSION_PATCH 0
+#define LWS_LIBRARY_VERSION_PATCH 1
 /* LWS_LIBRARY_VERSION_NUMBER looks like 1005001 for e.g. version 1.5.1 */
 #define LWS_LIBRARY_VERSION_NUMBER (LWS_LIBRARY_VERSION_MAJOR*1000000)+(LWS_LIBRARY_VERSION_MINOR*1000)+LWS_LIBRARY_VERSION_PATCH
 
 /* The current git commit hash that we're building from */
-/* #undef LWS_BUILD_HASH */
+#define LWS_BUILD_HASH "v2.0.0-1020-ge19b806"
 
 /* Build with OpenSSL support ... alias of LWS_WITH_TLS for compatibility*/
 #define LWS_OPENSSL_SUPPORT
@@ -102,11 +102,11 @@
 
 /* SSL server using ECDH certificate */
 /* #undef LWS_SSL_SERVER_WITH_ECDH_CERT */
-/* #undef LWS_HAVE_SSL_CTX_set1_param */
-/* #undef LWS_HAVE_X509_VERIFY_PARAM_set1_host */
-/* #undef LWS_HAVE_RSA_SET0_KEY */
-/* #undef LWS_HAVE_X509_get_key_usage */
-/* #undef LWS_HAVE_SSL_CTX_get0_certificate */
+#define LWS_HAVE_SSL_CTX_set1_param
+#define LWS_HAVE_X509_VERIFY_PARAM_set1_host
+#define LWS_HAVE_RSA_SET0_KEY
+#define LWS_HAVE_X509_get_key_usage
+#define LWS_HAVE_SSL_CTX_get0_certificate
 
 /* #undef LWS_HAVE_UV_VERSION_H */
 /* #undef LWS_HAVE_NEW_UV_VERSION_H */
@@ -171,12 +171,12 @@
 
 /* OpenSSL various APIs */
 
-/* #undef LWS_HAVE_TLS_CLIENT_METHOD */
-/* #undef LWS_HAVE_TLSV1_2_CLIENT_METHOD */
-/* #undef LWS_HAVE_SSL_SET_INFO_CALLBACK */
+#define LWS_HAVE_TLS_CLIENT_METHOD
+#define LWS_HAVE_TLSV1_2_CLIENT_METHOD
+#define LWS_HAVE_SSL_SET_INFO_CALLBACK
 #define LWS_HAVE_SSL_EXTRA_CHAIN_CERTS
-/* #undef LWS_HAVE_SSL_get0_alpn_selected */
-/* #undef LWS_HAVE_SSL_set_alpn_protos */
+#define LWS_HAVE_SSL_get0_alpn_selected
+#define LWS_HAVE_SSL_set_alpn_protos
 
 #define LWS_HAS_INTPTR_T
 

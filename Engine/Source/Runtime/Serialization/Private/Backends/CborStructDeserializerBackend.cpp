@@ -246,12 +246,16 @@ bool FCborStructDeserializerBackend::ReadProperty(UProperty* Property, UProperty
 		case ECborCode::True:
 			// fall through
 		case ECborCode::False:
+		{
+			const FCoreTexts& CoreTexts = FCoreTexts::Get();
+
 			if (UBoolProperty* BoolProperty = Cast<UBoolProperty>(Property))
 			{
 				return StructDeserializerBackendUtilities::SetPropertyValue(BoolProperty, Outer, Data, ArrayIndex, LastContext.AsBool());
 			}
-			UE_LOG(LogSerialization, Verbose, TEXT("Boolean field %s with value '%s' is not supported in UProperty type %s (%s)"), *Property->GetFName().ToString(), LastContext.AsBool() ? *(GTrue.ToString()) : *(GFalse.ToString()), *Property->GetClass()->GetName(), *GetDebugString());
+			UE_LOG(LogSerialization, Verbose, TEXT("Boolean field %s with value '%s' is not supported in UProperty type %s (%s)"), *Property->GetFName().ToString(), LastContext.AsBool() ? *(CoreTexts.True.ToString()) : *(CoreTexts.False.ToString()), *Property->GetClass()->GetName(), *GetDebugString());
 			return false;
+		}
 			// Null
 		case ECborCode::Null:
 			return StructDeserializerBackendUtilities::ClearPropertyValue(Property, Outer, Data, ArrayIndex);

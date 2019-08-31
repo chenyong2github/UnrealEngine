@@ -118,6 +118,6 @@ private:
 	/** character buffer containing the original command line filtered for logging purposes */
 	static TCHAR LoggingOriginalCmdLine[MaxCommandLineSize];
 	/** subprocess command line */
-	static FString SubprocessCommandLine;
+	static FString& GetSubprocessCommandLine_Internal();
 };
 

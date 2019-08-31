@@ -27,7 +27,7 @@ const FString FDialogueConstants::PropertyName_GrammaticalPlurality		= TEXT("Plu
 const FString FDialogueConstants::PropertyName_TargetGrammaticalGender	= TEXT("TargetGender");
 const FString FDialogueConstants::PropertyName_TargetGrammaticalNumber	= TEXT("TargetPlurality");
 const FString FDialogueConstants::PropertyName_DialogueContext			= TEXT("Context");
-const FString FDialogueConstants::PropertyName_IsMature					= FLocMetadataObject::COMPARISON_MODIFIER_PREFIX + TEXT("IsMature");
+const FString FDialogueConstants::PropertyName_IsMature					= FString(FLocMetadataObject::COMPARISON_MODIFIER_PREFIX) + TEXT("IsMature");
 #endif //WITH_EDITORONLY_DATA
 
 #if WITH_EDITORONLY_DATA

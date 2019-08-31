@@ -13,26 +13,26 @@ public class AudioCaptureEditor : ModuleRules
 				"Engine",
 				"UnrealEd",
 				"SequenceRecorder",
-                "AudioEditor",
-                "AudioCapture",
+				"AudioEditor",
+				"AudioCapture",
+				"AudioCaptureCore",
+				"AudioCaptureRtAudio"
 			}
 		);
 
 		PrivateIncludePaths.AddRange(
 			new string[] {
-                "AudioCaptureEditor/Private",
-                "AudioCapture/Private"
+				"AudioCaptureEditor/Private",
+				"AudioCapture/Private",
+				"../../../../Source/Runtime/AudioCaptureImplementations/AudioCaptureRtAudio/Private" // This is required to include RtAudio.h in AudioRecordingManager.h.
 			}
 		);
 
-        if (Target.Platform == UnrealTargetPlatform.Win32 ||
-            Target.Platform == UnrealTargetPlatform.Win64)
-        {
-            PublicDefinitions.Add("WITH_RTAUDIO=1");
-            PublicDefinitions.Add("WITH_AUDIOCAPTURE=1");
-
-            // Allow us to use direct sound
-            AddEngineThirdPartyPrivateStaticDependencies(Target, "DirectSound");
-        }
+		if (Target.Platform == UnrealTargetPlatform.Win32 ||
+			Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			// Allow us to use direct sound
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "DirectSound");
+		}
 	}
 }

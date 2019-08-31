@@ -13,6 +13,7 @@ public class XAudio2 : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
+                "AudioMixerCore" // for AudioPlatformSettings::GetPlatformSettings() in AudioMixerTypes.h.
 			}
 			);
 

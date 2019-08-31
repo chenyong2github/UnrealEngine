@@ -44,13 +44,15 @@ class FChunkedFixedUObjectArray;
 
 class FChunkedFixedUObjectArray;
 
-// GDB/LLDB pretty printers don't use these - no need to export additional symbols. This also solves ODR violation reported by ASan on Linux
-#if PLATFORM_UNIX
-#define UE4_VISUALIZERS_HELPERS
+#ifdef DISABLE_UE4_VISUALIZER_HELPERS
+	#define UE4_VISUALIZERS_HELPERS
+#elif PLATFORM_UNIX
+	// GDB/LLDB pretty printers don't use these - no need to export additional symbols. This also solves ODR violation reported by ASan on Linux
+	#define UE4_VISUALIZERS_HELPERS
 #else
-#define UE4_VISUALIZERS_HELPERS \
-	uint8** GNameBlocksDebug = FNameDebugVisualizer::GetBlocks(); \
-	FChunkedFixedUObjectArray*& GObjectArrayForDebugVisualizers = GCoreObjectArrayForDebugVisualizers;
+	#define UE4_VISUALIZERS_HELPERS \
+		uint8** GNameBlocksDebug = FNameDebugVisualizer::GetBlocks(); \
+		FChunkedFixedUObjectArray*& GObjectArrayForDebugVisualizers = GCoreObjectArrayForDebugVisualizers;
 #endif
 
 // in DLL builds, these are done per-module, otherwise we just need one in the application

@@ -3,8 +3,8 @@
 #pragma once
 
 #include "AudioMixer.h"
+#include "SampleBuffer.h"
 #include "Sound/SoundSubmix.h"
-#include "Sound/SampleBuffer.h"
 #include "DSP/EnvelopeFollower.h"
 #include "DSP/SpectrumAnalyzer.h"
 

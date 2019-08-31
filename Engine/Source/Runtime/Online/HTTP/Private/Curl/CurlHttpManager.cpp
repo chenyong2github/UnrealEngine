@@ -30,21 +30,21 @@
 #define DISABLE_UNVERIFIED_CERTIFICATE_LOADING 0
 #endif
 
-CURLM* FCurlHttpManager::GMultiHandle = NULL;
-CURLSH* FCurlHttpManager::GShareHandle = NULL;
+CURLM* FCurlHttpManager::GMultiHandle = nullptr;
+CURLSH* FCurlHttpManager::GShareHandle = nullptr;
 
 FCurlHttpManager::FCurlRequestOptions FCurlHttpManager::CurlRequestOptions;
 
 // set functions that will init the memory
 namespace LibCryptoMemHooks
 {
-	void* (*ChainedMalloc)(size_t Size) = nullptr;
-	void* (*ChainedRealloc)(void* Ptr, const size_t Size) = nullptr;
-	void (*ChainedFree)(void* Ptr) = nullptr;
+	void* (*ChainedMalloc)(size_t Size, const char* File, int Line) = nullptr;
+	void* (*ChainedRealloc)(void* Ptr, const size_t Size, const char* File, int Line) = nullptr;
+	void (*ChainedFree)(void* Ptr, const char* File, int Line) = nullptr;
 	bool bMemoryHooksSet = false;
 
 	/** This malloc will init the memory, keeping valgrind happy */
-	void* MallocWithInit(size_t Size)
+	void* MallocWithInit(size_t Size, const char* File, int Line)
 	{
 		void* Result = FMemory::Malloc(Size);
 		if (LIKELY(Result))
@@ -56,7 +56,7 @@ namespace LibCryptoMemHooks
 	}
 
 	/** This realloc will init the memory, keeping valgrind happy */
-	void* ReallocWithInit(void* Ptr, const size_t Size)
+	void* ReallocWithInit(void* Ptr, const size_t Size, const char* File, int Line)
 	{
 		size_t CurrentUsableSize = FMemory::GetAllocSize(Ptr);
 		void* Result = FMemory::Realloc(Ptr, Size);
@@ -69,7 +69,7 @@ namespace LibCryptoMemHooks
 	}
 
 	/** This realloc will init the memory, keeping valgrind happy */
-	void Free(void* Ptr)
+	void Free(void* Ptr, const char* File, int Line)
 	{
 		return FMemory::Free(Ptr);
 	}
@@ -314,10 +314,18 @@ void FCurlHttpManager::FCurlRequestOptions::Log()
 
 void FCurlHttpManager::ShutdownCurl()
 {
-	if (NULL != GMultiHandle)
+	if (GShareHandle != nullptr)
 	{
-		curl_multi_cleanup(GMultiHandle);
-		GMultiHandle = NULL;
+		CURLSHcode ShareCleanupCode = curl_share_cleanup(GShareHandle);
+		ensureMsgf(ShareCleanupCode == CURLSHE_OK, TEXT("CurlShareCleanup failed. ReturnValue=[%d]"), static_cast<int32>(ShareCleanupCode));
+		GShareHandle = nullptr;
+	}
+
+	if (GMultiHandle != nullptr)
+	{
+		CURLMcode MutliCleanupCode = curl_multi_cleanup(GMultiHandle);
+		ensureMsgf(MutliCleanupCode == CURLM_OK, TEXT("CurlMultiCleanup failed. ReturnValue=[%d]"), static_cast<int32>(MutliCleanupCode));
+		GMultiHandle = nullptr;
 	}
 
 	curl_global_cleanup();

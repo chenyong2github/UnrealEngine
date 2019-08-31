@@ -41,7 +41,8 @@ public class Voice : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] { 
 				"Core",
-                "AudioMixer"
+                "AudioMixer",
+				"SignalProcessing"
             }
 			);
 
@@ -68,10 +69,3 @@ public class Voice : ModuleRules
 		}
 	}
 }
-
-
-		
-
-
-
-		

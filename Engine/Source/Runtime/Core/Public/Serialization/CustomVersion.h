@@ -94,7 +94,7 @@ class CORE_API FCustomVersionRegistration;
  */
 class CORE_API FCustomVersionContainer
 {
-	friend class FCustomVersionRegistration;
+	friend class FStaticCustomVersionRegistry;
 
 public:
 	/** Gets available custom versions in this container. */
@@ -154,11 +154,9 @@ public:
 
 private:
 
-	/** Private implementation getter */
-	static FCustomVersionContainer& GetInstance();
-
 	/** Array containing custom versions. */
 	FCustomVersionArray Versions;
+
 };
 
 
@@ -170,11 +168,19 @@ private:
 class FCustomVersionRegistration : FNoncopyable
 {
 public:
+	/** @param InFriendlyName must be a string literal */
+	template<int N>
+	FCustomVersionRegistration(FGuid InKey, int32 Version, const TCHAR(&InFriendlyName)[N])
+	: Key(InKey)
+	{
+		QueueRegistration(InKey, Version, InFriendlyName);
+	}
 
-	FCustomVersionRegistration(FGuid InKey, int32 Version, FName InFriendlyName);
 	~FCustomVersionRegistration();
 
 private:
-
 	FGuid Key;
+
+	/** Put registrations in an intermediate queue to avoid allocations and FName creation during static init */
+	static void QueueRegistration(FGuid Key, int32 Version, const TCHAR* FriendlyName);
 };

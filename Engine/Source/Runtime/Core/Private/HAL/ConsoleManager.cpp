@@ -1953,6 +1953,8 @@ void FConsoleManager::Test()
 // These don't belong here, but they belong here more than they belong in launch engine loop.
 void CreateConsoleVariables()
 {
+#if !NO_CVARS
+
 	// this registeres to a reference, so we cannot use TAutoConsoleVariable
 	IConsoleManager::Get().RegisterConsoleVariableRef(TEXT("r.DumpingMovie"),
 		GIsDumpingMovie,
@@ -1984,6 +1986,7 @@ void CreateConsoleVariables()
 
 		ConsoleManager.Test();
 	}
+#endif
 }
 
 // Naming conventions:

@@ -1507,8 +1507,12 @@ uint32 FUnixPlatformProcess::GetCurrentCoreNumber()
 
 void FUnixPlatformProcess::SetCurrentWorkingDirectoryToBaseDir()
 {
+#if defined(DISABLE_CWD_CHANGES) && DISABLE_CWD_CHANGES != 0
+	check(false);
+#else
 	FPlatformMisc::CacheLaunchDir();
 	chdir(TCHAR_TO_ANSI(FPlatformProcess::BaseDir()));
+#endif
 }
 
 FString FUnixPlatformProcess::GetCurrentWorkingDirectory()

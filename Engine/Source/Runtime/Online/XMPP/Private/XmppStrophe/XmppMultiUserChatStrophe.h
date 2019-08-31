@@ -258,8 +258,5 @@ protected:
 	FOnXmppRoomMemberExit OnXmppRoomMemberExitDelegate;
 	FOnXmppRoomMemberChanged OnXmppRoomMemberChangedDelegate;
 	FOnXmppRoomChatReceived OnXmppRoomChatReceivedDelegate;
-
-	/* Engine Tick Requester name */
-	const static FName TickRequesterId;
 };
 #endif

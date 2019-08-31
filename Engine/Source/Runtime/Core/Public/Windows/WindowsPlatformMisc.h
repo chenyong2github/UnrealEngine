@@ -25,8 +25,7 @@ struct CORE_API FWindowsOSVersionHelper
 		ERROR_GETWINDOWSGT62VERSIONS_FAILED = 8,
 	};
 
-	static int32 GetOSVersions( FString& out_OSVersion, FString& out_OSSubVersion );
-	static FString GetOSVersion();
+	static int32 GetOSVersions( FString& OutOSVersion, FString& OutOSSubVersion );
 };
 
 

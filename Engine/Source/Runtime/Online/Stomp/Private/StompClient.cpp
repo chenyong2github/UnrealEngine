@@ -17,7 +17,7 @@ const FTimespan RequestTimeout = FTimespan::FromMinutes(5);
 const int MissedServerPongsBeforeError = 5;
 }
 
-FStompClient::FStompClient(const FString& Url, const FTimespan& InPingInterval, const FTimespan& InPongInterval)
+FStompClient::FStompClient(const FString& Url, const FTimespan& InPingInterval, const FTimespan& InPongInterval, const FString& OptAuthToken)
 	: IdCounter(0)
 	, PingInterval(InPingInterval)
 	, PongInterval(InPongInterval)
@@ -28,7 +28,15 @@ FStompClient::FStompClient(const FString& Url, const FTimespan& InPingInterval, 
 	Protocols.Add(TEXT("v10.stomp"));
 	Protocols.Add(TEXT("v11.stomp"));
 	Protocols.Add(TEXT("v12.stomp"));
-	WebSocket = FWebSocketsModule::Get().CreateWebSocket(Url, Protocols);
+
+	TMap<FString, FString> UpgradeHeaders;
+	if (!OptAuthToken.IsEmpty())
+	{
+		AuthStrategy = EAuthStrategy::OnConnectionUpgrade;
+		UpgradeHeaders.Add(TEXT("Authorization"), OptAuthToken);
+	}
+
+	WebSocket = FWebSocketsModule::Get().CreateWebSocket(Url, Protocols, UpgradeHeaders);
 }
 
 FStompClient::~FStompClient()
@@ -41,13 +49,22 @@ FStompClient::~FStompClient()
 
 void FStompClient::Connect(const FStompHeader& Header)
 {
-	static const FName HeartBeatHeader(TEXT("heart-beat"));
+	static const FName LoginHeader(TEXT("login"));
+	static const FName PasscodeHeader(TEXT("passcode"));
+	static const FName HeartbeatHeader(TEXT("heart-beat"));
 	ConnectHeader = Header;
-	if (!ConnectHeader.Contains(HeartBeatHeader))
+	if (!ConnectHeader.Contains(HeartbeatHeader))
 	{
 		FString HeartbeatValue = FString::FromInt((int32)PingInterval.GetTotalMilliseconds()) + TEXT(",") + FString::FromInt((int32)PongInterval.GetTotalMilliseconds());
-		ConnectHeader.Emplace(HeartBeatHeader, HeartbeatValue);
+		ConnectHeader.Emplace(HeartbeatHeader, HeartbeatValue);
 	}
+
+	if (ConnectHeader.Contains(LoginHeader))
+	{
+		checkf(ConnectHeader.Contains(PasscodeHeader) && AuthStrategy != EAuthStrategy::OnConnectionUpgrade, TEXT("Stomp: invalid to pass auth to both constructor and Connect"));
+		AuthStrategy = EAuthStrategy::OnStompConnect;
+	}
+
 	ConnectHeader.Emplace(TEXT("accept-version"), TEXT("1.0,1.1,1.2"));
 	WebSocket->OnConnected().AddSP(this, &FStompClient::HandleWebSocketConnected);
 	WebSocket->OnConnectionError().AddSP(this, &FStompClient::HandleWebSocketConnectionError);
@@ -89,7 +106,6 @@ FString FStompClient::MakeId(const FStompFrame& Frame)
 
 FStompSubscriptionId FStompClient::Subscribe(const FString& Destination, const FStompSubscriptionEvent& EventCallback, const FStompRequestCompleted& CompletionCallback )
 {
-
 	FStompFrame SubscribeFrame (SubscribeCommand);
 	FStompSubscriptionId Id = MakeId(SubscribeFrame);
 	Subscriptions.Add(Id, EventCallback);

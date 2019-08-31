@@ -1050,13 +1050,19 @@ public:
 		return MakeError(NSLOCTEXT("Anon", "UnrecognizedResult", "Unrecognized result returned from expression"));
 	}
 
+	static FShortCircuitParser& Get()
+	{
+		static FShortCircuitParser Singleton;
+		return Singleton;
+	}
+
 private:
 
 	FTokenDefinitions TokenDefinitions;
 	FExpressionGrammar Grammar;
 	TOperatorJumpTable<FShortCircuitTestContext> JumpTable;
 
-} TestParser;
+};
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FShortCircuitParserTest, "System.Core.Expression Parser.Short Circuit", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter | EAutomationTestFlags::HighPriority)
 bool FShortCircuitParserTest::RunTest(const FString& Parameters)
@@ -1076,7 +1082,7 @@ bool FShortCircuitParserTest::RunTest(const FString& Parameters)
 	{
 		FShortCircuitTestContext Context;
 
-		TValueOrError<bool, FExpressionError> Result = TestParser.Evaluate(Expected.Expression, Context);
+		TValueOrError<bool, FExpressionError> Result = FShortCircuitParser::Get().Evaluate(Expected.Expression, Context);
 		if (ensureAlways(Result.IsValid()))
 		{
 			ensureAlways(Expected.Result == Result.GetValue());

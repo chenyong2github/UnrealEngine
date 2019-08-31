@@ -10,7 +10,7 @@
 
 #if WITH_XMPP_STROPHE
 
-const FName FXmppPrivateChatStrophe::TickRequesterId = FName("StrophePrivateChat");
+#define TickRequesterId FName("StrophePrivateChat")
 
 FXmppPrivateChatStrophe::FXmppPrivateChatStrophe(FXmppConnectionStrophe& InConnectionManager)
 	: ConnectionManager(InConnectionManager)
@@ -144,5 +144,7 @@ void FXmppPrivateChatStrophe::CleanupMessages()
 		FEmbeddedCommunication::AllowSleep(TickRequesterId);
 	}
 }
+
+#undef TickRequesterId
 
 #endif

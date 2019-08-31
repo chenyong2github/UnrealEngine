@@ -6,6 +6,7 @@
 #include "Containers/ContainerAllocationPolicies.h"
 #include "Misc/Crc.h"
 #include "Misc/ByteSwap.h"
+#include "Misc/LazySingleton.h"
 #include "Misc/ScopeLock.h"
 #include "Logging/LogMacros.h"
 
@@ -100,8 +101,12 @@ public:
 
 	static FTextKeyState& GetState()
 	{
-		static FTextKeyState State;
-		return State;
+		return TLazySingleton<FTextKeyState>::Get();
+	}
+
+	static void TearDown()
+	{
+		return TLazySingleton<FTextKeyState>::TearDown();
 	}
 
 private:
@@ -361,4 +366,9 @@ void FTextKey::Reset()
 void FTextKey::CompactDataStructures()
 {
 	FTextKeyState::GetState().Shrink();
+}
+
+void FTextKey::TearDown()
+{
+	FTextKeyState::TearDown();
 }

@@ -1,12 +1,17 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Internationalization/TextCache.h"
+#include "Misc/LazySingleton.h"
 #include "Misc/ScopeLock.h"
 
 FTextCache& FTextCache::Get()
 {
-	static FTextCache Instance;
-	return Instance;
+	return TLazySingleton<FTextCache>::Get();
+}
+
+void FTextCache::TearDown()
+{
+	return TLazySingleton<FTextCache>::TearDown();
 }
 
 FText FTextCache::FindOrCache(const TCHAR* InTextLiteral, const TCHAR* InNamespace, const TCHAR* InKey)
@@ -39,11 +44,4 @@ FText FTextCache::FindOrCache(const TCHAR* InTextLiteral, const TCHAR* InNamespa
 	}
 
 	return NewText;
-}
-
-void FTextCache::Flush()
-{
-	FScopeLock Lock(&CachedTextCS);
-
-	CachedText.Empty();
 }

@@ -40,7 +40,9 @@ public:
 			OnAudioCapture(AudioData, NumFrames, NumChannels, StreamTime, bOverFlow);
 		};
 
-		if (!AudioCapture.OpenDefaultCaptureStream(MoveTemp(OnCapture), NumberCaptureFrames))
+		Audio::FAudioCaptureDeviceParams Params = Audio::FAudioCaptureDeviceParams();
+
+		if (!AudioCapture.OpenCaptureStream(Params, MoveTemp(OnCapture), NumberCaptureFrames))
 		{
 			UE_LOG(LogAudioCaptureTimecodeProvider, Error, TEXT("Can't open the default capture stream for %s."), *Owner->GetName());
 			return false;

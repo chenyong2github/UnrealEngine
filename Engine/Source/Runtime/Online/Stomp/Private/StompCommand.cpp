@@ -4,9 +4,9 @@
 
 #if WITH_STOMP
 
-#define DEFINE_COMMAND(Name) const FStompCommand Name ## Command = TEXT(#Name)
+#define DEFINE_COMMAND(Name) const FLazyName Name ## Command = TEXT(#Name)
 
-const FStompCommand HeartbeatCommand = FStompCommand();
+const FLazyName HeartbeatCommand = FLazyName();
 
 // note: commands are converted to upper case to send over the wire
 DEFINE_COMMAND(Connect);

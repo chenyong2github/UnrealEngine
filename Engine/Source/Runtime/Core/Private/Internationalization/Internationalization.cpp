@@ -4,6 +4,7 @@
 #include "Internationalization/TextLocalizationResource.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/FileManager.h"
+#include "Misc/LazySingleton.h"
 #include "Misc/Paths.h"
 #include "Internationalization/Culture.h"
 #include "Internationalization/TextCache.h"
@@ -16,33 +17,23 @@
 
 #define LOCTEXT_NAMESPACE "Internationalization"
 
-FInternationalization* FInternationalization::Instance;
-
 FInternationalization& FInternationalization::Get()
 {
-	if(!Instance)
-	{
-		Instance = new FInternationalization();
-	}
-	if(Instance && !Instance->IsInitialized())
-	{
-		Instance->Initialize();
-	}
-	return *Instance;
+	FInternationalization& Singleton = TLazySingleton<FInternationalization>::Get();
+	Singleton.Initialize();
+	return Singleton;
 }
 
 bool FInternationalization::IsAvailable()
 {
-	return Instance && Instance->IsInitialized();
+	FInternationalization* Singleton = TLazySingleton<FInternationalization>::TryGet();
+	return Singleton && Singleton->bIsInitialized;
 }
 
 void FInternationalization::TearDown()
 {
-	if (Instance && Instance->IsInitialized())
-	{
-		Instance->Terminate();
-		FTextCache::Get().Flush();
-	}
+	TLazySingleton<FInternationalization>::TearDown();
+	FTextCache::TearDown();
 }
 
 FText FInternationalization::ForUseOnlyByLocMacroAndGraphNodeTextLiterals_CreateText(const TCHAR* InTextLiteral, const TCHAR* InNamespace, const TCHAR* InKey)
@@ -289,8 +280,6 @@ void FInternationalization::Terminate()
 	Implementation->Terminate();
 
 	bIsInitialized = false;
-	delete Instance;
-	Instance = nullptr;
 }
 
 #if ENABLE_LOC_TESTING
@@ -473,10 +462,16 @@ TArray<FCultureRef> FInternationalization::GetAvailableCultures(const TArray<FSt
 }
 
 FInternationalization::FInternationalization()
-	:	bIsInitialized(false)
-	,	Implementation(this)
+	:	Implementation(this)
 {
+}
 
+FInternationalization::~FInternationalization()
+{
+	if (IsInitialized())
+	{
+		Terminate();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

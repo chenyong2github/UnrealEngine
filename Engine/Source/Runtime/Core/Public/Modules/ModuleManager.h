@@ -108,12 +108,13 @@ struct FModuleStatus
 class CORE_API FModuleManager
 	: private FSelfRegisteringExec
 {
-public:
-
 	/**
 	 * Destructor.
 	 */
 	~FModuleManager();
+
+
+public:
 
 	/**
 	 * Gets the singleton instance of the module manager.
@@ -122,7 +123,9 @@ public:
 	 */
 	static FModuleManager& Get( );
 
-public:
+	/** Destroys singleton if it exists. Get() must not be called after Destroy(). */
+	static void TearDown();
+
 
 	/**
 	 * Abandons a loaded module, leaving it loaded in memory but no longer tracking it in the module manager.
@@ -244,8 +247,6 @@ public:
 	 */
 	void AbandonModuleWithCallback( const FName InModuleName );
 
-public:
-
 	/**
 	  * Gets a module by name, checking to ensure it exists.
 	  *
@@ -312,7 +313,6 @@ public:
 		return static_cast<TModuleInterface*>(FModuleManager::Get().LoadModule(InModuleName));
 	}
 
-public:
 	/**
 	 * Finds module files on the disk for loadable modules matching the specified wildcard.
 	 *
@@ -357,9 +357,9 @@ public:
 	 * @param InModuleName The name of this module.
 	 * @param InInitializerDelegate The delegate that will be called to initialize an instance of this module.
 	 */
-	void RegisterStaticallyLinkedModule( const FName InModuleName, const FInitializeStaticallyLinkedModule& InInitializerDelegate )
+	void RegisterStaticallyLinkedModule( const FLazyName InModuleName, const FInitializeStaticallyLinkedModule& InInitializerDelegate )
 	{
-		StaticallyLinkedModuleInitializers.Add( InModuleName, InInitializerDelegate );
+		PendingStaticallyLinkedModuleInitializers.Emplace( InModuleName, InInitializerDelegate );
 	}
 
 	/**
@@ -420,8 +420,6 @@ public:
 	bool HasAnyOverridenModuleFilename() const;
 #endif
 
-public:
-
 	/**
 	 * Gets an event delegate that is executed when the set of known modules changed, i.e. upon module load or unload.
 	 *
@@ -460,13 +458,14 @@ public:
 		return IsPackageLoaded;
 	}
 
-public:
 
 	// FSelfRegisteringExec interface.
 
 	virtual bool Exec( UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar ) override;
 
-protected:
+
+private:
+	friend struct TOptional<FModuleManager>;
 
 	/**
 	 * Hidden constructor.
@@ -474,12 +473,8 @@ protected:
 	 * Use the static Get function to return the singleton instance.
 	 */
 	FModuleManager();
-
-private:
 	FModuleManager(const FModuleManager&) = delete;
 	FModuleManager& operator=(const FModuleManager&) = delete;
-
-protected:
 
 	/**
 	 * Information about a single module (may or may not be loaded.)
@@ -565,13 +560,20 @@ private:
 	void FindModulePathsInDirectory(const FString &DirectoryName, bool bIsGameDirectory, TMap<FName, FString> &OutModulePaths) const;
 #endif
 
+	/** Adds pending module initializer registrations to the StaticallyLinkedModuleInitializers map. */
+	void ProcessPendingStaticallyLinkedModuleInitializers() const;
+
 private:
 	/** Map of all modules.  Maps the case-insensitive module name to information about that module, loaded or not. */
 	FModuleMap Modules;
 
+	/** Pending registrations of module names */
+	/** We use an array here to stop comparisons (and thus FNames being constructed) when they are registered. */
+	/** Instead, we validate there are no duplicates when they're inserted into StaticallyLinkedModuleInitializers. */
+	mutable TArray<TPair<FLazyName, FInitializeStaticallyLinkedModule>, TInlineAllocator<16>> PendingStaticallyLinkedModuleInitializers;
+
 	/** Map of module names to a delegate that can initialize each respective statically linked module */
-	typedef TMap< FName, FInitializeStaticallyLinkedModule > FStaticallyLinkedModuleInitializerMap;
-	FStaticallyLinkedModuleInitializerMap StaticallyLinkedModuleInitializers;
+	mutable TMap<FName, FInitializeStaticallyLinkedModule> StaticallyLinkedModuleInitializers;
 
 	/** True if module manager should automatically register new UObjects discovered while loading C++ modules */
 	bool bCanProcessNewlyLoadedObjects;
@@ -616,7 +618,7 @@ public:
 	/**
 	 * Explicit constructor that registers a statically linked module
 	 */
-	FStaticallyLinkedModuleRegistrant( const ANSICHAR* InModuleName )
+	FStaticallyLinkedModuleRegistrant( FLazyName InModuleName )
 	{
 		// Create a delegate to our InitializeModule method
 		FModuleManager::FInitializeStaticallyLinkedModule InitializerDelegate = FModuleManager::FInitializeStaticallyLinkedModule::CreateRaw(
@@ -624,7 +626,7 @@ public:
 
 		// Register this module
 		FModuleManager::Get().RegisterStaticallyLinkedModule(
-			FName( InModuleName ),	// Module name
+			InModuleName,			// Module name
 			InitializerDelegate );	// Initializer delegate
 	}
 	
@@ -699,7 +701,7 @@ class FDefaultGameModuleImpl
 	// If we're linking monolithically we assume all modules are linked in with the main binary.
 	#define IMPLEMENT_MODULE( ModuleImplClass, ModuleName ) \
 		/** Global registrant object for this module when linked statically */ \
-		static FStaticallyLinkedModuleRegistrant< ModuleImplClass > ModuleRegistrant##ModuleName( #ModuleName ); \
+		static FStaticallyLinkedModuleRegistrant< ModuleImplClass > ModuleRegistrant##ModuleName( TEXT(#ModuleName) ); \
 		/* Forced reference to this function is added by the linker to check that each module uses IMPLEMENT_MODULE */ \
 		extern "C" void IMPLEMENT_MODULE_##ModuleName() { } \
 		PER_MODULE_BOILERPLATE_ANYLINK(ModuleImplClass, ModuleName)

@@ -25,6 +25,7 @@ public class CurveEditorTools : ModuleRules
 				"UnrealEd",
 				"CoreUObject",
 				"AudioMixer",
+				"SignalProcessing",
 			}
 		);
 	}

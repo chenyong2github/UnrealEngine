@@ -164,7 +164,7 @@ FORCEINLINE VectorRegister VectorLoad( const void* Ptr )
  * @param Ptr	Aligned memory pointer to the 4 FLOATs
  * @return		VectorRegister(Ptr[0], Ptr[1], Ptr[2], Ptr[3])
  */
-#define VectorLoadAligned( Ptr )		_mm_load_ps( (float*)(Ptr) )
+#define VectorLoadAligned( Ptr )		_mm_load_ps( (const float*)(Ptr) )
 
 /**
  * Loads 1 float from unaligned memory and replicates it to all 4 elements.
@@ -172,7 +172,7 @@ FORCEINLINE VectorRegister VectorLoad( const void* Ptr )
  * @param Ptr	Unaligned memory pointer to the float
  * @return		VectorRegister(Ptr[0], Ptr[0], Ptr[0], Ptr[0])
  */
-#define VectorLoadFloat1( Ptr )			_mm_load1_ps( (float*)(Ptr) )
+#define VectorLoadFloat1( Ptr )			_mm_load1_ps( (const float*)(Ptr) )
 
 /**
  * Loads 2 floats from unaligned memory into X and Y and duplicates them in Z and W.
@@ -180,7 +180,7 @@ FORCEINLINE VectorRegister VectorLoad( const void* Ptr )
  * @param Ptr	Unaligned memory pointer to the floats
  * @return		VectorRegister(Ptr[0], Ptr[1], Ptr[0], Ptr[1])
  */
-#define VectorLoadFloat2( Ptr )			_mm_castpd_ps(_mm_load1_pd((double*)(Ptr)))
+#define VectorLoadFloat2( Ptr )			_mm_castpd_ps(_mm_load1_pd((const double*)(Ptr)))
 
 /**
  * Creates a vector out of three FLOATs and leaves W undefined.

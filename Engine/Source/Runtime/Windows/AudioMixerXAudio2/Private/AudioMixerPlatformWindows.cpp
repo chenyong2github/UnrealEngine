@@ -8,7 +8,6 @@
 
 #include "AudioMixerPlatformXAudio2.h"
 #include "AudioMixer.h"
-#include "AudioMixerDevice.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"

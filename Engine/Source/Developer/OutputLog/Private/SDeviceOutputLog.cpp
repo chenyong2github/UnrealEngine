@@ -183,7 +183,7 @@ void SDeviceOutputLog::Tick(const FGeometry& AllottedGeometry, const double InCu
 	{
 		for (const FBufferedLine& Line : BufferedLines)
 		{
-			MessagesTextMarshaller->AppendMessage(*Line.Data, Line.Verbosity, Line.Category);
+			MessagesTextMarshaller->AppendMessage(Line.Data, Line.Verbosity, Line.Category);
 		}
 
 		// Don't scroll to the bottom automatically when the user is scrolling the view or has scrolled it away from the bottom.
@@ -199,7 +199,7 @@ void SDeviceOutputLog::Tick(const FGeometry& AllottedGeometry, const double InCu
 void SDeviceOutputLog::Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category)
 {
 	FScopeLock ScopeLock(&BufferedLinesSynch);
-	BufferedLines.Add(FBufferedLine(V, Category, Verbosity));
+	BufferedLines.Emplace(V, Category, Verbosity);
 }
 
 bool SDeviceOutputLog::CanBeUsedOnAnyThread() const

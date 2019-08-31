@@ -165,6 +165,13 @@ void FLwsWebSocketsManager::InitWebSockets(TArrayView<const FString> Protocols)
 
 void FLwsWebSocketsManager::ShutdownWebSockets()
 {
+	if (TickHandle.IsValid())
+	{
+		FTicker& Ticker = FTicker::GetCoreTicker();
+		Ticker.RemoveTicker(TickHandle);
+		TickHandle.Reset();
+	}
+
 	if (Thread)
 	{
 		Thread->Kill(true);
