@@ -490,21 +490,24 @@ void SetupSharedBasePassParameters(
 {
 	SharedParameters.Forward = View.ForwardLightingResources->ForwardLightData;
 
+	SetupFogUniformParameters(View, SharedParameters.Fog);
+
 	if (View.bIsInstancedStereoEnabled && View.StereoPass == EStereoscopicPass::eSSP_LEFT_EYE)
 	{
 		const FSceneView& RightEye = *View.Family->Views[1];
 		SharedParameters.ForwardISR = RightEye.ForwardLightingResources->ForwardLightData;
+		SetupFogUniformParameters((FViewInfo&)RightEye, SharedParameters.FogISR);
 	}
 	else
 	{
 		SharedParameters.ForwardISR = View.ForwardLightingResources->ForwardLightData;
+		SharedParameters.FogISR = SharedParameters.Fog;
 	}
 
 	const FScene* Scene = View.Family->Scene ? View.Family->Scene->GetRenderScene() : nullptr;
 	const FPlanarReflectionSceneProxy* ReflectionSceneProxy = Scene ? Scene->GetForwardPassGlobalPlanarReflection() : nullptr;
 
 	SetupReflectionUniformParameters(View, SharedParameters.Reflection);
-	SetupFogUniformParameters(View, SharedParameters.Fog);
 	SetupPlanarReflectionUniformParameters(View, ReflectionSceneProxy, SharedParameters.PlanarReflection);
 
 	const IPooledRenderTarget* PooledRT = GetSubsufaceProfileTexture_RT(RHICmdList);
