@@ -1144,7 +1144,6 @@ ULandscapeInfo* ALandscapeProxy::CreateLandscapeInfo()
 	check(LandscapeGuid.IsValid());
 	UWorld* OwningWorld = GetWorld();
 	check(OwningWorld);
-	check(!OwningWorld->IsGameWorld());
 	
 	auto& LandscapeInfoMap = ULandscapeInfoMap::GetLandscapeInfoMap(OwningWorld);
 	LandscapeInfo = LandscapeInfoMap.Map.FindRef(LandscapeGuid);
@@ -1170,7 +1169,7 @@ ULandscapeInfo* ALandscapeProxy::GetLandscapeInfo() const
 	check(LandscapeGuid.IsValid());
 	UWorld* OwningWorld = GetWorld();
 
-	if (OwningWorld != nullptr && !OwningWorld->IsGameWorld())
+	if (OwningWorld != nullptr)
 	{
 		auto& LandscapeInfoMap = ULandscapeInfoMap::GetLandscapeInfoMap(OwningWorld);
 		LandscapeInfo = LandscapeInfoMap.Map.FindRef(LandscapeGuid);
@@ -1428,10 +1427,9 @@ void ULandscapeComponent::OnRegister()
 			}
 		}
 
-#if WITH_EDITOR
 		// AActor::GetWorld checks for Unreachable and BeginDestroyed
 		UWorld* World = GetLandscapeProxy()->GetWorld();
-		if (World && !World->IsGameWorld())
+		if (World)
 		{
 			ULandscapeInfo* Info = GetLandscapeInfo();
 			if (Info)
@@ -1439,7 +1437,6 @@ void ULandscapeComponent::OnRegister()
 				Info->RegisterActorComponent(this);
 			}
 		}
-#endif
 	}
 }
 
@@ -1455,7 +1452,6 @@ void ULandscapeComponent::OnUnregister()
 			MaterialInstancesDynamic.Empty();
 		}
 
-#if WITH_EDITOR
 		// AActor::GetWorld checks for Unreachable and BeginDestroyed
 		UWorld* World = GetLandscapeProxy()->GetWorld();
 
@@ -1468,7 +1464,6 @@ void ULandscapeComponent::OnUnregister()
 				Info->UnregisterActorComponent(this);
 			}
 		}
-#endif
 	}
 }
 
@@ -1791,16 +1786,21 @@ void ULandscapeComponent::SetWeightmapTexturesUsage(const TArray<ULandscapeWeigh
 void ALandscapeProxy::PostRegisterAllComponents()
 {
 	Super::PostRegisterAllComponents();
-
-#if WITH_EDITOR
-	// Game worlds don't have landscape infos
-	if (!GetWorld()->IsGameWorld() && !IsPendingKillPending())
+	ULandscapeInfo* LandscapeInfo = nullptr;
+	if (!IsPendingKillPending())
 	{
 		// Duplicated Landscapes don't have a valid guid until PostEditImport is called, we'll register then
 		if (LandscapeGuid.IsValid())
 		{
-			ULandscapeInfo* LandscapeInfo = CreateLandscapeInfo();
-
+			LandscapeInfo = CreateLandscapeInfo();
+		}
+	}
+#if WITH_EDITOR
+	// Game worlds don't have landscape infos
+	if (!GetWorld()->IsGameWorld() && !IsPendingKillPending())
+	{
+		if (LandscapeGuid.IsValid())
+		{
 			LandscapeInfo->FixupProxiesTransform();
 		}
 	}
@@ -2277,6 +2277,7 @@ void ALandscapeProxy::PostLoad()
 		BodyInstance.FixupData(this);
 	}
 
+	CreateLandscapeInfo();
 #if WITH_EDITOR
 	if (GIsEditor && !GetWorld()->IsGameWorld())
 	{
@@ -2285,7 +2286,6 @@ void ALandscapeProxy::PostLoad()
 			LandscapeComponents.ContainsByPredicate([](ULandscapeComponent* Comp) { return ((Comp != nullptr) && !Comp->CollisionComponent.IsValid()); }))
 		{
 			// Need to clean up invalid collision components
-			CreateLandscapeInfo();
 			RecreateCollisionComponents();
 		}
 	}
