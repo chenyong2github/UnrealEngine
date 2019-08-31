@@ -18,7 +18,7 @@
 	[
 		{
 			"Name" : "SubversionSourceControl",
-			"Type" : "Developer",
+			"Type" : "UncookedOnly",
 			"LoadingPhase" : "Default"
 		}
 	]
