@@ -185,14 +185,12 @@ void FLandscapeModule::StartupModule()
 		)
 	);
 
-#if WITH_EDITORONLY_DATA
 	FWorldDelegates::OnPostWorldCreation.AddStatic(
 		&WorldCreationEventFunction
 	);
 	FWorldDelegates::OnPreWorldFinishDestroy.AddStatic(
 		&WorldDestroyEventFunction
 	);
-#endif // WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
 	FWorldDelegates::OnPreWorldRename.AddStatic(
