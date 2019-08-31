@@ -1790,19 +1790,6 @@ void ULandscapeInfo::UpdateAllAddCollisions()
 	}
 }
 
-TOptional<float> ULandscapeHeightfieldCollisionComponent::GetHeight(float X, float Y)
-{
-	TOptional<float> Height;
-#if WITH_PHYSX
-	const float ZScale = GetComponentTransform().GetScale3D().Z * LANDSCAPE_ZSCALE;
-	if (IsValidRef(HeightfieldRef) && HeightfieldRef->RBHeightfield != nullptr)
-	{
-		Height = HeightfieldRef->RBHeightfield->getHeight(HeightfieldRef->RBHeightfield->getNbRows() - 1 - X, Y) * ZScale;
-	}
-#endif
-	return Height;
-}
-
 void ULandscapeInfo::UpdateAddCollision(FIntPoint LandscapeKey)
 {
 	FLandscapeAddCollision& AddCollision = XYtoAddCollisionMap.FindOrAdd(LandscapeKey);
@@ -2201,6 +2188,19 @@ ULandscapeHeightfieldCollisionComponent::ULandscapeHeightfieldCollisionComponent
 ULandscapeComponent* ULandscapeHeightfieldCollisionComponent::GetRenderComponent() const
 {
 	return RenderComponent.Get();
+}
+
+TOptional<float> ULandscapeHeightfieldCollisionComponent::GetHeight(float X, float Y)
+{
+	TOptional<float> Height;
+#if WITH_PHYSX
+	const float ZScale = GetComponentTransform().GetScale3D().Z * LANDSCAPE_ZSCALE;
+	if (IsValidRef(HeightfieldRef) && HeightfieldRef->RBHeightfield != nullptr)
+	{
+		Height = HeightfieldRef->RBHeightfield->getHeight(HeightfieldRef->RBHeightfield->getNbRows() - 1 - X, Y) * ZScale;
+	}
+#endif
+	return Height;
 }
 
 LANDSCAPE_API TOptional<float> ALandscapeProxy::GetHeightAtLocation(FVector Location) const
