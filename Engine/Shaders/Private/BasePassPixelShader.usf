@@ -1128,7 +1128,11 @@ ShadingModel);
 	if (FogStruct.ApplyVolumetricFog > 0) 
 	{
 		float3 VolumeUV = ComputeVolumeUV(MaterialParameters.AbsoluteWorldPosition, ResolvedView.WorldToClip);
+#if INSTANCED_STEREO
 		Fogging = CombineVolumetricFog(HeightFogging, VolumeUV, Interpolants.EyeIndex);
+#else
+		Fogging = CombineVolumetricFog(HeightFogging, VolumeUV, 0);
+#endif
 	}
 #endif
 
