@@ -1293,6 +1293,18 @@ void ULandscapeSplineControlPoint::Serialize(FArchive& Ar)
 	{
 		BodyInstance.SetCollisionProfileName(bEnableCollision_DEPRECATED ? UCollisionProfile::BlockAll_ProfileName : UCollisionProfile::NoCollision_ProfileName);
 	}
+
+	if(Ar.IsLoading() && Ar.CustomVer(FLandscapeCustomVersion::GUID) < FLandscapeCustomVersion::AddSplineLayerFalloff)
+	{
+		LeftSideLayerFalloffFactor = LeftSideFalloffFactor;
+		RightSideLayerFalloffFactor = RightSideFalloffFactor;
+
+		for (FLandscapeSplineInterpPoint& Point : Points)
+		{
+			Point.LayerFalloffLeft = Point.FalloffLeft;
+			Point.LayerFalloffRight = Point.FalloffRight;
+		}
+	}
 #endif
 }
 
@@ -1757,6 +1769,8 @@ void ULandscapeSplineControlPoint::UpdateSplinePoints(bool bUpdateCollision, boo
 	
 	const float LeftSideFalloff = LeftSideFalloffFactor * SideFalloff;
 	const float RightSideFalloff = RightSideFalloffFactor * SideFalloff;
+	const float LeftSideLayerFalloff = LeftSideLayerFalloffFactor * SideFalloff;
+	const float RightSideLayerFalloff = RightSideLayerFalloffFactor * SideFalloff;
 
 	// Update "Points" array
 	if (Mesh != nullptr)
@@ -1775,8 +1789,10 @@ void ULandscapeSplineControlPoint::UpdateSplinePoints(bool bUpdateCollision, boo
 			const FVector RightPos = StartLocation + BiNormal * Width;
 			const FVector FalloffLeftPos = StartLocation - BiNormal * (Width + LeftSideFalloff);
 			const FVector FalloffRightPos = StartLocation + BiNormal * (Width + RightSideFalloff);
+			const FVector LayerFalloffLeftPos = StartLocation - BiNormal * (Width + LeftSideLayerFalloff);
+			const FVector LayerFalloffRightPos = StartLocation + BiNormal * (Width + RightSideLayerFalloff);
 
-			Points.Emplace(StartLocation, LeftPos, RightPos, FalloffLeftPos, FalloffRightPos, 1.0f);
+			Points.Emplace(StartLocation, LeftPos, RightPos, FalloffLeftPos, FalloffRightPos, LayerFalloffLeftPos, LayerFalloffRightPos, 1.0f);
 		}
 
 		const FVector CPLocation = Location;
@@ -1796,8 +1812,11 @@ void ULandscapeSplineControlPoint::UpdateSplinePoints(bool bUpdateCollision, boo
 		const FVector RightPos = StartLocation + BiNormal * Width;
 		const FVector FalloffLeftPos = StartLocation - BiNormal * (Width + LeftSideFalloff);
 		const FVector FalloffRightPos = StartLocation + BiNormal * (Width + RightSideFalloff);
+		const FVector LayerFalloffLeftPos = StartLocation - BiNormal * (Width + LeftSideLayerFalloff);
+		const FVector LayerFalloffRightPos = StartLocation + BiNormal * (Width + RightSideLayerFalloff);
 
-		Points.Emplace(StartLocation, LeftPos, RightPos, FalloffLeftPos, FalloffRightPos, 1.0f);
+
+		Points.Emplace(StartLocation, LeftPos, RightPos, FalloffLeftPos, FalloffRightPos, LayerFalloffLeftPos, LayerFalloffRightPos, 1.0f);
 	}
 
 	// Update bounds
@@ -1903,6 +1922,8 @@ void ULandscapeSplineControlPoint::PostEditChangeProperty(FPropertyChangedEvent&
 	SideFalloff = FMath::Max(SideFalloff, 0.0f);
 	LeftSideFalloffFactor = FMath::Clamp(LeftSideFalloffFactor, 0.0f, 1.0f);
 	RightSideFalloffFactor = FMath::Clamp(RightSideFalloffFactor, 0.0f, 1.0f);
+	LeftSideLayerFalloffFactor = FMath::Clamp(LeftSideLayerFalloffFactor, 0.0f, 1.0f);
+	RightSideLayerFalloffFactor = FMath::Clamp(RightSideLayerFalloffFactor, 0.0f, 1.0f);
 	EndFalloff = FMath::Max(EndFalloff, 0.0f);
 
 	// Don't update splines when undoing, not only is it unnecessary and expensive,
@@ -2008,6 +2029,15 @@ void ULandscapeSplineSegment::Serialize(FArchive& Ar)
 	if (Ar.IsLoading() && Ar.CustomVer(FLandscapeCustomVersion::GUID) < FLandscapeCustomVersion::AddingBodyInstanceToSplinesElements)
 	{
 		BodyInstance.SetCollisionProfileName(bEnableCollision_DEPRECATED ? UCollisionProfile::BlockAll_ProfileName : UCollisionProfile::NoCollision_ProfileName);
+	}
+
+	if (Ar.IsLoading() && Ar.CustomVer(FLandscapeCustomVersion::GUID) < FLandscapeCustomVersion::AddSplineLayerFalloff)
+	{
+		for (FLandscapeSplineInterpPoint& Point : Points)
+		{
+			Point.LayerFalloffLeft = Point.FalloffLeft;
+			Point.LayerFalloffRight = Point.FalloffRight;
+		}
 	}
 #endif
 }
@@ -2264,10 +2294,16 @@ void ULandscapeSplineSegment::UpdateSplinePoints(bool bUpdateCollision, bool bUp
 	const float EndFalloffFraction = ((Connections[1].ControlPoint->ConnectedSegments.Num() > 1) ? 0 : (Connections[1].ControlPoint->EndFalloff / SplineLength));
 	const float StartWidth = Connections[0].ControlPoint->Width;
 	const float EndWidth = Connections[1].ControlPoint->Width;
-	const float StartLeftSideFalloff = Connections[0].ControlPoint->LeftSideFalloffFactor * Connections[0].ControlPoint->SideFalloff;
-	const float EndLeftSideFalloff = Connections[1].ControlPoint->LeftSideFalloffFactor * Connections[1].ControlPoint->SideFalloff;
-	const float StartRightSideFalloff = Connections[0].ControlPoint->RightSideFalloffFactor * Connections[0].ControlPoint->SideFalloff;
-	const float EndRightSideFalloff = Connections[1].ControlPoint->RightSideFalloffFactor * Connections[1].ControlPoint->SideFalloff;
+
+	LandscapeSplineRaster::FPointifyFalloffs Falloffs;
+	Falloffs.StartLeftSide = Connections[0].ControlPoint->LeftSideFalloffFactor * Connections[0].ControlPoint->SideFalloff;
+	Falloffs.EndLeftSide = Connections[1].ControlPoint->LeftSideFalloffFactor * Connections[1].ControlPoint->SideFalloff;
+	Falloffs.StartRightSide = Connections[0].ControlPoint->RightSideFalloffFactor * Connections[0].ControlPoint->SideFalloff;
+	Falloffs.EndRightSide = Connections[1].ControlPoint->RightSideFalloffFactor * Connections[1].ControlPoint->SideFalloff;
+	Falloffs.StartLeftSideLayer = Connections[0].ControlPoint->LeftSideLayerFalloffFactor * Connections[0].ControlPoint->SideFalloff;
+	Falloffs.EndLeftSideLayer = Connections[1].ControlPoint->LeftSideLayerFalloffFactor * Connections[1].ControlPoint->SideFalloff;
+	Falloffs.StartRightSideLayer = Connections[0].ControlPoint->RightSideLayerFalloffFactor * Connections[0].ControlPoint->SideFalloff;
+	Falloffs.EndRightSideLayer = Connections[1].ControlPoint->RightSideLayerFalloffFactor * Connections[1].ControlPoint->SideFalloff;
 	const float StartRollDegrees = StartRotation.Roll * (Connections[0].TangentLen > 0 ? 1 : -1);
 	const float EndRollDegrees = EndRotation.Roll * (Connections[1].TangentLen > 0 ? -1 : 1);
 	const float StartRoll = FMath::DegreesToRadians(StartRollDegrees);
@@ -2278,7 +2314,7 @@ void ULandscapeSplineSegment::UpdateSplinePoints(bool bUpdateCollision, bool bUp
 	int32 NumPoints = FMath::CeilToInt(SplineLength / OuterSplines->SplineResolution);
 	NumPoints = FMath::Clamp(NumPoints, 1, 1000);
 
-	LandscapeSplineRaster::Pointify(SplineInfo, Points, NumPoints, StartFalloffFraction, EndFalloffFraction, StartWidth, EndWidth, StartLeftSideFalloff, EndLeftSideFalloff, StartRightSideFalloff, EndRightSideFalloff, StartRollDegrees, EndRollDegrees);
+	LandscapeSplineRaster::Pointify(SplineInfo, Points, NumPoints, StartFalloffFraction, EndFalloffFraction, StartWidth, EndWidth, Falloffs, StartRollDegrees, EndRollDegrees);
 
 	// Update Bounds
 	Bounds = FBox(ForceInit);

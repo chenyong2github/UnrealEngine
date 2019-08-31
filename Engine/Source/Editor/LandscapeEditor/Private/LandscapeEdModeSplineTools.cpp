@@ -465,6 +465,8 @@ public:
 			NewControlPoint->SideFalloff = FirstPoint->SideFalloff;
 			NewControlPoint->LeftSideFalloffFactor = FirstPoint->LeftSideFalloffFactor;
 			NewControlPoint->RightSideFalloffFactor = FirstPoint->RightSideFalloffFactor;
+			NewControlPoint->LeftSideLayerFalloffFactor = FirstPoint->LeftSideLayerFalloffFactor;
+			NewControlPoint->RightSideLayerFalloffFactor = FirstPoint->RightSideLayerFalloffFactor;
 			NewControlPoint->EndFalloff  = FirstPoint->EndFalloff;
 
 			if (bCopyMeshToNewControlPoint)
@@ -673,6 +675,8 @@ public:
 		NewControlPoint->EndFalloff = FMath::Lerp(Segment->Connections[0].ControlPoint->EndFalloff, Segment->Connections[1].ControlPoint->EndFalloff, t);
 		NewControlPoint->LeftSideFalloffFactor = FMath::Clamp(FMath::Lerp(Segment->Connections[0].ControlPoint->LeftSideFalloffFactor, Segment->Connections[1].ControlPoint->LeftSideFalloffFactor, t), 0.f, 1.f);
 		NewControlPoint->RightSideFalloffFactor = FMath::Clamp(FMath::Lerp(Segment->Connections[0].ControlPoint->RightSideFalloffFactor, Segment->Connections[1].ControlPoint->RightSideFalloffFactor, t), 0.f, 1.f);
+		NewControlPoint->LeftSideLayerFalloffFactor = FMath::Clamp(FMath::Lerp(Segment->Connections[0].ControlPoint->LeftSideLayerFalloffFactor, Segment->Connections[1].ControlPoint->LeftSideLayerFalloffFactor, t), 0.f, 1.f);
+		NewControlPoint->RightSideLayerFalloffFactor = FMath::Clamp(FMath::Lerp(Segment->Connections[0].ControlPoint->RightSideLayerFalloffFactor, Segment->Connections[1].ControlPoint->RightSideLayerFalloffFactor, t), 0.f, 1.f);
 
 		ULandscapeSplineSegment* NewSegment = NewObject<ULandscapeSplineSegment>(SplinesComponent, NAME_None, RF_Transactional);
 		SplinesComponent->Segments.Add(NewSegment);
@@ -764,6 +768,8 @@ public:
 		ControlPoint->SideFalloff = FMath::Lerp(UseSegment->Connections[0].ControlPoint->SideFalloff, UseSegment->Connections[1].ControlPoint->SideFalloff, tseg);
 		ControlPoint->LeftSideFalloffFactor = FMath::Clamp(FMath::Lerp(UseSegment->Connections[0].ControlPoint->LeftSideFalloffFactor, UseSegment->Connections[1].ControlPoint->LeftSideFalloffFactor, tseg), 0.f, 1.f);
 		ControlPoint->RightSideFalloffFactor = FMath::Clamp(FMath::Lerp(UseSegment->Connections[0].ControlPoint->RightSideFalloffFactor, UseSegment->Connections[1].ControlPoint->RightSideFalloffFactor, tseg), 0.f, 1.f);
+		ControlPoint->LeftSideLayerFalloffFactor = FMath::Clamp(FMath::Lerp(UseSegment->Connections[0].ControlPoint->LeftSideLayerFalloffFactor, UseSegment->Connections[1].ControlPoint->LeftSideLayerFalloffFactor, tseg), 0.f, 1.f);
+		ControlPoint->RightSideLayerFalloffFactor = FMath::Clamp(FMath::Lerp(UseSegment->Connections[0].ControlPoint->RightSideLayerFalloffFactor, UseSegment->Connections[1].ControlPoint->RightSideLayerFalloffFactor, tseg), 0.f, 1.f);
 		ControlPoint->EndFalloff = FMath::Lerp(UseSegment->Connections[0].ControlPoint->EndFalloff, UseSegment->Connections[1].ControlPoint->EndFalloff, tseg);
 
 		Segment->Connections[0].TangentLen = DuplicateCacheSplitSegmentTangentLenStart * t;
