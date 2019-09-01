@@ -146,9 +146,11 @@ public:
 	{
 		if (VertexBufferRHI && IntermediateBuffer)
 		{
-			check(ColorComponentsSRV);
 			Batcher.QueueUpdateRequest(VertexBufferRHI, IntermediateBuffer);
-			Batcher.QueueUpdateRequest(ColorComponentsSRV, VertexBufferRHI, 4, PF_R8G8B8A8);
+			if (ColorComponentsSRV)
+			{
+				Batcher.QueueUpdateRequest(ColorComponentsSRV, VertexBufferRHI, 4, PF_R8G8B8A8);
+			}
 		}
 	}
 

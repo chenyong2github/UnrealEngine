@@ -39,6 +39,9 @@ public:
 	/** Gets the earliest version which this engine maintains strict API and package compatibility with */
 	static const FEngineVersion& CompatibleWith();
 
+	/** Clears the current and compatible-with engine versions */
+	static void TearDown();
+
 	/** Serialization functions */
 	friend CORE_API void operator<<(class FArchive &Ar, FEngineVersion &Version);
 	friend CORE_API void operator<<(FStructuredArchive::FSlot Slot, FEngineVersion &Version);
@@ -56,11 +59,5 @@ private:
 
 	/** Branch name. */
 	FString Branch;
-
-	/** Global instance of the current engine version. */
-	static FEngineVersion CurrentVersion;
-
-	/** Earliest version which this engine maintains strict API and package compatibility with */
-	static FEngineVersion CompatibleWithVersion;
 };
 

@@ -5,7 +5,7 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogInternationalizationMetadata, Log, All);
 
-const FString FLocMetadataObject::COMPARISON_MODIFIER_PREFIX = TEXT("*");
+const TCHAR* FLocMetadataObject::COMPARISON_MODIFIER_PREFIX = TEXT("*");
 
 FLocMetadataValue::~FLocMetadataValue() = default;
 

@@ -169,22 +169,16 @@ void FMeshMergeHelpers::ExtractSections(const UStaticMesh* StaticMesh, int32 LOD
 void FMeshMergeHelpers::ExpandInstances(const UInstancedStaticMeshComponent* InInstancedStaticMeshComponent, FMeshDescription& InOutRawMesh, TArray<FSectionInfo>& InOutSections)
 {
 	FMeshDescription CombinedRawMesh;
+	UStaticMesh::RegisterMeshAttributes(CombinedRawMesh);
 
-	bool bFirstMesh = true;
+	FTransform ComponentTransform = InInstancedStaticMeshComponent->GetComponentTransform();
+	FTransform ComponentTransformInv = ComponentTransform.Inverse();
+
 	for(const FInstancedStaticMeshInstanceData& InstanceData : InInstancedStaticMeshComponent->PerInstanceSMData)
 	{
 		FMeshDescription InstanceRawMesh = InOutRawMesh;
-		FMeshMergeHelpers::TransformRawMeshVertexData(FTransform(InstanceData.Transform), InstanceRawMesh);
-
-		if(bFirstMesh)
-		{
-			CombinedRawMesh = InstanceRawMesh;
-			bFirstMesh = false;
-		}
-		else
-		{
-			FMeshMergeHelpers::AppendRawMesh(CombinedRawMesh, InstanceRawMesh);
-		}
+		FMeshMergeHelpers::TransformRawMeshVertexData(ComponentTransformInv * FTransform(InstanceData.Transform) * ComponentTransform, InstanceRawMesh);
+		FMeshMergeHelpers::AppendRawMesh(CombinedRawMesh, InstanceRawMesh);
 	}
 
 	InOutRawMesh = CombinedRawMesh;

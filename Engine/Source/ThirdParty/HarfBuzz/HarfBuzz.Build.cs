@@ -39,8 +39,7 @@ public class HarfBuzz : ModuleRules
 				: "RelWithDebInfo";
 			HarfBuzzLibPath += BuildTypeFolderName + "/";
 
-			PublicLibraryPaths.Add(HarfBuzzLibPath);
-			PublicAdditionalLibraries.Add("harfbuzz.lib");
+			PublicAdditionalLibraries.Add(HarfBuzzLibPath + "harfbuzz.lib");
 		}
 
 		else if (Target.Platform == UnrealTargetPlatform.HTML5 )
@@ -81,8 +80,7 @@ public class HarfBuzz : ModuleRules
 				: "Release";
 			HarfBuzzLibPath += BuildTypeFolderName + "/";
 
-			PublicLibraryPaths.Add(HarfBuzzLibPath);
-			PublicAdditionalLibraries.Add("harfbuzz"); // Automatically transforms to libharfbuzz.a
+			PublicAdditionalLibraries.Add(HarfBuzzLibPath + "libharfbuzz.a");
 		}
 
 		else if (Target.Platform == UnrealTargetPlatform.XboxOne)
@@ -94,8 +92,7 @@ public class HarfBuzz : ModuleRules
 				: "Release";
 			HarfBuzzLibPath += "VS2015/" + BuildTypeFolderName + "/";
 
-			PublicLibraryPaths.Add(HarfBuzzLibPath);
-			PublicAdditionalLibraries.Add("harfbuzz.lib");
+			PublicAdditionalLibraries.Add(HarfBuzzLibPath + "harfbuzz.lib");
 		}
 
 		else if (Target.Platform == UnrealTargetPlatform.Android)
@@ -106,12 +103,10 @@ public class HarfBuzz : ModuleRules
 				? "Debug/"
 				: "Release/";
 
-			PublicLibraryPaths.Add(HarfBuzzRootPath + "Android/ARMv7/" + BuildTypeFolderName);
-			PublicLibraryPaths.Add(HarfBuzzRootPath + "Android/ARM64/" + BuildTypeFolderName);
-			PublicLibraryPaths.Add(HarfBuzzRootPath + "Android/x86/" + BuildTypeFolderName);
-			PublicLibraryPaths.Add(HarfBuzzRootPath + "Android/x64/" + BuildTypeFolderName);
-
-			PublicAdditionalLibraries.Add("harfbuzz");
+			PublicAdditionalLibraries.Add(HarfBuzzRootPath + "Android/ARM64/" + BuildTypeFolderName + "/libharfbuzz.a");
+			PublicAdditionalLibraries.Add(HarfBuzzRootPath + "Android/ARMv7/" + BuildTypeFolderName + "/libharfbuzz.a");
+			PublicAdditionalLibraries.Add(HarfBuzzRootPath + "Android/x64/" + BuildTypeFolderName + "/libharfbuzz.a");
+			PublicAdditionalLibraries.Add(HarfBuzzRootPath + "Android/x86/" + BuildTypeFolderName + "/libharfbuzz.a");
 		}
 
 		else if (Target.Platform == UnrealTargetPlatform.Switch)
@@ -123,8 +118,7 @@ public class HarfBuzz : ModuleRules
 				: "Release";
 			HarfBuzzLibPath += BuildTypeFolderName + "/";
 
-			PublicLibraryPaths.Add(HarfBuzzLibPath);
-			PublicAdditionalLibraries.Add("harfbuzz"); // Automatically transforms to libharfbuzz.a
+			PublicAdditionalLibraries.Add(HarfBuzzLibPath + "libharfbuzz.a");
 		}
 
 		else

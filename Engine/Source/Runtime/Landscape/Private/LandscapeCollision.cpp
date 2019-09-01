@@ -2184,3 +2184,43 @@ ULandscapeHeightfieldCollisionComponent::ULandscapeHeightfieldCollisionComponent
 	// landscape collision components should be deterministically created and therefor are addressable over the network
 	SetNetAddressable();
 }
+
+ULandscapeComponent* ULandscapeHeightfieldCollisionComponent::GetRenderComponent() const
+{
+	return RenderComponent.Get();
+}
+
+TOptional<float> ULandscapeHeightfieldCollisionComponent::GetHeight(float X, float Y)
+{
+	TOptional<float> Height;
+#if WITH_PHYSX
+	const float ZScale = GetComponentTransform().GetScale3D().Z * LANDSCAPE_ZSCALE;
+	if (IsValidRef(HeightfieldRef) && HeightfieldRef->RBHeightfield != nullptr)
+	{
+		Height = HeightfieldRef->RBHeightfield->getHeight(HeightfieldRef->RBHeightfield->getNbRows() - 1 - X, Y) * ZScale;
+	}
+#endif
+	return Height;
+}
+
+LANDSCAPE_API TOptional<float> ALandscapeProxy::GetHeightAtLocation(FVector Location) const
+{
+	TOptional<float> Height;
+	ULandscapeInfo* Info = GetLandscapeInfo();
+	const FVector ActorSpaceLocation = GetActorTransform().InverseTransformPosition(Location);
+	const FIntPoint Key = FIntPoint(ActorSpaceLocation.X, ActorSpaceLocation.Y) / ComponentSizeQuads;
+	ULandscapeComponent* Component = Info->XYtoComponentMap.FindRef(Key);
+	if (Component)
+	{
+		if (ULandscapeHeightfieldCollisionComponent* CollisionComp = Component->CollisionComponent.Get())
+		{
+			const FVector ComponentSpaceLocation = CollisionComp->GetComponentToWorld().InverseTransformPosition(Location);
+			const TOptional<float> LocalHeight = CollisionComp->GetHeight(ComponentSpaceLocation.X, ComponentSpaceLocation.Y);
+			if (LocalHeight.IsSet())
+			{
+				Height = CollisionComp->GetComponentToWorld().TransformPositionNoScale(FVector(0, 0, LocalHeight.GetValue())).Z;
+			}
+		}
+	}
+	return Height;
+}

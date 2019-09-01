@@ -448,7 +448,7 @@ namespace Gauntlet
 				}
 
 				// project must be first
-				Config.CommandLine = ProjectParam + " " + Config.CommandLine;
+				Config.CommandLine = String.Format("\"{0}\"", ProjectParam) + " " + Config.CommandLine;
 			}
 
             if (Role.FilesToCopy != null)

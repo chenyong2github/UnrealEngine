@@ -793,6 +793,9 @@ public:
 		return false;
 	}
 
+	/** Returns the virtual texture build settings. */
+	ENGINE_API virtual void GetVirtualTextureBuildSettings(struct FVirtualTextureBuildSettings& OutSettings) const;
+
 	/**
 	 * Textures that use the derived data cache must override this function and
 	 * provide a pointer to the linked list of platform data.

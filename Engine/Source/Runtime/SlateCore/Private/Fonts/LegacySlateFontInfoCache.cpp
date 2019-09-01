@@ -26,9 +26,9 @@ FString FLegacySlateFontInfoCache::FFallbackContext::ToString() const
 	}
 
 	FString CharacterInfo;
-	if (Char)
+	if (Codepoint)
 	{
-		CharacterInfo = FString::Printf(TEXT("%c (U+%04x)"), Char, (int32)Char);
+		CharacterInfo = FString::Printf(TEXT("%c (U+%04x)"), (TCHAR)Codepoint, (int32)Codepoint);
 	}
 	else
 	{

@@ -7,14 +7,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "EngineDefines.h"
 #include "RendererInterface.h"
 #include "RenderResource.h"
 #include "Rendering/SkyAtmosphereCommonData.h"
 
 
+class FScene;
+class FViewInfo;
 class FLightSceneInfo;
 class USkyAtmosphereComponent;
 
+struct FEngineShowFlags;
 
 
 // Use as a global shader parameter struct and also the CPU structure representing the atmosphere it self.
@@ -61,7 +65,7 @@ public:
 	~FSkyAtmosphereRenderSceneInfo();
 
 	/** Prepare the sun light data as a function of current atmosphere state. */
-	void PrepareSunLightProxy(FLightSceneInfo& SunLight) const;
+	void PrepareSunLightProxy(uint32 AtmosphereLightIndex, FLightSceneInfo& AtmosphereLight) const;
 
 	bool IsMultiScatteringEnabled() const { return AtmosphereSetup.MultiScatteringFactor > 0.0f; }
 	FLinearColor GetSkyLuminanceFactor() const { return SkyLuminanceFactor; }
@@ -76,9 +80,14 @@ public:
 	const FAtmosphereSetup& GetAtmosphereSetup() const { return AtmosphereSetup; }
 	const FAtmosphereUniformShaderParameters* GetAtmosphereShaderParameters() const { return &AtmosphereUniformShaderParameters; }
 
+	void OverrideAtmosphereLightDirection(const class USkyAtmosphereComponent* SkyAtmosphereComponent, int32 AtmosphereLightIndex, const FVector& LightDirection);
+	FVector GetAtmosphereLightDirection(int32 AtmosphereLightIndex, const FVector& DefaultDirection) const;
+
 	bool bStaticLightingBuilt;
 
 private:
+
+	const USkyAtmosphereComponent* Component_DoNotDereference;
 
 	FAtmosphereSetup AtmosphereSetup;
 	FAtmosphereUniformShaderParameters AtmosphereUniformShaderParameters;
@@ -91,9 +100,15 @@ private:
 	FLinearColor TransmittanceAtZenith;
 	FLinearColor SkyLuminanceFactor;
 	float AerialPespectiveViewDistanceScale;
+
+	bool OverrideAtmosphericLight[NUM_ATMOSPHERE_LIGHTS];
+	FVector OverrideAtmosphericLightDirection[NUM_ATMOSPHERE_LIGHTS];
 };
 
-bool ShouldRenderSkyAtmosphere(const FSkyAtmosphereRenderSceneInfo* SkyAtmosphere, EShaderPlatform ShaderPlatform);
+bool ShouldRenderSkyAtmosphere(const FScene* Scene, const FEngineShowFlags& EngineShowFlags);
+
+void InitSkyAtmosphereForScene(FRHICommandListImmediate& RHICmdList, FScene* Scene);
+void InitSkyAtmosphereForView(FRHICommandListImmediate& RHICmdList, const FScene* Scene, FViewInfo& View);
 
 extern void SetupSkyAtmosphereViewSharedUniformShaderParameters(const class FViewInfo& View, FSkyAtmosphereViewSharedUniformShaderParameters& OutParameters);
 

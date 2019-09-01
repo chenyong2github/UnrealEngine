@@ -41,7 +41,7 @@ namespace UnrealBuildTool.Rules
 					"CoreLocation"
 				});
 
-            PublicAdditionalLibraries.AddRange(
+			PublicSystemLibraries.AddRange(
 				new string[] {
 					"sqlite3",
 					"z"

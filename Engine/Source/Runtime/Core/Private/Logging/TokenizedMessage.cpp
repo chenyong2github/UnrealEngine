@@ -204,10 +204,10 @@ FAssetNameToken::FAssetNameToken(const FString& InAssetName, const FText& InMess
 	MessageTokenActivated = FOnMessageTokenActivated::CreateStatic(&FAssetNameToken::FindAsset, AssetName);
 }
 
-FDocumentationToken::FDocumentationToken( const FString& InDocumentationLink, const FString& InPreviewExcerptLink, const FString& InPreviewExcerptName )
-	: DocumentationLink(InDocumentationLink)
-	, PreviewExcerptLink(InPreviewExcerptLink)
-	, PreviewExcerptName(InPreviewExcerptName)
+FDocumentationToken::FDocumentationToken( FString InDocumentationLink, FString InPreviewExcerptLink, FString InPreviewExcerptName )
+	: DocumentationLink(MoveTemp(InDocumentationLink))
+	, PreviewExcerptLink(MoveTemp(InPreviewExcerptLink))
+	, PreviewExcerptName(MoveTemp(InPreviewExcerptName))
 { }
 
 TSharedRef<FDocumentationToken> FDocumentationToken::Create(const FString& InDocumentationLink, const FString& InPreviewExcerptLink, const FString& InPreviewExcerptName)

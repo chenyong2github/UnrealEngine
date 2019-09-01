@@ -367,14 +367,14 @@ const TCHAR* FUnixPlatformProcess::ExecutableName(bool bRemoveExtension)
 }
 
 
-FString FUnixPlatformProcess::GenerateApplicationPath( const FString& AppName, EBuildConfigurations::Type BuildConfiguration)
+FString FUnixPlatformProcess::GenerateApplicationPath( const FString& AppName, EBuildConfiguration BuildConfiguration)
 {
 	FString PlatformName = FPlatformProcess::GetBinariesSubdirectory();
 	FString ExecutablePath = FPaths::EngineDir() / FString::Printf(TEXT("Binaries/%s/%s"), *PlatformName, *AppName);
 	
-	if (BuildConfiguration != EBuildConfigurations::Development)
+	if (BuildConfiguration != EBuildConfiguration::Development)
 	{
-		ExecutablePath += FString::Printf(TEXT("-%s-%s"), *PlatformName, EBuildConfigurations::ToString(BuildConfiguration));
+		ExecutablePath += FString::Printf(TEXT("-%s-%s"), *PlatformName, LexToString(BuildConfiguration));
 	}
 	return ExecutablePath;
 }
@@ -1507,8 +1507,12 @@ uint32 FUnixPlatformProcess::GetCurrentCoreNumber()
 
 void FUnixPlatformProcess::SetCurrentWorkingDirectoryToBaseDir()
 {
+#if defined(DISABLE_CWD_CHANGES) && DISABLE_CWD_CHANGES != 0
+	check(false);
+#else
 	FPlatformMisc::CacheLaunchDir();
 	chdir(TCHAR_TO_ANSI(FPlatformProcess::BaseDir()));
+#endif
 }
 
 FString FUnixPlatformProcess::GetCurrentWorkingDirectory()

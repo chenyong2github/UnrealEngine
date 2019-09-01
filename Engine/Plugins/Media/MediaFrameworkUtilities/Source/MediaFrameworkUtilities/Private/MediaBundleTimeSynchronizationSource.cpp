@@ -47,10 +47,10 @@ void UMediaBundleTimeSynchronizationSource::PostEditChangeProperty(FPropertyChan
 		if (bUseForSynchronization && MediaBundle && MediaBundle->GetMediaSource())
 		{
 			UTimeSynchronizableMediaSource* SynchronizableMediaSource = TimeSynchronizationSource::GetTimeSynchronizableMediaSource(MediaBundle);
-			if (SynchronizableMediaSource == nullptr || SynchronizableMediaSource->bUseTimeSynchronization)
+			if (SynchronizableMediaSource == nullptr || !SynchronizableMediaSource->bUseTimeSynchronization)
 			{
 				// Warn the user that the MediaSource he just added isn't set for using time synchronization
-				UE_LOG(LogMediaFrameworkUtilities, Warning, TEXT("MediaSource %s doesn't have the option to use time synchronization enabled."), *MediaBundle->MediaSource->GetName());
+				UE_LOG(LogMediaFrameworkUtilities, Warning, TEXT("MediaSource '%s' doesn't have the option to use time synchronization enabled."), *MediaBundle->MediaSource->GetName());
 			}
 		}
 	}
@@ -176,7 +176,7 @@ bool UMediaBundleTimeSynchronizationSource::Open(const FTimeSynchronizationOpenD
 			UTimeSynchronizableMediaSource* SynchronizableMediaSource = TimeSynchronizationSource::GetTimeSynchronizableMediaSource(MediaBundle);
 			if (bUseForSynchronization && (SynchronizableMediaSource == nullptr || !SynchronizableMediaSource->bUseTimeSynchronization))
 			{
-				UE_LOG(LogMediaFrameworkUtilities, Error, TEXT("MediaBundle %s doesn't support timecode synchronization"), *MediaBundle->GetName());
+				UE_LOG(LogMediaFrameworkUtilities, Error, TEXT("MediaBundle '%s' doesn't support timecode synchronization"), *MediaBundle->GetName());
 			}
 			else
 			{

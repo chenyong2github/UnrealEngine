@@ -70,6 +70,11 @@ namespace Audio
 		ActiveDuration = 0.0f;
 	}
 
+	float FVolumeFader::GetActiveDuration() const
+	{
+		return ActiveDuration;
+	}
+
 	float FVolumeFader::GetVolume() const
 	{
 		return AlphaToVolume(Alpha, FadeCurve);
@@ -185,7 +190,6 @@ namespace Audio
 	void FVolumeFader::SetVolume(float InVolume)
 	{
 		Alpha = InVolume;
-		ActiveDuration = -1.0f;
 		Elapsed = 0.0f;
 		FadeCurve = EFaderCurve::Linear;
 		FadeDuration = -1.0f;
@@ -218,7 +222,6 @@ namespace Audio
 			Target = Audio::ConvertToDecibels(InVolume, DecibelFloor);
 		}
 
-		ActiveDuration = -1.0f;
 		Elapsed = 0.0f;
 		FadeCurve = InCurve;
 		FadeDuration = InDuration;

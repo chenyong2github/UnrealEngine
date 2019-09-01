@@ -280,12 +280,12 @@ void TInteractiveToolCommands<CommandContextType>::RegisterUIToolCommand(const F
 	const FString DotString = FString(TEXT(".")) + ToolAction.ActionName;
 
 	FUICommandInfo::MakeCommandInfo(
-		AsShared(),
+		this->AsShared(),
 		UICommandInfo,
 		*ToolAction.ActionName,
 		ToolAction.ShortName,
 		ToolAction.Description,
-		FSlateIcon(GetStyleSetName(), ISlateStyle::Join(GetContextName(), TCHAR_TO_ANSI(*DotString))),
+		FSlateIcon(this->GetStyleSetName(), ISlateStyle::Join(this->GetContextName(), TCHAR_TO_ANSI(*DotString))),
 		EUserInterfaceActionType::Button,
 		FInputChord(ToolAction.DefaultModifiers, ToolAction.DefaultKey)
 		);

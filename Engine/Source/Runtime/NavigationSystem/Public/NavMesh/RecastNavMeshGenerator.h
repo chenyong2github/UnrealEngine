@@ -12,6 +12,7 @@
 #include "UObject/GCObject.h"
 #include "AI/NavDataGenerator.h"
 #include "NavMesh/RecastHelpers.h"
+#include "NavDebugTypes.h"
 
 #if WITH_RECAST
 
@@ -501,6 +502,11 @@ public:
 	static void ExportRigidBodyGeometry(UBodySetup& BodySetup, TNavStatArray<FVector>& OutTriMeshVertexBuffer, TNavStatArray<int32>& OutTriMeshIndexBuffer, TNavStatArray<FVector>& OutConvexVertexBuffer, TNavStatArray<int32>& OutConvexIndexBuffer, TNavStatArray<int32>& OutShapeBuffer, const FTransform& LocalToWorld = FTransform::Identity);
 	static void ExportAggregatedGeometry(const FKAggregateGeom& AggGeom, TNavStatArray<FVector>& OutConvexVertexBuffer, TNavStatArray<int32>& OutConvexIndexBuffer, TNavStatArray<int32>& OutShapeBuffer, const FTransform& LocalToWorld = FTransform::Identity);
 
+#if !UE_BUILD_SHIPPING
+	/** Converts data encoded in EncodedData.CollisionData to FNavDebugMeshData format */
+	static void GetDebugGeometry(const FNavigationRelevantData& EncodedData, FNavDebugMeshData& DebugMeshData);
+#endif  // !UE_BUILD_SHIPPING
+
 protected:
 	// Performs initial setup of member variables so that generator is ready to
 	// do its thing from this point on. Called just after construction by ARecastNavMesh
@@ -630,6 +636,8 @@ protected:
 	uint32 bInitialized:1;
 
 	uint32 bRestrictBuildingToActiveTiles:1;
+
+	uint32 bSortTilesWithSeedLocations:1;
 
 	/** Runtime generator's version, increased every time all tile generators get invalidated
 	 *	like when navmesh size changes */

@@ -1855,11 +1855,11 @@ void FSceneRenderer::CreatePerObjectProjectedShadow(
 
 		// Calculate fading based on resolution
 		// Compute FadeAlpha before ShadowResolutionScale contribution (artists want to modify the softness of the shadow, not change the fade ranges)
-		const float ViewSpecificAlpha = CalculateShadowFadeAlpha( UnclampedResolution, ShadowFadeResolution, MinShadowResolution );
+		const float ViewSpecificAlpha = CalculateShadowFadeAlpha(UnclampedResolution, ShadowFadeResolution, MinShadowResolution) * LightSceneInfo->Proxy->GetShadowAmount();
 		MaxResolutionFadeAlpha = FMath::Max(MaxResolutionFadeAlpha, ViewSpecificAlpha);
 		ResolutionFadeAlphas.Add(ViewSpecificAlpha);
 
-		const float ViewSpecificPreShadowAlpha = CalculateShadowFadeAlpha(UnclampedResolution * CVarPreShadowResolutionFactor.GetValueOnRenderThread(), PreShadowFadeResolution, MinPreShadowResolution);
+		const float ViewSpecificPreShadowAlpha = CalculateShadowFadeAlpha(UnclampedResolution * CVarPreShadowResolutionFactor.GetValueOnRenderThread(), PreShadowFadeResolution, MinPreShadowResolution) * LightSceneInfo->Proxy->GetShadowAmount();
 		MaxResolutionPreShadowFadeAlpha = FMath::Max(MaxResolutionPreShadowFadeAlpha, ViewSpecificPreShadowAlpha);
 		ResolutionPreShadowFadeAlphas.Add(ViewSpecificPreShadowAlpha);
 
@@ -2451,7 +2451,7 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 			}
 
 			// Compute FadeAlpha before ShadowResolutionScale contribution (artists want to modify the softness of the shadow, not change the fade ranges)
-			const float FadeAlpha = CalculateShadowFadeAlpha( UnclampedResolution, ShadowFadeResolution, MinShadowResolution );
+			const float FadeAlpha = CalculateShadowFadeAlpha( UnclampedResolution, ShadowFadeResolution, MinShadowResolution ) * LightSceneInfo->Proxy->GetShadowAmount();
 			MaxFadeAlpha = FMath::Max(MaxFadeAlpha, FadeAlpha);
 			FadeAlphas.Add(FadeAlpha);
 
@@ -3290,15 +3290,16 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 	{
 		FViewInfo& View = Views[ViewIndex];
 
+		const float LightShadowAmount = LightSceneInfo.Proxy->GetShadowAmount();
 		TArray<float, TInlineAllocator<2> > FadeAlphas;
 		FadeAlphas.Init(0.0f, Views.Num());
-		FadeAlphas[ViewIndex] = 1.0f;
+		FadeAlphas[ViewIndex] = LightShadowAmount;
 
 		if (IStereoRendering::IsAPrimaryView(View.StereoPass, GEngine->StereoRenderingDevice)
 			&& Views.IsValidIndex(ViewIndex + 1)
 			&& IStereoRendering::IsASecondaryView(Views[ViewIndex + 1].StereoPass, GEngine->StereoRenderingDevice))
 		{
-			FadeAlphas[ViewIndex + 1] = 1.0f;
+			FadeAlphas[ViewIndex + 1] = LightShadowAmount;
 		}		
 		
 		// If rendering in stereo mode we render shadow depths only for the left eye, but project for both eyes!

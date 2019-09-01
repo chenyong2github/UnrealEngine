@@ -105,15 +105,15 @@ void FWindowsPlatformProcess::FreeDllHandle( void* DllHandle )
 	::FreeLibrary((HMODULE)DllHandle);
 }
 
-FString FWindowsPlatformProcess::GenerateApplicationPath( const FString& AppName, EBuildConfigurations::Type BuildConfiguration)
+FString FWindowsPlatformProcess::GenerateApplicationPath( const FString& AppName, EBuildConfiguration BuildConfiguration)
 {
 	FString PlatformName = GetBinariesSubdirectory();
 	FString ExecutablePath = FPaths::EngineDir() / FString::Printf(TEXT("Binaries/%s/%s"), *PlatformName, *AppName);
 	FPaths::MakePlatformFilename(ExecutablePath);
 
-	if (BuildConfiguration != EBuildConfigurations::Development)
+	if (BuildConfiguration != EBuildConfiguration::Development)
 	{
-		ExecutablePath += FString::Printf(TEXT("-%s-%s"), *PlatformName, EBuildConfigurations::ToString(BuildConfiguration));
+		ExecutablePath += FString::Printf(TEXT("-%s-%s"), *PlatformName, LexToString(BuildConfiguration));
 	}
 
 	ExecutablePath += TEXT(".exe");
@@ -725,7 +725,15 @@ bool FWindowsPlatformProcess::ExecProcess(const TCHAR* URL, const TCHAR* Params,
 
 	bool bSuccess = false;
 
-	FString CommandLine = FString::Printf(TEXT("%s %s"), URL, Params);
+	FString CommandLine;
+	if (URL[0] != '\"') // Don't quote executable name if it's already quoted
+	{
+		CommandLine = FString::Printf(TEXT("\"%s\" %s"), URL, Params); 
+	}
+	else
+	{
+		CommandLine = FString::Printf(TEXT("%s %s"), URL, Params);
+	}
 
 	PROCESS_INFORMATION ProcInfo;
 	if (CreateProcess(NULL, CommandLine.GetCharArray().GetData(), NULL, NULL, TRUE, NORMAL_PRIORITY_CLASS | DETACHED_PROCESS | EXTENDED_STARTUPINFO_PRESENT, NULL, OptionalWorkingDirectory, &StartupInfoEx.StartupInfo, &ProcInfo))
@@ -1042,8 +1050,12 @@ const TCHAR* FWindowsPlatformProcess::UserName(bool bOnlyAlphaNumeric/* = true*/
 
 void FWindowsPlatformProcess::SetCurrentWorkingDirectoryToBaseDir()
 {
+#if defined(DISABLE_CWD_CHANGES) && DISABLE_CWD_CHANGES != 0
+	check(false);
+#else
 	FPlatformMisc::CacheLaunchDir();
 	verify(SetCurrentDirectoryW(BaseDir()));
+#endif
 }
 
 /** Get the current working directory (only really makes sense on desktop platforms) */
@@ -1132,8 +1144,8 @@ const TCHAR* FWindowsPlatformProcess::GetBinariesSubdirectory()
 
 const FString FWindowsPlatformProcess::GetModulesDirectory()
 {
-	static FString Result;
-	if(Result.Len() == 0)
+	static TCHAR Result[MAX_PATH];
+	if(Result[0] == 0)
 	{
 		// Get the handle to the current module
 		HMODULE hCurrentModule;
@@ -1143,13 +1155,13 @@ const FString FWindowsPlatformProcess::GetModulesDirectory()
 		}
 
 		// Get the directory for it
-		TCHAR Buffer[MAX_PATH] = TEXT("");
-		GetModuleFileName(hCurrentModule, Buffer, ARRAY_COUNT(Buffer));
-		*FCString::Strrchr(Buffer, '\\') = 0;
+		GetModuleFileName(hCurrentModule, Result, ARRAY_COUNT(Result));
+		*FCString::Strrchr(Result, '\\') = 0;
 
 		// Normalize the resulting path
-		Result = Buffer;
-		FPaths::MakeStandardFilename(Result);
+		FString Buffer = Result;
+		FPaths::MakeStandardFilename(Buffer);
+		FCString::Strcpy(Result, *Buffer);
 	}
 	return Result;
 }

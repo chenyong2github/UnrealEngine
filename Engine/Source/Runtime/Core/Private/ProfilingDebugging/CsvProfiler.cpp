@@ -114,8 +114,6 @@ TAutoConsoleVariable<int32> CVarCsvWriteBufferSize(
 	ECVF_Default
 );
 
-TUniquePtr<FCsvProfiler> FCsvProfiler::Instance;
-
 static bool GCsvUseProcessingThread = true;
 static int32 GCsvRepeatCount = 0;
 static int32 GCsvRepeatFrameCount = 0;
@@ -2401,6 +2399,7 @@ void FCsvProfilerThreadDataProcessor::Process(FCsvProcessThreadDataStats& OutSta
 
 FCsvProfiler* FCsvProfiler::Get()
 {
+	static TUniquePtr<FCsvProfiler> Instance;
 	if (!Instance.IsValid())
 	{
 		LLM_SCOPE(ELLMTag::CsvProfiler);
@@ -2784,7 +2783,7 @@ void FCsvProfiler::FinalizeCsvFile()
 
 	// Add metadata
 	FString PlatformStr = FString::Printf(TEXT("%s"), ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName()));
-	FString BuildConfigurationStr = EBuildConfigurations::ToString(FApp::GetBuildConfiguration());
+	FString BuildConfigurationStr = LexToString(FApp::GetBuildConfiguration());
 	FString CommandlineStr = FString("\"") + FCommandLine::Get() + FString("\"");
 	// Strip newlines
 	CommandlineStr.ReplaceInline(TEXT("\n"), TEXT(""));

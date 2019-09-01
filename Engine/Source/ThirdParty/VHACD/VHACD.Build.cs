@@ -14,15 +14,14 @@ public class VHACD : ModuleRules
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			VHACDLibPath = VHACDLibPath + "lib/Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
-			PublicLibraryPaths.Add(VHACDLibPath);
 
 			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
 			{
-				PublicAdditionalLibraries.Add("VHACDd.lib");
+				PublicAdditionalLibraries.Add(VHACDLibPath + "VHACDd.lib");
 			}
 			else
 			{
-				PublicAdditionalLibraries.Add("VHACD.lib");
+				PublicAdditionalLibraries.Add(VHACDLibPath + "VHACD.lib");
 			}
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)

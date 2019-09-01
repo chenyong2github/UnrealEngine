@@ -17,16 +17,17 @@ public class Kiss_FFT : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
+			string LibDir;
 			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
 			{
-				PublicLibraryPaths.Add(Kiss_FFTPath + "/lib/x64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/Debug");
+				LibDir = Kiss_FFTPath + "/lib/x64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/Debug/";
 			}
 			else
 			{
-				PublicLibraryPaths.Add(Kiss_FFTPath + "/lib/x64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/Release");
+				LibDir = Kiss_FFTPath + "/lib/x64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/Release/";
 			}
 
-			PublicAdditionalLibraries.Add("KissFFT.lib");
+			PublicAdditionalLibraries.Add(LibDir + "KissFFT.lib");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{

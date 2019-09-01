@@ -246,12 +246,45 @@ namespace Tools.DotNETCommon
 				Log.OutputFile = OutputFile;
 				DirectoryReference.CreateDirectory(OutputFile.Directory);
 				TextWriterTraceListener LogTraceListener = new TextWriterTraceListener(new StreamWriter(OutputFile.FullName), Name);
-				Trace.Listeners.Add(LogTraceListener);
+				lock (SyncObject)
+				{
+					Trace.Listeners.Add(LogTraceListener);
+				}
 				return LogTraceListener;
 			}
 			catch (Exception Ex)
 			{
 				throw new Exception(String.Format("Unable to open log file for writing ({0})", OutputFile), Ex);
+			}
+		}
+
+		/// <summary>
+		/// Adds a <see cref="TraceListener"/> to the collection in a safe manner.
+		/// </summary>
+		/// <param name="TraceListener">The <see cref="TraceListener"/> to add.</param>
+		public static void AddTraceListener(TraceListener TraceListener)
+		{
+			lock (SyncObject)
+			{
+				if (!Trace.Listeners.Contains(TraceListener))
+				{
+					Trace.Listeners.Add(TraceListener);
+				}
+			}
+		}
+
+		/// <summary>
+		/// Removes a <see cref="TraceListener"/> from the collection in a safe manner.
+		/// </summary>
+		/// <param name="TraceListener">The <see cref="TraceListener"/> to remove.</param>
+		public static void RemoveTraceListener(TraceListener TraceListener)
+		{
+			lock (SyncObject)
+			{
+				if (Trace.Listeners.Contains(TraceListener))
+				{
+					Trace.Listeners.Remove(TraceListener);
+				}
 			}
 		}
 
@@ -470,6 +503,7 @@ namespace Tools.DotNETCommon
 		{
 			WriteLinePrivate(StackFramesToSkip + 1, false, Verbosity, LogFormatOptions.None, Format, Args);
 		}
+
 		/// <summary>
 		/// Mostly an internal function, but expose StackFramesToSkip to allow UAT to use existing wrapper functions and still get proper formatting.
 		/// </summary>

@@ -8,7 +8,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 
 // Link to "Audio" profiling category
-CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXER_API, Audio);
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXERCORE_API, Audio);
 
 static int32 DisableSubmixReverbLegacyCVar = 0;
 static FAutoConsoleVariableRef CVarDisableSubmixReverbLegacy(

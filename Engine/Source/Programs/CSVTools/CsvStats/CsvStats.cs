@@ -134,7 +134,7 @@ namespace CSVStats
 
             foreach (string key in valuesDontMatchKeys)
             {
-                Values[key] = "["+ key + "s don't match!]";
+                Values[key] = "["+ key + " doesn't match!]";
             }
         }
 
@@ -618,7 +618,7 @@ namespace CSVStats
             }
         }
 
-        public void Combine(CsvStats srcStats, bool computeAverage = true)
+        public void Combine(CsvStats srcStats, bool sumRows = false, bool computeAverage = true)
         {
             if (metaData != null)
             {
@@ -626,18 +626,35 @@ namespace CSVStats
             }
 
             // Collate the stats, removing ones which don't exist in both
-            int FrameOffset = 0;
+            int EventFrameOffset = 0;
             Dictionary<string, StatSamples> newStats = new Dictionary<string, StatSamples>();
             foreach (StatSamples srcStat in srcStats.Stats.Values.ToArray())
             {
                 if (Stats.ContainsKey(srcStat.Name.ToLower()))
                 {
                     StatSamples destStat = GetStat(srcStat.Name);
-                    FrameOffset = Math.Max(FrameOffset, destStat.samples.Count);
-                    foreach (float sample in srcStat.samples)
-                    {
-                        destStat.samples.Add(sample);
-                    };
+					if (sumRows)
+					{
+						int n = Math.Min(srcStat.samples.Count, destStat.samples.Count);
+						// Combine initial stats
+						for (int i=0;i<n; i++)
+						{
+							destStat.samples[i] += srcStat.samples[i];
+						}
+						// Add the remaining stats
+						for (int i=n; i< srcStat.samples.Count; i++)
+						{
+							destStat.samples.Add(srcStat.samples[i]);
+						}
+					}
+					else
+					{
+						EventFrameOffset = Math.Max(EventFrameOffset, destStat.samples.Count);
+						foreach (float sample in srcStat.samples)
+						{
+							destStat.samples.Add(sample);
+						};
+					}
                     newStats.Add(srcStat.Name.ToLower(), destStat);
                 }
             }
@@ -651,20 +668,29 @@ namespace CSVStats
                 }
             }
 
-            // Add the events, offsetting the frame numbers
-            foreach (CsvEvent ev in srcStats.Events)
-            {
-                ev.Frame += FrameOffset;
-                Events.Add(ev);
-            }
-
+			if ( sumRows)
+			{
+				// just remove events. Averaging is complicated/doesn't really make sense
+				Events.Clear();
+			}
+			else
+			{
+				// Add the events, offsetting the frame numbers
+				foreach (CsvEvent ev in srcStats.Events)
+				{
+					ev.Frame += EventFrameOffset;
+					Events.Add(ev);
+				}
+			}
+			
             Stats = newStats;
         }
 
-        // This will average only those stats that exist in all the stat sets
+
+		// This will average only those stats that exist in all the stat sets
 		// Stats are averaged per frame, and the the final length is be equal to the longest CSV
 		// If CSVs are of varying length, this means later frames will be averaged over fewer samples than earlier frames
-        public static CsvStats AverageByFrame(CsvStats[] statsToAvg, bool bStatsAvarage = false)
+		public static CsvStats AverageByFrame(CsvStats[] statsToAvg, bool bStatsAvarage = false)
         {
             CsvStats avgStats = new CsvStats();
             if (statsToAvg.Length > 0)

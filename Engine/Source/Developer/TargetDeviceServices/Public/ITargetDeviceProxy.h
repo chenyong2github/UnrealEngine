@@ -312,7 +312,7 @@ public:
 	 * @return true on success, false otherwise.
 	 * @see Deploy, OnLaunchFailed
 	 */
-	virtual bool LaunchApp(FName InVariant, const FString& AppId, EBuildConfigurations::Type BuildConfiguration, const FString& Params) = 0;
+	virtual bool LaunchApp(FName InVariant, const FString& AppId, EBuildConfiguration BuildConfiguration, const FString& Params) = 0;
 
 	/**
 	 * Powers off the device.

@@ -1666,7 +1666,7 @@ void FIOSPlatformMisc::SetCrashHandler(void (* CrashHandler)(const FGenericCrash
     if (!FIOSApplicationInfo::CrashReporter && !FIOSApplicationInfo::CrashMalloc)
     {
         // configure the crash handler malloc zone to reserve a little memory for itself
-        FIOSApplicationInfo::CrashMalloc = new FIOSMallocCrashHandler(128*1024);
+        FIOSApplicationInfo::CrashMalloc = new FIOSMallocCrashHandler(4*1024*1024);
         
         PLCrashReporterConfig* Config = [[[PLCrashReporterConfig alloc] initWithSignalHandlerType: PLCrashReporterSignalHandlerTypeBSD symbolicationStrategy: PLCrashReporterSymbolicationStrategyNone crashReportFolder: FIOSApplicationInfo::TemporaryCrashReportFolder().GetNSString() crashReportName: FIOSApplicationInfo::TemporaryCrashReportName().GetNSString()] autorelease];
         FIOSApplicationInfo::CrashReporter = [[PLCrashReporter alloc] initWithConfiguration: Config];
@@ -1960,7 +1960,7 @@ void FIOSCrashContext::GenerateEnsureInfo() const
             Arguments = FString::Printf(TEXT("\"%s/\" -Unattended"), *EnsureLogFolder);
         }
         
-        FString ReportClient = FPaths::ConvertRelativePathToFull(FPlatformProcess::GenerateApplicationPath(TEXT("CrashReportClient"), EBuildConfigurations::Development));
+        FString ReportClient = FPaths::ConvertRelativePathToFull(FPlatformProcess::GenerateApplicationPath(TEXT("CrashReportClient"), EBuildConfiguration::Development));
         FPlatformProcess::ExecProcess(*ReportClient, *Arguments, nullptr, nullptr, nullptr);
     }
 #endif

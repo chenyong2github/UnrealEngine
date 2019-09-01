@@ -6,38 +6,10 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/SoftObjectPath.h"
 #include "Engine/DeveloperSettings.h"
+#include "AudioMixerTypes.h"
 #include "AudioSettings.generated.h"
 
 struct FPropertyChangedChainEvent;
-
-struct ENGINE_API FAudioPlatformSettings
-{
-	/** Sample rate to use on the platform for the mixing engine. Higher sample rates will incur more CPU cost. */
-	int32 SampleRate;
-
-	/** The amount of audio to compute each callback block. Lower values decrease latency but may increase CPU cost. */
-	int32 CallbackBufferFrameSize;
-
-	/** The number of buffers to keep enqueued. More buffers increases latency, but can compensate for variable compute availability in audio callbacks on some platforms. */
-	int32 NumBuffers;
-
-	/** The max number of channels to limit for this platform. The max channels used will be the minimum of this value and the global audio quality settings. A value of 0 will not apply a platform channel count max. */
-	int32 MaxChannels;
-
-	/** The number of workers to use to compute source audio. Will only use up to the max number of sources. Will evenly divide sources to each source worker. */
-	int32 NumSourceWorkers;
-
-	static FAudioPlatformSettings GetPlatformSettings(const TCHAR* PlatformSettingsConfigFile);
-
-	FAudioPlatformSettings()
-		: SampleRate(48000)
-		, CallbackBufferFrameSize(1024)
-		, NumBuffers(2)
-		, MaxChannels(32)
-		, NumSourceWorkers(0)
-	{
-	}
-};
 
 // Enumeration for what our options are for sample rates used for VOIP.
 UENUM()

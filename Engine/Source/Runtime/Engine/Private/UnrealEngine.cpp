@@ -4173,7 +4173,7 @@ bool UEngine::HandleFlushLogCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 bool UEngine::HandleGameVerCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 {
 	FString VersionString = FString::Printf( TEXT( "GameVersion Branch: %s, Configuration: %s, Build: %s, CommandLine: %s" ),
-		*FApp::GetBranchName(), EBuildConfigurations::ToString( FApp::GetBuildConfiguration() ), FApp::GetBuildVersion(), FCommandLine::Get() );
+		*FApp::GetBranchName(), LexToString( FApp::GetBuildConfiguration() ), FApp::GetBuildVersion(), FCommandLine::Get() );
 
 	Ar.Logf( TEXT("%s"), *VersionString );
 	FPlatformApplicationMisc::ClipboardCopy( *VersionString );
@@ -8985,7 +8985,7 @@ bool UEngine::FErrorsAndWarningsCollector::Tick(float Seconds)
 		// Remove any dupes and count them
 		do 
 		{
-			uint32 ThisHash = FCrc::StrCrc32(*BufferedLines[DupeCount].Data);
+			uint32 ThisHash = FCrc::StrCrc32(BufferedLines[DupeCount].Data);
 
 			if (CurrentHash && ThisHash != CurrentHash)
 			{
@@ -9118,7 +9118,7 @@ void UEngine::LogPerformanceCapture(UWorld* World, const FString& MapName, const
 
 		FAutomationPerformanceSnapshot PerfSnapshot;
 		PerfSnapshot.Changelist = FString::FromInt(ChangeList);
-		PerfSnapshot.BuildConfiguration = EBuildConfigurations::ToString(FApp::GetBuildConfiguration());
+		PerfSnapshot.BuildConfiguration = LexToString(FApp::GetBuildConfiguration());
 		PerfSnapshot.MapName = MapName;
 		PerfSnapshot.MatineeName = MatineeName;
 		PerfSnapshot.AverageFPS = FString::Printf(TEXT("%0.2f"), GAverageFPS);

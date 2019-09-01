@@ -49,7 +49,7 @@ public class DisplayCluster : ModuleRules
 			PrivateDependencyModuleNames.Add("UnrealEd");
 		}
 
-		PublicAdditionalLibraries.Add("opengl32.lib");
+		PublicSystemLibraries.Add("opengl32.lib");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenGL");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");

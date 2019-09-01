@@ -121,6 +121,11 @@ bool FProxyConnection::AcceptConnection(const FString& IP, uint16 Port)
 
 	UE_LOG(PixelStreamingNet, Log, TEXT("Accepted connection from WebRTC Proxy: %s"), *ProxyAddr->ToString(true));
 
+	// We may already have a freeze frame so we should send that over to the
+	// Proxy immediately, so it can be passed to the browser without waiting
+	// for video.
+	Streamer.SendFreezeFrame();
+
 	return true;
 }
 

@@ -6,6 +6,13 @@
 #include "Logging/LogVerbosity.h"
 #include "UObject/NameTypes.h"
 
+#if defined(UE_LOG_LAZY_CATEGORY_NAMES) && UE_LOG_LAZY_CATEGORY_NAMES
+using FLogCategoryName = FLazyName;
+#else
+using FLogCategoryName = FName;
+#endif
+
+
 /** Base class for all log categories. **/
 struct CORE_API FLogCategoryBase
 {
@@ -15,7 +22,7 @@ struct CORE_API FLogCategoryBase
 	* @param InDefaultVerbosity, default verbosity for the category, may ignored and overrridden by many other mechanisms
 	* @param InCompileTimeVerbosity, mostly used to keep the working verbosity in bounds, macros elsewhere actually do the work of stripping compiled out things.
 	**/
-	FLogCategoryBase(const TCHAR *CategoryName, ELogVerbosity::Type InDefaultVerbosity, ELogVerbosity::Type InCompileTimeVerbosity);
+	FLogCategoryBase(const FLogCategoryName& InCategoryName, ELogVerbosity::Type InDefaultVerbosity, ELogVerbosity::Type InCompileTimeVerbosity);
 
 	/** Destructor, unregisters from the log suppression system **/
 	~FLogCategoryBase();
@@ -29,10 +36,11 @@ struct CORE_API FLogCategoryBase
 		return true;
 	}
 	/** Called just after a logging statement being allow to print. Checks a few things and maybe breaks into the debugger. **/
-	void PostTrigger(ELogVerbosity::Type VerbosityLevel);
-	FORCEINLINE FName GetCategoryName() const
+	void PostTrigger(ELogVerbosity::Type VerbosityLevel);	
+
+	const FLogCategoryName& GetCategoryName() const
 	{
-		return CategoryFName;
+		return CategoryName;
 	}
 
 	/** Gets the working verbosity **/
@@ -49,7 +57,6 @@ private:
 	friend class FLogScopedVerbosityOverride;
 	/** Internal call to set up the working verbosity from the boot time default. **/
 	void ResetFromDefault();
-protected:
 
 	/** Holds the current suppression state **/
 	ELogVerbosity::Type Verbosity;
@@ -58,9 +65,10 @@ protected:
 	/** Holds default suppression **/
 	uint8 DefaultVerbosity;
 	/** Holds compile time suppression **/
-	ELogVerbosity::Type CompileTimeVerbosity;
-	/** FName for this category **/
-	FName CategoryFName;
+	const ELogVerbosity::Type CompileTimeVerbosity;
+	/** Name for this category **/
+
+	const FLogCategoryName CategoryName;
 };
 
 /** Template for log categories that transfers the compile-time constant default and compile time verbosity to the FLogCategoryBase constructor. **/
@@ -74,8 +82,8 @@ struct FLogCategory : public FLogCategoryBase
 		CompileTimeVerbosity = InCompileTimeVerbosity
 	};
 
-	FORCEINLINE FLogCategory(const TCHAR *CategoryName)
-		: FLogCategoryBase(CategoryName, ELogVerbosity::Type(InDefaultVerbosity), ELogVerbosity::Type(CompileTimeVerbosity))
+	FORCEINLINE FLogCategory(const FLogCategoryName& InCategoryName)
+		: FLogCategoryBase(InCategoryName, ELogVerbosity::Type(InDefaultVerbosity), ELogVerbosity::Type(CompileTimeVerbosity))
 	{
 	}
 };

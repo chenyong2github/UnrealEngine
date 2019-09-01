@@ -19,16 +19,9 @@ public class GoogleARCoreSDK : ModuleRules
 		string ARCoreSDKBaseLibPath = ARCoreSDKDir + "lib/";
 		if (Target.Platform == UnrealTargetPlatform.Android)
 		{
-			string ARCoreSDKArmLibPath = ARCoreSDKBaseLibPath + "armeabi-v7a/";
-			string ARCoreSDKArm64LibPath = ARCoreSDKBaseLibPath + "arm64-v8a/";
-			string ARCoreSDKx86LibPath = ARCoreSDKBaseLibPath + "x86/";
-
-			// toolchain will filter properly
-			PublicLibraryPaths.Add(ARCoreSDKArmLibPath);
-			PublicLibraryPaths.Add(ARCoreSDKArm64LibPath);
-			PublicLibraryPaths.Add(ARCoreSDKx86LibPath);
-
-			PublicAdditionalLibraries.Add("arcore_sdk_c");
+			PublicAdditionalLibraries.Add(ARCoreSDKBaseLibPath + "armeabi-v7a/libarcore_sdk_c.so");
+			PublicAdditionalLibraries.Add(ARCoreSDKBaseLibPath + "arm64-v8a/libarcore_sdk_c.so");
+			PublicAdditionalLibraries.Add(ARCoreSDKBaseLibPath + "x86/libarcore_sdk_c.so");
 		}
 		else if(Target.Platform == UnrealTargetPlatform.IOS)
 		{
@@ -37,9 +30,9 @@ public class GoogleARCoreSDK : ModuleRules
 			PublicAdditionalLibraries.Add(ARCoreSDKiOSLibPath + "libGoogleToolboxForMac.a");
 			PublicAdditionalLibraries.Add(ARCoreSDKiOSLibPath + "libProtobuf.a");
 
-			PublicAdditionalLibraries.Add("c++");
-			PublicAdditionalLibraries.Add("sqlite3");
-			PublicAdditionalLibraries.Add("z");
+			PublicSystemLibraries.Add("c++");
+			PublicSystemLibraries.Add("sqlite3");
+			PublicSystemLibraries.Add("z");
 
 			PublicAdditionalFrameworks.Add(new Framework("ARKit"));
 			PublicAdditionalFrameworks.Add(new Framework("AVFoundation"));

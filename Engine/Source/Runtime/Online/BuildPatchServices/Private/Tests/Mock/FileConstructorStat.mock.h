@@ -2,6 +2,7 @@
 #pragma once
 
 #include "BuildPatchFileConstructor.h"
+#include "Common/StatsCollector.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 

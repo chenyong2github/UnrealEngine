@@ -51,6 +51,7 @@ float4 SceneUVMinMax;
 float4 SceneBloomUVMinMax;
 
 float4 ScreenPosToScenePixel;
+float4 HDRParams;
 
 #if EYEADAPTATION_EXPOSURE_FIX != 1
 // Default value used when eye adaptation is disabled (e.g fixed exposure) or not available.
@@ -580,6 +581,16 @@ float4 TonemapCommonPS(
 	}
 #endif //DEBUG_TONEMAPPER
 
+#if SM5_PROFILE && !USE_GAMMA_ONLY
+	// If HDR in the editor need to convert from PQ space to linear sRGB
+	BRANCH
+	if(HDRParams.x == 1.0f)
+	{
+		OutColor.rgb = ST2084ToLinear(OutColor.rgb);
+		OutColor.rgb = OutColor.rgb / HDRParams.y;
+		OutColor.rgb = LinearToSrgbBranchless( OutColor.rgb );
+	}
+#endif
 	return OutColor;
 }
 

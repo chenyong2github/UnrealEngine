@@ -6,6 +6,7 @@
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/OutputDeviceHelper.h"
+#include "Misc/OutputDeviceRedirector.h"
 #include "Misc/App.h"
 #include "Misc/FeedbackContext.h"
 #include "UObject/Package.h"

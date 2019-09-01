@@ -29,13 +29,13 @@
 DEFINE_LOG_CATEGORY_STATIC(LogDevObjectVersion, Log, All);
 
 #if !UE_BUILD_SHIPPING
-static TArray<FGuid> GDevVersions;
+static TArray<FGuid, TInlineAllocator<64>> GDevVersions;
 #endif
-FDevVersionRegistration::FDevVersionRegistration(FGuid InKey, int32 Version, FName InFriendlyName)
-: FCustomVersionRegistration(InKey, Version, InFriendlyName)
+
+void FDevVersionRegistration::RecordDevVersion(FGuid Key)
 {
 #if !UE_BUILD_SHIPPING
-	GDevVersions.Add(InKey);
+	GDevVersions.Add(Key);
 #endif
 }
 void FDevVersionRegistration::DumpVersionsToLog()

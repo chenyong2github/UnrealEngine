@@ -1238,11 +1238,13 @@ bool UEdGraphSchema_K2::IsPropertyExposedOnSpawn(const UProperty* Property)
 		const bool bFlag = Property->HasAllPropertyFlags(CPF_ExposeOnSpawn);
 		if (bMeta != bFlag)
 		{
+			const FCoreTexts& CoreTexts = FCoreTexts::Get();
+
 			UE_LOG(LogBlueprint, Warning
 				, TEXT("ExposeOnSpawn ambiguity. Property '%s', MetaData '%s', Flag '%s'")
 				, *Property->GetFullName()
-				, bMeta ? *GTrue.ToString() : *GFalse.ToString()
-				, bFlag ? *GTrue.ToString() : *GFalse.ToString());
+				, bMeta ? *CoreTexts.True.ToString() : *CoreTexts.False.ToString()
+				, bFlag ? *CoreTexts.True.ToString() : *CoreTexts.False.ToString());
 		}
 		return bMeta || bFlag;
 	}

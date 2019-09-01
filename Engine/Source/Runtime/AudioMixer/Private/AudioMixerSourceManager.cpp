@@ -10,8 +10,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 
 // Link to "Audio" profiling category
-CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXER_API, Audio);
-
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXERCORE_API, Audio);
 static int32 DisableParallelSourceProcessingCvar = 1;
 FAutoConsoleVariableRef CVarDisableParallelSourceProcessing(
 	TEXT("au.DisableParallelSourceProcessing"),
@@ -75,6 +74,14 @@ FAutoConsoleVariableRef CVarFlushCommandBufferOnTimeout(
 	TEXT("When set to 1, flushes audio render thread synchronously when our fence has timed out.\n")
 	TEXT("0: Not Disabled, 1: Disabled"),
 	ECVF_Default);
+
+static int32 CommandBufferFlushWaitTimeMsCvar = 1000;
+FAutoConsoleVariableRef CVarCommandBufferFlushWaitTimeMs(
+	TEXT("au.CommandBufferFlushWaitTimeMs"),
+	CommandBufferFlushWaitTimeMsCvar,
+	TEXT("How long to wait for the command buffer flush to complete.\n"),
+	ECVF_Default);
+
 
 #define ONEOVERSHORTMAX (3.0517578125e-5f) // 1/32768
 #define ENVELOPE_TAIL_THRESHOLD (1.58489e-5f) // -96 dB
@@ -219,7 +226,6 @@ namespace Audio
 			SourceInfo.bUseHRTFSpatializer = false;
 			SourceInfo.bUseOcclusionPlugin = false;
 			SourceInfo.bUseReverbPlugin = false;
-			SourceInfo.bUseModulationPlugin = false;
 			SourceInfo.bHasStarted = false;
 			SourceInfo.bOutputToBusOnly = false;
 			SourceInfo.bIsVorbis = false;
@@ -449,11 +455,6 @@ namespace Audio
 			MixerDevice->ReverbPluginInterface->OnReleaseSource(SourceId);
 		}
 
-		if (SourceInfo.bUseModulationPlugin)
-		{
-			MixerDevice->ModulationInterface->OnReleaseSource(SourceId);
-		}
-
 		// Delete the source effects
 		SourceInfo.SourceEffectChainId = INDEX_NONE;
 		ResetSourceEffectChain(SourceId);
@@ -504,7 +505,6 @@ namespace Audio
 		SourceInfo.bIsExternalSend = false;
 		SourceInfo.bUseOcclusionPlugin = false;
 		SourceInfo.bUseReverbPlugin = false;
-		SourceInfo.bUseModulationPlugin = false;
 		SourceInfo.bHasStarted = false;
 		SourceInfo.bOutputToBusOnly = false;
 		SourceInfo.bIsBypassingLPF = false;
@@ -617,6 +617,12 @@ namespace Audio
 		// Make sure we flag that this source needs a speaker map to at least get one
 		GameThreadInfo.bNeedsSpeakerMap[SourceId] = true;
 
+		// Create the modulation plugin source effect
+		if (InitParams.ModulationPluginSettings != nullptr)
+		{
+			MixerDevice->ModulationInterface->OnInitSource(SourceId, InitParams.AudioComponentUserID, InitParams.NumInputChannels, *InitParams.ModulationPluginSettings);
+		}
+
 		AudioMixerThreadCommand([this, SourceId, InitParams]()
 		{
 			AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
@@ -673,13 +679,6 @@ namespace Audio
 			{
 				MixerDevice->ReverbPluginInterface->OnInitSource(SourceId, InitParams.AudioComponentUserID, InitParams.NumInputChannels, InitParams.ReverbPluginSettings);
 				SourceInfo.bUseReverbPlugin = true;
-			}
-
-			// Create the modulation plugin source effect
-			if (InitParams.ModulationPluginSettings != nullptr)
-			{
-				MixerDevice->ModulationInterface->OnInitSource(SourceId, InitParams.AudioComponentUserID, InitParams.NumInputChannels, InitParams.ModulationPluginSettings);
-				SourceInfo.bUseModulationPlugin = true;
 			}
 
 			// Default all sounds to not consider effect chain tails when playing
@@ -833,6 +832,11 @@ namespace Audio
 		GameThreadInfo.FreeSourceIndices.Push(SourceId);
 
 		AUDIO_MIXER_CHECK(GameThreadInfo.FreeSourceIndices.Contains(SourceId));
+
+		if (MixerDevice->ModulationInterface)
+		{
+			MixerDevice->ModulationInterface->OnReleaseSource(SourceId);
+		}
 
 		AudioMixerThreadCommand([this, SourceId]()
 		{
@@ -2538,7 +2542,7 @@ namespace Audio
 
 		// Make sure current current executing 
 		bool bTimedOut = false;
-		if (!CommandsProcessedEvent->Wait(1000))
+		if (!CommandsProcessedEvent->Wait(CommandBufferFlushWaitTimeMsCvar))
 		{
 			CommandsProcessedEvent->Trigger();
 			bTimedOut = true;

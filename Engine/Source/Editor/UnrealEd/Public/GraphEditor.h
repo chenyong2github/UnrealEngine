@@ -547,7 +547,7 @@ public:
 	{
 		if (Implementation.IsValid())
 		{
-			Implementation->GetNumberOfSelectedNodes();
+			return Implementation->GetNumberOfSelectedNodes();
 		}
 		return 0;
 	}
@@ -563,6 +563,8 @@ public:
 		return nullptr;
 	}
 
+	// Returns the first graph editor that is viewing the specified graph
+	UNREALED_API static TSharedPtr<SGraphEditor> FindGraphEditorForGraph(const UEdGraph* Graph);
 
 protected:
 	/** Invoked when the underlying Graph is being changed. */

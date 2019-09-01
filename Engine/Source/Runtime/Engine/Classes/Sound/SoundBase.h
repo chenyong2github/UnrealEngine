@@ -98,7 +98,7 @@ public:
 	TEnumAsByte<EMaxConcurrentResolutionRule::Type> MaxConcurrentResolutionRule_DEPRECATED;
 #endif // WITH_EDITORONLY_DATA
 
-	/** Number of times this cue is currently being played. */
+	/** Number of times this sound is currently being played (counted if sound is virtualized). */
 	int32 CurrentPlayCount;
 
 #if WITH_EDITORONLY_DATA

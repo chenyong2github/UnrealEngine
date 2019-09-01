@@ -48,7 +48,7 @@ half3 GammaCorrect(half3 InColor)
 #if USE_MATERIALS
 void FillTexCoords( inout FMaterialPixelParameters Parameters, VertexToPixelInterpolants InVertex, float2 InDefaultUV )
 {
-#if SHADER_TYPE == ST_Font
+#if SHADER_TYPE == ST_GrayscaleFont || SHADER_TYPE == ST_ColorFont
 	#if NUM_MATERIAL_TEXCOORDS == 1
 		// Note: The first channel is used to look up into the texture atlas. The second channel is the custom 0-1 UV set for the text run
 		Parameters.TexCoords[0] = GetUV( InVertex, 1 );
@@ -155,7 +155,7 @@ half4 GetColor( VertexToPixelInterpolants InVertex, float2 UV )
 	return FinalColor;
 }
 
-#if SHADER_TYPE == ST_Font
+#if SHADER_TYPE == ST_GrayscaleFont || SHADER_TYPE == ST_ColorFont
 half4 GetFontElementColor( VertexToPixelInterpolants InVertex )
 {
 	float2 AtlasTextureCoordinates = GetUV( InVertex, 0 );
@@ -166,7 +166,11 @@ half4 GetFontElementColor( VertexToPixelInterpolants InVertex )
 #endif
 	half4 OutColor = BaseColor;
 
+#if SHADER_TYPE == ST_GrayscaleFont
 	OutColor.a *= Texture2DSample_A8( ElementTexture, ElementTextureSampler, AtlasTextureCoordinates );
+#else
+	OutColor *= Texture2DSample( ElementTexture, ElementTextureSampler, AtlasTextureCoordinates );
+#endif
 
 	return OutColor;
 }
@@ -250,7 +254,7 @@ half4 Main( VertexToPixelInterpolants VIn ) : SV_Target0
 	OutColor = GetDefaultElementColor( VIn );
 #elif SHADER_TYPE == ST_Border
 	OutColor = GetBorderElementColor( VIn );
-#elif SHADER_TYPE == ST_Font
+#elif SHADER_TYPE == ST_GrayscaleFont || SHADER_TYPE == ST_ColorFont
 	OutColor = GetFontElementColor( VIn );
 #else
 	OutColor = GetLineSegmentElementColor( VIn );

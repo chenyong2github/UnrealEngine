@@ -98,6 +98,9 @@ struct FViewportInfo : public FRenderResource
 
 	IViewportRenderTargetProvider* RTProvider;
 	
+	/** Whether is in a HDR Color Space */
+	bool bHDREnabled;
+	
 	/** FRenderResource interface */
 	virtual void InitRHI() override;
 	virtual void ReleaseRHI() override;
@@ -115,7 +118,8 @@ struct FViewportInfo : public FRenderResource
 			bFullscreen(false),
 			PixelFormat(EPixelFormat::PF_Unknown),
 			SDRPixelFormat(EPixelFormat::PF_Unknown),
-			RTProvider(nullptr)
+			RTProvider(nullptr),
+			bHDREnabled(false)
 	{
 	}
 
@@ -173,6 +177,7 @@ public:
 	virtual void Destroy() override;
 	virtual FSlateDrawBuffer& GetDrawBuffer() override;
 	virtual void OnWindowDestroyed( const TSharedRef<SWindow>& InWindow ) override;
+	virtual void OnWindowFinishReshaped(const TSharedPtr<SWindow>& InWindow) override;
 	virtual void RequestResize( const TSharedPtr<SWindow>& Window, uint32 NewWidth, uint32 NewHeight ) override;
 	virtual void CreateViewport( const TSharedRef<SWindow> Window ) override;
 	virtual void UpdateFullscreenState( const TSharedRef<SWindow> Window, uint32 OverrideResX, uint32 OverrideResY ) override;

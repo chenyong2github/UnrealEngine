@@ -65,13 +65,6 @@ static TAutoConsoleVariable<int32> CVarMobileForceDepthResolve(
 	TEXT("1: Depth buffer is resolved by switching out render targets and drawing with the depth texture.\n"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> CVarMobileMoveSubmissionHintAfterTranslucency(
-	TEXT("r.Mobile.MoveSubmissionHintAfterTranslucency"),
-	1,
-	TEXT("0: Submission hint occurs after occlusion query.\n")
-	TEXT("1: Submission hint occurs after translucency. (Default)"),
-	ECVF_Scalability | ECVF_RenderThreadSafe);
-
 static TAutoConsoleVariable<int32> CVarMobileAdrenoOcclusionMode(
 	TEXT("r.Mobile.AdrenoOcclusionMode"),
 	0,
@@ -240,7 +233,7 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 	ComputeViewVisibility(RHICmdList, BasePassDepthStencilAccess, ViewCommandsPerView, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer);
 
 	// Initialise Sky/View resources before the view global uniform buffer is built.
-	if (ShouldRenderSkyAtmosphere(Scene->GetSkyAtmosphereSceneInfo(), Scene->GetShaderPlatform()))
+	if (ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags))
 	{
 		InitSkyAtmosphereForViews(RHICmdList);
 	}
@@ -317,13 +310,13 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	PrepareViewRectsForRendering();
 
-	if (Scene->HasSkyAtmosphere() && ShouldRenderSkyAtmosphere(Scene->SkyAtmosphere, Scene->GetShaderPlatform()))
+	if (ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags))
 	{
 		for (int32 LightIndex = 0; LightIndex < NUM_ATMOSPHERE_LIGHTS; ++LightIndex)
 		{
 			if (Scene->AtmosphereLights[LightIndex])
 			{
-				Scene->GetSkyAtmosphereSceneInfo()->PrepareSunLightProxy(*Scene->AtmosphereLights[LightIndex]);
+				Scene->GetSkyAtmosphereSceneInfo()->PrepareSunLightProxy(LightIndex, *Scene->AtmosphereLights[LightIndex]);
 			}
 		}
 	}
@@ -378,6 +371,14 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	DynamicReadBuffer.Commit();
 	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 
+	// Generate the Sky/Atmosphere look up tables
+	// Do compute work first, before any graphics work
+	const bool bShouldRenderSkyAtmosphere = ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags);
+	if (bShouldRenderSkyAtmosphere)
+	{
+		RenderSkyAtmosphereLookUpTables(RHICmdList);
+	}
+
 	// Notify the FX system that the scene is about to be rendered.
 	if (Scene->FXSystem && ViewFamily.EngineShowFlags.Particles)
 	{
@@ -404,13 +405,6 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	}
 
 	const bool bGammaSpace = !IsMobileHDR();
-
-	// Generate the Sky/Atmosphere look up tables
-	const bool bShouldRenderSkyAtmosphere = ShouldRenderSkyAtmosphere(Scene->GetSkyAtmosphereSceneInfo(), Scene->GetShaderPlatform());
-	if (bShouldRenderSkyAtmosphere)
-	{
-		RenderSkyAtmosphereLookUpTables(RHICmdList);
-	}
 	
 	// Custom depth
 	if (!bGammaSpace)
@@ -446,6 +440,9 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	const bool bSeparateTranslucencyActive = IsMobileSeparateTranslucencyActive(View);
 	bool bKeepDepthContent = bRenderToSceneColor && 
 		(bForceDepthResolve || bSeparateTranslucencyActive || (View.bIsSceneCapture && (ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorHDR || ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorSceneDepth)));
+
+	// Whether to submit cmdbuffer with offscreen rendering before doing post-processing
+	bool bSubmitOffscreenRendering = !bGammaSpace || bRenderToSceneColor;
 
 	//
 	FRHITexture* SceneColor = nullptr;
@@ -628,6 +625,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	    RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_Occlusion));
 		// flush
 		RHICmdList.SubmitCommandsHint();
+		bSubmitOffscreenRendering = false; // submit once
 		// Issue occlusion queries
 	    RenderOcclusion(RHICmdList);
 	    RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
@@ -642,6 +640,13 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	// End of scene color rendering
 	RHICmdList.EndRenderPass();
 
+	// Flush / submit cmdbuffer
+	if (bSubmitOffscreenRendering)
+	{
+		RHICmdList.SubmitCommandsHint();
+		RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+	}
+	
 	if (!bGammaSpace || bRenderToSceneColor)
 	{
 		// transition scene color to Readable for post-processing
@@ -788,13 +793,6 @@ void FMobileSceneRenderer::RenderOcclusion(FRHICommandListImmediate& RHICmdList)
 
 	BeginOcclusionTests(RHICmdList, true);
 	FenceOcclusionTests(RHICmdList);
-
-	// Optionally hint submission later to avoid render pass churn but delay query results
-	const bool bSubmissionAfterTranslucency = (CVarMobileMoveSubmissionHintAfterTranslucency.GetValueOnRenderThread() == 1);
-	if (!bSubmissionAfterTranslucency)
-	{	
-		RHICmdList.SubmitCommandsHint();
-	}
 }
 
 int32 FMobileSceneRenderer::ComputeNumOcclusionQueriesToBatch() const

@@ -6,22 +6,6 @@
 
 namespace PlatformInfo
 {
-	/** The target type of the given platform */
-	enum class EPlatformType : uint8
-	{
-		/** The platform targets cooked monolithic game executables */
-		Game,
-
-		/** The platform targets uncooked modular editor executables and DLLs */
-		Editor,
-
-		/** The platform targets cooked monolithic game client executables (but no server code) */
-		Client,
-
-		/** The platform targets cooked monolithic game server executables (but no client code) */
-		Server,
-	};
-
 	/** Available icon sizes (see FPlatformIconPaths) */
 	enum class EPlatformIconSize : uint8
 	{
@@ -134,7 +118,7 @@ namespace PlatformInfo
 		FText DisplayName;
 
 		/** Type of this platform */
-		EPlatformType PlatformType;
+		EBuildTargetType PlatformType;
 
 		/** Flags for this platform */
 		EPlatformFlags::Flags PlatformFlags;
@@ -299,13 +283,6 @@ namespace PlatformInfo
 	DESKTOPPLATFORM_API void UpdatePlatformDisplayName(FString InPlatformName, FText InDisplayName);
 
 	/**
-	* Returns an EPlatformType value from a string representation.
-	* @param PlatformTypeName The string to get the EPlatformType for.
-	* @return An EPlatformType value.
-	*/
-	DESKTOPPLATFORM_API EPlatformType EPlatformTypeFromString(const FString& PlatformTypeName);
-
-	/**
 	* Returns a list of all defined Platform Groups, excluding None.
     * Used to to present a list in the Per-Platform Properties UI.
 	* @return An array of FNames.
@@ -318,11 +295,4 @@ namespace PlatformInfo
 	* @return An array of FNames.
 	*/
 	DESKTOPPLATFORM_API const TArray<FName>& GetAllVanillaPlatformNames();
-}
-
-DESKTOPPLATFORM_API FString LexToString(const PlatformInfo::EPlatformType Value);
-
-inline void LexFromString(PlatformInfo::EPlatformType& OutValue, const TCHAR* Buffer)
-{
-	OutValue = PlatformInfo::EPlatformTypeFromString(FString(Buffer));
 }

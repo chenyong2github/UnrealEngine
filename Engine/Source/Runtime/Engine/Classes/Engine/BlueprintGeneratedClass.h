@@ -543,6 +543,9 @@ struct ENGINE_API FBlueprintCookedComponentInstancingData
 	UPROPERTY()
 	bool bHasValidCookedData;
 
+	/** Source template object flags (recorded at load time and used for instancing). */
+	EObjectFlags ComponentTemplateFlags;
+
 	/** List of property info records with values that differ between the template and the component class CDO. This list will be generated at cook time. */
 	UPROPERTY()
 	TArray<struct FBlueprintComponentChangedPropertyInfo> ChangedPropertyList;
@@ -552,9 +555,6 @@ struct ENGINE_API FBlueprintCookedComponentInstancingData
 
 	/** Source template object class (recorded at load time and used for instancing). */
 	UClass* ComponentTemplateClass;
-
-	/** Source template object flags (recorded at load time and used for instancing). */
-	EObjectFlags ComponentTemplateFlags;
 
 	/** Default constructor. */
 	FBlueprintCookedComponentInstancingData()

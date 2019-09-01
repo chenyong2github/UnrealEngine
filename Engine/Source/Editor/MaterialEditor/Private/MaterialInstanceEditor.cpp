@@ -1301,7 +1301,7 @@ void FMaterialInstanceEditor::DrawSamplerWarningStrings(FCanvas* Canvas, int32& 
 							UMaterialExpressionTextureSampleParameter* Expression = BaseMaterial->FindExpressionByGUID<UMaterialExpressionTextureSampleParameter>( TextureParameterValue->ExpressionId );
 
 							FString ErrorMessage;
-							if (!Expression->TextureIsValid(Texture, ErrorMessage))
+							if (Expression && !Expression->TextureIsValid(Texture, ErrorMessage))
 							{
 								Canvas->DrawShadowedString(
 									5,

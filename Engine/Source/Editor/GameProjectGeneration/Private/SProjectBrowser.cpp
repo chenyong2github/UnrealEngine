@@ -801,7 +801,7 @@ static TSharedPtr<FProjectItem> CreateProjectItem(const FString& ProjectFilename
 			TArray<FName> TargetPlatforms;
 			for (const PlatformInfo::FPlatformInfo& PlatformInfo : PlatformInfo::GetPlatformInfoArray())
 			{
-				if (PlatformInfo.IsVanilla() && PlatformInfo.PlatformType == PlatformInfo::EPlatformType::Game && ProjectStatus.IsTargetPlatformSupported(PlatformInfo.PlatformInfoName))
+				if (PlatformInfo.IsVanilla() && PlatformInfo.PlatformType == EBuildTargetType::Game && ProjectStatus.IsTargetPlatformSupported(PlatformInfo.PlatformInfoName))
 				{
 					TargetPlatforms.Add(PlatformInfo.PlatformInfoName);
 				}

@@ -38,7 +38,7 @@ public class GameplayMediaEncoder : ModuleRules
 			PublicDelayLoadDLLs.Add("mfuuid.dll");
 			PublicDelayLoadDLLs.Add("Mfreadwrite.dll");
 
-			PublicAdditionalLibraries.Add("d3d11.lib");
+			PublicSystemLibraries.Add("d3d11.lib");
 		}
 	}
 }

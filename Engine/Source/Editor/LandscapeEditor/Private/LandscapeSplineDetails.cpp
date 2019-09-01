@@ -68,6 +68,21 @@ void FLandscapeSplineDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 			.IsEnabled(this, &FLandscapeSplineDetails::IsMoveToCurrentLevelButtonEnabled)
 		]
 	];
+	LandscapeSplineCategory.AddCustomRow(FText::GetEmpty())
+	[
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.Padding(0, 0, 2, 0)
+		.VAlign(VAlign_Center)
+		.FillWidth(1)
+		[
+			SNew(SButton)
+			.Text(LOCTEXT("Move Spline Mesh Components to Proper level", "Update Spline Mesh Levels"))
+			.HAlign(HAlign_Center)
+			.OnClicked(this, &FLandscapeSplineDetails::OnUpdateSplineMeshLevelsButtonClicked)
+			.IsEnabled(this, &FLandscapeSplineDetails::IsUpdateSplineMeshLevelsButtonEnabled)
+		]
+	];
 }
 
 class FEdModeLandscape* FLandscapeSplineDetails::GetEditorMode() const
@@ -112,6 +127,23 @@ bool FLandscapeSplineDetails::IsMoveToCurrentLevelButtonEnabled() const
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	return (LandscapeEdMode && LandscapeEdMode->CurrentToolTarget.LandscapeInfo.IsValid() && LandscapeEdMode->CurrentToolTarget.LandscapeInfo->GetCurrentLevelLandscapeProxy(true));
+}
+
+FReply FLandscapeSplineDetails::OnUpdateSplineMeshLevelsButtonClicked()
+{
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	if (LandscapeEdMode && LandscapeEdMode->CurrentToolTarget.LandscapeInfo.IsValid())
+	{
+		LandscapeEdMode->UpdateSplineMeshLevels();
+	}
+	
+	return FReply::Handled();
+}
+
+bool FLandscapeSplineDetails::IsUpdateSplineMeshLevelsButtonEnabled() const
+{
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	return (LandscapeEdMode && LandscapeEdMode->CurrentToolTarget.LandscapeInfo.IsValid());
 }
 
 #undef LOCTEXT_NAMESPACE

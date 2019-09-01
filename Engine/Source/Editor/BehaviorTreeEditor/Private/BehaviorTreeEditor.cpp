@@ -78,7 +78,6 @@ FBehaviorTreeEditor::FBehaviorTreeEditor()
 	bShowDecoratorRangeSelf = false;
 	bSelectedNodeIsInjected = false;
 	bSelectedNodeIsRootLevel = false;
-	SelectedNodesCount = 0;
 
 	bHasMultipleTaskBP = false;
 	bHasMultipleDecoratorBP = false;
@@ -561,12 +560,6 @@ TSharedRef<SGraphEditor> FBehaviorTreeEditor::CreateGraphEditorWidget(UEdGraph* 
 			FIsActionChecked(),
 			FIsActionButtonVisible::CreateSP( this, &FBehaviorTreeEditor::CanToggleBreakpoint )
 			);
-
-		GraphEditorCommands->MapAction(
-			FGraphEditorCommands::Get().CreateComment,
-			FExecuteAction::CreateSP(this, &FBehaviorTreeEditor::OnCreateComment),
-			FCanExecuteAction::CreateSP(this, &FBehaviorTreeEditor::CanCreateComment)
-			);
 	}
 
 	SGraphEditor::FGraphEditorEvents InEvents;
@@ -732,8 +725,6 @@ TSharedRef<SWidget> FBehaviorTreeEditor::SpawnBlackboardDetails()
 
 void FBehaviorTreeEditor::OnSelectedNodesChanged(const TSet<class UObject*>& NewSelection)
 {
-	SelectedNodesCount = NewSelection.Num();
-
 	BehaviorTreeEditorUtils::FPropertySelectionInfo SelectionInfo;
 	TArray<UObject*> Selection = BehaviorTreeEditorUtils::GetSelectionForPropertyEditor(NewSelection, SelectionInfo);
 
@@ -1599,12 +1590,6 @@ void FBehaviorTreeEditor::OnNodeTitleCommitted(const FText& NewText, ETextCommit
 	}
 }
 
-bool FBehaviorTreeEditor::GetBoundsForSelectedNodes(FSlateRect& Rect, float Padding) const
-{
-	TSharedPtr<SGraphEditor> FocusedGraphEd = UpdateGraphEdPtr.Pin();
-	return FocusedGraphEd.IsValid() && FocusedGraphEd->GetBoundsForSelectedNodes(Rect, Padding);
-}
-
 void FBehaviorTreeEditor::InitializeDebuggerState(class FBehaviorTreeDebugger* ParentDebugger) const
 {
 	if (Debugger.IsValid())
@@ -1838,23 +1823,6 @@ void FBehaviorTreeEditor::CreateNewBlackboard()
 bool FBehaviorTreeEditor::CanCreateNewBlackboard() const
 {
 	return !IsDebuggerReady();
-}
-
-bool FBehaviorTreeEditor::CanCreateComment() const
-{
-	return (SelectedNodesCount > 0);
-}
-
-void FBehaviorTreeEditor::OnCreateComment()
-{
-	if (BehaviorTree && BehaviorTree->BTGraph)
-	{
-		TSharedPtr<FEdGraphSchemaAction> Action = BehaviorTree->BTGraph->GetSchema()->GetCreateCommentAction();
-		if (Action.IsValid())
-		{
-			Action->PerformAction(BehaviorTree->BTGraph, nullptr, FVector2D());
-		}
-	}
 }
 
 #undef LOCTEXT_NAMESPACE

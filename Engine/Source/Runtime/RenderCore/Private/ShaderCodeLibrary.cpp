@@ -33,10 +33,6 @@ ShaderCodeLibrary.cpp: Bound shader state cache implementation.
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #endif
 
-#if PLATFORM_XBOXONE && !UE_BUILD_SHIPPING
-#include "DevkitExtensions.h"
-#endif
-
 // FORT-93125
 #define CHECK_SHADER_CREATION (PLATFORM_XBOXONE)
 
@@ -447,21 +443,7 @@ public:
 			delete Ar;
 
 
-			bool ShaderCodeLibrarySeperateLoadingCacheCommandLineOverride = false;
-#if PLATFORM_XBOXONE && !UE_BUILD_SHIPPING
-			HSTRING hArgs = nullptr;
-			if (SUCCEEDED(GetLaunchActivationArgs(&hArgs)))
-			{
-				const TCHAR* CommandLine = WindowsGetStringRawBuffer(hArgs, nullptr);
-
-				if (FCString::Stristr(CommandLine, TEXT("ShaderCodeLibrarySeperateLoadingCache")))
-				{
-					ShaderCodeLibrarySeperateLoadingCacheCommandLineOverride = true;
-				}
-				WindowsDeleteString(hArgs);
-				hArgs = nullptr;
-			}
-#endif
+			bool ShaderCodeLibrarySeperateLoadingCacheCommandLineOverride = FParse::Param(FCommandLine::Get(), TEXT("ShaderCodeLibrarySeperateLoadingCache"));;
 			if (GShaderCodeLibrarySeperateLoadingCache || ShaderCodeLibrarySeperateLoadingCacheCommandLineOverride)
 			{
 

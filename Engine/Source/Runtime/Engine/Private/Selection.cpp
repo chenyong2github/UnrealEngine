@@ -229,6 +229,7 @@ void USelection::Serialize(FArchive& Ar)
 	}
 }
 
+#if WITH_EDITOR
 bool USelection::Modify(bool bAlwaysMarkDirty/* =true */)
 {
 	// If the selection currently contains any PIE objects we should not be including it in the transaction buffer
@@ -243,6 +244,7 @@ bool USelection::Modify(bool bAlwaysMarkDirty/* =true */)
 
 	return Super::Modify(bAlwaysMarkDirty);
 }
+#endif
 
 void USelection::BeginDestroy()
 {

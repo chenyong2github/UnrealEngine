@@ -40,8 +40,6 @@ namespace UnrealBuildTool.Rules
 					}
 				);
 
-				bFasterWithoutUnity = true;
-
                 PublicDefinitions.Add("WITH_WINDOWS_MIXED_REALITY=1");
             }
         }

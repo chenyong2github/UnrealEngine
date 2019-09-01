@@ -27,6 +27,9 @@ IMPLEMENT_SHADER_TYPE(, FSlateDebugBatchingPS, TEXT("/Engine/Private/SlateElemen
 	typedef TSlateElementPS<ESlateShader::ShaderType,bDrawDisabledEffect,bUseTextureAlpha> TSlateElementPS##ShaderType##bDrawDisabledEffect##bUseTextureAlpha##A; \
 	IMPLEMENT_SHADER_TYPE(template<>,TSlateElementPS##ShaderType##bDrawDisabledEffect##bUseTextureAlpha##A,TEXT("/Engine/Private/SlateElementPixelShader.usf"),TEXT("Main"),SF_Pixel);
 
+#if WITH_EDITOR
+IMPLEMENT_SHADER_TYPE(, FHDREditorConvertPS, TEXT("/Engine/Private/CompositeUIPixelShader.usf"), TEXT("HDREditorConvert"), SF_Pixel);
+#endif
 /**
 * All the different permutations of shaders used by slate. Uses #defines to avoid dynamic branches
 */
@@ -39,9 +42,13 @@ IMPLEMENT_SLATE_PIXELSHADER_TYPE(Border, false, false);
 IMPLEMENT_SLATE_PIXELSHADER_TYPE(Default, true, false);
 IMPLEMENT_SLATE_PIXELSHADER_TYPE(Border, true, false);
 
-IMPLEMENT_SLATE_PIXELSHADER_TYPE(Font, false, true);
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(GrayscaleFont, false, true);
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(GrayscaleFont, true, true);
+
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(ColorFont, false, true);
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(ColorFont, true, true);
+
 IMPLEMENT_SLATE_PIXELSHADER_TYPE(LineSegment, false, true);
-IMPLEMENT_SLATE_PIXELSHADER_TYPE(Font, true, true);
 IMPLEMENT_SLATE_PIXELSHADER_TYPE(LineSegment, true, true);
 
 /** The Slate vertex declaration. */

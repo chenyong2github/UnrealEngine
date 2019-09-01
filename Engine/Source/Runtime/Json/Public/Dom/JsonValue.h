@@ -70,9 +70,6 @@ public:
 
 protected:
 
-	static const TArray< TSharedPtr<FJsonValue> > EMPTY_ARRAY;
-	static const TSharedPtr<FJsonObject> EMPTY_OBJECT;
-
 	FJsonValue() : Type(EJson::None) {}
 	virtual ~FJsonValue() {}
 

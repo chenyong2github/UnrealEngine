@@ -79,6 +79,11 @@ FORCEINLINE bool IsActorValidForReplication(const FActorRepListType& In) { retur
 // Tests if an actor is valid for replication gathering. Meaning, it can be gathered from the replication graph and considered for replication.
 FORCEINLINE bool IsActorValidForReplicationGather(const FActorRepListType& In)
 { 
+	if (In == nullptr)
+	{
+		return false;
+	}
+
 	if (!IsActorValidForReplication(In))
 		return false;
 
@@ -715,6 +720,7 @@ struct FGlobalActorReplicationInfoMap
 	FORCEINLINE void SetClassInfo(UClass* InClass, const FClassReplicationInfo& Info) {	ClassMap.Set(InClass, Info); }
 	
 	FORCEINLINE TMap<FActorRepListType, TUniquePtr<FGlobalActorReplicationInfo>>::TIterator CreateActorMapIterator() { return ActorMap.CreateIterator(); }
+	FORCEINLINE TMap<FActorRepListType, TUniquePtr<FGlobalActorReplicationInfo>>::TConstIterator CreateActorMapIterator() const { return ActorMap.CreateConstIterator(); }
 	FORCEINLINE TMap<FObjectKey, FClassReplicationInfo>::TIterator CreateClassMapIterator() { return ClassMap.CreateIterator(); }
 
 	int32 Num() const { return ActorMap.Num(); }

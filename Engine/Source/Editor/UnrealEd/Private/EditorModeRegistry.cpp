@@ -66,7 +66,7 @@ void FEditorModeRegistry::Initialize()
 	FModuleManager::LoadModuleChecked<IMeshPaintModule>(TEXT("MeshPaintMode"));
 	FModuleManager::LoadModuleChecked<ILandscapeEditorModule>(TEXT("LandscapeEditor"));
 	FModuleManager::LoadModuleChecked<IFoliageEditModule>(TEXT("FoliageEdit"));
-	FModuleManager::LoadModuleChecked<FVirtualTexturingEditorModule>(TEXT("VirtualTexturingEditor"));
+	FModuleManager::LoadModuleChecked<IVirtualTexturingEditorModule>(TEXT("VirtualTexturingEditor"));
 }
 
 void FEditorModeRegistry::Shutdown()

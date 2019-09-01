@@ -95,6 +95,9 @@ protected:
 	/** Only save packages with a changelist of zero **/
 	bool bOnlyUnversioned;
 
+	/** Only save packages that been saved by a licensee **/
+	bool bOnlyLicenseed;
+
 	/** Ignore package version changelist **/
 	bool bIgnoreChangelist;
 

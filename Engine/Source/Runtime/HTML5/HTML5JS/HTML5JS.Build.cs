@@ -10,7 +10,7 @@ public class HTML5JS : ModuleRules
 	{
 		if (Target.Platform == UnrealTargetPlatform.HTML5)
 		{
-			PublicAdditionalLibraries.Add("Runtime/HTML5/HTML5JS/Private/HTML5JavaScriptFx.js");
+			PublicSystemLibraries.Add("Runtime/HTML5/HTML5JS/Private/HTML5JavaScriptFx.js");
 		}
 	}
 }

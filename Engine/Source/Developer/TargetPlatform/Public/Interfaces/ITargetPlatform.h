@@ -323,10 +323,10 @@ public:
 	/**
 	 * Checks whether this platform supports the specified build target, i.e. Game or Editor.
 	 *
-	 * @param BuildTarget The build target to check.
+	 * @param TargetType The target type to check.
 	 * @return true if the build target is supported, false otherwise.
 	 */
-	virtual bool SupportsBuildTarget( EBuildTargets::Type BuildTarget ) const = 0;
+	virtual bool SupportsBuildTarget( EBuildTargetType TargetType ) const = 0;
 
 	/**
 	 * Checks whether the target platform supports the specified feature.

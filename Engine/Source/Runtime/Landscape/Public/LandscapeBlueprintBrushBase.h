@@ -51,7 +51,8 @@ public:
 	bool IsAffectingWeightmap() const { return AffectWeightmap; }
 	bool IsAffectingWeightmapLayer(const FName& InLayerName) const;
 	bool IsVisible() const { return bIsVisible; }
-	
+	bool IsLayerUpdatePending() const;
+
 	void SetIsVisible(bool bInIsVisible);
 	void SetAffectsHeightmap(bool bInAffectsHeightmap);
 	void SetAffectsWeightmap(bool bInAffectsWeightmap);

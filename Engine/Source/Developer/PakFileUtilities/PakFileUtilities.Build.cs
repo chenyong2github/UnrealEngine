@@ -6,11 +6,19 @@ public class PakFileUtilities : ModuleRules
 {
 	public PakFileUtilities(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateDependencyModuleNames.AddRange(new string[] { "Core", "PakFile", "Json", "Projects", "RSA" });
+		PrivateDependencyModuleNames.AddRange(new string[] {
+            "Core",
+            "PakFile",
+            "Json",
+            "Projects",
+            "RSA",
+            "DerivedDataCache"
+        });
 
         PrivateIncludePathModuleNames.AddRange(
             new string[] {
                 "Json"
         });
-    }
+		
+	}
 }

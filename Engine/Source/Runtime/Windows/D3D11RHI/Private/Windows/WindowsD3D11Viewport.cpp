@@ -11,7 +11,8 @@
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include <dwmapi.h>
 
-#include "dxgi1_2.h"
+#include "dxgi1_6.h"
+
 
 
 FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,uint32 InSizeX,uint32 InSizeY,bool bInIsFullscreen, EPixelFormat InPreferredPixelFormat):
@@ -27,6 +28,7 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 	SizeY(InSizeY),
 	bIsFullscreen(bInIsFullscreen),
 	PixelFormat(InPreferredPixelFormat),
+	PixelColorSpace(EColorSpaceAndEOTF::ERec709_sRGB),
 	bIsValid(true),
 	FrameSyncEvent(InD3DRHI)
 {
@@ -107,9 +109,43 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 			}
 		}
 
-		// if stereo was not activated or not enabled in settings
+		// Try and create a swapchain capable of being used on HDR monitors
+		if ((SwapChain == nullptr) && (InD3DRHI->bDXGISupportsHDR))
+		{
+			// Create the swapchain.
+			DXGI_SWAP_CHAIN_DESC1 SwapChainDesc;
+			FMemory::Memzero(&SwapChainDesc, sizeof(DXGI_SWAP_CHAIN_DESC1));
+			SwapChainDesc.Width = SizeX;
+			SwapChainDesc.Height = SizeY;
+			SwapChainDesc.SampleDesc.Count = 1;
+			SwapChainDesc.SampleDesc.Quality = 0;
+			SwapChainDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
+			SwapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT | DXGI_USAGE_SHADER_INPUT;
+
+			DXGI_SWAP_CHAIN_FULLSCREEN_DESC FSSwapChainDesc = {};
+			FSSwapChainDesc.Windowed = !bIsFullscreen;
+
+			// Needed for HDR
+			BackBufferCount = 2;
+			SwapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+			SwapChainDesc.BufferCount = BackBufferCount;
+			SwapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+
+			IDXGISwapChain1* SwapChain1 = nullptr;
+			IDXGIFactory2* Factory2 = (IDXGIFactory2*)D3DRHI->GetFactory();
+
+			VERIFYD3D11RESULT_EX((Factory2->CreateSwapChainForHwnd(D3DRHI->GetDevice(), WindowHandle, &SwapChainDesc, &FSSwapChainDesc, nullptr, &SwapChain1)), D3DRHI->GetDevice());
+			SwapChain1->QueryInterface(__uuidof(IDXGISwapChain1), (void**)SwapChain.GetInitReference());
+
+			// See if we are running on a HDR monitor 
+			CheckHDRMonitorStatus();
+		}
+
+
 		if (SwapChain == nullptr)
 		{
+			BackBufferCount = 1;
+
 			// Create the swapchain.
 			DXGI_SWAP_CHAIN_DESC SwapChainDesc;
 			FMemory::Memzero(&SwapChainDesc, sizeof(DXGI_SWAP_CHAIN_DESC));
@@ -120,7 +156,7 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 			SwapChainDesc.SampleDesc.Quality = 0;
 			SwapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT | DXGI_USAGE_SHADER_INPUT;
 			// 1:single buffering, 2:double buffering, 3:triple buffering
-			SwapChainDesc.BufferCount = 1;
+			SwapChainDesc.BufferCount = BackBufferCount;
 			SwapChainDesc.OutputWindow = WindowHandle;
 			SwapChainDesc.Windowed = !bIsFullscreen;
 			// DXGI_SWAP_EFFECT_DISCARD / DXGI_SWAP_EFFECT_SEQUENTIAL
@@ -140,6 +176,65 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 	::PostMessage( WindowHandle, WM_PAINT, 0, 0 );
 
 	BeginInitResource(&FrameSyncEvent);
+}
+
+// When a window has moved or resized we need to check whether it is on a HDR monitor or not. Set the correct color space of the monitor
+void FD3D11Viewport::CheckHDRMonitorStatus()
+{
+#if WITH_EDITOR
+
+	DXGI_COLOR_SPACE_TYPE colorSpace = DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
+
+	static auto CVarHDREnable = IConsoleManager::Get().FindConsoleVariable(TEXT("Editor.HDRSupport"));
+	if (CVarHDREnable->GetInt() != 0)
+	{
+		FlushRenderingCommands();
+
+		if (SwapChain)
+		{
+			TRefCountPtr<IDXGIOutput> Output;
+			if (SUCCEEDED(SwapChain->GetContainingOutput(Output.GetInitReference())))
+			{
+				TRefCountPtr<IDXGIOutput6> Output6;
+				if (SUCCEEDED(Output->QueryInterface(IID_PPV_ARGS(Output6.GetInitReference()))))
+				{
+					DXGI_OUTPUT_DESC1 desc;
+					Output6->GetDesc1(&desc);
+
+					if (desc.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020)
+					{
+						// Display output is HDR10.
+						colorSpace = DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
+					}
+				}
+			}
+		}
+
+		TRefCountPtr<IDXGISwapChain3> swapChain3;
+
+		if (SUCCEEDED(SwapChain->QueryInterface(IID_PPV_ARGS(swapChain3.GetInitReference()))))
+		{
+			UINT colorSpaceSupport = 0;
+		
+			if (SUCCEEDED(swapChain3->CheckColorSpaceSupport(colorSpace, &colorSpaceSupport)) && 
+				(colorSpaceSupport & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT))
+			{
+				swapChain3->SetColorSpace1(colorSpace);
+			}
+		}
+	}
+	
+	if (colorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020)
+	{
+		PixelColorSpace = EColorSpaceAndEOTF::ERec2020_PQ;
+	}
+	else
+	{
+		PixelColorSpace =  EColorSpaceAndEOTF::ERec709_sRGB;
+	}
+#else
+	PixelColorSpace =  EColorSpaceAndEOTF::ERec709_sRGB;
+#endif
 }
 
 void FD3D11Viewport::ConditionalResetSwapChain(bool bIgnoreFocus)

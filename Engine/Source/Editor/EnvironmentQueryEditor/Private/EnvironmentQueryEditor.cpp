@@ -92,7 +92,6 @@ void FEnvironmentQueryEditor::UnregisterTabSpawners(const TSharedRef<class FTabM
 
 void FEnvironmentQueryEditor::InitEnvironmentQueryEditor( const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UEnvQuery* InScript )
 {
-	SelectedNodesCount = 0;
 	Query = InScript;
 	check(Query != NULL);
 
@@ -282,7 +281,6 @@ void FEnvironmentQueryEditor::OnSelectedNodesChanged(const TSet<class UObject*>&
 {
 	TArray<UObject*> Selection;
 
-	SelectedNodesCount = NewSelection.Num();
 	if (NewSelection.Num())
 	{
 		for(TSet<class UObject*>::TConstIterator SetIt(NewSelection);SetIt;++SetIt)

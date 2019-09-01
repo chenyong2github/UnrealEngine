@@ -338,6 +338,13 @@ void FIOSAudioSoundSource::Stop(void)
 	// Call parent class version regardless of if there's a wave instance
 	FSoundSource::Stop();
 
+	if (IOSBuffer != NULL)
+	{
+		// Release the current stream chunk:
+		bool bChunkReleased = IOSBuffer->ReleaseCurrentChunk();
+		check(bChunkReleased);
+	}
+
 	// It's now safe to unlock the callback
 	UnlockCallback(&CallbackLock);
 }

@@ -68,15 +68,15 @@ void FMacPlatformProcess::FreeDllHandle( void* DllHandle )
 	dlclose( DllHandle );
 }
 
-FString FMacPlatformProcess::GenerateApplicationPath( const FString& AppName, EBuildConfigurations::Type BuildConfiguration)
+FString FMacPlatformProcess::GenerateApplicationPath( const FString& AppName, EBuildConfiguration BuildConfiguration)
 {
 	SCOPED_AUTORELEASE_POOL;
 	
 	FString PlatformName = TEXT("Mac");
 	FString ExecutableName = AppName;
-	if (BuildConfiguration != EBuildConfigurations::Development)
+	if (BuildConfiguration != EBuildConfiguration::Development)
 	{
-		ExecutableName += FString::Printf(TEXT("-%s-%s"), *PlatformName, EBuildConfigurations::ToString(BuildConfiguration));
+		ExecutableName += FString::Printf(TEXT("-%s-%s"), *PlatformName, LexToString(BuildConfiguration));
 	}
 	
 	NSURL* CurrentBundleURL = [[NSBundle mainBundle] bundleURL];
@@ -935,8 +935,12 @@ const TCHAR* FMacPlatformProcess::UserName(bool bOnlyAlphaNumeric)
 
 void FMacPlatformProcess::SetCurrentWorkingDirectoryToBaseDir()
 {
+#if defined(DISABLE_CWD_CHANGES) && DISABLE_CWD_CHANGES != 0
+	check(false);
+#else
 	FPlatformMisc::CacheLaunchDir();
 	chdir([FString(BaseDir()).GetNSString() fileSystemRepresentation]);
+#endif
 }
 
 FString FMacPlatformProcess::GetCurrentWorkingDirectory()

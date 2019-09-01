@@ -3213,6 +3213,7 @@ FRecastNavMeshGenerator::FRecastNavMeshGenerator(ARecastNavMesh& InDestNavMesh)
 	, DestNavMesh(&InDestNavMesh)
 	, bInitialized(false)
 	, bRestrictBuildingToActiveTiles(false)
+	, bSortTilesWithSeedLocations(true)
 	, Version(0)
 {
 #if TIME_SLICE_NAV_REGEN
@@ -4296,6 +4297,11 @@ void FRecastNavMeshGenerator::MarkDirtyTiles(const TArray<FNavigationDirtyArea>&
 
 void FRecastNavMeshGenerator::SortPendingBuildTiles()
 {
+	if (bSortTilesWithSeedLocations == false)
+	{
+		return;
+	}
+
 	TArray<FVector2D> SeedLocations;
 	UWorld* CurWorld = GetWorld();
 	if (CurWorld == nullptr)
@@ -4317,7 +4323,7 @@ void FRecastNavMeshGenerator::SortPendingBuildTiles()
 	if (SeedLocations.Num() == 0)
 	{
 		// Use navmesh origin for sorting
-		SeedLocations.Add(FVector2D::ZeroVector);
+		SeedLocations.Add(FVector2D(TotalNavBounds.GetCenter()));
 	}
 
 	if (SeedLocations.Num() > 0)
@@ -4331,11 +4337,7 @@ void FRecastNavMeshGenerator::SortPendingBuildTiles()
 			FVector2D TileCenter2D = FVector2D(TileBox.GetCenter());
 			for (FVector2D SeedLocation : SeedLocations)
 			{
-				const float DistSq = FVector2D::DistSquared(TileCenter2D, SeedLocation);
-				if (DistSq < Element.SeedDistance)
-				{
-					Element.SeedDistance = DistSq;
-				}
+				Element.SeedDistance = FMath::Min(Element.SeedDistance, FVector2D::DistSquared(TileCenter2D, SeedLocation));
 			}
 		}
 
@@ -4651,6 +4653,39 @@ TArray<uint32> FRecastNavMeshGenerator::ProcessTileTasks(const int32 NumTasksToP
 #endif
 	return UpdatedTiles;
 }
+
+#if !UE_BUILD_SHIPPING
+void FRecastNavMeshGenerator::GetDebugGeometry(const FNavigationRelevantData& EncodedData, FNavDebugMeshData& DebugMeshData)
+{
+	const uint8* RawMemory = EncodedData.CollisionData.GetData();
+	if (RawMemory == nullptr)
+	{
+		return;
+	}
+	const FRecastGeometryCache::FHeader* HeaderInfo = reinterpret_cast<const FRecastGeometryCache::FHeader*>(RawMemory);
+	if (HeaderInfo->NumVerts == 0 || HeaderInfo->NumFaces == 0)
+	{
+		return;
+	}
+	
+	const int32 HeaderSize = sizeof(FRecastGeometryCache);
+	const int32 IndicesCount = HeaderInfo->NumFaces * 3;
+		
+	DebugMeshData.Vertices.AddZeroed(HeaderInfo->NumVerts);
+	FDynamicMeshVertex* DebugVert = DebugMeshData.Vertices.GetData();
+	// we cannot copy verts directly since not only are the EncodedData's verts in
+	// a float[3] format, they're also in Recast coords so we need to translate it 
+	// back to Unreal coords
+	const float* VertCoord = reinterpret_cast<const float*>(RawMemory + HeaderSize);
+	for (int VertIndex = 0; VertIndex < HeaderInfo->NumVerts; ++VertIndex, ++DebugVert, VertCoord += 3)
+	{
+		new (DebugVert) FDynamicMeshVertex(Recast2UnrealPoint(VertCoord));
+	}
+
+	DebugMeshData.Indices.AddZeroed(IndicesCount);
+	FMemory::Memcpy(DebugMeshData.Indices.GetData(), RawMemory + HeaderSize + HeaderInfo->NumVerts * 3 * sizeof(float), IndicesCount * sizeof(int32));
+}
+#endif // !UE_BUILD_SHIPPING
 
 void FRecastNavMeshGenerator::ExportComponentGeometry(UActorComponent* Component, FNavigationRelevantData& Data)
 {

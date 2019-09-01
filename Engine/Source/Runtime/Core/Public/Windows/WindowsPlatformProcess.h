@@ -143,7 +143,7 @@ public:
 	static const FString ShaderWorkingDir();
 	static const TCHAR* ExecutablePath();
 	static const TCHAR* ExecutableName(bool bRemoveExtension = true);
-	static FString GenerateApplicationPath( const FString& AppName, EBuildConfigurations::Type BuildConfiguration);
+	static FString GenerateApplicationPath( const FString& AppName, EBuildConfiguration BuildConfiguration);
 	static const TCHAR* GetModuleExtension();
 	static const TCHAR* GetBinariesSubdirectory();
 	static const FString GetModulesDirectory();

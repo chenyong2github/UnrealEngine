@@ -91,7 +91,6 @@ struct FVertexFactoryIntermediates
 	float3 Right;
 	float3 Up;
 	float3 Facing;
-	float3 SideVector;
 	float4 TexCoord;
 	
 #if USE_PARTICLE_POSITION
@@ -558,7 +557,11 @@ float3 SafeNormalize(float3 V)
 #endif
 
 void GetNiagaraParticleTangents(in FInterpVtxData InterpVtxData, in out FVertexFactoryIntermediates Intermediates)
-{	
+{
+	// Up : direction of the ribbon expanding.
+	// Facing : normal of the ribbon surface.
+	// Right : direction of the ribbon's width.
+
 	BRANCH
 	if(NiagaraRibbonVF.FacingDataOffset != -1)
 	{
@@ -571,36 +574,32 @@ void GetNiagaraParticleTangents(in FInterpVtxData InterpVtxData, in out FVertexF
 		Intermediates.Facing = normalize(ResolvedView.WorldCameraOrigin - Intermediates.Position);
 	}
 
-	BRANCH
-    if (FacingMode == 2 /* CustomSide */)
-	{
-		Intermediates.SideVector = -Intermediates.Facing;
-		Intermediates.Right = normalize(Intermediates.SideVector - dot(Intermediates.SideVector, Intermediates.Direction * Intermediates.Direction));
-		Intermediates.Facing = normalize(cross(Intermediates.Direction, Intermediates.Right));
-	}
-	else
-	{
-		Intermediates.Right = normalize(cross(Intermediates.Facing, Intermediates.Direction));
-		Intermediates.SideVector = Intermediates.Right;
-	}
+	Intermediates.Right = normalize(cross(Intermediates.Facing, Intermediates.Direction));
 
 	ISOLATE
 	{
 		Intermediates.Up = cross(Intermediates.Right, Intermediates.Facing);
 	}
-	
+
+	if (FacingMode == 2 /* CustomSide */)
+	{
+		const float3 Temp = Intermediates.Right;
+		Intermediates.Right = -Intermediates.Facing;
+		Intermediates.Facing = Temp;
+	}
+
 	BRANCH
 	if (NiagaraRibbonVF.TwistDataOffset != -1)
 	{
 		const float Twist0 = GetFloat(NiagaraRibbonVF.TwistDataOffset, InterpVtxData.ParticleId0);
 		const float Twist1 = GetFloat(NiagaraRibbonVF.TwistDataOffset, InterpVtxData.ParticleId1);
 		float SinTwist, CosTwist;
-		sincos(lerp(Twist0, Twist1, InterpVtxData.Alpha), SinTwist, CosTwist);
+		sincos(lerp(Twist0, Twist1, InterpVtxData.Alpha) /* + ResolvedView.RealTime * .5 */, SinTwist, CosTwist);
 
 		// Apply a rotation matrix to up and right.
 		float3 Right = Intermediates.Right; // Back it up for the transform.
-		Intermediates.Right = CosTwist * Right + SinTwist * Intermediates.Up;
-		Intermediates.Up = -SinTwist * Right + CosTwist * Intermediates.Up;
+		Intermediates.Right = CosTwist * Right + SinTwist * Intermediates.Facing;
+		Intermediates.Facing = -SinTwist * Right + CosTwist * Intermediates.Facing;
 	}
 }
 
@@ -610,7 +609,7 @@ float4 CalcWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates 
 	{
 		// expand and align
 		int Sgn = (((int)Input.InterpVtxId & 0x1) * 2) - 1;
-		float3 Pos = Intermediates.Position.xyz + Intermediates.SideVector * Sgn * (Intermediates.RibbonWidth.xxx / 2);
+		float3 Pos = Intermediates.Position.xyz + Intermediates.Right * Sgn * (Intermediates.RibbonWidth.xxx / 2);
 		// Intermediates are already in world space, only need to account for the translation around view origin.
 		return float4(Pos + ResolvedView.PreViewTranslation, 1);
 	}

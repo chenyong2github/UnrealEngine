@@ -136,7 +136,7 @@ static bool BlueprintNativeCodeGenUtilsImpl::GeneratePluginDescFile(const FBluep
 				// should correspond to UnrealBuildTool::TargetType in TargetRules.cs
 				switch (PlatformInfo.PlatformType)
 				{
-				case PlatformInfo::EPlatformType::Game:
+				case EBuildTargetType::Game:
 					ModuleDesc->WhitelistTargets.AddUnique(TEXT("Game"));
 
 					// Hack to allow clients for PS4/XboxOne (etc.) to build the nativized assets plugin
@@ -147,16 +147,16 @@ static bool BlueprintNativeCodeGenUtilsImpl::GeneratePluginDescFile(const FBluep
 					}
 					break;
 
-				case PlatformInfo::EPlatformType::Client:
+				case EBuildTargetType::Client:
 					ModuleDesc->WhitelistTargets.AddUnique(TEXT("Client"));
 					break;
 
-				case PlatformInfo::EPlatformType::Server:
+				case EBuildTargetType::Server:
 					ModuleDesc->WhitelistTargets.AddUnique(TEXT("Server"));
 					break;
 
-				case PlatformInfo::EPlatformType::Editor:
-					ensureMsgf(PlatformInfo.PlatformType != PlatformInfo::EPlatformType::Editor, TEXT("Nativized Blueprint plugin is for cooked projects only - it isn't supported in editor builds."));
+				case EBuildTargetType::Editor:
+					ensureMsgf(PlatformInfo.PlatformType != EBuildTargetType::Editor, TEXT("Nativized Blueprint plugin is for cooked projects only - it isn't supported in editor builds."));
 					break;
 				};				
 			}

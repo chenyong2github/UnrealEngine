@@ -29,6 +29,7 @@ float AOObjectMaxDistance;
 float AOStepScale;
 float AOStepExponentScale;
 float AOMaxViewDistance;
+float DistanceFadeScale; // 1 / ((1 - FadeDistanceFraction) * AOMaxViewDistance)
 
 float AOGlobalMaxOcclusionDistance;
 
@@ -168,7 +169,7 @@ float3 ComputeBentNormal(float3 RecordWorldNormal, uint RelativeRecordIndex)
 
 float2 AOBufferBilinearUVMax;
 
-float3 UpsampleDFAO(float2 BufferUV, float SceneDepth)
+float3 UpsampleDFAO(float2 BufferUV, float SceneDepth, float3 WorldNormal)
 {
 	// Distance field AO was computed at 0,0 regardless of viewrect min
 	float2 DistanceFieldUVs = BufferUV - View.ViewRectMin.xy * View.BufferSizeAndInvSize.zw;
@@ -213,6 +214,10 @@ float3 UpsampleDFAO(float2 BufferUV, float SceneDepth)
 	float3 BentNormal = Texture2DSampleLevel(BentNormalAOTexture, BentNormalAOSampler, DistanceFieldUVs, 0).xyz;
 
 #endif
+
+	// Fade to unoccluded in the distance
+	float FadeAlpha = saturate((AOMaxViewDistance - SceneDepth) * DistanceFadeScale);
+	BentNormal = lerp(WorldNormal, BentNormal, FadeAlpha);
 
 	return BentNormal;
 }

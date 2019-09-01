@@ -42,10 +42,11 @@ FStompModule& FStompModule::Get()
 
 #if WITH_STOMP
 
-TSharedRef<IStompClient> FStompModule::CreateClient(const FString& Url)
+TSharedRef<IStompClient> FStompModule::CreateClient(const FString& Url, const FString& OptAuthToken)
 {
 	// no server pong - wasteful having all the cloud websocket workers sending out heartbeats
-	return MakeShareable(new FStompClient(Url, DefaultPingInterval, 0));
+	static const int RequestedServerHeartbeatInterval = 0;
+	return MakeShareable(new FStompClient(Url, DefaultPingInterval, RequestedServerHeartbeatInterval, OptAuthToken));
 }
 
 #endif // #if WITH_STOMP

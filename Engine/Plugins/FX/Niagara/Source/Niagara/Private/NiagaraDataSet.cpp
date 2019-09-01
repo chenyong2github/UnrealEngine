@@ -425,27 +425,61 @@ bool FNiagaraDataSet::GetVariableComponentOffsets(const FNiagaraVariable& Var, i
 	return false;
 }
 
-void FNiagaraDataSet::CopyTo(FNiagaraDataSet& Other, int32 StartIdx, int32 NumInstances)const
+void FNiagaraDataSet::CopyTo(FNiagaraDataSet& Other, int32 StartIdx, int32 NumInstances, bool bResetOther)const
 {
 	CheckCorrectThread();
-	Other.Reset();
-	Other.Variables = Variables;
-	Other.VariableLayouts = VariableLayouts;
-	Other.TotalFloatComponents = TotalFloatComponents;
-	Other.TotalInt32Components = TotalInt32Components;
-	Other.Finalize();
 
-	//Read the most current data. Even if it's possibly partially complete simulation data.
-	FNiagaraDataBuffer& OtherDataBuffer = Other.BeginSimulate();
-
-	FNiagaraDataBuffer* SourceBuffer = GetDestinationData() ? GetDestinationData() : GetCurrentData();
-	if (SourceBuffer != nullptr)
+	if (bResetOther)
 	{
-		OtherDataBuffer.Allocate(SourceBuffer->GetNumInstancesAllocated());
-		SourceBuffer->CopyTo(OtherDataBuffer, StartIdx, NumInstances);
+		Other.Reset();
+		Other.Variables = Variables;
+		Other.VariableLayouts = VariableLayouts;
+		Other.TotalFloatComponents = TotalFloatComponents;
+		Other.TotalInt32Components = TotalInt32Components;
+		Other.Finalize();
+	}
+	else
+	{
+		checkSlow(Other.GetVariables() == Variables);
 	}
 
-	Other.EndSimulate();
+	//Read the most current data. Even if it's possibly partially complete simulation data.
+	FNiagaraDataBuffer* SourceBuffer = GetDestinationData() ? GetDestinationData() : GetCurrentData();
+	FNiagaraDataBuffer* OtherCurrentBuffer = Other.GetCurrentData();
+
+	if (SourceBuffer != nullptr)
+	{
+		int32 SourceInstances = SourceBuffer->GetNumInstances();
+		int32 OrigNumInstances = OtherCurrentBuffer->GetNumInstances();
+
+		if (StartIdx >= SourceInstances)
+		{
+			return; //We can't start beyond the end of the source buffer.
+		}
+
+		if (NumInstances == INDEX_NONE || StartIdx + NumInstances >= SourceInstances)
+		{
+			NumInstances = SourceBuffer->GetNumInstances() - StartIdx;
+		}
+
+		FNiagaraDataBuffer& OtherDestBuffer = Other.BeginSimulate();
+
+		//We need to allocate enough space for the new data and existing data if we're keeping it.
+		int32 RequiredInstances = bResetOther ? NumInstances : NumInstances + OrigNumInstances;
+		OtherDestBuffer.Allocate(RequiredInstances);
+		OtherDestBuffer.SetNumInstances(RequiredInstances);
+
+		//Copy the data in our current buffer over into the new buffer.
+		if (!bResetOther)
+		{
+			OtherCurrentBuffer->CopyTo(OtherDestBuffer, 0, 0, OtherCurrentBuffer->GetNumInstances());
+		}
+
+		//Now copy the data from the source buffer into the newly allocated space.
+		SourceBuffer->CopyTo(OtherDestBuffer, 0, OrigNumInstances, NumInstances);
+
+		Other.EndSimulate();
+	}
 }
 
 void FNiagaraDataSet::CopyFromGPUReadback(float* GPUReadBackFloat, int* GPUReadBackInt, int32 StartIdx /* = 0 */, int32 NumInstances /* = INDEX_NONE */, uint32 FloatStride, uint32 IntStride)
@@ -497,7 +531,7 @@ void FNiagaraDataBuffer::CheckUsage(bool bReadOnly)const
 	}
 }
 
-int32 FNiagaraDataBuffer::TransferInstance(FNiagaraDataBuffer& SourceBuffer, int32 InstanceIndex)
+int32 FNiagaraDataBuffer::TransferInstance(FNiagaraDataBuffer& SourceBuffer, int32 InstanceIndex, bool bRemoveFromSource)
 {
 	CheckUsage(false);
 	if (SourceBuffer.GetNumInstances() > (uint32)InstanceIndex)
@@ -523,6 +557,11 @@ int32 FNiagaraDataBuffer::TransferInstance(FNiagaraDataBuffer& SourceBuffer, int
 			int32* Src = SourceBuffer.GetInstancePtrInt32(CompIdx, InstanceIndex);
 			int32* Dst = GetInstancePtrInt32(CompIdx, OldNumInstances);
 			*Dst = *Src;
+		}
+
+		if (bRemoveFromSource)
+		{
+			SourceBuffer.KillInstance(InstanceIndex);
 		}
 
 		return OldNumInstances;
@@ -715,31 +754,35 @@ void FNiagaraDataBuffer::KillInstance(uint32 InstanceIdx)
 #endif
 }
 
-void FNiagaraDataBuffer::CopyTo(FNiagaraDataBuffer& DestBuffer, int32 InStartIdx, int32 InNumInstances)const
+void FNiagaraDataBuffer::CopyTo(FNiagaraDataBuffer& DestBuffer, int32 StartIdx, int32 DestStartIdx, int32 InNumInstances)const
 {
 	CheckUsage(false);
-	
-	if (InStartIdx < 0 || (uint32)InStartIdx > NumInstances)
+
+	if (StartIdx < 0 || (uint32)StartIdx >= NumInstances)
 	{
-		InStartIdx = NumInstances;
-	}
-	if (InNumInstances == INDEX_NONE || ((uint32)InNumInstances + (uint32)InStartIdx) > NumInstances)
-	{
-		InNumInstances = NumInstances - InStartIdx;
+		return;
 	}
 
-	if (InNumInstances != 0)
+	uint32 InstancesToCopy = InNumInstances;
+	if (InstancesToCopy == INDEX_NONE)
 	{
-		if (DestBuffer.NumInstancesAllocated != NumInstancesAllocated)
+		InstancesToCopy = NumInstances - StartIdx;
+	}
+
+	if (InstancesToCopy != 0)
+	{
+		uint32 NewNumInstances = DestStartIdx + InstancesToCopy;
+		if (DestStartIdx < 0 || NewNumInstances >= DestBuffer.GetNumInstances())
 		{
-			DestBuffer.Allocate(NumInstancesAllocated);
+			DestBuffer.Allocate(NewNumInstances, true);
 		}
+		DestBuffer.SetNumInstances(NewNumInstances);
 
 		for (uint32 CompIdx = 0; CompIdx < Owner->TotalFloatComponents; ++CompIdx)
 		{
-			const float* SrcStart = GetInstancePtrFloat(CompIdx, InStartIdx);
-			const float* SrcEnd = GetInstancePtrFloat(CompIdx, InStartIdx + InNumInstances);
-			float* Dst = DestBuffer.GetInstancePtrFloat(CompIdx, 0);
+			const float* SrcStart = GetInstancePtrFloat(CompIdx, StartIdx);
+			const float* SrcEnd = GetInstancePtrFloat(CompIdx, StartIdx + InstancesToCopy);
+			float* Dst = DestBuffer.GetInstancePtrFloat(CompIdx, DestStartIdx);
 			size_t Count = SrcEnd - SrcStart;
 			FMemory::Memcpy(Dst, SrcStart, Count*sizeof(float));
 
@@ -747,15 +790,15 @@ void FNiagaraDataBuffer::CopyTo(FNiagaraDataBuffer& DestBuffer, int32 InStartIdx
 			{
 				for (size_t i = 0; i < Count; i++)
 				{
-					check(SrcStart[i] == Dst[i]);
+					checkSlow(SrcStart[i] == Dst[i]);
 				}
 			}
 		}
 		for (uint32 CompIdx = 0; CompIdx < Owner->TotalInt32Components; ++CompIdx)
 		{
-			const int32* SrcStart = GetInstancePtrInt32(CompIdx, InStartIdx);
-			const int32* SrcEnd = GetInstancePtrInt32(CompIdx, InStartIdx + InNumInstances);
-			int32* Dst = DestBuffer.GetInstancePtrInt32(CompIdx, 0);
+			const int32* SrcStart = GetInstancePtrInt32(CompIdx, StartIdx);
+			const int32* SrcEnd = GetInstancePtrInt32(CompIdx, StartIdx + InstancesToCopy);
+			int32* Dst = DestBuffer.GetInstancePtrInt32(CompIdx, DestStartIdx);
 			size_t Count = SrcEnd - SrcStart;
 			FMemory::Memcpy(Dst, SrcStart, Count * sizeof(int32));
 
@@ -763,11 +806,10 @@ void FNiagaraDataBuffer::CopyTo(FNiagaraDataBuffer& DestBuffer, int32 InStartIdx
 			{
 				for (size_t i = 0; i < Count; i++)
 				{
-					check(SrcStart[i] == Dst[i]);
+					checkSlow(SrcStart[i] == Dst[i]);
 				}
 			}
 		}
-		DestBuffer.SetNumInstances(InNumInstances);
 	}
 }
 
@@ -928,7 +970,6 @@ bool FNiagaraDataBuffer::AppendToRegisterTable(uint8** Registers, int32& NumRegi
 
 /////////////////////////////////////////////////////////////////////////
 
-template<bool bDoResourceTransitions>
 void FNiagaraDataBuffer::SetShaderParams(FNiagaraShader *Shader, FRHICommandList &CommandList, bool bInput)
 {
 	check(IsInRenderingThread());
@@ -936,10 +977,6 @@ void FNiagaraDataBuffer::SetShaderParams(FNiagaraShader *Shader, FRHICommandList
 	{
 		if (Shader->FloatInputBufferParam.IsBound())
 		{
-			if (bDoResourceTransitions)
-			{
-				CommandList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, GetGPUBufferFloat().UAV);
-			}
 			if (GetNumInstancesAllocated() > 0)
 			{
 				CommandList.SetShaderResourceViewParameter(Shader->GetComputeShader(), Shader->FloatInputBufferParam.GetBaseIndex(), GetGPUBufferFloat().SRV);
@@ -952,10 +989,6 @@ void FNiagaraDataBuffer::SetShaderParams(FNiagaraShader *Shader, FRHICommandList
 
 		if (Shader->IntInputBufferParam.IsBound())
 		{
-			if (bDoResourceTransitions)
-			{
-				CommandList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, GetGPUBufferInt().UAV);
-			}
 			if (GetNumInstancesAllocated() > 0)
 			{
 				CommandList.SetShaderResourceViewParameter(Shader->GetComputeShader(), Shader->IntInputBufferParam.GetBaseIndex(), GetGPUBufferInt().SRV);
@@ -976,19 +1009,11 @@ void FNiagaraDataBuffer::SetShaderParams(FNiagaraShader *Shader, FRHICommandList
 	{
 		if (Shader->FloatOutputBufferParam.IsUAVBound())
 		{
-			if (bDoResourceTransitions)
-			{
-				CommandList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, GetGPUBufferFloat().UAV);
-			}
 			CommandList.SetUAVParameter(Shader->GetComputeShader(), Shader->FloatOutputBufferParam.GetUAVIndex(), GetGPUBufferFloat().UAV);
 		}
 
 		if (Shader->IntOutputBufferParam.IsUAVBound())
 		{
-			if (bDoResourceTransitions)
-			{
-				CommandList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, GetGPUBufferInt().UAV);
-			}
 			CommandList.SetUAVParameter(Shader->GetComputeShader(), Shader->IntOutputBufferParam.GetUAVIndex(), GetGPUBufferInt().UAV);
 		}
 
@@ -999,10 +1024,6 @@ void FNiagaraDataBuffer::SetShaderParams(FNiagaraShader *Shader, FRHICommandList
 		}
 	}
 }
-
-template void FNiagaraDataBuffer::SetShaderParams<true>(FNiagaraShader*, FRHICommandList&, bool);
-template void FNiagaraDataBuffer::SetShaderParams<false>(FNiagaraShader*, FRHICommandList&, bool);
-
 
 void FNiagaraDataBuffer::UnsetShaderParams(FNiagaraShader *Shader, FRHICommandList &RHICmdList)
 {

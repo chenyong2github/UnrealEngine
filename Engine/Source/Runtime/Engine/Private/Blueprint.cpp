@@ -1882,11 +1882,13 @@ void UBlueprint::PostLoadSubobjects(FObjectInstancingGraph* OuterInstanceGraph)
 	ConformNativeComponents(this);
 }
 
+#if WITH_EDITOR
 bool UBlueprint::Modify(bool bAlwaysMarkDirty)
 {
 	bCachedDependenciesUpToDate = false;
 	return Super::Modify(bAlwaysMarkDirty);
 }
+#endif
 
 void UBlueprint::GatherDependencies(TSet<TWeakObjectPtr<UBlueprint>>& InDependencies) const
 {

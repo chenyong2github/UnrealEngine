@@ -15,13 +15,14 @@ enum class ERuntimeVirtualTextureMaterialType : uint8
 {
 	BaseColor UMETA(DisplayName = "Base Color"),
 	BaseColor_Normal UMETA(DisplayName = "Base Color, Normal"),
-	BaseColor_Normal_Specular UMETA(DisplayName = "Base Color, Normal, Roughness, Specular"),
+	BaseColor_Normal_Specular UMETA(DisplayName = "[BC1|BC3] Base Color, Normal, Roughness, Specular"),
+	BaseColor_Normal_Specular_Ex UMETA(DisplayName = "[BC3|BC3] Base Color, Normal, Roughness, Specular"),
 	WorldHeight UMETA(DisplayName = "World Height"),
-	
+
 	Count UMETA(Hidden),
 };
 
-enum { ERuntimeVirtualTextureMaterialType_NumBits = 2 };
+enum { ERuntimeVirtualTextureMaterialType_NumBits = 3 };
 static_assert((uint32)ERuntimeVirtualTextureMaterialType::Count <= (1 << (uint32)ERuntimeVirtualTextureMaterialType_NumBits), "NumBits is too small");
 
 /** Enumeration of main pass behaviors when rendering to a runtime virtual texture. */
@@ -34,4 +35,12 @@ enum class ERuntimeVirtualTextureMainPassType : uint8
 	Exclusive UMETA(DisplayName = "Virtual Texture OR Main Pass"),
 	/** We will render to any valid virtual texture target AND the main pass. Use this for items that need to both read and write the virtual texture. For example, some landscape setups need this. */
 	Always UMETA(DisplayName = "Virtual Texture AND Main Pass"),
+};
+
+/** Enumeration of runtime virtual texture debug modes. */
+UENUM()
+enum class ERuntimeVirtualTextureDebugType
+{
+	None,
+	Debug
 };

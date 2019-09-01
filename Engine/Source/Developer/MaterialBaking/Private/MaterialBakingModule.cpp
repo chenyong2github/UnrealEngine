@@ -15,6 +15,7 @@
 #include "MaterialBakingHelpers.h"
 #include "Async/ParallelFor.h"
 #include "Materials/MaterialInstance.h"
+#include "RenderingThread.h"
 
 #if WITH_EDITOR
 #include "Misc/FileHelper.h"
@@ -263,7 +264,7 @@ void FMaterialBakingModule::CleanupMaterialProxies()
 {
 	for (auto Iterator : MaterialProxyPool)
 	{
-		delete Iterator.Value;
+		delete Iterator.Value.Value;
 	}
 	MaterialProxyPool.Reset();
 }
@@ -307,16 +308,25 @@ FExportMaterialProxy* FMaterialBakingModule::CreateMaterialProxy(UMaterialInterf
 {
 	FExportMaterialProxy* Proxy = nullptr;
 
-	// Find any pooled material proxy matching this material and property
-	FExportMaterialProxy** FindResult = MaterialProxyPool.Find(TPair<UMaterialInterface*, EMaterialProperty>(Material, Property));
-	if (FindResult)
+	// Find all pooled material proxy matching this material
+	TArray<FMaterialPoolValue> Entries;
+	MaterialProxyPool.MultiFind(Material, Entries);
+
+	// Look for the matching property
+	for (FMaterialPoolValue& Entry : Entries)
 	{
-		Proxy = *FindResult;
+		if (Entry.Key == Property)
+		{
+			Proxy = Entry.Value;
+			break;
+		}
 	}
-	else
+
+	// Not found, create a new entry
+	if (Proxy == nullptr)
 	{
-		Proxy = new FExportMaterialProxy(Material, Property);		
-		MaterialProxyPool.Add(TPair<UMaterialInterface*, EMaterialProperty>(Material, Property), Proxy);
+		Proxy = new FExportMaterialProxy(Material, Property);
+		MaterialProxyPool.Add(Material, FMaterialPoolValue(Property, Proxy));
 	}
 
 	return Proxy;
@@ -443,13 +453,19 @@ void FMaterialBakingModule::OnObjectModified(UObject* Object)
 			// Search our proxy pool for materials or material instances that refer to MaterialToInvalidate
 			for (auto It = MaterialProxyPool.CreateIterator(); It; ++It)
 			{
-				UMaterialInterface* PoolMaterial = It.Key().Key;
-				bool bMustDelete = PoolMaterial == MaterialToInvalidate;
+				TWeakObjectPtr<UMaterialInterface> PoolMaterialPtr = It.Key();
+
+				// Remove stale entries from the pool
+				bool bMustDelete = PoolMaterialPtr.IsValid();
+				if (!bMustDelete)
+				{
+					bMustDelete = PoolMaterialPtr == MaterialToInvalidate;
+				}
 
 				// No match - Test the MaterialInstance hierarchy
 				if (!bMustDelete)
 				{
-					UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(PoolMaterial);
+					UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(PoolMaterialPtr);
 					while (!bMustDelete && MaterialInstance && MaterialInstance->Parent != nullptr)
 					{
 						bMustDelete = MaterialInstance->Parent == MaterialToInvalidate;
@@ -460,6 +476,14 @@ void FMaterialBakingModule::OnObjectModified(UObject* Object)
 				// We have a match, remove the entry from our pool
 				if (bMustDelete)
 				{
+					FExportMaterialProxy* Proxy = It.Value().Value;
+
+					ENQUEUE_RENDER_COMMAND(DeleteCachedMaterialProxy)(
+						[Proxy](FRHICommandListImmediate& RHICmdList)
+						{
+							delete Proxy;
+						});
+
 					It.RemoveCurrent();
 				}
 			}

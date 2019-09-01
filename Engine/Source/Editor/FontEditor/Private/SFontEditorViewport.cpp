@@ -262,11 +262,14 @@ void FFontEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 							if (GlyphToRender.bIsVisible)
 							{
 								const FShapedGlyphFontAtlasData GlyphAtlasData = FontCache->GetShapedGlyphFontAtlasData(GlyphToRender, FFontOutlineSettings::NoOutline);
+								
+								const float BitmapRenderScale = GlyphToRender.GetBitmapRenderScale();
+								const float InvBitmapRenderScale = 1.0f / BitmapRenderScale;
 
 								const float X = CurPos.X + LineX + GlyphAtlasData.HorizontalOffset + GlyphToRender.XOffset;
-								const float Y = CurPos.Y - GlyphAtlasData.VerticalOffset + GlyphToRender.YOffset + ShapedPreviewText->GetTextBaseline() + ShapedPreviewText->GetMaxTextHeight();
+								const float Y = CurPos.Y - GlyphAtlasData.VerticalOffset + GlyphToRender.YOffset + ((ShapedPreviewText->GetTextBaseline() + ShapedPreviewText->GetMaxTextHeight()) * InvBitmapRenderScale);
 
-								FCanvasBoxItem BoundingBoxItem(FVector2D(X, Y), FVector2D(GlyphAtlasData.USize, GlyphAtlasData.VSize));
+								FCanvasBoxItem BoundingBoxItem(FVector2D(X, Y), FVector2D(GlyphAtlasData.USize * BitmapRenderScale, GlyphAtlasData.VSize * BitmapRenderScale));
 								BoundingBoxItem.SetColor(FColor::Orange);
 								Canvas->DrawItem(BoundingBoxItem);
 							}
@@ -292,9 +295,12 @@ void FFontEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 								if (GlyphToRender.bIsVisible)
 								{
 									const FShapedGlyphFontAtlasData GlyphAtlasData = FontCache->GetShapedGlyphFontAtlasData(GlyphToRender,FFontOutlineSettings::NoOutline);
+									
+									const float BitmapRenderScale = GlyphToRender.GetBitmapRenderScale();
+									const float InvBitmapRenderScale = 1.0f / BitmapRenderScale;
 
 									const float X = CurPos.X + LineX + GlyphClusterAdvance + GlyphAtlasData.HorizontalOffset + GlyphToRender.XOffset;
-									const float Y = CurPos.Y - GlyphAtlasData.VerticalOffset + GlyphToRender.YOffset + ShapedPreviewText->GetTextBaseline() + ShapedPreviewText->GetMaxTextHeight();
+									const float Y = CurPos.Y - GlyphAtlasData.VerticalOffset + GlyphToRender.YOffset + ((ShapedPreviewText->GetTextBaseline() + ShapedPreviewText->GetMaxTextHeight()) * InvBitmapRenderScale);
 
 									FVector2D ExtraWidth = FVector2D(ForceInitToZero);
 									if (GlyphClusterBounds.bIsValid)
@@ -303,7 +309,7 @@ void FFontEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 										ExtraWidth.Y = (GlyphClusterBounds.Min.Y > Y) ? FMath::Abs(GlyphClusterBounds.Min.Y - Y) : 0.0f;
 									}
 
-									GlyphClusterBounds += FBox2D(FVector2D(X, Y), FVector2D(GlyphAtlasData.USize, GlyphAtlasData.VSize));
+									GlyphClusterBounds += FBox2D(FVector2D(X, Y), FVector2D(GlyphAtlasData.USize * BitmapRenderScale, GlyphAtlasData.VSize * BitmapRenderScale));
 									GlyphClusterBounds.Max += ExtraWidth;
 								}
 

@@ -129,7 +129,9 @@ bool FAIDataProviderBoolValue::GetValue() const
 
 FString FAIDataProviderBoolValue::ValueToString() const
 {
-	return DefaultValue ? GTrue.ToString() : GFalse.ToString();
+	const FCoreTexts& CoreTexts = FCoreTexts::Get();
+
+	return DefaultValue ? CoreTexts.True.ToString() : CoreTexts.False.ToString();
 }
 
 //////////////////////////////////////////////////////////////////////////

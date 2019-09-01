@@ -204,6 +204,7 @@ FAudioChunkHandle FCachedAudioStreamingManager::GetLoadedChunk(const USoundWave*
 		// The function call below increments the reference count to the internal chunk.
 		TArrayView<uint8> LoadedChunk = Cache->GetChunk(ChunkKey, bBlockForLoad);
 
+		// Finally, if there's a chunk after this in the sound, request that it is in the cache.
 		const int32 NextChunk = GetNextChunkIndex(SoundWave, ChunkIndex);
 
 		if (NextChunk != INDEX_NONE)
@@ -216,7 +217,6 @@ FAudioChunkHandle FCachedAudioStreamingManager::GetLoadedChunk(const USoundWave*
 			}
 		}
 
-		
 		return BuildChunkHandle(LoadedChunk.GetData(), LoadedChunk.Num(), SoundWave, SoundWave->GetFName(), ChunkIndex);
 	}
 	else
@@ -234,26 +234,31 @@ FAudioChunkCache* FCachedAudioStreamingManager::GetCacheForWave(const USoundWave
 	if (InSoundWave->RunningPlatformData && InSoundWave->RunningPlatformData->Chunks.Num() > 1)
 	{
 		const int32 SoundWaveChunkSize = InSoundWave->RunningPlatformData->Chunks[1].AudioDataSize;
-
-		// Iterate over our caches until we find the lowest MaxChunkSize cache this sound's chunks will fit into. 
-		for (int32 CacheIndex = 0; CacheIndex < CacheArray.Num(); CacheIndex++)
-		{
-			if (SoundWaveChunkSize <= CacheArray[CacheIndex].MaxChunkSize)
-			{
-				return const_cast<FAudioChunkCache*>(&CacheArray[CacheIndex]);
-			}
-		}
-
-		// If we ever hit this, something went wrong during cook.
-		// Please check to make sure this platform's implementation of IAudioFormat honors the MaxChunkSize parameter passed into SplitDataForStreaming,
-		// or that FStreamedAudioCacheDerivedDataWorker::BuildStreamedAudio() is passing the correct MaxChunkSize to IAudioFormat::SplitDataForStreaming.
-		ensureMsgf(false, TEXT("Chunks in SoundWave are too large: %s, Chunk size: %d bytes"), *InSoundWave->GetName(), SoundWaveChunkSize);
-		return nullptr;
+		return GetCacheForChunkSize(SoundWaveChunkSize);
 	}
 	else
 	{
 		return nullptr;
 	}
+}
+
+FAudioChunkCache* FCachedAudioStreamingManager::GetCacheForChunkSize(uint32 InChunkSize) const
+{
+	// Iterate over our caches until we find the lowest MaxChunkSize cache this sound's chunks will fit into. 
+	for (int32 CacheIndex = 0; CacheIndex < CacheArray.Num(); CacheIndex++)
+	{
+		check(CacheArray[CacheIndex].MaxChunkSize >= 0);
+		if (InChunkSize <= ((uint32) CacheArray[CacheIndex].MaxChunkSize))
+		{
+			return const_cast<FAudioChunkCache*>(&CacheArray[CacheIndex]);
+		}
+	}
+
+	// If we ever hit this, something went wrong during cook.
+	// Please check to make sure this platform's implementation of IAudioFormat honors the MaxChunkSize parameter passed into SplitDataForStreaming,
+	// or that FStreamedAudioCacheDerivedDataWorker::BuildStreamedAudio() is passing the correct MaxChunkSize to IAudioFormat::SplitDataForStreaming.
+	ensureMsgf(false, TEXT("Chunks in SoundWave are too large: %d bytes"), InChunkSize);
+	return nullptr;
 }
 
 int32 FCachedAudioStreamingManager::GetNextChunkIndex(const USoundWave* InSoundWave, uint32 CurrentChunkIndex) const
@@ -283,7 +288,7 @@ int32 FCachedAudioStreamingManager::GetNextChunkIndex(const USoundWave* InSoundW
 
 void FCachedAudioStreamingManager::AddReferenceToChunk(const FAudioChunkHandle& InHandle)
 {
-	FAudioChunkCache* Cache = GetCacheForWave(InHandle.CorrespondingWave);
+	FAudioChunkCache* Cache = GetCacheForChunkSize(InHandle.CachedDataNumBytes);
 	check(Cache);
 
 	FAudioChunkCache::FChunkKey ChunkKey =
@@ -298,7 +303,7 @@ void FCachedAudioStreamingManager::AddReferenceToChunk(const FAudioChunkHandle& 
 
 void FCachedAudioStreamingManager::RemoveReferenceToChunk(const FAudioChunkHandle& InHandle)
 {
-	FAudioChunkCache* Cache = GetCacheForWave(InHandle.CorrespondingWave);
+	FAudioChunkCache* Cache = GetCacheForChunkSize(InHandle.CachedDataNumBytes);
 	check(Cache);
 
 	FAudioChunkCache::FChunkKey ChunkKey =
@@ -359,6 +364,8 @@ bool FAudioChunkCache::AddOrTouchChunk(const FChunkKey& InKey, TFunction<void(EA
 		return false;
 	}
 
+	FScopeLock ScopeLock(&CacheMutationCriticalSection);
+
 	FCacheElement* FoundElement = FindElementForKey(InKey);
 	
 	if (FoundElement)
@@ -398,6 +405,8 @@ bool FAudioChunkCache::AddOrTouchChunk(const FChunkKey& InKey, TFunction<void(EA
 
 TArrayView<uint8> FAudioChunkCache::GetChunk(const FChunkKey& InKey, bool bBlockForLoadCompletion)
 {
+	FScopeLock ScopeLock(&CacheMutationCriticalSection);
+
 	FCacheElement* FoundElement = FindElementForKey(InKey);
 	if (FoundElement)
 	{
@@ -439,7 +448,7 @@ TArrayView<uint8> FAudioChunkCache::GetChunk(const FChunkKey& InKey, bool bBlock
 		else if (bLogCacheMisses)
 		{
 			// Chunks missing. Log this as a miss.
-			const uint32 TotalNumChunksInWave = InKey.SoundWave->RunningPlatformData->Chunks.Num();
+			const uint32 TotalNumChunksInWave = InKey.SoundWave->GetNumChunks();
 
 			FCacheMissInfo CacheMissInfo = { InKey.SoundWaveName, InKey.ChunkIndex, TotalNumChunksInWave, false };
 			CacheMissQueue.Enqueue(MoveTemp(CacheMissInfo));
@@ -472,6 +481,7 @@ void FAudioChunkCache::RemoveReferenceToChunk(const FChunkKey& InKey)
 
 void FAudioChunkCache::ClearCache()
 {
+	FScopeLock ScopeLock(&CacheMutationCriticalSection);
 	const uint32 NumChunks = CachePool.Num();
 
 	CachePool.Reset(NumChunks);
@@ -544,18 +554,23 @@ void FAudioChunkCache::BlockForAllPendingLoads() const
 			FPlatformProcess::Sleep(0.0f);
 		}
 
-		// Iterate through every element until we find one with a load in progress.
-		const FCacheElement* CurrentElement = MostRecentElement;
-		while (CurrentElement != nullptr)
 		{
-			bLoadInProgress |= CurrentElement->IsLoadInProgress();
-			CurrentElement = CurrentElement->LessRecentElement;
+			FScopeLock ScopeLock(const_cast<FCriticalSection*>(&CacheMutationCriticalSection));
+
+			// Iterate through every element until we find one with a load in progress.
+			const FCacheElement* CurrentElement = MostRecentElement;
+			while (CurrentElement != nullptr)
+			{
+				bLoadInProgress |= CurrentElement->IsLoadInProgress();
+				CurrentElement = CurrentElement->LessRecentElement;
+			}
 		}
 	} while (bLoadInProgress);
 }
 
 void FAudioChunkCache::CancelAllPendingLoads()
 {
+	FScopeLock ScopeLock(&CacheMutationCriticalSection);
 	FCacheElement* CurrentElement = MostRecentElement;
 	while (CurrentElement != nullptr)
 	{
@@ -600,6 +615,7 @@ FString FAudioChunkCache::FlushCacheMissLog()
 
 FAudioChunkCache::FCacheElement* FAudioChunkCache::FindElementForKey(const FChunkKey& InKey)
 {
+	FScopeLock ScopeLock(&CacheMutationCriticalSection);
 	FCacheElement* CurrentElement = MostRecentElement;
 
 #if DEBUG_STREAM_CACHE
@@ -875,6 +891,11 @@ void FAudioChunkCache::KickOffAsyncLoad(FCacheElement* CacheElement, const FChun
 	{
 		check(Chunk.BulkData.GetFilename().Len());
 		UE_CLOG(Chunk.BulkData.IsStoredCompressedOnDisk(), LogAudio, Fatal, TEXT("Package level compression is no longer supported."));
+
+		if (CacheElement->IsLoadInProgress())
+		{
+			CacheElement->WaitForAsyncLoadCompletion(true);
+		}
 
 		// TODO: Figure out how to cache this file handle somewhere, so that we are not reopening a file on every individual load operation.
 		CacheElement->FileHandle.Reset(FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*Chunk.BulkData.GetFilename()));

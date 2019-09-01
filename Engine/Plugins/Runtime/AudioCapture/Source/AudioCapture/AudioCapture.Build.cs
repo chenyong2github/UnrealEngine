@@ -12,28 +12,32 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"Engine",
 					"AudioMixer",
+					"AudioCaptureCore"
 				}
 			);
 
-			if (Target.Platform == UnrealTargetPlatform.Win32 ||
-				Target.Platform == UnrealTargetPlatform.Win64)
-			{
-				PublicDefinitions.Add("WITH_RTAUDIO=1");
-				PublicDefinitions.Add("WITH_AUDIOCAPTURE=1");
-
-				// Allow us to use direct sound
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "DirectSound");
-			}
-			else if (Target.Platform == UnrealTargetPlatform.Lumin)
-			{
-				PublicDependencyModuleNames.Add("MLSDK");
-				PublicDefinitions.Add("WITH_AUDIOCAPTURE=1");
-			}
-			else
-			{
-				// Not supported on this platform
-				PublicDefinitions.Add("WITH_AUDIOCAPTURE=0");
-			}
-		}
+            if (Target.Platform == UnrealTargetPlatform.Win32 ||
+                Target.Platform == UnrealTargetPlatform.Win64 ||
+                Target.Platform == UnrealTargetPlatform.XboxOne)
+            {
+                PrivateDependencyModuleNames.Add("AudioCaptureRtAudio");
+            }
+            else if (Target.Platform == UnrealTargetPlatform.PS4)
+            {
+                PrivateDependencyModuleNames.Add("AudioCapturePS4Voice");
+            }
+            else if (Target.Platform == UnrealTargetPlatform.IOS)
+            {
+                PrivateDependencyModuleNames.Add("AudioCaptureAudioUnit");
+            }
+            else if (Target.Platform == UnrealTargetPlatform.Android && Target.Platform != UnrealTargetPlatform.Lumin)
+            {
+                PrivateDependencyModuleNames.Add("AudioCaptureAndroid");
+            }
+            else if (Target.Platform == UnrealTargetPlatform.Switch)
+            {
+                PrivateDependencyModuleNames.Add("AudioCaptureSwitch");
+            }
+        }
 	}
 }

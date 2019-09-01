@@ -11,14 +11,6 @@ DECLARE_CYCLE_STAT(TEXT("Render Ribbons [RT]"), STAT_NiagaraRenderRibbons, STATG
 
 DECLARE_CYCLE_STAT(TEXT("Genereate GPU Buffers"), STAT_NiagaraGenRibbonGpuBuffers, STATGROUP_Niagara);
 
-int32 GNiagaraRibbonCullTwistedStrips = 1;
-static FAutoConsoleVariableRef CVarNiagaraRibbonCullTwistedStrips(
-	TEXT("Niagara.Ribbon.CullTwistedStrips"),
-	GNiagaraRibbonCullTwistedStrips,
-	TEXT("Apply backface culling to remove twisted strips. Double indices. (default=1)"),
-	ECVF_Default
-);
-
 float GNiagaraRibbonTessellationAngle = 15.f * (2.f * PI) / 360.f; // Every 15 degrees
 static FAutoConsoleVariableRef CVarNiagaraRibbonTessellationAngle(
 	TEXT("Niagara.Ribbon.Tessellation.MinAngle"),
@@ -60,14 +52,6 @@ static FAutoConsoleVariableRef CVarNiagaraRibbonMinSegmentLength(
 	TEXT("Niagara.Ribbon.MinSegmentLength"),
 	GNiagaraRibbonMinSegmentLength,
 	TEXT("Min length of niagara ribbon segments. (default=1)"),
-	ECVF_Scalability
-);
-
-float GNiagaraRibbonMaxAveraging = .5f;
-static FAutoConsoleVariableRef CVarNiagaraRibbonMaxAveraging(
-	TEXT("Niagara.Ribbon.Tessellation.MaxAveraging"),
-	GNiagaraRibbonMaxAveraging,
-	TEXT("Averaging value between the max metrics and the current metrics. (default=50%)"),
 	ECVF_Scalability
 );
 
@@ -232,9 +216,9 @@ void FNiagaraRendererRibbons::CreateRenderThreadResources(NiagaraEmitterInstance
 	VertexFactory->InitResource();
 }
 
-void FNiagaraRendererRibbons::GenerateIndexBuffer(uint16* OutIndices, const TArray<int32>& SegmentData,  int32 InterpCount, bool bInvertOrder, bool bCullTwistedStrips)
+void FNiagaraRendererRibbons::GenerateIndexBuffer(uint16* OutIndices, const TArray<int32>& SegmentData,  int32 InterpCount, bool bInvertOrder)
 {
-	auto AddTriangleIndices = [&OutIndices, InterpCount, bCullTwistedStrips](int32 SegmentIndex)
+	auto AddTriangleIndices = [&OutIndices, InterpCount](int32 SegmentIndex)
 	{
 		for (int32 SubSegmentIndex = 0; SubSegmentIndex < InterpCount; ++SubSegmentIndex)
 		{
@@ -245,25 +229,7 @@ void FNiagaraRendererRibbons::GenerateIndexBuffer(uint16* OutIndices, const TArr
 			OutIndices[3] = BaseVertexIndex + 1;
 			OutIndices[4] = BaseVertexIndex + 3;
 			OutIndices[5] = BaseVertexIndex + 2;
-
-			if (bCullTwistedStrips)
-			{
-				// When the ribbon right vector abruptly changes direction, for example when a segment starts with a tangent going up, but ends with a tanging going down,
-				// the triangles defined above will cross each other. One will be clockwise and the other counter-clockwise. We add two triangle here that replaces the invalid one
-				// this prevents the crossing/twisting artefacts while putting a bit more pressure on triangle culling.
-
-				OutIndices[6] = BaseVertexIndex + 0;
-				OutIndices[7] = BaseVertexIndex + 2;
-				OutIndices[8] = BaseVertexIndex + 3;
-				OutIndices[9] = BaseVertexIndex + 0;
-				OutIndices[10] = BaseVertexIndex + 3;
-				OutIndices[11] = BaseVertexIndex + 1;
-				OutIndices += 12;
-			}
-			else
-			{
-				OutIndices += 6;
-			}
+			OutIndices += 6;
 		}
 	};
 
@@ -312,7 +278,6 @@ void FNiagaraRendererRibbons::GetDynamicMeshElements(const TArray<const FSceneVi
 #endif
 
 	const bool bIsWireframe = ViewFamily.EngineShowFlags.Wireframe;
-	const bool bCullTwistedStrips = FacingMode == ENiagaraRibbonFacingMode::Screen && GNiagaraRibbonCullTwistedStrips != 0;
 	FMaterialRenderProxy* MaterialRenderProxy = DynamicDataRibbon->Material;
 	check(MaterialRenderProxy);
 
@@ -364,7 +329,7 @@ void FNiagaraRendererRibbons::GetDynamicMeshElements(const TArray<const FSceneVi
 	case ENiagaraRibbonTessellationMode::Automatic:
 		break;
 	case ENiagaraRibbonTessellationMode::Custom:
-		TessellationFactor = CustomTessellationFactor;
+		TessellationFactor = FMath::Min<int32>(TessellationFactor, CustomTessellationFactor); // Don't allow factors bigger than the platform limit.
 		bUseConstantFactor = bCustomUseConstantFactor;
 		TessellationMinAngle = CustomTessellationMinAngle;
 		ScreenPercentage = bCustomUseScreenSpace && !bUseConstantFactor ? GNiagaraRibbonTessellationScreenPercentage : 0.f;
@@ -415,7 +380,7 @@ void FNiagaraRendererRibbons::GetDynamicMeshElements(const TArray<const FSceneVi
 				NumSegments *= SegmentTessellation;
 			}
 
-			const int32 NumberOfPrimitives = NumSegments * 2 * (bCullTwistedStrips ? 2 : 1);
+			const int32 NumberOfPrimitives = NumSegments * 2;
 
 			// Figure out whether start is closer to the view plane than end
 			// TODO : This doesn't work with multi-ribbons.
@@ -426,7 +391,7 @@ void FNiagaraRendererRibbons::GetDynamicMeshElements(const TArray<const FSceneVi
 
 			// Copy the vertex data over.
 			FGlobalDynamicIndexBuffer::FAllocation DynamicIndexAllocation = DynamicIndexBuffer.Allocate(NumberOfPrimitives * 3, sizeof(int16));
-			GenerateIndexBuffer((uint16*)DynamicIndexAllocation.Buffer, DynamicDataRibbon->SegmentData, SegmentTessellation, bInvertOrder, bCullTwistedStrips); 
+			GenerateIndexBuffer((uint16*)DynamicIndexAllocation.Buffer, DynamicDataRibbon->SegmentData, SegmentTessellation, bInvertOrder); 
 
 			FNiagaraMeshCollectorResourcesRibbon& CollectorResources = Collector.AllocateOneFrameResource<FNiagaraMeshCollectorResourcesRibbon>();
 			FNiagaraRibbonUniformParameters PerViewUniformParameters;// = UniformParameters;
@@ -512,7 +477,7 @@ void FNiagaraRendererRibbons::GetDynamicMeshElements(const TArray<const FSceneVi
 			MeshBatch.CastShadow = SceneProxy->CastsDynamicShadow();
 			MeshBatch.bUseAsOccluder = false;
 			MeshBatch.ReverseCulling = SceneProxy->IsLocalToWorldDeterminantNegative();
-			MeshBatch.bDisableBackfaceCulling = !bCullTwistedStrips;
+			MeshBatch.bDisableBackfaceCulling = true;
 			MeshBatch.Type = PT_TriangleList;
 			MeshBatch.DepthPriorityGroup = SceneProxy->GetDepthPriorityGroup(View);
 			MeshBatch.bCanApplyViewModeOverrides = true;
@@ -670,10 +635,11 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 
 	TArray<int32>& SegmentData = DynamicData->SegmentData;
 	float TotalSegmentLength = 0;
-	float TotalSegmentAngle = 0;
-	float TotalTwistAngle = 0;
-	float TotalWidth = 0;
-	int NumTotalSamples = 0;
+	// weighted sum based on the segment length :
+	float AverageSegmentLength = 0; 
+	float AverageSegmentAngle = 0;
+	float AverageTwistAngle = 0;
+	float AverageWidth = 0;
 
 	if (Properties->RibbonIdBinding.DataSetVariable.GetType() == FNiagaraTypeDefinition::GetIDDef())
 	{
@@ -693,8 +659,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 
 	auto AddRibbonVerts = [&](TArray<int32>& RibbonIndices, uint32 RibbonIndex)
 	{
-		int32 StartIndex = DynamicData->SortedIndices.Num();
-		int32 NumIndices = RibbonIndices.Num();
+		const int32 StartIndex = DynamicData->SortedIndices.Num();
 
 		float TotalDistance = 0.0f;
 
@@ -729,7 +694,6 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 				DynamicData->SortedIndices.Add(RibbonIndices[0]);
 				DynamicData->TangentAndDistances.Add(FVector4(LastToCurrVec.X, LastToCurrVec.Y, LastToCurrVec.Z, 0));
 				DynamicData->MultiRibbonIndices.Add(RibbonIndex);
-
 				break;
 			}
 			else
@@ -773,10 +737,10 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 
 				// Assumed equal to dot(Tangent, CurrToNextVec)
 				TotalSegmentLength += CurrToNextSize;
-				TotalSegmentAngle += AcosFast(FVector::DotProduct(LastToCurrVec, CurrToNextVec));
-				TotalTwistAngle += FMath::Abs(NextTwist - LastTwist);
-				TotalWidth += LastWidth;
-				++NumTotalSamples;
+				AverageSegmentLength += CurrToNextSize * CurrToNextSize;
+				AverageSegmentAngle += CurrToNextSize * AcosFast(FVector::DotProduct(LastToCurrVec, CurrToNextVec));
+				AverageTwistAngle += FMath::Abs(NextTwist - LastTwist) * CurrToNextSize;
+				AverageWidth += LastWidth * CurrToNextSize;
 
 				// Move to next segment.
 				CurrentIndex = NextIndex;
@@ -902,25 +866,28 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 		}
 	}
 
-	if (NumTotalSamples > 0)
+	if (TotalSegmentLength > 0)
 	{
-		const float OneOverSampleCount = 1.f / (float)NumTotalSamples;
-		const float AverageSegmentAngle = TotalSegmentAngle * OneOverSampleCount;
-		const float AverageSegmentCurvature = TotalSegmentLength * OneOverSampleCount * .5 / (FMath::Max(SMALL_NUMBER, FMath::Abs(FMath::Sin(AverageSegmentAngle))));
+		// Blend the result between the last frame tessellation factors and the current frame base on the total length of all segments.
+		// This is only used to increase the tessellation value of the current frame data to prevent glitches where tessellation is significantly changin between frames.
+		const float OneOverTotalSegmentLength = 1.f / FMath::Max(1.f, TotalSegmentLength);
+		const float AveragingFactor = TessellationTotalSegmentLength / (TotalSegmentLength + TessellationTotalSegmentLength);
+		TessellationTotalSegmentLength = TotalSegmentLength;
 
-		// Accumulate the max so that tessellation is ever increasing and stabilizes over time.
-		// This is to avoid the spawning and unspawning of ribbons to constantly generate different tessellation factors.
-		
-		TessellationAngle = FMath::Lerp<float>(AverageSegmentAngle, FMath::Max(TessellationAngle, AverageSegmentAngle), GNiagaraRibbonMaxAveraging);
-		TessellationCurvature = FMath::Lerp<float>(AverageSegmentCurvature, FMath::Max(TessellationCurvature, AverageSegmentCurvature), GNiagaraRibbonMaxAveraging);
+		AverageSegmentAngle *= OneOverTotalSegmentLength;
+		AverageSegmentLength *= OneOverTotalSegmentLength;
+		const float AverageSegmentCurvature = AverageSegmentLength / (FMath::Max(SMALL_NUMBER, FMath::Abs(FMath::Sin(AverageSegmentAngle))));
+
+		TessellationAngle = FMath::Lerp<float>(AverageSegmentAngle, FMath::Max(TessellationAngle, AverageSegmentAngle), AveragingFactor);
+		TessellationCurvature = FMath::Lerp<float>(AverageSegmentCurvature, FMath::Max(TessellationCurvature, AverageSegmentCurvature), AveragingFactor);
 
 		if (bHasTwist)
 		{
-			const float AverageTwistAngle = TotalTwistAngle * OneOverSampleCount;
-			const float AverageTwistCurvature = TotalWidth * OneOverSampleCount;
+			AverageTwistAngle *= OneOverTotalSegmentLength;
+			AverageWidth *= OneOverTotalSegmentLength;
 			
-			TessellationTwistAngle = FMath::Lerp<float>(AverageTwistAngle, FMath::Max(TessellationTwistAngle, AverageTwistAngle), GNiagaraRibbonMaxAveraging);
-			TessellationTwistCurvature = FMath::Lerp<float>(AverageTwistCurvature, FMath::Max(TessellationTwistCurvature, AverageTwistCurvature), GNiagaraRibbonMaxAveraging);
+			TessellationTwistAngle = FMath::Lerp<float>(AverageTwistAngle, FMath::Max(TessellationTwistAngle, AverageTwistAngle), AveragingFactor);
+			TessellationTwistCurvature = FMath::Lerp<float>(AverageWidth, FMath::Max(TessellationTwistCurvature, AverageWidth), AveragingFactor);
 		}
 	}
 	else // Reset the metrics when the ribbons are reset.
@@ -929,6 +896,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 		TessellationCurvature = 0;
 		TessellationTwistAngle = 0;
 		TessellationTwistCurvature = 0;
+		TessellationTotalSegmentLength = 0;
 	}
 
 	CPUTimeMS = VertexDataTimer.GetElapsedMilliseconds();

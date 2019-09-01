@@ -12,39 +12,40 @@
 FOutputDeviceRedirector.
 -----------------------------------------------------------------------------*/
 
+class FLogAllocator;
+
 /** The type of lines buffered by secondary threads. */
-struct FBufferedLine
+struct CORE_API FBufferedLine
 {
 	enum EBufferedLineInit
 	{
 		EMoveCtor = 0
 	};
 
-	const FString Data;
-	const FName Category;
+	const TCHAR* Data;
+	const FLazyName Category;
 	const double Time;
 	const ELogVerbosity::Type Verbosity;
+	bool bExternalAllocation;
 
-	/** Initialization constructor. */
-	FBufferedLine(const TCHAR* InData, const class FName& InCategory, ELogVerbosity::Type InVerbosity, const double InTime = -1)
-		: Data(InData)
-		, Category(InCategory)
-		, Time(InTime)
-		, Verbosity(InVerbosity)
-	{}
-
-	/** Default constructor. */
-	FBufferedLine()
-		: Time(0.0)
-		, Verbosity(ELogVerbosity::NoLogging)
-	{}
+	FBufferedLine(const TCHAR* InData, const FName& InCategory, ELogVerbosity::Type InVerbosity, const double InTime = -1, FLogAllocator* ExternalAllocator = nullptr);
+	FBufferedLine(const TCHAR* InData, const FLazyName& InCategory, ELogVerbosity::Type InVerbosity, const double InTime = -1, FLogAllocator* ExternalAllocator = nullptr);
 
 	FBufferedLine(FBufferedLine& InBufferedLine, EBufferedLineInit Unused)
-		: Data(MoveTemp(const_cast<FString&>(InBufferedLine.Data)))
+		: Data(InBufferedLine.Data)
 		, Category(InBufferedLine.Category)
 		, Time(InBufferedLine.Time)
 		, Verbosity(InBufferedLine.Verbosity)
-	{}
+		, bExternalAllocation(InBufferedLine.bExternalAllocation)
+	{
+		InBufferedLine.Data = nullptr;
+		InBufferedLine.bExternalAllocation = false;
+	}
+
+	/** Noncopyable for now, could be made movable */
+	FBufferedLine(const FBufferedLine&) = delete;
+	FBufferedLine& operator=(const FBufferedLine&) = delete;
+	~FBufferedLine();
 };
 
 /**
@@ -57,8 +58,10 @@ public:
 	typedef TArray<FOutputDevice*, TInlineAllocator<16> > TLocalOutputDevicesArray;
 
 private:
+	enum { InlineLogEntries = 16 };
+
 	/** A FIFO of lines logged by non-master threads. */
-	TArray<FBufferedLine> BufferedLines;
+	TArray<FBufferedLine, TInlineAllocator<InlineLogEntries>> BufferedLines;
 
 	/** A FIFO backlog of messages logged before the editor had a chance to intercept them. */
 	TArray<FBufferedLine> BacklogLines;
@@ -74,6 +77,8 @@ private:
 
 	/** Whether backlogging is enabled. */
 	bool bEnableBacklog;
+
+	FLogAllocator* BufferedLinesAllocator;
 
 	/** Objects used for synchronization via a scoped lock */
 	FCriticalSection	SynchronizationObject;
@@ -111,10 +116,16 @@ private:
 			Redirector->UnlockOutputDevices();
 		}
 	};
+
+	void EmptyBufferedLines();
+
+	template<class T>
+	void SerializeImpl(const TCHAR* Data, ELogVerbosity::Type Verbosity, T& CategoryName, double Time);
+
 public:
 
 	/** Initialization constructor. */
-	FOutputDeviceRedirector();
+	explicit FOutputDeviceRedirector(FLogAllocator* Allocator = nullptr);
 
 	/**
 	* Get the GLog singleton
@@ -185,6 +196,13 @@ public:
 	* @param	Event	Event name used for suppression purposes
 	*/
 	virtual void Serialize(const TCHAR* Data, ELogVerbosity::Type Verbosity, const class FName& Category) override;
+	
+	/** Same as Serialize() but FName creation. Only needed to support 
+	*
+	*/
+	void RedirectLog(const FLazyName& Category, ELogVerbosity::Type Verbosity, const TCHAR* Data);
+
+	void RedirectLog(const FName& Category, ELogVerbosity::Type Verbosity, const TCHAR* Data);
 
 	/**
 	* Passes on the flush request to all current output devices.

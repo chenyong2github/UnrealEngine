@@ -83,17 +83,20 @@ public:
 	{
 	}
 
-	virtual FIntPoint GetAtlasSize() const override
+	virtual FIntPoint GetAtlasSize(const bool InIsGrayscale) const override
 	{
-		return FIntPoint(TextureSize, TextureSize);
+		return InIsGrayscale
+			? FIntPoint(GrayscaleTextureSize, GrayscaleTextureSize)
+			: FIntPoint(ColorTextureSize, ColorTextureSize);
 	}
 
-	virtual TSharedRef<FSlateFontAtlas> CreateFontAtlas() const override
+	virtual TSharedRef<FSlateFontAtlas> CreateFontAtlas(const bool InIsGrayscale) const override
 	{
-		return MakeShareable( new FSlateFontAtlasD3D( TextureSize, TextureSize ) );
+		const FIntPoint AtlasSize = GetAtlasSize(InIsGrayscale);
+		return MakeShareable(new FSlateFontAtlasD3D(AtlasSize.X, AtlasSize.Y, InIsGrayscale));
 	}
 
-	virtual TSharedPtr<ISlateFontTexture> CreateNonAtlasedTexture(const uint32 InWidth, const uint32 InHeight, const TArray<uint8>& InRawData) const override
+	virtual TSharedPtr<ISlateFontTexture> CreateNonAtlasedTexture(const uint32 InWidth, const uint32 InHeight, const bool InIsGrayscale, const TArray<uint8>& InRawData) const override
 	{
 		return nullptr;
 	}
@@ -101,7 +104,8 @@ public:
 private:
 
 	/** Size of each font texture, width and height */
-	static const uint32 TextureSize = 1024;
+	static const uint32 GrayscaleTextureSize = 1024;
+	static const uint32 ColorTextureSize = 256;
 };
 
 TSharedRef<FSlateFontServices> CreateD3DFontServices()

@@ -74,6 +74,11 @@ ETextShapingMethod GetDefaultTextShapingMethod()
 }
 
 
+float FShapedGlyphEntry::GetBitmapRenderScale() const
+{
+	return FontFaceData ? FontFaceData->BitmapRenderScale : 1.0f;
+}
+
 FShapedGlyphEntryKey::FShapedGlyphEntryKey(const FShapedGlyphFaceData& InFontFaceData, uint32 InGlyphIndex, const FFontOutlineSettings& InOutlineSettings)
 	: FontFace(InFontFaceData.FontFace)
 	, FontSize(InFontFaceData.FontSize)
@@ -568,9 +573,9 @@ bool FCharacterList::CanCacheCharacter(TCHAR Character, const EFontFallback MaxF
 	else
 	{
 		float SubFontScalingFactor = 1.0f;
-		const FFontData& FontData = FontCache.CompositeFontCache->GetFontDataForCharacter(FontKey.GetFontInfo(), Character, SubFontScalingFactor);
+		const FFontData& FontData = FontCache.CompositeFontCache->GetFontDataForCodepoint(FontKey.GetFontInfo(), Character, SubFontScalingFactor);
 
-		bReturnVal = FontCache.FontRenderer->CanLoadCharacter(FontData, Character, MaxFontFallback);
+		bReturnVal = FontCache.FontRenderer->CanLoadCodepoint(FontData, Character, MaxFontFallback);
 	}
 
 	return bReturnVal;
@@ -660,16 +665,22 @@ FCharacterList::FCharacterListEntry FCharacterList::CacheCharacter(TCHAR Charact
 
 		// Get the data needed to render this character
 		float SubFontScalingFactor = 1.0f;
-		const FFontData* FontDataPtr = &FontCache.CompositeFontCache->GetFontDataForCharacter(FontInfo, Character, SubFontScalingFactor);
-		FFreeTypeFaceGlyphData FaceGlyphData = FontCache.FontRenderer->GetFontFaceForCharacter(*FontDataPtr, Character, FontInfo.FontFallback);
+		const FFontData* FontDataPtr = &FontCache.CompositeFontCache->GetFontDataForCodepoint(FontInfo, Character, SubFontScalingFactor);
+		FFreeTypeFaceGlyphData FaceGlyphData = FontCache.FontRenderer->GetFontFaceForCodepoint(*FontDataPtr, Character, FontInfo.FontFallback);
 
 		// Found a valid font face?
 		if (FaceGlyphData.FaceAndMemory.IsValid())
 		{
+			// Only scalable font types can use sub-font scaling
+			if (!FT_IS_SCALABLE(FaceGlyphData.FaceAndMemory->GetFace()))
+			{
+				SubFontScalingFactor = 1.0f;
+			}
+
 			const float FinalFontScale = FontKey.GetScale() * SubFontScalingFactor;
 
 			uint32 GlyphFlags = 0;
-			SlateFontRendererUtils::AppendGlyphFlags(*FontDataPtr, GlyphFlags);
+			SlateFontRendererUtils::AppendGlyphFlags(*FaceGlyphData.FaceAndMemory, *FontDataPtr, GlyphFlags);
 
 			const bool bHasKerning = FT_HAS_KERNING(FaceGlyphData.FaceAndMemory->GetFace()) != 0;
 
@@ -733,6 +744,7 @@ FCharacterEntry FCharacterList::MakeCharacterEntry(TCHAR Character, const FChara
 			CharEntry.GlyphIndex = InternalEntry.ShapedGlyphEntry.GlyphIndex;
 			CharEntry.FontData = InternalEntry.FontData;
 			CharEntry.FontScale = InternalEntry.ShapedGlyphEntry.FontFaceData->FontScale;
+			CharEntry.BitmapRenderScale = InternalEntry.ShapedGlyphEntry.FontFaceData->BitmapRenderScale;
 			CharEntry.StartU = ShapedGlyphFontAtlasData.StartU;
 			CharEntry.StartV = ShapedGlyphFontAtlasData.StartV;
 			CharEntry.USize = ShapedGlyphFontAtlasData.USize;
@@ -743,6 +755,7 @@ FCharacterEntry FCharacterList::MakeCharacterEntry(TCHAR Character, const FChara
 			CharEntry.XAdvance = InternalEntry.ShapedGlyphEntry.XAdvance;
 			CharEntry.TextureIndex = ShapedGlyphFontAtlasData.TextureIndex;
 			CharEntry.HasKerning = InternalEntry.HasKerning;
+			CharEntry.SupportsOutline = ShapedGlyphFontAtlasData.SupportsOutline;
 			CharEntry.FallbackLevel = InternalEntry.FallbackLevel;
 		}
 	}
@@ -760,7 +773,8 @@ FSlateFontCache::FSlateFontCache( TSharedRef<ISlateFontAtlasFactory> InFontAtlas
 	, TextShaper( new FSlateTextShaper( FTGlyphCache.Get(), FTAdvanceCache.Get(), FTKerningPairCache.Get(), CompositeFontCache.Get(), FontRenderer.Get(), this ) )
 	, FontAtlasFactory( InFontAtlasFactory )
 	, bFlushRequested( false )
-	, CurrentMaxAtlasPagesBeforeFlushRequest(InitialMaxAtlasPagesBeforeFlushRequest)
+	, CurrentMaxGrayscaleAtlasPagesBeforeFlushRequest(InitialMaxAtlasPagesBeforeFlushRequest)
+	, CurrentMaxColorAtlasPagesBeforeFlushRequest(InitialMaxAtlasPagesBeforeFlushRequest)
 	, CurrentMaxNonAtlasedTexturesBeforeFlushRequest(InitialMaxNonAtlasedTexturesBeforeFlushRequest)
 	, FrameCounterLastFlushRequest( 0 )
 	, OwningThread(InOwningThread)
@@ -773,6 +787,8 @@ FSlateFontCache::~FSlateFontCache()
 	FInternationalization::Get().OnCultureChanged().RemoveAll(this);
 
 	// Make sure things get destroyed in the correct order
+	FontToCharacterListCache.Empty();
+	ShapedGlyphToAtlasData.Empty();
 	TextShaper.Reset();
 	FontRenderer.Reset();
 	CompositeFontCache.Reset();
@@ -784,22 +800,19 @@ FSlateFontCache::~FSlateFontCache()
 
 int32 FSlateFontCache::GetNumAtlasPages() const
 {
-	return FontAtlases.Num();
-}
-
-FIntPoint FSlateFontCache::GetAtlasPageSize() const
-{
-	return FontAtlasFactory->GetAtlasSize();
+	return GrayscaleFontAtlasIndices.Num() + ColorFontAtlasIndices.Num();
 }
 
 FSlateShaderResource* FSlateFontCache::GetAtlasPageResource(const int32 InIndex) const
 {
-	return FontAtlases[InIndex]->GetSlateTexture();
+	const int32 AllFontTexturesIndex = InIndex < GrayscaleFontAtlasIndices.Num() ? GrayscaleFontAtlasIndices[InIndex] : ColorFontAtlasIndices[InIndex - GrayscaleFontAtlasIndices.Num()];
+	return AllFontTextures[AllFontTexturesIndex]->GetSlateTexture();
 }
 
-bool FSlateFontCache::IsAtlasPageResourceAlphaOnly() const
+bool FSlateFontCache::IsAtlasPageResourceAlphaOnly(const int32 InIndex) const
 {
-	return true;
+	const int32 AllFontTexturesIndex = InIndex < GrayscaleFontAtlasIndices.Num() ? GrayscaleFontAtlasIndices[InIndex] : ColorFontAtlasIndices[InIndex - GrayscaleFontAtlasIndices.Num()];
+	return AllFontTextures[AllFontTexturesIndex]->IsGrayscale();
 }
 
 bool FSlateFontCache::AddNewEntry(const FShapedGlyphEntry& InShapedGlyph, const FFontOutlineSettings& InOutlineSettings, FShapedGlyphFontAtlasData& OutAtlasData)
@@ -811,8 +824,9 @@ bool FSlateFontCache::AddNewEntry(const FShapedGlyphEntry& InShapedGlyph, const 
 	OutAtlasData.Valid = bDidRender && AddNewEntry(RenderData, OutAtlasData.TextureIndex, OutAtlasData.StartU, OutAtlasData.StartV, OutAtlasData.USize, OutAtlasData.VSize);
 	if (OutAtlasData.Valid)
 	{
-		OutAtlasData.VerticalOffset = RenderData.MeasureInfo.VerticalOffset;
-		OutAtlasData.HorizontalOffset = RenderData.MeasureInfo.HorizontalOffset;
+		OutAtlasData.VerticalOffset = RenderData.VerticalOffset;
+		OutAtlasData.HorizontalOffset = RenderData.HorizontalOffset;
+		OutAtlasData.SupportsOutline = RenderData.bSupportsOutline;
 	}
 
 	return OutAtlasData.Valid;
@@ -823,31 +837,33 @@ bool FSlateFontCache::AddNewEntry( const FCharacterRenderData InRenderData, uint
 	const uint64 LastFlushRequestFrameDelta = GFrameCounter - FrameCounterLastFlushRequest;
 
 	// Will this entry fit within any atlas texture?
-	if (InRenderData.MeasureInfo.SizeX > FontAtlasFactory->GetAtlasSize().X || InRenderData.MeasureInfo.SizeY > FontAtlasFactory->GetAtlasSize().Y)
+	const FIntPoint FontAtlasSize = FontAtlasFactory->GetAtlasSize(InRenderData.bIsGrayscale);
+	if (InRenderData.SizeX > FontAtlasSize.X || InRenderData.SizeY > FontAtlasSize.Y)
 	{
-		TSharedPtr<ISlateFontTexture> NonAtlasedTexture = FontAtlasFactory->CreateNonAtlasedTexture(InRenderData.MeasureInfo.SizeX, InRenderData.MeasureInfo.SizeY, InRenderData.RawPixels);
+		TSharedPtr<ISlateFontTexture> NonAtlasedTexture = FontAtlasFactory->CreateNonAtlasedTexture(InRenderData.SizeX, InRenderData.SizeY, InRenderData.bIsGrayscale, InRenderData.RawPixels);
 		if (NonAtlasedTexture.IsValid())
 		{
 			INC_DWORD_STAT_BY(STAT_SlateNumFontNonAtlasedTextures, 1);
 
 			UE_LOG(LogSlate, Warning, TEXT("SlateFontCache - Glyph texture is too large to store in the font atlas, so we're falling back to a non-atlased texture for this glyph. This may have SERIOUS performance implications. Atlas page size: { %d, %d }. Glyph render size: { %d, %d }"),
-				FontAtlasFactory->GetAtlasSize().X, FontAtlasFactory->GetAtlasSize().Y,
-				InRenderData.MeasureInfo.SizeX, InRenderData.MeasureInfo.SizeY
+				FontAtlasSize.X, FontAtlasSize.Y,
+				InRenderData.SizeX, InRenderData.SizeY
 				);
 
-			NonAtlasedTextures.Add(NonAtlasedTexture.ToSharedRef());
 			OutTextureIndex = AllFontTextures.Add(NonAtlasedTexture.ToSharedRef());
+			NonAtlasedTextureIndices.Add(OutTextureIndex);
+
 			OutGlyphX = 0;
 			OutGlyphY = 0;
-			OutGlyphWidth = InRenderData.MeasureInfo.SizeX;
-			OutGlyphHeight = InRenderData.MeasureInfo.SizeY;
+			OutGlyphWidth = InRenderData.SizeX;
+			OutGlyphHeight = InRenderData.SizeY;
 
-			if (NonAtlasedTextures.Num() > CurrentMaxNonAtlasedTexturesBeforeFlushRequest && !bFlushRequested)
+			if (NonAtlasedTextureIndices.Num() > CurrentMaxNonAtlasedTexturesBeforeFlushRequest && !bFlushRequested)
 			{
 				// The InitialMaxNonAtlasedTexturesBeforeFlushRequest may have changed since last flush,
 				// so double check that we're below the current max or initial, if we're under it,
 				// update the current to the initial.
-				if (NonAtlasedTextures.Num() <= InitialMaxNonAtlasedTexturesBeforeFlushRequest)
+				if (NonAtlasedTextureIndices.Num() <= InitialMaxNonAtlasedTexturesBeforeFlushRequest)
 				{
 					CurrentMaxNonAtlasedTexturesBeforeFlushRequest = InitialMaxNonAtlasedTexturesBeforeFlushRequest;
 				}
@@ -855,13 +871,13 @@ bool FSlateFontCache::AddNewEntry( const FCharacterRenderData InRenderData, uint
 				// a lot of font data cached. We should update CurrentMaxNonAtlasedTexturesBeforeFlushRequest to give us a bit more flexibility before the next flush request
 				else if (LastFlushRequestFrameDelta <= GrowFontNonAtlasFrameWindow)
 				{
-					CurrentMaxNonAtlasedTexturesBeforeFlushRequest = NonAtlasedTextures.Num();
+					CurrentMaxNonAtlasedTexturesBeforeFlushRequest = NonAtlasedTextureIndices.Num();
 					UE_LOG(LogSlate, Warning, TEXT("SlateFontCache - Setting the threshold to trigger a flush to %d non-atlased textures as there is a lot of font data being cached."), CurrentMaxNonAtlasedTexturesBeforeFlushRequest);
 				}
 				else
 				{
 					// We've grown beyond our current stable limit - try and request a flush
-					RequestFlushCache(FString::Printf(TEXT("Large glyph font atlases out of space; %d/%d Textures; frames since last flush: %llu"), NonAtlasedTextures.Num(), CurrentMaxNonAtlasedTexturesBeforeFlushRequest, LastFlushRequestFrameDelta));
+					RequestFlushCache(FString::Printf(TEXT("Large glyph font atlases out of space; %d/%d Textures; frames since last flush: %llu"), NonAtlasedTextureIndices.Num(), CurrentMaxNonAtlasedTexturesBeforeFlushRequest, LastFlushRequestFrameDelta));
 				}
 			}
 
@@ -869,8 +885,8 @@ bool FSlateFontCache::AddNewEntry( const FCharacterRenderData InRenderData, uint
 		}
 
 		UE_LOG(LogSlate, Warning, TEXT("SlateFontCache - Glyph texture is too large to store in the font atlas, but we cannot support rendering such a large texture. Atlas page size: { %d, %d }. Glyph render size: { %d, %d }"),
-			FontAtlasFactory->GetAtlasSize().X, FontAtlasFactory->GetAtlasSize().Y,
-			InRenderData.MeasureInfo.SizeX, InRenderData.MeasureInfo.SizeY
+			FontAtlasSize.X, FontAtlasSize.Y,
+			InRenderData.SizeX, InRenderData.SizeY
 			);
 		return false;
 	}
@@ -883,18 +899,29 @@ bool FSlateFontCache::AddNewEntry( const FCharacterRenderData InRenderData, uint
 		OutGlyphHeight = AtlasedTextureSlot.Height - (2 * AtlasedTextureSlot.Padding);
 	};
 
-	for( OutTextureIndex = 0; OutTextureIndex < FontAtlases.Num(); ++OutTextureIndex ) 
+	TArray<int32>& FontAtlasIndices = InRenderData.bIsGrayscale ? GrayscaleFontAtlasIndices : ColorFontAtlasIndices;
+	int32& CurrentMaxAtlasPagesBeforeFlushRequest = InRenderData.bIsGrayscale ? CurrentMaxGrayscaleAtlasPagesBeforeFlushRequest : CurrentMaxColorAtlasPagesBeforeFlushRequest;
+
+	for (const int32 FontAtlasIndex : FontAtlasIndices)
 	{
+		FSlateFontAtlas& FontAtlas = static_cast<FSlateFontAtlas&>(AllFontTextures[FontAtlasIndex].Get());
+		checkSlow(FontAtlas.IsGrayscale() == InRenderData.bIsGrayscale);
+
 		// Add the character to the texture
-		const FAtlasedTextureSlot* NewSlot = FontAtlases[OutTextureIndex]->AddCharacter(InRenderData);
+		const FAtlasedTextureSlot* NewSlot = FontAtlas.AddCharacter(InRenderData);
 		if( NewSlot )
 		{
+			OutTextureIndex = FontAtlasIndex;
 			FillOutputParamsFromAtlasedTextureSlot(*NewSlot);
 			return true;
 		}
 	}
 
-	TSharedRef<FSlateFontAtlas> FontAtlas = FontAtlasFactory->CreateFontAtlas();
+	TSharedRef<FSlateFontAtlas> FontAtlas = FontAtlasFactory->CreateFontAtlas(InRenderData.bIsGrayscale);
+	OutTextureIndex = AllFontTextures.Add(FontAtlas);
+	FontAtlasIndices.Add(OutTextureIndex);
+
+	INC_DWORD_STAT_BY(STAT_SlateNumFontAtlases, 1);
 
 	// Add the character to the texture
 	const FAtlasedTextureSlot* NewSlot = FontAtlas->AddCharacter(InRenderData);
@@ -903,17 +930,12 @@ bool FSlateFontCache::AddNewEntry( const FCharacterRenderData InRenderData, uint
 		FillOutputParamsFromAtlasedTextureSlot(*NewSlot);
 	}
 
-	FontAtlases.Add( FontAtlas );
-	OutTextureIndex = AllFontTextures.Add(FontAtlas);
-
-	INC_DWORD_STAT_BY( STAT_SlateNumFontAtlases, 1 );
-
-	if( FontAtlases.Num() > CurrentMaxAtlasPagesBeforeFlushRequest && !bFlushRequested )
+	if (FontAtlasIndices.Num() > CurrentMaxAtlasPagesBeforeFlushRequest && !bFlushRequested)
 	{
 		// The InitialMaxNonAtlasedTexturesBeforeFlushRequest may have changed since last flush,
 		// so double check that we're below the current max or initial, if we're under it,
 		// update the current to the initial.
-		if (FontAtlases.Num() <= InitialMaxAtlasPagesBeforeFlushRequest)
+		if (FontAtlasIndices.Num() <= InitialMaxAtlasPagesBeforeFlushRequest)
 		{
 			CurrentMaxAtlasPagesBeforeFlushRequest = InitialMaxAtlasPagesBeforeFlushRequest;
 		}
@@ -921,13 +943,13 @@ bool FSlateFontCache::AddNewEntry( const FCharacterRenderData InRenderData, uint
 		// a lot of font data cached. We should update MaxAtlasPagesBeforeFlushRequest to give us a bit more flexibility before the next flush request
 		else if (LastFlushRequestFrameDelta <= GrowFontAtlasFrameWindow)
 		{
-			CurrentMaxAtlasPagesBeforeFlushRequest = FontAtlases.Num();
+			CurrentMaxAtlasPagesBeforeFlushRequest = FontAtlasIndices.Num();
 			UE_LOG(LogSlate, Warning, TEXT("SlateFontCache - Setting the threshold to trigger a flush to %d atlas pages as there is a lot of font data being cached."), CurrentMaxAtlasPagesBeforeFlushRequest);
 		}
 		else
 		{
 			// We've grown beyond our current stable limit - try and request a flush
-			RequestFlushCache(FString::Printf(TEXT("Font Atlases Full; %d/%d Pages; frames since last flush: %llu"), FontAtlases.Num(), CurrentMaxAtlasPagesBeforeFlushRequest, LastFlushRequestFrameDelta));
+			RequestFlushCache(FString::Printf(TEXT("Font Atlases Full; %d/%d Pages; frames since last flush: %llu"), FontAtlasIndices.Num(), CurrentMaxAtlasPagesBeforeFlushRequest, LastFlushRequestFrameDelta));
 		}
 	}
 
@@ -1031,9 +1053,9 @@ const FFontData& FSlateFontCache::GetDefaultFontData( const FSlateFontInfo& InFo
 	return CompositeFontCache->GetDefaultFontData(InFontInfo);
 }
 
-const FFontData& FSlateFontCache::GetFontDataForCharacter( const FSlateFontInfo& InFontInfo, const TCHAR InChar, float& OutScalingFactor ) const
+const FFontData& FSlateFontCache::GetFontDataForCodepoint( const FSlateFontInfo& InFontInfo, const UTF32CHAR InCodepoint, float& OutScalingFactor ) const
 {
-	return CompositeFontCache->GetFontDataForCharacter(InFontInfo, InChar, OutScalingFactor);
+	return CompositeFontCache->GetFontDataForCodepoint(InFontInfo, InCodepoint, OutScalingFactor);
 }
 
 uint16 FSlateFontCache::GetMaxCharacterHeight( const FSlateFontInfo& InFontInfo, float FontScale ) const
@@ -1097,7 +1119,8 @@ void FSlateFontCache::RequestFlushCache(const FString& FlushReason)
 #endif
 
 		bFlushRequested = true;
-		CurrentMaxAtlasPagesBeforeFlushRequest = InitialMaxAtlasPagesBeforeFlushRequest;
+		CurrentMaxGrayscaleAtlasPagesBeforeFlushRequest = InitialMaxAtlasPagesBeforeFlushRequest;
+		CurrentMaxColorAtlasPagesBeforeFlushRequest = InitialMaxAtlasPagesBeforeFlushRequest;
 		CurrentMaxNonAtlasedTexturesBeforeFlushRequest = InitialMaxNonAtlasedTexturesBeforeFlushRequest;
 		FrameCounterLastFlushRequest = GFrameCounter;
 	}
@@ -1141,22 +1164,24 @@ bool FSlateFontCache::ConditionalFlushCache()
 
 void FSlateFontCache::UpdateCache()
 {
-	for (const TSharedRef<FSlateFontAtlas>& FontAtlas : FontAtlases)
+	auto UpdateFontAtlasTextures = [this](const TArray<int32>& FontAtlasIndices)
 	{
-		FontAtlas->ConditionalUpdateTexture();
-	}
+		for (const int32 FontAtlasIndex : FontAtlasIndices)
+		{
+			FSlateFontAtlas& FontAtlas = static_cast<FSlateFontAtlas&>(AllFontTextures[FontAtlasIndex].Get());
+			FontAtlas.ConditionalUpdateTexture();
+		}
+	};
+
+	UpdateFontAtlasTextures(GrayscaleFontAtlasIndices);
+	UpdateFontAtlasTextures(ColorFontAtlasIndices);
 }
 
 void FSlateFontCache::ReleaseResources()
 {
-	for (const TSharedRef<FSlateFontAtlas>& FontAtlas : FontAtlases)
+	for (const TSharedRef<ISlateFontTexture>& FontTexture : AllFontTextures)
 	{
-		FontAtlas->ReleaseResources();
-	}
-
-	for (const TSharedRef<ISlateFontTexture>& NonAtlasedTexture : NonAtlasedTextures)
-	{
-		NonAtlasedTexture->ReleaseResources();
+		FontTexture->ReleaseResources();
 	}
 }
 
@@ -1175,8 +1200,9 @@ bool FSlateFontCache::FlushCache()
 		SET_DWORD_STAT(STAT_SlateNumFontAtlases, 0);
 		SET_DWORD_STAT(STAT_SlateNumFontNonAtlasedTextures, 0);
 
-		FontAtlases.Empty();
-		NonAtlasedTextures.Empty();
+		GrayscaleFontAtlasIndices.Empty();
+		ColorFontAtlasIndices.Empty();
+		NonAtlasedTextureIndices.Empty();
 		AllFontTextures.Empty();
 
 		{

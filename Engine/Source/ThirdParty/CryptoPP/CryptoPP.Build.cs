@@ -19,10 +19,9 @@ public class CryptoPP : ModuleRules
             PublicIncludePaths.Add(Target.UEThirdPartySourceDirectory);
             LibFolder += "Win64/VS2015/";
             LibPostfixAndExt += "lib";
-            PublicLibraryPaths.Add(CryptoPPPath + LibFolder);
         }
 
-        PublicAdditionalLibraries.Add(LibPrefix + "cryptlib" + LibPostfixAndExt);
+        PublicAdditionalLibraries.Add(CryptoPPPath + LibFolder + LibPrefix + "cryptlib" + LibPostfixAndExt);
 	}
 
 }

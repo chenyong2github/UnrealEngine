@@ -671,10 +671,10 @@ public:
 	virtual void PropagateLightingScenarioChange() override;
 	//~ End UActorComponent Interface.
 
-
-#if WITH_EDITOR
 	/** Gets the landscape info object for this landscape */
 	LANDSCAPE_API ULandscapeInfo* GetLandscapeInfo() const;
+
+#if WITH_EDITOR
 
 	/** Deletes a layer from this component, removing all its data */
 	LANDSCAPE_API void DeleteLayer(ULandscapeLayerInfoObject* LayerInfo, FLandscapeEditDataInterface& LandscapeEdit);
@@ -723,6 +723,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Landscape|Runtime|Material")
 	class UMaterialInstanceDynamic* GetMaterialInstanceDynamic(int32 InIndex) const;
 
+	/** Gets the landscape paint layer weight value at the given position using LandscapeLayerInfo . Returns 0 in case it fails. */
+	UFUNCTION(BlueprintCallable, Category = "Landscape|Editor")
+	LANDSCAPE_API float EditorGetPaintLayerWeightAtLocation(const FVector& InLocation, ULandscapeLayerInfoObject* PaintLayer);
+
+	/** Gets the landscape paint layer weight value at the given position using layer name. Returns 0 in case it fails. */
+	UFUNCTION(BlueprintCallable, Category = "Landscape|Editor")
+	LANDSCAPE_API float EditorGetPaintLayerWeightByNameAtLocation(const FVector& InLocation, const FName InPaintLayerName);
+		
 	/** Get the landscape actor associated with this component. */
 	ALandscape* GetLandscapeActor() const;
 
@@ -928,6 +936,7 @@ public:
 	LANDSCAPE_API void RequestHeightmapUpdate(bool bUpdateAll = false, bool bUpdateCollision = true);
 	LANDSCAPE_API void RequestEditingClientUpdate();
 	LANDSCAPE_API void RequestDeferredClientUpdate();
+	LANDSCAPE_API uint32 GetLayerUpdateFlagPerMode() const { return LayerUpdateFlagPerMode; }
 	LANDSCAPE_API uint32 ComputeWeightmapsHash();
 #endif
 

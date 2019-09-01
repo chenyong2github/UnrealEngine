@@ -9,6 +9,7 @@
 #include "Engine/EngineBaseTypes.h"
 #include "VREditorTeleporter.generated.h"
 
+class UVREditorInteractor;
 class UViewportInteractor;
 class UVREditorMode;
 

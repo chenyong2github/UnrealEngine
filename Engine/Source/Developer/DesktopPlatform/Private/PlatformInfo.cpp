@@ -22,7 +22,7 @@ TArray<FPlatformInfo> AllPlatformInfoArray;
 // @todo platplug: Figure out why this is compiled on target devices
 #if WITH_EDITOR || IS_PROGRAM
 
-void BuildPlatformInfo(const FName& InPlatformInfoName, const FName& InTargetPlatformName, const FText& InDisplayName, const EPlatformType InPlatformType, const EPlatformFlags::Flags InPlatformFlags, const FPlatformIconPaths& InIconPaths, const FString& InUATCommandLine, const FString& InAutoSDKPath, EPlatformSDKStatus InStatus, const FString& InTutorial, bool InEnabled, FString InBinaryFolderName, FString InIniPlatformName, bool InUsesHostCompiler, bool InUATClosesAfterLaunch, bool InIsConfidential, const FName& InUBTTargetId, const FName& InPlatformGroupName, bool InTargetPlatformCanUseCrashReporter)
+void BuildPlatformInfo(const FName& InPlatformInfoName, const FName& InTargetPlatformName, const FText& InDisplayName, const EBuildTargetType InPlatformType, const EPlatformFlags::Flags InPlatformFlags, const FPlatformIconPaths& InIconPaths, const FString& InUATCommandLine, const FString& InAutoSDKPath, EPlatformSDKStatus InStatus, const FString& InTutorial, bool InEnabled, FString InBinaryFolderName, FString InIniPlatformName, bool InUsesHostCompiler, bool InUATClosesAfterLaunch, bool InIsConfidential, const FName& InUBTTargetId, const FName& InPlatformGroupName, bool InTargetPlatformCanUseCrashReporter)
 {
 	FPlatformInfo& PlatformInfo = AllPlatformInfoArray.Emplace_GetRef();
 
@@ -86,7 +86,7 @@ void BuildPlatformInfo(const FName& InPlatformInfoName, const FName& InTargetPla
 void BuildHardcodedPlatforms()
 {
 	// PlatformInfoName									TargetPlatformName			DisplayName														PlatformType			PlatformFlags					IconPaths																																		UATCommandLine										AutoSDKPath			SDKStatus						SDKTutorial																								bEnabledForUse										BinaryFolderName	IniPlatformName		FbUsesHostCompiler		bUATClosesAfterLaunch	bIsConfidential	UBTTargetId (match UBT's UnrealTargetPlatform enum)		bTargetPlatformCanUseCrashReporter
-	BuildPlatformInfo(TEXT("AllDesktop"),				TEXT("AllDesktop"),			LOCTEXT("DesktopTargetPlatDisplay", "Desktop (Win+Mac+Linux)"),	EPlatformType::Game,	EPlatformFlags::None,			FPlatformIconPaths(TEXT("Launcher/Desktop/Platform_Desktop_24x"), TEXT("Launcher/Desktop/Platform_Desktop_128x")),					TEXT(""),											TEXT(""),			EPlatformSDKStatus::Unknown,	TEXT(""),																								PLATFORM_WINDOWS /* see note below */,						TEXT(""),			TEXT(""),			false,					true,					false,			TEXT("AllDesktop"),	TEXT("Desktop"),	true);
+	BuildPlatformInfo(TEXT("AllDesktop"),				TEXT("AllDesktop"),			LOCTEXT("DesktopTargetPlatDisplay", "Desktop (Win+Mac+Linux)"),	EBuildTargetType::Game,	EPlatformFlags::None,			FPlatformIconPaths(TEXT("Launcher/Desktop/Platform_Desktop_24x"), TEXT("Launcher/Desktop/Platform_Desktop_128x")),					TEXT(""),											TEXT(""),			EPlatformSDKStatus::Unknown,	TEXT(""),																								PLATFORM_WINDOWS /* see note below */,						TEXT(""),			TEXT(""),			false,					true,					false,			TEXT("AllDesktop"),	TEXT("Desktop"),	true);
 	// Note: For "AllDesktop" bEnabledForUse value, see SProjectTargetPlatformSettings::Construct !!!! IsAvailableOnWindows || IsAvailableOnMac || IsAvailableOnLinux
 }
 
@@ -144,7 +144,13 @@ void ParseDataDrivenPlatformInfo(const TCHAR* Name, const FConfigSection& Sectio
 	FString TargetPlatformCanUseCrashReporterString = GetSectionString(Section, TEXT("bTargetPlatformCanUseCrashReporter"));
 	bool bTargetPlatformCanUseCrashReporter = TargetPlatformCanUseCrashReporterString.IsEmpty() ? true : GetSectionBool(Section, TEXT("bTargetPlatformCanUseCrashReporter"));
 
-	BuildPlatformInfo(Name, TargetPlatformName, FText::FromString(DisplayName), EPlatformTypeFromString(*PlatformType), ConvertPlatformFlags(PlatformFlags), FPlatformIconPaths(NormalIconPath, LargeIconPath, XLargeIconPath), UATCommandLine,
+	EBuildTargetType TargetType;
+	if (!LexTryParseString(TargetType, *PlatformType))
+	{
+		TargetType = EBuildTargetType::Unknown;
+	}
+
+	BuildPlatformInfo(Name, TargetPlatformName, FText::FromString(DisplayName), TargetType, ConvertPlatformFlags(PlatformFlags), FPlatformIconPaths(NormalIconPath, LargeIconPath, XLargeIconPath), UATCommandLine,
 		AutoSDKPath, PlatformInfo::EPlatformSDKStatus::Unknown, TutorialPath, bIsEnabled, BinariesDirectoryName, IniPlatformName, bUsesHostCompiler, bUATClosesAfterLaunch, bIsConfidential, UBTTargetID, PlatformGroupName, bTargetPlatformCanUseCrashReporter);
 }
 
@@ -302,31 +308,6 @@ FVanillaPlatformEntry BuildPlatformHierarchy(const FName& InPlatformName, const 
 	return VanillaPlatformEntry;
 }
 
-EPlatformType EPlatformTypeFromString(const FString& PlatformTypeName)
-{
-	if (FCString::Strcmp(*PlatformTypeName, TEXT("Game")) == 0)
-	{
-		return PlatformInfo::EPlatformType::Game;
-	}
-	else if (FCString::Strcmp(*PlatformTypeName, TEXT("Editor")) == 0)
-	{
-		return PlatformInfo::EPlatformType::Editor;
-	}
-	else if (FCString::Strcmp(*PlatformTypeName, TEXT("Client")) == 0)
-	{
-		return PlatformInfo::EPlatformType::Client;
-	}
-	else if (FCString::Strcmp(*PlatformTypeName, TEXT("Server")) == 0)
-	{
-		return PlatformInfo::EPlatformType::Server;
-	}
-	else
-	{
-		UE_LOG(LogDesktopPlatform, Warning, TEXT("Unable to read Platform Type from %s, defaulting to Game"), *PlatformTypeName);
-		return PlatformInfo::EPlatformType::Game;
-	}
-}
-
 const TArray<FName>& GetAllPlatformGroupNames()
 {
 	return PlatformInfo::AllPlatformGroupNames;
@@ -338,22 +319,5 @@ const TArray<FName>& GetAllVanillaPlatformNames()
 }
 
 } // namespace PlatformInfo
-
-FString LexToString(const PlatformInfo::EPlatformType Value)
-{
-	switch (Value)
-	{
-	case PlatformInfo::EPlatformType::Game:
-		return TEXT("Game");
-	case PlatformInfo::EPlatformType::Editor:
-		return TEXT("Editor");
-	case PlatformInfo::EPlatformType::Client:
-		return TEXT("Client");
-	case PlatformInfo::EPlatformType::Server:
-		return TEXT("Server");
-	}
-
-	return TEXT("");
-}
 
 #undef LOCTEXT_NAMESPACE

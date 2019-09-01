@@ -98,14 +98,14 @@ TWeakPtr<FUnitTestProcess> UProcessUnitTest::StartUnitTestProcess(FString Path, 
 }
 
 TWeakPtr<FUnitTestProcess> UProcessUnitTest::StartUE4UnitTestProcess(FString InCommandline, bool bMinimized/*=true*/,
-																		EBuildTargets::Type Type/*=EBuildTargets::Game*/)
+																		EBuildTargetType Type/*=EBuildTargetType::Game*/)
 {
 	TWeakPtr<FUnitTestProcess> ReturnVal = nullptr;
 	FString TargetExecutable = FApp::GetName();
 
 #if UE_BUILD_DEVELOPMENT && !WITH_EDITOR
 	// Development modes other than Dev Editor, must target the separate Server process
-	if (Type == EBuildTargets::Server)
+	if (Type == EBuildTargetType::Server)
 	{
 		TargetExecutable = TargetExecutable.Replace(TEXT("Game"), TEXT("Server"));
 
@@ -522,6 +522,10 @@ void UProcessUnitTest::PollProcessOutput()
 				// Clear the engine-event log hook, to prevent duplication of the below log entry
 				UNIT_EVENT_CLEAR;
 
+				// Disable category names for NetCodeTestNone log statements
+				bool bOldPrintLogCategory = GPrintLogCategory;
+				GPrintLogCategory = false;
+
 				if (bPartialRead)
 				{
 					UE_LOG(NetCodeTestNone, Log, TEXT("%s"), *PartialLog);
@@ -549,6 +553,8 @@ void UProcessUnitTest::PollProcessOutput()
 
 					UE_LOG(NetCodeTestNone, Log, TEXT("%s%s"), *CurHandle->LogPrefix, *CurLine);
 				}
+
+				GPrintLogCategory = bOldPrintLogCategory;
 
 				// Output to the unit log file
 				if (UnitLog.IsValid())

@@ -13,7 +13,7 @@ public class TraceLog : ModuleRules
 
         if (Target.Platform == UnrealTargetPlatform.PS4)
         {
-            PublicAdditionalLibraries.Add("SceNet_stub_weak");
+            PublicSystemLibraries.Add("SceNet_stub_weak");
         }
     }
 }

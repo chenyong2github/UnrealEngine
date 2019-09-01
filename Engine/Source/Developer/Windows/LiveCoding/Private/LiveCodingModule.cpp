@@ -21,6 +21,7 @@ IMPLEMENT_MODULE(FLiveCodingModule, LiveCoding)
 #define LOCTEXT_NAMESPACE "LiveCodingModule"
 
 bool GIsCompileActive = false;
+bool GHasLoadedPatch = false;
 FString GLiveCodingConsolePath;
 FString GLiveCodingConsoleArguments;
 
@@ -165,6 +166,11 @@ void FLiveCodingModule::EnableForSession(bool bEnable)
 			StartLiveCoding();
 			ShowConsole();
 		}
+		else
+		{
+			bEnabledForSession = true;
+			ShowConsole();
+		}
 	}
 	else 
 	{
@@ -231,6 +237,15 @@ bool FLiveCodingModule::IsCompiling() const
 
 void FLiveCodingModule::Tick()
 {
+	extern void LppSyncPoint();
+	LppSyncPoint();
+
+	if (GHasLoadedPatch)
+	{
+		OnPatchCompleteDelegate.Broadcast();
+		GHasLoadedPatch = false;
+	}
+
 	if (LppWantsRestart())
 	{
 		LppRestart(lpp::LPP_RESTART_BEHAVIOR_REQUEST_EXIT, 0);
@@ -247,6 +262,11 @@ void FLiveCodingModule::Tick()
 		UpdateModules();
 		bUpdateModulesInTick = false;
 	}
+}
+
+ILiveCodingModule::FOnPatchCompleteDelegate& FLiveCodingModule::GetOnPatchCompleteDelegate()
+{
+	return OnPatchCompleteDelegate;
 }
 
 bool FLiveCodingModule::StartLiveCoding()
@@ -288,7 +308,7 @@ bool FLiveCodingModule::StartLiveCoding()
 		// Build the command line
 		FString Arguments;
 		Arguments += FString::Printf(TEXT("%s"), FPlatformMisc::GetUBTPlatform());
-		Arguments += FString::Printf(TEXT(" %s"), EBuildConfigurations::ToString(FApp::GetBuildConfiguration()));
+		Arguments += FString::Printf(TEXT(" %s"), LexToString(FApp::GetBuildConfiguration()));
 		Arguments += FString::Printf(TEXT(" -TargetType=%s"), FPlatformMisc::GetUBTTarget());
 		if(SourceProject.Len() > 0)
 		{

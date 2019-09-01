@@ -101,12 +101,13 @@ hb_user_data_key_t UserDataKey;
 
 struct FUserData
 {
-	FUserData(const int32 InFontSize, const float InFontScale, FFreeTypeGlyphCache* InFTGlyphCache, FFreeTypeAdvanceCache* InFTAdvanceCache, FFreeTypeKerningPairCache* InFTKerningPairCache)
+	FUserData(const int32 InFontSize, const float InFontScale, FFreeTypeGlyphCache* InFTGlyphCache, FFreeTypeAdvanceCache* InFTAdvanceCache, FFreeTypeKerningPairCache* InFTKerningPairCache, const hb_font_extents_t& InHarfBuzzFontExtents)
 		: FontSize(InFontSize)
 		, FontScale(InFontScale)
 		, FTGlyphCache(InFTGlyphCache)
 		, FTAdvanceCache(InFTAdvanceCache)
 		, FTKerningPairCache(InFTKerningPairCache)
+		, HarfBuzzFontExtents(InHarfBuzzFontExtents)
 	{
 	}
 
@@ -115,11 +116,12 @@ struct FUserData
 	FFreeTypeGlyphCache* FTGlyphCache;
 	FFreeTypeAdvanceCache* FTAdvanceCache;
 	FFreeTypeKerningPairCache* FTKerningPairCache;
+	hb_font_extents_t HarfBuzzFontExtents;
 };
 
-void* CreateUserData(const int32 InFontSize, const float InFontScale, FFreeTypeGlyphCache* InFTGlyphCache, FFreeTypeAdvanceCache* InFTAdvanceCache, FFreeTypeKerningPairCache* InFTKerningPairCache)
+void* CreateUserData(const int32 InFontSize, const float InFontScale, FFreeTypeGlyphCache* InFTGlyphCache, FFreeTypeAdvanceCache* InFTAdvanceCache, FFreeTypeKerningPairCache* InFTKerningPairCache, const hb_font_extents_t& InHarfBuzzFontExtents)
 {
-	return new FUserData(InFontSize, InFontScale, InFTGlyphCache, InFTAdvanceCache, InFTKerningPairCache);
+	return new FUserData(InFontSize, InFontScale, InFTGlyphCache, InFTAdvanceCache, InFTKerningPairCache, InHarfBuzzFontExtents);
 }
 
 void DestroyUserData(void* UserData)
@@ -145,50 +147,150 @@ FORCEINLINE int32 get_ft_flags(hb_font_t* InFont)
 	return hb_ft_font_get_load_flags(FontParent);
 }
 
-hb_bool_t get_nominal_glyph(hb_font_t* InFont, void* InFontData, hb_codepoint_t InUnicodeChar, hb_codepoint_t *OutGlyphIndex, void *InUserData)
+hb_bool_t get_font_h_extents(hb_font_t* InFont, void* InFontData, hb_font_extents_t* OutMetrics, void* InUserData)
+{
+	const FUserData* UserDataPtr = static_cast<FUserData*>(hb_font_get_user_data(InFont, &UserDataKey));
+	*OutMetrics = UserDataPtr->HarfBuzzFontExtents;
+	return true;
+}
+
+unsigned int get_nominal_glyphs(hb_font_t* InFont, void* InFontData, unsigned int InCount, const hb_codepoint_t *InUnicodeCharBuffer, unsigned int InUnicodeCharBufferStride, hb_codepoint_t *OutGlyphIndexBuffer, unsigned int InGlyphIndexBufferStride, void* InUserData)
 {
 	FT_Face FreeTypeFace = get_ft_face(InFont);
 
-	*OutGlyphIndex = FT_Get_Char_Index(FreeTypeFace, InUnicodeChar);
+	const uint8* UnicodeCharRawBuffer = (const uint8*)InUnicodeCharBuffer;
+	uint8* GlyphIndexRawBuffer = (uint8*)OutGlyphIndexBuffer;
 
-	// If the given font can't render that character (as the fallback font may be missing), try again with the fallback character
-	if (InUnicodeChar != 0 && *OutGlyphIndex == 0)
+	for (unsigned int ItemIndex = 0; ItemIndex < InCount; ++ItemIndex)
 	{
-		*OutGlyphIndex = FT_Get_Char_Index(FreeTypeFace, SlateFontRendererUtils::InvalidSubChar);
+		const hb_codepoint_t* UnicodeCharPtr = (const hb_codepoint_t*)UnicodeCharRawBuffer;
+		hb_codepoint_t* OutGlyphIndexPtr = (hb_codepoint_t*)GlyphIndexRawBuffer;
+
+		*OutGlyphIndexPtr = FT_Get_Char_Index(FreeTypeFace, *UnicodeCharPtr);
+
+		// If the given font can't render that character (as the fallback font may be missing), try again with the fallback character
+		if (*UnicodeCharPtr != 0 && *OutGlyphIndexPtr == 0)
+		{
+			*OutGlyphIndexPtr = FT_Get_Char_Index(FreeTypeFace, SlateFontRendererUtils::InvalidSubChar);
+		}
+
+		// If this resolution failed, return the number if items we managed to process
+		if (*UnicodeCharPtr != 0 && *OutGlyphIndexPtr == 0)
+		{
+			return ItemIndex;
+		}
+
+		// Advance the buffers
+		UnicodeCharRawBuffer += InUnicodeCharBufferStride;
+		GlyphIndexRawBuffer += InGlyphIndexBufferStride;
 	}
 
-	return InUnicodeChar == 0 || *OutGlyphIndex != 0;
+	// Processed everything - return the count
+	return InCount;
+}
+
+hb_bool_t get_nominal_glyph(hb_font_t* InFont, void* InFontData, hb_codepoint_t InUnicodeChar, hb_codepoint_t* OutGlyphIndex, void* InUserData)
+{
+	return get_nominal_glyphs(InFont, InFontData, 1, &InUnicodeChar, sizeof(hb_codepoint_t), OutGlyphIndex, sizeof(hb_codepoint_t), InUserData) == 1;
+}
+
+void get_glyph_h_advances(hb_font_t* InFont, void* InFontData, unsigned int InCount, const hb_codepoint_t* InGlyphIndexBuffer, unsigned int InGlyphIndexBufferStride, hb_position_t* OutAdvanceBuffer, unsigned int InAdvanceBufferStride, void* InUserData)
+{
+	FT_Face FreeTypeFace = get_ft_face(InFont);
+	const int32 FreeTypeFlags = get_ft_flags(InFont);
+	const FUserData* UserDataPtr = static_cast<FUserData*>(hb_font_get_user_data(InFont, &UserDataKey));
+
+	int ScaleMultiplier = 1;
+	{
+		int FontXScale = 0;
+		int FontYScale = 0;
+		hb_font_get_scale(InFont, &FontXScale, &FontYScale);
+
+		if (FontXScale < 0)
+		{
+			ScaleMultiplier = -1;
+		}
+	}
+
+	const uint8* GlyphIndexRawBuffer = (const uint8*)InGlyphIndexBuffer;
+	uint8* AdvanceRawBuffer = (uint8*)OutAdvanceBuffer;
+
+	for (unsigned int ItemIndex = 0; ItemIndex < InCount; ++ItemIndex)
+	{
+		const hb_codepoint_t* GlyphIndexPtr = (const hb_codepoint_t*)GlyphIndexRawBuffer;
+		hb_position_t* OutAdvancePtr = (hb_position_t*)AdvanceRawBuffer;
+
+		FT_Fixed CachedAdvanceData = 0;
+		if (UserDataPtr->FTAdvanceCache->FindOrCache(FreeTypeFace, *GlyphIndexPtr, FreeTypeFlags, UserDataPtr->FontSize, UserDataPtr->FontScale, CachedAdvanceData))
+		{
+			*OutAdvancePtr = ((CachedAdvanceData * ScaleMultiplier) + (1<<9)) >> 10;
+		}
+		else
+		{
+			*OutAdvancePtr = 0;
+		}
+
+		// Advance the buffers
+		GlyphIndexRawBuffer += InGlyphIndexBufferStride;
+		AdvanceRawBuffer += InAdvanceBufferStride;
+	}
 }
 
 hb_position_t get_glyph_h_advance(hb_font_t* InFont, void* InFontData, hb_codepoint_t InGlyphIndex, void* InUserData)
 {
-	FT_Face FreeTypeFace = get_ft_face(InFont);
-	const int32 FreeTypeFlags = get_ft_flags(InFont);
-	const FUserData* UserDataPtr = static_cast<FUserData*>(hb_font_get_user_data(InFont, &UserDataKey));
-
-	FT_Fixed CachedAdvanceData = 0;
-	if (UserDataPtr->FTAdvanceCache->FindOrCache(FreeTypeFace, InGlyphIndex, FreeTypeFlags, UserDataPtr->FontSize, UserDataPtr->FontScale, CachedAdvanceData))
-	{
-		return (CachedAdvanceData + (1<<9)) >> 10;
-	}
-
-	return 0;
+	hb_position_t Advance = 0;
+	get_glyph_h_advances(InFont, InFontData, 1, &InGlyphIndex, sizeof(hb_codepoint_t), &Advance, sizeof(hb_position_t), InUserData);
+	return Advance;
 }
 
-hb_position_t get_glyph_v_advance(hb_font_t* InFont, void* InFontData, hb_codepoint_t InGlyphIndex, void* InUserData)
+void get_glyph_v_advances(hb_font_t* InFont, void* InFontData, unsigned int InCount, const hb_codepoint_t* InGlyphIndexBuffer, unsigned int InGlyphIndexBufferStride, hb_position_t* OutAdvanceBuffer, unsigned int InAdvanceBufferStride, void* InUserData)
 {
 	FT_Face FreeTypeFace = get_ft_face(InFont);
 	const int32 FreeTypeFlags = get_ft_flags(InFont);
 	const FUserData* UserDataPtr = static_cast<FUserData*>(hb_font_get_user_data(InFont, &UserDataKey));
 
-	FT_Fixed CachedAdvanceData = 0;
-	if (UserDataPtr->FTAdvanceCache->FindOrCache(FreeTypeFace, InGlyphIndex, FreeTypeFlags | FT_LOAD_VERTICAL_LAYOUT, UserDataPtr->FontSize, UserDataPtr->FontScale, CachedAdvanceData))
+	int ScaleMultiplier = 1;
 	{
-		// Note: FreeType's vertical metrics grows downward while other FreeType coordinates have a Y growing upward.  Hence the extra negation.
-		return (-CachedAdvanceData + (1<<9)) >> 10;
+		int FontXScale = 0;
+		int FontYScale = 0;
+		hb_font_get_scale(InFont, &FontXScale, &FontYScale);
+
+		if (FontYScale < 0)
+		{
+			ScaleMultiplier = -1;
+		}
 	}
 
-	return 0;
+	const uint8* GlyphIndexRawBuffer = (const uint8*)InGlyphIndexBuffer;
+	uint8* AdvanceRawBuffer = (uint8*)OutAdvanceBuffer;
+
+	for (unsigned int ItemIndex = 0; ItemIndex < InCount; ++ItemIndex)
+	{
+		const hb_codepoint_t* GlyphIndexPtr = (const hb_codepoint_t*)GlyphIndexRawBuffer;
+		hb_position_t* OutAdvancePtr = (hb_position_t*)AdvanceRawBuffer;
+
+		FT_Fixed CachedAdvanceData = 0;
+		if (UserDataPtr->FTAdvanceCache->FindOrCache(FreeTypeFace, *GlyphIndexPtr, FreeTypeFlags | FT_LOAD_VERTICAL_LAYOUT, UserDataPtr->FontSize, UserDataPtr->FontScale, CachedAdvanceData))
+		{
+			// Note: FreeType's vertical metrics grows downward while other FreeType coordinates have a Y growing upward. Hence the extra negation.
+			*OutAdvancePtr = ((-CachedAdvanceData * ScaleMultiplier) + (1<<9)) >> 10;
+		}
+		else
+		{
+			*OutAdvancePtr = 0;
+		}
+
+		// Advance the buffers
+		GlyphIndexRawBuffer += InGlyphIndexBufferStride;
+		AdvanceRawBuffer += InAdvanceBufferStride;
+	}
+}
+
+hb_position_t get_glyph_v_advance(hb_font_t* InFont, void* InFontData, hb_codepoint_t InGlyphIndex, void* InUserData)
+{
+	hb_position_t Advance = 0;
+	get_glyph_v_advances(InFont, InFontData, 1, &InGlyphIndex, sizeof(hb_codepoint_t), &Advance, sizeof(hb_position_t), InUserData);
+	return Advance;
 }
 
 hb_bool_t get_glyph_v_origin(hb_font_t* InFont, void* InFontData, hb_codepoint_t InGlyphIndex, hb_position_t* OutX, hb_position_t* OutY, void* InUserData)
@@ -200,7 +302,7 @@ hb_bool_t get_glyph_v_origin(hb_font_t* InFont, void* InFontData, hb_codepoint_t
 	FFreeTypeGlyphCache::FCachedGlyphData CachedGlyphData;
 	if (UserDataPtr->FTGlyphCache->FindOrCache(FreeTypeFace, InGlyphIndex, FreeTypeFlags, UserDataPtr->FontSize, UserDataPtr->FontScale, CachedGlyphData))
 	{
-		// Note: FreeType's vertical metrics grows downward while other FreeType coordinates have a Y growing upward.  Hence the extra negation.
+		// Note: FreeType's vertical metrics grows downward while other FreeType coordinates have a Y growing upward. Hence the extra negation.
 		*OutX = CachedGlyphData.GlyphMetrics.horiBearingX -   CachedGlyphData.GlyphMetrics.vertBearingX;
 		*OutY = CachedGlyphData.GlyphMetrics.horiBearingY - (-CachedGlyphData.GlyphMetrics.vertBearingY);
 
@@ -251,6 +353,23 @@ hb_bool_t get_glyph_extents(hb_font_t* InFont, void* InFontData, hb_codepoint_t 
 		OutExtents->y_bearing	=  CachedGlyphData.GlyphMetrics.horiBearingY;
 		OutExtents->width		=  CachedGlyphData.GlyphMetrics.width;
 		OutExtents->height		= -CachedGlyphData.GlyphMetrics.height;
+
+		int FontXScale = 0;
+		int FontYScale = 0;
+		hb_font_get_scale(InFont, &FontXScale, &FontYScale);
+
+		if (FontXScale < 0)
+		{
+			OutExtents->x_bearing = -OutExtents->x_bearing;
+			OutExtents->width = -OutExtents->width;
+		}
+
+		if (FontYScale < 0)
+		{
+			OutExtents->y_bearing = -OutExtents->y_bearing;
+			OutExtents->height = -OutExtents->height;
+		}
+
 		return true;
 	}
 
@@ -295,9 +414,19 @@ FHarfBuzzFontFactory::FHarfBuzzFontFactory(FFreeTypeGlyphCache* InFTGlyphCache, 
 #if WITH_HARFBUZZ
 	CustomHarfBuzzFuncs = hb_font_funcs_create();
 
+	hb_font_funcs_set_font_h_extents_func(CustomHarfBuzzFuncs, &HarfBuzzFontFunctions::Internal::get_font_h_extents, nullptr, nullptr);
 	hb_font_funcs_set_nominal_glyph_func(CustomHarfBuzzFuncs, &HarfBuzzFontFunctions::Internal::get_nominal_glyph, nullptr, nullptr);
+#if WITH_HARFBUZZ_V24
+	hb_font_funcs_set_nominal_glyphs_func(CustomHarfBuzzFuncs, &HarfBuzzFontFunctions::Internal::get_nominal_glyphs, nullptr, nullptr);
+#endif // WITH_HARFBUZZ_V24
 	hb_font_funcs_set_glyph_h_advance_func(CustomHarfBuzzFuncs, &HarfBuzzFontFunctions::Internal::get_glyph_h_advance, nullptr, nullptr);
+#if WITH_HARFBUZZ_V24
+	hb_font_funcs_set_glyph_h_advances_func(CustomHarfBuzzFuncs, &HarfBuzzFontFunctions::Internal::get_glyph_h_advances, nullptr, nullptr);
+#endif // WITH_HARFBUZZ_V24
 	hb_font_funcs_set_glyph_v_advance_func(CustomHarfBuzzFuncs, &HarfBuzzFontFunctions::Internal::get_glyph_v_advance, nullptr, nullptr);
+#if WITH_HARFBUZZ_V24
+	hb_font_funcs_set_glyph_v_advances_func(CustomHarfBuzzFuncs, &HarfBuzzFontFunctions::Internal::get_glyph_v_advances, nullptr, nullptr);
+#endif // WITH_HARFBUZZ_V24
 	hb_font_funcs_set_glyph_v_origin_func(CustomHarfBuzzFuncs, &HarfBuzzFontFunctions::Internal::get_glyph_v_origin, nullptr, nullptr);
 	hb_font_funcs_set_glyph_h_kerning_func(CustomHarfBuzzFuncs, &HarfBuzzFontFunctions::Internal::get_glyph_h_kerning, nullptr, nullptr);
 	hb_font_funcs_set_glyph_extents_func(CustomHarfBuzzFuncs, &HarfBuzzFontFunctions::Internal::get_glyph_extents, nullptr, nullptr);
@@ -323,8 +452,10 @@ hb_font_t* FHarfBuzzFontFactory::CreateFont(const FFreeTypeFace& InFace, const u
 
 #if WITH_FREETYPE
 	FT_Face FreeTypeFace = InFace.GetFace();
-
 	FreeTypeUtils::ApplySizeAndScale(FreeTypeFace, InFontSize, InFontScale);
+
+	hb_font_extents_t HarfBuzzFontExtents;
+	FMemory::Memzero(HarfBuzzFontExtents);
 
 	// Create a sub-font from the default FreeType implementation so we can override some font functions to provide low-level caching
 	{
@@ -337,11 +468,16 @@ hb_font_t* FHarfBuzzFontFactory::CreateFont(const FFreeTypeFace& InFace, const u
 			int HarfBuzzFTFontYScale = 0;
 			hb_font_get_scale(HarfBuzzFTFont, &HarfBuzzFTFontXScale, &HarfBuzzFTFontYScale);
 
-			const FT_Long FixedFontScale = FreeTypeUtils::ConvertPixelTo16Dot16<FT_Long>(InFontScale);
-			HarfBuzzFTFontXScale = FT_MulFix(HarfBuzzFTFontXScale, FixedFontScale);
-			HarfBuzzFTFontYScale = FT_MulFix(HarfBuzzFTFontYScale, FixedFontScale);
-
-			hb_font_set_scale(HarfBuzzFTFont, HarfBuzzFTFontXScale, HarfBuzzFTFontYScale);
+			// Cache the font extents
+			HarfBuzzFontExtents.ascender = InFace.GetAscender();
+			HarfBuzzFontExtents.descender = InFace.GetDescender();
+			HarfBuzzFontExtents.line_gap = InFace.GetScaledHeight() - (HarfBuzzFontExtents.ascender - HarfBuzzFontExtents.descender);
+			if (HarfBuzzFTFontYScale < 0)
+			{
+				HarfBuzzFontExtents.ascender = -HarfBuzzFontExtents.ascender;
+				HarfBuzzFontExtents.descender = -HarfBuzzFontExtents.descender;
+				HarfBuzzFontExtents.line_gap = -HarfBuzzFontExtents.line_gap;
+			}
 		}
 
 		HarfBuzzFont = hb_font_create_sub_font(HarfBuzzFTFont);
@@ -354,7 +490,7 @@ hb_font_t* FHarfBuzzFontFactory::CreateFont(const FFreeTypeFace& InFace, const u
 	hb_font_set_user_data(
 		HarfBuzzFont, 
 		&HarfBuzzFontFunctions::UserDataKey, 
-		HarfBuzzFontFunctions::CreateUserData(InFontSize, InFontScale, FTGlyphCache, FTAdvanceCache, FTKerningPairCache), 
+		HarfBuzzFontFunctions::CreateUserData(InFontSize, InFontScale, FTGlyphCache, FTAdvanceCache, FTKerningPairCache, HarfBuzzFontExtents),
 		&HarfBuzzFontFunctions::DestroyUserData, 
 		true
 		);

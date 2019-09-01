@@ -75,6 +75,10 @@ class ULandscapeHeightfieldCollisionComponent : public UPrimitiveComponent
 	UPROPERTY()
 	TLazyObjectPtr<ULandscapeComponent> RenderComponent;
 
+	/** Returns associated landscape component */
+	UFUNCTION(BlueprintCallable, Category = "Landscape")
+	ULandscapeComponent* GetRenderComponent() const;
+
 	struct FPhysXHeightfieldRef : public FRefCountedObject
 	{
 		FGuid Guid;
@@ -179,6 +183,7 @@ private:
 protected:
 	virtual void OnCreatePhysicsState() override;
 public:
+
 	virtual void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift) override;
 	//~ End UActorComponent Interface.
 
@@ -258,6 +263,8 @@ public:
 
 	LANDSCAPE_API void SnapFoliageInstances();
 #endif
+	public:
+	TOptional<float> GetHeight(float X, float Y);
 };
 
 

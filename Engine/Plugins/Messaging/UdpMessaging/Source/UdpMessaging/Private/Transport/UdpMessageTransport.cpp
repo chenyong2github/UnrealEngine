@@ -44,6 +44,14 @@ FUdpMessageTransport::~FUdpMessageTransport()
 	StopTransport();
 }
 
+void FUdpMessageTransport::OnAppPreExit()
+{
+	if (MessageProcessor)
+	{
+		MessageProcessor->Stop();
+		MessageProcessor->WaitAsyncTaskCompletion();
+	}
+}
 
 /* IMessageTransport interface
  *****************************************************************************/

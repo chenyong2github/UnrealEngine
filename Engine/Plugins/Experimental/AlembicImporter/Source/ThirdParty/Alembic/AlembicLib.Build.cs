@@ -38,7 +38,6 @@ public class AlembicLib : ModuleRules
 				return;
 			}
             LibDir = LibDir + "/" + Platform + "/lib/";
-            PublicLibraryPaths.Add(LibDir);
 
             string LibPostFix = bDebug && bAllowDynamicLibs ? "d" : "";
             string LibExtension = (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Linux) ? ".a" : ".lib";
@@ -62,7 +61,7 @@ public class AlembicLib : ModuleRules
                 });
                 foreach (string LibraryName in ReqLibraryNames)
                 {
-                    PublicAdditionalLibraries.Add(LibraryName + LibPostFix + LibExtension);
+                    PublicAdditionalLibraries.Add(LibDir + LibraryName + LibPostFix + LibExtension);
                 }
 
                 if (Target.bDebugBuildsActuallyUseDebugCRT && bDebug)

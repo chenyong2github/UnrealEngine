@@ -32,7 +32,7 @@ namespace Audio
 		FVolumeFader();
 
 		/**
-		 * Activates the fader if currently deactivated.
+		 * Activates the fader if currently deactivated. Sets duration to indefinite (-1.0f)
 		 */
 		void Activate();
 
@@ -41,6 +41,11 @@ namespace Audio
 		 * at the current value and disregard update.
 		 */
 		void Deactivate();
+
+		/**
+		 * Gets time fader is to remain active (-1.0f if always active).
+		 */
+		float GetActiveDuration() const;
 
 		/**
 		 * Returns current volume of fader
@@ -94,7 +99,10 @@ namespace Audio
 
 		/**
 		 * Sets the duration the fader is to be active in the future,
-		 * after which point the fader is disabled.
+		 * after which point the fader is disabled.  When disabled,
+		 * fader will hold the current fade state until activated,
+		 * at which point it will continue applying the fade over the
+		 * remainder of the fade duration.
 		 */
 		void SetActiveDuration(float InDuration);
 
@@ -114,7 +122,7 @@ namespace Audio
 		void StopFade();
 
 		/**
-		 * Updates the current value with the given delta.
+		 * Updates the fader's state with the given delta in time since last update.
 		 */
 		void Update(float InDeltaTime);
 

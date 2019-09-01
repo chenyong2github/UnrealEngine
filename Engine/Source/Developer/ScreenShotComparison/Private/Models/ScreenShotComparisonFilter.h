@@ -2,7 +2,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Interfaces/IScreenShotData.h"
 #include "Misc/IFilter.h"
 
 /*=============================================================================

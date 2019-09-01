@@ -509,7 +509,7 @@ class LogMessage {
   const bool is_noop_;
 
   // The output streams and their associated severities
-  static StreamList streams_;
+  static StreamList& GetStreams();
 
   // Flags for formatting options
   static bool thread_, timestamp_;

@@ -13,6 +13,7 @@ public class XAudio2 : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
+                "AudioMixerCore" // for AudioPlatformSettings::GetPlatformSettings() in AudioMixerTypes.h.
 			}
 			);
 
@@ -25,7 +26,7 @@ public class XAudio2 : ModuleRules
 			//@todo: remove when no longer neeeded (no other code changes should be necessary).
 			if (Target.WindowsPlatform.bNeedsLegacyStdioDefinitionsLib)
 			{
-				PublicAdditionalLibraries.Add("legacy_stdio_definitions.lib");
+				PublicSystemLibraries.Add("legacy_stdio_definitions.lib");
 			}
 
 		}

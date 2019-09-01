@@ -1124,6 +1124,19 @@ void FViewInfo::SetupUniformBufferParameters(
 	}
 
 	const FVector DefaultSunDirection(0.0f, 0.0f, 1.0f); // Up vector so that the AtmosphericLightVector node always output a valid direction.
+	auto ClearAtmosphereLightData = [&](uint32 Index)
+	{
+		check(Index < NUM_ATMOSPHERE_LIGHTS);
+		ViewUniformShaderParameters.AtmosphereLightDiscCosHalfApexAngle[Index] = FVector4(1.0f);
+		ViewUniformShaderParameters.AtmosphereLightDiscLuminance[Index] = FLinearColor::Black;
+		ViewUniformShaderParameters.AtmosphereLightColor[Index] = FLinearColor::Black;
+		ViewUniformShaderParameters.AtmosphereLightColor[Index].A = 0.0f;
+		ViewUniformShaderParameters.AtmosphereLightColorGlobalPostTransmittance[Index] = FLinearColor::Black;
+		ViewUniformShaderParameters.AtmosphereLightColorGlobalPostTransmittance[Index].A = 0.0f;
+		ViewUniformShaderParameters.AtmosphereLightDirection[Index] = DefaultSunDirection;
+	};
+
+	uint32 AtmosphereLightDataClearStartIndex = 0;
 	if (Scene)
 	{
 		if (Scene->SimpleDirectionalLight)
@@ -1158,6 +1171,9 @@ void FViewInfo::SetupUniformBufferParameters(
 			ViewUniformShaderParameters.AtmosphereLightDiscCosHalfApexAngle[0] = FVector4(FMath::Cos(Scene->AtmosphericFog->SunDiscScale * SunLightDiskHalfApexAngleRadian));
 			ViewUniformShaderParameters.AtmosphereLightDiscLuminance[0] = SunLight ? SunLight->Proxy->GetOuterSpaceLuminance() : FLinearColor::White;
 			ViewUniformShaderParameters.AtmosphereLightColor[0] = SunLight ? SunLight->Proxy->GetColor() : Scene->AtmosphericFog->DefaultSunColor; // Sun light color unaffected by atmosphere transmittance
+			ViewUniformShaderParameters.AtmosphereLightColor[0].A = 1.0f;
+			ViewUniformShaderParameters.AtmosphereLightColorGlobalPostTransmittance[0] = FLinearColor::Black;
+			ViewUniformShaderParameters.AtmosphereLightColorGlobalPostTransmittance[0].A = 0.0f;
 			ViewUniformShaderParameters.AtmosphereLightDirection[0] = SunLight ? -SunLight->Proxy->GetDirection() : -Scene->AtmosphericFog->DefaultSunDirection;
 		}
 		else
@@ -1179,8 +1195,12 @@ void FViewInfo::SetupUniformBufferParameters(
 			//Added check so atmospheric light color and vector can use a directional light without needing an atmospheric fog actor in the scene
 			ViewUniformShaderParameters.AtmosphereLightDiscLuminance[0] = SunLight ? SunLight->Proxy->GetOuterSpaceLuminance() : FLinearColor::Black;
 			ViewUniformShaderParameters.AtmosphereLightColor[0] = SunLight ? SunLight->Proxy->GetColor() : FLinearColor::Black;
+			ViewUniformShaderParameters.AtmosphereLightColor[0].A = 1.0f;
+			ViewUniformShaderParameters.AtmosphereLightColorGlobalPostTransmittance[0] = FLinearColor::Black;
+			ViewUniformShaderParameters.AtmosphereLightColorGlobalPostTransmittance[0].A = 0.0f;
 			ViewUniformShaderParameters.AtmosphereLightDirection[0] = SunLight ? -SunLight->Proxy->GetDirection() : DefaultSunDirection;
 		}
+		AtmosphereLightDataClearStartIndex = 1; // Do not clear the first atmosphere light data
 	}
 	else
 	{
@@ -1198,17 +1218,14 @@ void FViewInfo::SetupUniformBufferParameters(
 		ViewUniformShaderParameters.AtmosphericFogSunDiscScale = 1.f;
 		ViewUniformShaderParameters.AtmosphericFogRenderMask = EAtmosphereRenderFlag::E_EnableAll;
 		ViewUniformShaderParameters.AtmosphericFogInscatterAltitudeSampleNum = 0;
-		ViewUniformShaderParameters.AtmosphereLightDiscCosHalfApexAngle[0] = FVector4(1.0f);
-		ViewUniformShaderParameters.AtmosphereLightDiscLuminance[0] = FLinearColor::Black;
-		ViewUniformShaderParameters.AtmosphereLightColor[0] = FLinearColor::Black;
-		ViewUniformShaderParameters.AtmosphereLightDirection[0] = DefaultSunDirection;
+		AtmosphereLightDataClearStartIndex = 0; // Clear every atmosphere light data
 	}
 
 	FRHITexture* TransmittanceLutTextureFound = nullptr;
 	FRHITexture* SkyViewLutTextureFound = nullptr;
 	FRHITexture* CameraAerialPerspectiveVolumeFound = nullptr;
 	FRHITexture* DistantSkyLightLutTextureFound = nullptr;
-	if (Scene && ShouldRenderSkyAtmosphere(Scene->SkyAtmosphere, Scene->GetShaderPlatform()))
+	if (ShouldRenderSkyAtmosphere(Scene, Family->EngineShowFlags))
 	{
 		check(Scene->SkyAtmosphere->GetTransmittanceLutTexture().IsValid());
 		FSkyAtmosphereRenderSceneInfo* SkyAtmosphere = Scene->SkyAtmosphere;
@@ -1221,8 +1238,8 @@ void FViewInfo::SetupUniformBufferParameters(
 		ViewUniformShaderParameters.SkyViewLutSizeAndInvSize = FVector4(SkyViewLutWidth, SkyViewLutHeight, 1.0f / SkyViewLutWidth, 1.0f / SkyViewLutHeight);
 
 		CameraAerialPerspectiveVolumeFound = this->SkyAtmosphereCameraAerialPerspectiveVolume->GetRenderTargetItem().ShaderResourceTexture;
-
 		DistantSkyLightLutTextureFound = SkyAtmosphere->GetDistantSkyLightLutTextureRHI();
+		ViewUniformShaderParameters.SkyAtmosphereSkyLuminanceFactor = SkyAtmosphere->GetSkyLuminanceFactor();
 
 		const FAtmosphereSetup& AtmosphereSetup =  SkyAtmosphere->GetAtmosphereSetup();
 		ViewUniformShaderParameters.SkyAtmosphereBottomRadius = AtmosphereSetup.BottomRadius;
@@ -1246,16 +1263,17 @@ void FViewInfo::SetupUniformBufferParameters(
 				ViewUniformShaderParameters.AtmosphereLightDiscCosHalfApexAngle[Index] = FVector4(FMath::Cos(Light->Proxy->GetSunLightHalfApexAngleRadian()));
 				ViewUniformShaderParameters.AtmosphereLightDiscLuminance[Index] = Light->Proxy->GetOuterSpaceLuminance();
 				ViewUniformShaderParameters.AtmosphereLightColor[Index] = Light->Proxy->GetColor();
-				ViewUniformShaderParameters.AtmosphereLightDirection[Index] = -Light->Proxy->GetDirection();
+				ViewUniformShaderParameters.AtmosphereLightColor[Index].A = 1.0f;
+				ViewUniformShaderParameters.AtmosphereLightColorGlobalPostTransmittance[Index] = Light->Proxy->GetColor() * Light->Proxy->GetTransmittanceFactor();
+				ViewUniformShaderParameters.AtmosphereLightColorGlobalPostTransmittance[Index].A = 1.0f;
+				ViewUniformShaderParameters.AtmosphereLightDirection[Index] = SkyAtmosphere->GetAtmosphereLightDirection(Index, -Light->Proxy->GetDirection());
 			}
 			else
 			{
-				ViewUniformShaderParameters.AtmosphereLightDiscCosHalfApexAngle[Index] = FVector4(1.0f);
-				ViewUniformShaderParameters.AtmosphereLightDiscLuminance[Index] = FLinearColor::Black;
-				ViewUniformShaderParameters.AtmosphereLightColor[Index] = FLinearColor::Black;
-				ViewUniformShaderParameters.AtmosphereLightDirection[Index] = DefaultSunDirection;
+				ClearAtmosphereLightData(Index);
 			}
 		}
+		AtmosphereLightDataClearStartIndex = NUM_ATMOSPHERE_LIGHTS;	// Do not clear any atmosphere light data, this component sets everything it needs
 
 		// The constants below should match the one in SkyAtmosphereCommon.ush
 		const float SkyUnitToCm = 1.0f / 0.00001f;
@@ -1276,6 +1294,7 @@ void FViewInfo::SetupUniformBufferParameters(
 		ViewUniformShaderParameters.SkyViewLutSizeAndInvSize = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
 		ViewUniformShaderParameters.SkyAtmosphereBottomRadius = 1.0f;
 		ViewUniformShaderParameters.SkyAtmosphereTopRadius = 1.0f;
+		ViewUniformShaderParameters.SkyAtmosphereSkyLuminanceFactor = FLinearColor::White;
 		ViewUniformShaderParameters.SkyAtmosphereAerialPerspectiveStartDepth = 1.0f;
 		ViewUniformShaderParameters.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolution = 1.0f;
 		ViewUniformShaderParameters.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolutionInv = 1.0f;
@@ -1283,6 +1302,11 @@ void FViewInfo::SetupUniformBufferParameters(
 		ViewUniformShaderParameters.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthInv = 1.0f;
 		ViewUniformShaderParameters.SkyAtmosphereApplyCameraAerialPerspectiveVolume = 1.0f;
 		ViewUniformShaderParameters.SkyWorldCameraOrigin = ViewUniformShaderParameters.WorldCameraOrigin;
+	}
+
+	for (uint8 Index = AtmosphereLightDataClearStartIndex; Index < NUM_ATMOSPHERE_LIGHTS; ++Index)
+	{
+		ClearAtmosphereLightData(Index);
 	}
 
 	ViewUniformShaderParameters.TransmittanceLutTexture = OrWhite2DIfNull(TransmittanceLutTextureFound);

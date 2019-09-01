@@ -43,8 +43,7 @@ public class CEF3 : ModuleRules
 
 			if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
 			{
-                PublicLibraryPaths.Add(LibraryPath);
-                PublicAdditionalLibraries.Add("libcef.lib");
+                PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "libcef.lib"));
 
                 // There are different versions of the C++ wrapper lib depending on the version of VS we're using
                 string VSVersionFolderName = "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
@@ -59,8 +58,7 @@ public class CEF3 : ModuleRules
                     WrapperLibraryPath += "/Release";
                 }
 
-                PublicLibraryPaths.Add(WrapperLibraryPath);
-                PublicAdditionalLibraries.Add("libcef_dll_wrapper.lib");
+                PublicAdditionalLibraries.Add(Path.Combine(WrapperLibraryPath, "libcef_dll_wrapper.lib"));
 
 				List<string> Dlls = new List<string>();
 

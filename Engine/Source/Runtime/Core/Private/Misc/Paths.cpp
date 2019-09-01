@@ -16,10 +16,41 @@
 #include "Misc/App.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
 #include "Misc/EngineVersion.h"
+#include "Misc/LazySingleton.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPaths, Log, All);
 
-FString FPaths::GameProjectFilePath;
+struct FPaths::FStaticData
+{
+	FCriticalSection GameProjectFilePathLock;
+	FString          GameProjectFilePath;
+
+	FString         UserDirArg;
+	FString         GameSavedDir;
+	FString         ShaderDir;
+	FString         UserFolder;
+	TArray<FString> EngineLocalizationPaths;
+	TArray<FString> EditorLocalizationPaths;
+	TArray<FString> PropertyNameLocalizationPaths;
+	TArray<FString> ToolTipLocalizationPaths;
+	TArray<FString> GameLocalizationPaths;
+	TArray<FString> RestrictedFolderNames;
+	TArray<FString> RestrictedSlashedFolderNames;
+	FString         RelativePathToRoot;
+
+	bool bUserDirArgInitialized                    = false;
+	bool bGameSavedDirInitialized                  = false;
+	bool bShaderDirInitialized                     = false;
+	bool bUserFolderInitialized                    = false;
+	bool bEngineLocalizationPathsInitialized       = false;
+	bool bEditorLocalizationPathsInitialized       = false;
+	bool bPropertyNameLocalizationPathsInitialized = false;
+	bool bToolTipLocalizationPathsInitialized      = false;
+	bool bGameLocalizationPathsInitialized         = false;
+	bool bRestrictedFolderNamesInitialized         = false;
+	bool bRestrictedSlashedFolderNamesInitialized  = false;
+	bool bRelativePathToRootInitialized            = false;
+};
 
 /*-----------------------------------------------------------------------------
 	Path helpers for retrieving game dir, engine dir, etc.
@@ -85,66 +116,6 @@ namespace UE4Paths_Private
 
 		return FullyPathed;
 	}
-
-	// Returns, if any, the value of the -userdir command line argument. This can be used to sandbox artifacts to a desired location
-	const FString& CustomUserDirArgument()
-	{
-		static bool bCheckedArgs = false;
-		static FString UserDirArg;
-		
-		if (!bCheckedArgs)
-		{
-			// Check for a -userdir arg. If set this overrides the platform preference for using the UserDir and
-			// the default. The caller is responsible for ensuring that this is a valid path for the current platform!
-			FParse::Value(FCommandLine::Get(), TEXT("UserDir="), UserDirArg);
-			bCheckedArgs = true;
-			
-			if (UserDirArg.IsEmpty() == false)
-			{
-				if (FPaths::IsRelative(UserDirArg))
-				{
-					UserDirArg = FPaths::Combine(*FPaths::ProjectDir(), *UserDirArg) + TEXT("/");
-				}
-				else
-				{
-					FPaths::NormalizeDirectoryName(UserDirArg);
-					UserDirArg = UserDirArg + TEXT("/");
-				}
-			}
-		}
-
-		return UserDirArg;
-	}
-
-	// Returns, if any, the value of the -shaderworkingdir command line argument. This can be used to sandbox shader working files to a desired location
-	const FString& CustomShaderDirArgument()
-	{
-		static bool bCheckedArgs = false;
-		static FString ShaderDir;
-
-		if (!bCheckedArgs)
-		{
-			// Check for a -userdir arg. If set this overrides the platform preference for using the UserDir and
-			// the default. The caller is responsible for ensuring that this is a valid path for the current platform!
-			FParse::Value(FCommandLine::Get(), TEXT("ShaderWorkingDir="), ShaderDir);
-			bCheckedArgs = true;
-
-			if (ShaderDir.IsEmpty() == false)
-			{
-				if (FPaths::IsRelative(ShaderDir))
-				{
-					ShaderDir = FPaths::Combine(*FPaths::ProjectDir(), *ShaderDir) + TEXT("/");
-				}
-				else
-				{
-					FPaths::NormalizeDirectoryName(ShaderDir);
-					ShaderDir = ShaderDir + TEXT("/");
-				}
-			}
-		}
-
-		return ShaderDir;
-	}
 }
 
 bool FPaths::ShouldSaveToUserDir()
@@ -153,7 +124,7 @@ bool FPaths::ShouldSaveToUserDir()
 		FApp::IsInstalled()
 		|| FParse::Param(FCommandLine::Get(), TEXT("SaveToUserDir"))
 		|| FPlatformProcess::ShouldSaveToUserDir()
-		|| !UE4Paths_Private::CustomUserDirArgument().IsEmpty();
+		|| !CustomUserDirArgument().IsEmpty();
 		
 	return bShouldSaveToUserDir;
 }
@@ -247,9 +218,14 @@ FString FPaths::EnterpriseFeaturePackDir()
 	return FPaths::EnterpriseDir() + TEXT("FeaturePacks/");
 }
 
-FString FPaths::PlatformExtensionsDir()
+FString FPaths::EnginePlatformExtensionsDir()
 {
-	return FPaths::RootDir() + TEXT("Platforms/");
+	return FPaths::EngineDir() + TEXT("Platforms/");
+}
+
+FString FPaths::ProjectPlatformExtensionsDir()
+{
+	return FPaths::ProjectDir() + TEXT("Platforms/");
 }
 
 FString FPaths::RootDir()
@@ -264,7 +240,7 @@ FString FPaths::ProjectDir()
 
 FString FPaths::ProjectUserDir()
 {
-	const FString& UserDirArg = UE4Paths_Private::CustomUserDirArgument();
+	const FString& UserDirArg = CustomUserDirArgument();
 	
 	if (!UserDirArg.IsEmpty())
 	{
@@ -293,8 +269,13 @@ FString FPaths::ProjectConfigDir()
 
 FString FPaths::ProjectSavedDir()
 {
-	static FString Result = UE4Paths_Private::GameSavedDir();
-	return Result;
+	FStaticData& StaticData = TLazySingleton<FStaticData>::Get();
+	if (!StaticData.bGameSavedDirInitialized)
+	{
+		StaticData.GameSavedDir = UE4Paths_Private::GameSavedDir();
+		StaticData.bGameSavedDirInitialized = true;
+	}
+	return StaticData.GameSavedDir;
 }
 
 FString FPaths::ProjectIntermediateDir()
@@ -304,7 +285,7 @@ FString FPaths::ProjectIntermediateDir()
 
 FString FPaths::ShaderWorkingDir()
 {
-	const FString& ShaderDirArg = UE4Paths_Private::CustomShaderDirArgument();
+	const FString& ShaderDirArg = CustomShaderDirArgument();
 
 	if (!ShaderDirArg.IsEmpty())
 	{
@@ -388,7 +369,7 @@ FString FPaths::ProjectLogDir()
 		return *OverrideDir;
 	}
 #elif PLATFORM_MAC || PLATFORM_XBOXONE
-	if (UE4Paths_Private::CustomUserDirArgument().IsEmpty())
+	if (CustomUserDirArgument().IsEmpty())
 	{
 		return FPlatformProcess::UserLogsDir();
 	}
@@ -430,24 +411,26 @@ FString FPaths::GameDevelopersDir()
 
 FString FPaths::GameUserDeveloperFolderName()
 {
-	static FString UserFolder;
+	FStaticData& StaticData = TLazySingleton<FStaticData>::Get();
 
-	if (UserFolder.Len() == 0)
+	if(!StaticData.bUserFolderInitialized)
 	{
 		// The user folder is the user name without any invalid characters
 		const FString InvalidChars = INVALID_LONGPACKAGE_CHARACTERS;
 		const FString& UserName = FPlatformProcess::UserName();
 
-		UserFolder = UserName;
+		StaticData.UserFolder = UserName;
 
 		for (int32 CharIdx = 0; CharIdx < InvalidChars.Len(); ++CharIdx)
 		{
 			const FString Char = InvalidChars.Mid(CharIdx, 1);
-			UserFolder = UserFolder.Replace(*Char, TEXT("_"), ESearchCase::CaseSensitive);
+			StaticData.UserFolder = StaticData.UserFolder.Replace(*Char, TEXT("_"), ESearchCase::CaseSensitive);
 		}
+
+		StaticData.bUserFolderInitialized = true;
 	}
 
-	return UserFolder;
+	return StaticData.UserFolder;
 }
 
 FString FPaths::GameUserDeveloperDir()
@@ -462,124 +445,119 @@ FString FPaths::DiffDir()
 
 const TArray<FString>& FPaths::GetEngineLocalizationPaths()
 {
-	static TArray<FString> Results;
-	static bool HasInitialized = false;
+	FStaticData& StaticData = TLazySingleton<FStaticData>::Get();
 
-	if(!HasInitialized)
+	if(!StaticData.bEngineLocalizationPathsInitialized)
 	{
 		if(GConfig && GConfig->IsReadyForUse())
 		{
-			GConfig->GetArray( TEXT("Internationalization"), TEXT("LocalizationPaths"), Results, GEngineIni );
-			if(!Results.Num())
+			GConfig->GetArray( TEXT("Internationalization"), TEXT("LocalizationPaths"), StaticData.EngineLocalizationPaths, GEngineIni );
+			if(!StaticData.EngineLocalizationPaths.Num())
 			{
 				UE_LOG(LogInit, Warning, TEXT("No paths for engine localization data were specifed in the engine configuration."));
 			}
-			HasInitialized = true;
+			StaticData.bEngineLocalizationPathsInitialized = true;
 		}
 		else
 		{
-			Results.AddUnique(TEXT("../../../Engine/Content/Localization/Engine")); // Hardcoded convention.
+			StaticData.EngineLocalizationPaths.AddUnique(TEXT("../../../Engine/Content/Localization/Engine")); // Hardcoded convention.
 		}
 	}
 
-	return Results;
+	return StaticData.EngineLocalizationPaths;
 }
 
 const TArray<FString>& FPaths::GetEditorLocalizationPaths()
 {
-	static TArray<FString> Results;
-	static bool HasInitialized = false;
+	FStaticData& StaticData = TLazySingleton<FStaticData>::Get();
 
-	if(!HasInitialized)
+	if(!StaticData.bEditorLocalizationPathsInitialized)
 	{
 		if(GConfig && GConfig->IsReadyForUse())
 		{
-			GConfig->GetArray( TEXT("Internationalization"), TEXT("LocalizationPaths"), Results, GEditorIni );
-			if(!Results.Num())
+			GConfig->GetArray( TEXT("Internationalization"), TEXT("LocalizationPaths"), StaticData.EditorLocalizationPaths, GEditorIni );
+			if(!StaticData.EditorLocalizationPaths.Num())
 			{
 				UE_LOG(LogInit, Warning, TEXT("No paths for editor localization data were specifed in the editor configuration."));
 			}
-			HasInitialized = true;
+			StaticData.bEditorLocalizationPathsInitialized = true;
 		}
 		else
 		{
-			Results.AddUnique(TEXT("../../../Engine/Content/Localization/Editor")); // Hardcoded convention.
+			StaticData.EditorLocalizationPaths.AddUnique(TEXT("../../../Engine/Content/Localization/Editor")); // Hardcoded convention.
 		}
 	}
 
-	return Results;
+	return StaticData.EditorLocalizationPaths;
 }
 
 const TArray<FString>& FPaths::GetPropertyNameLocalizationPaths()
 {
-	static TArray<FString> Results;
-	static bool HasInitialized = false;
+	FStaticData& StaticData = TLazySingleton<FStaticData>::Get();
 
-	if(!HasInitialized)
+	if(!StaticData.bPropertyNameLocalizationPathsInitialized)
 	{
 		if(GConfig && GConfig->IsReadyForUse())
 		{
-			GConfig->GetArray( TEXT("Internationalization"), TEXT("PropertyNameLocalizationPaths"), Results, GEditorIni );
-			if(!Results.Num())
+			GConfig->GetArray( TEXT("Internationalization"), TEXT("PropertyNameLocalizationPaths"), StaticData.PropertyNameLocalizationPaths, GEditorIni );
+			if(!StaticData.PropertyNameLocalizationPaths.Num())
 			{
 				UE_LOG(LogInit, Warning, TEXT("No paths for property name localization data were specifed in the editor configuration."));
 			}
-			HasInitialized = true;
+			StaticData.bPropertyNameLocalizationPathsInitialized = true;
 		}
 		else
 		{
-			Results.AddUnique(TEXT("../../../Engine/Content/Localization/PropertyNames")); // Hardcoded convention.
+			StaticData.PropertyNameLocalizationPaths.AddUnique(TEXT("../../../Engine/Content/Localization/PropertyNames")); // Hardcoded convention.
 		}
 	}
 
-	return Results;
+	return StaticData.PropertyNameLocalizationPaths;
 }
 
-const TArray<FString>& FPaths::GetToolTipLocalizationPaths() 
+const TArray<FString>& FPaths::GetToolTipLocalizationPaths()
 {
-	static TArray<FString> Results;
-	static bool HasInitialized = false;
+	FStaticData& StaticData = TLazySingleton<FStaticData>::Get();
 
-	if(!HasInitialized)
+	if(!StaticData.bToolTipLocalizationPathsInitialized)
 	{
 		if(GConfig && GConfig->IsReadyForUse())
 		{
-			GConfig->GetArray( TEXT("Internationalization"), TEXT("ToolTipLocalizationPaths"), Results, GEditorIni );
-			if(!Results.Num())
+			GConfig->GetArray( TEXT("Internationalization"), TEXT("ToolTipLocalizationPaths"), StaticData.ToolTipLocalizationPaths, GEditorIni );
+			if(!StaticData.ToolTipLocalizationPaths.Num())
 			{
 				UE_LOG(LogInit, Warning, TEXT("No paths for tooltips localization data were specifed in the editor configuration."));
 			}
-			HasInitialized = true;
+			StaticData.bToolTipLocalizationPathsInitialized = true;
 		}
 		else
 		{
-			Results.AddUnique(TEXT("../../../Engine/Content/Localization/ToolTips")); // Hardcoded convention.
+			StaticData.ToolTipLocalizationPaths.AddUnique(TEXT("../../../Engine/Content/Localization/ToolTips")); // Hardcoded convention.
 		}
 	}
 
-	return Results;
+	return StaticData.ToolTipLocalizationPaths;
 }
 
 const TArray<FString>& FPaths::GetGameLocalizationPaths()
 {
-	static TArray<FString> Results;
-	static bool HasInitialized = false;
+	FStaticData& StaticData = TLazySingleton<FStaticData>::Get();
 
-	if(!HasInitialized)
+	if(!StaticData.bGameLocalizationPathsInitialized)
 	{
 		if(GConfig && GConfig->IsReadyForUse())
 		{
-			GConfig->GetArray( TEXT("Internationalization"), TEXT("LocalizationPaths"), Results, GGameIni );
-			if(!Results.Num()) // Failed to find localization path.
+			GConfig->GetArray( TEXT("Internationalization"), TEXT("LocalizationPaths"), StaticData.GameLocalizationPaths, GGameIni );
+			if(!StaticData.GameLocalizationPaths.Num()) // Failed to find localization path.
 			{
 				UE_LOG(LogPaths, Warning, TEXT("No paths for game localization data were specifed in the game configuration."));
 			}
-			HasInitialized = true;
+			StaticData.bGameLocalizationPathsInitialized = true;
 		}
 	}
 
 
-	return Results;
+	return StaticData.GameLocalizationPaths;
 }
 
 FString FPaths::GetPlatformLocalizationFolderName()
@@ -590,44 +568,42 @@ FString FPaths::GetPlatformLocalizationFolderName()
 
 const TArray<FString>& FPaths::GetRestrictedFolderNames()
 {
-	static bool bBuiltArray = false;
-	static TArray<FString> RestrictedFolderNames;
+	FStaticData& StaticData = TLazySingleton<FStaticData>::Get();
 
-	if (!bBuiltArray)
+	if (!StaticData.bRestrictedFolderNamesInitialized)
 	{
-		RestrictedFolderNames.Add(TEXT("NotForLicensees"));
-		RestrictedFolderNames.Add(TEXT("NoRedist"));
-		RestrictedFolderNames.Add(TEXT("CarefullyRedist"));
-		RestrictedFolderNames.Add(TEXT("EpicInternal"));
+		StaticData.RestrictedFolderNames.Add(TEXT("NotForLicensees"));
+		StaticData.RestrictedFolderNames.Add(TEXT("NoRedist"));
+		StaticData.RestrictedFolderNames.Add(TEXT("CarefullyRedist"));
+		StaticData.RestrictedFolderNames.Add(TEXT("EpicInternal"));
 
 		// Add confidential platforms
 		for (const FString& PlatformStr : FDataDrivenPlatformInfoRegistry::GetConfidentialPlatforms())
 		{
-			RestrictedFolderNames.Add(PlatformStr);
+			StaticData.RestrictedFolderNames.Add(PlatformStr);
 		}
 
-		bBuiltArray = true;
+		StaticData.bRestrictedFolderNamesInitialized = true;
 	}
 
-	return RestrictedFolderNames;
+	return StaticData.RestrictedFolderNames;
 }
 
 bool FPaths::IsRestrictedPath(const FString& InPath)
 {
-	static bool bBuiltArray = false;
-	static TArray<FString> RestrictedSlashedFolders;
+	FStaticData& StaticData = TLazySingleton<FStaticData>::Get();
 
-	if (!bBuiltArray)
+	if (!StaticData.bRestrictedSlashedFolderNamesInitialized)
 	{
 		// Add leading and trailing slashes to restricted folder names.
 		FString LeadingSlash(TEXT("/"));
 
 		for (const FString& FolderStr : GetRestrictedFolderNames())
 		{
-			RestrictedSlashedFolders.Add(LeadingSlash + FolderStr + TEXT('/'));
+			StaticData.RestrictedSlashedFolderNames.Add(LeadingSlash + FolderStr + TEXT('/'));
 		}
 
-		bBuiltArray = true;
+		StaticData.bRestrictedSlashedFolderNamesInitialized = true;
 	}
 
 	// Normalize path
@@ -637,7 +613,7 @@ bool FPaths::IsRestrictedPath(const FString& InPath)
 	// Ensure trailing forward slash
 	NormalizedPath /= FString();
 
-	for (const FString& SubDir : RestrictedSlashedFolders)
+	for (const FString& SubDir : StaticData.RestrictedSlashedFolderNames)
 	{
 		if (NormalizedPath.Contains(SubDir))
 		{
@@ -670,21 +646,24 @@ FString FPaths::FeaturePackDir()
 
 bool FPaths::IsProjectFilePathSet()
 {
-	FScopeLock Lock(GameProjectFilePathLock());
-	return !GameProjectFilePath.IsEmpty();
+	FStaticData& StaticData = TLazySingleton<FStaticData>::Get();
+	FScopeLock Lock(&StaticData.GameProjectFilePathLock);
+	return !StaticData.GameProjectFilePath.IsEmpty();
 }
 
 FString FPaths::GetProjectFilePath()
 {
-	FScopeLock Lock(GameProjectFilePathLock());
-	return GameProjectFilePath;
+	FStaticData& StaticData = TLazySingleton<FStaticData>::Get();
+	FScopeLock Lock(&StaticData.GameProjectFilePathLock);
+	return StaticData.GameProjectFilePath;
 }
 
 void FPaths::SetProjectFilePath( const FString& NewGameProjectFilePath )
 {
-	FScopeLock Lock(GameProjectFilePathLock());
-	GameProjectFilePath = NewGameProjectFilePath;
-	FPaths::NormalizeFilename(GameProjectFilePath);
+	FStaticData& StaticData = TLazySingleton<FStaticData>::Get();
+	FScopeLock Lock(&StaticData.GameProjectFilePathLock);
+	StaticData.GameProjectFilePath = NewGameProjectFilePath;
+	FPaths::NormalizeFilename(StaticData.GameProjectFilePath);
 }
 
 FString FPaths::GetExtension( const FString& InPath, bool bIncludeDot )
@@ -972,7 +951,7 @@ bool FPaths::IsDrive(const FString& InPath)
 bool FPaths::IsRelative(const FString& InPath)
 {
 #if WITH_EDITOR
-	static FString RootPrefix = TEXT("root:/");
+	static const TCHAR RootPrefix[] = TEXT("root:/");
 #endif // WITH_EDITOR
 
 	// The previous implementation of this function seemed to handle normalized and unnormalized paths, so this one does too for legacy reasons.
@@ -1241,13 +1220,13 @@ FString FPaths::CreateTempFilename( const TCHAR* Path, const TCHAR* Prefix, cons
 	return UniqueFilename;
 }
 
-const FString& FPaths::GetInvalidFileSystemChars()
+FString FPaths::GetInvalidFileSystemChars()
 {
 	// Windows has the most restricted file system, and since we're cross platform, we have to respect the limitations of the lowest common denominator
 	// # isn't legal. Used for revision specifiers in P4/SVN, and also not allowed on Windows anyway
 	// @ isn't legal. Used for revision/label specifiers in P4/SVN
 	// ^ isn't legal. While the file-system won't complain about this character, Visual Studio will			
-	static const FString RestrictedChars = "/?:&\\*\"<>|%#@^";
+	static const TCHAR RestrictedChars[] = TEXT("/?:&\\*\"<>|%#@^");
 	return RestrictedChars;
 }
 
@@ -1317,9 +1296,9 @@ FString FPaths::MakeValidFileName(const FString& InString, const TCHAR InReplace
 bool FPaths::ValidatePath( const FString& InPath, FText* OutReason )
 {
 	const FString RestrictedChars = GetInvalidFileSystemChars();
-	static const FString RestrictedNames[] = {	"CON", "PRN", "AUX", "CLOCK$", "NUL", 
-												"COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", 
-												"LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9" };
+	static const TCHAR* RestrictedNames[] = {	TEXT("CON"), TEXT("PRN"), TEXT("AUX"), TEXT("CLOCK$"), TEXT("NUL"),
+												TEXT("COM1"), TEXT("COM2"), TEXT("COM3"), TEXT("COM4"),   TEXT("COM5"), TEXT("COM6"), TEXT("COM7"), TEXT("COM8"), TEXT("COM9"),
+												TEXT("LPT1"), TEXT("LPT2"), TEXT("LPT3"), TEXT("LPT4"),   TEXT("LPT5"), TEXT("LPT6"), TEXT("LPT7"), TEXT("LPT8"), TEXT("LPT9") };
 
 	FString Standardized = InPath;
 	NormalizeFilename(Standardized);
@@ -1373,7 +1352,7 @@ bool FPaths::ValidatePath( const FString& InPath, FText* OutReason )
 		}
 
 		// Check for reserved names
-		for(const FString& RestrictedName : RestrictedNames)
+		for(const TCHAR* RestrictedName : RestrictedNames)
 		{
 			if(PathPart.Equals(RestrictedName, ESearchCase::IgnoreCase))
 			{
@@ -1405,29 +1384,27 @@ void FPaths::Split( const FString& InPath, FString& PathPart, FString& FilenameP
 
 const FString& FPaths::GetRelativePathToRoot()
 {
-	struct FRelativePathInitializer
+	FStaticData& StaticData = TLazySingleton<FStaticData>::Get();
+
+	if (!StaticData.bRelativePathToRootInitialized)
 	{
-		FString RelativePathToRoot;
+		FString RootDirectory = FPaths::RootDir();
+		FString BaseDirectory = FPlatformProcess::BaseDir();
 
-		FRelativePathInitializer()
+		// this is how to go from the base dir back to the root
+		StaticData.RelativePathToRoot = RootDirectory;
+		FPaths::MakePathRelativeTo(StaticData.RelativePathToRoot, *BaseDirectory);
+
+		// Ensure that the path ends w/ '/'
+		if ((StaticData.RelativePathToRoot.Len() > 0) && (StaticData.RelativePathToRoot.EndsWith(TEXT("/"), ESearchCase::CaseSensitive) == false) && (StaticData.RelativePathToRoot.EndsWith(TEXT("\\"), ESearchCase::CaseSensitive) == false))
 		{
-			FString RootDirectory = FPaths::RootDir();
-			FString BaseDirectory = FPlatformProcess::BaseDir();
-
-			// this is how to go from the base dir back to the root
-			RelativePathToRoot = RootDirectory;
-			FPaths::MakePathRelativeTo(RelativePathToRoot, *BaseDirectory);
-
-			// Ensure that the path ends w/ '/'
-			if ((RelativePathToRoot.Len() > 0) && (RelativePathToRoot.EndsWith(TEXT("/"), ESearchCase::CaseSensitive) == false) && (RelativePathToRoot.EndsWith(TEXT("\\"), ESearchCase::CaseSensitive) == false))
-			{
-				RelativePathToRoot += TEXT("/");
-			}
+			StaticData.RelativePathToRoot += TEXT("/");
 		}
-	};
 
-	static FRelativePathInitializer StaticInstance;
-	return StaticInstance.RelativePathToRoot;
+		StaticData.bRelativePathToRootInitialized = true;
+	}
+
+	return StaticData.RelativePathToRoot;
 }
 
 void FPaths::CombineInternal(FString& OutPath, const TCHAR** Pathes, int32 NumPathes)
@@ -1465,3 +1442,63 @@ bool FPaths::IsSamePath(const FString& PathA, const FString& PathB)
 #endif
 }
 
+void FPaths::TearDown()
+{
+	TLazySingleton<FStaticData>::TearDown();
+}
+
+const FString& FPaths::CustomUserDirArgument()
+{
+	FStaticData& StaticData = TLazySingleton<FStaticData>::Get();
+
+	if (!StaticData.bUserDirArgInitialized)
+	{
+		// Check for a -userdir arg. If set this overrides the platform preference for using the UserDir and
+		// the default. The caller is responsible for ensuring that this is a valid path for the current platform!
+		FParse::Value(FCommandLine::Get(), TEXT("UserDir="), StaticData.UserDirArg);
+		StaticData.bUserDirArgInitialized = true;
+
+		if (StaticData.UserDirArg.IsEmpty() == false)
+		{
+			if (FPaths::IsRelative(StaticData.UserDirArg))
+			{
+				StaticData.UserDirArg = FPaths::Combine(*FPaths::ProjectDir(), *StaticData.UserDirArg) + TEXT("/");
+			}
+			else
+			{
+				FPaths::NormalizeDirectoryName(StaticData.UserDirArg);
+				StaticData.UserDirArg = StaticData.UserDirArg + TEXT("/");
+			}
+		}
+	}
+
+	return StaticData.UserDirArg;
+}
+
+const FString& FPaths::CustomShaderDirArgument()
+{
+	FStaticData& StaticData = TLazySingleton<FStaticData>::Get();
+
+	if (!StaticData.bShaderDirInitialized)
+	{
+		// Check for a -userdir arg. If set this overrides the platform preference for using the UserDir and
+		// the default. The caller is responsible for ensuring that this is a valid path for the current platform!
+		FParse::Value(FCommandLine::Get(), TEXT("ShaderWorkingDir="), StaticData.ShaderDir);
+		StaticData.bShaderDirInitialized = true;
+
+		if (StaticData.ShaderDir.IsEmpty() == false)
+		{
+			if (FPaths::IsRelative(StaticData.ShaderDir))
+			{
+				StaticData.ShaderDir = FPaths::Combine(*FPaths::ProjectDir(), *StaticData.ShaderDir) + TEXT("/");
+			}
+			else
+			{
+				FPaths::NormalizeDirectoryName(StaticData.ShaderDir);
+				StaticData.ShaderDir = StaticData.ShaderDir + TEXT("/");
+			}
+		}
+	}
+
+	return StaticData.ShaderDir;
+}

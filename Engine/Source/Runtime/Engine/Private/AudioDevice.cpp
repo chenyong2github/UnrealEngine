@@ -445,7 +445,7 @@ bool FAudioDevice::Init(int32 InMaxSources)
 		ModulationInterface->Initialize(PluginInitializationParams);
 
 		bModulationInterfaceEnabled = true;
-		UE_LOG(LogAudio, Display, TEXT("Audio Modulation Plugin: %s"), *(ModulationPluginFactory->GetDisplayName()));
+		UE_LOG(LogAudio, Display, TEXT("Audio Modulation Plugin: %s"), *(ModulationPluginFactory->GetDisplayName().ToString()));
 	}
 
 	// allow the platform to startup
@@ -594,6 +594,9 @@ int32 FAudioDevice::GetMaxSources() const
 
 void FAudioDevice::Teardown()
 {
+	// Make sure we process any pending game thread tasks before tearing down the audio device.
+	FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
+
 	// Do a fadeout to prevent clicking on shutdown
 	FadeOut();
 
@@ -1537,8 +1540,9 @@ bool FAudioDevice::HandleAudioMemoryInfo(const TCHAR* Cmd, FOutputDevice& Ar)
 			USoundWave* SoundWave = *It;
 
 			const FSoundGroup& SoundGroup = GetDefault<USoundGroups>()->GetSoundGroup(SoundWave->SoundGroup);
-			float Duration = SoundWave->GetDuration();
-			bool bDecompressed = SoundGroup.bAlwaysDecompressOnLoad || Duration < SoundGroup.DecompressedDuration;
+
+			float CompressionDurationThreshold = GetCompressionDurationThreshold(SoundGroup);
+			bool bDecompressed = ShouldUseRealtimeDecompression(false, SoundGroup, SoundWave, CompressionDurationThreshold);
 
 			FString SoundGroupName;
 			switch (SoundWave->SoundGroup)
@@ -1569,7 +1573,7 @@ bool FAudioDevice::HandleAudioMemoryInfo(const TCHAR* Cmd, FOutputDevice& Ar)
 			}
 
 			// Add the info to the SoundWaveObjects array
-			SoundWaveObjects.Add(FSoundWaveInfo(SoundWave, TrueResourceSize, SoundGroupName, Duration, bDecompressed));
+			SoundWaveObjects.Add(FSoundWaveInfo(SoundWave, TrueResourceSize, SoundGroupName, SoundWave->Duration, bDecompressed));
 
 			// Track total resource usage
 			TotalResourceSize += TrueResourceSize;
@@ -2907,8 +2911,14 @@ void FAudioDevice::SetListenerAttenuationOverride(const FVector AttenuationPosit
 	FAudioDevice* AudioDevice = this;
 	FAudioThread::RunCommandOnAudioThread([AudioDevice, AttenuationPosition]()
 	{
+		const bool bPrevAttenuationOverride = AudioDevice->bUseListenerAttenuationOverride;
 		AudioDevice->bUseListenerAttenuationOverride = true;
 		AudioDevice->ListenerAttenuationOverride = AttenuationPosition;
+
+		if (!bPrevAttenuationOverride)
+		{
+			AudioDevice->UpdateVirtualLoops(true);
+		}
 	}, GET_STATID(STAT_AudioSetListenerAttenuationOverride));
 }
 
@@ -2927,6 +2937,7 @@ void FAudioDevice::ClearListenerAttenuationOverride()
 	FAudioThread::RunCommandOnAudioThread([AudioDevice]()
 	{
 		AudioDevice->bUseListenerAttenuationOverride = false;
+		AudioDevice->UpdateVirtualLoops(true);
 	}, GET_STATID(STAT_AudioClearListenerAttenuationOverride));
 }
 
@@ -3836,7 +3847,7 @@ void FAudioDevice::StartSources(TArray<FWaveInstance*>& WaveInstances, int32 Fir
 		}
 	}
 
-	DECLARE_CYCLE_STAT(TEXT("FGameThreadAudioTask.AudioSendResults"), STAT_AudioAddReferencedSoundWaves, STATGROUP_TaskGraphTasks);
+	DECLARE_CYCLE_STAT(TEXT("FGameThreadAudioTask.AddReferencedSoundWaves"), STAT_AudioAddReferencedSoundWaves, STATGROUP_TaskGraphTasks);
 	
 	// Run a command to make sure we add the starting sounds to the referenced sound waves list
 	if (StartingSoundWaves.Num() > 0)
@@ -3852,16 +3863,43 @@ void FAudioDevice::StartSources(TArray<FWaveInstance*>& WaveInstances, int32 Fir
 
 void FAudioDevice::UpdateReferencedSoundWaves()
 {
-	FScopeLock ReferencedSoundWaveLock(&ReferencedSoundWaveCritSec);
-
-	for (USoundWave* SoundWave : ReferencedSoundWaves_AudioThread)
 	{
-		ReferencedSoundWaves.AddUnique(SoundWave);
+		FScopeLock ReferencedSoundWaveLock(&ReferencedSoundWaveCritSec);
+
+		for (USoundWave* SoundWave : ReferencedSoundWaves_AudioThread)
+		{
+			ReferencedSoundWaves.AddUnique(SoundWave);
+		}
+
+		ReferencedSoundWaves_AudioThread.Reset();
 	}
 
-	ReferencedSoundWaves_AudioThread.Reset();
-}
+	// On game thread, look through registered sound waves and remove if we finished precaching (and audio decompressor is cleaned up)
+	// ReferencedSoundWaves is used to make sure GC doesn't run on any sound waves that are actively pre-caching within an async task.
+	// Sounds may be loaded, kick off an async task to decompress, but never actually try to play, so GC can reclaim these while precaches are in-flight.
+	// We are also tracking when a sound wave is actively being used to generate audio in the audio render to prevent GC from happening to sounds till being used in the audio renderer.
+	for (int32 i = ReferencedSoundWaves.Num() - 1; i >= 0; --i)
+	{
+		USoundWave* Wave = ReferencedSoundWaves[i];
+		bool bRemove = true;
+		// If this is null that means it was nulled out in AddReferencedObjects via mark pending kill
+		if (Wave)
+		{
+			const bool bIsPrecacheDone = (Wave->GetPrecacheState() == ESoundWavePrecacheState::Done);
+			const bool bIsGeneratingAudio = Wave->IsGeneratingAudio();
 
+			if (!bIsPrecacheDone || bIsGeneratingAudio)
+			{
+				bRemove = false;
+			}
+		}
+
+		if (bRemove)
+		{
+			ReferencedSoundWaves.RemoveAtSwap(i, 1, false);
+		}
+	}
+}
 
 void FAudioDevice::Update(bool bGameTicking)
 {
@@ -3871,19 +3909,6 @@ void FAudioDevice::Update(bool bGameTicking)
 	{
 		// Make sure our referenced sound waves is up-to-date
 		UpdateReferencedSoundWaves();
-
-		// On game thread, look through registered sound waves and remove if we finished precaching (and audio decompressor is cleaned up)
-		// ReferencedSoundWaves is used to make sure GC doesn't run on any sound waves that are actively pre-caching within an async task.
-		// Sounds may be loaded, kick off an async task to decompress, but never actually try to play, so GC can reclaim these while precaches are in-flight.
-		// We are also tracking when a sound wave is actively being used to generate audio in the audio render to prevent GC from happening to sounds till being used in the audio renderer.
-		for (int32 i = ReferencedSoundWaves.Num() - 1; i >= 0; --i)
-		{
-			USoundWave* Wave = ReferencedSoundWaves[i];
-			if (Wave->GetPrecacheState() == ESoundWavePrecacheState::Done && !Wave->IsGeneratingAudio())
-			{
-				ReferencedSoundWaves.RemoveAtSwap(i, 1, false);
-			}
-		}
 	}
 
 	if (!IsInAudioThread())
@@ -4311,7 +4336,6 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 		return;
 	}
 
-	check(ActiveSound->Sound);
 	check(ActiveSound->Sound == Sound);
 
 	if (GIsEditor)
@@ -4323,7 +4347,14 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 		}
 	}
 
-	++ActiveSound->Sound->CurrentPlayCount;
+	++Sound->CurrentPlayCount;
+	if (ModulationInterface && Sound->CurrentPlayCount == 1)
+	{
+		if (USoundModulationPluginSourceSettingsBase* ModulationSettings = ActiveSound->FindModulationSettings())
+		{
+			ModulationInterface->OnInitSound(static_cast<ModulationSoundId>(Sound->GetUniqueID()), *ModulationSettings);
+		}
+	}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	UE_LOG(LogAudio, VeryVerbose, TEXT("New ActiveSound %s Comp: %s Loc: %s"), *Sound->GetName(), *NewActiveSound.GetAudioComponentName(), *NewActiveSound.Transform.GetTranslation().ToString());
@@ -5346,6 +5377,11 @@ void FAudioDevice::Flush(UWorld* WorldToFlush, bool bClearActivatedReverb)
 		}
 	}
 
+	if (WorldToFlush == nullptr)
+	{
+		ReferencedSoundWaves.Reset();
+	}
+
 	// Make sure we update any hardware changes that need to happen after flushing
 	if (IsAudioMixerEnabled() && (WorldToFlush == nullptr || WorldToFlush->bIsTearingDown))
 	{
@@ -5454,19 +5490,8 @@ void FAudioDevice::Precache(USoundWave* SoundWave, bool bSynchronous, bool bTrac
 		}
 
 
-		// Check to see if the compression duration threshold is overridden via CVar:
-		float CompressedDurationThreshold = DecompressionThresholdCvar;
-		// If not, check to see if there is an override for the compression duration on this platform in the project settings:
-		if (CompressedDurationThreshold <= 0.0f)
-		{
-			CompressedDurationThreshold = FPlatformCompressionUtilities::GetCompressionDurationForCurrentPlatform();
-		}
+		float CompressedDurationThreshold = GetCompressionDurationThreshold(SoundGroup);
 
-		// If there is neither a CVar override nor a runtime setting override, use the decompression threshold from the sound group directly:
-		if (CompressedDurationThreshold < 0.0f)
-		{
-			CompressedDurationThreshold = SoundGroup.DecompressedDuration;
-		}
 
 		// handle audio decompression
 		if (FPlatformProperties::SupportsAudioStreaming() && SoundWave->IsStreaming())
@@ -5474,11 +5499,7 @@ void FAudioDevice::Precache(USoundWave* SoundWave, bool bSynchronous, bool bTrac
 			SoundWave->DecompressionType = DTYPE_Streaming;
 			SoundWave->bCanProcessAsync = false;
 		}
-		else if (!bForceFullDecompression &&
-				  SupportsRealtimeDecompression() &&
-				  ((bDisableAudioCaching || DisablePCMAudioCaching()) ||
-				  (!SoundGroup.bAlwaysDecompressOnLoad &&
-				  (ForceRealtimeDecompressionCvar || SoundWave->Duration > CompressedDurationThreshold || (RealtimeDecompressZeroDurationSoundsCvar && SoundWave->Duration <= 0.0f)))))
+		else if (ShouldUseRealtimeDecompression(bForceFullDecompression, SoundGroup, SoundWave, CompressedDurationThreshold))
 		{
 			// Store as compressed data and decompress in realtime
 			SoundWave->DecompressionType = DTYPE_RealTime;
@@ -5550,6 +5571,34 @@ void FAudioDevice::Precache(USoundWave* SoundWave, bool bSynchronous, bool bTrac
 		INC_DWORD_STAT_BY(STAT_AudioMemorySize, ResourceSize);
 		INC_DWORD_STAT_BY(STAT_AudioMemory, ResourceSize);
 	}
+}
+
+float FAudioDevice::GetCompressionDurationThreshold(const FSoundGroup &SoundGroup)
+{
+	// Check to see if the compression duration threshold is overridden via CVar:
+	float CompressedDurationThreshold = DecompressionThresholdCvar;
+	// If not, check to see if there is an override for the compression duration on this platform in the project settings:
+	if (CompressedDurationThreshold <= 0.0f)
+	{
+		CompressedDurationThreshold = FPlatformCompressionUtilities::GetCompressionDurationForCurrentPlatform();
+	}
+
+	// If there is neither a CVar override nor a runtime setting override, use the decompression threshold from the sound group directly:
+	if (CompressedDurationThreshold < 0.0f)
+	{
+		CompressedDurationThreshold = SoundGroup.DecompressedDuration;
+	}
+
+	return CompressedDurationThreshold;
+}
+
+bool FAudioDevice::ShouldUseRealtimeDecompression(bool bForceFullDecompression, const FSoundGroup &SoundGroup, USoundWave* SoundWave, float CompressedDurationThreshold) const
+{
+	return !bForceFullDecompression &&
+		SupportsRealtimeDecompression() &&
+		((bDisableAudioCaching || DisablePCMAudioCaching()) ||
+		(!SoundGroup.bAlwaysDecompressOnLoad &&
+			(ForceRealtimeDecompressionCvar || SoundWave->Duration > CompressedDurationThreshold || (RealtimeDecompressZeroDurationSoundsCvar && SoundWave->Duration <= 0.0f))));
 }
 
 void FAudioDevice::StopSourcesUsingBuffer(FSoundBuffer* SoundBuffer)

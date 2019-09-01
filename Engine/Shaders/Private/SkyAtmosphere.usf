@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	SkyAtmosphere.usf: Sky and atmosphere rendering functions.
+	SkyAtmosphere.usf: Sky and atmosphere rendering functions. 
 =============================================================================*/
 
 
@@ -737,7 +737,7 @@ void RenderSkyAtmosphereRayMarchingPS(
 		//Now the sky pass can ignore the pixel with depth == far but it will need to alpha clip because not all RHI backend support depthbound tests.
 		// And the depthtest is already setup to avoid writing all the pixel closer than to the camera than the start distance (very good optimisation).
 		// Since this shader does not write to depth or stencil it should still benefit from EArlyZ even with the clip (See AMD depth-in-depth documentation)
-		clip(0);
+		clip(-1.0f);
 		return;
 #endif
 	}
@@ -1099,7 +1099,7 @@ void RenderDistantSkyLightLutCS(uint3 ThreadId : SV_DispatchThreadID)
 		AtmosphereLightDirection0.xyz, AtmosphereLightDirection1.xyz, AtmosphereLightColor0.rgb, AtmosphereLightColor1.rgb,
 		AerialPespectiveViewDistanceScale);
 
-	GroupSkyLuminanceSamples[LinearIndex] = ss.L;
+	GroupSkyLuminanceSamples[LinearIndex] = ss.L * SkyAtmosphere.SkyLuminanceFactor;
 
 	// Wait for all group threads to be done
 	GroupMemoryBarrierWithGroupSync();

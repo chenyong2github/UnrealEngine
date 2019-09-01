@@ -13,6 +13,7 @@
 #include "Misc/OutputDeviceRedirector.h"
 #include "Internationalization/Regex.h"
 #include <inttypes.h>
+#include "Misc/App.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogAutomationTest, Warning, All);
 
@@ -396,6 +397,120 @@ void FAutomationTestFramework::LoadTestModules( )
 	}
 }
 
+void FAutomationTestFramework::BuildTestBlacklistFromConfig()
+{
+	TestBlacklist.Empty();
+	if (GConfig)
+	{
+
+		const FString CommandLine = FCommandLine::Get();
+
+		for (const TPair<FString, FConfigFile>& Config : *GConfig)
+		{
+			FConfigSection* BlacklistSection = GConfig->GetSectionPrivate(TEXT("AutomationTestBlacklist"), false, true, Config.Key);
+			if (BlacklistSection)
+			{
+				// Parse all blacklist definitions of the format "BlacklistTest=(Map=/Game/Tests/MapName, Test=TestName, Reason="Foo")"
+				for (FConfigSection::TIterator Section(*BlacklistSection); Section; ++Section)
+				{
+					if (Section.Key() == TEXT("BlacklistTest"))
+					{
+						FString BlacklistValue = Section.Value().GetValue();
+						FString Map, Test, Reason, RHIs, Warn, ListName;
+						bool bSuccess = false;
+
+						if (FParse::Value(*BlacklistValue, TEXT("Test="), Test, true))
+						{
+							ListName = FString(Test);
+							FParse::Value(*BlacklistValue, TEXT("Map="), Map, true);
+							FParse::Value(*BlacklistValue, TEXT("Reason="), Reason);
+							FParse::Value(*BlacklistValue, TEXT("RHIs="), RHIs);
+							FParse::Value(*BlacklistValue, TEXT("Warn="), Warn);
+
+							if (Map.IsEmpty())
+							{
+								// Test with no Map property
+								bSuccess = true;
+							}
+							else if (Map.StartsWith(TEXT("/")))
+							{
+								// Account for Functional Tests based on Map - historically blacklisting was made only for functional tests
+								ListName = TEXT("Project.Functional Tests.") + Map + TEXT(".") + ListName;
+								bSuccess = true;
+							}
+
+						}
+
+						if (bSuccess)
+						{
+							if ((!Map.IsEmpty() && CommandLine.Contains(Map)) || CommandLine.Contains(Test))
+							{
+								UE_LOG(LogAutomationTest, Warning, TEXT("Test '%s' is blacklisted but allowing due to command line."), *BlacklistValue);
+							}
+							else
+							{
+								ListName.RemoveSpacesInline();
+								FBlacklistEntry& Entry = TestBlacklist.Add(ListName);
+								Entry.Map = Map;
+								Entry.Test = Test;
+								Entry.Reason = Reason;
+								if (!RHIs.IsEmpty())
+								{
+									RHIs.ToLower().ParseIntoArray(Entry.RHIs, TEXT(","), true);
+									for (FString& RHI : Entry.RHIs)
+									{
+										RHI.TrimStartAndEndInline();
+									}
+								}
+								Entry.bWarn = Warn.ToBool();
+							}
+						}
+						else
+						{
+							UE_LOG(LogAutomationTest, Error, TEXT("Invalid blacklisted test definition: '%s'"), *BlacklistValue);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if (TestBlacklist.Num() > 0)
+	{
+		UE_LOG(LogAutomationTest, Log, TEXT("Automated Test Blacklist:"));
+		for (auto& KV : TestBlacklist)
+		{
+			UE_LOG(LogAutomationTest, Log, TEXT("\tTest: %s"), *KV.Key);
+		}
+	}
+}
+
+bool FAutomationTestFramework::IsBlacklisted(const FString& TestName, FString* OutReason, bool *OutWarn) const
+{
+	const FBlacklistEntry* Entry = TestBlacklist.Find(TestName);
+
+	if (Entry)
+	{
+		if (Entry->RHIs.Num() != 0 && !Entry->RHIs.Contains(FApp::GetGraphicsRHI().ToLower()))
+		{
+			return false;
+		}
+
+		if (OutReason != nullptr)
+		{
+			*OutReason = Entry->Reason;
+		}
+
+		if (OutWarn != nullptr)
+		{
+			*OutWarn = Entry->bWarn;
+		}
+	}
+
+	return Entry != nullptr;
+}
+
+
 void FAutomationTestFramework::GetValidTestNames( TArray<FAutomationTestInfo>& TestInfo ) const
 {
 	TestInfo.Empty();
@@ -461,7 +576,30 @@ void FAutomationTestFramework::GetValidTestNames( TArray<FAutomationTestInfo>& T
 		
 		if (bEnabled && bPassesApplicationRequirements && bPassesFeatureRequirements && bPassesFilterRequirement)
 		{
-			CurTest->GenerateTestNames(TestInfo);
+			TArray<FAutomationTestInfo> TestsToAdd;
+			CurTest->GenerateTestNames(TestsToAdd);
+			for (FAutomationTestInfo Test : TestsToAdd)
+			{
+				FString BlacklistReason;
+				bool bWarn(false);
+				FString TestName = Test.GetDisplayName();
+				if (!IsBlacklisted(TestName.Replace(TEXT(" "), TEXT("")), &BlacklistReason, &bWarn))
+				{
+					TestInfo.Add(Test);
+				}
+				else
+				{
+					if (bWarn)
+					{
+						UE_LOG(LogAutomationTest, Warning, TEXT("Test '%s' is blacklisted. %s"), *TestName, *BlacklistReason);
+					}
+					else
+					{
+						UE_LOG(LogAutomationTest, Display, TEXT("Test '%s' is blacklisted. %s"), *TestName, *BlacklistReason);
+					}
+				}
+			}
+			
 		}
 
 		// Make sure people are not writing complex tests that take forever to return the names of the tests

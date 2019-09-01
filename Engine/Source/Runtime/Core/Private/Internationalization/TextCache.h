@@ -15,16 +15,13 @@ public:
 	 * Get the singleton instance of the text cache.
 	 */
 	static FTextCache& Get();
+	static void TearDown();
 
 	/**
 	 * Try and find an existing cached entry for the given data, or construct and cache a new entry if one cannot be found.
 	 */
 	FText FindOrCache(const TCHAR* InTextLiteral, const TCHAR* InNamespace, const TCHAR* InKey);
 
-	/**
-	 * Flush all the instances currently stored in this cache and free any allocated data.
-	 */
-	void Flush();
 
 private:
 	TMap<FTextId, FText> CachedText;

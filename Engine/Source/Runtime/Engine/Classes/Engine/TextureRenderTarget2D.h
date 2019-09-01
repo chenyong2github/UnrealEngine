@@ -163,6 +163,7 @@ class UTextureRenderTarget2D : public UTextureRenderTarget
 	 * @return New UTexture2D object.
 	 */
 	ENGINE_API UTexture2D* ConstructTexture2D(UObject* InOuter, const FString& NewTexName, EObjectFlags InObjectFlags, uint32 Flags=CTF_Default, TArray<uint8>* AlphaOverride=NULL);
+	ENGINE_API void UpdateTexture2D(UTexture2D* InTexture2D, ETextureSourceFormat InTextureFormat, uint32 Flags = CTF_Default, TArray<uint8>* AlphaOverride = NULL);
 
 	/**
 	 * Updates (resolves) the render target texture immediately.

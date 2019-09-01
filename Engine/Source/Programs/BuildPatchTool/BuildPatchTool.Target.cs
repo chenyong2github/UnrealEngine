@@ -12,7 +12,7 @@ public class BuildPatchToolTarget : TargetRules
 		Type = TargetType.Program;
 		LinkType = TargetLinkType.Monolithic;
 		LaunchModuleName = "BuildPatchTool";
-		bOutputPubliclyDistributable = true;
+        bLegalToDistributeBinary = true;
 		UndecoratedConfiguration = UnrealTargetConfiguration.Shipping;
 
 		bCompileAgainstEngine = false;

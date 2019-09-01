@@ -78,13 +78,14 @@ private:
 	bool bIsLocalizationLocked;
 #endif
 
-private:
 	FTextLocalizationManager();
-
+	friend class FLazySingleton;
+	
 public:
 
 	/** Singleton accessor */
 	static FTextLocalizationManager& Get();
+	static void TearDown();
 
 	void DumpMemoryInfo();
 	void CompactDataStructures();

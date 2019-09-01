@@ -1440,10 +1440,23 @@ namespace WindowsMixedReality
 	{
 		AsyncTask(ENamedThreads::GameThread, [InKey, InActionName]()
 		{
-			APlayerController* PlayerController = GEngine->GetFirstLocalPlayerController(GWorld);
-			if (PlayerController)
+			// Have to find the game world, not the editor world, if we are in vr preview
+			UWorld* World = nullptr;
+			for (const FWorldContext& Context : GEngine->GetWorldContexts())
 			{
-				PlayerController->InputKey(InKey, IE_Pressed, 1.0f, false);
+				if (Context.WorldType == EWorldType::Game || Context.WorldType == EWorldType::PIE)
+				{
+					World = Context.World();
+				}
+			}
+
+			if (World && World->GetGameInstance())
+			{
+				APlayerController* PlayerController = World->GetGameInstance()->GetFirstLocalPlayerController();
+				if (PlayerController)
+				{
+					PlayerController->InputKey(InKey, IE_Pressed, 1.0f, false);
+				}
 			}
 		});
 	}

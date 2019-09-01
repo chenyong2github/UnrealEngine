@@ -293,7 +293,7 @@ void OnCVarChange(T& Dst, const T& Src, EConsoleVariableFlags Flags, EConsoleVar
 	}
 }
 
-// T: int32, float, FString
+// T: bool, int32, float, FString
 template <class T>
 class FConsoleVariable : public FConsoleVariableBase
 {
@@ -308,10 +308,11 @@ public:
 	virtual void Release()
 	{
 		delete this; 
-	} 
+	}
+
 	virtual void Set(const TCHAR* InValue, EConsoleVariableFlags SetBy)
 	{
-		if(CanChange(SetBy))
+		if (CanChange(SetBy))
 		{
 			TTypeFromString<T>::FromString(Data.ShadowedValue[0], InValue);
 			OnChanged(SetBy);
@@ -496,7 +497,8 @@ public:
 	virtual void Release()
 	{
 		delete this; 
-	} 
+	}
+
 	virtual void Set(const TCHAR* InValue, EConsoleVariableFlags SetBy)
 	{
 		if(CanChange(SetBy))
@@ -1951,6 +1953,8 @@ void FConsoleManager::Test()
 // These don't belong here, but they belong here more than they belong in launch engine loop.
 void CreateConsoleVariables()
 {
+#if !NO_CVARS
+
 	// this registeres to a reference, so we cannot use TAutoConsoleVariable
 	IConsoleManager::Get().RegisterConsoleVariableRef(TEXT("r.DumpingMovie"),
 		GIsDumpingMovie,
@@ -1982,6 +1986,7 @@ void CreateConsoleVariables()
 
 		ConsoleManager.Test();
 	}
+#endif
 }
 
 // Naming conventions:

@@ -20,8 +20,7 @@ public class Crunch : ModuleRules
                 Target.Platform == UnrealTargetPlatform.Win64)
             {
                 LibPath += (Target.Platform == UnrealTargetPlatform.Win64) ? "Win64/" : "Win32/";
-                PublicLibraryPaths.Add(LibPath);
-                PublicAdditionalLibraries.Add("crnlib.lib");
+                PublicAdditionalLibraries.Add(LibPath + "crnlib.lib");
             }
         }
     }

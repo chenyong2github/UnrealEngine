@@ -100,6 +100,7 @@ public:
 	using FOnSetExpansionRecursive  = typename TSlateDelegates< ItemType >::FOnSetExpansionRecursive;
 	using FOnItemScrolledIntoView   = typename TSlateDelegates< ItemType >::FOnItemScrolledIntoView;
 	using FOnSelectionChanged       = typename TSlateDelegates< NullableItemType >::FOnSelectionChanged;
+	using FIsSelectableOrNavigable	= typename TSlateDelegates< ItemType >::FIsSelectableOrNavigable;
 	using FOnMouseButtonClick       = typename TSlateDelegates< ItemType >::FOnMouseButtonClick;
 	using FOnMouseButtonDoubleClick = typename TSlateDelegates< ItemType >::FOnMouseButtonDoubleClick;
 	using FOnExpansionChanged       = typename TSlateDelegates< ItemType >::FOnExpansionChanged;
@@ -121,6 +122,7 @@ public:
 		, _OnMouseButtonDoubleClick()
 		, _OnSelectionChanged()
 		, _OnExpansionChanged()
+		, _OnIsSelectableOrNavigable()
 		, _SelectionMode(ESelectionMode::Multi)
 		, _ClearSelectionOnClick(true)
 		, _ExternalScrollbar()
@@ -164,6 +166,8 @@ public:
 		SLATE_EVENT( FOnSelectionChanged, OnSelectionChanged )
 
 		SLATE_EVENT( FOnExpansionChanged, OnExpansionChanged )
+
+		SLATE_EVENT(FIsSelectableOrNavigable, OnIsSelectableOrNavigable)
 
 		SLATE_ATTRIBUTE( ESelectionMode::Type, SelectionMode )
 
@@ -220,6 +224,7 @@ public:
 		this->OnDoubleClick = InArgs._OnMouseButtonDoubleClick;
 		this->OnSelectionChanged = InArgs._OnSelectionChanged;
 		this->OnExpansionChanged = InArgs._OnExpansionChanged;
+		this->OnIsSelectableOrNavigable = InArgs._OnIsSelectableOrNavigable;
 		this->SelectionMode = InArgs._SelectionMode;
 
 		this->bClearSelectionOnClick = InArgs._ClearSelectionOnClick;

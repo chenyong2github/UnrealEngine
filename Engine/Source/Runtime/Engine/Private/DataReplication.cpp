@@ -826,7 +826,7 @@ void FObjectReplicator::ReceivedNak( int32 NakPacketId )
 	{
 		UE_LOG(LogNet, Verbose, TEXT("FObjectReplicator::ReceivedNak: ObjectClass == nullptr"));
 	}
-	else if (ERepLayoutState::Normal == RepLayout->GetRepLayoutState())
+	else if (!RepLayout->IsEmpty())
 	{
 		if (FSendingRepState* SendingRepState = RepState.IsValid() ? RepState->GetSendingRepState() : nullptr)
 		{
@@ -1567,10 +1567,9 @@ bool FObjectReplicator::ReplicateProperties( FOutBunch & Bunch, FReplicationFlag
 		check(RepLayout.IsValid());
 		check(RepState.IsValid());
 		check(RepState->GetSendingRepState());
-		check(RepLayout->GetRepLayoutState() != ERepLayoutState::Uninitialized);
 		check(ChangelistMgr.IsValid());
 		check(ChangelistMgr->GetRepChangelistState() != nullptr);
-		check((ChangelistMgr->GetRepChangelistState()->StaticBuffer.Num() == 0) == (RepLayout->GetRepLayoutState() == ERepLayoutState::Empty));
+		check((ChangelistMgr->GetRepChangelistState()->StaticBuffer.Num() == 0) == RepLayout->IsEmpty());
 	}
 
 	UNetConnection* OwningChannelConnection = OwningChannel->Connection;

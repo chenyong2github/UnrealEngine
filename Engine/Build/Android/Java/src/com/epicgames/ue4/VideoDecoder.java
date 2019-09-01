@@ -1333,6 +1333,7 @@ public class VideoDecoder
 		private int mTextureID = -1;
 		private float[] mTransformMatrix = new float[16];
 		private boolean mTextureSizeChanged = true;
+		private int GL_TEXTURE_EXTERNAL_OES = 0x8D65;
 
 		private float mUScale = 1.0f;
 		private float mVScale = -1.0f;
@@ -1482,6 +1483,11 @@ public class VideoDecoder
 			Entry<Double,Double> frameTimeDuration = getFrameTimeDuration(getFrameTimestamp());
 			frameUpdateInfo.Timestamp = frameTimeDuration.getKey();
 			frameUpdateInfo.Duration = frameTimeDuration.getValue();
+
+			// updateTexImage binds an external texture to active texture unit
+			// make sure to unbind it to prevent state leak
+			GLES20.glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
+
 			return frameUpdateInfo;
 		}
 	};

@@ -5,54 +5,17 @@
 #if UE_ENABLE_ICU
 #include "Internationalization/ICUCulture.h"
 #else
-#include "LegacyCulture.h"
+#include "Internationalization/LegacyCulture.h"
 #endif
 
-#if UE_ENABLE_ICU
-FCulturePtr FCulture::Create(const FString& LocaleName)
+FCultureRef FCulture::Create(TUniquePtr<FCultureImplementation>&& InImplementation)
 {
-	return MakeShareable(new FCulture(LocaleName));
+	check(InImplementation.IsValid());
+	return MakeShareable(new FCulture(MoveTemp(InImplementation)));
 }
-#else
-FCulturePtr FCulture::Create(
-	const FText& InDisplayName, 
-	const FString& InEnglishName, 
-	const int InKeyboardLayoutId, 
-	const int InLCID, 
-	const FString& InName, 
-	const FString& InNativeName, 
-	const FString& InUnrealLegacyThreeLetterISOLanguageName, 
-	const FString& InThreeLetterISOLanguageName, 
-	const FString& InTwoLetterISOLanguageName,
-	const FDecimalNumberFormattingRules& InDecimalNumberFormattingRules,
-	const FDecimalNumberFormattingRules& InPercentFormattingRules,
-	const FDecimalNumberFormattingRules& InBaseCurrencyFormattingRules
-	)
-{
-	return MakeShareable(new FCulture(InDisplayName, InEnglishName, InKeyboardLayoutId, InLCID, InName, InNativeName, InUnrealLegacyThreeLetterISOLanguageName, InThreeLetterISOLanguageName, InTwoLetterISOLanguageName, InDecimalNumberFormattingRules, InPercentFormattingRules, InBaseCurrencyFormattingRules));
-}
-#endif
 
-#if UE_ENABLE_ICU
-FCulture::FCulture(const FString& LocaleName)
-	: Implementation( new FICUCultureImplementation( LocaleName ) )
-#else
-FCulture::FCulture(
-	const FText& InDisplayName, 
-	const FString& InEnglishName, 
-	const int InKeyboardLayoutId, 
-	const int InLCID, 
-	const FString& InName, 
-	const FString& InNativeName, 
-	const FString& InUnrealLegacyThreeLetterISOLanguageName, 
-	const FString& InThreeLetterISOLanguageName, 
-	const FString& InTwoLetterISOLanguageName,
-	const FDecimalNumberFormattingRules& InDecimalNumberFormattingRules,
-	const FDecimalNumberFormattingRules& InPercentFormattingRules,
-	const FDecimalNumberFormattingRules& InBaseCurrencyFormattingRules
-	) 
-	: Implementation( new FLegacyCultureImplementation(InDisplayName, InEnglishName, InKeyboardLayoutId, InLCID, InName, InNativeName, InUnrealLegacyThreeLetterISOLanguageName, InThreeLetterISOLanguageName, InTwoLetterISOLanguageName, InDecimalNumberFormattingRules, InPercentFormattingRules, InBaseCurrencyFormattingRules) )
-#endif
+FCulture::FCulture(TUniquePtr<FCultureImplementation>&& InImplementation)
+	: Implementation(MoveTemp(InImplementation))
 	, CachedDisplayName(Implementation->GetDisplayName())
 	, CachedEnglishName(Implementation->GetEnglishName())
 	, CachedName(Implementation->GetName())
@@ -61,15 +24,16 @@ FCulture::FCulture(
 	, CachedThreeLetterISOLanguageName(Implementation->GetThreeLetterISOLanguageName())
 	, CachedTwoLetterISOLanguageName(Implementation->GetTwoLetterISOLanguageName())
 	, CachedNativeLanguage(Implementation->GetNativeLanguage())
-#if UE_ENABLE_ICU
 	, CachedRegion(Implementation->GetRegion())
-#endif
 	, CachedNativeRegion(Implementation->GetNativeRegion())
-#if UE_ENABLE_ICU
 	, CachedScript(Implementation->GetScript())
 	, CachedVariant(Implementation->GetVariant())
-#endif
 { 
+}
+
+FCulture::~FCulture()
+{
+	// Explicit destructor due to forward declaration of FCultureImplementation
 }
 
 const FString& FCulture::GetDisplayName() const
@@ -160,7 +124,7 @@ FString FCulture::CreateCultureName(const FString& LanguageCode, const FString& 
 
 FString FCulture::GetCanonicalName(const FString& Name)
 {
-	return FImplementation::GetCanonicalName(Name);
+	return FCultureImplementation::GetCanonicalName(Name);
 }
 
 const FString& FCulture::GetName() const

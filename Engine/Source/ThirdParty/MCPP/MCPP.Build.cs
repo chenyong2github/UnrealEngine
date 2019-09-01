@@ -15,14 +15,12 @@ public class MCPP : ModuleRules
 		if (Target.Platform == UnrealTargetPlatform.Win64)
         {
             LibPath += ("Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
-			PublicLibraryPaths.Add(LibPath);
-			PublicAdditionalLibraries.Add("mcpp_64.lib");
+			PublicAdditionalLibraries.Add(LibPath + "/mcpp_64.lib");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win32)
         {
             LibPath += ("Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
-			PublicLibraryPaths.Add(LibPath);
-			PublicAdditionalLibraries.Add("mcpp.lib");
+			PublicAdditionalLibraries.Add(LibPath + "/mcpp.lib");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{

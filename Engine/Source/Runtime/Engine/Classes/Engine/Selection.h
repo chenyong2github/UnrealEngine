@@ -312,18 +312,6 @@ public:
 		return Count;
 	}
 
-	/**
-	 * Gets selected class by index.
-	 *
-	 * @return			The selected class at the specified index.
-	 */
-	UE_DEPRECATED(4.14, "GetSelectedClass is deprecated.  Use IsClassSelected or a class iterator to search through classes")
-	UClass* GetSelectedClass(int32 InIndex) const
-	{
-		FSetElementId Id = FSetElementId::FromInteger(InIndex);
-		return const_cast<UClass*>(SelectedClasses[Id].Class);
-	}
-
 	bool IsClassSelected(UClass* Class) const
 	{
 		const FSelectedClassInfo* Info = SelectedClasses.Find(Class);
@@ -332,7 +320,9 @@ public:
 
 	//~ Begin UObject Interface
 	virtual void Serialize(FArchive& Ar) override;
+#if WITH_EDITOR
 	virtual bool Modify( bool bAlwaysMarkDirty=true) override;
+#endif
 	virtual void BeginDestroy() override;
 
 	//~ End UObject Interface

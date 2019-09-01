@@ -103,7 +103,7 @@ public:
 		return Info.HostName == FPlatformProcess::ComputerName();
 	}
 
-	virtual bool Launch(const FString& AppId, EBuildConfigurations::Type BuildConfiguration, EBuildTargets::Type BuildTarget, const FString& Params, uint32* OutProcessId) override;
+	virtual bool Launch(const FString& AppId, EBuildConfiguration BuildConfiguration, EBuildTargetType TargetType, const FString& Params, uint32* OutProcessId) override;
 
 	virtual bool PowerOff(bool Force) override
 	{

@@ -3,6 +3,9 @@
 
 #pragma once
 
+#include "CoreTypes.h"
+#include "HAL/UnrealMemory.h"
+
 /*
 ===============================================================================
 	Direct Mapped Cache

@@ -13,10 +13,11 @@ precision highp float;
 #endif // USE_709
 
 // Shader types
-#define ST_Default	0
-#define ST_Border	1
-#define ST_Font		2
-#define ST_Line		3
+#define ST_Default			0
+#define ST_Border			1
+#define ST_GrayscaleFont	2
+#define ST_ColorFont		3
+#define ST_Line				4
 
 /** Display gamma x:gamma curve adjustment, y:inverse gamma (1/GEngine->DisplayGamma) */
 uniform vec2 GammaValues = vec2(1, 1/2.2);
@@ -130,7 +131,7 @@ vec3 GammaCorrect(vec3 InColor)
 	return CorrectedColor;
 }
 
-vec4 GetFontElementColor()
+vec4 GetGrayscaleFontElementColor()
 {
 	vec4 OutColor = Color;
 #if PLATFORM_LINUX
@@ -138,6 +139,15 @@ vec4 GetFontElementColor()
 #else
 	OutColor.a *= texture2D(ElementTexture, TexCoords.xy).a;
 #endif
+
+	return OutColor;
+}
+
+vec4 GetColorFontElementColor()
+{
+	vec4 OutColor = Color;
+
+	OutColor *= texture2D(ElementTexture, TexCoords.xy);
 
 	return OutColor;
 }
@@ -236,9 +246,13 @@ void main()
 	{
 		OutColor = GetBorderElementColor();
 	}
-	else if( ShaderType == ST_Font )
+	else if( ShaderType == ST_GrayscaleFont )
 	{
-		OutColor = GetFontElementColor();
+		OutColor = GetGrayscaleFontElementColor();
+	}
+	else if( ShaderType == ST_ColorFont )
+	{
+		OutColor = GetColorFontElementColor();
 	}
 	else
 	{

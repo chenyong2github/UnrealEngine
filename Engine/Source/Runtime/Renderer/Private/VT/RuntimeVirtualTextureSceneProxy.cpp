@@ -17,25 +17,37 @@ FRuntimeVirtualTextureSceneProxy::FRuntimeVirtualTextureSceneProxy(URuntimeVirtu
 {
 	if (InComponent->GetVirtualTexture() != nullptr && InComponent->GetVirtualTexture()->GetEnabled())
 	{
-		VirtualTexture = InComponent->GetVirtualTexture();
-
 		// We store a ProducerId here so that we will be able to find our SceneIndex from the Producer during rendering.
 		// We will need the SceneIndex to determine which primitives should render to this Producer.
 		ProducerId = ProducerIdGenerator++;
 
-		const ERuntimeVirtualTextureMaterialType MaterialType = VirtualTexture->GetMaterialType();
-
-		// Transform is based on bottom left of the URuntimeVirtualTextureComponent unit box (which is centered on the origin)
-		Transform = FTransform(FVector(-0.5f, -0.5f, 0.f)) * InComponent->GetComponentTransform();
+		VirtualTexture = InComponent->GetVirtualTexture();
+		Transform = InComponent->GetVirtualTextureTransform();
 
 		// The producer description is calculated using the transform to determine the aspect ratio
 		FVTProducerDescription Desc;
 		VirtualTexture->GetProducerDescription(Desc, Transform);
-		VirtualTextureSize = FIntPoint(Desc.WidthInBlocks * Desc.BlockWidthInTiles * Desc.TileSize, Desc.HeightInBlocks * Desc.BlockHeightInTiles * Desc.TileSize);
+		VirtualTextureSize = FIntPoint(Desc.BlockWidthInTiles * Desc.TileSize, Desc.BlockHeightInTiles * Desc.TileSize);
+		// We only need to dirty flush up to the producer description MaxLevel which accounts for the RemoveLowMips
+		MaxDirtyLevel = Desc.MaxLevel;
+
+		const ERuntimeVirtualTextureMaterialType MaterialType = VirtualTexture->GetMaterialType();
 
 		// The Producer object created here will be passed into the virtual texture system which will take ownership.
+		IVirtualTexture* Producer = new FRuntimeVirtualTextureProducer(Desc, ProducerId, MaterialType, InComponent->GetScene(), Transform);
+
+		if (InComponent->IsStreamingLowMips() && VirtualTexture->GetStreamLowMips() > 0)
+		{
+			// Streaming mips start from the MaxLevel before taking into account the RemoveLowMips
+			const int32 MaxLevel = FMath::CeilLogTwo(FMath::Max(Desc.BlockWidthInTiles, Desc.BlockHeightInTiles));
+			// Wrap our producer to use a streaming producer for low mips
+			int32 StreamingTransitionLevel;
+			Producer = VirtualTexture->CreateStreamingTextureProducer(Producer, MaxLevel, StreamingTransitionLevel);
+			// Any dirty flushes don't need to flush the streaming mips (they only change with a build step).
+			MaxDirtyLevel = FMath::Min(MaxDirtyLevel, StreamingTransitionLevel);
+		}
+
 		// The Initialize() call will allocate the virtual texture by spawning work on the render thread.
-		FRuntimeVirtualTextureProducer* Producer = new FRuntimeVirtualTextureProducer(Desc, ProducerId, MaterialType, InComponent->GetScene(), Transform);
 		VirtualTexture->Initialize(Producer, Transform);
 	}
 }
@@ -103,13 +115,13 @@ void FRuntimeVirtualTextureSceneProxy::FlushDirtyPages()
 
 		if (bCombinedFlush)
 		{
-			FVirtualTextureSystem::Get().FlushCache(ProducerHandle, CombinedDirtyRect);
+			FVirtualTextureSystem::Get().FlushCache(ProducerHandle, CombinedDirtyRect, MaxDirtyLevel);
 		}
 		else
 		{
 			for (FIntRect Rect : DirtyRects)
 			{
-				FVirtualTextureSystem::Get().FlushCache(ProducerHandle, Rect);
+				FVirtualTextureSystem::Get().FlushCache(ProducerHandle, Rect, MaxDirtyLevel);
 			}
 		}
 	}

@@ -7781,7 +7781,10 @@ TArray<FGuid> FSequencer::ExpandMultiplePossessableBindings(FGuid PossessableGui
 	for (TWeakObjectPtr<> FoundObjectPtr : FoundObjects)
 	{
 		UObject* FoundObject = FoundObjectPtr.Get();
-		check(FoundObject);
+		if (!FoundObject)
+		{
+			continue;
+		}
 
 		FoundObject->Modify();
 

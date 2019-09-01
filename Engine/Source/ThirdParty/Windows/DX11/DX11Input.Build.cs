@@ -21,19 +21,20 @@ public class DX11Input : ModuleRules
 
 		PublicSystemIncludePaths.Add(DirectXSDKDir + "/include");
 
+		string LibDir = null;
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			PublicLibraryPaths.Add(DirectXSDKDir + "/Lib/x64");
+			LibDir = DirectXSDKDir + "/Lib/x64/";
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win32)
 		{
-			PublicLibraryPaths.Add(DirectXSDKDir + "/Lib/x86");
+			LibDir = DirectXSDKDir + "/Lib/x86/";
 		}
 
 		PublicAdditionalLibraries.AddRange(
 			new string[] {
-				"dxguid.lib",
-				"dinput8.lib"
+				LibDir + "dxguid.lib",
+				LibDir + "dinput8.lib"
 			}
 			);
 	}

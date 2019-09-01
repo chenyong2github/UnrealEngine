@@ -144,9 +144,10 @@ namespace UnrealBuildTool
 		public bool bEnableBufferSecurityChecks = true;
 
 		/// <summary>
-		/// If true and unity builds are enabled, this module will build without unity.
+		/// If unity builds are enabled this can be used to override if this specific module will build using Unity.
+		/// This is set using the per module configurations in BuildConfiguration.
 		/// </summary>
-		public bool bFasterWithoutUnity = false;
+		public bool bUseUnity = false;
 
 		/// <summary>
 		/// The number of source files in this module before unity build will be activated for that module.  If set to
@@ -386,7 +387,7 @@ namespace UnrealBuildTool
 			bUseRTTI = Other.bUseRTTI;
 			bUseInlining = Other.bUseInlining;
 			bUseAVX = Other.bUseAVX;
-			bFasterWithoutUnity = Other.bFasterWithoutUnity;
+			bUseUnity = Other.bUseUnity;
 			MinSourceFilesForUnityBuildOverride = Other.MinSourceFilesForUnityBuildOverride;
 			MinFilesUsingPrecompiledHeaderOverride = Other.MinFilesUsingPrecompiledHeaderOverride;
 			bBuildLocallyWithSNDBS = Other.bBuildLocallyWithSNDBS;

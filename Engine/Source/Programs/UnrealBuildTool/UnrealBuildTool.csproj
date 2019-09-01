@@ -48,6 +48,7 @@
     <DocumentationFile>..\..\..\Binaries\DotNET\UnrealBuildTool.xml</DocumentationFile>
     <NoWarn>
     </NoWarn>
+    <LangVersion>6</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <OutputPath>..\..\..\Binaries\DotNET\</OutputPath>
@@ -144,6 +145,8 @@
     <Compile Include="Modes\BuildMode.cs" />
     <Compile Include="Modes\CleanMode.cs" />
     <Compile Include="Modes\DeployMode.cs" />
+    <Compile Include="Modes\GenerateClangDatabase.cs" />
+    <Compile Include="Modes\QueryTargetsMode.cs" />
     <Compile Include="Modes\ExecuteMode.cs" />
     <Compile Include="Modes\JsonExportMode.cs" />
     <Compile Include="Modes\GenerateProjectFilesMode.cs" />
@@ -179,6 +182,8 @@
     <Compile Include="ProjectFiles\Project.cs" />
     <Compile Include="ProjectFiles\ProjectFileGenerator.cs" />
     <Compile Include="ProjectFiles\QMake\QMakefileGenerator.cs" />
+    <Compile Include="ProjectFiles\Rider\RiderProjectFile.cs" />
+    <Compile Include="ProjectFiles\Rider\RiderProjectFileGenerator.cs" />
     <Compile Include="ProjectFiles\VisualStudioCode\VSCodeProjectFileGenerator.cs" />
     <Compile Include="ProjectFiles\VisualStudio\VCProject.cs" />
     <Compile Include="ProjectFiles\VisualStudio\VCProjectFileGenerator.cs" />
@@ -283,44 +288,44 @@
     <Compile Include="Platform\Windows\PVSToolChain.cs" />
   </ItemGroup>
   <Choose>
-	<When Condition="Exists('Platform\HoloLens\UEBuildHoloLens.cs')">
-	  <ItemGroup>
-		<Compile Include="Platform\HoloLens\UEBuildHoloLens.cs" />
-		<Compile Include="Platform\HoloLens\HoloLensDeploy.cs" />
-		<Compile Include="Platform\HoloLens\HoloLensExports.cs" />
-		<Compile Include="Platform\HoloLens\HoloLensProjectGenerator.cs" />
-		<Compile Include="Platform\HoloLens\HoloLensToolChain.cs" />
-		<Compile Include="Platform\HoloLens\ManifestGenerator.cs" />
-		<Compile Include="Platform\HoloLens\WinMDRegistrationInfo.cs" />
-	  </ItemGroup>
-	</When>
+    <When Condition="Exists('Platform\HoloLens\UEBuildHoloLens.cs')">
+      <ItemGroup>
+        <Compile Include="Platform\HoloLens\UEBuildHoloLens.cs" />
+        <Compile Include="Platform\HoloLens\HoloLensDeploy.cs" />
+        <Compile Include="Platform\HoloLens\HoloLensExports.cs" />
+        <Compile Include="Platform\HoloLens\HoloLensProjectGenerator.cs" />
+        <Compile Include="Platform\HoloLens\HoloLensToolChain.cs" />
+        <Compile Include="Platform\HoloLens\ManifestGenerator.cs" />
+        <Compile Include="Platform\HoloLens\WinMDRegistrationInfo.cs" />
+      </ItemGroup>
+    </When>
   </Choose>
   <Choose>
     <When Condition="'$(OS)' != 'Windows_NT'">
-	  <PropertyGroup>
-		<DefineConstants>__MonoCS__</DefineConstants>
-	  </PropertyGroup>
-	</When>
+      <PropertyGroup>
+        <DefineConstants>__MonoCS__</DefineConstants>
+      </PropertyGroup>
+    </When>
   </Choose>
   <Choose>
     <When Condition="'$(OS)' == 'Windows_NT'">
-	  <PropertyGroup>
-		<Windows10SdkPath>$(Registry:HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Microsoft SDKs\Windows\v10.0@InstallationFolder)</Windows10SdkPath>
-		<Windows10SdkLatestVersion>$(Registry:HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Microsoft SDKs\Windows\v10.0@ProductVersion)</Windows10SdkLatestVersion>
-	  </PropertyGroup>
-	  <ItemGroup>
-		<Reference Include="Windows">
-		  <!-- This is a dummy entry to throw off the parser in DotNETUtilities's CsProjectInfo which doesn't understand MSBuild functions -->
-		  <HintPath/>      
-		  <HintPath>$(Windows10SdkPath)\UnionMetadata\$(Windows10SdkLatestVersion)\Windows.winmd</HintPath>
-		  <!-- 16299 SDK (possibly others?) has ProductVersion == 10.0.16299 in the registry, but pathing needs the final .0 -->
-		  <HintPath Condition="'$([System.IO.File]::Exists(%(HintPath)))'=='false'">$(Windows10SdkPath)\UnionMetadata\$(Windows10SdkLatestVersion).0\Windows.winmd</HintPath>
-		  <!-- Fall back to old, unversioned location -->
-		  <HintPath Condition="'$([System.IO.File]::Exists(%(HintPath)))'=='false'">$(Windows10SdkPath)\UnionMetadata\Windows.winmd</HintPath>
-		  <Private>false</Private>
-		</Reference>
-	  </ItemGroup>
-	</When>
+      <PropertyGroup>
+        <Windows10SdkPath>$(Registry:HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Microsoft SDKs\Windows\v10.0@InstallationFolder)</Windows10SdkPath>
+        <Windows10SdkLatestVersion>$(Registry:HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Microsoft SDKs\Windows\v10.0@ProductVersion)</Windows10SdkLatestVersion>
+      </PropertyGroup>
+      <ItemGroup>
+        <Reference Include="Windows">
+          <!-- This is a dummy entry to throw off the parser in DotNETUtilities's CsProjectInfo which doesn't understand MSBuild functions -->
+          <HintPath />
+          <HintPath>$(Windows10SdkPath)\UnionMetadata\$(Windows10SdkLatestVersion)\Windows.winmd</HintPath>
+          <!-- 16299 SDK (possibly others?) has ProductVersion == 10.0.16299 in the registry, but pathing needs the final .0 -->
+          <HintPath Condition="'$([System.IO.File]::Exists(%(HintPath)))'=='false'">$(Windows10SdkPath)\UnionMetadata\$(Windows10SdkLatestVersion).0\Windows.winmd</HintPath>
+          <!-- Fall back to old, unversioned location -->
+          <HintPath Condition="'$([System.IO.File]::Exists(%(HintPath)))'=='false'">$(Windows10SdkPath)\UnionMetadata\Windows.winmd</HintPath>
+          <Private>false</Private>
+        </Reference>
+      </ItemGroup>
+    </When>
   </Choose>
   <Choose>
     <When Condition="Exists('Platform\IOS\UEBuildIOS.cs')">

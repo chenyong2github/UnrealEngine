@@ -18,7 +18,6 @@ public class ShaderConductor : ModuleRules
 			};
 
 			string BinariesDir = Target.UEThirdPartyBinariesDirectory + "../Mac";
-            PublicLibraryPaths.Add(BinariesDir);
             foreach (string Lib in DynamicLibrariesMac)
 			{
 				string LibraryPath = BinariesDir + Lib;
@@ -36,7 +35,6 @@ public class ShaderConductor : ModuleRules
             };
 
             string BinariesDir = Target.UEThirdPartyBinariesDirectory + "../Win64";
-            PublicLibraryPaths.Add(BinariesDir);
             foreach (string Lib in DynamicLibraries)
             {
                 string LibraryPath = BinariesDir + Lib;

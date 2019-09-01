@@ -14,8 +14,7 @@ public class LibOVRAudio : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Android)
 		{
-			PublicLibraryPaths.Add(SourceDirectory + "lib/armeabi-v7a/");
-			PublicAdditionalLibraries.Add("ovraudio32");
+			PublicAdditionalLibraries.Add(SourceDirectory + "lib/armeabi-v7a/ovraudio32");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win64)
 		{

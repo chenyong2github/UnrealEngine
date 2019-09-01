@@ -19,12 +19,10 @@ public class IntelISPCTexComp : ModuleRules
 		{
             string platformName = (Target.Platform == UnrealTargetPlatform.Win64) ? "Win64" : "Win32";
 			string configName = bUseDebugBuild ? "Debug" : "Release";
-            string LibFolder = LibraryPath + "lib/" + platformName + "-" + configName;
+            string LibFolder = LibraryPath + "lib/" + platformName + "-" + configName + "/";
             string DLLFolder = BinaryFolder + platformName + "-" + configName;
             string DLLFilePath = DLLFolder + "/ispc_texcomp.dll";
-            PublicLibraryPaths.Add(LibFolder);
-            PublicLibraryPaths.Add(DLLFolder);
-            PublicAdditionalLibraries.Add("ispc_texcomp.lib");
+            PublicAdditionalLibraries.Add(LibFolder + "ispc_texcomp.lib");
 			PublicDelayLoadDLLs.Add("ispc_texcomp.dll");
             RuntimeDependencies.Add(DLLFilePath);
 		}

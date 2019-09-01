@@ -385,7 +385,7 @@ namespace Gauntlet
 
 			if (string.IsNullOrEmpty(UserDir) == false)
 			{
-				WinApp.CommandArguments += string.Format(" -userdir={0}", UserDir);
+				WinApp.CommandArguments += string.Format(" -userdir=\"{0}\"", UserDir);
 				WinApp.ArtifactPath = Path.Combine(UserDir, @"Saved");
 
 				Utils.SystemHelpers.MarkDirectoryForCleanup(UserDir);
@@ -500,7 +500,7 @@ namespace Gauntlet
 			WinApp.RunOptions = RunOptions;
 	
 			// Force this to stop logs and other artifacts going to different places
-			WinApp.CommandArguments = AppConfig.CommandLine + string.Format(" -userdir={0}", UserDir);
+			WinApp.CommandArguments = AppConfig.CommandLine + string.Format(" -userdir=\"{0}\"", UserDir);
 			WinApp.ArtifactPath = Path.Combine(UserDir, @"Saved");
 			WinApp.ExecutablePath = EditorBuild.ExecutablePath;
 

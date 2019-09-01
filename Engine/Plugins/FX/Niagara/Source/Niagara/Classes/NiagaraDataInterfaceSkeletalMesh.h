@@ -102,7 +102,7 @@ struct FSkeletalMeshSkinningData
 	bool IsUsed()const;
 	void ForceDataRefresh();
 
-	bool Tick(float InDeltaSeconds);
+	bool Tick(float InDeltaSeconds, bool bRequirePreskin = true);
 
 	FORCEINLINE FVector GetPosition(int32 LODIndex, int32 VertexIndex)const
 	{
@@ -169,7 +169,14 @@ private:
 
 class FNDI_SkeletalMesh_GeneratedData
 {
-	TMap<TWeakObjectPtr<USkeletalMeshComponent>, TSharedPtr<FSkeletalMeshSkinningData>> CachedSkinningData;
+	// Encapsulates skinning data and mesh usage information. 
+	// Set by GetCachedSkinningData and used by TickGeneratedData to determine whether we need to pre-skin or not.
+	struct CachedSkinningDataAndUsage {
+		TSharedPtr<FSkeletalMeshSkinningData> SkinningData;
+		FSkeletalMeshSkinningDataUsage Usage;
+	};
+	TMap<TWeakObjectPtr<USkeletalMeshComponent>, CachedSkinningDataAndUsage> CachedSkinningData;
+
 public:
 
 	FSkeletalMeshSkinningDataHandle GetCachedSkinningData(TWeakObjectPtr<USkeletalMeshComponent>& InComponent, FSkeletalMeshSkinningDataUsage Usage);
@@ -668,6 +675,8 @@ public:
 
 	void GetSpecificSocketBoneAt(FVectorVMContext& Context);
 
+	void GetSpecificSocketTransform(FVectorVMContext& Context);
+
 	void RandomSpecificSocketBone(FVectorVMContext& Context);
 		
 	// End of Direct Bone + Socket Sampling
@@ -705,6 +714,7 @@ public:
 	static const FName RandomSpecificSocketBoneName;
 	static const FName GetSpecificSocketCountName;
 	static const FName GetSpecificSocketBoneAtName;
+	static const FName GetSpecificSocketTransformName;
 
 	// Vertex Sampling
 	static const FName IsValidVertexName;

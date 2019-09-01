@@ -497,7 +497,6 @@ namespace Audio
 			uint8 bIsExternalSend:1;
 			uint8 bUseOcclusionPlugin:1;
 			uint8 bUseReverbPlugin:1;
-			uint8 bUseModulationPlugin:1;
 			uint8 bIsDone:1;
 			uint8 bIsLastBuffer:1;
 			uint8 bOutputToBusOnly:1;

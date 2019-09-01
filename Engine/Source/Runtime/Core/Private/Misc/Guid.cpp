@@ -3,6 +3,7 @@
 #include "Misc/Guid.h"
 #include "Misc/Parse.h"
 #include "UObject/PropertyPortFlags.h"
+#include "Misc/Base64.h"
 
 
 /* FGuid interface
@@ -58,6 +59,21 @@ FString FGuid::ToString(EGuidFormats Format) const
 	case EGuidFormats::UniqueObjectGuid:
 		return FString::Printf(TEXT("%08X-%08X-%08X-%08X"), A, B, C, D);
 
+	case EGuidFormats::Short:
+	{
+		const uint32 Data[] = {A,B,C,D};
+		FString Result = FBase64::Encode(reinterpret_cast<const uint8*>(&Data), sizeof(Data));
+
+		Result.ReplaceCharInline(TEXT('+'), TEXT('-'), ESearchCase::CaseSensitive);
+		Result.ReplaceCharInline(TEXT('/'), TEXT('_'), ESearchCase::CaseSensitive);
+
+		// Remove trailing '=' base64 padding
+		check(Result.Len() == 24);
+		Result.RemoveAt(22, 2, false);
+
+		return Result;
+	}
+
 	default:
 		return FString::Printf(TEXT("%08X%08X%08X%08X"), A, B, C, D);
 	}
@@ -82,22 +98,22 @@ bool FGuid::Parse(const FString& GuidString, FGuid& OutGuid)
 	{
 		return ParseExact(GuidString, EGuidFormats::Digits, OutGuid);
 	}
-	
+
 	if (GuidString.Len() == 36)
 	{
 		return ParseExact(GuidString, EGuidFormats::DigitsWithHyphens, OutGuid);
 	}
-	
+
 	if (GuidString.Len() == 38)
 	{
 		if (GuidString.StartsWith("{"))
 		{
 			return ParseExact(GuidString, EGuidFormats::DigitsWithHyphensInBraces, OutGuid);
 		}
-		
+
 		return ParseExact(GuidString, EGuidFormats::DigitsWithHyphensInParentheses, OutGuid);
 	}
-	
+
 	if (GuidString.Len() == 68)
 	{
 		return ParseExact(GuidString, EGuidFormats::HexValuesInBraces, OutGuid);
@@ -108,12 +124,48 @@ bool FGuid::Parse(const FString& GuidString, FGuid& OutGuid)
 		return ParseExact(GuidString, EGuidFormats::UniqueObjectGuid, OutGuid);
 	}
 
+	if (GuidString.Len() == 22)
+	{
+		return ParseExact(GuidString, EGuidFormats::Short, OutGuid);
+	}
+
 	return false;
 }
 
 
 bool FGuid::ParseExact(const FString& GuidString, EGuidFormats Format, FGuid& OutGuid)
 {
+	// The below normalizing into the Digits format doesn't work with Short Guids
+	if (Format == EGuidFormats::Short)
+	{
+		uint32 Data[4] = {};
+
+		// We don't need to do replacements to get an accurate size (defering allocations till later)
+		if (FBase64::GetDecodedDataSize(GuidString) != sizeof(Data))
+		{
+			// This isn't a Short GUID if it's not 128 bits / 16 bytes (the size of Data)
+			return false;
+		}
+
+		// Replace the characters we replaced going out (but not the padding, UE4 discards it immediately)
+		FString GuidCopy = GuidString;
+		GuidCopy.ReplaceCharInline(TEXT('-'), TEXT('+'), ESearchCase::CaseSensitive);
+		GuidCopy.ReplaceCharInline(TEXT('_'), TEXT('/'), ESearchCase::CaseSensitive);
+
+		// Decode the data
+		if (!FBase64::Decode(*GuidCopy, GuidCopy.Len(), reinterpret_cast<uint8*>(&Data)))
+		{
+			// Data is not valid in some way
+			return false;
+		}
+
+		OutGuid = FGuid(Data[0],
+						Data[1],
+						Data[2],
+						Data[3]);
+		return true;
+	}
+
 	FString NormalizedGuidString;
 
 	NormalizedGuidString.Empty(32);

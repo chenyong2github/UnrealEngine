@@ -1908,7 +1908,7 @@ bool ShouldRenderAtmosphere(const FSceneViewFamily& Family)
 	// When r.SupportAtmosphericFog is 0, we should not render atmosphere.
 	static const auto SupportAtmosphericFog = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SupportAtmosphericFog"));
 	return GSupportsVolumeTextureRendering
-		&& EngineShowFlags.AtmosphericFog
+		&& EngineShowFlags.Atmosphere
 		&& EngineShowFlags.Fog
 		&& SupportAtmosphericFog->GetValueOnAnyThread();
 }

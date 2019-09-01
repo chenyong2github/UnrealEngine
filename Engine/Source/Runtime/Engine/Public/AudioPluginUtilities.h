@@ -38,6 +38,8 @@ struct ENGINE_API AudioPluginUtilities
 	/** Platform config section for each platform's target settings. */
 	static const TCHAR* GetPlatformConfigSection(EAudioPlatform AudioPlatform);
 
+	static const FName& GetDefaultModulationPluginName();
+
 	/*
 	 * These functions return a pointer to the plugin factory
 	 * that matches the plugin name specified in the target

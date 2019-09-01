@@ -37,10 +37,18 @@ UTimelineTemplate::UTimelineTemplate(const FObjectInitializer& ObjectInitializer
 	: Super(ObjectInitializer)
 {
 	TimelineLength = 5.0f;
-	TimelineGuid = FGuid::NewGuid();
 	bReplicated = false;
+}
 
-	UpdateCachedNames();
+void UTimelineTemplate::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	if (HasAnyFlags(RF_ClassDefaultObject | RF_NeedLoad) == false)
+	{
+		TimelineGuid = FGuid::NewGuid();
+		UpdateCachedNames();
+	}
 }
 
 const FString UTimelineTemplate::TemplatePostfix(TEXT("_Template"));

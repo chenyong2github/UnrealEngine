@@ -69,33 +69,23 @@ SLATECORE_API ETextShapingMethod GetDefaultTextShapingMethod();
 struct FShapedGlyphFontAtlasData
 {
 	/** The vertical distance from the baseline to the topmost border of the glyph bitmap */
-	int16 VerticalOffset;
+	int16 VerticalOffset = 0;
 	/** The horizontal distance from the origin to the leftmost border of the glyph bitmap */
-	int16 HorizontalOffset;
+	int16 HorizontalOffset = 0;
 	/** Start X location of the glyph in the texture */
-	uint16 StartU;
+	uint16 StartU = 0;
 	/** Start Y location of the glyph in the texture */
-	uint16 StartV;
+	uint16 StartV = 0;
 	/** X Size of the glyph in the texture */
-	uint16 USize;
+	uint16 USize = 0;
 	/** Y Size of the glyph in the texture */
-	uint16 VSize;
+	uint16 VSize = 0;
 	/** Index to a specific texture in the font cache. */
-	uint8 TextureIndex;
+	uint8 TextureIndex = 0;
+	/** True if this entry supports outline rendering, false otherwise. */
+	bool SupportsOutline = false;
 	/** True if this entry is valid, false otherwise. */
-	bool Valid;
-
-	FShapedGlyphFontAtlasData()
-		: VerticalOffset(0)
-		, HorizontalOffset(0)
-		, StartU(0.0f)
-		, StartV(0.0f)
-		, USize(0.0f)
-		, VSize(0.0f)
-		, TextureIndex(0)
-		, Valid(false)
-	{
-	}
+	bool Valid = false;
 };
 
 /** Information for rendering one glyph in a shaped text sequence */
@@ -106,58 +96,45 @@ struct FShapedGlyphEntry
 	/** Provides access to the FreeType face for this glyph (not available publicly) */
 	TSharedPtr<FShapedGlyphFaceData> FontFaceData;
 	/** The index of this glyph in the FreeType face */
-	uint32 GlyphIndex;
+	uint32 GlyphIndex = 0;
 	/** The index of this glyph from the source text. The source indices may skip characters if the sequence contains ligatures, additionally, some characters produce multiple glyphs leading to duplicate source indices */
-	int32 SourceIndex;
+	int32 SourceIndex = 0;
 	/** The amount to advance in X before drawing the next glyph in the sequence */
-	int16 XAdvance;
+	int16 XAdvance = 0;
 	/** The amount to advance in Y before drawing the next glyph in the sequence */
-	int16 YAdvance;
+	int16 YAdvance = 0;
 	/** The offset to apply in X when drawing this glyph */
-	int16 XOffset;
+	int16 XOffset = 0;
 	/** The offset to apply in Y when drawing this glyph */
-	int16 YOffset;
+	int16 YOffset = 0;
 	/** 
 	 * The "kerning" between this glyph and the next one in the sequence
 	 * @note This value is included in the XAdvance so you never usually need it unless you're manually combining two sets of glyphs together.
 	 * @note This value isn't strictly the kerning value - it's simply the difference between the glyphs horizontal advance, and the shaped horizontal advance (so will contain any accumulated advance added by the shaper)
 	 */
-	int8 Kerning;
+	int8 Kerning = 0;
 	/**
 	 * The number of source characters represented by this glyph
 	 * This is typically 1, however will be greater for ligatures, or may be 0 if a single character produces multiple glyphs
 	 */
-	uint8 NumCharactersInGlyph;
+	uint8 NumCharactersInGlyph = 0;
 	/**
 	 * The number of source grapheme clusters represented by this glyph
 	 * This is typically 1, however will be greater for ligatures, or may be 0 if a single character produces multiple glyphs
 	 */
-	uint8 NumGraphemeClustersInGlyph;
+	uint8 NumGraphemeClustersInGlyph = 0;
 	/**
 	 * The reading direction of the text this glyph was shaped from
 	 */
-	TextBiDi::ETextDirection TextDirection;
+	TextBiDi::ETextDirection TextDirection = TextBiDi::ETextDirection::LeftToRight;
 	/**
 	 * True if this is a visible glyph that should be drawn.
 	 * False if the glyph is invisible (eg, whitespace or a control code) and should skip drawing, but still include its advance amount.
 	 */
-	bool bIsVisible;
+	bool bIsVisible = false;
 
-	FShapedGlyphEntry()
-		: FontFaceData()
-		, GlyphIndex(0)
-		, SourceIndex(0)
-		, XAdvance(0)
-		, YAdvance(0)
-		, XOffset(0)
-		, YOffset(0)
-		, Kerning(0)
-		, NumCharactersInGlyph(0)
-		, NumGraphemeClustersInGlyph(0)
-		, TextDirection(TextBiDi::ETextDirection::LeftToRight)
-		, bIsVisible(false)
-	{
-	}
+	/** Get any additional scale that should be applied when rendering this glyph */
+	SLATECORE_API float GetBitmapRenderScale() const;
 
 private:
 	/** 
@@ -469,42 +446,41 @@ private:
 struct SLATECORE_API FCharacterEntry
 {
 	/** The character this entry is for */
-	TCHAR Character;
+	TCHAR Character = 0;
 	/** The index of the glyph from the FreeType face that this entry is for */
-	uint32 GlyphIndex;
+	uint32 GlyphIndex = 0;
 	/** The raw font data this character was rendered with */
-	const FFontData* FontData;
+	const FFontData* FontData = nullptr;
 	/** Scale that was applied when rendering this character */
-	float FontScale;
+	float FontScale = 0.0f;
+	/** Any additional scale that should be applied when rendering this glyph */
+	float BitmapRenderScale = 0.0f;
 	/** Start X location of the character in the texture */
-	uint16 StartU;
+	uint16 StartU = 0;
 	/** Start Y location of the character in the texture */
-	uint16 StartV;
+	uint16 StartV = 0;
 	/** X Size of the character in the texture */
-	uint16 USize;
+	uint16 USize = 0;
 	/** Y Size of the character in the texture */
-	uint16 VSize;
+	uint16 VSize = 0;
 	/** The vertical distance from the baseline to the topmost border of the character */
-	int16 VerticalOffset;
+	int16 VerticalOffset = 0;
 	/** The vertical distance from the origin to the left most border of the character */
-	int16 HorizontalOffset;
+	int16 HorizontalOffset = 0;
 	/** The largest vertical distance below the baseline for any character in the font */
-	int16 GlobalDescender;
+	int16 GlobalDescender = 0;
 	/** The amount to advance in X before drawing the next character in a string */
-	int16 XAdvance;
+	int16 XAdvance = 0;
 	/** Index to a specific texture in the font cache. */
-	uint8 TextureIndex;
-	/** 1 if this entry has kerning, 0 otherwise. */
-	bool HasKerning;
+	uint8 TextureIndex = 0;
 	/** The fallback level this character represents */
-	EFontFallback FallbackLevel;
+	EFontFallback FallbackLevel = EFontFallback::FF_Max;
+	/** 1 if this entry has kerning, 0 otherwise. */
+	bool HasKerning = false;
+	/** 1 if this entry supports outline rendering, 0 otherwise. */
+	bool SupportsOutline = false;
 	/** 1 if this entry is valid, 0 otherwise. */
-	bool Valid;
-
-	FCharacterEntry()
-	{
-		FMemory::Memzero( this, sizeof(FCharacterEntry) );
-	}
+	bool Valid = false;
 };
 
 /**
@@ -574,25 +550,16 @@ private:
 	/** Maintains a fake shaped glyph for each character in the character list */
 	struct FCharacterListEntry
 	{
-		FCharacterListEntry()
-			: ShapedGlyphEntry()
-			, FontData(nullptr)
-			, FallbackLevel(EFontFallback::FF_Max)
-			, HasKerning(false)
-			, Valid(false)
-		{
-		}
-
 		/** The shaped glyph data for this character */
 		FShapedGlyphEntry ShapedGlyphEntry;
 		/** Font data this character was rendered with */
-		const FFontData* FontData;
+		const FFontData* FontData = nullptr;
 		/** The fallback level this character represents */
-		EFontFallback FallbackLevel;
+		EFontFallback FallbackLevel = EFontFallback::FF_Max;
 		/** Does this character have kerning? */
-		bool HasKerning;
+		bool HasKerning = false;
 		/** Has this entry been initialized? */
-		bool Valid;
+		bool Valid = false;
 	};
 
 	/**
@@ -656,9 +623,8 @@ public:
 
 	/** ISlateAtlasProvider */
 	virtual int32 GetNumAtlasPages() const override;
-	virtual FIntPoint GetAtlasPageSize() const override;
 	virtual FSlateShaderResource* GetAtlasPageResource(const int32 InIndex) const override;
-	virtual bool IsAtlasPageResourceAlphaOnly() const override;
+	virtual bool IsAtlasPageResourceAlphaOnly(const int32 InIndex) const override;
 
 	/** 
 	 * Performs text shaping on the given string using the given font info. Returns you the shaped text sequence to use for text rendering via FSlateDrawElement::MakeShapedText.
@@ -749,8 +715,7 @@ public:
 	 * @param Index	The index of the texture 
 	 * @return Handle to the texture resource
 	 */
-	class FSlateShaderResource* GetSlateTextureResource( uint32 Index ) { return AllFontTextures[Index]->GetSlateTexture(); }
-	class FTextureResource* GetEngineTextureResource( uint32 Index ) { return AllFontTextures[Index]->GetEngineTexture(); }
+	ISlateFontTexture* GetFontTexture( uint32 Index ) { return &AllFontTextures[Index].Get(); }
 
 	/**
 	 * Returns the font to use from the default typeface
@@ -762,15 +727,15 @@ public:
 	const FFontData& GetDefaultFontData( const FSlateFontInfo& InFontInfo ) const;
 
 	/**
-	 * Returns the font to use from the typeface associated with the given character
+	 * Returns the font to use from the typeface associated with the given codepoint
 	 *
 	 * @param InFontInfo		A descriptor of the font to get the typeface for
-	 * @param InChar			The character to get the typeface associated with
+	 * @param InCodepoint		The codepoint to get the typeface associated with
 	 * @param OutScalingFactor	The scaling factor applied to characters rendered with the given font
 	 * 
 	 * @return The raw font data
 	 */
-	const FFontData& GetFontDataForCharacter( const FSlateFontInfo& InFontInfo, const TCHAR InChar, float& OutScalingFactor ) const;
+	const FFontData& GetFontDataForCodepoint( const FSlateFontInfo& InFontInfo, const UTF32CHAR InCodepoint, float& OutScalingFactor ) const;
 
 	/**
 	 * Returns the height of the largest character in the font. 
@@ -911,14 +876,17 @@ private:
 	/** Mapping shaped glyphs to their cached atlas data */
 	TMap<FShapedGlyphEntryKey, TSharedRef<FShapedGlyphFontAtlasData>> ShapedGlyphToAtlasData;
 
-	/** Array of all font atlases */
-	TArray< TSharedRef<FSlateFontAtlas> > FontAtlases;
+	/** Array of grayscale font atlas indices for use with AllFontTextures (cast the element to FSlateFontAtlas) */
+	TArray<int32> GrayscaleFontAtlasIndices;
 
-	/** Array of any non-atlased font textures */
-	TArray< TSharedRef<ISlateFontTexture> > NonAtlasedTextures;
+	/** Array of color font atlas indices for use with AllFontTextures (cast the element to FSlateFontAtlas) */
+	TArray<int32> ColorFontAtlasIndices;
+
+	/** Array of any non-atlased font texture indices for use with AllFontTextures */
+	TArray<int32> NonAtlasedTextureIndices;
 
 	/** Array of all font textures - both atlased and non-atlased */
-	TArray< TSharedRef<ISlateFontTexture> > AllFontTextures;
+	TArray<TSharedRef<ISlateFontTexture>> AllFontTextures;
 
 	/** Factory for creating new font atlases */
 	TSharedRef<ISlateFontAtlasFactory> FontAtlasFactory;
@@ -926,8 +894,11 @@ private:
 	/** Whether or not we have a pending request to flush the cache when it is safe to do so */
 	volatile bool bFlushRequested;
 
-	/** Number of atlas pages we can have before we request that the cache be flushed */
-	int32 CurrentMaxAtlasPagesBeforeFlushRequest;
+	/** Number of grayscale atlas pages we can have before we request that the cache be flushed */
+	int32 CurrentMaxGrayscaleAtlasPagesBeforeFlushRequest;
+
+	/** Number of color atlas pages we can have before we request that the cache be flushed */
+	int32 CurrentMaxColorAtlasPagesBeforeFlushRequest;
 
 	/** Number of non-atlased textures we can have before we request that the cache be flushed */
 	int32 CurrentMaxNonAtlasedTexturesBeforeFlushRequest;

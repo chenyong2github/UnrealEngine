@@ -27,8 +27,6 @@ class FScopeCycleCounter;
 class FThreadStats;
 struct TStatId;
 
-template < class T > class TThreadSingleton;
-
 /**
 * This is thread-private information about the thread idle stats, which we always collect, even in final builds
 */
@@ -53,6 +51,13 @@ public:
 		/** If true, we ignore this thread idle stats. */
 		const bool bIgnore;
 
+#if defined(DISABLE_THREAD_IDLE_STATS) && DISABLE_THREAD_IDLE_STATS
+		FScopeIdle( bool bInIgnore = false )
+			: Start(0)
+			, bIgnore( bInIgnore )
+		{
+		}
+#else
 		FScopeIdle( bool bInIgnore = false )
 			: Start(FPlatformTime::Cycles())
 			, bIgnore( bInIgnore )
@@ -66,6 +71,7 @@ public:
 				FThreadIdleStats::Get().Waits += FPlatformTime::Cycles() - Start;
 			}
 		}
+#endif
 	};
 };
 

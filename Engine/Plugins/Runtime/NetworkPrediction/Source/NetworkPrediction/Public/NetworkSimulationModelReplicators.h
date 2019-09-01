@@ -97,7 +97,7 @@ struct TReplicatorBase
 		TickInfo.GiveSimulationTime(TickParameters.LocalDeltaTimeSeconds);
 
 		// See if we have sim time to spend (variable tick will always go through. fixed step will miss frames while accumulating)
-		TNetworkSimTime<TTickSettings> DeltaSimTime = TickInfo.GetRemaningAllowedSimulationTime();
+		TNetworkSimTime<TTickSettings> DeltaSimTime = TickInfo.GetRemainingAllowedSimulationTime();
 		if (DeltaSimTime.ToRealTimeSeconds() > 0)
 		{
 			if (TickParameters.bGenerateLocalInputCmds)
@@ -194,7 +194,15 @@ struct TReplicator_Sequence : public TBase
 			auto* Cmd = Ar.IsLoading() ? Buffer.GetWriteNext() : Buffer.FindElementByKeyframe(Keyframe);
 			Cmd->NetSerialize(P);
 		}
+
+		LastSerializedKeyframe = HeadKeyframe;
 	}
+
+	int32 GetLastSerializedKeyframe() const { return LastSerializedKeyframe; }
+
+protected:
+
+	int32 LastSerializedKeyframe = 0;
 };
 
 // Replicates only the latest single element in the selected buffer.
@@ -461,14 +469,22 @@ struct TReplicator_Autonomous : public TBase
 		// Resimulate
 		// -------------------------------------------------------------------------------------------------------------------------
 
-		TSyncState* ClientSyncState = Buffers.Sync.FindElementByKeyframe( ReconciliationKeyframe );	
+		TSyncState* ClientSyncState = Buffers.Sync.FindElementByKeyframe( ReconciliationKeyframe );
 
-		ServerState->VisualLog( FVisualLoggingParameters(EVisualLoggingContext::LastConfirmed, ReconciliationKeyframe, EVisualLoggingLifetime::Persistent), Driver, Driver);
+		const bool bDoVisualLog = NetworkSimulationModelCVars::EnableLocalPrediction() > 0; // don't visual log if we have prediction disabled
+		
+		if (bDoVisualLog)
+		{
+			ServerState->VisualLog( FVisualLoggingParameters(EVisualLoggingContext::LastConfirmed, ReconciliationKeyframe, EVisualLoggingLifetime::Persistent), Driver, Driver);
+		}
 
 		if (ClientSyncState)
 		{
 			// Existing ClientSyncState, log it before overwriting it
-			ClientSyncState->VisualLog( FVisualLoggingParameters(EVisualLoggingContext::FirstMispredicted, ReconciliationKeyframe, EVisualLoggingLifetime::Persistent), Driver, Driver);
+			if (bDoVisualLog)
+			{
+				ClientSyncState->VisualLog( FVisualLoggingParameters(EVisualLoggingContext::FirstMispredicted, ReconciliationKeyframe, EVisualLoggingLifetime::Persistent), Driver, Driver);
+			}
 		}
 		else
 		{
@@ -555,4 +571,58 @@ private:
 	int32 LastSerializedKeyframe = -1;
 	bool bPendingReconciliation = false;	// Reconciliation is pending: we need to reconcile state from the server that differs from the locally predicted state
 	bool bReconcileFaultDetected = false;	// A fault was detected: we received state from the server that we are unable to reconcile with locally predicted state
+};
+
+/** Special replicator for debug buffer, this preserves the local buffer and receives into a replicator-owned buffer (we want these buffers to be distinct/not merged) */
+template<typename TBufferTypes, typename TTickSettings, int32 MaxNumElements=5, typename TBase=TReplicator_SimTime<TBufferTypes, TTickSettings>>
+struct TReplicator_Debug : public TBase
+{
+	using TDebugState = typename TBufferTypes::TDebugState;
+
+	int32 GetProxyDirtyCount(TNetworkSimBufferContainer<TBufferTypes>& Buffers) const 
+	{
+		return Buffers.Debug.GetDirtyCount() ^ (TBase::GetProxyDirtyCount(Buffers) << 2); 
+	}
+
+	void NetSerialize(const FNetSerializeParams& P, TNetworkSimBufferContainer<TBufferTypes>& Buffers, const TSimulationTickState<TTickSettings>& TickInfo)
+	{
+		TBase::NetSerialize(P, Buffers, TickInfo);
+		FArchive& Ar = P.Ar;
+
+		TReplicationBuffer<TDebugState>& Buffer = Ar.IsSaving() ? Buffers.Debug : ReceivedBuffer;
+		
+		uint8 SerializedNumElements = FMath::Min<uint8>(MaxNumElements, Buffer.GetNumValidElements());
+		Ar << SerializedNumElements;
+
+		const int32 HeadKeyframe = FNetworkSimulationSerialization::SerializeKeyframe(Ar, Buffer.GetHeadKeyframe());
+		const int32 StartingKeyframe = FMath::Max(0, HeadKeyframe - SerializedNumElements + 1);
+
+		if (Ar.IsLoading())
+		{
+			// Lazy init on recieve
+			if (ReceivedBuffer.GetMaxNumElements() != Buffers.Debug.GetMaxNumElements())
+			{
+				ReceivedBuffer.SetBufferSize(Buffers.Debug.GetMaxNumElements());
+			}
+
+			const int32 PrevHead = Buffer.GetHeadKeyframe();
+			if (PrevHead < StartingKeyframe && PrevHead >= 0)
+			{
+				// There is a gap in the stream. In some cases, we want this to be a "fault" and bubble up. We may want to synthesize state or maybe we just skip ahead.
+				UE_LOG(LogNetworkSim, Warning, TEXT("Fault: gap in received buffer. PrevHead: %d. Received: %d-%d. Reseting previous buffer contents"), PrevHead, StartingKeyframe, HeadKeyframe);
+			}
+
+			Buffer.ResetNextHeadKeyframe(StartingKeyframe);
+		}
+
+		for (int32 Keyframe = StartingKeyframe; Keyframe <= HeadKeyframe; ++Keyframe)
+		{
+			// This, as is, is bad. The intention is that these functions serialize multiple items in some delta compressed fashion.
+			// As is, we are just serializing the elements individually.
+			auto* Cmd = Ar.IsLoading() ? Buffer.GetWriteNext() : Buffer.FindElementByKeyframe(Keyframe);
+			Cmd->NetSerialize(P);
+		}
+	}
+
+	TReplicationBuffer<TDebugState> ReceivedBuffer;
 };

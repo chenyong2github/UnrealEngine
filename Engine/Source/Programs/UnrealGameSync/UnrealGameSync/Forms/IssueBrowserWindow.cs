@@ -284,7 +284,15 @@ namespace UnrealGameSync
 
 		private void ShowIssue(IssueData Issue)
 		{
-			Issue.Builds = RESTApi.GET<List<IssueBuildData>>(IssueMonitor.ApiUrl, String.Format("issues/{0}/builds", Issue.Id));
+			try
+			{
+				Issue.Builds = RESTApi.GET<List<IssueBuildData>>(IssueMonitor.ApiUrl, String.Format("issues/{0}/builds", Issue.Id));
+			}
+			catch(Exception Ex)
+			{
+				MessageBox.Show(Owner, Ex.ToString(), "Error querying builds", MessageBoxButtons.OK);
+				return;
+			}
 			IssueDetailsWindow.Show(Owner, IssueMonitor, ServerAndPort, UserName, ServerTimeOffset, Issue, Log, CurrentStream);
 		}
 

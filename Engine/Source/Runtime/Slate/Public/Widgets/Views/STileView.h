@@ -30,6 +30,7 @@ public:
 	typedef typename TSlateDelegates< ItemType >::FOnMouseButtonClick FOnMouseButtonClick;
 	typedef typename TSlateDelegates< ItemType >::FOnMouseButtonDoubleClick FOnMouseButtonDoubleClick;
 	typedef typename TSlateDelegates< NullableItemType >::FOnSelectionChanged FOnSelectionChanged;
+	typedef typename TSlateDelegates< ItemType >::FIsSelectableOrNavigable FIsSelectableOrNavigable;
 
 	typedef typename TSlateDelegates< ItemType >::FOnItemToString_Debug FOnItemToString_Debug; 
 
@@ -48,6 +49,7 @@ public:
 		, _OnMouseButtonClick()
 		, _OnMouseButtonDoubleClick()
 		, _OnSelectionChanged()
+		, _OnIsSelectableOrNavigable()
 		, _SelectionMode(ESelectionMode::Multi)
 		, _ClearSelectionOnClick(true)
 		, _ExternalScrollbar()
@@ -90,6 +92,8 @@ public:
 		SLATE_EVENT( FOnMouseButtonDoubleClick, OnMouseButtonDoubleClick )
 
 		SLATE_EVENT( FOnSelectionChanged, OnSelectionChanged )
+
+		SLATE_EVENT( FIsSelectableOrNavigable, OnIsSelectableOrNavigable)
 
 		SLATE_ATTRIBUTE( ESelectionMode::Type, SelectionMode )
 
@@ -144,6 +148,7 @@ public:
 		this->OnClick = InArgs._OnMouseButtonClick;
 		this->OnDoubleClick = InArgs._OnMouseButtonDoubleClick;
 		this->OnSelectionChanged = InArgs._OnSelectionChanged;
+		this->OnIsSelectableOrNavigable = InArgs._OnIsSelectableOrNavigable;
 		this->SelectionMode = InArgs._SelectionMode;
 
 		this->bClearSelectionOnClick = InArgs._ClearSelectionOnClick;
@@ -300,11 +305,11 @@ public:
 				{
 					bNewLine = false;
 					
-					float LineFraction = 1.0f;
+					float LineFraction = 1.f;
 					if (bFirstLine)
 					{
 						bFirstLine = false;
-						LineFraction = 1.0f - FMath::Max(FMath::Fractional(ClampedScrollOffset / NumItemsPerLine), 0.0f);
+						LineFraction -= FMath::Fractional(ClampedScrollOffset / NumItemsPerLine);
 					}
 
 					DimensionsUsedSoFar.ScrollAxis += TileDimensions.ScrollAxis * LineFraction;
@@ -324,23 +329,20 @@ public:
 				// The widget used up some of the available space for the current line
 				DimensionsUsedSoFar.LineAxis += TileDimensions.LineAxis;
 
-				// Check to see if we have completed a line of widgets
+				bIsAtEndOfList = ItemIndex >= NumItems - 1;
+
 				if (DimensionsUsedSoFar.LineAxis + TileDimensions.LineAxis > AllottedDimensions.LineAxis)
 				{
 					// A new line of widgets was completed - time to start another one
 					DimensionsUsedSoFar.LineAxis = 0;
 					bNewLine = true;
-
-					// Stop when we've finished generating a line of widgets partially clipped by the end of the view
-					if (DimensionsUsedSoFar.ScrollAxis >= AllottedDimensions.ScrollAxis)
-					{
-						bHasFilledAvailableArea = true;
-					}
 				}
 
-				if (ItemIndex >= NumItems - 1)
+				if (bIsAtEndOfList || bNewLine)
 				{
-					bIsAtEndOfList = true;
+					// We've filled all the available area when we've finished a line that's partially clipped by the end of the view
+					const float FloatPrecisionOffset = 0.001f;
+					bHasFilledAvailableArea = DimensionsUsedSoFar.ScrollAxis > AllottedDimensions.ScrollAxis + FloatPrecisionOffset;
 				}
 			}
 
@@ -348,7 +350,7 @@ public:
 			this->WidgetGenerator.OnEndGenerationPass();
 
 			const float TotalGeneratedLineAxisSize = FMath::CeilToFloat(NumLinesShownOnScreen) * TileDimensions.ScrollAxis;
-			return STableViewBase::FReGenerateResults(ClampedScrollOffset, TotalGeneratedLineAxisSize, NumLinesShownOnScreen, bIsAtEndOfList);
+			return STableViewBase::FReGenerateResults(ClampedScrollOffset, TotalGeneratedLineAxisSize, NumLinesShownOnScreen, bIsAtEndOfList && !bHasFilledAvailableArea);
 		}
 
 		return STableViewBase::FReGenerateResults(0, 0, 0, false);
@@ -489,6 +491,12 @@ protected:
 			TListTypeTraits<ItemType>::ResetPtr(this->ItemToScrollIntoView);
 		}
 
+		if (this->bEnableAnimatedScrolling && TListTypeTraits<ItemType>::IsPtrValid(this->ItemToNotifyWhenInView))
+		{
+			// When we have a target item we're shooting for, we haven't succeeded with the scroll until a widget for it exists
+			const bool bHasWidgetForItem = this->WidgetFromItem(TListTypeTraits<ItemType>::NullableItemTypeConvertToItemType(this->ItemToNotifyWhenInView)).IsValid();
+			return bHasWidgetForItem ? SListView<ItemType>::EScrollIntoViewResult::Success : SListView<ItemType>::EScrollIntoViewResult::Deferred;
+		}
 		return SListView<ItemType>::EScrollIntoViewResult::Success;
 	}
 

@@ -664,7 +664,7 @@ bool FDeferredShadingSceneRenderer::RenderBasePass(FRHICommandListImmediate& RHI
 				RenderEditorPrimitives(RHICmdList, View, BasePassDepthStencilAccess, DrawRenderState, bDirty);
 				RHICmdList.EndRenderPass();
 
-				if (bShouldRenderView)
+				if (bShouldRenderView && View.Family->EngineShowFlags.Atmosphere)
 				{
 					SetupBasePassState(BasePassDepthStencilAccess_NoDepthWrite, ViewFamily.EngineShowFlags.ShaderComplexity, DrawRenderState);
 					RenderSkyPassViewParallel(RHICmdList, View, BasePassDepthStencilAccess_NoDepthWrite, DrawRenderState);
@@ -701,7 +701,7 @@ bool FDeferredShadingSceneRenderer::RenderBasePass(FRHICommandListImmediate& RHI
 
 				RenderEditorPrimitives(RHICmdList, View, BasePassDepthStencilAccess, DrawRenderState, bDirty);
 
-				if (bShouldRenderView)
+				if (bShouldRenderView && View.Family->EngineShowFlags.Atmosphere)
 				{
 					SetupBasePassState(BasePassDepthStencilAccess_NoDepthWrite, ViewFamily.EngineShowFlags.ShaderComplexity, DrawRenderState);
 					bDirty |= RenderSkyPassView(RHICmdList, View, BasePassDepthStencilAccess_NoDepthWrite, DrawRenderState);

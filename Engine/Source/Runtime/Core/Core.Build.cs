@@ -135,7 +135,7 @@ public class Core : ModuleRules
                 );
 
 			// Core uses dlopen()
-			PublicAdditionalLibraries.Add("dl");
+			PublicSystemLibraries.Add("dl");
         }
 		else if (Target.Platform == UnrealTargetPlatform.HTML5)
 		{
@@ -144,7 +144,7 @@ public class Core : ModuleRules
         }
         else if (Target.Platform == UnrealTargetPlatform.PS4)
         {
-            PublicAdditionalLibraries.Add("SceRtc_stub_weak"); //ORBIS SDK rtc.h, used in PS4Time.cpp
+            PublicSystemLibraries.Add("SceRtc_stub_weak"); //ORBIS SDK rtc.h, used in PS4Time.cpp
         }
 
 		if ( Target.bCompileICU == true )
@@ -189,21 +189,10 @@ public class Core : ModuleRules
 
 		WhitelistRestrictedFolders.Add("Private/NoRedist");
 
-        if (Target.Platform == UnrealTargetPlatform.XboxOne)
+        if (Target.Platform == UnrealTargetPlatform.XboxOne ||
+            (Target.bWithDirectXMath && (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)))
         {
             PublicDefinitions.Add("WITH_DIRECTXMATH=1");
-        }
-        else if ((Target.Platform == UnrealTargetPlatform.Win64) ||
-                (Target.Platform == UnrealTargetPlatform.Win32) ||
-				(Target.Platform == UnrealTargetPlatform.HoloLens))
-        {
-			// To enable this requires Win8 SDK
-            PublicDefinitions.Add("WITH_DIRECTXMATH=0");  // Enable to test on Win64/32.
-
-            //PublicDependencyModuleNames.AddRange(  // Enable to test on Win64/32.
-			//    new string[] {
-			//    "DirectXMath"
-            //});
         }
         else
         {

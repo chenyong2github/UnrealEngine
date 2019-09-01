@@ -40,6 +40,7 @@ struct NAVIGATIONSYSTEM_API FNavigationOctreeController
 	/** basically says if navoctree has been created already */
 	bool IsValid() const { return NavOctree.IsValid(); }
 	bool IsValidElement(const FOctreeElementId& ElementId) const;
+	bool IsEmpty() const { return (IsValid() == false) || NavOctree->GetSizeBytes() == 0; }
 
 private:
 	static uint32 HashObject(const UObject& Object);

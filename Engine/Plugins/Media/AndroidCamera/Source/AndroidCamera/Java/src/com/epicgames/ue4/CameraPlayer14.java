@@ -1778,6 +1778,7 @@ public class CameraPlayer14
 		private int mTextureID = -1;
 		private float[] mTransformMatrix = new float[16];
 		private boolean mTextureSizeChanged = true;
+		private int GL_TEXTURE_EXTERNAL_OES = 0x8D65;
 
 		private float mScaleRotation00 = 1.0f;
 		private float mScaleRotation01 = 0.0f;
@@ -1996,6 +1997,11 @@ public class CameraPlayer14
 				frameUpdateInfo.VOffset = mVOffset;
 			}
 
+			
+			// updateTexImage binds an external texture to active texture unit
+			// make sure to unbind it to prevent state leak
+			GLES20.glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
+			
 			return frameUpdateInfo;
 		}
 	};

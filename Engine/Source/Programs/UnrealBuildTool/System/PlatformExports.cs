@@ -156,7 +156,7 @@ namespace UnrealBuildTool
 			XmlConfig.ReadConfigFiles(null);
 
 			// Register all the platform classes
-			UEBuildPlatform.RegisterPlatforms(false);
+			UEBuildPlatform.RegisterPlatforms(false, false);
 			return true;
 		}
 	}

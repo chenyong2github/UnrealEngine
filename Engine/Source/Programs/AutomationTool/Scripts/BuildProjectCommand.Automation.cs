@@ -89,6 +89,7 @@ public partial class Project : CommandUtils
 				if (Params.EditorTargets.Contains("UnrealHeaderTool") == false)
 				{
 					Agenda.AddTargets(new string[] { "UnrealHeaderTool" }, EditorPlatform, EditorConfiguration);
+					Agenda.AddTargets(new string[] { "UnrealHeaderTool" }, EditorPlatform, EditorConfiguration, Params.CodeBasedUprojectPath);
 				}
 				if (Params.EditorTargets.Contains("ShaderCompileWorker") == false)
 				{

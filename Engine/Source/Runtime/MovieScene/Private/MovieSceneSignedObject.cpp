@@ -62,6 +62,7 @@ void UMovieSceneSignedObject::MarkAsChanged()
 	}
 }
 
+#if WITH_EDITOR
 bool UMovieSceneSignedObject::Modify(bool bAlwaysMarkDirty)
 {
 	bool bModified = Super::Modify(bAlwaysMarkDirty);
@@ -71,8 +72,6 @@ bool UMovieSceneSignedObject::Modify(bool bAlwaysMarkDirty)
 	}
 	return bModified;
 }
-
-#if WITH_EDITOR
 
 void UMovieSceneSignedObject::PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent)
 {
@@ -91,6 +90,5 @@ void UMovieSceneSignedObject::PostEditUndo(TSharedPtr<ITransactionObjectAnnotati
 	Super::PostEditUndo(TransactionAnnotation);
 	MarkAsChanged();
 }
-
 #endif
 

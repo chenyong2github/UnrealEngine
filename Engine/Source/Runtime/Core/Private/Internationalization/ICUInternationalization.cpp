@@ -6,6 +6,7 @@
 #include "Misc/Paths.h"
 #include "Internationalization/Culture.h"
 #include "Internationalization/Internationalization.h"
+#include "Internationalization/Cultures/LeetCulture.h"
 #include "Stats/Stats.h"
 #include "Misc/CoreStats.h"
 #include "Misc/ConfigCacheIni.h"
@@ -14,6 +15,7 @@
 #if UE_ENABLE_ICU
 
 #include "Internationalization/ICURegex.h"
+#include "Internationalization/ICUCulture.h"
 #include "Internationalization/ICUUtilities.h"
 #include "Internationalization/ICUBreakIterator.h"
 THIRD_PARTY_INCLUDES_START
@@ -26,6 +28,7 @@ THIRD_PARTY_INCLUDES_END
 DEFINE_LOG_CATEGORY_STATIC(LogICUInternationalization, Log, All);
 
 static_assert(sizeof(UChar) == 2, "UChar (from ICU) is assumed to always be 2-bytes!");
+static_assert(PLATFORM_LITTLE_ENDIAN, "ICU data is only built for little endian platforms. You'll need to rebuild the data for your platform and update this code!");
 
 namespace
 {
@@ -112,7 +115,11 @@ bool FICUInternationalization::Initialize()
 		if (FPaths::DirectoryExists(PotentialDataDirectory))
 		{
 			u_setDataDirectory(StringCast<char>(*PotentialDataDirectory).Get());
+#if WITH_ICU_V64
+			ICUDataDirectory = PotentialDataDirectory / TEXT("icudt64l") / TEXT(""); // We include the sub-folder here as it prevents ICU I/O requests outside of this folder
+#else	// WITH_ICU_V64
 			ICUDataDirectory = PotentialDataDirectory / TEXT("icudt53l") / TEXT(""); // We include the sub-folder here as it prevents ICU I/O requests outside of this folder
+#endif	// WITH_ICU_V64
 			break;
 		}
 	}
@@ -160,6 +167,10 @@ bool FICUInternationalization::Initialize()
 	I18N->DefaultLocale = FindOrMakeCulture(FPlatformMisc::GetDefaultLocale(), EAllowDefaultCultureFallback::Yes);
 	I18N->CurrentLanguage = I18N->DefaultLanguage;
 	I18N->CurrentLocale = I18N->DefaultLocale;
+
+#if ENABLE_LOC_TESTING
+	I18N->AddCustomCulture(MakeShared<FLeetCulture>(I18N->InvariantCulture.ToSharedRef()));
+#endif
 
 	InitializeTimeZone();
 	InitializeInvariantGregorianCalendar();
@@ -436,16 +447,16 @@ void FICUInternationalization::ConditionalInitializeAllowedCultures()
 	// Get our current build config string so we can compare it against the config entries
 	FString BuildConfigString;
 	{
-		EBuildConfigurations::Type BuildConfig = FApp::GetBuildConfiguration();
-		if (BuildConfig == EBuildConfigurations::DebugGame)
+		EBuildConfiguration BuildConfig = FApp::GetBuildConfiguration();
+		if (BuildConfig == EBuildConfiguration::DebugGame)
 		{
 			// Treat DebugGame and Debug as the same for loc purposes
-			BuildConfig = EBuildConfigurations::Debug;
+			BuildConfig = EBuildConfiguration::Debug;
 		}
 
-		if (BuildConfig != EBuildConfigurations::Unknown)
+		if (BuildConfig != EBuildConfiguration::Unknown)
 		{
-			BuildConfigString = EBuildConfigurations::ToString(BuildConfig);
+			BuildConfigString = LexToString(BuildConfig);
 		}
 	}
 
@@ -542,10 +553,14 @@ void FICUInternationalization::HandleLanguageChanged(const FString& Name)
 
 void FICUInternationalization::GetCultureNames(TArray<FString>& CultureNames) const
 {
-	CultureNames.Reset(AllAvailableCultures.Num());
+	CultureNames.Reset(AllAvailableCultures.Num() + I18N->CustomCultures.Num());
 	for (const FICUCultureData& CultureData : AllAvailableCultures)
 	{
 		CultureNames.Add(CultureData.Name);
+	}
+	for (const FCultureRef& CustomCulture : I18N->CustomCultures)
+	{
+		CultureNames.Add(CustomCulture->GetName());
 	}
 }
 
@@ -679,10 +694,15 @@ FCulturePtr FICUInternationalization::FindOrMakeCanonizedCulture(const FString& 
 	// If no cached culture is found, try to make one.
 	FCulturePtr NewCulture;
 
-	// Is this in our list of available cultures?
-	if (AllAvailableCulturesMap.Contains(Name))
+	// Is this a custom culture?
+	if (FCulturePtr CustomCulture = I18N->GetCustomCulture(Name))
 	{
-		NewCulture = FCulture::Create(Name);
+		NewCulture = CustomCulture;
+	}
+	// Is this in our list of available cultures?
+	else if (AllAvailableCulturesMap.Contains(Name))
+	{
+		NewCulture = FCulture::Create(MakeUnique<FICUCultureImplementation>(Name));
 	}
 	else
 	{
@@ -692,7 +712,7 @@ FCulturePtr FICUInternationalization::FindOrMakeCanonizedCulture(const FString& 
 		{
 			if (ICUStatus != U_USING_DEFAULT_WARNING || AllowDefaultFallback == EAllowDefaultCultureFallback::Yes)
 			{
-				NewCulture = FCulture::Create(Name);
+				NewCulture = FCulture::Create(MakeUnique<FICUCultureImplementation>(Name));
 			}
 			ures_close(ICUResourceBundle);
 		}

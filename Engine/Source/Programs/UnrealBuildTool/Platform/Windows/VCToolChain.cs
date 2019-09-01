@@ -47,6 +47,14 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Prepares the environment for building
+		/// </summary>
+		public override void SetEnvironmentVariables()
+		{
+			EnvVars.SetEnvironmentVariables();
+		}
+
+		/// <summary>
 		/// Returns the version info for the toolchain. This will be output before building.
 		/// </summary>
 		/// <returns>String describing the current toolchain</returns>
@@ -1210,7 +1218,15 @@ namespace UnrealBuildTool
 					FileReference ManifestFile = FileReference.Combine(Makefile.ProjectIntermediateDirectory, $"{Target.Name}TimingManifest.txt");
 					File.WriteAllLines(ManifestFile.FullName, TimingJsonFiles.Select(f => f.AbsolutePath));
 
-					Action AggregateTimingInfoAction = Action.CreateRecursiveAction<AggregateParsedTimingInfo>(ActionType.ParseTimingInfo, $"-Name={Target.Name} -ManifestFile=\"{ManifestFile.FullName}\"");
+					FileReference ExpectedCompileTimeFile = FileReference.FromString(Path.Combine(Makefile.ProjectIntermediateDirectory.FullName, String.Format("{0}.json", Target.Name)));
+					List<string> ActionArgs = new List<string>()
+					{
+						String.Format("-Name={0}", Target.Name),
+						String.Format("-ManifestFile={0}", ManifestFile.FullName),
+						String.Format("-CompileTimingFile={0}", ExpectedCompileTimeFile),
+					};
+
+					Action AggregateTimingInfoAction = Action.CreateRecursiveAction<AggregateParsedTimingInfo>(ActionType.ParseTimingInfo, string.Join(" ", ActionArgs));
 					AggregateTimingInfoAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
 					AggregateTimingInfoAction.StatusDescription = $"Aggregating {TimingJsonFiles.Count} Timing File(s)";
 					AggregateTimingInfoAction.bCanExecuteRemotely = false;

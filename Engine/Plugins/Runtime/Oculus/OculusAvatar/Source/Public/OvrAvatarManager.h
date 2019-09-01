@@ -55,6 +55,10 @@ public:
 
 	void SetSDKLoggingLevel(ovrAvatarLogLevel level) { ovrAvatar_SetLoggingLevel(level); }
 
+	/** Event used to avoid accessing the avatar library after shutdown */
+	DECLARE_EVENT(UOvrAvatarManager, FAvatarShutdownEvent)
+	FAvatarShutdownEvent& OnShutdown() { return ShutdownEvent; }
+
 private:
 	static void SDKLogger(const char * str);
 
@@ -66,7 +70,7 @@ private:
 
 	UTexture2D* LoadTexture(const uint64_t id, const ovrAvatarTextureAssetData* data, bool isLinearColor);
 
-	bool IsInitialized = false;
+	bool bIsInitialized = false;
 
 	UPROPERTY()
 	TMap<uint64, UTexture*> Textures;
@@ -93,6 +97,7 @@ private:
 
 	void* OVRPluginHandle = nullptr;
 	void* OVRAvatarHandle = nullptr;
+	FAvatarShutdownEvent ShutdownEvent;
 
 	ovrAvatarLogLevel LogLevel = ovrAvatarLogLevel::ovrAvatarLogLevel_Silent;
 

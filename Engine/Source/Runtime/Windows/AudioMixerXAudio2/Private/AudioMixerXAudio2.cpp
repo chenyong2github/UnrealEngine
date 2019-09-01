@@ -1,20 +1,21 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "AudioMixer.h"
-#include "AudioMixerDevice.h"
 #include "AudioMixerPlatformXAudio2.h"
+#include "AudioMixer.h"
+#include "Modules/ModuleManager.h"
 
 class FAudioMixerModuleXAudio2 : public IAudioDeviceModule
 {
 public:
-	virtual bool IsAudioMixerModule() const override { return true; }
+	virtual bool IsAudioMixerModule() const override 
+	{ 
+		return true;
+	}
 
-	virtual FAudioDevice* CreateAudioDevice() override
+	virtual Audio::IAudioMixerPlatformInterface* CreateAudioMixerPlatformInterface() override
 	{
-		return new Audio::FMixerDevice(new Audio::FMixerPlatformXAudio2());
+		return new Audio::FMixerPlatformXAudio2();
 	}
 };
 
 IMPLEMENT_MODULE(FAudioMixerModuleXAudio2, AudioMixerXAudio2);
-
-

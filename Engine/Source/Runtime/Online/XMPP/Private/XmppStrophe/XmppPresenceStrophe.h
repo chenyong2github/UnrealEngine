@@ -62,9 +62,6 @@ protected:
 
 	/** Delegate to signal presence information has been received for a user */
 	FOnXmppPresenceReceived OnXmppPresenceReceivedDelegate;
-
-	/* Engine Tick Requester name */
-	const static FName TickRequesterId;
 };
 
 #endif
