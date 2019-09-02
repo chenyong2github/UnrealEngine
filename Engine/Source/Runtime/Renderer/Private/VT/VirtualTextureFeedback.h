@@ -38,8 +38,9 @@ public:
 
 	void			TransferGPUToCPU( FRHICommandListImmediate& RHICmdList, FIntRect const& Rect);
 
-	bool			Map( FRHICommandListImmediate& RHICmdList, MapResult& OutResult );
-	void			Unmap( FRHICommandListImmediate& RHICmdList, int32 MapHandle );
+	bool			CanMap();
+	bool			Map(FRHICommandListImmediate& RHICmdList, MapResult& OutResult);
+	void			Unmap(FRHICommandListImmediate& RHICmdList, int32 MapHandle);
 
 private:
 	struct FeedBackItem

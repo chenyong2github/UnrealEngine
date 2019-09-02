@@ -99,7 +99,13 @@ void FVirtualTextureFeedback::TransferGPUToCPU( FRHICommandListImmediate& RHICmd
 	++PendingTargetCount;
 }
 
-bool FVirtualTextureFeedback::Map( FRHICommandListImmediate& RHICmdList, MapResult& OutResult )
+bool FVirtualTextureFeedback::CanMap()
+{
+	const FeedBackItem& FeedbackEntryCPU = FeedbackTextureCPU[CPUReadIndex];
+	return (PendingTargetCount > 0u && FeedbackEntryCPU.TextureCPU.IsValid() && FeedbackEntryCPU.GPUFenceRHI->Poll());
+}
+
+bool FVirtualTextureFeedback::Map(FRHICommandListImmediate& RHICmdList, MapResult& OutResult)
 {
 	const FeedBackItem& FeedbackEntryCPU = FeedbackTextureCPU[CPUReadIndex];
 	if (PendingTargetCount > 0u &&
