@@ -11,6 +11,7 @@
 class AWorldSettings;
 class FAtmosphericFogSceneInfo;
 class FSkyAtmosphereRenderSceneInfo;
+class FSkyAtmosphereSceneProxy;
 class FMaterial;
 class FMaterialShaderMap;
 class FPrimitiveSceneInfo;
@@ -248,27 +249,27 @@ public:
 	/**
 	 * Adds the unique sky atmosphere component to the scene
 	 *
-	 * @param SkyAtmosphereComponent - component to add
+	 * @param SkyAtmosphereSceneProxy - the sky atmosphere proxy
 	 */
-	virtual void AddSkyAtmosphere(const class USkyAtmosphereComponent* SkyAtmosphereComponent, bool bStaticLightingBuilt) = 0;
+	virtual void AddSkyAtmosphere(FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy, bool bStaticLightingBuilt) = 0;
 	/**
 	 * Removes the unique sky atmosphere component to the scene
 	 *
-	 * @param SkyAtmosphereComponent - component to remove
+	 * @param SkyAtmosphereSceneProxy - the sky atmosphere proxy
 	 */
-	virtual void RemoveSkyAtmosphere(const class USkyAtmosphereComponent* SkyAtmosphereComponent) = 0;
+	virtual void RemoveSkyAtmosphere(FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy) = 0;
 	/**
-	 * Returns the scene's unique FSkyAtmosphereRenderSceneInfo if it exists
+	 * Returns the scene's unique info if it exists
 	 */
 	virtual FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() = 0;
 	virtual const FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() const = 0;
 	/**
 	 * Override a sky atmosphere light direction
-	 * @param SkyAtmosphereComponent - component to verify it is the actual unique SkyAtmosphere
+	 * @param SkyAtmosphereSceneProxy - the sky atmosphere proxy
 	 * @param AtmosphereLightIndex - the atmosphere light index to consider
 	 * @param LightDirection - the new light direction to override the atmosphere light with
 	 */
-	virtual void OverrideSkyAtmosphereLightDirection(const class USkyAtmosphereComponent* SkyAtmosphereComponent, int32 AtmosphereLightIndex, const FVector& LightDirection) = 0;
+	virtual void OverrideSkyAtmosphereLightDirection(FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy, int32 AtmosphereLightIndex, const FVector& LightDirection) = 0;
 
 	/**
 	 * Adds a wind source component to the scene.
