@@ -54,13 +54,19 @@ private:
 	float BackgroundDelayedDisconnectTime;
 	NSTimer* DelayedDisconnectTimer;
 
+	uint VoiceChatEnableCount = 0;
+
 	bool IsHardwareAECEnabled() const;
 	bool bEnableHardwareAEC = false;
 	TOptional<bool> OverrideEnableHardwareAEC;
 	bool bVoiceChatModeEnabled = false;
-	uint VoiceChatEnableCount = 0;
+
+	bool IsBluetoothMicrophoneEnabled() const;
+	bool bEnableBluetoothMicrophone = false;
+	TOptional<bool> OverrideEnableBluetoothMicrophone;
+	bool bBluetoothMicrophoneFeatureEnabled = false;
 
 	void EnableVoiceChat(bool bEnable);
 	void UpdateVoiceChatSettings();
-	bool IsBluetoothA2DPInUse();
+	bool IsUsingBuiltInSpeaker();
 };
