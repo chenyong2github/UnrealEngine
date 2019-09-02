@@ -1721,7 +1721,10 @@ namespace coff
 				};
 
 				ObjFile objFile = { objPath, &memoryFile };
-				return GatherDatabase(&objFile, uniqueId::Generate(string::ToWideString(objPath)), ReadFlags::NONE);
+				// BEGIN EPIC MOD - 
+				uint32_t uniqueId = symbols::GetCompilandIdFromPath(string::ToWideString(objPath));
+				return GatherDatabase(&objFile, uniqueId, ReadFlags::NONE);
+				// END EPIC MOD
 			}
 		}
 
