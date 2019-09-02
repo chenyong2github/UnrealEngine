@@ -1169,6 +1169,7 @@ void UObject::PreSave(const class ITargetPlatform* TargetPlatform)
 #endif
 }
 
+#if WITH_EDITOR
 bool UObject::CanModify() const
 {
 	return (!HasAnyFlags(RF_NeedInitialization) && !IsGarbageCollecting() && !GExitPurge && !IsUnreachable());
@@ -1197,13 +1198,12 @@ bool UObject::Modify( bool bAlwaysMarkDirty/*=true*/ )
 				MarkPackageDirty();
 			}
 		}
-#if WITH_EDITOR
 		FCoreUObjectDelegates::BroadcastOnObjectModified(this);
-#endif
 	}
 
 	return bSavedToTransactionBuffer;
 }
+#endif
 
 bool UObject::IsSelected() const
 {

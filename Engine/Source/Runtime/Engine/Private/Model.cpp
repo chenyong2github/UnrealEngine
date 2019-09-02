@@ -569,6 +569,7 @@ IMPLEMENT_INTRINSIC_CLASS(UModel, ENGINE_API, UObject, CORE_API, "/Script/Engine
 	UModel implementation.
 ---------------------------------------------------------------------------------------*/
 
+#if WITH_EDITOR
 bool UModel::Modify( bool bAlwaysMarkDirty/*=false*/ )
 {
 	bool bSavedToTransactionBuffer = Super::Modify(bAlwaysMarkDirty);
@@ -576,16 +577,15 @@ bool UModel::Modify( bool bAlwaysMarkDirty/*=false*/ )
 	// make a new guid whenever this model changes
 	LightingGuid = FGuid::NewGuid();
 
-#if WITH_EDITOR
 	// Modify all child objects.
 	if( Polys )
 	{
 		bSavedToTransactionBuffer = Polys->Modify(bAlwaysMarkDirty) || bSavedToTransactionBuffer;
 	}
-#endif
 
 	return bSavedToTransactionBuffer;
 }
+#endif
 
 //
 // Empty the contents of a model.

@@ -310,6 +310,7 @@ bool ABrush::IsStaticBrush() const
 	return BrushComponent && (BrushComponent->Mobility == EComponentMobility::Static);
 }
 
+#if WITH_EDITOR
 bool ABrush::Modify(bool bAlwaysMarkDirty)
 {
 	bool bSavedToTransactionBuffer = Super::Modify(bAlwaysMarkDirty);
@@ -320,4 +321,4 @@ bool ABrush::Modify(bool bAlwaysMarkDirty)
 	}
 	return bSavedToTransactionBuffer;
 }
-
+#endif

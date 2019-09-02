@@ -475,8 +475,8 @@ public:
 	virtual void PostLoad() override;
 #if WITH_EDITOR
 	virtual void PostEditUndo() override;
+	virtual bool Modify(bool bAlwaysMarkDirty = false) override;
 #endif // WITH_EDITOR
-	virtual bool Modify( bool bAlwaysMarkDirty=false ) override;
 	virtual bool Rename( const TCHAR* InName=NULL, UObject* NewOuter=NULL, ERenameFlags Flags=REN_None ) override;
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
