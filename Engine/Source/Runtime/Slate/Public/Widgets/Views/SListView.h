@@ -1072,7 +1072,7 @@ public:
 
 				// Note: To account for accrued error from floating point truncation and addition in our sum of dimensions used, 
 				//	we pad the allotted axis just a little to be sure we have filled the available space.
-				static const float FloatingPointPrecisionOffset = 0.001f;
+				const float FloatingPointPrecisionOffset = 0.001f;
 				bHasFilledAvailableArea = ViewLengthUsedSoFar >= MyDimensions.ScrollAxis + FloatingPointPrecisionOffset;
 			}
 
