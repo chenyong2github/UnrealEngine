@@ -12,6 +12,7 @@
 #include "Framework/Commands/GenericCommands.h"
 #include "GraphEditorActions.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "EdGraph/EdGraphSchema.h"
 
 #define LOCTEXT_NAMESPACE "AIGraph"
 
