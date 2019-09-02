@@ -175,6 +175,23 @@ void URuntimeVirtualTextureStreamingProxy::GetVirtualTextureBuildSettings(FVirtu
 	OutSettings = Settings;
 }
 
+#if WITH_EDITOR
+
+void URuntimeVirtualTextureStreamingProxy::BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform)
+{
+	// Even though we skip the cook of this object for non VT platforms in URuntimeVirtualTexture::Serialize()
+	// we still load the object at cook time and kick off the DDC build. This will trigger an error in the texture DDC code.
+	// Either we need to make the DDC code more robust for non VT platforms or we can skip the process here...
+	if (!UseVirtualTexturing(GMaxRHIFeatureLevel, TargetPlatform))
+	{
+		return;
+	}
+
+	Super::BeginCacheForCookedPlatformData(TargetPlatform);
+}
+
+#endif
+
 
 URuntimeVirtualTexture::URuntimeVirtualTexture(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
