@@ -534,6 +534,13 @@ public:
 	 */
 	virtual void Precache(USoundWave* SoundWave, bool bSynchronous = false, bool bTrackMemory = true, bool bForceFullDecompression = false);
 
+	float GetCompressionDurationThreshold(const FSoundGroup &SoundGroup);
+
+	/**
+	 * Returns true if a sound wave should be decompressed.
+	 */
+	bool ShouldUseRealtimeDecompression(bool bForceFullDecompression, const FSoundGroup &SoundGroup, USoundWave* SoundWave, float CompressedDurationThreshold) const;
+
 	/**
 	 * Precaches all existing sounds. Called when audio setup is complete
 	 */
