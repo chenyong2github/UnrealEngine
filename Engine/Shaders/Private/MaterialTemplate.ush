@@ -1032,6 +1032,7 @@ float3 MaterialExpressionSkyAtmosphereViewLuminance(FMaterialPixelParameters Par
 	float2 SkyViewLutUv;
 	SkyViewLutParamsToUv(IntersectGround, ViewZenithCosAngle, WorldDirLocal, ViewHeight, ResolvedView.SkyAtmosphereBottomRadius, ResolvedView.SkyViewLutSizeAndInvSize, SkyViewLutUv);
 	float3 SkyAtmosphereViewLuminance = Texture2DSampleLevel(View.SkyViewLutTexture, View.SkyViewLutTextureSampler, SkyViewLutUv, 0.0f).rgb;
+	SkyAtmosphereViewLuminance *= ResolvedView.SkyAtmosphereSkyLuminanceFactor;
 #if USE_PREEXPOSURE
 	SkyAtmosphereViewLuminance *= ResolvedView.OneOverPreExposure;
 #endif
