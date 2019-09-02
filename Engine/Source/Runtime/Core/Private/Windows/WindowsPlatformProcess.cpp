@@ -1144,7 +1144,7 @@ const FString FWindowsPlatformProcess::GetModulesDirectory()
 		}
 
 		// Get the directory for it
-		GetModuleFileName(hCurrentModule, Result, ARRAY_COUNT(Result));
+		GetModuleFileName(hCurrentModule, Result, UE_ARRAY_COUNT(Result));
 		*FCString::Strrchr(Result, '\\') = 0;
 
 		// Normalize the resulting path

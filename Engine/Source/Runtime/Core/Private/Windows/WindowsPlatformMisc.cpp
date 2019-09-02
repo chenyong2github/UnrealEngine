@@ -381,7 +381,7 @@ int32 FWindowsOSVersionHelper::GetOSVersions( FString& OutOSVersionLabel, FStrin
 	OSVersionLabel[0] = 0;
 	OSSubVersionLabel[0] = 0;
 
-	int32 Result = GetOSVersionsHelper( OSVersionLabel, ARRAY_COUNT(OSVersionLabel), OSSubVersionLabel, ARRAY_COUNT(OSSubVersionLabel) );
+	int32 Result = GetOSVersionsHelper( OSVersionLabel, UE_ARRAY_COUNT(OSVersionLabel), OSSubVersionLabel, UE_ARRAY_COUNT(OSSubVersionLabel) );
 
 	OutOSVersionLabel = OSVersionLabel;
 	OutOSSubVersionLabel = OSSubVersionLabel;
@@ -2527,7 +2527,7 @@ void FWindowsPlatformMisc::GetOSVersions( FString& OutOSVersionLabel, FString& O
 		{
 			OSVersionLabel[0] = 0;
 			OSSubVersionLabel[0] = 0;
-			GetOSVersionsHelper( OSVersionLabel, ARRAY_COUNT(OSVersionLabel), OSSubVersionLabel, ARRAY_COUNT(OSSubVersionLabel) );
+			GetOSVersionsHelper( OSVersionLabel, UE_ARRAY_COUNT(OSVersionLabel), OSSubVersionLabel, UE_ARRAY_COUNT(OSSubVersionLabel) );
 		}
 
 		TCHAR OSVersionLabel[128];
@@ -2546,7 +2546,7 @@ FString FWindowsPlatformMisc::GetOSVersion()
 		FOSVersionInitializer()
 		{
 			CachedOSVersion[0] = 0;
-			if (!GetOSVersionHelper(CachedOSVersion, ARRAY_COUNT(CachedOSVersion)))
+			if (!GetOSVersionHelper(CachedOSVersion, UE_ARRAY_COUNT(CachedOSVersion)))
 			{
 				CachedOSVersion[0] = 0;
 			}

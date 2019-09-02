@@ -136,7 +136,7 @@ class FLogSuppressionImplementation: public FLogSuppressionInterface, private FS
 			FString Command = SubCmds[Index].TrimStart();
 			if (Command.StartsWith(LogString))
 			{
-				Command = Command.Right(Command.Len() - (ARRAY_COUNT(LogString) - 1));
+				Command = Command.Right(Command.Len() - (UE_ARRAY_COUNT(LogString) - 1));
 			}
 			TArray<FString> CommandParts;
 			Command.ParseIntoArrayWS(CommandParts);
