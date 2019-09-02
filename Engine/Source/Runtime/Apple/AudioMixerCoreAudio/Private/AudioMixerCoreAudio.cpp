@@ -14,7 +14,7 @@ public:
 
 	virtual Audio::IAudioMixerPlatformInterface* CreateAudioMixerPlatformInterface() override
 	{
-		return new new Audio::FMixerPlatformCoreAudio();
+		return new Audio::FMixerPlatformCoreAudio();
 	}
 };
 IMPLEMENT_MODULE(FAudioMixerModuleCoreAudio, AudioMixerCoreAudio);
