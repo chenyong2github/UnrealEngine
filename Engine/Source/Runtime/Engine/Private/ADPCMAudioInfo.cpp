@@ -26,7 +26,6 @@ FAutoConsoleVariableRef CVarDisableADPCMSeeking(
 #define WAVE_FORMAT_LPCM  1
 #define WAVE_FORMAT_ADPCM 2
 
-
 namespace ADPCM
 {
 	void DecodeBlock(const uint8* EncodedADPCMBlock, int32 BlockSize, int16* DecodedPCMData);
