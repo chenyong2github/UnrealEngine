@@ -827,13 +827,14 @@ TSharedPtr<FStreamableHandle> UGameplayCueManager::InitObjectLibrary(FGameplayCu
 
 		if (AssetsToLoad.Num() > 0)
 		{
-			GameplayCueAssetHandle = StreamableManager.RequestAsyncLoad(AssetsToLoad, FStreamableDelegate::CreateStatic( ForwardLambda, AssetsToLoad, Lib.OnLoaded), Lib.AsyncPriority);
+			FStreamableDelegate Del = FStreamableDelegate::CreateStatic(ForwardLambda, AssetsToLoad, Lib.OnLoaded);
+			GameplayCueAssetHandle = StreamableManager.RequestAsyncLoad(MoveTemp(AssetsToLoad), MoveTemp(Del), Lib.AsyncPriority);
 			RetVal = GameplayCueAssetHandle;
 		}
 		else
 		{
 			// Still fire the delegate even if nothing was found to load
-			Lib.OnLoaded.ExecuteIfBound(AssetsToLoad);
+			Lib.OnLoaded.ExecuteIfBound(MoveTemp(AssetsToLoad));
 		}
 	}
 
