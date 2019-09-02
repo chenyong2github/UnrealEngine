@@ -550,6 +550,8 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 		// Distance field AO parameters.
 		// TODO. FDFAOUpsampleParameters
 		SHADER_PARAMETER(FVector2D, AOBufferBilinearUVMax)
+		SHADER_PARAMETER(float, DistanceFadeScale)
+		SHADER_PARAMETER(float, AOMaxViewDistance)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, BentNormalAOTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState,  BentNormalAOSampler)
 		
@@ -816,6 +818,10 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 					PassParameters->AOBufferBilinearUVMax = FVector2D(
 						(View.ViewRect.Width() / GAODownsampleFactor - 0.51f) / AOBufferSize.X, // 0.51 - so bilateral gather4 won't sample invalid texels
 						(View.ViewRect.Height() / GAODownsampleFactor - 0.51f) / AOBufferSize.Y);
+
+					extern float GAOViewFadeDistanceScale;
+					PassParameters->AOMaxViewDistance = GetMaxAOViewDistance();
+					PassParameters->DistanceFadeScale = 1.0f / ((1.0f - GAOViewFadeDistanceScale) * GetMaxAOViewDistance());
 
 					PassParameters->BentNormalAOTexture = DynamicBentNormalAOTexture;
 					PassParameters->BentNormalAOSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
