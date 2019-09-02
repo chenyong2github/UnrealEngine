@@ -342,7 +342,7 @@ public:
 				{
 					// We've filled all the available area when we've finished a line that's partially clipped by the end of the view
 					const float FloatPrecisionOffset = 0.001f;
-					bHasFilledAvailableArea = DimensionsUsedSoFar.ScrollAxis > AllottedDimensions.ScrollAxis + FloatingPointPrecisionOffset;
+					bHasFilledAvailableArea = DimensionsUsedSoFar.ScrollAxis > AllottedDimensions.ScrollAxis + FloatPrecisionOffset;
 				}
 			}
 
