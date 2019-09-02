@@ -18,6 +18,7 @@
 #include "Misc/App.h"
 #include "Misc/EngineVersion.h"
 #include "Misc/EngineBuildSettings.h"
+#include "Misc/OutputDeviceRedirector.h"
 #include "Stats/Stats.h"
 #include "Internationalization/TextLocalizationManager.h"
 #include "Logging/LogScopedCategoryAndVerbosityOverride.h"

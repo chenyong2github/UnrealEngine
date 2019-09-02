@@ -2,6 +2,7 @@
 
 #include "UObject/ObjectResource.h"
 #include "UObject/Class.h"
+#include "Templates/Casts.h"
 
 /*-----------------------------------------------------------------------------
 	Helper functions.

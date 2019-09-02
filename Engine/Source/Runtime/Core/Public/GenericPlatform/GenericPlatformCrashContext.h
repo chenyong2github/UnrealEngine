@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "HAL/PlatformMemory.h"
+#include "HAL/PlatformProcess.h"
 #include "Containers/UnrealString.h"
 
 struct FProgramCounterSymbolInfo;
