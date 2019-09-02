@@ -334,7 +334,7 @@ void UTexture::Serialize(FArchive& Ar)
 		bUseLegacyGamma = true;
 	}
 
-	if (Ar.IsCooking())
+	if (Ar.IsCooking() && Ar.IsSaving())
 	{
 		if (VirtualTextureStreaming && UseVirtualTexturing(GMaxRHIFeatureLevel, Ar.CookingTarget()) == false)
 		{
