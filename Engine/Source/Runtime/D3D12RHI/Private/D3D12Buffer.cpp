@@ -172,7 +172,16 @@ BufferType* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdList,
 
 			// Get an upload heap and initialize data
 			FD3D12ResourceLocation SrcResourceLoc(BufferOut->GetParentDevice());
-			void* pData = SrcResourceLoc.GetParentDevice()->GetDefaultFastAllocator().Allocate<FD3D12ScopeLock>(Size, 4UL, &SrcResourceLoc, bOnAsyncThread);
+			void* pData;
+			if (bOnAsyncThread)
+			{
+				const uint32 GPUIdx = SrcResourceLoc.GetParentDevice()->GetGPUIndex();
+				pData = GetUploadHeapAllocator(GPUIdx).AllocUploadResource(Size, 4u, SrcResourceLoc);
+			}
+			else
+			{
+				pData = SrcResourceLoc.GetParentDevice()->GetDefaultFastAllocator().Allocate<FD3D12ScopeLock>(Size, 4UL, &SrcResourceLoc);
+			}
 			check(pData);
 			FMemory::Memcpy(pData, CreateInfo.ResourceArray->GetResourceData(), Size);
 
