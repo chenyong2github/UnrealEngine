@@ -184,7 +184,15 @@ namespace UnrealBuildTool
 			JsonObject RawObject = JsonObject.Read(FileName);
 			try
 			{
-				return new ProjectDescriptor(RawObject);
+				ProjectDescriptor Descriptor = new ProjectDescriptor(RawObject);
+				if(Descriptor.Modules != null)
+				{
+					foreach (ModuleDescriptor Module in Descriptor.Modules)
+					{
+						Module.Validate(FileName);
+					}
+				}
+				return Descriptor;
 			}
 			catch (JsonParseException ParseException)
 			{

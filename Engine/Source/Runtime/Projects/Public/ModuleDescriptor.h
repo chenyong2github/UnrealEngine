@@ -85,15 +85,23 @@ namespace EHostType
 		// Only loads in uncooked games.
 		UncookedOnly,
 
-		// Only loads in development runtime or editor builds. Does not load in shipping builds.
-		Developer,
-		
+		// Deprecated due to ambiguities. Only loads in editor and program targets, but loads in any editor mode (eg. -game, -server).
+		// Use UncookedOnly for the same behavior (eg. for editor blueprint nodes needed in uncooked games), or DeveloperTool for modules
+		// that can also be loaded in cooked games but should not be shipped (eg. debugging utilities).
+		Developer UE_DEPRECATED(4.24, "The Developer module type is deprecated. Use UncookedOnly for the same behavior, or DeveloperTool for modules that can also be loaded at runtime"),
+
+		// Loads on any targets where bBuildDeveloperTools is enabled.
+		DeveloperTool,
+
 		// Loads only when the editor is starting up.
 		Editor,
 		
 		// Loads only when the editor is starting up, but not in commandlet mode.
 		EditorNoCommandlet,
-		
+
+		// Loads only on editor and program targets
+		EditorAndProgram,
+
 		// Only loads on program targets.
 		Program,
 		

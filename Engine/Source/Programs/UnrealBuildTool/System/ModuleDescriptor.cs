@@ -50,6 +50,11 @@ namespace UnrealBuildTool
 		Developer,
 
 		/// <summary>
+		/// Loads on any targets where bBuildDeveloperTools is enabled
+		/// </summary>
+		DeveloperTool,
+
+		/// <summary>
 		/// Loaded only by the editor
 		/// </summary>
 		Editor,
@@ -58,6 +63,11 @@ namespace UnrealBuildTool
 		/// Loaded only by the editor, except when running commandlets
 		/// </summary>
 		EditorNoCommandlet,
+
+		/// <summary>
+		/// Loaded by the editor or program targets
+		/// </summary>
+		EditorAndProgram,
 
 		/// <summary>
 		/// Loaded only by programs
@@ -392,6 +402,19 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Produces any warnings and errors for the module settings
+		/// </summary>
+		/// <param name="File">File containing the module declaration</param>
+		public void Validate(FileReference File)
+		{
+			if(Type == ModuleHostType.Developer)
+			{
+				Log.TraceWarningOnce("The 'Developer' module type has been deprecated in 4.24. Use 'DeveloperTool' for modules that can be loaded by game/client/server targets in non-shipping configurations, or 'UncookedOnly' for modules that should only be loaded by uncooked editor and program targets (eg. modules containing blueprint nodes)");
+				Log.TraceWarningOnce(File, "The 'Developer' module type has been deprecated in 4.24.");
+			}
+		}
+
+		/// <summary>
 		/// Determines whether the given plugin module is part of the current build.
 		/// </summary>
 		/// <param name="Platform">The platform being compiled for</param>
@@ -461,17 +484,21 @@ namespace UnrealBuildTool
 				case ModuleHostType.Runtime:
 				case ModuleHostType.RuntimeNoCommandlet:
                     return TargetType != TargetType.Program;
-                case ModuleHostType.CookedOnly:
+				case ModuleHostType.RuntimeAndProgram:
+					return true;
+				case ModuleHostType.CookedOnly:
                     return bBuildRequiresCookedData;
 				case ModuleHostType.UncookedOnly:
 					return !bBuildRequiresCookedData;
-				case ModuleHostType.RuntimeAndProgram:
-					return true;
-                case ModuleHostType.Developer:
+				case ModuleHostType.Developer:
+					return TargetType == TargetType.Editor || bBuildEditor || TargetType == TargetType.Program;
+				case ModuleHostType.DeveloperTool:
 					return bBuildDeveloperTools;
 				case ModuleHostType.Editor:
 				case ModuleHostType.EditorNoCommandlet:
 					return TargetType == TargetType.Editor || bBuildEditor;
+				case ModuleHostType.EditorAndProgram:
+					return TargetType == TargetType.Editor || bBuildEditor || TargetType == TargetType.Program;
 				case ModuleHostType.Program:
 					return TargetType == TargetType.Program;
                 case ModuleHostType.ServerOnly:

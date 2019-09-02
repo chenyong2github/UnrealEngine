@@ -126,9 +126,11 @@ namespace UnrealBuildTool
 				case ModuleHostType.ClientOnlyNoCommandlet:
 					return UHTModuleType.EngineRuntime;
 				case ModuleHostType.Developer:
+				case ModuleHostType.DeveloperTool:
 					return UHTModuleType.EngineDeveloper;
 				case ModuleHostType.Editor:
 				case ModuleHostType.EditorNoCommandlet:
+				case ModuleHostType.EditorAndProgram:
 					return UHTModuleType.EngineEditor;
 				default:
 					return null;
@@ -150,9 +152,11 @@ namespace UnrealBuildTool
 				case ModuleHostType.ClientOnlyNoCommandlet:
 					return UHTModuleType.GameRuntime;
 				case ModuleHostType.Developer:
+				case ModuleHostType.DeveloperTool:
 					return UHTModuleType.GameDeveloper;
 				case ModuleHostType.Editor:
 				case ModuleHostType.EditorNoCommandlet:
+				case ModuleHostType.EditorAndProgram:
 					return UHTModuleType.GameEditor;
 				default:
 					return null;

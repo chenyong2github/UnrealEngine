@@ -84,22 +84,28 @@ const TCHAR* EHostType::ToString( const EHostType::Type Value )
 			return TEXT( "RuntimeNoCommandlet" );
 
 		case RuntimeAndProgram:
-			return TEXT("RuntimeAndProgram");
+			return TEXT( "RuntimeAndProgram" );
 
 		case CookedOnly:
-			return TEXT("CookedOnly");
+			return TEXT( "CookedOnly" );
 
 		case UncookedOnly:
-			return TEXT("UncookedOnly");
+			return TEXT( "UncookedOnly" );
 
 		case Developer:
 			return TEXT( "Developer" );
+
+		case DeveloperTool:
+			return TEXT( "DeveloperTool" );
 
 		case Editor:
 			return TEXT( "Editor" );
 
 		case EditorNoCommandlet:
 			return TEXT( "EditorNoCommandlet" );
+
+		case EditorAndProgram:
+			return TEXT( "EditorAndProgram" );
 
 		case Program:
 			return TEXT("Program");
@@ -109,8 +115,10 @@ const TCHAR* EHostType::ToString( const EHostType::Type Value )
 
 		case ClientOnly:
 			return TEXT("ClientOnly");
+
 		case ClientOnlyNoCommandlet:
 			return TEXT("ClientOnlyNoCommandlet");
+
 		default:
 			ensureMsgf( false, TEXT( "Unrecognized EModuleType value: %i" ), Value );
 			return NULL;
@@ -477,10 +485,18 @@ bool FModuleDescriptor::IsCompiledInCurrentConfiguration() const
 		return !FPlatformProperties::RequiresCookedData();
 
 	case EHostType::Developer:
+		#if WITH_EDITOR || IS_PROGRAM
+			return true;
+		#else
+			return false;
+		#endif
+
+	case EHostType::DeveloperTool:
 		#if WITH_UNREAL_DEVELOPER_TOOLS
 			return true;
+		#else
+			return false;		
 		#endif
-		break;
 
 	case EHostType::Editor:
 	case EHostType::EditorNoCommandlet:
@@ -488,6 +504,13 @@ bool FModuleDescriptor::IsCompiledInCurrentConfiguration() const
 			return true;
 		#endif
 		break;
+
+	case EHostType::EditorAndProgram:
+		#if WITH_EDITOR || IS_PROGRAM
+			return true;
+		#else
+			return false;
+		#endif
 
 	case EHostType::Program:
 		#if IS_PROGRAM
@@ -550,10 +573,18 @@ bool FModuleDescriptor::IsLoadedInCurrentConfiguration() const
 		return !FPlatformProperties::RequiresCookedData();
 
 	case EHostType::Developer:
+		#if WITH_EDITOR || IS_PROGRAM
+			return true;
+		#else
+			return false;
+		#endif
+
+	case EHostType::DeveloperTool:
 		#if WITH_UNREAL_DEVELOPER_TOOLS
 			return true;
+		#else
+			return false;
 		#endif
-		break;
 
 	case EHostType::Editor:
 		#if WITH_EDITOR
@@ -566,6 +597,15 @@ bool FModuleDescriptor::IsLoadedInCurrentConfiguration() const
 			if(GIsEditor && !IsRunningCommandlet()) return true;
 		#endif
 		break;
+
+	case EHostType::EditorAndProgram:
+		#if WITH_EDITOR
+			return GIsEditor;
+		#elif IS_PROGRAM
+			return true;
+		#else
+			return false;
+		#endif
 
 	case EHostType::Program:
 		#if WITH_PLUGIN_SUPPORT && IS_PROGRAM
