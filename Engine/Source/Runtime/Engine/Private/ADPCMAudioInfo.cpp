@@ -45,6 +45,7 @@ FADPCMAudioInfo::FADPCMAudioInfo(void)
 	, SamplesPerBlock(0)
 	, FirstChunkSampleDataOffset(0)
 	, FirstChunkSampleDataIndex(0)
+	, bDecompressorReleased(false)
 	, bSeekPending(false)
 	, TargetSeekTime(0.0f)
 	, LastSeekTime(0.0f)
@@ -484,6 +485,7 @@ bool FADPCMAudioInfo::StreamCompressedInfoInternal(USoundWave* Wave, struct FSou
 	SrcBufferData = ChunkData;
 	CurrentChunkBufferOffset = 0;
 	CurCompressedChunkData = nullptr;
+	bDecompressorReleased = false;
 	CurrentUncompressedBlockSampleIndex = 0;
 	
 	TotalSamplesStreamed = 0;
@@ -544,6 +546,13 @@ bool FADPCMAudioInfo::StreamCompressedData(uint8* Destination, bool bLooping, ui
 	FScopeLock ScopeLock(&CurCompressedChunkHandleCriticalSection);
 
 	// Initial sanity checks:
+	if (bDecompressorReleased)
+	{
+		UE_LOG(LogAudio, Error, TEXT("Stream Compressed Data called after release!"));
+		FMemory::Memzero(Destination, BufferSize);
+		return true;
+	}
+
 	if (Destination == nullptr || BufferSize == 0)
 	{
 		UE_LOG(LogAudio, Error, TEXT("Stream Compressed Info not called!"));
@@ -776,6 +785,7 @@ bool FADPCMAudioInfo::ReleaseStreamChunk(bool bBlockUntilReleased)
 		CurrentChunkBufferOffset = 0;
 		CurCompressedChunkData = nullptr;
 		CurrentChunkDataSize = 0;
+		bDecompressorReleased = true;
 		return true;
 	}
 	else
@@ -787,6 +797,7 @@ bool FADPCMAudioInfo::ReleaseStreamChunk(bool bBlockUntilReleased)
 			CurrentChunkBufferOffset = 0;
 			CurCompressedChunkData = nullptr;
 			CurrentChunkDataSize = 0;
+			bDecompressorReleased = true;
 			CurCompressedChunkHandleCriticalSection.Unlock();
 			return true;
 		}
