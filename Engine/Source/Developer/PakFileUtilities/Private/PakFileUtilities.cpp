@@ -481,6 +481,7 @@ struct FPakCommandLineParameters
 		, bPatchCompatibilityMode421(false)
 		, bFallbackOrderForNonUassetFiles(false)
 		, bAsyncCompression(false)
+		, bAlignFilesLargerThanBlock(false)
 	{
 	}
 
@@ -502,6 +503,7 @@ struct FPakCommandLineParameters
 	bool bPatchCompatibilityMode421;
 	bool bFallbackOrderForNonUassetFiles;
 	bool bAsyncCompression;
+	bool bAlignFilesLargerThanBlock;	// Align files that are larger than block size
 };
 
 struct FPakEntryPair
@@ -1073,6 +1075,11 @@ void ProcessCommandLine(const TCHAR* CmdLine, const TArray<FString>& NonOptionAr
 	if (FParse::Param(CmdLine, TEXT("sign")))
 	{
 		CmdLineParameters.bSign = true;
+	}
+
+	if (FParse::Param(CmdLine, TEXT("AlignFilesLargerThanBlock")))
+	{
+		CmdLineParameters.bAlignFilesLargerThanBlock = true;
 	}
 
 	FString DesiredCompressionFormats;
@@ -2026,15 +2033,15 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 
 	for (int32 FileIndex = 0; FileIndex < FilesToAdd.Num(); FileIndex++)
 	{
-		AsyncCompressors[FileIndex].Init(&FilesToAdd[FileIndex], &CmdLineParameters.CompressionFormats, CmdLineParameters.CompressionBlockSize, &NoPluginCompressionExtensions);
-		if (bRunAsync)
-		{
+			AsyncCompressors[FileIndex].Init(&FilesToAdd[FileIndex], &CmdLineParameters.CompressionFormats, CmdLineParameters.CompressionBlockSize, &NoPluginCompressionExtensions);
+			if (bRunAsync)
+			{
 			if (FilesToAdd[FileIndex].bNeedsCompression)
 			{
 				(new FAutoDeleteAsyncTask<FRunCompressionTask>(&AsyncCompressors[FileIndex]))->StartBackgroundTask();
 			}
-			else
-			{
+		else
+		{
 				// call compress function inline 
 				// it won't do anything except for initialize some internal variables used in the non compressed path
 				// we don't want to pass these to a different thread as they may cause congestion with legitimate tasks
@@ -2100,11 +2107,11 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 
 			// Account for file system block size, which is a boundary we want to avoid crossing.
 			if (!bIsUAssetUExpPairUExp && // don't split uexp / uasset pairs
-				CmdLineParameters.FileSystemBlockSize > 0 && OriginalFileSize != INDEX_NONE && RealFileSize <= CmdLineParameters.FileSystemBlockSize)
+				CmdLineParameters.FileSystemBlockSize > 0 &&
+				OriginalFileSize != INDEX_NONE &&
+				(CmdLineParameters.bAlignFilesLargerThanBlock || RealFileSize <= CmdLineParameters.FileSystemBlockSize) &&
+				(NewEntryOffset / CmdLineParameters.FileSystemBlockSize) != ((NewEntryOffset + RealFileSize) / CmdLineParameters.FileSystemBlockSize)) // File crosses a block boundary
 			{
-				if ((NewEntryOffset / CmdLineParameters.FileSystemBlockSize) != ((NewEntryOffset + RealFileSize) / CmdLineParameters.FileSystemBlockSize))
-				{
-					//File crosses a block boundary, so align it to the beginning of the next boundary
 					int64 OldOffset = NewEntryOffset;
 					NewEntryOffset = AlignArbitrary(NewEntryOffset, CmdLineParameters.FileSystemBlockSize);
 					int64 PaddingRequired = NewEntryOffset - OldOffset;
@@ -2130,7 +2137,7 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 						check(PakFileHandle->Tell() == NewEntryOffset);
 					}
 				}
-			}
+
 			// Align bulk data
 			if (bIsMappedBulk && CmdLineParameters.AlignForMemoryMapping > 0 && OriginalFileSize != INDEX_NONE && !bDeleted)
 			{
