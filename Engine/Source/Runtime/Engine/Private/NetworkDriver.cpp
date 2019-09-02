@@ -342,14 +342,12 @@ void UNetDriver::InitPacketSimulationSettings()
 #endif
 }
 
+#if DO_ENABLE_NET_TEST
 bool UNetDriver::IsSimulatingPacketLossBurst() const
 {
-#if DO_ENABLE_NET_TEST
 	return PacketLossBurstEndTime > Time;
-#else
-	return false;
-#endif
 }
+#endif
 
 void UNetDriver::PostInitProperties()
 {
@@ -3534,7 +3532,7 @@ bool FPacketSimulationSettings::ParseHelper(const TCHAR* Cmd, const TCHAR* Name,
 	return false;
 }
 
-#endif
+#endif //#if DO_ENABLE_NET_TEST
 
 FNetViewer::FNetViewer(UNetConnection* InConnection, float DeltaSeconds) :
 	Connection(InConnection),
