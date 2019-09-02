@@ -441,7 +441,7 @@ private:
 	 *
 	 * @return  The depth of the newly-entered slot.
 	 */
-	int32 EnterSlot(int32 ParentDepth, int32 ElementId, EElementType ElementType);
+	int32 EnterSlotAsType(int32 ParentDepth, int32 ElementId, EElementType ElementType);
 
 	/**
 	 * Leaves slot at the top of the current scope
