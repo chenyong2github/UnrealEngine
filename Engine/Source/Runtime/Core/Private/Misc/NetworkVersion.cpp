@@ -13,7 +13,11 @@ DEFINE_LOG_CATEGORY( LogNetVersion );
 FNetworkVersion::FGetLocalNetworkVersionOverride FNetworkVersion::GetLocalNetworkVersionOverride;
 FNetworkVersion::FIsNetworkCompatibleOverride FNetworkVersion::IsNetworkCompatibleOverride;
 
-FString FNetworkVersion::ProjectVersion = TEXT("1.0.0");
+FString& FNetworkVersion::GetProjectVersion_Internal()
+{
+	static FString ProjectVersion = TEXT("1.0.0");
+	return ProjectVersion;
+}
 
 bool FNetworkVersion::bHasCachedNetworkChecksum			= false;
 uint32 FNetworkVersion::CachedNetworkChecksum			= 0;
@@ -28,6 +32,8 @@ void FNetworkVersion::SetProjectVersion(const TCHAR* InVersion)
 {
 	if (ensureMsgf(InVersion != nullptr && FCString::Strlen(InVersion), TEXT("ProjectVersion used for network version must be a valid string!")))
 	{
+		FString& ProjectVersion = GetProjectVersion_Internal();
+
 		ProjectVersion = InVersion;
 		bHasCachedNetworkChecksum = false;
 

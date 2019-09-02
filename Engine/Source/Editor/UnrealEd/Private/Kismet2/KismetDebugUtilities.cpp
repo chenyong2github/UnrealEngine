@@ -1376,7 +1376,9 @@ void FKismetDebugUtilities::GetDebugInfoInternal(FDebugInfo& DebugInfo, UPropert
 	UBoolProperty* BoolProperty = Cast<UBoolProperty>(Property);
 	if (BoolProperty)
 	{
-		DebugInfo.Value = BoolProperty->GetPropertyValue(PropertyValue) ? GTrue : GFalse;
+		const FCoreTexts& CoreTexts = FCoreTexts::Get();
+
+		DebugInfo.Value = BoolProperty->GetPropertyValue(PropertyValue) ? CoreTexts.True : CoreTexts.False;
 		return;
 	}
 

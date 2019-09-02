@@ -16,6 +16,16 @@ class IPlatformCrypto : public IModuleInterface
 public:
 
 	/**
+	 * Called when crytpo module is loaded
+	 */
+	virtual void StartupModule() override;
+
+	/**
+	 * Called when crytpo module is unloaded
+	 */
+	virtual void ShutdownModule() override;
+
+	/**
 	 * Singleton-like access to this module's interface.  This is just for convenience!
 	 * Beware of calling this during the shutdown phase, though.  Your module might have been unloaded already.
 	 *

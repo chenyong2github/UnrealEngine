@@ -174,6 +174,12 @@ struct FMallocCrashPool
 		DebugVerify();
 	}
 
+	FORCEINLINE static FMallocCrashPool& GetPool(int32 Index)
+	{
+		checkSlow(Index >= 0 && Index < FGenericPlatformMallocCrash::NUM_POOLS);
+		return ((FMallocCrashPool*)&BytePools)[Index];
+	}
+
 private:
 	void DebugVerify()
 	{
@@ -188,7 +194,11 @@ private:
 		}
 #endif // _DEBUG
 	}
+
+	static TTypeCompatibleBytes<FMallocCrashPool[FGenericPlatformMallocCrash::NUM_POOLS]> BytePools;
 };
+
+TTypeCompatibleBytes<FMallocCrashPool[FGenericPlatformMallocCrash::NUM_POOLS]> FMallocCrashPool::BytePools;
 
 FGenericPlatformMallocCrash::FGenericPlatformMallocCrash( FMalloc* MainMalloc ) :
 	CrashedThreadId( 0 ),
@@ -226,6 +236,11 @@ FGenericPlatformMallocCrash::FGenericPlatformMallocCrash( FMalloc* MainMalloc ) 
 
 FGenericPlatformMallocCrash::~FGenericPlatformMallocCrash()
 {
+	for (int32 Index = NUM_POOLS; Index; )
+	{
+		--Index;
+		DestructItem(&FMallocCrashPool::GetPool(Index));
+	}
 }
 
 FGenericPlatformMallocCrash& FGenericPlatformMallocCrash::Get( FMalloc* MainMalloc /*= nullptr*/ )
@@ -384,14 +399,14 @@ void FGenericPlatformMallocCrash::PrintPoolsUsage()
 	FPlatformMisc::LowLevelOutputDebugString( TEXT( "FPoolDesc used\n" ) );
 	for( uint32 Index = 0; Index < FGenericPlatformMallocCrash::NUM_POOLS; ++Index )
 	{
-		const FMallocCrashPool& CrashPool = *Pools[Index];
+		const FMallocCrashPool& CrashPool = FMallocCrashPool::GetPool(Index);
 		FPlatformMisc::LowLevelOutputDebugStringf( TEXT( "FPoolDesc(%5u,%4u),\n" ), CrashPool.AllocationSize-FGenericPlatformMallocCrash::PER_ALLOC_OVERHEAD, CrashPool.MaxUsedIndex );
 	}
 
 	FPlatformMisc::LowLevelOutputDebugString( TEXT( "FPoolDesc tweaked\n" ) );
 	for( uint32 Index = 0; Index < FGenericPlatformMallocCrash::NUM_POOLS; ++Index )
 	{
-		const FMallocCrashPool& CrashPool = *Pools[Index];
+		const FMallocCrashPool& CrashPool = FMallocCrashPool::GetPool(Index);
 		FPlatformMisc::LowLevelOutputDebugStringf( TEXT( "FPoolDesc(%5u,%4u),\n" ), CrashPool.AllocationSize-FGenericPlatformMallocCrash::PER_ALLOC_OVERHEAD, Align(CrashPool.MaxUsedIndex*2+16,16) );
 	}
 	FPlatformMisc::LowLevelOutputDebugStringf( TEXT( "LargeMemoryPoolOffset=%u\n" ), LargeMemoryPoolOffset );
@@ -455,8 +470,8 @@ void FGenericPlatformMallocCrash::InitializeSmallPools()
 
 	for( uint32 Index = 0; Index < NUM_POOLS; ++Index )
 	{
-		Pools[Index] = new FMallocCrashPool( GetPoolDesc(Index), *this );
-		MallocCrashOverhead += Pools[Index]->AllocatedMemory;
+		FMallocCrashPool* NewPool = new (&FMallocCrashPool::GetPool(Index)) FMallocCrashPool(GetPoolDesc(Index), *this);
+		MallocCrashOverhead += NewPool->AllocatedMemory;
 	}
 
 	check(SmallMemoryPoolOffset<=GetSmallPoolTotalSize());
@@ -466,7 +481,7 @@ FMallocCrashPool* FGenericPlatformMallocCrash::FindPoolFromSize( uint32 Allocati
 {
 	for( uint32 Index = 0; Index < NUM_POOLS; ++Index )
 	{
-		FMallocCrashPool* Pool = Pools[Index];
+		FMallocCrashPool* Pool = &FMallocCrashPool::GetPool(Index);
 		if( AllocationSize <= Pool->AllocationSize-PER_ALLOC_OVERHEAD )
 		{
 			return Pool;

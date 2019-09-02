@@ -522,6 +522,10 @@ void UProcessUnitTest::PollProcessOutput()
 				// Clear the engine-event log hook, to prevent duplication of the below log entry
 				UNIT_EVENT_CLEAR;
 
+				// Disable category names for NetCodeTestNone log statements
+				bool bOldPrintLogCategory = GPrintLogCategory;
+				GPrintLogCategory = false;
+
 				if (bPartialRead)
 				{
 					UE_LOG(NetCodeTestNone, Log, TEXT("%s"), *PartialLog);
@@ -549,6 +553,8 @@ void UProcessUnitTest::PollProcessOutput()
 
 					UE_LOG(NetCodeTestNone, Log, TEXT("%s%s"), *CurHandle->LogPrefix, *CurLine);
 				}
+
+				GPrintLogCategory = bOldPrintLogCategory;
 
 				// Output to the unit log file
 				if (UnitLog.IsValid())

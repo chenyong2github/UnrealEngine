@@ -413,7 +413,9 @@ namespace SaveGameReplay
 
 		static void OnEnumerateStreamsComplete(const FEnumerateStreamsResult& Result, const TSharedPtr<FMoveContext> Context)
 		{
-			UE_LOG(LogSaveGameReplay, Log, TEXT("FSaveGameReplayMoveFileHelper::OnEnumerateStreamsComplete: Success=%s NumFiles=%d"), *(Result.WasSuccessful() ? GTrue : GFalse).ToString(), Result.FoundStreams.Num());
+			const FCoreTexts& CoreTexts = FCoreTexts::Get();
+
+			UE_LOG(LogSaveGameReplay, Log, TEXT("FSaveGameReplayMoveFileHelper::OnEnumerateStreamsComplete: Success=%s NumFiles=%d"), *(Result.WasSuccessful() ? CoreTexts.True : CoreTexts.False).ToString(), Result.FoundStreams.Num());
 
 			if (Result.WasSuccessful())
 			{

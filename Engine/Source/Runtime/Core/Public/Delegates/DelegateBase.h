@@ -11,13 +11,14 @@
 
 struct FWeakObjectPtr;
 
-#if !defined(_WIN32) || defined(_WIN64)
-	// Let delegates store up to 32 bytes which are 16-byte aligned before we heap allocate
+#if !defined(_WIN32) || defined(_WIN64) || (defined(ALLOW_DELEGATE_INLINE_ALLOCATORS_ON_WIN32) && ALLOW_DELEGATE_INLINE_ALLOCATORS_ON_WIN32)
 	typedef TAlignedBytes<16, 16> FAlignedInlineDelegateType;
-	#if USE_SMALL_DELEGATES
+	#if !defined(NUM_DELEGATE_INLINE_BYTES) || NUM_DELEGATE_INLINE_BYTES == 0
 		typedef FHeapAllocator FDelegateAllocatorType;
+	#elif NUM_DELEGATE_INLINE_BYTES < 0 || (NUM_DELEGATE_INLINE_BYTES % 16) != 0
+		#error NUM_DELEGATE_INLINE_BYTES must be a multiple of 16
 	#else
-		typedef TInlineAllocator<2> FDelegateAllocatorType;
+		typedef TInlineAllocator<(NUM_DELEGATE_INLINE_BYTES / 16)> FDelegateAllocatorType;
 	#endif
 #else
 	// ... except on Win32, because we can't pass 16-byte aligned types by value, as some delegates are

@@ -3,6 +3,7 @@
 #include "AudioMixerSourceBuffer.h"
 #include "AudioMixerSourceDecode.h"
 #include "ContentStreaming.h"
+#include "AudioDecompress.h"
 
 namespace Audio
 {

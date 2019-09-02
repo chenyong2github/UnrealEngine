@@ -19,8 +19,8 @@ IMPLEMENT_MODULE( FSocketSubsystemModule, Sockets );
 /** Values for the Protocol Typenames */
 namespace FNetworkProtocolTypes
 {
-	const FName IPv4(TEXT("IPv4"));
-	const FName IPv6(TEXT("IPv6"));
+	const FLazyName IPv4(TEXT("IPv4"));
+	const FLazyName IPv6(TEXT("IPv6"));
 }
 
 /** Each platform will implement these functions to construct/destroy socket implementations */

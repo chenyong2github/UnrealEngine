@@ -927,11 +927,7 @@ void FArchiveFileWriterGeneric::LogWriteError(const TCHAR* Message)
 
 IFileManager& IFileManager::Get()
 {
-	static TUniquePtr<FFileManagerGeneric> AutoDestroySingleton;
-	if( !AutoDestroySingleton )
-	{
-		AutoDestroySingleton = MakeUnique<FFileManagerGeneric>();
-	}
-	return *AutoDestroySingleton;
+	static FFileManagerGeneric Singleton;
+	return Singleton;
 }
 

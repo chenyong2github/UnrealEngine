@@ -9,7 +9,6 @@
 #include "Engine/Engine.h"
 #include "EngineGlobals.h"
 #include "IAudioExtensionPlugin.h"
-#include "Modules/ModuleInterface.h"
 #include "AudioDynamicParameter.h"
 #include "Sound/AudioSettings.h"
 #include "Sound/AudioVolume.h"
@@ -19,7 +18,7 @@
 #include "Sound/SoundMix.h"
 #include "Sound/SoundSourceBus.h"
 #include "AudioVirtualLoop.h"
-
+#include "AudioMixer.h"
 
 /**
  * Forward declares
@@ -1874,21 +1873,6 @@ private:
 	// Global min and max pitch scale, derived from audio settings
 	float GlobalMinPitch;
 	float GlobalMaxPitch;
-};
-
-
-/**
- * Interface for audio device modules
- */
-
-/** Defines the interface of a module implementing an audio device and associated classes. */
-class IAudioDeviceModule : public IModuleInterface
-{
-public:
-
-	/** Creates a new instance of the audio device implemented by the module. */
-	virtual bool IsAudioMixerModule() const { return false; }
-	virtual FAudioDevice* CreateAudioDevice() = 0;
 };
 
 

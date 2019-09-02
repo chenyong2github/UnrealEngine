@@ -28,14 +28,16 @@ public class Perforce : ModuleRules
 		else
 		{
 			string LibFolder = "lib/";
+			string IncludeSuffix = "";
 			string LibPrefix = "";
 			string LibPostfixAndExt = ".";
 			string P4APIPath = Target.UEThirdPartySourceDirectory + "Perforce/p4api-2015.2/";
 
 			if (Target.Platform == UnrealTargetPlatform.Mac)
 			{
-				P4APIPath = Target.UEThirdPartySourceDirectory + "Perforce/p4api-2014.1/";
+				P4APIPath = Target.UEThirdPartySourceDirectory + "Perforce/p4api-2018.1/";
 				LibFolder += "mac";
+				IncludeSuffix += "/Mac";
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Linux)
 			{
@@ -46,7 +48,7 @@ public class Perforce : ModuleRules
 			LibPrefix = P4APIPath + LibFolder + "/";
 			LibPostfixAndExt = ".a";
 
-			PublicSystemIncludePaths.Add(P4APIPath + "include");
+			PublicSystemIncludePaths.Add(P4APIPath + "include" + IncludeSuffix);
 			PublicAdditionalLibraries.Add(LibPrefix + "libclient" + LibPostfixAndExt);
 
 			if (Target.Platform != UnrealTargetPlatform.Win64 && Target.Platform != UnrealTargetPlatform.Mac)

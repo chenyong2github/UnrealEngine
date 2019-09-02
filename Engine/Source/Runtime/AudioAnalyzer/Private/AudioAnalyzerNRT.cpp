@@ -3,7 +3,7 @@
 #include "AudioAnalyzerNRT.h"
 #include "AudioAnalyzerNRTFacade.h"
 #include "AudioAnalyzerModule.h"
-#include "Sound/SampleBuffer.h"
+#include "SampleBuffer.h"
 #include "Async/Async.h"
 
 #if WITH_EDITOR

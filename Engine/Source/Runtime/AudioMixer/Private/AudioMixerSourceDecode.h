@@ -8,6 +8,8 @@
 #include "AudioDecompress.h"
 #include "AudioMixerBuffer.h"
 
+class USoundWave;
+
 namespace Audio
 {
 	class FMixerBuffer;

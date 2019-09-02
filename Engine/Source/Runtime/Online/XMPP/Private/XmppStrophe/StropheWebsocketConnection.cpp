@@ -25,8 +25,7 @@ int StropheWebsocketStanzaEventHandler(xmpp_conn_t* const UnusedPtr, xmpp_stanza
 	const FStropheStanza IncomingStanza(EventStanza);
 
 	// Ignore session stanza (bug in libstrophe that we see get this at all)
-	static const FString LoginSessionStanza(TEXT("_xmpp_session1"));
-	if (IncomingStanza.GetId() != LoginSessionStanza)
+	if (!IncomingStanza.GetId().Equals(TEXT("_xmpp_session1"), ESearchCase::CaseSensitive))
 	{
 		// We want to forward our stanza to our connection and out to our handlers
 		FXmppConnectionStrophe* const ConnectionPtr = static_cast<FXmppConnectionStrophe* const>(VoidConnectionPtr);

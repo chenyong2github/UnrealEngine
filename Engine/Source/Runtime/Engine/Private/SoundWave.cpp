@@ -27,7 +27,7 @@
 #include "DSP/EnvelopeFollower.h"
 #include "DSP/BufferVectorOperations.h"
 #include "Misc/OutputDeviceArchiveWrapper.h"
-#include "Sound/SampleBuffer.h"
+#include "SampleBuffer.h"
 
 #include "Misc/CommandLine.h"
 

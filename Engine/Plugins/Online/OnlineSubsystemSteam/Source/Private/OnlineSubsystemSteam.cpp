@@ -43,7 +43,7 @@
 
 namespace FNetworkProtocolTypes
 {
-	const FName Steam(TEXT("Steam"));
+	const FLazyName Steam(TEXT("Steam"));
 }
 
 #if !UE_BUILD_SHIPPING

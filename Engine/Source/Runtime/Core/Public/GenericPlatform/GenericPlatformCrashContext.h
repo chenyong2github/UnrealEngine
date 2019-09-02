@@ -108,35 +108,35 @@ public:
 	*/
 	static FPlatformMemoryStats CrashMemoryStats;
 	
-	static const ANSICHAR* CrashContextRuntimeXMLNameA;
-	static const TCHAR* CrashContextRuntimeXMLNameW;
+	static const ANSICHAR* const CrashContextRuntimeXMLNameA;
+	static const TCHAR* const CrashContextRuntimeXMLNameW;
 
-	static const ANSICHAR* CrashConfigFileNameA;
-	static const TCHAR* CrashConfigFileNameW;
-	static const FString CrashConfigExtension;
-	static const FString ConfigSectionName;
-	static const FString CrashConfigPurgeDays;
-	static const FString CrashGUIDRootPrefix;
+	static const ANSICHAR* const CrashConfigFileNameA;
+	static const TCHAR* const CrashConfigFileNameW;
+	static const TCHAR* const CrashConfigExtension;
+	static const TCHAR* const ConfigSectionName;
+	static const TCHAR* const CrashConfigPurgeDays;
+	static const TCHAR* const CrashGUIDRootPrefix;
 
-	static const FString CrashContextExtension;
-	static const FString RuntimePropertiesTag;
-	static const FString PlatformPropertiesTag;
-	static const FString EngineDataTag;
-	static const FString GameDataTag;
-	static const FString EnabledPluginsTag;
-	static const FString UE4MinidumpName;
-	static const FString NewLineTag;
+	static const TCHAR* const CrashContextExtension;
+	static const TCHAR* const RuntimePropertiesTag;
+	static const TCHAR* const PlatformPropertiesTag;
+	static const TCHAR* const EngineDataTag;
+	static const TCHAR* const GameDataTag;
+	static const TCHAR* const EnabledPluginsTag;
+	static const TCHAR* const UE4MinidumpName;
+	static const TCHAR* const NewLineTag;
 	static const int32 CrashGUIDLength = 128;
 
-	static const FString CrashTypeCrash;
-	static const FString CrashTypeAssert;
-	static const FString CrashTypeEnsure;
-	static const FString CrashTypeGPU;
-	static const FString CrashTypeHang;
+	static const TCHAR* const CrashTypeCrash;
+	static const TCHAR* const CrashTypeAssert;
+	static const TCHAR* const CrashTypeEnsure;
+	static const TCHAR* const CrashTypeGPU;
+	static const TCHAR* const CrashTypeHang;
 
-	static const FString EngineModeExUnknown;
-	static const FString EngineModeExDirty;
-	static const FString EngineModeExVanilla;
+	static const TCHAR* const EngineModeExUnknown;
+	static const TCHAR* const EngineModeExDirty;
+	static const TCHAR* const EngineModeExVanilla;
 
 	// A guid that identifies this particular execution. Allows multiple crash reports from the same run of the project to be tied together
 	static const FGuid ExecutionGuid;

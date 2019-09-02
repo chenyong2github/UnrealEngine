@@ -13,16 +13,23 @@ public class AudioMixerAndroid : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
-				"CoreUObject",
-				"Engine",
-				"AudioMixer",
+				"AudioMixerCore"
 			}
 			);
 			
-		AddEngineThirdPartyPrivateStaticDependencies(Target,
-			"UEOgg",
-			"Vorbis",
-			"VorbisFile"
-			);
+		if(Target.bCompileAgainstEngine)
+        {
+            AddEngineThirdPartyPrivateStaticDependencies(Target,
+            "UEOgg",
+            "Vorbis",
+            "VorbisFile"
+            );
+
+            PrivateDependencyModuleNames.AddRange(
+            new string[] {
+                    "Engine"
+                }
+            );
+        }
 	}
 }

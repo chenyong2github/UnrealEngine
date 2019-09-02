@@ -114,7 +114,7 @@ struct CORE_API FNetworkVersion
 	* 
 	* @return FString
 	*/
-	static const FString& GetProjectVersion() { return ProjectVersion; }
+	static const FString& GetProjectVersion() { return GetProjectVersion_Internal(); }
 
 	/**
 	* Invalidates any cached network checksum and forces it to be recalculated on next request
@@ -126,7 +126,7 @@ protected:
 	/**
 	* Used to allow BP only projects to override network versions
 	*/
-	static FString ProjectVersion;
+	static FString& GetProjectVersion_Internal();
 
 	static bool		bHasCachedNetworkChecksum;
 	static uint32	CachedNetworkChecksum;

@@ -440,7 +440,7 @@ public:
 
 protected:
 	/** Protected constructor */
-	FDocumentationToken( const FString& InDocumentationLink, const FString& InPreviewExcerptLink, const FString& InPreviewExcerptName );
+	FDocumentationToken( FString InDocumentationLink, FString InPreviewExcerptLink, FString InPreviewExcerptName );
 
 private:
 	/** The documentation path we link to when clicked */

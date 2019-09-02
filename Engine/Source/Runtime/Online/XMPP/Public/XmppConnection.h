@@ -286,6 +286,9 @@ public:
 	*/
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnXmppLoginChanged, const FXmppUserJid& /*UserJid*/, EXmppLoginStatus::Type /*LoginState*/);
 
+	/** Alias for old typo, remove in 4.24 */
+	using FOnXmppLogingChanged UE_DEPRECATED(4.23, "Please update usages of 'FOnXmppLogingChanged' to 'FOnXmppLoginChanged'") = FOnXmppLoginChanged;
+
 	/** @return login complete delegate */
 	virtual FOnXmppLoginComplete& OnLoginComplete() = 0;
 	/** @return login changed delegate */

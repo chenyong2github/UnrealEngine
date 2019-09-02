@@ -4,12 +4,15 @@
 #include "Modules/ModuleManager.h"
 #include "AudioMixer.h"
 #include "AudioMixerDevice.h"
-#include "AudioPluginUtilities.h"
 #include "CoreGlobals.h"
 #include "Misc/ConfigCacheIni.h"
+
+#if WITH_ENGINE
+#include "AudioPluginUtilities.h"
 #include "OpusAudioInfo.h"
 #include "VorbisAudioInfo.h"
 #include "ADPCMAudioInfo.h"
+#endif // WITH_ENGINE
 
 DECLARE_LOG_CATEGORY_EXTERN(LogAudioMixerSDL, Log, All);
 DEFINE_LOG_CATEGORY(LogAudioMixerSDL);
@@ -346,6 +349,7 @@ namespace Audio
 
 	FName FMixerPlatformSDL::GetRuntimeFormat(USoundWave* InSoundWave)
 	{
+#if WITH_ENGINE
 		static FName NAME_OGG(TEXT("OGG"));
 		static FName NAME_OPUS(TEXT("OPUS"));
 		static FName NAME_ADPCM(TEXT("ADPCM"));
@@ -360,6 +364,10 @@ namespace Audio
 			return NAME_OPUS;
 		}
 		return NAME_OGG;
+#else
+		checkNoEntry();
+		return FName();
+#endif // WITH_ENGINE
 	}
 
 	bool FMixerPlatformSDL::HasCompressedAudioInfoClass(USoundWave* InSoundWave)
@@ -369,6 +377,7 @@ namespace Audio
 
 	ICompressedAudioInfo* FMixerPlatformSDL::CreateCompressedAudioInfo(USoundWave* InSoundWave)
 	{
+#if WITH_ENGINE
 		check(InSoundWave);
 
 		if (InSoundWave->IsStreaming())
@@ -388,6 +397,10 @@ namespace Audio
 		}
 
 		return new FADPCMAudioInfo();
+#else
+		checkNoEntry();
+		return nullptr;
+#endif // WITH_ENGINE
 	}
 
 	FString FMixerPlatformSDL::GetDefaultDeviceName()

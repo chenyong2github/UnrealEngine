@@ -217,41 +217,101 @@
 --------------------------------------------------------------------------------*/
 
 #if UE_BUILD_DEBUG
-	#define DO_GUARD_SLOW									1
-	#define DO_CHECK										1
-	#define STATS											((WITH_UNREAL_DEVELOPER_TOOLS || !WITH_EDITORONLY_DATA || USE_STATS_WITHOUT_ENGINE || USE_MALLOC_PROFILER || FORCE_USE_STATS) && !ENABLE_STATNAMEDEVENTS)
-	#define ALLOW_DEBUG_FILES								1
-	#define ALLOW_CONSOLE									1
-	#define NO_LOGGING										0
+	#ifndef DO_GUARD_SLOW
+		#define DO_GUARD_SLOW									1
+	#endif
+	#ifndef DO_CHECK
+		#define DO_CHECK										1
+	#endif
+	#ifndef STATS
+		#define STATS											((WITH_UNREAL_DEVELOPER_TOOLS || !WITH_EDITORONLY_DATA || USE_STATS_WITHOUT_ENGINE || USE_MALLOC_PROFILER || FORCE_USE_STATS) && !ENABLE_STATNAMEDEVENTS)
+	#endif
+	#ifndef ALLOW_DEBUG_FILES
+		#define ALLOW_DEBUG_FILES								1
+	#endif
+	#ifndef ALLOW_CONSOLE
+		#define ALLOW_CONSOLE									1
+	#endif
+	#ifndef NO_LOGGING
+		#define NO_LOGGING										0
+	#endif
 #elif UE_BUILD_DEVELOPMENT
-	#define DO_GUARD_SLOW									0
-	#define DO_CHECK										1
-	#define STATS											((WITH_UNREAL_DEVELOPER_TOOLS || !WITH_EDITORONLY_DATA || USE_STATS_WITHOUT_ENGINE || USE_MALLOC_PROFILER || FORCE_USE_STATS) && !ENABLE_STATNAMEDEVENTS)
-	#define ALLOW_DEBUG_FILES								1
-	#define ALLOW_CONSOLE									1
-	#define NO_LOGGING										0
+	#ifndef DO_GUARD_SLOW
+		#define DO_GUARD_SLOW									0
+	#endif
+	#ifndef DO_CHECK
+		#define DO_CHECK										1
+	#endif
+	#ifndef STATS
+		#define STATS											((WITH_UNREAL_DEVELOPER_TOOLS || !WITH_EDITORONLY_DATA || USE_STATS_WITHOUT_ENGINE || USE_MALLOC_PROFILER || FORCE_USE_STATS) && !ENABLE_STATNAMEDEVENTS)
+	#endif
+	#ifndef ALLOW_DEBUG_FILES
+		#define ALLOW_DEBUG_FILES								1
+	#endif
+	#ifndef ALLOW_CONSOLE
+		#define ALLOW_CONSOLE									1
+	#endif
+	#ifndef NO_LOGGING
+		#define NO_LOGGING										0
+	#endif
 #elif UE_BUILD_TEST
-	#define DO_GUARD_SLOW									0
-	#define DO_CHECK										USE_CHECKS_IN_SHIPPING
-	#define STATS											((USE_MALLOC_PROFILER || FORCE_USE_STATS) && !ENABLE_STATNAMEDEVENTS)
-	#define ALLOW_DEBUG_FILES								1
-	#define ALLOW_CONSOLE									1
-	#define NO_LOGGING										!USE_LOGGING_IN_SHIPPING
+	#ifndef DO_GUARD_SLOW
+		#define DO_GUARD_SLOW									0
+	#endif
+	#ifndef DO_CHECK
+		#define DO_CHECK										USE_CHECKS_IN_SHIPPING
+	#endif
+	#ifndef STATS
+		#define STATS											((USE_MALLOC_PROFILER || FORCE_USE_STATS) && !ENABLE_STATNAMEDEVENTS)
+	#endif
+	#ifndef ALLOW_DEBUG_FILES
+		#define ALLOW_DEBUG_FILES								1
+	#endif
+	#ifndef ALLOW_CONSOLE
+		#define ALLOW_CONSOLE									1
+	#endif
+	#ifndef NO_LOGGING
+		#define NO_LOGGING										!USE_LOGGING_IN_SHIPPING
+	#endif
 #elif UE_BUILD_SHIPPING
 	#if WITH_EDITOR
-		#define DO_GUARD_SLOW								0
-		#define DO_CHECK									1
-		#define STATS										1
-		#define ALLOW_DEBUG_FILES							1
-		#define ALLOW_CONSOLE								0
-		#define NO_LOGGING									0
+		#ifndef DO_GUARD_SLOW
+			#define DO_GUARD_SLOW								0
+		#endif
+		#ifndef DO_CHECK
+			#define DO_CHECK									1
+		#endif
+		#ifndef STATS
+			#define STATS										1
+		#endif
+		#ifndef ALLOW_DEBUG_FILES
+			#define ALLOW_DEBUG_FILES							1
+		#endif
+		#ifndef ALLOW_CONSOLE
+			#define ALLOW_CONSOLE								0
+		#endif
+		#ifndef NO_LOGGING
+			#define NO_LOGGING									0
+		#endif
 	#else
-		#define DO_GUARD_SLOW								0
-		#define DO_CHECK									USE_CHECKS_IN_SHIPPING
-		#define STATS										(FORCE_USE_STATS && !ENABLE_STATNAMEDEVENTS)
-		#define ALLOW_DEBUG_FILES							0
-		#define ALLOW_CONSOLE								ALLOW_CONSOLE_IN_SHIPPING
-		#define NO_LOGGING									!USE_LOGGING_IN_SHIPPING
+		#ifndef DO_GUARD_SLOW
+			#define DO_GUARD_SLOW								0
+		#endif
+		#ifndef DO_CHECK
+			#define DO_CHECK									USE_CHECKS_IN_SHIPPING
+		#endif
+		#ifndef STATS
+			#define STATS										(FORCE_USE_STATS && !ENABLE_STATNAMEDEVENTS)
+		#endif
+		#ifndef ALLOW_DEBUG_FILES
+			#define ALLOW_DEBUG_FILES							0
+		#endif
+		#ifndef ALLOW_CONSOLE
+			#define ALLOW_CONSOLE								ALLOW_CONSOLE_IN_SHIPPING
+		#endif
+		#ifndef NO_LOGGING
+			#define NO_LOGGING									!USE_LOGGING_IN_SHIPPING
+		#endif
 	#endif
 #else
 	#error Exactly one of [UE_BUILD_DEBUG UE_BUILD_DEVELOPMENT UE_BUILD_TEST UE_BUILD_SHIPPING] should be defined to be 1
