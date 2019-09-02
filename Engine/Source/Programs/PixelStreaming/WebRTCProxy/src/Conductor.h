@@ -50,6 +50,8 @@ private:
 
 	void ResetPeerConnectionConfig();
 
+	void BroadcastClientMsg(PixelStreamingProtocol::EToClientMsg ToClientMsg, const void* Pkt, uint32_t Size);
+
 	friend FClientSession;
 
 private:
@@ -72,4 +74,15 @@ private:
 	// These are used only if using UnifiedPlan semantics
 	rtc::scoped_refptr<webrtc::AudioTrackInterface> AudioTrack;
 	rtc::scoped_refptr<webrtc::VideoTrackInterface> VideoTrack;
+
+	// The size of the buffer used by the data channel.
+	static const int32 ChunkMaxSize;
+
+	// A freeze frame JPEG is too large to send over the data channel in one go,
+	// so we must chunkify it.
+	std::vector<std::vector<uint8>> FreezeFrameChunks;
+
+	// Convert the given freeze frame JPEG data into chunks so each chunk can
+	// be sent separately over the data channel.
+	void ChunkifyFreezeFrame(const void* Pkt, uint32_t Size);
 };
