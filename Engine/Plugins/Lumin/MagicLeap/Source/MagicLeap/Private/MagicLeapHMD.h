@@ -44,7 +44,7 @@ public:
 /**
   * MagicLeap Head Mounted Display
   */
-class MAGICLEAP_API FMagicLeapHMD : public IMagicLeapHMD, public FHeadMountedDisplayBase, public FXRRenderTargetManager, public TSharedFromThis<FMagicLeapHMD, ESPMode::ThreadSafe>
+class MAGICLEAP_API FMagicLeapHMD : public IMagicLeapHMD, public FHeadMountedDisplayBase, public FXRRenderTargetManager
 {
 public:
 
