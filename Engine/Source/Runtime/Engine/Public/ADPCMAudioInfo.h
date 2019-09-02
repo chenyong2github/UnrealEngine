@@ -113,6 +113,7 @@ public:
 		return CurrentChunkIndex;
 	}
 	virtual int32 GetCurrentChunkOffset() const override {return CurrentChunkBufferOffset;}
+	virtual bool ReleaseStreamChunk(bool bBlockUntilReleased) override;
 	// End of ICompressedAudioInfo Interface
 
 	uint16 GetFormatTag()
@@ -163,6 +164,7 @@ private:
 	uint32          FirstChunkSampleDataIndex;
 	const uint8*	CurCompressedChunkData;			// A pointer to the current chunk of data
 	FAudioChunkHandle CurCompressedChunkHandle;     // Shared reference to the current chunk of data.
+	FCriticalSection CurCompressedChunkHandleCriticalSection;
 
 	uint32			CurrentCompressedBlockIndex;		// For non disk streaming - the current compressed block in the compressed source data
 	uint32			TotalCompressedBlocksPerChannel;	// For non disk streaming - the total number of compressed blocks per channel
