@@ -166,6 +166,7 @@ void UMovieSceneLiveLinkSection::PostLoad()
 	UpdateChannelProxy();
 }
 
+#if WITH_EDITOR
 bool UMovieSceneLiveLinkSection::Modify(bool bAlwaysMarkDirty /*= true*/)
 {
 	bool bWasModified = Super::Modify(bAlwaysMarkDirty);
@@ -178,7 +179,6 @@ bool UMovieSceneLiveLinkSection::Modify(bool bAlwaysMarkDirty /*= true*/)
 	return bWasModified;
 }
 
-#if WITH_EDITOR
 void UMovieSceneLiveLinkSection::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);	
