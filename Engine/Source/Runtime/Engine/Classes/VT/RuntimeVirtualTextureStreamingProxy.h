@@ -23,5 +23,8 @@ class URuntimeVirtualTextureStreamingProxy : public UTexture2D
 
 	//~ Begin UTexture Interface.
 	virtual void GetVirtualTextureBuildSettings(FVirtualTextureBuildSettings& OutSettings) const override;
+#if WITH_EDITOR
+	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
+#endif
 	//~ End UTexture Interface.
 };
