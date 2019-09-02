@@ -108,8 +108,8 @@ namespace FAnimUpdateRateManager
 		bool IsHumanControlled() const
 		{
 			AActor* Owner = RegisteredComponents[0]->GetOwner();
-			AController * Controller = Owner ? Owner->GetInstigatorController() : NULL;
-			return Cast<APlayerController>(Controller) != NULL;
+			APlayerController* Controller = Owner ? Owner->GetInstigatorController<APlayerController>() : nullptr;
+			return Controller != nullptr;
 		}
 	};
 
