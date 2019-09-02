@@ -161,6 +161,39 @@ public:
 	FStructuredArchive& operator=(const FStructuredArchive&) = delete;
 
 private:
+	struct FElementId
+	{
+		FElementId() = default;
+
+		explicit FElementId(uint32 InId)
+			: Id(InId)
+		{
+		}
+
+		bool IsValid() const
+		{
+			return Id != 0;
+		}
+
+		void Reset()
+		{
+			Id = 0;
+		}
+
+		bool operator==(const FElementId& Rhs) const
+		{
+			return Id == Rhs.Id;
+		}
+
+		bool operator!=(const FElementId& Rhs) const
+		{
+			return Id != Rhs.Id;
+		}
+
+	private:
+		uint32 Id = 0;
+	};
+
 	class CORE_API FSlotBase
 	{
 	public:
@@ -173,9 +206,9 @@ private:
 		FStructuredArchive& Ar;
 #if WITH_TEXT_ARCHIVE_SUPPORT
 		const int32 Depth;
-		const int32 ElementId;
+		const FElementId ElementId;
 
-		FORCEINLINE explicit FSlotBase(FStructuredArchive& InAr, int32 InDepth, int32 InElementId)
+		FORCEINLINE explicit FSlotBase(FStructuredArchive& InAr, int32 InDepth, FElementId InElementId)
 			: Ar(InAr)
 			, Depth(InDepth)
 			, ElementId(InElementId)
@@ -389,10 +422,10 @@ private:
 
 	struct FElement
 	{
-		int Id;
+		FElementId Id;
 		EElementType Type;
 
-		FElement(int InId, EElementType InType)
+		FElement(FElementId InId, EElementType InType)
 			: Id(InId)
 			, Type(InType)
 		{
@@ -403,15 +436,31 @@ private:
 	struct FContainer;
 #endif
 
+	struct FIdGenerator
+	{
+		FElementId Generate()
+		{
+			return FElementId(NextId++);
+		}
+
+	private:
+		uint32 NextId = 1;
+	};
+
 	/**
 	 * The next element id to be assigned
 	 */
-	int NextElementId;
+	FIdGenerator ElementIdGenerator;
 
 	/**
-	 * The element ID assigned for the current slot. Slots are transient, and only exist as placeholders until something is written into them. This is reset to INDEX_NONE when something is created in a slot, and the created item can assume the element id.
+	 * The ID of the root element.
 	 */
-	int CurrentSlotElementId;
+	FElementId RootElementId;
+
+	/**
+	 * The element ID assigned for the current slot. Slots are transient, and only exist as placeholders until something is written into them. This is reset to 0 when something is created in a slot, and the created item can assume the element id.
+	 */
+	FElementId CurrentSlotElementId;
 
 	/**
 	 * Tracks the current stack of objects being written. Used by SetScope() to ensure that scopes are always closed correctly in the underlying formatter,
@@ -434,14 +483,14 @@ private:
 	/**
 	 * Enters the current slot for serializing a value. Asserts if the archive is not in a state about to write to an empty-slot.
 	 */
-	void EnterSlot(int32 ParentDepth, int32 ElementId);
+	void EnterSlot(int32 ParentDepth, FElementId ElementId);
 
 	/**
 	 * Enters the current slot, adding an element onto the stack. Asserts if the archive is not in a state about to write to an empty-slot.
 	 *
 	 * @return  The depth of the newly-entered slot.
 	 */
-	int32 EnterSlotAsType(int32 ParentDepth, int32 ElementId, EElementType ElementType);
+	int32 EnterSlotAsType(int32 ParentDepth, FElementId ElementId, EElementType ElementType);
 
 	/**
 	 * Leaves slot at the top of the current scope
@@ -451,7 +500,7 @@ private:
 	/**
 	 * Switches to the scope at the given element id, updating the formatter state as necessary
 	 */
-	void SetScope(int32 Depth, int32 ElementId);
+	void SetScope(int32 Depth, FElementId ElementId);
 #endif
 };
 
