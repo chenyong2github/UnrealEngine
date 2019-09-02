@@ -857,12 +857,6 @@ void FWindowsPlatformMisc::BeginNamedEventFrame()
 {
 #if FRAMEPRO_ENABLED
 	FFrameProProfiler::FrameStart();
-#elif UE_EXTERNAL_PROFILING_ENABLED
-	FExternalProfiler* Profiler = FActiveExternalProfilerBase::GetActiveProfiler();
-	if (Profiler)
-	{
-		Profiler->FrameSync();
-	}
 #endif
 }
 
