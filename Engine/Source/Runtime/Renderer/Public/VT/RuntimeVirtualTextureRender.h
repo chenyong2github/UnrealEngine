@@ -22,6 +22,9 @@ namespace RuntimeVirtualTexture
 	RENDERER_API uint32 GetRuntimeVirtualTextureSceneIndex_GameThread(URuntimeVirtualTextureComponent* InComponent);
 #endif
 
+	/** Returns true if the FScene is initialized for rendering to runtime virtual textures. */
+	RENDERER_API bool IsSceneReadyToRender(FScene* Scene);
+
 	/**
 	 * Render a single page of a virtual texture with a given material.
 	 * todo[vt]: Likely to be more optimal to batch several pages at a time and share setup/visibility/render targets.
