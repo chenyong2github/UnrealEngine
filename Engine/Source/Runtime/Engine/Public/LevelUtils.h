@@ -91,14 +91,41 @@ public:
 	static bool IsLevelVisible(const ULevel* Level);
 
 
-	/**
-	 * Transforms the level to a new world space
-	 *
-	 * @param	Level				The level to Transform.
-	 * @param	LevelTransform		How to Transform the level. 
-	 * @param	bDoPostEditMove		Whether to call PostEditMove on actors after transforming
-	 */
-	static void ApplyLevelTransform( ULevel* Level, const FTransform& LevelTransform, bool bDoPostEditMove = true );
+	struct FApplyLevelTransformParams
+	{
+		FApplyLevelTransformParams(ULevel* InLevel, const FTransform& InLevelTransform)
+			: Level(InLevel)
+			, LevelTransform(InLevelTransform)
+		{
+		}
+
+		// The level to Transform.
+		ULevel* Level;
+
+		// How to Transform the level.
+		const FTransform& LevelTransform;
+
+		// Whether to call SetRelativeTransform or update the Location and Rotation in place without any other updating
+		bool bSetRelativeTransformDirectly = false;
+
+#if WITH_EDITOR
+		// Whether to call PostEditMove on actors after transforming
+		bool bDoPostEditMove = true;
+#endif
+	};
+
+	/** Transforms the level to a new world space */
+	static void ApplyLevelTransform(const FApplyLevelTransformParams& TransformParams);
+
+	UE_DEPRECATED(4.24, "Use version that takes params struct")
+	static void ApplyLevelTransform( ULevel* Level, const FTransform& LevelTransform, bool bDoPostEditMove = true )
+	{
+		FApplyLevelTransformParams Params(Level, LevelTransform);
+#if WITH_EDITOR
+		Params.bDoPostEditMove = bDoPostEditMove;
+#endif
+		ApplyLevelTransform(Params);
+	}
 
 #if WITH_EDITOR
 	///////////////////////////////////////////////////////////////////////////
