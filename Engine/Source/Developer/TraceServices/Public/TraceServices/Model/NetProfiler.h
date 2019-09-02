@@ -1,6 +1,7 @@
 #pragma once
 
 #include "TraceServices/Model/AnalysisSession.h"
+#include "Templates/Function.h"
 
 namespace Trace
 {
