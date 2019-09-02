@@ -45,7 +45,7 @@ private:
 	void				AddRoute(uint16 AnalyzerIndex, uint16 Id, uint32 Hash);
 	void				OnNewTrace(const FOnEventContext& Context);
 	void				OnTiming(const FOnEventContext& Context);
-	void				OnNewEvent(const FOnEventContext& Context);
+	void				OnNewEventInternal(const FOnEventContext& Context);
 	FSessionContext		SessionContext;
 	TArray<FRoute>		Routes;
 	TArray<IAnalyzer*>	Analyzers;

@@ -430,7 +430,7 @@ void FAnalysisEngine::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 {
 	switch (RouteId)
 	{
-	case RouteId_NewEvent:	return OnNewEvent(Context);
+	case RouteId_NewEvent:	return OnNewEventInternal(Context);
 	case RouteId_NewTrace:	return OnNewTrace(Context);
 	case RouteId_Timing:	return OnTiming(Context);
 	}
@@ -538,7 +538,7 @@ FAnalysisEngine::FDispatch& FAnalysisEngine::AddDispatch(
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void FAnalysisEngine::OnNewEvent(const FOnEventContext& Context)
+void FAnalysisEngine::OnNewEventInternal(const FOnEventContext& Context)
 {
 	const FEventDataInfo& EventData = (const FEventDataInfo&)(Context.EventData);
 	const auto& NewEvent = *(FNewEventEvent*)(EventData.Ptr);
