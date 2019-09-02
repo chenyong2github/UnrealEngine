@@ -132,6 +132,12 @@ public:
 	 * further events */
 	virtual void OnAnalysisEnd() {}
 
+	/** When a new event type appears in the trace stream, this method is called
+	 * if the event type has been subscribed to.
+	 * @param RouteId User-provided identifier for this event subscription.
+	 * @param TypeInfo Object describing the new event's type. */
+	virtual void OnNewEvent(uint16 RouteId, const FEventTypeInfo& TypeInfo) {}
+
 	/** For each event subscribed to in OnAnalysisBegin(), the analysis engine
 	 * will call this method when those events are encountered in a trace log
 	 * @param RouteId User-provided identifier given when subscribing to a particular event

@@ -627,6 +627,17 @@ void FAnalysisEngine::OnNewEventInternal(const FOnEventContext& Context)
 		}
 	}
 
+	// Inform routes that a new event has been declared.
+	uint32 RouteCount = Routes.Num();
+	if (Dispatch.FirstRoute < RouteCount)
+	{
+		const FRoute* Route = Routes.GetData() + Dispatch.FirstRoute;
+		for (uint32 n = Route->Count; n--; ++Route)
+		{
+			IAnalyzer* Analyzer = Analyzers[Route->AnalyzerIndex];
+			Analyzer->OnNewEvent(Route->Id, (FEventTypeInfo&)Dispatch);
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
