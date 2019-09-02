@@ -18,8 +18,12 @@ public:
 
 	virtual ~FPlatformCryptoModularFeature()
 	{
+		Shutdown();
+	}
+
+	virtual void Shutdown() override
+	{
 		Context.Reset();
-		IModularFeatures::Get().UnregisterModularFeature(IEngineCrypto::GetFeatureName(), this);
 	}
 	
 	/** IEngineCrypto implementation */
@@ -79,9 +83,26 @@ private:
 	TUniquePtr<FEncryptionContext> Context;
 };
 
+#if !defined(REQUIRE_EXPLICIT_GMALLOC_INIT) || !REQUIRE_EXPLICIT_GMALLOC_INIT
+// This constructor during static initialization accesses FName before GMalloc is setup
 FPlatformCryptoModularFeature GPlatformCryptoModularFeature;
+#endif // !defined(REQUIRE_EXPLICIT_GMALLOC_INIT) || !REQUIRE_EXPLICIT_GMALLOC_INIT
 
-IMPLEMENT_MODULE(FDefaultModuleImpl, PlatformCrypto)
+IMPLEMENT_MODULE(IPlatformCrypto, PlatformCrypto)
+
+void IPlatformCrypto::StartupModule()
+{
+	// The modular feature should really be registered here, but is up in the constructor and registered by global variable because of early needs for PAK decryption
+}
+
+void IPlatformCrypto::ShutdownModule()
+{
+#if !defined(REQUIRE_EXPLICIT_GMALLOC_INIT) || !REQUIRE_EXPLICIT_GMALLOC_INIT
+	// Deallocate memory and unregister the feature during module shutdown to avoid static deinitialization issues with FName after memory has been shutdown
+	GPlatformCryptoModularFeature.Shutdown();
+	IModularFeatures::Get().UnregisterModularFeature(IEngineCrypto::GetFeatureName(), &GPlatformCryptoModularFeature);
+#endif
+}
 
 TUniquePtr<FEncryptionContext> IPlatformCrypto::CreateContext()
 {

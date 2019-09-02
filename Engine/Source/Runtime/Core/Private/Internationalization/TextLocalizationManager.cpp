@@ -12,6 +12,7 @@
 #include "Misc/Parse.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/CommandLine.h"
+#include "Misc/LazySingleton.h"
 #include "Internationalization/Culture.h"
 #include "Internationalization/Internationalization.h"
 #include "Internationalization/StringTableCore.h"
@@ -376,11 +377,15 @@ void InitGameTextLocalization()
 	//FTextLocalizationManager::Get().DumpMemoryInfo();
 }
 
-
 FTextLocalizationManager& FTextLocalizationManager::Get()
 {
-	static FTextLocalizationManager TextLocalizationManager;
-	return TextLocalizationManager;
+	return TLazySingleton<FTextLocalizationManager>::Get();
+}
+
+void FTextLocalizationManager::TearDown()
+{
+	TLazySingleton<FTextLocalizationManager>::TearDown();
+	FTextKey::TearDown();
 }
 
 FTextLocalizationManager::FTextLocalizationManager()

@@ -66,7 +66,9 @@ void FSslManager::ShutdownSsl()
 		EVP_cleanup();
 		CRYPTO_cleanup_all_ex_data();
 		ERR_free_strings();
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 		ERR_remove_thread_state(NULL);
+#endif
 		CONF_modules_free();
 	}
 #endif

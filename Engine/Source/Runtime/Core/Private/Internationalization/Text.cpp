@@ -1551,6 +1551,7 @@ bool TextBiDi::IsControlCharacter(const TCHAR InChar)
 }
 
 FText FTextStringHelper::CreateFromBuffer(const TCHAR* Buffer, const TCHAR* TextNamespace, const TCHAR* PackageNamespace, const bool bRequiresQuotes)
+
 {
 	FText Value;
 	if (!ReadFromBuffer(Buffer, Value, TextNamespace, PackageNamespace, bRequiresQuotes))

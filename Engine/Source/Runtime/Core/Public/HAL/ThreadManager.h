@@ -11,12 +11,13 @@
  */
 class CORE_API FThreadManager
 {
-	/** List of thread objects to be ticked. */
-	TMap<uint32, class FRunnableThread*> Threads;
 	/** Critical section for ThreadList */
 	FCriticalSection ThreadsCritical;
 	/** Set if thread manager is initialized. */
 	static bool bIsInitialized;
+
+	/** List of thread objects to be ticked. */
+	TMap<uint32, class FRunnableThread*, TInlineSetAllocator<256>> Threads;
 
 public:
 

@@ -30,6 +30,7 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "Templates/Function.h"
 #include "Modules/ModuleManager.h"
+#include "Misc/LazySingleton.h"
 
 #include "Misc/UProjectInfo.h"
 #include "Internationalization/Culture.h"
@@ -273,6 +274,16 @@ FString FSHA256Signature::ToString() const
 	bool FGenericPlatformMisc::bShouldPromptForRemoteDebugging = false;
 	bool FGenericPlatformMisc::bPromptForRemoteDebugOnEnsure = false;
 #endif	//#if !UE_BUILD_SHIPPING
+
+struct FGenericPlatformMisc::FStaticData
+{
+	FString         RootDir;
+	TArray<FString> AdditionalRootDirectories;
+	FString         EngineDirectory;
+	FString         LaunchDir;
+	FString         ProjectDir;
+	FString         GamePersistentDownloadDir;
+};
 
 FString FGenericPlatformMisc::GetEnvironmentVariable(const TCHAR* VariableName)
 {
@@ -736,7 +747,7 @@ EAppReturnType::Type FGenericPlatformMisc::MessageBoxExt( EAppMsgType::Type MsgT
 
 const TCHAR* FGenericPlatformMisc::RootDir()
 {
-	static FString Path;
+	FString& Path = TLazySingleton<FStaticData>::Get().RootDir;
 	if (Path.Len() == 0)
 	{
 		FString TempPath = FPaths::EngineDir();
@@ -790,37 +801,33 @@ const TCHAR* FGenericPlatformMisc::RootDir()
 
 const TArray<FString>& FGenericPlatformMisc::GetAdditionalRootDirectories()
 {
-	return Internal_GetAdditionalRootDirectories();
+	return TLazySingleton<FStaticData>::Get().AdditionalRootDirectories;
 }
 
 void FGenericPlatformMisc::AddAdditionalRootDirectory(const FString& RootDir)
 {
-	TArray<FString>& RootDirectories = Internal_GetAdditionalRootDirectories();
+	TArray<FString>& RootDirectories = TLazySingleton<FStaticData>::Get().AdditionalRootDirectories;
 	RootDirectories.Add(RootDir);
-}
-
-TArray<FString>& FGenericPlatformMisc::Internal_GetAdditionalRootDirectories() 
-{
-	static TArray<FString> AdditionalRootDirectories;
-	return AdditionalRootDirectories;
 }
 
 const TCHAR* FGenericPlatformMisc::EngineDir()
 {
-	static FString EngineDirectory = TEXT("");
+	FString& EngineDirectory = TLazySingleton<FStaticData>::Get().EngineDirectory;
 	if (EngineDirectory.Len() == 0)
 	{
 		// See if we are a root-level project
 		FString DefaultEngineDir = TEXT("../../../Engine/");
 #if PLATFORM_DESKTOP
+#if !defined(DISABLE_CWD_CHANGES) || DISABLE_CWD_CHANGES == 0
 		FPlatformProcess::SetCurrentWorkingDirectoryToBaseDir();
+#endif
 
 		//@todo. Need to have a define specific for this scenario??
-		if (FPlatformFileManager::Get().GetPlatformFile().DirectoryExists(*(DefaultEngineDir / TEXT("Binaries"))))
+		if (FPlatformFileManager::Get().GetPlatformFile().DirectoryExists(*(FPlatformProcess::BaseDir() / DefaultEngineDir / TEXT("Binaries"))))
 		{
 			EngineDirectory = DefaultEngineDir;
 		}
-		else if (GForeignEngineDir != NULL && FPlatformFileManager::Get().GetPlatformFile().DirectoryExists(*(FString(GForeignEngineDir) / TEXT("Binaries"))))
+		else if (GForeignEngineDir != NULL && FPlatformFileManager::Get().GetPlatformFile().DirectoryExists(*(FPlatformProcess::BaseDir() / FString(GForeignEngineDir) / TEXT("Binaries"))))
 		{
 			EngineDirectory = GForeignEngineDir;
 		}
@@ -838,29 +845,22 @@ const TCHAR* FGenericPlatformMisc::EngineDir()
 	return *EngineDirectory;
 }
 
-// wrap the LaunchDir variable in a function to work around static/global initialization order
-static FString& GetWrappedLaunchDir()
-{
-	static FString LaunchDir;
-	return LaunchDir;
-}
-
 void FGenericPlatformMisc::CacheLaunchDir()
 {
+	FString& LaunchDir = TLazySingleton<FStaticData>::Get().LaunchDir;
+
 	// we can only cache this ONCE
-	static bool bOneTime = false;
-	if (bOneTime)
+	if (LaunchDir.Len() != 0)
 	{
 		return;
 	}
-	bOneTime = true;
 	
-	GetWrappedLaunchDir() = FPlatformProcess::GetCurrentWorkingDirectory() + TEXT("/");
+	LaunchDir = FPlatformProcess::GetCurrentWorkingDirectory() + TEXT("/");
 }
 
 const TCHAR* FGenericPlatformMisc::LaunchDir()
 {
-	return *GetWrappedLaunchDir();
+	return *TLazySingleton<FStaticData>::Get().LaunchDir;
 }
 
 
@@ -887,7 +887,7 @@ void GenericPlatformMisc_GetProjectFilePathProjectDir(FString& OutGameDir)
 
 const TCHAR* FGenericPlatformMisc::ProjectDir()
 {
-	static FString ProjectDir = TEXT("");
+	FString& ProjectDir = TLazySingleton<FStaticData>::Get().ProjectDir;
 
 	// track if last time we called this function the .ini was ready and had fixed the GameName case
 	static bool bWasIniReady = false;
@@ -1001,7 +1001,7 @@ FString FGenericPlatformMisc::CloudDir()
 
 const TCHAR* FGenericPlatformMisc::GamePersistentDownloadDir()
 {
-	static FString GamePersistentDownloadDir = TEXT("");
+	FString& GamePersistentDownloadDir = TLazySingleton<FStaticData>::Get().GamePersistentDownloadDir;
 
 	if (GamePersistentDownloadDir.Len() == 0)
 	{
@@ -1374,6 +1374,11 @@ bool FGenericPlatformMisc::FileExitsInPlatformPackage(const FString& RelativePat
 {
 	FString Path = RootDir() / RelativePath;
 	return IFileManager::Get().FileExists(*Path);
+}
+
+void FGenericPlatformMisc::TearDown()
+{
+	TLazySingleton<FStaticData>::TearDown();
 }
 
 void FGenericPlatformMisc::ParseChunkIdPakchunkIndexMapping(TArray<FString> ChunkIndexMappingData, TMap<int32, int32>& OutMapping)

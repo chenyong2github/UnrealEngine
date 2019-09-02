@@ -30,7 +30,11 @@ namespace
 	int32 ActiveEnsureCount = 0;
 
 	/** Lock used to synchronize the fail debug calls. */
-	FCriticalSection FailDebugCriticalSection;
+	static FCriticalSection& GetFailDebugCriticalSection()
+	{
+		static FCriticalSection FailDebugCriticalSection;
+		return FailDebugCriticalSection;
+	}	
 }
 
 #define FILE_LINE_DESC TEXT(" [File:%s] [Line: %i] ")
@@ -130,7 +134,7 @@ FORCENOINLINE void StaticFailDebug( const TCHAR* Error, const ANSICHAR* File, in
 		}
 	}
 
-	FScopeLock Lock( &FailDebugCriticalSection );
+	FScopeLock Lock( &GetFailDebugCriticalSection());
 	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("%s") FILE_LINE_DESC TEXT("\n%s\n"), Error, ANSI_TO_TCHAR(File), Line, Description);
 
 	// Copy the detailed error into the error message.
@@ -159,8 +163,10 @@ bool FDebug::IsEnsuring()
 	return ActiveEnsureCount > 0;
 }
 
-void FDebug::LogFormattedMessageWithCallstack(const FName& LogName, const ANSICHAR* File, int32 Line, const TCHAR* Heading, const TCHAR* Message, ELogVerbosity::Type Verbosity)
+void FDebug::LogFormattedMessageWithCallstack(const FName& InLogName, const ANSICHAR* File, int32 Line, const TCHAR* Heading, const TCHAR* Message, ELogVerbosity::Type Verbosity)
 {
+	FLogCategoryName LogName(InLogName);
+
 	const bool bLowLevel = LogName == NAME_None;
 	const bool bWriteUATMarkers = FParse::Param(FCommandLine::Get(), TEXT("CrashForUAT")) && FParse::Param(FCommandLine::Get(), TEXT("stdout")) && !bLowLevel;
 
@@ -411,7 +417,7 @@ FORCENOINLINE void FDebug::EnsureFailed(const ANSICHAR* Expr, const ANSICHAR* Fi
 #endif
 
 #if PLATFORM_DESKTOP
-			FScopeLock Lock(&FailDebugCriticalSection);
+			FScopeLock Lock(&GetFailDebugCriticalSection());
 
 			ReportEnsure(ErrorMsg, NumStackFramesToIgnore + 1);
 

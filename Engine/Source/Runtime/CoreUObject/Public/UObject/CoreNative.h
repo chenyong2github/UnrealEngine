@@ -7,6 +7,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Modules/ModuleManager.h"
 #include "UObject/Script.h"
 #include "UObject/Object.h"
 
@@ -38,4 +39,21 @@ struct FNativeFunctionRegistrar
 	static COREUOBJECT_API void RegisterFunction(class UClass* Class, const WIDECHAR* InName, FNativeFuncPtr InPointer);
 
 	static COREUOBJECT_API void RegisterFunctions(class UClass* Class, const FNameNativePtrPair* InArray, int32 NumFunctions);
+};
+
+// CoreUObject module. Handles UObject system pre-init (registers init function with Core callbacks).
+class FCoreUObjectModule : public FDefaultModuleImpl
+{
+public:
+	static void RouteRuntimeMessageToBP(ELogVerbosity::Type Verbosity, const ANSICHAR* FileName, int32 LineNumber, const FText& Message);
+
+	virtual void StartupModule() override;
+
+	virtual void ShutdownModule() override;
+
+	static struct FPrecacheCallbackHandler* GetGlobalPrecacheHandler() { return GlobalPrecacheHandler; }
+
+private:
+
+	static struct FPrecacheCallbackHandler* GlobalPrecacheHandler;
 };

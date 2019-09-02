@@ -114,8 +114,6 @@ TAutoConsoleVariable<int32> CVarCsvWriteBufferSize(
 	ECVF_Default
 );
 
-TUniquePtr<FCsvProfiler> FCsvProfiler::Instance;
-
 static bool GCsvUseProcessingThread = true;
 static int32 GCsvRepeatCount = 0;
 static int32 GCsvRepeatFrameCount = 0;
@@ -2425,6 +2423,7 @@ void FCsvProfilerThreadDataProcessor::Process(FCsvProcessThreadDataStats& OutSta
 
 FCsvProfiler* FCsvProfiler::Get()
 {
+	static TUniquePtr<FCsvProfiler> Instance;
 	if (!Instance.IsValid())
 	{
 		LLM_SCOPE(ELLMTag::CsvProfiler);

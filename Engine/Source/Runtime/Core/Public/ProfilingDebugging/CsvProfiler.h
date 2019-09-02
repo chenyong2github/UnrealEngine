@@ -212,8 +212,6 @@ class FCsvProfiler
 	friend class FCsvProfilerProcessingThread;
 	friend class FCsvProfilerThreadData;
 	friend struct FCsvCategory;
-private:
-	static TUniquePtr<FCsvProfiler> Instance;		
 public:
 	FCsvProfiler();
 	~FCsvProfiler();
@@ -445,7 +443,7 @@ public:
 	const char * StatName;
 };
 
-struct FCsvCategory
+struct CORE_API FCsvCategory
 {
 	FCsvCategory() : Index(-1) {}
 	FCsvCategory(const TCHAR* CategoryString, bool bDefaultValue, bool bIsGlobal = false)

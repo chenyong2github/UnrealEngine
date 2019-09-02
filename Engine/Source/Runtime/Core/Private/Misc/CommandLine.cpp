@@ -17,7 +17,12 @@ TCHAR FCommandLine::CmdLine[FCommandLine::MaxCommandLineSize] = TEXT("");
 TCHAR FCommandLine::OriginalCmdLine[FCommandLine::MaxCommandLineSize] = TEXT("");
 TCHAR FCommandLine::LoggingCmdLine[FCommandLine::MaxCommandLineSize] = TEXT("");
 TCHAR FCommandLine::LoggingOriginalCmdLine[FCommandLine::MaxCommandLineSize] = TEXT("");
-FString FCommandLine::SubprocessCommandLine(TEXT(" -Multiprocess"));
+
+FString& FCommandLine::GetSubprocessCommandLine_Internal()
+{
+	static FString SubprocessCommandLine = TEXT(" -Multiprocess");
+	return SubprocessCommandLine;
+}
 
 bool FCommandLine::IsInitialized()
 {
@@ -225,6 +230,8 @@ void FCommandLine::BuildWhitelistCommandLine(TCHAR* CommandLine, uint32 ArrayCou
 
 void FCommandLine::AddToSubprocessCommandline( const TCHAR* Param )
 {
+	FString& SubprocessCommandLine = GetSubprocessCommandLine_Internal();
+
 	check( Param != NULL );
 	if (Param[0] != ' ')
 	{
@@ -235,7 +242,7 @@ void FCommandLine::AddToSubprocessCommandline( const TCHAR* Param )
 
 const FString& FCommandLine::GetSubprocessCommandline()
 {
-	return SubprocessCommandLine;
+	return GetSubprocessCommandLine_Internal();
 }
 
 /** 

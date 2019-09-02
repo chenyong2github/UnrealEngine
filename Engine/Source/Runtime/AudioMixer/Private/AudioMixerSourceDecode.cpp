@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
 #include "AudioMixer.h"
-#include "Sound/SoundWave.h"
+#include "Sound/SoundWaveProcedural.h"
 #include "HAL/RunnableThread.h"
 #include "AudioMixerBuffer.h"
 #include "Async/Async.h"

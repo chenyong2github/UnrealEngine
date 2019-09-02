@@ -302,8 +302,8 @@ struct TCString
 
 	/**
 	 * Converts a string into a boolean value
-	 *   1, "True", "Yes", GTrue, GYes, and non-zero integers become true
-	 *   0, "False", "No", GFalse, GNo, and unparsable values become false
+	 *   1, "True", "Yes", FCoreTexts::True, FCoreTexts::Yes, and non-zero integers become true
+	 *   0, "False", "No", FCoreTexts::False, FCoreTexts::No, and unparsable values become false
 	 *
 	 * @return The boolean value
 	 */

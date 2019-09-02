@@ -77,8 +77,6 @@ FThreadSafeBool& FGCScopeLock::GetGarbageCollectingFlag()
 	return IsGarbageCollecting;
 }
 
-TUniquePtr<FGCCSyncObject> FGCCSyncObject::Singleton;
-
 FGCCSyncObject::FGCCSyncObject()
 {
 	GCUnlockedEvent = FPlatformProcess::GetSynchEventFromPool(true);
@@ -89,12 +87,25 @@ FGCCSyncObject::~FGCCSyncObject()
 	GCUnlockedEvent = nullptr;
 }
 
+FGCCSyncObject* GGCSingleton;
+
 void FGCCSyncObject::Create()
 {
-	if (!Singleton.IsValid())
+	struct FSingletonOwner
 	{
-		Singleton = MakeUnique<FGCCSyncObject>();
-	}
+		FGCCSyncObject Singleton;
+
+		FSingletonOwner()	{ GGCSingleton = &Singleton; }
+		~FSingletonOwner()	{ GGCSingleton = nullptr;	}
+	};
+	static const FSingletonOwner MagicStaticSingleton;
+}
+
+FGCCSyncObject& FGCCSyncObject::Get()
+{
+	FGCCSyncObject* Singleton = GGCSingleton;
+	check(Singleton);
+	return *Singleton;
 }
 
 #define UE_LOG_FGCScopeGuard_LockAsync_Time 0

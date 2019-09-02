@@ -162,7 +162,7 @@ FPlatformErrorReport LoadErrorReport()
 
 		FString Filename;
 		// CrashContext.runtime-xml has the precedence over the WER
-		if (ErrorReport.FindFirstReportFileWithExtension(Filename, *FGenericCrashContext::CrashContextExtension))
+		if (ErrorReport.FindFirstReportFileWithExtension(Filename, FGenericCrashContext::CrashContextExtension))
 		{
 			FPrimaryCrashProperties::Set(new FCrashContext(ReportDirectoryAbsolutePath / Filename));
 		}
@@ -193,7 +193,7 @@ FPlatformErrorReport LoadErrorReport()
 		if (NameMatch && GUIDMatch)
 		{
 			FString ConfigFilename;
-			if (ErrorReport.FindFirstReportFileWithExtension(ConfigFilename, *FGenericCrashContext::CrashConfigExtension))
+			if (ErrorReport.FindFirstReportFileWithExtension(ConfigFilename, FGenericCrashContext::CrashConfigExtension))
 			{
 				FConfigFile CrashConfigFile;
 				CrashConfigFile.Read(ReportDirectoryAbsolutePath / ConfigFilename);

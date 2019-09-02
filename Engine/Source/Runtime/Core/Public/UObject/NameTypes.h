@@ -826,16 +826,23 @@ public:
 	/** Get the EName that this FName represents or nullptr */
 	const EName* ToEName() const;
 
+	/** 
+		Tear down system and free all allocated memory 
+	
+		FName must not be used after teardown
+	 */
+	static void TearDown();
+
 private:
 
-			/** Index into the Names array (used to find String portion of the string/number pair used for comparison) */
+	/** Index into the Names array (used to find String portion of the string/number pair used for comparison) */
 	FNameEntryId	ComparisonIndex;
-		#if WITH_CASE_PRESERVING_NAME
-			/** Index into the Names array (used to find String portion of the string/number pair used for display) */
+#if WITH_CASE_PRESERVING_NAME
+	/** Index into the Names array (used to find String portion of the string/number pair used for display) */
 	FNameEntryId	DisplayIndex;
-		#endif
-			/** Number portion of the string/number pair (stored internally as 1 more than actual, so zero'd memory will be the default, no-instance case) */
-			uint32			Number;
+#endif // WITH_CASE_PRESERVING_NAME
+	/** Number portion of the string/number pair (stored internally as 1 more than actual, so zero'd memory will be the default, no-instance case) */
+	uint32			Number;
 
 	friend const TCHAR* DebugFName(int32);
 	friend const TCHAR* DebugFName(int32, int32);
@@ -970,4 +977,115 @@ private:
 	static constexpr uint32 OffsetMask = (1 << OffsetBits) - 1;
 	static constexpr uint32 UnusedMask = UINT32_MAX << BlockBits << OffsetBits;
 	static constexpr uint32 MaxLength = NAME_SIZE;
+};
+
+/** Lazily constructed FName that helps avoid allocating FNames during static initialization */
+class FLazyName
+{
+public:
+	FLazyName()
+		: Either(FNameEntryId())
+	{
+	}
+
+	/** @param Literal must be a string literal */
+	template<int N>
+	FLazyName(const TCHAR(&Literal)[N])
+		: Either(Literal)
+	{}
+
+	explicit FLazyName(FName Name)
+		: Either(Name.GetComparisonIndex())
+	{}
+
+	operator FName() const
+	{
+		// Make a stack copy to ensure thread-safety
+		FLiteralOrName Copy = Either;
+
+		if (Copy.IsName())
+		{
+			FNameEntryId Id = Copy.AsName();
+			return FName(Id, Id, 0);
+		}
+
+		// Resolve to FName
+		FNameEntryId Id = FName(Copy.AsLiteral()).GetComparisonIndex();
+
+		// Deliberately unsynchronized write of word-sized int, ok if multiple threads resolve same lazy name
+		Either = FLiteralOrName(Id);
+
+		return FName(Id, Id, 0);
+	}
+
+private:
+	struct FLiteralOrName
+	{
+		FLiteralOrName(const TCHAR* Literal)
+			: Int(reinterpret_cast<UPTRINT>(Literal) | LiteralFlag)
+		{}
+
+		explicit FLiteralOrName(FNameEntryId Name)
+			: Int(Name.ToUnstableInt())
+		{}
+
+		static constexpr UPTRINT LiteralFlag = UPTRINT(1) << (sizeof(UPTRINT) * 8 - 1);
+
+		bool IsName() const
+		{
+			return (LiteralFlag & Int) == 0;
+		}
+
+		bool IsLiteral() const
+		{
+			return LiteralFlag & Int;
+		}
+
+		FNameEntryId AsName() const
+		{
+			return FNameEntryId::FromUnstableInt(static_cast<uint32>(Int));
+		}
+
+		const TCHAR* AsLiteral() const
+		{
+			return reinterpret_cast<const TCHAR*>(Int & ~LiteralFlag);
+		}
+
+		UPTRINT Int;
+	};
+
+	mutable FLiteralOrName Either;
+
+public:
+	friend bool operator==(FName Name, FLazyName Lazy)
+	{
+		if (Lazy.Either.IsName())
+		{
+			return Name == FName(Lazy);
+		}
+		else
+		{
+			return Name == Lazy.Either.AsLiteral();
+		}
+	}
+
+	friend bool operator==(FLazyName A, FLazyName B)
+	{
+		if (A.Either.IsName())
+		{
+			return FName(A) == B;
+		}
+		else if (B.Either.IsName())
+		{
+			return FName(B) == A;
+		}
+
+		return A.Either.AsLiteral() == B.Either.AsLiteral() ||
+			FPlatformString::Stricmp(A.Either.AsLiteral(), B.Either.AsLiteral()) == 0;
+	}
+	
+	friend bool operator==(FLazyName Lazy, FName Name)
+	{
+		return Name == Lazy;
+	}
 };

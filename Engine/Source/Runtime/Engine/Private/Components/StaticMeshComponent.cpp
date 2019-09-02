@@ -389,9 +389,11 @@ void UStaticMeshComponent::CheckForErrors()
 {
 	Super::CheckForErrors();
 
+	const FCoreTexts& CoreTexts = FCoreTexts::Get();
+
 	// Get the mesh owner's name.
 	AActor* Owner = GetOwner();
-	FString OwnerName(*(GNone.ToString()));
+	FString OwnerName(*(CoreTexts.None.ToString()));
 	if ( Owner )
 	{
 		OwnerName = Owner->GetName();

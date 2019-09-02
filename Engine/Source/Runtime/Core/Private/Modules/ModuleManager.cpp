@@ -50,51 +50,45 @@ FModuleManager::ModuleInfoRef FModuleManager::FindModuleChecked(FName InModuleNa
 	return Modules.FindChecked(InModuleName);
 }
 
+// Function level static to allow lazy construction during static initialization
+static TOptional<FModuleManager>& GetModuleManagerSingleton()
+{
+	static TOptional<FModuleManager> Singleton(InPlace);
+	return Singleton;
+}
+
+
+void FModuleManager::TearDown()
+{
+	check(IsInGameThread());
+	GetModuleManagerSingleton().Reset();
+}
+
 FModuleManager& FModuleManager::Get()
 {
-	// NOTE: The reason we initialize to nullptr here is due to an issue with static initialization of variables with
-	// constructors/destructors across DLL boundaries, where a function called from a statically constructed object
-	// calls a function in another module (such as this function) that creates a static variable.  A crash can occur
-	// because the static initialization of this DLL has not yet happened, and the CRT's list of static destructors
-	// cannot be written to because it has not yet been initialized fully.	(@todo UE4 DLL)
-	static FModuleManager* ModuleManager = nullptr;
-
-	if( ModuleManager == nullptr)
-	{
-		static FCriticalSection FModuleManagerSingletonConstructor;
-		FScopeLock Guard(&FModuleManagerSingletonConstructor);
-		if (ModuleManager == nullptr)
-		{
-			// FModuleManager is not thread-safe
-			ensure(IsInGameThread());
-
-			ModuleManager = new FModuleManager();
-
-			//temp workaround for IPlatformFile being used for FPaths::DirectoryExists before main() sets up the commandline.
-#if PLATFORM_DESKTOP && !IS_MONOLITHIC
-		// Ensure that dependency dlls can be found in restricted sub directories
-			TArray<FString> RestrictedFolderNames = { TEXT("NoRedist"), TEXT("NotForLicensees"), TEXT("CarefullyRedist") };
-			RestrictedFolderNames.Append(FDataDrivenPlatformInfoRegistry::GetConfidentialPlatforms());
-
-			FString ModuleDir = FPlatformProcess::GetModulesDirectory();
-			for (const FString& RestrictedFolderName : RestrictedFolderNames)
-			{
-				FString RestrictedFolder = ModuleDir / RestrictedFolderName;
-				if (FPaths::DirectoryExists(RestrictedFolder))
-				{
-					ModuleManager->AddBinariesDirectory(*RestrictedFolder, false);
-				}
-			}
-#endif
-		}
-	}
-
-	return *ModuleManager;
+	return GetModuleManagerSingleton().GetValue();
 }
 
 FModuleManager::FModuleManager()
 	: bCanProcessNewlyLoadedObjects(false)
 {
+	check(IsInGameThread());
+
+#if PLATFORM_DESKTOP && !IS_MONOLITHIC
+	// Ensure that dependency dlls can be found in restricted sub directories
+	TArray<FString> RestrictedFolderNames = { TEXT("NoRedist"), TEXT("NotForLicensees"), TEXT("CarefullyRedist") };
+	RestrictedFolderNames.Append(FDataDrivenPlatformInfoRegistry::GetConfidentialPlatforms());
+
+	FString ModuleDir = FPlatformProcess::GetModulesDirectory();
+	for (const FString& RestrictedFolderName : RestrictedFolderNames)
+	{
+		FString RestrictedFolder = ModuleDir / RestrictedFolderName;
+		if (FPaths::DirectoryExists(RestrictedFolder))
+		{
+			AddBinariesDirectory(*RestrictedFolder, false);
+		}
+	}
+#endif
 }
 
 FModuleManager::~FModuleManager()
@@ -137,11 +131,12 @@ void FModuleManager::FindModules(const TCHAR* WildcardWithoutExtension, TArray<F
 
 #else
 	FString Wildcard(WildcardWithoutExtension);
-	for (FStaticallyLinkedModuleInitializerMap::TConstIterator It(StaticallyLinkedModuleInitializers); It; ++It)
+	ProcessPendingStaticallyLinkedModuleInitializers();
+	for (const TPair<FName, FInitializeStaticallyLinkedModule>& It : StaticallyLinkedModuleInitializers)
 	{
-		if (It.Key().ToString().MatchesWildcard(Wildcard))
+		if (It.Key.ToString().MatchesWildcard(Wildcard))
 		{
-			OutModules.Add(It.Key());
+			OutModules.Add(It.Key);
 		}
 	}
 #endif
@@ -391,6 +386,7 @@ IModuleInterface* FModuleManager::LoadModuleWithFailureReason(const FName InModu
 
 	// Check if we're statically linked with the module.  Those modules register with the module manager using a static variable,
 	// so hopefully we already know about the name of the module and how to initialize it.
+	ProcessPendingStaticallyLinkedModuleInitializers();
 	const FInitializeStaticallyLinkedModule* ModuleInitializerPtr = StaticallyLinkedModuleInitializers.Find(InModuleName);
 	if (ModuleInitializerPtr != nullptr)
 	{
@@ -1015,6 +1011,23 @@ void FModuleManager::FindModulePathsInDirectory(const FString& InDirectoryName, 
 	}
 }
 #endif
+
+void FModuleManager::ProcessPendingStaticallyLinkedModuleInitializers() const
+{
+	if (PendingStaticallyLinkedModuleInitializers.Num() == 0)
+	{
+		return;
+	}
+
+	for (TPair<FLazyName, FInitializeStaticallyLinkedModule>& Module : PendingStaticallyLinkedModuleInitializers)
+	{
+		FName NameKey = FName(Module.Key);
+		checkf(!StaticallyLinkedModuleInitializers.Contains(NameKey), TEXT("Duplicate module '%s' registered"), *NameKey.ToString());
+		StaticallyLinkedModuleInitializers.Add(NameKey, Module.Value);
+	}
+
+	PendingStaticallyLinkedModuleInitializers.Empty();
+}
 
 void FModuleManager::UnloadOrAbandonModuleWithCallback(const FName InModuleName, FOutputDevice &Ar)
 {

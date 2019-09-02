@@ -9,7 +9,7 @@
 // Anonymous name space for some frame parsing helpers
 namespace
 {
-	static const FName ContentLengthHeader(TEXT("content-length"));
+	const FLazyName ContentLengthHeader(TEXT("content-length"));
 
 	const uint8* MatchDelimiter(uint8 Element, const char* Delimiters)
 	{

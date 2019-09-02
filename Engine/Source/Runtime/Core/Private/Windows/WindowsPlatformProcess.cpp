@@ -1039,8 +1039,12 @@ const TCHAR* FWindowsPlatformProcess::UserName(bool bOnlyAlphaNumeric/* = true*/
 
 void FWindowsPlatformProcess::SetCurrentWorkingDirectoryToBaseDir()
 {
+#if defined(DISABLE_CWD_CHANGES) && DISABLE_CWD_CHANGES != 0
+	check(false);
+#else
 	FPlatformMisc::CacheLaunchDir();
 	verify(SetCurrentDirectoryW(BaseDir()));
+#endif
 }
 
 /** Get the current working directory (only really makes sense on desktop platforms) */
@@ -1129,8 +1133,8 @@ const TCHAR* FWindowsPlatformProcess::GetBinariesSubdirectory()
 
 const FString FWindowsPlatformProcess::GetModulesDirectory()
 {
-	static FString Result;
-	if(Result.Len() == 0)
+	static TCHAR Result[MAX_PATH];
+	if(Result[0] == 0)
 	{
 		// Get the handle to the current module
 		HMODULE hCurrentModule;
@@ -1140,13 +1144,13 @@ const FString FWindowsPlatformProcess::GetModulesDirectory()
 		}
 
 		// Get the directory for it
-		TCHAR Buffer[MAX_PATH] = TEXT("");
-		GetModuleFileName(hCurrentModule, Buffer, UE_ARRAY_COUNT(Buffer));
-		*FCString::Strrchr(Buffer, '\\') = 0;
+		GetModuleFileName(hCurrentModule, Result, ARRAY_COUNT(Result));
+		*FCString::Strrchr(Result, '\\') = 0;
 
 		// Normalize the resulting path
-		Result = Buffer;
-		FPaths::MakeStandardFilename(Result);
+		FString Buffer = Result;
+		FPaths::MakeStandardFilename(Buffer);
+		FCString::Strcpy(Result, *Buffer);
 	}
 	return Result;
 }

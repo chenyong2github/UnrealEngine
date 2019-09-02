@@ -2,17 +2,11 @@
 
 #include "Misc/EngineVersion.h"
 #include "Misc/Guid.h"
+#include "Misc/LazySingleton.h"
 #include "Serialization/CustomVersion.h"
 #include "Runtime/Launch/Resources/Version.h"
 #include "UObject/ReleaseObjectVersion.h"
 #include "BuildSettings.h"
-
-// Global instance of the current engine version
-FEngineVersion FEngineVersion::CurrentVersion(ENGINE_MAJOR_VERSION, ENGINE_MINOR_VERSION, ENGINE_PATCH_VERSION, BuildSettings::GetCurrentChangelist() | (BuildSettings::IsLicenseeVersion()? (1U << 31) : 0), BuildSettings::GetBranchName());
-
-// Version which this engine maintains strict API and package compatibility with. By default, we always maintain compatibility with the current major/minor version, unless we're built at a different changelist.
-FEngineVersion FEngineVersion::CompatibleWithVersion(ENGINE_MAJOR_VERSION, ENGINE_MINOR_VERSION, BuildSettings::IsLicenseeVersion()? ENGINE_PATCH_VERSION : 0, BuildSettings::GetCompatibleChangelist() | (BuildSettings::IsLicenseeVersion()? (1U << 31) : 0), BuildSettings::GetBranchName());
-
 
 FEngineVersionBase::FEngineVersionBase()
 : Major(0)
@@ -191,14 +185,32 @@ bool FEngineVersion::Parse(const FString &Text, FEngineVersion &OutVersion)
 	return true;
 }
 
+struct FGlobalEngineVersions
+{
+	const FEngineVersion Current;
+	const FEngineVersion CompatibleWith;
+
+	FGlobalEngineVersions()
+		: Current(ENGINE_MAJOR_VERSION, ENGINE_MINOR_VERSION, ENGINE_PATCH_VERSION,
+			BuildSettings::GetCurrentChangelist() | (BuildSettings::IsLicenseeVersion() ? (1U << 31) : 0), BuildSettings::GetBranchName())
+		, CompatibleWith(ENGINE_MAJOR_VERSION, ENGINE_MINOR_VERSION, (BuildSettings::IsLicenseeVersion() ? ENGINE_PATCH_VERSION : 0),
+			BuildSettings::GetCompatibleChangelist() | (BuildSettings::IsLicenseeVersion() ? (1U << 31) : 0), BuildSettings::GetBranchName())
+	{}
+};
+
 const FEngineVersion& FEngineVersion::Current()
 {
-	return CurrentVersion;
+	return TLazySingleton<FGlobalEngineVersions>::Get().Current;
 }
 
 const FEngineVersion& FEngineVersion::CompatibleWith()
 {
-	return CompatibleWithVersion;
+	return TLazySingleton<FGlobalEngineVersions>::Get().CompatibleWith;
+}
+
+void FEngineVersion::TearDown()
+{
+	TLazySingleton<FGlobalEngineVersions>::TearDown();
 }
 
 const FString& FEngineVersion::GetBranchDescriptor() const

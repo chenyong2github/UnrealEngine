@@ -23,7 +23,7 @@ public class Spatialization : ModuleRules
 			{
 				"CoreUObject",
 				"Engine",
-				"AudioMixer"
+				"SignalProcessing"
 			}
 			);
 

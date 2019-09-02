@@ -2,6 +2,7 @@
 
 #include "AudioMixerBuffer.h"
 #include "AudioMixerDevice.h"
+#include "AudioDecompress.h"
 #include "Interfaces/IAudioFormat.h"
 #include "AudioMixerSourceDecode.h"
 #include "AudioStreaming.h"

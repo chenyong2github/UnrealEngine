@@ -4,8 +4,6 @@
 #include "Dom/JsonObject.h"
 
 
-const TArray< TSharedPtr<FJsonValue> > FJsonValue::EMPTY_ARRAY;
-const TSharedPtr<FJsonObject> FJsonValue::EMPTY_OBJECT(new FJsonObject());
 
 
 double FJsonValue::AsNumber() const
@@ -47,25 +45,29 @@ bool FJsonValue::AsBool() const
 }
 
 
-const TArray< TSharedPtr<FJsonValue> >& FJsonValue::AsArray() const 
+const TArray< TSharedPtr<FJsonValue> >& FJsonValue::AsArray() const
 {
-	const TArray<TSharedPtr<FJsonValue>> *Array = &EMPTY_ARRAY;
+	const TArray<TSharedPtr<FJsonValue>>* Array = nullptr;
 
 	if (!TryGetArray(Array))
 	{
-		ErrorMessage(TEXT("Array")); 
+		static const TArray< TSharedPtr<FJsonValue> > EmptyArray;
+		Array = &EmptyArray;
+		ErrorMessage(TEXT("Array"));
 	}
 
 	return *Array;
 }
 
 
-const TSharedPtr<FJsonObject>& FJsonValue::AsObject() const 
+const TSharedPtr<FJsonObject>& FJsonValue::AsObject() const
 {
-	const TSharedPtr<FJsonObject> *Object = &EMPTY_OBJECT;
+	const TSharedPtr<FJsonObject>* Object = nullptr;
 
 	if (!TryGetObject(Object))
 	{
+		static const TSharedPtr<FJsonObject> EmptyObject = MakeShared<FJsonObject>();
+		Object = &EmptyObject;
 		ErrorMessage(TEXT("Object"));
 	}
 

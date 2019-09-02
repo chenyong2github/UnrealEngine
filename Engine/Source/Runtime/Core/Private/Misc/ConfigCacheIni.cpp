@@ -936,11 +936,11 @@ FString FConfigFile::GenerateExportedPropertyLine(const FString& PropertyName, c
 namespace CommandlineOverrideSpecifiers
 {
 	// -ini:IniName:[Section1]:Key1=Value1,[Section2]:Key2=Value2
-	FString	IniSwitchIdentifier		= TEXT("-ini:");
-	FString	IniNameEndIdentifier	= TEXT(":[");
-	FString	SectionStartIdentifier	= TEXT("[");
-	FString PropertyStartIdentifier	= TEXT("]:");
-	FString	PropertySeperator		= TEXT(",");
+	const TCHAR IniSwitchIdentifier[]     = TEXT("-ini:");
+	const TCHAR IniNameEndIdentifier[]    = TEXT(":[");
+	const TCHAR SectionStartIdentifier[]  = TEXT("[");
+	const TCHAR PropertyStartIdentifier[] = TEXT("]:");
+	const TCHAR PropertySeperator[]       = TEXT(",");
 }
 
 #endif
@@ -959,11 +959,11 @@ void FConfigFile::OverrideFromCommandline(FConfigFile* File, const FString& File
 	// for example:
 	//		-ini:Engine:[/Script/Engine.Engine]:bSmoothFrameRate=False,[TextureStreaming]:PoolSize=100
 	//			(will update the cache after the final combined engine.ini)
-	if (FParse::Value(FCommandLine::Get(), *FString::Printf(TEXT("%s%s"), *CommandlineOverrideSpecifiers::IniSwitchIdentifier, *FPaths::GetBaseFilename(Filename)), Settings, false))
+	if (FParse::Value(FCommandLine::Get(), *FString::Printf(TEXT("%s%s"), CommandlineOverrideSpecifiers::IniSwitchIdentifier, *FPaths::GetBaseFilename(Filename)), Settings, false))
 	{
 		// break apart on the commas
 		TArray<FString> SettingPairs;
-		Settings.ParseIntoArray(SettingPairs, *CommandlineOverrideSpecifiers::PropertySeperator, true);
+		Settings.ParseIntoArray(SettingPairs, CommandlineOverrideSpecifiers::PropertySeperator, true);
 		for (int32 Index = 0; Index < SettingPairs.Num(); Index++)
 		{
 			// set each one, by splitting on the =
@@ -984,11 +984,11 @@ void FConfigFile::OverrideFromCommandline(FConfigFile* File, const FString& File
 				CommandlineOption.Section = SectionAndKey.Left(SectionNameEndIndex);
 				
 				// Remove commandline syntax from the section name.
-				CommandlineOption.Section = CommandlineOption.Section.Replace(*CommandlineOverrideSpecifiers::IniNameEndIdentifier, TEXT(""));
-				CommandlineOption.Section = CommandlineOption.Section.Replace(*CommandlineOverrideSpecifiers::PropertyStartIdentifier, TEXT(""));
-				CommandlineOption.Section = CommandlineOption.Section.Replace(*CommandlineOverrideSpecifiers::SectionStartIdentifier, TEXT(""));
+				CommandlineOption.Section = CommandlineOption.Section.Replace(CommandlineOverrideSpecifiers::IniNameEndIdentifier, TEXT(""));
+				CommandlineOption.Section = CommandlineOption.Section.Replace(CommandlineOverrideSpecifiers::PropertyStartIdentifier, TEXT(""));
+				CommandlineOption.Section = CommandlineOption.Section.Replace(CommandlineOverrideSpecifiers::SectionStartIdentifier, TEXT(""));
 
-				CommandlineOption.PropertyKey = SectionAndKey.Mid(SectionNameEndIndex + CommandlineOverrideSpecifiers::PropertyStartIdentifier.Len());
+				CommandlineOption.PropertyKey = SectionAndKey.Mid(SectionNameEndIndex + ARRAY_COUNT(CommandlineOverrideSpecifiers::PropertyStartIdentifier) - 1);
 				CommandlineOption.PropertyValue = Value;
 
 				// now put it into this into the cache
@@ -3146,9 +3146,9 @@ struct FConfigLayer
 	// Used by the editor to display in the ini-editor
 	const TCHAR* EditorName;
 	// Path to the ini file (with variables)
-	FString Path;
+	const TCHAR* Path;
 	// Path to the platform extension version
-	FString PlatformExtensionPath;
+	const TCHAR* PlatformExtensionPath;
 	// Special flag
 	int32  Flag;
 
@@ -3249,8 +3249,8 @@ static void GetSourceIniHierarchyFilenames(const TCHAR* InBaseIniName, const TCH
 	for (int32 LayerIndex = 0; LayerIndex < UE_ARRAY_COUNT(GConfigLayers); LayerIndex++)
 	{
 		const FConfigLayer& Layer = GConfigLayers[LayerIndex];
-		bool bHasPlatformTag = Layer.Path.Contains(TEXT("{PLATFORM}"));
-		bool bHasProjectTag = Layer.Path.Contains(TEXT("{PROJECT}"));
+		const bool bHasPlatformTag = FCString::Strstr(Layer.Path, TEXT("{PLATFORM}")) != nullptr;
+		const bool bHasProjectTag = FCString::Strstr(Layer.Path, TEXT("{PROJECT}")) != nullptr;
 
 		// calculate a increasing-by-layer index
 		int32 ConfigFileIndex = LayerIndex * 10000;
@@ -3262,22 +3262,22 @@ static void GetSourceIniHierarchyFilenames(const TCHAR* InBaseIniName, const TCH
 		{
 			if (bHasPlatformTag && bHasPlatformExtensionProjectConfigDir)
 			{
-				LayerPath = Layer.PlatformExtensionPath.Replace(TEXT("{EXTPROJECT}"), *PlatformExtensionProjectConfigDir);
+				LayerPath = FString(Layer.PlatformExtensionPath).Replace(TEXT("{EXTPROJECT}"), *PlatformExtensionProjectConfigDir);
 			}
 			else
 			{
-				LayerPath = Layer.Path.Replace(TEXT("{PROJECT}"), SourceConfigDir);
+				LayerPath = FString(Layer.Path).Replace(TEXT("{PROJECT}"), SourceConfigDir);
 			}
 		}
 		else
 		{
 			if (bHasPlatformTag && bHasPlatformExtensionEngineConfigDir)
 			{
-				LayerPath = Layer.PlatformExtensionPath.Replace(TEXT("{EXTENGINE}"), *PlatformExtensionEngineConfigDir);
+				LayerPath = FString(Layer.PlatformExtensionPath).Replace(TEXT("{EXTENGINE}"), *PlatformExtensionEngineConfigDir);
 			}
 			else
 			{
-				LayerPath = Layer.Path.Replace(TEXT("{ENGINE}"), EngineConfigDir);
+				LayerPath = FString(Layer.Path).Replace(TEXT("{ENGINE}"), EngineConfigDir);
 			}
 		}
 
@@ -3293,10 +3293,10 @@ static void GetSourceIniHierarchyFilenames(const TCHAR* InBaseIniName, const TCH
 #endif
 
 		// expand if it it has {ED} or {EF} expansion tags
-		if (FCString::Strstr(*Layer.Path, TEXT("{ED}")) || FCString::Strstr(*Layer.Path, TEXT("{EF}")))
+		if (FCString::Strstr(Layer.Path, TEXT("{ED}")) || FCString::Strstr(Layer.Path, TEXT("{EF}")))
 		{
 			// we assume none of the more special tags in expanded ones
-			checkfSlow(FCString::Strstr(*Layer.Path, TEXT("{USERSETTINGS}")) == nullptr && FCString::Strstr(*Layer.Path, TEXT("{USER}")) == nullptr, TEXT("Expanded config %s shouldn't have a {USER*} tags in it"), *Layer.Path);
+			checkfSlow(FCString::Strstr(Layer.Path, TEXT("{USERSETTINGS}")) == nullptr && FCString::Strstr(Layer.Path, TEXT("{USER}")) == nullptr, TEXT("Expanded config %s shouldn't have a {USER*} tags in it"), *Layer.Path);
 			// last layer is expected to not be expanded
 			checkfSlow(LayerIndex < UE_ARRAY_COUNT(GConfigLayers) - 1, TEXT("Final layer %s shouldn't be an expansion layer, as it needs to generate the  hierarchy cache key"), *Layer.Path);
 

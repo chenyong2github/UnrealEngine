@@ -267,6 +267,14 @@ public:
 		Blocks[0] = (uint8*)FMemory::Malloc(BlockSizeBytes, FPlatformMemory::GetConstants().PageSize);
 	}
 
+	~FNameEntryAllocator()
+	{
+		for (uint32 Index = 0; Index <= CurrentBlock; ++Index)
+		{
+			FMemory::Free(Blocks[Index]);
+		}
+	}
+
 	/**
 	 * Allocates the requested amount of bytes and returns an id that can be used to access them
 	 *
@@ -544,6 +552,16 @@ public:
 		Slots = (FNameSlot*)FMemory::Malloc(FNamePoolInitialSlotsPerShard * sizeof(FNameSlot), alignof(FNameSlot));
 		memset(Slots, 0, FNamePoolInitialSlotsPerShard * sizeof(FNameSlot));
 		CapacityMask = FNamePoolInitialSlotsPerShard - 1;
+	}
+
+	// This and ~FNamePool() is not called during normal shutdown
+	// but only via explicit FName::TearDown() call
+	~FNamePoolShardBase()
+	{
+		FMemory::Free(Slots);
+		UsedSlots = 0;
+		CapacityMask = 0;
+		Slots = nullptr;
 	}
 
 	uint32 Capacity() const { return CapacityMask + 1; }
@@ -2175,6 +2193,19 @@ FArchive& operator<<(FArchive& Ar, FNameEntrySerialized& E)
 FNameEntryId FNameEntryId::FromValidEName(EName Ename)
 {
 	return GetNamePool().Find(Ename);
+}
+
+
+void FName::TearDown()
+{
+	check(IsInGameThread());
+
+	if (bNamePoolInitialized)
+	{
+		GetNamePoolPostInit().~FNamePool();
+		bNamePoolInitialized = false;
+	
+	}
 }
 
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST

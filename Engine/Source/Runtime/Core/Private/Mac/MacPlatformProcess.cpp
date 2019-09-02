@@ -935,8 +935,12 @@ const TCHAR* FMacPlatformProcess::UserName(bool bOnlyAlphaNumeric)
 
 void FMacPlatformProcess::SetCurrentWorkingDirectoryToBaseDir()
 {
+#if defined(DISABLE_CWD_CHANGES) && DISABLE_CWD_CHANGES != 0
+	check(false);
+#else
 	FPlatformMisc::CacheLaunchDir();
 	chdir([FString(BaseDir()).GetNSString() fileSystemRepresentation]);
+#endif
 }
 
 FString FMacPlatformProcess::GetCurrentWorkingDirectory()

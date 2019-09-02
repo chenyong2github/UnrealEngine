@@ -623,6 +623,11 @@ struct CORE_API FGenericPlatformProcess
 	 * Checks if we're the first instance. An instance can become first if the previous first instance quits before it.
 	 */
 	static bool IsFirstInstance();
+
+	/**
+	 * Tears down allocated process resources.
+	 */
+	static void TearDown();
 };
 
 

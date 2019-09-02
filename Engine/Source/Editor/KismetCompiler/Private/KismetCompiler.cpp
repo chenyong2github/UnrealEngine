@@ -4686,8 +4686,10 @@ void FKismetCompilerContext::SetCanEverTick() const
 
 	if (TickFunction->bCanEverTick != bOldFlag)
 	{
+		const FCoreTexts& CoreTexts = FCoreTexts::Get();
+
 		UE_LOG(LogK2Compiler, Verbose, TEXT("Overridden flag for class '%s': CanEverTick %s "), *NewClass->GetName(),
-			TickFunction->bCanEverTick ? *(GTrue.ToString()) : *(GFalse.ToString()) );
+			TickFunction->bCanEverTick ? *(CoreTexts.True.ToString()) : *(CoreTexts.False.ToString()) );
 	}
 }
 

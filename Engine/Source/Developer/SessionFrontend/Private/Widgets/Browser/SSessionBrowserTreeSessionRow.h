@@ -174,10 +174,12 @@ private:
 
 		if (SessionInfo.IsValid())
 		{
+			const FCoreTexts& CoreTexts = FCoreTexts::Get();
+
 			ToolTipTextBuilder.AppendLineFormat(LOCTEXT("SessionToolTipSessionId", "Session ID: {0}"), FText::FromString(SessionInfo->GetSessionId().ToString(EGuidFormats::DigitsWithHyphensInBraces)));
 			ToolTipTextBuilder.AppendLine();
 			ToolTipTextBuilder.AppendLineFormat(LOCTEXT("SessionToolTipNumInstances", "Total Instances: {0}"), FText::AsNumber(SessionInfo->GetNumInstances()));
-			ToolTipTextBuilder.AppendLineFormat(LOCTEXT("SessionToolTipIsStandalone", "Is Standalone: {0}"), SessionInfo->IsStandalone() ? GYes : GNo);
+			ToolTipTextBuilder.AppendLineFormat(LOCTEXT("SessionToolTipIsStandalone", "Is Standalone: {0}"), SessionInfo->IsStandalone() ? CoreTexts.Yes : CoreTexts.No);
 			ToolTipTextBuilder.AppendLine();
 			ToolTipTextBuilder.AppendLineFormat(LOCTEXT("SessionToolTipLastUpdateTime", "Last Update Time: {0}"), FText::AsDateTime(SessionInfo->GetLastUpdateTime()));
 		}
