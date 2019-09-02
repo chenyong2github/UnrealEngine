@@ -98,11 +98,10 @@ public:
 	UGeometryCollection(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	/** UObject Interface */
-	virtual void PostLoad() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
 	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
+#endif
 	/** End UObject Interface */
 
 	void Serialize(FArchive& Ar);

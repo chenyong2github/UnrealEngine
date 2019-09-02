@@ -9552,21 +9552,16 @@ void UMaterialExpressionComment::PostEditChangeProperty(FPropertyChangedEvent& P
 	}
 }
 
-#endif // WITH_EDITOR
-
 bool UMaterialExpressionComment::Modify( bool bAlwaysMarkDirty/*=true*/ )
 {
 	bool bResult = Super::Modify(bAlwaysMarkDirty);
 
-#if WITH_EDITORONLY_DATA
 	// Don't need to update preview after changing comments
 	bNeedToUpdatePreview = false;
-#endif // WITH_EDITORONLY_DATA
 
 	return bResult;
 }
 
-#if WITH_EDITOR
 void UMaterialExpressionComment::GetCaption(TArray<FString>& OutCaptions) const
 {
 	OutCaptions.Add(TEXT("Comment"));
