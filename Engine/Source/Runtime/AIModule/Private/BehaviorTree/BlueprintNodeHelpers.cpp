@@ -101,14 +101,15 @@ namespace BlueprintNodeHelpers
 		}
 		else if (StructProp && StructProp->Struct && StructProp->Struct->IsChildOf(TBaseStructure<FGameplayTag>::Get()))
 		{
-			const FString CategoryLimit = StructProp->GetMetaData(TEXT("Categories"));
-
 			ExportedStringValue = ((const FGameplayTag*)PropertyAddr)->ToString();
 
+#if WITH_EDITOR
+			const FString CategoryLimit = StructProp->GetMetaData(TEXT("Categories"));
 			if (!CategoryLimit.IsEmpty() && ExportedStringValue.StartsWith(CategoryLimit))
 			{
 				ExportedStringValue = ExportedStringValue.Mid(CategoryLimit.Len());
 			}
+#endif
 		}
 		else if (FloatProp)
 		{
