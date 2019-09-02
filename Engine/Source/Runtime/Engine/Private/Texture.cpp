@@ -334,9 +334,9 @@ void UTexture::Serialize(FArchive& Ar)
 		bUseLegacyGamma = true;
 	}
 
-	if (Ar.IsCooking() && Ar.IsSaving())
+	if (Ar.IsCooking() && VirtualTextureStreaming)
 	{
-		if (VirtualTextureStreaming && UseVirtualTexturing(GMaxRHIFeatureLevel, Ar.CookingTarget()) == false)
+		if (UseVirtualTexturing(GMaxRHIFeatureLevel, Ar.CookingTarget()) == false)
 		{
 			UE_LOG(LogTexture, Warning, TEXT("%s is marked for virtual streaming but virtual texture streaming is not available."), *GetPathName());
 		}
