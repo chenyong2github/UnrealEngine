@@ -28,7 +28,7 @@
     <ClInclude Include="stdafx.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-	<ClInclude Include="..\MixedRealityInterop\GestureRecognizer.h">
+    <ClInclude Include="..\MixedRealityInterop\GestureRecognizer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\MixedRealityInterop\MeshObserver.h">
@@ -55,6 +55,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\MixedRealityInterop\QRCodeObserver.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\MixedRealityInterop\SpatialAudioClientInterop.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
