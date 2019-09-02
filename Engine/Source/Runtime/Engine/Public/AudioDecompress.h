@@ -99,6 +99,19 @@ public:
 	virtual bool SupportsStreaming() const {return false;}
 
 	/**
+	 * This can be called to explicitly release this decoder's reference to a chunk of compressed audio
+	 * without destroying the decoder itself.
+	 * @param bBlockUntilReleased when set to true will cause this call to block if the decoder is currently using the chunk.
+	 * @returns true if the chunk was released, false otherwise.
+	 */
+	virtual bool ReleaseStreamChunk(bool bBlockUntilReleased)
+	{
+		// If we hit this check, ReleaseStreamChunk needs to be implemented for this codec.
+		checkNoEntry();
+		return false;
+	}
+
+	/**
 	* Streams the header information of a compressed format
 	*
 	* @param	Wave			Wave that will be read from to retrieve necessary chunk
