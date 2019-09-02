@@ -348,6 +348,7 @@ protected:
 	 * or nullptr if MemoryLoadOnDemand is disabled.
 	 */
 	FAudioChunkCache* GetCacheForWave(const USoundWave* InSoundWave) const;
+	FAudioChunkCache* GetCacheForChunkSize(uint32 InChunkSize) const;
 
 	/**
 	 * Returns the next chunk to kick off a load for, or INDEX_NONE if there is only one chunk to cache.
