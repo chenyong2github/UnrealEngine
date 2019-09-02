@@ -484,6 +484,8 @@ bool FSocialUserList::HandleAutoUpdateList(float)
 
 void FSocialUserList::UpdateListInternal()
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_SocialUserList_UpdateList);
+
 	// Re-evaluate whether each user with dirtied presence is still fit for the list
 	for (TWeakObjectPtr<USocialUser> DirtyUser : UsersWithDirtyPresence)
 	{
