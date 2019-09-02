@@ -172,6 +172,69 @@ void operator<<(FStructuredArchive::FSlot Slot, FObjectExport& E)
 }
 
 /*-----------------------------------------------------------------------------
+	FObjectTextExport.
+-----------------------------------------------------------------------------*/
+
+void operator<<(FStructuredArchive::FSlot Slot, FObjectTextExport& E)
+{
+	FArchive& BaseArchive = Slot.GetUnderlyingArchive();
+	FString ClassName, OuterName, SuperStructName;
+	check(BaseArchive.IsTextFormat());
+
+	if (BaseArchive.IsSaving())
+	{
+		check(E.Export.Object);
+
+		UClass* ObjClass = E.Export.Object->GetClass();
+		if (ObjClass != UClass::StaticClass())
+		{
+			ClassName = ObjClass->GetFullName();
+		}
+
+		if (E.Export.Object->GetOuter() != E.Outer)
+		{
+			OuterName = E.Export.Object->GetOuter() ? E.Export.Object->GetOuter()->GetFullName() : FString();
+		}
+
+		if (UStruct* Struct = Cast<UStruct>(E.Export.Object))
+		{
+			if (Struct->GetSuperStruct() != nullptr)
+			{
+				SuperStructName = Struct->GetSuperStruct()->GetFullName();
+			}
+		}
+	}
+
+	Slot << SA_ATTRIBUTE(TEXT("Class"), ClassName);
+	Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("Outer"), OuterName, FString());
+	Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("SuperStruct"), SuperStructName, FString());
+
+	if (BaseArchive.IsLoading())
+	{
+		E.ClassName = ClassName;
+		E.OuterName = OuterName;
+		E.SuperStructName = SuperStructName;
+	}
+
+	uint32 Save = E.Export.ObjectFlags & RF_Load;
+	Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("ObjectFlags"), Save, 0);
+	if (BaseArchive.IsLoading())
+	{
+		E.Export.ObjectFlags = EObjectFlags(Save & RF_Load);
+	}
+
+	Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("bForcedExport"), E.Export.bForcedExport, false);
+	Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("bNotForClient"), E.Export.bNotForClient, false);
+	Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("bNotForServer"), E.Export.bNotForServer, false);
+
+	Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("PackageGuid"), E.Export.PackageGuid, FGuid());
+	Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("PackageFlags"), E.Export.PackageFlags, 0);
+
+	Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("bNotAlwaysLoadedForEditorGame"), E.Export.bNotAlwaysLoadedForEditorGame, false);
+	Slot << SA_DEFAULTED_ATTRIBUTE(TEXT("bIsAsset"), E.Export.bIsAsset, false);
+}
+
+/*-----------------------------------------------------------------------------
 	FObjectImport.
 -----------------------------------------------------------------------------*/
 

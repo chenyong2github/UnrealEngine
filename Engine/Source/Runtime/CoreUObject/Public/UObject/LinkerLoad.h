@@ -143,10 +143,6 @@ private:
 	FArchiveFormatterType* StructuredArchiveFormatter;
 	TOptional<FStructuredArchive::FRecord> StructuredArchiveRootRecord;
 
-	/** A map of full object path name to package index. Used with text assets to resolve incoming string names to an export */
-	TMap<FName, FPackageIndex> ObjectNameToPackageImportIndex;
-	TMap<FName, FPackageIndex> ObjectNameToPackageExportIndex;
-
 	/** The archive that actually reads the raw data from disk.																*/
 	FArchive*				Loader;
 
@@ -277,6 +273,8 @@ private:
 
 	/** Whether we already serialized the package file summary.																*/
 	bool					bHasSerializedPackageFileSummary;
+	/** Whether we have already reconstructed the import/export tables for a text asset */
+	bool					bHasReconstructedImportAndExportMap;
 	/** Whether we already serialized preload dependencies.																*/
 	bool					bHasSerializedPreloadDependencies;
 	/** Whether we already fixed up import map.																				*/
@@ -931,12 +929,23 @@ private:
 	 */
 	ELinkerStatus SerializeExportMap();
 
+	/**
+	 * Create an import and export table when loading a text asset.
+	 */
+	ELinkerStatus ReconstructImportAndExportMap();
+
 	ELinkerStatus SerializeDependsMap();
 
 	ELinkerStatus SerializePreloadDependencies();
 
 	/** Sets the basic linker archive info */
 	void ResetStatusInfo();
+
+	/** For a given full object path, find or create the associated import or export table record. Used when loading text assets which only store object paths */
+	FPackageIndex FindOrCreateImportOrExport(const FString& InFullPath);
+
+	/** For the given object and class info, find or create an associated import record. Used when loading text assets which only store object paths */
+	FPackageIndex FindOrCreateImport(const FName InObjectName, const FName InClassName, const FName InClassPackageName);
 
 public:
 	/**

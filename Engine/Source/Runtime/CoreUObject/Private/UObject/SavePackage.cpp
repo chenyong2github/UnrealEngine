@@ -5517,6 +5517,8 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 #endif
 					FScopedSlowTask ExportScope(Linker->ExportMap.Num());
 
+					FStructuredArchive::FRecord ExportsRecord = StructuredArchiveRoot.EnterRecord(SA_FIELD_NAME(TEXT("Exports")));
+
 					// Save exports.
 					FString ObjectName;
 					int32 LastExportSaveStep = 0;
@@ -5529,7 +5531,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 						ExportScope.EnterProgressFrame();
 
 						FObjectExport& Export = Linker->ExportMap[i];
-						if( Export.Object )
+						if (Export.Object)
 						{
 							// Save the object data.
 							Export.SerialOffset = Linker->Tell();
@@ -5538,7 +5540,13 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 							ObjectName.Reset();
 							Export.Object->GetPathName(InOuter, ObjectName);
-							FStructuredArchive::FSlot ExportSlot = StructuredArchiveRoot.EnterField(SA_FIELD_NAME(*ObjectName));
+							FStructuredArchive::FSlot ExportSlot = ExportsRecord.EnterField(SA_FIELD_NAME(*ObjectName));
+
+							if (bTextFormat)
+							{
+								FObjectTextExport ObjectTextExport(Export, InOuter);
+								ExportSlot << ObjectTextExport;
+							}
 
 #if WITH_EDITOR
 							bool bSupportsText = UClass::IsSafeToSerializeToStructuredArchives(Export.Object->GetClass());
