@@ -11,6 +11,7 @@
 #include "Modules/StatsModule.h"
 #include "Modules/CsvProfilerModule.h"
 #include "Modules/CountersModule.h"
+#include "Modules/NetProfilerModule.h"
 
 class FTraceServicesModule
 	: public ITraceServicesModule
@@ -33,6 +34,7 @@ private:
 	Trace::FStatsModule StatsModule;
 	Trace::FCsvProfilerModule CsvProfilerModule;
 	Trace::FCountersModule CountersModule;
+	Trace::FNetProfilerModule NetProfilerModule;
 };
 
 TSharedPtr<Trace::ISessionService> FTraceServicesModule::GetSessionService()
@@ -73,10 +75,12 @@ void FTraceServicesModule::StartupModule()
 #endif
 	IModularFeatures::Get().RegisterModularFeature(Trace::ModuleFeatureName, &CsvProfilerModule);
 	IModularFeatures::Get().RegisterModularFeature(Trace::ModuleFeatureName, &CountersModule);
+	IModularFeatures::Get().RegisterModularFeature(Trace::ModuleFeatureName, &NetProfilerModule);
 }
 
 void FTraceServicesModule::ShutdownModule()
 {
+	IModularFeatures::Get().UnregisterModularFeature(Trace::ModuleFeatureName, &NetProfilerModule);
 	IModularFeatures::Get().UnregisterModularFeature(Trace::ModuleFeatureName, &CountersModule);
 	IModularFeatures::Get().UnregisterModularFeature(Trace::ModuleFeatureName, &CsvProfilerModule);
 #if EXPERIMENTAL_STATSTRACE_ENABLED

@@ -15,6 +15,7 @@
 #include "Model/BookmarksPrivate.h"
 #include "Model/ThreadsPrivate.h"
 #include "Model/CountersPrivate.h"
+#include "Model/NetProfilerProvider.h"
 
 namespace Trace
 {
@@ -140,18 +141,28 @@ void FAnalysisService::AnalyzeInternal(TSharedRef<FAnalysisSession> AnalysisSess
 	{
 		IAnalysisSession& Session = AnalysisSession.Get();
 		Trace::FAnalysisSessionEditScope _(Session);
+
 		FBookmarkProvider* BookmarkProvider = new FBookmarkProvider(Session);
 		Session.AddProvider(FBookmarkProvider::ProviderName, BookmarkProvider);
+
 		FLogProvider* LogProvider = new FLogProvider(Session);
 		Session.AddProvider(FLogProvider::ProviderName, LogProvider);
+
 		FThreadProvider* ThreadProvider = new FThreadProvider(Session);
 		Session.AddProvider(FThreadProvider::ProviderName, ThreadProvider);
+
 		FFrameProvider* FrameProvider = new FFrameProvider(Session);
 		Session.AddProvider(FFrameProvider::ProviderName, FrameProvider);
+
 		FCounterProvider* CounterProvider = new FCounterProvider(Session, *FrameProvider);
 		Session.AddProvider(FCounterProvider::ProviderName, CounterProvider);
+
+		FNetProfilerProvider* NetProfilerProvider = new FNetProfilerProvider(Session);
+		Session.AddProvider(FNetProfilerProvider::ProviderName, NetProfilerProvider);
+
 		Session.AddAnalyzer(new FMiscTraceAnalyzer(Session, *ThreadProvider, *BookmarkProvider, *LogProvider, *FrameProvider));
 		Session.AddAnalyzer(new FLogTraceAnalyzer(Session, *LogProvider));
+
 		ModuleService.OnAnalysisBegin(Session);
 	}
 	
