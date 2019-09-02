@@ -30,7 +30,7 @@ public class DirectSound : ModuleRules
 			LibDir = DirectXSDKDir + "/Lib/x86/";
 		}
 
-		PublicAdditionalLibraries.AddRange(
+		PublicSystemLibraryPaths.AddRange(
 			new string[] {
  				LibDir + "dxguid.lib",
  				LibDir + "dsound.lib"
