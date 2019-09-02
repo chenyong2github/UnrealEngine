@@ -11,6 +11,7 @@
 #include "UniquePageList.h"
 #include "UniqueRequestList.h"
 #include "Stats/Stats.h"
+#include "ScenePrivate.h"
 #include "SceneUtils.h"
 #include "HAL/IConsoleManager.h"
 #include "PostProcess/SceneRenderTargets.h"
@@ -841,7 +842,7 @@ void FVirtualTextureSystem::FeedbackAnalysisTask(const FFeedbackAnalysisParamete
 	}
 }
 
-void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel)
+void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FScene* Scene)
 {
 	check(IsInRenderingThread());
 
@@ -876,6 +877,19 @@ void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFea
 	{
 		MappedTilesToProduce.Reset();
 		return;
+	}
+
+	// Flush any dirty runtime virtual textures for the current scene
+	if (Scene != nullptr)
+	{
+		// Only flush if we know that there is GPU feedback available to refill the visible data this frame
+		// This prevents bugs when low frame rate causes feedback buffer to stall so that the physical cache isn't filled immediately which causes visible glitching
+		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+		if (SceneContext.VirtualTextureFeedback.CanMap())
+		{
+			// Each RVT will call FVirtualTextureSystem::FlushCache()
+			Scene->FlushDirtyRuntimeVirtualTextures();
+		}
 	}
 
 	FMemStack& MemStack = FMemStack::Get();
