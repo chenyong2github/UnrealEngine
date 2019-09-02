@@ -33,6 +33,20 @@ public:
 	static void InitializeCVarsForActiveDeviceProfile(bool bPushSettings=false);
 
 	/**
+	 * Reapplies the device profile. Useful when configs have changed (i.e. hotfix)
+	 * Applies base and then any overridden device profile.
+	 */
+	void ReapplyDeviceProfile();
+
+	/**
+	 * Examine the currently active or overridden profile for references to entries in DeviceProfilesToQuery
+	 * @param DeviceProfilesToQuery - Collection of device profiles to check.
+	 * 
+	 * @return true if any profiles contained in DeviceProfilesToQuery are referenced by active or overridden profile.
+	 */
+	bool DoActiveProfilesReference(const TSet<FString>& DeviceProfilesToQuery);
+
+	/**
 	 * Create a copy of a device profile from a copy.
 	 *
 	 * @param ProfileName - The profile name.
@@ -165,6 +179,9 @@ private:
 
 	// values of CVars set in HandleDeviceProfileOverrideChange, to be popped later
 	TMap<FString, FString> PushedSettings;
+
+	// Holds the device profile that has been overridden, null no override active.
+	UDeviceProfile* BaseDeviceProfile = nullptr;
 
 	// Stores any scalability group settings set by the active device profile.
 	static TMap<FString, FString> DeviceProfileScalabilityCVars;
