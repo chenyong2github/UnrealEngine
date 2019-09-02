@@ -642,6 +642,15 @@ bool FWindowsPlatformProcess::IsApplicationRunning( const TCHAR* ProcName )
 	return false;
 }
 
+bool FWindowsPlatformProcess::IsApplicationAlive(uint32 ProcessId)
+{
+	DWORD ExitCode;
+	HANDLE ProcessHandle = ::OpenProcess(PROCESS_QUERY_INFORMATION, false, ProcessId);
+	const BOOL result = GetExitCodeProcess(ProcessHandle, &ExitCode);
+	CloseHandle(ProcessHandle);
+	return result && ExitCode == STILL_ACTIVE;
+}
+
 FString FWindowsPlatformProcess::GetApplicationName( uint32 ProcessId )
 {
 	FString Output = TEXT("");
@@ -666,6 +675,7 @@ FString FWindowsPlatformProcess::GetApplicationName( uint32 ProcessId )
 			Output = ProcessNameBuffer;
 		}
 	}
+	CloseHandle(ProcessHandle);
 
 	return Output;
 }
@@ -1444,9 +1454,15 @@ bool FWindowsPlatformProcess::WritePipe(void* WritePipe, const uint8* Data, cons
 #include "Windows/AllowWindowsPlatformTypes.h"
 
 FWindowsPlatformProcess::FWindowsSemaphore::FWindowsSemaphore(const FString & InName, HANDLE InSemaphore)
-	:	FSemaphore(InName)
-	,	Semaphore(InSemaphore)
+	: FWindowsSemaphore(*InName, InSemaphore)
 {
+}
+
+FWindowsPlatformProcess::FWindowsSemaphore::FWindowsSemaphore(const TCHAR* InName, Windows::HANDLE InSemaphore)
+	: FSemaphore(InName)
+	, Semaphore(InSemaphore)
+{
+
 }
 
 FWindowsPlatformProcess::FWindowsSemaphore::~FWindowsSemaphore()
@@ -1497,19 +1513,24 @@ void FWindowsPlatformProcess::FWindowsSemaphore::Unlock()
 	}
 }
 
-FWindowsPlatformProcess::FSemaphore * FWindowsPlatformProcess::NewInterprocessSynchObject(const FString & Name, bool bCreate, uint32 MaxLocks)
+FWindowsPlatformProcess::FSemaphore* FWindowsPlatformProcess::NewInterprocessSynchObject(const FString & Name, bool bCreate, uint32 MaxLocks)
+{
+	return NewInterprocessSynchObject(*Name, bCreate, MaxLocks);
+}
+
+FWindowsPlatformProcess::FSemaphore* FWindowsPlatformProcess::NewInterprocessSynchObject(const TCHAR* Name, bool bCreate, uint32 MaxLocks)
 {
 	HANDLE Semaphore = NULL;
 	
 	if (bCreate)
 	{
-		Semaphore = CreateSemaphore(NULL, MaxLocks, MaxLocks, *Name);
+		Semaphore = CreateSemaphore(NULL, MaxLocks, MaxLocks, Name);
 		if (NULL == Semaphore)
 		{
 			DWORD ErrNo = GetLastError();
 			UE_LOG(LogHAL, Warning, TEXT("CreateSemaphore(Attrs=NULL, InitialValue=%d, MaxValue=%d, Name='%s') failed with LastError = %d"),
 				MaxLocks, MaxLocks,
-				*Name,
+				Name,
 				ErrNo);
 			return NULL;
 		}
@@ -1517,13 +1538,13 @@ FWindowsPlatformProcess::FSemaphore * FWindowsPlatformProcess::NewInterprocessSy
 	else
 	{
 		DWORD AccessRights = SYNCHRONIZE | SEMAPHORE_MODIFY_STATE;
-		Semaphore = OpenSemaphore(AccessRights, false, *Name);
+		Semaphore = OpenSemaphore(AccessRights, false, Name);
 		if (NULL == Semaphore)
 		{
 			DWORD ErrNo = GetLastError();
 			UE_LOG(LogHAL, Warning, TEXT("OpenSemaphore(AccessRights=0x%08x, bInherit=false, Name='%s') failed with LastError = %d"),
 				AccessRights,
-				*Name,
+				Name,
 				ErrNo);
 			return NULL;
 		}

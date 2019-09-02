@@ -260,8 +260,11 @@ void FThreadManager::GetAllThreadStackBackTraces(TArray<FThreadStackBackTrace>& 
 FThreadManager& FThreadManager::Get()
 {
 	static FThreadManager Singleton;
+	FThreadManager::bIsInitialized = true;
 	return Singleton;
 }
+
+bool FThreadManager::bIsInitialized = false;
 
 
 /*-----------------------------------------------------------------------------

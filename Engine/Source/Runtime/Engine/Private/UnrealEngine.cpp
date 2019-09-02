@@ -8030,7 +8030,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 			[](FRHICommandList& RHICmdList)
 			{
 				UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
-				SetCrashType(ECrashType::Debug);
+				FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 				UE_LOG(LogEngine, Fatal, TEXT("Crashing the renderthread at your request"));
 			});
 		return true;
@@ -8042,7 +8042,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 			static void Check()
 			{				
 				UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
-				SetCrashType(ECrashType::Debug);
+				FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 				check(!"Crashing the renderthread via check(0) at your request");
 			}
 		};
@@ -8059,7 +8059,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 			[](FRHICommandList& RHICmdList)
 			{
 				UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
-				SetCrashType(ECrashType::Debug);
+				FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 				*(int32 *)3 = 123;
 			});
 		return true;
@@ -8070,8 +8070,8 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 			[](FRHICommandList& RHICmdList)
 			{
 				UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
-			SetCrashType(ECrashType::Debug);
-			LowLevelFatalError(TEXT("FError::LowLevelFatal test"));
+				FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
+				LowLevelFatalError(TEXT("FError::LowLevelFatal test"));
 			});
 		return true;
 	}
@@ -8095,7 +8095,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 			static void Crash(ENamedThreads::Type, const  FGraphEventRef&)
 			{
 				UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
-				SetCrashType(ECrashType::Debug);
+				FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 				UE_LOG(LogEngine, Fatal, TEXT("Crashing the worker thread at your request"));
 			}
 		};
@@ -8120,7 +8120,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 			static void Check(ENamedThreads::Type, const FGraphEventRef&)
 			{
 				UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
-				SetCrashType(ECrashType::Debug);
+				FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 				check(!"Crashing a worker thread via check(0) at your request");
 			}
 		};
@@ -8145,7 +8145,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 			static void GPF(ENamedThreads::Type, const FGraphEventRef&)
 			{
 				UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
-				SetCrashType(ECrashType::Debug);
+				FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 				*(int32 *)3 = 123;
 			}
 		};
@@ -8185,7 +8185,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 					if (FPlatformTime::Seconds() >= CrashTime)
 					{
 						UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
-						SetCrashType(ECrashType::Debug);
+						FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 						UE_LOG(LogEngine, Fatal, TEXT("Crashing the worker thread at your request"));
 						break;
 					}
@@ -8225,7 +8225,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 					if (FPlatformTime::Seconds() >= CrashTime)
 					{
 						UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
-						SetCrashType(ECrashType::Debug);
+						FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 						*(int32 *)3 = 123;
 						break;
 					}
@@ -8273,7 +8273,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 			static void Fatal(ENamedThreads::Type, const FGraphEventRef&)
 			{
 				UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
-				SetCrashType(ECrashType::Debug);
+				FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 				LowLevelFatalError(TEXT("FError::LowLevelFatal test"));
 			}
 		};
@@ -8293,14 +8293,14 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 	else if (FParse::Command(&Cmd, TEXT("CRASH")))
 	{
 		UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
-		SetCrashType(ECrashType::Debug);
+		FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 		UE_LOG(LogEngine, Fatal, TEXT("%s"), TEXT("Crashing the gamethread at your request"));
 		return true;
 	}
 	else if (FParse::Command(&Cmd, TEXT("CHECK")))
 	{
 		UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
-		SetCrashType(ECrashType::Debug);
+		FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 		check(!"Crashing the game thread via check(0) at your request");
 		return true;
 	}
@@ -8308,7 +8308,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 	{
 		UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
 		Ar.Log(TEXT("Crashing with voluntary GPF"));
-		SetCrashType(ECrashType::Debug);
+		FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 		// changed to 3 from NULL because clang noticed writing to NULL and warned about it
 		*(int32 *)3 = 123;
 		return true;
@@ -8332,7 +8332,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 	else if (FParse::Command(&Cmd, TEXT("FATAL")))
 	{
 		UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
-		SetCrashType(ECrashType::Debug);
+		FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 		LowLevelFatalError(TEXT("FError::LowLevelFatal test"));
 		return true;
 	}
@@ -8340,13 +8340,13 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 	{
 		// stack overflow test - this case should be caught by /GS (Buffer Overflow Check) compile option
 		ANSICHAR SrcBuffer[] = "12345678901234567890123456789012345678901234567890";
-		SetCrashType(ECrashType::Debug);
+		FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 		BufferOverflowFunction(UE_ARRAY_COUNT(SrcBuffer), SrcBuffer);
 		return true;
 	}
 	else if (FParse::Command(&Cmd, TEXT("CRTINVALID")))
 	{
-		SetCrashType(ECrashType::Debug);
+	FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 		FString::Printf(TEXT("%s"), (const char*)nullptr);
 		return true;
 	}
@@ -8415,7 +8415,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 	{
 		Ar.Logf(TEXT("Recursing to create a very deep callstack."));
 		GLog->Flush();
-		SetCrashType(ECrashType::Debug);
+		FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 		InfiniteRecursionFunction(1);
 		Ar.Logf(TEXT("You will never see this log line."));
 		return true;
@@ -8427,7 +8427,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 		{
 			static void InfiniteRecursion(ENamedThreads::Type, const FGraphEventRef&)
 			{
-				SetCrashType(ECrashType::Debug);
+				FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 				InfiniteRecursionFunction(1);
 			}
 		};
@@ -8447,7 +8447,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 	else if (FParse::Command(&Cmd, TEXT("EATMEM")))
 	{
 		Ar.Log(TEXT("Eating up all available memory"));
-		SetCrashType(ECrashType::Debug);
+		FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 		while (1)
 		{
 			void* Eat = FMemory::Malloc(65536);
@@ -8464,7 +8464,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 	else if (FParse::Command(&Cmd, TEXT("STACKOVERFLOW")))
 	{
 		Ar.Log(TEXT("Infinite recursion to cause stack overflow"));
-		SetCrashType(ECrashType::Debug);
+		FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 		StackOverflowFunction(nullptr);
 		return true;
 	}
@@ -8475,7 +8475,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 		{
 			static void StackOverflow(ENamedThreads::Type, const FGraphEventRef&)
 			{
-				SetCrashType(ECrashType::Debug);
+				FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 				StackOverflowFunction(nullptr);
 			}
 		};
@@ -8495,7 +8495,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 	else if (FParse::Command(&Cmd, TEXT("SOFTLOCK")))
 	{
 		Ar.Log(TEXT("Hanging the current thread"));
-		SetCrashType(ECrashType::Debug);
+		FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 		while (1)
 		{
 			FPlatformProcess::Sleep(1.0f);
@@ -8505,7 +8505,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 	else if (FParse::Command(&Cmd, TEXT("INFINITELOOP")))
 	{
 		Ar.Log(TEXT("Hanging the current thread (CPU-intensive)"));
-		SetCrashType(ECrashType::Debug);
+		FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 		for(;;)
 		{
 		}

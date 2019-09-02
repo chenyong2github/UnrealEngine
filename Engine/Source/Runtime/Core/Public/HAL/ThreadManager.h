@@ -15,6 +15,8 @@ class CORE_API FThreadManager
 	TMap<uint32, class FRunnableThread*> Threads;
 	/** Critical section for ThreadList */
 	FCriticalSection ThreadsCritical;
+	/** Set if thread manager is initialized. */
+	static bool bIsInitialized;
 
 public:
 
@@ -39,6 +41,12 @@ public:
 
 	/** Returns the name of a thread given its TLS id */
 	const FString& GetThreadName(uint32 ThreadId);
+
+	/** Checks if thread manager has been initialized. Avoids creating the manager trough lazy initialization */
+	FORCEINLINE static bool IsInitialized() 
+	{
+		return bIsInitialized;
+	}
 
 #if PLATFORM_WINDOWS || PLATFORM_MAC
 	struct FThreadStackBackTrace

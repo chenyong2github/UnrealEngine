@@ -15,6 +15,7 @@
 #include "CrashReportAnalytics.h"
 #include "Modules/ModuleManager.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "HAL/PlatformCrashContext.h"
 
 #if !CRASH_REPORT_UNATTENDED_ONLY
 	#include "SCrashReportClient.h"
@@ -58,6 +59,15 @@ static FString CrashGUIDFromCmd;
 static bool bImplicitSendFromCmd = false;
 /** If we want to enable analytics */
 static bool AnalyticsEnabledFromCmd = true;
+
+/** If in monitor mode, watch this pid. */
+static uint64 MonitorPid = 0;
+
+/** If in monitor mode, pipe to read data from game. */
+static void* MonitorReadPipe = nullptr;
+
+/** If in monitor mode, pipe to write data to game. */
+static void* MonitorWritePipe = nullptr;
 
 /**
  * Look for the report to upload, either in the command line or in the platform's report queue
@@ -122,6 +132,11 @@ void ParseCommandLine(const TCHAR* CommandLine)
 		{
 			AnalyticsEnabledFromCmd = false;
 		}
+
+		CrashGUIDFromCmd = Params.FindRef(TEXT("CrashGUID"));
+		MonitorPid = FPlatformString::Atoi64(*Params.FindRef(TEXT("MONITOR")));
+		MonitorReadPipe = (void*) FPlatformString::Atoi64(*Params.FindRef(TEXT("READ")));
+		MonitorWritePipe = (void*) FPlatformString::Atoi64(*Params.FindRef(TEXT("WRITE")));
 	}
 
 	if (FoundReportDirectoryAbsolutePaths.Num() == 0)
@@ -353,48 +368,120 @@ void RunUnattended(FPlatformErrorReport ErrorReport)
 	}
 }
 
-
-void RunCrashReportClient(const TCHAR* CommandLine)
+FPlatformErrorReport CollectErrorReport(uint32 Pid, const FSharedCrashContext& SharedCrashContext, void* WritePipe) 
 {
-	// Override the stack size for the thread pool.
-	FQueuedThreadPool::OverrideStackSize = 256 * 1024;
+	// @note: This API is only partially implemented on Mac OS and Linux.
+	FProcHandle ProcessHandle = FPlatformProcess::OpenProcess(Pid);
 
-	// Set up the main loop
-	GEngineLoop.PreInit(CommandLine);
+	// First init the static crash context state
+	FPlatformCrashContext::InitializeFromContext(
+		SharedCrashContext.SessionContext,
+		SharedCrashContext.EnabledPluginsNum > 0 ? &SharedCrashContext.DynamicData[SharedCrashContext.EnabledPluginsOffset] : nullptr,
+		SharedCrashContext.EngineDataNum > 0 ? &SharedCrashContext.DynamicData[SharedCrashContext.EngineDataOffset] : nullptr,
+		SharedCrashContext.GameDataNum > 0 ? &SharedCrashContext.DynamicData[SharedCrashContext.GameDataOffset] : nullptr
+	);
+	// Next create a crash context for the crashed process.
+	FPlatformCrashContext CrashContext(SharedCrashContext.CrashType, SharedCrashContext.ErrorMessage);
+	CrashContext.SetCrashedProcess(ProcessHandle);
+	CrashContext.SetCrashedThreadId(SharedCrashContext.CrashingThreadId);
+	CrashContext.SetNumMinidumpFramesToIgnore(SharedCrashContext.NumStackFramesToIgnore);
 
-	// Make sure all UObject classes are registered and default properties have been initialized
-	ProcessNewlyLoadedUObjects();
+	// Initialize the stack walking for the monitored process
+	FPlatformStackWalk::InitStackWalkingForProcess(ProcessHandle);
 
-	// Tell the module manager is may now process newly-loaded UObjects when new C++ modules are loaded
-	FModuleManager::Get().StartProcessingNewlyLoadedObjects();
+	for (uint32 ThreadIdx = 0; ThreadIdx < SharedCrashContext.NumThreads; ThreadIdx++)
+	{
+		const uint32 ThreadId = SharedCrashContext.ThreadIds[ThreadIdx];
+		uint64 StackFrames[CR_MAX_STACK_FRAMES] = {0};
+		const uint32 StackFrameCount = FPlatformStackWalk::CaptureThreadStackBackTrace(
+			ThreadId, 
+			StackFrames,
+			CR_MAX_STACK_FRAMES
+		);
 
-	// Initialize config.
-	FCrashReportCoreConfig::Get();
+		CrashContext.AddPortableThreadCallStack(
+			SharedCrashContext.ThreadIds[ThreadIdx],
+			&SharedCrashContext.ThreadNames[ThreadIdx*CR_MAX_THREAD_NAME_CHARS],
+			StackFrames,
+			StackFrameCount
+		);
 
-	const bool bUnattended = 
+		// Add the crashing stack specifically. Is this really needed?
+		if (ThreadId == SharedCrashContext.CrashingThreadId)
+		{
+			CrashContext.SetPortableCallStack(
+				StackFrames + SharedCrashContext.NumStackFramesToIgnore,
+				StackFrameCount - SharedCrashContext.NumStackFramesToIgnore
+			);
+		}
+	}
+
+	// Setup the FPrimaryCrashProperties singleton. If the path is not set it is most likely
+	// that we have crashed during static init, in which case we need to construct a directory
+	// ourself.
+	CrashContext.SerializeContentToBuffer();
+
+	FString ReportDirectoryAbsolutePath(SharedCrashContext.CrashFilesDirectory);
+	bool DirectoryExists = true;
+	if (ReportDirectoryAbsolutePath.IsEmpty())
+	{
+		DirectoryExists = FGenericCrashContext::CreateCrashReportDirectory(
+			SharedCrashContext.SessionContext.CrashGUIDRoot,
+			SharedCrashContext.SessionContext.GameName,
+			0,
+			ReportDirectoryAbsolutePath);
+	}
+
+	// Copy platform specific files (e.g. minidump) to output directory if it exists
+	if (DirectoryExists)
+	{
+		CrashContext.CopyPlatformSpecificFiles(*ReportDirectoryAbsolutePath, SharedCrashContext.PlatformCrashContext);
+	}
+
+	// At this point the game can continue execution. It is important this happens
+	// as soon as thread state and minidump has been created, so that ensures cause
+	// as little hitch as possible.
+	uint8 ResponseCode[] = { 0xd, 0xe, 0xa, 0xd };
+	FPlatformProcess::WritePipe(WritePipe, ResponseCode, sizeof(ResponseCode));
+
+	// Write out the XML file.
+	const FString CrashContextXMLPath = FPaths::Combine(*ReportDirectoryAbsolutePath, FPlatformCrashContext::CrashContextRuntimeXMLNameW);
+	CrashContext.SerializeAsXML(*CrashContextXMLPath);
+
+	const TCHAR* CrachContextBuffer = *CrashContext.GetBuffer();
+	FPrimaryCrashProperties::Set(new FCrashContext(ReportDirectoryAbsolutePath / TEXT("CrashContext.runtime-xml"), CrachContextBuffer));
+
+	FPlatformErrorReport ErrorReport(ReportDirectoryAbsolutePath);
+
 #if CRASH_REPORT_UNATTENDED_ONLY
-		true;
+	return ErrorReport;
 #else
-		FApp::IsUnattended();
-#endif // CRASH_REPORT_UNATTENDED_ONLY
 
-	// Find the report to upload in the command line arguments
-	ParseCommandLine(CommandLine);
 
-	// Increase the HttpSendTimeout to 5 minutes
-	GConfig->SetFloat(TEXT("HTTP"), TEXT("HttpSendTimeout"), 5*60.0f, GEngineIni);
+	FString ConfigFilename;
+	if (ErrorReport.FindFirstReportFileWithExtension(ConfigFilename, *FGenericCrashContext::CrashConfigExtension))
+	{
+		FConfigFile CrashConfigFile;
+		CrashConfigFile.Read(ReportDirectoryAbsolutePath / ConfigFilename);
+		FCrashReportCoreConfig::Get().SetProjectConfigOverrides(CrashConfigFile);
+	}
 
-	FPlatformErrorReport::Init();
-	FPlatformErrorReport ErrorReport = LoadErrorReport();
+	return ErrorReport;
+#endif
+}
 
+void SendErrorReport(FPlatformErrorReport& ErrorReport)
+{
 	if (!GIsRequestingExit && ErrorReport.HasFilesToUpload() && FPrimaryCrashProperties::Get() != nullptr)
 	{
-		ErrorReport.SetCrashReportClientVersion(FCrashReportCoreConfig::Get().GetVersion());
+		const bool bUnattended =
+#if CRASH_REPORT_UNATTENDED_ONLY
+			true;
+#else
+			FApp::IsUnattended();
+#endif // CRASH_REPORT_UNATTENDED_ONLY
 
-		if (AnalyticsEnabledFromCmd)
-		{
-			FCrashReportAnalytics::Initialize();
-		}
+		ErrorReport.SetCrashReportClientVersion(FCrashReportCoreConfig::Get().GetVersion());
 
 		if (bUnattended)
 		{
@@ -416,20 +503,86 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 		}
 #endif // !CRASH_REPORT_UNATTENDED_ONLY
 
-		if (AnalyticsEnabledFromCmd)
+	}
+}
+
+bool WaitForCrash(uint32 WatchedProcess, FSharedCrashContext& CrashContext, void* ReadPipe)
+{
+	TArray<uint8> Buffer;
+
+	while (FPlatformProcess::IsApplicationAlive(WatchedProcess))
+	{
+		if (FPlatformProcess::ReadPipeToArray(ReadPipe, Buffer))
 		{
-			// Shutdown analytics.
-			FCrashReportAnalytics::Shutdown();
+			FPlatformMemory::Memcpy(&CrashContext, Buffer.GetData(), Buffer.Num());
+			return true;
+		}
+		
+		FPlatformProcess::Sleep(1.0f);
+	}
+
+	return false;
+}
+
+void RunCrashReportClient(const TCHAR* CommandLine)
+{
+	// Override the stack size for the thread pool.
+	FQueuedThreadPool::OverrideStackSize = 256 * 1024;
+
+	// Increase the HttpSendTimeout to 5 minutes
+	GConfig->SetFloat(TEXT("HTTP"), TEXT("HttpSendTimeout"), 5 * 60.0f, GEngineIni);
+
+	// Set up the main loop
+	GEngineLoop.PreInit(CommandLine);
+
+	// Make sure all UObject classes are registered and default properties have been initialized
+	ProcessNewlyLoadedUObjects();
+
+	// Tell the module manager is may now process newly-loaded UObjects when new C++ modules are loaded
+	FModuleManager::Get().StartProcessingNewlyLoadedObjects();
+
+	// Initialize config.
+	FCrashReportCoreConfig::Get();
+
+	// Find the report to upload in the command line arguments
+	ParseCommandLine(CommandLine);
+
+	FPlatformErrorReport::Init();
+	if (AnalyticsEnabledFromCmd)
+	{
+		FCrashReportAnalytics::Initialize();
+	}
+
+	if (MonitorPid && MonitorWritePipe && MonitorReadPipe) 
+	{
+		while (FPlatformProcess::IsApplicationAlive(MonitorPid))
+		{
+			// Wait for parent process to signal crash
+			FSharedCrashContext CrashContext;
+			if (WaitForCrash(MonitorPid, CrashContext, MonitorReadPipe))
+			{
+				// Build error report in memory
+				FPlatformErrorReport ErrorReport = CollectErrorReport(MonitorPid, CrashContext, MonitorWritePipe);
+				SendErrorReport(ErrorReport);
+			}
 		}
 	}
 	else
 	{
-		// Needed to let systems that are shutting down that we are shutting down by request
-		GIsRequestingExit = true;
+		// Load error report generated by the process from disk
+		FPlatformErrorReport ErrorReport = LoadErrorReport();
+		SendErrorReport(ErrorReport);
+	}
+
+	if (AnalyticsEnabledFromCmd)
+	{
+		FCrashReportAnalytics::Shutdown();
 	}
 
 	FPrimaryCrashProperties::Shutdown();
 	FPlatformErrorReport::ShutDown();
+
+	GIsRequestingExit = true;
 
 	FEngineLoop::AppPreExit();
 	FModuleManager::Get().UnloadModulesAtShutdown();

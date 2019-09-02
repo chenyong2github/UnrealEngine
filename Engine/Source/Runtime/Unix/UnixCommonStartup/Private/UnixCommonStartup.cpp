@@ -28,6 +28,9 @@ void CommonUnixCrashHandler(const FGenericCrashContext& GenericContext)
 	const FUnixCrashContext& Context = static_cast< const FUnixCrashContext& >( GenericContext );
 	printf("CommonUnixCrashHandler: Signal=%d\n", Context.Signal);
 
+	/** This is the last place to gather memory stats */
+	FGenericCrashContext::SetMemoryStats(FPlatformMemory::GetStats());
+
 	// better than having mutable fields?
 	const_cast< FUnixCrashContext& >(Context).CaptureStackTrace();
 	if (GLog)

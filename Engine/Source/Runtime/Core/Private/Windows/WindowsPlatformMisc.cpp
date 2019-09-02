@@ -1624,7 +1624,7 @@ int32 FWindowsPlatformMisc::NumberOfCores()
 	static int32 CoreCount = 0;
 	if (CoreCount == 0)
 	{
-		if (FParse::Param(FCommandLine::Get(), TEXT("usehyperthreading")))
+		if (FCommandLine::IsInitialized() && FParse::Param(FCommandLine::Get(), TEXT("usehyperthreading")))
 		{
 			CoreCount = NumberOfCoresIncludingHyperthreads();
 		}
@@ -1768,7 +1768,7 @@ HWND FWindowsPlatformMisc::GetTopLevelWindowHandle(uint32 ProcessId)
 FORCENOINLINE void FWindowsPlatformMisc::RaiseException( uint32 ExceptionCode )
 {
 	/** This is the last place to gather memory stats before exception. */
-	FGenericCrashContext::CrashMemoryStats = FPlatformMemory::GetStats();
+	FGenericCrashContext::SetMemoryStats(FPlatformMemory::GetStats());
 
 	::RaiseException( ExceptionCode, 0, 0, NULL );
 }

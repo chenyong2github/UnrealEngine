@@ -12,6 +12,7 @@ struct CORE_API FWindowsPlatformStackWalk
 	: public FGenericPlatformStackWalk
 {
 	static bool InitStackWalking();
+	static bool InitStackWalkingForProcess(const FProcHandle& Process);
 	
 	static TArray<FProgramCounterSymbolInfo> GetStack(int32 IgnoreCount, int32 MaxDepth = 100, void* Context = nullptr);
 
@@ -43,6 +44,9 @@ struct CORE_API FWindowsPlatformStackWalk
 
 	static void* MakeThreadContextWrapper(void* Context, void* ThreadHandle);
 	static void ReleaseThreadContextWrapper(void* ThreadContext);
+
+private:
+	static bool InitStackWalkingInternal(void* Process);
 };
 
 
