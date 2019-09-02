@@ -63,9 +63,7 @@ void SGameProjectDialog::Construct(const FArguments& InArgs, EMode InMode)
 
 	NewProjectWizard = SNew(SNewProjectWizard)
 		.OnTemplateDoubleClick(this, &SGameProjectDialog::OnTemplateDoubleClick);
-	ProjectSettingsPage = NewProjectWizard->CreateProjectSettingsPage();
 	ProjectBrowserPage = SNew(SProjectBrowser);
-	LandingPage = CreateLandingPage();
 
 	const float UniformPadding = 16.0f;
 
@@ -96,7 +94,7 @@ void SGameProjectDialog::Construct(const FArguments& InArgs, EMode InMode)
 			.Name(GetPageTitle(GameProjectDialogDefs::LandingPageIndex))
 			.CanShow(DialogMode != EMode::Open)
 			[
-				LandingPage.ToSharedRef()
+				CreateLandingPage()
 			]
 
 			+ SWizard::Page()
@@ -117,7 +115,7 @@ void SGameProjectDialog::Construct(const FArguments& InArgs, EMode InMode)
 			.Name(GetPageTitle(GameProjectDialogDefs::ProjectSettingsPageIndex))
 			.CanShow(DialogMode != EMode::Open)
 			[
-				ProjectSettingsPage.ToSharedRef()
+				NewProjectWizard->CreateProjectSettingsPage()
 			]
 		]
 	];

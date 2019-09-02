@@ -27,14 +27,14 @@ class SDecoratedEnumCombo : public SCompoundWidget
 public:
 	struct FComboOption
 	{
-		FComboOption(TEnumType InValue, FSlateIcon InIcon, FText InText, bool bInChoosable = true)
+		FComboOption(TEnumType InValue, FSlateIcon InIcon, FText InText, TAttribute<bool> bInChoosable = true)
 			: Value(InValue), Icon(InIcon), Text(InText), bChoosable(bInChoosable)
 		{}
 
 		TEnumType Value;
 		FSlateIcon Icon;
 		FText Text;
-		bool bChoosable;
+		TAttribute<bool> bChoosable;
 	};
 
 	DECLARE_DELEGATE_OneParam(FOnEnumChanged, TEnumType)
@@ -90,6 +90,8 @@ public:
 			]
 		];
 	}
+
+	TArray<FComboOption>& GetOptions() { return Options; }
 
 private:
 
@@ -152,7 +154,7 @@ private:
 		for (int32 Index = 0; Index < Options.Num(); ++Index)
 		{
 			const auto& Option = Options[Index];
-			if (!Option.bChoosable)
+			if (Option.bChoosable.Get() == false)
 			{
 				continue;
 			}

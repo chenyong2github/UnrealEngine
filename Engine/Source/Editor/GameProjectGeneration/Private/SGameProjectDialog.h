@@ -50,8 +50,6 @@ private:
 	TSharedPtr<SProjectBrowser> ProjectBrowserPage;
 	TSharedPtr<SNewProjectWizard> NewProjectWizard;
 	TSharedPtr<SRecentProjectBrowser> RecentProjectBrowser;
-	TSharedPtr<SWidget> LandingPage;
-	TSharedPtr<SWidget> ProjectSettingsPage;
 
 	TSharedPtr<STileView<TSharedPtr<FTemplateCategory>>> MajorCategoryTileView;
 	TSharedPtr<STileView<TSharedPtr<FTemplateCategory>>> MinorCategoryTileView;

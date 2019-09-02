@@ -40,7 +40,6 @@
 #include "TemplateCategory.h"
 #include "Widgets/SToolTip.h"
 #include "Widgets/Workflow/SWizard.h"
-#include "SDecoratedEnumCombo.h"
 #include "IDocumentation.h"
 #include "Internationalization/BreakIterator.h"
 #include "Dialogs/SOutputLogDialog.h"
@@ -143,7 +142,7 @@ public:
 				.VAlign(VAlign_Center)
 				[
 					SNew(SBox)
-					.HeightOverride(3)
+					.HeightOverride(5)
 					[
 						SNew(SBorder)
 						.BorderImage(FEditorStyle::GetBrush("FilePath.GroupIndicator"))
@@ -189,7 +188,7 @@ public:
 				.VAlign(VAlign_Center)
 				[
 					SNew(SBox)
-					.HeightOverride(3)
+					.HeightOverride(5)
 					[
 						SNew(SBorder)
 						.BorderImage(FEditorStyle::GetBrush("FilePath.GroupIndicator"))
@@ -349,7 +348,7 @@ void SNewProjectWizard::Construct( const FArguments& InArgs )
 			.Text(LOCTEXT("ProjectTemplateDescription", "Choose a <RichTextBlock.BoldHighlight>template</> to use as a starting point for your new project.  Any of these features can be added later by clicking <RichTextBlock.BoldHighlight>Add Feature or Content Pack</> in <RichTextBlock.BoldHighlight>Content Browser</>."))
 			.AutoWrapText(true)
 			.DecoratorStyleSet(&FEditorStyle::Get())
-			.ToolTip(IDocumentation::Get()->CreateToolTip(LOCTEXT("TemplateChoiceTooltip", "A template consists of a little bit of player control logic (either as a Blueprint or in C++), input bindings, and appropriate prototyping assets."), NULL, TEXT("Shared/Editor/NewProjectWizard"), TEXT("TemplateChoice")))
+			.ToolTip(IDocumentation::Get()->CreateToolTip(LOCTEXT("TemplateChoiceTooltip", "A template consists of a little bit of player control logic (either as a Blueprint or in C++), input bindings, and appropriate prototyping assets."), nullptr, TEXT("Shared/Editor/NewProjectWizard"), TEXT("TemplateChoice")))
 		]
 
 		+ SVerticalBox::Slot()
@@ -571,8 +570,24 @@ void SNewProjectWizard::HandleTemplateListViewSelectionChanged(TSharedPtr<FTempl
 {
 	UpdateProjectFileValidity();
 
-	FString CodeProjectFile = GetSelectedTemplateProperty(&FTemplateItem::CodeProjectFile);
-	bShouldGenerateCode = CodeProjectFile.IsEmpty() == false;
+	bool bIsBlueprintAvailable = !GetSelectedTemplateProperty(&FTemplateItem::BlueprintProjectFile).IsEmpty();
+	bool bIsCodeAvailable = !GetSelectedTemplateProperty(&FTemplateItem::CodeProjectFile).IsEmpty();
+
+	// if neither is available, then this is a blank template, so both are available
+	if (!bIsBlueprintAvailable && !bIsCodeAvailable)
+	{
+		bIsBlueprintAvailable = true;
+		bIsCodeAvailable = true;
+	}
+
+	TArray<SDecoratedEnumCombo<int32>::FComboOption>& LanguageOptions = ProjectLanguageEnum->GetOptions();
+	ensure(LanguageOptions[0].Text.IdenticalTo(LOCTEXT("ProjectDialog_Blueprint", "Blueprint")));
+	ensure(LanguageOptions[1].Text.IdenticalTo(LOCTEXT("ProjectDialog_Code", "C++")));
+
+	LanguageOptions[0].bChoosable = bIsBlueprintAvailable;
+	LanguageOptions[1].bChoosable = bIsCodeAvailable;
+
+	bShouldGenerateCode = !bIsBlueprintAvailable;
 }
 
 TSharedPtr<FTemplateItem> SNewProjectWizard::GetSelectedTemplateItem() const
@@ -583,7 +598,7 @@ TSharedPtr<FTemplateItem> SNewProjectWizard::GetSelectedTemplateItem() const
 		return SelectedItems[0];
 	}
 	
-	return NULL;
+	return nullptr;
 }
 
 FText SNewProjectWizard::GetSelectedTemplateClassTypes() const
@@ -980,7 +995,6 @@ TMap<FName, TArray<TSharedPtr<FTemplateItem>> >& SNewProjectWizard::FindTemplate
 	return Templates;
 }
 
-
 void SNewProjectWizard::SetDefaultProjectLocation( )
 {
 	FString DefaultProjectFilePath;
@@ -1044,7 +1058,6 @@ void SNewProjectWizard::SetDefaultProjectLocation( )
 		LastBrowsePath = CurrentProjectFilePath;
 	}
 }
-
 
 void SNewProjectWizard::UpdateProjectFileValidity( )
 {
@@ -1179,7 +1192,6 @@ bool SNewProjectWizard::CreateProject( const FString& ProjectFile )
 	return true;
 }
 
-
 void SNewProjectWizard::CreateAndOpenProject( )
 {
 	if( !CanCreateProject() )
@@ -1223,7 +1235,6 @@ void SNewProjectWizard::CreateAndOpenProject( )
 	}
 }
 
-
 bool SNewProjectWizard::OpenProject( const FString& ProjectFile )
 {
 	FText FailReason;
@@ -1238,7 +1249,6 @@ bool SNewProjectWizard::OpenProject( const FString& ProjectFile )
 	DisplayError( FailReason );
 	return false;
 }
-
 
 bool SNewProjectWizard::OpenCodeIDE( const FString& ProjectFile )
 {
@@ -1256,7 +1266,6 @@ bool SNewProjectWizard::OpenCodeIDE( const FString& ProjectFile )
 	return false;
 }
 
-
 void SNewProjectWizard::CloseWindowIfAppropriate( bool ForceClose )
 {
 	if ( ForceClose || FApp::HasProjectName() )
@@ -1269,7 +1278,6 @@ void SNewProjectWizard::CloseWindowIfAppropriate( bool ForceClose )
 		}
 	}
 }
-
 
 void SNewProjectWizard::DisplayError( const FText& ErrorText )
 {
@@ -1284,7 +1292,6 @@ void SNewProjectWizard::DisplayError( const FText& ErrorText )
 		PersistentGlobalErrorLabelText = ErrorText;
 	}
 }
-
 
 /* SNewProjectWizard event handlers
  *****************************************************************************/
@@ -1323,7 +1330,7 @@ TSharedRef<SWidget> SNewProjectWizard::MakeProjectLocationWidget()
 			.Text(LOCTEXT("ProjectPathDescription", "Select a <RichTextBlock.BoldHighlight>location</> for your project to be stored."))
 			.AutoWrapText(true)
 			.DecoratorStyleSet(&FEditorStyle::Get())
-			.ToolTip(IDocumentation::Get()->CreateToolTip(LOCTEXT("ProjectPathDescriptionTooltip", "All of your project content and code will be stored here."), NULL, TEXT("Shared/Editor/NewProjectWizard"), TEXT("ProjectPath")))
+			.ToolTip(IDocumentation::Get()->CreateToolTip(LOCTEXT("ProjectPathDescriptionTooltip", "All of your project content and code will be stored here."), nullptr, TEXT("Shared/Editor/NewProjectWizard"), TEXT("ProjectPath")))
 		]
 
 		+ SVerticalBox::Slot()
@@ -1346,9 +1353,6 @@ TSharedRef<SWidget> SNewProjectWizard::CreateProjectSettingsPage()
 {
 	const float UniformPadding = 16.f;
 
-	ProjectSettingsDescriptionBox = MakeProjectSettingsDescriptionBox();
-	ProjectSettingsOptionsBox = MakeProjectSettingsOptionsBox();
-
 	TSharedRef<SWidget> PageWidget = SNew(SOverlay)
 	+ SOverlay::Slot()
 	[
@@ -1357,7 +1361,7 @@ TSharedRef<SWidget> SNewProjectWizard::CreateProjectSettingsPage()
 		.AutoHeight()
 		.Padding(0, 8, 0, 8)
 		[
-			ProjectSettingsDescriptionBox.ToSharedRef()
+			MakeProjectSettingsDescriptionBox()
 		]
 		+ SVerticalBox::Slot()
 		.Padding(0)
@@ -1375,7 +1379,7 @@ TSharedRef<SWidget> SNewProjectWizard::CreateProjectSettingsPage()
 					+ SVerticalBox::Slot()
 					.Padding(FMargin(0, 0, 0, UniformPadding))
 					[
-						ProjectSettingsOptionsBox.ToSharedRef()
+						MakeProjectSettingsOptionsBox()
 					]
 				]
 			]
@@ -1508,7 +1512,7 @@ TSharedRef<SRichTextBlock> SNewProjectWizard::MakeProjectSettingsDescriptionBox(
 		.Text(LOCTEXT("ProjectSettingsDescription", "Choose some <RichTextBlock.BoldHighlight>settings</> for your project."))
 		.AutoWrapText(true)
 		.DecoratorStyleSet(&FEditorStyle::Get())
-		.ToolTip(IDocumentation::Get()->CreateToolTip(LOCTEXT("HardwareTargetTooltip", "These settings will choose good defaults for a number of other settings in the project such as post-processing flags and touch input emulation using the mouse."), NULL, TEXT("Shared/Editor/NewProjectWizard"), TEXT("TargetHardware")));
+		.ToolTip(IDocumentation::Get()->CreateToolTip(LOCTEXT("HardwareTargetTooltip", "These settings will choose good defaults for a number of other settings in the project such as post-processing flags and touch input emulation using the mouse."), nullptr, TEXT("Shared/Editor/NewProjectWizard"), TEXT("TargetHardware")));
 
 	return Widget;
 }
@@ -1537,7 +1541,7 @@ static void AddToProjectSettingsGrid(TSharedRef<SGridPanel> Grid, const TSharedR
 	}
 }
 
-TSharedRef<SWidget> SNewProjectWizard::MakeProjectSettingsOptionsBox() const
+TSharedRef<SWidget> SNewProjectWizard::MakeProjectSettingsOptionsBox()
 {
 	static const int EnumWidth = 160;
 
@@ -1553,27 +1557,19 @@ TSharedRef<SWidget> SNewProjectWizard::MakeProjectSettingsOptionsBox() const
 
 	if (!HiddenSettings.Contains(ETemplateSetting::Languages))
 	{
-		bool bIsCodeAvailable = !GetSelectedTemplateProperty(&FTemplateItem::CodeProjectFile).IsEmpty();
-		bool bIsBlueprintAvailable = !GetSelectedTemplateProperty(&FTemplateItem::BlueprintProjectFile).IsEmpty();
-
-		// if neither is available, then this is a blank template, so both are available
-		if (bIsCodeAvailable && bIsBlueprintAvailable)
-		{
-			bIsCodeAvailable = true;
-			bIsBlueprintAvailable = true;
-		}
-
 		TArray<SDecoratedEnumCombo<int32>::FComboOption> BlueprintOrCppOptions;
 		BlueprintOrCppOptions.Add(SDecoratedEnumCombo<int32>::FComboOption(
-			0, FSlateIcon(FEditorStyle::GetStyleSetName(), "GameProjectDialog.BlueprintImage_64"), LOCTEXT("ProjectDialog_Blueprint", "Blueprint"), bIsBlueprintAvailable));
+			0, FSlateIcon(FEditorStyle::GetStyleSetName(), "GameProjectDialog.BlueprintImage_64"), LOCTEXT("ProjectDialog_Blueprint", "Blueprint")));
 
 		BlueprintOrCppOptions.Add(SDecoratedEnumCombo<int32>::FComboOption(
-			1, FSlateIcon(FEditorStyle::GetStyleSetName(), "GameProjectDialog.CodeImage_64"), LOCTEXT("ProjectDialog_Code", "C++"), bIsCodeAvailable));
+			1, FSlateIcon(FEditorStyle::GetStyleSetName(), "GameProjectDialog.CodeImage_64"), LOCTEXT("ProjectDialog_Code", "C++")));
 
 		TSharedRef<SDecoratedEnumCombo<int32>> Enum = SNew(SDecoratedEnumCombo<int32>, MoveTemp(BlueprintOrCppOptions))
 			.SelectedEnum(this, &SNewProjectWizard::OnGetBlueprintOrCppIndex)
 			.OnEnumChanged(this, &SNewProjectWizard::OnSetBlueprintOrCppIndex)
 			.Orientation(Orient_Vertical);
+
+		ProjectLanguageEnum = Enum;
 
 		TSharedRef<SRichTextBlock> Description = SNew(SRichTextBlock)
 			.Text(LOCTEXT("ProjectDialog_BlueprintOrCppDescription", "Choose whether to create a Blueprint or C++ project."))
@@ -1597,7 +1593,6 @@ TSharedRef<SWidget> SNewProjectWizard::MakeProjectSettingsOptionsBox() const
 
 		AddToProjectSettingsGrid(GridPanel, Enum, Description, CurrentSlot);
 	}
-
 
 	if (!HiddenSettings.Contains(ETemplateSetting::GraphicsPreset))
 	{

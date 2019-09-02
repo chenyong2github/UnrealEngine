@@ -12,6 +12,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "HardwareTargetingSettings.h"
 #include "Widgets/Views/STileView.h"
+#include "SDecoratedEnumCombo.h"
 #include "TemplateCategory.h"
 
 class SWizard;
@@ -205,7 +206,7 @@ private:
 	void HandleTemplateListViewSelectionChanged( TSharedPtr<FTemplateItem> TemplateItem, ESelectInfo::Type SelectInfo );
 
 	TSharedRef<SRichTextBlock> MakeProjectSettingsDescriptionBox() const;
-	TSharedRef<SWidget> MakeProjectSettingsOptionsBox() const;
+	TSharedRef<SWidget> MakeProjectSettingsOptionsBox();
 
 private:
 
@@ -258,12 +259,11 @@ private:
 	/** The slate widget representing the list of templates */
 	TSharedPtr<STileView<TSharedPtr<FTemplateItem>>> TemplateListView;
 
+	TSharedPtr<SDecoratedEnumCombo<int32>> ProjectLanguageEnum;
+
 	/** Names for pages */
 	static FName TemplatePageName;
 	static FName NameAndLocationPageName;
-
-	TSharedPtr<SRichTextBlock> ProjectSettingsDescriptionBox;
-	TSharedPtr<SWidget> ProjectSettingsOptionsBox;
 
 	bool bProjectSettingsHidden;
 };
