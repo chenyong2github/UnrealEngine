@@ -253,7 +253,7 @@ FORCEINLINE int32 IntegralToString_Common(const uint64 InVal, const FDecimalNumb
 	// Perform the initial format to a decimal string
 	return IntegralToString_UInt64ToString(
 		InVal, 
-		InFormattingOptions.UseGrouping, 
+		InFormattingOptions.UseGrouping && InFormattingRules.PrimaryGroupingSize > 0,
 		InFormattingRules.PrimaryGroupingSize, 
 		InFormattingRules.SecondaryGroupingSize, 
 		InFormattingRules.GroupingSeparatorCharacter, 

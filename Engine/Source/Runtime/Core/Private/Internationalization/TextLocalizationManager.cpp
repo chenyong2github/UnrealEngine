@@ -6,6 +6,7 @@
 #include "Internationalization/LocalizationResourceTextSource.h"
 #include "Internationalization/PolyglotTextSource.h"
 #include "Internationalization/StringTableRegistry.h"
+#include "Internationalization/Cultures/LeetCulture.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/FileManager.h"
 #include "HAL/LowLevelMemTracker.h"
@@ -46,9 +47,9 @@ void ApplyDefaultCultureSettings(const ELocalizationLoadFlags LocLoadFlags)
 
 	// Set culture according to configuration now that configs are available.
 #if ENABLE_LOC_TESTING
-	if (FCommandLine::IsInitialized() && FParse::Param(FCommandLine::Get(), TEXT("LEET")))
+	if (FCommandLine::IsInitialized() && FParse::Param(FCommandLine::Get(), *FLeetCulture::StaticGetName()))
 	{
-		I18N.SetCurrentCulture(TEXT("LEET"));
+		I18N.SetCurrentCulture(FLeetCulture::StaticGetName());
 	}
 	else
 #endif
@@ -187,7 +188,7 @@ void ApplyDefaultCultureSettings(const ELocalizationLoadFlags LocLoadFlags)
 			FString TargetCultureName = InRequestedCulture;
 
 #if ENABLE_LOC_TESTING
-			if (TargetCultureName != TEXT("LEET"))
+			if (TargetCultureName != FLeetCulture::StaticGetName())
 #endif
 			{
 				ELocalizationLoadFlags ValidationFlags = ELocalizationLoadFlags::None;
@@ -571,7 +572,7 @@ FTextDisplayStringRef FTextLocalizationManager::GetDisplayString(const FTextKey&
 	}
 
 #if ENABLE_LOC_TESTING
-	const bool bShouldLEETIFYAll = bIsInitialized && FInternationalization::Get().GetCurrentLanguage()->GetName() == TEXT("LEET");
+	const bool bShouldLEETIFYAll = bIsInitialized && FInternationalization::Get().GetCurrentLanguage()->GetName() == FLeetCulture::StaticGetName();
 
 	// Attempt to set bShouldLEETIFYUnlocalizedString appropriately, only once, after the commandline is initialized and parsed.
 	static bool bShouldLEETIFYUnlocalizedString = false;
@@ -902,7 +903,7 @@ void FTextLocalizationManager::LoadLocalizationResourcesForPrioritizedCultures(T
 
 #if ENABLE_LOC_TESTING
 	// The leet culture is fake. Just leet-ify existing strings.
-	if (PrioritizedCultureNames[0] == TEXT("LEET"))
+	if (PrioritizedCultureNames[0] == FLeetCulture::StaticGetName())
 	{
 		// Lock while updating the tables
 		{
