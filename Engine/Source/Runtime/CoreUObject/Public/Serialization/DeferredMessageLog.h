@@ -17,7 +17,7 @@ class FTokenizedMessage;
  * finished to prevent modules from being loaded outside of game thread.
  * Also makes sure the messages are added to the message queue in a thread-safe way.
 */
-class FDeferredMessageLog
+class COREUOBJECT_API FDeferredMessageLog
 {
 	FName LogCategory;
 
