@@ -38,6 +38,9 @@ public:
 	 */
 	TSharedPtr<FPixelStreamingInputDevice> GetInputDevicePtr();
 
+	virtual void FreezeFrame(UTexture2D* Texture) override;
+	virtual void UnfreezeFrame() override;
+
 private:
 
 	bool CheckPlatformCompatibility() const;
@@ -47,9 +50,12 @@ private:
 	void OnPreResizeWindowBackbuffer_RenderThread();
 	void OnGameModePostLogin(AGameModeBase* GameMode, APlayerController* NewPlayer);
 	void OnGameModeLogout(AGameModeBase* GameMode, AController* Exiting);
+	void SendJpeg(TArray<FColor>* Data, const FIntRect& Rect);
 
 	TUniquePtr<FStreamer> Streamer;
 	FTexture2DRHIRef mResolvedFrameBuffer;
 	TSharedPtr<FPixelStreamingInputDevice> InputDevice;
 	TArray<UPixelStreamingInputComponent*> InputComponents;
+	bool bFrozen;
+	bool bCaptureNextBackBufferAndStream;
 };

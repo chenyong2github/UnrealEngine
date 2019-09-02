@@ -60,16 +60,16 @@ namespace PixelStreamingProtocol
 	};
 
 	// !!! modifying this enum make sure to update the next function !!!
-	enum class EToProxyMsg : uint8 { AudioPCM, SpsPps, VideoIDR, Video, ClientConfig, Response, Count };
+	enum class EToProxyMsg : uint8 { AudioPCM, SpsPps, VideoIDR, Video, ClientConfig, Response, FreezeFrame, UnfreezeFrame, Count };
 	inline const TCHAR* PacketTypeStr(EToProxyMsg PktType) 
 	{
-		static const TCHAR* Str[static_cast<uint8>(EToProxyMsg::Count)] = { TEXT("AudioPCM"), TEXT("SpsPps"), TEXT("VideoIDR"), TEXT("Video"), TEXT("ClientConfig"), TEXT("Response") };
+		static const TCHAR* Str[static_cast<uint8>(EToProxyMsg::Count)] = { TEXT("AudioPCM"), TEXT("SpsPps"), TEXT("VideoIDR"), TEXT("Video"), TEXT("ClientConfig"), TEXT("Response"), TEXT("FreezeFrame"), TEXT("UnfreezeFrame") };
 		check(PktType < EToProxyMsg::Count);
 		return Str[static_cast<uint8>(PktType)];
 	}
 
 	//! Messages that can be sent to the webrtc clients
-	enum class EToClientMsg : uint8 { QualityControlOwnership, Response };
+	enum class EToClientMsg : uint8 { QualityControlOwnership, Response, FreezeFrame, UnfreezeFrame };
 
 	enum class ECirrusToProxyMsg : uint8 { offer, iceCandidate, clientDisconnected, config, count };
 	enum class EProxyToCirrusMsg : uint8 { answer, iceCandidate, disconnectClient };

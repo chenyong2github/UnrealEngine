@@ -44,4 +44,7 @@ private:
 	IUE4ConnectionObserver& Observer;
 	FAsyncConnection Connection;
 	std::atomic<bool> bStreamingStarted = false;
+
+	// Check to see if we should drop a packet of the given message type.
+	bool DropPacket(PixelStreamingProtocol::EToProxyMsg PktType) const;
 };
