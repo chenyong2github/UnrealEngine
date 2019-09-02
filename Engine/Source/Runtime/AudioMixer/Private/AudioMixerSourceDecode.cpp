@@ -12,11 +12,12 @@
 
 static int32 ForceSyncAudioDecodesCvar = 0;
 FAutoConsoleVariableRef CVarForceSyncAudioDecodes(
-                                                  TEXT("au.ForceSyncAudioDecodes"),
-                                                  ForceSyncAudioDecodesCvar,
-                                                  TEXT("Disables using async tasks for processing sources.\n")
-                                                  TEXT("0: Not Disabled, 1: Disabled"),
-                                                  ECVF_Default);
+	TEXT("au.ForceSyncAudioDecodes"),
+	ForceSyncAudioDecodesCvar,
+	TEXT("Disables using async tasks for processing sources.\n")
+	TEXT("0: Not Disabled, 1: Disabled"),
+	ECVF_Default);
+
 namespace Audio
 {
 
