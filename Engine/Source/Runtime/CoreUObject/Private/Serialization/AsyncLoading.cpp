@@ -5339,10 +5339,12 @@ void FAsyncLoadingThread::CancelAsyncLoadingInternal()
 
 	if (GEventDrivenLoaderEnabled)
 	{
-		while (GPrecacheCallbackHandler.AnyIOOutstanding())
+		FPrecacheCallbackHandler* PrecacheHandler = FCoreUObjectModule::GetGlobalPrecacheHandler();
+
+		while (PrecacheHandler->AnyIOOutstanding())
 		{
-			GPrecacheCallbackHandler.WaitForIO(10.0f);
-			GPrecacheCallbackHandler.ProcessIncoming();
+			PrecacheHandler->WaitForIO(10.0f);
+			PrecacheHandler->ProcessIncoming();
 		}
 	}
 

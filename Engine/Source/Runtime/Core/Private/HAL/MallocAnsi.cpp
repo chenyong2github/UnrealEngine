@@ -150,8 +150,6 @@ FMallocAnsi::FMallocAnsi()
 
 void* FMallocAnsi::Malloc( SIZE_T Size, uint32 Alignment )
 {
-	IncrementTotalMallocCalls();
-
 #if !UE_BUILD_SHIPPING
 	uint64 LocalMaxSingleAlloc = MaxSingleAlloc.Load(EMemoryOrder::Relaxed);
 	if (LocalMaxSingleAlloc != 0 && Size > LocalMaxSingleAlloc)
