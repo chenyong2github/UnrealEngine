@@ -35,8 +35,10 @@ UButton::UButton(const FObjectInitializer& ObjectInitializer)
 
 	IsFocusable = true;
 
+#if WITH_EDITORONLY_DATA
 	AccessibleBehavior = ESlateAccessibleBehavior::Summary;
 	bCanChildrenBeAccessible = false;
+#endif
 }
 
 void UButton::ReleaseSlateResources(bool bReleaseChildren)

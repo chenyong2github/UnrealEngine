@@ -31,8 +31,10 @@ UTextBlock::UTextBlock(const FObjectInitializer& ObjectInitializer)
 		Font = FSlateFontInfo(RobotoFontObj.Object, 24, FName("Bold"));
 	}
 
+#if WITH_EDITORONLY_DATA
 	AccessibleBehavior = ESlateAccessibleBehavior::Auto;
 	bCanChildrenBeAccessible = false;
+#endif
 }
 
 void UTextBlock::PostLoad()
