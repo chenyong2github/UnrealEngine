@@ -188,6 +188,14 @@ public:
 		ESelectInfo::Type
 	)
 
+	/** A delegate type to control if a item is selectable or navigable. */
+	DECLARE_DELEGATE_RetVal_OneParam(
+		bool,
+		FIsSelectableOrNavigable,
+		/** param: The newly selected value */
+		ArgumentType
+	)
+
 	DECLARE_DELEGATE_TwoParams(
 		FOnExpansionChanged,
 		ArgumentType,
