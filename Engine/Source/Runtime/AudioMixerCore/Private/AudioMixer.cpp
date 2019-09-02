@@ -119,6 +119,8 @@ namespace Audio
 	{
 		Buffer.SetNumZeroed(InNumSamples);
 		DataFormat = InDataFormat;
+
+		check(InAudioMixer != nullptr);
 		AudioMixer = InAudioMixer;
 
 		switch (DataFormat)
@@ -144,7 +146,10 @@ namespace Audio
 
 		// Zero the buffer
 		FPlatformMemory::Memzero(Buffer.GetData(), Buffer.Num() * sizeof(float));
-		AudioMixer->OnProcessAudioStream(Buffer);
+		if (AudioMixer != nullptr)
+		{
+			AudioMixer->OnProcessAudioStream(Buffer);
+		}
 
 		switch (DataFormat)
 		{
