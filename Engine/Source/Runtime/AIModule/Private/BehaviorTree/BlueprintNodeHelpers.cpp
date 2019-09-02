@@ -11,6 +11,7 @@
 #include "BehaviorTree/BehaviorTreeTypes.h"
 #include "BehaviorTree/BTNode.h"
 #include "GameplayTagContainer.h"
+#include "UObject/TextProperty.h"
 
 namespace BlueprintNodeHelpers
 {
