@@ -33,6 +33,8 @@ protected:
 
 		FString NavDataName;
 		int32 NumDirtyAreas = 0;
+		uint16 NumRunningTasks = 0;
+		uint16 NumRemainingTasks = 0;
 		bool bCanChangeReference = false;
 		bool bCanCycleNavigationData = false;
 		bool bIsUsingPlayerActor = false;
