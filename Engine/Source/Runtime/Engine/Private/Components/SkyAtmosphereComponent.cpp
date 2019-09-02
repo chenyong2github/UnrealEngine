@@ -42,11 +42,11 @@ USkyAtmosphereComponent::USkyAtmosphereComponent(const FObjectInitializer& Objec
 	// Default: Earth like atmosphere
 	BottomRadius = EarthBottomRadius;
 	AtmosphereHeight = EarthTopRadius - EarthBottomRadius;
-	GroundAlbedo = FColor(0.0f, 0.0f, 0.0f);
+	GroundAlbedo = FColor(0.4f, 0.4f, 0.4f);
 
 	// FLoat to a u8 rgb + float length can lose some precision but it is better UI wise.
 	const FLinearColor RayleightScatteringRaw = FLinearColor(0.005802f, 0.013558f, 0.033100f);
-	RayleighScattering = (RayleightScatteringRaw * (1.0f / RayleightScatteringRaw.B)).ToFColor(false);
+	RayleighScattering = RayleightScatteringRaw * (1.0f / RayleightScatteringRaw.B);
 	RayleighScatteringScale = RayleightScatteringRaw.B;
 	RayleighExponentialDistribution = EarthRayleighScaleHeight;
 
@@ -60,7 +60,7 @@ USkyAtmosphereComponent::USkyAtmosphereComponent(const FObjectInitializer& Objec
 	// Absorption tent distribution representing ozone distribution in Earth atmosphere.
 	const FLinearColor OtherAbsorptionRaw = FLinearColor(0.000650f, 0.001881f, 0.000085f);
 	OtherAbsorptionScale = OtherAbsorptionRaw.G;
-	OtherAbsorption = (OtherAbsorptionRaw * (1.0f / OtherAbsorptionRaw.G)).ToFColor(false);
+	OtherAbsorption = OtherAbsorptionRaw * (1.0f / OtherAbsorptionRaw.G);
 	OtherTentDistribution.TipAltitude = 25.0f;
 	OtherTentDistribution.TipValue    =  1.0f;
 	OtherTentDistribution.Width       = 15.0f;
@@ -265,21 +265,30 @@ void USkyAtmosphereComponent::OverrideAtmosphereLightDirection(int32 AtmosphereL
 	}\
 }\
 
+#define SKY_DECLARE_BLUEPRINT_SETFUNCTION_LINEARCOEFFICIENT(MemberName) void USkyAtmosphereComponent::Set##MemberName(FLinearColor NewValue)\
+{\
+	if (AreDynamicDataChangesAllowed() && MemberName != NewValue)\
+	{\
+		MemberName = NewValue.GetClamped(0.0f, 1e38f); \
+		MarkRenderStateDirty();\
+	}\
+}\
+
 SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, RayleighScatteringScale);
-SKY_DECLARE_BLUEPRINT_SETFUNCTION(FColor, RayleighScattering);
+SKY_DECLARE_BLUEPRINT_SETFUNCTION_LINEARCOEFFICIENT(RayleighScattering);
 SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, RayleighExponentialDistribution);
 
 SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, MieScatteringScale);
-SKY_DECLARE_BLUEPRINT_SETFUNCTION(FColor, MieScattering);
+SKY_DECLARE_BLUEPRINT_SETFUNCTION_LINEARCOEFFICIENT(MieScattering);
 SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, MieAbsorptionScale);
-SKY_DECLARE_BLUEPRINT_SETFUNCTION(FColor, MieAbsorption);
+SKY_DECLARE_BLUEPRINT_SETFUNCTION_LINEARCOEFFICIENT(MieAbsorption);
 SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, MieAnisotropy);
 SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, MieExponentialDistribution);
 
 SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, OtherAbsorptionScale);
-SKY_DECLARE_BLUEPRINT_SETFUNCTION(FColor, OtherAbsorption);
+SKY_DECLARE_BLUEPRINT_SETFUNCTION_LINEARCOEFFICIENT(OtherAbsorption);
 
-SKY_DECLARE_BLUEPRINT_SETFUNCTION(FLinearColor, SkyLuminanceFactor);
+SKY_DECLARE_BLUEPRINT_SETFUNCTION_LINEARCOEFFICIENT(SkyLuminanceFactor);
 SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, AerialPespectiveViewDistanceScale);
 
 /*=============================================================================
