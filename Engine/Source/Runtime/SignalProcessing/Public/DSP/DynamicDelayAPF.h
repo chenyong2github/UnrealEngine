@@ -19,7 +19,7 @@ namespace Audio
 		// InMinDelay is the minimum allowable delay of the all pass filter.
 		// InMaxDelay is the maximum allowable delay of the all pass filter.
 		// InMaxNumInternalBufferSamples is the maximum internal block size used internally. 
-		FDynamicDelayAPF(float InG, int32 InMinDelay, int32 InMaxDelay, int32 InMaxNumInternalBufferSamples);
+		FDynamicDelayAPF(float InG, int32 InMinDelay, int32 InMaxDelay, int32 InMaxNumInternalBufferSamples, float InSampleRate);
 
 		// Destructor
 		~FDynamicDelayAPF();
@@ -47,7 +47,7 @@ namespace Audio
 	private:
 		// Feedback/Feedforward gain coefficient
 		FLinearEase G;
-		float EaseTimeInSec{ 2.0 };
+		float EaseTimeInSec{ 2.0f };
 		int32 MinDelay;
 		int32 MaxDelay;
 		int32 NumDelaySamples;
