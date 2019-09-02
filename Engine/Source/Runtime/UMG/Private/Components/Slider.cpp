@@ -35,8 +35,10 @@ USlider::USlider(const FObjectInitializer& ObjectInitializer)
 
 	WidgetStyle = *DefaultSliderStyle;
 
+#if WITH_EDITORONLY_DATA
 	AccessibleBehavior = ESlateAccessibleBehavior::Summary;
 	bCanChildrenBeAccessible = false;
+#endif
 }
 
 TSharedRef<SWidget> USlider::RebuildWidget()
