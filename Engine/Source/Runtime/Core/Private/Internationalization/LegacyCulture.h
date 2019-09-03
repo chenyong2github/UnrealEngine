@@ -6,13 +6,15 @@
 #include "Containers/Map.h"
 #include "Internationalization/Text.h"
 #include "Internationalization/Culture.h"
+#include "Internationalization/CultureImplementation.h"
 #include "Internationalization/FastDecimalFormat.h"
 
 #if !UE_ENABLE_ICU
-class FCulture::FLegacyCultureImplementation
+class FLegacyCultureImplementation : public ICultureImplementation
 {
 	friend class FCulture;
 
+public:
 	FLegacyCultureImplementation(
 		const FText& InDisplayName, 
 		const FString& InEnglishName, 
@@ -27,43 +29,33 @@ class FCulture::FLegacyCultureImplementation
 		const FDecimalNumberFormattingRules& InPercentFormattingRules,
 		const FDecimalNumberFormattingRules& InBaseCurrencyFormattingRules
 		);
+	virtual ~FLegacyCultureImplementation() = default;
 
-	FString GetDisplayName() const;
-
-	FString GetEnglishName() const;
-
-	int GetKeyboardLayoutId() const;
-
-	int GetLCID() const;
+	//~ ICultureImplementation interface
+	virtual FString GetDisplayName() const override;
+	virtual FString GetEnglishName() const override;
+	virtual int GetKeyboardLayoutId() const override;
+	virtual int GetLCID() const override;
+	virtual FString GetName() const override;
+	virtual FString GetNativeName() const override;
+	virtual FString GetUnrealLegacyThreeLetterISOLanguageName() const override;
+	virtual FString GetThreeLetterISOLanguageName() const override;
+	virtual FString GetTwoLetterISOLanguageName() const override;
+	virtual FString GetNativeLanguage() const override;
+	virtual FString GetNativeRegion() const override;
+	virtual FString GetRegion() const override;
+	virtual FString GetScript() const override;
+	virtual FString GetVariant() const override;
+	virtual const FDecimalNumberFormattingRules& GetDecimalNumberFormattingRules() override;
+	virtual const FDecimalNumberFormattingRules& GetPercentFormattingRules() override;
+	virtual const FDecimalNumberFormattingRules& GetCurrencyFormattingRules(const FString& InCurrencyCode) override;
+	virtual ETextPluralForm GetPluralForm(int32 Val, const ETextPluralType PluralType) const override;
+	virtual ETextPluralForm GetPluralForm(double Val, const ETextPluralType PluralType) const override;
+	virtual const TArray<ETextPluralForm>& GetValidPluralForms(const ETextPluralType PluralType) const override;
 
 	static FString GetCanonicalName(const FString& Name);
 
-	FString GetName() const;
-
-	FString GetNativeName() const;
-
-	FString GetUnrealLegacyThreeLetterISOLanguageName() const;
-
-	FString GetThreeLetterISOLanguageName() const;
-
-	FString GetTwoLetterISOLanguageName() const;
-
-	FString GetNativeLanguage() const;
-
-	FString GetNativeRegion() const;
-
-	const FDecimalNumberFormattingRules& GetDecimalNumberFormattingRules();
-
-	const FDecimalNumberFormattingRules& GetPercentFormattingRules();
-
-	const FDecimalNumberFormattingRules& GetCurrencyFormattingRules(const FString& InCurrencyCode);
-
-	ETextPluralForm GetPluralForm(int32 Val, const ETextPluralType PluralType) const;
-
-	ETextPluralForm GetPluralForm(double Val, const ETextPluralType PluralType) const;
-
-	const TArray<ETextPluralForm>& GetValidPluralForms(const ETextPluralType PluralType) const;
-
+private:
 	// Full localized culture name
 	const FText DisplayName;
 

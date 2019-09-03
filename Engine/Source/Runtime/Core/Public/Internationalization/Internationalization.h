@@ -14,6 +14,7 @@
 #define LOC_DEFINE_REGION
 
 class FCulture;
+class ICustomCulture;
 class FICUInternationalization;
 class FLegacyInternationalization;
 
@@ -161,6 +162,12 @@ public:
 	/** Load and cache the data needed for every culture we know about (this is usually done per-culture as required) */
 	CORE_API void LoadAllCultureData();
 
+	/** Add a new custom culture */
+	CORE_API void AddCustomCulture(const TSharedRef<ICustomCulture>& InCustomCulture);
+
+	/** Get a new custom culture from its name */
+	CORE_API FCulturePtr GetCustomCulture(const FString& InCultureName) const;
+
 	/** Has the given culture been remapped in this build? */
 	CORE_API bool IsCultureRemapped(const FString& Name, FString* OutMappedCulture);
 
@@ -244,6 +251,11 @@ private:
 	 * An invariant culture that can be used when you don't care about localization/internationalization.
 	 */
 	FCulturePtr InvariantCulture;
+
+	/**
+	 * Custom cultures registered via AddCustomCulture.
+	 */
+	TArray<FCultureRef> CustomCultures;
 };
 
 namespace UE4LocGen_Private
