@@ -1833,7 +1833,10 @@ private:
 	TArray<FActiveSound*> ActiveSounds;
 	/** Array of sound waves to add references to avoid GC until guaranteed to be done with precache or decodes. */
 	TArray<USoundWave*> ReferencedSoundWaves;
+
 	void UpdateReferencedSoundWaves();
+	TArray<USoundWave*> ReferencedSoundWaves_AudioThread;
+	FCriticalSection ReferencedSoundWaveCritSec;
 
 	TArray<USoundWave*> PrecachingSoundWaves;
 
