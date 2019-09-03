@@ -12,6 +12,7 @@
 #include "LightSceneInfo.h"
 #include "PixelShaderUtils.h"
 #include "RenderTargetTemp.h"
+#include "Rendering/SkyAtmosphereCommonData.h"
 #include "ScenePrivate.h"
 #include "SceneRenderTargetParameters.h"
 
@@ -333,27 +334,36 @@ static FLinearColor GetLightDiskLuminance(FLightSceneInfo& Light, FLinearColor L
 	return LightIlluminance / SunSolidAngle; // approximation
 }
 
+void PrepareSunLightProxy(const FSkyAtmosphereRenderSceneInfo& SkyAtmosphere, uint32 AtmosphereLightIndex, FLightSceneInfo& AtmosphereLight)
+{
+	// See explanation in https://media.contentapi.ea.com/content/dam/eacom/frostbite/files/s2016-pbs-frostbite-sky-clouds-new.pdf page 26
+	const bool bAtmosphereAffectsSunIlluminance = true;
+	const FSkyAtmosphereSceneProxy& SkyAtmosphereProxy = SkyAtmosphere.GetSkyAtmosphereSceneProxy();
+	const FVector AtmosphereLightDirection = SkyAtmosphereProxy.GetAtmosphereLightDirection(AtmosphereLightIndex, -AtmosphereLight.Proxy->GetDirection());
+	FLinearColor TransmittanceTowardSun = bAtmosphereAffectsSunIlluminance ? SkyAtmosphereProxy.GetAtmosphereSetup().GetTransmittanceAtGroundLevel(AtmosphereLightDirection) : FLinearColor(FLinearColor::White);
+	FLinearColor TransmittanceAtZenithFinal = bAtmosphereAffectsSunIlluminance ? SkyAtmosphereProxy.GetTransmittanceAtZenith() : FLinearColor(FLinearColor::White);
+
+	FLinearColor SunZenithIlluminance = AtmosphereLight.Proxy->GetColor();
+	FLinearColor SunOuterSpaceIlluminance = SunZenithIlluminance / TransmittanceAtZenithFinal;
+	FLinearColor SunDiskOuterSpaceLuminance = GetLightDiskLuminance(AtmosphereLight, SunOuterSpaceIlluminance);
+
+	AtmosphereLight.Proxy->SetAtmosphereRelatedProperties(TransmittanceTowardSun / TransmittanceAtZenithFinal, SunDiskOuterSpaceLuminance);
+}
+
+
 
 /*=============================================================================
 	FSkyAtmosphereRenderSceneInfo implementation.
 =============================================================================*/
 
 
-
-FSkyAtmosphereRenderSceneInfo::FSkyAtmosphereRenderSceneInfo(const USkyAtmosphereComponent* InComponent)
-	: bStaticLightingBuilt(false)
-	, Component_DoNotDereference(InComponent)
-	, AtmosphereSetup(*InComponent)
-	, TransmittanceAtZenith(AtmosphereSetup.GetTransmittanceAtGroundLevel(FVector(0.0f, 0.0f, 1.0f)))
+FSkyAtmosphereRenderSceneInfo::FSkyAtmosphereRenderSceneInfo(FSkyAtmosphereSceneProxy& SkyAtmosphereSceneProxyIn)
+	:SkyAtmosphereSceneProxy(SkyAtmosphereSceneProxyIn)
 {
-	SkyLuminanceFactor = InComponent->SkyLuminanceFactor;
-	AerialPespectiveViewDistanceScale = InComponent->AerialPespectiveViewDistanceScale;
-	memset(OverrideAtmosphericLight, 0, sizeof(OverrideAtmosphericLight));
-
 	// Create a multiframe uniform buffer. A render command is used because FSkyAtmosphereRenderSceneInfo ctor is called on the Game thread.
 	TUniformBufferRef<FAtmosphereUniformShaderParameters>* AtmosphereUniformBufferPtr = &AtmosphereUniformBuffer;
 	FAtmosphereUniformShaderParameters* AtmosphereUniformShaderParametersPtr = &AtmosphereUniformShaderParameters;
-	CopyAtmosphereSetupToUniformShaderParameters(AtmosphereUniformShaderParameters, AtmosphereSetup);
+	CopyAtmosphereSetupToUniformShaderParameters(AtmosphereUniformShaderParameters, SkyAtmosphereSceneProxy.GetAtmosphereSetup());
 	ENQUEUE_RENDER_COMMAND(FCreateUniformBuffer)(
 		[AtmosphereUniformBufferPtr, AtmosphereUniformShaderParametersPtr](FRHICommandListImmediate& RHICmdList)
 	{
@@ -365,21 +375,6 @@ FSkyAtmosphereRenderSceneInfo::~FSkyAtmosphereRenderSceneInfo()
 {
 }
 
-void FSkyAtmosphereRenderSceneInfo::PrepareSunLightProxy(uint32 AtmosphereLightIndex, FLightSceneInfo& AtmosphereLight) const
-{
-	// See explanation in https://media.contentapi.ea.com/content/dam/eacom/frostbite/files/s2016-pbs-frostbite-sky-clouds-new.pdf page 26
-	const bool bAtmosphereAffectsSunIlluminance = true;
-	const FVector AtmosphereLightDirection = GetAtmosphereLightDirection(AtmosphereLightIndex, -AtmosphereLight.Proxy->GetDirection());
-	FLinearColor TransmittanceTowardSun = bAtmosphereAffectsSunIlluminance ? AtmosphereSetup.GetTransmittanceAtGroundLevel(AtmosphereLightDirection) : FLinearColor(FLinearColor::White);
-	FLinearColor TransmittanceAtZenithFinal = bAtmosphereAffectsSunIlluminance ? TransmittanceAtZenith : FLinearColor(FLinearColor::White);
-
-	FLinearColor SunZenithIlluminance = AtmosphereLight.Proxy->GetColor();
-	FLinearColor SunOuterSpaceIlluminance = SunZenithIlluminance / TransmittanceAtZenithFinal;
-	FLinearColor SunDiskOuterSpaceLuminance = GetLightDiskLuminance(AtmosphereLight, SunOuterSpaceIlluminance);
-
-	AtmosphereLight.Proxy->SetAtmosphereRelatedProperties(TransmittanceTowardSun / TransmittanceAtZenithFinal, SunDiskOuterSpaceLuminance);
-}
-
 FTextureRHIRef FSkyAtmosphereRenderSceneInfo::GetDistantSkyLightLutTextureRHI()
 {
 	if (CVarSkyAtmosphereDistantSkyLightLUT.GetValueOnRenderThread() > 0)
@@ -389,85 +384,72 @@ FTextureRHIRef FSkyAtmosphereRenderSceneInfo::GetDistantSkyLightLutTextureRHI()
 	return GBlackTexture->TextureRHI;
 }
 
-void FSkyAtmosphereRenderSceneInfo::OverrideAtmosphereLightDirection(const class USkyAtmosphereComponent* SkyAtmosphereComponent, int32 AtmosphereLightIndex, const FVector& LightDirection)
-{
-	if (SkyAtmosphereComponent == Component_DoNotDereference)
-	{
-		check(AtmosphereLightIndex >= 0 && AtmosphereLightIndex < NUM_ATMOSPHERE_LIGHTS);
-		AtmosphereLightIndex = FMath::Clamp(AtmosphereLightIndex, 0, NUM_ATMOSPHERE_LIGHTS - 1);	// To make sure we do not crash, blueprint function cannot enforce input ranges
-		OverrideAtmosphericLight[AtmosphereLightIndex] = true;
-		OverrideAtmosphericLightDirection[AtmosphereLightIndex] = LightDirection;
-	}
-}
 
-FVector FSkyAtmosphereRenderSceneInfo::GetAtmosphereLightDirection(int32 AtmosphereLightIndex, const FVector& DefaultDirection) const
-{
-	if (OverrideAtmosphericLight[AtmosphereLightIndex])
-	{
-		return OverrideAtmosphericLightDirection[AtmosphereLightIndex];
-	}
-	return DefaultDirection;
-}
 
 /*=============================================================================
 	FScene functions
 =============================================================================*/
 
-void FScene::AddSkyAtmosphere(const USkyAtmosphereComponent* SkyAtmosphereComponent, bool bStaticLightingBuilt)
-{
-	check(SkyAtmosphereComponent);
 
-	FSkyAtmosphereRenderSceneInfo* SceneInfo = new FSkyAtmosphereRenderSceneInfo(SkyAtmosphereComponent);
+
+void FScene::AddSkyAtmosphere(FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy, bool bStaticLightingBuilt)
+{
+	check(SkyAtmosphereSceneProxy);
 	FScene* Scene = this;
+
 	ENQUEUE_RENDER_COMMAND(FAddSkyAtmosphereCommand)(
-		[Scene, SceneInfo, bStaticLightingBuilt](FRHICommandListImmediate& RHICmdList)
+		[Scene, SkyAtmosphereSceneProxy, bStaticLightingBuilt](FRHICommandListImmediate& RHICmdList)
 		{
-			if (Scene->SkyAtmosphere)
-			{
-				delete Scene->SkyAtmosphere;
-			}
-			Scene->SkyAtmosphere = SceneInfo;
-			Scene->SkyAtmosphere->bStaticLightingBuilt = bStaticLightingBuilt;
-			if (!Scene->SkyAtmosphere->bStaticLightingBuilt)
+			check(!Scene->SkyAtmosphereStack.Contains(SkyAtmosphereSceneProxy));
+			Scene->SkyAtmosphereStack.Push(SkyAtmosphereSceneProxy);
+
+			SkyAtmosphereSceneProxy->RenderSceneInfo = new FSkyAtmosphereRenderSceneInfo(*SkyAtmosphereSceneProxy);
+
+			// Use the most recently enabled SkyAtmosphere
+			Scene->SkyAtmosphere = SkyAtmosphereSceneProxy->RenderSceneInfo;
+			SkyAtmosphereSceneProxy->bStaticLightingBuilt = bStaticLightingBuilt;
+			if (!SkyAtmosphereSceneProxy->bStaticLightingBuilt)
 			{
 				FPlatformAtomics::InterlockedIncrement(&Scene->NumUncachedStaticLightingInteractions);
 			}
 		} );
 }
 
-void FScene::RemoveSkyAtmosphere(const USkyAtmosphereComponent* SkyAtmosphereComponent)
+void FScene::RemoveSkyAtmosphere(FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy)
 {
+	check(SkyAtmosphereSceneProxy);
 	FScene* Scene = this;
-	check(SkyAtmosphereComponent);
 
 	ENQUEUE_RENDER_COMMAND(FRemoveSkyAtmosphereCommand)(
-		[Scene](FRHICommandListImmediate& RHICmdList)
+		[Scene, SkyAtmosphereSceneProxy](FRHICommandListImmediate& RHICmdList)
 		{
-			if (Scene->SkyAtmosphere)
+			if (!SkyAtmosphereSceneProxy->bStaticLightingBuilt)
 			{
-				if (Scene->SkyAtmosphere && !Scene->SkyAtmosphere->bStaticLightingBuilt)
-				{
-					FPlatformAtomics::InterlockedDecrement(&Scene->NumUncachedStaticLightingInteractions);
-				}
-				delete Scene->SkyAtmosphere;
-				Scene->SkyAtmosphere = NULL;
+				FPlatformAtomics::InterlockedDecrement(&Scene->NumUncachedStaticLightingInteractions);
+			}
+			delete SkyAtmosphereSceneProxy->RenderSceneInfo;
+			Scene->SkyAtmosphereStack.RemoveSingle(SkyAtmosphereSceneProxy);
+
+			if (Scene->SkyAtmosphereStack.Num() > 0)
+			{
+				// Use the most recently enabled SkyAtmosphere
+				Scene->SkyAtmosphere = Scene->SkyAtmosphereStack.Last()->RenderSceneInfo;
+			}
+			else
+			{
+				Scene->SkyAtmosphere = nullptr;
 			}
 		} );
 }
 
-void FScene::OverrideSkyAtmosphereLightDirection(const class USkyAtmosphereComponent* SkyAtmosphereComponent, int32 AtmosphereLightIndex, const FVector& InLightDirection)
+void FScene::OverrideSkyAtmosphereLightDirection(FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy, int32 AtmosphereLightIndex, const FVector& InLightDirection)
 {
-	FScene* Scene = this;
 	FVector LightDirection = InLightDirection;
 	LightDirection.Normalize();
 	ENQUEUE_RENDER_COMMAND(FOverrideSkyAtmosphereLightDirection)(
-		[Scene, SkyAtmosphereComponent, AtmosphereLightIndex, LightDirection](FRHICommandListImmediate& RHICmdList)
+		[SkyAtmosphereSceneProxy, AtmosphereLightIndex, LightDirection](FRHICommandListImmediate& RHICmdList)
 	{
-		FSkyAtmosphereRenderSceneInfo* SkyInfo = Scene->GetSkyAtmosphereSceneInfo();
-		if (SkyInfo)
-		{
-			SkyInfo->OverrideAtmosphereLightDirection(SkyAtmosphereComponent, AtmosphereLightIndex, LightDirection);
-		}
+		SkyAtmosphereSceneProxy->OverrideAtmosphereLightDirection(AtmosphereLightIndex, LightDirection);
 	});
 }
 
@@ -1023,8 +1005,9 @@ static void SetupSkyAtmosphereInternalCommonParameters(
 	InternalCommonParameters.TransmittanceSampleCount = CVarSkyAtmosphereTranstmittanceLUTSampleCount.GetValueOnRenderThread();
 	InternalCommonParameters.MultiScatteringSampleCount = CVarSkyAtmosphereMultiScatteringLUTSampleCount.GetValueOnRenderThread();
 
-	InternalCommonParameters.SkyLuminanceFactor = FVector(SkyInfo.GetSkyLuminanceFactor());
-	InternalCommonParameters.AerialPespectiveViewDistanceScale = SkyInfo.GetAerialPespectiveViewDistanceScale();
+	const FSkyAtmosphereSceneProxy& SkyAtmosphereSceneProxy = SkyInfo.GetSkyAtmosphereSceneProxy();
+	InternalCommonParameters.SkyLuminanceFactor = FVector(SkyAtmosphereSceneProxy.GetSkyLuminanceFactor());
+	InternalCommonParameters.AerialPespectiveViewDistanceScale = SkyAtmosphereSceneProxy.GetAerialPespectiveViewDistanceScale();
 
 	auto ValidateDistanceValue = [](float& Value)
 	{
@@ -1070,7 +1053,9 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRHICommandListImmediate& R
 	SCOPED_GPU_STAT(RHICmdList, SkyAtmosphereLUTs);
 
 	FSkyAtmosphereRenderSceneInfo& SkyInfo = *Scene->GetSkyAtmosphereSceneInfo();
-	const bool bMultiScattering = SkyInfo.IsMultiScatteringEnabled();
+	const FSkyAtmosphereSceneProxy& SkyAtmosphereSceneProxy = SkyInfo.GetSkyAtmosphereSceneProxy();
+
+	const bool bMultiScattering = SkyAtmosphereSceneProxy.IsMultiScatteringEnabled();
 	const bool bFastSky = CVarSkyAtmosphereFastSkyLUT.GetValueOnRenderThread() > 0;
 	const bool bFastAerialPespective = CVarSkyAtmosphereAerialPerspectiveApplyOnOpaque.GetValueOnRenderThread() > 0;
 	const bool bSecondAtmosphereLightEnabled = IsSecondAtmosphereLightEnabled(Scene);
@@ -1239,8 +1224,10 @@ void FSceneRenderer::RenderSkyAtmosphere(FRHICommandListImmediate& RHICmdList)
 	SCOPED_GPU_STAT(RHICmdList, SkyAtmosphere);
 
 	FSkyAtmosphereRenderSceneInfo& SkyInfo = *Scene->GetSkyAtmosphereSceneInfo();
-	const FAtmosphereSetup& Atmosphere = SkyInfo.GetAtmosphereSetup();
-	const bool bMultiScattering = SkyInfo.IsMultiScatteringEnabled();
+	const FSkyAtmosphereSceneProxy& SkyAtmosphereSceneProxy = SkyInfo.GetSkyAtmosphereSceneProxy();
+
+	const FAtmosphereSetup& Atmosphere = SkyAtmosphereSceneProxy.GetAtmosphereSetup();
+	const bool bMultiScattering = SkyAtmosphereSceneProxy.IsMultiScatteringEnabled();
 	const bool bFastSky = CVarSkyAtmosphereFastSkyLUT.GetValueOnRenderThread() > 0;
 	const bool bFastAerialPerspective = CVarSkyAtmosphereAerialPerspectiveApplyOnOpaque.GetValueOnRenderThread() > 0;
 	const bool bFastAerialPerspectiveDepthTest = CVarSkyAtmosphereAerialPerspectiveDepthTest.GetValueOnRenderThread() > 0;
@@ -1490,12 +1477,14 @@ void FDeferredShadingSceneRenderer::RenderDebugSkyAtmosphere(FRHICommandListImme
 
 	const int32 SkyAtmosphereVisualize = CVarSkyAtmosphereVisualize.GetValueOnRenderThread();
 	FSkyAtmosphereRenderSceneInfo& SkyInfo = *Scene->GetSkyAtmosphereSceneInfo();
-	const FAtmosphereSetup& Atmosphere = SkyInfo.GetAtmosphereSetup();
+	const FSkyAtmosphereSceneProxy& SkyAtmosphereSceneProxy = SkyInfo.GetSkyAtmosphereSceneProxy();
+
+	const FAtmosphereSetup& Atmosphere = SkyAtmosphereSceneProxy.GetAtmosphereSetup();
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 
 	if (SkyAtmosphereVisualize)
 	{
-		const bool bMultiScattering = SkyInfo.IsMultiScatteringEnabled();
+		const bool bMultiScattering = SkyAtmosphereSceneProxy.IsMultiScatteringEnabled();
 		const bool bFastSky = CVarSkyAtmosphereFastSkyLUT.GetValueOnRenderThread() > 0;
 		const bool bFastAerialPespective = CVarSkyAtmosphereAerialPerspectiveApplyOnOpaque.GetValueOnRenderThread() > 0;
 

@@ -3704,11 +3704,11 @@ public:
 	virtual void RemoveAtmosphericFogResource_RenderThread(FRenderResource* FogResource) override {}
 	virtual FAtmosphericFogSceneInfo* GetAtmosphericFogSceneInfo() override { return NULL; }
 
-	virtual void AddSkyAtmosphere(const class USkyAtmosphereComponent* SkyAtmosphereComponent, bool bStaticLightingBuilt) override {}
-	virtual void RemoveSkyAtmosphere(const class USkyAtmosphereComponent* SkyAtmosphereComponent) override {}
+	virtual void AddSkyAtmosphere(FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy, bool bStaticLightingBuilt) override {}
+	virtual void RemoveSkyAtmosphere(FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy) override {}
 	virtual FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() override { return NULL; }
 	virtual const FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() const override { return NULL; }
-	virtual void OverrideSkyAtmosphereLightDirection(const class USkyAtmosphereComponent* SkyAtmosphereComponent, int32 AtmosphereLightIndex, const FVector& LightDirection) override {}
+	virtual void OverrideSkyAtmosphereLightDirection(FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy, int32 AtmosphereLightIndex, const FVector& LightDirection) override {}
 
 	virtual void AddWindSource(class UWindDirectionalSourceComponent* WindComponent) override {}
 	virtual void RemoveWindSource(class UWindDirectionalSourceComponent* WindComponent) override {}
