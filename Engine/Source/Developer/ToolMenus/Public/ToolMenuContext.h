@@ -69,6 +69,10 @@ public:
 	friend class UToolMenus;
 	friend struct FToolMenuEntry;
 
+	bool IsEditing() const { return bIsEditing; }
+
+	bool bIsEditing;
+
 private:
 
 	UPROPERTY()

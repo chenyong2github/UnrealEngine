@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Framework/MultiBox/MultiBoxCustomization.h"
+#include "Framework/MultiBox/ToolMenuBase.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
@@ -8,6 +9,89 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Misc/RemoteConfigIni.h"
 #include "Framework/Commands/UICommandDragDropOp.h"
+#include "Widgets/Colors/SColorBlock.h"
+
+FCustomizedToolMenuSection* FCustomizedToolMenu::FindSection(const FName InSectionName)
+{
+	for (FCustomizedToolMenuSection& Section : Sections)
+	{
+		if (Section.Name == InSectionName)
+		{
+			return &Section;
+		}
+	}
+
+	return nullptr;
+}
+
+const FCustomizedToolMenuSection* FCustomizedToolMenu::FindSection(const FName InSectionName) const
+{
+	for (const FCustomizedToolMenuSection& Section : Sections)
+	{
+		if (Section.Name == InSectionName)
+		{
+			return &Section;
+		}
+	}
+
+	return nullptr;
+}
+
+FCustomizedToolMenuEntry* FCustomizedToolMenu::FindEntry(const FName InEntryName, FName* OutSectionName)
+{
+	for (FCustomizedToolMenuSection& Section : Sections)
+	{
+		for (FCustomizedToolMenuEntry& Entry : Section.Entries)
+		{
+			if (Entry.Name == InEntryName)
+			{
+				if (OutSectionName)
+				{
+					*OutSectionName = Section.Name;
+				}
+				return &Entry;
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+const FCustomizedToolMenuEntry* FCustomizedToolMenu::FindEntry(const FName InEntryName, FName* OutSectionName) const
+{
+	for (const FCustomizedToolMenuSection& Section : Sections)
+	{
+		for (const FCustomizedToolMenuEntry& Entry : Section.Entries)
+		{
+			if (Entry.Name == InEntryName)
+			{
+				if (OutSectionName)
+				{
+					*OutSectionName = Section.Name;
+				}
+				return &Entry;
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+bool FCustomizedToolMenu::IsSectionHidden(const FName InSectionName) const
+{
+	return HiddenSections.Contains(InSectionName);
+}
+
+bool FCustomizedToolMenu::IsEntryHidden(const FName InEntryName) const
+{
+	return HiddenEntries.Contains(InEntryName);
+}
+
+void FCustomizedToolMenu::UpdateFromMultiBox(const TSharedRef<const FMultiBox>& InMultiBox)
+{
+
+}
+
 
 void SCustomToolbarPreviewWidget::Construct( const FArguments& InArgs )
 {

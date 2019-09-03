@@ -9,11 +9,12 @@
 #include "ToolMenuSection.h"
 #include "ToolMenuContext.h"
 #include "UObject/Object.h"
+#include "Framework/MultiBox/ToolMenuBase.h"
 
 #include "ToolMenu.generated.h"
 
 UCLASS(BlueprintType)
-class TOOLMENUS_API UToolMenu : public UObject
+class TOOLMENUS_API UToolMenu : public UToolMenuBase
 {
 	GENERATED_BODY()
 
@@ -54,6 +55,13 @@ public:
 	FName GetMenuName() const { return MenuName; }
 
 	bool IsRegistered() const { return bRegistered; }
+
+	//~ Begin UToolMenuBase Interface
+	virtual bool IsEditing() const override;
+	virtual FName GetSectionName(const FName InEntryName) const override;
+	virtual FCustomizedToolMenu* FindMenuCustomization() const override;
+	virtual FCustomizedToolMenu* AddMenuCustomization() const override;
+	//~ End UToolMenuBase Interface
 
 	template <typename TContextType>
 	TContextType* FindContext() const

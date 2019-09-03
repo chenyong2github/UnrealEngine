@@ -222,3 +222,32 @@ void UToolMenu::AddMenuEntry(const FName SectionName, const FToolMenuEntry& Args
 {
 	FindOrAddSection(SectionName).AddEntry(Args);
 }
+
+bool UToolMenu::IsEditing() const
+{
+	return Context.IsEditing();
+}
+
+FName UToolMenu::GetSectionName(const FName InEntryName) const
+{
+	for (const FToolMenuSection& Section : Sections)
+	{
+		if (Section.IndexOfBlock(InEntryName) != INDEX_NONE)
+		{
+			return Section.Name;
+		}
+	}
+
+	return NAME_None;
+}
+
+FCustomizedToolMenu* UToolMenu::FindMenuCustomization() const
+{
+	return UToolMenus::Get()->FindMenuCustomization(MenuName);
+}
+
+FCustomizedToolMenu* UToolMenu::AddMenuCustomization() const
+{
+	return UToolMenus::Get()->AddMenuCustomization(MenuName);
+}
+

@@ -33,36 +33,6 @@ struct FToolMenuEntry;
 struct FToolMenuSection;
 
 USTRUCT()
-struct FCustomizedToolMenuSection
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	FName Name;
-
-	UPROPERTY()
-	TArray<FName> Items;
-};
-
-USTRUCT()
-struct FCustomizedToolMenu
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	FName Name;
-
-	UPROPERTY()
-	TArray<FCustomizedToolMenuSection> Sections;
-
-	UPROPERTY()
-	TArray<FName> HiddenItems;
-
-	UPROPERTY()
-	TArray<FName> HiddenSections;
-};
-
-USTRUCT()
 struct FGeneratedToolMenuWidget
 {
 	GENERATED_BODY()
@@ -167,7 +137,7 @@ public:
 	 * @param	Context	Additional information specific to the menu being generated
 	 * @return	Widget to display
 	 */
-	TSharedRef<SWidget> GenerateWidget(const FName Name, FToolMenuContext& InMenuContext);
+	TSharedRef<SWidget> GenerateWidget(const FName Name, const FToolMenuContext& InMenuContext);
 
 
 
@@ -240,7 +210,7 @@ public:
 	 * @param	Context	Additional information specific to the menu being generated
 	 * @return	Widget to display
 	 */
-	TSharedRef<SWidget> GenerateWidget(const TArray<UToolMenu*>& Hierarchy, FToolMenuContext& InMenuContext);
+	TSharedRef<SWidget> GenerateWidget(const TArray<UToolMenu*>& Hierarchy, const FToolMenuContext& InMenuContext);
 
 	/**
 	 * Generate widget from a final collapsed menu. For advanced specialized use cases.
@@ -250,13 +220,13 @@ public:
 	TSharedRef<SWidget> GenerateWidget(UToolMenu* GeneratedMenu);
 	
 	/** Create a finalized menu that combines all parents used to generate a widget. Advanced special use cases only. */
-	UToolMenu* GenerateMenu(const FName Name, FToolMenuContext& InMenuContext);
+	UToolMenu* GenerateMenu(const FName Name, const FToolMenuContext& InMenuContext);
 
 	/** Create a finalized menu that combines given hierarchy array that will generate a widget. Advanced special use cases only. */
 	UToolMenu* GenerateMenu(const TArray<UToolMenu*>& Hierarchy, const FToolMenuContext& InMenuContext);
 
 	/** Create a finalized menu based on a custom crafted menu. Advanced special use cases only. */
-	UToolMenu* GenerateMenuAsBuilder(const UToolMenu* InMenu, FToolMenuContext& InMenuContext);
+	UToolMenu* GenerateMenuAsBuilder(const UToolMenu* InMenu, const FToolMenuContext& InMenuContext);
 
 	/** Bake final menu including calls to construction delegates, sorting, and customization */
 	void AssembleMenuHierarchy(UToolMenu* GeneratedMenu, const TArray<UToolMenu*>& Hierarchy);
@@ -279,6 +249,18 @@ public:
 	/** Timer function used to consolidate multiple duplicate requests into a single frame. */
 	void HandleNextTick();
 
+	/** Remove customization for a menu */
+	void RemoveCustomization(const FName InName);
+
+	/** Find customization settings for a menu */
+	FCustomizedToolMenu* FindMenuCustomization(const FName InName);
+
+	/** Find or add customization settings for a menu */
+	FCustomizedToolMenu* AddMenuCustomization(const FName InName);
+
+	/** Find index of customization settings for a menu */
+	int32 FindMenuCustomizationIndex(const FName InName);
+
 	/** Displaying extension points is for debugging menus */
 	DECLARE_DELEGATE_RetVal(bool, FShouldDisplayExtensionPoints);
 	FShouldDisplayExtensionPoints ShouldDisplayExtensionPoints;
@@ -291,6 +273,8 @@ public:
 	//~ Begin UObject Interface
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	//~ End UObject Interface
+
+	FSlateIcon EditMenuIcon;
 
 private:
 
@@ -345,9 +329,6 @@ private:
 	void AddReferencedContextObjects(const TSharedRef<FMultiBox>& InMultiBox, const FToolMenuContext& InMenuContext);
 
 	void ApplyCustomization(UToolMenu* GeneratedMenu);
-
-	FCustomizedToolMenu* FindCustomizedMenu(const FName InName);
-	int32 FindCustomizedMenuIndex(const FName InName);
 
 	void UnregisterOwnerInternal(FToolMenuOwner Owner);
 

@@ -113,6 +113,24 @@ FToolMenuEntry& FToolMenuSection::AddSubMenu(const FName InName, const TAttribut
 	return AddEntry(FToolMenuEntry::InitSubMenu(InName, InLabel, InToolTip, InMakeMenu, bInOpenSubMenuOnClick, InIcon, bShouldCloseWindowAfterMenuSelection));
 }
 
+FToolMenuEntry& FToolMenuSection::AddSubMenu(const FName InName, const FToolUIActionChoice& InAction, const TSharedRef<SWidget>& InWidget, const FNewToolMenuChoice& InMakeMenu, bool bShouldCloseWindowAfterMenuSelection)
+{
+	return AddEntry(FToolMenuEntry::InitSubMenu(InName, InAction, InWidget, InMakeMenu, bShouldCloseWindowAfterMenuSelection));
+}
+
+FToolMenuEntry* FToolMenuSection::FindEntry(const FName InName)
+{
+	for (int32 i=0; i < Blocks.Num(); ++i)
+	{
+		if (Blocks[i].Name == InName)
+		{
+			return &Blocks[i];
+		}
+	}
+
+	return nullptr;
+}
+
 int32 FToolMenuSection::IndexOfBlock(const FName InName) const
 {
 	for (int32 i=0; i < Blocks.Num(); ++i)

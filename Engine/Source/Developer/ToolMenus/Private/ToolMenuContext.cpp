@@ -11,12 +11,12 @@
 #include "Internationalization/Internationalization.h"
 
 
-FToolMenuContext::FToolMenuContext()
+FToolMenuContext::FToolMenuContext() : bIsEditing(false)
 {
 
 }
 
-FToolMenuContext::FToolMenuContext(UObject* InContext)
+FToolMenuContext::FToolMenuContext(UObject* InContext) : bIsEditing(false)
 {
 	if (InContext)
 	{
@@ -24,7 +24,7 @@ FToolMenuContext::FToolMenuContext(UObject* InContext)
 	}
 }
 
-FToolMenuContext::FToolMenuContext(TSharedPtr<FUICommandList> InCommandList, TSharedPtr<FExtender> InExtender, UObject* InContext)
+FToolMenuContext::FToolMenuContext(TSharedPtr<FUICommandList> InCommandList, TSharedPtr<FExtender> InExtender, UObject* InContext) : bIsEditing(false)
 {
 	if (InContext)
 	{

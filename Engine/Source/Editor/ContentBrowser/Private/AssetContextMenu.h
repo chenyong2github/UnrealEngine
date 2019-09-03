@@ -117,8 +117,15 @@ private:
 	void ExecuteDuplicate();
 
 private:
+
+	/** Registers all unregistered menus in the hierarchy for a class */
+	static void RegisterMenuHierarchy(UClass* InClass);
+
+	/** Adds options to menu */
+	void AddMenuOptions(UToolMenu* InMenu);
+
 	/** Adds asset type-specific menu options to a menu builder. Returns true if any options were added. */
-	bool AddAssetTypeMenuOptions(UToolMenu* Menu, TArray<UObject*>& SelectedObjects);
+	bool AddAssetTypeMenuOptions(UToolMenu* Menu, bool bHasObjectsSelected);
 
 	/** Adds asset type-specific menu options to a menu builder. Returns true if any options were added. */
 	bool AddImportedAssetMenuOptions(UToolMenu* Menu);

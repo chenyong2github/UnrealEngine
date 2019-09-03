@@ -145,7 +145,6 @@ TSharedRef<SWidget> FAssetContextMenu::MakeContextMenu(const TArray<FAssetData>&
 	TArray<UObject*> SelectedObjects;
 
 	// Create menu hierarchy based on class hierarchy
-	TArray<UToolMenu*> MenuHierarchy;
 	FName MenuName = BaseMenuName;
 	{
 		// Objects must be loaded for this operation... for now
@@ -171,79 +170,54 @@ TSharedRef<SWidget> FAssetContextMenu::MakeContextMenu(const TArray<FAssetData>&
 			}
 			ContextObject->CommonClass = CommonClass;
 
+			MenuName = UToolMenus::JoinMenuPaths(BaseMenuName, CommonClass->GetFName());
+
+			RegisterMenuHierarchy(CommonClass);
+
 			// Find asset actions for common class
 			FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
 			TSharedPtr<IAssetTypeActions> CommonAssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(ContextObject->CommonClass).Pin();
-			UClass* AssetTypeActionsClass = nullptr;
 			if (CommonAssetTypeActions.IsValid() && CommonAssetTypeActions->HasActions(SelectedObjects))
 			{
 				ContextObject->CommonAssetTypeActions = CommonAssetTypeActions;
-				AssetTypeActionsClass = CommonAssetTypeActions->GetSupportedClass();
-				MenuName = UToolMenus::JoinMenuPaths(BaseMenuName, AssetTypeActionsClass->GetFName());
-			}
-
-			// Find menus for common class
-			UClass* ClassWithMenu = CommonClass;
-			while (ClassWithMenu)
-			{
-				FName CheckName = UToolMenus::JoinMenuPaths(BaseMenuName, ClassWithMenu->GetFName());
-				UToolMenu* FoundMenu = ToolMenus->FindMenu(CheckName);
-				if (FoundMenu && FoundMenu->Sections.Num() > 0)
-				{
-					// Change generated menu's name if necessary
-					if (MenuHierarchy.Num() == 0)
-					{
-						if (!AssetTypeActionsClass || ClassWithMenu->IsChildOf(AssetTypeActionsClass))
-						{
-							MenuName = CheckName;
-						}
-					}
-
-					MenuHierarchy.Add(FoundMenu);
-				}
-
-				ClassWithMenu = ClassWithMenu->GetSuperClass();
 			}
 		}
-
-		MenuHierarchy.Add(ToolMenus->FindMenu(BaseMenuName));
-
-		Algo::Reverse(MenuHierarchy);
 	}
 
 	FToolMenuContext MenuContext(InCommandList, MenuExtender, ContextObject);
-	UToolMenu* Menu = ToolMenus->GenerateMenu(MenuHierarchy, MenuContext);
-	Menu->MenuName = MenuName;
+	return ToolMenus->GenerateWidget(MenuName, MenuContext);
+}
 
-	// Only add something if at least one asset is selected
-	if ( SelectedAssets.Num() )
+void FAssetContextMenu::RegisterMenuHierarchy(UClass* InClass)
+{
+	static const FName BaseMenuName("ContentBrowser.AssetContextMenu");
+
+	UToolMenus* ToolMenus = UToolMenus::Get();
+
+	for (UClass* CurrentClass = InClass; CurrentClass; CurrentClass = CurrentClass->GetSuperClass())
 	{
-		// Add any type-specific context menu options
-		AddAssetTypeMenuOptions(Menu, SelectedObjects);
+		FName CurrentMenuName = UToolMenus::JoinMenuPaths(BaseMenuName, CurrentClass->GetFName());
+		if (!ToolMenus->IsMenuRegistered(CurrentMenuName))
+		{
+			FName ParentMenuName;
+			UClass* ParentClass = CurrentClass->GetSuperClass();
+			if (ParentClass == UObject::StaticClass() || ParentClass == nullptr)
+			{
+				ParentMenuName = BaseMenuName;
+			}
+			else
+			{
+				ParentMenuName = UToolMenus::JoinMenuPaths(BaseMenuName, ParentClass->GetFName());
+			}
 
-		// Add imported asset context menu options
-		AddImportedAssetMenuOptions(Menu);
+			ToolMenus->RegisterMenu(CurrentMenuName, ParentMenuName);
 
-		// Add quick access to common commands.
-		AddCommonMenuOptions(Menu);
-
-		// Add quick access to view commands
-		AddExploreMenuOptions(Menu);
-
-		// Add reference options
-		AddReferenceMenuOptions(Menu);
-
-		// Add collection options
-		AddCollectionMenuOptions(Menu);
-
-		// Add documentation options
-		AddDocumentationMenuOptions(Menu);
-
-		// Add source control options
-		AddSourceControlMenuOptions(Menu);
+			if (ParentMenuName == BaseMenuName)
+			{
+				break;
+			}
+		}
 	}
-	
-	return ToolMenus->GenerateWidget(Menu);
 }
 
 void FAssetContextMenu::RegisterContextMenu(const FName MenuName)
@@ -271,7 +245,44 @@ void FAssetContextMenu::RegisterContextMenu(const FName MenuName)
 				Context->CommonAssetTypeActions.Pin()->GetActions(Context->GetSelectedObjects(), MenuBuilder);
 			}
 		}));
+
+		Menu->AddDynamicSection("AddMenuOptions", FNewToolMenuDelegate::CreateSP(this, &FAssetContextMenu::AddMenuOptions));
 	}
+}
+
+void FAssetContextMenu::AddMenuOptions(UToolMenu* InMenu)
+{
+	UContentBrowserAssetContextMenuContext* Context = InMenu->FindContext<UContentBrowserAssetContextMenuContext>();
+	if (!Context || Context->SelectedObjects.Num() == 0)
+	{
+		return;
+	}
+
+	// Add any type-specific context menu options
+	AddAssetTypeMenuOptions(InMenu, Context->SelectedObjects.Num() > 0);
+
+	// Add imported asset context menu options
+	AddImportedAssetMenuOptions(InMenu);
+
+	// Add quick access to common commands.
+	AddCommonMenuOptions(InMenu);
+
+	// Add quick access to view commands
+	AddExploreMenuOptions(InMenu);
+
+	// Add reference options
+	AddReferenceMenuOptions(InMenu);
+
+	// Add collection options
+	AddCollectionMenuOptions(InMenu);
+
+	// Add documentation options
+	AddDocumentationMenuOptions(InMenu);
+
+	// Add source control options
+	AddSourceControlMenuOptions(InMenu);
+
+	UE_LOG(LogTemp, Log, TEXT("AddMenuOptions"));
 }
 
 void FAssetContextMenu::SetSelectedAssets(const TArray<FAssetData>& InSelectedAssets)
@@ -1342,11 +1353,11 @@ bool FAssetContextMenu::AddDocumentationMenuOptions(UToolMenu* Menu)
 	return bAddedOption;
 }
 
-bool FAssetContextMenu::AddAssetTypeMenuOptions(UToolMenu* Menu, TArray<UObject*>& SelectedObjects)
+bool FAssetContextMenu::AddAssetTypeMenuOptions(UToolMenu* Menu, bool bHasObjectsSelected)
 {
 	bool bAnyTypeOptions = false;
 
-	if (SelectedObjects.Num() > 0)
+	if (bHasObjectsSelected)
 	{
 		// Label "GetAssetActions" section
 		UContentBrowserAssetContextMenuContext* Context = Menu->FindContext<UContentBrowserAssetContextMenuContext>();

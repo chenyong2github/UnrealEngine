@@ -104,6 +104,8 @@ struct TOOLMENUS_API FToolMenuEntry
 
 	bool IsSubMenu() const { return SubMenuData.bIsSubMenu; }
 
+	bool IsConstructLegacy() const { return ConstructLegacy.IsBound(); }
+
 	const FUIAction* GetActionForCommand(const FToolMenuContext& InContext, TSharedPtr<const FUICommandList>& OutCommandList) const;
 
 	void SetCommandList(const TSharedPtr<const FUICommandList>& InCommandList);

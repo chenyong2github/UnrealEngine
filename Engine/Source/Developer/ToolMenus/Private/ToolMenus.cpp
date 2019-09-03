@@ -64,6 +64,26 @@ FToolUIActionChoice::FToolUIActionChoice(const TSharedPtr< const FUICommandInfo 
 	}
 }
 
+void ModifyEntryForEditDialog(FToolMenuEntry& Entry)
+{
+	if (Entry.Type == EMultiBlockType::ToolBarButton)
+	{
+		Entry.Type = EMultiBlockType::MenuEntry;
+	}
+	else if (Entry.Type == EMultiBlockType::ToolBarComboButton)
+	{
+		Entry.Type = EMultiBlockType::MenuEntry;
+		if (Entry.ToolBarData.bSimpleComboBox)
+		{
+			Entry.SubMenuData.bIsSubMenu = true;
+		}
+	}
+	else if (Entry.Type == EMultiBlockType::ToolBarSeparator)
+	{
+		Entry.Type = EMultiBlockType::MenuSeparator;
+	}
+}
+
 UToolMenus::UToolMenus() :
 	bNextTickTimerIsSet(false),
 	bRefreshWidgetsNextTick(false),
@@ -375,7 +395,16 @@ void UToolMenus::AssembleMenu(UToolMenu* GeneratedMenu, const UToolMenu* Other)
 	}
 }
 
-int32 UToolMenus::FindCustomizedMenuIndex(const FName InName)
+void UToolMenus::RemoveCustomization(const FName InName)
+{
+	int32 FoundIndex = FindMenuCustomizationIndex(InName);
+	if (FoundIndex != INDEX_NONE)
+	{
+		CustomizedMenus.RemoveAt(FoundIndex, 1, false);
+	}
+}
+
+int32 UToolMenus::FindMenuCustomizationIndex(const FName InName)
 {
 	for (int32 i = 0; i < CustomizedMenus.Num(); ++i)
 	{
@@ -388,16 +417,37 @@ int32 UToolMenus::FindCustomizedMenuIndex(const FName InName)
 	return INDEX_NONE;
 }
 
-FCustomizedToolMenu* UToolMenus::FindCustomizedMenu(const FName InName)
+FCustomizedToolMenu* UToolMenus::FindMenuCustomization(const FName InName)
 {
-	int32 FoundIndex = FindCustomizedMenuIndex(InName);
-	return (FoundIndex != INDEX_NONE) ? &CustomizedMenus[FoundIndex] : nullptr;
+	for (int32 i = 0; i < CustomizedMenus.Num(); ++i)
+	{
+		if (CustomizedMenus[i].Name == InName)
+		{
+			return &CustomizedMenus[i];
+		}
+	}
+
+	return nullptr;
+}
+
+FCustomizedToolMenu* UToolMenus::AddMenuCustomization(const FName InName)
+{
+	if (FCustomizedToolMenu* Found = FindMenuCustomization(InName))
+	{
+		return Found;
+	}
+	else
+	{
+		FCustomizedToolMenu& NewCustomization = CustomizedMenus.AddDefaulted_GetRef();
+		NewCustomization.Name = InName;
+		return &NewCustomization;
+	}
 }
 
 void UToolMenus::ApplyCustomization(UToolMenu* GeneratedMenu)
 {
-	const FCustomizedToolMenu* CustomizedMenu = FindCustomizedMenu(GeneratedMenu->MenuName);
-	if (CustomizedMenu == nullptr)
+	FCustomizedToolMenu* CustomizedMenu = FindMenuCustomization(GeneratedMenu->MenuName);
+	if (!CustomizedMenu)
 	{
 		return;
 	}
@@ -418,11 +468,11 @@ void UToolMenus::ApplyCustomization(UToolMenu* GeneratedMenu)
 		TArray<FToolMenuEntry> NewBlocks;
 		NewBlocks.Reserve(Section.Blocks.Num());
 
-		for (const FName ItemName : CustomizedSection.Items)
+		for (const FCustomizedToolMenuEntry& Entry : CustomizedSection.Entries)
 		{
 			int32 EntrySectionIndex = INDEX_NONE;
 			int32 EntryIndex = INDEX_NONE;
-			if (GeneratedMenu->FindEntry(ItemName, EntrySectionIndex, EntryIndex))
+			if (GeneratedMenu->FindEntry(Entry.Name, EntrySectionIndex, EntryIndex))
 			{
 				NewBlocks.Add(GeneratedMenu->Sections[EntrySectionIndex].Blocks[EntryIndex]);
 				GeneratedMenu->Sections[EntrySectionIndex].Blocks.RemoveAt(EntryIndex);
@@ -445,22 +495,25 @@ void UToolMenus::ApplyCustomization(UToolMenu* GeneratedMenu)
 	NewSections.Append(GeneratedMenu->Sections);
 
 	// Hide
-	for (int32 SectionIndex=0; SectionIndex < NewSections.Num(); ++SectionIndex)
+	if (!GeneratedMenu->IsEditing())
 	{
-		FToolMenuSection& Section = NewSections[SectionIndex];
-		if (CustomizedMenu->HiddenSections.Contains(Section.Name))
+		for (int32 SectionIndex = 0; SectionIndex < NewSections.Num(); ++SectionIndex)
 		{
-			NewSections.RemoveAt(SectionIndex);
-			--SectionIndex;
-			continue;
-		}
-
-		for (int32 i = 0; i < Section.Blocks.Num(); ++i)
-		{
-			if (CustomizedMenu->HiddenItems.Contains(Section.Blocks[i].Name))
+			FToolMenuSection& Section = NewSections[SectionIndex];
+			if (CustomizedMenu->HiddenSections.Contains(Section.Name))
 			{
-				Section.Blocks.RemoveAt(i);
-				--i;
+				NewSections.RemoveAt(SectionIndex);
+				--SectionIndex;
+				continue;
+			}
+
+			for (int32 i = 0; i < Section.Blocks.Num(); ++i)
+			{
+				if (CustomizedMenu->HiddenEntries.Contains(Section.Blocks[i].Name))
+				{
+					Section.Blocks.RemoveAt(i);
+					--i;
+				}
 			}
 		}
 	}
@@ -554,7 +607,8 @@ void UToolMenus::FillMenuBarDropDown(class FMenuBuilder& MenuBuilder, FName InPa
 
 void UToolMenus::PopulateMenuBuilder(FMenuBuilder& MenuBuilder, UToolMenu* MenuData)
 {
-	if (GetDisplayUIExtensionPoints())
+	const bool bIsEditing = MenuData->IsEditing();
+	if (GetDisplayUIExtensionPoints() && !bIsEditing)
 	{
 		const FName MenuName = MenuData->GetMenuName();
 		MenuBuilder.AddMenuEntry(
@@ -575,7 +629,20 @@ void UToolMenus::PopulateMenuBuilder(FMenuBuilder& MenuBuilder, UToolMenu* MenuD
 			continue;
 		}
 
-		MenuBuilder.BeginSection(Section.Name, Section.Label);
+		if (bIsEditing)
+		{
+			// Always provide label when editing so we have area to drag/drop and hide sections
+			FText LabelText = Section.Label.Get();
+			if (LabelText.IsEmpty())
+			{
+				LabelText = FText::FromName(Section.Name);
+			}
+			MenuBuilder.BeginSection(Section.Name, LabelText);
+		}
+		else
+		{
+			MenuBuilder.BeginSection(Section.Name, Section.Label);
+		}
 
 		for (FToolMenuEntry& Block : Section.Blocks)
 		{
@@ -1088,7 +1155,7 @@ void UToolMenus::AddReferencedObjects(UObject* InThis, FReferenceCollector& Coll
 	Super::AddReferencedObjects(InThis, Collector);
 }
 
-UToolMenu* UToolMenus::GenerateMenu(const FName Name, FToolMenuContext& InMenuContext)
+UToolMenu* UToolMenus::GenerateMenu(const FName Name, const FToolMenuContext& InMenuContext)
 {
 	return GenerateMenu(CollectHierarchy(Name), InMenuContext);
 }
@@ -1106,13 +1173,13 @@ UToolMenu* UToolMenus::GenerateMenu(const TArray<UToolMenu*>& Hierarchy, const F
 	return GeneratedMenu;
 }
 
-TSharedRef< class SWidget > UToolMenus::GenerateWidget(const FName InName, FToolMenuContext& InMenuContext)
+TSharedRef< class SWidget > UToolMenus::GenerateWidget(const FName InName, const FToolMenuContext& InMenuContext)
 {
 	UToolMenu* Generated = GenerateMenu(InName, InMenuContext);
 	return GenerateWidget(Generated);
 }
 
-TSharedRef<SWidget> UToolMenus::GenerateWidget(const TArray<UToolMenu*>& Hierarchy, FToolMenuContext& InMenuContext)
+TSharedRef<SWidget> UToolMenus::GenerateWidget(const TArray<UToolMenu*>& Hierarchy, const FToolMenuContext& InMenuContext)
 {
 	if (Hierarchy.Num() == 0)
 	{
@@ -1136,9 +1203,29 @@ TSharedRef<SWidget> UToolMenus::GenerateWidget(UToolMenu* GeneratedMenu)
 	GeneratedMenuWidget.GeneratedMenu->Context = GeneratedMenu->Context;
 	GeneratedMenuWidget.GeneratedMenu->StyleSet = GeneratedMenu->StyleSet;
 
-	if (GeneratedMenu->MenuType == EMultiBoxType::Menu)
+	if (GeneratedMenu->IsEditing())
 	{
-		FMenuBuilder MenuBuilder(GeneratedMenu->bShouldCloseWindowAfterMenuSelection, GeneratedMenu->Context.CommandList, GeneratedMenu->Context.GetAllExtenders(), GeneratedMenu->bCloseSelfOnly, GeneratedMenu->StyleSet, GeneratedMenu->bSearchable);
+		// Convert toolbar into menu during editing
+		if (GeneratedMenu->MenuType == EMultiBoxType::ToolBar || GeneratedMenu->MenuType == EMultiBoxType::VerticalToolBar)
+		{
+			for (FToolMenuSection& Section : GeneratedMenu->Sections)
+			{
+				for (FToolMenuEntry& Entry : Section.Blocks)
+				{
+					ModifyEntryForEditDialog(Entry);
+				}
+			}
+		}
+
+		FMenuBuilder MenuBuilder(GeneratedMenu->bShouldCloseWindowAfterMenuSelection, GeneratedMenu->Context.CommandList, GeneratedMenu->Context.GetAllExtenders(), GeneratedMenu->bCloseSelfOnly, GeneratedMenu->StyleSet, GeneratedMenu->bSearchable, GeneratedMenu->MenuName);
+		PopulateMenuBuilder(MenuBuilder, GeneratedMenu);
+		TSharedRef<SWidget> Result = MenuBuilder.MakeWidget();
+		GeneratedMenuWidget.Widget = Result;
+		return Result;
+	}
+	else if (GeneratedMenu->MenuType == EMultiBoxType::Menu)
+	{
+		FMenuBuilder MenuBuilder(GeneratedMenu->bShouldCloseWindowAfterMenuSelection, GeneratedMenu->Context.CommandList, GeneratedMenu->Context.GetAllExtenders(), GeneratedMenu->bCloseSelfOnly, GeneratedMenu->StyleSet, GeneratedMenu->bSearchable, GeneratedMenu->MenuName);
 		PopulateMenuBuilder(MenuBuilder, GeneratedMenu);
 		TSharedRef<SWidget> Result = MenuBuilder.MakeWidget();
 		GeneratedMenuWidget.Widget = Result;
@@ -1146,7 +1233,7 @@ TSharedRef<SWidget> UToolMenus::GenerateWidget(UToolMenu* GeneratedMenu)
 	}
 	else if (GeneratedMenu->MenuType == EMultiBoxType::MenuBar)
 	{
-		FMenuBarBuilder MenuBarBuilder(GeneratedMenu->Context.CommandList, GeneratedMenu->Context.GetAllExtenders(), GeneratedMenu->StyleSet);
+		FMenuBarBuilder MenuBarBuilder(GeneratedMenu->Context.CommandList, GeneratedMenu->Context.GetAllExtenders(), GeneratedMenu->StyleSet, GeneratedMenu->MenuName);
 		PopulateMenuBarBuilder(MenuBarBuilder, GeneratedMenu);
 		TSharedRef<SWidget> Result = MenuBarBuilder.MakeWidget();
 		GeneratedMenuWidget.Widget = Result;
@@ -1300,7 +1387,7 @@ bool UToolMenus::RefreshMenuWidget(const FName InName, FGeneratedToolMenuWidget&
 	return true;
 }
 
-UToolMenu* UToolMenus::GenerateMenuAsBuilder(const UToolMenu* InMenu, FToolMenuContext& InMenuContext)
+UToolMenu* UToolMenus::GenerateMenuAsBuilder(const UToolMenu* InMenu, const FToolMenuContext& InMenuContext)
 {
 	TArray<UToolMenu*> Hierarchy = CollectHierarchy(InMenu->MenuName);
 
