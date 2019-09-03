@@ -35,8 +35,8 @@ class UMaterialExpressionComment : public UMaterialExpression
 	//~ Begin UObject Interface
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
 #endif // WITH_EDITOR
-	virtual bool Modify( bool bAlwaysMarkDirty=true ) override;
 	//~ End UObject Interface
 
 	//~ Begin UMaterialExpression Interface
