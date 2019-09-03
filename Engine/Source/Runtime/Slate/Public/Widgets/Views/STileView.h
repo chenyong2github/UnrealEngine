@@ -336,7 +336,7 @@ public:
 				if (bIsAtEndOfList || bNewLine)
 				{
 					// We've filled all the available area when we've finished a line that's partially clipped by the end of the view
-					static const float FloatingPointPrecisionOffset = 0.001f;
+					const float FloatingPointPrecisionOffset = 0.001f;
 					bHasFilledAvailableArea = DimensionsUsedSoFar.ScrollAxis > AllottedDimensions.ScrollAxis + FloatingPointPrecisionOffset;
 				}
 			}
