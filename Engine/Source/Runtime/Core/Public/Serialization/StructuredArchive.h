@@ -13,6 +13,24 @@
 #include "Templates/UniqueObj.h"
 
 /**
+ * DO_STRUCTURED_ARCHIVE_CONTAINER_CHECKS - if set, checks that nested container types are serialized correctly.
+ */
+#ifndef DO_STRUCTURED_ARCHIVE_CONTAINER_CHECKS
+	#if DO_GUARD_SLOW
+		#define DO_STRUCTURED_ARCHIVE_CONTAINER_CHECKS 1
+	#else
+		#define DO_STRUCTURED_ARCHIVE_CONTAINER_CHECKS 0
+	#endif
+#endif
+
+/**
+ * DO_STRUCTURED_ARCHIVE_UNIQUE_FIELD_NAME_CHECKS - if set, checks that field names are unique within a container.  Requires DO_STRUCTURED_ARCHIVE_CONTAINER_CHECKS.
+ */
+#ifndef DO_STRUCTURED_ARCHIVE_UNIQUE_FIELD_NAME_CHECKS
+	#define DO_STRUCTURED_ARCHIVE_UNIQUE_FIELD_NAME_CHECKS 0
+#endif
+
+/**
  * Class to contain a named value for serialization. Intended to be created as a temporary and passed to object serialization methods.
  */
 template<typename T> struct TNamedValue
@@ -451,10 +469,6 @@ private:
 		}
 	};
 
-#if DO_GUARD_SLOW
-	struct FContainer;
-#endif
-
 	struct FIdGenerator
 	{
 		FElementId Generate()
@@ -487,9 +501,11 @@ private:
 	 */
 	TArray<FElement, TNonRelocatableInlineAllocator<32>> CurrentScope;
 
-#if DO_GUARD_SLOW
+#if DO_STRUCTURED_ARCHIVE_CONTAINER_CHECKS
+	struct FContainer;
+
 	/**
-	 * For arrays and maps, stores the loop counter and size of the container. Also stores key names for records and maps in builds with DO_GUARD_SLOW enabled.
+	 * For arrays and maps, stores the loop counter and size of the container. Also stores key names for records and maps in builds with DO_STRUCTURED_ARCHIVE_CONTAINER_CHECKS enabled.
 	 */
 	TArray<TUniqueObj<FContainer>> CurrentContainer;
 #endif
