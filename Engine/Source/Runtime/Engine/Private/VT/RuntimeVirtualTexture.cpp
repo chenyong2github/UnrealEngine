@@ -374,6 +374,18 @@ void URuntimeVirtualTexture::GetAssetRegistryTags(TArray<FAssetRegistryTag>& Out
 	OutTags.Add(FAssetRegistryTag("TileBorderSize", FString::FromInt(GetTileBorderSize()), FAssetRegistryTag::TT_Numerical));
 }
 
+void URuntimeVirtualTexture::Serialize(FArchive& Ar)
+{
+	// Clear StreamingTexture during cook for platforms that don't support virtual texturing
+ 	URuntimeVirtualTextureStreamingProxy* StreamingTextureBackup = StreamingTexture;
+ 	if (Ar.IsCooking() && Ar.IsSaving() && !UseVirtualTexturing(GMaxRHIFeatureLevel, Ar.CookingTarget()))
+ 	{
+ 		StreamingTexture = nullptr;
+ 	}
+	Super::Serialize(Ar);
+	StreamingTexture = StreamingTextureBackup;
+}
+
 #if WITH_EDITOR
 
 void URuntimeVirtualTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
