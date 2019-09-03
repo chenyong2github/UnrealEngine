@@ -81,6 +81,12 @@ namespace Audio {
 	// Process a buffer of input audio samples.
 	void FPlateReverbFast::ProcessAudio(const AlignedFloatBuffer& InSamples, const int32 InNumChannels, AlignedFloatBuffer& OutSamples, const int32 OutNumChannels)
 	{
+		if(InSamples.Num() == 0)
+		{
+			OutSamples.Reset(0);
+			return;
+		}
+		
 		ScaledInputBuffer.Reset(InSamples.Num());
 		ScaledInputBuffer.AddUninitialized(InSamples.Num());
 		check(ScaledInputBuffer.Num() == InSamples.Num());
