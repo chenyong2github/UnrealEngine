@@ -29,6 +29,36 @@ D3D12Allocation.h: A Collection of allocators
 #define D3D12RHI_SEGREGATED_TEXTURE_ALLOC (PLATFORM_WINDOWS)
 #define D3D12RHI_SEGLIST_ALLOC_TRACK_WASTAGE (!(UE_BUILD_TEST || UE_BUILD_SHIPPING))
 
+#define D3D12RHI_SEGLIST_ALLOC_TRACK_LEAK_STACK_DEPTH 12
+
+struct FD3D12SegListAllocatorLeakTrack
+{
+	uint32 Offset;
+	void*  Heap;
+	uint32 Size;
+	uint32 StackDepth;
+	uint64 Stack[D3D12RHI_SEGLIST_ALLOC_TRACK_LEAK_STACK_DEPTH];
+	bool operator==(const FD3D12SegListAllocatorLeakTrack& Other) const
+	{
+		return Offset == Other.Offset && Heap == Other.Heap;
+	}
+};
+
+FORCEINLINE uint32 GetTypeHash(const FD3D12SegListAllocatorLeakTrack& S)
+{
+	uint32 Prime0 = 0xa6c70167;
+	uint32 Prime1 = 0x5d18b207;
+	uint32 Prime2 = 0xd0a489f9;
+	uint32 Value0 = (uint32)(((uint64)S.Heap) >> 32);
+	uint32 Value1 = (uint32)(uint64)S.Heap;
+	uint32 Value2 = S.Offset;
+	return Value0 * Prime0 + Value1 * Prime1 + Value2 * Prime2;
+}
+
+
+
+
+
 class FD3D12SegList;
 
 class FD3D12ResourceAllocator : public FD3D12DeviceChild, public FD3D12MultiNodeGPUObject
@@ -870,9 +900,7 @@ public:
 		check(!SegLists.Num());
 		check(!FenceValues.Num());
 		check(!DeferredDeletionQueue.Num());
-#if D3D12RHI_SEGLIST_ALLOC_TRACK_WASTAGE
-		check(!TotalBytesRequested);
-#endif
+		VerifyEmpty();
 	}
 
 	FD3D12SegListAllocator(const FD3D12SegListAllocator&) = delete;
@@ -913,9 +941,7 @@ public:
 				HeapFlags,
 				OutHeap);
 			check(Ret != InvalidOffset);
-#if D3D12RHI_SEGLIST_ALLOC_TRACK_WASTAGE
-			TotalBytesRequested += SizeInBytes;
-#endif
+			OnAlloc(Ret, OutHeap.GetReference(), SizeInBytes);
 			return Ret;
 		}
 		OutHeap = nullptr;
@@ -1010,6 +1036,18 @@ private:
 
 #if D3D12RHI_SEGLIST_ALLOC_TRACK_WASTAGE
 	TAtomic<uint64> TotalBytesRequested;
+	FCriticalSection SegListTrackedAllocationCS;
+	TSet<FD3D12SegListAllocatorLeakTrack> SegListTrackedAllocations;
+
+
+	void DumpStack(const FD3D12SegListAllocatorLeakTrack& LeakTrack);
+	void OnAlloc(uint32 Offset, void* Heap, uint32 Size);
+	void OnFree(uint32 Offset, void* Heap, uint32 Size);
+	void VerifyEmpty();
+#else
+	void OnAlloc(uint32 Offset, void* Heap, uint32 Size) {}
+	void OnFree(uint32 Offset, void* Heap, uint32 Size) {}
+	void VerifyEmpty(){}
 #endif
 };
 
