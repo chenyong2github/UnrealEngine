@@ -10,6 +10,7 @@
 #include "GameFramework/Controller.h"
 #include "BehaviorTree/BehaviorTreeTypes.h"
 #include "BehaviorTree/BTNode.h"
+#include "GameplayTagContainer.h"
 
 namespace BlueprintNodeHelpers
 {
@@ -95,6 +96,10 @@ namespace BlueprintNodeHelpers
 			// special case for blackboard key selectors
 			const FBlackboardKeySelector* PropertyValue = (const FBlackboardKeySelector*)PropertyAddr;
 			ExportedStringValue = PropertyValue->SelectedKeyName.ToString();
+		}
+		else if (StructProp && StructProp->Struct && StructProp->Struct->IsChildOf(TBaseStructure<FGameplayTag>::Get()))
+		{
+			ExportedStringValue = ((const FGameplayTag*)PropertyAddr)->ToString();
 		}
 		else if (FloatProp)
 		{
