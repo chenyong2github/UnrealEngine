@@ -491,7 +491,7 @@ private:
 	/**
 	 * For arrays and maps, stores the loop counter and size of the container. Also stores key names for records and maps in builds with DO_GUARD_SLOW enabled.
 	 */
-	TArray<FContainer*> CurrentContainer;
+	TArray<TUniqueObj<FContainer>> CurrentContainer;
 #endif
 
 	/**
