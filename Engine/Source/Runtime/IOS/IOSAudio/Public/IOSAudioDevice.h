@@ -85,6 +85,7 @@ public:
 	 */
 	virtual bool ReadCompressedData( uint8* Destination, int32 NumFramesToDecode, bool bLooping ) override;
 	
+	bool ReleaseCurrentChunk();
 	
 	int32  RenderCallbackBufferSize;
 	int32  SampleRate;
