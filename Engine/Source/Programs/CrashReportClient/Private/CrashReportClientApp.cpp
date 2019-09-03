@@ -459,7 +459,7 @@ FPlatformErrorReport CollectErrorReport(uint32 Pid, const FSharedCrashContext& S
 
 
 	FString ConfigFilename;
-	if (ErrorReport.FindFirstReportFileWithExtension(ConfigFilename, *FGenericCrashContext::CrashConfigExtension))
+	if (ErrorReport.FindFirstReportFileWithExtension(ConfigFilename, FGenericCrashContext::CrashConfigExtension))
 	{
 		FConfigFile CrashConfigFile;
 		CrashConfigFile.Read(ReportDirectoryAbsolutePath / ConfigFilename);
