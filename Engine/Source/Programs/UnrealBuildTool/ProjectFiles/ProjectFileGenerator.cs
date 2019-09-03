@@ -429,6 +429,10 @@ namespace UnrealBuildTool
 			string[] UnsupportedPlatformNames = Utils.MakeListOfUnsupportedPlatforms(SupportedPlatforms).ToArray();
 
 			List<FileReference> FoundProjects = new List<FileReference>();
+
+			DirectoryReference EngineExtras = DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Extras");
+			DiscoverCSharpProgramProjectsRecursively(EngineExtras, FoundProjects);
+
 			DirectoryReference EngineProgramsSource = DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Source", "Programs");
 			DiscoverCSharpProgramProjectsRecursively(EngineProgramsSource, FoundProjects);
 
