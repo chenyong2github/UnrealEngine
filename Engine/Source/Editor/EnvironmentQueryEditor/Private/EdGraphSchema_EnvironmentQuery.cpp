@@ -131,26 +131,4 @@ const FPinConnectionResponse UEdGraphSchema_EnvironmentQuery::CanMergeNodes(cons
 	return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, TEXT(""));
 }
 
-int32 UEdGraphSchema_EnvironmentQuery::GetNodeSelectionCount(const UEdGraph* Graph) const
-{
-	if (Graph)
-	{
-		TSharedPtr<IEnvironmentQueryEditor> EnvQueryEditor;
-		if (UEnvQuery* QueryAsset = Cast<UEnvQuery>(Graph->GetOuter()))
-		{
-			TSharedPtr< IToolkit > QueryAssetEditor = FToolkitManager::Get().FindEditorForAsset(QueryAsset);
-			if (QueryAssetEditor.IsValid())
-			{
-				EnvQueryEditor = StaticCastSharedPtr<IEnvironmentQueryEditor>(QueryAssetEditor);
-			}
-		}
-		if (EnvQueryEditor.IsValid())
-		{
-			return EnvQueryEditor->GetSelectedNodesCount();
-		}
-	}
-
-	return 0;
-}
-
 #undef LOCTEXT_NAMESPACE

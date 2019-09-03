@@ -134,6 +134,10 @@ private:
 	CriticalSection m_connectionCS;
 	types::vector<CommandThreadContext*> m_commandThreads;
 
+	// BEGIN EPIC MOD - Non-destructive compile
+	std::vector<std::pair<std::wstring, std::wstring>> m_restoreFiles;
+	// END EPIC MOD
+
 	// BEGIN EPIC MOD - Adding SetActive command
 	bool m_active = true;
 	// END EPIC MOD

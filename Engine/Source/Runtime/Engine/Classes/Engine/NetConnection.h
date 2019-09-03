@@ -220,6 +220,15 @@ struct FDelayedIncomingPacket
 
 	/** Time at which the packet should be reinjected into the connection */
 	double ReinjectionTime = 0.0;
+
+	void CountBytes(FArchive& Ar) const
+	{
+		if (PacketData.IsValid())
+		{
+			PacketData->CountMemory(Ar);
+		}
+		Ar.CountBytes(sizeof(ReinjectionTime), sizeof(ReinjectionTime));
+	}
 };
 
 #endif //#if DO_ENABLE_NET_TEST
@@ -1225,7 +1234,9 @@ private:
 	void UpdateAllCachedLevelVisibility() const;
 
 	/** Returns true if an outgoing packet should be dropped due to packet simulation settings, including loss burst simulation. */
+#if DO_ENABLE_NET_TEST
 	bool ShouldDropOutgoingPacketForLossSimulation(int64 NumBits) const;
+#endif
 
 	/**
 	*	Test the current emulation settings to delay, drop, etc the current packet

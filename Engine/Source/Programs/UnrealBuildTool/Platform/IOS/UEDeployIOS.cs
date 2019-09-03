@@ -310,13 +310,8 @@ namespace UnrealBuildTool
 
 			ConfigHierarchy GameIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, DirRef, UnrealTargetPlatform.IOS);
 
-			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bSupportsOpenGLES2", out bSupported);
-			RequiredCaps += bSupported ? "\t\t<string>opengles-2</string>\n" : "";
-			if (!bSupported)
-			{
-				Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bSupportsMetal", out bSupported);
-				RequiredCaps += bSupported ? "\t\t<string>metal</string>\n" : "";
-			}
+			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bSupportsMetal", out bSupported);
+			RequiredCaps += bSupported ? "\t\t<string>metal</string>\n" : "";
 
 			// minimum iOS version
 			string MinVersion;

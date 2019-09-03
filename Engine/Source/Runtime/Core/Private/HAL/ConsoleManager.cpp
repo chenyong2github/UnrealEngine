@@ -2167,15 +2167,6 @@ static TAutoConsoleVariable<int32> CVarSetClearSceneMethod(
 	TEXT(" 2: Quad at max z"),
 	ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> CVarLensFlareQuality(
-	TEXT("r.LensFlareQuality"),
-	2,
-	TEXT(" 0: off but best for performance\n")
-	TEXT(" 1: low quality with good performance\n")
-	TEXT(" 2: good quality (default)\n")
-	TEXT(" 3: very good quality but bad performance"),
-	ECVF_Scalability | ECVF_RenderThreadSafe);
-
 static TAutoConsoleVariable<int32> CVarBloomQuality(
 	TEXT("r.BloomQuality"),
 	5,

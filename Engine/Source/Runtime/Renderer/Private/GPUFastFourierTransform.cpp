@@ -1282,7 +1282,7 @@ namespace
 	*/
 	void DispatchCopyWindowCS(FGPUFFTShaderContext& Context,
 		const FIntRect& SrcWindow, const FTextureRHIRef& SrcTexture,
-		const FIntRect& DstWindow, FUnorderedAccessViewRHIRef& DstUAV,
+		const FIntRect& DstWindow, FUnorderedAccessViewRHIRef DstUAV,
 		const FPreFilter& PreFilter = FPreFilter(TNumericLimits<float>::Max(), TNumericLimits<float>::Lowest(), 0.f))
 	{
 		using namespace GPUFFTComputeShaderUtils;
@@ -1297,7 +1297,7 @@ namespace
 		const uint32 YGroups = ( DstExtent.Y / YThreadCount ) + ( (DstExtent.Y % YThreadCount == 0) ? 0 : 1 ); //-V547
 
 		const FGPUFFTShaderContext::ShaderMapType& ShaderMap = Context.GetShaderMap();
-		FRHICommandListImmediate& RHICmdList = Context.GetRHICmdList();
+		FRHICommandList& RHICmdList = Context.GetRHICmdList();
 
 		SCOPED_DRAW_EVENTF(RHICmdList, CopyWindowCS, TEXT("FFT Multipass: Copy Subwindow"));
 
@@ -1351,14 +1351,14 @@ namespace
 		const bool bHorizontalScanlines,
 		const FIntRect& SrcWindow, const FTextureRHIRef& SrcTexture,
 		const FTextureRHIRef& KnlTexure,
-		FUnorderedAccessViewRHIRef& DstUAV)
+		FUnorderedAccessViewRHIRef DstUAV)
 	{
 		using namespace GPUFFTComputeShaderUtils;
 		// The size of the dst
 		const FIntPoint DstExtent = SrcWindow.Size();
 
 		const FGPUFFTShaderContext::ShaderMapType& ShaderMap = Context.GetShaderMap();
-		FRHICommandListImmediate& RHICmdList = Context.GetRHICmdList();
+		FRHICommandList& RHICmdList = Context.GetRHICmdList();
 
 		SCOPED_DRAW_EVENTF(RHICmdList, ComplexMultiplyImagesCS, TEXT("FFT Multipass: Convolution in freq-space"));
 
@@ -1402,13 +1402,13 @@ namespace
 	* FFTDesc.IsForward() indicates spit (true) vs merge (false).
 	*/
 	void DispatchPackTwoForOneFFTPassCS(FGPUFFTShaderContext& Context, const FFTDescription& FFTDesc,
-		const FTextureRHIRef& SrcTexture, FUnorderedAccessViewRHIRef& DstUAV)
+		const FTextureRHIRef& SrcTexture, FUnorderedAccessViewRHIRef DstUAV)
 	{
 
 		using namespace GPUFFTComputeShaderUtils;
 
 		const FGPUFFTShaderContext::ShaderMapType& ShaderMap = Context.GetShaderMap();
-		FRHICommandListImmediate& RHICmdList = Context.GetRHICmdList();
+		FRHICommandList& RHICmdList = Context.GetRHICmdList();
 	
 		const uint32 TransformLength = FFTDesc.SignalLength;
 		const FString TransformName = FFTDesc.FFT_TypeName();
@@ -1463,7 +1463,7 @@ namespace
 	void DispatchComplexFFTPassCS(FGPUFFTShaderContext& Context, const FFTDescription& FFTDesc,
 		const uint32 PassLength,
 		const FTextureRHIRef& SrcTexture, const FIntRect& SrcWindow,
-		FUnorderedAccessViewRHIRef& DstUAV,
+		FUnorderedAccessViewRHIRef DstUAV,
 		const bool bScrubNaNs = false)
 	{
 		// Using multiple radix two passes.
@@ -1471,7 +1471,7 @@ namespace
 		using namespace GPUFFTComputeShaderUtils;
 
 		const FGPUFFTShaderContext::ShaderMapType& ShaderMap = Context.GetShaderMap();
-		FRHICommandListImmediate& RHICmdList = Context.GetRHICmdList();
+		FRHICommandList& RHICmdList = Context.GetRHICmdList();
 
 		const uint32 TransformLength = FFTDesc.SignalLength;
 		const FString TransformName = FFTDesc.FFT_TypeName();
@@ -1514,7 +1514,7 @@ namespace
 	*/
 	void DispatchReorderFFTPassCS(FGPUFFTShaderContext& Context, const FFTDescription& FFTDesc,
 		const FIntRect& SrcWindow, const FTextureRHIRef& SrcTexture,
-		const FIntRect& DstWindow, FUnorderedAccessViewRHIRef& DstUAV,
+		const FIntRect& DstWindow, FUnorderedAccessViewRHIRef DstUAV,
 		const bool bScrubNaNs = false)
 	{
 		// Using multiple radix two passes.
@@ -1522,7 +1522,7 @@ namespace
 		using namespace GPUFFTComputeShaderUtils;
 
 		const FGPUFFTShaderContext::ShaderMapType& ShaderMap = Context.GetShaderMap();
-		FRHICommandListImmediate& RHICmdList = Context.GetRHICmdList();
+		FRHICommandList& RHICmdList = Context.GetRHICmdList();
 
 		const uint32 TransformLength = FFTDesc.SignalLength;
 		const FString TransformName = FFTDesc.FFT_TypeName();
@@ -1565,13 +1565,13 @@ namespace
 	*/
 	void DispatchGSSubComplexFFTPassCS(FGPUFFTShaderContext& Context, const FFTDescription& FFTDesc,
 		const FTextureRHIRef& SrcTexture, const FIntRect& SrcWindow,
-		FUnorderedAccessViewRHIRef& DstUAV)
+		FUnorderedAccessViewRHIRef DstUAV)
 	{
 	
 		using namespace GPUFFTComputeShaderUtils;
 
 		const FGPUFFTShaderContext::ShaderMapType& ShaderMap = Context.GetShaderMap();
-		FRHICommandListImmediate& RHICmdList = Context.GetRHICmdList();
+		FRHICommandList& RHICmdList = Context.GetRHICmdList();
 
 		const uint32 TransformLength = FFTDesc.SignalLength;
 		const FString TransformName = FFTDesc.FFT_TypeName();
@@ -1631,12 +1631,12 @@ namespace
 	*/
 	void DispatchGSComplexFFTCS(FGPUFFTShaderContext& Context, const FFTDescription& FFTDesc,
 		const FTextureRHIRef& SrcTexture, const FIntRect& SrcRect, 
-		FUnorderedAccessViewRHIRef& DstUAV)
+		FUnorderedAccessViewRHIRef DstUAV)
 	{
 		using namespace GPUFFTComputeShaderUtils;
 
 		const FGPUFFTShaderContext::ShaderMapType& ShaderMap = Context.GetShaderMap();
-		FRHICommandListImmediate& RHICmdList                 = Context.GetRHICmdList();
+		FRHICommandList& RHICmdList                 = Context.GetRHICmdList();
 
 		const uint32 TransformLength = FFTDesc.SignalLength;
 		const FString TransformName  = FFTDesc.FFT_TypeName();
@@ -1682,13 +1682,13 @@ namespace
 	*/
 	void DispatchGSTwoForOneFFTCS(FGPUFFTShaderContext& Context, const FFTDescription& FFTDesc,
 		const FTextureRHIRef& SrcTexture, const FIntRect& SrcRect,
-		FUnorderedAccessViewRHIRef& DstUAV, const FIntRect& DstRect,
+		FUnorderedAccessViewRHIRef DstUAV, const FIntRect& DstRect,
 		const FPreFilter& PreFilter)
 	{
 		using namespace GPUFFTComputeShaderUtils;
 
 		const FGPUFFTShaderContext::ShaderMapType& ShaderMap = Context.GetShaderMap();
-		FRHICommandListImmediate& RHICmdList                 = Context.GetRHICmdList();
+		FRHICommandList& RHICmdList                 = Context.GetRHICmdList();
 
 		const uint32 TransformLength = FFTDesc.SignalLength;
 		const FString TransformName  = FFTDesc.FFT_TypeName();
@@ -1734,12 +1734,12 @@ namespace
 		const FTextureRHIRef& PreTransformedKernel,
 		const FTextureRHIRef& SrcTexture, 
 		const FIntRect& SrcRect,
-		FUnorderedAccessViewRHIRef& DstUAV)
+		FUnorderedAccessViewRHIRef DstUAV)
 	{
 		using GPUFFTComputeShaderUtils::FScopedUAVBind;
 
 		const FGPUFFTShaderContext::ShaderMapType& ShaderMap = Context.GetShaderMap();
-		FRHICommandListImmediate& RHICmdList                 = Context.GetRHICmdList();
+		FRHICommandList& RHICmdList                 = Context.GetRHICmdList();
 
 		// Transform particulars
 
@@ -1774,7 +1774,7 @@ namespace
 
 void GPUFFT::CopyImage2D(FGPUFFTShaderContext& Context,
 	const FIntRect& SrcWindow, const FTextureRHIRef& SrcTexture,
-	const FIntRect& DstWindow, FUnorderedAccessViewRHIRef& DstUAV,
+	const FIntRect& DstWindow, FUnorderedAccessViewRHIRef DstUAV,
 	const FPreFilter& PreFilter)
 {
 	DispatchCopyWindowCS(Context, SrcWindow, SrcTexture, DstWindow, DstUAV, PreFilter);
@@ -1788,7 +1788,7 @@ void GPUFFT::ComplexFFTImage1D::Requirements(const FFTDescription& FFTDesc, FInt
 
 
 bool GPUFFT::ComplexFFTImage1D::GroupShared(FGPUFFTShaderContext& Context, const FFTDescription& FFTDesc,
-	const FIntRect& SrcWindow, const FTextureRHIRef& SrcTexture,  FUnorderedAccessViewRHIRef& DstUAV)
+	const FIntRect& SrcWindow, const FTextureRHIRef& SrcTexture,  FUnorderedAccessViewRHIRef DstUAV)
 {
 	bool SuccessValue = true;
 
@@ -1826,7 +1826,7 @@ bool GPUFFT::ComplexFFTImage1D::MultiPass(FGPUFFTShaderContext& Context, const F
 	check(FMath::IsPowerOfTwo(TransformLength));
 
 	// Command list
-	FRHICommandListImmediate& RHICmdList = Context.GetRHICmdList();
+	FRHICommandList& RHICmdList = Context.GetRHICmdList();
 
 	// The number of iterations required.
 	const uint32 Log2TransformLength = BitSize(TransformLength) - 1;
@@ -1928,7 +1928,7 @@ void GPUFFT::TwoForOneRealFFTImage1D::Requirements(const FFTDescription& FFTDesc
 
 bool GPUFFT::TwoForOneRealFFTImage1D::GroupShared(FGPUFFTShaderContext& Context, const FFTDescription& FFTDesc,
 	const FIntRect& SrcWindow, const FTextureRHIRef& SrcTexture,
-	const FIntRect& DstWindow, FUnorderedAccessViewRHIRef& DstUAV,
+	const FIntRect& DstWindow, FUnorderedAccessViewRHIRef DstUAV,
 	const FPreFilter& PreFilter)
 {
 	bool SuccessValue = true;
@@ -2015,7 +2015,7 @@ bool GPUFFT::FFTImage2D(FGPUFFTShaderContext& Context, const FIntPoint& Frequenc
 {
 	using GPUFFT::FFTDescription;
 
-	FRHICommandListImmediate& RHICmdList = Context.GetRHICmdList();
+	FRHICommandList& RHICmdList = Context.GetRHICmdList();
 
 	// This will be for the actual output.
 	const FIntRect FFTResultRect = ROIRect;
@@ -2089,7 +2089,7 @@ bool GPUFFT::ConvolutionWithTextureImage1D::GroupShared(FGPUFFTShaderContext& Co
 	const FTextureRHIRef& TransformedKernel,
 	const FIntRect& SrcWindow,
 	const FTextureRHIRef& SrcTexture,
-	FUnorderedAccessViewRHIRef& DstUAV)
+	FUnorderedAccessViewRHIRef DstUAV)
 {
 
 	bool SuccessValue = true;
@@ -2190,7 +2190,7 @@ FIntPoint GPUFFT::Convolution2DBufferSize(const FIntPoint& FrequencySize, const 
 bool GPUFFT::ConvolutionWithTextureImage2D(FGPUFFTShaderContext& Context, const FIntPoint& FrequencySize, bool bHorizontalFirst,
 	const FTextureRHIRef& TransformedKernel,
 	const FIntRect& ROIRect, const FTextureRHIRef& SrcTexture,
-	FUnorderedAccessViewRHIRef& ResultUAV,
+	FUnorderedAccessViewRHIRef ResultUAV,
 	FSceneRenderTargetItem& TmpBuffer0,
 	FSceneRenderTargetItem& TmpBuffer1,
 	const FPreFilter& PreFilter)
@@ -2198,7 +2198,7 @@ bool GPUFFT::ConvolutionWithTextureImage2D(FGPUFFTShaderContext& Context, const 
 
 	using GPUFFT::FFTDescription;
 
-	FRHICommandListImmediate& RHICmdList = Context.GetRHICmdList();
+	FRHICommandList& RHICmdList = Context.GetRHICmdList();
 
 	// This will be for the actual output.
 	const FIntRect FFTResultRect = ROIRect;

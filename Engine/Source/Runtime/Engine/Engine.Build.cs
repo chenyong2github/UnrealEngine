@@ -73,7 +73,6 @@ public class Engine : ModuleRules
 				"RenderCore",
 				"RHI",
 				"Sockets",
-				"UtilityShaders",
 				"AssetRegistry", // Here until FAssetData is moved to engine
 				"EngineMessages",
 				"EngineSettings",
@@ -295,6 +294,7 @@ public class Engine : ModuleRules
 					new string[] {
 						"LinuxTargetPlatform",
 						"LinuxNoEditorTargetPlatform",
+						"LinuxAArch64NoEditorTargetPlatform",
 						"LinuxServerTargetPlatform",
 						"LinuxClientTargetPlatform",
 						"AllDesktopTargetPlatform",

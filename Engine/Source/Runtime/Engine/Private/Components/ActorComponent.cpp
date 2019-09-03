@@ -132,13 +132,31 @@ FGlobalComponentRecreateRenderStateContext::FGlobalComponentRecreateRenderStateC
 	// recreate render state for all components.
 	for (UActorComponent* Component : TObjectRange<UActorComponent>())
 	{
-		ComponentContexts.Add(new FComponentRecreateRenderStateContext(Component));
+		ComponentContexts.Add(new FComponentRecreateRenderStateContext(Component, &ScenesToUpdateAllPrimitiveSceneInfos));
 	}
+
+	UpdateAllPrimitiveSceneInfos();
 }
 
 FGlobalComponentRecreateRenderStateContext::~FGlobalComponentRecreateRenderStateContext()
 {
 	ComponentContexts.Empty();
+
+	UpdateAllPrimitiveSceneInfos();
+}
+
+void FGlobalComponentRecreateRenderStateContext::UpdateAllPrimitiveSceneInfos()
+{
+	ENQUEUE_RENDER_COMMAND(UpdateAllPrimitiveSceneInfosCmd)(
+		[ScenesToUpdateAllPrimitiveSceneInfos = MoveTemp(ScenesToUpdateAllPrimitiveSceneInfos)](FRHICommandListImmediate& RHICmdList)
+		{
+			for (FSceneInterface* Scene : ScenesToUpdateAllPrimitiveSceneInfos)
+			{
+				Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
+			}
+		});
+
+	check(ScenesToUpdateAllPrimitiveSceneInfos.Num() == 0);
 }
 
 // Create Physics global delegate

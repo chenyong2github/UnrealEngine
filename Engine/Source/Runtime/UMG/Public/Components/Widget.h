@@ -318,31 +318,56 @@ public:
 	UPROPERTY(EditAnywhere, Category="Behavior", meta=(InlineEditConditionToggle))
 	uint8 bOverride_Cursor : 1;
 
+#if WITH_EDITORONLY_DATA
+	// These editor-only properties exist for two reasons:
+	//   1. To make details customization easier to write, specifically in regards to the binding extension widget
+	//   2. To allow subclasses to set their default values without having to subclass USlateAccessibleWidgetData
+	// Every time one of these properties changes, it's data is propagated to AccessibleWidgetData if it exists.
+	// The creations of AccessibleWidgetData is controlled by the details customization through a CheckBox.
+	// The reason this is set up like this is to reduce the memory footprint of UWidget since overriding the default
+	// accessibility rules for a particular widget will be relatively rare. In a shipped game, if no custom rules
+	// are defined, there will only be the memory cost of the UObject pointer.
+	//
+	// IMPORTANT: Any user-editable variables added to USlateAccessibleWidgetData should be duplicated here as well.
+	//            Additionally, its edit condition must be manually assigned in UMGDetailCustomizations.
+
+	/** Override all of the default accessibility behavior and text for this widget. */
+	UPROPERTY(EditAnywhere, Category="Accessibility")
+	uint8 bOverrideAccessibleDefaults : 1;
+
 	/** Whether or not children of this widget can appear as distinct accessible widgets. */
-	UPROPERTY(EditAnywhere, Category = "Accessibility")
+	UPROPERTY(EditAnywhere, Category="Accessibility", meta=(EditCondition="bOverrideAccessibleDefaults"))
 	uint8 bCanChildrenBeAccessible : 1;
 
 	/** Whether or not the widget is accessible, and how to describe it. If set to custom, additional customization options will appear. */
-	UPROPERTY(EditAnywhere, Category = "Accessibility")
+	UPROPERTY(EditAnywhere, Category="Accessibility", meta=(EditCondition="bOverrideAccessibleDefaults"))
 	ESlateAccessibleBehavior AccessibleBehavior;
 
-	/** When AccessibleBehavior is set to Custom, this is the text that will be used to describe the widget. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Accessibility", meta = (MultiLine = true))
-	FText AccessibleText;
-
-	UPROPERTY()
-	FGetText AccessibleTextDelegate;
-
 	/** How to describe this widget when it's being presented through a summary of a parent widget. If set to custom, additional customization options will appear. */
-	UPROPERTY(EditAnywhere, Category = "Accessibility", AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category="Accessibility", AdvancedDisplay, meta=(EditCondition="bOverrideAccessibleDefaults"))
 	ESlateAccessibleBehavior AccessibleSummaryBehavior;
 
+	/** When AccessibleBehavior is set to Custom, this is the text that will be used to describe the widget. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Accessibility", meta=(MultiLine=true))
+	FText AccessibleText;
+
+	/** An optional delegate that may be assigned in place of AccessibleText for creating a TAttribute */
+	UPROPERTY()
+	USlateAccessibleWidgetData::FGetText AccessibleTextDelegate;
+
 	/** When AccessibleSummaryBehavior is set to Custom, this is the text that will be used to describe the widget. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Accessibility", meta = (MultiLine = true), AdvancedDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Accessibility", meta=(MultiLine=true), AdvancedDisplay)
 	FText AccessibleSummaryText;
 
+	/** An optional delegate that may be assigned in place of AccessibleSummaryText for creating a TAttribute */
 	UPROPERTY()
-	FGetText AccessibleSummaryTextDelegate;
+	USlateAccessibleWidgetData::FGetText AccessibleSummaryTextDelegate;
+#endif
+
+private:
+	/** A custom set of accessibility rules for this widget. If null, default rules for the widget are used. */
+	UPROPERTY()
+	USlateAccessibleWidgetData* AccessibleWidgetData;
 
 protected:
 
@@ -853,6 +878,7 @@ public:
 	virtual UWorld* GetWorld() const override;
 	virtual void FinishDestroy() override;
 	virtual bool IsDestructionThreadSafe() const override { return false; }
+	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
 	// End UObject
 
 	FORCEINLINE bool CanSafelyRouteEvent()
@@ -974,6 +1000,9 @@ protected:
 	/** Gets the base name used to generate the display label/name of this widget. */
 	FText GetDisplayNameBase() const;
 
+	/** Copy all accessible properties to the AccessibleWidgetData object */
+	void SynchronizeAccessibleData();
+
 protected:
 	//TODO UMG Consider moving conversion functions into another class.
 	// Conversion functions
@@ -1046,6 +1075,8 @@ private:
 private:
 	PROPERTY_BINDING_IMPLEMENTATION(FText, ToolTipText);
 	PROPERTY_BINDING_IMPLEMENTATION(bool, bIsEnabled);
+#if WITH_EDITORONLY_DATA
 	PROPERTY_BINDING_IMPLEMENTATION(FText, AccessibleText);
 	PROPERTY_BINDING_IMPLEMENTATION(FText, AccessibleSummaryText);
+#endif
 };

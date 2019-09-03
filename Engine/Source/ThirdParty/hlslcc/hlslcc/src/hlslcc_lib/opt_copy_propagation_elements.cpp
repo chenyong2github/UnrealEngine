@@ -384,6 +384,12 @@ void ir_copy_propagation_elements_visitor::handle_rvalue(ir_rvalue **ir)
 
 	ir_variable *var = deref_var->var;
 
+	// Shared variables should be considered volatile
+	if (var->mode == ir_var_shared)
+	{
+		return;
+	}
+
 	/* Try to find ACP entries covering swizzle_chan[], hoping they're
 	* the same source variable.
 	*/

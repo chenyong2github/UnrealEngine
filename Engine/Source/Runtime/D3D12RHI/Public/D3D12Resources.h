@@ -420,7 +420,6 @@ public:
 		eStandAlone,
 		eSubAllocation,
 		eFastAllocation,
-		eMultiFrameFastAllocation,
 		eAliased, // Oculus is the only API that uses this
 		eNodeReference,
 		eHeapAliased, 
@@ -474,9 +473,10 @@ public:
 		SetResource(Resource);
 		SetSize(BufferSize);
 
-		if (IsCPUWritable(Resource->GetHeapType()))
+		if (!IsCPUInaccessible(Resource->GetHeapType()))
 		{
-			SetMappedBaseAddress(Resource->Map());
+			D3D12_RANGE range = { 0, IsCPUWritable(Resource->GetHeapType())? 0 : BufferSize };
+			SetMappedBaseAddress(Resource->Map(&range));
 		}
 		SetGPUVirtualAddress(Resource->GetGPUVirtualAddress());
 		SetTransient(bInIsTransient);
@@ -490,23 +490,16 @@ public:
 
 		if (IsCPUWritable(Resource->GetHeapType()))
 		{
-			SetMappedBaseAddress(Resource->Map());
+			D3D12_RANGE range = { 0, 0 };
+			SetMappedBaseAddress(Resource->Map(&range));
 		}
 		SetGPUVirtualAddress(Resource->GetGPUVirtualAddress());
 	}
 
 
-	inline void AsFastAllocation(FD3D12Resource* Resource, uint32 BufferSize, D3D12_GPU_VIRTUAL_ADDRESS GPUBase, void* CPUBase, uint64 Offset, bool bMultiFrame = false)
+	inline void AsFastAllocation(FD3D12Resource* Resource, uint32 BufferSize, D3D12_GPU_VIRTUAL_ADDRESS GPUBase, void* CPUBase, uint64 Offset)
 	{
-		if (bMultiFrame)
-		{
-			Resource->AddRef();
-			SetType(ResourceLocationType::eMultiFrameFastAllocation);
-		}
-		else
-		{
-			SetType(ResourceLocationType::eFastAllocation);
-		}
+		SetType(ResourceLocationType::eFastAllocation);
 		SetResource(Resource);
 		SetSize(BufferSize);
 		SetOffsetFromBaseOfResource(Offset);

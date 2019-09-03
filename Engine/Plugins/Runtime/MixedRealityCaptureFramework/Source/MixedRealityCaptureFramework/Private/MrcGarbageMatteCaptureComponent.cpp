@@ -24,7 +24,7 @@ UMrcGarbageMatteCaptureComponent::UMrcGarbageMatteCaptureComponent(const FObject
 	PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
 	CaptureSource = ESceneCaptureSource::SCS_SceneColorHDR;
 	PostProcessBlendWeight = 0.0f;
-	ShowFlags.SetAtmosphericFog(false);
+	ShowFlags.SetAtmosphere(false);
 	ShowFlags.SetFog(false);
 
 	const UMrcFrameworkSettings* MrcSettings = GetDefault<UMrcFrameworkSettings>();

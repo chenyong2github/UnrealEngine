@@ -65,10 +65,6 @@ static FText GetFriendlyNameFromLinuxRHIName(const FString& InRHIName)
 	{
 		FriendlyRHIName = LOCTEXT("Vulkan ES31", "Vulkan Mobile (ES3.1)");
 	}
-	else if (InRHIName == TEXT("SF_VULKAN_SM4"))
-	{
-		FriendlyRHIName = LOCTEXT("VulkanSM4", "Vulkan Desktop (SM4)");
-	}
 	else if (InRHIName == TEXT("SF_VULKAN_SM5"))
 	{
 		FriendlyRHIName = LOCTEXT("VulkanSM5", "Vulkan Desktop (SM5)");

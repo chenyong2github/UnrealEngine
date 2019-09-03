@@ -32,6 +32,7 @@ public:
 	virtual void Compile() override;
 	virtual bool IsCompiling() const override;
 	virtual void Tick() override;
+	virtual FOnPatchCompleteDelegate& GetOnPatchCompleteDelegate() override;
 
 private:
 	ULiveCodingSettings* Settings;
@@ -52,6 +53,7 @@ private:
 	IConsoleVariable* SourceProjectVariable;
 	FDelegateHandle EndFrameDelegateHandle;
 	FDelegateHandle ModulesChangedDelegateHandle;
+	FOnPatchCompleteDelegate OnPatchCompleteDelegate;
 
 	bool StartLiveCoding();
 

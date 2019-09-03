@@ -6,20 +6,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RenderGraph.h"
+#include "ScreenPass.h"
 
-// TODO: kill these includes once FRCPassPostProcessTemporalAA is gone.
-#include "RendererInterface.h"
-#include "RenderingCompositionGraph.h"
-
-
-class FViewInfo;
 class FSceneTextureParameters;
 struct FTemporalAAHistory;
 
-
-/** Lists of TAA configurations. */
+/** List of TAA configurations. */
 enum class ETAAPassConfig
 {
 	// Permutations for main scene color TAA.
@@ -56,7 +48,6 @@ static FORCEINLINE bool IsDOFTAAConfig(ETAAPassConfig Pass)
 	return Pass == ETAAPassConfig::DiaphragmDOF || Pass == ETAAPassConfig::DiaphragmDOFUpsampling;
 }
 
-
 /** GPU Output of the TAA pass. */
 struct FTAAOutputs
 {
@@ -81,11 +72,10 @@ struct FTAAPassParameters
 	// Whether to use the faster shader permutation.
 	bool bUseFast = false;
 
-	// Whether to do compute or not.
-	bool bIsComputePass = false;
+	// Whether output texture should be render targetable.
+	bool bOutputRenderTargetable = false;
 
 	// Whether downsampled (box filtered, half resolution) frame should be written out.
-	// Only used when bIsComputePass is true.
 	bool bDownsample = false;
 	EPixelFormat DownsampleOverrideFormat = PF_Unknown;
 
@@ -110,7 +100,7 @@ struct FTAAPassParameters
 	{ }
 
 
-	// Customises the view rectangles for input and output.
+	// Customizes the view rectangles for input and output.
 	FORCEINLINE void SetupViewRect(const FViewInfo& View, int32 InResolutionDivisor = 1)
 	{
 		ResolutionDivisor = InResolutionDivisor;
@@ -138,45 +128,34 @@ struct FTAAPassParameters
 		OutputViewRect.Min = FIntPoint::ZeroValue;
 	}
 	
-	/** Returns the texture resolution that will be outputed. */
+	/** Returns the texture resolution that will be output. */
 	FIntPoint GetOutputExtent() const;
 
 	/** Validate the settings of TAA, to make sure there is no issue. */
 	bool Validate() const;
-
-	
-	/** Apply a temporal AA pass. */
-	FTAAOutputs AddTemporalAAPass(
-		FRDGBuilder& GraphBuilder,
-		const FSceneTextureParameters& SceneTextures,
-		const FViewInfo& View,
-		const FTemporalAAHistory& InputHistory,
-		FTemporalAAHistory* OutputHistory) const;
-}; // struct FTAAPassParameters
-
-
-// DEPRECATED. Use FTAAPassParameters::AddTemporalAAPass() instead.
-class FRCPassPostProcessTemporalAA : public TRenderingCompositePassBase<3, 3>
-{
-public:
-	FRCPassPostProcessTemporalAA(
-		const class FPostprocessContext& Context,
-		const FTAAPassParameters& Parameters,
-		const FTemporalAAHistory& InInputHistory,
-		FTemporalAAHistory* OutOutputHistory);
-
-	// interface FRenderingCompositePass ---------
-	virtual void Process(FRenderingCompositePassContext& Context) override;
-	virtual void Release() override { delete this; }
-	virtual FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
-
-	virtual FRHIComputeFence* GetComputePassEndFence() const override { return AsyncEndFence; }
-
-private:
-	const FTAAPassParameters SavedParameters;
-
-	FComputeFenceRHIRef AsyncEndFence;
-
-	const FTemporalAAHistory& InputHistory;
-	FTemporalAAHistory* OutputHistory;
 };
+
+/** Temporal AA pass which emits a filtered scene color and new history. */
+FTAAOutputs AddTemporalAAPass(
+	FRDGBuilder& GraphBuilder,
+	const FSceneTextureParameters& SceneTextures,
+	const FViewInfo& View,
+	const FTAAPassParameters& Inputs,
+	const FTemporalAAHistory& InputHistory,
+	FTemporalAAHistory* OutputHistory);
+
+/** Temporal AA helper method which performs filtering on the main pass scene color. Supports upsampled history and,
+ *  if requested, will attempt to perform the scene color downsample. Returns the filtered scene color, the downsampled
+ *  scene color (or null if it was not performed), and the secondary view rect.
+ */
+void AddTemporalAAPass(
+	FRDGBuilder& GraphBuilder,
+	const FSceneTextureParameters& SceneTextures,
+	const FScreenPassViewInfo& ScreenPassView,
+	const bool bAllowDownsampleSceneColor,
+	const EPixelFormat DownsampleOverrideFormat,
+	FRDGTextureRef InSceneColorTexture,
+	FRDGTextureRef* OutSceneColorTexture,
+	FIntRect* OutSceneColorViewRect,
+	FRDGTextureRef* OutSceneColorHalfResTexture,
+	FIntRect* OutSceneColorHalfResViewRect);

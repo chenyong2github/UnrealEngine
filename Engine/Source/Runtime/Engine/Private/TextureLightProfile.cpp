@@ -17,3 +17,14 @@ UTextureLightProfile::UTextureLightProfile(const FObjectInitializer& ObjectIniti
 	Brightness = -1;
 }
 
+#if WITH_EDITOR
+void UTextureLightProfile::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (VirtualTextureStreaming)
+	{
+		UE_LOG(LogTexture, Warning, TEXT("VirtualTextureStreaming not supported for IES textures"));
+		VirtualTextureStreaming = false;
+	}
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+#endif // WITH_EDITOR

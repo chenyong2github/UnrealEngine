@@ -15,6 +15,7 @@ struct FClientSession
 	~FClientSession() override;
 
 	void DisconnectClient();
+	void SendOnDataChannel(PixelStreamingProtocol::EToClientMsg ToClientMsg, const void* Pkt, uint32_t Size);
 
 	FConductor& Outer;
 	FClientId ClientId;
@@ -43,8 +44,7 @@ struct FClientSession
 	//
 	// werbrtc::DataChannelObserver implementation.
 	//
-	void OnStateChange() override
-	{}
+	void OnStateChange() override;
 	void OnBufferedAmountChange(uint64_t PreviousAmount) override
 	{}
 	void OnMessage(const webrtc::DataBuffer& Buffer) override;

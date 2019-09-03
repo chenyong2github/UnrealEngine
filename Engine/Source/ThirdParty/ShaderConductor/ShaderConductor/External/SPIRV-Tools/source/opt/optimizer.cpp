@@ -185,7 +185,8 @@ Optimizer& Optimizer::RegisterPerformancePasses() {
       .RegisterPass(CreateRedundancyEliminationPass())
       .RegisterPass(CreateDeadBranchElimPass())
       .RegisterPass(CreateBlockMergePass())
-      .RegisterPass(CreateSimplificationPass());
+      .RegisterPass(CreateSimplificationPass())
+      .RegisterPass(CreateEliminateDeadMembersPass());
   // Currently exposing driver bugs resulting in crashes (#946)
   // .RegisterPass(CreateCommonUniformElimPass())
 }
@@ -217,7 +218,8 @@ Optimizer& Optimizer::RegisterSizePasses() {
       .RegisterPass(CreateCFGCleanupPass())
       // Currently exposing driver bugs resulting in crashes (#946)
       // .RegisterPass(CreateCommonUniformElimPass())
-      .RegisterPass(CreateAggressiveDCEPass());
+      .RegisterPass(CreateAggressiveDCEPass())
+      .RegisterPass(CreateEliminateDeadMembersPass());
 }
 
 Optimizer& Optimizer::RegisterVulkanToWebGPUPasses() {
@@ -472,6 +474,10 @@ bool Optimizer::RegisterPassFromFlag(const std::string& flag) {
     RegisterPass(CreateGenerateWebGPUInitializersPass());
   } else if (pass_name == "legalize-vector-shuffle") {
     RegisterPass(CreateLegalizeVectorShufflePass());
+  /* UE Change Begin: Implement a fused-multiply-add pass to reduce the possibility of reassociation. */
+  } else if (pass_name == "fused-multiply-add") {
+    RegisterPass(CreateFusedMultiplyAddPass());
+  /* UE Change End: Implement a fused-multiply-add pass to reduce the possibility of reassociation. */
   } else {
     Errorf(consumer(), nullptr, {},
            "Unknown flag '--%s'. Use --help for a list of valid flags",
@@ -878,5 +884,12 @@ Optimizer::PassToken CreateSplitInvalidUnreachablePass() {
   return MakeUnique<Optimizer::PassToken::Impl>(
       MakeUnique<opt::SplitInvalidUnreachablePass>());
 }
+
+/* UE Change Begin: Implement a fused-multiply-add pass to reduce the possibility of reassociation. */
+Optimizer::PassToken CreateFusedMultiplyAddPass() {
+  return MakeUnique<Optimizer::PassToken::Impl>(
+      MakeUnique<opt::FusedMultiplyAddPass>());
+}
+/* UE Change End: Implement a fused-multiply-add pass to reduce the possibility of reassociation. */
 
 }  // namespace spvtools

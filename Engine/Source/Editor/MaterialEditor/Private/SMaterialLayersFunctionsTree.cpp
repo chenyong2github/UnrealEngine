@@ -276,7 +276,6 @@ FReply SMaterialLayersFunctionsInstanceTreeItem::OnLayerDrop(const FDragDropEven
 				LayerStateHandle->MoveElementTo(OriginalIndex, NewIndex);
 				BlendHandle->MoveElementTo(OriginalBlendIndex, NewBlendIndex);
 				BlendFilterHandle->MoveElementTo(OriginalBlendIndex, NewBlendIndex);
-				Tree->FunctionInstance->UpdateStaticPermutationString();
 				Tree->OnExpansionChanged(SwappablePropertyData, bOriginalSwappingExpansion);
 				Tree->OnExpansionChanged(SwappingPropertyData, bOriginalSwappableExpansion);
 				Tree->FunctionInstanceHandle->NotifyPostChange();

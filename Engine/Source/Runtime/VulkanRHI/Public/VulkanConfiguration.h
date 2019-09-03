@@ -83,10 +83,6 @@
 	#define VULKAN_USE_IMAGE_ACQUIRE_FENCES						1
 #endif
 
-#ifndef VULKAN_HAS_PHYSICAL_DEVICE_PROPERTIES2
-	#define VULKAN_HAS_PHYSICAL_DEVICE_PROPERTIES2				0
-#endif
-
 #define VULKAN_ENABLE_AGGRESSIVE_STATS							0
 
 #define VULKAN_REUSE_FENCES										1
@@ -125,7 +121,9 @@
 	#define VULKAN_SUPPORTS_VALIDATION_CACHE					0
 #endif
 
-#ifndef VULKAN_SUPPORTS_DEDICATED_ALLOCATION
+#ifdef VK_KHR_dedicated_allocation
+	#define VULKAN_SUPPORTS_DEDICATED_ALLOCATION				1
+#else
 	#define VULKAN_SUPPORTS_DEDICATED_ALLOCATION				0
 #endif
 
@@ -174,12 +172,28 @@
 #endif
 
 #ifdef VK_EXT_memory_priority
-#define VULKAN_SUPPORTS_MEMORY_PRIORITY							1
+	#define VULKAN_SUPPORTS_MEMORY_PRIORITY						1
 #else
-#define VULKAN_SUPPORTS_MEMORY_PRIORITY							0
+	#define VULKAN_SUPPORTS_MEMORY_PRIORITY						0
 #endif
 
+#ifdef VK_KHR_get_physical_device_properties2
+	#define VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2			1
+#else
+	#define VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2			0
+#endif
 
+#ifdef VK_KHR_external_memory_capabilities
+	#define VULKAN_SUPPORTS_EXTERNAL_MEMORY							(VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2)	// Requirement
+#else
+	#define VULKAN_SUPPORTS_EXTERNAL_MEMORY							0
+#endif
+
+#ifdef VK_KHR_driver_properties
+	#define VULKAN_SUPPORTS_DRIVER_PROPERTIES						1
+#else
+	#define VULKAN_SUPPORTS_DRIVER_PROPERTIES						0
+#endif
 
 DECLARE_LOG_CATEGORY_EXTERN(LogVulkanRHI, Log, All);
 

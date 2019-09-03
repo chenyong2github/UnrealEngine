@@ -45,6 +45,10 @@ IMPLEMENT_MODULE(FRendererModule, Renderer);
 	FSystemSettings* GSystemSettingsForVisualizers = &GSystemSettings;
 #endif
 
+static int32 bFlushRenderTargetsOnWorldCleanup = 1;
+FAutoConsoleVariableRef CVarFlushRenderTargetsOnWorldCleanup(TEXT("r.bFlushRenderTargetsOnWorldCleanup"), bFlushRenderTargetsOnWorldCleanup, TEXT(""));
+
+
 void FRendererModule::StartupModule()
 {
 	GScreenSpaceDenoiser = IScreenSpaceDenoiser::GetDefaultDenoiser();
@@ -64,6 +68,18 @@ void FRendererModule::ReallocateSceneRenderTargets()
 {
 	FLightPrimitiveInteraction::InitializeMemoryPool();
 	FSceneRenderTargets::GetGlobalUnsafe().UpdateRHI();
+}
+
+void FRendererModule::OnWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources)
+{
+	if (bFlushRenderTargetsOnWorldCleanup > 0)
+	{
+		ENQUEUE_RENDER_COMMAND(OnWorldCleanup)(
+			[](FRHICommandListImmediate& RHICmdList)
+		{
+			GRenderTargetPool.FreeUnusedResources();
+		});
+	}
 }
 
 void FRendererModule::SceneRenderTargetsSetBufferSize(uint32 SizeX, uint32 SizeY)
@@ -134,13 +150,6 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 				View.PrimitiveSceneDataOverrideSRV = SinglePrimitiveStructuredBuffer.PrimitiveSceneDataBufferSRV;
 				View.LightmapSceneDataOverrideSRV = SinglePrimitiveStructuredBuffer.LightmapSceneDataBufferSRV;
 			}
-		}
-
-		// Initialise Sky/View resources before the view global uniform buffer is built.
-		if (ShouldRenderSkyAtmosphere(Scene))
-		{
-			InitSkyAtmosphereForScene(RHICmdList, Scene);
-			InitSkyAtmosphereForView(RHICmdList, Scene, View);
 		}
 
 		View.InitRHIResources();

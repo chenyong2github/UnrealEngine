@@ -260,7 +260,7 @@ class FDeferredLightPS : public FGlobalShader
 			return false;
 		}*/
 
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4);
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 
 	FDeferredLightPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -433,7 +433,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4);
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -955,12 +955,14 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 
 				// Allocate PreprocessedShadowMaskTextures once so QueueTextureExtraction can deferred write.
 				{
-					if (!View.bViewStateIsReadOnly)
+					if (!View.bStatePrevViewInfoIsReadOnly)
 					{
 						View.ViewState->PrevFrameViewInfo.ShadowHistories.Empty();
 						View.ViewState->PrevFrameViewInfo.ShadowHistories.Reserve(SortedLights.Num());
 					}
 				}
+
+				PreprocessedShadowMaskTextures.SetNum(SortedLights.Num());
 			} // if (RHI_RAYTRACING)
 
 			bool bDirectLighting = ViewFamily.EngineShowFlags.DirectLighting;
@@ -1012,7 +1014,10 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 							SortedLightInfo.SortKey.Fields.bShadowed && !ShouldRenderRayTracingStochasticRectLight(LightSceneInfo);
 
 						// determine if this light doesn't yet have a precomuted shadow and execute a batch to amortize costs if one is needed
-						if (RHI_RAYTRACING && PreprocessedShadowMaskTextures.Num() > 0 && bWantsBatchedShadow && !PreprocessedShadowMaskTextures[LightIndex - AttenuationLightStart])
+						if (
+							RHI_RAYTRACING &&
+							bWantsBatchedShadow &&
+							!PreprocessedShadowMaskTextures[LightIndex - AttenuationLightStart])
 						{
 							SCOPED_DRAW_EVENT(RHICmdList, ShadowBatch);
 							TStaticArray<IScreenSpaceDenoiser::FShadowParameters, IScreenSpaceDenoiser::kMaxBatchSize> DenoisingQueue;
@@ -1043,7 +1048,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 									InputParameterCount,
 									View.ViewRect.Width(), View.ViewRect.Height());
 
-								DenoiserToUse->DenoiseShadows(
+								DenoiserToUse->DenoiseMonochromaticShadows(
 									GraphBuilder,
 									View,
 									&View.PrevViewInfo,
@@ -1222,7 +1227,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 									InputParameterCount,
 									View.ViewRect.Width(), View.ViewRect.Height());
 
-								DenoiserToUse->DenoiseShadows(
+								DenoiserToUse->DenoiseMonochromaticShadows(
 									GraphBuilder,
 									View,
 									&View.PrevViewInfo,

@@ -96,6 +96,17 @@ void FClientSession::DisconnectClient()
 	Outer.CirrusConnection.SendDisconnectClient(ClientId);
 }
 
+void FClientSession::SendOnDataChannel(PixelStreamingProtocol::EToClientMsg ToClientMsg, const void* Pkt, uint32_t Size)
+{
+	if (DataChannel)
+	{
+		rtc::CopyOnWriteBuffer Buffer(Size + 1);
+		Buffer[0] = static_cast<uint8_t>(ToClientMsg);
+		std::memcpy(&Buffer[1], reinterpret_cast<const uint8_t*>(Pkt), Size);
+		DataChannel->Send(webrtc::DataBuffer(Buffer, true));
+	}
+}
+
 //
 // webrtc::PeerConnectionObserver implementation.
 //
@@ -190,6 +201,21 @@ void FClientSession::OnRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterfa
 //
 // webrtc::DataChannelObserver implementation.
 //
+
+void FClientSession::OnStateChange()
+{
+	webrtc::DataChannelInterface::DataState State = this->DataChannel->state();
+	if (State == webrtc::DataChannelInterface::DataState::kOpen)
+	{
+		// Once the data channel is opened, we check to see if we have any
+		// freeze frame chunks cached. If so then we send them immediately
+		// to the browser for display, without waiting for the video.
+		for (std::vector<uint8>& FreezeFrameChunk : Outer.FreezeFrameChunks)
+		{
+			SendOnDataChannel(PixelStreamingProtocol::EToClientMsg::FreezeFrame, FreezeFrameChunk.data(), FreezeFrameChunk.size());
+		}
+	}
+}
 
 void FClientSession::OnMessage(const webrtc::DataBuffer& Buffer)
 {

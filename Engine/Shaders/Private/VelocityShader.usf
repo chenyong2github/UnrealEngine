@@ -84,7 +84,6 @@ struct FVelocityVSToPS
 		
 		O.Interps.FactoryInterpolants = VertexFactoryAssignInterpolants(Interpolants.FactoryInterpolants);
 
-		ISOLATE
 		{
 			O.Position = mul(WorldPosition, ResolvedView.TranslatedWorldToClip);
 		}
@@ -142,7 +141,6 @@ void MainVertexShader(
 	// Isolate instructions used for world position offset on xbox 360, 
 	// As these cause the optimizer to generate different position calculating instructions in each pass, resulting in self-z-fighting.
 	// This is only necessary for shaders used in passes that have depth testing enabled.
-	ISOLATE
 	{
 		TranslatedWorldPosition.xyz += GetMaterialWorldPositionOffset(VertexParameters);
 	}
@@ -172,7 +170,6 @@ void MainVertexShader(
 	#endif
 
 #if !USING_TESSELLATION
-		ISOLATE
 		{
 #endif
 

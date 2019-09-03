@@ -16,7 +16,7 @@ public class DesktopPlatform : ModuleRules
 			}
 		);
 
-		if (Target.Platform == UnrealTargetPlatform.Linux)
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
 		{
 			PrivateIncludePathModuleNames.AddRange(
 				new string[] {

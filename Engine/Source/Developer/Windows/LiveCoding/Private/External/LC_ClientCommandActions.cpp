@@ -9,6 +9,9 @@
 #include "LC_Process.h"
 #include "LC_Logging.h"
 
+// BEGIN EPIC MOD - Support for object reinstancing. We need to call a global post-patch handler, rather than just getting individual callbacks for modified modules.
+extern bool GHasLoadedPatch;
+// END EPIC MOD
 
 bool actions::RegisterProcessFinished::Execute(const CommandType* command, const DuplexPipe* pipe, void* context, const void*, size_t)
 {
@@ -119,6 +122,9 @@ bool actions::LoadPatch::Execute(const CommandType* command, const DuplexPipe* p
 			(*InitNatvisHelpers)(GNameBlocksDebug, GObjectArrayForDebugVisualizers);
 		}
 	}
+	// END EPIC MOD
+	// BEGIN EPIC MOD - Support for object reinstancing. We need to call a global post-patch handler, rather than just getting individual callbacks for modified modules.
+	GHasLoadedPatch = true;
 	// END EPIC MOD
 
 	pipe->SendAck();

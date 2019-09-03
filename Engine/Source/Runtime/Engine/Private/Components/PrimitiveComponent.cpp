@@ -1027,34 +1027,6 @@ bool UPrimitiveComponent::CanEditChange(const UProperty* InProperty) const
 		{
 			return !bSelfShadowOnly;
 		}
-
-		if (PropertyName == CastShadowName)
-		{
-			// Look for any lit materials
-			bool bHasAnyLitMaterials = false;
-			const int32 NumMaterials = GetNumMaterials();
-			for (int32 MaterialIndex = 0; (MaterialIndex < NumMaterials) && !bHasAnyLitMaterials; ++MaterialIndex)
-			{
-				UMaterialInterface* Material = GetMaterial(MaterialIndex);
-
-				if (Material)
-				{
-					if (Material->GetShadingModels().IsLit())
-					{
-						bHasAnyLitMaterials = true;
-					}
-				}
-				else
-				{
-					// Default material is lit
-					bHasAnyLitMaterials = true;
-				}
-			}
-
-			// If there's at least one lit section it could cast shadows, so let the property be edited.
-			// The 0 materials catch is in case any components aren't properly implementing the GetMaterial API, they might or might not work with shadows.
-			return (NumMaterials == 0) || bHasAnyLitMaterials;
-		}
 	}
 
 	return bIsEditable;

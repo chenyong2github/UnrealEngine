@@ -30,11 +30,12 @@ enum EDDSCaps
 
 enum EDDSPixelFormat
 {
-	DDSPF_FourCC		= 0x00000004,
-	DDSPF_RGB			= 0x00000040,
-	DDSPF_DXT1			= MAKEFOURCC('D','X','T','1'),
-	DDSPF_DXT3			= MAKEFOURCC('D','X','T','3'),
-	DDSPF_DXT5			= MAKEFOURCC('D','X','T','5')
+	DDSPF_FourCC = 0x00000004,
+	DDSPF_RGB = 0x00000040,
+	DDSPF_DXT1 = MAKEFOURCC('D', 'X', 'T', '1'),
+	DDSPF_DXT3 = MAKEFOURCC('D', 'X', 'T', '3'),
+	DDSPF_DXT5 = MAKEFOURCC('D', 'X', 'T', '5'),
+	DDSPF_DX10 = MAKEFOURCC('D', 'X', '1', '0')
 };
 
 // .DDS subheader.
@@ -73,6 +74,18 @@ struct FDDSFileHeader
 };
 #pragma pack(pop)
 
+// .DDS10 header
+#pragma pack(push,1)
+struct FDDS10FileHeader
+{
+	uint32	format;
+	uint32	resourceType;
+	uint32	miscFlag;
+	uint32	arraySize;
+	uint32	miscFlag2;
+};
+#pragma pack(pop)
+
 class FDDSLoadHelper
 {
 public:
@@ -90,7 +103,15 @@ public:
 	/** @param DDS, must not be 0 */
 	ENGINE_API uint32 ComputeMipMapCount() const;
 
+	ENGINE_API uint32 GetSizeX() const;
+
+	ENGINE_API uint32 GetSizeY() const;
+
+	ENGINE_API uint32 GetSliceCount() const;
+
 	ENGINE_API bool IsValidCubemapTexture() const;
+
+	ENGINE_API bool IsValidArrayTexture() const;
 
 	ENGINE_API bool IsValid2DTexture() const;
 
@@ -104,4 +125,5 @@ public:
 
 	/** !=0 if valid */
 	const FDDSFileHeader* DDSHeader;
+	const FDDS10FileHeader* DDS10Header;
 };

@@ -11,8 +11,6 @@ enum class EVulkanShaderVersion
 	ES3_1_NOUB,
 	ES3_1_ANDROID,
 	ES3_1_ANDROID_NOUB,
-	SM4,
-	SM4_NOUB,
 	SM5,
 	SM5_NOUB,
 };
@@ -23,12 +21,10 @@ inline bool HasRealUBs(EVulkanShaderVersion Version)
 	{
 	case EVulkanShaderVersion::ES3_1:
 	case EVulkanShaderVersion::ES3_1_ANDROID:
-	case EVulkanShaderVersion::SM4:
 	case EVulkanShaderVersion::SM5:
 		return true;
 	case EVulkanShaderVersion::ES3_1_NOUB:
 	case EVulkanShaderVersion::ES3_1_ANDROID_NOUB:
-	case EVulkanShaderVersion::SM4_NOUB:
 	case EVulkanShaderVersion::SM5_NOUB:
 		return false;
 

@@ -79,7 +79,6 @@ struct FHitProxyVSToPS
 		#endif
 
 		// Finally, transform position to clip-space
-		ISOLATE
 		{
 			O.Position = mul(WorldPosition, View.TranslatedWorldToClip);
 		}
@@ -132,7 +131,6 @@ void Main(
 	Output.FactoryInterpolants = VertexFactoryGetInterpolantsVSToDS(Input, VFIntermediates, VertexParameters);
 #else
 
-	ISOLATE
 	{
 		float4 RasterizedWorldPosition = VertexFactoryGetRasterizedWorldPosition(Input, VFIntermediates, WorldPosition);
 		Output.Position = mul(RasterizedWorldPosition, View.TranslatedWorldToClip);

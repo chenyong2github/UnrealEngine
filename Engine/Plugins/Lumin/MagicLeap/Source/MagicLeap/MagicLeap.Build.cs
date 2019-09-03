@@ -47,7 +47,6 @@ namespace UnrealBuildTool.Rules
 					"MLSDK",
 					"MRMesh",
                     "MagicLeapHelperOpenGL",
-					"UtilityShaders",
 					// Public headers of MagicLeapHelperVulkan are protected against Mac so this is fine here.
 					"MagicLeapHelperVulkan",
 					"LuminRuntimeSettings",

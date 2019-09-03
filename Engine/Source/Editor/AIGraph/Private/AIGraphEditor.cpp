@@ -10,7 +10,9 @@
 #include "ScopedTransaction.h"
 #include "EdGraphUtilities.h"
 #include "Framework/Commands/GenericCommands.h"
+#include "GraphEditorActions.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "EdGraph/EdGraphSchema.h"
 
 #define LOCTEXT_NAMESPACE "AIGraph"
 
@@ -78,6 +80,12 @@ void FAIGraphEditor::CreateCommandList()
 		FExecuteAction::CreateRaw(this, &FAIGraphEditor::DuplicateNodes),
 		FCanExecuteAction::CreateRaw(this, &FAIGraphEditor::CanDuplicateNodes)
 		);
+
+	GraphEditorCommands->MapAction(
+		FGraphEditorCommands::Get().CreateComment,
+		FExecuteAction::CreateRaw(this, &FAIGraphEditor::OnCreateComment),
+		FCanExecuteAction::CreateRaw(this, &FAIGraphEditor::CanCreateComment)
+	);
 }
 
 FGraphPanelSelectionSet FAIGraphEditor::GetSelectedNodes() const
@@ -483,6 +491,25 @@ bool FAIGraphEditor::CanDuplicateNodes() const
 	return CanCopyNodes();
 }
 
+bool FAIGraphEditor::CanCreateComment() const
+{
+ 	TSharedPtr<SGraphEditor> CurrentGraphEditor = UpdateGraphEdPtr.Pin();
+ 	return CurrentGraphEditor.IsValid() ? (CurrentGraphEditor->GetNumberOfSelectedNodes() != 0) : false;
+}
+
+void FAIGraphEditor::OnCreateComment()
+{
+	TSharedPtr<SGraphEditor> CurrentGraphEditor = UpdateGraphEdPtr.Pin();
+	if (UEdGraph* EdGraph = CurrentGraphEditor.IsValid() ? CurrentGraphEditor->GetCurrentGraph() : nullptr)
+	{
+		TSharedPtr<FEdGraphSchemaAction> Action = EdGraph->GetSchema()->GetCreateCommentAction();
+		if (Action.IsValid())
+		{
+			Action->PerformAction(EdGraph, nullptr, FVector2D());
+		}
+	}
+}
+
 void FAIGraphEditor::OnClassListUpdated()
 {
 	TSharedPtr<SGraphEditor> CurrentGraphEditor = UpdateGraphEdPtr.Pin();
@@ -504,5 +531,6 @@ void FAIGraphEditor::OnClassListUpdated()
 		}
 	}
 }
+
 
 #undef LOCTEXT_NAMESPACE

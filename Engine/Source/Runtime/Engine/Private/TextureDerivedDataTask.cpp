@@ -16,6 +16,7 @@
 #include "RenderUtils.h"
 #include "TextureResource.h"
 #include "Engine/Texture.h"
+#include "Engine/Texture2DArray.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "VT/VirtualTextureBuiltData.h"
@@ -61,7 +62,7 @@ void FTextureSourceData::Init(UTexture& InTexture, const FTextureBuildSettings* 
 		case TSF_BGRA8:		LayerData->ImageFormat = ERawImageFormat::BGRA8;	break;
 		case TSF_BGRE8:		LayerData->ImageFormat = ERawImageFormat::BGRE8;	break;
 		case TSF_RGBA16:	LayerData->ImageFormat = ERawImageFormat::RGBA16;	break;
-		case TSF_RGBA16F:	LayerData->ImageFormat = ERawImageFormat::RGBA16F; break;
+		case TSF_RGBA16F:	LayerData->ImageFormat = ERawImageFormat::RGBA16F;  break;
 		default:
 			UE_LOG(LogTexture, Fatal, TEXT("Texture %s has source art in an invalid format."), *InTexture.GetName());
 			return;
@@ -93,7 +94,7 @@ void FTextureSourceData::Init(UTexture& InTexture, const FTextureBuildSettings* 
 				BlockData->NumMips = 1;
 			}
 
-			if (!InBuildSettingsPerLayer[0].bCubemap && !InBuildSettingsPerLayer[0].bVolume)
+			if (!InBuildSettingsPerLayer[0].bCubemap && !InBuildSettingsPerLayer[0].bTextureArray && !InBuildSettingsPerLayer[0].bVolume)
 			{
 				BlockData->NumSlices = 1;
 			}
@@ -271,7 +272,7 @@ void FTextureCacheDerivedDataWorker::BuildTexture()
 				NewMip->SizeX = CompressedImage.SizeX;
 				NewMip->SizeY = CompressedImage.SizeY;
 				NewMip->SizeZ = CompressedImage.SizeZ;
-				check(NewMip->SizeZ == 1 || BuildSettingsPerLayer[0].bVolume); // Only volume can have SizeZ != 1
+				check(NewMip->SizeZ == 1 || BuildSettingsPerLayer[0].bVolume || BuildSettingsPerLayer[0].bTextureArray); // Only volume & arrays can have SizeZ != 1
 				NewMip->BulkData.Lock(LOCK_READ_WRITE);
 				check(CompressedImage.RawData.GetTypeSize() == 1);
 				void* NewMipData = NewMip->BulkData.Realloc(CompressedImage.RawData.Num());
@@ -282,8 +283,8 @@ void FTextureCacheDerivedDataWorker::BuildTexture()
 				{
 					DerivedData->SizeX = CompressedImage.SizeX;
 					DerivedData->SizeY = CompressedImage.SizeY;
-					DerivedData->NumSlices = BuildSettingsPerLayer[0].bCubemap ? 6 : (BuildSettingsPerLayer[0].bVolume ? CompressedImage.SizeZ : 1);
 					DerivedData->PixelFormat = (EPixelFormat)CompressedImage.PixelFormat;
+					DerivedData->NumSlices = BuildSettingsPerLayer[0].bCubemap ? 6 : (BuildSettingsPerLayer[0].bVolume || BuildSettingsPerLayer[0].bTextureArray) ? CompressedImage.SizeZ : 1;
 				}
 				else
 				{

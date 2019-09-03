@@ -179,7 +179,7 @@ void FMetalRenderQuery::Begin(FMetalContext* Context, TSharedPtr<FMetalCommandBu
 			Context->GetQueryBufferPool()->Allocate(Buffer);
 			Buffer.bCompleted = false;
 			
-			if ((GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM4) && GetMetalDeviceContext().SupportsFeature(EMetalFeaturesCountingQueries))
+			if ((GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5) && GetMetalDeviceContext().SupportsFeature(EMetalFeaturesCountingQueries))
 			{
 				Context->GetCurrentState().SetVisibilityResultMode(mtlpp::VisibilityResultMode::Counting, Buffer.Offset);
 			}

@@ -11,6 +11,23 @@
 class FSlateRect;
 class UEdGraph;
 
+/** Action to add a comment to the graph */
+USTRUCT()
+struct FAISchemaAction_AddComment : public FEdGraphSchemaAction
+{
+	GENERATED_BODY()
+	
+	FAISchemaAction_AddComment() : FEdGraphSchemaAction() {}
+	FAISchemaAction_AddComment(FText InDescription, FText InToolTip)
+		: FEdGraphSchemaAction(FText(), MoveTemp(InDescription), MoveTemp(InToolTip), 0)
+	{
+	}
+
+	// FEdGraphSchemaAction interface
+	virtual UEdGraphNode* PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override final;
+	// End of FEdGraphSchemaAction interface
+};
+
 /** Action to add a node to the graph */
 USTRUCT()
 struct AIGRAPH_API FAISchemaAction_NewNode : public FEdGraphSchemaAction
@@ -95,6 +112,8 @@ class AIGRAPH_API UAIGraphSchema : public UEdGraphSchema
 	virtual void BreakNodeLinks(UEdGraphNode& TargetNode) const override;
 	virtual void BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNodeNotification) const override;
 	virtual void BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraphPin* TargetPin) const override;
+	virtual TSharedPtr<FEdGraphSchemaAction> GetCreateCommentAction() const override;
+	virtual int32 GetNodeSelectionCount(const UEdGraph* Graph) const override;
 	//~ End EdGraphSchema Interface
 
 	virtual void GetGraphNodeContextActions(FGraphContextMenuBuilder& ContextMenuBuilder, int32 SubNodeFlags) const;

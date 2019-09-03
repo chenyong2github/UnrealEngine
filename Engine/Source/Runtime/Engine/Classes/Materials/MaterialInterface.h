@@ -16,11 +16,8 @@
 #include "Engine/BlendableInterface.h"
 #include "Materials/MaterialLayersFunctions.h"
 #include "Interfaces/Interface_AssetUserData.h"
+#include "MaterialSceneTextureId.h"
 #include "MaterialInterface.generated.h"
-
-#ifndef STORE_ONLY_ACTIVE_SHADERMAPS
-#define STORE_ONLY_ACTIVE_SHADERMAPS 0
-#endif
 
 class FMaterialCompiler;
 class FMaterialRenderProxy;

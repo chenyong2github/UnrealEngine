@@ -29,9 +29,9 @@ extern RHI_API uint32 GVirtualMGPU;
 struct FRHIGPUMask
 {
 private:
+
 	uint32 GPUMask;
 
-public:
 	FORCEINLINE explicit FRHIGPUMask(uint32 InGPUMask) : GPUMask(InGPUMask)
 	{
 #if WITH_MGPU
@@ -41,7 +41,9 @@ public:
 #endif
 	}
 
-	FORCEINLINE FRHIGPUMask() : GPUMask(FRHIGPUMask::GPU0())
+public:
+
+	FORCEINLINE FRHIGPUMask() : FRHIGPUMask(FRHIGPUMask::GPU0())
 	{
 	}
 
@@ -93,7 +95,7 @@ public:
 	void operator |=(const FRHIGPUMask& Rhs) { GPUMask |= Rhs.GPUMask; }
 	void operator &=(const FRHIGPUMask& Rhs) { GPUMask &= Rhs.GPUMask; }
 
-	FORCEINLINE explicit operator uint32() const { return GVirtualMGPU ? 1 : GPUMask; }
+	FORCEINLINE uint32 GetNative() const { return GVirtualMGPU ? 1 : GPUMask; }
 
 	FORCEINLINE FRHIGPUMask operator &(const FRHIGPUMask& Rhs) const
 	{

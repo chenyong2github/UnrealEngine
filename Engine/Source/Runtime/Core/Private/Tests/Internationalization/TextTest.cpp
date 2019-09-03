@@ -11,6 +11,7 @@
 #include "Internationalization/FastDecimalFormat.h"
 #include "Internationalization/StringTableRegistry.h"
 #include "Internationalization/Internationalization.h"
+#include "Internationalization/Cultures/LeetCulture.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"
 #include "Misc/AutomationTest.h"
@@ -496,9 +497,10 @@ bool FTextTest::RunTest (const FString& Parameters)
 			// The original string in the native language.
 			FormattedTestLayer2_OriginalLanguageSourceString = FormattedTestLayer2.BuildSourceString();
 
+#if ENABLE_LOC_TESTING
 			{
 				// Swap to "LEET" culture to check if rebuilding works (verify the whole)
-				I18N.SetCurrentCulture("LEET");
+				I18N.SetCurrentCulture(FLeetCulture::StaticGetName());
 
 				// When changes are made to FormattedTestLayer2, please pull out the newly translated LEET string and update the below if-statement to keep the test passing!
 				FString LEETTranslatedString = FormattedTestLayer2.ToString();
@@ -512,6 +514,7 @@ bool FTextTest::RunTest (const FString& Parameters)
 					AddError( TEXT("Desired Output=") + DesiredOutput );
 				}
 			}
+#endif
 
 			// Swap to French-Canadian to check if rebuilding works (verify each numerical component)
 			{
@@ -563,8 +566,9 @@ bool FTextTest::RunTest (const FString& Parameters)
 			}
 		}
 
+#if ENABLE_LOC_TESTING
 		{
-			I18N.SetCurrentCulture("LEET");
+			I18N.SetCurrentCulture(FLeetCulture::StaticGetName());
 
 			FText FormattedEnglishTextHistoryAsLeet;
 			FText FormattedFrenchCanadianTextHistoryAsLeet;
@@ -627,6 +631,7 @@ bool FTextTest::RunTest (const FString& Parameters)
 			}
 		}
 	}
+#endif
 #else
 	AddWarning("ICU is disabled thus locale-aware formatting needed in rebuilding source text from history is disabled.");
 #endif

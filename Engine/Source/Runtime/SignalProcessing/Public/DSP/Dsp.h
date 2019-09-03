@@ -357,7 +357,6 @@ namespace Audio
 			++CurrentTick;
 			return CurrentValue;
 		}
-
 		// same as GetValue(), but overloaded to increment Current Tick by NumTicksToJumpAhead
 		// (before getting the value);
 		float GetValue(int32 NumTicksToJumpAhead)

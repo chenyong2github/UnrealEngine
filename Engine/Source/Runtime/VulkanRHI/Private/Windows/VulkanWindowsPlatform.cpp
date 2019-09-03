@@ -3,7 +3,12 @@
 #include "VulkanWindowsPlatform.h"
 #include "../VulkanRHIPrivate.h"
 #include "../VulkanDevice.h"
+
+// Disable warning about forward declared enumeration without a type, since the D3D specific enums are not used in this translation unit
+#pragma warning(push)
+#pragma warning(disable : 4471)
 #include "amd_ags.h"
+#pragma warning(pop)
 
 #include "Windows/AllowWindowsPlatformTypes.h"
 static HMODULE GVulkanDLLModule = nullptr;
@@ -117,22 +122,30 @@ void FVulkanWindowsPlatform::GetInstanceExtensions(TArray<const ANSICHAR*>& OutE
 }
 
 
-void FVulkanWindowsPlatform::GetDeviceExtensions(TArray<const ANSICHAR*>& OutExtensions)
+void FVulkanWindowsPlatform::GetDeviceExtensions(EGpuVendorId VendorId, TArray<const ANSICHAR*>& OutExtensions)
 {
+#if VULKAN_SUPPORTS_DRIVER_PROPERTIES
+	OutExtensions.Add(VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME);
+#endif
+
 #if VULKAN_SUPPORTS_DEDICATED_ALLOCATION
 	OutExtensions.Add(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
 	OutExtensions.Add(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME);
 #endif
 	if (GGPUCrashDebuggingEnabled)
 	{
-		if (IsRHIDeviceAMD())
+#if VULKAN_SUPPORTS_AMD_BUFFER_MARKER
+		if (VendorId == EGpuVendorId::Amd)
 		{
 			OutExtensions.Add(VK_AMD_BUFFER_MARKER_EXTENSION_NAME);
 		}
-		if (IsRHIDeviceNVIDIA())
+#endif
+#if VULKAN_SUPPORTS_NV_DIAGNOSTIC_CHECKPOINT
+		if (VendorId == EGpuVendorId::Nvidia)
 		{
 			OutExtensions.Add(VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME);
 		}
+#endif
 	}
 
 #if VULKAN_SUPPORTS_COLOR_CONVERSIONS
@@ -152,10 +165,10 @@ void FVulkanWindowsPlatform::CreateSurface(void* WindowHandle, VkInstance Instan
 	VERIFYVULKANRESULT(VulkanDynamicAPI::vkCreateWin32SurfaceKHR(Instance, &SurfaceCreateInfo, VULKAN_CPU_ALLOCATOR, OutSurface));
 }
 
-bool FVulkanWindowsPlatform::SupportsDeviceLocalHostVisibleWithNoPenalty()
+bool FVulkanWindowsPlatform::SupportsDeviceLocalHostVisibleWithNoPenalty(EGpuVendorId VendorId)
 {
 	static bool bIsWin10 = FWindowsPlatformMisc::VerifyWindowsVersion(10, 0) /*Win10*/;
-	return (IsRHIDeviceAMD() && bIsWin10);
+	return (VendorId == EGpuVendorId::Amd && bIsWin10);
 }
 
 
@@ -185,10 +198,10 @@ void FVulkanWindowsPlatform::WriteCrashMarker(const FOptionalVulkanDeviceExtensi
 	}
 }
 
-void FVulkanWindowsPlatform::CheckDeviceDriver(uint32 DeviceIndex, const VkPhysicalDeviceProperties& Props)
+void FVulkanWindowsPlatform::CheckDeviceDriver(uint32 DeviceIndex, EGpuVendorId VendorId, const VkPhysicalDeviceProperties& Props)
 {
 	const bool bAllowVendorDevice = !FParse::Param(FCommandLine::Get(), TEXT("novendordevice"));
-	if (IsRHIDeviceAMD() && bAllowVendorDevice)
+	if (VendorId == EGpuVendorId::Amd && bAllowVendorDevice)
 	{
 		AGSGPUInfo AmdGpuInfo;
 		AGSContext* AmdAgsContext = nullptr;
@@ -279,7 +292,7 @@ void FVulkanWindowsPlatform::CheckDeviceDriver(uint32 DeviceIndex, const VkPhysi
 			agsDeInit(AmdAgsContext);
 		}
 	}
-	else if (IsRHIDeviceNVIDIA())
+	else if (VendorId == EGpuVendorId::Nvidia)
 	{
 		if (GRHIAdapterName.Contains(TEXT("RTX 20")))
 		{

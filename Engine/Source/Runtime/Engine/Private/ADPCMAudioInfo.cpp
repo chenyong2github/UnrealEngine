@@ -26,7 +26,6 @@ FAutoConsoleVariableRef CVarDisableADPCMSeeking(
 #define WAVE_FORMAT_LPCM  1
 #define WAVE_FORMAT_ADPCM 2
 
-
 namespace ADPCM
 {
 	void DecodeBlock(const uint8* EncodedADPCMBlock, int32 BlockSize, int16* DecodedPCMData);
@@ -45,6 +44,7 @@ FADPCMAudioInfo::FADPCMAudioInfo(void)
 	, SamplesPerBlock(0)
 	, FirstChunkSampleDataOffset(0)
 	, FirstChunkSampleDataIndex(0)
+	, bDecompressorReleased(false)
 	, bSeekPending(false)
 	, TargetSeekTime(0.0f)
 	, LastSeekTime(0.0f)
@@ -438,6 +438,8 @@ void FADPCMAudioInfo::ProcessSeekRequest()
 
 bool FADPCMAudioInfo::StreamCompressedInfoInternal(USoundWave* Wave, struct FSoundQualityInfo* QualityInfo)
 {
+	FScopeLock ScopeLock(&CurCompressedChunkHandleCriticalSection);
+
 	check(QualityInfo);
 
 	check(StreamingSoundWave == Wave);
@@ -482,6 +484,7 @@ bool FADPCMAudioInfo::StreamCompressedInfoInternal(USoundWave* Wave, struct FSou
 	SrcBufferData = ChunkData;
 	CurrentChunkBufferOffset = 0;
 	CurCompressedChunkData = nullptr;
+	bDecompressorReleased = false;
 	CurrentUncompressedBlockSampleIndex = 0;
 	
 	TotalSamplesStreamed = 0;
@@ -539,7 +542,16 @@ bool FADPCMAudioInfo::StreamCompressedInfoInternal(USoundWave* Wave, struct FSou
 
 bool FADPCMAudioInfo::StreamCompressedData(uint8* Destination, bool bLooping, uint32 BufferSize)
 {
+	FScopeLock ScopeLock(&CurCompressedChunkHandleCriticalSection);
+
 	// Initial sanity checks:
+	if (bDecompressorReleased)
+	{
+		UE_LOG(LogAudio, Error, TEXT("Stream Compressed Data called after release!"));
+		FMemory::Memzero(Destination, BufferSize);
+		return true;
+	}
+
 	if (Destination == nullptr || BufferSize == 0)
 	{
 		UE_LOG(LogAudio, Error, TEXT("Stream Compressed Info not called!"));
@@ -760,6 +772,40 @@ bool FADPCMAudioInfo::StreamCompressedData(uint8* Destination, bool bLooping, ui
 	}
 
 	return ReachedEndOfSamples;
+}
+
+bool FADPCMAudioInfo::ReleaseStreamChunk(bool bBlockUntilReleased)
+{
+	if (bBlockUntilReleased)
+	{
+		// Wait for any pending decode tasks to finish.
+		FScopeLock ScopeLock(&CurCompressedChunkHandleCriticalSection);
+		CurCompressedChunkHandle = FAudioChunkHandle();
+		CurrentChunkBufferOffset = 0;
+		CurCompressedChunkData = nullptr;
+		CurrentChunkDataSize = 0;
+		bDecompressorReleased = true;
+		return true;
+	}
+	else
+	{
+		// If the chunk isn't currently in use, reset the chunk handle.
+		if (CurCompressedChunkHandleCriticalSection.TryLock())
+		{
+			CurCompressedChunkHandle = FAudioChunkHandle();
+			CurrentChunkBufferOffset = 0;
+			CurCompressedChunkData = nullptr;
+			CurrentChunkDataSize = 0;
+			bDecompressorReleased = true;
+			CurCompressedChunkHandleCriticalSection.Unlock();
+			return true;
+		}
+		else
+		{
+			// Otherwise, do nothing and exit.
+			return false;
+		}
+	}
 }
 
 const uint8* FADPCMAudioInfo::GetLoadedChunk(USoundWave* InSoundWave, uint32 ChunkIndex, uint32& OutChunkSize)

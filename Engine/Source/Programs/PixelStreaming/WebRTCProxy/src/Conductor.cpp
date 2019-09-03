@@ -14,6 +14,8 @@ const char VideoLabel[] = "video_label";
 
 using webrtc::SdpType;
 
+const int32 FConductor::ChunkMaxSize = 16 * 1024;
+
 //////////////////////////////////////////////////////////////////////////
 // FConductor
 //////////////////////////////////////////////////////////////////////////
@@ -236,6 +238,7 @@ void FConductor::OnUE4Disconnected()
 {
 	DeleteAllClients();
 	CirrusConnection.Disconnect();
+	FreezeFrameChunks.clear();
 }
 
 void FConductor::OnUE4Packet(PixelStreamingProtocol::EToProxyMsg PktType, const void* Pkt, uint32_t Size)
@@ -248,22 +251,61 @@ void FConductor::OnUE4Packet(PixelStreamingProtocol::EToProxyMsg PktType, const 
 	}
 	else if (PktType == PixelStreamingProtocol::EToProxyMsg::Response)
 	{
-		// Currently broadcast the response to all clients.
-		for (auto&& Client : Clients)
+		BroadcastClientMsg(PixelStreamingProtocol::EToClientMsg::Response, Pkt, Size);
+	}
+	else if (PktType == PixelStreamingProtocol::EToProxyMsg::FreezeFrame)
+	{
+		// The freeze frame JPEG data is too large to send over the data channel
+		// in one go, so split it into chunks and send all the chunks.
+		ChunkifyFreezeFrame(Pkt, Size);
+		for (std::vector<uint8>& FreezeFrameChunk : FreezeFrameChunks)
 		{
-			if (Client.second->DataChannel)
-			{
-				rtc::CopyOnWriteBuffer Buffer(Size + 1);
-				Buffer[0] = static_cast<uint8_t>(PixelStreamingProtocol::EToClientMsg::Response);
-				std::memcpy(&Buffer[1], reinterpret_cast<const uint8_t*>(Pkt), Size);
-				Client.second->DataChannel->Send(webrtc::DataBuffer(Buffer, true));
-			}
+			BroadcastClientMsg(PixelStreamingProtocol::EToClientMsg::FreezeFrame, FreezeFrameChunk.data(), FreezeFrameChunk.size());
 		}
+	}
+	else if (PktType == PixelStreamingProtocol::EToProxyMsg::UnfreezeFrame)
+	{
+		BroadcastClientMsg(PixelStreamingProtocol::EToClientMsg::UnfreezeFrame, Pkt, Size);
+		FreezeFrameChunks.clear();
 	}
 	else
 	{
 		check(VideoCapturer);
 		VideoCapturer->ProcessPacket(PktType, Pkt, Size);
+	}
+}
+
+void FConductor::BroadcastClientMsg(PixelStreamingProtocol::EToClientMsg ToClientMsg, const void* Pkt, uint32_t Size)
+{
+	// Currently broadcast the response to all clients.
+	for (auto&& Client : Clients)
+	{
+		Client.second->SendOnDataChannel(ToClientMsg, Pkt, Size);
+	}
+}
+
+void FConductor::ChunkifyFreezeFrame(const void* Pkt, uint32_t Size)
+{
+	// Split the freeze frame data into chunks so they may be sent over the data
+	// channel as individual messages and reassembled on the browser.
+	const uint8* BytePtr = static_cast<const uint8*>(Pkt);
+	int32 NumBytes = Size;
+	uint8 NumChunks = Size / ChunkMaxSize + (Size % ChunkMaxSize ? 1 : 0);
+
+	for (uint8 ChunkIdx = 0; ChunkIdx < NumChunks; ChunkIdx++)
+	{
+		int32 ChunkSize = NumBytes > ChunkMaxSize ? ChunkMaxSize : NumBytes;
+		NumBytes -= ChunkSize;
+
+		std::vector<uint8> Chunk;
+		Chunk.push_back(ChunkIdx);
+		if (ChunkIdx == 0)
+		{
+			Chunk.push_back(NumChunks);
+		}
+		Chunk.insert(Chunk.end(), BytePtr, BytePtr + ChunkSize);
+		BytePtr += ChunkSize;
+		FreezeFrameChunks.push_back(Chunk);
 	}
 }
 

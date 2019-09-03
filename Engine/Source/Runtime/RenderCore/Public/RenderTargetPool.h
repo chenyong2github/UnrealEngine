@@ -72,6 +72,7 @@ struct RENDERCORE_API FPooledRenderTarget : public IPooledRenderTarget
 	{
 		return RenderTargetPool != nullptr;
 	}
+
 	virtual void SetDebugName(const TCHAR *InName);
 	virtual const FPooledRenderTargetDesc& GetDesc() const;
 	virtual uint32 ComputeMemorySize() const;

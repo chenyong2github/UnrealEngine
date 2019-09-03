@@ -10,6 +10,7 @@
 #include "Engine/Texture2D.h"
 #include "Engine/Texture.h"
 #include "Engine/TextureCube.h"
+#include "Engine/Texture2DArray.h"
 
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "DeviceProfiles/DeviceProfile.h"
@@ -214,8 +215,7 @@ struct FExportMaterialCompiler : public FProxyMaterialCompiler
 		}
 	}
 
-	virtual int32 LightmassReplace(int32 Realtime, int32 Lightmass) override { return Realtime; }
-	virtual int32 MaterialProxyReplace(int32 Realtime, int32 MaterialProxy) override { return MaterialProxy; }
+	virtual EMaterialCompilerType GetCompilerType() const override { return EMaterialCompilerType::MaterialProxy; }
 };
 
 class FExportMaterialProxy : public FMaterial, public FMaterialRenderProxy
@@ -240,6 +240,9 @@ public:
 		const FMaterialResource* Resource = InMaterialInterface->GetMaterialResource(GMaxRHIFeatureLevel);
 		FMaterialShaderMapId ResourceId;
 		Resource->GetShaderMapId(GMaxRHIShaderPlatform, ResourceId);
+
+		FStaticParameterSet StaticParamSet;
+		Resource->GetStaticParameterSet(GMaxRHIShaderPlatform, StaticParamSet);
 
 		{
 			TArray<FShaderType*> ShaderTypes;
@@ -270,7 +273,7 @@ public:
 			break;
 		};
 
-		CacheShaders(ResourceId, GMaxRHIShaderPlatform);
+		CacheShaders(ResourceId, StaticParamSet, GMaxRHIShaderPlatform);
 	}
 
 	/** This override is required otherwise the shaders aren't ready for use when the surface is rendered resulting in a blank image */
@@ -336,7 +339,7 @@ public:
 		// needs to be called in this function!!
 		Compiler->SetMaterialProperty(Property, OverrideShaderFrequency, bUsePreviousFrameTime);
 		const int32 Ret = CompilePropertyAndSetMaterialPropertyWithoutCast(Property, Compiler);
-		return Compiler->ForceCast(Ret, FMaterialAttributeDefinitionMap::GetValueType(Property));
+		return Compiler->ForceCast(Ret, FMaterialAttributeDefinitionMap::GetValueType(Property), MFCF_ExactMatch);
 	}
 
 	/** helper for CompilePropertyAndSetMaterialProperty() */
@@ -533,7 +536,11 @@ public:
 					UTextureCube* TexCube = (UTextureCube*)Texture;
 					return FIntPoint(TexCube->GetSizeX(), TexCube->GetSizeY());
 				}
-
+				else if (Texture->IsA(UTexture2DArray::StaticClass())) 
+				{
+					UTexture2DArray* TexArray = (UTexture2DArray*)Texture;
+					return FIntPoint(TexArray->GetSizeX(), TexArray->GetSizeY());
+				}
 				return FIntPoint(0, 0);
 			}();
 			

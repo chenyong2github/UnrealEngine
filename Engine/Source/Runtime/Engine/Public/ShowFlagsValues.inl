@@ -250,8 +250,8 @@ SHOWFLAG_FIXED_IN_SHIPPING(0, CollisionPawn, SFG_Hidden, NSLOCTEXT("UnrealEd", "
 SHOWFLAG_ALWAYS_ACCESSIBLE(LightShafts, SFG_LightingFeatures, NSLOCTEXT("UnrealEd", "LightShaftsSF", "Light Shafts"))
 /** Render the PostProcess Material */
 SHOWFLAG_FIXED_IN_SHIPPING(1, PostProcessMaterial, SFG_PostProcess, NSLOCTEXT("UnrealEd", "PostProcessMaterialSF", "Post Process Material"))
-/** Render Atmospheric scattering (Atmospheric Fog), for now SHOWFLAG_ALWAYS_ACCESSIBLE because it's exposed in SceneCapture */
-SHOWFLAG_ALWAYS_ACCESSIBLE(AtmosphericFog, SFG_Advanced, NSLOCTEXT("UnrealEd", "AtmosphereSF", "Atmospheric Fog"))
+/** Render Sky and Atmospheric lighting, for now SHOWFLAG_ALWAYS_ACCESSIBLE because it's exposed in SceneCapture */
+SHOWFLAG_ALWAYS_ACCESSIBLE(Atmosphere, SFG_Normal, NSLOCTEXT("UnrealEd", "AtmosphereSF", "Atmosphere"))
 /** Render safe frames bars*/
 SHOWFLAG_FIXED_IN_SHIPPING(0, CameraAspectRatioBars, SFG_Advanced, NSLOCTEXT("UnrealEd", "CameraAspectRatioBarsSF", "Camera Aspect Ratio Bars"))
 /** Render safe frames */
@@ -308,8 +308,6 @@ SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizeSSR, SFG_Visualize, NSLOCTEXT("UnrealEd",
 SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizeShadingModels, SFG_Visualize, NSLOCTEXT("UnrealEd", "VisualizeShadingModels", "Shading Models"))
 /** Visualize the senses configuration of AIs' PawnSensingComponent */
 SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizeSenses, SFG_Advanced, NSLOCTEXT("UnrealEd", "VisualizeSenses", "Senses"))
-/** Visualize the bloom, for developer (by default off): */
-SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizeBloom, SFG_Visualize, NSLOCTEXT("UnrealEd", "VisualizeBloom", "Bloom"))
 /** Visualize LOD Coloration */
 SHOWFLAG_FIXED_IN_SHIPPING(0, LODColoration, SFG_Hidden, NSLOCTEXT("UnrealEd", "VisualizeLODColoration", "Visualize LOD Coloration"))
 /** Visualize HLOD Coloration */

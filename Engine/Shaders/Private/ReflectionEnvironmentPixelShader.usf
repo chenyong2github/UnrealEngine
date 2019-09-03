@@ -314,7 +314,7 @@ void ReflectionEnvironmentSkyLighting(
 	float3 BentNormal = GBuffer.WorldNormal;
 	#if APPLY_SKY_SHADOWING
 	{
-		BentNormal = UpsampleDFAO(BufferUV, GBuffer.Depth);
+		BentNormal = UpsampleDFAO(BufferUV, GBuffer.Depth, GBuffer.WorldNormal);
 	}
 	#endif
 	

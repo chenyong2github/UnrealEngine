@@ -56,7 +56,7 @@ public class SlateViewer : ModuleRules
             );
 		}
 
-		if (Target.Platform == UnrealTargetPlatform.Linux)
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
 		{
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {

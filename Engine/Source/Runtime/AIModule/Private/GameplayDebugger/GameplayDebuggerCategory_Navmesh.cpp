@@ -64,19 +64,22 @@ TSharedRef<FGameplayDebuggerCategory> FGameplayDebuggerCategory_Navmesh::MakeIns
 void FGameplayDebuggerCategory_Navmesh::FRepData::Serialize(FArchive& Ar)
 {
 	Ar << NumDirtyAreas;
+	Ar << NumRunningTasks;
+	Ar << NumRemainingTasks;
 	Ar << NavDataName;
 
 	uint8 Flags =
 		((bCanChangeReference			? 1 : 0) << 0) |
-		((bIsUsingPlayerActor			? 1 : 0) << 1) |
-		((bReferenceTooFarFromNavData	? 1 : 0) << 2);
-	
+		((bCanCycleNavigationData		? 1 : 0) << 1) |
+		((bIsUsingPlayerActor			? 1 : 0) << 2) |
+		((bReferenceTooFarFromNavData	? 1 : 0) << 3);
 
 	Ar << Flags;
 
 	bCanChangeReference			= (Flags & (1 << 0)) != 0;
-	bIsUsingPlayerActor			= (Flags & (1 << 1)) != 0;
-	bReferenceTooFarFromNavData = (Flags & (1 << 2)) != 0;
+	bCanCycleNavigationData		= (Flags & (1 << 1)) != 0;
+	bIsUsingPlayerActor			= (Flags & (1 << 2)) != 0;
+	bReferenceTooFarFromNavData = (Flags & (1 << 3)) != 0;
 }
 
 void FGameplayDebuggerCategory_Navmesh::CollectData(APlayerController* OwnerPC, AActor* DebugActor)
@@ -92,6 +95,9 @@ void FGameplayDebuggerCategory_Navmesh::CollectData(APlayerController* OwnerPC, 
 		if (NavSys) 
 		{
 			DataPack.NumDirtyAreas = NavSys->GetNumDirtyAreas();
+			DataPack.NumRunningTasks = NavSys->GetNumRunningBuildTasks();
+			DataPack.NumRemainingTasks = NavSys->GetNumRemainingBuildTasks();
+
 			NumNavData = NavSys->NavDataSet.Num();
 			
 			APawn* DebugActorAsPawn = Cast<APawn>(DebugActor);
@@ -110,7 +116,7 @@ void FGameplayDebuggerCategory_Navmesh::CollectData(APlayerController* OwnerPC, 
 
 			if (bSwitchToNextNavigationData || NavDataIndexToDisplay == INDEX_NONE)
 			{
-				NavDataIndexToDisplay = FMath::Max(0, ++NavDataIndexToDisplay % NumNavData);
+				NavDataIndexToDisplay = (NumNavData > 0) ? FMath::Max(0, ++NavDataIndexToDisplay % NumNavData) : INDEX_NONE;
 				bSwitchToNextNavigationData = false;
 			}
 
@@ -145,6 +151,7 @@ void FGameplayDebuggerCategory_Navmesh::CollectData(APlayerController* OwnerPC, 
 	{
 		DataPack.bIsUsingPlayerActor = (ActorReferenceMode != EActorReferenceMode::DebugActor);
 		DataPack.bCanChangeReference = (ActorReferenceMode != EActorReferenceMode::PlayerActorOnly);
+		DataPack.bCanCycleNavigationData = (NumNavData > 1);
 
 		if (NumNavData > 1)
 		{
@@ -197,10 +204,15 @@ void FGameplayDebuggerCategory_Navmesh::CollectData(APlayerController* OwnerPC, 
 void FGameplayDebuggerCategory_Navmesh::DrawData(APlayerController* OwnerPC, FGameplayDebuggerCanvasContext& CanvasContext)
 {
 	CanvasContext.Printf(TEXT("Num dirty areas: {%s}%d"), DataPack.NumDirtyAreas > 0 ? TEXT("red") : TEXT("green"), DataPack.NumDirtyAreas);
+	CanvasContext.Printf(TEXT("Tile jobs running/remaining: %d / %d"), DataPack.NumRunningTasks, DataPack.NumRemainingTasks);
 
 	if (!DataPack.NavDataName.IsEmpty())
 	{
 		CanvasContext.Printf(TEXT("Navigation Data: {silver}%s%s"), *DataPack.NavDataName, DataPack.bReferenceTooFarFromNavData ? TEXT(" (too far from navmesh)") : TEXT(""));
+	}
+
+	if (DataPack.bCanCycleNavigationData)
+	{
 		CanvasContext.Printf(TEXT("[{yellow}%s{white}]: Cycle NavData"), *GetInputHandlerDescription(1));
 	}
 

@@ -1494,7 +1494,7 @@ VkImageView FVulkanTextureView::StaticCreate(FVulkanDevice& Device, VkImage InIm
 
 	auto CheckUseNvidiaWorkaround = [&Device]() -> bool
 	{
-		if (IsRHIDeviceNVIDIA())
+		if (Device.GetVendorId() == EGpuVendorId::Nvidia)
 		{
 			// Workaround for 20xx family not copying last mips correctly, so instead the view is created without the last 1x1 and 2x2 mips
 			if (GRHIAdapterName.Contains(TEXT("RTX 20")))

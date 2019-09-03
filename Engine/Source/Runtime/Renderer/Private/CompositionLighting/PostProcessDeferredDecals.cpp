@@ -59,30 +59,7 @@ FRHIBlendState* GetDecalBlendState(const ERHIFeatureLevel::Type SMFeatureLevel, 
 	if (InDecalRenderStage == DRS_BeforeBasePass)
 	{
 		// before base pass (for DBuffer decals)
-
-		if (SMFeatureLevel == ERHIFeatureLevel::SM4)
 		{
-			// DX10 doesn't support masking/using different blend modes per MRT.
-			// We set the opacity in the shader to 0 so we can use the same frame buffer blend.
-
-			if (DecalBlendMode == DBM_DBuffer_AlphaComposite)
-			{
-				return TStaticBlendState<
-					CW_RGBA, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha,
-					CW_RGBA, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha,
-					CW_RGBA, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha >::GetRHI();
-			}
-			else
-			{
-				return TStaticBlendState<
-					CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha,
-					CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha,
-					CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha >::GetRHI();
-			}
-		}
-		else
-		{
-			// see DX10 comment above
 			// As we set the opacity in the shader we don't need to set different frame buffer blend modes but we like to hint to the driver that we
 			// don't need to output there. We also could replace this with many SetRenderTarget calls but it might be slower (needs to be tested).
 
@@ -207,15 +184,6 @@ FRHIBlendState* GetDecalBlendState(const ERHIFeatureLevel::Type SMFeatureLevel, 
 					>::GetRHI();
 				}
 			}
-			else if (SMFeatureLevel == ERHIFeatureLevel::SM4)
-			{
-				return TStaticBlendState<
-					CW_RGB, BO_Add, BF_SourceAlpha, BF_One, BO_Add, BF_Zero, BF_One,	// Emissive
-					CW_RGB, BO_Add, BF_SourceAlpha, BF_One, BO_Add, BF_Zero, BF_One,	// Normal
-					CW_RGB, BO_Add, BF_SourceAlpha, BF_One, BO_Add, BF_Zero, BF_One,	// Metallic, Specular, Roughness
-					CW_RGB, BO_Add, BF_SourceAlpha, BF_One, BO_Add, BF_Zero, BF_One		// BaseColor
-				>::GetRHI();
-			}
 
 		case DBM_Stain:
 			if (GSupportsSeparateRenderTargetBlendState)
@@ -239,15 +207,6 @@ FRHIBlendState* GetDecalBlendState(const ERHIFeatureLevel::Type SMFeatureLevel, 
 					>::GetRHI();
 				}
 			}
-			else if (SMFeatureLevel == ERHIFeatureLevel::SM4)
-			{
-				return TStaticBlendState<
-					CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One,	// Emissive
-					CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One,	// Normal
-					CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One,	// Metallic, Specular, Roughness
-					CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One		// BaseColor
-				>::GetRHI();
-			}
 
 		case DBM_Normal:
 			return TStaticBlendState< CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha >::GetRHI();
@@ -266,15 +225,6 @@ FRHIBlendState* GetDecalBlendState(const ERHIFeatureLevel::Type SMFeatureLevel, 
 				return TStaticBlendState<
 					CW_RGB, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One,	// Emissive
 					CW_RGB, BO_Add, BF_Zero, BF_One, BO_Add, BF_Zero, BF_One,				// Normal
-					CW_RGB, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One,	// Metallic, Specular, Roughness
-					CW_RGB, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One	// BaseColor
-				>::GetRHI();
-			}
-			else if (SMFeatureLevel == ERHIFeatureLevel::SM4)
-			{
-				return TStaticBlendState<
-					CW_RGB, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One,	// Emissive
-					CW_RGB, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One,	// Normal
 					CW_RGB, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One,	// Metallic, Specular, Roughness
 					CW_RGB, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One	// BaseColor
 				>::GetRHI();

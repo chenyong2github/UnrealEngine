@@ -34,11 +34,14 @@ void* AnsiMalloc(SIZE_T Size, uint32 Alignment)
 #elif PLATFORM_USE_ANSI_MEMALIGN
 	void* Result = memalign(Alignment, Size);
 #else
-	void* Ptr = malloc( Size + Alignment + sizeof(void*) + sizeof(SIZE_T) );
-	check(Ptr);
-	void* Result = Align( (uint8*)Ptr + sizeof(void*) + sizeof(SIZE_T), Alignment );
-	*((void**)( (uint8*)Result - sizeof(void*)					))	= Ptr;
-	*((SIZE_T*)( (uint8*)Result - sizeof(void*) - sizeof(SIZE_T)	))	= Size;
+	void* Ptr = malloc(Size + Alignment + sizeof(void*) + sizeof(SIZE_T));
+	void* Result = nullptr;
+	if (Ptr)
+	{
+		Result = Align((uint8*)Ptr + sizeof(void*) + sizeof(SIZE_T), Alignment);
+		 *((void**)((uint8*)Result - sizeof(void*))) = Ptr;
+		*((SIZE_T*)((uint8*)Result - sizeof(void*) - sizeof(SIZE_T))) = Size;
+	}
 #endif
 
 	return Result;

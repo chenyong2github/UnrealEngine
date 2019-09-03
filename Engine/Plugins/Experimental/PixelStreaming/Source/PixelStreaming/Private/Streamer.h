@@ -49,6 +49,9 @@ public:
 	void SetFramerate(int32 Fps);
 
 	void SendResponse(const FString& Descriptor);
+	void SendFreezeFrame(const TArray<uint8>& JpegBytes);
+	void SendFreezeFrame();
+	void SendUnfreezeFrame();
 
 private:
 	void CreateVideoEncoder(const FTexture2DRHIRef& FrameBuffer);
@@ -81,5 +84,9 @@ private:
 #endif
 
 	int32 InitialMaxFPS;
+
+	// When we send a freeze frame we retain the data to handle connection
+	// scenarios.
+	TArray<uint8> CachedJpegBytes;
 };
 

@@ -422,6 +422,12 @@ void ir_copy_propagation_visitor::handle_rvalue(ir_rvalue **rvalue)
 		ir_dereference_variable *deref_var = (ir_dereference_variable*)(*rvalue);
 		ir_variable *var = deref_var->var;
 
+		// Shared variables should be considered volatile
+		if (var != NULL && var->mode == ir_var_shared)
+		{
+			return;
+		}
+
 		acp_list* var_list = acp->find_acp_hash_entry_list(var);
 		if (var_list)
 		{
@@ -646,6 +652,12 @@ void ir_copy_propagation_visitor::kill(ir_variable *var)
 {
 	check(var != NULL);
 
+	// Shared variables should be considered volatile
+	if (var->mode == ir_var_shared)
+	{
+		return;
+	}
+
 	/* Remove any entries currently in the ACP for this kill. */
 	acp_list* list = acp->find_acp_hash_entry_list(var);
 	if (list)
@@ -697,6 +709,13 @@ void ir_copy_propagation_visitor::add_copy(ir_assignment *ir)
 	ir_variable *lhs_var = ir->whole_variable_written();
 	ir_variable *rhs_var = ir->rhs->whole_variable_referenced();
 	ir_dereference_array *array_deref = ir->rhs->as_dereference_array();
+
+	// Shared variables should be considered volatile
+	if ((lhs_var != NULL && lhs_var->mode == ir_var_shared) ||
+		(rhs_var != NULL && rhs_var->mode == ir_var_shared))
+	{
+		return;
+	}
 
 	if ((lhs_var != NULL) && (rhs_var != NULL))
 	{
