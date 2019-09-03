@@ -26,19 +26,14 @@ public class DirectSound : ModuleRules
 			LibDir = DirectXSDKDir + "/Lib/x64/";
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win32)
-        {
+		{
 			LibDir = DirectXSDKDir + "/Lib/x86/";
 		}
 
-        if (LibDir!= null)
-        {
-            PublicSystemLibraryPaths.Add(LibDir);
-        }
-
-        PublicAdditionalLibraries.AddRange(
+		PublicAdditionalLibraries.AddRange(
 			new string[] {
- 				"dxguid.lib",
- 				"dsound.lib"
+ 				LibDir + "dxguid.lib",
+ 				LibDir + "dsound.lib"
 			}
 		);
 	}
