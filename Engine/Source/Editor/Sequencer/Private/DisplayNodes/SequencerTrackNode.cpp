@@ -407,7 +407,7 @@ TSharedRef<SWidget> FSequencerTrackNode::GetCustomOutlinerContent()
 	{
 		Params.TrackInsertRowIndex = GetRowIndex();
 	}
-	else if (Track->SupportsMultipleRows())
+	else if (Track && Track->SupportsMultipleRows())
 	{
 		Params.TrackInsertRowIndex = Track->GetMaxRowIndex()+1;
 	}
@@ -687,6 +687,11 @@ FText FSequencerTrackNode::GetDisplayName() const
 FLinearColor FSequencerTrackNode::GetDisplayNameColor() const
 {
 	UMovieSceneTrack* Track = GetTrack();
+
+	if (!Track)
+	{
+		return FLinearColor::White;
+	}
 
 	const bool bIsEvalDisabled = Track->IsEvalDisabled();
 
