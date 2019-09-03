@@ -4,6 +4,7 @@
 #include "BaseBehaviors/MouseHoverBehavior.h"
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
+#include "Components/PrimitiveComponent.h"
 
 
 /*
