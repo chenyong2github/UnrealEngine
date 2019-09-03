@@ -17,7 +17,7 @@ TextureCube VisualizeTextureCube;
 SamplerState VisualizeTextureCubeSampler;
 
 //default Texture2D type is <float4>, which won't read the X28_G8UINT format properly.
-Texture2D<uint4> VisualizeDepthStencilTexture; 
+Texture2D<uint4> VisualizeDepthStencil; 
 
 Texture2D<uint> VisualizeUINT8Texture2D;
 
@@ -39,7 +39,7 @@ void VisualizeTexturePS(
 	float4 SvPosition : SV_POSITION,
 	out float4 OutColor : SV_Target0)
 {
-	float2 UV = SvPosition / TextureExtent.xy;
+	float2 UV = SvPosition.xy / TextureExtent.xy;
 
 	// Longitude Latitude unwrapping
 	float3 SpherePos;
@@ -137,7 +137,7 @@ void VisualizeTexturePS(
 #if TEXTURE_TYPE == 6
 		// inside #ifdef to avoid D3DDebug error:
 		//    The resource return type for component 0 declared in the shader code (UINT) is not compatible with the Shader Resource View format bound to slot 1 of the Pixel Shader unit (UNORM).  This mismatch is invalid if the shader actually uses the view (e.g. it is not skipped due to shader code branching). [ EXECUTION ERROR #361: DEVICE_DRAW_RESOURCE_RETURN_TYPE_MISMATCH]
-		float fStencil = VisualizeDepthStencilTexture.Load(int3(UV * TextureExtent.xy, 0)).g;
+		float fStencil = VisualizeDepthStencil.Load(int3(UV * TextureExtent.xy, 0)).g;
 		fStencil /= 255.0f;
 		TexLookup.a = fStencil;
 #endif

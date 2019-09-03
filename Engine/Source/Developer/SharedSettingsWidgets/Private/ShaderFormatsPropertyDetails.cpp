@@ -32,9 +32,6 @@ FText FShaderFormatsPropertyDetails::GetFriendlyNameFromRHINameMac(const FString
 		case SP_PCD3D_SM5:
 			FriendlyRHIName = LOCTEXT("D3DSM5", "Direct3D 11+ (SM5)");
 			break;
-		case SP_PCD3D_SM4:
-			FriendlyRHIName = LOCTEXT("D3DSM4", "Direct3D 10 (SM4)");
-			break;
 		case SP_PCD3D_ES3_1:
 			FriendlyRHIName = LOCTEXT("D3DES31", "Direct3D (ES3.1, Mobile Preview)");
 			break;
@@ -55,7 +52,6 @@ FText FShaderFormatsPropertyDetails::GetFriendlyNameFromRHINameMac(const FString
 			break;
 		case SP_OPENGL_ES2_ANDROID:
 		case SP_OPENGL_ES2_WEBGL:
-		case SP_OPENGL_ES2_IOS:
 			FriendlyRHIName = LOCTEXT("OpenGLES2", "OpenGLES 2 (Mobile)");
 			break;
 		case SP_OPENGL_ES31_EXT:
@@ -88,9 +84,6 @@ FText FShaderFormatsPropertyDetails::GetFriendlyNameFromRHINameMac(const FString
 			break;
 		case SP_METAL_MRT_MAC:
 			FriendlyRHIName = LOCTEXT("MetalMRTMac", "Mac Metal iOS/tvOS Desktop Renderer Preview (SM5)");
-			break;
-		case SP_VULKAN_SM4:
-			FriendlyRHIName = LOCTEXT("VulkanSM4", "Vulkan (SM4)");
 			break;
 		case SP_VULKAN_SM5:
 		case SP_VULKAN_SM5_LUMIN:

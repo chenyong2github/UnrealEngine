@@ -25,8 +25,7 @@ public class PFMExporter : ModuleRules
 				"Engine",
                 "Projects",
 				"RenderCore",
-				"RHI",
-				"UtilityShaders"
+				"RHI"
 			}
 		);
 

@@ -30,6 +30,7 @@
 extern void UpdateNoiseTextureParameters(FViewUniformShaderParameters& ViewUniformShaderParameters);
 
 DECLARE_CYCLE_STAT(TEXT("Update Buffers RT"), STAT_SlateUpdateBufferRTTime, STATGROUP_Slate);
+DECLARE_CYCLE_STAT(TEXT("Update Buffers RT"), STAT_SlateUpdateBufferRTTimeLambda, STATGROUP_Slate);
 
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num Layers"), STAT_SlateNumLayers, STATGROUP_Slate);
@@ -131,59 +132,6 @@ void FSlateRHIRenderingPolicy::EndDrawingWindows()
 	check( IsInParallelRenderingThread() );
 }
 
-struct FSlateUpdateVertexAndIndexBuffers final : public FRHICommand<FSlateUpdateVertexAndIndexBuffers>
-{
-	TSlateElementVertexBuffer<FSlateVertex>& VertexBuffer;
-	FSlateElementIndexBuffer& IndexBuffer;
-	FSlateBatchData& BatchData;
-	bool bAbsoluteIndices;
-
-	FSlateUpdateVertexAndIndexBuffers(TSlateElementVertexBuffer<FSlateVertex>& InVertexBuffer, FSlateElementIndexBuffer& InIndexBuffer, FSlateBatchData& InBatchData, bool bInAbsoluteIndices)
-		: VertexBuffer(InVertexBuffer)
-		, IndexBuffer(InIndexBuffer)
-		, BatchData(InBatchData)
-		, bAbsoluteIndices(bInAbsoluteIndices)
-	{
-		check(IsInRenderingThread());
-	}
-
-	void Execute(FRHICommandListBase& CmdList)
-	{
-		SCOPE_CYCLE_COUNTER(STAT_SlateUpdateBufferRTTime);
-
-		const bool bIsInRenderingThread = !IsRunningRHIInSeparateThread() || CmdList.Bypass();
-
-		const FSlateVertexArray& FinalVertexData = BatchData.GetFinalVertexData();
-		const FSlateIndexArray& FinalIndexData = BatchData.GetFinalIndexData();
-
-		const int32 NumBatchedVertices = FinalVertexData.Num();
-		const int32 NumBatchedIndices = FinalIndexData.Num();
-
-		//int32 RequiredVertexBufferSize = NumBatchedVertices*sizeof(FSlateVertex);
-		uint8* VertexBufferData = (uint8*)VertexBuffer.LockBuffer(NumBatchedVertices, bIsInRenderingThread);
-
-		//uint32 RequiredIndexBufferSize = NumBatchedIndices*sizeof(SlateIndex);		
-		uint8* IndexBufferData = (uint8*)IndexBuffer.LockBuffer(NumBatchedIndices, bIsInRenderingThread);
-
-		//Early out if we have an invalid buffer (might have lost context and now have invalid buffers)
-		if ((nullptr != VertexBufferData) && (nullptr != IndexBufferData))
-		{
-			FMemory::Memcpy(VertexBufferData, FinalVertexData.GetData(), FinalVertexData.Num() * sizeof(FSlateVertex));
-			FMemory::Memcpy(IndexBufferData, FinalIndexData.GetData(), FinalIndexData.Num() * sizeof(SlateIndex));
-		}
-
-		if (nullptr != VertexBufferData)
-		{
-			VertexBuffer.UnlockBuffer(bIsInRenderingThread);
-		}
-
-		if (nullptr != IndexBufferData)
-		{
-			IndexBuffer.UnlockBuffer(bIsInRenderingThread);
-		}
-	}
-};
-
 void FSlateRHIRenderingPolicy::BuildRenderingBuffers(FRHICommandListImmediate& RHICmdList, FSlateBatchData& InBatchData)
 {
 	SCOPE_CYCLE_COUNTER(STAT_SlateUpdateBufferRTTime);
@@ -208,16 +156,36 @@ void FSlateRHIRenderingPolicy::BuildRenderingBuffers(FRHICommandListImmediate& R
 		MasterVertexBuffer.PreFillBuffer(NumVertices, bShouldShrinkResources);
 		MasterIndexBuffer.PreFillBuffer(NumIndices, bShouldShrinkResources);
 
-		if (!IsRunningRHIInSeparateThread() || RHICmdList.Bypass())
+		RHICmdList.EnqueueLambda([
+			VertexBuffer = MasterVertexBuffer.VertexBufferRHI.GetReference(),
+			IndexBuffer = MasterIndexBuffer.IndexBufferRHI.GetReference(),
+			&InBatchData,
+			bAbsoluteIndices
+		](FRHICommandListImmediate& InRHICmdList)
 		{
-			FSlateUpdateVertexAndIndexBuffers UpdateBufferCommand(MasterVertexBuffer, MasterIndexBuffer, InBatchData, bAbsoluteIndices);
+			SCOPE_CYCLE_COUNTER(STAT_SlateUpdateBufferRTTimeLambda);
 
-			UpdateBufferCommand.Execute(RHICmdList);
-		}
-		else
-		{
-			ALLOC_COMMAND_CL(RHICmdList, FSlateUpdateVertexAndIndexBuffers)(MasterVertexBuffer, MasterIndexBuffer, InBatchData, bAbsoluteIndices);
-		}
+			// Note: Use "Lambda" prefix to prevent clang/gcc warnings of '-Wshadow' warning
+			const FSlateVertexArray& LambdaFinalVertexData = InBatchData.GetFinalVertexData();
+			const FSlateIndexArray& LambdaFinalIndexData = InBatchData.GetFinalIndexData();
+
+			const int32 NumBatchedVertices = LambdaFinalVertexData.Num();
+			const int32 NumBatchedIndices = LambdaFinalIndexData.Num();
+
+			uint32 RequiredVertexBufferSize = NumBatchedVertices * sizeof(FSlateVertex);
+			uint8* VertexBufferData = (uint8*)InRHICmdList.LockVertexBuffer(VertexBuffer, 0, RequiredVertexBufferSize, RLM_WriteOnly);
+
+			uint32 RequiredIndexBufferSize = NumBatchedIndices * sizeof(SlateIndex);
+			uint8* IndexBufferData = (uint8*)InRHICmdList.LockIndexBuffer(IndexBuffer, 0, RequiredIndexBufferSize, RLM_WriteOnly);
+
+			FMemory::Memcpy(VertexBufferData, LambdaFinalVertexData.GetData(), RequiredVertexBufferSize);
+			FMemory::Memcpy(IndexBufferData, LambdaFinalIndexData.GetData(), RequiredIndexBufferSize);
+
+			InRHICmdList.UnlockVertexBuffer(VertexBuffer);
+			InRHICmdList.UnlockIndexBuffer(IndexBuffer);
+		});
+
+		RHICmdList.RHIThreadFence(true);
 	}
 
 	checkSlow(MasterVertexBuffer.GetBufferUsageSize() <= MasterVertexBuffer.GetBufferSize());
@@ -1136,8 +1104,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 
 								if (GRHISupportsInstancing)
 								{
-									FSlateUpdatableInstanceBuffer* InstanceBuffer = (FSlateUpdatableInstanceBuffer*)RenderBatch.InstanceData;
-									InstanceBuffer->BindStreamSource(RHICmdList, 1, RenderBatch.InstanceOffset);
+									RenderBatch.InstanceData->BindStreamSource(RHICmdList, 1, RenderBatch.InstanceOffset);
 
 									// for RHIs that can't handle VertexOffset, we need to offset the stream source each time
 									if (1 || (!GRHISupportsBaseVertexIndex && !bAbsoluteIndices))

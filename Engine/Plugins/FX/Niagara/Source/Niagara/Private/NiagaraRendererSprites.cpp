@@ -177,7 +177,6 @@ void FNiagaraRendererSprites::CreateRenderThreadResources(NiagaraEmitterInstance
 		FRayTracingGeometryInitializer Initializer;
 		Initializer.PositionVertexBuffer = nullptr;
 		Initializer.IndexBuffer = nullptr;
-		Initializer.BaseVertexIndex = 0;
 		Initializer.VertexBufferStride = 12;
 		Initializer.VertexBufferByteOffset = 0;
 		Initializer.TotalPrimitiveCount = 0;

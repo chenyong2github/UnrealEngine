@@ -29,11 +29,11 @@ FBasePassVSToDS PassInterpolate(FBasePassVSToDS a, float aInterp, FBasePassVSToD
 	#endif
 
 	#if TRANSLUCENCY_LIGHTING_VOLUMETRIC_PERVERTEX_NONDIRECTIONAL || TRANSLUCENCY_LIGHTING_VOLUMETRIC_PERVERTEX_DIRECTIONAL
-		TESSELLATION_INTERPOLATE_MEMBER(AmbientLightingVector);
+		TESSELLATION_INTERPOLATE_MEMBER(BasePassInterpolants.AmbientLightingVector);
 	#endif
 
 	#if TRANSLUCENCY_LIGHTING_VOLUMETRIC_PERVERTEX_DIRECTIONAL
-		TESSELLATION_INTERPOLATE_MEMBER(DirectionalLightingVector);
+		TESSELLATION_INTERPOLATE_MEMBER(BasePassInterpolants.DirectionalLightingVector);
 	#endif
 
 	#if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS
@@ -60,7 +60,6 @@ FBasePassVSToPS PassFinalizeTessellationOutput(FBasePassVSToDS Interpolants, flo
 	(FSharedBasePassInterpolants)O.BasePassInterpolants = (FSharedBasePassInterpolants)Interpolants.BasePassInterpolants;
 
 	// Transform position to clip-space
-	ISOLATE
 	{
 		O.Position = mul(WorldPosition, ResolvedView.TranslatedWorldToClip);
 #if WRITES_VELOCITY_TO_GBUFFER

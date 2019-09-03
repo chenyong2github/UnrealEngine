@@ -573,7 +573,7 @@ protected:
 	 */
 	UStaticMesh* FindStaticMesh(FGuid& Guid);
 
-	ULevel* FindLevel(FGuid& Guid);
+	ULevel* FindLevel(const FGuid& Guid);
 
 	/**
 	 *	Import light map data from the given channel.

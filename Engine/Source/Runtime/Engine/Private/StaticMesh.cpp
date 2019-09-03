@@ -1153,7 +1153,6 @@ void FStaticMeshLODResources::InitResources(UStaticMesh* Parent)
 				FRayTracingGeometryInitializer Initializer;
 				Initializer.PositionVertexBuffer = VertexBuffers.PositionVertexBuffer.VertexBufferRHI;
 				Initializer.IndexBuffer = IndexBuffer.IndexBufferRHI;
-				Initializer.BaseVertexIndex = 0;
 				Initializer.VertexBufferStride = VertexBuffers.PositionVertexBuffer.GetStride();
 				Initializer.VertexBufferByteOffset = 0;
 				Initializer.TotalPrimitiveCount = 0; // This is calculated below based on static mesh section data

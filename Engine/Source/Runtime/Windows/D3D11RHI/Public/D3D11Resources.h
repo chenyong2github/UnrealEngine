@@ -40,9 +40,10 @@ public:
 
 struct FD3D11ShaderData
 {
-	FD3D11ShaderResourceTable	ShaderResourceTable;
-	TArray<FName>				UniformBuffers;
-	bool						bShaderNeedsGlobalConstantBuffer;
+	FD3D11ShaderResourceTable			ShaderResourceTable;
+	TArray<FName>						UniformBuffers;
+	TArray<FShaderCodeVendorExtension>	VendorExtensions;
+	bool								bShaderNeedsGlobalConstantBuffer;
 };
 
 /** This represents a vertex shader that hasn't been combined with a specific declaration to create a bound shader. */

@@ -781,7 +781,7 @@ public:
 		Desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 		Desc.Type = Type;
 		Desc.NumDescriptors = NumDescriptors;
-		Desc.NodeMask = (uint32)GetParentDevice()->GetGPUMask();
+		Desc.NodeMask = GetParentDevice()->GetGPUMask().GetNative();
 
 		ID3D12DescriptorHeap* D3D12Heap = nullptr;
 
@@ -1870,10 +1870,11 @@ FRayTracingGeometryRHIRef FD3D12DynamicRHI::RHICreateRayTracingGeometry(const FR
 
 	FD3D12RayTracingGeometry* Geometry = new FD3D12RayTracingGeometry();
 
-	Geometry->IndexStride = Initializer.IndexBuffer ? Initializer.IndexBuffer->GetStride() : 0; // stride 0 means implicit triangle list for non-indexed geometry
-	Geometry->VertexOffsetInBytes = (Initializer.BaseVertexIndex * Initializer.VertexBufferStride) + Initializer.VertexBufferByteOffset;
+	uint32 IndexStride = Initializer.IndexBuffer ? Initializer.IndexBuffer->GetStride() : 0; // stride 0 means implicit triangle list for non-indexed geometry
+	Geometry->IndexStride = IndexStride;
+	Geometry->IndexOffsetInBytes = Initializer.IndexBufferByteOffset;
+	Geometry->VertexOffsetInBytes = Initializer.VertexBufferByteOffset;
 	Geometry->VertexStrideInBytes = Initializer.VertexBufferStride;
-	Geometry->BaseVertexIndex = Initializer.BaseVertexIndex;
 	Geometry->TotalPrimitiveCount = Initializer.TotalPrimitiveCount;
 
 	switch (Initializer.GeometryType)
@@ -1926,14 +1927,23 @@ FRayTracingGeometryRHIRef FD3D12DynamicRHI::RHICreateRayTracingGeometry(const FR
 	}
 
 #if DO_CHECK
+	static constexpr uint32 IndicesPerPrimitive = 3; // Only triangle meshes are supported
+
 	{
 		uint32 ComputedPrimitiveCountForValidation = 0;
 		for (const FRayTracingGeometrySegment& Segment : Geometry->Segments)
 		{
 			ComputedPrimitiveCountForValidation += Segment.NumPrimitives;
 			check(Segment.FirstPrimitive + Segment.NumPrimitives <= Initializer.TotalPrimitiveCount);
+			
+			if(Initializer.IndexBuffer)
+			{
+				check(Initializer.IndexBuffer->GetSize() >=
+					  (Segment.FirstPrimitive + Segment.NumPrimitives) * IndicesPerPrimitive * IndexStride + Geometry->IndexOffsetInBytes);
+			}
 		}
 		check(ComputedPrimitiveCountForValidation == Initializer.TotalPrimitiveCount);
+
 	}
 #endif
 
@@ -2108,7 +2118,9 @@ void FD3D12RayTracingGeometry::BuildAccelerationStructure(FD3D12CommandContext& 
 			{
 				Desc.Triangles.IndexFormat = IndexStride == 4 ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT;
 				Desc.Triangles.IndexCount = Segment.NumPrimitives * IndicesPerPrimitive;
-				Desc.Triangles.IndexBuffer = IndexBuffer->ResourceLocation.GetGPUVirtualAddress() + IndexStride * Segment.FirstPrimitive * IndicesPerPrimitive;
+				Desc.Triangles.IndexBuffer = IndexBuffer->ResourceLocation.GetGPUVirtualAddress() +
+											 IndexOffsetInBytes +
+											 IndexStride * Segment.FirstPrimitive * IndicesPerPrimitive;
 
 				Desc.Triangles.VertexCount = VertexBuffer->ResourceLocation.GetSize() / VertexStrideInBytes;
 
@@ -2506,6 +2518,11 @@ FD3D12RayTracingShaderTable* FD3D12RayTracingScene::FindOrCreateShaderTable(cons
 			FD3D12IndexBuffer* IndexBuffer = FD3D12DynamicRHI::ResourceCast(Geometry->RHIIndexBuffer.GetReference(), GPUIndex);
 			FD3D12VertexBuffer* VertexBuffer = FD3D12DynamicRHI::ResourceCast(Geometry->RHIVertexBuffer.GetReference(), GPUIndex);
 
+			// Here, we directly apply the vertex offset to the address but set the offset for index buffer using a RootConstant instead.
+			// Index Buffer has to be 4 bytes aligned.
+			// cite comments from `RayTracingHitGroupComment.ush`:
+			// ByteAddressBuffer loads must be aligned to DWORD boundary.
+			// which means the alignment can be wrong for index buffer if we directly apply the offset to the address when binding it.
 			const D3D12_GPU_VIRTUAL_ADDRESS IndexBufferAddress = IndexBuffer ? IndexBuffer->ResourceLocation.GetGPUVirtualAddress() : 0;
 			const D3D12_GPU_VIRTUAL_ADDRESS VertexBufferAddress = VertexBuffer->ResourceLocation.GetGPUVirtualAddress() + Geometry->VertexOffsetInBytes;
 
@@ -2534,7 +2551,7 @@ FD3D12RayTracingShaderTable* FD3D12RayTracingScene::FindOrCreateShaderTable(cons
 				}
 
 				SystemParameters.RootConstants.SetVertexAndIndexStride(Geometry->VertexStrideInBytes, IndexStride);
-				SystemParameters.RootConstants.IndexBufferOffsetInBytes = IndexStride * Segment.FirstPrimitive * IndicesPerPrimitive;
+				SystemParameters.RootConstants.IndexBufferOffsetInBytes = IndexStride * Segment.FirstPrimitive * IndicesPerPrimitive + Geometry->IndexOffsetInBytes;
 
 				for (uint32 SlotIndex = 0; SlotIndex < ShaderSlotsPerGeometrySegment; ++SlotIndex)
 				{

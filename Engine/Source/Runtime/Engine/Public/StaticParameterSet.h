@@ -14,40 +14,98 @@
 class FSHA1;
 
 /**
-* Holds the information for a static switch parameter
+Base parameter properties
 */
 USTRUCT()
-struct FStaticSwitchParameter
+struct FStaticParameterBase
 {
 	GENERATED_USTRUCT_BODY();
 
 	UPROPERTY()
-	FMaterialParameterInfo ParameterInfo;
+		FMaterialParameterInfo ParameterInfo;
 
 	UPROPERTY()
-	bool Value;
+		bool bOverride;
 
 	UPROPERTY()
-	bool bOverride;
+		FGuid ExpressionGUID;
 
-	UPROPERTY()
-	FGuid ExpressionGUID;
-
-	FStaticSwitchParameter() :
-		Value(false),
+	FStaticParameterBase() :
 		bOverride(false),
 		ExpressionGUID(0, 0, 0, 0)
 	{ }
 
-	FStaticSwitchParameter(const FMaterialParameterInfo& InInfo, bool InValue, bool InOverride, FGuid InGuid) :
+	FStaticParameterBase(const FMaterialParameterInfo& InInfo, bool InOverride, FGuid InGuid) :
 		ParameterInfo(InInfo),
-		Value(InValue),
 		bOverride(InOverride),
 		ExpressionGUID(InGuid)
 	{ }
 
+	friend FArchive& operator<<(FArchive& Ar, FStaticParameterBase& P)
+	{
+		// This method should never be called, derived structures need to implement their own code (to retain compatibility) or call SerializeBase (for new classes)
+		check(false);
+
+		return Ar;
+	}
+
+	bool operator==(const FStaticParameterBase& Reference) const
+	{
+		return ParameterInfo == Reference.ParameterInfo && bOverride == Reference.bOverride && ExpressionGUID == Reference.ExpressionGUID;
+	}
+
+	void SerializeBase(FArchive& Ar)
+	{
+		Ar << ParameterInfo;
+		Ar << bOverride;
+		Ar << ExpressionGUID;
+	}
+
+	void UpdateHash(FSHA1& HashState) const
+	{
+		const FString ParameterName = ParameterInfo.ToString();
+		HashState.Update((const uint8*)*ParameterName, ParameterName.Len() * sizeof(TCHAR));
+		HashState.Update((const uint8*)&ExpressionGUID, sizeof(ExpressionGUID));
+		uint8 Override = bOverride;
+		HashState.Update((const uint8*)&Override, sizeof(Override));
+	}
+
+	void AppendKeyString(FString& KeyString) const
+	{
+		KeyString += ParameterInfo.ToString() + FString::FromInt(bOverride) + ExpressionGUID.ToString();
+	}
+};
+
+
+/**
+* Holds the information for a static switch parameter
+*/
+USTRUCT()
+struct FStaticSwitchParameter : public FStaticParameterBase
+{
+	GENERATED_USTRUCT_BODY();
+
+	UPROPERTY()
+	bool Value;
+
+	FStaticSwitchParameter() :
+		FStaticParameterBase(),
+		Value(false)
+	{ }
+
+	FStaticSwitchParameter(const FMaterialParameterInfo& InInfo, bool InValue, bool InOverride, FGuid InGuid) :
+		FStaticParameterBase(InInfo, InOverride, InGuid),
+		Value(InValue)
+	{ }
+
+	bool operator==(const FStaticSwitchParameter& Reference) const
+	{
+		return FStaticParameterBase::operator==(Reference) && Value == Reference.Value;
+	}
+
 	friend FArchive& operator<<(FArchive& Ar, FStaticSwitchParameter& P)
 	{
+		Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
 		if (Ar.CustomVer(FRenderingObjectVersion::GUID) < FRenderingObjectVersion::MaterialAttributeLayerParameters)
 		{
 			Ar << P.ParameterInfo.Name;
@@ -59,18 +117,28 @@ struct FStaticSwitchParameter
 		Ar << P.Value << P.bOverride << P.ExpressionGUID;
 		return Ar;
 	}
+
+	void UpdateHash(FSHA1& HashState) const
+	{
+		FStaticParameterBase::UpdateHash(HashState);
+		uint8 HashValue = Value;
+		HashState.Update((const uint8*)&HashValue, sizeof(HashValue));
+	}
+
+	void AppendKeyString(FString& KeyString) const
+	{
+		FStaticParameterBase::AppendKeyString(KeyString);
+		KeyString += FString::FromInt(Value);
+	}
 };
 
 /**
 * Holds the information for a static component mask parameter
 */
 USTRUCT()
-struct FStaticComponentMaskParameter
+struct FStaticComponentMaskParameter : public FStaticParameterBase
 {
 	GENERATED_USTRUCT_BODY();
-
-	UPROPERTY()
-	FMaterialParameterInfo ParameterInfo;
 
 	UPROPERTY()
 	bool R;
@@ -84,33 +152,30 @@ struct FStaticComponentMaskParameter
 	UPROPERTY()
 	bool A; 
 
-	UPROPERTY()
-	bool bOverride;
-
-	UPROPERTY()
-	FGuid ExpressionGUID;
-
 	FStaticComponentMaskParameter() :
+		FStaticParameterBase(),
 		R(false),
 		G(false),
 		B(false),
-		A(false),
-		bOverride(false),
-		ExpressionGUID(0, 0, 0, 0)
+		A(false)
 	{ }
 
 	FStaticComponentMaskParameter(const FMaterialParameterInfo& InInfo, bool InR, bool InG, bool InB, bool InA, bool InOverride, FGuid InGuid) :
-		ParameterInfo(InInfo),
+		FStaticParameterBase(InInfo, InOverride, InGuid),
 		R(InR),
 		G(InG),
 		B(InB),
-		A(InA),
-		bOverride(InOverride),
-		ExpressionGUID(InGuid)
+		A(InA)
 	{ }
+
+	bool operator==(const FStaticComponentMaskParameter& Reference) const
+	{
+		return FStaticParameterBase::operator==(Reference) && R == Reference.R && G == Reference.G && B == Reference.B && A == Reference.A;
+	}
 
 	friend FArchive& operator<<(FArchive& Ar, FStaticComponentMaskParameter& P)
 	{
+		Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
 		if (Ar.CustomVer(FRenderingObjectVersion::GUID) < FRenderingObjectVersion::MaterialAttributeLayerParameters)
 		{
 			Ar << P.ParameterInfo.Name;
@@ -122,24 +187,35 @@ struct FStaticComponentMaskParameter
 		Ar << P.R << P.G << P.B << P.A << P.bOverride << P.ExpressionGUID;
 		return Ar;
 	}
+
+	void UpdateHash(FSHA1& HashState) const
+	{
+		FStaticParameterBase::UpdateHash(HashState);
+		uint8 Values[4];
+		Values[0] = R;
+		Values[1] = G;
+		Values[2] = B;
+		Values[3] = A;
+		HashState.Update((const uint8*)&Values, sizeof(Values));
+	}
+
+	void AppendKeyString(FString& KeyString) const
+	{
+		FStaticParameterBase::AppendKeyString(KeyString);
+		KeyString += FString::FromInt(R);
+		KeyString += FString::FromInt(G);
+		KeyString += FString::FromInt(B);
+		KeyString += FString::FromInt(A);
+	}
 };
 
 /**
 * Holds the information for a static switch parameter
 */
 USTRUCT()
-struct FStaticTerrainLayerWeightParameter
+struct FStaticTerrainLayerWeightParameter : public FStaticParameterBase
 {
 	GENERATED_USTRUCT_BODY();
-
-	UPROPERTY()
-	FMaterialParameterInfo ParameterInfo;
-
-	UPROPERTY()
-	bool bOverride;
-
-	UPROPERTY()
-	FGuid ExpressionGUID;
 
 	UPROPERTY()
 	int32 WeightmapIndex;
@@ -148,19 +224,21 @@ struct FStaticTerrainLayerWeightParameter
 	bool bWeightBasedBlend;
 
 	FStaticTerrainLayerWeightParameter() :
-		bOverride(false),
-		ExpressionGUID(0, 0, 0, 0),
+		FStaticParameterBase(),
 		WeightmapIndex(INDEX_NONE),
 		bWeightBasedBlend(true)
 	{ }
 
 	FStaticTerrainLayerWeightParameter(const FMaterialParameterInfo& InInfo, int32 InWeightmapIndex, bool InOverride, FGuid InGuid, bool InWeightBasedBlend) :
-		ParameterInfo(InInfo),
-		bOverride(InOverride),
-		ExpressionGUID(InGuid),
+		FStaticParameterBase(InInfo, InOverride, InGuid),
 		WeightmapIndex(InWeightmapIndex),
 		bWeightBasedBlend(InWeightBasedBlend)
 	{ }
+
+	bool operator==(const FStaticTerrainLayerWeightParameter& Reference) const
+	{
+		return FStaticParameterBase::operator==(Reference) && WeightmapIndex == Reference.WeightmapIndex && bWeightBasedBlend == Reference.bWeightBasedBlend;
+	}
 
 	friend FArchive& operator<<(FArchive& Ar, FStaticTerrainLayerWeightParameter& P)
 	{
@@ -181,40 +259,77 @@ struct FStaticTerrainLayerWeightParameter
 		Ar << P.WeightmapIndex<< P.bOverride << P.ExpressionGUID;
 		return Ar;
 	}
+
+	void UpdateHash(FSHA1& HashState) const
+	{
+		FStaticParameterBase::UpdateHash(HashState);
+		int32 Values[2];
+		Values[0] = WeightmapIndex;
+		Values[1] = bWeightBasedBlend;
+		HashState.Update((const uint8*)&Values, sizeof(Values));
+	}
+
+	void AppendKeyString(FString& KeyString) const
+	{
+		FStaticParameterBase::AppendKeyString(KeyString);
+		KeyString += FString::FromInt(WeightmapIndex);
+		KeyString += FString::FromInt(bWeightBasedBlend);
+	}
 };
+
 
 /**
 * Holds the information for a static material layers parameter
 */
 USTRUCT()
-struct FStaticMaterialLayersParameter
+struct FStaticMaterialLayersParameter : public FStaticParameterBase
 {
 	GENERATED_USTRUCT_BODY();
 
-	UPROPERTY()
-	FMaterialParameterInfo ParameterInfo;
+	struct ID
+	{
+		FStaticParameterBase ParameterID;
+		FMaterialLayersFunctions::ID Functions;
+
+		friend FArchive& operator<<(FArchive& Ar, ID& P)
+		{
+			P.ParameterID.SerializeBase(Ar);
+			P.Functions.SerializeForDDC(Ar);
+			return Ar;
+		}
+
+		bool operator==(const ID& Reference) const
+		{
+			return ParameterID == Reference.ParameterID && Functions == Reference.Functions;
+		}
+
+		void UpdateHash(FSHA1& HashState) const
+		{
+			ParameterID.UpdateHash(HashState);
+			Functions.UpdateHash(HashState);
+		}
+
+		void AppendKeyString(FString& KeyString) const
+		{
+			ParameterID.AppendKeyString(KeyString);
+			Functions.AppendKeyString(KeyString);
+		}
+	};
 
 	UPROPERTY()
 	FMaterialLayersFunctions Value;
 
-	UPROPERTY()
-	bool bOverride;
-
-	UPROPERTY()
-	FGuid ExpressionGUID;
-
 	FStaticMaterialLayersParameter() :
-		bOverride(false),
-		ExpressionGUID(0, 0, 0, 0)
+		FStaticParameterBase()
 	{ }
 
 	FStaticMaterialLayersParameter(const FMaterialParameterInfo& InInfo, const FMaterialLayersFunctions& InValue, bool InOverride, FGuid InGuid) :
-		ParameterInfo(InInfo),
-		Value(InValue),
-		bOverride(InOverride),
-		ExpressionGUID(InGuid)
+		FStaticParameterBase(InInfo, InOverride, InGuid),
+		Value(InValue)
 	{ }
 	
+	const ID GetID() const;
+
 	UMaterialFunctionInterface* GetParameterAssociatedFunction(const FMaterialParameterInfo& InParameterInfo) const;
 	void GetParameterAssociatedFunctions(const FMaterialParameterInfo& InParameterInfo, TArray<UMaterialFunctionInterface*>& AssociatedFunctions) const;
 	
@@ -284,19 +399,8 @@ struct FStaticParameterSet
 		}
 	}
 
-	/** Updates the hash state with the static parameter names and values. */
-	void UpdateHash(FSHA1& HashState) const;
-
 	/** 
-	* Indicates whether this set is equal to another, copying override settings.
-	* 
-	* @param ReferenceSet	The set to compare against
-	* @return				true if the sets are not equal
-	*/
-	bool ShouldMarkDirty(const FStaticParameterSet* ReferenceSet);
-
-	/** 
-	* Tests this set against another for equality, disregarding override settings.
+	* Tests this set against another for equality
 	* 
 	* @param ReferenceSet	The set to compare against
 	* @return				true if the sets are equal
@@ -310,10 +414,6 @@ struct FStaticParameterSet
 
 	bool Equivalent(const FStaticParameterSet& ReferenceSet) const;
 
+private:
 	void SortForEquivalent();
-
-
-	FString GetSummaryString() const;
-
-	void AppendKeyString(FString& KeyString) const;
 };

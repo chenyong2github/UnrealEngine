@@ -258,7 +258,6 @@ Texture2DType PhysicalSrcTexture;
 SamplerState  PhysicalSrcSampler;
 
 Texture2DType HalfResSrcTexture;
-SamplerState  HalfResSrcSampler;
 
 RWTexture2DType DstTexture;
 

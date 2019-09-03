@@ -32,5 +32,10 @@ const TCHAR* FLinuxPlatformProcess::BaseDir()
 
 const TCHAR* FLinuxPlatformProcess::GetBinariesSubdirectory()
 {
+	if (PLATFORM_CPU_ARM_FAMILY)
+	{
+		return TEXT("LinuxAArch64");
+	}
+
 	return TEXT("Linux");
 }

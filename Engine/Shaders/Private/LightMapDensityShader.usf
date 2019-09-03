@@ -60,7 +60,6 @@ struct FLightMapDensityVSToPS
 		O.FactoryInterpolants = VertexFactoryAssignInterpolants(Interpolants.FactoryInterpolants);
 		
 		// Finally, transform position to clip-space
-		ISOLATE
 		{
 			O.Position = mul(WorldPosition, ResolvedView.TranslatedWorldToClip);
 		}
@@ -107,7 +106,6 @@ void MainVertexShader(
 #else // !USING_TESSELLATION
 
 	Output.WorldPosition = WorldPosition;
-	ISOLATE
 	{
 		float4 RasterizedWorldPosition = VertexFactoryGetRasterizedWorldPosition(Input, VFIntermediates, Output.WorldPosition);
 		Output.Position = mul(RasterizedWorldPosition, ResolvedView.TranslatedWorldToClip);

@@ -1668,7 +1668,7 @@ void FDynamicMeshEmitterData::GetDynamicMeshElementsEmitter(const FParticleSyste
 
 				// For OpenGL & Metal we can't assume that it is OK to leave the PrevTransformBuffer buffer unbound.
 				// Doing so can lead to undefined behaviour if the buffer is referenced in the shader even if protected by a branch that is not meant to be taken.
-				bool const bGeneratePrevTransformBuffer = (FeatureLevel >= ERHIFeatureLevel::SM4) && 
+				bool const bGeneratePrevTransformBuffer = (FeatureLevel >= ERHIFeatureLevel::SM5) && 
 														  (Source.MeshMotionBlurOffset || IsOpenGLPlatform(ShaderPlatform) || IsMetalPlatform(ShaderPlatform) || IsPS4Platform(ShaderPlatform));
 
 
@@ -2544,7 +2544,13 @@ void FDynamicMeshEmitterData::GetInstanceData(void* InstanceData, void* DynamicP
 				CurrentInstanceVertexDynParam->DynamicValue[1] = DynamicParameterValue.Y;
 				CurrentInstanceVertexDynParam->DynamicValue[2] = DynamicParameterValue.Z;
 				CurrentInstanceVertexDynParam->DynamicValue[3] = DynamicParameterValue.W;
-				TempDynamicParameterVert += DynamicParameterVertexStride;
+
+				for (uint32 Factor = 1; Factor < InstanceFactor; Factor++)
+				{
+					FMemory::Memcpy(TempDynamicParameterVert + DynamicParameterVertexStride * Factor, TempDynamicParameterVert, DynamicParameterVertexStride);
+				}
+
+				TempDynamicParameterVert += DynamicParameterVertexStride * InstanceFactor;
 			}
 		}
 		

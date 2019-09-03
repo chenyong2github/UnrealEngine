@@ -530,7 +530,7 @@ void FD3D12Adapter::CreateSignatures()
 	D3D12_COMMAND_SIGNATURE_DESC commandSignatureDesc = {};
 	commandSignatureDesc.NumArgumentDescs = 1;
 	commandSignatureDesc.ByteStride = 20;
-	commandSignatureDesc.NodeMask = (uint32)FRHIGPUMask::All();
+	commandSignatureDesc.NodeMask = FRHIGPUMask::All().GetNative();
 
 	D3D12_INDIRECT_ARGUMENT_DESC indirectParameterDesc[1] = {};
 	commandSignatureDesc.pArgumentDescs = indirectParameterDesc;

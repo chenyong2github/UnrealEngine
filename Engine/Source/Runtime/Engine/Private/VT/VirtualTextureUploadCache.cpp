@@ -213,7 +213,7 @@ FVTUploadTileHandle FVirtualTextureUploadCache::PrepareTileForUpload(FVTUploadTi
 
 			// Here we bypass 'normal' RHI operations in order to get a persistent pointer to GPU memory, on supported platforms
 			// This should be encapsulated into a proper RHI method at some point
-			NewEntry.Memory = GDynamicRHI->RHILockStructuredBuffer(NewEntry.RHIStagingBuffer, 0u, MemorySize, RLM_WriteOnly);
+			NewEntry.Memory = GDynamicRHI->LockStructuredBuffer_BottomOfPipe(FRHICommandListExecutor::GetImmediateCommandList(), NewEntry.RHIStagingBuffer, 0u, MemorySize, RLM_WriteOnly);
 
 			INC_MEMORY_STAT_BY(STAT_TotalGPUUploadSize, MemorySize);
 		}

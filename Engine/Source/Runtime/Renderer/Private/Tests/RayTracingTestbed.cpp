@@ -65,7 +65,7 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 		RayData.SetNumUninitialized(NumRays);
 		RayData[0] = FBasicRayData{ { 0.75f, 0.0f, -1.0f}, 0xFFFFFFFF, {0.0f, 0.0f,  1.0f}, 100000.0f }; // expected to hit
 		RayData[1] = FBasicRayData{ { 0.75f, 0.0f, -1.0f}, 0xFFFFFFFF, {0.0f, 0.0f,  1.0f},      0.5f }; // expected to miss (short ray)
-		RayData[2] = FBasicRayData{ { 0.75f, 0.0f,  1.0f}, 0xFFFFFFFF, {0.0f, 0.0f, -1.0f}, 100000.0f }; // expected to miss (back face culled)
+		RayData[2] = FBasicRayData{ { 0.75f, 0.0f,  1.0f}, 0xFFFFFFFF, {0.0f, 0.0f, -1.0f}, 100000.0f }; // expected to hit  (should hit back face)
 		RayData[3] = FBasicRayData{ {-0.75f, 0.0f, -1.0f}, 0xFFFFFFFF, {0.0f, 0.0f,  1.0f}, 100000.0f }; // expected to miss (doesn't intersect)
 
 		FRHIResourceCreateInfo CreateInfo;
@@ -99,7 +99,6 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 	GeometryInitializer.VertexBufferByteOffset = 0;
 	GeometryInitializer.VertexBufferStride = sizeof(FVector);
 	GeometryInitializer.VertexBufferElementType = VET_Float3;
-	GeometryInitializer.BaseVertexIndex = 0;
 	GeometryInitializer.GeometryType = RTGT_Triangles;
 	GeometryInitializer.TotalPrimitiveCount = 1;
 	GeometryInitializer.bFastBuild = false;
@@ -112,7 +111,7 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 	FRayTracingSceneInitializer Initializer;
 	Initializer.Instances = Instances;
 	Initializer.ShaderSlotsPerGeometrySegment = RAY_TRACING_NUM_SHADER_SLOTS;
-	FRHIRayTracingScene* Scene = RHICreateRayTracingScene(Initializer);
+	FRayTracingSceneRHIRef Scene = RHICreateRayTracingScene(Initializer);
 
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
@@ -140,7 +139,7 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 
 			check(MappedResults[0] != 0); // expect hit
 			check(MappedResults[1] == 0); // expect miss
-			check(MappedResults[2] == 0); // expect miss
+			check(MappedResults[2] != 0); // expect hit
 			check(MappedResults[3] == 0); // expect miss
 
 			RHIUnlockVertexBuffer(OcclusionResultBuffer);
@@ -163,12 +162,12 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 			check(FMath::IsNearlyEqual(MappedResults[0].Barycentrics[1], 0.125f));
 
 			check(MappedResults[1].HitT < 0); // expect miss
-			check(MappedResults[2].HitT < 0); // expect miss
+			check(MappedResults[2].HitT >= 0); // expect hit back face
 			check(MappedResults[3].HitT < 0); // expect miss
 
 			RHIUnlockVertexBuffer(IntersectionResultBuffer);
 
-			bIntersectionTestOK = (MappedResults[0].HitT >= 0) && (MappedResults[1].HitT < 0) && (MappedResults[2].HitT < 0) && (MappedResults[3].HitT < 0);
+			bIntersectionTestOK = (MappedResults[0].HitT >= 0) && (MappedResults[1].HitT < 0) && (MappedResults[2].HitT >= 0) && (MappedResults[3].HitT < 0);
 		}
 	}
 

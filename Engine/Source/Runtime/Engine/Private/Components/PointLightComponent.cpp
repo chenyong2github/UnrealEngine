@@ -44,6 +44,8 @@ void FPointLightSceneProxy::GetLightShaderParameters(FLightShaderParameters& Lig
 	LightParameters.SoftSourceRadius = SoftSourceRadius;
 	LightParameters.SourceLength = SourceLength;
 	LightParameters.SourceTexture = GWhiteTexture->TextureRHI;
+	LightParameters.RectLightBarnCosAngle = 0.0f;
+	LightParameters.RectLightBarnLength = -2.0f;
 }
 
 /**
@@ -52,7 +54,7 @@ void FPointLightSceneProxy::GetLightShaderParameters(FLightShaderParameters& Lig
 */
 bool FPointLightSceneProxy::GetWholeSceneProjectedShadowInitializer(const FSceneViewFamily& ViewFamily, TArray<FWholeSceneProjectedShadowInitializer, TInlineAllocator<6> >& OutInitializers) const
 {
-	if (ViewFamily.GetFeatureLevel() >= ERHIFeatureLevel::SM4
+	if (ViewFamily.GetFeatureLevel() >= ERHIFeatureLevel::SM5
 		&& GAllowPointLightCubemapShadows != 0)
 	{
 		FWholeSceneProjectedShadowInitializer& OutInitializer = *new(OutInitializers) FWholeSceneProjectedShadowInitializer;

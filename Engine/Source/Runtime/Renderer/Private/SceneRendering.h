@@ -715,11 +715,14 @@ struct FTemporalAAHistory
 	}
 };
 
-// TODO: merge with FTemporalAAHistory?
-struct FScreenSpaceFilteringHistory
+/** Temporal history for a denoiser. */
+struct FScreenSpaceDenoiserHistory
 {
 	// Number of history render target to store.
 	static constexpr int32 RTCount = 3;
+
+	// Scissor of valid data in the render target;
+	FIntRect Scissor;
 
 	// Render target specific to the history.
 	TRefCountPtr<IPooledRenderTarget> RT[RTCount];
@@ -770,19 +773,22 @@ struct FPreviousViewInfo
 	TRefCountPtr<IPooledRenderTarget> CustomSSRInput;
 
 	// History for the reflections
-	FScreenSpaceFilteringHistory ReflectionsHistory;
+	FScreenSpaceDenoiserHistory ReflectionsHistory;
 	
 	// History for the ambient occlusion
-	FScreenSpaceFilteringHistory AmbientOcclusionHistory;
+	FScreenSpaceDenoiserHistory AmbientOcclusionHistory;
 
 	// History for global illumination
-	FScreenSpaceFilteringHistory DiffuseIndirectHistory;
+	FScreenSpaceDenoiserHistory DiffuseIndirectHistory;
 
 	// History for sky light
-	FScreenSpaceFilteringHistory SkyLightHistory;
+	FScreenSpaceDenoiserHistory SkyLightHistory;
 
 	// History for shadow denoising.
-	TMap<const ULightComponent*, FScreenSpaceFilteringHistory> ShadowHistories;
+	TMap<const ULightComponent*, FScreenSpaceDenoiserHistory> ShadowHistories;
+
+	// History for denoising all lights penumbra at once.
+	FScreenSpaceDenoiserHistory PolychromaticPenumbraHarmonicsHistory;
 };
 
 class FViewCommands
@@ -982,8 +988,8 @@ public:
 	/** Temporal AA jitter at the pixel scale. */
 	FVector2D TemporalJitterPixels;
 
-	/** Whether view state may be updated with this view. */
-	uint32 bViewStateIsReadOnly : 1;
+	/** Whether FSceneViewState::PrevFrameViewInfo can be updated with this view. */
+	uint32 bStatePrevViewInfoIsReadOnly : 1;
 
 	/** true if all PrimitiveVisibilityMap's bits are set to false. */
 	uint32 bHasNoVisiblePrimitive : 1;
@@ -1022,7 +1028,7 @@ public:
 	/** Bitmask of all shading models used by primitives in this view */
 	uint16 ShadingModelMaskInView;
 
-	// Previous frame view info to use for this view.
+	/** Informations from the previous frame to use for this view. */
 	FPreviousViewInfo PrevViewInfo;
 
 	/** The GPU nodes on which to render this view. */
@@ -1043,8 +1049,9 @@ public:
 	FOcclusionQueryBatcher IndividualOcclusionQueries;
 	FOcclusionQueryBatcher GroupedOcclusionQueries;
 
-	// Hierarchical Z Buffer
+	// Furthest and closest Hierarchical Z Buffer
 	TRefCountPtr<IPooledRenderTarget> HZB;
+	TRefCountPtr<IPooledRenderTarget> ClosestHZB;
 
 	int32 NumBoxReflectionCaptures;
 	int32 NumSphereReflectionCaptures;
@@ -1208,9 +1215,13 @@ public:
 
 	/** Gets the rendertarget that will be populated by CombineLUTS post process 
 	* for stereo rendering, this will force the post-processing to use the same render target for both eyes*/
-	FSceneRenderTargetItem* GetTonemappingLUTRenderTarget(FRHICommandList& RHICmdList, const int32 LUTSize, const bool bUseVolumeLUT, const bool bNeedUAV, const bool bNeedFloatOutput) const;
+	IPooledRenderTarget* GetTonemappingLUTRenderTarget(FRHICommandList& RHICmdList, const int32 LUTSize, const bool bUseVolumeLUT, const bool bNeedUAV, const bool bNeedFloatOutput) const;
 	
-
+	/** Returns whether this view is the last in the family. */
+	bool IsLastInFamily() const
+	{
+		return Family->Views.Last() == this;
+	}
 
 	/** Instanced stereo and multi-view only need to render the left eye. */
 	bool ShouldRenderView() const 

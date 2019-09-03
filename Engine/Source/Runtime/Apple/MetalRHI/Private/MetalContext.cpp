@@ -751,10 +751,7 @@ void FMetalDeviceContext::UpdateIABs(FRHITextureReference* ModifiedRef)
 		{
 			if (UB && UB->IAB && UB->TextureReferences.Contains(ModifiedRef))
 			{
-				FMetalUniformBuffer::FMetalIndirectArgumentBuffer* IAB = UB->IAB;
-				UB->IAB = nullptr;
-				UB->InitIAB();
-				delete IAB;
+				UB->UpdateTextureReference(ModifiedRef);
 			}
 		}
 	}
@@ -785,7 +782,19 @@ FMetalTexture FMetalDeviceContext::CreateTexture(FMetalSurface* Surface, mtlpp::
 FMetalBuffer FMetalDeviceContext::CreatePooledBuffer(FMetalPooledBufferArgs const& Args)
 {
 	NSUInteger CpuResourceOption = ((NSUInteger)Args.CpuCacheMode) << mtlpp::ResourceCpuCacheModeShift;
-    FMetalBuffer Buffer = Heap.CreateBuffer(Args.Size, BufferOffsetAlignment, Args.Flags, FMetalCommandQueue::GetCompatibleResourceOptions((mtlpp::ResourceOptions)(CpuResourceOption | mtlpp::ResourceOptions::HazardTrackingModeUntracked | ((NSUInteger)Args.Storage << mtlpp::ResourceStorageModeShift))));
+	
+	uint32 RequestedBufferOffsetAlignment = BufferOffsetAlignment;
+	
+#if PLATFORM_IOS
+	if((Args.Flags & BUF_ShaderResource) != 0)
+	{
+		// Buffer backed linear textures have specific align requirements
+		// We don't know upfront the pixel format that may be requested for an SRV so we can't use minimumLinearTextureAlignmentForPixelFormat:
+		RequestedBufferOffsetAlignment = BufferBackedLinearTextureOffsetAlignment;
+	}
+#endif
+	
+    FMetalBuffer Buffer = Heap.CreateBuffer(Args.Size, RequestedBufferOffsetAlignment, Args.Flags, FMetalCommandQueue::GetCompatibleResourceOptions((mtlpp::ResourceOptions)(CpuResourceOption | mtlpp::ResourceOptions::HazardTrackingModeUntracked | ((NSUInteger)Args.Storage << mtlpp::ResourceStorageModeShift))));
 	check(Buffer && Buffer.GetPtr());
 #if METAL_DEBUG_OPTIONS
 	if (GMetalResourcePurgeOnDelete && !Buffer.GetHeap())
@@ -1079,7 +1088,7 @@ void FMetalContext::InitFrame(bool const bImmediateContext, uint32 Index, uint32
 	}
 	
 	// Reallocate if necessary to ensure >= 80% usage, otherwise we're just too wasteful
-	// RenderPass.GetRingBuffer().Shrink();
+	RenderPass.ShrinkRingBuffers();
 	
 	// Begin the render pass frame.
 	RenderPass.Begin(StartFence);
@@ -1562,6 +1571,11 @@ bool FMetalContext::AsyncCopyFromBufferToTexture(FMetalBuffer const& Buffer, uin
 bool FMetalContext::AsyncCopyFromTextureToTexture(FMetalTexture const& Texture, uint32 sourceSlice, uint32 sourceLevel, mtlpp::Origin sourceOrigin, mtlpp::Size sourceSize, FMetalTexture const& toTexture, uint32 destinationSlice, uint32 destinationLevel, mtlpp::Origin destinationOrigin)
 {
 	return RenderPass.AsyncCopyFromTextureToTexture(Texture, sourceSlice, sourceLevel, sourceOrigin, sourceSize, toTexture, destinationSlice, destinationLevel, destinationOrigin);
+}
+
+bool FMetalContext::CanAsyncCopyToBuffer(FMetalBuffer const& DestinationBuffer)
+{
+	return RenderPass.CanAsyncCopyToBuffer(DestinationBuffer);
 }
 
 void FMetalContext::AsyncCopyFromBufferToBuffer(FMetalBuffer const& SourceBuffer, NSUInteger SourceOffset, FMetalBuffer const& DestinationBuffer, NSUInteger DestinationOffset, NSUInteger Size)

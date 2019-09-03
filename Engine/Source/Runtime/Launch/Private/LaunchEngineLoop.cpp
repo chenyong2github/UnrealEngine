@@ -4100,7 +4100,7 @@ void FEngineLoop::Tick()
 		#if WITH_PROFILEGPU && !UE_BUILD_SHIPPING
 			// Issue the measurement of the execution time of a basic LongGPUTask unit on the very first frame
 			// The results will be retrived on the first call of IssueScalableLongGPUTask
-			if (GFrameCounter == 0 && IsFeatureLevelSupported(GMaxRHIShaderPlatform, ERHIFeatureLevel::SM4) && FApp::CanEverRender())
+			if (GFrameCounter == 0 && IsFeatureLevelSupported(GMaxRHIShaderPlatform, ERHIFeatureLevel::SM5) && FApp::CanEverRender())
 			{
 				FlushRenderingCommands();
 
@@ -4131,6 +4131,20 @@ void FEngineLoop::Tick()
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_FEngineLoop_UpdateTimeAndHandleMaxTickRate);
 			GEngine->UpdateTimeAndHandleMaxTickRate();
+		}
+
+		for (const FWorldContext& Context : GEngine->GetWorldContexts())
+		{
+			UWorld* CurrentWorld = Context.World();
+			if (CurrentWorld)
+			{
+				FSceneInterface* Scene = CurrentWorld->Scene;
+				ENQUEUE_RENDER_COMMAND(UpdateScenePrimitives)(
+					[Scene](FRHICommandListImmediate& RHICmdList)
+				{
+					Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
+				});
+			}
 		}
 
 		// beginning of RHI frame

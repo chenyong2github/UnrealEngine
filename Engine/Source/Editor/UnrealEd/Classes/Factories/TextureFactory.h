@@ -30,6 +30,7 @@ struct FImportImage
 
 class UTexture2D;
 class UTextureCube;
+class UTexture2DArray;
 
 UCLASS(customconstructor, collapsecategories, hidecategories=Object)
 class UNREALED_API UTextureFactory : public UFactory, public IImportSettingsParser
@@ -143,7 +144,7 @@ public:
 	/** Create a texture given the appropriate input parameters	*/
 	virtual UTexture2D* CreateTexture2D( UObject* InParent, FName Name, EObjectFlags Flags );
 	virtual UTextureCube* CreateTextureCube( UObject* InParent, FName Name, EObjectFlags Flags );
-
+	virtual UTexture2DArray* CreateTexture2DArray(UObject* InParent, FName Name, EObjectFlags Flags);
 	/**
 	 * Suppresses the dialog box that, when importing over an existing texture, asks if the users wishes to overwrite its settings.
 	 * This is primarily for reimporting textures.

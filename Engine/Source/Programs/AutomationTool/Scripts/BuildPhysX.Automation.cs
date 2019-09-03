@@ -44,8 +44,18 @@ class BuildPhysX : BuildCommand
 		public TargetPlatformData(UnrealTargetPlatform InPlatform)
 		{
 			Platform = InPlatform;
-			// Linux never has an empty architecture. If we don't care then it's x86_64-unknown-linux-gnu
-			Architecture = (Platform == UnrealTargetPlatform.Linux) ? "x86_64-unknown-linux-gnu" : "";
+
+			Architecture = "";
+
+			// Linux never has an empty architecture.
+			if (Platform == UnrealTargetPlatform.Linux)
+			{
+				Architecture = "x86_64-unknown-linux-gnu";
+			}
+			else if (Platform == UnrealTargetPlatform.Linux)
+			{
+				Architecture = "aarch64-unknown-linux-gnueabi";
+			}
 		}
 		public TargetPlatformData(UnrealTargetPlatform InPlatform, string InArchitecture)
 		{
@@ -211,7 +221,8 @@ class BuildPhysX : BuildCommand
 		// Response files are used for include paths etc, to fix max command line length issues.
 		if (TargetData.Platform == UnrealTargetPlatform.PS4 ||
 			TargetData.Platform == UnrealTargetPlatform.Switch ||
-			TargetData.Platform == UnrealTargetPlatform.Linux)
+			TargetData.Platform == UnrealTargetPlatform.Linux ||
+			TargetData.Platform == UnrealTargetPlatform.LinuxAArch64)
 		{
 			OutputFlags += " -DUSE_RESPONSE_FILES=1";
 		}
@@ -264,7 +275,7 @@ class BuildPhysX : BuildCommand
 					}
 					return DirectoryReference.Combine(PhysXCMakeFiles, "Android").ToString() + " -G \"MinGW Makefiles\" -DTARGET_BUILD_PLATFORM=android -DCMAKE_BUILD_TYPE=" + BuildConfig + " -DCMAKE_TOOLCHAIN_FILE=\"" + PhysXSourceRootDirectory + "\\Externals\\CMakeModules\\android\\android.toolchain.cmake\" -DANDROID_NDK=\"" + NDKDirectory + "\" -DCMAKE_MAKE_PROGRAM=\"" + NDKDirectory + "\\prebuilt\\windows-x86_64\\bin\\make.exe\" -DANDROID_NATIVE_API_LEVEL=\"" + AndroidAPILevel + "\" -DANDROID_ABI=\"" + AndroidABI + "\" -DANDROID_STL=gnustl_shared" + OutputFlags;
 				}
-				if (TargetData.Platform == UnrealTargetPlatform.Linux)
+				if (TargetData.Platform == UnrealTargetPlatform.Linux || TargetData.Platform == UnrealTargetPlatform.LinuxAArch64)
 				{
 					return DirectoryReference.Combine(PhysXCMakeFiles, "Linux").ToString() + " --no-warn-unused-cli -G \"Unix Makefiles\" -DTARGET_BUILD_PLATFORM=linux -DPX_STATIC_LIBRARIES=1 " + GetBundledLinuxLibCxxFlags() + " -DCMAKE_BUILD_TYPE=" + BuildConfig + GetLinuxToolchainSettings(TargetData) + OutputFlags;
 				}
@@ -322,7 +333,7 @@ class BuildPhysX : BuildCommand
 				{
 					return DirectoryReference.Combine(ApexCMakeFiles, "Switch").ToString() + " -G \"Visual Studio 14 2015\" -DTARGET_BUILD_PLATFORM=switch -DCMAKE_TOOLCHAIN_FILE=\"" + PhysXSourceRootDirectory + "\\Externals\\CMakeModules\\switch\\NX64Toolchain.txt\" -DCMAKE_GENERATOR_PLATFORM=NX-NXFP2-a64" + OutputFlags + ApexFlags;
 				}
-				if (TargetData.Platform == UnrealTargetPlatform.Linux)
+				if (TargetData.Platform == UnrealTargetPlatform.Linux || TargetData.Platform == UnrealTargetPlatform.LinuxAArch64)
 				{
 					return DirectoryReference.Combine(ApexCMakeFiles, "Linux").ToString() + " --no-warn-unused-cli -G \"Unix Makefiles\" -DTARGET_BUILD_PLATFORM=linux -DPX_STATIC_LIBRARIES=1 -DAPEX_LINUX_SHARED_LIBRARIES=1 " + GetBundledLinuxLibCxxFlags() + " -DCMAKE_BUILD_TYPE=" + BuildConfig + GetLinuxToolchainSettings(TargetData) + OutputFlags + ApexFlags;
 				}
@@ -357,7 +368,7 @@ class BuildPhysX : BuildCommand
 				{
 					return DirectoryReference.Combine(NvClothCMakeFiles, "XboxOne").ToString() + " -G \"Visual Studio 14 2015\" -DTARGET_BUILD_PLATFORM=xboxone -DCMAKE_TOOLCHAIN_FILE=\"" + PhysXSourceRootDirectory + "\\Externals\\CMakeModules\\XboxOne\\XboxOneToolchain.txt\" -DCMAKE_GENERATOR_PLATFORM=DURANGO" + OutputFlags;
 				}
-				if (TargetData.Platform == UnrealTargetPlatform.Linux)
+				if (TargetData.Platform == UnrealTargetPlatform.Linux || TargetData.Platform == UnrealTargetPlatform.LinuxAArch64)
 				{
 					return DirectoryReference.Combine(NvClothCMakeFiles, "Linux").ToString() + " --no-warn-unused-cli -G \"Unix Makefiles\" -DTARGET_BUILD_PLATFORM=linux -DPX_STATIC_LIBRARIES=1 " + GetBundledLinuxLibCxxFlags() + " -DCMAKE_BUILD_TYPE=" + BuildConfig + GetLinuxToolchainSettings(TargetData) + OutputFlags;
 				}
@@ -445,7 +456,8 @@ class BuildPhysX : BuildCommand
 	private static bool DoesPlatformUseMakefiles(TargetPlatformData TargetData)
 	{
 		if (TargetData.Platform == UnrealTargetPlatform.Android || TargetData.Platform == UnrealTargetPlatform.Linux ||
-			TargetData.Platform == UnrealTargetPlatform.HTML5 || TargetData.Platform == UnrealTargetPlatform.PS4)
+			TargetData.Platform == UnrealTargetPlatform.LinuxAArch64 || TargetData.Platform == UnrealTargetPlatform.HTML5 ||
+			TargetData.Platform == UnrealTargetPlatform.PS4)
 		{
 			return true;
 		}
@@ -681,7 +693,7 @@ class BuildPhysX : BuildCommand
 			}
 		}
 		else if (TargetData.Platform == UnrealTargetPlatform.PS4 || TargetData.Platform == UnrealTargetPlatform.Android ||
-			TargetData.Platform == UnrealTargetPlatform.Linux)
+			TargetData.Platform == UnrealTargetPlatform.Linux || TargetData.Platform == UnrealTargetPlatform.LinuxAArch64)
 		{
 			foreach (string BuildConfig in TargetConfigurations)
 			{
@@ -693,7 +705,7 @@ class BuildPhysX : BuildCommand
 				{
 					LogInformation("Generating projects for lib " + TargetLib.ToString() + ", " + TargetData.ToString());
 
-					if (TargetData.Platform == UnrealTargetPlatform.Linux)
+					if (TargetData.Platform == UnrealTargetPlatform.Linux || TargetData.Platform == UnrealTargetPlatform.LinuxAArch64)
 					{
 						// the libraries are broken when compiled with clang 7.0.1
 						string OriginalToolchainPath = Environment.GetEnvironmentVariable("LINUX_MULTIARCH_ROOT");
@@ -1210,7 +1222,7 @@ class BuildPhysX : BuildCommand
 		{
 			ArchName = "Mac";
 		}
-		else if (TargetData.Platform == UnrealTargetPlatform.Linux)
+		else if (TargetData.Platform == UnrealTargetPlatform.Linux || TargetData.Platform == UnrealTargetPlatform.LinuxAArch64)
 		{
 			ArchName = "Linux/" + TargetData.Architecture;
 		}
@@ -1274,7 +1286,7 @@ class BuildPhysX : BuildCommand
 				case "x64": ArchName = "Android/x64"; break;
 			}
 		}
-		else if (TargetData.Platform == UnrealTargetPlatform.Linux)
+		else if (TargetData.Platform == UnrealTargetPlatform.Linux || TargetData.Platform == UnrealTargetPlatform.LinuxAArch64)
 		{
 			ArchName = "Linux/" + TargetData.Architecture;
 		}
@@ -1307,7 +1319,8 @@ class BuildPhysX : BuildCommand
 		return TargetData.Platform == UnrealTargetPlatform.Win32 ||
 			TargetData.Platform == UnrealTargetPlatform.Win64 ||
 			TargetData.Platform == UnrealTargetPlatform.Mac ||
-			TargetData.Platform == UnrealTargetPlatform.Linux || 
+			TargetData.Platform == UnrealTargetPlatform.Linux ||
+			TargetData.Platform == UnrealTargetPlatform.LinuxAArch64 ||
 			TargetData.Platform == UnrealTargetPlatform.HoloLens;
 	}
 	private static bool PlatformUsesDebugDatabase(TargetPlatformData TargetData)
@@ -1316,6 +1329,7 @@ class BuildPhysX : BuildCommand
 			TargetData.Platform == UnrealTargetPlatform.Win64 ||
 			// Target.Platform == UnrealTargetPlatform.Mac || 
 			TargetData.Platform == UnrealTargetPlatform.Linux ||
+			TargetData.Platform == UnrealTargetPlatform.LinuxAArch64 ||
 			TargetData.Platform == UnrealTargetPlatform.XboxOne || 
 			TargetData.Platform == UnrealTargetPlatform.HoloLens;
 	}
@@ -1348,7 +1362,7 @@ class BuildPhysX : BuildCommand
 		{
 			return "dylib";
 		}
-		if (TargetData.Platform == UnrealTargetPlatform.Linux)
+		if (TargetData.Platform == UnrealTargetPlatform.Linux || TargetData.Platform == UnrealTargetPlatform.LinuxAArch64)
 		{
 			return "so";
 		}
@@ -1438,7 +1452,7 @@ class BuildPhysX : BuildCommand
 
 	private static void GenerateDebugFiles(HashSet<FileReference> OutFiles, PhysXTargetLib TargetLib, TargetPlatformData TargetData, string TargetConfiguration, WindowsCompiler TargetWindowsCompiler = WindowsCompiler.VisualStudio2015_DEPRECATED)
 	{
-		if (TargetData.Platform == UnrealTargetPlatform.Linux)
+		if (TargetData.Platform == UnrealTargetPlatform.Linux || TargetData.Platform == UnrealTargetPlatform.LinuxAArch64)
 		{
 			HashSet<FileReference> SoFiles = new HashSet<FileReference>();
 

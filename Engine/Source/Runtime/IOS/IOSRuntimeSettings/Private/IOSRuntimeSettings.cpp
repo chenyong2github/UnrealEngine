@@ -45,7 +45,6 @@ UIOSRuntimeSettings::UIOSRuntimeSettings(const FObjectInitializer& ObjectInitial
 	bDisableMotionData = false;
     bEnableRemoteNotificationsSupport = false;
     bEnableBackgroundFetch = false;
-	bSupportsOpenGLES2 = false;
 	bSupportsMetal = true;
 	bSupportsMetalMRT = false;
 	bDisableHTTPS = false;
@@ -79,11 +78,6 @@ void UIOSRuntimeSettings::PostEditChangeProperty(struct FPropertyChangedEvent& P
 	{
 		bSupportsMetal = true;
 		UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, bSupportsMetal)), GetDefaultConfigFilename());
-	}
-	if (bSupportsOpenGLES2)
-	{
-		bSupportsOpenGLES2 = false;
-		UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, bSupportsOpenGLES2)), GetDefaultConfigFilename());
 	}
 
 	// Ensure that at least arm64 is selected for shipping and dev
@@ -160,11 +154,6 @@ void UIOSRuntimeSettings::PostInitProperties()
 	{
 		MinimumiOSVersion = EIOSVersion::IOS_11;
 		UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, MinimumiOSVersion)), GetDefaultConfigFilename());
-	}
-	if (bSupportsOpenGLES2)
-	{
-		bSupportsOpenGLES2 = false;
-		UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, bSupportsOpenGLES2)), GetDefaultConfigFilename());
 	}
 	if (bDevForArmV7)
 	{

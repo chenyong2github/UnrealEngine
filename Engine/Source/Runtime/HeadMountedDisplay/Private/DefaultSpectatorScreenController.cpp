@@ -76,7 +76,7 @@ FSpectatorScreenRenderDelegate* FDefaultSpectatorScreenController::GetSpectatorS
 	return &SpectatorScreenDelegate_RenderThread;
 }
 
-struct FRHISetSpectatorScreenTexture final : public FRHICommand<FRHISetSpectatorScreenTexture>
+FRHICOMMAND_MACRO(FRHISetSpectatorScreenTexture)
 {
 	FDefaultSpectatorScreenController* SpectatorScreenController;
 	FTexture2DRHIRef Texture;
@@ -131,7 +131,7 @@ void FDefaultSpectatorScreenController::SetSpectatorScreenTexture_RenderThread(F
 }
 
 
-struct FRHISetSpectatorScreenModeTexturePlusEyeLayout final : public FRHICommand<FRHISetSpectatorScreenModeTexturePlusEyeLayout>
+FRHICOMMAND_MACRO(FRHISetSpectatorScreenModeTexturePlusEyeLayout)
 {
 	FDefaultSpectatorScreenController* SpectatorScreenController;
 	FSpectatorScreenModeTexturePlusEyeLayout Layout;

@@ -302,11 +302,11 @@ struct FSlateCustomVertsPayload : public FSlateDataPayload
 	TArray<SlateIndex> Indices;
 
 	// Instancing support
-	ISlateUpdatableInstanceBuffer* InstanceData;
+	ISlateUpdatableInstanceBufferRenderProxy* InstanceData;
 	uint32 InstanceOffset;
 	uint32 NumInstances;
 
-	void SetCustomVerts(const FSlateShaderResourceProxy* InRenderProxy, const TArray<FSlateVertex>& InVerts, const TArray<SlateIndex>& InIndices, ISlateUpdatableInstanceBuffer* InInstanceData, uint32 InInstanceOffset, uint32 InNumInstances)
+	void SetCustomVerts(const FSlateShaderResourceProxy* InRenderProxy, const TArray<FSlateVertex>& InVerts, const TArray<SlateIndex>& InIndices, ISlateUpdatableInstanceBufferRenderProxy* InInstanceData, uint32 InInstanceOffset, uint32 InNumInstances)
 	{
 		ResourceProxy = InRenderProxy;
 

@@ -421,9 +421,14 @@ void EngineShowFlagOverride(EShowFlagInitMode ShowFlagInitMode, EViewModeIndex V
 			EngineShowFlags.SetBrushes(true);
 		}
 
+		if (ViewModeIndex == VMI_Unlit)
+		{
+			EngineShowFlags.SetLighting(false);
+			EngineShowFlags.Atmosphere = 0;
+		}
+
 		if( ViewModeIndex == VMI_Wireframe ||
 			ViewModeIndex == VMI_BrushWireframe ||
-			ViewModeIndex == VMI_Unlit ||
 			ViewModeIndex == VMI_StationaryLightOverlap ||
 			ViewModeIndex == VMI_ShaderComplexity ||
 			ViewModeIndex == VMI_QuadOverdraw ||
@@ -435,8 +440,8 @@ void EngineShowFlagOverride(EShowFlagInitMode ShowFlagInitMode, EViewModeIndex V
 			ViewModeIndex == VMI_LightmapDensity)
 		{
 			EngineShowFlags.SetLighting(false);
-			EngineShowFlags.AtmosphericFog = 0;
-			EngineShowFlags.Fog = (ViewModeIndex == VMI_Unlit); // Only unlit uses it 
+			EngineShowFlags.Atmosphere = 0;
+			EngineShowFlags.Fog = 0;
 		}
 
 		if( ViewModeIndex == VMI_Lit ||
@@ -457,14 +462,14 @@ void EngineShowFlagOverride(EShowFlagInitMode ShowFlagInitMode, EViewModeIndex V
 		{
 			EngineShowFlags.Translucency = 0;
 			EngineShowFlags.Fog = 0;
-			EngineShowFlags.AtmosphericFog = 0;
+			EngineShowFlags.Atmosphere = 0;
 		}
 
 		if (ViewModeIndex == VMI_LODColoration || ViewModeIndex == VMI_HLODColoration)
 		{
 			EngineShowFlags.SetLighting(true);	// Best currently otherwise the image becomes hard to read.
 			EngineShowFlags.Fog = 0;			// Removed fog to improve color readability.
-			EngineShowFlags.AtmosphericFog = 0;
+			EngineShowFlags.Atmosphere = 0;
 			EngineShowFlags.Translucency = 0;	// Translucent are off because there are no color override shader currently for translucency.
 		}
 
@@ -487,7 +492,6 @@ void EngineShowFlagOverride(EShowFlagInitMode ShowFlagInitMode, EViewModeIndex V
 		{
 			EngineShowFlags.SetRayTracingDebug(true);
 			EngineShowFlags.SetVisualizeHDR(false);
-			EngineShowFlags.SetVisualizeBloom(false);
 			EngineShowFlags.SetVisualizeMotionBlur(false);
 			EngineShowFlags.SetDepthOfField(false);
 			EngineShowFlags.SetPostProcessMaterial(false);

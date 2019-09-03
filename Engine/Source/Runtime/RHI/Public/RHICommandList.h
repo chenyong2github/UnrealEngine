@@ -26,6 +26,7 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(RHI_API, RHITStalls);
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(RHI_API, RHITFlushes);
@@ -540,6 +541,7 @@ private:
 
 	friend class FRHICommandListExecutor;
 	friend class FRHICommandListIterator;
+	friend class FRHICommandListScopedFlushAndExecute;
 
 protected:
 	bool bAsyncPSOCompileAllowed;
@@ -657,7 +659,12 @@ public:
 	FCommonData Data;
 };
 
-template<typename TCmd>
+struct FUnnamedRhiCommand
+{
+	static const TCHAR* TStr() { return TEXT("FUnnamedRhiCommand"); }
+};
+
+template<typename TCmd, typename NameType = FUnnamedRhiCommand>
 struct FRHICommand : public FRHICommandBase
 {
 #if RHICOMMAND_CALLSTACK
@@ -671,6 +678,15 @@ struct FRHICommand : public FRHICommandBase
 
 	void ExecuteAndDestruct(FRHICommandListBase& CmdList, FRHICommandListDebugContext& Context) override final
 	{
+#if CPUPROFILERTRACE_ENABLED
+		static uint16 __CpuProfilerEventSpecId;
+		if (__CpuProfilerEventSpecId == 0)
+		{
+			__CpuProfilerEventSpecId = FCpuProfilerTrace::OutputEventType(NameType::TStr(), CpuProfilerGroup_Default);
+		}
+		FCpuProfilerTrace::FEventScope __CpuProfilerEventScope(__CpuProfilerEventSpecId);
+#endif
+
 		TCmd *ThisCmd = static_cast<TCmd*>(this);
 #if RHI_COMMAND_LIST_DEBUG_TRACES
 		ThisCmd->StoreDebugInfo(Context);
@@ -682,7 +698,14 @@ struct FRHICommand : public FRHICommandBase
 	virtual void StoreDebugInfo(FRHICommandListDebugContext& Context) {};
 };
 
-struct  FRHICommandBeginUpdateMultiFrameResource final : public FRHICommand<FRHICommandBeginUpdateMultiFrameResource>
+#define FRHICOMMAND_MACRO(CommandName)								\
+struct PREPROCESSOR_JOIN(CommandName##String, __LINE__)				\
+{																	\
+	static const TCHAR* TStr() { return TEXT(#CommandName); }		\
+};																	\
+struct CommandName final : public FRHICommand<CommandName, PREPROCESSOR_JOIN(CommandName##String, __LINE__)>
+
+FRHICOMMAND_MACRO(FRHICommandBeginUpdateMultiFrameResource)
 {
 	FRHITexture* Texture;
 	FORCEINLINE_DEBUGGABLE FRHICommandBeginUpdateMultiFrameResource(FRHITexture* InTexture)
@@ -692,7 +715,7 @@ struct  FRHICommandBeginUpdateMultiFrameResource final : public FRHICommand<FRHI
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct  FRHICommandEndUpdateMultiFrameResource final : public FRHICommand<FRHICommandEndUpdateMultiFrameResource>
+FRHICOMMAND_MACRO(FRHICommandEndUpdateMultiFrameResource)
 {
 	FRHITexture* Texture;
 	FORCEINLINE_DEBUGGABLE FRHICommandEndUpdateMultiFrameResource(FRHITexture* InTexture)
@@ -702,7 +725,7 @@ struct  FRHICommandEndUpdateMultiFrameResource final : public FRHICommand<FRHICo
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct  FRHICommandBeginUpdateMultiFrameUAV final : public FRHICommand<FRHICommandBeginUpdateMultiFrameResource>
+FRHICOMMAND_MACRO(FRHICommandBeginUpdateMultiFrameUAV)
 {
 	FRHIUnorderedAccessView* UAV;
 	FORCEINLINE_DEBUGGABLE FRHICommandBeginUpdateMultiFrameUAV(FRHIUnorderedAccessView* InUAV)
@@ -712,7 +735,7 @@ struct  FRHICommandBeginUpdateMultiFrameUAV final : public FRHICommand<FRHIComma
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct  FRHICommandEndUpdateMultiFrameUAV final : public FRHICommand<FRHICommandEndUpdateMultiFrameResource>
+FRHICOMMAND_MACRO(FRHICommandEndUpdateMultiFrameUAV)
 {
 	FRHIUnorderedAccessView* UAV;
 	FORCEINLINE_DEBUGGABLE FRHICommandEndUpdateMultiFrameUAV(FRHIUnorderedAccessView* InUAV)
@@ -722,7 +745,7 @@ struct  FRHICommandEndUpdateMultiFrameUAV final : public FRHICommand<FRHICommand
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandSetStencilRef final : public FRHICommand<FRHICommandSetStencilRef>
+FRHICOMMAND_MACRO(FRHICommandSetStencilRef)
 {
 	uint32 StencilRef;
 	FORCEINLINE_DEBUGGABLE FRHICommandSetStencilRef(uint32 InStencilRef)
@@ -732,8 +755,12 @@ struct FRHICommandSetStencilRef final : public FRHICommand<FRHICommandSetStencil
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
+struct FRHICommandSetShaderParameterString
+{
+	static const TCHAR* TStr() { return TEXT("FRHICommandSetShaderParameter"); }
+};
 template <typename TRHIShader, ECmdList CmdListType>
-struct FRHICommandSetShaderParameter final : public FRHICommand<FRHICommandSetShaderParameter<TRHIShader, CmdListType> >
+struct FRHICommandSetShaderParameter final : public FRHICommand<FRHICommandSetShaderParameter<TRHIShader, CmdListType>, FRHICommandSetShaderParameterString>
 {
 	TRHIShader* Shader;
 	const void* NewValue;
@@ -751,8 +778,12 @@ struct FRHICommandSetShaderParameter final : public FRHICommand<FRHICommandSetSh
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
+struct FRHICommandSetShaderUniformBufferString
+{
+	static const TCHAR* TStr() { return TEXT("FRHICommandSetShaderUniformBuffer"); }
+};
 template <typename TRHIShader, ECmdList CmdListType>
-struct FRHICommandSetShaderUniformBuffer final : public FRHICommand<FRHICommandSetShaderUniformBuffer<TRHIShader, CmdListType> >
+struct FRHICommandSetShaderUniformBuffer final : public FRHICommand<FRHICommandSetShaderUniformBuffer<TRHIShader, CmdListType>, FRHICommandSetShaderUniformBufferString>
 {
 	TRHIShader* Shader;
 	uint32 BaseIndex;
@@ -766,8 +797,12 @@ struct FRHICommandSetShaderUniformBuffer final : public FRHICommand<FRHICommandS
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
+struct FRHICommandSetShaderTextureString
+{
+	static const TCHAR* TStr() { return TEXT("FRHICommandSetShaderTexture"); }
+};
 template <typename TRHIShader, ECmdList CmdListType>
-struct FRHICommandSetShaderTexture final : public FRHICommand<FRHICommandSetShaderTexture<TRHIShader, CmdListType> >
+struct FRHICommandSetShaderTexture final : public FRHICommand<FRHICommandSetShaderTexture<TRHIShader, CmdListType>, FRHICommandSetShaderTextureString >
 {
 	TRHIShader* Shader;
 	uint32 TextureIndex;
@@ -781,8 +816,12 @@ struct FRHICommandSetShaderTexture final : public FRHICommand<FRHICommandSetShad
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
+struct FRHICommandSetShaderResourceViewParameterString
+{
+	static const TCHAR* TStr() { return TEXT("FRHICommandSetShaderResourceViewParameter"); }
+};
 template <typename TRHIShader, ECmdList CmdListType>
-struct FRHICommandSetShaderResourceViewParameter final : public FRHICommand<FRHICommandSetShaderResourceViewParameter<TRHIShader, CmdListType> >
+struct FRHICommandSetShaderResourceViewParameter final : public FRHICommand<FRHICommandSetShaderResourceViewParameter<TRHIShader, CmdListType>, FRHICommandSetShaderResourceViewParameterString >
 {
 	TRHIShader* Shader;
 	uint32 SamplerIndex;
@@ -796,8 +835,12 @@ struct FRHICommandSetShaderResourceViewParameter final : public FRHICommand<FRHI
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
+struct FRHICommandSetUAVParameterString
+{
+	static const TCHAR* TStr() { return TEXT("FRHICommandSetUAVParameter"); }
+};
 template <typename TRHIShader, ECmdList CmdListType>
-struct FRHICommandSetUAVParameter final : public FRHICommand<FRHICommandSetUAVParameter<TRHIShader, CmdListType> >
+struct FRHICommandSetUAVParameter final : public FRHICommand<FRHICommandSetUAVParameter<TRHIShader, CmdListType>, FRHICommandSetUAVParameterString >
 {
 	TRHIShader* Shader;
 	uint32 UAVIndex;
@@ -811,8 +854,12 @@ struct FRHICommandSetUAVParameter final : public FRHICommand<FRHICommandSetUAVPa
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
+struct FRHICommandSetUAVParameter_IntialCountString
+{
+	static const TCHAR* TStr() { return TEXT("FRHICommandSetUAVParameter_IntialCount"); }
+};
 template <typename TRHIShader, ECmdList CmdListType>
-struct FRHICommandSetUAVParameter_IntialCount final : public FRHICommand<FRHICommandSetUAVParameter_IntialCount<TRHIShader, CmdListType> >
+struct FRHICommandSetUAVParameter_IntialCount final : public FRHICommand<FRHICommandSetUAVParameter_IntialCount<TRHIShader, CmdListType>, FRHICommandSetUAVParameter_IntialCountString >
 {
 	TRHIShader* Shader;
 	uint32 UAVIndex;
@@ -828,8 +875,12 @@ struct FRHICommandSetUAVParameter_IntialCount final : public FRHICommand<FRHICom
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
+struct FRHICommandSetShaderSamplerString
+{
+	static const TCHAR* TStr() { return TEXT("FRHICommandSetShaderSampler"); }
+};
 template <typename TRHIShader, ECmdList CmdListType>
-struct FRHICommandSetShaderSampler final : public FRHICommand<FRHICommandSetShaderSampler<TRHIShader, CmdListType> >
+struct FRHICommandSetShaderSampler final : public FRHICommand<FRHICommandSetShaderSampler<TRHIShader, CmdListType>, FRHICommandSetShaderSamplerString >
 {
 	TRHIShader* Shader;
 	uint32 SamplerIndex;
@@ -843,7 +894,7 @@ struct FRHICommandSetShaderSampler final : public FRHICommand<FRHICommandSetShad
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandDrawPrimitive final : public FRHICommand<FRHICommandDrawPrimitive>
+FRHICOMMAND_MACRO(FRHICommandDrawPrimitive)
 {
 	uint32 BaseVertexIndex;
 	uint32 NumPrimitives;
@@ -857,7 +908,7 @@ struct FRHICommandDrawPrimitive final : public FRHICommand<FRHICommandDrawPrimit
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandDrawIndexedPrimitive final : public FRHICommand<FRHICommandDrawIndexedPrimitive>
+FRHICOMMAND_MACRO(FRHICommandDrawIndexedPrimitive)
 {
 	FRHIIndexBuffer* IndexBuffer;
 	int32 BaseVertexIndex;
@@ -879,7 +930,7 @@ struct FRHICommandDrawIndexedPrimitive final : public FRHICommand<FRHICommandDra
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandSetBlendFactor final : public FRHICommand<FRHICommandSetBlendFactor>
+FRHICOMMAND_MACRO(FRHICommandSetBlendFactor)
 {
 	FLinearColor BlendFactor;
 	FORCEINLINE_DEBUGGABLE FRHICommandSetBlendFactor(const FLinearColor& InBlendFactor)
@@ -889,7 +940,7 @@ struct FRHICommandSetBlendFactor final : public FRHICommand<FRHICommandSetBlendF
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandSetStreamSource final : public FRHICommand<FRHICommandSetStreamSource>
+FRHICOMMAND_MACRO(FRHICommandSetStreamSource)
 {
 	uint32 StreamIndex;
 	FRHIVertexBuffer* VertexBuffer;
@@ -903,7 +954,7 @@ struct FRHICommandSetStreamSource final : public FRHICommand<FRHICommandSetStrea
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandSetViewport final : public FRHICommand<FRHICommandSetViewport>
+FRHICOMMAND_MACRO(FRHICommandSetViewport)
 {
 	uint32 MinX;
 	uint32 MinY;
@@ -923,7 +974,7 @@ struct FRHICommandSetViewport final : public FRHICommand<FRHICommandSetViewport>
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandSetStereoViewport final : public FRHICommand<FRHICommandSetStereoViewport>
+FRHICOMMAND_MACRO(FRHICommandSetStereoViewport)
 {
 	uint32 LeftMinX;
 	uint32 RightMinX;
@@ -951,7 +1002,7 @@ struct FRHICommandSetStereoViewport final : public FRHICommand<FRHICommandSetSte
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandSetScissorRect final : public FRHICommand<FRHICommandSetScissorRect>
+FRHICOMMAND_MACRO(FRHICommandSetScissorRect)
 {
 	bool bEnable;
 	uint32 MinX;
@@ -969,7 +1020,7 @@ struct FRHICommandSetScissorRect final : public FRHICommand<FRHICommandSetScisso
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandSetRenderTargets final : public FRHICommand<FRHICommandSetRenderTargets>
+FRHICOMMAND_MACRO(FRHICommandSetRenderTargets)
 {
 	uint32 NewNumSimultaneousRenderTargets;
 	FRHIRenderTargetView NewRenderTargetsRHI[MaxSimultaneousRenderTargets];
@@ -1005,7 +1056,7 @@ struct FRHICommandSetRenderTargets final : public FRHICommand<FRHICommandSetRend
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandBeginRenderPass final : public FRHICommand<FRHICommandBeginRenderPass>
+FRHICOMMAND_MACRO(FRHICommandBeginRenderPass)
 {
 	FRHIRenderPassInfo Info;
 	const TCHAR* Name;
@@ -1019,7 +1070,7 @@ struct FRHICommandBeginRenderPass final : public FRHICommand<FRHICommandBeginRen
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandEndRenderPass final : public FRHICommand<FRHICommandEndRenderPass>
+FRHICOMMAND_MACRO(FRHICommandEndRenderPass)
 {
 	FRHICommandEndRenderPass()
 	{
@@ -1028,7 +1079,7 @@ struct FRHICommandEndRenderPass final : public FRHICommand<FRHICommandEndRenderP
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandNextSubpass final : public FRHICommand<FRHICommandNextSubpass>
+FRHICOMMAND_MACRO(FRHICommandNextSubpass)
 {
 	FRHICommandNextSubpass()
 	{
@@ -1042,7 +1093,7 @@ struct FLocalCmdListParallelRenderPass
 	TRefCountPtr<struct FRHIParallelRenderPass> RenderPass;
 };
 
-struct FRHICommandBeginParallelRenderPass final : public FRHICommand<FRHICommandBeginParallelRenderPass>
+FRHICOMMAND_MACRO(FRHICommandBeginParallelRenderPass)
 {
 	FRHIRenderPassInfo Info;
 	FLocalCmdListParallelRenderPass* LocalRenderPass;
@@ -1058,7 +1109,7 @@ struct FRHICommandBeginParallelRenderPass final : public FRHICommand<FRHICommand
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandEndParallelRenderPass final : public FRHICommand<FRHICommandEndParallelRenderPass>
+FRHICOMMAND_MACRO(FRHICommandEndParallelRenderPass)
 {
 	FLocalCmdListParallelRenderPass* LocalRenderPass;
 
@@ -1075,7 +1126,7 @@ struct FLocalCmdListRenderSubPass
 	TRefCountPtr<struct FRHIRenderSubPass> RenderSubPass;
 };
 
-struct FRHICommandBeginRenderSubPass final : public FRHICommand<FRHICommandBeginRenderSubPass>
+FRHICOMMAND_MACRO(FRHICommandBeginRenderSubPass)
 {
 	FLocalCmdListParallelRenderPass* LocalRenderPass;
 	FLocalCmdListRenderSubPass* LocalRenderSubPass;
@@ -1089,7 +1140,7 @@ struct FRHICommandBeginRenderSubPass final : public FRHICommand<FRHICommandBegin
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandEndRenderSubPass final : public FRHICommand<FRHICommandEndRenderSubPass>
+FRHICOMMAND_MACRO(FRHICommandEndRenderSubPass)
 {
 	FLocalCmdListParallelRenderPass* LocalRenderPass;
 	FLocalCmdListRenderSubPass* LocalRenderSubPass;
@@ -1103,7 +1154,7 @@ struct FRHICommandEndRenderSubPass final : public FRHICommand<FRHICommandEndRend
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandBeginComputePass final : public FRHICommand<FRHICommandBeginComputePass>
+FRHICOMMAND_MACRO(FRHICommandBeginComputePass)
 {
 	const TCHAR* Name;
 
@@ -1115,7 +1166,7 @@ struct FRHICommandBeginComputePass final : public FRHICommand<FRHICommandBeginCo
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandEndComputePass final : public FRHICommand<FRHICommandEndComputePass>
+FRHICOMMAND_MACRO(FRHICommandEndComputePass)
 {
 	FRHICommandEndComputePass()
 	{
@@ -1124,7 +1175,7 @@ struct FRHICommandEndComputePass final : public FRHICommand<FRHICommandEndComput
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandBindClearMRTValues final : public FRHICommand<FRHICommandBindClearMRTValues>
+FRHICOMMAND_MACRO(FRHICommandBindClearMRTValues)
 {
 	bool bClearColor;
 	bool bClearDepth;
@@ -1144,8 +1195,12 @@ struct FRHICommandBindClearMRTValues final : public FRHICommand<FRHICommandBindC
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
+struct FRHICommandSetComputeShaderString
+{
+	static const TCHAR* TStr() { return TEXT("FRHICommandSetComputeShader"); }
+};
 template<ECmdList CmdListType>
-struct FRHICommandSetComputeShader final : public FRHICommand<FRHICommandSetComputeShader<CmdListType>>
+struct FRHICommandSetComputeShader final : public FRHICommand<FRHICommandSetComputeShader<CmdListType>, FRHICommandSetComputeShaderString>
 {
 	FRHIComputeShader* ComputeShader;
 	FORCEINLINE_DEBUGGABLE FRHICommandSetComputeShader(FRHIComputeShader* InComputeShader)
@@ -1155,8 +1210,12 @@ struct FRHICommandSetComputeShader final : public FRHICommand<FRHICommandSetComp
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
+struct FRHICommandSetComputePipelineStateString
+{
+	static const TCHAR* TStr() { return TEXT("FRHICommandSetComputePipelineState"); }
+};
 template<ECmdList CmdListType>
-struct FRHICommandSetComputePipelineState final : public FRHICommand<FRHICommandSetComputePipelineState<CmdListType>>
+struct FRHICommandSetComputePipelineState final : public FRHICommand<FRHICommandSetComputePipelineState<CmdListType>, FRHICommandSetComputePipelineStateString>
 {
 	FComputePipelineState* ComputePipelineState;
 	FORCEINLINE_DEBUGGABLE FRHICommandSetComputePipelineState(FComputePipelineState* InComputePipelineState)
@@ -1166,7 +1225,7 @@ struct FRHICommandSetComputePipelineState final : public FRHICommand<FRHICommand
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandSetGraphicsPipelineState final : public FRHICommand<FRHICommandSetGraphicsPipelineState>
+FRHICOMMAND_MACRO(FRHICommandSetGraphicsPipelineState)
 {
 	FGraphicsPipelineState* GraphicsPipelineState;
 	FORCEINLINE_DEBUGGABLE FRHICommandSetGraphicsPipelineState(FGraphicsPipelineState* InGraphicsPipelineState)
@@ -1176,8 +1235,12 @@ struct FRHICommandSetGraphicsPipelineState final : public FRHICommand<FRHIComman
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
+struct FRHICommandDispatchComputeShaderString
+{
+	static const TCHAR* TStr() { return TEXT("FRHICommandDispatchComputeShader"); }
+};
 template<ECmdList CmdListType>
-struct FRHICommandDispatchComputeShader final : public FRHICommand<FRHICommandDispatchComputeShader<CmdListType>>
+struct FRHICommandDispatchComputeShader final : public FRHICommand<FRHICommandDispatchComputeShader<CmdListType>, FRHICommandDispatchComputeShaderString>
 {
 	uint32 ThreadGroupCountX;
 	uint32 ThreadGroupCountY;
@@ -1191,8 +1254,12 @@ struct FRHICommandDispatchComputeShader final : public FRHICommand<FRHICommandDi
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
+struct FRHICommandDispatchIndirectComputeShaderString
+{
+	static const TCHAR* TStr() { return TEXT("FRHICommandDispatchIndirectComputeShader"); }
+};
 template<ECmdList CmdListType>
-struct FRHICommandDispatchIndirectComputeShader final : public FRHICommand<FRHICommandDispatchIndirectComputeShader<CmdListType>>
+struct FRHICommandDispatchIndirectComputeShader final : public FRHICommand<FRHICommandDispatchIndirectComputeShader<CmdListType>, FRHICommandDispatchIndirectComputeShaderString>
 {
 	FRHIVertexBuffer* ArgumentBuffer;
 	uint32 ArgumentOffset;
@@ -1204,7 +1271,7 @@ struct FRHICommandDispatchIndirectComputeShader final : public FRHICommand<FRHIC
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandAutomaticCacheFlushAfterComputeShader final : public FRHICommand<FRHICommandAutomaticCacheFlushAfterComputeShader>
+FRHICOMMAND_MACRO(FRHICommandAutomaticCacheFlushAfterComputeShader)
 {
 	bool bEnable;
 	FORCEINLINE_DEBUGGABLE FRHICommandAutomaticCacheFlushAfterComputeShader(bool InbEnable)
@@ -1214,12 +1281,12 @@ struct FRHICommandAutomaticCacheFlushAfterComputeShader final : public FRHIComma
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandFlushComputeShaderCache final : public FRHICommand<FRHICommandFlushComputeShaderCache>
+FRHICOMMAND_MACRO(FRHICommandFlushComputeShaderCache)
 {
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandDrawPrimitiveIndirect final : public FRHICommand<FRHICommandDrawPrimitiveIndirect>
+FRHICOMMAND_MACRO(FRHICommandDrawPrimitiveIndirect)
 {
 	FRHIVertexBuffer* ArgumentBuffer;
 	uint32 ArgumentOffset;
@@ -1231,7 +1298,7 @@ struct FRHICommandDrawPrimitiveIndirect final : public FRHICommand<FRHICommandDr
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandDrawIndexedIndirect final : public FRHICommand<FRHICommandDrawIndexedIndirect>
+FRHICOMMAND_MACRO(FRHICommandDrawIndexedIndirect)
 {
 	FRHIIndexBuffer* IndexBufferRHI;
 	FRHIStructuredBuffer* ArgumentsBufferRHI;
@@ -1248,7 +1315,7 @@ struct FRHICommandDrawIndexedIndirect final : public FRHICommand<FRHICommandDraw
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandDrawIndexedPrimitiveIndirect final : public FRHICommand<FRHICommandDrawIndexedPrimitiveIndirect>
+FRHICOMMAND_MACRO(FRHICommandDrawIndexedPrimitiveIndirect)
 {
 	FRHIIndexBuffer* IndexBuffer;
 	FRHIVertexBuffer* ArgumentsBuffer;
@@ -1263,7 +1330,7 @@ struct FRHICommandDrawIndexedPrimitiveIndirect final : public FRHICommand<FRHICo
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandSetDepthBounds final : public FRHICommand<FRHICommandSetDepthBounds>
+FRHICOMMAND_MACRO(FRHICommandSetDepthBounds)
 {
 	float MinDepth;
 	float MaxDepth;
@@ -1276,7 +1343,7 @@ struct FRHICommandSetDepthBounds final : public FRHICommand<FRHICommandSetDepthB
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandClearTinyUAV final : public FRHICommand<FRHICommandClearTinyUAV>
+FRHICOMMAND_MACRO(FRHICommandClearTinyUAV)
 {
 	FRHIUnorderedAccessView* UnorderedAccessViewRHI;
 	uint32 Values[4];
@@ -1292,7 +1359,7 @@ struct FRHICommandClearTinyUAV final : public FRHICommand<FRHICommandClearTinyUA
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandCopyToResolveTarget final : public FRHICommand<FRHICommandCopyToResolveTarget>
+FRHICOMMAND_MACRO(FRHICommandCopyToResolveTarget)
 {
 	FResolveParams ResolveParams;
 	FRHITexture* SourceTexture;
@@ -1311,7 +1378,7 @@ struct FRHICommandCopyToResolveTarget final : public FRHICommand<FRHICommandCopy
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandCopyTexture final : public FRHICommand<FRHICommandCopyTexture>
+FRHICOMMAND_MACRO(FRHICommandCopyTexture)
 {
 	FRHICopyTextureInfo CopyInfo;
 	FRHITexture* SourceTexture;
@@ -1330,7 +1397,7 @@ struct FRHICommandCopyTexture final : public FRHICommand<FRHICommandCopyTexture>
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandTransitionTextures final : public FRHICommand<FRHICommandTransitionTextures>
+FRHICOMMAND_MACRO(FRHICommandTransitionTextures)
 {
 	int32 NumTextures;
 	FRHITexture** Textures; // Pointer to an array of textures, allocated inline with the command list
@@ -1344,7 +1411,7 @@ struct FRHICommandTransitionTextures final : public FRHICommand<FRHICommandTrans
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandTransitionTexturesArray final : public FRHICommand<FRHICommandTransitionTexturesArray>
+FRHICOMMAND_MACRO(FRHICommandTransitionTexturesArray)
 {	
 	TArray<FRHITexture*>& Textures;
 	EResourceTransitionAccess TransitionType;
@@ -1356,8 +1423,12 @@ struct FRHICommandTransitionTexturesArray final : public FRHICommand<FRHICommand
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
+struct FRHICommandTransitionUAVsString
+{
+	static const TCHAR* TStr() { return TEXT("FRHICommandTransitionUAVs"); }
+};
 template<ECmdList CmdListType>
-struct FRHICommandTransitionUAVs final : public FRHICommand<FRHICommandTransitionUAVs<CmdListType>>
+struct FRHICommandTransitionUAVs final : public FRHICommand<FRHICommandTransitionUAVs<CmdListType>, FRHICommandTransitionUAVsString>
 {
 	int32 NumUAVs;
 	FRHIUnorderedAccessView** UAVs; // Pointer to an array of UAVs, allocated inline with the command list
@@ -1376,8 +1447,12 @@ struct FRHICommandTransitionUAVs final : public FRHICommand<FRHICommandTransitio
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
+struct FRHICommandSetAsyncComputeBudgetString
+{
+	static const TCHAR* TStr() { return TEXT("FRHICommandSetAsyncComputeBudget"); }
+};
 template<ECmdList CmdListType>
-struct FRHICommandSetAsyncComputeBudget final : public FRHICommand<FRHICommandSetAsyncComputeBudget<CmdListType>>
+struct FRHICommandSetAsyncComputeBudget final : public FRHICommand<FRHICommandSetAsyncComputeBudget<CmdListType>, FRHICommandSetAsyncComputeBudgetString>
 {
 	EAsyncComputeBudget Budget;
 
@@ -1388,8 +1463,12 @@ struct FRHICommandSetAsyncComputeBudget final : public FRHICommand<FRHICommandSe
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
+struct FRHICommandWaitComputeFenceString
+{
+	static const TCHAR* TStr() { return TEXT("FRHICommandWaitComputeFence"); }
+};
 template<ECmdList CmdListType>
-struct FRHICommandWaitComputeFence final : public FRHICommand<FRHICommandWaitComputeFence<CmdListType>>
+struct FRHICommandWaitComputeFence final : public FRHICommand<FRHICommandWaitComputeFence<CmdListType>, FRHICommandWaitComputeFenceString>
 {
 	FRHIComputeFence* WaitFence;
 
@@ -1400,8 +1479,12 @@ struct FRHICommandWaitComputeFence final : public FRHICommand<FRHICommandWaitCom
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
+struct FRHICommandCopyToStagingBufferString
+{
+	static const TCHAR* TStr() { return TEXT("FRHICommandCopyToStagingBuffer"); }
+};
 template<ECmdList CmdListType>
-struct FRHICommandCopyToStagingBuffer final : public FRHICommand<FRHICommandCopyToStagingBuffer<CmdListType>>
+struct FRHICommandCopyToStagingBuffer final : public FRHICommand<FRHICommandCopyToStagingBuffer<CmdListType>, FRHICommandCopyToStagingBufferString>
 {
 	FRHIVertexBuffer* SourceBuffer;
 	FRHIStagingBuffer* DestinationStagingBuffer;
@@ -1418,8 +1501,12 @@ struct FRHICommandCopyToStagingBuffer final : public FRHICommand<FRHICommandCopy
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
+struct FRHICommandWriteGPUFenceString
+{
+	static const TCHAR* TStr() { return TEXT("FRHICommandWriteGPUFence"); }
+};
 template<ECmdList CmdListType>
-struct FRHICommandWriteGPUFence final : public FRHICommand<FRHICommandWriteGPUFence<CmdListType>>
+struct FRHICommandWriteGPUFence final : public FRHICommand<FRHICommandWriteGPUFence<CmdListType>, FRHICommandWriteGPUFenceString>
 {
 	FRHIGPUFence* Fence;
 
@@ -1430,7 +1517,7 @@ struct FRHICommandWriteGPUFence final : public FRHICommand<FRHICommandWriteGPUFe
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandClearColorTexture final : public FRHICommand<FRHICommandClearColorTexture>
+FRHICOMMAND_MACRO(FRHICommandClearColorTexture)
 {
 	FRHITexture* Texture;
 	FLinearColor Color;
@@ -1446,7 +1533,7 @@ struct FRHICommandClearColorTexture final : public FRHICommand<FRHICommandClearC
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandClearDepthStencilTexture final : public FRHICommand<FRHICommandClearDepthStencilTexture>
+FRHICOMMAND_MACRO(FRHICommandClearDepthStencilTexture)
 {
 	FRHITexture* Texture;
 	float Depth;
@@ -1468,7 +1555,7 @@ struct FRHICommandClearDepthStencilTexture final : public FRHICommand<FRHIComman
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandClearColorTextures final : public FRHICommand<FRHICommandClearColorTextures>
+FRHICOMMAND_MACRO(FRHICommandClearColorTextures)
 {
 	FLinearColor ColorArray[MaxSimultaneousRenderTargets];
 	FRHITexture* Textures[MaxSimultaneousRenderTargets];
@@ -1554,7 +1641,7 @@ struct FLocalUniformBuffer
 	}
 };
 
-struct FRHICommandBuildLocalUniformBuffer final : public FRHICommand<FRHICommandBuildLocalUniformBuffer>
+FRHICOMMAND_MACRO(FRHICommandBuildLocalUniformBuffer)
 {
 	FLocalUniformBufferWorkArea WorkArea;
 	FORCEINLINE_DEBUGGABLE FRHICommandBuildLocalUniformBuffer(
@@ -1570,8 +1657,12 @@ struct FRHICommandBuildLocalUniformBuffer final : public FRHICommand<FRHICommand
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
+struct FRHICommandSetLocalUniformBufferString
+{
+	static const TCHAR* TStr() { return TEXT("FRHICommandSetLocalUniformBuffer"); }
+};
 template <typename TRHIShader>
-struct FRHICommandSetLocalUniformBuffer final : public FRHICommand<FRHICommandSetLocalUniformBuffer<TRHIShader> >
+struct FRHICommandSetLocalUniformBuffer final : public FRHICommand<FRHICommandSetLocalUniformBuffer<TRHIShader>, FRHICommandSetLocalUniformBufferString >
 {
 	TRHIShader* Shader;
 	uint32 BaseIndex;
@@ -1588,7 +1679,7 @@ struct FRHICommandSetLocalUniformBuffer final : public FRHICommand<FRHICommandSe
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandBeginRenderQuery final : public FRHICommand<FRHICommandBeginRenderQuery>
+FRHICOMMAND_MACRO(FRHICommandBeginRenderQuery)
 {
 	FRHIRenderQuery* RenderQuery;
 
@@ -1599,7 +1690,7 @@ struct FRHICommandBeginRenderQuery final : public FRHICommand<FRHICommandBeginRe
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandEndRenderQuery final : public FRHICommand<FRHICommandEndRenderQuery>
+FRHICOMMAND_MACRO(FRHICommandEndRenderQuery)
 {
 	FRHIRenderQuery* RenderQuery;
 
@@ -1610,8 +1701,12 @@ struct FRHICommandEndRenderQuery final : public FRHICommand<FRHICommandEndRender
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
+struct FRHICommandSubmitCommandsHintString
+{
+	static const TCHAR* TStr() { return TEXT("FRHICommandSubmitCommandsHint"); }
+};
 template<ECmdList CmdListType>
-struct FRHICommandSubmitCommandsHint final : public FRHICommand<FRHICommandSubmitCommandsHint<CmdListType>>
+struct FRHICommandSubmitCommandsHint final : public FRHICommand<FRHICommandSubmitCommandsHint<CmdListType>, FRHICommandSubmitCommandsHintString>
 {
 	FORCEINLINE_DEBUGGABLE FRHICommandSubmitCommandsHint()
 	{
@@ -1619,12 +1714,12 @@ struct FRHICommandSubmitCommandsHint final : public FRHICommand<FRHICommandSubmi
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandPollOcclusionQueries final : public FRHICommand<FRHICommandPollOcclusionQueries>
+FRHICOMMAND_MACRO(FRHICommandPollOcclusionQueries)
 {
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandBeginScene final : public FRHICommand<FRHICommandBeginScene>
+FRHICOMMAND_MACRO(FRHICommandBeginScene)
 {
 	FORCEINLINE_DEBUGGABLE FRHICommandBeginScene()
 	{
@@ -1632,7 +1727,7 @@ struct FRHICommandBeginScene final : public FRHICommand<FRHICommandBeginScene>
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandEndScene final : public FRHICommand<FRHICommandEndScene>
+FRHICOMMAND_MACRO(FRHICommandEndScene)
 {
 	FORCEINLINE_DEBUGGABLE FRHICommandEndScene()
 	{
@@ -1640,7 +1735,7 @@ struct FRHICommandEndScene final : public FRHICommand<FRHICommandEndScene>
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandBeginFrame final : public FRHICommand<FRHICommandBeginFrame>
+FRHICOMMAND_MACRO(FRHICommandBeginFrame)
 {
 	FORCEINLINE_DEBUGGABLE FRHICommandBeginFrame()
 	{
@@ -1648,7 +1743,7 @@ struct FRHICommandBeginFrame final : public FRHICommand<FRHICommandBeginFrame>
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandEndFrame final : public FRHICommand<FRHICommandEndFrame>
+FRHICOMMAND_MACRO(FRHICommandEndFrame)
 {
 	FORCEINLINE_DEBUGGABLE FRHICommandEndFrame()
 	{
@@ -1656,7 +1751,7 @@ struct FRHICommandEndFrame final : public FRHICommand<FRHICommandEndFrame>
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandBeginDrawingViewport final : public FRHICommand<FRHICommandBeginDrawingViewport>
+FRHICOMMAND_MACRO(FRHICommandBeginDrawingViewport)
 {
 	FRHIViewport* Viewport;
 	FRHITexture* RenderTargetRHI;
@@ -1669,7 +1764,7 @@ struct FRHICommandBeginDrawingViewport final : public FRHICommand<FRHICommandBeg
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandEndDrawingViewport final : public FRHICommand<FRHICommandEndDrawingViewport>
+FRHICOMMAND_MACRO(FRHICommandEndDrawingViewport)
 {
 	FRHIViewport* Viewport;
 	bool bPresent;
@@ -1684,8 +1779,12 @@ struct FRHICommandEndDrawingViewport final : public FRHICommand<FRHICommandEndDr
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
+struct FRHICommandPushEventString
+{
+	static const TCHAR* TStr() { return TEXT("FRHICommandPushEventString"); }
+};
 template<ECmdList CmdListType>
-struct FRHICommandPushEvent final : public FRHICommand<FRHICommandPushEvent<CmdListType>>
+struct FRHICommandPushEvent final : public FRHICommand<FRHICommandPushEvent<CmdListType>, FRHICommandPushEventString>
 {
 	const TCHAR *Name;
 	FColor Color;
@@ -1703,8 +1802,12 @@ struct FRHICommandPushEvent final : public FRHICommand<FRHICommandPushEvent<CmdL
 	};
 };
 
+struct FRHICommandPopEventString
+{
+	static const TCHAR* TStr() { return TEXT("FRHICommandPopEvent"); }
+};
 template<ECmdList CmdListType>
-struct FRHICommandPopEvent final : public FRHICommand<FRHICommandPopEvent<CmdListType>>
+struct FRHICommandPopEvent final : public FRHICommand<FRHICommandPopEvent<CmdListType>, FRHICommandPopEventString>
 {
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 
@@ -1714,12 +1817,12 @@ struct FRHICommandPopEvent final : public FRHICommand<FRHICommandPopEvent<CmdLis
 	};
 };
 
-struct FRHICommandInvalidateCachedState final : public FRHICommand<FRHICommandInvalidateCachedState>
+FRHICOMMAND_MACRO(FRHICommandInvalidateCachedState)
 {
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandDiscardRenderTargets final : public FRHICommand<FRHICommandDiscardRenderTargets>
+FRHICOMMAND_MACRO(FRHICommandDiscardRenderTargets)
 {
 	uint32 ColorBitMask;
 	bool Depth;
@@ -1735,7 +1838,7 @@ struct FRHICommandDiscardRenderTargets final : public FRHICommand<FRHICommandDis
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandDebugBreak final : public FRHICommand<FRHICommandDebugBreak>
+FRHICOMMAND_MACRO(FRHICommandDebugBreak)
 {
 	void Execute(FRHICommandListBase& CmdList)
 	{
@@ -1746,7 +1849,7 @@ struct FRHICommandDebugBreak final : public FRHICommand<FRHICommandDebugBreak>
 	}
 };
 
-struct FRHICommandUpdateTextureReference final : public FRHICommand<FRHICommandUpdateTextureReference>
+FRHICOMMAND_MACRO(FRHICommandUpdateTextureReference)
 {
 	FRHITextureReference* TextureRef;
 	FRHITexture* NewTexture;
@@ -1812,7 +1915,7 @@ struct FRHIResourceUpdateInfo
 	void ReleaseRefs();
 };
 
-struct FRHICommandUpdateRHIResources final : public FRHICommand<FRHICommandUpdateRHIResources>
+FRHICOMMAND_MACRO(FRHICommandUpdateRHIResources)
 {
 	FRHIResourceUpdateInfo* UpdateInfos;
 	int32 Num;
@@ -1830,7 +1933,7 @@ struct FRHICommandUpdateRHIResources final : public FRHICommand<FRHICommandUpdat
 };
 
 #if RHI_RAYTRACING
-struct FRHICommandCopyBufferRegion final : public FRHICommand<FRHICommandCopyBufferRegion>
+FRHICOMMAND_MACRO(FRHICommandCopyBufferRegion)
 {
 	FRHIVertexBuffer* DestBuffer;
 	uint64 DstOffset;
@@ -1849,7 +1952,7 @@ struct FRHICommandCopyBufferRegion final : public FRHICommand<FRHICommandCopyBuf
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandCopyBufferRegions final : public FRHICommand<FRHICommandCopyBufferRegions>
+FRHICOMMAND_MACRO(FRHICommandCopyBufferRegions)
 {
 	const TArrayView<const FCopyBufferRegionParams> Params;
 
@@ -1860,7 +1963,7 @@ struct FRHICommandCopyBufferRegions final : public FRHICommand<FRHICommandCopyBu
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandBuildAccelerationStructure final : public FRHICommand<FRHICommandBuildAccelerationStructure>
+FRHICOMMAND_MACRO(FRHICommandBuildAccelerationStructure)
 {
 	FRHIRayTracingGeometry* Geometry;
 	FRHIRayTracingScene* Scene;
@@ -1878,7 +1981,7 @@ struct FRHICommandBuildAccelerationStructure final : public FRHICommand<FRHIComm
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandClearRayTracingBindings final : public FRHICommand<FRHICommandClearRayTracingBindings>
+FRHICOMMAND_MACRO(FRHICommandClearRayTracingBindings)
 {
 	FRHIRayTracingScene* Scene;
 
@@ -1890,7 +1993,7 @@ struct FRHICommandClearRayTracingBindings final : public FRHICommand<FRHICommand
 };
 
 
-struct FRHICommandUpdateAccelerationStructures final : public FRHICommand<FRHICommandUpdateAccelerationStructures>
+FRHICOMMAND_MACRO(FRHICommandUpdateAccelerationStructures)
 {
 	const TArrayView<const FAccelerationStructureUpdateParams> UpdateParams;
 
@@ -1901,7 +2004,7 @@ struct FRHICommandUpdateAccelerationStructures final : public FRHICommand<FRHICo
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandBuildAccelerationStructures final : public FRHICommand<FRHICommandBuildAccelerationStructures>
+FRHICOMMAND_MACRO(FRHICommandBuildAccelerationStructures)
 {
 	const TArrayView<const FAccelerationStructureUpdateParams> UpdateParams;
 
@@ -1912,7 +2015,7 @@ struct FRHICommandBuildAccelerationStructures final : public FRHICommand<FRHICom
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandRayTraceOcclusion final : public FRHICommand<FRHICommandRayTraceOcclusion>
+FRHICOMMAND_MACRO(FRHICommandRayTraceOcclusion)
 {
 	FRHIRayTracingScene* Scene;
 	FRHIShaderResourceView* Rays;
@@ -1932,7 +2035,7 @@ struct FRHICommandRayTraceOcclusion final : public FRHICommand<FRHICommandRayTra
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandRayTraceIntersection final : public FRHICommand<FRHICommandRayTraceIntersection>
+FRHICOMMAND_MACRO(FRHICommandRayTraceIntersection)
 {
 	FRHIRayTracingScene* Scene;
 	FRHIShaderResourceView* Rays;
@@ -1952,7 +2055,7 @@ struct FRHICommandRayTraceIntersection final : public FRHICommand<FRHICommandRay
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandRayTraceDispatch final : public FRHICommand<FRHICommandRayTraceDispatch>
+FRHICOMMAND_MACRO(FRHICommandRayTraceDispatch)
 {
 	FRayTracingPipelineState* Pipeline;
 	FRHIRayTracingScene* Scene;
@@ -1973,7 +2076,7 @@ struct FRHICommandRayTraceDispatch final : public FRHICommand<FRHICommandRayTrac
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandSetRayTracingBindings final : public FRHICommand<FRHICommandSetRayTracingBindings>
+FRHICOMMAND_MACRO(FRHICommandSetRayTracingBindings)
 {
 	enum EBindingType
 	{
@@ -2136,7 +2239,7 @@ public:
 	}
 
 	template <typename TShaderRHI>
-	FORCEINLINE_DEBUGGABLE void SetLocalShaderUniformBuffer(TRefCountPtr<TShaderRHI>& Shader, uint32 BaseIndex, const FLocalUniformBuffer& UniformBuffer)
+	FORCEINLINE_DEBUGGABLE void SetLocalShaderUniformBuffer(const TRefCountPtr<TShaderRHI>& Shader, uint32 BaseIndex, const FLocalUniformBuffer& UniformBuffer)
 	{
 		SetLocalShaderUniformBuffer(Shader.GetReference(), BaseIndex, UniformBuffer);
 	}
@@ -2153,7 +2256,7 @@ public:
 		ALLOC_COMMAND(FRHICommandSetShaderUniformBuffer<TShaderRHI, ECmdList::EGfx>)(Shader, BaseIndex, UniformBuffer);
 	}
 	template <typename TShaderRHI>
-	FORCEINLINE void SetShaderUniformBuffer(TRefCountPtr<TShaderRHI>& Shader, uint32 BaseIndex, FRHIUniformBuffer* UniformBuffer)
+	FORCEINLINE void SetShaderUniformBuffer(const TRefCountPtr<TShaderRHI>& Shader, uint32 BaseIndex, FRHIUniformBuffer* UniformBuffer)
 	{
 		SetShaderUniformBuffer(Shader.GetReference(), BaseIndex, UniformBuffer);
 	}
@@ -2172,7 +2275,7 @@ public:
 		ALLOC_COMMAND(FRHICommandSetShaderParameter<TShaderRHI, ECmdList::EGfx>)(Shader, BufferIndex, BaseIndex, NumBytes, UseValue);
 	}
 	template <typename TShaderRHI>
-	FORCEINLINE void SetShaderParameter(TRefCountPtr<TShaderRHI>& Shader, uint32 BufferIndex, uint32 BaseIndex, uint32 NumBytes, const void* NewValue)
+	FORCEINLINE void SetShaderParameter(const TRefCountPtr<TShaderRHI>& Shader, uint32 BufferIndex, uint32 BaseIndex, uint32 NumBytes, const void* NewValue)
 	{
 		SetShaderParameter(Shader.GetReference(), BufferIndex, BaseIndex, NumBytes, NewValue);
 	}
@@ -2190,7 +2293,7 @@ public:
 	}
 
 	template <typename TShaderRHI>
-	FORCEINLINE_DEBUGGABLE void SetShaderTexture(TRefCountPtr<TShaderRHI>& Shader, uint32 TextureIndex, FRHITexture* Texture)
+	FORCEINLINE_DEBUGGABLE void SetShaderTexture(const TRefCountPtr<TShaderRHI>& Shader, uint32 TextureIndex, FRHITexture* Texture)
 	{
 		SetShaderTexture(Shader.GetReference(), TextureIndex, Texture);
 	}
@@ -2214,7 +2317,7 @@ public:
 	}
 
 	template <typename TShaderRHI>
-	FORCEINLINE_DEBUGGABLE void SetShaderResourceViewParameter(TRefCountPtr<TShaderRHI>& Shader, uint32 SamplerIndex, FRHIShaderResourceView* SRV)
+	FORCEINLINE_DEBUGGABLE void SetShaderResourceViewParameter(const TRefCountPtr<TShaderRHI>& Shader, uint32 SamplerIndex, FRHIShaderResourceView* SRV)
 	{
 		SetShaderResourceViewParameter(Shader.GetReference(), SamplerIndex, SRV);
 	}
@@ -2240,7 +2343,7 @@ public:
 	}
 
 	template <typename TShaderRHI>
-	FORCEINLINE_DEBUGGABLE void SetShaderSampler(TRefCountPtr<TShaderRHI>& Shader, uint32 SamplerIndex, FRHISamplerState* State)
+	FORCEINLINE_DEBUGGABLE void SetShaderSampler(const TRefCountPtr<TShaderRHI>& Shader, uint32 SamplerIndex, FRHISamplerState* State)
 	{
 		SetShaderSampler(Shader.GetReference(), SamplerIndex, State);
 	}
@@ -2255,7 +2358,7 @@ public:
 		ALLOC_COMMAND(FRHICommandSetUAVParameter<FRHIComputeShader, ECmdList::EGfx>)(Shader, UAVIndex, UAV);
 	}
 
-	FORCEINLINE_DEBUGGABLE void SetUAVParameter(TRefCountPtr<FRHIComputeShader>& Shader, uint32 UAVIndex, FRHIUnorderedAccessView* UAV)
+	FORCEINLINE_DEBUGGABLE void SetUAVParameter(const TRefCountPtr<FRHIComputeShader>& Shader, uint32 UAVIndex, FRHIUnorderedAccessView* UAV)
 	{
 		SetUAVParameter(Shader.GetReference(), UAVIndex, UAV);
 	}
@@ -2270,7 +2373,7 @@ public:
 		ALLOC_COMMAND(FRHICommandSetUAVParameter_IntialCount<FRHIComputeShader, ECmdList::EGfx>)(Shader, UAVIndex, UAV, InitialCount);
 	}
 
-	FORCEINLINE_DEBUGGABLE void SetUAVParameter(TRefCountPtr<FRHIComputeShader>& Shader, uint32 UAVIndex, FRHIUnorderedAccessView* UAV, uint32 InitialCount)
+	FORCEINLINE_DEBUGGABLE void SetUAVParameter(const TRefCountPtr<FRHIComputeShader>& Shader, uint32 UAVIndex, FRHIUnorderedAccessView* UAV, uint32 InitialCount)
 	{
 		SetUAVParameter(Shader.GetReference(), UAVIndex, UAV, InitialCount);
 	}
@@ -3476,6 +3579,14 @@ class RHI_API FRHICommandListImmediate : public FRHICommandList
 
 		void ExecuteAndDestruct(FRHICommandListBase& CmdList, FRHICommandListDebugContext&) override final
 		{
+#if CPUPROFILERTRACE_ENABLED
+			static uint16 __CpuProfilerEventSpecId;
+			if (__CpuProfilerEventSpecId == 0)
+			{
+				__CpuProfilerEventSpecId = FCpuProfilerTrace::OutputEventType(TEXT("TRHILambdaCommand"), CpuProfilerGroup_Default);
+			}
+			FCpuProfilerTrace::FEventScope __CpuProfilerEventScope(__CpuProfilerEventSpecId);
+#endif
 			Lambda(*static_cast<FRHICommandListImmediate*>(&CmdList));
 			Lambda.~LAMBDA();
 		}
@@ -3512,25 +3623,27 @@ public:
 	//Queue the given async compute commandlists in order with the current immediate commandlist
 	void QueueAsyncCompute(FRHIAsyncComputeCommandList& RHIComputeCmdList);
 
-	template <typename LAMBDA>
-	FORCEINLINE_DEBUGGABLE bool EnqueueLambda(bool bRunOnCurrentThread, LAMBDA&& Lambda)
+	FORCEINLINE bool IsBottomOfPipe()
 	{
-		if (bRunOnCurrentThread)
+		return Bypass() || IsExecuting();
+	}
+
+	FORCEINLINE bool IsTopOfPipe()
+	{
+		return !IsBottomOfPipe();
+	}
+
+	template <typename LAMBDA>
+	FORCEINLINE_DEBUGGABLE void EnqueueLambda(LAMBDA&& Lambda)
+	{
+		if (IsBottomOfPipe())
 		{
 			Lambda(*this);
-			return false;
 		}
 		else
 		{
 			ALLOC_COMMAND(TRHILambdaCommand<LAMBDA>)(Forward<LAMBDA>(Lambda));
-			return true;
 		}
-	}
-
-	template <typename LAMBDA>
-	FORCEINLINE_DEBUGGABLE bool EnqueueLambda(LAMBDA&& Lambda)
-	{
-		return EnqueueLambda(Bypass(), Forward<LAMBDA>(Lambda));
 	}
 
 	FORCEINLINE FSamplerStateRHIRef CreateSamplerState(const FSamplerStateInitializerRHI& Initializer)
@@ -3617,20 +3730,6 @@ public:
 		return GDynamicRHI->CreateGeometryShader_RenderThread(*this, Library, Hash);
 	}
 	
-	UE_DEPRECATED(4.23, "Geometry Stream out is deprecated.")
-	FORCEINLINE FGeometryShaderRHIRef CreateGeometryShaderWithStreamOutput(const TArray<uint8>& Code, const FStreamOutElementList& ElementList, uint32 NumStrides, const uint32* Strides, int32 RasterizedStream)
-	{
-		LLM_SCOPE(ELLMTag::Shaders);
-		return GDynamicRHI->CreateGeometryShaderWithStreamOutput_RenderThread(*this, Code, ElementList, NumStrides, Strides, RasterizedStream);
-	}
-	
-	UE_DEPRECATED(4.23, "Geometry Stream out is deprecated.")
-	FORCEINLINE FGeometryShaderRHIRef CreateGeometryShaderWithStreamOutput(const FStreamOutElementList& ElementList, uint32 NumStrides, const uint32* Strides, int32 RasterizedStream, FRHIShaderLibrary* Library, FSHAHash Hash)
-	{
-		LLM_SCOPE(ELLMTag::Shaders);
-		return GDynamicRHI->CreateGeometryShaderWithStreamOutput_RenderThread(*this, ElementList, NumStrides, Strides, RasterizedStream, Library, Hash);
-	}
-	
 	FORCEINLINE FComputeShaderRHIRef CreateComputeShader(const TArray<uint8>& Code)
 	{
 		LLM_SCOPE(ELLMTag::Shaders);
@@ -3694,12 +3793,12 @@ public:
 	
 	FORCEINLINE void* LockIndexBuffer(FRHIIndexBuffer* IndexBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
 	{
-		return GDynamicRHI->LockIndexBuffer_RenderThread(*this, IndexBuffer, Offset, SizeRHI, LockMode);
+		return GDynamicRHI->RHILockIndexBuffer(*this, IndexBuffer, Offset, SizeRHI, LockMode);
 	}
 	
 	FORCEINLINE void UnlockIndexBuffer(FRHIIndexBuffer* IndexBuffer)
 	{
-		GDynamicRHI->UnlockIndexBuffer_RenderThread(*this, IndexBuffer);
+		GDynamicRHI->RHIUnlockIndexBuffer(*this, IndexBuffer);
 	}
 	
 	FORCEINLINE void* LockStagingBuffer(FRHIStagingBuffer* StagingBuffer, uint32 Offset, uint32 SizeRHI)
@@ -3724,12 +3823,12 @@ public:
 	
 	FORCEINLINE void* LockVertexBuffer(FRHIVertexBuffer* VertexBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
 	{
-		return GDynamicRHI->LockVertexBuffer_RenderThread(*this, VertexBuffer, Offset, SizeRHI, LockMode);
+		return GDynamicRHI->RHILockVertexBuffer(*this, VertexBuffer, Offset, SizeRHI, LockMode);
 	}
 	
 	FORCEINLINE void UnlockVertexBuffer(FRHIVertexBuffer* VertexBuffer)
 	{
-		GDynamicRHI->UnlockVertexBuffer_RenderThread(*this, VertexBuffer);
+		GDynamicRHI->RHIUnlockVertexBuffer(*this, VertexBuffer);
 	}
 	
 	FORCEINLINE void CopyVertexBuffer(FRHIVertexBuffer* SourceBuffer, FRHIVertexBuffer* DestBuffer)
@@ -3748,13 +3847,19 @@ public:
 	FORCEINLINE void* LockStructuredBuffer(FRHIStructuredBuffer* StructuredBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
 	{
 		LLM_SCOPE(ELLMTag::RHIMisc);
-		return GDynamicRHI->LockStructuredBuffer_RenderThread(*this, StructuredBuffer, Offset, SizeRHI, LockMode);
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_LockStructuredBuffer_Flush);
+		ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+
+		return GDynamicRHI->RHILockStructuredBuffer(*this, StructuredBuffer, Offset, SizeRHI, LockMode);
 	}
 	
 	FORCEINLINE void UnlockStructuredBuffer(FRHIStructuredBuffer* StructuredBuffer)
 	{
 		LLM_SCOPE(ELLMTag::RHIMisc);
-		GDynamicRHI->UnlockStructuredBuffer_RenderThread(*this, StructuredBuffer);
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_UnlockStructuredBuffer_Flush);
+		ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+
+		GDynamicRHI->RHIUnlockStructuredBuffer(*this, StructuredBuffer);
 	}
 	
 	FORCEINLINE FUnorderedAccessViewRHIRef CreateUnorderedAccessView(FRHIStructuredBuffer* StructuredBuffer, bool bUseUAVCounter, bool bAppendBuffer)
@@ -3883,12 +3988,6 @@ public:
 		return GDynamicRHI->RHICreateTexture2DArray_RenderThread(*this, SizeX, SizeY, SizeZ, Format, NumMips, NumSamples, Flags, CreateInfo);
 	}
 
-	UE_DEPRECATED(4.23, "CreateTexture2DArray now takes NumSamples")
-	FORCEINLINE FTexture2DArrayRHIRef CreateTexture2DArray(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 Flags, FRHIResourceCreateInfo& CreateInfo)
-	{
-		return CreateTexture2DArray(SizeX, SizeY, SizeZ, Format, NumMips, 1, Flags, CreateInfo);
-	}
-	
 	FORCEINLINE FTexture3DRHIRef CreateTexture3D(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 Flags, FRHIResourceCreateInfo& CreateInfo)
 	{
 		LLM_SCOPE((Flags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable)) != 0 ? ELLMTag::RenderTargets : ELLMTag::Textures);
@@ -4246,11 +4345,11 @@ public:
 		RHITick(DeltaTime);
 	}
 	
-	FORCEINLINE void SetStreamOutTargets(uint32 NumTargets, FRHIVertexBuffer* const* VertexBuffers,const uint32* Offsets)
+	//#todo-RemoveStreamOut
+	UE_DEPRECATED(4.24, "SetStreamOutTargets API is deprecated.")
+	FORCEINLINE void SetStreamOutTargets(uint32 NumTargets, FRHIVertexBuffer* const* VertexBuffers, const uint32* Offsets)
 	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_SetStreamOutTargets_Flush);
-		ImmediateFlush(EImmediateFlushType::FlushRHIThread);  
-		GDynamicRHI->RHISetStreamOutTargets(NumTargets,VertexBuffers,Offsets);
+		checkf(0, TEXT("SetStreamOutTargets() is not supported"));
 	}
 	
 	FORCEINLINE void BlockUntilGPUIdle()
@@ -4358,7 +4457,25 @@ public:
 	void UpdateRHIResources(FRHIResourceUpdateInfo* UpdateInfos, int32 Num, bool bNeedReleaseRefs);
 };
 
- struct FScopedGPUMask
+class FRHICommandListScopedFlushAndExecute
+{
+	FRHICommandListImmediate& RHICmdList;
+
+public:
+	FRHICommandListScopedFlushAndExecute(FRHICommandListImmediate& InRHICmdList)
+		: RHICmdList(InRHICmdList)
+	{
+		check(RHICmdList.IsTopOfPipe());
+		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+		RHICmdList.bExecuting = true;
+	}
+	~FRHICommandListScopedFlushAndExecute()
+	{
+		RHICmdList.bExecuting = false;
+	}
+};
+
+struct FScopedGPUMask
 {
 	FRHICommandListImmediate& RHICmdList;
 	FRHIGPUMask PrevGPUMask;
@@ -4559,22 +4676,6 @@ FORCEINLINE FGeometryShaderRHIRef RHICreateGeometryShader(FRHIShaderLibrary* Lib
 	return FRHICommandListExecutor::GetImmediateCommandList().CreateGeometryShader(Library, Hash);
 }
 
-UE_DEPRECATED(4.23, "Geometry Stream out is deprecated.")
-FORCEINLINE FGeometryShaderRHIRef RHICreateGeometryShaderWithStreamOutput(const TArray<uint8>& Code, const FStreamOutElementList& ElementList, uint32 NumStrides, const uint32* Strides, int32 RasterizedStream)
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return FRHICommandListExecutor::GetImmediateCommandList().CreateGeometryShaderWithStreamOutput(Code, ElementList, NumStrides, Strides, RasterizedStream);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-UE_DEPRECATED(4.23, "Geometry Stream out is deprecated.")
-FORCEINLINE FGeometryShaderRHIRef RHICreateGeometryShaderWithStreamOutput(const FStreamOutElementList& ElementList, uint32 NumStrides, const uint32* Strides, int32 RasterizedStream, FRHIShaderLibrary* Library, FSHAHash Hash)
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return FRHICommandListExecutor::GetImmediateCommandList().CreateGeometryShaderWithStreamOutput(ElementList, NumStrides, Strides, RasterizedStream, Library, Hash);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
 FORCEINLINE FComputeShaderRHIRef RHICreateComputeShader(const TArray<uint8>& Code)
 {
 	return FRHICommandListExecutor::GetImmediateCommandList().CreateComputeShader(Code);
@@ -4743,12 +4844,6 @@ FORCEINLINE void RHITransferTexture(FRHITexture2D* Texture, FIntRect Rect, uint3
 FORCEINLINE FTexture2DArrayRHIRef RHICreateTexture2DArray(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 NumSamples, uint32 Flags, FRHIResourceCreateInfo& CreateInfo)
 {
 	return FRHICommandListExecutor::GetImmediateCommandList().CreateTexture2DArray(SizeX, SizeY, SizeZ, Format, NumMips, NumSamples, Flags, CreateInfo);
-}
-
-UE_DEPRECATED(4.23, "RHICreateTexture2DArray now takes NumSamples")
-FORCEINLINE FTexture2DArrayRHIRef RHICreateTexture2DArray(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 Flags, FRHIResourceCreateInfo& CreateInfo)
-{
-	return RHICreateTexture2DArray(SizeX, SizeY, SizeZ, Format, NumMips, 1, Flags, CreateInfo);
 }
 
 FORCEINLINE FTexture3DRHIRef RHICreateTexture3D(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 Flags, FRHIResourceCreateInfo& CreateInfo)

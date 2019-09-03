@@ -232,6 +232,36 @@ void FStaticMeshStaticLightingMesh::GetTriangle(int32 TriangleIndex,FStaticLight
 	check(ElementIndex >= 0);
 }
 
+void FStaticMeshStaticLightingMesh::GetNonTransformedTriangle(int32 TriangleIndex, FStaticLightingVertex& OutV0, FStaticLightingVertex& OutV1, FStaticLightingVertex& OutV2, int32& ElementIndex) const
+{
+	check(!bIsSplineMesh);
+
+	const FStaticMeshLOD& LODRenderData = StaticMesh->GetLOD(GetMeshLODIndex());
+
+	// Lookup the triangle's vertex indices.
+	const uint32 I0 = LODRenderData.GetIndex(TriangleIndex * 3 + 0);
+	const uint32 I1 = LODRenderData.GetIndex(TriangleIndex * 3 + 1);
+	const uint32 I2 = LODRenderData.GetIndex(TriangleIndex * 3 + 2);
+
+	// Translate the triangle's static mesh vertices to static lighting vertices.
+	GetStaticLightingVertex(LODRenderData.GetVertex(I0), FMatrix::Identity, FMatrix::Identity, false, SplineParameters, OutV0);
+	GetStaticLightingVertex(LODRenderData.GetVertex(I1), FMatrix::Identity, FMatrix::Identity, false, SplineParameters, OutV1);
+	GetStaticLightingVertex(LODRenderData.GetVertex(I2), FMatrix::Identity, FMatrix::Identity, false, SplineParameters, OutV2);
+
+	const FStaticMeshLOD& MeshLOD = StaticMesh->GetLOD(GetMeshLODIndex());
+	ElementIndex = INDEX_NONE;
+	for (uint32 MeshElementIndex = 0; MeshElementIndex < MeshLOD.NumElements; MeshElementIndex++)
+	{
+		const FStaticMeshElement& CurrentElement = MeshLOD.GetElement(MeshElementIndex);
+		if ((uint32)TriangleIndex >= CurrentElement.FirstIndex / 3 && (uint32)TriangleIndex < CurrentElement.FirstIndex / 3 + CurrentElement.NumTriangles)
+		{
+			ElementIndex = MeshElementIndex;
+			break;
+		}
+	}
+	check(ElementIndex >= 0);
+}
+
 void FStaticMeshStaticLightingMesh::GetTriangleIndices(int32 TriangleIndex,int32& OutI0,int32& OutI1,int32& OutI2) const
 {
  	const FStaticMeshLOD& LODRenderData = StaticMesh->GetLOD(GetMeshLODIndex());
@@ -240,6 +270,16 @@ void FStaticMeshStaticLightingMesh::GetTriangleIndices(int32 TriangleIndex,int32
  	OutI0 = LODRenderData.GetIndex(TriangleIndex * 3 + 0);
  	OutI1 = LODRenderData.GetIndex(TriangleIndex * 3 + (bReverseWinding ? 2 : 1));
  	OutI2 = LODRenderData.GetIndex(TriangleIndex * 3 + (bReverseWinding ? 1 : 2));
+}
+
+void FStaticMeshStaticLightingMesh::GetNonTransformedTriangleIndices(int32 TriangleIndex, int32& OutI0, int32& OutI1, int32& OutI2) const
+{
+	const FStaticMeshLOD& LODRenderData = StaticMesh->GetLOD(GetMeshLODIndex());
+
+	// Lookup the triangle's vertex indices.
+	OutI0 = LODRenderData.GetIndex(TriangleIndex * 3 + 0);
+	OutI1 = LODRenderData.GetIndex(TriangleIndex * 3 + 1);
+	OutI2 = LODRenderData.GetIndex(TriangleIndex * 3 + 2);
 }
 
 bool FStaticMeshStaticLightingMesh::IsElementCastingShadow(int32 ElementIndex) const
@@ -268,6 +308,7 @@ void FStaticMeshStaticLightingMesh::Import( FLightmassImporter& Importer )
 	SplineParameters = TempSMSLMD.SplineParameters;
 
 	// calculate the inverse transpose
+	WorldToLocal = LocalToWorld.InverseFast();
 	LocalToWorldInverseTranspose = LocalToWorld.InverseFast().GetTransposed();
 
 	// we have the guid for the mesh, now hook it up to the actual static mesh

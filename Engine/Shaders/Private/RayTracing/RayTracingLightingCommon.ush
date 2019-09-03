@@ -62,7 +62,7 @@ float3 GenerateReflectedRayDirection(
 
 		float NoV = saturate(dot(V, WorldNormal));
 
-		float4 Sample = ImportanceSampleVisibleGGX(E, Pow4(Roughness), TangentV);
+		float4 Sample = ImportanceSampleVisibleGGX(UniformSampleDisk(E), Pow4(Roughness), TangentV);
 
 		float3 H = mul(Sample.xyz, TangentBasis);
 		float3 L = 2 * dot(V, H) * H - V;
@@ -78,7 +78,11 @@ float TraceShadowRay(
 	in FRayCone ShadowRayCone,
 	in RaytracingAccelerationStructure TLAS)
 {
-	uint RayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;
+	uint RayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;
+
+#if !ENABLE_TWO_SIDED_GEOMETRY
+	RayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+#endif
 
 	FMaterialClosestHitPayload Payload = TraceRayInternal(
 		TLAS,      // AccelerationStructure
@@ -567,7 +571,7 @@ void AccumulateResults(
 			}
 
 			// Transform NaNs to black, transform negative colors to black.
-			DirectLighting = -min(-DirectLighting, 0.0);
+			DirectLighting = -min(-DirectLighting, float3(0, 0, 0));
 			Radiance += DirectLighting;
 		}
 

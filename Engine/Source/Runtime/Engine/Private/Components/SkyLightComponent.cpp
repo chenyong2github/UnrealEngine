@@ -71,9 +71,10 @@ constexpr EPixelFormat SKYLIGHT_CUBEMAP_FORMAT = PF_FloatRGBA;
 
 void FSkyTextureCubeResource::InitRHI()
 {
-	if (GetFeatureLevel() >= ERHIFeatureLevel::SM4 || GSupportsRenderTargetFormat_PF_FloatRGBA)
+	if (GetFeatureLevel() >= ERHIFeatureLevel::SM5 || GSupportsRenderTargetFormat_PF_FloatRGBA)
 	{
 		FRHIResourceCreateInfo CreateInfo;
+		
 		checkf(FMath::IsPowerOfTwo(Size), TEXT("Size of SkyTextureCube must be a power of two; size is %d"), Size);
 		TextureCubeRHI = RHICreateTextureCube(Size, Format, NumMips, 0, CreateInfo);
 		TextureRHI = TextureCubeRHI;
@@ -475,15 +476,14 @@ void USkyLightComponent::DestroyRenderState_Concurrent()
 void USkyLightComponent::PreEditChange(UProperty* PropertyAboutToChange)
 {
 	Super::PreEditChange(PropertyAboutToChange);
-
 	PreEditCubemapResolution = CubemapResolution;
 }
 
 void USkyLightComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	if (PropertyChangedEvent.Property && 
-		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(USkyLightComponent, CubemapResolution))
+	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(USkyLightComponent, CubemapResolution))
 	{
+		// Simply rounds the cube map size to nearest power of two. Occasionally checks for out of video mem.
 		SanitizeCubemapSize();
 	}
 	Super::PostEditChangeProperty(PropertyChangedEvent);

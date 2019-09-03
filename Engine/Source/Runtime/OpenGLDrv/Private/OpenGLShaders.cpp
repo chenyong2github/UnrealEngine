@@ -1491,12 +1491,6 @@ FDomainShaderRHIRef FOpenGLDynamicRHI::RHICreateDomainShader(const TArray<uint8>
 	return CreateProxyShader<FRHIDomainShader, FOpenGLDomainShaderProxy>(Code);
 }
 
-FGeometryShaderRHIRef FOpenGLDynamicRHI::RHICreateGeometryShaderWithStreamOutput(const TArray<uint8>& Code, const FStreamOutElementList& ElementList, uint32 NumStrides, const uint32* Strides, int32 RasterizedStream) 
-{
-	UE_LOG(LogRHI, Fatal,TEXT("OpenGL Render path does not support stream output!"));
-	return NULL;
-}
-
 template<typename RHIType, typename TOGLProxyType>
 RHIType* CreateProxyShader(FRHIShaderLibrary* Library, FSHAHash Hash)
 {
@@ -1544,13 +1538,6 @@ FDomainShaderRHIRef FOpenGLDynamicRHI::RHICreateDomainShader(FRHIShaderLibrary* 
 	check(GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5);
 	return CreateProxyShader<FRHIDomainShader, FOpenGLDomainShaderProxy>(Library, Hash);
 }
-
-FGeometryShaderRHIRef FOpenGLDynamicRHI::RHICreateGeometryShaderWithStreamOutput(const FStreamOutElementList& ElementList, uint32 NumStrides, const uint32* Strides, int32 RasterizedStream, FRHIShaderLibrary* Library, FSHAHash Hash)
-{
-	UE_LOG(LogRHI, Fatal, TEXT("OpenGL Render path does not support stream output!"));
-	return NULL;
-}
-
 
 static void MarkShaderParameterCachesDirty(FOpenGLShaderParameterCache* ShaderParameters, bool UpdateCompute)
 {

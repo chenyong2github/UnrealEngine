@@ -32,7 +32,6 @@ namespace UnrealBuildTool.Rules
 					"Engine",
 					"RHI",
 					"RenderCore",
-                    "UtilityShaders",
 					"Renderer",
                     "InputCore",
 					"HeadMountedDisplay",

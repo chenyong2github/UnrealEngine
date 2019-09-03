@@ -765,6 +765,17 @@ FSceneView::FSceneView(const FSceneViewInitOptions& InitOptions)
 #if DO_CHECK
 bool FSceneView::VerifyMembersChecks() const
 {
+	if (PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale)
+	{
+		checkf(GetFeatureLevel() >= ERHIFeatureLevel::SM5, TEXT("Temporal upsample is SM5 only."));
+		checkf(AntiAliasingMethod == AAM_TemporalAA, TEXT("ScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale requires AntiAliasingMethod == AAM_TemporalAA"));
+	}
+
+	if (AntiAliasingMethod == AAM_TemporalAA)
+	{
+		checkf(State, TEXT("TemporalAA requires the view to have a valid state."));
+	}
+
 	return true;
 }
 #endif
@@ -805,7 +816,7 @@ void FSceneView::SetupAntiAliasingMethod()
 		static const auto PostProcessAAQualityCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.PostProcessAAQuality"));
 		static auto* MobileHDRCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileHDR"));
 		static auto* MobileMSAACvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileMSAA"));
-		static uint32 MobileMSAAValue = ShaderPlatform == SP_OPENGL_ES2_IOS ? 1 : MobileMSAACvar->GetValueOnAnyThread();
+		static uint32 MobileMSAAValue = MobileMSAACvar->GetValueOnAnyThread();
 
 		int32 Quality = FMath::Clamp(PostProcessAAQualityCVar->GetValueOnAnyThread(), 0, 6);
 		const bool bWillApplyTemporalAA = Family->EngineShowFlags.PostProcessing || bIsPlanarReflection;
@@ -814,7 +825,6 @@ void FSceneView::SetupAntiAliasingMethod()
 			// Disable antialiasing in GammaLDR mode to avoid jittering.
 			|| (FeatureLevel <= ERHIFeatureLevel::ES3_1 && MobileHDRCvar->GetValueOnAnyThread() == 0)
 			|| (FeatureLevel <= ERHIFeatureLevel::ES3_1 && (MobileMSAAValue > 1))
-			|| Family->EngineShowFlags.VisualizeBloom
 			|| Family->EngineShowFlags.VisualizeDOF)
 		{
 			AntiAliasingMethod = AAM_None;
@@ -827,6 +837,12 @@ void FSceneView::SetupAntiAliasingMethod()
 				AntiAliasingMethod = AAM_FXAA;
 			}
 		}
+	}
+
+    // TemporalAA requires view state for history.
+	if (AntiAliasingMethod == AAM_TemporalAA && !State)
+	{
+		AntiAliasingMethod = AAM_None;
 	}
 }
 
@@ -1743,25 +1759,6 @@ void FSceneView::StartFinalPostprocessSettings(FVector InViewLocation)
 void FSceneView::EndFinalPostprocessSettings(const FSceneViewInitOptions& ViewInitOptions)
 {
 	const auto SceneViewFeatureLevel = GetFeatureLevel();
-
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.EyeAdaptation.MethodOveride"));
-	if (CVar->GetValueOnGameThread() == -2)
-	{
-		// seemed to be good setting for Paragon, we might want to remove or adjust this later on
-		FinalPostProcessSettings.AutoExposureMethod = AEM_Basic;
-		FinalPostProcessSettings.AutoExposureBias = -0.6f;
-		FinalPostProcessSettings.AutoExposureMaxBrightness = 2.f;
-		FinalPostProcessSettings.AutoExposureMinBrightness = 0.05f;
-		FinalPostProcessSettings.AutoExposureSpeedDown = 1.f;
-		FinalPostProcessSettings.AutoExposureSpeedUp = 3.f;
-		if (CVarDefaultAutoExposureExtendDefaultLuminanceRange.GetValueOnGameThread())
-		{
-			FinalPostProcessSettings.AutoExposureMinBrightness = LuminanceToEV100(FinalPostProcessSettings.AutoExposureMinBrightness);
-			FinalPostProcessSettings.AutoExposureMaxBrightness = LuminanceToEV100(FinalPostProcessSettings.AutoExposureMaxBrightness);
-		}
-	}
-#endif
 
 	// will be deprecated soon, use the new asset LightPropagationVolumeBlendable instead
 	{

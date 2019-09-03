@@ -128,8 +128,8 @@ void FD3D12BuddyAllocator::Initialize()
 	if (AllocationStrategy == eBuddyAllocationStrategy::kPlacedResourceStrategy)
 	{
 		D3D12_HEAP_PROPERTIES HeapProps = CD3DX12_HEAP_PROPERTIES(HeapType);
-		HeapProps.CreationNodeMask = (uint32)GetGPUMask();
-		HeapProps.VisibleNodeMask = (uint32)GetVisibilityMask();
+		HeapProps.CreationNodeMask = GetGPUMask().GetNative();
+		HeapProps.VisibleNodeMask = GetVisibilityMask().GetNative();
 
 		D3D12_HEAP_DESC Desc = {};
 		Desc.SizeInBytes = MaxBlockSize;
@@ -280,6 +280,7 @@ void FD3D12BuddyAllocator::Allocate(uint32 SizeInBytes, uint32 Alignment, FD3D12
 	}
 #endif
 	const uint32 AlignedOffsetFromResourceBase = AllocationBlockOffset + Padding;
+	check((AlignedOffsetFromResourceBase % Alignment) == 0);
 
 	// Setup the info that this allocator
 	FD3D12BuddyAllocatorPrivateData& PrivateData = ResourceLocation.GetBuddyAllocatorPrivateData();
@@ -304,12 +305,6 @@ void FD3D12BuddyAllocator::Allocate(uint32 SizeInBytes, uint32 Alignment, FD3D12
 	else
 	{
 		// Place resources are intialized elsewhere
-	}
-
-	if (Alignment != 0)
-	{
-		check(uint64(ResourceLocation.GetMappedBaseAddress()) % Alignment == 0);
-		check(uint64(ResourceLocation.GetGPUVirtualAddress()) % Alignment == 0);
 	}
 
 	// track the allocation
@@ -1184,9 +1179,9 @@ HRESULT FD3D12TextureAllocatorPool::AllocateTexture(
 		}
 	}
 
-	const D3D12_HEAP_PROPERTIES HeapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT, (uint32)GetGPUMask(), (uint32)GetVisibilityMask());
+	const D3D12_HEAP_PROPERTIES HeapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT, GetGPUMask().GetNative(), GetVisibilityMask().GetNative());
 	Desc.Alignment = 0;
-	RetCode = Adapter->CreateCommittedResource(Desc, HeapProps, InitialState, ClearValue, &NewResource, Name);
+	RetCode = Adapter->CreateCommittedResource(Desc, GetGPUMask(), HeapProps, InitialState, ClearValue, &NewResource, Name);
 
 	TextureLocation.SetType(FD3D12ResourceLocation::ResourceLocationType::eStandAlone);
 	TextureLocation.SetResource(NewResource);
@@ -1249,9 +1244,9 @@ HRESULT FD3D12TextureAllocator::AllocateTexture(D3D12_RESOURCE_DESC Desc, const 
 
 	// Request default alignment for stand alone textures
 	Desc.Alignment = 0;
-	const D3D12_HEAP_PROPERTIES HeapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT, (uint32)GetGPUMask(), (uint32)GetVisibilityMask());
+	const D3D12_HEAP_PROPERTIES HeapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT, GetGPUMask().GetNative(), (uint32)GetVisibilityMask().GetNative());
 
-	hr = Adapter->CreateCommittedResource(Desc, HeapProps, InitialState, ClearValue, &NewResource, Name);
+	hr = Adapter->CreateCommittedResource(Desc, GetGPUMask(), HeapProps, InitialState, ClearValue, &NewResource, Name);
 
 	TextureLocation.SetType(FD3D12ResourceLocation::ResourceLocationType::eStandAlone);
 	TextureLocation.SetResource(NewResource);
@@ -1284,8 +1279,8 @@ HRESULT FD3D12TextureAllocatorPool::AllocateTexture(D3D12_RESOURCE_DESC Desc, co
 	FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
 	FD3D12Resource* Resource = nullptr;
 
-	const D3D12_HEAP_PROPERTIES HeapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT, (uint32)GetGPUMask(), (uint32)GetVisibilityMask());
-	HRESULT hr = Adapter->CreateCommittedResource(Desc, HeapProps, InitialState, ClearValue, &Resource, Name);
+	const D3D12_HEAP_PROPERTIES HeapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT, GetGPUMask().GetNative(), GetVisibilityMask().GetNative());
+	HRESULT hr = Adapter->CreateCommittedResource(Desc, GetGPUMask(), HeapProps, InitialState, ClearValue, &Resource, Name);
 
 	TextureLocation.SetType(FD3D12ResourceLocation::ResourceLocationType::eStandAlone);
 	TextureLocation.SetResource(Resource);
@@ -1409,7 +1404,7 @@ FD3D12FastAllocatorPagePool::FD3D12FastAllocatorPagePool(FD3D12Device* Parent, F
 	: FD3D12DeviceChild(Parent)
 	, FD3D12MultiNodeGPUObject(Parent->GetGPUMask(), VisibiltyMask)
 	, PageSize(Size)
-	, HeapProperties(CD3DX12_HEAP_PROPERTIES(InHeapType, (uint32)Parent->GetGPUMask(), (uint32)VisibiltyMask))
+	, HeapProperties(CD3DX12_HEAP_PROPERTIES(InHeapType, Parent->GetGPUMask().GetNative(), VisibiltyMask.GetNative()))
 {};
 
 FD3D12FastAllocatorPagePool::FD3D12FastAllocatorPagePool(FD3D12Device* Parent, FRHIGPUMask VisibiltyMask, const D3D12_HEAP_PROPERTIES& InHeapProperties, uint32 Size)
@@ -1446,7 +1441,7 @@ FD3D12FastAllocatorPage* FD3D12FastAllocatorPagePool::RequestFastAllocatorPage()
 	Page = new FD3D12FastAllocatorPage(PageSize);
 
 	const D3D12_RESOURCE_STATES InitialState = DetermineInitialResourceState(HeapProperties.Type, &HeapProperties);
-	VERIFYD3D12RESULT(Adapter->CreateBuffer(HeapProperties, InitialState, PageSize, Page->FastAllocBuffer.GetInitReference(), TEXT("Fast Allocator Page")));
+	VERIFYD3D12RESULT(Adapter->CreateBuffer(HeapProperties, GetGPUMask(), InitialState, PageSize, Page->FastAllocBuffer.GetInitReference(), TEXT("Fast Allocator Page")));
 
 	Page->FastAllocData = Page->FastAllocBuffer->Map();
 	return Page;
@@ -1635,7 +1630,7 @@ FD3D12SegHeap* FD3D12SegList::CreateBackingHeap(
 	ID3D12Heap* D3DHeap;
 	D3D12_HEAP_DESC Desc = {};
 	Desc.SizeInBytes = HeapSize;
-	Desc.Properties = CD3DX12_HEAP_PROPERTIES(HeapType, (uint32)Parent->GetGPUMask(), (uint32)VisibleNodeMask);
+	Desc.Properties = CD3DX12_HEAP_PROPERTIES(HeapType, Parent->GetGPUMask().GetNative(), VisibleNodeMask.GetNative());
 	Desc.Flags = HeapFlags;
 
 	VERIFYD3D12RESULT(Parent->GetDevice()->CreateHeap(&Desc, IID_PPV_ARGS(&D3DHeap)));

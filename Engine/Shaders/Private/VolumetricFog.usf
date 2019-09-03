@@ -222,11 +222,13 @@ void InjectShadowedLocalLightPS(
 		LightData.DistanceFadeMAD = DeferredLightUniforms.DistanceFadeMAD;
 		LightData.ShadowMapChannelMask = DeferredLightUniforms.ShadowMapChannelMask;
 		LightData.ShadowedBits = DeferredLightUniforms.ShadowedBits;
+		LightData.RectLightBarnCosAngle = DeferredLightUniforms.RectLightBarnCosAngle;
+		LightData.RectLightBarnLength = DeferredLightUniforms.RectLightBarnLength;
 
-		LightData.bInverseSquared = INVERSE_SQUARED_FALLOFF;
+		LightData.bInverseSquared = INVERSE_SQUARED_FALLOFF;		
 		LightData.bRadialLight = true;
 		LightData.bSpotLight = LightData.SpotAngles.x > -2.0f;
-		LightData.bRectLight = false;
+		LightData.bRectLight = LightData.RectLightBarnLength > -2.0f;
 
 		FRectTexture RectTexture = InitRectTexture(DeferredLightUniforms.SourceTexture);
 
@@ -593,8 +595,11 @@ void LightScatteringCS(
                 LightData.Tangent = LocalLight.LightTangentAndSoftSourceRadius.xyz;
                 LightData.SoftSourceRadius = LocalLight.LightTangentAndSoftSourceRadius.w;
 				LightData.bInverseSquared = LightData.FalloffExponent == 0;
+				LightData.RectLightBarnCosAngle = LocalLight.RectBarnDoor.x;
+				LightData.RectLightBarnLength = LocalLight.RectBarnDoor.y;
 				LightData.bRadialLight = true;
 				LightData.bSpotLight = LightData.SpotAngles.x > -2.0f;
+				LightData.bRectLight = LightData.RectLightBarnLength > -2.0f;
 
 				float3 LightColor = LightData.Color;
 

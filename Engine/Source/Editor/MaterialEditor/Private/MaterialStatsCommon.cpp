@@ -123,13 +123,11 @@ FString FMaterialStatsUtils::ShaderPlatformTypeName(const EShaderPlatform Platfo
 		case SP_OPENGL_SM4:
 			return FString("OPENGL_SM4");
 		case SP_PS4:
-			return FString("OPENGL_SM4");
+			return FString("PS4");
 		case SP_OPENGL_PCES2:
 			return FString("OPENGL_PCES2");
 		case SP_XBOXONE_D3D12:
 			return FString("XBOXONE_D3D12");
-		case SP_PCD3D_SM4:
-			return FString("PCD3D_SM4");
 		case SP_OPENGL_SM5:
 			return FString("OPENGL_SM5");
 		case SP_PCD3D_ES2:
@@ -138,8 +136,6 @@ FString FMaterialStatsUtils::ShaderPlatformTypeName(const EShaderPlatform Platfo
 			return FString("OPENGL_ES2_ANDROID");
 		case SP_OPENGL_ES2_WEBGL:
 			return FString("OPENGL_ES2_WEBGL");
-		case SP_OPENGL_ES2_IOS:
-			return FString("OPENGL_ES2_IOS");
 		case SP_METAL:
 			return FString("METAL");
 		case SP_METAL_MRT:
@@ -160,8 +156,6 @@ FString FMaterialStatsUtils::ShaderPlatformTypeName(const EShaderPlatform Platfo
 			return FString("VULKAN_PCES3_1");
 		case SP_METAL_SM5_NOTESS:
 			return FString("METAL_SM5_NOTESS");
-		case SP_VULKAN_SM4:
-			return FString("VULKAN_SM4");
 		case SP_VULKAN_SM5:
 			return FString("VULKAN_SM5");
 		case SP_VULKAN_ES3_1_ANDROID:
@@ -195,7 +189,6 @@ FString FMaterialStatsUtils::GetPlatformOfflineCompilerPath(const EShaderPlatfor
 		case SP_OPENGL_ES2_ANDROID:
 		case SP_OPENGL_ES3_1_ANDROID:
 		case SP_VULKAN_ES3_1_ANDROID:
-		case SP_OPENGL_ES2_IOS:
 			return FPaths::ConvertRelativePathToFull(GetDefault<UMaterialEditorSettings>()->MaliOfflineCompilerPath.FilePath);
 		break;
 
@@ -228,9 +221,7 @@ bool FMaterialStatsUtils::PlatformNeedsOfflineCompiler(const EShaderPlatform Sha
 		case SP_OPENGL_ES31_EXT:
 		case SP_OPENGL_PCES3_1:
 		case SP_OPENGL_ES2_WEBGL:
-		case SP_OPENGL_ES2_IOS:
 		case SP_VULKAN_PCES3_1:
-		case SP_VULKAN_SM4:
 		case SP_VULKAN_SM5:
 		case SP_VULKAN_ES3_1_ANDROID:
 		case SP_OPENGL_ES3_1_ANDROID:
@@ -239,7 +230,6 @@ bool FMaterialStatsUtils::PlatformNeedsOfflineCompiler(const EShaderPlatform Sha
 
 		case SP_PCD3D_SM5:
 		case SP_XBOXONE_D3D12:
-		case SP_PCD3D_SM4:
 		case SP_PCD3D_ES2:
 		case SP_METAL:
 		case SP_METAL_MRT:
@@ -377,7 +367,7 @@ void FMaterialStatsUtils::GetRepresentativeShaderTypesAndDescriptions(TMap<FName
 		ShaderTypeNamesAndDescriptions.FindOrAdd(FLocalVertexFactoryName)
 			.Add(FRepresentativeShaderInfo(ERepresentativeShader::UIInstancedVertexShader, TSlateMaterialShaderVStrueName, TEXT("Instanced UI Vertex Shader")));
 	}
-	else if (TargetMaterial->GetFeatureLevel() >= ERHIFeatureLevel::SM4)
+	else if (TargetMaterial->GetFeatureLevel() >= ERHIFeatureLevel::SM5)
 	{
 		if (TargetMaterial->GetShadingModels().IsUnlit())
 		{

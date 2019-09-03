@@ -76,7 +76,7 @@ static TAutoConsoleVariable<int32> CVarVelocityTest(
 // These should match USE_BONES_SRV_BUFFER
 static inline bool SupportsBonesBufferSRV(EShaderPlatform Platform)
 {
-	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM4) || IsVulkanPlatform(Platform) || IsMetalPlatform(Platform);
+	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) || IsVulkanPlatform(Platform) || IsMetalPlatform(Platform);
 }
 
 static inline bool SupportsBonesBufferSRV(ERHIFeatureLevel::Type InFeatureLevel)
@@ -197,47 +197,6 @@ static bool DeferSkeletalLockAndFillToRHIThread()
 	return IsRunningRHIInSeparateThread() && CVarRHICmdDeferSkeletalLockAndFillToRHIThread.GetValueOnRenderThread() > 0;
 }
 
-struct FRHICommandUpdateBoneBuffer final : public FRHICommand<FRHICommandUpdateBoneBuffer>
-{
-	FRHIVertexBuffer* VertexBuffer;
-	uint32 BufferSize;
-	const TArray<FMatrix>& ReferenceToLocalMatrices;
-	const TArray<FBoneIndexType>& BoneMap;
-
-
-	FORCEINLINE_DEBUGGABLE FRHICommandUpdateBoneBuffer(FRHIVertexBuffer* InVertexBuffer, uint32 InBufferSize, const TArray<FMatrix>& InReferenceToLocalMatrices, const TArray<FBoneIndexType>& InBoneMap)
-		: VertexBuffer(InVertexBuffer)
-		, BufferSize(InBufferSize)
-		, ReferenceToLocalMatrices(InReferenceToLocalMatrices)
-		, BoneMap(InBoneMap)
-	{
-	}
-	void Execute(FRHICommandListBase& CmdList)
-	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_FRHICommandUpdateBoneBuffer_Execute);
-		FMatrix3x4* ChunkMatrices = (FMatrix3x4*)GDynamicRHI->RHILockVertexBuffer(VertexBuffer, 0, BufferSize, RLM_WriteOnly);
-		//FMatrix3x4 is sizeof() == 48
-		// PLATFORM_CACHE_LINE_SIZE (128) / 48 = 2.6
-		//  sizeof(FMatrix) == 64
-		// PLATFORM_CACHE_LINE_SIZE (128) / 64 = 2
-		const uint32 NumBones = BoneMap.Num();
-		check(NumBones > 0 && NumBones < 256); // otherwise maybe some bad threading on BoneMap, maybe we need to copy that
-		const int32 PreFetchStride = 2; // FPlatformMisc::Prefetch stride
-		for (uint32 BoneIdx = 0; BoneIdx < NumBones; BoneIdx++)
-		{
-			const FBoneIndexType RefToLocalIdx = BoneMap[BoneIdx];
-			check(ReferenceToLocalMatrices.IsValidIndex(RefToLocalIdx)); // otherwise maybe some bad threading on BoneMap, maybe we need to copy that
-			FPlatformMisc::Prefetch( ReferenceToLocalMatrices.GetData() + RefToLocalIdx + PreFetchStride );
-			FPlatformMisc::Prefetch( ReferenceToLocalMatrices.GetData() + RefToLocalIdx + PreFetchStride, PLATFORM_CACHE_LINE_SIZE );
-
-			FMatrix3x4& BoneMat = ChunkMatrices[BoneIdx];
-			const FMatrix& RefToLocal = ReferenceToLocalMatrices[RefToLocalIdx];
-			RefToLocal.To3x4MatrixTranspose( (float*)BoneMat.M );
-		}
-		GDynamicRHI->RHIUnlockVertexBuffer(VertexBuffer);
-	}
-};
-
 bool FGPUBaseSkinVertexFactory::FShaderDataType::UpdateBoneData(FRHICommandListImmediate& RHICmdList, const TArray<FMatrix>& ReferenceToLocalMatrices,
 	const TArray<FBoneIndexType>& BoneMap, uint32 RevisionNumber, bool bPrevious, ERHIFeatureLevel::Type InFeatureLevel, bool bUseSkinCache)
 {
@@ -276,7 +235,34 @@ bool FGPUBaseSkinVertexFactory::FShaderDataType::UpdateBoneData(FRHICommandListI
 		{
 			if (!bUseSkinCache && DeferSkeletalLockAndFillToRHIThread())
 			{
-				ALLOC_COMMAND_CL(RHICmdList, FRHICommandUpdateBoneBuffer)(CurrentBoneBuffer->VertexBufferRHI, VectorArraySize, ReferenceToLocalMatrices, BoneMap);
+				FRHIVertexBuffer* VertexBuffer = CurrentBoneBuffer->VertexBufferRHI;
+				RHICmdList.EnqueueLambda([VertexBuffer, VectorArraySize, &ReferenceToLocalMatrices, &BoneMap](FRHICommandListImmediate& InRHICmdList)
+				{
+					QUICK_SCOPE_CYCLE_COUNTER(STAT_FRHICommandUpdateBoneBuffer_Execute);
+					FMatrix3x4* LambdaChunkMatrices = (FMatrix3x4*)InRHICmdList.LockVertexBuffer(VertexBuffer, 0, VectorArraySize, RLM_WriteOnly);
+					//FMatrix3x4 is sizeof() == 48
+					// PLATFORM_CACHE_LINE_SIZE (128) / 48 = 2.6
+					//  sizeof(FMatrix) == 64
+					// PLATFORM_CACHE_LINE_SIZE (128) / 64 = 2
+					const uint32 LocalNumBones = BoneMap.Num();
+					check(LocalNumBones > 0 && LocalNumBones < 256); // otherwise maybe some bad threading on BoneMap, maybe we need to copy that
+					const int32 PreFetchStride = 2; // FPlatformMisc::Prefetch stride
+					for (uint32 BoneIdx = 0; BoneIdx < LocalNumBones; BoneIdx++)
+					{
+						const FBoneIndexType RefToLocalIdx = BoneMap[BoneIdx];
+						check(ReferenceToLocalMatrices.IsValidIndex(RefToLocalIdx)); // otherwise maybe some bad threading on BoneMap, maybe we need to copy that
+						FPlatformMisc::Prefetch(ReferenceToLocalMatrices.GetData() + RefToLocalIdx + PreFetchStride);
+						FPlatformMisc::Prefetch(ReferenceToLocalMatrices.GetData() + RefToLocalIdx + PreFetchStride, PLATFORM_CACHE_LINE_SIZE);
+
+						FMatrix3x4& BoneMat = LambdaChunkMatrices[BoneIdx];
+						const FMatrix& RefToLocal = ReferenceToLocalMatrices[RefToLocalIdx];
+						RefToLocal.To3x4MatrixTranspose((float*)BoneMat.M);
+					}
+					InRHICmdList.UnlockVertexBuffer(VertexBuffer);
+				});
+
+				RHICmdList.RHIThreadFence(true);
+
 				return true;
 			}
 			ChunkMatrices = (FMatrix3x4*)RHILockVertexBuffer(CurrentBoneBuffer->VertexBufferRHI, 0, VectorArraySize, RLM_WriteOnly);
@@ -900,44 +886,6 @@ protected:
 	TGPUSkinAPEXClothVertexFactory::ClothShaderType
 -----------------------------------------------------------------------------*/
 
-struct FRHICommandUpdateClothBuffer final : public FRHICommand<FRHICommandUpdateClothBuffer>
-{
-	FRHIVertexBuffer* VertexBuffer;
-	uint32 BufferSize;
-	const TArray<FVector>& SimulPositions;
-	const TArray<FVector>& SimulNormals;
-
-
-	FORCEINLINE_DEBUGGABLE FRHICommandUpdateClothBuffer(FRHIVertexBuffer* InVertexBuffer, uint32 InBufferSize, const TArray<FVector>& InSimulPositions, const TArray<FVector>& InSimulNormals)
-		: VertexBuffer(InVertexBuffer)
-		, BufferSize(InBufferSize)
-		, SimulPositions(InSimulPositions)
-		, SimulNormals(InSimulNormals)
-	{
-	}
-	void Execute(FRHICommandListBase& CmdList)
-	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_FRHICommandUpdateBoneBuffer_Execute);
-		float* RESTRICT Data = (float* RESTRICT)GDynamicRHI->RHILockVertexBuffer(VertexBuffer, 0, BufferSize, RLM_WriteOnly);
-		uint32 NumSimulVerts = SimulPositions.Num();
-		check(NumSimulVerts > 0 && NumSimulVerts <= MAX_APEXCLOTH_VERTICES_FOR_VB);
-		float* RESTRICT Pos = (float* RESTRICT) &SimulPositions[0].X;
-		float* RESTRICT Normal = (float* RESTRICT) &SimulNormals[0].X;
-		for (uint32 Index = 0; Index < NumSimulVerts; Index++)
-		{
-			FPlatformMisc::Prefetch(Pos + PLATFORM_CACHE_LINE_SIZE);
-			FPlatformMisc::Prefetch(Normal + PLATFORM_CACHE_LINE_SIZE);
-
-			FMemory::Memcpy(Data, Pos, sizeof(float) * 3);
-			FMemory::Memcpy(Data + 3, Normal, sizeof(float) * 3);
-			Data += 6;
-			Pos += 3;
-			Normal += 3;
-		}
-		GDynamicRHI->RHIUnlockVertexBuffer(VertexBuffer);
-	}
-};
-
 bool FGPUBaseSkinAPEXClothVertexFactory::ClothShaderType::UpdateClothSimulData(FRHICommandListImmediate& RHICmdList, const TArray<FVector>& InSimulPositions,
 	const TArray<FVector>& InSimulNormals, uint32 FrameNumberToPrepare, ERHIFeatureLevel::Type FeatureLevel)
 {
@@ -947,7 +895,7 @@ bool FGPUBaseSkinAPEXClothVertexFactory::ClothShaderType::UpdateClothSimulData(F
 
 	FVertexBufferAndSRV* CurrentClothBuffer = 0;
 
-	if (FeatureLevel >= ERHIFeatureLevel::SM4)
+	if (FeatureLevel >= ERHIFeatureLevel::SM5)
 	{
 		check(IsInRenderingThread());
 		
@@ -971,7 +919,31 @@ bool FGPUBaseSkinAPEXClothVertexFactory::ClothShaderType::UpdateClothSimulData(F
 		{
 			if (DeferSkeletalLockAndFillToRHIThread())
 			{
-				ALLOC_COMMAND_CL(RHICmdList, FRHICommandUpdateClothBuffer)(CurrentClothBuffer->VertexBufferRHI, VectorArraySize, InSimulPositions, InSimulNormals);
+				FRHIVertexBuffer* VertexBuffer = CurrentClothBuffer->VertexBufferRHI;
+				RHICmdList.EnqueueLambda([VertexBuffer, VectorArraySize, &InSimulPositions, &InSimulNormals](FRHICommandListImmediate& InRHICmdList)
+				{
+					QUICK_SCOPE_CYCLE_COUNTER(STAT_FRHICommandUpdateBoneBuffer_Execute);
+					float* RESTRICT Data = (float* RESTRICT)InRHICmdList.LockVertexBuffer(VertexBuffer, 0, VectorArraySize, RLM_WriteOnly);
+					uint32 LambdaNumSimulVerts = InSimulPositions.Num();
+					check(LambdaNumSimulVerts > 0 && LambdaNumSimulVerts <= MAX_APEXCLOTH_VERTICES_FOR_VB);
+					float* RESTRICT Pos = (float* RESTRICT) &InSimulPositions[0].X;
+					float* RESTRICT Normal = (float* RESTRICT) &InSimulNormals[0].X;
+					for (uint32 Index = 0; Index < LambdaNumSimulVerts; Index++)
+					{
+						FPlatformMisc::Prefetch(Pos + PLATFORM_CACHE_LINE_SIZE);
+						FPlatformMisc::Prefetch(Normal + PLATFORM_CACHE_LINE_SIZE);
+
+						FMemory::Memcpy(Data, Pos, sizeof(float) * 3);
+						FMemory::Memcpy(Data + 3, Normal, sizeof(float) * 3);
+						Data += 6;
+						Pos += 3;
+						Normal += 3;
+					}
+					InRHICmdList.UnlockVertexBuffer(VertexBuffer);
+				});
+
+				RHICmdList.RHIThreadFence(true);
+
 				return true;
 			}
 			float* RESTRICT Data = (float* RESTRICT)RHILockVertexBuffer(CurrentClothBuffer->VertexBufferRHI, 0, VectorArraySize, RLM_WriteOnly);
@@ -1016,7 +988,7 @@ void TGPUSkinAPEXClothVertexFactory<bExtraBoneInfluencesT>::ModifyCompilationEnv
 template <bool bExtraBoneInfluencesT>
 bool TGPUSkinAPEXClothVertexFactory<bExtraBoneInfluencesT>::ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType)
 {
-	return GetMaxSupportedFeatureLevel(Platform) >= ERHIFeatureLevel::SM4
+	return GetMaxSupportedFeatureLevel(Platform) >= ERHIFeatureLevel::SM5
 		&& (Material->IsUsedWithAPEXCloth() || Material->IsSpecialEngineMaterial()) 
 		&& Super::ShouldCompilePermutation(Platform, Material, ShaderType);
 }

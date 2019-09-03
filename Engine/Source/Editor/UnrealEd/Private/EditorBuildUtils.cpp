@@ -1447,9 +1447,7 @@ bool FEditorBuildUtils::CompileShadersComplexityViewMode(EMaterialQualityLevel::
 		TSharedPtr<FMaterialOfflineCompilation> SpecialResource = MakeShareable(new FMaterialOfflineCompilation());
 		SpecialResource->SetMaterial(MaterialInterface->GetMaterial(), QualityLevel, true, FeatureLevel, Cast<UMaterialInstance>(MaterialInterface));
 
-		FMaterialShaderMapId ResourceId;
-		SpecialResource->GetShaderMapId(ShaderPlatform, ResourceId);
-		SpecialResource->CacheShaders(ResourceId, ShaderPlatform);
+		SpecialResource->CacheShaders(ShaderPlatform);
 
 		OfflineShaderResources.Add(SpecialResource);
 	}

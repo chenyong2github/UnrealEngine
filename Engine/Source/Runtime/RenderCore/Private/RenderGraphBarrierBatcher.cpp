@@ -116,7 +116,13 @@ void FRDGBarrierBatcher::QueueTransitionTexture(FRDGTexture* Texture, FRDGResour
 
 	if (StateBefore != StateAfter)
 	{
-		FRHITexture* RHITexture = Texture->GetRHIUnchecked();
+		FRHITexture* RHITexture = Texture->PooledRenderTarget->GetRenderTargetItem().TargetableTexture;
+
+		// This particular texture does not have a targetable texture. It's effectively read-only.
+		if (!RHITexture)
+		{
+			return;
+		}
 
 		const bool bIsMultiFrameResource = (Texture->Flags & ERDGResourceFlags::MultiFrame) == ERDGResourceFlags::MultiFrame;
 
@@ -155,20 +161,21 @@ void FRDGBarrierBatcher::QueueTransitionTexture(FRDGTexture* Texture, FRDGResour
 
 void FRDGBarrierBatcher::QueueTransitionUAV(
 	FRHIUnorderedAccessView* UAV,
-	FRDGTrackedResource* UnderlyingResource,
-	FRDGResourceState::EAccess AccessAfter)
+	FRDGParentResource* ParentResource,
+	FRDGResourceState::EAccess AccessAfter,
+	FRDGResourceState::EPipeline PipelineAfter)
 {
 	check(UAV);
-	check(UnderlyingResource);
+	check(ParentResource);
 
-	const FRDGResourceState StateBefore = UnderlyingResource->State;
-	const FRDGResourceState StateAfter(Pass, Pipeline, AccessAfter);
+	const FRDGResourceState StateBefore = ParentResource->State;
+	const FRDGResourceState StateAfter(Pass, PipelineAfter == FRDGResourceState::EPipeline::MAX ? Pipeline : PipelineAfter, AccessAfter);
 
-	ValidateTransition(UnderlyingResource, StateBefore, StateAfter);
+	ValidateTransition(ParentResource, StateBefore, StateAfter);
 
 	if (StateBefore != StateAfter)
 	{
-		const bool bIsMultiFrameResource = (UnderlyingResource->Flags & ERDGResourceFlags::MultiFrame) == ERDGResourceFlags::MultiFrame;
+		const bool bIsMultiFrameResource = (ParentResource->Flags & ERDGResourceFlags::MultiFrame) == ERDGResourceFlags::MultiFrame;
 
 		if (bIsMultiFrameResource && IsWriteAccessBegin(StateBefore.Access, StateAfter.Access))
 		{
@@ -199,11 +206,11 @@ void FRDGBarrierBatcher::QueueTransitionUAV(
 			UAVUpdateMultiFrameEnds.AddUnique(UAV);
 		}
 
-		UnderlyingResource->State = StateAfter;
+		ParentResource->State = StateAfter;
 	}
 }
 
-void FRDGBarrierBatcher::ValidateTransition(const FRDGTrackedResource* Resource, FRDGResourceState StateBefore, FRDGResourceState StateAfter)
+void FRDGBarrierBatcher::ValidateTransition(const FRDGParentResource* Resource, FRDGResourceState StateBefore, FRDGResourceState StateAfter)
 {
 #if RDG_ENABLE_DEBUG
 	check(StateAfter.Pipeline != FRDGResourceState::EPipeline::MAX);

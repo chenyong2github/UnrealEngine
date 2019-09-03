@@ -134,12 +134,9 @@ namespace UnrealBuildTool
 	class LinuxPlatform : UEBuildPlatform
 	{
 		/// <summary>
-		/// Linux architecture (compiler target triplet)
+		/// Linux host architecture (compiler target triplet)
 		/// </summary>
-		// FIXME: for now switching between architectures is hard-coded
-		public const string DefaultArchitecture = "x86_64-unknown-linux-gnu";
-		//public const string DefaultArchitecture = "arm-unknown-linux-gnueabihf";
-		//public const string DefaultArchitecture = "aarch64-unknown-linux-gnueabi";
+		public const string DefaultHostArchitecture = "x86_64-unknown-linux-gnu";
 
 		/// <summary>
 		/// SDK in use by the platform
@@ -174,51 +171,14 @@ namespace UnrealBuildTool
 		/// </summary>
 		public override string GetDefaultArchitecture(FileReference ProjectFile)
 		{
-			string ActiveArchitecture = DefaultArchitecture;
-
-			// read settings from the config
-			string EngineIniPath = ProjectFile != null ? ProjectFile.Directory.FullName : null;
-			if (String.IsNullOrEmpty(EngineIniPath))
+			if (Platform == UnrealTargetPlatform.LinuxAArch64)
 			{
-				// If the project file hasn't been specified, try to get the path from -remoteini command line param
-				EngineIniPath = UnrealBuildTool.GetRemoteIniPath();
+				return "aarch64-unknown-linux-gnueabi";
 			}
-			DirectoryReference EngineIniDir = !String.IsNullOrEmpty(EngineIniPath) ? new DirectoryReference(EngineIniPath) : null;
-
-			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, EngineIniDir, UnrealTargetPlatform.Linux);
-
-			string LinuxArchitectureString;
-			if (Ini.GetString("/Script/LinuxTargetPlatform.LinuxTargetSettings", "TargetArchitecture", out LinuxArchitectureString))
+			else
 			{
-				LinuxArchitecture Architecture;
-				if (Enum.TryParse(LinuxArchitectureString, out Architecture))
-				{
-					switch (Architecture)
-					{
-						default:
-							System.Console.WriteLine("Architecture enum value {0} does not map to a valid triplet.", Architecture);
-							break;
-
-						case LinuxArchitecture.X86_64UnknownLinuxGnu:
-							ActiveArchitecture = "x86_64-unknown-linux-gnu";
-							break;
-
-						case LinuxArchitecture.ArmUnknownLinuxGnueabihf:
-							ActiveArchitecture = "arm-unknown-linux-gnueabihf";
-							break;
-
-						case LinuxArchitecture.AArch64UnknownLinuxGnueabi:
-							ActiveArchitecture = "aarch64-unknown-linux-gnueabi";
-							break;
-
-						case LinuxArchitecture.I686UnknownLinuxGnu:
-							ActiveArchitecture = "i686-unknown-linux-gnu";
-							break;
-					}
-				}
+				return "x86_64-unknown-linux-gnu";
 			}
-
-			return ActiveArchitecture;
 		}
 
 		/// <summary>
@@ -395,6 +355,7 @@ namespace UnrealBuildTool
 						{
 							Rules.DynamicallyLoadedModuleNames.Add("LinuxTargetPlatform");
 							Rules.DynamicallyLoadedModuleNames.Add("LinuxNoEditorTargetPlatform");
+							Rules.DynamicallyLoadedModuleNames.Add("LinuxAArch64NoEditorTargetPlatform");
 							Rules.DynamicallyLoadedModuleNames.Add("LinuxClientTargetPlatform");
 							Rules.DynamicallyLoadedModuleNames.Add("LinuxServerTargetPlatform");
 						}
@@ -406,6 +367,7 @@ namespace UnrealBuildTool
 				{
 					Rules.DynamicallyLoadedModuleNames.Add("LinuxTargetPlatform");
 					Rules.DynamicallyLoadedModuleNames.Add("LinuxNoEditorTargetPlatform");
+					Rules.DynamicallyLoadedModuleNames.Add("LinuxAArch64NoEditorTargetPlatform");
 					Rules.DynamicallyLoadedModuleNames.Add("LinuxClientTargetPlatform");
 					Rules.DynamicallyLoadedModuleNames.Add("LinuxServerTargetPlatform");
 				}
@@ -438,6 +400,7 @@ namespace UnrealBuildTool
 				{
 					Rules.DynamicallyLoadedModuleNames.Add("LinuxTargetPlatform");
 					Rules.DynamicallyLoadedModuleNames.Add("LinuxNoEditorTargetPlatform");
+					Rules.DynamicallyLoadedModuleNames.Add("LinuxAArch64NoEditorTargetPlatform");
 					Rules.DynamicallyLoadedModuleNames.Add("LinuxClientTargetPlatform");
 					Rules.DynamicallyLoadedModuleNames.Add("LinuxServerTargetPlatform");
 					Rules.DynamicallyLoadedModuleNames.Add("AllDesktopTargetPlatform");
@@ -460,6 +423,9 @@ namespace UnrealBuildTool
 
 			// this define does not set jemalloc as default, just indicates its support
 			CompileEnvironment.Definitions.Add("PLATFORM_SUPPORTS_JEMALLOC=1");
+
+			// LinuxAArch64 uses only Linux header files
+			CompileEnvironment.Definitions.Add("OVERRIDE_PLATFORM_HEADER_NAME=Linux");
 		}
 
 		/// <summary>
@@ -789,7 +755,7 @@ namespace UnrealBuildTool
 			// FIXME: UBT should loop across all the architectures and compile for all the selected ones.
 
 			// do not cache this value - it may be changed after sourcing OutputEnvVars.txt
-			string BaseLinuxPath = GetBaseLinuxPathForArchitecture(LinuxPlatform.DefaultArchitecture);
+			string BaseLinuxPath = GetBaseLinuxPathForArchitecture(LinuxPlatform.DefaultHostArchitecture);
 
 			// BaseLinuxPath is specified
 			if (!String.IsNullOrEmpty(BaseLinuxPath))
@@ -835,10 +801,15 @@ namespace UnrealBuildTool
 				FileReference LinuxTargetPlatformFile = FileReference.Combine(UnrealBuildTool.EngineSourceDirectory, "Developer", "Linux", "LinuxTargetPlatform", "LinuxTargetPlatform.Build.cs");
 				if (FileReference.Exists(LinuxTargetPlatformFile))
 				{
-					// Register this build platform for Linux
+					// Register this build platform for Linux x86-64 and AArch64
 					Log.TraceVerbose("        Registering for {0}", UnrealTargetPlatform.Linux.ToString());
-					UEBuildPlatform.RegisterBuildPlatform(new LinuxPlatform(SDK));
+					UEBuildPlatform.RegisterBuildPlatform(new LinuxPlatform(UnrealTargetPlatform.Linux, SDK));
+					UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.Linux, UnrealPlatformGroup.Linux);
 					UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.Linux, UnrealPlatformGroup.Unix);
+
+					UEBuildPlatform.RegisterBuildPlatform(new LinuxPlatform(UnrealTargetPlatform.LinuxAArch64, SDK));
+					UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.LinuxAArch64, UnrealPlatformGroup.Linux);
+					UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.LinuxAArch64, UnrealPlatformGroup.Unix);
 				}
 			}
 		}

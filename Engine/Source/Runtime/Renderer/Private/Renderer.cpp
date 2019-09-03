@@ -152,13 +152,6 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 			}
 		}
 
-		// Initialise Sky/View resources before the view global uniform buffer is built.
-		if (ShouldRenderSkyAtmosphere(Scene))
-		{
-			InitSkyAtmosphereForScene(RHICmdList, Scene);
-			InitSkyAtmosphereForView(RHICmdList, Scene, View);
-		}
-
 		View.InitRHIResources();
 		DrawRenderState.SetViewUniformBuffer(View.ViewUniformBuffer);
 

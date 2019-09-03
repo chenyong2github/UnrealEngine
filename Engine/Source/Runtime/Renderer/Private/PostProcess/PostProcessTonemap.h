@@ -16,25 +16,13 @@
 #include "PostProcessParameters.h"
 #include "PostProcess/RenderingCompositionGraph.h"
 #include "PostProcess/PostProcessEyeAdaptation.h"
+#include "Math/Halton.h"
 
-static float GrainHalton( int32 Index, int32 Base )
-{
-	float Result = 0.0f;
-	float InvBase = 1.0f / Base;
-	float Fraction = InvBase;
-	while( Index > 0 )
-	{
-		Result += ( Index % Base ) * Fraction;
-		Index /= Base;
-		Fraction *= InvBase;
-	}
-	return Result;
-}
 
 static void GrainRandomFromFrame(FVector* RESTRICT const Constant, uint32 FrameNumber)
 {
-	Constant->X = GrainHalton(FrameNumber & 1023, 2);
-	Constant->Y = GrainHalton(FrameNumber & 1023, 3);
+	Constant->X = Halton(FrameNumber & 1023, 2);
+	Constant->Y = Halton(FrameNumber & 1023, 3);
 }
 
 
@@ -209,7 +197,7 @@ public:
 		if (!PermutationVector.Get<FTonemapperVSUseAutoExposure>())
 		{
 			// Compute a CPU-based default.  NB: reverts to "1" if SM5 feature level is not supported
-			float FixedExposure = FRCPassPostProcessEyeAdaptation::GetFixedExposure(Context.View);
+			float FixedExposure = GetEyeAdaptationFixedExposure(Context.View);
 			// Load a default value 
 			SetShaderValue(Context.RHICmdList, ShaderRHI, DefaultEyeExposure, FixedExposure);
 		}

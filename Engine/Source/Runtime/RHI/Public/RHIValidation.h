@@ -145,22 +145,6 @@ public:
 		return RHI->RHICreateGeometryShader(Library, Hash);
 	}
 
-	/** Creates a geometry shader with stream output ability, defined by ElementList. */
-	// FlushType: Wait RHI Thread
-	virtual FGeometryShaderRHIRef RHICreateGeometryShaderWithStreamOutput(const TArray<uint8>& Code, const FStreamOutElementList& ElementList, uint32 NumStrides, const uint32* Strides, int32 RasterizedStream) override final
-	{
-		check(RHISupportsGeometryShaders(GMaxRHIShaderPlatform));
-		return RHI->RHICreateGeometryShaderWithStreamOutput(Code, ElementList, NumStrides, Strides, RasterizedStream);
-	}
-
-	/** Creates a geometry shader with stream output ability, defined by ElementList. */
-	// FlushType: Wait RHI Thread
-	virtual FGeometryShaderRHIRef RHICreateGeometryShaderWithStreamOutput(const FStreamOutElementList& ElementList, uint32 NumStrides, const uint32* Strides, int32 RasterizedStream, FRHIShaderLibrary* Library, FSHAHash Hash) override final
-	{
-		check(RHISupportsGeometryShaders(GMaxRHIShaderPlatform));
-		return RHI->RHICreateGeometryShaderWithStreamOutput(ElementList, NumStrides, Strides, RasterizedStream, Library, Hash);
-	}
-
 	// Some RHIs can have pending messages/logs for error tracking, or debug modes
 	virtual void FlushPendingLogs() override final
 	{
@@ -343,15 +327,15 @@ public:
 	}
 
 	// FlushType: Flush RHI Thread
-	virtual void* RHILockIndexBuffer(FRHIIndexBuffer* IndexBuffer, uint32 Offset, uint32 Size, EResourceLockMode LockMode) override final
+	virtual void* RHILockIndexBuffer(class FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* IndexBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode) override final
 	{
-		return RHI->RHILockIndexBuffer(IndexBuffer, Offset, Size, LockMode);
+		return RHI->RHILockIndexBuffer(RHICmdList, IndexBuffer, Offset, SizeRHI, LockMode);
 	}
 
 	// FlushType: Flush RHI Thread
-	virtual void RHIUnlockIndexBuffer(FRHIIndexBuffer* IndexBuffer) override final
+	virtual void RHIUnlockIndexBuffer(class FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* IndexBuffer) override final
 	{
-		RHI->RHIUnlockIndexBuffer(IndexBuffer);
+		RHI->RHIUnlockIndexBuffer(RHICmdList, IndexBuffer);
 	}
 
 	/**
@@ -364,15 +348,15 @@ public:
 	}
 
 	// FlushType: Flush RHI Thread
-	virtual void* RHILockVertexBuffer(FRHIVertexBuffer* VertexBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode) override final
+	virtual void* RHILockVertexBuffer(class FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode) override final
 	{
-		return RHI->RHILockVertexBuffer(VertexBuffer, Offset, SizeRHI, LockMode);
+		return RHI->RHILockVertexBuffer(RHICmdList, VertexBuffer, Offset, SizeRHI, LockMode);
 	}
 
 	// FlushType: Flush RHI Thread
-	virtual void RHIUnlockVertexBuffer(FRHIVertexBuffer* VertexBuffer) override final
+	virtual void RHIUnlockVertexBuffer(class FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBuffer) override final
 	{
-		RHI->RHIUnlockVertexBuffer(VertexBuffer);
+		RHI->RHIUnlockVertexBuffer(RHICmdList, VertexBuffer);
 	}
 
 	/** Copies the contents of one vertex buffer to another vertex buffer.  They must have identical sizes. */
@@ -393,17 +377,17 @@ public:
 	}
 
 	// FlushType: Flush RHI Thread
-	virtual void* RHILockStructuredBuffer(FRHIStructuredBuffer* StructuredBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode) override final
+	virtual void* RHILockStructuredBuffer(class FRHICommandListImmediate& RHICmdList, FRHIStructuredBuffer* StructuredBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode) override final
 	{
 		check(IsFeatureLevelSupported(GMaxRHIShaderPlatform, ERHIFeatureLevel::SM5));
-		return RHI->RHILockStructuredBuffer(StructuredBuffer, Offset, SizeRHI, LockMode);
+		return RHI->RHILockStructuredBuffer(RHICmdList, StructuredBuffer, Offset, SizeRHI, LockMode);
 	}
 
 	// FlushType: Flush RHI Thread
-	virtual void RHIUnlockStructuredBuffer(FRHIStructuredBuffer* StructuredBuffer) override final
+	virtual void RHIUnlockStructuredBuffer(class FRHICommandListImmediate& RHICmdList, FRHIStructuredBuffer* StructuredBuffer) override final
 	{
 		check(IsFeatureLevelSupported(GMaxRHIShaderPlatform, ERHIFeatureLevel::SM5));
-		RHI->RHIUnlockStructuredBuffer(StructuredBuffer);
+		RHI->RHIUnlockStructuredBuffer(RHICmdList, StructuredBuffer);
 	}
 
 	/** Creates an unordered access view of the given structured buffer. */
@@ -1045,14 +1029,6 @@ public:
 		RHI->RHITick(DeltaTime);
 	}
 
-	/** Sets stream output targets, for use with a geometry shader created with RHICreateGeometryShaderWithStreamOutput. */
-	//@todo this should be a CMDLIST method
-	// FlushType: Flush Immediate (seems wrong)
-	virtual void RHISetStreamOutTargets(uint32 NumTargets, FRHIVertexBuffer* const* VertexBuffers, const uint32* Offsets) override final
-	{
-		RHI->RHISetStreamOutTargets(NumTargets, VertexBuffers, Offsets);
-	}
-
 	// Blocks the CPU until the GPU catches up and goes idle.
 	// FlushType: Flush Immediate (seems wrong)
 	virtual void RHIBlockUntilGPUIdle() override final
@@ -1237,14 +1213,14 @@ public:
 		return RHI->CreateShaderResourceView_RenderThread(RHICmdList, Buffer);
 	}
 
-	virtual void* LockVertexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode) override final
+	virtual void* LockVertexBuffer_BottomOfPipe(class FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode) override final
 	{
-		return RHI->LockVertexBuffer_RenderThread(RHICmdList, VertexBuffer, Offset, SizeRHI, LockMode);
+		return RHI->LockVertexBuffer_BottomOfPipe(RHICmdList, VertexBuffer, Offset, SizeRHI, LockMode);
 	}
 
-	virtual void UnlockVertexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBuffer) override final
+	virtual void UnlockVertexBuffer_BottomOfPipe(class FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBuffer) override final
 	{
-		return RHI->UnlockVertexBuffer_RenderThread(RHICmdList, VertexBuffer);
+		return RHI->UnlockVertexBuffer_BottomOfPipe(RHICmdList, VertexBuffer);
 	}
 
 	virtual FTexture2DRHIRef AsyncReallocateTexture2D_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2D, int32 NewMipCount, int32 NewSizeX, int32 NewSizeY, FThreadSafeCounter* RequestStatus) override final
@@ -1267,14 +1243,24 @@ public:
 		return RHI->CreateIndexBuffer_RenderThread(RHICmdList, Stride, Size, InUsage, CreateInfo);
 	}
 
-	virtual void* LockIndexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* IndexBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode) override final
+	virtual void* LockIndexBuffer_BottomOfPipe(class FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* IndexBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode) override final
 	{
-		return RHI->LockIndexBuffer_RenderThread(RHICmdList, IndexBuffer, Offset, SizeRHI, LockMode);
+		return RHI->LockIndexBuffer_BottomOfPipe(RHICmdList, IndexBuffer, Offset, SizeRHI, LockMode);
 	}
 
-	virtual void UnlockIndexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* IndexBuffer) override final
+	virtual void UnlockIndexBuffer_BottomOfPipe(class FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* IndexBuffer) override final
 	{
-		RHI->UnlockIndexBuffer_RenderThread(RHICmdList, IndexBuffer);
+		RHI->UnlockIndexBuffer_BottomOfPipe(RHICmdList, IndexBuffer);
+	}
+
+	virtual void* LockStructuredBuffer_BottomOfPipe(class FRHICommandListImmediate& RHICmdList, FRHIStructuredBuffer* StructuredBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode) override final
+	{
+		return RHI->LockStructuredBuffer_BottomOfPipe(RHICmdList, StructuredBuffer, Offset, SizeRHI, LockMode);
+	}
+	
+	virtual void UnlockStructuredBuffer_BottomOfPipe(class FRHICommandListImmediate& RHICmdList, FRHIStructuredBuffer* StructuredBuffer) override final
+	{
+		RHI->UnlockStructuredBuffer_BottomOfPipe(RHICmdList, StructuredBuffer);
 	}
 
 	virtual FVertexShaderRHIRef CreateVertexShader_RenderThread(class FRHICommandListImmediate& RHICmdList, const TArray<uint8>& Code) override final
@@ -1307,18 +1293,6 @@ public:
 	{
 		check(RHISupportsGeometryShaders(GMaxRHIShaderPlatform));
 		return RHI->CreateGeometryShader_RenderThread(RHICmdList, Library, Hash);
-	}
-
-	virtual FGeometryShaderRHIRef CreateGeometryShaderWithStreamOutput_RenderThread(class FRHICommandListImmediate& RHICmdList, const TArray<uint8>& Code, const FStreamOutElementList& ElementList, uint32 NumStrides, const uint32* Strides, int32 RasterizedStream) override final
-	{
-		check(RHISupportsGeometryShaders(GMaxRHIShaderPlatform));
-		return RHI->CreateGeometryShaderWithStreamOutput_RenderThread(RHICmdList, Code, ElementList, NumStrides, Strides, RasterizedStream);
-	}
-
-	virtual FGeometryShaderRHIRef CreateGeometryShaderWithStreamOutput_RenderThread(class FRHICommandListImmediate& RHICmdList, const FStreamOutElementList& ElementList, uint32 NumStrides, const uint32* Strides, int32 RasterizedStream, FRHIShaderLibrary* Library, FSHAHash Hash) override final
-	{
-		check(RHISupportsGeometryShaders(GMaxRHIShaderPlatform));
-		return RHI->CreateGeometryShaderWithStreamOutput_RenderThread(RHICmdList, ElementList, NumStrides, Strides, RasterizedStream, Library, Hash);
 	}
 
 	virtual FComputeShaderRHIRef CreateComputeShader_RenderThread(class FRHICommandListImmediate& RHICmdList, const TArray<uint8>& Code) override final

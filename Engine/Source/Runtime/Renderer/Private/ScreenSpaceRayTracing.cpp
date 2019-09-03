@@ -41,6 +41,11 @@ static TAutoConsoleVariable<int32> CVarSSGIQuality(
 	TEXT("Whether to use screen space diffuse indirect and at what quality setting.\n"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<float> CVarSSGIMinimumLuminance(
+	TEXT("r.SSGI.MinimumLuminance"), 0.5f,
+	TEXT(""),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
+
 
 DECLARE_GPU_STAT_NAMED(ScreenSpaceReflections, TEXT("ScreenSpace Reflections"));
 DECLARE_GPU_STAT_NAMED(ScreenSpaceDiffuseIndirect, TEXT("Screen Space Diffuse Indirect"));
@@ -152,6 +157,54 @@ FLinearColor ComputeSSRParams(const FViewInfo& View, ESSRQuality SSRQuality, boo
 }
 
 
+
+BEGIN_SHADER_PARAMETER_STRUCT(FSSRTTileClassificationParameters, )
+	SHADER_PARAMETER(FIntPoint, TileBufferExtent)
+	SHADER_PARAMETER(int32, ViewTileCount)
+	SHADER_PARAMETER(int32, MaxTileCount)
+END_SHADER_PARAMETER_STRUCT()
+
+BEGIN_SHADER_PARAMETER_STRUCT(FSSRTTileClassificationResources, )
+	SHADER_PARAMETER_RDG_BUFFER(StructuredBuffer<float>, TileClassificationBuffer)
+END_SHADER_PARAMETER_STRUCT()
+
+BEGIN_SHADER_PARAMETER_STRUCT(FSSRTTileClassificationSRVs, )
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float>, TileClassificationBuffer)
+END_SHADER_PARAMETER_STRUCT()
+
+BEGIN_SHADER_PARAMETER_STRUCT(FSSRTTileClassificationUAVs, )
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<float>, TileClassificationBufferOutput)
+END_SHADER_PARAMETER_STRUCT()
+
+FSSRTTileClassificationResources CreateTileClassificationResources(FRDGBuilder& GraphBuilder, const FViewInfo& View, FIntPoint MaxRenderTargetSize, FSSRTTileClassificationParameters* OutParameters)
+{
+	FIntPoint MaxTileBufferExtent = FIntPoint::DivideAndRoundUp(MaxRenderTargetSize, 8);
+	int32 MaxTileCount = MaxTileBufferExtent.X * MaxTileBufferExtent.Y;
+
+	OutParameters->TileBufferExtent = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), 8);
+	OutParameters->ViewTileCount = OutParameters->TileBufferExtent.X * OutParameters->TileBufferExtent.Y;
+
+	FSSRTTileClassificationResources Resources;
+	Resources.TileClassificationBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(float), MaxTileCount * 8), TEXT("SSRTTileClassification"));
+	return Resources;
+}
+
+FSSRTTileClassificationSRVs CreateSRVs(FRDGBuilder& GraphBuilder, const FSSRTTileClassificationResources& ClassificationResources)
+{
+	FSSRTTileClassificationSRVs SRVs;
+	SRVs.TileClassificationBuffer = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ClassificationResources.TileClassificationBuffer, PF_R32_FLOAT));
+	return SRVs;
+}
+
+FSSRTTileClassificationUAVs CreateUAVs(FRDGBuilder& GraphBuilder, const FSSRTTileClassificationResources& ClassificationResources)
+{
+	FSSRTTileClassificationUAVs UAVs;
+	UAVs.TileClassificationBufferOutput = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(ClassificationResources.TileClassificationBuffer, PF_R32_FLOAT));
+	return UAVs;
+}
+
+
+
 BEGIN_SHADER_PARAMETER_STRUCT(FSSRCommonParameters, )
 	SHADER_PARAMETER(FLinearColor, SSRParams)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
@@ -160,10 +213,75 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSSRCommonParameters, )
 END_SHADER_PARAMETER_STRUCT()
 
 
-
 class FSSRQualityDim : SHADER_PERMUTATION_ENUM_CLASS("SSR_QUALITY", ESSRQuality);
 class FSSROutputForDenoiser : SHADER_PERMUTATION_BOOL("SSR_OUTPUT_FOR_DENOISER");
 
+
+class FSSRTPrevFrameReductionCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FSSRTPrevFrameReductionCS);
+	SHADER_USE_PARAMETER_STRUCT(FSSRTPrevFrameReductionCS, FGlobalShader);
+
+	class FLowerMips : SHADER_PERMUTATION_BOOL("DIM_LOWER_MIPS");
+
+	using FPermutationDomain = TShaderPermutationDomain<FLowerMips>;
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FVector4, PrevScreenPositionScaleBias)
+		SHADER_PARAMETER(float, PrevSceneColorPreExposureCorrection)
+		SHADER_PARAMETER(float, MinimumLuminance)
+		SHADER_PARAMETER(float, TexelSize)
+		SHADER_PARAMETER(uint32, bIsTemporalAAHistory)
+		
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PrevTemporalAAHistory)
+		SHADER_PARAMETER_SAMPLER(SamplerState, PrevTemporalAAHistorySampler)
+
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, HigherMipTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, HigherMipTextureSampler)
+
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureSamplerParameters, SceneTextureSamplers)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+
+		SHADER_PARAMETER_RDG_TEXTURE_UAV_ARRAY(RWTexture<float4>, ReducedSceneColorOutput, [3])
+	END_SHADER_PARAMETER_STRUCT()
+};
+
+class FSSRTDiffuseTileClassificationCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FSSRTDiffuseTileClassificationCS);
+	SHADER_USE_PARAMETER_STRUCT(FSSRTDiffuseTileClassificationCS, FGlobalShader);
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FVector2D, SamplePixelToHZBUV)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ClosestHZBTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, ClosestHZBTextureSampler)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FurthestHZBTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, FurthestHZBTextureSampler)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ColorTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, ColorTextureSampler)
+
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSSRTTileClassificationParameters, TileClassificationParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSSRTTileClassificationUAVs, TileClassificationUAVs)
+
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, DebugOutput)
+	END_SHADER_PARAMETER_STRUCT()
+};
 
 class FScreenSpaceReflectionsStencilPS : public FGlobalShader
 {
@@ -174,7 +292,7 @@ class FScreenSpaceReflectionsStencilPS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4);
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -199,7 +317,7 @@ class FScreenSpaceReflectionsPS : public FGlobalShader
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4);
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 	
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -214,6 +332,8 @@ class FScreenSpaceReflectionsPS : public FGlobalShader
 		
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HZB)
 		SHADER_PARAMETER_SAMPLER(SamplerState, HZBSampler)
+
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture<float4>, ScreenSpaceRayTracingDebugOutput)
 		
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
@@ -224,7 +344,7 @@ class FScreenSpaceDiffuseIndirectCS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FScreenSpaceDiffuseIndirectCS);
 	SHADER_USE_PARAMETER_STRUCT(FScreenSpaceDiffuseIndirectCS, FGlobalShader)
 
-	class FQualityDim : SHADER_PERMUTATION_INT( "QUALITY", 5 );
+	class FQualityDim : SHADER_PERMUTATION_RANGE_INT("QUALITY", 1, 4);
 	using FPermutationDomain = TShaderPermutationDomain< FQualityDim >;
 	
 	BEGIN_SHADER_PARAMETER_STRUCT( FParameters, )
@@ -232,21 +352,24 @@ class FScreenSpaceDiffuseIndirectCS : public FGlobalShader
 		SHADER_PARAMETER( FVector4,		PrevScreenPositionScaleBias )
 		SHADER_PARAMETER( float,		PrevSceneColorPreExposureCorrection )
 		
-		SHADER_PARAMETER_RDG_TEXTURE( Texture2D,	HZBTexture )
-		SHADER_PARAMETER_SAMPLER( SamplerState,		HZBSampler )
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FurthestHZBTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, FurthestHZBTextureSampler)
 
-		SHADER_PARAMETER_RDG_TEXTURE( Texture2D,	VelocityTexture )
-		SHADER_PARAMETER_SAMPLER( SamplerState,		VelocitySampler )
-
-		SHADER_PARAMETER_RDG_TEXTURE( Texture2D,	ColorTexture )
-		SHADER_PARAMETER_SAMPLER( SamplerState,		ColorSampler )
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ColorTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, ColorTextureSampler)
 		
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureSamplerParameters, SceneTextureSamplers)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSSRTTileClassificationParameters, ClassificationParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSSRTTileClassificationSRVs, ClassificationSRVs)
+
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture<float4>, IndirectDiffuseOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture<float>,  AmbientOcclusionOutput)
+
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture<float4>, DebugOutput)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture<float4>, ScreenSpaceRayTracingDebugOutput)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -256,9 +379,11 @@ class FScreenSpaceDiffuseIndirectCS : public FGlobalShader
 };
 
 
+IMPLEMENT_GLOBAL_SHADER(FSSRTPrevFrameReductionCS, "/Engine/Private/SSRT/SSRTPrevFrameReduction.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FSSRTDiffuseTileClassificationCS, "/Engine/Private/SSRT/SSRTTileClassification.usf", "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FScreenSpaceReflectionsPS,        "/Engine/Private/SSRT/SSRTReflections.usf", "ScreenSpaceReflectionsPS", SF_Pixel);
 IMPLEMENT_GLOBAL_SHADER(FScreenSpaceReflectionsStencilPS, "/Engine/Private/SSRT/SSRTReflections.usf", "ScreenSpaceReflectionsStencilPS", SF_Pixel);
-IMPLEMENT_GLOBAL_SHADER(FScreenSpaceDiffuseIndirectCS,    "/Engine/Private/SSRT/SSRTDiffuseIndirect.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FScreenSpaceDiffuseIndirectCS, "/Engine/Private/SSRT/SSRTDiffuseIndirect.usf", "MainCS", SF_Compute);
 
 
 void GetSSRShaderOptionsForQuality(ESSRQuality Quality, IScreenSpaceDenoiser::FReflectionsRayTracingConfig* OutRayTracingConfigs)
@@ -288,6 +413,62 @@ void GetSSRShaderOptionsForQuality(ESSRQuality Quality, IScreenSpaceDenoiser::FR
 		check(0);
 	}
 }
+
+void GetSSRTGIShaderOptionsForQuality(int32 Quality, FIntPoint* OutGroupSize, int32* OutRayCountPerPixel)
+{
+	if (Quality == 1)
+	{
+		OutGroupSize->X = 8;
+		OutGroupSize->Y = 8;
+		*OutRayCountPerPixel = 4;
+	}
+	else if (Quality == 2)
+	{
+		OutGroupSize->X = 8;
+		OutGroupSize->Y = 4;
+		*OutRayCountPerPixel = 8;
+	}
+	else if (Quality == 3)
+	{
+		OutGroupSize->X = 4;
+		OutGroupSize->Y = 4;
+		*OutRayCountPerPixel = 16;
+	}
+	else if (Quality == 4)
+	{
+		OutGroupSize->X = 4;
+		OutGroupSize->Y = 2;
+		*OutRayCountPerPixel = 32;
+	}
+	else
+	{
+		check(0);
+	}
+
+	check(OutGroupSize->X * OutGroupSize->Y * (*OutRayCountPerPixel) == 256);
+}
+
+FRDGTextureUAV* CreateScreenSpaceRayTracingDebugUAV(FRDGBuilder& GraphBuilder, const FRDGTextureDesc& Desc, const TCHAR* Name, bool bClear = false)
+#if 1
+{
+	FRDGTextureDesc DebugDesc = FRDGTextureDesc::Create2DDesc(
+		Desc.Extent,
+		PF_FloatRGBA,
+		FClearValueBinding::None,
+		/* InFlags = */ TexCreate_None,
+		/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
+		/* bInForceSeparateTargetAndShaderResource = */ false);
+	FRDGTexture* DebugTexture = GraphBuilder.CreateTexture(DebugDesc, Name);
+	FRDGTextureUAVRef DebugOutput = GraphBuilder.CreateUAV(DebugTexture);
+	if (bClear)
+		AddClearUAVPass(GraphBuilder, DebugOutput, FLinearColor::Transparent);
+	return DebugOutput;
+}
+#else
+{
+	return nullptr;
+}
+#endif
 
 } // namespace
 
@@ -376,11 +557,11 @@ void RenderScreenSpaceReflections(
 	SetupSceneTextureSamplers(&CommonParameters.SceneTextureSamplers);
 	
 	FRenderTargetBindingSlots RenderTargets;
-	RenderTargets[0] = FRenderTargetBinding(DenoiserInputs->Color, ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::EStore);
+	RenderTargets[0] = FRenderTargetBinding(DenoiserInputs->Color, ERenderTargetLoadAction::ENoAction);
 
 	if (bDenoiser)
 	{
-		RenderTargets[1] = FRenderTargetBinding(DenoiserInputs->RayHitDistance, ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::EStore);
+		RenderTargets[1] = FRenderTargetBinding(DenoiserInputs->RayHitDistance, ERenderTargetLoadAction::ENoAction);
 	}
 
 	// Do a pre pass that output 0, or set a stencil mask to run the more expensive pixel shader.
@@ -389,9 +570,9 @@ void RenderScreenSpaceReflections(
 		// Also bind the depth buffer
 		RenderTargets.DepthStencil = FDepthStencilBinding(
 			SceneTextures.SceneDepthBuffer,
-			ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::ENoAction,
-			ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::EStore,
-			FExclusiveDepthStencil::DepthRead_StencilWrite);
+			ERenderTargetLoadAction::ENoAction,
+			ERenderTargetLoadAction::ELoad,
+			FExclusiveDepthStencil::DepthNop_StencilWrite);
 
 		FScreenSpaceReflectionsStencilPS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FSSROutputForDenoiser>(bDenoiser);
@@ -477,7 +658,8 @@ void RenderScreenSpaceReflections(
 		
 		PassParameters->HZB = GraphBuilder.RegisterExternalTexture(View.HZB);
 		PassParameters->HZBSampler = TStaticSamplerState<SF_Point>::GetRHI();
-		
+
+		PassParameters->ScreenSpaceRayTracingDebugOutput = CreateScreenSpaceRayTracingDebugUAV(GraphBuilder, DenoiserInputs->Color->Desc, TEXT("DebugSSR"), true);
 		PassParameters->RenderTargets = RenderTargets;
 
 		TShaderMapRef<FScreenSpaceReflectionsPS> PixelShader(View.ShaderMap, PermutationVector);
@@ -525,76 +707,220 @@ void RenderScreenSpaceDiffuseIndirect(
 	
 	const int32 Quality = FMath::Clamp( CVarSSGIQuality.GetValueOnRenderThread(), 1, 4 );
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FIntPoint GroupSize;
+	int32 RayCountPerPixel;
+	GetSSRTGIShaderOptionsForQuality(Quality, &GroupSize, &RayCountPerPixel);
 
-	// Allocate outputs.
+	FRDGTexture* FurthestHZBTexture = GraphBuilder.RegisterExternalTexture(View.HZB);
+	FRDGTexture* ClosestHZBTexture = GraphBuilder.RegisterExternalTexture(View.ClosestHZB);
+	FRDGTexture* ColorTexture = GraphBuilder.RegisterExternalTexture(TemporalAAHistory.RT[0]);
+
+	// Reproject and reduce previous frame color.
+	FRDGTexture* ReducedSceneColor;
 	{
-		FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
-			SceneTextures.SceneDepthBuffer->Desc.Extent,
-			PF_FloatRGBA,
-			FClearValueBinding::None,
-			/* InFlags = */ TexCreate_None,
-			/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV,
-			/* bInForceSeparateTargetAndShaderResource = */ false);
+		// Allocate ReducedSceneColor.
+		{
+			FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
+				SceneTextures.SceneDepthBuffer->Desc.Extent,
+				PF_FloatRGBA, // TODO: might be worth using FloatRGB + R8
+				FClearValueBinding::None,
+				/* InFlags = */ TexCreate_None,
+				/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
+				/* bInForceSeparateTargetAndShaderResource = */ false);
+			Desc.NumMips = 9;
 
-		OutDenoiserInputs->Color = GraphBuilder.CreateTexture(Desc, TEXT("SSRTDiffuseIndirect"));
+			ReducedSceneColor = GraphBuilder.CreateTexture(Desc, TEXT("SSRTReducedSceneColor"));
+		}
 
-		Desc.Format = PF_R16F;
-		OutDenoiserInputs->AmbientOcclusionMask = GraphBuilder.CreateTexture(Desc, TEXT("SSRTAmbientOcclusion"));
+		FSSRTPrevFrameReductionCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSSRTPrevFrameReductionCS::FParameters>();
+
+		FIntPoint ViewportOffset = TemporalAAHistory.ViewportRect.Min;
+		FIntPoint ViewportExtent = TemporalAAHistory.ViewportRect.Size();
+		FIntPoint BufferSize = TemporalAAHistory.ReferenceBufferSize;
+
+		PassParameters->PrevScreenPositionScaleBias = FVector4(
+			ViewportExtent.X * 0.5f / BufferSize.X,
+			-ViewportExtent.Y * 0.5f / BufferSize.Y,
+			(ViewportExtent.X * 0.5f + ViewportOffset.X) / BufferSize.X,
+			(ViewportExtent.Y * 0.5f + ViewportOffset.Y) / BufferSize.Y);
+
+		PassParameters->PrevSceneColorPreExposureCorrection = View.PreExposure / View.PrevViewInfo.SceneColorPreExposure;
+		PassParameters->MinimumLuminance = CVarSSGIMinimumLuminance.GetValueOnRenderThread();
+
+		PassParameters->bIsTemporalAAHistory = true;
+		PassParameters->PrevTemporalAAHistory = ColorTexture;
+		PassParameters->PrevTemporalAAHistorySampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
+
+		PassParameters->SceneTextures = SceneTextures;
+		SetupSceneTextureSamplers(&PassParameters->SceneTextureSamplers);
+		PassParameters->View = View.ViewUniformBuffer;
+
+		for (int32 MipLevel = 0; MipLevel < PassParameters->ReducedSceneColorOutput.Num(); MipLevel++)
+		{
+			PassParameters->ReducedSceneColorOutput[MipLevel] = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ReducedSceneColor, MipLevel));
+		}
+
+		FSSRTPrevFrameReductionCS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FSSRTPrevFrameReductionCS::FLowerMips>(false);
+
+		TShaderMapRef<FSSRTPrevFrameReductionCS> ComputeShader(View.ShaderMap, PermutationVector);
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("PrevFrameReduction %dx%d", View.ViewRect.Width(), View.ViewRect.Height()),
+			*ComputeShader,
+			PassParameters,
+			FComputeShaderUtils::GetGroupCount(View.ViewRect.Size(), 8));
 	}
 
-	FRDGTexture* HZBTexture	= GraphBuilder.RegisterExternalTexture( View.HZB );
-	FRDGTexture* ColorTexture	= GraphBuilder.RegisterExternalTexture( TemporalAAHistory.RT[0] );
+	for (int32 i = 0; i < 2; i++)
+	{
+		int32 SrcMip = i * 3 + 2;
+		int32 StartDestMip = SrcMip + 1;
+		int32 Divisor = 1 << StartDestMip;
 
-	FScreenSpaceDiffuseIndirectCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenSpaceDiffuseIndirectCS::FParameters>();
+		FSSRTPrevFrameReductionCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSSRTPrevFrameReductionCS::FParameters>();
+		PassParameters->HigherMipTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMipLevel(ReducedSceneColor, SrcMip));
+		PassParameters->HigherMipTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
+		PassParameters->TexelSize = Divisor;
 
-	PassParameters->HZBTexture = HZBTexture;
-	PassParameters->HZBSampler = TStaticSamplerState< SF_Point, AM_Clamp, AM_Clamp, AM_Clamp >::GetRHI();
+		PassParameters->SceneTextures = SceneTextures;
+		SetupSceneTextureSamplers(&PassParameters->SceneTextureSamplers);
+		PassParameters->View = View.ViewUniformBuffer;
 
-	PassParameters->VelocityTexture = SceneTextures.SceneVelocityBuffer;
-	PassParameters->VelocitySampler = TStaticSamplerState< SF_Point, AM_Clamp, AM_Clamp, AM_Clamp >::GetRHI();
+		for (int32 MipLevel = 0; MipLevel < PassParameters->ReducedSceneColorOutput.Num(); MipLevel++)
+		{
+			PassParameters->ReducedSceneColorOutput[MipLevel] = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ReducedSceneColor, StartDestMip + MipLevel));
+		}
 
-	PassParameters->ColorTexture = ColorTexture;
-	PassParameters->ColorSampler = TStaticSamplerState< SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp >::GetRHI();
+		FSSRTPrevFrameReductionCS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FSSRTPrevFrameReductionCS::FLowerMips>(true);
 
-	const FVector2D HZBUvFactor(
-		float( View.ViewRect.Width() )  / float( 2 * View.HZBMipmap0Size.X ),
-		float( View.ViewRect.Height() ) / float( 2 * View.HZBMipmap0Size.Y )
-		);
+		TShaderMapRef<FSSRTPrevFrameReductionCS> ComputeShader(View.ShaderMap, PermutationVector);
+		ClearUnusedGraphResources(*ComputeShader, PassParameters);
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("PrevFrameReduction %dx%d", View.ViewRect.Width() / Divisor, View.ViewRect.Height() / Divisor),
+			PassParameters,
+			ERDGPassFlags::Compute | ERDGPassFlags::GenerateMips,
+			[PassParameters, ComputeShader, &View](FRHICommandList& RHICmdList)
+		{
+			FComputeShaderUtils::Dispatch(RHICmdList, *ComputeShader, *PassParameters, FComputeShaderUtils::GetGroupCount(View.ViewRect.Size(), 32));
+		});
+	}
+
+	// Tile classify.
+	FSSRTTileClassificationParameters ClassificationParameters;
+	FSSRTTileClassificationResources ClassificationResources;
+	{
+		ClassificationResources = CreateTileClassificationResources(GraphBuilder, View, SceneTextures.SceneDepthBuffer->Desc.Extent, &ClassificationParameters);
+
+		FIntPoint ThreadCount = ClassificationParameters.TileBufferExtent;
+
+		FSSRTDiffuseTileClassificationCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSSRTDiffuseTileClassificationCS::FParameters>();
+		PassParameters->SamplePixelToHZBUV = FVector2D(
+			0.5f / float(FurthestHZBTexture->Desc.Extent.X),
+			0.5f / float(FurthestHZBTexture->Desc.Extent.Y));
+
+		PassParameters->FurthestHZBTexture = FurthestHZBTexture;
+		PassParameters->FurthestHZBTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
+		PassParameters->ColorTexture = ReducedSceneColor;
+		PassParameters->ColorTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
+
+		PassParameters->ClosestHZBTexture = ClosestHZBTexture;
+		PassParameters->ClosestHZBTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
+
+		PassParameters->View = View.ViewUniformBuffer;
+
+		PassParameters->TileClassificationParameters = ClassificationParameters;
+		PassParameters->TileClassificationUAVs = CreateUAVs(GraphBuilder, ClassificationResources);
+
+		{
+			FRDGTextureDesc DebugDesc = FRDGTextureDesc::Create2DDesc(
+				SceneTextures.SceneDepthBuffer->Desc.Extent / 8,
+				PF_FloatRGBA,
+				FClearValueBinding::Transparent,
+				/* InFlags = */ TexCreate_None,
+				/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
+				/* bInForceSeparateTargetAndShaderResource = */ false);
+
+			PassParameters->DebugOutput = GraphBuilder.CreateUAV(GraphBuilder.CreateTexture(DebugDesc, TEXT("DebugSSRTTiles")));
+		}
+
+		TShaderMapRef<FSSRTDiffuseTileClassificationCS> ComputeShader(View.ShaderMap);
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("ScreenSpaceDiffuseClassification %dx%d", ThreadCount.X, ThreadCount.Y),
+			*ComputeShader,
+			PassParameters,
+			FComputeShaderUtils::GetGroupCount(ThreadCount, 8));
+	}
+
+	{
+		// Allocate outputs.
+		{
+			FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
+				SceneTextures.SceneDepthBuffer->Desc.Extent,
+				PF_FloatRGBA,
+				FClearValueBinding::Transparent,
+				/* InFlags = */ TexCreate_None,
+				/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
+				/* bInForceSeparateTargetAndShaderResource = */ false);
+
+			OutDenoiserInputs->Color = GraphBuilder.CreateTexture(Desc, TEXT("SSRTDiffuseIndirect"));
+
+			Desc.Format = PF_R16F;
+			OutDenoiserInputs->AmbientOcclusionMask = GraphBuilder.CreateTexture(Desc, TEXT("SSRTAmbientOcclusion"));
+		}
+
+		FScreenSpaceDiffuseIndirectCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenSpaceDiffuseIndirectCS::FParameters>();
+
+		PassParameters->FurthestHZBTexture = FurthestHZBTexture;
+		PassParameters->FurthestHZBTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
+		PassParameters->ColorTexture = ReducedSceneColor;
+		PassParameters->ColorTextureSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
+
+		const FVector2D HZBUvFactor(
+			float( View.ViewRect.Width() )  / float( 2 * View.HZBMipmap0Size.X ),
+			float( View.ViewRect.Height() ) / float( 2 * View.HZBMipmap0Size.Y )
+			);
 			
-	PassParameters->HZBUvFactorAndInvFactor = FVector4(
-		HZBUvFactor.X,
-		HZBUvFactor.Y,
-		1.0f / HZBUvFactor.X,
-		1.0f / HZBUvFactor.Y );
+		PassParameters->HZBUvFactorAndInvFactor = FVector4(
+			HZBUvFactor.X,
+			HZBUvFactor.Y,
+			1.0f / HZBUvFactor.X,
+			1.0f / HZBUvFactor.Y );
 
-	FIntPoint ViewportOffset	= TemporalAAHistory.ViewportRect.Min;
-	FIntPoint ViewportExtent	= TemporalAAHistory.ViewportRect.Size();
-	FIntPoint BufferSize		= TemporalAAHistory.ReferenceBufferSize;
+		FIntPoint ViewportOffset	= TemporalAAHistory.ViewportRect.Min;
+		FIntPoint ViewportExtent	= TemporalAAHistory.ViewportRect.Size();
+		FIntPoint BufferSize		= TemporalAAHistory.ReferenceBufferSize;
 
-	PassParameters->PrevScreenPositionScaleBias = FVector4(
-		 ViewportExtent.X * 0.5f / BufferSize.X,
-		-ViewportExtent.Y * 0.5f / BufferSize.Y,
-		(ViewportExtent.X * 0.5f + ViewportOffset.X) / BufferSize.X,
-		(ViewportExtent.Y * 0.5f + ViewportOffset.Y) / BufferSize.Y );
+		PassParameters->PrevScreenPositionScaleBias = FVector4(
+			 ViewportExtent.X * 0.5f / BufferSize.X,
+			-ViewportExtent.Y * 0.5f / BufferSize.Y,
+			(ViewportExtent.X * 0.5f + ViewportOffset.X) / BufferSize.X,
+			(ViewportExtent.Y * 0.5f + ViewportOffset.Y) / BufferSize.Y );
 
-	PassParameters->PrevSceneColorPreExposureCorrection = View.PreExposure / View.PrevViewInfo.SceneColorPreExposure;
-
-	PassParameters->SceneTextures = SceneTextures;
-	SetupSceneTextureSamplers(&PassParameters->SceneTextureSamplers);
-	PassParameters->View = View.ViewUniformBuffer;
+		PassParameters->SceneTextures = SceneTextures;
+		SetupSceneTextureSamplers(&PassParameters->SceneTextureSamplers);
+		PassParameters->View = View.ViewUniformBuffer;
 	
-	PassParameters->IndirectDiffuseOutput = GraphBuilder.CreateUAV(OutDenoiserInputs->Color);
-	PassParameters->AmbientOcclusionOutput = GraphBuilder.CreateUAV(OutDenoiserInputs->AmbientOcclusionMask);
+		PassParameters->ClassificationParameters = ClassificationParameters;
+		PassParameters->ClassificationSRVs = CreateSRVs(GraphBuilder, ClassificationResources);
 
-	FScreenSpaceDiffuseIndirectCS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FScreenSpaceDiffuseIndirectCS::FQualityDim>(Quality);
+		PassParameters->IndirectDiffuseOutput = GraphBuilder.CreateUAV(OutDenoiserInputs->Color);
+		PassParameters->AmbientOcclusionOutput = GraphBuilder.CreateUAV(OutDenoiserInputs->AmbientOcclusionMask);
+		PassParameters->DebugOutput = CreateScreenSpaceRayTracingDebugUAV(GraphBuilder, OutDenoiserInputs->Color->Desc, TEXT("DebugSSGI"));
+		PassParameters->ScreenSpaceRayTracingDebugOutput = CreateScreenSpaceRayTracingDebugUAV(GraphBuilder, OutDenoiserInputs->Color->Desc, TEXT("DebugSSGIMarshing"), true);
 
-	TShaderMapRef<FScreenSpaceDiffuseIndirectCS> ComputeShader(View.ShaderMap, PermutationVector);
-	FComputeShaderUtils::AddPass(
-		GraphBuilder,
-		RDG_EVENT_NAME("ScreenSpaceDiffuseIndirect(Quality=%d) %dx%d", Quality, View.ViewRect.Width(), View.ViewRect.Height()),
-		*ComputeShader,
-		PassParameters,
-		FComputeShaderUtils::GetGroupCount(View.ViewRect.Size(), 8));
+		FScreenSpaceDiffuseIndirectCS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FScreenSpaceDiffuseIndirectCS::FQualityDim>(Quality);
+
+		TShaderMapRef<FScreenSpaceDiffuseIndirectCS> ComputeShader(View.ShaderMap, PermutationVector);
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("ScreenSpaceDiffuseIndirect(Quality=%d RayPerPixel=%d) %dx%d",
+				Quality, RayCountPerPixel, View.ViewRect.Width(), View.ViewRect.Height()),
+			*ComputeShader,
+			PassParameters,
+			FComputeShaderUtils::GetGroupCount(View.ViewRect.Size(), GroupSize));
+	}
 } // RenderScreenSpaceDiffuseIndirect()
