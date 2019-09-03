@@ -160,6 +160,9 @@ public:
 	*/
 	FGuid BaseScriptID;
 
+	/** Configuration options */
+	TArray<FString> AdditionalDefines;
+
 	/**
 	* The hash of the subgraph this shader primarily represents.
 	*/
@@ -665,7 +668,7 @@ public:
 	const FString& GetFriendlyName()	const { return FriendlyName; }
 
 
-	NIAGARASHADER_API void SetScript(UNiagaraScript *InScript, ERHIFeatureLevel::Type InFeatureLevel, const FGuid& InCompilerVersion, const FGuid& InBaseScriptID,
+	NIAGARASHADER_API void SetScript(UNiagaraScript *InScript, ERHIFeatureLevel::Type InFeatureLevel, const FGuid& InCompilerVersion, const FGuid& InBaseScriptID, const TArray<FString>& InAdditionalDefines,
 		const FNiagaraCompileHash& InBaseCompileHash, const TArray<FNiagaraCompileHash>& InReferencedCompileHashes, const TArray<FGuid>& InReferencedDependencyIds, FString InFriendlyName);
 
 	UNiagaraScript *GetBaseVMScript()
@@ -740,6 +743,9 @@ private:
 
 	/** Guid id for base script*/
 	FGuid BaseScriptId;
+
+	/** Configuration options */
+	TArray<FString> AdditionalDefines;
 
 	/** Compile hash for the base script. */
 	FNiagaraCompileHash BaseCompileHash;

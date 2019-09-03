@@ -128,6 +128,10 @@ void FNiagaraShaderMapId::Serialize(FArchive& Ar)
 		Ar << BaseCompileHash;
 		Ar << ReferencedCompileHashes;
 	}
+	if (NiagaraVer >= FNiagaraCustomVersion::AddAdditionalDefinesProperty)
+	{
+		Ar << AdditionalDefines;
+	}
 	
 	//ParameterSet.Serialize(Ar);		// NIAGARATODO: at some point we'll need stuff for static switches here
 }
@@ -142,6 +146,11 @@ void FNiagaraShaderMapId::GetScriptHash(FSHAHash& OutHash) const
 	HashState.Update(BaseCompileHash.GetData(), FNiagaraCompileHash::HashSize);
 	HashState.Update((const uint8*)&FeatureLevel, sizeof(FeatureLevel));
 		
+	for (int32 Index = 0; Index < AdditionalDefines.Num(); Index++)
+	{
+		HashState.UpdateWithString(*AdditionalDefines[Index], AdditionalDefines[Index].Len());
+	}
+
 	for (int32 Index = 0; Index < ReferencedCompileHashes.Num(); Index++)
 	{
 		HashState.Update(ReferencedCompileHashes[Index].GetData(), FNiagaraCompileHash::HashSize);
@@ -172,6 +181,18 @@ bool FNiagaraShaderMapId::operator==(const FNiagaraShaderMapId& ReferenceSet) co
 		|| CompilerVersionID != ReferenceSet.CompilerVersionID)
 	{
 		return false;
+	}
+	if (AdditionalDefines.Num() != ReferenceSet.AdditionalDefines.Num())
+	{
+		return false;
+	}
+
+	for (int32 i = 0; i < AdditionalDefines.Num(); i++)
+	{
+		if (AdditionalDefines[i] != ReferenceSet.AdditionalDefines[i])
+		{
+			return false;
+		}
 	}
 
 	if (ReferencedCompileHashes.Num() != ReferenceSet.ReferencedCompileHashes.Num())
@@ -233,6 +254,16 @@ void FNiagaraShaderMapId::AppendKeyString(FString& KeyString) const
 
 	KeyString += CompilerVersionID.ToString();
 	KeyString += TEXT("_");
+
+	// Add additional defines
+	for (int32 DefinesIndex = 0; DefinesIndex < AdditionalDefines.Num(); DefinesIndex++)
+	{
+		KeyString += AdditionalDefines[DefinesIndex];
+		if (DefinesIndex < AdditionalDefines.Num() - 1)
+		{
+			KeyString += TEXT("_");
+		}
+	}
 
 	// Add any referenced top level compile hashes to the key so that we will recompile when they are changed
 	for (int32 HashIndex = 0; HashIndex < ReferencedCompileHashes.Num(); HashIndex++)
