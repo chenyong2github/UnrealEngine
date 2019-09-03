@@ -1072,6 +1072,51 @@ FORCEINLINE uint32 GetTypeHash(const FVector& Vector)
 	}
 #endif
 
+/**
+ * Util to calculate closest point from a point to a bounding box
+ *
+ * @param Min 3D Point defining the lower values of the axis of the bound box
+ * @param Max 3D Point defining the lower values of the axis of the bound box
+ * @param Point 3D position of interest
+ * @return If point is outside box, returns closest point on box.  If point inside, returns point
+ */
+FORCEINLINE FVector GetClosestPointFromBoxToPoint(const FVector& Min, const FVector& Max, const FVector& Point)
+{
+	// start by considering the point inside the box
+	FVector ClosestPoint = Point;
+
+	// now clamp to inside box if it's outside
+	if (Point.X < Min.X)
+	{
+		ClosestPoint.X = Min.X;
+	}
+	else if (Point.X > Max.X)
+	{
+		ClosestPoint.X = Max.X;
+	}
+
+	// now clamp to inside box if it's outside
+	if (Point.Y < Min.Y)
+	{
+		ClosestPoint.Y = Min.Y;
+	}
+	else if (Point.Y > Max.Y)
+	{
+		ClosestPoint.Y = Max.Y;
+	}
+
+	// Now clamp to inside box if it's outside.
+	if (Point.Z < Min.Z)
+	{
+		ClosestPoint.Z = Min.Z;
+	}
+	else if (Point.Z > Max.Z)
+	{
+		ClosestPoint.Z = Max.Z;
+	}
+
+	return ClosestPoint;
+}
 
 /** 
  * Util to calculate distance from a point to a bounding box 
@@ -1083,41 +1128,8 @@ FORCEINLINE uint32 GetTypeHash(const FVector& Vector)
  */
 FORCEINLINE float ComputeSquaredDistanceFromBoxToPoint(const FVector& Mins, const FVector& Maxs, const FVector& Point)
 {
-	// Accumulates the distance as we iterate axis
-	float DistSquared = 0.f;
-
-	// Check each axis for min/max and add the distance accordingly
-	// NOTE: Loop manually unrolled for > 2x speed up
-	if (Point.X < Mins.X)
-	{
-		DistSquared += FMath::Square(Point.X - Mins.X);
-	}
-	else if (Point.X > Maxs.X)
-	{
-		DistSquared += FMath::Square(Point.X - Maxs.X);
-	}
-	
-	if (Point.Y < Mins.Y)
-	{
-		DistSquared += FMath::Square(Point.Y - Mins.Y);
-	}
-	else if (Point.Y > Maxs.Y)
-	{
-		DistSquared += FMath::Square(Point.Y - Maxs.Y);
-	}
-	
-	if (Point.Z < Mins.Z)
-	{
-		DistSquared += FMath::Square(Point.Z - Mins.Z);
-	}
-	else if (Point.Z > Maxs.Z)
-	{
-		DistSquared += FMath::Square(Point.Z - Maxs.Z);
-	}
-	
-	return DistSquared;
+	return (GetClosestPointFromBoxToPoint(Mins, Maxs, Point) - Point).SizeSquared();
 }
-
 
 FORCEINLINE FVector::FVector(const FVector2D V, float InZ)
 	: X(V.X), Y(V.Y), Z(InZ)
