@@ -7,6 +7,8 @@
 #include "PropertyEditorModule.h"
 #include "IDetailsView.h"
 #include "Editor.h"
+#include "Widgets/Input/SHyperlink.h"
+#include "SourceCodeNavigation.h"
 
 
 #define LOCTEXT_NAMESPACE "GenericEditor"
@@ -84,6 +86,7 @@ void FSimpleAssetEditor::InitEditor( const EToolkitMode::Type Mode, const TShare
 	const bool bCreateDefaultToolbar = true;
 	FAssetEditorToolkit::InitAssetEditor( Mode, InitToolkitHost, FSimpleAssetEditor::SimpleEditorAppIdentifier, StandaloneDefaultLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, ObjectsToEdit );
 
+	RegenerateMenusAndToolbars();
 	// @todo toolkit world centric editing
 	// Setup our tool's layout
 	/*if( IsWorldCentricAssetEditor() && !PropertiesTab.IsValid() )
@@ -297,6 +300,61 @@ TSharedRef<FSimpleAssetEditor> FSimpleAssetEditor::CreateEditor( const EToolkitM
 	TSharedRef< FSimpleAssetEditor > NewEditor( new FSimpleAssetEditor() );
 	NewEditor->InitEditor( Mode, InitToolkitHost, ObjectsToEdit, GetDetailsViewObjects );
 	return NewEditor;
+}
+
+void FSimpleAssetEditor::PostRegenerateMenusAndToolbars()
+{
+	// Find the common denominator class of the assets we're editing
+	TArray<UClass*> ClassList;
+	for (UObject* Obj : EditingObjects)
+	{
+		check(Obj);
+		ClassList.Add(Obj->GetClass());
+	}
+
+	UClass* CommonDenominatorClass = UClass::FindCommonBase(ClassList);
+	const bool bNotAllSame = (EditingObjects.Num() > 0) && (EditingObjects[0]->GetClass() != CommonDenominatorClass);
+
+	// Provide a hyperlink to view that native class
+	if (CommonDenominatorClass)
+	{
+		TWeakObjectPtr<UClass> WeakClassPtr(CommonDenominatorClass);
+		auto OnNavigateToClassCode = [WeakClassPtr]()
+		{
+			if (UClass* StrongClassPtr = WeakClassPtr.Get())
+			{
+				if (FSourceCodeNavigation::CanNavigateToClass(StrongClassPtr))
+				{
+					FSourceCodeNavigation::NavigateToClass(StrongClassPtr);
+				}
+			}
+		};
+
+		// build and attach the menu overlay
+		TSharedRef<SHorizontalBox> MenuOverlayBox = SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+				.ShadowOffset(FVector2D::UnitVector)
+				.Text(bNotAllSame ? LOCTEXT("SimpleAssetEditor_AssetType_Varied", "Common Asset Type: ") : LOCTEXT("SimpleAssetEditor_AssetType", "Asset Type: "))
+			]
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(0.0f, 0.0f, 8.0f, 0.0f)
+			[
+				SNew(SHyperlink)
+				.Style(FEditorStyle::Get(), "Common.GotoNativeCodeHyperlink")
+				.OnNavigate_Lambda(OnNavigateToClassCode)
+				.Text(FText::FromName(CommonDenominatorClass->GetFName()))
+				.ToolTipText(FText::Format(LOCTEXT("GoToCode_ToolTip", "Click to open this source file in {0}"), FSourceCodeNavigation::GetSelectedSourceCodeIDE()))
+			];
+	
+		SetMenuOverlay(MenuOverlayBox);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
