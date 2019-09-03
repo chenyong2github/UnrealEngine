@@ -35,7 +35,7 @@ public:
 
 	void AllocateResources(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel);
 	void CallPendingCallbacks();
-	void Update( FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel );
+	void Update( FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FScene* Scene);
 
 	IAllocatedVirtualTexture* AllocateVirtualTexture(const FAllocatedVTDescription& Desc);
 	void DestroyVirtualTexture(IAllocatedVirtualTexture* AllocatedVT);
