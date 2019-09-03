@@ -128,6 +128,82 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 
 	int2 ViewportCenter = (int2)(ViewportRect.xy + ViewportSize.xy / 2);
 
+	// Luminance meter at the center of the screen
+	{
+		const float PixelDx = abs(PixelPos.x - ViewportCenter.x);
+		const float PixelDy = abs(PixelPos.y - ViewportCenter.y);
+		if (PixelDx < 100 && PixelDy < 40)
+		{
+			float3 LuminanceAvg = 0.0f;
+			float3 SceneColorAvg = 0.0f;
+			float SampleCount = 0.0f;
+			float MeterSize = 10.0f;
+			for (float OffsetX = -MeterSize; OffsetX <= MeterSize; OffsetX++)
+			{
+				for (float OffsetY = -MeterSize; OffsetY <= MeterSize; OffsetY++)
+				{
+					float2 UV = (((ViewportCenter.xy + 0.5) + float2(OffsetX, OffsetY)) / ViewportSize.xy) * View.ViewSizeAndInvSize.xy * View.BufferSizeAndInvSize.zw + ViewportRect.xy * ViewportSize.zw;
+					LuminanceAvg  += Texture2DSample(PostprocessInput2, PostprocessInput2Sampler, UV).rgb;
+					SceneColorAvg += Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, UV).rgb;
+					SampleCount++;
+				}
+			}
+			LuminanceAvg  = LuminanceAvg / SampleCount;
+			SceneColorAvg = SceneColorAvg / SampleCount;
+		#if USE_PREEXPOSURE
+			LuminanceAvg *= View.OneOverPreExposure;
+		#endif
+			if (PixelDx < MeterSize && PixelDy < MeterSize)
+			{
+				if (PixelDx == MeterSize-1 || PixelDy == MeterSize-1)
+				{
+					OutColor = float4(1.0, 1.0, 1.0, 1.0); // White border
+				}
+				else
+				{
+					OutColor = float4(SceneColorAvg, 1.0); // Inner visor average color
+				}
+			}
+			else
+			{
+				OutColor = Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, UV); // Influenced area default scene color
+			}
+
+			float MaxLuminance = max(LuminanceAvg.r, max(LuminanceAvg.g, LuminanceAvg.b));
+			float MaxIlluminance = MaxLuminance * PI;
+
+			// Luminance
+			int2 TopLeft = ViewportCenter + int2(11, 11);
+			if (MaxLuminance < 100.0f)
+			{
+				PrintSmallFloat(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, MaxLuminance);
+			}
+			else
+			{
+				PrintFloatNoFractionLarge(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, MaxLuminance);
+			}
+			TopLeft.x += 54;
+			PrintCharacter(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, _N_);
+			PrintCharacter(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, _I_);
+			PrintCharacter(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, _T_);
+			// Illuminance
+			TopLeft = ViewportCenter + int2(11, 22);
+			if (MaxIlluminance < 100.0f)
+			{
+				PrintSmallFloat(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, MaxIlluminance);
+			}
+			else
+			{
+				PrintFloatNoFractionLarge(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, MaxIlluminance);
+			}
+			TopLeft.x += 54;
+			PrintCharacter(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, _L_);
+			PrintCharacter(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, _U_);
+			PrintCharacter(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, _X_);
+			return;
+		}
+	}
+
 	// background is the scene color
 	float2 PIPTopLeft = float2(.6, .2);
 	float2 PIPBottomRight = float2(.9, .5);
