@@ -120,6 +120,10 @@ bool actions::LoadPatch::Execute(const CommandType* command, const DuplexPipe* p
 		}
 	}
 	// END EPIC MOD
+	// BEGIN EPIC MOD - Support for object reinstancing. We need to call a global post-patch handler, rather than just getting individual callbacks for modified modules.
+	extern bool GHasLoadedPatch;
+	GHasLoadedPatch = true;
+	// END EPIC MOD
 
 	pipe->SendAck();
 
