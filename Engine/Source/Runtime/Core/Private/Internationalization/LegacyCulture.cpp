@@ -6,7 +6,7 @@
 
 #if !UE_ENABLE_ICU
 
-FCulture::FLegacyCultureImplementation::FLegacyCultureImplementation(
+FLegacyCultureImplementation::FLegacyCultureImplementation(
 	const FText& InDisplayName, 
 	const FString& InEnglishName, 
 	const int InKeyboardLayoutId, 
@@ -35,42 +35,42 @@ FCulture::FLegacyCultureImplementation::FLegacyCultureImplementation(
 { 
 }
 
-FString FCulture::FLegacyCultureImplementation::GetDisplayName() const
+FString FLegacyCultureImplementation::GetDisplayName() const
 {
 	return DisplayName.ToString();
 }
 
-FString FCulture::FLegacyCultureImplementation::GetEnglishName() const
+FString FLegacyCultureImplementation::GetEnglishName() const
 {
 	return EnglishName;
 }
 
-int FCulture::FLegacyCultureImplementation::GetKeyboardLayoutId() const
+int FLegacyCultureImplementation::GetKeyboardLayoutId() const
 {
 	return KeyboardLayoutId;
 }
 
-int FCulture::FLegacyCultureImplementation::GetLCID() const
+int FLegacyCultureImplementation::GetLCID() const
 {
 	return LCID;
 }
 
-FString FCulture::FLegacyCultureImplementation::GetName() const
+FString FLegacyCultureImplementation::GetName() const
 {
 	return Name;
 }
 
-FString FCulture::FLegacyCultureImplementation::GetCanonicalName(const FString& Name)
+FString FLegacyCultureImplementation::GetCanonicalName(const FString& Name)
 {
 	return Name;
 }
 
-FString FCulture::FLegacyCultureImplementation::GetNativeName() const
+FString FLegacyCultureImplementation::GetNativeName() const
 {
 	return NativeName;
 }
 
-FString FCulture::FLegacyCultureImplementation::GetNativeLanguage() const
+FString FLegacyCultureImplementation::GetNativeLanguage() const
 {
 	int32 LastBracket = INDEX_NONE;
 	int32 FirstBracket = INDEX_NONE;
@@ -81,7 +81,7 @@ FString FCulture::FLegacyCultureImplementation::GetNativeLanguage() const
 	return NativeName;
 }
 
-FString FCulture::FLegacyCultureImplementation::GetNativeRegion() const
+FString FLegacyCultureImplementation::GetNativeRegion() const
 {
 	int32 LastBracket = INDEX_NONE;
 	int32 FirstBracket = INDEX_NONE;
@@ -92,32 +92,47 @@ FString FCulture::FLegacyCultureImplementation::GetNativeRegion() const
 	return NativeName;
 }
 
-FString FCulture::FLegacyCultureImplementation::GetUnrealLegacyThreeLetterISOLanguageName() const
+FString FLegacyCultureImplementation::GetRegion() const
+{
+	return FString();
+}
+
+FString FLegacyCultureImplementation::GetScript() const
+{
+	return FString();
+}
+
+FString FLegacyCultureImplementation::GetVariant() const
+{
+	return FString();
+}
+
+FString FLegacyCultureImplementation::GetUnrealLegacyThreeLetterISOLanguageName() const
 {
 	return UnrealLegacyThreeLetterISOLanguageName;
 }
 
-FString FCulture::FLegacyCultureImplementation::GetThreeLetterISOLanguageName() const
+FString FLegacyCultureImplementation::GetThreeLetterISOLanguageName() const
 {
 	return ThreeLetterISOLanguageName;
 }
 
-FString FCulture::FLegacyCultureImplementation::GetTwoLetterISOLanguageName() const
+FString FLegacyCultureImplementation::GetTwoLetterISOLanguageName() const
 {
 	return TwoLetterISOLanguageName;
 }
 
-const FDecimalNumberFormattingRules& FCulture::FLegacyCultureImplementation::GetDecimalNumberFormattingRules()
+const FDecimalNumberFormattingRules& FLegacyCultureImplementation::GetDecimalNumberFormattingRules()
 {
 	return DecimalNumberFormattingRules;
 }
 
-const FDecimalNumberFormattingRules& FCulture::FLegacyCultureImplementation::GetPercentFormattingRules()
+const FDecimalNumberFormattingRules& FLegacyCultureImplementation::GetPercentFormattingRules()
 {
 	return PercentFormattingRules;
 }
 
-const FDecimalNumberFormattingRules& FCulture::FLegacyCultureImplementation::GetCurrencyFormattingRules(const FString& InCurrencyCode)
+const FDecimalNumberFormattingRules& FLegacyCultureImplementation::GetCurrencyFormattingRules(const FString& InCurrencyCode)
 {
 	const bool bUseDefaultFormattingRules = InCurrencyCode.IsEmpty();
 
@@ -191,19 +206,19 @@ ETextPluralForm GetDefaultPluralForm(T Val, const ETextPluralType PluralType)
 
 }
 
-ETextPluralForm FCulture::FLegacyCultureImplementation::GetPluralForm(int32 Val, const ETextPluralType PluralType) const
+ETextPluralForm FLegacyCultureImplementation::GetPluralForm(int32 Val, const ETextPluralType PluralType) const
 {
 	checkf(Val >= 0, TEXT("GetPluralFormImpl requires a positive value"));
 	return GetDefaultPluralForm(Val, PluralType);
 }
 
-ETextPluralForm FCulture::FLegacyCultureImplementation::GetPluralForm(double Val, const ETextPluralType PluralType) const
+ETextPluralForm FLegacyCultureImplementation::GetPluralForm(double Val, const ETextPluralType PluralType) const
 {
 	checkf(!FMath::IsNegativeDouble(Val), TEXT("GetPluralFormImpl requires a positive value"));
 	return GetDefaultPluralForm((int64)Val, PluralType);
 }
 
-const TArray<ETextPluralForm>& FCulture::FLegacyCultureImplementation::GetValidPluralForms(const ETextPluralType PluralType) const
+const TArray<ETextPluralForm>& FLegacyCultureImplementation::GetValidPluralForms(const ETextPluralType PluralType) const
 {
 	if (PluralType == ETextPluralType::Cardinal)
 	{

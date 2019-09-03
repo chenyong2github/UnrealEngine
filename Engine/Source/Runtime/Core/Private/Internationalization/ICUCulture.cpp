@@ -1,6 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Internationalization/ICUCulture.h"
+#include "Internationalization/Cultures/LeetCulture.h"
+#include "Internationalization/Internationalization.h"
 #include "Misc/ScopeLock.h"
 #include "Containers/SortedMap.h"
 #include "Internationalization/FastDecimalFormat.h"
@@ -135,7 +137,7 @@ TArray<ETextPluralForm> ICUPluralRulesToUEValidPluralForms(const icu::PluralRule
 	return UEPluralForms;
 }
 
-FCulture::FICUCultureImplementation::FICUCultureImplementation(const FString& LocaleName)
+FICUCultureImplementation::FICUCultureImplementation(const FString& LocaleName)
 	: ICULocale( TCHAR_TO_ANSI( *LocaleName ) )
 {
 	if (ICULocale.isBogus())
@@ -156,37 +158,41 @@ FCulture::FICUCultureImplementation::FICUCultureImplementation(const FString& Lo
 	}
 }
 
-FString FCulture::FICUCultureImplementation::GetDisplayName() const
+FString FICUCultureImplementation::GetDisplayName() const
 {
 	icu::UnicodeString ICUResult;
 	ICULocale.getDisplayName(ICUResult);
 	return ICUUtilities::ConvertString(ICUResult);
 }
 
-FString FCulture::FICUCultureImplementation::GetEnglishName() const
+FString FICUCultureImplementation::GetEnglishName() const
 {
 	icu::UnicodeString ICUResult;
 	ICULocale.getDisplayName(icu::Locale("en"), ICUResult);
 	return ICUUtilities::ConvertString(ICUResult);
 }
 
-int FCulture::FICUCultureImplementation::GetKeyboardLayoutId() const
+int FICUCultureImplementation::GetKeyboardLayoutId() const
 {
 	return 0;
 }
 
-int FCulture::FICUCultureImplementation::GetLCID() const
+int FICUCultureImplementation::GetLCID() const
 {
 	return ICULocale.getLCID();
 }
 
-FString FCulture::FICUCultureImplementation::GetCanonicalName(const FString& Name)
+FString FICUCultureImplementation::GetCanonicalName(const FString& Name)
 {
 	auto IsLanguageCode = [](const FString& InCode)
 	{
-		// Language codes must be 2 or 3 letters, or out special "LEET" language
-		static const FString LeetLanguageCode = TEXT("LEET");
-		return InCode.Len() == 2 || InCode.Len() == 3 || InCode == LeetLanguageCode;
+		// Language codes must be 2 or 3 letters, or our special "LEET" language
+		return InCode.Len() == 2 
+			|| InCode.Len() == 3 
+#if ENABLE_LOC_TESTING
+			|| InCode == FLeetCulture::StaticGetName()
+#endif
+			;
 	};
 
 	auto IsScriptCode = [](const FString& InCode)
@@ -312,6 +318,12 @@ FString FCulture::FICUCultureImplementation::GetCanonicalName(const FString& Nam
 
 	// Sanitize any nastiness from the culture code
 	const FString SanitizedName = ICUUtilities::SanitizeCultureCode(Name);
+
+	// If the name matches a custom culture, then just accept it as-is
+	if (FInternationalization::Get().GetCustomCulture(SanitizedName))
+	{
+		return SanitizedName;
+	}
 
 	// These will be populated as the string is processed and are used to re-build the canonized string
 	TArray<FNameTag, TInlineAllocator<4>> ParsedNameTags;
@@ -511,21 +523,21 @@ FString FCulture::FICUCultureImplementation::GetCanonicalName(const FString& Nam
 	return CanonicalName;
 }
 
-FString FCulture::FICUCultureImplementation::GetName() const
+FString FICUCultureImplementation::GetName() const
 {
 	FString Result = ICULocale.getName();
 	Result.ReplaceInline(TEXT("_"), TEXT("-"), ESearchCase::IgnoreCase);
 	return Result;
 }
 
-FString FCulture::FICUCultureImplementation::GetNativeName() const
+FString FICUCultureImplementation::GetNativeName() const
 {
 	icu::UnicodeString ICUResult;
 	ICULocale.getDisplayName(ICULocale, ICUResult);
 	return ICUUtilities::ConvertString(ICUResult);
 }
 
-FString FCulture::FICUCultureImplementation::GetUnrealLegacyThreeLetterISOLanguageName() const
+FString FICUCultureImplementation::GetUnrealLegacyThreeLetterISOLanguageName() const
 {
 	FString Result( ICULocale.getISO3Language() );
 
@@ -543,17 +555,17 @@ FString FCulture::FICUCultureImplementation::GetUnrealLegacyThreeLetterISOLangua
 	return Result;
 }
 
-FString FCulture::FICUCultureImplementation::GetThreeLetterISOLanguageName() const
+FString FICUCultureImplementation::GetThreeLetterISOLanguageName() const
 {
 	return ICULocale.getISO3Language();
 }
 
-FString FCulture::FICUCultureImplementation::GetTwoLetterISOLanguageName() const
+FString FICUCultureImplementation::GetTwoLetterISOLanguageName() const
 {
 	return ICULocale.getLanguage();
 }
 
-FString FCulture::FICUCultureImplementation::GetNativeLanguage() const
+FString FICUCultureImplementation::GetNativeLanguage() const
 {
 	icu::UnicodeString ICUNativeLanguage;
 	ICULocale.getDisplayLanguage(ICULocale, ICUNativeLanguage);
@@ -572,12 +584,12 @@ FString FCulture::FICUCultureImplementation::GetNativeLanguage() const
 	return NativeLanguage;
 }
 
-FString FCulture::FICUCultureImplementation::GetRegion() const
+FString FICUCultureImplementation::GetRegion() const
 {
 	return ICULocale.getCountry();
 }
 
-FString FCulture::FICUCultureImplementation::GetNativeRegion() const
+FString FICUCultureImplementation::GetNativeRegion() const
 {
 	icu::UnicodeString ICUNativeCountry;
 	ICULocale.getDisplayCountry(ICULocale, ICUNativeCountry);
@@ -596,17 +608,17 @@ FString FCulture::FICUCultureImplementation::GetNativeRegion() const
 	return NativeCountry;
 }
 
-FString FCulture::FICUCultureImplementation::GetScript() const
+FString FICUCultureImplementation::GetScript() const
 {
 	return ICULocale.getScript();
 }
 
-FString FCulture::FICUCultureImplementation::GetVariant() const
+FString FICUCultureImplementation::GetVariant() const
 {
 	return ICULocale.getVariant();
 }
 
-TSharedRef<const icu::BreakIterator> FCulture::FICUCultureImplementation::GetBreakIterator(const EBreakIteratorType Type)
+TSharedRef<const icu::BreakIterator> FICUCultureImplementation::GetBreakIterator(const EBreakIteratorType Type)
 {
 	TSharedPtr<const icu::BreakIterator> Result;
 
@@ -642,7 +654,7 @@ TSharedRef<const icu::BreakIterator> FCulture::FICUCultureImplementation::GetBre
 	return Result.ToSharedRef();
 }
 
-TSharedRef<const icu::Collator, ESPMode::ThreadSafe> FCulture::FICUCultureImplementation::GetCollator(const ETextComparisonLevel::Type ComparisonLevel)
+TSharedRef<const icu::Collator, ESPMode::ThreadSafe> FICUCultureImplementation::GetCollator(const ETextComparisonLevel::Type ComparisonLevel)
 {
 	if (!ICUCollator.IsValid())
 	{
@@ -664,7 +676,7 @@ TSharedRef<const icu::Collator, ESPMode::ThreadSafe> FCulture::FICUCultureImplem
 	}
 }
 
-TSharedRef<const icu::DateFormat, ESPMode::ThreadSafe> FCulture::FICUCultureImplementation::GetDateFormatter(const EDateTimeStyle::Type DateStyle, const FString& TimeZone)
+TSharedRef<const icu::DateFormat, ESPMode::ThreadSafe> FICUCultureImplementation::GetDateFormatter(const EDateTimeStyle::Type DateStyle, const FString& TimeZone)
 {
 	if (!ICUDateFormat.IsValid())
 	{
@@ -711,7 +723,7 @@ TSharedRef<const icu::DateFormat, ESPMode::ThreadSafe> FCulture::FICUCultureImpl
 	}
 }
 
-TSharedRef<const icu::DateFormat, ESPMode::ThreadSafe> FCulture::FICUCultureImplementation::GetTimeFormatter(const EDateTimeStyle::Type TimeStyle, const FString& TimeZone)
+TSharedRef<const icu::DateFormat, ESPMode::ThreadSafe> FICUCultureImplementation::GetTimeFormatter(const EDateTimeStyle::Type TimeStyle, const FString& TimeZone)
 {
 	if (!ICUTimeFormat.IsValid())
 	{
@@ -758,7 +770,7 @@ TSharedRef<const icu::DateFormat, ESPMode::ThreadSafe> FCulture::FICUCultureImpl
 	}
 }
 
-TSharedRef<const icu::DateFormat, ESPMode::ThreadSafe> FCulture::FICUCultureImplementation::GetDateTimeFormatter(const EDateTimeStyle::Type DateStyle, const EDateTimeStyle::Type TimeStyle, const FString& TimeZone)
+TSharedRef<const icu::DateFormat, ESPMode::ThreadSafe> FICUCultureImplementation::GetDateTimeFormatter(const EDateTimeStyle::Type DateStyle, const EDateTimeStyle::Type TimeStyle, const FString& TimeZone)
 {
 	if (!ICUDateTimeFormat.IsValid())
 	{
@@ -871,7 +883,7 @@ FDecimalNumberFormattingRules ExtractNumberFormattingRulesFromICUDecimalFormatte
 
 } // anonymous namespace
 
-const FDecimalNumberFormattingRules& FCulture::FICUCultureImplementation::GetDecimalNumberFormattingRules()
+const FDecimalNumberFormattingRules& FICUCultureImplementation::GetDecimalNumberFormattingRules()
 {
 	if (UEDecimalNumberFormattingRules.IsValid())
 	{
@@ -901,7 +913,7 @@ const FDecimalNumberFormattingRules& FCulture::FICUCultureImplementation::GetDec
 	return *UEDecimalNumberFormattingRules;
 }
 
-const FDecimalNumberFormattingRules& FCulture::FICUCultureImplementation::GetPercentFormattingRules()
+const FDecimalNumberFormattingRules& FICUCultureImplementation::GetPercentFormattingRules()
 {
 	if (UEPercentFormattingRules.IsValid())
 	{
@@ -931,7 +943,7 @@ const FDecimalNumberFormattingRules& FCulture::FICUCultureImplementation::GetPer
 	return *UEPercentFormattingRules;
 }
 
-const FDecimalNumberFormattingRules& FCulture::FICUCultureImplementation::GetCurrencyFormattingRules(const FString& InCurrencyCode)
+const FDecimalNumberFormattingRules& FICUCultureImplementation::GetCurrencyFormattingRules(const FString& InCurrencyCode)
 {
 	const FString SanitizedCurrencyCode = ICUUtilities::SanitizeCurrencyCode(InCurrencyCode);
 	const bool bUseDefaultFormattingRules = SanitizedCurrencyCode.IsEmpty();
@@ -1002,7 +1014,7 @@ const FDecimalNumberFormattingRules& FCulture::FICUCultureImplementation::GetCur
 	}
 }
 
-ETextPluralForm FCulture::FICUCultureImplementation::GetPluralForm(int32 Val, const ETextPluralType PluralType) const
+ETextPluralForm FICUCultureImplementation::GetPluralForm(int32 Val, const ETextPluralType PluralType) const
 {
 	checkf(Val >= 0, TEXT("GetPluralFormImpl requires a positive value"));
 
@@ -1012,7 +1024,7 @@ ETextPluralForm FCulture::FICUCultureImplementation::GetPluralForm(int32 Val, co
 	return ICUPluralFormToUE(ICUPluralFormTag);
 }
 
-ETextPluralForm FCulture::FICUCultureImplementation::GetPluralForm(double Val, const ETextPluralType PluralType) const
+ETextPluralForm FICUCultureImplementation::GetPluralForm(double Val, const ETextPluralType PluralType) const
 {
 	checkf(!FMath::IsNegativeDouble(Val), TEXT("GetPluralFormImpl requires a positive value"));
 
@@ -1022,7 +1034,7 @@ ETextPluralForm FCulture::FICUCultureImplementation::GetPluralForm(double Val, c
 	return ICUPluralFormToUE(ICUPluralFormTag);
 }
 
-const TArray<ETextPluralForm>& FCulture::FICUCultureImplementation::GetValidPluralForms(const ETextPluralType PluralType) const
+const TArray<ETextPluralForm>& FICUCultureImplementation::GetValidPluralForms(const ETextPluralType PluralType) const
 {
 	return (PluralType == ETextPluralType::Cardinal) ? UEAvailableCardinalPluralForms : UEAvailableOrdinalPluralForms;
 }
